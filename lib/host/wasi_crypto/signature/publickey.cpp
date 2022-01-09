@@ -8,43 +8,40 @@
 namespace WasmEdge {
 namespace Host {
 namespace WASICrypto {
+namespace Signatures {
 
-WasiCryptoExpect<SignaturePublicKey>
-SignaturePublicKey::import(SignatureAlgorithm Alg, Span<const uint8_t> Encoded,
-                           __wasi_publickey_encoding_e_t Encoding) {
-  auto Family = family(Alg);
-  if (!Family) {
-    return WasiCryptoUnexpect(Family);
+WasiCryptoExpect<std::unique_ptr<PublicKey>>
+PublicKey::import(SignatureAlgorithm Alg, Span<const uint8_t> Encoded,
+                  __wasi_publickey_encoding_e_t Encoding) {
+  switch (Alg) {
+  case SignatureAlgorithm::ECDSA_P256_SHA256:
+  case SignatureAlgorithm::ECDSA_K256_SHA256: {
+    return EcdsaPublicKey::import(Alg, Encoded, Encoding);
   }
 
-  switch (*Family) {
-  case SignatureAlgorithmFamily::ECDSA: {
-    auto Res = EcdsaSignaturePublicKey::import(Alg, Encoded, Encoding);
-    if (!Res) {
-      return WasiCryptoUnexpect(Res);
-    }
-
-    return SignaturePublicKey{std::move(*Res)};
+  case SignatureAlgorithm::Ed25519: {
+    return EddsaPublicKey::import(Alg, Encoded, Encoding);
   }
-  case SignatureAlgorithmFamily::EdDSA: {
-    auto Res = EddsaSignaturePublicKey::import(Alg, Encoded, Encoding);
-    if (!Res) {
-      return WasiCryptoUnexpect(Res);
-    }
-    return SignaturePublicKey{std::move(*Res)};
-  }
-  case SignatureAlgorithmFamily::RSA: {
-    auto Res = RsaSignaturePublicKey::import(Alg, Encoded, Encoding);
-    if (!Res) {
-      return WasiCryptoUnexpect(Res);
-    }
-    return SignaturePublicKey{std::move(*Res)};
+  case SignatureAlgorithm::RSA_PKCS1_2048_SHA256:
+  case SignatureAlgorithm::RSA_PKCS1_2048_SHA384:
+  case SignatureAlgorithm::RSA_PKCS1_2048_SHA512:
+  case SignatureAlgorithm::RSA_PKCS1_3072_SHA384:
+  case SignatureAlgorithm::RSA_PKCS1_3072_SHA512:
+  case SignatureAlgorithm::RSA_PKCS1_4096_SHA512:
+  case SignatureAlgorithm::RSA_PSS_2048_SHA256:
+  case SignatureAlgorithm::RSA_PSS_2048_SHA384:
+  case SignatureAlgorithm::RSA_PSS_2048_SHA512:
+  case SignatureAlgorithm::RSA_PSS_3072_SHA384:
+  case SignatureAlgorithm::RSA_PSS_3072_SHA512:
+  case SignatureAlgorithm::RSA_PSS_4096_SHA512: {
+    return RsaPublicKey::import(Alg, Encoded, Encoding);
   }
   default:
-    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INTERNAL_ERROR);
+    assumingUnreachable();
   }
 }
 
+} // namespace Signatures
 } // namespace WASICrypto
 } // namespace Host
 } // namespace WasmEdge

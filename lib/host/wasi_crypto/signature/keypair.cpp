@@ -8,77 +8,62 @@
 namespace WasmEdge {
 namespace Host {
 namespace WASICrypto {
+namespace Signatures {
 
-WasiCryptoExpect<SignatureKeyPair>
-SignatureKeyPair::generate(SignatureAlgorithm Alg,
-                           std::optional<SignatureOptions> Options) {
-  auto Family = family(Alg);
-  if (!Family) {
-    return WasiCryptoUnexpect(Family);
-  }
-
-  switch (*Family) {
-  case SignatureAlgorithmFamily::ECDSA: {
-    auto Res = EcdsaSignatureKeyPair::generate(Alg, Options);
-    if (!Res) {
-      return WasiCryptoUnexpect(Res);
-    }
-    return SignatureKeyPair{std::move(*Res)};
-  }
-  case SignatureAlgorithmFamily::EdDSA: {
-    auto Res = EddsaSignatureKeyPair::generate(Alg, Options);
-    if (!Res) {
-      return WasiCryptoUnexpect(Res);
-    }
-    return SignatureKeyPair{std::move(*Res)};
-  }
-  case SignatureAlgorithmFamily::RSA: {
-    auto Res = RsaSignatureKeyPair::generate(Alg, Options);
-    if (!Res) {
-      return WasiCryptoUnexpect(Res);
-    }
-    return SignatureKeyPair{std::move(*Res)};
-  }
+WasiCryptoExpect<std::unique_ptr<KeyPair>>
+KeyPair::generate(SignatureAlgorithm Alg, std::shared_ptr<Options> Options) {
+  switch (Alg) {
+  case SignatureAlgorithm::ECDSA_P256_SHA256:
+  case SignatureAlgorithm::ECDSA_K256_SHA256:
+    return EcdsaKeyPair::generate(Alg, Options);
+  case SignatureAlgorithm::Ed25519:
+    return EddsaKeyPair::generate(Alg, Options);
+  case SignatureAlgorithm::RSA_PKCS1_2048_SHA256:
+  case SignatureAlgorithm::RSA_PKCS1_2048_SHA384:
+  case SignatureAlgorithm::RSA_PKCS1_2048_SHA512:
+  case SignatureAlgorithm::RSA_PKCS1_3072_SHA384:
+  case SignatureAlgorithm::RSA_PKCS1_3072_SHA512:
+  case SignatureAlgorithm::RSA_PKCS1_4096_SHA512:
+  case SignatureAlgorithm::RSA_PSS_2048_SHA256:
+  case SignatureAlgorithm::RSA_PSS_2048_SHA384:
+  case SignatureAlgorithm::RSA_PSS_2048_SHA512:
+  case SignatureAlgorithm::RSA_PSS_3072_SHA384:
+  case SignatureAlgorithm::RSA_PSS_3072_SHA512:
+  case SignatureAlgorithm::RSA_PSS_4096_SHA512:
+    return RsaKeyPair::generate(Alg, Options);
   default:
-    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INTERNAL_ERROR);
+    assumingUnreachable();
   }
 }
 
-WasiCryptoExpect<SignatureKeyPair>
-SignatureKeyPair::import(SignatureAlgorithm Alg, Span<const uint8_t> Encoded,
-                         __wasi_keypair_encoding_e_t Encoding) {
-  auto Family = family(Alg);
-  if (!Family) {
-    return WasiCryptoUnexpect(Family);
-  }
-
-  switch (*Family) {
-  case SignatureAlgorithmFamily::ECDSA: {
-    auto Res = EcdsaSignatureKeyPair::import(Alg, Encoded, Encoding);
-    if (!Res) {
-      return WasiCryptoUnexpect(Res);
-    }
-    return SignatureKeyPair{std::move(*Res)};
-  }
-  case SignatureAlgorithmFamily::EdDSA: {
-    auto Res = EddsaSignatureKeyPair::import(Alg, Encoded, Encoding);
-    if (!Res) {
-      return WasiCryptoUnexpect(Res);
-    }
-    return SignatureKeyPair{std::move(*Res)};
-  }
-  case SignatureAlgorithmFamily::RSA: {
-    auto Res = RsaSignatureKeyPair::import(Alg, Encoded, Encoding);
-    if (!Res) {
-      return WasiCryptoUnexpect(Res);
-    }
-    return SignatureKeyPair{std::move(*Res)};
-  }
+WasiCryptoExpect<std::unique_ptr<KeyPair>>
+KeyPair::import(SignatureAlgorithm Alg, Span<const uint8_t> Encoded,
+                __wasi_keypair_encoding_e_t Encoding) {
+  switch (Alg) {
+  case SignatureAlgorithm::ECDSA_P256_SHA256:
+  case SignatureAlgorithm::ECDSA_K256_SHA256:
+    return EcdsaKeyPair::import(Alg, Encoded, Encoding);
+  case SignatureAlgorithm::Ed25519:
+    return EddsaKeyPair::import(Alg, Encoded, Encoding);
+  case SignatureAlgorithm::RSA_PKCS1_2048_SHA256:
+  case SignatureAlgorithm::RSA_PKCS1_2048_SHA384:
+  case SignatureAlgorithm::RSA_PKCS1_2048_SHA512:
+  case SignatureAlgorithm::RSA_PKCS1_3072_SHA384:
+  case SignatureAlgorithm::RSA_PKCS1_3072_SHA512:
+  case SignatureAlgorithm::RSA_PKCS1_4096_SHA512:
+  case SignatureAlgorithm::RSA_PSS_2048_SHA256:
+  case SignatureAlgorithm::RSA_PSS_2048_SHA384:
+  case SignatureAlgorithm::RSA_PSS_2048_SHA512:
+  case SignatureAlgorithm::RSA_PSS_3072_SHA384:
+  case SignatureAlgorithm::RSA_PSS_3072_SHA512:
+  case SignatureAlgorithm::RSA_PSS_4096_SHA512:
+    return RsaKeyPair::import(Alg, Encoded, Encoding);
   default:
-    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INTERNAL_ERROR);
+    assumingUnreachable();
   }
 }
 
+} // namespace Signatures
 } // namespace WASICrypto
 } // namespace Host
 } // namespace WasmEdge

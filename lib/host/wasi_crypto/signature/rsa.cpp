@@ -1,151 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "host/wasi_crypto/signature/rsa.h"
+#include <openssl/x509.h>
 
 namespace WasmEdge {
 namespace Host {
 namespace WASICrypto {
-
-WasiCryptoExpect<std::unique_ptr<RsaSignaturePublicKey>>
-WASICrypto::RsaSignaturePublicKey::import(
-    SignatureAlgorithm Alg, Span<const uint8_t> Encoded,
-    __wasi_publickey_encoding_e_t Encoding) {
-  auto Pk = RsaPkCtx::import(Alg, Encoded, Encoding);
-  if (!Pk) {
-    return WasiCryptoUnexpect(Pk);
-  }
-
-  return std::make_unique<RsaSignaturePublicKey>(std::move(*Pk));
-}
-
-WasiCryptoExpect<std::vector<uint8_t>>
-RsaSignaturePublicKey::exportData(__wasi_publickey_encoding_e_t Encoding) {
-  return Ctx.exportData(Encoding);
-}
-
-WasiCryptoExpect<SignatureVerificationState> RsaSignaturePublicKey::asState() {
-  auto Res = Ctx.asVerification();
-  if (!Res) {
-    return WasiCryptoUnexpect(Res);
-  }
-
-  return SignatureVerificationState{
-      std::make_unique<RsaSignatureVerificationState>(std::move(*Res))};
-}
-
-WasiCryptoExpect<SignatureSecretKey>
-RsaSignatureSecretKey::import(SignatureAlgorithm Alg,
-                              Span<const uint8_t> Encoded,
-                              __wasi_secretkey_encoding_e_t Encoding) {
-  auto Sk = RsaSkCtx::import(Alg, Encoded, Encoding);
-  if (!Sk) {
-    return WasiCryptoUnexpect(Sk);
-  }
-
-  return SignatureSecretKey{
-      std::make_unique<RsaSignatureSecretKey>(std::move(*Sk))};
-}
-
-WasiCryptoExpect<std::vector<uint8_t>>
-RsaSignatureSecretKey::exportData(__wasi_secretkey_encoding_e_t Encoding) {
-  return Ctx.exportData(Encoding);
-}
-
-WasiCryptoExpect<SignatureKeyPair>
-RsaSignatureKeyPair::generate(SignatureAlgorithm Alg,
-                              std::optional<SignatureOptions>) {
-  auto Res = RsaKpCtx::generate(Alg);
-  if (!Res) {
-    return WasiCryptoUnexpect(Res);
-  }
-
-  return SignatureKeyPair{
-      std::make_unique<RsaSignatureKeyPair>(std::move(*Res))};
-}
-
-WasiCryptoExpect<SignatureKeyPair>
-RsaSignatureKeyPair::import(SignatureAlgorithm Alg, Span<const uint8_t> Encoded,
-                            __wasi_keypair_encoding_e_t Encoding) {
-  auto Res = RsaKpCtx::import(Alg, Encoded, Encoding);
-  if (!Res) {
-    return WasiCryptoUnexpect(Res);
-  }
-
-  return SignatureKeyPair{
-      std::make_unique<RsaSignatureKeyPair>(std::move(*Res))};
-}
-
-WasiCryptoExpect<std::vector<uint8_t>>
-RsaSignatureKeyPair::exportData(__wasi_keypair_encoding_e_t Encoding) {
-  return Ctx.exportData(Encoding);
-}
-
-WasiCryptoExpect<SignaturePublicKey> RsaSignatureKeyPair::publicKey() {
-  auto Res = Ctx.publicKey();
-  if (!Res) {
-    return WasiCryptoUnexpect(Res);
-  }
-
-  return SignaturePublicKey{
-      std::make_unique<RsaSignaturePublicKey>(std::move(*Res))};
-}
-
-WasiCryptoExpect<SignatureSecretKey> RsaSignatureKeyPair::secretKey() {
-  auto Res = Ctx.secretKey();
-  if (!Res) {
-    return WasiCryptoUnexpect(Res);
-  }
-
-  return SignatureSecretKey{
-      std::make_unique<RsaSignatureSecretKey>(std::move(*Res))};
-}
-
-WasiCryptoExpect<SignatureState> RsaSignatureKeyPair::asState() {
-  auto Res = Ctx.asSignState();
-  if (!Res) {
-    return WasiCryptoUnexpect(Res);
-  }
-
-  return SignatureState{std::make_unique<RsaSignatureState>(std::move(*Res))};
-}
-
-WasiCryptoExpect<Signature>
-RsaSignature::import(SignatureAlgorithm Alg, Span<const uint8_t> Encoded,
-                     __wasi_signature_encoding_e_t Encoding) {
-  auto Res = RsaSignCtx::import(Alg, Encoded, Encoding);
-  if (!Res) {
-    return WasiCryptoUnexpect(Res);
-  }
-
-  return Signature{std::make_unique<RsaSignature>(std::move(*Res))};
-}
-
-WasiCryptoExpect<std::vector<uint8_t>>
-RsaSignature::exportData(__wasi_signature_encoding_e_t Encoding) {
-  return Ctx.exportData(Encoding);
-}
-
-WasiCryptoExpect<void> RsaSignatureState::update(Span<const uint8_t> Input) {
-  return Ctx.update(Input);
-}
-
-WasiCryptoExpect<Signature> RsaSignatureState::sign() {
-  auto Res = Ctx.sign();
-  if (!Res) {
-    return WasiCryptoUnexpect(Res);
-  }
-  return Signature{std::make_unique<RsaSignature>(std::move(*Res))};
-}
-
-WasiCryptoExpect<void>
-RsaSignatureVerificationState::update(Span<const uint8_t> Input) {
-  return Ctx.update(Input);
-}
-
-WasiCryptoExpect<void>
-RsaSignatureVerificationState::verify(std::unique_ptr<Signature::Base> &Sig) {
-  return Ctx.verify(Sig->asRef());
-}
+namespace Signatures {
 
 namespace {
 using NID = int;
@@ -163,9 +24,9 @@ EVP_PKEY *initRsa(SignatureAlgorithm) {
 
 // raw secret scalar encoded as big endian, SEC-1, compressed SEC-1, unencrypted
 // PKCS#8, PEM-encoded unencrypted PKCS#8
-WasiCryptoExpect<RsaPkCtx>
-RsaPkCtx::import(SignatureAlgorithm Alg, Span<const uint8_t> Encoded,
-                 __wasi_publickey_encoding_e_t Encoding) {
+WasiCryptoExpect<std::unique_ptr<PublicKey>>
+RsaPublicKey::import(SignatureAlgorithm Alg, Span<const uint8_t> Encoded,
+                     __wasi_publickey_encoding_e_t Encoding) {
   EVP_PKEY *Pk = initRsa(Alg);
 
   switch (Encoding) {
@@ -189,11 +50,11 @@ RsaPkCtx::import(SignatureAlgorithm Alg, Span<const uint8_t> Encoded,
     assumingUnreachable();
   }
 
-  return RsaPkCtx{OpenSSLUniquePtr<EVP_PKEY, EVP_PKEY_free>{Pk}};
+  return std::make_unique<RsaPublicKey>(Pk);
 }
 
 WasiCryptoExpect<std::vector<uint8_t>>
-RsaPkCtx::exportData(__wasi_publickey_encoding_e_t Encoding) {
+RsaPublicKey::exportData(__wasi_publickey_encoding_e_t Encoding) {
   switch (Encoding) {
   case __WASI_PUBLICKEY_ENCODING_RAW: {
     std::vector<uint8_t> Res(i2d_PublicKey(Pk.get(), nullptr));
@@ -216,18 +77,19 @@ RsaPkCtx::exportData(__wasi_publickey_encoding_e_t Encoding) {
   }
 }
 
-WasiCryptoExpect<RsaVerificationCtx> RsaPkCtx::asVerification() {
-  OpenSSLUniquePtr<EVP_MD_CTX, EVP_MD_CTX_free> SignCtx{EVP_MD_CTX_create()};
+WasiCryptoExpect<std::unique_ptr<VerificationState>>
+RsaPublicKey::openVerificationState() {
+  EVP_MD_CTX *SignCtx = EVP_MD_CTX_create();
   opensslAssuming(SignCtx);
-  opensslAssuming(EVP_DigestVerifyInit(SignCtx.get(), nullptr, EVP_sha256(),
-                                       nullptr, Pk.get()));
+  opensslAssuming(
+      EVP_DigestVerifyInit(SignCtx, nullptr, EVP_sha256(), nullptr, Pk.get()));
 
-  return RsaVerificationCtx{std::move(SignCtx)};
+  return std::make_unique<RsaVerificationState>(SignCtx);
 }
 
-WasiCryptoExpect<RsaSkCtx>
-RsaSkCtx::import(SignatureAlgorithm Alg, Span<const uint8_t> Encoded,
-                 __wasi_secretkey_encoding_e_t Encoding) {
+WasiCryptoExpect<std::unique_ptr<RsaSecretKey>>
+RsaSecretKey::import(SignatureAlgorithm Alg, Span<const uint8_t> Encoded,
+                     __wasi_secretkey_encoding_e_t Encoding) {
   EVP_PKEY *Sk = initRsa(Alg);
 
   switch (Encoding) {
@@ -251,11 +113,11 @@ RsaSkCtx::import(SignatureAlgorithm Alg, Span<const uint8_t> Encoded,
     assumingUnreachable();
   }
 
-  return RsaSkCtx{OpenSSLUniquePtr<EVP_PKEY, EVP_PKEY_free>{Sk}};
+  return std::make_unique<RsaSecretKey>(Sk);
 }
 
 WasiCryptoExpect<std::vector<uint8_t>>
-RsaSkCtx::exportData(__wasi_secretkey_encoding_e_t Encoding) {
+RsaSecretKey::exportData(__wasi_secretkey_encoding_e_t Encoding) {
   switch (Encoding) {
   case __WASI_SECRETKEY_ENCODING_RAW: {
     std::vector<uint8_t> Res(i2d_PrivateKey(Sk.get(), nullptr));
@@ -283,9 +145,9 @@ RsaSkCtx::exportData(__wasi_secretkey_encoding_e_t Encoding) {
   }
 }
 
-WasiCryptoExpect<RsaKpCtx>
-RsaKpCtx::import(SignatureAlgorithm Alg, Span<const uint8_t> Encoded,
-                 __wasi_keypair_encoding_e_t Encoding) {
+WasiCryptoExpect<std::unique_ptr<RsaKeyPair>>
+RsaKeyPair::import(SignatureAlgorithm Alg, Span<const uint8_t> Encoded,
+                   __wasi_keypair_encoding_e_t Encoding) {
   EVP_PKEY *Kp = initRsa(Alg);
 
   switch (Encoding) {
@@ -305,21 +167,21 @@ RsaKpCtx::import(SignatureAlgorithm Alg, Span<const uint8_t> Encoded,
     assumingUnreachable();
   }
 
-  return RsaKpCtx{OpenSSLUniquePtr<EVP_PKEY, EVP_PKEY_free>{Kp}};
+  return std::make_unique<RsaKeyPair>(Kp);
 }
 
-WasiCryptoExpect<RsaSignStateCtx> RsaKpCtx::asSignState() {
-  OpenSSLUniquePtr<EVP_MD_CTX, EVP_MD_CTX_free> SignCtx{EVP_MD_CTX_create()};
+WasiCryptoExpect<std::unique_ptr<SignState>> RsaKeyPair::openSignState() {
+  EVP_MD_CTX *SignCtx = EVP_MD_CTX_create();
   opensslAssuming(SignCtx);
 
-  opensslAssuming(EVP_DigestSignInit(SignCtx.get(), nullptr, EVP_sha256(),
-                                     nullptr, Kp.get()));
-
-  return RsaSignStateCtx{std::move(SignCtx)};
+  opensslAssuming(
+      EVP_DigestSignInit(SignCtx, nullptr, EVP_sha256(), nullptr, Kp.get()));
+  return std::make_unique<RsaSignState>(SignCtx);
 }
 
-WasiCryptoExpect<RsaKpCtx> RsaKpCtx::generate(SignatureAlgorithm) {
-  EVP_PKEY_CTX *Ctx = EVP_PKEY_CTX_new_id(EVP_PKEY_RSA, NULL);
+WasiCryptoExpect<std::unique_ptr<RsaKeyPair>>
+RsaKeyPair::generate(SignatureAlgorithm, std::shared_ptr<Options>) {
+  EVP_PKEY_CTX *Ctx = EVP_PKEY_CTX_new_id(EVP_PKEY_RSA, nullptr);
   opensslAssuming(Ctx);
 
   opensslAssuming(EVP_PKEY_keygen_init(Ctx));
@@ -338,11 +200,11 @@ WasiCryptoExpect<RsaKpCtx> RsaKpCtx::generate(SignatureAlgorithm) {
   //  EVP_PKEY *Key = nullptr;
   //  opensslAssuming(EVP_PKEY_keygen(KCtx.get(), &Key));
 
-  return RsaKpCtx{OpenSSLUniquePtr<EVP_PKEY, EVP_PKEY_free>{PKey}};
+  return std::make_unique<RsaKeyPair>(PKey);
 }
 
 WasiCryptoExpect<std::vector<uint8_t>>
-RsaKpCtx::exportData(__wasi_keypair_encoding_e_t Encoding) {
+RsaKeyPair::exportData(__wasi_keypair_encoding_e_t Encoding) {
   switch (Encoding) {
   case __WASI_KEYPAIR_ENCODING_RAW: {
     std::vector<uint8_t> Res(i2d_PrivateKey(Kp.get(), nullptr));
@@ -362,68 +224,68 @@ RsaKpCtx::exportData(__wasi_keypair_encoding_e_t Encoding) {
   return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
 }
 
-WasiCryptoExpect<RsaPkCtx> RsaKpCtx::publicKey() {
+WasiCryptoExpect<std::unique_ptr<PublicKey>> RsaKeyPair::publicKey() {
   OpenSSLUniquePtr<BIO, BIO_free> B{BIO_new(BIO_s_mem())};
   opensslAssuming(i2d_PUBKEY_bio(B.get(), Kp.get()));
 
   EVP_PKEY *Res = nullptr;
   opensslAssuming(d2i_PUBKEY_bio(B.get(), &Res));
 
-  return RsaPkCtx{OpenSSLUniquePtr<EVP_PKEY, EVP_PKEY_free>(Res)};
+  return std::make_unique<RsaPublicKey>(Res);
 }
 
-WasiCryptoExpect<RsaSkCtx> RsaKpCtx::secretKey() {
+WasiCryptoExpect<std::unique_ptr<SecretKey>> RsaKeyPair::secretKey() {
   OpenSSLUniquePtr<BIO, BIO_free> B{BIO_new(BIO_s_mem())};
   opensslAssuming(i2d_PrivateKey_bio(B.get(), Kp.get()));
 
   EVP_PKEY *Res = nullptr;
   opensslAssuming(d2i_PrivateKey_bio(B.get(), &Res));
 
-  return RsaSkCtx{OpenSSLUniquePtr<EVP_PKEY, EVP_PKEY_free>{Res}};
+  return std::make_unique<RsaSecretKey>(Res);
 }
 
-WasiCryptoExpect<RsaSignCtx> RsaSignCtx::import(SignatureAlgorithm,
-                                                Span<const uint8_t>,
-                                                __wasi_signature_encoding_e_t) {
+WasiCryptoExpect<std::unique_ptr<RsaSignature>>
+RsaSignature::import(SignatureAlgorithm, Span<const uint8_t>,
+                     __wasi_signature_encoding_e_t) {
   return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
 }
 
 WasiCryptoExpect<std::vector<uint8_t>>
-RsaSignCtx::exportData(__wasi_signature_encoding_e_t) {
+RsaSignature::exportData(__wasi_signature_encoding_e_t) {
   return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
 }
 
-WasiCryptoExpect<void> RsaSignStateCtx::update(Span<const uint8_t> Data) {
+WasiCryptoExpect<void> RsaSignState::update(Span<const uint8_t> Data) {
   opensslAssuming(EVP_DigestSignUpdate(MdCtx.get(), Data.data(), Data.size()));
   return {};
 }
 
-WasiCryptoExpect<RsaSignCtx> RsaSignStateCtx::sign() {
+WasiCryptoExpect<std::unique_ptr<Signature>> RsaSignState::sign() {
   size_t Size;
   opensslAssuming(EVP_DigestSignFinal(MdCtx.get(), nullptr, &Size));
 
-  std::vector<uint8_t> Res;
-  Res.reserve(Size);
-  Res.resize(Size);
+  std::vector<uint8_t> Res(Size);
 
   opensslAssuming(EVP_DigestSignFinal(MdCtx.get(), Res.data(), &Size));
 
-  return Res;
+  return std::make_unique<RsaSignature>(std::move(Res));
 }
 
-WasiCryptoExpect<void> RsaVerificationCtx::update(Span<const uint8_t> Data) {
+WasiCryptoExpect<void> RsaVerificationState::update(Span<const uint8_t> Data) {
   opensslAssuming(
       EVP_DigestVerifyUpdate(MdCtx.get(), Data.data(), Data.size()));
   return {};
 }
 
-WasiCryptoExpect<void> RsaVerificationCtx::verify(Span<const uint8_t> Data) {
+WasiCryptoExpect<void>
+RsaVerificationState::verify(std::shared_ptr<Signature> Sig) {
+  auto Data = Sig->asRef();
   opensslAssuming(EVP_DigestVerifyFinal(MdCtx.get(), Data.data(), Data.size()));
 
   return {};
 }
 
-
+} // namespace Signatures
 } // namespace WASICrypto
 } // namespace Host
 } // namespace WasmEdge

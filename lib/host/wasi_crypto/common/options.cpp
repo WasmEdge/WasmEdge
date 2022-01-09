@@ -25,18 +25,18 @@ Options optionsOpen(__wasi_algorithm_type_e_t Alg) {
 WasiCryptoExpect<void> optionsSet(Options Options, std::string_view Name,
                                   Span<const uint8_t> Value) {
   return std::visit(
-      Overloaded{[Name, Value](auto &&Option) -> WasiCryptoExpect<void> {
+      [Name, Value](auto &&Option) -> WasiCryptoExpect<void> {
         return Option->set(Name, Value);
-      }},
+      },
       Options);
 }
 
 WasiCryptoExpect<void> optionsSetU64(Options Options, std::string_view Name,
                                      uint64_t Value) {
   return std::visit(
-      Overloaded{[Name, Value](auto &&Option) -> WasiCryptoExpect<void> {
+      [Name, Value](auto &&Option) -> WasiCryptoExpect<void> {
         return Option->setU64(Name, Value);
-      }},
+      },
       Options);
 }
 
@@ -44,27 +44,27 @@ WasiCryptoExpect<void> optionsSetGuestBuffer(Options Options,
                                              std::string_view Name,
                                              Span<uint8_t> Value) {
   return std::visit(
-      Overloaded{[Name, Value](auto &&Option) -> WasiCryptoExpect<void> {
+      [Name, Value](auto &&Option) -> WasiCryptoExpect<void> {
         return Option->setGuestBuffer(Name, Value);
-      }},
+      },
       Options);
 }
 
 WasiCryptoExpect<std::vector<uint8_t>> optionsGet(Options Options,
                                                   std::string_view Name)  {
   return std::visit(
-      Overloaded{[Name](auto &&Option) -> WasiCryptoExpect<std::vector<uint8_t>> {
+      [Name](auto &&Option) -> WasiCryptoExpect<std::vector<uint8_t>> {
         return Option->get(Name);
-      }},
+      },
       Options);
 }
 
 WasiCryptoExpect<uint64_t> optionsGetU64(Options Options,
                                          std::string_view Name)  {
   return std::visit(
-      Overloaded{[Name](auto &&Option) -> WasiCryptoExpect<uint64_t> {
+      [Name](auto &&Option) -> WasiCryptoExpect<uint64_t> {
         return Option->getU64(Name);
-      }},
+      },
       Options);
 }
 } // namespace Common

@@ -6,74 +6,46 @@
 namespace WasmEdge {
 namespace Host {
 namespace WASICrypto {
+namespace Kx {
+// WasiCryptoExpect<std::vector<uint8_t>>
+// KeyPair::exportData(__wasi_keypair_encoding_e_t Encoding) {
+//   switch (Encoding) {
+//   case __WASI_KEYPAIR_ENCODING_RAW: {
+//     auto Pk = publicKey();
+//     if (!Pk) {
+//       return WasiCryptoUnexpect(Pk);
+//     }
+//
+//     auto PkRaw =
+//         Pk->inner()->locked([](auto &PkInner) { return PkInner->exportData();
+//         });
+//     if (!PkRaw) {
+//       return WasiCryptoUnexpect(PkRaw);
+//     }
+//
+//     auto Sk = secretKey();
+//     if (!Sk) {
+//       return WasiCryptoUnexpect(Sk);
+//     }
+//
+//     auto SkRaw =
+//         Sk->inner()->locked([](auto &SkInner) { return SkInner->exportData();
+//         });
+//     if (!SkRaw) {
+//       return WasiCryptoUnexpect(SkRaw);
+//     }
+//
+//     PkRaw->insert(PkRaw->end(), SkRaw->begin(), SkRaw->end());
+//
+//     return std::vector<uint8_t>{PkRaw->begin(), Res->end()};
+//   }
+//   default:
+//     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
+//   }
+// }
 
-WasiCryptoExpect<std::vector<uint8_t>> KxKeyPair::Base::asRaw() {
-  auto Pk = publicKey();
-  if (!Pk) {
-    return WasiCryptoUnexpect(Pk);
-  }
-
-  auto PkRaw =
-      Pk->inner()->locked([](auto &PkInner) { return PkInner->exportData(); });
-  if (!PkRaw) {
-    return WasiCryptoUnexpect(PkRaw);
-  }
-
-  auto Sk = secretKey();
-  if (!Sk) {
-    return WasiCryptoUnexpect(Sk);
-  }
-
-  auto SkRaw =
-      Sk->inner()->locked([](auto &SkInner) { return SkInner->exportData(); });
-  if (!SkRaw) {
-    return WasiCryptoUnexpect(SkRaw);
-  }
-
-  PkRaw->insert(PkRaw->end(), SkRaw->begin(), SkRaw->end());
-
-  return PkRaw;
-}
-
-WasiCryptoExpect<std::vector<uint8_t>>
-KxKeyPair::Base::exportData(__wasi_keypair_encoding_e_t Encoding) {
-  switch (Encoding) {
-  case __WASI_KEYPAIR_ENCODING_RAW: {
-    auto Res = asRaw();
-    if (!Res) {
-      return WasiCryptoUnexpect(Res);
-    }
-
-    return std::vector<uint8_t>{Res->begin(), Res->end()};
-  }
-  default:
-    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
-  }
-}
-
-WasiCryptoExpect<KxKeyPair>
-KxKeyPair::generate(KxAlgorithm Alg, std::optional<KxOptions> Options) {
-  auto Builder = builder(Alg);
-  if (!Builder) {
-    return WasiCryptoUnexpect(Builder);
-  }
-
-  return (*Builder)->generate(Options);
-}
-
-WasiCryptoExpect<KxKeyPair>
-KxKeyPair::import(KxAlgorithm Alg, Span<uint8_t const> Raw,
-                  __wasi_keypair_encoding_e_t Encoding) {
-  auto Builder = builder(Alg);
-  if (!Builder) {
-    return WasiCryptoUnexpect(Builder);
-  }
-
-  return (*Builder)->import(Raw, Encoding);
-}
-
-WasiCryptoExpect<std::unique_ptr<KxKeyPair::Builder>>
-KxKeyPair::builder(KxAlgorithm Alg) {
+WasiCryptoExpect<std::unique_ptr<KeyPair::Builder>>
+KeyPair::Builder::builder(KxAlgorithm Alg) {
   switch (Alg) {
   case KxAlgorithm::X25519:
     return std::make_unique<X25519KeyPair::Builder>(Alg);
@@ -84,6 +56,29 @@ KxKeyPair::builder(KxAlgorithm Alg) {
   }
 }
 
+WasiCryptoExpect<std::unique_ptr<KeyPair>>
+KeyPair::generate(KxAlgorithm Alg, std::optional<Options> Options) {
+  auto Builder = Builder::builder(Alg);
+  if (!Builder) {
+    return WasiCryptoUnexpect(Builder);
+  }
+
+  return (*Builder)->generate(Options);
+}
+
+WasiCryptoExpect<std::unique_ptr<KeyPair>>
+KeyPair::import(KxAlgorithm Alg, Span<uint8_t const> Raw,
+                  __wasi_keypair_encoding_e_t Encoding) {
+  auto Builder = Builder::builder(Alg);
+  if (!Builder) {
+    return WasiCryptoUnexpect(Builder);
+  }
+
+  return (*Builder)->import(Raw, Encoding);
+}
+
+
+} // namespace Kx
 } // namespace WASICrypto
 } // namespace Host
 } // namespace WasmEdge

@@ -23,7 +23,7 @@ WasiCryptoExpect<KeyPair> keypairGenerate(__wasi_algorithm_type_e_t AlgType,
               return WasiCryptoUnexpect(Alg);
             }
 
-            return Signatures::KeyPair::generate(*Alg, *OptSigOptions);
+            return Signatures::KeyPair::generate(*Alg, OptSigOptions);
           },
           [AlgType, AlgStr](std::shared_ptr<Kx::Options> OptKxOptions)
               -> WasiCryptoExpect<Asymmetric::KeyPair> {

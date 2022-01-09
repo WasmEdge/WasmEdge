@@ -10,8 +10,11 @@ WasiCryptoExpect<__wasi_array_output_t>
 WasiCryptoContext::signatureExport(__wasi_signature_t SigHandle,
                                    __wasi_signature_encoding_e_t Encoding) {
   auto Sig = SignatureManger.get(SigHandle);
-  auto Res = Sig->inner()->locked(
-      [Encoding](auto &Inner) { return Inner->exportData(Encoding); });
+  if (!Sig) {
+    return WasiCryptoUnexpect(Sig);
+  }
+
+  auto Res = (*Sig)->exportData(Encoding);
   if (!Res) {
     return WasiCryptoUnexpect(Res);
   }
@@ -23,7 +26,7 @@ WasiCryptoExpect<__wasi_signature_t>
 WasiCryptoContext::signatureImport(SignatureAlgorithm Alg,
                                    Span<const uint8_t> Encoded,
                                    __wasi_signature_encoding_e_t Encoding) {
-  auto Sig = Signature::import(Alg, Encoded, Encoding);
+  auto Sig = Signatures::Signature::import(Alg, Encoded, Encoding);
   if (!Sig) {
     return WasiCryptoUnexpect(Sig);
   }
@@ -43,13 +46,22 @@ WasiCryptoContext::signatureStateOpen(__wasi_signature_keypair_t KpHandle) {
     return WasiCryptoUnexpect(Kp);
   }
 
-  auto SigKp = Kp->as<SignatureKeyPair>();
+  auto SigKp = std::visit(
+      Overloaded{[](std::shared_ptr<Signatures::KeyPair> Sig)
+                     -> WasiCryptoExpect<std::shared_ptr<Signatures::KeyPair>> {
+                   return Sig;
+                 },
+                 [](auto &&)
+                     -> WasiCryptoExpect<std::shared_ptr<Signatures::KeyPair>> {
+                   return WasiCryptoUnexpect(
+                       __WASI_CRYPTO_ERRNO_INVALID_HANDLE);
+                 }},
+      *Kp);
   if (!SigKp) {
     return WasiCryptoUnexpect(SigKp);
   }
 
-  auto Res =
-      SigKp->inner()->locked([](auto &Inner) { return Inner->asState(); });
+  auto Res = (*SigKp)->openSignState();
   if (!Res) {
     return WasiCryptoUnexpect(Res);
   }
@@ -65,8 +77,7 @@ WasiCryptoContext::signatureStateUpdate(__wasi_signature_state_t StateHandle,
     return WasiCryptoUnexpect(State);
   }
 
-  return State->inner()->locked(
-      [&Input](auto &Inner) { return Inner->update(Input); });
+  return (*State)->update(Input);
 }
 
 WasiCryptoExpect<__wasi_signature_t>
@@ -76,7 +87,7 @@ WasiCryptoContext::signatureStateSign(__wasi_signature_state_t StateHandle) {
     return WasiCryptoUnexpect(State);
   }
 
-  auto Sig = State->inner()->locked([](auto &Inner) { return Inner->sign(); });
+  auto Sig = (*State)->sign();
   if (!Sig) {
     return WasiCryptoUnexpect(Sig);
   }
@@ -97,13 +108,22 @@ WasiCryptoContext::signatureVerificationStateOpen(
     return WasiCryptoUnexpect(Pk);
   }
 
-  auto SigPk = Pk->as<SignaturePublicKey>();
+  auto SigPk = std::visit(
+      Overloaded{
+          [](std::shared_ptr<Signatures::PublicKey> Sig)
+              -> WasiCryptoExpect<std::shared_ptr<Signatures::PublicKey>> {
+            return Sig;
+          },
+          [](auto &&)
+              -> WasiCryptoExpect<std::shared_ptr<Signatures::PublicKey>> {
+            return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_HANDLE);
+          }},
+      *Pk);
   if (!SigPk) {
     return WasiCryptoUnexpect(SigPk);
   }
 
-  auto Res =
-      SigPk->inner()->locked([](auto &Inner) { return Inner->asState(); });
+  auto Res = (*SigPk)->openVerificationState();
   if (!Res) {
     return WasiCryptoUnexpect(Res);
   }
@@ -119,8 +139,7 @@ WasiCryptoExpect<void> WasiCryptoContext::signatureVerificationStateUpdate(
     return WasiCryptoUnexpect(Verification);
   }
 
-  return Verification->inner()->locked(
-      [&Input](auto &Inner) { return Inner->update(Input); });
+  return (*Verification)->update(Input);
 }
 
 WasiCryptoExpect<void> WasiCryptoContext::signatureVerificationStateVerify(
@@ -136,10 +155,7 @@ WasiCryptoExpect<void> WasiCryptoContext::signatureVerificationStateVerify(
     return WasiCryptoUnexpect(Sig);
   }
 
-  return acquireLocked(*Verification->inner(), *Sig->inner(),
-                       [](auto &VerificationInner, auto &SigInner) {
-                         return VerificationInner->verify(SigInner);
-                       });
+  return (*Verification)->verify(*Sig);
 }
 
 WasiCryptoExpect<void> WasiCryptoContext::signatureVerificationStateClose(

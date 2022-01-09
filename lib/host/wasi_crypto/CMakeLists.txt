@@ -36,6 +36,7 @@ wasmedge_add_library(wasmedgeHostModuleWasiCrypto
   signature/rsa.cpp
   signature/ecdsa.cpp
   signature/eddsa.cpp
+  signature/state.cpp
   key_exchange/options.cpp
   key_exchange/ctx.cpp
   key_exchange/func.cpp

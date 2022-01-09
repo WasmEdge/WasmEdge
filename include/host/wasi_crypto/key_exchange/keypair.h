@@ -23,19 +23,17 @@ public:
 
   virtual WasiCryptoExpect<std::unique_ptr<SecretKey>> secretKey() = 0;
 
-  virtual WasiCryptoExpect<std::vector<uint8_t>> asRaw();
-
-  WasiCryptoExpect<std::vector<uint8_t>>
-  exportData(__wasi_keypair_encoding_e_t Encoding);
+  virtual WasiCryptoExpect<std::vector<uint8_t>>
+  exportData(__wasi_keypair_encoding_e_t Encoding) = 0;
 
   class Builder {
   public:
     virtual ~Builder() = default;
 
-    virtual WasiCryptoExpect<KeyPair>
+    virtual WasiCryptoExpect<std::unique_ptr<KeyPair>>
     generate(std::optional<Options> Options) = 0;
 
-    virtual WasiCryptoExpect<KeyPair>
+    virtual WasiCryptoExpect<std::unique_ptr<KeyPair>>
     import(Span<uint8_t const> Raw, __wasi_keypair_encoding_e_t Encoding) = 0;
 
     static WasiCryptoExpect<std::unique_ptr<Builder>> builder(KxAlgorithm Alg);
@@ -44,9 +42,9 @@ public:
   static WasiCryptoExpect<std::unique_ptr<KeyPair>>
   generate(KxAlgorithm Alg, std::optional<Options> Options);
 
-  static WasiCryptoExpect<KeyPair> import(KxAlgorithm Alg,
-                                          Span<uint8_t const> Raw,
-                                          __wasi_keypair_encoding_e_t Encoding);
+  static WasiCryptoExpect<std::unique_ptr<KeyPair>>
+  import(KxAlgorithm Alg, Span<uint8_t const> Raw,
+         __wasi_keypair_encoding_e_t Encoding);
 };
 
 } // namespace Kx

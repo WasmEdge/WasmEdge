@@ -27,7 +27,7 @@ public:
   WasiCryptoExpect<std::vector<uint8_t>>
   exportData(__wasi_publickey_encoding_e_t Encoding) override;
 
-  WasiCryptoExpect<std::unique_ptr<VerificationState>> asState() override;
+  WasiCryptoExpect<std::unique_ptr<VerificationState>> openVerificationState() override;
 
 private:
   OpenSSLUniquePtr<EVP_PKEY, EVP_PKEY_free> Ctx;
@@ -66,20 +66,37 @@ public:
 
   WasiCryptoExpect<std::unique_ptr<SecretKey>> secretKey() override;
 
-  WasiCryptoExpect<std::unique_ptr<State>>
-  asState(std::shared_ptr<Options> OptOptions) override;
+  WasiCryptoExpect<std::unique_ptr<SignState>>
+  openSignState() override;
 
 private:
   OpenSSLUniquePtr<EVP_PKEY, EVP_PKEY_free> Ctx;
 };
 
-class EcdsaState : public State {
+class EcdsaSignature: public Signature {
 public:
-  EcdsaState(EVP_MD_CTX *Ctx) : Ctx(Ctx) {}
+  EcdsaSignature(std::vector<uint8_t> &&Sign) : Sign(std::move(Sign)) {}
+
+  static WasiCryptoExpect<std::unique_ptr<Signature>>
+  import(SignatureAlgorithm Alg, Span<uint8_t const> Encoded,
+         __wasi_signature_encoding_e_t Encoding);
+
+  WasiCryptoExpect<std::vector<uint8_t>>
+  exportData(__wasi_signature_encoding_e_t Encoding) override;
+
+  Span<uint8_t const> asRef() override { return Sign; }
+
+private:
+  std::vector<uint8_t> Sign;
+};
+
+class EcdsaSignState : public SignState {
+public:
+  EcdsaSignState(EVP_MD_CTX *Ctx) : Ctx(Ctx) {}
 
   WasiCryptoExpect<void> update(Span<uint8_t const> Input) override;
 
-  WasiCryptoExpect<Signature> sign() override;
+  WasiCryptoExpect<std::unique_ptr<Signature>> sign() override;
 
 private:
   OpenSSLUniquePtr<EVP_MD_CTX, EVP_MD_CTX_free> Ctx;

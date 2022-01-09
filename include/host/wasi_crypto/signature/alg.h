@@ -77,34 +77,6 @@ tryFrom(std::string_view AlgStr) noexcept {
   return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_UNSUPPORTED_ALGORITHM);
 }
 
-enum class SignatureAlgorithmFamily { ECDSA, EdDSA, RSA };
-
-constexpr WasiCryptoExpect<SignatureAlgorithmFamily>
-family(SignatureAlgorithm Alg) {
-  switch (Alg) {
-  case SignatureAlgorithm::ECDSA_P256_SHA256:
-  case SignatureAlgorithm::ECDSA_K256_SHA256:
-    return SignatureAlgorithmFamily::ECDSA;
-  case SignatureAlgorithm::Ed25519:
-    return SignatureAlgorithmFamily::EdDSA;
-  case SignatureAlgorithm::RSA_PKCS1_2048_SHA256:
-  case SignatureAlgorithm::RSA_PKCS1_2048_SHA384:
-  case SignatureAlgorithm::RSA_PKCS1_2048_SHA512:
-  case SignatureAlgorithm::RSA_PKCS1_3072_SHA384:
-  case SignatureAlgorithm::RSA_PKCS1_3072_SHA512:
-  case SignatureAlgorithm::RSA_PKCS1_4096_SHA512:
-  case SignatureAlgorithm::RSA_PSS_2048_SHA256:
-  case SignatureAlgorithm::RSA_PSS_2048_SHA384:
-  case SignatureAlgorithm::RSA_PSS_2048_SHA512:
-  case SignatureAlgorithm::RSA_PSS_3072_SHA384:
-  case SignatureAlgorithm::RSA_PSS_3072_SHA512:
-  case SignatureAlgorithm::RSA_PSS_4096_SHA512:
-    return SignatureAlgorithmFamily::RSA;
-  default:
-    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INTERNAL_ERROR);
-  }
-}
-
 } // namespace WASICrypto
 } // namespace Host
 } // namespace WasmEdge

@@ -37,7 +37,7 @@ EVP_PKEY *initEC(SignatureAlgorithm Alg) {
 // raw secret scalar encoded as big endian, SEC-1, compressed SEC-1, unencrypted
 // PKCS#8, PEM-encoded unencrypted PKCS#8
 WasiCryptoExpect<std::unique_ptr<EcdsaPublicKey>>
-EcdsaPublicKey::optioimport(SignatureAlgorithm Alg, Span<const uint8_t> Encoded,
+EcdsaPublicKey::import(SignatureAlgorithm Alg, Span<const uint8_t> Encoded,
                        __wasi_publickey_encoding_e_t Encoding) {
   EVP_PKEY *Pk = initEC(Alg);
   opensslAssuming(Pk);
@@ -89,7 +89,8 @@ EcdsaPublicKey::exportData(__wasi_publickey_encoding_e_t Encoding) {
   }
 }
 
-WasiCryptoExpect<std::unique_ptr<VerificationState>> EcdsaPublicKey::asState() {
+WasiCryptoExpect<std::unique_ptr<VerificationState>>
+EcdsaPublicKey::openVerificationState() {
   EVP_MD_CTX *SignCtx = EVP_MD_CTX_create();
   opensslAssuming(SignCtx);
   opensslAssuming(
@@ -237,29 +238,39 @@ WasiCryptoExpect<std::unique_ptr<SecretKey>> EcdsaKeyPair::secretKey() {
   return std::make_unique<EcdsaSecretKey>(Res);
 }
 
-WasiCryptoExpect<std::unique_ptr<State>>
-EcdsaKeyPair::asState(std::shared_ptr<Options>) {
+WasiCryptoExpect<std::unique_ptr<SignState>> EcdsaKeyPair::openSignState() {
   EVP_MD_CTX *SignCtx = EVP_MD_CTX_create();
   opensslAssuming(SignCtx);
 
   opensslAssuming(
       EVP_DigestSignInit(SignCtx, nullptr, EVP_sha256(), nullptr, Ctx.get()));
 
-  return std::make_unique<EcdsaState>(SignCtx);
+  return std::make_unique<EcdsaSignState>(SignCtx);
 }
 
-WasiCryptoExpect<void> EcdsaState::update(Span<const uint8_t> Data) {
+WasiCryptoExpect<std::unique_ptr<Signature>>
+EcdsaSignature::import(SignatureAlgorithm Alg, Span<const uint8_t> Encoded,
+                       __wasi_signature_encoding_e_t Encoding) {
+  return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
+}
+
+WasiCryptoExpect<std::vector<uint8_t>>
+EcdsaSignature::exportData(__wasi_signature_encoding_e_t Encoding) {
+  return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
+}
+
+WasiCryptoExpect<void> EcdsaSignState::update(Span<const uint8_t> Data) {
   opensslAssuming(EVP_DigestSignUpdate(Ctx.get(), Data.data(), Data.size()));
 }
 
-WasiCryptoExpect<Signature> EcdsaState::sign() {
+WasiCryptoExpect<std::unique_ptr<Signature>> EcdsaSignState::sign() {
   size_t Size;
   opensslAssuming(EVP_DigestSignFinal(Ctx.get(), nullptr, &Size));
 
   std::vector<uint8_t> Res(Size);
   opensslAssuming(EVP_DigestSignFinal(Ctx.get(), Res.data(), &Size));
 
-  return Res;
+  return std::make_unique<EcdsaSignature>(std::move(Res));
 }
 
 WasiCryptoExpect<void>
@@ -270,9 +281,8 @@ EcdsaVerificationState::update(Span<const uint8_t> Data) {
 
 WasiCryptoExpect<void>
 EcdsaVerificationState::verify(std::shared_ptr<Signature> Sig) {
-  Sig->raw().locked([this](auto &Data) {
-    opensslAssuming(EVP_DigestVerifyFinal(Ctx.get(), Data.data(), Data.size()));
-  });
+  auto Data = Sig->asRef();
+  opensslAssuming(EVP_DigestVerifyFinal(Ctx.get(), Data.data(), Data.size()));
   return {};
 }
 

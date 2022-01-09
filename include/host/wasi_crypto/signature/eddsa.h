@@ -9,34 +9,36 @@
 #include "host/wasi_crypto/signature/publickey.h"
 #include "host/wasi_crypto/signature/secretkey.h"
 #include "host/wasi_crypto/signature/signature.h"
-#include "host/wasi_crypto/wrapper/eddsa.h"
+#include "openssl/evp.h"
 
 namespace WasmEdge {
 namespace Host {
 namespace WASICrypto {
+namespace Signatures {
 
-class EddsaSignaturePublicKey : public SignaturePublicKey::Base {
+class EddsaPublicKey : public PublicKey {
 public:
-  EddsaSignaturePublicKey(EddsaPkCtx Ctx) : Ctx(std::move(Ctx)) {}
+  EddsaPublicKey(EVP_PKEY *Pk) : Ctx(std::move(Pk)) {}
 
-  static WasiCryptoExpect<std::unique_ptr<EddsaSignaturePublicKey>>
+  static WasiCryptoExpect<std::unique_ptr<EddsaPublicKey>>
   import(SignatureAlgorithm Alg, Span<uint8_t const> Encoded,
          __wasi_publickey_encoding_e_t Encoding);
 
   WasiCryptoExpect<std::vector<uint8_t>>
   exportData(__wasi_publickey_encoding_e_t Encoding) override;
 
-  WasiCryptoExpect<SignatureVerificationState> asState() override;
+  WasiCryptoExpect<std::unique_ptr<VerificationState>>
+  openVerificationState() override;
 
 private:
-  EddsaPkCtx Ctx;
+  OpenSSLUniquePtr<EVP_PKEY, EVP_PKEY_free> Ctx;
 };
 
-class EddsaSignatureSecretKey : public SignatureSecretKey::Base {
+class EddsaSecretKey : public SecretKey {
 public:
-  EddsaSignatureSecretKey(EddsaSkCtx Ctx) : Ctx(std::move(Ctx)) {}
+  EddsaSecretKey(EVP_PKEY *Sk) : Sk(Sk) {}
 
-  static WasiCryptoExpect<SignatureSecretKey>
+  static WasiCryptoExpect<std::unique_ptr<SecretKey>>
   import(SignatureAlgorithm Alg, Span<uint8_t const> Encoded,
          __wasi_secretkey_encoding_e_t Encoding);
 
@@ -44,181 +46,79 @@ public:
   exportData(__wasi_secretkey_encoding_e_t Encoding) override;
 
 private:
-  EddsaSkCtx Ctx;
+  OpenSSLUniquePtr<EVP_PKEY, EVP_PKEY_free> Sk;
 };
 
-class EddsaSignatureKeyPair : public SignatureKeyPair::Base {
+class EddsaKeyPair : public KeyPair {
 public:
-  EddsaSignatureKeyPair(EddsaKpCtx Ctx) : Ctx(std::move(Ctx)) {}
+  EddsaKeyPair(EVP_PKEY *Kp) : Kp(Kp) {}
 
-  static WasiCryptoExpect<SignatureKeyPair>
-  generate(SignatureAlgorithm Alg, std::optional<SignatureOptions> Options);
+  static WasiCryptoExpect<std::unique_ptr<KeyPair>>
+  generate(SignatureAlgorithm Alg,
+           std::shared_ptr<Signatures::Options> Options);
 
-  static WasiCryptoExpect<SignatureKeyPair>
+  static WasiCryptoExpect<std::unique_ptr<KeyPair>>
   import(SignatureAlgorithm Alg, Span<uint8_t const> Encoded,
          __wasi_keypair_encoding_e_t Encoding);
 
   WasiCryptoExpect<std::vector<uint8_t>>
   exportData(__wasi_keypair_encoding_e_t Encoding) override;
 
-  WasiCryptoExpect<SignaturePublicKey> publicKey() override;
+  WasiCryptoExpect<std::unique_ptr<PublicKey>> publicKey() override;
 
-  WasiCryptoExpect<SignatureSecretKey> secretKey() override;
+  WasiCryptoExpect<std::unique_ptr<SecretKey>> secretKey() override;
 
-  WasiCryptoExpect<SignatureState> asState() override;
+  WasiCryptoExpect<std::unique_ptr<SignState>> openSignState() override;
 
 private:
-  EddsaKpCtx Ctx;
+  OpenSSLUniquePtr<EVP_PKEY, EVP_PKEY_free> Kp;
 };
 
-class EddsaSignature : public Signature::Base {
+class EddsaSignature : public Signature {
 public:
-  EddsaSignature(EddsaSignCtx Ctx) : Ctx(std::move(Ctx)) {}
+  EddsaSignature(std::vector<uint8_t> &&Sign) : Sign(std::move(Sign)) {}
 
-  static WasiCryptoExpect<Signature>
+  static WasiCryptoExpect<std::unique_ptr<Signature>>
   import(SignatureAlgorithm Alg, Span<uint8_t const> Encoded,
          __wasi_signature_encoding_e_t Encoding);
 
   WasiCryptoExpect<std::vector<uint8_t>>
   exportData(__wasi_signature_encoding_e_t Encoding) override;
 
-  Span<uint8_t const> asRef() override { return Ctx.asRef(); }
-
-private:
-  EddsaSignCtx Ctx;
-};
-
-class EddsaSignatureState : public SignatureState::Base {
-public:
-  EddsaSignatureState(EddsaSignStateCtx Ctx) : Ctx(std::move(Ctx)) {}
-
-  WasiCryptoExpect<void> update(Span<uint8_t const> Input) override;
-
-  WasiCryptoExpect<Signature> sign() override;
-
-private:
-  EddsaSignStateCtx Ctx;
-};
-
-class EddsaSignatureVerificationState
-    : public SignatureVerificationState::Base {
-public:
-  EddsaSignatureVerificationState(EddsaVerificationCtx Ctx)
-      : Ctx(std::move(Ctx)){};
-
-  WasiCryptoExpect<void> update(Span<const uint8_t> Input) override;
-
-  WasiCryptoExpect<void> verify(std::unique_ptr<Signature::Base> &Sig) override;
-
-private:
-  EddsaVerificationCtx Ctx;
-};
-
-class EddsaSignStateCtx;
-class EddsaVerificationCtx;
-
-class EddsaPkCtx {
-public:
-  EddsaPkCtx(OpenSSLUniquePtr<EVP_PKEY, EVP_PKEY_free> Pk)
-      : Pk(std::move(Pk)) {}
-
-  static WasiCryptoExpect<EddsaPkCtx>
-  import(SignatureAlgorithm Alg, Span<const uint8_t> Encoded,
-         __wasi_publickey_encoding_e_t Encoding);
-
-  WasiCryptoExpect<std::vector<uint8_t>>
-  exportData(__wasi_publickey_encoding_e_t Encoding);
-
-  WasiCryptoExpect<EddsaVerificationCtx> asVerification();
-
-private:
-  OpenSSLUniquePtr<EVP_PKEY, EVP_PKEY_free> Pk;
-};
-
-class EddsaSkCtx {
-public:
-  EddsaSkCtx(OpenSSLUniquePtr<EVP_PKEY, EVP_PKEY_free> Sk)
-      : Sk(std::move(Sk)) {}
-
-  static WasiCryptoExpect<EddsaSkCtx>
-  import(SignatureAlgorithm Alg, Span<const uint8_t> Encoded,
-         __wasi_secretkey_encoding_e_t Encoding);
-
-  WasiCryptoExpect<std::vector<uint8_t>>
-  exportData(__wasi_secretkey_encoding_e_t Encoding);
-
-private:
-  OpenSSLUniquePtr<EVP_PKEY, EVP_PKEY_free> Sk;
-};
-
-class EddsaKpCtx {
-public:
-  EddsaKpCtx(OpenSSLUniquePtr<EVP_PKEY, EVP_PKEY_free> Kp)
-      : Kp(std::move(Kp)) {}
-
-  static WasiCryptoExpect<EddsaKpCtx>
-  import(SignatureAlgorithm Alg, Span<const uint8_t> Encoded,
-         __wasi_keypair_encoding_e_t Encoding);
-
-  static WasiCryptoExpect<EddsaKpCtx> generate(SignatureAlgorithm Alg);
-
-  WasiCryptoExpect<std::vector<uint8_t>>
-  exportData(__wasi_keypair_encoding_e_t Encoding);
-
-  WasiCryptoExpect<EddsaSignStateCtx> asSignState();
-
-  WasiCryptoExpect<EddsaPkCtx> publicKey();
-
-  WasiCryptoExpect<EddsaSkCtx> secretKey();
-
-private:
-  OpenSSLUniquePtr<EVP_PKEY, EVP_PKEY_free> Kp;
-};
-
-class EddsaSignCtx {
-public:
-  EddsaSignCtx(std::vector<uint8_t> &&Sign) : Sign(std::move(Sign)) {}
-
-  static WasiCryptoExpect<EddsaSignCtx>
-  import(SignatureAlgorithm Alg, Span<const uint8_t> Encoded,
-         __wasi_signature_encoding_e_t Encoding);
-
-  Span<uint8_t const> asRef() { return Sign; };
-
-  WasiCryptoExpect<std::vector<uint8_t>>
-  exportData(__wasi_signature_encoding_e_t Encoding);
+  Span<uint8_t const> asRef() override { return Sign; }
 
 private:
   std::vector<uint8_t> Sign;
 };
 
-class EddsaSignStateCtx {
+class EddsaSignState : public SignState {
 public:
-  EddsaSignStateCtx(OpenSSLUniquePtr<EVP_MD_CTX, EVP_MD_CTX_free> MdCtx)
-      : MdCtx(std::move(MdCtx)) {}
+  EddsaSignState(EVP_MD_CTX* MdCtx)
+      : MdCtx(MdCtx) {}
 
-  WasiCryptoExpect<void> update(Span<uint8_t const> Data);
+  WasiCryptoExpect<void> update(Span<uint8_t const> Input) override;
 
-  WasiCryptoExpect<EddsaSignCtx> sign();
+  WasiCryptoExpect<std::unique_ptr<Signature>> sign() override;
 
 private:
   std::vector<uint8_t> Cache;
   OpenSSLUniquePtr<EVP_MD_CTX, EVP_MD_CTX_free> MdCtx;
 };
 
-class EddsaVerificationCtx {
+class EddsaVerificationState : public VerificationState {
 public:
-  EddsaVerificationCtx(OpenSSLUniquePtr<EVP_MD_CTX, EVP_MD_CTX_free> MdCtx)
-      : MdCtx(std::move(MdCtx)) {}
+  EddsaVerificationState(EVP_MD_CTX* MdCtx)
+      : MdCtx(MdCtx) {}
+  WasiCryptoExpect<void> update(Span<const uint8_t> Input) override;
 
-  WasiCryptoExpect<void> update(Span<uint8_t const> Data);
-
-  WasiCryptoExpect<void> verify(Span<uint8_t const> Data);
+  WasiCryptoExpect<void> verify(std::shared_ptr<Signature> Sig) override;
 
 private:
   std::vector<uint8_t> Cache;
   OpenSSLUniquePtr<EVP_MD_CTX, EVP_MD_CTX_free> MdCtx;
 };
+
+} // namespace Signatures
 } // namespace WASICrypto
 } // namespace Host
 } // namespace WasmEdge

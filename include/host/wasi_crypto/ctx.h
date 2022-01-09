@@ -703,7 +703,7 @@ private:
       0x03};
   HandlesManger<__wasi_secretkey_t, Asymmetric::SecretKey> SecretkeyManger{
       0x04};
-  HandlesManger<__wasi_signature_state_t, std::shared_ptr<Signatures::State>>
+  HandlesManger<__wasi_signature_state_t, std::shared_ptr<Signatures::SignState>>
       SignatureStateManger{0x05};
   HandlesManger<__wasi_signature_t, std::shared_ptr<Signatures::Signature>>
       SignatureManger{0x06};

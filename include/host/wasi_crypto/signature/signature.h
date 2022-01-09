@@ -6,10 +6,10 @@
 #include "host/wasi_crypto/lock.h"
 #include "host/wasi_crypto/signature/alg.h"
 
+#include "host/wasi_crypto/signature/alg.h"
 #include <memory>
 #include <utility>
 #include <vector>
-#include "host/wasi_crypto/signature/alg.h"
 
 namespace WasmEdge {
 namespace Host {
@@ -18,31 +18,25 @@ namespace Signatures {
 
 class Signature {
 public:
-  Signature(std::vector<uint8_t>&& Data): Inner(Data) {}
+//  Signature(std::vector<uint8_t> &&Data) : Inner(Data) {}
 
-  auto &raw() { return Inner; }
+  virtual ~Signature() = default;
+
+  static WasiCryptoExpect<std::unique_ptr<Signature>>
+  import(SignatureAlgorithm Alg, Span<const uint8_t> Encoded,
+         __wasi_signature_encoding_e_t Encoding);
+
+  virtual WasiCryptoExpect<std::vector<uint8_t>>
+  exportData(__wasi_signature_encoding_e_t Encoding) = 0;
+
+  virtual Span<uint8_t const> asRef() = 0;
+//  auto &raw() { return Inner; }
+
 private:
-//  SignatureAlgorithm Alg;
-  Mutex<std::vector<uint8_t>> Inner;
+  //  SignatureAlgorithm Alg;
+//  Mutex<std::vector<uint8_t>> Inner;
 };
 
-class State {
-public:
-  virtual ~State() = default;
-
-  virtual WasiCryptoExpect<void> update(Span<uint8_t const> Input) = 0;
-
-  virtual WasiCryptoExpect<Signature> sign() = 0;
-};
-
-class VerificationState {
-public:
-  virtual ~VerificationState() = default;
-
-  virtual WasiCryptoExpect<void> update(Span<uint8_t const> Input) = 0;
-
-  virtual WasiCryptoExpect<void> verify(std::shared_ptr<Signature> Sig) = 0;
-};
 
 } // namespace Signatures
 } // namespace WASICrypto

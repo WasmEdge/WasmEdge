@@ -6,29 +6,22 @@
 namespace WasmEdge {
 namespace Host {
 namespace WASICrypto {
+namespace Kx {
 
-WasiCryptoExpect<KxPublicKey>
-KxPublicKey::import(KxAlgorithm Alg, Span<const uint8_t> Raw,
-                    __wasi_publickey_encoding_e_t Encoding) {
-  auto Builder = builder(Alg);
-  if (!Builder) {
-    return WasiCryptoUnexpect(Builder);
-  }
-
-  return (*Builder)->import(Raw, Encoding);
-}
-
-WasiCryptoExpect<std::unique_ptr<KxPublicKey::Builder>>
-KxPublicKey::builder(KxAlgorithm Alg) {
+WasiCryptoExpect<std::unique_ptr<PublicKey>>
+PublicKey::import(KxAlgorithm Alg, Span<const uint8_t> Raw,
+                  __wasi_publickey_encoding_e_t Encoding) {
   switch (Alg) {
   case KxAlgorithm::X25519:
-    return std::make_unique<X25519PublicKey::Builder>(Alg);
+    return X25519PublicKey::import(Alg, Raw, Encoding);
   case KxAlgorithm::Kyber768:
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
   default:
     assumingUnreachable();
   }
 }
+
+} // namespace Kx
 } // namespace WASICrypto
 } // namespace Host
 } // namespace WasmEdge

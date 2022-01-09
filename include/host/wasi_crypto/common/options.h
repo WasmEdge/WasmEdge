@@ -28,7 +28,7 @@ namespace Common {
 /// a nonce for each encryption, an application may not set the nonce, and
 /// retrieve the actual nonce set by the runtime by reading the nonce option.
 ///
-/// An option can be reused, but is tied to algorithm type.
+/// An option can beF reused, but is tied to algorithm type.
 using Options = std::variant<std::shared_ptr<Symmetric::Option>,
                              std::shared_ptr<Kx::Options>,
                              std::shared_ptr<Signatures::Options>>;

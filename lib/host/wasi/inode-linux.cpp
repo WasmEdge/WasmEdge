@@ -1059,11 +1059,11 @@ WasiExpect<void> INode::sockShutdown(__wasi_sdflags_t SdFlags) const noexcept {
 WasiExpect<void> INode::sockGetOpt(int32_t Level, int32_t OptName,
                                    void *FlagPtr,
                                    uint32_t *FlagSizePtr) const noexcept {
-  auto SysLevel = toSockOptLevel((__wasi_sock_opt_level_t)Level);
-  auto SysOptName = toSockOptSoName((__wasi_sock_opt_so_t)OptName);
+  auto SysLevel = toSockOptLevel(static_cast<__wasi_sock_opt_level_t>(Level));
+  auto SysOptName = toSockOptSoName(static_cast<__wasi_sock_opt_so_t>(OptName));
   if (OptName == __WASI_SOCK_OPT_SO_ERROR) {
     int ErrorCode = 0;
-    int *WasiErrorPtr = (int *)FlagPtr;
+    int *WasiErrorPtr = static_cast<int *>(FlagPtr);
     if (auto Res =
             ::getsockopt(Fd, SysLevel, SysOptName, &ErrorCode, FlagSizePtr);
         unlikely(Res < 0)) {
@@ -1077,7 +1077,7 @@ WasiExpect<void> INode::sockGetOpt(int32_t Level, int32_t OptName,
     }
   }
 
-  return WasiUnexpect(__WASI_ERRNO_SUCCESS);
+  return {};
 }
 
 WasiExpect<void> INode::sockSetOpt(int32_t Level, int32_t OptName,
@@ -1091,7 +1091,7 @@ WasiExpect<void> INode::sockSetOpt(int32_t Level, int32_t OptName,
     return WasiUnexpect(fromErrNo(errno));
   }
 
-  return WasiUnexpect(__WASI_ERRNO_SUCCESS);
+  return {};
 }
 
 WasiExpect<void> INode::sockGetLoaclAddr(uint8_t *AddressPtr,
@@ -1099,7 +1099,7 @@ WasiExpect<void> INode::sockGetLoaclAddr(uint8_t *AddressPtr,
                                          uint32_t *PortPtr) const noexcept {
   struct sockaddr SocketAddr;
   socklen_t slen;
-  ::memset(&SocketAddr, 0, sizeof(SocketAddr));
+  std::memset(&SocketAddr, 0, sizeof(SocketAddr));
 
   if (auto Res = ::getsockname(Fd, &SocketAddr, &slen); unlikely(Res < 0)) {
     return WasiUnexpect(fromErrNo(errno));
@@ -1124,7 +1124,7 @@ WasiExpect<void> INode::sockGetLoaclAddr(uint8_t *AddressPtr,
     return WasiUnexpect(__WASI_ERRNO_NOSYS);
   }
 
-  return WasiUnexpect(__WASI_ERRNO_SUCCESS);
+  return {};
 }
 
 WasiExpect<void> INode::sockGetPeerAddr(uint8_t *AddressPtr,
@@ -1132,7 +1132,7 @@ WasiExpect<void> INode::sockGetPeerAddr(uint8_t *AddressPtr,
                                         uint32_t *PortPtr) const noexcept {
   struct sockaddr SocketAddr;
   socklen_t slen = sizeof(SocketAddr);
-  ::memset(&SocketAddr, 0, sizeof(SocketAddr));
+  std::memset(&SocketAddr, 0, sizeof(SocketAddr));
 
   if (auto Res = ::getpeername(Fd, &SocketAddr, &slen); unlikely(Res < 0)) {
     return WasiUnexpect(fromErrNo(errno));
@@ -1158,7 +1158,7 @@ WasiExpect<void> INode::sockGetPeerAddr(uint8_t *AddressPtr,
     return WasiUnexpect(__WASI_ERRNO_NOSYS);
   }
 
-  return WasiUnexpect(__WASI_ERRNO_SUCCESS);
+  return {};
 }
 
 __wasi_filetype_t INode::unsafeFiletype() const noexcept {

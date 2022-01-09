@@ -367,7 +367,7 @@ inline constexpr int toSockOptLevel(__wasi_sock_opt_level_t Level) noexcept {
   case __WASI_SOCK_OPT_LEVEL_SOL_SOCKET:
     return SOL_SOCKET;
   default:
-    __builtin_unreachable();
+    assumingUnreachable();
   }
 }
 
@@ -403,7 +403,7 @@ inline constexpr int toSockOptSoName(__wasi_sock_opt_so_t SoName) noexcept {
     return SO_TYPE;
 
   default:
-    __builtin_unreachable();
+    assumingUnreachable();
   }
 }
 

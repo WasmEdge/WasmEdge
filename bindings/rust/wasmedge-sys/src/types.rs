@@ -437,15 +437,45 @@ impl_to_prim_conversions! {
     [V128] => u128,
 }
 
-impl<T: AsRef<str>> From<T> for wasmedge::WasmEdge_String {
+#[derive(Debug, Clone)]
+pub(crate) struct WasmEdgeString {
+    ctx: wasmedge::WasmEdge_String,
+}
+impl Drop for WasmEdgeString {
+    fn drop(&mut self) {
+        unsafe { wasmedge::WasmEdge_StringDelete(self.ctx) }
+    }
+}
+impl WasmEdgeString {
+    pub(crate) fn into_raw(&self) -> wasmedge::WasmEdge_String {
+        self.ctx
+    }
+}
+impl<T: AsRef<str>> From<T> for WasmEdgeString {
     fn from(s: T) -> Self {
-        if s.as_ref().contains('\0') {
+        let ctx = if s.as_ref().contains('\0') {
             let buffer = s.as_ref().as_bytes();
             unsafe { wasmedge::WasmEdge_StringCreateByBuffer(buffer.as_ptr(), buffer.len() as u32) }
         } else {
-            let cs = CString::new(s.as_ref()).unwrap();
+            let cs = CString::new(s.as_ref()).expect(
+                "Failed to create a CString: the supplied bytes contain an internal 0 byte",
+            );
             unsafe { wasmedge::WasmEdge_StringCreateByCString(cs.as_ptr()) }
-        }
+        };
+
+        Self { ctx }
+    }
+}
+impl PartialEq for WasmEdgeString {
+    fn eq(&self, other: &Self) -> bool {
+        unsafe { wasmedge::WasmEdge_StringIsEqual(self.ctx, other.ctx) }
+    }
+}
+impl Eq for WasmEdgeString {}
+impl From<wasmedge::WasmEdge_String> for String {
+    fn from(s: wasmedge::WasmEdge_String) -> Self {
+        let cstr = unsafe { std::ffi::CStr::from_ptr(s.Buf as *const _) };
+        cstr.to_string_lossy().into_owned()
     }
 }
 
@@ -521,5 +551,16 @@ mod tests {
         let val: Value = raw_val.into();
         assert_eq!(val, Value::NullRef(RefType::ExternRef));
         assert_eq!(val.ty(), ValType::ExternRef);
+    }
+
+    #[test]
+    fn test_string() {
+        let s: WasmEdgeString = "hello".into();
+        let t: WasmEdgeString = "hello".into();
+        assert_eq!(s, t);
+
+        let s: WasmEdgeString = "hello".into();
+        let t: WasmEdgeString = "hello\0".into();
+        assert_ne!(s, t);
     }
 }

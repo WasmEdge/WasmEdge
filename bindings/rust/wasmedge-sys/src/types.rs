@@ -455,7 +455,12 @@ impl<T: AsRef<str>> From<T> for WasmEdgeString {
     fn from(s: T) -> Self {
         let ctx = if s.as_ref().contains('\0') {
             let buffer = s.as_ref().as_bytes();
-            unsafe { wasmedge::WasmEdge_StringCreateByBuffer(buffer.as_ptr(), buffer.len() as u32) }
+            unsafe {
+                wasmedge::WasmEdge_StringCreateByBuffer(
+                    buffer.as_ptr() as *const _,
+                    buffer.len() as u32,
+                )
+            }
         } else {
             let cs = CString::new(s.as_ref()).expect(
                 "Failed to create a CString: the supplied bytes contain an internal 0 byte",

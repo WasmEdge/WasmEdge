@@ -130,6 +130,25 @@ public class WasmEdgeVMTest extends BaseTest {
     }
 
     @Test
+    public void testExecuteRegisterModule() {
+        WasmEdgeVM vm = new WasmEdgeVM(new ConfigureContext(), new StoreContext());
+        String modName = "module";
+        vm.registerModuleFromBuffer(modName, loadFile(getResourcePath(WASM_PATH)));
+
+        List<WasmEdgeValue> params = new ArrayList<>();
+        params.add(new WasmEdgeI32Value(3));
+
+        List<WasmEdgeValue> returns = new ArrayList<>();
+        returns.add(new WasmEdgeI32Value());
+
+        vm.executeRegistered(modName, FUNC_NAME, params, returns);
+        Assert.assertEquals(3, ((WasmEdgeI32Value) returns.get(0)).getValue());
+        vm.destroy();
+    }
+
+
+
+    @Test
     public void testRegisterModuleFromAstModule() {
         LoaderContext loaderContext = new LoaderContext(new ConfigureContext());
         ASTModuleContext mod = loaderContext.parseFromFile(getResourcePath(WASM_PATH));

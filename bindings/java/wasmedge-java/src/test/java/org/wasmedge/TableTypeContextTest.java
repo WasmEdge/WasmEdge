@@ -24,8 +24,9 @@ public class TableTypeContextTest extends BaseTest {
     @Test
     public void testRegisterWasmModule() {
         ConfigureContext configureContext = new ConfigureContext();
+        StatisticsContext statisticsContext = new StatisticsContext();
         ASTModuleContext mod = loadMode(configureContext);
-        ExecutorContext executorContext = new ExecutorContext(configureContext);
+        ExecutorContext executorContext = new ExecutorContext(configureContext, statisticsContext);
         StoreContext storeContext = new StoreContext();
         String modName = "extern";
         executorContext.registerModule(storeContext, mod, modName);
@@ -34,8 +35,9 @@ public class TableTypeContextTest extends BaseTest {
     @Test(expected = RuntimeException.class)
     public void testRegisterWasmModuleNameConflict() {
         ConfigureContext configureContext = new ConfigureContext();
+        StatisticsContext statisticsContext = new StatisticsContext();
         ASTModuleContext mod = loadMode(configureContext);
-        ExecutorContext executorContext = new ExecutorContext(configureContext);
+        ExecutorContext executorContext = new ExecutorContext(configureContext, statisticsContext);
         StoreContext storeContext = new StoreContext();
         String modName = "extern";
         executorContext.registerModule(storeContext, mod, modName);
@@ -45,8 +47,9 @@ public class TableTypeContextTest extends BaseTest {
     @Test
     public void testInstantiateModule() {
         ConfigureContext configureContext = new ConfigureContext();
+        StatisticsContext statisticsContext = new StatisticsContext();
         ASTModuleContext mod = loadMode(configureContext);
-        ExecutorContext executorContext = new ExecutorContext(configureContext);
+        ExecutorContext executorContext = new ExecutorContext(configureContext, statisticsContext);
         StoreContext storeContext = new StoreContext();
         executorContext.instantiate(storeContext, mod);
     }
@@ -54,15 +57,17 @@ public class TableTypeContextTest extends BaseTest {
     @Test(expected = RuntimeException.class)
     public void testInstantiateModuleWithInvalidStore() {
         ConfigureContext configureContext = new ConfigureContext();
+        StatisticsContext statisticsContext = new StatisticsContext();
         ASTModuleContext mod = loadMode(configureContext);
-        ExecutorContext executorContext = new ExecutorContext(configureContext);
+        ExecutorContext executorContext = new ExecutorContext(configureContext, statisticsContext);
         executorContext.instantiate(null, mod);
     }
 
     @Test(expected = RuntimeException.class)
     public void testInstantiateModuleWithInvalidMod() {
         ConfigureContext configureContext = new ConfigureContext();
-        ExecutorContext executorContext = new ExecutorContext(configureContext);
+        StatisticsContext statisticsContext = new StatisticsContext();
+        ExecutorContext executorContext = new ExecutorContext(configureContext, statisticsContext);
         StoreContext storeContext = new StoreContext();
         executorContext.instantiate(storeContext, null);
     }
@@ -70,8 +75,9 @@ public class TableTypeContextTest extends BaseTest {
     @Test
     public void testOverrideInstantiatedModule() {
         ConfigureContext configureContext = new ConfigureContext();
+        StatisticsContext statisticsContext = new StatisticsContext();
         ASTModuleContext mod = loadMode(configureContext);
-        ExecutorContext executorContext = new ExecutorContext(configureContext);
+        ExecutorContext executorContext = new ExecutorContext(configureContext, statisticsContext);
         StoreContext storeContext = new StoreContext();
         executorContext.instantiate(storeContext, mod);
         executorContext.instantiate(storeContext, mod);
@@ -86,7 +92,7 @@ public class TableTypeContextTest extends BaseTest {
         List<WasmEdgeValue> returns = new ArrayList<>();
         params.add(new WasmEdgeI32Value());
         params.add(new WasmEdgeI32Value());
-        ExecutorContext executorContext = new ExecutorContext(new ConfigureContext());
+        ExecutorContext executorContext = new ExecutorContext(new ConfigureContext(), new StatisticsContext());
         executorContext.invoke(new StoreContext(), funcName, params, returns);
     }
 
@@ -98,7 +104,7 @@ public class TableTypeContextTest extends BaseTest {
         List<WasmEdgeValue> returns = new ArrayList<>();
         params.add(new WasmEdgeI32Value());
         params.add(new WasmEdgeI32Value());
-        ExecutorContext executorContext = new ExecutorContext(new ConfigureContext());
+        ExecutorContext executorContext = new ExecutorContext(new ConfigureContext(), new StatisticsContext());
         executorContext.invoke(new StoreContext(), funcName, params, returns);
     }
 
@@ -106,7 +112,7 @@ public class TableTypeContextTest extends BaseTest {
     public void testInvokeFunctionNullParam() {
         String funcName = "func-mul-2";
         List<WasmEdgeValue> returns = new ArrayList<>();
-        ExecutorContext executorContext = new ExecutorContext(new ConfigureContext());
+        ExecutorContext executorContext = new ExecutorContext(new ConfigureContext(), new StatisticsContext());
         executorContext.invoke(new StoreContext(), funcName, null, returns);
     }
 
@@ -119,7 +125,7 @@ public class TableTypeContextTest extends BaseTest {
         List<WasmEdgeValue> returns = new ArrayList<>();
         params.add(new WasmEdgeI32Value());
         params.add(new WasmEdgeI32Value());
-        ExecutorContext executorContext = new ExecutorContext(new ConfigureContext());
+        ExecutorContext executorContext = new ExecutorContext(new ConfigureContext(), new StatisticsContext());
         executorContext.invoke(new StoreContext(), funcName, params, returns);
     }
 
@@ -132,7 +138,7 @@ public class TableTypeContextTest extends BaseTest {
         List<WasmEdgeValue> returns = new ArrayList<>();
         params.add(new WasmEdgeI32Value());
         params.add(new WasmEdgeI32Value());
-        ExecutorContext executorContext = new ExecutorContext(new ConfigureContext());
+        ExecutorContext executorContext = new ExecutorContext(new ConfigureContext(), new StatisticsContext());
         executorContext.invoke(new StoreContext(), funcName, params, returns);
     }
 

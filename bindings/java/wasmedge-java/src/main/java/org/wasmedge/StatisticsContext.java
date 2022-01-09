@@ -4,7 +4,11 @@ public class StatisticsContext {
     private long pointer;
 
     public StatisticsContext() {
+        nativeInit();
+    }
 
+    private StatisticsContext(long pointer) {
+        this.pointer = pointer;
     }
 
     private native void nativeInit();

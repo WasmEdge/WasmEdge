@@ -8,6 +8,9 @@ public class StoreContext {
     public StoreContext() {
         nativeInit();
     }
+    private StoreContext(long pointer) {
+        this.pointer = pointer;
+    }
 
     public void destroy() {
         delete();

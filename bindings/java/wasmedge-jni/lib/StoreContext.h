@@ -9,4 +9,6 @@
 
 WasmEdge_StoreContext* getStoreContext(JNIEnv* env, jobject jStoreContext);
 
+jobject CreateJavaStoreContext(JNIEnv* env, WasmEdge_StoreContext* storeContext);
+
 #endif //WASMEDGE_JAVA_STORECONTEXT_H

@@ -1,11 +1,27 @@
 package org.wasmedge;
 
+import org.junit.Assert;
 import org.junit.Test;
+import org.wasmedge.enums.HostRegistration;
+
+import java.util.ArrayList;
+import java.util.List;
 
 public class StatisticsContextTest extends BaseTest {
     @Test
     public void testCreation() {
-        StatisticsContext statisticsContext = new StatisticsContext();
+        ConfigureContext configureContext = new ConfigureContext();
+
+        configureContext.setStatisticsSetInstructionCounting(true);
+        configureContext.setStatisticsSetCostMeasuring(true);
+        configureContext.setStatisticsSetTimeMeasuring(true);
+
+        configureContext.addHostRegistration(HostRegistration.WasmEdge_HostRegistration_Wasi);
+        WasmEdgeVM vm = new WasmEdgeVM(configureContext, new StoreContext());
+
+        StatisticsContext statisticsContext = vm.getStatisticsContext();
+
+        Assert.assertNotNull(statisticsContext);
         long[] costTable = {
                 0,0,
                 10,
@@ -18,14 +34,27 @@ public class StatisticsContextTest extends BaseTest {
                 22,
                 0
         };
-
         statisticsContext.setCostTable(costTable);
         statisticsContext.setCostLimit(500000);
 
+        List<WasmEdgeValue> params = new ArrayList<>();
+        params.add(new WasmEdgeI32Value(3));
 
-        //TODO run wasm function
+        List<WasmEdgeValue> returns = new ArrayList<>();
+        returns.add(new WasmEdgeI32Value());
+
+        vm.runWasmFromFile(getResourcePath(WASM_PATH), FUNC_NAME, params, returns);
+        Assert.assertEquals(3, ((WasmEdgeI32Value) returns.get(0)).getValue());
 
         long cost = statisticsContext.getTotalCost();
-        statisticsContext.delete();
+        double ips = statisticsContext.getInstrPerSecond();
+        int instrCnt = statisticsContext.getInstrCount();
+
+        Assert.assertTrue(cost > 0);
+        Assert.assertTrue(ips > 0);
+        Assert.assertTrue(instrCnt > 0);
+
+//        statisticsContext.delete();
+        vm.destroy();
     }
 }

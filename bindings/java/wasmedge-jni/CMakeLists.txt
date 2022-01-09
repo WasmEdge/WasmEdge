@@ -18,7 +18,16 @@ add_library(${TARGET} SHARED
         lib/common.c
         lib/StoreContext.c
         lib/ConfigureContext.c
-        lib/FunctionTypeContext.c lib/FunctionTypeContext.h lib/GlobalTypeContext.c lib/TableTypeContext.c lib/CompilerContext.c lib/LoaderContext.c lib/AstModuleContext.c)
+        lib/FunctionTypeContext.c
+        lib/FunctionTypeContext.h
+        lib/GlobalTypeContext.c
+        lib/TableTypeContext.c
+        lib/CompilerContext.c
+        lib/LoaderContext.c
+        lib/AstModuleContext.c
+        lib/StatisticsContext.c
+        lib/ExecutorContext.c
+        lib/ValidatorContext.c)
 target_link_libraries(${TARGET} wasmedge_c)
 
 install(TARGETS ${TARGET}

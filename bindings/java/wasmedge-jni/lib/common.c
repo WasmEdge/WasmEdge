@@ -221,3 +221,23 @@ bool checkAndHandleException(JNIEnv *env, const char* msg) {
         (*env)->ThrowNew(env, newExcCls, msg);
     }
 }
+
+
+void setJavaValueObject(JNIEnv *env, WasmEdge_Value value, jobject j_val) {
+    switch (value.Type) {
+        case WasmEdge_ValType_I32:
+            setJavaIntValue(env, value, j_val);
+            break;
+        case WasmEdge_ValType_I64:
+            setJavaLongValue(env, value, j_val);
+            break;
+        case WasmEdge_ValType_F32:
+            setJavaFloatValue(env, value, j_val);
+            break;
+        case WasmEdge_ValType_F64:
+            setJavaDoubleValue(env, value, j_val);
+            break;
+        default:
+            break;
+    }
+}

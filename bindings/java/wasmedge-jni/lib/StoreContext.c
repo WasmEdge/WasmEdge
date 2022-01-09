@@ -21,6 +21,15 @@ WasmEdge_StoreContext* getStoreContext(JNIEnv* env, jobject jStoreContext) {
     return StoreContext;
 }
 
+jobject CreateJavaStoreContext(JNIEnv* env, WasmEdge_StoreContext* storeContext) {
+    jclass storeClass = findJavaClass(env, "org/wasmedge/StoreContext");
+
+    jmethodID constructor = (*env)->GetMethodID(env, storeClass, "<init>", "(L)V");
+
+    jobject jStoreContext = (*env)->NewObject(env, storeClass, constructor, (long)storeContext);
+
+    return jStoreContext;
+}
 
 JNIEXPORT void JNICALL Java_org_wasmedge_StoreContext_delete
         (JNIEnv * env, jobject thisObj) {

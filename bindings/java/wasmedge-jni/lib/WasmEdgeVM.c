@@ -11,6 +11,7 @@
 #include "ConfigureContext.h"
 #include "FunctionTypeContext.h"
 #include "AstModuleContext.h"
+#include "StatisticsContext.h"
 
 void setJavaIntValue(JNIEnv *env, WasmEdge_Value val, jobject jobj) {
     int int_val = WasmEdge_ValueGetI32(val);
@@ -50,24 +51,6 @@ jobject createDoubleJavaLongValueObject(JNIEnv *env, WasmEdge_Value val) {
 }
 
 
-void setJavaValueObject(JNIEnv *env, WasmEdge_Value value, jobject j_val) {
-    switch (value.Type) {
-        case WasmEdge_ValType_I32:
-            setJavaIntValue(env, value, j_val);
-            break;
-        case WasmEdge_ValType_I64:
-            setJavaLongValue(env, value, j_val);
-            break;
-        case WasmEdge_ValType_F32:
-            setJavaFloatValue(env, value, j_val);
-            break;
-        case WasmEdge_ValType_F64:
-            setJavaDoubleValue(env, value, j_val);
-            break;
-        default:
-            break;
-    }
-}
 
 WasmEdge_VMContext* getVmContext(JNIEnv* env, jobject vmContextObj) {
     long pointerVal = getPointer(env, vmContextObj);
@@ -461,4 +444,85 @@ JNIEXPORT void JNICALL Java_org_wasmedge_WasmEdgeVM_runWasmFromASTModule
     // release resources
     (*env)->ReleaseStringUTFChars(env, jFuncName, funcName);
 
+}
+
+JNIEXPORT void JNICALL Java_org_wasmedge_WasmEdgeVM_executeRegistered
+        (JNIEnv * env, jobject thisObject, jstring jModName, jstring jFuncName, jobjectArray jParams, jintArray jParamTypes, jobjectArray jReturns, jintArray jReturnTypes) {
+    WasmEdge_VMContext * vmContext = getVmContext(env, thisObject);
+
+    const char* modName = (*env)->GetStringUTFChars(env, jModName, NULL);
+    const char* funcName = (*env)->GetStringUTFChars(env, jFuncName, NULL);
+
+    //wasm string
+    WasmEdge_String wModName = WasmEdge_StringCreateByCString(modName);
+    WasmEdge_String wFuncName = WasmEdge_StringCreateByCString(funcName);
+
+    jsize paramLen = (*env)->GetArrayLength(env, jParams);
+
+    /* The parameters and returns arrays. */
+    WasmEdge_Value *wasm_params = calloc(paramLen, sizeof(WasmEdge_Value));
+    int *type = (*env)->GetIntArrayElements(env, jParamTypes, JNI_FALSE);
+    for (int i = 0; i < paramLen; i++) {
+        WasmEdge_Value val;
+
+        jobject val_object = (*env)->GetObjectArrayElement(env, jParams, i);
+
+        switch (type[i]) {
+
+            case 0:
+                val = WasmEdge_ValueGenI32(getIntVal(env, val_object));
+                break;
+            case 1:
+                val = WasmEdge_ValueGenI64(getLongVal(env, val_object));
+                break;
+            case 2:
+                val = WasmEdge_ValueGenF32(getFloatVal(env, val_object));
+                break;
+            case 3:
+                val = WasmEdge_ValueGenF64(getDoubleVal(env, val_object));
+                break;
+            default:
+                break;
+        }
+        wasm_params[i] = val;
+    }
+
+    jsize returnLen = (*env)->GetArrayLength(env, jReturns);
+    WasmEdge_Value *returns = malloc(sizeof(WasmEdge_Value) * returnLen);
+
+    //
+    WasmEdge_Result result = WasmEdge_VMExecuteRegistered(vmContext, wModName, wFuncName, wasm_params, paramLen, returns, returnLen);
+
+    if (WasmEdge_ResultOK(result)) {
+        for (int i = 0; i < returnLen; ++i) {
+            setJavaValueObject(env, returns[i], (*env)->GetObjectArrayElement(env, jReturns, i));
+        }
+    }
+
+
+    //release resources
+
+    (*env)->ReleaseStringUTFChars(env, jModName, modName);
+    (*env)->ReleaseStringUTFChars(env, jFuncName, funcName);
+    WasmEdge_StringDelete(wModName);
+    WasmEdge_StringDelete(wFuncName);
+}
+
+JNIEXPORT jobject JNICALL Java_org_wasmedge_WasmEdgeVM_getStoreContext
+        (JNIEnv * env, jobject thisObject) {
+    WasmEdge_VMContext * vmContext = getVmContext(env, thisObject);
+    WasmEdge_StoreContext* storeContext = WasmEdge_VMGetStoreContext(vmContext);
+    return CreateJavaStoreContext(env, storeContext);
+
+}
+
+JNIEXPORT jobject JNICALL Java_org_wasmedge_WasmEdgeVM_getStatisticsContext
+        (JNIEnv * env, jobject thisObject) {
+    printf("get vm context\n;");
+
+    WasmEdge_VMContext * vmContext = getVmContext(env, thisObject);
+    printf("get stat context\n;");
+    WasmEdge_StatisticsContext *statCxt = WasmEdge_VMGetStatisticsContext(vmContext);
+    printf("get java context\n;");
+    return CreateJavaStatisticsContext(env, statCxt);
 }

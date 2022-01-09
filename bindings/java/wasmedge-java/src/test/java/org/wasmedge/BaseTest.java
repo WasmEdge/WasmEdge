@@ -23,7 +23,7 @@ public class BaseTest {
 
     public static ASTModuleContext loadMode(ConfigureContext configureContext) {
         LoaderContext loaderContext = new LoaderContext(configureContext);
-        ASTModuleContext astModuleContext = loaderContext.parseFromFile(TEST_WASM_PATH);
+        ASTModuleContext astModuleContext = loaderContext.parseFromFile(getResourcePath(TEST_WASM_PATH));
         loaderContext.delete();
         return astModuleContext;
     }

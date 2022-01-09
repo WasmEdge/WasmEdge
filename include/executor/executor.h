@@ -34,7 +34,7 @@ namespace Executor {
 
 namespace {
 
-/// Template return type aliasing
+// Template return type aliasing
 /// Accept unsigned integer types. (uint32_t, uint64_t)
 template <typename T>
 using TypeU = typename std::enable_if_t<IsWasmUnsignV<T>, Expect<void>>;

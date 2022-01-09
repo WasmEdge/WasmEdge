@@ -102,7 +102,7 @@ public:
   /// Get function type by index.
   Expect<const AST::FunctionType *> getFuncType(const uint32_t Idx) const {
     if (Idx >= FuncTypes.size()) {
-      /// Error logging need to be handled in caller.
+      // Error logging need to be handled in caller.
       return Unexpect(ErrCode::WrongInstanceIndex);
     }
     return &FuncTypes[Idx];
@@ -110,42 +110,42 @@ public:
   /// Get the external values by index. Addr will be address in Store.
   Expect<uint32_t> getFuncAddr(const uint32_t Idx) const {
     if (Idx >= FuncAddrs.size()) {
-      /// Error logging need to be handled in caller.
+      // Error logging need to be handled in caller.
       return Unexpect(ErrCode::WrongInstanceIndex);
     }
     return FuncAddrs[Idx];
   }
   Expect<uint32_t> getTableAddr(const uint32_t Idx) const {
     if (Idx >= TableAddrs.size()) {
-      /// Error logging need to be handled in caller.
+      // Error logging need to be handled in caller.
       return Unexpect(ErrCode::WrongInstanceIndex);
     }
     return TableAddrs[Idx];
   }
   Expect<uint32_t> getMemAddr(const uint32_t Idx) const {
     if (Idx >= MemAddrs.size()) {
-      /// Error logging need to be handled in caller.
+      // Error logging need to be handled in caller.
       return Unexpect(ErrCode::WrongInstanceIndex);
     }
     return MemAddrs[Idx];
   }
   Expect<uint32_t> getGlobalAddr(const uint32_t Idx) const {
     if (Idx >= GlobalAddrs.size()) {
-      /// Error logging need to be handled in caller.
+      // Error logging need to be handled in caller.
       return Unexpect(ErrCode::WrongInstanceIndex);
     }
     return GlobalAddrs[Idx];
   }
   Expect<uint32_t> getElemAddr(const uint32_t Idx) const {
     if (Idx >= ElemAddrs.size()) {
-      /// Error logging need to be handled in caller.
+      // Error logging need to be handled in caller.
       return Unexpect(ErrCode::WrongInstanceIndex);
     }
     return ElemAddrs[Idx];
   }
   Expect<uint32_t> getDataAddr(const uint32_t Idx) const {
     if (Idx >= DataAddrs.size()) {
-      /// Error logging need to be handled in caller.
+      // Error logging need to be handled in caller.
       return Unexpect(ErrCode::WrongInstanceIndex);
     }
     return DataAddrs[Idx];

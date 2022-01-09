@@ -23,7 +23,7 @@ namespace Host {
 Expect<void>
 WasmEdgeProcessSetProgName::body(Runtime::Instance::MemoryInstance *MemInst,
                                  uint32_t NamePtr, uint32_t NameLen) {
-  /// Check memory instance from module.
+  // Check memory instance from module.
   if (MemInst == nullptr) {
     return Unexpect(ErrCode::ExecutionFailed);
   }
@@ -36,7 +36,7 @@ WasmEdgeProcessSetProgName::body(Runtime::Instance::MemoryInstance *MemInst,
 Expect<void>
 WasmEdgeProcessAddArg::body(Runtime::Instance::MemoryInstance *MemInst,
                             uint32_t ArgPtr, uint32_t ArgLen) {
-  /// Check memory instance from module.
+  // Check memory instance from module.
   if (MemInst == nullptr) {
     return Unexpect(ErrCode::ExecutionFailed);
   }
@@ -52,7 +52,7 @@ Expect<void>
 WasmEdgeProcessAddEnv::body(Runtime::Instance::MemoryInstance *MemInst,
                             uint32_t EnvNamePtr, uint32_t EnvNameLen,
                             uint32_t EnvValPtr, uint32_t EnvValLen) {
-  /// Check memory instance from module.
+  // Check memory instance from module.
   if (MemInst == nullptr) {
     return Unexpect(ErrCode::ExecutionFailed);
   }
@@ -69,7 +69,7 @@ WasmEdgeProcessAddEnv::body(Runtime::Instance::MemoryInstance *MemInst,
 Expect<void>
 WasmEdgeProcessAddStdIn::body(Runtime::Instance::MemoryInstance *MemInst,
                               uint32_t BufPtr, uint32_t BufLen) {
-  /// Check memory instance from module.
+  // Check memory instance from module.
   if (MemInst == nullptr) {
     return Unexpect(ErrCode::ExecutionFailed);
   }
@@ -89,12 +89,12 @@ WasmEdgeProcessSetTimeOut::body(Runtime::Instance::MemoryInstance *,
 
 Expect<uint32_t> WasmEdgeProcessRun::body(Runtime::Instance::MemoryInstance *) {
 #if WASMEDGE_OS_LINUX || WASMEDGE_OS_MACOS
-  /// Clear outputs.
+  // Clear outputs.
   Env.StdOut.clear();
   Env.StdErr.clear();
   Env.ExitCode = static_cast<uint32_t>(-1);
 
-  /// Check white list of commands.
+  // Check white list of commands.
   if (!Env.AllowedAll &&
       Env.AllowedCmd.find(Env.Name) == Env.AllowedCmd.end()) {
     std::string Msg = "Permission denied: Command \"";
@@ -115,20 +115,20 @@ Expect<uint32_t> WasmEdgeProcessRun::body(Runtime::Instance::MemoryInstance *) {
     return Env.ExitCode;
   }
 
-  /// Create pipes for stdin, stdout, and stderr.
+  // Create pipes for stdin, stdout, and stderr.
   int FDStdIn[2], FDStdOut[2], FDStdErr[2];
   if (pipe(FDStdIn) == -1) {
-    /// Create stdin pipe failed.
+    // Create stdin pipe failed.
     return Env.ExitCode;
   }
   if (pipe(FDStdOut) == -1) {
-    /// Create stdout pipe failed.
+    // Create stdout pipe failed.
     close(FDStdIn[0]);
     close(FDStdIn[1]);
     return Env.ExitCode;
   }
   if (pipe(FDStdErr) == -1) {
-    /// Create stderr pipe failed.
+    // Create stderr pipe failed.
     close(FDStdIn[0]);
     close(FDStdIn[1]);
     close(FDStdOut[0]);
@@ -136,10 +136,10 @@ Expect<uint32_t> WasmEdgeProcessRun::body(Runtime::Instance::MemoryInstance *) {
     return Env.ExitCode;
   }
 
-  /// Create a child process for executing command.
+  // Create a child process for executing command.
   pid_t PID = fork();
   if (PID == -1) {
-    /// Create process failed.
+    // Create process failed.
     close(FDStdIn[0]);
     close(FDStdIn[1]);
     close(FDStdOut[0]);
@@ -148,7 +148,7 @@ Expect<uint32_t> WasmEdgeProcessRun::body(Runtime::Instance::MemoryInstance *) {
     close(FDStdErr[1]);
     return Env.ExitCode;
   } else if (PID == 0) {
-    /// Child process. Setup pipes.
+    // Child process. Setup pipes.
     dup2(FDStdIn[0], 0);
     dup2(FDStdOut[1], 1);
     dup2(FDStdErr[1], 2);
@@ -159,7 +159,7 @@ Expect<uint32_t> WasmEdgeProcessRun::body(Runtime::Instance::MemoryInstance *) {
     close(FDStdErr[0]);
     close(FDStdErr[1]);
 
-    /// Prepare arguments and environment variables.
+    // Prepare arguments and environment variables.
     std::vector<std::string> EnvStr;
     for (auto &It : Env.Envs) {
       EnvStr.push_back(It.first + "=" + It.second);
@@ -195,12 +195,12 @@ Expect<uint32_t> WasmEdgeProcessRun::body(Runtime::Instance::MemoryInstance *) {
       _exit(-1);
     }
   } else {
-    /// Parent process. Close unused file descriptors.
+    // Parent process. Close unused file descriptors.
     close(FDStdIn[0]);
     close(FDStdOut[1]);
     close(FDStdErr[1]);
 
-    /// Send inputs.
+    // Send inputs.
     uint32_t WBytes = 0;
     while (WBytes < Env.StdIn.size()) {
       uint32_t WriteNum =
@@ -213,7 +213,7 @@ Expect<uint32_t> WasmEdgeProcessRun::body(Runtime::Instance::MemoryInstance *) {
     }
     close(FDStdIn[1]);
 
-    /// Waiting for child process and get outputs.
+    // Waiting for child process and get outputs.
     uint8_t Buf[PIPE_BUF];
     ssize_t RBytes;
     int ChildStat;
@@ -224,25 +224,25 @@ Expect<uint32_t> WasmEdgeProcessRun::body(Runtime::Instance::MemoryInstance *) {
       if ((TCurr.tv_sec - TStart.tv_sec) * 1000U +
               (TCurr.tv_usec - TStart.tv_usec) / 1000000U >
           Env.TimeOut) {
-        /// Over timeout. Interrupt child process.
+        // Over timeout. Interrupt child process.
         kill(PID, SIGKILL);
         Env.ExitCode = static_cast<uint32_t>(ETIMEDOUT);
         break;
       }
 
-      /// Wait for child process.
+      // Wait for child process.
       pid_t WPID = waitpid(PID, &ChildStat, WNOHANG);
       if (WPID == -1) {
-        /// waitpid failed.
+        // waitpid failed.
         Env.ExitCode = static_cast<uint32_t>(EINVAL);
         break;
       } else if (WPID > 0) {
-        /// Child process returned.
+        // Child process returned.
         Env.ExitCode = static_cast<int8_t>(WEXITSTATUS(ChildStat));
         break;
       }
 
-      /// Read stdout and stderr.
+      // Read stdout and stderr.
       fd_set FDSet;
       int NFD = std::max(FDStdOut[0], FDStdErr[0]) + 1;
       FD_ZERO(&FDSet);
@@ -266,7 +266,7 @@ Expect<uint32_t> WasmEdgeProcessRun::body(Runtime::Instance::MemoryInstance *) {
       usleep(Env.DEFAULT_POLLTIME * 1000);
     }
 
-    /// Read remained stdout and stderr.
+    // Read remained stdout and stderr.
     do {
       RBytes = read(FDStdOut[0], Buf, sizeof(Buf));
       if (RBytes > 0) {
@@ -285,7 +285,7 @@ Expect<uint32_t> WasmEdgeProcessRun::body(Runtime::Instance::MemoryInstance *) {
     close(FDStdErr[0]);
   }
 
-  /// Reset inputs.
+  // Reset inputs.
   Env.Name.clear();
   Env.Args.clear();
   Env.Envs.clear();
@@ -311,7 +311,7 @@ WasmEdgeProcessGetStdOutLen::body(Runtime::Instance::MemoryInstance *) {
 Expect<void>
 WasmEdgeProcessGetStdOut::body(Runtime::Instance::MemoryInstance *MemInst,
                                uint32_t BufPtr) {
-  /// Check memory instance from module.
+  // Check memory instance from module.
   if (MemInst == nullptr) {
     return Unexpect(ErrCode::ExecutionFailed);
   }
@@ -329,7 +329,7 @@ WasmEdgeProcessGetStdErrLen::body(Runtime::Instance::MemoryInstance *) {
 Expect<void>
 WasmEdgeProcessGetStdErr::body(Runtime::Instance::MemoryInstance *MemInst,
                                uint32_t BufPtr) {
-  /// Check memory instance from module.
+  // Check memory instance from module.
   if (MemInst == nullptr) {
     return Unexpect(ErrCode::ExecutionFailed);
   }

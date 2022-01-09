@@ -7,7 +7,7 @@ namespace WasmEdge {
 namespace Loader {
 
 Expect<void> Loader::loadLimit(AST::Limit &Lim) {
-  /// Read limit.
+  // Read limit.
   if (auto Res = FMgr.readByte()) {
     switch (static_cast<AST::Limit::LimitType>(*Res)) {
     case AST::Limit::LimitType::HasMin:
@@ -18,7 +18,7 @@ Expect<void> Loader::loadLimit(AST::Limit &Lim) {
       break;
     default:
       if (*Res == 0x80 || *Res == 0x81) {
-        /// LEB128 cases will fail.
+        // LEB128 cases will fail.
         return logLoadError(ErrCode::IntegerTooLong, FMgr.getLastOffset(),
                             ASTNodeAttr::Type_Limit);
       } else {
@@ -31,7 +31,7 @@ Expect<void> Loader::loadLimit(AST::Limit &Lim) {
                         ASTNodeAttr::Type_Limit);
   }
 
-  /// Read min and max number.
+  // Read min and max number.
   if (auto Res = FMgr.readU32()) {
     Lim.setMin(*Res);
     Lim.setMax(*Res);
@@ -50,11 +50,11 @@ Expect<void> Loader::loadLimit(AST::Limit &Lim) {
   return {};
 }
 
-/// Load binary to construct FunctionType node. See "include/loader/loader.h".
+// Load binary to construct FunctionType node. See "include/loader/loader.h".
 Expect<void> Loader::loadType(AST::FunctionType &FuncType) {
   uint32_t VecCnt = 0;
 
-  /// Read function type (0x60).
+  // Read function type (0x60).
   if (auto Res = FMgr.readByte()) {
     if (*Res != 0x60U) {
       return logLoadError(ErrCode::IntegerTooLong, FMgr.getLastOffset(),
@@ -65,7 +65,7 @@ Expect<void> Loader::loadType(AST::FunctionType &FuncType) {
                         ASTNodeAttr::Type_Function);
   }
 
-  /// Read vector of parameter types.
+  // Read vector of parameter types.
   if (auto Res = FMgr.readU32()) {
     VecCnt = *Res;
     FuncType.getParamTypes().reserve(VecCnt);
@@ -88,7 +88,7 @@ Expect<void> Loader::loadType(AST::FunctionType &FuncType) {
     }
   }
 
-  /// Read vector of result types.
+  // Read vector of result types.
   if (auto Res = FMgr.readU32()) {
     VecCnt = *Res;
     FuncType.getReturnTypes().reserve(VecCnt);
@@ -117,9 +117,9 @@ Expect<void> Loader::loadType(AST::FunctionType &FuncType) {
   return {};
 }
 
-/// Load binary to construct MemoryType node. See "include/loader/loader.h".
+// Load binary to construct MemoryType node. See "include/loader/loader.h".
 Expect<void> Loader::loadType(AST::MemoryType &MemType) {
-  /// Read limit.
+  // Read limit.
   if (auto Res = loadLimit(MemType.getLimit()); !Res) {
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Type_Memory));
     return Unexpect(Res);
@@ -127,9 +127,9 @@ Expect<void> Loader::loadType(AST::MemoryType &MemType) {
   return {};
 }
 
-/// Load binary to construct TableType node. See "include/loader/loader.h".
+// Load binary to construct TableType node. See "include/loader/loader.h".
 Expect<void> Loader::loadType(AST::TableType &TabType) {
-  /// Read reference type.
+  // Read reference type.
   if (auto Res = FMgr.readByte()) {
     TabType.setRefType(static_cast<RefType>(*Res));
     if (auto Check =
@@ -143,7 +143,7 @@ Expect<void> Loader::loadType(AST::TableType &TabType) {
                         ASTNodeAttr::Type_Table);
   }
 
-  /// Read limit.
+  // Read limit.
   if (auto Res = loadLimit(TabType.getLimit()); !Res) {
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Type_Table));
     return Unexpect(Res);
@@ -151,9 +151,9 @@ Expect<void> Loader::loadType(AST::TableType &TabType) {
   return {};
 }
 
-/// Load binary to construct GlobalType node. See "include/loader/loader.h".
+// Load binary to construct GlobalType node. See "include/loader/loader.h".
 Expect<void> Loader::loadType(AST::GlobalType &GlobType) {
-  /// Read value type.
+  // Read value type.
   if (auto Res = FMgr.readByte()) {
     GlobType.setValType(static_cast<ValType>(*Res));
     if (auto Check =
@@ -167,7 +167,7 @@ Expect<void> Loader::loadType(AST::GlobalType &GlobType) {
                         ASTNodeAttr::Type_Global);
   }
 
-  /// Read mutability.
+  // Read mutability.
   if (auto Res = FMgr.readByte()) {
     GlobType.setValMut(static_cast<ValMut>(*Res));
     switch (GlobType.getValMut()) {

@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: BSD 3-Clause
+# SPDX-License-Identifier: BSD-3-Clause
 # source: https://github.com/vector-of-bool/CMakeCM
 
 #[=======================================================================[.rst:

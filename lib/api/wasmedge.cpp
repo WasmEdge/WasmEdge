@@ -11,40 +11,40 @@
 #include <cstring>
 #include <vector>
 
-/// WasmEdge_ConfigureContext implementation.
+// WasmEdge_ConfigureContext implementation.
 struct WasmEdge_ConfigureContext {
   WasmEdge::Configure Conf;
 };
 
-/// WasmEdge_StatisticsContext implementation.
+// WasmEdge_StatisticsContext implementation.
 struct WasmEdge_StatisticsContext {};
 
-/// WasmEdge_ASTModuleContext implementation.
+// WasmEdge_ASTModuleContext implementation.
 struct WasmEdge_ASTModuleContext {
   WasmEdge_ASTModuleContext(std::unique_ptr<WasmEdge::AST::Module> Mod) noexcept
       : Module(std::move(Mod)) {}
   std::unique_ptr<WasmEdge::AST::Module> Module;
 };
 
-/// WasmEdge_FunctionTypeContext implementation.
+// WasmEdge_FunctionTypeContext implementation.
 struct WasmEdge_FunctionTypeContext {};
 
-/// WasmEdge_TableTypeContext implementation.
+// WasmEdge_TableTypeContext implementation.
 struct WasmEdge_TableTypeContext {};
 
-/// WasmEdge_MemoryTypeContext implementation.
+// WasmEdge_MemoryTypeContext implementation.
 struct WasmEdge_MemoryTypeContext {};
 
-/// WasmEdge_GlobalTypeContext implementation.
+// WasmEdge_GlobalTypeContext implementation.
 struct WasmEdge_GlobalTypeContext {};
 
-/// WasmEdge_ImportTypeContext implementation.
+// WasmEdge_ImportTypeContext implementation.
 struct WasmEdge_ImportTypeContext {};
 
-/// WasmEdge_ExportTypeContext implementation.
+// WasmEdge_ExportTypeContext implementation.
 struct WasmEdge_ExportTypeContext {};
 
-/// WasmEdge_CompilerContext implementation.
+// WasmEdge_CompilerContext implementation.
 struct WasmEdge_CompilerContext {
 #ifdef WASMEDGE_BUILD_AOT_RUNTIME
   WasmEdge_CompilerContext(const WasmEdge::Configure &Conf) noexcept
@@ -55,21 +55,21 @@ struct WasmEdge_CompilerContext {
 #endif
 };
 
-/// WasmEdge_LoaderContext implementation.
+// WasmEdge_LoaderContext implementation.
 struct WasmEdge_LoaderContext {
   WasmEdge_LoaderContext(const WasmEdge::Configure &Conf) noexcept
       : Load(Conf) {}
   WasmEdge::Loader::Loader Load;
 };
 
-/// WasmEdge_ValidatorContext implementation.
+// WasmEdge_ValidatorContext implementation.
 struct WasmEdge_ValidatorContext {
   WasmEdge_ValidatorContext(const WasmEdge::Configure &Conf) noexcept
       : Valid(Conf) {}
   WasmEdge::Validator::Validator Valid;
 };
 
-/// WasmEdge_ExecutorContext implementation.
+// WasmEdge_ExecutorContext implementation.
 struct WasmEdge_ExecutorContext {
   WasmEdge_ExecutorContext(
       const WasmEdge::Configure &Conf,
@@ -78,25 +78,25 @@ struct WasmEdge_ExecutorContext {
   WasmEdge::Executor::Executor Exec;
 };
 
-/// WasmEdge_StoreContext implementation.
+// WasmEdge_StoreContext implementation.
 struct WasmEdge_StoreContext {};
 
-/// WasmEdge_FunctionInstanceContext implementation.
+// WasmEdge_FunctionInstanceContext implementation.
 struct WasmEdge_FunctionInstanceContext {};
 
-/// WasmEdge_TableInstanceContext implementation.
+// WasmEdge_TableInstanceContext implementation.
 struct WasmEdge_TableInstanceContext {};
 
-/// WasmEdge_MemoryInstanceContext implementation.
+// WasmEdge_MemoryInstanceContext implementation.
 struct WasmEdge_MemoryInstanceContext {};
 
-/// WasmEdge_GlobalInstanceContext implementation.
+// WasmEdge_GlobalInstanceContext implementation.
 struct WasmEdge_GlobalInstanceContext {};
 
-/// WasmEdge_ImportObjectContext implementation.
+// WasmEdge_ImportObjectContext implementation.
 struct WasmEdge_ImportObjectContext {};
 
-/// WasmEdge_Async implementation.
+// WasmEdge_Async implementation.
 struct WasmEdge_Async {
   template <typename... Args>
   WasmEdge_Async(Args &&...Vals) noexcept
@@ -106,7 +106,7 @@ struct WasmEdge_Async {
       Async;
 };
 
-/// WasmEdge_VMContext implementation.
+// WasmEdge_VMContext implementation.
 struct WasmEdge_VMContext {
   template <typename... Args>
   WasmEdge_VMContext(Args &&...Vals) noexcept
@@ -118,13 +118,13 @@ namespace {
 
 using namespace WasmEdge;
 
-/// Helper function for returning a WasmEdge_Result by error code.
+// Helper function for returning a WasmEdge_Result by error code.
 inline constexpr WasmEdge_Result genWasmEdge_Result(ErrCode Code) noexcept {
   return WasmEdge_Result{.Code = static_cast<uint8_t>(Code)};
 }
 
-/// Helper function for returning a struct uint128_t / int128_t
-/// from class WasmEdge::uint128_t / WasmEdge::int128_t.
+// Helper function for returning a struct uint128_t / int128_t
+// from class WasmEdge::uint128_t / WasmEdge::int128_t.
 template <typename C>
 inline constexpr ::uint128_t to_uint128_t(C Val) noexcept {
 #if defined(__x86_64__) || defined(__aarch64__)
@@ -141,8 +141,8 @@ template <typename C> inline constexpr ::int128_t to_int128_t(C Val) noexcept {
 #endif
 }
 
-/// Helper function for returning a class WasmEdge::uint128_t /
-/// WasmEdge::int128_t from struct uint128_t / int128_t.
+// Helper function for returning a class WasmEdge::uint128_t /
+// WasmEdge::int128_t from struct uint128_t / int128_t.
 template <typename C, typename T>
 inline constexpr C to_WasmEdge_128_t(T Val) noexcept {
 #if defined(__x86_64__) || defined(__aarch64__)
@@ -152,7 +152,7 @@ inline constexpr C to_WasmEdge_128_t(T Val) noexcept {
 #endif
 }
 
-/// Helper functions for returning a WasmEdge_Value by various values.
+// Helper functions for returning a WasmEdge_Value by various values.
 template <typename T> inline WasmEdge_Value genWasmEdge_Value(T Val) noexcept {
   return WasmEdge_Value{
       .Value = to_uint128_t(ValVariant(Val).unwrap()),
@@ -163,8 +163,8 @@ inline WasmEdge_Value genWasmEdge_Value(ValVariant Val,
   return WasmEdge_Value{.Value = to_uint128_t(Val.unwrap()), .Type = T};
 }
 
-/// Helper function for converting a WasmEdge_Value array to a ValVariant
-/// vector.
+// Helper function for converting a WasmEdge_Value array to a ValVariant
+// vector.
 inline std::pair<std::vector<ValVariant>, std::vector<ValType>>
 genParamPair(const WasmEdge_Value *Val, const uint32_t Len) noexcept {
   std::vector<ValVariant> VVec;
@@ -214,20 +214,20 @@ genParamPair(const WasmEdge_Value *Val, const uint32_t Len) noexcept {
   return {VVec, TVec};
 }
 
-/// Helper function for making a Span to a uint8_t array.
+// Helper function for making a Span to a uint8_t array.
 template <typename T>
 inline constexpr Span<const T> genSpan(const T *Buf,
                                        const uint32_t Len) noexcept {
   return Span<const T>(Buf, Len);
 }
 
-/// Helper functions for converting WasmEdge_String to std::String.
+// Helper functions for converting WasmEdge_String to std::String.
 inline std::string_view genStrView(const WasmEdge_String S) noexcept {
   return std::string_view(S.Buf, S.Length);
 }
 
-/// Helper functions for converting a ValVariant vector to a WasmEdge_Value
-/// array.
+// Helper functions for converting a ValVariant vector to a WasmEdge_Value
+// array.
 inline constexpr void
 fillWasmEdge_ValueArr(Span<const std::pair<ValVariant, ValType>> Vec,
                       WasmEdge_Value *Val, const uint32_t Len) noexcept {
@@ -240,7 +240,7 @@ fillWasmEdge_ValueArr(Span<const std::pair<ValVariant, ValType>> Vec,
   }
 }
 
-/// Helper template to run and return result.
+// Helper template to run and return result.
 auto EmptyThen = [](auto &&) noexcept {};
 template <typename T> inline bool isContext(T *Cxt) noexcept {
   return (Cxt != nullptr);
@@ -263,7 +263,7 @@ inline WasmEdge_Result wrap(T &&Proc, U &&Then, CxtT *...Cxts) noexcept {
   }
 }
 
-/// Helper function of retrieving exported maps.
+// Helper function of retrieving exported maps.
 inline uint32_t fillMap(const std::map<std::string, uint32_t, std::less<>> &Map,
                         WasmEdge_String *Names, const uint32_t Len) noexcept {
   uint32_t I = 0;
@@ -281,7 +281,7 @@ inline uint32_t fillMap(const std::map<std::string, uint32_t, std::less<>> &Map,
   return static_cast<uint32_t>(Map.size());
 }
 
-/// C API Host function class
+// C API Host function class
 class CAPIHostFunc : public Runtime::HostFunctionBase {
 public:
   CAPIHostFunc(const AST::FunctionType *Type, WasmEdge_HostFunc_t FuncPtr,
@@ -338,7 +338,7 @@ private:
   void *Data;
 };
 
-/// Helper functions of context conversions.
+// Helper functions of context conversions.
 #define CONVTO(SIMP, INST, NAME, QUANT)                                        \
   inline QUANT auto *to##SIMP##Cxt(QUANT INST *Cxt) noexcept {                 \
     return reinterpret_cast<QUANT WasmEdge_##NAME##Context *>(Cxt);            \
@@ -399,7 +399,7 @@ CONVFROM(ImpObj, Runtime::ImportObject, ImportObject, const)
 extern "C" {
 #endif
 
-/// >>>>>>>> WasmEdge version functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+// >>>>>>>> WasmEdge version functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 WASMEDGE_CAPI_EXPORT const char *WasmEdge_VersionGet(void) {
   return WASMEDGE_VERSION;
@@ -417,9 +417,9 @@ WASMEDGE_CAPI_EXPORT uint32_t WasmEdge_VersionGetPatch(void) {
   return WASMEDGE_VERSION_PATCH;
 }
 
-/// <<<<<<<< WasmEdge version functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+// <<<<<<<< WasmEdge version functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
-/// >>>>>>>> WasmEdge logging functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+// >>>>>>>> WasmEdge logging functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 WASMEDGE_CAPI_EXPORT void WasmEdge_LogSetErrorLevel(void) {
   WasmEdge::Log::setErrorLoggingLevel();
@@ -429,9 +429,9 @@ WASMEDGE_CAPI_EXPORT void WasmEdge_LogSetDebugLevel(void) {
   WasmEdge::Log::setDebugLoggingLevel();
 }
 
-/// <<<<<<<< WasmEdge logging functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+// <<<<<<<< WasmEdge logging functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
-/// >>>>>>>> WasmEdge value functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+// >>>>>>>> WasmEdge value functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 WASMEDGE_CAPI_EXPORT WasmEdge_Value WasmEdge_ValueGenI32(const int32_t Val) {
   return genWasmEdge_Value(Val);
@@ -519,9 +519,9 @@ WasmEdge_ValueGetExternRef(const WasmEdge_Value Val) {
           to_WasmEdge_128_t<WasmEdge::uint128_t>(Val.Value)));
 }
 
-/// <<<<<<<< WasmEdge value functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+// <<<<<<<< WasmEdge value functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
-/// <<<<<<<< WasmEdge string functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+// <<<<<<<< WasmEdge string functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 WASMEDGE_CAPI_EXPORT WasmEdge_String
 WasmEdge_StringCreateByCString(const char *Str) {
@@ -574,9 +574,9 @@ WASMEDGE_CAPI_EXPORT void WasmEdge_StringDelete(WasmEdge_String Str) {
   }
 }
 
-/// >>>>>>>> WasmEdge string functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+// >>>>>>>> WasmEdge string functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
-/// >>>>>>>> WasmEdge result functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+// >>>>>>>> WasmEdge result functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 WASMEDGE_CAPI_EXPORT bool WasmEdge_ResultOK(const WasmEdge_Result Res) {
   if (static_cast<WasmEdge::ErrCode>(Res.Code) == WasmEdge::ErrCode::Success ||
@@ -598,9 +598,9 @@ WasmEdge_ResultGetMessage(const WasmEdge_Result Res) {
   return WasmEdge::ErrCodeStr[static_cast<WasmEdge::ErrCode>(Res.Code)].c_str();
 }
 
-/// <<<<<<<< WasmEdge result functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+// <<<<<<<< WasmEdge result functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
-/// >>>>>>>> WasmEdge limit functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+// >>>>>>>> WasmEdge limit functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 WASMEDGE_CAPI_EXPORT bool WasmEdge_LimitIsEqual(const WasmEdge_Limit Lim1,
                                                 const WasmEdge_Limit Lim2) {
@@ -608,9 +608,9 @@ WASMEDGE_CAPI_EXPORT bool WasmEdge_LimitIsEqual(const WasmEdge_Limit Lim1,
          Lim1.Max == Lim2.Max;
 }
 
-/// <<<<<<<< WasmEdge limit functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+// <<<<<<<< WasmEdge limit functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
-/// >>>>>>>> WasmEdge configure functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+// >>>>>>>> WasmEdge configure functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 WASMEDGE_CAPI_EXPORT WasmEdge_ConfigureContext *WasmEdge_ConfigureCreate(void) {
   return new WasmEdge_ConfigureContext;
@@ -823,9 +823,9 @@ WasmEdge_ConfigureDelete(WasmEdge_ConfigureContext *Cxt) {
   delete Cxt;
 }
 
-/// <<<<<<<< WasmEdge configure functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+// <<<<<<<< WasmEdge configure functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
-/// >>>>>>>> WasmEdge statistics functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+// >>>>>>>> WasmEdge statistics functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 WASMEDGE_CAPI_EXPORT WasmEdge_StatisticsContext *
 WasmEdge_StatisticsCreate(void) {
@@ -877,9 +877,9 @@ WasmEdge_StatisticsDelete(WasmEdge_StatisticsContext *Cxt) {
   delete fromStatCxt(Cxt);
 }
 
-/// <<<<<<<< WasmEdge statistics functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+// <<<<<<<< WasmEdge statistics functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
-/// >>>>>>>> WasmEdge AST module functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+// >>>>>>>> WasmEdge AST module functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 WASMEDGE_CAPI_EXPORT uint32_t
 WasmEdge_ASTModuleListImportsLength(const WasmEdge_ASTModuleContext *Cxt) {
@@ -934,9 +934,9 @@ WasmEdge_ASTModuleDelete(WasmEdge_ASTModuleContext *Cxt) {
   delete Cxt;
 }
 
-/// <<<<<<<< WasmEdge AST module functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+// <<<<<<<< WasmEdge AST module functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
-/// >>>>>>>> WasmEdge function type functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+// >>>>>>>> WasmEdge function type functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 WASMEDGE_CAPI_EXPORT WasmEdge_FunctionTypeContext *WasmEdge_FunctionTypeCreate(
     const enum WasmEdge_ValType *ParamList, const uint32_t ParamLen,
@@ -1006,9 +1006,9 @@ WasmEdge_FunctionTypeDelete(WasmEdge_FunctionTypeContext *Cxt) {
   delete fromFuncTypeCxt(Cxt);
 }
 
-/// <<<<<<<< WasmEdge function type functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+// <<<<<<<< WasmEdge function type functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
-/// >>>>>>>> WasmEdge table type functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+// >>>>>>>> WasmEdge table type functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 WASMEDGE_CAPI_EXPORT WasmEdge_TableTypeContext *
 WasmEdge_TableTypeCreate(const enum WasmEdge_RefType RefType,
@@ -1045,9 +1045,9 @@ WasmEdge_TableTypeDelete(WasmEdge_TableTypeContext *Cxt) {
   delete fromTabTypeCxt(Cxt);
 }
 
-/// <<<<<<<< WasmEdge table type functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+// <<<<<<<< WasmEdge table type functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
-/// >>>>>>>> WasmEdge memory type functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+// >>>>>>>> WasmEdge memory type functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 WASMEDGE_CAPI_EXPORT WasmEdge_MemoryTypeContext *
 WasmEdge_MemoryTypeCreate(const WasmEdge_Limit Limit) {
@@ -1073,9 +1073,9 @@ WasmEdge_MemoryTypeDelete(WasmEdge_MemoryTypeContext *Cxt) {
   delete fromMemTypeCxt(Cxt);
 }
 
-/// <<<<<<<< WasmEdge memory type functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+// <<<<<<<< WasmEdge memory type functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
-/// >>>>>>>> WasmEdge global type functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+// >>>>>>>> WasmEdge global type functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 WASMEDGE_CAPI_EXPORT WasmEdge_GlobalTypeContext *
 WasmEdge_GlobalTypeCreate(const enum WasmEdge_ValType ValType,
@@ -1106,9 +1106,9 @@ WasmEdge_GlobalTypeDelete(WasmEdge_GlobalTypeContext *Cxt) {
   delete fromGlobTypeCxt(Cxt);
 }
 
-/// <<<<<<<< WasmEdge global type functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+// <<<<<<<< WasmEdge global type functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
-/// >>>>>>>> WasmEdge import type functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+// >>>>>>>> WasmEdge import type functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 WASMEDGE_CAPI_EXPORT enum WasmEdge_ExternalType
 WasmEdge_ImportTypeGetExternalType(const WasmEdge_ImportTypeContext *Cxt) {
@@ -1187,9 +1187,9 @@ WasmEdge_ImportTypeGetGlobalType(const WasmEdge_ASTModuleContext *ASTCxt,
   return nullptr;
 }
 
-/// <<<<<<<< WasmEdge import type functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+// <<<<<<<< WasmEdge import type functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
-/// >>>>>>>> WasmEdge export type functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+// >>>>>>>> WasmEdge export type functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 WASMEDGE_CAPI_EXPORT enum WasmEdge_ExternalType
 WasmEdge_ExportTypeGetExternalType(const WasmEdge_ExportTypeContext *Cxt) {
@@ -1216,7 +1216,7 @@ WasmEdge_ExportTypeGetFunctionType(const WasmEdge_ASTModuleContext *ASTCxt,
   if (ASTCxt && Cxt &&
       fromExpTypeCxt(Cxt)->getExternalType() ==
           WasmEdge::ExternalType::Function) {
-    /// `external_index` = `func_index` + `import_func_nums`
+    // `external_index` = `func_index` + `import_func_nums`
     uint32_t ExtIdx = fromExpTypeCxt(Cxt)->getExternalIndex();
     const auto &ImpDescs = ASTCxt->Module->getImportSection().getContent();
     for (auto &&ImpDesc : ImpDescs) {
@@ -1224,13 +1224,13 @@ WasmEdge_ExportTypeGetFunctionType(const WasmEdge_ASTModuleContext *ASTCxt,
         ExtIdx--;
       }
     }
-    /// Get the function type index by the function index
+    // Get the function type index by the function index
     const auto &FuncIdxs = ASTCxt->Module->getFunctionSection().getContent();
     if (ExtIdx >= FuncIdxs.size()) {
       return nullptr;
     }
     uint32_t TypeIdx = FuncIdxs[ExtIdx];
-    /// Get the function type
+    // Get the function type
     const auto &FuncTypes = ASTCxt->Module->getTypeSection().getContent();
     if (TypeIdx >= FuncTypes.size()) {
       return nullptr;
@@ -1245,7 +1245,7 @@ WasmEdge_ExportTypeGetTableType(const WasmEdge_ASTModuleContext *ASTCxt,
                                 const WasmEdge_ExportTypeContext *Cxt) {
   if (ASTCxt && Cxt &&
       fromExpTypeCxt(Cxt)->getExternalType() == WasmEdge::ExternalType::Table) {
-    /// `external_index` = `table_type_index` + `import_table_nums`
+    // `external_index` = `table_type_index` + `import_table_nums`
     uint32_t ExtIdx = fromExpTypeCxt(Cxt)->getExternalIndex();
     const auto &ImpDescs = ASTCxt->Module->getImportSection().getContent();
     for (auto &&ImpDesc : ImpDescs) {
@@ -1253,7 +1253,7 @@ WasmEdge_ExportTypeGetTableType(const WasmEdge_ASTModuleContext *ASTCxt,
         ExtIdx--;
       }
     }
-    /// Get the table type
+    // Get the table type
     const auto &TabTypes = ASTCxt->Module->getTableSection().getContent();
     if (ExtIdx >= TabTypes.size()) {
       return nullptr;
@@ -1269,7 +1269,7 @@ WasmEdge_ExportTypeGetMemoryType(const WasmEdge_ASTModuleContext *ASTCxt,
   if (ASTCxt && Cxt &&
       fromExpTypeCxt(Cxt)->getExternalType() ==
           WasmEdge::ExternalType::Memory) {
-    /// `external_index` = `memory_type_index` + `import_memory_nums`
+    // `external_index` = `memory_type_index` + `import_memory_nums`
     uint32_t ExtIdx = fromExpTypeCxt(Cxt)->getExternalIndex();
     const auto &ImpDescs = ASTCxt->Module->getImportSection().getContent();
     for (auto &&ImpDesc : ImpDescs) {
@@ -1277,7 +1277,7 @@ WasmEdge_ExportTypeGetMemoryType(const WasmEdge_ASTModuleContext *ASTCxt,
         ExtIdx--;
       }
     }
-    /// Get the memory type
+    // Get the memory type
     const auto &MemTypes = ASTCxt->Module->getMemorySection().getContent();
     if (ExtIdx >= MemTypes.size()) {
       return nullptr;
@@ -1293,7 +1293,7 @@ WasmEdge_ExportTypeGetGlobalType(const WasmEdge_ASTModuleContext *ASTCxt,
   if (ASTCxt && Cxt &&
       fromExpTypeCxt(Cxt)->getExternalType() ==
           WasmEdge::ExternalType::Global) {
-    /// `external_index` = `global_type_index` + `import_global_nums`
+    // `external_index` = `global_type_index` + `import_global_nums`
     uint32_t ExtIdx = fromExpTypeCxt(Cxt)->getExternalIndex();
     const auto &ImpDescs = ASTCxt->Module->getImportSection().getContent();
     for (auto &&ImpDesc : ImpDescs) {
@@ -1301,7 +1301,7 @@ WasmEdge_ExportTypeGetGlobalType(const WasmEdge_ASTModuleContext *ASTCxt,
         ExtIdx--;
       }
     }
-    /// Get the global type
+    // Get the global type
     const auto &GlobDescs = ASTCxt->Module->getGlobalSection().getContent();
     if (ExtIdx >= GlobDescs.size()) {
       return nullptr;
@@ -1311,9 +1311,9 @@ WasmEdge_ExportTypeGetGlobalType(const WasmEdge_ASTModuleContext *ASTCxt,
   return nullptr;
 }
 
-/// <<<<<<<< WasmEdge export type functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+// <<<<<<<< WasmEdge export type functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
-/// >>>>>>>> WasmEdge AOT compiler functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+// >>>>>>>> WasmEdge AOT compiler functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 WASMEDGE_CAPI_EXPORT WasmEdge_CompilerContext *
 WasmEdge_CompilerCreate(const WasmEdge_ConfigureContext *ConfCxt
@@ -1366,9 +1366,9 @@ WasmEdge_CompilerDelete(WasmEdge_CompilerContext *Cxt) {
   delete Cxt;
 }
 
-/// <<<<<<<< WasmEdge AOT compiler functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+// <<<<<<<< WasmEdge AOT compiler functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
-/// >>>>>>>> WasmEdge loader functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+// >>>>>>>> WasmEdge loader functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 WASMEDGE_CAPI_EXPORT WasmEdge_LoaderContext *
 WasmEdge_LoaderCreate(const WasmEdge_ConfigureContext *ConfCxt) {
@@ -1404,9 +1404,9 @@ WASMEDGE_CAPI_EXPORT void WasmEdge_LoaderDelete(WasmEdge_LoaderContext *Cxt) {
   delete Cxt;
 }
 
-/// <<<<<<<< WasmEdge loader functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+// <<<<<<<< WasmEdge loader functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
-/// >>>>>>>> WasmEdge validator functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+// >>>>>>>> WasmEdge validator functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 WASMEDGE_CAPI_EXPORT WasmEdge_ValidatorContext *
 WasmEdge_ValidatorCreate(const WasmEdge_ConfigureContext *ConfCxt) {
@@ -1429,9 +1429,9 @@ WasmEdge_ValidatorDelete(WasmEdge_ValidatorContext *Cxt) {
   delete Cxt;
 }
 
-/// <<<<<<<< WasmEdge validator functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+// <<<<<<<< WasmEdge validator functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
-/// >>>>>>>> WasmEdge executor functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+// >>>>>>>> WasmEdge executor functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 WASMEDGE_CAPI_EXPORT WasmEdge_ExecutorContext *
 WasmEdge_ExecutorCreate(const WasmEdge_ConfigureContext *ConfCxt,
@@ -1497,7 +1497,7 @@ WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_ExecutorInvoke(
       [&]()
           -> WasmEdge::Expect<
               std::vector<std::pair<WasmEdge::ValVariant, WasmEdge::ValType>>> {
-        /// Get module instance.
+        // Get module instance.
         WasmEdge::Runtime::Instance::ModuleInstance *ModInst;
         if (auto Res = fromStoreCxt(StoreCxt)->getActiveModule()) {
           ModInst = *Res;
@@ -1507,7 +1507,7 @@ WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_ExecutorInvoke(
           return Unexpect(Res);
         }
 
-        /// Check exports for finding function address.
+        // Check exports for finding function address.
         const auto &FuncExp = ModInst->getFuncExports();
         const auto FuncIter = FuncExp.find(genStrView(FuncName));
         if (FuncIter == FuncExp.cend()) {
@@ -1534,7 +1534,7 @@ WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_ExecutorInvokeRegistered(
       [&]()
           -> WasmEdge::Expect<
               std::vector<std::pair<WasmEdge::ValVariant, WasmEdge::ValType>>> {
-        /// Get module instance.
+        // Get module instance.
         WasmEdge::Runtime::Instance::ModuleInstance *ModInst;
         if (auto Res = fromStoreCxt(StoreCxt)->findModule(ModStr)) {
           ModInst = *Res;
@@ -1544,7 +1544,7 @@ WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_ExecutorInvokeRegistered(
           return Unexpect(Res);
         }
 
-        /// Get exports and find function.
+        // Get exports and find function.
         const auto &FuncExp = ModInst->getFuncExports();
         const auto FuncIter = FuncExp.find(FuncStr);
         if (FuncIter == FuncExp.cend()) {
@@ -1564,9 +1564,9 @@ WasmEdge_ExecutorDelete(WasmEdge_ExecutorContext *Cxt) {
   delete Cxt;
 }
 
-/// <<<<<<<< WasmEdge executor functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+// <<<<<<<< WasmEdge executor functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
-/// >>>>>>>> WasmEdge store functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+// >>>>>>>> WasmEdge store functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 WASMEDGE_CAPI_EXPORT WasmEdge_StoreContext *WasmEdge_StoreCreate(void) {
   return toStoreCxt(new WasmEdge::Runtime::StoreManager);
@@ -1885,9 +1885,9 @@ WASMEDGE_CAPI_EXPORT void WasmEdge_StoreDelete(WasmEdge_StoreContext *Cxt) {
   delete fromStoreCxt(Cxt);
 }
 
-/// <<<<<<<< WasmEdge store functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+// <<<<<<<< WasmEdge store functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
-/// >>>>>>>> WasmEdge function instance functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+// >>>>>>>> WasmEdge function instance functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 WASMEDGE_CAPI_EXPORT WasmEdge_FunctionInstanceContext *
 WasmEdge_FunctionInstanceCreate(const WasmEdge_FunctionTypeContext *Type,
@@ -1928,9 +1928,9 @@ WasmEdge_FunctionInstanceDelete(WasmEdge_FunctionInstanceContext *Cxt) {
   delete fromFuncCxt(Cxt);
 }
 
-/// <<<<<<<< WasmEdge function instance functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+// <<<<<<<< WasmEdge function instance functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
-/// >>>>>>>> WasmEdge table instance functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+// >>>>>>>> WasmEdge table instance functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 WASMEDGE_CAPI_EXPORT WasmEdge_TableInstanceContext *
 WasmEdge_TableInstanceCreate(const WasmEdge_TableTypeContext *TabType) {
@@ -2010,9 +2010,9 @@ WasmEdge_TableInstanceDelete(WasmEdge_TableInstanceContext *Cxt) {
   delete fromTabCxt(Cxt);
 }
 
-/// <<<<<<<< WasmEdge table instance functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+// <<<<<<<< WasmEdge table instance functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
-/// >>>>>>>> WasmEdge memory instance functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+// >>>>>>>> WasmEdge memory instance functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 WASMEDGE_CAPI_EXPORT WasmEdge_MemoryInstanceContext *
 WasmEdge_MemoryInstanceCreate(const WasmEdge_MemoryTypeContext *MemType) {
@@ -2096,9 +2096,9 @@ WasmEdge_MemoryInstanceDelete(WasmEdge_MemoryInstanceContext *Cxt) {
   delete fromMemCxt(Cxt);
 }
 
-/// <<<<<<<< WasmEdge memory instance functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+// <<<<<<<< WasmEdge memory instance functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
-/// >>>>>>>> WasmEdge global instance functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+// >>>>>>>> WasmEdge global instance functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 WASMEDGE_CAPI_EXPORT WasmEdge_GlobalInstanceContext *
 WasmEdge_GlobalInstanceCreate(const WasmEdge_GlobalTypeContext *GlobType,
@@ -2151,9 +2151,9 @@ WasmEdge_GlobalInstanceDelete(WasmEdge_GlobalInstanceContext *Cxt) {
   delete fromGlobCxt(Cxt);
 }
 
-/// <<<<<<<< WasmEdge global instance functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+// <<<<<<<< WasmEdge global instance functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
-/// <<<<<<<< WasmEdge import object functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+// <<<<<<<< WasmEdge import object functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 WASMEDGE_CAPI_EXPORT WasmEdge_ImportObjectContext *
 WasmEdge_ImportObjectCreate(const WasmEdge_String ModuleName) {
@@ -2306,9 +2306,9 @@ WasmEdge_ImportObjectDelete(WasmEdge_ImportObjectContext *Cxt) {
   delete fromImpObjCxt(Cxt);
 }
 
-/// >>>>>>>> WasmEdge import object functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+// >>>>>>>> WasmEdge import object functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
-/// >>>>>>>> WasmEdge Async functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+// >>>>>>>> WasmEdge Async functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 WASMEDGE_CAPI_EXPORT void WasmEdge_AsyncWait(WasmEdge_Async *Cxt) {
   Cxt->Async.wait();
@@ -2334,9 +2334,9 @@ WASMEDGE_CAPI_EXPORT void WasmEdge_AsyncDelete(WasmEdge_Async *Cxt) {
   delete Cxt;
 }
 
-/// <<<<<<<< WasmEdge Async functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+// <<<<<<<< WasmEdge Async functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
-/// >>>>>>>> WasmEdge VM functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+// >>>>>>>> WasmEdge VM functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 WASMEDGE_CAPI_EXPORT WasmEdge_VMContext *
 WasmEdge_VMCreate(const WasmEdge_ConfigureContext *ConfCxt,
@@ -2597,8 +2597,8 @@ WASMEDGE_CAPI_EXPORT uint32_t WasmEdge_VMGetFunctionList(
     WasmEdge_VMContext *Cxt, WasmEdge_String *Names,
     const WasmEdge_FunctionTypeContext **FuncTypes, const uint32_t Len) {
   if (Cxt) {
-    /// Not to use VM::getFunctionList() here because not to allocate the
-    /// returned function name strings.
+    // Not to use VM::getFunctionList() here because not to allocate the
+    // returned function name strings.
     auto &Store = Cxt->VM.getStoreManager();
     if (auto Res = Store.getActiveModule()) {
       const auto &FuncExp = (*Res)->getFuncExports();
@@ -2652,8 +2652,8 @@ WASMEDGE_CAPI_EXPORT void WasmEdge_VMDelete(WasmEdge_VMContext *Cxt) {
   delete Cxt;
 }
 
-/// <<<<<<<< WasmEdge VM functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+// <<<<<<<< WasmEdge VM functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 #ifdef __cplusplus
-} /// extern "C"
+} // extern "C"
 #endif

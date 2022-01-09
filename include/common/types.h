@@ -27,12 +27,14 @@
 namespace WasmEdge {
 
 namespace {
+
 /// Remove const, reference, and volitile.
 template <typename T>
 using RemoveCVRefT = std::remove_cv_t<std::remove_reference_t<T>>;
+
 } // namespace
 
-/// >>>>>>>> Type definitions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+// >>>>>>>> Type definitions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 using Byte = uint8_t;
 
@@ -108,9 +110,9 @@ inline constexpr ValType ToValType(const RefType Val) noexcept {
   return static_cast<ValType>(Val);
 }
 
-/// <<<<<<<< Type definitions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+// <<<<<<<< Type definitions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
-/// >>>>>>>> Const expressions to checking value types >>>>>>>>>>>>>>>>>>>>>>>>>
+// >>>>>>>> Const expressions to checking value types >>>>>>>>>>>>>>>>>>>>>>>>>>
 
 /// Return true if Wasm unsign (uint32_t and uint64_t).
 template <typename T>
@@ -206,9 +208,9 @@ toUnsigned(T Val) {
   return static_cast<MakeWasmUnsignedT<T>>(Val);
 }
 
-/// <<<<<<<< Const expressions to checking value types <<<<<<<<<<<<<<<<<<<<<<<<<
+// <<<<<<<< Const expressions to checking value types <<<<<<<<<<<<<<<<<<<<<<<<<<
 
-/// >>>>>>>> Template to get value type from type >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+// >>>>>>>> Template to get value type from type >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 template <typename T> inline ValType ValTypeFromType() noexcept;
 
@@ -243,9 +245,9 @@ template <> inline ValType ValTypeFromType<ExternRef>() noexcept {
   return ValType::ExternRef;
 }
 
-/// <<<<<<<< Template to get value type from type <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+// <<<<<<<< Template to get value type from type <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
-/// >>>>>>>> Const expression to generate value from value type >>>>>>>>>>>>>>>>
+// >>>>>>>> Const expression to generate value from value type >>>>>>>>>>>>>>>>>
 
 inline constexpr ValVariant ValueFromType(ValType Type) noexcept {
   switch (Type) {
@@ -268,9 +270,9 @@ inline constexpr ValVariant ValueFromType(ValType Type) noexcept {
   }
 }
 
-/// <<<<<<<< Const expression to generate value from value type <<<<<<<<<<<<<<<<
+// <<<<<<<< Const expression to generate value from value type <<<<<<<<<<<<<<<<<
 
-/// >>>>>>>> Functions to retrieve reference inners >>>>>>>>>>>>>>>>>>>>>>>>>>>>
+// >>>>>>>> Functions to retrieve reference inners >>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 inline constexpr bool isNullRef(const ValVariant &Val) {
   return Val.get<UnknownRef>().Value == 0;
@@ -297,6 +299,6 @@ template <typename T> inline T &retrieveExternRef(const ExternRef &Val) {
   return *reinterpret_cast<T *>(Val.Ptr);
 }
 
-/// <<<<<<<< Functions to retrieve reference inners <<<<<<<<<<<<<<<<<<<<<<<<<<<<
+// <<<<<<<< Functions to retrieve reference inners <<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 } // namespace WasmEdge

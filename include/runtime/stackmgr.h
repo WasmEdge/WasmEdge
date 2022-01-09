@@ -134,7 +134,7 @@ public:
     LabelStack.pop_back();
     if (FrameStack.size() > 1 &&
         FrameStack.back().LStackOff == LabelStack.size()) {
-      /// Noted that there's always a base frame in stack.
+      // Noted that there's always a base frame in stack.
       popFrame();
     }
     return It;

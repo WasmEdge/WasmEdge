@@ -352,7 +352,7 @@ WasiExpect<void> INode::fdPread(Span<Span<uint8_t>> IOVs,
   }
 
 #if __GLIBC_PREREQ(2, 10)
-  /// Store read bytes length.
+  // Store read bytes length.
   if (auto Res = ::preadv(Fd, SysIOVs, SysIOVsSize, Offset);
       unlikely(Res < 0)) {
     return WasiUnexpect(fromErrNo(errno));
@@ -993,7 +993,7 @@ WasiExpect<void> INode::sockRecv(Span<Span<uint8_t>> RiData,
   SysMsgHdr.msg_controllen = 0;
   SysMsgHdr.msg_flags = 0;
 
-  /// Store recv bytes length and flags.
+  // Store recv bytes length and flags.
   if (auto Res = ::recvmsg(Fd, &SysMsgHdr, SysRiFlags); unlikely(Res < 0)) {
     return WasiUnexpect(fromErrNo(errno));
   } else {
@@ -1029,7 +1029,7 @@ WasiExpect<void> INode::sockSend(Span<Span<const uint8_t>> SiData,
   SysMsgHdr.msg_control = nullptr;
   SysMsgHdr.msg_controllen = 0;
 
-  /// Store recv bytes length and flags.
+  // Store recv bytes length and flags.
   if (auto Res = ::sendmsg(Fd, &SysMsgHdr, SysSiFlags); unlikely(Res < 0)) {
     return WasiUnexpect(fromErrNo(errno));
   } else {

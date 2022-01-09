@@ -121,7 +121,7 @@ WasiExpect<INode> INode::open(std::string Path, __wasi_oflags_t OpenFlags,
 
 WasiExpect<void> INode::fdAdvise(__wasi_filesize_t, __wasi_filesize_t,
                                  __wasi_advice_t) const noexcept {
-  /// Not supported, just ignore it.
+  // Not supported, just ignore it.
   return {};
 }
 
@@ -140,15 +140,15 @@ WasiExpect<void> INode::fdAllocate(__wasi_filesize_t Offset,
   }
   if (Len <= static_cast<__wasi_filesize_t>(EofOffset) &&
       Offset <= static_cast<__wasi_filesize_t>(EofOffset) - Len) {
-    /// File is already large enough.
+    // File is already large enough.
     return {};
   }
 
-  /// Try to allocate contiguous space.
+  // Try to allocate contiguous space.
   fstore_t Store = {F_ALLOCATECONTIG, F_PEOFPOSMODE, 0,
                     static_cast<int64_t>(Len), 0};
   if (auto Res = ::fcntl(Fd, F_PREALLOCATE, &Store); unlikely(Res < 0)) {
-    /// Try to allocate sparse space.
+    // Try to allocate sparse space.
     Store.fst_flags = F_ALLOCATEALL;
     if (auto Res = ::fcntl(Fd, F_PREALLOCATE, &Store); unlikely(Res < 0)) {
       return WasiUnexpect(fromErrNo(errno));
@@ -873,7 +873,7 @@ WasiExpect<void> INode::sockRecv(Span<Span<uint8_t>> RiData,
   SysMsgHdr.msg_controllen = 0;
   SysMsgHdr.msg_flags = 0;
 
-  /// Store recv bytes length and flags.
+  // Store recv bytes length and flags.
   if (auto Res = ::recvmsg(Fd, &SysMsgHdr, SysRiFlags); unlikely(Res < 0)) {
     return WasiUnexpect(fromErrNo(errno));
   } else {
@@ -909,7 +909,7 @@ WasiExpect<void> INode::sockSend(Span<Span<const uint8_t>> SiData,
   SysMsgHdr.msg_control = nullptr;
   SysMsgHdr.msg_controllen = 0;
 
-  /// Store recv bytes length and flags.
+  // Store recv bytes length and flags.
   if (auto Res = ::sendmsg(Fd, &SysMsgHdr, SysSiFlags); unlikely(Res < 0)) {
     return WasiUnexpect(fromErrNo(errno));
   } else {

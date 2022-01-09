@@ -38,7 +38,7 @@ namespace {
 using namespace std::literals;
 using namespace WasmEdge;
 
-/// Preprocessing for set up aliasing.
+// Preprocessing for set up aliasing.
 void resolveRegister(std::map<std::string, std::string> &Alias,
                      rapidjson::Value &CmdArray,
                      rapidjson::Document::AllocatorType &Allocator) {
@@ -47,21 +47,26 @@ void resolveRegister(std::map<std::string, std::string> &Alias,
        It != CmdArray.End(); ++It) {
     const auto CmdType = It->GetObject()["type"].Get<std::string>();
     if (CmdType == "module"sv) {
-      /// Record last module in order.
+      // Record last module in order.
       ItMod = It;
     } else if (CmdType == "register"sv) {
-      const auto NewName = It->GetObject()["as"].Get<std::string>();
+      const auto NewNameStr = It->GetObject()["as"].Get<std::string>();
+      auto OrgName = ItMod->FindMember("name");
       if (It->GetObject().HasMember("name")) {
-        /// Set aliasing.
-        Alias.emplace(It->GetObject()["name"].Get<std::string>(), NewName);
+        // Register command records the original name. Set aliasing.
+        Alias.emplace(It->GetObject()["name"].Get<std::string>(), NewNameStr);
+      } else if (OrgName != ItMod->MemberEnd()) {
+        // Register command not records the original name. Get name from the
+        // module.
+        Alias.emplace(OrgName->value.Get<std::string>(), NewNameStr);
       }
-      if (auto Name = ItMod->FindMember("name"); Name != ItMod->MemberEnd()) {
-        /// Module has origin name. Replace to aliased one.
-        Name->value.SetString(NewName, Allocator);
+      if (OrgName != ItMod->MemberEnd()) {
+        // Module has origin name. Replace to aliased one.
+        OrgName->value.SetString(NewNameStr, Allocator);
       } else {
-        /// Module has no origin name. Add the aliased one.
+        // Module has no origin name. Add the aliased one.
         rapidjson::Value Text;
-        Text.SetString(NewName, Allocator);
+        Text.SetString(NewNameStr, Allocator);
         ItMod->AddMember("name", Text, Allocator);
       }
     }
@@ -89,7 +94,7 @@ SpecTest::CommandID resolveCommand(std::string_view Name) {
   return SpecTest::CommandID::Unknown;
 }
 
-/// Helper function to parse parameters from json to vector of value.
+// Helper function to parse parameters from json to vector of value.
 std::pair<std::vector<WasmEdge::ValVariant>, std::vector<WasmEdge::ValType>>
 parseValueList(const rapidjson::Value &Args) {
   std::vector<WasmEdge::ValVariant> Result;
@@ -105,7 +110,7 @@ parseValueList(const rapidjson::Value &Args) {
         if (Value == "null"sv) {
           Result.emplace_back(WasmEdge::UnknownRef());
         } else {
-          /// Add 0x1 uint32_t prefix in this externref index case.
+          // Add 0x1 uint32_t prefix in this externref index case.
           Result.emplace_back(WasmEdge::ExternRef(
               reinterpret_cast<void *>(std::stoul(Value) + 0x100000000ULL)));
         }
@@ -170,7 +175,7 @@ parseValueList(const rapidjson::Value &Args) {
   return {Result, ResultTypes};
 }
 
-/// Helper function to parse parameters from json to vector of string pair.
+// Helper function to parse parameters from json to vector of string pair.
 std::vector<std::pair<std::string, std::string>>
 parseExpectedList(const rapidjson::Value &Args) {
   std::vector<std::pair<std::string, std::string>> Result;
@@ -247,8 +252,8 @@ bool SpecTest::compare(const std::pair<std::string, std::string> &Expected,
   const auto &ValStr = Expected.second;
   bool IsV128 = (std::string_view(TypeStr).substr(0, 4) == "v128"sv);
   if (!IsV128 && ValStr.substr(0, 4) == "nan:"sv) {
-    /// Handle NaN case
-    /// TODO: nan:canonical and nan:arithmetic
+    // Handle NaN case
+    // TODO: nan:canonical and nan:arithmetic
     if (TypeStr == "f32"sv) {
       if (Got.second != ValType::F32) {
         return false;
@@ -296,7 +301,7 @@ bool SpecTest::compare(const std::pair<std::string, std::string> &Expected,
     if (Got.second != ValType::F32) {
       return false;
     }
-    /// Compare the 32-bit pattern
+    // Compare the 32-bit pattern
     return Got.first.get<uint32_t>() == uint32_t(std::stoul(ValStr));
   } else if (TypeStr == "i64"sv) {
     if (Got.second != ValType::I64) {
@@ -307,7 +312,7 @@ bool SpecTest::compare(const std::pair<std::string, std::string> &Expected,
     if (Got.second != ValType::F64) {
       return false;
     }
-    /// Compare the 64-bit pattern
+    // Compare the 64-bit pattern
     return Got.first.get<uint64_t>() == uint64_t(std::stoull(ValStr));
   } else if (IsV128) {
     std::vector<std::string_view> Parts;
@@ -453,14 +458,14 @@ void SpecTest::run(std::string_view Proposal, std::string_view UnitName) {
   std::map<std::string, std::string> Alias;
   std::string LastModName;
 
-  /// Helper function to get module name.
+  // Helper function to get module name.
   auto GetModuleName = [&](const rapidjson::Value &Action) -> std::string {
     if (const auto &Module = Action.FindMember("module"s);
         Module != Action.MemberEnd()) {
-      /// Get the module name.
+      // Get the module name.
       auto ModName = Module->value.Get<std::string>();
       if (auto It = Alias.find(ModName); It != Alias.end()) {
-        /// If module name is aliased, use the aliased name.
+        // If module name is aliased, use the aliased name.
         return It->second;
       }
       return ModName;
@@ -475,16 +480,16 @@ void SpecTest::run(std::string_view Proposal, std::string_view UnitName) {
     const auto Params = parseValueList(Action["args"s]);
     const auto Returns = parseExpectedList(Expected);
 
-    /// Invoke function of named module. Named modules are registered in Store
-    /// Manager. Anonymous modules are instantiated in VM.
+    // Invoke function of named module. Named modules are registered in Store
+    // Manager. Anonymous modules are instantiated in VM.
     if (auto Res = onInvoke(ModName, Field, Params.first, Params.second)) {
-      /// Check value.
+      // Check value.
       EXPECT_TRUE(compares(Returns, *Res));
     } else {
       EXPECT_NE(LineNumber, LineNumber);
     }
   };
-  /// Helper function to get values.
+  // Helper function to get values.
   auto Get = [&](const rapidjson::Value &Action,
                  const rapidjson::Value &Expected, uint64_t LineNumber) {
     const auto ModName = GetModuleName(Action);
@@ -492,7 +497,7 @@ void SpecTest::run(std::string_view Proposal, std::string_view UnitName) {
     const auto Returns = parseExpectedList(Expected);
 
     if (auto Res = onGet(ModName, Field)) {
-      /// Check value.
+      // Check value.
       EXPECT_TRUE(compare(Returns[0], *Res));
     } else {
       EXPECT_NE(LineNumber, LineNumber);
@@ -514,7 +519,7 @@ void SpecTest::run(std::string_view Proposal, std::string_view UnitName) {
     if (auto Res = onInvoke(ModName, Field, Params.first, Params.second)) {
       EXPECT_NE(LineNumber, LineNumber);
     } else {
-      /// Check value.
+      // Check value.
       EXPECT_TRUE(stringContains(Text, WasmEdge::ErrCodeStr[Res.error()]));
     }
   };
@@ -535,9 +540,9 @@ void SpecTest::run(std::string_view Proposal, std::string_view UnitName) {
     }
   };
 
-  /// Command processing. Return true for expected result.
+  // Command processing. Return true for expected result.
   auto RunCommand = [&](const rapidjson::Value &Cmd) {
-    /// Line number in wast: Cmd["line"].Get<uint32_t>()
+    // Line number in wast: Cmd["line"].Get<uint32_t>()
     if (const auto Type = Cmd.FindMember("type"s); Type != Cmd.MemberEnd()) {
       switch (resolveCommand(Type->value.Get<std::string>())) {
       case SpecTest::CommandID::Module: {
@@ -546,10 +551,10 @@ void SpecTest::run(std::string_view Proposal, std::string_view UnitName) {
                                   .u8string();
         const uint64_t LineNumber = Cmd["line"].Get<uint64_t>();
         if (const auto Name = Cmd.FindMember("name"); Name != Cmd.MemberEnd()) {
-          /// Module has name. Register module with module name.
+          // Module has name. Register module with module name.
           LastModName = Name->value.Get<std::string>();
         } else {
-          /// Instantiate the anonymous module.
+          // Instantiate the anonymous module.
           LastModName.clear();
         }
         if (onModule(LastModName, FileName)) {
@@ -567,7 +572,7 @@ void SpecTest::run(std::string_view Proposal, std::string_view UnitName) {
         return;
       }
       case CommandID::Register: {
-        /// Preprocessed. Ignore this.
+        // Preprocessed. Ignore this.
         return;
       }
       case CommandID::AssertReturn: {
@@ -593,13 +598,13 @@ void SpecTest::run(std::string_view Proposal, std::string_view UnitName) {
         return;
       }
       case CommandID::AssertExhaustion: {
-        /// TODO: Add stack overflow mechanism.
+        // TODO: Add stack overflow mechanism.
         return;
       }
       case CommandID::AssertMalformed: {
         const auto &ModType = Cmd["module_type"s].Get<std::string>();
         if (ModType != "binary") {
-          /// TODO: Wat is not supported in WasmEdge yet.
+          // TODO: Wat is not supported in WasmEdge yet.
           return;
         }
         const auto Filename = (TestsuiteRoot / Proposal / UnitName /
@@ -629,20 +634,20 @@ void SpecTest::run(std::string_view Proposal, std::string_view UnitName) {
       default:;
       }
     }
-    /// Unknown command.
+    // Unknown command.
     EXPECT_TRUE(false);
   };
 
-  /// Get command list.
+  // Get command list.
   if (auto Commands = Doc.FindMember("commands"s);
       Commands != Doc.MemberEnd()) {
     rapidjson::Value CmdArray;
     CmdArray.CopyFrom(Commands->value, Allocator);
 
-    /// Preprocessing register command.
+    // Preprocessing register command.
     resolveRegister(Alias, CmdArray, Allocator);
 
-    /// Iterate commands.
+    // Iterate commands.
     for (const auto &Cmd : CmdArray.GetArray()) {
       RunCommand(Cmd);
     }

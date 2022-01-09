@@ -8,10 +8,10 @@
 namespace WasmEdge {
 namespace Loader {
 
-/// Load binary to construct Module node. See "include/loader/loader.h".
+// Load binary to construct Module node. See "include/loader/loader.h".
 Expect<std::unique_ptr<AST::Module>> Loader::loadModule() {
   auto Mod = std::make_unique<AST::Module>();
-  /// Read Magic and Version sequences.
+  // Read Magic and Version sequences.
   if (auto Res = FMgr.readBytes(4)) {
     std::vector<Byte> WasmMagic = {0x00, 0x61, 0x73, 0x6D};
     if (*Res != WasmMagic) {
@@ -33,14 +33,14 @@ Expect<std::unique_ptr<AST::Module>> Loader::loadModule() {
     return logLoadError(Res.error(), FMgr.getLastOffset(), ASTNodeAttr::Module);
   }
 
-  /// Variables to record the loaded section types.
+  // Variables to record the loaded section types.
   HasDataSection = false;
   std::bitset<0x0DU> Secs;
 
-  /// Read Section index and create Section nodes.
+  // Read Section index and create Section nodes.
   while (true) {
     uint8_t NewSectionId = 0x00;
-    /// If not read section ID, seems the end of file and break.
+    // If not read section ID, seems the end of file and break.
     if (auto Res = FMgr.readByte()) {
       NewSectionId = *Res;
     } else {
@@ -52,7 +52,7 @@ Expect<std::unique_ptr<AST::Module>> Loader::loadModule() {
       }
     }
 
-    /// Sections except the custom section should be unique.
+    // Sections except the custom section should be unique.
     if (NewSectionId > 0x00U && NewSectionId < 0x0DU &&
         Secs.test(NewSectionId)) {
       return logLoadError(ErrCode::JunkSection, FMgr.getLastOffset(),
@@ -145,7 +145,7 @@ Expect<std::unique_ptr<AST::Module>> Loader::loadModule() {
       Secs.set(NewSectionId);
       break;
     case 0x0C:
-      /// This section is for BulkMemoryOperations or ReferenceTypes proposal.
+      // This section is for BulkMemoryOperations or ReferenceTypes proposal.
       if (!Conf.hasProposal(Proposal::BulkMemoryOperations) &&
           !Conf.hasProposal(Proposal::ReferenceTypes)) {
         return logNeedProposal(ErrCode::MalformedSection,
@@ -165,7 +165,7 @@ Expect<std::unique_ptr<AST::Module>> Loader::loadModule() {
     }
   }
 
-  /// Verify the function section and code section are matched.
+  // Verify the function section and code section are matched.
   if (Mod->getFunctionSection().getContent().size() !=
       Mod->getCodeSection().getContent().size()) {
     spdlog::error(ErrCode::IncompatibleFuncCode);
@@ -173,7 +173,7 @@ Expect<std::unique_ptr<AST::Module>> Loader::loadModule() {
     return Unexpect(ErrCode::IncompatibleFuncCode);
   }
 
-  /// Verify the data count section and data segments are matched.
+  // Verify the data count section and data segments are matched.
   if (Mod->getDataCountSection().getContent()) {
     if (Mod->getDataSection().getContent().size() !=
         *(Mod->getDataCountSection().getContent())) {
@@ -183,7 +183,7 @@ Expect<std::unique_ptr<AST::Module>> Loader::loadModule() {
     }
   }
 
-  /// Load Custom Sections
+  // Load Custom Sections
   for (const auto &CustomSec : Mod->getCustomSections()) {
     const auto &Name = CustomSec.getName();
     if (Name == "wasmedge") {
@@ -240,7 +240,7 @@ Expect<std::unique_ptr<AST::Module>> Loader::loadModule() {
   return Mod;
 }
 
-/// Load compiled function from loadable manager. See "include/loader/loader.h".
+// Load compiled function from loadable manager. See "include/loader/loader.h".
 Expect<void> Loader::loadCompiled(AST::Module &Mod) {
   auto &FuncTypes = Mod.getTypeSection().getContent();
   for (size_t I = 0; I < FuncTypes.size(); ++I) {

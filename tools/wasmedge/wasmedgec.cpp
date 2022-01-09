@@ -104,9 +104,9 @@ int main(int Argc, const char *Argv[]) {
   if (PropSIMD.value()) {
     Conf.removeProposal(WasmEdge::Proposal::SIMD);
   }
-  /// Left for the future proposals.
-  /// if (PropAll.value()) {
-  /// }
+  // Left for the future proposals.
+  // if (PropAll.value()) {
+  // }
 
   std::filesystem::path InputPath = std::filesystem::absolute(WasmName.value());
   std::filesystem::path OutputPath = std::filesystem::absolute(SoName.value());

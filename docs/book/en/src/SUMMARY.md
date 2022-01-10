@@ -71,6 +71,7 @@
     - [Kubernetes](kubernetes/kubernetes.md)
         - [Kubernetes + CRI-O](kubernetes/kubernetes/kubernetes-crio.md)
         - [Kubernetes + containerd](kubernetes/kubernetes/kubernetes-containerd.md)
+        - [KinD](kubernetes/kubernetes/kind.md)
         - [KubeEdge](kubernetes/kubernetes/kubeedge.md)
         - [SuperEdge](kubernetes/kubernetes/superedge.md)
         - [OpenYurt](kubernetes/kubernetes/openyurt.md)

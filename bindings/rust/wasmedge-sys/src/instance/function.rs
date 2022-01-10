@@ -224,7 +224,10 @@ impl FuncType {
     ///
     /// let func_ty = FuncType::create(vec![ValType::I32;2], vec![ValType::I32]).expect("fail to create a FuncType");
     /// ```
-    pub fn create<I: IntoIterator<Item = ValType>>(args: I, returns: I) -> WasmEdgeResult<Self> {
+    pub fn create<I: IntoIterator<Item = ValType>, R: IntoIterator<Item = ValType>>(
+        args: I,
+        returns: R,
+    ) -> WasmEdgeResult<Self> {
         let param_tys = args
             .into_iter()
             .map(|x| x.into())

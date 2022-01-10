@@ -15,7 +15,7 @@ public:
   X25519PublicKey(EVP_PKEY *Ctx) : Pk(std::move(Ctx)) {}
   // Raw
   static WasiCryptoExpect<std::unique_ptr<X25519PublicKey>>
-  import(Span<uint8_t const> Raw, __wasi_publickey_encoding_e_t Encoding);
+  import(Span<uint8_t const> Encoded, __wasi_publickey_encoding_e_t Encoding);
 
   //  KxAlgorithm alg() override { return Alg; }
 
@@ -61,7 +61,7 @@ public:
   class Builder : public KeyPair::Builder {
   public:
     WasiCryptoExpect<std::unique_ptr<KeyPair>>
-    generate(std::optional<Options> Options) override;
+    generate(std::shared_ptr<Options> Options) override;
 
     WasiCryptoExpect<std::unique_ptr<KeyPair>>
     import(Span<const uint8_t> Raw,

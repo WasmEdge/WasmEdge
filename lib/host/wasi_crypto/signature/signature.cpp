@@ -15,8 +15,9 @@ Signature::import(SignatureAlgorithm Alg, Span<const uint8_t> Encoded,
                   __wasi_signature_encoding_e_t Encoding) {
   switch (Alg) {
   case SignatureAlgorithm::ECDSA_P256_SHA256:
+    return EcdsaP256::Signature::import(Encoded, Encoding);
   case SignatureAlgorithm::ECDSA_K256_SHA256:
-    return EcdsaSignature::import(Alg, Encoded, Encoding);
+    return EcdsaK256::Signature::import(Encoded, Encoding);
   case SignatureAlgorithm::Ed25519:
     return EddsaSignature::import(Encoded, Encoding);
   case SignatureAlgorithm::RSA_PKCS1_2048_SHA256:

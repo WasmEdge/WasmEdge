@@ -11,21 +11,16 @@ namespace Host {
 namespace WASICrypto {
 namespace Signatures {
 namespace {
-using NID = int;
 
 // TODO:Raw meaning compressed_sec not sec, please check
 
-const std::map<SignatureAlgorithm, NID> AlgToNID{
-    {SignatureAlgorithm::ECDSA_P256_SHA256, NID_X9_62_prime256v1},
-    {SignatureAlgorithm::ECDSA_K256_SHA256, NID_secp256k1}};
 
-EVP_PKEY *initEC(SignatureAlgorithm Alg) {
+EVP_PKEY *initEC(NID Nid) {
   OpenSSLUniquePtr<EVP_PKEY_CTX, EVP_PKEY_CTX_free> PCtx{
       EVP_PKEY_CTX_new_id(EVP_PKEY_EC, nullptr)};
   opensslAssuming(PCtx);
   opensslAssuming(EVP_PKEY_paramgen_init(PCtx.get()));
-  opensslAssuming(
-      EVP_PKEY_CTX_set_ec_paramgen_curve_nid(PCtx.get(), AlgToNID.at(Alg)));
+  opensslAssuming(EVP_PKEY_CTX_set_ec_paramgen_curve_nid(PCtx.get(), Nid));
 
   EVP_PKEY *Params = nullptr;
   opensslAssuming(EVP_PKEY_paramgen(PCtx.get(), &Params));
@@ -36,10 +31,11 @@ EVP_PKEY *initEC(SignatureAlgorithm Alg) {
 
 // raw secret scalar encoded as big endian, SEC-1, compressed SEC-1, unencrypted
 // PKCS#8, PEM-encoded unencrypted PKCS#8
-WasiCryptoExpect<std::unique_ptr<EcdsaPublicKey>>
-EcdsaPublicKey::import(SignatureAlgorithm Alg, Span<const uint8_t> Encoded,
-                       __wasi_publickey_encoding_e_t Encoding) {
-  EVP_PKEY *Pk = initEC(Alg);
+template <NID Nid>
+WasiCryptoExpect<std::unique_ptr<typename Ecdsa<Nid>::PublicKey>>
+Ecdsa<Nid>::PublicKey::import(Span<const uint8_t> Encoded,
+                              __wasi_publickey_encoding_e_t Encoding) {
+  EVP_PKEY *Pk = initEC(Nid);
   opensslAssuming(Pk);
   switch (Encoding) {
   case __WASI_PUBLICKEY_ENCODING_RAW: {
@@ -62,11 +58,12 @@ EcdsaPublicKey::import(SignatureAlgorithm Alg, Span<const uint8_t> Encoded,
     assumingUnreachable();
   }
 
-  return std::make_unique<EcdsaPublicKey>(Pk);
+  return std::make_unique<PublicKey>(Pk);
 }
 
+template <NID Nid>
 WasiCryptoExpect<std::vector<uint8_t>>
-EcdsaPublicKey::exportData(__wasi_publickey_encoding_e_t Encoding) {
+Ecdsa<Nid>::PublicKey::exportData(__wasi_publickey_encoding_e_t Encoding) {
   switch (Encoding) {
   case __WASI_PUBLICKEY_ENCODING_RAW: {
     std::vector<uint8_t> Res(i2d_PublicKey(Ctx.get(), nullptr));
@@ -89,20 +86,22 @@ EcdsaPublicKey::exportData(__wasi_publickey_encoding_e_t Encoding) {
   }
 }
 
-WasiCryptoExpect<std::unique_ptr<VerificationState>>
-EcdsaPublicKey::openVerificationState() {
-  EVP_MD_CTX *SignCtx = EVP_MD_CTX_create();
-  opensslAssuming(SignCtx);
-  opensslAssuming(
-      EVP_DigestVerifyInit(SignCtx, nullptr, EVP_sha256(), nullptr, Ctx.get()));
+template <NID Nid>
+WasiCryptoExpect<std::unique_ptr<Signatures::VerificationState>>
+Ecdsa<Nid>::PublicKey::openVerificationState() {
+    EVP_MD_CTX *SignCtx = EVP_MD_CTX_create();
+    opensslAssuming(SignCtx);
+    opensslAssuming(
+        EVP_DigestVerifyInit(SignCtx, nullptr, EVP_sha256(), nullptr, Ctx.get()));
 
-  return std::make_unique<EcdsaVerificationState>(SignCtx);
+    return std::make_unique<VerificationState>(SignCtx);
 }
 
-WasiCryptoExpect<std::unique_ptr<EcdsaSecretKey>>
-EcdsaSecretKey::import(SignatureAlgorithm Alg, Span<const uint8_t> Encoded,
-                       __wasi_secretkey_encoding_e_t Encoding) {
-  EVP_PKEY *Sk = initEC(Alg);
+template <NID Nid>
+WasiCryptoExpect<std::unique_ptr<typename Ecdsa<Nid>::SecretKey>>
+Ecdsa<Nid>::SecretKey::import(Span<const uint8_t> Encoded,
+                              __wasi_secretkey_encoding_e_t Encoding) {
+  EVP_PKEY *Sk = initEC(Nid);
   switch (Encoding) {
   case __WASI_SECRETKEY_ENCODING_RAW: {
     const uint8_t *Temp = Encoded.data();
@@ -124,11 +123,12 @@ EcdsaSecretKey::import(SignatureAlgorithm Alg, Span<const uint8_t> Encoded,
     assumingUnreachable();
   }
 
-  return std::make_unique<EcdsaSecretKey>(Sk);
+  return std::make_unique<SecretKey>(Sk);
 }
 
+template <NID Nid>
 WasiCryptoExpect<std::vector<uint8_t>>
-EcdsaSecretKey::exportData(__wasi_secretkey_encoding_e_t Encoding) {
+Ecdsa<Nid>::SecretKey::exportData(__wasi_secretkey_encoding_e_t Encoding) {
   switch (Encoding) {
   case __WASI_SECRETKEY_ENCODING_RAW: {
     std::vector<uint8_t> Res(i2d_PrivateKey(Ctx.get(), nullptr));
@@ -156,9 +156,10 @@ EcdsaSecretKey::exportData(__wasi_secretkey_encoding_e_t Encoding) {
   }
 }
 
-WasiCryptoExpect<std::unique_ptr<EcdsaKeyPair>>
-EcdsaKeyPair::generate(SignatureAlgorithm Alg, std::shared_ptr<Options>) {
-  EVP_PKEY *Params = initEC(Alg);
+template <NID Nid>
+WasiCryptoExpect<std::unique_ptr<typename Ecdsa<Nid>::KeyPair>>
+Ecdsa<Nid>::KeyPair::generate(std::shared_ptr<Options>) {
+  EVP_PKEY *Params = initEC(Nid);
 
   // Generate Key
   OpenSSLUniquePtr<EVP_PKEY_CTX, EVP_PKEY_CTX_free> KCtx{
@@ -169,13 +170,14 @@ EcdsaKeyPair::generate(SignatureAlgorithm Alg, std::shared_ptr<Options>) {
   EVP_PKEY *Key = nullptr;
   opensslAssuming(EVP_PKEY_keygen(KCtx.get(), &Key));
 
-  return std::make_unique<EcdsaKeyPair>(Key);
+  return std::make_unique<KeyPair>(Key);
 }
 
-WasiCryptoExpect<std::unique_ptr<EcdsaKeyPair>>
-EcdsaKeyPair::import(SignatureAlgorithm Alg, Span<const uint8_t> Encoded,
-                     __wasi_keypair_encoding_e_t Encoding) {
-  EVP_PKEY *Kp = initEC(Alg);
+template <NID Nid>
+WasiCryptoExpect<std::unique_ptr<typename Ecdsa<Nid>::KeyPair>>
+Ecdsa<Nid>::KeyPair::import(Span<const uint8_t> Encoded,
+                            __wasi_keypair_encoding_e_t Encoding) {
+  EVP_PKEY *Kp = initEC(Nid);
   opensslAssuming(Kp);
   switch (Encoding) {
   case __WASI_KEYPAIR_ENCODING_RAW: {
@@ -194,11 +196,12 @@ EcdsaKeyPair::import(SignatureAlgorithm Alg, Span<const uint8_t> Encoded,
     assumingUnreachable();
   }
 
-  return std::make_unique<EcdsaKeyPair>(Kp);
+  return std::make_unique<KeyPair>(Kp);
 }
 
+template <NID Nid>
 WasiCryptoExpect<std::vector<uint8_t>>
-EcdsaKeyPair::exportData(__wasi_keypair_encoding_e_t Encoding) {
+Ecdsa<Nid>::KeyPair::exportData(__wasi_keypair_encoding_e_t Encoding) {
   switch (Encoding) {
   case __WASI_KEYPAIR_ENCODING_RAW: {
     std::vector<uint8_t> Res(i2d_PrivateKey(Ctx.get(), nullptr));
@@ -218,74 +221,105 @@ EcdsaKeyPair::exportData(__wasi_keypair_encoding_e_t Encoding) {
   return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
 }
 
-WasiCryptoExpect<std::unique_ptr<PublicKey>> EcdsaKeyPair::publicKey() {
+template <NID Nid>
+WasiCryptoExpect<std::unique_ptr<Signatures::PublicKey>>
+Ecdsa<Nid>::KeyPair::publicKey() {
   OpenSSLUniquePtr<BIO, BIO_free> B{BIO_new(BIO_s_mem())};
   opensslAssuming(i2d_PUBKEY_bio(B.get(), Ctx.get()));
 
   EVP_PKEY *Res = nullptr;
   opensslAssuming(d2i_PUBKEY_bio(B.get(), &Res));
 
-  return std::make_unique<EcdsaPublicKey>(Res);
+  return std::make_unique<PublicKey>(Res);
 }
 
-WasiCryptoExpect<std::unique_ptr<SecretKey>> EcdsaKeyPair::secretKey() {
+template <NID Nid>
+WasiCryptoExpect<std::unique_ptr<SecretKey>> Ecdsa<Nid>::KeyPair::secretKey() {
   OpenSSLUniquePtr<BIO, BIO_free> B{BIO_new(BIO_s_mem())};
   opensslAssuming(i2d_PrivateKey_bio(B.get(), Ctx.get()));
 
   EVP_PKEY *Res = nullptr;
   opensslAssuming(d2i_PrivateKey_bio(B.get(), &Res));
 
-  return std::make_unique<EcdsaSecretKey>(Res);
+  return std::make_unique<SecretKey>(Res);
 }
 
-WasiCryptoExpect<std::unique_ptr<SignState>> EcdsaKeyPair::openSignState() {
+template <NID Nid>
+WasiCryptoExpect<std::unique_ptr<SignState>>
+Ecdsa<Nid>::KeyPair::openSignState() {
   EVP_MD_CTX *SignCtx = EVP_MD_CTX_create();
   opensslAssuming(SignCtx);
 
   opensslAssuming(
       EVP_DigestSignInit(SignCtx, nullptr, EVP_sha256(), nullptr, Ctx.get()));
 
-  return std::make_unique<EcdsaSignState>(SignCtx);
+  return std::make_unique<SignState>(SignCtx);
 }
 
-WasiCryptoExpect<std::unique_ptr<Signature>>
-EcdsaSignature::import(SignatureAlgorithm Alg, Span<const uint8_t> Encoded,
-                       __wasi_signature_encoding_e_t Encoding) {
-  return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
+template <NID Nid>
+WasiCryptoExpect<std::unique_ptr<typename Ecdsa<Nid>::Signature>>
+Ecdsa<Nid>::Signature::import(Span<const uint8_t> Encoded,
+                              __wasi_signature_encoding_e_t Encoding) {
+  switch (Encoding) {
+  case __WASI_SIGNATURE_ENCODING_RAW:
+    return std::make_unique<Signature>(
+        std::vector<uint8_t>{Encoded.begin(), Encoded.end()});
+  case __WASI_SIGNATURE_ENCODING_DER:
+    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
+  default:
+    assumingUnreachable();
+  }
 }
 
+template <NID Nid>
 WasiCryptoExpect<std::vector<uint8_t>>
-EcdsaSignature::exportData(__wasi_signature_encoding_e_t Encoding) {
-  return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
+Ecdsa<Nid>::Signature::exportData(__wasi_signature_encoding_e_t Encoding) {
+  switch (Encoding) {
+  case __WASI_SIGNATURE_ENCODING_RAW:
+    return Sign;
+  case __WASI_SIGNATURE_ENCODING_DER:
+    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
+  default:
+    assumingUnreachable();
+  }
 }
 
-WasiCryptoExpect<void> EcdsaSignState::update(Span<const uint8_t> Data) {
+template <NID Nid>
+WasiCryptoExpect<void> Ecdsa<Nid>::SignState::update(Span<const uint8_t> Data) {
   opensslAssuming(EVP_DigestSignUpdate(Ctx.get(), Data.data(), Data.size()));
+
+  return {};
 }
 
-WasiCryptoExpect<std::unique_ptr<Signature>> EcdsaSignState::sign() {
+template <NID Nid>
+WasiCryptoExpect<std::unique_ptr<Signature>> Ecdsa<Nid>::SignState::sign() {
   size_t Size;
   opensslAssuming(EVP_DigestSignFinal(Ctx.get(), nullptr, &Size));
 
   std::vector<uint8_t> Res(Size);
   opensslAssuming(EVP_DigestSignFinal(Ctx.get(), Res.data(), &Size));
 
-  return std::make_unique<EcdsaSignature>(std::move(Res));
+  return std::make_unique<Signature>(std::move(Res));
 }
 
+template <NID Nid>
 WasiCryptoExpect<void>
-EcdsaVerificationState::update(Span<const uint8_t> Data) {
+Ecdsa<Nid>::VerificationState::update(Span<const uint8_t> Data) {
   opensslAssuming(EVP_DigestVerifyUpdate(Ctx.get(), Data.data(), Data.size()));
   return {};
 }
 
+template <NID Nid>
 WasiCryptoExpect<void>
-EcdsaVerificationState::verify(std::shared_ptr<Signature> Sig) {
+Ecdsa<Nid>::VerificationState::verify(std::shared_ptr<Signatures::Signature> Sig) {
   auto Data = Sig->asRef();
   opensslAssuming(EVP_DigestVerifyFinal(Ctx.get(), Data.data(), Data.size()));
   return {};
 }
 
+
+template class Ecdsa<NID_X9_62_prime256v1>;
+template class Ecdsa<NID_secp256k1>;
 } // namespace Signatures
 } // namespace WASICrypto
 } // namespace Host

@@ -15,10 +15,9 @@ PublicKey::import(SignatureAlgorithm Alg, Span<const uint8_t> Encoded,
                   __wasi_publickey_encoding_e_t Encoding) {
   switch (Alg) {
   case SignatureAlgorithm::ECDSA_P256_SHA256:
-  case SignatureAlgorithm::ECDSA_K256_SHA256: {
-    return EcdsaPublicKey::import(Alg, Encoded, Encoding);
-  }
-
+    return EcdsaP256::PublicKey::import(Encoded, Encoding);
+  case SignatureAlgorithm::ECDSA_K256_SHA256:
+    return EcdsaK256::PublicKey::import(Encoded, Encoding);
   case SignatureAlgorithm::Ed25519: {
     return EddsaPublicKey::import(Encoded, Encoding);
   }

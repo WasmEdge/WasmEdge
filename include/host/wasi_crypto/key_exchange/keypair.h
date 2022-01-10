@@ -29,7 +29,7 @@ public:
     virtual ~Builder() = default;
 
     virtual WasiCryptoExpect<std::unique_ptr<KeyPair>>
-    generate(std::optional<Options> Options) = 0;
+    generate(std::shared_ptr<Options> Options) = 0;
 
     virtual WasiCryptoExpect<std::unique_ptr<KeyPair>>
     import(Span<uint8_t const> Raw, __wasi_keypair_encoding_e_t Encoding) = 0;
@@ -38,7 +38,7 @@ public:
   };
 
   static WasiCryptoExpect<std::unique_ptr<KeyPair>>
-  generate(KxAlgorithm Alg, std::optional<Options> Options);
+  generate(KxAlgorithm Alg, std::shared_ptr<Options> Options);
 
   static WasiCryptoExpect<std::unique_ptr<KeyPair>>
   import(KxAlgorithm Alg, Span<uint8_t const> Raw,

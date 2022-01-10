@@ -10,6 +10,7 @@ WasiCryptoExpect<__wasi_keypair_t> WasiCryptoContext::keypairGenerate(
     __wasi_algorithm_type_e_t AlgType, std::string_view AlgStr,
     std::optional<__wasi_options_t> OptOptionsHandle) {
   Common::Options OptOptions;
+
   if (OptOptionsHandle) {
     auto Res = OptionsManger.get(*OptOptionsHandle);
     if (!Res) {
@@ -17,6 +18,18 @@ WasiCryptoExpect<__wasi_keypair_t> WasiCryptoContext::keypairGenerate(
     }
 
     OptOptions = std::move(*Res);
+  } else {
+    // give type avoid don't have type
+    switch (AlgType) {
+    case __WASI_ALGORITHM_TYPE_SIGNATURES:
+      OptOptions = std::shared_ptr<Signatures::Options>{};
+      break;
+    case __WASI_ALGORITHM_TYPE_KEY_EXCHANGE:
+      OptOptions = std::shared_ptr<Kx::Options>{};
+      break;
+    default:
+      return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_OPERATION);
+    }
   }
 
   auto Res = Asymmetric::keypairGenerate(AlgType, AlgStr, OptOptions);

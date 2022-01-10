@@ -9,11 +9,11 @@ namespace WASICrypto {
 namespace Kx {
 
 WasiCryptoExpect<std::unique_ptr<PublicKey>>
-PublicKey::import(KxAlgorithm Alg, Span<const uint8_t> Raw,
+PublicKey::import(KxAlgorithm Alg, Span<const uint8_t> Encoded,
                   __wasi_publickey_encoding_e_t Encoding) {
   switch (Alg) {
   case KxAlgorithm::X25519:
-    return X25519PublicKey::import(Alg, Raw, Encoding);
+    return X25519PublicKey::import(Encoded, Encoding);
   case KxAlgorithm::Kyber768:
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
   default:

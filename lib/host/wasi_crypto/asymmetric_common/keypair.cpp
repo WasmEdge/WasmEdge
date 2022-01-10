@@ -10,38 +10,45 @@ namespace Asymmetric {
 WasiCryptoExpect<KeyPair> keypairGenerate(__wasi_algorithm_type_e_t AlgType,
                                           std::string_view AlgStr,
                                           Common::Options OptOptions) {
-  return std::visit(
-      Overloaded{
-          [AlgType, AlgStr](std::shared_ptr<Signatures::Options> OptSigOptions)
-              -> WasiCryptoExpect<Asymmetric::KeyPair> {
-            ensureOrReturn(AlgType == __WASI_ALGORITHM_TYPE_SIGNATURES,
-                           __WASI_CRYPTO_ERRNO_INVALID_HANDLE);
-            ensureOrReturn(OptSigOptions, __WASI_CRYPTO_ERRNO_INVALID_KEY);
+  switch (AlgType) {
 
-            auto Alg = tryFrom<SignatureAlgorithm>(AlgStr);
-            if (!Alg) {
-              return WasiCryptoUnexpect(Alg);
-            }
+  case __WASI_ALGORITHM_TYPE_SIGNATURES:
+    return std::visit(
+        Overloaded{[AlgStr](std::shared_ptr<Signatures::Options> OptSigOptions)
+                       -> WasiCryptoExpect<Asymmetric::KeyPair> {
+                     auto Alg = tryFrom<SignatureAlgorithm>(AlgStr);
+                     if (!Alg) {
+                       return WasiCryptoUnexpect(Alg);
+                     }
 
-            return Signatures::KeyPair::generate(*Alg, OptSigOptions);
-          },
-          [AlgType, AlgStr](std::shared_ptr<Kx::Options> OptKxOptions)
-              -> WasiCryptoExpect<Asymmetric::KeyPair> {
-            ensureOrReturn(AlgType == __WASI_ALGORITHM_TYPE_KEY_EXCHANGE,
-                           __WASI_CRYPTO_ERRNO_INVALID_HANDLE);
-            ensureOrReturn(OptKxOptions, __WASI_CRYPTO_ERRNO_INVALID_KEY);
+                     return Signatures::KeyPair::generate(*Alg, OptSigOptions);
+                   },
+                   [](auto &&) -> WasiCryptoExpect<Asymmetric::KeyPair> {
+                     return WasiCryptoUnexpect(
+                         __WASI_CRYPTO_ERRNO_INVALID_OPERATION);
+                   }},
+        OptOptions);
 
-            auto Alg = tryFrom<KxAlgorithm>(AlgStr);
-            if (!Alg) {
-              return WasiCryptoUnexpect(Alg);
-            }
+  case __WASI_ALGORITHM_TYPE_KEY_EXCHANGE:
+    return std::visit(
+        Overloaded{[AlgStr](std::shared_ptr<Kx::Options> OptKxOptions)
+                       -> WasiCryptoExpect<Asymmetric::KeyPair> {
+                     auto Alg = tryFrom<KxAlgorithm>(AlgStr);
+                     if (!Alg) {
+                       return WasiCryptoUnexpect(Alg);
+                     }
 
-            return Kx::KeyPair::generate(*Alg, *OptKxOptions);
-          },
-          [](auto &&) -> WasiCryptoExpect<Asymmetric::KeyPair> {
-            return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_OPERATION);
-          }},
-      OptOptions);
+                     return Kx::KeyPair::generate(*Alg, OptKxOptions);
+                   },
+                   [](auto &&) -> WasiCryptoExpect<Asymmetric::KeyPair> {
+                     return WasiCryptoUnexpect(
+                         __WASI_CRYPTO_ERRNO_INVALID_OPERATION);
+                   }},
+        OptOptions);
+
+  default:
+    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_OPERATION);
+  }
 }
 
 WasiCryptoExpect<KeyPair> keyPairImport(__wasi_algorithm_type_e_t AlgType,

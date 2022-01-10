@@ -717,9 +717,9 @@ impl Vm {
     /// - `preopens` specifies the directories to pre-open. The required format is `DIR1:DIR2`.
     pub fn init_wasi_obj<T, E>(
         &mut self,
-        args: Option<T>,
-        envs: Option<T>,
-        preopens: Option<T>,
+        args: Option<Vec<&str>>,
+        envs: Option<Vec<&str>>,
+        preopens: Option<Vec<&str>>,
     ) -> WasmEdgeResult<()>
     where
         T: Iterator<Item = E>,

@@ -58,7 +58,7 @@ public:
     WasiCryptoExpect<uint64_t> optionsGetU64(std::string_view Name) override;
 
   private:
-    // TODO: thread safe
+    std::shared_mutex Mutex;
     std::shared_ptr<Option> OptOption;
     std::vector<uint8_t> Cache;
     EvpPkeyCtxPtr Ctx;

@@ -67,6 +67,8 @@ Hkdf<Sha, Mode>::State::open(std::shared_ptr<Key> OptKey,
 template <int Sha, int Mode>
 WasiCryptoExpect<void>
 Hkdf<Sha, Mode>::State::absorb(Span<const uint8_t> Data) {
+  std::unique_lock Lock{Mutex};
+
   Cache.insert(Cache.end(), Data.begin(), Data.end());
   return {};
   //  switch (Alg) {
@@ -91,6 +93,7 @@ WasiCryptoExpect<std::unique_ptr<Key>>
 Hkdf<Sha, Mode>::State::squeezeKey(SymmetricAlgorithm InputAlg) {
   ensureOrReturn(Mode == EVP_PKEY_HKDEF_MODE_EXTRACT_ONLY,
                  __WASI_CRYPTO_ERRNO_INVALID_OPERATION);
+  std::shared_lock Lock{Mutex};
 
   opensslAssuming(
       EVP_PKEY_CTX_set1_hkdf_salt(Ctx.get(), Cache.data(), Cache.size()));

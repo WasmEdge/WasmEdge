@@ -77,16 +77,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     import_obj.add_func("add", &mut host_func);
 
     // load wasm from binary
-    // load module from file
     let loader = Loader::create(Some(&config))?;
     let mut module = loader.from_buffer(&wasm_binary)?;
 
     let mut vm = Vm::create(Some(&config), None)?;
     vm.register_wasm_from_import(&mut import_obj)?;
-    let mut vm = vm
-        .load_wasm_from_module(&mut module)?
-        .validate()?
-        .instantiate()?;
 
     #[allow(clippy::type_complexity)]
     fn boxed_fn() -> Box<dyn Fn(Vec<Value>) -> Result<Vec<Value>, u8>> {
@@ -95,8 +90,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let add_ref = Value::from(boxed_fn());
 
-    match vm.run_function("call_add", [add_ref, 1234i32.into(), 5678i32.into()]) {
-        Ok(v) => println!("result from call_add: {:?}", v.collect::<Vec<_>>()),
+    match vm.run_wasm_from_module(
+        &mut module,
+        "call_add",
+        [add_ref, 1234i32.into(), 5678i32.into()],
+    ) {
+        Ok(v) => println!("result from call_add: {:?}", v),
         Err(r) => println!("error from call_add{:?}", r),
     };
     Ok(())

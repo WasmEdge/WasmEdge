@@ -177,6 +177,8 @@ pub enum StoreError {
         global_name: String,
         mod_name: String,
     },
+    #[error("Not found the target module ({0})")]
+    NotFoundModule(String),
 }
 
 /// Defines the errors raised from [Vm](crate::Vm).
@@ -353,8 +355,8 @@ pub enum CoreExecutionError {
     WrongInstanceIndex,
     #[error("instruction type mismatch")]
     InstrTypeMismatch,
-    #[error("function signature mismatch")]
-    FuncSigMismatch,
+    #[error("function type mismatch")]
+    FuncTypeMismatch,
     #[error("integer divide by zero")]
     DivideByZero,
     #[error("integer overflow")]
@@ -585,7 +587,7 @@ pub(crate) fn check(result: WasmEdge_Result) -> WasmEdgeResult<()> {
             CoreExecutionError::InstrTypeMismatch,
         ))),
         0x83 => Err(WasmEdgeError::Core(CoreError::Execution(
-            CoreExecutionError::FuncSigMismatch,
+            CoreExecutionError::FuncTypeMismatch,
         ))),
         0x84 => Err(WasmEdgeError::Core(CoreError::Execution(
             CoreExecutionError::DivideByZero,

@@ -139,7 +139,7 @@ mod tests {
         // load from file
         {
             let path = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
-                .join("test/api/apiTestData/test.wasm");
+                .join("bindings/rust/wasmedge-sys/tests/data/fibonacci.wasm");
             let result = loader.from_file(path);
             assert!(result.is_ok());
             let module = result.unwrap();
@@ -156,7 +156,7 @@ mod tests {
         // load from buffer
         {
             let path = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
-                .join("test/api/apiTestData/test.wasm");
+                .join("bindings/rust/wasmedge-sys/tests/data/fibonacci.wasm");
             let result = std::fs::read(path);
             assert!(result.is_ok());
             let buffer = result.unwrap();

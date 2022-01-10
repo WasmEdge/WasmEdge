@@ -12,6 +12,7 @@ use std::ptr;
 ///
 /// [`Executor`] defines an execution environment for both WASM and compiled WASM. It works based on the
 /// [Store](crate::Store).
+#[derive(Debug)]
 pub struct Executor {
     ctx: *mut wasmedge::WasmEdge_ExecutorContext,
 }
@@ -33,11 +34,7 @@ impl Executor {
             None => ptr::null(),
         };
         let stat_ctx = match stat {
-            Some(stat) => {
-                let stat_ctx = stat.ctx;
-                stat.ctx = std::ptr::null_mut();
-                stat_ctx
-            }
+            Some(stat) => stat.ctx,
             None => ptr::null_mut(),
         };
         let raw = unsafe { wasmedge::WasmEdge_ExecutorCreate(conf, stat_ctx) };
@@ -140,7 +137,7 @@ impl Executor {
         Ok(self)
     }
 
-    /// Invokes a WASM function in the anonymous [`Module`].
+    /// Invokes a WASM function in the anonymous [`Module`], and returns the results.
     ///
     /// After instantiating a WasmEdge [`Module`], the [`Module`] is registered as an
     /// anonymous module in the [`Store`]; then, you can repeatedly call this function
@@ -165,7 +162,7 @@ impl Executor {
         store: &Store,
         func_name: impl AsRef<str>,
         params: impl IntoIterator<Item = Value>,
-    ) -> WasmEdgeResult<impl Iterator<Item = Value>> {
+    ) -> WasmEdgeResult<Vec<Value>> {
         let raw_params = params
             .into_iter()
             .map(wasmedge::WasmEdge_Value::from)
@@ -189,10 +186,10 @@ impl Executor {
             returns.set_len(returns_len);
         }
 
-        Ok(returns.into_iter().map(Into::into))
+        Ok(returns.into_iter().map(Into::into).collect::<Vec<_>>())
     }
 
-    /// Invokes a registered WASM function by its module name and function name.
+    /// Invokes a registered WASM function by its module name and function name, and returns the results.
     ///
     /// # Arguments
     ///
@@ -214,7 +211,7 @@ impl Executor {
         mod_name: impl AsRef<str>,
         func_name: impl AsRef<str>,
         params: impl IntoIterator<Item = Value>,
-    ) -> WasmEdgeResult<impl Iterator<Item = Value>> {
+    ) -> WasmEdgeResult<Vec<Value>> {
         let raw_params = params
             .into_iter()
             .map(wasmedge::WasmEdge_Value::from)
@@ -243,7 +240,7 @@ impl Executor {
             returns.set_len(returns_len);
         }
 
-        Ok(returns.into_iter().map(Into::into))
+        Ok(returns.into_iter().map(Into::into).collect::<Vec<_>>())
     }
 }
 impl Drop for Executor {
@@ -251,5 +248,32 @@ impl Drop for Executor {
         if !self.ctx.is_null() {
             unsafe { wasmedge::WasmEdge_ExecutorDelete(self.ctx) }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{Config, Statistics};
+
+    #[test]
+    fn test_executor_create() {
+        let result = Executor::create(None, None);
+        assert!(result.is_ok());
+
+        let result = Config::create();
+        assert!(result.is_ok());
+        let config = result.unwrap();
+        let result = Executor::create(Some(&config), None);
+        assert!(result.is_ok());
+
+        let result = Statistics::create();
+        assert!(result.is_ok());
+        let mut stat = result.unwrap();
+        let result = Executor::create(None, Some(&mut stat));
+        assert!(result.is_ok());
+
+        let result = Executor::create(Some(&config), Some(&mut stat));
+        assert!(result.is_ok());
     }
 }

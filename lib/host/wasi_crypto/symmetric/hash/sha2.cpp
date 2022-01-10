@@ -6,40 +6,28 @@ namespace WasmEdge {
 namespace Host {
 namespace WASICrypto {
 namespace Symmetric {
-namespace {
-constexpr EVP_MD const *getMd(SymmetricAlgorithm Alg) {
-  switch (Alg) {
-  case SymmetricAlgorithm::Sha256:
-    return EVP_sha256();
-    break;
-  case SymmetricAlgorithm::Sha512:
-    return EVP_sha512();
-    break;
-  case SymmetricAlgorithm::Sha512_256:
-    return EVP_sha512_256();
-  default:
-    assumingUnreachable();
-  }
-}
-} // namespace
 
+template<int Sha>
 WasiCryptoExpect<std::vector<uint8_t>>
-Sha2State::optionsGet(std::string_view Name) {
+Sha2State<Sha>::optionsGet(std::string_view Name) {
   ensureOrReturn(OptOption, __WASI_CRYPTO_ERRNO_OPTION_NOT_SET);
   return OptOption->get(Name);
 }
 
-WasiCryptoExpect<uint64_t> Sha2State::optionsGetU64(std::string_view Name) {
+template<int Sha>
+WasiCryptoExpect<uint64_t> Sha2State<Sha>::optionsGetU64(std::string_view Name) {
   ensureOrReturn(OptOption, __WASI_CRYPTO_ERRNO_OPTION_NOT_SET);
   return OptOption->getU64(Name);
 }
 
-WasiCryptoExpect<void> Sha2State::absorb(Span<uint8_t const> Data) {
+template<int Sha>
+WasiCryptoExpect<void> Sha2State<Sha>::absorb(Span<uint8_t const> Data) {
   opensslAssuming(EVP_DigestUpdate(Ctx.get(), Data.data(), Data.size()));
   return {};
 }
 
-WasiCryptoExpect<void> Sha2State::squeeze(Span<uint8_t> Out) {
+template<int Sha>
+WasiCryptoExpect<void> Sha2State<Sha>::squeeze(Span<uint8_t> Out) {
 
   // If finalization is required, the implementation MUST duplicate the internal
   // state and apply the finalization on the copy, leaving the state unchanged
@@ -66,20 +54,25 @@ WasiCryptoExpect<void> Sha2State::squeeze(Span<uint8_t> Out) {
   return {};
 }
 
-WasiCryptoExpect<std::unique_ptr<Sha2State>>
-Sha2State::open(SymmetricAlgorithm Alg, std::shared_ptr<Key> OptKey,
+template<int Sha>
+WasiCryptoExpect<std::unique_ptr<Sha2State<Sha>>>
+Sha2State<Sha>::open( std::shared_ptr<Key> OptKey,
                 std::shared_ptr<Option> OptOption) {
   ensureOrReturn(!OptKey, __WASI_CRYPTO_ERRNO_KEY_NOT_SUPPORTED);
 
   EVP_MD_CTX *Ctx = EVP_MD_CTX_new();
   opensslAssuming(Ctx);
 
-  EVP_MD const *Md = getMd(Alg);
+  EVP_MD const *Md = ShaMap.at(Sha);
 
   opensslAssuming(EVP_DigestInit(Ctx, Md));
 
   return std::make_unique<Sha2State>(OptOption, Ctx);
 }
+
+template class Sha2State<256>;
+template class Sha2State<512>;
+template class Sha2State<512256>;
 } // namespace Symmetric
 } // namespace WASICrypto
 } // namespace Host

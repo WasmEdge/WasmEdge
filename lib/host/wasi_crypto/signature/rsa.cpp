@@ -9,11 +9,14 @@ namespace WASICrypto {
 namespace Signatures {
 
 namespace {
-using NID = int;
 
-EVP_PKEY *initRsa(SignatureAlgorithm) {
+
+EVP_PKEY *initRsa(int Pad, int Size, int Sha) {
   OpenSSLUniquePtr<EVP_PKEY_CTX, EVP_PKEY_CTX_free> PCtx{
       EVP_PKEY_CTX_new_id(EVP_PKEY_RSA, nullptr)};
+  opensslAssuming(EVP_PKEY_CTX_set_rsa_padding(PCtx.get(), Pad));
+  opensslAssuming(EVP_PKEY_CTX_set_rsa_keygen_bits(PCtx.get(), Size));
+  opensslAssuming(EVP_PKEY_CTX_set_signature_md(PCtx.get(), ShaMap.at(Sha)));
   opensslAssuming(PCtx);
   EVP_PKEY *ED = nullptr;
   opensslAssuming(EVP_PKEY_paramgen(PCtx.get(), &ED));
@@ -24,16 +27,17 @@ EVP_PKEY *initRsa(SignatureAlgorithm) {
 
 // raw secret scalar encoded as big endian, SEC-1, compressed SEC-1, unencrypted
 // PKCS#8, PEM-encoded unencrypted PKCS#8
-WasiCryptoExpect<std::unique_ptr<PublicKey>>
-RsaPublicKey::import(SignatureAlgorithm Alg, Span<const uint8_t> Encoded,
-                     __wasi_publickey_encoding_e_t Encoding) {
-  EVP_PKEY *Pk = initRsa(Alg);
+template <int Pad, int Size, int Sha>
+WasiCryptoExpect<std::unique_ptr<typename Rsa<Pad, Size, Sha>::PublicKey>>
+Rsa<Pad, Size, Sha>::PublicKey::import(Span<const uint8_t> Encoded,
+                                       __wasi_publickey_encoding_e_t Encoding) {
+  EVP_PKEY *P = initRsa(Pad, Size, Sha);
 
   switch (Encoding) {
   case __WASI_PUBLICKEY_ENCODING_RAW: {
     const uint8_t *Temp = Encoded.data();
-    Pk = d2i_PublicKey(EVP_PKEY_RSA, &Pk, &Temp, Encoded.size());
-    opensslAssuming(Pk);
+    P = d2i_PublicKey(EVP_PKEY_RSA, &P, &Temp, Encoded.size());
+    opensslAssuming(P);
     break;
   }
   case __WASI_PUBLICKEY_ENCODING_PKCS8:
@@ -50,11 +54,13 @@ RsaPublicKey::import(SignatureAlgorithm Alg, Span<const uint8_t> Encoded,
     assumingUnreachable();
   }
 
-  return std::make_unique<RsaPublicKey>(Pk);
+  return std::make_unique<PublicKey>(P);
 }
 
+template <int Pad, int Size, int Sha>
 WasiCryptoExpect<std::vector<uint8_t>>
-RsaPublicKey::exportData(__wasi_publickey_encoding_e_t Encoding) {
+Rsa<Pad, Size, Sha>::PublicKey::exportData(
+    __wasi_publickey_encoding_e_t Encoding) {
   switch (Encoding) {
   case __WASI_PUBLICKEY_ENCODING_RAW: {
     std::vector<uint8_t> Res(i2d_PublicKey(Pk.get(), nullptr));
@@ -77,20 +83,22 @@ RsaPublicKey::exportData(__wasi_publickey_encoding_e_t Encoding) {
   }
 }
 
+template <int Pad, int Size, int Sha>
 WasiCryptoExpect<std::unique_ptr<VerificationState>>
-RsaPublicKey::openVerificationState() {
+Rsa<Pad, Size, Sha>::PublicKey::openVerificationState() {
   EVP_MD_CTX *SignCtx = EVP_MD_CTX_create();
   opensslAssuming(SignCtx);
   opensslAssuming(
       EVP_DigestVerifyInit(SignCtx, nullptr, EVP_sha256(), nullptr, Pk.get()));
 
-  return std::make_unique<RsaVerificationState>(SignCtx);
+  return std::make_unique<VerificationState>(SignCtx);
 }
 
-WasiCryptoExpect<std::unique_ptr<RsaSecretKey>>
-RsaSecretKey::import(SignatureAlgorithm Alg, Span<const uint8_t> Encoded,
-                     __wasi_secretkey_encoding_e_t Encoding) {
-  EVP_PKEY *Sk = initRsa(Alg);
+template <int Pad, int Size, int Sha>
+WasiCryptoExpect<std::unique_ptr<typename Rsa<Pad, Size, Sha>::SecretKey>>
+Rsa<Pad, Size, Sha>::SecretKey::import(Span<const uint8_t> Encoded,
+                                       __wasi_secretkey_encoding_e_t Encoding) {
+  EVP_PKEY *Sk = initRsa(Pad, Size, Sha);
 
   switch (Encoding) {
   case __WASI_SECRETKEY_ENCODING_RAW: {
@@ -113,11 +121,13 @@ RsaSecretKey::import(SignatureAlgorithm Alg, Span<const uint8_t> Encoded,
     assumingUnreachable();
   }
 
-  return std::make_unique<RsaSecretKey>(Sk);
+  return std::make_unique<SecretKey>(Sk);
 }
 
+template <int Pad, int Size, int Sha>
 WasiCryptoExpect<std::vector<uint8_t>>
-RsaSecretKey::exportData(__wasi_secretkey_encoding_e_t Encoding) {
+Rsa<Pad, Size, Sha>::SecretKey::exportData(
+    __wasi_secretkey_encoding_e_t Encoding) {
   switch (Encoding) {
   case __WASI_SECRETKEY_ENCODING_RAW: {
     std::vector<uint8_t> Res(i2d_PrivateKey(Sk.get(), nullptr));
@@ -145,10 +155,12 @@ RsaSecretKey::exportData(__wasi_secretkey_encoding_e_t Encoding) {
   }
 }
 
-WasiCryptoExpect<std::unique_ptr<RsaKeyPair>>
-RsaKeyPair::import(SignatureAlgorithm Alg, Span<const uint8_t> Encoded,
-                   __wasi_keypair_encoding_e_t Encoding) {
-  EVP_PKEY *Kp = initRsa(Alg);
+template <int Pad, int Size, int Sha>
+WasiCryptoExpect<std::unique_ptr<typename Rsa<Pad, Size, Sha>::KeyPair>>
+Rsa<Pad, Size, Sha>::KeyPair::import(
+                                     Span<const uint8_t> Encoded,
+                                     __wasi_keypair_encoding_e_t Encoding) {
+  EVP_PKEY *Kp = initRsa(Pad, Size, Sha);
 
   switch (Encoding) {
   case __WASI_KEYPAIR_ENCODING_RAW: {
@@ -167,20 +179,23 @@ RsaKeyPair::import(SignatureAlgorithm Alg, Span<const uint8_t> Encoded,
     assumingUnreachable();
   }
 
-  return std::make_unique<RsaKeyPair>(Kp);
+  return std::make_unique<KeyPair>(Kp);
 }
 
-WasiCryptoExpect<std::unique_ptr<SignState>> RsaKeyPair::openSignState() {
+template <int Pad, int Size, int Sha>
+WasiCryptoExpect<std::unique_ptr<Signatures::SignState>>
+Rsa<Pad, Size, Sha>::KeyPair::openSignState() {
   EVP_MD_CTX *SignCtx = EVP_MD_CTX_create();
   opensslAssuming(SignCtx);
 
   opensslAssuming(
       EVP_DigestSignInit(SignCtx, nullptr, EVP_sha256(), nullptr, Kp.get()));
-  return std::make_unique<RsaSignState>(SignCtx);
+  return std::make_unique<SignState>(SignCtx);
 }
 
-WasiCryptoExpect<std::unique_ptr<RsaKeyPair>>
-RsaKeyPair::generate(SignatureAlgorithm, std::shared_ptr<Options>) {
+template <int Pad, int Size, int Sha>
+WasiCryptoExpect<std::unique_ptr<typename Rsa<Pad, Size, Sha>::KeyPair>>
+Rsa<Pad, Size, Sha>::KeyPair::generate(std::shared_ptr<Options>) {
   EVP_PKEY_CTX *Ctx = EVP_PKEY_CTX_new_id(EVP_PKEY_RSA, nullptr);
   opensslAssuming(Ctx);
 
@@ -200,11 +215,12 @@ RsaKeyPair::generate(SignatureAlgorithm, std::shared_ptr<Options>) {
   //  EVP_PKEY *Key = nullptr;
   //  opensslAssuming(EVP_PKEY_keygen(KCtx.get(), &Key));
 
-  return std::make_unique<RsaKeyPair>(PKey);
+  return std::make_unique<KeyPair>(PKey);
 }
 
+template <int Pad, int Size, int Sha>
 WasiCryptoExpect<std::vector<uint8_t>>
-RsaKeyPair::exportData(__wasi_keypair_encoding_e_t Encoding) {
+Rsa<Pad, Size, Sha>::KeyPair::exportData(__wasi_keypair_encoding_e_t Encoding) {
   switch (Encoding) {
   case __WASI_KEYPAIR_ENCODING_RAW: {
     std::vector<uint8_t> Res(i2d_PrivateKey(Kp.get(), nullptr));
@@ -224,66 +240,97 @@ RsaKeyPair::exportData(__wasi_keypair_encoding_e_t Encoding) {
   return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
 }
 
-WasiCryptoExpect<std::unique_ptr<PublicKey>> RsaKeyPair::publicKey() {
+template <int Pad, int Size, int Sha>
+WasiCryptoExpect<std::unique_ptr<Signatures::PublicKey>>
+Rsa<Pad, Size, Sha>::KeyPair::publicKey() {
   OpenSSLUniquePtr<BIO, BIO_free> B{BIO_new(BIO_s_mem())};
   opensslAssuming(i2d_PUBKEY_bio(B.get(), Kp.get()));
 
   EVP_PKEY *Res = nullptr;
   opensslAssuming(d2i_PUBKEY_bio(B.get(), &Res));
 
-  return std::make_unique<RsaPublicKey>(Res);
+  return std::make_unique<PublicKey>(Res);
 }
 
-WasiCryptoExpect<std::unique_ptr<SecretKey>> RsaKeyPair::secretKey() {
+template <int Pad, int Size, int Sha>
+WasiCryptoExpect<std::unique_ptr<Signatures::SecretKey>>
+Rsa<Pad, Size, Sha>::KeyPair::secretKey() {
   OpenSSLUniquePtr<BIO, BIO_free> B{BIO_new(BIO_s_mem())};
   opensslAssuming(i2d_PrivateKey_bio(B.get(), Kp.get()));
 
   EVP_PKEY *Res = nullptr;
   opensslAssuming(d2i_PrivateKey_bio(B.get(), &Res));
 
-  return std::make_unique<RsaSecretKey>(Res);
+  return std::make_unique<SecretKey>(Res);
 }
 
-WasiCryptoExpect<std::unique_ptr<RsaSignature>>
-RsaSignature::import(SignatureAlgorithm, Span<const uint8_t>,
-                     __wasi_signature_encoding_e_t) {
+template <int Pad, int Size, int Sha>
+WasiCryptoExpect<std::unique_ptr<typename Rsa<Pad, Size, Sha>::Signature>>
+Rsa<Pad, Size, Sha>::Signature::import(Span<const uint8_t>,
+                                       __wasi_signature_encoding_e_t) {
   return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
 }
 
+template <int Pad, int Size, int Sha>
 WasiCryptoExpect<std::vector<uint8_t>>
-RsaSignature::exportData(__wasi_signature_encoding_e_t) {
+Rsa<Pad, Size, Sha>::Signature::exportData(__wasi_signature_encoding_e_t) {
   return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
 }
 
-WasiCryptoExpect<void> RsaSignState::update(Span<const uint8_t> Data) {
+template <int Pad, int Size, int Sha>
+WasiCryptoExpect<void>
+Rsa<Pad, Size, Sha>::SignState::update(Span<const uint8_t> Data) {
   opensslAssuming(EVP_DigestSignUpdate(MdCtx.get(), Data.data(), Data.size()));
   return {};
 }
 
-WasiCryptoExpect<std::unique_ptr<Signature>> RsaSignState::sign() {
-  size_t Size;
-  opensslAssuming(EVP_DigestSignFinal(MdCtx.get(), nullptr, &Size));
+template <int Pad, int Size, int Sha>
+WasiCryptoExpect<std::unique_ptr<Signatures::Signature>>
+Rsa<Pad, Size, Sha>::SignState::sign() {
+  size_t Siz;
+  opensslAssuming(EVP_DigestSignFinal(MdCtx.get(), nullptr, &Siz));
 
-  std::vector<uint8_t> Res(Size);
+  std::vector<uint8_t> Res(Siz);
 
-  opensslAssuming(EVP_DigestSignFinal(MdCtx.get(), Res.data(), &Size));
+  opensslAssuming(EVP_DigestSignFinal(MdCtx.get(), Res.data(), &Siz));
 
-  return std::make_unique<RsaSignature>(std::move(Res));
+  return std::make_unique<Signature>(std::move(Res));
 }
 
-WasiCryptoExpect<void> RsaVerificationState::update(Span<const uint8_t> Data) {
+template <int Pad, int Size, int Sha>
+WasiCryptoExpect<void>
+Rsa<Pad, Size, Sha>::VerificationState::update(Span<const uint8_t> Data) {
   opensslAssuming(
       EVP_DigestVerifyUpdate(MdCtx.get(), Data.data(), Data.size()));
   return {};
 }
 
-WasiCryptoExpect<void>
-RsaVerificationState::verify(std::shared_ptr<Signature> Sig) {
+template <int Pad, int Size, int Sha>
+WasiCryptoExpect<void> Rsa<Pad, Size, Sha>::VerificationState::verify(
+    std::shared_ptr<Signatures::Signature> Sig) {
   auto Data = Sig->asRef();
   opensslAssuming(EVP_DigestVerifyFinal(MdCtx.get(), Data.data(), Data.size()));
 
   return {};
 }
+
+template class Rsa<RSA_PKCS1_PADDING, 2048, 256>;
+template class Rsa<RSA_PKCS1_PADDING, 2048, 384>;
+template class Rsa<RSA_PKCS1_PADDING, 2048, 512>;
+
+template class Rsa<RSA_PKCS1_PADDING, 3072, 384>;
+template class Rsa<RSA_PKCS1_PADDING, 3072, 512>;
+
+template class Rsa<RSA_PKCS1_PADDING, 4096, 512>;
+
+template class Rsa<RSA_PKCS1_PSS_PADDING, 2048, 256>;
+template class Rsa<RSA_PKCS1_PSS_PADDING, 2048, 384>;
+template class Rsa<RSA_PKCS1_PSS_PADDING, 2048, 512>;
+
+template class Rsa<RSA_PKCS1_PSS_PADDING, 3072, 384>;
+template class Rsa<RSA_PKCS1_PSS_PADDING, 3072, 512>;
+
+template class Rsa<RSA_PKCS1_PSS_PADDING, 4096, 512>;
 
 } // namespace Signatures
 } // namespace WASICrypto

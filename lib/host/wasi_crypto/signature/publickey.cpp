@@ -18,22 +18,32 @@ PublicKey::import(SignatureAlgorithm Alg, Span<const uint8_t> Encoded,
     return EcdsaP256::PublicKey::import(Encoded, Encoding);
   case SignatureAlgorithm::ECDSA_K256_SHA256:
     return EcdsaK256::PublicKey::import(Encoded, Encoding);
-  case SignatureAlgorithm::Ed25519: {
+  case SignatureAlgorithm::Ed25519:
     return EddsaPublicKey::import(Encoded, Encoding);
-  }
   case SignatureAlgorithm::RSA_PKCS1_2048_SHA256:
+    return RsaPkcs12048SHA256::PublicKey::import(Encoded, Encoding);
   case SignatureAlgorithm::RSA_PKCS1_2048_SHA384:
+    return RsaPkcs12048SHA384::PublicKey::import(Encoded, Encoding);
   case SignatureAlgorithm::RSA_PKCS1_2048_SHA512:
+    return RsaPkcs12048SHA512::PublicKey::import(Encoded, Encoding);
   case SignatureAlgorithm::RSA_PKCS1_3072_SHA384:
+    return RsaPkcs13072SHA384::PublicKey::import(Encoded, Encoding);
   case SignatureAlgorithm::RSA_PKCS1_3072_SHA512:
+    return RsaPkcs13072SHA512::PublicKey::import(Encoded, Encoding);
   case SignatureAlgorithm::RSA_PKCS1_4096_SHA512:
+    return RsaPkcs14096SHA512::PublicKey::import(Encoded, Encoding);
   case SignatureAlgorithm::RSA_PSS_2048_SHA256:
+    return RsaPss2048SHA256::PublicKey::import(Encoded, Encoding);
   case SignatureAlgorithm::RSA_PSS_2048_SHA384:
+    return RsaPss2048SHA384::PublicKey::import(Encoded, Encoding);
   case SignatureAlgorithm::RSA_PSS_2048_SHA512:
+    return RsaPss2048SHA512::PublicKey::import(Encoded, Encoding);
   case SignatureAlgorithm::RSA_PSS_3072_SHA384:
+    return RsaPss3072SHA384::PublicKey::import(Encoded, Encoding);
   case SignatureAlgorithm::RSA_PSS_3072_SHA512:
+    return RsaPss3072SHA512::PublicKey::import(Encoded, Encoding);
   case SignatureAlgorithm::RSA_PSS_4096_SHA512: {
-    return RsaPublicKey::import(Alg, Encoded, Encoding);
+    return RsaPss4096SHA512::PublicKey::import(Encoded, Encoding);
   }
   default:
     assumingUnreachable();

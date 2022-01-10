@@ -23,53 +23,33 @@ State::open(SymmetricAlgorithm Alg, std::shared_ptr<Key> OptKey,
         OptKey->inner().locked([](auto &Inner) { return Inner.Alg; }) == Alg,
         __WASI_CRYPTO_ERRNO_INVALID_KEY);
   }
-
   switch (Alg) {
   case SymmetricAlgorithm::HmacSha256:
   case SymmetricAlgorithm::HmacSha512:
-    if (auto Res = HmacSha2State::open(Alg, OptKey, OptOption); !Res) {
-      return WasiCryptoUnexpect(Res);
-    } else {
-      return std::move(*Res);
-    }
-  case SymmetricAlgorithm::HkdfSha256Extract:
-  case SymmetricAlgorithm::HkdfSha512Extract:
+    return HmacSha2State::open(Alg, OptKey, OptOption);
   case SymmetricAlgorithm::HkdfSha256Expand:
+    return Hkdf256Expand::State::open(OptKey, OptOption);
+  case SymmetricAlgorithm::HkdfSha256Extract:
+    return Hkdf256Extract::State::open(OptKey, OptOption);
   case SymmetricAlgorithm::HkdfSha512Expand:
-    if (auto Res = HkdfState::open(Alg, OptKey, OptOption); !Res) {
-      return WasiCryptoUnexpect(Res);
-    } else {
-      return std::move(*Res);
-    }
+    return Hkdf512Expand::State::open(OptKey, OptOption);
+  case SymmetricAlgorithm::HkdfSha512Extract:
+    return Hkdf512Extract::State::open(OptKey, OptOption);
   case SymmetricAlgorithm::Sha256:
+    return Sha256State ::open(OptKey, OptOption);
   case SymmetricAlgorithm::Sha512:
+    return Sha512State::open(OptKey, OptOption);
   case SymmetricAlgorithm::Sha512_256:
-    if (auto Res = Sha2State::open(Alg, OptKey, OptOption); !Res) {
-      return WasiCryptoUnexpect(Res);
-    } else {
-      return std::move(*Res);
-    }
+    return Sha512_256State::open(OptKey, OptOption);
   case SymmetricAlgorithm::Aes128Gcm:
   case SymmetricAlgorithm::Aes256Gcm:
-    if (auto Res = AesGcmState::open(Alg, OptKey, OptOption); !Res) {
-      return WasiCryptoUnexpect(Res);
-    } else {
-      return std::move(*Res);
-    }
+    return AesGcmState::open(Alg, OptKey, OptOption);
   case SymmetricAlgorithm::ChaCha20Poly1305:
   case SymmetricAlgorithm::XChaCha20Poly1305:
-    if (auto Res = ChaChaPolyState::open(Alg, OptKey, OptOption); !Res) {
-      return WasiCryptoUnexpect(Res);
-    } else {
-      return std::move(*Res);
-    }
+    return ChaChaPolyState::open(Alg, OptKey, OptOption);
   case SymmetricAlgorithm::Xoodyak128:
   case SymmetricAlgorithm::Xoodyak160:
-    if (auto Res = XoodyakState::open(Alg, OptKey, OptOption); !Res) {
-      return WasiCryptoUnexpect(Res);
-    } else {
-      return std::move(*Res);
-    }
+    return XoodyakState::open(Alg, OptKey, OptOption);
   default:
     assumingUnreachable();
   }

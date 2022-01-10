@@ -1,9 +1,9 @@
 # SPDX-License-Identifier: Apache-2.0
 
 wasmedge_add_executable(wasiCryptoTests
-  symmetric.cpp
-  kx.cpp
-  signature.cpp
+  symmetric/symmetric.cpp
+  asymmetric/kx.cpp
+  asymmetric/signature.cpp
 )
 
 add_test(wasiCryptoTests wasiCryptoTests)

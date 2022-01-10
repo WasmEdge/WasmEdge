@@ -13,7 +13,7 @@ namespace Host {
 namespace WASICrypto {
 namespace Symmetric {
 
-
+template<int Sha>
 class Sha2State : public HashState {
   using EvpMdCtx = OpenSSLUniquePtr<EVP_MD_CTX, EVP_MD_CTX_free>;
 
@@ -22,7 +22,7 @@ public:
       : OptOption(OptOption), Ctx(Ctx) {}
 
   static WasiCryptoExpect<std::unique_ptr<Sha2State>>
-  open(SymmetricAlgorithm Alg, std::shared_ptr<Key> OptKey,
+  open(std::shared_ptr<Key> OptKey,
        std::shared_ptr<Option> OptOption);
 
   WasiCryptoExpect<std::vector<uint8_t>>
@@ -38,6 +38,10 @@ private:
   std::shared_ptr<Option> OptOption;
   EvpMdCtx Ctx;
 };
+
+using Sha256State = Sha2State<256>;
+using Sha512State = Sha2State<512>;
+using Sha512_256State = Sha2State<512256>;
 
 } // namespace Symmetric
 } // namespace WASICrypto

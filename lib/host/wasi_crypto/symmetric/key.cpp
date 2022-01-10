@@ -12,8 +12,8 @@ namespace Host {
 namespace WASICrypto {
 namespace Symmetric {
 
-WasiCryptoExpect<std::unique_ptr<Key>> Key::generate(SymmetricAlgorithm Alg,
-                                    std::shared_ptr<Option> OptOption) {
+WasiCryptoExpect<std::unique_ptr<Key>>
+Key::generate(SymmetricAlgorithm Alg, std::shared_ptr<Option> OptOption) {
   auto Builder = builder(Alg);
   if (!Builder) {
     return WasiCryptoUnexpect(Builder);
@@ -22,7 +22,7 @@ WasiCryptoExpect<std::unique_ptr<Key>> Key::generate(SymmetricAlgorithm Alg,
 }
 
 WasiCryptoExpect<std::unique_ptr<Key>> Key::import(SymmetricAlgorithm Alg,
-                                  Span<uint8_t const> Raw) {
+                                                   Span<uint8_t const> Raw) {
   auto Builder = builder(Alg);
   if (!Builder) {
     return WasiCryptoUnexpect(Builder);
@@ -37,10 +37,13 @@ Key::builder(SymmetricAlgorithm Alg) {
   case SymmetricAlgorithm::HmacSha512:
     return std::make_unique<HmacSha2KeyBuilder>(Alg);
   case SymmetricAlgorithm::HkdfSha256Expand:
+    return std::make_unique<Hkdf256Expand::KeyBuilder>(Alg);
   case SymmetricAlgorithm::HkdfSha256Extract:
+    return std::make_unique<Hkdf256Extract::KeyBuilder>(Alg);
   case SymmetricAlgorithm::HkdfSha512Expand:
+    return std::make_unique<Hkdf512Expand::KeyBuilder>(Alg);
   case SymmetricAlgorithm::HkdfSha512Extract:
-    return std::make_unique<HkdfKeyBuilder>(Alg);
+    return std::make_unique<Hkdf512Extract::KeyBuilder>(Alg);
   case SymmetricAlgorithm::Aes128Gcm:
   case SymmetricAlgorithm::Aes256Gcm:
     return std::make_unique<AesGcmKeyBuilder>(Alg);

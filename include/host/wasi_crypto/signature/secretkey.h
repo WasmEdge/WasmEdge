@@ -25,9 +25,7 @@ public:
 
   static WasiCryptoExpect<std::unique_ptr<SecretKey>>
   import(SignatureAlgorithm, Span<const uint8_t>,
-         __wasi_secretkey_encoding_e_t) {
-    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
-  }
+         __wasi_secretkey_encoding_e_t);
 };
 } // namespace Signatures
 

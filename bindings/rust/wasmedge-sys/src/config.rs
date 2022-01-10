@@ -144,14 +144,14 @@ impl Config {
     }
 
     /// Enables or disables host registration wasi.
-    pub fn enable_wasi(self, flag: bool) -> Self {
+    pub fn wasi(self, enable: bool) -> Self {
         unsafe {
-            if flag && !self.wasi_enabled() {
+            if enable && !self.wasi_enabled() {
                 wasmedge::WasmEdge_ConfigureAddHostRegistration(
                     self.ctx,
                     wasmedge::WasmEdge_HostRegistration_Wasi,
                 )
-            } else if !flag && self.wasi_enabled() {
+            } else if !enable && self.wasi_enabled() {
                 wasmedge::WasmEdge_ConfigureRemoveHostRegistration(
                     self.ctx,
                     wasmedge::WasmEdge_HostRegistration_Wasi,
@@ -182,14 +182,14 @@ impl Config {
     }
 
     /// Enables or disables host registration WasmEdge process.
-    pub fn enable_wasmedge_process(self, flag: bool) -> Self {
+    pub fn wasmedge_process(self, enable: bool) -> Self {
         unsafe {
-            if flag && !self.wasmedge_process_enabled() {
+            if enable && !self.wasmedge_process_enabled() {
                 wasmedge::WasmEdge_ConfigureAddHostRegistration(
                     self.ctx,
                     wasmedge::WasmEdge_HostRegistration_WasmEdge_Process,
                 )
-            } else if !flag && self.wasmedge_process_enabled() {
+            } else if !enable && self.wasmedge_process_enabled() {
                 wasmedge::WasmEdge_ConfigureRemoveHostRegistration(
                     self.ctx,
                     wasmedge::WasmEdge_HostRegistration_WasmEdge_Process,
@@ -332,10 +332,12 @@ impl Config {
     /// # Argument
     ///
     /// - `flag` specifies if turn on the `Interruptible` option.
-    pub fn enable_interruptible(self, flag: bool) -> Self {
+    pub fn interruptible(self, enable: bool) -> Self {
         unsafe {
-            if (flag && !self.interruptible_enabled()) || (!flag && self.interruptible_enabled()) {
-                wasmedge::WasmEdge_ConfigureCompilerSetInterruptible(self.ctx, flag);
+            if (enable && !self.interruptible_enabled())
+                || (!enable && self.interruptible_enabled())
+            {
+                wasmedge::WasmEdge_ConfigureCompilerSetInterruptible(self.ctx, enable);
             }
         }
         self

@@ -511,7 +511,7 @@ impl Store {
     }
 
     /// Returns the names of all exported [memories](crate::Memory) in the anonymous module.
-    pub fn mem_names_iter(&self) -> Option<Vec<String>> {
+    pub fn mem_names(&self) -> Option<Vec<String>> {
         let len_mem_names = self.mem_len();
         match len_mem_names > 0 {
             true => {

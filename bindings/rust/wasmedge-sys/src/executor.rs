@@ -12,6 +12,7 @@ use std::ptr;
 ///
 /// [`Executor`] defines an execution environment for both WASM and compiled WASM. It works based on the
 /// [Store](crate::Store).
+#[derive(Debug)]
 pub struct Executor {
     ctx: *mut wasmedge::WasmEdge_ExecutorContext,
 }
@@ -35,7 +36,6 @@ impl Executor {
         let stat_ctx = match stat {
             Some(stat) => {
                 let stat_ctx = stat.ctx;
-                stat.ctx = std::ptr::null_mut();
                 stat_ctx
             }
             None => ptr::null_mut(),

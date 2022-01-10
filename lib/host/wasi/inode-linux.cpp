@@ -1083,8 +1083,8 @@ WasiExpect<void> INode::sockGetOpt(int32_t Level, int32_t OptName,
 WasiExpect<void> INode::sockSetOpt(int32_t Level, int32_t OptName,
                                    void *FlagPtr,
                                    uint32_t FlagSizePtr) const noexcept {
-  auto SysLevel = toSockOptLevel((__wasi_sock_opt_level_t)Level);
-  auto SysOptName = toSockOptSoName((__wasi_sock_opt_so_t)OptName);
+  auto SysLevel = toSockOptLevel(static_cast<__wasi_sock_opt_level_t>(Level));
+  auto SysOptName = toSockOptSoName(static_cast<__wasi_sock_opt_so_t>(OptName));
 
   if (auto Res = ::setsockopt(Fd, SysLevel, SysOptName, FlagPtr, FlagSizePtr);
       unlikely(Res < 0)) {
@@ -1098,15 +1098,15 @@ WasiExpect<void> INode::sockGetLoaclAddr(uint8_t *AddressPtr,
                                          uint32_t *AddrTypePtr,
                                          uint32_t *PortPtr) const noexcept {
   struct sockaddr SocketAddr;
-  socklen_t slen;
+  socklen_t Slen;
   std::memset(&SocketAddr, 0, sizeof(SocketAddr));
 
-  if (auto Res = ::getsockname(Fd, &SocketAddr, &slen); unlikely(Res < 0)) {
+  if (auto Res = ::getsockname(Fd, &SocketAddr, &Slen); unlikely(Res < 0)) {
     return WasiUnexpect(fromErrNo(errno));
   }
 
   auto AddrLen = 4;
-  if (slen != 16) {
+  if (Slen != 16) {
     AddrLen = 16;
   }
 
@@ -1131,15 +1131,15 @@ WasiExpect<void> INode::sockGetPeerAddr(uint8_t *AddressPtr,
                                         uint32_t *AddrTypePtr,
                                         uint32_t *PortPtr) const noexcept {
   struct sockaddr SocketAddr;
-  socklen_t slen = sizeof(SocketAddr);
+  socklen_t Slen = sizeof(SocketAddr);
   std::memset(&SocketAddr, 0, sizeof(SocketAddr));
 
-  if (auto Res = ::getpeername(Fd, &SocketAddr, &slen); unlikely(Res < 0)) {
+  if (auto Res = ::getpeername(Fd, &SocketAddr, &Slen); unlikely(Res < 0)) {
     return WasiUnexpect(fromErrNo(errno));
   }
 
   auto AddrLen = 4;
-  if (slen != 16) {
+  if (Slen != 16) {
     AddrLen = 16;
   }
 

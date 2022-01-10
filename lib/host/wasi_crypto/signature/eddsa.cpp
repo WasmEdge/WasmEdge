@@ -269,7 +269,7 @@ EddsaVerificationState::update(Span<const uint8_t> Input) {
 
 WasiCryptoExpect<void>
 EddsaVerificationState::verify(std::shared_ptr<Signature> Sig) {
-  auto Data = Sig->asRef();
+  auto Data = Sig->exportData(__WASI_SIGNATURE_ENCODING_RAW);
   opensslAssuming(EVP_DigestVerify(MdCtx.get(), Data.data(), Data.size(),
                                    Cache.data(), Cache.size()));
 

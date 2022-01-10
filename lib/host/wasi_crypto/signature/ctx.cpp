@@ -19,7 +19,7 @@ WasiCryptoContext::signatureExport(__wasi_signature_t SigHandle,
     return WasiCryptoUnexpect(Res);
   }
 
-  return allocateArrayOutput(std::move(std::move(*Res)));
+  return allocateArrayOutput(std::move(*Res));
 }
 
 WasiCryptoExpect<__wasi_signature_t>

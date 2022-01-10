@@ -86,8 +86,6 @@ public:
     static WasiCryptoExpect<std::unique_ptr<Signature>>
     import(Span<const uint8_t> Encoded, __wasi_signature_encoding_e_t Encoding);
 
-    Span<uint8_t const> asRef() override { return Sign; };
-
     WasiCryptoExpect<std::vector<uint8_t>>
     exportData(__wasi_signature_encoding_e_t Encoding) override;
 

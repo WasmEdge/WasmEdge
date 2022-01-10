@@ -18,8 +18,6 @@ namespace Signatures {
 
 class Signature {
 public:
-//  Signature(std::vector<uint8_t> &&Data) : Inner(Data) {}
-
   virtual ~Signature() = default;
 
   static WasiCryptoExpect<std::unique_ptr<Signature>>
@@ -28,13 +26,6 @@ public:
 
   virtual WasiCryptoExpect<std::vector<uint8_t>>
   exportData(__wasi_signature_encoding_e_t Encoding) = 0;
-
-  virtual Span<uint8_t const> asRef() = 0;
-//  auto &raw() { return Inner; }
-
-private:
-  //  SignatureAlgorithm Alg;
-//  Mutex<std::vector<uint8_t>> Inner;
 };
 
 

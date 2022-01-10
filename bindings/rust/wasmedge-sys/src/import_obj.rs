@@ -308,7 +308,7 @@ mod tests {
         let result = FuncType::create([ValType::ExternRef, ValType::I32], [ValType::I32]);
         assert!(result.is_ok());
         let func_ty = result.unwrap();
-        let result = Function::create(func_ty, Box::new(extern_add), 0);
+        let result = Function::create(func_ty, Box::new(real_add), 0);
         assert!(result.is_ok());
         let mut host_func = result.unwrap();
         // add the function into the import_obj module
@@ -443,7 +443,7 @@ mod tests {
         }
     }
 
-    fn extern_add(inputs: Vec<Value>) -> Result<Vec<Value>, u8> {
+    fn real_add(inputs: Vec<Value>) -> Result<Vec<Value>, u8> {
         if inputs.len() != 2 {
             return Err(1);
         }

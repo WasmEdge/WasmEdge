@@ -754,7 +754,7 @@ mod tests {
             vec![Value::I32(12), Value::I32(21)],
         );
         assert!(result.is_ok());
-        let returns = result.unwrap().collect::<Vec<_>>();
+        let returns = result.unwrap();
         assert_eq!(returns, vec![Value::I32(33)]);
 
         let second_run = executor.run_func_registered(

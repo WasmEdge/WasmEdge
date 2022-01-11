@@ -615,9 +615,7 @@ mod tests {
     use super::Store;
     use crate::{
         instance::{Function, Global, GlobalType, Memory, Table, TableType},
-        io::{I1, I2},
-        types::{Mutability, RefType, ValType},
-        Config, Executor, ImportObj, Value,
+        Config, Executor, FuncType, ImportObj, Mutability, RefType, ValType, Value,
     };
 
     #[test]
@@ -648,7 +646,10 @@ mod tests {
         let mut import_obj = result.unwrap();
 
         // add host function
-        let result = Function::create_bindings::<I2<i32, i32>, I1<i32>>(Box::new(real_add));
+        let result = FuncType::create(vec![ValType::I32; 2], vec![ValType::I32]);
+        assert!(result.is_ok());
+        let func_ty = result.unwrap();
+        let result = Function::create(func_ty, Box::new(real_add), 0);
         assert!(result.is_ok());
         let mut host_func = result.unwrap();
         import_obj.add_func("add", &mut host_func);
@@ -691,6 +692,7 @@ mod tests {
         let executor = result.unwrap();
         let result = executor.register_import_object(&mut store, &import_obj);
         assert!(result.is_ok());
+        let executor = result.unwrap();
 
         // check the module list after instantiation
         assert_eq!(store.reg_module_len(), 1);
@@ -739,9 +741,26 @@ mod tests {
         let global = result.unwrap();
         assert!(!global.ctx.is_null() && global.registered);
         let val = global.get_value();
-        let val = val.as_f32();
-        assert!(val.is_some());
-        assert!((val.unwrap() - 3.5).abs() < f32::EPSILON);
+        assert_eq!(val, Value::F32(3.5));
+
+        // run the registered function
+        let result = executor.run_func_registered(
+            &store,
+            "extern_module",
+            "add",
+            vec![Value::I32(12), Value::I32(21)],
+        );
+        assert!(result.is_ok());
+        let returns = result.unwrap().collect::<Vec<_>>();
+        assert_eq!(returns, vec![Value::I32(33)]);
+
+        let second_run = executor.run_func_registered(
+            &store,
+            "extern_module",
+            "add",
+            vec![Value::I32(12), Value::I32(21)],
+        );
+        assert!(second_run.is_ok());
     }
 
     fn real_add(input: Vec<Value>) -> Result<Vec<Value>, u8> {

@@ -264,15 +264,31 @@ Rsa<Pad, Size, Sha>::KeyPair::secretKey() {
 
 template <int Pad, int Size, int Sha>
 WasiCryptoExpect<std::unique_ptr<typename Rsa<Pad, Size, Sha>::Signature>>
-Rsa<Pad, Size, Sha>::Signature::import(Span<const uint8_t>,
-                                       __wasi_signature_encoding_e_t) {
-  return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
+Rsa<Pad, Size, Sha>::Signature::import(Span<const uint8_t> Encoded,
+                                       __wasi_signature_encoding_e_t Encoding) {
+  switch (Encoding) {
+  case __WASI_SIGNATURE_ENCODING_RAW:
+    return std::make_unique<Signature>(
+        std::vector<uint8_t>{Encoded.begin(), Encoded.end()});
+  case __WASI_SIGNATURE_ENCODING_DER:
+    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
+  default:
+    assumingUnreachable();
+  }
 }
 
 template <int Pad, int Size, int Sha>
 WasiCryptoExpect<std::vector<uint8_t>>
-Rsa<Pad, Size, Sha>::Signature::exportData(__wasi_signature_encoding_e_t) {
-  return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
+Rsa<Pad, Size, Sha>::Signature::exportData(
+    __wasi_signature_encoding_e_t Encoding) {
+  switch (Encoding) {
+  case __WASI_SIGNATURE_ENCODING_RAW:
+    return Sign;
+  case __WASI_SIGNATURE_ENCODING_DER:
+    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
+  default:
+    assumingUnreachable();
+  }
 }
 
 template <int Pad, int Size, int Sha>

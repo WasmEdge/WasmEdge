@@ -387,7 +387,7 @@ mod tests {
             let result = Config::create();
             assert!(result.is_ok());
             let config = result.unwrap();
-            let config = config.enable_wasi(true);
+            let config = config.wasi(true);
             let result = Vm::create(Some(&config), None);
             assert!(result.is_ok());
             let mut vm = result.unwrap();
@@ -431,7 +431,7 @@ mod tests {
             let result = Config::create();
             assert!(result.is_ok());
             let config = result.unwrap();
-            let config = config.enable_wasmedge_process(true);
+            let config = config.wasmedge_process(true);
             let result = Vm::create(Some(&config), None);
             assert!(result.is_ok());
             let mut vm = result.unwrap();

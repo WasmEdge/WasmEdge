@@ -3,13 +3,13 @@
 
 #include "host/wasi_crypto/error.h"
 #include "openssl/err.h"
-#include "wasi_crypto/api.hpp"
 #include "openssl/evp.h"
+#include "wasi_crypto/api.hpp"
 
+#include <map>
 #include <memory>
 #include <optional>
 #include <string_view>
-#include <map>
 
 namespace WasmEdge {
 namespace Host {
@@ -146,10 +146,9 @@ using OpenSSLUniquePtr = std::unique_ptr<T, Deleter<Fn>>;
     }                                                                          \
   } while (0)
 
+template <class... Ts> struct Overloaded : Ts... { using Ts::operator()...; };
 
-template<class... Ts> struct Overloaded : Ts... { using Ts::operator()...; };
-
-template<class... Ts> Overloaded(Ts...) -> Overloaded<Ts...>;
+template <class... Ts> Overloaded(Ts...) -> Overloaded<Ts...>;
 
 inline const std::map<int, const EVP_MD *> ShaMap{
     {256, EVP_sha256()},

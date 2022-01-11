@@ -1,4 +1,4 @@
-asymme// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: Apache-2.0
 #pragma once
 
 #include "host/wasi_crypto/symmetric/aeads/aeads_state.h"

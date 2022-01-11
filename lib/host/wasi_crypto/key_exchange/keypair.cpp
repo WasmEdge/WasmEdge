@@ -68,7 +68,7 @@ KeyPair::generate(KxAlgorithm Alg, std::shared_ptr<Options> Options) {
 
 WasiCryptoExpect<std::unique_ptr<KeyPair>>
 KeyPair::import(KxAlgorithm Alg, Span<uint8_t const> Raw,
-                  __wasi_keypair_encoding_e_t Encoding) {
+                __wasi_keypair_encoding_e_t Encoding) {
   auto Builder = Builder::builder(Alg);
   if (!Builder) {
     return WasiCryptoUnexpect(Builder);
@@ -76,7 +76,6 @@ KeyPair::import(KxAlgorithm Alg, Span<uint8_t const> Raw,
 
   return (*Builder)->import(Raw, Encoding);
 }
-
 
 } // namespace Kx
 } // namespace WASICrypto

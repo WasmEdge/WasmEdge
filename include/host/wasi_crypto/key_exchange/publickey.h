@@ -33,12 +33,11 @@ public:
   }
 
   virtual WasiCryptoExpect<std::vector<uint8_t>>
-  exportData(__wasi_publickey_encoding_e_t) = 0;
+      exportData(__wasi_publickey_encoding_e_t) = 0;
 
   static WasiCryptoExpect<std::unique_ptr<PublicKey>>
   import(KxAlgorithm Alg, Span<uint8_t const> Raw,
          __wasi_publickey_encoding_e_t Encoding);
-
 };
 
 } // namespace Kx

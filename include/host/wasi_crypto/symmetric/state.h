@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
 #pragma once
 
+#include "common/span.h"
 #include "host/wasi_crypto/symmetric/alg.h"
 #include "host/wasi_crypto/symmetric/key.h"
 #include "host/wasi_crypto/symmetric/options.h"
 #include "host/wasi_crypto/symmetric/tag.h"
-#include "common/span.h"
 #include "wasi_crypto/api.hpp"
 
 #include <memory>
@@ -53,12 +53,12 @@ public:
   decryptDetached(Span<uint8_t> Out, Span<uint8_t const> Data,
                   Span<uint8_t> RawTag);
 
-  virtual WasiCryptoExpect<std::unique_ptr<Key>> squeezeKey(SymmetricAlgorithm KeyAlg);
+  virtual WasiCryptoExpect<std::unique_ptr<Key>>
+  squeezeKey(SymmetricAlgorithm KeyAlg);
 
   virtual WasiCryptoExpect<Tag> squeezeTag();
 
   virtual WasiCryptoExpect<__wasi_size_t> maxTagLen();
-
 };
 
 } // namespace Symmetric

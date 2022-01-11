@@ -9,7 +9,7 @@ namespace Symmetric {
 using namespace std::literals;
 
 WasiCryptoExpect<void> Option::set(std::string_view Name,
-                                    Span<const uint8_t> Value) {
+                                   Span<const uint8_t> Value) {
   std::unique_lock Lock{Mutex};
 
   std::optional<std::vector<uint8_t>> *Res;
@@ -44,7 +44,7 @@ WasiCryptoExpect<void> Option::setU64(std::string_view Name, uint64_t Value) {
 }
 
 WasiCryptoExpect<void> Option::setGuestBuffer(std::string_view Name,
-                                               Span<uint8_t> Buffer) {
+                                              Span<uint8_t> Buffer) {
   std::unique_lock Lock{Mutex};
 
   if ("buffer"sv == Name) {

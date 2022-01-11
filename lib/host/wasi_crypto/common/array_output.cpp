@@ -28,7 +28,7 @@ WasiCryptoExpect<__wasi_size_t> ArrayOutput::len() { return Data.size(); }
 //   return Mangers.ArrayOutputManger.registerManger(ArrayOutput);
 // }
 
-}
+} // namespace Common
 } // namespace WASICrypto
 } // namespace Host
 } // namespace WasmEdge

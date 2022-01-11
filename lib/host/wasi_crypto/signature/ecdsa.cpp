@@ -14,7 +14,6 @@ namespace {
 
 // TODO:Raw meaning compressed_sec not sec, please check
 
-
 EVP_PKEY *initEC(NID Nid) {
   OpenSSLUniquePtr<EVP_PKEY_CTX, EVP_PKEY_CTX_free> PCtx{
       EVP_PKEY_CTX_new_id(EVP_PKEY_EC, nullptr)};
@@ -89,12 +88,12 @@ Ecdsa<Nid>::PublicKey::exportData(__wasi_publickey_encoding_e_t Encoding) {
 template <NID Nid>
 WasiCryptoExpect<std::unique_ptr<Signatures::VerificationState>>
 Ecdsa<Nid>::PublicKey::openVerificationState() {
-    EVP_MD_CTX *SignCtx = EVP_MD_CTX_create();
-    opensslAssuming(SignCtx);
-    opensslAssuming(
-        EVP_DigestVerifyInit(SignCtx, nullptr, EVP_sha256(), nullptr, Ctx.get()));
+  EVP_MD_CTX *SignCtx = EVP_MD_CTX_create();
+  opensslAssuming(SignCtx);
+  opensslAssuming(
+      EVP_DigestVerifyInit(SignCtx, nullptr, EVP_sha256(), nullptr, Ctx.get()));
 
-    return std::make_unique<VerificationState>(SignCtx);
+  return std::make_unique<VerificationState>(SignCtx);
 }
 
 template <NID Nid>
@@ -310,13 +309,12 @@ Ecdsa<Nid>::VerificationState::update(Span<const uint8_t> Data) {
 }
 
 template <NID Nid>
-WasiCryptoExpect<void>
-Ecdsa<Nid>::VerificationState::verify(std::shared_ptr<Signatures::Signature> Sig) {
+WasiCryptoExpect<void> Ecdsa<Nid>::VerificationState::verify(
+    std::shared_ptr<Signatures::Signature> Sig) {
   auto Data = Sig->exportData(__WASI_SIGNATURE_ENCODING_RAW);
   opensslAssuming(EVP_DigestVerifyFinal(Ctx.get(), Data.data(), Data.size()));
   return {};
 }
-
 
 template class Ecdsa<NID_X9_62_prime256v1>;
 template class Ecdsa<NID_secp256k1>;

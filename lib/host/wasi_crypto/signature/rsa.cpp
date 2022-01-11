@@ -10,7 +10,6 @@ namespace Signatures {
 
 namespace {
 
-
 EVP_PKEY *initRsa(int Pad, int Size, int Sha) {
   OpenSSLUniquePtr<EVP_PKEY_CTX, EVP_PKEY_CTX_free> PCtx{
       EVP_PKEY_CTX_new_id(EVP_PKEY_RSA, nullptr)};
@@ -157,8 +156,7 @@ Rsa<Pad, Size, Sha>::SecretKey::exportData(
 
 template <int Pad, int Size, int Sha>
 WasiCryptoExpect<std::unique_ptr<typename Rsa<Pad, Size, Sha>::KeyPair>>
-Rsa<Pad, Size, Sha>::KeyPair::import(
-                                     Span<const uint8_t> Encoded,
+Rsa<Pad, Size, Sha>::KeyPair::import(Span<const uint8_t> Encoded,
                                      __wasi_keypair_encoding_e_t Encoding) {
   EVP_PKEY *Kp = initRsa(Pad, Size, Sha);
 

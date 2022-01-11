@@ -41,7 +41,7 @@ public:
   /// @return Tag used to verify
   virtual WasiCryptoExpect<Tag> squeezeTag() = 0;
 };
-}
+} // namespace Symmetric
 } // namespace WASICrypto
 } // namespace Host
 } // namespace WasmEdge

@@ -5,7 +5,7 @@
 namespace WasmEdge {
 namespace Host {
 namespace WASICrypto {
-namespace Signatures{
+namespace Signatures {
 
 WasiCryptoExpect<void> Options::set(std::string_view, Span<const uint8_t>) {
   return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_UNSUPPORTED_OPTION);
@@ -28,7 +28,7 @@ WasiCryptoExpect<uint64_t> Options::getU64(std::string_view) const {
   return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_UNSUPPORTED_OPTION);
 }
 
-}
+} // namespace Signatures
 } // namespace WASICrypto
 } // namespace Host
 } // namespace WasmEdge

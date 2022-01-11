@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "host/wasi_crypto/common/options.h"
-#include "host/wasi_crypto/util.h"
 #include "host/wasi_crypto/key_exchange/options.h"
+#include "host/wasi_crypto/util.h"
 
 namespace WasmEdge {
 namespace Host {
@@ -51,7 +51,7 @@ WasiCryptoExpect<void> optionsSetGuestBuffer(Options Options,
 }
 
 WasiCryptoExpect<std::vector<uint8_t>> optionsGet(Options Options,
-                                                  std::string_view Name)  {
+                                                  std::string_view Name) {
   return std::visit(
       [Name](auto &&Option) -> WasiCryptoExpect<std::vector<uint8_t>> {
         return Option->get(Name);
@@ -60,7 +60,7 @@ WasiCryptoExpect<std::vector<uint8_t>> optionsGet(Options Options,
 }
 
 WasiCryptoExpect<uint64_t> optionsGetU64(Options Options,
-                                         std::string_view Name)  {
+                                         std::string_view Name) {
   return std::visit(
       [Name](auto &&Option) -> WasiCryptoExpect<uint64_t> {
         return Option->getU64(Name);

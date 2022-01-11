@@ -20,7 +20,6 @@ namespace Symmetric {
 
 class Option {
 public:
-
   WasiCryptoExpect<void> set(std::string_view Name, Span<const uint8_t> Value);
 
   WasiCryptoExpect<void> setU64(std::string_view Name, uint64_t Value);

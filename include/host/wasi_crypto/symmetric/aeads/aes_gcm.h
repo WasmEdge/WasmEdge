@@ -69,7 +69,6 @@ protected:
                            Span<uint8_t const> RawTag) override;
 
 private:
-
   enum Mode { Unchanged = -1, Decrypt = 0, Encrypt = 1 };
 
   //  SymmetricAlgorithm Alg;

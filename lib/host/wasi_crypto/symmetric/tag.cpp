@@ -11,8 +11,9 @@ namespace WASICrypto {
 namespace Symmetric {
 
 WasiCryptoExpect<void> Tag::verify(Span<uint8_t const> RawTag) {
-  ensureOrReturn(std::equal(RawTag.begin(), RawTag.end(), Raw.begin(), Raw.end()),
-         __WASI_CRYPTO_ERRNO_INVALID_TAG);
+  ensureOrReturn(
+      std::equal(RawTag.begin(), RawTag.end(), Raw.begin(), Raw.end()),
+      __WASI_CRYPTO_ERRNO_INVALID_TAG);
 
   return {};
 }

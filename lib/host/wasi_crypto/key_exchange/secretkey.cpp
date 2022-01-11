@@ -6,7 +6,7 @@
 namespace WasmEdge {
 namespace Host {
 namespace WASICrypto {
-namespace Kx{
+namespace Kx {
 WasiCryptoExpect<std::unique_ptr<SecretKey>>
 SecretKey::import(KxAlgorithm Alg, Span<const uint8_t> Encoded,
                   __wasi_secretkey_encoding_e_t Encoding) {
@@ -19,7 +19,7 @@ SecretKey::import(KxAlgorithm Alg, Span<const uint8_t> Encoded,
     assumingUnreachable();
   }
 }
-}
+} // namespace Kx
 } // namespace WASICrypto
 } // namespace Host
 } // namespace WasmEdge

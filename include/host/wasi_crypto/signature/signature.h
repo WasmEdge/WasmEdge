@@ -28,7 +28,6 @@ public:
   exportData(__wasi_signature_encoding_e_t Encoding) = 0;
 };
 
-
 } // namespace Signatures
 } // namespace WASICrypto
 } // namespace Host

@@ -33,16 +33,16 @@ constexpr const EVP_CIPHER *getCipher(SymmetricAlgorithm Alg) {
   }
 }
 
-//constexpr __wasi_size_t getKeySize(SymmetricAlgorithm Alg) {
-//  switch (Alg) {
-//  case SymmetricAlgorithm::ChaCha20Poly1305:
-//    return 16;
-//  case SymmetricAlgorithm::XChaCha20Poly1305:
-//    return 32;
-//  default:
-//    assumingUnreachable();
-//  }
-//}
+// constexpr __wasi_size_t getKeySize(SymmetricAlgorithm Alg) {
+//   switch (Alg) {
+//   case SymmetricAlgorithm::ChaCha20Poly1305:
+//     return 16;
+//   case SymmetricAlgorithm::XChaCha20Poly1305:
+//     return 32;
+//   default:
+//     assumingUnreachable();
+//   }
+// }
 
 inline __wasi_size_t TagLen = 12;
 } // namespace
@@ -63,8 +63,8 @@ ChaChaPolyState::open(SymmetricAlgorithm Alg, std::shared_ptr<Key> OptKey,
 
   ensureOrReturn(Nonce->size() == getNonceSize(Alg),
                  __WASI_CRYPTO_ERRNO_INVALID_HANDLE);
-//  ensureOrReturn(getKeySize(Alg) == Key.size(),
-//                 __WASI_CRYPTO_ERRNO_INVALID_HANDLE);
+  //  ensureOrReturn(getKeySize(Alg) == Key.size(),
+  //                 __WASI_CRYPTO_ERRNO_INVALID_HANDLE);
 
   EVP_CIPHER_CTX *Ctx = EVP_CIPHER_CTX_new();
   opensslAssuming(Ctx);

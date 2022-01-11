@@ -329,15 +329,14 @@ WasiCryptoContext::readSymmetricOption(
   }
 
   return std::visit(
-      Overloaded{[](std::shared_ptr<Symmetric::Option> Options)
-                     -> WasiCryptoExpect<std::shared_ptr<Symmetric::Option>> {
-                   return Options;
-                 },
-                 [](auto &&)
-                     -> WasiCryptoExpect<std::shared_ptr<Symmetric::Option>> {
-                   return WasiCryptoUnexpect(
-                       __WASI_CRYPTO_ERRNO_INVALID_HANDLE);
-                 }},
+      Overloaded{
+          [](std::shared_ptr<Symmetric::Option> Options)
+              -> WasiCryptoExpect<std::shared_ptr<Symmetric::Option>> {
+            return Options;
+          },
+          [](auto &&) -> WasiCryptoExpect<std::shared_ptr<Symmetric::Option>> {
+            return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_HANDLE);
+          }},
       *Res);
 }
 

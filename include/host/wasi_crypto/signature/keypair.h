@@ -24,11 +24,10 @@ public:
 
   virtual WasiCryptoExpect<std::unique_ptr<SecretKey>> secretKey() = 0;
 
-  virtual WasiCryptoExpect<std::unique_ptr<SignState>>
-  openSignState() = 0;
+  virtual WasiCryptoExpect<std::unique_ptr<SignState>> openSignState() = 0;
 
-  static WasiCryptoExpect<std::unique_ptr<KeyPair>> generate(SignatureAlgorithm Alg,
-                                            std::shared_ptr<Options> Options);
+  static WasiCryptoExpect<std::unique_ptr<KeyPair>>
+  generate(SignatureAlgorithm Alg, std::shared_ptr<Options> Options);
 
   static WasiCryptoExpect<std::unique_ptr<KeyPair>>
   import(SignatureAlgorithm Alg, Span<uint8_t const> Encoded,

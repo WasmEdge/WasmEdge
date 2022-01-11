@@ -23,7 +23,7 @@ public:
   virtual WasiCryptoExpect<void> squeeze(Span<uint8_t> Out) = 0;
 };
 
-}
+} // namespace Symmetric
 } // namespace WASICrypto
 } // namespace Host
 } // namespace WasmEdge

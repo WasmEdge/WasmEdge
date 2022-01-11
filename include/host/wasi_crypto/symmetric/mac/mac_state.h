@@ -56,7 +56,8 @@ private:
     return State::decryptDetached(Out, Data, RawTag);
   }
 
-  WasiCryptoExpect<std::unique_ptr<Key>> squeezeKey(SymmetricAlgorithm KeyAlg) override final {
+  WasiCryptoExpect<std::unique_ptr<Key>>
+  squeezeKey(SymmetricAlgorithm KeyAlg) override final {
     return State::squeezeKey(KeyAlg);
   }
 

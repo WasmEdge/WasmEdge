@@ -21,7 +21,8 @@ public:
 
   //  WasiCryptoExpect<__wasi_size_t> len() override { return Len; }
 
-  WasiCryptoExpect<std::vector<uint8_t>> exportData(__wasi_publickey_encoding_e_t Encoding) override;
+  WasiCryptoExpect<std::vector<uint8_t>>
+  exportData(__wasi_publickey_encoding_e_t Encoding) override;
 
   WasiCryptoExpect<void> verify() override;
 

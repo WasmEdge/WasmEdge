@@ -56,11 +56,11 @@ public:
     const SymmetricAlgorithm Alg;
   };
 
-  static WasiCryptoExpect<std::unique_ptr<Key>> generate(SymmetricAlgorithm Alg,
-                                        std::shared_ptr<Option> OptOption);
+  static WasiCryptoExpect<std::unique_ptr<Key>>
+  generate(SymmetricAlgorithm Alg, std::shared_ptr<Option> OptOption);
 
   static WasiCryptoExpect<std::unique_ptr<Key>> import(SymmetricAlgorithm Alg,
-                                      Span<uint8_t const> Raw);
+                                                       Span<uint8_t const> Raw);
 
   static WasiCryptoExpect<std::unique_ptr<Key::Builder>>
   builder(SymmetricAlgorithm Alg);

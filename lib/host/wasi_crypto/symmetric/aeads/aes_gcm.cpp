@@ -31,7 +31,7 @@ constexpr __wasi_size_t getKeySize(SymmetricAlgorithm Alg) {
 }
 
 inline constexpr __wasi_size_t NonceSize = 12;
-//inline constexpr __wasi_size_t TagLen = 16;
+// inline constexpr __wasi_size_t TagLen = 16;
 
 } // namespace
 

@@ -99,7 +99,6 @@ AEADsState::decryptUnchecked(Span<uint8_t> Out, Span<const uint8_t> Data) {
                                   Data.subspan(Out.size()));
 }
 
-
 } // namespace Symmetric
 } // namespace WASICrypto
 } // namespace Host

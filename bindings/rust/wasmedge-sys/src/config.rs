@@ -146,12 +146,12 @@ impl Config {
     /// Enables or disables host registration wasi.
     pub fn wasi(self, enable: bool) -> Self {
         unsafe {
-            if enable && !self.wasi_enabled() {
+            if enable {
                 wasmedge::WasmEdge_ConfigureAddHostRegistration(
                     self.ctx,
                     wasmedge::WasmEdge_HostRegistration_Wasi,
                 )
-            } else if !enable && self.wasi_enabled() {
+            } else {
                 wasmedge::WasmEdge_ConfigureRemoveHostRegistration(
                     self.ctx,
                     wasmedge::WasmEdge_HostRegistration_Wasi,
@@ -184,12 +184,12 @@ impl Config {
     /// Enables or disables host registration WasmEdge process.
     pub fn wasmedge_process(self, enable: bool) -> Self {
         unsafe {
-            if enable && !self.wasmedge_process_enabled() {
+            if enable {
                 wasmedge::WasmEdge_ConfigureAddHostRegistration(
                     self.ctx,
                     wasmedge::WasmEdge_HostRegistration_WasmEdge_Process,
                 )
-            } else if !enable && self.wasmedge_process_enabled() {
+            } else {
                 wasmedge::WasmEdge_ConfigureRemoveHostRegistration(
                     self.ctx,
                     wasmedge::WasmEdge_HostRegistration_WasmEdge_Process,

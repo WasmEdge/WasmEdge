@@ -1011,7 +1011,7 @@ WasiExpect<void> INode::sockRecv(Span<Span<uint8_t>> RiData,
 WasiExpect<void> INode::sockSend(Span<Span<const uint8_t>> SiData,
                                  __wasi_siflags_t,
                                  __wasi_size_t &NWritten) const noexcept {
-  int SysSiFlags = 0;
+  int SysSiFlags = MSG_NOSIGNAL;
 
   iovec SysIOVs[kIOVMax];
   size_t SysIOVsSize = 0;
@@ -1051,6 +1051,111 @@ WasiExpect<void> INode::sockShutdown(__wasi_sdflags_t SdFlags) const noexcept {
 
   if (auto Res = ::shutdown(Fd, SysFlags); unlikely(Res < 0)) {
     return WasiUnexpect(fromErrNo(errno));
+  }
+
+  return {};
+}
+
+WasiExpect<void> INode::sockGetOpt(int32_t Level, int32_t OptName,
+                                   void *FlagPtr,
+                                   uint32_t *FlagSizePtr) const noexcept {
+  auto SysLevel = toSockOptLevel(static_cast<__wasi_sock_opt_level_t>(Level));
+  auto SysOptName = toSockOptSoName(static_cast<__wasi_sock_opt_so_t>(OptName));
+  if (OptName == __WASI_SOCK_OPT_SO_ERROR) {
+    int ErrorCode = 0;
+    int *WasiErrorPtr = static_cast<int *>(FlagPtr);
+    if (auto Res =
+            ::getsockopt(Fd, SysLevel, SysOptName, &ErrorCode, FlagSizePtr);
+        unlikely(Res < 0)) {
+      return WasiUnexpect(fromErrNo(errno));
+    }
+    *WasiErrorPtr = fromErrNo(ErrorCode);
+  } else {
+    if (auto Res = ::getsockopt(Fd, SysLevel, SysOptName, FlagPtr, FlagSizePtr);
+        unlikely(Res < 0)) {
+      return WasiUnexpect(fromErrNo(errno));
+    }
+  }
+
+  return {};
+}
+
+WasiExpect<void> INode::sockSetOpt(int32_t Level, int32_t OptName,
+                                   void *FlagPtr,
+                                   uint32_t FlagSizePtr) const noexcept {
+  auto SysLevel = toSockOptLevel(static_cast<__wasi_sock_opt_level_t>(Level));
+  auto SysOptName = toSockOptSoName(static_cast<__wasi_sock_opt_so_t>(OptName));
+
+  if (auto Res = ::setsockopt(Fd, SysLevel, SysOptName, FlagPtr, FlagSizePtr);
+      unlikely(Res < 0)) {
+    return WasiUnexpect(fromErrNo(errno));
+  }
+
+  return {};
+}
+
+WasiExpect<void> INode::sockGetLoaclAddr(uint8_t *AddressPtr,
+                                         uint32_t *AddrTypePtr,
+                                         uint32_t *PortPtr) const noexcept {
+  struct sockaddr SocketAddr;
+  socklen_t Slen;
+  std::memset(&SocketAddr, 0, sizeof(SocketAddr));
+
+  if (auto Res = ::getsockname(Fd, &SocketAddr, &Slen); unlikely(Res < 0)) {
+    return WasiUnexpect(fromErrNo(errno));
+  }
+
+  auto AddrLen = 4;
+  if (Slen != 16) {
+    AddrLen = 16;
+  }
+
+  if (SocketAddr.sa_family == AF_INET) {
+    *AddrTypePtr = 4;
+    auto SocketAddrv4 = reinterpret_cast<struct sockaddr_in *>(&SocketAddr);
+    *PortPtr = ntohs(SocketAddrv4->sin_port);
+    std::memcpy(AddressPtr, &(SocketAddrv4->sin_addr.s_addr), AddrLen);
+  } else if (SocketAddr.sa_family == AF_INET6) {
+    *AddrTypePtr = 6;
+    auto SocketAddrv6 = reinterpret_cast<struct sockaddr_in6 *>(&SocketAddr);
+    *PortPtr = ntohs(SocketAddrv6->sin6_port);
+    std::memcpy(AddressPtr, SocketAddrv6->sin6_addr.s6_addr, AddrLen);
+  } else {
+    return WasiUnexpect(__WASI_ERRNO_NOSYS);
+  }
+
+  return {};
+}
+
+WasiExpect<void> INode::sockGetPeerAddr(uint8_t *AddressPtr,
+                                        uint32_t *AddrTypePtr,
+                                        uint32_t *PortPtr) const noexcept {
+  struct sockaddr SocketAddr;
+  socklen_t Slen = sizeof(SocketAddr);
+  std::memset(&SocketAddr, 0, sizeof(SocketAddr));
+
+  if (auto Res = ::getpeername(Fd, &SocketAddr, &Slen); unlikely(Res < 0)) {
+    return WasiUnexpect(fromErrNo(errno));
+  }
+
+  auto AddrLen = 4;
+  if (Slen != 16) {
+    AddrLen = 16;
+  }
+
+  if (SocketAddr.sa_family == AF_INET) {
+    *AddrTypePtr = 4;
+    auto SocketAddrv4 = reinterpret_cast<struct sockaddr_in *>(&SocketAddr);
+    *PortPtr = ntohs(SocketAddrv4->sin_port);
+    std::memcpy(AddressPtr, &(SocketAddrv4->sin_addr.s_addr), AddrLen);
+  } else if (SocketAddr.sa_family == AF_INET6) {
+    *AddrTypePtr = 6;
+    auto SocketAddrv6 = reinterpret_cast<struct sockaddr_in6 *>(&SocketAddr);
+    *PortPtr = ntohs(SocketAddrv6->sin6_port);
+    std::memcpy(AddressPtr, SocketAddrv6->sin6_addr.s6_addr, AddrLen);
+
+  } else {
+    return WasiUnexpect(__WASI_ERRNO_NOSYS);
   }
 
   return {};

@@ -87,7 +87,7 @@ WasmEdge_ImportObjectContext *createSpecTestModule(void) {
   WasmEdge_ImportObjectContext *ImpObj = WasmEdge_ImportObjectCreate(HostName);
   WasmEdge_StringDelete(HostName);
 
-  /// Add host function "print": {} -> {}
+  // Add host function "print": {} -> {}
   HostFType = WasmEdge_FunctionTypeCreate(NULL, 0, NULL, 0);
   HostFunc = WasmEdge_FunctionInstanceCreate(HostFType, SpecTestPrint, NULL, 0);
   WasmEdge_FunctionTypeDelete(HostFType);
@@ -95,7 +95,7 @@ WasmEdge_ImportObjectContext *createSpecTestModule(void) {
   WasmEdge_ImportObjectAddFunction(ImpObj, HostName, HostFunc);
   WasmEdge_StringDelete(HostName);
 
-  /// Add host function "print_i32": {i32} -> {}
+  // Add host function "print_i32": {i32} -> {}
   Param[0] = WasmEdge_ValType_I32;
   HostFType = WasmEdge_FunctionTypeCreate(Param, 1, NULL, 0);
   HostFunc =
@@ -105,7 +105,7 @@ WasmEdge_ImportObjectContext *createSpecTestModule(void) {
   WasmEdge_ImportObjectAddFunction(ImpObj, HostName, HostFunc);
   WasmEdge_StringDelete(HostName);
 
-  /// Add host function "print_f32": {f32} -> {}
+  // Add host function "print_f32": {f32} -> {}
   Param[0] = WasmEdge_ValType_F32;
   HostFType = WasmEdge_FunctionTypeCreate(Param, 1, NULL, 0);
   HostFunc =
@@ -115,7 +115,7 @@ WasmEdge_ImportObjectContext *createSpecTestModule(void) {
   WasmEdge_ImportObjectAddFunction(ImpObj, HostName, HostFunc);
   WasmEdge_StringDelete(HostName);
 
-  /// Add host function "print_f64": {f64} -> {}
+  // Add host function "print_f64": {f64} -> {}
   Param[0] = WasmEdge_ValType_F64;
   HostFType = WasmEdge_FunctionTypeCreate(Param, 1, NULL, 0);
   HostFunc =
@@ -125,7 +125,7 @@ WasmEdge_ImportObjectContext *createSpecTestModule(void) {
   WasmEdge_ImportObjectAddFunction(ImpObj, HostName, HostFunc);
   WasmEdge_StringDelete(HostName);
 
-  /// Add host function "print_i32_f32": {i32, f32} -> {}
+  // Add host function "print_i32_f32": {i32, f32} -> {}
   Param[0] = WasmEdge_ValType_I32;
   Param[1] = WasmEdge_ValType_F32;
   HostFType = WasmEdge_FunctionTypeCreate(Param, 2, NULL, 0);
@@ -136,7 +136,7 @@ WasmEdge_ImportObjectContext *createSpecTestModule(void) {
   WasmEdge_ImportObjectAddFunction(ImpObj, HostName, HostFunc);
   WasmEdge_StringDelete(HostName);
 
-  /// Add host function "print_f64_f64": {f64, f64} -> {}
+  // Add host function "print_f64_f64": {f64, f64} -> {}
   Param[0] = WasmEdge_ValType_F64;
   Param[1] = WasmEdge_ValType_F64;
   HostFType = WasmEdge_FunctionTypeCreate(Param, 2, NULL, 0);
@@ -147,7 +147,7 @@ WasmEdge_ImportObjectContext *createSpecTestModule(void) {
   WasmEdge_ImportObjectAddFunction(ImpObj, HostName, HostFunc);
   WasmEdge_StringDelete(HostName);
 
-  /// Add host table "table"
+  // Add host table "table"
   WasmEdge_Limit TabLimit = {.HasMax = true, .Min = 10, .Max = 20};
   HostTType = WasmEdge_TableTypeCreate(WasmEdge_RefType_FuncRef, TabLimit);
   HostTable = WasmEdge_TableInstanceCreate(HostTType);
@@ -156,7 +156,7 @@ WasmEdge_ImportObjectContext *createSpecTestModule(void) {
   WasmEdge_ImportObjectAddTable(ImpObj, HostName, HostTable);
   WasmEdge_StringDelete(HostName);
 
-  /// Add host memory "memory"
+  // Add host memory "memory"
   WasmEdge_Limit MemLimit = {.HasMax = true, .Min = 1, .Max = 2};
   HostMType = WasmEdge_MemoryTypeCreate(MemLimit);
   HostMemory = WasmEdge_MemoryInstanceCreate(HostMType);
@@ -165,7 +165,7 @@ WasmEdge_ImportObjectContext *createSpecTestModule(void) {
   WasmEdge_ImportObjectAddMemory(ImpObj, HostName, HostMemory);
   WasmEdge_StringDelete(HostName);
 
-  /// Add host global "global_i32": const 666
+  // Add host global "global_i32": const 666
   HostGType = WasmEdge_GlobalTypeCreate(WasmEdge_ValType_I32,
                                         WasmEdge_Mutability_Const);
   HostGlobal =
@@ -175,7 +175,7 @@ WasmEdge_ImportObjectContext *createSpecTestModule(void) {
   WasmEdge_ImportObjectAddGlobal(ImpObj, HostName, HostGlobal);
   WasmEdge_StringDelete(HostName);
 
-  /// Add host global "global_i64": const 666
+  // Add host global "global_i64": const 666
   HostGType = WasmEdge_GlobalTypeCreate(WasmEdge_ValType_I64,
                                         WasmEdge_Mutability_Const);
   HostGlobal =
@@ -185,7 +185,7 @@ WasmEdge_ImportObjectContext *createSpecTestModule(void) {
   WasmEdge_ImportObjectAddGlobal(ImpObj, HostName, HostGlobal);
   WasmEdge_StringDelete(HostName);
 
-  /// Add host global "global_f32": const 666.0
+  // Add host global "global_f32": const 666.0
   HostGType = WasmEdge_GlobalTypeCreate(WasmEdge_ValType_F32,
                                         WasmEdge_Mutability_Const);
   HostGlobal =
@@ -195,7 +195,7 @@ WasmEdge_ImportObjectContext *createSpecTestModule(void) {
   WasmEdge_ImportObjectAddGlobal(ImpObj, HostName, HostGlobal);
   WasmEdge_StringDelete(HostName);
 
-  /// Add host global "global_f64": const 666.0
+  // Add host global "global_f64": const 666.0
   HostGType = WasmEdge_GlobalTypeCreate(WasmEdge_ValType_F64,
                                         WasmEdge_Mutability_Const);
   HostGlobal =

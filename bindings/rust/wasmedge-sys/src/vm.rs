@@ -4,7 +4,7 @@ use super::wasmedge;
 use crate::{
     error::{check, VmError, WasmEdgeError, WasmEdgeResult},
     instance::function::FuncType,
-    types::HostRegistration,
+    types::{HostRegistration, WasmEdgeString},
     utils, Config, ImportObj, Module, Statistics, Store, Value,
 };
 use std::path::Path;
@@ -76,11 +76,11 @@ impl Vm {
         path: impl AsRef<Path>,
     ) -> WasmEdgeResult<Self> {
         let path = utils::path_to_cstring(path.as_ref())?;
-        let raw_mod_name = mod_name.into();
+        let mod_name: WasmEdgeString = mod_name.as_ref().into();
         unsafe {
             check(wasmedge::WasmEdge_VMRegisterModuleFromFile(
                 self.ctx,
-                raw_mod_name,
+                mod_name.as_raw(),
                 path.as_ptr(),
             ))?
         };
@@ -144,10 +144,11 @@ impl Vm {
         mod_name: impl AsRef<str>,
         buffer: &[u8],
     ) -> WasmEdgeResult<Self> {
+        let mod_name: WasmEdgeString = mod_name.as_ref().into();
         unsafe {
             check(wasmedge::WasmEdge_VMRegisterModuleFromBuffer(
                 self.ctx,
-                mod_name.into(),
+                mod_name.as_raw(),
                 buffer.as_ptr(),
                 buffer.len() as u32,
             ))?;
@@ -182,10 +183,11 @@ impl Vm {
         mod_name: impl AsRef<str>,
         module: &mut Module,
     ) -> WasmEdgeResult<Self> {
+        let mod_name: WasmEdgeString = mod_name.as_ref().into();
         unsafe {
             check(wasmedge::WasmEdge_VMRegisterModuleFromASTModule(
                 self.ctx,
-                mod_name.into(),
+                mod_name.as_raw(),
                 module.ctx,
             ))?;
         }
@@ -234,11 +236,12 @@ impl Vm {
         let returns_len = unsafe { wasmedge::WasmEdge_FunctionTypeGetReturnsLength(func_type.ctx) };
         let mut returns = Vec::with_capacity(returns_len as usize);
 
+        let func_name: WasmEdgeString = func_name.as_ref().into();
         unsafe {
             check(wasmedge::WasmEdge_VMRunWasmFromFile(
                 self.ctx,
                 path.as_ptr(),
-                func_name.as_ref().into(),
+                func_name.as_raw(),
                 raw_params.as_ptr(),
                 raw_params.len() as u32,
                 returns.as_mut_ptr(),
@@ -287,12 +290,13 @@ impl Vm {
         let returns_len = unsafe { wasmedge::WasmEdge_FunctionTypeGetReturnsLength(func_type.ctx) };
         let mut returns = Vec::with_capacity(returns_len as usize);
 
+        let func_name: WasmEdgeString = func_name.as_ref().into();
         unsafe {
             check(wasmedge::WasmEdge_VMRunWasmFromBuffer(
                 self.ctx,
                 buffer.as_ptr(),
                 buffer.len() as u32,
-                func_name.as_ref().into(),
+                func_name.as_raw(),
                 raw_params.as_ptr(),
                 raw_params.len() as u32,
                 returns.as_mut_ptr(),
@@ -343,11 +347,12 @@ impl Vm {
         let returns_len = unsafe { wasmedge::WasmEdge_FunctionTypeGetReturnsLength(func_type.ctx) };
         let mut returns = Vec::with_capacity(returns_len as usize);
 
+        let func_name: WasmEdgeString = func_name.as_ref().into();
         unsafe {
             check(wasmedge::WasmEdge_VMRunWasmFromASTModule(
                 self.ctx,
                 module.ctx,
-                func_name.as_ref().into(),
+                func_name.as_raw(),
                 raw_params.as_ptr(),
                 raw_params.len() as u32,
                 returns.as_mut_ptr(),
@@ -488,10 +493,11 @@ impl Vm {
         let returns_len = unsafe { wasmedge::WasmEdge_FunctionTypeGetReturnsLength(func_type.ctx) };
         let mut returns = Vec::with_capacity(returns_len as usize);
 
+        let func_name: WasmEdgeString = func_name.as_ref().into();
         unsafe {
             check(wasmedge::WasmEdge_VMExecute(
                 self.ctx,
-                func_name.as_ref().into(),
+                func_name.as_raw(),
                 raw_params.as_ptr(),
                 raw_params.len() as u32,
                 returns.as_mut_ptr(),
@@ -538,11 +544,13 @@ impl Vm {
         let returns_len = unsafe { wasmedge::WasmEdge_FunctionTypeGetReturnsLength(func_type.ctx) };
         let mut returns = Vec::with_capacity(returns_len as usize);
 
+        let mod_name: WasmEdgeString = mod_name.as_ref().into();
+        let func_name: WasmEdgeString = func_name.as_ref().into();
         unsafe {
             check(wasmedge::WasmEdge_VMExecuteRegistered(
                 self.ctx,
-                mod_name.as_ref().into(),
-                func_name.as_ref().into(),
+                mod_name.as_raw(),
+                func_name.as_raw(),
                 raw_params.as_ptr(),
                 raw_params.len() as u32,
                 returns.as_mut_ptr(),
@@ -565,8 +573,10 @@ impl Vm {
     ///
     /// If fail to get the function type, then an error is returned.
     pub fn get_function_type(&self, func_name: impl AsRef<str>) -> WasmEdgeResult<FuncType> {
-        let ty_ctx =
-            unsafe { wasmedge::WasmEdge_VMGetFunctionType(self.ctx, func_name.as_ref().into()) };
+        let ty_ctx = unsafe {
+            let func_name: WasmEdgeString = func_name.as_ref().into();
+            wasmedge::WasmEdge_VMGetFunctionType(self.ctx, func_name.as_raw())
+        };
         match ty_ctx.is_null() {
             true => Err(WasmEdgeError::Vm(VmError::NotFoundFuncType(
                 func_name.as_ref().to_string(),
@@ -592,10 +602,12 @@ impl Vm {
         func_name: impl AsRef<str>,
     ) -> WasmEdgeResult<FuncType> {
         let ty_ctx = unsafe {
+            let mod_name: WasmEdgeString = mod_name.as_ref().into();
+            let func_name: WasmEdgeString = func_name.as_ref().into();
             wasmedge::WasmEdge_VMGetFunctionTypeRegistered(
                 self.ctx,
-                mod_name.as_ref().into(),
-                func_name.as_ref().into(),
+                mod_name.as_raw(),
+                func_name.as_raw(),
             )
         };
         match ty_ctx.is_null() {

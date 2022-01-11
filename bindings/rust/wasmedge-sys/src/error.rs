@@ -71,6 +71,8 @@ pub enum WasmEdgeError {
 pub enum FuncError {
     #[error("Fail to create Function instance")]
     Create,
+    #[error("{0}")]
+    CreateBinding(String),
     #[error("Fail to get the function type")]
     Type,
 }

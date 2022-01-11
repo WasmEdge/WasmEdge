@@ -960,6 +960,50 @@ public:
     }
   }
 
+  WasiExpect<void> sockGetOpt(__wasi_fd_t Fd, int32_t Level, int32_t Name,
+                              void *FlagPtr,
+                              uint32_t *FlagSizePtr) const noexcept {
+    auto Node = getNodeOrNull(Fd);
+    if (unlikely(!Node)) {
+      return WasiUnexpect(__WASI_ERRNO_BADF);
+    } else {
+      return Node->sockGetOpt(Level, Name, FlagPtr, FlagSizePtr);
+    }
+  }
+
+  WasiExpect<void> sockSetOpt(__wasi_fd_t Fd, int32_t Level, int32_t Name,
+                              void *FlagPtr,
+                              uint32_t FlagSizePtr) const noexcept {
+    auto Node = getNodeOrNull(Fd);
+    if (unlikely(!Node)) {
+      return WasiUnexpect(__WASI_ERRNO_BADF);
+    } else {
+      return Node->sockSetOpt(Level, Name, FlagPtr, FlagSizePtr);
+    }
+  }
+
+  WasiExpect<void> sockGetLoaclAddr(__wasi_fd_t Fd, uint8_t *Address,
+                                    uint32_t *AddrTypePtr,
+                                    uint32_t *PortPtr) const noexcept {
+    auto Node = getNodeOrNull(Fd);
+    if (unlikely(!Node)) {
+      return WasiUnexpect(__WASI_ERRNO_BADF);
+    } else {
+      return Node->sockGetLoaclAddr(Address, AddrTypePtr, PortPtr);
+    }
+  }
+
+  WasiExpect<void> sockGetPeerAddr(__wasi_fd_t Fd, uint8_t *Address,
+                                   uint32_t *AddrTypePtr,
+                                   uint32_t *PortPtr) const noexcept {
+    auto Node = getNodeOrNull(Fd);
+    if (unlikely(!Node)) {
+      return WasiUnexpect(__WASI_ERRNO_BADF);
+    } else {
+      return Node->sockGetPeerAddr(Address, AddrTypePtr, PortPtr);
+    }
+  }
+
   static std::string randomFilename() noexcept {
     using namespace std::literals;
     static constexpr const auto Charset =

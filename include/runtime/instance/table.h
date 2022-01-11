@@ -35,7 +35,7 @@ public:
 
   /// Get size of table.refs
   uint32_t getSize() const noexcept {
-    /// The table size is binded with the limit in table type.
+    // The table size is binded with the limit in table type.
     return TabType.getLimit().getMin();
   }
 
@@ -78,7 +78,7 @@ public:
   /// Get slice of Refs[Offset : Offset + Length - 1]
   Expect<Span<const RefVariant>> getRefs(const uint32_t Offset,
                                          const uint32_t Length) const noexcept {
-    /// Check access boundary.
+    // Check the accessing boundary.
     if (!checkAccessBound(Offset, Length)) {
       spdlog::error(ErrCode::TableOutOfBounds);
       spdlog::error(ErrInfo::InfoBoundary(Offset, Length, getBoundIdx()));
@@ -90,14 +90,14 @@ public:
   /// Replace the Refs[Offset :] by Slice[Start : Start + Legnth - 1]
   Expect<void> setRefs(Span<const RefVariant> Slice, const uint32_t Offset,
                        const uint32_t Start, const uint32_t Length) {
-    /// Check access boundary.
+    // Check the accessing boundary.
     if (!checkAccessBound(Offset, Length)) {
       spdlog::error(ErrCode::TableOutOfBounds);
       spdlog::error(ErrInfo::InfoBoundary(Offset, Length, getBoundIdx()));
       return Unexpect(ErrCode::TableOutOfBounds);
     }
 
-    /// Check input data validation.
+    // Check the input data validation.
     if (Start + Length > Slice.size()) {
       spdlog::error(ErrCode::TableOutOfBounds);
       spdlog::error(ErrInfo::InfoBoundary(
@@ -107,7 +107,7 @@ public:
       return Unexpect(ErrCode::TableOutOfBounds);
     }
 
-    /// Copy references.
+    // Copy the references.
     std::copy_n(Slice.begin() + Start, Length, Refs.begin() + Offset);
     return {};
   }
@@ -115,14 +115,14 @@ public:
   /// Fill the Refs[Offset : Offset + Length - 1] by Val.
   Expect<void> fillRefs(const RefVariant Val, const uint32_t Offset,
                         const uint32_t Length) {
-    /// Check access boundary.
+    // Check the accessing boundary.
     if (!checkAccessBound(Offset, Length)) {
       spdlog::error(ErrCode::TableOutOfBounds);
       spdlog::error(ErrInfo::InfoBoundary(Offset, Length, getBoundIdx()));
       return Unexpect(ErrCode::TableOutOfBounds);
     }
 
-    /// Fill references.
+    // Fill the references.
     std::fill_n(Refs.begin() + Offset, Length, Val);
     return {};
   }

@@ -3,6 +3,7 @@
 use super::wasmedge;
 use crate::{
     error::{check, WasmEdgeError, WasmEdgeResult},
+    types::WasmEdgeString,
     Config, ImportObj, Module, Statistics, Store, Value,
 };
 use std::ptr;
@@ -94,12 +95,13 @@ impl Executor {
         ast_mod: &mut Module,
         mod_name: impl AsRef<str>,
     ) -> WasmEdgeResult<Self> {
+        let mod_name: WasmEdgeString = mod_name.as_ref().into();
         unsafe {
             check(wasmedge::WasmEdge_ExecutorRegisterModule(
                 self.ctx,
                 store.ctx,
                 ast_mod.ctx,
-                mod_name.into(),
+                mod_name.as_raw(),
             ))?;
             ast_mod.ctx = std::ptr::null_mut();
             ast_mod.registered = true;
@@ -158,28 +160,27 @@ impl Executor {
     /// # Error
     ///
     /// If fail to invoke the function specified by `func_name`, then an error is returned.
-    pub fn invoke_function(
+    pub fn run_func(
         &self,
         store: &Store,
         func_name: impl AsRef<str>,
-        params: impl Iterator<Item = Value>,
+        params: impl IntoIterator<Item = Value>,
     ) -> WasmEdgeResult<impl Iterator<Item = Value>> {
         let raw_params = params
+            .into_iter()
             .map(wasmedge::WasmEdge_Value::from)
             .collect::<Vec<_>>();
 
         // get the length of the function's returns
-        let returns_len = store
-            .find_func(func_name.as_ref())?
-            .get_type()?
-            .returns_len();
+        let returns_len = store.find_func(func_name.as_ref())?.ty()?.returns_len();
         let mut returns = Vec::with_capacity(returns_len);
 
+        let func_name: WasmEdgeString = func_name.as_ref().into();
         unsafe {
             check(wasmedge::WasmEdge_ExecutorInvoke(
                 self.ctx,
                 store.ctx,
-                func_name.into(),
+                func_name.as_raw(),
                 raw_params.as_ptr(),
                 raw_params.len() as u32,
                 returns.as_mut_ptr(),
@@ -207,30 +208,33 @@ impl Executor {
     ///
     /// If fail to invoke the target registered function, then an error is returned.
     ///
-    pub fn invoke_registered_function(
+    pub fn run_func_registered(
         &self,
         store: &Store,
         mod_name: impl AsRef<str>,
         func_name: impl AsRef<str>,
-        params: impl Iterator<Item = Value>,
+        params: impl IntoIterator<Item = Value>,
     ) -> WasmEdgeResult<impl Iterator<Item = Value>> {
         let raw_params = params
+            .into_iter()
             .map(wasmedge::WasmEdge_Value::from)
             .collect::<Vec<_>>();
 
         // get the length of the function's returns
         let returns_len = store
             .find_func_registered(mod_name.as_ref(), func_name.as_ref())?
-            .get_type()?
+            .ty()?
             .returns_len();
         let mut returns = Vec::with_capacity(returns_len);
 
+        let mod_name: WasmEdgeString = mod_name.as_ref().into();
+        let func_name: WasmEdgeString = func_name.as_ref().into();
         unsafe {
             check(wasmedge::WasmEdge_ExecutorInvokeRegistered(
                 self.ctx,
                 store.ctx,
-                mod_name.into(),
-                func_name.into(),
+                mod_name.as_raw(),
+                func_name.as_raw(),
                 raw_params.as_ptr(),
                 raw_params.len() as u32,
                 returns.as_mut_ptr(),

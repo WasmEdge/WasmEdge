@@ -29,7 +29,12 @@ public:
   /// Constructor assigns the OpCode and the Offset.
   Instruction(OpCode Byte, uint32_t Off = 0) noexcept
       : Offset(Off), Code(Byte) {
+#if defined(__x86_64__) || defined(__aarch64__)
     Data.Num = static_cast<uint128_t>(0);
+#else
+    Data.Num.Low = static_cast<uint64_t>(0);
+    Data.Num.High = static_cast<uint64_t>(0);
+#endif
     Flags.IsAllocLabelList = false;
     Flags.IsAllocValTypeList = false;
   }
@@ -150,8 +155,21 @@ public:
   uint8_t &getMemoryLane() noexcept { return Data.Memories.MemLane; }
 
   /// Getter and setter of the constant value.
-  ValVariant getNum() const noexcept { return ValVariant(Data.Num); }
-  void setNum(ValVariant N) noexcept { Data.Num = N.get<uint128_t>(); }
+  ValVariant getNum() const noexcept {
+#if defined(__x86_64__) || defined(__aarch64__)
+    return ValVariant(Data.Num);
+#else
+    uint128_t N(Data.Num.High, Data.Num.Low);
+    return ValVariant(N);
+#endif
+  }
+  void setNum(ValVariant N) noexcept {
+#if defined(__x86_64__) || defined(__aarch64__)
+    Data.Num = N.get<uint128_t>();
+#else
+    std::memcpy(&Data.Num, &N.get<uint128_t>(), sizeof(uint128_t));
+#endif
+  }
 
 private:
   /// Release allocated resources.
@@ -178,38 +196,45 @@ private:
   /// \name Data of instructions.
   /// @{
   union Inner {
-    /// Type 1: BlockType, JumpEnd, and JumpElse.
+    // Type 1: BlockType, JumpEnd, and JumpElse.
     struct {
       uint32_t JumpEnd;
       uint32_t JumpElse;
       BlockType ResType;
     } Blocks;
-    /// Type 2: TargetIdx and SourceIdx.
+    // Type 2: TargetIdx and SourceIdx.
     struct {
       uint32_t TargetIdx;
       uint32_t SourceIdx;
     } Indices;
-    /// Type 3: TargetIdx and LabelList.
+    // Type 3: TargetIdx and LabelList.
     struct {
       uint32_t TargetIdx;
       uint32_t LabelListSize;
       uint32_t *LabelList;
     } BrTable;
-    /// Type 4: RefType.
+    // Type 4: RefType.
     RefType ReferenceType;
-    /// Type 5: ValTypeList.
+    // Type 5: ValTypeList.
     struct {
       uint32_t ValTypeListSize;
       ValType *ValTypeList;
     } SelectT;
-    /// Type 6: MemAlign, MemOffset, and MemLane.
+    // Type 6: MemAlign, MemOffset, and MemLane.
     struct {
       uint32_t MemAlign;
       uint32_t MemOffset;
       uint8_t MemLane;
     } Memories;
-    /// Type 7: Num.
+    // Type 7: Num.
+#if defined(__x86_64__) || defined(__aarch64__)
     uint128_t Num;
+#else
+    struct {
+      uint64_t Low;
+      uint64_t High;
+    } Num;
+#endif
   } Data;
   uint32_t Offset = 0;
   OpCode Code = OpCode::End;
@@ -220,7 +245,7 @@ private:
   /// @}
 };
 
-/// Type aliasing
+// Type aliasing
 using InstrVec = std::vector<Instruction>;
 using InstrView = Span<const Instruction>;
 

@@ -181,7 +181,7 @@ public:
     if (NumMod > 0) {
       return ModInsts.back();
     }
-    /// Error logging need to be handled in caller.
+    // Error logging need to be handled in caller.
     return Unexpect(ErrCode::WrongInstanceAddress);
   }
 
@@ -192,7 +192,7 @@ public:
         return ModInsts[I];
       }
     }
-    /// Error logging need to be handled in caller.
+    // Error logging need to be handled in caller.
     return Unexpect(ErrCode::WrongInstanceAddress);
   }
 
@@ -286,7 +286,7 @@ private:
   std::enable_if_t<IsInstanceV<T>, Expect<T *>>
   getInstance(const uint32_t Addr, const std::vector<T *> &InstsVec) {
     if (Addr >= static_cast<uint32_t>(InstsVec.size())) {
-      /// Error logging need to be handled in caller.
+      // Error logging need to be handled in caller.
       return Unexpect(ErrCode::WrongInstanceAddress);
     }
     return InstsVec[Addr];

@@ -7,15 +7,9 @@
 #include "common/defines.h"
 #include "common/errcode.h"
 
-#include <cassert>
 #include <cctype>
 #include <cstdlib>
-#include <fstream>
-#include <limits>
-#include <mutex>
-#include <set>
-#include <string>
-#include <utility>
+#include <cstring>
 
 #if defined(HAVE_MMAP) && defined(__x86_64__) || defined(__aarch64__) ||       \
     defined(__arm__)

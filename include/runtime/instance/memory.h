@@ -63,7 +63,7 @@ public:
 
   /// Get page size of memory.data
   uint32_t getPageSize() const noexcept {
-    /// The memory page size is binded with the limit in memory type.
+    // The memory page size is binded with the limit in memory type.
     return MemType.getLimit().getMin();
   }
 
@@ -89,7 +89,7 @@ public:
     if (Count == 0) {
       return true;
     }
-    /// Maximum pages count, 65536
+    // Maximum pages count, 65536
     uint32_t MaxPageCaped = k4G / kPageSize;
     uint32_t Min = MemType.getLimit().getMin();
     uint32_t Max = MemType.getLimit().getMax();
@@ -117,7 +117,7 @@ public:
   /// Get slice of Data[Offset : Offset + Length - 1]
   Expect<Span<Byte>> getBytes(const uint32_t Offset,
                               const uint32_t Length) const noexcept {
-    /// Check memory boundary.
+    // Check the memory boundary.
     if (!checkAccessBound(Offset, Length)) {
       spdlog::error(ErrCode::MemoryOutOfBounds);
       spdlog::error(ErrInfo::InfoBoundary(Offset, Length, getBoundIdx()));
@@ -129,21 +129,21 @@ public:
   /// Replace the bytes of Data[Offset :] by Slice[Start : Start + Legnth - 1]
   Expect<void> setBytes(Span<const Byte> Slice, const uint32_t Offset,
                         const uint32_t Start, const uint32_t Length) {
-    /// Check memory boundary.
+    // Check the memory boundary.
     if (!checkAccessBound(Offset, Length)) {
       spdlog::error(ErrCode::MemoryOutOfBounds);
       spdlog::error(ErrInfo::InfoBoundary(Offset, Length, getBoundIdx()));
       return Unexpect(ErrCode::MemoryOutOfBounds);
     }
 
-    /// Check input data validation.
+    // Check the input data validation.
     if (Start + Length > Slice.size()) {
       spdlog::error(ErrCode::MemoryOutOfBounds);
       spdlog::error(ErrInfo::InfoBoundary(Offset, Length, getBoundIdx()));
       return Unexpect(ErrCode::MemoryOutOfBounds);
     }
 
-    /// Copy data.
+    // Copy the data.
     if (Length > 0) {
       std::copy(Slice.begin() + Start, Slice.begin() + Start + Length,
                 DataPtr + Offset);
@@ -154,14 +154,14 @@ public:
   /// Fill the bytes of Data[Offset : Offset + Length - 1] by Val.
   Expect<void> fillBytes(const uint8_t Val, const uint32_t Offset,
                          const uint32_t Length) {
-    /// Check memory boundary.
+    // Check the memory boundary.
     if (!checkAccessBound(Offset, Length)) {
       spdlog::error(ErrCode::MemoryOutOfBounds);
       spdlog::error(ErrInfo::InfoBoundary(Offset, Length, getBoundIdx()));
       return Unexpect(ErrCode::MemoryOutOfBounds);
     }
 
-    /// Copy data.
+    // Copy the data.
     if (Length > 0) {
       std::fill(DataPtr + Offset, DataPtr + Offset + Length, Val);
     }
@@ -172,14 +172,14 @@ public:
   Expect<void> getArray(uint8_t *Arr, const uint32_t Offset,
                         const uint32_t Length,
                         const bool IsReverse = false) const noexcept {
-    /// Check memory boundary.
+    // Check the memory boundary.
     if (!checkAccessBound(Offset, Length)) {
       spdlog::error(ErrCode::MemoryOutOfBounds);
       spdlog::error(ErrInfo::InfoBoundary(Offset, Length, getBoundIdx()));
       return Unexpect(ErrCode::MemoryOutOfBounds);
     }
     if (Length > 0) {
-      /// Copy data.
+      // Copy the data.
       if (IsReverse) {
         std::reverse_copy(DataPtr + Offset, DataPtr + Offset + Length, Arr);
       } else {
@@ -192,14 +192,14 @@ public:
   /// Replace Data[Offset : Offset + Length - 1] to an uint8 array
   Expect<void> setArray(const uint8_t *Arr, const uint32_t Offset,
                         const uint32_t Length, const bool IsReverse = false) {
-    /// Check memory boundary.
+    // Check the memory boundary.
     if (!checkAccessBound(Offset, Length)) {
       spdlog::error(ErrCode::MemoryOutOfBounds);
       spdlog::error(ErrInfo::InfoBoundary(Offset, Length, getBoundIdx()));
       return Unexpect(ErrCode::MemoryOutOfBounds);
     }
     if (Length > 0) {
-      /// Copy data.
+      // Copy the data.
       if (IsReverse) {
         std::reverse_copy(Arr, Arr + Length, DataPtr + Offset);
       } else {
@@ -247,23 +247,23 @@ public:
   typename std::enable_if_t<IsWasmNumV<T>, Expect<void>>
   loadValue(T &Value, const uint32_t Offset,
             const uint32_t Length) const noexcept {
-    /// Check data boundary.
+    // Check the data boundary.
     if (Length > sizeof(T)) {
       spdlog::error(ErrCode::MemoryOutOfBounds);
       spdlog::error(
           ErrInfo::InfoBoundary(Offset, Length, Offset + sizeof(T) - 1));
       return Unexpect(ErrCode::MemoryOutOfBounds);
     }
-    /// Check memory boundary.
+    // Check the memory boundary.
     if (!checkAccessBound(Offset, Length)) {
       spdlog::error(ErrCode::MemoryOutOfBounds);
       spdlog::error(ErrInfo::InfoBoundary(Offset, Length, getBoundIdx()));
       return Unexpect(ErrCode::MemoryOutOfBounds);
     }
-    /// Load data to a value.
+    // Load the data to the value.
     if (Length > 0) {
       if (std::is_floating_point_v<T>) {
-        /// Floating case. Do memory copy.
+        // Floating case. Do the memory copy.
         std::memcpy(&Value, &DataPtr[Offset], sizeof(T));
       } else {
         if constexpr (sizeof(T) > 8) {
@@ -272,10 +272,10 @@ public:
           std::memcpy(&Value, &DataPtr[Offset], Length);
         } else {
           uint64_t LoadVal = 0;
-          /// Integer case. Extends to result type.
+          // Integer case. Extends to the result type.
           std::memcpy(&LoadVal, &DataPtr[Offset], Length);
           if (std::is_signed_v<T> && (LoadVal >> (Length * 8 - 1))) {
-            /// Signed extend.
+            // Signed extension.
             for (unsigned int I = Length; I < 8; I++) {
               LoadVal |= 0xFFULL << (I * 8);
             }
@@ -300,20 +300,20 @@ public:
   template <typename T>
   typename std::enable_if_t<IsWasmNativeNumV<T>, Expect<void>>
   storeValue(const T &Value, const uint32_t Offset, const uint32_t Length) {
-    /// Check data boundary.
+    // Check the data boundary.
     if (Length > sizeof(T)) {
       spdlog::error(ErrCode::MemoryOutOfBounds);
       spdlog::error(
           ErrInfo::InfoBoundary(Offset, Length, Offset + sizeof(T) - 1));
       return Unexpect(ErrCode::MemoryOutOfBounds);
     }
-    /// Check memory boundary.
+    // Check the memory boundary.
     if (!checkAccessBound(Offset, Length)) {
       spdlog::error(ErrCode::MemoryOutOfBounds);
       spdlog::error(ErrInfo::InfoBoundary(Offset, Length, getBoundIdx()));
       return Unexpect(ErrCode::MemoryOutOfBounds);
     }
-    /// Copy store data to value.
+    // Copy the stored data to the value.
     if (Length > 0) {
       std::memcpy(&DataPtr[Offset], &Value, Length);
     }

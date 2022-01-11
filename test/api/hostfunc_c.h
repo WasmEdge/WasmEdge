@@ -23,33 +23,33 @@
 extern "C" {
 #endif
 
-/// Function type: {} -> {}
+// Function type: {} -> {}
 WasmEdge_Result SpecTestPrint(void *Data,
                               WasmEdge_MemoryInstanceContext *MemCxt,
                               const WasmEdge_Value *In, WasmEdge_Value *Out);
 
-/// Function type: {i32} -> {}
+// Function type: {i32} -> {}
 WasmEdge_Result SpecTestPrintI32(void *Data,
                                  WasmEdge_MemoryInstanceContext *MemCxt,
                                  const WasmEdge_Value *In, WasmEdge_Value *Out);
 
-/// Function type: {f32} -> {}
+// Function type: {f32} -> {}
 WasmEdge_Result SpecTestPrintF32(void *Data,
                                  WasmEdge_MemoryInstanceContext *MemCxt,
                                  const WasmEdge_Value *In, WasmEdge_Value *Out);
 
-/// Function type: {f64} -> {}
+// Function type: {f64} -> {}
 WasmEdge_Result SpecTestPrintF64(void *Data,
                                  WasmEdge_MemoryInstanceContext *MemCxt,
                                  const WasmEdge_Value *In, WasmEdge_Value *Out);
 
-/// Function type: {i32, f32} -> {}
+// Function type: {i32, f32} -> {}
 WasmEdge_Result SpecTestPrintI32F32(void *Data,
                                     WasmEdge_MemoryInstanceContext *MemCxt,
                                     const WasmEdge_Value *In,
                                     WasmEdge_Value *Out);
 
-/// Function type: {f64, f64} -> {}
+// Function type: {f64, f64} -> {}
 WasmEdge_Result SpecTestPrintF64F64(void *Data,
                                     WasmEdge_MemoryInstanceContext *MemCxt,
                                     const WasmEdge_Value *In,
@@ -58,7 +58,7 @@ WasmEdge_Result SpecTestPrintF64F64(void *Data,
 WasmEdge_ImportObjectContext *createSpecTestModule(void);
 
 #ifdef __cplusplus
-} /// extern "C"
+} // extern "C"
 #endif
 
-#endif /// HOSTFUNC_C_H
+#endif // HOSTFUNC_C_H

@@ -861,22 +861,22 @@ TEST(APICoreTest, Compiler) {
   EXPECT_TRUE(WasmEdge_ResultOK(
       WasmEdge_CompilerCompile(Compiler, TPath, "test_aot.wasm")));
   EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_CompilerCompile(
-      Compiler, "../../tools/wasmedge/examples/fibonacci.wasm",
-      "fib_aot.wasm")));
+      Compiler, "../spec/testSuites/core/binary/binary.160.wasm",
+      "binary_160_aot.wasm")));
   // File not found
   EXPECT_FALSE(WasmEdge_ResultOK(WasmEdge_CompilerCompile(
       Compiler, "not_exist.wasm", "not_exist_aot.wasm")));
   // Parse failed
   EXPECT_FALSE(WasmEdge_ResultOK(WasmEdge_CompilerCompile(
       Compiler, "../spec/testSuites/core/binary/binary.4.wasm",
-      "binary_aot.wasm")));
+      "binary_4_aot.wasm")));
   WasmEdge_CompilerDelete(Compiler);
   // Check the header of the output files.
   OutFile.open("test_aot.wasm", std::ios::binary);
   EXPECT_TRUE(OutFile.read(reinterpret_cast<char *>(Buf), 4));
   OutFile.close();
   EXPECT_TRUE(std::equal(WASMMagic, WASMMagic + 4, Buf));
-  OutFile.open("fib_aot.wasm", std::ios::binary);
+  OutFile.open("binary_160_aot.wasm", std::ios::binary);
   EXPECT_TRUE(OutFile.read(reinterpret_cast<char *>(Buf), 4));
   OutFile.close();
   EXPECT_TRUE(std::equal(WASMMagic, WASMMagic + 4, Buf));
@@ -888,13 +888,14 @@ TEST(APICoreTest, Compiler) {
   EXPECT_TRUE(WasmEdge_ResultOK(
       WasmEdge_CompilerCompile(Compiler, TPath, "test_aot.so")));
   EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_CompilerCompile(
-      Compiler, "../../tools/wasmedge/examples/fibonacci.wasm", "fib_aot.so")));
+      Compiler, "../spec/testSuites/core/binary/binary.160.wasm",
+      "binary_160_aot.so")));
   // Check the header of the output files.
   OutFile.open("test_aot.so", std::ios::binary);
   EXPECT_TRUE(OutFile.read(reinterpret_cast<char *>(Buf), 4));
   OutFile.close();
   EXPECT_FALSE(std::equal(WASMMagic, WASMMagic + 4, Buf));
-  OutFile.open("fib_aot.so", std::ios::binary);
+  OutFile.open("binary_160_aot.so", std::ios::binary);
   EXPECT_TRUE(OutFile.read(reinterpret_cast<char *>(Buf), 4));
   OutFile.close();
   EXPECT_FALSE(std::equal(WASMMagic, WASMMagic + 4, Buf));

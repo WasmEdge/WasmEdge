@@ -16,7 +16,7 @@ curl --sSf https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/inst
 
 执行 `source $HOME/.wasmedge/env` 命令能使已安装的二进制文件在当前会话中可用。
 
-**就这么简单！**你现在可以通过命令行使用 WasmEdge，或者直接将其作为应用打开。要想升级 WasmEdge，你只需要重新执行以上的命令，旧的文件将被覆盖。
+**就这么简单！** 你现在可以通过命令行使用 WasmEdge，或者直接将其作为应用打开。要想升级 WasmEdge，你只需要重新执行以上的命令，旧的文件将被覆盖。
 
 ## 为所有用户安装 WasmEdge
 
@@ -46,7 +46,7 @@ curl --sSf https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/inst
 
 安装完成后，你将会得到以下的目录和文件。这里我们假设你将 WasmEdge 安装到 `$HOME/.wasmedge` 目录中。如果你想进行系统范围的安装，你也可以将安装目录更改为 `/usr/local`。
 
-* The `$HOME/.wasmedge/bin` 目录包含 WasmEdge Runtime CLI 可执行文件。你可以拷贝这些文件并放置到任意目录中。
+* `$HOME/.wasmedge/bin` 目录包含 WasmEdge Runtime CLI 可执行文件。你可以拷贝这些文件并放置到任意目录中。
   * `wasmedge` 工具是标准的 WasmEdge 运行时。你可以在命令行中使用它：`wasmedge --dir .:. app.wasm`。
   * `wasmedgec` 工具是 AOT 编译器，它能将 `wasm` 文件编译为原生 `so` 文件：`wasmedgec app.wasm app.so`。之后，`wasmedge` 就能执行 `so` 文件了：`wasmedge --dir .:. app.so`。
   * `wasmedge-tensorflow`、`wasmedge-tensorflow-lite` 和 `wasmedgec-tensorflow` 工具是运行时和编译器。这些工具都支持 WasmEdge Tensorflow SDK。

@@ -334,11 +334,7 @@ impl Config {
     /// - `flag` specifies if turn on the `Interruptible` option.
     pub fn interruptible(self, enable: bool) -> Self {
         unsafe {
-            if (enable && !self.interruptible_enabled())
-                || (!enable && self.interruptible_enabled())
-            {
-                wasmedge::WasmEdge_ConfigureCompilerSetInterruptible(self.ctx, enable);
-            }
+            wasmedge::WasmEdge_ConfigureCompilerSetInterruptible(self.ctx, enable);
         }
         self
     }

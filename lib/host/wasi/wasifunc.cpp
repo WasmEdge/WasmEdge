@@ -1804,6 +1804,93 @@ Expect<uint32_t> WasiSockRecv::body(Runtime::Instance::MemoryInstance *MemInst,
   return __WASI_ERRNO_SUCCESS;
 }
 
+Expect<uint32_t> WasiSockRecvFrom::body(
+    Runtime::Instance::MemoryInstance *MemInst, int32_t Fd, uint32_t RiDataPtr,
+    uint32_t RiDataLen, uint32_t AddressPtr, uint32_t RiFlags,
+    uint32_t /* Out */ RoDataLenPtr, uint32_t /* Out */ RoFlagsPtr) {
+  // Check memory instance from module.
+  if (MemInst == nullptr) {
+    return __WASI_ERRNO_FAULT;
+  }
+
+  __wasi_address_t *InnerAddress = MemInst->getPointer<__wasi_address_t *>(
+      AddressPtr, sizeof(__wasi_address_t));
+  if (InnerAddress == nullptr) {
+    return __WASI_ERRNO_FAULT;
+  }
+
+  if (InnerAddress->buf_len != 4 && InnerAddress->buf_len != 16) {
+    return __WASI_ERRNO_INVAL;
+  }
+
+  uint8_t *AddressBuf = MemInst->getPointer<uint8_t *>(
+      InnerAddress->buf, sizeof(uint8_t) * InnerAddress->buf_len);
+  if (AddressBuf == nullptr) {
+    return __WASI_ERRNO_FAULT;
+  }
+
+  __wasi_riflags_t WasiRiFlags;
+  if (auto Res = cast<__wasi_riflags_t>(RiFlags); unlikely(!Res)) {
+    return Res.error();
+  } else {
+    WasiRiFlags = *Res;
+  }
+
+  const __wasi_size_t WasiRiDataLen = RiDataLen;
+  if (unlikely(WasiRiDataLen > WASI::kIOVMax)) {
+    return __WASI_ERRNO_INVAL;
+  }
+
+  // Check for invalid address.
+  auto *const RiDataArray =
+      MemInst->getPointer<__wasi_iovec_t *>(RiDataPtr, WasiRiDataLen);
+  if (unlikely(RiDataArray == nullptr)) {
+    return __WASI_ERRNO_FAULT;
+  }
+
+  auto *const RoDataLen = MemInst->getPointer<__wasi_size_t *>(RoDataLenPtr);
+  if (unlikely(RoDataLen == nullptr)) {
+    return __WASI_ERRNO_FAULT;
+  }
+
+  auto *const RoFlags = MemInst->getPointer<__wasi_roflags_t *>(RoFlagsPtr);
+  if (unlikely(RoFlags == nullptr)) {
+    return __WASI_ERRNO_FAULT;
+  }
+  __wasi_size_t TotalSize = 0;
+  std::array<Span<uint8_t>, WASI::kIOVMax> WasiRiData;
+
+  for (__wasi_size_t I = 0; I < WasiRiDataLen; ++I) {
+    __wasi_iovec_t &RiData = RiDataArray[I];
+
+    // Capping total size.
+    const __wasi_size_t Space =
+        std::numeric_limits<__wasi_size_t>::max() - TotalSize;
+    const __wasi_size_t BufLen =
+        unlikely(RiData.buf_len > Space) ? Space : RiData.buf_len;
+    TotalSize += BufLen;
+
+    // Check for invalid address.
+    auto *const RiDataArr = MemInst->getPointer<uint8_t *>(RiData.buf, BufLen);
+    // Check for invalid address.
+    if (unlikely(RiDataArr == nullptr)) {
+      return __WASI_ERRNO_FAULT;
+    }
+    WasiRiData[I] = {RiDataArr, BufLen};
+  }
+
+  const __wasi_fd_t WasiFd = Fd;
+
+  if (auto Res = Env.sockRecvFrom(
+          WasiFd, {WasiRiData.data(), WasiRiDataLen}, WasiRiFlags, AddressBuf,
+          static_cast<uint8_t>(InnerAddress->buf_len), *RoDataLen, *RoFlags);
+      unlikely(!Res)) {
+    return Res.error();
+  }
+
+  return __WASI_ERRNO_SUCCESS;
+}
+
 Expect<uint32_t> WasiSockSend::body(Runtime::Instance::MemoryInstance *MemInst,
                                     int32_t Fd, uint32_t SiDataPtr,
                                     uint32_t SiDataLen, uint32_t SiFlags,

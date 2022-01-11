@@ -37,7 +37,7 @@ public:
     /// an `__WASI_CRYPTO_ERRNO_UNSUPPORTED_ALGORITHM` error code if the
     /// algorithm is not supported by the host
     virtual WasiCryptoExpect<std::unique_ptr<Key>>
-    generate(std::shared_ptr<Option> OptOption) = 0;
+    generate(std::shared_ptr<Options> OptOption) = 0;
 
     /// Import key from raw bytes.
     ///
@@ -57,7 +57,7 @@ public:
   };
 
   static WasiCryptoExpect<std::unique_ptr<Key>>
-  generate(SymmetricAlgorithm Alg, std::shared_ptr<Option> OptOption);
+  generate(SymmetricAlgorithm Alg, std::shared_ptr<Options> OptOption);
 
   static WasiCryptoExpect<std::unique_ptr<Key>> import(SymmetricAlgorithm Alg,
                                                        Span<uint8_t const> Raw);

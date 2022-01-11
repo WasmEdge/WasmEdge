@@ -19,37 +19,38 @@ constexpr const EVP_CIPHER *getCipher(int Bit) {
   }
 }
 
+// 96 bit
 inline constexpr __wasi_size_t NonceSize = 12;
 // inline constexpr __wasi_size_t TagLen = 16;
 
 } // namespace
 
-template <int Bit>
+template <int KeyBit>
 WasiCryptoExpect<std::unique_ptr<Key>>
-AesGcm<Bit>::KeyBuilder::generate(std::shared_ptr<Option>) {
-  std::vector<uint8_t> Res(Bit / 8, 0);
+AesGcm<KeyBit>::KeyBuilder::generate(std::shared_ptr<Options>) {
+  std::vector<uint8_t> Res(KeyBit / 8, 0);
   ensureOrReturn(RAND_bytes(Res.data(), Res.size()),
                  __WASI_CRYPTO_ERRNO_RNG_ERROR);
 
   return std::make_unique<Key>(Alg, std::move(Res));
 }
 
-template <int Bit>
+template <int KeyBit>
 WasiCryptoExpect<std::unique_ptr<Key>>
-AesGcm<Bit>::KeyBuilder::import(Span<uint8_t const> Raw) {
+AesGcm<KeyBit>::KeyBuilder::import(Span<uint8_t const> Raw) {
   return std::make_unique<Key>(Alg,
                                std::vector<uint8_t>{Raw.begin(), Raw.end()});
 }
 
-template <int Bit>
-WasiCryptoExpect<__wasi_size_t> AesGcm<Bit>::KeyBuilder::keyLen() {
-  return Bit / 8;
+template <int KeyBit>
+WasiCryptoExpect<__wasi_size_t> AesGcm<KeyBit>::KeyBuilder::keyLen() {
+  return KeyBit / 8;
 }
 
-template <int Bit>
-WasiCryptoExpect<std::unique_ptr<typename AesGcm<Bit>::State>>
-AesGcm<Bit>::State::open(std::shared_ptr<Key> OptKey,
-                         std::shared_ptr<Option> OptOption) {
+template <int KeyBit>
+WasiCryptoExpect<std::unique_ptr<typename AesGcm<KeyBit>::State>>
+AesGcm<KeyBit>::State::open(std::shared_ptr<Key> OptKey,
+                            std::shared_ptr<Options> OptOption) {
   ensureOrReturn(OptKey, __WASI_CRYPTO_ERRNO_KEY_REQUIRED);
   ensureOrReturn(OptOption, __WASI_CRYPTO_ERRNO_NONCE_REQUIRED);
 
@@ -64,30 +65,30 @@ AesGcm<Bit>::State::open(std::shared_ptr<Key> OptKey,
   ensureOrReturn(Nonce->size() == NonceSize,
                  __WASI_CRYPTO_ERRNO_INVALID_HANDLE);
 
-  ensureOrReturn(Bit / 8 == Key.size(), __WASI_CRYPTO_ERRNO_INVALID_HANDLE);
+  ensureOrReturn(KeyBit / 8 == Key.size(), __WASI_CRYPTO_ERRNO_INVALID_HANDLE);
 
   EVP_CIPHER_CTX *Ctx = EVP_CIPHER_CTX_new();
   opensslAssuming(Ctx);
-  opensslAssuming(EVP_CipherInit(Ctx, getCipher(Bit), Key.data(), Nonce->data(),
-                                 Mode::Unchanged));
+  opensslAssuming(EVP_CipherInit(Ctx, getCipher(KeyBit), Key.data(),
+                                 Nonce->data(), Mode::Unchanged));
 
-  return std::make_unique<AesGcm<Bit>::State>(Ctx, OptOption);
+  return std::make_unique<State>(Ctx, OptOption);
 }
 
-template <int Bit>
+template <int KeyBit>
 WasiCryptoExpect<std::vector<uint8_t>>
-AesGcm<Bit>::State::optionsGet(std::string_view Name) {
+AesGcm<KeyBit>::State::optionsGet(std::string_view Name) {
   return OptOption->get(Name);
 }
 
-template <int Bit>
+template <int KeyBit>
 WasiCryptoExpect<uint64_t>
-AesGcm<Bit>::State::optionsGetU64(std::string_view Name) {
+AesGcm<KeyBit>::State::optionsGetU64(std::string_view Name) {
   return OptOption->getU64(Name);
 }
 
-template <int Bit>
-WasiCryptoExpect<void> AesGcm<Bit>::State::absorb(Span<const uint8_t> Data) {
+template <int KeyBit>
+WasiCryptoExpect<void> AesGcm<KeyBit>::State::absorb(Span<const uint8_t> Data) {
   int Len;
   // TODO: need change Openssl AAD default length from 12 if beyond?
 
@@ -97,10 +98,10 @@ WasiCryptoExpect<void> AesGcm<Bit>::State::absorb(Span<const uint8_t> Data) {
   return {};
 }
 
-template <int Bit>
+template <int KeyBit>
 WasiCryptoExpect<Tag>
-AesGcm<Bit>::State::encryptDetachedUnchecked(Span<uint8_t> Out,
-                                             Span<const uint8_t> Data) {
+AesGcm<KeyBit>::State::encryptDetachedUnchecked(Span<uint8_t> Out,
+                                                Span<const uint8_t> Data) {
 
   opensslAssuming(EVP_CipherInit_ex(Ctx.get(), nullptr, nullptr, nullptr,
                                     nullptr, Mode::Encrypt));
@@ -141,8 +142,8 @@ AesGcm<Bit>::State::encryptDetachedUnchecked(Span<uint8_t> Out,
   return RawTagData;
 }
 
-template <int Bit>
-WasiCryptoExpect<__wasi_size_t> AesGcm<Bit>::State::decryptDetachedUnchecked(
+template <int KeyBit>
+WasiCryptoExpect<__wasi_size_t> AesGcm<KeyBit>::State::decryptDetachedUnchecked(
     Span<uint8_t> Out, Span<const uint8_t> Data, Span<uint8_t const> RawTag) {
   opensslAssuming(EVP_CipherInit_ex(Ctx.get(), nullptr, nullptr, nullptr,
                                     nullptr, Mode::Decrypt));

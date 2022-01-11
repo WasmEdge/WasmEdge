@@ -2,7 +2,7 @@
 
 #include "host/wasi_crypto/symmetric/state.h"
 #include "host/wasi_crypto/symmetric/aeads/aes_gcm.h"
-#include "host/wasi_crypto/symmetric/aeads/charcha_poly.h"
+#include "host/wasi_crypto/symmetric/aeads/chacha_poly.h"
 #include "host/wasi_crypto/symmetric/extract_and_expand/hkdf.h"
 #include "host/wasi_crypto/symmetric/hash/sha2.h"
 #include "host/wasi_crypto/symmetric/mac/hmac_sha2.h"
@@ -15,7 +15,7 @@ namespace Symmetric {
 
 WasiCryptoExpect<std::unique_ptr<State>>
 State::open(SymmetricAlgorithm Alg, std::shared_ptr<Key> OptKey,
-            std::shared_ptr<Option> OptOption) {
+            std::shared_ptr<Options> OptOption) {
   // if opt key exist
   if (OptKey) {
     // ensure key's alg equal with input alg

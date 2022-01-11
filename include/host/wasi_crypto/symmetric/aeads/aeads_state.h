@@ -17,8 +17,6 @@ namespace Symmetric {
 /// decrypt()
 /// decrypt_detached()
 ///
-/// Notice: encrypt()/decrypt() can delegate by
-/// encrypt_detached()/decrypt_detached()
 class AEADsState : public State {
 public:
   /// Absorbs additional data. Multiple calls to absorb() MUST be equivalent to

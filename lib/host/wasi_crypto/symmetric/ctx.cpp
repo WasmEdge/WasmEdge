@@ -316,7 +316,7 @@ WasiCryptoContext::symmetricTagClose(__wasi_symmetric_tag_t TagHandle) {
   return SymmetricTagManger.close(TagHandle);
 }
 
-WasiCryptoExpect<std::shared_ptr<Symmetric::Option>>
+WasiCryptoExpect<std::shared_ptr<Symmetric::Options>>
 WasiCryptoContext::readSymmetricOption(
     std::optional<__wasi_options_t> OptOptionsHandle) {
   if (!OptOptionsHandle) {
@@ -330,11 +330,11 @@ WasiCryptoContext::readSymmetricOption(
 
   return std::visit(
       Overloaded{
-          [](std::shared_ptr<Symmetric::Option> Options)
-              -> WasiCryptoExpect<std::shared_ptr<Symmetric::Option>> {
+          [](std::shared_ptr<Symmetric::Options> Options)
+              -> WasiCryptoExpect<std::shared_ptr<Symmetric::Options>> {
             return Options;
           },
-          [](auto &&) -> WasiCryptoExpect<std::shared_ptr<Symmetric::Option>> {
+          [](auto &&) -> WasiCryptoExpect<std::shared_ptr<Symmetric::Options>> {
             return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_HANDLE);
           }},
       *Res);

@@ -27,7 +27,7 @@ public:
 
   static WasiCryptoExpect<std::unique_ptr<State>>
   open(SymmetricAlgorithm Alg, std::shared_ptr<Key> OptKey,
-       std::shared_ptr<Option> OptOption);
+       std::shared_ptr<Options> OptOption);
 
   virtual WasiCryptoExpect<std::vector<uint8_t>>
   optionsGet(std::string_view Name) = 0;

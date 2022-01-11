@@ -14,7 +14,7 @@ Options optionsOpen(__wasi_algorithm_type_e_t Alg) {
   case __WASI_ALGORITHM_TYPE_SIGNATURES:
     return std::make_unique<Signatures::Options>();
   case __WASI_ALGORITHM_TYPE_SYMMETRIC:
-    return std::make_unique<Symmetric::Option>();
+    return std::make_unique<Symmetric::Options>();
   case __WASI_ALGORITHM_TYPE_KEY_EXCHANGE:
     return std::make_unique<Kx::Options>();
   default:

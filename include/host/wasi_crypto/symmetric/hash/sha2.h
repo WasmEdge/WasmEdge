@@ -17,11 +17,11 @@ template <int Sha> class Sha2State : public HashState {
   using EvpMdCtx = OpenSSLUniquePtr<EVP_MD_CTX, EVP_MD_CTX_free>;
 
 public:
-  Sha2State(std::shared_ptr<Option> OptOption, EVP_MD_CTX *Ctx)
+  Sha2State(std::shared_ptr<Options> OptOption, EVP_MD_CTX *Ctx)
       : OptOption(OptOption), Ctx(Ctx) {}
 
   static WasiCryptoExpect<std::unique_ptr<Sha2State>>
-  open(std::shared_ptr<Key> OptKey, std::shared_ptr<Option> OptOption);
+  open(std::shared_ptr<Key> OptKey, std::shared_ptr<Options> OptOption);
 
   WasiCryptoExpect<std::vector<uint8_t>>
   optionsGet(std::string_view Name) override;
@@ -33,7 +33,7 @@ public:
   WasiCryptoExpect<void> squeeze(Span<uint8_t> Out) override;
 
 private:
-  std::shared_ptr<Option> OptOption;
+  std::shared_ptr<Options> OptOption;
   EvpMdCtx Ctx;
 };
 

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-#include "host/wasi_crypto/symmetric/aeads/charcha_poly.h"
+#include "host/wasi_crypto/symmetric/aeads/chacha_poly.h"
 
 #include <map>
 #include <openssl/rand.h>
@@ -10,23 +10,13 @@ namespace Host {
 namespace WASICrypto {
 namespace Symmetric {
 
-// constexpr __wasi_size_t getKeySize(SymmetricAlgorithm Alg) {
-//   switch (Alg) {
-//   case SymmetricAlgorithm::ChaCha20Poly1305:
-//     return 16;
-//   case SymmetricAlgorithm::XChaCha20Poly1305:
-//     return 32;
-//   default:
-//     assumingUnreachable();
-//   }
-// }
-
-inline __wasi_size_t TagLen = 12;
+// 128 size
+inline __wasi_size_t TagLen = 16;
 
 template <int NonceBit>
 WasiCryptoExpect<std::unique_ptr<typename ChaChaPoly<NonceBit>::State>>
 ChaChaPoly<NonceBit>::State::open(std::shared_ptr<Key> OptKey,
-                                  std::shared_ptr<Option> OptOption) {
+                                  std::shared_ptr<Options> OptOption) {
   ensureOrReturn(OptKey, __WASI_CRYPTO_ERRNO_KEY_REQUIRED);
   ensureOrReturn(OptOption, __WASI_CRYPTO_ERRNO_NONCE_REQUIRED);
 
@@ -51,12 +41,12 @@ ChaChaPoly<NonceBit>::State::open(std::shared_ptr<Key> OptKey,
                                     Key.data(), Nonce->data(),
                                     Mode::Unchanged));
 
-  return std::make_unique<ChaChaPoly<NonceBit>::State>(Ctx);
+  return std::make_unique<ChaChaPoly<NonceBit>::State>(Ctx, OptOption);
 }
 
 template <int NonceBit>
 WasiCryptoExpect<std::unique_ptr<Key>>
-ChaChaPoly<NonceBit>::KeyBuilder::generate(std::shared_ptr<Option>) {
+ChaChaPoly<NonceBit>::KeyBuilder::generate(std::shared_ptr<Options>) {
   auto Len = keyLen();
   if (!Len) {
     return WasiCryptoUnexpect(Len);
@@ -91,14 +81,12 @@ WasiCryptoExpect<__wasi_size_t> ChaChaPoly<NonceBit>::KeyBuilder::keyLen() {
 template <int NonceBit>
 WasiCryptoExpect<std::vector<uint8_t>>
 ChaChaPoly<NonceBit>::State::optionsGet(std::string_view Name) {
-  ensureOrReturn(OptOptions, __WASI_CRYPTO_ERRNO_OPTION_NOT_SET);
   return OptOptions->get(Name);
 }
 
 template <int NonceBit>
 WasiCryptoExpect<uint64_t>
 ChaChaPoly<NonceBit>::State::optionsGetU64(std::string_view Name) {
-  ensureOrReturn(OptOptions, __WASI_CRYPTO_ERRNO_OPTION_NOT_SET);
   return OptOptions->getU64(Name);
 }
 
@@ -171,14 +159,14 @@ ChaChaPoly<NonceBit>::State::decryptDetachedUnchecked(
   // However, cannot do put nullptr length in it. construct a temp var
   // TODO:Better
   int AL;
-  opensslAssuming(EVP_CipherFinal_ex(Ctx.get(), nullptr, &AL));
+  opensslAssuming(EVP_CipherFinal_ex(Ctx.get(), Out.data(), &AL));
 
   return ActualOutSize;
 }
 
 template <int NonceBit>
 WasiCryptoExpect<__wasi_size_t> ChaChaPoly<NonceBit>::State::maxTagLen() {
-  return WasmEdge::Host::WASICrypto::WasiCryptoExpect<__wasi_size_t>();
+  return TagLen;
 }
 
 template class ChaChaPoly<96>;

@@ -9,7 +9,7 @@ namespace WASICrypto {
 namespace Symmetric {
 
 WasiCryptoExpect<std::unique_ptr<Key>>
-XoodyakKeyBuilder::generate(std::shared_ptr<Option>) {
+XoodyakKeyBuilder::generate(std::shared_ptr<Options>) {
   auto Len = keyLen();
   if (!Len) {
     return WasiCryptoUnexpect(Len);
@@ -39,7 +39,7 @@ WasiCryptoExpect<__wasi_size_t> XoodyakKeyBuilder::keyLen() {
 
 WasiCryptoExpect<std::unique_ptr<XoodyakState>>
 XoodyakState::open(SymmetricAlgorithm, std::shared_ptr<Key>,
-                   std::shared_ptr<Option>) {
+                   std::shared_ptr<Options>) {
   return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
 }
 WasiCryptoExpect<void> XoodyakState::absorb(Span<const uint8_t>) {

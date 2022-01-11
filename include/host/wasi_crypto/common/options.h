@@ -29,7 +29,7 @@ namespace Common {
 /// retrieve the actual nonce set by the runtime by reading the nonce option.
 ///
 /// An option can beF reused, but is tied to algorithm type.
-using Options = std::variant<std::shared_ptr<Symmetric::Option>,
+using Options = std::variant<std::shared_ptr<Symmetric::Options>,
                              std::shared_ptr<Kx::Options>,
                              std::shared_ptr<Signatures::Options>>;
 

@@ -18,7 +18,7 @@ namespace Host {
 namespace WASICrypto {
 namespace Symmetric {
 
-class Option {
+class Options {
 public:
   WasiCryptoExpect<void> set(std::string_view Name, Span<const uint8_t> Value);
 

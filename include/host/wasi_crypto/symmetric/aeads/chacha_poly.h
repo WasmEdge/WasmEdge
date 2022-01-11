@@ -18,7 +18,7 @@ public:
     using Builder::Builder;
 
     WasiCryptoExpect<std::unique_ptr<Key>>
-    generate(std::shared_ptr<Option> OptOption) override;
+    generate(std::shared_ptr<Options> OptOption) override;
 
     WasiCryptoExpect<std::unique_ptr<Key>>
     import(Span<uint8_t const> Raw) override;
@@ -28,10 +28,11 @@ public:
 
   class State : public AEADsState {
   public:
-    State(EVP_CIPHER_CTX *Ctx) : Ctx(Ctx) {}
+    State(EVP_CIPHER_CTX *Ctx, std::shared_ptr<Options> OptOptions)
+        : Ctx(Ctx), OptOptions(OptOptions) {}
 
     static WasiCryptoExpect<std::unique_ptr<State>>
-    open(std::shared_ptr<Key> OptKey, std::shared_ptr<Option> OptOptions);
+    open(std::shared_ptr<Key> OptKey, std::shared_ptr<Options> OptOptions);
 
     WasiCryptoExpect<std::vector<uint8_t>>
     optionsGet(std::string_view Name) override;
@@ -56,16 +57,15 @@ public:
     decryptDetachedUnchecked(Span<uint8_t> Out, Span<const uint8_t> Data,
                              Span<uint8_t const> RawTag) override;
 
-  public:
     WasiCryptoExpect<__wasi_size_t> maxTagLen() override;
 
   private:
-    std::shared_ptr<Option> OptOptions;
 
     enum Mode { Unchanged = -1, Decrypt = 0, Encrypt = 1 };
 
     //  SymmetricAlgorithm Alg;
     OpenSSLUniquePtr<EVP_CIPHER_CTX, EVP_CIPHER_CTX_free> Ctx;
+    std::shared_ptr<Options> OptOptions;
   };
 };
 

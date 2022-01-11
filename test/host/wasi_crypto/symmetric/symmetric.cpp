@@ -164,6 +164,66 @@ TEST(WasiCryptoTest, Encryption) {
   EXPECT_EQ(Msg, Msg3);
 }
 
+TEST(WasiCryptoTest, EncryptionCharchaPoly) {
+  WasiCryptoContext Ctx;
+
+  auto Sp = "test"_u8;
+  std::vector<uint8_t> Msg{Sp.begin(), Sp.end()};
+  std::array<uint8_t, 12> InNonce;
+  InNonce.fill(42);
+  auto KeyHandle = Ctx.symmetricKeyGenerate(
+                          SymmetricAlgorithm::ChaCha20Poly1305, std::nullopt)
+                       .value();
+
+  auto OptionsHandle = Ctx.optionsOpen(__WASI_ALGORITHM_TYPE_SYMMETRIC).value();
+  EXPECT_TRUE(Ctx.optionsSet(OptionsHandle, "nonce"sv, InNonce).has_value());
+
+  // ----- state 1, Test Nonce -----------
+  __wasi_symmetric_state_t State1 =
+      Ctx.symmetricStateOpen(SymmetricAlgorithm::ChaCha20Poly1305, KeyHandle,
+                             OptionsHandle)
+          .value();
+
+  std::array<uint8_t, 12> OutNonce;
+  EXPECT_EQ(12,
+            Ctx.symmetricStateOptionsGet(State1, "nonce"sv, OutNonce).value());
+
+  EXPECT_EQ(InNonce, OutNonce);
+
+  std::vector<uint8_t> CiphertextWithTag(
+      Msg.size() + Ctx.symmetricStateMaxTagLen(State1).value(), 0);
+  Ctx.symmetricStateEncrypt(State1, CiphertextWithTag, Msg).value();
+  EXPECT_TRUE(Ctx.symmetricStateClose(State1).has_value());
+
+  // ----- state 2 -----------
+  auto State2 = Ctx.symmetricStateOpen(SymmetricAlgorithm::ChaCha20Poly1305,
+                                       KeyHandle, OptionsHandle)
+                    .value();
+  std::vector<uint8_t> Msg2(Msg.size(), 0);
+  Ctx.symmetricStateDecrypt(State2, Msg2, CiphertextWithTag).value();
+  EXPECT_TRUE(Ctx.symmetricStateClose(State2).has_value());
+  EXPECT_EQ(Msg, Msg2);
+
+  // ----- state 3 -----------
+  auto State3 = Ctx.symmetricStateOpen(SymmetricAlgorithm::ChaCha20Poly1305,
+                                       KeyHandle, OptionsHandle)
+                    .value();
+  std::vector<uint8_t> Ciphertext(Msg.size(), 0);
+  auto TagHandle =
+      Ctx.symmetricStateEncryptDetached(State3, Ciphertext, Msg).value();
+  EXPECT_TRUE(Ctx.symmetricStateClose(State3).has_value());
+
+  // ----- state 4 -----------
+  auto RawTag = tagToVec(Ctx, TagHandle);
+
+  auto State4 = Ctx.symmetricStateOpen(SymmetricAlgorithm::ChaCha20Poly1305,
+                                       KeyHandle, OptionsHandle)
+                    .value();
+  std::vector<uint8_t> Msg3(Msg.size(), 0);
+  Ctx.symmetricStateDecryptDetached(State4, Msg3, Ciphertext, RawTag).value();
+  EXPECT_TRUE(Ctx.symmetricStateClose(State4).has_value());
+  EXPECT_EQ(Msg, Msg3);
+}
 // Not Implementation
 // TEST(WasiCryptoTest, Session) {
 //  WasiCryptoContext Ctx;

@@ -10,7 +10,7 @@ wasmedge_add_library(wasmedgeHostModuleWasiCrypto
   common/func.cpp
   symmetric/aeads/aeads_state.cpp
   symmetric/aeads/aes_gcm.cpp
-  symmetric/aeads/charcha_poly.cpp
+  symmetric/aeads/chacha_poly.cpp
   symmetric/extract_and_expand/hkdf.cpp
   symmetric/session/xoodyak.cpp
   symmetric/hash/sha2.cpp

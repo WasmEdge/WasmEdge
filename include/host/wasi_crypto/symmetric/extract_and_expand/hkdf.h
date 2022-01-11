@@ -19,7 +19,7 @@ public:
     using Builder::Builder;
 
     WasiCryptoExpect<std::unique_ptr<Key>>
-    generate(std::shared_ptr<Option> OptOption) override;
+    generate(std::shared_ptr<Options> OptOption) override;
 
     WasiCryptoExpect<std::unique_ptr<Key>>
     import(Span<uint8_t const> Raw) override;
@@ -34,11 +34,11 @@ public:
   ///
   class State : public ExtractAndExpandState {
   public:
-    State(std::shared_ptr<Option> OptOption, EVP_PKEY_CTX *Ctx)
+    State(std::shared_ptr<Options> OptOption, EVP_PKEY_CTX *Ctx)
         : OptOption(OptOption), Ctx(Ctx) {}
 
     static WasiCryptoExpect<std::unique_ptr<State>>
-    open(std::shared_ptr<Key> OptKey, std::shared_ptr<Option> OptOption);
+    open(std::shared_ptr<Key> OptKey, std::shared_ptr<Options> OptOption);
 
     /// absorbs the salt of the key(Extract)/info(Expand) information.
     WasiCryptoExpect<void> absorb(Span<const uint8_t> Data) override;
@@ -59,7 +59,7 @@ public:
 
   private:
     std::shared_mutex Mutex;
-    std::shared_ptr<Option> OptOption;
+    std::shared_ptr<Options> OptOption;
     std::vector<uint8_t> Cache;
     EvpPkeyCtxPtr Ctx;
   };

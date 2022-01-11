@@ -10,7 +10,7 @@ namespace Symmetric {
 
 template <int Sha>
 WasiCryptoExpect<std::unique_ptr<Key>>
-HmacSha2<Sha>::KeyBuilder::generate(std::shared_ptr<Option>) {
+HmacSha2<Sha>::KeyBuilder::generate(std::shared_ptr<Options>) {
   auto Len = keyLen();
   if (!Len) {
     return WasiCryptoUnexpect(Len);
@@ -43,7 +43,7 @@ WasiCryptoExpect<__wasi_size_t> HmacSha2<Sha>::KeyBuilder::keyLen() {
 template <int Sha>
 WasiCryptoExpect<std::unique_ptr<typename HmacSha2<Sha>::State>>
 HmacSha2<Sha>::State::open(std::shared_ptr<Key> OptKey,
-                           std::shared_ptr<Option> OptOption) {
+                           std::shared_ptr<Options> OptOption) {
   ensureOrReturn(OptKey, __WASI_CRYPTO_ERRNO_KEY_REQUIRED);
 
   OpenSSLUniquePtr<EVP_PKEY, EVP_PKEY_free> PKey{

@@ -2,7 +2,7 @@
 
 #include "host/wasi_crypto/symmetric/key.h"
 #include "host/wasi_crypto/symmetric/aeads/aes_gcm.h"
-#include "host/wasi_crypto/symmetric/aeads/charcha_poly.h"
+#include "host/wasi_crypto/symmetric/aeads/chacha_poly.h"
 #include "host/wasi_crypto/symmetric/extract_and_expand/hkdf.h"
 #include "host/wasi_crypto/symmetric/mac/hmac_sha2.h"
 #include "host/wasi_crypto/symmetric/session/xoodyak.h"
@@ -13,7 +13,7 @@ namespace WASICrypto {
 namespace Symmetric {
 
 WasiCryptoExpect<std::unique_ptr<Key>>
-Key::generate(SymmetricAlgorithm Alg, std::shared_ptr<Option> OptOption) {
+Key::generate(SymmetricAlgorithm Alg, std::shared_ptr<Options> OptOption) {
   auto Builder = builder(Alg);
   if (!Builder) {
     return WasiCryptoUnexpect(Builder);

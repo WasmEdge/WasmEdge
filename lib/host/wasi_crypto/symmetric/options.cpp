@@ -8,8 +8,8 @@ namespace WASICrypto {
 namespace Symmetric {
 using namespace std::literals;
 
-WasiCryptoExpect<void> Option::set(std::string_view Name,
-                                   Span<const uint8_t> Value) {
+WasiCryptoExpect<void> Options::set(std::string_view Name,
+                                    Span<const uint8_t> Value) {
   std::unique_lock Lock{Mutex};
 
   std::optional<std::vector<uint8_t>> *Res;
@@ -26,7 +26,7 @@ WasiCryptoExpect<void> Option::set(std::string_view Name,
   return {};
 }
 
-WasiCryptoExpect<void> Option::setU64(std::string_view Name, uint64_t Value) {
+WasiCryptoExpect<void> Options::setU64(std::string_view Name, uint64_t Value) {
   std::unique_lock Lock{Mutex};
 
   std::optional<uint64_t> *Res;
@@ -43,8 +43,8 @@ WasiCryptoExpect<void> Option::setU64(std::string_view Name, uint64_t Value) {
   return {};
 }
 
-WasiCryptoExpect<void> Option::setGuestBuffer(std::string_view Name,
-                                              Span<uint8_t> Buffer) {
+WasiCryptoExpect<void> Options::setGuestBuffer(std::string_view Name,
+                                               Span<uint8_t> Buffer) {
   std::unique_lock Lock{Mutex};
 
   if ("buffer"sv == Name) {
@@ -57,7 +57,7 @@ WasiCryptoExpect<void> Option::setGuestBuffer(std::string_view Name,
 }
 
 WasiCryptoExpect<std::vector<uint8_t>>
-Option::get(std::string_view Name) const {
+Options::get(std::string_view Name) const {
   std::shared_lock Lock{Mutex};
 
   std::optional<std::vector<uint8_t>> const *Res;
@@ -78,7 +78,7 @@ Option::get(std::string_view Name) const {
   return **Res;
 }
 
-WasiCryptoExpect<uint64_t> Option::getU64(std::string_view Name) const {
+WasiCryptoExpect<uint64_t> Options::getU64(std::string_view Name) const {
   std::shared_lock Lock{Mutex};
 
   std::optional<uint64_t> const *Res;

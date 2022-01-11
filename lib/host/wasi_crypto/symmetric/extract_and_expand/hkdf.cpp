@@ -10,7 +10,7 @@ namespace Symmetric {
 
 template <int Sha, int Mode>
 WasiCryptoExpect<std::unique_ptr<Key>>
-Hkdf<Sha, Mode>::KeyBuilder::generate(std::shared_ptr<Option>) {
+Hkdf<Sha, Mode>::KeyBuilder::generate(std::shared_ptr<Options>) {
   auto Len = keyLen();
   if (!Len) {
     return WasiCryptoUnexpect(Len);
@@ -46,7 +46,7 @@ WasiCryptoExpect<__wasi_size_t> Hkdf<Sha, Mode>::KeyBuilder::keyLen() {
 template <int Sha, int Mode>
 WasiCryptoExpect<std::unique_ptr<typename Hkdf<Sha, Mode>::State>>
 Hkdf<Sha, Mode>::State::open(std::shared_ptr<Key> OptKey,
-                             std::shared_ptr<Option> OptOption) {
+                             std::shared_ptr<Options> OptOption) {
   ensureOrReturn(OptKey, __WASI_CRYPTO_ERRNO_KEY_REQUIRED);
 
   EVP_PKEY_CTX *Ctx = EVP_PKEY_CTX_new_id(EVP_PKEY_HKDF, nullptr);

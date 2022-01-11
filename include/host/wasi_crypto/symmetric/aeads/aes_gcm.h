@@ -13,14 +13,14 @@ namespace Host {
 namespace WASICrypto {
 namespace Symmetric {
 
-template <int Bit> class AesGcm {
+template <int KeyBit> class AesGcm {
 public:
   class KeyBuilder : public Key::Builder {
   public:
     using Builder::Builder;
 
     WasiCryptoExpect<std::unique_ptr<Key>>
-    generate(std::shared_ptr<Option> OptOption) override;
+    generate(std::shared_ptr<Options> OptOption) override;
 
     WasiCryptoExpect<std::unique_ptr<Key>>
     import(Span<uint8_t const> Raw) override;
@@ -36,14 +36,14 @@ public:
 
     inline static constexpr __wasi_size_t TagLen = 16;
 
-    State(EVP_CIPHER_CTX *Ctx, std::shared_ptr<Option> OptOption)
+    State(EVP_CIPHER_CTX *Ctx, std::shared_ptr<Options> OptOption)
         : Ctx(Ctx), OptOption(OptOption) {}
 
     /// There are four inputs for authenticated encryption:
     /// @param[in] OptKey The secret key for encrypt
     /// @param[in] OptOption `Must` contain an Nonce(Initialization vector).
     static WasiCryptoExpect<std::unique_ptr<State>>
-    open(std::shared_ptr<Key> OptKey, std::shared_ptr<Option> OptOption);
+    open(std::shared_ptr<Key> OptKey, std::shared_ptr<Options> OptOption);
 
     WasiCryptoExpect<std::vector<uint8_t>>
     optionsGet(std::string_view Name) override;
@@ -75,7 +75,7 @@ public:
 
     //  SymmetricAlgorithm Alg;
     EvpCipherCtxPtr Ctx;
-    std::shared_ptr<Option> OptOption;
+    std::shared_ptr<Options> OptOption;
   };
 };
 

@@ -14,7 +14,7 @@ public:
   using Builder::Builder;
 
   WasiCryptoExpect<std::unique_ptr<Key>>
-  generate(std::shared_ptr<Option> OptOption) override;
+  generate(std::shared_ptr<Options> OptOption) override;
 
   WasiCryptoExpect<std::unique_ptr<Key>>
   import(Span<uint8_t const> Raw) override;
@@ -26,7 +26,7 @@ class XoodyakState : public SessionState {
 public:
   static WasiCryptoExpect<std::unique_ptr<XoodyakState>>
   open(SymmetricAlgorithm Alg, std::shared_ptr<Key> OptKey,
-       std::shared_ptr<Option> OptOption);
+       std::shared_ptr<Options> OptOption);
   WasiCryptoExpect<void> absorb(Span<const uint8_t> Data) override;
   WasiCryptoExpect<void> squeeze(Span<uint8_t> Out) override;
   WasiCryptoExpect<__wasi_size_t>

@@ -58,7 +58,7 @@ WasiCryptoExpect<void> Sha2State<Sha>::squeeze(Span<uint8_t> Out) {
 template <int Sha>
 WasiCryptoExpect<std::unique_ptr<Sha2State<Sha>>>
 Sha2State<Sha>::open(std::shared_ptr<Key> OptKey,
-                     std::shared_ptr<Option> OptOption) {
+                     std::shared_ptr<Options> OptOption) {
   ensureOrReturn(!OptKey, __WASI_CRYPTO_ERRNO_KEY_NOT_SUPPORTED);
 
   EVP_MD_CTX *Ctx = EVP_MD_CTX_new();

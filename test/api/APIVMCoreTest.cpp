@@ -34,7 +34,7 @@ using namespace std::literals;
 using namespace WasmEdge;
 static SpecTest T(std::filesystem::u8path("../spec/testSuites"sv));
 
-/// Parameterized testing class.
+// Parameterized testing class.
 class CoreTest : public testing::TestWithParam<std::string> {};
 
 TEST_P(CoreTest, TestSuites) {
@@ -101,7 +101,7 @@ TEST_P(CoreTest, TestSuites) {
     }
     return {};
   };
-  /// Helper function to call functions.
+  // Helper function to call functions.
   T.onInvoke = [&VM](const std::string &ModName, const std::string &Field,
                      const std::vector<ValVariant> &Params,
                      const std::vector<ValType> &ParamTypes)
@@ -112,9 +112,8 @@ TEST_P(CoreTest, TestSuites) {
     WasmEdge_String FieldStr = WasmEdge_StringWrap(
         Field.data(), static_cast<uint32_t>(Field.length()));
     if (!ModName.empty()) {
-      /// Invoke function of named module. Named modules are registered in
-      /// Store Manager.
-      /// Get the function type to specify the return nums.
+      // Invoke function of named module. Named modules are registered in Store
+      // Manager. Get the function type to specify the return nums.
       WasmEdge_String ModStr = WasmEdge_StringWrap(
           ModName.data(), static_cast<uint32_t>(ModName.length()));
       const WasmEdge_FunctionTypeContext *FuncType =
@@ -123,22 +122,21 @@ TEST_P(CoreTest, TestSuites) {
         return Unexpect(ErrCode::FuncNotFound);
       }
       CReturns.resize(WasmEdge_FunctionTypeGetReturnsLength(FuncType));
-      /// Execute.
+      // Execute.
       Res = WasmEdge_VMExecuteRegistered(
           VM, ModStr, FieldStr, &CParams[0],
           static_cast<uint32_t>(CParams.size()), &CReturns[0],
           static_cast<uint32_t>(CReturns.size()));
     } else {
-      /// Invoke function of anonymous module. Anonymous modules are
-      /// instantiated in VM.
-      /// Get function type to specify the return nums.
+      // Invoke function of anonymous module. Anonymous modules are instantiated
+      // in VM. Get function type to specify the return nums.
       const WasmEdge_FunctionTypeContext *FuncType =
           WasmEdge_VMGetFunctionType(VM, FieldStr);
       if (FuncType == nullptr) {
         return Unexpect(ErrCode::FuncNotFound);
       }
       CReturns.resize(WasmEdge_FunctionTypeGetReturnsLength(FuncType));
-      /// Execute.
+      // Execute.
       Res = WasmEdge_VMExecute(
           VM, FieldStr, &CParams[0], static_cast<uint32_t>(CParams.size()),
           &CReturns[0], static_cast<uint32_t>(CReturns.size()));
@@ -148,10 +146,10 @@ TEST_P(CoreTest, TestSuites) {
     }
     return convToValVec(CReturns);
   };
-  /// Helper function to get values.
+  // Helper function to get values.
   T.onGet = [&VM](const std::string &ModName, const std::string &Field)
       -> Expect<std::pair<ValVariant, ValType>> {
-    /// Get global instance.
+    // Get global instance.
     WasmEdge_StoreContext *StoreCxt = WasmEdge_VMGetStoreContext(VM);
     WasmEdge_String ModStr = WasmEdge_StringWrap(
         ModName.data(), static_cast<uint32_t>(ModName.length()));
@@ -163,8 +161,14 @@ TEST_P(CoreTest, TestSuites) {
       return Unexpect(ErrCode::WrongInstanceAddress);
     }
     WasmEdge_Value Val = WasmEdge_GlobalInstanceGetValue(GlobCxt);
+#if defined(__x86_64__) || defined(__aarch64__)
     return std::make_pair(ValVariant(Val.Value),
                           static_cast<ValType>(Val.Type));
+#else
+    return std::make_pair(
+        ValVariant(WasmEdge::uint128_t(Val.Value.High, Val.Value.Low)),
+        static_cast<ValType>(Val.Type));
+#endif
   };
 
   T.run(Proposal, UnitName);
@@ -173,7 +177,7 @@ TEST_P(CoreTest, TestSuites) {
   WasmEdge_ImportObjectDelete(TestModCxt);
 }
 
-/// Initiate test suite.
+// Initiate test suite.
 INSTANTIATE_TEST_SUITE_P(TestUnit, CoreTest, testing::ValuesIn(T.enumerate()));
 
 TEST(AsyncRunWsmFile, InterruptTest) {

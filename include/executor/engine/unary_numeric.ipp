@@ -11,7 +11,7 @@ namespace Executor {
 
 template <typename T> TypeU<T> Executor::runClzOp(ValVariant &Val) const {
   T I = Val.get<T>();
-  /// Return the count of leading zero bits in i.
+  // Return the count of leading zero bits in i.
   if (I != 0U) {
     T Cnt = 0;
     T Mask = static_cast<T>(0x1U) << (sizeof(T) * 8 - 1);
@@ -28,7 +28,7 @@ template <typename T> TypeU<T> Executor::runClzOp(ValVariant &Val) const {
 
 template <typename T> TypeU<T> Executor::runCtzOp(ValVariant &Val) const {
   T I = Val.get<T>();
-  /// Return the count of trailing zero bits in i.
+  // Return the count of trailing zero bits in i.
   if (I != 0U) {
     T Cnt = 0;
     T Mask = static_cast<T>(0x1U);
@@ -45,7 +45,7 @@ template <typename T> TypeU<T> Executor::runCtzOp(ValVariant &Val) const {
 
 template <typename T> TypeU<T> Executor::runPopcntOp(ValVariant &Val) const {
   T I = Val.get<T>();
-  /// Return the count of non-zero bits in i.
+  // Return the count of non-zero bits in i.
   if (I != 0U) {
     T Cnt = 0;
     T Mask = static_cast<T>(0x1U);

@@ -37,7 +37,7 @@ inline constexpr uint64_t roundUpPageBoundary(const uint64_t Value) {
 namespace WasmEdge {
 namespace Loader {
 
-/// Open so file. See "include/loader/shared_library.h".
+// Open so file. See "include/loader/shared_library.h".
 Expect<void> SharedLibrary::load(const std::filesystem::path &Path) noexcept {
 #if WASMEDGE_OS_WINDOWS
   Handle = winapi::load_library_ex(Path.c_str(), nullptr, 0);

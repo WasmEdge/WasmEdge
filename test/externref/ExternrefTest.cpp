@@ -13,30 +13,30 @@
 
 namespace {
 
-/// The followings are the functions and class definitions to pass as
-/// references.
+// The followings are the functions and class definitions to pass as
+// references.
 
-/// Test: function to pass as function pointer
+// Test: function to pass as function pointer
 uint32_t MulFunc(uint32_t A, uint32_t B) { return A * B; }
 
-/// Test: class to pass as reference
+// Test: class to pass as reference
 class AddClass {
 public:
   uint32_t add(uint32_t A, uint32_t B) const { return A + B; }
 };
 
-/// Test: functor to pass as reference
+// Test: functor to pass as reference
 struct SquareStruct {
   uint32_t operator()(uint32_t Val) const { return Val * Val; }
 };
 
-/// The followings are the host function definitions.
+// The followings are the host function definitions.
 
-/// Host function to call functor by external reference
+// Host function to call functor by external reference
 WasmEdge_Result ExternFunctorSquare(void *, WasmEdge_MemoryInstanceContext *,
                                     const WasmEdge_Value *In,
                                     WasmEdge_Value *Out) {
-  /// Function type: {externref, i32} -> {i32}
+  // Function type: {externref, i32} -> {i32}
   void *Ptr = WasmEdge_ValueGetExternRef(In[0]);
   SquareStruct &Obj = *reinterpret_cast<SquareStruct *>(Ptr);
   uint32_t C = Obj(static_cast<uint32_t>(WasmEdge_ValueGetI32(In[1])));
@@ -44,10 +44,10 @@ WasmEdge_Result ExternFunctorSquare(void *, WasmEdge_MemoryInstanceContext *,
   return WasmEdge_Result_Success;
 }
 
-/// Host function to access class by external reference
+// Host function to access class by external reference
 WasmEdge_Result ExternClassAdd(void *, WasmEdge_MemoryInstanceContext *,
                                const WasmEdge_Value *In, WasmEdge_Value *Out) {
-  /// Function type: {externref, i32, i32} -> {i32}
+  // Function type: {externref, i32, i32} -> {i32}
   void *Ptr = WasmEdge_ValueGetExternRef(In[0]);
   AddClass &Obj = *reinterpret_cast<AddClass *>(Ptr);
   uint32_t C = Obj.add(static_cast<uint32_t>(WasmEdge_ValueGetI32(In[1])),
@@ -56,10 +56,10 @@ WasmEdge_Result ExternClassAdd(void *, WasmEdge_MemoryInstanceContext *,
   return WasmEdge_Result_Success;
 }
 
-/// Host function to call function by external reference as a function pointer
+// Host function to call function by external reference as a function pointer
 WasmEdge_Result ExternFuncMul(void *, WasmEdge_MemoryInstanceContext *,
                               const WasmEdge_Value *In, WasmEdge_Value *Out) {
-  /// Function type: {externref, i32, i32} -> {i32}
+  // Function type: {externref, i32, i32} -> {i32}
   void *Ptr = WasmEdge_ValueGetExternRef(In[0]);
   uint32_t (*Obj)(uint32_t, uint32_t) =
       *reinterpret_cast<uint32_t (*)(uint32_t, uint32_t)>(Ptr);
@@ -69,11 +69,11 @@ WasmEdge_Result ExternFuncMul(void *, WasmEdge_MemoryInstanceContext *,
   return WasmEdge_Result_Success;
 }
 
-/// Host function to output std::string through std::ostream
+// Host function to output std::string through std::ostream
 WasmEdge_Result ExternSTLOStreamStr(void *, WasmEdge_MemoryInstanceContext *,
                                     const WasmEdge_Value *In,
                                     WasmEdge_Value *) {
-  /// Function type: {externref, externref} -> {}
+  // Function type: {externref, externref} -> {}
   void *Ptr0 = WasmEdge_ValueGetExternRef(In[0]);
   void *Ptr1 = WasmEdge_ValueGetExternRef(In[1]);
   std::ostream &RefOS = *reinterpret_cast<std::ostream *>(Ptr0);
@@ -82,21 +82,21 @@ WasmEdge_Result ExternSTLOStreamStr(void *, WasmEdge_MemoryInstanceContext *,
   return WasmEdge_Result_Success;
 }
 
-/// Host function to output uint32_t through std::ostream
+// Host function to output uint32_t through std::ostream
 WasmEdge_Result ExternSTLOStreamU32(void *, WasmEdge_MemoryInstanceContext *,
                                     const WasmEdge_Value *In,
                                     WasmEdge_Value *) {
-  /// Function type: {externref, i32} -> {}
+  // Function type: {externref, i32} -> {}
   void *Ptr = WasmEdge_ValueGetExternRef(In[0]);
   std::ostream &RefOS = *reinterpret_cast<std::ostream *>(Ptr);
   RefOS << static_cast<uint32_t>(WasmEdge_ValueGetI32(In[1]));
   return WasmEdge_Result_Success;
 }
 
-/// Host function to insert {key, val} to std::map<std::string, std::string>
+// Host function to insert {key, val} to std::map<std::string, std::string>
 WasmEdge_Result ExternSTLMapInsert(void *, WasmEdge_MemoryInstanceContext *,
                                    const WasmEdge_Value *In, WasmEdge_Value *) {
-  /// Function type: {externref, externref, externref} -> {}
+  // Function type: {externref, externref, externref} -> {}
   void *Ptr0 = WasmEdge_ValueGetExternRef(In[0]);
   void *Ptr1 = WasmEdge_ValueGetExternRef(In[1]);
   void *Ptr2 = WasmEdge_ValueGetExternRef(In[2]);
@@ -107,10 +107,10 @@ WasmEdge_Result ExternSTLMapInsert(void *, WasmEdge_MemoryInstanceContext *,
   return WasmEdge_Result_Success;
 }
 
-/// Host function to erase std::map<std::string, std::string> with key
+// Host function to erase std::map<std::string, std::string> with key
 WasmEdge_Result ExternSTLMapErase(void *, WasmEdge_MemoryInstanceContext *,
                                   const WasmEdge_Value *In, WasmEdge_Value *) {
-  /// Function type: {externref, externref} -> {}
+  // Function type: {externref, externref} -> {}
   void *Ptr0 = WasmEdge_ValueGetExternRef(In[0]);
   void *Ptr1 = WasmEdge_ValueGetExternRef(In[1]);
   auto &Map = *reinterpret_cast<std::map<std::string, std::string> *>(Ptr0);
@@ -119,42 +119,42 @@ WasmEdge_Result ExternSTLMapErase(void *, WasmEdge_MemoryInstanceContext *,
   return WasmEdge_Result_Success;
 }
 
-/// Host function to insert key to std::set<uint32_t>
+// Host function to insert key to std::set<uint32_t>
 WasmEdge_Result ExternSTLSetInsert(void *, WasmEdge_MemoryInstanceContext *,
                                    const WasmEdge_Value *In, WasmEdge_Value *) {
-  /// Function type: {externref, i32} -> {}
+  // Function type: {externref, i32} -> {}
   void *Ptr = WasmEdge_ValueGetExternRef(In[0]);
   auto &Set = *reinterpret_cast<std::set<uint32_t> *>(Ptr);
   Set.insert(static_cast<uint32_t>(WasmEdge_ValueGetI32(In[1])));
   return WasmEdge_Result_Success;
 }
 
-/// Host function to erase std::set<uint32_t> with key
+// Host function to erase std::set<uint32_t> with key
 WasmEdge_Result ExternSTLSetErase(void *, WasmEdge_MemoryInstanceContext *,
                                   const WasmEdge_Value *In, WasmEdge_Value *) {
-  /// Function type: {externref, i32} -> {}
+  // Function type: {externref, i32} -> {}
   void *Ptr = WasmEdge_ValueGetExternRef(In[0]);
   auto &Set = *reinterpret_cast<std::set<uint32_t> *>(Ptr);
   Set.erase(static_cast<uint32_t>(WasmEdge_ValueGetI32(In[1])));
   return WasmEdge_Result_Success;
 }
 
-/// Host function to push value into std::vector<uint32_t>
+// Host function to push value into std::vector<uint32_t>
 WasmEdge_Result ExternSTLVectorPush(void *, WasmEdge_MemoryInstanceContext *,
                                     const WasmEdge_Value *In,
                                     WasmEdge_Value *) {
-  /// Function type: {externref, i32} -> {}
+  // Function type: {externref, i32} -> {}
   void *Ptr = WasmEdge_ValueGetExternRef(In[0]);
   auto &Vec = *reinterpret_cast<std::vector<uint32_t> *>(Ptr);
   Vec.push_back(static_cast<uint32_t>(WasmEdge_ValueGetI32(In[1])));
   return WasmEdge_Result_Success;
 }
 
-/// Host function to summarize value in slice of std::vector<uint32_t>
+// Host function to summarize value in slice of std::vector<uint32_t>
 WasmEdge_Result ExternSTLVectorSum(void *, WasmEdge_MemoryInstanceContext *,
                                    const WasmEdge_Value *In,
                                    WasmEdge_Value *Out) {
-  /// Function type: {externref, externref} -> {i32}
+  // Function type: {externref, externref} -> {i32}
   void *Ptr0 = WasmEdge_ValueGetExternRef(In[0]);
   void *Ptr1 = WasmEdge_ValueGetExternRef(In[1]);
   auto &It = *reinterpret_cast<std::vector<uint32_t>::iterator *>(Ptr0);
@@ -168,7 +168,7 @@ WasmEdge_Result ExternSTLVectorSum(void *, WasmEdge_MemoryInstanceContext *,
   return WasmEdge_Result_Success;
 }
 
-/// Helper function to create the "extern_module" import object.
+// Helper function to create the "extern_module" import object.
 WasmEdge_ImportObjectContext *createExternModule() {
   WasmEdge_String HostName;
   WasmEdge_FunctionTypeContext *HostFType = nullptr;
@@ -179,7 +179,7 @@ WasmEdge_ImportObjectContext *createExternModule() {
   WasmEdge_ImportObjectContext *ImpObj = WasmEdge_ImportObjectCreate(HostName);
   WasmEdge_StringDelete(HostName);
 
-  /// Add host function "functor_square": {externref, i32} -> {i32}
+  // Add host function "functor_square": {externref, i32} -> {i32}
   P[0] = WasmEdge_ValType_ExternRef;
   P[1] = WasmEdge_ValType_I32;
   R[0] = WasmEdge_ValType_I32;
@@ -191,7 +191,7 @@ WasmEdge_ImportObjectContext *createExternModule() {
   WasmEdge_ImportObjectAddFunction(ImpObj, HostName, HostFunc);
   WasmEdge_StringDelete(HostName);
 
-  /// Add host function "class_add": {externref, i32, i32} -> {i32}
+  // Add host function "class_add": {externref, i32, i32} -> {i32}
   P[2] = WasmEdge_ValType_I32;
   HostFType = WasmEdge_FunctionTypeCreate(P, 3, R, 1);
   HostFunc =
@@ -201,7 +201,7 @@ WasmEdge_ImportObjectContext *createExternModule() {
   WasmEdge_ImportObjectAddFunction(ImpObj, HostName, HostFunc);
   WasmEdge_StringDelete(HostName);
 
-  /// Add host function "func_mul": {externref, i32, i32} -> {i32}
+  // Add host function "func_mul": {externref, i32, i32} -> {i32}
   HostFType = WasmEdge_FunctionTypeCreate(P, 3, R, 1);
   HostFunc =
       WasmEdge_FunctionInstanceCreate(HostFType, ExternFuncMul, nullptr, 0);
@@ -210,7 +210,7 @@ WasmEdge_ImportObjectContext *createExternModule() {
   WasmEdge_ImportObjectAddFunction(ImpObj, HostName, HostFunc);
   WasmEdge_StringDelete(HostName);
 
-  /// Add host function "stl_ostream_str": {externref, externref} -> {}
+  // Add host function "stl_ostream_str": {externref, externref} -> {}
   P[1] = WasmEdge_ValType_ExternRef;
   HostFType = WasmEdge_FunctionTypeCreate(P, 2, nullptr, 0);
   HostFunc = WasmEdge_FunctionInstanceCreate(HostFType, ExternSTLOStreamStr,
@@ -220,7 +220,7 @@ WasmEdge_ImportObjectContext *createExternModule() {
   WasmEdge_ImportObjectAddFunction(ImpObj, HostName, HostFunc);
   WasmEdge_StringDelete(HostName);
 
-  /// Add host function "stl_ostream_u32": {externref, i32} -> {}
+  // Add host function "stl_ostream_u32": {externref, i32} -> {}
   P[1] = WasmEdge_ValType_I32;
   HostFType = WasmEdge_FunctionTypeCreate(P, 2, nullptr, 0);
   HostFunc = WasmEdge_FunctionInstanceCreate(HostFType, ExternSTLOStreamU32,
@@ -230,7 +230,7 @@ WasmEdge_ImportObjectContext *createExternModule() {
   WasmEdge_ImportObjectAddFunction(ImpObj, HostName, HostFunc);
   WasmEdge_StringDelete(HostName);
 
-  /// Add host function "stl_map_insert": {externref, externref, externref}->{}
+  // Add host function "stl_map_insert": {externref, externref, externref}->{}
   P[1] = WasmEdge_ValType_ExternRef;
   P[2] = WasmEdge_ValType_ExternRef;
   HostFType = WasmEdge_FunctionTypeCreate(P, 3, nullptr, 0);
@@ -241,7 +241,7 @@ WasmEdge_ImportObjectContext *createExternModule() {
   WasmEdge_ImportObjectAddFunction(ImpObj, HostName, HostFunc);
   WasmEdge_StringDelete(HostName);
 
-  /// Add host function "stl_map_erase": {externref, externref}->{}
+  // Add host function "stl_map_erase": {externref, externref}->{}
   HostFType = WasmEdge_FunctionTypeCreate(P, 2, nullptr, 0);
   HostFunc =
       WasmEdge_FunctionInstanceCreate(HostFType, ExternSTLMapErase, nullptr, 0);
@@ -250,7 +250,7 @@ WasmEdge_ImportObjectContext *createExternModule() {
   WasmEdge_ImportObjectAddFunction(ImpObj, HostName, HostFunc);
   WasmEdge_StringDelete(HostName);
 
-  /// Add host function "stl_set_insert": {externref, i32}->{}
+  // Add host function "stl_set_insert": {externref, i32}->{}
   P[1] = WasmEdge_ValType_I32;
   HostFType = WasmEdge_FunctionTypeCreate(P, 2, nullptr, 0);
   HostFunc = WasmEdge_FunctionInstanceCreate(HostFType, ExternSTLSetInsert,
@@ -260,7 +260,7 @@ WasmEdge_ImportObjectContext *createExternModule() {
   WasmEdge_ImportObjectAddFunction(ImpObj, HostName, HostFunc);
   WasmEdge_StringDelete(HostName);
 
-  /// Add host function "stl_set_erase": {externref, i32}->{}
+  // Add host function "stl_set_erase": {externref, i32}->{}
   HostFType = WasmEdge_FunctionTypeCreate(P, 2, nullptr, 0);
   HostFunc =
       WasmEdge_FunctionInstanceCreate(HostFType, ExternSTLSetErase, nullptr, 0);
@@ -269,7 +269,7 @@ WasmEdge_ImportObjectContext *createExternModule() {
   WasmEdge_ImportObjectAddFunction(ImpObj, HostName, HostFunc);
   WasmEdge_StringDelete(HostName);
 
-  /// Add host function "stl_vector_push": {externref, i32}->{}
+  // Add host function "stl_vector_push": {externref, i32}->{}
   HostFType = WasmEdge_FunctionTypeCreate(P, 2, nullptr, 0);
   HostFunc = WasmEdge_FunctionInstanceCreate(HostFType, ExternSTLVectorPush,
                                              nullptr, 0);
@@ -278,7 +278,7 @@ WasmEdge_ImportObjectContext *createExternModule() {
   WasmEdge_ImportObjectAddFunction(ImpObj, HostName, HostFunc);
   WasmEdge_StringDelete(HostName);
 
-  /// Add host function "stl_vector_sum": {externref, externref} -> {i32}
+  // Add host function "stl_vector_sum": {externref, externref} -> {i32}
   P[1] = WasmEdge_ValType_ExternRef;
   HostFType = WasmEdge_FunctionTypeCreate(P, 2, R, 1);
   HostFunc = WasmEdge_FunctionInstanceCreate(HostFType, ExternSTLVectorSum,
@@ -304,12 +304,12 @@ TEST(ExternRefTest, Ref__Functions) {
   EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_VMValidate(VMCxt)));
   EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_VMInstantiate(VMCxt)));
 
-  /// Functor instance
+  // Functor instance
   SquareStruct SS;
-  /// Class instance
+  // Class instance
   AddClass AC;
 
-  /// Test 1: call add -- 1234 + 5678
+  // Test 1: call add -- 1234 + 5678
   P[0] = WasmEdge_ValueGenExternRef(&AC);
   P[1] = WasmEdge_ValueGenI32(1234);
   P[2] = WasmEdge_ValueGenI32(5678);
@@ -320,7 +320,7 @@ TEST(ExternRefTest, Ref__Functions) {
   EXPECT_EQ(R[0].Type, WasmEdge_ValType_I32);
   EXPECT_EQ(WasmEdge_ValueGetI32(R[0]), 6912);
 
-  /// Test 2: call mul -- 789 * 4321
+  // Test 2: call mul -- 789 * 4321
   P[0] = WasmEdge_ValueGenExternRef(reinterpret_cast<void *>(&MulFunc));
   P[1] = WasmEdge_ValueGenI32(789);
   P[2] = WasmEdge_ValueGenI32(4321);
@@ -331,7 +331,7 @@ TEST(ExternRefTest, Ref__Functions) {
   EXPECT_EQ(R[0].Type, WasmEdge_ValType_I32);
   EXPECT_EQ(WasmEdge_ValueGetI32(R[0]), 3409269);
 
-  /// Test 3: call square -- 8256^2
+  // Test 3: call square -- 8256^2
   P[0] = WasmEdge_ValueGenExternRef(&SS);
   P[1] = WasmEdge_ValueGenI32(8256);
   FuncName = WasmEdge_StringCreateByCString("call_square");
@@ -341,7 +341,7 @@ TEST(ExternRefTest, Ref__Functions) {
   EXPECT_EQ(R[0].Type, WasmEdge_ValType_I32);
   EXPECT_EQ(WasmEdge_ValueGetI32(R[0]), 68161536);
 
-  /// Test 4: call sum and square -- (210 + 654)^2
+  // Test 4: call sum and square -- (210 + 654)^2
   P[0] = WasmEdge_ValueGenExternRef(&AC);
   P[1] = WasmEdge_ValueGenExternRef(&SS);
   P[2] = WasmEdge_ValueGenI32(210);
@@ -370,14 +370,14 @@ TEST(ExternRefTest, Ref__STL) {
   EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_VMValidate(VMCxt)));
   EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_VMInstantiate(VMCxt)));
 
-  /// STL Instances
+  // STL Instances
   std::stringstream STLSS;
   std::string STLStr, STLStrKey, STLStrVal;
   std::vector<uint32_t> STLVec;
   std::map<std::string, std::string> STLMap;
   std::set<uint32_t> STLSet;
 
-  /// Test 1: call ostream << std::string
+  // Test 1: call ostream << std::string
   STLStr = "hello world!";
   P[0] = WasmEdge_ValueGenExternRef(&STLSS);
   P[1] = WasmEdge_ValueGenExternRef(&STLStr);
@@ -387,7 +387,7 @@ TEST(ExternRefTest, Ref__STL) {
   WasmEdge_StringDelete(FuncName);
   EXPECT_EQ(STLSS.str(), "hello world!");
 
-  /// Test 2: call ostream << uint32_t
+  // Test 2: call ostream << uint32_t
   P[0] = WasmEdge_ValueGenExternRef(&STLSS);
   P[1] = WasmEdge_ValueGenI32(123456);
   FuncName = WasmEdge_StringCreateByCString("call_ostream_u32");
@@ -396,7 +396,7 @@ TEST(ExternRefTest, Ref__STL) {
   WasmEdge_StringDelete(FuncName);
   EXPECT_EQ(STLSS.str(), "hello world!123456");
 
-  /// Test 3: call map insert {key, val}
+  // Test 3: call map insert {key, val}
   STLStrKey = "one";
   STLStrVal = "1";
   P[0] = WasmEdge_ValueGenExternRef(&STLMap);
@@ -409,7 +409,7 @@ TEST(ExternRefTest, Ref__STL) {
   EXPECT_NE(STLMap.find(STLStrKey), STLMap.end());
   EXPECT_EQ(STLMap.find(STLStrKey)->second, STLStrVal);
 
-  /// Test 4: call map erase {key}
+  // Test 4: call map erase {key}
   STLStrKey = "one";
   P[0] = WasmEdge_ValueGenExternRef(&STLMap);
   P[1] = WasmEdge_ValueGenExternRef(&STLStrKey);
@@ -419,7 +419,7 @@ TEST(ExternRefTest, Ref__STL) {
   WasmEdge_StringDelete(FuncName);
   EXPECT_EQ(STLMap.find(STLStrKey), STLMap.end());
 
-  /// Test 5: call set insert {key}
+  // Test 5: call set insert {key}
   P[0] = WasmEdge_ValueGenExternRef(&STLSet);
   P[1] = WasmEdge_ValueGenI32(123456);
   FuncName = WasmEdge_StringCreateByCString("call_set_insert");
@@ -428,7 +428,7 @@ TEST(ExternRefTest, Ref__STL) {
   WasmEdge_StringDelete(FuncName);
   EXPECT_NE(STLSet.find(123456), STLSet.end());
 
-  /// Test 6: call set erase {key}
+  // Test 6: call set erase {key}
   STLSet.insert(3456);
   P[0] = WasmEdge_ValueGenExternRef(&STLSet);
   P[1] = WasmEdge_ValueGenI32(3456);
@@ -439,7 +439,7 @@ TEST(ExternRefTest, Ref__STL) {
   EXPECT_NE(STLSet.find(123456), STLSet.end());
   EXPECT_EQ(STLSet.find(3456), STLSet.end());
 
-  /// Test 7: call vector push {val}
+  // Test 7: call vector push {val}
   STLVec = {10, 20, 30, 40, 50, 60, 70, 80, 90};
   P[0] = WasmEdge_ValueGenExternRef(&STLVec);
   P[1] = WasmEdge_ValueGenI32(100);
@@ -450,7 +450,7 @@ TEST(ExternRefTest, Ref__STL) {
   EXPECT_EQ(STLVec.size(), 10U);
   EXPECT_EQ(STLVec[9], 100U);
 
-  /// Test 8: call vector[3:8) sum
+  // Test 8: call vector[3:8) sum
   auto ItBegin = STLVec.begin() + 3;
   auto ItEnd = STLVec.end() - 2;
   P[0] = WasmEdge_ValueGenExternRef(&ItBegin);

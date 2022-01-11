@@ -9,7 +9,7 @@
 namespace WasmEdge {
 namespace Executor {
 
-/// Instantiate Wasm Module. See "include/executor/executor.h".
+// Instantiate Wasm Module. See "include/executor/executor.h".
 Expect<void> Executor::instantiateModule(Runtime::StoreManager &StoreMgr,
                                          const AST::Module &Mod) {
   InsMode = InstantiateMode::Instantiate;
@@ -25,11 +25,11 @@ Expect<void> Executor::instantiateModule(Runtime::StoreManager &StoreMgr,
   return {};
 }
 
-/// Register host module. See "include/executor/executor.h".
+// Register host module. See "include/executor/executor.h".
 Expect<void> Executor::registerModule(Runtime::StoreManager &StoreMgr,
                                       const Runtime::ImportObject &Obj) {
   StoreMgr.reset();
-  /// Check is module name duplicated.
+  // Check is module name duplicated.
   if (auto Res = StoreMgr.findModule(Obj.getModuleName())) {
     spdlog::error(ErrCode::ModuleNameConflict);
     spdlog::error(ErrInfo::InfoRegistering(Obj.getModuleName()));
@@ -61,7 +61,7 @@ Expect<void> Executor::registerModule(Runtime::StoreManager &StoreMgr,
   return {};
 }
 
-/// Register Wasm module. See "include/executor/executor.h".
+// Register Wasm module. See "include/executor/executor.h".
 Expect<void> Executor::registerModule(Runtime::StoreManager &StoreMgr,
                                       const AST::Module &Mod,
                                       std::string_view Name) {
@@ -79,12 +79,12 @@ Expect<void> Executor::registerModule(Runtime::StoreManager &StoreMgr,
   return {};
 }
 
-/// Invoke function. See "include/executor/executor.h".
+// Invoke function. See "include/executor/executor.h".
 Expect<std::vector<std::pair<ValVariant, ValType>>>
 Executor::invoke(Runtime::StoreManager &StoreMgr, const uint32_t FuncAddr,
                  Span<const ValVariant> Params,
                  Span<const ValType> ParamTypes) {
-  /// Check and get function address from store manager.
+  // Check and get function address from store manager.
   Runtime::Instance::FunctionInstance *FuncInst;
   if (auto Res = StoreMgr.getFunction(FuncAddr)) {
     FuncInst = *Res;
@@ -92,7 +92,7 @@ Executor::invoke(Runtime::StoreManager &StoreMgr, const uint32_t FuncAddr,
     return Unexpect(Res);
   }
 
-  /// Check parameter and function type.
+  // Check parameter and function type.
   const auto &FuncType = FuncInst->getFuncType();
   const auto &PTypes = FuncType.getParamTypes();
   const auto &RTypes = FuncType.getReturnTypes();
@@ -104,12 +104,12 @@ Executor::invoke(Runtime::StoreManager &StoreMgr, const uint32_t FuncAddr,
     return Unexpect(ErrCode::FuncSigMismatch);
   }
 
-  /// Call runFunction.
+  // Call runFunction.
   if (auto Res = runFunction(StoreMgr, *FuncInst, Params); !Res) {
     return Unexpect(Res);
   }
 
-  /// Get return values.
+  // Get return values.
   std::vector<std::pair<ValVariant, ValType>> Returns(RTypes.size());
   for (uint32_t I = 0; I < RTypes.size(); ++I) {
     Returns[RTypes.size() - I - 1] =

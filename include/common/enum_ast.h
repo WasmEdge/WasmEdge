@@ -13,7 +13,7 @@
 ///
 //===----------------------------------------------------------------------===//
 
-/// This header is not exported to the C API.
+// This header is not exported to the C API.
 
 #ifndef WASMEDGE_C_API_ENUM_AST_H
 #define WASMEDGE_C_API_ENUM_AST_H
@@ -90,7 +90,7 @@ static inline std::unordered_map<ASTNodeAttr, std::string> ASTNodeAttrStr = {
 
 /// Instruction opcode enumeration class.
 enum class OpCode : uint16_t {
-  /// Control instructions
+  // Control instructions
   Unreachable = 0x00,
   Nop = 0x01,
   Block = 0x02,
@@ -105,28 +105,28 @@ enum class OpCode : uint16_t {
   Call = 0x10,
   Call_indirect = 0x11,
 
-  /// Reference Instructions
+  // Reference Instructions
   Ref__null = 0xD0,
   Ref__is_null = 0xD1,
   Ref__func = 0xD2,
 
-  /// Parametric Instructions
+  // Parametric Instructions
   Drop = 0x1A,
   Select = 0x1B,
   Select_t = 0x1C,
 
-  /// Variable Instructions
+  // Variable Instructions
   Local__get = 0x20,
   Local__set = 0x21,
   Local__tee = 0x22,
   Global__get = 0x23,
   Global__set = 0x24,
 
-  /// Table Instructions (part 1)
+  // Table Instructions (part 1)
   Table__get = 0x25,
   Table__set = 0x26,
 
-  /// Memory Instructions (part 1)
+  // Memory Instructions (part 1)
   I32__load = 0x28,
   I64__load = 0x29,
   F32__load = 0x2A,
@@ -153,13 +153,13 @@ enum class OpCode : uint16_t {
   Memory__size = 0x3F,
   Memory__grow = 0x40,
 
-  /// Const numeric instructions
+  // Const numeric instructions
   I32__const = 0x41,
   I64__const = 0x42,
   F32__const = 0x43,
   F64__const = 0x44,
 
-  /// Numeric instructions
+  // Numeric instructions
   I32__eqz = 0x45,
   I32__eq = 0x46,
   I32__ne = 0x47,
@@ -297,13 +297,13 @@ enum class OpCode : uint16_t {
   I64__trunc_sat_f64_s = 0xFC06,
   I64__trunc_sat_f64_u = 0xFC07,
 
-  /// Memory Instructions (part 2)
+  // Memory Instructions (part 2)
   Memory__init = 0xFC08,
   Data__drop = 0xFC09,
   Memory__copy = 0xFC0A,
   Memory__fill = 0xFC0B,
 
-  /// Table Instructions (part 2)
+  // Table Instructions (part 2)
   Table__init = 0xFC0C,
   Elem__drop = 0xFC0D,
   Table__copy = 0xFC0E,
@@ -311,7 +311,7 @@ enum class OpCode : uint16_t {
   Table__size = 0xFC10,
   Table__fill = 0xFC11,
 
-  /// SIMD Memory Instructions
+  // SIMD Memory Instructions
   V128__load = 0xFD00,
   V128__load8x8_s = 0xFD01,
   V128__load8x8_u = 0xFD02,
@@ -335,13 +335,13 @@ enum class OpCode : uint16_t {
   V128__store32_lane = 0xFD5A,
   V128__store64_lane = 0xFD5B,
 
-  /// SIMD Const Instructions
+  // SIMD Const Instructions
   V128__const = 0xFD0C,
 
-  /// SIMD Shuffle Instructions
+  // SIMD Shuffle Instructions
   I8x16__shuffle = 0xFD0D,
 
-  /// SIMD Lane Instructions
+  // SIMD Lane Instructions
   I8x16__extract_lane_s = 0xFD15,
   I8x16__extract_lane_u = 0xFD16,
   I8x16__replace_lane = 0xFD17,
@@ -357,7 +357,7 @@ enum class OpCode : uint16_t {
   F64x2__extract_lane = 0xFD21,
   F64x2__replace_lane = 0xFD22,
 
-  /// SIMD Numeric Instructions
+  // SIMD Numeric Instructions
   I8x16__swizzle = 0xFD0E,
   I8x16__splat = 0xFD0F,
   I16x8__splat = 0xFD10,
@@ -574,7 +574,7 @@ enum class OpCode : uint16_t {
 
 /// Instruction opcode enumeration string mapping.
 static inline std::unordered_map<OpCode, std::string> OpCodeStr = {
-    /// Control instructions
+    // Control instructions
     {OpCode::Unreachable, "unreachable"},
     {OpCode::Nop, "nop"},
     {OpCode::Block, "block"},
@@ -589,28 +589,28 @@ static inline std::unordered_map<OpCode, std::string> OpCodeStr = {
     {OpCode::Call, "call"},
     {OpCode::Call_indirect, "call_indirect"},
 
-    /// Reference Instructions
+    // Reference Instructions
     {OpCode::Ref__null, "ref.null"},
     {OpCode::Ref__is_null, "ref.is_null"},
     {OpCode::Ref__func, "ref.func"},
 
-    /// Parametric Instructions
+    // Parametric Instructions
     {OpCode::Drop, "drop"},
     {OpCode::Select, "select"},
     {OpCode::Select_t, "select"},
 
-    /// Variable Instructions
+    // Variable Instructions
     {OpCode::Local__get, "local.get"},
     {OpCode::Local__set, "local.set"},
     {OpCode::Local__tee, "local.tee"},
     {OpCode::Global__get, "global.get"},
     {OpCode::Global__set, "global.set"},
 
-    /// Table Instructions (part 1)
+    // Table Instructions (part 1)
     {OpCode::Table__get, "table.get"},
     {OpCode::Table__set, "table.set"},
 
-    /// Memory Instructions (part 1)
+    // Memory Instructions (part 1)
     {OpCode::I32__load, "i32.load"},
     {OpCode::I64__load, "i64.load"},
     {OpCode::F32__load, "f32.load"},
@@ -637,13 +637,13 @@ static inline std::unordered_map<OpCode, std::string> OpCodeStr = {
     {OpCode::Memory__size, "memory.size"},
     {OpCode::Memory__grow, "memory.grow"},
 
-    /// Const numeric instructions
+    // Const numeric instructions
     {OpCode::I32__const, "i32.const"},
     {OpCode::I64__const, "i64.const"},
     {OpCode::F32__const, "f32.const"},
     {OpCode::F64__const, "f64.const"},
 
-    /// Numeric instructions
+    // Numeric instructions
     {OpCode::I32__eqz, "i32.eqz"},
     {OpCode::I32__eq, "i32.eq"},
     {OpCode::I32__ne, "i32.ne"},
@@ -781,13 +781,13 @@ static inline std::unordered_map<OpCode, std::string> OpCodeStr = {
     {OpCode::I64__trunc_sat_f64_s, "i64.trunc_sat_f64_s"},
     {OpCode::I64__trunc_sat_f64_u, "i64.trunc_sat_f64_u"},
 
-    /// Memory Instructions (part 2)
+    // Memory Instructions (part 2)
     {OpCode::Memory__init, "memory.init"},
     {OpCode::Data__drop, "data.drop"},
     {OpCode::Memory__copy, "memory.copy"},
     {OpCode::Memory__fill, "memory.fill"},
 
-    /// Table Instructions (part 2)
+    // Table Instructions (part 2)
     {OpCode::Table__init, "table.init"},
     {OpCode::Elem__drop, "elem.drop"},
     {OpCode::Table__copy, "table.copy"},
@@ -795,7 +795,7 @@ static inline std::unordered_map<OpCode, std::string> OpCodeStr = {
     {OpCode::Table__size, "table.size"},
     {OpCode::Table__fill, "table.fill"},
 
-    /// SIMD Memory Instructions
+    // SIMD Memory Instructions
     {OpCode::V128__load, "v128.load"},
     {OpCode::V128__load8x8_s, "v128.load8x8_s"},
     {OpCode::V128__load8x8_u, "v128.load8x8_u"},
@@ -819,13 +819,13 @@ static inline std::unordered_map<OpCode, std::string> OpCodeStr = {
     {OpCode::V128__store32_lane, "v128.store32_lane"},
     {OpCode::V128__store64_lane, "v128.store64_lane"},
 
-    /// SIMD Const Instructions
+    // SIMD Const Instructions
     {OpCode::V128__const, "v128.const"},
 
-    /// SIMD Shuffle Instructions
+    // SIMD Shuffle Instructions
     {OpCode::I8x16__shuffle, "i8x16.shuffle"},
 
-    /// SIMD Lane Instructions
+    // SIMD Lane Instructions
     {OpCode::I8x16__extract_lane_s, "i8x16.extract_lane_s"},
     {OpCode::I8x16__extract_lane_u, "i8x16.extract_lane_u"},
     {OpCode::I8x16__replace_lane, "i8x16.replace_lane"},
@@ -841,7 +841,7 @@ static inline std::unordered_map<OpCode, std::string> OpCodeStr = {
     {OpCode::F64x2__extract_lane, "f64x2.extract_lane"},
     {OpCode::F64x2__replace_lane, "f64x2.replace_lane"},
 
-    /// SIMD Numeric Instructions
+    // SIMD Numeric Instructions
     {OpCode::I8x16__swizzle, "i8x16.swizzle"},
     {OpCode::I8x16__splat, "i8x16.splat"},
     {OpCode::I16x8__splat, "i16x8.splat"},
@@ -1057,4 +1057,4 @@ static inline std::unordered_map<OpCode, std::string> OpCodeStr = {
 
 } // namespace WasmEdge
 
-#endif /// WASMEDGE_C_API_ENUM_AST_H
+#endif // WASMEDGE_C_API_ENUM_AST_H

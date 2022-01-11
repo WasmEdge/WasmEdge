@@ -106,7 +106,7 @@ private:
     WasmFunction(Span<const std::pair<uint32_t, ValType>> Locs,
                  AST::InstrView Expr) noexcept
         : Locals(Locs.begin(), Locs.end()) {
-      /// FIXME: Modify the capacity to prevent from connection of 2 vectors.
+      // FIXME: Modify the capacity to prevent from connection of 2 vectors.
       Instrs.reserve(Expr.size() + 1);
       Instrs.assign(Expr.begin(), Expr.end());
     }

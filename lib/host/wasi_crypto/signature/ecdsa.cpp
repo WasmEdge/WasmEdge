@@ -312,7 +312,11 @@ template <NID Nid>
 WasiCryptoExpect<void> Ecdsa<Nid>::VerificationState::verify(
     std::shared_ptr<Signatures::Signature> Sig) {
   auto Data = Sig->exportData(__WASI_SIGNATURE_ENCODING_RAW);
-  opensslAssuming(EVP_DigestVerifyFinal(Ctx.get(), Data.data(), Data.size()));
+  if (!Data) {
+    return WasiCryptoUnexpect(Data);
+  }
+
+  opensslAssuming(EVP_DigestVerifyFinal(Ctx.get(), Data->data(), Data->size()));
   return {};
 }
 

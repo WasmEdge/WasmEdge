@@ -2,7 +2,6 @@
 
 #include "host/wasi_crypto/symmetric/aeads/charcha_poly.h"
 
-#include <cstddef>
 #include <map>
 #include <openssl/rand.h>
 
@@ -10,28 +9,6 @@ namespace WasmEdge {
 namespace Host {
 namespace WASICrypto {
 namespace Symmetric {
-namespace {
-constexpr __wasi_size_t getNonceSize(SymmetricAlgorithm Alg) {
-  switch (Alg) {
-  case SymmetricAlgorithm::ChaCha20Poly1305:
-    return 12;
-  case SymmetricAlgorithm::XChaCha20Poly1305:
-    return 24;
-  default:
-    assumingUnreachable();
-  }
-}
-
-constexpr const EVP_CIPHER *getCipher(SymmetricAlgorithm Alg) {
-  switch (Alg) {
-  case SymmetricAlgorithm::ChaCha20Poly1305:
-    return EVP_chacha20_poly1305();
-  case SymmetricAlgorithm::XChaCha20Poly1305:
-    return EVP_chacha20_poly1305();
-  default:
-    assumingUnreachable();
-  }
-}
 
 // constexpr __wasi_size_t getKeySize(SymmetricAlgorithm Alg) {
 //   switch (Alg) {
@@ -45,11 +22,11 @@ constexpr const EVP_CIPHER *getCipher(SymmetricAlgorithm Alg) {
 // }
 
 inline __wasi_size_t TagLen = 12;
-} // namespace
 
-WasiCryptoExpect<std::unique_ptr<ChaChaPolyState>>
-ChaChaPolyState::open(SymmetricAlgorithm Alg, std::shared_ptr<Key> OptKey,
-                      std::shared_ptr<Option> OptOption) {
+template <int NonceBit>
+WasiCryptoExpect<std::unique_ptr<typename ChaChaPoly<NonceBit>::State>>
+ChaChaPoly<NonceBit>::State::open(std::shared_ptr<Key> OptKey,
+                                  std::shared_ptr<Option> OptOption) {
   ensureOrReturn(OptKey, __WASI_CRYPTO_ERRNO_KEY_REQUIRED);
   ensureOrReturn(OptOption, __WASI_CRYPTO_ERRNO_NONCE_REQUIRED);
 
@@ -61,21 +38,25 @@ ChaChaPolyState::open(SymmetricAlgorithm Alg, std::shared_ptr<Key> OptKey,
   std::vector<uint8_t> Key =
       OptKey->inner().locked([](auto &Inner) { return Inner.Data; });
 
-  ensureOrReturn(Nonce->size() == getNonceSize(Alg),
+  ensureOrReturn(Nonce->size() == NonceBit / 8,
                  __WASI_CRYPTO_ERRNO_INVALID_HANDLE);
   //  ensureOrReturn(getKeySize(Alg) == Key.size(),
   //                 __WASI_CRYPTO_ERRNO_INVALID_HANDLE);
 
   EVP_CIPHER_CTX *Ctx = EVP_CIPHER_CTX_new();
-  opensslAssuming(Ctx);
-  opensslAssuming(EVP_CipherInit(Ctx, getCipher(Alg), Key.data(), Nonce->data(),
-                                 Mode::Unchanged));
+  EVP_CIPHER_CTX_ctrl(Ctx, EVP_CTRL_AEAD_SET_IVLEN, NonceBit / 8, nullptr);
 
-  return std::make_unique<ChaChaPolyState>(Ctx);
+  opensslAssuming(Ctx);
+  opensslAssuming(EVP_CipherInit_ex(Ctx, EVP_chacha20_poly1305(), nullptr,
+                                    Key.data(), Nonce->data(),
+                                    Mode::Unchanged));
+
+  return std::make_unique<ChaChaPoly<NonceBit>::State>(Ctx);
 }
 
+template <int NonceBit>
 WasiCryptoExpect<std::unique_ptr<Key>>
-ChaChaPolyKeyBuilder::generate(std::shared_ptr<Option>) {
+ChaChaPoly<NonceBit>::KeyBuilder::generate(std::shared_ptr<Option>) {
   auto Len = keyLen();
   if (!Len) {
     return WasiCryptoUnexpect(Len);
@@ -88,13 +69,15 @@ ChaChaPolyKeyBuilder::generate(std::shared_ptr<Option>) {
   return std::make_unique<Key>(Alg, std::move(Res));
 }
 
+template <int NonceBit>
 WasiCryptoExpect<std::unique_ptr<Key>>
-ChaChaPolyKeyBuilder::import(Span<uint8_t const> Raw) {
+ChaChaPoly<NonceBit>::KeyBuilder::import(Span<uint8_t const> Raw) {
   return std::make_unique<Key>(Alg,
                                std::vector<uint8_t>{Raw.begin(), Raw.end()});
 }
 
-WasiCryptoExpect<__wasi_size_t> ChaChaPolyKeyBuilder::keyLen() {
+template <int NonceBit>
+WasiCryptoExpect<__wasi_size_t> ChaChaPoly<NonceBit>::KeyBuilder::keyLen() {
   switch (Alg) {
   case SymmetricAlgorithm::ChaCha20Poly1305:
     return 16;
@@ -105,19 +88,23 @@ WasiCryptoExpect<__wasi_size_t> ChaChaPolyKeyBuilder::keyLen() {
   }
 }
 
+template <int NonceBit>
 WasiCryptoExpect<std::vector<uint8_t>>
-ChaChaPolyState::optionsGet(std::string_view Name) {
+ChaChaPoly<NonceBit>::State::optionsGet(std::string_view Name) {
   ensureOrReturn(OptOptions, __WASI_CRYPTO_ERRNO_OPTION_NOT_SET);
   return OptOptions->get(Name);
 }
 
+template <int NonceBit>
 WasiCryptoExpect<uint64_t>
-ChaChaPolyState::optionsGetU64(std::string_view Name) {
+ChaChaPoly<NonceBit>::State::optionsGetU64(std::string_view Name) {
   ensureOrReturn(OptOptions, __WASI_CRYPTO_ERRNO_OPTION_NOT_SET);
   return OptOptions->getU64(Name);
 }
 
-WasiCryptoExpect<void> ChaChaPolyState::absorb(Span<const uint8_t> Data) {
+template <int NonceBit>
+WasiCryptoExpect<void>
+ChaChaPoly<NonceBit>::State::absorb(Span<const uint8_t> Data) {
   int Len;
   opensslAssuming(
       EVP_CipherUpdate(Ctx.get(), nullptr, &Len, Data.data(), Data.size()));
@@ -125,9 +112,9 @@ WasiCryptoExpect<void> ChaChaPolyState::absorb(Span<const uint8_t> Data) {
   return {};
 }
 
-WasiCryptoExpect<Tag>
-ChaChaPolyState::encryptDetachedUnchecked(Span<uint8_t> Out,
-                                          Span<const uint8_t> Data) {
+template <int NonceBit>
+WasiCryptoExpect<Tag> ChaChaPoly<NonceBit>::State::encryptDetachedUnchecked(
+    Span<uint8_t> Out, Span<const uint8_t> Data) {
   opensslAssuming(EVP_CipherInit_ex(Ctx.get(), nullptr, nullptr, nullptr,
                                     nullptr, Mode::Encrypt));
   //  auto Nonce = Options.get("nonce");
@@ -165,7 +152,9 @@ ChaChaPolyState::encryptDetachedUnchecked(Span<uint8_t> Out,
   return RawTagData;
 }
 
-WasiCryptoExpect<__wasi_size_t> ChaChaPolyState::decryptDetachedUnchecked(
+template <int NonceBit>
+WasiCryptoExpect<__wasi_size_t>
+ChaChaPoly<NonceBit>::State::decryptDetachedUnchecked(
     Span<uint8_t> Out, Span<const uint8_t> Data, Span<uint8_t const> RawTag) {
   opensslAssuming(EVP_CipherInit_ex(Ctx.get(), nullptr, nullptr, nullptr,
                                     nullptr, Mode::Decrypt));
@@ -187,10 +176,13 @@ WasiCryptoExpect<__wasi_size_t> ChaChaPolyState::decryptDetachedUnchecked(
   return ActualOutSize;
 }
 
-WasiCryptoExpect<__wasi_size_t> ChaChaPolyState::maxTagLen() {
+template <int NonceBit>
+WasiCryptoExpect<__wasi_size_t> ChaChaPoly<NonceBit>::State::maxTagLen() {
   return WasmEdge::Host::WASICrypto::WasiCryptoExpect<__wasi_size_t>();
 }
 
+template class ChaChaPoly<96>;
+// template class ChaChaPoly<192>;
 } // namespace Symmetric
 } // namespace WASICrypto
 } // namespace Host

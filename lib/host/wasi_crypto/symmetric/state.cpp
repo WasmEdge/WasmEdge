@@ -25,8 +25,9 @@ State::open(SymmetricAlgorithm Alg, std::shared_ptr<Key> OptKey,
   }
   switch (Alg) {
   case SymmetricAlgorithm::HmacSha256:
+    return HmacSha256::State::open(OptKey, OptOption);
   case SymmetricAlgorithm::HmacSha512:
-    return HmacSha2State::open(Alg, OptKey, OptOption);
+    return HmacSha512::State::open(OptKey, OptOption);
   case SymmetricAlgorithm::HkdfSha256Expand:
     return Hkdf256Expand::State::open(OptKey, OptOption);
   case SymmetricAlgorithm::HkdfSha256Extract:
@@ -36,20 +37,21 @@ State::open(SymmetricAlgorithm Alg, std::shared_ptr<Key> OptKey,
   case SymmetricAlgorithm::HkdfSha512Extract:
     return Hkdf512Extract::State::open(OptKey, OptOption);
   case SymmetricAlgorithm::Sha256:
-    return Sha256State ::open(OptKey, OptOption);
+    return Sha256State::open(OptKey, OptOption);
   case SymmetricAlgorithm::Sha512:
     return Sha512State::open(OptKey, OptOption);
   case SymmetricAlgorithm::Sha512_256:
     return Sha512_256State::open(OptKey, OptOption);
   case SymmetricAlgorithm::Aes128Gcm:
+    return AesGcm128::State::open(OptKey, OptOption);
   case SymmetricAlgorithm::Aes256Gcm:
-    return AesGcmState::open(Alg, OptKey, OptOption);
+    return AesGcm256::State::open(OptKey, OptOption);
   case SymmetricAlgorithm::ChaCha20Poly1305:
+    return ChaChaPoly1305::State::open(OptKey, OptOption);
   case SymmetricAlgorithm::XChaCha20Poly1305:
-    return ChaChaPolyState::open(Alg, OptKey, OptOption);
   case SymmetricAlgorithm::Xoodyak128:
   case SymmetricAlgorithm::Xoodyak160:
-    return XoodyakState::open(Alg, OptKey, OptOption);
+    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
   default:
     assumingUnreachable();
   }

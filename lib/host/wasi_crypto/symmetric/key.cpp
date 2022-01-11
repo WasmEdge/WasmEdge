@@ -34,8 +34,9 @@ WasiCryptoExpect<std::unique_ptr<Key::Builder>>
 Key::builder(SymmetricAlgorithm Alg) {
   switch (Alg) {
   case SymmetricAlgorithm::HmacSha256:
+    return std::make_unique<HmacSha256::KeyBuilder>(Alg);
   case SymmetricAlgorithm::HmacSha512:
-    return std::make_unique<HmacSha2KeyBuilder>(Alg);
+    return std::make_unique<HmacSha512::KeyBuilder>(Alg);
   case SymmetricAlgorithm::HkdfSha256Expand:
     return std::make_unique<Hkdf256Expand::KeyBuilder>(Alg);
   case SymmetricAlgorithm::HkdfSha256Extract:
@@ -45,14 +46,15 @@ Key::builder(SymmetricAlgorithm Alg) {
   case SymmetricAlgorithm::HkdfSha512Extract:
     return std::make_unique<Hkdf512Extract::KeyBuilder>(Alg);
   case SymmetricAlgorithm::Aes128Gcm:
+    return std::make_unique<AesGcm128::KeyBuilder>(Alg);
   case SymmetricAlgorithm::Aes256Gcm:
-    return std::make_unique<AesGcmKeyBuilder>(Alg);
+    return std::make_unique<AesGcm256::KeyBuilder>(Alg);
   case SymmetricAlgorithm::ChaCha20Poly1305:
+    return std::make_unique<ChaChaPoly1305::KeyBuilder>(Alg);
   case SymmetricAlgorithm::XChaCha20Poly1305:
-    return std::make_unique<ChaChaPolyKeyBuilder>(Alg);
   case SymmetricAlgorithm::Xoodyak128:
   case SymmetricAlgorithm::Xoodyak160:
-    return std::make_unique<XoodyakKeyBuilder>(Alg);
+    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
   default:
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_OPERATION);
   }

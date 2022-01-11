@@ -8,23 +8,12 @@ namespace Host {
 namespace WASICrypto {
 namespace Symmetric {
 namespace {
-constexpr const EVP_CIPHER *getCipher(SymmetricAlgorithm Alg) {
-  switch (Alg) {
-  case SymmetricAlgorithm::Aes128Gcm:
+constexpr const EVP_CIPHER *getCipher(int Bit) {
+  switch (Bit) {
+  case 128:
     return EVP_aes_128_gcm();
-  case SymmetricAlgorithm::Aes256Gcm:
+  case 256:
     return EVP_aes_256_gcm();
-  default:
-    assumingUnreachable();
-  }
-}
-
-constexpr __wasi_size_t getKeySize(SymmetricAlgorithm Alg) {
-  switch (Alg) {
-  case SymmetricAlgorithm::Aes128Gcm:
-    return 16;
-  case SymmetricAlgorithm::Aes256Gcm:
-    return 32;
   default:
     assumingUnreachable();
   }
@@ -35,40 +24,32 @@ inline constexpr __wasi_size_t NonceSize = 12;
 
 } // namespace
 
+template <int Bit>
 WasiCryptoExpect<std::unique_ptr<Key>>
-AesGcmKeyBuilder::generate(std::shared_ptr<Option>) {
-  auto Len = keyLen();
-  if (!Len) {
-    return WasiCryptoUnexpect(Len);
-  }
-
-  std::vector<uint8_t> Res(*Len, 0);
+AesGcm<Bit>::KeyBuilder::generate(std::shared_ptr<Option>) {
+  std::vector<uint8_t> Res(Bit / 8, 0);
   ensureOrReturn(RAND_bytes(Res.data(), Res.size()),
                  __WASI_CRYPTO_ERRNO_RNG_ERROR);
 
   return std::make_unique<Key>(Alg, std::move(Res));
 }
 
+template <int Bit>
 WasiCryptoExpect<std::unique_ptr<Key>>
-AesGcmKeyBuilder::import(Span<uint8_t const> Raw) {
+AesGcm<Bit>::KeyBuilder::import(Span<uint8_t const> Raw) {
   return std::make_unique<Key>(Alg,
                                std::vector<uint8_t>{Raw.begin(), Raw.end()});
 }
 
-WasiCryptoExpect<__wasi_size_t> AesGcmKeyBuilder::keyLen() {
-  switch (Alg) {
-  case SymmetricAlgorithm::Aes128Gcm:
-    return 16;
-  case SymmetricAlgorithm::Aes256Gcm:
-    return 32;
-  default:
-    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_UNSUPPORTED_ALGORITHM);
-  }
+template <int Bit>
+WasiCryptoExpect<__wasi_size_t> AesGcm<Bit>::KeyBuilder::keyLen() {
+  return Bit / 8;
 }
 
-WasiCryptoExpect<std::unique_ptr<AesGcmState>>
-AesGcmState::open(SymmetricAlgorithm Alg, std::shared_ptr<Key> OptKey,
-                  std::shared_ptr<Option> OptOption) {
+template <int Bit>
+WasiCryptoExpect<std::unique_ptr<typename AesGcm<Bit>::State>>
+AesGcm<Bit>::State::open(std::shared_ptr<Key> OptKey,
+                         std::shared_ptr<Option> OptOption) {
   ensureOrReturn(OptKey, __WASI_CRYPTO_ERRNO_KEY_REQUIRED);
   ensureOrReturn(OptOption, __WASI_CRYPTO_ERRNO_NONCE_REQUIRED);
 
@@ -82,27 +63,31 @@ AesGcmState::open(SymmetricAlgorithm Alg, std::shared_ptr<Key> OptKey,
 
   ensureOrReturn(Nonce->size() == NonceSize,
                  __WASI_CRYPTO_ERRNO_INVALID_HANDLE);
-  ensureOrReturn(getKeySize(Alg) == Key.size(),
-                 __WASI_CRYPTO_ERRNO_INVALID_HANDLE);
+
+  ensureOrReturn(Bit / 8 == Key.size(), __WASI_CRYPTO_ERRNO_INVALID_HANDLE);
 
   EVP_CIPHER_CTX *Ctx = EVP_CIPHER_CTX_new();
   opensslAssuming(Ctx);
-  opensslAssuming(EVP_CipherInit(Ctx, getCipher(Alg), Key.data(), Nonce->data(),
+  opensslAssuming(EVP_CipherInit(Ctx, getCipher(Bit), Key.data(), Nonce->data(),
                                  Mode::Unchanged));
 
-  return std::make_unique<AesGcmState>(Ctx, OptOption);
+  return std::make_unique<AesGcm<Bit>::State>(Ctx, OptOption);
 }
 
+template <int Bit>
 WasiCryptoExpect<std::vector<uint8_t>>
-AesGcmState::optionsGet(std::string_view Name) {
+AesGcm<Bit>::State::optionsGet(std::string_view Name) {
   return OptOption->get(Name);
 }
 
-WasiCryptoExpect<uint64_t> AesGcmState::optionsGetU64(std::string_view Name) {
+template <int Bit>
+WasiCryptoExpect<uint64_t>
+AesGcm<Bit>::State::optionsGetU64(std::string_view Name) {
   return OptOption->getU64(Name);
 }
 
-WasiCryptoExpect<void> AesGcmState::absorb(Span<const uint8_t> Data) {
+template <int Bit>
+WasiCryptoExpect<void> AesGcm<Bit>::State::absorb(Span<const uint8_t> Data) {
   int Len;
   // TODO: need change Openssl AAD default length from 12 if beyond?
 
@@ -112,9 +97,10 @@ WasiCryptoExpect<void> AesGcmState::absorb(Span<const uint8_t> Data) {
   return {};
 }
 
+template <int Bit>
 WasiCryptoExpect<Tag>
-AesGcmState::encryptDetachedUnchecked(Span<uint8_t> Out,
-                                      Span<const uint8_t> Data) {
+AesGcm<Bit>::State::encryptDetachedUnchecked(Span<uint8_t> Out,
+                                             Span<const uint8_t> Data) {
 
   opensslAssuming(EVP_CipherInit_ex(Ctx.get(), nullptr, nullptr, nullptr,
                                     nullptr, Mode::Encrypt));
@@ -155,7 +141,8 @@ AesGcmState::encryptDetachedUnchecked(Span<uint8_t> Out,
   return RawTagData;
 }
 
-WasiCryptoExpect<__wasi_size_t> AesGcmState::decryptDetachedUnchecked(
+template <int Bit>
+WasiCryptoExpect<__wasi_size_t> AesGcm<Bit>::State::decryptDetachedUnchecked(
     Span<uint8_t> Out, Span<const uint8_t> Data, Span<uint8_t const> RawTag) {
   opensslAssuming(EVP_CipherInit_ex(Ctx.get(), nullptr, nullptr, nullptr,
                                     nullptr, Mode::Decrypt));
@@ -176,6 +163,9 @@ WasiCryptoExpect<__wasi_size_t> AesGcmState::decryptDetachedUnchecked(
 
   return ActualOutSize;
 }
+
+template class AesGcm<128>;
+template class AesGcm<256>;
 
 } // namespace Symmetric
 } // namespace WASICrypto

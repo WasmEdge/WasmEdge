@@ -307,7 +307,12 @@ template <int Pad, int Size, int Sha>
 WasiCryptoExpect<void> Rsa<Pad, Size, Sha>::VerificationState::verify(
     std::shared_ptr<Signatures::Signature> Sig) {
   auto Data = Sig->exportData(__WASI_SIGNATURE_ENCODING_RAW);
-  opensslAssuming(EVP_DigestVerifyFinal(MdCtx.get(), Data.data(), Data.size()));
+  if (!Data) {
+    return WasiCryptoUnexpect(Data);
+  }
+
+  opensslAssuming(
+      EVP_DigestVerifyFinal(MdCtx.get(), Data->data(), Data->size()));
 
   return {};
 }

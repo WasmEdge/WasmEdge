@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "host/wasi_crypto/signature/eddsa.h"
+#include <cstddef>
 #include <openssl/x509.h>
 
 namespace WasmEdge {
@@ -270,7 +271,11 @@ EddsaVerificationState::update(Span<const uint8_t> Input) {
 WasiCryptoExpect<void>
 EddsaVerificationState::verify(std::shared_ptr<Signature> Sig) {
   auto Data = Sig->exportData(__WASI_SIGNATURE_ENCODING_RAW);
-  opensslAssuming(EVP_DigestVerify(MdCtx.get(), Data.data(), Data.size(),
+  if (!Data) {
+    return WasiCryptoUnexpect(Data);
+  }
+
+  opensslAssuming(EVP_DigestVerify(MdCtx.get(), Data->data(), Data->size(),
                                    Cache.data(), Cache.size()));
 
   return {};

@@ -600,6 +600,26 @@ public:
   WasiExpect<void> sockShutdown(__wasi_sdflags_t SdFlags) const noexcept {
     return Node.sockShutdown(SdFlags);
   }
+
+  WasiExpect<void> sockGetOpt(int32_t Level, int32_t OptName, void *FlagPtr,
+                              uint32_t *FlagSizePtr) const noexcept {
+    return Node.sockGetOpt(Level, OptName, FlagPtr, FlagSizePtr);
+  }
+  WasiExpect<void> sockSetOpt(int32_t Level, int32_t OptName, void *FlagPtr,
+                              uint32_t FlagSizePtr) const noexcept {
+    return Node.sockSetOpt(Level, OptName, FlagPtr, FlagSizePtr);
+  }
+
+  WasiExpect<void> sockGetLoaclAddr(uint8_t *Address, uint32_t *AddrTypePtr,
+                                    uint32_t *PortPtr) const noexcept {
+    return Node.sockGetLoaclAddr(Address, AddrTypePtr, PortPtr);
+  }
+
+  WasiExpect<void> sockGetPeerAddr(uint8_t *Address, uint32_t *AddrTypePtr,
+                                   uint32_t *PortPtr) const noexcept {
+    return Node.sockGetPeerAddr(Address, AddrTypePtr, PortPtr);
+  }
+
   __wasi_rights_t fsRightsBase() const noexcept { return FsRightsBase; }
 
   __wasi_rights_t fsRightsInheriting() const noexcept {
@@ -676,7 +696,8 @@ public:
 
   WasiExpect<void> read(std::shared_ptr<VINode> Fd,
                         __wasi_userdata_t UserData) noexcept {
-    if (!Fd->can(__WASI_RIGHTS_POLL_FD_READWRITE | __WASI_RIGHTS_FD_READ)) {
+    if (!Fd->can(__WASI_RIGHTS_POLL_FD_READWRITE) &&
+        !Fd->can(__WASI_RIGHTS_FD_READ)) {
       return WasiUnexpect(__WASI_ERRNO_NOTCAPABLE);
     }
     return Poller::read(Fd->Node, UserData);

@@ -1,5 +1,18 @@
 (unreleased)
 ------------
+- [PySDK] PyPi Testing published. [Shreyas Atre]
+- [PySDK] VM API made consistent. [Shreyas Atre]
+- [PySDK] Exclude pybind11 from getting formatted. [Shreyas Atre]
+- [PySDK] Added Executor support. [Shreyas Atre]
+
+  * Fixed ASTModuleCxt address of pointer function
+  * Used the above function in Loader
+- [PySDK] Added Validator support. [Shreyas Atre]
+- [PySDK] Added Loader support. [Shreyas Atre]
+- [PySDK] Added AST Module Context support. [Shreyas Atre]
+- [PySDK] Cleanup: Code Cosmetic changes. [Shreyas Atre]
+
+  * Cleanup and re organizing into multiple files.
 - [PySDK] Added WasmEdge_Value Support and Corresponding tests. [Shreyas
   Atre]
 - [PySDK] Fix: Host function execution. [Shreyas Atre]

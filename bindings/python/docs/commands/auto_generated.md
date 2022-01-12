@@ -6,11 +6,14 @@ NAME
 
 CLASSES
     pybind11_builtins.pybind11_object(builtins.object)
+        ASTModule
         CompilerOutput
         Configure
+        Executor
         Function
         Host
         ImportObject
+        Loader
         Logging
         Optimization
         Proposal
@@ -18,7 +21,31 @@ CLASSES
         Store
         Type
         VM
+        Validator
         Value
+    
+    class ASTModule(pybind11_builtins.pybind11_object)
+     |  Method resolution order:
+     |      ASTModule
+     |      pybind11_builtins.pybind11_object
+     |      builtins.object
+     |  
+     |  Methods defined here:
+     |  
+     |  __init__(...)
+     |      __init__(self: WasmEdge.ASTModule) -> None
+     |  
+     |  exports(...)
+     |      exports(self: WasmEdge.ASTModule) -> list
+     |  
+     |  imports(...)
+     |      imports(self: WasmEdge.ASTModule) -> list
+     |  
+     |  ----------------------------------------------------------------------
+     |  Static methods inherited from pybind11_builtins.pybind11_object:
+     |  
+     |  __new__(*args, **kwargs) from pybind11_builtins.pybind11_type
+     |      Create and return a new object.  See help(type) for accurate signature.
     
     class CompilerOutput(pybind11_builtins.pybind11_object)
      |  Members:
@@ -127,6 +154,29 @@ CLASSES
      |  __new__(*args, **kwargs) from pybind11_builtins.pybind11_type
      |      Create and return a new object.  See help(type) for accurate signature.
     
+    class Executor(pybind11_builtins.pybind11_object)
+     |  Method resolution order:
+     |      Executor
+     |      pybind11_builtins.pybind11_object
+     |      builtins.object
+     |  
+     |  Methods defined here:
+     |  
+     |  __init__(...)
+     |      __init__(self: WasmEdge.Executor, arg0: WasmEdge.Configure) -> None
+     |  
+     |  instantiate(...)
+     |      instantiate(self: WasmEdge.Executor, arg0: WasmEdge.Store, arg1: WasmEdge.ASTModule) -> WasmEdge.Result
+     |  
+     |  invoke(...)
+     |      invoke(self: WasmEdge.Executor, arg0: WasmEdge.Store, arg1: str, arg2: list) -> tuple
+     |  
+     |  ----------------------------------------------------------------------
+     |  Static methods inherited from pybind11_builtins.pybind11_object:
+     |  
+     |  __new__(*args, **kwargs) from pybind11_builtins.pybind11_type
+     |      Create and return a new object.  See help(type) for accurate signature.
+    
     class Function(pybind11_builtins.pybind11_object)
      |  Method resolution order:
      |      Function
@@ -224,6 +274,31 @@ CLASSES
      |  
      |  add(...)
      |      add(self: WasmEdge.ImportObject, arg0: WasmEdge.Function, arg1: str) -> None
+     |  
+     |  ----------------------------------------------------------------------
+     |  Static methods inherited from pybind11_builtins.pybind11_object:
+     |  
+     |  __new__(*args, **kwargs) from pybind11_builtins.pybind11_type
+     |      Create and return a new object.  See help(type) for accurate signature.
+    
+    class Loader(pybind11_builtins.pybind11_object)
+     |  Method resolution order:
+     |      Loader
+     |      pybind11_builtins.pybind11_object
+     |      builtins.object
+     |  
+     |  Methods defined here:
+     |  
+     |  __init__(...)
+     |      __init__(self: WasmEdge.Loader, arg0: WasmEdge.Configure) -> None
+     |  
+     |  parse(...)
+     |      parse(*args, **kwargs)
+     |      Overloaded function.
+     |      
+     |      1. parse(self: WasmEdge.Loader, arg0: WasmEdge.ASTModule, arg1: str) -> WasmEdge.Result
+     |      
+     |      2. parse(self: WasmEdge.Loader, arg0: WasmEdge.ASTModule, arg1: tuple) -> WasmEdge.Result
      |  
      |  ----------------------------------------------------------------------
      |  Static methods inherited from pybind11_builtins.pybind11_object:
@@ -611,8 +686,17 @@ CLASSES
      |      
      |      4. __init__(self: WasmEdge.VM, arg0: WasmEdge.Configure, arg1: WasmEdge.Store) -> None
      |  
-     |  add(...)
-     |      add(self: WasmEdge.VM, arg0: pysdk::import_object) -> WasmEdge.Result
+     |  register(...)
+     |      register(*args, **kwargs)
+     |      Overloaded function.
+     |      
+     |      1. register(self: WasmEdge.VM, arg0: str, arg1: WasmEdge.ASTModule) -> WasmEdge.Result
+     |      
+     |      2. register(self: WasmEdge.VM, arg0: str, arg1: tuple) -> WasmEdge.Result
+     |      
+     |      3. register(self: WasmEdge.VM, arg0: str, arg1: str) -> WasmEdge.Result
+     |      
+     |      4. register(self: WasmEdge.VM, arg0: pysdk::import_object) -> WasmEdge.Result
      |  
      |  run(...)
      |      run(*args, **kwargs)
@@ -623,6 +707,26 @@ CLASSES
      |      2. run(self: WasmEdge.VM, arg0: object, arg1: object, arg2: object) -> tuple
      |      
      |      3. run(self: WasmEdge.VM, arg0: object, arg1: object, arg2: object, arg3: str) -> tuple
+     |  
+     |  ----------------------------------------------------------------------
+     |  Static methods inherited from pybind11_builtins.pybind11_object:
+     |  
+     |  __new__(*args, **kwargs) from pybind11_builtins.pybind11_type
+     |      Create and return a new object.  See help(type) for accurate signature.
+    
+    class Validator(pybind11_builtins.pybind11_object)
+     |  Method resolution order:
+     |      Validator
+     |      pybind11_builtins.pybind11_object
+     |      builtins.object
+     |  
+     |  Methods defined here:
+     |  
+     |  __init__(...)
+     |      __init__(self: WasmEdge.Validator, arg0: WasmEdge.Configure) -> None
+     |  
+     |  validate(...)
+     |      validate(self: WasmEdge.Validator, arg0: WasmEdge.ASTModule) -> WasmEdge.Result
      |  
      |  ----------------------------------------------------------------------
      |  Static methods inherited from pybind11_builtins.pybind11_object:

@@ -80,7 +80,7 @@ template <int Pad, int Size, int Sha> class Rsa {
   }
 
 public:
-  class PublicKey : public Signatures::PublicKey {
+  class PublicKey final : public Signatures::PublicKey {
   public:
     PublicKey(EVP_PKEY *Pk) : Pk(Pk) {}
 
@@ -97,7 +97,7 @@ public:
     EvpPkeyPtr Pk;
   };
 
-  class SecretKey : public Signatures::SecretKey {
+  class SecretKey final : public Signatures::SecretKey {
   public:
     SecretKey(EVP_PKEY *Sk) : Ctx(std::move(Sk)) {}
 
@@ -111,7 +111,7 @@ public:
     EvpPkeyPtr Ctx;
   };
 
-  class KeyPair : public Signatures::KeyPair {
+  class KeyPair final : public Signatures::KeyPair {
   public:
     KeyPair(EVP_PKEY *Ctx) : Ctx(Ctx) {}
 
@@ -137,7 +137,7 @@ public:
     EvpPkeyPtr Ctx;
   };
 
-  class Signature : public Signatures::Signature {
+  class Signature final : public Signatures::Signature {
   public:
     Signature(std::vector<uint8_t> &&Data)
         : Signatures::Signature(getAlg(), std::move(Data)) {}
@@ -149,7 +149,7 @@ public:
     exportData(__wasi_signature_encoding_e_t Encoding) override;
   };
 
-  class SignState : public Signatures::SignState {
+  class SignState final : public Signatures::SignState {
   public:
     SignState(EVP_MD_CTX *MdCtx) : Ctx(MdCtx) {}
 
@@ -161,7 +161,7 @@ public:
     EvpMdCtxPtr Ctx;
   };
 
-  class VerificationState : public Signatures::VerificationState {
+  class VerificationState final : public Signatures::VerificationState {
   public:
     VerificationState(EVP_MD_CTX *Ctx) : Ctx(Ctx) {}
 

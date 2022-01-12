@@ -13,7 +13,7 @@ namespace Symmetric {
 
 template <int NonceBit> class ChaChaPoly {
 public:
-  class KeyBuilder : public Key::Builder {
+  class KeyBuilder final : public Key::Builder {
   public:
     using Builder::Builder;
 
@@ -26,7 +26,7 @@ public:
     __wasi_size_t keyLen() override;
   };
 
-  class State : public AEADsState {
+  class State final : public AEADsState {
   public:
     State(EVP_CIPHER_CTX *Ctx, std::shared_ptr<Options> OptOptions)
         : Ctx(Ctx), OptOptions(OptOptions) {}

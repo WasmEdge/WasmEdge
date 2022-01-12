@@ -15,7 +15,7 @@ namespace Symmetric {
 
 template <int KeyBit> class AesGcm {
 public:
-  class KeyBuilder : public Key::Builder {
+  class KeyBuilder final : public Key::Builder {
   public:
     using Builder::Builder;
 
@@ -29,7 +29,7 @@ public:
   };
 
   // Nonce = IV,
-  class State : public AEADsState {
+  class State final : public AEADsState {
   public:
     inline static constexpr __wasi_size_t TagLen = 16;
 

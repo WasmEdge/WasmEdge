@@ -18,7 +18,7 @@ namespace Host {
 namespace WASICrypto {
 namespace Signatures {
 
-class EddsaPublicKey : public PublicKey {
+class EddsaPublicKey final : public PublicKey {
 public:
   EddsaPublicKey(EVP_PKEY *Ctx) : Ctx(std::move(Ctx)) {}
 
@@ -35,7 +35,7 @@ private:
   EvpPkeyPtr Ctx;
 };
 
-class EddsaSecretKey : public SecretKey {
+class EddsaSecretKey final : public SecretKey {
 public:
   EddsaSecretKey(EVP_PKEY *Ctx) : Ctx(Ctx) {}
 
@@ -49,7 +49,7 @@ private:
   EvpPkeyPtr Ctx;
 };
 
-class EddsaKeyPair : public KeyPair {
+class EddsaKeyPair final : public KeyPair {
 public:
   EddsaKeyPair(EVP_PKEY *Ctx) : Ctx(Ctx) {}
 
@@ -72,7 +72,7 @@ private:
   EvpPkeyPtr Ctx;
 };
 
-class EddsaSignature : public Signature {
+class EddsaSignature final : public Signature {
 public:
   EddsaSignature(std::vector<uint8_t> &&Sign)
       : Signature(SignatureAlgorithm::Ed25519, std::move(Sign)) {}
@@ -84,7 +84,7 @@ public:
   exportData(__wasi_signature_encoding_e_t Encoding) override;
 };
 
-class EddsaSignState : public SignState {
+class EddsaSignState final : public SignState {
 public:
   EddsaSignState(EVP_MD_CTX *MdCtx) : Ctx(MdCtx) {}
 
@@ -98,7 +98,7 @@ private:
   EvpMdCtxPtr Ctx;
 };
 
-class EddsaVerificationState : public VerificationState {
+class EddsaVerificationState final : public VerificationState {
 public:
   EddsaVerificationState(EVP_MD_CTX *Ctx) : Ctx(Ctx) {}
 

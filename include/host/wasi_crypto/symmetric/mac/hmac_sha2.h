@@ -20,7 +20,7 @@ namespace Symmetric {
 
 template <int Sha> class HmacSha2 {
 public:
-  class KeyBuilder : public Key::Builder {
+  class KeyBuilder final : public Key::Builder {
   public:
     using Builder::Builder;
 
@@ -33,7 +33,7 @@ public:
     __wasi_size_t keyLen() override;
   };
 
-  class State : public MACState {
+  class State final : public MACState {
     using EvpMdCtxPtr = OpenSSLUniquePtr<EVP_MD_CTX, EVP_MD_CTX_free>;
 
   public:

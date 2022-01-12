@@ -10,7 +10,7 @@ namespace WASICrypto {
 namespace Symmetric {
 
 template <int KeyBits> class Xoodyak {
-  class KeyBuilder : public Key::Builder {
+  class KeyBuilder final : public Key::Builder {
   public:
     using Builder::Builder;
 
@@ -23,7 +23,7 @@ template <int KeyBits> class Xoodyak {
     __wasi_size_t keyLen() override;
   };
 
-  class State : public SessionState {
+  class State final : public SessionState {
   public:
     static WasiCryptoExpect<std::unique_ptr<State>>
     open(SymmetricAlgorithm Alg, std::shared_ptr<Key> OptKey,

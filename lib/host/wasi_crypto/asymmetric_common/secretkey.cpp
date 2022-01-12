@@ -47,18 +47,16 @@ WasiCryptoExpect<std::vector<uint8_t>>
 secretKeyExportData(SecretKey SecretKey,
                     __wasi_secretkey_encoding_e_t SkEncoding) {
   return std::visit(
-      Overloaded{
-          [SkEncoding](auto &&Sk) -> WasiCryptoExpect<std::vector<uint8_t>> {
-            return Sk->exportData(SkEncoding);
-          }},
+      [SkEncoding](auto &&Sk) -> WasiCryptoExpect<std::vector<uint8_t>> {
+        return Sk->exportData(SkEncoding);
+      },
       SecretKey);
 }
 
 WasiCryptoExpect<PublicKey> secretKeyPublicKey(SecretKey SecretKey) {
-  return std::visit(Overloaded{[](auto &&Sk) -> WasiCryptoExpect<PublicKey> {
-                      return Sk->publicKey();
-                    }},
-                    SecretKey);
+  return std::visit(
+      [](auto &&Sk) -> WasiCryptoExpect<PublicKey> { return Sk->publicKey(); },
+      SecretKey);
 }
 } // namespace Asymmetric
 } // namespace WASICrypto

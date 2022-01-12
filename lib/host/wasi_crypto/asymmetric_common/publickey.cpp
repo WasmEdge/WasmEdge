@@ -51,19 +51,17 @@ publicKeyImport(__wasi_algorithm_type_e_t AlgType, std::string_view AlgStr,
 WasiCryptoExpect<std::vector<uint8_t>>
 publicKeyExportData(PublicKey PublicKey,
                     __wasi_publickey_encoding_e_t Encoding) {
-  return std::visit(
-      Overloaded{
+  return std::visit({
           [Encoding](auto &Pk) -> WasiCryptoExpect<std::vector<uint8_t>> {
-            return Pk->exportData(Encoding);
-          }},
+      return Pk->exportData(Encoding);
+          },
       PublicKey);
 }
 
 WasiCryptoExpect<void> publicKeyVerify(PublicKey PublicKey) {
-  return std::visit(Overloaded{[](auto &Pk) -> WasiCryptoExpect<void> {
-                      return Pk->verify();
-                    }},
-                    PublicKey);
+    return std::visit(
+        [](auto &Pk) -> WasiCryptoExpect<void> { return Pk->verify(); },
+        PublicKey);
 }
 } // namespace Asymmetric
 } // namespace WASICrypto

@@ -177,6 +177,8 @@ pub enum StoreError {
         global_name: String,
         mod_name: String,
     },
+    #[error("Not found the target module ({0})")]
+    NotFoundModule(String),
 }
 
 /// Defines the errors raised from [Vm](crate::Vm).
@@ -184,10 +186,6 @@ pub enum StoreError {
 pub enum VmError {
     #[error("Fail to create Vm context")]
     Create,
-    #[error("Not found the target function ({0})")]
-    NotFoundFunc(String),
-    #[error("Not found the target function ({func_name}) in the module ({mod_name})")]
-    NotFoundFuncRegistered { func_name: String, mod_name: String },
     #[error("Fail to get the type of the target function ({0})")]
     NotFoundFuncType(String),
     #[error("Fail to get ImportObj module")]

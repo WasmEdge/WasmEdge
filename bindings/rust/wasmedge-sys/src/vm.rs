@@ -608,7 +608,7 @@ impl Vm {
             types.set_len(len);
         };
 
-        let returns = names.into_iter().zip(types.into_iter()).map(|(name, ty)| {
+        names.into_iter().zip(types.into_iter()).map(|(name, ty)| {
             let name = unsafe { std::ffi::CStr::from_ptr(name.Buf as *const _) };
             let name = name.to_string_lossy().into_owned();
             let func_ty = match ty.is_null() {
@@ -619,8 +619,7 @@ impl Vm {
                 }),
             };
             (Some(name), func_ty)
-        });
-        returns
+        })
     }
 
     /// Returns the mutable [ImportObj](crate::ImportObj) corresponding to the HostRegistration settings.
@@ -1199,7 +1198,6 @@ mod tests {
         );
 
         // run a registered function with the parameters of wrong type
-        let empty_params: Vec<Value> = vec![];
         let result = vm.run_registered_function(mod_name, "fib", [Value::I64(5)]);
         assert!(result.is_err());
         assert_eq!(
@@ -1208,7 +1206,6 @@ mod tests {
         );
 
         // run a registered function but give a wrong function name.
-        let empty_params: Vec<Value> = vec![];
         let result = vm.run_registered_function(mod_name, "fib2", [Value::I32(5)]);
         assert!(result.is_err());
         assert_eq!(

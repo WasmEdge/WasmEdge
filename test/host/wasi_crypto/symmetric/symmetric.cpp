@@ -20,6 +20,14 @@ WasmEdge::Span<uint8_t const> operator"" _u8(const char *Str,
 
 } // namespace
 
+std::vector<uint8_t> tagToVec(WasiCryptoContext &Ctx,
+                              __wasi_symmetric_tag_t TagHandle) {
+  auto SymmetricTagSize = Ctx.symmetricTagLen(TagHandle).value();
+  std::vector<uint8_t> Bytes(SymmetricTagSize, 0);
+  Ctx.symmetricTagPull(TagHandle, Bytes).value();
+  return Bytes;
+}
+
 TEST(WasiCryptoTest, Hash) {
 
   WasiCryptoContext Ctx;
@@ -39,14 +47,6 @@ TEST(WasiCryptoTest, Hash) {
                                       249, 169, 16,  98,  162, 127, 87,  182};
   EXPECT_EQ(Out, Expected);
   EXPECT_TRUE(Ctx.symmetricStateClose(StateHandle));
-}
-
-std::vector<uint8_t> tagToVec(WasiCryptoContext &Ctx,
-                              __wasi_symmetric_tag_t TagHandle) {
-  auto SymmetricTagSize = Ctx.symmetricTagLen(TagHandle).value();
-  std::vector<uint8_t> Bytes(SymmetricTagSize, 0);
-  Ctx.symmetricTagPull(TagHandle, Bytes).value();
-  return Bytes;
 }
 
 TEST(WasiCryptoTest, Hmac) {

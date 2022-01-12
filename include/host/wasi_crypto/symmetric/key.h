@@ -32,7 +32,7 @@ public:
 
     /// Generate a key by option.
     ///
-    /// @param[in] Option Opt option
+    /// @param[in] OptOption Opt option
     /// @return a symmetric key on success.
     /// an `__WASI_CRYPTO_ERRNO_UNSUPPORTED_ALGORITHM` error code if the
     /// algorithm is not supported by the host

@@ -2529,7 +2529,8 @@ WasmEdge_ImportObjectDelete(WasmEdge_ImportObjectContext *Cxt);
 ///
 /// \param Cxt the WasmEdge_ASync.
 WASMEDGE_CAPI_EXPORT void WasmEdge_AsyncWait(WasmEdge_Async *Cxt);
-/// Wait a WasmEdge_Async execution.
+
+/// Wait a WasmEdge_Async execution with timeout.
 ///
 /// \param Cxt the WasmEdge_ASync.
 /// \param Milliseconds times to wait.
@@ -2544,9 +2545,10 @@ WASMEDGE_CAPI_EXPORT bool WasmEdge_AsyncWaitFor(WasmEdge_Async *Cxt,
 /// \param Cxt the WasmEdge_ASync.
 WASMEDGE_CAPI_EXPORT void WasmEdge_AsyncCancel(WasmEdge_Async *Cxt);
 
-/// Wait and get the result of WasmEdge_Async execution. If the `Returns` buffer
-/// length is smaller than the arity of the function, the overflowed return
-/// values will be discarded.
+/// Wait and get the result of WasmEdge_Async execution.
+///
+/// If the `Returns` buffer length is smaller than the arity of the function,
+/// the overflowed return values will be discarded.
 ///
 /// \param Cxt the WasmEdge_ASync.
 /// \param [out] Returns the WasmEdge_Value buffer to fill the return values.

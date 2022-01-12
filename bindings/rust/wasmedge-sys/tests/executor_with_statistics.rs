@@ -1,21 +1,11 @@
 mod common;
 use wasmedge_sys::{
-    error::{CoreCommonError, CoreError, CoreExecutionError},
+    error::{CoreError, CoreExecutionError},
     Config, Executor, Loader, Statistics, Store, StoreError, Validator, Value, WasmEdgeError,
 };
 
 #[test]
 fn test_executor_with_statistics() {
-    // create a Config context
-    let result = Config::create();
-    assert!(result.is_ok());
-    let config = result.unwrap();
-    // enable Statistics
-    let config = config
-        .count_instructions(true)
-        .measure_time(true)
-        .measure_cost(true);
-
     // create a Statistics context
     let result = Statistics::create();
     assert!(result.is_ok());
@@ -29,10 +19,15 @@ fn test_executor_with_statistics() {
     // set cost limit
     stat.set_cost_limit(100_000_000_000_000);
 
-    // create a Config
+    // create a Config context
     let result = Config::create();
     assert!(result.is_ok());
     let config = result.unwrap();
+    // enable Statistics
+    let config = config
+        .count_instructions(true)
+        .measure_time(true)
+        .measure_cost(true);
     // create a Store context
     let result = Statistics::create();
     assert!(result.is_ok());
@@ -126,44 +121,6 @@ fn test_executor_with_statistics() {
         WasmEdgeError::Store(StoreError::NotFoundFunc("func-mul-3".into()))
     );
 
-    {
-        // // Statistics: get instruction count
-        // dbg!(stat.instr_count());
-        // // assert!(stat.instr_count() > 0);
-
-        // // Statistics: get instruction per second
-        // assert!(!stat.instr_per_sec().is_nan());
-        // dbg!(stat.instr_per_sec());
-        // // assert!(stat.instr_per_sec() > 0.0);
-
-        // // Statistics: get total cost
-        // dbg!(stat.cost_in_total());
-        // // assert!(stat.cost_in_total() > 0);
-    }
-
-    {
-        // // get table and set external reference
-        // let result = store.find_table_registered("module", "tab-ext");
-        // assert!(result.is_ok());
-        // let mut table = result.unwrap();
-        // let mut test_value = 0u32;
-        // let result = table.set_data(Value::gen_extern_ref(&mut test_value), 0);
-        // assert!(result.is_ok());
-        // let result = table.set_data(Value::gen_extern_ref(&mut test_value), 1);
-        // assert!(result.is_ok());
-        // let result = table.set_data(Value::gen_extern_ref(&mut test_value), 2);
-        // assert!(result.is_ok());
-        // let result = table.set_data(Value::gen_extern_ref(&mut test_value), 3);
-        // assert!(result.is_ok());
-
-        // // call add: (777) + (223)
-        // test_value = 777;
-        // let result =
-        //     executor.run_func_registered(&store, "module", "func-host-add", [Value::I32(223)]);
-        // assert!(result.is_err());
-        // println!("*** result: {}", result.unwrap_err());
-    }
-
     // Invoke host function to terminate or fail execution
     let result = executor.run_func_registered(&store, "extern", "func-term", []);
     assert!(result.is_ok());
@@ -171,20 +128,13 @@ fn test_executor_with_statistics() {
     let result = executor.run_func_registered(&store, "extern", "func-fail", []);
     assert!(result.is_err());
 
-    // TODO Invoke host function with binding to functions
+    // Statistics: get instruction count
+    assert!(stat.instr_count() > 0);
 
-    {
-        // Statistics: get instruction count
-        dbg!(stat.instr_count());
-        // assert!(stat.instr_count() > 0);
+    // Statistics: get instruction per second
+    assert!(!stat.instr_per_sec().is_nan());
+    assert!(stat.instr_per_sec() > 0.0);
 
-        // Statistics: get instruction per second
-        assert!(!stat.instr_per_sec().is_nan());
-        dbg!(stat.instr_per_sec());
-        // assert!(stat.instr_per_sec() > 0.0);
-
-        // Statistics: get total cost
-        dbg!(stat.cost_in_total());
-        // assert!(stat.cost_in_total() > 0);
-    }
+    // Statistics: get total cost
+    assert!(stat.cost_in_total() > 0);
 }

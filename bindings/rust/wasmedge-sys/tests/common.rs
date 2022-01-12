@@ -57,6 +57,27 @@ pub fn create_extern_module(name: impl AsRef<str>) -> ImportObj {
     import_obj
 }
 
+fn _real_add(inputs: Vec<Value>) -> Result<Vec<Value>, u8> {
+    if inputs.len() != 2 {
+        return Err(1);
+    }
+
+    let a = if let Value::I32(i) = inputs[0] {
+        i
+    } else {
+        return Err(2);
+    };
+
+    let b = if let Value::I32(i) = inputs[1] {
+        i
+    } else {
+        return Err(3);
+    };
+
+    let c = a + b;
+    Ok(vec![Value::I32(c)])
+}
+
 fn extern_add(inputs: Vec<Value>) -> Result<Vec<Value>, u8> {
     if inputs.len() != 2 {
         return Err(1);
@@ -78,22 +99,22 @@ fn extern_add(inputs: Vec<Value>) -> Result<Vec<Value>, u8> {
     Ok(vec![Value::I32(c)])
 }
 
-fn extern_sub(inputs: Vec<Value>) -> Result<Vec<Value>, u8> {
+fn extern_sub(_inputs: Vec<Value>) -> Result<Vec<Value>, u8> {
     todo!()
 }
 
-fn extern_mul(inputs: Vec<Value>) -> Result<Vec<Value>, u8> {
+fn extern_mul(_inputs: Vec<Value>) -> Result<Vec<Value>, u8> {
     todo!()
 }
 
-fn extern_div(inputs: Vec<Value>) -> Result<Vec<Value>, u8> {
+fn extern_div(_inputs: Vec<Value>) -> Result<Vec<Value>, u8> {
     todo!()
 }
 
-fn extern_term(inputs: Vec<Value>) -> Result<Vec<Value>, u8> {
+fn extern_term(_inputs: Vec<Value>) -> Result<Vec<Value>, u8> {
     Ok(vec![Value::I32(1234)])
 }
 
-fn extern_fail(inputs: Vec<Value>) -> Result<Vec<Value>, u8> {
+fn extern_fail(_inputs: Vec<Value>) -> Result<Vec<Value>, u8> {
     Err(0x02)
 }

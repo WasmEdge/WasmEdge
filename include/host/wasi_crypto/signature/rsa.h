@@ -137,6 +137,18 @@ public:
     EvpPkeyPtr Ctx;
   };
 
+  class Signature : public Signatures::Signature {
+  public:
+    Signature(std::vector<uint8_t> &&Data)
+        : Signatures::Signature(getAlg(), std::move(Data)) {}
+
+    static WasiCryptoExpect<std::unique_ptr<Signature>>
+    import(Span<const uint8_t> Encoded, __wasi_signature_encoding_e_t Encoding);
+
+    WasiCryptoExpect<std::vector<uint8_t>>
+    exportData(__wasi_signature_encoding_e_t Encoding) override;
+  };
+
   class SignState : public Signatures::SignState {
   public:
     SignState(EVP_MD_CTX *MdCtx) : Ctx(MdCtx) {}

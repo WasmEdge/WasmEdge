@@ -256,6 +256,8 @@ Rsa<Pad, Size, Sha>::Signature::import(Span<const uint8_t> Encoded,
                                        __wasi_signature_encoding_e_t Encoding) {
   switch (Encoding) {
   case __WASI_SIGNATURE_ENCODING_RAW:
+    ensureOrReturn(Encoded.size() == Size / 8,
+                   __WASI_CRYPTO_ERRNO_INVALID_SIGNATURE);
     return std::make_unique<Signature>(
         std::vector<uint8_t>{Encoded.begin(), Encoded.end()});
   case __WASI_SIGNATURE_ENCODING_DER:

@@ -11,8 +11,6 @@ class WasiCryptoModule : public Runtime::ImportObject {
 public:
   WasiCryptoModule();
 
-  virtual ~WasiCryptoModule() = default;
-
   WASICrypto::WasiCryptoContext &getContext() { return Ctx; }
 
 private:

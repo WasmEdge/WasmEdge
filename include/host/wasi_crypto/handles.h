@@ -6,7 +6,7 @@
 
 #include <climits>
 #include <limits>
-#include <mutex>
+#include <shared_mutex>
 #include <type_traits>
 #include <unordered_map>
 
@@ -146,14 +146,16 @@ public:
       : LastHandle{rotr(static_cast<HandleType>(TypeId), 8)}, TypeId{TypeId} {}
 
   WasiCryptoExpect<void> close(HandleType Handle) {
-    std::scoped_lock Guard{Mutex};
+    std::unique_lock Lock{Mutex};
+
     if (!Map.erase(Handle))
       return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_CLOSED);
     return {};
   }
 
   WasiCryptoExpect<HandleType> registerManger(MangerType &&Manger) {
-    std::scoped_lock Guard{Mutex};
+    std::unique_lock Lock{Mutex};
+
     auto NextHandle = nextHandle(LastHandle);
 
     while (true) {
@@ -174,7 +176,8 @@ public:
   }
 
   WasiCryptoExpect<MangerType> get(HandleType Handle) {
-    std::scoped_lock Guard{Mutex};
+    std::shared_lock Lock{Mutex};
+
     auto HandleValue = Map.find(Handle);
     if (HandleValue == Map.end()) {
       return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_HANDLE);
@@ -188,7 +191,7 @@ private:
     return rotr(AddedValue | static_cast<HandleType>(TypeId), 8);
   }
 
-  std::mutex Mutex;
+  std::shared_mutex Mutex;
   HandleType LastHandle;
   std::unordered_map<HandleType, MangerType> Map;
   uint8_t TypeId;

@@ -25,9 +25,6 @@ ChaChaPoly<NonceBit>::State::open(std::shared_ptr<Key> OptKey,
     return WasiCryptoUnexpect(Nonce);
   }
 
-  std::vector<uint8_t> Key =
-      OptKey->inner().locked([](auto &Inner) { return Inner.Data; });
-
   ensureOrReturn(Nonce->size() == NonceBit / 8,
                  __WASI_CRYPTO_ERRNO_INVALID_HANDLE);
   //  ensureOrReturn(getKeySize(Alg) == Key.size(),
@@ -38,7 +35,7 @@ ChaChaPoly<NonceBit>::State::open(std::shared_ptr<Key> OptKey,
 
   opensslAssuming(Ctx);
   opensslAssuming(EVP_CipherInit_ex(Ctx, EVP_chacha20_poly1305(), nullptr,
-                                    Key.data(), Nonce->data(),
+                                    OptKey->data().data(), Nonce->data(),
                                     Mode::Unchanged));
 
   return std::make_unique<ChaChaPoly<NonceBit>::State>(Ctx, OptOption);

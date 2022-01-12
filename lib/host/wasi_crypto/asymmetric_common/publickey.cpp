@@ -51,10 +51,10 @@ publicKeyImport(__wasi_algorithm_type_e_t AlgType, std::string_view AlgStr,
 WasiCryptoExpect<std::vector<uint8_t>>
 publicKeyExportData(PublicKey PublicKey,
                     __wasi_publickey_encoding_e_t Encoding) {
-  return std::visit({
-          [Encoding](auto &Pk) -> WasiCryptoExpect<std::vector<uint8_t>> {
-      return Pk->exportData(Encoding);
-          },
+  return std::visit(
+      [Encoding](auto &Pk) -> WasiCryptoExpect<std::vector<uint8_t>> {
+        return Pk->exportData(Encoding);
+      },
       PublicKey);
 }
 

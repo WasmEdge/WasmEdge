@@ -59,17 +59,15 @@ AesGcm<KeyBit>::State::open(std::shared_ptr<Key> OptKey,
     return WasiCryptoUnexpect(Nonce);
   }
 
-  std::vector<uint8_t> Key =
-      OptKey->inner().locked([](auto &Inner) { return Inner.Data; });
-
   ensureOrReturn(Nonce->size() == NonceSize,
                  __WASI_CRYPTO_ERRNO_INVALID_HANDLE);
 
-  ensureOrReturn(KeyBit / 8 == Key.size(), __WASI_CRYPTO_ERRNO_INVALID_HANDLE);
+  ensureOrReturn(KeyBit / 8 == OptKey->data().size(),
+                 __WASI_CRYPTO_ERRNO_INVALID_HANDLE);
 
   EVP_CIPHER_CTX *Ctx = EVP_CIPHER_CTX_new();
   opensslAssuming(Ctx);
-  opensslAssuming(EVP_CipherInit(Ctx, getCipher(KeyBit), Key.data(),
+  opensslAssuming(EVP_CipherInit(Ctx, getCipher(KeyBit), OptKey->data().data(),
                                  Nonce->data(), Mode::Unchanged));
 
   return std::make_unique<State>(Ctx, OptOption);

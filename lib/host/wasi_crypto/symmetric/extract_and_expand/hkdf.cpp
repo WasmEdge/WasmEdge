@@ -42,10 +42,8 @@ Hkdf<Sha, Mode>::State::open(std::shared_ptr<Key> OptKey,
   opensslAssuming(EVP_PKEY_CTX_set_hkdf_md(Ctx, ShaMap.at(Sha)));
   opensslAssuming(EVP_PKEY_CTX_hkdf_mode(Ctx, Mode));
 
-  OptKey->inner().locked([&Ctx](auto &Inner) {
-    opensslAssuming(
-        EVP_PKEY_CTX_set1_hkdf_key(Ctx, Inner.Data.data(), Inner.Data.size()));
-  });
+  opensslAssuming(EVP_PKEY_CTX_set1_hkdf_key(Ctx, OptKey->data().data(),
+                                             OptKey->data().size()));
 
   return std::make_unique<State>(OptOption, Ctx);
 }

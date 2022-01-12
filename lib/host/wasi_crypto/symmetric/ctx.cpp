@@ -42,8 +42,8 @@ WasiCryptoContext::symmetricKeyExport(__wasi_symmetric_key_t KeyHandle) {
     return WasiCryptoUnexpect(Key);
   }
 
-  return allocateArrayOutput(
-      (*Key)->inner().locked([](auto &Inner) { return Inner.Data; }));
+  std::vector<uint8_t> CopyData = (*Key)->data();
+  return allocateArrayOutput(std::move(CopyData));
 }
 
 WasiCryptoExpect<void>

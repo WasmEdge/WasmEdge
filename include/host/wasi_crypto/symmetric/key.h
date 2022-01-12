@@ -19,10 +19,12 @@ namespace Symmetric {
 /// therefore, the import and export functions omit an encoding parameter.
 class Key {
 public:
-  Key(SymmetricAlgorithm Alg, std::vector<uint8_t> &&Vec)
-      : D{Inner{Alg, std::move(Vec)}} {}
+  Key(SymmetricAlgorithm Alg, std::vector<uint8_t> &&Data)
+      : Alg(Alg), Data(Data) {}
 
-  auto &inner() { return D; }
+  auto alg() const { return Alg; }
+
+  auto const &data() const { return Data; }
 
   class Builder {
   public:
@@ -66,12 +68,8 @@ public:
   builder(SymmetricAlgorithm Alg);
 
 private:
-  struct Inner {
-    SymmetricAlgorithm Alg;
-    std::vector<uint8_t> Data;
-  };
-
-  Mutex<Inner> D;
+  const SymmetricAlgorithm Alg;
+  const std::vector<uint8_t> Data;
 };
 
 } // namespace Symmetric

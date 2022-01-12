@@ -19,9 +19,7 @@ State::open(SymmetricAlgorithm Alg, std::shared_ptr<Key> OptKey,
   // if opt key exist
   if (OptKey) {
     // ensure key's alg equal with input alg
-    ensureOrReturn(
-        OptKey->inner().locked([](auto &Inner) { return Inner.Alg; }) == Alg,
-        __WASI_CRYPTO_ERRNO_INVALID_KEY);
+    ensureOrReturn(OptKey->alg() == Alg, __WASI_CRYPTO_ERRNO_INVALID_KEY);
   }
   switch (Alg) {
   case SymmetricAlgorithm::HmacSha256:

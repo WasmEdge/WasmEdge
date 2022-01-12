@@ -56,7 +56,7 @@ Key::builder(SymmetricAlgorithm Alg) {
   case SymmetricAlgorithm::Xoodyak160:
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
   default:
-    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_OPERATION);
+    assumingUnreachable();
   }
 }
 

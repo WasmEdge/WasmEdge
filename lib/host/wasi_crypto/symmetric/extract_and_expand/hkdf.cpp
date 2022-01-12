@@ -57,21 +57,6 @@ Hkdf<Sha, Mode>::State::absorb(Span<const uint8_t> Data) {
 
   Cache.insert(Cache.end(), Data.begin(), Data.end());
   return {};
-  //  switch (Alg) {
-  //  case SymmetricAlgorithm::HkdfSha256Extract:
-  //  case SymmetricAlgorithm::HkdfSha512Extract:
-  //    ensureOrReturn(Cache, __WASI_CRYPTO_ERRNO_INVALID_OPERATION);
-  //    opensslAssuming(
-  //        EVP_PKEY_CTX_set1_hkdf_salt(Ctx.get(), Data.data(), Data.size()));
-  //    return {};
-  //  case SymmetricAlgorithm::HkdfSha256Expand:
-  //  case SymmetricAlgorithm::HkdfSha512Expand:
-  //    opensslAssuming(
-  //        EVP_PKEY_CTX_add1_hkdf_info(Ctx.get(), Data.data(), Data.size()));
-  //    return {};
-  //  default:
-  //    assumingUnreachable();
-  //  }
 }
 
 template <int Sha, int Mode>

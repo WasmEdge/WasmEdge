@@ -46,8 +46,11 @@ WasiCryptoExpect<KeyPair> keypairGenerate(__wasi_algorithm_type_e_t AlgType,
                    }},
         OptOptions);
 
-  default:
+  case __WASI_ALGORITHM_TYPE_SYMMETRIC:
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_OPERATION);
+
+  default:
+    assumingUnreachable();
   }
 }
 
@@ -69,8 +72,23 @@ WasiCryptoExpect<KeyPair> keyPairImport(__wasi_algorithm_type_e_t AlgType,
 
     return std::move(*SigKp);
   }
-  default:
+  case __WASI_ALGORITHM_TYPE_KEY_EXCHANGE: {
+    auto Alg = tryFrom<KxAlgorithm>(AlgStr);
+    if (!Alg) {
+      return WasiCryptoUnexpect(Alg);
+    }
+
+    auto SigKp = Kx::KeyPair::import(*Alg, Encoded, Encoding);
+    if (!SigKp) {
+      return WasiCryptoUnexpect(SigKp);
+    }
+
+    return std::move(*SigKp);
+  }
+  case __WASI_ALGORITHM_TYPE_SYMMETRIC:
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_OPERATION);
+  default:
+    assumingUnreachable();
   }
 }
 

@@ -36,8 +36,10 @@ secretKeyImport(__wasi_algorithm_type_e_t AlgType, std::string_view AlgStr,
 
     return std::move(*Res);
   }
-  default:
+  case __WASI_ALGORITHM_TYPE_SYMMETRIC:
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_OPERATION);
+  default:
+    assumingUnreachable();
   }
 }
 

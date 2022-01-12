@@ -3,6 +3,7 @@
 #include "host/wasi_crypto/asymmetric_common/publickey.h"
 #include "host/wasi_crypto/key_exchange/publickey.h"
 #include "host/wasi_crypto/signature/alg.h"
+#include "host/wasi_crypto/kx/alg.h"
 
 namespace WasmEdge {
 namespace Host {
@@ -27,8 +28,23 @@ publicKeyImport(__wasi_algorithm_type_e_t AlgType, std::string_view AlgStr,
 
     return std::move(*Res);
   }
-  default:
+  case __WASI_ALGORITHM_TYPE_KEY_EXCHANGE: {
+    auto Alg = tryFrom<KxAlgorithm>(AlgStr);
+    if (!Alg) {
+      return WasiCryptoUnexpect(Alg);
+    }
+
+    auto Res = Kx::PublicKey::import(*Alg, Encoded, Encoding);
+    if (!Res) {
+      return WasiCryptoUnexpect(Res);
+    }
+
+    return std::move(*Res);
+  }
+  case __WASI_ALGORITHM_TYPE_SYMMETRIC:
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_OPERATION);
+  default:
+    assumingUnreachable();
   }
 }
 

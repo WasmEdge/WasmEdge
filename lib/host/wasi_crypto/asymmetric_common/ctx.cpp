@@ -27,8 +27,10 @@ WasiCryptoExpect<__wasi_keypair_t> WasiCryptoContext::keypairGenerate(
     case __WASI_ALGORITHM_TYPE_KEY_EXCHANGE:
       OptOptions = std::shared_ptr<Kx::Options>{};
       break;
-    default:
+    case __WASI_ALGORITHM_TYPE_SYMMETRIC:
       return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_OPERATION);
+    default:
+      assumingUnreachable();
     }
   }
 

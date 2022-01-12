@@ -7,42 +7,6 @@ namespace WasmEdge {
 namespace Host {
 namespace WASICrypto {
 namespace Kx {
-// WasiCryptoExpect<std::vector<uint8_t>>
-// KeyPair::exportData(__wasi_keypair_encoding_e_t Encoding) {
-//   switch (Encoding) {
-//   case __WASI_KEYPAIR_ENCODING_RAW: {
-//     auto Pk = publicKey();
-//     if (!Pk) {
-//       return WasiCryptoUnexpect(Pk);
-//     }
-//
-//     auto PkRaw =
-//         Pk->inner()->locked([](auto &PkInner) { return PkInner->exportData();
-//         });
-//     if (!PkRaw) {
-//       return WasiCryptoUnexpect(PkRaw);
-//     }
-//
-//     auto Sk = secretKey();
-//     if (!Sk) {
-//       return WasiCryptoUnexpect(Sk);
-//     }
-//
-//     auto SkRaw =
-//         Sk->inner()->locked([](auto &SkInner) { return SkInner->exportData();
-//         });
-//     if (!SkRaw) {
-//       return WasiCryptoUnexpect(SkRaw);
-//     }
-//
-//     PkRaw->insert(PkRaw->end(), SkRaw->begin(), SkRaw->end());
-//
-//     return std::vector<uint8_t>{PkRaw->begin(), Res->end()};
-//   }
-//   default:
-//     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
-//   }
-// }
 
 WasiCryptoExpect<std::unique_ptr<KeyPair::Builder>>
 KeyPair::Builder::builder(KxAlgorithm Alg) {
@@ -52,7 +16,7 @@ KeyPair::Builder::builder(KxAlgorithm Alg) {
   case KxAlgorithm::Kyber768:
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
   default:
-    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INTERNAL_ERROR);
+    assumingUnreachable();
   }
 }
 

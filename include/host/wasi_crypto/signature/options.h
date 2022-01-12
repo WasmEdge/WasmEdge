@@ -3,6 +3,7 @@
 
 #include "common/span.h"
 #include "host/wasi_crypto/error.h"
+
 #include <string_view>
 
 namespace WasmEdge {

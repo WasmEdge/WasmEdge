@@ -103,9 +103,9 @@ WasiCryptoExpect<std::vector<uint8_t>>
 EddsaSecretKey::exportData(__wasi_secretkey_encoding_e_t Encoding) {
   switch (Encoding) {
   case __WASI_SECRETKEY_ENCODING_RAW: {
-    std::vector<uint8_t> Res(i2d_PrivateKey(Sk.get(), nullptr));
+    std::vector<uint8_t> Res(i2d_PrivateKey(Ctx.get(), nullptr));
     uint8_t *Temp = Res.data();
-    opensslAssuming(i2d_PrivateKey(Sk.get(), &Temp));
+    opensslAssuming(i2d_PrivateKey(Ctx.get(), &Temp));
     return Res;
   }
   case __WASI_SECRETKEY_ENCODING_PKCS8: {
@@ -169,9 +169,9 @@ WasiCryptoExpect<std::vector<uint8_t>>
 EddsaKeyPair::exportData(__wasi_keypair_encoding_e_t Encoding) {
   switch (Encoding) {
   case __WASI_KEYPAIR_ENCODING_RAW: {
-    std::vector<uint8_t> Res(i2d_PrivateKey(Kp.get(), nullptr));
+    std::vector<uint8_t> Res(i2d_PrivateKey(Ctx.get(), nullptr));
     uint8_t *Temp = Res.data();
-    opensslAssuming(i2d_PrivateKey(Kp.get(), &Temp));
+    opensslAssuming(i2d_PrivateKey(Ctx.get(), &Temp));
     return Res;
   }
   case __WASI_KEYPAIR_ENCODING_PKCS8:
@@ -188,7 +188,7 @@ EddsaKeyPair::exportData(__wasi_keypair_encoding_e_t Encoding) {
 
 WasiCryptoExpect<std::unique_ptr<PublicKey>> EddsaKeyPair::publicKey() {
   BioPtr B{BIO_new(BIO_s_mem())};
-  opensslAssuming(i2d_PUBKEY_bio(B.get(), Kp.get()));
+  opensslAssuming(i2d_PUBKEY_bio(B.get(), Ctx.get()));
 
   EVP_PKEY *Res = nullptr;
   opensslAssuming(d2i_PUBKEY_bio(B.get(), &Res));
@@ -198,7 +198,7 @@ WasiCryptoExpect<std::unique_ptr<PublicKey>> EddsaKeyPair::publicKey() {
 
 WasiCryptoExpect<std::unique_ptr<SecretKey>> EddsaKeyPair::secretKey() {
   BioPtr B{BIO_new(BIO_s_mem())};
-  opensslAssuming(i2d_PrivateKey_bio(B.get(), Kp.get()));
+  opensslAssuming(i2d_PrivateKey_bio(B.get(), Ctx.get()));
 
   EVP_PKEY *Res = nullptr;
   opensslAssuming(d2i_PrivateKey_bio(B.get(), &Res));
@@ -211,7 +211,7 @@ WasiCryptoExpect<std::unique_ptr<SignState>> EddsaKeyPair::openSignState() {
   opensslAssuming(SignCtx);
 
   opensslAssuming(
-      EVP_DigestSignInit(SignCtx, nullptr, nullptr, nullptr, Kp.get()));
+      EVP_DigestSignInit(SignCtx, nullptr, nullptr, nullptr, Ctx.get()));
 
   return std::make_unique<EddsaSignState>(SignCtx);
 }
@@ -234,7 +234,7 @@ WasiCryptoExpect<std::vector<uint8_t>>
 EddsaSignature::exportData(__wasi_signature_encoding_e_t Encoding) {
   switch (Encoding) {
   case __WASI_SIGNATURE_ENCODING_RAW:
-    return Sign;
+    return Data;
   case __WASI_SIGNATURE_ENCODING_DER:
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
   default:
@@ -254,11 +254,11 @@ WasiCryptoExpect<std::unique_ptr<Signature>> EddsaSignState::sign() {
   std::shared_lock Lock{Mutex};
   size_t Size;
   opensslAssuming(
-      EVP_DigestSign(MdCtx.get(), nullptr, &Size, Cache.data(), Cache.size()));
+      EVP_DigestSign(Ctx.get(), nullptr, &Size, Cache.data(), Cache.size()));
 
   std::vector<uint8_t> Res(Size);
-  opensslAssuming(EVP_DigestSign(MdCtx.get(), Res.data(), &Size, Cache.data(),
-                                 Cache.size()));
+  opensslAssuming(
+      EVP_DigestSign(Ctx.get(), Res.data(), &Size, Cache.data(), Cache.size()));
 
   return std::make_unique<EddsaSignature>(std::move(Res));
 }
@@ -279,7 +279,7 @@ EddsaVerificationState::verify(std::shared_ptr<Signature> Sig) {
     return WasiCryptoUnexpect(Data);
   }
 
-  opensslAssuming(EVP_DigestVerify(MdCtx.get(), Data->data(), Data->size(),
+  opensslAssuming(EVP_DigestVerify(Ctx.get(), Data->data(), Data->size(),
                                    Cache.data(), Cache.size()));
 
   return {};

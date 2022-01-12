@@ -18,6 +18,13 @@ namespace Signatures {
 
 class Signature {
 public:
+  Signature(SignatureAlgorithm Alg, std::vector<uint8_t> &&Data)
+      : Alg(Alg), Data(std::move(Data)) {}
+
+  auto alg() { return Alg; }
+
+  const auto &data() const { return Data; }
+
   virtual ~Signature() = default;
 
   static WasiCryptoExpect<std::unique_ptr<Signature>>
@@ -26,6 +33,10 @@ public:
 
   virtual WasiCryptoExpect<std::vector<uint8_t>>
   exportData(__wasi_signature_encoding_e_t Encoding) = 0;
+
+protected:
+  const SignatureAlgorithm Alg;
+  const std::vector<uint8_t> Data;
 };
 
 } // namespace Signatures

@@ -24,7 +24,6 @@ KeyPair::generate(SignatureAlgorithm Alg, std::shared_ptr<Options> Options) {
   case SignatureAlgorithm::RSA_PKCS1_2048_SHA384:
     return RsaPkcs12048SHA384::KeyPair::generate(Options);
   case SignatureAlgorithm::RSA_PKCS1_2048_SHA512:
-
     return RsaPkcs12048SHA512::KeyPair::generate(Options);
   case SignatureAlgorithm::RSA_PKCS1_3072_SHA384:
     return RsaPkcs13072SHA384::KeyPair::generate(Options);

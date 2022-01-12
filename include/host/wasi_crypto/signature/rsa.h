@@ -19,6 +19,66 @@ namespace WASICrypto {
 namespace Signatures {
 
 template <int Pad, int Size, int Sha> class Rsa {
+  static constexpr SignatureAlgorithm getAlg() {
+    if constexpr (Pad == RSA_PKCS1_PADDING) {
+      if constexpr (Size == 2048) {
+        if constexpr (Sha == 256) {
+          return SignatureAlgorithm::RSA_PKCS1_2048_SHA256;
+        }
+        if constexpr (Sha == 384) {
+          return SignatureAlgorithm::RSA_PKCS1_2048_SHA384;
+        }
+        if constexpr (Sha == 512) {
+          return SignatureAlgorithm::RSA_PKCS1_2048_SHA512;
+        }
+      }
+
+      if constexpr (Size == 3072) {
+        if constexpr (Sha == 384) {
+          return SignatureAlgorithm::RSA_PKCS1_3072_SHA384;
+        }
+        if constexpr (Sha == 512) {
+          return SignatureAlgorithm::RSA_PKCS1_3072_SHA512;
+        }
+      }
+
+      if constexpr (Size == 4096) {
+        if constexpr (Sha == 512) {
+          return SignatureAlgorithm::RSA_PKCS1_4096_SHA512;
+        }
+      }
+    }
+
+    if constexpr (Pad == RSA_PKCS1_PSS_PADDING) {
+      if constexpr (Size == 2048) {
+        if constexpr (Sha == 256) {
+          return SignatureAlgorithm::RSA_PSS_2048_SHA256;
+        }
+        if constexpr (Sha == 384) {
+          return SignatureAlgorithm::RSA_PSS_2048_SHA384;
+        }
+        if constexpr (Sha == 512) {
+          return SignatureAlgorithm::RSA_PSS_2048_SHA512;
+        }
+      }
+
+      if constexpr (Size == 3072) {
+        if constexpr (Sha == 384) {
+          return SignatureAlgorithm::RSA_PSS_3072_SHA384;
+        }
+        if constexpr (Sha == 512) {
+          return SignatureAlgorithm::RSA_PSS_3072_SHA512;
+        }
+      }
+
+      if constexpr (Size == 4096) {
+        if constexpr (Sha == 512) {
+          return SignatureAlgorithm::RSA_PSS_4096_SHA512;
+        }
+      }
+    }
+  }
+
 public:
   class PublicKey : public Signatures::PublicKey {
   public:
@@ -79,16 +139,14 @@ public:
 
   class Signature : public Signatures::Signature {
   public:
-    Signature(std::vector<uint8_t> &&Sign) : Sign(std::move(Sign)) {}
+    Signature(std::vector<uint8_t> &&Data)
+        : Signatures::Signature(getAlg(), std::move(Data)) {}
 
     static WasiCryptoExpect<std::unique_ptr<Signature>>
     import(Span<const uint8_t> Encoded, __wasi_signature_encoding_e_t Encoding);
 
     WasiCryptoExpect<std::vector<uint8_t>>
     exportData(__wasi_signature_encoding_e_t Encoding) override;
-
-  private:
-    std::vector<uint8_t> Sign;
   };
 
   class SignState : public Signatures::SignState {

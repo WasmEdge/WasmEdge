@@ -21,7 +21,7 @@ Signature::import(SignatureAlgorithm Alg, Span<const uint8_t> Encoded,
   case SignatureAlgorithm::Ed25519:
     return EddsaSignature::import(Encoded, Encoding);
   case SignatureAlgorithm::RSA_PKCS1_2048_SHA256:
-    return RsaPkcs12048SHA256 ::Signature::import(Encoded, Encoding);
+    return RsaPkcs12048SHA256::Signature::import(Encoded, Encoding);
   case SignatureAlgorithm::RSA_PKCS1_2048_SHA384:
     return RsaPkcs12048SHA384::Signature::import(Encoded, Encoding);
   case SignatureAlgorithm::RSA_PKCS1_2048_SHA512:

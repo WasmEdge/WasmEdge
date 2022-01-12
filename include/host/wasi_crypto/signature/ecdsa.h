@@ -17,8 +17,16 @@ namespace Host {
 namespace WASICrypto {
 namespace Signatures {
 
-using NID = int;
-template <NID Nid> class Ecdsa {
+template <int Nid> class Ecdsa {
+  static constexpr SignatureAlgorithm getAlg() {
+    if constexpr (Nid == NID_X9_62_prime256v1)
+      return SignatureAlgorithm::ECDSA_P256_SHA256;
+    else if constexpr (Nid == NID_secp256k1)
+      return SignatureAlgorithm::ECDSA_K256_SHA256;
+    else
+      assumingUnreachable();
+  }
+
 public:
   class PublicKey : public Signatures::PublicKey {
   public:
@@ -34,7 +42,7 @@ public:
     openVerificationState() override;
 
   private:
-    OpenSSLUniquePtr<EVP_PKEY, EVP_PKEY_free> Ctx;
+    EvpPkeyPtr Ctx;
   };
 
   class SecretKey : public Signatures::SecretKey {
@@ -48,7 +56,7 @@ public:
     exportData(__wasi_secretkey_encoding_e_t Encoding) override;
 
   private:
-    OpenSSLUniquePtr<EVP_PKEY, EVP_PKEY_free> Ctx;
+    EvpPkeyPtr Ctx;
   };
 
   class KeyPair : public Signatures::KeyPair {
@@ -74,21 +82,19 @@ public:
     openSignState() override;
 
   private:
-    OpenSSLUniquePtr<EVP_PKEY, EVP_PKEY_free> Ctx;
+    EvpPkeyPtr Ctx;
   };
 
   class Signature : public Signatures::Signature {
   public:
-    Signature(std::vector<uint8_t> &&Sign) : Sign(std::move(Sign)) {}
+    Signature(std::vector<uint8_t> &&Data)
+        : Signatures::Signature(getAlg(), std::move(Data)) {}
 
     static WasiCryptoExpect<std::unique_ptr<Signature>>
     import(Span<uint8_t const> Encoded, __wasi_signature_encoding_e_t Encoding);
 
     WasiCryptoExpect<std::vector<uint8_t>>
     exportData(__wasi_signature_encoding_e_t Encoding) override;
-
-  private:
-    std::vector<uint8_t> Sign;
   };
 
   class SignState : public Signatures::SignState {

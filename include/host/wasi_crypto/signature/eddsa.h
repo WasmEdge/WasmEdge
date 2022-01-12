@@ -20,7 +20,7 @@ namespace Signatures {
 
 class EddsaPublicKey : public PublicKey {
 public:
-  EddsaPublicKey(EVP_PKEY *Pk) : Ctx(std::move(Pk)) {}
+  EddsaPublicKey(EVP_PKEY *Ctx) : Ctx(std::move(Ctx)) {}
 
   static WasiCryptoExpect<std::unique_ptr<EddsaPublicKey>>
   import(Span<uint8_t const> Encoded, __wasi_publickey_encoding_e_t Encoding);
@@ -37,7 +37,7 @@ private:
 
 class EddsaSecretKey : public SecretKey {
 public:
-  EddsaSecretKey(EVP_PKEY *Sk) : Sk(Sk) {}
+  EddsaSecretKey(EVP_PKEY *Ctx) : Ctx(Ctx) {}
 
   static WasiCryptoExpect<std::unique_ptr<SecretKey>>
   import(Span<uint8_t const> Encoded, __wasi_secretkey_encoding_e_t Encoding);
@@ -46,12 +46,12 @@ public:
   exportData(__wasi_secretkey_encoding_e_t Encoding) override;
 
 private:
-  EvpPkeyPtr Sk;
+  EvpPkeyPtr Ctx;
 };
 
 class EddsaKeyPair : public KeyPair {
 public:
-  EddsaKeyPair(EVP_PKEY *Kp) : Kp(Kp) {}
+  EddsaKeyPair(EVP_PKEY *Ctx) : Ctx(Ctx) {}
 
   static WasiCryptoExpect<std::unique_ptr<KeyPair>>
   generate(std::shared_ptr<Signatures::Options> Options);
@@ -69,26 +69,24 @@ public:
   WasiCryptoExpect<std::unique_ptr<SignState>> openSignState() override;
 
 private:
-  EvpPkeyPtr Kp;
+  EvpPkeyPtr Ctx;
 };
 
 class EddsaSignature : public Signature {
 public:
-  EddsaSignature(std::vector<uint8_t> &&Sign) : Sign(std::move(Sign)) {}
+  EddsaSignature(std::vector<uint8_t> &&Sign)
+      : Signature(SignatureAlgorithm::Ed25519, std::move(Sign)) {}
 
   static WasiCryptoExpect<std::unique_ptr<Signature>>
   import(Span<uint8_t const> Encoded, __wasi_signature_encoding_e_t Encoding);
 
   WasiCryptoExpect<std::vector<uint8_t>>
   exportData(__wasi_signature_encoding_e_t Encoding) override;
-
-private:
-  const std::vector<uint8_t> Sign;
 };
 
 class EddsaSignState : public SignState {
 public:
-  EddsaSignState(EVP_MD_CTX *MdCtx) : MdCtx(MdCtx) {}
+  EddsaSignState(EVP_MD_CTX *MdCtx) : Ctx(MdCtx) {}
 
   WasiCryptoExpect<void> update(Span<uint8_t const> Input) override;
 
@@ -97,12 +95,12 @@ public:
 private:
   std::shared_mutex Mutex;
   std::vector<uint8_t> Cache;
-  EvpMdCtxPtr MdCtx;
+  EvpMdCtxPtr Ctx;
 };
 
 class EddsaVerificationState : public VerificationState {
 public:
-  EddsaVerificationState(EVP_MD_CTX *MdCtx) : MdCtx(MdCtx) {}
+  EddsaVerificationState(EVP_MD_CTX *Ctx) : Ctx(Ctx) {}
 
   WasiCryptoExpect<void> update(Span<const uint8_t> Input) override;
 
@@ -111,7 +109,7 @@ public:
 private:
   std::shared_mutex Mutex;
   std::vector<uint8_t> Cache;
-  EvpMdCtxPtr MdCtx;
+  EvpMdCtxPtr Ctx;
 };
 
 } // namespace Signatures

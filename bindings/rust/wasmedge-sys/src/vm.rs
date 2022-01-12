@@ -483,7 +483,7 @@ impl Vm {
         mod_name: impl AsRef<str>,
         func_name: impl AsRef<str>,
         params: impl IntoIterator<Item = Value>,
-    ) -> WasmEdgeResult<impl Iterator<Item = Value>> {
+    ) -> WasmEdgeResult<Vec<Value>> {
         // prepare parameters
         let raw_params = params
             .into_iter()
@@ -512,7 +512,7 @@ impl Vm {
             returns.set_len(returns_len as usize);
         }
 
-        Ok(returns.into_iter().map(Into::into))
+        Ok(returns.into_iter().map(Into::into).collect::<Vec<_>>())
     }
 
     /// Returns the function type of a WASM function by its name. The function is hosted in the anonymous
@@ -695,24 +695,8 @@ impl Vm {
     ///
     /// If fail to find the name in the [store](crate::Store), then an error is returned.
     pub fn contains_func_name(&self, func_name: impl AsRef<str>) -> WasmEdgeResult<()> {
-        // check if func_name is one of the names of the functions in the store
         let store = self.store_mut()?;
-        let result = store.func_names();
-        match result {
-            Some(names) => {
-                if names.iter().all(|x| x != func_name.as_ref()) {
-                    return Err(WasmEdgeError::Vm(VmError::NotFoundFunc(
-                        func_name.as_ref().into(),
-                    )));
-                }
-                Ok(())
-            }
-            None => {
-                return Err(WasmEdgeError::Vm(VmError::NotFoundFunc(
-                    func_name.as_ref().into(),
-                )))
-            }
-        }
+        store.contains_func(func_name.as_ref())
     }
 
     /// Checks if the [store](crate::Store) of the [`Vm`] contains a registered function of which the name matches the
@@ -730,26 +714,23 @@ impl Vm {
         mod_name: impl AsRef<str>,
         func_name: impl AsRef<str>,
     ) -> WasmEdgeResult<()> {
-        // check if func_name is one of the names of the registered functions in the store
         let store = self.store_mut()?;
-        let result = store.reg_func_names(mod_name.as_ref());
-        match result {
-            Some(names) => {
-                if names.iter().all(|x| x != func_name.as_ref()) {
-                    return Err(WasmEdgeError::Vm(VmError::NotFoundFuncRegistered {
-                        func_name: func_name.as_ref().into(),
-                        mod_name: mod_name.as_ref().into(),
-                    }));
-                }
-                Ok(())
-            }
-            None => {
-                return Err(WasmEdgeError::Vm(VmError::NotFoundFuncRegistered {
-                    func_name: func_name.as_ref().into(),
-                    mod_name: mod_name.as_ref().into(),
-                }))
-            }
-        }
+        store.contains_reg_func(mod_name.as_ref(), func_name.as_ref())
+    }
+
+    /// Checks if the [`Vm`] contains a registered module of which the name matches the given
+    /// `mod_name`.
+    ///
+    /// # Argument
+    ///
+    /// - `mod_name` specifies the registered module's name to check.
+    ///
+    /// # Error
+    ///
+    /// If fail to find the name in the [store](crate::Store), then an error is returned.
+    pub fn contains_mod_name(&self, mod_name: impl AsRef<str>) -> WasmEdgeResult<()> {
+        let store = self.store_mut()?;
+        store.contains_mod_name(mod_name.as_ref())
     }
 }
 impl Drop for Vm {
@@ -765,7 +746,9 @@ impl Drop for Vm {
 mod tests {
     use super::Vm;
     use crate::{
-        error::{CoreCommonError, CoreError, CoreExecutionError, CoreLoadError, VmError},
+        error::{
+            CoreCommonError, CoreError, CoreExecutionError, CoreLoadError, StoreError, VmError,
+        },
         types::HostRegistration,
         Config, FuncType, Function, ImportObj, Loader, Store, ValType, Value, WasmEdgeError,
     };
@@ -1062,12 +1045,12 @@ mod tests {
             WasmEdgeError::Core(CoreError::Execution(CoreExecutionError::FuncTypeMismatch))
         );
 
-        // fun a function: the specified function name is non-existant
+        // run a function: the specified function name is non-existant
         let result = vm.run_function("fib2", [Value::I32(5)]);
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
-            WasmEdgeError::Vm(VmError::NotFoundFunc("fib2".into()))
+            WasmEdgeError::Store(StoreError::NotFoundFunc("fib2".into()))
         );
 
         // check function types
@@ -1175,6 +1158,35 @@ mod tests {
         assert_eq!(
             result.unwrap_err(),
             WasmEdgeError::Core(CoreError::Common(CoreCommonError::WrongVMWorkflow))
+        );
+
+        // run a registered function
+        let result = vm.run_registered_function(mod_name, "fib", [Value::I32(5)]);
+        assert!(result.is_ok());
+        let returns = result.unwrap();
+        assert_eq!(returns, vec![Value::I32(8)]);
+
+        // get the registered function type
+        let result = vm.get_registered_function_type(mod_name, "fib");
+        assert!(result.is_ok());
+        let func_ty = result.unwrap();
+        assert_eq!(func_ty.params_len(), 1);
+        assert_eq!(
+            func_ty.params_type_iter().collect::<Vec<_>>(),
+            vec![ValType::I32]
+        );
+        assert_eq!(func_ty.returns_len(), 1);
+        assert_eq!(
+            func_ty.returns_type_iter().collect::<Vec<_>>(),
+            vec![ValType::I32]
+        );
+
+        // get the registered function type by a wrong module name
+        let result = vm.get_registered_function_type("non-existent-module", "fib");
+        assert!(result.is_err());
+        assert_eq!(
+            result.unwrap_err(),
+            WasmEdgeError::Store(StoreError::NotFoundModule("non-existent-module".into()))
         );
     }
 
@@ -1324,7 +1336,7 @@ mod tests {
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
-            WasmEdgeError::Vm(VmError::NotFoundFunc("fib2".into()))
+            WasmEdgeError::Store(StoreError::NotFoundFunc("fib2".into()))
         );
     }
 
@@ -1388,7 +1400,7 @@ mod tests {
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
-            WasmEdgeError::Vm(VmError::NotFoundFunc("fib2".into()))
+            WasmEdgeError::Store(StoreError::NotFoundFunc("fib2".into()))
         );
     }
 
@@ -1448,7 +1460,7 @@ mod tests {
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
-            WasmEdgeError::Vm(VmError::NotFoundFunc("fib2".into()))
+            WasmEdgeError::Store(StoreError::NotFoundFunc("fib2".into()))
         );
     }
 

@@ -601,6 +601,113 @@ impl Store {
             false => None,
         }
     }
+
+    /// Checks if the [`Store`] contains a function of which the name matches the given
+    /// `func_name`.
+    ///
+    /// # Argument
+    ///
+    /// - `func_name` specifies the function's name to check.
+    ///
+    /// # Error
+    ///
+    /// If fail to find the name in the [`Store`], then an error is returned.
+    pub fn contains_func(&self, func_name: impl AsRef<str>) -> WasmEdgeResult<()> {
+        // check if the anonymous module contains functions
+        if self.func_len() == 0 {
+            return Err(WasmEdgeError::Store(StoreError::NotFoundFunc(
+                func_name.as_ref().into(),
+            )));
+        }
+
+        // get the names of all functions in the anonymous module
+        let result = self.func_names().ok_or_else(|| {
+            WasmEdgeError::Store(StoreError::NotFoundFunc(func_name.as_ref().into()))
+        });
+        let names = result.unwrap();
+
+        // check if the specified function name is in the names or not
+        if names.iter().all(|x| x != func_name.as_ref()) {
+            return Err(WasmEdgeError::Store(StoreError::NotFoundFunc(
+                func_name.as_ref().into(),
+            )));
+        }
+        Ok(())
+    }
+
+    /// Checks if the [`Store`] contains a registered function of which the name matches the
+    /// given `func_name`.
+    ///
+    /// # Argument
+    ///
+    /// - `func_name` specifies the registered function's name to check.
+    ///
+    /// # Error
+    ///
+    /// If fail to find the name in the [`Store`], then an error is returned.
+    pub fn contains_reg_func(
+        &self,
+        mod_name: impl AsRef<str>,
+        func_name: impl AsRef<str>,
+    ) -> WasmEdgeResult<()> {
+        // check if the module exists or not in the store
+        self.contains_mod_name(mod_name.as_ref())?;
+
+        // check if the specified module contains registered functions
+        if self.reg_func_len(mod_name.as_ref()) == 0 {
+            return Err(WasmEdgeError::Store(StoreError::NotFoundModule(
+                mod_name.as_ref().into(),
+            )));
+        }
+
+        // get the names of all registered functions in the specified module
+        let result = self.reg_func_names(mod_name.as_ref()).ok_or_else(|| {
+            WasmEdgeError::Store(StoreError::NotFoundFuncRegistered {
+                func_name: func_name.as_ref().into(),
+                mod_name: mod_name.as_ref().into(),
+            })
+        });
+        let names = result.unwrap();
+
+        // check if the specified function name is in the names or not
+        if names.iter().all(|x| x != func_name.as_ref()) {
+            return Err(WasmEdgeError::Store(StoreError::NotFoundFuncRegistered {
+                func_name: func_name.as_ref().into(),
+                mod_name: mod_name.as_ref().into(),
+            }));
+        }
+        Ok(())
+    }
+
+    /// Checks if the [`Store`] contains a registered module of which the name matches the given
+    /// `mod_name`.
+    ///
+    /// # Argument
+    ///
+    /// - `mod_name` specifies the registered module's name to check.
+    ///
+    /// # Error
+    ///
+    /// If fail to find the name in the [`Store`], then an error is returned.
+    pub fn contains_mod_name(&self, mod_name: impl AsRef<str>) -> WasmEdgeResult<()> {
+        if self.reg_module_len() == 0 {
+            return Err(WasmEdgeError::Store(StoreError::NotFoundModule(
+                mod_name.as_ref().into(),
+            )));
+        }
+
+        let result = self.reg_module_names().ok_or_else(|| {
+            WasmEdgeError::Store(StoreError::NotFoundModule(mod_name.as_ref().into()))
+        });
+
+        let names = result.unwrap();
+        if names.iter().all(|x| x != mod_name.as_ref()) {
+            return Err(WasmEdgeError::Store(StoreError::NotFoundModule(
+                mod_name.as_ref().into(),
+            )));
+        }
+        Ok(())
+    }
 }
 impl Drop for Store {
     fn drop(&mut self) {

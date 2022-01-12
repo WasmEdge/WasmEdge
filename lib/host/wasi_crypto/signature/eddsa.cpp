@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "host/wasi_crypto/signature/eddsa.h"
-#include <cstddef>
-#include <openssl/x509.h>
+
+#include "openssl/x509.h"
 
 namespace WasmEdge {
 namespace Host {
@@ -131,8 +131,7 @@ EddsaSecretKey::exportData(__wasi_secretkey_encoding_e_t Encoding) {
 WasiCryptoExpect<std::unique_ptr<KeyPair>>
 EddsaKeyPair::generate(std::shared_ptr<Options>) {
   // Generate Key
-  OpenSSLUniquePtr<EVP_PKEY_CTX, EVP_PKEY_CTX_free> KCtx{
-      EVP_PKEY_CTX_new_id(EVP_PKEY_ED25519, nullptr)};
+  EvpPkeyCtxPtr KCtx{EVP_PKEY_CTX_new_id(EVP_PKEY_ED25519, nullptr)};
   opensslAssuming(KCtx);
   opensslAssuming(EVP_PKEY_keygen_init(KCtx.get()));
 
@@ -188,7 +187,7 @@ EddsaKeyPair::exportData(__wasi_keypair_encoding_e_t Encoding) {
 }
 
 WasiCryptoExpect<std::unique_ptr<PublicKey>> EddsaKeyPair::publicKey() {
-  OpenSSLUniquePtr<BIO, BIO_free> B{BIO_new(BIO_s_mem())};
+  BioPtr B{BIO_new(BIO_s_mem())};
   opensslAssuming(i2d_PUBKEY_bio(B.get(), Kp.get()));
 
   EVP_PKEY *Res = nullptr;
@@ -198,7 +197,7 @@ WasiCryptoExpect<std::unique_ptr<PublicKey>> EddsaKeyPair::publicKey() {
 }
 
 WasiCryptoExpect<std::unique_ptr<SecretKey>> EddsaKeyPair::secretKey() {
-  OpenSSLUniquePtr<BIO, BIO_free> B{BIO_new(BIO_s_mem())};
+  BioPtr B{BIO_new(BIO_s_mem())};
   opensslAssuming(i2d_PrivateKey_bio(B.get(), Kp.get()));
 
   EVP_PKEY *Res = nullptr;
@@ -246,11 +245,13 @@ EddsaSignature::exportData(__wasi_signature_encoding_e_t Encoding) {
 WasiCryptoExpect<void> EddsaSignState::update(Span<const uint8_t> Input) {
   // Notice: Ecdsa is oneshot in OpenSSL, we need a cache for update instead of
   // call `EVP_DigestSignUpdate`
+  std::unique_lock Lock{Mutex};
   Cache.insert(Cache.end(), Input.begin(), Input.end());
   return {};
 }
 
 WasiCryptoExpect<std::unique_ptr<Signature>> EddsaSignState::sign() {
+  std::shared_lock Lock{Mutex};
   size_t Size;
   opensslAssuming(
       EVP_DigestSign(MdCtx.get(), nullptr, &Size, Cache.data(), Cache.size()));
@@ -264,12 +265,15 @@ WasiCryptoExpect<std::unique_ptr<Signature>> EddsaSignState::sign() {
 
 WasiCryptoExpect<void>
 EddsaVerificationState::update(Span<const uint8_t> Input) {
+  std::unique_lock Lock{Mutex};
   Cache.insert(Cache.end(), Input.begin(), Input.end());
   return {};
 }
 
 WasiCryptoExpect<void>
 EddsaVerificationState::verify(std::shared_ptr<Signature> Sig) {
+  std::shared_lock Lock{Mutex};
+
   auto Data = Sig->exportData(__WASI_SIGNATURE_ENCODING_RAW);
   if (!Data) {
     return WasiCryptoUnexpect(Data);

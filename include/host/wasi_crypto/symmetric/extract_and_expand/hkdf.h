@@ -2,8 +2,9 @@
 #pragma once
 
 #include "host/wasi_crypto/symmetric/extract_and_expand/eae_state.h"
-#include <openssl/evp.h>
-#include <openssl/kdf.h>
+
+#include "host/wasi_crypto/evpwrapper.h"
+#include "openssl/kdf.h"
 
 namespace WasmEdge {
 namespace Host {
@@ -11,8 +12,6 @@ namespace WASICrypto {
 namespace Symmetric {
 
 template <int Sha, int Mode> class Hkdf {
-  using EvpPkeyCtxPtr = OpenSSLUniquePtr<EVP_PKEY_CTX, EVP_PKEY_CTX_free>;
-
 public:
   class KeyBuilder : public Key::Builder {
   public:

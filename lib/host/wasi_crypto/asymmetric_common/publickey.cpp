@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "host/wasi_crypto/asymmetric_common/publickey.h"
+#include "host/wasi_crypto/key_exchange/alg.h"
 #include "host/wasi_crypto/key_exchange/publickey.h"
 #include "host/wasi_crypto/signature/alg.h"
-#include "host/wasi_crypto/kx/alg.h"
 
 namespace WasmEdge {
 namespace Host {

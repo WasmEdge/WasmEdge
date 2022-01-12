@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "host/wasi_crypto/key_exchange/dh/x25519.h"
-#include <openssl/x509.h>
+
+#include "openssl/x509.h"
 
 namespace WasmEdge {
 namespace Host {
@@ -75,8 +76,7 @@ X25519SecretKey::exportData(__wasi_secretkey_encoding_e_t Encoding) {
 }
 
 WasiCryptoExpect<std::unique_ptr<PublicKey>> X25519SecretKey::publicKey() {
-  OpenSSLUniquePtr<EVP_PKEY_CTX, EVP_PKEY_CTX_free> PCtx{
-      EVP_PKEY_CTX_new_id(EVP_PKEY_X25519, nullptr)};
+  EvpPkeyCtxPtr PCtx{EVP_PKEY_CTX_new_id(EVP_PKEY_X25519, nullptr)};
   opensslAssuming(PCtx);
   opensslAssuming(EVP_PKEY_keygen_init(PCtx.get()));
 
@@ -88,8 +88,7 @@ WasiCryptoExpect<std::unique_ptr<PublicKey>> X25519SecretKey::publicKey() {
 
 WasiCryptoExpect<std::vector<uint8_t>>
 X25519SecretKey::dh(std::shared_ptr<PublicKey> Pk) {
-  OpenSSLUniquePtr<EVP_PKEY_CTX, EVP_PKEY_CTX_free> Ctx{
-      EVP_PKEY_CTX_new(Sk.get(), nullptr)};
+  EvpPkeyCtxPtr Ctx{EVP_PKEY_CTX_new(Sk.get(), nullptr)};
   opensslAssuming(Ctx);
   opensslAssuming(EVP_PKEY_derive_init(Ctx.get()));
 
@@ -98,7 +97,7 @@ X25519SecretKey::dh(std::shared_ptr<PublicKey> Pk) {
     return WasiCryptoUnexpect(Encoded);
   }
 
-  OpenSSLUniquePtr<EVP_PKEY, EVP_PKEY_free> NewPK{EVP_PKEY_new_raw_public_key(
+  EvpPkeyPtr NewPK{EVP_PKEY_new_raw_public_key(
       EVP_PKEY_X25519, nullptr, Encoded->data(), Encoded->size())};
   ensureOrReturn(NewPK, __WASI_CRYPTO_ERRNO_INVALID_KEY);
 
@@ -118,8 +117,7 @@ X25519SecretKey::dh(std::shared_ptr<PublicKey> Pk) {
 
 WasiCryptoExpect<std::unique_ptr<KeyPair>>
 X25519KeyPair::Builder::generate(std::shared_ptr<Options>) {
-  OpenSSLUniquePtr<EVP_PKEY_CTX, EVP_PKEY_CTX_free> Ct{
-      EVP_PKEY_CTX_new_id(EVP_PKEY_X25519, nullptr)};
+  EvpPkeyCtxPtr Ct{EVP_PKEY_CTX_new_id(EVP_PKEY_X25519, nullptr)};
   opensslAssuming(Ct);
   opensslAssuming(EVP_PKEY_keygen_init(Ct.get()));
 

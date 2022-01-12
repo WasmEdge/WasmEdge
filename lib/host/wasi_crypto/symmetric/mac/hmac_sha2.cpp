@@ -34,11 +34,10 @@ HmacSha2<Sha>::State::open(std::shared_ptr<Key> OptKey,
                            std::shared_ptr<Options> OptOption) {
   ensureOrReturn(OptKey, __WASI_CRYPTO_ERRNO_KEY_REQUIRED);
 
-  OpenSSLUniquePtr<EVP_PKEY, EVP_PKEY_free> PKey{
-      OptKey->inner().locked([](auto &Inner) {
-        return EVP_PKEY_new_mac_key(EVP_PKEY_HMAC, nullptr, Inner.Data.data(),
-                                    Inner.Data.size());
-      })};
+  EvpPkeyPtr PKey{OptKey->inner().locked([](auto &Inner) {
+    return EVP_PKEY_new_mac_key(EVP_PKEY_HMAC, nullptr, Inner.Data.data(),
+                                Inner.Data.size());
+  })};
   opensslAssuming(PKey);
 
   EVP_MD_CTX *Ctx = EVP_MD_CTX_new();

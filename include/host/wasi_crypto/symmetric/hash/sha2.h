@@ -3,9 +3,9 @@
 
 #include "host/wasi_crypto/symmetric/hash/hash_state.h"
 #include "host/wasi_crypto/symmetric/options.h"
-#include "host/wasi_crypto/util.h"
 
-#include <openssl/evp.h>
+#include "host/wasi_crypto/evpwrapper.h"
+
 #include <vector>
 
 namespace WasmEdge {
@@ -14,8 +14,6 @@ namespace WASICrypto {
 namespace Symmetric {
 
 template <int Sha> class Sha2State : public HashState {
-  using EvpMdCtx = OpenSSLUniquePtr<EVP_MD_CTX, EVP_MD_CTX_free>;
-
 public:
   Sha2State(std::shared_ptr<Options> OptOption, EVP_MD_CTX *Ctx)
       : OptOption(OptOption), Ctx(Ctx) {}
@@ -34,7 +32,7 @@ public:
 
 private:
   std::shared_ptr<Options> OptOption;
-  EvpMdCtx Ctx;
+  EvpMdCtxPtr Ctx;
 };
 
 using Sha256State = Sha2State<256>;

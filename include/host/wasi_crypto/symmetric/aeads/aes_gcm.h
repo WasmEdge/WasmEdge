@@ -6,7 +6,7 @@
 #include "host/wasi_crypto/symmetric/key.h"
 #include "host/wasi_crypto/symmetric/tag.h"
 
-#include "openssl/evp.h"
+#include "host/wasi_crypto/evpwrapper.h"
 
 namespace WasmEdge {
 namespace Host {
@@ -31,9 +31,6 @@ public:
   // Nonce = IV,
   class State : public AEADsState {
   public:
-    using EvpCipherCtxPtr =
-        OpenSSLUniquePtr<EVP_CIPHER_CTX, EVP_CIPHER_CTX_free>;
-
     inline static constexpr __wasi_size_t TagLen = 16;
 
     State(EVP_CIPHER_CTX *Ctx, std::shared_ptr<Options> OptOption)
@@ -72,8 +69,6 @@ public:
 
   private:
     enum Mode { Unchanged = -1, Decrypt = 0, Encrypt = 1 };
-
-    //  SymmetricAlgorithm Alg;
     EvpCipherCtxPtr Ctx;
     std::shared_ptr<Options> OptOption;
   };

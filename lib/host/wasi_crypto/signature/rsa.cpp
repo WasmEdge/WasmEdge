@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "host/wasi_crypto/signature/rsa.h"
-#include <openssl/x509.h>
+
+#include "openssl/x509.h"
 
 namespace WasmEdge {
 namespace Host {
@@ -11,8 +12,7 @@ namespace Signatures {
 namespace {
 
 EVP_PKEY *initRsa(int Pad, int Size, int Sha) {
-  OpenSSLUniquePtr<EVP_PKEY_CTX, EVP_PKEY_CTX_free> PCtx{
-      EVP_PKEY_CTX_new_id(EVP_PKEY_RSA, nullptr)};
+  EvpPkeyCtxPtr PCtx{EVP_PKEY_CTX_new_id(EVP_PKEY_RSA, nullptr)};
   opensslAssuming(EVP_PKEY_CTX_set_rsa_padding(PCtx.get(), Pad));
   opensslAssuming(EVP_PKEY_CTX_set_rsa_keygen_bits(PCtx.get(), Size));
   opensslAssuming(EVP_PKEY_CTX_set_signature_md(PCtx.get(), ShaMap.at(Sha)));
@@ -198,20 +198,8 @@ Rsa<Pad, Size, Sha>::KeyPair::generate(std::shared_ptr<Options>) {
   opensslAssuming(Ctx);
 
   opensslAssuming(EVP_PKEY_keygen_init(Ctx));
-  //      if (EVP_PKEY_CTX_set_rsa_keygen_bits(ctx, 2048) <= 0)
-  /* Generate key */
   EVP_PKEY *PKey = nullptr;
   opensslAssuming(EVP_PKEY_keygen(Ctx, &PKey));
-  //  EVP_PKEY *Params = initRsa(Alg);
-
-  // Generate Key
-  //  OpenSSLUniquePtr<EVP_PKEY_CTX, EVP_PKEY_CTX_free> KCtx{
-  //      EVP_PKEY_CTX_new(Params, nullptr)};
-  //  opensslAssuming(Ctx);
-  //  opensslAssuming(EVP_PKEY_keygen_init(KCtx.get()));
-
-  //  EVP_PKEY *Key = nullptr;
-  //  opensslAssuming(EVP_PKEY_keygen(KCtx.get(), &Key));
 
   return std::make_unique<KeyPair>(PKey);
 }
@@ -241,7 +229,7 @@ Rsa<Pad, Size, Sha>::KeyPair::exportData(__wasi_keypair_encoding_e_t Encoding) {
 template <int Pad, int Size, int Sha>
 WasiCryptoExpect<std::unique_ptr<Signatures::PublicKey>>
 Rsa<Pad, Size, Sha>::KeyPair::publicKey() {
-  OpenSSLUniquePtr<BIO, BIO_free> B{BIO_new(BIO_s_mem())};
+  BioPtr B{BIO_new(BIO_s_mem())};
   opensslAssuming(i2d_PUBKEY_bio(B.get(), Kp.get()));
 
   EVP_PKEY *Res = nullptr;
@@ -253,7 +241,7 @@ Rsa<Pad, Size, Sha>::KeyPair::publicKey() {
 template <int Pad, int Size, int Sha>
 WasiCryptoExpect<std::unique_ptr<Signatures::SecretKey>>
 Rsa<Pad, Size, Sha>::KeyPair::secretKey() {
-  OpenSSLUniquePtr<BIO, BIO_free> B{BIO_new(BIO_s_mem())};
+  BioPtr B{BIO_new(BIO_s_mem())};
   opensslAssuming(i2d_PrivateKey_bio(B.get(), Kp.get()));
 
   EVP_PKEY *Res = nullptr;

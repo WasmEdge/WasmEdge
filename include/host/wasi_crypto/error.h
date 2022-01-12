@@ -13,6 +13,14 @@
   (assert(false && "unreachable"), __builtin_unreachable())
 #endif
 
+/// ensure Expr is true or return ErrorCode
+#define ensureOrReturn(Expr, ErrorCode)                                        \
+  do {                                                                         \
+    if (!(Expr)) {                                                             \
+      return WasiCryptoUnexpect((ErrorCode));                                  \
+    }                                                                          \
+  } while (0)
+
 namespace WasmEdge {
 namespace Host {
 namespace WASICrypto {

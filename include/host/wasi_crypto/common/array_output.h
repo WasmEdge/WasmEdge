@@ -5,6 +5,8 @@
 #include "host/wasi_crypto/error.h"
 #include "wasi_crypto/api.hpp"
 
+#include <vector>
+
 namespace WasmEdge {
 namespace Host {
 namespace WASICrypto {

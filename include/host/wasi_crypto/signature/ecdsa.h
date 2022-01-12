@@ -9,7 +9,8 @@
 #include "host/wasi_crypto/signature/publickey.h"
 #include "host/wasi_crypto/signature/secretkey.h"
 #include "host/wasi_crypto/signature/signature.h"
-#include <openssl/evp.h>
+
+#include "host/wasi_crypto/evpwrapper.h"
 
 namespace WasmEdge {
 namespace Host {
@@ -99,7 +100,7 @@ public:
     WasiCryptoExpect<std::unique_ptr<Signatures::Signature>> sign() override;
 
   private:
-    OpenSSLUniquePtr<EVP_MD_CTX, EVP_MD_CTX_free> Ctx;
+    EvpMdCtxPtr Ctx;
   };
 
   class VerificationState : public Signatures::VerificationState {
@@ -112,7 +113,7 @@ public:
     verify(std::shared_ptr<Signatures::Signature> Sig) override;
 
   private:
-    OpenSSLUniquePtr<EVP_MD_CTX, EVP_MD_CTX_free> Ctx;
+    EvpMdCtxPtr Ctx;
   };
 };
 

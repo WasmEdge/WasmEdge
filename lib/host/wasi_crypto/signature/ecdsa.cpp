@@ -2,9 +2,8 @@
 
 #include "host/wasi_crypto/signature/ecdsa.h"
 
-#include <map>
-#include <openssl/ec.h>
-#include <openssl/x509.h>
+#include "openssl/ec.h"
+#include "openssl/x509.h"
 
 namespace WasmEdge {
 namespace Host {
@@ -15,8 +14,7 @@ namespace {
 // TODO:Raw meaning compressed_sec not sec, please check
 
 EVP_PKEY *initEC(NID Nid) {
-  OpenSSLUniquePtr<EVP_PKEY_CTX, EVP_PKEY_CTX_free> PCtx{
-      EVP_PKEY_CTX_new_id(EVP_PKEY_EC, nullptr)};
+  EvpPkeyCtxPtr PCtx{EVP_PKEY_CTX_new_id(EVP_PKEY_EC, nullptr)};
   opensslAssuming(PCtx);
   opensslAssuming(EVP_PKEY_paramgen_init(PCtx.get()));
   opensslAssuming(EVP_PKEY_CTX_set_ec_paramgen_curve_nid(PCtx.get(), Nid));
@@ -161,8 +159,7 @@ Ecdsa<Nid>::KeyPair::generate(std::shared_ptr<Options>) {
   EVP_PKEY *Params = initEC(Nid);
 
   // Generate Key
-  OpenSSLUniquePtr<EVP_PKEY_CTX, EVP_PKEY_CTX_free> KCtx{
-      EVP_PKEY_CTX_new(Params, nullptr)};
+  EvpPkeyCtxPtr KCtx{EVP_PKEY_CTX_new(Params, nullptr)};
   opensslAssuming(KCtx);
   opensslAssuming(EVP_PKEY_keygen_init(KCtx.get()));
 
@@ -223,7 +220,7 @@ Ecdsa<Nid>::KeyPair::exportData(__wasi_keypair_encoding_e_t Encoding) {
 template <NID Nid>
 WasiCryptoExpect<std::unique_ptr<Signatures::PublicKey>>
 Ecdsa<Nid>::KeyPair::publicKey() {
-  OpenSSLUniquePtr<BIO, BIO_free> B{BIO_new(BIO_s_mem())};
+  BioPtr B{BIO_new(BIO_s_mem())};
   opensslAssuming(i2d_PUBKEY_bio(B.get(), Ctx.get()));
 
   EVP_PKEY *Res = nullptr;
@@ -234,7 +231,7 @@ Ecdsa<Nid>::KeyPair::publicKey() {
 
 template <NID Nid>
 WasiCryptoExpect<std::unique_ptr<SecretKey>> Ecdsa<Nid>::KeyPair::secretKey() {
-  OpenSSLUniquePtr<BIO, BIO_free> B{BIO_new(BIO_s_mem())};
+  BioPtr B{BIO_new(BIO_s_mem())};
   opensslAssuming(i2d_PrivateKey_bio(B.get(), Ctx.get()));
 
   EVP_PKEY *Res = nullptr;

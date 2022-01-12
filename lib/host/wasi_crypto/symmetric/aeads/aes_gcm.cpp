@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "host/wasi_crypto/symmetric/aeads/aes_gcm.h"
+
 #include "openssl/rand.h"
 
 namespace WasmEdge {

@@ -3,7 +3,8 @@
 
 #include "host/wasi_crypto/key_exchange/keypair.h"
 #include "host/wasi_crypto/key_exchange/publickey.h"
-#include "openssl/evp.h"
+
+#include "host/wasi_crypto/evpwrapper.h"
 
 namespace WasmEdge {
 namespace Host {
@@ -31,8 +32,7 @@ public:
   inline static __wasi_size_t Len = 32;
 
 private:
-  friend class X25519SKCtx;
-  OpenSSLUniquePtr<EVP_PKEY, EVP_PKEY_free> Pk;
+  EvpPkeyPtr Pk;
 };
 
 class X25519SecretKey : public SecretKey {
@@ -54,7 +54,7 @@ public:
   inline static __wasi_size_t Len = 32;
 
 private:
-  OpenSSLUniquePtr<EVP_PKEY, EVP_PKEY_free> Sk;
+  EvpPkeyPtr Sk;
 };
 
 class X25519KeyPair : public KeyPair {
@@ -81,7 +81,7 @@ public:
   exportData(__wasi_keypair_encoding_e_t Encoding) override;
 
 private:
-  OpenSSLUniquePtr<EVP_PKEY, EVP_PKEY_free> Ctx;
+  EvpPkeyPtr Ctx;
 };
 
 } // namespace Kx

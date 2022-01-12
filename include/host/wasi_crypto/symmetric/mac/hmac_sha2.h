@@ -5,9 +5,8 @@
 #include "host/wasi_crypto/symmetric/key.h"
 #include "host/wasi_crypto/symmetric/mac/mac_state.h"
 #include "host/wasi_crypto/symmetric/options.h"
-#include "host/wasi_crypto/util.h"
 
-#include "openssl/evp.h"
+#include "host/wasi_crypto/evpwrapper.h"
 #include "openssl/hmac.h"
 
 #include <cstdint>

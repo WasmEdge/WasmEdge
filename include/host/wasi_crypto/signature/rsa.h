@@ -10,16 +10,14 @@
 #include "host/wasi_crypto/signature/secretkey.h"
 #include "host/wasi_crypto/signature/signature.h"
 
-#include "openssl/evp.h"
-#include <openssl/rsa.h>
+#include "host/wasi_crypto/evpwrapper.h"
+#include "openssl/rsa.h"
 
-#include <map>
 namespace WasmEdge {
 namespace Host {
 namespace WASICrypto {
 namespace Signatures {
 
-// using
 template <int Pad, int Size, int Sha> class Rsa {
 public:
   class PublicKey : public Signatures::PublicKey {
@@ -36,7 +34,7 @@ public:
     openVerificationState() override;
 
   private:
-    OpenSSLUniquePtr<EVP_PKEY, EVP_PKEY_free> Pk;
+    EvpPkeyPtr Pk;
   };
 
   class SecretKey : public Signatures::SecretKey {
@@ -50,7 +48,7 @@ public:
     exportData(__wasi_secretkey_encoding_e_t Encoding) override;
 
   private:
-    OpenSSLUniquePtr<EVP_PKEY, EVP_PKEY_free> Sk;
+    EvpPkeyPtr Sk;
   };
 
   class KeyPair : public Signatures::KeyPair {
@@ -76,7 +74,7 @@ public:
     secretKey() override;
 
   private:
-    OpenSSLUniquePtr<EVP_PKEY, EVP_PKEY_free> Kp;
+    EvpPkeyPtr Kp;
   };
 
   class Signature : public Signatures::Signature {
@@ -102,7 +100,7 @@ public:
     WasiCryptoExpect<std::unique_ptr<Signatures::Signature>> sign() override;
 
   private:
-    OpenSSLUniquePtr<EVP_MD_CTX, EVP_MD_CTX_free> MdCtx;
+    EvpMdCtxPtr MdCtx;
   };
 
   class VerificationState : public Signatures::VerificationState {
@@ -115,7 +113,7 @@ public:
     verify(std::shared_ptr<Signatures::Signature> Sig) override;
 
   private:
-    OpenSSLUniquePtr<EVP_MD_CTX, EVP_MD_CTX_free> MdCtx;
+    EvpMdCtxPtr MdCtx;
   };
 };
 

@@ -8,7 +8,10 @@
 #include "host/wasi_crypto/signature/publickey.h"
 #include "host/wasi_crypto/signature/secretkey.h"
 #include "host/wasi_crypto/signature/signature.h"
-#include "openssl/evp.h"
+
+#include "host/wasi_crypto/evpwrapper.h"
+
+#include <shared_mutex>
 
 namespace WasmEdge {
 namespace Host {
@@ -29,7 +32,7 @@ public:
   openVerificationState() override;
 
 private:
-  OpenSSLUniquePtr<EVP_PKEY, EVP_PKEY_free> Ctx;
+  EvpPkeyPtr Ctx;
 };
 
 class EddsaSecretKey : public SecretKey {
@@ -43,7 +46,7 @@ public:
   exportData(__wasi_secretkey_encoding_e_t Encoding) override;
 
 private:
-  OpenSSLUniquePtr<EVP_PKEY, EVP_PKEY_free> Sk;
+  EvpPkeyPtr Sk;
 };
 
 class EddsaKeyPair : public KeyPair {
@@ -66,7 +69,7 @@ public:
   WasiCryptoExpect<std::unique_ptr<SignState>> openSignState() override;
 
 private:
-  OpenSSLUniquePtr<EVP_PKEY, EVP_PKEY_free> Kp;
+  EvpPkeyPtr Kp;
 };
 
 class EddsaSignature : public Signature {
@@ -92,8 +95,9 @@ public:
   WasiCryptoExpect<std::unique_ptr<Signature>> sign() override;
 
 private:
+  std::shared_mutex Mutex;
   std::vector<uint8_t> Cache;
-  OpenSSLUniquePtr<EVP_MD_CTX, EVP_MD_CTX_free> MdCtx;
+  EvpMdCtxPtr MdCtx;
 };
 
 class EddsaVerificationState : public VerificationState {
@@ -105,8 +109,9 @@ public:
   WasiCryptoExpect<void> verify(std::shared_ptr<Signature> Sig) override;
 
 private:
+  std::shared_mutex Mutex;
   std::vector<uint8_t> Cache;
-  OpenSSLUniquePtr<EVP_MD_CTX, EVP_MD_CTX_free> MdCtx;
+  EvpMdCtxPtr MdCtx;
 };
 
 } // namespace Signatures

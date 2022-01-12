@@ -4,7 +4,7 @@
 #include "host/wasi_crypto/symmetric/aeads/aeads_state.h"
 #include "host/wasi_crypto/symmetric/key.h"
 
-#include "openssl/evp.h"
+#include "host/wasi_crypto/evpwrapper.h"
 
 namespace WasmEdge {
 namespace Host {
@@ -61,7 +61,7 @@ public:
 
   private:
     enum Mode { Unchanged = -1, Decrypt = 0, Encrypt = 1 };
-    OpenSSLUniquePtr<EVP_CIPHER_CTX, EVP_CIPHER_CTX_free> Ctx;
+    EvpCipherCtxPtr Ctx;
     std::shared_ptr<Options> OptOptions;
   };
 };

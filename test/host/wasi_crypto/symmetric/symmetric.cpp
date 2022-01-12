@@ -12,13 +12,10 @@
 using namespace WasmEdge::Host::WASICrypto;
 using namespace std::literals;
 namespace {
-
 WasmEdge::Span<uint8_t const> operator"" _u8(const char *Str,
                                              std::size_t Len) noexcept {
   return {reinterpret_cast<uint8_t const *>(Str), Len};
 }
-
-} // namespace
 
 std::vector<uint8_t> tagToVec(WasiCryptoContext &Ctx,
                               __wasi_symmetric_tag_t TagHandle) {
@@ -27,6 +24,8 @@ std::vector<uint8_t> tagToVec(WasiCryptoContext &Ctx,
   Ctx.symmetricTagPull(TagHandle, Bytes).value();
   return Bytes;
 }
+
+} // namespace
 
 TEST(WasiCryptoTest, Hash) {
 

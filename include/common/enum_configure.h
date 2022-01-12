@@ -96,7 +96,12 @@ enum WasmEdge_Proposal {
 namespace WasmEdge {
 
 /// Host Module Registration C++ enumeration class.
-enum class HostRegistration : uint8_t { Wasi = 0, WasmEdge_Process, Max };
+enum class HostRegistration : uint8_t {
+  Wasi = 0,
+  WasmEdge_Process,
+  Wasi_Crypto,
+  Max
+};
 
 } // namespace WasmEdge
 #endif
@@ -104,7 +109,8 @@ enum class HostRegistration : uint8_t { Wasi = 0, WasmEdge_Process, Max };
 /// Host Module Registration C enumeration.
 enum WasmEdge_HostRegistration {
   WasmEdge_HostRegistration_Wasi = 0,
-  WasmEdge_HostRegistration_WasmEdge_Process
+  WasmEdge_HostRegistration_WasmEdge_Process,
+  WasmEdge_HostRegistration_Wasi_Crypto
 };
 
 /// AOT compiler optimization level C enumeration.

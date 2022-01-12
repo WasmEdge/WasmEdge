@@ -5,6 +5,7 @@
 
 #include "aot/compiler.h"
 #include "host/wasi/wasimodule.h"
+#include "host/wasi_crypto/cryptomodule.h"
 #include "host/wasmedge_process/processmodule.h"
 #include "vm/vm.h"
 
@@ -2262,6 +2263,25 @@ WASMEDGE_CAPI_EXPORT void WasmEdge_ImportObjectInitWasmEdgeProcess(
     for (uint32_t I = 0; I < CmdsLen; I++) {
       ProcEnv.AllowedCmd.insert(AllowedCmds[I]);
     }
+  }
+}
+
+WASMEDGE_CAPI_EXPORT WasmEdge_ImportObjectContext *
+WasmEdge_ImportObjectCreateWasiCrypto() {
+  auto *WASICryptoMod = new WasmEdge::Host::WasiCryptoModule();
+  WasmEdge_ImportObjectInitWasiCrypto(toImpObjCxt(WASICryptoMod));
+  return toImpObjCxt(WASICryptoMod);
+}
+
+WASMEDGE_CAPI_EXPORT void
+WasmEdge_ImportObjectInitWasiCrypto(WasmEdge_ImportObjectContext *Cxt) {
+  if (!Cxt) {
+    return;
+  }
+  auto *WASICryptoMod =
+      dynamic_cast<WasmEdge::Host::WasiCryptoModule *>(fromImpObjCxt(Cxt));
+  if (!WASICryptoMod) {
+    return;
   }
 }
 

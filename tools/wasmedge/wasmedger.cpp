@@ -6,6 +6,7 @@
 #include "common/types.h"
 #include "common/version.h"
 #include "host/wasi/wasimodule.h"
+#include "host/wasi_crypto/cryptomodule.h"
 #include "host/wasmedge_process/processmodule.h"
 #include "po/argument_parser.h"
 #include "vm/vm.h"
@@ -189,6 +190,7 @@ int main(int Argc, const char *Argv[]) {
 
   Conf.addHostRegistration(WasmEdge::HostRegistration::Wasi);
   Conf.addHostRegistration(WasmEdge::HostRegistration::WasmEdge_Process);
+  Conf.addHostRegistration(WasmEdge::HostRegistration::Wasi_Crypto);
   const auto InputPath = std::filesystem::absolute(SoName.value());
   WasmEdge::VM::VM VM(Conf);
 
@@ -198,7 +200,10 @@ int main(int Argc, const char *Argv[]) {
   WasmEdge::Host::WasmEdgeProcessModule *ProcMod =
       dynamic_cast<WasmEdge::Host::WasmEdgeProcessModule *>(
           VM.getImportModule(WasmEdge::HostRegistration::WasmEdge_Process));
-
+  WasmEdge::Host::WasiCryptoModule *CryptoMod =
+      dynamic_cast<WasmEdge::Host::WasiCryptoModule *>(
+          VM.getImportModule(WasmEdge::HostRegistration::Wasi_Crypto));
+  (void)CryptoMod;
   if (AllowCmdAll.value()) {
     ProcMod->getEnv().AllowedAll = true;
   }

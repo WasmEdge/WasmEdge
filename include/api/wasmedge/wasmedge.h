@@ -2454,6 +2454,30 @@ WASMEDGE_CAPI_EXPORT extern void WasmEdge_ImportObjectInitWasmEdgeProcess(
     WasmEdge_ImportObjectContext *Cxt, const char *const *AllowedCmds,
     const uint32_t CmdsLen, const bool AllowAll);
 
+/// Creation of the WasmEdge_ImportObjectContext for the WASICrypto
+/// specification.
+///
+/// This function will create a WASICrypto host module that contains the
+/// WASICrypto host functions and initialize it. The caller owns the
+/// object and should call `WasmEdge_ImportObjectDelete` to free it.
+///
+/// \returns pointer to context, NULL if failed.
+WASMEDGE_CAPI_EXPORT extern WasmEdge_ImportObjectContext *
+WasmEdge_ImportObjectCreateWasiCrypto(void);
+
+/// Initialize the WasmEdge_ImportObjectContext for the WASICrypto
+/// specification.
+///
+/// This function will initialize the WASICrypto host module with the
+/// parameters.
+///
+/// \param Cxt the WasmEdge_ImportObjectContext of WASICrypto import
+/// object.
+/// suggested. If this value is `true`, the allowed commands white list will not
+/// be recorded and all commands can be executed by WASICrypto.
+WASMEDGE_CAPI_EXPORT extern void
+WasmEdge_ImportObjectInitWasiCrypto(WasmEdge_ImportObjectContext *Cxt);
+
 /// Add a function instance context into a WasmEdge_ImportObjectContext.
 ///
 /// Move the function instance context into the import object. The caller should

@@ -214,6 +214,37 @@ impl ImportObject {
         }
     }
 
+    /// Creates a wasi_crypto host module that contains the wasi_crypto host functions and
+    /// initialize it with the parameters.
+    ///
+    /// # Error
+    ///
+    /// If fail to create a wasi_crypto host module, then an error is returned.
+    pub fn create_wasi_crypto<T, E>() -> WasmEdgeResult<Self>
+    where
+        T: Iterator<Item = E>,
+        E: AsRef<str>,
+    {
+        let ctx = unsafe { wasmedge::WasmEdge_ImportObjectCreateWasiCrypto() };
+        match ctx.is_null() {
+            true => Err(WasmEdgeError::ImportObjCreate),
+            false => Ok(Self {
+                ctx,
+                registered: false,
+            }),
+        }
+    }
+
+    /// Initializes the wasi_crypto host module with the parameters.
+    ///
+    pub fn init_wasi_crypto<T, E>(&mut self)
+    where
+        T: Iterator<Item = E>,
+        E: AsRef<str>,
+    {
+        unsafe { wasmedge::WasmEdge_ImportObjectInitWasiCrypto(self.ctx) }
+    }
+
     /// Adds a [`Function`] into the host module.
     ///
     /// # Arguments

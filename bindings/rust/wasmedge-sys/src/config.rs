@@ -74,8 +74,10 @@ use crate::{
 ///     - `Wasi` turns on the `WASI` support in [Vm](crate::Vm).
 ///
 ///     - `WasmEdgeProcess` turns on the `wasmedge_process` support in [Vm](crate::Vm).
-///     
-///     The two options are only effective to [Vm](crate::Vm).
+///
+///     - `WasiCrypto` turns on the `WasiCrypto` support in [Vm](crate::Vm).
+///
+///     The three options are only effective to [Vm](crate::Vm).
 ///
 /// - **Memory Management**
 ///     - `maximum_memory_page` limits the page size of [Memory](crate::Memory). This option is only effective to
@@ -202,6 +204,27 @@ impl Config {
                     wasmedge::WasmEdge_HostRegistration_WasmEdge_Process,
                 )
             }
+        };
+        self
+    }
+
+    /// Checks if host registration wasi crypto turns on or not.
+    pub fn wasi_crypto_enabled(&self) -> bool {
+        unsafe {
+            wasmedge::WasmEdge_ConfigureHasHostRegistration(
+                self.ctx,
+                wasmedge::WasmEdge_HostRegistration_Wasi_Crypto,
+            )
+        }
+    }
+
+    /// Enables host registration wasi crypto.
+    pub fn enable_wasi_crypto(self) -> Self {
+        unsafe {
+            wasmedge::WasmEdge_ConfigureAddHostRegistration(
+                self.ctx,
+                wasmedge::WasmEdge_HostRegistration_Wasi_Crypto,
+            )
         };
         self
     }

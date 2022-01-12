@@ -10,9 +10,9 @@ namespace Host {
 namespace WASICrypto {
 namespace Symmetric {
 
-WasiCryptoExpect<void> Tag::verify(Span<uint8_t const> RawTag) {
+WasiCryptoExpect<void> Tag::verify(Span<uint8_t const> RawTag) const {
   ensureOrReturn(
-      std::equal(RawTag.begin(), RawTag.end(), Raw.begin(), Raw.end()),
+      std::equal(RawTag.begin(), RawTag.end(), Data.begin(), Data.end()),
       __WASI_CRYPTO_ERRNO_INVALID_TAG);
 
   return {};

@@ -274,13 +274,12 @@ WasiCryptoExpect<void>
 EddsaVerificationState::verify(std::shared_ptr<Signature> Sig) {
   std::shared_lock Lock{Mutex};
 
-  auto Data = Sig->exportData(__WASI_SIGNATURE_ENCODING_RAW);
-  if (!Data) {
-    return WasiCryptoUnexpect(Data);
-  }
+  ensureOrReturn(Sig->alg() == SignatureAlgorithm::Ed25519,
+                 __WASI_CRYPTO_ERRNO_INVALID_SIGNATURE);
 
-  opensslAssuming(EVP_DigestVerify(Ctx.get(), Data->data(), Data->size(),
-                                   Cache.data(), Cache.size()));
+  opensslAssuming(EVP_DigestVerify(Ctx.get(), Sig->data().data(),
+                                   Sig->data().size(), Cache.data(),
+                                   Cache.size()));
 
   return {};
 }

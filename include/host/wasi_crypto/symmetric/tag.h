@@ -35,19 +35,19 @@ namespace Symmetric {
 /// small, and invalid_length if it is too large.
 class Tag {
 public:
-  Tag(std::vector<uint8_t> &&Data) : Raw(Data) {}
+  Tag(std::vector<uint8_t> &&Data) : Data(Data) {}
 
-  const auto &raw() { return Raw; }
+  const auto &data() const { return Data; }
 
   /// The expected tag is always supplied as a byte string. Implementations are
   /// not required to support any serialization format.
   ///
   /// @return  The function MUST return `__WASI_CRYPTO_ERRNO_INVALID_TAG` if the
   /// tags don't match.
-  WasiCryptoExpect<void> verify(Span<const uint8_t> ExpectedRaw);
+  WasiCryptoExpect<void> verify(Span<const uint8_t> ExpectedRaw) const;
 
 private:
-  std::vector<uint8_t> Raw;
+  const std::vector<uint8_t> Data;
 };
 
 } // namespace Symmetric

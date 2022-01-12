@@ -715,7 +715,8 @@ private:
       SymmetricStateManger{0x08};
   HandlesManger<__wasi_symmetric_key_t, std::shared_ptr<Symmetric::Key>>
       SymmetricKeyManger{0x09};
-  HandlesManger<__wasi_symmetric_tag_t, Symmetric::Tag> SymmetricTagManger{0xa};
+  HandlesManger<__wasi_symmetric_tag_t, std::shared_ptr<Symmetric::Tag>>
+      SymmetricTagManger{0xa};
 };
 
 } // namespace WASICrypto

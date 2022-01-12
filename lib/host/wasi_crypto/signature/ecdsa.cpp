@@ -308,12 +308,10 @@ Ecdsa<Nid>::VerificationState::update(Span<const uint8_t> Data) {
 template <int Nid>
 WasiCryptoExpect<void> Ecdsa<Nid>::VerificationState::verify(
     std::shared_ptr<Signatures::Signature> Sig) {
-  auto Data = Sig->exportData(__WASI_SIGNATURE_ENCODING_RAW);
-  if (!Data) {
-    return WasiCryptoUnexpect(Data);
-  }
+  ensureOrReturn(Sig->alg() == getAlg(), __WASI_CRYPTO_ERRNO_INVALID_SIGNATURE);
 
-  opensslAssuming(EVP_DigestVerifyFinal(Ctx.get(), Data->data(), Data->size()));
+  opensslAssuming(
+      EVP_DigestVerifyFinal(Ctx.get(), Sig->data().data(), Sig->data().size()));
   return {};
 }
 

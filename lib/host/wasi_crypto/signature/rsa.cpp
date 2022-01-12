@@ -310,13 +310,10 @@ Rsa<Pad, Size, Sha>::VerificationState::update(Span<const uint8_t> Data) {
 template <int Pad, int Size, int Sha>
 WasiCryptoExpect<void> Rsa<Pad, Size, Sha>::VerificationState::verify(
     std::shared_ptr<Signatures::Signature> Sig) {
-  auto Data = Sig->exportData(__WASI_SIGNATURE_ENCODING_RAW);
-  if (!Data) {
-    return WasiCryptoUnexpect(Data);
-  }
+  ensureOrReturn(Sig->alg() == getAlg(), __WASI_CRYPTO_ERRNO_INVALID_SIGNATURE);
 
-  opensslAssuming(
-      EVP_DigestVerifyFinal(MdCtx.get(), Data->data(), Data->size()));
+  opensslAssuming(EVP_DigestVerifyFinal(MdCtx.get(), Sig->data().data(),
+                                        Sig->data().size()));
 
   return {};
 }

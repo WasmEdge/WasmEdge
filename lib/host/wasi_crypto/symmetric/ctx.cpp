@@ -178,7 +178,8 @@ WasiCryptoContext::symmetricStateSqueezeTag(__wasi_symmetric_state_t Handle) {
     return WasiCryptoUnexpect(Tag);
   }
 
-  return SymmetricTagManger.registerManger(std::move(*Tag));
+  return SymmetricTagManger.registerManger(
+      std::make_shared<Symmetric::Tag>(*Tag));
 }
 
 WasiCryptoExpect<__wasi_symmetric_key_t>
@@ -233,7 +234,8 @@ WasiCryptoContext::symmetricStateEncryptDetached(
     return WasiCryptoUnexpect(Tag);
   }
 
-  return SymmetricTagManger.registerManger(std::move(*Tag));
+  return SymmetricTagManger.registerManger(
+      std::make_shared<Symmetric::Tag>(*Tag));
 }
 
 WasiCryptoExpect<__wasi_size_t>
@@ -277,7 +279,7 @@ WasiCryptoContext::symmetricTagLen(__wasi_symmetric_tag_t TagHandle) {
     return Tag.error();
   }
 
-  return Tag->raw().size();
+  return (*Tag)->data().size();
 }
 
 WasiCryptoExpect<__wasi_size_t>
@@ -288,7 +290,7 @@ WasiCryptoContext::symmetricTagPull(__wasi_symmetric_tag_t TagHandle,
     return WasiCryptoUnexpect(Tag);
   }
 
-  auto &Raw = Tag->raw();
+  auto const &Raw = (*Tag)->data();
   ensureOrReturn(Raw.size() <= Buf.size(), __WASI_CRYPTO_ERRNO_OVERFLOW);
 
   std::copy(Raw.begin(), Raw.end(), Buf.begin());
@@ -308,7 +310,7 @@ WasiCryptoContext::symmetricTagVerify(__wasi_symmetric_tag_t TagHandle,
   if (!Tag) {
     return WasiCryptoUnexpect(Tag);
   }
-  return Tag->verify(RawTag);
+  return (*Tag)->verify(RawTag);
 }
 
 WasiCryptoExpect<void>

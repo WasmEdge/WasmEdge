@@ -68,14 +68,7 @@ ChaChaPoly<NonceBit>::KeyBuilder::import(Span<uint8_t const> Raw) {
 
 template <int NonceBit>
 WasiCryptoExpect<__wasi_size_t> ChaChaPoly<NonceBit>::KeyBuilder::keyLen() {
-  switch (Alg) {
-  case SymmetricAlgorithm::ChaCha20Poly1305:
-    return 16;
-  case SymmetricAlgorithm::XChaCha20Poly1305:
-    return 32;
-  default:
-    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_UNSUPPORTED_ALGORITHM);
-  }
+  return 32;
 }
 
 template <int NonceBit>

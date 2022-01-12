@@ -47,12 +47,7 @@ ChaChaPoly<NonceBit>::State::open(std::shared_ptr<Key> OptKey,
 template <int NonceBit>
 WasiCryptoExpect<std::unique_ptr<Key>>
 ChaChaPoly<NonceBit>::KeyBuilder::generate(std::shared_ptr<Options>) {
-  auto Len = keyLen();
-  if (!Len) {
-    return WasiCryptoUnexpect(Len);
-  }
-
-  std::vector<uint8_t> Res(*Len, 0);
+  std::vector<uint8_t> Res(keyLen(), 0);
   ensureOrReturn(RAND_bytes(Res.data(), Res.size()),
                  __WASI_CRYPTO_ERRNO_RNG_ERROR);
 
@@ -67,7 +62,7 @@ ChaChaPoly<NonceBit>::KeyBuilder::import(Span<uint8_t const> Raw) {
 }
 
 template <int NonceBit>
-WasiCryptoExpect<__wasi_size_t> ChaChaPoly<NonceBit>::KeyBuilder::keyLen() {
+__wasi_size_t ChaChaPoly<NonceBit>::KeyBuilder::keyLen() {
   return 32;
 }
 

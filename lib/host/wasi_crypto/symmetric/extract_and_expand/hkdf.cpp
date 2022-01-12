@@ -11,12 +11,7 @@ namespace Symmetric {
 template <int Sha, int Mode>
 WasiCryptoExpect<std::unique_ptr<Key>>
 Hkdf<Sha, Mode>::KeyBuilder::generate(std::shared_ptr<Options>) {
-  auto Len = keyLen();
-  if (!Len) {
-    return WasiCryptoUnexpect(Len);
-  }
-
-  std::vector<uint8_t> Raw(*Len, 0);
+  std::vector<uint8_t> Raw(keyLen(), 0);
   RAND_bytes(Raw.data(), Raw.size());
 
   return std::make_unique<Key>(Alg, std::move(Raw));
@@ -30,17 +25,8 @@ Hkdf<Sha, Mode>::KeyBuilder::import(Span<uint8_t const> Raw) {
 }
 
 template <int Sha, int Mode>
-WasiCryptoExpect<__wasi_size_t> Hkdf<Sha, Mode>::KeyBuilder::keyLen() {
-  switch (Alg) {
-  case SymmetricAlgorithm::HkdfSha256Extract:
-  case SymmetricAlgorithm::HkdfSha256Expand:
-    return 32;
-  case SymmetricAlgorithm::HkdfSha512Extract:
-  case SymmetricAlgorithm::HkdfSha512Expand:
-    return 64;
-  default:
-    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_UNSUPPORTED_ALGORITHM);
-  }
+__wasi_size_t Hkdf<Sha, Mode>::KeyBuilder::keyLen() {
+  return Sha / 8;
 }
 
 template <int Sha, int Mode>
@@ -91,8 +77,10 @@ Hkdf<Sha, Mode>::State::absorb(Span<const uint8_t> Data) {
 template <int Sha, int Mode>
 WasiCryptoExpect<std::unique_ptr<Key>>
 Hkdf<Sha, Mode>::State::squeezeKey(SymmetricAlgorithm InputAlg) {
-  ensureOrReturn(Mode == EVP_PKEY_HKDEF_MODE_EXTRACT_ONLY,
-                 __WASI_CRYPTO_ERRNO_INVALID_OPERATION);
+  if constexpr (Mode != EVP_PKEY_HKDEF_MODE_EXTRACT_ONLY) {
+    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_OPERATION);
+  }
+
   std::shared_lock Lock{Mutex};
 
   opensslAssuming(
@@ -111,8 +99,9 @@ Hkdf<Sha, Mode>::State::squeezeKey(SymmetricAlgorithm InputAlg) {
 
 template <int Sha, int Mode>
 WasiCryptoExpect<void> Hkdf<Sha, Mode>::State::squeeze(Span<uint8_t> Out) {
-  ensureOrReturn(Mode == EVP_PKEY_HKDEF_MODE_EXPAND_ONLY,
-                 __WASI_CRYPTO_ERRNO_INVALID_OPERATION);
+  if constexpr (Mode != EVP_PKEY_HKDEF_MODE_EXPAND_ONLY) {
+    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_OPERATION);
+  }
 
   opensslAssuming(
       EVP_PKEY_CTX_add1_hkdf_info(Ctx.get(), Cache.data(), Cache.size()));

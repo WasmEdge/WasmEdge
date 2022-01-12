@@ -11,11 +11,7 @@ namespace Symmetric {
 template <int Sha>
 WasiCryptoExpect<std::unique_ptr<Key>>
 HmacSha2<Sha>::KeyBuilder::generate(std::shared_ptr<Options>) {
-  auto Len = keyLen();
-  if (!Len) {
-    return WasiCryptoUnexpect(Len);
-  }
-  std::vector<uint8_t> Raw(*Len, 0);
+  std::vector<uint8_t> Raw(keyLen(), 0);
   RAND_bytes(Raw.data(), Raw.size());
 
   return std::make_unique<Key>(Alg, std::move(Raw));
@@ -28,16 +24,8 @@ HmacSha2<Sha>::KeyBuilder::import(Span<uint8_t const> Raw) {
                                std::vector<uint8_t>{Raw.begin(), Raw.end()});
 }
 
-template <int Sha>
-WasiCryptoExpect<__wasi_size_t> HmacSha2<Sha>::KeyBuilder::keyLen() {
-  switch (Alg) {
-  case SymmetricAlgorithm::HmacSha256:
-    return 32;
-  case SymmetricAlgorithm::HmacSha512:
-    return 64;
-  default:
-    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_UNSUPPORTED_ALGORITHM);
-  }
+template <int Sha> __wasi_size_t HmacSha2<Sha>::KeyBuilder::keyLen() {
+  return Sha / 8;
 }
 
 template <int Sha>

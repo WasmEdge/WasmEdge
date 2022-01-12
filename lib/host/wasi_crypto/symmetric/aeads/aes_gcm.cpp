@@ -42,8 +42,7 @@ AesGcm<KeyBit>::KeyBuilder::import(Span<uint8_t const> Raw) {
                                std::vector<uint8_t>{Raw.begin(), Raw.end()});
 }
 
-template <int KeyBit>
-WasiCryptoExpect<__wasi_size_t> AesGcm<KeyBit>::KeyBuilder::keyLen() {
+template <int KeyBit> __wasi_size_t AesGcm<KeyBit>::KeyBuilder::keyLen() {
   return KeyBit / 8;
 }
 

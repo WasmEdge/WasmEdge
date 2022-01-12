@@ -76,7 +76,6 @@ Hkdf<Sha, Mode>::State::squeezeKey(SymmetricAlgorithm InputAlg) {
   std::vector<uint8_t> Data(Size);
   opensslAssuming(EVP_PKEY_derive(Ctx.get(), Data.data(), &Size));
 
-  // TODO: may a better way
   return std::make_unique<Key>(InputAlg, std::move(Data));
 }
 
@@ -109,6 +108,10 @@ WasiCryptoExpect<uint64_t>
 Hkdf<Sha, Mode>::State::optionsGetU64(std::string_view Name) {
   ensureOrReturn(OptOption, __WASI_CRYPTO_ERRNO_OPTION_NOT_SET);
   return OptOption->getU64(Name);
+}
+
+template <int Sha, int Mode> Hkdf<Sha, Mode>::State::~State() {
+  std::fill(Cache.begin(), Cache.end(), 0);
 }
 
 template class Hkdf<256, EVP_PKEY_HKDEF_MODE_EXTRACT_ONLY>;

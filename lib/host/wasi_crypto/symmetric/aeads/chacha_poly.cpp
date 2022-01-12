@@ -90,14 +90,6 @@ WasiCryptoExpect<Tag> ChaChaPoly<NonceBit>::State::encryptDetachedUnchecked(
     Span<uint8_t> Out, Span<const uint8_t> Data) {
   opensslAssuming(EVP_CipherInit_ex(Ctx.get(), nullptr, nullptr, nullptr,
                                     nullptr, Mode::Encrypt));
-  //  auto Nonce = Options.get("nonce");
-  //  if (!Nonce) {
-  //    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NONCE_REQUIRED);
-  //  }
-
-  //  if (Out.data() != Data.data()) {
-  //    std::copy(Data.begin(), Data.end(), Out.begin());
-  //  }
 
   int ActualOutSize;
   opensslAssuming(EVP_CipherUpdate(Ctx.get(), Out.data(), &ActualOutSize,
@@ -139,12 +131,8 @@ ChaChaPoly<NonceBit>::State::decryptDetachedUnchecked(
   opensslAssuming(EVP_CIPHER_CTX_ctrl(Ctx.get(), EVP_CTRL_AEAD_SET_TAG, TagLen,
                                       const_cast<uint8_t *>(RawTag.data())));
 
-  // Notice: Finalise the decryption. Normally ciphertext bytes may be written
-  // at this stage, but this does not occur in GCM mode
-  // However, cannot do put nullptr length in it. construct a temp var
-  // TODO:Better
   int AL;
-  opensslAssuming(EVP_CipherFinal_ex(Ctx.get(), Out.data(), &AL));
+  opensslAssuming(EVP_CipherFinal_ex(Ctx.get(), nullptr, &AL));
 
   return ActualOutSize;
 }

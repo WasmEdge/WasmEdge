@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "host/wasi_crypto/common/array_output.h"
-#include "host/wasi_crypto/util.h"
 
 #include <algorithm>
 #include <vector>
@@ -20,13 +19,6 @@ WasiCryptoExpect<__wasi_size_t> ArrayOutput::pull(Span<uint8_t> Buf) {
 }
 
 WasiCryptoExpect<__wasi_size_t> ArrayOutput::len() { return Data.size(); }
-
-// WasiCryptoExpect<__wasi_array_output_t>
-// ArrayOutput::registerInManger(HandleMangers &Mangers,
-//                               const std::vector<uint8_t> &InputData) {
-//   ArrayOutput ArrayOutput{InputData};
-//   return Mangers.ArrayOutputManger.registerManger(ArrayOutput);
-// }
 
 } // namespace Common
 } // namespace WASICrypto

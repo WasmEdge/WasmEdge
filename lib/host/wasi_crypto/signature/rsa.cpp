@@ -129,9 +129,9 @@ Rsa<Pad, Size, Sha>::SecretKey::exportData(
     __wasi_secretkey_encoding_e_t Encoding) {
   switch (Encoding) {
   case __WASI_SECRETKEY_ENCODING_RAW: {
-    std::vector<uint8_t> Res(i2d_PrivateKey(Sk.get(), nullptr));
+    std::vector<uint8_t> Res(i2d_PrivateKey(Ctx.get(), nullptr));
     uint8_t *Temp = Res.data();
-    opensslAssuming(i2d_PrivateKey(Sk.get(), &Temp));
+    opensslAssuming(i2d_PrivateKey(Ctx.get(), &Temp));
     return Res;
   }
   case __WASI_SECRETKEY_ENCODING_PKCS8: {
@@ -187,7 +187,7 @@ Rsa<Pad, Size, Sha>::KeyPair::openSignState() {
   opensslAssuming(SignCtx);
 
   opensslAssuming(
-      EVP_DigestSignInit(SignCtx, nullptr, EVP_sha256(), nullptr, Kp.get()));
+      EVP_DigestSignInit(SignCtx, nullptr, EVP_sha256(), nullptr, Ctx.get()));
   return std::make_unique<SignState>(SignCtx);
 }
 
@@ -209,9 +209,9 @@ WasiCryptoExpect<std::vector<uint8_t>>
 Rsa<Pad, Size, Sha>::KeyPair::exportData(__wasi_keypair_encoding_e_t Encoding) {
   switch (Encoding) {
   case __WASI_KEYPAIR_ENCODING_RAW: {
-    std::vector<uint8_t> Res(i2d_PrivateKey(Kp.get(), nullptr));
+    std::vector<uint8_t> Res(i2d_PrivateKey(Ctx.get(), nullptr));
     uint8_t *Temp = Res.data();
-    opensslAssuming(i2d_PrivateKey(Kp.get(), &Temp));
+    opensslAssuming(i2d_PrivateKey(Ctx.get(), &Temp));
     return Res;
   }
   case __WASI_KEYPAIR_ENCODING_PKCS8:
@@ -230,7 +230,7 @@ template <int Pad, int Size, int Sha>
 WasiCryptoExpect<std::unique_ptr<Signatures::PublicKey>>
 Rsa<Pad, Size, Sha>::KeyPair::publicKey() {
   BioPtr B{BIO_new(BIO_s_mem())};
-  opensslAssuming(i2d_PUBKEY_bio(B.get(), Kp.get()));
+  opensslAssuming(i2d_PUBKEY_bio(B.get(), Ctx.get()));
 
   EVP_PKEY *Res = nullptr;
   opensslAssuming(d2i_PUBKEY_bio(B.get(), &Res));
@@ -242,7 +242,7 @@ template <int Pad, int Size, int Sha>
 WasiCryptoExpect<std::unique_ptr<Signatures::SecretKey>>
 Rsa<Pad, Size, Sha>::KeyPair::secretKey() {
   BioPtr B{BIO_new(BIO_s_mem())};
-  opensslAssuming(i2d_PrivateKey_bio(B.get(), Kp.get()));
+  opensslAssuming(i2d_PrivateKey_bio(B.get(), Ctx.get()));
 
   EVP_PKEY *Res = nullptr;
   opensslAssuming(d2i_PrivateKey_bio(B.get(), &Res));
@@ -282,7 +282,7 @@ Rsa<Pad, Size, Sha>::Signature::exportData(
 template <int Pad, int Size, int Sha>
 WasiCryptoExpect<void>
 Rsa<Pad, Size, Sha>::SignState::update(Span<const uint8_t> Data) {
-  opensslAssuming(EVP_DigestSignUpdate(MdCtx.get(), Data.data(), Data.size()));
+  opensslAssuming(EVP_DigestSignUpdate(Ctx.get(), Data.data(), Data.size()));
   return {};
 }
 
@@ -290,11 +290,11 @@ template <int Pad, int Size, int Sha>
 WasiCryptoExpect<std::unique_ptr<Signatures::Signature>>
 Rsa<Pad, Size, Sha>::SignState::sign() {
   size_t Siz;
-  opensslAssuming(EVP_DigestSignFinal(MdCtx.get(), nullptr, &Siz));
+  opensslAssuming(EVP_DigestSignFinal(Ctx.get(), nullptr, &Siz));
 
   std::vector<uint8_t> Res(Siz);
 
-  opensslAssuming(EVP_DigestSignFinal(MdCtx.get(), Res.data(), &Siz));
+  opensslAssuming(EVP_DigestSignFinal(Ctx.get(), Res.data(), &Siz));
 
   return std::make_unique<Signature>(std::move(Res));
 }
@@ -302,8 +302,7 @@ Rsa<Pad, Size, Sha>::SignState::sign() {
 template <int Pad, int Size, int Sha>
 WasiCryptoExpect<void>
 Rsa<Pad, Size, Sha>::VerificationState::update(Span<const uint8_t> Data) {
-  opensslAssuming(
-      EVP_DigestVerifyUpdate(MdCtx.get(), Data.data(), Data.size()));
+  opensslAssuming(EVP_DigestVerifyUpdate(Ctx.get(), Data.data(), Data.size()));
   return {};
 }
 
@@ -312,8 +311,9 @@ WasiCryptoExpect<void> Rsa<Pad, Size, Sha>::VerificationState::verify(
     std::shared_ptr<Signatures::Signature> Sig) {
   ensureOrReturn(Sig->alg() == getAlg(), __WASI_CRYPTO_ERRNO_INVALID_SIGNATURE);
 
-  opensslAssuming(EVP_DigestVerifyFinal(MdCtx.get(), Sig->data().data(),
-                                        Sig->data().size()));
+  ensureOrReturn(
+      EVP_DigestVerifyFinal(Ctx.get(), Sig->data().data(), Sig->data().size()),
+      __WASI_CRYPTO_ERRNO_VERIFICATION_FAILED);
 
   return {};
 }

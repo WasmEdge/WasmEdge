@@ -102,6 +102,8 @@ class EddsaVerificationState : public VerificationState {
 public:
   EddsaVerificationState(EVP_MD_CTX *Ctx) : Ctx(Ctx) {}
 
+  ~EddsaVerificationState() override;
+
   WasiCryptoExpect<void> update(Span<const uint8_t> Input) override;
 
   WasiCryptoExpect<void> verify(std::shared_ptr<Signature> Sig) override;

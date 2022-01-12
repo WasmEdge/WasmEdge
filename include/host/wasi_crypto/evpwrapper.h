@@ -1,8 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
 #pragma once
 
+#include "common/log.h"
 #include "openssl/err.h"
 #include "openssl/evp.h"
+#include "wasi_crypto/api.hpp"
 
 namespace WasmEdge {
 namespace Host {
@@ -22,7 +24,13 @@ inline const std::map<int, const EVP_MD *> ShaMap{
 
 #ifdef NDEBUG
 #define opensslAssuming(Cond)                                                  \
-  (static_cast<bool>(Cond) ? static_cast<void>(0) : __builtin_unreachable())
+  do {                                                                         \
+    if (!(Cond)) {                                                             \
+      ERR_print_errors_cb(                                                     \
+          [](const char *str, size_t len, void *u) { spdlog::error(""); });    \
+      return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);        \
+    }                                                                          \
+  } while (0)
 #else
 #define opensslAssuming(Cond)                                                  \
   (static_cast<bool>(Cond)                                                     \

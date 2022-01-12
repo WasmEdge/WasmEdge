@@ -263,6 +263,10 @@ WasiCryptoExpect<std::unique_ptr<Signature>> EddsaSignState::sign() {
   return std::make_unique<EddsaSignature>(std::move(Res));
 }
 
+EddsaVerificationState::~EddsaVerificationState() {
+  std::fill(Cache.begin(), Cache.end(), 0);
+}
+
 WasiCryptoExpect<void>
 EddsaVerificationState::update(Span<const uint8_t> Input) {
   std::unique_lock Lock{Mutex};

@@ -13,7 +13,7 @@ namespace Symmetric {
 
 template <int Sha, int Mode> class Hkdf {
 public:
-  class KeyBuilder : public Key::Builder {
+  class KeyBuilder final : public Key::Builder {
   public:
     using Builder::Builder;
 
@@ -31,7 +31,7 @@ public:
   ///
   /// Expand:
   ///
-  class State : public ExtractAndExpandState {
+  class State final : public ExtractAndExpandState {
   public:
     State(std::shared_ptr<Options> OptOption, EVP_PKEY_CTX *Ctx)
         : OptOption(OptOption), Ctx(Ctx) {}
@@ -56,10 +56,12 @@ public:
 
     WasiCryptoExpect<uint64_t> optionsGetU64(std::string_view Name) override;
 
+    ~State() override;
+
   private:
     std::shared_mutex Mutex;
-    std::shared_ptr<Options> OptOption;
     std::vector<uint8_t> Cache;
+    std::shared_ptr<Options> OptOption;
     EvpPkeyCtxPtr Ctx;
   };
 };

@@ -99,7 +99,7 @@ public:
 
   class SecretKey : public Signatures::SecretKey {
   public:
-    SecretKey(EVP_PKEY *Sk) : Sk(std::move(Sk)) {}
+    SecretKey(EVP_PKEY *Sk) : Ctx(std::move(Sk)) {}
 
     static WasiCryptoExpect<std::unique_ptr<SecretKey>>
     import(Span<const uint8_t> Encoded, __wasi_secretkey_encoding_e_t Encoding);
@@ -108,12 +108,12 @@ public:
     exportData(__wasi_secretkey_encoding_e_t Encoding) override;
 
   private:
-    EvpPkeyPtr Sk;
+    EvpPkeyPtr Ctx;
   };
 
   class KeyPair : public Signatures::KeyPair {
   public:
-    KeyPair(EVP_PKEY *Kp) : Kp(std::move(Kp)) {}
+    KeyPair(EVP_PKEY *Ctx) : Ctx(Ctx) {}
 
     static WasiCryptoExpect<std::unique_ptr<KeyPair>>
     import(Span<const uint8_t> Encoded, __wasi_keypair_encoding_e_t Encoding);
@@ -134,36 +134,24 @@ public:
     secretKey() override;
 
   private:
-    EvpPkeyPtr Kp;
-  };
-
-  class Signature : public Signatures::Signature {
-  public:
-    Signature(std::vector<uint8_t> &&Data)
-        : Signatures::Signature(getAlg(), std::move(Data)) {}
-
-    static WasiCryptoExpect<std::unique_ptr<Signature>>
-    import(Span<const uint8_t> Encoded, __wasi_signature_encoding_e_t Encoding);
-
-    WasiCryptoExpect<std::vector<uint8_t>>
-    exportData(__wasi_signature_encoding_e_t Encoding) override;
+    EvpPkeyPtr Ctx;
   };
 
   class SignState : public Signatures::SignState {
   public:
-    SignState(EVP_MD_CTX *MdCtx) : MdCtx(MdCtx) {}
+    SignState(EVP_MD_CTX *MdCtx) : Ctx(MdCtx) {}
 
     WasiCryptoExpect<void> update(Span<uint8_t const> Data) override;
 
     WasiCryptoExpect<std::unique_ptr<Signatures::Signature>> sign() override;
 
   private:
-    EvpMdCtxPtr MdCtx;
+    EvpMdCtxPtr Ctx;
   };
 
   class VerificationState : public Signatures::VerificationState {
   public:
-    VerificationState(EVP_MD_CTX *MdCtx) : MdCtx(MdCtx) {}
+    VerificationState(EVP_MD_CTX *Ctx) : Ctx(Ctx) {}
 
     WasiCryptoExpect<void> update(Span<uint8_t const> Data) override;
 
@@ -171,7 +159,7 @@ public:
     verify(std::shared_ptr<Signatures::Signature> Sig) override;
 
   private:
-    EvpMdCtxPtr MdCtx;
+    EvpMdCtxPtr Ctx;
   };
 };
 

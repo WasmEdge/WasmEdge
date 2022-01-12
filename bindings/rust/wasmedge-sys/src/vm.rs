@@ -1188,6 +1188,36 @@ mod tests {
             result.unwrap_err(),
             WasmEdgeError::Store(StoreError::NotFoundModule("non-existent-module".into()))
         );
+
+        // run a registered function with empty parameters
+        let empty_params: Vec<Value> = vec![];
+        let result = vm.run_registered_function(mod_name, "fib", empty_params);
+        assert!(result.is_err());
+        assert_eq!(
+            result.unwrap_err(),
+            WasmEdgeError::Core(CoreError::Execution(CoreExecutionError::FuncTypeMismatch))
+        );
+
+        // run a registered function with the parameters of wrong type
+        let empty_params: Vec<Value> = vec![];
+        let result = vm.run_registered_function(mod_name, "fib", [Value::I64(5)]);
+        assert!(result.is_err());
+        assert_eq!(
+            result.unwrap_err(),
+            WasmEdgeError::Core(CoreError::Execution(CoreExecutionError::FuncTypeMismatch))
+        );
+
+        // run a registered function but give a wrong function name.
+        let empty_params: Vec<Value> = vec![];
+        let result = vm.run_registered_function(mod_name, "fib2", [Value::I32(5)]);
+        assert!(result.is_err());
+        assert_eq!(
+            result.unwrap_err(),
+            WasmEdgeError::Store(StoreError::NotFoundFuncRegistered {
+                func_name: "fib2".into(),
+                mod_name: "reg-wasm-ast".into(),
+            })
+        );
     }
 
     #[test]

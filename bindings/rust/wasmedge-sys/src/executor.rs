@@ -34,7 +34,10 @@ impl Executor {
             None => ptr::null(),
         };
         let stat_ctx = match stat {
-            Some(stat) => stat.ctx,
+            Some(stat) => {
+                stat.registered = true;
+                stat.ctx
+            }
             None => ptr::null_mut(),
         };
         let raw = unsafe { wasmedge::WasmEdge_ExecutorCreate(conf, stat_ctx) };
@@ -163,10 +166,9 @@ impl Executor {
         func_name: impl AsRef<str>,
         params: impl IntoIterator<Item = Value>,
     ) -> WasmEdgeResult<Vec<Value>> {
-        let raw_params = params
-            .into_iter()
-            .map(wasmedge::WasmEdge_Value::from)
-            .collect::<Vec<_>>();
+        store.contains_func(func_name.as_ref())?;
+
+        let raw_params = params.into_iter().map(|x| x.as_raw()).collect::<Vec<_>>();
 
         // get the length of the function's returns
         let returns_len = store.find_func(func_name.as_ref())?.ty()?.returns_len();
@@ -212,10 +214,9 @@ impl Executor {
         func_name: impl AsRef<str>,
         params: impl IntoIterator<Item = Value>,
     ) -> WasmEdgeResult<Vec<Value>> {
-        let raw_params = params
-            .into_iter()
-            .map(wasmedge::WasmEdge_Value::from)
-            .collect::<Vec<_>>();
+        store.contains_reg_func(mod_name.as_ref(), func_name.as_ref())?;
+
+        let raw_params = params.into_iter().map(|x| x.as_raw()).collect::<Vec<_>>();
 
         // get the length of the function's returns
         let returns_len = store
@@ -258,22 +259,40 @@ mod tests {
 
     #[test]
     fn test_executor_create() {
+        // create an Executor context without configuration and statistics
         let result = Executor::create(None, None);
         assert!(result.is_ok());
 
-        let result = Config::create();
-        assert!(result.is_ok());
-        let config = result.unwrap();
-        let result = Executor::create(Some(&config), None);
-        assert!(result.is_ok());
+        {
+            // create an Executor context with a given configuration
+            let result = Config::create();
+            assert!(result.is_ok());
+            let config = result.unwrap();
+            let result = Executor::create(Some(&config), None);
+            assert!(result.is_ok());
+        }
 
-        let result = Statistics::create();
-        assert!(result.is_ok());
-        let mut stat = result.unwrap();
-        let result = Executor::create(None, Some(&mut stat));
-        assert!(result.is_ok());
+        {
+            // create an Executor context with a given statistics
+            let result = Statistics::create();
+            assert!(result.is_ok());
+            let mut stat = result.unwrap();
+            let result = Executor::create(None, Some(&mut stat));
+            assert!(result.is_ok());
+        }
 
-        let result = Executor::create(Some(&config), Some(&mut stat));
-        assert!(result.is_ok());
+        {
+            // create an Executor context with the given configuration and statistics.
+            let result = Config::create();
+            assert!(result.is_ok());
+            let config = result.unwrap();
+
+            let result = Statistics::create();
+            assert!(result.is_ok());
+            let mut stat = result.unwrap();
+
+            let result = Executor::create(Some(&config), Some(&mut stat));
+            assert!(result.is_ok());
+        }
     }
 }

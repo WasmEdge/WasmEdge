@@ -4,16 +4,16 @@ use crate::Value;
 
 fn match_value(s: &str) -> Value {
     match s {
-        "i8" => Value::I32(0),
-        "u8" => Value::I32(0),
-        "i16" => Value::I32(0),
-        "u16" => Value::I32(0),
-        "i32" => Value::I32(0),
-        "u32" => Value::I64(0),
-        "i64" => Value::I64(0),
-        "f32" => Value::F32(0.),
-        "f64" => Value::F64(0.),
-        "u128" => Value::V128(0),
+        "i8" => Value::from_i32(0),
+        "u8" => Value::from_i32(0),
+        "i16" => Value::from_i32(0),
+        "u16" => Value::from_i32(0),
+        "i32" => Value::from_i32(0),
+        "u32" => Value::from_i64(0),
+        "i64" => Value::from_i64(0),
+        "f32" => Value::from_f32(0.),
+        "f64" => Value::from_f64(0.),
+        "u128" => Value::from_v128(0),
         _ => panic!("unsupport type for WasmFnIO"),
     }
 }

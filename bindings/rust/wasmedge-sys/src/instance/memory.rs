@@ -332,7 +332,7 @@ mod tests {
     use crate::error::{CoreError, CoreExecutionError, WasmEdgeError};
 
     #[test]
-    fn test_mem_type() {
+    fn test_memory_type() {
         let result = MemType::create(0..=u32::MAX);
         assert!(result.is_ok());
         let ty = result.unwrap();

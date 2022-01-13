@@ -62,57 +62,108 @@ fn _real_add(inputs: Vec<Value>) -> Result<Vec<Value>, u8> {
         return Err(1);
     }
 
-    let a = if let Value::I32(i) = inputs[0] {
-        i
-    } else {
-        return Err(2);
-    };
-
-    let b = if let Value::I32(i) = inputs[1] {
-        i
-    } else {
-        return Err(3);
-    };
-
-    let c = a + b;
-    Ok(vec![Value::I32(c)])
-}
-
-fn extern_add(inputs: Vec<Value>) -> Result<Vec<Value>, u8> {
     if inputs.len() != 2 {
         return Err(1);
     }
 
-    let a = if let Value::I32(i) = inputs[0] {
-        i
+    let a = if inputs[0].ty() == ValType::I32 {
+        inputs[0].to_i32()
     } else {
         return Err(2);
     };
 
-    let b = if let Value::I32(i) = inputs[1] {
-        i
+    let b = if inputs[1].ty() == ValType::I32 {
+        inputs[0].to_i32()
     } else {
         return Err(3);
     };
 
     let c = a + b;
-    Ok(vec![Value::I32(c)])
+
+    Ok(vec![Value::from_i32(c)])
 }
 
-fn extern_sub(_inputs: Vec<Value>) -> Result<Vec<Value>, u8> {
-    todo!()
+fn extern_add(inputs: Vec<Value>) -> Result<Vec<Value>, u8> {
+    let val1 = if inputs[0].ty() == ValType::ExternRef {
+        inputs[0]
+    } else {
+        return Err(2);
+    };
+    let val1 = val1
+        .extern_ref::<i32>()
+        .expect("fail to get i32 from an ExternRef");
+
+    let val2 = if inputs[1].ty() == ValType::I32 {
+        inputs[1].to_i32()
+    } else {
+        return Err(3);
+    };
+
+    Ok(vec![Value::from_i32(val1 + val2)])
 }
 
-fn extern_mul(_inputs: Vec<Value>) -> Result<Vec<Value>, u8> {
-    todo!()
+fn extern_sub(inputs: Vec<Value>) -> Result<Vec<Value>, u8> {
+    let val1 = if inputs[0].ty() == ValType::ExternRef {
+        inputs[0]
+    } else {
+        return Err(2);
+    };
+
+    println!("*** val1: {:?}", val1);
+
+    let val1 = val1
+        .extern_ref::<i32>()
+        .expect("fail to get i32 from an ExternRef");
+
+    let val2 = if inputs[1].ty() == ValType::I32 {
+        inputs[1].to_i32()
+    } else {
+        return Err(3);
+    };
+
+    Ok(vec![Value::from_i32(val1 - val2)])
 }
 
-fn extern_div(_inputs: Vec<Value>) -> Result<Vec<Value>, u8> {
-    todo!()
+fn extern_mul(inputs: Vec<Value>) -> Result<Vec<Value>, u8> {
+    let val1 = if inputs[0].ty() == ValType::ExternRef {
+        inputs[0]
+    } else {
+        return Err(2);
+    };
+    let val1 = val1
+        .extern_ref::<i32>()
+        .expect("fail to get i32 from an ExternRef");
+
+    let val2 = if inputs[1].ty() == ValType::I32 {
+        inputs[1].to_i32()
+    } else {
+        return Err(3);
+    };
+
+    Ok(vec![Value::from_i32(val1 * val2)])
+}
+
+fn extern_div(inputs: Vec<Value>) -> Result<Vec<Value>, u8> {
+    let val1 = if inputs[0].ty() == ValType::ExternRef {
+        inputs[0]
+    } else {
+        return Err(2);
+    };
+    let val1 = val1
+        .extern_ref::<i32>()
+        .expect("fail to get i32 from an ExternRef");
+
+    let val2 = if inputs[1].ty() == ValType::I32 {
+        inputs[1].to_i32()
+    } else {
+        return Err(3);
+    };
+
+    Ok(vec![Value::from_i32(val1 / val2)])
 }
 
 fn extern_term(_inputs: Vec<Value>) -> Result<Vec<Value>, u8> {
-    Ok(vec![Value::I32(1234)])
+    Ok(vec![Value::from_i32(1234)])
 }
 
 fn extern_fail(_inputs: Vec<Value>) -> Result<Vec<Value>, u8> {

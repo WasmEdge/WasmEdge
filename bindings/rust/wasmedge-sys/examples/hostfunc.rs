@@ -20,14 +20,14 @@ fn real_add(input: Vec<Value>) -> Result<Vec<Value>, u8> {
         return Err(1);
     }
 
-    let a = if let Value::I32(i) = input[0] {
-        i
+    let a = if input[0].ty() == ValType::I32 {
+        input[0].to_i32()
     } else {
         return Err(2);
     };
 
-    let b = if let Value::I32(i) = input[1] {
-        i
+    let b = if input[1].ty() == ValType::I32 {
+        input[0].to_i32()
     } else {
         return Err(3);
     };
@@ -36,7 +36,7 @@ fn real_add(input: Vec<Value>) -> Result<Vec<Value>, u8> {
     println!("Rust: calcuating in real_add c: {:?}", c);
 
     println!("Rust: Leaving Rust function real_add");
-    Ok(vec![Value::I32(c)])
+    Ok(vec![Value::from_i32(c)])
 }
 
 #[cfg_attr(test, test)]
@@ -70,17 +70,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut vm = Vm::create(Some(&config), None)?;
     vm.register_wasm_from_import(&mut import_obj)?;
 
-    #[allow(clippy::type_complexity)]
-    fn boxed_fn() -> Box<dyn Fn(Vec<Value>) -> Result<Vec<Value>, u8>> {
-        Box::new(real_add)
-    }
-
-    let add_ref = Value::from(boxed_fn());
-
-    match vm.run_wasm_from_module(
+    let add_ref = Value::from_extern_ref(&mut real_add);
+    match vm.run_wasm_from_module_new(
         &mut module,
         "call_add",
-        [add_ref, 1234i32.into(), 5678i32.into()],
+        [add_ref, Value::from_i32(1234), Value::from_i32(5678)],
     ) {
         Ok(v) => println!("result from call_add: {:?}", v),
         Err(r) => println!("error from call_add{:?}", r),

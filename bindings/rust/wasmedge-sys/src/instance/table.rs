@@ -6,7 +6,9 @@
 //! the end resticts the upper bound (inclusive).
 
 use crate::{
-    error::check, types::RefType, wasmedge, TableError, Value, WasmEdgeError, WasmEdgeResult,
+    error::check,
+    types::{RefType, Value},
+    wasmedge, TableError, WasmEdgeError, WasmEdgeResult,
 };
 use std::ops::RangeInclusive;
 
@@ -107,7 +109,7 @@ impl Table {
         unsafe {
             check(wasmedge::WasmEdge_TableInstanceSetData(
                 self.ctx,
-                data.into(),
+                data.as_raw(),
                 idx as u32,
             ))
         }
@@ -237,7 +239,7 @@ impl TableType {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::RefType;
+    use crate::{RefType, ValType};
 
     #[test]
     fn test_table_type() {
@@ -318,15 +320,17 @@ mod tests {
         let result = table.get_data(9);
         assert!(result.is_ok());
         let value = result.unwrap();
-        assert_eq!(value, Value::NullRef(RefType::FuncRef));
+        assert!(value.is_null_ref());
+        assert_eq!(value.ty(), ValType::FuncRef);
 
         // set data
-        let result = table.set_data(Value::FuncRef(5), 3);
+        let result = table.set_data(Value::from_func_ref(5), 3);
         assert!(result.is_ok());
         // get data
         let result = table.get_data(3);
         assert!(result.is_ok());
-        let value = result.unwrap();
-        assert_eq!(value, Value::FuncRef(5));
+        let idx = result.unwrap().func_idx();
+        assert!(idx.is_some());
+        assert_eq!(idx.unwrap(), 5);
     }
 }

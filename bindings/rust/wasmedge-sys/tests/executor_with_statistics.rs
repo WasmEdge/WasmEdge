@@ -4,6 +4,7 @@ use wasmedge_sys::{
     Config, Executor, Loader, Statistics, Store, StoreError, Validator, Value, WasmEdgeError,
 };
 
+#[warn(unused_assignments)]
 #[test]
 fn test_executor_with_statistics() {
     // create a Statistics context
@@ -95,10 +96,14 @@ fn test_executor_with_statistics() {
     let executor = result.unwrap();
 
     // invoke the registered function in the module
-    let result = executor.run_func(&store, "func-mul-2", [Value::I32(123), Value::I32(456)]);
+    let result = executor.run_func(
+        &store,
+        "func-mul-2",
+        [Value::from_i32(123), Value::from_i32(456)],
+    );
     assert!(result.is_ok());
     let returns = result.unwrap();
-    assert_eq!(returns, vec![Value::I32(246), Value::I32(912)]);
+    assert_eq!(returns, vec![Value::from_i32(246), Value::from_i32(912)]);
     // function type mismatched
     let result = executor.run_func(&store, "func-mul-2", []);
     assert!(result.is_err());
@@ -107,24 +112,148 @@ fn test_executor_with_statistics() {
         WasmEdgeError::Core(CoreError::Execution(CoreExecutionError::FuncTypeMismatch))
     );
     // function type mismatched
-    let result = executor.run_func(&store, "func-mul-2", [Value::I64(123), Value::I32(456)]);
+    let result = executor.run_func(
+        &store,
+        "func-mul-2",
+        [Value::from_i64(123), Value::from_i32(456)],
+    );
     assert!(result.is_err());
     assert_eq!(
         result.unwrap_err(),
         WasmEdgeError::Core(CoreError::Execution(CoreExecutionError::FuncTypeMismatch))
     );
     // function not found
-    let result = executor.run_func(&store, "func-mul-3", [Value::I32(123), Value::I32(456)]);
+    let result = executor.run_func(
+        &store,
+        "func-mul-3",
+        [Value::from_i32(123), Value::from_i32(456)],
+    );
     assert!(result.is_err());
     assert_eq!(
         result.unwrap_err(),
         WasmEdgeError::Store(StoreError::NotFoundFunc("func-mul-3".into()))
     );
 
+    // call host function by using external reference
+    let result = store.find_table("tab-ext");
+    assert!(result.is_ok());
+    let mut table = result.unwrap();
+
+    let mut test_value = 0u32;
+    let test_value_ref = &mut test_value;
+
+    let data = Value::from_extern_ref(test_value_ref);
+    let result = table.set_data(data, 0);
+    assert!(result.is_ok());
+    let result = table.set_data(data, 1);
+    assert!(result.is_ok());
+    let result = table.set_data(data, 2);
+    assert!(result.is_ok());
+    let result = table.set_data(data, 3);
+    assert!(result.is_ok());
+
+    // Call add: (777) + (223)
+    test_value = 777;
+    let result = executor.run_func(&store, "func-host-add", [Value::from_i32(223)]);
+    assert!(result.is_ok());
+    let returns = result.unwrap();
+    assert_eq!(returns[0].to_i32(), 1000);
+
+    // Call sub: (123) - (456)
+    test_value = 123;
+    let result = executor.run_func(&store, "func-host-sub", [Value::from_i32(456)]);
+    assert!(result.is_ok());
+    let returns = result.unwrap();
+    assert_eq!(returns[0].to_i32(), -333);
+
+    // Call mul: (-30) * (-66)
+    test_value = -30i32 as u32;
+    let result = executor.run_func(&store, "func-host-mul", [Value::from_i32(-66)]);
+    assert!(result.is_ok());
+    let returns = result.unwrap();
+    assert_eq!(returns[0].to_i32(), 1980);
+
+    // Call div: (-9999) / (1234)
+    test_value = -9999i32 as u32;
+    let result = executor.run_func(&store, "func-host-div", [Value::from_i32(1234)]);
+    assert!(result.is_ok());
+    let returns = result.unwrap();
+    assert_eq!(returns[0].to_i32(), -8);
+
+    // Invoke the functions in the registered module
+    test_value = 5000;
+    let result = executor.run_func_registered(
+        &store,
+        "extern",
+        "func-add",
+        [
+            Value::from_extern_ref(&mut test_value),
+            Value::from_i32(1500),
+        ],
+    );
+    assert!(result.is_ok());
+    let returns = result.unwrap();
+    assert_eq!(returns[0].to_i32(), 6500);
+    // Function type mismatch
+    let result = executor.run_func_registered(&store, "extern", "func-add", []);
+    assert!(result.is_err());
+    assert_eq!(
+        result.unwrap_err(),
+        WasmEdgeError::Core(CoreError::Execution(CoreExecutionError::FuncTypeMismatch))
+    );
+    // Function type mismatch
+    let result = executor.run_func_registered(
+        &store,
+        "extern",
+        "func-add",
+        [
+            Value::from_extern_ref(&mut test_value),
+            Value::from_i64(1500),
+        ],
+    );
+    assert!(result.is_err());
+    assert_eq!(
+        result.unwrap_err(),
+        WasmEdgeError::Core(CoreError::Execution(CoreExecutionError::FuncTypeMismatch))
+    );
+    // Module not found
+    let result = executor.run_func_registered(
+        &store,
+        "error-name",
+        "func-add",
+        [
+            Value::from_extern_ref(&mut test_value),
+            Value::from_i32(1500),
+        ],
+    );
+    assert!(result.is_err());
+    assert_eq!(
+        result.unwrap_err(),
+        WasmEdgeError::Store(StoreError::NotFoundModule("error-name".into()))
+    );
+    // Function not found
+    let result = executor.run_func_registered(
+        &store,
+        "extern",
+        "func-add2",
+        [
+            Value::from_extern_ref(&mut test_value),
+            Value::from_i32(1500),
+        ],
+    );
+    assert!(result.is_err());
+    assert_eq!(
+        result.unwrap_err(),
+        WasmEdgeError::Store(StoreError::NotFoundFuncRegistered {
+            func_name: "func-add2".into(),
+            mod_name: "extern".into(),
+        })
+    );
+
     // Invoke host function to terminate or fail execution
     let result = executor.run_func_registered(&store, "extern", "func-term", []);
     assert!(result.is_ok());
-    assert_eq!(result.unwrap(), vec![Value::I32(1234)]);
+    assert_eq!(result.unwrap(), vec![Value::from_i32(1234)]);
     let result = executor.run_func_registered(&store, "extern", "func-fail", []);
     assert!(result.is_err());
 

@@ -78,8 +78,9 @@ template <uint32_t NonceBit>
 WasiCryptoExpect<void>
 ChaChaPoly<NonceBit>::State::absorb(Span<const uint8_t> Data) {
   int Len;
-  opensslAssuming(
-      EVP_CipherUpdate(Ctx.get(), nullptr, &Len, Data.data(), Data.size()));
+  ensureOrReturn(Data.size() <= INT_MAX, __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
+  opensslAssuming(EVP_CipherUpdate(Ctx.get(), nullptr, &Len, Data.data(),
+                                   static_cast<int>(Data.size())));
 
   return {};
 }
@@ -91,8 +92,9 @@ WasiCryptoExpect<Tag> ChaChaPoly<NonceBit>::State::encryptDetachedUnchecked(
                                     nullptr, Mode::Encrypt));
 
   int ActualOutSize;
+  ensureOrReturn(Data.size() <= INT_MAX, __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
   opensslAssuming(EVP_CipherUpdate(Ctx.get(), Out.data(), &ActualOutSize,
-                                   Data.data(), Data.size()));
+                                   Data.data(), static_cast<int>(Data.size())));
 
   // we need check the equal.
   if (ActualOutSize < 0 ||
@@ -120,8 +122,9 @@ ChaChaPoly<NonceBit>::State::decryptDetachedUnchecked(
                                     nullptr, Mode::Decrypt));
 
   int ActualOutSize;
+  ensureOrReturn(Data.size() <= INT_MAX, __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
   opensslAssuming(EVP_CipherUpdate(Ctx.get(), Out.data(), &ActualOutSize,
-                                   Data.data(), Data.size()));
+                                   Data.data(), static_cast<int>(Data.size())));
 
   opensslAssuming(EVP_CIPHER_CTX_ctrl(Ctx.get(), EVP_CTRL_AEAD_SET_TAG, TagLen,
                                       const_cast<uint8_t *>(RawTag.data())));

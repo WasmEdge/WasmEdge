@@ -118,9 +118,7 @@ AesGcm<KeyBit>::State::encryptDetachedUnchecked(Span<uint8_t> Out,
   opensslAssuming(EVP_CipherFinal_ex(Ctx.get(), nullptr, &AL));
 
   // Gen tag
-  std::vector<uint8_t> RawTagData;
-  RawTagData.reserve(TagLen);
-  RawTagData.resize(TagLen);
+  std::vector<uint8_t> RawTagData(TagLen);
 
   opensslAssuming(EVP_CIPHER_CTX_ctrl(Ctx.get(), EVP_CTRL_AEAD_GET_TAG, TagLen,
                                       RawTagData.data()));
@@ -134,9 +132,11 @@ WasiCryptoExpect<__wasi_size_t> AesGcm<KeyBit>::State::decryptDetachedUnchecked(
   opensslAssuming(EVP_CipherInit_ex(Ctx.get(), nullptr, nullptr, nullptr,
                                     nullptr, Mode::Decrypt));
 
+  ensureOrReturn(Data.size() <= INT_MAX, __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
+
   int ActualOutSize;
   opensslAssuming(EVP_CipherUpdate(Ctx.get(), Out.data(), &ActualOutSize,
-                                   Data.data(), Data.size()));
+                                   Data.data(), static_cast<int>(Data.size())));
 
   opensslAssuming(EVP_CIPHER_CTX_ctrl(Ctx.get(), EVP_CTRL_AEAD_SET_TAG, TagLen,
                                       const_cast<uint8_t *>(RawTag.data())));

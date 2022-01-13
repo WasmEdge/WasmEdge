@@ -28,7 +28,11 @@ Ecdsa<Nid>::PublicKey::import(Span<const uint8_t> Encoded,
   switch (Encoding) {
   case __WASI_PUBLICKEY_ENCODING_RAW: {
     const uint8_t *Temp = Encoded.data();
-    Pk = d2i_PublicKey(EVP_PKEY_EC, &Pk, &Temp, Encoded.size());
+
+    ensureOrReturn(Encoded.size() <= LONG_MAX,
+                   __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
+    Pk = d2i_PublicKey(EVP_PKEY_EC, &Pk, &Temp,
+                       static_cast<long>(Encoded.size()));
     ensureOrReturn(Pk, __WASI_CRYPTO_ERRNO_INVALID_KEY);
     break;
   }
@@ -54,7 +58,8 @@ WasiCryptoExpect<std::vector<uint8_t>>
 Ecdsa<Nid>::PublicKey::exportData(__wasi_publickey_encoding_e_t Encoding) {
   switch (Encoding) {
   case __WASI_PUBLICKEY_ENCODING_RAW: {
-    std::vector<uint8_t> Res(i2d_PublicKey(Ctx.get(), nullptr));
+    std::vector<uint8_t> Res(
+        static_cast<size_t>(i2d_PublicKey(Ctx.get(), nullptr)));
     uint8_t *Temp = Res.data();
     opensslAssuming(i2d_PublicKey(Ctx.get(), &Temp));
     return Res;
@@ -98,7 +103,10 @@ Ecdsa<Nid>::SecretKey::import(Span<const uint8_t> Encoded,
   switch (Encoding) {
   case __WASI_SECRETKEY_ENCODING_RAW: {
     const uint8_t *Temp = Encoded.data();
-    Sk = d2i_PrivateKey(EVP_PKEY_EC, &Sk, &Temp, Encoded.size());
+    ensureOrReturn(Encoded.size() <= LONG_MAX,
+                   __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
+    Sk = d2i_PrivateKey(EVP_PKEY_EC, &Sk, &Temp,
+                        static_cast<long>(Encoded.size()));
     ensureOrReturn(Sk, __WASI_CRYPTO_ERRNO_INVALID_KEY);
     break;
   }
@@ -124,7 +132,8 @@ WasiCryptoExpect<std::vector<uint8_t>>
 Ecdsa<Nid>::SecretKey::exportData(__wasi_secretkey_encoding_e_t Encoding) {
   switch (Encoding) {
   case __WASI_SECRETKEY_ENCODING_RAW: {
-    std::vector<uint8_t> Res(i2d_PrivateKey(Ctx.get(), nullptr));
+    std::vector<uint8_t> Res(
+        static_cast<size_t>(i2d_PrivateKey(Ctx.get(), nullptr)));
     uint8_t *Temp = Res.data();
     opensslAssuming(i2d_PrivateKey(Ctx.get(), &Temp));
     return Res;
@@ -184,7 +193,10 @@ Ecdsa<Nid>::KeyPair::import(Span<const uint8_t> Encoded,
   switch (Encoding) {
   case __WASI_KEYPAIR_ENCODING_RAW: {
     const uint8_t *Temp = Encoded.data();
-    Kp = d2i_PrivateKey(EVP_PKEY_EC, &Kp, &Temp, Encoded.size());
+    ensureOrReturn(Encoded.size() <= LONG_MAX,
+                   __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
+    Kp = d2i_PrivateKey(EVP_PKEY_EC, &Kp, &Temp,
+                        static_cast<long>(Encoded.size()));
     ensureOrReturn(Kp, __WASI_CRYPTO_ERRNO_INVALID_KEY);
     break;
   }
@@ -206,7 +218,8 @@ WasiCryptoExpect<std::vector<uint8_t>>
 Ecdsa<Nid>::KeyPair::exportData(__wasi_keypair_encoding_e_t Encoding) {
   switch (Encoding) {
   case __WASI_KEYPAIR_ENCODING_RAW: {
-    std::vector<uint8_t> Res(i2d_PrivateKey(Ctx.get(), nullptr));
+    std::vector<uint8_t> Res(
+        static_cast<size_t>(i2d_PrivateKey(Ctx.get(), nullptr)));
     uint8_t *Temp = Res.data();
     opensslAssuming(i2d_PrivateKey(Ctx.get(), &Temp));
     return Res;

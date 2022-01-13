@@ -25,7 +25,11 @@ Rsa<Pad, Size, Sha>::PublicKey::import(Span<const uint8_t> Encoded,
   switch (Encoding) {
   case __WASI_PUBLICKEY_ENCODING_RAW: {
     const uint8_t *Temp = Encoded.data();
-    P = d2i_PublicKey(EVP_PKEY_RSA, &P, &Temp, Encoded.size());
+
+    ensureOrReturn(Encoded.size() <= LONG_MAX,
+                   __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
+    P = d2i_PublicKey(EVP_PKEY_RSA, &P, &Temp,
+                      static_cast<long>(Encoded.size()));
     ensureOrReturn(P, __WASI_CRYPTO_ERRNO_INVALID_KEY);
     break;
   }
@@ -52,7 +56,8 @@ Rsa<Pad, Size, Sha>::PublicKey::exportData(
     __wasi_publickey_encoding_e_t Encoding) {
   switch (Encoding) {
   case __WASI_PUBLICKEY_ENCODING_RAW: {
-    std::vector<uint8_t> Res(i2d_PublicKey(Pk.get(), nullptr));
+    std::vector<uint8_t> Res(
+        static_cast<size_t>(i2d_PublicKey(Pk.get(), nullptr)));
     uint8_t *Temp = Res.data();
     opensslAssuming(i2d_PublicKey(Pk.get(), &Temp));
     return Res;
@@ -97,7 +102,10 @@ Rsa<Pad, Size, Sha>::SecretKey::import(Span<const uint8_t> Encoded,
   switch (Encoding) {
   case __WASI_SECRETKEY_ENCODING_RAW: {
     const uint8_t *Temp = Encoded.data();
-    Sk = d2i_PrivateKey(EVP_PKEY_RSA, &Sk, &Temp, Encoded.size());
+    ensureOrReturn(Encoded.size() <= LONG_MAX,
+                   __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
+    Sk = d2i_PrivateKey(EVP_PKEY_RSA, &Sk, &Temp,
+                        static_cast<long>(Encoded.size()));
     ensureOrReturn(Sk, __WASI_CRYPTO_ERRNO_INVALID_KEY);
     break;
   }
@@ -124,7 +132,8 @@ Rsa<Pad, Size, Sha>::SecretKey::exportData(
     __wasi_secretkey_encoding_e_t Encoding) {
   switch (Encoding) {
   case __WASI_SECRETKEY_ENCODING_RAW: {
-    std::vector<uint8_t> Res(i2d_PrivateKey(Ctx.get(), nullptr));
+    std::vector<uint8_t> Res(
+        static_cast<size_t>(i2d_PrivateKey(Ctx.get(), nullptr)));
     uint8_t *Temp = Res.data();
     opensslAssuming(i2d_PrivateKey(Ctx.get(), &Temp));
     return Res;
@@ -164,7 +173,11 @@ Rsa<Pad, Size, Sha>::KeyPair::import(Span<const uint8_t> Encoded,
   case __WASI_KEYPAIR_ENCODING_RAW: {
     // TODO: add more check in encoded?
     const uint8_t *Temp = Encoded.data();
-    Kp = d2i_PrivateKey(EVP_PKEY_RSA, &Kp, &Temp, Encoded.size());
+
+    ensureOrReturn(Encoded.size() <= LONG_MAX,
+                   __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
+    Kp = d2i_PrivateKey(EVP_PKEY_RSA, &Kp, &Temp,
+                        static_cast<long>(Encoded.size()));
     ensureOrReturn(Kp, __WASI_CRYPTO_ERRNO_INVALID_KEY);
     break;
   }
@@ -210,7 +223,8 @@ WasiCryptoExpect<std::vector<uint8_t>>
 Rsa<Pad, Size, Sha>::KeyPair::exportData(__wasi_keypair_encoding_e_t Encoding) {
   switch (Encoding) {
   case __WASI_KEYPAIR_ENCODING_RAW: {
-    std::vector<uint8_t> Res(i2d_PrivateKey(Ctx.get(), nullptr));
+    std::vector<uint8_t> Res(
+        static_cast<size_t>(i2d_PrivateKey(Ctx.get(), nullptr)));
     uint8_t *Temp = Res.data();
     opensslAssuming(i2d_PrivateKey(Ctx.get(), &Temp));
     return Res;

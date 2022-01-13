@@ -27,7 +27,11 @@ inline const std::map<int, const EVP_MD *> ShaMap{
   do {                                                                         \
     if (!(Cond)) {                                                             \
       ERR_print_errors_cb(                                                     \
-          [](const char *str, size_t len, void *u) { spdlog::error(""); });    \
+          [](const char *Str, size_t, void *) {                                \
+            spdlog::error("{} ", Str);                                         \
+            return 1;                                                          \
+          },                                                                   \
+          nullptr);                                                            \
       return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);        \
     }                                                                          \
   } while (0)
@@ -35,7 +39,12 @@ inline const std::map<int, const EVP_MD *> ShaMap{
 #define opensslAssuming(Cond)                                                  \
   (static_cast<bool>(Cond)                                                     \
        ? static_cast<void>(0)                                                  \
-       : (ERR_print_errors_fp(stderr),                                         \
+       : (ERR_print_errors_cb(                                                 \
+              [](const char *Str, size_t, void *) {                            \
+                spdlog::error("{} ", Str);                                     \
+                return 1;                                                      \
+              },                                                               \
+              nullptr),                                                        \
           OPENSSL_die("assertion failed: " #Cond, __FILE__, __LINE__)))
 #endif
 

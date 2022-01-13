@@ -11,7 +11,7 @@ namespace Host {
 namespace WASICrypto {
 namespace Symmetric {
 
-template <int NonceBit> class ChaChaPoly {
+template <uint32_t NonceBit> class ChaChaPoly {
 public:
   class KeyBuilder final : public Key::Builder {
   public:

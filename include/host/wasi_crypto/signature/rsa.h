@@ -18,7 +18,7 @@ namespace Host {
 namespace WASICrypto {
 namespace Signatures {
 
-template <int Pad, int Size, int Sha> class Rsa {
+template <uint32_t Pad, uint32_t Size, uint32_t Sha> class Rsa {
   static constexpr SignatureAlgorithm getAlg() {
     if constexpr (Pad == RSA_PKCS1_PADDING) {
       if constexpr (Size == 2048) {

@@ -13,7 +13,7 @@ namespace Host {
 namespace WASICrypto {
 namespace Symmetric {
 
-template <int Sha> class Sha2State final : public HashState {
+template <uint32_t Sha> class Sha2State final : public HashState {
 public:
   Sha2State(std::shared_ptr<Options> OptOption, EVP_MD_CTX *Ctx)
       : OptOption(OptOption), Ctx(Ctx) {}

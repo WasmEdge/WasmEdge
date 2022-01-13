@@ -13,7 +13,7 @@ namespace Host {
 namespace WASICrypto {
 namespace Symmetric {
 
-template <int KeyBit> class AesGcm {
+template <uint32_t KeyBit> class AesGcm {
 public:
   class KeyBuilder final : public Key::Builder {
   public:
@@ -50,7 +50,7 @@ public:
 
     WasiCryptoExpect<uint64_t> optionsGetU64(std::string_view Name) override;
 
-    /// @param[in] optional additional authentication data(AAD)
+    /// @param[in] Data additional authentication data(AAD)
     WasiCryptoExpect<void> absorb(Span<const uint8_t> Data) override;
 
     WasiCryptoExpect<__wasi_size_t> maxTagLen() override { return TagLen; }

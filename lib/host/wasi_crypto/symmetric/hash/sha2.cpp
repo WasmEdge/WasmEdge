@@ -7,27 +7,27 @@ namespace Host {
 namespace WASICrypto {
 namespace Symmetric {
 
-template <int Sha>
+template <uint32_t Sha>
 WasiCryptoExpect<std::vector<uint8_t>>
 Sha2State<Sha>::optionsGet(std::string_view Name) {
   ensureOrReturn(OptOption, __WASI_CRYPTO_ERRNO_OPTION_NOT_SET);
   return OptOption->get(Name);
 }
 
-template <int Sha>
+template <uint32_t Sha>
 WasiCryptoExpect<uint64_t>
 Sha2State<Sha>::optionsGetU64(std::string_view Name) {
   ensureOrReturn(OptOption, __WASI_CRYPTO_ERRNO_OPTION_NOT_SET);
   return OptOption->getU64(Name);
 }
 
-template <int Sha>
+template <uint32_t Sha>
 WasiCryptoExpect<void> Sha2State<Sha>::absorb(Span<uint8_t const> Data) {
   opensslAssuming(EVP_DigestUpdate(Ctx.get(), Data.data(), Data.size()));
   return {};
 }
 
-template <int Sha>
+template <uint32_t Sha>
 WasiCryptoExpect<void> Sha2State<Sha>::squeeze(Span<uint8_t> Out) {
 
   // If finalization is required, the implementation MUST duplicate the internal
@@ -55,7 +55,7 @@ WasiCryptoExpect<void> Sha2State<Sha>::squeeze(Span<uint8_t> Out) {
   return {};
 }
 
-template <int Sha>
+template <uint32_t Sha>
 WasiCryptoExpect<std::unique_ptr<Sha2State<Sha>>>
 Sha2State<Sha>::open(std::shared_ptr<Key> OptKey,
                      std::shared_ptr<Options> OptOption) {

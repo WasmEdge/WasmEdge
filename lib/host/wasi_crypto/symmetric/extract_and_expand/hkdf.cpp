@@ -8,7 +8,7 @@ namespace Host {
 namespace WASICrypto {
 namespace Symmetric {
 
-template <int Sha, int Mode>
+template <uint32_t Sha, uint32_t Mode>
 WasiCryptoExpect<std::unique_ptr<Key>>
 Hkdf<Sha, Mode>::KeyBuilder::generate(std::shared_ptr<Options>) {
   std::vector<uint8_t> Data(keyLen(), 0);
@@ -20,19 +20,19 @@ Hkdf<Sha, Mode>::KeyBuilder::generate(std::shared_ptr<Options>) {
   return std::make_unique<Key>(Alg, std::move(Data));
 }
 
-template <int Sha, int Mode>
+template <uint32_t Sha, uint32_t Mode>
 WasiCryptoExpect<std::unique_ptr<Key>>
 Hkdf<Sha, Mode>::KeyBuilder::import(Span<uint8_t const> Raw) {
   return std::make_unique<Key>(Alg,
                                std::vector<uint8_t>{Raw.begin(), Raw.end()});
 }
 
-template <int Sha, int Mode>
+template <uint32_t Sha, uint32_t Mode>
 __wasi_size_t Hkdf<Sha, Mode>::KeyBuilder::keyLen() {
   return Sha / 8;
 }
 
-template <int Sha, int Mode>
+template <uint32_t Sha, uint32_t Mode>
 WasiCryptoExpect<std::unique_ptr<typename Hkdf<Sha, Mode>::State>>
 Hkdf<Sha, Mode>::State::open(std::shared_ptr<Key> OptKey,
                              std::shared_ptr<Options> OptOption) {
@@ -51,7 +51,7 @@ Hkdf<Sha, Mode>::State::open(std::shared_ptr<Key> OptKey,
   return std::make_unique<State>(OptOption, Ctx);
 }
 
-template <int Sha, int Mode>
+template <uint32_t Sha, uint32_t Mode>
 WasiCryptoExpect<void>
 Hkdf<Sha, Mode>::State::absorb(Span<const uint8_t> Data) {
   std::unique_lock<std::shared_mutex> Lock{Mutex};
@@ -60,7 +60,7 @@ Hkdf<Sha, Mode>::State::absorb(Span<const uint8_t> Data) {
   return {};
 }
 
-template <int Sha, int Mode>
+template <uint32_t Sha, uint32_t Mode>
 WasiCryptoExpect<std::unique_ptr<Key>>
 Hkdf<Sha, Mode>::State::squeezeKey(SymmetricAlgorithm InputAlg) {
   if constexpr (Mode != EVP_PKEY_HKDEF_MODE_EXTRACT_ONLY) {
@@ -82,7 +82,7 @@ Hkdf<Sha, Mode>::State::squeezeKey(SymmetricAlgorithm InputAlg) {
   return std::make_unique<Key>(InputAlg, std::move(Data));
 }
 
-template <int Sha, int Mode>
+template <uint32_t Sha, uint32_t Mode>
 WasiCryptoExpect<void> Hkdf<Sha, Mode>::State::squeeze(Span<uint8_t> Out) {
   if constexpr (Mode != EVP_PKEY_HKDEF_MODE_EXPAND_ONLY) {
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_OPERATION);
@@ -98,21 +98,21 @@ WasiCryptoExpect<void> Hkdf<Sha, Mode>::State::squeeze(Span<uint8_t> Out) {
   return {};
 }
 
-template <int Sha, int Mode>
+template <uint32_t Sha, uint32_t Mode>
 WasiCryptoExpect<std::vector<uint8_t>>
 Hkdf<Sha, Mode>::State::optionsGet(std::string_view Name) {
   ensureOrReturn(OptOption, __WASI_CRYPTO_ERRNO_OPTION_NOT_SET);
   return OptOption->get(Name);
 }
 
-template <int Sha, int Mode>
+template <uint32_t Sha, uint32_t Mode>
 WasiCryptoExpect<uint64_t>
 Hkdf<Sha, Mode>::State::optionsGetU64(std::string_view Name) {
   ensureOrReturn(OptOption, __WASI_CRYPTO_ERRNO_OPTION_NOT_SET);
   return OptOption->getU64(Name);
 }
 
-template <int Sha, int Mode> Hkdf<Sha, Mode>::State::~State() {
+template <uint32_t Sha, uint32_t Mode> Hkdf<Sha, Mode>::State::~State() {
   std::fill(Cache.begin(), Cache.end(), 0);
 }
 

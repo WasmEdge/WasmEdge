@@ -17,7 +17,7 @@ namespace Host {
 namespace WASICrypto {
 namespace Signatures {
 
-template <int Nid> class Ecdsa {
+template <uint32_t Nid> class Ecdsa {
 public:
   class PublicKey final : public Signatures::PublicKey {
   public:

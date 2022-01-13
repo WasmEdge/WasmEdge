@@ -18,7 +18,7 @@ namespace Host {
 namespace WASICrypto {
 namespace Symmetric {
 
-template <int Sha> class HmacSha2 {
+template <uint32_t Sha> class HmacSha2 {
 public:
   class KeyBuilder final : public Key::Builder {
   public:

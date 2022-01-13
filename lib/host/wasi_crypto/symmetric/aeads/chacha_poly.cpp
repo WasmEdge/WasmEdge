@@ -10,7 +10,7 @@ namespace Host {
 namespace WASICrypto {
 namespace Symmetric {
 
-template <int NonceBit>
+template <uint32_t NonceBit>
 WasiCryptoExpect<std::unique_ptr<typename ChaChaPoly<NonceBit>::State>>
 ChaChaPoly<NonceBit>::State::open(std::shared_ptr<Key> OptKey,
                                   std::shared_ptr<Options> OptOption) {
@@ -38,7 +38,7 @@ ChaChaPoly<NonceBit>::State::open(std::shared_ptr<Key> OptKey,
   return std::make_unique<ChaChaPoly<NonceBit>::State>(Ctx, OptOption);
 }
 
-template <int NonceBit>
+template <uint32_t NonceBit>
 WasiCryptoExpect<std::unique_ptr<Key>>
 ChaChaPoly<NonceBit>::KeyBuilder::generate(std::shared_ptr<Options>) {
   std::vector<uint8_t> Res(keyLen(), 0);
@@ -50,31 +50,31 @@ ChaChaPoly<NonceBit>::KeyBuilder::generate(std::shared_ptr<Options>) {
   return std::make_unique<Key>(Alg, std::move(Res));
 }
 
-template <int NonceBit>
+template <uint32_t NonceBit>
 WasiCryptoExpect<std::unique_ptr<Key>>
 ChaChaPoly<NonceBit>::KeyBuilder::import(Span<uint8_t const> Raw) {
   return std::make_unique<Key>(Alg,
                                std::vector<uint8_t>{Raw.begin(), Raw.end()});
 }
 
-template <int NonceBit>
+template <uint32_t NonceBit>
 __wasi_size_t ChaChaPoly<NonceBit>::KeyBuilder::keyLen() {
   return 32;
 }
 
-template <int NonceBit>
+template <uint32_t NonceBit>
 WasiCryptoExpect<std::vector<uint8_t>>
 ChaChaPoly<NonceBit>::State::optionsGet(std::string_view Name) {
   return OptOptions->get(Name);
 }
 
-template <int NonceBit>
+template <uint32_t NonceBit>
 WasiCryptoExpect<uint64_t>
 ChaChaPoly<NonceBit>::State::optionsGetU64(std::string_view Name) {
   return OptOptions->getU64(Name);
 }
 
-template <int NonceBit>
+template <uint32_t NonceBit>
 WasiCryptoExpect<void>
 ChaChaPoly<NonceBit>::State::absorb(Span<const uint8_t> Data) {
   int Len;
@@ -84,7 +84,7 @@ ChaChaPoly<NonceBit>::State::absorb(Span<const uint8_t> Data) {
   return {};
 }
 
-template <int NonceBit>
+template <uint32_t NonceBit>
 WasiCryptoExpect<Tag> ChaChaPoly<NonceBit>::State::encryptDetachedUnchecked(
     Span<uint8_t> Out, Span<const uint8_t> Data) {
   opensslAssuming(EVP_CipherInit_ex(Ctx.get(), nullptr, nullptr, nullptr,
@@ -112,7 +112,7 @@ WasiCryptoExpect<Tag> ChaChaPoly<NonceBit>::State::encryptDetachedUnchecked(
   return RawTagData;
 }
 
-template <int NonceBit>
+template <uint32_t NonceBit>
 WasiCryptoExpect<__wasi_size_t>
 ChaChaPoly<NonceBit>::State::decryptDetachedUnchecked(
     Span<uint8_t> Out, Span<const uint8_t> Data, Span<uint8_t const> RawTag) {
@@ -133,7 +133,7 @@ ChaChaPoly<NonceBit>::State::decryptDetachedUnchecked(
   return ActualOutSize;
 }
 
-template <int NonceBit>
+template <uint32_t NonceBit>
 WasiCryptoExpect<__wasi_size_t> ChaChaPoly<NonceBit>::State::maxTagLen() {
   return TagLen;
 }

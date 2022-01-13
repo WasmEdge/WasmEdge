@@ -39,7 +39,7 @@ public:
   /// Check Out.size() == Data.size() + maxTagLen(), then call
   /// encryptUnchecked(Out, Data) or return error if not equal
   ///
-  /// @param Out The encrypted data text.
+  /// @param Out The encrypted data text
   /// @param Data The data to be encrypted
   /// @return Tag's size or
   /// `__WASI_CRYPTO_ERRNO_OVERFLOW`/`__WASI_CRYPTO_ERRNO_INVALID_LENGTH`
@@ -49,7 +49,7 @@ public:
   /// Check Out.size() == Data.size(), then call
   /// encryptDetachedUnchecked(Out, Data) or error if not equal
   ///
-  /// @param Out The encrypted data text.
+  /// @param Out The encrypted data text
   /// @param Data The data to be encrypted
   /// @return Tag
   /// or `__WASI_CRYPTO_ERRNO_OVERFLOW`/`__WASI_CRYPTO_ERRNO_INVALID_LENGTH`
@@ -59,14 +59,20 @@ public:
   /// Check Out.size() = Data.size() + maxTagLen(), then call
   /// decryptDetachedUnchecked(Out, Data) or error if not equal
   ///
-  /// @param Out
-  /// @param Data
+  /// @param Out The decrypted data text
+  /// @param Data The data to be decrypted
   /// @return Size or
   /// `__WASI_CRYPTO_ERRNO_OVERFLOW`/`__WASI_CRYPTO_ERRNO_INVALID_LENGTH`
   WasiCryptoExpect<__wasi_size_t>
   decrypt(Span<uint8_t> Out, Span<const uint8_t> Data) override final;
 
-  /// Guarantee the Out.size() = Data.size()
+  /// Check Out.size() == Data.size(), then call
+  /// encryptDetachedUnchecked(Out, Data) or error if not equal
+  ///
+  /// @param Out The decrypted data text
+  /// @param Data The data to be decrypted
+  /// @return Size or
+  /// `__WASI_CRYPTO_ERRNO_OVERFLOW`/`__WASI_CRYPTO_ERRNO_INVALID_LENGTH`
   WasiCryptoExpect<__wasi_size_t>
   decryptDetached(Span<uint8_t> Out, Span<const uint8_t> Data,
                   Span<uint8_t> RawTag) override final;

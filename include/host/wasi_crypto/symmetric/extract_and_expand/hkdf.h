@@ -11,7 +11,7 @@ namespace Host {
 namespace WASICrypto {
 namespace Symmetric {
 
-template <int Sha, int Mode> class Hkdf {
+template <uint32_t Sha, uint32_t Mode> class Hkdf {
 public:
   class KeyBuilder final : public Key::Builder {
   public:

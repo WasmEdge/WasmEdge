@@ -261,22 +261,40 @@ mod tests {
 
     #[test]
     fn test_executor_create() {
+        // create an Executor context without configuration and statistics
         let result = Executor::create(None, None);
         assert!(result.is_ok());
 
-        let result = Config::create();
-        assert!(result.is_ok());
-        let config = result.unwrap();
-        let result = Executor::create(Some(&config), None);
-        assert!(result.is_ok());
+        {
+            // create an Executor context with a given configuration
+            let result = Config::create();
+            assert!(result.is_ok());
+            let config = result.unwrap();
+            let result = Executor::create(Some(&config), None);
+            assert!(result.is_ok());
+        }
 
-        let result = Statistics::create();
-        assert!(result.is_ok());
-        let mut stat = result.unwrap();
-        let result = Executor::create(None, Some(&mut stat));
-        assert!(result.is_ok());
+        {
+            // create an Executor context with a given statistics
+            let result = Statistics::create();
+            assert!(result.is_ok());
+            let mut stat = result.unwrap();
+            let result = Executor::create(None, Some(&mut stat));
+            assert!(result.is_ok());
+        }
 
-        let result = Executor::create(Some(&config), Some(&mut stat));
-        assert!(result.is_ok());
+        {
+            // create an Executor context with the given configuration and statistics.
+            let result = Config::create();
+            assert!(result.is_ok());
+            let config = result.unwrap();
+
+            let result = Statistics::create();
+            assert!(result.is_ok());
+            let mut stat = result.unwrap();
+
+            let result = Executor::create(Some(&config), Some(&mut stat));
+            assert!(result.is_ok());
+        }
     }
 }

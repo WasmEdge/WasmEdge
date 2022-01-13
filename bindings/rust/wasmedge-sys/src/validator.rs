@@ -53,41 +53,41 @@ impl Drop for Validator {
     }
 }
 
-// #[cfg(test)]
-// mod tests {
-//     use super::*;
-//     use crate::{Config, Loader};
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{Config, Loader};
 
-//     #[test]
-//     fn test_validator() {
-//         // create a Validator context without configuration
-//         let result = Validator::create(None);
-//         assert!(result.is_ok());
+    #[test]
+    fn test_validator() {
+        // create a Validator context without configuration
+        let result = Validator::create(None);
+        assert!(result.is_ok());
 
-//         // create a Loader context with configuration
-//         let result = Config::create();
-//         assert!(result.is_ok());
-//         let config = result.unwrap();
-//         let config = config.enable_reference_types(true);
-//         let result = Loader::create(Some(&config));
-//         assert!(result.is_ok());
-//         let loader = result.unwrap();
+        // create a Loader context with configuration
+        let result = Config::create();
+        assert!(result.is_ok());
+        let config = result.unwrap();
+        let config = config.enable_reference_types(true);
+        let result = Loader::create(Some(&config));
+        assert!(result.is_ok());
+        let loader = result.unwrap();
 
-//         // load a WASM module
-//         let path =
-//             std::path::PathBuf::from(env!("WASMEDGE_DIR")).join("test/api/apiTestData/test.wasm");
-//         let result = loader.from_file(path);
-//         assert!(result.is_ok());
-//         let module = result.unwrap();
-//         assert!(!module.ctx.is_null());
+        // load a WASM module
+        let path =
+            std::path::PathBuf::from(env!("WASMEDGE_DIR")).join("test/api/apiTestData/test.wasm");
+        let result = loader.from_file(path);
+        assert!(result.is_ok());
+        let module = result.unwrap();
+        assert!(!module.ctx.is_null());
 
-//         // create a Validator context without configuration
-//         let result = Validator::create(None);
-//         assert!(result.is_ok());
-//         let validator = result.unwrap();
+        // create a Validator context without configuration
+        let result = Validator::create(None);
+        assert!(result.is_ok());
+        let validator = result.unwrap();
 
-//         // validate the module loaded.
-//         let result = validator.validate(&module);
-//         assert!(result.is_ok());
-//     }
-// }
+        // validate the module loaded.
+        let result = validator.validate(&module);
+        assert!(result.is_ok());
+    }
+}

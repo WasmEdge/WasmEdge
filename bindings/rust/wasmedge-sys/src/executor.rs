@@ -34,7 +34,10 @@ impl Executor {
             None => ptr::null(),
         };
         let stat_ctx = match stat {
-            Some(stat) => stat.ctx,
+            Some(stat) => {
+                stat.registered = true;
+                stat.ctx
+            }
             None => ptr::null_mut(),
         };
         let raw = unsafe { wasmedge::WasmEdge_ExecutorCreate(conf, stat_ctx) };

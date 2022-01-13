@@ -7,19 +7,6 @@ namespace Host {
 namespace WASICrypto {
 namespace Symmetric {
 
-namespace {
-/// TODO: Can replace it with a builtin function.
-/// avoid overflow
-constexpr bool checkAdd(Span<const uint8_t> Data, __wasi_size_t TagSize) {
-  return (SIZE_MAX - TagSize) < Data.size();
-}
-
-/// avoid overflow
-constexpr bool checkSub(Span<const uint8_t> Data, __wasi_size_t TagSize) {
-  return TagSize > Data.size();
-}
-} // namespace
-
 WasiCryptoExpect<__wasi_size_t> AEADsState::encrypt(Span<uint8_t> Out,
                                                     Span<const uint8_t> Data) {
   auto TagSize = maxTagLen();
@@ -27,12 +14,11 @@ WasiCryptoExpect<__wasi_size_t> AEADsState::encrypt(Span<uint8_t> Out,
     return WasiCryptoUnexpect(TagSize);
   }
 
-  if (checkAdd(Data, *TagSize)) {
-    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_OVERFLOW);
-  }
+  size_t Res;
+  ensureOrReturn(!__builtin_add_overflow(Data.size(), *TagSize, &Res),
+                 __WASI_CRYPTO_ERRNO_OVERFLOW);
 
-  ensureOrReturn(Out.size() == Data.size() + *TagSize,
-                 __WASI_CRYPTO_ERRNO_INVALID_LENGTH);
+  ensureOrReturn(Out.size() == Res, __WASI_CRYPTO_ERRNO_INVALID_LENGTH);
 
   return encryptUnchecked(Out, Data);
 }
@@ -49,9 +35,10 @@ WasiCryptoExpect<__wasi_size_t> AEADsState::decrypt(Span<uint8_t> Out,
   if (auto TagSize = maxTagLen(); !TagSize) {
     return WasiCryptoUnexpect(TagSize);
   } else {
-    if (checkSub(Data, *TagSize))
-      return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_OVERFLOW);
-    if (Out.size() != Data.size() - *TagSize)
+    size_t Res;
+    ensureOrReturn(!__builtin_sub_overflow(Data.size(), *TagSize, &Res),
+                   __WASI_CRYPTO_ERRNO_OVERFLOW);
+    if (Out.size() != Res)
       return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_OVERFLOW);
   }
 

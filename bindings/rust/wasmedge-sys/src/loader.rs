@@ -113,65 +113,65 @@ impl Drop for Loader {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::Loader;
-    use crate::{
-        error::{CoreError, CoreLoadError},
-        Config, WasmEdgeError,
-    };
+// #[cfg(test)]
+// mod tests {
+//     use super::Loader;
+//     use crate::{
+//         error::{CoreError, CoreLoadError},
+//         Config, WasmEdgeError,
+//     };
 
-    #[test]
-    fn test_loader() {
-        // create a Loader instance without configuration
-        let result = Loader::create(None);
-        assert!(result.is_ok());
+//     #[test]
+//     fn test_loader() {
+//         // create a Loader instance without configuration
+//         let result = Loader::create(None);
+//         assert!(result.is_ok());
 
-        // create a Loader instance with configuration
-        let result = Config::create();
-        assert!(result.is_ok());
-        let config = result.unwrap();
-        let config = config.enable_reference_types(true);
-        let result = Loader::create(Some(&config));
-        assert!(result.is_ok());
-        let loader = result.unwrap();
+//         // create a Loader instance with configuration
+//         let result = Config::create();
+//         assert!(result.is_ok());
+//         let config = result.unwrap();
+//         let config = config.enable_reference_types(true);
+//         let result = Loader::create(Some(&config));
+//         assert!(result.is_ok());
+//         let loader = result.unwrap();
 
-        // load from file
-        {
-            let path = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
-                .join("bindings/rust/wasmedge-sys/tests/data/fibonacci.wasm");
-            let result = loader.from_file(path);
-            assert!(result.is_ok());
-            let module = result.unwrap();
-            assert!(!module.ctx.is_null());
+//         // load from file
+//         {
+//             let path = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
+//                 .join("bindings/rust/wasmedge-sys/tests/data/fibonacci.wasm");
+//             let result = loader.from_file(path);
+//             assert!(result.is_ok());
+//             let module = result.unwrap();
+//             assert!(!module.ctx.is_null());
 
-            let result = loader.from_file("not_exist_file");
-            assert!(result.is_err());
-            assert_eq!(
-                result.unwrap_err(),
-                WasmEdgeError::Core(CoreError::Load(CoreLoadError::IllegalPath))
-            );
-        }
+//             let result = loader.from_file("not_exist_file");
+//             assert!(result.is_err());
+//             assert_eq!(
+//                 result.unwrap_err(),
+//                 WasmEdgeError::Core(CoreError::Load(CoreLoadError::IllegalPath))
+//             );
+//         }
 
-        // load from buffer
-        {
-            let path = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
-                .join("bindings/rust/wasmedge-sys/tests/data/fibonacci.wasm");
-            let result = std::fs::read(path);
-            assert!(result.is_ok());
-            let buffer = result.unwrap();
+//         // load from buffer
+//         {
+//             let path = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
+//                 .join("bindings/rust/wasmedge-sys/tests/data/fibonacci.wasm");
+//             let result = std::fs::read(path);
+//             assert!(result.is_ok());
+//             let buffer = result.unwrap();
 
-            let result = loader.from_buffer(&buffer);
-            assert!(result.is_ok());
-            let module = result.unwrap();
-            assert!(!module.ctx.is_null());
+//             let result = loader.from_buffer(&buffer);
+//             assert!(result.is_ok());
+//             let module = result.unwrap();
+//             assert!(!module.ctx.is_null());
 
-            let result = loader.from_buffer(&[]);
-            assert!(result.is_err());
-            assert_eq!(
-                result.unwrap_err(),
-                WasmEdgeError::Core(CoreError::Load(CoreLoadError::UnexpectedEnd))
-            );
-        }
-    }
-}
+//             let result = loader.from_buffer(&[]);
+//             assert!(result.is_err());
+//             assert_eq!(
+//                 result.unwrap_err(),
+//                 WasmEdgeError::Core(CoreError::Load(CoreLoadError::UnexpectedEnd))
+//             );
+//         }
+//     }
+// }

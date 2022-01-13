@@ -287,181 +287,181 @@ impl Drop for ImportObj {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::{
-        types::{HostRegistration, Value},
-        Config, FuncType, GlobalType, MemType, Mutability, RefType, TableType, ValType, Vm,
-    };
+// #[cfg(test)]
+// mod tests {
+//     use super::*;
+//     use crate::{
+//         types::{HostRegistration, Value},
+//         Config, FuncType, GlobalType, MemType, Mutability, RefType, TableType, ValType, Vm,
+//     };
 
-    #[test]
-    fn test_import_obj_add_instance() {
-        let host_name = "extern";
+//     #[test]
+//     fn test_import_obj_add_instance() {
+//         let host_name = "extern";
 
-        // create an ImportObj module
-        let result = ImportObj::create(host_name);
-        assert!(result.is_ok());
-        let mut import_obj = result.unwrap();
+//         // create an ImportObj module
+//         let result = ImportObj::create(host_name);
+//         assert!(result.is_ok());
+//         let mut import_obj = result.unwrap();
 
-        // add host function "func-add": (externref, i32) -> (i32)
-        let result = FuncType::create([ValType::ExternRef, ValType::I32], [ValType::I32]);
-        assert!(result.is_ok());
-        let func_ty = result.unwrap();
-        let result = Function::create(func_ty, Box::new(real_add), 0);
-        assert!(result.is_ok());
-        let mut host_func = result.unwrap();
-        // add the function into the import_obj module
-        import_obj.add_func("func-add", &mut host_func);
+//         // add host function "func-add": (externref, i32) -> (i32)
+//         let result = FuncType::create([ValType::ExternRef, ValType::I32], [ValType::I32]);
+//         assert!(result.is_ok());
+//         let func_ty = result.unwrap();
+//         let result = Function::create(func_ty, Box::new(real_add), 0);
+//         assert!(result.is_ok());
+//         let mut host_func = result.unwrap();
+//         // add the function into the import_obj module
+//         import_obj.add_func("func-add", &mut host_func);
 
-        // create a Table instance
-        let result = TableType::create(RefType::FuncRef, 10..=20);
-        assert!(result.is_ok());
-        let mut table_ty = result.unwrap();
-        let result = Table::create(&mut table_ty);
-        assert!(result.is_ok());
-        let mut host_table = result.unwrap();
-        // add the table into the import_obj module
-        import_obj.add_table("table", &mut host_table);
+//         // create a Table instance
+//         let result = TableType::create(RefType::FuncRef, 10..=20);
+//         assert!(result.is_ok());
+//         let mut table_ty = result.unwrap();
+//         let result = Table::create(&mut table_ty);
+//         assert!(result.is_ok());
+//         let mut host_table = result.unwrap();
+//         // add the table into the import_obj module
+//         import_obj.add_table("table", &mut host_table);
 
-        // create a Memory instance
-        let result = MemType::create(1..=2);
-        assert!(result.is_ok());
-        let mut mem_ty = result.unwrap();
-        let result = Memory::create(&mut mem_ty);
-        assert!(result.is_ok());
-        let mut host_memory = result.unwrap();
-        // add the memory into the import_obj module
-        import_obj.add_memory("memory", &mut host_memory);
+//         // create a Memory instance
+//         let result = MemType::create(1..=2);
+//         assert!(result.is_ok());
+//         let mut mem_ty = result.unwrap();
+//         let result = Memory::create(&mut mem_ty);
+//         assert!(result.is_ok());
+//         let mut host_memory = result.unwrap();
+//         // add the memory into the import_obj module
+//         import_obj.add_memory("memory", &mut host_memory);
 
-        // create a Global instance
-        let result = GlobalType::create(ValType::I32, Mutability::Const);
-        assert!(result.is_ok());
-        let mut global_ty = result.unwrap();
-        let result = Global::create(&mut global_ty, Value::from_i32(666));
-        assert!(result.is_ok());
-        let mut host_global = result.unwrap();
-        // add the global into import_obj module
-        import_obj.add_global("global_i32", &mut host_global);
+//         // create a Global instance
+//         let result = GlobalType::create(ValType::I32, Mutability::Const);
+//         assert!(result.is_ok());
+//         let mut global_ty = result.unwrap();
+//         let result = Global::create(&mut global_ty, Value::from_i32(666));
+//         assert!(result.is_ok());
+//         let mut host_global = result.unwrap();
+//         // add the global into import_obj module
+//         import_obj.add_global("global_i32", &mut host_global);
 
-        assert_eq!(import_obj.exit_code(), 1);
-    }
+//         assert_eq!(import_obj.exit_code(), 1);
+//     }
 
-    #[test]
-    fn test_import_obj_wasi() {
-        // create WASI
-        {
-            let result = ImportObj::create_wasi(None, None, None);
-            assert!(result.is_ok());
-            let result = ImportObj::create_wasi(
-                Some(vec!["arg1", "arg2"]),
-                Some(vec!["ENV1=VAL1", "ENV1=VAL2", "ENV3=VAL3"]),
-                Some(vec![
-                    "apiTestData",
-                    "Makefile",
-                    "CMakeFiles",
-                    "ssvmAPICoreTests",
-                    ".:.",
-                ]),
-            );
-            assert!(result.is_ok());
-            let result = ImportObj::create_wasi(
-                None,
-                Some(vec!["ENV1=VAL1", "ENV1=VAL2", "ENV3=VAL3"]),
-                Some(vec![
-                    "apiTestData",
-                    "Makefile",
-                    "CMakeFiles",
-                    "ssvmAPICoreTests",
-                    ".:.",
-                ]),
-            );
-            assert!(result.is_ok());
-            let import_obj = result.unwrap();
+//     #[test]
+//     fn test_import_obj_wasi() {
+//         // create WASI
+//         {
+//             let result = ImportObj::create_wasi(None, None, None);
+//             assert!(result.is_ok());
+//             let result = ImportObj::create_wasi(
+//                 Some(vec!["arg1", "arg2"]),
+//                 Some(vec!["ENV1=VAL1", "ENV1=VAL2", "ENV3=VAL3"]),
+//                 Some(vec![
+//                     "apiTestData",
+//                     "Makefile",
+//                     "CMakeFiles",
+//                     "ssvmAPICoreTests",
+//                     ".:.",
+//                 ]),
+//             );
+//             assert!(result.is_ok());
+//             let result = ImportObj::create_wasi(
+//                 None,
+//                 Some(vec!["ENV1=VAL1", "ENV1=VAL2", "ENV3=VAL3"]),
+//                 Some(vec![
+//                     "apiTestData",
+//                     "Makefile",
+//                     "CMakeFiles",
+//                     "ssvmAPICoreTests",
+//                     ".:.",
+//                 ]),
+//             );
+//             assert!(result.is_ok());
+//             let import_obj = result.unwrap();
 
-            assert_eq!(import_obj.exit_code(), 0);
-        }
+//             assert_eq!(import_obj.exit_code(), 0);
+//         }
 
-        // initialize WASI in VM
-        {
-            let result = Config::create();
-            assert!(result.is_ok());
-            let config = result.unwrap();
-            let config = config.wasi(true);
-            let result = Vm::create(Some(&config), None);
-            assert!(result.is_ok());
-            let mut vm = result.unwrap();
+//         // initialize WASI in VM
+//         {
+//             let result = Config::create();
+//             assert!(result.is_ok());
+//             let config = result.unwrap();
+//             let config = config.wasi(true);
+//             let result = Vm::create(Some(&config), None);
+//             assert!(result.is_ok());
+//             let mut vm = result.unwrap();
 
-            // get the ImportObject module from vm
-            let result = vm.import_obj_mut(HostRegistration::Wasi);
-            assert!(result.is_ok());
-            let mut import_obj = result.unwrap();
+//             // get the ImportObject module from vm
+//             let result = vm.import_obj_mut(HostRegistration::Wasi);
+//             assert!(result.is_ok());
+//             let mut import_obj = result.unwrap();
 
-            let args = vec!["arg1", "arg2"];
-            let envs = vec!["ENV1=VAL1", "ENV1=VAL2", "ENV3=VAL3"];
-            let preopens = vec![
-                "apiTestData",
-                "Makefile",
-                "CMakeFiles",
-                "ssvmAPICoreTests",
-                ".:.",
-            ];
-            import_obj.init_wasi(Some(args), Some(envs), Some(preopens));
+//             let args = vec!["arg1", "arg2"];
+//             let envs = vec!["ENV1=VAL1", "ENV1=VAL2", "ENV3=VAL3"];
+//             let preopens = vec![
+//                 "apiTestData",
+//                 "Makefile",
+//                 "CMakeFiles",
+//                 "ssvmAPICoreTests",
+//                 ".:.",
+//             ];
+//             import_obj.init_wasi(Some(args), Some(envs), Some(preopens));
 
-            assert_eq!(import_obj.exit_code(), 0);
-        }
-    }
+//             assert_eq!(import_obj.exit_code(), 0);
+//         }
+//     }
 
-    #[test]
-    fn test_import_obj_wasmedge_process() {
-        // create wasmedge_process
-        {
-            let result = ImportObj::create_wasmedge_process(Some(vec!["arg1", "arg2"]), true);
-            assert!(result.is_ok());
+//     #[test]
+//     fn test_import_obj_wasmedge_process() {
+//         // create wasmedge_process
+//         {
+//             let result = ImportObj::create_wasmedge_process(Some(vec!["arg1", "arg2"]), true);
+//             assert!(result.is_ok());
 
-            let result = ImportObj::create_wasmedge_process(None, false);
-            assert!(result.is_ok());
+//             let result = ImportObj::create_wasmedge_process(None, false);
+//             assert!(result.is_ok());
 
-            let result = ImportObj::create_wasmedge_process(Some(vec!["arg1", "arg2"]), false);
-            assert!(result.is_ok());
-        }
+//             let result = ImportObj::create_wasmedge_process(Some(vec!["arg1", "arg2"]), false);
+//             assert!(result.is_ok());
+//         }
 
-        // initialize wasmedge_process in VM
-        {
-            let result = Config::create();
-            assert!(result.is_ok());
-            let config = result.unwrap();
-            let config = config.wasmedge_process(true);
-            let result = Vm::create(Some(&config), None);
-            assert!(result.is_ok());
-            let mut vm = result.unwrap();
+//         // initialize wasmedge_process in VM
+//         {
+//             let result = Config::create();
+//             assert!(result.is_ok());
+//             let config = result.unwrap();
+//             let config = config.wasmedge_process(true);
+//             let result = Vm::create(Some(&config), None);
+//             assert!(result.is_ok());
+//             let mut vm = result.unwrap();
 
-            let result = vm.import_obj_mut(HostRegistration::WasmEdgeProcess);
-            assert!(result.is_ok());
-            let mut import_obj = result.unwrap();
-            import_obj.init_wasmedge_process(Some(vec!["arg1", "arg2"]), false);
-        }
-    }
+//             let result = vm.import_obj_mut(HostRegistration::WasmEdgeProcess);
+//             assert!(result.is_ok());
+//             let mut import_obj = result.unwrap();
+//             import_obj.init_wasmedge_process(Some(vec!["arg1", "arg2"]), false);
+//         }
+//     }
 
-    fn real_add(inputs: Vec<Value>) -> Result<Vec<Value>, u8> {
-        if inputs.len() != 2 {
-            return Err(1);
-        }
+//     fn real_add(inputs: Vec<Value>) -> Result<Vec<Value>, u8> {
+//         if inputs.len() != 2 {
+//             return Err(1);
+//         }
 
-        let a = if inputs[0].ty() == ValType::I32 {
-            inputs[0].to_i32()
-        } else {
-            return Err(2);
-        };
+//         let a = if inputs[0].ty() == ValType::I32 {
+//             inputs[0].to_i32()
+//         } else {
+//             return Err(2);
+//         };
 
-        let b = if inputs[1].ty() == ValType::I32 {
-            inputs[1].to_i32()
-        } else {
-            return Err(3);
-        };
+//         let b = if inputs[1].ty() == ValType::I32 {
+//             inputs[1].to_i32()
+//         } else {
+//             return Err(3);
+//         };
 
-        let c = a + b;
+//         let c = a + b;
 
-        Ok(vec![Value::from_i32(c)])
-    }
-}
+//         Ok(vec![Value::from_i32(c)])
+//     }
+// }

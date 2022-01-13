@@ -717,103 +717,103 @@ impl Drop for Store {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::Store;
-    use crate::{
-        instance::{Function, Global, GlobalType, MemType, Memory, Table, TableType},
-        FuncType, ImportObj, Mutability, RefType, ValType, Value,
-    };
+// #[cfg(test)]
+// mod tests {
+//     use super::Store;
+//     use crate::{
+//         instance::{Function, Global, GlobalType, MemType, Memory, Table, TableType},
+//         FuncType, ImportObj, Mutability, RefType, ValType, Value,
+//     };
 
-    #[test]
-    fn test_store_basic() {
-        let module_name = "extern_module";
+//     #[test]
+//     fn test_store_basic() {
+//         let module_name = "extern_module";
 
-        let result = Store::create();
-        assert!(result.is_ok());
-        let store = result.unwrap();
-        assert!(!store.ctx.is_null());
-        assert!(!store.registered);
+//         let result = Store::create();
+//         assert!(result.is_ok());
+//         let store = result.unwrap();
+//         assert!(!store.ctx.is_null());
+//         assert!(!store.registered);
 
-        // check the length of registered module list in store before instatiation
-        assert_eq!(store.func_len(), 0);
-        assert_eq!(store.reg_func_len(module_name), 0);
-        assert_eq!(store.table_len(), 0);
-        assert_eq!(store.reg_table_len(module_name), 0);
-        assert_eq!(store.global_len(), 0);
-        assert_eq!(store.reg_global_len(module_name), 0);
-        assert_eq!(store.mem_len(), 0);
-        assert_eq!(store.reg_mem_len(module_name), 0);
-        assert_eq!(store.reg_module_len(), 0);
-        assert!(store.reg_module_names().is_none());
+//         // check the length of registered module list in store before instatiation
+//         assert_eq!(store.func_len(), 0);
+//         assert_eq!(store.reg_func_len(module_name), 0);
+//         assert_eq!(store.table_len(), 0);
+//         assert_eq!(store.reg_table_len(module_name), 0);
+//         assert_eq!(store.global_len(), 0);
+//         assert_eq!(store.reg_global_len(module_name), 0);
+//         assert_eq!(store.mem_len(), 0);
+//         assert_eq!(store.reg_mem_len(module_name), 0);
+//         assert_eq!(store.reg_module_len(), 0);
+//         assert!(store.reg_module_names().is_none());
 
-        // create ImportObject instance
-        let result = ImportObj::create(module_name);
-        assert!(result.is_ok());
-        let mut import_obj = result.unwrap();
+//         // create ImportObject instance
+//         let result = ImportObj::create(module_name);
+//         assert!(result.is_ok());
+//         let mut import_obj = result.unwrap();
 
-        // add host function
-        let result = FuncType::create(vec![ValType::I32; 2], vec![ValType::I32]);
-        assert!(result.is_ok());
-        let func_ty = result.unwrap();
-        let result = Function::create(func_ty, Box::new(real_add), 0);
-        assert!(result.is_ok());
-        let mut host_func = result.unwrap();
-        import_obj.add_func("add", &mut host_func);
-        assert!(host_func.ctx.is_null() && host_func.registered);
+//         // add host function
+//         let result = FuncType::create(vec![ValType::I32; 2], vec![ValType::I32]);
+//         assert!(result.is_ok());
+//         let func_ty = result.unwrap();
+//         let result = Function::create(func_ty, Box::new(real_add), 0);
+//         assert!(result.is_ok());
+//         let mut host_func = result.unwrap();
+//         import_obj.add_func("add", &mut host_func);
+//         assert!(host_func.ctx.is_null() && host_func.registered);
 
-        // add table
-        let result = TableType::create(RefType::FuncRef, 0..=u32::MAX);
-        assert!(result.is_ok());
-        let mut ty = result.unwrap();
-        assert!(!ty.ctx.is_null());
-        assert!(!ty.registered);
-        let result = Table::create(&mut ty);
-        assert!(result.is_ok());
-        let mut table = result.unwrap();
-        import_obj.add_table("table", &mut table);
-        assert!(table.ctx.is_null() && table.registered);
+//         // add table
+//         let result = TableType::create(RefType::FuncRef, 0..=u32::MAX);
+//         assert!(result.is_ok());
+//         let mut ty = result.unwrap();
+//         assert!(!ty.ctx.is_null());
+//         assert!(!ty.registered);
+//         let result = Table::create(&mut ty);
+//         assert!(result.is_ok());
+//         let mut table = result.unwrap();
+//         import_obj.add_table("table", &mut table);
+//         assert!(table.ctx.is_null() && table.registered);
 
-        // add memory
-        let result = MemType::create(0..=u32::MAX);
-        assert!(result.is_ok());
-        let mut mem_ty = result.unwrap();
-        let result = Memory::create(&mut mem_ty);
-        assert!(result.is_ok());
-        let mut memory = result.unwrap();
-        import_obj.add_memory("mem", &mut memory);
-        assert!(memory.ctx.is_null() && memory.registered);
+//         // add memory
+//         let result = MemType::create(0..=u32::MAX);
+//         assert!(result.is_ok());
+//         let mut mem_ty = result.unwrap();
+//         let result = Memory::create(&mut mem_ty);
+//         assert!(result.is_ok());
+//         let mut memory = result.unwrap();
+//         import_obj.add_memory("mem", &mut memory);
+//         assert!(memory.ctx.is_null() && memory.registered);
 
-        // add globals
-        let result = GlobalType::create(ValType::F32, Mutability::Const);
-        assert!(result.is_ok());
-        let mut ty = result.unwrap();
-        let result = Global::create(&mut ty, Value::from_f32(3.5));
-        assert!(result.is_ok());
-        let mut global = result.unwrap();
-        import_obj.add_global("global", &mut global);
-        assert!(global.ctx.is_null() && global.registered);
-    }
+//         // add globals
+//         let result = GlobalType::create(ValType::F32, Mutability::Const);
+//         assert!(result.is_ok());
+//         let mut ty = result.unwrap();
+//         let result = Global::create(&mut ty, Value::from_f32(3.5));
+//         assert!(result.is_ok());
+//         let mut global = result.unwrap();
+//         import_obj.add_global("global", &mut global);
+//         assert!(global.ctx.is_null() && global.registered);
+//     }
 
-    fn real_add(inputs: Vec<Value>) -> Result<Vec<Value>, u8> {
-        if inputs.len() != 2 {
-            return Err(1);
-        }
+//     fn real_add(inputs: Vec<Value>) -> Result<Vec<Value>, u8> {
+//         if inputs.len() != 2 {
+//             return Err(1);
+//         }
 
-        let a = if inputs[0].ty() == ValType::I32 {
-            inputs[0].to_i32()
-        } else {
-            return Err(2);
-        };
+//         let a = if inputs[0].ty() == ValType::I32 {
+//             inputs[0].to_i32()
+//         } else {
+//             return Err(2);
+//         };
 
-        let b = if inputs[1].ty() == ValType::I32 {
-            inputs[1].to_i32()
-        } else {
-            return Err(3);
-        };
+//         let b = if inputs[1].ty() == ValType::I32 {
+//             inputs[1].to_i32()
+//         } else {
+//             return Err(3);
+//         };
 
-        let c = a + b;
+//         let c = a + b;
 
-        Ok(vec![Value::from_i32(c)])
-    }
-}
+//         Ok(vec![Value::from_i32(c)])
+//     }
+// }

@@ -722,8 +722,7 @@ mod tests {
     use super::Store;
     use crate::{
         instance::{Function, Global, GlobalType, MemType, Memory, Table, TableType},
-        types::Value,
-        Config, Executor, FuncType, ImportObj, Mutability, RefType, Statistics, ValType,
+        FuncType, ImportObj, Mutability, RefType, ValType, Value,
     };
 
     #[test]
@@ -732,7 +731,7 @@ mod tests {
 
         let result = Store::create();
         assert!(result.is_ok());
-        let mut store = result.unwrap();
+        let store = result.unwrap();
         assert!(!store.ctx.is_null());
         assert!(!store.registered);
 
@@ -794,95 +793,6 @@ mod tests {
         let mut global = result.unwrap();
         import_obj.add_global("global", &mut global);
         assert!(global.ctx.is_null() && global.registered);
-
-        // create a Config context
-        let result = Config::create();
-        assert!(result.is_ok());
-        let config = result.unwrap();
-        // enable Statistics
-        let config = config
-            .count_instructions(true)
-            .measure_time(true)
-            .measure_cost(true);
-        // create a Statistics context
-        let result = Statistics::create();
-        assert!(result.is_ok());
-        let stat = result.unwrap();
-        // create an Executor context
-        let result = Executor::create(Some(&config), Some(&stat));
-        assert!(result.is_ok());
-        let executor = result.unwrap();
-        let result = executor.register_import_object(&mut store, &import_obj);
-        assert!(result.is_ok());
-        let executor = result.unwrap();
-
-        // check the module list after instantiation
-        assert_eq!(store.reg_module_len(), 1);
-        assert!(store.reg_module_names().is_some());
-        assert_eq!(store.reg_module_names().unwrap()[0], module_name);
-        assert_eq!(store.func_len(), 0);
-        assert_eq!(store.reg_func_len(module_name), 1);
-        assert!(store.reg_func_names(module_name).is_some());
-        assert_eq!(store.reg_func_names(module_name).unwrap()[0], "add");
-        assert_eq!(store.table_len(), 0);
-        assert_eq!(store.reg_table_len(module_name), 1);
-        assert!(store.reg_table_names(module_name).is_some());
-        assert_eq!(store.reg_table_names(module_name).unwrap()[0], "table");
-        assert_eq!(store.global_len(), 0);
-        assert_eq!(store.reg_global_len(module_name), 1);
-        assert!(store.reg_global_names(module_name).is_some());
-        assert_eq!(store.reg_global_names(module_name).unwrap()[0], "global");
-        assert_eq!(store.mem_len(), 0);
-        assert_eq!(store.reg_mem_len(module_name), 1);
-        assert!(store.reg_mem_names(module_name).is_some());
-        assert_eq!(store.reg_mem_names(module_name).unwrap()[0], "mem");
-
-        // check the function list after instantiation
-        let result = store.find_func("add");
-        assert!(result.is_err());
-        let result = store.find_func_registered("extern_module", "add");
-        assert!(result.is_ok());
-
-        // check the table list after instantiation
-        let result = store.find_table("table");
-        assert!(result.is_err());
-        let result = store.find_table_registered("extern_module", "table");
-        assert!(result.is_ok());
-
-        // check the memory list after instantiation
-        let result = store.find_memory("mem");
-        assert!(result.is_err());
-        let result = store.find_memory_registered("extern_module", "mem");
-        assert!(result.is_ok());
-
-        // check the global list after instantiation
-        let result = store.find_global("global");
-        assert!(result.is_err());
-        let result = store.find_global_registered("extern_module", "global");
-        assert!(result.is_ok());
-        let global = result.unwrap();
-        assert!(!global.ctx.is_null() && global.registered);
-        let val = global.get_value();
-        assert_eq!(val.to_f32(), 3.5);
-
-        // run the registered function
-        let result = executor.run_func_registered(
-            &store,
-            "extern_module",
-            "add",
-            vec![Value::from_i32(12), Value::from_i32(21)],
-        );
-        assert!(result.is_ok());
-        let returns = result.unwrap();
-        assert_eq!(returns, vec![Value::from_i32(33)]);
-
-        let second_run = executor.run_func_registered(
-            &store,
-            "extern_module",
-            "add",
-            vec![Value::from_i32(12), Value::from_i32(21)],
-        );
-        assert!(second_run.is_ok());
     }
 
     fn real_add(inputs: Vec<Value>) -> Result<Vec<Value>, u8> {

@@ -2,6 +2,7 @@
 
 #include "host/wasi_crypto/signature/options.h"
 
+#include <vector>
 namespace WasmEdge {
 namespace Host {
 namespace WASICrypto {

@@ -29,7 +29,7 @@ public:
   /// @return returns the PRK, whose algorithm type is set to the EXPAND
   /// counterpart of the EXTRACT operation.
   virtual WasiCryptoExpect<std::unique_ptr<Key>>
-  squeezeKey(SymmetricAlgorithm KeyAlg) override = 0;
+  squeezeKey(SymmetricAlgorithm Alg) override = 0;
 
 private:
   WasiCryptoExpect<void> ratchet() override final { return State::ratchet(); }

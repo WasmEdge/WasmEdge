@@ -64,7 +64,7 @@ Hkdf<Sha, Mode>::State::squeezeKey(SymmetricAlgorithm InputAlg) {
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_OPERATION);
   }
 
-  std::shared_lock Lock{Mutex};
+  std::shared_lock<std::shared_mutex> Lock{Mutex};
 
   opensslAssuming(
       EVP_PKEY_CTX_set1_hkdf_salt(Ctx.get(), Cache.data(), Cache.size()));

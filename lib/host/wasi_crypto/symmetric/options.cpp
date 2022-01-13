@@ -60,7 +60,7 @@ WasiCryptoExpect<void> Options::setGuestBuffer(std::string_view Name,
 
 WasiCryptoExpect<std::vector<uint8_t>>
 Options::get(std::string_view Name) const {
-  std::shared_lock Lock{Mutex};
+  std::shared_lock<std::shared_mutex> Lock{Mutex};
 
   std::optional<std::vector<uint8_t>> const *Res;
   if ("context"sv == Name) {
@@ -81,7 +81,7 @@ Options::get(std::string_view Name) const {
 }
 
 WasiCryptoExpect<uint64_t> Options::getU64(std::string_view Name) const {
-  std::shared_lock Lock{Mutex};
+  std::shared_lock<std::shared_mutex> Lock{Mutex};
 
   std::optional<uint64_t> const *Res;
 

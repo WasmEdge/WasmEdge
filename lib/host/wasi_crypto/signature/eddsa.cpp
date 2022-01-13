@@ -252,7 +252,7 @@ WasiCryptoExpect<void> EddsaSignState::update(Span<const uint8_t> Input) {
 }
 
 WasiCryptoExpect<std::unique_ptr<Signature>> EddsaSignState::sign() {
-  std::shared_lock Lock{Mutex};
+  std::shared_lock<std::shared_mutex> Lock{Mutex};
   size_t Size;
   opensslAssuming(
       EVP_DigestSign(Ctx.get(), nullptr, &Size, Cache.data(), Cache.size()));
@@ -277,7 +277,7 @@ EddsaVerificationState::update(Span<const uint8_t> Input) {
 
 WasiCryptoExpect<void>
 EddsaVerificationState::verify(std::shared_ptr<Signature> Sig) {
-  std::shared_lock Lock{Mutex};
+  std::shared_lock<std::shared_mutex> Lock{Mutex};
 
   ensureOrReturn(Sig->alg() == SignatureAlgorithm::Ed25519,
                  __WASI_CRYPTO_ERRNO_INVALID_SIGNATURE);

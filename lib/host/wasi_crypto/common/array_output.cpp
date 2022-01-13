@@ -20,7 +20,10 @@ WasiCryptoExpect<__wasi_size_t> ArrayOutput::pull(Span<uint8_t> Buf) {
   return static_cast<__wasi_size_t>(Data.size());
 }
 
-WasiCryptoExpect<__wasi_size_t> ArrayOutput::len() { return Data.size(); }
+WasiCryptoExpect<__wasi_size_t> ArrayOutput::len() {
+  assuming(Data.size() < UINT32_MAX);
+  return static_cast<__wasi_size_t>(Data.size());
+}
 
 } // namespace Common
 } // namespace WASICrypto

@@ -440,7 +440,7 @@ static_assert(alignof(__wasi_timestamp_t) == 8, "witx calculated align");
  * 
  * An `array_output` handle is automatically closed after its full content has been consumed.
  */
-using __wasi_array_output_t = int32_t;
+using __wasi_array_output_t = uint32_t;
 
 static_assert(sizeof(__wasi_array_output_t) == 4, "witx calculated size");
 static_assert(alignof(__wasi_array_output_t) == 4, "witx calculated align");
@@ -452,7 +452,7 @@ static_assert(alignof(__wasi_array_output_t) == 4, "witx calculated align");
  * 
  * The exact set of allowed options depends on the algorithm being used.
  */
-using __wasi_options_t = int32_t;
+using __wasi_options_t = uint32_t;
 
 static_assert(sizeof(__wasi_options_t) == 4, "witx calculated size");
 static_assert(alignof(__wasi_options_t) == 4, "witx calculated align");
@@ -462,7 +462,7 @@ static_assert(alignof(__wasi_options_t) == 4, "witx calculated align");
  * 
  * This is used to generate, retrieve and invalidate managed keys.
  */
-using __wasi_secrets_manager_t = int32_t;
+using __wasi_secrets_manager_t = uint32_t;
 
 static_assert(sizeof(__wasi_secrets_manager_t) == 4, "witx calculated size");
 static_assert(alignof(__wasi_secrets_manager_t) == 4, "witx calculated align");
@@ -470,7 +470,7 @@ static_assert(alignof(__wasi_secrets_manager_t) == 4, "witx calculated align");
 /**
  * A key pair.
  */
-using __wasi_keypair_t = int32_t;
+using __wasi_keypair_t = uint32_t;
 
 static_assert(sizeof(__wasi_keypair_t) == 4, "witx calculated size");
 static_assert(alignof(__wasi_keypair_t) == 4, "witx calculated align");
@@ -482,7 +482,7 @@ static_assert(alignof(__wasi_keypair_t) == 4, "witx calculated align");
  * 
  * A subsequent signature would sign all the data accumulated since the creation of the state object.
  */
-using __wasi_signature_state_t = int32_t;
+using __wasi_signature_state_t = uint32_t;
 
 static_assert(sizeof(__wasi_signature_state_t) == 4, "witx calculated size");
 static_assert(alignof(__wasi_signature_state_t) == 4, "witx calculated align");
@@ -490,7 +490,7 @@ static_assert(alignof(__wasi_signature_state_t) == 4, "witx calculated align");
 /**
  * A signature.
  */
-using __wasi_signature_t = int32_t;
+using __wasi_signature_t = uint32_t;
 
 static_assert(sizeof(__wasi_signature_t) == 4, "witx calculated size");
 static_assert(alignof(__wasi_signature_t) == 4, "witx calculated align");
@@ -498,7 +498,7 @@ static_assert(alignof(__wasi_signature_t) == 4, "witx calculated align");
 /**
  * A public key, for key exchange and signature verification.
  */
-using __wasi_publickey_t = int32_t;
+using __wasi_publickey_t = uint32_t;
 
 static_assert(sizeof(__wasi_publickey_t) == 4, "witx calculated size");
 static_assert(alignof(__wasi_publickey_t) == 4, "witx calculated align");
@@ -506,7 +506,7 @@ static_assert(alignof(__wasi_publickey_t) == 4, "witx calculated align");
 /**
  * A secret key, for key exchange mechanisms.
  */
-using __wasi_secretkey_t = int32_t;
+using __wasi_secretkey_t = uint32_t;
 
 static_assert(sizeof(__wasi_secretkey_t) == 4, "witx calculated size");
 static_assert(alignof(__wasi_secretkey_t) == 4, "witx calculated align");
@@ -514,7 +514,7 @@ static_assert(alignof(__wasi_secretkey_t) == 4, "witx calculated align");
 /**
  * A state to absorb signed data to be verified.
  */
-using __wasi_signature_verification_state_t = int32_t;
+using __wasi_signature_verification_state_t = uint32_t;
 
 static_assert(sizeof(__wasi_signature_verification_state_t) == 4, "witx calculated size");
 static_assert(alignof(__wasi_signature_verification_state_t) == 4, "witx calculated align");
@@ -525,7 +525,7 @@ static_assert(alignof(__wasi_signature_verification_state_t) == 4, "witx calcula
  * The state is not reset nor invalidated after an option has been performed.
  * Incremental updates and sessions are thus supported.
  */
-using __wasi_symmetric_state_t = int32_t;
+using __wasi_symmetric_state_t = uint32_t;
 
 static_assert(sizeof(__wasi_symmetric_state_t) == 4, "witx calculated size");
 static_assert(alignof(__wasi_symmetric_state_t) == 4, "witx calculated align");
@@ -537,7 +537,7 @@ static_assert(alignof(__wasi_symmetric_state_t) == 4, "witx calculated align");
  * 
  * If it was imported, the host will wipe it from memory as soon as the handle is closed.
  */
-using __wasi_symmetric_key_t = int32_t;
+using __wasi_symmetric_key_t = uint32_t;
 
 static_assert(sizeof(__wasi_symmetric_key_t) == 4, "witx calculated size");
 static_assert(alignof(__wasi_symmetric_key_t) == 4, "witx calculated align");
@@ -553,7 +553,7 @@ static_assert(alignof(__wasi_symmetric_key_t) == 4, "witx calculated align");
  * 
  * The host is reponsible for securely wiping them from memory on close.
  */
-using __wasi_symmetric_tag_t = int32_t;
+using __wasi_symmetric_tag_t = uint32_t;
 
 static_assert(sizeof(__wasi_symmetric_tag_t) == 4, "witx calculated size");
 static_assert(alignof(__wasi_symmetric_tag_t) == 4, "witx calculated align");

@@ -29,12 +29,12 @@ fn test_executor_with_statistics() {
         .count_instructions(true)
         .measure_time(true)
         .measure_cost(true);
-    // create a Store context
+    // create a Statistics context
     let result = Statistics::create();
     assert!(result.is_ok());
     let mut stat = result.unwrap();
     // create an Executor context
-    let result = Executor::create(Some(&config), Some(&mut stat));
+    let result = Executor::create(Some(&config), Some(&stat));
     assert!(result.is_ok());
     let executor = result.unwrap();
 

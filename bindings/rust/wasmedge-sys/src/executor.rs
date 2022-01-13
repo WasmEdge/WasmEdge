@@ -6,18 +6,17 @@ use crate::{
     types::WasmEdgeString,
     Config, ImportObj, Module, Statistics, Store, Value,
 };
-use std::{marker::PhantomData, ptr};
+use std::ptr;
 
 /// Struct of WasmEdge Executor.
 ///
 /// [`Executor`] defines an execution environment for both WASM and compiled WASM. It works based on the
 /// [Store](crate::Store).
 #[derive(Debug)]
-pub struct Executor<'stat> {
+pub struct Executor {
     ctx: *mut wasmedge::WasmEdge_ExecutorContext,
-    _marker: PhantomData<&'stat Statistics>,
 }
-impl<'stat> Executor<'stat> {
+impl Executor {
     /// Creates a new [`Executor`] to be associated with the given [`Config`] and [`Statistics`].
     ///
     /// # Arguments
@@ -42,10 +41,7 @@ impl<'stat> Executor<'stat> {
         let ctx = unsafe { wasmedge::WasmEdge_ExecutorCreate(conf, stat_ctx) };
         match ctx.is_null() {
             true => Err(WasmEdgeError::ExecutorCreate),
-            false => Ok(Executor {
-                ctx,
-                _marker: PhantomData,
-            }),
+            false => Ok(Executor { ctx }),
         }
     }
 
@@ -246,7 +242,7 @@ impl<'stat> Executor<'stat> {
         Ok(returns.into_iter().map(Into::into).collect::<Vec<_>>())
     }
 }
-impl<'stat> Drop for Executor<'stat> {
+impl Drop for Executor {
     fn drop(&mut self) {
         if !self.ctx.is_null() {
             unsafe { wasmedge::WasmEdge_ExecutorDelete(self.ctx) }

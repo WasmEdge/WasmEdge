@@ -723,7 +723,7 @@ mod tests {
     use crate::{
         instance::{Function, Global, GlobalType, MemType, Memory, Table, TableType},
         types::Value,
-        Config, Executor, FuncType, ImportObj, Mutability, RefType, ValType,
+        Config, Executor, FuncType, ImportObj, Mutability, RefType, Statistics, ValType,
     };
 
     #[test]
@@ -795,10 +795,21 @@ mod tests {
         import_obj.add_global("global", &mut global);
         assert!(global.ctx.is_null() && global.registered);
 
+        // create a Config context
         let result = Config::create();
         assert!(result.is_ok());
         let config = result.unwrap();
-        let result = Executor::create(Some(&config), None);
+        // enable Statistics
+        let config = config
+            .count_instructions(true)
+            .measure_time(true)
+            .measure_cost(true);
+        // create a Statistics context
+        let result = Statistics::create();
+        assert!(result.is_ok());
+        let stat = result.unwrap();
+        // create an Executor context
+        let result = Executor::create(Some(&config), Some(&stat));
         assert!(result.is_ok());
         let executor = result.unwrap();
         let result = executor.register_import_object(&mut store, &import_obj);

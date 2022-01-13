@@ -71,3 +71,6 @@ docs/_build
 
 .direnv
 .envrc
+
+# mdbook build
+docs/book/*/book

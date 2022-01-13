@@ -13,8 +13,7 @@ WasiCryptoExpect<std::unique_ptr<Key>>
 Hkdf<Sha, Mode>::KeyBuilder::generate(std::shared_ptr<Options>) {
   std::vector<uint8_t> Data(keyLen(), 0);
 
-  ensureOrReturn(Data.size() <= std::numeric_limits<int>::max(),
-                 __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
+  ensureOrReturn(Data.size() <= INT_MAX, __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
   ensureOrReturn(RAND_bytes(Data.data(), static_cast<int>(Data.size())),
                  __WASI_CRYPTO_ERRNO_RNG_ERROR);
 

@@ -3,7 +3,7 @@
 #include "host/wasi_crypto/common/array_output.h"
 
 #include <algorithm>
-#include <limits>
+#include <climits>
 #include <vector>
 
 namespace WasmEdge {
@@ -16,14 +16,12 @@ WasiCryptoExpect<__wasi_size_t> ArrayOutput::pull(Span<uint8_t> Buf) {
 
   std::copy(Data.begin(), Data.end(), Buf.begin());
 
-  ensureOrReturn(Data.size() <= std::numeric_limits<int>::max(),
-                 __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
+  ensureOrReturn(Data.size() <= INT_MAX, __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
   return static_cast<__wasi_size_t>(Data.size());
 }
 
 WasiCryptoExpect<__wasi_size_t> ArrayOutput::len() {
-  ensureOrReturn(Data.size() <= std::numeric_limits<int>::max(),
-                 __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
+  ensureOrReturn(Data.size() <= INT_MAX, __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
   return static_cast<__wasi_size_t>(Data.size());
 }
 

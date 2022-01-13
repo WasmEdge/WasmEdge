@@ -13,8 +13,7 @@ WasiCryptoExpect<std::unique_ptr<Key>>
 HmacSha2<Sha>::KeyBuilder::generate(std::shared_ptr<Options>) {
   std::vector<uint8_t> Raw(keyLen(), 0);
 
-  ensureOrReturn(Raw.size() <= std::numeric_limits<int>::max(),
-                 __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
+  ensureOrReturn(Raw.size() <= INT_MAX, __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
   ensureOrReturn(RAND_bytes(Raw.data(), static_cast<int>(Raw.size())),
                  __WASI_CRYPTO_ERRNO_RNG_ERROR);
 

@@ -43,8 +43,7 @@ WasiCryptoExpect<std::unique_ptr<Key>>
 ChaChaPoly<NonceBit>::KeyBuilder::generate(std::shared_ptr<Options>) {
   std::vector<uint8_t> Res(keyLen(), 0);
 
-  ensureOrReturn(Res.size() <= std::numeric_limits<int>::max(),
-                 __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
+  ensureOrReturn(Res.size() <= INT_MAX, __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
   ensureOrReturn(RAND_bytes(Res.data(), static_cast<int>(Res.size())),
                  __WASI_CRYPTO_ERRNO_RNG_ERROR);
 

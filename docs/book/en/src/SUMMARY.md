@@ -41,7 +41,8 @@
     - [AssemblyScript](dev/as.md)
     - [Kotlin](dev/kotlin.md)
     - [Grain](dev/grain.md)
-
+    - [Python](dev/python.md)
+    
 - [Embed WasmEdge functions](embed.md)
     - [C SDK](embed/c.md)
        - [API references](embed/c/ref.md)

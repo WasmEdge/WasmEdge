@@ -108,7 +108,8 @@ WasiCryptoExpect<Tag> ChaChaPoly<NonceBit>::State::encryptDetachedUnchecked(
   // Gen tag
   std::vector<uint8_t> RawTagData(TagLen);
 
-  opensslAssuming(EVP_CIPHER_CTX_ctrl(Ctx.get(), EVP_CTRL_AEAD_GET_TAG, TagLen,
+  opensslAssuming(EVP_CIPHER_CTX_ctrl(Ctx.get(), EVP_CTRL_AEAD_GET_TAG,
+                                      static_cast<int>(TagLen),
                                       RawTagData.data()));
 
   return RawTagData;
@@ -126,7 +127,8 @@ ChaChaPoly<NonceBit>::State::decryptDetachedUnchecked(
   opensslAssuming(EVP_CipherUpdate(Ctx.get(), Out.data(), &ActualOutSize,
                                    Data.data(), static_cast<int>(Data.size())));
 
-  opensslAssuming(EVP_CIPHER_CTX_ctrl(Ctx.get(), EVP_CTRL_AEAD_SET_TAG, TagLen,
+  opensslAssuming(EVP_CIPHER_CTX_ctrl(Ctx.get(), EVP_CTRL_AEAD_SET_TAG,
+                                      static_cast<int>(TagLen),
                                       const_cast<uint8_t *>(RawTag.data())));
 
   int AL;

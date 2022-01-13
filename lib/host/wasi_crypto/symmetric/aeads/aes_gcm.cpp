@@ -8,19 +8,7 @@ namespace WasmEdge {
 namespace Host {
 namespace WASICrypto {
 namespace Symmetric {
-namespace {
-constexpr const EVP_CIPHER *getCipher(int Bit) {
-  switch (Bit) {
-  case 128:
-    return EVP_aes_128_gcm();
-  case 256:
-    return EVP_aes_256_gcm();
-  default:
-    assumingUnreachable();
-  }
-}
-
-} // namespace
+namespace {} // namespace
 
 template <uint32_t KeyBit>
 WasiCryptoExpect<std::unique_ptr<Key>>
@@ -65,7 +53,7 @@ AesGcm<KeyBit>::State::open(std::shared_ptr<Key> OptKey,
 
   EVP_CIPHER_CTX *Ctx = EVP_CIPHER_CTX_new();
   opensslAssuming(Ctx);
-  opensslAssuming(EVP_CipherInit(Ctx, getCipher(KeyBit), OptKey->data().data(),
+  opensslAssuming(EVP_CipherInit(Ctx, getCipher(), OptKey->data().data(),
                                  Nonce->data(), Mode::Unchanged));
 
   return std::make_unique<State>(Ctx, OptOption);
@@ -120,7 +108,8 @@ AesGcm<KeyBit>::State::encryptDetachedUnchecked(Span<uint8_t> Out,
   // Gen tag
   std::vector<uint8_t> RawTagData(TagLen);
 
-  opensslAssuming(EVP_CIPHER_CTX_ctrl(Ctx.get(), EVP_CTRL_AEAD_GET_TAG, TagLen,
+  opensslAssuming(EVP_CIPHER_CTX_ctrl(Ctx.get(), EVP_CTRL_AEAD_GET_TAG,
+                                      static_cast<int>(TagLen),
                                       RawTagData.data()));
 
   return RawTagData;
@@ -138,7 +127,8 @@ WasiCryptoExpect<__wasi_size_t> AesGcm<KeyBit>::State::decryptDetachedUnchecked(
   opensslAssuming(EVP_CipherUpdate(Ctx.get(), Out.data(), &ActualOutSize,
                                    Data.data(), static_cast<int>(Data.size())));
 
-  opensslAssuming(EVP_CIPHER_CTX_ctrl(Ctx.get(), EVP_CTRL_AEAD_SET_TAG, TagLen,
+  opensslAssuming(EVP_CIPHER_CTX_ctrl(Ctx.get(), EVP_CTRL_AEAD_SET_TAG,
+                                      static_cast<int>(TagLen),
                                       const_cast<uint8_t *>(RawTag.data())));
 
   // Construct a temp var

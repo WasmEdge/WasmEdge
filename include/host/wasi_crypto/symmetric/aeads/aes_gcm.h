@@ -75,6 +75,18 @@ public:
     EvpCipherCtxPtr Ctx;
     std::shared_ptr<Options> OptOption;
   };
+
+private:
+  constexpr static const EVP_CIPHER *getCipher() {
+    switch (KeyBit) {
+    case 128:
+      return EVP_aes_128_gcm();
+    case 256:
+      return EVP_aes_256_gcm();
+    default:
+      assumingUnreachable();
+    }
+  }
 };
 
 using AesGcm128 = AesGcm<128>;

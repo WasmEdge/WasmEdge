@@ -20,10 +20,6 @@ constexpr const EVP_CIPHER *getCipher(int Bit) {
   }
 }
 
-// 96 bit
-inline constexpr __wasi_size_t NonceSize = 12;
-// inline constexpr __wasi_size_t TagLen = 16;
-
 } // namespace
 
 template <int KeyBit>
@@ -91,7 +87,6 @@ AesGcm<KeyBit>::State::optionsGetU64(std::string_view Name) {
 template <int KeyBit>
 WasiCryptoExpect<void> AesGcm<KeyBit>::State::absorb(Span<const uint8_t> Data) {
   int Len;
-  // TODO: need change Openssl AAD default length from 12 if beyond?
 
   opensslAssuming(
       EVP_CipherUpdate(Ctx.get(), nullptr, &Len, Data.data(), Data.size()));
@@ -106,14 +101,6 @@ AesGcm<KeyBit>::State::encryptDetachedUnchecked(Span<uint8_t> Out,
 
   opensslAssuming(EVP_CipherInit_ex(Ctx.get(), nullptr, nullptr, nullptr,
                                     nullptr, Mode::Encrypt));
-  //  auto Nonce = Option.get("nonce");
-  //  if (!Nonce) {
-  //    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NONCE_REQUIRED);
-  //  }
-
-  //  if (Out.data() != Data.data()) {
-  //    std::copy(Data.begin(), Data.end(), Out.begin());
-  //  }
 
   int ActualOutSize;
   opensslAssuming(EVP_CipherUpdate(Ctx.get(), Out.data(), &ActualOutSize,
@@ -125,10 +112,6 @@ AesGcm<KeyBit>::State::encryptDetachedUnchecked(Span<uint8_t> Out,
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_NONCE);
   }
 
-  // Notice: Finalise the encryption. Normally ciphertext bytes may be written
-  // at this stage, but this does not occur in GCM mode
-  // However, cannot do put nullptr length in it. construct a temp var
-  // TODO:Better
   int AL;
   opensslAssuming(EVP_CipherFinal_ex(Ctx.get(), nullptr, &AL));
 
@@ -156,12 +139,10 @@ WasiCryptoExpect<__wasi_size_t> AesGcm<KeyBit>::State::decryptDetachedUnchecked(
   opensslAssuming(EVP_CIPHER_CTX_ctrl(Ctx.get(), EVP_CTRL_AEAD_SET_TAG, TagLen,
                                       const_cast<uint8_t *>(RawTag.data())));
 
-  // Notice: Finalise the decryption. Normally ciphertext bytes may be written
-  // at this stage, but this does not occur in GCM mode
-  // However, cannot do put nullptr length in it. construct a temp var
-  // TODO:Better
-  int AL;
-  opensslAssuming(EVP_CipherFinal_ex(Ctx.get(), nullptr, &AL));
+  // Construct a temp var
+  int Temp;
+  ensureOrReturn(EVP_CipherFinal_ex(Ctx.get(), nullptr, &Temp),
+                 __WASI_CRYPTO_ERRNO_INVALID_TAG);
 
   return ActualOutSize;
 }

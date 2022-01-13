@@ -10,8 +10,6 @@ namespace Host {
 namespace WASICrypto {
 namespace Symmetric {
 
-// 128 size
-inline __wasi_size_t TagLen = 16;
 
 template <int NonceBit>
 WasiCryptoExpect<std::unique_ptr<typename ChaChaPoly<NonceBit>::State>>
@@ -131,7 +129,8 @@ ChaChaPoly<NonceBit>::State::decryptDetachedUnchecked(
                                       const_cast<uint8_t *>(RawTag.data())));
 
   int AL;
-  opensslAssuming(EVP_CipherFinal_ex(Ctx.get(), nullptr, &AL));
+  ensureOrReturn(EVP_CipherFinal_ex(Ctx.get(), nullptr, &AL),
+                 __WASI_CRYPTO_ERRNO_INVALID_TAG);
 
   return ActualOutSize;
 }

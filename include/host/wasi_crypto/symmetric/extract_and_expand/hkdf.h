@@ -36,6 +36,8 @@ public:
     State(std::shared_ptr<Options> OptOption, EVP_PKEY_CTX *Ctx)
         : OptOption(OptOption), Ctx(Ctx) {}
 
+    ~State() override;
+
     static WasiCryptoExpect<std::unique_ptr<State>>
     open(std::shared_ptr<Key> OptKey, std::shared_ptr<Options> OptOption);
 

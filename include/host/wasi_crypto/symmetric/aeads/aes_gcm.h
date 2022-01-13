@@ -31,6 +31,9 @@ public:
   // Nonce = IV,
   class State final : public AEADsState {
   public:
+    // 96 bit
+    inline constexpr __wasi_size_t NonceSize = 12;
+
     inline static constexpr __wasi_size_t TagLen = 16;
 
     State(EVP_CIPHER_CTX *Ctx, std::shared_ptr<Options> OptOption)

@@ -28,6 +28,9 @@ public:
 
   class State final : public AEADsState {
   public:
+    // 128 size
+    inline static __wasi_size_t TagLen = 16;
+
     State(EVP_CIPHER_CTX *Ctx, std::shared_ptr<Options> OptOptions)
         : Ctx(Ctx), OptOptions(OptOptions) {}
 

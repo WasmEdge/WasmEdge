@@ -57,32 +57,6 @@ pub fn create_extern_module(name: impl AsRef<str>) -> ImportObj {
     import_obj
 }
 
-fn _real_add(inputs: Vec<Value>) -> Result<Vec<Value>, u8> {
-    if inputs.len() != 2 {
-        return Err(1);
-    }
-
-    if inputs.len() != 2 {
-        return Err(1);
-    }
-
-    let a = if inputs[0].ty() == ValType::I32 {
-        inputs[0].to_i32()
-    } else {
-        return Err(2);
-    };
-
-    let b = if inputs[1].ty() == ValType::I32 {
-        inputs[0].to_i32()
-    } else {
-        return Err(3);
-    };
-
-    let c = a + b;
-
-    Ok(vec![Value::from_i32(c)])
-}
-
 fn extern_add(inputs: Vec<Value>) -> Result<Vec<Value>, u8> {
     let val1 = if inputs[0].ty() == ValType::ExternRef {
         inputs[0]
@@ -108,8 +82,6 @@ fn extern_sub(inputs: Vec<Value>) -> Result<Vec<Value>, u8> {
     } else {
         return Err(2);
     };
-
-    println!("*** val1: {:?}", val1);
 
     let val1 = val1
         .extern_ref::<i32>()

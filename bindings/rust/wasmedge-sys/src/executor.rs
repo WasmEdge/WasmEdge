@@ -6,17 +6,18 @@ use crate::{
     types::WasmEdgeString,
     Config, ImportObj, Module, Statistics, Store, Value,
 };
-use std::ptr;
+use std::{marker::PhantomData, ptr};
 
 /// Struct of WasmEdge Executor.
 ///
 /// [`Executor`] defines an execution environment for both WASM and compiled WASM. It works based on the
 /// [Store](crate::Store).
 #[derive(Debug)]
-pub struct Executor {
+pub struct Executor<'stat> {
     ctx: *mut wasmedge::WasmEdge_ExecutorContext,
+    _marker: PhantomData<&'stat Statistics>,
 }
-impl Executor {
+impl<'stat> Executor<'stat> {
     /// Creates a new [`Executor`] to be associated with the given [`Config`] and [`Statistics`].
     ///
     /// # Arguments
@@ -28,22 +29,23 @@ impl Executor {
     /// # Error
     ///
     /// If fail to create a [`Executor`], then an error is returned.
-    pub fn create(conf: Option<&Config>, stat: Option<&mut Statistics>) -> WasmEdgeResult<Self> {
+    pub fn create(conf: Option<&Config>, stat: Option<&Statistics>) -> WasmEdgeResult<Self> {
         let conf = match conf {
             Some(conf) => conf.ctx,
             None => ptr::null(),
         };
         let stat_ctx = match stat {
-            Some(stat) => {
-                stat.registered = true;
-                stat.ctx
-            }
+            Some(stat) => stat.ctx,
             None => ptr::null_mut(),
         };
-        let raw = unsafe { wasmedge::WasmEdge_ExecutorCreate(conf, stat_ctx) };
-        match raw.is_null() {
+
+        let ctx = unsafe { wasmedge::WasmEdge_ExecutorCreate(conf, stat_ctx) };
+        match ctx.is_null() {
             true => Err(WasmEdgeError::ExecutorCreate),
-            false => Ok(Executor { ctx: raw }),
+            false => Ok(Executor {
+                ctx,
+                _marker: PhantomData,
+            }),
         }
     }
 
@@ -244,7 +246,7 @@ impl Executor {
         Ok(returns.into_iter().map(Into::into).collect::<Vec<_>>())
     }
 }
-impl Drop for Executor {
+impl<'stat> Drop for Executor<'stat> {
     fn drop(&mut self) {
         if !self.ctx.is_null() {
             unsafe { wasmedge::WasmEdge_ExecutorDelete(self.ctx) }
@@ -263,36 +265,24 @@ mod tests {
         let result = Executor::create(None, None);
         assert!(result.is_ok());
 
-        {
-            // create an Executor context with a given configuration
-            let result = Config::create();
-            assert!(result.is_ok());
-            let config = result.unwrap();
-            let result = Executor::create(Some(&config), None);
-            assert!(result.is_ok());
-        }
+        // create an Executor context with a given configuration
+        let result = Config::create();
+        assert!(result.is_ok());
+        let config = result.unwrap();
 
-        {
-            // create an Executor context with a given statistics
-            let result = Statistics::create();
-            assert!(result.is_ok());
-            let mut stat = result.unwrap();
-            let result = Executor::create(None, Some(&mut stat));
-            assert!(result.is_ok());
-        }
+        let result = Executor::create(Some(&config), None);
+        assert!(result.is_ok());
 
-        {
-            // create an Executor context with the given configuration and statistics.
-            let result = Config::create();
-            assert!(result.is_ok());
-            let config = result.unwrap();
+        // create an Executor context with a given statistics
+        let result = Statistics::create();
+        assert!(result.is_ok());
+        let stat = result.unwrap();
 
-            let result = Statistics::create();
-            assert!(result.is_ok());
-            let mut stat = result.unwrap();
+        let result = Executor::create(None, Some(&stat));
+        assert!(result.is_ok());
 
-            let result = Executor::create(Some(&config), Some(&mut stat));
-            assert!(result.is_ok());
-        }
+        // create an Executor context with the given configuration and statistics.
+        let result = Executor::create(Some(&config), Some(&stat));
+        assert!(result.is_ok());
     }
 }

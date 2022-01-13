@@ -256,6 +256,10 @@ fn test_executor_with_statistics() {
     assert_eq!(result.unwrap(), vec![Value::from_i32(1234)]);
     let result = executor.run_func_registered(&store, "extern", "func-fail", []);
     assert!(result.is_err());
+    assert_eq!(
+        result.unwrap_err(),
+        WasmEdgeError::Core(CoreError::Execution(CoreExecutionError::ExecutionFailed))
+    );
 
     // Statistics: get instruction count
     assert!(stat.instr_count() > 0);

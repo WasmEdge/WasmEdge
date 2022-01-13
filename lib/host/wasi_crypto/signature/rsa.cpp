@@ -9,28 +9,18 @@ namespace Host {
 namespace WASICrypto {
 namespace Signatures {
 
-namespace {
-
-EVP_PKEY *initRsa(int Pad, int Size, int Sha) {
-  EvpPkeyCtxPtr PCtx{EVP_PKEY_CTX_new_id(EVP_PKEY_RSA, nullptr)};
-  opensslAssuming(EVP_PKEY_CTX_set_rsa_padding(PCtx.get(), Pad));
-  opensslAssuming(EVP_PKEY_CTX_set_rsa_keygen_bits(PCtx.get(), Size));
-  opensslAssuming(EVP_PKEY_CTX_set_signature_md(PCtx.get(), ShaMap.at(Sha)));
-  opensslAssuming(PCtx);
-  EVP_PKEY *ED = nullptr;
-  opensslAssuming(EVP_PKEY_paramgen(PCtx.get(), &ED));
-  return ED;
-}
-
-} // namespace
-
 // raw secret scalar encoded as big endian, SEC-1, compressed SEC-1, unencrypted
 // PKCS#8, PEM-encoded unencrypted PKCS#8
 template <int Pad, int Size, int Sha>
 WasiCryptoExpect<std::unique_ptr<typename Rsa<Pad, Size, Sha>::PublicKey>>
 Rsa<Pad, Size, Sha>::PublicKey::import(Span<const uint8_t> Encoded,
                                        __wasi_publickey_encoding_e_t Encoding) {
-  EVP_PKEY *P = initRsa(Pad, Size, Sha);
+  auto InitCtx = initRsa();
+  if (!InitCtx) {
+    return WasiCryptoUnexpect(InitCtx);
+  }
+
+  EVP_PKEY *P = *InitCtx;
 
   switch (Encoding) {
   case __WASI_PUBLICKEY_ENCODING_RAW: {
@@ -97,7 +87,12 @@ template <int Pad, int Size, int Sha>
 WasiCryptoExpect<std::unique_ptr<typename Rsa<Pad, Size, Sha>::SecretKey>>
 Rsa<Pad, Size, Sha>::SecretKey::import(Span<const uint8_t> Encoded,
                                        __wasi_secretkey_encoding_e_t Encoding) {
-  EVP_PKEY *Sk = initRsa(Pad, Size, Sha);
+  auto InitCtx = initRsa();
+  if (!InitCtx) {
+    return WasiCryptoUnexpect(InitCtx);
+  }
+
+  EVP_PKEY *Sk = *InitCtx;
 
   switch (Encoding) {
   case __WASI_SECRETKEY_ENCODING_RAW: {
@@ -158,7 +153,12 @@ template <int Pad, int Size, int Sha>
 WasiCryptoExpect<std::unique_ptr<typename Rsa<Pad, Size, Sha>::KeyPair>>
 Rsa<Pad, Size, Sha>::KeyPair::import(Span<const uint8_t> Encoded,
                                      __wasi_keypair_encoding_e_t Encoding) {
-  EVP_PKEY *Kp = initRsa(Pad, Size, Sha);
+  auto InitCtx = initRsa();
+  if (!InitCtx) {
+    return WasiCryptoUnexpect(InitCtx);
+  }
+
+  EVP_PKEY *Kp = *InitCtx;
 
   switch (Encoding) {
   case __WASI_KEYPAIR_ENCODING_RAW: {
@@ -318,6 +318,18 @@ WasiCryptoExpect<void> Rsa<Pad, Size, Sha>::VerificationState::verify(
       __WASI_CRYPTO_ERRNO_VERIFICATION_FAILED);
 
   return {};
+}
+
+template <int Pad, int Size, int Sha>
+WasiCryptoExpect<EVP_PKEY *> Rsa<Pad, Size, Sha>::initRsa() {
+  EvpPkeyCtxPtr PCtx{EVP_PKEY_CTX_new_id(EVP_PKEY_RSA, nullptr)};
+  opensslAssuming(EVP_PKEY_CTX_set_rsa_padding(PCtx.get(), Pad));
+  opensslAssuming(EVP_PKEY_CTX_set_rsa_keygen_bits(PCtx.get(), Size));
+  opensslAssuming(EVP_PKEY_CTX_set_signature_md(PCtx.get(), ShaMap.at(Sha)));
+  opensslAssuming(PCtx);
+  EVP_PKEY *ED = nullptr;
+  opensslAssuming(EVP_PKEY_paramgen(PCtx.get(), &ED));
+  return ED;
 }
 
 template class Rsa<RSA_PKCS1_PADDING, 2048, 256>;

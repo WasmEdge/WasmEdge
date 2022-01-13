@@ -18,15 +18,6 @@ namespace WASICrypto {
 namespace Signatures {
 
 template <int Nid> class Ecdsa {
-  static constexpr SignatureAlgorithm getAlg() {
-    if constexpr (Nid == NID_X9_62_prime256v1)
-      return SignatureAlgorithm::ECDSA_P256_SHA256;
-    else if constexpr (Nid == NID_secp256k1)
-      return SignatureAlgorithm::ECDSA_K256_SHA256;
-    else
-      assumingUnreachable();
-  }
-
 public:
   class PublicKey final : public Signatures::PublicKey {
   public:
@@ -121,6 +112,18 @@ public:
   private:
     EvpMdCtxPtr Ctx;
   };
+
+private:
+  static constexpr SignatureAlgorithm getAlg() {
+    if constexpr (Nid == NID_X9_62_prime256v1)
+      return SignatureAlgorithm::ECDSA_P256_SHA256;
+    else if constexpr (Nid == NID_secp256k1)
+      return SignatureAlgorithm::ECDSA_K256_SHA256;
+    else
+      assumingUnreachable();
+  }
+
+  static WasiCryptoExpect<EVP_PKEY *> initEC();
 };
 
 using EcdsaP256 = Ecdsa<NID_X9_62_prime256v1>;

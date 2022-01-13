@@ -173,6 +173,8 @@ public:
   private:
     EvpMdCtxPtr Ctx;
   };
+
+  static WasiCryptoExpect<EVP_PKEY *> initRsa();
 };
 
 using RsaPkcs12048SHA256 = Rsa<RSA_PKCS1_PADDING, 2048, 256>;

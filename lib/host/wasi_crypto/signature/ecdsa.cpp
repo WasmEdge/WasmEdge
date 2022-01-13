@@ -9,22 +9,8 @@ namespace WasmEdge {
 namespace Host {
 namespace WASICrypto {
 namespace Signatures {
-namespace {
 
 // TODO:Raw meaning compressed_sec not sec, please check
-
-EVP_PKEY *initEC(int Nid) {
-  EvpPkeyCtxPtr PCtx{EVP_PKEY_CTX_new_id(EVP_PKEY_EC, nullptr)};
-  opensslAssuming(PCtx);
-  opensslAssuming(EVP_PKEY_paramgen_init(PCtx.get()));
-  opensslAssuming(EVP_PKEY_CTX_set_ec_paramgen_curve_nid(PCtx.get(), Nid));
-
-  EVP_PKEY *Params = nullptr;
-  opensslAssuming(EVP_PKEY_paramgen(PCtx.get(), &Params));
-  return Params;
-}
-
-} // namespace
 
 // raw secret scalar encoded as big endian, SEC-1, compressed SEC-1, unencrypted
 // PKCS#8, PEM-encoded unencrypted PKCS#8
@@ -32,8 +18,13 @@ template <int Nid>
 WasiCryptoExpect<std::unique_ptr<typename Ecdsa<Nid>::PublicKey>>
 Ecdsa<Nid>::PublicKey::import(Span<const uint8_t> Encoded,
                               __wasi_publickey_encoding_e_t Encoding) {
-  EVP_PKEY *Pk = initEC(Nid);
-  opensslAssuming(Pk);
+  auto InitCtx = initEC();
+  if (!InitCtx) {
+    return WasiCryptoUnexpect(InitCtx);
+  }
+
+  EVP_PKEY *Pk = *InitCtx;
+
   switch (Encoding) {
   case __WASI_PUBLICKEY_ENCODING_RAW: {
     const uint8_t *Temp = Encoded.data();
@@ -98,7 +89,12 @@ template <int Nid>
 WasiCryptoExpect<std::unique_ptr<typename Ecdsa<Nid>::SecretKey>>
 Ecdsa<Nid>::SecretKey::import(Span<const uint8_t> Encoded,
                               __wasi_secretkey_encoding_e_t Encoding) {
-  EVP_PKEY *Sk = initEC(Nid);
+  auto InitCtx = initEC();
+  if (!InitCtx) {
+    return WasiCryptoUnexpect(InitCtx);
+  }
+
+  EVP_PKEY *Sk = *InitCtx;
   switch (Encoding) {
   case __WASI_SECRETKEY_ENCODING_RAW: {
     const uint8_t *Temp = Encoded.data();
@@ -156,7 +152,12 @@ Ecdsa<Nid>::SecretKey::exportData(__wasi_secretkey_encoding_e_t Encoding) {
 template <int Nid>
 WasiCryptoExpect<std::unique_ptr<typename Ecdsa<Nid>::KeyPair>>
 Ecdsa<Nid>::KeyPair::generate(std::shared_ptr<Options>) {
-  EVP_PKEY *Params = initEC(Nid);
+  auto InitCtx = initEC();
+  if (!InitCtx) {
+    return WasiCryptoUnexpect(InitCtx);
+  }
+
+  EVP_PKEY *Params = *InitCtx;
 
   // Generate Key
   EvpPkeyCtxPtr KCtx{EVP_PKEY_CTX_new(Params, nullptr)};
@@ -173,8 +174,13 @@ template <int Nid>
 WasiCryptoExpect<std::unique_ptr<typename Ecdsa<Nid>::KeyPair>>
 Ecdsa<Nid>::KeyPair::import(Span<const uint8_t> Encoded,
                             __wasi_keypair_encoding_e_t Encoding) {
-  EVP_PKEY *Kp = initEC(Nid);
-  opensslAssuming(Kp);
+  auto InitCtx = initEC();
+  if (!InitCtx) {
+    return WasiCryptoUnexpect(InitCtx);
+  }
+
+  EVP_PKEY *Kp = *InitCtx;
+
   switch (Encoding) {
   case __WASI_KEYPAIR_ENCODING_RAW: {
     const uint8_t *Temp = Encoded.data();
@@ -313,6 +319,17 @@ WasiCryptoExpect<void> Ecdsa<Nid>::VerificationState::verify(
   opensslAssuming(
       EVP_DigestVerifyFinal(Ctx.get(), Sig->data().data(), Sig->data().size()));
   return {};
+}
+
+template <int Nid> WasiCryptoExpect<EVP_PKEY *> Ecdsa<Nid>::initEC() {
+  EvpPkeyCtxPtr PCtx{EVP_PKEY_CTX_new_id(EVP_PKEY_EC, nullptr)};
+  opensslAssuming(PCtx);
+  opensslAssuming(EVP_PKEY_paramgen_init(PCtx.get()));
+  opensslAssuming(EVP_PKEY_CTX_set_ec_paramgen_curve_nid(PCtx.get(), Nid));
+
+  EVP_PKEY *Params = nullptr;
+  opensslAssuming(EVP_PKEY_paramgen(PCtx.get(), &Params));
+  return Params;
 }
 
 template class Ecdsa<NID_X9_62_prime256v1>;

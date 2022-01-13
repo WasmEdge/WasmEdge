@@ -30,7 +30,10 @@ template <int KeyBit>
 WasiCryptoExpect<std::unique_ptr<Key>>
 AesGcm<KeyBit>::KeyBuilder::generate(std::shared_ptr<Options>) {
   std::vector<uint8_t> Res(KeyBit / 8, 0);
-  ensureOrReturn(RAND_bytes(Res.data(), Res.size()),
+
+  ensureOrReturn(Res.size() <= std::numeric_limits<int>::max(),
+                 __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
+  ensureOrReturn(RAND_bytes(Res.data(), static_cast<int>(Res.size())),
                  __WASI_CRYPTO_ERRNO_RNG_ERROR);
 
   return std::make_unique<Key>(Alg, std::move(Res));

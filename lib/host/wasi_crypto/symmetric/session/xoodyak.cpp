@@ -12,7 +12,11 @@ template <int KeyBits>
 WasiCryptoExpect<std::unique_ptr<Key>>
 Xoodyak<KeyBits>::KeyBuilder::generate(std::shared_ptr<Options>) {
   std::vector<uint8_t> Raw(keyLen(), 0);
-  RAND_bytes(Raw.data(), Raw.size());
+
+  ensureOrReturn(Raw.size() <= std::numeric_limits<int>::max(),
+                 __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
+  ensureOrReturn(RAND_bytes(Raw.data(), static_cast<int>(Raw.size())),
+                 __WASI_CRYPTO_ERRNO_RNG_ERROR);
 
   return std::make_unique<Key>(Alg, std::move(Raw));
 }

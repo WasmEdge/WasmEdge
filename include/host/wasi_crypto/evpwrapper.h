@@ -27,8 +27,8 @@ inline const std::map<int, const EVP_MD *> ShaMap{
   do {                                                                         \
     if (!(Cond)) {                                                             \
       ERR_print_errors_cb(                                                     \
-          [](const char *Str, size_t, void *) {                                \
-            spdlog::error("{} ", Str);                                         \
+          [](const char *_Str, size_t, void *) {                               \
+            spdlog::error(_Str);                                               \
             return 1;                                                          \
           },                                                                   \
           nullptr);                                                            \
@@ -40,8 +40,8 @@ inline const std::map<int, const EVP_MD *> ShaMap{
   (static_cast<bool>(Cond)                                                     \
        ? static_cast<void>(0)                                                  \
        : (ERR_print_errors_cb(                                                 \
-              [](const char *Str, size_t, void *) {                            \
-                spdlog::error("{} ", Str);                                     \
+              [](const char *_Str, size_t, void *) {                           \
+                spdlog::error(_Str);                                           \
                 return 1;                                                      \
               },                                                               \
               nullptr),                                                        \

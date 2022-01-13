@@ -3,7 +3,6 @@
 
 #include "common/span.h"
 #include "host/wasi_crypto/error.h"
-#include "host/wasi_crypto/lock.h"
 #include "wasi_crypto/api.hpp"
 
 #include <memory>

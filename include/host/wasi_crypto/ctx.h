@@ -9,7 +9,6 @@
 #include "host/wasi_crypto/common/options.h"
 #include "host/wasi_crypto/error.h"
 #include "host/wasi_crypto/handles.h"
-#include "host/wasi_crypto/lock.h"
 #include "host/wasi_crypto/signature/alg.h"
 #include "host/wasi_crypto/signature/signature.h"
 #include "host/wasi_crypto/symmetric/state.h"

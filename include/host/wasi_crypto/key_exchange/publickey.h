@@ -5,7 +5,6 @@
 #include "host/wasi_crypto/error.h"
 #include "host/wasi_crypto/key_exchange/alg.h"
 #include "host/wasi_crypto/key_exchange/options.h"
-#include "host/wasi_crypto/lock.h"
 
 #include <memory>
 #include <vector>

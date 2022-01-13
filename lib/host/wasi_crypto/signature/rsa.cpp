@@ -26,7 +26,7 @@ Rsa<Pad, Size, Sha>::PublicKey::import(Span<const uint8_t> Encoded,
   case __WASI_PUBLICKEY_ENCODING_RAW: {
     const uint8_t *Temp = Encoded.data();
     P = d2i_PublicKey(EVP_PKEY_RSA, &P, &Temp, Encoded.size());
-    opensslAssuming(P);
+    ensureOrReturn(P, __WASI_CRYPTO_ERRNO_INVALID_KEY);
     break;
   }
   case __WASI_PUBLICKEY_ENCODING_PKCS8:
@@ -98,7 +98,7 @@ Rsa<Pad, Size, Sha>::SecretKey::import(Span<const uint8_t> Encoded,
   case __WASI_SECRETKEY_ENCODING_RAW: {
     const uint8_t *Temp = Encoded.data();
     Sk = d2i_PrivateKey(EVP_PKEY_RSA, &Sk, &Temp, Encoded.size());
-    opensslAssuming(Sk);
+    ensureOrReturn(Sk, __WASI_CRYPTO_ERRNO_INVALID_KEY);
     break;
   }
   case __WASI_SECRETKEY_ENCODING_PKCS8:
@@ -162,9 +162,10 @@ Rsa<Pad, Size, Sha>::KeyPair::import(Span<const uint8_t> Encoded,
 
   switch (Encoding) {
   case __WASI_KEYPAIR_ENCODING_RAW: {
+    // TODO: add more check in encoded?
     const uint8_t *Temp = Encoded.data();
     Kp = d2i_PrivateKey(EVP_PKEY_RSA, &Kp, &Temp, Encoded.size());
-    opensslAssuming(Kp);
+    ensureOrReturn(Kp, __WASI_CRYPTO_ERRNO_INVALID_KEY);
     break;
   }
   case __WASI_KEYPAIR_ENCODING_PKCS8:

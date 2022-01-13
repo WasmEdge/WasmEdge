@@ -20,6 +20,8 @@ namespace Signatures {
 
 class EddsaPublicKey final : public PublicKey {
 public:
+  inline static __wasi_size_t Size = 32;
+
   EddsaPublicKey(EVP_PKEY *Ctx) : Ctx(std::move(Ctx)) {}
 
   static WasiCryptoExpect<std::unique_ptr<EddsaPublicKey>>
@@ -37,6 +39,8 @@ private:
 
 class EddsaSecretKey final : public SecretKey {
 public:
+  inline static __wasi_size_t Size = 32;
+
   EddsaSecretKey(EVP_PKEY *Ctx) : Ctx(Ctx) {}
 
   static WasiCryptoExpect<std::unique_ptr<SecretKey>>
@@ -51,6 +55,8 @@ private:
 
 class EddsaKeyPair final : public KeyPair {
 public:
+  inline static __wasi_size_t Size = 64;
+
   EddsaKeyPair(EVP_PKEY *Ctx) : Ctx(Ctx) {}
 
   static WasiCryptoExpect<std::unique_ptr<KeyPair>>
@@ -74,6 +80,8 @@ private:
 
 class EddsaSignature final : public Signature {
 public:
+  inline static __wasi_size_t Size = 64;
+
   EddsaSignature(std::vector<uint8_t> &&Sign)
       : Signature(SignatureAlgorithm::Ed25519, std::move(Sign)) {}
 

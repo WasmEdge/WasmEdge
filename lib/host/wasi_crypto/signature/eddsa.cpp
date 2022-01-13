@@ -16,8 +16,10 @@ EddsaPublicKey::import(Span<const uint8_t> Encoded,
   switch (Encoding) {
   case __WASI_PUBLICKEY_ENCODING_RAW: {
     const uint8_t *Temp = Encoded.data();
+    ensureOrReturn(Encoded.size() == EddsaPublicKey::Size,
+                   __WASI_CRYPTO_ERRNO_INVALID_KEY);
     Pk = d2i_PublicKey(EVP_PKEY_ED25519, &Pk, &Temp, Encoded.size());
-    opensslAssuming(Pk);
+    ensureOrReturn(Pk, __WASI_CRYPTO_ERRNO_INVALID_KEY);
     break;
   }
   case __WASI_PUBLICKEY_ENCODING_PKCS8:
@@ -77,9 +79,11 @@ EddsaSecretKey::import(Span<const uint8_t> Encoded,
   EVP_PKEY *Sk = nullptr;
   switch (Encoding) {
   case __WASI_SECRETKEY_ENCODING_RAW: {
+    ensureOrReturn(Encoded.size() == EddsaSecretKey::Size,
+                   __WASI_CRYPTO_ERRNO_INVALID_KEY);
     const uint8_t *Temp = Encoded.data();
     Sk = d2i_PrivateKey(EVP_PKEY_ED25519, &Sk, &Temp, Encoded.size());
-    opensslAssuming(Sk);
+    ensureOrReturn(Sk, __WASI_CRYPTO_ERRNO_INVALID_KEY);
     break;
   }
   case __WASI_SECRETKEY_ENCODING_PKCS8:
@@ -147,9 +151,11 @@ EddsaKeyPair::import(Span<const uint8_t> Encoded,
   EVP_PKEY *Kp = nullptr;
   switch (Encoding) {
   case __WASI_KEYPAIR_ENCODING_RAW: {
+    ensureOrReturn(Encoded.size() == EddsaKeyPair::Size,
+                   __WASI_CRYPTO_ERRNO_INVALID_KEY);
     const uint8_t *Temp = Encoded.data();
     Kp = d2i_PrivateKey(EVP_PKEY_ED25519, &Kp, &Temp, Encoded.size());
-    opensslAssuming(Kp);
+    ensureOrReturn(Kp, __WASI_CRYPTO_ERRNO_INVALID_KEY);
     break;
   }
   case __WASI_KEYPAIR_ENCODING_PKCS8:
@@ -221,7 +227,8 @@ EddsaSignature::import(Span<const uint8_t> Encoded,
                        __wasi_signature_encoding_e_t Encoding) {
   switch (Encoding) {
   case __WASI_SIGNATURE_ENCODING_RAW:
-    ensureOrReturn(Encoded.size() == 64, __WASI_CRYPTO_ERRNO_INVALID_SIGNATURE);
+    ensureOrReturn(Encoded.size() == EddsaSignature::Size,
+                   __WASI_CRYPTO_ERRNO_INVALID_SIGNATURE);
     return std::make_unique<EddsaSignature>(
         std::vector<uint8_t>{Encoded.begin(), Encoded.end()});
   case __WASI_SIGNATURE_ENCODING_DER:
@@ -260,7 +267,6 @@ WasiCryptoExpect<std::unique_ptr<Signature>> EddsaSignState::sign() {
   std::vector<uint8_t> Res(Size);
   opensslAssuming(
       EVP_DigestSign(Ctx.get(), Res.data(), &Size, Cache.data(), Cache.size()));
-  std::fill(Cache.begin(), Cache.end(), 0);
 
   return std::make_unique<EddsaSignature>(std::move(Res));
 }
@@ -279,10 +285,16 @@ EddsaVerificationState::verify(std::shared_ptr<Signature> Sig) {
   ensureOrReturn(Sig->alg() == SignatureAlgorithm::Ed25519,
                  __WASI_CRYPTO_ERRNO_INVALID_SIGNATURE);
 
-  opensslAssuming(EVP_DigestVerify(Ctx.get(), Sig->data().data(),
-                                   Sig->data().size(), Cache.data(),
-                                   Cache.size()));
-  std::fill(Cache.begin(), Cache.end(), 0);
+  ensureOrReturn(Sig->data().size() == EddsaSignature::Size,
+                 __WASI_CRYPTO_ERRNO_INVALID_SIGNATURE);
+
+  // The call to EVP_DigestVerifyFinal() internally finalizes a copy of the
+  // digest context. This means that EVP_VerifyUpdate() and EVP_VerifyFinal()
+  // can be called later to digest and verify additional data.
+  ensureOrReturn(EVP_DigestVerify(Ctx.get(), Sig->data().data(),
+                                  Sig->data().size(), Cache.data(),
+                                  Cache.size()),
+                 __WASI_CRYPTO_ERRNO_VERIFICATION_FAILED);
 
   return {};
 }

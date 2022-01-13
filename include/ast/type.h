@@ -27,7 +27,11 @@ namespace AST {
 class Limit {
 public:
   /// Limit type enumeration class.
-  enum class LimitType : uint8_t { HasMin = 0x00, HasMinMax = 0x01 };
+  enum class LimitType : uint8_t {
+    HasMin = 0x00,
+    HasMinMax = 0x01,
+    Shared = 0x03
+  };
 
   /// Constructors.
   Limit() noexcept : Type(LimitType::HasMin), Min(0U), Max(0U) {}

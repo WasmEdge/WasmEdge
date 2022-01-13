@@ -905,7 +905,10 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
   case OpCode::I64__atomic_cmpxchg8_u:
   case OpCode::I64__atomic_cmpxchg16_u:
   case OpCode::I64__atomic_cmpxchg32_u:
-    return {};
+    if (auto Res = readU32(Instr.getMemoryAlign()); unlikely(!Res)) {
+      return Unexpect(Res);
+    }
+    return readU32(Instr.getMemoryOffset());
 
   default:
     return logLoadError(ErrCode::IllegalOpCode, Instr.getOffset(),

@@ -18,6 +18,9 @@ Expect<void> Loader::loadLimit(AST::Limit &Lim) {
     case AST::Limit::LimitType::HasMinMax:
       Lim.setHasMax(true);
       break;
+    case AST::Limit::LimitType::Shared:
+      Lim.setHasMax(true);
+      break;
     default:
       if (*Res == 0x80 || *Res == 0x81) {
         // LEB128 cases will fail.

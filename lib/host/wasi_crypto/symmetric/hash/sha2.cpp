@@ -50,7 +50,7 @@ WasiCryptoExpect<void> Sha2State<Sha>::squeeze(Span<uint8_t> Out) {
   // Check
   opensslAssuming(Size == Cache.size());
 
-  std::copy(Cache.begin(), Cache.begin() + Size, Out.data());
+  std::copy(Cache.begin(), Cache.end(), Out.data());
 
   return {};
 }

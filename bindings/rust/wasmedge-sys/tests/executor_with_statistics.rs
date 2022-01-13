@@ -4,8 +4,8 @@ use wasmedge_sys::{
     Config, Executor, Loader, Statistics, Store, StoreError, Validator, Value, WasmEdgeError,
 };
 
+// TODO: temporarily turn off the test
 #[warn(unused_assignments)]
-#[test]
 fn test_executor_with_statistics() {
     // create a Statistics context
     let result = Statistics::create();

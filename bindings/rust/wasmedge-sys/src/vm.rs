@@ -314,6 +314,25 @@ impl Vm {
         self.run_function(func_name, params)
     }
 
+    pub fn run_wasm_from_module_new(
+        &self,
+        module: &mut Module,
+        func_name: impl AsRef<str>,
+        params: impl IntoIterator<Item = Value>,
+    ) -> WasmEdgeResult<Vec<Value>> {
+        // load
+        self.load_wasm_from_module(module)?;
+
+        // validate
+        self.validate()?;
+
+        // instantiate
+        self.instantiate()?;
+
+        // invoke
+        self.run_function(func_name, params)
+    }
+
     /// Loads a WASM module from a WasmEdge AST [Module](crate::Module).
     ///
     /// This is the first step to invoke a WASM function step by step.
@@ -434,10 +453,7 @@ impl Vm {
         params: impl IntoIterator<Item = Value>,
     ) -> WasmEdgeResult<Vec<Value>> {
         // prepare parameters
-        let raw_params = params
-            .into_iter()
-            .map(wasmedge::WasmEdge_Value::from)
-            .collect::<Vec<_>>();
+        let raw_params = params.into_iter().map(|x| x.as_raw()).collect::<Vec<_>>();
 
         // prepare returns
         let func_type = self.get_function_type(func_name.as_ref())?;
@@ -485,10 +501,7 @@ impl Vm {
         params: impl IntoIterator<Item = Value>,
     ) -> WasmEdgeResult<Vec<Value>> {
         // prepare parameters
-        let raw_params = params
-            .into_iter()
-            .map(wasmedge::WasmEdge_Value::from)
-            .collect::<Vec<_>>();
+        let raw_params = params.into_iter().map(|x| x.as_raw()).collect::<Vec<_>>();
 
         // prepare returns
         let func_type = self.get_registered_function_type(mod_name.as_ref(), func_name.as_ref())?;
@@ -754,33 +767,61 @@ mod tests {
 
     #[test]
     fn test_vm_create() {
-        // create a Vm context without Config and Store
-        let result = Vm::create(None, None);
-        assert!(result.is_ok());
+        {
+            // create a Vm context without Config and Store
+            let result = Vm::create(None, None);
+            assert!(result.is_ok());
+            let vm = result.unwrap();
+            assert!(!vm.ctx.is_null());
+        }
 
-        // create a Config context
-        let result = Config::create();
-        assert!(result.is_ok());
-        let config = result.unwrap();
-        let config = config.enable_bulk_memory_operations(true);
-        assert!(config.bulk_memory_operations_enabled());
+        {
+            // create a Config context
+            let result = Config::create();
+            assert!(result.is_ok());
+            let config = result.unwrap();
+            let config = config.enable_bulk_memory_operations(true);
+            assert!(config.bulk_memory_operations_enabled());
 
-        // create a Store context
-        let result = Store::create();
-        assert!(result.is_ok(), "Failed to create Store instance");
-        let store = result.unwrap();
+            // create a Store context
+            let result = Store::create();
+            assert!(result.is_ok(), "Failed to create Store instance");
+            let store = result.unwrap();
 
-        // create a Vm context with the given Config and Store
-        let result = Vm::create(Some(&config), Some(&store));
-        assert!(result.is_ok());
+            // create a Vm context with the given Config and Store
+            let result = Vm::create(Some(&config), Some(&store));
+            assert!(result.is_ok());
+            let vm = result.unwrap();
+            assert!(!vm.ctx.is_null());
+        }
 
-        // create a Vm context with the given Config
-        let result = Vm::create(Some(&config), None);
-        assert!(result.is_ok());
+        {
+            // create a Config context
+            let result = Config::create();
+            assert!(result.is_ok());
+            let config = result.unwrap();
+            let config = config.enable_bulk_memory_operations(true);
+            assert!(config.bulk_memory_operations_enabled());
 
-        // create a Vm context with the given Store
-        let result = Vm::create(None, Some(&store));
-        assert!(result.is_ok());
+            // create a Vm context with the given Config
+            let result = Vm::create(Some(&config), None);
+            assert!(result.is_ok());
+            let vm = result.unwrap();
+            assert!(!vm.ctx.is_null());
+        }
+
+        {
+            // create a Store context
+            let result = Store::create();
+            assert!(result.is_ok(), "Failed to create Store instance");
+            let store = result.unwrap();
+
+            // create a Vm context with the given Store
+            let result = Vm::create(None, Some(&store));
+            assert!(result.is_ok());
+            let vm = result.unwrap();
+            assert!(!vm.ctx.is_null());
+        }
     }
 
     #[test]
@@ -1023,10 +1064,10 @@ mod tests {
         assert!(result.is_ok());
 
         // run function
-        let result = vm.run_function("fib", [Value::I32(5)]);
+        let result = vm.run_function("fib", [Value::from_i32(5)]);
         assert!(result.is_ok());
         let values = result.unwrap();
-        assert_eq!(values[0], Value::I32(8));
+        assert_eq!(values[0].to_i32(), 8);
 
         // run function with empty parameter
         let result = vm.run_function("fib", []);
@@ -1037,7 +1078,7 @@ mod tests {
         );
 
         // run a function with the parameters of wrong type
-        let result = vm.run_function("fib", [Value::I64(5)]);
+        let result = vm.run_function("fib", [Value::from_i64(5)]);
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
@@ -1045,7 +1086,7 @@ mod tests {
         );
 
         // run a function: the specified function name is non-existant
-        let result = vm.run_function("fib2", [Value::I32(5)]);
+        let result = vm.run_function("fib2", [Value::from_i32(5)]);
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
@@ -1160,10 +1201,10 @@ mod tests {
         );
 
         // run a registered function
-        let result = vm.run_registered_function(mod_name, "fib", [Value::I32(5)]);
+        let result = vm.run_registered_function(mod_name, "fib", [Value::from_i32(5)]);
         assert!(result.is_ok());
         let returns = result.unwrap();
-        assert_eq!(returns, vec![Value::I32(8)]);
+        assert_eq!(returns[0].to_i32(), 8);
 
         // get the registered function type
         let result = vm.get_registered_function_type(mod_name, "fib");
@@ -1198,7 +1239,7 @@ mod tests {
         );
 
         // run a registered function with the parameters of wrong type
-        let result = vm.run_registered_function(mod_name, "fib", [Value::I64(5)]);
+        let result = vm.run_registered_function(mod_name, "fib", [Value::from_i64(5)]);
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
@@ -1206,7 +1247,7 @@ mod tests {
         );
 
         // run a registered function but give a wrong function name.
-        let result = vm.run_registered_function(mod_name, "fib2", [Value::I32(5)]);
+        let result = vm.run_registered_function(mod_name, "fib2", [Value::from_i32(5)]);
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
@@ -1329,13 +1370,13 @@ mod tests {
         // run a function from a wasm file
         let path = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
             .join("bindings/rust/wasmedge-sys/tests/data/fibonacci.wasm");
-        let result = vm.run_wasm_from_file(&path, "fib", [Value::I32(5)]);
+        let result = vm.run_wasm_from_file(&path, "fib", [Value::from_i32(5)]);
         assert!(result.is_ok());
         let returns = result.unwrap();
-        assert_eq!(returns, vec![Value::I32(8)]);
+        assert_eq!(returns[0].to_i32(), 8);
 
         // run a function from a non-existent file
-        let result = vm.run_wasm_from_file("no_file", "fib", [Value::I32(5)]);
+        let result = vm.run_wasm_from_file("no_file", "fib", [Value::from_i32(5)]);
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
@@ -1351,7 +1392,7 @@ mod tests {
         );
 
         // run a function from a WASM file with the parameters of wrong type
-        let result = vm.run_wasm_from_file(&path, "fib", [Value::I64(5)]);
+        let result = vm.run_wasm_from_file(&path, "fib", [Value::from_i64(5)]);
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
@@ -1359,7 +1400,7 @@ mod tests {
         );
 
         // fun a function: the specified function name is non-existant
-        let result = vm.run_wasm_from_file(&path, "fib2", [Value::I32(5)]);
+        let result = vm.run_wasm_from_file(&path, "fib2", [Value::from_i32(5)]);
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
@@ -1392,14 +1433,14 @@ mod tests {
         let result = std::fs::read(path);
         assert!(result.is_ok());
         let buffer = result.unwrap();
-        let result = vm.run_wasm_from_buffer(&buffer, "fib", [Value::I32(5)]);
+        let result = vm.run_wasm_from_buffer(&buffer, "fib", [Value::from_i32(5)]);
         assert!(result.is_ok());
         let returns = result.unwrap();
-        assert_eq!(returns, vec![Value::I32(8)]);
+        assert_eq!(returns[0].to_i32(), 8);
 
         // run a function from an empty buffer
         let empty_buffer: Vec<u8> = Vec::new();
-        let result = vm.run_wasm_from_buffer(&empty_buffer, "fib", [Value::I32(5)]);
+        let result = vm.run_wasm_from_buffer(&empty_buffer, "fib", [Value::from_i32(5)]);
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
@@ -1415,7 +1456,7 @@ mod tests {
         );
 
         // run a function with the parameters of wrong type
-        let result = vm.run_wasm_from_buffer(&buffer, "fib", [Value::I64(5)]);
+        let result = vm.run_wasm_from_buffer(&buffer, "fib", [Value::from_i64(5)]);
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
@@ -1423,7 +1464,7 @@ mod tests {
         );
 
         // fun a function: the specified function name is non-existant
-        let result = vm.run_wasm_from_buffer(&buffer, "fib2", [Value::I64(5)]);
+        let result = vm.run_wasm_from_buffer(&buffer, "fib2", [Value::from_i64(5)]);
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
@@ -1461,10 +1502,10 @@ mod tests {
         let mut module = result.unwrap();
 
         // run a function from a module
-        let result = vm.run_wasm_from_module(&mut module, "fib", [Value::I32(5)]);
+        let result = vm.run_wasm_from_module(&mut module, "fib", [Value::from_i32(5)]);
         assert!(result.is_ok());
         let returns = result.unwrap();
-        assert_eq!(returns, vec![Value::I32(8)]);
+        assert_eq!(returns[0].to_i32(), 8);
 
         // run a function with the empty parameters
         let result = vm.run_wasm_from_module(&mut module, "fib", []);
@@ -1475,7 +1516,7 @@ mod tests {
         );
 
         // run a function with the parameters of wrong type
-        let result = vm.run_wasm_from_module(&mut module, "fib", [Value::I64(5)]);
+        let result = vm.run_wasm_from_module(&mut module, "fib", [Value::from_i64(5)]);
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
@@ -1483,7 +1524,7 @@ mod tests {
         );
 
         // fun a function: the specified function name is non-existant
-        let result = vm.run_wasm_from_module(&mut module, "fib2", [Value::I64(5)]);
+        let result = vm.run_wasm_from_module(&mut module, "fib2", [Value::from_i64(5)]);
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
@@ -1491,29 +1532,25 @@ mod tests {
         );
     }
 
-    fn real_add(input: Vec<Value>) -> Result<Vec<Value>, u8> {
-        println!("Rust: Entering Rust function real_add");
-
-        if input.len() != 2 {
+    fn real_add(inputs: Vec<Value>) -> Result<Vec<Value>, u8> {
+        if inputs.len() != 2 {
             return Err(1);
         }
 
-        let a = if let Value::I32(i) = input[0] {
-            i
+        let a = if inputs[0].ty() == ValType::I32 {
+            inputs[0].to_i32()
         } else {
             return Err(2);
         };
 
-        let b = if let Value::I32(i) = input[1] {
-            i
+        let b = if inputs[1].ty() == ValType::I32 {
+            inputs[1].to_i32()
         } else {
             return Err(3);
         };
 
         let c = a + b;
-        println!("Rust: calcuating in real_add c: {:?}", c);
 
-        println!("Rust: Leaving Rust function real_add");
-        Ok(vec![Value::I32(c)])
+        Ok(vec![Value::from_i32(c)])
     }
 }

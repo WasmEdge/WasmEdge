@@ -38,7 +38,6 @@ pub mod module;
 pub mod statistics;
 #[doc(hidden)]
 pub mod store;
-#[doc(hidden)]
 pub mod types;
 pub mod utils;
 #[doc(hidden)]
@@ -89,7 +88,7 @@ thread_local! {
     #[allow(clippy::type_complexity)]
     static HOST_FUNCS:
       RefCell<
-        HashMap<usize, Box<dyn Fn(Vec<Value>) -> Result<Vec<Value>, u8>>>> = RefCell::new(HashMap::with_capacity(var("MAX_HOST_FUNC_LENGTH").map(|s| s.parse::<usize>().expect("MAX_HOST_FUNC_LENGTH should be a number")).unwrap_or(500)));
+        HashMap<usize, Box<dyn Fn(Vec<types::Value>) -> Result<Vec<types::Value>, u8>>>> = RefCell::new(HashMap::with_capacity(var("MAX_HOST_FUNC_LENGTH").map(|s| s.parse::<usize>().expect("MAX_HOST_FUNC_LENGTH should be a number")).unwrap_or(500)));
 }
 
 #[cfg(test)]
@@ -97,7 +96,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn links() {
+    fn test_versions() {
         unsafe {
             assert!(
                 wasmedge::WasmEdge_VersionGetMajor()

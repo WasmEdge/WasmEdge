@@ -291,8 +291,8 @@ impl Drop for ImportObj {
 mod tests {
     use super::*;
     use crate::{
-        types::HostRegistration, Config, FuncType, GlobalType, MemType, Mutability, RefType,
-        TableType, ValType, Value, Vm,
+        types::{HostRegistration, Value},
+        Config, FuncType, GlobalType, MemType, Mutability, RefType, TableType, ValType, Vm,
     };
 
     #[test]
@@ -338,7 +338,7 @@ mod tests {
         let result = GlobalType::create(ValType::I32, Mutability::Const);
         assert!(result.is_ok());
         let mut global_ty = result.unwrap();
-        let result = Global::create(&mut global_ty, Value::I32(666));
+        let result = Global::create(&mut global_ty, Value::from_i32(666));
         assert!(result.is_ok());
         let mut host_global = result.unwrap();
         // add the global into import_obj module
@@ -448,19 +448,20 @@ mod tests {
             return Err(1);
         }
 
-        let a = if let Value::I32(i) = inputs[0] {
-            i
+        let a = if inputs[0].ty() == ValType::I32 {
+            inputs[0].to_i32()
         } else {
             return Err(2);
         };
 
-        let b = if let Value::I32(i) = inputs[1] {
-            i
+        let b = if inputs[1].ty() == ValType::I32 {
+            inputs[1].to_i32()
         } else {
             return Err(3);
         };
 
         let c = a + b;
-        Ok(vec![Value::I32(c)])
+
+        Ok(vec![Value::from_i32(c)])
     }
 }

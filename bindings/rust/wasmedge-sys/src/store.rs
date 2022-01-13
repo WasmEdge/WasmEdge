@@ -722,7 +722,8 @@ mod tests {
     use super::Store;
     use crate::{
         instance::{Function, Global, GlobalType, MemType, Memory, Table, TableType},
-        Config, Executor, FuncType, ImportObj, Mutability, RefType, ValType, Value,
+        types::Value,
+        Config, Executor, FuncType, ImportObj, Mutability, RefType, ValType,
     };
 
     #[test]
@@ -788,7 +789,7 @@ mod tests {
         let result = GlobalType::create(ValType::F32, Mutability::Const);
         assert!(result.is_ok());
         let mut ty = result.unwrap();
-        let result = Global::create(&mut ty, Value::F32(3.5));
+        let result = Global::create(&mut ty, Value::from_f32(3.5));
         assert!(result.is_ok());
         let mut global = result.unwrap();
         import_obj.add_global("global", &mut global);
@@ -851,51 +852,47 @@ mod tests {
         let global = result.unwrap();
         assert!(!global.ctx.is_null() && global.registered);
         let val = global.get_value();
-        assert_eq!(val, Value::F32(3.5));
+        assert_eq!(val.to_f32(), 3.5);
 
         // run the registered function
         let result = executor.run_func_registered(
             &store,
             "extern_module",
             "add",
-            vec![Value::I32(12), Value::I32(21)],
+            vec![Value::from_i32(12), Value::from_i32(21)],
         );
         assert!(result.is_ok());
         let returns = result.unwrap();
-        assert_eq!(returns, vec![Value::I32(33)]);
+        assert_eq!(returns[0].to_i32(), 33);
 
         let second_run = executor.run_func_registered(
             &store,
             "extern_module",
             "add",
-            vec![Value::I32(12), Value::I32(21)],
+            vec![Value::from_i32(12), Value::from_i32(21)],
         );
         assert!(second_run.is_ok());
     }
 
-    fn real_add(input: Vec<Value>) -> Result<Vec<Value>, u8> {
-        println!("Rust: Entering Rust function real_add");
-
-        if input.len() != 2 {
+    fn real_add(inputs: Vec<Value>) -> Result<Vec<Value>, u8> {
+        if inputs.len() != 2 {
             return Err(1);
         }
 
-        let a = if let Value::I32(i) = input[0] {
-            i
+        let a = if inputs[0].ty() == ValType::I32 {
+            inputs[0].to_i32()
         } else {
             return Err(2);
         };
 
-        let b = if let Value::I32(i) = input[1] {
-            i
+        let b = if inputs[1].ty() == ValType::I32 {
+            inputs[1].to_i32()
         } else {
             return Err(3);
         };
 
         let c = a + b;
-        println!("Rust: calcuating in real_add c: {:?}", c);
 
-        println!("Rust: Leaving Rust function real_add");
-        Ok(vec![Value::I32(c)])
+        Ok(vec![Value::from_i32(c)])
     }
 }

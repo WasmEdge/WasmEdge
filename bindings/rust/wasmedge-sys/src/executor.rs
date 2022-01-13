@@ -28,8 +28,8 @@ impl Executor {
     /// # Error
     ///
     /// If fail to create a [`Executor`], then an error is returned.
-    pub fn create(conf: Option<&Config>, stat: Option<&mut Statistics>) -> WasmEdgeResult<Self> {
-        let conf = match conf {
+    pub fn create(config: Option<&Config>, stat: Option<&Statistics>) -> WasmEdgeResult<Self> {
+        let conf = match config {
             Some(conf) => conf.ctx,
             None => ptr::null(),
         };
@@ -37,10 +37,11 @@ impl Executor {
             Some(stat) => stat.ctx,
             None => ptr::null_mut(),
         };
-        let raw = unsafe { wasmedge::WasmEdge_ExecutorCreate(conf, stat_ctx) };
-        match raw.is_null() {
+
+        let ctx = unsafe { wasmedge::WasmEdge_ExecutorCreate(conf, stat_ctx) };
+        match ctx.is_null() {
             true => Err(WasmEdgeError::ExecutorCreate),
-            false => Ok(Executor { ctx: raw }),
+            false => Ok(Executor { ctx }),
         }
     }
 
@@ -163,10 +164,9 @@ impl Executor {
         func_name: impl AsRef<str>,
         params: impl IntoIterator<Item = Value>,
     ) -> WasmEdgeResult<Vec<Value>> {
-        let raw_params = params
-            .into_iter()
-            .map(wasmedge::WasmEdge_Value::from)
-            .collect::<Vec<_>>();
+        store.contains_func(func_name.as_ref())?;
+
+        let raw_params = params.into_iter().map(|x| x.as_raw()).collect::<Vec<_>>();
 
         // get the length of the function's returns
         let returns_len = store.find_func(func_name.as_ref())?.ty()?.returns_len();
@@ -212,10 +212,9 @@ impl Executor {
         func_name: impl AsRef<str>,
         params: impl IntoIterator<Item = Value>,
     ) -> WasmEdgeResult<Vec<Value>> {
-        let raw_params = params
-            .into_iter()
-            .map(wasmedge::WasmEdge_Value::from)
-            .collect::<Vec<_>>();
+        store.contains_reg_func(mod_name.as_ref(), func_name.as_ref())?;
+
+        let raw_params = params.into_iter().map(|x| x.as_raw()).collect::<Vec<_>>();
 
         // get the length of the function's returns
         let returns_len = store
@@ -258,22 +257,50 @@ mod tests {
 
     #[test]
     fn test_executor_create() {
-        let result = Executor::create(None, None);
-        assert!(result.is_ok());
+        {
+            // create an Executor context without configuration and statistics
+            let result = Executor::create(None, None);
+            assert!(result.is_ok());
+            let executor = result.unwrap();
+            assert!(!executor.ctx.is_null());
+        }
 
-        let result = Config::create();
-        assert!(result.is_ok());
-        let config = result.unwrap();
-        let result = Executor::create(Some(&config), None);
-        assert!(result.is_ok());
+        {
+            // create an Executor context with a given configuration
+            let result = Config::create();
+            assert!(result.is_ok());
+            let config = result.unwrap();
+            let result = Executor::create(Some(&config), None);
+            assert!(result.is_ok());
+            let executor = result.unwrap();
+            assert!(!executor.ctx.is_null());
+        }
 
-        let result = Statistics::create();
-        assert!(result.is_ok());
-        let mut stat = result.unwrap();
-        let result = Executor::create(None, Some(&mut stat));
-        assert!(result.is_ok());
+        {
+            // create an Executor context with a given statistics
+            let result = Statistics::create();
+            assert!(result.is_ok());
+            let stat = result.unwrap();
+            let result = Executor::create(None, Some(&stat));
+            assert!(result.is_ok());
+            let executor = result.unwrap();
+            assert!(!executor.ctx.is_null());
+        }
 
-        let result = Executor::create(Some(&config), Some(&mut stat));
-        assert!(result.is_ok());
+        {
+            // create an Executor context with the given configuration and statistics.
+            let result = Config::create();
+            assert!(result.is_ok());
+            let config = result.unwrap();
+
+            let result = Statistics::create();
+            assert!(result.is_ok());
+            let stat = result.unwrap();
+
+            let result = Executor::create(Some(&config), Some(&stat));
+            assert!(result.is_ok());
+            let executor = result.unwrap();
+            assert!(!executor.ctx.is_null());
+        }
     }
 }

@@ -35,11 +35,20 @@ TypeT<T> Executor::runAtomicAddOp(Runtime::Instance::MemoryInstance &MemInst,
                               const uint32_t BitWidth) {
   detail::atomicLock();
   ValVariant RHS = StackMgr.pop();
+  ValVariant Address = StackMgr.getTop();
   runLoadOp<T>(MemInst, Instr, BitWidth);
-  ValVariant &Val = StackMgr.getTop();
+
   typedef typename std::make_unsigned<T>::type UT;
+  ValVariant Loaded = StackMgr.getTop();
+  ValVariant& Val = StackMgr.getTop();
   runAddOp<UT>(Val, RHS);
+  
+  ValVariant Result = StackMgr.pop();
+  StackMgr.push(Address);
+  StackMgr.push(Result);
   runStoreOp<UT>(MemInst, Instr, BitWidth);
+
+  StackMgr.push(Loaded);
   detail::atomicUnlock();
   return {};
 }
@@ -50,11 +59,20 @@ TypeT<T> Executor::runAtomicSubOp(Runtime::Instance::MemoryInstance &MemInst,
                               const uint32_t BitWidth) {
   detail::atomicLock();
   ValVariant RHS = StackMgr.pop();
+  ValVariant Address = StackMgr.getTop();
   runLoadOp<T>(MemInst, Instr, BitWidth);
-  ValVariant &Val = StackMgr.getTop();
+
   typedef typename std::make_unsigned<T>::type UT;
+  ValVariant Loaded = StackMgr.getTop();
+  ValVariant& Val = StackMgr.getTop();
   runSubOp<UT>(Val, RHS);
+  
+  ValVariant Result = StackMgr.pop();
+  StackMgr.push(Address);
+  StackMgr.push(Result);
   runStoreOp<UT>(MemInst, Instr, BitWidth);
+
+  StackMgr.push(Loaded);
   detail::atomicUnlock();
   return {};
 }
@@ -65,11 +83,20 @@ TypeT<T> Executor::runAtomicOrOp(Runtime::Instance::MemoryInstance &MemInst,
                               const uint32_t BitWidth) {
   detail::atomicLock();
   ValVariant RHS = StackMgr.pop();
+  ValVariant Address = StackMgr.getTop();
   runLoadOp<T>(MemInst, Instr, BitWidth);
-  ValVariant &Val = StackMgr.getTop();
+
   typedef typename std::make_unsigned<T>::type UT;
+  ValVariant Loaded = StackMgr.getTop();
+  ValVariant& Val = StackMgr.getTop();
   runOrOp<UT>(Val, RHS);
+  
+  ValVariant Result = StackMgr.pop();
+  StackMgr.push(Address);
+  StackMgr.push(Result);
   runStoreOp<UT>(MemInst, Instr, BitWidth);
+
+  StackMgr.push(Loaded);
   detail::atomicUnlock();
   return {};
 }
@@ -80,11 +107,20 @@ TypeT<T> Executor::runAtomicAndOp(Runtime::Instance::MemoryInstance &MemInst,
                               const uint32_t BitWidth) {
   detail::atomicLock();
   ValVariant RHS = StackMgr.pop();
+  ValVariant Address = StackMgr.getTop();
   runLoadOp<T>(MemInst, Instr, BitWidth);
-  ValVariant &Val = StackMgr.getTop();
+
   typedef typename std::make_unsigned<T>::type UT;
+  ValVariant Loaded = StackMgr.getTop();
+  ValVariant& Val = StackMgr.getTop();
   runAndOp<UT>(Val, RHS);
+  
+  ValVariant Result = StackMgr.pop();
+  StackMgr.push(Address);
+  StackMgr.push(Result);
   runStoreOp<UT>(MemInst, Instr, BitWidth);
+
+  StackMgr.push(Loaded);
   detail::atomicUnlock();
   return {};
 }
@@ -95,11 +131,20 @@ TypeT<T> Executor::runAtomicXorOp(Runtime::Instance::MemoryInstance &MemInst,
                               const uint32_t BitWidth) {
   detail::atomicLock();
   ValVariant RHS = StackMgr.pop();
+  ValVariant Address = StackMgr.getTop();
   runLoadOp<T>(MemInst, Instr, BitWidth);
-  ValVariant &Val = StackMgr.getTop();
+
   typedef typename std::make_unsigned<T>::type UT;
+  ValVariant Loaded = StackMgr.getTop();
+  ValVariant& Val = StackMgr.getTop();
   runXorOp<UT>(Val, RHS);
+  
+  ValVariant Result = StackMgr.pop();
+  StackMgr.push(Address);
+  StackMgr.push(Result);
   runStoreOp<UT>(MemInst, Instr, BitWidth);
+
+  StackMgr.push(Loaded);
   detail::atomicUnlock();
   return {};
 }
@@ -109,11 +154,17 @@ TypeT<T> Executor::runAtomicExchangeOp(Runtime::Instance::MemoryInstance &MemIns
                               const AST::Instruction &Instr,
                               const uint32_t BitWidth) {
   detail::atomicLock();
-  runLoadOp<T>(MemInst, Instr, BitWidth);
   ValVariant RHS = StackMgr.pop();
+  ValVariant Address = StackMgr.getTop();
+  runLoadOp<T>(MemInst, Instr, BitWidth);
+
   typedef typename std::make_unsigned<T>::type UT;
-  runStoreOp<UT>(MemInst, Instr, BitWidth);
+  ValVariant Loaded = StackMgr.pop();
+  StackMgr.push(Address);
   StackMgr.push(RHS);
+  runStoreOp<UT>(MemInst, Instr, BitWidth);
+
+  StackMgr.push(Loaded);
   detail::atomicUnlock();
   return {};
 }
@@ -123,15 +174,19 @@ TypeT<T> Executor::runAtomicCompareExchangeOp(Runtime::Instance::MemoryInstance 
                               const AST::Instruction &Instr,
                               const uint32_t BitWidth) {
   detail::atomicLock();
-  ValVariant Expected = StackMgr.pop();
+  ValVariant Val = StackMgr.pop();
+  ValVariant Cmp = StackMgr.pop();
+  ValVariant Address = StackMgr.getTop();
   runLoadOp<T>(MemInst, Instr, BitWidth);
   ValVariant Loaded = StackMgr.pop();
+
   typedef typename std::make_unsigned<T>::type UT;
-  if(Loaded.get<T>() == Expected.get<T>()){
+  if(Loaded.get<T>() == Cmp.get<T>()){
+    StackMgr.push(Address);
+    StackMgr.push(Val);
     runStoreOp<UT>(MemInst, Instr, BitWidth);
-  }else{
-    ValVariant ToStore = StackMgr.pop();
   }
+  
   StackMgr.push(Loaded);
   detail::atomicUnlock();
   return {};

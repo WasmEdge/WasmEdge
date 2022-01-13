@@ -56,8 +56,6 @@ public:
 
     WasiCryptoExpect<uint64_t> optionsGetU64(std::string_view Name) override;
 
-    ~State() override;
-
   private:
     std::shared_mutex Mutex;
     std::vector<uint8_t> Cache;

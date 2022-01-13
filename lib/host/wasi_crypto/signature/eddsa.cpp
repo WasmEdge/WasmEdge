@@ -260,12 +260,9 @@ WasiCryptoExpect<std::unique_ptr<Signature>> EddsaSignState::sign() {
   std::vector<uint8_t> Res(Size);
   opensslAssuming(
       EVP_DigestSign(Ctx.get(), Res.data(), &Size, Cache.data(), Cache.size()));
+  std::fill(Cache.begin(), Cache.end(), 0);
 
   return std::make_unique<EddsaSignature>(std::move(Res));
-}
-
-EddsaVerificationState::~EddsaVerificationState() {
-  std::fill(Cache.begin(), Cache.end(), 0);
 }
 
 WasiCryptoExpect<void>
@@ -285,6 +282,7 @@ EddsaVerificationState::verify(std::shared_ptr<Signature> Sig) {
   opensslAssuming(EVP_DigestVerify(Ctx.get(), Sig->data().data(),
                                    Sig->data().size(), Cache.data(),
                                    Cache.size()));
+  std::fill(Cache.begin(), Cache.end(), 0);
 
   return {};
 }

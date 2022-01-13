@@ -72,6 +72,7 @@ Hkdf<Sha, Mode>::State::squeezeKey(SymmetricAlgorithm InputAlg) {
 
   opensslAssuming(
       EVP_PKEY_CTX_set1_hkdf_salt(Ctx.get(), Cache.data(), Cache.size()));
+  std::fill(Cache.begin(), Cache.end(), 0);
 
   // check Size
   size_t Size;
@@ -92,6 +93,7 @@ WasiCryptoExpect<void> Hkdf<Sha, Mode>::State::squeeze(Span<uint8_t> Out) {
   opensslAssuming(
       EVP_PKEY_CTX_add1_hkdf_info(Ctx.get(), Cache.data(), Cache.size()));
 
+  std::fill(Cache.begin(), Cache.end(), 0);
   // TODO : More check about error
   size_t Size = Out.size();
   ensureOrReturn(EVP_PKEY_derive(Ctx.get(), Out.data(), &Size),
@@ -112,10 +114,6 @@ WasiCryptoExpect<uint64_t>
 Hkdf<Sha, Mode>::State::optionsGetU64(std::string_view Name) {
   ensureOrReturn(OptOption, __WASI_CRYPTO_ERRNO_OPTION_NOT_SET);
   return OptOption->getU64(Name);
-}
-
-template <int Sha, int Mode> Hkdf<Sha, Mode>::State::~State() {
-  std::fill(Cache.begin(), Cache.end(), 0);
 }
 
 template class Hkdf<256, EVP_PKEY_HKDEF_MODE_EXTRACT_ONLY>;

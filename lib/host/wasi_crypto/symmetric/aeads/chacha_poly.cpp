@@ -104,10 +104,6 @@ WasiCryptoExpect<Tag> ChaChaPoly<NonceBit>::State::encryptDetachedUnchecked(
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_NONCE);
   }
 
-  // Notice: Finalise the encryption. Normally ciphertext bytes may be written
-  // at this stage, but this does not occur in GCM mode
-  // However, cannot do put nullptr length in it. construct a temp var
-  // TODO:Better
   int AL;
   opensslAssuming(EVP_CipherFinal_ex(Ctx.get(), nullptr, &AL));
 

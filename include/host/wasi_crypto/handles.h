@@ -4,7 +4,6 @@
 #include "host/wasi_crypto/error.h"
 #include "wasi_crypto/api.hpp"
 
-#include <climits>
 #include <limits>
 #include <shared_mutex>
 #include <type_traits>
@@ -124,9 +123,9 @@ template <class T>
 ///
 /// @tparam HandleType This is the type of handle, notice they are all `32 byte
 /// long`(int32_t).
-/// @tparam MangerType This is the inner struct.
+/// @tparam MangerType The shared content for handle to get
 ///
-/// HandlesManger use handle as index to expression inner struct.
+/// HandlesManger use handle as index to expression inner.
 /// The handle internal representation as [-TypeId-|------CurrentNumber------]
 /// Eg.For TypeId=1 first handle will be `00000001 00000000 00000000 00000001`,
 /// and next handle will get `00000001 00000000 00000000 00000002`

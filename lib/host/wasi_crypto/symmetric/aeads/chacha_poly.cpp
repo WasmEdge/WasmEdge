@@ -24,8 +24,6 @@ ChaChaPoly<NonceBit>::State::open(std::shared_ptr<Key> OptKey,
 
   ensureOrReturn(Nonce->size() == NonceBit / 8,
                  __WASI_CRYPTO_ERRNO_INVALID_HANDLE);
-  //  ensureOrReturn(getKeySize(Alg) == Key.size(),
-  //                 __WASI_CRYPTO_ERRNO_INVALID_HANDLE);
 
   EVP_CIPHER_CTX *Ctx = EVP_CIPHER_CTX_new();
   EVP_CIPHER_CTX_ctrl(Ctx, EVP_CTRL_AEAD_SET_IVLEN, NonceBit / 8, nullptr);
@@ -77,10 +75,13 @@ ChaChaPoly<NonceBit>::State::optionsGetU64(std::string_view Name) {
 template <uint32_t NonceBit>
 WasiCryptoExpect<void>
 ChaChaPoly<NonceBit>::State::absorb(Span<const uint8_t> Data) {
-  int Len;
-  ensureOrReturn(Data.size() <= INT_MAX, __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
-  opensslAssuming(EVP_CipherUpdate(Ctx.get(), nullptr, &Len, Data.data(),
-                                   static_cast<int>(Data.size())));
+  {
+    ensureOrReturn(Data.size() <= INT_MAX,
+                   __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
+    int Temp;
+    opensslAssuming(EVP_CipherUpdate(Ctx.get(), nullptr, &Temp, Data.data(),
+                                     static_cast<int>(Data.size())));
+  }
 
   return {};
 }
@@ -102,8 +103,10 @@ WasiCryptoExpect<Tag> ChaChaPoly<NonceBit>::State::encryptDetachedUnchecked(
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_NONCE);
   }
 
-  int AL;
-  opensslAssuming(EVP_CipherFinal_ex(Ctx.get(), nullptr, &AL));
+  {
+    int Temp;
+    opensslAssuming(EVP_CipherFinal_ex(Ctx.get(), nullptr, &Temp));
+  }
 
   // Gen tag
   std::vector<uint8_t> RawTagData(TagLen);
@@ -131,11 +134,14 @@ ChaChaPoly<NonceBit>::State::decryptDetachedUnchecked(
                                       static_cast<int>(TagLen),
                                       const_cast<uint8_t *>(RawTag.data())));
 
-  int AL;
-  ensureOrReturn(EVP_CipherFinal_ex(Ctx.get(), nullptr, &AL),
-                 __WASI_CRYPTO_ERRNO_INVALID_TAG);
+  {
+    int Temp = 0;
+    ensureOrReturn(EVP_CipherFinal_ex(Ctx.get(), nullptr, &Temp),
+                   __WASI_CRYPTO_ERRNO_INVALID_TAG);
+  }
 
-  return ActualOutSize;
+  ensureOrReturn(ActualOutSize >= 0, __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
+  return static_cast<__wasi_size_t>(ActualOutSize);
 }
 
 template <uint32_t NonceBit>

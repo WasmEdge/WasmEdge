@@ -77,7 +77,8 @@ AEADsState::encryptUnchecked(Span<uint8_t> Out, Span<const uint8_t> Data) {
   std::copy(Tag->data().cbegin(), Tag->data().cend(),
             Out.subspan(Data.size()).begin());
 
-  return Out.size();
+  ensureOrReturn(Out.size() <= INT_MAX, __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
+  return static_cast<__wasi_size_t>(Out.size());
 }
 
 WasiCryptoExpect<__wasi_size_t>

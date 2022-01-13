@@ -42,7 +42,9 @@ Hkdf<Sha, Mode>::State::open(std::shared_ptr<Key> OptKey,
   opensslAssuming(Ctx);
   opensslAssuming(EVP_PKEY_derive_init(Ctx));
 
-  opensslAssuming(EVP_PKEY_CTX_set_hkdf_md(Ctx, ShaMap.at(Sha)));
+  // ugly to pass compile
+  opensslAssuming(EVP_PKEY_CTX_set_hkdf_md(
+      Ctx, static_cast<void *>(const_cast<EVP_MD *>(ShaMap.at(Sha)))));
   opensslAssuming(EVP_PKEY_CTX_hkdf_mode(Ctx, Mode));
 
   opensslAssuming(EVP_PKEY_CTX_set1_hkdf_key(Ctx, OptKey->data().data(),
@@ -91,9 +93,11 @@ WasiCryptoExpect<void> Hkdf<Sha, Mode>::State::squeeze(Span<uint8_t> Out) {
   opensslAssuming(
       EVP_PKEY_CTX_add1_hkdf_info(Ctx.get(), Cache.data(), Cache.size()));
 
-  size_t Size = Out.size();
-  ensureOrReturn(EVP_PKEY_derive(Ctx.get(), Out.data(), &Size),
-                 __WASI_CRYPTO_ERRNO_INVALID_KEY);
+  {
+    size_t Size = Out.size();
+    ensureOrReturn(EVP_PKEY_derive(Ctx.get(), Out.data(), &Size),
+                   __WASI_CRYPTO_ERRNO_INVALID_KEY);
+  }
 
   return {};
 }

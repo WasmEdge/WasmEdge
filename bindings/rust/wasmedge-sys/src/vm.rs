@@ -1348,189 +1348,189 @@ mod tests {
         assert!(result.is_ok());
     }
 
-    // #[test]
-    // fn test_vm_run_wasm_from_file() {
-    //     // create a Config context
-    //     let result = Config::create();
-    //     assert!(result.is_ok());
-    //     let config = result.unwrap();
-    //     let config = config.enable_bulk_memory_operations(true);
-    //     assert!(config.bulk_memory_operations_enabled());
+    #[test]
+    fn test_vm_run_wasm_from_file() {
+        // create a Config context
+        let result = Config::create();
+        assert!(result.is_ok());
+        let config = result.unwrap();
+        let config = config.enable_bulk_memory_operations(true);
+        assert!(config.bulk_memory_operations_enabled());
 
-    //     // create a Store context
-    //     let result = Store::create();
-    //     assert!(result.is_ok(), "Failed to create Store instance");
-    //     let store = result.unwrap();
+        // create a Store context
+        let result = Store::create();
+        assert!(result.is_ok(), "Failed to create Store instance");
+        let store = result.unwrap();
 
-    //     // create a Vm context with the given Config and Store
-    //     let result = Vm::create(Some(&config), Some(&store));
-    //     assert!(result.is_ok());
-    //     let vm = result.unwrap();
+        // create a Vm context with the given Config and Store
+        let result = Vm::create(Some(&config), Some(&store));
+        assert!(result.is_ok());
+        let vm = result.unwrap();
 
-    //     // run a function from a wasm file
-    //     let path = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
-    //         .join("bindings/rust/wasmedge-sys/tests/data/fibonacci.wasm");
-    //     let result = vm.run_wasm_from_file(&path, "fib", [Value::from_i32(5)]);
-    //     assert!(result.is_ok());
-    //     let returns = result.unwrap();
-    //     assert_eq!(returns, vec![Value::from_i32(8)]);
+        // run a function from a wasm file
+        let path = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
+            .join("bindings/rust/wasmedge-sys/tests/data/fibonacci.wasm");
+        let result = vm.run_wasm_from_file(&path, "fib", [Value::from_i32(5)]);
+        assert!(result.is_ok());
+        let returns = result.unwrap();
+        assert_eq!(returns[0].to_i32(), 8);
 
-    //     // run a function from a non-existent file
-    //     let result = vm.run_wasm_from_file("no_file", "fib", [Value::from_i32(5)]);
-    //     assert!(result.is_err());
-    //     assert_eq!(
-    //         result.unwrap_err(),
-    //         WasmEdgeError::Core(CoreError::Load(CoreLoadError::IllegalPath))
-    //     );
+        // run a function from a non-existent file
+        let result = vm.run_wasm_from_file("no_file", "fib", [Value::from_i32(5)]);
+        assert!(result.is_err());
+        assert_eq!(
+            result.unwrap_err(),
+            WasmEdgeError::Core(CoreError::Load(CoreLoadError::IllegalPath))
+        );
 
-    //     // run a function from a WASM file with the empty parameters
-    //     let result = vm.run_wasm_from_file(&path, "fib", []);
-    //     assert!(result.is_err());
-    //     assert_eq!(
-    //         result.unwrap_err(),
-    //         WasmEdgeError::Core(CoreError::Execution(CoreExecutionError::FuncTypeMismatch))
-    //     );
+        // run a function from a WASM file with the empty parameters
+        let result = vm.run_wasm_from_file(&path, "fib", []);
+        assert!(result.is_err());
+        assert_eq!(
+            result.unwrap_err(),
+            WasmEdgeError::Core(CoreError::Execution(CoreExecutionError::FuncTypeMismatch))
+        );
 
-    //     // run a function from a WASM file with the parameters of wrong type
-    //     let result = vm.run_wasm_from_file(&path, "fib", [Value::from_i64(5)]);
-    //     assert!(result.is_err());
-    //     assert_eq!(
-    //         result.unwrap_err(),
-    //         WasmEdgeError::Core(CoreError::Execution(CoreExecutionError::FuncTypeMismatch))
-    //     );
+        // run a function from a WASM file with the parameters of wrong type
+        let result = vm.run_wasm_from_file(&path, "fib", [Value::from_i64(5)]);
+        assert!(result.is_err());
+        assert_eq!(
+            result.unwrap_err(),
+            WasmEdgeError::Core(CoreError::Execution(CoreExecutionError::FuncTypeMismatch))
+        );
 
-    //     // fun a function: the specified function name is non-existant
-    //     let result = vm.run_wasm_from_file(&path, "fib2", [Value::from_i32(5)]);
-    //     assert!(result.is_err());
-    //     assert_eq!(
-    //         result.unwrap_err(),
-    //         WasmEdgeError::Store(StoreError::NotFoundFunc("fib2".into()))
-    //     );
-    // }
+        // fun a function: the specified function name is non-existant
+        let result = vm.run_wasm_from_file(&path, "fib2", [Value::from_i32(5)]);
+        assert!(result.is_err());
+        assert_eq!(
+            result.unwrap_err(),
+            WasmEdgeError::Store(StoreError::NotFoundFunc("fib2".into()))
+        );
+    }
 
-    // #[test]
-    // fn test_vm_run_wasm_from_buffer() {
-    //     // create a Config context
-    //     let result = Config::create();
-    //     assert!(result.is_ok());
-    //     let config = result.unwrap();
-    //     let config = config.enable_bulk_memory_operations(true);
-    //     assert!(config.bulk_memory_operations_enabled());
+    #[test]
+    fn test_vm_run_wasm_from_buffer() {
+        // create a Config context
+        let result = Config::create();
+        assert!(result.is_ok());
+        let config = result.unwrap();
+        let config = config.enable_bulk_memory_operations(true);
+        assert!(config.bulk_memory_operations_enabled());
 
-    //     // create a Store context
-    //     let result = Store::create();
-    //     assert!(result.is_ok(), "Failed to create Store instance");
-    //     let store = result.unwrap();
+        // create a Store context
+        let result = Store::create();
+        assert!(result.is_ok(), "Failed to create Store instance");
+        let store = result.unwrap();
 
-    //     // create a Vm context with the given Config and Store
-    //     let result = Vm::create(Some(&config), Some(&store));
-    //     assert!(result.is_ok());
-    //     let vm = result.unwrap();
+        // create a Vm context with the given Config and Store
+        let result = Vm::create(Some(&config), Some(&store));
+        assert!(result.is_ok());
+        let vm = result.unwrap();
 
-    //     // run a function from a WASM buffer
-    //     let path = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
-    //         .join("bindings/rust/wasmedge-sys/tests/data/fibonacci.wasm");
-    //     let result = std::fs::read(path);
-    //     assert!(result.is_ok());
-    //     let buffer = result.unwrap();
-    //     let result = vm.run_wasm_from_buffer(&buffer, "fib", [Value::from_i32(5)]);
-    //     assert!(result.is_ok());
-    //     let returns = result.unwrap();
-    //     assert_eq!(returns, vec![Value::from_i32(8)]);
+        // run a function from a WASM buffer
+        let path = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
+            .join("bindings/rust/wasmedge-sys/tests/data/fibonacci.wasm");
+        let result = std::fs::read(path);
+        assert!(result.is_ok());
+        let buffer = result.unwrap();
+        let result = vm.run_wasm_from_buffer(&buffer, "fib", [Value::from_i32(5)]);
+        assert!(result.is_ok());
+        let returns = result.unwrap();
+        assert_eq!(returns[0].to_i32(), 8);
 
-    //     // run a function from an empty buffer
-    //     let empty_buffer: Vec<u8> = Vec::new();
-    //     let result = vm.run_wasm_from_buffer(&empty_buffer, "fib", [Value::from_i32(5)]);
-    //     assert!(result.is_err());
-    //     assert_eq!(
-    //         result.unwrap_err(),
-    //         WasmEdgeError::Core(CoreError::Load(CoreLoadError::UnexpectedEnd))
-    //     );
+        // run a function from an empty buffer
+        let empty_buffer: Vec<u8> = Vec::new();
+        let result = vm.run_wasm_from_buffer(&empty_buffer, "fib", [Value::from_i32(5)]);
+        assert!(result.is_err());
+        assert_eq!(
+            result.unwrap_err(),
+            WasmEdgeError::Core(CoreError::Load(CoreLoadError::UnexpectedEnd))
+        );
 
-    //     // run a function with the empty parameters
-    //     let result = vm.run_wasm_from_buffer(&buffer, "fib", []);
-    //     assert!(result.is_err());
-    //     assert_eq!(
-    //         result.unwrap_err(),
-    //         WasmEdgeError::Core(CoreError::Execution(CoreExecutionError::FuncTypeMismatch))
-    //     );
+        // run a function with the empty parameters
+        let result = vm.run_wasm_from_buffer(&buffer, "fib", []);
+        assert!(result.is_err());
+        assert_eq!(
+            result.unwrap_err(),
+            WasmEdgeError::Core(CoreError::Execution(CoreExecutionError::FuncTypeMismatch))
+        );
 
-    //     // run a function with the parameters of wrong type
-    //     let result = vm.run_wasm_from_buffer(&buffer, "fib", [Value::from_i64(5)]);
-    //     assert!(result.is_err());
-    //     assert_eq!(
-    //         result.unwrap_err(),
-    //         WasmEdgeError::Core(CoreError::Execution(CoreExecutionError::FuncTypeMismatch))
-    //     );
+        // run a function with the parameters of wrong type
+        let result = vm.run_wasm_from_buffer(&buffer, "fib", [Value::from_i64(5)]);
+        assert!(result.is_err());
+        assert_eq!(
+            result.unwrap_err(),
+            WasmEdgeError::Core(CoreError::Execution(CoreExecutionError::FuncTypeMismatch))
+        );
 
-    //     // fun a function: the specified function name is non-existant
-    //     let result = vm.run_wasm_from_buffer(&buffer, "fib2", [Value::from_i64(5)]);
-    //     assert!(result.is_err());
-    //     assert_eq!(
-    //         result.unwrap_err(),
-    //         WasmEdgeError::Store(StoreError::NotFoundFunc("fib2".into()))
-    //     );
-    // }
+        // fun a function: the specified function name is non-existant
+        let result = vm.run_wasm_from_buffer(&buffer, "fib2", [Value::from_i64(5)]);
+        assert!(result.is_err());
+        assert_eq!(
+            result.unwrap_err(),
+            WasmEdgeError::Store(StoreError::NotFoundFunc("fib2".into()))
+        );
+    }
 
-    // #[test]
-    // fn test_vm_run_wasm_from_module() {
-    //     // create a Config context
-    //     let result = Config::create();
-    //     assert!(result.is_ok());
-    //     let config = result.unwrap();
-    //     let config = config.enable_bulk_memory_operations(true);
-    //     assert!(config.bulk_memory_operations_enabled());
+    #[test]
+    fn test_vm_run_wasm_from_module() {
+        // create a Config context
+        let result = Config::create();
+        assert!(result.is_ok());
+        let config = result.unwrap();
+        let config = config.enable_bulk_memory_operations(true);
+        assert!(config.bulk_memory_operations_enabled());
 
-    //     // create a Store context
-    //     let result = Store::create();
-    //     assert!(result.is_ok(), "Failed to create Store instance");
-    //     let store = result.unwrap();
+        // create a Store context
+        let result = Store::create();
+        assert!(result.is_ok(), "Failed to create Store instance");
+        let store = result.unwrap();
 
-    //     // create a Vm context with the given Config and Store
-    //     let result = Vm::create(Some(&config), Some(&store));
-    //     assert!(result.is_ok());
-    //     let vm = result.unwrap();
+        // create a Vm context with the given Config and Store
+        let result = Vm::create(Some(&config), Some(&store));
+        assert!(result.is_ok());
+        let vm = result.unwrap();
 
-    //     // load a module
-    //     let result = Loader::create(None);
-    //     assert!(result.is_ok());
-    //     let loader = result.unwrap();
-    //     let path = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
-    //         .join("bindings/rust/wasmedge-sys/tests/data/fibonacci.wasm");
-    //     let result = loader.from_file(path);
-    //     assert!(result.is_ok());
-    //     let mut module = result.unwrap();
+        // load a module
+        let result = Loader::create(None);
+        assert!(result.is_ok());
+        let loader = result.unwrap();
+        let path = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
+            .join("bindings/rust/wasmedge-sys/tests/data/fibonacci.wasm");
+        let result = loader.from_file(path);
+        assert!(result.is_ok());
+        let mut module = result.unwrap();
 
-    //     // run a function from a module
-    //     let result = vm.run_wasm_from_module(&mut module, "fib", [Value::from_i32(5)]);
-    //     assert!(result.is_ok());
-    //     let returns = result.unwrap();
-    //     assert_eq!(returns, vec![Value::from_i32(8)]);
+        // run a function from a module
+        let result = vm.run_wasm_from_module(&mut module, "fib", [Value::from_i32(5)]);
+        assert!(result.is_ok());
+        let returns = result.unwrap();
+        assert_eq!(returns[0].to_i32(), 8);
 
-    //     // run a function with the empty parameters
-    //     let result = vm.run_wasm_from_module(&mut module, "fib", []);
-    //     assert!(result.is_err());
-    //     assert_eq!(
-    //         result.unwrap_err(),
-    //         WasmEdgeError::Core(CoreError::Execution(CoreExecutionError::FuncTypeMismatch))
-    //     );
+        // run a function with the empty parameters
+        let result = vm.run_wasm_from_module(&mut module, "fib", []);
+        assert!(result.is_err());
+        assert_eq!(
+            result.unwrap_err(),
+            WasmEdgeError::Core(CoreError::Execution(CoreExecutionError::FuncTypeMismatch))
+        );
 
-    //     // run a function with the parameters of wrong type
-    //     let result = vm.run_wasm_from_module(&mut module, "fib", [Value::from_i64(5)]);
-    //     assert!(result.is_err());
-    //     assert_eq!(
-    //         result.unwrap_err(),
-    //         WasmEdgeError::Core(CoreError::Execution(CoreExecutionError::FuncTypeMismatch))
-    //     );
+        // run a function with the parameters of wrong type
+        let result = vm.run_wasm_from_module(&mut module, "fib", [Value::from_i64(5)]);
+        assert!(result.is_err());
+        assert_eq!(
+            result.unwrap_err(),
+            WasmEdgeError::Core(CoreError::Execution(CoreExecutionError::FuncTypeMismatch))
+        );
 
-    //     // fun a function: the specified function name is non-existant
-    //     let result = vm.run_wasm_from_module(&mut module, "fib2", [Value::from_i64(5)]);
-    //     assert!(result.is_err());
-    //     assert_eq!(
-    //         result.unwrap_err(),
-    //         WasmEdgeError::Store(StoreError::NotFoundFunc("fib2".into()))
-    //     );
-    // }
+        // fun a function: the specified function name is non-existant
+        let result = vm.run_wasm_from_module(&mut module, "fib2", [Value::from_i64(5)]);
+        assert!(result.is_err());
+        assert_eq!(
+            result.unwrap_err(),
+            WasmEdgeError::Store(StoreError::NotFoundFunc("fib2".into()))
+        );
+    }
 
     fn real_add(inputs: Vec<Value>) -> Result<Vec<Value>, u8> {
         if inputs.len() != 2 {

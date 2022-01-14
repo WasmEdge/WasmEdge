@@ -59,9 +59,9 @@ publicKeyExportData(PublicKey PublicKey,
 }
 
 WasiCryptoExpect<void> publicKeyVerify(PublicKey PublicKey) {
-    return std::visit(
-        [](auto &Pk) -> WasiCryptoExpect<void> { return Pk->verify(); },
-        PublicKey);
+  return std::visit(
+      [](auto &Pk) -> WasiCryptoExpect<void> { return Pk->verify(); },
+      PublicKey);
 }
 } // namespace Asymmetric
 } // namespace WASICrypto

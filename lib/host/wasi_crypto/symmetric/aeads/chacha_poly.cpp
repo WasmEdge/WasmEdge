@@ -10,7 +10,6 @@ namespace Host {
 namespace WASICrypto {
 namespace Symmetric {
 
-
 template <int NonceBit>
 WasiCryptoExpect<std::unique_ptr<typename ChaChaPoly<NonceBit>::State>>
 ChaChaPoly<NonceBit>::State::open(std::shared_ptr<Key> OptKey,

@@ -71,7 +71,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     vm.register_wasm_from_import(&mut import_obj)?;
 
     let add_ref = Value::from_extern_ref(&mut real_add);
-    match vm.run_wasm_from_module_new(
+    match vm.run_wasm_from_module(
         &mut module,
         "call_add",
         [add_ref, Value::from_i32(1234), Value::from_i32(5678)],

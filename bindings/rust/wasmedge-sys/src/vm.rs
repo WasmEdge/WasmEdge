@@ -314,25 +314,6 @@ impl Vm {
         self.run_function(func_name, params)
     }
 
-    pub fn run_wasm_from_module_new(
-        &self,
-        module: &mut Module,
-        func_name: impl AsRef<str>,
-        params: impl IntoIterator<Item = Value>,
-    ) -> WasmEdgeResult<Vec<Value>> {
-        // load
-        self.load_wasm_from_module(module)?;
-
-        // validate
-        self.validate()?;
-
-        // instantiate
-        self.instantiate()?;
-
-        // invoke
-        self.run_function(func_name, params)
-    }
-
     /// Loads a WASM module from a WasmEdge AST [Module](crate::Module).
     ///
     /// This is the first step to invoke a WASM function step by step.

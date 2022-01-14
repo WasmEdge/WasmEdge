@@ -710,20 +710,6 @@ impl From<wasmedge::WasmEdge_Value> for Value {
         }
     }
 }
-impl PartialEq for Value {
-    fn eq(&self, other: &Self) -> bool {
-        if self.ty() != other.ty() {
-            return false;
-        }
-        if self.as_raw().Value != other.as_raw().Value {
-            return false;
-        }
-        if self.as_raw().Type != other.as_raw().Type {
-            return false;
-        }
-        true
-    }
-}
 
 #[cfg(test)]
 mod tests {

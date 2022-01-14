@@ -1072,7 +1072,7 @@ mod tests {
         let result = vm.run_function("fib", [Value::from_i32(5)]);
         assert!(result.is_ok());
         let values = result.unwrap();
-        assert_eq!(values[0], Value::from_i32(8));
+        assert_eq!(values[0].to_i32(), 8);
 
         // run function with empty parameter
         let result = vm.run_function("fib", []);

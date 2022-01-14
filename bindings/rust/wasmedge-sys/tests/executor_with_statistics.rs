@@ -98,7 +98,8 @@ fn test_executor_with_statistics() {
     );
     assert!(result.is_ok());
     let returns = result.unwrap();
-    assert_eq!(returns, vec![Value::from_i32(246), Value::from_i32(912)]);
+    let returns = returns.iter().map(|x| x.to_i32()).collect::<Vec<_>>();
+    assert_eq!(returns, vec![246, 912]);
     // function type mismatched
     let result = executor.run_func(&store, "func-mul-2", []);
     assert!(result.is_err());
@@ -248,7 +249,8 @@ fn test_executor_with_statistics() {
     // Invoke host function to terminate or fail execution
     let result = executor.run_func_registered(&store, "extern", "func-term", []);
     assert!(result.is_ok());
-    assert_eq!(result.unwrap(), vec![Value::from_i32(1234)]);
+    let returns = result.unwrap();
+    assert_eq!(returns[0].to_i32(), 1234);
     let result = executor.run_func_registered(&store, "extern", "func-fail", []);
     assert!(result.is_err());
     assert_eq!(

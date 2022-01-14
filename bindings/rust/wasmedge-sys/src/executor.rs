@@ -28,8 +28,8 @@ impl Executor {
     /// # Error
     ///
     /// If fail to create a [`Executor`], then an error is returned.
-    pub fn create(conf: Option<&Config>, stat: Option<&Statistics>) -> WasmEdgeResult<Self> {
-        let conf = match conf {
+    pub fn create(config: Option<&Config>, stat: Option<&Statistics>) -> WasmEdgeResult<Self> {
+        let conf = match config {
             Some(conf) => conf.ctx,
             None => ptr::null(),
         };
@@ -246,6 +246,61 @@ impl Drop for Executor {
     fn drop(&mut self) {
         if !self.ctx.is_null() {
             unsafe { wasmedge::WasmEdge_ExecutorDelete(self.ctx) }
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{Config, Statistics};
+
+    #[test]
+    fn test_executor_create() {
+        {
+            // create an Executor context without configuration and statistics
+            let result = Executor::create(None, None);
+            assert!(result.is_ok());
+            let executor = result.unwrap();
+            assert!(!executor.ctx.is_null());
+        }
+
+        {
+            // create an Executor context with a given configuration
+            let result = Config::create();
+            assert!(result.is_ok());
+            let config = result.unwrap();
+            let result = Executor::create(Some(&config), None);
+            assert!(result.is_ok());
+            let executor = result.unwrap();
+            assert!(!executor.ctx.is_null());
+        }
+
+        {
+            // create an Executor context with a given statistics
+            let result = Statistics::create();
+            assert!(result.is_ok());
+            let stat = result.unwrap();
+            let result = Executor::create(None, Some(&stat));
+            assert!(result.is_ok());
+            let executor = result.unwrap();
+            assert!(!executor.ctx.is_null());
+        }
+
+        {
+            // create an Executor context with the given configuration and statistics.
+            let result = Config::create();
+            assert!(result.is_ok());
+            let config = result.unwrap();
+
+            let result = Statistics::create();
+            assert!(result.is_ok());
+            let stat = result.unwrap();
+
+            let result = Executor::create(Some(&config), Some(&stat));
+            assert!(result.is_ok());
+            let executor = result.unwrap();
+            assert!(!executor.ctx.is_null());
         }
     }
 }

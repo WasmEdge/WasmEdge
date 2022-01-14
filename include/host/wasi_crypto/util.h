@@ -6,6 +6,7 @@
 #include "openssl/evp.h"
 #include "wasi_crypto/api.hpp"
 
+#include <limits>
 #include <map>
 #include <memory>
 #include <optional>
@@ -119,8 +120,7 @@ cast(uint64_t Algorithm) noexcept {
   }
 }
 
-template <>
-constexpr WasiCryptoExpect<__wasi_size_t> cast(size_t Size) noexcept {
+constexpr WasiCryptoExpect<__wasi_size_t> sizeCast(size_t Size) noexcept {
   ensureOrReturn(Size <= std::numeric_limits<__wasi_size_t>::max(),
                  __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
   return static_cast<__wasi_size_t>(Size);

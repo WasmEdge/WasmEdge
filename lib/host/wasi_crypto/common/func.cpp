@@ -24,7 +24,7 @@ ArrayOutputLen::body(Runtime::Instance::MemoryInstance *MemInst,
     return Len.error();
   }
 
-  auto SafeLen = cast<__wasi_size_t>(*Len);
+  auto SafeLen = sizeCast(*Len);
   if (unlikely(!SafeLen)) {
     return SafeLen.error();
   }
@@ -62,7 +62,7 @@ ArrayOutputPull::body(Runtime::Instance::MemoryInstance *MemInst,
     return Len.error();
   }
 
-  auto SafeLen = cast<__wasi_size_t>(*Len);
+  auto SafeLen = sizeCast(*Len);
   if (unlikely(!SafeLen)) {
     return SafeLen.error();
   }

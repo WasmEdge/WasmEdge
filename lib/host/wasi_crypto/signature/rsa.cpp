@@ -340,7 +340,9 @@ WasiCryptoExpect<EVP_PKEY *> Rsa<Pad, Size, Sha>::initRsa() {
   EvpPkeyCtxPtr PCtx{EVP_PKEY_CTX_new_id(EVP_PKEY_RSA, nullptr)};
   opensslAssuming(EVP_PKEY_CTX_set_rsa_padding(PCtx.get(), Pad));
   opensslAssuming(EVP_PKEY_CTX_set_rsa_keygen_bits(PCtx.get(), Size));
-  opensslAssuming(EVP_PKEY_CTX_set_signature_md(PCtx.get(), ShaMap.at(Sha)));
+  // ugly pass error
+  opensslAssuming(EVP_PKEY_CTX_set_signature_md(
+      PCtx.get(), static_cast<void *>(const_cast<EVP_MD *>(ShaMap.at(Sha)))));
   opensslAssuming(PCtx);
   EVP_PKEY *ED = nullptr;
   opensslAssuming(EVP_PKEY_paramgen(PCtx.get(), &ED));

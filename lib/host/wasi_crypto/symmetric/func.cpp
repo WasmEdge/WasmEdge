@@ -240,7 +240,7 @@ Expect<uint32_t> KeyId::body(Runtime::Instance::MemoryInstance *MemInst,
 
   auto [SizeRes, VersionRes] = *Res;
 
-  auto SafeSizeRes = cast<__wasi_size_t>(SizeRes);
+  auto SafeSizeRes = sizeCast(SizeRes);
   if (unlikely(!SafeSizeRes)) {
     return SafeSizeRes.error();
   }
@@ -352,7 +352,7 @@ Expect<uint32_t> StateOptionsGet::body(
     return Len.error();
   }
 
-  auto SafeLen = cast<__wasi_size_t>(*Len);
+  auto SafeLen = sizeCast(*Len);
   if (!SafeLen) {
     return SafeLen.error();
   }
@@ -517,7 +517,7 @@ StateMaxTagLen::body(Runtime::Instance::MemoryInstance *MemInst,
     return Len.error();
   }
 
-  auto SafeLen = cast<__wasi_size_t>(*Len);
+  auto SafeLen = sizeCast(*Len);
   if (unlikely(!SafeLen)) {
     return SafeLen.error();
   }
@@ -559,7 +559,7 @@ Expect<uint32_t> StateEncrypt::body(Runtime::Instance::MemoryInstance *MemInst,
     return Len.error();
   }
 
-  auto SafeLen = cast<__wasi_size_t>(*Len);
+  auto SafeLen = sizeCast(*Len);
   if (unlikely(!SafeLen)) {
     return SafeLen.error();
   }
@@ -635,7 +635,7 @@ Expect<uint32_t> StateDecrypt::body(Runtime::Instance::MemoryInstance *MemInst,
     return Len.error();
   }
 
-  auto SafeLen = cast<__wasi_size_t>(*Len);
+  auto SafeLen = sizeCast(*Len);
   if (unlikely(!SafeLen)) {
     return SafeLen.error();
   }
@@ -681,7 +681,7 @@ Expect<uint32_t> StateDecryptDetached::body(
     return Len.error();
   }
 
-  auto SafeLen = cast<__wasi_size_t>(*Len);
+  auto SafeLen = sizeCast(*Len);
   if (unlikely(!SafeLen)) {
     return SafeLen.error();
   }
@@ -721,7 +721,7 @@ Expect<uint32_t> TagLen::body(Runtime::Instance::MemoryInstance *MemInst,
     return Len.error();
   }
 
-  auto SafeLen = cast<__wasi_size_t>(*Len);
+  auto SafeLen = sizeCast(*Len);
   if (unlikely(!SafeLen)) {
     return SafeLen.error();
   }
@@ -755,7 +755,7 @@ Expect<uint32_t> TagPull::body(Runtime::Instance::MemoryInstance *MemInst,
     return Len.error();
   }
 
-  auto SafeLen = cast<__wasi_size_t>(*Len);
+  auto SafeLen = sizeCast(*Len);
   if (unlikely(!SafeLen)) {
     return SafeLen.error();
   }

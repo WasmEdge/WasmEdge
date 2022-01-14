@@ -194,7 +194,7 @@ Expect<uint32_t> KeypairId::body(Runtime::Instance::MemoryInstance *MemInst,
 
   auto [ResSize, ResVersion] = *Res;
 
-  auto SafeResSize = cast<__wasi_size_t>(ResSize);
+  auto SafeResSize = sizeCast(ResSize);
   if (unlikely(!SafeResSize)) {
     return SafeResSize.error();
   }

@@ -766,8 +766,8 @@ mod tests {
     // };
 
     use crate::{
-        error::{CoreError, CoreLoadError},
-        Config, Loader, Store, WasmEdgeError,
+        error::{CoreCommonError, CoreError, CoreExecutionError, CoreLoadError, StoreError},
+        Config, Loader, Store, ValType, Value, WasmEdgeError,
     };
 
     #[test]
@@ -940,189 +940,189 @@ mod tests {
         assert!(result.is_ok());
     }
 
-    //     #[test]
-    //     fn test_vm_validate() {
-    //         let result = Vm::create(None, None);
-    //         assert!(result.is_ok());
-    //         let vm = result.unwrap();
+    #[test]
+    fn test_vm_validate() {
+        let result = Vm::create(None, None);
+        assert!(result.is_ok());
+        let vm = result.unwrap();
 
-    //         let result = vm.validate();
-    //         assert!(result.is_err());
-    //         assert_eq!(
-    //             result.unwrap_err(),
-    //             WasmEdgeError::Core(CoreError::Common(CoreCommonError::WrongVMWorkflow))
-    //         );
+        let result = vm.validate();
+        assert!(result.is_err());
+        assert_eq!(
+            result.unwrap_err(),
+            WasmEdgeError::Core(CoreError::Common(CoreCommonError::WrongVMWorkflow))
+        );
 
-    //         // create a loader
-    //         let result = Config::create();
-    //         assert!(result.is_ok());
-    //         let config = result.unwrap().wasi(true);
-    //         assert!(config.wasi_enabled());
-    //         let result = Loader::create(Some(&config));
-    //         assert!(result.is_ok());
-    //         let loader = result.unwrap();
+        // create a loader
+        let result = Config::create();
+        assert!(result.is_ok());
+        let config = result.unwrap().wasi(true);
+        assert!(config.wasi_enabled());
+        let result = Loader::create(Some(&config));
+        assert!(result.is_ok());
+        let loader = result.unwrap();
 
-    //         // load a AST module from a file
-    //         let path = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
-    //             .join("bindings/rust/wasmedge-sys/tests/data/fibonacci.wasm");
-    //         let result = loader.from_file(path);
-    //         assert!(result.is_ok());
-    //         let mut module = result.unwrap();
+        // load a AST module from a file
+        let path = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
+            .join("bindings/rust/wasmedge-sys/tests/data/fibonacci.wasm");
+        let result = loader.from_file(path);
+        assert!(result.is_ok());
+        let mut module = result.unwrap();
 
-    //         // load a wasm module from a ast module
-    //         let result = vm.load_wasm_from_module(&mut module);
-    //         assert!(result.is_ok());
+        // load a wasm module from a ast module
+        let result = vm.load_wasm_from_module(&mut module);
+        assert!(result.is_ok());
 
-    //         let result = vm.validate();
-    //         assert!(result.is_ok());
-    //     }
+        let result = vm.validate();
+        assert!(result.is_ok());
+    }
 
-    //     #[test]
-    //     fn test_vm_instantiate() {
-    //         let result = Vm::create(None, None);
-    //         assert!(result.is_ok());
-    //         let vm = result.unwrap();
+    #[test]
+    fn test_vm_instantiate() {
+        let result = Vm::create(None, None);
+        assert!(result.is_ok());
+        let vm = result.unwrap();
 
-    //         let result = vm.instantiate();
-    //         assert!(result.is_err());
-    //         assert_eq!(
-    //             result.unwrap_err(),
-    //             WasmEdgeError::Core(CoreError::Common(CoreCommonError::WrongVMWorkflow))
-    //         );
+        let result = vm.instantiate();
+        assert!(result.is_err());
+        assert_eq!(
+            result.unwrap_err(),
+            WasmEdgeError::Core(CoreError::Common(CoreCommonError::WrongVMWorkflow))
+        );
 
-    //         // create a loader
-    //         let result = Config::create();
-    //         assert!(result.is_ok());
-    //         let config = result.unwrap().wasi(true);
-    //         assert!(config.wasi_enabled());
-    //         let result = Loader::create(Some(&config));
-    //         assert!(result.is_ok());
-    //         let loader = result.unwrap();
+        // create a loader
+        let result = Config::create();
+        assert!(result.is_ok());
+        let config = result.unwrap().wasi(true);
+        assert!(config.wasi_enabled());
+        let result = Loader::create(Some(&config));
+        assert!(result.is_ok());
+        let loader = result.unwrap();
 
-    //         // load a AST module from a file
-    //         let path = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
-    //             .join("bindings/rust/wasmedge-sys/tests/data/fibonacci.wasm");
-    //         let result = loader.from_file(path);
-    //         assert!(result.is_ok());
-    //         let mut module = result.unwrap();
+        // load a AST module from a file
+        let path = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
+            .join("bindings/rust/wasmedge-sys/tests/data/fibonacci.wasm");
+        let result = loader.from_file(path);
+        assert!(result.is_ok());
+        let mut module = result.unwrap();
 
-    //         let result = vm.load_wasm_from_module(&mut module);
-    //         assert!(result.is_ok());
+        let result = vm.load_wasm_from_module(&mut module);
+        assert!(result.is_ok());
 
-    //         // call instantiate before validate
-    //         let result = vm.instantiate();
-    //         assert_eq!(
-    //             result.unwrap_err(),
-    //             WasmEdgeError::Core(CoreError::Common(CoreCommonError::WrongVMWorkflow))
-    //         );
+        // call instantiate before validate
+        let result = vm.instantiate();
+        assert_eq!(
+            result.unwrap_err(),
+            WasmEdgeError::Core(CoreError::Common(CoreCommonError::WrongVMWorkflow))
+        );
 
-    //         // call validate, then instantiate
-    //         let result = vm.validate();
-    //         assert!(result.is_ok());
-    //         let result = vm.instantiate();
-    //         assert!(result.is_ok());
-    //     }
+        // call validate, then instantiate
+        let result = vm.validate();
+        assert!(result.is_ok());
+        let result = vm.instantiate();
+        assert!(result.is_ok());
+    }
 
-    //     #[test]
-    //     fn test_vm_invoke_wasm_function_step_by_step() {
-    //         let path = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
-    //             .join("bindings/rust/wasmedge-sys/examples/fibonacci.wasm");
-    //         let result = Config::create();
-    //         assert!(result.is_ok());
-    //         let config = result.unwrap();
-    //         let config = config.enable_bulk_memory_operations(true);
-    //         assert!(config.bulk_memory_operations_enabled());
+    #[test]
+    fn test_vm_invoke_wasm_function_step_by_step() {
+        let path = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
+            .join("bindings/rust/wasmedge-sys/examples/fibonacci.wasm");
+        let result = Config::create();
+        assert!(result.is_ok());
+        let config = result.unwrap();
+        let config = config.enable_bulk_memory_operations(true);
+        assert!(config.bulk_memory_operations_enabled());
 
-    //         // load module from file
-    //         let result = Loader::create(Some(&config));
-    //         assert!(result.is_ok());
-    //         let loader = result.unwrap();
-    //         let result = loader.from_file(path);
-    //         assert!(result.is_ok());
-    //         let mut ast_module = result.unwrap();
+        // load module from file
+        let result = Loader::create(Some(&config));
+        assert!(result.is_ok());
+        let loader = result.unwrap();
+        let result = loader.from_file(path);
+        assert!(result.is_ok());
+        let mut ast_module = result.unwrap();
 
-    //         // create Vm instance
-    //         let result = Config::create();
-    //         assert!(result.is_ok());
-    //         let config = result.unwrap();
-    //         let config = config.enable_bulk_memory_operations(true);
-    //         assert!(config.bulk_memory_operations_enabled());
+        // create Vm instance
+        let result = Config::create();
+        assert!(result.is_ok());
+        let config = result.unwrap();
+        let config = config.enable_bulk_memory_operations(true);
+        assert!(config.bulk_memory_operations_enabled());
 
-    //         let result = Store::create();
-    //         assert!(result.is_ok(), "Failed to create Store instance");
-    //         let store = result.unwrap();
+        let result = Store::create();
+        assert!(result.is_ok(), "Failed to create Store instance");
+        let store = result.unwrap();
 
-    //         let result = Vm::create(Some(&config), Some(&store));
-    //         assert!(result.is_ok());
-    //         let vm = result.unwrap();
+        let result = Vm::create(Some(&config), Some(&store));
+        assert!(result.is_ok());
+        let vm = result.unwrap();
 
-    //         // load wasm module from a ast module instance
-    //         let result = vm.load_wasm_from_module(&mut ast_module);
-    //         assert!(result.is_ok());
+        // load wasm module from a ast module instance
+        let result = vm.load_wasm_from_module(&mut ast_module);
+        assert!(result.is_ok());
 
-    //         // validate vm instance
-    //         let result = vm.validate();
-    //         assert!(result.is_ok());
+        // validate vm instance
+        let result = vm.validate();
+        assert!(result.is_ok());
 
-    //         // instantiate
-    //         let result = vm.instantiate();
-    //         assert!(result.is_ok());
+        // instantiate
+        let result = vm.instantiate();
+        assert!(result.is_ok());
 
-    //         // run function
-    //         let result = vm.run_function("fib", [Value::from_i32(5)]);
-    //         assert!(result.is_ok());
-    //         let values = result.unwrap();
-    //         assert_eq!(values[0], Value::from_i32(8));
+        // run function
+        let result = vm.run_function("fib", [Value::from_i32(5)]);
+        assert!(result.is_ok());
+        let values = result.unwrap();
+        assert_eq!(values[0], Value::from_i32(8));
 
-    //         // run function with empty parameter
-    //         let result = vm.run_function("fib", []);
-    //         assert!(result.is_err());
-    //         assert_eq!(
-    //             result.unwrap_err(),
-    //             WasmEdgeError::Core(CoreError::Execution(CoreExecutionError::FuncTypeMismatch))
-    //         );
+        // run function with empty parameter
+        let result = vm.run_function("fib", []);
+        assert!(result.is_err());
+        assert_eq!(
+            result.unwrap_err(),
+            WasmEdgeError::Core(CoreError::Execution(CoreExecutionError::FuncTypeMismatch))
+        );
 
-    //         // run a function with the parameters of wrong type
-    //         let result = vm.run_function("fib", [Value::from_i64(5)]);
-    //         assert!(result.is_err());
-    //         assert_eq!(
-    //             result.unwrap_err(),
-    //             WasmEdgeError::Core(CoreError::Execution(CoreExecutionError::FuncTypeMismatch))
-    //         );
+        // run a function with the parameters of wrong type
+        let result = vm.run_function("fib", [Value::from_i64(5)]);
+        assert!(result.is_err());
+        assert_eq!(
+            result.unwrap_err(),
+            WasmEdgeError::Core(CoreError::Execution(CoreExecutionError::FuncTypeMismatch))
+        );
 
-    //         // run a function: the specified function name is non-existant
-    //         let result = vm.run_function("fib2", [Value::from_i32(5)]);
-    //         assert!(result.is_err());
-    //         assert_eq!(
-    //             result.unwrap_err(),
-    //             WasmEdgeError::Store(StoreError::NotFoundFunc("fib2".into()))
-    //         );
+        // run a function: the specified function name is non-existant
+        let result = vm.run_function("fib2", [Value::from_i32(5)]);
+        assert!(result.is_err());
+        assert_eq!(
+            result.unwrap_err(),
+            WasmEdgeError::Store(StoreError::NotFoundFunc("fib2".into()))
+        );
 
-    //         // check function types
-    //         let result = vm.get_function_type("fib");
-    //         assert!(result.is_ok());
-    //         let func_ty = result.unwrap();
-    //         assert_eq!(func_ty.params_len(), 1);
-    //         assert_eq!(
-    //             func_ty.params_type_iter().collect::<Vec<_>>(),
-    //             vec![ValType::I32]
-    //         );
-    //         assert_eq!(func_ty.returns_len(), 1);
-    //         assert_eq!(
-    //             func_ty.returns_type_iter().collect::<Vec<_>>(),
-    //             vec![ValType::I32]
-    //         );
+        // check function types
+        let result = vm.get_function_type("fib");
+        assert!(result.is_ok());
+        let func_ty = result.unwrap();
+        assert_eq!(func_ty.params_len(), 1);
+        assert_eq!(
+            func_ty.params_type_iter().collect::<Vec<_>>(),
+            vec![ValType::I32]
+        );
+        assert_eq!(func_ty.returns_len(), 1);
+        assert_eq!(
+            func_ty.returns_type_iter().collect::<Vec<_>>(),
+            vec![ValType::I32]
+        );
 
-    //         // check functions
-    //         let functions = vm.function_iter().collect::<Vec<_>>();
-    //         assert_eq!(functions.len(), 1);
-    //         let pair = &functions[0];
-    //         let func_name = pair.0.as_ref();
-    //         assert!(func_name.is_some());
-    //         assert_eq!(func_name.unwrap(), "fib");
-    //         let func_ty = pair.1.as_ref();
-    //         assert!(func_ty.is_some());
-    //     }
+        // check functions
+        let functions = vm.function_iter().collect::<Vec<_>>();
+        assert_eq!(functions.len(), 1);
+        let pair = &functions[0];
+        let func_name = pair.0.as_ref();
+        assert!(func_name.is_some());
+        assert_eq!(func_name.unwrap(), "fib");
+        let func_ty = pair.1.as_ref();
+        assert!(func_ty.is_some());
+    }
 
     //     #[test]
     //     fn test_vm_register_wasm_from_file() {

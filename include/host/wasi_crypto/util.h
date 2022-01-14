@@ -108,7 +108,7 @@ cast(uint64_t Algorithm) noexcept {
 }
 
 template <>
-inline WasiCryptoExpect<__wasi_signature_encoding_e_t>
+constexpr WasiCryptoExpect<__wasi_signature_encoding_e_t>
 cast(uint64_t Algorithm) noexcept {
   switch (static_cast<WasiRawTypeT<__wasi_signature_encoding_e_t>>(Algorithm)) {
   case __WASI_SIGNATURE_ENCODING_RAW:
@@ -117,6 +117,13 @@ cast(uint64_t Algorithm) noexcept {
   default:
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_OPERATION);
   }
+}
+
+template <>
+constexpr WasiCryptoExpect<__wasi_size_t> cast(size_t Size) noexcept {
+  ensureOrReturn(Size <= std::numeric_limits<__wasi_size_t>::max(),
+                 __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
+  return static_cast<__wasi_size_t>(Size);
 }
 
 template <typename T>

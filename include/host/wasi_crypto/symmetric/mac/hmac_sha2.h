@@ -30,7 +30,7 @@ public:
     WasiCryptoExpect<std::unique_ptr<Key>>
     import(Span<uint8_t const> Raw) override;
 
-    __wasi_size_t keyLen() override;
+    size_t keyLen() override;
   };
 
   class State final : public MACState {

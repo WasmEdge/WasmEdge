@@ -27,7 +27,7 @@ HmacSha2<Sha>::KeyBuilder::import(Span<uint8_t const> Raw) {
                                std::vector<uint8_t>{Raw.begin(), Raw.end()});
 }
 
-template <uint32_t Sha> __wasi_size_t HmacSha2<Sha>::KeyBuilder::keyLen() {
+template <uint32_t Sha> size_t HmacSha2<Sha>::KeyBuilder::keyLen() {
   return Sha / 8;
 }
 

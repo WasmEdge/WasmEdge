@@ -27,7 +27,7 @@ Xoodyak<KeyBits>::KeyBuilder::import(Span<uint8_t const> Raw) {
                                std::vector<uint8_t>{Raw.begin(), Raw.end()});
 }
 
-template <int KeyBits> __wasi_size_t Xoodyak<KeyBits>::KeyBuilder::keyLen() {
+template <int KeyBits> size_t Xoodyak<KeyBits>::KeyBuilder::keyLen() {
   return KeyBits / 8;
 }
 
@@ -48,7 +48,7 @@ WasiCryptoExpect<void> Xoodyak<KeyBits>::State::squeeze(Span<uint8_t>) {
 }
 
 template <int KeyBits>
-WasiCryptoExpect<__wasi_size_t>
+WasiCryptoExpect<size_t>
 Xoodyak<KeyBits>::State::decryptDetached(Span<uint8_t>, Span<const uint8_t>,
                                          Span<uint8_t>) {
   return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);

@@ -7,7 +7,7 @@ namespace WasmEdge {
 namespace Host {
 namespace WASICrypto {
 
-WasiCryptoExpect<__wasi_size_t>
+WasiCryptoExpect<size_t>
 WasiCryptoContext::arrayOutputLen(__wasi_array_output_t ArrayOutputHandle) {
   auto ArrayOutput = ArrayOutputManger.get(ArrayOutputHandle);
   if (!ArrayOutput) {
@@ -17,7 +17,7 @@ WasiCryptoContext::arrayOutputLen(__wasi_array_output_t ArrayOutputHandle) {
   return ArrayOutput->len();
 }
 
-WasiCryptoExpect<__wasi_size_t>
+WasiCryptoExpect<size_t>
 WasiCryptoContext::arrayOutputPull(__wasi_array_output_t ArrayOutputHandle,
                                    Span<uint8_t> Buf) {
   auto ArrayOutput = ArrayOutputManger.get(ArrayOutputHandle);

@@ -34,7 +34,7 @@ public:
   ///
   /// @return the length required to encode the authentication tag
   /// and optional padding bytes.
-  virtual WasiCryptoExpect<__wasi_size_t> maxTagLen() override = 0;
+  virtual WasiCryptoExpect<size_t> maxTagLen() override = 0;
 
   /// Check Out.size() == Data.size() + maxTagLen(), then call
   /// encryptUnchecked(Out, Data) or return error if not equal
@@ -43,8 +43,8 @@ public:
   /// @param Data The data to be encrypted
   /// @return Tag's size or
   /// `__WASI_CRYPTO_ERRNO_OVERFLOW`/`__WASI_CRYPTO_ERRNO_INVALID_LENGTH`
-  WasiCryptoExpect<__wasi_size_t>
-  encrypt(Span<uint8_t> Out, Span<const uint8_t> Data) override final;
+  WasiCryptoExpect<size_t> encrypt(Span<uint8_t> Out,
+                                   Span<const uint8_t> Data) override final;
 
   /// Check Out.size() == Data.size(), then call
   /// encryptDetachedUnchecked(Out, Data) or error if not equal
@@ -63,8 +63,8 @@ public:
   /// @param Data The data to be decrypted
   /// @return Size or
   /// `__WASI_CRYPTO_ERRNO_OVERFLOW`/`__WASI_CRYPTO_ERRNO_INVALID_LENGTH`
-  WasiCryptoExpect<__wasi_size_t>
-  decrypt(Span<uint8_t> Out, Span<const uint8_t> Data) override final;
+  WasiCryptoExpect<size_t> decrypt(Span<uint8_t> Out,
+                                   Span<const uint8_t> Data) override final;
 
   /// Check Out.size() == Data.size(), then call
   /// encryptDetachedUnchecked(Out, Data) or error if not equal
@@ -73,18 +73,18 @@ public:
   /// @param Data The data to be decrypted
   /// @return Size or
   /// `__WASI_CRYPTO_ERRNO_OVERFLOW`/`__WASI_CRYPTO_ERRNO_INVALID_LENGTH`
-  WasiCryptoExpect<__wasi_size_t>
-  decryptDetached(Span<uint8_t> Out, Span<const uint8_t> Data,
-                  Span<uint8_t> RawTag) override final;
+  WasiCryptoExpect<size_t> decryptDetached(Span<uint8_t> Out,
+                                           Span<const uint8_t> Data,
+                                           Span<uint8_t> RawTag) override final;
 
 protected:
   /// delegate by encryptDetachedUnchecked()
-  WasiCryptoExpect<__wasi_size_t> encryptUnchecked(Span<uint8_t> Out,
-                                                   Span<const uint8_t> Data);
+  WasiCryptoExpect<size_t> encryptUnchecked(Span<uint8_t> Out,
+                                            Span<const uint8_t> Data);
 
   /// delegate by decryptDetachedUnchecked()
-  WasiCryptoExpect<__wasi_size_t> decryptUnchecked(Span<uint8_t> Out,
-                                                   Span<uint8_t const> Data);
+  WasiCryptoExpect<size_t> decryptUnchecked(Span<uint8_t> Out,
+                                            Span<uint8_t const> Data);
 
   // It guarantee the Out.size() = Data.size()
   virtual WasiCryptoExpect<Tag>
@@ -94,7 +94,7 @@ protected:
   /// leave decrypted data in the output buffer if the authentication tag didn't
   /// verify. If this is the case, they SHOULD zero the entire output buffer and
   /// MUST return an invalid_tag error code.
-  virtual WasiCryptoExpect<__wasi_size_t>
+  virtual WasiCryptoExpect<size_t>
   decryptDetachedUnchecked(Span<uint8_t> Out, Span<uint8_t const> Data,
                            Span<uint8_t const> RawTag) = 0;
 

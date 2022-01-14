@@ -55,8 +55,7 @@ ChaChaPoly<NonceBit>::KeyBuilder::import(Span<uint8_t const> Raw) {
                                std::vector<uint8_t>{Raw.begin(), Raw.end()});
 }
 
-template <uint32_t NonceBit>
-__wasi_size_t ChaChaPoly<NonceBit>::KeyBuilder::keyLen() {
+template <uint32_t NonceBit> size_t ChaChaPoly<NonceBit>::KeyBuilder::keyLen() {
   return 32;
 }
 
@@ -98,8 +97,7 @@ WasiCryptoExpect<Tag> ChaChaPoly<NonceBit>::State::encryptDetachedUnchecked(
                                    Data.data(), static_cast<int>(Data.size())));
 
   // we need check the equal.
-  if (ActualOutSize < 0 ||
-      static_cast<__wasi_size_t>(ActualOutSize) != Out.size()) {
+  if (ActualOutSize < 0 || static_cast<size_t>(ActualOutSize) != Out.size()) {
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_NONCE);
   }
 
@@ -119,8 +117,7 @@ WasiCryptoExpect<Tag> ChaChaPoly<NonceBit>::State::encryptDetachedUnchecked(
 }
 
 template <uint32_t NonceBit>
-WasiCryptoExpect<__wasi_size_t>
-ChaChaPoly<NonceBit>::State::decryptDetachedUnchecked(
+WasiCryptoExpect<size_t> ChaChaPoly<NonceBit>::State::decryptDetachedUnchecked(
     Span<uint8_t> Out, Span<const uint8_t> Data, Span<uint8_t const> RawTag) {
   opensslAssuming(EVP_CipherInit_ex(Ctx.get(), nullptr, nullptr, nullptr,
                                     nullptr, Mode::Decrypt));
@@ -141,11 +138,11 @@ ChaChaPoly<NonceBit>::State::decryptDetachedUnchecked(
   }
 
   ensureOrReturn(ActualOutSize >= 0, __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
-  return static_cast<__wasi_size_t>(ActualOutSize);
+  return static_cast<size_t>(ActualOutSize);
 }
 
 template <uint32_t NonceBit>
-WasiCryptoExpect<__wasi_size_t> ChaChaPoly<NonceBit>::State::maxTagLen() {
+WasiCryptoExpect<size_t> ChaChaPoly<NonceBit>::State::maxTagLen() {
   return TagLen;
 }
 

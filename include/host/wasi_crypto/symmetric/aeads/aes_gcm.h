@@ -25,16 +25,16 @@ public:
     WasiCryptoExpect<std::unique_ptr<Key>>
     import(Span<uint8_t const> Raw) override;
 
-    __wasi_size_t keyLen() override;
+    size_t keyLen() override;
   };
 
   // Nonce = IV,
   class State final : public AEADsState {
   public:
     // 96 bit
-    inline static constexpr __wasi_size_t NonceSize = 12;
+    inline static constexpr size_t NonceSize = 12;
 
-    inline static constexpr __wasi_size_t TagLen = 16;
+    inline static constexpr size_t TagLen = 16;
 
     State(EVP_CIPHER_CTX *Ctx, std::shared_ptr<Options> OptOption)
         : Ctx(Ctx), OptOption(OptOption) {}
@@ -53,7 +53,7 @@ public:
     /// @param[in] Data additional authentication data(AAD)
     WasiCryptoExpect<void> absorb(Span<const uint8_t> Data) override;
 
-    WasiCryptoExpect<__wasi_size_t> maxTagLen() override { return TagLen; }
+    WasiCryptoExpect<size_t> maxTagLen() override { return TagLen; }
 
   protected:
     /// @param[out] Out The encrypted text.
@@ -66,7 +66,7 @@ public:
     /// @param[out] Out The plain text.
     /// @param[in] Data The encrypted text.
     /// @param[in] RawTag Tag.
-    WasiCryptoExpect<__wasi_size_t>
+    WasiCryptoExpect<size_t>
     decryptDetachedUnchecked(Span<uint8_t> Out, Span<const uint8_t> Data,
                              Span<uint8_t const> RawTag) override;
 

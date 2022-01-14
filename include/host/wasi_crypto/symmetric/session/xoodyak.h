@@ -20,7 +20,7 @@ template <int KeyBits> class Xoodyak {
     WasiCryptoExpect<std::unique_ptr<Key>>
     import(Span<uint8_t const> Raw) override;
 
-    __wasi_size_t keyLen() override;
+    size_t keyLen() override;
   };
 
   class State final : public SessionState {
@@ -33,9 +33,9 @@ template <int KeyBits> class Xoodyak {
 
     WasiCryptoExpect<void> squeeze(Span<uint8_t> Out) override;
 
-    WasiCryptoExpect<__wasi_size_t>
-    decryptDetached(Span<uint8_t> Out, Span<const uint8_t> Data,
-                    Span<uint8_t> RawTag) override;
+    WasiCryptoExpect<size_t> decryptDetached(Span<uint8_t> Out,
+                                             Span<const uint8_t> Data,
+                                             Span<uint8_t> RawTag) override;
   };
 };
 

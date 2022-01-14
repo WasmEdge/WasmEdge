@@ -67,8 +67,7 @@ WasiCryptoExpect<void> State::ratchet() {
   return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_OPERATION);
 }
 
-WasiCryptoExpect<__wasi_size_t> State::encrypt(Span<uint8_t>,
-                                               Span<const uint8_t>) {
+WasiCryptoExpect<size_t> State::encrypt(Span<uint8_t>, Span<const uint8_t>) {
   return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_OPERATION);
 }
 
@@ -77,12 +76,11 @@ WasiCryptoExpect<Tag> State::encryptDetached(Span<uint8_t>,
   return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_OPERATION);
 }
 
-WasiCryptoExpect<__wasi_size_t> State::decrypt(Span<uint8_t>,
-                                               Span<const uint8_t>) {
+WasiCryptoExpect<size_t> State::decrypt(Span<uint8_t>, Span<const uint8_t>) {
   return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_OPERATION);
 }
 
-WasiCryptoExpect<__wasi_size_t>
+WasiCryptoExpect<size_t>
 State::decryptDetached(Span<uint8_t>, Span<const uint8_t>, Span<uint8_t>) {
   return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_OPERATION);
 }
@@ -95,7 +93,7 @@ WasiCryptoExpect<Tag> State::squeezeTag() {
   return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_OPERATION);
 }
 
-WasiCryptoExpect<__wasi_size_t> State::maxTagLen() {
+WasiCryptoExpect<size_t> State::maxTagLen() {
   return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_OPERATION);
 }
 } // namespace Symmetric

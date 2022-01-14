@@ -51,7 +51,7 @@ public:
     virtual WasiCryptoExpect<std::unique_ptr<Key>>
     import(Span<uint8_t const> Raw) = 0;
 
-    virtual __wasi_size_t keyLen() = 0;
+    virtual size_t keyLen() = 0;
 
   protected:
     const SymmetricAlgorithm Alg;

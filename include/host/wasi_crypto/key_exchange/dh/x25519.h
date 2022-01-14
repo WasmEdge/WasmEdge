@@ -20,7 +20,7 @@ public:
 
   //  KxAlgorithm alg() override { return Alg; }
 
-  //  WasiCryptoExpect<__wasi_size_t> len() override { return Len; }
+  //  WasiCryptoExpect<size_t> len() override { return Len; }
 
   WasiCryptoExpect<std::vector<uint8_t>>
   exportData(__wasi_publickey_encoding_e_t Encoding) override;
@@ -29,7 +29,7 @@ public:
 
   friend class X25519SecretKey;
 
-  inline static __wasi_size_t Len = 32;
+  inline static size_t Len = 32;
 
 private:
   EvpPkeyPtr Pk;
@@ -51,7 +51,7 @@ public:
   WasiCryptoExpect<std::vector<uint8_t>>
   dh(std::shared_ptr<PublicKey> Pk) override;
 
-  inline static __wasi_size_t Len = 32;
+  inline static size_t Len = 32;
 
 private:
   EvpPkeyPtr Sk;

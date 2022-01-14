@@ -58,10 +58,8 @@ WasiCryptoContext::symmetricKeyGenerateManaged(
   return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_UNSUPPORTED_FEATURE);
 }
 
-WasiCryptoExpect<void>
-WasiCryptoContext::symmetricKeyStoreManaged(__wasi_secrets_manager_t,
-                                            __wasi_symmetric_key_t, uint8_t_ptr,
-                                            __wasi_size_t) {
+WasiCryptoExpect<void> WasiCryptoContext::symmetricKeyStoreManaged(
+    __wasi_secrets_manager_t, __wasi_symmetric_key_t, uint8_t_ptr, size_t) {
   return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_UNSUPPORTED_FEATURE);
 }
 
@@ -72,9 +70,8 @@ WasiCryptoContext::symmetricKeyReplaceManaged(__wasi_secrets_manager_t,
   return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_UNSUPPORTED_FEATURE);
 }
 
-WasiCryptoExpect<std::tuple<__wasi_size_t, __wasi_version_t>>
-WasiCryptoContext::symmetricKeyId(__wasi_symmetric_key_t, uint8_t_ptr,
-                                  __wasi_size_t) {
+WasiCryptoExpect<std::tuple<size_t, __wasi_version_t>>
+WasiCryptoContext::symmetricKeyId(__wasi_symmetric_key_t, uint8_t_ptr, size_t) {
   return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_UNSUPPORTED_FEATURE);
 }
 
@@ -107,7 +104,7 @@ WasiCryptoContext::symmetricStateOpen(
   return SymmetricStateManger.registerManger(std::move(*State));
 }
 
-WasiCryptoExpect<__wasi_size_t>
+WasiCryptoExpect<size_t>
 WasiCryptoContext::symmetricStateOptionsGet(__wasi_symmetric_state_t Handle,
                                             std::string_view Name,
                                             Span<uint8_t> Value) {
@@ -125,6 +122,8 @@ WasiCryptoContext::symmetricStateOptionsGet(__wasi_symmetric_state_t Handle,
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_OVERFLOW);
   }
   std::copy(InnerVec->begin(), InnerVec->end(), Value.begin());
+  ensureOrReturn(InnerVec->size() <= std::numeric_limits<size_t>::max(),
+                 __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
   return InnerVec->size();
 }
 
@@ -198,7 +197,7 @@ WasiCryptoContext::symmetricStateSqueezeKey(
   return SymmetricKeyManger.registerManger(std::move(*Key));
 }
 
-WasiCryptoExpect<__wasi_size_t> WasiCryptoContext::symmetricStateMaxTagLen(
+WasiCryptoExpect<size_t> WasiCryptoContext::symmetricStateMaxTagLen(
     __wasi_symmetric_state_t StateHandle) {
   auto State = SymmetricStateManger.get(StateHandle);
   if (!State) {
@@ -208,7 +207,7 @@ WasiCryptoExpect<__wasi_size_t> WasiCryptoContext::symmetricStateMaxTagLen(
   return (*State)->maxTagLen();
 }
 
-WasiCryptoExpect<__wasi_size_t>
+WasiCryptoExpect<size_t>
 WasiCryptoContext::symmetricStateEncrypt(__wasi_symmetric_state_t StateHandle,
                                          Span<uint8_t> Out,
                                          Span<uint8_t const> Data) {
@@ -238,7 +237,7 @@ WasiCryptoContext::symmetricStateEncryptDetached(
       std::make_shared<Symmetric::Tag>(*Tag));
 }
 
-WasiCryptoExpect<__wasi_size_t>
+WasiCryptoExpect<size_t>
 WasiCryptoContext::symmetricStateDecrypt(__wasi_symmetric_state_t StateHandle,
                                          Span<uint8_t> Out,
                                          Span<uint8_t const> Data) {
@@ -250,8 +249,7 @@ WasiCryptoContext::symmetricStateDecrypt(__wasi_symmetric_state_t StateHandle,
   return (*State)->decrypt(Out, Data);
 }
 
-WasiCryptoExpect<__wasi_size_t>
-WasiCryptoContext::symmetricStateDecryptDetached(
+WasiCryptoExpect<size_t> WasiCryptoContext::symmetricStateDecryptDetached(
     __wasi_symmetric_state_t StateHandle, Span<uint8_t> Out,
     Span<uint8_t const> Data, Span<uint8_t> RawTag) {
   auto State = SymmetricStateManger.get(StateHandle);
@@ -272,7 +270,7 @@ WasiCryptoContext::symmetricStateRatchet(__wasi_symmetric_state_t StateHandle) {
   return (*State)->ratchet();
 }
 
-WasiCryptoExpect<__wasi_size_t>
+WasiCryptoExpect<size_t>
 WasiCryptoContext::symmetricTagLen(__wasi_symmetric_tag_t TagHandle) {
   auto Tag = SymmetricTagManger.get(TagHandle);
   if (!Tag) {
@@ -282,7 +280,7 @@ WasiCryptoContext::symmetricTagLen(__wasi_symmetric_tag_t TagHandle) {
   return (*Tag)->data().size();
 }
 
-WasiCryptoExpect<__wasi_size_t>
+WasiCryptoExpect<size_t>
 WasiCryptoContext::symmetricTagPull(__wasi_symmetric_tag_t TagHandle,
                                     Span<uint8_t> Buf) {
   auto Tag = SymmetricTagManger.get(TagHandle);

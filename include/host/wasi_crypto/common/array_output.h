@@ -15,9 +15,9 @@ class ArrayOutput {
 public:
   ArrayOutput(std::vector<uint8_t> &&Data) : Data(std::move(Data)) {}
 
-  WasiCryptoExpect<__wasi_size_t> pull(Span<uint8_t> Buf);
+  WasiCryptoExpect<size_t> pull(Span<uint8_t> Buf);
 
-  WasiCryptoExpect<__wasi_size_t> len();
+  WasiCryptoExpect<size_t> len();
 
 private:
   std::vector<uint8_t> Data;

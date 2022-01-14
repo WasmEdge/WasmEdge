@@ -59,8 +59,9 @@ WasiCryptoExpect<__wasi_keypair_t> WasiCryptoContext::keypairGenerateManaged(
   return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
 }
 
-WasiCryptoExpect<void> WasiCryptoContext::keypairStoreManaged(
-    __wasi_secrets_manager_t, __wasi_keypair_t, uint8_t_ptr, __wasi_size_t) {
+WasiCryptoExpect<void>
+WasiCryptoContext::keypairStoreManaged(__wasi_secrets_manager_t,
+                                       __wasi_keypair_t, uint8_t_ptr, size_t) {
   return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
 }
 
@@ -70,14 +71,14 @@ WasiCryptoContext::keypairReplaceManaged(__wasi_secrets_manager_t,
   return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
 }
 
-WasiCryptoExpect<std::tuple<__wasi_size_t, __wasi_version_t>>
-WasiCryptoContext::keypairId(__wasi_keypair_t, uint8_t_ptr, __wasi_size_t) {
+WasiCryptoExpect<std::tuple<size_t, __wasi_version_t>>
+WasiCryptoContext::keypairId(__wasi_keypair_t, uint8_t_ptr, size_t) {
   return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_UNSUPPORTED_FEATURE);
 }
 
 WasiCryptoExpect<__wasi_keypair_t>
 WasiCryptoContext::keypairFromId(__wasi_secrets_manager_t, const_uint8_t_ptr,
-                                 __wasi_size_t, __wasi_version_t) {
+                                 size_t, __wasi_version_t) {
   return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
 }
 

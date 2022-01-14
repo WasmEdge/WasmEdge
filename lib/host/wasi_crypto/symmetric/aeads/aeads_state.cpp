@@ -7,8 +7,8 @@ namespace Host {
 namespace WASICrypto {
 namespace Symmetric {
 
-WasiCryptoExpect<__wasi_size_t> AEADsState::encrypt(Span<uint8_t> Out,
-                                                    Span<const uint8_t> Data) {
+WasiCryptoExpect<size_t> AEADsState::encrypt(Span<uint8_t> Out,
+                                             Span<const uint8_t> Data) {
   auto TagSize = maxTagLen();
   if (!TagSize) {
     return WasiCryptoUnexpect(TagSize);
@@ -30,8 +30,8 @@ WasiCryptoExpect<Tag> AEADsState::encryptDetached(Span<uint8_t> Out,
   return encryptDetachedUnchecked(Out, Data);
 }
 
-WasiCryptoExpect<__wasi_size_t> AEADsState::decrypt(Span<uint8_t> Out,
-                                                    Span<const uint8_t> Data) {
+WasiCryptoExpect<size_t> AEADsState::decrypt(Span<uint8_t> Out,
+                                             Span<const uint8_t> Data) {
   if (auto TagSize = maxTagLen(); !TagSize) {
     return WasiCryptoUnexpect(TagSize);
   } else {
@@ -51,9 +51,9 @@ WasiCryptoExpect<__wasi_size_t> AEADsState::decrypt(Span<uint8_t> Out,
   return *Result;
 }
 
-WasiCryptoExpect<__wasi_size_t>
-AEADsState::decryptDetached(Span<uint8_t> Out, Span<const uint8_t> Data,
-                            Span<uint8_t> RawTag) {
+WasiCryptoExpect<size_t> AEADsState::decryptDetached(Span<uint8_t> Out,
+                                                     Span<const uint8_t> Data,
+                                                     Span<uint8_t> RawTag) {
   if (Out.size() != Data.size()) {
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_LENGTH);
   }
@@ -67,7 +67,7 @@ AEADsState::decryptDetached(Span<uint8_t> Out, Span<const uint8_t> Data,
   return *Result;
 }
 
-WasiCryptoExpect<__wasi_size_t>
+WasiCryptoExpect<size_t>
 AEADsState::encryptUnchecked(Span<uint8_t> Out, Span<const uint8_t> Data) {
   auto Tag = encryptDetached(Out.first(Data.size()), Data);
   if (!Tag) {
@@ -77,11 +77,10 @@ AEADsState::encryptUnchecked(Span<uint8_t> Out, Span<const uint8_t> Data) {
   std::copy(Tag->data().cbegin(), Tag->data().cend(),
             Out.subspan(Data.size()).begin());
 
-  ensureOrReturn(Out.size() <= INT_MAX, __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
-  return static_cast<__wasi_size_t>(Out.size());
+  return Out.size();
 }
 
-WasiCryptoExpect<__wasi_size_t>
+WasiCryptoExpect<size_t>
 AEADsState::decryptUnchecked(Span<uint8_t> Out, Span<const uint8_t> Data) {
   return decryptDetachedUnchecked(Out, Data.first(Out.size()),
                                   Data.subspan(Out.size()));

@@ -34,19 +34,19 @@ public:
 private:
   WasiCryptoExpect<void> ratchet() override final { return State::ratchet(); }
 
-  WasiCryptoExpect<__wasi_size_t>
-  encrypt(Span<uint8_t> Out, Span<const uint8_t> Data) override final {
+  WasiCryptoExpect<size_t> encrypt(Span<uint8_t> Out,
+                                   Span<const uint8_t> Data) override final {
     return State::encrypt(Out, Data);
   }
   WasiCryptoExpect<Tag>
   encryptDetached(Span<uint8_t> Out, Span<const uint8_t> Data) override final {
     return State::encryptDetached(Out, Data);
   }
-  WasiCryptoExpect<__wasi_size_t>
-  decrypt(Span<uint8_t> Out, Span<const uint8_t> Data) override final {
+  WasiCryptoExpect<size_t> decrypt(Span<uint8_t> Out,
+                                   Span<const uint8_t> Data) override final {
     return State::decrypt(Out, Data);
   }
-  WasiCryptoExpect<__wasi_size_t>
+  WasiCryptoExpect<size_t>
   decryptDetached(Span<uint8_t> Out, Span<const uint8_t> Data,
                   Span<uint8_t> RawTag) override final {
     return State::decryptDetached(Out, Data, RawTag);
@@ -54,7 +54,7 @@ private:
   WasiCryptoExpect<Tag> squeezeTag() override final {
     return State::squeezeTag();
   }
-  WasiCryptoExpect<__wasi_size_t> maxTagLen() override final {
+  WasiCryptoExpect<size_t> maxTagLen() override final {
     return State::maxTagLen();
   }
 };

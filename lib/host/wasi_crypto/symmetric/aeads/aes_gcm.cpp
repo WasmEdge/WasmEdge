@@ -29,7 +29,7 @@ AesGcm<KeyBit>::KeyBuilder::import(Span<uint8_t const> Raw) {
                                std::vector<uint8_t>{Raw.begin(), Raw.end()});
 }
 
-template <uint32_t KeyBit> __wasi_size_t AesGcm<KeyBit>::KeyBuilder::keyLen() {
+template <uint32_t KeyBit> size_t AesGcm<KeyBit>::KeyBuilder::keyLen() {
   return KeyBit / 8;
 }
 
@@ -97,8 +97,7 @@ AesGcm<KeyBit>::State::encryptDetachedUnchecked(Span<uint8_t> Out,
                                    Data.data(), static_cast<int>(Data.size())));
 
   // we need check the equal.
-  if (ActualOutSize < 0 ||
-      static_cast<__wasi_size_t>(ActualOutSize) != Out.size()) {
+  if (ActualOutSize < 0 || static_cast<size_t>(ActualOutSize) != Out.size()) {
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_NONCE);
   }
 
@@ -116,7 +115,7 @@ AesGcm<KeyBit>::State::encryptDetachedUnchecked(Span<uint8_t> Out,
 }
 
 template <uint32_t KeyBit>
-WasiCryptoExpect<__wasi_size_t> AesGcm<KeyBit>::State::decryptDetachedUnchecked(
+WasiCryptoExpect<size_t> AesGcm<KeyBit>::State::decryptDetachedUnchecked(
     Span<uint8_t> Out, Span<const uint8_t> Data, Span<uint8_t const> RawTag) {
   opensslAssuming(EVP_CipherInit_ex(Ctx.get(), nullptr, nullptr, nullptr,
                                     nullptr, Mode::Decrypt));
@@ -137,7 +136,7 @@ WasiCryptoExpect<__wasi_size_t> AesGcm<KeyBit>::State::decryptDetachedUnchecked(
                  __WASI_CRYPTO_ERRNO_INVALID_TAG);
 
   ensureOrReturn(ActualOutSize >= 0, __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
-  return static_cast<__wasi_size_t>(ActualOutSize);
+  return static_cast<size_t>(ActualOutSize);
 }
 
 template class AesGcm<128>;

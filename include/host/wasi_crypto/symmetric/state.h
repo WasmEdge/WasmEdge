@@ -40,25 +40,25 @@ public:
 
   virtual WasiCryptoExpect<void> ratchet();
 
-  virtual WasiCryptoExpect<__wasi_size_t> encrypt(Span<uint8_t> Out,
-                                                  Span<uint8_t const> Data);
+  virtual WasiCryptoExpect<size_t> encrypt(Span<uint8_t> Out,
+                                           Span<uint8_t const> Data);
 
   virtual WasiCryptoExpect<Tag> encryptDetached(Span<uint8_t> Out,
                                                 Span<uint8_t const> Data);
 
-  virtual WasiCryptoExpect<__wasi_size_t> decrypt(Span<uint8_t> Out,
-                                                  Span<uint8_t const> Data);
+  virtual WasiCryptoExpect<size_t> decrypt(Span<uint8_t> Out,
+                                           Span<uint8_t const> Data);
 
-  virtual WasiCryptoExpect<__wasi_size_t>
-  decryptDetached(Span<uint8_t> Out, Span<uint8_t const> Data,
-                  Span<uint8_t> RawTag);
+  virtual WasiCryptoExpect<size_t> decryptDetached(Span<uint8_t> Out,
+                                                   Span<uint8_t const> Data,
+                                                   Span<uint8_t> RawTag);
 
   virtual WasiCryptoExpect<std::unique_ptr<Key>>
   squeezeKey(SymmetricAlgorithm KeyAlg);
 
   virtual WasiCryptoExpect<Tag> squeezeTag();
 
-  virtual WasiCryptoExpect<__wasi_size_t> maxTagLen();
+  virtual WasiCryptoExpect<size_t> maxTagLen();
 };
 
 } // namespace Symmetric

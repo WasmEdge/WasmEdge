@@ -28,7 +28,7 @@ Hkdf<Sha, Mode>::KeyBuilder::import(Span<uint8_t const> Raw) {
 }
 
 template <uint32_t Sha, uint32_t Mode>
-__wasi_size_t Hkdf<Sha, Mode>::KeyBuilder::keyLen() {
+size_t Hkdf<Sha, Mode>::KeyBuilder::keyLen() {
   return Sha / 8;
 }
 

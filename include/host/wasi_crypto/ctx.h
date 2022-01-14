@@ -27,7 +27,7 @@ public:
   ///
   /// This allows a guest to allocate a buffer of the correct size in order to
   /// copy the output of a function returning this object type.
-  WasiCryptoExpect<__wasi_size_t>
+  WasiCryptoExpect<size_t>
   arrayOutputLen(__wasi_array_output_t ArrayOutputHandle);
 
   /// Copy the content of an `array_output` object into an application-allocated
@@ -49,7 +49,7 @@ public:
   /// let mut out = vec![0u8; len];
   /// array_output_pull(output_handle, &mut out)?;
   ///
-  WasiCryptoExpect<__wasi_size_t>
+  WasiCryptoExpect<size_t>
   arrayOutputPull(__wasi_array_output_t ArrayOutputHandle,
                   Span<uint8_t> BufPtr);
 
@@ -188,7 +188,7 @@ public:
   symmetricKeyStoreManaged(__wasi_secrets_manager_t SecretsManager,
                            __wasi_symmetric_key_t SymmetricKey,
                            uint8_t_ptr SymmetricKeyId,
-                           __wasi_size_t SymmetricKeyIdMaxLen);
+                           size_t SymmetricKeyIdMaxLen);
 
   /// __(optional)__
   /// Replace a managed symmetric key.
@@ -229,10 +229,9 @@ public:
   /// If the key is not managed, `unsupported_feature` is returned instead.
   ///
   /// This is an optional import, meaning that the function may not even exist.
-  WasiCryptoExpect<std::tuple<__wasi_size_t, __wasi_version_t>>
+  WasiCryptoExpect<std::tuple<size_t, __wasi_version_t>>
   symmetricKeyId(__wasi_symmetric_key_t SymmetricKey,
-                 uint8_t_ptr SymmetricKeyId,
-                 __wasi_size_t SymmetricKeyIdMaxLen);
+                 uint8_t_ptr SymmetricKeyId, size_t SymmetricKeyIdMaxLen);
 
   /// __(optional)__
   /// Return a managed symmetric key from a key identifier.
@@ -326,7 +325,7 @@ public:
   ///
   /// It may also return `unsupported_option` if the option doesn't exist for
   /// the chosen algorithm.
-  WasiCryptoExpect<__wasi_size_t>
+  WasiCryptoExpect<size_t>
   symmetricStateOptionsGet(__wasi_symmetric_state_t Handle,
                            std::string_view Name, Span<uint8_t> Value);
 
@@ -426,7 +425,7 @@ public:
   ///
   /// For a decryption operation, the size of the buffer that will store the
   /// decrypted data must be `ciphertext_len - symmetric_state_max_tag_len()`.
-  WasiCryptoExpect<__wasi_size_t>
+  WasiCryptoExpect<size_t>
   symmetricStateMaxTagLen(__wasi_symmetric_state_t StateHandle);
 
   /// Encrypt data with an attached tag.
@@ -446,7 +445,7 @@ public:
   /// The function returns the actual size of the ciphertext along with the tag.
   ///
   /// `invalid_operation` is returned for algorithms not supporting encryption.
-  WasiCryptoExpect<__wasi_size_t>
+  WasiCryptoExpect<size_t>
   symmetricStateEncrypt(__wasi_symmetric_state_t StateHandle, Span<uint8_t> Out,
                         Span<uint8_t const> Data);
 
@@ -486,7 +485,7 @@ public:
   /// `invalid_tag` is returned if the tag didn't verify.
   ///
   /// `invalid_operation` is returned for algorithms not supporting encryption.
-  WasiCryptoExpect<__wasi_size_t>
+  WasiCryptoExpect<size_t>
   symmetricStateDecrypt(__wasi_symmetric_state_t StateHandle, Span<uint8_t> Out,
                         Span<uint8_t const> Data);
 
@@ -507,7 +506,7 @@ public:
   /// `invalid_tag` is returned if the tag verification failed.
   ///
   /// `invalid_operation` is returned for algorithms not supporting encryption.
-  WasiCryptoExpect<__wasi_size_t>
+  WasiCryptoExpect<size_t>
   symmetricStateDecryptDetached(__wasi_symmetric_state_t StateHandle,
                                 Span<uint8_t> Out, Span<uint8_t const> Data,
                                 Span<uint8_t> RawTag);
@@ -525,8 +524,7 @@ public:
   ///
   /// This function can be used by a guest to allocate the correct buffer size
   /// to copy a computed authentication tag.
-  WasiCryptoExpect<__wasi_size_t>
-  symmetricTagLen(__wasi_symmetric_tag_t TagHandle);
+  WasiCryptoExpect<size_t> symmetricTagLen(__wasi_symmetric_tag_t TagHandle);
 
   /// Copy an authentication tag into a guest-allocated buffer.
   ///
@@ -537,8 +535,8 @@ public:
   /// copy the tag.
   ///
   /// Otherwise, it returns the number of bytes that have been copied.
-  WasiCryptoExpect<__wasi_size_t>
-  symmetricTagPull(__wasi_symmetric_tag_t TagHandle, Span<uint8_t> Buf);
+  WasiCryptoExpect<size_t> symmetricTagPull(__wasi_symmetric_tag_t TagHandle,
+                                            Span<uint8_t> Buf);
 
   /// Verify that a computed authentication tag matches the expected value, in
   /// constant-time.
@@ -579,18 +577,18 @@ public:
   WasiCryptoExpect<void>
   keypairStoreManaged(__wasi_secrets_manager_t SecretsManager,
                       __wasi_keypair_t Keypair, uint8_t_ptr KpIdPtr,
-                      __wasi_size_t KpIdLen);
+                      size_t KpIdLen);
 
   WasiCryptoExpect<__wasi_version_t>
   keypairReplaceManaged(__wasi_secrets_manager_t SecretsManager,
                         __wasi_keypair_t KpOld, __wasi_keypair_t KpNew);
 
-  WasiCryptoExpect<std::tuple<__wasi_size_t, __wasi_version_t>>
-  keypairId(__wasi_keypair_t Kp, uint8_t_ptr KpId, __wasi_size_t KpIdMaxLen);
+  WasiCryptoExpect<std::tuple<size_t, __wasi_version_t>>
+  keypairId(__wasi_keypair_t Kp, uint8_t_ptr KpId, size_t KpIdMaxLen);
 
   WasiCryptoExpect<__wasi_keypair_t>
   keypairFromId(__wasi_secrets_manager_t SecretsManager, const_uint8_t_ptr KpId,
-                __wasi_size_t KpIdLen, __wasi_version_t KpIdVersion);
+                size_t KpIdLen, __wasi_version_t KpIdVersion);
 
   WasiCryptoExpect<__wasi_keypair_t>
   keypairFromPkAndSk(__wasi_publickey_t PkHandle, __wasi_secretkey_t SkHandle);

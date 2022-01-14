@@ -502,9 +502,14 @@ StateMaxTagLen::body(Runtime::Instance::MemoryInstance *MemInst,
     return __WASI_CRYPTO_ERRNO_INTERNAL_ERROR;
   }
 
-  auto Res = Ctx.symmetricStateMaxTagLen(Handle);
-  if (unlikely(!Res)) {
-    return Res.error();
+  auto Len = Ctx.symmetricStateMaxTagLen(Handle);
+  if (unlikely(!Len)) {
+    return Len.error();
+  }
+
+  auto SafeLen = cast<__wasi_size_t>(*Len);
+  if (unlikely(!SafeLen)) {
+    return SafeLen.error();
   }
 
   auto *Size = MemInst->getPointer<__wasi_size_t *>(SizePtr);
@@ -512,7 +517,7 @@ StateMaxTagLen::body(Runtime::Instance::MemoryInstance *MemInst,
     return __WASI_CRYPTO_ERRNO_INTERNAL_ERROR;
   }
 
-  *Size = *Res;
+  *Size = *SafeLen;
 
   return __WASI_CRYPTO_ERRNO_SUCCESS;
 }
@@ -539,9 +544,14 @@ Expect<uint32_t> StateEncrypt::body(Runtime::Instance::MemoryInstance *MemInst,
   }
   Span<uint8_t> Out{OutMem, OutLen};
 
-  auto Res = Ctx.symmetricStateEncrypt(Handle, Out, Data);
-  if (unlikely(!Res)) {
-    return Res.error();
+  auto Len = Ctx.symmetricStateEncrypt(Handle, Out, Data);
+  if (unlikely(!Len)) {
+    return Len.error();
+  }
+
+  auto SafeLen = cast<__wasi_size_t>(*Len);
+  if (unlikely(!SafeLen)) {
+    return SafeLen.error();
   }
 
   auto *Size = MemInst->getPointer<__wasi_size_t *>(SizePtr);
@@ -549,7 +559,7 @@ Expect<uint32_t> StateEncrypt::body(Runtime::Instance::MemoryInstance *MemInst,
     return __WASI_CRYPTO_ERRNO_INTERNAL_ERROR;
   }
 
-  *Size = *Res;
+  *Size = *SafeLen;
   return __WASI_CRYPTO_ERRNO_SUCCESS;
 }
 
@@ -610,9 +620,14 @@ Expect<uint32_t> StateDecrypt::body(Runtime::Instance::MemoryInstance *MemInst,
   }
   Span<uint8_t> Out{OutMem, OutLen};
 
-  auto Res = Ctx.symmetricStateDecrypt(Handle, Out, Data);
-  if (unlikely(!Res)) {
-    return Res.error();
+  auto Len = Ctx.symmetricStateDecrypt(Handle, Out, Data);
+  if (unlikely(!Len)) {
+    return Len.error();
+  }
+
+  auto SafeLen = cast<__wasi_size_t>(*Len);
+  if (unlikely(!SafeLen)) {
+    return SafeLen.error();
   }
 
   auto *Size = MemInst->getPointer<__wasi_size_t *>(SizePtr);
@@ -620,7 +635,7 @@ Expect<uint32_t> StateDecrypt::body(Runtime::Instance::MemoryInstance *MemInst,
     return __WASI_CRYPTO_ERRNO_INTERNAL_ERROR;
   }
 
-  *Size = *Res;
+  *Size = *SafeLen;
   return __WASI_CRYPTO_ERRNO_SUCCESS;
 }
 
@@ -651,9 +666,14 @@ Expect<uint32_t> StateDecryptDetached::body(
   }
   Span<uint8_t> RawTag{RawTagMem, RawTagLen};
 
-  auto Res = Ctx.symmetricStateDecryptDetached(Handle, Out, Data, RawTag);
-  if (unlikely(!Res)) {
-    return Res.error();
+  auto Len = Ctx.symmetricStateDecryptDetached(Handle, Out, Data, RawTag);
+  if (unlikely(!Len)) {
+    return Len.error();
+  }
+
+  auto SafeLen = cast<__wasi_size_t>(*Len);
+  if (unlikely(!SafeLen)) {
+    return SafeLen.error();
   }
 
   auto *Size = MemInst->getPointer<__wasi_size_t *>(SizePtr);
@@ -661,7 +681,7 @@ Expect<uint32_t> StateDecryptDetached::body(
     return __WASI_CRYPTO_ERRNO_INTERNAL_ERROR;
   }
 
-  *Size = *Res;
+  *Size = *SafeLen;
   return __WASI_CRYPTO_ERRNO_SUCCESS;
 }
 
@@ -686,9 +706,14 @@ Expect<uint32_t> TagLen::body(Runtime::Instance::MemoryInstance *MemInst,
     return __WASI_CRYPTO_ERRNO_INTERNAL_ERROR;
   }
 
-  auto Res = Ctx.symmetricTagLen(SymmetricTag);
-  if (unlikely(!Res)) {
-    return Res.error();
+  auto Len = Ctx.symmetricTagLen(SymmetricTag);
+  if (unlikely(!Len)) {
+    return Len.error();
+  }
+
+  auto SafeLen = cast<__wasi_size_t>(*Len);
+  if (unlikely(!SafeLen)) {
+    return SafeLen.error();
   }
 
   auto *Size = MemInst->getPointer<__wasi_size_t *>(SizePtr);
@@ -696,7 +721,7 @@ Expect<uint32_t> TagLen::body(Runtime::Instance::MemoryInstance *MemInst,
     return __WASI_CRYPTO_ERRNO_INTERNAL_ERROR;
   }
 
-  *Size = *Res;
+  *Size = *SafeLen;
 
   return __WASI_CRYPTO_ERRNO_SUCCESS;
 }
@@ -715,9 +740,14 @@ Expect<uint32_t> TagPull::body(Runtime::Instance::MemoryInstance *MemInst,
   }
   Span<uint8_t> Buf{BufMem, BufLen};
 
-  auto Res = Ctx.symmetricTagPull(SymmetricTag, Buf);
-  if (unlikely(!Res)) {
-    return Res.error();
+  auto Len = Ctx.symmetricTagPull(SymmetricTag, Buf);
+  if (unlikely(!Len)) {
+    return Len.error();
+  }
+
+  auto SafeLen = cast<__wasi_size_t>(*Len);
+  if (unlikely(!SafeLen)) {
+    return SafeLen.error();
   }
 
   auto *Size = MemInst->getPointer<__wasi_size_t *>(SizePtr);
@@ -725,7 +755,7 @@ Expect<uint32_t> TagPull::body(Runtime::Instance::MemoryInstance *MemInst,
     return __WASI_CRYPTO_ERRNO_INTERNAL_ERROR;
   }
 
-  *Size = *Res;
+  *Size = *SafeLen;
   return __WASI_CRYPTO_ERRNO_SUCCESS;
 }
 

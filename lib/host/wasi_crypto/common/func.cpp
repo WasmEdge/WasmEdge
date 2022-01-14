@@ -24,11 +24,17 @@ ArrayOutputLen::body(Runtime::Instance::MemoryInstance *MemInst,
     return Len.error();
   }
 
+  auto SafeLen = cast<__wasi_size_t>(*Len);
+  if (unlikely(!SafeLen)) {
+    return SafeLen.error();
+  }
+
   auto *const Size = MemInst->getPointer<__wasi_size_t *>(SizePtr);
   if (unlikely(Size == nullptr)) {
     return __WASI_CRYPTO_ERRNO_INTERNAL_ERROR;
   }
-  *Size = *Len;
+
+  *Size = *SafeLen;
 
   return __WASI_CRYPTO_ERRNO_SUCCESS;
 }
@@ -51,16 +57,22 @@ ArrayOutputPull::body(Runtime::Instance::MemoryInstance *MemInst,
 
   Span<uint8_t> Buf{BufMem, BufLen};
 
-  auto Res = Ctx.arrayOutputPull(ArrayOutputHandle, Buf);
-  if (unlikely(!Res)) {
-    return Res.error();
+  auto Len = Ctx.arrayOutputPull(ArrayOutputHandle, Buf);
+  if (unlikely(!Len)) {
+    return Len.error();
+  }
+
+  auto SafeLen = cast<__wasi_size_t>(*Len);
+  if (unlikely(!SafeLen)) {
+    return SafeLen.error();
   }
 
   auto *const Size = MemInst->getPointer<__wasi_size_t *>(SizePtr);
   if (unlikely(Size == nullptr)) {
     return __WASI_CRYPTO_ERRNO_INTERNAL_ERROR;
   }
-  *Size = *Res;
+
+  *Size = *SafeLen;
 
   return __WASI_CRYPTO_ERRNO_SUCCESS;
 }

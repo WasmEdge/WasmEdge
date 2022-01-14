@@ -146,7 +146,7 @@ public:
       : LastHandle{rotr(static_cast<HandleType>(TypeId), 8)}, TypeId{TypeId} {}
 
   WasiCryptoExpect<void> close(HandleType Handle) {
-    std::unique_lock Lock{Mutex};
+    std::unique_lock<std::shared_mutex> Lock{Mutex};
 
     if (!Map.erase(Handle))
       return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_CLOSED);
@@ -154,7 +154,7 @@ public:
   }
 
   WasiCryptoExpect<HandleType> registerManger(MangerType &&Manger) {
-    std::unique_lock Lock{Mutex};
+    std::unique_lock<std::shared_mutex> Lock{Mutex};
 
     auto NextHandle = nextHandle(LastHandle);
 
@@ -176,7 +176,7 @@ public:
   }
 
   WasiCryptoExpect<MangerType> get(HandleType Handle) {
-    std::shared_lock Lock{Mutex};
+    std::shared_lock<std::shared_mutex> Lock{Mutex};
 
     auto HandleValue = Map.find(Handle);
     if (HandleValue == Map.end()) {

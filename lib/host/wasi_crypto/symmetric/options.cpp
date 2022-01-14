@@ -12,7 +12,7 @@ using namespace std::literals;
 
 WasiCryptoExpect<void> Options::set(std::string_view Name,
                                     Span<const uint8_t> Value) {
-  std::unique_lock Lock{Mutex};
+  std::unique_lock<std::shared_mutex> Lock{Mutex};
 
   std::optional<std::vector<uint8_t>> *Res;
   if ("context"sv == Name) {
@@ -29,7 +29,7 @@ WasiCryptoExpect<void> Options::set(std::string_view Name,
 }
 
 WasiCryptoExpect<void> Options::setU64(std::string_view Name, uint64_t Value) {
-  std::unique_lock Lock{Mutex};
+  std::unique_lock<std::shared_mutex> Lock{Mutex};
 
   std::optional<uint64_t> *Res;
   if ("memory_limit"sv == Name) {
@@ -47,7 +47,7 @@ WasiCryptoExpect<void> Options::setU64(std::string_view Name, uint64_t Value) {
 
 WasiCryptoExpect<void> Options::setGuestBuffer(std::string_view Name,
                                                Span<uint8_t> Buffer) {
-  std::unique_lock Lock{Mutex};
+  std::unique_lock<std::shared_mutex> Lock{Mutex};
 
   if ("buffer"sv == Name) {
     GuestBuffer = Buffer;

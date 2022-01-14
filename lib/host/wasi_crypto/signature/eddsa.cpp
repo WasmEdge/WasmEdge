@@ -246,7 +246,7 @@ EddsaSignature::exportData(__wasi_signature_encoding_e_t Encoding) {
 WasiCryptoExpect<void> EddsaSignState::update(Span<const uint8_t> Input) {
   // Notice: Ecdsa is oneshot in OpenSSL, we need a cache for update instead of
   // call `EVP_DigestSignUpdate`
-  std::unique_lock Lock{Mutex};
+  std::unique_lock<std::shared_mutex> Lock{Mutex};
   Cache.insert(Cache.end(), Input.begin(), Input.end());
   return {};
 }
@@ -270,7 +270,7 @@ EddsaVerificationState::~EddsaVerificationState() {
 
 WasiCryptoExpect<void>
 EddsaVerificationState::update(Span<const uint8_t> Input) {
-  std::unique_lock Lock{Mutex};
+  std::unique_lock<std::shared_mutex> Lock{Mutex};
   Cache.insert(Cache.end(), Input.begin(), Input.end());
   return {};
 }

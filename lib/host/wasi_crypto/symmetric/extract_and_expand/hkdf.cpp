@@ -51,7 +51,7 @@ Hkdf<Sha, Mode>::State::open(std::shared_ptr<Key> OptKey,
 template <int Sha, int Mode>
 WasiCryptoExpect<void>
 Hkdf<Sha, Mode>::State::absorb(Span<const uint8_t> Data) {
-  std::unique_lock Lock{Mutex};
+  std::unique_lock<std::shared_mutex> Lock{Mutex};
 
   Cache.insert(Cache.end(), Data.begin(), Data.end());
   return {};

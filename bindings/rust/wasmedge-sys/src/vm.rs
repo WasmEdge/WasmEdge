@@ -757,13 +757,14 @@ impl Drop for Vm {
 #[cfg(test)]
 mod tests {
     use super::Vm;
-    use crate::{
-        error::{
-            CoreCommonError, CoreError, CoreExecutionError, CoreLoadError, StoreError, VmError,
-        },
-        types::HostRegistration,
-        Config, FuncType, Function, ImportObj, Loader, Store, ValType, Value, WasmEdgeError,
-    };
+    // use crate::{
+    //     error::{
+    //         CoreCommonError, CoreError, CoreExecutionError, CoreLoadError, StoreError, VmError,
+    //     },
+    //     types::HostRegistration,
+    //     Config, FuncType, Function, ImportObj, Loader, Store, ValType, Value, WasmEdgeError,
+    // };
+    use crate::{Config, Store};
 
     #[test]
     fn test_vm_create() {
@@ -1504,25 +1505,25 @@ mod tests {
     //     );
     // }
 
-    fn real_add(inputs: Vec<Value>) -> Result<Vec<Value>, u8> {
-        if inputs.len() != 2 {
-            return Err(1);
-        }
+    // fn real_add(inputs: Vec<Value>) -> Result<Vec<Value>, u8> {
+    //     if inputs.len() != 2 {
+    //         return Err(1);
+    //     }
 
-        let a = if inputs[0].ty() == ValType::I32 {
-            inputs[0].to_i32()
-        } else {
-            return Err(2);
-        };
+    //     let a = if inputs[0].ty() == ValType::I32 {
+    //         inputs[0].to_i32()
+    //     } else {
+    //         return Err(2);
+    //     };
 
-        let b = if inputs[1].ty() == ValType::I32 {
-            inputs[1].to_i32()
-        } else {
-            return Err(3);
-        };
+    //     let b = if inputs[1].ty() == ValType::I32 {
+    //         inputs[1].to_i32()
+    //     } else {
+    //         return Err(3);
+    //     };
 
-        let c = a + b;
+    //     let c = a + b;
 
-        Ok(vec![Value::from_i32(c)])
-    }
+    //     Ok(vec![Value::from_i32(c)])
+    // }
 }

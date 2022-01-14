@@ -221,8 +221,7 @@ SecretsMangerOpen::body(Runtime::Instance::MemoryInstance *MemInst,
     return __WASI_CRYPTO_ERRNO_INTERNAL_ERROR;
   }
 
-  auto Res = Ctx.secretsMangerOpen(
-      WASICrypto::parseCUnion<__wasi_options_t>(*OptOption));
+  auto Res = Ctx.secretsMangerOpen(parseCUnion<__wasi_options_t>(*OptOption));
   if (unlikely(!Res)) {
     return Res.error();
   }

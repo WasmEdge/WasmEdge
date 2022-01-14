@@ -194,12 +194,17 @@ Expect<uint32_t> KeypairId::body(Runtime::Instance::MemoryInstance *MemInst,
 
   auto [ResSize, ResVersion] = *Res;
 
-  auto *Size = MemInst->getPointer<__wasi_version_t *>(SizePtr);
+  auto SafeResSize = cast<__wasi_size_t>(ResSize);
+  if (unlikely(!SafeResSize)) {
+    return SafeResSize.error();
+  }
+
+  auto *Size = MemInst->getPointer<__wasi_size_t *>(SizePtr);
   if (unlikely(Size == nullptr)) {
     return __WASI_CRYPTO_ERRNO_INTERNAL_ERROR;
   }
 
-  *Size = ResSize;
+  *Size = *SafeResSize;
 
   auto *Version = MemInst->getPointer<__wasi_version_t *>(VersionPtr);
   if (unlikely(Version == nullptr)) {

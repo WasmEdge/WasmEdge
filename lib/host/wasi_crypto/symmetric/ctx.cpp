@@ -122,8 +122,6 @@ WasiCryptoContext::symmetricStateOptionsGet(__wasi_symmetric_state_t Handle,
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_OVERFLOW);
   }
   std::copy(InnerVec->begin(), InnerVec->end(), Value.begin());
-  ensureOrReturn(InnerVec->size() <= std::numeric_limits<size_t>::max(),
-                 __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
   return InnerVec->size();
 }
 

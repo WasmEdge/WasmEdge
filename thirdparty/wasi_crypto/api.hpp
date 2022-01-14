@@ -21,6 +21,7 @@
 
 using const_uint8_t_ptr = uint32_t;
 using uint8_t_ptr = uint32_t;
+using uint32_t_ptr = uint32_t;
 
 #define DEFINE_ENUM_OPERATORS(type)                                            \
   inline constexpr type operator~(type a) noexcept {                           \

@@ -228,20 +228,25 @@ Expect<uint32_t> KeyId::body(Runtime::Instance::MemoryInstance *MemInst,
     return Res.error();
   }
 
+  auto *Size = MemInst->getPointer<__wasi_size_t *>(SizePtr);
+  if (unlikely(Size == nullptr)) {
+    return __WASI_CRYPTO_ERRNO_INTERNAL_ERROR;
+  }
+
   auto *Version = MemInst->getPointer<__wasi_version_t *>(VersionPtr);
   if (unlikely(Version == nullptr)) {
     return __WASI_CRYPTO_ERRNO_INTERNAL_ERROR;
   }
 
-  auto *Size = MemInst->getPointer<__wasi_version_t *>(SizePtr);
-  if (unlikely(Size == nullptr)) {
-    return __WASI_CRYPTO_ERRNO_INTERNAL_ERROR;
-  }
-
   auto [SizeRes, VersionRes] = *Res;
 
+  auto SafeSizeRes = cast<__wasi_size_t>(SizeRes);
+  if (unlikely(!SafeSizeRes)) {
+    return SafeSizeRes.error();
+  }
+
   *Version = VersionRes;
-  *Size = SizeRes;
+  *Size = *SafeSizeRes;
 
   return __WASI_CRYPTO_ERRNO_SUCCESS;
 }
@@ -269,7 +274,7 @@ Expect<uint32_t> KeyFromId::body(Runtime::Instance::MemoryInstance *MemInst,
     return Res.error();
   }
 
-  auto *Key = MemInst->getPointer<uint8_t *>(KeyPtr);
+  auto *Key = MemInst->getPointer<__wasi_symmetric_key_t *>(KeyPtr);
 
   *Key = *Res;
 
@@ -312,7 +317,7 @@ Expect<uint32_t> StateOpen::body(Runtime::Instance::MemoryInstance *MemInst,
     return Res.error();
   }
 
-  auto *State = MemInst->getPointer<uint8_t *>(StatePtr);
+  auto *State = MemInst->getPointer<__wasi_symmetric_state_t *>(StatePtr);
   if (unlikely(State == nullptr)) {
     return __WASI_CRYPTO_ERRNO_INTERNAL_ERROR;
   }
@@ -342,16 +347,21 @@ Expect<uint32_t> StateOptionsGet::body(
   }
   Span<uint8_t> Value{ValueMem, ValueLen};
 
-  auto Res = Ctx.symmetricStateOptionsGet(Handle, Name, Value);
-  if (!Res) {
-    return Res.error();
+  auto Len = Ctx.symmetricStateOptionsGet(Handle, Name, Value);
+  if (!Len) {
+    return Len.error();
   }
 
-  auto *Size = MemInst->getPointer<uint8_t *>(SizePtr);
+  auto SafeLen = cast<__wasi_size_t>(*Len);
+  if (!SafeLen) {
+    return SafeLen.error();
+  }
+
+  auto *Size = MemInst->getPointer<__wasi_size_t *>(SizePtr);
   if (unlikely(Size == nullptr)) {
     return __WASI_CRYPTO_ERRNO_INTERNAL_ERROR;
   }
-  *Size = *Res;
+  *Size = *SafeLen;
 
   return __WASI_CRYPTO_ERRNO_SUCCESS;
 }

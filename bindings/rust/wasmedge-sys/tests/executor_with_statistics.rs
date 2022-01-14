@@ -7,19 +7,6 @@ use wasmedge_sys::{
 #[warn(unused_assignments)]
 #[test]
 fn test_executor_with_statistics() {
-    // create a Statistics context
-    let result = Statistics::create();
-    assert!(result.is_ok());
-    let mut stat = result.unwrap();
-
-    // set cost table
-    stat.set_cost_table(&mut []);
-    let mut cost_table = vec![20u64; 512];
-    stat.set_cost_table(&mut cost_table);
-
-    // set cost limit
-    stat.set_cost_limit(100_000_000_000_000);
-
     // create a Config context
     let result = Config::create();
     assert!(result.is_ok());
@@ -29,10 +16,18 @@ fn test_executor_with_statistics() {
         .count_instructions(true)
         .measure_time(true)
         .measure_cost(true);
+
     // create a Statistics context
     let result = Statistics::create();
     assert!(result.is_ok());
     let mut stat = result.unwrap();
+    // set cost table
+    stat.set_cost_table(&mut []);
+    let mut cost_table = vec![20u64; 512];
+    stat.set_cost_table(&mut cost_table);
+    // set cost limit
+    stat.set_cost_limit(100_000_000_000_000);
+
     // create an Executor context
     let result = Executor::create(Some(&config), Some(&stat));
     assert!(result.is_ok());

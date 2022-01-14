@@ -7,6 +7,7 @@
 #include <limits>
 #include <shared_mutex>
 #include <type_traits>
+#include <mutex>
 #include <unordered_map>
 
 namespace WasmEdge {

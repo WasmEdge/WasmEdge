@@ -2,6 +2,8 @@
 
 #include "host/wasi_crypto/symmetric/options.h"
 
+#include <mutex>
+
 namespace WasmEdge {
 namespace Host {
 namespace WASICrypto {

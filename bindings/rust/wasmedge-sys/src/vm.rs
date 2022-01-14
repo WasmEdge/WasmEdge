@@ -765,7 +765,10 @@ mod tests {
     //     Config, FuncType, Function, ImportObj, Loader, Store, ValType, Value, WasmEdgeError,
     // };
 
-    use crate::{Config, Store};
+    use crate::{
+        error::{CoreError, CoreLoadError},
+        Config, Loader, Store, WasmEdgeError,
+    };
 
     #[test]
     fn test_vm_create() {
@@ -826,116 +829,116 @@ mod tests {
         }
     }
 
-    //     #[test]
-    //     fn test_vm_load_wasm_from_file() {
-    //         // create Config instance
-    //         let result = Config::create();
-    //         assert!(result.is_ok());
-    //         let conf = result.unwrap();
-    //         let conf = conf.enable_bulk_memory_operations(true);
-    //         assert!(conf.bulk_memory_operations_enabled());
+    #[test]
+    fn test_vm_load_wasm_from_file() {
+        // create Config instance
+        let result = Config::create();
+        assert!(result.is_ok());
+        let conf = result.unwrap();
+        let conf = conf.enable_bulk_memory_operations(true);
+        assert!(conf.bulk_memory_operations_enabled());
 
-    //         // create Store instance
-    //         let result = Store::create();
-    //         assert!(result.is_ok(), "Failed to create Store instance");
-    //         let store = result.unwrap();
+        // create Store instance
+        let result = Store::create();
+        assert!(result.is_ok(), "Failed to create Store instance");
+        let store = result.unwrap();
 
-    //         // create Vm instance
-    //         let result = Vm::create(Some(&conf), Some(&store));
-    //         assert!(result.is_ok());
-    //         let vm = result.unwrap();
+        // create Vm instance
+        let result = Vm::create(Some(&conf), Some(&store));
+        assert!(result.is_ok());
+        let vm = result.unwrap();
 
-    //         // load wasm module from a specified file
-    //         let path = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
-    //             .join("bindings/rust/wasmedge-sys/tests/data/fibonacci.wasm");
-    //         let result = vm.load_wasm_from_file(path);
-    //         assert!(result.is_ok());
+        // load wasm module from a specified file
+        let path = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
+            .join("bindings/rust/wasmedge-sys/tests/data/fibonacci.wasm");
+        let result = vm.load_wasm_from_file(path);
+        assert!(result.is_ok());
 
-    //         // load a wasm module from a non-existent file
-    //         let result = vm.load_wasm_from_file("no_file");
-    //         assert!(result.is_err());
-    //         assert_eq!(
-    //             result.unwrap_err(),
-    //             WasmEdgeError::Core(CoreError::Load(CoreLoadError::IllegalPath))
-    //         );
-    //     }
+        // load a wasm module from a non-existent file
+        let result = vm.load_wasm_from_file("no_file");
+        assert!(result.is_err());
+        assert_eq!(
+            result.unwrap_err(),
+            WasmEdgeError::Core(CoreError::Load(CoreLoadError::IllegalPath))
+        );
+    }
 
-    //     #[test]
-    //     fn test_vm_load_wasm_from_buffer() {
-    //         // create Config instance
-    //         let result = Config::create();
-    //         assert!(result.is_ok());
-    //         let conf = result.unwrap();
-    //         let conf = conf.enable_bulk_memory_operations(true);
-    //         assert!(conf.bulk_memory_operations_enabled());
+    #[test]
+    fn test_vm_load_wasm_from_buffer() {
+        // create Config instance
+        let result = Config::create();
+        assert!(result.is_ok());
+        let conf = result.unwrap();
+        let conf = conf.enable_bulk_memory_operations(true);
+        assert!(conf.bulk_memory_operations_enabled());
 
-    //         // create Store instance
-    //         let result = Store::create();
-    //         assert!(result.is_ok(), "Failed to create Store instance");
-    //         let store = result.unwrap();
+        // create Store instance
+        let result = Store::create();
+        assert!(result.is_ok(), "Failed to create Store instance");
+        let store = result.unwrap();
 
-    //         // create Vm instance
-    //         let result = Vm::create(Some(&conf), Some(&store));
-    //         assert!(result.is_ok());
-    //         let vm = result.unwrap();
+        // create Vm instance
+        let result = Vm::create(Some(&conf), Some(&store));
+        assert!(result.is_ok());
+        let vm = result.unwrap();
 
-    //         // load wasm module from buffer
-    //         let wasm_path = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
-    //             .join("bindings/rust/wasmedge-sys/tests/data/fibonacci.wasm");
-    //         let result = std::fs::read(wasm_path);
-    //         assert!(result.is_ok());
-    //         let buffer = result.unwrap();
-    //         let result = vm.load_wasm_from_buffer(&buffer);
-    //         assert!(result.is_ok());
+        // load wasm module from buffer
+        let wasm_path = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
+            .join("bindings/rust/wasmedge-sys/tests/data/fibonacci.wasm");
+        let result = std::fs::read(wasm_path);
+        assert!(result.is_ok());
+        let buffer = result.unwrap();
+        let result = vm.load_wasm_from_buffer(&buffer);
+        assert!(result.is_ok());
 
-    //         // load wasm module from an empty buffer
-    //         let empty_buffer: Vec<u8> = vec![];
-    //         let result = vm.load_wasm_from_buffer(&empty_buffer);
-    //         assert!(result.is_err());
-    //         assert_eq!(
-    //             result.unwrap_err(),
-    //             WasmEdgeError::Core(CoreError::Load(CoreLoadError::UnexpectedEnd))
-    //         );
-    //     }
+        // load wasm module from an empty buffer
+        let empty_buffer: Vec<u8> = vec![];
+        let result = vm.load_wasm_from_buffer(&empty_buffer);
+        assert!(result.is_err());
+        assert_eq!(
+            result.unwrap_err(),
+            WasmEdgeError::Core(CoreError::Load(CoreLoadError::UnexpectedEnd))
+        );
+    }
 
-    //     #[test]
-    //     fn test_vm_load_wasm_from_module() {
-    //         // create a Config context
-    //         let result = Config::create();
-    //         assert!(result.is_ok());
-    //         let config = result.unwrap().enable_bulk_memory_operations(true);
-    //         assert!(config.bulk_memory_operations_enabled());
+    #[test]
+    fn test_vm_load_wasm_from_module() {
+        // create a Config context
+        let result = Config::create();
+        assert!(result.is_ok());
+        let config = result.unwrap().enable_bulk_memory_operations(true);
+        assert!(config.bulk_memory_operations_enabled());
 
-    //         // create a Store context
-    //         let result = Store::create();
-    //         assert!(result.is_ok(), "Failed to create Store instance");
-    //         let store = result.unwrap();
+        // create a Store context
+        let result = Store::create();
+        assert!(result.is_ok(), "Failed to create Store instance");
+        let store = result.unwrap();
 
-    //         // create a Vm context with the given Config and Store
-    //         let result = Vm::create(Some(&config), Some(&store));
-    //         assert!(result.is_ok());
-    //         let vm = result.unwrap();
+        // create a Vm context with the given Config and Store
+        let result = Vm::create(Some(&config), Some(&store));
+        assert!(result.is_ok());
+        let vm = result.unwrap();
 
-    //         // create a loader
-    //         let result = Config::create();
-    //         assert!(result.is_ok());
-    //         let config = result.unwrap().wasi(true);
-    //         assert!(config.wasi_enabled());
-    //         let result = Loader::create(Some(&config));
-    //         assert!(result.is_ok());
-    //         let loader = result.unwrap();
+        // create a loader
+        let result = Config::create();
+        assert!(result.is_ok());
+        let config = result.unwrap().wasi(true);
+        assert!(config.wasi_enabled());
+        let result = Loader::create(Some(&config));
+        assert!(result.is_ok());
+        let loader = result.unwrap();
 
-    //         // load a AST module from a file
-    //         let path = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
-    //             .join("bindings/rust/wasmedge-sys/tests/data/fibonacci.wasm");
-    //         let result = loader.from_file(path);
-    //         assert!(result.is_ok());
-    //         let mut module = result.unwrap();
+        // load a AST module from a file
+        let path = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
+            .join("bindings/rust/wasmedge-sys/tests/data/fibonacci.wasm");
+        let result = loader.from_file(path);
+        assert!(result.is_ok());
+        let mut module = result.unwrap();
 
-    //         // load wasm module from an ast module
-    //         let result = vm.load_wasm_from_module(&mut module);
-    //         assert!(result.is_ok());
-    //     }
+        // load wasm module from an ast module
+        let result = vm.load_wasm_from_module(&mut module);
+        assert!(result.is_ok());
+    }
 
     //     #[test]
     //     fn test_vm_validate() {

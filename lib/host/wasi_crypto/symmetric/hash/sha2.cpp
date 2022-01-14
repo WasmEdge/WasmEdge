@@ -39,7 +39,9 @@ WasiCryptoExpect<void> Sha2State<Sha>::squeeze(Span<uint8_t> Out) {
 
   // Note: just copy `Out.size()` length from ctx. However, OpenSSL don't have
   // such a function, it will copy `EVP_MD_CTX_size(CopyCtx)`, so create Cache
-  std::vector<uint8_t> Cache(EVP_MD_CTX_size(CopyCtx));
+  int MdSize = EVP_MD_CTX_size(CopyCtx);
+  ensureOrReturn(MdSize >= 0, __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
+  std::vector<uint8_t> Cache(static_cast<size_t>(MdSize));
   ensureOrReturn(Cache.size() >= Out.size(),
                  __WASI_CRYPTO_ERRNO_INVALID_LENGTH);
 

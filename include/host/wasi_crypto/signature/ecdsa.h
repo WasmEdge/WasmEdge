@@ -102,7 +102,7 @@ public:
 
   class VerificationState final : public Signatures::VerificationState {
   public:
-    VerificationState(EVP_MD_CTX *Ctx) : Ctx(Ctx){};
+    VerificationState(EVP_MD_CTX *Ctx) : Ctx(Ctx) {}
 
     WasiCryptoExpect<void> update(Span<const uint8_t> Input) override;
 

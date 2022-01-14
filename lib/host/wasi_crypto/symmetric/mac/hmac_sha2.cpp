@@ -37,8 +37,10 @@ HmacSha2<Sha>::State::open(std::shared_ptr<Key> OptKey,
                            std::shared_ptr<Options> OptOption) {
   ensureOrReturn(OptKey, __WASI_CRYPTO_ERRNO_KEY_REQUIRED);
 
+  size_t Size = OptKey->data().size();
+  ensureOrReturn(Size <= INT_MAX, __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
   EvpPkeyPtr PKey{EVP_PKEY_new_mac_key(
-      EVP_PKEY_HMAC, nullptr, OptKey->data().data(), OptKey->data().size())};
+      EVP_PKEY_HMAC, nullptr, OptKey->data().data(), static_cast<int>(Size))};
   opensslAssuming(PKey);
 
   EVP_MD_CTX *Ctx = EVP_MD_CTX_new();
@@ -73,14 +75,12 @@ WasiCryptoExpect<void> HmacSha2<Sha>::State::absorb(Span<const uint8_t> Data) {
 
 template <uint32_t Sha>
 WasiCryptoExpect<Tag> HmacSha2<Sha>::State::squeezeTag() {
-  EVP_MD_CTX *CopyCtx = EVP_MD_CTX_new();
-  opensslAssuming(EVP_MD_CTX_copy_ex(CopyCtx, Ctx.get()));
 
   size_t ActualOutSize;
-  opensslAssuming(EVP_DigestSignFinal(CopyCtx, nullptr, &ActualOutSize));
+  opensslAssuming(EVP_DigestSignFinal(Ctx.get(), nullptr, &ActualOutSize));
 
   std::vector<uint8_t> Res(ActualOutSize);
-  opensslAssuming(EVP_DigestSignFinal(CopyCtx, Res.data(), &ActualOutSize));
+  opensslAssuming(EVP_DigestSignFinal(Ctx.get(), Res.data(), &ActualOutSize));
 
   return Res;
 }

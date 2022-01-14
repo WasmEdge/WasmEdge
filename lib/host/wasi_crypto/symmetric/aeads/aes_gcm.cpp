@@ -136,7 +136,8 @@ WasiCryptoExpect<__wasi_size_t> AesGcm<KeyBit>::State::decryptDetachedUnchecked(
   ensureOrReturn(EVP_CipherFinal_ex(Ctx.get(), nullptr, &Temp),
                  __WASI_CRYPTO_ERRNO_INVALID_TAG);
 
-  return ActualOutSize;
+  ensureOrReturn(ActualOutSize >= 0, __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
+  return static_cast<__wasi_size_t>(ActualOutSize);
 }
 
 template class AesGcm<128>;

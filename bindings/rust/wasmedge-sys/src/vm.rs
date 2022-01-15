@@ -761,7 +761,7 @@ mod tests {
             let result = Config::create();
             assert!(result.is_ok());
             let config = result.unwrap();
-            let config = config.enable_bulk_memory_operations(true);
+            let config = config.bulk_memory_operations(true);
             assert!(config.bulk_memory_operations_enabled());
 
             // create a Store context
@@ -781,7 +781,7 @@ mod tests {
             let result = Config::create();
             assert!(result.is_ok());
             let config = result.unwrap();
-            let config = config.enable_bulk_memory_operations(true);
+            let config = config.bulk_memory_operations(true);
             assert!(config.bulk_memory_operations_enabled());
 
             // create a Vm context with the given Config
@@ -811,7 +811,7 @@ mod tests {
         let result = Config::create();
         assert!(result.is_ok());
         let conf = result.unwrap();
-        let conf = conf.enable_bulk_memory_operations(true);
+        let conf = conf.bulk_memory_operations(true);
         assert!(conf.bulk_memory_operations_enabled());
 
         // create Store instance
@@ -845,7 +845,7 @@ mod tests {
         let result = Config::create();
         assert!(result.is_ok());
         let conf = result.unwrap();
-        let conf = conf.enable_bulk_memory_operations(true);
+        let conf = conf.bulk_memory_operations(true);
         assert!(conf.bulk_memory_operations_enabled());
 
         // create Store instance
@@ -882,7 +882,7 @@ mod tests {
         // create a Config context
         let result = Config::create();
         assert!(result.is_ok());
-        let config = result.unwrap().enable_bulk_memory_operations(true);
+        let config = result.unwrap().bulk_memory_operations(true);
         assert!(config.bulk_memory_operations_enabled());
 
         // create a Store context
@@ -1006,7 +1006,7 @@ mod tests {
         let result = Config::create();
         assert!(result.is_ok());
         let config = result.unwrap();
-        let config = config.enable_bulk_memory_operations(true);
+        let config = config.bulk_memory_operations(true);
         assert!(config.bulk_memory_operations_enabled());
 
         // load module from file
@@ -1021,7 +1021,7 @@ mod tests {
         let result = Config::create();
         assert!(result.is_ok());
         let config = result.unwrap();
-        let config = config.enable_bulk_memory_operations(true);
+        let config = config.bulk_memory_operations(true);
         assert!(config.bulk_memory_operations_enabled());
 
         let result = Store::create();
@@ -1106,7 +1106,7 @@ mod tests {
         let result = Config::create();
         assert!(result.is_ok());
         let config = result.unwrap();
-        let config = config.enable_bulk_memory_operations(true);
+        let config = config.bulk_memory_operations(true);
         assert!(config.bulk_memory_operations_enabled());
 
         // create a Store context
@@ -1139,7 +1139,7 @@ mod tests {
         // create a Config context
         let result = Config::create();
         assert!(result.is_ok());
-        let config = result.unwrap().enable_bulk_memory_operations(true);
+        let config = result.unwrap().bulk_memory_operations(true);
         assert!(config.bulk_memory_operations_enabled());
 
         // create a Store context
@@ -1245,7 +1245,7 @@ mod tests {
         let result = Config::create();
         assert!(result.is_ok());
         let config = result.unwrap();
-        let config = config.enable_bulk_memory_operations(true);
+        let config = config.bulk_memory_operations(true);
         assert!(config.bulk_memory_operations_enabled());
         let config = config.wasi(true);
         assert!(config.wasi_enabled());
@@ -1306,7 +1306,7 @@ mod tests {
         let result = Config::create();
         assert!(result.is_ok());
         let config = result.unwrap();
-        let config = config.enable_bulk_memory_operations(true);
+        let config = config.bulk_memory_operations(true);
         assert!(config.bulk_memory_operations_enabled());
 
         // create a Store context
@@ -1335,7 +1335,7 @@ mod tests {
         let result = Config::create();
         assert!(result.is_ok());
         let config = result.unwrap();
-        let config = config.enable_bulk_memory_operations(true);
+        let config = config.bulk_memory_operations(true);
         assert!(config.bulk_memory_operations_enabled());
 
         // create a Store context
@@ -1395,7 +1395,7 @@ mod tests {
         let result = Config::create();
         assert!(result.is_ok());
         let config = result.unwrap();
-        let config = config.enable_bulk_memory_operations(true);
+        let config = config.bulk_memory_operations(true);
         assert!(config.bulk_memory_operations_enabled());
 
         // create a Store context
@@ -1459,7 +1459,7 @@ mod tests {
         let result = Config::create();
         assert!(result.is_ok());
         let config = result.unwrap();
-        let config = config.enable_bulk_memory_operations(true);
+        let config = config.bulk_memory_operations(true);
         assert!(config.bulk_memory_operations_enabled());
 
         // create a Store context

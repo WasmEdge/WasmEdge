@@ -390,7 +390,7 @@ mod tests {
         let result = Config::create();
         assert!(result.is_ok());
         let config = result.unwrap();
-        let config = config.enable_bulk_memory_operations(true);
+        let config = config.bulk_memory_operations(true);
         assert!(config.bulk_memory_operations_enabled());
 
         // load module from file
@@ -535,7 +535,7 @@ mod tests {
         let result = Config::create();
         assert!(result.is_ok());
         let config = result.unwrap();
-        let config = config.enable_bulk_memory_operations(true);
+        let config = config.bulk_memory_operations(true);
         assert!(config.bulk_memory_operations_enabled());
 
         // load module from file

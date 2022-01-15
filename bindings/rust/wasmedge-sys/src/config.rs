@@ -221,19 +221,19 @@ impl Config {
         unsafe { wasmedge::WasmEdge_ConfigureGetMaxMemoryPage(self.ctx) }
     }
 
-    /// Enables the ImportExportMutGlobals option.
+    /// Enables or disables the ImportExportMutGlobals option.
     ///
     /// # Argument
     ///
-    /// - `flag` specifies if the option turns on or not.
-    pub fn enable_mutable_globals(self, flag: bool) -> Self {
+    /// - `enable` specifies if the option turns on or not.
+    pub fn mutable_globals(self, enable: bool) -> Self {
         unsafe {
-            if flag && !self.mutable_globals_enabled() {
+            if enable {
                 wasmedge::WasmEdge_ConfigureAddProposal(
                     self.ctx,
                     wasmedge::WasmEdge_Proposal_ImportExportMutGlobals,
                 )
-            } else if !flag && self.mutable_globals_enabled() {
+            } else {
                 wasmedge::WasmEdge_ConfigureRemoveProposal(
                     self.ctx,
                     wasmedge::WasmEdge_Proposal_ImportExportMutGlobals,
@@ -253,19 +253,19 @@ impl Config {
         }
     }
 
-    /// Enables the NonTrapFloatToIntConversions option.
+    /// Enables or disables the NonTrapFloatToIntConversions option.
     ///
     /// # Argument
     ///
-    /// - `flag` specifies if the option turns on or not.
-    pub fn enable_non_trap_conversions(self, flag: bool) -> Self {
+    /// - `enable` specifies if the option turns on or not.
+    pub fn non_trap_conversions(self, enable: bool) -> Self {
         unsafe {
-            if flag && !self.non_trap_conversions_enabled() {
+            if enable {
                 wasmedge::WasmEdge_ConfigureAddProposal(
                     self.ctx,
                     wasmedge::WasmEdge_Proposal_NonTrapFloatToIntConversions,
                 )
-            } else if !flag && self.non_trap_conversions_enabled() {
+            } else {
                 wasmedge::WasmEdge_ConfigureRemoveProposal(
                     self.ctx,
                     wasmedge::WasmEdge_Proposal_NonTrapFloatToIntConversions,
@@ -285,19 +285,19 @@ impl Config {
         }
     }
 
-    /// Enables the SignExtensionOperators option.
+    /// Enables or disables the SignExtensionOperators option.
     ///
     /// # Argument
     ///
-    /// - `flag` specifies if the option turns on or not.
-    pub fn enable_sign_extension_operators(self, flag: bool) -> Self {
+    /// - `enable` specifies if the option turns on or not.
+    pub fn sign_extension_operators(self, enable: bool) -> Self {
         unsafe {
-            if flag && !self.sign_extension_operators_enabled() {
+            if enable {
                 wasmedge::WasmEdge_ConfigureAddProposal(
                     self.ctx,
                     wasmedge::WasmEdge_Proposal_SignExtensionOperators,
                 )
-            } else if !flag && self.sign_extension_operators_enabled() {
+            } else {
                 wasmedge::WasmEdge_ConfigureRemoveProposal(
                     self.ctx,
                     wasmedge::WasmEdge_Proposal_SignExtensionOperators,
@@ -317,19 +317,19 @@ impl Config {
         }
     }
 
-    /// Enables the MultiValue option.
+    /// Enables or disables the MultiValue option.
     ///
     /// # Argument
     ///
-    /// - `flag` specifies if the option turns on or not.
-    pub fn enable_multi_value(self, flag: bool) -> Self {
+    /// - `enable` specifies if the option turns on or not.
+    pub fn multi_value(self, enable: bool) -> Self {
         unsafe {
-            if flag && !self.multi_value_enabled() {
+            if enable {
                 wasmedge::WasmEdge_ConfigureAddProposal(
                     self.ctx,
                     wasmedge::WasmEdge_Proposal_MultiValue,
                 )
-            } else if !flag && self.multi_value_enabled() {
+            } else {
                 wasmedge::WasmEdge_ConfigureRemoveProposal(
                     self.ctx,
                     wasmedge::WasmEdge_Proposal_MultiValue,
@@ -349,19 +349,19 @@ impl Config {
         }
     }
 
-    /// Enables the BulkMemoryOperations option.
+    /// Enables or disables the BulkMemoryOperations option.
     ///
     /// # Argument
     ///
-    /// - `flag` specifies if the option turns on or not.
-    pub fn enable_bulk_memory_operations(self, flag: bool) -> Self {
+    /// - `enable` specifies if the option turns on or not.
+    pub fn bulk_memory_operations(self, enable: bool) -> Self {
         unsafe {
-            if flag && !self.bulk_memory_operations_enabled() {
+            if enable {
                 wasmedge::WasmEdge_ConfigureAddProposal(
                     self.ctx,
                     wasmedge::WasmEdge_Proposal_BulkMemoryOperations,
                 )
-            } else if !flag && self.bulk_memory_operations_enabled() {
+            } else {
                 wasmedge::WasmEdge_ConfigureRemoveProposal(
                     self.ctx,
                     wasmedge::WasmEdge_Proposal_BulkMemoryOperations,
@@ -381,19 +381,19 @@ impl Config {
         }
     }
 
-    /// Enables the ReferenceTypes option.
+    /// Enables or disables the ReferenceTypes option.
     ///
     /// # Argument
     ///
-    /// - `flag` specifies if the option turns on or not.
-    pub fn enable_reference_types(self, flag: bool) -> Self {
+    /// - `enable` specifies if the option turns on or not.
+    pub fn reference_types(self, enable: bool) -> Self {
         unsafe {
-            if flag && !self.reference_types_enabled() {
+            if enable {
                 wasmedge::WasmEdge_ConfigureAddProposal(
                     self.ctx,
                     wasmedge::WasmEdge_Proposal_ReferenceTypes,
                 )
-            } else if !flag && self.reference_types_enabled() {
+            } else {
                 wasmedge::WasmEdge_ConfigureRemoveProposal(
                     self.ctx,
                     wasmedge::WasmEdge_Proposal_ReferenceTypes,
@@ -413,16 +413,16 @@ impl Config {
         }
     }
 
-    /// Enables the SIMD option.
+    /// Enables or disables the SIMD option.
     ///
     /// # Argument
     ///
-    /// - `flag` specifies if the option turns on or not.
-    pub fn enable_simd(self, flag: bool) -> Self {
+    /// - `enable` specifies if the option turns on or not.
+    pub fn simd(self, enable: bool) -> Self {
         unsafe {
-            if flag && !self.simd_enabled() {
+            if enable {
                 wasmedge::WasmEdge_ConfigureAddProposal(self.ctx, wasmedge::WasmEdge_Proposal_SIMD)
-            } else if !flag && self.simd_enabled() {
+            } else {
                 wasmedge::WasmEdge_ConfigureRemoveProposal(
                     self.ctx,
                     wasmedge::WasmEdge_Proposal_SIMD,
@@ -439,19 +439,19 @@ impl Config {
         }
     }
 
-    /// Enables the TailCall option.
+    /// Enables or disables the TailCall option.
     ///
     /// # Argument
     ///
-    /// - `flag` specifies if the option turns on or not.
-    pub fn enable_tail_call(self, flag: bool) -> Self {
+    /// - `enable` specifies if the option turns on or not.
+    pub fn tail_call(self, enable: bool) -> Self {
         unsafe {
-            if flag && !self.tail_call_enabled() {
+            if enable {
                 wasmedge::WasmEdge_ConfigureAddProposal(
                     self.ctx,
                     wasmedge::WasmEdge_Proposal_TailCall,
                 )
-            } else if !flag && self.tail_call_enabled() {
+            } else {
                 wasmedge::WasmEdge_ConfigureRemoveProposal(
                     self.ctx,
                     wasmedge::WasmEdge_Proposal_TailCall,
@@ -468,19 +468,19 @@ impl Config {
         }
     }
 
-    /// Enables the Annotations option.
+    /// Enables or disables the Annotations option.
     ///
     /// # Argument
     ///
-    /// - `flag` specifies if the option turns on or not.
-    pub fn enable_annotations(self, flag: bool) -> Self {
+    /// - `enable` specifies if the option turns on or not.
+    pub fn annotations(self, enable: bool) -> Self {
         unsafe {
-            if flag && !self.annotations_enabled() {
+            if enable {
                 wasmedge::WasmEdge_ConfigureAddProposal(
                     self.ctx,
                     wasmedge::WasmEdge_Proposal_Annotations,
                 )
-            } else if !flag && self.annotations_enabled() {
+            } else {
                 wasmedge::WasmEdge_ConfigureRemoveProposal(
                     self.ctx,
                     wasmedge::WasmEdge_Proposal_Annotations,
@@ -500,19 +500,19 @@ impl Config {
         }
     }
 
-    /// Enables the Memory64 option.
+    /// Enables or disables the Memory64 option.
     ///
     /// # Argument
     ///
-    /// - `flag` specifies if the option turns on or not.
-    pub fn enable_memory64(self, flag: bool) -> Self {
+    /// - `enable` specifies if the option turns on or not.
+    pub fn memory64(self, enable: bool) -> Self {
         unsafe {
-            if flag && !self.memory64_enabled() {
+            if enable {
                 wasmedge::WasmEdge_ConfigureAddProposal(
                     self.ctx,
                     wasmedge::WasmEdge_Proposal_Memory64,
                 )
-            } else if !flag && self.memory64_enabled() {
+            } else {
                 wasmedge::WasmEdge_ConfigureRemoveProposal(
                     self.ctx,
                     wasmedge::WasmEdge_Proposal_Memory64,
@@ -529,19 +529,19 @@ impl Config {
         }
     }
 
-    /// Enables the Threads option.
+    /// Enables or disables the Threads option.
     ///
     /// # Argument
     ///
-    /// - `flag` specifies if the option turns on or not.
-    pub fn enable_threads(self, flag: bool) -> Self {
+    /// - `enable` specifies if the option turns on or not.
+    pub fn threads(self, enable: bool) -> Self {
         unsafe {
-            if flag && !self.threads_enabled() {
+            if enable {
                 wasmedge::WasmEdge_ConfigureAddProposal(
                     self.ctx,
                     wasmedge::WasmEdge_Proposal_Threads,
                 )
-            } else if !flag && self.threads_enabled() {
+            } else {
                 wasmedge::WasmEdge_ConfigureRemoveProposal(
                     self.ctx,
                     wasmedge::WasmEdge_Proposal_Threads,
@@ -558,19 +558,19 @@ impl Config {
         }
     }
 
-    /// Enables the ExceptionHandling option.
+    /// Enables or disables the ExceptionHandling option.
     ///
     /// # Argument
     ///
-    /// - `flag` specifies if the option turns on or not.
-    pub fn enable_exception_handling(self, flag: bool) -> Self {
+    /// - `enable` specifies if the option turns on or not.
+    pub fn exception_handling(self, enable: bool) -> Self {
         unsafe {
-            if flag && !self.exception_handling_enabled() {
+            if enable {
                 wasmedge::WasmEdge_ConfigureAddProposal(
                     self.ctx,
                     wasmedge::WasmEdge_Proposal_ExceptionHandling,
                 )
-            } else if !flag && self.exception_handling_enabled() {
+            } else {
                 wasmedge::WasmEdge_ConfigureRemoveProposal(
                     self.ctx,
                     wasmedge::WasmEdge_Proposal_ExceptionHandling,
@@ -590,19 +590,19 @@ impl Config {
         }
     }
 
-    /// Enables the FunctionReferences option.
+    /// Enables or disables the FunctionReferences option.
     ///
     /// # Argument
     ///
-    /// - `flag` specifies if the option turns on or not.
-    pub fn enable_function_references(self, flag: bool) -> Self {
+    /// - `enable` specifies if the option turns on or not.
+    pub fn function_references(self, enable: bool) -> Self {
         unsafe {
-            if flag && !self.function_references_enabled() {
+            if enable {
                 wasmedge::WasmEdge_ConfigureAddProposal(
                     self.ctx,
                     wasmedge::WasmEdge_Proposal_FunctionReferences,
                 )
-            } else if !flag && self.function_references_enabled() {
+            } else {
                 wasmedge::WasmEdge_ConfigureRemoveProposal(
                     self.ctx,
                     wasmedge::WasmEdge_Proposal_FunctionReferences,
@@ -791,15 +791,15 @@ mod tests {
 
         // set options
         let config = config
-            .enable_annotations(true)
-            .enable_bulk_memory_operations(false)
-            .enable_exception_handling(true)
-            .enable_function_references(true)
-            .enable_memory64(true)
-            .enable_reference_types(false)
-            .enable_simd(false)
-            .enable_tail_call(true)
-            .enable_threads(true)
+            .annotations(true)
+            .bulk_memory_operations(false)
+            .exception_handling(true)
+            .function_references(true)
+            .memory64(true)
+            .reference_types(false)
+            .simd(false)
+            .tail_call(true)
+            .threads(true)
             .measure_cost(true)
             .measure_time(true)
             .dump_ir(true)

@@ -19,6 +19,7 @@ pub mod wasmedge {
     include!(concat!(env!("OUT_DIR"), "/wasmedge.rs"));
 }
 #[doc(hidden)]
+#[cfg(feature = "aot")]
 pub mod compiler;
 #[doc(hidden)]
 pub mod config;
@@ -46,6 +47,7 @@ pub mod validator;
 pub mod vm;
 
 #[doc(inline)]
+#[cfg(feature = "aot")]
 pub use compiler::Compiler;
 #[doc(inline)]
 pub use config::Config;

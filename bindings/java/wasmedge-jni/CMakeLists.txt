@@ -27,7 +27,15 @@ add_library(${TARGET} SHARED
         lib/AstModuleContext.c
         lib/StatisticsContext.c
         lib/ExecutorContext.c
-        lib/ValidatorContext.c)
+        lib/ValidatorContext.c
+        lib/GlobalInstanceContext.c
+        lib/ValueType.c
+        lib/TableInstanceContext.c
+        lib/TableTypeContext.h
+        lib/MemoryInstanceContext.c
+        lib/MemoryTypeContext.c
+        lib/MemoryTypeContext.h)
+
 target_link_libraries(${TARGET} wasmedge_c)
 
 install(TARGETS ${TARGET}

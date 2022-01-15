@@ -1,19 +1,32 @@
 package org.wasmedge;
 
-import org.wasmedge.enums.WasmEdgeMutability;
-
 public class GlobalInstanceContext {
+    private GlobalTypeContext globalTypeContext;
+    private WasmEdgeValue value;
 
     public GlobalInstanceContext(GlobalTypeContext typeCxt,
                                  WasmEdgeValue value) {
-
+        this.globalTypeContext = typeCxt;
+        this.value = value;
+        nativeInit(typeCxt, value);
     }
 
-    public native GlobalTypeContext getGlobalType();
+    private native void nativeInit(GlobalTypeContext typeCxt, WasmEdgeValue value);
 
-    public native void setValue(WasmEdgeValue value);
+    public GlobalTypeContext getGlobalType() {
+        return globalTypeContext;
+    }
 
-    public native WasmEdgeValue getValue();
+    public void setValue(WasmEdgeValue value) {
+        this.value = value;
+        nativeSetValue(value);
+    }
+
+    private native void nativeSetValue(WasmEdgeValue value);
+
+    public WasmEdgeValue getValue() {
+        return this.value;
+    }
 
     public native void delete();
 }

@@ -1,18 +1,31 @@
 package org.wasmedge;
 
-public class TableInstanceContext {
-    private long pointer;
-    public TableInstanceContext(TableTypeContext tableTypeContext) {
+import org.wasmedge.enums.ValueType;
 
+public class TableInstanceContext {
+
+    private long pointer;
+
+    private TableTypeContext tableTypeContext;
+
+    public TableInstanceContext(TableTypeContext tableTypeContext) {
+        this.tableTypeContext = tableTypeContext;
+        nativeInit(tableTypeContext);
     }
+
+    private native void nativeInit(TableTypeContext tableTypeContext);
 
     public native void delete();
 
-    public native TableTypeContext getTableType();
+    public TableTypeContext getTableType() {
+        return this.tableTypeContext;
+    }
 
     public native void setData(WasmEdgeValue value, int index);
 
-    public native WasmEdgeValue getData(int offSet);
+    public WasmEdgeValue getData(ValueType valueType, int offSet);
+
+    private native WasmEdgeValue getData(int)
 
     public native int getSize();
 

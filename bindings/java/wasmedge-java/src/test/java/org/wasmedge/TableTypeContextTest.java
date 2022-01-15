@@ -9,7 +9,7 @@ import java.util.List;
 
 public class TableTypeContextTest extends BaseTest {
 
-    @Test
+//    @Test
     public void testCreation() {
         RefType refType = RefType.EXTERREF;
         WasmEdgeLimit limit = new WasmEdgeLimit(true, 1, 1000);
@@ -21,7 +21,7 @@ public class TableTypeContextTest extends BaseTest {
         Assert.assertEquals(tableTypeContext.getLimit().getMin(), limit.getMin());
     }
 
-    @Test
+//    @Test
     public void testRegisterWasmModule() {
         ConfigureContext configureContext = new ConfigureContext();
         StatisticsContext statisticsContext = new StatisticsContext();
@@ -32,7 +32,7 @@ public class TableTypeContextTest extends BaseTest {
         executorContext.registerModule(storeContext, mod, modName);
     }
 
-    @Test(expected = RuntimeException.class)
+//    @Test(expected = RuntimeException.class)
     public void testRegisterWasmModuleNameConflict() {
         ConfigureContext configureContext = new ConfigureContext();
         StatisticsContext statisticsContext = new StatisticsContext();
@@ -44,7 +44,7 @@ public class TableTypeContextTest extends BaseTest {
         executorContext.registerModule(storeContext, mod, modName);
     }
 
-    @Test
+//    @Test
     public void testInstantiateModule() {
         ConfigureContext configureContext = new ConfigureContext();
         StatisticsContext statisticsContext = new StatisticsContext();
@@ -54,7 +54,7 @@ public class TableTypeContextTest extends BaseTest {
         executorContext.instantiate(storeContext, mod);
     }
 
-    @Test(expected = RuntimeException.class)
+//    @Test(expected = RuntimeException.class)
     public void testInstantiateModuleWithInvalidStore() {
         ConfigureContext configureContext = new ConfigureContext();
         StatisticsContext statisticsContext = new StatisticsContext();
@@ -63,7 +63,7 @@ public class TableTypeContextTest extends BaseTest {
         executorContext.instantiate(null, mod);
     }
 
-    @Test(expected = RuntimeException.class)
+//    @Test(expected = RuntimeException.class)
     public void testInstantiateModuleWithInvalidMod() {
         ConfigureContext configureContext = new ConfigureContext();
         StatisticsContext statisticsContext = new StatisticsContext();
@@ -72,7 +72,7 @@ public class TableTypeContextTest extends BaseTest {
         executorContext.instantiate(storeContext, null);
     }
 
-    @Test
+//    @Test
     public void testOverrideInstantiatedModule() {
         ConfigureContext configureContext = new ConfigureContext();
         StatisticsContext statisticsContext = new StatisticsContext();
@@ -83,7 +83,7 @@ public class TableTypeContextTest extends BaseTest {
         executorContext.instantiate(storeContext, mod);
     }
 
-    @Test
+//    @Test
     public void testInvokeFunction() {
         String funcName = "func-mul-2";
         List<WasmEdgeValue> params = new ArrayList<>();
@@ -96,7 +96,7 @@ public class TableTypeContextTest extends BaseTest {
         executorContext.invoke(new StoreContext(), funcName, params, returns);
     }
 
-    @Test
+//    @Test
     public void testInvokeFunctionTypeParamMismatch() {
         String funcName = "func-mul-2";
         List<WasmEdgeValue> params = new ArrayList<>();
@@ -108,7 +108,7 @@ public class TableTypeContextTest extends BaseTest {
         executorContext.invoke(new StoreContext(), funcName, params, returns);
     }
 
-    @Test
+//    @Test
     public void testInvokeFunctionNullParam() {
         String funcName = "func-mul-2";
         List<WasmEdgeValue> returns = new ArrayList<>();
@@ -116,7 +116,7 @@ public class TableTypeContextTest extends BaseTest {
         executorContext.invoke(new StoreContext(), funcName, null, returns);
     }
 
-    @Test
+//    @Test
     public void testInvokeFunctionParamTypeMismatch() {
         String funcName = "func-mul-2";
         List<WasmEdgeValue> params = new ArrayList<>();
@@ -129,7 +129,7 @@ public class TableTypeContextTest extends BaseTest {
         executorContext.invoke(new StoreContext(), funcName, params, returns);
     }
 
-    @Test
+//    @Test
     public void testInvokeFunctionParamTypeFunctionNotFound() {
         String funcName = "func-mul-3";
         List<WasmEdgeValue> params = new ArrayList<>();

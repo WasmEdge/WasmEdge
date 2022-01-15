@@ -54,4 +54,6 @@ bool checkAndHandleException(JNIEnv *env, const char* msg);
 
 void setJavaValueObject(JNIEnv *env, WasmEdge_Value value, jobject j_val);
 
+jobject WasmEdgeStringArrayToJavaList(JNIEnv* env, WasmEdge_String* wStrList, int32_t len);
+
 #endif //WASMEDGE_JAVA_COMMON_H

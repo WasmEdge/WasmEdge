@@ -9,7 +9,7 @@ public class GlobalInstanceContextTest extends BaseTest {
     private GlobalTypeContext typeCxt;
     private GlobalInstanceContext instCxt;
 
-    @Test
+//    @Test
     public void testCreation() {
         typeCxt = new GlobalTypeContext(ValueType.i64, WasmEdgeMutability.VAR);
         instCxt = new GlobalInstanceContext(typeCxt, new WasmEdgeI64Value(66666666666L));
@@ -18,7 +18,7 @@ public class GlobalInstanceContextTest extends BaseTest {
         instCxt.delete();
     }
 
-    @Test
+//    @Test
     public void testGetValType() {
         typeCxt = new GlobalTypeContext(ValueType.i64, WasmEdgeMutability.VAR);
         instCxt = new GlobalInstanceContext(typeCxt, new WasmEdgeI64Value(66666666666L));
@@ -32,7 +32,7 @@ public class GlobalInstanceContextTest extends BaseTest {
         instCxt.delete();
     }
 
-    @Test
+//    @Test
     public void testGetValue() {
         typeCxt = new GlobalTypeContext(ValueType.i64, WasmEdgeMutability.VAR);
         instCxt = new GlobalInstanceContext(typeCxt, new WasmEdgeI64Value(66666666666L));

@@ -3,6 +3,7 @@ package org.wasmedge;
 import org.junit.Assert;
 import org.junit.Test;
 import org.wasmedge.enums.RefType;
+import org.wasmedge.enums.ValueType;
 
 public class TableInstanceTest extends BaseTest {
     @Test
@@ -39,7 +40,7 @@ public class TableInstanceTest extends BaseTest {
         tabIns.setData(val, 5);
         tabIns.setData(tmpVal, 6);
 
-        WasmEdgeValue returnVal = tabIns.getData(5);
+        WasmEdgeValue returnVal = tabIns.getData(ValueType.i32, 5);
         Assert.fail("TBC");
     }
 

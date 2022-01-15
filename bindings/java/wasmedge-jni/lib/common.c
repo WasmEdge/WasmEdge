@@ -106,8 +106,6 @@ long getPointer(JNIEnv* env, jobject obj) {
         exitWithError(JVM_ERROR, "pointer filed not found!");
     }
     jlong value = (*env)->GetLongField(env, obj, fidPointer);
-    char buf[216];
-    getClassName(env, obj, buf);
     return value;
 }
 
@@ -240,4 +238,59 @@ void setJavaValueObject(JNIEnv *env, WasmEdge_Value value, jobject j_val) {
         default:
             break;
     }
+}
+
+
+
+jobject WasmEdgeStringArrayToJavaList(JNIEnv* env, WasmEdge_String* wStrList, int32_t len) {
+    jclass listClass = findJavaClass(env, "java/util/ArrayList");
+
+    if (listClass == NULL) {
+        return NULL;
+    }
+
+    jmethodID listConstructor = findJavaMethod(env, listClass, "<init>", "(I)V");
+
+    if(listConstructor == NULL) {
+        return NULL;
+    }
+
+    jobject jList = (*env)->NewObject(env, listClass, listConstructor, len);
+
+    if(jList == NULL) {
+        return NULL;
+    }
+
+    if(checkAndHandleException(env, "Error when creating java list\n")) {
+        return NULL;
+    }
+
+
+    jmethodID addMethod = findJavaMethod(env, listClass, "add", "(Ljava/lang/Object;)Z");
+
+    if(addMethod == NULL) {
+        return NULL;
+    }
+
+    WasmEdge_String * ptr = wStrList;
+    int BUFLEN = 256;
+    char buf[BUFLEN];
+    for (int i = 0; i < len; ++i) {
+
+
+        memset(buf, 0, BUFLEN);
+        WasmEdge_StringCopy(*ptr, buf, BUFLEN);
+        jobject jStr = (*env)->NewStringUTF(env, buf);
+
+        (*env)->CallBooleanMethod(env, jList, addMethod, jStr);
+
+        if(checkAndHandleException(env, "Error when adding jstr\n")) {
+            return NULL;
+        }
+
+        ptr++;
+    }
+
+    return jList;
+
 }

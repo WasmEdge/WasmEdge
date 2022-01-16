@@ -33,6 +33,26 @@ public:
     openVerificationState() override;
 
   private:
+    static WasiCryptoExpect<std::unique_ptr<PublicKey>>
+    importPkcs8(Span<uint8_t const> Encoded);
+
+    static WasiCryptoExpect<std::unique_ptr<PublicKey>>
+    importPem(Span<uint8_t const> Encoded);
+
+    static WasiCryptoExpect<std::unique_ptr<PublicKey>>
+    importSec(Span<uint8_t const> Encoded);
+
+    static WasiCryptoExpect<std::unique_ptr<PublicKey>>
+    importCompressedSec(Span<uint8_t const> Encoded);
+
+    WasiCryptoExpect<std::vector<uint8_t>> exportPkcs8();
+
+    WasiCryptoExpect<std::vector<uint8_t>> exportPem();
+
+    WasiCryptoExpect<std::vector<uint8_t>> exportSec();
+
+    WasiCryptoExpect<std::vector<uint8_t>> exportCompressedSec();
+
     EvpPkeyPtr Ctx;
   };
 
@@ -47,6 +67,26 @@ public:
     exportData(__wasi_secretkey_encoding_e_t Encoding) override;
 
   private:
+    static WasiCryptoExpect<std::unique_ptr<SecretKey>>
+    importPkcs8(Span<uint8_t const> Encoded);
+
+    static WasiCryptoExpect<std::unique_ptr<SecretKey>>
+    importPem(Span<uint8_t const> Encoded);
+
+    static WasiCryptoExpect<std::unique_ptr<SecretKey>>
+    importSec(Span<uint8_t const> Encoded);
+
+    static WasiCryptoExpect<std::unique_ptr<SecretKey>>
+    importCompressedSec(Span<uint8_t const> Encoded);
+
+    WasiCryptoExpect<std::vector<uint8_t>> exportPkcs8();
+
+    WasiCryptoExpect<std::vector<uint8_t>> exportPem();
+
+    WasiCryptoExpect<std::vector<uint8_t>> exportSec();
+
+    WasiCryptoExpect<std::vector<uint8_t>> exportCompressedSec();
+
     EvpPkeyPtr Ctx;
   };
 
@@ -73,6 +113,21 @@ public:
     openSignState() override;
 
   private:
+    static WasiCryptoExpect<std::unique_ptr<KeyPair>>
+    importPkcs8(Span<uint8_t const> Encoded);
+
+    static WasiCryptoExpect<std::unique_ptr<KeyPair>>
+    importPem(Span<uint8_t const> Encoded);
+
+    static WasiCryptoExpect<std::unique_ptr<KeyPair>>
+    importRaw(Span<uint8_t const> Encoded);
+
+    WasiCryptoExpect<std::vector<uint8_t>> exportPkcs8();
+
+    WasiCryptoExpect<std::vector<uint8_t>> exportPem();
+
+    WasiCryptoExpect<std::vector<uint8_t>> exportRaw();
+
     EvpPkeyPtr Ctx;
   };
 

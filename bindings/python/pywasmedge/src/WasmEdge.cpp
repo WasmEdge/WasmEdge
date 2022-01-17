@@ -63,6 +63,11 @@ PYBIND11_MODULE(WasmEdge, module) {
       .value("ExternRef", WasmEdge_ValType_ExternRef)
       .export_values();
 
+  pybind11::enum_<WasmEdge_RefType>(module, "RefType")
+      .value("FuncRef", WasmEdge_RefType_FuncRef)
+      .value("ExternRef", WasmEdge_RefType_ExternRef)
+      .export_values();
+
   /* TODO: Find suitable use for WasmEdge WASM value struct from python
    * perspective */
   pybind11::class_<pysdk::Value>(module, "Value")

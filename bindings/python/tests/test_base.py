@@ -68,10 +68,12 @@ def test_value():
 
     val = WasmEdge.Value(num1)
     val2 = WasmEdge.Value(num2)
+    val3 = WasmEdge.Value(WasmEdge.RefType.FuncRef)
 
     assert val.Value * val2.Value == num1 * num2
     assert val.Type == WasmEdge.Type.I32
     assert val2.Type == WasmEdge.Type.F32
+    assert val3.Type == WasmEdge.RefType.FuncRef
 
 
 def test_step_by_step():

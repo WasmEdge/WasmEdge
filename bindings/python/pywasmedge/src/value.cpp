@@ -19,6 +19,8 @@ void pysdk::Value::set_value(pybind11::object obj_) {
     Val = WasmEdge_ValueGenF32(obj.cast<float>());
   } else if (pybind11::isinstance<double>(obj)) {
     Val = WasmEdge_ValueGenF64(obj.cast<double>());
+  } else if (pybind11::isinstance<WasmEdge_RefType>(obj)) {
+    Val = WasmEdge_ValueGenNullRef(obj.cast<WasmEdge_RefType>());
   }
 }
 /* --------------- Value End -------------------------------- */

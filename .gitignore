@@ -74,3 +74,5 @@ docs/_build
 
 # mdbook build
 docs/book/*/book
+
+bindings/rust/wasmedge-sys/examples/.ipynb_checkpoints/*

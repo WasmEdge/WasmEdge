@@ -2,7 +2,9 @@
 
 #include "host/wasi_crypto/signature/eddsa.h"
 
+#include "host/wasi_crypto/error.h"
 #include "openssl/x509.h"
+#include "wasi_crypto/api.hpp"
 
 namespace WasmEdge {
 namespace Host {
@@ -12,9 +14,9 @@ namespace Signatures {
 WasiCryptoExpect<std::unique_ptr<EddsaPublicKey>>
 EddsaPublicKey::import(Span<const uint8_t> Encoded,
                        __wasi_publickey_encoding_e_t Encoding) {
-  EVP_PKEY *Pk = nullptr;
   switch (Encoding) {
   case __WASI_PUBLICKEY_ENCODING_RAW: {
+    EVP_PKEY *Pk = nullptr;
     const uint8_t *Temp = Encoded.data();
     ensureOrReturn(Encoded.size() == EddsaPublicKey::Size,
                    __WASI_CRYPTO_ERRNO_INVALID_KEY);
@@ -24,23 +26,11 @@ EddsaPublicKey::import(Span<const uint8_t> Encoded,
     Pk = d2i_PublicKey(EVP_PKEY_ED25519, &Pk, &Temp,
                        static_cast<long>(Encoded.size()));
     ensureOrReturn(Pk, __WASI_CRYPTO_ERRNO_INVALID_KEY);
-    break;
+    return std::make_unique<EddsaPublicKey>(Pk);
   }
-  case __WASI_PUBLICKEY_ENCODING_PKCS8:
-    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
-  case __WASI_PUBLICKEY_ENCODING_PEM:
-    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
-  case __WASI_PUBLICKEY_ENCODING_SEC:
-    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
-  case __WASI_PUBLICKEY_ENCODING_COMPRESSED_SEC:
-    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
-  case __WASI_PUBLICKEY_ENCODING_LOCAL:
-    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
   default:
-    assumingUnreachable();
+    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_UNSUPPORTED_ENCODING);
   }
-
-  return std::make_unique<EddsaPublicKey>(Pk);
 }
 
 WasiCryptoExpect<std::vector<uint8_t>>
@@ -53,18 +43,8 @@ EddsaPublicKey::exportData(__wasi_publickey_encoding_e_t Encoding) {
     opensslAssuming(i2d_PublicKey(Ctx.get(), &Temp));
     return Res;
   }
-  case __WASI_PUBLICKEY_ENCODING_PKCS8:
-    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
-  case __WASI_PUBLICKEY_ENCODING_PEM:
-    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
-  case __WASI_PUBLICKEY_ENCODING_SEC:
-    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
-  case __WASI_PUBLICKEY_ENCODING_COMPRESSED_SEC:
-    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
-  case __WASI_PUBLICKEY_ENCODING_LOCAL:
-    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
   default:
-    assumingUnreachable();
+    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_UNSUPPORTED_ENCODING);
   }
 }
 
@@ -81,9 +61,9 @@ EddsaPublicKey::openVerificationState() {
 WasiCryptoExpect<std::unique_ptr<SecretKey>>
 EddsaSecretKey::import(Span<const uint8_t> Encoded,
                        __wasi_secretkey_encoding_e_t Encoding) {
-  EVP_PKEY *Sk = nullptr;
   switch (Encoding) {
   case __WASI_SECRETKEY_ENCODING_RAW: {
+    EVP_PKEY *Sk = nullptr;
     ensureOrReturn(Encoded.size() == EddsaSecretKey::Size,
                    __WASI_CRYPTO_ERRNO_INVALID_KEY);
     const uint8_t *Temp = Encoded.data();
@@ -93,23 +73,11 @@ EddsaSecretKey::import(Span<const uint8_t> Encoded,
     Sk = d2i_PrivateKey(EVP_PKEY_ED25519, &Sk, &Temp,
                         static_cast<long>(Encoded.size()));
     ensureOrReturn(Sk, __WASI_CRYPTO_ERRNO_INVALID_KEY);
-    break;
+    return std::make_unique<EddsaSecretKey>(Sk);
   }
-  case __WASI_SECRETKEY_ENCODING_PKCS8:
-    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
-  case __WASI_SECRETKEY_ENCODING_PEM:
-    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
-  case __WASI_SECRETKEY_ENCODING_SEC:
-    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
-  case __WASI_SECRETKEY_ENCODING_COMPRESSED_SEC:
-    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
-  case __WASI_SECRETKEY_ENCODING_LOCAL:
-    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
   default:
-    assumingUnreachable();
+    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_UNSUPPORTED_ENCODING);
   }
-
-  return std::make_unique<EddsaSecretKey>(Sk);
 }
 
 WasiCryptoExpect<std::vector<uint8_t>>
@@ -122,23 +90,8 @@ EddsaSecretKey::exportData(__wasi_secretkey_encoding_e_t Encoding) {
     opensslAssuming(i2d_PrivateKey(Ctx.get(), &Temp));
     return Res;
   }
-  case __WASI_SECRETKEY_ENCODING_PKCS8: {
-    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
-  }
-  case __WASI_SECRETKEY_ENCODING_PEM: {
-    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
-  }
-  case __WASI_SECRETKEY_ENCODING_SEC: {
-    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
-  }
-  case __WASI_SECRETKEY_ENCODING_COMPRESSED_SEC: {
-    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
-  }
-  case __WASI_SECRETKEY_ENCODING_LOCAL: {
-    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
-  }
   default:
-    assumingUnreachable();
+    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_UNSUPPORTED_ENCODING);
   }
 }
 
@@ -158,9 +111,9 @@ EddsaKeyPair::generate(std::shared_ptr<Options>) {
 WasiCryptoExpect<std::unique_ptr<KeyPair>>
 EddsaKeyPair::import(Span<const uint8_t> Encoded,
                      __wasi_keypair_encoding_e_t Encoding) {
-  EVP_PKEY *Kp = nullptr;
   switch (Encoding) {
   case __WASI_KEYPAIR_ENCODING_RAW: {
+    EVP_PKEY *Kp = nullptr;
     ensureOrReturn(Encoded.size() == EddsaKeyPair::Size,
                    __WASI_CRYPTO_ERRNO_INVALID_KEY);
 
@@ -170,19 +123,11 @@ EddsaKeyPair::import(Span<const uint8_t> Encoded,
     Kp = d2i_PrivateKey(EVP_PKEY_ED25519, &Kp, &Temp,
                         static_cast<long>(Encoded.size()));
     ensureOrReturn(Kp, __WASI_CRYPTO_ERRNO_INVALID_KEY);
-    break;
+    return std::make_unique<EddsaKeyPair>(Kp);
   }
-  case __WASI_KEYPAIR_ENCODING_PKCS8:
-    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
-  case __WASI_KEYPAIR_ENCODING_PEM:
-    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
-  case __WASI_KEYPAIR_ENCODING_LOCAL:
-    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
   default:
-    assumingUnreachable();
+    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_UNSUPPORTED_ENCODING);
   }
-
-  return std::make_unique<EddsaKeyPair>(Kp);
 }
 
 WasiCryptoExpect<std::vector<uint8_t>>
@@ -195,16 +140,9 @@ EddsaKeyPair::exportData(__wasi_keypair_encoding_e_t Encoding) {
     opensslAssuming(i2d_PrivateKey(Ctx.get(), &Temp));
     return Res;
   }
-  case __WASI_KEYPAIR_ENCODING_PKCS8:
-    break;
-  case __WASI_KEYPAIR_ENCODING_PEM:
-    break;
-  case __WASI_KEYPAIR_ENCODING_LOCAL:
-    break;
   default:
-    assumingUnreachable();
+    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_UNSUPPORTED_ENCODING);
   }
-  return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
 }
 
 WasiCryptoExpect<std::unique_ptr<PublicKey>> EddsaKeyPair::publicKey() {
@@ -246,10 +184,8 @@ EddsaSignature::import(Span<const uint8_t> Encoded,
                    __WASI_CRYPTO_ERRNO_INVALID_SIGNATURE);
     return std::make_unique<EddsaSignature>(
         std::vector<uint8_t>{Encoded.begin(), Encoded.end()});
-  case __WASI_SIGNATURE_ENCODING_DER:
-    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
   default:
-    assumingUnreachable();
+    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_UNSUPPORTED_ENCODING);
   }
 }
 
@@ -258,10 +194,8 @@ EddsaSignature::exportData(__wasi_signature_encoding_e_t Encoding) {
   switch (Encoding) {
   case __WASI_SIGNATURE_ENCODING_RAW:
     return Data;
-  case __WASI_SIGNATURE_ENCODING_DER:
-    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
   default:
-    assumingUnreachable();
+    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_UNSUPPORTED_ENCODING);
   }
 }
 

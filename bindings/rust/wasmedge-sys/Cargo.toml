@@ -18,3 +18,8 @@ bindgen = { version = "0.59.1", default-features = false, features = ["runtime"]
 default = ["aot"]
 standalone = []
 aot = []
+
+[dev-dependencies]
+tokio = { version = "1", features = ["full"] }
+serde = { version = "1.0", features = ["derive"] }
+poem = "1.2"

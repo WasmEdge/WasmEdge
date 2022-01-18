@@ -8,7 +8,7 @@ As you may know, several mainstream programming languages, such as C/C++, Rust, 
 
 We use `fibonacci.wasm` in this demo, and the contents of the WebAssembly file are presented as below. The statement, `(export "fib" (func $fib))`, declares an exported function named `fib`. This function computes a fibonacci number with a given `i32` number as input. We'll use the function name later to achieve the goal of computing a fibonacci number.
 
-```bash
+```wasm
 (module
  (export "fib" (func $fib))
  (func $fib (param $n i32) (result i32)

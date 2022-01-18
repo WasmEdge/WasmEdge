@@ -13,6 +13,14 @@ TypeT<T> Executor::runAtomicLoadOp(Runtime::Instance::MemoryInstance &MemInst,
                              const AST::Instruction &Instr,
                              const uint32_t BitWidth) {
   detail::atomicLock();
+  ValVariant &Address = StackMgr.getTop();
+  if( (Address.get<uint32_t>() & ((BitWidth >> 3U) - 1)) != 0){
+    spdlog::error(ErrCode::UnalignedAtomicAccess);
+    spdlog::error(ErrInfo::InfoInstruction(Instr.getOpCode(),
+                                           Instr.getOffset()));
+    detail::atomicUnlock();
+    return Unexpect(ErrCode::UnalignedAtomicAccess);
+  }
   runLoadOp<T>(MemInst, Instr, BitWidth);
   detail::atomicUnlock();
   return {};
@@ -23,6 +31,15 @@ TypeT<T> Executor::runAtomicStoreOp(Runtime::Instance::MemoryInstance &MemInst,
                               const AST::Instruction &Instr,
                               const uint32_t BitWidth) {
   detail::atomicLock();
+  ValVariant &Address = StackMgr.getBottomN(2);
+  // ValVariant &Address = StackMgr.getTop();
+  if( (Address.get<uint32_t>() & ((BitWidth >> 3U) - 1)) != 0){
+    spdlog::error(ErrCode::UnalignedAtomicAccess);
+    spdlog::error(ErrInfo::InfoInstruction(Instr.getOpCode(),
+                                           Instr.getOffset()));
+    detail::atomicUnlock();
+    return Unexpect(ErrCode::UnalignedAtomicAccess);
+  }
   typedef typename std::make_unsigned<T>::type UT;
   runStoreOp<UT>(MemInst, Instr, BitWidth);
   detail::atomicUnlock();
@@ -36,6 +53,13 @@ TypeT<T> Executor::runAtomicAddOp(Runtime::Instance::MemoryInstance &MemInst,
   detail::atomicLock();
   ValVariant RHS = StackMgr.pop();
   ValVariant Address = StackMgr.getTop();
+  if( (Address.get<uint32_t>() & ((BitWidth >> 3U) - 1)) != 0){
+    spdlog::error(ErrCode::UnalignedAtomicAccess);
+    spdlog::error(ErrInfo::InfoInstruction(Instr.getOpCode(),
+                                           Instr.getOffset()));
+    detail::atomicUnlock();
+    return Unexpect(ErrCode::UnalignedAtomicAccess);
+  }
   runLoadOp<T>(MemInst, Instr, BitWidth);
 
   typedef typename std::make_unsigned<T>::type UT;
@@ -60,6 +84,13 @@ TypeT<T> Executor::runAtomicSubOp(Runtime::Instance::MemoryInstance &MemInst,
   detail::atomicLock();
   ValVariant RHS = StackMgr.pop();
   ValVariant Address = StackMgr.getTop();
+  if( (Address.get<uint32_t>() & ((BitWidth >> 3U) - 1)) != 0){
+    spdlog::error(ErrCode::UnalignedAtomicAccess);
+    spdlog::error(ErrInfo::InfoInstruction(Instr.getOpCode(),
+                                           Instr.getOffset()));
+    detail::atomicUnlock();
+    return Unexpect(ErrCode::UnalignedAtomicAccess);
+  }
   runLoadOp<T>(MemInst, Instr, BitWidth);
 
   typedef typename std::make_unsigned<T>::type UT;
@@ -84,6 +115,13 @@ TypeT<T> Executor::runAtomicOrOp(Runtime::Instance::MemoryInstance &MemInst,
   detail::atomicLock();
   ValVariant RHS = StackMgr.pop();
   ValVariant Address = StackMgr.getTop();
+  if( (Address.get<uint32_t>() & ((BitWidth >> 3U) - 1)) != 0){
+    spdlog::error(ErrCode::UnalignedAtomicAccess);
+    spdlog::error(ErrInfo::InfoInstruction(Instr.getOpCode(),
+                                           Instr.getOffset()));
+    detail::atomicUnlock();
+    return Unexpect(ErrCode::UnalignedAtomicAccess);
+  }
   runLoadOp<T>(MemInst, Instr, BitWidth);
 
   typedef typename std::make_unsigned<T>::type UT;
@@ -108,6 +146,13 @@ TypeT<T> Executor::runAtomicAndOp(Runtime::Instance::MemoryInstance &MemInst,
   detail::atomicLock();
   ValVariant RHS = StackMgr.pop();
   ValVariant Address = StackMgr.getTop();
+  if( (Address.get<uint32_t>() & ((BitWidth >> 3U) - 1)) != 0){
+    spdlog::error(ErrCode::UnalignedAtomicAccess);
+    spdlog::error(ErrInfo::InfoInstruction(Instr.getOpCode(),
+                                           Instr.getOffset()));
+    detail::atomicUnlock();
+    return Unexpect(ErrCode::UnalignedAtomicAccess);
+  }
   runLoadOp<T>(MemInst, Instr, BitWidth);
 
   typedef typename std::make_unsigned<T>::type UT;
@@ -132,6 +177,13 @@ TypeT<T> Executor::runAtomicXorOp(Runtime::Instance::MemoryInstance &MemInst,
   detail::atomicLock();
   ValVariant RHS = StackMgr.pop();
   ValVariant Address = StackMgr.getTop();
+  if( (Address.get<uint32_t>() & ((BitWidth >> 3U) - 1)) != 0){
+    spdlog::error(ErrCode::UnalignedAtomicAccess);
+    spdlog::error(ErrInfo::InfoInstruction(Instr.getOpCode(),
+                                           Instr.getOffset()));
+    detail::atomicUnlock();
+    return Unexpect(ErrCode::UnalignedAtomicAccess);
+  }
   runLoadOp<T>(MemInst, Instr, BitWidth);
 
   typedef typename std::make_unsigned<T>::type UT;
@@ -156,6 +208,13 @@ TypeT<T> Executor::runAtomicExchangeOp(Runtime::Instance::MemoryInstance &MemIns
   detail::atomicLock();
   ValVariant RHS = StackMgr.pop();
   ValVariant Address = StackMgr.getTop();
+  if( (Address.get<uint32_t>() & ((BitWidth >> 3U) - 1)) != 0){
+    spdlog::error(ErrCode::UnalignedAtomicAccess);
+    spdlog::error(ErrInfo::InfoInstruction(Instr.getOpCode(),
+                                           Instr.getOffset()));
+    detail::atomicUnlock();
+    return Unexpect(ErrCode::UnalignedAtomicAccess);
+  }
   runLoadOp<T>(MemInst, Instr, BitWidth);
 
   typedef typename std::make_unsigned<T>::type UT;
@@ -177,6 +236,13 @@ TypeT<T> Executor::runAtomicCompareExchangeOp(Runtime::Instance::MemoryInstance 
   ValVariant Val = StackMgr.pop();
   ValVariant Cmp = StackMgr.pop();
   ValVariant Address = StackMgr.getTop();
+  if( (Address.get<uint32_t>() & ((BitWidth >> 3U) - 1)) != 0){
+    spdlog::error(ErrCode::UnalignedAtomicAccess);
+    spdlog::error(ErrInfo::InfoInstruction(Instr.getOpCode(),
+                                           Instr.getOffset()));
+    detail::atomicUnlock();
+    return Unexpect(ErrCode::UnalignedAtomicAccess);
+  }
   runLoadOp<T>(MemInst, Instr, BitWidth);
   ValVariant Loaded = StackMgr.pop();
 

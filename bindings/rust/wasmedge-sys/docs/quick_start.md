@@ -43,9 +43,7 @@ We use `fibonacci.wasm` in this demo, and the contents of the WebAssembly file a
 
 ### Step 1: Create a WasmEdge AST Module
 
-***
-
-In this step,  we'll create a WasmEdge `AST Module` instance from a WebAssembly file. 
+In this step,  we'll create a WasmEdge `AST Module` instance from a WebAssembly file.
 
 - First, create a `Loader` context;
 
@@ -65,8 +63,6 @@ let mut module = loader.from_file(path).expect("fail to load the WebAssembly fil
 
 ### Step 2: Create a WasmEdge `Vm` context
 
-***
-
 In WasmEdge, a `Vm` defines an running environment, in which all various of instances and contexts are stored and mantained. In the demo code below, we explicitly create a WasmEdge `Store` context, and then use it as one of inputs in the creation of a `Vm` context. If not specify a `Store` context explicily, then `Vm` will create a store by itself.
 
 ```rust
@@ -83,8 +79,6 @@ let vm = Vm::create(Some(&config), Some(&store)).expect("fail to create a Vm con
 ```
 
 ### Step 3: Invoke the `fib` function
-
-***
 
 In Step 1, we got a module which hosts the target `fib` function defined in the WebAssembly. Now, we can call the function via the `run_wasm_from_module` method of the `Vm` context by passing the exported function name, `fib`.
 

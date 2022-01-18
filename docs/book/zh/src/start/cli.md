@@ -59,8 +59,7 @@ $ wasmedgec app.wasm app.wasm
 $ wasmedge app.wasm
 ```
 
-在 Linux 系统, it could generate
-a `so` shared library file, which is then executed by the `wasmedge` CLI.
+在 Linux 系统, 它会生成一个 `so` 共享库文件来被 `wasmedge` CLI 执行.
 
 ```bash
 $ wasmedgec app.wasm app.so

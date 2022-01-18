@@ -19,6 +19,8 @@ To enable the interactive Rust notebooks on your local machine, you need to make
 
 If you do not have `Jupyter lab` and `EvCxR Jupyter Kernel` installed yet, just spend 2 minutes reading [this post](https://datacrayon.com/posts/programming/rust-notebooks/setup-anaconda-jupyter-and-rust/) that helps you get them installed on your machine.
 
-If you do not have Rust on your machine :), just reference the [rust-lang official website](https://www.rust-lang.org/tools/install).
+If you do not have Rust on your machine :), just reference the [rust-lang official website](https://www.rust-lang.org/tools/install) to install it.
 
 The wasmedge-sys crate is the Rust bindings of WasmEdge, so you have to deploy WasmEdge on your machine first. For your convenience, you can use our official docker image. The [Build WasmEdge from source](https://wasmedge.org/book/en/extend/build.html) section in our official document provides all the necessary information to help you get ready.
+
+If all the packages mentioned above get ready on your machine, now you can go to the `notebooks` directory and try the wasmedge-sys Rust notebooks we prepared for you. Have fun!

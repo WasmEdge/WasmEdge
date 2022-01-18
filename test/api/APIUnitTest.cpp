@@ -199,10 +199,11 @@ WasmEdge_ImportObjectContext *createExternModule(std::string_view Name,
 }
 
 // Helper function to load wasm file into AST module.
-WasmEdge_ASTModuleContext *loadModule(const WasmEdge_ConfigureContext *Conf) {
+WasmEdge_ASTModuleContext *loadModule(const WasmEdge_ConfigureContext *Conf,
+                                      const char *Path) {
   WasmEdge_ASTModuleContext *Mod = nullptr;
   WasmEdge_LoaderContext *Loader = WasmEdge_LoaderCreate(Conf);
-  WasmEdge_LoaderParseFromFile(Loader, &Mod, TPath);
+  WasmEdge_LoaderParseFromFile(Loader, &Mod, Path);
   WasmEdge_LoaderDelete(Loader);
   return Mod;
 }
@@ -236,6 +237,23 @@ bool instantiateModule(const WasmEdge_ConfigureContext *Conf,
   }
   WasmEdge_ExecutorDelete(ExecCxt);
   WasmEdge_StringDelete(Name);
+  return true;
+}
+
+// Helper function to read file into a buffer.
+bool readToVector(const char *Path, std::vector<uint8_t> &Buf) {
+  std::ifstream F(Path, std::ios::binary | std::ios::ate);
+  if (!F) {
+    return false;
+  }
+  F.seekg(0, std::ios::end);
+  Buf.resize(static_cast<uint32_t>(F.tellg()));
+  F.seekg(0, std::ios::beg);
+  if (!F.read(reinterpret_cast<char *>(Buf.data()),
+              static_cast<uint32_t>(Buf.size()))) {
+    return false;
+  }
+  F.close();
   return true;
 }
 
@@ -402,6 +420,10 @@ TEST(APICoreTest, Configure) {
   WasmEdge_ConfigureCompilerSetGenericBinary(Conf, true);
   EXPECT_NE(WasmEdge_ConfigureCompilerIsGenericBinary(ConfNull), true);
   EXPECT_EQ(WasmEdge_ConfigureCompilerIsGenericBinary(Conf), true);
+  WasmEdge_ConfigureCompilerSetInterruptible(ConfNull, true);
+  WasmEdge_ConfigureCompilerSetInterruptible(Conf, true);
+  EXPECT_NE(WasmEdge_ConfigureCompilerIsInterruptible(ConfNull), true);
+  EXPECT_EQ(WasmEdge_ConfigureCompilerIsInterruptible(Conf), true);
   // Tests for Statistics configurations.
   WasmEdge_ConfigureStatisticsSetInstructionCounting(ConfNull, true);
   WasmEdge_ConfigureStatisticsSetInstructionCounting(Conf, true);
@@ -935,13 +957,8 @@ TEST(APICoreTest, Loader) {
       WasmEdge_ResultOK(WasmEdge_LoaderParseFromFile(nullptr, nullptr, TPath)));
 
   // Parse from buffer
-  std::ifstream Wasm(TPath, std::ios::binary | std::ios::ate);
-  Wasm.seekg(0, std::ios::end);
-  std::vector<uint8_t> Buf(static_cast<uint32_t>(Wasm.tellg()));
-  Wasm.seekg(0, std::ios::beg);
-  EXPECT_TRUE(Wasm.read(reinterpret_cast<char *>(Buf.data()),
-                        static_cast<uint32_t>(Buf.size())));
-  Wasm.close();
+  std::vector<uint8_t> Buf;
+  EXPECT_TRUE(readToVector(TPath, Buf));
   Mod = nullptr;
   EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_LoaderParseFromBuffer(
       Loader, ModPtr, Buf.data(), static_cast<uint32_t>(Buf.size()))));
@@ -957,13 +974,7 @@ TEST(APICoreTest, Loader) {
       nullptr, nullptr, Buf.data(), static_cast<uint32_t>(Buf.size()))));
 #ifdef WASMEDGE_BUILD_AOT_RUNTIME
   // Failed case to parse from buffer with AOT compiled WASM
-  std::ifstream WasmAOT("test_aot.so", std::ios::binary | std::ios::ate);
-  WasmAOT.seekg(0, std::ios::end);
-  Buf = std::vector<uint8_t>(static_cast<uint32_t>(WasmAOT.tellg()));
-  WasmAOT.seekg(0, std::ios::beg);
-  EXPECT_TRUE(WasmAOT.read(reinterpret_cast<char *>(Buf.data()),
-                           static_cast<uint32_t>(Buf.size())));
-  WasmAOT.close();
+  EXPECT_TRUE(readToVector("test_aot.so", Buf));
   Mod = nullptr;
   EXPECT_FALSE(WasmEdge_ResultOK(WasmEdge_LoaderParseFromBuffer(
       Loader, ModPtr, Buf.data(), static_cast<uint32_t>(Buf.size()))));
@@ -990,7 +1001,7 @@ TEST(APICoreTest, Validator) {
   Validator = WasmEdge_ValidatorCreate(Conf);
 
   // Load and parse file
-  WasmEdge_ASTModuleContext *Mod = loadModule(Conf);
+  WasmEdge_ASTModuleContext *Mod = loadModule(Conf, TPath);
   EXPECT_NE(Mod, nullptr);
 
   // Validation
@@ -1016,7 +1027,7 @@ TEST(APICoreTest, ExecutorWithStatistics) {
   WasmEdge_ConfigureStatisticsSetTimeMeasuring(Conf, true);
 
   // Load and validate file
-  WasmEdge_ASTModuleContext *Mod = loadModule(Conf);
+  WasmEdge_ASTModuleContext *Mod = loadModule(Conf, TPath);
   EXPECT_NE(Mod, nullptr);
   EXPECT_TRUE(validateModule(Conf, Mod));
 
@@ -1351,7 +1362,7 @@ TEST(APICoreTest, Store) {
   // Register host module and instantiate wasm module
   WasmEdge_ImportObjectContext *ImpObj = createExternModule("extern");
   EXPECT_NE(ImpObj, nullptr);
-  WasmEdge_ASTModuleContext *Mod = loadModule(Conf);
+  WasmEdge_ASTModuleContext *Mod = loadModule(Conf, TPath);
   EXPECT_NE(Mod, nullptr);
   EXPECT_TRUE(validateModule(Conf, Mod));
   EXPECT_TRUE(instantiateModule(Conf, Store, Mod, ImpObj));
@@ -2037,6 +2048,437 @@ TEST(APICoreTest, ImportObject) {
   WasmEdge_VMDelete(VM);
 }
 
+TEST(APICoreTest, Async) {
+  WasmEdge_VMContext *VM = WasmEdge_VMCreate(nullptr, nullptr);
+  WasmEdge_ImportObjectContext *ImpObj = createExternModule("extern");
+  WasmEdge_VMRegisterModuleFromImport(VM, ImpObj);
+  WasmEdge_String ModName, ModName2, FuncName, FuncName2;
+  WasmEdge_Value P[10], R[10];
+  WasmEdge_Async *Async = nullptr;
+
+  ModName = WasmEdge_StringCreateByCString("reg-wasm-buffer");
+  ModName2 = WasmEdge_StringCreateByCString("reg-wasm-error");
+  FuncName = WasmEdge_StringCreateByCString("func-mul-2");
+  FuncName2 = WasmEdge_StringCreateByCString("func-mul-3");
+  P[0] = WasmEdge_ValueGenI32(123);
+  P[1] = WasmEdge_ValueGenI32(456);
+
+  // WASM from file
+  std::vector<uint8_t> Buf;
+  EXPECT_TRUE(readToVector(TPath, Buf));
+
+  // Load and validate to wasm AST
+  WasmEdge_ASTModuleContext *Mod = loadModule(nullptr, TPath);
+  EXPECT_NE(Mod, nullptr);
+  EXPECT_TRUE(validateModule(nullptr, Mod));
+
+  // Async deletion
+  WasmEdge_AsyncDelete(nullptr);
+  EXPECT_TRUE(true);
+
+  // Async wait and waitfor
+  WasmEdge_AsyncWait(nullptr);
+  EXPECT_TRUE(true);
+  EXPECT_FALSE(WasmEdge_AsyncWaitFor(nullptr, 1234));
+
+  // Async cancel
+  WasmEdge_AsyncCancel(nullptr);
+  EXPECT_TRUE(true);
+
+  // Async get returns length
+  EXPECT_EQ(WasmEdge_AsyncGetReturnsLength(nullptr), 0);
+
+  // Async run from file
+  R[0] = WasmEdge_ValueGenI32(0);
+  R[1] = WasmEdge_ValueGenI32(0);
+  // Success case
+  Async = WasmEdge_VMAsyncRunWasmFromFile(VM, TPath, FuncName, P, 2);
+  EXPECT_NE(Async, nullptr);
+  WasmEdge_AsyncWait(Async);
+  EXPECT_EQ(WasmEdge_AsyncGetReturnsLength(Async), 2);
+  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_AsyncGet(Async, R, 2)));
+  EXPECT_EQ(246, WasmEdge_ValueGetI32(R[0]));
+  EXPECT_EQ(WasmEdge_ValType_I32, R[0].Type);
+  EXPECT_EQ(912, WasmEdge_ValueGetI32(R[1]));
+  EXPECT_EQ(WasmEdge_ValType_I32, R[1].Type);
+  WasmEdge_AsyncDelete(Async);
+  // VM nullptr case
+  Async = WasmEdge_VMAsyncRunWasmFromFile(nullptr, TPath, FuncName, P, 2);
+  EXPECT_EQ(Async, nullptr);
+  // File path not found case
+  Async = WasmEdge_VMAsyncRunWasmFromFile(VM, "no_file", FuncName, P, 2);
+  EXPECT_NE(Async, nullptr);
+  EXPECT_FALSE(WasmEdge_ResultOK(WasmEdge_AsyncGet(Async, R, 2)));
+  WasmEdge_AsyncDelete(Async);
+  // Function type mismatch
+  Async = WasmEdge_VMAsyncRunWasmFromFile(VM, TPath, FuncName, P, 1);
+  EXPECT_NE(Async, nullptr);
+  EXPECT_FALSE(WasmEdge_ResultOK(WasmEdge_AsyncGet(Async, R, 2)));
+  WasmEdge_AsyncDelete(Async);
+  // Function type mismatch
+  Async = WasmEdge_VMAsyncRunWasmFromFile(VM, TPath, FuncName, nullptr, 0);
+  EXPECT_NE(Async, nullptr);
+  EXPECT_FALSE(WasmEdge_ResultOK(WasmEdge_AsyncGet(Async, R, 2)));
+  WasmEdge_AsyncDelete(Async);
+  // Function type mismatch
+  Async = WasmEdge_VMAsyncRunWasmFromFile(VM, TPath, FuncName, nullptr, 2);
+  EXPECT_NE(Async, nullptr);
+  EXPECT_FALSE(WasmEdge_ResultOK(WasmEdge_AsyncGet(Async, R, 2)));
+  WasmEdge_AsyncDelete(Async);
+  // Function type mismatch
+  P[0] = WasmEdge_ValueGenI64(123);
+  Async = WasmEdge_VMAsyncRunWasmFromFile(VM, TPath, FuncName, P, 2);
+  EXPECT_NE(Async, nullptr);
+  EXPECT_FALSE(WasmEdge_ResultOK(WasmEdge_AsyncGet(Async, R, 2)));
+  WasmEdge_AsyncDelete(Async);
+  P[0] = WasmEdge_ValueGenI32(123);
+  // Function not found
+  Async = WasmEdge_VMAsyncRunWasmFromFile(VM, TPath, FuncName2, P, 2);
+  EXPECT_NE(Async, nullptr);
+  EXPECT_FALSE(WasmEdge_ResultOK(WasmEdge_AsyncGet(Async, R, 2)));
+  WasmEdge_AsyncDelete(Async);
+  // Discard result
+  R[0] = WasmEdge_ValueGenI32(0);
+  R[1] = WasmEdge_ValueGenI32(0);
+  Async = WasmEdge_VMAsyncRunWasmFromFile(VM, TPath, FuncName, P, 2);
+  EXPECT_NE(Async, nullptr);
+  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_AsyncGet(Async, R, 1)));
+  WasmEdge_AsyncDelete(Async);
+  EXPECT_EQ(246, WasmEdge_ValueGetI32(R[0]));
+  EXPECT_EQ(WasmEdge_ValType_I32, R[0].Type);
+  EXPECT_EQ(0, WasmEdge_ValueGetI32(R[1]));
+  EXPECT_EQ(WasmEdge_ValType_I32, R[1].Type);
+  // Discard result
+  Async = WasmEdge_VMAsyncRunWasmFromFile(VM, TPath, FuncName, P, 2);
+  EXPECT_NE(Async, nullptr);
+  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_AsyncGet(Async, nullptr, 0)));
+  WasmEdge_AsyncDelete(Async);
+  // Discard result
+  Async = WasmEdge_VMAsyncRunWasmFromFile(VM, TPath, FuncName, P, 2);
+  EXPECT_NE(Async, nullptr);
+  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_AsyncGet(Async, nullptr, 1)));
+  WasmEdge_AsyncDelete(Async);
+
+  // Async run from buffer
+  R[0] = WasmEdge_ValueGenI32(0);
+  R[1] = WasmEdge_ValueGenI32(0);
+  // Success case
+  Async = WasmEdge_VMAsyncRunWasmFromBuffer(
+      VM, Buf.data(), static_cast<uint32_t>(Buf.size()), FuncName, P, 2);
+  EXPECT_NE(Async, nullptr);
+  WasmEdge_AsyncWait(Async);
+  EXPECT_EQ(WasmEdge_AsyncGetReturnsLength(Async), 2);
+  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_AsyncGet(Async, R, 2)));
+  EXPECT_EQ(246, WasmEdge_ValueGetI32(R[0]));
+  EXPECT_EQ(WasmEdge_ValType_I32, R[0].Type);
+  EXPECT_EQ(912, WasmEdge_ValueGetI32(R[1]));
+  EXPECT_EQ(WasmEdge_ValType_I32, R[1].Type);
+  WasmEdge_AsyncDelete(Async);
+  // VM nullptr case
+  Async = WasmEdge_VMAsyncRunWasmFromBuffer(
+      nullptr, Buf.data(), static_cast<uint32_t>(Buf.size()), FuncName, P, 2);
+  EXPECT_EQ(Async, nullptr);
+  // Buffer nullptr case
+  Async = WasmEdge_VMAsyncRunWasmFromBuffer(VM, nullptr, 0, FuncName, P, 2);
+  EXPECT_NE(Async, nullptr);
+  EXPECT_FALSE(WasmEdge_ResultOK(WasmEdge_AsyncGet(Async, R, 2)));
+  WasmEdge_AsyncDelete(Async);
+  // Function type mismatch
+  Async = WasmEdge_VMAsyncRunWasmFromBuffer(
+      VM, Buf.data(), static_cast<uint32_t>(Buf.size()), FuncName, P, 1);
+  EXPECT_NE(Async, nullptr);
+  EXPECT_FALSE(WasmEdge_ResultOK(WasmEdge_AsyncGet(Async, R, 2)));
+  WasmEdge_AsyncDelete(Async);
+  // Function type mismatch
+  Async = WasmEdge_VMAsyncRunWasmFromBuffer(
+      VM, Buf.data(), static_cast<uint32_t>(Buf.size()), FuncName, nullptr, 0);
+  EXPECT_NE(Async, nullptr);
+  EXPECT_FALSE(WasmEdge_ResultOK(WasmEdge_AsyncGet(Async, R, 2)));
+  WasmEdge_AsyncDelete(Async);
+  // Function type mismatch
+  Async = WasmEdge_VMAsyncRunWasmFromBuffer(
+      VM, Buf.data(), static_cast<uint32_t>(Buf.size()), FuncName, nullptr, 2);
+  EXPECT_NE(Async, nullptr);
+  EXPECT_FALSE(WasmEdge_ResultOK(WasmEdge_AsyncGet(Async, R, 2)));
+  WasmEdge_AsyncDelete(Async);
+  // Function type mismatch
+  P[0] = WasmEdge_ValueGenI64(123);
+  Async = WasmEdge_VMAsyncRunWasmFromBuffer(
+      VM, Buf.data(), static_cast<uint32_t>(Buf.size()), FuncName, P, 2);
+  EXPECT_NE(Async, nullptr);
+  EXPECT_FALSE(WasmEdge_ResultOK(WasmEdge_AsyncGet(Async, R, 2)));
+  WasmEdge_AsyncDelete(Async);
+  P[0] = WasmEdge_ValueGenI32(123);
+  // Function not found
+  Async = WasmEdge_VMAsyncRunWasmFromBuffer(
+      VM, Buf.data(), static_cast<uint32_t>(Buf.size()), FuncName2, P, 2);
+  EXPECT_NE(Async, nullptr);
+  EXPECT_FALSE(WasmEdge_ResultOK(WasmEdge_AsyncGet(Async, R, 2)));
+  WasmEdge_AsyncDelete(Async);
+  // Discard result
+  R[0] = WasmEdge_ValueGenI32(0);
+  R[1] = WasmEdge_ValueGenI32(0);
+  Async = WasmEdge_VMAsyncRunWasmFromBuffer(
+      VM, Buf.data(), static_cast<uint32_t>(Buf.size()), FuncName, P, 2);
+  EXPECT_NE(Async, nullptr);
+  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_AsyncGet(Async, R, 1)));
+  WasmEdge_AsyncDelete(Async);
+  EXPECT_EQ(246, WasmEdge_ValueGetI32(R[0]));
+  EXPECT_EQ(WasmEdge_ValType_I32, R[0].Type);
+  EXPECT_EQ(0, WasmEdge_ValueGetI32(R[1]));
+  EXPECT_EQ(WasmEdge_ValType_I32, R[1].Type);
+  // Discard result
+  Async = WasmEdge_VMAsyncRunWasmFromBuffer(
+      VM, Buf.data(), static_cast<uint32_t>(Buf.size()), FuncName, P, 2);
+  EXPECT_NE(Async, nullptr);
+  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_AsyncGet(Async, nullptr, 0)));
+  WasmEdge_AsyncDelete(Async);
+  // Discard result
+  Async = WasmEdge_VMAsyncRunWasmFromBuffer(
+      VM, Buf.data(), static_cast<uint32_t>(Buf.size()), FuncName, P, 2);
+  EXPECT_NE(Async, nullptr);
+  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_AsyncGet(Async, nullptr, 1)));
+  WasmEdge_AsyncDelete(Async);
+
+  // Async run from AST module
+  R[0] = WasmEdge_ValueGenI32(0);
+  R[1] = WasmEdge_ValueGenI32(0);
+  // Success case
+  Async = WasmEdge_VMAsyncRunWasmFromASTModule(VM, Mod, FuncName, P, 2);
+  EXPECT_NE(Async, nullptr);
+  WasmEdge_AsyncWait(Async);
+  EXPECT_EQ(WasmEdge_AsyncGetReturnsLength(Async), 2);
+  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_AsyncGet(Async, R, 2)));
+  EXPECT_EQ(246, WasmEdge_ValueGetI32(R[0]));
+  EXPECT_EQ(WasmEdge_ValType_I32, R[0].Type);
+  EXPECT_EQ(912, WasmEdge_ValueGetI32(R[1]));
+  EXPECT_EQ(WasmEdge_ValType_I32, R[1].Type);
+  WasmEdge_AsyncDelete(Async);
+  // VM nullptr case
+  Async = WasmEdge_VMAsyncRunWasmFromASTModule(nullptr, Mod, FuncName, P, 2);
+  EXPECT_EQ(Async, nullptr);
+  // Buffer nullptr case
+  Async = WasmEdge_VMAsyncRunWasmFromASTModule(VM, Mod, FuncName, P, 2);
+  EXPECT_NE(Async, nullptr);
+  EXPECT_FALSE(WasmEdge_ResultOK(WasmEdge_AsyncGet(Async, R, 2)));
+  WasmEdge_AsyncDelete(Async);
+  // Function type mismatch
+  Async = WasmEdge_VMAsyncRunWasmFromASTModule(VM, Mod, FuncName, P, 1);
+  EXPECT_NE(Async, nullptr);
+  EXPECT_FALSE(WasmEdge_ResultOK(WasmEdge_AsyncGet(Async, R, 2)));
+  WasmEdge_AsyncDelete(Async);
+  // Function type mismatch
+  Async = WasmEdge_VMAsyncRunWasmFromASTModule(VM, Mod, FuncName, nullptr, 0);
+  EXPECT_NE(Async, nullptr);
+  EXPECT_FALSE(WasmEdge_ResultOK(WasmEdge_AsyncGet(Async, R, 2)));
+  WasmEdge_AsyncDelete(Async);
+  // Function type mismatch
+  Async = WasmEdge_VMAsyncRunWasmFromASTModule(VM, Mod, FuncName, nullptr, 2);
+  EXPECT_NE(Async, nullptr);
+  EXPECT_FALSE(WasmEdge_ResultOK(WasmEdge_AsyncGet(Async, R, 2)));
+  WasmEdge_AsyncDelete(Async);
+  // Function type mismatch
+  P[0] = WasmEdge_ValueGenI64(123);
+  Async = WasmEdge_VMAsyncRunWasmFromASTModule(VM, Mod, FuncName, P, 2);
+  EXPECT_NE(Async, nullptr);
+  EXPECT_FALSE(WasmEdge_ResultOK(WasmEdge_AsyncGet(Async, R, 2)));
+  WasmEdge_AsyncDelete(Async);
+  P[0] = WasmEdge_ValueGenI32(123);
+  // Function not found
+  Async = WasmEdge_VMAsyncRunWasmFromASTModule(VM, Mod, FuncName2, P, 2);
+  EXPECT_NE(Async, nullptr);
+  EXPECT_FALSE(WasmEdge_ResultOK(WasmEdge_AsyncGet(Async, R, 2)));
+  WasmEdge_AsyncDelete(Async);
+  // Discard result
+  R[0] = WasmEdge_ValueGenI32(0);
+  R[1] = WasmEdge_ValueGenI32(0);
+  Async = WasmEdge_VMAsyncRunWasmFromASTModule(VM, Mod, FuncName, P, 2);
+  EXPECT_NE(Async, nullptr);
+  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_AsyncGet(Async, R, 1)));
+  WasmEdge_AsyncDelete(Async);
+  EXPECT_EQ(246, WasmEdge_ValueGetI32(R[0]));
+  EXPECT_EQ(WasmEdge_ValType_I32, R[0].Type);
+  EXPECT_EQ(0, WasmEdge_ValueGetI32(R[1]));
+  EXPECT_EQ(WasmEdge_ValType_I32, R[1].Type);
+  // Discard result
+  Async = WasmEdge_VMAsyncRunWasmFromASTModule(VM, Mod, FuncName, P, 2);
+  EXPECT_NE(Async, nullptr);
+  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_AsyncGet(Async, nullptr, 0)));
+  WasmEdge_AsyncDelete(Async);
+  // Discard result
+  Async = WasmEdge_VMAsyncRunWasmFromASTModule(VM, Mod, FuncName, P, 2);
+  EXPECT_NE(Async, nullptr);
+  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_AsyncGet(Async, nullptr, 1)));
+  WasmEdge_AsyncDelete(Async);
+
+  // Async VM execute
+  R[0] = WasmEdge_ValueGenI32(0);
+  R[1] = WasmEdge_ValueGenI32(0);
+  WasmEdge_VMCleanup(VM);
+  // Inited phase
+  Async = WasmEdge_VMAsyncExecute(VM, FuncName, P, 2);
+  EXPECT_NE(Async, nullptr);
+  EXPECT_FALSE(WasmEdge_ResultOK(WasmEdge_AsyncGet(Async, R, 2)));
+  WasmEdge_AsyncDelete(Async);
+  // Loaded phase
+  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_VMLoadWasmFromASTModule(VM, Mod)));
+  Async = WasmEdge_VMAsyncExecute(VM, FuncName, P, 2);
+  EXPECT_NE(Async, nullptr);
+  EXPECT_FALSE(WasmEdge_ResultOK(WasmEdge_AsyncGet(Async, R, 2)));
+  WasmEdge_AsyncDelete(Async);
+  // Validated phase
+  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_VMValidate(VM)));
+  Async = WasmEdge_VMAsyncExecute(VM, FuncName, P, 2);
+  EXPECT_NE(Async, nullptr);
+  EXPECT_FALSE(WasmEdge_ResultOK(WasmEdge_AsyncGet(Async, R, 2)));
+  WasmEdge_AsyncDelete(Async);
+  // Instantiated phase
+  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_VMInstantiate(VM)));
+  Async = WasmEdge_VMAsyncExecute(VM, FuncName, P, 2);
+  EXPECT_NE(Async, nullptr);
+  WasmEdge_AsyncWait(Async);
+  EXPECT_EQ(WasmEdge_AsyncGetReturnsLength(Async), 2);
+  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_AsyncGet(Async, R, 2)));
+  WasmEdge_AsyncDelete(Async);
+  EXPECT_EQ(246, WasmEdge_ValueGetI32(R[0]));
+  EXPECT_EQ(WasmEdge_ValType_I32, R[0].Type);
+  EXPECT_EQ(912, WasmEdge_ValueGetI32(R[1]));
+  EXPECT_EQ(WasmEdge_ValType_I32, R[1].Type);
+  // VM nullptr case
+  Async = WasmEdge_VMAsyncExecute(nullptr, FuncName, P, 2);
+  EXPECT_EQ(Async, nullptr);
+  // Function type mismatch
+  Async = WasmEdge_VMAsyncExecute(VM, FuncName, P, 1);
+  EXPECT_NE(Async, nullptr);
+  EXPECT_FALSE(WasmEdge_ResultOK(WasmEdge_AsyncGet(Async, R, 2)));
+  WasmEdge_AsyncDelete(Async);
+  // Function type mismatch
+  Async = WasmEdge_VMAsyncExecute(VM, FuncName, nullptr, 0);
+  EXPECT_NE(Async, nullptr);
+  EXPECT_FALSE(WasmEdge_ResultOK(WasmEdge_AsyncGet(Async, R, 2)));
+  WasmEdge_AsyncDelete(Async);
+  // Function type mismatch
+  Async = WasmEdge_VMAsyncExecute(VM, FuncName, nullptr, 2);
+  EXPECT_NE(Async, nullptr);
+  EXPECT_FALSE(WasmEdge_ResultOK(WasmEdge_AsyncGet(Async, R, 2)));
+  WasmEdge_AsyncDelete(Async);
+  // Function type mismatch
+  P[0] = WasmEdge_ValueGenI64(123);
+  Async = WasmEdge_VMAsyncExecute(VM, FuncName, P, 2);
+  EXPECT_NE(Async, nullptr);
+  EXPECT_FALSE(WasmEdge_ResultOK(WasmEdge_AsyncGet(Async, R, 2)));
+  WasmEdge_AsyncDelete(Async);
+  P[0] = WasmEdge_ValueGenI32(123);
+  // Function not found
+  Async = WasmEdge_VMAsyncExecute(VM, FuncName2, P, 2);
+  EXPECT_NE(Async, nullptr);
+  EXPECT_FALSE(WasmEdge_ResultOK(WasmEdge_AsyncGet(Async, R, 2)));
+  WasmEdge_AsyncDelete(Async);
+  // Discard result
+  R[0] = WasmEdge_ValueGenI32(0);
+  R[1] = WasmEdge_ValueGenI32(0);
+  Async = WasmEdge_VMAsyncExecute(VM, FuncName, P, 2);
+  EXPECT_NE(Async, nullptr);
+  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_AsyncGet(Async, R, 1)));
+  WasmEdge_AsyncDelete(Async);
+  EXPECT_EQ(246, WasmEdge_ValueGetI32(R[0]));
+  EXPECT_EQ(WasmEdge_ValType_I32, R[0].Type);
+  EXPECT_EQ(0, WasmEdge_ValueGetI32(R[1]));
+  EXPECT_EQ(WasmEdge_ValType_I32, R[1].Type);
+  // Discard result
+  Async = WasmEdge_VMAsyncExecute(VM, FuncName, P, 2);
+  EXPECT_NE(Async, nullptr);
+  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_AsyncGet(Async, nullptr, 0)));
+  WasmEdge_AsyncDelete(Async);
+  // Discard result
+  Async = WasmEdge_VMAsyncExecute(VM, FuncName, P, 2);
+  EXPECT_NE(Async, nullptr);
+  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_AsyncGet(Async, nullptr, 1)));
+  WasmEdge_AsyncDelete(Async);
+
+  // Async VM execute registered
+  R[0] = WasmEdge_ValueGenI32(0);
+  R[1] = WasmEdge_ValueGenI32(0);
+  WasmEdge_VMCleanup(VM);
+  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_VMRegisterModuleFromBuffer(
+      VM, ModName, Buf.data(), static_cast<uint32_t>(Buf.size()))));
+  // Success case
+  Async = WasmEdge_VMAsyncExecuteRegistered(VM, ModName, FuncName, P, 2);
+  EXPECT_NE(Async, nullptr);
+  WasmEdge_AsyncWait(Async);
+  EXPECT_EQ(WasmEdge_AsyncGetReturnsLength(Async), 2);
+  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_AsyncGet(Async, R, 2)));
+  WasmEdge_AsyncDelete(Async);
+  EXPECT_EQ(246, WasmEdge_ValueGetI32(R[0]));
+  EXPECT_EQ(WasmEdge_ValType_I32, R[0].Type);
+  EXPECT_EQ(912, WasmEdge_ValueGetI32(R[1]));
+  EXPECT_EQ(WasmEdge_ValType_I32, R[1].Type);
+  // VM nullptr case
+  Async = WasmEdge_VMAsyncExecuteRegistered(nullptr, ModName, FuncName, P, 2);
+  EXPECT_EQ(Async, nullptr);
+  // Function type mismatch
+  Async = WasmEdge_VMAsyncExecuteRegistered(VM, ModName, FuncName, P, 1);
+  EXPECT_NE(Async, nullptr);
+  EXPECT_FALSE(WasmEdge_ResultOK(WasmEdge_AsyncGet(Async, R, 2)));
+  WasmEdge_AsyncDelete(Async);
+  // Function type mismatch
+  Async = WasmEdge_VMAsyncExecuteRegistered(VM, ModName, FuncName, nullptr, 0);
+  EXPECT_NE(Async, nullptr);
+  EXPECT_FALSE(WasmEdge_ResultOK(WasmEdge_AsyncGet(Async, R, 2)));
+  WasmEdge_AsyncDelete(Async);
+  // Function type mismatch
+  Async = WasmEdge_VMAsyncExecuteRegistered(VM, ModName, FuncName, nullptr, 2);
+  EXPECT_NE(Async, nullptr);
+  EXPECT_FALSE(WasmEdge_ResultOK(WasmEdge_AsyncGet(Async, R, 2)));
+  WasmEdge_AsyncDelete(Async);
+  // Function type mismatch
+  P[0] = WasmEdge_ValueGenI64(123);
+  Async = WasmEdge_VMAsyncExecuteRegistered(VM, ModName, FuncName, P, 2);
+  EXPECT_NE(Async, nullptr);
+  EXPECT_FALSE(WasmEdge_ResultOK(WasmEdge_AsyncGet(Async, R, 2)));
+  WasmEdge_AsyncDelete(Async);
+  P[0] = WasmEdge_ValueGenI32(123);
+  // Module not found
+  Async = WasmEdge_VMAsyncExecuteRegistered(VM, ModName2, FuncName, P, 2);
+  EXPECT_NE(Async, nullptr);
+  EXPECT_FALSE(WasmEdge_ResultOK(WasmEdge_AsyncGet(Async, R, 2)));
+  WasmEdge_AsyncDelete(Async);
+  // Function not found
+  Async = WasmEdge_VMAsyncExecuteRegistered(VM, ModName, FuncName2, P, 2);
+  EXPECT_NE(Async, nullptr);
+  EXPECT_FALSE(WasmEdge_ResultOK(WasmEdge_AsyncGet(Async, R, 2)));
+  WasmEdge_AsyncDelete(Async);
+  // Discard result
+  R[0] = WasmEdge_ValueGenI32(0);
+  R[1] = WasmEdge_ValueGenI32(0);
+  Async = WasmEdge_VMAsyncExecuteRegistered(VM, ModName, FuncName, P, 2);
+  EXPECT_NE(Async, nullptr);
+  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_AsyncGet(Async, R, 1)));
+  WasmEdge_AsyncDelete(Async);
+  EXPECT_EQ(246, WasmEdge_ValueGetI32(R[0]));
+  EXPECT_EQ(WasmEdge_ValType_I32, R[0].Type);
+  EXPECT_EQ(0, WasmEdge_ValueGetI32(R[1]));
+  EXPECT_EQ(WasmEdge_ValType_I32, R[1].Type);
+  // Discard result
+  Async = WasmEdge_VMAsyncExecuteRegistered(VM, ModName, FuncName, P, 2);
+  EXPECT_NE(Async, nullptr);
+  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_AsyncGet(Async, nullptr, 0)));
+  WasmEdge_AsyncDelete(Async);
+  // Discard result
+  Async = WasmEdge_VMAsyncExecuteRegistered(VM, ModName, FuncName, P, 2);
+  EXPECT_NE(Async, nullptr);
+  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_AsyncGet(Async, nullptr, 1)));
+  WasmEdge_AsyncDelete(Async);
+
+  WasmEdge_StringDelete(FuncName);
+  WasmEdge_StringDelete(FuncName2);
+  WasmEdge_StringDelete(ModName);
+  WasmEdge_StringDelete(ModName2);
+  WasmEdge_ASTModuleDelete(Mod);
+  WasmEdge_ImportObjectDelete(ImpObj);
+  WasmEdge_VMDelete(VM);
+}
+
 TEST(APICoreTest, VM) {
   WasmEdge_ConfigureContext *Conf = WasmEdge_ConfigureCreate();
   WasmEdge_ConfigureAddHostRegistration(Conf, WasmEdge_HostRegistration_Wasi);
@@ -2047,15 +2489,11 @@ TEST(APICoreTest, VM) {
   const WasmEdge_FunctionTypeContext *FuncTypes[15];
 
   // WASM from file
-  std::ifstream Wasm(TPath, std::ios::binary | std::ios::ate);
-  std::vector<uint8_t> Buf(static_cast<uint32_t>(Wasm.tellg()));
-  Wasm.seekg(0, std::ios::beg);
-  EXPECT_TRUE(Wasm.read(reinterpret_cast<char *>(Buf.data()),
-                        static_cast<uint32_t>(Buf.size())));
-  Wasm.close();
+  std::vector<uint8_t> Buf;
+  EXPECT_TRUE(readToVector(TPath, Buf));
 
   // Load and validate to wasm AST
-  WasmEdge_ASTModuleContext *Mod = loadModule(Conf);
+  WasmEdge_ASTModuleContext *Mod = loadModule(Conf, TPath);
   EXPECT_NE(Mod, nullptr);
   EXPECT_TRUE(validateModule(Conf, Mod));
 
@@ -2349,7 +2787,7 @@ TEST(APICoreTest, VM) {
   EXPECT_TRUE(
       WasmEdge_ResultOK(WasmEdge_VMExecute(VM, FuncName, P, 2, nullptr, 1)));
 
-  // WasmEdge_VMExecuteRegistered
+  // VM execute registered
   R[0] = WasmEdge_ValueGenI32(0);
   R[1] = WasmEdge_ValueGenI32(0);
   WasmEdge_VMCleanup(VM);

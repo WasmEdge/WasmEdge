@@ -3,7 +3,6 @@
 #include "gtest/gtest.h"
 
 #include "host/wasi_crypto/ctx.h"
-#include "host/wasi_crypto/error.h"
 #include "host/wasi_crypto/symmetric/alg.h"
 
 #include <array>

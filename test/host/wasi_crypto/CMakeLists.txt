@@ -4,6 +4,7 @@ wasmedge_add_executable(wasiCryptoTests
   symmetric/symmetric.cpp
   asymmetric/kx.cpp
   asymmetric/signature.cpp
+  asymmetric/rsa.cpp
 )
 
 add_test(wasiCryptoTests wasiCryptoTests)

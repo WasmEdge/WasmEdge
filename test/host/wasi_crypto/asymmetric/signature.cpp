@@ -2,8 +2,10 @@
 
 #include "host/wasi_crypto/signature/signature.h"
 #include "host/wasi_crypto/ctx.h"
+#include "wasi_crypto/api.hpp"
 #include "gtest/gtest.h"
 
+#include <cstdint>
 #include <iostream>
 #include <vector>
 using namespace WasmEdge::Host::WASICrypto;
@@ -138,6 +140,13 @@ TEST(WasiCryptoTest, TestSignaturesEcdsaSec) {
   EXPECT_TRUE(Ctx.signatureClose(SignatureHandle).has_value());
 }
 
+TEST(WasiCryptoTest, TestSignaturesEddsaImportKey) {
+  std::vector<uint8_t> RandomRaw{2,   224, 94,  209, 149, 204, 49,  148, 87,
+                                 8,   223, 251, 201, 41,  137, 164, 254, 178,
+                                 123, 38,  30,  210, 48,  107, 18,  42,  243,
+                                 45,  132, 48,  49,  96,  100};
+}
+
 TEST(WasiCryptoTest, TestSignaturesEddsa) {
   WasiCryptoContext Ctx;
 
@@ -166,50 +175,3 @@ TEST(WasiCryptoTest, TestSignaturesEddsa) {
   EXPECT_TRUE(Ctx.signatureClose(SignatureHandle).has_value());
 }
 
-TEST(WasiCryptoTest, TestSignaturesRsa) {
-
-  std::string_view Alg = "RSA_PKCS1_2048_SHA256";
-  WasiCryptoContext Ctx;
-
-  auto KpHandle =
-      Ctx.keypairGenerate(__WASI_ALGORITHM_TYPE_SIGNATURES, Alg, std::nullopt)
-          .value();
-  auto PkHandle = Ctx.keypairPublickey(KpHandle).value();
-
-  auto const PkSerialized =
-      Ctx.publickeyExport(PkHandle, __WASI_PUBLICKEY_ENCODING_RAW).value();
-  auto Raw = std::vector<uint8_t>(Ctx.arrayOutputLen(PkSerialized).value(), 0);
-  Ctx.arrayOutputPull(PkSerialized, Raw).value();
-  PkHandle = Ctx.publickeyImport(__WASI_ALGORITHM_TYPE_SIGNATURES, Alg, Raw,
-                                 __WASI_PUBLICKEY_ENCODING_RAW)
-                 .value();
-
-  auto const KpSerialized =
-      Ctx.keypairExport(KpHandle, __WASI_KEYPAIR_ENCODING_RAW).value();
-  Raw = std::vector<uint8_t>(Ctx.arrayOutputLen(KpSerialized).value(), 0);
-  Ctx.arrayOutputPull(KpSerialized, Raw).value();
-  auto const Kp2Handle =
-      Ctx.keypairImport(__WASI_ALGORITHM_TYPE_SIGNATURES, Alg, Raw,
-                        __WASI_KEYPAIR_ENCODING_RAW)
-          .value();
-  KpHandle = Kp2Handle;
-
-  auto const StateHandle = Ctx.signatureStateOpen(KpHandle).value();
-  EXPECT_TRUE(Ctx.signatureStateUpdate(StateHandle, "test"_u8).has_value());
-  auto const SignatureHandle = Ctx.signatureStateSign(StateHandle).value();
-
-  auto const VerificationStateHandle =
-      Ctx.signatureVerificationStateOpen(PkHandle).value();
-  EXPECT_TRUE(
-      Ctx.signatureVerificationStateUpdate(VerificationStateHandle, "test"_u8)
-          .has_value());
-  EXPECT_TRUE(Ctx.signatureVerificationStateVerify(VerificationStateHandle,
-                                                   SignatureHandle)
-                  .has_value());
-  EXPECT_TRUE(
-      Ctx.signatureVerificationStateClose(VerificationStateHandle).has_value());
-  EXPECT_TRUE(Ctx.signatureStateClose(StateHandle).has_value());
-  EXPECT_TRUE(Ctx.keypairClose(KpHandle).has_value());
-  EXPECT_TRUE(Ctx.publickeyClose(PkHandle).has_value());
-  EXPECT_TRUE(Ctx.signatureClose(SignatureHandle).has_value());
-}

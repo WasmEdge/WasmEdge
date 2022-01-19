@@ -6,6 +6,8 @@
 #include "openssl/evp.h"
 #include "wasi_crypto/api.hpp"
 
+#include <map>
+
 namespace WasmEdge {
 namespace Host {
 namespace WASICrypto {

@@ -157,7 +157,12 @@ VM::asyncRunWasmFile(const std::filesystem::path &Path, std::string_view Func,
   Expect<std::vector<std::pair<ValVariant, ValType>>> (VM::*FPtr)(
       const std::filesystem::path &, std::string_view, Span<const ValVariant>,
       Span<const ValType>) = &VM::runWasmFile;
-  return {FPtr, *this, std::filesystem::path(Path), Func, Params, ParamTypes};
+  return {FPtr,
+          *this,
+          std::filesystem::path(Path),
+          std::string(Func),
+          std::vector(Params.begin(), Params.end()),
+          std::vector(ParamTypes.begin(), ParamTypes.end())};
 }
 
 Async<Expect<std::vector<std::pair<ValVariant, ValType>>>>
@@ -167,7 +172,12 @@ VM::asyncRunWasmFile(Span<const Byte> Code, std::string_view Func,
   Expect<std::vector<std::pair<ValVariant, ValType>>> (VM::*FPtr)(
       Span<const Byte>, std::string_view, Span<const ValVariant>,
       Span<const ValType>) = &VM::runWasmFile;
-  return {FPtr, *this, Code, Func, Params, ParamTypes};
+  return {FPtr,
+          *this,
+          Code,
+          std::string(Func),
+          std::vector(Params.begin(), Params.end()),
+          std::vector(ParamTypes.begin(), ParamTypes.end())};
 }
 
 Async<Expect<std::vector<std::pair<ValVariant, ValType>>>>
@@ -177,7 +187,12 @@ VM::asyncRunWasmFile(const AST::Module &Module, std::string_view Func,
   Expect<std::vector<std::pair<ValVariant, ValType>>> (VM::*FPtr)(
       const AST::Module &, std::string_view, Span<const ValVariant>,
       Span<const ValType>) = &VM::runWasmFile;
-  return {FPtr, *this, Module, Func, Params, ParamTypes};
+  return {FPtr,
+          *this,
+          Module,
+          std::string(Func),
+          std::vector(Params.begin(), Params.end()),
+          std::vector(ParamTypes.begin(), ParamTypes.end())};
 }
 
 Expect<void> VM::loadWasm(const std::filesystem::path &Path) {
@@ -292,7 +307,9 @@ VM::asyncExecute(std::string_view Func, Span<const ValVariant> Params,
   Expect<std::vector<std::pair<ValVariant, ValType>>> (VM::*FPtr)(
       std::string_view, Span<const ValVariant>, Span<const ValType>) =
       &VM::execute;
-  return {FPtr, *this, Func, Params, ParamTypes};
+  return {FPtr, *this, std::string(Func),
+          std::vector(Params.begin(), Params.end()),
+          std::vector(ParamTypes.begin(), ParamTypes.end())};
 }
 
 Async<Expect<std::vector<std::pair<ValVariant, ValType>>>>
@@ -302,7 +319,12 @@ VM::asyncExecute(std::string_view ModName, std::string_view Func,
   Expect<std::vector<std::pair<ValVariant, ValType>>> (VM::*FPtr)(
       std::string_view, std::string_view, Span<const ValVariant>,
       Span<const ValType>) = &VM::execute;
-  return {FPtr, *this, ModName, Func, Params, ParamTypes};
+  return {FPtr,
+          *this,
+          std::string(ModName),
+          std::string(Func),
+          std::vector(Params.begin(), Params.end()),
+          std::vector(ParamTypes.begin(), ParamTypes.end())};
 }
 
 void VM::cleanup() {

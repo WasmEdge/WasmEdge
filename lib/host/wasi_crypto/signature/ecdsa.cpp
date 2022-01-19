@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "host/wasi_crypto/signature/ecdsa.h"
-
 #include "host/wasi_crypto/error.h"
 #include "host/wasi_crypto/evpwrapper.h"
 #include "host/wasi_crypto/signature/publickey.h"
@@ -10,6 +9,7 @@
 #include "openssl/pem.h"
 #include "openssl/x509.h"
 #include "wasi_crypto/api.hpp"
+
 #include <memory>
 
 namespace WasmEdge {
@@ -190,8 +190,8 @@ Ecdsa<Nid>::SecretKey::import(Span<const uint8_t> Encoded,
     return importSec(Encoded);
   case __WASI_SECRETKEY_ENCODING_COMPRESSED_SEC:
     return importCompressedSec(Encoded);
-  case __WASI_SECRETKEY_ENCODING_LOCAL:
-    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
+  default:
+    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_UNSUPPORTED_ENCODING);
   }
 }
 
@@ -412,7 +412,13 @@ Ecdsa<Nid>::KeyPair::openSignState() {
 
 template <uint32_t Nid>
 WasiCryptoExpect<std::unique_ptr<typename Ecdsa<Nid>::KeyPair>>
-Ecdsa<Nid>::KeyPair::importPkcs8(Span<const uint8_t> Encoded) {
+Ecdsa<Nid>::KeyPair::importPkcs8(Span<const uint8_t>) {
+  return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
+}
+
+template <uint32_t Nid>
+WasiCryptoExpect<std::unique_ptr<typename Ecdsa<Nid>::KeyPair>>
+Ecdsa<Nid>::KeyPair::importPem(Span<const uint8_t> Encoded) {
   auto InitCtx = initEC();
   if (!InitCtx) {
     return WasiCryptoUnexpect(InitCtx);
@@ -427,12 +433,6 @@ Ecdsa<Nid>::KeyPair::importPkcs8(Span<const uint8_t> Encoded) {
                  __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
 
   return std::make_unique<KeyPair>(Sk);
-}
-
-template <uint32_t Nid>
-WasiCryptoExpect<std::unique_ptr<typename Ecdsa<Nid>::KeyPair>>
-Ecdsa<Nid>::KeyPair::importPem(Span<const uint8_t>) {
-  return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
 }
 
 template <uint32_t Nid>

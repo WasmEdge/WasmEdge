@@ -1999,6 +1999,7 @@ WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_TableInstanceGrow(
         if (fromTabCxt(Cxt)->growTable(Size)) {
           return {};
         } else {
+          spdlog::error(WasmEdge::ErrCode::TableOutOfBounds);
           return WasmEdge::Unexpect(WasmEdge::ErrCode::TableOutOfBounds);
         }
       },
@@ -2085,6 +2086,7 @@ WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_MemoryInstanceGrowPage(
         if (fromMemCxt(Cxt)->growPage(Page)) {
           return {};
         } else {
+          spdlog::error(WasmEdge::ErrCode::MemoryOutOfBounds);
           return WasmEdge::Unexpect(WasmEdge::ErrCode::MemoryOutOfBounds);
         }
       },

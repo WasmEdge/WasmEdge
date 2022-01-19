@@ -869,7 +869,7 @@ WasiExpect<void> INode::getAddrinfo(std::string_view Node,
 WasiExpect<INode> INode::sockOpen(__wasi_address_family_t AddressFamily,
                                   __wasi_sock_type_t SockType) noexcept {
 
-  int SysProtocol = IPPROTO_TCP;
+  int SysProtocol = IPPROTO_IP;
 
   int SysDomain = 0;
   int SysType = 0;
@@ -1067,7 +1067,7 @@ WasiExpect<void> INode::sockSendTo(Span<Span<const uint8_t>> SiData,
   SysMsgHdr.msg_control = nullptr;
   SysMsgHdr.msg_controllen = 0;
 
-  /// Store recv bytes length and flags.
+  // Store recv bytes length and flags.
   if (auto Res = ::sendmsg(Fd, &SysMsgHdr, SysSiFlags); unlikely(Res < 0)) {
     return WasiUnexpect(fromErrNo(errno));
   } else {

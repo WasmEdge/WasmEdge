@@ -1961,7 +1961,7 @@ WasiSockSendTo::body(Runtime::Instance::MemoryInstance *MemInst, int32_t Fd,
                      uint32_t SiDataPtr, uint32_t SiDataLen,
                      uint32_t AddressPtr, uint32_t SiFlags,
                      uint32_t /* Out */ SoDataLenPtr) {
-  /// Check memory instance from module.
+  // Check memory instance from module.
   if (MemInst == nullptr) {
     return __WASI_ERRNO_FAULT;
   }
@@ -1994,7 +1994,7 @@ WasiSockSendTo::body(Runtime::Instance::MemoryInstance *MemInst, int32_t Fd,
     return __WASI_ERRNO_INVAL;
   }
 
-  /// Check for invalid address.
+  // Check for invalid address.
   auto *const SiDataArray =
       MemInst->getPointer<__wasi_ciovec_t *>(SiDataPtr, WasiSiDataLen);
   if (unlikely(SiDataArray == nullptr)) {
@@ -2012,16 +2012,16 @@ WasiSockSendTo::body(Runtime::Instance::MemoryInstance *MemInst, int32_t Fd,
   for (__wasi_size_t I = 0; I < WasiSiDataLen; ++I) {
     __wasi_ciovec_t &SiData = SiDataArray[I];
 
-    /// Capping total size.
+    // Capping total size.
     const __wasi_size_t Space =
         std::numeric_limits<__wasi_size_t>::max() - TotalSize;
     const __wasi_size_t BufLen =
         unlikely(SiData.buf_len > Space) ? Space : SiData.buf_len;
     TotalSize += BufLen;
 
-    /// Check for invalid address.
+    // Check for invalid address.
     auto *const SiDataArr = MemInst->getPointer<uint8_t *>(SiData.buf, BufLen);
-    /// Check for invalid address.
+    // Check for invalid address.
     if (unlikely(SiDataArr == nullptr)) {
       return __WASI_ERRNO_FAULT;
     }

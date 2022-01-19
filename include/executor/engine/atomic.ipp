@@ -9,6 +9,31 @@ namespace Executor {
 
 
 template <typename T>
+TypeT<T> Executor::runAtomicWaitOp(Runtime::Instance::MemoryInstance &MemInst,
+                             const AST::Instruction &Instr,
+                             const uint32_t BitWidth) {
+  detail::atomicLock();
+  ValVariant Address = StackMgr.pop();
+  ValVariant Val = StackMgr.pop();
+  ValVariant Timeout = StackMgr.pop();
+
+  StackMgr.push(Address);
+  runLoadOp<T>(MemInst, Instr, BitWidth);
+  ValVariant& Loaded = StackMgr.getTop();
+
+  if(Loaded.get<T>() == Val.get<T>()){
+    StackMgr.push(ValVariant(0));
+  }else{
+    StackMgr.push(ValVariant(1));
+  }
+  // TODO: Implement Timeout
+  detail::atomicUnlock();
+  return {};
+}
+
+
+
+template <typename T>
 TypeT<T> Executor::runAtomicLoadOp(Runtime::Instance::MemoryInstance &MemInst,
                              const AST::Instruction &Instr,
                              const uint32_t BitWidth) {
@@ -32,7 +57,6 @@ TypeT<T> Executor::runAtomicStoreOp(Runtime::Instance::MemoryInstance &MemInst,
                               const uint32_t BitWidth) {
   detail::atomicLock();
   ValVariant &Address = StackMgr.getBottomN(2);
-  // ValVariant &Address = StackMgr.getTop();
   if( (Address.get<uint32_t>() & ((BitWidth >> 3U) - 1)) != 0){
     spdlog::error(ErrCode::UnalignedAtomicAccess);
     spdlog::error(ErrInfo::InfoInstruction(Instr.getOpCode(),

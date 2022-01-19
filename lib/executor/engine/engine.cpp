@@ -1605,7 +1605,17 @@ Expect<void> Executor::execute(Runtime::StoreManager &StoreMgr,
     case OpCode::F64x2__nearest:
       return runVectorNearestOp<double>(StackMgr.getTop());
 
-    // Atomic instructions
+    // Threads instructions
+    case OpCode::Atomic__fence:
+      return runMemoryFenceOp(*getMemInstByIdx(StoreMgr, 0), Instr);
+
+    case OpCode::Memory__atomic__notify:
+      return runAtomicNofityOp(*getMemInstByIdx(StoreMgr, 0), Instr);
+    case OpCode::Memory__atomic__wait32:
+      return runAtomicWaitOp<int32_t>(*getMemInstByIdx(StoreMgr, 0), Instr);
+    case OpCode::Memory__atomic__wait64:
+      return runAtomicWaitOp<int64_t>(*getMemInstByIdx(StoreMgr, 0), Instr);
+
     case OpCode::I32__atomic_load_s:
       return runAtomicLoadOp<int32_t>(*getMemInstByIdx(StoreMgr, 0), Instr);
     case OpCode::I64__atomic_load_s:

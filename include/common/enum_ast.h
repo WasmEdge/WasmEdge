@@ -533,9 +533,6 @@ enum class OpCode : uint16_t {
   F32x4__demote_f64x2_zero = 0xFD5E,
   F64x2__promote_low_f32x4 = 0xFD5F,
 
-  // Atomic Instructions
-  // the definition is compatible with atomic opcodes in v8
-  // https://chromium.googlesource.com/v8/v8/+/refs/heads/main/src/wasm/wasm-opcodes.h
   Memory__atomic__notify = 0xFE00,
   Memory__atomic__wait32 = 0xFE01,
   Memory__atomic__wait64 = 0xFE02,

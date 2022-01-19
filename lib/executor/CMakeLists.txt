@@ -15,6 +15,7 @@ wasmedge_add_library(wasmedgeExecutor
   engine/atomic_helper.cpp
   engine/controlInstr.cpp
   engine/tableInstr.cpp
+  engine/threadInstr.cpp
   engine/memoryInstr.cpp
   engine/variableInstr.cpp
   engine/engine.cpp

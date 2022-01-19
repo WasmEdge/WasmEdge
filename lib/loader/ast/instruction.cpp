@@ -842,6 +842,13 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
   case OpCode::F64x2__trunc:
   case OpCode::F64x2__nearest:
 
+  case OpCode::Atomic__fence:
+    return {};
+
+  case OpCode::Memory__atomic__notify:
+  case OpCode::Memory__atomic__wait32:
+  case OpCode::Memory__atomic__wait64:
+
   case OpCode::I32__atomic_load_s:
   case OpCode::I64__atomic_load_s:
   case OpCode::I32__atomic_load8_u:

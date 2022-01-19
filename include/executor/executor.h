@@ -515,6 +515,15 @@ private:
   template <typename T> Expect<void> runVectorTruncOp(ValVariant &Val) const;
   template <typename T> Expect<void> runVectorNearestOp(ValVariant &Val) const;
   /// ======= Atomic instructions =======
+  Expect<void> runAtomicNofityOp(Runtime::Instance::MemoryInstance &MemInst,
+                                 const AST::Instruction &Instr);
+  Expect<void> runMemoryFenceOp(Runtime::Instance::MemoryInstance &MemInst,
+                                const AST::Instruction &Instr);
+  template <typename T>
+  TypeT<T> runAtomicWaitOp(Runtime::Instance::MemoryInstance &MemInst,
+                           const AST::Instruction &Instr,
+                           const uint32_t BitWidth = sizeof(T) * 8);
+
   template <typename T>
   TypeT<T> runAtomicLoadOp(Runtime::Instance::MemoryInstance &MemInst,
                            const AST::Instruction &Instr,

@@ -1278,6 +1278,21 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
   case OpCode::I64x2__shr_u:
     return StackTrans({VType::V128, VType::I32}, {VType::V128});
 
+  case OpCode::Atomic__fence:
+    return {};
+
+  case OpCode::Memory__atomic__notify:
+    return checkAlignAndTrans(32, std::array{VType::I32, VType::I32},
+                              std::array{VType::I32});
+  case OpCode::Memory__atomic__wait32:
+    return checkAlignAndTrans(32,
+                              std::array{VType::I32, VType::I32, VType::I64},
+                              std::array{VType::I32});
+  case OpCode::Memory__atomic__wait64:
+    return checkAlignAndTrans(64,
+                              std::array{VType::I32, VType::I64, VType::I64},
+                              std::array{VType::I32});
+
   case OpCode::I32__atomic_load_s:
     return checkAlignAndTrans(32, std::array{VType::I32},
                               std::array{VType::I32});

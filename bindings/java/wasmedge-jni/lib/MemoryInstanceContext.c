@@ -13,7 +13,7 @@ WasmEdge_MemoryInstanceContext * getMemoryInstanceContext(JNIEnv* env, jobject j
         return NULL;
     }
     WasmEdge_MemoryInstanceContext * memoryInstanceContext =
-            (struct WasmEdge_MemoryTypeContext*)getPointer(env, jMemoryInstanceContext);
+            (struct WasmEdge_MemoryInstanceContext *)getPointer(env, jMemoryInstanceContext);
 
     return memoryInstanceContext;
 }
@@ -21,7 +21,7 @@ WasmEdge_MemoryInstanceContext * getMemoryInstanceContext(JNIEnv* env, jobject j
 JNIEXPORT void JNICALL Java_org_wasmedge_MemoryInstanceContext_nativeInit
 (JNIEnv * env, jobject thisObject, jobject jMemoryTypeContext) {
     WasmEdge_MemoryTypeContext * memoryTypeContext = getMemoryTypeContext(env, jMemoryTypeContext);
-    WasmEdge_MemoryTypeContext * memInstance = WasmEdge_MemoryInstanceCreate(memoryTypeContext);
+    WasmEdge_MemoryInstanceContext * memInstance = WasmEdge_MemoryInstanceCreate(memoryTypeContext);
     setPointer(env, thisObject, (long)memInstance);
 }
 
@@ -45,7 +45,7 @@ JNIEXPORT void JNICALL Java_org_wasmedge_MemoryInstanceContext_setData
 JNIEXPORT jbyteArray JNICALL Java_org_wasmedge_MemoryInstanceContext_getData
         (JNIEnv * env, jobject thisObject, jint jOffSet, jint jSize) {
     WasmEdge_MemoryInstanceContext *memoryInstanceContext = getMemoryInstanceContext(env, thisObject);
-    uint8_t *data = (uint8_t)malloc(sizeof(uint8_t) * jSize);
+    uint8_t *data = (uint8_t*)malloc(sizeof(uint8_t) * jSize);
     WasmEdge_Result result = WasmEdge_MemoryInstanceGetData(memoryInstanceContext, data, jOffSet, jSize);
     if(!WasmEdge_ResultOK(result)) {
         free(data);
@@ -86,7 +86,7 @@ JNIEXPORT void JNICALL Java_org_wasmedge_MemoryInstanceContext_growPage
 
 JNIEXPORT void JNICALL Java_org_wasmedge_MemoryInstanceContext_delete
 (JNIEnv * env, jobject thisObject) {
-    WasmEdge_TableInstanceDelete(getMemoryInstanceContext(env, thisObject));
+    WasmEdge_MemoryInstanceDelete(getMemoryInstanceContext(env, thisObject));
     setPointer(env, thisObject, 0);
 }
 

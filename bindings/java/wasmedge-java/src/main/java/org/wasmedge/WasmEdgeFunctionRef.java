@@ -3,9 +3,9 @@ package org.wasmedge;
 import org.wasmedge.enums.ValueType;
 
 public class WasmEdgeFunctionRef implements WasmEdgeValue {
-    int index;
+    private int value;
     public WasmEdgeFunctionRef(int index) {
-        this.index = index;
+        this.value = index;
     }
 
     @Override
@@ -14,6 +14,6 @@ public class WasmEdgeFunctionRef implements WasmEdgeValue {
     }
 
     public int getIndex() {
-        return index;
+        return value;
     }
 }

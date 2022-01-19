@@ -23,9 +23,7 @@ public class TableInstanceContext {
 
     public native void setData(WasmEdgeValue value, int index);
 
-    public WasmEdgeValue getData(ValueType valueType, int offSet);
-
-    private native WasmEdgeValue getData(int)
+    public native WasmEdgeValue getData(ValueType valueType, int offSet);
 
     public native int getSize();
 

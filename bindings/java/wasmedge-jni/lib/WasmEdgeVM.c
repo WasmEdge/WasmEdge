@@ -12,6 +12,7 @@
 #include "FunctionTypeContext.h"
 #include "AstModuleContext.h"
 #include "StatisticsContext.h"
+#include "string.h"
 
 void setJavaIntValue(JNIEnv *env, WasmEdge_Value val, jobject jobj) {
     int int_val = WasmEdge_ValueGetI32(val);
@@ -40,6 +41,14 @@ void setJavaDoubleValue(JNIEnv *env, WasmEdge_Value val, jobject jobj) {
     jclass val_clazz = (*env)->GetObjectClass(env, jobj);
     jmethodID val_setter = (*env)->GetMethodID(env, val_clazz, "setValue", "(D)V");
     (*env)->CallFloatMethod(env, jobj, val_setter, double_val);
+}
+
+void setJavaStringValue(JNIEnv *env, WasmEdge_Value val, jobject jobj) {
+    char* key = WasmEdge_ValueGetExternRef(val);
+    jclass val_clazz = (*env)->GetObjectClass(env, jobj);
+    jmethodID  val_setter = (*env)->GetMethodID(env, val_clazz, "setValue", "(Ljava/lang/String;)");
+    jstring jkey = (*env)->NewString(env, key, strlen(key));
+    (*env)->CallObjectMethod(env, jobj, val_setter, jkey);
 }
 
 jobject createDoubleJavaLongValueObject(JNIEnv *env, WasmEdge_Value val) {

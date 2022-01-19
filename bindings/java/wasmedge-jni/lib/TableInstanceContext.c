@@ -35,7 +35,8 @@ JNIEXPORT void JNICALL Java_org_wasmedge_TableInstanceContext_setData
         (JNIEnv * env, jobject thisObject, jobject jVal, jint jOffSet) {
     WasmEdge_TableInstanceContext * tableInstanceContext = getTableInstanceContext(env, thisObject);
     WasmEdge_Value data = JavaValueToWasmEdgeValue(env, jVal);
-    WasmEdge_TableInstanceSetData(tableInstanceContext, data, jOffSet);
+    WasmEdge_Result result = WasmEdge_TableInstanceSetData(tableInstanceContext, data, jOffSet);
+    handleWasmEdgeResult(env, &result);
 }
 
 
@@ -63,6 +64,12 @@ JNIEXPORT jobject JNICALL Java_org_wasmedge_TableInstanceContext_getData
             break;
         case WasmEdge_ValType_F64:
             val = WasmEdge_ValueGenF64(0.0);
+            break;
+        case WasmEdge_ValType_FuncRef:
+            val = WasmEdge_ValueGenNullRef(WasmEdge_RefType_FuncRef);
+            break;
+        case WasmEdge_ValType_ExternRef:
+            val = WasmEdge_ValueGenNullRef(WasmEdge_RefType_ExternRef);
             break;
     }
 

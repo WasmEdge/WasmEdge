@@ -33,36 +33,51 @@ WasmEdge_Value JavaValueToWasmEdgeValue(JNIEnv *env, jobject jVal) {
             return WasmEdge_ValueGenF64(getDoubleVal(env, jVal));
         case WasmEdge_ValType_V128:
             //TODO
-            return WasmEdge_ValueGenV128(0);
+            return WasmEdge_ValueGenV128(getLongVal(env, jVal));
         case WasmEdge_ValType_ExternRef:
             //TODO
-            return WasmEdge_ValueGenFuncRef(-1);
+            return WasmEdge_ValueGenExternRef(getStringVal(env, jVal));
+
         case WasmEdge_ValType_FuncRef:
-            return WasmEdge_ValueGenFuncRef(-1);
+            return WasmEdge_ValueGenFuncRef(getLongVal(env, jVal));
     }
 }
 
 jobject WasmEdgeValueToJavaValue(JNIEnv * env, WasmEdge_Value value) {
-    const char* valClass = NULL;
+    const char* valClassName = NULL;
+    char* key;
     switch (value.Type) {
         case WasmEdge_ValType_I32:
-            valClass = "org/wasmedge/WasmEdgeI32Value";
+            valClassName = "org/wasmedge/WasmEdgeI32Value";
             break;
         case WasmEdge_ValType_I64:
-            valClass = "org/wasmedge/WasmEdgeI64Value";
+            valClassName = "org/wasmedge/WasmEdgeI64Value";
             break;
         case WasmEdge_ValType_F32:
-            valClass = "org/wasmedge/WasmEdgeF32Value";
+            valClassName = "org/wasmedge/WasmEdgeF32Value";
             break;
         case WasmEdge_ValType_F64:
-            valClass = "org/wasmedge/WasmEdgeF64Value";
+            valClassName = "org/wasmedge/WasmEdgeF64Value";
+            break;
+        case WasmEdge_ValType_ExternRef:
+            valClassName = "org/wasmedge/WasmEdgeExternRef";
+            break;
+        case WasmEdge_ValType_FuncRef:
+            valClassName = "org/wasmedge/WasmEdgeFuncRef";
             break;
     }
+    printf("find val class : %s\n", valClassName);
+    jclass valClass = (*env)->FindClass(env, valClassName);
+
+    printf("find constructor %s\n", valClass == NULL ? "true" : "false");
 
     jmethodID constructor = (*env)->GetMethodID(env, valClass, "<init>", "()V");
 
-    jobject jVal = (*env)->NewObject(env, valClass, constructor);
 
+    printf("new object %s\n", constructor == NULL ? "true" : "false");
+
+    jobject jVal = (*env)->NewObject(env, valClass, constructor);
+    printf("new set value %s\n", jVal == NULL ? "true" : "false");
     setJavaValueObject(env, value, jVal);
     return jVal;
 }

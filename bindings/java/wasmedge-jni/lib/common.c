@@ -158,6 +158,20 @@ double getDoubleVal(JNIEnv *env, jobject val) {
     return value;
 }
 
+char* getStringVal(JNIEnv *env, jobject val) {
+    jclass clazz = (*env)->GetObjectClass(env, val);
+    jmethodID methodId = findJavaMethod(env, clazz, "getValue", "()Ljava/lang/String;");
+    jstring value = (jstring)(*env)->CallObjectMethod(env, val, methodId);
+    const char* c_str = (*env)->GetStringUTFChars(env, value, NULL);
+    size_t len = (*env)->GetStringUTFLength(env, value);
+    char * buf = malloc(sizeof(char) * len);
+
+    memcpy(buf, c_str, len);
+
+    (*env)->ReleaseStringUTFChars(env, val, c_str);
+    return buf;
+}
+
 
 WasmEdge_Value *parseJavaParams(JNIEnv *env, jobjectArray params, jintArray paramTypes, jint paramSize) {
 
@@ -181,6 +195,17 @@ WasmEdge_Value *parseJavaParams(JNIEnv *env, jobjectArray params, jintArray para
                 break;
             case 3:
                 val = WasmEdge_ValueGenF64(getDoubleVal(env, val_object));
+                break;
+            case 4:
+                //TODO
+                val = WasmEdge_ValueGenV128(0);
+                break;
+            case 5:
+                //TODO
+                val = WasmEdge_ValueGenFuncRef(0);
+                break;
+            case 6:
+                val = WasmEdge_ValueGenExternRef(&val_object);
                 break;
             default:
                 break;
@@ -217,7 +242,9 @@ bool checkAndHandleException(JNIEnv *env, const char* msg) {
             return true;
         }
         (*env)->ThrowNew(env, newExcCls, msg);
+        return true;
     }
+    return false;
 }
 
 
@@ -227,6 +254,8 @@ void setJavaValueObject(JNIEnv *env, WasmEdge_Value value, jobject j_val) {
             setJavaIntValue(env, value, j_val);
             break;
         case WasmEdge_ValType_I64:
+        case WasmEdge_ValType_FuncRef:
+        case WasmEdge_ValType_V128:
             setJavaLongValue(env, value, j_val);
             break;
         case WasmEdge_ValType_F32:
@@ -234,6 +263,9 @@ void setJavaValueObject(JNIEnv *env, WasmEdge_Value value, jobject j_val) {
             break;
         case WasmEdge_ValType_F64:
             setJavaDoubleValue(env, value, j_val);
+            break;
+        case WasmEdge_ValType_ExternRef:
+            setJavaValueObject(env, value, j_val);
             break;
         default:
             break;

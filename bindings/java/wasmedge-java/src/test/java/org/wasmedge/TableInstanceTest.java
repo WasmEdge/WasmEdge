@@ -23,36 +23,48 @@ public class TableInstanceTest extends BaseTest {
         TableTypeContext tab = new TableTypeContext(RefType.EXTERREF,
                 new WasmEdgeLimit(false, 10, 10));
         TableInstanceContext tabInstance = new TableInstanceContext(tab);
-
         Assert.assertEquals(tabInstance.getTableType().getRefType(), RefType.EXTERREF);
+
         tab.delete();
         tabInstance.delete();
     }
 
     @Test
-    public void testSetDataAndGetData() {
+    public void testSetDataAndGetExternRefData() {
         TableTypeContext tabCxt = new TableTypeContext(RefType.EXTERREF,
                 new WasmEdgeLimit(false, 10, 10));
         TableInstanceContext tabIns = new TableInstanceContext(tabCxt);
-        WasmEdgeValue val = new WasmEdgeExternalRef(tabCxt);
-        WasmEdgeValue tmpVal = new WasmEdgeFunctionRef(2);
+        Integer num = 1;
+        WasmEdgeValue val = new WasmEdgeExternRef(num);
 
         tabIns.setData(val, 5);
-        tabIns.setData(tmpVal, 6);
 
-        WasmEdgeValue returnVal = tabIns.getData(ValueType.i32, 5);
-        Assert.fail("TBC");
+        WasmEdgeExternRef returnRef = (WasmEdgeExternRef) tabIns.getData(ValueType.ExternRef, 5);
+        Integer returnVal = (Integer) returnRef.getExternRefVal();
+        Assert.assertEquals(num.intValue(), returnVal.intValue());
+    }
+
+    @Test
+    public void testSetAndGetFuncRefData() {
+        TableTypeContext tabCxt = new TableTypeContext(RefType.FUNCREF,
+                new WasmEdgeLimit(false, 10, 10));
+        TableInstanceContext tabIns = new TableInstanceContext(tabCxt);
+        int idx = 1;
+        WasmEdgeValue val = new WasmEdgeFunctionRef(1);
+
+        tabIns.setData(val, 5);
+
+        WasmEdgeFunctionRef returnRef = (WasmEdgeFunctionRef) tabIns.getData(ValueType.ExternRef, 5);
+        Assert.assertEquals(idx, returnRef.getIndex());
     }
 
     @Test(expected = RuntimeException.class)
     public void testSetDataInvalid() {
         TableTypeContext tabCxt = new TableTypeContext(RefType.EXTERREF,
-                new WasmEdgeLimit(false, 10, 10));
+                new WasmEdgeLimit(true, 10, 10));
         TableInstanceContext tabIns = new TableInstanceContext(tabCxt);
-        WasmEdgeValue val = new WasmEdgeExternalRef(tabCxt);
-
-        tabIns.setData(val, 5);
-        tabIns.setData(val, 5);
+        WasmEdgeValue val = new WasmEdgeExternRef(Integer.valueOf(1));
+        tabIns.setData(val, 12);
     }
 
     @Test
@@ -63,7 +75,5 @@ public class TableInstanceTest extends BaseTest {
         Assert.assertEquals(tabIns.getSize(), 10);
         tabIns.grow(8);
         Assert.assertEquals(tabIns.getSize(), 18);
-
-
     }
 }

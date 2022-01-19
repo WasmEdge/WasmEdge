@@ -40,6 +40,8 @@ long getFloatVal(JNIEnv *env, jobject val);
 
 double getDoubleVal(JNIEnv *env, jobject val);
 
+char* getStringVal(JNIEnv *env, jobject val);
+
 void setJavaIntValue(JNIEnv *env, WasmEdge_Value val, jobject jobj);
 
 void setJavaLongValue(JNIEnv *env, WasmEdge_Value val, jobject jobj);
@@ -47,6 +49,8 @@ void setJavaLongValue(JNIEnv *env, WasmEdge_Value val, jobject jobj);
 void setJavaFloatValue(JNIEnv *env, WasmEdge_Value val, jobject jobj);
 
 void setJavaDoubleValue(JNIEnv *env, WasmEdge_Value val, jobject jobj);
+
+void setJavaStringValue(JNIEnv *env, WasmEdge_Value val, jobject jobj);
 
 enum WasmEdge_ValType *parseValueTypes(JNIEnv *env, jintArray jValueTypes);
 

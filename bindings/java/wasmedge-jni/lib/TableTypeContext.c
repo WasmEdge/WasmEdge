@@ -18,15 +18,17 @@ WasmEdge_TableTypeContext * getTableTypeContext(JNIEnv* env, jobject jTableTypeC
 
 JNIEXPORT void JNICALL Java_org_wasmedge_TableTypeContext_nativeInit
         (JNIEnv *env, jobject thisObject, jint refType, jobject jLimit){
-    jclass cls = (*env)->GetObjectClass(env, thisObject);
-    jfieldID hasMaxFid = (*env)->GetFieldID(env, cls, "hasMax", "B");
-    jboolean hasMax = (*env)->GetBooleanField(env, thisObject, hasMaxFid);
 
-    jfieldID maxFid = (*env)->GetFieldID(env, cls, "max", "J");
-    jlong max = (*env)->GetLongField(env, thisObject, maxFid);
+    jclass cls = (*env)->GetObjectClass(env, jLimit);
 
-    jfieldID minFid = (*env)->GetFieldID(env, cls, "min", "J");
-    jlong min = (*env)->GetLongField(env, thisObject, minFid);
+    jmethodID hasMaxMid = (*env)->GetMethodID(env, cls, "isHasMax", "()Z");
+    jboolean hasMax = (*env)->CallBooleanMethod(env, jLimit, hasMaxMid);
+
+    jmethodID maxMid = (*env)->GetMethodID(env, cls, "getMax", "()J");
+    jlong max = (*env)->CallLongMethod(env, jLimit, maxMid);
+
+    jmethodID minMid = (*env)->GetMethodID(env, cls, "getMin", "()J");
+    jlong min = (*env)->CallLongMethod(env, jLimit, minMid);
 
     WasmEdge_Limit  tableLimit = {.HasMax = hasMax, .Min = min, .Max = max};
     WasmEdge_TableTypeContext * tableTypeContext = WasmEdge_TableTypeCreate((enum WasmEdge_RefType) refType, tableLimit);

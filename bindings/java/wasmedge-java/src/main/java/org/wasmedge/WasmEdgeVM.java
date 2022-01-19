@@ -3,17 +3,28 @@ package org.wasmedge;
 import org.wasmedge.enums.HostRegistration;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class WasmEdgeVM {
+    private static final Map<String, Object> externRefMap = new HashMap<>();
     private long pointer;
     private ConfigureContext configureContext;
     private StoreContext storeContext;
+
 
     public WasmEdgeVM(ConfigureContext configureContext, StoreContext storeContext) {
         this.configureContext = configureContext;
         this.storeContext = storeContext;
         nativeInit(this.configureContext, this.storeContext);
+    }
+    protected static void addExternRef(String key, Object val) {
+        externRefMap.put(key, val);
+    }
+
+    protected static Object getExternRef(String key) {
+        return externRefMap.get(key);
     }
 
     private native void nativeInit(ConfigureContext configureContext, StoreContext storeContext);

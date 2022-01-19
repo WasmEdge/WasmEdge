@@ -2,7 +2,14 @@
 
 #include "host/wasi_crypto/signature/rsa.h"
 
+#include "host/wasi_crypto/error.h"
+#include "host/wasi_crypto/evpwrapper.h"
+#include "host/wasi_crypto/signature/secretkey.h"
 #include "openssl/x509.h"
+#include "wasi_crypto/api.hpp"
+#include <openssl/bio.h>
+#include <openssl/pem.h>
+#include <vector>
 
 namespace WasmEdge {
 namespace Host {
@@ -15,38 +22,66 @@ template <uint32_t Pad, uint32_t Size, uint32_t Sha>
 WasiCryptoExpect<std::unique_ptr<typename Rsa<Pad, Size, Sha>::PublicKey>>
 Rsa<Pad, Size, Sha>::PublicKey::import(Span<const uint8_t> Encoded,
                                        __wasi_publickey_encoding_e_t Encoding) {
+  switch (Encoding) {
+  case __WASI_PUBLICKEY_ENCODING_PKCS8:
+    return importPkcs8(Encoded);
+  case __WASI_PUBLICKEY_ENCODING_PEM:
+    return importPem(Encoded);
+  case __WASI_PUBLICKEY_ENCODING_LOCAL:
+    return importLocal(Encoded);
+  default:
+    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_UNSUPPORTED_ENCODING);
+  }
+}
+
+template <uint32_t Pad, uint32_t Size, uint32_t Sha>
+WasiCryptoExpect<std::unique_ptr<typename Rsa<Pad, Size, Sha>::PublicKey>>
+Rsa<Pad, Size, Sha>::PublicKey::importPkcs8(Span<const uint8_t> Encoded) {
+  BioPtr Bio{BIO_new(BIO_s_mem())};
+  BIO_write(Bio.get(), Encoded.data(), Encoded.size());
+
   auto InitCtx = initRsa();
   if (!InitCtx) {
     return WasiCryptoUnexpect(InitCtx);
   }
 
   EVP_PKEY *P = *InitCtx;
+  P = d2i_PKCS8PrivateKey_bio(Bio.get(), &P, nullptr, nullptr);
+  ensureOrReturn(P, __WASI_CRYPTO_ERRNO_INVALID_KEY);
+  return std::make_unique<PublicKey>(P);
+}
 
-  switch (Encoding) {
-  case __WASI_PUBLICKEY_ENCODING_RAW: {
-    const uint8_t *Temp = Encoded.data();
+template <uint32_t Pad, uint32_t Size, uint32_t Sha>
+WasiCryptoExpect<std::unique_ptr<typename Rsa<Pad, Size, Sha>::PublicKey>>
+Rsa<Pad, Size, Sha>::PublicKey::importPem(Span<const uint8_t> Encoded) {
+  BioPtr Bio{BIO_new(BIO_s_mem())};
+  BIO_write(Bio.get(), Encoded.data(), Encoded.size());
 
-    ensureOrReturn(Encoded.size() <= LONG_MAX,
-                   __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
-    P = d2i_PublicKey(EVP_PKEY_RSA, &P, &Temp,
-                      static_cast<long>(Encoded.size()));
-    ensureOrReturn(P, __WASI_CRYPTO_ERRNO_INVALID_KEY);
-    break;
-  }
-  case __WASI_PUBLICKEY_ENCODING_PKCS8:
-    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
-  case __WASI_PUBLICKEY_ENCODING_PEM:
-    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
-  case __WASI_PUBLICKEY_ENCODING_SEC:
-    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
-  case __WASI_PUBLICKEY_ENCODING_COMPRESSED_SEC:
-    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
-  case __WASI_PUBLICKEY_ENCODING_LOCAL:
-    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
-  default:
-    assumingUnreachable();
+  auto InitCtx = initRsa();
+  if (!InitCtx) {
+    return WasiCryptoUnexpect(InitCtx);
   }
 
+  EVP_PKEY *P = *InitCtx;
+  P = PEM_read_bio_PUBKEY(Bio.get(), &P, nullptr, nullptr);
+  ensureOrReturn(P, __WASI_CRYPTO_ERRNO_INVALID_KEY);
+  return std::make_unique<PublicKey>(P);
+}
+
+template <uint32_t Pad, uint32_t Size, uint32_t Sha>
+WasiCryptoExpect<std::unique_ptr<typename Rsa<Pad, Size, Sha>::PublicKey>>
+Rsa<Pad, Size, Sha>::PublicKey::importLocal(Span<const uint8_t> Encoded) {
+  auto InitCtx = initRsa();
+  if (!InitCtx) {
+    return WasiCryptoUnexpect(InitCtx);
+  }
+
+  EVP_PKEY *P = *InitCtx;
+  const uint8_t *Temp = Encoded.data();
+  ensureOrReturn(Encoded.size() <= LONG_MAX,
+                 __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
+  P = d2i_PublicKey(EVP_PKEY_RSA, &P, &Temp, static_cast<long>(Encoded.size()));
+  ensureOrReturn(P, __WASI_CRYPTO_ERRNO_INVALID_KEY);
   return std::make_unique<PublicKey>(P);
 }
 
@@ -55,26 +90,46 @@ WasiCryptoExpect<std::vector<uint8_t>>
 Rsa<Pad, Size, Sha>::PublicKey::exportData(
     __wasi_publickey_encoding_e_t Encoding) {
   switch (Encoding) {
-  case __WASI_PUBLICKEY_ENCODING_RAW: {
-    std::vector<uint8_t> Res(
-        static_cast<size_t>(i2d_PublicKey(Pk.get(), nullptr)));
-    uint8_t *Temp = Res.data();
-    opensslAssuming(i2d_PublicKey(Pk.get(), &Temp));
-    return Res;
-  }
   case __WASI_PUBLICKEY_ENCODING_PKCS8:
-    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
+    return exportPkcs8();
   case __WASI_PUBLICKEY_ENCODING_PEM:
-    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
-  case __WASI_PUBLICKEY_ENCODING_SEC:
-    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
-  case __WASI_PUBLICKEY_ENCODING_COMPRESSED_SEC:
-    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
+    return exportPem();
   case __WASI_PUBLICKEY_ENCODING_LOCAL:
-    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
+    return exportLocal();
   default:
-    assumingUnreachable();
+    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_UNSUPPORTED_ENCODING);
   }
+}
+
+template <uint32_t Pad, uint32_t Size, uint32_t Sha>
+WasiCryptoExpect<std::vector<uint8_t>>
+Rsa<Pad, Size, Sha>::PublicKey::exportPkcs8() {
+  return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
+}
+
+template <uint32_t Pad, uint32_t Size, uint32_t Sha>
+WasiCryptoExpect<std::vector<uint8_t>>
+Rsa<Pad, Size, Sha>::PublicKey::exportPem() {
+  BioPtr Bio{BIO_new(BIO_s_mem())};
+  PEM_write_bio_PUBKEY(Bio.get(), Pk.get());
+
+  char *Temp = nullptr;
+  int Siz = BIO_get_mem_data(Bio.get(), Temp);
+  std::vector<uint8_t> Res(static_cast<size_t>(Siz));
+  ensureOrReturn(BIO_read(Bio.get(), Res.data(), Siz),
+                 __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
+
+  return Res;
+}
+
+template <uint32_t Pad, uint32_t Size, uint32_t Sha>
+WasiCryptoExpect<std::vector<uint8_t>>
+Rsa<Pad, Size, Sha>::PublicKey::exportLocal() {
+  std::vector<uint8_t> Res(
+      static_cast<size_t>(i2d_PublicKey(Pk.get(), nullptr)));
+  uint8_t *Temp = Res.data();
+  opensslAssuming(i2d_PublicKey(Pk.get(), &Temp));
+  return Res;
 }
 
 template <uint32_t Pad, uint32_t Size, uint32_t Sha>
@@ -92,6 +147,45 @@ template <uint32_t Pad, uint32_t Size, uint32_t Sha>
 WasiCryptoExpect<std::unique_ptr<typename Rsa<Pad, Size, Sha>::SecretKey>>
 Rsa<Pad, Size, Sha>::SecretKey::import(Span<const uint8_t> Encoded,
                                        __wasi_secretkey_encoding_e_t Encoding) {
+
+  switch (Encoding) {
+  case __WASI_SECRETKEY_ENCODING_PKCS8:
+    return importPkcs8(Encoded);
+  case __WASI_SECRETKEY_ENCODING_PEM:
+    return importPem(Encoded);
+  case __WASI_SECRETKEY_ENCODING_LOCAL:
+    return importLocal(Encoded);
+  default:
+    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_UNSUPPORTED_ENCODING);
+  }
+}
+
+template <uint32_t Pad, uint32_t Size, uint32_t Sha>
+WasiCryptoExpect<std::unique_ptr<typename Rsa<Pad, Size, Sha>::SecretKey>>
+Rsa<Pad, Size, Sha>::SecretKey::importPem(Span<const uint8_t> Encoded) {
+  BioPtr Bio{BIO_new(BIO_s_mem())};
+  BIO_write(Bio.get(), Encoded.data(), Encoded.size());
+
+  auto InitCtx = initRsa();
+  if (!InitCtx) {
+    return WasiCryptoUnexpect(InitCtx);
+  }
+
+  EVP_PKEY *P = *InitCtx;
+  P = PEM_read_bio_PrivateKey(Bio.get(), &P, nullptr, nullptr);
+  ensureOrReturn(P, __WASI_CRYPTO_ERRNO_INVALID_KEY);
+  return std::make_unique<SecretKey>(P);
+}
+
+template <uint32_t Pad, uint32_t Size, uint32_t Sha>
+WasiCryptoExpect<std::unique_ptr<typename Rsa<Pad, Size, Sha>::SecretKey>>
+Rsa<Pad, Size, Sha>::SecretKey::importPkcs8(Span<const uint8_t>) {
+  return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
+}
+
+template <uint32_t Pad, uint32_t Size, uint32_t Sha>
+WasiCryptoExpect<std::unique_ptr<typename Rsa<Pad, Size, Sha>::SecretKey>>
+Rsa<Pad, Size, Sha>::SecretKey::importLocal(Span<const uint8_t> Encoded) {
   auto InitCtx = initRsa();
   if (!InitCtx) {
     return WasiCryptoUnexpect(InitCtx);
@@ -99,30 +193,12 @@ Rsa<Pad, Size, Sha>::SecretKey::import(Span<const uint8_t> Encoded,
 
   EVP_PKEY *Sk = *InitCtx;
 
-  switch (Encoding) {
-  case __WASI_SECRETKEY_ENCODING_RAW: {
-    const uint8_t *Temp = Encoded.data();
-    ensureOrReturn(Encoded.size() <= LONG_MAX,
-                   __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
-    Sk = d2i_PrivateKey(EVP_PKEY_RSA, &Sk, &Temp,
-                        static_cast<long>(Encoded.size()));
-    ensureOrReturn(Sk, __WASI_CRYPTO_ERRNO_INVALID_KEY);
-    break;
-  }
-  case __WASI_SECRETKEY_ENCODING_PKCS8:
-    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
-  case __WASI_SECRETKEY_ENCODING_PEM:
-    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
-  case __WASI_SECRETKEY_ENCODING_SEC:
-    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
-  case __WASI_SECRETKEY_ENCODING_COMPRESSED_SEC:
-    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
-  case __WASI_SECRETKEY_ENCODING_LOCAL:
-    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
-  default:
-    assumingUnreachable();
-  }
-
+  const uint8_t *Temp = Encoded.data();
+  ensureOrReturn(Encoded.size() <= LONG_MAX,
+                 __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
+  Sk = d2i_PrivateKey(EVP_PKEY_RSA, &Sk, &Temp,
+                      static_cast<long>(Encoded.size()));
+  ensureOrReturn(Sk, __WASI_CRYPTO_ERRNO_INVALID_KEY);
   return std::make_unique<SecretKey>(Sk);
 }
 
@@ -131,67 +207,118 @@ WasiCryptoExpect<std::vector<uint8_t>>
 Rsa<Pad, Size, Sha>::SecretKey::exportData(
     __wasi_secretkey_encoding_e_t Encoding) {
   switch (Encoding) {
-  case __WASI_SECRETKEY_ENCODING_RAW: {
-    std::vector<uint8_t> Res(
-        static_cast<size_t>(i2d_PrivateKey(Ctx.get(), nullptr)));
-    uint8_t *Temp = Res.data();
-    opensslAssuming(i2d_PrivateKey(Ctx.get(), &Temp));
-    return Res;
-  }
-  case __WASI_SECRETKEY_ENCODING_PKCS8: {
-    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
-  }
-  case __WASI_SECRETKEY_ENCODING_PEM: {
-    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
-  }
-  case __WASI_SECRETKEY_ENCODING_SEC: {
-    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
-  }
-  case __WASI_SECRETKEY_ENCODING_COMPRESSED_SEC: {
-    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
-  }
-  case __WASI_SECRETKEY_ENCODING_LOCAL: {
-    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
-  }
+  case __WASI_SECRETKEY_ENCODING_PKCS8:
+    return exportPkcs8();
+  case __WASI_SECRETKEY_ENCODING_PEM:
+    return exportPem();
+  case __WASI_SECRETKEY_ENCODING_LOCAL:
+    return exportLocal();
   default:
-    assumingUnreachable();
+    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_UNSUPPORTED_ENCODING);
   }
+}
+
+template <uint32_t Pad, uint32_t Size, uint32_t Sha>
+WasiCryptoExpect<std::vector<uint8_t>>
+Rsa<Pad, Size, Sha>::SecretKey::exportPem() {
+  BioPtr Bio{BIO_new(BIO_s_mem())};
+  ensureOrReturn(PEM_write_bio_PrivateKey(Bio.get(), Ctx.get(), nullptr,
+                                          nullptr, 0, nullptr, nullptr),
+                 __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
+
+  char *Temp = nullptr;
+  int Siz = BIO_get_mem_data(Bio.get(), Temp);
+  std::vector<uint8_t> Res(static_cast<size_t>(Siz));
+  ensureOrReturn(BIO_read(Bio.get(), Res.data(), Siz),
+                 __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
+
+  return Res;
+}
+
+template <uint32_t Pad, uint32_t Size, uint32_t Sha>
+WasiCryptoExpect<std::vector<uint8_t>>
+Rsa<Pad, Size, Sha>::SecretKey::exportPkcs8() {
+  BioPtr Bio{BIO_new(BIO_s_mem())};
+  ensureOrReturn(PEM_write_bio_PKCS8PrivateKey(Bio.get(), Ctx.get(), nullptr,
+                                               nullptr, 0, nullptr, nullptr),
+                 __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
+
+  char *Temp = nullptr;
+  int Siz = BIO_get_mem_data(Bio.get(), Temp);
+  std::vector<uint8_t> Res(static_cast<size_t>(Siz));
+  ensureOrReturn(BIO_read(Bio.get(), Res.data(), Siz),
+                 __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
+
+  return Res;
+}
+
+template <uint32_t Pad, uint32_t Size, uint32_t Sha>
+WasiCryptoExpect<std::vector<uint8_t>>
+Rsa<Pad, Size, Sha>::SecretKey::exportLocal() {
+  std::vector<uint8_t> Res(
+      static_cast<size_t>(i2d_PrivateKey(Ctx.get(), nullptr)));
+  uint8_t *Temp = Res.data();
+  opensslAssuming(i2d_PrivateKey(Ctx.get(), &Temp));
+  return Res;
 }
 
 template <uint32_t Pad, uint32_t Size, uint32_t Sha>
 WasiCryptoExpect<std::unique_ptr<typename Rsa<Pad, Size, Sha>::KeyPair>>
 Rsa<Pad, Size, Sha>::KeyPair::import(Span<const uint8_t> Encoded,
-                                     __wasi_keypair_encoding_e_t Encoding) {
+                                       __wasi_keypair_encoding_e_t Encoding) {
+
+  switch (Encoding) {
+  case __WASI_KEYPAIR_ENCODING_PKCS8:
+    return importPkcs8(Encoded);
+  case __WASI_KEYPAIR_ENCODING_PEM:
+    return importPem(Encoded);
+  case __WASI_KEYPAIR_ENCODING_LOCAL:
+    return importLocal(Encoded);
+  default:
+    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_UNSUPPORTED_ENCODING);
+  }
+}
+
+template <uint32_t Pad, uint32_t Size, uint32_t Sha>
+WasiCryptoExpect<std::unique_ptr<typename Rsa<Pad, Size, Sha>::KeyPair>>
+Rsa<Pad, Size, Sha>::KeyPair::importPem(Span<const uint8_t> Encoded) {
+  BioPtr Bio{BIO_new(BIO_s_mem())};
+  BIO_write(Bio.get(), Encoded.data(), Encoded.size());
+
   auto InitCtx = initRsa();
   if (!InitCtx) {
     return WasiCryptoUnexpect(InitCtx);
   }
 
-  EVP_PKEY *Kp = *InitCtx;
+  EVP_PKEY *P = *InitCtx;
+  P = PEM_read_bio_PrivateKey(Bio.get(), &P, nullptr, nullptr);
+  ensureOrReturn(P, __WASI_CRYPTO_ERRNO_INVALID_KEY);
+  return std::make_unique<KeyPair>(P);
+}
 
-  switch (Encoding) {
-  case __WASI_KEYPAIR_ENCODING_RAW: {
-    // TODO: add more check in encoded?
-    const uint8_t *Temp = Encoded.data();
+template <uint32_t Pad, uint32_t Size, uint32_t Sha>
+WasiCryptoExpect<std::unique_ptr<typename Rsa<Pad, Size, Sha>::KeyPair>>
+Rsa<Pad, Size, Sha>::KeyPair::importPkcs8(Span<const uint8_t>) {
+  return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
+}
 
-    ensureOrReturn(Encoded.size() <= LONG_MAX,
-                   __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
-    Kp = d2i_PrivateKey(EVP_PKEY_RSA, &Kp, &Temp,
-                        static_cast<long>(Encoded.size()));
-    ensureOrReturn(Kp, __WASI_CRYPTO_ERRNO_INVALID_KEY);
-    break;
-  }
-  case __WASI_KEYPAIR_ENCODING_PKCS8:
-    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
-  case __WASI_KEYPAIR_ENCODING_PEM:
-    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
-  case __WASI_KEYPAIR_ENCODING_LOCAL:
-    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
-  default:
-    assumingUnreachable();
+template <uint32_t Pad, uint32_t Size, uint32_t Sha>
+WasiCryptoExpect<std::unique_ptr<typename Rsa<Pad, Size, Sha>::KeyPair>>
+Rsa<Pad, Size, Sha>::KeyPair::importLocal(Span<const uint8_t> Encoded) {
+  auto InitCtx = initRsa();
+  if (!InitCtx) {
+    return WasiCryptoUnexpect(InitCtx);
   }
 
-  return std::make_unique<KeyPair>(Kp);
+  EVP_PKEY *Sk = *InitCtx;
+
+  const uint8_t *Temp = Encoded.data();
+  ensureOrReturn(Encoded.size() <= LONG_MAX,
+                 __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
+  Sk = d2i_PrivateKey(EVP_PKEY_RSA, &Sk, &Temp,
+                      static_cast<long>(Encoded.size()));
+  ensureOrReturn(Sk, __WASI_CRYPTO_ERRNO_INVALID_KEY);
+  return std::make_unique<KeyPair>(Sk);
 }
 
 template <uint32_t Pad, uint32_t Size, uint32_t Sha>
@@ -220,25 +347,62 @@ Rsa<Pad, Size, Sha>::KeyPair::generate(std::shared_ptr<Options>) {
 
 template <uint32_t Pad, uint32_t Size, uint32_t Sha>
 WasiCryptoExpect<std::vector<uint8_t>>
-Rsa<Pad, Size, Sha>::KeyPair::exportData(__wasi_keypair_encoding_e_t Encoding) {
+Rsa<Pad, Size, Sha>::KeyPair::exportData(
+    __wasi_keypair_encoding_e_t Encoding) {
   switch (Encoding) {
-  case __WASI_KEYPAIR_ENCODING_RAW: {
-    std::vector<uint8_t> Res(
-        static_cast<size_t>(i2d_PrivateKey(Ctx.get(), nullptr)));
-    uint8_t *Temp = Res.data();
-    opensslAssuming(i2d_PrivateKey(Ctx.get(), &Temp));
-    return Res;
-  }
   case __WASI_KEYPAIR_ENCODING_PKCS8:
-    break;
+    return exportPkcs8();
   case __WASI_KEYPAIR_ENCODING_PEM:
-    break;
+    return exportPem();
   case __WASI_KEYPAIR_ENCODING_LOCAL:
-    break;
+    return exportLocal();
   default:
-    assumingUnreachable();
+    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_UNSUPPORTED_ENCODING);
   }
-  return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
+}
+
+template <uint32_t Pad, uint32_t Size, uint32_t Sha>
+WasiCryptoExpect<std::vector<uint8_t>>
+Rsa<Pad, Size, Sha>::KeyPair::exportPem() {
+  BioPtr Bio{BIO_new(BIO_s_mem())};
+  ensureOrReturn(PEM_write_bio_PrivateKey(Bio.get(), Ctx.get(), nullptr,
+                                          nullptr, 0, nullptr, nullptr),
+                 __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
+
+  char *Temp = nullptr;
+  int Siz = BIO_get_mem_data(Bio.get(), Temp);
+  std::vector<uint8_t> Res(static_cast<size_t>(Siz));
+  ensureOrReturn(BIO_read(Bio.get(), Res.data(), Siz),
+                 __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
+
+  return Res;
+}
+
+template <uint32_t Pad, uint32_t Size, uint32_t Sha>
+WasiCryptoExpect<std::vector<uint8_t>>
+Rsa<Pad, Size, Sha>::KeyPair::exportPkcs8() {
+  BioPtr Bio{BIO_new(BIO_s_mem())};
+  ensureOrReturn(PEM_write_bio_PKCS8PrivateKey(Bio.get(), Ctx.get(), nullptr,
+                                               nullptr, 0, nullptr, nullptr),
+                 __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
+
+  char *Temp = nullptr;
+  int Siz = BIO_get_mem_data(Bio.get(), Temp);
+  std::vector<uint8_t> Res(static_cast<size_t>(Siz));
+  ensureOrReturn(BIO_read(Bio.get(), Res.data(), Siz),
+                 __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
+
+  return Res;
+}
+
+template <uint32_t Pad, uint32_t Size, uint32_t Sha>
+WasiCryptoExpect<std::vector<uint8_t>>
+Rsa<Pad, Size, Sha>::KeyPair::exportLocal() {
+  std::vector<uint8_t> Res(
+      static_cast<size_t>(i2d_PrivateKey(Ctx.get(), nullptr)));
+  uint8_t *Temp = Res.data();
+  opensslAssuming(i2d_PrivateKey(Ctx.get(), &Temp));
+  return Res;
 }
 
 template <uint32_t Pad, uint32_t Size, uint32_t Sha>

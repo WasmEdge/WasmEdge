@@ -8,7 +8,7 @@ pub struct Func {
 }
 impl Func {
     pub fn new(
-        sig: FuncSignature,
+        sig: Signature,
         real_fn: Box<dyn Fn(Vec<Value>) -> Result<Vec<Value>, u8>>,
         cost: u64,
     ) -> WasmEdgeResult<Self> {
@@ -38,7 +38,7 @@ impl Func {
         self.mod_name.is_some()
     }
 
-    pub fn signature(&self) -> WasmEdgeResult<FuncSignature> {
+    pub fn signature(&self) -> WasmEdgeResult<Signature> {
         let func_ty = self.inner.ty()?;
         Ok(func_ty.into())
     }
@@ -71,20 +71,20 @@ impl SignatureBuilder {
         }
     }
 
-    pub fn build(self) -> FuncSignature {
-        FuncSignature {
+    pub fn build(self) -> Signature {
+        Signature {
             args: self.args,
             returns: self.returns,
         }
     }
 }
 
-#[derive(Debug)]
-pub struct FuncSignature {
+#[derive(Debug, PartialEq)]
+pub struct Signature {
     args: Option<Vec<ValType>>,
     returns: Option<Vec<ValType>>,
 }
-impl FuncSignature {
+impl Signature {
     pub fn args(&self) -> Option<&[ValType]> {
         match &self.args {
             Some(args) => Some(args.as_ref()),
@@ -99,7 +99,7 @@ impl FuncSignature {
         }
     }
 }
-impl From<wasmedge::FuncType> for FuncSignature {
+impl From<wasmedge::FuncType> for Signature {
     fn from(ty: wasmedge::FuncType) -> Self {
         let args = if ty.params_len() > 0 {
             Some(ty.params_type_iter().map(|x| x.into()).collect::<Vec<_>>())
@@ -116,8 +116,8 @@ impl From<wasmedge::FuncType> for FuncSignature {
         Self { args, returns }
     }
 }
-impl From<FuncSignature> for wasmedge::FuncType {
-    fn from(_: FuncSignature) -> Self {
+impl From<Signature> for wasmedge::FuncType {
+    fn from(_: Signature) -> Self {
         todo!()
     }
 }

@@ -6,6 +6,7 @@
 #include "openssl/evp.h"
 #include "wasi_crypto/api.hpp"
 
+#include <cstdint>
 #include <limits>
 #include <map>
 #include <memory>
@@ -132,6 +133,11 @@ constexpr WasiCryptoExpect<T> tryFrom(std::string_view) noexcept;
 template <class... Ts> struct Overloaded : Ts... { using Ts::operator()...; };
 
 template <class... Ts> Overloaded(Ts...) -> Overloaded<Ts...>;
+
+template<typename T>
+T *addressOfTempory(T &&X) {
+    return &X;
+}
 
 } // namespace WASICrypto
 } // namespace Host

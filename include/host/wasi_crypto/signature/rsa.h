@@ -82,7 +82,7 @@ template <uint32_t Pad, uint32_t Size, uint32_t Sha> class Rsa {
 public:
   class PublicKey final : public Signatures::PublicKey {
   public:
-    PublicKey(EVP_PKEY *Pk) : Pk(Pk) {}
+    PublicKey(EvpPkeyPtr Ctx) : Ctx(std::move(Ctx)) {}
 
     static WasiCryptoExpect<std::unique_ptr<PublicKey>>
     import(Span<uint8_t const> Encoded, __wasi_publickey_encoding_e_t Encoding);
@@ -109,12 +109,12 @@ public:
 
     WasiCryptoExpect<std::vector<uint8_t>> exportLocal();
 
-    EvpPkeyPtr Pk;
+    EvpPkeyPtr Ctx;
   };
 
   class SecretKey final : public Signatures::SecretKey {
   public:
-    SecretKey(EVP_PKEY *Sk) : Ctx(std::move(Sk)) {}
+    SecretKey(EvpPkeyPtr Ctx) : Ctx(std::move(Ctx)) {}
 
     static WasiCryptoExpect<std::unique_ptr<SecretKey>>
     import(Span<const uint8_t> Encoded, __wasi_secretkey_encoding_e_t Encoding);
@@ -143,7 +143,7 @@ public:
 
   class KeyPair final : public Signatures::KeyPair {
   public:
-    KeyPair(EVP_PKEY *Ctx) : Ctx(Ctx) {}
+    KeyPair(EvpPkeyPtr Ctx) : Ctx(std::move(Ctx)) {}
 
     static WasiCryptoExpect<std::unique_ptr<KeyPair>>
     import(Span<const uint8_t> Encoded, __wasi_keypair_encoding_e_t Encoding);
@@ -196,7 +196,7 @@ public:
 
   class SignState final : public Signatures::SignState {
   public:
-    SignState(EVP_MD_CTX *MdCtx) : Ctx(MdCtx) {}
+    SignState(EvpMdCtxPtr Ctx) : Ctx(std::move(Ctx)) {}
 
     WasiCryptoExpect<void> update(Span<uint8_t const> Data) override;
 
@@ -219,7 +219,7 @@ public:
     EvpMdCtxPtr Ctx;
   };
 
-  static WasiCryptoExpect<EVP_PKEY *> initRsa();
+  static EvpPkeyPtr initRsa();
 };
 
 using RsaPkcs12048SHA256 = Rsa<RSA_PKCS1_PADDING, 2048, 256>;

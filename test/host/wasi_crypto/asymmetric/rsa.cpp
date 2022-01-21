@@ -16,54 +16,67 @@ WasmEdge::Span<uint8_t const> operator"" _u8(const char *Str,
 } // namespace
 
 TEST(WasiCryptoTest, TestSignaturesRsa) {
+  std::vector<std::string_view> AlgList{
+      "RSA_PKCS1_2048_SHA256", "RSA_PKCS1_2048_SHA384", "RSA_PKCS1_2048_SHA512",
+      "RSA_PKCS1_3072_SHA384", "RSA_PKCS1_3072_SHA512", "RSA_PKCS1_4096_SHA512",
+      "RSA_PSS_2048_SHA256",   "RSA_PSS_2048_SHA384",   "RSA_PSS_2048_SHA512",
+      "RSA_PSS_3072_SHA384",   "RSA_PSS_3072_SHA512",   "RSA_PSS_4096_SHA512"};
 
-  std::string_view Alg = "RSA_PKCS1_2048_SHA256";
-  WasiCryptoContext Ctx;
+  std::vector<
+      std::pair<__wasi_publickey_encoding_e_t, __wasi_keypair_encoding_e_t>>
+      EncodingList{
+          {__WASI_PUBLICKEY_ENCODING_PEM, __WASI_KEYPAIR_ENCODING_PEM},
+          {__WASI_PUBLICKEY_ENCODING_PKCS8, __WASI_KEYPAIR_ENCODING_PKCS8}};
 
-  auto KpHandle =
-      Ctx.keypairGenerate(__WASI_ALGORITHM_TYPE_SIGNATURES, Alg, std::nullopt)
-          .value();
-  auto PkHandle = Ctx.keypairPublickey(KpHandle).value();
+  for (auto Alg : AlgList) {
+    for (auto [PkEncoding, KpEncoding] : EncodingList) {
+      WasiCryptoContext Ctx;
 
-  auto const PkSerialized =
-      Ctx.publickeyExport(PkHandle, __WASI_PUBLICKEY_ENCODING_LOCAL).value();
-  auto Raw = std::vector<uint8_t>(Ctx.arrayOutputLen(PkSerialized).value(), 0);
-  Ctx.arrayOutputPull(PkSerialized, Raw).value();
-  PkHandle = Ctx.publickeyImport(__WASI_ALGORITHM_TYPE_SIGNATURES, Alg, Raw,
-                                 __WASI_PUBLICKEY_ENCODING_LOCAL)
-                 .value();
+      auto KpHandle = Ctx.keypairGenerate(__WASI_ALGORITHM_TYPE_SIGNATURES, Alg,
+                                          std::nullopt)
+                          .value();
+      auto PkHandle = Ctx.keypairPublickey(KpHandle).value();
 
-  auto const KpSerialized =
-      Ctx.keypairExport(KpHandle, __WASI_KEYPAIR_ENCODING_LOCAL).value();
-  Raw = std::vector<uint8_t>(Ctx.arrayOutputLen(KpSerialized).value(), 0);
-  Ctx.arrayOutputPull(KpSerialized, Raw).value();
-  auto const Kp2Handle =
-      Ctx.keypairImport(__WASI_ALGORITHM_TYPE_SIGNATURES, Alg, Raw,
-                        __WASI_KEYPAIR_ENCODING_LOCAL)
-          .value();
-  KpHandle = Kp2Handle;
+      auto const PkSerialized =
+          Ctx.publickeyExport(PkHandle, PkEncoding).value();
+      auto Raw =
+          std::vector<uint8_t>(Ctx.arrayOutputLen(PkSerialized).value(), 0);
+      Ctx.arrayOutputPull(PkSerialized, Raw).value();
+      PkHandle = Ctx.publickeyImport(__WASI_ALGORITHM_TYPE_SIGNATURES, Alg, Raw,
+                                     PkEncoding)
+                     .value();
 
-  auto const StateHandle = Ctx.signatureStateOpen(KpHandle).value();
-  EXPECT_TRUE(Ctx.signatureStateUpdate(StateHandle, "test"_u8).has_value());
-  auto const SignatureHandle = Ctx.signatureStateSign(StateHandle).value();
+      auto const KpSerialized = Ctx.keypairExport(KpHandle, KpEncoding).value();
+      Raw = std::vector<uint8_t>(Ctx.arrayOutputLen(KpSerialized).value(), 0);
+      Ctx.arrayOutputPull(KpSerialized, Raw).value();
+      auto const Kp2Handle = Ctx.keypairImport(__WASI_ALGORITHM_TYPE_SIGNATURES,
+                                               Alg, Raw, KpEncoding)
+                                 .value();
+      KpHandle = Kp2Handle;
 
-  auto const VerificationStateHandle =
-      Ctx.signatureVerificationStateOpen(PkHandle).value();
-  EXPECT_TRUE(
-      Ctx.signatureVerificationStateUpdate(VerificationStateHandle, "test"_u8)
-          .has_value());
-  EXPECT_TRUE(Ctx.signatureVerificationStateVerify(VerificationStateHandle,
-                                                   SignatureHandle)
-                  .has_value());
-  EXPECT_TRUE(
-      Ctx.signatureVerificationStateClose(VerificationStateHandle).has_value());
-  EXPECT_TRUE(Ctx.signatureStateClose(StateHandle).has_value());
-  EXPECT_TRUE(Ctx.keypairClose(KpHandle).has_value());
-  EXPECT_TRUE(Ctx.publickeyClose(PkHandle).has_value());
-  EXPECT_TRUE(Ctx.signatureClose(SignatureHandle).has_value());
+      auto const StateHandle = Ctx.signatureStateOpen(KpHandle).value();
+      EXPECT_TRUE(Ctx.signatureStateUpdate(StateHandle, "test"_u8).has_value());
+      auto const SignatureHandle = Ctx.signatureStateSign(StateHandle).value();
+
+      auto const VerificationStateHandle =
+          Ctx.signatureVerificationStateOpen(PkHandle).value();
+      EXPECT_TRUE(Ctx.signatureVerificationStateUpdate(VerificationStateHandle,
+                                                       "test"_u8)
+                      .has_value());
+      EXPECT_TRUE(Ctx.signatureVerificationStateVerify(VerificationStateHandle,
+                                                       SignatureHandle)
+                      .has_value());
+      EXPECT_TRUE(Ctx.signatureVerificationStateClose(VerificationStateHandle)
+                      .has_value());
+      EXPECT_TRUE(Ctx.signatureStateClose(StateHandle).has_value());
+      EXPECT_TRUE(Ctx.keypairClose(KpHandle).has_value());
+      EXPECT_TRUE(Ctx.publickeyClose(PkHandle).has_value());
+      EXPECT_TRUE(Ctx.signatureClose(SignatureHandle).has_value());
+    }
+  }
 }
 
-TEST(WasiCryptoTest, ImportRsaKey) {
+TEST(WasiCryptoTest, ImportRsaPkcs8Key) {
   std::vector<uint8_t> Pkcs8Pk{
       48,  130, 1,   34,  48,  13,  6,   9,   42,  134, 72,  134, 247, 13,  1,
       1,   1,   5,   0,   3,   130, 1,   15,  0,   48,  130, 1,   10,  2,   130,

@@ -3,6 +3,8 @@
 #include "host/wasi_crypto/signature/eddsa.h"
 
 #include "host/wasi_crypto/error.h"
+#include "host/wasi_crypto/evpwrapper.h"
+#include "host/wasi_crypto/util.h"
 #include "openssl/x509.h"
 #include "wasi_crypto/api.hpp"
 
@@ -10,23 +12,32 @@ namespace WasmEdge {
 namespace Host {
 namespace WASICrypto {
 namespace Signatures {
+namespace {
+WasiCryptoExpect<void> spanWriteToBio(BIO *Ptr, Span<const uint8_t> Span) {
+  size_t Size;
+  opensslAssuming(BIO_write_ex(Ptr, Span.data(), Span.size(), &Size));
+  ensureOrReturn(Size == Span.size(), __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
+  return {};
+}
+
+} // namespace
 
 WasiCryptoExpect<std::unique_ptr<EddsaPublicKey>>
 EddsaPublicKey::import(Span<const uint8_t> Encoded,
                        __wasi_publickey_encoding_e_t Encoding) {
   switch (Encoding) {
   case __WASI_PUBLICKEY_ENCODING_RAW: {
-    EVP_PKEY *Pk = nullptr;
-    const uint8_t *Temp = Encoded.data();
-    ensureOrReturn(Encoded.size() == EddsaPublicKey::Size,
-                   __WASI_CRYPTO_ERRNO_INVALID_KEY);
+    BioPtr Bio{BIO_new(BIO_s_mem())};
 
-    ensureOrReturn(Encoded.size() <= LONG_MAX,
-                   __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
-    Pk = d2i_PublicKey(EVP_PKEY_ED25519, &Pk, &Temp,
-                       static_cast<long>(Encoded.size()));
-    ensureOrReturn(Pk, __WASI_CRYPTO_ERRNO_INVALID_KEY);
-    return std::make_unique<EddsaPublicKey>(Pk);
+    auto WriteRes = spanWriteToBio(Bio.get(), Encoded);
+    if (!WriteRes) {
+      return WasiCryptoUnexpect(WriteRes);
+    }
+
+    EvpPkeyPtr Ctx{d2i_PUBKEY_bio(Bio.get(), nullptr)};
+    ensureOrReturn(Ctx, __WASI_CRYPTO_ERRNO_INVALID_KEY);
+
+    return std::make_unique<EddsaPublicKey>(std::move(Ctx));
   }
   default:
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_UNSUPPORTED_ENCODING);
@@ -38,9 +49,8 @@ EddsaPublicKey::exportData(__wasi_publickey_encoding_e_t Encoding) {
   switch (Encoding) {
   case __WASI_PUBLICKEY_ENCODING_RAW: {
     std::vector<uint8_t> Res(
-        static_cast<size_t>(i2d_PublicKey(Ctx.get(), nullptr)));
-    uint8_t *Temp = Res.data();
-    opensslAssuming(i2d_PublicKey(Ctx.get(), &Temp));
+        static_cast<size_t>(i2d_PUBKEY(Ctx.get(), nullptr)));
+    opensslAssuming(i2d_PUBKEY(Ctx.get(), addressOfTempory(Res.data())));
     return Res;
   }
   default:
@@ -50,12 +60,11 @@ EddsaPublicKey::exportData(__wasi_publickey_encoding_e_t Encoding) {
 
 WasiCryptoExpect<std::unique_ptr<VerificationState>>
 EddsaPublicKey::openVerificationState() {
-  EVP_MD_CTX *SignCtx = EVP_MD_CTX_create();
-  opensslAssuming(SignCtx);
+  EvpMdCtxPtr SignCtx{EVP_MD_CTX_create()};
 
-  opensslAssuming(
-      EVP_DigestVerifyInit(SignCtx, nullptr, nullptr, nullptr, Ctx.get()));
-  return std::make_unique<EddsaVerificationState>(SignCtx);
+  opensslAssuming(EVP_DigestVerifyInit(SignCtx.get(), nullptr, nullptr, nullptr,
+                                       Ctx.get()));
+  return std::make_unique<EddsaVerificationState>(std::move(SignCtx));
 }
 
 WasiCryptoExpect<std::unique_ptr<SecretKey>>
@@ -63,17 +72,17 @@ EddsaSecretKey::import(Span<const uint8_t> Encoded,
                        __wasi_secretkey_encoding_e_t Encoding) {
   switch (Encoding) {
   case __WASI_SECRETKEY_ENCODING_RAW: {
-    EVP_PKEY *Sk = nullptr;
-    ensureOrReturn(Encoded.size() == EddsaSecretKey::Size,
-                   __WASI_CRYPTO_ERRNO_INVALID_KEY);
-    const uint8_t *Temp = Encoded.data();
+    BioPtr Bio{BIO_new(BIO_s_mem())};
 
-    ensureOrReturn(Encoded.size() <= LONG_MAX,
-                   __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
-    Sk = d2i_PrivateKey(EVP_PKEY_ED25519, &Sk, &Temp,
-                        static_cast<long>(Encoded.size()));
-    ensureOrReturn(Sk, __WASI_CRYPTO_ERRNO_INVALID_KEY);
-    return std::make_unique<EddsaSecretKey>(Sk);
+    auto WriteRes = spanWriteToBio(Bio.get(), Encoded);
+    if (!WriteRes) {
+      return WasiCryptoUnexpect(WriteRes);
+    }
+
+    EvpPkeyPtr Ctx{d2i_PrivateKey_bio(Bio.get(), nullptr)};
+    ensureOrReturn(Ctx, __WASI_CRYPTO_ERRNO_INVALID_KEY);
+
+    return std::make_unique<EddsaSecretKey>(std::move(Ctx));
   }
   default:
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_UNSUPPORTED_ENCODING);
@@ -86,8 +95,7 @@ EddsaSecretKey::exportData(__wasi_secretkey_encoding_e_t Encoding) {
   case __WASI_SECRETKEY_ENCODING_RAW: {
     std::vector<uint8_t> Res(
         static_cast<size_t>(i2d_PrivateKey(Ctx.get(), nullptr)));
-    uint8_t *Temp = Res.data();
-    opensslAssuming(i2d_PrivateKey(Ctx.get(), &Temp));
+    opensslAssuming(i2d_PrivateKey(Ctx.get(), addressOfTempory(Res.data())));
     return Res;
   }
   default:
@@ -105,7 +113,7 @@ EddsaKeyPair::generate(std::shared_ptr<Options>) {
   EVP_PKEY *Key = nullptr;
   opensslAssuming(EVP_PKEY_keygen(KCtx.get(), &Key));
 
-  return std::make_unique<EddsaKeyPair>(Key);
+  return std::make_unique<EddsaKeyPair>(EvpPkeyPtr{Key});
 }
 
 WasiCryptoExpect<std::unique_ptr<KeyPair>>
@@ -113,17 +121,17 @@ EddsaKeyPair::import(Span<const uint8_t> Encoded,
                      __wasi_keypair_encoding_e_t Encoding) {
   switch (Encoding) {
   case __WASI_KEYPAIR_ENCODING_RAW: {
-    EVP_PKEY *Kp = nullptr;
-    ensureOrReturn(Encoded.size() == EddsaKeyPair::Size,
-                   __WASI_CRYPTO_ERRNO_INVALID_KEY);
+    BioPtr Bio{BIO_new(BIO_s_mem())};
 
-    const uint8_t *Temp = Encoded.data();
-    ensureOrReturn(Encoded.size() <= LONG_MAX,
-                   __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
-    Kp = d2i_PrivateKey(EVP_PKEY_ED25519, &Kp, &Temp,
-                        static_cast<long>(Encoded.size()));
-    ensureOrReturn(Kp, __WASI_CRYPTO_ERRNO_INVALID_KEY);
-    return std::make_unique<EddsaKeyPair>(Kp);
+    auto WriteRes = spanWriteToBio(Bio.get(), Encoded);
+    if (!WriteRes) {
+      return WasiCryptoUnexpect(WriteRes);
+    }
+
+    EvpPkeyPtr Ctx{d2i_PrivateKey_bio(Bio.get(), nullptr)};
+    ensureOrReturn(Ctx, __WASI_CRYPTO_ERRNO_INVALID_KEY);
+
+    return std::make_unique<EddsaKeyPair>(std::move(Ctx));
   }
   default:
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_UNSUPPORTED_ENCODING);
@@ -136,8 +144,7 @@ EddsaKeyPair::exportData(__wasi_keypair_encoding_e_t Encoding) {
   case __WASI_KEYPAIR_ENCODING_RAW: {
     std::vector<uint8_t> Res(
         static_cast<size_t>(i2d_PrivateKey(Ctx.get(), nullptr)));
-    uint8_t *Temp = Res.data();
-    opensslAssuming(i2d_PrivateKey(Ctx.get(), &Temp));
+    opensslAssuming(i2d_PrivateKey(Ctx.get(), addressOfTempory(Res.data())));
     return Res;
   }
   default:
@@ -152,7 +159,7 @@ WasiCryptoExpect<std::unique_ptr<PublicKey>> EddsaKeyPair::publicKey() {
   EVP_PKEY *Res = nullptr;
   opensslAssuming(d2i_PUBKEY_bio(B.get(), &Res));
 
-  return std::make_unique<EddsaPublicKey>(Res);
+  return std::make_unique<EddsaPublicKey>(EvpPkeyPtr{Res});
 }
 
 WasiCryptoExpect<std::unique_ptr<SecretKey>> EddsaKeyPair::secretKey() {
@@ -162,17 +169,17 @@ WasiCryptoExpect<std::unique_ptr<SecretKey>> EddsaKeyPair::secretKey() {
   EVP_PKEY *Res = nullptr;
   opensslAssuming(d2i_PrivateKey_bio(B.get(), &Res));
 
-  return std::make_unique<EddsaSecretKey>(Res);
+  return std::make_unique<EddsaSecretKey>(EvpPkeyPtr{Res});
 }
 
 WasiCryptoExpect<std::unique_ptr<SignState>> EddsaKeyPair::openSignState() {
-  EVP_MD_CTX *SignCtx = EVP_MD_CTX_create();
+  EvpMdCtxPtr SignCtx{EVP_MD_CTX_create()};
   opensslAssuming(SignCtx);
 
   opensslAssuming(
-      EVP_DigestSignInit(SignCtx, nullptr, nullptr, nullptr, Ctx.get()));
+      EVP_DigestSignInit(SignCtx.get(), nullptr, nullptr, nullptr, Ctx.get()));
 
-  return std::make_unique<EddsaSignState>(SignCtx);
+  return std::make_unique<EddsaSignState>(std::move(SignCtx));
 }
 
 WasiCryptoExpect<std::unique_ptr<Signature>>

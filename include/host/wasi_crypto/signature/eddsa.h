@@ -22,7 +22,7 @@ class EddsaPublicKey final : public PublicKey {
 public:
   inline static size_t Size = 32;
 
-  EddsaPublicKey(EVP_PKEY *Ctx) : Ctx(std::move(Ctx)) {}
+  EddsaPublicKey(EvpPkeyPtr Ctx) : Ctx(std::move(Ctx)) {}
 
   static WasiCryptoExpect<std::unique_ptr<EddsaPublicKey>>
   import(Span<uint8_t const> Encoded, __wasi_publickey_encoding_e_t Encoding);
@@ -41,7 +41,7 @@ class EddsaSecretKey final : public SecretKey {
 public:
   inline static size_t Size = 32;
 
-  EddsaSecretKey(EVP_PKEY *Ctx) : Ctx(Ctx) {}
+  EddsaSecretKey(EvpPkeyPtr Ctx) : Ctx(std::move(Ctx)) {}
 
   static WasiCryptoExpect<std::unique_ptr<SecretKey>>
   import(Span<uint8_t const> Encoded, __wasi_secretkey_encoding_e_t Encoding);
@@ -57,7 +57,7 @@ class EddsaKeyPair final : public KeyPair {
 public:
   inline static size_t Size = 64;
 
-  EddsaKeyPair(EVP_PKEY *Ctx) : Ctx(Ctx) {}
+  EddsaKeyPair(EvpPkeyPtr Ctx) : Ctx(std::move(Ctx)) {}
 
   static WasiCryptoExpect<std::unique_ptr<KeyPair>>
   generate(std::shared_ptr<Signatures::Options> Options);
@@ -94,7 +94,7 @@ public:
 
 class EddsaSignState final : public SignState {
 public:
-  EddsaSignState(EVP_MD_CTX *MdCtx) : Ctx(MdCtx) {}
+  EddsaSignState(EvpMdCtxPtr Ctx) : Ctx(std::move(Ctx)) {}
 
   WasiCryptoExpect<void> update(Span<uint8_t const> Input) override;
 
@@ -108,7 +108,7 @@ private:
 
 class EddsaVerificationState final : public VerificationState {
 public:
-  EddsaVerificationState(EVP_MD_CTX *Ctx) : Ctx(Ctx) {}
+  EddsaVerificationState(EvpMdCtxPtr Ctx) : Ctx(std::move(Ctx)) {}
 
   WasiCryptoExpect<void> update(Span<const uint8_t> Input) override;
 

@@ -134,10 +134,7 @@ template <class... Ts> struct Overloaded : Ts... { using Ts::operator()...; };
 
 template <class... Ts> Overloaded(Ts...) -> Overloaded<Ts...>;
 
-template<typename T>
-T *addressOfTempory(T &&X) {
-    return &X;
-}
+template <typename T> T *addressOfTempory(T &&X) { return &X; }
 
 } // namespace WASICrypto
 } // namespace Host

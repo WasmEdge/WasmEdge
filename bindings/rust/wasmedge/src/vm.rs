@@ -1,5 +1,5 @@
-use crate::{error::WasmEdgeResult, wasmedge, Config, Store};
-use std::{marker::PhantomData, path::Path};
+use crate::{error::WasmEdgeResult, wasmedge, Config, ImportObj, Module, Store, Value};
+use std::{env::args, marker::PhantomData, path::Path};
 
 // use crate::{config::Config, error::VmError, module::Module, wasi_conf::WasiConf};
 
@@ -58,17 +58,6 @@ pub struct Vm {
     inner: wasmedge::Vm,
 }
 impl Vm {
-    pub fn register_from_file(
-        self,
-        mod_name: impl AsRef<str>,
-        path: impl AsRef<Path>,
-    ) -> WasmEdgeResult<Self> {
-        let inner = self
-            .inner
-            .register_wasm_from_file(mod_name.as_ref(), path.as_ref())?;
-        Ok(Self { inner })
-    }
-
     pub fn store_mut(&self) -> WasmEdgeResult<Store> {
         let inner = self.inner.store_mut()?;
         Ok(Store {
@@ -76,6 +65,70 @@ impl Vm {
             _marker: PhantomData,
         })
     }
+
+    pub fn reset(&mut self) {
+        self.inner.reset()
+    }
+
+    pub fn register_wasm_from_module(
+        self,
+        mod_name: impl AsRef<str>,
+        module: &mut Module,
+    ) -> WasmEdgeResult<Self> {
+        let inner = self
+            .inner
+            .register_wasm_from_module(mod_name.as_ref(), &mut module.inner)?;
+        Ok(Self { inner })
+    }
+
+    pub fn register_wasm_from_import(self, import_obj: &mut ImportObj) -> WasmEdgeResult<Self> {
+        let inner = self
+            .inner
+            .register_wasm_from_import(&mut import_obj.inner)?;
+        Ok(Self { inner })
+    }
+
+    pub fn run_wasm_from_file(
+        &self,
+        file: impl AsRef<Path>,
+        func_name: impl AsRef<str>,
+        args: impl IntoIterator<Item = Value>,
+    ) -> WasmEdgeResult<Vec<Value>> {
+        let returns = self
+            .inner
+            .run_wasm_from_file(file.as_ref(), func_name.as_ref(), args)?;
+        Ok(returns.collect::<Vec<_>>())
+    }
+
+    pub fn run_wasm_from_buffer(
+        &self,
+        buffer: &[u8],
+        func_name: impl AsRef<str>,
+        params: impl IntoIterator<Item = Value>,
+    ) -> WasmEdgeResult<Vec<Value>> {
+        let returns = self
+            .inner
+            .run_wasm_from_buffer(buffer.as_ref(), func_name.as_ref(), args)?;
+        Ok(returns.collect::<Vec<_>>())
+    }
+
+    pub fn run_wasm_from_module(
+        &self,
+        module: &mut Module,
+        func_name: impl AsRef<str>,
+        params: impl IntoIterator<Item = Value>,
+    ) -> WasmEdgeResult<Vec<Value>> {
+        let returns =
+            self.inner
+                .run_wasm_from_module(&mut module.inner, func_name.as_ref(), args)?;
+        Ok(returns.collect::<Vec<_>>())
+    }
+}
+
+pub trait Engine {
+    fn run_func();
+
+    fn run_func_registered();
 }
 
 #[cfg(test)]
@@ -146,32 +199,5 @@ mod tests {
             let result = vm.store_mut();
             assert!(result.is_ok());
         }
-    }
-
-    #[test]
-    fn test_vm_register_wasm_from_file() {
-        // create a Config
-        let config = ConfigBuilder::new()
-            .expect("fail to create a ConfigBuilder")
-            .build();
-
-        // create a Store
-        let result = Store::new();
-        assert!(result.is_ok());
-        let store = result.unwrap();
-
-        // create a Vm context
-        let result = VmBuilder::new()
-            .with_config(&config)
-            .with_store(&store)
-            .build();
-        assert!(result.is_ok());
-        let vm = result.unwrap();
-
-        // register a wasm module from a file
-        let path = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
-            .join("tools/wasmedge/examples/fibonacci.wasm");
-        let result = vm.register_from_file("fib-module", path);
-        assert!(result.is_ok());
     }
 }

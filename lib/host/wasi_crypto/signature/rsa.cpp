@@ -238,19 +238,10 @@ Rsa<Pad, Size, Sha>::SecretKey::exportPem() {
 template <uint32_t Pad, uint32_t Size, uint32_t Sha>
 WasiCryptoExpect<std::vector<uint8_t>>
 Rsa<Pad, Size, Sha>::SecretKey::exportPkcs8() {
-  BioPtr Bio{BIO_new(BIO_s_mem())};
-  ensureOrReturn(PEM_write_bio_PKCS8PrivateKey(Bio.get(), Ctx.get(), nullptr,
-                                               nullptr, 0, nullptr, nullptr),
-                 __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
-
-  std::vector<uint8_t> Pem(
-      static_cast<size_t>(BIO_get_mem_data(Bio.get(), nullptr)));
-  auto Res = bioWriteToSpan(Bio.get(), Pem);
-  if (!Res) {
-    return WasiCryptoUnexpect(Res);
-  }
-
-  return Pem;
+  std::vector<uint8_t> Res(
+      static_cast<size_t>(i2d_PrivateKey(Ctx.get(), nullptr)));
+  opensslAssuming(i2d_PrivateKey(Ctx.get(), addressOfTempory(Res.data())));
+  return Res;
 }
 
 template <uint32_t Pad, uint32_t Size, uint32_t Sha>
@@ -258,8 +249,7 @@ WasiCryptoExpect<std::vector<uint8_t>>
 Rsa<Pad, Size, Sha>::SecretKey::exportLocal() {
   std::vector<uint8_t> Res(
       static_cast<size_t>(i2d_PrivateKey(Ctx.get(), nullptr)));
-  uint8_t *Temp = Res.data();
-  opensslAssuming(i2d_PrivateKey(Ctx.get(), &Temp));
+  opensslAssuming(i2d_PrivateKey(Ctx.get(), addressOfTempory(Res.data())));
   return Res;
 }
 
@@ -387,8 +377,7 @@ WasiCryptoExpect<std::vector<uint8_t>>
 Rsa<Pad, Size, Sha>::KeyPair::exportPkcs8() {
   std::vector<uint8_t> Res(
       static_cast<size_t>(i2d_PrivateKey(Ctx.get(), nullptr)));
-  uint8_t *Temp = Res.data();
-  opensslAssuming(i2d_PrivateKey(Ctx.get(), &Temp));
+  opensslAssuming(i2d_PrivateKey(Ctx.get(), addressOfTempory(Res.data())));
   return Res;
 }
 

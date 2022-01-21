@@ -1,13 +1,18 @@
-use crate::{error::WasmEdgeResult, wasmedge, Func};
+use crate::{error::WasmEdgeResult, wasmedge, Func, Vm};
+use std::marker::PhantomData;
 
 #[derive(Debug)]
-pub struct Store {
+pub struct Store<'vm> {
     pub(crate) inner: wasmedge::Store,
+    pub(crate) _marker: PhantomData<&'vm Vm>,
 }
-impl Store {
+impl<'vm> Store<'vm> {
     pub fn new() -> WasmEdgeResult<Self> {
         let inner = wasmedge::Store::create()?;
-        Ok(Self { inner })
+        Ok(Self {
+            inner,
+            _marker: PhantomData,
+        })
     }
 
     /// Returns the names of all registered [modules](crate::Module)

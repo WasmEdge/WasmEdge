@@ -1,4 +1,4 @@
-use crate::{error::WasmEdgeResult, wasmedge};
+use crate::{error::WasmEdgeResult, wasmedge, ValType, Value};
 
 #[derive(Debug)]
 pub struct Func {
@@ -9,7 +9,7 @@ pub struct Func {
 impl Func {
     pub fn new(
         sig: FuncSignature,
-        real_fn: Box<dyn Fn(Vec<wasmedge::Value>) -> Result<Vec<wasmedge::Value>, u8>>,
+        real_fn: Box<dyn Fn(Vec<Value>) -> Result<Vec<Value>, u8>>,
         cost: u64,
     ) -> WasmEdgeResult<Self> {
         let inner = wasmedge::Function::create(sig.into(), real_fn, cost)?;
@@ -118,14 +118,6 @@ impl From<wasmedge::FuncType> for FuncSignature {
 }
 impl From<FuncSignature> for wasmedge::FuncType {
     fn from(_: FuncSignature) -> Self {
-        todo!()
-    }
-}
-
-#[derive(Debug)]
-pub enum ValType {}
-impl From<wasmedge::ValType> for ValType {
-    fn from(_ty: wasmedge::ValType) -> Self {
         todo!()
     }
 }

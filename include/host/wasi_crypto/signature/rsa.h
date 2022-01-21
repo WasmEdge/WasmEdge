@@ -208,7 +208,7 @@ public:
 
   class VerificationState final : public Signatures::VerificationState {
   public:
-    VerificationState(EVP_MD_CTX *Ctx) : Ctx(Ctx) {}
+    VerificationState(EvpMdCtxPtr Ctx) : Ctx(std::move(Ctx)) {}
 
     WasiCryptoExpect<void> update(Span<uint8_t const> Data) override;
 

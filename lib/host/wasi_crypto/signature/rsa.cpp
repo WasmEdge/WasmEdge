@@ -139,12 +139,11 @@ Rsa<Pad, Size, Sha>::PublicKey::exportLocal() {
 template <uint32_t Pad, uint32_t Size, uint32_t Sha>
 WasiCryptoExpect<std::unique_ptr<VerificationState>>
 Rsa<Pad, Size, Sha>::PublicKey::openVerificationState() {
-  EVP_MD_CTX *SignCtx = EVP_MD_CTX_create();
-  opensslAssuming(SignCtx);
-  opensslAssuming(
-      EVP_DigestVerifyInit(SignCtx, nullptr, EVP_sha256(), nullptr, Ctx.get()));
+  EvpMdCtxPtr SignCtx{EVP_MD_CTX_create()};
+  opensslAssuming(EVP_DigestVerifyInit(SignCtx.get(), nullptr, EVP_sha256(),
+                                       nullptr, Ctx.get()));
 
-  return std::make_unique<VerificationState>(SignCtx);
+  return std::make_unique<VerificationState>(std::move(SignCtx));
 }
 
 template <uint32_t Pad, uint32_t Size, uint32_t Sha>

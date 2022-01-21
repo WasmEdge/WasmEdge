@@ -332,14 +332,20 @@ Rsa<Pad, Size, Sha>::KeyPair::openSignState() {
 template <uint32_t Pad, uint32_t Size, uint32_t Sha>
 WasiCryptoExpect<std::unique_ptr<typename Rsa<Pad, Size, Sha>::KeyPair>>
 Rsa<Pad, Size, Sha>::KeyPair::generate(std::shared_ptr<Options>) {
+
+  // notice: there cann't reuse initRsa(), careful
   EvpPkeyCtxPtr Ctx{EVP_PKEY_CTX_new_id(EVP_PKEY_RSA, nullptr)};
-  opensslAssuming(Ctx);
+  EVP_PKEY_keygen_init(Ctx.get());
+  EVP_PKEY_CTX_set_rsa_padding(Ctx.get(), Pad);
+  EVP_PKEY_CTX_set_rsa_keygen_bits(Ctx.get(), Size);
+  // ugly pass error
+  EVP_PKEY_CTX_set_signature_md(
+      Ctx.get(), static_cast<void *>(const_cast<EVP_MD *>(ShaMap.at(Sha))));
 
-  opensslAssuming(EVP_PKEY_keygen_init(Ctx.get()));
-  EVP_PKEY *PKey = nullptr;
-  opensslAssuming(EVP_PKEY_keygen(Ctx.get(), &PKey));
+  EVP_PKEY *Res = nullptr;
+  EVP_PKEY_keygen(Ctx.get(), &Res);
 
-  return std::make_unique<KeyPair>(EvpPkeyPtr{PKey});
+  return std::make_unique<KeyPair>(EvpPkeyPtr{Res});
 }
 
 template <uint32_t Pad, uint32_t Size, uint32_t Sha>

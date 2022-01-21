@@ -37,16 +37,16 @@ Rsa<Pad, Size, Sha>::PublicKey::import(Span<const uint8_t> Encoded,
 template <uint32_t Pad, uint32_t Size, uint32_t Sha>
 WasiCryptoExpect<std::unique_ptr<typename Rsa<Pad, Size, Sha>::PublicKey>>
 Rsa<Pad, Size, Sha>::PublicKey::importPkcs8(Span<const uint8_t> Encoded) {
-  BioPtr Bio{BIO_new(BIO_s_mem())};
-  BIO_write(Bio.get(), Encoded.data(), Encoded.size());
-
   auto InitCtx = initRsa();
   if (!InitCtx) {
     return WasiCryptoUnexpect(InitCtx);
   }
 
   EVP_PKEY *P = *InitCtx;
-  P = d2i_PKCS8PrivateKey_bio(Bio.get(), &P, nullptr, nullptr);
+  const uint8_t *Temp = Encoded.data();
+  ensureOrReturn(Encoded.size() <= LONG_MAX,
+                 __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
+  P = d2i_PUBKEY(&P, &Temp, static_cast<long>(Encoded.size()));
   ensureOrReturn(P, __WASI_CRYPTO_ERRNO_INVALID_KEY);
   return std::make_unique<PublicKey>(P);
 }

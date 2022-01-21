@@ -1,19 +1,38 @@
+use crate::{wasmedge, Config};
 use std::path::Path;
 use thiserror::Error;
 use wasmedge_sys as sys;
 
 pub struct Module {
-    inner: sys::Module,
+    pub(crate) inner: sys::Module,
 }
 impl Module {
-    /// load + validate
-    pub fn from_file(engine: &impl Engine, file: impl AsRef<Path>) -> Result<Self, WasmError> {
-        todo!()
+    pub fn from_file(config: Option<&Config>, file: impl AsRef<Path>) -> WasmEdgeResult<Self> {
+        let config = match config {
+            Some(config) => Some(&config.inner),
+            None => None,
+        };
+
+        // create a Loader instance
+        let loader = wasmedge::Loader::create(config)?;
+
+        // load a module from a wasm file
+        let inner = loader.from_file(file.as_ref())?;
+        Ok(Self { inner })
     }
 
-    /// load + validate
-    pub fn from_binary(engine: &impl Engine, binary: &[u8]) -> Result<Self, WasmError> {
-        todo!()
+    pub fn from_buffer(config: Option<&Config>, buffer: impl AsRef<[u8]>) -> WasmEdgeResult<Self> {
+        let config = match config {
+            Some(config) => Some(&config.inner),
+            None => None,
+        };
+
+        // create a Loader instance
+        let loader = wasmedge::Loader::create(config)?;
+
+        // load a module from a wasm buffer
+        let inner = loader.from_buffer(buffer.as_ref())?;
+        Ok(Self { inner })
     }
 
     // TODO imports_iter

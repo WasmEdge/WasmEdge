@@ -59,12 +59,21 @@ impl<'vm> Store<'vm> {
 
         Ok(funcs)
     }
+
+    pub fn function(&self, name: impl AsRef<str>) -> WasmEdgeResult<Vec<Func>> {
+        let funcs = self
+            .functions()?
+            .into_iter()
+            .filter(|x| x.name().expect("Found anonymous function") == name.as_ref());
+
+        Ok(funcs.collect())
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{ConfigBuilder, SignatureBuilder, ValType, VmBuilder};
+    use crate::{ConfigBuilder, Module, SignatureBuilder, ValType, VmBuilder};
 
     #[test]
     fn test_store_functions() {
@@ -87,9 +96,12 @@ mod tests {
         let vm = result.unwrap();
 
         // register a wasm module from a file
-        let path = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
+        let file = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
             .join("tools/wasmedge/examples/fibonacci.wasm");
-        let result = vm.register_from_file("fib-module", path);
+        let result = Module::from_file(Some(&config), file);
+        assert!(result.is_ok());
+        let mut module = result.unwrap();
+        let result = vm.register_wasm_from_module("fib-module", &mut module);
         assert!(result.is_ok());
         let vm = result.unwrap();
 
@@ -116,7 +128,5 @@ mod tests {
                 .with_returns([ValType::I32])
                 .build()
         );
-
-        dbg!(&signature);
     }
 }

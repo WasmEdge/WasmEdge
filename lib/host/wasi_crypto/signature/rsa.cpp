@@ -140,7 +140,7 @@ template <uint32_t Pad, uint32_t Size, uint32_t Sha>
 WasiCryptoExpect<std::unique_ptr<VerificationState>>
 Rsa<Pad, Size, Sha>::PublicKey::openVerificationState() {
   EvpMdCtxPtr SignCtx{EVP_MD_CTX_create()};
-  opensslAssuming(EVP_DigestVerifyInit(SignCtx.get(), nullptr, EVP_sha256(),
+  opensslAssuming(EVP_DigestVerifyInit(SignCtx.get(), nullptr, ShaMap.at(Sha),
                                        nullptr, Ctx.get()));
 
   return std::make_unique<VerificationState>(std::move(SignCtx));
@@ -323,7 +323,7 @@ WasiCryptoExpect<std::unique_ptr<Signatures::SignState>>
 Rsa<Pad, Size, Sha>::KeyPair::openSignState() {
   EvpMdCtxPtr SignCtx{EVP_MD_CTX_create()};
 
-  opensslAssuming(EVP_DigestSignInit(SignCtx.get(), nullptr, EVP_sha256(),
+  opensslAssuming(EVP_DigestSignInit(SignCtx.get(), nullptr, ShaMap.at(Sha),
                                      nullptr, Ctx.get()));
 
   return std::make_unique<SignState>(std::move(SignCtx));

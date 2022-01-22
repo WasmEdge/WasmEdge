@@ -1,1 +1,4 @@
 # AssemblyScript
+
+AssemblyScript 是一种为WebAssembly设计的类 TypeScript语言。
+AssemblyScript程序可以非常容易地编译到WebAssembly.

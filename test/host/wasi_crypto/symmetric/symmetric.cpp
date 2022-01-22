@@ -33,8 +33,8 @@ TEST(WasiCryptoTest, Hash) {
   auto StateHandle = Ctx.symmetricStateOpen(SymmetricAlgorithm::Sha256,
                                             std::nullopt, std::nullopt)
                          .value();
-  Ctx.symmetricStateAbsorb(StateHandle, "data"_u8);
-  Ctx.symmetricStateAbsorb(StateHandle, "more_data"_u8);
+  EXPECT_TRUE(Ctx.symmetricStateAbsorb(StateHandle, "data"_u8).has_value());
+  EXPECT_TRUE(Ctx.symmetricStateAbsorb(StateHandle, "more_data"_u8).has_value());
 
   std::array<uint8_t, 32> Out;
   Ctx.symmetricStateSqueeze(StateHandle, Out);
@@ -44,6 +44,8 @@ TEST(WasiCryptoTest, Hash) {
                                       84,  228, 225, 56,  160, 194, 9,   35,
                                       249, 169, 16,  98,  162, 127, 87,  182};
   EXPECT_EQ(Out, Expected);
+  
+  EXPECT_TRUE(Ctx.symmetricStateAbsorb(StateHandle, "more_data"_u8).has_value());
   EXPECT_TRUE(Ctx.symmetricStateClose(StateHandle));
 }
 

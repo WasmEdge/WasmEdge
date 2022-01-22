@@ -71,7 +71,58 @@ The demo app does two HTTP requests. One is `GET` and the other is `POST`. The a
 
 ## A JavaScript networking server example
 
-Below is an example of JavaScript running a HTTP server listening at port 8000. The incoming requests are handled asynchronously. You could find the code in [example_js/wasi_http_echo.js](https://github.com/second-state/wasmedge-quickjs/blob/main/example_js/wasi_http_echo.js).
+Below is an example of JavaScript running a TCP server listening at port 8000. The incoming requests are handled asynchronously. You could find the code in [example_js/wasi_net_echo.js](https://github.com/second-state/wasmedge-quickjs/blob/main/example_js/wasi_net_echo.js).
+
+```javascript
+import * as net from 'wasi_net'
+
+async function handle_client(cs) {
+    while(true) {
+        try {
+            let d = await cs.read()
+            if(d.byteLength<=0){
+                break
+            }
+            let s = newStringFromUTF8(d)
+            cs.write('echo:'+s)
+        } catch(e) {
+            print(e)
+        }
+    }
+}
+
+async function server_start() {
+    let s = new net.WasiTcpServer(8000)
+    for(var i=0;i<100;i++){
+        let cs = await s.accept();
+        handle_client(cs)
+    }
+}
+
+server_start()
+```
+
+The `server_start()` function starts the server at port 8000. When a request comes in, it passes to the `handle_client()` function to process it asynchronously. That means while the app is sending back the response, it could start handling the next incoming request.
+
+To run the JavaScript in the WasmEdge runtime, you can do this on the CLI. Since it is a server, you should run it in the background.
+
+```
+$ cd example_js
+$ nohup wasmedge --dir .:. ../target/wasm32-wasi/release/wasmedge_quickjs.wasm wasi_net_echo.js &
+```
+
+Then you can test the server by querying it over the network.
+
+```
+$ curl -d "WasmEdge" -X POST http://localhost:8000
+echo:WasmEdge
+```
+
+The `wasi_net` package provides a flexible asynchronous networking stack for JavaScript applications in WasmEdge. We are wrap it in high-level APIs for more advanced use cases. In the next section, we will show you how to handle HTTP requests with ease. In the [React SSR article](ssr.md), we will discuss how to create a React stream SSR server with the async networking API.
+
+## A JavaScript HTTP server example
+
+If you already knew the server's requests and responses are in the HTTP protocol, there are additional helper functions to help you handle these requests. You could find the code in [example_js/wasi_http_echo.js](https://github.com/second-state/wasmedge-quickjs/blob/main/example_js/wasi_http_echo.js).
 
 ```javascript
 import * as net from 'wasi_net'
@@ -80,8 +131,8 @@ import * as http from 'wasi_http'
 async function handle_client(cs,handler_req){
     let buffer = new http.Buffer()
 
-    while(true) {
-        try {
+    while(true){
+        try{
             let d = await cs.read()
             if(d.byteLength<=0){
                 return
@@ -92,13 +143,19 @@ async function handle_client(cs,handler_req){
                 handler_req(cs,req)
                 break
             }
-        } catch(e) {
+        }catch(e){
             print(e)
         }
     }
 }
 
 function handler_req(cs,req){
+    print("version=",req.version)
+    print("uri=",req.uri)
+    print("method=",req.method)
+    print("headers=",Object.keys(req.headers))
+    print("body=",newStringFromUTF8(req.body))
+
     let resp = new http.WasiResponse()
     resp.body='echo:'+newStringFromUTF8(req.body)
     let r = resp.encode();
@@ -106,12 +163,13 @@ function handler_req(cs,req){
 }
 
 async function server_start(){
+    print('listen 8000 ...')
     let s = new net.WasiTcpServer(8000)
     for(var i=0;i<100;i++){
         let cs = await s.accept();
-        try {
+        try{
             handle_client(cs,handler_req)
-        } catch(e) {
+        }catch(e){
             print(e)
         }
     }
@@ -120,13 +178,13 @@ async function server_start(){
 server_start()
 ```
 
-The `server_start()` function starts the server at port 8000. When a request comes in, it passes to the `handle_client()` function to process it, which in turn calls `handle_req()` to send the response back asynchronously. That means while the app is sending back the response, it could start handling the next incoming request.
+The `server_start()` function starts the server at port 8000. When a request comes in, it passes to the `handle_client()` function to process the request. Once the request is validated as an HTTP request, the handler function turn calls `handle_req()` to parse the fields in the HTTP request, compose a HTTP reponse, and then send the response back asynchronously. That means while the app is sending back the response, it could start handling the next incoming request.
 
 To run the JavaScript in the WasmEdge runtime, you can do this on the CLI. Since it is a server, you should run it in the background.
 
 ```
 $ cd example_js
-$ nohup wasmedge --dir .:. ../target/wasm32-wasi/release/wasmedge_quickjs.wasm http_server_demo.js &
+$ nohup wasmedge --dir .:. ../target/wasm32-wasi/release/wasmedge_quickjs.wasm wasi_http_echo.js &
 ```
 
 Then you can test the server by querying it over the network.
@@ -136,4 +194,4 @@ $ curl -d "WasmEdge" -X POST http://localhost:8000
 echo:WasmEdge
 ```
 
-With async networking, developers can create I/O intensive networking applications, such as database-driven microservices, in JavaScript and run them safely and efficiently in WasmEdge runtimes.
+With async HTTP networking, developers can create I/O intensive applications, such as database-driven microservices, in JavaScript and run them safely and efficiently in WasmEdge.

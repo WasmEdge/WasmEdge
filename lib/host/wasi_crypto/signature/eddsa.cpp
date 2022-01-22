@@ -7,34 +7,20 @@
 #include "host/wasi_crypto/util.h"
 #include "openssl/x509.h"
 #include "wasi_crypto/api.hpp"
+#include <openssl/evp.h>
 
 namespace WasmEdge {
 namespace Host {
 namespace WASICrypto {
 namespace Signatures {
-namespace {
-WasiCryptoExpect<void> spanWriteToBio(BIO *Ptr, Span<const uint8_t> Span) {
-  size_t Size;
-  opensslAssuming(BIO_write_ex(Ptr, Span.data(), Span.size(), &Size));
-  ensureOrReturn(Size == Span.size(), __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
-  return {};
-}
-
-} // namespace
 
 WasiCryptoExpect<std::unique_ptr<EddsaPublicKey>>
 EddsaPublicKey::import(Span<const uint8_t> Encoded,
                        __wasi_publickey_encoding_e_t Encoding) {
   switch (Encoding) {
   case __WASI_PUBLICKEY_ENCODING_RAW: {
-    BioPtr Bio{BIO_new(BIO_s_mem())};
-
-    auto WriteRes = spanWriteToBio(Bio.get(), Encoded);
-    if (!WriteRes) {
-      return WasiCryptoUnexpect(WriteRes);
-    }
-
-    EvpPkeyPtr Ctx{d2i_PUBKEY_bio(Bio.get(), nullptr)};
+    EvpPkeyPtr Ctx{EVP_PKEY_new_raw_public_key(EVP_PKEY_ED25519, nullptr,
+                                               Encoded.data(), Encoded.size())};
     ensureOrReturn(Ctx, __WASI_CRYPTO_ERRNO_INVALID_KEY);
 
     return std::make_unique<EddsaPublicKey>(std::move(Ctx));
@@ -48,9 +34,10 @@ WasiCryptoExpect<std::vector<uint8_t>>
 EddsaPublicKey::exportData(__wasi_publickey_encoding_e_t Encoding) {
   switch (Encoding) {
   case __WASI_PUBLICKEY_ENCODING_RAW: {
-    std::vector<uint8_t> Res(
-        static_cast<size_t>(i2d_PUBKEY(Ctx.get(), nullptr)));
-    opensslAssuming(i2d_PUBKEY(Ctx.get(), addressOfTempory(Res.data())));
+    size_t Size;
+    EVP_PKEY_get_raw_public_key(Ctx.get(), nullptr, &Size);
+    std::vector<uint8_t> Res(Size);
+    EVP_PKEY_get_raw_public_key(Ctx.get(), Res.data(), &Size);
     return Res;
   }
   default:
@@ -72,14 +59,8 @@ EddsaSecretKey::import(Span<const uint8_t> Encoded,
                        __wasi_secretkey_encoding_e_t Encoding) {
   switch (Encoding) {
   case __WASI_SECRETKEY_ENCODING_RAW: {
-    BioPtr Bio{BIO_new(BIO_s_mem())};
-
-    auto WriteRes = spanWriteToBio(Bio.get(), Encoded);
-    if (!WriteRes) {
-      return WasiCryptoUnexpect(WriteRes);
-    }
-
-    EvpPkeyPtr Ctx{d2i_PrivateKey_bio(Bio.get(), nullptr)};
+    EvpPkeyPtr Ctx{EVP_PKEY_new_raw_private_key(
+        EVP_PKEY_ED25519, nullptr, Encoded.data(), Encoded.size())};
     ensureOrReturn(Ctx, __WASI_CRYPTO_ERRNO_INVALID_KEY);
 
     return std::make_unique<EddsaSecretKey>(std::move(Ctx));
@@ -93,9 +74,11 @@ WasiCryptoExpect<std::vector<uint8_t>>
 EddsaSecretKey::exportData(__wasi_secretkey_encoding_e_t Encoding) {
   switch (Encoding) {
   case __WASI_SECRETKEY_ENCODING_RAW: {
-    std::vector<uint8_t> Res(
-        static_cast<size_t>(i2d_PrivateKey(Ctx.get(), nullptr)));
-    opensslAssuming(i2d_PrivateKey(Ctx.get(), addressOfTempory(Res.data())));
+    size_t Size;
+    EVP_PKEY_get_raw_private_key(Ctx.get(), nullptr, &Size);
+    ensureOrReturn(Size == 32, __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
+    std::vector<uint8_t> Res(Size);
+    EVP_PKEY_get_raw_private_key(Ctx.get(), Res.data(), &Size);
     return Res;
   }
   default:
@@ -116,22 +99,22 @@ EddsaKeyPair::generate(std::shared_ptr<Options>) {
   return std::make_unique<EddsaKeyPair>(EvpPkeyPtr{Key});
 }
 
+// refer https://github.com/openssl/openssl/issues/8960
 WasiCryptoExpect<std::unique_ptr<KeyPair>>
 EddsaKeyPair::import(Span<const uint8_t> Encoded,
                      __wasi_keypair_encoding_e_t Encoding) {
   switch (Encoding) {
   case __WASI_KEYPAIR_ENCODING_RAW: {
-    BioPtr Bio{BIO_new(BIO_s_mem())};
+    ensureOrReturn(Encoded.size() == 64, __WASI_CRYPTO_ERRNO_INVALID_KEY);
+    // would auto generate public key
+    // EvpPkeyPtr PkCtx{EVP_PKEY_new_raw_public_key(EVP_PKEY_ED25519, nullptr,
+    //                                              Encoded.data() + 32, 32)};
+    // ensureOrReturn(PkCtx, __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
+    EvpPkeyPtr SkCtx{EVP_PKEY_new_raw_private_key(EVP_PKEY_ED25519, nullptr,
+                                                  Encoded.data(), 32)};
+    ensureOrReturn(SkCtx, __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
 
-    auto WriteRes = spanWriteToBio(Bio.get(), Encoded);
-    if (!WriteRes) {
-      return WasiCryptoUnexpect(WriteRes);
-    }
-
-    EvpPkeyPtr Ctx{d2i_PrivateKey_bio(Bio.get(), nullptr)};
-    ensureOrReturn(Ctx, __WASI_CRYPTO_ERRNO_INVALID_KEY);
-
-    return std::make_unique<EddsaKeyPair>(std::move(Ctx));
+    return std::make_unique<EddsaKeyPair>(std::move(SkCtx));
   }
   default:
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_UNSUPPORTED_ENCODING);
@@ -142,9 +125,12 @@ WasiCryptoExpect<std::vector<uint8_t>>
 EddsaKeyPair::exportData(__wasi_keypair_encoding_e_t Encoding) {
   switch (Encoding) {
   case __WASI_KEYPAIR_ENCODING_RAW: {
-    std::vector<uint8_t> Res(
-        static_cast<size_t>(i2d_PrivateKey(Ctx.get(), nullptr)));
-    opensslAssuming(i2d_PrivateKey(Ctx.get(), addressOfTempory(Res.data())));
+    std::vector<uint8_t> Res(64);
+    size_t Size;
+    EVP_PKEY_get_raw_private_key(Ctx.get(), Res.data(), &Size);
+    ensureOrReturn(Size == 32, __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
+    EVP_PKEY_get_raw_public_key(Ctx.get(), Res.data() + 32, &Size);
+    ensureOrReturn(Size == 32, __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
     return Res;
   }
   default:

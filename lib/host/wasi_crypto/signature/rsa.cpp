@@ -118,7 +118,8 @@ template <uint32_t Pad, uint32_t Size, uint32_t Sha>
 WasiCryptoExpect<std::vector<uint8_t>>
 Rsa<Pad, Size, Sha>::PublicKey::exportPem() {
   BioPtr Bio{BIO_new(BIO_s_mem())};
-  PEM_write_bio_PUBKEY(Bio.get(), Ctx.get());
+  ensureOrReturn(PEM_write_bio_PUBKEY(Bio.get(), Ctx.get()),
+                 __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
 
   std::vector<uint8_t> Pem(
       static_cast<size_t>(BIO_get_mem_data(Bio.get(), nullptr)));

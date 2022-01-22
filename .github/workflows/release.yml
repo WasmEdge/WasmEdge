@@ -373,7 +373,7 @@ jobs:
 
     - name: Package Windows Installer
       run: |
-        $Env:product_version = "${{ needs.create_release.outputs.version }}"
+        $Env:product_version = ("${{ needs.create_release.outputs.version }}").split("-")[0]
         . "$Env:WIX\bin\candle.exe" -arch x64 -o build\wasmedge.wixobj .github\scripts\wasmedge.wxs
         . "$Env:WIX\bin\light.exe" -out build\WasmEdge-${{ needs.create_release.outputs.version }}-windows.msi build\wasmedge.wixobj
 

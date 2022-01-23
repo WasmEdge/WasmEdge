@@ -41,10 +41,9 @@ WasiCryptoExpect<__wasi_keypair_t> WasiCryptoContext::keypairGenerate(
 
   return KeypairManger.registerManger(std::move(*Res));
 }
-WasiCryptoExpect<__wasi_keypair_t>
-WasiCryptoContext::keypairImport(__wasi_algorithm_type_e_t AlgType,
-                                 std::string_view AlgStr, Span<uint8_t> Encoded,
-                                 __wasi_keypair_encoding_e_t Encoding) {
+WasiCryptoExpect<__wasi_keypair_t> WasiCryptoContext::keypairImport(
+    __wasi_algorithm_type_e_t AlgType, std::string_view AlgStr,
+    Span<const uint8_t> Encoded, __wasi_keypair_encoding_e_t Encoding) {
   auto Kp = Asymmetric::keyPairImport(AlgType, AlgStr, Encoded, Encoding);
   if (!Kp) {
     return WasiCryptoUnexpect(Kp);
@@ -156,7 +155,7 @@ WasiCryptoContext::keypairClose(__wasi_keypair_t KpHandle) {
 
 WasiCryptoExpect<__wasi_publickey_t> WasiCryptoContext::publickeyImport(
     __wasi_algorithm_type_e_t AlgType, std::string_view AlgStr,
-    Span<uint8_t> Encoded, __wasi_publickey_encoding_e_t Encoding) {
+    Span<const uint8_t> Encoded, __wasi_publickey_encoding_e_t Encoding) {
   auto Pk = Asymmetric::publicKeyImport(AlgType, AlgStr, Encoded, Encoding);
   if (!Pk) {
     return WasiCryptoUnexpect(Pk);
@@ -213,7 +212,7 @@ WasiCryptoContext::publickeyClose(__wasi_publickey_t PkHandle) {
 
 WasiCryptoExpect<__wasi_secretkey_t> WasiCryptoContext::secretkeyImport(
     __wasi_algorithm_type_e_t AlgType, std::string_view AlgStr,
-    Span<uint8_t> Encoded, __wasi_secretkey_encoding_e_t EncodingEnum) {
+    Span<const uint8_t> Encoded, __wasi_secretkey_encoding_e_t EncodingEnum) {
   auto Sk = Asymmetric::secretKeyImport(AlgType, AlgStr, Encoded, EncodingEnum);
   if (!Sk) {
     return WasiCryptoUnexpect(Sk);

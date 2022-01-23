@@ -164,7 +164,7 @@ public:
 
   WasiCryptoExpect<__wasi_keypair_t>
   keypairImport(__wasi_algorithm_type_e_t AlgType, std::string_view AlgStr,
-                Span<uint8_t> Encoded, __wasi_keypair_encoding_e_t Encoding);
+                Span<const uint8_t> Encoded, __wasi_keypair_encoding_e_t Encoding);
 
   // opt
   WasiCryptoExpect<__wasi_keypair_t>
@@ -205,7 +205,7 @@ public:
 
   WasiCryptoExpect<__wasi_publickey_t>
   publickeyImport(__wasi_algorithm_type_e_t AlgType, std::string_view AlgStr,
-                  Span<uint8_t> Encoded,
+                  Span<const uint8_t> Encoded,
                   __wasi_publickey_encoding_e_t Encoding);
 
   WasiCryptoExpect<__wasi_array_output_t>
@@ -221,7 +221,7 @@ public:
 
   WasiCryptoExpect<__wasi_secretkey_t>
   secretkeyImport(__wasi_algorithm_type_e_t AlgType, std::string_view AlgStr,
-                  Span<uint8_t> Encoded,
+                  Span<const uint8_t> Encoded,
                   __wasi_secretkey_encoding_e_t EncodingEnum);
 
   WasiCryptoExpect<__wasi_array_output_t>

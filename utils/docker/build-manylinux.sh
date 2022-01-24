@@ -14,13 +14,13 @@ bzip2 -dc boost_1_76_0.tar.bz2 | tar -xf -
 curl -s -L -O --remote-name-all https://www.cpan.org/src/5.0/perl-5.34.0.tar.gz
 tar -xf perl-5.34.0.tar.gz
 cd perl-5.34.0
-mkdir perl
-./Configure -des -Dprefix=$(pwd)/perl
+mkdir localperl
+./Configure -des -Dprefix=$(pwd)/localperl/
 make
 make test
 make install
 cd ..
-export perl5lib=$(pwd)/perl-5.34.0/perl
+export perl5lib=$(pwd)/perl-5.34.0/localperl/
 curl -s -L -O --remote-name-all https://www.openssl.org/source/openssl-1.1.1m.tar.gz
 echo "f89199be8b23ca45fc7cb9f1d8d3ee67312318286ad030f5316aca6462db6c96 openssl-1.1.1m.tar.gz" | sha256sum -c
 tar -xf openssl-1.1.1m.tar.gz

@@ -16,18 +16,18 @@ tar -xf perl-5.34.0.tar.gz
 cd perl-5.34.0
 mkdir localperl
 ./Configure -des -Dprefix=$(pwd)/localperl/
-make
-make test
+make -j
+# too long!
+# make test
 make install
 cd ..
-export perl5lib=$(pwd)/perl-5.34.0/localperl/
 curl -s -L -O --remote-name-all https://www.openssl.org/source/openssl-1.1.1m.tar.gz
 echo "f89199be8b23ca45fc7cb9f1d8d3ee67312318286ad030f5316aca6462db6c96 openssl-1.1.1m.tar.gz" | sha256sum -c
 tar -xf openssl-1.1.1m.tar.gz
 cd ./openssl-1.1.1m
 mkdir openssl
-./config --prefix=$(pwd)/openssl --openssldir=$(pwd)/openssl
-make
+$(pwd)/../perl-5.34.0/localperl/bin/perl ./config --prefix=$(pwd)/openssl --openssldir=$(pwd)/openssl
+make -j
 make test
 make install
 cd ..

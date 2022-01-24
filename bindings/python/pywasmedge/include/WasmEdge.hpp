@@ -37,6 +37,23 @@ public:
   void set_value(pybind11::object);
   pybind11::object get_value();
   WasmEdge_ValType get_type();
+  WasmEdge_Value get();
+};
+
+class Ref {
+private:
+  WasmEdge_Value Val;
+  void *Ptr;
+
+public:
+  Ref(pybind11::object);
+  ~Ref();
+  pybind11::object get_py_obj();
+  WasmEdge_ValType get_type();
+  void *get();
+  WasmEdge_Value get_val();
+  uint32_t get_function_index();
+  bool is_null();
 };
 
 class Configure {

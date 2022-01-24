@@ -6,6 +6,7 @@ pybind11_add_module(WasmEdge
     src/result.cpp
     src/store.cpp
     src/value.cpp
+    src/ref.cpp
     src/vm.cpp
     src/ast_module.cpp
     src/loader.cpp

@@ -66,14 +66,26 @@ def test_value():
     num1 = 10
     num2 = 0.1
 
+    def add(a, b):
+        return a + b
+
     val = WasmEdge.Value(num1)
     val2 = WasmEdge.Value(num2)
-    val3 = WasmEdge.Value(WasmEdge.RefType.FuncRef)
+    val3 = WasmEdge.Ref(WasmEdge.RefType.FuncRef)
+    val4 = WasmEdge.Ref(num1)
+    val5 = WasmEdge.Ref(add)
 
     assert val.Value * val2.Value == num1 * num2
     assert val.Type == WasmEdge.Type.I32
     assert val2.Type == WasmEdge.Type.F32
     assert val3.Type == WasmEdge.RefType.FuncRef
+    assert val4.Type == WasmEdge.RefType.ExternRef
+    assert val4.Value == num1
+    assert val5.Type == WasmEdge.RefType.ExternRef
+    assert val5.Value(num1, num2) == num1 + num2
+
+    del num1
+    assert val4.Value == 10
 
 
 def test_step_by_step():

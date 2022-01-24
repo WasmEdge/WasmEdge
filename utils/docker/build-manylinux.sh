@@ -10,11 +10,18 @@ export LDFLAGS=-L/toolchain/lib64
 curl -s -L -O --remote-name-all https://boostorg.jfrog.io/artifactory/main/release/1.76.0/source/boost_1_76_0.tar.bz2
 echo "f0397ba6e982c4450f27bf32a2a83292aba035b827a5623a14636ea583318c41  boost_1_76_0.tar.bz2" | sha256sum -c
 bzip2 -dc boost_1_76_0.tar.bz2 | tar -xf -
-curl -s -L -O --remote-name-all https://www.openssl.org/source/openssl-1.1.1m.tar.gz
 # openssl configure need newer perl
-curl -L https://install.perlbrew.pl | bash
-perlbrew install perl-5.34.0
-perlbrew switch perl-5.34.0
+wget https://www.cpan.org/src/5.0/perl-5.34.0.tar.gz
+tar -xzf perl-5.34.0.tar.gz
+cd perl-5.34.0
+mkdir perl
+./Configure -des -Dprefix=$(pwd)/perl
+make
+make test
+make install
+cd ..
+export perl5lib=$(pwd)/perl-5.34.0/perl
+curl -s -L -O --remote-name-all https://www.openssl.org/source/openssl-1.1.1m.tar.gz
 echo "f89199be8b23ca45fc7cb9f1d8d3ee67312318286ad030f5316aca6462db6c96 openssl-1.1.1m.tar.gz" | sha256sum -c
 tar -xf openssl-1.1.1m.tar.gz
 cd ./openssl-1.1.1m

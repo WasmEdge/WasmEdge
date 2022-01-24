@@ -70,6 +70,7 @@ impl Vm {
         self.inner.reset()
     }
 
+    // validate + instantiate + register
     pub fn register_wasm_from_module(
         self,
         mod_name: impl AsRef<str>,
@@ -81,6 +82,7 @@ impl Vm {
         Ok(Self { inner })
     }
 
+    // validate + instantiate + register
     pub fn register_wasm_from_import(self, import_obj: &mut ImportObj) -> WasmEdgeResult<Self> {
         let inner = self
             .inner
@@ -104,7 +106,7 @@ impl Vm {
         &self,
         buffer: &[u8],
         func_name: impl AsRef<str>,
-        params: impl IntoIterator<Item = Value>,
+        args: impl IntoIterator<Item = Value>,
     ) -> WasmEdgeResult<Vec<Value>> {
         let returns = self
             .inner
@@ -116,19 +118,60 @@ impl Vm {
         &self,
         module: &mut Module,
         func_name: impl AsRef<str>,
-        params: impl IntoIterator<Item = Value>,
+        args: impl IntoIterator<Item = Value>,
     ) -> WasmEdgeResult<Vec<Value>> {
         let returns =
             self.inner
                 .run_wasm_from_module(&mut module.inner, func_name.as_ref(), args)?;
         Ok(returns.collect::<Vec<_>>())
     }
+
+    pub fn load_from_file() -> WasmEdgeResult<Self> {
+        todo!()
+    }
+
+    pub fn load_from_buffer() -> WasmEdgeResult<Self> {
+        todo!()
+    }
+
+    pub fn load_from_module() -> WasmEdgeResult<Self> {
+        todo!()
+    }
+
+    pub fn validate() -> WasmEdgeResult<Self> {
+        todo!()
+    }
+
+    pub fn instantiate() -> WasmEdgeResult<Self> {
+        todo!()
+    }
+
+    pub fn run_func(
+        &self,
+        mod_name: Option<&str>,
+        func_name: impl AsRef<str>,
+        args: impl IntoIterator<Item = Value>,
+    ) -> WasmEdgeResult<Vec<Value>> {
+        match mod_name {
+            Some(mod_name) => {
+                // run a function in the registered module
+                // self.inner
+                //     .run_registered_function(mod_name, func_name.as_ref(), args)
+                todo!()
+            }
+            None => {
+                // run a function in the active module
+                // self.inner.run_function(func_name.as_ref(), args)
+                todo!()
+            }
+        }
+    }
 }
 
 pub trait Engine {
+    fn register_wasm_from_module();
+    fn register_wasm_from_import();
     fn run_func();
-
-    fn run_func_registered();
 }
 
 #[cfg(test)]

@@ -96,6 +96,7 @@ Expect<uint32_t> getImportAddr(std::string_view ModName,
 
 // Instantiate imports. See "include/executor/executor.h".
 Expect<void> Executor::instantiate(Runtime::StoreManager &StoreMgr,
+                                   Runtime::StackManager &,
                                    Runtime::Instance::ModuleInstance &ModInst,
                                    const AST::ImportSection &ImportSec) {
   // Iterate and instantiate import descriptions.

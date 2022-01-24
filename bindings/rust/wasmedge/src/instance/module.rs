@@ -3,6 +3,7 @@ use std::path::Path;
 use thiserror::Error;
 use wasmedge_sys as sys;
 
+#[derive(Debug)]
 pub struct Module {
     pub(crate) inner: sys::Module,
 }

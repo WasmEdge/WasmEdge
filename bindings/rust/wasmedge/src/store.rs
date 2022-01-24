@@ -20,6 +20,14 @@ impl<'vm> Store<'vm> {
         self.inner.reg_module_names()
     }
 
+    pub fn func_len(&self) -> u32 {
+        self.inner.func_len()
+    }
+
+    pub fn func_len_by_module(&self, mod_name: impl AsRef<str>) -> u32 {
+        self.inner.reg_func_len(mod_name)
+    }
+
     /// Returns all exported functions in the store, including both registered and non-registered.
     pub fn functions(&self) -> WasmEdgeResult<Vec<Func>> {
         let mut funcs = Vec::new();
@@ -60,13 +68,60 @@ impl<'vm> Store<'vm> {
         Ok(funcs)
     }
 
-    pub fn function(&self, name: impl AsRef<str>) -> WasmEdgeResult<Vec<Func>> {
+    pub fn functions_by_module(&self, mod_name: impl AsRef<str>) -> WasmEdgeResult<Vec<Func>> {
+        let mut funcs = Vec::new();
+
+        // funcs in the registered modules
+        if self.inner.reg_func_len(mod_name.as_ref()) > 0 {
+            let func_names = self.inner.reg_func_names(mod_name.as_ref()).unwrap();
+            for name in func_names {
+                let inner = self.inner.find_func_registered(mod_name.as_ref(), &name)?;
+                let func = Func {
+                    inner,
+                    name: Some(name),
+                    mod_name: Some(mod_name.as_ref().into()),
+                };
+                funcs.push(func);
+            }
+        }
+
+        Ok(funcs)
+    }
+
+    pub fn functions_by_name(&self, func_name: impl AsRef<str>) -> WasmEdgeResult<Vec<Func>> {
         let funcs = self
             .functions()?
             .into_iter()
-            .filter(|x| x.name().is_some() && (x.name().unwrap() == name.as_ref()));
+            .filter(|x| x.name().is_some() && (x.name().unwrap() == func_name.as_ref()));
 
         Ok(funcs.collect())
+    }
+
+    pub fn function(
+        &self,
+        func_name: impl AsRef<str>,
+        mod_name: Option<&str>,
+    ) -> WasmEdgeResult<Func> {
+        match mod_name {
+            Some(mod_name) => {
+                let inner = self
+                    .inner
+                    .find_func_registered(mod_name, func_name.as_ref())?;
+                Ok(Func {
+                    inner,
+                    name: Some(func_name.as_ref().into()),
+                    mod_name: Some(mod_name.into()),
+                })
+            }
+            None => {
+                let inner = self.inner.find_func(func_name.as_ref())?;
+                Ok(Func {
+                    inner,
+                    name: Some(func_name.as_ref().into()),
+                    mod_name: None,
+                })
+            }
+        }
     }
 
     pub fn tables(&self) -> WasmEdgeResult<Vec<Table>> {
@@ -220,7 +275,7 @@ mod tests {
     use crate::{ConfigBuilder, Module, SignatureBuilder, ValType, Value, VmBuilder};
 
     #[test]
-    fn test_store_functions() {
+    fn test_store_instance() {
         // create a Config
         let config = ConfigBuilder::new()
             .expect("fail to create a ConfigBuilder")
@@ -254,27 +309,71 @@ mod tests {
         assert!(result.is_ok());
         let store = result.unwrap();
 
-        // get all Func instances in the store
-        let result = store.functions();
-        assert!(result.is_ok());
-        let funcs = result.unwrap();
-        assert_eq!(funcs.len(), 1);
-        assert!(funcs[0].registered());
-        assert_eq!(funcs[0].mod_name().unwrap(), "fib-module");
-        assert_eq!(funcs[0].name().unwrap(), "fib");
-        let result = funcs[0].signature();
-        assert!(result.is_ok());
-        let signature = result.unwrap();
-        assert_eq!(
-            signature,
-            SignatureBuilder::new()
-                .with_args([ValType::I32])
-                .with_returns([ValType::I32])
-                .build()
-        );
+        // check the Func instances
+        {
+            let result = store.functions();
+            assert!(result.is_ok());
+            let functions = result.unwrap();
+            assert_eq!(functions.len(), 1);
+            let result = store.functions_by_module("fib-module");
+            assert!(result.is_ok());
+            let functions = result.unwrap();
+            assert_eq!(functions.len(), 1);
+            let result = store.functions_by_name("fib");
+            assert!(result.is_ok());
+            let functions = result.unwrap();
+            assert_eq!(functions.len(), 1);
 
-        // TODO run the "fib" registered function
-        let result = vm.run_func(None, "fib", [Value::I32(5)]);
-        assert!(result.is_ok());
+            // get all Func instances in the store
+            let result = store.function("fib", Some("fib-module"));
+            assert!(result.is_ok());
+            let func = result.unwrap();
+            assert!(func.registered());
+            assert_eq!(func.mod_name().unwrap(), "fib-module");
+            assert_eq!(func.name().unwrap(), "fib");
+
+            // check function signation
+            let result = func.signature();
+            assert!(result.is_ok());
+            let signature = result.unwrap();
+            assert_eq!(
+                signature,
+                SignatureBuilder::new()
+                    .with_args([ValType::I32])
+                    .with_returns([ValType::I32])
+                    .build()
+            );
+
+            // TODO run the "fib" registered function
+            // let result = vm.run_func(None, "fib", [Value::I32(5)]);
+            // assert!(result.is_ok());
+        }
+
+        {
+            // get all Table instances in the store
+            let result = store.tables();
+            assert!(result.is_ok());
+            let tables = result.unwrap();
+            dbg!(tables);
+        }
+
+        {
+            // get all Memory instances in the store
+            let result = store.memories();
+            assert!(result.is_ok());
+            let memories = result.unwrap();
+            dbg!(memories);
+        }
+
+        {
+            // get all Global instances in the store
+            let result = store.globals();
+            assert!(result.is_ok());
+            let globals = result.unwrap();
+            dbg!(globals);
+        }
     }
+
+    #[test]
+    fn test_store_table() {}
 }

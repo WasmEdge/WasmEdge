@@ -232,7 +232,7 @@ EddsaVerificationState::verify(std::shared_ptr<Signature> Sig) {
   ensureOrReturn(Sig->alg() == SignatureAlgorithm::Ed25519,
                  __WASI_CRYPTO_ERRNO_INVALID_SIGNATURE);
 
-  ensureOrReturn(Sig->data().size() == EddsaSignature::Size,
+  ensureOrReturn(Sig->data().size() == EddsaSignature::SigSize,
                  __WASI_CRYPTO_ERRNO_INVALID_SIGNATURE);
 
   // The call to EVP_DigestVerifyFinal() internally finalizes a copy of the

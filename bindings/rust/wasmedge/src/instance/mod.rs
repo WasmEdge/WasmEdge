@@ -6,7 +6,7 @@ mod module;
 mod table;
 
 pub use function::{Func, Signature, SignatureBuilder};
-pub use global::Global;
+pub use global::{Global, GlobalType};
 pub use import_obj::ImportObj;
 pub use memory::Memory;
 pub use module::Module;

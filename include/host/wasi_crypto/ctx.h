@@ -164,7 +164,8 @@ public:
 
   WasiCryptoExpect<__wasi_keypair_t>
   keypairImport(__wasi_algorithm_type_e_t AlgType, std::string_view AlgStr,
-                Span<const uint8_t> Encoded, __wasi_keypair_encoding_e_t Encoding);
+                Span<const uint8_t> Encoded,
+                __wasi_keypair_encoding_e_t Encoding);
 
   // opt
   WasiCryptoExpect<__wasi_keypair_t>

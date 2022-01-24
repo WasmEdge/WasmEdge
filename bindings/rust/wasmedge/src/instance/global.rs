@@ -71,3 +71,11 @@ impl GlobalType {
         self.mutability
     }
 }
+impl From<wasmedge::GlobalType> for GlobalType {
+    fn from(ty: wasmedge::GlobalType) -> Self {
+        Self {
+            ty: ty.value_type(),
+            mutability: ty.mutability(),
+        }
+    }
+}

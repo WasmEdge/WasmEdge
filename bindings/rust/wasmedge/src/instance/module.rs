@@ -1,11 +1,11 @@
-use crate::{wasmedge, Config, Signature};
+use crate::{wasmedge, Config, GlobalType, Signature};
 use std::{borrow::Cow, path::Path};
 use thiserror::Error;
 use wasmedge_sys as sys;
 
 #[derive(Debug)]
 pub struct Module {
-    pub(crate) inner: sys::Module,
+    pub(crate) inner: wasmedge::Module,
 }
 impl Module {
     pub fn from_file(config: Option<&Config>, file: impl AsRef<Path>) -> WasmEdgeResult<Self> {
@@ -70,7 +70,10 @@ impl<'module> ExportType<'module> {
                 let func_ty = self.inner.function_type(&self.module.inner)?;
                 Ok(ExternalType::Func(func_ty.into()))
             }
-            wasmedge::ExternalType::Global => unimplemented!(),
+            wasmedge::ExternalType::Global => {
+                let global_ty = self.inner.global_type(&self.module.inner)?;
+                Ok(ExternalType::Global(global_ty.into()))
+            }
             wasmedge::ExternalType::Memory => unimplemented!(),
             wasmedge::ExternalType::Table => unimplemented!(),
         }
@@ -85,7 +88,7 @@ pub enum ExternalType {
     Func(Signature),
     Table,
     Memory,
-    Global,
+    Global(GlobalType),
 }
 
 pub trait Engine {

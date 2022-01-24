@@ -1,4 +1,4 @@
-use crate::{wasmedge, Config, GlobalType, Signature};
+use crate::{wasmedge, Config, GlobalType, MemoryType, Signature, TableType};
 use std::{borrow::Cow, path::Path};
 use thiserror::Error;
 use wasmedge_sys as sys;
@@ -74,8 +74,14 @@ impl<'module> ExportType<'module> {
                 let global_ty = self.inner.global_type(&self.module.inner)?;
                 Ok(ExternalType::Global(global_ty.into()))
             }
-            wasmedge::ExternalType::Memory => unimplemented!(),
-            wasmedge::ExternalType::Table => unimplemented!(),
+            wasmedge::ExternalType::Memory => {
+                let mem_ty = self.inner.memory_type(&self.module.inner)?;
+                Ok(ExternalType::Memory(mem_ty.into()))
+            }
+            wasmedge::ExternalType::Table => {
+                let table_ty = self.inner.table_type(&self.module.inner)?;
+                Ok(ExternalType::Table(table_ty.into()))
+            }
         }
     }
 
@@ -86,8 +92,8 @@ impl<'module> ExportType<'module> {
 
 pub enum ExternalType {
     Func(Signature),
-    Table,
-    Memory,
+    Table(TableType),
+    Memory(MemoryType),
     Global(GlobalType),
 }
 

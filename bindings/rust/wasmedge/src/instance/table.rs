@@ -30,12 +30,14 @@ impl Table {
         self.mod_name.is_some()
     }
 
-    pub fn elem_ty(&self) -> RefType {
-        unimplemented!()
-    }
-
-    pub fn limit(&self) -> RangeInclusive<u32> {
-        unimplemented!()
+    pub fn ty(&self) -> WasmEdgeResult<TableType> {
+        let ty = self.inner.ty()?;
+        let limit = ty.limit();
+        Ok(TableType {
+            elem_ty: ty.elem_ty(),
+            min: limit.start().to_owned(),
+            max: Some(limit.end().to_owned()),
+        })
     }
 
     pub fn capacity(&self) -> usize {
@@ -52,5 +54,39 @@ impl Table {
 
     pub fn set_data(&mut self, data: Value, idx: usize) -> WasmEdgeResult<()> {
         unimplemented!()
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TableType {
+    elem_ty: RefType,
+    min: u32,
+    max: Option<u32>,
+}
+impl TableType {
+    pub fn new(elem_ty: RefType, min: u32, max: Option<u32>) -> Self {
+        Self { elem_ty, min, max }
+    }
+
+    pub fn elem_ty(&self) -> RefType {
+        self.elem_ty
+    }
+
+    pub fn minimum(&self) -> u32 {
+        self.min
+    }
+
+    pub fn maximum(&self) -> Option<u32> {
+        self.max
+    }
+}
+impl From<wasmedge::TableType> for TableType {
+    fn from(ty: wasmedge::TableType) -> Self {
+        let limit = ty.limit();
+        Self {
+            elem_ty: ty.elem_ty(),
+            min: limit.start().to_owned(),
+            max: Some(limit.end().to_owned()),
+        }
     }
 }

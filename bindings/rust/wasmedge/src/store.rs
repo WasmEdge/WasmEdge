@@ -24,30 +24,30 @@ impl<'vm> Store<'vm> {
     pub fn functions(&self) -> WasmEdgeResult<Vec<Func>> {
         let mut funcs = Vec::new();
 
-        // funcs
+        // funcs in the active module
         if self.inner.func_len() > 0 {
             let func_names = self.inner.func_names().unwrap();
             for name in func_names {
-                let func = self.inner.find_func(&name)?;
+                let inner = self.inner.find_func(&name)?;
                 let func = Func {
-                    inner: func,
-                    name: Some(name),
+                    inner,
+                    name: Some(name.clone()),
                     mod_name: None,
                 };
                 funcs.push(func);
             }
         }
 
-        // registered funcs
+        // funcs in the registered modules
         if self.inner.reg_module_len() > 0 {
             let mod_names = self.mod_names().unwrap();
             for mod_name in mod_names {
                 if self.inner.reg_func_len(&mod_name) > 0 {
                     let func_names = self.inner.reg_func_names(&mod_name).unwrap();
                     for name in func_names {
-                        let func = self.inner.find_func_registered(&mod_name, &name)?;
+                        let inner = self.inner.find_func_registered(&mod_name, &name)?;
                         let func = Func {
-                            inner: func,
+                            inner,
                             name: Some(name),
                             mod_name: Some(mod_name.clone()),
                         };
@@ -70,27 +70,147 @@ impl<'vm> Store<'vm> {
     }
 
     pub fn tables(&self) -> WasmEdgeResult<Vec<Table>> {
-        unimplemented!()
+        let mut tables = Vec::new();
+
+        // tables in the active module
+        if self.inner.table_len() > 0 {
+            let table_names = self.inner.table_names().unwrap();
+            for name in table_names {
+                let inner = self.inner.find_table(&name)?;
+                let table = Table {
+                    inner,
+                    name: Some(name.clone()),
+                    mod_name: None,
+                };
+                tables.push(table);
+            }
+        }
+
+        // tables in the registered modules
+        if self.inner.reg_module_len() > 0 {
+            let mod_names = self.mod_names().unwrap();
+            for mod_name in mod_names {
+                if self.inner.reg_table_len(&mod_name) > 0 {
+                    let table_names = self.inner.reg_table_names(&mod_name).unwrap();
+                    for name in table_names {
+                        let inner = self.inner.find_table_registered(&mod_name, &name)?;
+                        let table = Table {
+                            inner,
+                            name: Some(name.clone()),
+                            mod_name: None,
+                        };
+                        tables.push(table);
+                    }
+                }
+            }
+        }
+
+        Ok(tables)
     }
 
     pub fn table(&self, name: impl AsRef<str>) -> WasmEdgeResult<Vec<Table>> {
-        unimplemented!()
+        let tables = self
+            .tables()?
+            .into_iter()
+            .filter(|x| x.name().is_some() && (x.name().unwrap() == name.as_ref()));
+
+        Ok(tables.collect())
     }
 
     pub fn memories(&self) -> WasmEdgeResult<Vec<Memory>> {
-        unimplemented!()
+        let mut memories = Vec::new();
+
+        // memories in the active module
+        if self.inner.mem_len() > 0 {
+            let mem_names = self.inner.mem_names().unwrap();
+            for name in mem_names {
+                let inner = self.inner.find_memory(&name)?;
+                let memory = Memory {
+                    inner,
+                    name: Some(name.clone()),
+                    mod_name: None,
+                };
+                memories.push(memory);
+            }
+        }
+
+        // memories in the registered modules
+        if self.inner.reg_module_len() > 0 {
+            let mod_names = self.mod_names().unwrap();
+            for mod_name in mod_names {
+                if self.inner.reg_mem_len(&mod_name) > 0 {
+                    let mem_names = self.inner.reg_mem_names(&mod_name).unwrap();
+                    for name in mem_names {
+                        let inner = self.inner.find_memory_registered(&mod_name, &name)?;
+                        let memory = Memory {
+                            inner,
+                            name: Some(name.clone()),
+                            mod_name: None,
+                        };
+                        memories.push(memory);
+                    }
+                }
+            }
+        }
+
+        Ok(memories)
     }
 
     pub fn memory(&self, name: impl AsRef<str>) -> WasmEdgeResult<Vec<Memory>> {
-        unimplemented!()
+        let memories = self
+            .memories()?
+            .into_iter()
+            .filter(|x| x.name().is_some() && (x.name().unwrap() == name.as_ref()));
+
+        Ok(memories.collect())
     }
 
     pub fn globals(&self) -> WasmEdgeResult<Vec<Global>> {
-        unimplemented!()
+        let mut globals = Vec::new();
+
+        // globals in the active module
+        if self.inner.global_len() > 0 {
+            let global_names = self.inner.global_names().unwrap();
+            for name in global_names {
+                let inner = self.inner.find_global(&name)?;
+                let global = Global {
+                    inner,
+                    name: Some(name),
+                    mod_name: None,
+                };
+                globals.push(global);
+            }
+        }
+
+        // globals in the registered modules
+        if self.inner.reg_module_len() > 0 {
+            let mod_names = self.mod_names().unwrap();
+            for mod_name in mod_names {
+                if self.inner.reg_global_len(&mod_name) > 0 {
+                    let global_names = self.inner.reg_global_names(&mod_name).unwrap();
+                    for name in global_names {
+                        let inner = self.inner.find_global_registered(&mod_name, &name)?;
+                        let global = Global {
+                            inner,
+                            name: Some(name),
+                            mod_name: Some(mod_name.clone()),
+                        };
+                        globals.push(global);
+                    }
+                }
+            }
+        }
+
+        Ok(globals)
     }
 
     pub fn global(&self, name: impl AsRef<str>) -> WasmEdgeResult<Vec<Global>> {
-        unimplemented!()
+        let globals = self
+            .globals()?
+            .into_iter()
+            .filter(|x| x.name().is_some() && (x.name().unwrap() == name.as_ref()));
+
+        Ok(globals.collect())
     }
 }
 

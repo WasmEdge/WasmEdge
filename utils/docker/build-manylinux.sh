@@ -11,8 +11,8 @@ curl -s -L -O --remote-name-all https://boostorg.jfrog.io/artifactory/main/relea
 echo "f0397ba6e982c4450f27bf32a2a83292aba035b827a5623a14636ea583318c41  boost_1_76_0.tar.bz2" | sha256sum -c
 bzip2 -dc boost_1_76_0.tar.bz2 | tar -xf -
 # openssl configure need newer perl
-wget https://www.cpan.org/src/5.0/perl-5.34.0.tar.gz
-tar -xzf perl-5.34.0.tar.gz
+curl -s -L -O --remote-name-all https://www.cpan.org/src/5.0/perl-5.34.0.tar.gz
+tar -xf perl-5.34.0.tar.gz
 cd perl-5.34.0
 mkdir perl
 ./Configure -des -Dprefix=$(pwd)/perl

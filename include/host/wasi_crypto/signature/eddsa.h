@@ -20,7 +20,7 @@ namespace Signatures {
 
 class EddsaPublicKey final : public PublicKey {
 public:
-  inline static size_t Size = 32;
+  inline static size_t PkSize = 32;
 
   EddsaPublicKey(EvpPkeyPtr Ctx) : Ctx(std::move(Ctx)) {}
 
@@ -39,7 +39,7 @@ private:
 
 class EddsaSecretKey final : public SecretKey {
 public:
-  inline static size_t Size = 32;
+  inline static size_t SkSize = 32;
 
   EddsaSecretKey(EvpPkeyPtr Ctx) : Ctx(std::move(Ctx)) {}
 
@@ -55,7 +55,7 @@ private:
 
 class EddsaKeyPair final : public KeyPair {
 public:
-  inline static size_t Size = 64;
+  inline static size_t KpSize = 64;
 
   EddsaKeyPair(EvpPkeyPtr Ctx) : Ctx(std::move(Ctx)) {}
 
@@ -80,7 +80,7 @@ private:
 
 class EddsaSignature final : public Signature {
 public:
-  inline static size_t Size = 64;
+  inline static size_t SigSize = 64;
 
   EddsaSignature(std::vector<uint8_t> &&Sign)
       : Signature(SignatureAlgorithm::Ed25519, std::move(Sign)) {}

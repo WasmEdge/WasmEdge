@@ -76,7 +76,7 @@ EddsaSecretKey::exportData(__wasi_secretkey_encoding_e_t Encoding) {
   case __WASI_SECRETKEY_ENCODING_RAW: {
     size_t Size;
     EVP_PKEY_get_raw_private_key(Ctx.get(), nullptr, &Size);
-    ensureOrReturn(Size == 32, __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
+    ensureOrReturn(Size == SkSize, __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
     std::vector<uint8_t> Res(Size);
     EVP_PKEY_get_raw_private_key(Ctx.get(), Res.data(), &Size);
     return Res;
@@ -105,13 +105,15 @@ EddsaKeyPair::import(Span<const uint8_t> Encoded,
                      __wasi_keypair_encoding_e_t Encoding) {
   switch (Encoding) {
   case __WASI_KEYPAIR_ENCODING_RAW: {
-    ensureOrReturn(Encoded.size() == 64, __WASI_CRYPTO_ERRNO_INVALID_KEY);
+    ensureOrReturn(Encoded.size() == KpSize, __WASI_CRYPTO_ERRNO_INVALID_KEY);
     // would auto generate public key
     // EvpPkeyPtr PkCtx{EVP_PKEY_new_raw_public_key(EVP_PKEY_ED25519, nullptr,
-    //                                              Encoded.data() + 32, 32)};
+    //                                              Encoded.data() +
+    //                                              EddsaSecretKey::SkSize,
+    //                                              EddsaPublicKey::PkSize)};
     // ensureOrReturn(PkCtx, __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
-    EvpPkeyPtr SkCtx{EVP_PKEY_new_raw_private_key(EVP_PKEY_ED25519, nullptr,
-                                                  Encoded.data(), 32)};
+    EvpPkeyPtr SkCtx{EVP_PKEY_new_raw_private_key(
+        EVP_PKEY_ED25519, nullptr, Encoded.data(), EddsaSecretKey::SkSize)};
     ensureOrReturn(SkCtx, __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
 
     return std::make_unique<EddsaKeyPair>(std::move(SkCtx));
@@ -128,9 +130,12 @@ EddsaKeyPair::exportData(__wasi_keypair_encoding_e_t Encoding) {
     std::vector<uint8_t> Res(64);
     size_t Size;
     EVP_PKEY_get_raw_private_key(Ctx.get(), Res.data(), &Size);
-    ensureOrReturn(Size == 32, __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
-    EVP_PKEY_get_raw_public_key(Ctx.get(), Res.data() + 32, &Size);
-    ensureOrReturn(Size == 32, __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
+    ensureOrReturn(Size == EddsaSecretKey::SkSize,
+                   __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
+    EVP_PKEY_get_raw_public_key(Ctx.get(), Res.data() + EddsaSecretKey::SkSize,
+                                &Size);
+    ensureOrReturn(Size == EddsaPublicKey::PkSize,
+                   __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
     return Res;
   }
   default:
@@ -173,7 +178,7 @@ EddsaSignature::import(Span<const uint8_t> Encoded,
                        __wasi_signature_encoding_e_t Encoding) {
   switch (Encoding) {
   case __WASI_SIGNATURE_ENCODING_RAW:
-    ensureOrReturn(Encoded.size() == EddsaSignature::Size,
+    ensureOrReturn(Encoded.size() == EddsaSignature::SigSize,
                    __WASI_CRYPTO_ERRNO_INVALID_SIGNATURE);
     return std::make_unique<EddsaSignature>(
         std::vector<uint8_t>{Encoded.begin(), Encoded.end()});

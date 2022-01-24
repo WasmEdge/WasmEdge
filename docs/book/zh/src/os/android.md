@@ -15,7 +15,7 @@
 
 ### 构建 WasmEdge
 1. 添加 NDK 目录路径到环境变量 `ANDROID_NDK_HOME=path/to/you/ndk/dir`
-2. 执行 WasmEdge 源码路径下的 utils/build_for_ohos.sh 命令行脚本，将自动执行构建，构建结果在 WasmEdge 目录中的 build 目录
+2. 执行 WasmEdge 源码路径下的 `utils/android/build_for_android.sh` 命令行脚本，将自动执行构建，构建结果在 WasmEdge 目录中的 build 目录
 
 ### 测试
 
@@ -27,7 +27,7 @@
     List of devices attached
     0a388e93      device
     ```
-2. 使用 `adb push`命令推送 tools/wasmedge 到 Android 设备的 /data/local/tmp 目录
+2. 使用 `adb push`命令推送 build/tools/wasmedge 到 Android 设备的 /data/local/tmp 目录
    ```
    $ cd build
    $ adb push ./tools/wasmedge /data/local/tmp  
@@ -54,8 +54,4 @@
     $ ./../wasmedge --dir .:. qjs.wasm hello.js 1 2 3
     Hello 1 2 3
     ```
-
-
-
-
 

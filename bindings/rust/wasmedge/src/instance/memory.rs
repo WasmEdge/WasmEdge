@@ -8,13 +8,13 @@ pub struct Memory {
     pub(crate) mod_name: Option<String>,
 }
 impl Memory {
-    pub fn new(minimum: u32, maximum: Option<u32>) -> WasmEdgeResult<Self> {
-        let maximum = match maximum {
+    pub fn new(min: u32, max: Option<u32>) -> WasmEdgeResult<Self> {
+        let maximum = match max {
             Some(max_val) => max_val,
             None => u32::MAX,
         };
 
-        let inner = wasmedge::Memory::create(minimum..=maximum)?;
+        let inner = wasmedge::Memory::create(min..=maximum)?;
 
         Ok(Self {
             inner,
@@ -41,18 +41,13 @@ impl Memory {
         self.mod_name.is_some()
     }
 
-    /// Returns the lower bound of the memory page counts allowed to be used.
-    pub fn minimum(&self) -> WasmEdgeResult<u32> {
+    pub fn ty(&self) -> WasmEdgeResult<MemoryType> {
         let ty = self.inner.ty()?;
         let limit = ty.limit();
-        Ok(limit.start().to_owned())
-    }
-
-    /// Returns the upper bound of the memory page counts allowed to grow.
-    pub fn maximum(&self) -> WasmEdgeResult<u32> {
-        let ty = self.inner.ty()?;
-        let limit = ty.limit();
-        Ok(limit.end().to_owned())
+        Ok(MemoryType {
+            min: limit.start().to_owned(),
+            max: Some(limit.end().to_owned()),
+        })
     }
 
     pub fn page_count(&self) -> u32 {
@@ -85,6 +80,34 @@ impl Memory {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MemoryType {
+    min: u32,
+    max: Option<u32>,
+}
+impl MemoryType {
+    pub fn new(min: u32, max: Option<u32>) -> Self {
+        Self { min, max }
+    }
+
+    pub fn minimum(&self) -> u32 {
+        self.min
+    }
+
+    pub fn maximum(&self) -> Option<u32> {
+        self.max
+    }
+}
+impl From<wasmedge::MemType> for MemoryType {
+    fn from(ty: wasmedge::MemType) -> Self {
+        let limit = ty.limit();
+        Self {
+            min: limit.start().to_owned(),
+            max: Some(limit.end().to_owned()),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -97,14 +120,13 @@ mod tests {
             assert!(result.is_ok());
             let mem = result.unwrap();
 
-            // check limit
-            let result = mem.minimum();
+            let result = mem.ty();
             assert!(result.is_ok());
-            assert_eq!(result.unwrap(), 10);
+            let ty = result.unwrap();
 
-            let result = mem.maximum();
-            assert!(result.is_ok());
-            assert_eq!(result.unwrap(), u32::MAX);
+            // check limit
+            assert_eq!(ty.minimum(), 10);
+            assert_eq!(ty.maximum().unwrap(), u32::MAX);
 
             // check page count
             assert_eq!(mem.page_count(), 10);
@@ -115,14 +137,13 @@ mod tests {
             assert!(result.is_ok());
             let mem = result.unwrap();
 
-            // check limit
-            let result = mem.minimum();
+            let result = mem.ty();
             assert!(result.is_ok());
-            assert_eq!(result.unwrap(), 10);
+            let ty = result.unwrap();
 
-            let result = mem.maximum();
-            assert!(result.is_ok());
-            assert_eq!(result.unwrap(), 20);
+            // check limit
+            assert_eq!(ty.minimum(), 10);
+            assert_eq!(ty.maximum().unwrap(), 20);
 
             // check page count
             assert_eq!(mem.page_count(), 10);

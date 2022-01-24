@@ -8,7 +8,8 @@ pub mod vm;
 
 pub use config::{Config, ConfigBuilder};
 pub use instance::{
-    Func, Global, GlobalType, ImportObj, Memory, Module, Signature, SignatureBuilder, Table,
+    Func, Global, GlobalType, ImportObj, Memory, MemoryType, Module, Signature, SignatureBuilder,
+    Table, TableType,
 };
 pub use store::Store;
 pub use vm::{Vm, VmBuilder};

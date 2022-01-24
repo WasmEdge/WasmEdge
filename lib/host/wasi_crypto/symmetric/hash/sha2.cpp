@@ -34,26 +34,19 @@ WasiCryptoExpect<void> Sha2State<Sha>::squeeze(Span<uint8_t> Out) {
   // state and apply the finalization on the copy, leaving the state unchanged
   // from the guest perspective.
 
-  EVP_MD_CTX *CopyCtx = EVP_MD_CTX_new();
-  opensslAssuming(EVP_MD_CTX_copy_ex(CopyCtx, Ctx.get()));
+  EvpMdCtxPtr CopyCtx{EVP_MD_CTX_new()};
+  opensslAssuming(EVP_MD_CTX_copy_ex(CopyCtx.get(), Ctx.get()));
 
-  // Note: just copy `Out.size()` length from ctx. However, OpenSSL don't have
-  // such a function, it will copy `EVP_MD_CTX_size(CopyCtx)`, so create Cache
-  int MdSize = EVP_MD_CTX_size(CopyCtx);
-  ensureOrReturn(MdSize >= 0, __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
-  std::vector<uint8_t> Cache(static_cast<size_t>(MdSize));
-  ensureOrReturn(Cache.size() >= Out.size(),
+  std::vector<uint8_t> Buffer(
+      static_cast<size_t>(EVP_MD_CTX_size(CopyCtx.get())));
+  ensureOrReturn(Buffer.size() >= Out.size(),
                  __WASI_CRYPTO_ERRNO_INVALID_LENGTH);
 
   unsigned int Size = 0;
-  // Auto clean CopyCtx, not leak
-  opensslAssuming(EVP_DigestFinal(CopyCtx, Cache.data(), &Size));
+  opensslAssuming(EVP_DigestFinal_ex(CopyCtx.get(), Buffer.data(), &Size));
+  opensslAssuming(Size == Buffer.size());
 
-  // Check
-  opensslAssuming(Size == Cache.size());
-
-  std::copy(Cache.begin(), Cache.end(), Out.data());
-
+  std::copy(Buffer.begin(), Buffer.begin() + Out.size(), Out.data());
   return {};
 }
 

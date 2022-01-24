@@ -13,7 +13,7 @@ namespace Kx {
 
 class X25519PublicKey : public PublicKey {
 public:
-  X25519PublicKey(EVP_PKEY *Ctx) : Pk(std::move(Ctx)) {}
+  X25519PublicKey(EvpPkeyPtr Ctx) : Ctx(std::move(Ctx)) {}
   // Raw
   static WasiCryptoExpect<std::unique_ptr<X25519PublicKey>>
   import(Span<uint8_t const> Encoded, __wasi_publickey_encoding_e_t Encoding);
@@ -29,15 +29,15 @@ public:
 
   friend class X25519SecretKey;
 
-  inline static size_t Len = 32;
+  inline static size_t PkSize = 32;
 
 private:
-  EvpPkeyPtr Pk;
+  EvpPkeyPtr Ctx;
 };
 
 class X25519SecretKey : public SecretKey {
 public:
-  X25519SecretKey(EVP_PKEY *Ctx) : Sk(Ctx) {}
+  X25519SecretKey(EvpPkeyPtr Ctx) : Ctx(std::move(Ctx)) {}
 
   // Raw
   static WasiCryptoExpect<std::unique_ptr<X25519SecretKey>>
@@ -51,10 +51,10 @@ public:
   WasiCryptoExpect<std::vector<uint8_t>>
   dh(std::shared_ptr<PublicKey> Pk) override;
 
-  inline static size_t Len = 32;
+  inline static size_t SkSize = 32;
 
 private:
-  EvpPkeyPtr Sk;
+  EvpPkeyPtr Ctx;
 };
 
 class X25519KeyPair : public KeyPair {
@@ -69,7 +69,7 @@ public:
            __wasi_keypair_encoding_e_t Encoding) override;
   };
 
-  X25519KeyPair(EVP_PKEY *Ctx) : Ctx(Ctx) {}
+  X25519KeyPair(EvpPkeyPtr Ctx) : Ctx(std::move(Ctx)) {}
 
   WasiCryptoExpect<void> verify() override;
 

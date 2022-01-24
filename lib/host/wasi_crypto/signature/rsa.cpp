@@ -64,6 +64,8 @@ Rsa<Pad, Size, Sha>::PublicKey::importPkcs8(Span<const uint8_t> Encoded) {
 
   EvpPkeyPtr Ctx{d2i_PUBKEY_bio(Bio.get(), nullptr)};
   ensureOrReturn(Ctx, __WASI_CRYPTO_ERRNO_INVALID_KEY);
+  ensureOrReturn(EVP_PKEY_id(Ctx.get()) == EVP_PKEY_RSA,
+                 __WASI_CRYPTO_ERRNO_INVALID_KEY);
 
   return std::make_unique<PublicKey>(std::move(Ctx));
 }
@@ -80,6 +82,8 @@ Rsa<Pad, Size, Sha>::PublicKey::importPem(Span<const uint8_t> Encoded) {
 
   EvpPkeyPtr Ctx{PEM_read_bio_PUBKEY(Bio.get(), nullptr, nullptr, nullptr)};
   ensureOrReturn(Ctx, __WASI_CRYPTO_ERRNO_INVALID_KEY);
+  ensureOrReturn(EVP_PKEY_id(Ctx.get()) == EVP_PKEY_RSA,
+                 __WASI_CRYPTO_ERRNO_INVALID_KEY);
 
   return std::make_unique<PublicKey>(std::move(Ctx));
 }
@@ -176,6 +180,8 @@ Rsa<Pad, Size, Sha>::SecretKey::importPem(Span<const uint8_t> Encoded) {
 
   EvpPkeyPtr Ctx{PEM_read_bio_PrivateKey(Bio.get(), nullptr, nullptr, nullptr)};
   ensureOrReturn(Ctx, __WASI_CRYPTO_ERRNO_INVALID_KEY);
+  ensureOrReturn(EVP_PKEY_id(Ctx.get()) == EVP_PKEY_RSA,
+                 __WASI_CRYPTO_ERRNO_INVALID_KEY);
 
   return std::make_unique<SecretKey>(std::move(Ctx));
 }
@@ -192,6 +198,8 @@ Rsa<Pad, Size, Sha>::SecretKey::importPkcs8(Span<const uint8_t> Encoded) {
 
   EvpPkeyPtr Ctx{d2i_PrivateKey_bio(Bio.get(), nullptr)};
   ensureOrReturn(Ctx, __WASI_CRYPTO_ERRNO_INVALID_KEY);
+  ensureOrReturn(EVP_PKEY_id(Ctx.get()) == EVP_PKEY_RSA,
+                 __WASI_CRYPTO_ERRNO_INVALID_KEY);
 
   return std::make_unique<SecretKey>(std::move(Ctx));
 }
@@ -283,6 +291,8 @@ Rsa<Pad, Size, Sha>::KeyPair::importPem(Span<const uint8_t> Encoded) {
 
   EvpPkeyPtr Ctx{PEM_read_bio_PrivateKey(Bio.get(), nullptr, nullptr, nullptr)};
   ensureOrReturn(Ctx, __WASI_CRYPTO_ERRNO_INVALID_KEY);
+  ensureOrReturn(EVP_PKEY_id(Ctx.get()) == EVP_PKEY_RSA,
+                 __WASI_CRYPTO_ERRNO_INVALID_KEY);
 
   return std::make_unique<KeyPair>(std::move(Ctx));
 }
@@ -299,6 +309,8 @@ Rsa<Pad, Size, Sha>::KeyPair::importPkcs8(Span<const uint8_t> Encoded) {
 
   EvpPkeyPtr Ctx{d2i_PrivateKey_bio(Bio.get(), nullptr)};
   ensureOrReturn(Ctx, __WASI_CRYPTO_ERRNO_INVALID_KEY);
+  ensureOrReturn(EVP_PKEY_id(Ctx.get()) == EVP_PKEY_RSA,
+                 __WASI_CRYPTO_ERRNO_INVALID_KEY);
 
   return std::make_unique<KeyPair>(std::move(Ctx));
 }

@@ -1,7 +1,7 @@
+use crate::{error::WasmEdgeResult, wasmedge, RefType, Value};
 use std::ops::RangeInclusive;
 
-use crate::{error::WasmEdgeResult, wasmedge, RefType, Value};
-
+#[derive(Debug)]
 pub struct Table {
     pub(crate) inner: wasmedge::Table,
     pub(crate) name: Option<String>,

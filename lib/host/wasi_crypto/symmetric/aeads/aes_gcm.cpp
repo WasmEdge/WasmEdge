@@ -2,6 +2,7 @@
 
 #include "host/wasi_crypto/symmetric/aeads/aes_gcm.h"
 
+#include "host/wasi_crypto/evpwrapper.h"
 #include "openssl/rand.h"
 
 namespace WasmEdge {
@@ -51,12 +52,11 @@ AesGcm<KeyBit>::State::open(std::shared_ptr<Key> OptKey,
   ensureOrReturn(KeyBit / 8 == OptKey->data().size(),
                  __WASI_CRYPTO_ERRNO_INVALID_HANDLE);
 
-  EVP_CIPHER_CTX *Ctx = EVP_CIPHER_CTX_new();
-  opensslAssuming(Ctx);
-  opensslAssuming(EVP_CipherInit(Ctx, getCipher(), OptKey->data().data(),
+  EvpCipherCtxPtr Ctx{EVP_CIPHER_CTX_new()};
+  opensslAssuming(EVP_CipherInit(Ctx.get(), getCipher(), OptKey->data().data(),
                                  Nonce->data(), Mode::Unchanged));
 
-  return std::make_unique<State>(Ctx, OptOption);
+  return std::make_unique<State>(std::move(Ctx), OptOption);
 }
 
 template <uint32_t KeyBit>

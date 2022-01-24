@@ -34,11 +34,10 @@ public:
   };
 
   class State final : public MACState {
-    using EvpMdCtxPtr = OpenSSLUniquePtr<EVP_MD_CTX, EVP_MD_CTX_free>;
 
   public:
-    State(std::shared_ptr<Options> OptOption, EVP_MD_CTX *Ctx)
-        : OptOption(OptOption), Ctx(Ctx) {}
+    State(std::shared_ptr<Options> OptOption, EvpMdCtxPtr Ctx)
+        : OptOption(OptOption), Ctx(std::move(Ctx)) {}
 
     static WasiCryptoExpect<std::unique_ptr<State>>
     open(std::shared_ptr<Key> OptKey, std::shared_ptr<Options> OptOption);

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "host/wasi_crypto/symmetric/aeads/chacha_poly.h"
+#include "host/wasi_crypto/evpwrapper.h"
 
 #include <map>
 #include <openssl/rand.h>
@@ -25,15 +26,16 @@ ChaChaPoly<NonceBit>::State::open(std::shared_ptr<Key> OptKey,
   ensureOrReturn(Nonce->size() == NonceBit / 8,
                  __WASI_CRYPTO_ERRNO_INVALID_HANDLE);
 
-  EVP_CIPHER_CTX *Ctx = EVP_CIPHER_CTX_new();
-  EVP_CIPHER_CTX_ctrl(Ctx, EVP_CTRL_AEAD_SET_IVLEN, NonceBit / 8, nullptr);
+  EvpCipherCtxPtr Ctx{EVP_CIPHER_CTX_new()};
+  EVP_CIPHER_CTX_ctrl(Ctx.get(), EVP_CTRL_AEAD_SET_IVLEN, NonceBit / 8,
+                      nullptr);
 
-  opensslAssuming(Ctx);
-  opensslAssuming(EVP_CipherInit_ex(Ctx, EVP_chacha20_poly1305(), nullptr,
+  opensslAssuming(EVP_CipherInit_ex(Ctx.get(), EVP_chacha20_poly1305(), nullptr,
                                     OptKey->data().data(), Nonce->data(),
                                     Mode::Unchanged));
 
-  return std::make_unique<ChaChaPoly<NonceBit>::State>(Ctx, OptOption);
+  return std::make_unique<ChaChaPoly<NonceBit>::State>(std::move(Ctx),
+                                                       OptOption);
 }
 
 template <uint32_t NonceBit>

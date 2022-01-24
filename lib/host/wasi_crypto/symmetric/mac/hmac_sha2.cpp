@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "host/wasi_crypto/symmetric/mac/hmac_sha2.h"
+#include "host/wasi_crypto/error.h"
+#include "wasi_crypto/api.hpp"
 #include <openssl/rand.h>
 
 namespace WasmEdge {
@@ -41,16 +43,14 @@ HmacSha2<Sha>::State::open(std::shared_ptr<Key> OptKey,
   ensureOrReturn(Size <= INT_MAX, __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
   EvpPkeyPtr PKey{EVP_PKEY_new_mac_key(
       EVP_PKEY_HMAC, nullptr, OptKey->data().data(), static_cast<int>(Size))};
-  opensslAssuming(PKey);
+  ensureOrReturn(PKey, __WASI_CRYPTO_ERRNO_INVALID_KEY);
 
-  EVP_MD_CTX *Ctx = EVP_MD_CTX_new();
-  opensslAssuming(Ctx);
+  EvpMdCtxPtr Ctx{EVP_MD_CTX_new()};
 
-  ensureOrReturn(
-      EVP_DigestSignInit(Ctx, nullptr, ShaMap.at(Sha), nullptr, PKey.get()),
-      __WASI_CRYPTO_ERRNO_INVALID_KEY);
+  opensslAssuming(EVP_DigestSignInit(Ctx.get(), nullptr, ShaMap.at(Sha),
+                                     nullptr, PKey.get()));
 
-  return std::make_unique<HmacSha2<Sha>::State>(OptOption, Ctx);
+  return std::make_unique<HmacSha2<Sha>::State>(OptOption, std::move(Ctx));
 }
 
 template <uint32_t Sha>
@@ -75,7 +75,6 @@ WasiCryptoExpect<void> HmacSha2<Sha>::State::absorb(Span<const uint8_t> Data) {
 
 template <uint32_t Sha>
 WasiCryptoExpect<Tag> HmacSha2<Sha>::State::squeezeTag() {
-
   size_t ActualOutSize;
   opensslAssuming(EVP_DigestSignFinal(Ctx.get(), nullptr, &ActualOutSize));
 

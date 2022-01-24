@@ -36,8 +36,8 @@ public:
 
     inline static constexpr size_t TagLen = 16;
 
-    State(EVP_CIPHER_CTX *Ctx, std::shared_ptr<Options> OptOption)
-        : Ctx(Ctx), OptOption(OptOption) {}
+    State(EvpCipherCtxPtr Ctx, std::shared_ptr<Options> OptOption)
+        : Ctx(std::move(Ctx)), OptOption(OptOption) {}
 
     /// There are four inputs for authenticated encryption:
     /// @param[in] OptKey The secret key for encrypt

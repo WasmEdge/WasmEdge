@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "host/wasi_crypto/symmetric/hash/sha2.h"
+#include "host/wasi_crypto/evpwrapper.h"
 
 namespace WasmEdge {
 namespace Host {
@@ -56,14 +57,11 @@ Sha2State<Sha>::open(std::shared_ptr<Key> OptKey,
                      std::shared_ptr<Options> OptOption) {
   ensureOrReturn(!OptKey, __WASI_CRYPTO_ERRNO_KEY_NOT_SUPPORTED);
 
-  EVP_MD_CTX *Ctx = EVP_MD_CTX_new();
-  opensslAssuming(Ctx);
+  EvpMdCtxPtr Ctx{EVP_MD_CTX_new()};
 
-  EVP_MD const *Md = ShaMap.at(Sha);
+  opensslAssuming(EVP_DigestInit(Ctx.get(), ShaMap.at(Sha)));
 
-  opensslAssuming(EVP_DigestInit(Ctx, Md));
-
-  return std::make_unique<Sha2State>(OptOption, Ctx);
+  return std::make_unique<Sha2State>(OptOption, std::move(Ctx));
 }
 
 template class Sha2State<256>;

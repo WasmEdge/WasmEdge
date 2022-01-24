@@ -31,8 +31,8 @@ public:
     // 128 size
     inline static size_t TagLen = 16;
 
-    State(EVP_CIPHER_CTX *Ctx, std::shared_ptr<Options> OptOptions)
-        : Ctx(Ctx), OptOptions(OptOptions) {}
+    State(EvpCipherCtxPtr Ctx, std::shared_ptr<Options> OptOptions)
+        : Ctx(std::move(Ctx)), OptOptions(OptOptions) {}
 
     static WasiCryptoExpect<std::unique_ptr<State>>
     open(std::shared_ptr<Key> OptKey, std::shared_ptr<Options> OptOptions);

@@ -16,6 +16,16 @@ WasmEdge::Span<uint8_t const> operator"" _u8(const char *Str,
   return {reinterpret_cast<uint8_t const *>(Str), Len};
 }
 
+// std::vector<uint8_t> operator"" _u8v(const char *Str,
+//                                      std::size_t Len) noexcept {
+//   std::vector<uint8_t> Res(Len / 2);
+//   for (size_t I = 0; I < Len; I += 2) {
+//     std::string Tran{Str + I, 2};
+//     Res[I / 2] = static_cast<uint8_t>(std::strtol(Tran.c_str(), nullptr,
+//     16));
+//   }
+//   return Res;
+// }
 // std::ostream &operator<<(std::ostream &Os, const std::vector<uint8_t> &Vec) {
 //   for (size_t Index = 0; Index <= Vec.size(); Index += 15) {
 //     std::cout << "              ";
@@ -37,14 +47,14 @@ WasmEdge::Span<uint8_t const> operator"" _u8(const char *Str,
 // }
 } // namespace
 
-TEST(WasiCryptoTest, TestSignaturesEcdsa) {
+TEST(WasiCryptoTest, EcdsaSignAndVerify) {
   WasiCryptoContext Ctx;
   std::vector<std::string_view> AlgList{"ECDSA_P256_SHA256",
                                         "ECDSA_K256_SHA256"};
   std::vector<
       std::pair<__wasi_publickey_encoding_e_t, __wasi_keypair_encoding_e_t>>
       EncodingList{
-          {__WASI_PUBLICKEY_ENCODING_RAW, __WASI_KEYPAIR_ENCODING_RAW}/* ,
+          {__WASI_PUBLICKEY_ENCODING_SEC, __WASI_KEYPAIR_ENCODING_RAW}/* ,
           {__WASI_PUBLICKEY_ENCODING_PEM, __WASI_KEYPAIR_ENCODING_PEM},
           {__WASI_PUBLICKEY_ENCODING_PKCS8, __WASI_KEYPAIR_ENCODING_PKCS8} */};
 
@@ -96,21 +106,24 @@ TEST(WasiCryptoTest, TestSignaturesEcdsa) {
   }
 }
 
-TEST(WasiCryptoTest, TestEcdsaImportRawKey) {
-  std::vector<uint8_t> RawPk{2,   35,  90,  26,  79,  34,  43,  87,  91,
-                             209, 64,  129, 168, 232, 219, 160, 155, 202,
-                             213, 162, 117, 150, 56,  115, 78,  114, 214,
-                             182, 212, 225, 46,  7,   106};
-  WasiCryptoContext Ctx;
-  Ctx.publickeyImport(__WASI_ALGORITHM_TYPE_SIGNATURES, "ECDSA_P256_SHA256"sv,
-                      RawPk, __WASI_PUBLICKEY_ENCODING_RAW)
-      .value();
+//  TODO: https://github.com/WebAssembly/wasi-crypto/pull/42
+// TEST(WasiCryptoTest, EcdsaExternalImport) {
+//   {
+//     std::vector<uint8_t> RawPk{3,   216, 189, 189, 158, 243, 237, 234, 143,
+//                                205, 242, 122, 132, 75,  156, 170, 121, 171,
+//                                27,  74,  233, 117, 177, 210, 93,  188, 220,
+//                                97,  239, 110, 101, 83,  35};
+//     WasiCryptoContext Ctx;
+//     Ctx.publickeyImport(__WASI_ALGORITHM_TYPE_SIGNATURES, "ECDSA_P256_SHA256"sv,
+//                         RawPk, __WASI_PUBLICKEY_ENCODING_RAW)
+//         .value();
 
-  std::vector<uint8_t> RawKp{199, 204, 76,  94,  189, 111, 171, 116,
-                             201, 72,  203, 252, 231, 101, 196, 61,
-                             139, 253, 106, 33,  247, 85,  12,  254,
-                             243, 90,  41,  109, 170, 119, 1,   222};
-  Ctx.keypairImport(__WASI_ALGORITHM_TYPE_SIGNATURES, "ECDSA_P256_SHA256"sv,
-                    RawKp, __WASI_KEYPAIR_ENCODING_RAW)
-      .value();
-}
+//     std::vector<uint8_t> RawKp{44,  112, 233, 246, 15,  142, 76,  27,
+//                                172, 164, 135, 253, 28,  216, 141, 54,
+//                                122, 95,  216, 45,  120, 181, 207, 84,
+//                                18,  245, 240, 125, 223, 219, 34,  151};
+//     Ctx.keypairImport(__WASI_ALGORITHM_TYPE_SIGNATURES, "ECDSA_P256_SHA256"sv,
+//                       RawKp, __WASI_KEYPAIR_ENCODING_RAW)
+//         .value();
+//   }
+// }

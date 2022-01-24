@@ -21,7 +21,7 @@ template <uint32_t Nid> class Ecdsa {
 public:
   class PublicKey final : public Signatures::PublicKey {
   public:
-    PublicKey(EVP_PKEY *Ctx) : Ctx(Ctx) {}
+    PublicKey(EvpPkeyPtr Ctx) : Ctx(std::move(Ctx)) {}
 
     static WasiCryptoExpect<std::unique_ptr<PublicKey>>
     import(Span<uint8_t const> Encoded, __wasi_publickey_encoding_e_t Encoding);
@@ -39,15 +39,9 @@ public:
     static WasiCryptoExpect<std::unique_ptr<PublicKey>>
     importPem(Span<uint8_t const> Encoded);
 
+    // all ok, compress or not compress
     static WasiCryptoExpect<std::unique_ptr<PublicKey>>
-    importSec(Span<uint8_t const> Encoded);
-
-    static WasiCryptoExpect<std::unique_ptr<PublicKey>>
-    importCompressedSec(Span<uint8_t const> Encoded);
-
-    WasiCryptoExpect<std::vector<uint8_t>> exportPkcs8();
-
-    WasiCryptoExpect<std::vector<uint8_t>> exportPem();
+    importRaw(Span<uint8_t const> Encoded);
 
     WasiCryptoExpect<std::vector<uint8_t>> exportSec();
 
@@ -58,7 +52,7 @@ public:
 
   class SecretKey final : public Signatures::SecretKey {
   public:
-    SecretKey(EVP_PKEY *Ctx) : Ctx(Ctx) {}
+    SecretKey(EvpPkeyPtr Ctx) : Ctx(std::move(Ctx)) {}
 
     static WasiCryptoExpect<std::unique_ptr<SecretKey>>
     import(Span<uint8_t const> Encoded, __wasi_secretkey_encoding_e_t Encoding);
@@ -74,25 +68,20 @@ public:
     importPem(Span<uint8_t const> Encoded);
 
     static WasiCryptoExpect<std::unique_ptr<SecretKey>>
-    importSec(Span<uint8_t const> Encoded);
-
-    static WasiCryptoExpect<std::unique_ptr<SecretKey>>
-    importCompressedSec(Span<uint8_t const> Encoded);
+    importRaw(Span<uint8_t const> Encoded);
 
     WasiCryptoExpect<std::vector<uint8_t>> exportPkcs8();
 
     WasiCryptoExpect<std::vector<uint8_t>> exportPem();
 
-    WasiCryptoExpect<std::vector<uint8_t>> exportSec();
-
-    WasiCryptoExpect<std::vector<uint8_t>> exportCompressedSec();
+    WasiCryptoExpect<std::vector<uint8_t>> exportRaw();
 
     EvpPkeyPtr Ctx;
   };
 
   class KeyPair final : public Signatures::KeyPair {
   public:
-    KeyPair(EVP_PKEY *Ctx) : Ctx(std::move(Ctx)) {}
+    KeyPair(EvpPkeyPtr Ctx) : Ctx(std::move(Ctx)) {}
 
     static WasiCryptoExpect<std::unique_ptr<KeyPair>>
     generate(std::shared_ptr<Options> Options);
@@ -145,7 +134,7 @@ public:
 
   class SignState final : public Signatures::SignState {
   public:
-    SignState(EVP_MD_CTX *Ctx) : Ctx(Ctx) {}
+    SignState(EvpMdCtxPtr Ctx) : Ctx(std::move(Ctx)) {}
 
     WasiCryptoExpect<void> update(Span<uint8_t const> Input) override;
 
@@ -157,7 +146,7 @@ public:
 
   class VerificationState final : public Signatures::VerificationState {
   public:
-    VerificationState(EVP_MD_CTX *Ctx) : Ctx(Ctx) {}
+    VerificationState(EvpMdCtxPtr Ctx) : Ctx(std::move(Ctx)) {}
 
     WasiCryptoExpect<void> update(Span<const uint8_t> Input) override;
 
@@ -178,7 +167,7 @@ private:
       assumingUnreachable();
   }
 
-  static WasiCryptoExpect<EVP_PKEY *> initEC();
+  static EvpPkeyPtr initEC();
 };
 
 using EcdsaP256 = Ecdsa<NID_X9_62_prime256v1>;

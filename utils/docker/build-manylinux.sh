@@ -15,7 +15,7 @@ echo "f89199be8b23ca45fc7cb9f1d8d3ee67312318286ad030f5316aca6462db6c96 openssl-1
 tar -xf openssl-1.1.1m.tar.gz
 cd ./openssl-1.1.1m
 mkdir openssl
-./config --prefix=$(pwd)/openssl --openssldir=$(pwd)/openssl -DOPENSSL_API_COMPAT=0x10100000L
+./config --prefix=$(pwd)/openssl --openssldir=$(pwd)/openssl
 make
 make test
 make install

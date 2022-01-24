@@ -1,4 +1,4 @@
-use crate::{error::WasmEdgeResult, wasmedge, Func, Vm};
+use crate::{error::WasmEdgeResult, wasmedge, Func, Global, Memory, Table, Vm};
 use std::marker::PhantomData;
 
 #[derive(Debug)]
@@ -64,16 +64,40 @@ impl<'vm> Store<'vm> {
         let funcs = self
             .functions()?
             .into_iter()
-            .filter(|x| x.name().expect("Found anonymous function") == name.as_ref());
+            .filter(|x| x.name().is_some() && (x.name().unwrap() == name.as_ref()));
 
         Ok(funcs.collect())
+    }
+
+    pub fn tables(&self) -> WasmEdgeResult<Vec<Table>> {
+        unimplemented!()
+    }
+
+    pub fn table(&self, name: impl AsRef<str>) -> WasmEdgeResult<Vec<Table>> {
+        unimplemented!()
+    }
+
+    pub fn memories(&self) -> WasmEdgeResult<Vec<Memory>> {
+        unimplemented!()
+    }
+
+    pub fn memory(&self, name: impl AsRef<str>) -> WasmEdgeResult<Vec<Memory>> {
+        unimplemented!()
+    }
+
+    pub fn globals(&self) -> WasmEdgeResult<Vec<Global>> {
+        unimplemented!()
+    }
+
+    pub fn global(&self, name: impl AsRef<str>) -> WasmEdgeResult<Vec<Global>> {
+        unimplemented!()
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{ConfigBuilder, Module, SignatureBuilder, ValType, VmBuilder};
+    use crate::{ConfigBuilder, Module, SignatureBuilder, ValType, Value, VmBuilder};
 
     #[test]
     fn test_store_functions() {
@@ -128,5 +152,9 @@ mod tests {
                 .with_returns([ValType::I32])
                 .build()
         );
+
+        // TODO run the "fib" registered function
+        let result = vm.run_func(None, "fib", [Value::I32(5)]);
+        assert!(result.is_ok());
     }
 }

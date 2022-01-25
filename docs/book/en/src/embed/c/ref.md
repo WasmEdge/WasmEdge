@@ -2009,4 +2009,4 @@ enum WasmEdge_CompilerOutputFormat {
 };
 ```
 
-Please refer to the [AOT compiler options configuration](#Configurations) for details.
+Please refer to the [AOT compiler options configuration](#configurations) for details.

@@ -88,7 +88,8 @@ enum class IndexCategory : uint8_t {
   Memory,
   Global,
   Element,
-  Data
+  Data,
+  Lane
 };
 
 static inline std::unordered_map<IndexCategory, std::string> IndexCategoryStr =
@@ -100,7 +101,8 @@ static inline std::unordered_map<IndexCategory, std::string> IndexCategoryStr =
      {IndexCategory::Memory, "memory"},
      {IndexCategory::Global, "global"},
      {IndexCategory::Element, "element"},
-     {IndexCategory::Data, "data"}};
+     {IndexCategory::Data, "data"},
+     {IndexCategory::Lane, "lane"}};
 
 } // namespace ErrInfo
 } // namespace WasmEdge

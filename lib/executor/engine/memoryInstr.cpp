@@ -55,7 +55,8 @@ Executor::runDataDropOp(Runtime::Instance::DataInstance &DataInst) {
 }
 
 Expect<void>
-Executor::runMemoryCopyOp(Runtime::Instance::MemoryInstance &MemInst,
+Executor::runMemoryCopyOp(Runtime::Instance::MemoryInstance &MemInstDst,
+                          Runtime::Instance::MemoryInstance &MemInstSrc,
                           const AST::Instruction &Instr) {
   // Pop the length, source, and destination from stack.
   uint32_t Len = StackMgr.pop().get<uint32_t>();
@@ -63,8 +64,8 @@ Executor::runMemoryCopyOp(Runtime::Instance::MemoryInstance &MemInst,
   uint32_t Dst = StackMgr.pop().get<uint32_t>();
 
   // Replace mem[Dst : Dst + Len] with mem[Src : Src + Len].
-  if (auto Data = MemInst.getBytes(Src, Len)) {
-    if (auto Res = MemInst.setBytes(*Data, Dst, 0, Len)) {
+  if (auto Data = MemInstSrc.getBytes(Src, Len)) {
+    if (auto Res = MemInstDst.setBytes(*Data, Dst, 0, Len)) {
       return {};
     } else {
       spdlog::error(

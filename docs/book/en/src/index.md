@@ -8,7 +8,7 @@ host applications or frameworks.
 ## Install
 
 You can install WasmEdge using our one-line installer. 
-Your system should have `git` and `wget` as prerequisites.
+Your system should have `git` and `curl` as prerequisites.
 
 ```
 curl -sSf https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh | bash

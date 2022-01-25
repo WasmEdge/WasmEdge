@@ -1,5 +1,4 @@
 use crate::{error::WasmEdgeResult, wasmedge, RefType, Value};
-use std::ops::RangeInclusive;
 
 #[derive(Debug)]
 pub struct Table {
@@ -8,8 +7,18 @@ pub struct Table {
     pub(crate) mod_name: Option<String>,
 }
 impl Table {
-    pub fn new(elem_ty: RefType, limit: RangeInclusive<u32>) -> WasmEdgeResult<Self> {
-        unimplemented!()
+    pub fn new(elem_ty: RefType, min: u32, max: Option<u32>) -> WasmEdgeResult<Self> {
+        let max = match max {
+            Some(max) => max,
+            None => u32::MAX,
+        };
+        let mut ty = wasmedge::TableType::create(elem_ty, min..=max)?;
+        let inner = wasmedge::Table::create(&mut ty)?;
+        Ok(Self {
+            inner,
+            name: None,
+            mod_name: None,
+        })
     }
 
     pub fn name(&self) -> Option<&str> {
@@ -41,19 +50,22 @@ impl Table {
     }
 
     pub fn capacity(&self) -> usize {
-        unimplemented!()
+        self.inner.capacity()
     }
 
     pub fn grow(&mut self, size: u32) -> WasmEdgeResult<()> {
-        unimplemented!()
+        self.inner.grow(size)?;
+        Ok(())
     }
 
     pub fn get_data(&self, idx: usize) -> WasmEdgeResult<Value> {
-        unimplemented!()
+        let value = self.inner.get_data(idx)?;
+        Ok(value)
     }
 
     pub fn set_data(&mut self, data: Value, idx: usize) -> WasmEdgeResult<()> {
-        unimplemented!()
+        self.set_data(data, idx)?;
+        Ok(())
     }
 }
 

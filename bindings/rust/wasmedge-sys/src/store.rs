@@ -601,6 +601,113 @@ impl Store {
             false => None,
         }
     }
+
+    /// Checks if the [`Store`] contains a function of which the name matches the given
+    /// `func_name`.
+    ///
+    /// # Argument
+    ///
+    /// - `func_name` specifies the function's name to check.
+    ///
+    /// # Error
+    ///
+    /// If fail to find the name in the [`Store`], then an error is returned.
+    pub fn contains_func(&self, func_name: impl AsRef<str>) -> WasmEdgeResult<()> {
+        // check if the anonymous module contains functions
+        if self.func_len() == 0 {
+            return Err(WasmEdgeError::Store(StoreError::NotFoundFunc(
+                func_name.as_ref().into(),
+            )));
+        }
+
+        // get the names of all functions in the anonymous module
+        let result = self.func_names().ok_or_else(|| {
+            WasmEdgeError::Store(StoreError::NotFoundFunc(func_name.as_ref().into()))
+        });
+        let names = result.unwrap();
+
+        // check if the specified function name is in the names or not
+        if names.iter().all(|x| x != func_name.as_ref()) {
+            return Err(WasmEdgeError::Store(StoreError::NotFoundFunc(
+                func_name.as_ref().into(),
+            )));
+        }
+        Ok(())
+    }
+
+    /// Checks if the [`Store`] contains a registered function of which the name matches the
+    /// given `func_name`.
+    ///
+    /// # Argument
+    ///
+    /// - `func_name` specifies the registered function's name to check.
+    ///
+    /// # Error
+    ///
+    /// If fail to find the name in the [`Store`], then an error is returned.
+    pub fn contains_reg_func(
+        &self,
+        mod_name: impl AsRef<str>,
+        func_name: impl AsRef<str>,
+    ) -> WasmEdgeResult<()> {
+        // check if the module exists or not in the store
+        self.contains_mod_name(mod_name.as_ref())?;
+
+        // check if the specified module contains registered functions
+        if self.reg_func_len(mod_name.as_ref()) == 0 {
+            return Err(WasmEdgeError::Store(StoreError::NotFoundModule(
+                mod_name.as_ref().into(),
+            )));
+        }
+
+        // get the names of all registered functions in the specified module
+        let result = self.reg_func_names(mod_name.as_ref()).ok_or_else(|| {
+            WasmEdgeError::Store(StoreError::NotFoundFuncRegistered {
+                func_name: func_name.as_ref().into(),
+                mod_name: mod_name.as_ref().into(),
+            })
+        });
+        let names = result.unwrap();
+
+        // check if the specified function name is in the names or not
+        if names.iter().all(|x| x != func_name.as_ref()) {
+            return Err(WasmEdgeError::Store(StoreError::NotFoundFuncRegistered {
+                func_name: func_name.as_ref().into(),
+                mod_name: mod_name.as_ref().into(),
+            }));
+        }
+        Ok(())
+    }
+
+    /// Checks if the [`Store`] contains a registered module of which the name matches the given
+    /// `mod_name`.
+    ///
+    /// # Argument
+    ///
+    /// - `mod_name` specifies the registered module's name to check.
+    ///
+    /// # Error
+    ///
+    /// If fail to find the name in the [`Store`], then an error is returned.
+    pub fn contains_mod_name(&self, mod_name: impl AsRef<str>) -> WasmEdgeResult<()> {
+        if self.reg_module_len() == 0 {
+            return Err(WasmEdgeError::Store(StoreError::NotFoundModule(
+                mod_name.as_ref().into(),
+            )));
+        }
+
+        let result = self.reg_module_names().ok_or_else(|| {
+            WasmEdgeError::Store(StoreError::NotFoundModule(mod_name.as_ref().into()))
+        });
+
+        let names = result.unwrap();
+        if names.iter().all(|x| x != mod_name.as_ref()) {
+            return Err(WasmEdgeError::Store(StoreError::NotFoundModule(
+                mod_name.as_ref().into(),
+            )));
+        }
+        Ok(())
+    }
 }
 impl Drop for Store {
     fn drop(&mut self) {
@@ -614,8 +721,9 @@ impl Drop for Store {
 mod tests {
     use super::Store;
     use crate::{
-        instance::{Function, Global, GlobalType, Memory, Table, TableType},
-        Config, Executor, FuncType, ImportObj, Mutability, RefType, ValType, Value,
+        instance::{Function, Global, GlobalType, MemType, Memory, Table, TableType},
+        types::Value,
+        Config, Executor, FuncType, ImportObj, Mutability, RefType, ValType,
     };
 
     #[test]
@@ -668,7 +776,10 @@ mod tests {
         assert!(table.ctx.is_null() && table.registered);
 
         // add memory
-        let result = Memory::create(0..=u32::MAX);
+        let result = MemType::create(0..=u32::MAX);
+        assert!(result.is_ok());
+        let mut mem_ty = result.unwrap();
+        let result = Memory::create(&mut mem_ty);
         assert!(result.is_ok());
         let mut memory = result.unwrap();
         import_obj.add_memory("mem", &mut memory);
@@ -678,7 +789,7 @@ mod tests {
         let result = GlobalType::create(ValType::F32, Mutability::Const);
         assert!(result.is_ok());
         let mut ty = result.unwrap();
-        let result = Global::create(&mut ty, Value::F32(3.5));
+        let result = Global::create(&mut ty, Value::from_f32(3.5));
         assert!(result.is_ok());
         let mut global = result.unwrap();
         import_obj.add_global("global", &mut global);
@@ -741,51 +852,47 @@ mod tests {
         let global = result.unwrap();
         assert!(!global.ctx.is_null() && global.registered);
         let val = global.get_value();
-        assert_eq!(val, Value::F32(3.5));
+        assert_eq!(val.to_f32(), 3.5);
 
         // run the registered function
         let result = executor.run_func_registered(
             &store,
             "extern_module",
             "add",
-            vec![Value::I32(12), Value::I32(21)],
+            vec![Value::from_i32(12), Value::from_i32(21)],
         );
         assert!(result.is_ok());
-        let returns = result.unwrap().collect::<Vec<_>>();
-        assert_eq!(returns, vec![Value::I32(33)]);
+        let returns = result.unwrap();
+        assert_eq!(returns[0].to_i32(), 33);
 
         let second_run = executor.run_func_registered(
             &store,
             "extern_module",
             "add",
-            vec![Value::I32(12), Value::I32(21)],
+            vec![Value::from_i32(12), Value::from_i32(21)],
         );
         assert!(second_run.is_ok());
     }
 
-    fn real_add(input: Vec<Value>) -> Result<Vec<Value>, u8> {
-        println!("Rust: Entering Rust function real_add");
-
-        if input.len() != 2 {
+    fn real_add(inputs: Vec<Value>) -> Result<Vec<Value>, u8> {
+        if inputs.len() != 2 {
             return Err(1);
         }
 
-        let a = if let Value::I32(i) = input[0] {
-            i
+        let a = if inputs[0].ty() == ValType::I32 {
+            inputs[0].to_i32()
         } else {
             return Err(2);
         };
 
-        let b = if let Value::I32(i) = input[1] {
-            i
+        let b = if inputs[1].ty() == ValType::I32 {
+            inputs[1].to_i32()
         } else {
             return Err(3);
         };
 
         let c = a + b;
-        println!("Rust: calcuating in real_add c: {:?}", c);
 
-        println!("Rust: Leaving Rust function real_add");
-        Ok(vec![Value::I32(c)])
+        Ok(vec![Value::from_i32(c)])
     }
 }

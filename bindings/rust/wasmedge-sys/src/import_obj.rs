@@ -52,48 +52,40 @@ impl ImportObj {
     /// # Error
     ///
     /// If fail to create a host module, then an error is returned.
-    pub fn create_wasi<T, E>(
-        args: Option<T>,
-        envs: Option<T>,
-        preopens: Option<T>,
-    ) -> WasmEdgeResult<Self>
-    where
-        T: Iterator<Item = E>,
-        E: AsRef<str>,
-    {
-        let (args_len, args) = match args {
-            Some(args) => {
-                let args = args.into_iter().map(string_to_c_char).collect::<Vec<_>>();
-                (args.len() as u32, args.as_ptr())
-            }
-            None => (0, std::ptr::null()),
+    pub fn create_wasi(
+        args: Option<Vec<&str>>,
+        envs: Option<Vec<&str>>,
+        preopens: Option<Vec<&str>>,
+    ) -> WasmEdgeResult<Self> {
+        let args = match args {
+            Some(args) => args.into_iter().map(string_to_c_char).collect::<Vec<_>>(),
+            None => vec![],
         };
-        let (envs_len, envs) = match envs {
-            Some(envs) => {
-                let envs = envs.into_iter().map(string_to_c_char).collect::<Vec<_>>();
-                (envs.len() as u32, envs.as_ptr())
-            }
-            None => (0, std::ptr::null()),
+        let args_len = args.len();
+
+        let envs = match envs {
+            Some(envs) => envs.into_iter().map(string_to_c_char).collect::<Vec<_>>(),
+            None => vec![],
         };
-        let (preopens_len, preopens) = match preopens {
-            Some(preopens) => {
-                let preopens = preopens
-                    .into_iter()
-                    .map(string_to_c_char)
-                    .collect::<Vec<_>>();
-                (preopens.len() as u32, preopens.as_ptr())
-            }
-            None => (0, std::ptr::null()),
+        let envs_len = envs.len();
+
+        let preopens = match preopens {
+            Some(preopens) => preopens
+                .into_iter()
+                .map(string_to_c_char)
+                .collect::<Vec<_>>(),
+            None => vec![],
         };
+        let preopens_len = preopens.len();
 
         let ctx = unsafe {
             wasmedge::WasmEdge_ImportObjectCreateWASI(
-                args,
-                args_len,
-                envs,
-                envs_len,
-                preopens,
-                preopens_len,
+                args.as_ptr(),
+                args_len as u32,
+                envs.as_ptr(),
+                envs_len as u32,
+                preopens.as_ptr(),
+                preopens_len as u32,
             )
         };
         match ctx.is_null() {
@@ -114,44 +106,42 @@ impl ImportObj {
     /// - `envs` specifies the environment variables in the format `ENV_VAR_NAME=VALUE`.
     ///
     /// - `preopens` specifies the directories to pre-open. The required format is `DIR1:DIR2`.
-    pub fn init_wasi<T, E>(&mut self, args: Option<T>, envs: Option<T>, preopens: Option<T>)
-    where
-        T: Iterator<Item = E>,
-        E: AsRef<str>,
-    {
-        let (args_len, args) = match args {
-            Some(args) => {
-                let args = args.into_iter().map(string_to_c_char).collect::<Vec<_>>();
-                (args.len() as u32, args.as_ptr())
-            }
-            None => (0, std::ptr::null()),
+    pub fn init_wasi(
+        &mut self,
+        args: Option<Vec<&str>>,
+        envs: Option<Vec<&str>>,
+        preopens: Option<Vec<&str>>,
+    ) {
+        let args = match args {
+            Some(args) => args.into_iter().map(string_to_c_char).collect::<Vec<_>>(),
+            None => vec![],
         };
-        let (envs_len, envs) = match envs {
-            Some(envs) => {
-                let envs = envs.into_iter().map(string_to_c_char).collect::<Vec<_>>();
-                (envs.len() as u32, envs.as_ptr())
-            }
-            None => (0, std::ptr::null()),
+        let args_len = args.len();
+
+        let envs = match envs {
+            Some(envs) => envs.into_iter().map(string_to_c_char).collect::<Vec<_>>(),
+            None => vec![],
         };
-        let (preopens_len, preopens) = match preopens {
-            Some(preopens) => {
-                let preopens = preopens
-                    .into_iter()
-                    .map(string_to_c_char)
-                    .collect::<Vec<_>>();
-                (preopens.len() as u32, preopens.as_ptr())
-            }
-            None => (0, std::ptr::null()),
+        let envs_len = envs.len();
+
+        let preopens = match preopens {
+            Some(preopens) => preopens
+                .into_iter()
+                .map(string_to_c_char)
+                .collect::<Vec<_>>(),
+            None => vec![],
         };
+        let preopens_len = preopens.len();
+
         unsafe {
             wasmedge::WasmEdge_ImportObjectInitWASI(
                 self.ctx,
-                args,
-                args_len,
-                envs,
-                envs_len,
-                preopens,
-                preopens_len,
+                args.as_ptr(),
+                args_len as u32,
+                envs.as_ptr(),
+                envs_len as u32,
+                preopens.as_ptr(),
+                preopens_len as u32,
             )
         };
     }
@@ -168,28 +158,30 @@ impl ImportObj {
     ///
     /// # Arguments
     ///
-    /// - `cmds` specifies a white list of commands.
+    /// - `allowed_cmds` specifies a white list of commands.
     ///
-    /// - `allow` determines if wasmedge_process is allowed to execute all commands on the white list.
+    /// - `allowed` determines if wasmedge_process is allowed to execute all commands on the white list.
     ///
     /// # Error
     ///
     /// If fail to create a wasmedge_process host module, then an error is returned.
-    pub fn create_wasmedge_process<T, E>(cmds: Option<T>, allow: bool) -> WasmEdgeResult<Self>
-    where
-        T: Iterator<Item = E>,
-        E: AsRef<str>,
-    {
-        let (cmds_len, cmds) = match cmds {
-            Some(cmds) => {
-                let cmds = cmds.into_iter().map(string_to_c_char).collect::<Vec<_>>();
-                (cmds.len() as u32, cmds.as_ptr())
-            }
-            None => (0, std::ptr::null()),
+    pub fn create_wasmedge_process(
+        allowed_cmds: Option<Vec<&str>>,
+        allowed: bool,
+    ) -> WasmEdgeResult<Self> {
+        let cmds = match allowed_cmds {
+            Some(cmds) => cmds.iter().map(string_to_c_char).collect::<Vec<_>>(),
+            None => vec![],
         };
+        let cmds_len = cmds.len();
 
-        let ctx =
-            unsafe { wasmedge::WasmEdge_ImportObjectCreateWasmEdgeProcess(cmds, cmds_len, allow) };
+        let ctx = unsafe {
+            wasmedge::WasmEdge_ImportObjectCreateWasmEdgeProcess(
+                cmds.as_ptr(),
+                cmds_len as u32,
+                allowed,
+            )
+        };
         match ctx.is_null() {
             true => Err(WasmEdgeError::ImportObjCreate),
             false => Ok(Self {
@@ -203,24 +195,23 @@ impl ImportObj {
     ///
     /// # Arguments
     ///
-    /// - `cmds` specifies a white list of commands.
+    /// - `allowed_cmds` specifies a white list of commands.
     ///
-    /// - `allow` determines if wasmedge_process is allowed to execute all commands on the white list.
-    pub fn init_wasmedge_process<T, E>(&mut self, cmds: Option<T>, allow: bool)
-    where
-        T: Iterator<Item = E>,
-        E: AsRef<str>,
-    {
-        let (cmds_len, cmds) = match cmds {
-            Some(cmds) => {
-                let cmds = cmds.into_iter().map(string_to_c_char).collect::<Vec<_>>();
-                (cmds.len() as u32, cmds.as_ptr())
-            }
-            None => (0, std::ptr::null()),
+    /// - `allowed` determines if wasmedge_process is allowed to execute all commands on the white list.
+    pub fn init_wasmedge_process(&mut self, allowed_cmds: Option<Vec<&str>>, allowed: bool) {
+        let cmds = match allowed_cmds {
+            Some(cmds) => cmds.iter().map(string_to_c_char).collect::<Vec<_>>(),
+            None => vec![],
         };
+        let cmds_len = cmds.len();
 
         unsafe {
-            wasmedge::WasmEdge_ImportObjectInitWasmEdgeProcess(self.ctx, cmds, cmds_len, allow)
+            wasmedge::WasmEdge_ImportObjectInitWasmEdgeProcess(
+                self.ctx,
+                cmds.as_ptr(),
+                cmds_len as u32,
+                allowed,
+            )
         }
     }
 
@@ -293,5 +284,184 @@ impl Drop for ImportObj {
         if !self.registered && !self.ctx.is_null() {
             unsafe { wasmedge::WasmEdge_ImportObjectDelete(self.ctx) };
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{
+        types::{HostRegistration, Value},
+        Config, FuncType, GlobalType, MemType, Mutability, RefType, TableType, ValType, Vm,
+    };
+
+    #[test]
+    fn test_import_obj_add_instance() {
+        let host_name = "extern";
+
+        // create an ImportObj module
+        let result = ImportObj::create(host_name);
+        assert!(result.is_ok());
+        let mut import_obj = result.unwrap();
+
+        // add host function "func-add": (externref, i32) -> (i32)
+        let result = FuncType::create([ValType::ExternRef, ValType::I32], [ValType::I32]);
+        assert!(result.is_ok());
+        let func_ty = result.unwrap();
+        let result = Function::create(func_ty, Box::new(real_add), 0);
+        assert!(result.is_ok());
+        let mut host_func = result.unwrap();
+        // add the function into the import_obj module
+        import_obj.add_func("func-add", &mut host_func);
+
+        // create a Table instance
+        let result = TableType::create(RefType::FuncRef, 10..=20);
+        assert!(result.is_ok());
+        let mut table_ty = result.unwrap();
+        let result = Table::create(&mut table_ty);
+        assert!(result.is_ok());
+        let mut host_table = result.unwrap();
+        // add the table into the import_obj module
+        import_obj.add_table("table", &mut host_table);
+
+        // create a Memory instance
+        let result = MemType::create(1..=2);
+        assert!(result.is_ok());
+        let mut mem_ty = result.unwrap();
+        let result = Memory::create(&mut mem_ty);
+        assert!(result.is_ok());
+        let mut host_memory = result.unwrap();
+        // add the memory into the import_obj module
+        import_obj.add_memory("memory", &mut host_memory);
+
+        // create a Global instance
+        let result = GlobalType::create(ValType::I32, Mutability::Const);
+        assert!(result.is_ok());
+        let mut global_ty = result.unwrap();
+        let result = Global::create(&mut global_ty, Value::from_i32(666));
+        assert!(result.is_ok());
+        let mut host_global = result.unwrap();
+        // add the global into import_obj module
+        import_obj.add_global("global_i32", &mut host_global);
+
+        assert_eq!(import_obj.exit_code(), 1);
+    }
+
+    #[test]
+    fn test_import_obj_wasi() {
+        // create WASI
+        {
+            let result = ImportObj::create_wasi(None, None, None);
+            assert!(result.is_ok());
+            let result = ImportObj::create_wasi(
+                Some(vec!["arg1", "arg2"]),
+                Some(vec!["ENV1=VAL1", "ENV1=VAL2", "ENV3=VAL3"]),
+                Some(vec![
+                    "apiTestData",
+                    "Makefile",
+                    "CMakeFiles",
+                    "ssvmAPICoreTests",
+                    ".:.",
+                ]),
+            );
+            assert!(result.is_ok());
+            let result = ImportObj::create_wasi(
+                None,
+                Some(vec!["ENV1=VAL1", "ENV1=VAL2", "ENV3=VAL3"]),
+                Some(vec![
+                    "apiTestData",
+                    "Makefile",
+                    "CMakeFiles",
+                    "ssvmAPICoreTests",
+                    ".:.",
+                ]),
+            );
+            assert!(result.is_ok());
+            let import_obj = result.unwrap();
+
+            assert_eq!(import_obj.exit_code(), 0);
+        }
+
+        // initialize WASI in VM
+        {
+            let result = Config::create();
+            assert!(result.is_ok());
+            let config = result.unwrap();
+            let config = config.wasi(true);
+            let result = Vm::create(Some(&config), None);
+            assert!(result.is_ok());
+            let mut vm = result.unwrap();
+
+            // get the ImportObject module from vm
+            let result = vm.import_obj_mut(HostRegistration::Wasi);
+            assert!(result.is_ok());
+            let mut import_obj = result.unwrap();
+
+            let args = vec!["arg1", "arg2"];
+            let envs = vec!["ENV1=VAL1", "ENV1=VAL2", "ENV3=VAL3"];
+            let preopens = vec![
+                "apiTestData",
+                "Makefile",
+                "CMakeFiles",
+                "ssvmAPICoreTests",
+                ".:.",
+            ];
+            import_obj.init_wasi(Some(args), Some(envs), Some(preopens));
+
+            assert_eq!(import_obj.exit_code(), 0);
+        }
+    }
+
+    #[test]
+    fn test_import_obj_wasmedge_process() {
+        // create wasmedge_process
+        {
+            let result = ImportObj::create_wasmedge_process(Some(vec!["arg1", "arg2"]), true);
+            assert!(result.is_ok());
+
+            let result = ImportObj::create_wasmedge_process(None, false);
+            assert!(result.is_ok());
+
+            let result = ImportObj::create_wasmedge_process(Some(vec!["arg1", "arg2"]), false);
+            assert!(result.is_ok());
+        }
+
+        // initialize wasmedge_process in VM
+        {
+            let result = Config::create();
+            assert!(result.is_ok());
+            let config = result.unwrap();
+            let config = config.wasmedge_process(true);
+            let result = Vm::create(Some(&config), None);
+            assert!(result.is_ok());
+            let mut vm = result.unwrap();
+
+            let result = vm.import_obj_mut(HostRegistration::WasmEdgeProcess);
+            assert!(result.is_ok());
+            let mut import_obj = result.unwrap();
+            import_obj.init_wasmedge_process(Some(vec!["arg1", "arg2"]), false);
+        }
+    }
+
+    fn real_add(inputs: Vec<Value>) -> Result<Vec<Value>, u8> {
+        if inputs.len() != 2 {
+            return Err(1);
+        }
+
+        let a = if inputs[0].ty() == ValType::I32 {
+            inputs[0].to_i32()
+        } else {
+            return Err(2);
+        };
+
+        let b = if inputs[1].ty() == ValType::I32 {
+            inputs[1].to_i32()
+        } else {
+            return Err(3);
+        };
+
+        let c = a + b;
+
+        Ok(vec![Value::from_i32(c)])
     }
 }

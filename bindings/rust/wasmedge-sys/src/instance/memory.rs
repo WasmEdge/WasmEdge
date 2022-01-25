@@ -24,8 +24,7 @@ impl Memory {
     ///
     /// # Arguments
     ///
-    /// - `limit` specifies a inclusive range of the page count in the [`Memory`]. For example,
-    /// (10..=20) means the lower bound (inclusive) of the page count is 10 ,while the upper bound (inclusive) 20.
+    /// - `ty` specifies the type of the new [`Memory`] instance.
     ///
     /// # Errors
     ///
@@ -33,16 +32,21 @@ impl Memory {
     ///
     /// # Example
     ///
-    /// ```ignore
-    /// let memory = Memory::create(10..=20);
+    /// ```
+    /// use wasmedge_sys::{MemType, Memory};
+    ///
+    /// let mut ty = MemType::create(10..=20).expect("fail to create memory type");
+    ///
+    /// let memory = Memory::create(&mut ty);
     ///
     /// ```
     ///
     ///
-    pub fn create(limit: RangeInclusive<u32>) -> WasmEdgeResult<Self> {
-        let mut mem_ty = MemType::create(limit)?;
-        let ctx = unsafe { wasmedge::WasmEdge_MemoryInstanceCreate(mem_ty.ctx) };
-        mem_ty.ctx = std::ptr::null_mut();
+    pub fn create(ty: &mut MemType) -> WasmEdgeResult<Self> {
+        let ctx = unsafe { wasmedge::WasmEdge_MemoryInstanceCreate(ty.ctx) };
+        ty.ctx = std::ptr::null_mut();
+        ty.registered = true;
+
         match ctx.is_null() {
             true => Err(WasmEdgeError::Mem(MemError::Create)),
             false => Ok(Memory {
@@ -110,10 +114,11 @@ impl Memory {
     /// then an error is returned.
     ///
     /// ```
-    /// use wasmedge_sys::{error::{CoreError, CoreExecutionError}, WasmEdgeError, Memory};
+    /// use wasmedge_sys::{error::{CoreError, CoreExecutionError}, WasmEdgeError, Memory, MemType};
     ///
     /// // create a Memory: the min size 1 and the max size 2
-    /// let mut mem = Memory::create(1..=2).expect("fail to create a Memory");
+    /// let mut ty = MemType::create(1..=2).expect("fail to create a memory type");
+    /// let mut mem = Memory::create(&mut ty).expect("fail to create a Memory");
     ///
     /// // set data and the data length is larger than the data size in the memory
     /// let result = mem.set_data(vec![1; 10], u32::pow(2, 16) - 9);
@@ -124,10 +129,11 @@ impl Memory {
     /// # Example
     ///
     /// ```
-    /// use wasmedge_sys::Memory;
+    /// use wasmedge_sys::{MemType, Memory};
     ///
     /// // create a Memory: the min size 1 and the max size 2
-    /// let mut mem = Memory::create(1..=2).expect("fail to create a Memory");
+    /// let mut ty = MemType::create(1..=2).expect("fail to create a memory type");
+    /// let mut mem = Memory::create(&mut ty).expect("fail to create a Memory");
     /// // page count
     /// let count = mem.page_count();
     /// assert_eq!(count, 1);
@@ -228,27 +234,14 @@ impl Memory {
     ///
     /// If fail to grow the page count, then an error is returned.
     ///
-    /// ```
-    /// use wasmedge_sys::Memory;
-    ///
-    /// // create a Memory with a limit range [10, 20]
-    /// let mut mem = Memory::create(1..=1).expect("fail to create a Memory");
-    /// // check page count
-    /// let count = mem.page_count();
-    /// assert_eq!(count, 1);
-    ///
-    /// // grow one more page, which causes a failure
-    /// let result = mem.grow(1);
-    /// assert!(result.is_err());
-    /// ```
-    ///
     /// # Example
     ///
     /// ```
-    /// use wasmedge_sys::Memory;
+    /// use wasmedge_sys::{MemType, Memory};
     ///
     /// // create a Memory with a limit range [10, 20]
-    /// let mut mem = Memory::create(10..=20).expect("fail to create a Memory");
+    /// let mut ty = MemType::create(10..=20).expect("fail to create a memory type");
+    /// let mut mem = Memory::create(&mut ty).expect("fail to create a Memory");
     /// // check page count
     /// let count = mem.page_count();
     /// assert_eq!(count, 10);
@@ -285,7 +278,7 @@ impl MemType {
     ///
     /// - `limit` specifies the linear memory size. The start value of the limit range
     /// specifies the min size (also, initial size) of the memory, while the end value specifies
-    /// the max size allowed to grow.
+    /// the max size allowed to grow. The maximum size is `u32::MAX`.
     ///
     /// # Errors
     ///
@@ -339,7 +332,7 @@ mod tests {
     use crate::error::{CoreError, CoreExecutionError, WasmEdgeError};
 
     #[test]
-    fn test_memtype() {
+    fn test_memory_type() {
         let result = MemType::create(0..=u32::MAX);
         assert!(result.is_ok());
         let ty = result.unwrap();
@@ -362,7 +355,10 @@ mod tests {
     #[test]
     fn test_memory_grow() {
         // create a Memory with a limit range [10, 20]
-        let result = Memory::create(10..=20);
+        let result = MemType::create(10..=20);
+        assert!(result.is_ok());
+        let mut ty = result.unwrap();
+        let result = Memory::create(&mut ty);
         assert!(result.is_ok());
         let mut mem = result.unwrap();
         assert!(!mem.ctx.is_null());
@@ -394,7 +390,10 @@ mod tests {
     #[test]
     fn test_memory_data() {
         // create a Memory: the min size 1 and the max size 2
-        let result = Memory::create(1..=2);
+        let result = MemType::create(1..=2);
+        assert!(result.is_ok());
+        let mut ty = result.unwrap();
+        let result = Memory::create(&mut ty);
         assert!(result.is_ok());
         let mut mem = result.unwrap();
         assert!(!mem.ctx.is_null());

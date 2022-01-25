@@ -1,7 +1,7 @@
-use crate::{wasmedge, Config, GlobalType, MemoryType, Signature, TableType};
+use crate::{
+    error::WasmEdgeResult, wasmedge, Config, GlobalType, MemoryType, Signature, TableType,
+};
 use std::{borrow::Cow, path::Path};
-use thiserror::Error;
-use wasmedge_sys as sys;
 
 #[derive(Debug)]
 pub struct Module {
@@ -135,55 +135,4 @@ pub enum ExternalType {
     Table(TableType),
     Memory(MemoryType),
     Global(GlobalType),
-}
-
-pub trait Engine {
-    fn instantiate(&self) -> Result<(), WasmError>;
-
-    // TODO: fn run_funtion
-
-    // TODO: fn run_registered_function
-}
-
-pub struct Vm {
-    inner: sys::Vm,
-}
-impl Engine for Vm {
-    fn instantiate(&self) -> Result<(), WasmError> {
-        self.inner.instantiate_new()?;
-        Ok(())
-    }
-}
-
-#[derive(Error, Clone, Debug, PartialEq)]
-pub enum WasmError {
-    #[error("{0}")]
-    Operation(String),
-    #[error("Unknown error")]
-    Unknown,
-}
-
-impl From<sys::WasmEdgeError> for WasmError {
-    fn from(error: sys::WasmEdgeError) -> Self {
-        todo!()
-    }
-}
-
-pub type WasmEdgeResult<T> = Result<T, WasmError>;
-
-pub struct Func {
-    inner: sys::Function,
-}
-impl Func {
-    pub fn call(
-        engine: &impl Engine,
-        store: &Store,
-        params: impl IntoIterator<Item = sys::Value>,
-    ) -> Result<Vec<sys::Value>, WasmError> {
-        todo!()
-    }
-}
-
-pub struct Store {
-    inner: sys::Store,
 }

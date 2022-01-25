@@ -174,19 +174,26 @@ fn find_wasmedge() -> Option<Paths> {
             lib_dir: PathBuf::from("/usr/lib"),
             inc_dir: PathBuf::from("/usr/include"),
         })
-    } else if PathBuf::from(env!("HOME"))
-        .join(".wasmedge/include/wasmedge")
-        .join(WASMEDGE_H)
-        .exists()
-    {
-        // this path only works in the official docker container for the purpose of development
-        Some(Paths {
-            header: PathBuf::from(env!("HOME")).join(".wasmedge/include/wasmedge/wasmedge.h"),
-            lib_dir: PathBuf::from(env!("HOME")).join(".wasmedge/lib"),
-            inc_dir: PathBuf::from(env!("HOME")).join(".wasmedge/include"),
-        })
+    // } else if PathBuf::from(env!("HOME"))
+    //     .join(".wasmedge/include/wasmedge")
+    //     .join(WASMEDGE_H)
+    //     .exists()
+    // {
+    //     // this path only works in the official docker container for the purpose of development
+    //     Some(Paths {
+    //         header: PathBuf::from(env!("HOME")).join(".wasmedge/include/wasmedge/wasmedge.h"),
+    //         lib_dir: PathBuf::from(env!("HOME")).join(".wasmedge/lib"),
+    //         inc_dir: PathBuf::from(env!("HOME")).join(".wasmedge/include"),
+    //     })
     } else {
-        None
+        Some(Paths {
+            header: PathBuf::from(
+                "/root/workspace/me/WasmEdge-Master-Linux/include/wasmedge/wasmedge.h",
+            ),
+            lib_dir: PathBuf::from("/root/workspace/me/WasmEdge-Master-Linux/lib"),
+            inc_dir: PathBuf::from("/root/workspace/me/WasmEdge-Master-Linux/include"),
+        })
+        // None
     }
 }
 

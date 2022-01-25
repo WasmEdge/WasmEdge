@@ -45,7 +45,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     if !hostfunc_path.exists() {
         // modify path for cargo test
-        hostfunc_path = std::env::current_dir()?.join("examples/funcs.wasm");
+        hostfunc_path = std::env::current_dir()?.join("examples/data/funcs.wasm");
     }
 
     let config = Config::create().expect("fail to create Config instance");

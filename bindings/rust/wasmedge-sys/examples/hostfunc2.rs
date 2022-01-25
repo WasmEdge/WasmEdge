@@ -58,7 +58,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     if !hostfunc_path.exists() {
         // modify path for cargo test
-        hostfunc_path = std::env::current_dir()?.join("examples/funcs.wasm");
+        hostfunc_path = std::env::current_dir()?.join("examples/data/funcs.wasm");
     }
     let wasm_binary = load_file_as_byte_vec(&hostfunc_path.as_path().display().to_string());
 

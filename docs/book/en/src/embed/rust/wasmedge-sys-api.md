@@ -1,8 +1,8 @@
-# Quick Start
+# WasmEdge low-level Rust APIs
 
-This article demonstrates how to use the wasmedge-sys crate with several common use cases.
+This section demonstrates how to use the low-level Rust APIs provided in the `wasmedge-sys` crate with several common use cases.
 
-## Demo 1: Run a WebAssembly function with WasmEdge Rust APIs
+## Example 1: Run a WebAssembly function
 
 As you may know, several mainstream programming languages, such as C/C++, Rust, Go and Python, support to compile their programs into WebAssembly binary. In this demo, we'll introduce how to use WasmEdge Rust APIs to call a WebAssembly function which could be coded in any programming lange mentioned above.
 

@@ -101,7 +101,6 @@ cast(uint64_t Algorithm) noexcept {
   case __WASI_SECRETKEY_ENCODING_PKCS8:
   case __WASI_SECRETKEY_ENCODING_PEM:
   case __WASI_SECRETKEY_ENCODING_SEC:
-  case __WASI_SECRETKEY_ENCODING_COMPRESSED_SEC:
   case __WASI_SECRETKEY_ENCODING_LOCAL:
     return static_cast<__wasi_secretkey_encoding_e_t>(Algorithm);
   default:

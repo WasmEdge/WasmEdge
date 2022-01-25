@@ -2,15 +2,35 @@
 
 /* --------------- Ref -------------------------------- */
 
-pysdk::Ref::Ref(pybind11::object obj) {
-  if (pybind11::isinstance<WasmEdge_RefType>(obj)) {
-    Val = WasmEdge_ValueGenNullRef(obj.cast<WasmEdge_RefType>());
-  } else if (pybind11::isinstance<pysdk::Value>(obj)) {
-    Val = obj.cast<pysdk::Value>().get();
-    Ptr = WasmEdge_ValueGetExternRef(Val);
-  } else {
+pysdk::Ref::Ref(pybind11::object type, pybind11::object obj) {
+  switch (type.cast<WasmEdge_RefType>()) {
+  case WasmEdge_RefType_ExternRef:
+    if (pybind11::isinstance<pysdk::Value>(obj)) {
+      Val = obj.cast<pysdk::Value>().get();
+      Ptr = WasmEdge_ValueGetExternRef(Val);
+    } else {
+      if (!obj.is_none()) {
+        Ptr = (void *)obj.ptr();
+        Val = WasmEdge_ValueGenExternRef(Ptr);
+      } else {
+        Val = WasmEdge_ValueGenNullRef(WasmEdge_RefType_ExternRef);
+        Ptr = WasmEdge_ValueGetExternRef(Val);
+      }
+    }
+    break;
+  case WasmEdge_RefType_FuncRef:
+    if (!obj.is_none()) {
+      Val = WasmEdge_ValueGenFuncRef(obj.cast<uint32_t>());
+    } else {
+      Val = WasmEdge_ValueGenNullRef(WasmEdge_RefType_FuncRef);
+    }
     Ptr = (void *)obj.ptr();
-    Val = WasmEdge_ValueGenExternRef(Ptr);
+    break;
+  default:
+    throw std::runtime_error(
+        "Ref Error:" + type.get_type().cast<std::string>() +
+        " is unsupported WasmEdge_RefType");
+    break;
   }
 }
 

@@ -46,7 +46,7 @@ private:
   void *Ptr;
 
 public:
-  Ref(pybind11::object);
+  Ref(pybind11::object type, pybind11::object obj = pybind11::none());
   ~Ref();
   pybind11::object get_py_obj();
   WasmEdge_ValType get_type();

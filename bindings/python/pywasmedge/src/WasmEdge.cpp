@@ -76,7 +76,8 @@ PYBIND11_MODULE(WasmEdge, module) {
       .def_property_readonly("Type", &pysdk::Value::get_type);
 
   pybind11::class_<pysdk::Ref>(module, "Ref")
-      .def(pybind11::init<pybind11::object>())
+      .def(pybind11::init<pybind11::object, pybind11::object>(),
+           pybind11::arg("type"), pybind11::arg("ref_obj") = pybind11::none())
       .def("isNull", &pysdk::Ref::is_null)
       .def("FuncIdx", &pysdk::Ref::get_function_index)
       .def_property_readonly("Type", &pysdk::Ref::get_type)

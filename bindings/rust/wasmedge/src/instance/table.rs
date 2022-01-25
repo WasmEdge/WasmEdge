@@ -64,7 +64,7 @@ impl Table {
     }
 
     pub fn set_data(&mut self, data: Value, idx: usize) -> WasmEdgeResult<()> {
-        self.set_data(data, idx)?;
+        self.inner.set_data(data, idx)?;
         Ok(())
     }
 }

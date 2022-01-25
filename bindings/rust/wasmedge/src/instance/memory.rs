@@ -1,5 +1,4 @@
 use crate::{error::WasmEdgeResult, wasmedge};
-use std::ops::RangeInclusive;
 
 #[derive(Debug)]
 pub struct Memory {
@@ -9,12 +8,12 @@ pub struct Memory {
 }
 impl Memory {
     pub fn new(min: u32, max: Option<u32>) -> WasmEdgeResult<Self> {
-        let maximum = match max {
+        let max = match max {
             Some(max_val) => max_val,
             None => u32::MAX,
         };
-
-        let inner = wasmedge::Memory::create(min..=maximum)?;
+        let mut ty = wasmedge::MemType::create(min..=max)?;
+        let inner = wasmedge::Memory::create(&mut ty)?;
 
         Ok(Self {
             inner,
@@ -55,7 +54,8 @@ impl Memory {
     }
 
     pub fn get_data(&self, offset: u32, len: u32) -> WasmEdgeResult<Vec<u8>> {
-        unimplemented!()
+        let data = self.inner.get_data(offset, len)?;
+        Ok(data)
     }
 
     pub fn set_data(
@@ -63,15 +63,8 @@ impl Memory {
         data: impl IntoIterator<Item = u8>,
         offset: u32,
     ) -> WasmEdgeResult<()> {
-        unimplemented!()
-    }
-
-    pub fn data_pointer(&self, offset: u32, len: u32) -> WasmEdgeResult<&u8> {
-        unimplemented!()
-    }
-
-    pub fn data_pointer_mut(&mut self, offset: u32, len: u32) -> WasmEdgeResult<&mut u8> {
-        unimplemented!()
+        self.inner.set_data(data, offset)?;
+        Ok(())
     }
 
     pub fn grow(&mut self, count: u32) -> WasmEdgeResult<()> {
@@ -150,40 +143,37 @@ mod tests {
         }
     }
 
-    // #[test]
-    // fn test_memory_grow() {
-    //     // create a Memory with a limit range [10, 20]
-    //     let result = MemType::create(10..=20);
-    //     assert!(result.is_ok());
-    //     let mut ty = result.unwrap();
-    //     let result = Memory::create(&mut ty);
-    //     assert!(result.is_ok());
-    //     let mut mem = result.unwrap();
-    //     assert!(!mem.ctx.is_null());
-    //     assert!(!mem.registered);
+    #[test]
+    fn test_memory_grow() {
+        // create a Memory with a limit range [10, 20]
+        // let result = MemType::create(10..=20);
+        // assert!(result.is_ok());
+        // let mut ty = result.unwrap();
+        let result = Memory::new(10, Some(20));
+        assert!(result.is_ok());
+        let mut mem = result.unwrap();
 
-    //     // get type
-    //     let result = mem.ty();
-    //     assert!(result.is_ok());
-    //     let ty = result.unwrap();
-    //     assert!(!ty.ctx.is_null());
-    //     assert!(ty.registered);
-    //     // check limit
-    //     assert_eq!(ty.limit(), 10..=20);
+        // get type
+        let result = mem.ty();
+        assert!(result.is_ok());
+        let ty = result.unwrap();
+        // check limit
+        assert_eq!(ty.minimum(), 10);
+        assert_eq!(ty.maximum().unwrap(), 20);
 
-    //     // check page count
-    //     let count = mem.page_count();
-    //     assert_eq!(count, 10);
+        // check page count
+        let count = mem.page_count();
+        assert_eq!(count, 10);
 
-    //     // grow 5 pages
-    //     let result = mem.grow(10);
-    //     assert!(result.is_ok());
-    //     assert_eq!(mem.page_count(), 20);
+        // grow 5 pages
+        let result = mem.grow(10);
+        assert!(result.is_ok());
+        assert_eq!(mem.page_count(), 20);
 
-    //     // grow additional  pages, which causes a failure
-    //     let result = mem.grow(1);
-    //     assert!(result.is_err());
-    // }
+        // grow additional  pages, which causes a failure
+        let result = mem.grow(1);
+        assert!(result.is_err());
+    }
 
     // #[test]
     // fn test_memory_data() {

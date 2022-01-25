@@ -64,12 +64,12 @@ impl Statistics {
     /// # Arguments
     ///
     /// - `cost_table` specifies the slice of cost table.
-    pub fn set_cost_table(&mut self, cost_table: &mut [u64]) {
+    pub fn set_cost_table(&mut self, cost_table: &mut impl AsMut<[u64]>) {
         unsafe {
             wasmedge::WasmEdge_StatisticsSetCostTable(
                 self.ctx,
-                cost_table.as_mut_ptr(),
-                cost_table.len() as u32,
+                cost_table.as_mut().as_mut_ptr(),
+                cost_table.as_mut().len() as u32,
             )
         }
     }
@@ -88,28 +88,5 @@ impl Drop for Statistics {
         if !self.registered && !self.ctx.is_null() {
             unsafe { wasmedge::WasmEdge_StatisticsDelete(self.ctx) }
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_stat() {
-        // create a Statistics instance
-        let result = Statistics::create();
-        assert!(result.is_ok());
-        let stat = result.unwrap();
-
-        // check instruction count
-        assert_eq!(stat.instr_count(), 0);
-
-        // check instruction count per second
-        let count = stat.instr_per_sec();
-        assert!(count.is_nan());
-
-        // check total cost
-        assert_eq!(stat.cost_in_total(), 0);
     }
 }

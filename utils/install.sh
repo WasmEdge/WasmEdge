@@ -42,7 +42,7 @@ _downloader() {
     fi
 }
 
-_extracter() {
+_extractor() {
     local prefix="$IPKG"
     if ! command -v tar &>/dev/null; then
         echo "${RED}Please install tar${NC}"
@@ -361,7 +361,7 @@ install() {
 get_wasmedge_release() {
     echo "Fetching WasmEdge-$VERSION"
     _downloader "https://github.com/WasmEdge/WasmEdge/releases/download/$VERSION/WasmEdge-$VERSION-$RELEASE_PKG"
-    _extracter -C "$TMP_DIR" -vxzf "$TMP_DIR/WasmEdge-$VERSION-$RELEASE_PKG"
+    _extractor -C "$TMP_DIR" -vxzf "$TMP_DIR/WasmEdge-$VERSION-$RELEASE_PKG"
 }
 
 wasmedge_post_install() {
@@ -390,7 +390,7 @@ get_wasmedge_image_deps() {
     echo "Fetching WasmEdge-image-deps-$VERSION_IM"
     _downloader "https://github.com/second-state/WasmEdge-image/releases/download/$VERSION_IM_DEPS/WasmEdge-image-deps-$VERSION_IM_DEPS-$IM_DEPS_RELEASE_PKG"
 
-    _extracter -C "$IPATH/lib" -vxzf "$TMP_DIR/WasmEdge-image-deps-$VERSION_IM_DEPS-$IM_DEPS_RELEASE_PKG"
+    _extractor -C "$IPATH/lib" -vxzf "$TMP_DIR/WasmEdge-image-deps-$VERSION_IM_DEPS-$IM_DEPS_RELEASE_PKG"
 
     _ldconfig
 }
@@ -398,7 +398,7 @@ get_wasmedge_image_deps() {
 install_wasmedge_image() {
     echo "Fetching WasmEdge-image-$VERSION_IM"
     _downloader "https://github.com/second-state/WasmEdge-image/releases/download/$VERSION_IM/WasmEdge-image-$VERSION_IM-$RELEASE_PKG"
-    _extracter -C "$IPATH" -vxzf "$TMP_DIR/WasmEdge-image-$VERSION_IM-$RELEASE_PKG"
+    _extractor -C "$IPATH" -vxzf "$TMP_DIR/WasmEdge-image-$VERSION_IM-$RELEASE_PKG"
     _ldconfig
 }
 
@@ -409,8 +409,8 @@ get_wasmedge_tensorflow_deps() {
     echo "Fetching WasmEdge-tensorflow-deps-TFLite-$VERSION_TF_DEPS"
     _downloader "https://github.com/second-state/WasmEdge-tensorflow-deps/releases/download/$VERSION_TF_DEPS/WasmEdge-tensorflow-deps-TFLite-$VERSION_TF_DEPS-$RELEASE_PKG"
 
-    _extracter -C "$IPATH/lib" -vxzf "$TMP_DIR/WasmEdge-tensorflow-deps-TF-$VERSION_TF_DEPS-$RELEASE_PKG"
-    _extracter -C "$IPATH/lib" -vxzf "$TMP_DIR/WasmEdge-tensorflow-deps-TFLite-$VERSION_TF_DEPS-$RELEASE_PKG"
+    _extractor -C "$IPATH/lib" -vxzf "$TMP_DIR/WasmEdge-tensorflow-deps-TF-$VERSION_TF_DEPS-$RELEASE_PKG"
+    _extractor -C "$IPATH/lib" -vxzf "$TMP_DIR/WasmEdge-tensorflow-deps-TFLite-$VERSION_TF_DEPS-$RELEASE_PKG"
 
     _ldconfig
 }
@@ -425,9 +425,9 @@ install_wasmedge_tensorflow() {
     echo "Fetching WasmEdge-tensorflow-tools-$VERSION_TF_TOOLS"
     _downloader "https://github.com/second-state/WasmEdge-tensorflow-tools/releases/download/$VERSION_TF_TOOLS/WasmEdge-tensorflow-tools-$VERSION_TF_TOOLS-$RELEASE_PKG"
 
-    _extracter -C "$IPATH" -vxzf "$TMP_DIR/WasmEdge-tensorflow-$VERSION_TF-$RELEASE_PKG"
-    _extracter -C "$IPATH" -vxzf "$TMP_DIR/WasmEdge-tensorflowlite-$VERSION_TF-$RELEASE_PKG"
-    _extracter -C "$IPATH/bin" -vxzf "$TMP_DIR/WasmEdge-tensorflow-tools-$VERSION_TF_TOOLS-$RELEASE_PKG"
+    _extractor -C "$IPATH" -vxzf "$TMP_DIR/WasmEdge-tensorflow-$VERSION_TF-$RELEASE_PKG"
+    _extractor -C "$IPATH" -vxzf "$TMP_DIR/WasmEdge-tensorflowlite-$VERSION_TF-$RELEASE_PKG"
+    _extractor -C "$IPATH/bin" -vxzf "$TMP_DIR/WasmEdge-tensorflow-tools-$VERSION_TF_TOOLS-$RELEASE_PKG"
 
     rm -f "$IPATH/bin/download_dependencies_all.sh" \
         "$IPATH/bin/download_dependencies_tf.sh" \

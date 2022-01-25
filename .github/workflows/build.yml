@@ -321,3 +321,16 @@ jobs:
       with:
         name: WasmEdge-${{ needs.get_version.outputs.version }}-windows.zip
         path: build\\WasmEdge-${{ needs.get_version.outputs.version }}-Windows.zip
+
+    - name: Package Windows Installer
+      run: |
+        $Env:product_version = ("${{ needs.get_version.outputs.version }}").split("-")[0]
+        . "$Env:WIX\bin\candle.exe" -arch x64 -o build\wasmedge.wixobj .github\scripts\wasmedge.wxs
+        . "$Env:WIX\bin\light.exe" -out build\WasmEdge-$Env:product_version-windows.msi build\wasmedge.wixobj
+        echo "product_version=$Env:product_version" | Out-File -FilePath $Env:GITHUB_ENV -Encoding utf8 -Append
+
+    - name: Upload Windows Installer
+      uses: actions/upload-artifact@v2
+      with:
+        name: WasmEdge-${{ env.product_version }}-windows.msi
+        path: build\\WasmEdge-${{ env.product_version }}-windows.msi

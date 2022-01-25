@@ -99,7 +99,7 @@ WasiExpect<void> INode::fdRead(Span<Span<uint8_t>> IOVs,
     }
     NRead += NumberOfBytesRead;
   }
-  return WasiUnexpect(__WASI_ERRNO_NOSYS);
+  return {};
 }
 
 WasiExpect<void> INode::fdReaddir(Span<uint8_t>, __wasi_dircookie_t,
@@ -130,7 +130,7 @@ WasiExpect<void> INode::fdWrite(Span<Span<const uint8_t>> IOVs,
     }
     NWritten += NumberOfBytesWritten;
   }
-  return WasiUnexpect(__WASI_ERRNO_NOSYS);
+  return {};
 }
 
 WasiExpect<void> INode::pathCreateDirectory(std::string) const noexcept {
@@ -225,6 +225,26 @@ WasiExpect<void> INode::getAddrinfo(const char *, const char *,
                                     Span<__wasi_sockaddr_t *>, Span<char *>,
                                     Span<char *>,
                                     /*Out*/ __wasi_size_t &) noexcept {
+  return WasiUnexpect(__WASI_ERRNO_NOSYS);
+}
+
+WasiExpect<void> INode::sockGetOpt(int32_t, int32_t, void *,
+                                   uint32_t *) const noexcept {
+  return WasiUnexpect(__WASI_ERRNO_NOSYS);
+}
+
+WasiExpect<void> INode::sockSetOpt(int32_t, int32_t, void *,
+                                   uint32_t) const noexcept {
+  return WasiUnexpect(__WASI_ERRNO_NOSYS);
+}
+
+WasiExpect<void> INode::sockGetLoaclAddr(uint8_t *, uint32_t *,
+                                         uint32_t *) const noexcept {
+  return WasiUnexpect(__WASI_ERRNO_NOSYS);
+}
+
+WasiExpect<void> INode::sockGetPeerAddr(uint8_t *, uint32_t *,
+                                        uint32_t *) const noexcept {
   return WasiUnexpect(__WASI_ERRNO_NOSYS);
 }
 

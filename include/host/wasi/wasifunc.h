@@ -448,6 +448,42 @@ public:
                         uint32_t SdFlags);
 };
 
+class WasiSockGetOpt : public Wasi<WasiSockGetOpt> {
+public:
+  WasiSockGetOpt(WASI::Environ &HostEnv) : Wasi(HostEnv) {}
+
+  Expect<uint32_t> body(Runtime::Instance::MemoryInstance *MemInst, int32_t Fd,
+                        int32_t Level, int32_t Name, uint32_t FlagPtr,
+                        uint32_t FlagSizePtr);
+};
+
+class WasiSockSetOpt : public Wasi<WasiSockSetOpt> {
+public:
+  WasiSockSetOpt(WASI::Environ &HostEnv) : Wasi(HostEnv) {}
+
+  Expect<uint32_t> body(Runtime::Instance::MemoryInstance *MemInst, int32_t Fd,
+                        int32_t Level, int32_t Name, uint32_t FlagPtr,
+                        uint32_t FlagSizePtr);
+};
+
+class WasiSockGetLocalAddr : public Wasi<WasiSockGetLocalAddr> {
+public:
+  WasiSockGetLocalAddr(WASI::Environ &HostEnv) : Wasi(HostEnv) {}
+
+  Expect<uint32_t> body(Runtime::Instance::MemoryInstance *MemInst, int32_t Fd,
+                        uint32_t AddressPtr, uint32_t AddressTypePtr,
+                        uint32_t PortPtr);
+};
+
+class WasiSockGetPeerAddr : public Wasi<WasiSockGetPeerAddr> {
+public:
+  WasiSockGetPeerAddr(WASI::Environ &HostEnv) : Wasi(HostEnv) {}
+
+  Expect<uint32_t> body(Runtime::Instance::MemoryInstance *MemInst, int32_t Fd,
+                        uint32_t AddressPtr, uint32_t AddressTypePtr,
+                        uint32_t PortPtr);
+};
+
 class WasiGetAddrinfo : public Wasi<WasiGetAddrinfo> {
 public:
   WasiGetAddrinfo(WASI::Environ &HostEnv) : Wasi(HostEnv) {}

@@ -1,3 +1,76 @@
+### 0.9.1 (unreleased)
+
+Features:
+
+* WASI
+  * Added the `sock_getsockopt`, `sock_setsockopt`, `sock_getlocaladdr`, `sock_getpeeraddr`, and `sock_getaddrinfo` host functions for the WASI socket proposal.
+* Supported the interruptible execution.
+  * Added the `WasmEdge_Async` struct in WasmEdge C API for the asynchronous execution.
+    * Added the `WasmEdge_AsyncWait` API for waiting an asynchronous execution.
+    * Added the `WasmEdge_AsyncWaitFor` API for waiting an asynchronous execution with timeout.
+    * Added the `WasmEdge_AsyncCancel` API for canceling an asynchronous execution.
+    * Added the `WasmEdge_AsyncGetReturnsLength` API for waiting and getting the return value length of asynchronous execution.
+    * Added the `WasmEdge_AsyncGet` API for waiting and getting the asynchronous execution results.
+    * Added the `WasmEdge_AsyncDelete` API for destroying the `WasmEdge_Async` object.
+  * Added the asynchronous mode execution APIs.
+    * Added the `WasmEdge_VMAsyncRunWasmFromFile` API for executing WASM from a file asynchronously.
+    * Added the `WasmEdge_VMAsyncRunWasmFromBuffer` API for executing WASM from a buffer asynchronously.
+    * Added the `WasmEdge_VMAsyncRunWasmFromASTModule` API for executing WASM from an `WasmEdge_ASTModuleContext` asynchronously.
+    * Added the `WasmEdge_VMAsyncExecute` API for invoking a WASM function asynchronously.
+    * Added the `WasmEdge_VMAsyncExecuteRegistered` API for invoking a registered WASM function asynchronously.
+  * Added the option for timeout settings of the AOT compiler.
+    * Added the `WasmEdge_ConfigureCompilerSetInterruptible` API for setting the interruptibility of the AOT compiler.
+    * Added the `WasmEdge_ConfigureCompilerIsInterruptible` API for getting the interruptibility of the AOT compiler.
+* Supported the WASM `multi-memories` proposal.
+  * Added the `WasmEdge_Proposal_MultiMemories` for the configuration in WasmEdge C API.
+  * Users can use the `--enable-multi-memory` to enable the proposal in `wasmedge` and `wasmedgec` tools.
+* Enabled the gas limitation of the `wasmedge` CLI.
+  * Users can use the `--gas-limit` to assign the limitation of costs.
+* Beautified and colorized the WasmEdge CLI help information.
+
+Fixed issues:
+
+* Fixed the memory leak in function instances.
+* Reduced the memory usage of the instruction class.
+* Fixed the return value of the `fread` and `fwrite` WASI functions on Windows.
+
+Refactor:
+
+* Used `assumingUnreachable` instead of `__builtin_unreachable` to help the compiler to generate better codes.
+* Updated the order of the members in the proposal enumeration.
+* Refactored the instruction class for reducing the memory usage.
+  * Refactored the `WasmEdge::BlockType` into a struct.
+  * Categorized the members of the instruction class into a union.
+
+Documentations:
+
+* Added the [build-on-Windows-10](docs/build_on_windows.md) documentation.
+* Added the [Reference Book](https://wasmedge.org/book/en/).
+* Updated the [Release process](ReleaseProcess.md).
+
+Tests:
+
+* Handled the tests for the 32-bit platforms.
+* Added the spec tests for the `multi-memories` proposal.
+* Added the test cases for `getaddrinfo` host function.
+* Added the interruptible execution tests.
+* Added the unit tests of async APIs.
+
+Misc:
+
+* Updated the `blake3` library to `1.2.0`.
+* Added the copyright text.
+* Fixed the coding style of the comments.
+* Added the Windows installer release CI.
+
+
+Thank all the contributors that made this release possible!
+
+2021, Antonio Yang, AvengerMoJo, Harinath Nampally, KernelErr, Michael Yuan, O3Ol, Shen-Ta Hsieh, Shreyas Atre, SonOfMagic, Stephan Renatus, Sven Pfennig, Vaughn Dice, Xin Liu, YiYing He, Yukang Chen, alabulei1, alittlehorse, hydai, wangshishuo, wolfishLamb
+
+
+If you want to build from source, please use WasmEdge-0.9.1-beta.1-src.tar.gz instead of the zip or tarball provided by GitHub directly.
+
 ### 0.9.0 (2021-12-09)
 
 Breaking changes:

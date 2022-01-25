@@ -110,7 +110,8 @@ remove_parsed() {
         IFS=$'\n'
         ask_remove $(parse_env)
         if [[ "$IPATH" =~ ".wasmedge" ]]; then
-            ask_remove $(find "$IPATH" -type d -empty -print)
+            ask_remove $(find "$IPATH" -depth -type d -empty -print)
+            ask_remove $(find "$IPATH" -depth -type d -empty -print)
             if [ -z "$(ls -A "$IPATH")" ]; then
                 ask_remove "$IPATH"
             fi

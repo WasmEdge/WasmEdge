@@ -24,6 +24,12 @@
 #include <utility>
 #include <vector>
 
+// For enabling Windows PowerShell color support.
+#if defined(_WIN32) || defined(_WIN64) || defined(__WIN32__) ||                \
+    defined(__TOS_WIN__) || defined(__WINDOWS__)
+#include <windows.h>
+#endif
+
 namespace WasmEdge {
 namespace PO {
 
@@ -241,6 +247,19 @@ private:
     }
 
     void help() const noexcept {
+// For enabling Windows PowerShell color support.
+#if defined(_WIN32) || defined(_WIN64) || defined(__WIN32__) ||                \
+    defined(__TOS_WIN__) || defined(__WINDOWS__)
+      HANDLE OutputHandler = GetStdHandle(STD_OUTPUT_HANDLE);
+      if (OutputHandler != INVALID_HANDLE_VALUE) {
+        DWORD ConsoleMode = 0;
+        if (GetConsoleMode(OutputHandler, &ConsoleMode)) {
+          ConsoleMode |= ENABLE_VIRTUAL_TERMINAL_PROCESSING;
+          SetConsoleMode(OutputHandler, ConsoleMode);
+        }
+      }
+#endif
+
       usage();
       using std::cout;
       const constexpr std::string_view kIndent = "\t"sv;
@@ -398,7 +417,13 @@ private:
     std::vector<std::size_t> PositionalList;
     std::unique_ptr<Option<Toggle>> HelpOpt;
 
+#if defined(_WIN32) || defined(_WIN64) || defined(__WIN32__) ||                \
+    defined(__TOS_WIN__) || defined(__WINDOWS__)
+    // Native PowerShell failed to display yellow, so we use bright yellow.
+    static constexpr char YELLOW_COLOR[] = "\u001b[93m";
+#else
     static constexpr char YELLOW_COLOR[] = "\u001b[33m";
+#endif
     static constexpr char GREEN_COLOR[] = "\u001b[32m";
     static constexpr char RESET_COLOR[] = "\u001b[0m";
   };

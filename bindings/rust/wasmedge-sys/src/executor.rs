@@ -3,6 +3,7 @@
 use super::wasmedge;
 use crate::{
     error::{check, WasmEdgeError, WasmEdgeResult},
+    types::WasmEdgeString,
     Config, ImportObj, Module, Statistics, Store, Value,
 };
 use std::ptr;
@@ -11,6 +12,7 @@ use std::ptr;
 ///
 /// [`Executor`] defines an execution environment for both WASM and compiled WASM. It works based on the
 /// [Store](crate::Store).
+#[derive(Debug)]
 pub struct Executor {
     ctx: *mut wasmedge::WasmEdge_ExecutorContext,
 }
@@ -26,23 +28,20 @@ impl Executor {
     /// # Error
     ///
     /// If fail to create a [`Executor`], then an error is returned.
-    pub fn create(conf: Option<&Config>, stat: Option<&mut Statistics>) -> WasmEdgeResult<Self> {
-        let conf = match conf {
+    pub fn create(config: Option<&Config>, stat: Option<&Statistics>) -> WasmEdgeResult<Self> {
+        let conf = match config {
             Some(conf) => conf.ctx,
             None => ptr::null(),
         };
         let stat_ctx = match stat {
-            Some(stat) => {
-                let stat_ctx = stat.ctx;
-                stat.ctx = std::ptr::null_mut();
-                stat_ctx
-            }
+            Some(stat) => stat.ctx,
             None => ptr::null_mut(),
         };
-        let raw = unsafe { wasmedge::WasmEdge_ExecutorCreate(conf, stat_ctx) };
-        match raw.is_null() {
+
+        let ctx = unsafe { wasmedge::WasmEdge_ExecutorCreate(conf, stat_ctx) };
+        match ctx.is_null() {
             true => Err(WasmEdgeError::ExecutorCreate),
-            false => Ok(Executor { ctx: raw }),
+            false => Ok(Executor { ctx }),
         }
     }
 
@@ -94,12 +93,13 @@ impl Executor {
         ast_mod: &mut Module,
         mod_name: impl AsRef<str>,
     ) -> WasmEdgeResult<Self> {
+        let mod_name: WasmEdgeString = mod_name.as_ref().into();
         unsafe {
             check(wasmedge::WasmEdge_ExecutorRegisterModule(
                 self.ctx,
                 store.ctx,
                 ast_mod.ctx,
-                mod_name.into(),
+                mod_name.as_raw(),
             ))?;
             ast_mod.ctx = std::ptr::null_mut();
             ast_mod.registered = true;
@@ -138,7 +138,7 @@ impl Executor {
         Ok(self)
     }
 
-    /// Invokes a WASM function in the anonymous [`Module`].
+    /// Invokes a WASM function in the anonymous [`Module`], and returns the results.
     ///
     /// After instantiating a WasmEdge [`Module`], the [`Module`] is registered as an
     /// anonymous module in the [`Store`]; then, you can repeatedly call this function
@@ -158,28 +158,26 @@ impl Executor {
     /// # Error
     ///
     /// If fail to invoke the function specified by `func_name`, then an error is returned.
-    pub fn invoke_function(
+    pub fn run_func(
         &self,
         store: &Store,
         func_name: impl AsRef<str>,
-        params: impl Iterator<Item = Value>,
-    ) -> WasmEdgeResult<impl Iterator<Item = Value>> {
-        let raw_params = params
-            .map(wasmedge::WasmEdge_Value::from)
-            .collect::<Vec<_>>();
+        params: impl IntoIterator<Item = Value>,
+    ) -> WasmEdgeResult<Vec<Value>> {
+        store.contains_func(func_name.as_ref())?;
+
+        let raw_params = params.into_iter().map(|x| x.as_raw()).collect::<Vec<_>>();
 
         // get the length of the function's returns
-        let returns_len = store
-            .find_func(func_name.as_ref())?
-            .get_type()?
-            .returns_len();
+        let returns_len = store.find_func(func_name.as_ref())?.ty()?.returns_len();
         let mut returns = Vec::with_capacity(returns_len);
 
+        let func_name: WasmEdgeString = func_name.as_ref().into();
         unsafe {
             check(wasmedge::WasmEdge_ExecutorInvoke(
                 self.ctx,
                 store.ctx,
-                func_name.into(),
+                func_name.as_raw(),
                 raw_params.as_ptr(),
                 raw_params.len() as u32,
                 returns.as_mut_ptr(),
@@ -188,10 +186,10 @@ impl Executor {
             returns.set_len(returns_len);
         }
 
-        Ok(returns.into_iter().map(Into::into))
+        Ok(returns.into_iter().map(Into::into).collect::<Vec<_>>())
     }
 
-    /// Invokes a registered WASM function by its module name and function name.
+    /// Invokes a registered WASM function by its module name and function name, and returns the results.
     ///
     /// # Arguments
     ///
@@ -207,30 +205,32 @@ impl Executor {
     ///
     /// If fail to invoke the target registered function, then an error is returned.
     ///
-    pub fn invoke_registered_function(
+    pub fn run_func_registered(
         &self,
         store: &Store,
         mod_name: impl AsRef<str>,
         func_name: impl AsRef<str>,
-        params: impl Iterator<Item = Value>,
-    ) -> WasmEdgeResult<impl Iterator<Item = Value>> {
-        let raw_params = params
-            .map(wasmedge::WasmEdge_Value::from)
-            .collect::<Vec<_>>();
+        params: impl IntoIterator<Item = Value>,
+    ) -> WasmEdgeResult<Vec<Value>> {
+        store.contains_reg_func(mod_name.as_ref(), func_name.as_ref())?;
+
+        let raw_params = params.into_iter().map(|x| x.as_raw()).collect::<Vec<_>>();
 
         // get the length of the function's returns
         let returns_len = store
             .find_func_registered(mod_name.as_ref(), func_name.as_ref())?
-            .get_type()?
+            .ty()?
             .returns_len();
         let mut returns = Vec::with_capacity(returns_len);
 
+        let mod_name: WasmEdgeString = mod_name.as_ref().into();
+        let func_name: WasmEdgeString = func_name.as_ref().into();
         unsafe {
             check(wasmedge::WasmEdge_ExecutorInvokeRegistered(
                 self.ctx,
                 store.ctx,
-                mod_name.into(),
-                func_name.into(),
+                mod_name.as_raw(),
+                func_name.as_raw(),
                 raw_params.as_ptr(),
                 raw_params.len() as u32,
                 returns.as_mut_ptr(),
@@ -239,13 +239,68 @@ impl Executor {
             returns.set_len(returns_len);
         }
 
-        Ok(returns.into_iter().map(Into::into))
+        Ok(returns.into_iter().map(Into::into).collect::<Vec<_>>())
     }
 }
 impl Drop for Executor {
     fn drop(&mut self) {
         if !self.ctx.is_null() {
             unsafe { wasmedge::WasmEdge_ExecutorDelete(self.ctx) }
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{Config, Statistics};
+
+    #[test]
+    fn test_executor_create() {
+        {
+            // create an Executor context without configuration and statistics
+            let result = Executor::create(None, None);
+            assert!(result.is_ok());
+            let executor = result.unwrap();
+            assert!(!executor.ctx.is_null());
+        }
+
+        {
+            // create an Executor context with a given configuration
+            let result = Config::create();
+            assert!(result.is_ok());
+            let config = result.unwrap();
+            let result = Executor::create(Some(&config), None);
+            assert!(result.is_ok());
+            let executor = result.unwrap();
+            assert!(!executor.ctx.is_null());
+        }
+
+        {
+            // create an Executor context with a given statistics
+            let result = Statistics::create();
+            assert!(result.is_ok());
+            let stat = result.unwrap();
+            let result = Executor::create(None, Some(&stat));
+            assert!(result.is_ok());
+            let executor = result.unwrap();
+            assert!(!executor.ctx.is_null());
+        }
+
+        {
+            // create an Executor context with the given configuration and statistics.
+            let result = Config::create();
+            assert!(result.is_ok());
+            let config = result.unwrap();
+
+            let result = Statistics::create();
+            assert!(result.is_ok());
+            let stat = result.unwrap();
+
+            let result = Executor::create(Some(&config), Some(&stat));
+            assert!(result.is_ok());
+            let executor = result.unwrap();
+            assert!(!executor.ctx.is_null());
         }
     }
 }

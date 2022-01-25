@@ -158,6 +158,12 @@
 
     ;;; PEM encoding.
     $pem
+    
+    ;;; PCSK8/DER encoding with compressed coordinates.
+    $compressed_pkcs8
+
+    ;;; PEM encoding with compressed coordinates.
+    $compressed_pem
 
     ;;; Implementation-defined encoding.
     $local
@@ -176,11 +182,17 @@
     ;;; PEM encoding.
     $pem
 
-    ;;; SEC encoding.
+    ;;; SEC-1 encoding.
     $sec
 
-    ;;; Compressed SEC encoding.
+    ;;; Compressed SEC-1 encoding.
     $compressed_sec
+
+    ;;; PKCS8/DER encoding with compressed coordinates.
+    $compressed_pkcs8
+
+    ;;; PEM encoding with compressed coordinates.
+    $compressed_pem
 
     ;;; Implementation-defined encoding.
     $local
@@ -199,7 +211,7 @@
     ;;; PEM encoding.
     $pem
 
-    ;;; SEC encoding.
+    ;;; SEC-1 encoding.
     $sec
 
     ;;; Compressed SEC encoding.

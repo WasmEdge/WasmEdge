@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: 2019-2022 Second State INC
+
 /**
  * THIS FILE IS AUTO-GENERATED from the following files:
  *   proposal_kx.witx, proposal_asymmetric_common.witx, proposal_common.witx, proposal_signatures.witx, proposal_symmetric.witx, proposal_external_secrets.witx
@@ -21,7 +24,6 @@
 
 using const_uint8_t_ptr = uint32_t;
 using uint8_t_ptr = uint32_t;
-using uint32_t_ptr = uint32_t;
 
 #define DEFINE_ENUM_OPERATORS(type)                                            \
   inline constexpr type operator~(type a) noexcept {                           \
@@ -289,9 +291,19 @@ enum __wasi_keypair_encoding_e_t : uint16_t {
   __WASI_KEYPAIR_ENCODING_PEM = 2,
 
   /**
+   * PCSK8/DER encoding with compressed coordinates.
+   */
+  __WASI_KEYPAIR_ENCODING_COMPRESSED_PKCS8 = 3,
+
+  /**
+   * PEM encoding with compressed coordinates.
+   */
+  __WASI_KEYPAIR_ENCODING_COMPRESSED_PEM = 4,
+
+  /**
    * Implementation-defined encoding.
    */
-  __WASI_KEYPAIR_ENCODING_LOCAL = 3,
+  __WASI_KEYPAIR_ENCODING_LOCAL = 5,
 
 };
 static_assert(sizeof(__wasi_keypair_encoding_e_t) == 2, "witx calculated size");
@@ -317,19 +329,29 @@ enum __wasi_publickey_encoding_e_t : uint16_t {
   __WASI_PUBLICKEY_ENCODING_PEM = 2,
 
   /**
-   * SEC encoding.
+   * SEC-1 encoding.
    */
   __WASI_PUBLICKEY_ENCODING_SEC = 3,
 
   /**
-   * Compressed SEC encoding.
+   * Compressed SEC-1 encoding.
    */
   __WASI_PUBLICKEY_ENCODING_COMPRESSED_SEC = 4,
 
   /**
+   * PKCS8/DER encoding with compressed coordinates.
+   */
+  __WASI_PUBLICKEY_ENCODING_COMPRESSED_PKCS8 = 5,
+
+  /**
+   * PEM encoding with compressed coordinates.
+   */
+  __WASI_PUBLICKEY_ENCODING_COMPRESSED_PEM = 6,
+
+  /**
    * Implementation-defined encoding.
    */
-  __WASI_PUBLICKEY_ENCODING_LOCAL = 5,
+  __WASI_PUBLICKEY_ENCODING_LOCAL = 7,
 
 };
 static_assert(sizeof(__wasi_publickey_encoding_e_t) == 2, "witx calculated size");
@@ -355,19 +377,14 @@ enum __wasi_secretkey_encoding_e_t : uint16_t {
   __WASI_SECRETKEY_ENCODING_PEM = 2,
 
   /**
-   * SEC encoding.
+   * SEC-1 encoding.
    */
   __WASI_SECRETKEY_ENCODING_SEC = 3,
 
   /**
-   * Compressed SEC encoding.
-   */
-  __WASI_SECRETKEY_ENCODING_COMPRESSED_SEC = 4,
-
-  /**
    * Implementation-defined encoding.
    */
-  __WASI_SECRETKEY_ENCODING_LOCAL = 5,
+  __WASI_SECRETKEY_ENCODING_LOCAL = 4,
 
 };
 static_assert(sizeof(__wasi_secretkey_encoding_e_t) == 2, "witx calculated size");

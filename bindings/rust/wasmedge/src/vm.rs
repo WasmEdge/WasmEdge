@@ -1,7 +1,5 @@
 use crate::{error::WasmEdgeResult, wasmedge, Config, ImportObj, Module, Store, Value};
-use std::{env::args, marker::PhantomData, path::Path};
-
-// use crate::{config::Config, error::VmError, module::Module, wasi_conf::WasiConf};
+use std::{marker::PhantomData, path::Path};
 
 #[derive(Debug)]
 pub struct VmBuilder<'a> {
@@ -72,22 +70,20 @@ impl Vm {
 
     // validate + instantiate + register
     pub fn register_wasm_from_module(
-        self,
+        mut self,
         mod_name: impl AsRef<str>,
         module: &mut Module,
     ) -> WasmEdgeResult<Self> {
-        let inner = self
-            .inner
+        self.inner
             .register_wasm_from_module(mod_name.as_ref(), &mut module.inner)?;
-        Ok(Self { inner })
+        Ok(self)
     }
 
     // validate + instantiate + register
-    pub fn register_wasm_from_import(self, import_obj: &mut ImportObj) -> WasmEdgeResult<Self> {
-        let inner = self
-            .inner
+    pub fn register_wasm_from_import(mut self, import_obj: &mut ImportObj) -> WasmEdgeResult<Self> {
+        self.inner
             .register_wasm_from_import(&mut import_obj.inner)?;
-        Ok(Self { inner })
+        Ok(self)
     }
 
     pub fn run_wasm_from_file(
@@ -99,7 +95,7 @@ impl Vm {
         let returns = self
             .inner
             .run_wasm_from_file(file.as_ref(), func_name.as_ref(), args)?;
-        Ok(returns.collect::<Vec<_>>())
+        Ok(returns)
     }
 
     pub fn run_wasm_from_buffer(
@@ -111,7 +107,7 @@ impl Vm {
         let returns = self
             .inner
             .run_wasm_from_buffer(buffer.as_ref(), func_name.as_ref(), args)?;
-        Ok(returns.collect::<Vec<_>>())
+        Ok(returns)
     }
 
     pub fn run_wasm_from_module(
@@ -123,27 +119,27 @@ impl Vm {
         let returns =
             self.inner
                 .run_wasm_from_module(&mut module.inner, func_name.as_ref(), args)?;
-        Ok(returns.collect::<Vec<_>>())
+        Ok(returns)
     }
 
     pub fn load_from_file() -> WasmEdgeResult<Self> {
-        todo!()
+        unimplemented!()
     }
 
     pub fn load_from_buffer() -> WasmEdgeResult<Self> {
-        todo!()
+        unimplemented!()
     }
 
     pub fn load_from_module() -> WasmEdgeResult<Self> {
-        todo!()
+        unimplemented!()
     }
 
     pub fn validate() -> WasmEdgeResult<Self> {
-        todo!()
+        unimplemented!()
     }
 
     pub fn instantiate() -> WasmEdgeResult<Self> {
-        todo!()
+        unimplemented!()
     }
 
     pub fn run_func(

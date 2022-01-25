@@ -9,5 +9,5 @@ pub use function::{Func, Signature, SignatureBuilder};
 pub use global::{Global, GlobalType};
 pub use import_obj::ImportObj;
 pub use memory::{Memory, MemoryType};
-pub use module::Module;
+pub use module::{ExportType, ExternalType, ImportType, Module};
 pub use table::{Table, TableType};

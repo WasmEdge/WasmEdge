@@ -36,34 +36,46 @@ impl Module {
         Ok(Self { inner })
     }
 
-    // TODO imports_iter
-    pub fn import_iter(&self) -> impl Iterator<Item = sys::Import> {
-        self.inner.imports_iter()
+    pub fn import_iter(&self) -> impl Iterator<Item = ImportType> {
+        self.inner.imports_iter().map(|inner| ImportType {
+            inner,
+            module: self,
+        })
     }
 
-    // TODO exports_iter
-    pub fn export_iter(&self) -> impl Iterator<Item = sys::Export> {
-        self.inner.exports_iter()
+    pub fn export_iter(&self) -> impl Iterator<Item = ExportType> {
+        self.inner.exports_iter().map(|inner| ExportType {
+            inner,
+            module: self,
+        })
     }
 
-    pub fn get_export(&self, name: impl AsRef<str>) -> Option<sys::ExternalType> {
-        let exports = self.inner.exports_iter();
-        let exports = exports
+    pub fn get_export(&self, name: impl AsRef<str>) -> Option<ExternalType> {
+        let exports = self
+            .export_iter()
             .filter(|x| x.name() == name.as_ref())
             .collect::<Vec<_>>();
         match exports.is_empty() {
             true => None,
-            false => Some(exports[0].ty()),
+            false => exports[0].ty().ok(),
         }
     }
 }
 
 #[derive(Debug)]
-pub struct ExportType<'module> {
-    inner: wasmedge::Export,
-    module: &'module Module, // _marker: PhantomData<&'module Module>,
+pub struct ImportType<'module> {
+    inner: wasmedge::Import,
+    module: &'module Module,
 }
-impl<'module> ExportType<'module> {
+impl<'module> ImportType<'module> {
+    pub fn name(&self) -> Cow<'_, str> {
+        self.inner.name()
+    }
+
+    pub fn module_name(&self) -> Cow<'_, str> {
+        self.inner.module_name()
+    }
+
     pub fn ty(&self) -> WasmEdgeResult<ExternalType> {
         match self.inner.ty() {
             wasmedge::ExternalType::Function => {
@@ -84,9 +96,37 @@ impl<'module> ExportType<'module> {
             }
         }
     }
+}
 
+#[derive(Debug)]
+pub struct ExportType<'module> {
+    inner: wasmedge::Export,
+    module: &'module Module,
+}
+impl<'module> ExportType<'module> {
     pub fn name(&self) -> Cow<'_, str> {
         self.inner.name()
+    }
+
+    pub fn ty(&self) -> WasmEdgeResult<ExternalType> {
+        match self.inner.ty() {
+            wasmedge::ExternalType::Function => {
+                let func_ty = self.inner.function_type(&self.module.inner)?;
+                Ok(ExternalType::Func(func_ty.into()))
+            }
+            wasmedge::ExternalType::Global => {
+                let global_ty = self.inner.global_type(&self.module.inner)?;
+                Ok(ExternalType::Global(global_ty.into()))
+            }
+            wasmedge::ExternalType::Memory => {
+                let mem_ty = self.inner.memory_type(&self.module.inner)?;
+                Ok(ExternalType::Memory(mem_ty.into()))
+            }
+            wasmedge::ExternalType::Table => {
+                let table_ty = self.inner.table_type(&self.module.inner)?;
+                Ok(ExternalType::Table(table_ty.into()))
+            }
+        }
     }
 }
 

@@ -71,8 +71,6 @@ public:
 
   X25519KeyPair(EvpPkeyPtr Ctx) : Ctx(std::move(Ctx)) {}
 
-  WasiCryptoExpect<void> verify() override;
-
   WasiCryptoExpect<std::unique_ptr<PublicKey>> publicKey() override;
 
   WasiCryptoExpect<std::unique_ptr<SecretKey>> secretKey() override;

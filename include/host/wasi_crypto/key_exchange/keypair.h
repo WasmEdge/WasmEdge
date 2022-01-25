@@ -15,8 +15,6 @@ class KeyPair {
 public:
   virtual ~KeyPair() = default;
 
-  virtual WasiCryptoExpect<void> verify() { return {}; }
-
   virtual WasiCryptoExpect<std::unique_ptr<PublicKey>> publicKey() = 0;
 
   virtual WasiCryptoExpect<std::unique_ptr<SecretKey>> secretKey() = 0;

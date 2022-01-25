@@ -135,10 +135,6 @@ X25519KeyPair::Builder::import(Span<const uint8_t>,
   return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
 }
 
-WasiCryptoExpect<void> X25519KeyPair::verify() {
-  return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
-}
-
 WasiCryptoExpect<std::unique_ptr<PublicKey>> X25519KeyPair::publicKey() {
   size_t Size;
   opensslAssuming(EVP_PKEY_get_raw_public_key(Ctx.get(), nullptr, &Size));

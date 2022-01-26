@@ -52,6 +52,75 @@ TEST(WasiCryptoTest, Arrayoutput) {
   }
 }
 
+TEST(WasiCryptoTest, Options) {
+  WasiCryptoContext Ctx;
+
+  {
+    // symmetric options
+
+    std::vector<uint8_t> TestValue(0);
+    auto SymmetricOptionsHandle =
+        Ctx.optionsOpen(__WASI_ALGORITHM_TYPE_SYMMETRIC).value();
+
+    // For the required set of algorithms, only the nonce option has to be
+    // implemented, and only for algorithms supporting encryption operations.
+    EXPECT_TRUE(Ctx.optionsSet(SymmetricOptionsHandle, "nonce", TestValue));
+
+    EXPECT_TRUE(Ctx.optionsSet(SymmetricOptionsHandle, "context", TestValue));
+    EXPECT_TRUE(Ctx.optionsSet(SymmetricOptionsHandle, "salt", TestValue));
+    EXPECT_TRUE(Ctx.optionsSetU64(SymmetricOptionsHandle, "memory_limit", 0));
+    EXPECT_TRUE(Ctx.optionsSetU64(SymmetricOptionsHandle, "parallelism", 0));
+    EXPECT_TRUE(Ctx.optionsSetU64(SymmetricOptionsHandle, "ops_limit", 0));
+    EXPECT_TRUE(
+        Ctx.optionsSetGuestBuffer(SymmetricOptionsHandle, "buffer", TestValue));
+
+    EXPECT_EQ(
+        Ctx.optionsSet(SymmetricOptionsHandle, "foo_option", TestValue).error(),
+        __WASI_CRYPTO_ERRNO_UNSUPPORTED_OPTION);
+    EXPECT_EQ(
+        Ctx.optionsSetU64(SymmetricOptionsHandle, "foo_option", 0).error(),
+        __WASI_CRYPTO_ERRNO_UNSUPPORTED_OPTION);
+    EXPECT_EQ(Ctx.optionsSetGuestBuffer(SymmetricOptionsHandle, "foo_option",
+                                        TestValue)
+                  .error(),
+              __WASI_CRYPTO_ERRNO_UNSUPPORTED_OPTION);
+  }
+
+  {
+    // signature options
+
+    std::vector<uint8_t> TestValue(0);
+    auto SigOptionsHandle =
+        Ctx.optionsOpen(__WASI_ALGORITHM_TYPE_SIGNATURES).value();
+
+    EXPECT_EQ(Ctx.optionsSet(SigOptionsHandle, "foo_option", TestValue).error(),
+              __WASI_CRYPTO_ERRNO_UNSUPPORTED_OPTION);
+    EXPECT_EQ(Ctx.optionsSetU64(SigOptionsHandle, "foo_option", 0).error(),
+              __WASI_CRYPTO_ERRNO_UNSUPPORTED_OPTION);
+    EXPECT_EQ(
+        Ctx.optionsSetGuestBuffer(SigOptionsHandle, "foo_option", TestValue)
+            .error(),
+        __WASI_CRYPTO_ERRNO_UNSUPPORTED_OPTION);
+  }
+
+  {
+    // signature options
+
+    std::vector<uint8_t> TestValue(0);
+    auto KxOptionsHandle =
+        Ctx.optionsOpen(__WASI_ALGORITHM_TYPE_KEY_EXCHANGE).value();
+
+    EXPECT_EQ(Ctx.optionsSet(KxOptionsHandle, "foo_option", TestValue).error(),
+              __WASI_CRYPTO_ERRNO_UNSUPPORTED_OPTION);
+    EXPECT_EQ(Ctx.optionsSetU64(KxOptionsHandle, "foo_option", 0).error(),
+              __WASI_CRYPTO_ERRNO_UNSUPPORTED_OPTION);
+    EXPECT_EQ(
+        Ctx.optionsSetGuestBuffer(KxOptionsHandle, "foo_option", TestValue)
+            .error(),
+        __WASI_CRYPTO_ERRNO_UNSUPPORTED_OPTION);
+  }
+}
+
 TEST(WasiCryptoTest, Hash) {
 
   WasiCryptoContext Ctx;

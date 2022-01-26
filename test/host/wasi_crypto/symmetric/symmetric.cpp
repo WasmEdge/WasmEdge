@@ -2,6 +2,7 @@
 
 #include "gtest/gtest.h"
 
+#include "../helper.h"
 #include "host/wasi_crypto/ctx.h"
 #include "host/wasi_crypto/symmetric/alg.h"
 
@@ -11,20 +12,44 @@
 using namespace WasmEdge::Host::WASICrypto;
 using namespace std::literals;
 namespace {
-WasmEdge::Span<uint8_t const> operator"" _u8(const char *Str,
-                                             std::size_t Len) noexcept {
-  return {reinterpret_cast<uint8_t const *>(Str), Len};
-}
+/// generate a 32 size array output
+__wasi_array_output_t generateArrayOutputHandle(WasiCryptoContext &Ctx) {
+  auto Raw =
+      "d75a980182b10ab7d54bfed3c964073a0ee172f3daa62325af021a68f707511a"_u8v;
 
-std::vector<uint8_t> tagToVec(WasiCryptoContext &Ctx,
-                              __wasi_symmetric_tag_t TagHandle) {
-  auto SymmetricTagSize = Ctx.symmetricTagLen(TagHandle).value();
-  std::vector<uint8_t> Bytes(SymmetricTagSize, 0);
-  Ctx.symmetricTagPull(TagHandle, Bytes).value();
-  return Bytes;
+  return Ctx
+      .publickeyExport(Ctx.publickeyImport(__WASI_ALGORITHM_TYPE_SIGNATURES,
+                                           "Ed25519"sv, Raw,
+                                           __WASI_PUBLICKEY_ENCODING_RAW)
+                           .value(),
+                       __WASI_PUBLICKEY_ENCODING_RAW)
+      .value();
 }
-
 } // namespace
+
+TEST(WasiCryptoTest, Arrayoutput) {
+  WasiCryptoContext Ctx;
+
+  // normally pull out
+  auto ArrayOutputHandle = generateArrayOutputHandle(Ctx);
+  std::vector<uint8_t> Raw(32);
+  EXPECT_TRUE(Ctx.arrayOutputPull(ArrayOutputHandle, Raw));
+
+  {
+    // Multiple calls pull test
+    auto ArrayOutputHandle = generateArrayOutputHandle(Ctx);
+
+    std::vector<uint8_t> Raw1(16);
+    EXPECT_TRUE(Ctx.arrayOutputPull(ArrayOutputHandle, Raw1));
+    EXPECT_EQ(Raw1,
+              (std::vector<uint8_t>{Raw.begin(), Raw.begin() + Raw1.size()}));
+
+    std::vector<uint8_t> Raw2(16);
+    EXPECT_TRUE(Ctx.arrayOutputPull(ArrayOutputHandle, Raw2));
+    EXPECT_EQ(Raw2,
+              (std::vector<uint8_t>{Raw.begin() + Raw1.size(), Raw.end()}));
+  }
+}
 
 TEST(WasiCryptoTest, Hash) {
 
@@ -34,7 +59,8 @@ TEST(WasiCryptoTest, Hash) {
                                             std::nullopt, std::nullopt)
                          .value();
   EXPECT_TRUE(Ctx.symmetricStateAbsorb(StateHandle, "data"_u8).has_value());
-  EXPECT_TRUE(Ctx.symmetricStateAbsorb(StateHandle, "more_data"_u8).has_value());
+  EXPECT_TRUE(
+      Ctx.symmetricStateAbsorb(StateHandle, "more_data"_u8).has_value());
 
   std::array<uint8_t, 32> Out;
   Ctx.symmetricStateSqueeze(StateHandle, Out);
@@ -44,8 +70,9 @@ TEST(WasiCryptoTest, Hash) {
                                       84,  228, 225, 56,  160, 194, 9,   35,
                                       249, 169, 16,  98,  162, 127, 87,  182};
   EXPECT_EQ(Out, Expected);
-  
-  EXPECT_TRUE(Ctx.symmetricStateAbsorb(StateHandle, "more_data"_u8).has_value());
+
+  EXPECT_TRUE(
+      Ctx.symmetricStateAbsorb(StateHandle, "more_data"_u8).has_value());
   EXPECT_TRUE(Ctx.symmetricStateClose(StateHandle));
 }
 

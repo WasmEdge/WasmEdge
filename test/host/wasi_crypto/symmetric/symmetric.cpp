@@ -11,6 +11,45 @@
 
 using namespace WasmEdge::Host::WASICrypto;
 using namespace std::literals;
+namespace {
+/// generate a 32 size array output
+__wasi_array_output_t generateArrayOutputHandle(WasiCryptoContext &Ctx) {
+  auto Raw =
+      "d75a980182b10ab7d54bfed3c964073a0ee172f3daa62325af021a68f707511a"_u8v;
+
+  return Ctx
+      .publickeyExport(Ctx.publickeyImport(__WASI_ALGORITHM_TYPE_SIGNATURES,
+                                           "Ed25519"sv, Raw,
+                                           __WASI_PUBLICKEY_ENCODING_RAW)
+                           .value(),
+                       __WASI_PUBLICKEY_ENCODING_RAW)
+      .value();
+}
+} // namespace
+
+TEST(WasiCryptoTest, Arrayoutput) {
+  WasiCryptoContext Ctx;
+
+  // normally pull out
+  auto ArrayOutputHandle = generateArrayOutputHandle(Ctx);
+  std::vector<uint8_t> Raw(32);
+  EXPECT_TRUE(Ctx.arrayOutputPull(ArrayOutputHandle, Raw));
+
+  {
+    // Multiple calls pull test
+    auto ArrayOutputHandle = generateArrayOutputHandle(Ctx);
+
+    std::vector<uint8_t> Raw1(16);
+    EXPECT_TRUE(Ctx.arrayOutputPull(ArrayOutputHandle, Raw1));
+    EXPECT_EQ(Raw1,
+              (std::vector<uint8_t>{Raw.begin(), Raw.begin() + Raw1.size()}));
+
+    std::vector<uint8_t> Raw2(16);
+    EXPECT_TRUE(Ctx.arrayOutputPull(ArrayOutputHandle, Raw2));
+    EXPECT_EQ(Raw2,
+              (std::vector<uint8_t>{Raw.begin() + Raw1.size(), Raw.end()}));
+  }
+}
 
 TEST(WasiCryptoTest, Hash) {
 

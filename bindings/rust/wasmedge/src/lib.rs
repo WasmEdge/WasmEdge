@@ -14,3 +14,9 @@ pub use instance::{
 pub use store::Store;
 pub use vm::{Vm, VmBuilder};
 pub use wasmedge_sys::types::*;
+
+pub trait Engine {
+    fn register_wasm_from_module(&mut self);
+    fn register_wasm_from_import(&mut self, import_obj: &mut ImportObj);
+    fn run_func(&self);
+}

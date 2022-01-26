@@ -875,9 +875,11 @@ WasiExpect<INode> INode::sockOpen(__wasi_address_family_t AddressFamily,
 
   if (auto NewFd = ::socket(SysDomain, SysType, SysProtocol);
       unlikely(NewFd < 0)) {
+    close(NewFd);
     return WasiUnexpect(fromErrNo(errno));
   } else {
     INode New(NewFd);
+    close(NewFd);
     return New;
   }
 }

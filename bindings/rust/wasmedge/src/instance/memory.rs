@@ -1,4 +1,4 @@
-use crate::{error::WasmEdgeResult, wasmedge};
+use crate::{error::WasmEdgeResult, wasmedge, ImportObj};
 
 #[derive(Debug)]
 pub struct Memory {
@@ -7,20 +7,22 @@ pub struct Memory {
     pub(crate) mod_name: Option<String>,
 }
 impl Memory {
-    pub fn new(ty: MemoryType) -> WasmEdgeResult<Self> {
+    pub fn new_and_join(
+        import: &mut ImportObj,
+        name: impl AsRef<str>,
+        ty: MemoryType,
+    ) -> WasmEdgeResult<()> {
         let min = ty.minimum();
         let max = match ty.maximum() {
             Some(max) => max,
             None => u32::MAX,
         };
         let mut ty = wasmedge::MemType::create(min..=max)?;
-        let inner = wasmedge::Memory::create(&mut ty)?;
+        let mut inner = wasmedge::Memory::create(&mut ty)?;
 
-        Ok(Self {
-            inner,
-            name: None,
-            mod_name: None,
-        })
+        import.inner.add_memory(name.as_ref(), &mut inner);
+
+        Ok(())
     }
 
     pub fn name(&self) -> Option<&str> {

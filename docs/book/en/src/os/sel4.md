@@ -1,6 +1,5 @@
 # WasmEdge on seL4
 
-
 [Video demo](https://youtu.be/2Qu-Trtkspk) | [Build logs](https://github.com/second-state/wasmedge-seL4/runs/3982081148?check_suite_focus=true) | [Build artifact](https://github.com/second-state/wasmedge-seL4/actions/runs/1374510169)
 
 In this article, we demonstrate how to run WasmEdge on the seL4 RTOS, there are two parts:
@@ -19,6 +18,7 @@ This demo is based on the seL4 simulator on Linux.
 ### System requirements
 
 Hardware:
+
 - at least 4GB of RAM
 - at least 20GB of disk storage (the wasmedge_sel4 directory will contain over 11 GB of data after the following installation completes) 
 
@@ -37,12 +37,12 @@ $ docker run --rm -v $(pwd):/app -it wasmedge/sel4_build
 Use our all-in-one build script:
 
 ```bash
-wget -qO- https://raw.githubusercontent.com/second-state/wasmedge-seL4/main/build.sh | bash
+$ wget -qO- https://raw.githubusercontent.com/second-state/wasmedge-seL4/main/build.sh | bash
 ```
 
 And this will clone and build our wasmedge on seL4 to an image.
 
-After finishing the build script, you will have a folder `sel4_wasmedge`. 
+After finishing the build script, you will have a folder `sel4_wasmedge`.
 
 If this automatic installation completed successfully, skip over the manual installation information and proceed to [boot wasmedge-sel4](https://github.com/second-state/wasmedge-seL4#boot-wasmedge-sel4)
 
@@ -53,30 +53,33 @@ The above all-in-one script will work in most cases. However, if your system res
 Manually fetch the `wasmedge-sel4 repository.
 
 ```bash
-cd ~
-git clone https://github.com/second-state/wasmedge-seL4.git
-cd wasmedge-seL4
+$ cd ~
+$ git clone https://github.com/second-state/wasmedge-seL4.git
+$ cd wasmedge-seL4
 ```
 
 Manually edit the `build.sh` file.
 
 ```bash
-vi build.sh
+$ vi build.sh
 ```
 
 Add the following `-j` parameter to the last line of the file i.e.
+
 ```bash
-ninja -j 2
+$ ninja -j 2
 ```
 
 Make the `build.sh` file executable.
+
 ```bash
-sudo chmod a+x build.sh
+$ sudo chmod a+x build.sh
 ```
 
 Run the edited `build.sh file.
+
 ```bash
-./build.sh
+$ ./build.sh
 ```
 
 Once this manual installation is complete, follow along with the following steps; boot wasmedge-sel4
@@ -84,14 +87,14 @@ Once this manual installation is complete, follow along with the following steps
 ### Boot wasmedge-seL4
 
 ```bash
-cd sel4_wasmedge/build
-./simulate
+$ cd sel4_wasmedge/build
+$ ./simulate
 ```
 
 Expected output:
 
 ```bash
-./simulate: qemu-system-aarch64 -machine virt,virtualization=on,highmem=off,secure=off -cpu cortex-a53 -nographic  -m size=2048  -kernel images/capdl-loader-image-arm-qemu-arm-virt
+$ ./simulate: qemu-system-aarch64 -machine virt,virtualization=on,highmem=off,secure=off -cpu cortex-a53 -nographic  -m size=2048  -kernel images/capdl-loader-image-arm-qemu-arm-virt
 ELF-loader started on CPU: ARM Ltd. Cortex-A53 r0p4
   paddr=[6abd8000..750cf0af]
 No DTB passed in from boot loader.
@@ -155,7 +158,7 @@ buildroot login: root
 Run nbody simulation.
 
 ```bash
-wasmedge_emit /usr/bin/nbody-c.wasm 10
+$ wasmedge_emit /usr/bin/nbody-c.wasm 10
 ```
 
 Expected output:
@@ -172,7 +175,7 @@ Expected output:
 Run an easy application to print `hello, sel4` and a simple calculation.
 
 ```bash
-wasmedge_emit /usr/bin/hello.wasm
+$ wasmedge_emit /usr/bin/hello.wasm
 ```
 
 Expected output:

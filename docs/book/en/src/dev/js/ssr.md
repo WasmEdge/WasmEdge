@@ -1,17 +1,11 @@
 # React SSR
 
-[React Server-Side Rendering (SSR)](https://medium.com/jspoint/a-beginners-guide-to-react-server-side-rendering-ssr-bf3853841d55)
-is a common use of JavaScript in BFF (backend for frontend) functions. 
-Instead of rending HTML DOM elements in the browser, 
-it uses the React framework
-to render HTML elements from the server side to 
-speed up the application. It is an ideal use case for serverless functions
-in [Jamstack](https://jamstack.org/) applications.
+[React Server-Side Rendering (SSR)](https://medium.com/jspoint/a-beginners-guide-to-react-server-side-rendering-ssr-bf3853841d55) is a common use of JavaScript in BFF (backend for frontend) functions.
+Instead of rending HTML DOM elements in the browser, it uses the React framework to render HTML elements from the server side to speed up the application.
+It is an ideal use case for serverless functions in [Jamstack](https://jamstack.org/) applications.
 
-In this article, we will show you how to use the WasmEdge QuickJS runtime
-to implement a React SSR function. Compared with the Docker + Linux + nodejs + v8 approach, WasmEdge is much lighter (1% of the footprint) and safer,
-provides better resource isolation and management,
-and has similar non-JIT (safe) performance.
+In this article, we will show you how to use the WasmEdge QuickJS runtime to implement a React SSR function.
+Compared with the Docker + Linux + nodejs + v8 approach, WasmEdge is much lighter (1% of the footprint) and safer, provides better resource isolation and management, and has similar non-JIT (safe) performance.
 
 We will cover both static and streaming rendering in this article. Static rendering is easy to understand and implement. Streaming rendering, on the other hand, provides much better user experience since the user can see partial results while waiting in front of the browser.
 
@@ -19,13 +13,11 @@ We will cover both static and streaming rendering in this article. Static render
 
 The [example_js/react_ssr](https://github.com/second-state/wasmedge-quickjs/tree/main/example_js/react_ssr) folder in the GitHub repo contains the example's source code. It showcases how to compose HTML templates and render them into an HTML string in a JavaScript app running in WasmEdge.
 
-The [component/Home.jsx](https://github.com/second-state/wasmedge-quickjs/blob/main/example_js/react_ssr/component/Home.jsx)
-file is the main page template in React.
+The [component/Home.jsx](https://github.com/second-state/wasmedge-quickjs/blob/main/example_js/react_ssr/component/Home.jsx) file is the main page template in React.
 
 ```javascript
 import React from 'react';
 import Page from './Page.jsx';
-
 class Home extends React.Component {
   render() {
     const { dataList = [] } = this.props;
@@ -36,34 +28,31 @@ class Home extends React.Component {
       </div>
     );
   }
-}
+};
 
 export default Home;
 ```
 
-The `Home.jpx` template includes a [Page.jpx](https://github.com/second-state/wasmedge-quickjs/blob/main/example_js/react_ssr/component/Page.jsx)
-template for part of the page.
+The `Home.jpx` template includes a [Page.jpx](https://github.com/second-state/wasmedge-quickjs/blob/main/example_js/react_ssr/component/Page.jsx) template for part of the page.
 
 ```javascript
 import React from 'react';
 
 class Page extends React.Component {
-
   render() {
     const { dataList = [] } = this.props;
     return (
       <div>
         <div>This is page</div>
       </div>
-    )
+    );
   }
-}
+};
 
 export default Page;
 ```
 
-The [main.js](https://github.com/second-state/wasmedge-quickjs/blob/main/example_js/react_ssr/main.js)
-file calls React to render the templates into HTML.
+The [main.js](https://github.com/second-state/wasmedge-quickjs/blob/main/example_js/react_ssr/main.js) file calls React to render the templates into HTML.
 
 ```javascript
 import React from 'react';
@@ -75,97 +64,91 @@ const content = renderToString(React.createElement(Home));
 console.log(content);
 ```
 
-The [rollup.config.js](https://github.com/second-state/wasmedge-quickjs/blob/main/example_js/react_ssr/rollup.config.js)
-and [package.json](https://github.com/second-state/wasmedge-quickjs/blob/main/example_js/react_ssr/package.json)
-files are to build the React SSR dependencies and components into a bundled JavaScript file
-for WasmEdge. You should use the `npm` command to build it.
+The [rollup.config.js](https://github.com/second-state/wasmedge-quickjs/blob/main/example_js/react_ssr/rollup.config.js) and [package.json](https://github.com/second-state/wasmedge-quickjs/blob/main/example_js/react_ssr/package.json) files are to build the React SSR dependencies and components into a bundled JavaScript file for WasmEdge. You should use the `npm` command to build it.
 The output is in the `dist/main.js` file.
 
-```
+```bash
 $ npm install
 $ npm run build
 ```
 
 To run the example, do the following on the CLI. You can see that the templates are successfully composed into an HTML string.
 
-```
+```bash
 $ cd example_js/react_ssr
 $ wasmedge --dir .:. ../../target/wasm32-wasi/release/wasmedge_quickjs.wasm dist/main.js
 <div data-reactroot=""><div>This is home</div><div><div>This is page</div></div></div>
 ```
 
->  Note: the `--dir .:.` on the command line is to give wasmedge permission to read the local directory in the file system for the `dist/main.js` file.
+> Note: the `--dir .:.` on the command line is to give wasmedge permission to read the local directory in the file system for the `dist/main.js` file.
 
 ## Streaming rendering
 
 The [example_js/react_ssr_stream](https://github.com/second-state/wasmedge-quickjs/tree/main/example_js/react_ssr_stream) folder in the GitHub repo contains the example's source code. It showcases how to streaming render an HTML string from templates in a JavaScript app running in WasmEdge.
 
-The [component/LazyHome.jsx](https://github.com/second-state/wasmedge-quickjs/blob/main/example_js/react_ssr_stream/component/LazyHome.jsx)
-file is the main page template in React. It "lazy" loads the inner page template after a 2s delay once the outer HTML is rendered and returned to the user.
+The [component/LazyHome.jsx](https://github.com/second-state/wasmedge-quickjs/blob/main/example_js/react_ssr_stream/component/LazyHome.jsx) file is the main page template in React. It "lazy" loads the inner page template after a 2s delay once the outer HTML is rendered and returned to the user.
 
 ```javascript
-import React, { Suspense } from 'react'
+import React, { Suspense } from 'react';
 
 async function sleep(ms) {
-    return new Promise((r, _) => {
-        setTimeout(() => r(), ms)
-    })
+  return new Promise((r, _) => {
+    setTimeout(() => r(), ms)
+  });
 }
 
 async function loadLazyPage() {
-    await sleep(2000)
-    return await import('./LazyPage.jsx')
+  await sleep(2000);
+  return await import('./LazyPage.jsx');
 }
 
 class LazyHome extends React.Component {
-    render() {
-        let LazyPage1 = React.lazy(() => loadLazyPage())
-        return (
-            <html lang="en">
-            <head>
-                <meta charSet="utf-8" />
-                <title>Title</title>
-            </head>
-            <body>
-                <div>
-                    <div> This is LazyHome </div>
-                    <Suspense fallback={<div> loading... </div>}>
-                        <LazyPage1 />
-                    </Suspense>
-                </div>
-            </body>
-            </html>
-        )
-    }
+  render() {
+    let LazyPage1 = React.lazy(() => loadLazyPage());
+    return (
+      <html lang="en">
+        <head>
+          <meta charSet="utf-8" />
+          <title>Title</title>
+        </head>
+        <body>
+          <div>
+            <div> This is LazyHome </div>
+            <Suspense fallback={<div> loading... </div>}>
+              <LazyPage1 />
+            </Suspense>
+          </div>
+        </body>
+      </html>
+    );
+  }
 }
 
-export default LazyHome
+export default LazyHome;
 ```
 
-The [LazyPage.jsx](https://github.com/second-state/wasmedge-quickjs/blob/main/example_js/react_ssr_stream/component/LazyPage.jsx) is the inner page
-template. It is rendered 2s after the outer page is already returned to the user.
+The [LazyPage.jsx](https://github.com/second-state/wasmedge-quickjs/blob/main/example_js/react_ssr_stream/component/LazyPage.jsx) is the inner page template. It is rendered 2s after the outer page is already returned to the user.
 
 ```javascript
-import React from 'react'
+import React from 'react';
 
-class LazyPage extends React.Component{
-    render(){
-        return(
-            <div>
-                <div>
-                    This is lazy page
-                </div>
-            </div>
-        )
-    }
+class LazyPage extends React.Component {
+  render() {
+    return (
+      <div>
+        <div>
+          This is lazy page
+        </div>
+      </div>
+    );
+  }
 }
 
-export default LazyPage
+export default LazyPage;
 ```
 
 The [main.mjs](https://github.com/second-state/wasmedge-quickjs/blob/main/example_js/react_ssr_stream/main.mjs)
-file starts a asynchronous HTTP server, and then renders the HTML page in multiple chuncks to the response. When a HTTP request comes in, the `handle_client()`
-function is called to render the HTML and to send back the results through the stream.
+file starts a asynchronous HTTP server, and then renders the HTML page in multiple chuncks to the response. When a HTTP request comes in, the `handle_client()` function is called to render the HTML and to send back the results through the stream.
 
 ```javascript
 import * as React from 'react';
@@ -195,33 +178,30 @@ async function server_start() {
 server_start();
 ```
 
-The [rollup.config.js](https://github.com/second-state/wasmedge-quickjs/blob/main/example_js/react_ssr_stream/rollup.config.js)
-and [package.json](https://github.com/second-state/wasmedge-quickjs/blob/main/example_js/react_ssr_stream/package.json)
-files are to build the React SSR dependencies and components into a bundled JavaScript file
-for WasmEdge. You should use the `npm` command to build it.
+The [rollup.config.js](https://github.com/second-state/wasmedge-quickjs/blob/main/example_js/react_ssr_stream/rollup.config.js) and [package.json](https://github.com/second-state/wasmedge-quickjs/blob/main/example_js/react_ssr_stream/package.json) files are to build the React SSR dependencies and components into a bundled JavaScript file for WasmEdge. You should use the `npm` command to build it.
 The output is in the `dist/main.mjs` file.
 
-```
+```bash
 $ npm install
 $ npm run build
 ```
 
 To run the example, do the following on the CLI to start the server.
 
-```shell
+```bash
 $ cd example_js/react_ssr_stream
 $ nohup wasmedge --dir .:. ../../target/wasm32-wasi/release/wasmedge_quickjs.wasm dist/main.mjs &
 ```
 
 Send the server a HTTP request via `curl` or the browser.
 
-```shell
+```bash
 $ curl http://localhost:8001
 ```
 
 The results are as follows. The service first returns an HTML page with an empty inner section (i.e., the `loading` section), and then 2s later, the HTML content for the inner section and the JavaScript to display it.
 
-```
+```bash
   % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
                                  Dload  Upload   Total   Spent    Left  Speed
 

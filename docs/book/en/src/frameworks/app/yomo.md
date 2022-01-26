@@ -1,16 +1,10 @@
 # YoMo
 
-
-
 [YoMo](https://yomo.run/) is a programming framework enabling developers to build a distributed cloud system (Geo-Distributed Cloud System). YoMo's communication layer is made on top of the QUIC protocol, which brings high-speed data transmission. In addition, it has a built-in Streaming Serverless "streaming function", which significantly improves the development experience of distributed cloud systems. The distributed cloud system built by YoMo provides an ultra-high-speed communication mechanism between near-field computing power and terminals. It has a wide range of use cases in Metaverse, VR/AR, IoT, etc.
-
 
 > YoMo is written in the Go language. For streaming Serverless, Golang plugins and shared libraries are used to load users' code dynamically, which also have certain limitations for developers. Coupled with Serverless architecture's rigid demand for isolation, this makes WebAssembly an excellent choice for running user-defined functions.
 
-
-
 For example, in the process of real-time AI inference in AR/VR devices or smart factories, the camera sends real-time unstructured data to the computing node in the near-field MEC (multi-access edge computing) device through YoMo.  YoMo sends the AI computing result to the end device in real-time when the AI inference is completed. Thus, the hosted AI inference function will be automatically executed.  
-
 
 However, a challenge for YoMo is to incorporate and manage handler functions written by multiple outside developers in an edge computing node. It requires runtime isolation for those functions without sacrificing performance. Traditional software container solutions, such as Docker, are not up to the task. They are too heavy and slow to handle real-time tasks.
 
@@ -22,39 +16,31 @@ In this article, we will show you how to create a Rust function for Tensorflow-b
 
 Checkout [the WasmEdge image classification function in action in YoMo](https://www.youtube.com/watch?v=E0ltsn6cLIU)
 
-
 ## Prerequisite
 
 Obviously, you will need to have [Golang installed](https://golang.org/doc/install), but I will assume you already did.
 
-
 > Golang version should be newer than 1.15 for our example to work.
-
 
 You also need to install the YoMo CLI application. It orchestrates and coordinates data streaming and handler function invocations. 
 
-
-```
+```bash
 $ go install github.com/yomorun/cli/yomo@latest
 $ yomo version
 YoMo CLI version: v0.1.3
 ```
 
-
 Next, please install the WasmEdge and its Tensorflow shared libraries. [WasmEdge](https://wasmedge.org/) is a leading WebAssembly runtime hosted by the CNCF. We will use it to embed and run WebAssembly programs from YoMo.
 
-
-```
+```bash
 $ wget -qO- https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh | bash -s -- -e all -p /usr/local
 ```
-
 
 Finally, since our demo WebAssembly functions are written in Rust, you will also need a [Rust compiler](https://www.rust-lang.org/tools/install).
 
 For the rest of the demo, fork and clone the [source code repository](https://github.com/yomorun/yomo-wasmedge-tensorflow).
 
-
-```
+```bash
 $ git clone https://github.com/yomorun/yomo-wasmedge-tensorflow.git
 ```
 
@@ -62,8 +48,7 @@ $ git clone https://github.com/yomorun/yomo-wasmedge-tensorflow.git
 
 The [image classification function](https://github.com/yomorun/yomo-wasmedge-tensorflow/tree/main/flow/rust_mobilenet_food) to process the YoMo image stream is written in Rust. It utilizes the WasmEdge Tensorflow API to process an input image.
 
-
-```
+```rust
 #[wasmedge_bindgen]
 pub fn infer(image_data: Vec<u8>) -> Result<Vec<u8>, String> {
     let start = Instant::now();
@@ -132,7 +117,7 @@ pub fn infer(image_data: Vec<u8>) -> Result<Vec<u8>, String> {
 
 You should add `wasm32-wasi` target to rust to compile this function into WebAssembly bytecode. 
 
-```
+```bash
 $ rustup target add wasm32-wasi
 
 $ cd flow/rust_mobilenet_food
@@ -145,122 +130,121 @@ $ cp target/wasm32-wasi/release/rust_mobilenet_food_lib.wasm ../
 
 To release the best performance of WasmEdge, you should enable the AOT mode by compiling the `.wasm` file to the `.so`.
 
-```
+```bash
 $ wasmedgec rust_mobilenet_food_lib.wasm rust_mobilenet_food_lib.so
 ```
-
 
 ## Integration with YoMo
 
 On the YoMo side, we use the WasmEdge Golang API to start and run WasmEdge VM for the image classification function. The [app.go](https://github.com/yomorun/yomo-wasmedge-tensorflow/blob/main/flow/app.go) file in the source code project is as follows. 
 
-```
+```go
 package main
 
 import (
-	"crypto/sha1"
-	"fmt"
-	"log"
-	"os"
-	"sync/atomic"
+    "crypto/sha1"
+    "fmt"
+    "log"
+    "os"
+    "sync/atomic"
 
-	"github.com/second-state/WasmEdge-go/wasmedge"
-	bindgen "github.com/second-state/wasmedge-bindgen/host/go"
-	"github.com/yomorun/yomo"
+    "github.com/second-state/WasmEdge-go/wasmedge"
+    bindgen "github.com/second-state/wasmedge-bindgen/host/go"
+    "github.com/yomorun/yomo"
 )
 
 var (
-	counter uint64
+    counter uint64
 )
 
 const ImageDataKey = 0x10
 
 func main() {
-	// Connect to Zipper service
-	sfn := yomo.NewStreamFunction("image-recognition", yomo.WithZipperAddr("localhost:9900"))
-	defer sfn.Close()
+    // Connect to Zipper service
+    sfn := yomo.NewStreamFunction("image-recognition", yomo.WithZipperAddr("localhost:9900"))
+    defer sfn.Close()
 
-	// set only monitoring data
-	sfn.SetObserveDataID(ImageDataKey)
+    // set only monitoring data
+    sfn.SetObserveDataID(ImageDataKey)
 
-	// set handler
-	sfn.SetHandler(Handler)
+    // set handler
+    sfn.SetHandler(Handler)
 
-	// start
-	err := sfn.Connect()
-	if err != nil {
-		log.Print("❌ Connect to zipper failure: ", err)
-		os.Exit(1)
-	}
+    // start
+    err := sfn.Connect()
+    if err != nil {
+        log.Print("❌ Connect to zipper failure: ", err)
+        os.Exit(1)
+    }
 
-	select {}
+    select {}
 }
 
 // Handler process the data in the stream
 func Handler(img []byte) (byte, []byte) {
-	// Initialize WasmEdge's VM
-	vmConf, vm := initVM()
-	bg := bindgen.Instantiate(vm)
-	defer bg.Release()
-	defer vm.Release()
-	defer vmConf.Release()
+    // Initialize WasmEdge's VM
+    vmConf, vm := initVM()
+    bg := bindgen.Instantiate(vm)
+    defer bg.Release()
+    defer vm.Release()
+    defer vmConf.Release()
 
-	// recognize the image
-	res, err := bg.Execute("infer", img)
-	if err == nil {
-		fmt.Println("GO: Run bindgen -- infer:", string(res))
-	} else {
-		fmt.Println("GO: Run bindgen -- infer FAILED")
-	}
+    // recognize the image
+    res, err := bg.Execute("infer", img)
+    if err == nil {
+        fmt.Println("GO: Run bindgen -- infer:", string(res))
+    } else {
+        fmt.Println("GO: Run bindgen -- infer FAILED")
+    }
 
-	// print logs
-	hash := genSha1(img)
-	log.Printf("✅ received image-%d hash %v, img_size=%d \n", atomic.AddUint64(&counter, 1), hash, len(img))
+    // print logs
+    hash := genSha1(img)
+    log.Printf("✅ received image-%d hash %v, img_size=%d \n", atomic.AddUint64(&counter, 1), hash, len(img))
 
-	return 0x11, nil
+    return 0x11, nil
 }
 
 // genSha1 generate the hash value of the image
 func genSha1(buf []byte) string {
-	h := sha1.New()
-	h.Write(buf)
-	return fmt.Sprintf("%x", h.Sum(nil))
+    h := sha1.New()
+    h.Write(buf)
+    return fmt.Sprintf("%x", h.Sum(nil))
 }
 
 // initVM initialize WasmEdge's VM
 func initVM() (*wasmedge.Configure, *wasmedge.VM) {
-	wasmedge.SetLogErrorLevel()
-	/// Set Tensorflow not to print debug info
-	os.Setenv("TF_CPP_MIN_LOG_LEVEL", "3")
-	os.Setenv("TF_CPP_MIN_VLOG_LEVEL", "3")
+    wasmedge.SetLogErrorLevel()
+    /// Set Tensorflow not to print debug info
+    os.Setenv("TF_CPP_MIN_LOG_LEVEL", "3")
+    os.Setenv("TF_CPP_MIN_VLOG_LEVEL", "3")
 
-	/// Create configure
-	vmConf := wasmedge.NewConfigure(wasmedge.WASI)
+    /// Create configure
+    vmConf := wasmedge.NewConfigure(wasmedge.WASI)
 
-	/// Create VM with configure
-	vm := wasmedge.NewVMWithConfig(vmConf)
+    /// Create VM with configure
+    vm := wasmedge.NewVMWithConfig(vmConf)
 
-	/// Init WASI
-	var wasi = vm.GetImportObject(wasmedge.WASI)
-	wasi.InitWasi(
-		os.Args[1:],     /// The args
-		os.Environ(),    /// The envs
-		[]string{".:."}, /// The mapping directories
-	)
+    /// Init WASI
+    var wasi = vm.GetImportObject(wasmedge.WASI)
+    wasi.InitWasi(
+        os.Args[1:],     /// The args
+        os.Environ(),    /// The envs
+        []string{".:."}, /// The mapping directories
+    )
 
-	/// Register WasmEdge-tensorflow and WasmEdge-image
-	var tfobj = wasmedge.NewTensorflowImportObject()
-	var tfliteobj = wasmedge.NewTensorflowLiteImportObject()
-	vm.RegisterImport(tfobj)
-	vm.RegisterImport(tfliteobj)
-	var imgobj = wasmedge.NewImageImportObject()
-	vm.RegisterImport(imgobj)
+    /// Register WasmEdge-tensorflow and WasmEdge-image
+    var tfobj = wasmedge.NewTensorflowImportObject()
+    var tfliteobj = wasmedge.NewTensorflowLiteImportObject()
+    vm.RegisterImport(tfobj)
+    vm.RegisterImport(tfliteobj)
+    var imgobj = wasmedge.NewImageImportObject()
+    vm.RegisterImport(imgobj)
 
-	/// Instantiate wasm
-	vm.LoadWasmFile("rust_mobilenet_food_lib.so")
-	vm.Validate()
+    /// Instantiate wasm
+    vm.LoadWasmFile("rust_mobilenet_food_lib.so")
+    vm.Validate()
 
-	return vmConf, vm
+    return vmConf, vm
 }
 ```
 
@@ -268,20 +252,20 @@ func initVM() (*wasmedge.Configure, *wasmedge.VM) {
 
 Finally, we can start YoMo and see the entire data processing pipeline in action. Start the YoMo CLI application from the project folder. The [yaml file](https://github.com/yomorun/yomo-wasmedge-tensorflow/blob/main/zipper/workflow.yaml) defines port YoMo should listen on and the workflow handler to trigger for incoming data.  Note that the flow name `image-recognition` matches the name in the aforementioned data handler [app.go](https://github.com/yomorun/yomo-wasmedge-tensorflow/blob/main/flow/app.go).
 
-```
+```bash
 $ yomo serve -c ./zipper/workflow.yaml
 ```
 
-Start the handler function by running the aforementioned [app.go](https://github.com/yomorun/yomo-wasmedge-tensorflow/blob/main/flow/app.go) program. 
+Start the handler function by running the aforementioned [app.go](https://github.com/yomorun/yomo-wasmedge-tensorflow/blob/main/flow/app.go) program.
 
-```
+```bash
 $ cd flow
 $ go run --tags "tensorflow image" app.go
 ```
 
 [Start a simulated data source](https://github.com/yomorun/yomo-wasmedge-tensorflow/blob/main/source/main.go) by sending a video to YoMo. The video is a series of image frames. The WasmEdge function in [app.go](https://github.com/yomorun/yomo-wasmedge-tensorflow/blob/main/flow/app.go) will be invoked against every image frame in the video.
 
-```
+```bash
 # Download a video file
 $ wget -P source 'https://github.com/yomorun/yomo-wasmedge-tensorflow/releases/download/v0.1.0/hot-dog.mp4'
 
@@ -289,7 +273,7 @@ $ wget -P source 'https://github.com/yomorun/yomo-wasmedge-tensorflow/releases/d
 $ go run ./source/main.go ./source/hot-dog.mp4
 ```
 
-You can see the output from the WasmEdge handler function in the console. It prints the names of the objects detected in each image frame in the video. 
+You can see the output from the WasmEdge handler function in the console. It prints the names of the objects detected in each image frame in the video.
 
 ## What's next
 

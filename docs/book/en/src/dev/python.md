@@ -6,13 +6,13 @@ There are already several different language implementations of the Python runti
 
 To compile RustPython, you should have the Rust toolchain installed on your machine. And `wasm32-wasi` platform support should be enabled.
 
-```
+```bash
 $ rustup target add wasm32-wasi
 ```
 
 Then you could use the following command to clone and compile RustPython:
 
-```
+```bash
 $ git clone https://github.com/RustPython/RustPython.git
 $ cd RustPython
 $ cargo build --release --target wasm32-wasi --features="freeze-stdlib"
@@ -24,7 +24,7 @@ $ cargo build --release --target wasm32-wasi --features="freeze-stdlib"
 
 WasmEdge supports compiling WebAssembly bytecode programs into native machine code for better performance. It is highly recommended to compile the RustPython to native machine code before running.
 
-```
+```bash
 $ wasmedgec ./target/wasm32-wasi/release/rustpython.wasm ./target/wasm32-wasi/release/rustpython.wasm
 ```
 
@@ -32,7 +32,7 @@ Since WasmEdge 0.9.0, the [universal Wasm binary format](https://wasmedge.org/bo
 
 ## Run
 
-```
+```bash
 $ wasmedge ./target/wasm32-wasi/release/rustpython.wasm
 ```
 
@@ -42,7 +42,6 @@ Then you could get a Python shell in WebAssembly!
 
 You can pre-open directories to let WASI programs have permission to read and write files stored on the real machine. The following command mounted the current working directory to the WASI virtual file system.
 
-```
+```bash
 $ wasmedge --dir .:. ./target/wasm32-wasi/release/rustpython.wasm
 ```
-

@@ -22,7 +22,7 @@
   * Windows
   * Microkernel and RTOS (e.g., the highly secure [seL4 microkernel](https://github.com/second-state/wasmedge-sel4))
 * Easy extensibility
-  * Build customized runtimes with native functions in [C](https://github.com/WasmEdge/WasmEdge/blob/master/docs/c_api.md#Host-Functions) or [GO](https://github.com/second-state/WasmEdge-go-examples/tree/master/go_ExternRef)
+  * Build customized runtimes with native functions in [C](../embed/c/ref.md#host-functions) or [GO](../embed/go/ref.md#host-functions)
 * Easy to embed into a host application
-  * Embed WasmEdge functions in [C](https://github.com/WasmEdge/WasmEdge/blob/master/docs/c_api_quick_start.md), [Go](https://www.secondstate.io/articles/extend-golang-app-with-webassembly-rust/), [Rust](https://github.com/WasmEdge/WasmEdge/tree/master/bindings/rust), [Node.js](https://www.secondstate.io/articles/getting-started-with-rust-function/) and Python host applications
+  * Embed WasmEdge functions in [C](../embed/c.md), [Go](https://www.secondstate.io/articles/extend-golang-app-with-webassembly-rust/), [Rust](https://github.com/WasmEdge/WasmEdge/tree/master/bindings/rust), [Node.js](https://www.secondstate.io/articles/getting-started-with-rust-function/) and Python host applications
   * Embedded function runtime for service mesh proxies (e.g., [proxy-wasm](https://github.com/proxy-wasm/proxy-wasm-cpp-host/pull/193) for Envoy and MOSN proxies)

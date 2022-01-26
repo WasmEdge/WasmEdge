@@ -7,11 +7,12 @@ KinD is a Kubernetes distribution that runs inside Docker and is well suited for
 As prerequisite we need to install KinD first. To do that the [quick start guide](https://kind.sigs.k8s.io/docs/user/quick-start/#installing-from-release-binaries) and the [release page](https://github.com/kubernetes-sigs/kind/releases) can be used to install the latest version of the KinD CLI.
 
 If KinD is installed we can directly start with the example from [here](https://github.com/Liquid-Reply/kind-crun-wasm):
+
 ```bash
 # Create a "WASM in KinD" Cluster
-kind create cluster --image ghcr.io/liquid-reply/kind-crun-wasm:v1.23.0
+$ kind create cluster --image ghcr.io/liquid-reply/kind-crun-wasm:v1.23.0
 # Run the example
-kubectl run -it --rm --restart=Never wasi-demo --image=hydai/wasm-wasi-example:with-wasm-annotation --annotations="module.wasm.image/variant=compat" /wasi_example_main.wasm 50000000
+$ kubectl run -it --rm --restart=Never wasi-demo --image=hydai/wasm-wasi-example:with-wasm-annotation --annotations="module.wasm.image/variant=compat" /wasi_example_main.wasm 50000000
 ```
 
 In the rest of this section, we will explain how to create a KinD node image with wasmedge support.
@@ -46,10 +47,12 @@ Both runc and crun implement the OCI runtime spec and they have the same CLI par
 Since crun is using some shared libraries we need to install libyajl, wasmedge and criu to make our crun work.
 
 Now we already have a KinD that uses crun instead of runc. Now we just need two config changes. The first one in the `/etc/containerd/config.toml` where we add the `pod_annotations`that can be passed to the runtime:
+
 ```toml
 [plugins."io.containerd.grpc.v1.cri".containerd.runtimes.runc]
   pod_annotations = ["*.wasm.*", "wasm.*", "module.wasm.image/*", "*.module.wasm.image", "module.wasm.image/variant.*"]
 ```
+
 And the second one to the `/etc/containerd/cri-base.json` where we remove a hook that causes some issues.
 
 The resulting dockerfile looks as follows:
@@ -73,8 +76,8 @@ RUN echo "Installing Packages ..." \
 Finally we can build a new `node-wasmedge` image. To test it, we create a kind cluster from that image and run the simple app example.
 
 ```bash
-docker build -t node-wasmedge .
-kind create cluster --image node-wasmedge
+$ docker build -t node-wasmedge .
+$ kind create cluster --image node-wasmedge
 # Now you can run the example to validate your cluster
-kubectl run -it --rm --restart=Never wasi-demo --image=hydai/wasm-wasi-example:with-wasm-annotation --annotations="module.wasm.image/variant=compat" /wasi_example_main.wasm 50000000
+$ kubectl run -it --rm --restart=Never wasi-demo --image=hydai/wasm-wasi-example:with-wasm-annotation --annotations="module.wasm.image/variant=compat" /wasi_example_main.wasm 50000000
 ```

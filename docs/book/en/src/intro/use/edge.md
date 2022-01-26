@@ -14,4 +14,3 @@ YoMo is a high-performance data streaming framework for far edge networks. WasmE
 seL4 is a highly secure real-time operating system. WasmEdge is the only WebAssembly runtime that can run on seL4, and it runs at native speed. We also provide a management tool to support the OTA deployment of wasm modules.
 
 * [Demo](https://github.com/second-state/wasmedge-seL4)
-

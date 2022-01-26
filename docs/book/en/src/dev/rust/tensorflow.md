@@ -15,7 +15,7 @@ The popular WebAssembly System Interface (WASI) provides a design pattern for sa
 
 ### Prerequisite
 
-You need to install [WasmEdge](https://github.com/WasmEdge/WasmEdge/blob/master/docs/install.md) and [Rust](https://www.rust-lang.org/tools/install).
+You need to install [WasmEdge](../../start/install.md) and [Rust](https://www.rust-lang.org/tools/install).
 
 ### Build
 
@@ -136,7 +136,7 @@ The following tutorials showcase how to deploy WebAssembly functions (written in
 
 ### Service mesh
 
-The following tutorials showcase how to deploy WebAssembly functions and programs (written in Rust) as sidecar microservices. 
+The following tutorials showcase how to deploy WebAssembly functions and programs (written in Rust) as sidecar microservices.
 
 * [The Dapr template](https://github.com/second-state/dapr-wasm) shows how to build and deploy Dapr sidecars in Go and Rust languages. The sidecars then use the WasmEdge SDK to start WebAssembly programs to process workloads to the microservices.
 
@@ -145,5 +145,3 @@ The following tutorials showcase how to deploy WebAssembly functions and program
 The following tutorials showcase how to deploy WebAssembly functions (written in Rust) as embedded handler functions in data streaming frameworks for AIoT.
 
 * [The YoMo template](https://www.secondstate.io/articles/yomo-wasmedge-real-time-data-streams/) starts the WasmEdge Runtime to process image data as the data streams in from a camera in a smart factory.
-
-

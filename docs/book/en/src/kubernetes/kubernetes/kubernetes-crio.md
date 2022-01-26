@@ -2,15 +2,13 @@
 
 ## Quick start
 
-The [GitHub repo](https://github.com/second-state/wasmedge-containers-examples/) contains scripts and Github Actions for running our example
-apps on Kubernetes + CRI-O.
+The [GitHub repo](https://github.com/second-state/wasmedge-containers-examples/) contains scripts and Github Actions for running our example apps on Kubernetes + CRI-O.
 
 * Simple WebAssembly example [Quick start](https://github.com/second-state/wasmedge-containers-examples/blob/main/kubernetes_crio/README.md) | [Github Actions](https://github.com/second-state/wasmedge-containers-examples/blob/main/.github/workflows/kubernetes-crio.yml) | [Successful run](https://github.com/second-state/wasmedge-containers-examples/runs/4328930134?check_suite_focus=true#step:6:3007)
 * WebAssembly-based HTTP service [Quick start](https://github.com/second-state/wasmedge-containers-examples/blob/main/kubernetes_crio/http_server/README.md) | [Github Actions](https://github.com/second-state/wasmedge-containers-examples/blob/main/.github/workflows/kubernetes-crio-server.yml) | [Successful run](https://github.com/second-state/wasmedge-containers-examples/runs/4577789182?check_suite_focus=true#step:6:3030)
 
 In the rest of this section, we will explain the steps in detail.
-We will assume that you have already [installed and configured CRI-O](../cri/crio.md)
-to work with WasmEdge container images.
+We will assume that you have already [installed and configured CRI-O](../cri/crio.md) to work with WasmEdge container images.
 
 ## Install and start Kubernetes
 
@@ -19,8 +17,8 @@ It sets up Kubernetes for local development.
 
 ```bash
 # Install go
-wget https://golang.org/dl/go1.17.1.linux-amd64.tar.gz
-sudo rm -rf /usr/local/go
+$ wget https://golang.org/dl/go1.17.1.linux-amd64.tar.gz
+$ sudo rm -rf /usr/local/go
 sudo tar -C /usr/local -xzf go1.17.1.linux-amd64.tar.gz
 source /home/${USER}/.profile
 
@@ -52,19 +50,19 @@ Finally, we can run WebAssembly programs in Kubernetes as containers in pods.
 In this section, we will start from **another terminal window** and start using the cluster.
 
 ```bash
-export KUBERNETES_PROVIDER=local
+$ export KUBERNETES_PROVIDER=local
 
-sudo cluster/kubectl.sh config set-cluster local --server=https://localhost:6443 --certificate-authority=/var/run/kubernetes/server-ca.crt
-sudo cluster/kubectl.sh config set-credentials myself --client-key=/var/run/kubernetes/client-admin.key --client-certificate=/var/run/kubernetes/client-admin.crt
-sudo cluster/kubectl.sh config set-context local --cluster=local --user=myself
-sudo cluster/kubectl.sh config use-context local
-sudo cluster/kubectl.sh
+$ sudo cluster/kubectl.sh config set-cluster local --server=https://localhost:6443 --certificate-authority=/var/run/kubernetes/server-ca.crt
+$ sudo cluster/kubectl.sh config set-credentials myself --client-key=/var/run/kubernetes/client-admin.key --client-certificate=/var/run/kubernetes/client-admin.crt
+$ sudo cluster/kubectl.sh config set-context local --cluster=local --user=myself
+$ sudo cluster/kubectl.sh config use-context local
+$ sudo cluster/kubectl.sh
 ```
 
 Let's check the status to make sure that the cluster is running.
 
 ```bash
-sudo cluster/kubectl.sh cluster-info
+$ sudo cluster/kubectl.sh cluster-info
 
 # Expected output
 Cluster "local" set.
@@ -79,12 +77,11 @@ To further debug and diagnose cluster problems, use 'kubectl cluster-info dump'.
 
 ### A simple WebAssembly app
 
-[A separate article](../demo/wasi.md) explains how to compile, package, and publish a simple WebAssembly WASI
-program as a container image to Docker hub.
+[A separate article](../demo/wasi.md) explains how to compile, package, and publish a simple WebAssembly WASI program as a container image to Docker hub.
 Run the WebAssembly-based image from Docker Hub in the Kubernetes cluster as follows.
 
 ```bash
-sudo cluster/kubectl.sh run -it --rm --restart=Never wasi-demo --image=hydai/wasm-wasi-example:with-wasm-annotation --annotations="module.wasm.image/variant=compat" /wasi_example_main.wasm 50000000
+$ sudo cluster/kubectl.sh run -it --rm --restart=Never wasi-demo --image=hydai/wasm-wasi-example:with-wasm-annotation --annotations="module.wasm.image/variant=compat" /wasi_example_main.wasm 50000000
 ```
 
 The output from the containerized application is printed into the console.
@@ -104,10 +101,8 @@ pod "wasi-demo-2" deleted
 
 ### A WebAssembly-based HTTP service
 
-[A separate article](../demo/server.md) explains how to compile, package, and publish a simple WebAssembly HTTP service application
-as a container image to Docker hub.
-Since the HTTP service container requires networking support provided by
-Kubernetes, we will use a [k8s-http_server.yaml](https://github.com/second-state/wasmedge-containers-examples/blob/main/kubernetes_crio/http_server/k8s-http_server.yaml) file to specify its exact configuration.
+[A separate article](../demo/server.md) explains how to compile, package, and publish a simple WebAssembly HTTP service application as a container image to Docker hub.
+Since the HTTP service container requires networking support provided by Kubernetes, we will use a [k8s-http_server.yaml](https://github.com/second-state/wasmedge-containers-examples/blob/main/kubernetes_crio/http_server/k8s-http_server.yaml) file to specify its exact configuration.
 
 ```yaml
 apiVersion: v1
@@ -131,20 +126,19 @@ spec:
         port: 1234
       initialDelaySeconds: 3
       periodSeconds: 30
-``` 
+```
 
 Run the WebAssembly-based image from Docker Hub using the above `k8s-http_server.yaml` file in the Kubernetes cluster as follows.
 
 ```bash
-sudo ./kubernetes/cluster/kubectl.sh apply -f k8s-http_server.yaml
+$ sudo ./kubernetes/cluster/kubectl.sh apply -f k8s-http_server.yaml
 ```
 
 Use the following command to see the running container applications and their IP addresses.
-Since we are using `hostNetwork` in the yaml configuration, the HTTP server 
-image is running on the local network with IP address `127.0.0.1`.
+Since we are using `hostNetwork` in the yaml configuration, the HTTP server image is running on the local network with IP address `127.0.0.1`.
 
 ```bash
-sudo cluster/kubectl.sh get pod --all-namespaces -o wide
+$ sudo cluster/kubectl.sh get pod --all-namespaces -o wide
 
 NAMESPACE     NAME                       READY   STATUS             RESTARTS      AGE   IP          NODE        NOMINATED NODE   READINESS GATES
 default       http-server                1/1     Running            1 (26s ago)     60s     127.0.0.1   127.0.0.1   <none>           <none>
@@ -153,7 +147,7 @@ default       http-server                1/1     Running            1 (26s ago) 
 Now, you can use the `curl` command to access the HTTP service.
 
 ```bash
-curl -d "name=WasmEdge" -X POST http://127.0.0.1:1234
+$ curl -d "name=WasmEdge" -X POST http://127.0.0.1:1234
 echo: name=WasmEdge
 ```
 

@@ -15,9 +15,8 @@ $ cd WasmEdge
 
 ## Requirements and Dependencies
 
-WasmEdge will try to use the latest LLVM release to create our nightly build. 
-If you want to build from source, you may need to install these dependencies 
-by yourself.
+WasmEdge will try to use the latest LLVM release to create our nightly build.
+If you want to build from source, you may need to install these dependencies by yourself.
 
 - Chocolatey, we use it to install cmake, ninja, and vswhere
 - Windows SDK 19041
@@ -97,4 +96,3 @@ cd -
 ## Run applications
 
 Next, follow [this guide](run.md) to run WebAssembly bytecode programs in `wasmedge`.
-

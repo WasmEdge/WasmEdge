@@ -20,20 +20,20 @@ In the sections below, we will explain the steps in the quick start scripts.
 Use the following commands to install CRI-O on your system.
 
 ```bash
-export OS="xUbuntu_20.04"
-export VERSION="1.21"
-apt update
-apt install -y libseccomp2 || sudo apt update -y libseccomp2
-echo "deb https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/$OS/ /" > /etc/apt/sources.list.d/devel:kubic:libcontainers:stable.list
-echo "deb https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable:/cri-o:/$VERSION/$OS/ /" > /etc/apt/sources.list.d/devel:kubic:libcontainers:stable:cri-o:$VERSION.list
+$ export OS="xUbuntu_20.04"
+$ export VERSION="1.21"
+$ apt update
+$ apt install -y libseccomp2 || sudo apt update -y libseccomp2
+$ echo "deb https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/$OS/ /" > /etc/apt/sources.list.d/devel:kubic:libcontainers:stable.list
+$ echo "deb https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable:/cri-o:/$VERSION/$OS/ /" > /etc/apt/sources.list.d/devel:kubic:libcontainers:stable:cri-o:$VERSION.list
 
-curl -L https://download.opensuse.org/repositories/devel:kubic:libcontainers:stable:cri-o:$VERSION/$OS/Release.key | apt-key add -
-curl -L https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/$OS/Release.key | apt-key add -
+$ curl -L https://download.opensuse.org/repositories/devel:kubic:libcontainers:stable:cri-o:$VERSION/$OS/Release.key | apt-key add -
+$ curl -L https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/$OS/Release.key | apt-key add -
 
-apt-get update
-apt-get install criu libyajl2
-apt-get install cri-o cri-o-runc cri-tools containernetworking-plugins
-systemctl start crio
+$ apt-get update
+$ apt-get install criu libyajl2
+$ apt-get install cri-o cri-o-runc cri-tools containernetworking-plugins
+$ systemctl start crio
 ```
 
 ## Configure CRI-O to use crun
@@ -45,14 +45,14 @@ That is done by adding to two configuration files.
 
 First, create a `/etc/crio/crio.conf` file and add the following lines as its content. It tells CRI-O to use `crun` by default.
 
-```
+```conf
 [crio.runtime]
 default_runtime = "crun"
 ```
 
 The `crun` runtime is in turn defined in the `/etc/crio/crio.conf.d/01-crio-runc.conf` file.
 
-```
+```conf
 [crio.runtime.runtimes.runc]
 runtime_path = "/usr/lib/cri-o-runc/sbin/runc"
 runtime_type = "oci"
@@ -69,7 +69,7 @@ runtime_root = "/run/crun"
 Next, restart CRI-O to apply the configuration changes.
 
 ```bash
-systemctl restart crio
+$ systemctl restart crio
 ```
 
 ## Run a simple WebAssembly app
@@ -81,7 +81,7 @@ In this section, we will start off pulling this WebAssembly-based container
 image from Docker hub using CRI-O tools.
 
 ```bash
-sudo crictl pull docker.io/hydai/wasm-wasi-example:with-wasm-annotation
+$ sudo crictl pull docker.io/hydai/wasm-wasi-example:with-wasm-annotation
 ```
 
 Next, we need to create two simple configuration files that specifies how
@@ -90,21 +90,21 @@ two files [container_wasi.json](https://github.com/second-state/wasmedge-contain
 You can just download them to your local directory as follows.
 
 ```bash
-wget https://raw.githubusercontent.com/second-state/wasmedge-containers-examples/main/crio/sandbox_config.json
-wget https://raw.githubusercontent.com/second-state/wasmedge-containers-examples/main/crio/container_wasi.json
+$ wget https://raw.githubusercontent.com/second-state/wasmedge-containers-examples/main/crio/sandbox_config.json
+$ wget https://raw.githubusercontent.com/second-state/wasmedge-containers-examples/main/crio/container_wasi.json
 ```
 
 Now you can use CRI-O to create a pod and a container using the specified configurations.
 
 ```bash
 # Create the POD. Output will be different from example.
-sudo crictl runp sandbox_config.json
+$ sudo crictl runp sandbox_config.json
 7992e75df00cc1cf4bff8bff660718139e3ad973c7180baceb9c84d074b516a4
 # Set a helper variable for later use.
-POD_ID=7992e75df00cc1cf4bff8bff660718139e3ad973c7180baceb9c84d074b516a4
+$ POD_ID=7992e75df00cc1cf4bff8bff660718139e3ad973c7180baceb9c84d074b516a4
 
 # Create the container instance. Output will be different from example.
-sudo crictl create $POD_ID container_wasi.json sandbox_config.json
+$ sudo crictl create $POD_ID container_wasi.json sandbox_config.json
 # Set a helper variable for later use.
 CONTAINER_ID=1d056e4a8a168f0c76af122d42c98510670255b16242e81f8e8bce8bd3a4476f
 ```
@@ -113,28 +113,27 @@ Starting the container would execute the WebAssembly program. You can see the ou
 
 ```bash
 # List the container, the state should be `Created`
-sudo crictl ps -a
-
+$ sudo crictl ps -a
 CONTAINER           IMAGE                                          CREATED              STATE               NAME                     ATTEMPT             POD ID
 1d056e4a8a168       hydai/wasm-wasi-example:with-wasm-annotation   About a minute ago   Created             podsandbox1-wasm-wasi   0                   7992e75df00cc
 
 # Start the container
-sudo crictl start $CONTAINER_ID
+$ sudo crictl start $CONTAINER_ID
 
 # Check the container status again.
 # If the container is not finishing its job, you will see the Running state
 # Because this example is very tiny. You may see Exited at this moment.
-sudo crictl ps -a
+$ sudo crictl ps -a
 CONTAINER           IMAGE                                          CREATED              STATE               NAME                     ATTEMPT             POD ID
 1d056e4a8a168       hydai/wasm-wasi-example:with-wasm-annotation   About a minute ago   Running             podsandbox1-wasm-wasi   0                   7992e75df00cc
 
 # When the container is finished. You can see the state becomes Exited.
-sudo crictl ps -a
+$ sudo crictl ps -a
 CONTAINER           IMAGE                                          CREATED              STATE               NAME                     ATTEMPT             POD ID
 1d056e4a8a168       hydai/wasm-wasi-example:with-wasm-annotation   About a minute ago   Exited              podsandbox1-wasm-wasi   0                   7992e75df00cc
 
 # Check the container's logs. It should show outputs from the WebAssembly programs
-sudo crictl logs $CONTAINER_ID
+$ sudo crictl logs $CONTAINER_ID
 
 Test 1: Print Random Number
 Random number: 960251471
@@ -175,7 +174,7 @@ In this section, we will start off pulling this WebAssembly-based container
 image from Docker hub using CRI-O tools.
 
 ```bash
-sudo crictl pull docker.io/avengermojo/http_server:with-wasm-annotation
+$ sudo crictl pull docker.io/avengermojo/http_server:with-wasm-annotation
 ```
 
 Next, we need to create two simple configuration files that specifies how
@@ -186,21 +185,21 @@ You can just download them to your local directory as follows.
 > The `sandbox_config.json` file is the same for the simple WASI example and the HTTP server example. The other `container_*.json` file is application specific as it contains the application's Docker Hub URL.
 
 ```bash
-wget https://raw.githubusercontent.com/second-state/wasmedge-containers-examples/main/crio/sandbox_config.json
-wget https://raw.githubusercontent.com/second-state/wasmedge-containers-examples/main/crio/http_server/container_http_server.json
+$ wget https://raw.githubusercontent.com/second-state/wasmedge-containers-examples/main/crio/sandbox_config.json
+$ wget https://raw.githubusercontent.com/second-state/wasmedge-containers-examples/main/crio/http_server/container_http_server.json
 ```
 
 Now you can use CRI-O to create a pod and a container using the specified configurations.
 
 ```bash
 # Create the POD. Output will be different from example.
-sudo crictl runp sandbox_config.json
+$ sudo crictl runp sandbox_config.json
 7992e75df00cc1cf4bff8bff660718139e3ad973c7180baceb9c84d074b516a4
 # Set a helper variable for later use.
-POD_ID=7992e75df00cc1cf4bff8bff660718139e3ad973c7180baceb9c84d074b516a4
+$ POD_ID=7992e75df00cc1cf4bff8bff660718139e3ad973c7180baceb9c84d074b516a4
 
 # Create the container instance. Output will be different from example.
-sudo crictl create $POD_ID container_http_server.json sandbox_config.json
+$ sudo crictl create $POD_ID container_http_server.json sandbox_config.json
 # Set a helper variable for later use.
 CONTAINER_ID=1d056e4a8a168f0c76af122d42c98510670255b16242e81f8e8bce8bd3a4476f
 ```
@@ -209,25 +208,25 @@ Starting the container would execute the WebAssembly program. You can see the ou
 
 ```bash
 # Start the container
-sudo crictl start $CONTAINER_ID
+$ sudo crictl start $CONTAINER_ID
 
 # Check the container status. It should be Running. 
 # If not, wait a few seconds and check again
-sudo crictl ps -a
+$ sudo crictl ps -a
 CONTAINER           IMAGE                                          CREATED                  STATE               NAME                ATTEMPT             POD ID
 4eeddf8613691       avengermojo/http_server:with-wasm-annotation   Less than a second ago   Running             http_server         0                   1d84f30e7012e
 
 # Check the container's logs to see the HTTP server is listening at port 1234
-sudo crictl logs $CONTAINER_ID
+$ sudo crictl logs $CONTAINER_ID
 new connection at 1234
 
 # Get the IP address assigned to the container
-sudo crictl inspect $CONTAINER_ID | grep IP.0 | cut -d: -f 2 | cut -d'"' -f 2
+$ sudo crictl inspect $CONTAINER_ID | grep IP.0 | cut -d: -f 2 | cut -d'"' -f 2
 10.85.0.2
 
 # Test the HTTP service at that IP address
-curl -d "name=WasmEdge" -X POST http://10.85.0.2:1234
+$ curl -d "name=WasmEdge" -X POST http://10.85.0.2:1234
 echo: name=WasmEdge
 ```
- 
+
 Next, you can try to run it in [Kubernetes](../kubernetes/kubernetes-crio.md)!

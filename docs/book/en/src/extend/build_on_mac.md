@@ -20,9 +20,8 @@ $ cd WasmEdge
 
 ## Requirements and Dependencies
 
-WasmEdge will try to use the latest LLVM release to create our nightly build. 
-If you want to build from source, you may need to install these dependencies 
-by yourself.
+WasmEdge will try to use the latest LLVM release to create our nightly build.
+If you want to build from source, you may need to install these dependencies by yourself.
 
 - LLVM 12.0.0 (>= 10.0.0), installed via brew, please don't use the built-in one.
 - Because the default version of LLVM on the latest brew is 13. Please use `llvm@12` to fix the LLVM version.
@@ -31,11 +30,11 @@ by yourself.
 
 ```bash
 # Tools and libraries
-brew install boost cmake ninja llvm@12
+$ brew install boost cmake ninja llvm@12
 # Use brew version of llvm, not the built-in one.
-export PATH="/usr/local/opt/llvm@12/bin:$PATH"
-export LDFLAGS="-L/usr/local/opt/llvm@12/lib -Wl,-rpath,/usr/local/opt/llvm@12/lib"
-export CPPFLAGS="-I/usr/local/opt/llvm@12/include"
+$ export PATH="/usr/local/opt/llvm@12/bin:$PATH"
+$ export LDFLAGS="-L/usr/local/opt/llvm@12/lib -Wl,-rpath,/usr/local/opt/llvm@12/lib"
+$ export CPPFLAGS="-I/usr/local/opt/llvm@12/include"
 ```
 
 ### If you don't want to build Ahead-of-Time runtime/compiler
@@ -63,8 +62,8 @@ After the build is finished, you can find there are several wasmedge related too
 	* To disable building the shared library only, you can set the CMake option `WASMEDGE_BUILD_SHARED_LIB` to `OFF`.
 
 ```bash
-cmake -Bbuild -GNinja -DWASMEDGE_BUILD_PACKAGE="TGZ" -DWASMEDGE_BUILD_TESTS=ON .
-cmake --build build
+$ cmake -Bbuild -GNinja -DWASMEDGE_BUILD_PACKAGE="TGZ" -DWASMEDGE_BUILD_TESTS=ON .
+$ cmake --build build
 ```
 
 ## Run built-in tests
@@ -74,8 +73,8 @@ The following built-in tests are only available when the build flag `WASMEDGE_BU
 Users can use these tests to verify the correctness of WasmEdge binaries.
 
 ```bash
-export DYLD_LIBRARY_PATH="$(pwd)/build/lib/api:$DYLD_LIBRARY_PATH"
-cmake --build build --target test
+$ export DYLD_LIBRARY_PATH="$(pwd)/build/lib/api:$DYLD_LIBRARY_PATH"
+$ cmake --build build --target test
 ```
 
 ## Run applications
@@ -90,4 +89,3 @@ The following tests can not pass on macos, we are investigating these issues:
 * wasmedgeAPIStepsCoreTests
 * wasmedgeAPIAOTCoreTests
 * wasmedgeProcessTests
-

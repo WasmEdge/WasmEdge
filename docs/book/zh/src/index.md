@@ -9,26 +9,30 @@
 你可以使用我们的一键安装脚本来安装 WasmEdge.
 你的系统必须预先安装 `git` 和 `curl`.
 
-```
-curl -sSf https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh | bash
+```bash
+$ curl -sSf https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh | bash
 ```
 
 如果你想要安装带有 [Tensorflow and image 运行插件](https://www.secondstate.io/articles/wasi-tensorflow/) 的 WasmEdge,
 请执行以下命令. 下列命令将试着在你的系统安装 Tensorflow and image 相关的依赖.
 
-```
-curl -sSf https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh | bash -s -- -e all
+```bash
+$ curl -sSf https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh | bash -s -- -e all
 ```
 
-运行这些指令会让那些安装好的可执行文件，在当前会话路径 `$HOME/.wasmedge/env` 被访问到.
+运行以下指令会让那些安装好的可执行文件，在当前会话路径 `$HOME/.wasmedge/env` 被访问到.
+
+```bash
+$ source $HOME/.wasmedge/env
+```
 
 ## 使用 Docker
 
 如果你使用 Docker, 你可以轻而易举的运行 WasmEdge 应用开发镜像([x86](https://hub.docker.com/repository/docker/wasmedge/appdev_x86_64) 和 [arm64](https://hub.docker.com/repository/docker/wasmedge/appdev_aarch64)). 那些镜像里包含了所有你开发 WasmEdge 程序所需要的工具.
 
-```
-docker pull wasmedge/appdev_x86_64:0.9.0
-docker run --rm -v $(pwd):/app -it wasmedge/appdev_x86_64:0.9.0
+```bash
+$ docker pull wasmedge/appdev_x86_64:0.9.0
+$ docker run --rm -v $(pwd):/app -it wasmedge/appdev_x86_64:0.9.0
 (docker) #
 ```
 
@@ -42,7 +46,7 @@ docker run --rm -v $(pwd):/app -it wasmedge/appdev_x86_64:0.9.0
 这里是它的 [Rust 源代码](https://github.com/second-state/wasm-learning/tree/master/cli/hello).
 它通过命令行传入参数, 并最先打印出 `hello`.
 
-```
+```bash
 $ wasmedge hello.wasm second state
 hello
 second
@@ -55,7 +59,7 @@ state
 这里是它的 [Rust 源代码](https://github.com/second-state/wasm-learning/tree/master/cli/add).
 我们使用 WasmEdge 的 reactor 模式来调用 `add()`, 并给它 2 个整型数字作为入参.
 
-```
+```bash
 $ wasmedge --reactor add.wasm add 2 2
 4
 ```
@@ -66,7 +70,7 @@ $ wasmedge --reactor add.wasm add 2 2
 它包含了一个 `fib()` 函数, 这个函数以一个整型数字作为入参. 我们使用 WasmEdge 的 reactor 模式来调用这个被导出的函数.
 
 
-```
+```bash
 $ wasmedge --reactor fibonacci.wasm fib 10
 89
 ```
@@ -134,7 +138,7 @@ WasmEdge 也可以作为一个高性能,安全,可扩展,易于部署,以及 [Ku
 [qjs.wasm](https://github.com/WasmEdge/WasmEdge/raw/master/tools/wasmedge/examples/js/qjs.wasm) 是一个被编译成 WebAssembly 的 JavaScript解释器.
 [hello.js](https://github.com/WasmEdge/WasmEdge/raw/master/tools/wasmedge/examples/js/hello.js) 是一个非常简单的 JavaScript 程序.
 
-```
+```bash
 $ wasmedge --dir .:. qjs.wasm hello.js 1 2 3
 Hello 1 2 3
 ```
@@ -143,7 +147,7 @@ Hello 1 2 3
 为了可以运行 [qjs_tf.wasm](https://github.com/WasmEdge/WasmEdge/raw/master/tools/wasmedge/examples/js/qjs_tf.wasm), 你必须使用 `wasmedge-tensorflow-lite` 这个CLI工具, 这个工具里内置了 WasmEdge with Tensorflow extension 的构建版本.
 你可以下载一个完整的 [Tensorflow-based JavaScript 示例](https://github.com/second-state/wasmedge-quickjs/tree/main/example_js/tensorflow_lite_demo) 来对图像进行分类.
 
-```
+```bash
 # Download the Tensorflow example
 $ wget https://raw.githubusercontent.com/second-state/wasmedge-quickjs/main/example_js/tensorflow_lite_demo/aiy_food_V1_labelmap.txt
 $ wget https://raw.githubusercontent.com/second-state/wasmedge-quickjs/main/example_js/tensorflow_lite_demo/food.jpg

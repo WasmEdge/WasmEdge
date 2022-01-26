@@ -1,35 +1,34 @@
 # Dapr
 
-In this article, I will demonstrate how to use WasmEdge as a sidecar application runtime for Dapr. We use a simple NaCl written in Rust or Go to listen for API requests to the microservice. It passes the request data to a WebAssembly runtime for processing. The business logic of the microservice is a WebAssembly function created and deployed by an application developer. You can also watch [a walk-through video](https://www.youtube.com/watch?v=t_sQP6Qpf7U).
+In this article, I will demonstrate how to use WasmEdge as a sidecar application runtime for Dapr. We use a simple NaCl written in Rust or Go to listen for API requests to the microservice. It passes the request data to a WebAssembly runtime for processing. The business logic of the microservice is a WebAssembly function created and deployed by an application developer. You can also watch [a walk-through video](https://www.youtube.com/watch?v=t_sQP6Qpf7U).
 
 > For more insights on WasmEdge on Dapr, please refer to the article [A Lightweight, Safe, Portable, and High-performance Runtime for Dapr](https://www.secondstate.io/articles/dapr-wasmedge-webassembly/)
 
-## Quick start 
+## Quick start
 
-
-First you need to install [Go](https://golang.org/doc/install), [Rust](https://www.rust-lang.org/tools/install), [Dapr](https://docs.dapr.io/getting-started/install-dapr-cli), [WasmEdge](https://github.com/WasmEdge/WasmEdge/blob/master/docs/install.md), and the [rustwasmc](../../dev/rust/bindgen.md) compiler tool.
+First you need to install [Go](https://golang.org/doc/install), [Rust](https://www.rust-lang.org/tools/install), [Dapr](https://docs.dapr.io/getting-started/install-dapr-cli), [WasmEdge](../../start/install.md), and the [rustwasmc](../../dev/rust/bindgen.md) compiler tool.
 
 Next, fork or clone the demo application from Github. You can use this repo as your own application template.
 
-```
-$ git clone https://github.com/second-state/dapr-wasm
+```bash
+$ git clone https://github.com/second-state/dapr-wasm
 ````
 
 The demo has 3 Dapr sidecar applications.
 
--   The [web-port](https://github.com/second-state/dapr-wasm/tree/main/web-port) project provides a public web service for a static HTML page. This is the application’s UI.
--   The [image-api-rs](https://github.com/second-state/dapr-wasm/tree/main/image-api-rs) project provides a WasmEdge microservice to turn an input image into a grayscale image using the [grayscale](https://github.com/second-state/dapr-wasm/tree/main/functions/grayscale&sa=D&source=editors&ust=1634144162467000&usg=AOvVaw1uNZEDmOfXXXzLHHZWVFyD) function.
-    It demonstrates the use of Rust SDKs for Dapr and WasmEdge.
--   The [image-api-go](https://github.com/second-state/dapr-wasm/tree/main/image-api-go&sa=D&source=editors&ust=1634144162467000&usg=AOvVaw3pG0m0DQap9XTUAfBMyi1s) project provides a WasmEdge microservice to recognize and classify the object on an input image using the [classify](https://github.com/second-state/dapr-wasm/tree/main/functions/classify&sa=D&source=editors&ust=1634144162468000&usg=AOvVaw0zYdNzIz6MiDkZCAvm_D9q) function.
-    It demonstrates the use of Go SDKs for Dapr and WasmEdge.
+- The [web-port](https://github.com/second-state/dapr-wasm/tree/main/web-port) project provides a public web service for a static HTML page. This is the application’s UI.
+- The [image-api-rs](https://github.com/second-state/dapr-wasm/tree/main/image-api-rs) project provides a WasmEdge microservice to turn an input image into a grayscale image using the [grayscale](https://github.com/second-state/dapr-wasm/tree/main/functions/grayscale&sa=D&source=editors&ust=1634144162467000&usg=AOvVaw1uNZEDmOfXXXzLHHZWVFyD) function.
+  It demonstrates the use of Rust SDKs for Dapr and WasmEdge.
+- The [image-api-go](https://github.com/second-state/dapr-wasm/tree/main/image-api-go&sa=D&source=editors&ust=1634144162467000&usg=AOvVaw3pG0m0DQap9XTUAfBMyi1s) project provides a WasmEdge microservice to recognize and classify the object on an input image using the [classify](https://github.com/second-state/dapr-wasm/tree/main/functions/classify&sa=D&source=editors&ust=1634144162468000&usg=AOvVaw0zYdNzIz6MiDkZCAvm_D9q) function.
+  It demonstrates the use of Go SDKs for Dapr and WasmEdge.
 
 ![dapr-wasmedge](dapr-wasmedge.png)
 
 Dapr sidecar microservices in the demo application.
 
-You can follow the instructions in the [README](https://github.com/second-state/dapr-wasm/blob/main/README.md) to start the sidecar services. Here are commands to build the WebAssembly functions and start the 3 sidecar services.
+You can follow the instructions in the [README](https://github.com/second-state/dapr-wasm/blob/main/README.md) to start the sidecar services. Here are commands to build the WebAssembly functions and start the 3 sidecar services.
 
-```
+```bash
 # Build the classify and grayscale WebAssembly functions, and deploy them to the sidecar projects
 $ cd functions/grayscale
 $ ./build.sh
@@ -57,23 +56,22 @@ $ ./run_api_go.sh
 $ cd ../
 ```
 
-Finally, you should be able to see the web UI in your browser.                                
-
+Finally, you should be able to see the web UI in your browser.
 
 ![dapr-wasmedge](dapr-wasmedge-in-action.png)
 
 The demo application in action.
 
-## The two WebAssembly functions 
+## The two WebAssembly functions
 
 We have two functions written in Rust and compiled into WebAssembly. They are deployed in the sidecar microservices to perform the actual work of image processing and classification.
 
 While our example WebAssembly functions are written in Rust, you can compile functions written in C/C++, Swift, Kotlin, and AssemblyScript to WebAssembly. WasmEdge also provides support for functions written in
 JavaScript and DSLs.
 
-The [grayscale](https://github.com/second-state/dapr-wasm/tree/main/functions/grayscale) function is a Rust program that reads image data from `STDIN` and writes the grayscale image into `STDOUT`.
+The [grayscale](https://github.com/second-state/dapr-wasm/tree/main/functions/grayscale) function is a Rust program that reads image data from `STDIN` and writes the grayscale image into `STDOUT`.
 
-```
+```rust
 use image::{ImageFormat, ImageOutputFormat};
 use std::io::{self, Read, Write};
 
@@ -98,21 +96,21 @@ fn main() {
 }
 ```
 
-We use [rustwasmc](https://www.secondstate.io/articles/rustwasmc/) to build it and then copy it to the
-[image-api-rs](https://github.com/second-state/dapr-wasm/tree/main/image-api-rs) sidecar.
+We use [rustwasmc](https://www.secondstate.io/articles/rustwasmc/) to build it and then copy it to the
+[image-api-rs](https://github.com/second-state/dapr-wasm/tree/main/image-api-rs) sidecar.
 
-```
+```bash
 $ cd functions/grayscale
 $ rustup override set 1.50.0
 $ rustwasmc  build --enable-ext
 $ cp ./pkg/grayscale.wasm ../../image-api-rs/lib
 ```
 
-The [classify](https://github.com/second-state/dapr-wasm/tree/main/functions/classify) function
+The [classify](https://github.com/second-state/dapr-wasm/tree/main/functions/classify) function
 is a Rust function that takes a byte array for image data as input and returns a string for the classification. It uses the [WasmEdge
 TensorFlow API](https://www.secondstate.io/articles/wasi-tensorflow/).
 
-```
+```rust
 use wasmedge_tensorflow_interface;
 
 pub fn infer_internal(image_data: &[u8]) -> String {
@@ -145,9 +143,9 @@ pub fn infer_internal(image_data: &[u8]) -> String {
 }
 ```
 
-We use [rustwasmc](https://www.secondstate.io/articles/rustwasmc/) to build it and then copy it to the [image-api-go](https://github.com/second-state/dapr-wasm/tree/main/image-api-go) sidecar.
+We use [rustwasmc](https://www.secondstate.io/articles/rustwasmc/) to build it and then copy it to the [image-api-go](https://github.com/second-state/dapr-wasm/tree/main/image-api-go) sidecar.
 
-```
+```bash
 $ cd functions/classify
 $ rustup override set 1.50.0
 $ rustwasmc  build --enable-ext
@@ -158,12 +156,11 @@ In the next three sections, we will look into those three sidecar services.
 
 ## The image processing sidecar
 
-The [image-api-rs](https://github.com/second-state/dapr-wasm/tree/main/image-api-rs) sidecar application is written in Rust. It should already have the WebAssembly function lib/grayscale.wasm installed from the previous step. Please refer to the [functions/bin/install.sh](https://github.com/second-state/dapr-wasm/blob/main/functions/bin/install.sh) script to install the WasmEdge Runtime binary `lib/wasmedge-tensorflow-lite` and
-its dependencies.
+The [image-api-rs](https://github.com/second-state/dapr-wasm/tree/main/image-api-rs) sidecar application is written in Rust. It should already have the WebAssembly function `lib/grayscale.wasm` installed from the previous step. Please refer to the [functions/bin/install.sh](https://github.com/second-state/dapr-wasm/blob/main/functions/bin/install.sh) script to install the WasmEdge Runtime binary `lib/wasmedge-tensorflow-lite` and its dependencies.
 
 The sidecar microservice runs a Tokio-based event loop that listens for incoming HTTP requests at the path `/api/image`.
 
-```
+```rust
 #[tokio::main]
 pub async fn run_server(port: u16) {
    pretty_env_logger::init();
@@ -191,7 +188,7 @@ pub async fn run_server(port: u16) {
 
 Once it receives an image file in the HTTP POST request, it invokes a WebAssembly function in WasmEdge to perform the image processing task. It creates a WasmEdge instance to interact with the WebAssembly program.
 
-```
+```rust
 pub fn image_process(buf: &Vec<u8>) -> Vec<u8> {
    let mut child = Command::new("./lib/wasmedge-tensorflow-lite")
        .arg("./lib/grayscale.wasm")
@@ -211,7 +208,7 @@ pub fn image_process(buf: &Vec<u8>) -> Vec<u8> {
 
 The following Dapr CLI command starts the microservice in the Dapr runtime environment.
 
-```
+```bash
 $ cd image-api-rs
 $ sudo dapr run --app-id image-api-rs \
         --app-protocol http \
@@ -225,11 +222,11 @@ $ cd ../
 
 ## The Tensorflow sidecar
 
-The [image-api-go](https://github.com/second-state/dapr-wasm/tree/main/image-api-go) sidecar application is written in Go. It should already have the WebAssembly function `lib/classify\_bg.wasm` installed from the previous step. Please refer to the [functions/bin/install.sh](https://github.com/second-state/dapr-wasm/blob/main/functions/bin/install.sh) script to install the WasmEdge Runtime Go SDK.
+The [image-api-go](https://github.com/second-state/dapr-wasm/tree/main/image-api-go) sidecar application is written in Go. It should already have the WebAssembly function `lib/classify\_bg.wasm` installed from the previous step. Please refer to the [functions/bin/install.sh](https://github.com/second-state/dapr-wasm/blob/main/functions/bin/install.sh) script to install the WasmEdge Runtime Go SDK.
 
 The sidecar microservice runs an event loop that listens for incoming HTTP requests at the path `/api/image`.
 
-```
+```go
 func main() {
    s := daprd.NewService(":9003")
 
@@ -245,7 +242,7 @@ func main() {
 
 Once it receives an image file in the HTTP POST request, it invokes a WebAssembly function in WasmEdge to perform the Tensorflow-based image classification task. It utilizes the Go API for WasmEdge to interact with the WebAssembly program.
 
-```
+```go
 func imageHandlerWASI(_ context.Context, in *common.InvocationEvent) (out *common.Content, err error) {
    image := in.Data
 
@@ -290,7 +287,7 @@ func imageHandlerWASI(_ context.Context, in *common.InvocationEvent) (out *commo
 
 The following Dapr CLI command starts the microservice in the Dapr runtime environment.
 
-```
+```bash
 $ cd image-api-go
 $ sudo dapr run --app-id image-api-go \
         --app-protocol http \
@@ -302,14 +299,11 @@ $ sudo dapr run --app-id image-api-go \
 $ cd ../
 ```
 
+## The web UI sidecar
 
+The web UI service [web-port](https://github.com/second-state/dapr-wasm/tree/main/web-port) is a simple web server written in Go. It serves static HTML and JavaScript files from the static folder and sends images uploaded to `/api/hello` to the [grayscale](https://github.com/second-state/dapr-wasm/tree/main/image-api-rs) or [classify](https://github.com/second-state/dapr-wasm/tree/main/image-api-go) sidecars’ `/api/image` endpoints.
 
-## The web UI sidecar 
-
-The web UI service [web-port](https://github.com/second-state/dapr-wasm/tree/main/web-port) is a simple web server written in Go. It serves static HTML and JavaScript files from the static folder and sends images uploaded to `/api/hello` to
-the [grayscale](https://github.com/second-state/dapr-wasm/tree/main/image-api-rs) or [classify](https://github.com/second-state/dapr-wasm/tree/main/image-api-go) sidecars’ `/api/image` endpoints.
-
-```
+```go
 func main() {
    http.HandleFunc("/static/", staticHandler)
    http.HandleFunc("/api/hello", imageHandler)
@@ -346,10 +340,9 @@ func httpClientSend(image []byte, w http.ResponseWriter) {
 }
 ```
 
-The JavaScript in [page.js](https://github.com/second-state/dapr-wasm/blob/main/web-port/static/page.js) simply
-uploads images to the [web-port](https://github.com/second-state/dapr-wasm/tree/main/web-port) sidecar’s `/api/hello` endpoint and the [web-port](https://github.com/second-state/dapr-wasm/tree/main/web-port) will request the classify or grayscale microservice based on the request header api.
+The JavaScript in [page.js](https://github.com/second-state/dapr-wasm/blob/main/web-port/static/page.js) simply uploads images to the [web-port](https://github.com/second-state/dapr-wasm/tree/main/web-port) sidecar’s `/api/hello` endpoint and the [web-port](https://github.com/second-state/dapr-wasm/tree/main/web-port) will request the classify or grayscale microservice based on the request header api.
 
-```
+```javascript
 function runWasm(e) {
    const reader = new FileReader();
    reader.onload = function (e) {
@@ -370,10 +363,9 @@ function runWasm(e) {
 }
 ```
 
-The following Dapr CLI command starts the web service for the static UI
-files.
+The following Dapr CLI command starts the web service for the static UI files.
 
-```
+```bash
 $ cd web-port
 $ sudo dapr run --app-id go-web-port \
         --app-protocol http \
@@ -386,4 +378,3 @@ $ cd ../
 ```
 
 That's it. You now have a three part distributed application written in two languages!
-

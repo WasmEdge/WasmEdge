@@ -16,14 +16,15 @@ namespace {
 __wasi_array_output_t generateArrayOutputHandle(WasiCryptoContext &Ctx) {
   auto Raw =
       "d75a980182b10ab7d54bfed3c964073a0ee172f3daa62325af021a68f707511a"_u8v;
+  auto PkHandle =
+      Ctx.publickeyImport(__WASI_ALGORITHM_TYPE_SIGNATURES, "Ed25519"sv, Raw,
+                          __WASI_PUBLICKEY_ENCODING_RAW)
+          .value();
 
-  return Ctx
-      .publickeyExport(Ctx.publickeyImport(__WASI_ALGORITHM_TYPE_SIGNATURES,
-                                           "Ed25519"sv, Raw,
-                                           __WASI_PUBLICKEY_ENCODING_RAW)
-                           .value(),
-                       __WASI_PUBLICKEY_ENCODING_RAW)
-      .value();
+  auto Res =
+      Ctx.publickeyExport(PkHandle, __WASI_PUBLICKEY_ENCODING_RAW).value();
+  Ctx.publickeyClose(PkHandle);
+  return Res;
 }
 } // namespace
 

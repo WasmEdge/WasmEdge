@@ -11,15 +11,18 @@ namespace Host {
 namespace WASICrypto {
 namespace Common {
 
-WasiCryptoExpect<size_t> ArrayOutput::pull(Span<uint8_t> Buf) {
-  ensureOrReturn(Buf.size() >= Data.size(), __WASI_CRYPTO_ERRNO_OVERFLOW);
+std::tuple<size_t, bool> ArrayOutput::pull(Span<uint8_t> Buf) {
+  size_t CurrentPos = Pos.load();
+  auto OutputSize = std::min(Buf.size(), Data.size() - CurrentPos);
+  std::copy(Data.begin() + CurrentPos, Data.begin() + CurrentPos + OutputSize,
+            Buf.begin());
 
-  std::copy(Data.begin(), Data.end(), Buf.begin());
+  Pos.fetch_add(OutputSize);
 
-  return Data.size();
+  return {OutputSize, CurrentPos + OutputSize == Data.size()};
 }
 
-WasiCryptoExpect<size_t> ArrayOutput::len() { return Data.size(); }
+size_t ArrayOutput::len() { return Data.size(); }
 
 } // namespace Common
 } // namespace WASICrypto

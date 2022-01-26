@@ -292,8 +292,8 @@ private:
   WasiCryptoExpect<std::shared_ptr<Symmetric::Key>>
   readSymmetricKey(std::optional<__wasi_symmetric_key_t> KeyHandle);
 
-  HandlesManger<__wasi_array_output_t, Common::ArrayOutput> ArrayOutputManger{
-      0x00};
+  HandlesManger<__wasi_array_output_t, std::shared_ptr<Common::ArrayOutput>>
+      ArrayOutputManger{0x00};
   HandlesManger<__wasi_options_t, Common::Options> OptionsManger{0x01};
   HandlesManger<__wasi_keypair_t, Asymmetric::KeyPair> KeypairManger{0x02};
   HandlesManger<__wasi_publickey_t, Asymmetric::PublicKey> PublickeyManger{

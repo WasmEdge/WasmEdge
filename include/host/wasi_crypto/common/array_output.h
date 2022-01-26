@@ -5,6 +5,7 @@
 #include "host/wasi_crypto/error.h"
 #include "wasi_crypto/api.hpp"
 
+#include <atomic>
 #include <vector>
 
 namespace WasmEdge {
@@ -15,12 +16,13 @@ class ArrayOutput {
 public:
   ArrayOutput(std::vector<uint8_t> &&Data) : Data(std::move(Data)) {}
 
-  WasiCryptoExpect<size_t> pull(Span<uint8_t> Buf);
+  std::tuple<size_t, bool> pull(Span<uint8_t> Buf);
 
-  WasiCryptoExpect<size_t> len();
+  size_t len();
 
 private:
-  std::vector<uint8_t> Data;
+  const std::vector<uint8_t> Data;
+  std::atomic<size_t> Pos = 0;
 };
 
 } // namespace Common

@@ -104,7 +104,7 @@ impl From<wasmedge::MemType> for MemoryType {
 #[cfg(test)]
 mod tests {
     use super::*;
-    // use crate::error::{CoreError, CoreExecutionError, WasmEdgeError};
+    use crate::{error::WasmEdgeError, wasmedge};
 
     #[test]
     fn test_memory_create() {
@@ -175,50 +175,49 @@ mod tests {
         assert!(result.is_err());
     }
 
-    // #[test]
-    // fn test_memory_data() {
-    //     // create a Memory: the min size 1 and the max size 2
-    //     let result = MemType::create(1..=2);
-    //     assert!(result.is_ok());
-    //     let mut ty = result.unwrap();
-    //     let result = Memory::create(&mut ty);
-    //     assert!(result.is_ok());
-    //     let mut mem = result.unwrap();
-    //     assert!(!mem.ctx.is_null());
-    //     assert!(!mem.registered);
+    #[test]
+    fn test_memory_data() {
+        // create a Memory: the min size 1 and the max size 2
+        let result = Memory::new(1, Some(2));
+        assert!(result.is_ok());
+        let mut mem = result.unwrap();
 
-    //     // check page count
-    //     let count = mem.page_count();
-    //     assert_eq!(count, 1);
+        // check page count
+        let count = mem.page_count();
+        assert_eq!(count, 1);
 
-    //     // get data before set data
-    //     let result = mem.get_data(0, 10);
-    //     assert!(result.is_ok());
-    //     let data: Vec<_> = result.unwrap().collect();
-    //     assert_eq!(data, vec![0; 10]);
+        // get data before set data
+        let result = mem.get_data(0, 10);
+        assert!(result.is_ok());
+        let data = result.unwrap();
+        assert_eq!(data, vec![0; 10]);
 
-    //     // set data
-    //     let result = mem.set_data(vec![1; 10], 10);
-    //     assert!(result.is_ok());
-    //     // get data after set data
-    //     let result = mem.get_data(10, 10);
-    //     assert!(result.is_ok());
-    //     let data: Vec<_> = result.unwrap().collect();
-    //     assert_eq!(data, vec![1; 10]);
+        // set data
+        let result = mem.set_data(vec![1; 10], 10);
+        assert!(result.is_ok());
+        // get data after set data
+        let result = mem.get_data(10, 10);
+        assert!(result.is_ok());
+        let data = result.unwrap();
+        assert_eq!(data, vec![1; 10]);
 
-    //     // set data and the data length is larger than the data size in the memory
-    //     let result = mem.set_data(vec![1; 10], u32::pow(2, 16) - 9);
-    //     assert!(result.is_err());
-    //     assert_eq!(
-    //         result.unwrap_err(),
-    //         WasmEdgeError::Core(CoreError::Execution(CoreExecutionError::MemoryOutOfBounds))
-    //     );
+        // set data and the data length is larger than the data size in the memory
+        let result = mem.set_data(vec![1; 10], u32::pow(2, 16) - 9);
+        assert!(result.is_err());
+        assert_eq!(
+            result.unwrap_err(),
+            WasmEdgeError::Operation(wasmedge::WasmEdgeError::Core(
+                wasmedge::error::CoreError::Execution(
+                    wasmedge::error::CoreExecutionError::MemoryOutOfBounds
+                )
+            ))
+        );
 
-    //     // grow the memory size
-    //     let result = mem.grow(1);
-    //     assert!(result.is_ok());
-    //     assert_eq!(mem.page_count(), 2);
-    //     let result = mem.set_data(vec![1; 10], u32::pow(2, 16) - 9);
-    //     assert!(result.is_ok());
-    // }
+        // grow the memory size
+        let result = mem.grow(1);
+        assert!(result.is_ok());
+        assert_eq!(mem.page_count(), 2);
+        let result = mem.set_data(vec![1; 10], u32::pow(2, 16) - 9);
+        assert!(result.is_ok());
+    }
 }

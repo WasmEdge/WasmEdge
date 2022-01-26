@@ -7,9 +7,10 @@ pub struct Memory {
     pub(crate) mod_name: Option<String>,
 }
 impl Memory {
-    pub fn new(min: u32, max: Option<u32>) -> WasmEdgeResult<Self> {
-        let max = match max {
-            Some(max_val) => max_val,
+    pub fn new(ty: MemoryType) -> WasmEdgeResult<Self> {
+        let min = ty.minimum();
+        let max = match ty.maximum() {
+            Some(max) => max,
             None => u32::MAX,
         };
         let mut ty = wasmedge::MemType::create(min..=max)?;
@@ -109,7 +110,11 @@ mod tests {
     #[test]
     fn test_memory_create() {
         {
-            let result = Memory::new(10, None);
+            // create a MemoryType instance
+            let ty = MemoryType::new(10, None);
+
+            // create a Memory instance
+            let result = Memory::new(ty);
             assert!(result.is_ok());
             let mem = result.unwrap();
 
@@ -117,7 +122,7 @@ mod tests {
             assert!(result.is_ok());
             let ty = result.unwrap();
 
-            // check limit
+            // check memory limit
             assert_eq!(ty.minimum(), 10);
             assert_eq!(ty.maximum().unwrap(), u32::MAX);
 
@@ -126,7 +131,11 @@ mod tests {
         }
 
         {
-            let result = Memory::new(10, Some(20));
+            // create a MemoryType instance
+            let ty = MemoryType::new(10, Some(20));
+
+            // create a Memory instance
+            let result = Memory::new(ty);
             assert!(result.is_ok());
             let mem = result.unwrap();
 
@@ -134,7 +143,7 @@ mod tests {
             assert!(result.is_ok());
             let ty = result.unwrap();
 
-            // check limit
+            // check memory limit
             assert_eq!(ty.minimum(), 10);
             assert_eq!(ty.maximum().unwrap(), 20);
 
@@ -145,11 +154,11 @@ mod tests {
 
     #[test]
     fn test_memory_grow() {
-        // create a Memory with a limit range [10, 20]
-        // let result = MemType::create(10..=20);
-        // assert!(result.is_ok());
-        // let mut ty = result.unwrap();
-        let result = Memory::new(10, Some(20));
+        // create a MemoryType instance
+        let ty = MemoryType::new(10, Some(20));
+
+        // create a Memory instance
+        let result = Memory::new(ty);
         assert!(result.is_ok());
         let mut mem = result.unwrap();
 
@@ -177,8 +186,11 @@ mod tests {
 
     #[test]
     fn test_memory_data() {
+        // create a MemoryType instance
+        let ty = MemoryType::new(1, Some(2));
+
         // create a Memory: the min size 1 and the max size 2
-        let result = Memory::new(1, Some(2));
+        let result = Memory::new(ty);
         assert!(result.is_ok());
         let mut mem = result.unwrap();
 

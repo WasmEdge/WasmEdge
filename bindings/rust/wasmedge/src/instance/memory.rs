@@ -41,6 +41,7 @@ impl Memory {
         self.mod_name.is_some()
     }
 
+    /// Returns the underlying type of this memory.
     pub fn ty(&self) -> WasmEdgeResult<MemoryType> {
         let ty = self.inner.ty()?;
         let limit = ty.limit();
@@ -50,24 +51,24 @@ impl Memory {
         })
     }
 
-    pub fn page_count(&self) -> u32 {
+    /// Returns the size, in WebAssembly pages, of this wasm memory.
+    pub fn size(&self) -> u32 {
         self.inner.page_count()
     }
 
-    pub fn get_data(&self, offset: u32, len: u32) -> WasmEdgeResult<Vec<u8>> {
+    /// Safely reads memory contents at the given offset into a buffer.
+    pub fn read(&self, offset: u32, len: u32) -> WasmEdgeResult<Vec<u8>> {
         let data = self.inner.get_data(offset, len)?;
         Ok(data)
     }
 
-    pub fn set_data(
-        &mut self,
-        data: impl IntoIterator<Item = u8>,
-        offset: u32,
-    ) -> WasmEdgeResult<()> {
+    /// Safely writes contents of a buffer to this memory at the given offset.
+    pub fn write(&mut self, data: impl IntoIterator<Item = u8>, offset: u32) -> WasmEdgeResult<()> {
         self.inner.set_data(data, offset)?;
         Ok(())
     }
 
+    /// Grows this WebAssembly memory by `count` pages.
     pub fn grow(&mut self, count: u32) -> WasmEdgeResult<()> {
         self.inner.grow(count)?;
         Ok(())
@@ -127,7 +128,7 @@ mod tests {
             assert_eq!(ty.maximum().unwrap(), u32::MAX);
 
             // check page count
-            assert_eq!(mem.page_count(), 10);
+            assert_eq!(mem.size(), 10);
         }
 
         {
@@ -148,7 +149,7 @@ mod tests {
             assert_eq!(ty.maximum().unwrap(), 20);
 
             // check page count
-            assert_eq!(mem.page_count(), 10);
+            assert_eq!(mem.size(), 10);
         }
     }
 
@@ -171,13 +172,13 @@ mod tests {
         assert_eq!(ty.maximum().unwrap(), 20);
 
         // check page count
-        let count = mem.page_count();
+        let count = mem.size();
         assert_eq!(count, 10);
 
         // grow 5 pages
         let result = mem.grow(10);
         assert!(result.is_ok());
-        assert_eq!(mem.page_count(), 20);
+        assert_eq!(mem.size(), 20);
 
         // grow additional  pages, which causes a failure
         let result = mem.grow(1);
@@ -195,26 +196,26 @@ mod tests {
         let mut mem = result.unwrap();
 
         // check page count
-        let count = mem.page_count();
+        let count = mem.size();
         assert_eq!(count, 1);
 
         // get data before set data
-        let result = mem.get_data(0, 10);
+        let result = mem.read(0, 10);
         assert!(result.is_ok());
         let data = result.unwrap();
         assert_eq!(data, vec![0; 10]);
 
         // set data
-        let result = mem.set_data(vec![1; 10], 10);
+        let result = mem.write(vec![1; 10], 10);
         assert!(result.is_ok());
         // get data after set data
-        let result = mem.get_data(10, 10);
+        let result = mem.read(10, 10);
         assert!(result.is_ok());
         let data = result.unwrap();
         assert_eq!(data, vec![1; 10]);
 
         // set data and the data length is larger than the data size in the memory
-        let result = mem.set_data(vec![1; 10], u32::pow(2, 16) - 9);
+        let result = mem.write(vec![1; 10], u32::pow(2, 16) - 9);
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
@@ -228,8 +229,8 @@ mod tests {
         // grow the memory size
         let result = mem.grow(1);
         assert!(result.is_ok());
-        assert_eq!(mem.page_count(), 2);
-        let result = mem.set_data(vec![1; 10], u32::pow(2, 16) - 9);
+        assert_eq!(mem.size(), 2);
+        let result = mem.write(vec![1; 10], u32::pow(2, 16) - 9);
         assert!(result.is_ok());
     }
 }

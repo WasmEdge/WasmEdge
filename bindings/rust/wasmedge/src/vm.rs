@@ -164,12 +164,6 @@ impl Vm {
     }
 }
 
-pub trait Engine {
-    fn register_wasm_from_module();
-    fn register_wasm_from_import();
-    fn run_func();
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

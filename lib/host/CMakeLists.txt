@@ -3,4 +3,6 @@
 
 add_subdirectory(wasi)
 add_subdirectory(wasmedge_process)
-add_subdirectory(wasi_crypto)
+if (WASMEDGE_BUILD_WASI_CRYPTO)
+  add_subdirectory(wasi_crypto)
+endif()

@@ -14,5 +14,11 @@ target_link_libraries(wasmedgeVM
   wasmedgeExecutor
   wasmedgeHostModuleWasi
   wasmedgeHostModuleWasmEdgeProcess
-  wasmedgeHostModuleWasiCrypto
 )
+
+if(WASMEDGE_BUILD_WASI_CRYPTO) 
+  target_link_libraries(wasmedgeVM
+    PUBLIC
+    wasmedgeHostModuleWasiCrypto
+  )
+endif()

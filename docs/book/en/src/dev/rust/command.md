@@ -11,14 +11,14 @@ The command line program can
 
 Application developers for WasmEdge can use our Rust interface crate to access this functionality. In `Cargo.toml`, make sure that you have this dependency.
 
-```
+```toml
 [dependencies]
 rust_process_interface_library = "0.1.3"
 ```
 
 In the Rust application, you can now use the API methods to start a new process for the operating system command program, pass in arguments via the `arg()` method as well as via the `STDIN`, and receives the return values via the `STDOUT`.
 
-```
+```rust
 let mut cmd = Command::new("http_proxy");
 
 cmd.arg("post")

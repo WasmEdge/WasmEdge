@@ -1,11 +1,9 @@
 # Node.js SDK
 
-
 In this tutorial, I will show you how to incorporate WebAssembly functions, written in Rust, into Node.js applications on the server via the WasmEdge Node.js SDK. This approach combines Rust's **performance**, WebAssembly's **security and portability**, and JavaScript's **ease-of-use**. A typical application works like this.
 
 * The host application is a Node.js web application written in JavaScript. It makes WebAssembly function calls.
 * The WebAssembly bytecode program is written in Rust. It runs inside the WasmEdge Runtime, and is called from the Node.js web application.
-
 
 > [Fork this Github repository](https://github.com/second-state/wasmedge-nodejs-starter/fork) to start coding!
 
@@ -16,14 +14,14 @@ To set up a high-performance Node.js environment with Rust and WebAssembly, you 
 * A modern Linux distribution, such as Ubuntu Server 20.04 LTS
 * [Rust language](https://www.rust-lang.org/tools/install)
 * [Node.js](https://nodejs.org/en/download/package-manager/)
-* [The WasmEdge Runtime](https://github.com/WasmEdge/WasmEdge/blob/master/docs/install.md) for Node.js
+* [The WasmEdge Runtime](../start/install.md#install-wasmedge-for-node.js) for Node.js
 * [The rustwasmc compiler toolchain](/articles/rustwasmc)
 
 ### Docker
 
 The easiest way to get started is to use Docker to build a dev environment. Just [clone this template project](https://github.com/second-state/wasmedge-nodejs-starter/) to your computer and run the following Docker commands.
 
-```src
+```bash
 # Get the code
 $ git clone https://github.com/second-state/wasmedge-nodejs-starter
 $ cd wasmedge-nodejs-starter
@@ -40,7 +38,7 @@ That's it! You are now ready to compile and run the code.
 
 The commands are as follows.
 
-```src
+```bash
 # Install Rust
 $ curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 $ source $HOME/.cargo/env
@@ -67,7 +65,7 @@ $ npm install wasmedge-extensions
 
 Next, clone the example source code repository.
 
-```src
+```bash
 $ git clone https://github.com/second-state/wasmedge-nodejs-starter
 $ cd wasmedge-nodejs-starter
 ```
@@ -89,9 +87,10 @@ pub fn say(s: String) -> String {
   return r + &s;
 }
 ```
+
 Next, you can compile the Rust source code into WebAssembly bytecode and generate the accompanying JavaScript module for the Node.js host environment.
 
-```src
+```bash
 $ rustwasmc build
 ```
 
@@ -123,14 +122,14 @@ server.listen(port, hostname, () => {
 
 Start the Node.js application server as follows.
 
-```src
+```bash
 $ node node/app.js
 Server running at http://127.0.0.1:3000/
 ```
 
 Then, you can test it from another terminal window.
 
-```src
+```bash
 $ curl http://127.0.0.1:3000/?name=Wasm
 hello Wasm
 ```
@@ -193,7 +192,7 @@ pub fn solve(params: &str) -> String {
 
 Let's try it.
 
-```src
+```bash
 $ rustwasmc build
 $ npm install express # The application requires the Express framework in Node.js
 
@@ -306,7 +305,7 @@ console.log( line );
 
 After running `rustwasmc` to build the Rust library, running `app.js` in Node.js environment produces the following output.
 
-```src
+```bash
 $ rustwasmc build
 ... Building the wasm file and JS shim file in pkg/ ...
 
@@ -325,7 +324,3 @@ N dhvpx oebja sbk whzcf bire gur ynml qbt
   length: 2.2360682,
   desc: 'A thin red line' }  
 ```
-
-
-
-

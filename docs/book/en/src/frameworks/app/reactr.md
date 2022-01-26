@@ -1,22 +1,15 @@
 # Reactr
 
 [Reactr](https://github.com/suborbital/reactr) is a fast, performant function scheduling library written in Go. Reactr is designed to be flexible, with the ability to run embedded in your Go applications and first-class support for WebAssembly.
-Taking advantage of Go's superior concurrency capabilities, Reactr can manage
-and execute hundreds of WebAssembly runtime instances all at once,
-making a great framework for server-side applications.
+Taking advantage of Go's superior concurrency capabilities, Reactr can manage and execute hundreds of WebAssembly runtime instances all at once, making a great framework for server-side applications.
 
 Reactr allows you to run WebAssembly functions in Go. But so does the [WasmEdge Go SDK](../../embed/go.md).
-The unique feature of Reactr is that it provides a rich set of host functions
-in Go, which support access to networks and databases etc. Reactr then provides
-Rust (and Swift / AssemblyScript) APIs to call those host functions from 
-within the WebAssembly function.
+The unique feature of Reactr is that it provides a rich set of host functions in Go, which support access to networks and databases etc. Reactr then provides Rust (and Swift / AssemblyScript) APIs to call those host functions from within the WebAssembly function.
 
-In this article, we will show you how to use WasmEdge together with Reactr
-to take advantage of the best of both worlds. WasmEdge is the
+In this article, we will show you how to use WasmEdge together with Reactr to take advantage of the best of both worlds. WasmEdge is the
 [fastest and most extensible WebAssembly runtime](../../intro/features.md).
 It is also the fastest in [Reactr's official test suite](https://github.com/suborbital/reactr/runs/4476074960?check_suite_focus=true).
-We will show you how to run Rust functions compiled to WebAssembly as well
-as JavaScript programs in WasmEdge and Reactr.
+We will show you how to run Rust functions compiled to WebAssembly as well as JavaScript programs in WasmEdge and Reactr.
 
 > WasmEdge provides [advanced support for JavaScript](../../dev/js.md) including [mixing Rust with JavaScript](../../dev/js/rust.md) for improved performance.
 
@@ -27,10 +20,9 @@ as JavaScript programs in WasmEdge and Reactr.
 ## Prerequisites
 
 You need have [Rust](https://www.rust-lang.org/tools/install), [Go](https://go.dev/doc/install), and [WasmEdge](../../start/install.md) installed on your system.
-The GCC compiler (installed via the `build-essential` package) is also needed
-for WasmEdge.
+The GCC compiler (installed via the `build-essential` package) is also needed for WasmEdge.
 
-```
+```bash
 $ sudo apt-get update
 $ sudo apt-get -y upgrade
 $ sudo apt install build-essential
@@ -54,8 +46,7 @@ A simple `hello world` example for Reactr is [available here](https://github.com
 ### Rust function compiled to WebAssembly
 
 Let's first create [a simple Rust function](https://github.com/second-state/wasm-learning/blob/master/reactr/hello/hello-echo/src/lib.rs) to echo hello.
-The Rust function `HelloEcho::run()` is as follows. It will be exposed to the Go host
-application through Reactr.
+The Rust function `HelloEcho::run()` is as follows. It will be exposed to the Go host application through Reactr.
 
 ```rust
 use suborbital::runnable::*;
@@ -83,51 +74,46 @@ $ cd ..
 
 ### Go host application
 
-Next, lets look into the [Go host app](https://github.com/second-state/wasm-learning/blob/master/reactr/hello/main.go)
-that executes the WebAssembly functions.
-The `runBundle()` function executes the `run()` function in the
-`Runnable` struct once.
+Next, lets look into the [Go host app](https://github.com/second-state/wasm-learning/blob/master/reactr/hello/main.go) that executes the WebAssembly functions.
+The `runBundle()` function executes the `run()` function in the `Runnable` struct once.
 
 ```go
 func runBundle() {
-	r := rt.New()
-	doWasm := r.Register("hello-echo", rwasm.NewRunner("./hello_echo.wasm"))
+    r := rt.New()
+    doWasm := r.Register("hello-echo", rwasm.NewRunner("./hello_echo.wasm"))
 
-	res, err := doWasm([]byte("wasmWorker!")).Then()
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
+    res, err := doWasm([]byte("wasmWorker!")).Then()
+    if err != nil {
+        fmt.Println(err)
+        return
+    }
 
-	fmt.Println(string(res.([]byte)))
+    fmt.Println(string(res.([]byte)))
 }
 ```
 
-The `runGroup()` function executes the Rust-compiled WebAssembly `run()` function
-multiple times asynchronously in a group, and receives the results as they come
-in.
+The `runGroup()` function executes the Rust-compiled WebAssembly `run()` function multiple times asynchronously in a group, and receives the results as they come in.
 
 ```go
 func runGroup() {
-	r := rt.New()
+    r := rt.New()
 
-	doWasm := r.Register("hello-echo", rwasm.NewRunner("./hello_echo.wasm"))
+    doWasm := r.Register("hello-echo", rwasm.NewRunner("./hello_echo.wasm"))
 
-	grp := rt.NewGroup()
-	for i := 0; i < 100000; i++ {
-		grp.Add(doWasm([]byte(fmt.Sprintf("world %d", i))))
-	}
+    grp := rt.NewGroup()
+    for i := 0; i < 100000; i++ {
+        grp.Add(doWasm([]byte(fmt.Sprintf("world %d", i))))
+    }
 
-	if err := grp.Wait(); err != nil {
-		fmt.Println(err)
-	}
+    if err := grp.Wait(); err != nil {
+        fmt.Println(err)
+    }
 }
 ```
 
 Finally, let's run the Go host application and see the results printed to the console.
 
-> You must use the `-tags wasmedge` flag to take advantage of the performance
-and extended WebAssembly APIs provided by WasmEdge.
+> You must use the `-tags wasmedge` flag to take advantage of the performance and extended WebAssembly APIs provided by WasmEdge.
 
 ```bash
 $ go mod tidy
@@ -136,9 +122,7 @@ $ go run -tags wasmedge main.go
 
 ## Database query
 
-In [this example](https://github.com/second-state/wasm-learning/tree/master/reactr/db),
-we will demonstrate how to use Reactr host functions and APIs to query a 
-PostgreSQL database from your WebAssembly function.
+In [this example](https://github.com/second-state/wasm-learning/tree/master/reactr/db), we will demonstrate how to use Reactr host functions and APIs to query a PostgreSQL database from your WebAssembly function.
 
 ### Install and set up a PostgreSQL database
 
@@ -171,9 +155,7 @@ Leave this running and start another terminal window to interact with this Postg
 ### Rust function compiled to WebAssembly
 
 Let's create [a Rust function](https://github.com/second-state/wasm-learning/blob/master/reactr/db/rs-db/src/lib.rs) to access the PostgreSQL database.
-The Rust function `RsDbtest::run()` is as follows. It will be exposed to the Go host
-application through Reactr. It uses named queries such as `PGInsertUser` and `PGSelectUserWithUUID` to operate the database. Those queries are defined in the
-Go host application, and we will see them later.
+The Rust function `RsDbtest::run()` is as follows. It will be exposed to the Go host application through Reactr. It uses named queries such as `PGInsertUser` and `PGSelectUserWithUUID` to operate the database. Those queries are defined in the Go host application, and we will see them later.
 
 ```rust
 use suborbital::runnable::*;
@@ -240,61 +222,60 @@ $ cd ..
 
 ### Go host application
 
-The [Go host app](https://github.com/second-state/wasm-learning/blob/master/reactr/db/main.go)
-first defines the SQL queries and gives each of them a name.
+The [Go host app](https://github.com/second-state/wasm-learning/blob/master/reactr/db/main.go) first defines the SQL queries and gives each of them a name.
 We will then pass those queries to the Reactr runtime as a configuration.
 
 ```go
 func main() {
-	dbConnString, exists := os.LookupEnv("REACTR_DB_CONN_STRING")
-	if !exists {
-		fmt.Println("skipping as conn string env var not set")
-		return
-	}
+    dbConnString, exists := os.LookupEnv("REACTR_DB_CONN_STRING")
+    if !exists {
+        fmt.Println("skipping as conn string env var not set")
+        return
+    }
 
-	q1 := rcap.Query{
-		Type:     rcap.QueryTypeInsert,
-		Name:     "PGInsertUser",
-		VarCount: 2,
-		Query: `
-		INSERT INTO users (uuid, email, created_at, state, identifier)
-		VALUES ($1, $2, NOW(), 'A', 12345)`,
-	}
+    q1 := rcap.Query{
+        Type:     rcap.QueryTypeInsert,
+        Name:     "PGInsertUser",
+        VarCount: 2,
+        Query: `
+        INSERT INTO users (uuid, email, created_at, state, identifier)
+        VALUES ($1, $2, NOW(), 'A', 12345)`,
+    }
 
-	q2 := rcap.Query{
-		Type:     rcap.QueryTypeSelect,
-		Name:     "PGSelectUserWithUUID",
-		VarCount: 1,
-		Query: `
-		SELECT * FROM users
-		WHERE uuid = $1`,
-	}
+    q2 := rcap.Query{
+        Type:     rcap.QueryTypeSelect,
+        Name:     "PGSelectUserWithUUID",
+        VarCount: 1,
+        Query: `
+        SELECT * FROM users
+        WHERE uuid = $1`,
+    }
 
-	q3 := rcap.Query{
-		Type:     rcap.QueryTypeUpdate,
-		Name:     "PGUpdateUserWithUUID",
-		VarCount: 1,
-		Query: `
-		UPDATE users SET state='B' WHERE uuid = $1`,
-	}
+    q3 := rcap.Query{
+        Type:     rcap.QueryTypeUpdate,
+        Name:     "PGUpdateUserWithUUID",
+        VarCount: 1,
+        Query: `
+        UPDATE users SET state='B' WHERE uuid = $1`,
+    }
 
-	q4 := rcap.Query{
-		Type:     rcap.QueryTypeDelete,
-		Name:     "PGDeleteUserWithUUID",
-		VarCount: 1,
-		Query: `
-		DELETE FROM users WHERE uuid = $1`,
-	}
+    q4 := rcap.Query{
+        Type:     rcap.QueryTypeDelete,
+        Name:     "PGDeleteUserWithUUID",
+        VarCount: 1,
+        Query: `
+        DELETE FROM users WHERE uuid = $1`,
+    }
 
-	config := rcap.DefaultConfigWithDB(vlog.Default(), rcap.DBTypePostgres, dbConnString, []rcap.Query{q1, q2, q3, q4})
+    config := rcap.DefaultConfigWithDB(vlog.Default(), rcap.DBTypePostgres, dbConnString, []rcap.Query{q1, q2, q3, q4})
 
-	r, err := rt.NewWithConfig(config)
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
+    r, err := rt.NewWithConfig(config)
+    if err != nil {
+        fmt.Println(err)
+        return
+    }
 
-	... ...
+    ... ...
 }
 ```
 
@@ -302,24 +283,23 @@ Then, we can run the WebAssembly function from Reactr.
 
 ```go
 func main() {
-	... ...
+    ... ...
 
-	doWasm := r.Register("rs-db", rwasm.NewRunner("./rs_db.wasm"))
+    doWasm := r.Register("rs-db", rwasm.NewRunner("./rs_db.wasm"))
 
-	res, err := doWasm(nil).Then()
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
+    res, err := doWasm(nil).Then()
+    if err != nil {
+        fmt.Println(err)
+        return
+    }
 
-	fmt.Println(string(res.([]byte)))
+    fmt.Println(string(res.([]byte)))
 }
 ```
 
 Finally, let's run the Go host application and see the results printed to the console.
 
-> You must use the `-tags wasmedge` flag to take advantage of the performance
-and extended WebAssembly APIs provided by WasmEdge.
+> You must use the `-tags wasmedge` flag to take advantage of the performance and extended WebAssembly APIs provided by WasmEdge.
 
 ```bash
 $ export REACTR_DB_CONN_STRING='postgresql://postgres:12345@127.0.0.1:5432/reactr'
@@ -329,9 +309,7 @@ $ go run -tags wasmedge main.go
 
 ## Embed JavaScript in Go
 
-As we mentioned, a key feature of the WasmEdge Runtime is its advanced
-[JavaScript support](../../dev/js.md), which allows JavaScript programs to run in lightweight,
-high-performance, safe, multi-language, and [Kubernetes-managed WasmEdge containers](../../kubernetes.md).
+As we mentioned, a key feature of the WasmEdge Runtime is its advanced [JavaScript support](../../dev/js.md), which allows JavaScript programs to run in lightweight, high-performance, safe, multi-language, and [Kubernetes-managed WasmEdge containers](../../kubernetes.md).
 A simple example of embedded JavaScript function in Reactr is [available here](https://github.com/second-state/wasm-learning/tree/master/reactr/quickjs).
 
 ### JavaScript example
@@ -346,9 +324,7 @@ let w = 'wasmedge';
 
 ### Go host application
 
-The [Go host app](https://github.com/second-state/wasm-learning/tree/master/reactr/quickjs/main.go) uses the Reactr API to run WasmEdge's standard JavaScript
-interpreter [rs_embed_js.wasm](https://github.com/second-state/wasm-learning/blob/master/reactr/quickjs/rs_embed_js.wasm). You can build your own version of 
-JavaScript interpreter by modifying [this Rust project](https://github.com/second-state/wasm-learning/tree/master/reactr/quickjs/rs-embed-js).
+The [Go host app](https://github.com/second-state/wasm-learning/tree/master/reactr/quickjs/main.go) uses the Reactr API to run WasmEdge's standard JavaScript interpreter [rs_embed_js.wasm](https://github.com/second-state/wasm-learning/blob/master/reactr/quickjs/rs_embed_js.wasm). You can build your own version of JavaScript interpreter by modifying [this Rust project](https://github.com/second-state/wasm-learning/tree/master/reactr/quickjs/rs-embed-js).
 
 > Learn more about how to embed [JavaScript code in Rust](https://github.com/second-state/wasmedge-quickjs/tree/main/examples/embed_js), and how to [use Rust to implement JavaScript APIs](../../dev/js/rust.md) in WasmEdge.
 
@@ -356,20 +332,20 @@ The Go host application just need to start the job for `rs_embed_js.wasm` and pa
 
 ```go
 func main() {
-	r := rt.New()
-	doWasm := r.Register("hello-quickjs", rwasm.NewRunner("./rs_embed_js.wasm"))
+    r := rt.New()
+    doWasm := r.Register("hello-quickjs", rwasm.NewRunner("./rs_embed_js.wasm"))
 
-	code, err := ioutil.ReadFile(os.Args[1])
-	if err != nil {
-		fmt.Print(err)
-	}
-	res, err := doWasm(code).Then()
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
+    code, err := ioutil.ReadFile(os.Args[1])
+    if err != nil {
+        fmt.Print(err)
+    }
+    res, err := doWasm(code).Then()
+    if err != nil {
+        fmt.Println(err)
+        return
+    }
 
-	fmt.Println(string(res.([]byte)))
+    fmt.Println(string(res.([]byte)))
 }
 ```
 
@@ -386,10 +362,8 @@ The printed result shows the type information of the string in Rust and Go APIs.
 
 ### Feature examples
 
-WasmEdge supports many advanced JavaScript features. For the next step, you
-could try our [React SSR example](https://github.com/second-state/wasmedge-quickjs/tree/main/example_js/react_ssr) to generate an HTML UI from a Reactr function!
-You can just build the `dist/main.js` from the React SSR example, and copy
-it over to this example folder to see it in action!
+WasmEdge supports many advanced JavaScript features. For the next step, you could try our [React SSR example](https://github.com/second-state/wasmedge-quickjs/tree/main/example_js/react_ssr) to generate an HTML UI from a Reactr function!
+You can just build the `dist/main.js` from the React SSR example, and copy it over to this example folder to see it in action!
 
 ```bash
 $ cd quickjs
@@ -399,5 +373,3 @@ $ go run -tags wasmedge main.go main.js
 <div data-reactroot=""><div>This is home</div><div><div>This is page</div></div></div>
 UnDefined
 ```
-
-

@@ -11,18 +11,16 @@ $ go version
 go version go1.16.5 linux/amd64
 ```
 
-Developers must [install the WasmEdge shared library](https://github.com/WasmEdge/WasmEdge/blob/master/docs/install.md) with the same `WasmEdge-go` release version.
+Developers must [install the WasmEdge shared library](../start/install.md) with the same `WasmEdge-go` release version.
 
 ```bash
-wget -qO- https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh | bash -s -- -v 0.9.0-rc.4
+$ wget -qO- https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh | bash -s -- -v 0.9.0
 ```
-
-For more details, please refer to the [Installation Guide](../start/install.md) for the WasmEdge installation.
 
 For the developers need the `TensorFlow` or `Image` extension for `WasmEdge-go`, please install the `WasmEdge` with extensions:
 
 ```bash
-wget -qO- https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh | bash -s -- -v 0.9.0-rc.4
+$ wget -qO- https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh | bash -s -- -v 0.9.0 -e tensorflow,image
 ```
 
 Noticed that the `TensorFlow` and `Image` extensions are only for the `Linux` platforms.
@@ -30,7 +28,7 @@ Noticed that the `TensorFlow` and `Image` extensions are only for the `Linux` pl
 Install the `WasmEdge-go` package and build in your Go project directory:
 
 ```bash
-$ go get github.com/second-state/WasmEdge-go/wasmedge@v0.9.0-rc3
+$ go get github.com/second-state/WasmEdge-go/wasmedge@v0.9.0
 $ go build
 ```
 
@@ -74,4 +72,3 @@ The [go_WasmAOT example](https://github.com/second-state/WasmEdge-go-examples/tr
 * [Pass complex parameters to Wasm functions](go/memory.md)
 * [Embed a Tensorflow inference function](go/tensorflow.md)
 * [Embed a bindgen function](go/bindgen.md)
-

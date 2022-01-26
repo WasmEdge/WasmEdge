@@ -9,7 +9,7 @@ $ git clone https://github.com/second-state/wasmedge-quickjs
 $ cd examples/embed_js
 ```
 
-> You must have [Rust](https://www.rust-lang.org/tools/install) and [WasmEdge](https://github.com/WasmEdge/WasmEdge/blob/master/docs/install.md) installed to build and run the examples we show you.
+> You must have [Rust](https://www.rust-lang.org/tools/install) and [WasmEdge](../../start/install.md) installed to build and run the examples we show you.
 
 The `embed_js` demo showcases several different examples on how to embed JavaScript inside Rust. You can build and run all the examples as follows.
 
@@ -18,7 +18,7 @@ $ cargo build --target wasm32-wasi --release
 $ wasmedge --dir .:. target/wasm32-wasi/release/embed_js.wasm
 ```
 
->  The `--dir .:.` on the command line is to give wasmedge permission to read the local directory in the file system.
+> Note: The `--dir .:.` on the command line is to give wasmedge permission to read the local directory in the file system.
 
 ## Create a JavaScript function API
 
@@ -56,7 +56,7 @@ fn run_rust_function(ctx: &mut Context) {
 
 The execution result is as follows.
 
-```
+```bash
 hello from rust
 argv=[Int(1), Int(2), Int(3)]
 return value:UnDefined
@@ -118,7 +118,7 @@ In the JavaScript code, you can now directly use `test_obj` as part of the API.
 
 The execution result is as follows.
 
-```
+```bash
 test_obj keys= a,b,f
 test_obj.a= 1
 test_obj.b= abc
@@ -279,7 +279,7 @@ fn main() {
 
 The execution result from the above application is as follows.
 
-```
+```bash
 rust-> new Point [Int(1), Int(2)]
 rust-> get x
 rust-> get y
@@ -290,6 +290,3 @@ js-> p: undefined
 An error has been caught
 TypeError: cannot read property 'x' of undefined
 ```
-
-
-

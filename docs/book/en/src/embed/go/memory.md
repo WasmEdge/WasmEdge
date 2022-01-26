@@ -150,7 +150,7 @@ func main() {
 To build the Go SDK example, run the following commands.
 
 ```bash
-$ go get github.com/second-state/WasmEdge-go/wasmedge@v0.9.0-rc5
+$ go get github.com/second-state/WasmEdge-go/wasmedge@v0.9.0
 $ go build greet_memory.go
 ```
 
@@ -293,7 +293,7 @@ func main() {
 To build the Go SDK example, run the following commands.
 
 ```bash
-$ go get github.com/second-state/WasmEdge-go/wasmedge@v0.9.0-rc5
+$ go get github.com/second-state/WasmEdge-go/wasmedge@v0.9.0
 $ go build greet_memory.go
 ```
 
@@ -477,7 +477,7 @@ func main() {
 To build the Go SDK example, run the following commands.
 
 ```bash
-$ go get github.com/second-state/WasmEdge-go/wasmedge@v0.9.0-rc5
+$ go get github.com/second-state/WasmEdge-go/wasmedge@v0.9.0
 $ go build run.go
 ```
 
@@ -649,7 +649,7 @@ func main() {
 To build the Go SDK example, run the following commands.
 
 ```bash
-$ go get github.com/second-state/WasmEdge-go/wasmedge@v0.9.0-rc5
+$ go get github.com/second-state/WasmEdge-go/wasmedge@v0.9.0
 $ go build run.go
 ```
 
@@ -663,4 +663,3 @@ fibArray: [0 0 0 0 1 0 0 0 1 0 0 0 2 0 0 0 3 0 0 0 5 0 0 0 8 0 0 0 13 0 0 0 21 0
 fibArrayReturnMemory memory at: 0x14d4c
 fibArrayReturnMemory: [0 0 0 0 1 0 0 0 1 0 0 0 2 0 0 0 3 0 0 0 5 0 0 0 8 0 0 0 13 0 0 0 21 0 0 0 34 0 0 0]
 ```
-

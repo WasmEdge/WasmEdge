@@ -8,14 +8,14 @@ You must have [Go already installed](https://go.dev/doc/install) on your machine
 
 For Ubuntu or other Debian-based Linux systems on x86 processors, you could use the following command line to install TinyGo. For other platforms, please refer to [TinyGo docs](https://tinygo.org/getting-started/install/).
 
-```
-wget https://github.com/tinygo-org/tinygo/releases/download/v0.21.0/tinygo_0.21.0_amd64.deb
-sudo dpkg -i tinygo_0.21.0_amd64.deb`
+```bash
+$ wget https://github.com/tinygo-org/tinygo/releases/download/v0.21.0/tinygo_0.21.0_amd64.deb
+$ sudo dpkg -i tinygo_0.21.0_amd64.deb`
 ```
 
 Next, run the following command line to check out if the installation is successful.
 
-```
+```bash
 $ tinygo version
 tinygo version 0.21.0 linux/amd64 (using go version go1.16.7 and LLVM version 11.0.0)
 ```
@@ -31,7 +31,7 @@ package main
 func main() {
     println("Hello TinyGo from WasmEdge!")
 }
-``` 
+```
 
 > Inside the `main()` function, you can use Go standard API to read / write 
 files, and access command line arguments and `env` variables.
@@ -41,7 +41,7 @@ files, and access command line arguments and `env` variables.
 Next, compile the `main.go` program to WebAssembly using TinyGo.
 
 ```bash
-tinygo build -o hello.wasm -target wasi main.go
+$ tinygo build -o hello.wasm -target wasi main.go
 ```
 
 You will see a file named `hello.wasm` in the same directory. This is a WebAssembly bytecode file.
@@ -88,7 +88,7 @@ func fibArray(n int32) int32{
 Next, compile the `main.go` program to WebAssembly using TinyGo.
 
 ```bash
-tinygo build -o fib.wasm -target wasi main.go
+$ tinygo build -o fib.wasm -target wasi main.go
 ```
 
 You will see a file named `fib.wasm` in the same directory. This is a WebAssembly bytecode file.
@@ -125,6 +125,3 @@ $ wasmedgec fib.wasm fib.wasm
 $ wasmedge --reactor fib.wasm fibArray 10
 34
 ```
-
-
-

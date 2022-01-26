@@ -125,5 +125,3 @@ The results are as follows.
 Go: Args: [./tflite_food rust_tflite_food_lib.wasm food.jpg]
 It is very likely a Hot dog in the picture
 ```
-
-

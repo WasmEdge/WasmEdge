@@ -1,8 +1,6 @@
 # Networking sockets
 
-The [wasmedge_wasi_socket](https://github.com/second-state/wasmedge_wasi_socket)
-crate enables Rust developers to create networking applications
-and compile them into WebAssembly for WasmEdge Runtime.
+The [wasmedge_wasi_socket](https://github.com/second-state/wasmedge_wasi_socket) crate enables Rust developers to create networking applications and compile them into WebAssembly for WasmEdge Runtime.
 
 ## The HTTP client example
 
@@ -43,13 +41,13 @@ wasmedge_http_req  = "0.8.1"
 The following command compiles the Rust program.
 
 ```bash
-cargo build --target wasm32-wasi --release
+$ cargo build --target wasm32-wasi --release
 ```
 
 The following command runs the application in WasmEdge.
 
 ```bash
-wasmedge target/wasm32-wasi/release/http_client.wasm
+$ wasmedge target/wasm32-wasi/release/http_client.wasm
 ```
 
 ## The HTTP server example
@@ -133,23 +131,19 @@ wasmedge_http_req  = "0.8.1"
 The following command compiles the Rust program.
 
 ```bash
-cargo build --target wasm32-wasi --release
+$ cargo build --target wasm32-wasi --release
 ```
 
 The following command runs the application in WasmEdge.
 
 ```bash
-wasmedge target/wasm32-wasi/release/http_server.wasm
+$ wasmedge target/wasm32-wasi/release/http_server.wasm
 new connection at 1234
 ```
 
 To test the HTTP server, you can submit a HTTP request to it via `curl`.
 
 ```bash
-curl -d "name=WasmEdge" -X POST http://127.0.0.1:1234
+$ curl -d "name=WasmEdge" -X POST http://127.0.0.1:1234
 echo: name=WasmEdge
 ```
-
-
-
-

@@ -23,5 +23,3 @@ A: We created a handy table for comparison.
 **Q: What's the difference between WebAssembly and eBPF**
 
 A: eBPF is the bytecode format for a Linux kernel space VM that is suitable for network or security related tasks. WebAssembly is the bytecode format for a user space VM that is suited for business applications. [See details here](https://medium.com/codex/ebpf-and-webassembly-whose-vm-reigns-supreme-c2861ce08f89)
-
-

@@ -23,4 +23,3 @@ The image classification DSL is a YAML format that allows the user to specify a 
 ## DSL for chatbots
 
 A chatbot DSL function takes an input string and responds with a reply string. The DSL specifies the internal state transtions of the chatbot, as well as AI models for language understanding. This work is in progress.
-

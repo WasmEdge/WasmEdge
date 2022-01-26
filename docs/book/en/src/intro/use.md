@@ -22,3 +22,4 @@ WasmEdge is a cloud-native WebAssembly runtime hosted by the CNCF. It is widely 
   * Slack
   * Lark
 
+If you have any great ideas on WasmEdge, don't hesitate to open [a GitHub issue](https://github.com/WasmEdge/WasmEdge/issues) to discuss together.

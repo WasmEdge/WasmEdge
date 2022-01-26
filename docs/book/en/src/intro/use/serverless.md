@@ -25,4 +25,3 @@ WasmEdge works with existing serverless or Jamstack platforms to provide a high-
 ## Second State Functions
 
 * [Tutorials](https://www.secondstate.io/faas/)
-

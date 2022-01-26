@@ -49,13 +49,13 @@
    - 用户也可以，通过指定 `.so`, `.dylib`, 或者 `.dll` 这些扩展名，来生成原生二进制文件.
 
 ```bash
-// This is slow
+# This is slow
 $ wasmedge app.wasm
 
-// AOT compile
+# AOT compile
 $ wasmedgec app.wasm app.wasm
 
-// This is now MUCH faster
+# This is now MUCH faster
 $ wasmedge app.wasm
 ```
 

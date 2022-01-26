@@ -1,7 +1,6 @@
 # Rust
 
-Rust is one of the "first-class citizen" programming languages in the WebAssembly ecosystem. All WasmEdge extensions to WebAssembly also come with Rust APIs
-for developers.
+Rust is one of the "first-class citizen" programming languages in the WebAssembly ecosystem. All WasmEdge extensions to WebAssembly also come with Rust APIs for developers.
 In this chapter, we will show you how to compile your Rust applications to wasm bytecode and to run in the WasmEdge runtime.
 
 ## Prerequisites
@@ -10,7 +9,7 @@ You need to install [Rust](https://www.rust-lang.org/tools/install) and [WasmEdg
 You should also install the `wasm32-wasi` target to the Rust toolchain.
 
 ```bash
-rustup target add wasm32-wasi
+$ rustup target add wasm32-wasi
 ```
 
 ## Hello world
@@ -90,7 +89,6 @@ Below are some SDK examples for complex call parameters and return values.
 * [Use wasm-bindgen in a Go host app](../embed/go/bindgen.md)
 * [Use direct memory passing in a Go host app]()
 
-
 ## Improve performance
 
 To achieve native Rust performance for those applications, you
@@ -122,5 +120,3 @@ $ wasmedge --reactor add.wasm add 2 2
 * [Networking socket](rust/networking.md) shows how to create networking applications for WebAssembly using the WasmEdge networking socket Rust SDK.
 * [Command interface](rust/command.md) shows how to create native command applications for WebAssembly using the Wasmedge command interface Rust SDK.
 * [Bindgen and rustwasmc](rust/bindgen.md) shows how to use the `rustwasmc` toolchain to compile Rust functions into WebAssembly, and then pass complex call parameters to the function from an external host application.
-
-

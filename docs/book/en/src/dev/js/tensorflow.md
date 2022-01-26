@@ -5,31 +5,45 @@ The interpreter supports the WasmEdge TensorFlow lite inference extension so tha
 Here is an example of JavaScript. You could find the full code from [example_js/tensorflow_lite_demo/](https://github.com/second-state/wasmedge-quickjs/tree/main/example_js/tensorflow_lite_demo).
 
 ```javascript
-import {TensorflowLiteSession} from 'tensorflow_lite'
-import {Image} from 'image'let img = new Image('./example_js/tensorflow_lite_demo/food.jpg')
+import {Image} from 'image';
+import * as std from 'std';
+import {TensorflowLiteSession} from 'tensorflow_lite';
 
-let img_rgb = img.to_rgb().resize(192,192)
-let rgb_pix = img_rgb.pixels()let session = new TensorflowLiteSession('./example_js/tensorflow_lite_demo/lite-model_aiy_vision_classifier_food_V1_1.tflite')
+let img = new Image('food.jpg');
+let img_rgb = img.to_rgb().resize(192, 192);
+let rgb_pix = img_rgb.pixels();
 
-session.add_input('input',rgb_pix)
-session.run()
+let session = new TensorflowLiteSession(
+    'lite-model_aiy_vision_classifier_food_V1_1.tflite');
+session.add_input('input', rgb_pix);
+session.run();
 let output = session.get_output('MobilenetV1/Predictions/Softmax');
-let output_view = new Uint8Array(output)
+let output_view = new Uint8Array(output);
 let max = 0;
 let max_idx = 0;
-for (var i in output_view){
-    let v = output_view[i]
-    if(v>max){
-        max = v;
-        max_idx = i;
-    }
+for (var i in output_view) {
+  let v = output_view[i];
+  if (v > max) {
+    max = v;
+    max_idx = i;
+  }
 }
-print(max,max_idx)
+let label_file = std.open('aiy_food_V1_labelmap.txt', 'r');
+let label = '';
+for (var i = 0; i <= max_idx; i++) {
+  label = label_file.getline();
+}
+label_file.close();
+
+print('label:');
+print(label);
+print('confidence:');
+print(max / 255);
 ```
 
 To run the JavaScript in the WasmEdge runtime, you can do the following on the CLI to re-build the QuickJS engine with TensorFlow and then run the JavaScript program with TensorFlow API.
 
-```shell
+```bash
 $ cargo build --target wasm32-wasi --release --features=tensorflow
 ... ...
 $ cd example_js/tensorflow_lite_demo
@@ -40,9 +54,9 @@ confidence:
 0.8941176470588236
 ```
 
->  Note, the `--dir .:.` on the command line is to give wasmedge permission to read the local directory in the file system for the `main.js` file.
+> Note: the `--dir .:.` on the command line is to give wasmedge permission to read the local directory in the file system for the `main.js` file.
 
-#### Note:
+#### Note
 
 * The `--features=tensorflow` compiler flag builds a version of the QuickJS engine with WasmEdge TensorFlow extensions.
 * The `wasmedge-tensorflow-lite` program is part of the WasmEdge package. It is the WasmEdge runtime with the Tensorflow extension built in.
@@ -55,7 +69,7 @@ The above Tensorflow inference example takes 1–2 seconds to run. It is accepta
 
 The following example uses the extended versions to `wasmedge` and `wasmedgec` to support the WasmEdge Tensorflow extension.
 
-```shell
+```bash
 $ cd example_js/tensorflow_lite_demo
 $ wasmedgec-tensorflow ../../target/wasm32-wasi/release/wasmedge_quickjs.wasm wasmedge_quickjs.wasm
 $ wasmedge-tensorflow-lite --dir .:. wasmedge_quickjs.wasm main.js

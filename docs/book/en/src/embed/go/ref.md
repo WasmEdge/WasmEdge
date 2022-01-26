@@ -1,6 +1,5 @@
 # WasmEdge Go API references
 
-
 The followings are the guides to working with the WasmEdge-Go SDK.
 
 ## Table of Contents
@@ -54,13 +53,13 @@ go version go1.16.5 linux/amd64
 Developers must [install the WasmEdge shared library](start/install.md) with the same `WasmEdge-go` release or pre-release version.
 
 ```bash
-wget -qO- https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh | bash -s -- -v 0.9.0
+$ wget -qO- https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh | bash -s -- -v 0.9.0
 ```
 
 For the developers need the `TensorFlow` or `Image` extension for `WasmEdge-go`, please install the `WasmEdge` with extensions:
 
 ```bash
-wget -qO- https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh | bash -s -- -e tf,image -v 0.9.0
+$ wget -qO- https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh | bash -s -- -e tf,image -v 0.9.0
 ```
 
 Noticed that the `TensorFlow` and `Image` extensions are only for the `Linux` platforms.
@@ -2205,4 +2204,3 @@ const (
 ```
 
 Please refer to the [AOT compiler options configuration](#Configurations) for details.
-

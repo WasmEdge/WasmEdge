@@ -2,7 +2,7 @@
 
 Please follow this guide to build and test WasmEdge from source code.
 
-The following guide is based on Linux distributions. For MacOS, please refer to [Build for macOS](build_on_mac.md). For Windows, please refer to [Build for Windows](build_on_windows.md)
+The following guide is based on Linux distributions. For MacOS, please refer to [Build for macOS](build_on_mac.md). For Windows, please refer to [Build for Windows](build_on_windows.md). For Android, please refer to [Build for Android](build_for_android.md).
 
 > If you just want the latest builds from the `HEAD` of the `master` branch, and do not want to build it yourself, you can download the release package directly from our Github Action's CI artifact. [Here is an example](https://github.com/WasmEdge/WasmEdge/actions/runs/1521549504#artifacts).
 
@@ -15,7 +15,7 @@ $ cd WasmEdge
 
 ## Check Dependencies
 
-WasmEdge will try to use the latest LLVM release to create our nightly build. 
+WasmEdge will try to use the latest LLVM release to create our nightly build.
 If you want to build from source, you may need to install these dependencies by yourself or using our docker images which provides several Linux distribution support.
 
 - LLVM 12.0.0 (>= 10.0.0)

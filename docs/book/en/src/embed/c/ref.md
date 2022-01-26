@@ -15,6 +15,7 @@
   * [Results](#results)
   * [Contexts](#contexts)
   * [WASM data structures](#wasm-data-structures)
+  * [Async](#async)
   * [Configurations](#configurations)
   * [Statistics](#statistics)
 * [WasmEdge VM](#wasmedge-vm)
@@ -45,7 +46,7 @@
 The easiest way to install WasmEdge is to run the following command. Your system should have `git` and `wget` as prerequisites.
 
 ```bash
-wget -qO- https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh | bash -s -- -v 0.9.0
+$ wget -qO- https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh | bash -s -- -v 0.9.0
 ```
 
 For more details, please refer to the [Installation Guide](/start/install.md) for the WasmEdge installation.

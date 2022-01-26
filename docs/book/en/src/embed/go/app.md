@@ -4,7 +4,6 @@ The WasmEdge Go SDK can [embed standalone WebAssembly applications](https://gith
 
 Our [demo Rust application](https://github.com/second-state/WasmEdge-go-examples/tree/master/go_ReadFile/rust_readfile) reads from a file. Note that the WebAssembly program's input and output data are now passed by the STDIN and STDOUT.
 
-
 ```rust
 use std::env;
 use std::fs::File;
@@ -98,7 +97,7 @@ func main() {
 Next, let's build the Go application with the WasmEdge Go SDK.
 
 ```bash
-$ go get github.com/second-state/WasmEdge-go/wasmedge@v0.9.0-rc3
+$ go get github.com/second-state/WasmEdge-go/wasmedge@v0.9.0
 $ go build
 ```
 
@@ -120,4 +119,3 @@ Rust: Process end.
 ```
 
 More examples can be found at [the WasmEdge-go-examples GitHub repo.](https://github.com/second-state/WasmEdge-go-examples)
-

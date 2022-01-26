@@ -6,7 +6,7 @@
 
 ### 在 x86_64 机器上使用
 
-```
+```bash
 $ docker pull wasmedge/appdev_x86_64:0.9.0
 $ docker run --rm -v $(pwd):/app -it wasmedge/appdev_x86_64:0.9.0
 (docker) #
@@ -16,7 +16,7 @@ $ docker run --rm -v $(pwd):/app -it wasmedge/appdev_x86_64:0.9.0
 
 ### 在 arm64 机器上使用
 
-```
+```bash
 $ docker pull wasmedge/appdev_aarch64:0.9.0
 $ docker run --rm -v $(pwd):/app -it wasmedge/appdev_aarch64:0.9.0
 (docker) #
@@ -37,7 +37,7 @@ $ docker run --rm -v $(pwd):/app -it wasmedge/appdev_aarch64:0.9.0
 
 Hello World. [点击此处查看更多示例](https://github.com/WasmEdge/WasmEdge/tree/master/tools/wasmedge/examples)
 
-```
+```bash
 $ wasmedge hello.wasm world
 hello
 world
@@ -45,7 +45,7 @@ world
 
 使用 AOT  来让它跑的 **更快**.
 
-```
+```bash
 $ wasmedgec hello.wasm hello.wasm
 $ wasmedge hello.wasm world
 hello
@@ -54,7 +54,7 @@ world
 
 这里也有一些 JavaScript 示例. [查看](https://github.com/WasmEdge/WasmEdge/tree/master/tools/wasmedge/examples/js)
 
-```
+```bash
 $ wasmedge --dir .:. qjs.wasm hello.js 1 2 3
 Hello 1 2 3
 
@@ -66,16 +66,17 @@ confidence: 0.8941176470588236
 ## 构建并发布 appdev 镜像
 
 使用以下的命令来构建并发布 appdev 镜像
+
 ### 在一个 x86_64 机器上构建
 
-```
+```bash
 docker build -t wasmedge/appdev_x86_64:0.9.0 -f Dockerfile.appdev_x86_64 ./
 docker image push wasmedge/appdev_x86_64:0.9.0
 ```
 
 ### 在一个 ARM64 / aarch64 机器上构建
 
-```
+```bash
 docker build -t wasmedge/appdev_aarch64:0.9.0 -f Dockerfile.appdev_aarch64 ./
 docker image push wasmedge/appdev_aarch64:0.9.0
 ```

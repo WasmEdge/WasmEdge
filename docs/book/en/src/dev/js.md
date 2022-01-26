@@ -31,14 +31,10 @@ First of all, QuickJS is a lot smaller than v8. In fact, it only takes 1/40 (or 
 
 Second, for most business logic applications, raw performance is not critical. The application may have computationally intensive tasks, such as AI inference on the fly. WasmEdge allows the QuickJS applications to drop to high-performance WebAssembly for these tasks while it is not so easy with v8 to add such extensions modules.
 
-Third, WasmEdge is [itself an OCI compliant container](../kubernetes.md). 
-It is secure by default, supports resource isolation, and can be managed by container tools to run side by side
-with Linux containers in a single k8s cluster.
+Third, WasmEdge is [itself an OCI compliant container](../kubernetes.md).
+It is secure by default, supports resource isolation, and can be managed by container tools to run side by side with Linux containers in a single k8s cluster.
 
 Finally, v8 has a very large attack surface and requires [major efforts](https://blog.cloudflare.com/mitigating-spectre-and-other-security-threats-the-cloudflare-workers-security-model/) to run securely in a public cloud environment.
 It is known that [many JavaScript security issues arise from JIT](https://www.theregister.com/2021/08/06/edge_super_duper_security_mode/). Maybe turning off JIT in the cloud-native environment is not such a bad idea!
 
-In the end, running v8 in a cloud-native environment often requires a full stack of software tools consisting of 
-"Linux container + guest OS + node or deno + v8", which makes it
-much heavier and slower than a simple WasmEdge + QuickJS container runtime.
-
+In the end, running v8 in a cloud-native environment often requires a full stack of software tools consisting of "Linux container + guest OS + node or deno + v8", which makes it much heavier and slower than a simple WasmEdge + QuickJS container runtime.

@@ -95,6 +95,7 @@
     - [Linux](os/linux.md)
     - [Windows](os/windows.md)
     - [Mac](os/mac.md)
+    - [Android](os/android.md)
     - [seL4](os/sel4.md)
     - [Open Harmony](os/openharmony.md)
     - [Raspberry Pi](os/raspberrypi.md)
@@ -103,7 +104,7 @@
     - [Build WasmEdge from source](extend/build.md)
         - [Build for Mac](extend/build_on_mac.md)
         - [Build for Windows](extend/build_on_windows.md)
+        - [Build for Android](extend/build_for_android.md)
     - [WasmEdge plug-in API](extend/plugin.md)
         - [Host functions](extend/plugin/hostfunction.md)
         - [External references](extend/plugin/externref.md)
-

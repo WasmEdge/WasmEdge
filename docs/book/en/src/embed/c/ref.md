@@ -23,7 +23,7 @@
   * [Preregistrations](#preregistrations)
   * [Host Module Registrations](#host-module-registrations)
   * [WASM Registrations And Executions](#wasm-registrations-and-executions)
-  * *[Asynchronous execution](#asynchronous-execution)
+  * [Asynchronous execution](#asynchronous-execution)
   * [Instance Tracing](#instance-tracing)
 * [WasmEdge Runtime](#wasmedge-runtime)
   * [WASM Execution Example Step-By-Step](#wasm-execution-example-step-by-step)
@@ -37,7 +37,6 @@
 * [WasmEdge AOT Compiler](#wasmEdge-aot-compiler)
   * [Compilation Example](#compilation-example)
   * [Compiler Options](#compiler-options)
-
 
 ## WasmEdge Installation
 
@@ -2145,7 +2144,6 @@ In WasmEdge, developers can create the `Function`, `Memory`, `Table`, and `Globa
 ## WasmEdge AOT Compiler
 
 In this partition, we will introduce the WasmEdge AOT compiler and the options.
-
 
 WasmEdge runs the WASM files in interpreter mode, and WasmEdge also supports the AOT (ahead-of-time) mode running without modifying any code.
 The WasmEdge AOT (ahead-of-time) compiler compiles the WASM files for running in AOT mode which is much faster than interpreter mode. Developers can compile the WASM files into the compiled-WASM files in shared library format for universal WASM format for the AOT mode execution.

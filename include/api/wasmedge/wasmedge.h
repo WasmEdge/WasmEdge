@@ -2454,6 +2454,7 @@ WASMEDGE_CAPI_EXPORT extern void WasmEdge_ImportObjectInitWasmEdgeProcess(
     WasmEdge_ImportObjectContext *Cxt, const char *const *AllowedCmds,
     const uint32_t CmdsLen, const bool AllowAll);
 
+#ifdef WASMEDGE_BUILD_WASI_CRYPTO
 /// Creation of the WasmEdge_ImportObjectContext for the WASICrypto
 /// specification.
 ///
@@ -2477,6 +2478,7 @@ WasmEdge_ImportObjectCreateWasiCrypto(void);
 /// be recorded and all commands can be executed by WASICrypto.
 WASMEDGE_CAPI_EXPORT extern void
 WasmEdge_ImportObjectInitWasiCrypto(WasmEdge_ImportObjectContext *Cxt);
+#endif
 
 /// Add a function instance context into a WasmEdge_ImportObjectContext.
 ///

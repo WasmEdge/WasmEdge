@@ -5,7 +5,9 @@
 
 #include "aot/compiler.h"
 #include "host/wasi/wasimodule.h"
+#ifdef WASMEDGE_BUILD_WASI_CRYPTO
 #include "host/wasi_crypto/cryptomodule.h"
+#endif
 #include "host/wasmedge_process/processmodule.h"
 #include "vm/vm.h"
 
@@ -2266,6 +2268,7 @@ WASMEDGE_CAPI_EXPORT void WasmEdge_ImportObjectInitWasmEdgeProcess(
   }
 }
 
+#ifdef WASMEDGE_BUILD_WASI_CRYPTO
 WASMEDGE_CAPI_EXPORT WasmEdge_ImportObjectContext *
 WasmEdge_ImportObjectCreateWasiCrypto() {
   auto *WASICryptoMod = new WasmEdge::Host::WasiCryptoModule();
@@ -2284,6 +2287,7 @@ WasmEdge_ImportObjectInitWasiCrypto(WasmEdge_ImportObjectContext *Cxt) {
     return;
   }
 }
+#endif
 
 WASMEDGE_CAPI_EXPORT void
 WasmEdge_ImportObjectAddFunction(WasmEdge_ImportObjectContext *Cxt,

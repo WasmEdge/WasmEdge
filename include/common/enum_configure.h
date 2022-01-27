@@ -99,7 +99,9 @@ namespace WasmEdge {
 enum class HostRegistration : uint8_t {
   Wasi = 0,
   WasmEdge_Process,
+#ifdef WASMEDGE_BUILD_WASI_CRYPTO
   Wasi_Crypto,
+#endif
   Max
 };
 
@@ -110,7 +112,9 @@ enum class HostRegistration : uint8_t {
 enum WasmEdge_HostRegistration {
   WasmEdge_HostRegistration_Wasi = 0,
   WasmEdge_HostRegistration_WasmEdge_Process,
+#ifdef WASMEDGE_BUILD_WASI_CRYPTO
   WasmEdge_HostRegistration_Wasi_Crypto
+#endif
 };
 
 /// AOT compiler optimization level C enumeration.

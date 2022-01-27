@@ -68,6 +68,10 @@ option(WASMEDGE_BUILD_WASI_CRYPTO "Build wasi-crypto for WasmEdge" OFF)
 set(WASMEDGE_BUILD_PACKAGE "DEB;RPM" CACHE STRING "Package generate types")
 set(CPACK_PROJECT_CONFIG_FILE ${CMAKE_CURRENT_SOURCE_DIR}/cmake/cpack_config.cmake)
 
+if(WASMEDGE_BUILD_WASI_CRYPTO) 
+  add_compile_definitions(WASMEDGE_BUILD_WASI_CRYPTO)
+endif()
+
 if(WASMEDGE_BUILD_COVERAGE)
   set(GCOVR_ADDITIONAL_ARGS "--exclude-unreachable-branches;--exclude-throw-branches")
   include(CodeCoverage)

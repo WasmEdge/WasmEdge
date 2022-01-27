@@ -5,8 +5,10 @@
 #include "vm/async.h"
 
 #include "host/wasi/wasimodule.h"
-#include "host/wasi_crypto/cryptomodule.h"
 #include "host/wasmedge_process/processmodule.h"
+#ifdef WASMEDGE_BUILD_WASI_CRYPTO
+#include "host/wasi_crypto/cryptomodule.h"
+#endif
 
 namespace WasmEdge {
 namespace VM {
@@ -40,12 +42,14 @@ void VM::initVM() {
     ExecutorEngine.registerModule(StoreRef, *ProcMod.get());
     ImpObjs.insert({HostRegistration::WasmEdge_Process, std::move(ProcMod)});
   }
+#ifdef WASMEDGE_BUILD_WASI_CRYPTO
   if (Conf.hasHostRegistration(HostRegistration::Wasi_Crypto)) {
     std::unique_ptr<Runtime::ImportObject> WasiCryptoMod =
         std::make_unique<Host::WasiCryptoModule>();
     ExecutorEngine.registerModule(StoreRef, *WasiCryptoMod.get());
     ImpObjs.insert({HostRegistration::Wasi_Crypto, std::move(WasiCryptoMod)});
   }
+#endif
 }
 
 Expect<void> VM::registerModule(std::string_view Name,

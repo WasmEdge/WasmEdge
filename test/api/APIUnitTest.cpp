@@ -2109,6 +2109,7 @@ TEST(APICoreTest, ImportObject) {
   EXPECT_TRUE(true);
   WasmEdge_VMDelete(VM);
 
+#ifdef WASMEDGE_BUILD_WASI_CRYPTO
   // Create WASICrypto in VM.
   ImpObj = WasmEdge_ImportObjectCreateWasiCrypto();
   EXPECT_NE(ImpObj, nullptr);
@@ -2129,6 +2130,7 @@ TEST(APICoreTest, ImportObject) {
   EXPECT_TRUE(true);
 
   WasmEdge_VMDelete(VM);
+#endif
 }
 
 TEST(APICoreTest, Async) {
@@ -3092,10 +3094,11 @@ TEST(APICoreTest, VM) {
   EXPECT_EQ(WasmEdge_VMGetImportModuleContext(nullptr,
                                               WasmEdge_HostRegistration_Wasi),
             nullptr);
-  //  EXPECT_EQ(WasmEdge_VMGetImportModuleContext(nullptr,
-  //                                              WasmEdge_HostRegistration_Wasi_Crypto),
-  //            nullptr);
-
+#ifdef WASMEDGE_BUILD_WASI_CRYPTO
+  EXPECT_EQ(WasmEdge_VMGetImportModuleContext(
+                nullptr, WasmEdge_HostRegistration_Wasi_Crypto),
+            nullptr);
+#endif
   // VM get store
   EXPECT_EQ(WasmEdge_VMGetStoreContext(VM), Store);
   EXPECT_EQ(WasmEdge_VMGetStoreContext(nullptr), nullptr);

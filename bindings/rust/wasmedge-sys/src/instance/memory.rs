@@ -423,7 +423,7 @@ mod tests {
         // get data before set data
         let result = mem.get_data(0, 10);
         assert!(result.is_ok());
-        let data: Vec<_> = result.unwrap();
+        let data = result.unwrap();
         assert_eq!(data, vec![0; 10]);
 
         // set data
@@ -432,7 +432,7 @@ mod tests {
         // get data after set data
         let result = mem.get_data(10, 10);
         assert!(result.is_ok());
-        let data: Vec<_> = result.unwrap();
+        let data = result.unwrap();
         assert_eq!(data, vec![1; 10]);
 
         // set data and the data length is larger than the data size in the memory

@@ -766,8 +766,10 @@ mod tests {
     use super::Vm;
     use crate::{
         error::{
-            CoreCommonError, CoreError, CoreExecutionError, CoreLoadError, StoreError, VmError,
+            CoreCommonError, CoreError, CoreExecutionError, CoreInstantiationError, CoreLoadError,
+            StoreError, VmError,
         },
+        types::HostRegistration,
         Config, FuncType, Function, ImportObject, Loader, Module, Store, ValType, Value,
         WasmEdgeError,
     };
@@ -1602,6 +1604,226 @@ mod tests {
         });
 
         handle.join().unwrap();
+    }
+
+    #[test]
+    fn test_vm_get_wasi_module() {
+        {
+            // create a Config context
+            let result = Config::create();
+            assert!(result.is_ok());
+            let mut config = result.unwrap();
+            config.bulk_memory_operations(true);
+            assert!(config.bulk_memory_operations_enabled());
+            config.wasi(true);
+            assert!(config.wasi_enabled());
+
+            // create a Vm context with the given Config and Store
+            let result = Vm::create(Some(config), None);
+            assert!(result.is_ok());
+            let mut vm = result.unwrap();
+
+            // get the Wasi module
+            let result = vm.wasi_import_module_mut();
+            assert!(result.is_ok());
+
+            // *** try to add another Wasi module, that causes error.
+
+            // create a Wasi module
+            let result = ImportObject::create_wasi(None, None, None);
+            assert!(result.is_ok());
+            let import_wasi = result.unwrap();
+
+            let result = vm.register_wasm_from_import(import_wasi);
+            assert!(result.is_err());
+            assert_eq!(
+                result.unwrap_err(),
+                WasmEdgeError::Core(CoreError::Instantiation(
+                    CoreInstantiationError::ModuleNameConflict
+                ))
+            );
+
+            // get store from vm
+            let result = vm.store_mut();
+            assert!(result.is_ok());
+            let store = result.unwrap();
+
+            // check registered modules
+            assert_eq!(store.reg_module_len(), 1);
+            let result = store.reg_module_names();
+            assert!(result.is_some());
+            assert_eq!(result.unwrap(), ["wasi_snapshot_preview1"]);
+        }
+
+        {
+            // create a Config context, not enable wasi and wasmedge_process options.
+            let result = Config::create();
+            assert!(result.is_ok());
+            let mut config = result.unwrap();
+            config.bulk_memory_operations(true);
+            assert!(config.bulk_memory_operations_enabled());
+
+            // create a Vm context with the given Config and Store
+            let result = Vm::create(Some(config), None);
+            assert!(result.is_ok());
+            let mut vm = result.unwrap();
+
+            // get the Wasi module
+            let result = vm.wasi_import_module_mut();
+            assert!(result.is_err());
+
+            // *** try to add a Wasi module.
+
+            // create a Wasi module
+            let result = ImportObject::create_wasi(None, None, None);
+            assert!(result.is_ok());
+            let mut import_wasi = result.unwrap();
+
+            // add host function
+            let result = FuncType::create(vec![ValType::I32; 2], vec![ValType::I32]);
+            assert!(result.is_ok());
+            let func_ty = result.unwrap();
+            let result = Function::create(func_ty, Box::new(real_add), 0);
+            assert!(result.is_ok());
+            let mut host_func = result.unwrap();
+            import_wasi.add_func("add", host_func);
+
+            let result = vm.register_wasm_from_import(import_wasi);
+            assert!(result.is_ok());
+
+            // get the Wasi module
+            let result = vm.wasi_import_module_mut();
+            assert!(result.is_err());
+            assert_eq!(
+                result.unwrap_err(),
+                WasmEdgeError::Vm(VmError::NotFoundWasiImportObjectModule)
+            );
+
+            // get store from vm
+            let result = vm.store_mut();
+            assert!(result.is_ok());
+            let store = result.unwrap();
+
+            // check registered modules
+            assert_eq!(store.reg_module_len(), 1);
+            let result = store.reg_module_names();
+            assert!(result.is_some());
+            assert_eq!(result.unwrap(), ["wasi_snapshot_preview1"]);
+
+            // find "add" host function
+            let result = store.find_func_registered("wasi_snapshot_preview1", "add");
+            assert!(result.is_ok());
+        }
+    }
+
+    #[test]
+    fn test_vm_get_wasmedge_process_module() {
+        {
+            // create a Config context
+            let result = Config::create();
+            assert!(result.is_ok());
+            let mut config = result.unwrap();
+            config.bulk_memory_operations(true);
+            assert!(config.bulk_memory_operations_enabled());
+            config.wasmedge_process(true);
+            assert!(config.wasmedge_process_enabled());
+
+            // create a Vm context with the given Config and Store
+            let result = Vm::create(Some(config), None);
+            assert!(result.is_ok());
+            let mut vm = result.unwrap();
+
+            // get the WasmEdgeProcess module
+            let result = vm.wasi_import_module_mut();
+            assert!(result.is_ok());
+
+            // *** try to add another WasmEdgeProcess module, that causes error.
+
+            // create a WasmEdgeProcess module
+            let result = ImportObject::create_wasmedge_process(None, false);
+            assert!(result.is_ok());
+            let mut import_process = result.unwrap();
+
+            let result = vm.register_wasm_from_import(import_process);
+            assert!(result.is_err());
+            assert_eq!(
+                result.unwrap_err(),
+                WasmEdgeError::Core(CoreError::Instantiation(
+                    CoreInstantiationError::ModuleNameConflict
+                ))
+            );
+
+            // get store from vm
+            let result = vm.store_mut();
+            assert!(result.is_ok());
+            let store = result.unwrap();
+
+            // check registered modules
+            assert_eq!(store.reg_module_len(), 1);
+            let result = store.reg_module_names();
+            assert!(result.is_some());
+            assert_eq!(result.unwrap(), ["wasmedge_process"]);
+        }
+
+        {
+            // create a Config context, not enable wasi and wasmedge_process options.
+            let result = Config::create();
+            assert!(result.is_ok());
+            let mut config = result.unwrap();
+            config.bulk_memory_operations(true);
+            assert!(config.bulk_memory_operations_enabled());
+
+            // create a Vm context with the given Config and Store
+            let result = Vm::create(Some(config), None);
+            assert!(result.is_ok());
+            let mut vm = result.unwrap();
+
+            // get the WasmEdgeProcess module
+            let result = vm.wasi_import_module_mut();
+            assert!(result.is_err());
+
+            // *** try to add a WasmEdgeProcess module.
+
+            // create a WasmEdgeProcess module
+            let result = ImportObject::create_wasmedge_process(None, false);
+            assert!(result.is_ok());
+            let mut import_process = result.unwrap();
+
+            // add host function
+            let result = FuncType::create(vec![ValType::I32; 2], vec![ValType::I32]);
+            assert!(result.is_ok());
+            let func_ty = result.unwrap();
+            let result = Function::create(func_ty, Box::new(real_add), 0);
+            assert!(result.is_ok());
+            let mut host_func = result.unwrap();
+            import_process.add_func("add", host_func);
+
+            let result = vm.register_wasm_from_import(import_process);
+            assert!(result.is_ok());
+
+            // get the WasmEdgeProcess module
+            let result = vm.wasi_import_module_mut();
+            assert!(result.is_err());
+            assert_eq!(
+                result.unwrap_err(),
+                WasmEdgeError::Vm(VmError::NotFoundWasmEdgeProcessImportObjectModule)
+            );
+
+            // get store from vm
+            let result = vm.store_mut();
+            assert!(result.is_ok());
+            let store = result.unwrap();
+
+            // check registered modules
+            assert_eq!(store.reg_module_len(), 1);
+            let result = store.reg_module_names();
+            assert!(result.is_some());
+            assert_eq!(result.unwrap(), ["wasmedge_process"]);
+
+            // find "add" host function
+            let result = store.find_func_registered("wasmedge_process", "add");
+            assert!(result.is_ok());
+        }
     }
 
     fn load_fib_module() -> Module {

@@ -94,6 +94,7 @@ enum class ErrCode : uint8_t {
   IntegerTooLong = 0x36,        // Invalid presentation too long integer
   IllegalOpCode = 0x37,         // Illegal OpCode
   IllegalGrammar = 0x38,        // Parsing error
+  SharedMemoryNoMax = 0x39,     // Shared memory must have max
 
   // Validation phase
   InvalidAlignment = 0x40,   // Alignment > natural
@@ -183,6 +184,7 @@ static inline std::unordered_map<ErrCode, std::string> ErrCodeStr = {
     {ErrCode::IntegerTooLong, "integer representation too long"},
     {ErrCode::IllegalOpCode, "illegal opcode"},
     {ErrCode::IllegalGrammar, "invalid wasm grammar"},
+    {ErrCode::SharedMemoryNoMax, "shared memory must have maximum"},
     // Validation phase
     {ErrCode::InvalidAlignment, "alignment must not be larger than natural"},
     {ErrCode::TypeCheckFailed, "type mismatch"},
@@ -271,6 +273,7 @@ enum WasmEdge_ErrCode {
   WasmEdge_ErrCode_IntegerTooLong = 0x36,
   WasmEdge_ErrCode_InvalidOpCode = 0x37,
   WasmEdge_ErrCode_InvalidGrammar = 0x38,
+  WasmEdge_ErrCode_SharedMemoryNoMax = 0x39,
 
   // Validation phase
   WasmEdge_ErrCode_InvalidAlignment = 0x40,

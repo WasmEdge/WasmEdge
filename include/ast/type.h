@@ -30,6 +30,7 @@ public:
   enum class LimitType : uint8_t {
     HasMin = 0x00,
     HasMinMax = 0x01,
+    SharedNoMax = 0x02,
     Shared = 0x03
   };
 

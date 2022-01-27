@@ -18,6 +18,9 @@ Expect<void> Loader::loadLimit(AST::Limit &Lim) {
     case AST::Limit::LimitType::HasMinMax:
       Lim.setHasMax(true);
       break;
+    case AST::Limit::LimitType::SharedNoMax:
+      return logLoadError(ErrCode::SharedMemoryNoMax, FMgr.getLastOffset(),
+                          ASTNodeAttr::Type_Limit);
     case AST::Limit::LimitType::Shared:
       Lim.setHasMax(true);
       break;

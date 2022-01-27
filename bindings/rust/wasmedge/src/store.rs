@@ -15,12 +15,16 @@ impl<'vm> Store<'vm> {
         })
     }
 
+    pub fn count_of_module(&self) -> u32 {
+        self.inner.reg_module_len()
+    }
+
     /// Returns the names of all registered [modules](crate::Module)
-    pub fn mod_names(&self) -> Option<Vec<String>> {
+    pub fn module_names(&self) -> Option<Vec<String>> {
         self.inner.reg_module_names()
     }
 
-    pub fn func_len(&self) -> u32 {
+    pub fn count_of_func(&self) -> u32 {
         self.inner.func_len()
     }
 
@@ -48,7 +52,7 @@ impl<'vm> Store<'vm> {
 
         // funcs in the registered modules
         if self.inner.reg_module_len() > 0 {
-            let mod_names = self.mod_names().unwrap();
+            let mod_names = self.module_names().unwrap();
             for mod_name in mod_names {
                 if self.inner.reg_func_len(&mod_name) > 0 {
                     let func_names = self.inner.reg_func_names(&mod_name).unwrap();
@@ -143,7 +147,7 @@ impl<'vm> Store<'vm> {
 
         // tables in the registered modules
         if self.inner.reg_module_len() > 0 {
-            let mod_names = self.mod_names().unwrap();
+            let mod_names = self.module_names().unwrap();
             for mod_name in mod_names {
                 if self.inner.reg_table_len(&mod_name) > 0 {
                     let table_names = self.inner.reg_table_names(&mod_name).unwrap();
@@ -191,7 +195,7 @@ impl<'vm> Store<'vm> {
 
         // memories in the registered modules
         if self.inner.reg_module_len() > 0 {
-            let mod_names = self.mod_names().unwrap();
+            let mod_names = self.module_names().unwrap();
             for mod_name in mod_names {
                 if self.inner.reg_mem_len(&mod_name) > 0 {
                     let mem_names = self.inner.reg_mem_names(&mod_name).unwrap();
@@ -239,7 +243,7 @@ impl<'vm> Store<'vm> {
 
         // globals in the registered modules
         if self.inner.reg_module_len() > 0 {
-            let mod_names = self.mod_names().unwrap();
+            let mod_names = self.module_names().unwrap();
             for mod_name in mod_names {
                 if self.inner.reg_global_len(&mod_name) > 0 {
                     let global_names = self.inner.reg_global_names(&mod_name).unwrap();

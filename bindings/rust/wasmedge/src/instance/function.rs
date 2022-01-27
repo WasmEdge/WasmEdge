@@ -117,7 +117,15 @@ impl From<wasmedge::FuncType> for Signature {
     }
 }
 impl From<Signature> for wasmedge::FuncType {
-    fn from(_: Signature) -> Self {
-        todo!()
+    fn from(sig: Signature) -> Self {
+        let args = match sig.args() {
+            Some(args) => args.to_owned(),
+            None => Vec::new(),
+        };
+        let returns = match sig.returns() {
+            Some(returns) => returns.to_owned(),
+            None => Vec::new(),
+        };
+        wasmedge::FuncType::create(args, returns).expect("fail to convert Signature into FuncType")
     }
 }

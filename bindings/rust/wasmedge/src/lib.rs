@@ -8,8 +8,9 @@ pub mod vm;
 
 pub use config::{Config, ConfigBuilder};
 pub use instance::{
-    ExportType, ExternalType, Func, Global, GlobalType, ImportObj, ImportType, Memory, MemoryType,
-    Module, Signature, SignatureBuilder, Table, TableType,
+    ExportType, ExternalType, Func, Global, GlobalType, ImportObject, ImportObjectWasi,
+    ImportObjectWasmEdgeProcess, ImportType, Memory, MemoryType, Module, Signature,
+    SignatureBuilder, Table, TableType,
 };
 pub use store::Store;
 pub use vm::{Vm, VmBuilder};
@@ -17,6 +18,6 @@ pub use wasmedge_sys::types::*;
 
 pub trait Engine {
     fn register_wasm_from_module(&mut self);
-    fn register_wasm_from_import(&mut self, import_obj: &mut ImportObj);
+    fn register_wasm_from_import(&mut self, import: &mut ImportObject);
     fn run_func(&self);
 }

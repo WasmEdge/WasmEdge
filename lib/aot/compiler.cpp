@@ -306,6 +306,8 @@ struct WasmEdge::AOT::Compiler::CompileContext {
             llvm::ArrayType::get(Int64Ty, UINT16_MAX + 1)->getPointerTo(),
             // Gas
             Int64PtrTy,
+            // GasLimit
+            Int64Ty,
             // StopToken
             llvm::Type::getInt32PtrTy(LLContext))),
         ExecCtxPtrTy(ExecCtxTy->getPointerTo()),
@@ -397,9 +399,13 @@ struct WasmEdge::AOT::Compiler::CompileContext {
   llvm::Value *getGas(llvm::IRBuilder<> &Builder, llvm::LoadInst *ExecCtx) {
     return Builder.CreateExtractValue(ExecCtx, {4});
   }
+  llvm::Value *getGasLimit(llvm::IRBuilder<> &Builder,
+                           llvm::LoadInst *ExecCtx) {
+    return Builder.CreateExtractValue(ExecCtx, {5});
+  }
   llvm::Value *getStopToken(llvm::IRBuilder<> &Builder,
                             llvm::LoadInst *ExecCtx) {
-    return Builder.CreateExtractValue(ExecCtx, {5});
+    return Builder.CreateExtractValue(ExecCtx, {6});
   }
   llvm::FunctionCallee getIntrinsic(llvm::IRBuilder<> &Builder,
                                     AST::Module::Intrinsics Index,
@@ -593,7 +599,7 @@ public:
     for (auto &[Error, BB] : TrapBB) {
       Builder.SetInsertPoint(BB);
       updateInstrCount();
-      updateGas();
+      updateGasAtTrap();
       auto *CallTrap = Builder.CreateCall(
           Context.Trap, {Builder.getInt8(static_cast<uint8_t>(Error))});
       CallTrap->setDoesNotReturn();
@@ -2915,6 +2921,50 @@ public:
   }
 
   void updateGas() {
+    if (LocalGas) {
+      auto *CurrBB = Builder.GetInsertBlock();
+      auto *CheckBB = llvm::BasicBlock::Create(LLContext, "gas_check", F);
+      auto *OkBB = llvm::BasicBlock::Create(LLContext, "gas_ok", F);
+      auto *EndBB = llvm::BasicBlock::Create(LLContext, "gas_end", F);
+
+      auto *Cost = Builder.CreateLoad(Context.Int64Ty, LocalGas);
+      Cost->setAlignment(Align(8));
+      auto *GasPtr = Context.getGas(Builder, ExecCtx);
+      auto *GasLimit = Context.getGasLimit(Builder, ExecCtx);
+      auto *Gas = Builder.CreateLoad(Context.Int64Ty, GasPtr);
+      Gas->setAlignment(Align(8));
+      Gas->setAtomic(llvm::AtomicOrdering::Monotonic);
+      Builder.CreateBr(CheckBB);
+      Builder.SetInsertPoint(CheckBB);
+
+      auto *PHIOldGas = Builder.CreatePHI(Context.Int64Ty, 2);
+      auto *NewGas = Builder.CreateAdd(PHIOldGas, Cost);
+      auto *IsGasRemain =
+          createLikely(Builder, Builder.CreateICmpULE(NewGas, GasLimit));
+      Builder.CreateCondBr(IsGasRemain, OkBB,
+                           getTrapBB(ErrCode::CostLimitExceeded));
+      Builder.SetInsertPoint(OkBB);
+
+      auto *RGasAndSucceed = Builder.CreateAtomicCmpXchg(
+          GasPtr, PHIOldGas, NewGas,
+#if LLVM_VERSION_MAJOR >= 13
+          llvm::MaybeAlign(8),
+#endif
+          llvm::AtomicOrdering::Monotonic, llvm::AtomicOrdering::Monotonic);
+      RGasAndSucceed->setWeak(true);
+      auto *RGas = Builder.CreateExtractValue(RGasAndSucceed, {0});
+      auto *Succeed = Builder.CreateExtractValue(RGasAndSucceed, {1});
+      Builder.CreateCondBr(createLikely(Builder, Succeed), EndBB, CheckBB);
+      Builder.SetInsertPoint(EndBB);
+
+      Builder.CreateStore(Builder.getInt64(0), LocalGas);
+
+      PHIOldGas->addIncoming(Gas, CurrBB);
+      PHIOldGas->addIncoming(RGas, OkBB);
+    }
+  }
+
+  void updateGasAtTrap() {
     if (LocalGas) {
       Builder.CreateAtomicRMW(llvm::AtomicRMWInst::BinOp::Add,
                               Context.getGas(Builder, ExecCtx),

@@ -13,7 +13,7 @@ to implement a React SSR function. Compared with the Docker + Linux + nodejs + v
 provides better resource isolation and management,
 and has similar non-JIT (safe) performance.
 
-We will cover both static and stream rendering in this article. Static rendering is easy to understand and implement. Stream rendering, on the other hand, provides much better user experience since the user can see partial results while waiting in front of the browser.
+We will cover both static and streaming rendering in this article. Static rendering is easy to understand and implement. Streaming rendering, on the other hand, provides much better user experience since the user can see partial results while waiting in front of the browser.
 
 ## Static rendering
 
@@ -96,9 +96,9 @@ $ wasmedge --dir .:. ../../target/wasm32-wasi/release/wasmedge_quickjs.wasm dist
 
 >  Note: the `--dir .:.` on the command line is to give wasmedge permission to read the local directory in the file system for the `dist/main.js` file.
 
-## Stream rendering
+## Streaming rendering
 
-The [example_js/react_ssr_stream](https://github.com/second-state/wasmedge-quickjs/tree/main/example_js/react_ssr_stream) folder in the GitHub repo contains the example's source code. It showcases how to stream render an HTML string from templates in a JavaScript app running in WasmEdge.
+The [example_js/react_ssr_stream](https://github.com/second-state/wasmedge-quickjs/tree/main/example_js/react_ssr_stream) folder in the GitHub repo contains the example's source code. It showcases how to streaming render an HTML string from templates in a JavaScript app running in WasmEdge.
 
 The [component/LazyHome.jsx](https://github.com/second-state/wasmedge-quickjs/blob/main/example_js/react_ssr_stream/component/LazyHome.jsx)
 file is the main page template in React. It "lazy" loads the inner page template after a 2s delay once the outer HTML is rendered and returned to the user.
@@ -234,4 +234,4 @@ The results are as follows. The service first returns an HTML page with an empty
 <!DOCTYPE html><html lang="en"><head><meta charSet="utf-8"/><title>Title</title></head><body><div><div> This is LazyHome </div><!--$?--><template id="B:0"></template><div> loading... </div><!--/$--></div></body></html><div hidden id="S:0"><template id="P:1"></template></div><div hidden id="S:1"><div><div>This is lazy page</div></div></div><script>function $RS(a,b){a=document.getElementById(a);b=document.getElementById(b);for(a.parentNode.removeChild(a);a.firstChild;)b.parentNode.insertBefore(a.firstChild,b);b.parentNode.removeChild(b)};$RS("S:1","P:1")</script><script>function $RC(a,b){a=document.getElementById(a);b=document.getElementById(b);b.parentNode.removeChild(b);if(a){a=a.previousSibling;var f=a.parentNode,c=a.nextSibling,e=0;do{if(c&&8===c.nodeType){var d=c.data;if("/$"===d)if(0===e)break;else e--;else"$"!==d&&"$?"!==d&&"$!"!==d||e++}d=c.nextSibling;f.removeChild(c);c=d}while(c);for(;b.firstChild;)f.insertBefore(b.firstChild,c);a.data="$";a._reactRetry&&a._reactRetry()}};$RC("B:0","S:0")</script>
 ```
 
-The stream SSR examples make use of WasmEdge's unique asynchronous networking capabilities and ES6 module support (i.e., the rollup bundled JS file contains ES6 modules). You can learn more about [async networking](networking.md) and [ES6](es6.md) in this book.
+The streaming SSR examples make use of WasmEdge's unique asynchronous networking capabilities and ES6 module support (i.e., the rollup bundled JS file contains ES6 modules). You can learn more about [async networking](networking.md) and [ES6](es6.md) in this book.

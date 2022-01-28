@@ -4,7 +4,7 @@ For JavaScript developers, incorporating Rust functions into JavaScript APIs is 
 
 Check out the [wasmedge-quickjs](https://github.com/second-state/wasmedge-quickjs/) Github repo and change to the `examples/embed_js` folder to follow along.
 
-```
+```bash
 $ git clone https://github.com/second-state/wasmedge-quickjs
 $ cd examples/embed_js
 ```
@@ -13,7 +13,7 @@ $ cd examples/embed_js
 
 The `embed_js` demo showcases several different examples on how to embed JavaScript inside Rust. You can build and run all the examples as follows.
 
-```
+```bash
 $ cargo build --target wasm32-wasi --release
 $ wasmedge --dir .:. target/wasm32-wasi/release/embed_js.wasm
 ```
@@ -24,7 +24,7 @@ $ wasmedge --dir .:. target/wasm32-wasi/release/embed_js.wasm
 
 The following code snippet defines a Rust function that can be incorporate into the JavaScript interpreter as an API.
 
-```
+```rust
 fn run_rust_function(ctx: &mut Context) {
 
     struct HelloFn;
@@ -42,7 +42,7 @@ fn run_rust_function(ctx: &mut Context) {
 
 The following code snippet shows how to add this Rust function into the JavaScript interpreter, give a name `hi()` as its JavaScript API, and then call it from JavaScript code.
 
-```
+```rust
 fn run_rust_function(ctx: &mut Context) {
     ...
     
@@ -68,7 +68,7 @@ Using this approach, you can create a JavaScript interpreter with customized API
 
 In the JavaScript API design, we sometimes need to provide an object that encapsulates both data and function. In the following example, we define a Rust function for the JavaScript API.
 
-```
+```rust
 fn rust_new_object_and_js_call(ctx: &mut Context) {
 
     struct ObjectFn;
@@ -87,7 +87,7 @@ fn rust_new_object_and_js_call(ctx: &mut Context) {
 
 We then create an "object" on the Rust side, set its data fields, and then register the Rust function as a JavaScript function associated with the objects.
 
-```
+```rust
     let mut obj = ctx.new_object();
     obj.set("a", 1.into());
     obj.set("b", ctx.new_string("abc").into());
@@ -98,13 +98,13 @@ We then create an "object" on the Rust side, set its data fields, and then regis
 
 Next, we make the Rust "object" available as JavaScript object `test_obj` in the JavaScript interpreter.
 
-```
+```rust
     ctx.get_global().set("test_obj", obj.into());
 ```
 
 In the JavaScript code, you can now directly use `test_obj` as part of the API.
 
-```
+```rust
     let code = r#"
       print('test_obj keys=',Object.keys(test_obj))
       print('test_obj.a=',test_obj.a)
@@ -149,14 +149,14 @@ this=Ok(
 
 In the previous example, we demonstrated simple examples to create JavaScript APIs from Rust. In this example, we will create a complete Rust module and make it available as a JavaScript object API. The project is in the [examples/embed_rust_module](https://github.com/second-state/wasmedge-quickjs/tree/main/examples/embed_rust_module) folder. You can build and run it as a standard Rust application in WasmEdge.
 
-```
+```bash
 $ cargo build --target wasm32-wasi --release
 $ wasmedge --dir .:. target/wasm32-wasi/release/embed_rust_module.wasm
 ```
 
 The Rust implementation of the object is a module as follows. It has data fields, constructor, getters and setters, and functions.
 
-```
+```rust
 mod point {
     use wasmedge_quickjs::*;
 
@@ -248,7 +248,7 @@ mod point {
 
 In the interpreter implementation, we call `point::init_point_module` first to register the Rust module with the JavaScript context, and then we can run a JavaScript program that simply use the `point` object.
 
-```
+```rust
 use wasmedge_quickjs::*;
 fn main() {
     let mut ctx = Context::new();

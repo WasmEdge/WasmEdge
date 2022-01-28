@@ -1002,7 +1002,7 @@ mod tests {
     #[test]
     fn test_vm_invoke_wasm_function_step_by_step() {
         let path = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
-            .join("bindings/rust/wasmedge-sys/examples/fibonacci.wasm");
+            .join("bindings/rust/wasmedge-sys/tests/data/fibonacci.wasm");
         let result = Config::create();
         assert!(result.is_ok());
         let config = result.unwrap();

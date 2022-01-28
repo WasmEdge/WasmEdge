@@ -15,7 +15,7 @@ use std::{
     fs::{self, File},
     io::Read,
 };
-use wasmedge_sys::{Config, FuncType, Function, ImportObj, Module, ValType, Value, Vm};
+use wasmedge_sys::{Config, FuncType, Function, ImportObj, Loader, ValType, Value, Vm};
 
 fn real_add(input: Vec<Value>) -> Result<Vec<Value>, u8> {
     println!("Rust: Entering Rust function real_add");
@@ -24,14 +24,14 @@ fn real_add(input: Vec<Value>) -> Result<Vec<Value>, u8> {
         return Err(1);
     }
 
-    let a = if let Value::I32(i) = input[0] {
-        i
+    let a = if input[0].ty() == ValType::I32 {
+        input[0].to_i32()
     } else {
         return Err(2);
     };
 
-    let b = if let Value::I32(i) = input[1] {
-        i
+    let b = if input[1].ty() == ValType::I32 {
+        input[0].to_i32()
     } else {
         return Err(3);
     };
@@ -40,7 +40,7 @@ fn real_add(input: Vec<Value>) -> Result<Vec<Value>, u8> {
     println!("Rust: calcuating in real_add c: {:?}", c);
 
     println!("Rust: Leaving Rust function real_add");
-    Ok(vec![Value::I32(c)])
+    Ok(vec![Value::from_i32(c)])
 }
 
 fn load_file_as_byte_vec(filename: &str) -> Vec<u8> {
@@ -77,29 +77,19 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     import_obj.add_func("add", &mut host_func);
 
     // load wasm from binary
-    let mut module =
-        Module::create_from_buffer(&config, &wasm_binary).expect("funcs.wasm should be correct");
+    let loader = Loader::create(Some(&config))?;
+    let mut module = loader.from_buffer(&wasm_binary)?;
 
-    let mut vm = Vm::create(Some(&config), None)
-        .expect("fail to create VM instance")
-        .register_wasm_from_import(&mut import_obj)
-        .expect("import_obj should be regiestered")
-        .load_wasm_from_module(&mut module)
-        .expect("funcs.wasm should be loaded")
-        .validate()
-        .expect("fail to validate vm")
-        .instantiate()
-        .expect("fail to instantiate vm");
+    let mut vm = Vm::create(Some(&config), None)?;
+    vm.register_wasm_from_import(&mut import_obj)?;
 
-    #[allow(clippy::type_complexity)]
-    fn boxed_fn() -> Box<dyn Fn(Vec<Value>) -> Result<Vec<Value>, u8>> {
-        Box::new(real_add)
-    }
-
-    let add_ref = Value::from(boxed_fn());
-
-    match vm.run_function("call_add", [add_ref, 1234i32.into(), 5678i32.into()]) {
-        Ok(v) => println!("result from call_add: {:?}", v.collect::<Vec<_>>()),
+    let add_ref = Value::from_extern_ref(&mut real_add);
+    match vm.run_wasm_from_module(
+        &mut module,
+        "call_add",
+        [add_ref, Value::from_i32(1234), Value::from_i32(5678)],
+    ) {
+        Ok(v) => println!("result from call_add: {:?}", v),
         Err(r) => println!("error from call_add{:?}", r),
     };
     Ok(())

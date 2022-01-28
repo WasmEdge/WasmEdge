@@ -1,6 +1,8 @@
 //! Defines WasmEdge Function and FuncType structs.
 
-use crate::{wasmedge, FuncError, ValType, Value, WasmEdgeError, WasmEdgeResult, HOST_FUNCS};
+use crate::{
+    types::Value, wasmedge, FuncError, ValType, WasmEdgeError, WasmEdgeResult, HOST_FUNCS,
+};
 use core::ffi::c_void;
 use rand::Rng;
 use std::convert::TryInto;
@@ -15,9 +17,9 @@ extern "C" fn wraper_fn(
     return_len: u32,
 ) -> wasmedge::WasmEdge_Result {
     let key = key_ptr as *const usize as usize;
-    let mut result: Result<Vec<Value>, u8> = Err(0);
+    let mut result = Err(0);
 
-    let input: Vec<Value> = {
+    let input = {
         let raw_input = unsafe {
             std::slice::from_raw_parts(
                 params,
@@ -26,7 +28,7 @@ extern "C" fn wraper_fn(
                     .expect("len of params should not greater than usize"),
             )
         };
-        raw_input.iter().map(|r| (*r).into()).collect()
+        raw_input.iter().map(|r| (*r).into()).collect::<Vec<_>>()
     };
 
     let return_len = return_len
@@ -46,7 +48,7 @@ extern "C" fn wraper_fn(
         Ok(v) => {
             assert!(v.len() == return_len);
             for (idx, item) in v.into_iter().enumerate() {
-                raw_returns[idx] = item.into();
+                raw_returns[idx] = item.as_raw();
             }
             wasmedge::WasmEdge_Result { Code: 0 }
         }
@@ -91,30 +93,26 @@ impl Function {
     /// ```rust
     /// use wasmedge_sys::{FuncType, Function, ValType, Value, WasmEdgeResult};
     ///
-    /// fn real_add(input: Vec<Value>) -> Result<Vec<Value>, u8> {
-    ///     println!("Rust: Entering Rust function real_add");
-    ///
-    ///     if input.len() != 2 {
+    /// fn real_add(inputs: Vec<Value>) -> Result<Vec<Value>, u8> {
+    ///     if inputs.len() != 2 {
     ///         return Err(1);
     ///     }
     ///
-    ///     let a = if let Value::I32(i) = input[0] {
-    ///         i
+    ///     let a = if inputs[0].ty() == ValType::I32 {
+    ///         inputs[0].to_i32()
     ///     } else {
     ///         return Err(2);
     ///     };
     ///
-    ///     let b = if let Value::I32(i) = input[1] {
-    ///         i
+    ///     let b = if inputs[1].ty() == ValType::I32 {
+    ///         inputs[1].to_i32()
     ///     } else {
     ///         return Err(3);
     ///     };
     ///
     ///     let c = a + b;
-    ///     println!("Rust: calcuating in real_add c: {:?}", c);
     ///
-    ///     println!("Rust: Leaving Rust function real_add");
-    ///     Ok(vec![Value::I32(c)])
+    ///     Ok(vec![Value::from_i32(c)])
     /// }
     ///
     /// // create a FuncType
@@ -129,6 +127,7 @@ impl Function {
         cost: u64,
     ) -> WasmEdgeResult<Self> {
         let mut key = 0usize;
+
         HOST_FUNCS.with(|f| {
             let mut host_functions = f.borrow_mut();
             if host_functions.len() >= host_functions.capacity() {
@@ -224,7 +223,10 @@ impl FuncType {
     ///
     /// let func_ty = FuncType::create(vec![ValType::I32;2], vec![ValType::I32]).expect("fail to create a FuncType");
     /// ```
-    pub fn create<I: IntoIterator<Item = ValType>>(args: I, returns: I) -> WasmEdgeResult<Self> {
+    pub fn create<I: IntoIterator<Item = ValType>, R: IntoIterator<Item = ValType>>(
+        args: I,
+        returns: R,
+    ) -> WasmEdgeResult<Self> {
         let param_tys = args
             .into_iter()
             .map(|x| x.into())
@@ -389,14 +391,14 @@ mod tests {
             return Err(1);
         }
 
-        let a = if let Value::I32(i) = input[0] {
-            i
+        let a = if input[0].ty() == ValType::I32 {
+            input[0].to_i32()
         } else {
             return Err(2);
         };
 
-        let b = if let Value::I32(i) = input[1] {
-            i
+        let b = if input[1].ty() == ValType::I32 {
+            input[0].to_i32()
         } else {
             return Err(3);
         };
@@ -405,6 +407,6 @@ mod tests {
         println!("Rust: calcuating in real_add c: {:?}", c);
 
         println!("Rust: Leaving Rust function real_add");
-        Ok(vec![Value::I32(c)])
+        Ok(vec![Value::from_i32(c)])
     }
 }

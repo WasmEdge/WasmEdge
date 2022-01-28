@@ -16,6 +16,7 @@
 #include "ast/type.h"
 #include "common/errcode.h"
 
+#include <atomic>
 #include <map>
 #include <mutex>
 #include <optional>

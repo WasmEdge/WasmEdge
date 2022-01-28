@@ -4,9 +4,9 @@ This section demonstrates how to use the low-level Rust APIs provided in the `wa
 
 ## Example 1: Run a WebAssembly function
 
-As you may know, several mainstream programming languages, such as C/C++, Rust, Go and Python, support to compile their programs into WebAssembly binary. In this demo, we'll introduce how to use WasmEdge Rust APIs to call a WebAssembly function which could be coded in any programming lange mentioned above.
+As you may know, several mainstream programming languages, such as C/C++, Rust, Go, and Python, support compiling their programs into WebAssembly binary. In this demo, we'll introduce how to use WasmEdge Rust APIs to call a WebAssembly function which could be coded in any programming language mentioned above.
 
-We use `fibonacci.wasm` in this demo, and the contents of the WebAssembly file are presented as below. The statement, `(export "fib" (func $fib))`, declares an exported function named `fib`. This function computes a fibonacci number with a given `i32` number as input. We'll use the function name later to achieve the goal of computing a fibonacci number.
+We use `fibonacci.wasm` in this demo, and the contents of the WebAssembly file are presented below. The statement, `(export "fib" (func $fib))`, declares an exported function named `fib`. This function computes a Fibonacci number with a given `i32` number as input. We'll use the function name later to achieve the goal of computing a Fibonacci number.
 
 ```wasm
 (module
@@ -63,7 +63,7 @@ let mut module = loader.from_file(path).expect("fail to load the WebAssembly fil
 
 ### Step 2: Create a WasmEdge `Vm` context
 
-In WasmEdge, a `Vm` defines an running environment, in which all various of instances and contexts are stored and mantained. In the demo code below, we explicitly create a WasmEdge `Store` context, and then use it as one of inputs in the creation of a `Vm` context. If not specify a `Store` context explicily, then `Vm` will create a store by itself.
+In WasmEdge, a `Vm` defines a running environment, in which all varieties of instances and contexts are stored and maintained. In the demo code below, we explicitly create a WasmEdge `Store` context, and then use it as one of the inputs in the creation of a `Vm` context. If not specify a `Store` context explicitly, then `Vm` will create a store by itself.
 
 ```rust
 use wasmedge_sys::{Config, Store, Vm};
@@ -80,7 +80,7 @@ let vm = Vm::create(Some(&config), Some(&store)).expect("fail to create a Vm con
 
 ### Step 3: Invoke the `fib` function
 
-In Step 1, we got a module which hosts the target `fib` function defined in the WebAssembly. Now, we can call the function via the `run_wasm_from_module` method of the `Vm` context by passing the exported function name, `fib`.
+In Step 1, we got a module that hosts the target `fib` function defined in the WebAssembly. Now, we can call the function via the `run_wasm_from_module` method of the `Vm` context by passing the exported function name, `fib`.
 
 ```rust
 use wasmedge_sys::Value;

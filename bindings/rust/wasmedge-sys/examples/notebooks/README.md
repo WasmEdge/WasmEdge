@@ -1,9 +1,9 @@
 
 # Guide of Using the evcxr_jupyter demo
 
-To help you get familiar with the APIs of the wasmedge-sys crate more convenient and efficient, we provide two choices for you. One option is the traditional markdown documents; the other is the interactive Rust notebooks with Evcxr. If you would like to try some pieces of your own code while reading, the second way could be better for you. Of course, you can choose any one of them according to your favorites.
+To help you get familiar with the APIs of the wasmedge-sys crate more conveniently and efficiently, we provide two choices for you. One option is the traditional markdown documents; the other is the interactive Rust notebooks with EvCxr. If you would like to try some pieces of your own code while reading, the second way could be better for you. Of course, you can choose any one of them according to your favorites.
 
-If you prefer the interactive way, you have to do some preparations. So, please read the following contents get things ready before jumping to the documents.
+If you prefer the interactive way, you have to do some preparations. So, please read the following contents to get things ready before jumping to the documents.
 
 ## Preparations for the interactive Rust notebooks
 

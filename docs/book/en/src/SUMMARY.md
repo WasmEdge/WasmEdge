@@ -29,6 +29,7 @@
     - [JavaScript](dev/js.md)
         - [Getting started](dev/js/quickstart.md)
         - [Networking sockets](dev/js/networking.md)
+        - [Fetch](dev/js/fetch.md)
         - [Tensorflow](dev/js/tensorflow.md)
         - [React SSR](dev/js/ssr.md)
         - [ES6 module](dev/js/es6.md)

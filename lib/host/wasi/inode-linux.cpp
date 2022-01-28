@@ -265,7 +265,7 @@ INode::fdFilestatSetSize(__wasi_filesize_t Size) const noexcept {
 WasiExpect<void>
 INode::fdFilestatSetTimes(__wasi_timestamp_t ATim, __wasi_timestamp_t MTim,
                           __wasi_fstflags_t FstFlags) const noexcept {
-#if __GLIBC_PREREQ(2, 6)
+#if __GLIBC_PREREQ(2, 6) || __BIONIC__
   timespec SysTimespec[2];
   if (FstFlags & __WASI_FSTFLAGS_ATIM) {
     SysTimespec[0] = toTimespec(ATim);
@@ -584,7 +584,7 @@ WasiExpect<void>
 INode::pathFilestatSetTimes(std::string Path, __wasi_timestamp_t ATim,
                             __wasi_timestamp_t MTim,
                             __wasi_fstflags_t FstFlags) const noexcept {
-#if __GLIBC_PREREQ(2, 6)
+#if __GLIBC_PREREQ(2, 6) || __BIONIC__
   timespec SysTimespec[2];
   if (FstFlags & __WASI_FSTFLAGS_ATIM) {
     SysTimespec[0] = toTimespec(ATim);

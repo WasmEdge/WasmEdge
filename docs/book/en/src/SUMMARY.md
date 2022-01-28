@@ -21,11 +21,11 @@
 
 - [Develop a WasmEdge app](dev.md)
     - [Rust](dev/rust.md)
+        - [Pass args to Rust funcs](dev/rust/bindgen.md)
         - [Access OS services](dev/rust/wasi.md)
         - [Tensorflow](dev/rust/tensorflow.md)
         - [Networking sockets](dev/rust/networking.md)
         - [Command interface](dev/rust/command.md)
-        - [rustwasmc](dev/rust/bindgen.md)
     - [JavaScript](dev/js.md)
         - [Getting started](dev/js/quickstart.md)
         - [Networking sockets](dev/js/networking.md)

@@ -1,5 +1,9 @@
 # Bindgen and rustwasmc
 
+**NOTE: This has been deprecated. We recommend using [wasmedge-bindgen](https://github.com/second-state/wasmedge-bindgen) when calling WebAssembly functions from another application (e.g., from [Go](https://wasmedge.org/book/en/embed/go/function.html)).**
+
+---
+
 The [rustwasmc](https://github.com/second-state/rustwasmc) tool is inspired by the wasm-pack project but is optimized for edge cloud and device applications. Specifically, it supports the [WasmEdge](https://github.com/WasmEdge/WasmEdge) WebAssembly runtime.
 
 One of the key features of `rustwasmc` over the standard `wasm32-wasi` compiler target is that `rustwasmc` processes compiled Rust functions using the `wasm-bindgen` tool.

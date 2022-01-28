@@ -253,9 +253,9 @@ main() {
     if [ "$line_num" != "" ]; then
         sed -i.wasmedge_backup -e "${line_num}"'d' "${__HOME__}/${_shell_rc}"
         [[ -f "${__HOME__}/.profile" ]] && line_num="$(grep -n ". \"${IPATH}/env\"" "${__HOME__}/.profile" | cut -d : -f 1)" &&
-            sed -i.wasmedge_backup -e "${line_num}"'d' "${__HOME__}/.profile"
+            [[ "$line_num" != "" ]] && sed -i.wasmedge_backup -e "${line_num}"'d' "${__HOME__}/.profile"
         [[ -f "${__HOME__}/.bash_profile" ]] && line_num="$(grep -n ". \"${IPATH}/env\"" "${__HOME__}/.bash_profile" | cut -d : -f 1)" &&
-            sed -i.wasmedge_backup -e "${line_num}"'d' "${__HOME__}/.bash_profile"
+            [[ "$line_num" != "" ]] && sed -i.wasmedge_backup -e "${line_num}"'d' "${__HOME__}/.bash_profile"
     else
         echo "${YELLOW}Sourcing not found in ${__HOME__}/${_shell_rc} ${NC}"
         exit 1

@@ -20,6 +20,7 @@
 #include "common/span.h"
 #include "common/timer.h"
 
+#include <atomic>
 #include <vector>
 
 namespace WasmEdge {
@@ -40,11 +41,13 @@ public:
   ~Statistics() = default;
 
   /// Increment of instruction counter.
-  void incInstrCount() { ++InstrCnt; }
+  void incInstrCount() { InstrCnt.fetch_add(1, std::memory_order_relaxed); }
 
   /// Getter of instruction counter.
-  uint64_t getInstrCount() const { return InstrCnt; }
-  uint64_t &getInstrCountRef() { return InstrCnt; }
+  uint64_t getInstrCount() const {
+    return InstrCnt.load(std::memory_order_relaxed);
+  }
+  std::atomic_uint64_t &getInstrCountRef() { return InstrCnt; }
 
   /// Getter of instruction per second.
   double getInstrPerSecond() const {
@@ -69,39 +72,50 @@ public:
   bool subInstrCost(OpCode Code) { return subCost(CostTab[uint16_t(Code)]); }
 
   /// Getter of total gas cost.
-  uint64_t getTotalCost() const { return CostSum; }
-  uint64_t &getTotalCostRef() { return CostSum; }
+  uint64_t getTotalCost() const {
+    return CostSum.load(std::memory_order_relaxed);
+  }
+  std::atomic_uint64_t &getTotalCostRef() { return CostSum; }
 
   /// Getter and setter of cost limit.
   void setCostLimit(uint64_t Lim) { CostLimit = Lim; }
   uint64_t getCostLimit() const { return CostLimit; }
 
   /// Add cost and return false if exceeded limit.
-  bool addCost(const uint64_t &Cost) {
-    CostSum += Cost;
-    if (unlikely(CostSum > CostLimit)) {
-      CostSum = CostLimit;
-      spdlog::error("Cost exceeded limit. Force terminate the execution.");
-      return false;
-    }
+  bool addCost(uint64_t Cost) {
+    const auto Limit = CostLimit;
+    uint64_t OldCostSum = CostSum.load(std::memory_order_relaxed);
+    uint64_t NewCostSum;
+    do {
+      NewCostSum = OldCostSum + Cost;
+      if (unlikely(NewCostSum > Limit)) {
+        spdlog::error("Cost exceeded limit. Force terminate the execution.");
+        return false;
+      }
+    } while (!CostSum.compare_exchange_weak(OldCostSum, NewCostSum,
+                                            std::memory_order_relaxed));
     return true;
   }
 
   /// Return cost back.
-  bool subCost(const uint64_t &Cost) {
-    if (likely(CostSum > Cost)) {
-      CostSum -= Cost;
-      return true;
-    }
-    CostSum = 0;
-    return false;
+  bool subCost(uint64_t Cost) {
+    uint64_t OldCostSum = CostSum.load(std::memory_order_relaxed);
+    uint64_t NewCostSum;
+    do {
+      if (unlikely(OldCostSum <= Cost)) {
+        return false;
+      }
+      NewCostSum = OldCostSum - Cost;
+    } while (!CostSum.compare_exchange_weak(OldCostSum, NewCostSum,
+                                            std::memory_order_relaxed));
+    return true;
   }
 
   /// Clear measurement data for instructions.
   void clear() noexcept {
     TimeRecorder.reset();
-    InstrCnt = 0;
-    CostSum = 0;
+    InstrCnt.store(0, std::memory_order_relaxed);
+    CostSum.store(0, std::memory_order_relaxed);
   }
 
   /// Start recording wasm time.
@@ -170,9 +184,9 @@ public:
 
 private:
   std::vector<uint64_t> CostTab;
-  uint64_t InstrCnt;
+  std::atomic_uint64_t InstrCnt;
   uint64_t CostLimit;
-  uint64_t CostSum;
+  std::atomic_uint64_t CostSum;
   Timer::Timer TimeRecorder;
 };
 

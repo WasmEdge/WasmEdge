@@ -1,27 +1,22 @@
 ## WasmEdge Roadmap
 
-
 ### About this document
 
 This document should serve as a reference point for WasmEdge users and contributors to understand where the project is heading, and help determine if a contribution could be conflicting with a longer term plan.
-
 
 ### How to help?
 
 Discussion on the roadmap can take place in threads under [Issues](https://github.com/WasmEdge/WasmEdge/issues). Please open and comment on an issue if you want to provide suggestions and feedback to an item in the roadmap. Please review the roadmap to avoid potential duplicated efforts.
 
-
 ### How to add an item to the roadmap?
 
 Please open an issue to track any initiative on the roadmap of WasmEdge (Usually driven by new feature requests). We will work with and rely on our community to focus our efforts to improve WasmEdge.
-
 
 ### Current Roadmap
 
 The following table includes the current roadmap for WasmEdge. If you have any questions or would like to contribute to WasmEdge, please create an issue to discuss with our team. If you don't know where to start, we are always looking for contributors that will help us reduce technical, automation, and documentation debt. Please take the timelines & dates as proposals and goals. Priorities and requirements change based on community feedback, roadblocks encountered, community contributions, etc.
 
 Last Updated: July 2021
-
 
 |Theme	|Description	|Timeline	|
 |---	|---	|---	|

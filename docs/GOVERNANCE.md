@@ -1,6 +1,5 @@
 # WasmEdge Runtime Governance
 
-
 As a sandbox project hosted by CNCF, the WasmEdge Runtime follows the [CNCF Code of Conduct](https://github.com/cncf/foundation/blob/master/code-of-conduct.md).
 
 ## Maintainer responsibilities
@@ -21,15 +20,12 @@ As a sandbox project hosted by CNCF, the WasmEdge Runtime follows the [CNCF Code
 A reviewer is a core maintainer within the project. They share in reviewing issues and pull requests and their LGTM counts towards the required LGTM count to merge a code change into the project.
 Reviewers are part of the organization but do not have write access. Becoming a reviewer is a core aspect in the journey to becoming a committer.
 
-
 ## Committers
 
 A committer is a core maintainer who is responsible for the overall quality and stewardship of the project. They share the same reviewing responsibilities as reviewers, but are also responsible for upholding the project bylaws as well as participating in project level votes.
 Committers are part of the organization with write access to all repositories. Committers are expected to remain actively involved in the project and participate in voting and discussing of proposed project level changes.
 
-
 ## Adding maintainers
-
 
 Maintainers are first and foremost contributors that have shown they are committed to the long term success of a project. Contributors wanting to become maintainers are expected to be deeply involved in contributing code, pull request review, and triage of issues in the project for more than three months.
 
@@ -41,11 +37,9 @@ After a candidate has been informally proposed in the maintainers forum, the exi
 
 If a candidate is approved, they will be invited to add their own LGTM or approval to the pull request to acknowledge their agreement. A committer will verify the numbers of votes that have been received and the allotted seven days have passed, then merge the pull request and invite the contributor to the organization.
 
-
 ## When does a maintainer lose maintainer status
 
 If a maintainer is no longer interested or cannot perform the maintainer duties listed above, they should volunteer to be moved to emeritus status. In extreme cases this can also occur by a vote of the maintainers per the voting process below.
-
 
 # Conflict resolution and voting
 
@@ -54,8 +48,6 @@ In general, we prefer that technical issues and maintainer membership are amicab
 # Adding new projects to the WasmRuntime GitHub organization
 
 New projects will be added to the WasmEdge organization via GitHub issue discussion in one of the existing projects in the organization. Once sufficient discussion has taken place (~3-5 business days but depending on the volume of conversation), the maintainers of *the project where the issue was opened* (since different projects in the organization may have different maintainers) will decide whether the new project should be added. See the section above on voting if the maintainers cannot easily decide.
-
-
 
 ## DCO and Licenses
 

@@ -8,6 +8,5 @@
 
 We are also looking for developer help in the following general areas. Please [create an issue](https://github.com/WasmEdge/WasmEdge/issues) and let us know!
 
-* Improvements to technical documentation, examples, and tutorials. 
+* Improvements to technical documentation, examples, and tutorials.
 * Non-English language translations of documentation and tutorials.
-

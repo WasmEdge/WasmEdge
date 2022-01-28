@@ -38,7 +38,7 @@ target_link_libraries(wasmedgeHostModuleWasi
   wasmedgeSystem
 )
 
-if(NOT APPLE AND NOT WIN32)
+if(NOT APPLE AND NOT WIN32 AND NOT ANDROID)
   target_link_libraries(wasmedgeHostModuleWasi
     PUBLIC
     rt

@@ -2,7 +2,7 @@
 
 ## Quick install
 
-The easiest way to install WasmEdge is to run the following command. Your system should have `git` and `wget` as prerequisites.
+The easiest way to install WasmEdge is to run the following command. Your system should have `git` and `curl` as prerequisites.
 
 ```bash
 curl -sSf https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh | bash

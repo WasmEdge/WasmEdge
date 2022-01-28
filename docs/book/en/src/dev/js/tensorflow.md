@@ -4,7 +4,7 @@ The interpreter supports the WasmEdge TensorFlow lite inference extension so tha
 
 Here is an example of JavaScript. You could find the full code from [example_js/tensorflow_lite_demo/](https://github.com/second-state/wasmedge-quickjs/tree/main/example_js/tensorflow_lite_demo).
 
-```
+```javascript
 import {TensorflowLiteSession} from 'tensorflow_lite'
 import {Image} from 'image'let img = new Image('./example_js/tensorflow_lite_demo/food.jpg')
 
@@ -29,7 +29,7 @@ print(max,max_idx)
 
 To run the JavaScript in the WasmEdge runtime, you can do the following on the CLI to re-build the QuickJS engine with TensorFlow and then run the JavaScript program with TensorFlow API.
 
-```
+```shell
 $ cargo build --target wasm32-wasi --release --features=tensorflow
 ... ...
 $ cd example_js/tensorflow_lite_demo
@@ -39,8 +39,8 @@ Hot dog
 confidence:
 0.8941176470588236
 ```
->  Note, the `--dir .:.` on the command line is to give wasmedge permission to read the local directory in the file system for the `main.js` file.
 
+>  Note, the `--dir .:.` on the command line is to give wasmedge permission to read the local directory in the file system for the `main.js` file.
 
 #### Note:
 
@@ -55,7 +55,7 @@ The above Tensorflow inference example takes 1–2 seconds to run. It is accepta
 
 The following example uses the extended versions to `wasmedge` and `wasmedgec` to support the WasmEdge Tensorflow extension.
 
-```
+```shell
 $ cd example_js/tensorflow_lite_demo
 $ wasmedgec-tensorflow ../../target/wasm32-wasi/release/wasmedge_quickjs.wasm wasmedge_quickjs.wasm
 $ wasmedge-tensorflow-lite --dir .:. wasmedge_quickjs.wasm main.js
@@ -66,4 +66,3 @@ confidence:
 ```
 
 You can see that the image classification task can be completed within 0.1s. It is at least 10x improvement!
-

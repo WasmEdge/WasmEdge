@@ -86,8 +86,8 @@ to call the function, pass call parameters, and receive return values.
 Below are some SDK examples for complex call parameters and return values.
 
 * [Use wasm-bindgen in a Node.js host app](../embed/node.md#more-examples)
-* [Use wasm-bindgen in a Go host app](../embed/go/bindgen.md)
-* [Use direct memory passing in a Go host app]()
+* [Use wasmedge-bindgen in a Go host app](../embed/go/function.md)
+* [Use direct memory passing in a Go host app](../embed/go/memory.md)
 
 ## Improve performance
 
@@ -119,4 +119,3 @@ $ wasmedge --reactor add.wasm add 2 2
 * [Tensorflow](rust/tensorflow.md) shows how to create Tensorflow-based AI inference applications for WebAssembly using the WasmEdge TensorFlow Rust SDK.
 * [Networking socket](rust/networking.md) shows how to create networking applications for WebAssembly using the WasmEdge networking socket Rust SDK.
 * [Command interface](rust/command.md) shows how to create native command applications for WebAssembly using the Wasmedge command interface Rust SDK.
-* [Bindgen and rustwasmc](rust/bindgen.md) shows how to use the `rustwasmc` toolchain to compile Rust functions into WebAssembly, and then pass complex call parameters to the function from an external host application.

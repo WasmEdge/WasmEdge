@@ -22,12 +22,11 @@ The [example_js/react_ssr](https://github.com/second-state/wasmedge-quickjs/tree
 The [component/Home.jsx](https://github.com/second-state/wasmedge-quickjs/blob/main/example_js/react_ssr/component/Home.jsx)
 file is the main page template in React.
 
-```
+```javascript
 import React from 'react';
 import Page from './Page.jsx';
- 
-class Home extends React.Component {
 
+class Home extends React.Component {
   render() {
     const { dataList = [] } = this.props;
     return (
@@ -35,7 +34,7 @@ class Home extends React.Component {
         <div>This is home</div>
         <Page></Page>
       </div>
-    )
+    );
   }
 }
 
@@ -45,7 +44,7 @@ export default Home;
 The `Home.jpx` template includes a [Page.jpx](https://github.com/second-state/wasmedge-quickjs/blob/main/example_js/react_ssr/component/Page.jsx)
 template for part of the page.
 
-```
+```javascript
 import React from 'react';
 
 class Page extends React.Component {
@@ -66,13 +65,14 @@ export default Page;
 The [main.js](https://github.com/second-state/wasmedge-quickjs/blob/main/example_js/react_ssr/main.js)
 file calls React to render the templates into HTML.
 
-```
-import Home from './component/Home.jsx';
-import {renderToString} from 'react-dom/server';
+```javascript
 import React from 'react';
+import {renderToString} from 'react-dom/server';
+
+import Home from './component/Home.jsx';
 
 const content = renderToString(React.createElement(Home));
-console.log(content)
+console.log(content);
 ```
 
 The [rollup.config.js](https://github.com/second-state/wasmedge-quickjs/blob/main/example_js/react_ssr/rollup.config.js)
@@ -94,7 +94,7 @@ $ wasmedge --dir .:. ../../target/wasm32-wasi/release/wasmedge_quickjs.wasm dist
 <div data-reactroot=""><div>This is home</div><div><div>This is page</div></div></div>
 ```
 
->  Note, the `--dir .:.` on the command line is to give wasmedge permission to read the local directory in the file system for the `dist/main.js` file.
+>  Note: the `--dir .:.` on the command line is to give wasmedge permission to read the local directory in the file system for the `dist/main.js` file.
 
 ## Stream rendering
 
@@ -168,29 +168,31 @@ file starts a asynchronous HTTP server, and then renders the HTML page in multip
 function is called to render the HTML and to send back the results through the stream.
 
 ```javascript
-import * as React from 'react'
+import * as React from 'react';
+import { renderToPipeableStream } from 'react-dom/server';
+import * as http from 'wasi_http';
+import * as net from 'wasi_net';
 
-import LazyHome from './component/LazyHome.jsx'
-import {renderToPipeableStream} from 'react-dom/server'
+import LazyHome from './component/LazyHome.jsx';
 
-import * as net from 'wasi_net'
-import * as http from 'wasi_http'
-
-async function handle_client(s){
-    let resp = new http.WasiResponse()
-    renderToPipeableStream(<LazyHome />).pipe(resp.chunk(s))
+async function handle_client(s) {
+  let resp = new http.WasiResponse();
+  resp.headers = {
+    "Content-Type": "text/html; charset=utf-8"
+  }
+  renderToPipeableStream(<LazyHome />).pipe(resp.chunk(s));
 }
 
-async function server_start(){
-    print('listen 8001...')
-    let s = new net.WasiTcpServer(8001)
-    for(var i=0;i<100;i++){
-        let cs = await s.accept();
-        handle_client(cs)
-    }
+async function server_start() {
+  print('listen 8001...');
+  let s = new net.WasiTcpServer(8001);
+  for (var i = 0; i < 100; i++) {
+    let cs = await s.accept();
+    handle_client(cs);
+  }
 }
 
-server_start()
+server_start();
 ```
 
 The [rollup.config.js](https://github.com/second-state/wasmedge-quickjs/blob/main/example_js/react_ssr_stream/rollup.config.js)

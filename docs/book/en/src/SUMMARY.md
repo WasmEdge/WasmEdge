@@ -21,7 +21,7 @@
 
 - [Develop a WasmEdge app](dev.md)
     - [Rust](dev/rust.md)
-        - [Pass args to Rust funcs](dev/rust/bindgen.md)
+        - [Call Rust functions](dev/rust/bindgen.md)
         - [Access OS services](dev/rust/wasi.md)
         - [Tensorflow](dev/rust/tensorflow.md)
         - [Networking sockets](dev/rust/networking.md)

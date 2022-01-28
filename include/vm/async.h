@@ -8,12 +8,13 @@
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// This file is the definition class of VM class.
+/// This file is the definition class of Async class.
 ///
 //===----------------------------------------------------------------------===//
 #pragma once
 
 #include "vm.h"
+
 #include <future>
 #include <thread>
 
@@ -76,7 +77,7 @@ public:
   }
 
 private:
-  std::future<T> Future;
+  std::shared_future<T> Future;
   std::thread Thread;
   VM *VMPtr;
 };

@@ -62,14 +62,15 @@ Misc:
 * Added the copyright text.
 * Fixed the coding style of the comments.
 * Added the Windows installer release CI.
+* Added the aarch64 Android support based on r23b.
 
 
 Thank all the contributors that made this release possible!
 
-2021, Antonio Yang, AvengerMoJo, Harinath Nampally, KernelErr, Michael Yuan, O3Ol, Shen-Ta Hsieh, Shreyas Atre, SonOfMagic, Stephan Renatus, Sven Pfennig, Vaughn Dice, Xin Liu, YiYing He, Yukang Chen, alabulei1, alittlehorse, hydai, wangshishuo, wolfishLamb
+2021, alabulei1, alittlehorse, Antonio Yang, AvengerMoJo, Hanged Fish, Harinath Nampally, hydai, KernelErr, Michael Yuan, O3Ol, Shen-Ta Hsieh, Shen-Ta Hsieh(BestSteve), Shreyas Atre, SonOfMagic, Stephan Renatus, Sven Pfennig, Vaughn Dice, wangshishuo, wolfishLamb, Xin Liu, Yi, Yi-Ying He, YiYing He, Yukang Chen
 
 
-If you want to build from source, please use WasmEdge-0.9.1-beta.1-src.tar.gz instead of the zip or tarball provided by GitHub directly.
+If you want to build from source, please use WasmEdge-0.9.1-beta.2-src.tar.gz instead of the zip or tarball provided by GitHub directly.
 
 ### 0.9.0 (2021-12-09)
 

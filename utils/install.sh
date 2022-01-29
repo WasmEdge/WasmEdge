@@ -156,8 +156,6 @@ detect_os_arch() {
     'Linux')
         if [ "$ARCH" = "aarch64" ]; then
             RELEASE_PKG="manylinux2014_$ARCH.tar.gz"
-            IM_EXT_COMPAT=0
-            TF_EXT_COMPAT=0
         fi
         ;;
     'Darwin')

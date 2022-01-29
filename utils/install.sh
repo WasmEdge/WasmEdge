@@ -583,7 +583,7 @@ main() {
 
     if [ "$REMOVE_OLD" == "1" ] || [[ "$REMOVE_OLD" =~ ^([yY][eE][sS]|[yY])$ ]]; then
         if [ -f "$IPATH/env" ]; then
-            bash <(curl -sSf https://raw.githubusercontent.com/SAtacker/WasmEdge/install_script/utils/uninstall.sh) -p "$IPATH" -q
+            bash <(curl -sSf https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/uninstall.sh) -p "$IPATH" -q
         fi
     fi
 

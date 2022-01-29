@@ -48,9 +48,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         hostfunc_path = std::env::current_dir()?.join("examples/data/funcs.wasm");
     }
 
-    let config = Config::create()?;
-    let mut import_obj = ImportObject::create("extern_module")?;
-
     let result = FuncType::create(
         vec![ValType::ExternRef, ValType::I32, ValType::I32],
         vec![ValType::I32],
@@ -60,12 +57,18 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let result = Function::create(func_ty, Box::new(real_add), 0);
     assert!(result.is_ok());
     let host_func = result.unwrap();
+
+    // create an ImportObject module
+    let mut import_obj = ImportObject::create("extern_module")?;
     import_obj.add_func("add", host_func);
 
     // load module from file
-    let loader = Loader::create(Some(&config))?;
+    let config = Config::create()?;
+    let loader = Loader::create(Some(config))?;
     let module = loader.from_file(hostfunc_path)?;
 
+    // create a Vm context
+    let config = Config::create()?;
     let mut vm = Vm::create(Some(config), None)?;
     vm.register_wasm_from_import(import_obj)?;
 

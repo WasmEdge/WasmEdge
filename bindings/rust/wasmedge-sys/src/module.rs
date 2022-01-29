@@ -394,7 +394,7 @@ mod tests {
         assert!(config.bulk_memory_operations_enabled());
 
         // load module from file
-        let result = Loader::create(Some(&config));
+        let result = Loader::create(Some(config));
         assert!(result.is_ok());
         let loader = result.unwrap();
         let result = loader.from_file(path);
@@ -539,7 +539,7 @@ mod tests {
         assert!(config.bulk_memory_operations_enabled());
 
         // load module from file
-        let result = Loader::create(Some(&config));
+        let result = Loader::create(Some(config));
         assert!(result.is_ok());
         let loader = result.unwrap();
         let result = loader.from_file(path);

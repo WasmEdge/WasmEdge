@@ -69,7 +69,7 @@ mod tests {
         assert!(result.is_ok());
         let config = result.unwrap();
         let config = config.reference_types(true);
-        let result = Loader::create(Some(&config));
+        let result = Loader::create(Some(config));
         assert!(result.is_ok());
         let loader = result.unwrap();
 

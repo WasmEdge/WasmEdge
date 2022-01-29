@@ -1,11 +1,10 @@
 //! Defines WasmEdge ImportObj struct.
 
-use super::wasmedge;
 use crate::{
     instance::{Function, Global, Memory, Table},
     types::WasmEdgeString,
     utils::string_to_c_char,
-    WasmEdgeError, WasmEdgeResult,
+    wasmedge, WasmEdgeError, WasmEdgeResult,
 };
 
 /// Struct of WasmEdge ImportObj.
@@ -13,11 +12,11 @@ use crate::{
 /// A [`ImportObj`] represents a host module with a name. A host module consists of one or more
 /// host functions which are defined outside WebAssembly and passed to WASM modules as imports.
 #[derive(Debug)]
-pub struct ImportObj {
+pub struct ImportObject {
     pub(crate) ctx: *mut wasmedge::WasmEdge_ImportObjectContext,
     pub(crate) registered: bool,
 }
-impl ImportObj {
+impl ImportObject {
     /// Creates a new host module with the given name.
     ///
     /// # Argument
@@ -32,7 +31,7 @@ impl ImportObj {
         let ctx = unsafe { wasmedge::WasmEdge_ImportObjectCreate(mod_name.as_raw()) };
         match ctx.is_null() {
             true => Err(WasmEdgeError::ImportObjCreate),
-            false => Ok(ImportObj {
+            false => Ok(ImportObject {
                 ctx,
                 registered: false,
             }),
@@ -90,7 +89,7 @@ impl ImportObj {
         };
         match ctx.is_null() {
             true => Err(WasmEdgeError::ImportObjCreate),
-            false => Ok(ImportObj {
+            false => Ok(ImportObject {
                 ctx,
                 registered: false,
             }),
@@ -279,7 +278,7 @@ impl ImportObj {
         global.ctx = std::ptr::null_mut();
     }
 }
-impl Drop for ImportObj {
+impl Drop for ImportObject {
     fn drop(&mut self) {
         if !self.registered && !self.ctx.is_null() {
             unsafe { wasmedge::WasmEdge_ImportObjectDelete(self.ctx) };
@@ -291,8 +290,7 @@ impl Drop for ImportObj {
 mod tests {
     use super::*;
     use crate::{
-        types::{HostRegistration, Value},
-        Config, FuncType, GlobalType, MemType, Mutability, RefType, TableType, ValType, Vm,
+        Config, FuncType, GlobalType, MemType, Mutability, RefType, TableType, ValType, Value, Vm,
     };
 
     #[test]
@@ -300,7 +298,7 @@ mod tests {
         let host_name = "extern";
 
         // create an ImportObj module
-        let result = ImportObj::create(host_name);
+        let result = ImportObject::create(host_name);
         assert!(result.is_ok());
         let mut import_obj = result.unwrap();
 
@@ -351,9 +349,9 @@ mod tests {
     fn test_import_obj_wasi() {
         // create WASI
         {
-            let result = ImportObj::create_wasi(None, None, None);
+            let result = ImportObject::create_wasi(None, None, None);
             assert!(result.is_ok());
-            let result = ImportObj::create_wasi(
+            let result = ImportObject::create_wasi(
                 Some(vec!["arg1", "arg2"]),
                 Some(vec!["ENV1=VAL1", "ENV1=VAL2", "ENV3=VAL3"]),
                 Some(vec![
@@ -365,7 +363,7 @@ mod tests {
                 ]),
             );
             assert!(result.is_ok());
-            let result = ImportObj::create_wasi(
+            let result = ImportObject::create_wasi(
                 None,
                 Some(vec!["ENV1=VAL1", "ENV1=VAL2", "ENV3=VAL3"]),
                 Some(vec![
@@ -388,14 +386,14 @@ mod tests {
             assert!(result.is_ok());
             let config = result.unwrap();
             let config = config.wasi(true);
-            let result = Vm::create(Some(&config), None);
+            let result = Vm::create(Some(config), None);
             assert!(result.is_ok());
             let mut vm = result.unwrap();
 
             // get the ImportObject module from vm
-            let result = vm.import_obj_mut(HostRegistration::Wasi);
+            let result = vm.wasi_import_module_mut();
             assert!(result.is_ok());
-            let mut import_obj = result.unwrap();
+            let mut import_wasi = result.unwrap();
 
             let args = vec!["arg1", "arg2"];
             let envs = vec!["ENV1=VAL1", "ENV1=VAL2", "ENV3=VAL3"];
@@ -406,9 +404,9 @@ mod tests {
                 "ssvmAPICoreTests",
                 ".:.",
             ];
-            import_obj.init_wasi(Some(args), Some(envs), Some(preopens));
+            import_wasi.init_wasi(Some(args), Some(envs), Some(preopens));
 
-            assert_eq!(import_obj.exit_code(), 0);
+            assert_eq!(import_wasi.exit_code(), 0);
         }
     }
 
@@ -416,13 +414,13 @@ mod tests {
     fn test_import_obj_wasmedge_process() {
         // create wasmedge_process
         {
-            let result = ImportObj::create_wasmedge_process(Some(vec!["arg1", "arg2"]), true);
+            let result = ImportObject::create_wasmedge_process(Some(vec!["arg1", "arg2"]), true);
             assert!(result.is_ok());
 
-            let result = ImportObj::create_wasmedge_process(None, false);
+            let result = ImportObject::create_wasmedge_process(None, false);
             assert!(result.is_ok());
 
-            let result = ImportObj::create_wasmedge_process(Some(vec!["arg1", "arg2"]), false);
+            let result = ImportObject::create_wasmedge_process(Some(vec!["arg1", "arg2"]), false);
             assert!(result.is_ok());
         }
 
@@ -432,14 +430,14 @@ mod tests {
             assert!(result.is_ok());
             let config = result.unwrap();
             let config = config.wasmedge_process(true);
-            let result = Vm::create(Some(&config), None);
+            let result = Vm::create(Some(config), None);
             assert!(result.is_ok());
             let mut vm = result.unwrap();
 
-            let result = vm.import_obj_mut(HostRegistration::WasmEdgeProcess);
+            let result = vm.wasmedge_process_import_module_mut();
             assert!(result.is_ok());
-            let mut import_obj = result.unwrap();
-            import_obj.init_wasmedge_process(Some(vec!["arg1", "arg2"]), false);
+            let mut import_wasmedge_process = result.unwrap();
+            import_wasmedge_process.init_wasmedge_process(Some(vec!["arg1", "arg2"]), false);
         }
     }
 

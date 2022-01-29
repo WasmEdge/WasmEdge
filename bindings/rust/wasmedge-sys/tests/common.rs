@@ -1,8 +1,8 @@
-use wasmedge_sys::{FuncType, Function, ImportObj, ValType, Value};
+use wasmedge_sys::{FuncType, Function, ImportObject, ValType, Value};
 
-pub fn create_extern_module(name: impl AsRef<str>) -> ImportObj {
+pub fn create_extern_module(name: impl AsRef<str>) -> ImportObject {
     // create an ImportObj module
-    let result = ImportObj::create(name);
+    let result = ImportObject::create(name);
     assert!(result.is_ok());
     let mut import_obj = result.unwrap();
 

@@ -723,7 +723,7 @@ mod tests {
     use crate::{
         instance::{Function, Global, GlobalType, MemType, Memory, Table, TableType},
         types::Value,
-        Config, Executor, FuncType, ImportObj, Mutability, RefType, ValType,
+        Config, Executor, FuncType, ImportObject, Mutability, RefType, ValType,
     };
 
     #[test]
@@ -749,7 +749,7 @@ mod tests {
         assert!(store.reg_module_names().is_none());
 
         // create ImportObject instance
-        let result = ImportObj::create(module_name);
+        let result = ImportObject::create(module_name);
         assert!(result.is_ok());
         let mut import_obj = result.unwrap();
 

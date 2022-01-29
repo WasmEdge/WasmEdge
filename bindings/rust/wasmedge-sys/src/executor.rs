@@ -4,7 +4,7 @@ use super::wasmedge;
 use crate::{
     error::{check, WasmEdgeError, WasmEdgeResult},
     types::WasmEdgeString,
-    Config, ImportObj, Module, Statistics, Store, Value,
+    Config, ImportObject, Module, Statistics, Store, Value,
 };
 use std::ptr;
 
@@ -59,7 +59,7 @@ impl Executor {
     pub fn register_import_object(
         self,
         store: &mut Store,
-        imp_obj: &ImportObj,
+        imp_obj: &ImportObject,
     ) -> WasmEdgeResult<Self> {
         unsafe {
             check(wasmedge::WasmEdge_ExecutorRegisterImport(

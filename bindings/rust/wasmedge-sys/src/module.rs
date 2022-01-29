@@ -21,7 +21,6 @@ use std::{borrow::Cow, ffi::CStr, marker::PhantomData};
 #[derive(Debug)]
 pub struct Module {
     pub(crate) ctx: *mut wasmedge::WasmEdge_ASTModuleContext,
-    pub(crate) registered: bool,
 }
 impl Drop for Module {
     fn drop(&mut self) {
@@ -392,8 +391,8 @@ mod tests {
 
     #[test]
     fn test_module_import() {
-        let path =
-            std::path::PathBuf::from(env!("WASMEDGE_DIR")).join("test/api/apiTestData/import.wasm");
+        let path = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
+            .join("bindings/rust/wasmedge-sys/tests/data/import.wasm");
 
         let result = Config::create();
         assert!(result.is_ok());
@@ -537,8 +536,8 @@ mod tests {
 
     #[test]
     fn test_module_export() {
-        let path =
-            std::path::PathBuf::from(env!("WASMEDGE_DIR")).join("test/api/apiTestData/import.wasm");
+        let path = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
+            .join("bindings/rust/wasmedge-sys/tests/data/import.wasm");
 
         let result = Config::create();
         assert!(result.is_ok());

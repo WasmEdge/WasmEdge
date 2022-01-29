@@ -120,7 +120,7 @@ mod tests {
             assert!(result.is_ok());
             let compiler = result.unwrap();
             let in_path = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
-                .join("test/api/apiTestData/test.wasm");
+                .join("bindings/rust/wasmedge-sys/tests/data/test.wasm");
             let out_path = std::path::PathBuf::from("test_aot.so");
             assert!(!out_path.exists());
             let result = compiler.compile(&in_path, &out_path);

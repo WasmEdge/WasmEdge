@@ -29,7 +29,7 @@ fn test_executor_with_statistics() {
     stat.set_cost_limit(100_000_000_000_000);
 
     // create an Executor context
-    let result = Executor::create(Some(&config), Some(&stat));
+    let result = Executor::create(Some(config), Some(stat));
     assert!(result.is_ok());
     let executor = result.unwrap();
 
@@ -42,7 +42,7 @@ fn test_executor_with_statistics() {
     let mut store = result.unwrap();
 
     // register the import_obj module into the store context
-    let result = executor.register_import_object(&mut store, &import_obj);
+    let result = executor.register_import_object(&mut store, import_obj);
     assert!(result.is_ok());
     let executor = result.unwrap();
 
@@ -57,24 +57,27 @@ fn test_executor_with_statistics() {
         .join("bindings/rust/wasmedge-sys/tests/data/test.wasm");
     let result = loader.from_file(path);
     assert!(result.is_ok());
-    let mut module = result.unwrap();
+    let module = result.unwrap();
 
     // validate module
     let result = Config::create();
     assert!(result.is_ok());
     let config = result.unwrap();
-    let result = Validator::create(Some(&config));
+    let result = Validator::create(Some(config));
     assert!(result.is_ok());
     let validator = result.unwrap();
     let result = validator.validate(&module);
     assert!(result.is_ok());
 
     // register a wasm module into the store context
-    let result = executor.register_module(&mut store, &mut module, "module");
+    let result = executor.register_module(&mut store, module, "module");
     assert!(result.is_ok());
     let executor = result.unwrap();
 
     // load module from a wasm file
+    let result = Config::create();
+    assert!(result.is_ok());
+    let config = result.unwrap();
     let result = Loader::create(Some(config));
     assert!(result.is_ok());
     let loader = result.unwrap();
@@ -82,20 +85,20 @@ fn test_executor_with_statistics() {
         .join("bindings/rust/wasmedge-sys/tests/data/test.wasm");
     let result = loader.from_file(path);
     assert!(result.is_ok());
-    let mut module = result.unwrap();
+    let module = result.unwrap();
 
     // validate module
     let result = Config::create();
     assert!(result.is_ok());
     let config = result.unwrap();
-    let result = Validator::create(Some(&config));
+    let result = Validator::create(Some(config));
     assert!(result.is_ok());
     let validator = result.unwrap();
     let result = validator.validate(&module);
     assert!(result.is_ok());
 
     // instantiate wasm module
-    let result = executor.instantiate(&mut store, &mut module);
+    let result = executor.instantiate(&mut store, module);
     assert!(result.is_ok());
     let executor = result.unwrap();
 
@@ -266,14 +269,4 @@ fn test_executor_with_statistics() {
         result.unwrap_err(),
         WasmEdgeError::Core(CoreError::Execution(CoreExecutionError::ExecutionFailed))
     );
-
-    // Statistics: get instruction count
-    assert!(stat.instr_count() > 0);
-
-    // Statistics: get instruction per second
-    assert!(!stat.instr_per_sec().is_nan());
-    assert!(stat.instr_per_sec() > 0.0);
-
-    // Statistics: get total cost
-    assert!(stat.cost_in_total() > 0);
 }

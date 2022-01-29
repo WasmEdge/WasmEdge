@@ -58,10 +58,7 @@ impl Loader {
 
         match mod_ctx.is_null() {
             true => Err(WasmEdgeError::ModuleCreate),
-            false => Ok(Module {
-                ctx: mod_ctx,
-                registered: false,
-            }),
+            false => Ok(Module { ctx: mod_ctx }),
         }
     }
 
@@ -101,10 +98,7 @@ impl Loader {
 
         match mod_ctx.is_null() {
             true => Err(WasmEdgeError::ModuleCreate),
-            false => Ok(Module {
-                ctx: mod_ctx,
-                registered: false,
-            }),
+            false => Ok(Module { ctx: mod_ctx }),
         }
     }
 }

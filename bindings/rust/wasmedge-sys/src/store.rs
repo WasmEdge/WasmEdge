@@ -749,7 +749,7 @@ mod tests {
         // create ImportObject instance
         let result = ImportObject::create(module_name);
         assert!(result.is_ok());
-        let mut import_obj = result.unwrap();
+        let mut import = result.unwrap();
 
         // add host function
         let result = FuncType::create(vec![ValType::I32; 2], vec![ValType::I32]);
@@ -758,7 +758,7 @@ mod tests {
         let result = Function::create(func_ty, Box::new(real_add), 0);
         assert!(result.is_ok());
         let host_func = result.unwrap();
-        import_obj.add_func("add", host_func);
+        import.add_func("add", host_func);
 
         // add table
         let result = TableType::create(RefType::FuncRef, 0..=u32::MAX);
@@ -767,7 +767,7 @@ mod tests {
         let result = Table::create(ty);
         assert!(result.is_ok());
         let table = result.unwrap();
-        import_obj.add_table("table", table);
+        import.add_table("table", table);
 
         // add memory
         let result = MemType::create(0..=u32::MAX);
@@ -776,7 +776,7 @@ mod tests {
         let result = Memory::create(mem_ty);
         assert!(result.is_ok());
         let memory = result.unwrap();
-        import_obj.add_memory("mem", memory);
+        import.add_memory("mem", memory);
 
         // add globals
         let result = GlobalType::create(ValType::F32, Mutability::Const);
@@ -785,15 +785,15 @@ mod tests {
         let result = Global::create(ty, Value::from_f32(3.5));
         assert!(result.is_ok());
         let global = result.unwrap();
-        import_obj.add_global("global", global);
+        import.add_global("global", global);
 
         let result = Config::create();
         assert!(result.is_ok());
         let config = result.unwrap();
-        let result = Executor::create(Some(&config), None);
+        let result = Executor::create(Some(config), None);
         assert!(result.is_ok());
         let executor = result.unwrap();
-        let result = executor.register_import_object(&mut store, &import_obj);
+        let result = executor.register_import_object(&mut store, import);
         assert!(result.is_ok());
         let executor = result.unwrap();
 

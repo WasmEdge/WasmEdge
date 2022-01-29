@@ -378,6 +378,9 @@ wasmedge_checks() {
         local version=$1
         shift
         for var in "$@"; do
+            if [ "$var" == "" ]; then
+                continue
+            fi
             local V=$("$IPATH/bin/$var" --version | sed 's/^.*[^0-9]\([0-9]*\.[0-9]*\.[0-9]*\).*$/\1/')
             local V_=$(echo $version | sed 's/\([0-9]*\.[0-9]*\.[0-9]*\).*$/\1/')
             if [ "$V" = "$V_" ]; then

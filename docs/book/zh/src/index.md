@@ -19,7 +19,7 @@ $ curl -sSf https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/ins
 $ curl -sSf https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh | bash -s -- -e all
 ```
 
-执行 `source $HOME/.wasmedge/env` 命令能使已安装的二进制文件在当前会话中可用。
+执行以下命令能使已安装的二进制文件在当前会话中可用。
 
 ```bash
 $ source $HOME/.wasmedge/env

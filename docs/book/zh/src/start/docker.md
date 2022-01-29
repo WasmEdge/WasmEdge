@@ -20,7 +20,7 @@ $ docker run --rm -v $(pwd):/app -it wasmedge/appdev_aarch64:0.9.0
 (docker) #
 ```
 
-查看 `	appdev` 的 [Dockerfile](https://github.com/WasmEdge/WasmEdge/blob/master/utils/docker/Dockerfile.appdev_aarch64) 和 [Docker Hub 镜像](https://hub.docker.com/repository/docker/wasmedge/appdev_aarch64)。
+查看 `appdev` 的 [Dockerfile](https://github.com/WasmEdge/WasmEdge/blob/master/utils/docker/Dockerfile.appdev_aarch64) 和 [Docker Hub 镜像](https://hub.docker.com/repository/docker/wasmedge/appdev_aarch64)。
 
 这个 `appdev` 镜像安装了以下组件：
 

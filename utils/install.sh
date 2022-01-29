@@ -407,21 +407,21 @@ install_wasmedge_image() {
 }
 
 get_wasmedge_tensorflow_deps() {
-    echo "Fetching WasmEdge-tensorflow-deps-TF-$VERSION_TF_DEPS"
+    [[ "$RELEASE_PKG" =~ "aarch64" ]] && echo "Tensorflow not supported" || echo "Fetching WasmEdge-tensorflow-deps-TF-$VERSION_TF_DEPS"
     _downloader "https://github.com/second-state/WasmEdge-tensorflow-deps/releases/download/$VERSION_TF_DEPS/WasmEdge-tensorflow-deps-TF-$VERSION_TF_DEPS-$RELEASE_PKG"
 
     echo "Fetching WasmEdge-tensorflow-deps-TFLite-$VERSION_TF_DEPS"
     _downloader "https://github.com/second-state/WasmEdge-tensorflow-deps/releases/download/$VERSION_TF_DEPS/WasmEdge-tensorflow-deps-TFLite-$VERSION_TF_DEPS-$RELEASE_PKG"
 
-    _extractor -C "$IPATH/lib" -vxzf "$TMP_DIR/WasmEdge-tensorflow-deps-TF-$VERSION_TF_DEPS-$RELEASE_PKG"
+    [[ "$RELEASE_PKG" =~ "aarch64" ]] || _extractor -C "$IPATH/lib" -vxzf "$TMP_DIR/WasmEdge-tensorflow-deps-TF-$VERSION_TF_DEPS-$RELEASE_PKG"
     _extractor -C "$IPATH/lib" -vxzf "$TMP_DIR/WasmEdge-tensorflow-deps-TFLite-$VERSION_TF_DEPS-$RELEASE_PKG"
 
     _ldconfig
 }
 
 install_wasmedge_tensorflow() {
-    echo "Fetching WasmEdge-tensorflow-$VERSION_TF"
-    _downloader "https://github.com/second-state/WasmEdge-tensorflow/releases/download/$VERSION_TF/WasmEdge-tensorflow-$VERSION_TF-$RELEASE_PKG"
+    [[ "$RELEASE_PKG" =~ "aarch64" ]] && echo "Tensorflow not supported" || echo "Fetching WasmEdge-tensorflow-$VERSION_TF" &&
+        _downloader "https://github.com/second-state/WasmEdge-tensorflow/releases/download/$VERSION_TF/WasmEdge-tensorflow-$VERSION_TF-$RELEASE_PKG"
 
     echo "Fetching WasmEdge-tensorflowlite-$VERSION_TF"
     _downloader "https://github.com/second-state/WasmEdge-tensorflow/releases/download/$VERSION_TF/WasmEdge-tensorflowlite-$VERSION_TF-$RELEASE_PKG"
@@ -429,7 +429,7 @@ install_wasmedge_tensorflow() {
     echo "Fetching WasmEdge-tensorflow-tools-$VERSION_TF_TOOLS"
     _downloader "https://github.com/second-state/WasmEdge-tensorflow-tools/releases/download/$VERSION_TF_TOOLS/WasmEdge-tensorflow-tools-$VERSION_TF_TOOLS-$RELEASE_PKG"
 
-    _extractor -C "$IPATH" -vxzf "$TMP_DIR/WasmEdge-tensorflow-$VERSION_TF-$RELEASE_PKG"
+    [[ "$RELEASE_PKG" =~ "aarch64" ]] || _extractor -C "$IPATH" -vxzf "$TMP_DIR/WasmEdge-tensorflow-$VERSION_TF-$RELEASE_PKG"
     _extractor -C "$IPATH" -vxzf "$TMP_DIR/WasmEdge-tensorflowlite-$VERSION_TF-$RELEASE_PKG"
     _extractor -C "$IPATH/bin" -vxzf "$TMP_DIR/WasmEdge-tensorflow-tools-$VERSION_TF_TOOLS-$RELEASE_PKG"
 
@@ -481,7 +481,9 @@ install_tf_extensions() {
         get_wasmedge_tensorflow_deps
         install_wasmedge_tensorflow
 
-        wasmedge_checks "$VERSION_TF_TOOLS" wasmedge-tensorflow \
+        local _bin
+        [[ "$RELEASE_PKG" =~ "aarch64" ]] && _bin="" || _bin="wasmedge-tensorflow"
+        wasmedge_checks "$VERSION_TF_TOOLS" "$_bin" \
             wasmedge-tensorflow-lite
     else
         echo "${YELLOW}Tensorflow extensions not supported${NC}"

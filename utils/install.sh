@@ -154,9 +154,15 @@ detect_os_arch() {
 
     case $OS in
     'Linux')
-        if [ "$ARCH" = "aarch64" ]; then
-            RELEASE_PKG="manylinux2014_$ARCH.tar.gz"
-        fi
+        case $ARCH in
+        'x86_64') ;;
+        'arm64' | 'armv8*' | "aarch64") RELEASE_PKG="manylinux2014_aarch64.tar.gz" ;;
+        "amd64") RELEASE_PKG="manylinux2014_amd64.tar.gz" ;;
+        *)
+            echo "${RED}Detected $OS-$ARCH${NC} - currently unsupported${NC}"
+            exit 1
+            ;;
+        esac
         ;;
     'Darwin')
         case $ARCH in

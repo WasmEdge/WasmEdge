@@ -1,10 +1,8 @@
-# 用 Docker 启动
+# 使用 Docker 进行 WasmEdge 应用程序开发
 
-我们提供了一个名为 `appdev` 的 Docker 镜像，它为开发者们提供了一个完整的 WasmEdge 应用开发环境。
+`appdev` Docker 镜像提供了一个完整的 WasmEdge 应用程序开发环境。要想使用该镜像，请执行以下操作。
 
-参照下列文档来使用它:
-
-### 在 x86_64 机器上使用
+### x86_64 系统
 
 ```bash
 $ docker pull wasmedge/appdev_x86_64:0.9.0
@@ -12,9 +10,9 @@ $ docker run --rm -v $(pwd):/app -it wasmedge/appdev_x86_64:0.9.0
 (docker) #
 ```
 
-这里提供了示例 [Dockerfile](https://github.com/WasmEdge/WasmEdge/blob/master/utils/docker/Dockerfile.appdev_x86_64) 和 [Docker Hub image](https://hub.docker.com/repository/docker/wasmedge/appdev_x86_64).
+查看 `	appdev` 的 [Dockerfile](https://github.com/WasmEdge/WasmEdge/blob/master/utils/docker/Dockerfile.appdev_x86_64) 和 [Docker Hub 镜像](https://hub.docker.com/repository/docker/wasmedge/appdev_x86_64)。
 
-### 在 arm64 机器上使用
+### arm64 系统
 
 ```bash
 $ docker pull wasmedge/appdev_aarch64:0.9.0
@@ -22,20 +20,20 @@ $ docker run --rm -v $(pwd):/app -it wasmedge/appdev_aarch64:0.9.0
 (docker) #
 ```
 
-这里提供了示例 [Dockerfile](https://github.com/WasmEdge/WasmEdge/blob/master/utils/docker/Dockerfile.appdev_aarch64) 和 [Docker Hub image](https://hub.docker.com/repository/docker/wasmedge/appdev_aarch64).
+查看 `	appdev` 的 [Dockerfile](https://github.com/WasmEdge/WasmEdge/blob/master/utils/docker/Dockerfile.appdev_aarch64) 和 [Docker Hub 镜像](https://hub.docker.com/repository/docker/wasmedge/appdev_aarch64)。
 
-这个 `appdev` 镜像安装了以下组件:
+这个 `appdev` 镜像安装了以下组件：
 
-- WasmEdge CLI 和 shared libraries
-- WasmEdge with Tensorflow extension CLI and libraries (x86_64 only)
+- WasmEdge CLI 和共享库
+- (仅限 x86_64 系统）包含 Tensorflow 扩展命令行和库的 WasmEdge
 - Golang
 - Rust
-- Node.js with WasmEdge addons
+- 包含 WasmEdge 插件的 Node.js
 - 在 `/root/examples/` 文件夹的一些示例
 
 ## 一些示例
 
-Hello World. [点击此处查看更多示例](https://github.com/WasmEdge/WasmEdge/tree/master/tools/wasmedge/examples)
+Hello World。[查看更多。](https://github.com/WasmEdge/WasmEdge/tree/master/tools/wasmedge/examples)
 
 ```bash
 $ wasmedge hello.wasm world
@@ -43,7 +41,7 @@ hello
 world
 ```
 
-使用 AOT  来让它跑的 **更快**.
+使用 AOT 来**加快程序的运行速度**。
 
 ```bash
 $ wasmedgec hello.wasm hello.wasm
@@ -52,7 +50,7 @@ hello
 world
 ```
 
-这里也有一些 JavaScript 示例. [查看](https://github.com/WasmEdge/WasmEdge/tree/master/tools/wasmedge/examples/js)
+以下是一些 JavaScript 示例。[查看更多。](https://github.com/WasmEdge/WasmEdge/tree/master/tools/wasmedge/examples/js)
 
 ```bash
 $ wasmedge --dir .:. qjs.wasm hello.js 1 2 3
@@ -65,16 +63,16 @@ confidence: 0.8941176470588236
 
 ## 构建并发布 appdev 镜像
 
-使用以下的命令来构建并发布 appdev 镜像
+运行以下的命令来构建并发布 `appdev` 镜像：
 
-### 在一个 x86_64 机器上构建
+### x86_64 系统
 
 ```bash
 docker build -t wasmedge/appdev_x86_64:0.9.0 -f Dockerfile.appdev_x86_64 ./
 docker image push wasmedge/appdev_x86_64:0.9.0
 ```
 
-### 在一个 ARM64 / aarch64 机器上构建
+### ARM64 / aarch64 系统
 
 ```bash
 docker build -t wasmedge/appdev_aarch64:0.9.0 -f Dockerfile.appdev_aarch64 ./

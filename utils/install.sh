@@ -441,6 +441,10 @@ install_wasmedge_tensorflow() {
 }
 
 install_image_extensions() {
+    [[ "$RELEASE_PKG" =~ "aarch64" ]] &&
+        [ "$(printf %s\\n%s\\n "0.9.1-beta.1" "$VERSION_IM_DEPS")" != "$(printf %s\\n%s "0.9.1-beta.1" "$VERSION_IM_DEPS" | sort --version-sort)" ] &&
+        IM_EXT_COMPAT=0
+
     if [ $IM_EXT_COMPAT == 1 ]; then
 
         [ "$EXT_V_SET_WASMEDGE_IM" -eq 0 ] && VERSION_IM=$VERSION &&
@@ -459,6 +463,10 @@ install_image_extensions() {
 }
 
 install_tf_extensions() {
+    [[ "$RELEASE_PKG" =~ "aarch64" ]] &&
+        [ "$(printf %s\\n%s\\n "0.9.1-beta.1" "$VERSION_TF_DEPS")" != "$(printf %s\\n%s "0.9.1-beta.1" "$VERSION_TF_DEPS" | sort --version-sort)" ] &&
+        TF_EXT_COMPAT=0
+
     if [ $TF_EXT_COMPAT == 1 ]; then
 
         [ "$EXT_V_SET_WASMEDGE_TF" -eq 0 ] && VERSION_TF=$VERSION &&

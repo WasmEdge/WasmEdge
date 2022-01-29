@@ -563,8 +563,8 @@ mod tests {
         // ExternRef
         let result = TableType::create(RefType::FuncRef, 10..=20);
         assert!(result.is_ok());
-        let mut ty = result.unwrap();
-        let result = Table::create(&mut ty);
+        let ty = result.unwrap();
+        let result = Table::create(ty);
         assert!(result.is_ok());
         let mut table = result.unwrap();
         let value = Value::from_extern_ref(&mut table);

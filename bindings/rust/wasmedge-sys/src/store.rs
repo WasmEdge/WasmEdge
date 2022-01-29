@@ -56,7 +56,6 @@ impl Store {
             false => Ok(Function {
                 ctx,
                 registered: true,
-                ty: None,
             }),
         }
     }
@@ -95,7 +94,6 @@ impl Store {
             false => Ok(Function {
                 ctx,
                 registered: true,
-                ty: None,
             }),
         }
     }
@@ -765,10 +763,8 @@ mod tests {
         // add table
         let result = TableType::create(RefType::FuncRef, 0..=u32::MAX);
         assert!(result.is_ok());
-        let mut ty = result.unwrap();
-        assert!(!ty.ctx.is_null());
-        assert!(!ty.registered);
-        let result = Table::create(&mut ty);
+        let ty = result.unwrap();
+        let result = Table::create(ty);
         assert!(result.is_ok());
         let table = result.unwrap();
         import_obj.add_table("table", table);
@@ -776,8 +772,8 @@ mod tests {
         // add memory
         let result = MemType::create(0..=u32::MAX);
         assert!(result.is_ok());
-        let mut mem_ty = result.unwrap();
-        let result = Memory::create(&mut mem_ty);
+        let mem_ty = result.unwrap();
+        let result = Memory::create(mem_ty);
         assert!(result.is_ok());
         let memory = result.unwrap();
         import_obj.add_memory("mem", memory);
@@ -785,8 +781,8 @@ mod tests {
         // add globals
         let result = GlobalType::create(ValType::F32, Mutability::Const);
         assert!(result.is_ok());
-        let mut ty = result.unwrap();
-        let result = Global::create(&mut ty, Value::from_f32(3.5));
+        let ty = result.unwrap();
+        let result = Global::create(ty, Value::from_f32(3.5));
         assert!(result.is_ok());
         let global = result.unwrap();
         import_obj.add_global("global", global);

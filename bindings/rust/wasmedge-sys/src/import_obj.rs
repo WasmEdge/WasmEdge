@@ -311,8 +311,8 @@ mod tests {
         // create a Table instance
         let result = TableType::create(RefType::FuncRef, 10..=20);
         assert!(result.is_ok());
-        let mut table_ty = result.unwrap();
-        let result = Table::create(&mut table_ty);
+        let table_ty = result.unwrap();
+        let result = Table::create(table_ty);
         assert!(result.is_ok());
         let host_table = result.unwrap();
         // add the table into the import_obj module
@@ -321,8 +321,8 @@ mod tests {
         // create a Memory instance
         let result = MemType::create(1..=2);
         assert!(result.is_ok());
-        let mut mem_ty = result.unwrap();
-        let result = Memory::create(&mut mem_ty);
+        let mem_ty = result.unwrap();
+        let result = Memory::create(mem_ty);
         assert!(result.is_ok());
         let host_memory = result.unwrap();
         // add the memory into the import_obj module
@@ -331,8 +331,8 @@ mod tests {
         // create a Global instance
         let result = GlobalType::create(ValType::I32, Mutability::Const);
         assert!(result.is_ok());
-        let mut global_ty = result.unwrap();
-        let result = Global::create(&mut global_ty, Value::from_i32(666));
+        let global_ty = result.unwrap();
+        let result = Global::create(global_ty, Value::from_i32(666));
         assert!(result.is_ok());
         let host_global = result.unwrap();
         // add the global into import_obj module

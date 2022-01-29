@@ -6,7 +6,7 @@ WasmEdge 最简单的使用方式是通过 WasmEdge CLI。
 
 ## 安装
 
-你可以使用我们的一键安装脚本来安装 WasmEdge。
+你可以使用以下的单行命令来安装 WasmEdge。
 你的系统必须预先安装 `git` 和 `curl`。
 
 ```bash
@@ -25,7 +25,7 @@ $ curl -sSf https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/ins
 $ source $HOME/.wasmedge/env
 ```
 
-## 使用 Docker
+## 使用 Docker 进行安装
 
 如果你使用的是 Docker，你可以直接运行 WasmEdge 应用开发镜像（[x86](https://hub.docker.com/repository/docker/wasmedge/appdev_x86_64) 和 [arm64](https://hub.docker.com/repository/docker/wasmedge/appdev_aarch64)）。这些镜像里包含快速开发 WasmEdge 所需的所有工具。
 
@@ -42,7 +42,7 @@ $ docker run --rm -v $(pwd):/app -it wasmedge/appdev_x86_64:0.9.0
 ### Hello world
 
 [hello.wasm](https://github.com/WasmEdge/WasmEdge/raw/master/tools/wasmedge/examples/hello.wasm) 这个 WebAssembly 程序中包含一个 `main()` 函数。
-[查看该程序的 Rust 源代码项目。](https://github.com/second-state/wasm-learning/tree/master/cli/hello)
+[查看该程序的 Rust 源码项目。](https://github.com/second-state/wasm-learning/tree/master/cli/hello)
 它将打印 `hello`，以及所有的命令行参数。
 
 ```bash
@@ -55,8 +55,8 @@ state
 ### 调用一个 Rust 函数
 
 [add.wasm](https://github.com/WasmEdge/WasmEdge/raw/master/tools/wasmedge/examples/add.wasm) 这个 WebAssembly 程序包含一个 `add()` 函数。
-[查看该程序的 Rust 源代码项目。](https://github.com/second-state/wasm-learning/tree/master/cli/add)
-我们在 reactor 模式下使用 WasmEdge 来调用 `add()`，并给它 2 个整数作为输入参数。
+[查看该程序的 Rust 源码项目。](https://github.com/second-state/wasm-learning/tree/master/cli/add)
+我们在反应器模式下使用 WasmEdge 来调用 `add()`，并给它 2 个整数作为输入参数。
 
 ```bash
 $ wasmedge --reactor add.wasm add 2 2
@@ -66,7 +66,7 @@ $ wasmedge --reactor add.wasm add 2 2
 ### 调用一个 WAT 函数
 
 我们手动创建了 [fibonacci.wat](https://github.com/WasmEdge/WasmEdge/raw/master/tools/wasmedge/examples/fibonacci.wat) 程序，并使用了 [wat2wasm](https://github.com/WebAssembly/wabt) 编译器来构建 [fibonacci.wasm](https://github.com/WasmEdge/WasmEdge/raw/master/tools/wasmedge/examples/fibonacci.wasm) 这个 WebAssembly 程序。
-它包含了一个 `fib()` 函数，这个函数以一个整数作为输入参数。我们在 reactor 模式下使用 WasmEdge 来调用这个已被导出的函数。
+它包含了一个 `fib()` 函数，这个函数以一个整数作为输入参数。我们在反应器模式下使用 WasmEdge 来调用这个导出函数。
 
 
 ```bash
@@ -100,7 +100,7 @@ CLI工具支持 `--gas-limit` 标志，用于控制执行的成本。
 ```bash
 # cd <path/to/WasmEdge>
 $ cd tools/wasmedge/examples
-# With enough gas
+# gas 足够时
 $ wasmedge --enable-all-statistics --gas-limit 20425 hello.wasm second state
 hello
 second
@@ -114,7 +114,7 @@ state
 [2021-12-09 16:03:33.261] [info]  Instructions per second: 81177218
 [2021-12-09 16:03:33.261] [info] =======================   End   ======================
 
-# Without enough gas
+# gas 不足时
 $ wasmedge --enable-all-statistics --gas-limit 20 hello.wasm second state
 [2021-12-23 15:19:06.690] [error] Cost exceeded limit. Force terminate the execution.
 [2021-12-23 15:19:06.690] [error]     In instruction: ref.func (0xd2) , Bytecode offset: 0x00000000
@@ -132,7 +132,7 @@ $ wasmedge --enable-all-statistics --gas-limit 20 hello.wasm second state
 
 ## JavaScript 示例
 
-WasmEdge 也可以作为一个高性能、安全、可扩展、易于部署且[兼容 Kubernetes](https://github.com/second-state/wasmedge-containers-examples) 的 JavaScript 运行时。
+WasmEdge 也可以作为一个高性能、安全、可扩展、易于部署且[遵循 Kubernetes](https://github.com/second-state/wasmedge-containers-examples) 的 JavaScript 运行时。
 
 [qjs.wasm](https://github.com/WasmEdge/WasmEdge/raw/master/tools/wasmedge/examples/js/qjs.wasm) 是一个被编译为 WebAssembly 的 JavaScript 解释器。
 [hello.js](https://github.com/WasmEdge/WasmEdge/raw/master/tools/wasmedge/examples/js/hello.js) 是一个非常简单的 JavaScript 程序。

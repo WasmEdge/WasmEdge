@@ -24,16 +24,16 @@ $ docker run --rm -v $(pwd):/app -it wasmedge/appdev_aarch64:0.9.0
 
 这个 `appdev` 镜像安装了以下组件：
 
-- WasmEdge CLI 和共享库
-- (仅限 x86_64 系统）包含 Tensorflow 扩展命令行和库的 WasmEdge
-- Golang
-- Rust
-- 包含 WasmEdge 插件的 Node.js
-- 在 `/root/examples/` 文件夹的一些示例
+- WasmEdge CLI 和共享库；
+- (仅限 x86_64 系统）包含 Tensorflow 扩展命令行和库的 WasmEdge；
+- Golang；
+- Rust；
+- 包含 WasmEdge 插件的 Node.js；
+- 在 `/root/examples/` 文件夹的一些示例。
 
 ## 一些示例
 
-Hello World。[查看更多。](https://github.com/WasmEdge/WasmEdge/tree/master/tools/wasmedge/examples)
+Hello World 示例。[查看更多。](https://github.com/WasmEdge/WasmEdge/tree/master/tools/wasmedge/examples)
 
 ```bash
 $ wasmedge hello.wasm world
@@ -61,7 +61,7 @@ label: Hot dog
 confidence: 0.8941176470588236
 ```
 
-## 构建并发布 appdev 镜像
+## 构建并发布 `appdev` 镜像
 
 运行以下的命令来构建并发布 `appdev` 镜像：
 

@@ -20,7 +20,7 @@ $ curl -sSf https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/ins
 
 ## 为所有用户安装 WasmEdge
 
-在默认情况下，WasmEdge 将安装在 `$HOME/.wasmedge` 目录中。你也可以将它安装在系统目录中，如 `/usr/local`，以便所有用户都能使用 WasmEdge。要想指定一个安装路径，你可以在执行 `install.sh` 脚本时附上 `-p` 参数。由于文件将写入系统目录，你需要以 `root` 用户或 `sudo` 权限执行以下命令：
+在默认情况下，WasmEdge 将安装在 `$HOME/.wasmedge` 目录中。你也可以将它安装在系统目录中，如 `/usr/local`，以便所有用户都能使用 WasmEdge。要想指定一个安装路径，你可以在执行 `install.sh` 脚本时附上 `-p` 选项。由于文件将写入系统目录，你需要以 `root` 用户或 `sudo` 权限执行以下命令：
 
 ```bash
 $ curl -sSf https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh | bash -s -- -p /usr/local
@@ -67,7 +67,7 @@ $ bash <(curl -sSf https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/ut
 $ bash <(curl -sSf https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/uninstall.sh) -p /path/to/parent/folder
 ```
 
-如果你希望以非交互的方式卸载 WasmEdge，你可以附上 `--quick` 或 `-q` 参数。
+如果你希望以非交互的方式卸载 WasmEdge，你可以附上 `--quick` 或 `-q` 选项。
 
 ```bash
 $ bash <(curl -sSf https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/uninstall.sh) -q

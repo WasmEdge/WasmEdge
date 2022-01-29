@@ -759,9 +759,8 @@ mod tests {
         let func_ty = result.unwrap();
         let result = Function::create(func_ty, Box::new(real_add), 0);
         assert!(result.is_ok());
-        let mut host_func = result.unwrap();
-        import_obj.add_func("add", &mut host_func);
-        assert!(host_func.ctx.is_null() && host_func.registered);
+        let host_func = result.unwrap();
+        import_obj.add_func("add", host_func);
 
         // add table
         let result = TableType::create(RefType::FuncRef, 0..=u32::MAX);
@@ -771,9 +770,8 @@ mod tests {
         assert!(!ty.registered);
         let result = Table::create(&mut ty);
         assert!(result.is_ok());
-        let mut table = result.unwrap();
-        import_obj.add_table("table", &mut table);
-        assert!(table.ctx.is_null() && table.registered);
+        let table = result.unwrap();
+        import_obj.add_table("table", table);
 
         // add memory
         let result = MemType::create(0..=u32::MAX);
@@ -781,9 +779,8 @@ mod tests {
         let mut mem_ty = result.unwrap();
         let result = Memory::create(&mut mem_ty);
         assert!(result.is_ok());
-        let mut memory = result.unwrap();
-        import_obj.add_memory("mem", &mut memory);
-        assert!(memory.ctx.is_null() && memory.registered);
+        let memory = result.unwrap();
+        import_obj.add_memory("mem", memory);
 
         // add globals
         let result = GlobalType::create(ValType::F32, Mutability::Const);
@@ -791,9 +788,8 @@ mod tests {
         let mut ty = result.unwrap();
         let result = Global::create(&mut ty, Value::from_f32(3.5));
         assert!(result.is_ok());
-        let mut global = result.unwrap();
-        import_obj.add_global("global", &mut global);
-        assert!(global.ctx.is_null() && global.registered);
+        let global = result.unwrap();
+        import_obj.add_global("global", global);
 
         let result = Config::create();
         assert!(result.is_ok());

@@ -94,10 +94,9 @@ fn create_spec_test_module() -> ImportObject {
     let func_ty = result.unwrap();
     let result = Function::create(func_ty, Box::new(spec_test_print), 0);
     assert!(result.is_ok());
-    let mut host_func = result.unwrap();
+    let host_func = result.unwrap();
     // add host function "print"
-    import_obj.add_func("print", &mut host_func);
-
+    import_obj.add_func("print", host_func);
     import_obj
 }
 

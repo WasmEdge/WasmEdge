@@ -221,12 +221,11 @@ impl ImportObject {
     /// - `name` specifies the name of the host function in the host module.
     ///
     /// - `func` specifies the host function instance to add.
-    pub fn add_func(&mut self, name: impl AsRef<str>, func: &mut Function) {
+    pub fn add_func(&mut self, name: impl AsRef<str>, mut func: Function) {
         let func_name: WasmEdgeString = name.into();
         unsafe {
-            wasmedge::WasmEdge_ImportObjectAddFunction(self.ctx, func_name.as_raw(), (*func).ctx);
+            wasmedge::WasmEdge_ImportObjectAddFunction(self.ctx, func_name.as_raw(), func.ctx);
         }
-        func.registered = true;
         func.ctx = std::ptr::null_mut();
     }
 
@@ -237,12 +236,11 @@ impl ImportObject {
     /// - `name` specifies the name of the export table in the host module.
     ///
     /// - `table` specifies the export table instance to add.
-    pub fn add_table(&mut self, name: impl AsRef<str>, table: &mut Table) {
+    pub fn add_table(&mut self, name: impl AsRef<str>, mut table: Table) {
         let table_name: WasmEdgeString = name.as_ref().into();
         unsafe {
             wasmedge::WasmEdge_ImportObjectAddTable(self.ctx, table_name.as_raw(), table.ctx);
         }
-        table.registered = true;
         table.ctx = std::ptr::null_mut();
     }
 
@@ -253,12 +251,11 @@ impl ImportObject {
     /// - `name` specifies the name of the export memory in the host module.
     ///
     /// - `memory` specifies the export memory instance to add.
-    pub fn add_memory(&mut self, name: impl AsRef<str>, memory: &mut Memory) {
+    pub fn add_memory(&mut self, name: impl AsRef<str>, mut memory: Memory) {
         let mem_name: WasmEdgeString = name.as_ref().into();
         unsafe {
             wasmedge::WasmEdge_ImportObjectAddMemory(self.ctx, mem_name.as_raw(), memory.ctx);
         }
-        memory.registered = true;
         memory.ctx = std::ptr::null_mut();
     }
 
@@ -269,12 +266,11 @@ impl ImportObject {
     /// `name` specifies the name of the export global in the host module.
     ///
     /// `global` specifies the export global instance to add.
-    pub fn add_global(&mut self, name: impl AsRef<str>, global: &mut Global) {
+    pub fn add_global(&mut self, name: impl AsRef<str>, mut global: Global) {
         let global_name: WasmEdgeString = name.as_ref().into();
         unsafe {
             wasmedge::WasmEdge_ImportObjectAddGlobal(self.ctx, global_name.as_raw(), global.ctx);
         }
-        global.registered = true;
         global.ctx = std::ptr::null_mut();
     }
 }
@@ -308,9 +304,9 @@ mod tests {
         let func_ty = result.unwrap();
         let result = Function::create(func_ty, Box::new(real_add), 0);
         assert!(result.is_ok());
-        let mut host_func = result.unwrap();
+        let host_func = result.unwrap();
         // add the function into the import_obj module
-        import_obj.add_func("func-add", &mut host_func);
+        import_obj.add_func("func-add", host_func);
 
         // create a Table instance
         let result = TableType::create(RefType::FuncRef, 10..=20);
@@ -318,9 +314,9 @@ mod tests {
         let mut table_ty = result.unwrap();
         let result = Table::create(&mut table_ty);
         assert!(result.is_ok());
-        let mut host_table = result.unwrap();
+        let host_table = result.unwrap();
         // add the table into the import_obj module
-        import_obj.add_table("table", &mut host_table);
+        import_obj.add_table("table", host_table);
 
         // create a Memory instance
         let result = MemType::create(1..=2);
@@ -328,9 +324,9 @@ mod tests {
         let mut mem_ty = result.unwrap();
         let result = Memory::create(&mut mem_ty);
         assert!(result.is_ok());
-        let mut host_memory = result.unwrap();
+        let host_memory = result.unwrap();
         // add the memory into the import_obj module
-        import_obj.add_memory("memory", &mut host_memory);
+        import_obj.add_memory("memory", host_memory);
 
         // create a Global instance
         let result = GlobalType::create(ValType::I32, Mutability::Const);
@@ -338,9 +334,9 @@ mod tests {
         let mut global_ty = result.unwrap();
         let result = Global::create(&mut global_ty, Value::from_i32(666));
         assert!(result.is_ok());
-        let mut host_global = result.unwrap();
+        let host_global = result.unwrap();
         // add the global into import_obj module
-        import_obj.add_global("global_i32", &mut host_global);
+        import_obj.add_global("global_i32", host_global);
 
         assert_eq!(import_obj.exit_code(), 1);
     }

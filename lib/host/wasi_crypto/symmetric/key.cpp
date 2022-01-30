@@ -1,11 +1,14 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "host/wasi_crypto/symmetric/key.h"
+#include "host/wasi_crypto/error.h"
 #include "host/wasi_crypto/symmetric/aeads/aes_gcm.h"
 #include "host/wasi_crypto/symmetric/aeads/chacha_poly.h"
 #include "host/wasi_crypto/symmetric/extract_and_expand/hkdf.h"
 #include "host/wasi_crypto/symmetric/mac/hmac_sha2.h"
 #include "host/wasi_crypto/symmetric/session/xoodyak.h"
+#include "wasi_crypto/api.hpp"
+#include <memory>
 
 namespace WasmEdge {
 namespace Host {
@@ -33,6 +36,10 @@ WasiCryptoExpect<std::unique_ptr<Key>> Key::import(SymmetricAlgorithm Alg,
 WasiCryptoExpect<std::unique_ptr<Key::Builder>>
 Key::builder(SymmetricAlgorithm Alg) {
   switch (Alg) {
+  case SymmetricAlgorithm::Sha256:
+  case SymmetricAlgorithm::Sha512:
+  case SymmetricAlgorithm::Sha512_256:
+    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_KEY_NOT_SUPPORTED);
   case SymmetricAlgorithm::HmacSha256:
     return std::make_unique<HmacSha256::KeyBuilder>(Alg);
   case SymmetricAlgorithm::HmacSha512:

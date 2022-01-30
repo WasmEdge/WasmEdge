@@ -8,7 +8,7 @@ As a sandbox project hosted by CNCF, the WasmEdge Runtime follows the [CNCF Code
 * Monitor Slack (delayed response is perfectly acceptable).
 * Triage GitHub issues and perform pull request reviews for other maintainers and the community. The areas of specialization listed in OWNERS.md can be used to help with routing an issue/question to the right person.
 * Triage build issues - file issues for known flaky builds or bugs, and either fix or find someone to fix any main build breakages.
-* During GitHub issue triage, apply all applicable [labels](https://github.com/WasmEdge/WasmEdge/labels) to each new issue. Labels are extremely useful for future issue follow up. Which labels to apply is somewhat subjective so just use your best judgment. A few of the most important labels that are not self explanatory are:
+* During GitHub issue triage, apply all applicable [labels](https://github.com/WasmEdge/WasmEdge/labels) to each new issue. Labels are extremely useful for future issue to follow-up. Which labels to apply is somewhat subjective so just use your best judgment. A few of the most important labels that are not self-explanatory are:
     * good first issue: Mark any issue that can reasonably be accomplished by a new contributor with this label.
     * help wanted: Unless it is immediately obvious that someone is going to work on an issue (and if so assign it), mark it help wanted.
     * question: If it's unclear if an issue is immediately actionable, mark it with the question label. Questions are easy to search for and close out at a later time. Questions can be promoted to other issue types once it's clear they are actionable (at which point the question label should be removed).
@@ -23,7 +23,7 @@ Reviewers are part of the organization but do not have write access. Becoming a 
 ## Committers
 
 A committer is a core maintainer who is responsible for the overall quality and stewardship of the project. They share the same reviewing responsibilities as reviewers, but are also responsible for upholding the project bylaws as well as participating in project level votes.
-Committers are part of the organization with write access to all repositories. Committers are expected to remain actively involved in the project and participate in voting and discussing of proposed project level changes.
+Committers are part of the organization with write access to all repositories. Committers are expected to remain actively involved in the project and participate in voting and discussing proposed project-level changes.
 
 ## Adding maintainers
 
@@ -58,4 +58,4 @@ The following licenses and contributor agreements will be used for WasmRuntime p
 
 ## Credits
 
-Sections of this documents have been borrowed from [Helm](https://github.com/helm/blob/main/governance/governance.md) and [Envoy](https://github.com/envoyproxy/envoy/blob/master/GOVERNANCE.md)  projects.
+Sections of this document have been borrowed from [Helm](https://github.com/helm/blob/main/governance/governance.md) and [Envoy](https://github.com/envoyproxy/envoy/blob/master/GOVERNANCE.md)  projects.

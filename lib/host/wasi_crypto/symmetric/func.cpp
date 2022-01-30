@@ -435,13 +435,13 @@ Expect<uint32_t> StateSqueeze::body(Runtime::Instance::MemoryInstance *MemInst,
     return __WASI_CRYPTO_ERRNO_INTERNAL_ERROR;
   }
 
-  auto *OutMem = MemInst->getPointer<uint8_t const *>(OutPtr, OutLen);
+  auto *OutMem = MemInst->getPointer<uint8_t *>(OutPtr, OutLen);
   if (unlikely(OutMem == nullptr)) {
     return __WASI_CRYPTO_ERRNO_INTERNAL_ERROR;
   }
-  Span<uint8_t const> Out{OutMem, OutLen};
 
-  auto Res = Ctx.symmetricStateAbsorb(Handle, Out);
+  Span<uint8_t> Out{OutMem, OutLen};
+  auto Res = Ctx.symmetricStateSqueeze(Handle, Out);
   if (unlikely(!Res)) {
     return Res.error();
   }

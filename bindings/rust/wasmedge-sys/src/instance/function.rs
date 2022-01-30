@@ -62,7 +62,8 @@ extern "C" fn wraper_fn(
 /// function defined outside WebAssembly and passed to WASM module.
 ///
 /// In WasmEdge, developers can create the [`Function`]s and other WasmEdge instances, such as [Memory](crate::Memory),
-/// and add them into a WasmEdge [ImportObj](crate::ImportObj) for registering into a WasmEdge [Vm](crate::Vm) or [Store](crate::Store).
+/// and add them into a WasmEdge [ImportObject](crate::ImportObject) for registering into a WasmEdge [Vm](crate::Vm) or
+/// [Store](crate::Store).
 #[derive(Debug)]
 pub struct Function {
     pub(crate) ctx: *mut wasmedge::WasmEdge_FunctionInstanceContext,

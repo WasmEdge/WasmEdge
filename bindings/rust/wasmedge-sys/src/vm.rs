@@ -105,12 +105,12 @@ impl Vm {
         Ok(())
     }
 
-    /// Consumes a given WasmEdge [ImportObj](crate::ImportObj) module to register and instantiate a WASM module into
-    /// the [store](crate::Store) of the [`Vm`].
+    /// Consumes a given WasmEdge [ImportObject](crate::ImportObject) module to register and instantiate a WASM module
+    /// into the [store](crate::Store) of the [`Vm`].
     ///
     /// The workflow of the function can be summarized as the following steps:
     ///
-    /// - First, registers the exported instances in the [ImportObj](crate::ImportObj) module into the
+    /// - First, registers the exported instances in the [ImportObject](crate::ImportObject) module into the
     /// [store](crate::Store) of the [`Vm`], then
     ///
     /// - Instatiates the exported instances.
@@ -118,22 +118,18 @@ impl Vm {
     ///
     /// # Argument
     ///
-    /// - `import_obj` specifies the [ImportObj](crate::ImportObj) module to be registered.
+    /// - `import` specifies the [ImportObject](crate::ImportObject) module to be registered.
     ///
     /// # Error
     ///
     /// If fail to register the WASM module, then an error is returned.
-    pub fn register_wasm_from_import(
-        &mut self,
-        mut import_obj: ImportObject,
-    ) -> WasmEdgeResult<()> {
+    pub fn register_wasm_from_import(&mut self, mut import: ImportObject) -> WasmEdgeResult<()> {
         unsafe {
             check(wasmedge::WasmEdge_VMRegisterModuleFromImport(
-                self.ctx,
-                import_obj.ctx,
+                self.ctx, import.ctx,
             ))?;
         }
-        import_obj.ctx = std::ptr::null_mut();
+        import.ctx = std::ptr::null_mut();
 
         Ok(())
     }
@@ -633,7 +629,7 @@ impl Vm {
         })
     }
 
-    /// Returns the mutable Wasi [ImportObj](crate::ImportObj)
+    /// Returns the mutable Wasi [ImportObject](crate::ImportObject)
     pub fn wasi_import_module_mut(&mut self) -> WasmEdgeResult<ImportObject> {
         let io_ctx = unsafe {
             wasmedge::WasmEdge_VMGetImportModuleContext(self.ctx, WasmEdge_HostRegistration_Wasi)
@@ -647,7 +643,7 @@ impl Vm {
         }
     }
 
-    /// Returns the mutable WasmEdgeProcess [ImportObj](crate::ImportObj).
+    /// Returns the mutable WasmEdgeProcess [ImportObject](crate::ImportObject).
     pub fn wasmedge_process_import_module_mut(&mut self) -> WasmEdgeResult<ImportObject> {
         let io_ctx = unsafe {
             wasmedge::WasmEdge_VMGetImportModuleContext(

@@ -64,17 +64,17 @@ impl Executor {
         }
     }
 
-    /// Registers and instantiates a WasmEdge [`ImportObj`] into a [`Store`].
+    /// Registers and instantiates a WasmEdge [`ImportObject`] into a [`Store`].
     ///
     /// # Arguments
     ///
-    /// - `store` specifies the target [`Store`], into which the given [`ImportObj`] is registered.
+    /// - `store` specifies the target [`Store`], into which the given [`ImportObject`] is registered.
     ///
-    /// - `imp_obj` specifies the WasmEdge [`ImportObj`] to be registered.
+    /// - `import` specifies the WasmEdge [`ImportObject`] to be registered.
     ///
     /// # Error
     ///
-    /// If fail to register the given [`ImportObj`], then an error is returned.
+    /// If fail to register the given [`ImportObject`], then an error is returned.
     pub fn register_import_object(
         self,
         store: &mut Store,
@@ -128,8 +128,8 @@ impl Executor {
     ///
     /// Instantiates the WasmEdge AST [Module](crate::Module) as an active anonymous module in the
     /// [Store](crate::Store). Notice that when a new module is instantiated into the [Store](crate::Store), the old
-    /// instantiated module is removed; in addition, ensure that the [imports](crate::ImportObj) are registered into the
-    /// [Store](crate::Store).
+    /// instantiated module is removed; in addition, ensure that the [imports](crate::ImportObject) are registered into
+    /// the [Store](crate::Store).
     ///
     ///
     /// # Arguments

@@ -17,15 +17,14 @@ pub struct Global {
     pub(crate) registered: bool,
 }
 impl Global {
-    /// Creates a new `Global` to be associated with the given `GlobalType` and `Value`.
+    /// Creates a new `Global` instance to be associated with the given `GlobalType` and `Value`.
     ///
-    /// If the creation succeeds, then the given `GlobalType` is consumed. The type of the given `Value`
-    /// must be matched with `GlobalType`;otherwise, it causes a failure. For example, `Value::I32(520)` conflicts
-    /// with a `GlobalType` with a value type defined as `ValType::F32`.
+    /// The type of the given `Value` must be matched with `GlobalType`; otherwise, it causes a failure. For example,
+    /// `Value::I32(520)` conflicts with a `GlobalType` with a value type defined as `ValType::F32`.
     ///
     /// # Errors
     ///
-    /// If fail to create a `Global`, then an error is returned.
+    /// If fail to create a `Global` instance, then an error is returned.
     ///
     pub fn create(mut ty: GlobalType, val: Value) -> WasmEdgeResult<Self> {
         let ctx = unsafe { wasmedge::WasmEdge_GlobalInstanceCreate(ty.ctx, val.as_raw()) };
@@ -40,7 +39,7 @@ impl Global {
         }
     }
 
-    /// Returns the underlying wasm type of a `Global`.
+    /// Returns the underlying wasm type of a `Global` instance.
     ///
     /// # Errors
     ///
@@ -57,15 +56,15 @@ impl Global {
         }
     }
 
-    /// Returns the value of a `Global`.
+    /// Returns the value of the `Global` instance.
     pub fn get_value(&self) -> Value {
         let val = unsafe { wasmedge::WasmEdge_GlobalInstanceGetValue(self.ctx) };
         val.into()
     }
 
-    /// Sets the value of a `Global`.
+    /// Sets the value of the `Global` instance.
     ///
-    /// Notice that only a `Global` of Mutability::Var can be set a new value. Setting a new value for a
+    /// Notice that only the `Global` instance of Mutability::Var type can be set a new value. Setting a new value for a
     /// `Global` of `Mutability::Const` causes a failure.
     ///
     /// # Errors

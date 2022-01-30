@@ -9,7 +9,7 @@ use crate::{
 
 /// Struct of WasmEdge ImportObj.
 ///
-/// A [`ImportObj`] represents a host module with a name. A host module consists of one or more
+/// A [`ImportObject`] represents a host module with a name. A host module consists of one or more
 /// host functions which are defined outside WebAssembly and passed to WASM modules as imports.
 #[derive(Debug)]
 pub struct ImportObject {

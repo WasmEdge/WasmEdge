@@ -19,7 +19,7 @@ public:
       : OptOption(OptOption), Ctx(std::move(Ctx)) {}
 
   static WasiCryptoExpect<std::unique_ptr<Sha2State>>
-  open(std::shared_ptr<Key> OptKey, std::shared_ptr<Options> OptOption);
+  open(std::shared_ptr<Options> OptOption);
 
   WasiCryptoExpect<std::vector<uint8_t>>
   optionsGet(std::string_view Name) override;

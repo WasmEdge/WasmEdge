@@ -35,11 +35,11 @@ State::open(SymmetricAlgorithm Alg, std::shared_ptr<Key> OptKey,
   case SymmetricAlgorithm::HkdfSha512Extract:
     return Hkdf512Extract::State::open(OptKey, OptOption);
   case SymmetricAlgorithm::Sha256:
-    return Sha256State::open(OptKey, OptOption);
+    return Sha256State::open(OptOption);
   case SymmetricAlgorithm::Sha512:
-    return Sha512State::open(OptKey, OptOption);
+    return Sha512State::open(OptOption);
   case SymmetricAlgorithm::Sha512_256:
-    return Sha512_256State::open(OptKey, OptOption);
+    return Sha512_256State::open(OptOption);
   case SymmetricAlgorithm::Aes128Gcm:
     return AesGcm128::State::open(OptKey, OptOption);
   case SymmetricAlgorithm::Aes256Gcm:

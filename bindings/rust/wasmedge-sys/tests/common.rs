@@ -109,8 +109,6 @@ fn extern_sub(inputs: Vec<Value>) -> Result<Vec<Value>, u8> {
         return Err(2);
     };
 
-    println!("*** val1: {:?}", val1);
-
     let val1 = val1
         .extern_ref::<i32>()
         .expect("fail to get i32 from an ExternRef");

@@ -2,7 +2,7 @@
 
 use crate::wasmedge;
 use core::ffi::c_void;
-use std::{ffi::CString, fmt};
+use std::{ffi::CString, fmt, str::FromStr};
 
 /// Defines reference types.
 ///
@@ -308,8 +308,11 @@ impl PartialEq for WasmEdgeString {
 impl Eq for WasmEdgeString {}
 impl From<WasmEdgeString> for String {
     fn from(s: WasmEdgeString) -> Self {
-        let cstr = unsafe { std::ffi::CStr::from_ptr(s.as_raw().Buf as *const _) };
-        cstr.to_string_lossy().into_owned()
+        let bytes =
+            unsafe { std::slice::from_raw_parts(s.as_raw().Buf, s.as_raw().Length as usize) };
+        let x =
+            std::str::from_utf8(bytes).expect("Fail to generate string slice: invalid utf8 bytes");
+        String::from_str(x).expect("Ill-formatted string")
     }
 }
 impl From<wasmedge::WasmEdge_String> for String {
@@ -595,16 +598,21 @@ mod tests {
         let s: WasmEdgeString = "hello".into();
         let t: WasmEdgeString = "hello".into();
         assert_eq!(s, t);
-        let s1: String = s.into();
-        assert_eq!(s1, "hello");
+
+        let s: WasmEdgeString = "hello".into();
+        let t = String::from(s);
+        assert_eq!(t, "hello");
 
         let s: WasmEdgeString = "hello".into();
         let t: WasmEdgeString = "hello\0".into();
         assert_ne!(s, t);
 
-        let s = "test_string_.....";
-        let s1 = WasmEdgeString::from_buffer(s[..11].as_bytes());
-        let s2 = "test_string".into();
-        assert_eq!(s1, s2);
+        let s: WasmEdgeString = "hello\0".into();
+        let t = String::from(s);
+        assert_eq!(t, "hello\0");
+
+        let s: WasmEdgeString = "he\0llo\0".into();
+        let t = String::from(s);
+        assert_eq!(t, "he\0llo\0");
     }
 }

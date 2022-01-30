@@ -308,8 +308,9 @@ impl PartialEq for WasmEdgeString {
 impl Eq for WasmEdgeString {}
 impl From<WasmEdgeString> for String {
     fn from(s: WasmEdgeString) -> Self {
-        let bytes =
-            unsafe { std::slice::from_raw_parts(s.as_raw().Buf, s.as_raw().Length as usize) };
+        let bytes: &[u8] = unsafe {
+            std::slice::from_raw_parts(s.as_raw().Buf as *const u8, s.as_raw().Length as usize)
+        };
         let x =
             std::str::from_utf8(bytes).expect("Fail to generate string slice: invalid utf8 bytes");
         String::from_str(x).expect("Ill-formatted string")

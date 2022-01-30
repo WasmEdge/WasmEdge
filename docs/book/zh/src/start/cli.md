@@ -54,7 +54,7 @@ $ wasmedge app.wasm
 # AOT 编译
 $ wasmedgec app.wasm app.wasm
 
-# 现在就快l多
+# 现在就快多了
 $ wasmedge app.wasm
 ```
 

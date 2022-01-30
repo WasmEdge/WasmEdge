@@ -84,7 +84,7 @@ impl Memory {
     ///
     /// If the `offset + len` is larger than the data size in the [`Memory`], then an error is returned.
     ///
-    pub fn get_data(&self, offset: u32, len: u32) -> WasmEdgeResult<impl Iterator<Item = u8>> {
+    pub fn get_data(&self, offset: u32, len: u32) -> WasmEdgeResult<Vec<u8>> {
         let mut data = Vec::with_capacity(len as usize);
         unsafe {
             check(wasmedge::WasmEdge_MemoryInstanceGetData(
@@ -96,7 +96,7 @@ impl Memory {
             data.set_len(len as usize);
         }
 
-        Ok(data.into_iter())
+        Ok(data.into_iter().collect())
     }
 
     /// Copies the data from the given input buffer into the [`Memory`].
@@ -142,7 +142,6 @@ impl Memory {
     ///
     /// // get data
     /// let data = mem.get_data(10, 10).expect("fail to get data");
-    /// let data: Vec<_> = data.collect();
     /// assert_eq!(data, vec![1; 10]);
     /// ```
     ///
@@ -405,7 +404,7 @@ mod tests {
         // get data before set data
         let result = mem.get_data(0, 10);
         assert!(result.is_ok());
-        let data: Vec<_> = result.unwrap().collect();
+        let data: Vec<_> = result.unwrap();
         assert_eq!(data, vec![0; 10]);
 
         // set data
@@ -414,7 +413,7 @@ mod tests {
         // get data after set data
         let result = mem.get_data(10, 10);
         assert!(result.is_ok());
-        let data: Vec<_> = result.unwrap().collect();
+        let data: Vec<_> = result.unwrap();
         assert_eq!(data, vec![1; 10]);
 
         // set data and the data length is larger than the data size in the memory

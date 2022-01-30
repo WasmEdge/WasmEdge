@@ -1,10 +1,10 @@
 # Summary
 
 - [快速开始](index.md)
-    - [安装](start/install.md)
-    - [用 Docker 镜像启动](start/docker.md)
+    - [WasmEdge 的安装与卸载](start/install.md)
+    - [使用 Docker 进行 WasmEdge 应用程序开发](start/docker.md)
     - [WasmEdge 命令行](start/cli.md)
-    - [通用二进制](start/universal.md)
+    - [通用 wasm 二进制格式](start/universal.md)
 
 - [WasmEdge 介绍](intro.md)
     - [应用场景](intro/use.md)

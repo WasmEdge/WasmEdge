@@ -306,6 +306,12 @@ impl PartialEq for WasmEdgeString {
     }
 }
 impl Eq for WasmEdgeString {}
+impl From<WasmEdgeString> for String {
+    fn from(s: WasmEdgeString) -> Self {
+        let cstr = unsafe { std::ffi::CStr::from_ptr(s.as_raw().Buf as *const _) };
+        cstr.to_string_lossy().into_owned()
+    }
+}
 impl From<wasmedge::WasmEdge_String> for String {
     fn from(s: wasmedge::WasmEdge_String) -> Self {
         let cstr = unsafe { std::ffi::CStr::from_ptr(s.Buf as *const _) };
@@ -589,9 +595,16 @@ mod tests {
         let s: WasmEdgeString = "hello".into();
         let t: WasmEdgeString = "hello".into();
         assert_eq!(s, t);
+        let s1: String = s.into();
+        assert_eq!(s1, "hello");
 
         let s: WasmEdgeString = "hello".into();
         let t: WasmEdgeString = "hello\0".into();
         assert_ne!(s, t);
+
+        let s = "test_string_.....";
+        let s1 = WasmEdgeString::from_buffer(s[..11].as_bytes());
+        let s2 = "test_string".into();
+        assert_eq!(s1, s2);
     }
 }

@@ -20,19 +20,43 @@ Last Updated: July 2021
 
 |Theme	|Description	|Timeline	|
 |---	|---	|---	|
-|Tool chain	|WasmEdge C API	|Q1 / 2021	|
-|Host support	|Support the OCI (Open Container Initiative) specification	|Q2 / 2021	|
-|Tool chain	|Bindgen for Golang (WasmEdge-go)	|Q2 / 2021	|
-|Host support	|Support YoMo framework with WasmEdge-go	|Q2 / 2021	|
-|VM extension	|Support WASI on macos and Windows	|Q3 / 2021	|
-|VM extension	|Support wasi-socket proposal	|Q3 / 2021	|
-|Tool chain	|Support Rust API in Ewasm (SewUp) 	|Q3 / 2021	|
-|Host support	|Kubernetes integration	|Q3 / 2021	|
-|Host support	|Resource constraints and allocations	|Q3 / 2021	|
-|VM extension	|Create custom binary format for AoT compiler	|Q3 / 2021|
-|VM extension	|Support Wasm-C-API proposal	|Q3 / 2021|
-|VM extension	|Support Threads proposal	|Q3 / 2021|
-|VM extension	|Support Tail-Call proposal	|Q3 / 2021|
-|Host support	|Compile WasmEdge itself into WASM	|Q4 / 2021	|
-|VM Extension	|Support Tengine in WasmEdge inference API	|Q4 / 2021	|
-|Tool chain	|Bindgen for JS, Python, Golang, and Rust based on interface types	|Q4 /2021	|
+|Proposal |wasi-crypto proposal	|Q1 / 2022|
+|Proposal |wasi-signature proposal	|Q1 / 2022|
+|Proposal |wasi-nn proposal	|Q1 / 2022|
+|Proposal |thread(atomic) proposal|Q1 / 2022|
+|Feature |thread safe|Q1 / 2022|
+|Feature |File manager refactoring for better performance of loading binaries | Q1 / 2022|
+|Feature |generic binary by default| Q1 / 2022|
+|Feature |Enhance info/debug logging, provide verbose mode (wasmedge a.wasm –verbose=3) | Q1 / 2022|
+|Feature | Apply WasmEdge-bindgen to Rust SDK|Q1/2022|
+|Host function | Databse connetor | Q1 / 2022|
+|Languages Bindings| Rust SDK | Q1 / 2022|
+|Languages Bindings| Python SDK | Q1 / 2022|
+|Languages Bindings|Update the Node.js SDK to make it compatible with C API| Q1 / 2022|
+|Platform support| Andriod support(including AOT and tensorflow SDK)| Q1/2022|
+|High-level Languages Support|Enhance JavaScript, Python, Ruby support| Q1/2022
+|Proposal	|WASM C API proposal	|Q2 / 2022|
+|Proposal	|tail-call proposal (AOT)|Q2 / 2022|
+|Proposal	|module linking proposal|Q2 / 2022|
+|Proposal	|memory64 proposal(INT)|Q2 / 2022|
+|Proposal|typed function references proposal|Q2 / 2022|
+|Feature	| plugin architecture(wasmedge +tf.so +image.so … tf.wasm wasmedgec-tf-lite)|Q2 / 2022|
+|Feature|Enable OpenVINO backend for WASI-NN| Q2/2022|
+|Feature| Apply WasmEdge-bindgen to Node.js SDK|Q1/2022|
+|Host function | device driver	|Q3 / 2022|
+|Languages Bindings| Java SDK | Q2 / 2022|
+|Proposal |exception handling proposal	|Q3 / 2022|
+|Proposal |interface type proposal	|Q3 / 2022|
+|Proposal |memory64 proposal(AOT)	|Q3 / 2022|
+|Feature |WasmEdge debugging tools	|Q3 / 2022|
+|Feature|Enable ONNX backend for WASI-NN|Q3/2022|
+|Feature| Apply WasmEdge-bindgen to Python and Java SDK|Q2/2022|
+|Host function | UI library	|Q3 / 2022|
+|Proposal |wasm-gc proposal(AOT)	|Q4 / 2022|
+|Feature |self update standalone binary|Q4 / 2022|
+|Feature |wasmedge update| Q4 / 2022|
+|Feature |aot to standalone binary+edge device(Cortex-M;esp32) support |Q4 / 2022|
+|Feature |DWARF symbol | Q4 / 2022|
+|Feature|Enable PaddlePaddle backend for WASI-NN|Q3/2022|
+|Docs|Multilingual support for the WasmEdge Book |long term work|
+|Open Source Collaboration| OpenHarmony, Android, sel4, Eventmesh, KrustletAPISIX、Dapr, MOSN, KubeEdge, OpenYurt, Fedora, Krustlet, SuperEdge, UDF for SaaS and Database, Substrate, ParaState, Filecoin |long term work|

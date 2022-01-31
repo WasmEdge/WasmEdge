@@ -6,7 +6,7 @@ This document should serve as a reference point for WasmEdge users and contribut
 
 ### How to help?
 
-Discussion on the roadmap can take place in threads under [Issues](https://github.com/WasmEdge/WasmEdge/issues). Please open and comment on an issue if you want to provide suggestions and feedback to an item in the roadmap. Please review the roadmap to avoid potential duplicated efforts.
+Discussion on the roadmap can take place in threads under [Issues](https://github.com/WasmEdge/WasmEdge/issues). Please open and comment on an issue if you want to give suggestions and feedback to items in the roadmap. Please review the roadmap to avoid potential duplicated efforts.
 
 ### How to add an item to the roadmap?
 
@@ -16,7 +16,7 @@ Please open an issue to track any initiative on the roadmap of WasmEdge (Usually
 
 The following table includes the current roadmap for WasmEdge. If you have any questions or would like to contribute to WasmEdge, please create an issue to discuss with our team. If you don't know where to start, we are always looking for contributors that will help us reduce technical, automation, and documentation debt. Please take the timelines & dates as proposals and goals. Priorities and requirements change based on community feedback, roadblocks encountered, community contributions, etc.
 
-Last Updated: July 2021
+Last Updated: Jan 2022
 
 |Theme	|Description	|Timeline	|
 |---	|---	|---	|
@@ -40,7 +40,7 @@ Last Updated: July 2021
 |Proposal	|module linking proposal|Q2 / 2022|
 |Proposal	|memory64 proposal(INT)|Q2 / 2022|
 |Proposal|typed function references proposal|Q2 / 2022|
-|Feature	| plugin architecture(wasmedge +tf.so +image.so … tf.wasm wasmedgec-tf-lite)|Q2 / 2022|
+|Feature	| plugin architecture(wasmedge +tf +image)|Q2 / 2022|
 |Feature|Enable OpenVINO backend for WASI-NN| Q2/2022|
 |Feature| Apply WasmEdge-bindgen to Node.js SDK|Q1/2022|
 |Host function | device driver	|Q3 / 2022|
@@ -59,4 +59,4 @@ Last Updated: July 2021
 |Feature |DWARF symbol | Q4 / 2022|
 |Feature|Enable PaddlePaddle backend for WASI-NN|Q3/2022|
 |Docs|Multilingual support for the WasmEdge Book |long term work|
-|Open Source Collaboration| OpenHarmony, Android, sel4, Eventmesh, KrustletAPISIX、Dapr, MOSN, KubeEdge, OpenYurt, Fedora, Krustlet, SuperEdge, UDF for SaaS and Database, Substrate, ParaState, Filecoin |long term work|
+|Open Source Collaboration| OpenHarmony, Android, sel4, Eventmesh, Krustlet, APISIX、Dapr, MOSN, KubeEdge, OpenYurt, Fedora, SuperEdge, UDF for SaaS and Databases, Substrate, ParaState, Filecoin |long term work|

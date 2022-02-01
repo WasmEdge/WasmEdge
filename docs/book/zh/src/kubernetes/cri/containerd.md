@@ -110,4 +110,4 @@ curl -d "name=WasmEdge" -X POST http://127.0.0.1:1234
 echo: name=WasmEdge
 ```
 
-接下来，你可尝试在 [Kubernetes](../../kubernetes/kubernetes.md) 中运行这个应用!
+接下来，你可尝试在 [Kubernetes](../../kubernetes/kubernetes.md) 中运行这个应用! 

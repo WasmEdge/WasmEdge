@@ -81,7 +81,7 @@ After the installation of WasmEdge, the following guide can help you to test for
 
 ## WasmEdge Basics
 
-In this partition, we will introduce the utilities and concepts of WasmEdge shared library.
+In this part, we will introduce the utilities and concepts of WasmEdge shared library.
 
 ### Version
 

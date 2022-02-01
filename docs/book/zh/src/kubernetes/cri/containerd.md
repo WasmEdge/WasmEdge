@@ -10,8 +10,8 @@
 在接下来的部分中，我们会展示如何使用这些脚本。
 
 * [安装 containerd](#安装-containerd)
-* [示例一：Simple WebAssembly](#运行 simple WebAssembly 应用)
-* [示例二： HTTP server in WebAssembly](#运行 HTTP server 应用)
+* [示例一：Simple WebAssembly](#运行-simple-WebAssembly-应用)
+* [示例二： HTTP server in WebAssembly](#运行-HTTP-server-应用)
 
 ## 安装 containerd
 

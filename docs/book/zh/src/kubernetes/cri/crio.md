@@ -74,14 +74,14 @@ $ systemctl restart crio
 ## 运行简单 WebAssembly 应用
 
 现在，我们可以使用 CRI-O 运行一个简单的 WebAssembly 程序。
-[另一篇文章](../demo/wasi.md) 解释了如何编译、打包和将 WebAssembly 程序作为容器镜像发布至 Docker hub 。
+[另一篇文章](../demo/wasi.md) 解释了如何编译、打包和将 WebAssembly 程序作为容器镜像发布至 Docker hub。
 在本节中，我们需要先使用 CRI-O 工具将这个基于 WebAssembly 的容器镜像从 Docker hub 中拉取下来。
 
 ```bash
 $ sudo crictl pull docker.io/hydai/wasm-wasi-example:with-wasm-annotation
 ```
 
-接下来，我们需要创建两个简单的配置文件，指定CRI-O 应该如何在 sandbox 中运行这个 WebAssembly 镜像。 我们已经有了那两个文件 [container_wasi.json](https://github.com/second-state/wasmedge-containers-examples/blob/main/crio/container_wasi.json) 和 [sandbox_config.json](https://github.com /second-state/wasmedge-containers-examples/blob/main/crio/sandbox_config.json)。
+接下来，我们需要创建两个简单的配置文件，指定CRI-O 应该如何在 sandbox 中运行这个 WebAssembly 镜像。 我们已经有了那两个文件 [container_wasi.json](https://github.com/second-state/wasmedge-containers-examples/blob/main/crio/container_wasi.json) 和 [sandbox_config.json](https://github.com/second-state/wasmedge-containers-examples/blob/main/crio/sandbox_config.json)。
 你可以使用下面的命令将它们下载到本地目录。
 
 ```bash

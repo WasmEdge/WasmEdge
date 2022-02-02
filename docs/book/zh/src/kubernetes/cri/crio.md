@@ -42,7 +42,7 @@ CRI-O 默认使用 `runc` 运行时，我们需要修改配置以使用 `crun` �
 
 >在运行下一步之前，请确保你已经构建并安装好了[支持 `WasmEdge`的 `crun`二进制文件](../container/crun.md)。 
 
-首先，创建一个 `/etc/crio/crio.conf` 文件并添加以下内容，它会使 CRI-O 默认使用 `crun`作为运行时。
+首先，创建一个 `/etc/crio/crio.conf` 文件并添加以下内容，它会使 CRI-O 默认使用 `crun` 作为运行时。
 
 ```conf
 [crio.runtime]
@@ -81,8 +81,7 @@ $ systemctl restart crio
 $ sudo crictl pull docker.io/hydai/wasm-wasi-example:with-wasm-annotation
 ```
 
-接下来，我们需要创建两个简单的配置文件，指定CRI-O 应该如何在 sandbox 中运行这个 WebAssembly 镜像。 我们已经有了那两个文件 [container_wasi.json](https://github.com/second-state/wasmedge-containers-examples/blob/main/crio/container_wasi.json) 和 [sandbox_config.json](https://github.com/second-state/wasmedge-containers-examples/blob/main/crio/sandbox_config.json)。
-你可以使用下面的命令将它们下载到本地目录。
+接下来，我们需要创建两个简单的配置文件，指定CRI-O 应该如何在 sandbox 中运行这个 WebAssembly 镜像。 我们已经有了那两个文件 [container_wasi.json](https://github.com/second-state/wasmedge-containers-examples/blob/main/crio/container_wasi.json) 和 [sandbox_config.json](https://github.com/second-state/wasmedge-containers-examples/blob/main/crio/sandbox_config.json) 。你可以使用下面的命令将它们下载到本地目录。
 
 ```bash
 $ wget https://raw.githubusercontent.com/second-state/wasmedge-containers-examples/main/crio/sandbox_config.json
@@ -170,8 +169,7 @@ Test 7: Delete the previous file
 $ sudo crictl pull docker.io/avengermojo/http_server:with-wasm-annotation
 ```
 
-接下来，我们需要创建两个简单的配置文件，指定CRI-O 应该如何在 sandbox 中运行这个 WebAssembly 镜像。 我们已经有了那两个文件  [container_http_server.json](https://raw.githubusercontent.com/second-state/wasmedge-containers-examples/main/crio/http_server/container_http_server.json) 和 [sandbox_config.json](https://github.com/second-state/wasmedge-containers-examples/blob/main/crio/sandbox_config.json)。
-你可以使用下面的命令将它们下载到本地目录。
+接下来，我们需要创建两个简单的配置文件，指定CRI-O 应该如何在 sandbox 中运行这个 WebAssembly 镜像。 我们已经有了那两个文件  [container_http_server.json](https://raw.githubusercontent.com/second-state/wasmedge-containers-examples/main/crio/http_server/container_http_server.json) 和 [sandbox_config.json](https://github.com/second-state/wasmedge-containers-examples/blob/main/crio/sandbox_config.json) 。你可以使用下面的命令将它们下载到本地目录。
 
 > HTTP 服务端示例和 WASI 简单示例使用的`sandbox_config.json` 文件是相同的。 但另一个 `container_*.json` 文件是特定的，因为它包含应用程序的 Docker Hub 链接。
 

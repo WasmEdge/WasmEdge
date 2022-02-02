@@ -10,7 +10,7 @@
 
 ## 静态渲染
 
-本示例的源代码可以在 GitHub 仓库的 [example_js/react_ssr](https://github.com/second-state/wasmedge-quickjs/tree/main/example_js/react_ssr) 文件夹中找到。它展示了如何在 WasmEdge 中运行着的 JavaScript 应用程序里，编排 HTML 模板并将其渲染成 HTML 字符串。
+本示例的源代码可以在 GitHub 仓库的 [example_js/react_ssr](https://github.com/second-state/wasmedge-quickjs/tree/main/example_js/react_ssr) 文件夹中找到。它展示了运行于 WasmEdge 的 JavaScript 应用程序，是如何编排 HTML 模板并将其渲染成 HTML 字符串的。
 
 文件 [component/Home.jsx](https://github.com/second-state/wasmedge-quickjs/blob/main/example_js/react_ssr/component/Home.jsx) 里是 React 的主页模板。
 
@@ -63,7 +63,7 @@ const content = renderToString(React.createElement(Home));
 console.log(content);
 ```
 
-目录中的 [rollup.config.js](https://github.com/second-state/wasmedge-quickjs/blob/main/example_js/react_ssr/rollup.config.js) 文件和 [package.json](https://github.com/second-state/wasmedge-quickjs/blob/main/example_js/react_ssr/package.json) 文件用于把 React SSR 的所有依赖和组件打包成一个 WasmEdge 可用的 JavaScript 文件。你可以使用 `npm` 命令来进行构建，最终的产物会在 `dist/main.js` 文件里。
+目录中的 [rollup.config.js](https://github.com/second-state/wasmedge-quickjs/blob/main/example_js/react_ssr/rollup.config.js) 文件和 [package.json](https://github.com/second-state/wasmedge-quickjs/blob/main/example_js/react_ssr/package.json) 文件用于把 React SSR 的所有依赖和组件打包成一个 WasmEdge 可用的 JavaScript 文件。你可以使用 `npm` 命令来进行构建，构建产物会输出到 `dist/main.js` 文件里。
 
 ```bash
 $ npm install
@@ -82,7 +82,7 @@ $ wasmedge --dir .:. ../../target/wasm32-wasi/release/wasmedge_quickjs.wasm dist
 
 ## 流式渲染
 
-本示例的源代码可以在 GitHub 仓库的 [example_js/react_ssr_stream](https://github.com/second-state/wasmedge-quickjs/tree/main/example_js/react_ssr_stream) 文件夹中找到。它展示了如何在 WasmEdge 中运行着的 JavaScript 应用程序里，流式地把 HTML 模板渲染成 HTML 字符串。
+本示例的源代码可以在 GitHub 仓库的 [example_js/react_ssr_stream](https://github.com/second-state/wasmedge-quickjs/tree/main/example_js/react_ssr_stream) 文件夹中找到。它展示了运行于 WasmEdge 的 JavaScript 应用程序，是如何流式地把 HTML 模板渲染成 HTML 字符串的。
 
 文件 [component/LazyHome.jsx](https://github.com/second-state/wasmedge-quickjs/blob/main/example_js/react_ssr_stream/component/LazyHome.jsx) 是 React 的主页模板。当外层的 HTML 渲染好并返回给用户 2s 之后，它才会开始“懒”加载内层的页面模板。
 
@@ -175,7 +175,7 @@ async function server_start() {
 server_start();
 ```
 
-目录中的 [rollup.config.js](https://github.com/second-state/wasmedge-quickjs/blob/main/example_js/react_ssr_stream/rollup.config.js) 文件和 [package.json](https://github.com/second-state/wasmedge-quickjs/blob/main/example_js/react_ssr_stream/package.json) 文件用于把 React SSR 的所有依赖和组件打包成一个 WasmEdge 可用的 JavaScript 文件。你可以使用 `npm` 命令来进行构建，最终的产物会在 `dist/main.mjs` 文件里。
+目录中的 [rollup.config.js](https://github.com/second-state/wasmedge-quickjs/blob/main/example_js/react_ssr_stream/rollup.config.js) 文件和 [package.json](https://github.com/second-state/wasmedge-quickjs/blob/main/example_js/react_ssr_stream/package.json) 文件用于把 React SSR 的所有依赖和组件打包成一个 WasmEdge 可用的 JavaScript 文件。你可以使用 `npm` 命令来进行构建，构建产物会输出到 `dist/main.js` 文件里。
 
 ```bash
 $ npm install

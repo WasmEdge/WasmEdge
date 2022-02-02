@@ -29,7 +29,7 @@ async function get_test() {
 }
 ```
 
-以上代码可以在等待服务端应答的同时处理其他任务。当服务端返回了数据，`handle_response()` 会被异步调用，处理好数据后就会将内容打印出来。
+以上代码可以在等待服务端应答的同时处理其他任务。当服务端返回数据后，`handle_response()` 会被异步调用，处理好数据后就会将内容打印出来。
 
 ```javascript
 async function handle_response(s) {

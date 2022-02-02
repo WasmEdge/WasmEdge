@@ -10,7 +10,7 @@ This guide provides information on filing issues and guidelines for open source 
 
 If you are looking for ideas for contribution, [here is a wish list](wish_list.md) of items we'd like to get some help with!
 
-> The WasmEdge project adopts [DCO](https://community.openhab.org/t/dco-check-signing-off-with-github-web-editor-explanation/83330) to manage all contributions. Please make sure you add your `sign-off-statement` throught the `-s` flag or the GitHub Web UI before committing the pull request message.
+> The WasmEdge project adopts [DCO](https://community.openhab.org/t/dco-check-signing-off-with-github-web-editor-explanation/83330) to manage all contributions. Please make sure you add your `sign-off-statement` through the `-s` flag or the GitHub Web UI before committing the pull request message.
 
 ## Getting Started
 
@@ -23,7 +23,7 @@ $ git clone git@github.com:WasmEdge/WasmEdge.git
 $ cd WasmEdge
 ```
 
-Notes: Note the WasmEdge team builds lots of extensions of Server-side WebAssembly, see [TensorFlow](https://github.com/second-state/WasmEdge-tensorflow), [Storage](https://github.com/second-state/WasmEdge-storage), [Command interface](https://github.com/second-state/wasmedge_process_interface), [Ethereum](https://github.com/second-state/WasmEdge-evmc), [Substrate](https://github.com/ParaState/substrate-ssvm-node). If you want to contribue the extensions, please go to those repositories.
+Notes: Note the WasmEdge team builds lots of extensions of Server-side WebAssembly, see [TensorFlow](https://github.com/second-state/WasmEdge-tensorflow), [Storage](https://github.com/second-state/WasmEdge-storage), [Command interface](https://github.com/second-state/wasmedge_process_interface), [Ethereum](https://github.com/second-state/WasmEdge-evmc), [Substrate](https://github.com/ParaState/substrate-ssvm-node). If you want to contribute to the extensions, please go to those repositories.
 
 ### Setup Development Environment
 
@@ -31,7 +31,7 @@ The WasmEdge is developed on Ubuntu 20.04 to take advantage of advanced LLVM fea
 
 Our development environment requires libLLVM-10 and >=GLIBCXX_3.4.26.
 
-If you are using the older operating system than Ubuntu 20.04, please use our special docker image to build WasmEdge. If you are looking for the pre-built binaries for the older operatoring system, we also provide several pre-built binaries based on manylinux* distribution.
+If you are using an operating system older than Ubuntu 20.04, please use our special docker image to build WasmEdge. If you are looking for the pre-built binaries for the older operating system, we also provide several pre-built binaries based on manylinux* distribution.
 
 ### Docker image
 
@@ -58,11 +58,11 @@ $ sudo apt install -y clang
 
 ## Contribute Workflow
 
-PR are always welcome, even if they only contain small fixes like typos or a few lines of code. If there will be a significant effort, please document it as an issue and get a discussion going before starting to work on it.
+PRs are always welcome, even if they only contain small fixes like typos or a few lines of code. If there will be a significant effort, please document it as an issue and get a discussion going before starting to work on it.
 
 Please submit a PR broken down into small changes bit by bit. A PR consisting of a lot features and code changes may be hard to review. It is recommended to submit PRs in an incremental fashion.
 
-Note: If you split your pull request to small changes, please make sure any of the changes goes to master will not break anything. Otherwise, it can not be merged until this feature is complete.
+Note: If you split your pull request into small changes, please make sure any of the changes that goes to master will not break anything. Otherwise, it can not be merged until this feature is complete.
 
 ### Fork and clone
 
@@ -70,7 +70,7 @@ Fork [the WasmEdge repository](https://github.com/WasmEdge/WasmEdge) and clone t
 
 ### Branch
 
-Changes should be made on your own fork in a new branch. The branch should be named XXX-description where XXX is the number of the issue. PR should be rebased on top of master without multiple branches mixed into the PR. If your PR do not merge cleanly, use commands listed below to get it up to date.
+Changes should be made on your own fork in a new branch. The branch should be named XXX-description where XXX is the number of the issue. PR should be rebased on top of master without multiple branches mixed into the PR. If your PR does not merge cleanly, use the commands listed below to get it up to date.
 
 ### Develop, Build and Test
 
@@ -126,6 +126,6 @@ Documents are written with Markdown. See [Writing on GitHub](https://help.github
 
 ## Design new features
 
-You can propose new designs for existing WasmEdge features. You can also design entirely new features, Please submit a proposal via GitHub issues.
+You can propose new designs for existing WasmEdge features. You can also design entirely new features, please submit a proposal via GitHub issues.
 
 WasmEdge maintainers will review this proposal as soon as possible. This is necessary to ensure the overall architecture is consistent and to avoid duplicated work in the roadmap.

@@ -4,14 +4,14 @@
 
 [GitHub repo](https://github.com/second-state/wasmedge-containers-examples/)包含 containerd 相关示例的脚本和 Github Actions，以下是相关链接。
 
-* Simple WebAssembly 示例 [Quick start](https://github.com/second-state/wasmedge-containers-examples/blob/main/containerd/README.md) | [Github Actions](https://github.com/second-state/wasmedge-containers-examples/blob/main/.github/workflows/containerd.yml) | [Successful run](https://github.com/second-state/wasmedge-containers-examples/runs/4328930139?check_suite_focus=true#step:4:25)
-* HTTP service 示例 [Quick start](https://github.com/second-state/wasmedge-containers-examples/blob/main/containerd/http_server/README.md) | [Github Actions](https://github.com/second-state/wasmedge-containers-examples/blob/main/.github/workflows/containerd-server.yml) | [Successful run](https://github.com/second-state/wasmedge-containers-examples/runs/4328930141?check_suite_focus=true#step:4:44)
+* WebAssembly 简单示例 [Quick start](https://github.com/second-state/wasmedge-containers-examples/blob/main/containerd/README.md) | [Github Actions](https://github.com/second-state/wasmedge-containers-examples/blob/main/.github/workflows/containerd.yml) | [Successful run](https://github.com/second-state/wasmedge-containers-examples/runs/4328930139?check_suite_focus=true#step:4:25)
+* HTTP 服务端示例 [Quick start](https://github.com/second-state/wasmedge-containers-examples/blob/main/containerd/http_server/README.md) | [Github Actions](https://github.com/second-state/wasmedge-containers-examples/blob/main/.github/workflows/containerd-server.yml) | [Successful run](https://github.com/second-state/wasmedge-containers-examples/runs/4328930141?check_suite_focus=true#step:4:44)
 
 在接下来的部分中，我们会展示如何使用这些脚本。
 
 * [安装 containerd](#安装-containerd)
-* [示例一：Simple WebAssembly](#运行-simple-WebAssembly-应用)
-* [示例二： HTTP server in WebAssembly](#运行-HTTP-server-应用)
+* [示例一： WebAssembly 简单示例](#运行简单-WebAssembly-应用)
+* [示例二： WebAssembly 中的 HTTP 服务端示例](#运行-HTTP-服务端应用)
 
 ## 安装 containerd
 
@@ -51,7 +51,7 @@ $ sudo systemctl start containerd
 
 在运行下一步之前，请确保你已经构建并安装好了[支持 `WasmEdge`的 `crun`二进制文件](../container/crun.md)。 
 
-## 运行 simple WebAssembly 应用
+## 运行简单 WebAssembly 应用
 
 现在，我们可以使用 containerd 运行一个简单的 WebAssembly 程序。
 [另一篇文章](../demo/wasi.md) 解释了如何编译、打包和将 WebAssembly 程序作为容器镜像发布至 Docker hub 。
@@ -84,7 +84,7 @@ File content is This is in a file
 
 接下来，你可尝试在 [Kubernetes](../../kubernetes/kubernetes.md)中运行这个应用!
 
-## 运行 HTTP server 应用
+## 运行 HTTP 服务端应用
 
 最后，我们可以在 containerd 中运行一个简单的基于 WebAssembly 的 HTTP 微服务。
 [另一篇文章](../demo/wasi.md) 解释了如何编译、打包和将 WebAssembly 程序作为容器镜像发布至 Docker hub 。
@@ -111,4 +111,3 @@ echo: name=WasmEdge
 ```
 
 接下来，你可尝试在 [Kubernetes](../../kubernetes/kubernetes.md) 中运行这个应用!
-

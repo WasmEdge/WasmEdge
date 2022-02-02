@@ -1,4 +1,6 @@
 #include "WasmEdge.hpp"
+#include <stdexcept>
+#include <string>
 
 /* --------------- VM -------------------------------- */
 pysdk::VM::VM() { VMCxt = WasmEdge_VMCreate(NULL, NULL); }
@@ -155,7 +157,9 @@ pybind11::tuple pysdk::VM::run(pybind11::object _FileName,
 
   if (param_len != param_len_api) {
     /* TODO: Handle errors gracefully */
-    WasmEdge_FunctionTypeDelete(FuncTypeCxt);
+    throw std::runtime_error(
+        "Received Unmatched parameter length: " + std::to_string(param_len) +
+        ", API->" + std::to_string(param_len_api));
     return pybind11::make_tuple(NULL, NULL);
   }
 
@@ -198,7 +202,6 @@ pybind11::tuple pysdk::VM::run(pybind11::object _FileName,
   if (ret_len != WasmEdge_FunctionTypeGetReturns(FuncTypeCxt, val_type_list_ret,
                                                  ret_len)) {
     /* TODO: Handle errors gracefully */
-    WasmEdge_FunctionTypeDelete(FuncTypeCxt);
     return pybind11::make_tuple(NULL, NULL);
   };
 
@@ -229,15 +232,14 @@ pybind11::tuple pysdk::VM::run(pybind11::object _FileName,
       returns.append(pybind11::cast(WasmEdge_ValueGetFuncIdx(Returns[i])));
       break;
     // TODO: Handle Void Pointer
-    // case WasmEdge_ValType_ExternRef:
-    //   returns.append(pybind11::cast(WasmEdge_ValueGetExternRef(Returns[i])));
-    //   break;
+    case WasmEdge_ValType_ExternRef:
+      returns.append(pybind11::cast(WasmEdge_ValueGetExternRef(Returns[i])));
+      break;
     default:
       break;
     }
   }
 
-  // WasmEdge_FunctionTypeDelete(FuncTypeCxt);
   return pybind11::make_tuple(res, returns);
 }
 

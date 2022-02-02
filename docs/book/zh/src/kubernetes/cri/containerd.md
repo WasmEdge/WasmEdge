@@ -87,7 +87,7 @@ File content is This is in a file
 ## 运行 HTTP 服务端应用
 
 最后，我们可以在 containerd 中运行一个简单的基于 WebAssembly 的 HTTP 微服务。
-[另一篇文章](../demo/wasi.md) 解释了如何编译、打包和将 WebAssembly 程序作为容器镜像发布至 Docker hub 。
+[另一篇文章](../demo/server.md) 解释了如何编译、打包和将 WebAssembly 程序作为容器镜像发布至 Docker hub 。
 在本节中，我们需要先使用 containerd 工具将这个基于 WebAssembly 的容器镜像从 Docker hub 中拉取下来。
 
 ```bash

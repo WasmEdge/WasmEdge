@@ -1,34 +1,33 @@
 # 快速开始
 
-使用 WasmEdge 最简单的方式就是使用它的命令行工具(CLI).
-开发者们能够用这个 CLI 工具来运行我们的 WebAssembly 和 JavaScript 示例程序.
-除此之外, 我们也能够用它创建新的 WasmEdge 程序, 并将它们部署到不同的应用或者框架中去运行.
+WasmEdge 最简单的使用方式是通过 WasmEdge CLI。
+开发者们能使用这个命令行工具来运行我们的 WebAssembly 和 JavaScript 示例程序。
+之后，我们也可以使用该工具来创建新的 WasmEdge 程序，并将这些程序部署到不同的应用或者框架中运行。
 
 ## 安装
 
-你可以使用我们的一键安装脚本来安装 WasmEdge.
-你的系统必须预先安装 `git` 和 `curl`.
+你可以使用以下的单行命令来安装 WasmEdge。
+你的系统必须预先安装 `git` 和 `curl`。
 
 ```bash
 $ curl -sSf https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh | bash
 ```
 
-如果你想要安装带有 [Tensorflow and image 运行插件](https://www.secondstate.io/articles/wasi-tensorflow/) 的 WasmEdge,
-请执行以下命令. 下列命令将试着在你的系统安装 Tensorflow and image 相关的依赖.
+如果你希望一并安装 [Tensorflow 和图像处理扩展](https://www.secondstate.io/articles/wasi-tensorflow/)，请执行以下命令。它将尝试在你的系统上安装 Tensorflow 和图像共享库。
 
 ```bash
 $ curl -sSf https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh | bash -s -- -e all
 ```
 
-运行以下指令会让那些安装好的可执行文件，在当前会话路径 `$HOME/.wasmedge/env` 被访问到.
+执行以下命令能使已安装的二进制文件在当前会话中可用。
 
 ```bash
 $ source $HOME/.wasmedge/env
 ```
 
-## 使用 Docker
+## 使用 Docker 进行安装
 
-如果你使用 Docker, 你可以轻而易举的运行 WasmEdge 应用开发镜像([x86](https://hub.docker.com/repository/docker/wasmedge/appdev_x86_64) 和 [arm64](https://hub.docker.com/repository/docker/wasmedge/appdev_aarch64)). 那些镜像里包含了所有你开发 WasmEdge 程序所需要的工具.
+如果你使用的是 Docker，你可以直接运行 WasmEdge 应用开发镜像（[x86](https://hub.docker.com/repository/docker/wasmedge/appdev_x86_64) 和 [arm64](https://hub.docker.com/repository/docker/wasmedge/appdev_aarch64)）。这些镜像里包含快速开发 WasmEdge 所需的所有工具。
 
 ```bash
 $ docker pull wasmedge/appdev_x86_64:0.9.0
@@ -38,13 +37,13 @@ $ docker run --rm -v $(pwd):/app -it wasmedge/appdev_x86_64:0.9.0
 
 ## WebAssembly 示例
 
-我们有几个 WebAssembly 字节码示例, 在你刚刚安装的 WasmEdge CLI 中, 赶紧尝试一下!
+这里有几个 WebAssembly 字节码的示例供您试用新安装的 WasmEdge CLI。
 
 ### Hello world
 
-[hello.wasm](https://github.com/WasmEdge/WasmEdge/raw/master/tools/wasmedge/examples/hello.wasm) 这个 WebAssembly 程序中包含一个 `main()` 函数.
-这里是它的 [Rust 源代码](https://github.com/second-state/wasm-learning/tree/master/cli/hello).
-它通过命令行传入参数, 并最先打印出 `hello`.
+[hello.wasm](https://github.com/WasmEdge/WasmEdge/raw/master/tools/wasmedge/examples/hello.wasm) 这个 WebAssembly 程序中包含一个 `main()` 函数。
+[查看该程序的 Rust 源码项目。](https://github.com/second-state/wasm-learning/tree/master/cli/hello)
+它将打印 `hello`，以及所有的命令行参数。
 
 ```bash
 $ wasmedge hello.wasm second state
@@ -55,9 +54,9 @@ state
 
 ### 调用一个 Rust 函数
 
-[add.wasm](https://github.com/WasmEdge/WasmEdge/raw/master/tools/wasmedge/examples/add.wasm) 这个 WebAssembly 程序 包含一个 `add()` 函数.
-这里是它的 [Rust 源代码](https://github.com/second-state/wasm-learning/tree/master/cli/add).
-我们使用 WasmEdge 的 reactor 模式来调用 `add()`, 并给它 2 个整型数字作为入参.
+[add.wasm](https://github.com/WasmEdge/WasmEdge/raw/master/tools/wasmedge/examples/add.wasm) 这个 WebAssembly 程序包含一个 `add()` 函数。
+[查看该程序的 Rust 源码项目。](https://github.com/second-state/wasm-learning/tree/master/cli/add)
+我们在反应器模式下使用 WasmEdge 来调用 `add()`，并给它 2 个整数作为输入参数。
 
 ```bash
 $ wasmedge --reactor add.wasm add 2 2
@@ -66,8 +65,8 @@ $ wasmedge --reactor add.wasm add 2 2
 
 ### 调用一个 WAT 函数
 
-我们手工创建了 [fibonacci.wat](https://github.com/WasmEdge/WasmEdge/raw/master/tools/wasmedge/examples/fibonacci.wat) 程序, 并使用了 [wat2wasm](https://github.com/WebAssembly/wabt) 编译器来构建 [fibonacci.wasm](https://github.com/WasmEdge/WasmEdge/raw/master/tools/wasmedge/examples/fibonacci.wasm) 这个 WebAssembly.
-它包含了一个 `fib()` 函数, 这个函数以一个整型数字作为入参. 我们使用 WasmEdge 的 reactor 模式来调用这个被导出的函数.
+我们手动创建了 [fibonacci.wat](https://github.com/WasmEdge/WasmEdge/raw/master/tools/wasmedge/examples/fibonacci.wat) 程序，并使用了 [wat2wasm](https://github.com/WebAssembly/wabt) 编译器来构建 [fibonacci.wasm](https://github.com/WasmEdge/WasmEdge/raw/master/tools/wasmedge/examples/fibonacci.wasm) 这个 WebAssembly 程序。
+它包含了一个 `fib()` 函数，这个函数以一个整数作为输入参数。我们在反应器模式下使用 WasmEdge 来调用这个导出函数。
 
 
 ```bash
@@ -77,7 +76,7 @@ $ wasmedge --reactor fibonacci.wasm fib 10
 
 ### 开启统计
 
-CLI工具 支持 `--enable-all-statistics` 标志位, 来启用统计和 gas meter 相关配置.
+CLI工具支持 `--enable-all-statistics` 标志，用于开启统计和 gas meter 的相关配置。
 
 ```bash
 $ wasmedge --enable-all-statistics hello.wasm second state
@@ -96,12 +95,12 @@ state
 
 ### 开启 gas-limit
 
-CLI工具 支持 `--gas-limit` 标志位, 来控制执行的费用.
+CLI工具支持 `--gas-limit` 标志，用于控制执行的成本。
 
 ```bash
 # cd <path/to/WasmEdge>
 $ cd tools/wasmedge/examples
-# With enough gas
+# gas 足够时
 $ wasmedge --enable-all-statistics --gas-limit 20425 hello.wasm second state
 hello
 second
@@ -115,7 +114,7 @@ state
 [2021-12-09 16:03:33.261] [info]  Instructions per second: 81177218
 [2021-12-09 16:03:33.261] [info] =======================   End   ======================
 
-# Without enough gas
+# gas 不足时
 $ wasmedge --enable-all-statistics --gas-limit 20 hello.wasm second state
 [2021-12-23 15:19:06.690] [error] Cost exceeded limit. Force terminate the execution.
 [2021-12-23 15:19:06.690] [error]     In instruction: ref.func (0xd2) , Bytecode offset: 0x00000000
@@ -133,19 +132,19 @@ $ wasmedge --enable-all-statistics --gas-limit 20 hello.wasm second state
 
 ## JavaScript 示例
 
-WasmEdge 也可以作为一个高性能,安全,可扩展,易于部署,以及 [Kubernetes-compliant](https://github.com/second-state/wasmedge-containers-examples) 的 JavaScript运行时来使用.
+WasmEdge 也可以作为一个高性能、安全、可扩展、易于部署且[遵循 Kubernetes](https://github.com/second-state/wasmedge-containers-examples) 的 JavaScript 运行时。
 
-[qjs.wasm](https://github.com/WasmEdge/WasmEdge/raw/master/tools/wasmedge/examples/js/qjs.wasm) 是一个被编译成 WebAssembly 的 JavaScript解释器.
-[hello.js](https://github.com/WasmEdge/WasmEdge/raw/master/tools/wasmedge/examples/js/hello.js) 是一个非常简单的 JavaScript 程序.
+[qjs.wasm](https://github.com/WasmEdge/WasmEdge/raw/master/tools/wasmedge/examples/js/qjs.wasm) 是一个被编译为 WebAssembly 的 JavaScript 解释器。
+[hello.js](https://github.com/WasmEdge/WasmEdge/raw/master/tools/wasmedge/examples/js/hello.js) 是一个非常简单的 JavaScript 程序。
 
 ```bash
 $ wasmedge --dir .:. qjs.wasm hello.js 1 2 3
 Hello 1 2 3
 ```
 
-[qjs_tf.wasm](https://github.com/WasmEdge/WasmEdge/raw/master/tools/wasmedge/examples/js/qjs_tf.wasm) 则是一个带有[WasmEdge Tensorflow 插件](https://www.secondstate.io/articles/wasi-tensorflow/) 的 WebAssembly 版本的 JavaScript解释器.
-为了可以运行 [qjs_tf.wasm](https://github.com/WasmEdge/WasmEdge/raw/master/tools/wasmedge/examples/js/qjs_tf.wasm), 你必须使用 `wasmedge-tensorflow-lite` 这个CLI工具, 这个工具里内置了 WasmEdge with Tensorflow extension 的构建版本.
-你可以下载一个完整的 [Tensorflow-based JavaScript 示例](https://github.com/second-state/wasmedge-quickjs/tree/main/example_js/tensorflow_lite_demo) 来对图像进行分类.
+[qjs_tf.wasm](https://github.com/WasmEdge/WasmEdge/raw/master/tools/wasmedge/examples/js/qjs_tf.wasm) 则是一个 WebAssembly 版本的 JavaScript 解释器（带有 [Tensorflow 扩展](https://www.secondstate.io/articles/wasi-tensorflow/)）。
+要想运行 [qjs_tf.wasm](https://github.com/WasmEdge/WasmEdge/raw/master/tools/wasmedge/examples/js/qjs_tf.wasm)，你必须使用 `wasmedge-tensorflow-lite` 这个命令行工具；这个工具里内置了包含 Tensorflow 扩展的 WasmEdge 构建版本。
+你可以下载一个[基于 Tensorflow 的完整 JavaScript 示例](https://github.com/second-state/wasmedge-quickjs/tree/main/example_js/tensorflow_lite_demo)来对图像进行分类。
 
 ```bash
 # Download the Tensorflow example
@@ -159,7 +158,7 @@ label: Hot dog
 confidence: 0.8941176470588236
 ```
 
-继续阅读学习WasmEdge.
+继续阅读并学习 WasmEdge。
 
 - [WasmEdge 的安装与卸载](start/install.md)
 - [WasmEdge 命令行](start/cli.md)

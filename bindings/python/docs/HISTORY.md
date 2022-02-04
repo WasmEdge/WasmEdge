@@ -1,5 +1,21 @@
 (unreleased)
 ------------
+- [PySDK] Added Table Context and Instance. [Shreyas Atre]
+
+  * Also improved Value Class
+- [PySDK] Added memory instance support. [Shreyas Atre]
+- [PySDK] Added Mutability, GlobalType and MemoryType Context Support.
+  [Shreyas Atre]
+- [PySDK] Added WasmEdge_Limit support. [Shreyas Atre]
+- [PySDK] Improve WasmEdge_Value. [Shreyas Atre]
+- [PySDK] Runtime Exeception incase of parameter length mismatch.
+  [Shreyas Atre]
+- [PySDK] Added support for funcref. [Shreyas Atre]
+- [PySDK] Added Reference Class to support externref. [Shreyas Atre]
+- [PySDK] Added RefType Enum Class. [Shreyas Atre]
+- [PySDK] CMake CXX STD to 11. [Shreyas Atre]
+
+  * Not using any features of 17
 - [PySDK] PyPi Testing published. [Shreyas Atre]
 - [PySDK] VM API made consistent. [Shreyas Atre]
 - [PySDK] Exclude pybind11 from getting formatted. [Shreyas Atre]

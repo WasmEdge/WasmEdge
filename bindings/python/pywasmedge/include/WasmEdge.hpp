@@ -186,6 +186,19 @@ public:
   WasmEdge_MemoryTypeContext *get();
 };
 
+class Memory {
+private:
+  WasmEdge_MemoryInstanceContext *HostMemory;
+
+public:
+  Memory(MemoryTypeCxt &);
+  ~Memory();
+  pysdk::result set_data(pybind11::tuple, const uint32_t &);
+  uint32_t get_page_size();
+  pysdk::result grow_page(const uint32_t &);
+  pybind11::tuple get_data(const uint32_t &, const uint32_t &);
+};
+
 class GlobalTypeCxt {
 private:
   WasmEdge_GlobalTypeContext *GlobTypeCxt;

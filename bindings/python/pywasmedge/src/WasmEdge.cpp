@@ -206,6 +206,13 @@ PYBIND11_MODULE(WasmEdge, module) {
       .def("GetValType", [](pysdk::GlobalTypeCxt &g) {
         return WasmEdge_GlobalTypeGetValType(g.get());
       });
+
+  pybind11::class_<pysdk::Memory>(module, "Memory")
+      .def(pybind11::init<pysdk::MemoryTypeCxt &>())
+      .def("SetData", &pysdk::Memory::set_data)
+      .def("GetData", &pysdk::Memory::get_data)
+      .def("GetPageSize", &pysdk::Memory::get_page_size)
+      .def("GrowPage", &pysdk::Memory::grow_page);
 };
 
 /* --------------- Python Module End ----------------------------------------*/

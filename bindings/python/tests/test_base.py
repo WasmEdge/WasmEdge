@@ -3,6 +3,7 @@ import WasmEdge
 import os
 import subprocess
 import random
+import unittest
 
 
 def fibonacci(n):
@@ -125,3 +126,14 @@ def test_step_by_step():
     assert res
 
     assert l[0] == fibonacci(num[0])
+
+
+def test_memory():
+
+    lim = WasmEdge.Limit(True, 10, 20)
+    assert lim.HasMax == True
+    assert lim.Min == 10
+    assert lim.Max == 20
+
+    with unittest.TestCase.assertRaises(None, AttributeError):
+        lim.Max = 30

@@ -175,6 +175,15 @@ PYBIND11_MODULE(WasmEdge, module) {
   pybind11::class_<pysdk::import_object>(module, "ImportObject")
       .def(pybind11::init<std::string>())
       .def("add", &pysdk::import_object::add);
+
+  pybind11::class_<WasmEdge_Limit>(module, "Limit")
+      .def(pybind11::init<bool, uint32_t, uint32_t>())
+      .def_property_readonly("HasMax",
+                             [](const WasmEdge_Limit &L) { return L.HasMax; })
+      .def_property_readonly("Max",
+                             [](const WasmEdge_Limit &L) { return L.Max; })
+      .def_property_readonly("Min",
+                             [](const WasmEdge_Limit &L) { return L.Min; });
 };
 
 /* --------------- Python Module End ----------------------------------------*/

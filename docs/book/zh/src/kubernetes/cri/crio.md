@@ -38,7 +38,7 @@ $ systemctl start crio
 ## 配置 CRI-O 以使用 crun
 
 CRI-O 默认使用 `runc` 运行时，我们需要修改配置以使用 `crun` 代替。
-这需要添加到两个配置文件来完成的。
+这需要添加到两个配置文件来完成。
 
 >在运行下一步之前，请确保你已经构建并安装好了[支持 `WasmEdge`的 `crun`二进制文件](../container/crun.md)。 
 
@@ -81,23 +81,23 @@ $ systemctl restart crio
 $ sudo crictl pull docker.io/hydai/wasm-wasi-example:with-wasm-annotation
 ```
 
-接下来，我们需要创建两个简单的配置文件，指定CRI-O 应该如何在 sandbox 中运行这个 WebAssembly 镜像。 我们已经有了那两个文件 [container_wasi.json](https://github.com/second-state/wasmedge-containers-examples/blob/main/crio/container_wasi.json) 和 [sandbox_config.json](https://github.com/second-state/wasmedge-containers-examples/blob/main/crio/sandbox_config.json) 。你可以使用下面的命令将它们下载到本地目录。
+接下来，我们需要创建两个简单的配置文件，指定CRI-O 应该如何在 sandbox 中运行这个 WebAssembly 镜像。 我们已经有 [container_wasi.json](https://github.com/second-state/wasmedge-containers-examples/blob/main/crio/container_wasi.json) 和 [sandbox_config.json](https://github.com/second-state/wasmedge-containers-examples/blob/main/crio/sandbox_config.json) 这两个文件。你可以使用下面的命令将它们下载到本地目录。
 
 ```bash
 $ wget https://raw.githubusercontent.com/second-state/wasmedge-containers-examples/main/crio/sandbox_config.json
 $ wget https://raw.githubusercontent.com/second-state/wasmedge-containers-examples/main/crio/container_wasi.json
 ```
 
-现在你可以使用 CRI-O 使用指定的配置创建一个 pod 和一个容器。
+现在你可以用 CRI-O 创建 pod 和容器。只需用本文的配置选项即可。
 
 ```bash
-# 创建 POD。输出示例将会不同。
+# 创建 POD。输出示例将与不同。
 $ sudo crictl runp sandbox_config.json
 7992e75df00cc1cf4bff8bff660718139e3ad973c7180baceb9c84d074b516a4
 # 设置一个辅助变量供之后使用。
 $ POD_ID=7992e75df00cc1cf4bff8bff660718139e3ad973c7180baceb9c84d074b516a4
 
-# 创建容器实例。输出将会示例不同。
+# 创建容器实例。输出将与示例不同。
 $ sudo crictl create $POD_ID container_wasi.json sandbox_config.json
 # 设置一个辅助变量供之后使用。
 CONTAINER_ID=1d056e4a8a168f0c76af122d42c98510670255b16242e81f8e8bce8bd3a4476f
@@ -169,7 +169,7 @@ Test 7: Delete the previous file
 $ sudo crictl pull docker.io/avengermojo/http_server:with-wasm-annotation
 ```
 
-接下来，我们需要创建两个简单的配置文件，指定CRI-O 应该如何在 sandbox 中运行这个 WebAssembly 镜像。 我们已经有了那两个文件  [container_http_server.json](https://raw.githubusercontent.com/second-state/wasmedge-containers-examples/main/crio/http_server/container_http_server.json) 和 [sandbox_config.json](https://github.com/second-state/wasmedge-containers-examples/blob/main/crio/sandbox_config.json) 。你可以使用下面的命令将它们下载到本地目录。
+接下来，我们需要创建两个简单的配置文件，指定CRI-O 应该如何在 sandbox 中运行这个 WebAssembly 镜像。 我们已经有 [container_http_server.json](https://raw.githubusercontent.com/second-state/wasmedge-containers-examples/main/crio/http_server/container_http_server.json) 和 [sandbox_config.json](https://github.com/second-state/wasmedge-containers-examples/blob/main/crio/sandbox_config.json)这两个文件。你可以使用下面的命令将它们下载到本地目录。
 
 > HTTP 服务端示例和 WASI 简单示例使用的`sandbox_config.json` 文件是相同的。 但另一个 `container_*.json` 文件是特定的，因为它包含应用程序的 Docker Hub 链接。
 
@@ -178,16 +178,16 @@ $ wget https://raw.githubusercontent.com/second-state/wasmedge-containers-exampl
 $ wget https://raw.githubusercontent.com/second-state/wasmedge-containers-examples/main/crio/http_server/container_http_server.json
 ```
 
-现在你可以使用 CRI-O 使用指定的配置创建一个 pod 和一个容器。
+现在你可以用 CRI-O 创建 pod 和容器。只需用本文的配置选项即可。
 
 ```bash
-# 创建 POD。输出示例将会不同。
+# 创建 POD。输出示例将与不同。
 $ sudo crictl runp sandbox_config.json
 7992e75df00cc1cf4bff8bff660718139e3ad973c7180baceb9c84d074b516a4
 # 设置一个辅助变量供之后使用。
 $ POD_ID=7992e75df00cc1cf4bff8bff660718139e3ad973c7180baceb9c84d074b516a4
 
-# 创建容器实例。输出将会示例不同。
+# 创建容器实例。输出将与示例不同。
 $ sudo crictl create $POD_ID container_wasi.json sandbox_config.json
 # 设置一个辅助变量供之后使用。
 CONTAINER_ID=1d056e4a8a168f0c76af122d42c98510670255b16242e81f8e8bce8bd3a4476f
@@ -205,7 +205,7 @@ $ sudo crictl ps -a
 CONTAINER           IMAGE                                          CREATED                  STATE               NAME                ATTEMPT             POD ID
 4eeddf8613691       avengermojo/http_server:with-wasm-annotation   Less than a second ago   Running             http_server         0                   1d84f30e7012e
 
-# 检查容器的日志以查看 HTTP 服务器正在侦听端口为1234。
+# 检查容器的日志以查看 HTTP 服务器正在监听端口为1234。
 $ sudo crictl logs $CONTAINER_ID
 new connection at 1234
 

@@ -91,13 +91,13 @@ $ wget https://raw.githubusercontent.com/second-state/wasmedge-containers-exampl
 现在你可以用 CRI-O 创建 pod 和容器。只需用本文的配置选项即可。
 
 ```bash
-# 创建 POD。输出示例将与不同。
+# 创建 POD。输出会与示例不同。
 $ sudo crictl runp sandbox_config.json
 7992e75df00cc1cf4bff8bff660718139e3ad973c7180baceb9c84d074b516a4
 # 设置一个辅助变量供之后使用。
 $ POD_ID=7992e75df00cc1cf4bff8bff660718139e3ad973c7180baceb9c84d074b516a4
 
-# 创建容器实例。输出将与示例不同。
+# 创建容器实例。输出会与示例不同。
 $ sudo crictl create $POD_ID container_wasi.json sandbox_config.json
 # 设置一个辅助变量供之后使用。
 CONTAINER_ID=1d056e4a8a168f0c76af122d42c98510670255b16242e81f8e8bce8bd3a4476f
@@ -181,13 +181,13 @@ $ wget https://raw.githubusercontent.com/second-state/wasmedge-containers-exampl
 现在你可以用 CRI-O 创建 pod 和容器。只需用本文的配置选项即可。
 
 ```bash
-# 创建 POD。输出示例将与不同。
+# 创建 POD。输出会与示例不同。
 $ sudo crictl runp sandbox_config.json
 7992e75df00cc1cf4bff8bff660718139e3ad973c7180baceb9c84d074b516a4
 # 设置一个辅助变量供之后使用。
 $ POD_ID=7992e75df00cc1cf4bff8bff660718139e3ad973c7180baceb9c84d074b516a4
 
-# 创建容器实例。输出将与示例不同。
+# 创建容器实例。输出会与示例不同。
 $ sudo crictl create $POD_ID container_wasi.json sandbox_config.json
 # 设置一个辅助变量供之后使用。
 CONTAINER_ID=1d056e4a8a168f0c76af122d42c98510670255b16242e81f8e8bce8bd3a4476f

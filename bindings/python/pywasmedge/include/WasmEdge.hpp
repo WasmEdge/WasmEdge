@@ -176,6 +176,26 @@ public:
   WasmEdge_FunctionInstanceContext *get();
 };
 
+class MemoryTypeCxt {
+private:
+  WasmEdge_MemoryTypeContext *MemTypeCxt;
+
+public:
+  MemoryTypeCxt(WasmEdge_Limit &);
+  ~MemoryTypeCxt();
+  WasmEdge_MemoryTypeContext *get();
+};
+
+class GlobalTypeCxt {
+private:
+  WasmEdge_GlobalTypeContext *GlobTypeCxt;
+
+public:
+  GlobalTypeCxt(const WasmEdge_ValType &, const WasmEdge_Mutability &);
+  ~GlobalTypeCxt();
+  WasmEdge_GlobalTypeContext *get();
+};
+
 class import_object {
 private:
   WasmEdge_ImportObjectContext *ModCxt;

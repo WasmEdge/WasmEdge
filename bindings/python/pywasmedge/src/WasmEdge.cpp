@@ -184,6 +184,28 @@ PYBIND11_MODULE(WasmEdge, module) {
                              [](const WasmEdge_Limit &L) { return L.Max; })
       .def_property_readonly("Min",
                              [](const WasmEdge_Limit &L) { return L.Min; });
+
+  pybind11::class_<pysdk::MemoryTypeCxt>(module, "MemoryType")
+      .def(pybind11::init<WasmEdge_Limit &>())
+      .def("GetLimit", [](pysdk::MemoryTypeCxt &m) {
+        return WasmEdge_MemoryTypeGetLimit(m.get());
+      });
+
+  pybind11::enum_<WasmEdge_Mutability>(module, "Mutability")
+      .value("Var", WasmEdge_Mutability_Var)
+      .value("Const", WasmEdge_Mutability_Const)
+      .export_values();
+
+  pybind11::class_<pysdk::GlobalTypeCxt>(module, "GlobalType")
+      .def(pybind11::init<const WasmEdge_ValType &,
+                          const WasmEdge_Mutability &>())
+      .def("GetMutability",
+           [](pysdk::GlobalTypeCxt &g) {
+             return WasmEdge_GlobalTypeGetMutability(g.get());
+           })
+      .def("GetValType", [](pysdk::GlobalTypeCxt &g) {
+        return WasmEdge_GlobalTypeGetValType(g.get());
+      });
 };
 
 /* --------------- Python Module End ----------------------------------------*/

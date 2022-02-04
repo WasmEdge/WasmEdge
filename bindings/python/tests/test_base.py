@@ -128,7 +128,7 @@ def test_step_by_step():
     assert l[0] == fibonacci(num[0])
 
 
-def test_memory():
+def test_limit():
 
     lim = WasmEdge.Limit(True, 10, 20)
     assert lim.HasMax == True

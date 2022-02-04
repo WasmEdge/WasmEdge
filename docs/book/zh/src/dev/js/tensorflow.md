@@ -41,7 +41,7 @@ print('confidence:');
 print(max / 255);
 ```
 
-为了在 WasmEdge runtime 中运行 JavaScript，你可以通过在 CLI 中执行如下操作，这样就可以重新构建一个包含 TensorFlow 的 QuickJS 引擎，然后就可以在 JavaScript 应用中调用 TensorFlow API 了。
+为了在 WasmEdge runtime 中运行 JavaScript，你可以在 CLI 中执行如下操作，这样就可以重新构建一个包含 TensorFlow 的 QuickJS 引擎，然后就可以在 JavaScript 应用中调用 TensorFlow API 了。
 
 ```bash
 $ cargo build --target wasm32-wasi --release --features=tensorflow
@@ -54,7 +54,7 @@ confidence:
 0.8941176470588236
 ```
 
-> 注意: 命令行中的 `--dir .:.` 是为了给wasmedge开启本地文件读取权限， 以便正常读取到 `main.js` 文件.
+> 注意: 命令行中的 `--dir .:.` 是为了给 wasmedge 开启本地文件读取权限， 以便正常读取到 `main.js` 文件.
 #### 注意
 
 * 编译器标志 `--features=tensorflow` 构建了一个包含 WasmEdge TensorFlow 扩展的 QuickJS 引擎。

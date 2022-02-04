@@ -78,6 +78,8 @@ def test_value():
     val5 = WasmEdge.Ref(WasmEdge.RefType.ExternRef, add)
     val6 = WasmEdge.Ref(WasmEdge.RefType.FuncRef, num1)
     val7 = WasmEdge.Value(num3, WasmEdge.Type.I64)
+    val8 = WasmEdge.Value(num1, WasmEdge.Type.FuncRef)
+    val9 = WasmEdge.Value(num2, WasmEdge.Type.ExternRef)
 
     assert val.Value * val2.Value == num1 * num2
     assert val.Type == WasmEdge.Type.I32
@@ -96,6 +98,10 @@ def test_value():
     assert val4.Value == 10
     assert val7.Value == num3
     assert val7.Type == WasmEdge.Type.I64
+    assert val8.Type == WasmEdge.Type.FuncRef
+    assert val8.Value == 10
+    assert val9.Value == num2
+    assert val9.Type == WasmEdge.Type.ExternRef
 
 
 def test_step_by_step():

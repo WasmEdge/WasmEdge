@@ -14,6 +14,7 @@ pybind11_add_module(WasmEdge
     src/executor.cpp
     src/memory.cpp
     src/global.cpp
+    src/table.cpp
 )
 INCLUDE_DIRECTORIES("include/")
 set_target_properties(WasmEdge PROPERTIES 

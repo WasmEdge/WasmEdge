@@ -213,6 +213,24 @@ PYBIND11_MODULE(WasmEdge, module) {
       .def("GetData", &pysdk::Memory::get_data)
       .def("GetPageSize", &pysdk::Memory::get_page_size)
       .def("GrowPage", &pysdk::Memory::grow_page);
+
+  pybind11::class_<pysdk::TableTypeCxt>(module, "TableType")
+      .def(pybind11::init<WasmEdge_RefType &, WasmEdge_Limit &>())
+      .def("GetLimit",
+           [](pysdk::TableTypeCxt &tcxt) {
+             return WasmEdge_TableTypeGetLimit(tcxt.get());
+           })
+      .def("GetRefType", [](pysdk::TableTypeCxt &tcxt) {
+        return WasmEdge_TableTypeGetRefType(tcxt.get());
+      });
+
+  pybind11::class_<pysdk::Table>(module, "Table")
+      .def(pybind11::init<pysdk::TableTypeCxt &>())
+      .def("GetType", &pysdk::Table::get_type)
+      .def("GetSize", &pysdk::Table::get_size)
+      .def("GrowSize", &pysdk::Table::grow_size)
+      .def("SetData", &pysdk::Table::set_data)
+      .def("GetData", &pysdk::Table::get_data);
 };
 
 /* --------------- Python Module End ----------------------------------------*/

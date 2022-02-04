@@ -33,6 +33,7 @@ private:
 
 public:
   Value(pybind11::object, WasmEdge_ValType &);
+  Value(WasmEdge_Value *);
   ~Value();
   void set_value(pybind11::object, WasmEdge_ValType &);
   pybind11::object get_value();
@@ -195,8 +196,35 @@ public:
   ~Memory();
   pysdk::result set_data(pybind11::tuple, const uint32_t &);
   uint32_t get_page_size();
-  pysdk::result grow_page(const uint32_t &);
+  result grow_page(const uint32_t &);
   pybind11::tuple get_data(const uint32_t &, const uint32_t &);
+};
+
+class TableTypeCxt {
+private:
+  WasmEdge_TableTypeContext *TabTypeCxt;
+  bool external = false;
+
+public:
+  TableTypeCxt(WasmEdge_RefType &, WasmEdge_Limit &);
+  TableTypeCxt(const WasmEdge_TableTypeContext *);
+  ~TableTypeCxt();
+  WasmEdge_TableTypeContext *get();
+};
+
+class Table {
+private:
+  WasmEdge_TableInstanceContext *HostTable;
+
+public:
+  Table(TableTypeCxt &);
+  ~Table();
+  WasmEdge_TableInstanceContext *get();
+  TableTypeCxt get_type();
+  uint32_t get_size();
+  result grow_size(const uint32_t &);
+  result set_data(Value &, const uint32_t &);
+  pybind11::tuple get_data(const uint32_t &);
 };
 
 class GlobalTypeCxt {
@@ -217,7 +245,7 @@ public:
   import_object(std::string name = "Unnamed");
   ~import_object();
   WasmEdge_ImportObjectContext *get();
-  void add(pysdk::function &, std::string name = "Function_Name");
+  void add(function &, std::string name = "Function_Name");
 };
 
 class VM {
@@ -230,7 +258,7 @@ public:
   VM(Configure &);
   VM(Configure &, Store &);
   ~VM();
-  const char *doc() { return pysdk::vm_doc; };
+  const char *doc() { return vm_doc; };
 
   pybind11::tuple run(pybind11::object, pybind11::object, pybind11::object,
                       pybind11::object, pybind11::object);
@@ -241,10 +269,10 @@ public:
 
   pybind11::list list_exported_functions();
 
-  pysdk::result register_module_from_file(std::string &, std::string &);
-  pysdk::result register_module_from_ast(std::string &, pysdk::ASTModuleCxt &);
-  pysdk::result register_module_from_buffer(std::string &, pybind11::tuple);
-  pysdk::result register_module_from_import_object(pysdk::import_object &);
+  result register_module_from_file(std::string &, std::string &);
+  result register_module_from_ast(std::string &, ASTModuleCxt &);
+  result register_module_from_buffer(std::string &, pybind11::tuple);
+  result register_module_from_import_object(pysdk::import_object &);
 };
 
 } // namespace pysdk

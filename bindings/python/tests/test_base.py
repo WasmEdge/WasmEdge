@@ -65,16 +65,18 @@ def test_version():
 def test_value():
     num1 = 10
     num2 = 0.1
+    num3 = 9223372036854775807
 
     def add(a, b):
         return a + b
 
-    val = WasmEdge.Value(num1)
-    val2 = WasmEdge.Value(num2)
+    val = WasmEdge.Value(num1, WasmEdge.Type.I32)
+    val2 = WasmEdge.Value(num2, WasmEdge.Type.F32)
     val3 = WasmEdge.Ref(WasmEdge.RefType.FuncRef)
     val4 = WasmEdge.Ref(WasmEdge.RefType.ExternRef, num1)
     val5 = WasmEdge.Ref(WasmEdge.RefType.ExternRef, add)
     val6 = WasmEdge.Ref(WasmEdge.RefType.FuncRef, num1)
+    val7 = WasmEdge.Value(num3, WasmEdge.Type.I64)
 
     assert val.Value * val2.Value == num1 * num2
     assert val.Type == WasmEdge.Type.I32
@@ -91,6 +93,8 @@ def test_value():
 
     del num1
     assert val4.Value == 10
+    assert val7.Value == num3
+    assert val7.Type == WasmEdge.Type.I64
 
 
 def test_step_by_step():

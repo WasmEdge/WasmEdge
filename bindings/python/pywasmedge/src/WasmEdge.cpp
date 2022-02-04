@@ -71,7 +71,7 @@ PYBIND11_MODULE(WasmEdge, module) {
   /* TODO: Find suitable use for WasmEdge WASM value struct from python
    * perspective */
   pybind11::class_<pysdk::Value>(module, "Value")
-      .def(pybind11::init<pybind11::object>())
+      .def(pybind11::init<pybind11::object, WasmEdge_ValType &>())
       .def_property("Value", &pysdk::Value::get_value, &pysdk::Value::set_value)
       .def_property_readonly("Type", &pysdk::Value::get_type);
 

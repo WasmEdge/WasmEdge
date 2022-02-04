@@ -32,9 +32,9 @@ private:
   pybind11::object obj;
 
 public:
-  Value(pybind11::object);
+  Value(pybind11::object, WasmEdge_ValType &);
   ~Value();
-  void set_value(pybind11::object);
+  void set_value(pybind11::object, WasmEdge_ValType &);
   pybind11::object get_value();
   WasmEdge_ValType get_type();
   WasmEdge_Value get();

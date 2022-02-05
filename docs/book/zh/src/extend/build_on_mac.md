@@ -38,7 +38,7 @@ $ export CPPFLAGS="-I/usr/local/opt/llvm@12/include"
 
 ### 如果你不需要预编译的运行时/编译器
 
-如果用户不需要预编译运行时和编译器特性的话，可以将 CMake 配置项 `WASMEDGE_BUILD_AOT_RUNTIME` 设置成 `OFF`。
+如果你不需要预编译运行时和编译器特性的话，你可以将 CMake 配置项 `WASMEDGE_BUILD_AOT_RUNTIME` 设置成 `OFF`。
 
 ```bash
 $ cmake -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_BUILD_AOT_RUNTIME=OFF ..

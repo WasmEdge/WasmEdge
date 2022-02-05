@@ -34,6 +34,7 @@ private:
 public:
   Value(pybind11::object, WasmEdge_ValType &);
   Value(WasmEdge_Value *);
+  Value(const WasmEdge_Value &);
   ~Value();
   void set_value(pybind11::object, WasmEdge_ValType &);
   pybind11::object get_value();
@@ -110,11 +111,12 @@ private:
 public:
   result();
   result(WasmEdge_Result);
+  result(int &);
   void operator=(const WasmEdge_Result &res) { Res = res; }
   const char *doc() { return pysdk::result_doc; }
   explicit operator bool();
   const char *message();
-
+  WasmEdge_Result get();
   int get_code();
 };
 
@@ -161,13 +163,15 @@ struct function_utility {
   pybind11::function func;
 };
 
-class FunctionTypeConext {
+class FunctionTypeContext {
 private:
   WasmEdge_FunctionTypeContext *HostFType;
+  bool external = false;
 
 public:
-  FunctionTypeConext(pybind11::list, pybind11::list);
-  ~FunctionTypeConext();
+  FunctionTypeContext(pybind11::list, pybind11::list);
+  FunctionTypeContext(WasmEdge_FunctionTypeContext *Hfcxt);
+  ~FunctionTypeContext();
   WasmEdge_FunctionTypeContext *get();
   uint32_t get_param_len();
   pybind11::list get_param_types(const uint32_t &);
@@ -175,20 +179,16 @@ public:
   pybind11::list get_ret_types(const uint32_t &);
 };
 
-class function {
+class Function {
 private:
-  WasmEdge_FunctionTypeContext *HostFType;
   WasmEdge_FunctionInstanceContext *HostFuncCxt;
-  size_t param_len;
-  size_t ret_len;
-  pybind11::function func;
-  enum WasmEdge_ValType *param_types, *return_types;
-  pysdk::function_utility *hfunc_util;
+  function_utility *func_util;
 
 public:
-  function(pybind11::function);
-  ~function();
+  Function(FunctionTypeContext &, pybind11::function, uint64_t &);
+  ~Function();
   WasmEdge_FunctionInstanceContext *get();
+  FunctionTypeContext get_func_type();
 };
 
 class MemoryTypeCxt {
@@ -259,7 +259,7 @@ public:
   import_object(std::string &);
   ~import_object();
   WasmEdge_ImportObjectContext *get();
-  void add(function &, std::string &);
+  void add(Function &, std::string &);
 };
 
 class VM {

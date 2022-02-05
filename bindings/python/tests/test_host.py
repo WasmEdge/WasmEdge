@@ -9,10 +9,15 @@ def test_host_function():
     store = WasmEdge.Store()
     vm = WasmEdge.VM(store)
 
-    def add(a: int, b: int) -> int:
-        return a + b
+    def add(a, b):
+        print("hello")
+        res = int(a.Value + b.Value)
+        return WasmEdge.Result(0x00), WasmEdge.Value(res, WasmEdge.Type.I32)
 
-    func = WasmEdge.Function(add)
+    ftype = WasmEdge.FunctionType(
+        [WasmEdge.Type.I32, WasmEdge.Type.I32], [WasmEdge.Type.I32]
+    )
+    func = WasmEdge.Function(ftype, add, 0)
 
     module_name = "extern"
     function_name = "func-add"
@@ -106,7 +111,10 @@ def test_host_function():
         0x0B,
     )
 
-    nums = [1234, 5678]
+    nums = [
+        WasmEdge.Value(1234, WasmEdge.Type.I32),
+        WasmEdge.Value(5678, WasmEdge.Type.I32),
+    ]
 
     executor_function_name = "addTwo"
 
@@ -114,7 +122,7 @@ def test_host_function():
 
     assert res
 
-    assert l[0] == add(*tuple(nums))
+    assert l[0].Value == add(*tuple(nums))[1].Value
 
     assert len(vm.ListExportedFunctions()) == 1
 

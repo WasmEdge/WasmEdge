@@ -264,14 +264,7 @@ pybind11::tuple pysdk::VM::run(pybind11::object wasm_buffer_,
 
   WasmEdge_Value Params[param_len];
   for (int i = 0; i < param_len; i++) {
-    if (pybind11::isinstance<pybind11::int_>(params[i])) {
-      Params[i] = WasmEdge_ValueGenI32(params[i].cast<int32_t>());
-    } else if (pybind11::isinstance<pybind11::float_>(params[i])) {
-      Params[i] = WasmEdge_ValueGenF32(params[i].cast<float>());
-    } else {
-      // TODO: Handle Errors
-      return pybind11::make_tuple(NULL, NULL);
-    }
+    Params[i] = params[i].cast<pysdk::Value>().get();
   }
 
   WasmEdge_String ex_func_name_wasm =
@@ -286,32 +279,7 @@ pybind11::tuple pysdk::VM::run(pybind11::object wasm_buffer_,
   WasmEdge_StringDelete(ex_func_name_wasm);
 
   for (int i = 0; i < return_len; i++) {
-    switch (Returns[i].Type) {
-    case WasmEdge_ValType_I32:
-      returns.append(pybind11::cast(WasmEdge_ValueGetI32(Returns[i])));
-      break;
-    case WasmEdge_ValType_I64:
-      returns.append(pybind11::cast(WasmEdge_ValueGetI64(Returns[i])));
-      break;
-    case WasmEdge_ValType_F32:
-      returns.append(pybind11::cast(WasmEdge_ValueGetF32(Returns[i])));
-      break;
-    case WasmEdge_ValType_F64:
-      returns.append(pybind11::cast(WasmEdge_ValueGetF64(Returns[i])));
-      break;
-    case WasmEdge_ValType_V128:
-      returns.append(pybind11::cast(WasmEdge_ValueGetV128(Returns[i])));
-      break;
-    case WasmEdge_ValType_FuncRef:
-      returns.append(pybind11::cast(WasmEdge_ValueGetFuncIdx(Returns[i])));
-      break;
-    // TODO: Handle Void Pointer
-    // case WasmEdge_ValType_ExternRef:
-    //   returns.append(pybind11::cast(WasmEdge_ValueGetExternRef(Returns[i])));
-    //   break;
-    default:
-      break;
-    }
+    returns.append(pysdk::Value(Returns[i]));
   }
 
   return pybind11::make_tuple(res, returns);

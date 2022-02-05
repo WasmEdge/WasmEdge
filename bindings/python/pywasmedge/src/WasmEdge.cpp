@@ -85,6 +85,7 @@ PYBIND11_MODULE(WasmEdge, module) {
 
   pybind11::class_<pysdk::result>(module, "Result")
       .def(pybind11::init())
+      .def(pybind11::init<int &>())
       .def("__doc__", &pysdk::result::doc)
       .def("__str__", &pysdk::result::message)
       .def("__bool__", &pysdk::result::operator bool)
@@ -169,15 +170,17 @@ PYBIND11_MODULE(WasmEdge, module) {
       .def("register", &pysdk::VM::register_module_from_import_object)
       .def("ListExportedFunctions", &pysdk::VM::list_exported_functions);
 
-  pybind11::class_<pysdk::FunctionTypeConext>(module, "FunctionType")
+  pybind11::class_<pysdk::FunctionTypeContext>(module, "FunctionType")
       .def(pybind11::init<pybind11::list, pybind11::list>())
-      .def("GetParamLen", &pysdk::FunctionTypeConext::get_param_len)
-      .def("GetParamTypes", &pysdk::FunctionTypeConext::get_param_types)
-      .def("GetRetLen", &pysdk::FunctionTypeConext::get_ret_len)
-      .def("GetRetTypes", &pysdk::FunctionTypeConext::get_ret_types);
+      .def("GetParamLen", &pysdk::FunctionTypeContext::get_param_len)
+      .def("GetParamTypes", &pysdk::FunctionTypeContext::get_param_types)
+      .def("GetRetLen", &pysdk::FunctionTypeContext::get_ret_len)
+      .def("GetRetTypes", &pysdk::FunctionTypeContext::get_ret_types);
 
-  pybind11::class_<pysdk::function>(module, "Function")
-      .def(pybind11::init<pybind11::function>());
+  pybind11::class_<pysdk::Function>(module, "Function")
+      .def(pybind11::init<pysdk::FunctionTypeContext &, pybind11::function,
+                          uint64_t &>())
+      .def("GetType", &pysdk::Function::get_func_type);
 
   pybind11::class_<pysdk::import_object>(module, "ImportObject")
       .def(pybind11::init<std::string &>())

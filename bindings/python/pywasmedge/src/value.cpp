@@ -32,6 +32,33 @@ pysdk::Value::Value(WasmEdge_Value *val) {
   }
 }
 
+pysdk::Value::Value(const WasmEdge_Value &val) {
+  Val = val;
+  switch (val.Type) {
+  case WasmEdge_ValType_I32:
+    obj = pybind11::int_(WasmEdge_ValueGetI32(Val));
+    break;
+  case WasmEdge_ValType_I64:
+    obj = pybind11::int_(WasmEdge_ValueGetI64(Val));
+    break;
+  case WasmEdge_ValType_F32:
+    obj = pybind11::float_(WasmEdge_ValueGetF32(Val));
+    break;
+  case WasmEdge_ValType_F64:
+    obj = pybind11::float_(WasmEdge_ValueGetF64(Val));
+    break;
+  case WasmEdge_ValType_ExternRef:
+    obj.ptr() = (PyObject *)WasmEdge_ValueGetExternRef(Val);
+    break;
+  case WasmEdge_ValType_FuncRef:
+    obj = pybind11::int_(WasmEdge_ValueGetFuncIdx(Val));
+    break;
+  default:
+    throw std::runtime_error("Unknown Value type");
+    break;
+  }
+}
+
 pysdk::Value::~Value() {}
 
 pybind11::object pysdk::Value::get_value() { return obj; }

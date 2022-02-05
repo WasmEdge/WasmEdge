@@ -1,6 +1,7 @@
 (unreleased)
 ------------
 - Release: version 0.2.0 🚀 [Shreyas Atre]
+- Release: version 0.2.0 🚀 [Shreyas Atre]
 - [PySDK] Added Table Context and Instance. [Shreyas Atre]
 
   * Also improved Value Class

@@ -11,6 +11,7 @@ CLASSES
         Configure
         Executor
         Function
+        FunctionType
         GlobalType
         Host
         ImportObject
@@ -196,6 +197,35 @@ CLASSES
      |  
      |  __init__(...)
      |      __init__(self: WasmEdge.Function, arg0: function) -> None
+     |  
+     |  ----------------------------------------------------------------------
+     |  Static methods inherited from pybind11_builtins.pybind11_object:
+     |  
+     |  __new__(*args, **kwargs) from pybind11_builtins.pybind11_type
+     |      Create and return a new object.  See help(type) for accurate signature.
+    
+    class FunctionType(pybind11_builtins.pybind11_object)
+     |  Method resolution order:
+     |      FunctionType
+     |      pybind11_builtins.pybind11_object
+     |      builtins.object
+     |  
+     |  Methods defined here:
+     |  
+     |  GetParamLen(...)
+     |      GetParamLen(self: WasmEdge.FunctionType) -> int
+     |  
+     |  GetParamTypes(...)
+     |      GetParamTypes(self: WasmEdge.FunctionType, arg0: int) -> list
+     |  
+     |  GetRetLen(...)
+     |      GetRetLen(self: WasmEdge.FunctionType) -> int
+     |  
+     |  GetRetTypes(...)
+     |      GetRetTypes(self: WasmEdge.FunctionType, arg0: int) -> list
+     |  
+     |  __init__(...)
+     |      __init__(self: WasmEdge.FunctionType, arg0: list, arg1: list) -> None
      |  
      |  ----------------------------------------------------------------------
      |  Static methods inherited from pybind11_builtins.pybind11_object:

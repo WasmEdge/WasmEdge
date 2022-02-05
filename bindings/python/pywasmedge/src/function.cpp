@@ -1,5 +1,72 @@
 #include "WasmEdge.hpp"
 
+/* --------------- FunctionTypeContext -------------------------------*/
+pysdk::FunctionTypeConext::FunctionTypeConext(pybind11::list param_list,
+                                              pybind11::list return_list) {
+  auto const param_len = pybind11::len(param_list);
+  auto const ret_len = pybind11::len(return_list);
+  WasmEdge_ValType param_types[param_len];
+  for (size_t i = 0; i < param_len; i++) {
+    param_types[i] = param_list[i].cast<WasmEdge_ValType>();
+  }
+  WasmEdge_ValType ret_types[ret_len];
+  for (size_t i = 0; i < ret_len; i++) {
+    ret_types[i] = return_list[i].cast<WasmEdge_ValType>();
+  }
+
+  HostFType = WasmEdge_FunctionTypeCreate(
+      const_cast<const WasmEdge_ValType *>(param_types), param_len,
+      const_cast<const WasmEdge_ValType *>(ret_types), ret_len);
+
+  if (HostFType == NULL) {
+    throw std::runtime_error("Cannor Create Function Type");
+  }
+}
+
+pysdk::FunctionTypeConext::~FunctionTypeConext() {
+  WasmEdge_FunctionTypeDelete(HostFType);
+}
+
+WasmEdge_FunctionTypeContext *pysdk::FunctionTypeConext::get() {
+
+  return HostFType;
+}
+
+uint32_t pysdk::FunctionTypeConext::get_param_len() {
+
+  return WasmEdge_FunctionTypeGetParametersLength(
+      const_cast<const WasmEdge_FunctionTypeContext *>(HostFType));
+}
+
+pybind11::list pysdk::FunctionTypeConext::get_param_types(const uint32_t &len) {
+  pybind11::list ret;
+  WasmEdge_ValType rets[len];
+  auto const len_api = WasmEdge_FunctionTypeGetParameters(
+      const_cast<const WasmEdge_FunctionTypeContext *>(HostFType), rets, len);
+  for (size_t i = 0; i < len_api; i++) {
+    ret.append(rets[i]);
+  }
+  return ret;
+}
+
+uint32_t pysdk::FunctionTypeConext::get_ret_len() {
+
+  return WasmEdge_FunctionTypeGetReturnsLength(
+      const_cast<const WasmEdge_FunctionTypeContext *>(HostFType));
+}
+
+pybind11::list pysdk::FunctionTypeConext::get_ret_types(const uint32_t &len) {
+  pybind11::list ret;
+  WasmEdge_ValType rets[len];
+  auto const len_api = WasmEdge_FunctionTypeGetReturns(
+      const_cast<const WasmEdge_FunctionTypeContext *>(HostFType), rets, len);
+  for (size_t i = 0; i < len_api; i++) {
+    ret.append(rets[i]);
+  }
+  return ret;
+}
+/* --------------- FunctionTypeContext End  ---------------------------------*/
+
 /* --------------- Function ----------------------------------------*/
 
 pysdk::function::function(pybind11::function func_)

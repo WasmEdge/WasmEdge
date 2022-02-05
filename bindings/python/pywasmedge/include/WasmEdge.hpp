@@ -161,6 +161,20 @@ struct function_utility {
   pybind11::function func;
 };
 
+class FunctionTypeConext {
+private:
+  WasmEdge_FunctionTypeContext *HostFType;
+
+public:
+  FunctionTypeConext(pybind11::list, pybind11::list);
+  ~FunctionTypeConext();
+  WasmEdge_FunctionTypeContext *get();
+  uint32_t get_param_len();
+  pybind11::list get_param_types(const uint32_t &);
+  uint32_t get_ret_len();
+  pybind11::list get_ret_types(const uint32_t &);
+};
+
 class function {
 private:
   WasmEdge_FunctionTypeContext *HostFType;
@@ -242,10 +256,10 @@ private:
   WasmEdge_ImportObjectContext *ModCxt;
 
 public:
-  import_object(std::string name = "Unnamed");
+  import_object(std::string &);
   ~import_object();
   WasmEdge_ImportObjectContext *get();
-  void add(function &, std::string name = "Function_Name");
+  void add(function &, std::string &);
 };
 
 class VM {

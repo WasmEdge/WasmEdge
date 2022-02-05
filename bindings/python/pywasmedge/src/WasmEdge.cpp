@@ -169,11 +169,18 @@ PYBIND11_MODULE(WasmEdge, module) {
       .def("register", &pysdk::VM::register_module_from_import_object)
       .def("ListExportedFunctions", &pysdk::VM::list_exported_functions);
 
+  pybind11::class_<pysdk::FunctionTypeConext>(module, "FunctionType")
+      .def(pybind11::init<pybind11::list, pybind11::list>())
+      .def("GetParamLen", &pysdk::FunctionTypeConext::get_param_len)
+      .def("GetParamTypes", &pysdk::FunctionTypeConext::get_param_types)
+      .def("GetRetLen", &pysdk::FunctionTypeConext::get_ret_len)
+      .def("GetRetTypes", &pysdk::FunctionTypeConext::get_ret_types);
+
   pybind11::class_<pysdk::function>(module, "Function")
       .def(pybind11::init<pybind11::function>());
 
   pybind11::class_<pysdk::import_object>(module, "ImportObject")
-      .def(pybind11::init<std::string>())
+      .def(pybind11::init<std::string &>())
       .def("add", &pysdk::import_object::add);
 
   pybind11::class_<WasmEdge_Limit>(module, "Limit")

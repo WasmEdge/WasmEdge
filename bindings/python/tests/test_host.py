@@ -11,8 +11,8 @@ def test_host_function():
 
     def add(a, b):
         print("hello")
-        res = int(a.Value + b.Value)
-        return WasmEdge.Result(0x00), WasmEdge.Value(res, WasmEdge.Type.I32)
+        res = WasmEdge.Value(a.Value + b.Value, WasmEdge.Type.I32)
+        return WasmEdge.Result(0x00), [res]
 
     ftype = WasmEdge.FunctionType(
         [WasmEdge.Type.I32, WasmEdge.Type.I32], [WasmEdge.Type.I32]
@@ -122,7 +122,7 @@ def test_host_function():
 
     assert res
 
-    assert l[0].Value == add(*tuple(nums))[1].Value
+    assert l[0].Value == add(*tuple(nums))[1][0].Value
 
     assert len(vm.ListExportedFunctions()) == 1
 

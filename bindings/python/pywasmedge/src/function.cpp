@@ -79,7 +79,7 @@ pybind11::list pysdk::FunctionTypeContext::get_ret_types(const uint32_t &len) {
  *
  * @param cxt FunctionTypeContext
  * @param func Function that takes `Value(s)` and returns
- * `tuple(Result,Value(s))`
+ * `tuple(Result,list(Value(s)))`
  * @param cost The function cost in statistics. Pass 0 if the calculation is not
  * needed.
  */
@@ -125,12 +125,13 @@ WasmEdge_Result pysdk::host_function(void *Data,
 
   auto params_tup = params.cast<pybind11::tuple>();
 
-  auto const ret = func(*params_tup);
+  auto const ret = func(*params_tup).cast<pybind11::tuple>();
+  auto const vals = ret[1].cast<pybind11::list>();
 
-  for (size_t i = 1; i < ret[1].size(); i++) {
-    Out[i - 1] = returns[i].cast<pysdk::Value>().get();
+  for (size_t i = 0; i < pybind11::len(vals); i++) {
+    Out[i] = vals[i].cast<pysdk::Value>().get();
   }
 
-  return returns[0].cast<pysdk::result>().get();
+  return ret[0].cast<pysdk::result>().get();
 };
 /* --------------- Host_Function End -------------------------------------*/

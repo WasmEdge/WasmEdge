@@ -168,7 +168,8 @@ PYBIND11_MODULE(WasmEdge, module) {
       .def("register", &pysdk::VM::register_module_from_buffer)
       .def("register", &pysdk::VM::register_module_from_file)
       .def("register", &pysdk::VM::register_module_from_import_object)
-      .def("ListExportedFunctions", &pysdk::VM::list_exported_functions);
+      .def("ListExportedFunctions", &pysdk::VM::list_exported_functions)
+      .def("ExecuteRegistered", &pysdk::VM::execute_registered);
 
   pybind11::class_<pysdk::FunctionTypeContext>(module, "FunctionType")
       .def(pybind11::init<pybind11::list, pybind11::list>())

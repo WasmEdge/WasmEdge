@@ -5,7 +5,52 @@
 /* --------------- VM -------------------------------- */
 pysdk::VM::VM() { VMCxt = WasmEdge_VMCreate(NULL, NULL); }
 
+pybind11::tuple pysdk::VM::execute_registered(std::string &mod_name,
+                                              std::string &func_name,
+                                              pybind11::list params,
+                                              const uint32_t &ReturnLen) {
+  const WasmEdge_String ModuleName =
+      WasmEdge_StringCreateByCString(mod_name.c_str());
+  const WasmEdge_String FuncName =
+      WasmEdge_StringCreateByCString(func_name.c_str());
+  const uint32_t ParamLen = pybind11::len(params);
+  const WasmEdge_Value Params[ParamLen];
+  for (size_t i = 0; i < ParamLen; i++) {
+    Params[i] = params.cast<pysdk::Value>().get();
+  }
+
+  WasmEdge_Value Returns[ReturnLen];
+
+  pysdk::result res(WasmEdge_VMExecuteRegistered(
+      VMCxt, ModuleName, FuncName, Params, ParamLen, Returns, ReturnLen));
+
+  pybind11::list ret;
+  for (size_t i = 0; i < ReturnLen; i++) {
+    ret.append(pysdk::Value(Returns));
+  }
+
+  return pybind11::make_tuple(res, ret)
+}
 pysdk::VM::VM(pysdk::Store &store) {
+
+  WasmEdge_VMGetFunctionList();
+  WasmEdge_VMGetFunctionListLength();
+  WasmEdge_VMGetFunctionType();
+  WasmEdge_VMGetFunctionTypeRegistered();
+  WasmEdge_VMGetImportModuleContext();
+  WasmEdge_VMGetStatisticsContext();
+  WasmEdge_VMGetStoreContext();
+  WasmEdge_VMInstantiate();
+  WasmEdge_VMLoadWasmFromASTModule();
+  WasmEdge_VMLoadWasmFromBuffer();
+  WasmEdge_VMLoadWasmFromFile();
+  WasmEdge_VMRegisterModuleFromASTModule();
+  WasmEdge_VMRegisterModuleFromBuffer();
+  WasmEdge_VMRegisterModuleFromFile();
+  WasmEdge_VMRegisterModuleFromImport();
+  WasmEdge_VMRunWasmFromASTModule();
+  WasmEdge_VMRunWasmFromBuffer();
+  WasmEdge_VMRunWasmFromFile();
   VMCxt = WasmEdge_VMCreate(NULL, store.get());
 }
 

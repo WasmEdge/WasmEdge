@@ -287,6 +287,9 @@ public:
   result register_module_from_ast(std::string &, ASTModuleCxt &);
   result register_module_from_buffer(std::string &, pybind11::tuple);
   result register_module_from_import_object(pysdk::import_object &);
+
+  pybind11::tuple execute_registered(std::string &, std::string &,
+                                     pybind11::list, const uint32_t &)
 };
 
 } // namespace pysdk

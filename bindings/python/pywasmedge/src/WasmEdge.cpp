@@ -166,7 +166,7 @@ PYBIND11_MODULE(WasmEdge, module) {
       .def("run", run_wasm_buffer)
       .def("register", &pysdk::VM::register_module_from_ast)
       .def("register", &pysdk::VM::register_module_from_buffer)
-      .def("register", &pysdk::VM::register_module_from_file)
+      .def("RegisterModuleFromFile", &pysdk::VM::register_module_from_file)
       .def("register", &pysdk::VM::register_module_from_import_object)
       .def("ListExportedFunctions", &pysdk::VM::list_exported_functions)
       .def("ExecuteRegistered", &pysdk::VM::execute_registered);

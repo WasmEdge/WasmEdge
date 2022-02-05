@@ -357,6 +357,19 @@ pysdk::VM::register_module_from_import_object(pysdk::import_object &imp_obj) {
   return res;
 }
 
+/**
+ * @brief Execute WASM functions in registered modules.
+ * Unlike the execution of functions, the registered functions can be invoked
+ * without `WasmEdge_VMInstantiate()` because the WASM module was instantiated
+ * when registering. Developers can also invoke the host functions directly with
+ * this API.
+ *
+ * @param mod_name  Name of the Module
+ * @param func_name Name of the function
+ * @param params  `list` of `WasmEdge.Value(s)`
+ * @param ReturnLen length of return values
+ * @return pybind11::tuple
+ */
 pybind11::tuple pysdk::VM::execute_registered(std::string &mod_name,
                                               std::string &func_name,
                                               pybind11::list params,
@@ -367,8 +380,9 @@ pybind11::tuple pysdk::VM::execute_registered(std::string &mod_name,
       WasmEdge_StringCreateByCString(func_name.c_str());
   const uint32_t ParamLen = pybind11::len(params);
   WasmEdge_Value Params[ParamLen];
+
   for (size_t i = 0; i < ParamLen; i++) {
-    Params[i] = params.cast<pysdk::Value>().get();
+    Params[i] = params[i].cast<pysdk::Value>().get();
   }
 
   WasmEdge_Value Returns[ReturnLen];
@@ -379,7 +393,7 @@ pybind11::tuple pysdk::VM::execute_registered(std::string &mod_name,
 
   pybind11::list ret;
   for (size_t i = 0; i < ReturnLen; i++) {
-    ret.append(pysdk::Value(Returns));
+    ret.append(pysdk::Value(Returns[i]));
   }
 
   return pybind11::make_tuple(res, ret);

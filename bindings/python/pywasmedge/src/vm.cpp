@@ -8,7 +8,6 @@ pysdk::VM::VM() { VMCxt = WasmEdge_VMCreate(NULL, NULL); }
 pysdk::VM::VM(pysdk::Store &store) {
 
   // ;
-  // WasmEdge_VMLoadWasmFromBuffer();
   // WasmEdge_VMLoadWasmFromFile();
   // WasmEdge_VMRegisterModuleFromASTModule();
   // WasmEdge_VMRegisterModuleFromBuffer();
@@ -436,5 +435,15 @@ pysdk::result pysdk::VM::instantiate() {
 pysdk::result pysdk::VM::load_from_ast(pysdk::ASTModuleCxt &ast) {
   return pysdk::result(WasmEdge_VMLoadWasmFromASTModule(
       VMCxt, const_cast<const WasmEdge_ASTModuleContext *>(ast.get())));
+}
+
+pysdk::result pysdk::VM::load_from_buffer(pybind11::tuple tup) {
+  auto const len = pybind11::len(tup);
+  uint8_t buf[len];
+  for (size_t i = 0; i < len; i++) {
+    buf[i] = tup[i].cast<uint8_t>();
+  }
+  return pysdk::result(WasmEdge_VMLoadWasmFromBuffer(
+      VMCxt, const_cast<const uint8_t *>(buf), len));
 }
 /* --------------- VM End -------------------------------- */

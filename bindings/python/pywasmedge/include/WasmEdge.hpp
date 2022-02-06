@@ -314,6 +314,7 @@ public:
   Store get_store_cxt();
   result instantiate();
   result load_from_ast(pysdk::ASTModuleCxt &);
+  result load_from_buffer(pybind11::tuple);
 };
 
 } // namespace pysdk

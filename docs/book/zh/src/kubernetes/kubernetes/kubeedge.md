@@ -28,7 +28,6 @@ $ sudo modprobe overlay
 $ sudo modprobe br_netfilter
 
 # 设置所需的 sysctl 参数，这些参数在重启后仍然存在。
-# Set up required sysctl params, these persist across reboots.
 $ cat <<EOF | sudo tee /etc/sysctl.d/99-kubernetes-cri.conf
 net.bridge.bridge-nf-call-iptables  = 1
 net.ipv4.ip_forward                 = 1
@@ -157,7 +156,7 @@ as root:
   kubeadm join <control-plane-host>:<control-plane-port> --token <token> --discovery-token-ca-cert-hash sha256:<hash>
 ```
 
-要让 kubectl 为您的非 root 用户工作，请运行这些命令，这些命令也是 kubeadm init 输出的一部分：
+要让 kubectl 为你的非 root 用户工作，请运行这些命令，这些命令也是 kubeadm init 输出的一部分：
 
 ```bash
 $ mkdir -p $HOME/.kube
@@ -172,8 +171,8 @@ $ sudo chown $(id -u):$(id -g) $HOME/.kube/config
 重要提醒:
 
 1. kubeconfig 或 master 中的至少一项必须配置正确，才能用于验证 k8s 集群的版本等信息。
-2. 请确保边缘节点可以使用云节点的本地 IP 连接云节点，或者您需要使用 `--advertise-address` 标志指定云节点的公共 IP。
-3. `--advertise-address`（仅1.3版本起有效）为云端公开的地址（将添加到CloudCore证书的SAN中），默认值为本地IP。
+2. 请确保边缘节点可以使用云节点的本地 IP 连接云节点，或者你需要使用 `--advertise-address` 标志指定云节点的公共 IP。
+3. `--advertise-address`（仅 1.3 版本起有效）为云端公开的地址（将添加到 CloudCore 证书的 SAN 中），默认值为本地IP。
 
 ```bash
 $ wget https://github.com/kubeedge/kubeedge/releases/download/v1.8.0/keadm-v1.8.0-linux-amd64.tar.gz
@@ -192,7 +191,7 @@ KubeEdge cloudcore is running, For logs visit:  /var/log/kubeedge/cloudcore.log
 
 ## 2. 设置边缘端（KubeEdge 工作节点）
 
-您可以使用 CRI-O install.sh 脚本 `crun` 在 Ubuntu 20.04 上安装 CRI-O。
+你可以使用 CRI-O install.sh 脚本 `crun` 在 Ubuntu 20.04 上安装 CRI-O。
 
 ```bash
 $ wget -qO- https://raw.githubusercontent.com/second-state/wasmedge-containers-examples/main/crio/install.sh | bash
@@ -211,7 +210,7 @@ go version go1.17.3 linux/amd64
 
 ### 从云端获取令牌
 
-Run keadm gettoken in cloud side will return the token, which will be used when joining edge nodes.
+在云端运行 `keadm gettoken` 会返回 token ，在加入边缘节点时使用。
 
 ```bash
 $ sudo ./keadm gettoken --kube-config=/home/${user}/.kube/config
@@ -255,7 +254,7 @@ edge       Ready     agent,edge             10s   v1.19.3-kubeedge-v1.8.2
 master     Ready     control-plane,master   68m   v1.21.0
 ```
 
-## 3. 启用kubectl日志功能
+## 3. 启用 kubectl 日志功能
 
 在部署 metrics-server 之前，必须激活 kubectl 日志功能，请[参阅这里](https://kubeedge.io/zh/docs/setup/keadm/#enable-kubectl-logs-feature).
 

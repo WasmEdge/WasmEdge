@@ -164,6 +164,7 @@ PYBIND11_MODULE(WasmEdge, module) {
       .def("run", run)
       .def("run", run_step_by_step)
       .def("run", run_wasm_buffer)
+      .def("RunWasmFromASTModule", &pysdk::VM::run_from_ast)
       .def("RegisterModuleFromASTModule", &pysdk::VM::register_module_from_ast)
       .def("RegisterModuleFromBuffer", &pysdk::VM::register_module_from_buffer)
       .def("RegisterModuleFromFile", &pysdk::VM::register_module_from_file)

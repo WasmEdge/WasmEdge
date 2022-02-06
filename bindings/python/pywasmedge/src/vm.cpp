@@ -8,7 +8,6 @@ pysdk::VM::VM() { VMCxt = WasmEdge_VMCreate(NULL, NULL); }
 pysdk::VM::VM(pysdk::Store &store) {
 
   // ;
-  // WasmEdge_VMRunWasmFromASTModule();
   // WasmEdge_VMRunWasmFromBuffer();
   // WasmEdge_VMRunWasmFromFile();
   VMCxt = WasmEdge_VMCreate(NULL, store.get());
@@ -444,5 +443,29 @@ pysdk::result pysdk::VM::load_from_buffer(pybind11::tuple tup) {
 
 pysdk::result pysdk::VM::load_from_file(std::string &path) {
   return pysdk::result(WasmEdge_VMLoadWasmFromFile(VMCxt, path.c_str()));
+}
+
+pybind11::tuple pysdk::VM::run_from_ast(pysdk::ASTModuleCxt &cxt,
+                                        std::string &function_name,
+                                        pybind11::tuple params,
+                                        uint32_t &ret_len) {
+  WasmEdge_String func_name =
+      WasmEdge_StringCreateByCString(function_name.c_str());
+  auto const param_len = pybind11::len(params);
+  WasmEdge_Value param[param_len];
+
+  for (size_t i = 0; i < param_len; i++) {
+    param[i] = params[i].cast<pysdk::Value>().get();
+  }
+  WasmEdge_Value ret[ret_len];
+
+  pysdk::result res(WasmEdge_VMRunWasmFromASTModule(
+      VMCxt, cxt.get(), func_name, param, param_len, ret, ret_len));
+  pybind11::list list;
+
+  for (size_t i = 0; i < ret_len; i++) {
+    list.append(pysdk::Value(ret[i]));
+  }
+  return pybind11::make_tuple(res, list);
 }
 /* --------------- VM End -------------------------------- */

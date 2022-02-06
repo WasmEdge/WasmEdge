@@ -180,6 +180,7 @@ PYBIND11_MODULE(WasmEdge, module) {
       .def("Instantiate", &pysdk::VM::instantiate)
       .def("LoadWasmFromASTModule", &pysdk::VM::load_from_ast)
       .def("LoadWasmFromBuffer", &pysdk::VM::load_from_buffer)
+      .def("LoadWasmFromFile", &pysdk::VM::load_from_file)
       .def("ExecuteRegistered", &pysdk::VM::execute_registered);
 
   pybind11::class_<pysdk::FunctionTypeContext>(module, "FunctionType")

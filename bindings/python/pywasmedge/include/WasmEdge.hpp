@@ -315,6 +315,7 @@ public:
   result instantiate();
   result load_from_ast(pysdk::ASTModuleCxt &);
   result load_from_buffer(pybind11::tuple);
+  result load_from_file(std::string &);
 };
 
 } // namespace pysdk

@@ -446,4 +446,8 @@ pysdk::result pysdk::VM::load_from_buffer(pybind11::tuple tup) {
   return pysdk::result(WasmEdge_VMLoadWasmFromBuffer(
       VMCxt, const_cast<const uint8_t *>(buf), len));
 }
+
+pysdk::result pysdk::VM::load_from_file(std::string &path) {
+  return pysdk::result(WasmEdge_VMLoadWasmFromFile(VMCxt, path.c_str()));
+}
 /* --------------- VM End -------------------------------- */

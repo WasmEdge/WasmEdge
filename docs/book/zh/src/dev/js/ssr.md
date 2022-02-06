@@ -195,7 +195,7 @@ $ nohup wasmedge --dir .:. ../../target/wasm32-wasi/release/wasmedge_quickjs.was
 $ curl http://localhost:8001
 ```
 
-结果如下所示。该服务首先返回一个HTML页面，里面包含一个空的内层部分（即 `loading` 部分）。然后在 2s 后返回内层部分的 HTML 内容，以及将它显示出来的 JavaScript 代码。
+结果如下所示。该服务首先返回一个 HTML 页面，里面包含一个空的内层部分（即 `loading` 部分）。然后在 2s 后返回内层部分的 HTML 内容，以及将它显示出来的 JavaScript 代码。
 
 ```bash
   % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current

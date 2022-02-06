@@ -167,8 +167,18 @@ PYBIND11_MODULE(WasmEdge, module) {
       .def("register", &pysdk::VM::register_module_from_ast)
       .def("register", &pysdk::VM::register_module_from_buffer)
       .def("RegisterModuleFromFile", &pysdk::VM::register_module_from_file)
-      .def("register", &pysdk::VM::register_module_from_import_object)
-      .def("ListExportedFunctions", &pysdk::VM::list_exported_functions)
+      .def("RegisterModuleFromImport",
+           &pysdk::VM::register_module_from_import_object)
+      .def("GetFunctionList", &pysdk::VM::get_functions)
+      .def("GetFunctionListLength", &pysdk::VM::get_functions_len)
+      .def("GetFunctionType", &pysdk::VM::get_function_type)
+      .def("GetFunctionTypeRegistered",
+           &pysdk::VM::get_function_type_registered)
+      .def("GetImportModuleContext", &pysdk::VM::get_import_module_context)
+      .def("GetStatisticsContext", &pysdk::VM::get_statistics_context)
+      .def("GetStoreContext", &pysdk::VM::get_store_cxt)
+      .def("Instantiate", &pysdk::VM::instantiate)
+      .def("LoadWasmFromASTModule", &pysdk::VM::load_from_ast)
       .def("ExecuteRegistered", &pysdk::VM::execute_registered);
 
   pybind11::class_<pysdk::FunctionTypeContext>(module, "FunctionType")

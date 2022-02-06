@@ -4,7 +4,15 @@
 
 pysdk::Store::Store() { StoreCxt = WasmEdge_StoreCreate(); }
 
-pysdk::Store::~Store() { WasmEdge_StoreDelete(StoreCxt); }
+pysdk::Store::Store(WasmEdge_StoreContext *cxt) {
+  StoreCxt = cxt;
+  external = true;
+}
+
+pysdk::Store::~Store() {
+  if (!external)
+    WasmEdge_StoreDelete(StoreCxt);
+}
 
 WasmEdge_StoreContext *pysdk::Store::get() { return this->StoreCxt; }
 

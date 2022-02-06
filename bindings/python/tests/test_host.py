@@ -10,7 +10,6 @@ def test_host_function():
     vm = WasmEdge.VM(store)
 
     def add(a, b):
-        print("hello")
         res = WasmEdge.Value(a.Value + b.Value, WasmEdge.Type.I32)
         return WasmEdge.Result(0x00), [res]
 
@@ -25,7 +24,8 @@ def test_host_function():
     mod = WasmEdge.ImportObject(module_name)
     mod.add(func, function_name)
 
-    res = vm.register(mod)
+    res = vm.RegisterModuleFromImport(mod)
+    assert res
 
     mods = store.listModules()
 
@@ -124,8 +124,8 @@ def test_host_function():
 
     assert l[0].Value == add(*tuple(nums))[1][0].Value
 
-    assert len(vm.ListExportedFunctions()) == 1
+    assert len(vm.GetFunctionList(1)) == 1
 
-    assert executor_function_name in vm.ListExportedFunctions()
+    assert executor_function_name in vm.GetFunctionList(1).keys()
 
     assert mods[0] == module_name

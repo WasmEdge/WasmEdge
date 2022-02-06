@@ -7,15 +7,7 @@ pysdk::VM::VM() { VMCxt = WasmEdge_VMCreate(NULL, NULL); }
 
 pysdk::VM::VM(pysdk::Store &store) {
 
-  // WasmEdge_VMGetFunctionList();
-  // WasmEdge_VMGetFunctionListLength();
-  // WasmEdge_VMGetFunctionType();
-  // WasmEdge_VMGetFunctionTypeRegistered();
-  // WasmEdge_VMGetImportModuleContext();
-  // WasmEdge_VMGetStatisticsContext();
-  // WasmEdge_VMGetStoreContext();
-  // WasmEdge_VMInstantiate();
-  // WasmEdge_VMLoadWasmFromASTModule();
+  // ;
   // WasmEdge_VMLoadWasmFromBuffer();
   // WasmEdge_VMLoadWasmFromFile();
   // WasmEdge_VMRegisterModuleFromASTModule();
@@ -304,21 +296,6 @@ pybind11::tuple pysdk::VM::run(pybind11::object wasm_buffer_,
   return pybind11::make_tuple(res, returns);
 }
 
-pybind11::list pysdk::VM::list_exported_functions() {
-  pybind11::list returns;
-
-  auto len = WasmEdge_VMGetFunctionListLength(VMCxt);
-
-  WasmEdge_String str[len];
-  auto w = WasmEdge_VMGetFunctionList(VMCxt, str, NULL, 32);
-  for (size_t i = 0; i < len; i++) {
-    char buf[str[i].Length];
-    WasmEdge_StringCopy(str[i], buf, str[i].Length);
-    returns.append(std::string(buf));
-  }
-  return returns;
-}
-
 pysdk::result pysdk::VM::register_module_from_file(std::string &mod_name_,
                                                    std::string &path) {
   WasmEdge_String mod_name = WasmEdge_StringCreateByCString(mod_name_.c_str());
@@ -353,7 +330,8 @@ pysdk::result pysdk::VM::register_module_from_buffer(std::string &mod_name_,
 
 pysdk::result
 pysdk::VM::register_module_from_import_object(pysdk::import_object &imp_obj) {
-  pysdk::result res(WasmEdge_VMRegisterModuleFromImport(VMCxt, imp_obj.get()));
+  pysdk::result res(WasmEdge_VMRegisterModuleFromImport(
+      VMCxt, const_cast<const WasmEdge_ImportObjectContext *>(imp_obj.get())));
   return res;
 }
 
@@ -397,5 +375,66 @@ pybind11::tuple pysdk::VM::execute_registered(std::string &mod_name,
   }
 
   return pybind11::make_tuple(res, ret);
+}
+
+pybind11::dict pysdk::VM::get_functions(uint32_t &len) {
+  pybind11::dict dict;
+  WasmEdge_String Names[len];
+  const WasmEdge_FunctionTypeContext *FuncTypes[len];
+  const auto len_api = WasmEdge_VMGetFunctionList(VMCxt, Names, FuncTypes, len);
+
+  for (size_t i = 0; i < len_api; i++) {
+    char buf[Names[i].Length];
+    WasmEdge_StringCopy(Names[i], buf, Names[i].Length);
+    dict[pybind11::str(std::string(buf))] = pysdk::FunctionTypeContext(
+        const_cast<WasmEdge_FunctionTypeContext *>(FuncTypes[i]));
+  }
+  return dict;
+}
+
+uint32_t pysdk::VM::get_functions_len() {
+  return WasmEdge_VMGetFunctionListLength(VMCxt);
+}
+
+pysdk::FunctionTypeContext pysdk::VM::get_function_type(std::string &name) {
+  WasmEdge_String str = WasmEdge_StringCreateByCString(name.c_str());
+  pysdk::FunctionTypeContext cxt(const_cast<WasmEdge_FunctionTypeContext *>(
+      WasmEdge_VMGetFunctionType(VMCxt, str)));
+  WasmEdge_StringDelete(str);
+  return cxt;
+}
+
+pysdk::FunctionTypeContext
+pysdk::VM::get_function_type_registered(std::string &mod_name,
+                                        std::string &name) {
+  WasmEdge_String mod = WasmEdge_StringCreateByCString(mod_name.c_str());
+  WasmEdge_String func = WasmEdge_StringCreateByCString(name.c_str());
+  pysdk::FunctionTypeContext cxt(const_cast<WasmEdge_FunctionTypeContext *>(
+      WasmEdge_VMGetFunctionTypeRegistered(VMCxt, mod, func)));
+  WasmEdge_StringDelete(mod);
+  WasmEdge_StringDelete(func);
+  return cxt;
+}
+
+pysdk::import_object
+pysdk::VM::get_import_module_context(WasmEdge_HostRegistration &reg) {
+  return pysdk::import_object(WasmEdge_VMGetImportModuleContext(VMCxt, reg));
+}
+
+pysdk::StatisticsContext pysdk::VM::get_statistics_context() {
+  return pysdk::StatisticsContext(WasmEdge_VMGetStatisticsContext(VMCxt));
+}
+
+pysdk::Store pysdk::VM::get_store_cxt() {
+  return pysdk::Store(WasmEdge_VMGetStoreContext(VMCxt));
+}
+
+pysdk::result pysdk::VM::instantiate() {
+  return pysdk::result(WasmEdge_VMInstantiate(VMCxt));
+}
+
+pysdk::result pysdk::VM::load_from_ast(pysdk::ASTModuleCxt &ast) {
+  return pysdk::result(WasmEdge_VMLoadWasmFromASTModule(
+      VMCxt, const_cast<const WasmEdge_ASTModuleContext *>(ast.get())));
 }
 /* --------------- VM End -------------------------------- */

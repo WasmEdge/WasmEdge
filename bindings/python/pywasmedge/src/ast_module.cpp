@@ -4,7 +4,15 @@
 
 pysdk::ASTModuleCxt::ASTModuleCxt() { ASTCxt = NULL; }
 
-pysdk::ASTModuleCxt::~ASTModuleCxt() { WasmEdge_ASTModuleDelete(ASTCxt); }
+pysdk::ASTModuleCxt::ASTModuleCxt(WasmEdge_ASTModuleContext *cxt) {
+  ASTCxt = cxt;
+  external = true;
+}
+
+pysdk::ASTModuleCxt::~ASTModuleCxt() {
+  if (!external)
+    WasmEdge_ASTModuleDelete(ASTCxt);
+}
 
 WasmEdge_ASTModuleContext *pysdk::ASTModuleCxt::get() { return ASTCxt; }
 WasmEdge_ASTModuleContext **pysdk::ASTModuleCxt::get_addr() { return &ASTCxt; }

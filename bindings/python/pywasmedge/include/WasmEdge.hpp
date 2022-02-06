@@ -80,9 +80,11 @@ public:
 class Store {
 private:
   WasmEdge_StoreContext *StoreCxt;
+  bool external = false;
 
 public:
   Store();
+  Store(WasmEdge_StoreContext *);
   ~Store();
   const char *doc() { return pysdk::Store_doc; }
   WasmEdge_StoreContext *get();
@@ -94,9 +96,11 @@ public:
 class ASTModuleCxt {
 private:
   WasmEdge_ASTModuleContext *ASTCxt;
+  bool external = false;
 
 public:
   ASTModuleCxt();
+  ASTModuleCxt(WasmEdge_ASTModuleContext *);
   ~ASTModuleCxt();
   WasmEdge_ASTModuleContext *get();
   WasmEdge_ASTModuleContext **get_addr();
@@ -251,12 +255,23 @@ public:
   WasmEdge_GlobalTypeContext *get();
 };
 
+class StatisticsContext {
+private:
+  WasmEdge_StatisticsContext *StatCxt;
+  bool external = false;
+
+public:
+  StatisticsContext(WasmEdge_StatisticsContext *);
+  ~StatisticsContext();
+};
+
 class import_object {
 private:
   WasmEdge_ImportObjectContext *ModCxt;
 
 public:
   import_object(std::string &);
+  import_object(WasmEdge_ImportObjectContext *);
   ~import_object();
   WasmEdge_ImportObjectContext *get();
   void add(Function &, std::string &);
@@ -281,8 +296,6 @@ public:
   pybind11::tuple run(pybind11::object, pybind11::object, pybind11::object,
                       std::string &);
 
-  pybind11::list list_exported_functions();
-
   result register_module_from_file(std::string &, std::string &);
   result register_module_from_ast(std::string &, ASTModuleCxt &);
   result register_module_from_buffer(std::string &, pybind11::tuple);
@@ -290,6 +303,17 @@ public:
 
   pybind11::tuple execute_registered(std::string &, std::string &,
                                      pybind11::list, const uint32_t &);
+
+  pybind11::dict get_functions(uint32_t &);
+  uint32_t get_functions_len();
+  FunctionTypeContext get_function_type(std::string &);
+  FunctionTypeContext get_function_type_registered(std::string &,
+                                                   std::string &);
+  import_object get_import_module_context(WasmEdge_HostRegistration &);
+  StatisticsContext get_statistics_context();
+  Store get_store_cxt();
+  result instantiate();
+  result load_from_ast(pysdk::ASTModuleCxt &);
 };
 
 } // namespace pysdk

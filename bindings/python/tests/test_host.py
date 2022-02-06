@@ -111,14 +111,14 @@ def test_host_function():
         0x0B,
     )
 
-    nums = [
+    nums = (
         WasmEdge.Value(1234, WasmEdge.Type.I32),
         WasmEdge.Value(5678, WasmEdge.Type.I32),
-    ]
+    )
 
     executor_function_name = "addTwo"
 
-    res, l = vm.run(tup, nums, 1, executor_function_name)
+    res, l = vm.RunWasmFromBuffer(tup, nums, executor_function_name, 1)
 
     assert res
 

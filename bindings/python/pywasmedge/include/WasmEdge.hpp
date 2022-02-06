@@ -318,6 +318,8 @@ public:
   result load_from_file(std::string &);
   pybind11::tuple run_from_ast(pysdk::ASTModuleCxt &, std::string &,
                                pybind11::tuple, uint32_t &);
+  pybind11::tuple run_from_buffer(pybind11::tuple, pybind11::tuple,
+                                  std::string &, uint32_t &);
 };
 
 } // namespace pysdk

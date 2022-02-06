@@ -151,9 +151,6 @@ PYBIND11_MODULE(WasmEdge, module) {
   pybind11::tuple (pysdk::VM::*run)(pybind11::object, pybind11::object,
                                     pybind11::object, pybind11::object,
                                     pybind11::object) = &pysdk::VM::run;
-  pybind11::tuple (pysdk::VM::*run_wasm_buffer)(
-      pybind11::object, pybind11::object, pybind11::object, std::string &) =
-      &pysdk::VM::run;
 
   pybind11::class_<pysdk::VM>(module, "VM")
       .def(pybind11::init())
@@ -163,7 +160,7 @@ PYBIND11_MODULE(WasmEdge, module) {
       .def("__doc__", &pysdk::VM::doc)
       .def("run", run)
       .def("run", run_step_by_step)
-      .def("run", run_wasm_buffer)
+      .def("RunWasmFromBuffer", &pysdk::VM::run_from_buffer)
       .def("RunWasmFromASTModule", &pysdk::VM::run_from_ast)
       .def("RegisterModuleFromASTModule", &pysdk::VM::register_module_from_ast)
       .def("RegisterModuleFromBuffer", &pysdk::VM::register_module_from_buffer)

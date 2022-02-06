@@ -247,14 +247,11 @@ pybind11::tuple pysdk::VM::run(pybind11::object _FileName,
   return pybind11::make_tuple(res, returns);
 }
 
-pybind11::tuple pysdk::VM::run(pybind11::object wasm_buffer_,
-                               pybind11::object params_,
-                               pybind11::object return_len_,
-                               std::string &executor_func_name) {
+pybind11::tuple pysdk::VM::run_from_buffer(pybind11::tuple wasm_buffer,
+                                           pybind11::tuple params_,
+                                           std::string &executor_func_name,
+                                           uint32_t &return_len) {
 
-  auto return_len = return_len_.cast<int>();
-
-  auto wasm_buffer = wasm_buffer_.cast<pybind11::tuple>();
   pybind11::list returns;
 
   auto params = params_.cast<pybind11::tuple>();

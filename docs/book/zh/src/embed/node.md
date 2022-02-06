@@ -87,14 +87,14 @@ pub fn say(s: String) -> String {
 }
 ```
 
-然后你可以将 Rust 源代码编译成 WebAssembly 字节码，并且生成相应的 JavaScript 模块供 Node.js host 环境。
+然后你可以将 Rust 源代码编译成 WebAssembly 字节码，并且生成相应的 JavaScript 模块供 Node.js host 环境调用。
 
 ```bash
 $ rustwasmc build
 ```
 生成的文件在 `pkg/` 目录下，`.wasm` 文件是 WebAssembly 字节码程序，`.js` 文件是 JavaScript 模块。
 
-### The Node.js host 应用程序
+### Node.js host 应用程序
 
 然后进入 `node` 文件夹下，检查 JavaScript 程序 `app.js`。有了生成的 `wasmedge_nodejs_starter_lib.js` 模块，就很容易写出调用 WebAssembly 函数的 JavaScript 了。下面是 node 应用程序 `app.js`。简单的从生成的模块中引入 `say()` 函数。 node 应用程序从 HTTP GET 请求中拿到 `name` 参数后返回 “hello `name`”。
 
@@ -118,7 +118,7 @@ server.listen(port, hostname, () => {
 });
 ```
 
-向下面一样启动 Node.js 应用程序。
+像下面一样启动 Node.js 应用程序。
 
 ```bash
 $ node node/app.js
@@ -133,7 +133,7 @@ hello Wasm
 ```
 
 ## 完整的 web 应用程序
-下面的例子展示了一个计算二次方程根的 web 应用程序，请在这里查看[完整源代码]](https://github.com/second-state/wasm-learning/tree/master/nodejs/quadratic).
+下面的例子展示了一个计算二次方程根的 web 应用程序，请在这里查看[完整源代码](https://github.com/second-state/wasm-learning/tree/master/nodejs/quadratic).
 
 用户在 web 表单中输入 `a`, `b`, `c` 三个值，web 应用程序调用 web 服务 `/solve`，计算出二次方程的根。
 
@@ -156,7 +156,7 @@ $(function() {
     $('#solve').ajaxForm(options);
 });
 ```
-[Node.js 应用程序](https://github.com/second-state/wasm-learning/blob/master/nodejs/quadratic/node/server.js)在 `/solve` URL 端点后面如下。他从输入表单中读取数据，将他们作为数组传递给 `solve` 函数，将返回结果放到 HTTP 返回内容中。
+`/solve` URL 端点后的 [Node.js 应用程序](https://github.com/second-state/wasm-learning/blob/master/nodejs/quadratic/node/server.js)如下所示。他从输入表单中读取数据，将他们作为数组传递给 `solve` 函数，将返回结果放到 HTTP 返回内容中。
 
 ```javascript
 app.post('/solve', function (req, res) {
@@ -201,7 +201,7 @@ $ node node/server.js
 
 在 Rust 和 JavaScript 之间除了可以传递字符串值外， `rustwasmc` 工具支持下面的数据类型。
 
-* Rust 调用参数可以是 `i32`, `String`, `&str`, `Vec<u8>`, 和 `&[u8]` 的组合。
+* Rust 调用参数可以是 `i32`、`String`、`&str`、`Vec<u8>` 和 `&[u8]` 的组合。
 * 返回值可能是 `i32` 或者 `String` 或者 `Vec<u8>` 或者 void。
 * 对于复杂的数据结构，比如结构体，你可以使用 JSON 字符串来传递数据。 
 

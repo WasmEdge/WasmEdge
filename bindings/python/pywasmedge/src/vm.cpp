@@ -8,11 +8,6 @@ pysdk::VM::VM() { VMCxt = WasmEdge_VMCreate(NULL, NULL); }
 pysdk::VM::VM(pysdk::Store &store) {
 
   // ;
-  // WasmEdge_VMLoadWasmFromFile();
-  // WasmEdge_VMRegisterModuleFromASTModule();
-  // WasmEdge_VMRegisterModuleFromBuffer();
-  // WasmEdge_VMRegisterModuleFromFile();
-  // WasmEdge_VMRegisterModuleFromImport();
   // WasmEdge_VMRunWasmFromASTModule();
   // WasmEdge_VMRunWasmFromBuffer();
   // WasmEdge_VMRunWasmFromFile();

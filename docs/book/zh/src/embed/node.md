@@ -6,7 +6,7 @@
 * host 应用程序是一个用 JavaScript 写的 Node.js web 应用程序，它可以调用 WebAssembly 函数。
 * WebAssembly 字节码程序是用 Rust 写的，运行在 WasmEdge Runtime，可以被 Node.js web 应用程序调用。
 
-> [Fork 这个 Github 仓库](https://github.com/second-state/wasmedge-nodejs-starter/fork) to start coding!
+> [Fork 这个 Github 仓库](https://github.com/second-state/wasmedge-nodejs-starter/fork)来开始写代码！
 
 ## 先决条件
 
@@ -15,11 +15,11 @@
 * 一个现代的 Linux 发行版, 比如 Ubuntu Server 20.04 LTS
 * [Rust 语言](https://www.rust-lang.org/tools/install)
 * [Node.js](https://nodejs.org/en/download/package-manager/)
-* Node.js 的 [The WasmEdge Runtime](../start/install.md#install-wasmedge-for-node.js)
-* [The rustwasmc 编译器工具链](/articles/rustwasmc)
+* Node.js 的 [WasmEdge Runtime](../start/install.md#install-wasmedge-for-node.js)
+* [rustwasmc 编译器工具链](/dev/rust/bindgen.md)
 
 ### Docker
-最简单的启动方式就是使用 Docker 来搭建开发环境。只需要[克隆这个模板工程](https://github.com/second-state/wasmedge-nodejs-starter/)到你的电脑，然后运行如下 Docker 命令：
+最简单的启动方式就是使用 Docker 来搭建开发环境。只需要[克隆这个模板](https://github.com/second-state/wasmedge-nodejs-starter/)到你的电脑，然后运行如下 Docker 命令：
 
 ```bash
 # 克隆代码到本地
@@ -32,7 +32,7 @@ $ docker run -p 3000:3000 --rm -it -v $(pwd):/app wasmedge/appdev_x86_64:0.8.2
 (docker) $ cd /app
 ```
 
-好了，你现在就可以编译和运行代码了。
+好了，你现在可以编译和运行代码了。
 
 ### 没有 Docker 的手动启动
 
@@ -60,7 +60,7 @@ $ sudo apt install -y build-essential curl wget git vim libboost-all-dev llvm-de
 $ npm install wasmedge-core
 $ npm install wasmedge-extensions
 ```
-> WasmEdge Runtime 需要最新版本的 `libstdc++`。 Ubuntu 20.04 LTS 已经有最新的库了。 如果你使用的是比较老的 Linux 发行版中，[有一些选项需要升级](/articles/ubuntu-req-ssvm-20200715/)。
+> WasmEdge Runtime 需要最新版本的 `libstdc++`。 Ubuntu 20.04 LTS 已经有最新的库了。 如果你使用的是比较老的 Linux 发行版中，有一些选项需要升级，链接的是[https://www.secondstate.io/articles/ubuntu-req-ssvm-20200715/](https://www.secondstate.io/articles/ubuntu-req-ssvm-20200715/)。
 
 然后，克隆示例源代码仓库。
 
@@ -71,11 +71,11 @@ $ cd wasmedge-nodejs-starter
 
 ## Hello World
 
-第一个示例是一个 hello world，向您展示应用程序的各个部分如何组合在一起。
+第一个示例是一个 hello world，向你展示应用程序的各个部分如何组合在一起。
 
 ### Rust 写的 WebAssembly 程序
 
-在这个例子中，Rust 程序将输入的字符串添加到 “hello” 后面。下面是 Rust 程序内容 `src/lib.rs`。你可以在这个库文件中定义多个外部方法，所有的这些方法都可以在 host JavaScript 应用中通过 WebAssembly 调用。记得需要给每个函数添加 `#[wasm_bindgen]` 注解，这样 [rustwasmc](https://github.com/second-state/rustwasmc) 就知道在构建时为这些函数生成正确的 JavaScript 到 Rust 接口。
+在这个例子中，Rust 程序将输入的字符串添加到 “hello” 后面。下面是 Rust 程序内容，位于 src/lib.rs。你可以在这个库文件中定义多个外部方法，所有的这些方法都可以在 host JavaScript 应用中通过 WebAssembly 调用。记得需要给每个函数添加 `#[wasm_bindgen]` 注解，这样 [rustwasmc](https://github.com/second-state/rustwasmc) 就知道在构建时为这些函数生成正确的 JavaScript 到 Rust 接口。
 
 ```rust
 use wasm_bindgen::prelude::*;
@@ -205,7 +205,7 @@ $ node node/server.js
 * 返回值可能是 `i32` 或者 `String` 或者 `Vec<u8>` 或者 void。
 * 对于复杂的数据结构，比如结构体，你可以使用 JSON 字符串来传递数据。 
 
-> 支持了 JSON, 你可以用任意数量的输入参数调用 Rust 函数，并返回任意数量，任意类型的结果。
+> 支持了 JSON，你可以用任意数量的输入参数调用 Rust 函数，并返回任意数量、任意类型的结果。
 
 [函数示例](https://github.com/second-state/wasm-learning/tree/master/nodejs/functions)中的 Rust 程序 `src/lib.rs` 演示了如何传递多个不同类型的调用参数和返回结果。
 
@@ -237,7 +237,7 @@ pub fn keccak_digest(s: &[u8]) -> Vec<u8> {
   return Keccak256::digest(s).as_slice().to_vec();
 }
 ```
-可能最有意思的是 `create_line()` 函数。它需要两个 JSON 字符串，每一个都代表一个 `Point` 结构，返回一个 JSON 字符串代表 `Line` 结构。注意，`Point` 和 `Line` 结构都使用了 `Serialize` 和 `Deserialize` 注解，这样 Rust 编译器就会自动生成必要的代码来支持和 JSON 字符串之间的转换。
+最有意思的可能是 `create_line()` 函数。它需要两个 JSON 字符串，每一个都代表一个 `Point` 结构，返回一个 JSON 字符串代表 `Line` 结构。注意，`Point` 和 `Line` 结构都使用了 `Serialize` 和 `Deserialize` 注解，这样 Rust 编译器就会自动生成必要的代码来支持和 JSON 字符串之间的转换。
 
 
 ```rust

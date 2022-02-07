@@ -769,6 +769,10 @@ mod tests {
         assert!(!config.exception_handling_enabled());
         assert!(!config.function_references_enabled());
         assert!(!config.memory64_enabled());
+        assert!(config.multi_value_enabled());
+        assert!(config.mutable_globals_enabled());
+        assert!(config.non_trap_conversions_enabled());
+        assert!(config.sign_extension_operators_enabled());
         assert!(config.reference_types_enabled());
         assert!(config.simd_enabled());
         assert!(!config.tail_call_enabled());
@@ -810,6 +814,10 @@ mod tests {
         assert!(config.exception_handling_enabled());
         assert!(config.function_references_enabled());
         assert!(config.memory64_enabled());
+        assert!(!config.multi_value_enabled());
+        assert!(!config.mutable_globals_enabled());
+        assert!(!config.non_trap_conversions_enabled());
+        assert!(!config.sign_extension_operators_enabled());
         assert!(!config.reference_types_enabled());
         assert!(!config.simd_enabled());
         assert!(config.tail_call_enabled());

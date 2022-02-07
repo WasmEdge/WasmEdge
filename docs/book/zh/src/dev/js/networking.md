@@ -1,6 +1,6 @@
 # 网络
 
-QuickJS WasmEdge Runtime 支持 WasmEdge 的[网络 sockets 拓展](https://github.com/second-state/wasmedge_wasi_socket)， 所以JavaScript 程序也可以在网络上建立HTTP 连接。此文将向你展示相关的 [HTTP 客户端](https://github.com/second-state/wasmedge-quickjs/blob/main/example_js/wasi_http_client.js)和 [HTTP 服务端](https://github.com/second-state/wasmedge-quickjs/blob/main/example_js/wasi_http_echo.js)例子.
+QuickJS WasmEdge Runtime 支持 WasmEdge 的[网络 sockets 拓展](https://github.com/second-state/wasmedge_wasi_socket)， 所以 JavaScript 程序也可以在网络上建立 HTTP 连接。此文将向你展示相关的 [HTTP 客户端](https://github.com/second-state/wasmedge-quickjs/blob/main/example_js/wasi_http_client.js)和 [HTTP 服务端](https://github.com/second-state/wasmedge-quickjs/blob/main/example_js/wasi_http_echo.js)例子.
 
 
 > WasmEdge 的网络 API 是非阻塞的，所以能够开发出强异步 I/O 交互的应用。当网络请求 handler 正在创建一个对外的请求并等待服务应答的时候，应用仍然可以处理另外一个进来的请求。这让单线程应用可以并发处理多个请求。
@@ -138,7 +138,7 @@ echo:WasmEdge
 ```
 
 
-WasmEdge 的 `wasi_net` 包为 JavaScript 应用提供了一种自适应的动态网络栈。在很多高级用法中，我们基于这个包，设计了很多抽象良好的API。在下一章节，我们会带着具体的常见应用，向你展示如何处理 HTTP 请求。在 [React 服务器渲染文章](ssr.md)中，我们还将会讨论一下如何基于这种异步网络的 API 来创建一个 React 服务器渲染功能。
+WasmEdge 的 `wasi_net` 包为 JavaScript 应用提供了一种自适应的动态网络栈。在很多高级用法中，我们基于这个包，设计了很多抽象良好的 API。在下一章节，我们会带着具体的常见应用，向你展示如何处理 HTTP 请求。在 [React 服务器渲染文章](ssr.md)中，我们还将会讨论一下如何基于这种异步网络的 API 来创建一个 React 服务器渲染功能。
 
 ## JavaScript HTTP 服务器例子
 
@@ -201,7 +201,7 @@ async function server_start() {
 server_start();
 ```
 
-`server_start()` 方法会启动一个监听 8000 端口的服务。当请求进来，会被传给 `handle_client()` 方法来处理。当请求是合法的HTTP 请求，对应的 handler 方法会调用 `handle_req()` 来解析对应的字段，组装新的 HTTP 应答，然后异步把应答数据发送回去。这意味着当应用发送完数据，又能继续处理下一个进来的请求了。
+`server_start()` 方法会启动一个监听 8000 端口的服务。当请求进来，会被传给 `handle_client()` 方法来处理。当请求是合法的 HTTP 请求，对应的 handler 方法会调用 `handle_req()` 来解析对应的字段，组装新的 HTTP 应答，然后异步把应答数据发送回去。这意味着当应用发送完数据，又能继续处理下一个进来的请求了。
 
 
 使用以下 CLI 命令，就可以在 WasmEdge runtime 中运行这段 JavaScript 代码。因为它将作为一个服务运行，你最好是以后台应用的形式运行。

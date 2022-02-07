@@ -2,6 +2,7 @@
 
 use crate::{wasmedge, WasmEdgeError, WasmEdgeResult};
 
+#[derive(Debug)]
 /// Struct of WasmEdge Statistics.
 pub struct Statistics {
     pub(crate) inner: InnerStat,
@@ -64,12 +65,12 @@ impl Statistics {
     /// # Arguments
     ///
     /// - `cost_table` specifies the slice of cost table.
-    pub fn set_cost_table(&mut self, cost_table: &mut impl AsMut<[u64]>) {
+    pub fn set_cost_table(&mut self, cost_table: impl AsRef<[u64]>) {
         unsafe {
             wasmedge::WasmEdge_StatisticsSetCostTable(
                 self.inner.0,
-                cost_table.as_mut().as_mut_ptr(),
-                cost_table.as_mut().len() as u32,
+                cost_table.as_ref().as_ptr() as *mut _,
+                cost_table.as_ref().len() as u32,
             )
         }
     }

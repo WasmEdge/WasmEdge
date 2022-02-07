@@ -1,6 +1,4 @@
-use crate::{
-    error::WasmEdgeResult, wasmedge, Config, GlobalType, MemoryType, Signature, TableType,
-};
+use crate::{error::Result, wasmedge, Config, GlobalType, MemoryType, Signature, TableType};
 use std::{borrow::Cow, path::Path};
 
 #[derive(Debug)]
@@ -8,7 +6,7 @@ pub struct Module {
     pub(crate) inner: wasmedge::Module,
 }
 impl Module {
-    pub fn from_file(config: Option<&Config>, file: impl AsRef<Path>) -> WasmEdgeResult<Self> {
+    pub fn from_file(config: Option<&Config>, file: impl AsRef<Path>) -> Result<Self> {
         let config = match config {
             Some(config) => Some(&config.inner),
             None => None,
@@ -22,7 +20,7 @@ impl Module {
         Ok(Self { inner })
     }
 
-    pub fn from_buffer(config: Option<&Config>, buffer: impl AsRef<[u8]>) -> WasmEdgeResult<Self> {
+    pub fn from_buffer(config: Option<&Config>, buffer: impl AsRef<[u8]>) -> Result<Self> {
         let config = match config {
             Some(config) => Some(&config.inner),
             None => None,
@@ -76,7 +74,7 @@ impl<'module> ImportType<'module> {
         self.inner.module_name()
     }
 
-    pub fn ty(&self) -> WasmEdgeResult<ExternalType> {
+    pub fn ty(&self) -> Result<ExternalType> {
         match self.inner.ty() {
             wasmedge::ExternalType::Function => {
                 let func_ty = self.inner.function_type(&self.module.inner)?;
@@ -108,7 +106,7 @@ impl<'module> ExportType<'module> {
         self.inner.name()
     }
 
-    pub fn ty(&self) -> WasmEdgeResult<ExternalType> {
+    pub fn ty(&self) -> Result<ExternalType> {
         match self.inner.ty() {
             wasmedge::ExternalType::Function => {
                 let func_ty = self.inner.function_type(&self.module.inner)?;

@@ -1,7 +1,7 @@
 use crate::wasmedge;
 use thiserror::Error;
 
-pub type WasmEdgeResult<T> = Result<T, WasmEdgeError>;
+pub type Result<T> = std::result::Result<T, WasmEdgeError>;
 
 #[derive(Error, Clone, Debug, PartialEq)]
 pub enum WasmEdgeError {

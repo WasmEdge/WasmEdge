@@ -1,4 +1,4 @@
-use crate::{error::WasmEdgeResult, wasmedge, Func, Global, Memory, Table, Vm};
+use crate::{error::Result, wasmedge, Func, Global, Memory, Table, Vm};
 use std::marker::PhantomData;
 
 #[derive(Debug)]
@@ -7,7 +7,7 @@ pub struct Store<'vm> {
     pub(crate) _marker: PhantomData<&'vm Vm>,
 }
 impl<'vm> Store<'vm> {
-    pub fn new() -> WasmEdgeResult<Self> {
+    pub fn new() -> Result<Self> {
         let inner = wasmedge::Store::create()?;
         Ok(Self {
             inner,
@@ -33,7 +33,7 @@ impl<'vm> Store<'vm> {
     }
 
     /// Returns all exported functions in the store, including both registered and non-registered.
-    pub fn functions(&self) -> WasmEdgeResult<Vec<Func>> {
+    pub fn functions(&self) -> Result<Vec<Func>> {
         let mut funcs = Vec::new();
 
         // funcs in the active module
@@ -72,7 +72,7 @@ impl<'vm> Store<'vm> {
         Ok(funcs)
     }
 
-    pub fn functions_by_module(&self, mod_name: impl AsRef<str>) -> WasmEdgeResult<Vec<Func>> {
+    pub fn functions_by_module(&self, mod_name: impl AsRef<str>) -> Result<Vec<Func>> {
         let mut funcs = Vec::new();
 
         // funcs in the registered modules
@@ -92,7 +92,7 @@ impl<'vm> Store<'vm> {
         Ok(funcs)
     }
 
-    pub fn functions_by_name(&self, func_name: impl AsRef<str>) -> WasmEdgeResult<Vec<Func>> {
+    pub fn functions_by_name(&self, func_name: impl AsRef<str>) -> Result<Vec<Func>> {
         let funcs = self
             .functions()?
             .into_iter()
@@ -101,11 +101,7 @@ impl<'vm> Store<'vm> {
         Ok(funcs.collect())
     }
 
-    pub fn function(
-        &self,
-        func_name: impl AsRef<str>,
-        mod_name: Option<&str>,
-    ) -> WasmEdgeResult<Func> {
+    pub fn function(&self, func_name: impl AsRef<str>, mod_name: Option<&str>) -> Result<Func> {
         match mod_name {
             Some(mod_name) => {
                 let inner = self
@@ -128,7 +124,7 @@ impl<'vm> Store<'vm> {
         }
     }
 
-    pub fn tables(&self) -> WasmEdgeResult<Vec<Table>> {
+    pub fn tables(&self) -> Result<Vec<Table>> {
         let mut tables = Vec::new();
 
         // tables in the active module
@@ -169,19 +165,15 @@ impl<'vm> Store<'vm> {
         Ok(tables)
     }
 
-    pub fn tables_by_module(&self, mod_name: impl AsRef<str>) -> WasmEdgeResult<Vec<Table>> {
+    pub fn tables_by_module(&self, _mod_name: impl AsRef<str>) -> Result<Vec<Table>> {
         unimplemented!()
     }
 
-    pub fn tables_by_name(&self, table_name: impl AsRef<str>) -> WasmEdgeResult<Vec<Table>> {
+    pub fn tables_by_name(&self, _table_name: impl AsRef<str>) -> Result<Vec<Table>> {
         unimplemented!()
     }
 
-    pub fn table(
-        &self,
-        table_name: impl AsRef<str>,
-        mod_name: Option<&str>,
-    ) -> WasmEdgeResult<Table> {
+    pub fn table(&self, table_name: impl AsRef<str>, mod_name: Option<&str>) -> Result<Table> {
         match mod_name {
             Some(mod_name) => {
                 let inner = self
@@ -206,7 +198,7 @@ impl<'vm> Store<'vm> {
         }
     }
 
-    pub fn memories(&self) -> WasmEdgeResult<Vec<Memory>> {
+    pub fn memories(&self) -> Result<Vec<Memory>> {
         let mut memories = Vec::new();
 
         // memories in the active module
@@ -247,19 +239,15 @@ impl<'vm> Store<'vm> {
         Ok(memories)
     }
 
-    pub fn memories_by_module(&self, mod_name: impl AsRef<str>) -> WasmEdgeResult<Vec<Memory>> {
+    pub fn memories_by_module(&self, _mod_name: impl AsRef<str>) -> Result<Vec<Memory>> {
         unimplemented!()
     }
 
-    pub fn memories_by_name(&self, mem_name: impl AsRef<str>) -> WasmEdgeResult<Vec<Memory>> {
+    pub fn memories_by_name(&self, _mem_name: impl AsRef<str>) -> Result<Vec<Memory>> {
         unimplemented!()
     }
 
-    pub fn memory(
-        &self,
-        mem_name: impl AsRef<str>,
-        mod_name: Option<&str>,
-    ) -> WasmEdgeResult<Memory> {
+    pub fn memory(&self, mem_name: impl AsRef<str>, mod_name: Option<&str>) -> Result<Memory> {
         match mod_name {
             Some(mod_name) => {
                 let inner = self
@@ -284,7 +272,7 @@ impl<'vm> Store<'vm> {
         }
     }
 
-    pub fn globals(&self) -> WasmEdgeResult<Vec<Global>> {
+    pub fn globals(&self) -> Result<Vec<Global>> {
         let mut globals = Vec::new();
 
         // globals in the active module
@@ -325,19 +313,15 @@ impl<'vm> Store<'vm> {
         Ok(globals)
     }
 
-    pub fn globals_by_module(&self, mod_name: impl AsRef<str>) -> WasmEdgeResult<Vec<Global>> {
+    pub fn globals_by_module(&self, mod_name: impl AsRef<str>) -> Result<Vec<Global>> {
         unimplemented!()
     }
 
-    pub fn globals_by_name(&self, global_name: impl AsRef<str>) -> WasmEdgeResult<Vec<Global>> {
+    pub fn globals_by_name(&self, global_name: impl AsRef<str>) -> Result<Vec<Global>> {
         unimplemented!()
     }
 
-    pub fn global(
-        &self,
-        global_name: impl AsRef<str>,
-        mod_name: Option<&str>,
-    ) -> WasmEdgeResult<Global> {
+    pub fn global(&self, global_name: impl AsRef<str>, mod_name: Option<&str>) -> Result<Global> {
         match mod_name {
             Some(mod_name) => {
                 let inner = self
@@ -366,7 +350,7 @@ impl<'vm> Store<'vm> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{ConfigBuilder, Module, SignatureBuilder, ValType, Value, VmBuilder};
+    use crate::{ConfigBuilder, Module, SignatureBuilder, ValType, VmBuilder};
 
     #[test]
     fn test_store_instance() {

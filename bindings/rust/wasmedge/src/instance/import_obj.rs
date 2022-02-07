@@ -1,4 +1,4 @@
-use crate::{error::WasmEdgeResult, wasmedge, Func, GlobalType, MemoryType, TableType, Value, Vm};
+use crate::{error::Result, wasmedge, Func, GlobalType, MemoryType, TableType, Value, Vm};
 use std::marker::PhantomData;
 
 #[derive(Debug)]
@@ -6,7 +6,7 @@ pub struct ImportObject {
     pub(crate) inner: wasmedge::ImportObj,
 }
 impl ImportObject {
-    pub fn new(name: impl AsRef<str>) -> WasmEdgeResult<Self> {
+    pub fn new(name: impl AsRef<str>) -> Result<Self> {
         let inner = wasmedge::ImportObj::create(name.as_ref())?;
         Ok(Self { inner })
     }
@@ -15,7 +15,7 @@ impl ImportObject {
         args: Option<Vec<&'a str>>,
         envs: Option<Vec<&'a str>>,
         preopens: Option<Vec<&'a str>>,
-    ) -> WasmEdgeResult<Self> {
+    ) -> Result<Self> {
         let inner = wasmedge::ImportObj::create_wasi(args, envs, preopens)?;
         Ok(Self { inner })
     }
@@ -23,7 +23,7 @@ impl ImportObject {
     pub fn new_as_wasmedge_process<'a>(
         allowed_cmds: Option<Vec<&'a str>>,
         allowed: bool,
-    ) -> WasmEdgeResult<Self> {
+    ) -> Result<Self> {
         let inner = wasmedge::ImportObj::create_wasmedge_process(allowed_cmds, allowed)?;
         Ok(Self { inner })
     }
@@ -37,21 +37,21 @@ impl ImportObject {
         name: impl AsRef<str>,
         global_ty: GlobalType,
         value: Value,
-    ) -> WasmEdgeResult<()> {
+    ) -> Result<()> {
         let mut ty = global_ty.to_raw()?;
         let mut global = wasmedge::Global::create(&mut ty, value)?;
         self.inner.add_global(name.as_ref(), &mut global);
         Ok(())
     }
 
-    fn add_memory(&mut self, name: impl AsRef<str>, memory_ty: MemoryType) -> WasmEdgeResult<()> {
+    fn add_memory(&mut self, name: impl AsRef<str>, memory_ty: MemoryType) -> Result<()> {
         let mut ty = memory_ty.to_raw()?;
         let mut memory = wasmedge::Memory::create(&mut ty)?;
         self.inner.add_memory(name.as_ref(), &mut memory);
         Ok(())
     }
 
-    fn add_table(&mut self, name: impl AsRef<str>, table_ty: TableType) -> WasmEdgeResult<()> {
+    fn add_table(&mut self, name: impl AsRef<str>, table_ty: TableType) -> Result<()> {
         let mut ty = table_ty.to_raw()?;
         let mut table = wasmedge::Table::create(&mut ty)?;
         self.inner.add_table(name.as_ref(), &mut table);
@@ -524,7 +524,7 @@ mod tests {
         assert_eq!(value.func_idx().unwrap(), 5);
     }
 
-    fn real_add(inputs: Vec<Value>) -> Result<Vec<Value>, u8> {
+    fn real_add(inputs: Vec<Value>) -> std::result::Result<Vec<Value>, u8> {
         if inputs.len() != 2 {
             return Err(1);
         }

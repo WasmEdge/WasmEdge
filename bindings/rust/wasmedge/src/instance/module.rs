@@ -34,11 +34,19 @@ impl Module {
         Ok(Self { inner })
     }
 
+    pub fn count_of_imports(&self) -> u32 {
+        self.inner.count_of_imports()
+    }
+
     pub fn import_iter(&self) -> impl Iterator<Item = ImportType> {
         self.inner.imports_iter().map(|inner| ImportType {
             inner,
             module: self,
         })
+    }
+
+    pub fn count_of_exports(&self) -> u32 {
+        self.inner.count_of_exports()
     }
 
     pub fn export_iter(&self) -> impl Iterator<Item = ExportType> {

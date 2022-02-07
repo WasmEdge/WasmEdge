@@ -30,10 +30,6 @@ AesGcm<KeyBit>::KeyBuilder::import(Span<uint8_t const> Raw) {
                                std::vector<uint8_t>{Raw.begin(), Raw.end()});
 }
 
-template <uint32_t KeyBit> size_t AesGcm<KeyBit>::KeyBuilder::keyLen() {
-  return KeyBit / 8;
-}
-
 template <uint32_t KeyBit>
 WasiCryptoExpect<std::unique_ptr<typename AesGcm<KeyBit>::State>>
 AesGcm<KeyBit>::State::open(std::shared_ptr<Key> OptKey,

@@ -11,9 +11,7 @@ namespace Symmetric {
 template <int KeyBits>
 WasiCryptoExpect<std::unique_ptr<Key>>
 Xoodyak<KeyBits>::KeyBuilder::generate(std::shared_ptr<Options>) {
-  std::vector<uint8_t> Raw(keyLen(), 0);
-
-  ensureOrReturn(Raw.size() <= INT_MAX, __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
+  std::vector<uint8_t> Raw(KeyBits / 8);
   ensureOrReturn(RAND_bytes(Raw.data(), static_cast<int>(Raw.size())),
                  __WASI_CRYPTO_ERRNO_RNG_ERROR);
 
@@ -25,10 +23,6 @@ WasiCryptoExpect<std::unique_ptr<Key>>
 Xoodyak<KeyBits>::KeyBuilder::import(Span<uint8_t const> Raw) {
   return std::make_unique<Key>(Alg,
                                std::vector<uint8_t>{Raw.begin(), Raw.end()});
-}
-
-template <int KeyBits> size_t Xoodyak<KeyBits>::KeyBuilder::keyLen() {
-  return KeyBits / 8;
 }
 
 template <int KeyBits>

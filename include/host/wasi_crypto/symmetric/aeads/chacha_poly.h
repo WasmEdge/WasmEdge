@@ -22,8 +22,6 @@ public:
 
     WasiCryptoExpect<std::unique_ptr<Key>>
     import(Span<uint8_t const> Raw) override;
-
-    size_t keyLen() override;
   };
 
   class State final : public AEADsState {

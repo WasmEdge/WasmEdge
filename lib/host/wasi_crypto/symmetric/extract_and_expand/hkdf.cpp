@@ -11,9 +11,7 @@ namespace Symmetric {
 template <uint32_t Sha, uint32_t Mode>
 WasiCryptoExpect<std::unique_ptr<Key>>
 Hkdf<Sha, Mode>::KeyBuilder::generate(std::shared_ptr<Options>) {
-  std::vector<uint8_t> Data(keyLen(), 0);
-
-  ensureOrReturn(Data.size() <= INT_MAX, __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
+  std::vector<uint8_t> Data(Sha / 8, 0);
   ensureOrReturn(RAND_bytes(Data.data(), static_cast<int>(Data.size())),
                  __WASI_CRYPTO_ERRNO_RNG_ERROR);
 
@@ -25,11 +23,6 @@ WasiCryptoExpect<std::unique_ptr<Key>>
 Hkdf<Sha, Mode>::KeyBuilder::import(Span<uint8_t const> Raw) {
   return std::make_unique<Key>(Alg,
                                std::vector<uint8_t>{Raw.begin(), Raw.end()});
-}
-
-template <uint32_t Sha, uint32_t Mode>
-size_t Hkdf<Sha, Mode>::KeyBuilder::keyLen() {
-  return Sha / 8;
 }
 
 template <uint32_t Sha, uint32_t Mode>

@@ -1,5 +1,5 @@
 use crate::{
-    error::Result, wasmedge, Config, ImportMod, Module, Store, Value, WasiImportMod,
+    error::Result, wasmedge, Config, ImportMod, Module, Statistics, Store, Value, WasiImportMod,
     WasmEdgeProcessImportMod,
 };
 use std::{marker::PhantomData, path::Path};
@@ -59,18 +59,6 @@ pub struct Vm {
     pub(crate) inner: wasmedge::Vm,
 }
 impl Vm {
-    pub fn store_mut(&self) -> Result<Store> {
-        let inner = self.inner.store_mut()?;
-        Ok(Store {
-            inner,
-            _marker: PhantomData,
-        })
-    }
-
-    pub fn reset(&mut self) {
-        self.inner.reset()
-    }
-
     // validate + instantiate + register
     pub fn register_wasm_from_module(
         mut self,
@@ -124,25 +112,29 @@ impl Vm {
         Ok(returns)
     }
 
-    pub fn load_from_file() -> Result<Self> {
-        unimplemented!()
-    }
+    // pub fn load_from_file() -> Result<Self> {
+    //     unimplemented!()
+    // }
 
-    pub fn load_from_buffer() -> Result<Self> {
-        unimplemented!()
-    }
+    // pub fn load_from_buffer() -> Result<Self> {
+    //     unimplemented!()
+    // }
 
-    pub fn load_from_module() -> Result<Self> {
-        unimplemented!()
-    }
+    // /// Loads a module.
+    // pub fn load(self, mut module: Module) -> Result<Self> {
+    //     self.inner.load_wasm_from_module(&mut module.inner)?;
+    //     Ok(self)
+    // }
 
-    pub fn validate() -> Result<Self> {
-        unimplemented!()
-    }
+    // pub fn validate(self) -> Result<Self> {
+    //     self.inner.validate()?;
+    //     Ok(self)
+    // }
 
-    pub fn instantiate() -> Result<Self> {
-        unimplemented!()
-    }
+    // pub fn instantiate(self) -> Result<Self> {
+    //     self.inner.instantiate()?;
+    //     Ok(self)
+    // }
 
     pub fn run_func(
         &self,
@@ -153,16 +145,21 @@ impl Vm {
         match mod_name {
             Some(mod_name) => {
                 // run a function in the registered module
-                // self.inner
-                //     .run_registered_function(mod_name, func_name.as_ref(), args)
-                todo!()
+                let returns =
+                    self.inner
+                        .run_registered_function(mod_name, func_name.as_ref(), args)?;
+                Ok(returns)
             }
             None => {
                 // run a function in the active module
-                // self.inner.run_function(func_name.as_ref(), args)
-                todo!()
+                let returns = self.inner.run_function(func_name.as_ref(), args)?;
+                Ok(returns)
             }
         }
+    }
+
+    pub fn reset(&mut self) {
+        self.inner.reset()
     }
 
     pub fn wasmedge_process_module(&mut self) -> Result<WasmEdgeProcessImportMod> {
@@ -184,12 +181,28 @@ impl Vm {
             _marker: PhantomData,
         })
     }
+
+    pub fn statistics_mut(&self) -> Result<Statistics> {
+        let inner = self.inner.statistics_mut()?;
+        Ok(Statistics {
+            inner,
+            _marker: PhantomData,
+        })
+    }
+
+    pub fn store_mut(&self) -> Result<Store> {
+        let inner = self.inner.store_mut()?;
+        Ok(Store {
+            inner,
+            _marker: PhantomData,
+        })
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{ConfigBuilder, Store};
+    use crate::Store;
 
     #[test]
     fn test_vm_create() {
@@ -204,9 +217,9 @@ mod tests {
 
         {
             // create a Config
-            let config = ConfigBuilder::new()
-                .expect("fail to create a ConfigBuilder")
-                .build();
+            let result = Config::new();
+            assert!(result.is_ok());
+            let config = result.unwrap();
 
             // create a Vm context
             let result = VmBuilder::new().with_config(&config).build();
@@ -234,9 +247,9 @@ mod tests {
 
         {
             // create a Config
-            let config = ConfigBuilder::new()
-                .expect("fail to create a ConfigBuilder")
-                .build();
+            let result = Config::new();
+            assert!(result.is_ok());
+            let config = result.unwrap();
 
             // create a Store
             let result = Store::new();

@@ -1,11 +1,11 @@
-use crate::{error::WasmEdgeResult, wasmedge};
+use crate::{error::Result, wasmedge};
 
 #[derive(Debug)]
 pub struct ConfigBuilder {
     inner: wasmedge::Config,
 }
 impl ConfigBuilder {
-    pub fn new() -> WasmEdgeResult<Self> {
+    pub fn new() -> Result<Self> {
         let inner = wasmedge::Config::create()?;
         Ok(Self { inner })
     }

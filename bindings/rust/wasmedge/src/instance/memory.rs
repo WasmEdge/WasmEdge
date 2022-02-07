@@ -1,4 +1,4 @@
-use crate::{error::WasmEdgeResult, wasmedge, ImportObject, Store};
+use crate::{error::Result, wasmedge};
 use std::marker::PhantomData;
 
 #[derive(Debug)]
@@ -28,7 +28,7 @@ impl<'store> Memory<'store> {
     }
 
     /// Returns the underlying type of this memory.
-    pub fn ty(&self) -> WasmEdgeResult<MemoryType> {
+    pub fn ty(&self) -> Result<MemoryType> {
         let ty = self.inner.ty()?;
         let limit = ty.limit();
         Ok(MemoryType {
@@ -43,19 +43,19 @@ impl<'store> Memory<'store> {
     }
 
     /// Safely reads memory contents at the given offset into a buffer.
-    pub fn read(&self, offset: u32, len: u32) -> WasmEdgeResult<Vec<u8>> {
+    pub fn read(&self, offset: u32, len: u32) -> Result<Vec<u8>> {
         let data = self.inner.get_data(offset, len)?;
         Ok(data)
     }
 
     /// Safely writes contents of a buffer to this memory at the given offset.
-    pub fn write(&mut self, data: impl IntoIterator<Item = u8>, offset: u32) -> WasmEdgeResult<()> {
+    pub fn write(&mut self, data: impl IntoIterator<Item = u8>, offset: u32) -> Result<()> {
         self.inner.set_data(data, offset)?;
         Ok(())
     }
 
     /// Grows this WebAssembly memory by `count` pages.
-    pub fn grow(&mut self, count: u32) -> WasmEdgeResult<()> {
+    pub fn grow(&mut self, count: u32) -> Result<()> {
         self.inner.grow(count)?;
         Ok(())
     }
@@ -79,7 +79,7 @@ impl MemoryType {
         self.max
     }
 
-    pub fn to_raw(self) -> WasmEdgeResult<wasmedge::MemType> {
+    pub fn to_raw(self) -> Result<wasmedge::MemType> {
         let min = self.minimum();
         let max = match self.maximum() {
             Some(max) => max,

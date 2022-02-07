@@ -1,6 +1,6 @@
 use crate::{
-    error::WasmEdgeResult, wasmedge, Config, ImportObject, ImportObjectWasi,
-    ImportObjectWasmEdgeProcess, Module, Store, Value,
+    error::Result, wasmedge, Config, ImportObject, ImportObjectWasi, ImportObjectWasmEdgeProcess,
+    Module, Store, Value,
 };
 use std::{marker::PhantomData, path::Path};
 
@@ -36,7 +36,7 @@ impl<'a> VmBuilder<'a> {
         }
     }
 
-    pub fn build(self) -> WasmEdgeResult<Vm> {
+    pub fn build(self) -> Result<Vm> {
         let inner = if self.config.is_some() && self.store.is_some() {
             wasmedge::Vm::create(
                 Some(&self.config.unwrap().inner),
@@ -59,7 +59,7 @@ pub struct Vm {
     pub(crate) inner: wasmedge::Vm,
 }
 impl Vm {
-    pub fn store_mut(&self) -> WasmEdgeResult<Store> {
+    pub fn store_mut(&self) -> Result<Store> {
         let inner = self.inner.store_mut()?;
         Ok(Store {
             inner,
@@ -76,14 +76,14 @@ impl Vm {
         mut self,
         mod_name: impl AsRef<str>,
         module: &mut Module,
-    ) -> WasmEdgeResult<Self> {
+    ) -> Result<Self> {
         self.inner
             .register_wasm_from_module(mod_name.as_ref(), &mut module.inner)?;
         Ok(self)
     }
 
     // validate + instantiate + register
-    pub fn register_wasm_from_import(mut self, import: ImportObject) -> WasmEdgeResult<Self> {
+    pub fn register_wasm_from_import(mut self, import: ImportObject) -> Result<Self> {
         self.inner.register_wasm_from_import(import.inner)?;
         Ok(self)
     }
@@ -93,7 +93,7 @@ impl Vm {
         file: impl AsRef<Path>,
         func_name: impl AsRef<str>,
         args: impl IntoIterator<Item = Value>,
-    ) -> WasmEdgeResult<Vec<Value>> {
+    ) -> Result<Vec<Value>> {
         let returns = self
             .inner
             .run_wasm_from_file(file.as_ref(), func_name.as_ref(), args)?;
@@ -105,7 +105,7 @@ impl Vm {
         buffer: &[u8],
         func_name: impl AsRef<str>,
         args: impl IntoIterator<Item = Value>,
-    ) -> WasmEdgeResult<Vec<Value>> {
+    ) -> Result<Vec<Value>> {
         let returns = self
             .inner
             .run_wasm_from_buffer(buffer.as_ref(), func_name.as_ref(), args)?;
@@ -117,30 +117,30 @@ impl Vm {
         module: &mut Module,
         func_name: impl AsRef<str>,
         args: impl IntoIterator<Item = Value>,
-    ) -> WasmEdgeResult<Vec<Value>> {
+    ) -> Result<Vec<Value>> {
         let returns =
             self.inner
                 .run_wasm_from_module(&mut module.inner, func_name.as_ref(), args)?;
         Ok(returns)
     }
 
-    pub fn load_from_file() -> WasmEdgeResult<Self> {
+    pub fn load_from_file() -> Result<Self> {
         unimplemented!()
     }
 
-    pub fn load_from_buffer() -> WasmEdgeResult<Self> {
+    pub fn load_from_buffer() -> Result<Self> {
         unimplemented!()
     }
 
-    pub fn load_from_module() -> WasmEdgeResult<Self> {
+    pub fn load_from_module() -> Result<Self> {
         unimplemented!()
     }
 
-    pub fn validate() -> WasmEdgeResult<Self> {
+    pub fn validate() -> Result<Self> {
         unimplemented!()
     }
 
-    pub fn instantiate() -> WasmEdgeResult<Self> {
+    pub fn instantiate() -> Result<Self> {
         unimplemented!()
     }
 
@@ -149,7 +149,7 @@ impl Vm {
         mod_name: Option<&str>,
         func_name: impl AsRef<str>,
         args: impl IntoIterator<Item = Value>,
-    ) -> WasmEdgeResult<Vec<Value>> {
+    ) -> Result<Vec<Value>> {
         match mod_name {
             Some(mod_name) => {
                 // run a function in the registered module
@@ -165,7 +165,7 @@ impl Vm {
         }
     }
 
-    pub fn wasmedge_process_module(&mut self) -> WasmEdgeResult<ImportObjectWasmEdgeProcess> {
+    pub fn wasmedge_process_module(&mut self) -> Result<ImportObjectWasmEdgeProcess> {
         let inner = self
             .inner
             .import_obj_mut(wasmedge::types::HostRegistration::WasmEdgeProcess)?;
@@ -175,7 +175,7 @@ impl Vm {
         })
     }
 
-    pub fn wasi_module(&mut self) -> WasmEdgeResult<ImportObjectWasi> {
+    pub fn wasi_module(&mut self) -> Result<ImportObjectWasi> {
         let inner = self
             .inner
             .import_obj_mut(wasmedge::types::HostRegistration::Wasi)?;

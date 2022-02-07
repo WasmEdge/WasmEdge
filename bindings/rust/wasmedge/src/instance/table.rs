@@ -1,4 +1,4 @@
-use crate::{error::WasmEdgeResult, wasmedge, RefType, Value};
+use crate::{error::Result, wasmedge, RefType, Value};
 use std::marker::PhantomData;
 
 #[derive(Debug)]
@@ -42,7 +42,7 @@ impl<'store> Table<'store> {
         self.mod_name.is_some()
     }
 
-    pub fn ty(&self) -> WasmEdgeResult<TableType> {
+    pub fn ty(&self) -> Result<TableType> {
         let ty = self.inner.ty()?;
         let limit = ty.limit();
         Ok(TableType {
@@ -56,17 +56,17 @@ impl<'store> Table<'store> {
         self.inner.capacity()
     }
 
-    pub fn grow(&mut self, size: u32) -> WasmEdgeResult<()> {
+    pub fn grow(&mut self, size: u32) -> Result<()> {
         self.inner.grow(size)?;
         Ok(())
     }
 
-    pub fn get_data(&self, idx: usize) -> WasmEdgeResult<Value> {
+    pub fn get_data(&self, idx: usize) -> Result<Value> {
         let value = self.inner.get_data(idx)?;
         Ok(value)
     }
 
-    pub fn set_data(&mut self, data: Value, idx: usize) -> WasmEdgeResult<()> {
+    pub fn set_data(&mut self, data: Value, idx: usize) -> Result<()> {
         self.inner.set_data(data, idx)?;
         Ok(())
     }
@@ -95,7 +95,7 @@ impl TableType {
         self.max
     }
 
-    pub fn to_raw(self) -> WasmEdgeResult<wasmedge::TableType> {
+    pub fn to_raw(self) -> Result<wasmedge::TableType> {
         let min = self.minimum();
         let max = match self.maximum() {
             Some(max) => max,

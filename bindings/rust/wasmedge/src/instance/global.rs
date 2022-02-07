@@ -1,4 +1,4 @@
-use crate::{error::WasmEdgeResult, wasmedge, Mutability, ValType, Value};
+use crate::{error::Result, wasmedge, Mutability, ValType, Value};
 use std::marker::PhantomData;
 
 #[derive(Debug)]
@@ -27,7 +27,7 @@ impl<'store> Global<'store> {
         self.mod_name.is_some()
     }
 
-    pub fn ty(&self) -> WasmEdgeResult<GlobalType> {
+    pub fn ty(&self) -> Result<GlobalType> {
         let gt = self.inner.ty()?;
         Ok(GlobalType {
             ty: gt.value_type(),
@@ -39,7 +39,7 @@ impl<'store> Global<'store> {
         self.inner.get_value()
     }
 
-    pub fn set_value(&mut self, val: Value) -> WasmEdgeResult<()> {
+    pub fn set_value(&mut self, val: Value) -> Result<()> {
         self.inner.set_value(val)?;
         Ok(())
     }
@@ -63,7 +63,7 @@ impl GlobalType {
         self.mutability
     }
 
-    pub fn to_raw(self) -> WasmEdgeResult<wasmedge::GlobalType> {
+    pub fn to_raw(self) -> Result<wasmedge::GlobalType> {
         let raw = wasmedge::GlobalType::create(self.value_ty(), self.mutability())?;
         Ok(raw)
     }

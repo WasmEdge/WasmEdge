@@ -286,17 +286,17 @@ WasiCryptoContext::symmetricTagPull(__wasi_symmetric_tag_t TagHandle,
     return WasiCryptoUnexpect(Tag);
   }
 
-  auto const &Raw = (*Tag)->data();
-  ensureOrReturn(Raw.size() <= Buf.size(), __WASI_CRYPTO_ERRNO_OVERFLOW);
-
-  std::copy(Raw.begin(), Raw.end(), Buf.begin());
+  auto Res = (*Tag)->pull(Buf);
+  if (!Res) {
+    return WasiCryptoUnexpect(Res);
+  }
 
   auto CloseRes = SymmetricTagManger.close(TagHandle);
   if (!CloseRes) {
     return WasiCryptoUnexpect(CloseRes);
   }
 
-  return Raw.size();
+  return *Res;
 }
 
 WasiCryptoExpect<void>

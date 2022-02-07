@@ -44,7 +44,9 @@ public:
   ///
   /// @return  The function MUST return `__WASI_CRYPTO_ERRNO_INVALID_TAG` if the
   /// tags don't match.
-  WasiCryptoExpect<void> verify(Span<const uint8_t> ExpectedRaw) const;
+  WasiCryptoExpect<void> verify(Span<const uint8_t> RawTag) const;
+
+  WasiCryptoExpect<size_t> pull(Span<uint8_t> Raw) const;
 
 private:
   const std::vector<uint8_t> Data;

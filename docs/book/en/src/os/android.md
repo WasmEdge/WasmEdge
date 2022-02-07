@@ -4,7 +4,7 @@ In this section, we will cover how to run a full WasmEdge demo on an Android dev
 
 ## Install Android version of WasmEdge-TensorFlow-Tools
 
-We will install WasmEdge-TensorFlow-Tools pre-release for Android. It works with the Android version of TensorFlow-Lite dynamic shared library.
+First, install WasmEdge-TensorFlow-Tools pre-release on your Android device. It works with the Android version of TensorFlow-Lite dynamic shared library.
 
 ### Preparation
 
@@ -14,7 +14,7 @@ Currently, WasmEdge only supports the arm64-v8a architecture on Android devices.
 
 #### Android development CLI
 
-In Ubuntu Linux, developers can use the `apt-get` command to install Android debugging and testing tool `adb`. Using the `adb shell` command on the Ubuntu dev machine, you can open a CLI shell to execute commands on the connected Android device.
+In Ubuntu Linux, you can use the `apt-get` command to install Android debugging and testing tool `adb`. Using the `adb shell` command on the Ubuntu dev machine, you can open a CLI shell to execute commands on the connected Android device.
 
 ```
 $ sudo apt-get install adb

@@ -1,6 +1,6 @@
 use crate::{
-    error::Result, wasmedge, Config, ImportObject, ImportObjectWasi, ImportObjectWasmEdgeProcess,
-    Module, Store, Value,
+    error::Result, wasmedge, Config, ImportMod, Module, Store, Value, WasiImportMod,
+    WasmEdgeProcessImportMod,
 };
 use std::{marker::PhantomData, path::Path};
 
@@ -83,7 +83,7 @@ impl Vm {
     }
 
     // validate + instantiate + register
-    pub fn register_wasm_from_import(mut self, import: ImportObject) -> Result<Self> {
+    pub fn register_wasm_from_import(mut self, import: ImportMod) -> Result<Self> {
         self.inner.register_wasm_from_import(import.inner)?;
         Ok(self)
     }
@@ -165,21 +165,21 @@ impl Vm {
         }
     }
 
-    pub fn wasmedge_process_module(&mut self) -> Result<ImportObjectWasmEdgeProcess> {
+    pub fn wasmedge_process_module(&mut self) -> Result<WasmEdgeProcessImportMod> {
         let inner = self
             .inner
             .import_obj_mut(wasmedge::types::HostRegistration::WasmEdgeProcess)?;
-        Ok(ImportObjectWasmEdgeProcess {
+        Ok(WasmEdgeProcessImportMod {
             inner,
             _marker: PhantomData,
         })
     }
 
-    pub fn wasi_module(&mut self) -> Result<ImportObjectWasi> {
+    pub fn wasi_module(&mut self) -> Result<WasiImportMod> {
         let inner = self
             .inner
             .import_obj_mut(wasmedge::types::HostRegistration::Wasi)?;
-        Ok(ImportObjectWasi {
+        Ok(WasiImportMod {
             inner,
             _marker: PhantomData,
         })

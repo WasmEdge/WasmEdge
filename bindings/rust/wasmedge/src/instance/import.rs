@@ -2,16 +2,16 @@ use crate::{error::Result, wasmedge, Func, GlobalType, MemoryType, TableType, Va
 use std::marker::PhantomData;
 
 #[derive(Debug)]
-pub struct ImportObject {
+pub struct ImportMod {
     pub(crate) inner: wasmedge::ImportObj,
 }
-impl ImportObject {
+impl ImportMod {
     pub fn new(name: impl AsRef<str>) -> Result<Self> {
         let inner = wasmedge::ImportObj::create(name.as_ref())?;
         Ok(Self { inner })
     }
 
-    pub fn new_as_wasi<'a>(
+    pub fn new_wasi<'a>(
         args: Option<Vec<&'a str>>,
         envs: Option<Vec<&'a str>>,
         preopens: Option<Vec<&'a str>>,
@@ -20,7 +20,7 @@ impl ImportObject {
         Ok(Self { inner })
     }
 
-    pub fn new_as_wasmedge_process<'a>(
+    pub fn new_wasmedge_process<'a>(
         allowed_cmds: Option<Vec<&'a str>>,
         allowed: bool,
     ) -> Result<Self> {
@@ -28,11 +28,11 @@ impl ImportObject {
         Ok(Self { inner })
     }
 
-    fn add_func(&mut self, name: impl AsRef<str>, func: &mut Func) {
+    pub fn add_func(&mut self, name: impl AsRef<str>, func: &mut Func) {
         self.inner.add_func(name.as_ref(), &mut func.inner)
     }
 
-    fn add_global(
+    pub fn add_global(
         &mut self,
         name: impl AsRef<str>,
         global_ty: GlobalType,
@@ -44,14 +44,14 @@ impl ImportObject {
         Ok(())
     }
 
-    fn add_memory(&mut self, name: impl AsRef<str>, memory_ty: MemoryType) -> Result<()> {
+    pub fn add_memory(&mut self, name: impl AsRef<str>, memory_ty: MemoryType) -> Result<()> {
         let mut ty = memory_ty.to_raw()?;
         let mut memory = wasmedge::Memory::create(&mut ty)?;
         self.inner.add_memory(name.as_ref(), &mut memory);
         Ok(())
     }
 
-    fn add_table(&mut self, name: impl AsRef<str>, table_ty: TableType) -> Result<()> {
+    pub fn add_table(&mut self, name: impl AsRef<str>, table_ty: TableType) -> Result<()> {
         let mut ty = table_ty.to_raw()?;
         let mut table = wasmedge::Table::create(&mut ty)?;
         self.inner.add_table(name.as_ref(), &mut table);
@@ -60,12 +60,12 @@ impl ImportObject {
 }
 
 #[derive(Debug)]
-pub struct ImportObjectWasi<'vm> {
+pub struct WasiImportMod<'vm> {
     pub(crate) inner: wasmedge::ImportObj,
     pub(crate) _marker: PhantomData<&'vm Vm>,
 }
-impl<'vm> ImportObjectWasi<'vm> {
-    pub fn reinit(
+impl<'vm> WasiImportMod<'vm> {
+    pub fn init(
         &mut self,
         args: Option<Vec<&str>>,
         envs: Option<Vec<&str>>,
@@ -80,12 +80,12 @@ impl<'vm> ImportObjectWasi<'vm> {
 }
 
 #[derive(Debug)]
-pub struct ImportObjectWasmEdgeProcess<'vm> {
+pub struct WasmEdgeProcessImportMod<'vm> {
     pub(crate) inner: wasmedge::ImportObj,
     pub(crate) _marker: PhantomData<&'vm Vm>,
 }
-impl<'vm> ImportObjectWasmEdgeProcess<'vm> {
-    pub fn reinit(&mut self, allowed_cmds: Option<Vec<&str>>, allowed: bool) {
+impl<'vm> WasmEdgeProcessImportMod<'vm> {
+    pub fn init(&mut self, allowed_cmds: Option<Vec<&str>>, allowed: bool) {
         self.inner.init_wasmedge_process(allowed_cmds, allowed)
     }
 }
@@ -130,7 +130,7 @@ mod tests {
             // * try to add another WasmEdgeProcess module, that causes error
 
             // create a WasmEdgeProcess module
-            let result = ImportObject::new_as_wasmedge_process(None, false);
+            let result = ImportMod::new_wasmedge_process(None, false);
             assert!(result.is_ok());
             let import_process = result.unwrap();
 
@@ -171,7 +171,7 @@ mod tests {
             // *** try to add a WasmEdgeProcess module.
 
             // create a WasmEdgeProcess module
-            let result = ImportObject::new_as_wasmedge_process(None, false);
+            let result = ImportMod::new_wasmedge_process(None, false);
             assert!(result.is_ok());
             let mut import_process = result.unwrap();
 
@@ -251,7 +251,7 @@ mod tests {
             // * try to add another Wasi module, that causes error
 
             // create a Wasi module
-            let result = ImportObject::new_as_wasi(None, None, None);
+            let result = ImportMod::new_wasi(None, None, None);
             assert!(result.is_ok());
             let import_wasi = result.unwrap();
 
@@ -292,7 +292,7 @@ mod tests {
             // *** try to add a Wasi module.
 
             // create a WasmEdgeProcess module
-            let result = ImportObject::new_as_wasi(None, None, None);
+            let result = ImportMod::new_wasi(None, None, None);
             assert!(result.is_ok());
             let mut import_wasi = result.unwrap();
 
@@ -343,7 +343,7 @@ mod tests {
     #[test]
     fn test_import_add_memory() {
         // create an ImportObject module
-        let result = ImportObject::new("extern");
+        let result = ImportMod::new("extern");
         assert!(result.is_ok());
         let mut import = result.unwrap();
 
@@ -396,7 +396,7 @@ mod tests {
     #[test]
     fn test_import_add_global() {
         // create an ImportObject module
-        let result = ImportObject::new("extern");
+        let result = ImportMod::new("extern");
         assert!(result.is_ok());
         let mut import = result.unwrap();
 
@@ -453,7 +453,7 @@ mod tests {
     #[test]
     fn test_import_add_table() {
         // create an ImportObject module
-        let result = ImportObject::new("extern");
+        let result = ImportMod::new("extern");
         assert!(result.is_ok());
         let mut import = result.unwrap();
 

@@ -56,45 +56,45 @@ State::open(SymmetricAlgorithm Alg, std::shared_ptr<Key> OptKey,
 }
 
 WasiCryptoExpect<void> State::absorb(Span<const uint8_t>) {
-  return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_OPERATION);
+  return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_UNSUPPORTED_FEATURE);
 }
 
 WasiCryptoExpect<void> State::squeeze(Span<uint8_t>) {
-  return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_OPERATION);
+  return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_UNSUPPORTED_FEATURE);
 }
 
 WasiCryptoExpect<void> State::ratchet() {
-  return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_OPERATION);
+  return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_UNSUPPORTED_FEATURE);
 }
 
 WasiCryptoExpect<size_t> State::encrypt(Span<uint8_t>, Span<const uint8_t>) {
-  return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_OPERATION);
+  return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_UNSUPPORTED_FEATURE);
 }
 
 WasiCryptoExpect<Tag> State::encryptDetached(Span<uint8_t>,
                                              Span<const uint8_t>) {
-  return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_OPERATION);
+  return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_UNSUPPORTED_FEATURE);
 }
 
 WasiCryptoExpect<size_t> State::decrypt(Span<uint8_t>, Span<const uint8_t>) {
-  return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_OPERATION);
+  return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_UNSUPPORTED_FEATURE);
 }
 
 WasiCryptoExpect<size_t>
 State::decryptDetached(Span<uint8_t>, Span<const uint8_t>, Span<uint8_t>) {
-  return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_OPERATION);
+  return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_UNSUPPORTED_FEATURE);
 }
 
 WasiCryptoExpect<std::unique_ptr<Key>> State::squeezeKey(SymmetricAlgorithm) {
-  return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_OPERATION);
+  return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_UNSUPPORTED_FEATURE);
 }
 
 WasiCryptoExpect<Tag> State::squeezeTag() {
-  return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_OPERATION);
+  return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_UNSUPPORTED_FEATURE);
 }
 
 WasiCryptoExpect<size_t> State::maxTagLen() {
-  return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_OPERATION);
+  return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_UNSUPPORTED_FEATURE);
 }
 } // namespace Symmetric
 

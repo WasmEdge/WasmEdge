@@ -207,7 +207,7 @@ VM.registerModule(TestMod);
 
 For finding headers from WasmEdge include directories and linking static libraries, some settings are necessary for CMakeFile:
 
-```
+```cmake
 add_library(wasmedgeHostModuleTest  # Static library name of host modules
   test.cpp  # Path to host modules cpp files
 )

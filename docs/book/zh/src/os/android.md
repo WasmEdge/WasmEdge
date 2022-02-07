@@ -8,7 +8,7 @@
 
 ### 环境准备
 
-#### Android 
+#### Android 开发者选项
 
 目前 WasmEdge 仅支持 Android 平台的 arm64-v8a 架构，开发者需要准备 arm64-v8a 架构的 Android 模拟器或一台已经 [启用开发者选项和 USB 调试](https://developer.android.com/studio/debug/dev-options) 的 Android 设备便于测试，最低系统版本为 Android 6.0。
 
@@ -16,13 +16,13 @@
 
 Ubuntu 环境下，开发者可以通过 `apt-get` 获取 Android 平台调试工具 `adb` 。通过 `adb shell` 指令，开发者可以进入设备并使用命令行操作 Android 操作系统。
 
-```
+```bash
 $ sudo apt-get install adb
 $ adb devices
 * daemon not running; starting now at tcp:5037
 * daemon started successfully
 List of devices attached
-c657c643	device
+c657c643 device
 $ adb shell
 sirius:/ $
 ```
@@ -31,7 +31,7 @@ sirius:/ $
 
 获取 WasmEdge-TensorFlow-Tools 的 pre-release 版本软件包。
 
-```
+```bash
 $ wget https://github.com/second-state/WasmEdge-tensorflow-tools/releases/download/0.9.1-beta.2/WasmEdge-tensorflow-tools-0.9.1-beta.2-android_aarch64.tar.gz
 $ mkdir WasmEdge-tensorflow-tools && tar zxvf WasmEdge-tensorflow-tools-0.9.1-beta.2-android_aarch64.tar.gz -C WasmEdge-tensorflow-tools
 show-tflite-tensor
@@ -42,7 +42,7 @@ wasmedge-tensorflow-lite
 
 在 WasmEdge-TensorFlow-deps 中已经为用户提供了 Android 版本的 TensorFlow-Lite 动态链接库，用户可以直接下载并使用。
 
-```
+```bash
 $ wget https://github.com/second-state/WasmEdge-tensorflow-deps/releases/download/0.9.1-beta.2/WasmEdge-tensorflow-deps-TFLite-0.9.1-beta.2-android_aarch64.tar.gz
 $ tar zxvf WasmEdge-tensorflow-deps-TFLite-0.9.1-beta.2-android_aarch64.tar.gz -C WasmEdge-tensorflow-tools
 ._libtensorflowlite_c.so
@@ -51,8 +51,8 @@ libtensorflowlite_c.so
 
 将 WasmEdge-TensorFlow 的工具及其依赖一起推送到 Android 设备上。
 
-```
-$ adb push WasmEdge-tensorflow-tools /data/local/tmp
+```bash
+adb push WasmEdge-tensorflow-tools /data/local/tmp
 ```
 
 ## 测试
@@ -61,31 +61,31 @@ $ adb push WasmEdge-tensorflow-tools /data/local/tmp
 
 [wasm-learning](https://github.com/second-state/wasm-learning.git) 中为用户提供了 WasmEdge-TensorFlow-Tools 的测试样例，在 `wasm-learning/rust/birds_v1` 中提供的例子是通过一张 jpg 图片来识别鸟的种类。
 
-```
-$ git clone https://github.com/second-state/wasm-learning.git
-$ cd wasm-learning/rust/birds_v1
+```bash
+git clone https://github.com/second-state/wasm-learning.git
+cd wasm-learning/rust/birds_v1
 ```
 
 Cargo 构建 wasm 源文件，生成的 wasm 文件位于 `target/wasm32-wasi/release/birds_v1.wasm` 。
 
-```
-$ rustup target add wasm32-wasi
-$ cargo build --release --target=wasm32-wasi
+```bash
+rustup target add wasm32-wasi
+cargo build --release --target=wasm32-wasi
 ```
 
 将测试需要的 wasm 源文件， tensorflow 模型以及 jpg 图片文件推送到 Android 设备上。
 
-```
-$ adb push target/wasm32-wasi/release/birds_v1.wasm /data/local/tmp/WasmEdge-tensorflow-tools
-$ adb push lite-model_aiy_vision_classifier_birds_V1_3.tflite /data/local/tmp/WasmEdge-tensorflow-tools
-$ adb push bird.jpg /data/local/tmp/WasmEdge-tensorflow-tools
+```bash
+adb push target/wasm32-wasi/release/birds_v1.wasm /data/local/tmp/WasmEdge-tensorflow-tools
+adb push lite-model_aiy_vision_classifier_birds_V1_3.tflite /data/local/tmp/WasmEdge-tensorflow-tools
+adb push bird.jpg /data/local/tmp/WasmEdge-tensorflow-tools
 ```
 
 ### 运行 WasmEdge-TensorFlow-Tools
 
 在命令行输入 `adb shell` 进入 Android 设备，查看 `/data/local/tmp/WasmEdge-tensorflow-tools` 文件夹下的工具及测试文件是否齐全。
 
-```
+```bash
 $ adb shell
 sirius:/ $ cd /data/local/tmp/WasmEdge-tensorflow-tools
 sirius:/data/local/tmp/WasmEdge-tensorflow-tools $ ls
@@ -96,7 +96,7 @@ libtensorflowlite_c.so wasmedge-tensorflow-lite
 
 链接 TensorFlow-Lite 动态依赖库，并使用 show-tflite-tensor 检查 TensorFlow-Lite 的可用性。
 
-```
+```bash
 sirius:/data/local/tmp/WasmEdge-tensorflow-tools $ export LD_LIBRARY_PATH=.:$LD_LIBRARY_PATH
 sirius:/data/local/tmp/WasmEdge-tensorflow-tools $ chmod 777 show-tflite-tensor
 sirius:/data/local/tmp/WasmEdge-tensorflow-tools $ ./show-tflite-tensor lite-model_aiy_vision_classifier_birds_V1_3.tflite
@@ -115,7 +115,7 @@ Output tensor nums: 1
 
 运行 wasmedge-tensorflow-lite 工具，识别 jpg 图片中鸟的种类。
 
-```
+```bash
 sirius:/data/local/tmp/WasmEdge-tensorflow-tools $ chmod 777 wasmedge-tensorflow-lite
 sirius:/data/local/tmp/WasmEdge-tensorflow-tools $ ./wasmedge-tensorflow-lite --dir .:. birds_v1.wasm lite-model_aiy_vision_classifier_birds_V1_3.tflite bird.jpg
 INFO: Initialized TensorFlow Lite runtime.

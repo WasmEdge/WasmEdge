@@ -58,17 +58,11 @@ $ adb push WasmEdge-tensorflow-tools /data/local/tmp
 
 #### 获取测试样例
 
-[wasm-learning](https://github.com/second-state/wasm-learning.git) 中为用户提供了 WasmEdge-TensorFlow-Tools 的测试样例，在 `wasm-learning/rust/birds_v1` 中提供的例子是通过一张 jpg 或 png 图片来识别鸟的种类
+[wasm-learning](https://github.com/second-state/wasm-learning.git) 中为用户提供了 WasmEdge-TensorFlow-Tools 的测试样例，在 `wasm-learning/rust/birds_v1` 中提供的例子是通过一张 jpg 图片来识别鸟的种类
 
 ```
 $ git clone https://github.com/second-state/wasm-learning.git
 $ cd wasm-learning/rust/birds_v1
-```
-
-该例子生成的 wasm 文件使用时默认的输入是 jpg 格式图片，用户可以通过修改 `wasm-learning/rust/birds_v1/src` 文件夹下的 `main.rs` 文件使输入为 png 格式图片
-```
-18    //let flat_img = wasmedge_tensorflow_interface::load_jpg_image_to_rgb8(&img_buf, 224, 224);
-19    let flat_img = wasmedge_tensorflow_interface::load_png_image_to_rgb8(&img_buf, 224, 224);
 ```
 
 Cargo 构建 wasm 源文件，生成的 wasm 文件位于 `target/wasm32-wasi/release/birds_v1.wasm` 
@@ -78,12 +72,12 @@ $ rustup target add wasm32-wasi
 $ cargo build --release --target=wasm32-wasi
 ```
 
-将测试需要的 wasm 源文件， tensorflow 模型以及图片文件推送到 Android 设备上. 本教程使用 png 格式图片进行测试.
+将测试需要的 wasm 源文件， tensorflow 模型以及 jpg 图片文件推送到 Android 设备上. 
 
 ```
 $ adb push target/wasm32-wasi/release/birds_v1.wasm /data/local/tmp/WasmEdge-tensorflow-tools
 $ adb push lite-model_aiy_vision_classifier_birds_V1_3.tflite /data/local/tmp/WasmEdge-tensorflow-tools
-$ adb push bird.png /data/local/tmp/WasmEdge-tensorflow-tools
+$ adb push bird.jpg /data/local/tmp/WasmEdge-tensorflow-tools
 ```
 
 #### 运行 WasmEdge-TensorFlow-Tools
@@ -94,7 +88,7 @@ $ adb push bird.png /data/local/tmp/WasmEdge-tensorflow-tools
 $ adb shell
 sirius:/ $ cd /data/local/tmp/WasmEdge-tensorflow-tools
 sirius:/data/local/tmp/WasmEdge-tensorflow-tools $ ls
-bird.png               lite-model_aiy_vision_classifier_birds_V1_3.tflite 
+bird.jpg               lite-model_aiy_vision_classifier_birds_V1_3.tflite 
 birds_v1.wasm          show-tflite-tensor                                 
 libtensorflowlite_c.so wasmedge-tensorflow-lite
 
@@ -119,14 +113,14 @@ Output tensor nums: 1
         tensor byte size: 965
 ```
 
-运行 wasmedge-tensorflow-lite 工具，识别 png 图片中鸟的种类
+运行 wasmedge-tensorflow-lite 工具，识别 jpg 图片中鸟的种类
 
 ```
 sirius:/data/local/tmp/WasmEdge-tensorflow-tools $ chmod 777 wasmedge-tensorflow-lite
-sirius:/data/local/tmp/WasmEdge-tensorflow-tools $ ./wasmedge-tensorflow-lite --dir .:. birds_v1.wasm lite-model_aiy_vision_classifier_birds_V1_3.tflite bird.png
+sirius:/data/local/tmp/WasmEdge-tensorflow-tools $ ./wasmedge-tensorflow-lite --dir .:. birds_v1.wasm lite-model_aiy_vision_classifier_birds_V1_3.tflite bird.jpg
 INFO: Initialized TensorFlow Lite runtime.
-166 : 0.88235295
+166 : 0.84705883
 ```
 
-该输出结果表明：识别出的图片中鸟的种类索引为 166 ，准确率为 0.88235295。
+该输出结果表明：识别出的图片中鸟的种类索引为 166 ，准确率为 0.84705883。
 

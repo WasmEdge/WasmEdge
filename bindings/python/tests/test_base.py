@@ -31,13 +31,11 @@ def test_fib_32():
     )
     cfx = WasmEdge.Configure()
     vm = WasmEdge.VM(cfx)
-    # vm = WasmEdge.VM()
     num = random.randint(2, 20)
-    res, l = vm.run(
-        fib_wasm, "fib", [num], [WasmEdge.Type.I32], [WasmEdge.Type.I32]
-    )
+    num_w = (WasmEdge.Value(num, WasmEdge.Type.I32),)
+    res, l = vm.RunWasmFromFile(fib_wasm, "fib", num_w, 1)
     assert bool(res)
-    assert l[0] == fibonacci(num)
+    assert l[0].Value == fibonacci(num)
 
 
 def test_add():
@@ -49,9 +47,10 @@ def test_add():
     cfx.add(WasmEdge.Host.Wasi)
     vm = WasmEdge.VM(cfx)
     nums = [random.randint(2, 20), random.randint(2, 20)]
-    res, l = vm.run(add_wasm, "add", nums)
+    nums_w = tuple([WasmEdge.Value(x, WasmEdge.Type.I32) for x in nums])
+    res, l = vm.RunWasmFromFile(add_wasm, "add", nums_w, 1)
     assert bool(res)
-    assert l[0] == sum(nums)
+    assert l[0].Value == sum(nums)
 
 
 def test_version():

@@ -144,22 +144,13 @@ PYBIND11_MODULE(WasmEdge, module) {
       .def("instantiate", &pysdk::Executor::instantiate)
       .def("invoke", &pysdk::Executor::invoke);
 
-  /*Overloading VM run functions*/
-
-  pybind11::tuple (pysdk::VM::*run_step_by_step)(
-      pybind11::object, pybind11::object, pybind11::object) = &pysdk::VM::run;
-  pybind11::tuple (pysdk::VM::*run)(pybind11::object, pybind11::object,
-                                    pybind11::object, pybind11::object,
-                                    pybind11::object) = &pysdk::VM::run;
-
   pybind11::class_<pysdk::VM>(module, "VM")
       .def(pybind11::init())
       .def(pybind11::init<pysdk::Configure &>())
       .def(pybind11::init<pysdk::Store &>())
       .def(pybind11::init<pysdk::Configure &, pysdk::Store &>())
       .def("__doc__", &pysdk::VM::doc)
-      .def("run", run)
-      .def("run", run_step_by_step)
+      .def("RunWasmFromFile", &pysdk::VM::run_from_wasm_file)
       .def("RunWasmFromBuffer", &pysdk::VM::run_from_buffer)
       .def("RunWasmFromASTModule", &pysdk::VM::run_from_ast)
       .def("RegisterModuleFromASTModule", &pysdk::VM::register_module_from_ast)

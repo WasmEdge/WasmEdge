@@ -6,10 +6,6 @@
 pysdk::VM::VM() { VMCxt = WasmEdge_VMCreate(NULL, NULL); }
 
 pysdk::VM::VM(pysdk::Store &store) {
-
-  // ;
-  // WasmEdge_VMRunWasmFromBuffer();
-  // WasmEdge_VMRunWasmFromFile();
   VMCxt = WasmEdge_VMCreate(NULL, store.get());
 }
 
@@ -24,226 +20,41 @@ pysdk::VM::VM(pysdk::Configure &cfg, pysdk::Store &store) {
 pysdk::VM::~VM() { WasmEdge_VMDelete(VMCxt); }
 
 /**
- * @brief Execute VM
+ * @brief Instantiate the WASM module from a WASM file and invoke a function by
+ * name.This is the function to invoke a WASM function rapidly.Load and
+ * instantiate the WASM module from the file path, and then invoke afunction by
+ * name and parameters.
  *
- * @param _FileName Name of .wasm binary
- * @param _FuncName Wasm Function name
- * @param _params Wasm Function Parameters
- * @param _param_types List of `Type` of parameters
- * @param _ret_types List of `Type` of Return values. This length must be same
- * as return length of wasm function.
- * @return pybind11::tuple
+ * @param FileName string of path
+ * @param FuncName string of function name
+ * @param param_list tuple(WasmEdge.Value)
+ * @param ret_len Length of return buffer
+ * @return pybind11::tuple of result,list of WasmEdge.Value
  */
-pybind11::tuple pysdk::VM::run(pybind11::object _FileName,
-                               pybind11::object _FuncName,
-                               pybind11::object _params,
-                               pybind11::object _param_types,
-                               pybind11::object _ret_types) {
-  std::string FileName = _FileName.cast<std::string>();
-  std::string FuncName = _FuncName.cast<std::string>();
-  const int ret_len = pybind11::len(_ret_types);
-
-  auto param_len = pybind11::len(_params);
-  auto param_list = _params.cast<pybind11::list>();
-  auto _param_types_list = _param_types.cast<pybind11::list>();
-  auto _ret_types_list = _ret_types.cast<pybind11::list>();
+pybind11::tuple pysdk::VM::run_from_wasm_file(std::string &FileName,
+                                              std::string &FuncName,
+                                              pybind11::tuple param_list,
+                                              uint32_t &ret_len) {
+  auto const param_len = pybind11::len(param_list);
 
   WasmEdge_Value Params[param_len];
   WasmEdge_Value Returns[ret_len];
+
   for (int i = 0; i < param_len; i++) {
-    switch (_param_types_list[i].cast<WasmEdge_ValType>()) {
-    case WasmEdge_ValType_I32:
-      Params[i] = WasmEdge_ValueGenI32(param_list[i].cast<int32_t>());
-      break;
-    case WasmEdge_ValType_I64:
-      Params[i] = WasmEdge_ValueGenI64(param_list[i].cast<int64_t>());
-      break;
-    case WasmEdge_ValType_F32:
-      Params[i] = WasmEdge_ValueGenF32(param_list[i].cast<float>());
-      break;
-    case WasmEdge_ValType_F64:
-      Params[i] = WasmEdge_ValueGenF32(param_list[i].cast<double>());
-      break;
-    case WasmEdge_ValType_V128:
-      Params[i] = WasmEdge_ValueGenV128(param_list[i].cast<int128_t>());
-      break;
-    case WasmEdge_ValType_FuncRef:
-      Params[i] = WasmEdge_ValueGenFuncRef(param_list[i].cast<uint32_t>());
-      break;
-    // TODO: Handle Pointer
-    // case WasmEdge_ValType_ExternRef:
-    //   Params[i] = WasmEdge_ValueGenExternRef(
-    //       param_list[i].cast<(void *)>());
-    //   break;
-    default:
-      break;
-    }
+    Params[i] = param_list[i].cast<pysdk::Value>().get();
   }
 
-  WasmEdge_String funcName{(uint32_t)FuncName.length(), FuncName.c_str()};
+  WasmEdge_String funcName = WasmEdge_StringCreateByCString(FuncName.c_str());
+
   pysdk::result res(WasmEdge_VMRunWasmFromFile(
       VMCxt, FileName.c_str(), funcName, Params, param_len, Returns, ret_len));
 
+  WasmEdge_StringDelete(funcName);
+
   pybind11::list returns;
   for (int i = 0; i < ret_len; i++) {
-    switch (_ret_types_list[i].cast<WasmEdge_ValType>()) {
-    case WasmEdge_ValType_I32:
-      returns.append(pybind11::cast(WasmEdge_ValueGetI32(Returns[i])));
-      break;
-    case WasmEdge_ValType_I64:
-      returns.append(pybind11::cast(WasmEdge_ValueGetI64(Returns[i])));
-      break;
-    case WasmEdge_ValType_F32:
-      returns.append(pybind11::cast(WasmEdge_ValueGetF32(Returns[i])));
-      break;
-    case WasmEdge_ValType_F64:
-      returns.append(pybind11::cast(WasmEdge_ValueGetF64(Returns[i])));
-      break;
-    case WasmEdge_ValType_V128:
-      returns.append(pybind11::cast(WasmEdge_ValueGetV128(Returns[i])));
-      break;
-    case WasmEdge_ValType_FuncRef:
-      returns.append(pybind11::cast(WasmEdge_ValueGetFuncIdx(Returns[i])));
-      break;
-    // TODO: Handle Void Pointer
-    // case WasmEdge_ValType_ExternRef:
-    //   returns.append(pybind11::cast(WasmEdge_ValueGetExternRef(Returns[i])));
-    //   break;
-    default:
-      break;
-    }
+    returns.append(pysdk::Value(Returns[i]));
   }
-  return pybind11::make_tuple(res, returns);
-}
-
-/**
- * @brief Execute VM without specifying parameter, return types and length.
- * Executes VM step by step.
- *
- * @param _FileName Name of .wasm binary
- * @param _FuncName Wasm Function name
- * @param _params Wasm Function Parameters
- * @return pybind11::tuple
- */
-pybind11::tuple pysdk::VM::run(pybind11::object _FileName,
-                               pybind11::object _FuncName,
-                               pybind11::object _params) {
-  pybind11::list returns;
-
-  std::string FileName = _FileName.cast<std::string>();
-  std::string FuncName = _FuncName.cast<std::string>();
-
-  pysdk::result res(WasmEdge_VMLoadWasmFromFile(VMCxt, FileName.c_str()));
-  if (!res) {
-    /* TODO: Handle errors gracefully */
-    return pybind11::make_tuple(res, NULL);
-  }
-
-  res = WasmEdge_VMValidate(VMCxt);
-  if (!res) {
-    /* TODO: Handle errors gracefully */
-    return pybind11::make_tuple(res, NULL);
-  }
-
-  res = WasmEdge_VMInstantiate(VMCxt);
-  if (!res) {
-    /* TODO: Handle errors gracefully */
-    return pybind11::make_tuple(res, NULL);
-  }
-
-  WasmEdge_FunctionTypeContext *FuncTypeCxt =
-      (WasmEdge_FunctionTypeContext *)WasmEdge_VMGetFunctionType(
-          VMCxt, WasmEdge_StringCreateByCString(FuncName.c_str()));
-
-  auto params_list = _params.cast<pybind11::list>();
-  auto param_len = pybind11::len(_params);
-  auto param_len_api = WasmEdge_FunctionTypeGetParametersLength(FuncTypeCxt);
-
-  if (param_len != param_len_api) {
-    /* TODO: Handle errors gracefully */
-    throw std::runtime_error(
-        "Received Unmatched parameter length: " + std::to_string(param_len) +
-        ", API->" + std::to_string(param_len_api));
-    return pybind11::make_tuple(NULL, NULL);
-  }
-
-  WasmEdge_ValType val_type_list_param[param_len];
-  WasmEdge_FunctionTypeGetParameters(FuncTypeCxt, val_type_list_param,
-                                     param_len);
-  WasmEdge_Value Params[param_len];
-  for (int i = 0; i < param_len; i++) {
-    switch (val_type_list_param[i]) {
-    case WasmEdge_ValType_I32:
-      Params[i] = WasmEdge_ValueGenI32(params_list[i].cast<int32_t>());
-      break;
-    case WasmEdge_ValType_I64:
-      Params[i] = WasmEdge_ValueGenI64(params_list[i].cast<int64_t>());
-      break;
-    case WasmEdge_ValType_F32:
-      Params[i] = WasmEdge_ValueGenF32(params_list[i].cast<float>());
-      break;
-    case WasmEdge_ValType_F64:
-      Params[i] = WasmEdge_ValueGenF32(params_list[i].cast<double>());
-      break;
-    case WasmEdge_ValType_V128:
-      Params[i] = WasmEdge_ValueGenV128(params_list[i].cast<int128_t>());
-      break;
-    case WasmEdge_ValType_FuncRef:
-      Params[i] = WasmEdge_ValueGenFuncRef(params_list[i].cast<uint32_t>());
-      break;
-    // TODO: Handle Pointer
-    // case WasmEdge_ValType_ExternRef:
-    //   Params[i] = WasmEdge_ValueGenExternRef(
-    //       params_list[i].cast<(void *)>());
-    //   break;
-    default:
-      break;
-    }
-  }
-
-  auto ret_len = WasmEdge_FunctionTypeGetReturnsLength(FuncTypeCxt);
-  WasmEdge_ValType val_type_list_ret[ret_len];
-  if (ret_len != WasmEdge_FunctionTypeGetReturns(FuncTypeCxt, val_type_list_ret,
-                                                 ret_len)) {
-    /* TODO: Handle errors gracefully */
-    return pybind11::make_tuple(NULL, NULL);
-  };
-
-  WasmEdge_Value Returns[ret_len];
-  WasmEdge_String funcName{(uint32_t)FuncName.length(), FuncName.c_str()};
-
-  res =
-      WasmEdge_VMExecute(VMCxt, funcName, Params, param_len, Returns, ret_len);
-
-  for (int i = 0; i < ret_len; i++) {
-    switch (val_type_list_ret[i]) {
-    case WasmEdge_ValType_I32:
-      returns.append(pybind11::cast(WasmEdge_ValueGetI32(Returns[i])));
-      break;
-    case WasmEdge_ValType_I64:
-      returns.append(pybind11::cast(WasmEdge_ValueGetI64(Returns[i])));
-      break;
-    case WasmEdge_ValType_F32:
-      returns.append(pybind11::cast(WasmEdge_ValueGetF32(Returns[i])));
-      break;
-    case WasmEdge_ValType_F64:
-      returns.append(pybind11::cast(WasmEdge_ValueGetF64(Returns[i])));
-      break;
-    case WasmEdge_ValType_V128:
-      returns.append(pybind11::cast(WasmEdge_ValueGetV128(Returns[i])));
-      break;
-    case WasmEdge_ValType_FuncRef:
-      returns.append(pybind11::cast(WasmEdge_ValueGetFuncIdx(Returns[i])));
-      break;
-    // TODO: Handle Void Pointer
-    case WasmEdge_ValType_ExternRef:
-      returns.append(pybind11::cast(WasmEdge_ValueGetExternRef(Returns[i])));
-      break;
-    default:
-      break;
-    }
-  }
-
   return pybind11::make_tuple(res, returns);
 }
 

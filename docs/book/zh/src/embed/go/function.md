@@ -1,4 +1,4 @@
-# 嵌入一个 Wasm 函数
+# 嵌入 Wasm 函数
 
 WasmEdge Go SDK 允许将 WebAssembly 函数嵌入到一个 Go 主程序。可以使用 Go SDK API 来传递调用参数
 到嵌入的 WebAssembly 函数，然后捕获返回值。

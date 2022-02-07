@@ -6,6 +6,7 @@ pub struct Module {
     pub(crate) inner: wasmedge::Module,
 }
 impl Module {
+    /// Loads a wasm module from a file, and validates the module.
     pub fn from_file(config: Option<&Config>, file: impl AsRef<Path>) -> Result<Self> {
         let config = match config {
             Some(config) => Some(&config.inner),
@@ -17,9 +18,14 @@ impl Module {
 
         // load a module from a wasm file
         let inner = loader.from_file(file.as_ref())?;
+
+        // validate the loaded module
+        wasmedge::Validator::create(config)?.validate(&inner)?;
+
         Ok(Self { inner })
     }
 
+    /// Loads a wasm module from a buffer, and validates the module.
     pub fn from_buffer(config: Option<&Config>, buffer: impl AsRef<[u8]>) -> Result<Self> {
         let config = match config {
             Some(config) => Some(&config.inner),
@@ -31,6 +37,10 @@ impl Module {
 
         // load a module from a wasm buffer
         let inner = loader.from_buffer(buffer.as_ref())?;
+
+        // validate the loaded module
+        wasmedge::Validator::create(config)?.validate(&inner)?;
+
         Ok(Self { inner })
     }
 

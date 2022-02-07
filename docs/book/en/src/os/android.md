@@ -8,7 +8,7 @@ First, install WasmEdge-TensorFlow-Tools pre-release on your Android device. It 
 
 ### Preparation
 
-#### Android 
+#### Android developer options
 
 Currently, WasmEdge only supports the arm64-v8a architecture on Android devices. You need an arm64-v8a Android simulator or a physical device with [developer options turned on](https://developer.android.com/studio/debug/dev-options). WasmEdge requires Android 6.0 and above.
 
@@ -16,13 +16,13 @@ Currently, WasmEdge only supports the arm64-v8a architecture on Android devices.
 
 In Ubuntu Linux, you can use the `apt-get` command to install Android debugging and testing tool `adb`. Using the `adb shell` command on the Ubuntu dev machine, you can open a CLI shell to execute commands on the connected Android device.
 
-```
+```bash
 $ sudo apt-get install adb
 $ adb devices
 * daemon not running; starting now at tcp:5037
 * daemon started successfully
 List of devices attached
-c657c643	device
+c657c643 device
 $ adb shell
 sirius:/ $
 ```
@@ -51,10 +51,9 @@ libtensorflowlite_c.so
 
 Next use the `adb` tool to push the downloaded WasmEdge-TensorFlow packages onto a connected Android device.
 
+```bash
+adb push WasmEdge-tensorflow-tools /data/local/tmp
 ```
-$ adb push WasmEdge-tensorflow-tools /data/local/tmp
-```
-
 
 ## Try it out
 
@@ -62,31 +61,31 @@ $ adb push WasmEdge-tensorflow-tools /data/local/tmp
 
 In this example, we will demonstrate a standard [WasmEdge Tensorflow-Lite sample application](https://github.com/second-state/wasm-learning/tree/master/rust/birds_v1). It can recognize and classify the bird type from a JPG or PNG picture of a bird. The explanation of the source code can be [found here](https://wasmedge.org/book/en/dev/rust/tensorflow.html).
 
-```
-$ git clone https://github.com/second-state/wasm-learning.git
-$ cd wasm-learning/rust/birds_v1
+```bash
+git clone https://github.com/second-state/wasm-learning.git
+cd wasm-learning/rust/birds_v1
 ```
 
 Use the `cargo` command to build a Wasm bytecode file from the Rust source code. The Wasm file is located at `target/wasm32-wasi/release/birds_v1.wasm`.
 
-```
-$ rustup target add wasm32-wasi
-$ cargo build --release --target=wasm32-wasi
+```bash
+rustup target add wasm32-wasi
+cargo build --release --target=wasm32-wasi
 ```
 
 Push the Wasm bytecode file, tensorflow lite model file, and the test bird picture file onto the Android device using `adb`.
 
-```
-$ adb push target/wasm32-wasi/release/birds_v1.wasm /data/local/tmp/WasmEdge-tensorflow-tools
-$ adb push lite-model_aiy_vision_classifier_birds_V1_3.tflite /data/local/tmp/WasmEdge-tensorflow-tools
-$ adb push bird.jpg /data/local/tmp/WasmEdge-tensorflow-tools
+```bash
+adb push target/wasm32-wasi/release/birds_v1.wasm /data/local/tmp/WasmEdge-tensorflow-tools
+adb push lite-model_aiy_vision_classifier_birds_V1_3.tflite /data/local/tmp/WasmEdge-tensorflow-tools
+adb push bird.jpg /data/local/tmp/WasmEdge-tensorflow-tools
 ```
 
 ### Run the WasmEdge-TensorFlow-Tools
 
 Type `adb shell` from the Ubuntu CLI to open a command shell for the connected Android device. Confirm that the tools, programs, and test image are all available on the Android device under the `/data/local/tmp/WasmEdge-tensorflow-tools` folder.
 
-```
+```bash
 $ adb shell
 sirius:/ $ cd /data/local/tmp/WasmEdge-tensorflow-tools
 sirius:/data/local/tmp/WasmEdge-tensorflow-tools $ ls
@@ -97,7 +96,7 @@ libtensorflowlite_c.so wasmedge-tensorflow-lite
 
 Load the TensorFlow-Lite dynamic shared library, and use the `show-tflite-tensor` CLI tool to examine the Tensorflow Lite model file.
 
-```
+```bash
 sirius:/data/local/tmp/WasmEdge-tensorflow-tools $ export LD_LIBRARY_PATH=.:$LD_LIBRARY_PATH
 sirius:/data/local/tmp/WasmEdge-tensorflow-tools $ chmod 777 show-tflite-tensor
 sirius:/data/local/tmp/WasmEdge-tensorflow-tools $ ./show-tflite-tensor lite-model_aiy_vision_classifier_birds_V1_3.tflite
@@ -116,7 +115,7 @@ Output tensor nums: 1
 
 Use the extended WasmEdge Runtime in `wasmedge-tensorflow-lite` to execute the compiled Wasm program on the Android device. It loads the Tensorflow Lite model and bird image, and outputs the bird classification and its confidence.
 
-```
+```bash
 sirius:/data/local/tmp/WasmEdge-tensorflow-tools $ chmod 777 wasmedge-tensorflow-lite
 sirius:/data/local/tmp/WasmEdge-tensorflow-tools $ ./wasmedge-tensorflow-lite --dir .:. birds_v1.wasm lite-model_aiy_vision_classifier_birds_V1_3.tflite bird.jpg
 INFO: Initialized TensorFlow Lite runtime.

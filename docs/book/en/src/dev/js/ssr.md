@@ -68,8 +68,8 @@ The [rollup.config.js](https://github.com/second-state/wasmedge-quickjs/blob/mai
 The output is in the `dist/main.js` file.
 
 ```bash
-$ npm install
-$ npm run build
+npm install
+npm run build
 ```
 
 To run the example, do the following on the CLI. You can see that the templates are successfully composed into an HTML string.
@@ -182,21 +182,21 @@ The [rollup.config.js](https://github.com/second-state/wasmedge-quickjs/blob/mai
 The output is in the `dist/main.mjs` file.
 
 ```bash
-$ npm install
-$ npm run build
+npm install
+npm run build
 ```
 
 To run the example, do the following on the CLI to start the server.
 
 ```bash
-$ cd example_js/react_ssr_stream
-$ nohup wasmedge --dir .:. ../../target/wasm32-wasi/release/wasmedge_quickjs.wasm dist/main.mjs &
+cd example_js/react_ssr_stream
+nohup wasmedge --dir .:. ../../target/wasm32-wasi/release/wasmedge_quickjs.wasm dist/main.mjs &
 ```
 
 Send the server a HTTP request via `curl` or the browser.
 
 ```bash
-$ curl http://localhost:8001
+curl http://localhost:8001
 ```
 
 The results are as follows. The service first returns an HTML page with an empty inner section (i.e., the `loading` section), and then 2s later, the HTML content for the inner section and the JavaScript to display it.

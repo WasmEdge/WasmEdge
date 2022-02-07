@@ -452,7 +452,7 @@ Expect<uint32_t> StateSqueeze::body(Runtime::Instance::MemoryInstance *MemInst,
 Expect<uint32_t>
 StateSqueezeTag::body(Runtime::Instance::MemoryInstance *MemInst,
                       __wasi_symmetric_state_t Handle,
-                      uint32_t /* Out */ TagPtr) {
+                      uint32_t /* Out */ TagHandlePtr) {
   if (MemInst == nullptr) {
     return __WASI_CRYPTO_ERRNO_INTERNAL_ERROR;
   }
@@ -462,7 +462,7 @@ StateSqueezeTag::body(Runtime::Instance::MemoryInstance *MemInst,
     return Res.error();
   }
 
-  auto *Tag = MemInst->getPointer<__wasi_symmetric_tag_t *>(TagPtr);
+  auto *Tag = MemInst->getPointer<__wasi_symmetric_tag_t *>(TagHandlePtr);
   if (unlikely(Tag == nullptr)) {
     return __WASI_CRYPTO_ERRNO_INTERNAL_ERROR;
   }

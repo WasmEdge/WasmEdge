@@ -176,7 +176,7 @@ public:
 
   Expect<uint32_t> body(Runtime::Instance::MemoryInstance *MemInst,
                         __wasi_symmetric_state_t Handle,
-                        uint32_t /* Out */ TagPtr);
+                        uint32_t /* Out */ TagHandlePtr);
 };
 
 class StateSqueezeKey : public HostFunction<StateSqueezeKey> {

@@ -1,6 +1,6 @@
 # Android
 
-In this section, we will cover how to run a full WasmEdge demo on an Android device to perform image classification (Tensorflow-based AI inference). In order to do this, you will need to [build WasmEdge for Android](../extend/build_for_android.md) and then install our released extension and dependency libraries on your Android device as follows.
+In this section, we will cover how to run a full WasmEdge demo on an Android device to perform image classification (Tensorflow-based AI inference). If you prefer to build WasmEdge Runtime binary on Android for yourself, you can refer to the [build WasmEdge for Android](../extend/build_for_android.md) document.
 
 ## Install Android version of WasmEdge-TensorFlow-Tools
 
@@ -8,11 +8,11 @@ We will install WasmEdge-TensorFlow-Tools pre-release for Android. It works with
 
 ### Preparation
 
-* Android 
+#### Android 
 
 Currently, WasmEdge only supports the arm64-v8a architecture on Android devices. You need an arm64-v8a Android simulator or a physical device with [developer options turned on](https://developer.android.com/studio/debug/dev-options). WasmEdge requires Android 6.0 and above.
 
-* Android development CLI
+#### Android development CLI
 
 In Ubuntu Linux, developers can use the `apt-get` command to install Android debugging and testing tool `adb`. Using the `adb shell` command on the Ubuntu dev machine, you can open a CLI shell to execute commands on the connected Android device.
 

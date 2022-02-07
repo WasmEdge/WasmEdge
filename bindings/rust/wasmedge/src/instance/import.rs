@@ -32,6 +32,7 @@ impl ImportMod {
         self.inner.add_func(name.as_ref(), &mut func.inner)
     }
 
+    /// Given the type and the value, creates a new [Global](crate::Global) instance and adds it to this import module.
     pub fn add_global(
         &mut self,
         name: impl AsRef<str>,
@@ -44,6 +45,7 @@ impl ImportMod {
         Ok(())
     }
 
+    /// Given the type and the value, creates a new [Memory](crate::Memory) instance and adds it to this import module.
     pub fn add_memory(&mut self, name: impl AsRef<str>, memory_ty: MemoryType) -> Result<()> {
         let mut ty = memory_ty.to_raw()?;
         let mut memory = wasmedge::Memory::create(&mut ty)?;
@@ -51,6 +53,7 @@ impl ImportMod {
         Ok(())
     }
 
+    /// Given the type and the value, creates a new [Table](crate::Table) instance and adds it to this import module.
     pub fn add_table(&mut self, name: impl AsRef<str>, table_ty: TableType) -> Result<()> {
         let mut ty = table_ty.to_raw()?;
         let mut table = wasmedge::Table::create(&mut ty)?;
@@ -94,18 +97,16 @@ impl<'vm> WasmEdgeProcessImportMod<'vm> {
 mod tests {
     use super::*;
     use crate::{
-        error::WasmEdgeError, wasmedge, ConfigBuilder, Mutability, RefType, SignatureBuilder,
-        ValType, Value, VmBuilder,
+        error::WasmEdgeError, wasmedge, Config, Mutability, RefType, SignatureBuilder, ValType,
+        Value, VmBuilder,
     };
 
     #[test]
     fn test_import_new_wasmedgeprocess() {
         {
             // create a Config
-            let result = ConfigBuilder::new();
-            assert!(result.is_ok());
-            let config_builder = result.unwrap();
-            let config = config_builder.with_wasmedge_process().build();
+            let result = Config::new();
+            let config = result.unwrap().wasmedge_process(true);
 
             // create a Vm context
             let result = VmBuilder::new().with_config(&config).build();
@@ -148,10 +149,8 @@ mod tests {
 
         {
             // create a Config context, not enable wasi and wasmedge_process options.
-            let result = ConfigBuilder::new();
-            assert!(result.is_ok());
-            let config_builder = result.unwrap();
-            let config = config_builder.build();
+            let result = Config::new();
+            let config = result.unwrap();
 
             // create a Vm context
             let result = VmBuilder::new().with_config(&config).build();
@@ -223,10 +222,9 @@ mod tests {
     fn test_import_new_wasi() {
         {
             // create a Config
-            let result = ConfigBuilder::new();
+            let result = Config::new();
             assert!(result.is_ok());
-            let config_builder = result.unwrap();
-            let config = config_builder.with_wasi().build();
+            let config = result.unwrap().wasi(true);
 
             // create a Vm context
             let result = VmBuilder::new().with_config(&config).build();
@@ -269,10 +267,8 @@ mod tests {
 
         {
             // create a Config context, not enable wasi and wasmedge_process options.
-            let result = ConfigBuilder::new();
-            assert!(result.is_ok());
-            let config_builder = result.unwrap();
-            let config = config_builder.build();
+            let result = Config::new();
+            let config = result.unwrap();
 
             // create a Vm context
             let result = VmBuilder::new().with_config(&config).build();

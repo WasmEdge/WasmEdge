@@ -313,11 +313,11 @@ impl<'vm> Store<'vm> {
         Ok(globals)
     }
 
-    pub fn globals_by_module(&self, mod_name: impl AsRef<str>) -> Result<Vec<Global>> {
+    pub fn globals_by_module(&self, _mod_name: impl AsRef<str>) -> Result<Vec<Global>> {
         unimplemented!()
     }
 
-    pub fn globals_by_name(&self, global_name: impl AsRef<str>) -> Result<Vec<Global>> {
+    pub fn globals_by_name(&self, _global_name: impl AsRef<str>) -> Result<Vec<Global>> {
         unimplemented!()
     }
 
@@ -350,14 +350,14 @@ impl<'vm> Store<'vm> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{ConfigBuilder, Module, SignatureBuilder, ValType, VmBuilder};
+    use crate::{Config, Module, SignatureBuilder, ValType, VmBuilder};
 
     #[test]
     fn test_store_instance() {
         // create a Config
-        let config = ConfigBuilder::new()
-            .expect("fail to create a ConfigBuilder")
-            .build();
+        let result = Config::new();
+        assert!(result.is_ok());
+        let config = result.unwrap();
 
         // create a Store
         let result = Store::new();

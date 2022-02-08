@@ -121,15 +121,18 @@ WasiCryptoExpect<size_t> AesGcm<KeyBit>::State::decryptDetachedUnchecked(
   int ActualOutSize;
   opensslAssuming(EVP_CipherUpdate(Ctx.get(), Out.data(), &ActualOutSize,
                                    Data.data(), static_cast<int>(Data.size())));
+  ensureOrReturn(ActualOutSize == static_cast<int>(Data.size()),
+                 __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
 
   opensslAssuming(EVP_CIPHER_CTX_ctrl(Ctx.get(), EVP_CTRL_AEAD_SET_TAG,
                                       static_cast<int>(TagLen),
                                       const_cast<uint8_t *>(RawTag.data())));
 
   // Construct a temp var
-  int Temp;
-  ensureOrReturn(EVP_CipherFinal_ex(Ctx.get(), nullptr, &Temp),
+  int OutLen;
+  ensureOrReturn(EVP_CipherFinal_ex(Ctx.get(), nullptr, &OutLen),
                  __WASI_CRYPTO_ERRNO_INVALID_TAG);
+  ensureOrReturn(OutLen == 0, __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
 
   ensureOrReturn(ActualOutSize >= 0, __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
   return static_cast<size_t>(ActualOutSize);

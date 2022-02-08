@@ -5,3 +5,4 @@ Raspberry Pi 从 3 Model B 开始就使用 64-bit 处理器。WasmEdge 能够在
 在 Raspberry Pi 上的安装步骤等同于[安装文档](https://wasmedge.org/book/en/start/install.html)，执行过程也一样。以下有一个视频，通过安装 WasmEdge 和运行一个简单的 WebAssembly 模块实现两数相加的功能。
 
 [![asciicast](https://asciinema.org/a/458453.svg)](https://asciinema.org/a/458453)
+

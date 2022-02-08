@@ -17,9 +17,9 @@ WasmEdge's [Node.js SDK](../../embed/node.md) and [Go SDK](../../embed/go.md) bo
 The `rustwasmc` depends on the Rust cargo toolchain to compile Rust source code to WebAssembly. You must have [Rust installed](https://www.rust-lang.org/tools/install) on your machine.
 
 ```bash
-$ curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
-$ source $HOME/.cargo/env
-$ rustup override set 1.50.0
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+source $HOME/.cargo/env
+rustup override set 1.50.0
 ```
 
 ## Install
@@ -27,7 +27,7 @@ $ rustup override set 1.50.0
 The easiest way to install [rustwasmc](https://github.com/second-state/rustwasmc) is to use its installer.
 
 ```bash
-$ curl https://raw.githubusercontent.com/second-state/rustwasmc/master/installer/init.sh -sSf | sh
+curl https://raw.githubusercontent.com/second-state/rustwasmc/master/installer/init.sh -sSf | sh
 ```
 
 Alternatively, you can [install using the NPM](https://github.com/second-state/rustwasmc#install) if you'd like.
@@ -37,13 +37,13 @@ Alternatively, you can [install using the NPM](https://github.com/second-state/r
 To build [Rust functions for Node.js](../../embed/node.md) applications, use the following command. See a [template application](https://github.com/second-state/wasmedge-nodejs-starter).
 
 ```bash
-$ rustwasmc build
+rustwasmc build
 ```
 
 Use the `--enable-ext` flag to compile Rust programs that use WASI extensions, such as WasmEdge's storage and [Tensorflow](tensorflow.md) APIs. The `rustwasmc` will generates the compiled WebAssembly bytecode program for the `wasmedge-extensions` Node.js module instead of the `wasmedge-core` module in this case.
 
 ```bash
-$ rustwasmc build --enable-ext
+rustwasmc build --enable-ext
 ```
 
 ## Support AOT
@@ -52,15 +52,15 @@ A key feature of the WasmEdge runtime is its support for Ahead-of-Time (AOT) com
 Then, use the commands below to bring your operating system up to date with the latest developer tools. The commands here are tested on Ubuntu 20.04.
 
 ```bash
-$ sudo apt-get update
-$ sudo apt-get -y upgrade
-$ sudo apt install build-essential curl wget git vim libboost-all-dev llvm-dev liblld-10-dev
+sudo apt-get update
+sudo apt-get -y upgrade
+sudo apt install build-essential curl wget git vim libboost-all-dev llvm-dev liblld-10-dev
 ```
 
 Now, you can build the `.so` files for the AOT native target like the following.
 
 ```bash
-$ rustwasmc build --enable-aot
+rustwasmc build --enable-aot
 ```
 
 Enjoy coding!

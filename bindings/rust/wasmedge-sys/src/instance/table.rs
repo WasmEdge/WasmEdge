@@ -36,23 +36,20 @@ impl Table {
     /// ```
     /// use wasmedge_sys::{RefType, TableType, Table};
     /// // create a TableType instance
-    /// let mut ty = TableType::create(RefType::FuncRef, 10..=20).expect("fail to create a TableType");
+    /// let ty = TableType::create(RefType::FuncRef, 10..=20).expect("fail to create a TableType");
     ///
     /// // create a Table instance
-    /// let table = Table::create(&mut ty).expect("fail to create a Table");
+    /// let table = Table::create(ty).expect("fail to create a Table");
     /// ```
-    pub fn create(ty: &mut TableType) -> WasmEdgeResult<Self> {
+    pub fn create(mut ty: TableType) -> WasmEdgeResult<Self> {
         let ctx = unsafe { wasmedge::WasmEdge_TableInstanceCreate(ty.ctx) };
+        ty.ctx = std::ptr::null_mut();
         match ctx.is_null() {
             true => Err(WasmEdgeError::Table(TableError::Create)),
-            false => {
-                ty.ctx = std::ptr::null_mut();
-                ty.registered = true;
-                Ok(Table {
-                    ctx,
-                    registered: false,
-                })
-            }
+            false => Ok(Table {
+                ctx,
+                registered: false,
+            }),
         }
     }
 
@@ -123,8 +120,8 @@ impl Table {
     /// use wasmedge_sys::{RefType, TableType, Table};
     ///
     /// // create a TableType instance and a Table
-    /// let mut ty = TableType::create(RefType::FuncRef, 10..=20).expect("fail to create a TableType");
-    /// let table = Table::create(&mut ty).expect("fail to create a Table");
+    /// let ty = TableType::create(RefType::FuncRef, 10..=20).expect("fail to create a TableType");
+    /// let table = Table::create(ty).expect("fail to create a Table");
     ///
     /// // check capacity
     /// assert_eq!(table.capacity(), 10);
@@ -261,18 +258,12 @@ mod tests {
         // create a TableType instance
         let result = TableType::create(RefType::FuncRef, 10..=20);
         assert!(result.is_ok());
-        let mut ty = result.unwrap();
-        assert!(!ty.ctx.is_null());
-        assert!(!ty.registered);
+        let ty = result.unwrap();
 
         // create a Table instance
-        let result = Table::create(&mut ty);
+        let result = Table::create(ty);
         assert!(result.is_ok());
-        assert!(ty.ctx.is_null());
-        assert!(ty.registered);
         let mut table = result.unwrap();
-        assert!(!table.ctx.is_null());
-        assert!(!table.registered);
 
         // check capacity
         assert_eq!(table.capacity(), 10);
@@ -300,18 +291,12 @@ mod tests {
         // create a TableType instance
         let result = TableType::create(RefType::FuncRef, 10..=20);
         assert!(result.is_ok());
-        let mut ty = result.unwrap();
-        assert!(!ty.ctx.is_null());
-        assert!(!ty.registered);
+        let ty = result.unwrap();
 
         // create a Table instance
-        let result = Table::create(&mut ty);
+        let result = Table::create(ty);
         assert!(result.is_ok());
-        assert!(ty.ctx.is_null());
-        assert!(ty.registered);
         let mut table = result.unwrap();
-        assert!(!table.ctx.is_null());
-        assert!(!table.registered);
 
         // check capacity
         assert_eq!(table.capacity(), 10);

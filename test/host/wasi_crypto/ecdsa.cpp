@@ -1,53 +1,13 @@
-#include "host/wasi_crypto/ctx.h"
-#include "host/wasi_crypto/signature/signature.h"
-#include "wasi_crypto/api.hpp"
-#include "gtest/gtest.h"
+#include "helper.h"
 
-#include <cstdint>
-#include <iostream>
-#include <vector>
 using namespace WasmEdge::Host::WASICrypto;
 using namespace std::literals;
 
-namespace {
-
-WasmEdge::Span<uint8_t const> operator"" _u8(const char *Str,
-                                             std::size_t Len) noexcept {
-  return {reinterpret_cast<uint8_t const *>(Str), Len};
+TEST_F(WasiCryptoTest, Ecdsa) {
+  
 }
 
-// std::vector<uint8_t> operator"" _u8v(const char *Str,
-//                                      std::size_t Len) noexcept {
-//   std::vector<uint8_t> Res(Len / 2);
-//   for (size_t I = 0; I < Len; I += 2) {
-//     std::string Tran{Str + I, 2};
-//     Res[I / 2] = static_cast<uint8_t>(std::strtol(Tran.c_str(), nullptr,
-//     16));
-//   }
-//   return Res;
-// }
-// std::ostream &operator<<(std::ostream &Os, const std::vector<uint8_t> &Vec) {
-//   for (size_t Index = 0; Index <= Vec.size(); Index += 15) {
-//     std::cout << "              ";
-//     auto Diff = Vec.size() - Index;
-//     if (Diff >= 15) {
-//       for (auto B = Vec.begin() + Index; B < Vec.begin() + Index + 15; ++B) {
-//         Os << std::setw(2) << std::setfill('0') << std::hex
-//            << static_cast<unsigned int>(*B) << ":";
-//       }
-//     } else {
-//       for (auto B = Vec.begin() + Index; B < Vec.end(); ++B) {
-//         Os << std::setw(2) << std::setfill('0') << std::hex
-//            << static_cast<unsigned int>(*B) << ":";
-//       }
-//     }
-//     std::cout << "\n";
-//   }
-//   return Os;
-// }
-} // namespace
-
-TEST(WasiCryptoTest, EcdsaSignAndVerify) {
+TEST_F(WasiCryptoTest, EcdsaSignAndVerify) {
   WasiCryptoContext Ctx;
   std::vector<std::string_view> AlgList{"ECDSA_P256_SHA256",
                                         "ECDSA_K256_SHA256"};
@@ -107,14 +67,15 @@ TEST(WasiCryptoTest, EcdsaSignAndVerify) {
 }
 
 //  TODO: https://github.com/WebAssembly/wasi-crypto/pull/42
-// TEST(WasiCryptoTest, EcdsaExternalImport) {
+// TEST_F(WasiCryptoTest, EcdsaExternalImport) {
 //   {
 //     std::vector<uint8_t> RawPk{3,   216, 189, 189, 158, 243, 237, 234, 143,
 //                                205, 242, 122, 132, 75,  156, 170, 121, 171,
 //                                27,  74,  233, 117, 177, 210, 93,  188, 220,
 //                                97,  239, 110, 101, 83,  35};
 //     WasiCryptoContext Ctx;
-//     Ctx.publickeyImport(__WASI_ALGORITHM_TYPE_SIGNATURES, "ECDSA_P256_SHA256"sv,
+//     Ctx.publickeyImport(__WASI_ALGORITHM_TYPE_SIGNATURES,
+//     "ECDSA_P256_SHA256"sv,
 //                         RawPk, __WASI_PUBLICKEY_ENCODING_RAW)
 //         .value();
 
@@ -122,7 +83,8 @@ TEST(WasiCryptoTest, EcdsaSignAndVerify) {
 //                                172, 164, 135, 253, 28,  216, 141, 54,
 //                                122, 95,  216, 45,  120, 181, 207, 84,
 //                                18,  245, 240, 125, 223, 219, 34,  151};
-//     Ctx.keypairImport(__WASI_ALGORITHM_TYPE_SIGNATURES, "ECDSA_P256_SHA256"sv,
+//     Ctx.keypairImport(__WASI_ALGORITHM_TYPE_SIGNATURES,
+//     "ECDSA_P256_SHA256"sv,
 //                       RawKp, __WASI_KEYPAIR_ENCODING_RAW)
 //         .value();
 //   }

@@ -9,7 +9,6 @@ namespace WasmEdge {
 namespace Host {
 namespace WASICrypto {
 namespace Symmetric {
-namespace {} // namespace
 
 template <uint32_t KeyBit>
 WasiCryptoExpect<std::unique_ptr<Key>>

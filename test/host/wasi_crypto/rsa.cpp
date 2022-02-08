@@ -1,21 +1,9 @@
-
-#include "host/wasi_crypto/ctx.h"
-#include "wasi_crypto/api.hpp"
-#include "gtest/gtest.h"
-#include <cstdint>
+#include "helper.h"
 
 using namespace WasmEdge::Host::WASICrypto;
 using namespace std::literals;
 
-namespace {
-
-WasmEdge::Span<uint8_t const> operator"" _u8(const char *Str,
-                                             std::size_t Len) noexcept {
-  return {reinterpret_cast<uint8_t const *>(Str), Len};
-}
-} // namespace
-
-TEST(WasiCryptoTest, TestSignaturesRsa) {
+TEST_F(WasiCryptoTest, TestSignaturesRsa) {
   std::vector<std::string_view> AlgList{
       "RSA_PKCS1_2048_SHA256", "RSA_PKCS1_2048_SHA384", "RSA_PKCS1_2048_SHA512",
       "RSA_PKCS1_3072_SHA384", "RSA_PKCS1_3072_SHA512", "RSA_PKCS1_4096_SHA512",
@@ -76,7 +64,7 @@ TEST(WasiCryptoTest, TestSignaturesRsa) {
   }
 }
 
-TEST(WasiCryptoTest, ImportRsaPkcs8Key) {
+TEST_F(WasiCryptoTest, ImportRsaPkcs8Key) {
   std::vector<uint8_t> Pkcs8Pk{
       48,  130, 1,   34,  48,  13,  6,   9,   42,  134, 72,  134, 247, 13,  1,
       1,   1,   5,   0,   3,   130, 1,   15,  0,   48,  130, 1,   10,  2,   130,
@@ -106,7 +94,7 @@ TEST(WasiCryptoTest, ImportRsaPkcs8Key) {
       .value();
 }
 
-TEST(WasiCryptoTest, ImportRsaPemKey) {
+TEST_F(WasiCryptoTest, ImportRsaPemKey) {
   std::vector<uint8_t> PemPk{
       45,  45,  45,  45,  45,  66,  69,  71,  73,  78,  32,  80,  85,  66,  76,
       73,  67,  32,  75,  69,  89,  45,  45,  45,  45,  45,  10,  77,  73,  73,

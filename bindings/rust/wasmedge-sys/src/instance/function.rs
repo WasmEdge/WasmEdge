@@ -62,12 +62,12 @@ extern "C" fn wraper_fn(
 /// function defined outside WebAssembly and passed to WASM module.
 ///
 /// In WasmEdge, developers can create the [`Function`]s and other WasmEdge instances, such as [Memory](crate::Memory),
-/// and add them into a WasmEdge [ImportObj](crate::ImportObj) for registering into a WasmEdge [Vm](crate::Vm) or [Store](crate::Store).
+/// and add them into a WasmEdge [ImportObject](crate::ImportObject) for registering into a WasmEdge [Vm](crate::Vm) or
+/// [Store](crate::Store).
 #[derive(Debug)]
 pub struct Function {
     pub(crate) ctx: *mut wasmedge::WasmEdge_FunctionInstanceContext,
     pub(crate) registered: bool,
-    pub(crate) ty: Option<FuncType>,
 }
 impl Function {
     #[allow(clippy::type_complexity)]
@@ -122,7 +122,7 @@ impl Function {
     /// let func = Function::create(func_ty, Box::new(real_add), 0).expect("fail to create a Function instance");
     /// ```
     pub fn create(
-        ty: FuncType,
+        mut ty: FuncType,
         real_fn: Box<dyn Fn(Vec<Value>) -> Result<Vec<Value>, u8>>,
         cost: u64,
     ) -> WasmEdgeResult<Self> {
@@ -157,12 +157,12 @@ impl Function {
                 cost,
             )
         };
+        ty.ctx = std::ptr::null_mut();
 
         match ctx.is_null() {
             true => Err(WasmEdgeError::Func(FuncError::Create)),
             false => Ok(Self {
                 ctx,
-                ty: Some(ty),
                 registered: false,
             }),
         }
@@ -187,7 +187,6 @@ impl Function {
 }
 impl Drop for Function {
     fn drop(&mut self) {
-        self.ty = None;
         if !self.registered && !self.ctx.is_null() {
             unsafe { wasmedge::WasmEdge_FunctionInstanceDelete(self.ctx) };
         }

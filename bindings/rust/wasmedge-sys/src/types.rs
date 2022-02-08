@@ -2,7 +2,7 @@
 
 use crate::wasmedge;
 use core::ffi::c_void;
-use std::{ffi::CString, fmt};
+use std::{ffi::CString, fmt, str::FromStr};
 
 /// Defines reference types.
 ///
@@ -306,6 +306,16 @@ impl PartialEq for WasmEdgeString {
     }
 }
 impl Eq for WasmEdgeString {}
+impl From<WasmEdgeString> for String {
+    fn from(s: WasmEdgeString) -> Self {
+        let bytes: &[u8] = unsafe {
+            std::slice::from_raw_parts(s.as_raw().Buf as *const u8, s.as_raw().Length as usize)
+        };
+        let x =
+            std::str::from_utf8(bytes).expect("Fail to generate string slice: invalid utf8 bytes");
+        String::from_str(x).expect("Ill-formatted string")
+    }
+}
 impl From<wasmedge::WasmEdge_String> for String {
     fn from(s: wasmedge::WasmEdge_String) -> Self {
         let cstr = unsafe { std::ffi::CStr::from_ptr(s.Buf as *const _) };
@@ -563,8 +573,8 @@ mod tests {
         // ExternRef
         let result = TableType::create(RefType::FuncRef, 10..=20);
         assert!(result.is_ok());
-        let mut ty = result.unwrap();
-        let result = Table::create(&mut ty);
+        let ty = result.unwrap();
+        let result = Table::create(ty);
         assert!(result.is_ok());
         let mut table = result.unwrap();
         let value = Value::from_extern_ref(&mut table);
@@ -591,7 +601,19 @@ mod tests {
         assert_eq!(s, t);
 
         let s: WasmEdgeString = "hello".into();
+        let t = String::from(s);
+        assert_eq!(t, "hello");
+
+        let s: WasmEdgeString = "hello".into();
         let t: WasmEdgeString = "hello\0".into();
         assert_ne!(s, t);
+
+        let s: WasmEdgeString = "hello\0".into();
+        let t = String::from(s);
+        assert_eq!(t, "hello\0");
+
+        let s: WasmEdgeString = "he\0llo\0".into();
+        let t = String::from(s);
+        assert_eq!(t, "he\0llo\0");
     }
 }

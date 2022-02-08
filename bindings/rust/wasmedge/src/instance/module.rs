@@ -74,6 +74,12 @@ impl Module {
             false => exports[0].ty().ok(),
         }
     }
+
+    pub fn validate(self) -> Result<Self> {
+        // TODO add code for module validation
+
+        Ok(self)
+    }
 }
 
 #[derive(Debug)]

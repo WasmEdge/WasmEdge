@@ -7,13 +7,13 @@ WasmEdge can be embedded into cloud-native infrastructure via its SDKs in [C](..
 * [Tutorial](https://www.secondstate.io/articles/dapr-wasmedge-webassembly/)
 * [Code template](https://github.com/second-state/dapr-wasm)
 
-## Service mesh (work in progress):
+## Service mesh (work in progress)
 
 * Linkerd
 * MOSN
 * Envoy
 
-## Orchestration and management:
+## Orchestration and management
 
 * [Kubernetes](https://www.secondstate.io/articles/manage-webassembly-apps-in-wasmedge-using-docker-tools/)
 * KubeEdge

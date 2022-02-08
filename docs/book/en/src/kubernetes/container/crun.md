@@ -14,10 +14,10 @@ $ sudo apt install -y make git gcc build-essential pkgconf libtool \
 Next, configure, build, and install a `crun` binary with WasmEdge support.
 
 ```bash
-$ git clone https://github.com/containers/crun
-$ cd crun
-$ ./autogen.sh
-$ ./configure --with-wasmedge
-$ make
-$ sudo make install
+git clone https://github.com/containers/crun
+cd crun
+./autogen.sh
+./configure --with-wasmedge
+make
+sudo make install
 ```

@@ -9,7 +9,14 @@
 #include "host/wasi/inode.h"
 #include "host/wasi/vfs.h"
 #include "macos.h"
-#include <netdb.h>
+#include <algorithm>
+#include <cstdint>
+#include <cstring>
+#include <limits>
+#include <new>
+#include <string>
+#include <string_view>
+#include <vector>
 
 namespace WasmEdge {
 namespace Host {

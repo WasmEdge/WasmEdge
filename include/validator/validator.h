@@ -18,6 +18,7 @@
 #include "common/configure.h"
 #include "validator/formchecker.h"
 
+#include <cstdint>
 #include <memory>
 
 namespace WasmEdge {

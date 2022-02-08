@@ -6,6 +6,10 @@
 #include "common/log.h"
 #include "system/fault.h"
 
+#include <cstdint>
+#include <utility>
+#include <vector>
+
 namespace WasmEdge {
 namespace Executor {
 

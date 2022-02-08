@@ -10,8 +10,14 @@
 #include "po/argument_parser.h"
 #include "vm/vm.h"
 
+#include <chrono>
+#include <cstdint>
 #include <cstdlib>
 #include <iostream>
+#include <optional>
+#include <string>
+#include <string_view>
+#include <vector>
 
 int main(int Argc, const char *Argv[]) {
   namespace PO = WasmEdge::PO;

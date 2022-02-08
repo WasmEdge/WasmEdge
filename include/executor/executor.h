@@ -25,8 +25,10 @@
 
 #include <atomic>
 #include <csignal>
-#include <memory>
+#include <cstdint>
+#include <string_view>
 #include <type_traits>
+#include <utility>
 #include <vector>
 
 namespace WasmEdge {

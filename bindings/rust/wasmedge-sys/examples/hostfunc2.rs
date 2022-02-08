@@ -15,7 +15,7 @@ use std::{
     fs::{self, File},
     io::Read,
 };
-use wasmedge_sys::{Config, FuncType, Function, ImportObj, Loader, ValType, Value, Vm};
+use wasmedge_sys::{Config, FuncType, Function, ImportObject, Loader, ValType, Value, Vm};
 
 fn real_add(input: Vec<Value>) -> Result<Vec<Value>, u8> {
     println!("Rust: Entering Rust function real_add");
@@ -63,7 +63,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let wasm_binary = load_file_as_byte_vec(&hostfunc_path.as_path().display().to_string());
 
     let config = Config::create().expect("fail to create Config instance");
-    let mut import_obj = ImportObj::create("extern_module").unwrap();
+    let mut import_obj = ImportObject::create("extern_module").unwrap();
 
     let result = FuncType::create(
         vec![ValType::ExternRef, ValType::I32, ValType::I32],
@@ -73,19 +73,21 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let func_ty = result.unwrap();
     let result = Function::create(func_ty, Box::new(real_add), 0);
     assert!(result.is_ok());
-    let mut host_func = result.unwrap();
-    import_obj.add_func("add", &mut host_func);
+    let host_func = result.unwrap();
+    import_obj.add_func("add", host_func);
 
     // load wasm from binary
-    let loader = Loader::create(Some(&config))?;
-    let mut module = loader.from_buffer(&wasm_binary)?;
+    let loader = Loader::create(Some(config))?;
+    let module = loader.from_buffer(&wasm_binary)?;
 
-    let mut vm = Vm::create(Some(&config), None)?;
-    vm.register_wasm_from_import(&mut import_obj)?;
+    // create a Vm context
+    let config = Config::create().expect("fail to create Config instance");
+    let mut vm = Vm::create(Some(config), None)?;
+    vm.register_wasm_from_import(import_obj)?;
 
     let add_ref = Value::from_extern_ref(&mut real_add);
     match vm.run_wasm_from_module(
-        &mut module,
+        module,
         "call_add",
         [add_ref, Value::from_i32(1234), Value::from_i32(5678)],
     ) {

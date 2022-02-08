@@ -100,16 +100,16 @@ The following is the comparison of the interpreter mode and the AOT mode:
 $ time ./test_wasmedge fibonacci.wasm
 Get result: 5702887
 
-real	0m2.715s
-user	0m2.700s
-sys	0m0.008s
+real 0m2.715s
+user 0m2.700s
+sys 0m0.008s
 
 $ time ./test_wasmedge fibonacci.wasm.so
 Get result: 5702887
 
-real	0m0.036s
-user	0m0.022s
-sys	0m0.011s
+real 0m0.036s
+user 0m0.022s
+sys 0m0.011s
 ```
 
 For the details of APIs, please refer to the [API header file](https://github.com/WasmEdge/WasmEdge/blob/master/include/api/wasmedge/wasmedge.h).

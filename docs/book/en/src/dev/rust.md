@@ -116,5 +116,6 @@ $ wasmedge --reactor add.wasm add 2 2
 
 * [Access OS services via WASI](rust/wasi.md) shows how the WebAssembly program can access the underlying OS services, such as file system and environment variables.
 * [Tensorflow](rust/tensorflow.md) shows how to create Tensorflow-based AI inference applications for WebAssembly using the WasmEdge TensorFlow Rust SDK.
-* [Networking socket](rust/networking.md) shows how to create networking applications for WebAssembly using the WasmEdge networking socket Rust SDK.
+* [Simple networking socket](rust/networking.md) shows how to create simple HTTP client and server applications using the WasmEdge networking socket Rust SDK.
+* [Non-blocking networking socket](rust/networking-nonblocking.md) shows how to create a high-performance non-blocking networking applications with concurrent open connections using the WasmEdge networking socket Rust SDK.
 * [Command interface](rust/command.md) shows how to create native command applications for WebAssembly using the Wasmedge command interface Rust SDK.

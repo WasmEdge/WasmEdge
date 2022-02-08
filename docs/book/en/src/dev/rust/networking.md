@@ -33,7 +33,7 @@ fn main() {
 
 To compile this source code, you must have the following in your `Cargo.toml`.
 
-```
+```toml
 [dependencies]
 wasmedge_http_req  = "0.8.1"
 ```
@@ -41,13 +41,13 @@ wasmedge_http_req  = "0.8.1"
 The following command compiles the Rust program.
 
 ```bash
-$ cargo build --target wasm32-wasi --release
+cargo build --target wasm32-wasi --release
 ```
 
 The following command runs the application in WasmEdge.
 
 ```bash
-$ wasmedge target/wasm32-wasi/release/http_client.wasm
+wasmedge target/wasm32-wasi/release/http_client.wasm
 ```
 
 ## The HTTP server example
@@ -123,7 +123,7 @@ fn main() -> std::io::Result<()> {
 
 To compile this source code, you must have the following in your `Cargo.toml`.
 
-```
+```toml
 [dependencies]
 wasmedge_http_req  = "0.8.1"
 ```
@@ -131,7 +131,7 @@ wasmedge_http_req  = "0.8.1"
 The following command compiles the Rust program.
 
 ```bash
-$ cargo build --target wasm32-wasi --release
+cargo build --target wasm32-wasi --release
 ```
 
 The following command runs the application in WasmEdge.

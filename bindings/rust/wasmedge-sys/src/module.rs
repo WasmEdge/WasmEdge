@@ -6,7 +6,7 @@ use crate::{
     instance::{function::FuncType, global::GlobalType, memory::MemType, table::TableType},
     types::ExternalType,
 };
-use std::{borrow::Cow, ffi::CStr};
+use std::{borrow::Cow, ffi::CStr, marker::PhantomData};
 
 /// Struct of WasmEdge AST (short for abstract syntax tree) Module.
 ///
@@ -21,7 +21,6 @@ use std::{borrow::Cow, ffi::CStr};
 #[derive(Debug)]
 pub struct Module {
     pub(crate) ctx: *mut wasmedge::WasmEdge_ASTModuleContext,
-    pub(crate) registered: bool,
 }
 impl Drop for Module {
     fn drop(&mut self) {
@@ -37,7 +36,7 @@ impl Module {
     }
 
     /// Returns the imports of the [`Module`].
-    pub fn imports_iter(&self) -> impl Iterator<Item = Import> {
+    pub fn imports_iter(&self) -> impl Iterator<Item = Import<'_>> {
         let size = self.count_of_imports();
         let mut returns = Vec::with_capacity(size as usize);
         unsafe {
@@ -45,7 +44,10 @@ impl Module {
             returns.set_len(size as usize);
         }
 
-        returns.into_iter().map(|ctx| Import { ctx })
+        returns.into_iter().map(|ctx| Import {
+            ctx,
+            _marker: PhantomData,
+        })
     }
 
     /// Returns the count of the exports of the [`Module`].
@@ -54,7 +56,7 @@ impl Module {
     }
 
     /// Returns the exports of the [`Module`].
-    pub fn exports_iter(&self) -> impl Iterator<Item = Export> {
+    pub fn exports_iter(&self) -> impl Iterator<Item = Export<'_>> {
         let size = self.count_of_exports();
         let mut returns = Vec::with_capacity(size as usize);
         unsafe {
@@ -62,7 +64,10 @@ impl Module {
             returns.set_len(size as usize);
         }
 
-        returns.into_iter().map(|ctx| Export { ctx })
+        returns.into_iter().map(|ctx| Export {
+            ctx,
+            _marker: PhantomData,
+        })
     }
 }
 
@@ -70,17 +75,18 @@ impl Module {
 ///
 /// The [`Import`] is used for getting the information of the imports from a WasmEdge AST [`Module`].
 #[derive(Debug)]
-pub struct Import {
+pub struct Import<'module> {
     pub(crate) ctx: *const wasmedge::WasmEdge_ImportTypeContext,
+    pub(crate) _marker: PhantomData<&'module Module>,
 }
-impl Drop for Import {
+impl<'module> Drop for Import<'module> {
     fn drop(&mut self) {
         if !self.ctx.is_null() {
             self.ctx = std::ptr::null();
         }
     }
 }
-impl Import {
+impl<'module> Import<'module> {
     /// Returns the external type of the [`Import`].
     pub fn ty(&self) -> ExternalType {
         let ty = unsafe { wasmedge::WasmEdge_ImportTypeGetExternalType(self.ctx) };
@@ -229,17 +235,18 @@ impl Import {
 ///
 /// The [`Export`] is used for getting the information of the exports from a WasmEdge AST [`Module`].
 #[derive(Debug)]
-pub struct Export {
+pub struct Export<'module> {
     pub(crate) ctx: *const wasmedge::WasmEdge_ExportTypeContext,
+    pub(crate) _marker: PhantomData<&'module Module>,
 }
-impl Drop for Export {
+impl<'module> Drop for Export<'module> {
     fn drop(&mut self) {
         if !self.ctx.is_null() {
             self.ctx = std::ptr::null();
         }
     }
 }
-impl Export {
+impl<'module> Export<'module> {
     /// Returns the external type of the [`Export`].
     pub fn ty(&self) -> ExternalType {
         let ty = unsafe { wasmedge::WasmEdge_ExportTypeGetExternalType(self.ctx) };
@@ -384,8 +391,8 @@ mod tests {
 
     #[test]
     fn test_module_import() {
-        let path =
-            std::path::PathBuf::from(env!("WASMEDGE_DIR")).join("test/api/apiTestData/import.wasm");
+        let path = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
+            .join("bindings/rust/wasmedge-sys/tests/data/import.wasm");
 
         let result = Config::create();
         assert!(result.is_ok());
@@ -394,7 +401,7 @@ mod tests {
         assert!(config.bulk_memory_operations_enabled());
 
         // load module from file
-        let result = Loader::create(Some(&config));
+        let result = Loader::create(Some(config));
         assert!(result.is_ok());
         let loader = result.unwrap();
         let result = loader.from_file(path);
@@ -529,8 +536,8 @@ mod tests {
 
     #[test]
     fn test_module_export() {
-        let path =
-            std::path::PathBuf::from(env!("WASMEDGE_DIR")).join("test/api/apiTestData/import.wasm");
+        let path = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
+            .join("bindings/rust/wasmedge-sys/tests/data/import.wasm");
 
         let result = Config::create();
         assert!(result.is_ok());
@@ -539,7 +546,7 @@ mod tests {
         assert!(config.bulk_memory_operations_enabled());
 
         // load module from file
-        let result = Loader::create(Some(&config));
+        let result = Loader::create(Some(config));
         assert!(result.is_ok());
         let loader = result.unwrap();
         let result = loader.from_file(path);

@@ -1,7 +1,7 @@
 #[cfg(feature = "aot")]
 use wasmedge_sys::{
     Compiler, CompilerOptimizationLevel, CompilerOutputFormat, Config, FuncType, Function,
-    ImportObj, Value, Vm,
+    ImportObject, Value, Vm,
 };
 
 #[cfg(feature = "aot")]
@@ -21,18 +21,21 @@ fn test_aot() {
         .function_references(true);
 
     // create a Vm context
-    let result = Vm::create(Some(&config), None);
+    let result = Vm::create(Some(config), None);
     assert!(result.is_ok());
     let mut vm = result.unwrap();
-    let mut import_obj = create_spec_test_module();
-    let result = vm.register_wasm_from_import(&mut import_obj);
+    let import_obj = create_spec_test_module();
+    let result = vm.register_wasm_from_import(import_obj);
     assert!(result.is_ok());
 
     // set the AOT compiler options
+    let result = Config::create();
+    assert!(result.is_ok());
+    let config = result.unwrap();
     let config = config
         .set_optimization_level(CompilerOptimizationLevel::O0)
         .set_compiler_output_format(CompilerOutputFormat::Native);
-    let result = Compiler::create(Some(&config));
+    let result = Compiler::create(Some(config));
     assert!(result.is_ok());
     let compiler = result.unwrap();
 
@@ -79,9 +82,9 @@ fn test_aot() {
     assert!(std::fs::remove_file(&out_path).is_ok());
 }
 
-fn create_spec_test_module() -> ImportObj {
+fn create_spec_test_module() -> ImportObject {
     // create an ImportObj module
-    let result = ImportObj::create("spectest");
+    let result = ImportObject::create("spectest");
     assert!(result.is_ok());
     let mut import_obj = result.unwrap();
 
@@ -91,10 +94,9 @@ fn create_spec_test_module() -> ImportObj {
     let func_ty = result.unwrap();
     let result = Function::create(func_ty, Box::new(spec_test_print), 0);
     assert!(result.is_ok());
-    let mut host_func = result.unwrap();
+    let host_func = result.unwrap();
     // add host function "print"
-    import_obj.add_func("print", &mut host_func);
-
+    import_obj.add_func("print", host_func);
     import_obj
 }
 

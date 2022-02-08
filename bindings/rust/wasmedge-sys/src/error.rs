@@ -188,8 +188,10 @@ pub enum VmError {
     Create,
     #[error("Fail to get the type of the target function ({0})")]
     NotFoundFuncType(String),
-    #[error("Fail to get ImportObj module")]
-    NotFoundImportObj,
+    #[error("Fail to get Wasi ImportObject module")]
+    NotFoundWasiImportObjectModule,
+    #[error("Fail to get WasmEdgeProcess ImportObject module")]
+    NotFoundWasmEdgeProcessImportObjectModule,
     #[error("Fail to get Store context")]
     NotFoundStore,
     #[error("Fail to get Statistics context")]

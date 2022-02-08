@@ -59,7 +59,7 @@ pub use error::{
 #[doc(inline)]
 pub use executor::Executor;
 #[doc(inline)]
-pub use import_obj::ImportObj;
+pub use import_obj::ImportObject;
 #[doc(inline)]
 pub use instance::{
     function::{FuncType, Function},

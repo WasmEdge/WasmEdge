@@ -9,7 +9,7 @@ In this article, we will show you two serverless functions in Rust and WasmEdge 
 Since our demo WebAssembly functions are written in Rust, you will need a [Rust compiler](https://www.rust-lang.org/tools/install). Make sure that you install the `wasm32-wasi` compiler target as follows, in order to generate WebAssembly bytecode.
 
 ```bash
-$ rustup target add wasm32-wasi
+rustup target add wasm32-wasi
 ```
 
 The demo application front end is written in [Next.js](https://nextjs.org/), and deployed on AWS Lambda. We will assume that you already have the basic knowledge of how to work with Next.js and Lambda.
@@ -53,17 +53,17 @@ fn main() {
 You can use Rust’s `cargo` tool to build the Rust program into WebAssembly bytecode or native code.
 
 ```bash
-$ cd api/functions/image-grayscale/
-$ cargo build --release --target wasm32-wasi 
+cd api/functions/image-grayscale/
+cargo build --release --target wasm32-wasi 
 ```
 
 Copy the build artifacts to the `api` folder.
 
 ```bash
-$ cp target/wasm32-wasi/release/grayscale.wasm ../../
+cp target/wasm32-wasi/release/grayscale.wasm ../../
 ```
 
-> When we build the docker image, `api/pre.sh` is executed. `pre.sh` installs the WasmEdge runtime, and then compiles each WebAssembly bytecode program into a native `so` library for faster execution. 
+> When we build the docker image, `api/pre.sh` is executed. `pre.sh` installs the WasmEdge runtime, and then compiles each WebAssembly bytecode program into a native `so` library for faster execution.
 
 ### Create the service script to load the function
 
@@ -152,7 +152,7 @@ Third, we need to define the default command when we start our container. `CMD [
 Docker images built from AWS Lambda's base images can be tested locally following [this guide](https://docs.aws.amazon.com/lambda/latest/dg/images-test.html). Local testing requires [AWS Lambda Runtime Interface Emulator (RIE)](https://github.com/aws/aws-lambda-runtime-interface-emulator), which is already installed in all of AWS Lambda's base images. To test your image, first, start the Docker container by running:
 
 ```bash
-$ docker run -p 9000:8080  myfunction:latest 
+docker run -p 9000:8080  myfunction:latest 
 ```
 
 This command sets a function endpoint on your local machine at `http://localhost:9000/2015-03-31/functions/function/invocations`.
@@ -160,7 +160,7 @@ This command sets a function endpoint on your local machine at `http://localhost
 Then, from a separate terminal window, run:
 
 ```bash
-$ curl -XPOST "http://localhost:9000/2015-03-31/functions/function/invocations" -d '{}'
+curl -XPOST "http://localhost:9000/2015-03-31/functions/function/invocations" -d '{}'
 ```
 
 And you should get your expected output in the terminal.
@@ -214,14 +214,14 @@ pub fn main() {
 You can use the `cargo` tool to build the Rust program into WebAssembly bytecode or native code.
 
 ```bash
-$ cd api/functions/image-classification/
-$ cargo build --release --target wasm32-wasi
+cd api/functions/image-classification/
+cargo build --release --target wasm32-wasi
 ```
 
 Copy the build artifacts to the `api` folder.
 
 ```bash
-$ cp target/wasm32-wasi/release/classify.wasm ../../
+cp target/wasm32-wasi/release/classify.wasm ../../
 ```
 
 Again, the `api/pre.sh` script installs WasmEdge runtime and its Tensorflow dependencies in this application. It also compiles the `classify.wasm` bytecode program to the `classify.so` native shared library at the time of deployment.

@@ -4,9 +4,8 @@ use super::wasmedge;
 use crate::{
     error::{check, WasmEdgeError, WasmEdgeResult},
     types::WasmEdgeString,
-    Config, ImportObj, Module, Statistics, Store, Value,
+    Config, ImportObject, Module, Statistics, Store, Value,
 };
-use std::ptr;
 
 /// Struct of WasmEdge Executor.
 ///
@@ -28,46 +27,65 @@ impl Executor {
     /// # Error
     ///
     /// If fail to create a [`Executor`], then an error is returned.
-    pub fn create(config: Option<&Config>, stat: Option<&Statistics>) -> WasmEdgeResult<Self> {
-        let conf = match config {
-            Some(conf) => conf.ctx,
-            None => ptr::null(),
-        };
-        let stat_ctx = match stat {
-            Some(stat) => stat.ctx,
-            None => ptr::null_mut(),
+    pub fn create(config: Option<Config>, stat: Option<Statistics>) -> WasmEdgeResult<Self> {
+        let ctx = match config {
+            Some(mut config) => match stat {
+                Some(mut stat) => {
+                    let ctx = unsafe { wasmedge::WasmEdge_ExecutorCreate(config.ctx, stat.ctx) };
+                    config.ctx = std::ptr::null_mut();
+                    stat.ctx = std::ptr::null_mut();
+                    ctx
+                }
+                None => {
+                    let ctx = unsafe {
+                        wasmedge::WasmEdge_ExecutorCreate(config.ctx, std::ptr::null_mut())
+                    };
+                    config.ctx = std::ptr::null_mut();
+                    ctx
+                }
+            },
+            None => match stat {
+                Some(mut stat) => {
+                    let ctx = unsafe {
+                        wasmedge::WasmEdge_ExecutorCreate(std::ptr::null_mut(), stat.ctx)
+                    };
+                    stat.ctx = std::ptr::null_mut();
+                    ctx
+                }
+                None => unsafe {
+                    wasmedge::WasmEdge_ExecutorCreate(std::ptr::null_mut(), std::ptr::null_mut())
+                },
+            },
         };
 
-        let ctx = unsafe { wasmedge::WasmEdge_ExecutorCreate(conf, stat_ctx) };
         match ctx.is_null() {
             true => Err(WasmEdgeError::ExecutorCreate),
             false => Ok(Executor { ctx }),
         }
     }
 
-    /// Registers and instantiates a WasmEdge [`ImportObj`] into a [`Store`].
+    /// Registers and instantiates a WasmEdge [`ImportObject`] into a [`Store`].
     ///
     /// # Arguments
     ///
-    /// - `store` specifies the target [`Store`], into which the given [`ImportObj`] is registered.
+    /// - `store` specifies the target [`Store`], into which the given [`ImportObject`] is registered.
     ///
-    /// - `imp_obj` specifies the WasmEdge [`ImportObj`] to be registered.
+    /// - `import` specifies the WasmEdge [`ImportObject`] to be registered.
     ///
     /// # Error
     ///
-    /// If fail to register the given [`ImportObj`], then an error is returned.
+    /// If fail to register the given [`ImportObject`], then an error is returned.
     pub fn register_import_object(
         self,
         store: &mut Store,
-        imp_obj: &ImportObj,
+        mut import: ImportObject,
     ) -> WasmEdgeResult<Self> {
         unsafe {
             check(wasmedge::WasmEdge_ExecutorRegisterImport(
-                self.ctx,
-                store.ctx,
-                imp_obj.ctx,
+                self.ctx, store.ctx, import.ctx,
             ))?;
         }
+        import.ctx = std::ptr::null_mut();
         Ok(self)
     }
 
@@ -90,7 +108,7 @@ impl Executor {
     pub fn register_module(
         self,
         store: &mut Store,
-        ast_mod: &mut Module,
+        mut module: Module,
         mod_name: impl AsRef<str>,
     ) -> WasmEdgeResult<Self> {
         let mod_name: WasmEdgeString = mod_name.as_ref().into();
@@ -98,11 +116,10 @@ impl Executor {
             check(wasmedge::WasmEdge_ExecutorRegisterModule(
                 self.ctx,
                 store.ctx,
-                ast_mod.ctx,
+                module.ctx,
                 mod_name.as_raw(),
             ))?;
-            ast_mod.ctx = std::ptr::null_mut();
-            ast_mod.registered = true;
+            module.ctx = std::ptr::null_mut();
         }
         Ok(self)
     }
@@ -111,8 +128,8 @@ impl Executor {
     ///
     /// Instantiates the WasmEdge AST [Module](crate::Module) as an active anonymous module in the
     /// [Store](crate::Store). Notice that when a new module is instantiated into the [Store](crate::Store), the old
-    /// instantiated module is removed; in addition, ensure that the [imports](crate::ImportObj) are registered into the
-    /// [Store](crate::Store).
+    /// instantiated module is removed; in addition, ensure that the [imports](crate::ImportObject) are registered into
+    /// the [Store](crate::Store).
     ///
     ///
     /// # Arguments
@@ -125,16 +142,13 @@ impl Executor {
     /// # Error
     ///
     /// If fail to instantiate the given [Module](crate::Module), then an error is returned.
-    pub fn instantiate(self, store: &mut Store, ast_mod: &mut Module) -> WasmEdgeResult<Self> {
+    pub fn instantiate(self, store: &mut Store, mut module: Module) -> WasmEdgeResult<Self> {
         unsafe {
             check(wasmedge::WasmEdge_ExecutorInstantiate(
-                self.ctx,
-                store.ctx,
-                ast_mod.ctx,
+                self.ctx, store.ctx, module.ctx,
             ))?;
-            ast_mod.ctx = std::ptr::null_mut();
-            ast_mod.registered = false;
         }
+        module.ctx = std::ptr::null_mut();
         Ok(self)
     }
 
@@ -270,7 +284,7 @@ mod tests {
             let result = Config::create();
             assert!(result.is_ok());
             let config = result.unwrap();
-            let result = Executor::create(Some(&config), None);
+            let result = Executor::create(Some(config), None);
             assert!(result.is_ok());
             let executor = result.unwrap();
             assert!(!executor.ctx.is_null());
@@ -281,7 +295,7 @@ mod tests {
             let result = Statistics::create();
             assert!(result.is_ok());
             let stat = result.unwrap();
-            let result = Executor::create(None, Some(&stat));
+            let result = Executor::create(None, Some(stat));
             assert!(result.is_ok());
             let executor = result.unwrap();
             assert!(!executor.ctx.is_null());
@@ -297,7 +311,7 @@ mod tests {
             assert!(result.is_ok());
             let stat = result.unwrap();
 
-            let result = Executor::create(Some(&config), Some(&stat));
+            let result = Executor::create(Some(config), Some(stat));
             assert!(result.is_ok());
             let executor = result.unwrap();
             assert!(!executor.ctx.is_null());

@@ -26,10 +26,10 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: CentOS 8
+          - name: CentOS 8 Stream
             host_runner: ubuntu-latest
             package_manager: yum
-            docker_image: centos:8.4.2105
+            docker_image: quay.io/centos/centos:stream8
           - name: CentOS 7
             host_runner: ubuntu-latest
             package_manager: yum

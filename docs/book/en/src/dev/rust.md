@@ -9,7 +9,7 @@ You need to install [Rust](https://www.rust-lang.org/tools/install) and [WasmEdg
 You should also install the `wasm32-wasi` target to the Rust toolchain.
 
 ```bash
-$ rustup target add wasm32-wasi
+rustup target add wasm32-wasi
 ```
 
 ## Hello world
@@ -34,7 +34,7 @@ fn main() {
 ### Build the WASM bytecode
 
 ```bash
-$ cargo build --target wasm32-wasi
+cargo build --target wasm32-wasi
 ```
 
 ### Run the application from command line
@@ -66,7 +66,7 @@ pub fn add(a: i32, b: i32) -> i32 {
 ### Build the WASM bytecode
 
 ```bash
-$ cargo build --target wasm32-wasi
+cargo build --target wasm32-wasi
 ```
 
 ### Run the application from command line
@@ -85,7 +85,6 @@ Instead, you will probably need to use a [language SDK from WasmEdge](../../embe
 to call the function, pass call parameters, and receive return values.
 Below are some SDK examples for complex call parameters and return values.
 
-* [Use wasm-bindgen in a Node.js host app](../embed/node.md#more-examples)
 * [Use wasmedge-bindgen in a Go host app](../embed/go/function.md)
 * [Use direct memory passing in a Go host app](../embed/go/memory.md)
 

@@ -215,7 +215,7 @@ public:
   Expect<uint32_t> body(Runtime::Instance::MemoryInstance *MemInst,
                         __wasi_symmetric_state_t Handle, uint8_t_ptr OutPtr,
                         __wasi_size_t OutLen, const_uint8_t_ptr DataPtr,
-                        __wasi_size_t DataLen, uint32_t /* Out */ KeyPtr);
+                        __wasi_size_t DataLen, uint32_t /* Out */ TagHandlePtr);
 };
 
 class StateDecrypt : public HostFunction<StateDecrypt> {

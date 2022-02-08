@@ -573,11 +573,10 @@ Expect<uint32_t> StateEncrypt::body(Runtime::Instance::MemoryInstance *MemInst,
   return __WASI_CRYPTO_ERRNO_SUCCESS;
 }
 
-Expect<uint32_t>
-StateEncryptDetached::body(Runtime::Instance::MemoryInstance *MemInst,
-                           __wasi_symmetric_state_t Handle, uint8_t_ptr OutPtr,
-                           __wasi_size_t OutLen, const_uint8_t_ptr DataPtr,
-                           __wasi_size_t DataLen, uint32_t /* Out */ KeyPtr) {
+Expect<uint32_t> StateEncryptDetached::body(
+    Runtime::Instance::MemoryInstance *MemInst, __wasi_symmetric_state_t Handle,
+    uint8_t_ptr OutPtr, __wasi_size_t OutLen, const_uint8_t_ptr DataPtr,
+    __wasi_size_t DataLen, uint32_t /* Out */ TagHandlePtr) {
   if (MemInst == nullptr) {
     return __WASI_CRYPTO_ERRNO_INTERNAL_ERROR;
   }
@@ -599,12 +598,12 @@ StateEncryptDetached::body(Runtime::Instance::MemoryInstance *MemInst,
     return Res.error();
   }
 
-  auto *Key = MemInst->getPointer<__wasi_symmetric_key_t *>(KeyPtr);
-  if (unlikely(Key == nullptr)) {
+  auto *Tag = MemInst->getPointer<__wasi_symmetric_tag_t *>(TagHandlePtr);
+  if (unlikely(Tag == nullptr)) {
     return __WASI_CRYPTO_ERRNO_INTERNAL_ERROR;
   }
 
-  *Key = *Res;
+  *Tag = *Res;
   return __WASI_CRYPTO_ERRNO_SUCCESS;
 }
 

@@ -6,12 +6,12 @@
 #include "common/log.h"
 #include "host/wasi/environ.h"
 #include "runtime/instance/memory.h"
-#include <chrono>
-#include <csignal>
+#include <algorithm>
+#include <array>
 #include <limits>
 #include <numeric>
-#include <random>
-#include <string_view>
+#include <type_traits>
+#include <vector>
 
 namespace WasmEdge {
 namespace Host {

@@ -6,8 +6,11 @@
 #include "common/errinfo.h"
 #include "common/log.h"
 
+#include <array>
+#include <cstdint>
 #include <string>
 #include <unordered_set>
+#include <vector>
 
 namespace WasmEdge {
 namespace Validator {

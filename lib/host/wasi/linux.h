@@ -14,8 +14,12 @@
 #include "wasi/api.hpp"
 #include <cerrno>
 #include <chrono>
+#include <csignal>
+#include <cstdio>
+#include <ctime>
 #include <dirent.h>
 #include <fcntl.h>
+#include <sched.h>
 #include <sys/epoll.h>
 #include <sys/ioctl.h>
 #include <sys/time.h>

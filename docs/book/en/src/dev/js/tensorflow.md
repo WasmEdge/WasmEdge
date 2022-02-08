@@ -56,7 +56,7 @@ confidence:
 
 > Note: the `--dir .:.` on the command line is to give wasmedge permission to read the local directory in the file system for the `main.js` file.
 
-#### Note
+## Note
 
 * The `--features=tensorflow` compiler flag builds a version of the QuickJS engine with WasmEdge TensorFlow extensions.
 * The `wasmedge-tensorflow-lite` program is part of the WasmEdge package. It is the WasmEdge runtime with the Tensorflow extension built in.

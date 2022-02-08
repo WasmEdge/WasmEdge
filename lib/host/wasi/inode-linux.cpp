@@ -826,14 +826,11 @@ WasiExpect<void> INode::getAddrinfo(const char *NodeStr, const char *ServiceStr,
         CurSockaddr->sa_family = __WASI_ADDRESS_FAMILY_INET6;
         break;
       }
-      CurSockaddr->sa_data_len = 0;
 
       // process sa_data in socket address
-      if (SysResItem->ai_addr->sa_data[0] != '\0') {
-        std::memcpy(AiAddrSaDataArray[Idx], SysResItem->ai_addr->sa_data,
-                    WASI::kSaDataLen);
-        CurSockaddr->sa_data_len = WASI::kSaDataLen;
-      }
+      std::memcpy(AiAddrSaDataArray[Idx], SysResItem->ai_addr->sa_data,
+                  WASI::kSaDataLen);
+      CurSockaddr->sa_data_len = WASI::kSaDataLen;
     }
     // process ai_next in addrinfo
     SysResItem = SysResItem->ai_next;

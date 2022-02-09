@@ -1,4 +1,4 @@
-use crate::{error::Result, wasmedge, Config, GlobalType, MemoryType, Signature, TableType};
+use crate::{error::Result, wasmedge, Config, GlobalType, MemoryType, Signature, TableType, Vm};
 use std::{borrow::Cow, path::Path};
 
 #[derive(Debug)]
@@ -9,9 +9,12 @@ impl Module {
     /// Loads a wasm module from a file.
     ///
     /// This function does not validate the loaded module.
-    pub fn from_file(config: Option<Config>, file: impl AsRef<Path>) -> Result<Self> {
-        let config = match config {
-            Some(config) => Some(config.inner),
+    pub fn from_file(vm: &Vm, file: impl AsRef<Path>) -> Result<Self> {
+        let config = match &vm.config {
+            Some(config) => {
+                let config_copied = Config::copy_from(config)?;
+                Some(config_copied.inner)
+            }
             None => None,
         };
 
@@ -40,6 +43,12 @@ impl Module {
         let inner = loader.from_buffer(buffer.as_ref())?;
 
         Ok(Self { inner })
+    }
+
+    pub fn validate(self) -> Result<Self> {
+        // TODO add code for module validation
+
+        Ok(self)
     }
 
     pub fn count_of_imports(&self) -> u32 {
@@ -73,12 +82,6 @@ impl Module {
             true => None,
             false => exports[0].ty().ok(),
         }
-    }
-
-    pub fn validate(self) -> Result<Self> {
-        // TODO add code for module validation
-
-        Ok(self)
     }
 }
 
@@ -155,4 +158,25 @@ pub enum ExternalType {
     Table(TableType),
     Memory(MemoryType),
     Global(GlobalType),
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::Vm;
+
+    #[test]
+    fn test_module_from_file() {
+        // create Vm instance
+        let result = Vm::new(None);
+        assert!(result.is_ok());
+        let vm = result.unwrap();
+
+        // load wasm module from a specified file
+        let file = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
+            .join("bindings/rust/wasmedge-sys/tests/data/fibonacci.wasm");
+
+        let result = Module::from_file(&vm, file);
+        assert!(result.is_ok());
+    }
 }

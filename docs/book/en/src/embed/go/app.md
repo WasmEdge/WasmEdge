@@ -97,8 +97,8 @@ func main() {
 Next, let's build the Go application with the WasmEdge Go SDK.
 
 ```bash
-$ go get github.com/second-state/WasmEdge-go/wasmedge@v0.9.0
-$ go build
+go get github.com/second-state/WasmEdge-go/wasmedge@v0.9.0
+go build
 ```
 
 Run the Golang application.

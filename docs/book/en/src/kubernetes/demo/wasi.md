@@ -11,15 +11,15 @@ If you have not done so already, follow these simple instructions to [install Ru
 ## Download example code
 
 ```bash
-$ git clone https://github.com/second-state/wasm-learning
-$ cd wasm-learning/cli/wasi
+git clone https://github.com/second-state/wasm-learning
+cd wasm-learning/cli/wasi
 ```
 
 ## Build the WASM bytecode
 
 ```bash
-$ rustup target add wasm32-wasi
-$ cargo build --target wasm32-wasi --release
+rustup target add wasm32-wasi
+cargo build --target wasm32-wasi --release
 ```
 
 The wasm bytecode application is in the `target/wasm32-wasi/release/wasi_example_main.wasm` file. You can now publish and use it as a container image.
@@ -27,7 +27,7 @@ The wasm bytecode application is in the `target/wasm32-wasi/release/wasi_example
 ## Apply executable permission on the Wasm bytecode
 
 ```bash
-$ chmod +x target/wasm32-wasi/release/wasi_example_main.wasm
+chmod +x target/wasm32-wasi/release/wasi_example_main.wasm
 ```
 
 ## Create Dockerfile
@@ -53,29 +53,29 @@ To add `module.wasm.image/variant=compat` annotation in the container image, you
 On Ubuntu zesty and xenial, use these commands to prepare for buildah.
 
 ```bash
-$ sudo apt-get -y install software-properties-common
+sudo apt-get -y install software-properties-common
 
-$ export OS="xUbuntu_20.04"
-$ sudo bash -c "echo \"deb https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/$OS/ /\" > /etc/apt/sources.list.d/devel:kubic:libcontainers:stable.list"
-$ sudo bash -c "curl -L https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/$OS/Release.key | apt-key add -"
+export OS="xUbuntu_20.04"
+sudo bash -c "echo \"deb https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/$OS/ /\" > /etc/apt/sources.list.d/devel:kubic:libcontainers:stable.list"
+sudo bash -c "curl -L https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/$OS/Release.key | apt-key add -"
 
-$ sudo add-apt-repository -y ppa:alexlarsson/flatpak
-$ sudo apt-get -y -qq update
-$ sudo apt-get -y install bats git libapparmor-dev libdevmapper-dev libglib2.0-dev libgpgme-dev libseccomp-dev libselinux1-dev skopeo-containers go-md2man containers-common
-$ sudo apt-get -y install golang-1.16 make
+sudo add-apt-repository -y ppa:alexlarsson/flatpak
+sudo apt-get -y -qq update
+sudo apt-get -y install bats git libapparmor-dev libdevmapper-dev libglib2.0-dev libgpgme-dev libseccomp-dev libselinux1-dev skopeo-containers go-md2man containers-common
+sudo apt-get -y install golang-1.16 make
 ```
 
 Then, follow these steps to build and install buildah on Ubuntu.
 
 ```bash
-$ mkdir -p ~/buildah
-$ cd ~/buildah
-$ export GOPATH=`pwd`
-$ git clone https://github.com/containers/buildah ./src/github.com/containers/buildah
-$ cd ./src/github.com/containers/buildah
-$ PATH=/usr/lib/go-1.16/bin:$PATH make
-$ cp bin/buildah /usr/bin/buildah
-$ buildah --help
+mkdir -p ~/buildah
+cd ~/buildah
+export GOPATH=`pwd`
+git clone https://github.com/containers/buildah ./src/github.com/containers/buildah
+cd ./src/github.com/containers/buildah
+PATH=/usr/lib/go-1.16/bin:$PATH make
+cp bin/buildah /usr/bin/buildah
+buildah --help
 ```
 
 ### Create and publish a container image with buildah

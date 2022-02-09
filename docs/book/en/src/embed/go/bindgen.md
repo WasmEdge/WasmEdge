@@ -58,7 +58,6 @@ $ rustwasmc build
 
 The [Go source code](https://github.com/second-state/WasmEdge-go-examples/blob/master/go_BindgenFuncs/bindgen_funcs.go) to run the WebAssembly function in WasmEdge is as follows. The `ExecuteBindgen()` function calls the WebAssembly function and passes the call parameters using the `#[wasm_bindgen]` convention.
 
-
 ```go
 package main
 
@@ -121,8 +120,8 @@ func main() {
 Next, let's build the Go application with the WasmEdge Go SDK.
 
 ```bash
-$ go get github.com/second-state/WasmEdge-go/wasmedge@v0.9.0
-$ go build
+go get github.com/second-state/WasmEdge-go/wasmedge@v0.9.0
+go build
 ```
 
 Run the Go application and it will run the WebAssembly functions embedded in the WasmEdge runtime.

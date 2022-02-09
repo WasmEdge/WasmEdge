@@ -11,7 +11,7 @@ The following tutorial is the summary of the `externref` example in WasmEdge.
 The Wasm file should contain importing host functions that would take the `externref`.
 Take [the test WASM file](../test/externref/externrefTestData/funcs.wasm) ([this WAT](../test/externref/externrefTestData/funcs.wat) is the corresponding text format) as an example:
 
-```
+```wasm
 (module
   (type $t0 (func (param externref i32) (result i32)))
   (type $t1 (func (param externref i32 i32) (result i32)))
@@ -233,7 +233,7 @@ int main() {
 
 Take the following `wat` for example:
 
-```
+```wasm
 (module
   (type $t0 (func (param externref i32) (result i32)))
   ;; Import a host function which type is {externref i32} -> {i32}
@@ -257,7 +257,7 @@ The following examples are how to use `externref` in Wasm with WasmEdge C API.
 The Wasm code must pass the `externref` to host functions that want to access it.
 Take the following `wat` for example, which is a part of [the test WASM file](../test/externref/externrefTestData/funcs.wat):
 
-```
+```wasm
 (module
   (type $t0 (func (param externref i32 i32) (result i32)))
   (import "extern_module" "func_mul" (func $func_mul (type $t0)))

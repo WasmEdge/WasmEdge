@@ -62,8 +62,7 @@ $ cd rust_readfile
 $ cargo build --target wasm32-wasi
 # 输出文件是 target/wasm32-wasi/debug/rust_readfile.wasm
 ```
-
-在 WasmEdge 中运行 WebAssembly 函数的 Go 源代码如下。
+我们在 Go 程序里面嵌入 WasmEdge 运行 WebAssembly 函数，这个 Go 程序源代码如下。
 
 ```go
 package main

@@ -31,7 +31,7 @@ sirius:/ $
 
 Use the following commands on your Ubuntu dev machine to download the WasmEdge-TensorFlow-Tools pre-release packages.
 
-```
+```bash
 $ wget https://github.com/second-state/WasmEdge-tensorflow-tools/releases/download/0.9.1-beta.2/WasmEdge-tensorflow-tools-0.9.1-beta.2-android_aarch64.tar.gz
 $ mkdir WasmEdge-tensorflow-tools && tar zxvf WasmEdge-tensorflow-tools-0.9.1-beta.2-android_aarch64.tar.gz -C WasmEdge-tensorflow-tools
 show-tflite-tensor
@@ -42,10 +42,9 @@ wasmedge-tensorflow-lite
 
 We provide an Android compatible version of TensorFlow-Lite dynamic shared library in the WasmEdge-Tensorflow-deps package. Download the package to your Ubuntu dev machine as follows.
 
-```
+```bash
 $ wget https://github.com/second-state/WasmEdge-tensorflow-deps/releases/download/0.9.1-beta.2/WasmEdge-tensorflow-deps-TFLite-0.9.1-beta.2-android_aarch64.tar.gz
 $ tar zxvf WasmEdge-tensorflow-deps-TFLite-0.9.1-beta.2-android_aarch64.tar.gz -C WasmEdge-tensorflow-tools
-._libtensorflowlite_c.so
 libtensorflowlite_c.so
 ```
 

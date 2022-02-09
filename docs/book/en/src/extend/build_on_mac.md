@@ -39,7 +39,7 @@ export CPPFLAGS="-I/usr/local/opt/llvm@12/include"
 
 ### If you don't want to build Ahead-of-Time runtime/compiler
 
-If users don't need Ahead-of-Time runtime/compiler support, they can set the CMake option `WASMEDGE_BUILD_AOT_RUNTIME` to `OFF`.
+If you don't need Ahead-of-Time runtime/compiler support, you can set the CMake option `WASMEDGE_BUILD_AOT_RUNTIME` to `OFF`.
 
 ```bash
 cmake -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_BUILD_AOT_RUNTIME=OFF ..

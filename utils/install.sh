@@ -597,10 +597,7 @@ main() {
     local _source=". \"$IPATH/env\""
     local _grep=$(cat "$__HOME__/.profile" 2>/dev/null | grep "$IPATH/env")
     if [ "$_grep" = "" ]; then
-        if [ ! -f "$__HOME__/.profile" ]; then
-            echo "Generating $__HOME__/.profile"
-        fi
-        echo "$_source" >>"$__HOME__/.profile"
+        [ -f "$__HOME__/.profile" ] && echo "$_source" >>"$__HOME__/.profile"
     fi
 
     local _shell_ _shell_rc
@@ -610,26 +607,18 @@ main() {
     if [[ "$_shell_" =~ "zsh" ]]; then
         local _grep=$(cat "$__HOME__/.zprofile" 2>/dev/null | grep "$IPATH/env")
         if [ "$_grep" = "" ]; then
-            echo "$_source" >>"$__HOME__/.zprofile"
+            [ -f "$__HOME__/.zprofile" ] && echo "$_source" >>"$__HOME__/.zprofile"
         fi
     elif [[ "$_shell_" =~ "bash" ]]; then
-        if [ ! -f "$__HOME__/.bashrc" ]; then
-            local _grep=$(cat "$__HOME__/.bash_profile" 2>/dev/null | grep "$IPATH/env")
-            if [ "$_grep" = "" ]; then
-                if [ ! -f "$__HOME__/.bash_profile" ]; then
-                    echo "Generating $__HOME__/.bash_profile"
-                fi
-                echo "$_source" >>"$__HOME__/.bash_profile"
-            fi
+        local _grep=$(cat "$__HOME__/.bash_profile" 2>/dev/null | grep "$IPATH/env")
+        if [ "$_grep" = "" ]; then
+            [ -f "$__HOME__/.bash_profile" ] && echo "$_source" >>"$__HOME__/.bash_profile"
         fi
     fi
 
     local _grep=$(cat "$__HOME__/$_shell_rc" | grep "$IPATH/env")
     if [ "$_grep" = "" ]; then
-        if [ ! -f "$__HOME__/$_shell_rc" ]; then
-            echo "Generating $__HOME__/$_shell_rc"
-        fi
-        echo "$_source" >>"$__HOME__/$_shell_rc"
+        [ -f "$__HOME__/$_shell_rc" ] && echo "$_source" >>"$__HOME__/$_shell_rc"
     fi
 
     if [ ! $default == 1 ]; then

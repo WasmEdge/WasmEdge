@@ -19,8 +19,8 @@ If you are looking for ideas for contribution, [here is a wish list](wish_list.m
 Fork the WasmEdge repository on GitHub to your personal account.
 
 ```bash
-$ git clone git@github.com:WasmEdge/WasmEdge.git
-$ cd WasmEdge
+git clone git@github.com:WasmEdge/WasmEdge.git
+cd WasmEdge
 ```
 
 Notes: Note the WasmEdge team builds lots of extensions of Server-side WebAssembly, see [TensorFlow](https://github.com/second-state/WasmEdge-tensorflow), [Storage](https://github.com/second-state/WasmEdge-storage), [Command interface](https://github.com/second-state/wasmedge_process_interface), [Ethereum](https://github.com/second-state/WasmEdge-evmc), [Substrate](https://github.com/ParaState/substrate-ssvm-node). If you want to contribute to the extensions, please go to those repositories.
@@ -36,24 +36,24 @@ If you are using an operating system older than Ubuntu 20.04, please use our spe
 ### Docker image
 
 ```bash
-$ docker pull wasmedge/wasmedge
+docker pull wasmedge/wasmedge
 ```
 
 ### Setup the environment manually
 
 ```bash
 # Tools and libraries
-$ sudo apt install -y \
-        software-properties-common \
-        cmake \
-        libboost-all-dev
+sudo apt install -y \
+    software-properties-common \
+    cmake \
+    libboost-all-dev
 # And you will need to install llvm for wasmedgec tool
-$ sudo apt install -y \
-        llvm-dev \
-        liblld-10-dev
+sudo apt install -y \
+    llvm-dev \
+    liblld-10-dev
 # WasmEdge supports both clang++ and g++ compilers# You can choose one of them for building this project
-$ sudo apt install -y gcc g++
-$ sudo apt install -y clang
+sudo apt install -y gcc g++
+sudo apt install -y clang
 ```
 
 ## Contribute Workflow
@@ -78,12 +78,13 @@ Write code on the new branch in your fork.
 
 ```bash
 # After pulling our wasmedge docker image
-$ docker run -it --rm \
+docker run -it --rm \
     -v <path/to/your/wasmedge/source/folder>:/root/wasmedge \
     wasmedge/wasmedge:latest
-(docker)$ cd /root/wasmedge
-(docker)$ mkdir -p build && cd build
-(docker)$ cmake -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_BUILD_TESTS=ON .. && make -j
+# In docker
+cd /root/wasmedge
+mkdir -p build && cd build
+cmake -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_BUILD_TESTS=ON .. && make -j
 ```
 
 **Run tests**
@@ -91,15 +92,15 @@ The following built-in tests are only available when the build flag WASMEDGE_BUI
 You can use these tests to verify the correctness of WasmEdge binaries.
 
 ```bash
-$ cd <path/to/wasmedge/build_folder>
-$ LD_LIBRARY_PATH=$(pwd)/lib/api ctest
+cd <path/to/wasmedge/build_folder>
+LD_LIBRARY_PATH=$(pwd)/lib/api ctest
 ```
 
 ### Push and Create PR
 
 When ready for review, push your branch to your fork repository on github.com.
 
-Then visit your fork at https://github.com/$user/WasmEdge and click the Compare & Pull Request button next to your branch to create a new pull request (PR). Description of a pull request should refer to all the issues that it addresses. Remember to put a reference to issues (such as Closes #XXX and Fixes #XXX) in commits so that the issues can be closed when the PR is merged.
+Then visit your fork at <https://github.com/$user/WasmEdge> and click the Compare & Pull Request button next to your branch to create a new pull request (PR). Description of a pull request should refer to all the issues that it addresses. Remember to put a reference to issues (such as Closes #XXX and Fixes #XXX) in commits so that the issues can be closed when the PR is merged.
 
 Once your pull request has been opened it will be assigned to one or more reviewers. Those reviewers will do a thorough code review, looking for correctness, bugs, opportunities for improvement, documentation and comments, and style.
 

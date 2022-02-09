@@ -6,8 +6,6 @@
 #include "host/wasmedge_process/processenv.h"
 #include "runtime/importobj.h"
 
-#include <cstdint>
-
 namespace WasmEdge {
 namespace Host {
 

@@ -11,6 +11,11 @@
 #include "host/wasi/inode.h"
 #include "host/wasi/vfs.h"
 #include "linux.h"
+#include <algorithm>
+#include <new>
+#include <string>
+#include <string_view>
+#include <vector>
 
 namespace WasmEdge {
 namespace Host {

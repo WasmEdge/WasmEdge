@@ -12,15 +12,17 @@
 #include "host/wasi/vinode.h"
 #include "wasi/api.hpp"
 
-#include <csignal>
+#include <algorithm>
+#include <array>
 #include <cstdint>
-#include <cstring>
+#include <memory>
 #include <mutex>
 #include <random>
 #include <shared_mutex>
 #include <string>
-#include <thread>
+#include <string_view>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 
 namespace WasmEdge {

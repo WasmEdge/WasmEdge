@@ -2,7 +2,7 @@
 
 在这一章节，我们将向你展示如何在 Rust 中创建一个用于图像分类的 Tensorflow 推理函数，然后将其嵌入到 Go 应用程序中。项目的源码可以在[这儿](https://github.com/second-state/WasmEdge-go-examples/tree/master/wasmedge-bindgen/go_TfliteFood)查看。
 
-## Rust function compiled into WebAssembly
+## 将 Rust 函数编译成 WebAssembly
 
 用于图像分类的 Rust 函数在[这儿](https://github.com/second-state/WasmEdge-go-examples/blob/master/wasmedge-bindgen/go_TfliteFood/rust_tflite_food/src/lib.rs)。它使用 [WasmEdge Tensorflow 扩展 API](../../dev/rust/tensorflow.md) 以及 [wasmedge_bindgen](function.md) 来传递所有调用参数。
 
@@ -45,7 +45,7 @@ $ wasmedgec rust_tflite_food_lib.wasm rust_tflite_food_lib.wasm
 
 ## Go host 应用程序
 
-[Go host 应用程序](https://github.com/second-state/WasmEdge-go-examples/blob/master/wasmedge-bindgen/go_TfliteFood/tflite_food.go)的源码展示了如何用 Tensorflow 来扩展并实例化一个 WasmEdge 运行时，以及如何将图片数据传递给 WasmEdge 中的 Rust 函数，以便来执行推理。
+[Go host 应用程序](https://github.com/second-state/WasmEdge-go-examples/blob/master/wasmedge-bindgen/go_TfliteFood/tflite_food.go)的源码展示了如何用 Tensorflow 来扩展并实例化一个 WasmEdge runtime，以及如何将图片数据传递给 WasmEdge 中的 Rust 函数，以便来执行推理。
 
 ```go
 func main() {
@@ -95,8 +95,6 @@ func main() {
 	tfliteobj.Release()
 }
 ```
-
-## Build and run
 
 ## 构建和运行
 

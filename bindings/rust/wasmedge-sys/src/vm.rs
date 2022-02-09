@@ -785,6 +785,12 @@ mod tests {
             assert!(result.is_ok());
             let vm = result.unwrap();
             assert!(!vm.inner.0.is_null());
+
+            // get store
+            let result = vm.store_mut();
+            assert!(result.is_ok());
+            let store = result.unwrap();
+            assert!(!store.inner.0.is_null() && store.registered);
         }
 
         {
@@ -820,6 +826,12 @@ mod tests {
             assert!(result.is_ok());
             let vm = result.unwrap();
             assert!(!vm.inner.0.is_null());
+
+            // get store
+            let result = vm.store_mut();
+            assert!(result.is_ok());
+            let store = result.unwrap();
+            assert!(!store.inner.0.is_null() && store.registered);
         }
 
         {

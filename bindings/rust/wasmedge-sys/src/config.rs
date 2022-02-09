@@ -134,6 +134,10 @@ impl Drop for Config {
 }
 impl Config {
     /// Creates a new [`Config`].
+    ///
+    /// # Error
+    ///
+    /// If fail to create, then an error is returned.
     pub fn create() -> WasmEdgeResult<Self> {
         let ctx = unsafe { wasmedge::WasmEdge_ConfigureCreate() };
         match ctx.is_null() {
@@ -142,6 +146,145 @@ impl Config {
                 inner: InnerConfig(ctx),
             }),
         }
+    }
+
+    /// Creates a new [`Config`] from an existed one.
+    ///
+    /// - `src` specifies the source [`Config`].
+    ///
+    /// # Error
+    ///
+    /// If fail to create, then an error is returned.
+    pub fn copy_from(src: &Config) -> WasmEdgeResult<Self> {
+        let mut config = Config::create()?;
+
+        if src.annotations_enabled() {
+            config.annotations(true)
+        } else {
+            config.annotations(false)
+        };
+
+        if src.bulk_memory_operations_enabled() {
+            config.bulk_memory_operations(true)
+        } else {
+            config.bulk_memory_operations(false)
+        };
+
+        if src.exception_handling_enabled() {
+            config.exception_handling(true)
+        } else {
+            config.exception_handling(false)
+        };
+
+        // let config = if src.function_references_enabled() {
+        //     config.function_references(true)
+        // } else {
+        //     config.function_references(false)
+        // };
+
+        if src.memory64_enabled() {
+            config.memory64(true)
+        } else {
+            config.memory64(false)
+        };
+
+        if src.multi_value_enabled() {
+            config.multi_value(true)
+        } else {
+            config.multi_value(false)
+        };
+
+        if src.mutable_globals_enabled() {
+            config.mutable_globals(true)
+        } else {
+            config.mutable_globals(false)
+        };
+
+        if src.non_trap_conversions_enabled() {
+            config.non_trap_conversions(true)
+        } else {
+            config.non_trap_conversions(false)
+        };
+
+        if src.reference_types_enabled() {
+            config.reference_types(true)
+        } else {
+            config.reference_types(false)
+        };
+
+        if src.sign_extension_operators_enabled() {
+            config.sign_extension_operators(true)
+        } else {
+            config.sign_extension_operators(false)
+        };
+
+        if src.simd_enabled() {
+            config.simd(true)
+        } else {
+            config.simd(false)
+        };
+
+        if src.tail_call_enabled() {
+            config.tail_call(true)
+        } else {
+            config.tail_call(false)
+        };
+
+        if src.threads_enabled() {
+            config.threads(true)
+        } else {
+            config.threads(false)
+        };
+
+        if src.wasi_enabled() {
+            config.wasi(true)
+        } else {
+            config.wasi(false)
+        };
+
+        if src.wasmedge_process_enabled() {
+            config.wasmedge_process(true)
+        } else {
+            config.wasmedge_process(false)
+        };
+
+        // let config = if src.aot_interruptible_enabled() {
+        //     config.aot_interruptible(true)
+        // } else {
+        //     config.aot_interruptible(false)
+        // };
+
+        // let config = if src.is_aot_cost_measuring() {
+        //     config.aot_measure_cost(true)
+        // } else {
+        //     config.aot_measure_cost(false)
+        // };
+
+        // let config = if src.is_aot_dump_ir() {
+        //     config.aot_dump_ir(true)
+        // } else {
+        //     config.aot_dump_ir(false)
+        // };
+
+        // let config = if src.is_aot_generic_binary() {
+        //     config.aot_generic_binary(true)
+        // } else {
+        //     config.aot_generic_binary(false)
+        // };
+
+        // let config = if src.is_aot_instruction_counting() {
+        //     config.aot_count_instructions(true)
+        // } else {
+        //     config.aot_count_instructions(false)
+        // };
+
+        // let config = if src.is_aot_time_measuring() {
+        //     config.aot_measure_time(true)
+        // } else {
+        //     config.aot_measure_time(false)
+        // };
+
+        Ok(config)
     }
 
     /// Enables or disables host registration wasi.
@@ -627,14 +770,14 @@ impl Config {
     /// # Argument
     ///
     /// - `opt_level` specifies the optimization level of AOT compiler.
-    pub fn set_optimization_level(&mut self, opt_level: CompilerOptimizationLevel) {
+    pub fn set_aot_optimization_level(&mut self, opt_level: CompilerOptimizationLevel) {
         unsafe {
             wasmedge::WasmEdge_ConfigureCompilerSetOptimizationLevel(self.inner.0, opt_level as u32)
         }
     }
 
     /// Returns the optimization level of AOT compiler.
-    pub fn get_optimization_level(&self) -> CompilerOptimizationLevel {
+    pub fn get_aot_optimization_level(&self) -> CompilerOptimizationLevel {
         let level =
             unsafe { wasmedge::WasmEdge_ConfigureCompilerGetOptimizationLevel(self.inner.0) };
         level.into()
@@ -645,12 +788,12 @@ impl Config {
     /// # Argument
     ///
     /// - `format` specifies the format of the output binary.
-    pub fn set_compiler_output_format(&mut self, format: CompilerOutputFormat) {
+    pub fn set_aot_compiler_output_format(&mut self, format: CompilerOutputFormat) {
         unsafe { wasmedge::WasmEdge_ConfigureCompilerSetOutputFormat(self.inner.0, format as u32) }
     }
 
     /// Returns the output binary format of AOT compiler.
-    pub fn get_compiler_output_format(&self) -> CompilerOutputFormat {
+    pub fn get_aot_compiler_output_format(&self) -> CompilerOutputFormat {
         let value = unsafe { wasmedge::WasmEdge_ConfigureCompilerGetOutputFormat(self.inner.0) };
         value.into()
     }
@@ -660,12 +803,12 @@ impl Config {
     /// # Argument
     ///
     /// - `flag` specifies if dump ir or not.
-    pub fn dump_ir(&mut self, flag: bool) {
+    pub fn aot_dump_ir(&mut self, flag: bool) {
         unsafe { wasmedge::WasmEdge_ConfigureCompilerSetDumpIR(self.inner.0, flag) }
     }
 
     /// Checks if the dump IR option turns on or not.
-    pub fn is_dump_ir(&self) -> bool {
+    pub fn is_aot_dump_ir(&self) -> bool {
         unsafe { wasmedge::WasmEdge_ConfigureCompilerIsDumpIR(self.inner.0) }
     }
 
@@ -674,12 +817,12 @@ impl Config {
     /// # Argument
     ///
     /// - `flag` specifies if generate the generic binary or not when perform AOT compilation.
-    pub fn generic_binary(&mut self, flag: bool) {
+    pub fn aot_generic_binary(&mut self, flag: bool) {
         unsafe { wasmedge::WasmEdge_ConfigureCompilerSetGenericBinary(self.inner.0, flag) }
     }
 
     /// Checks if the generic binary option of AOT compiler turns on or not.
-    pub fn is_generic_binary(&self) -> bool {
+    pub fn is_aot_generic_binary(&self) -> bool {
         unsafe { wasmedge::WasmEdge_ConfigureCompilerIsGenericBinary(self.inner.0) }
     }
 
@@ -688,12 +831,12 @@ impl Config {
     /// # Argument
     ///
     /// - `flag` specifies if support instruction counting or not when execution after AOT compilation.
-    pub fn count_instructions(&mut self, flag: bool) {
+    pub fn aot_count_instructions(&mut self, flag: bool) {
         unsafe { wasmedge::WasmEdge_ConfigureStatisticsSetInstructionCounting(self.inner.0, flag) }
     }
 
     /// Checks if the instruction counting option turns on or not.
-    pub fn is_instruction_counting(&self) -> bool {
+    pub fn is_aot_instruction_counting(&self) -> bool {
         unsafe { wasmedge::WasmEdge_ConfigureStatisticsIsInstructionCounting(self.inner.0) }
     }
 
@@ -702,12 +845,12 @@ impl Config {
     /// # Argument
     ///
     /// - `flag` specifies if support cost measuring or not when execution after AOT compilation.
-    pub fn measure_cost(&mut self, flag: bool) {
+    pub fn aot_measure_cost(&mut self, flag: bool) {
         unsafe { wasmedge::WasmEdge_ConfigureStatisticsSetCostMeasuring(self.inner.0, flag) }
     }
 
     /// Checks if the cost measuring option turns on or not.
-    pub fn is_cost_measuring(&self) -> bool {
+    pub fn is_aot_cost_measuring(&self) -> bool {
         unsafe { wasmedge::WasmEdge_ConfigureStatisticsIsCostMeasuring(self.inner.0) }
     }
 
@@ -716,12 +859,12 @@ impl Config {
     /// # Argument
     ///
     /// - `flag` specifies if support time measuring or not when execution after AOT compilation.
-    pub fn measure_time(&mut self, flag: bool) {
+    pub fn aot_measure_time(&mut self, flag: bool) {
         unsafe { wasmedge::WasmEdge_ConfigureStatisticsSetTimeMeasuring(self.inner.0, flag) }
     }
 
     /// Checks if the cost measuring option turns on or not.
-    pub fn is_time_measuring(&self) -> bool {
+    pub fn is_aot_time_measuring(&self) -> bool {
         unsafe { wasmedge::WasmEdge_ConfigureStatisticsIsTimeMeasuring(self.inner.0) }
     }
 
@@ -732,12 +875,12 @@ impl Config {
     /// # Argument
     ///
     /// - `enable` specifies if turn on the `Interruptible` option.
-    pub fn interruptible(&mut self, enable: bool) {
+    pub fn aot_interruptible(&mut self, enable: bool) {
         unsafe { wasmedge::WasmEdge_ConfigureCompilerSetInterruptible(self.inner.0, enable) }
     }
 
     /// Checks if the `Interruptible` option of AOT Compiler turns on or not.
-    pub fn interruptible_enabled(&self) -> bool {
+    pub fn aot_interruptible_enabled(&self) -> bool {
         unsafe { wasmedge::WasmEdge_ConfigureCompilerIsInterruptible(self.inner.0) }
     }
 }
@@ -777,18 +920,18 @@ mod tests {
         assert!(config.simd_enabled());
         assert!(!config.tail_call_enabled());
         assert!(!config.threads_enabled());
-        assert!(!config.is_cost_measuring());
-        assert!(!config.is_dump_ir());
-        assert!(!config.is_generic_binary());
-        assert!(!config.is_instruction_counting());
-        assert!(!config.is_time_measuring());
+        assert!(!config.is_aot_cost_measuring());
+        assert!(!config.is_aot_dump_ir());
+        assert!(!config.is_aot_generic_binary());
+        assert!(!config.is_aot_instruction_counting());
+        assert!(!config.is_aot_time_measuring());
         assert_eq!(config.get_max_memory_pages(), 65536);
         assert_eq!(
-            config.get_optimization_level(),
+            config.get_aot_optimization_level(),
             CompilerOptimizationLevel::O3,
         );
         assert_eq!(
-            config.get_compiler_output_format(),
+            config.get_aot_compiler_output_format(),
             CompilerOutputFormat::Wasm,
         );
 
@@ -802,11 +945,11 @@ mod tests {
         config.simd(false);
         config.tail_call(true);
         config.threads(true);
-        config.measure_cost(true);
-        config.measure_time(true);
-        config.dump_ir(true);
-        config.generic_binary(true);
-        config.count_instructions(true);
+        config.aot_measure_cost(true);
+        config.aot_measure_time(true);
+        config.aot_dump_ir(true);
+        config.aot_generic_binary(true);
+        config.aot_count_instructions(true);
 
         // check new settings
         assert!(config.annotations_enabled());
@@ -822,23 +965,23 @@ mod tests {
         assert!(!config.simd_enabled());
         assert!(config.tail_call_enabled());
         assert!(config.threads_enabled());
-        assert!(config.is_cost_measuring());
-        assert!(config.is_dump_ir());
-        assert!(config.is_generic_binary());
-        assert!(config.is_instruction_counting());
-        assert!(config.is_time_measuring());
+        assert!(config.is_aot_cost_measuring());
+        assert!(config.is_aot_dump_ir());
+        assert!(config.is_aot_generic_binary());
+        assert!(config.is_aot_instruction_counting());
+        assert!(config.is_aot_time_measuring());
 
         // set maxmimum memory pages
         config.set_max_memory_pages(10);
         assert_eq!(config.get_max_memory_pages(), 10);
-        config.set_optimization_level(CompilerOptimizationLevel::Oz);
+        config.set_aot_optimization_level(CompilerOptimizationLevel::Oz);
         assert_eq!(
-            config.get_optimization_level(),
+            config.get_aot_optimization_level(),
             CompilerOptimizationLevel::Oz
         );
-        config.set_compiler_output_format(CompilerOutputFormat::Native);
+        config.set_aot_compiler_output_format(CompilerOutputFormat::Native);
         assert_eq!(
-            config.get_compiler_output_format(),
+            config.get_aot_compiler_output_format(),
             CompilerOutputFormat::Native,
         );
     }
@@ -861,18 +1004,18 @@ mod tests {
             assert!(config.simd_enabled());
             assert!(!config.tail_call_enabled());
             assert!(!config.threads_enabled());
-            assert!(!config.is_cost_measuring());
-            assert!(!config.is_dump_ir());
-            assert!(!config.is_generic_binary());
-            assert!(!config.is_instruction_counting());
-            assert!(!config.is_time_measuring());
+            assert!(!config.is_aot_cost_measuring());
+            assert!(!config.is_aot_dump_ir());
+            assert!(!config.is_aot_generic_binary());
+            assert!(!config.is_aot_instruction_counting());
+            assert!(!config.is_aot_time_measuring());
             assert_eq!(config.get_max_memory_pages(), 65536);
             assert_eq!(
-                config.get_optimization_level(),
+                config.get_aot_optimization_level(),
                 CompilerOptimizationLevel::O3,
             );
             assert_eq!(
-                config.get_compiler_output_format(),
+                config.get_aot_compiler_output_format(),
                 CompilerOutputFormat::Wasm,
             );
 
@@ -886,11 +1029,11 @@ mod tests {
             config.simd(false);
             config.tail_call(true);
             config.threads(true);
-            config.measure_cost(true);
-            config.measure_time(true);
-            config.dump_ir(true);
-            config.generic_binary(true);
-            config.count_instructions(true);
+            config.aot_measure_cost(true);
+            config.aot_measure_time(true);
+            config.aot_dump_ir(true);
+            config.aot_generic_binary(true);
+            config.aot_count_instructions(true);
 
             // check new settings
             assert!(config.annotations_enabled());
@@ -902,11 +1045,11 @@ mod tests {
             assert!(!config.simd_enabled());
             assert!(config.tail_call_enabled());
             assert!(config.threads_enabled());
-            assert!(config.is_cost_measuring());
-            assert!(config.is_dump_ir());
-            assert!(config.is_generic_binary());
-            assert!(config.is_instruction_counting());
-            assert!(config.is_time_measuring());
+            assert!(config.is_aot_cost_measuring());
+            assert!(config.is_aot_dump_ir());
+            assert!(config.is_aot_generic_binary());
+            assert!(config.is_aot_instruction_counting());
+            assert!(config.is_aot_time_measuring());
         });
 
         handle.join().unwrap();
@@ -935,18 +1078,18 @@ mod tests {
             assert!(config.simd_enabled());
             assert!(!config.tail_call_enabled());
             assert!(!config.threads_enabled());
-            assert!(!config.is_cost_measuring());
-            assert!(!config.is_dump_ir());
-            assert!(!config.is_generic_binary());
-            assert!(!config.is_instruction_counting());
-            assert!(!config.is_time_measuring());
+            assert!(!config.is_aot_cost_measuring());
+            assert!(!config.is_aot_dump_ir());
+            assert!(!config.is_aot_generic_binary());
+            assert!(!config.is_aot_instruction_counting());
+            assert!(!config.is_aot_time_measuring());
             assert_eq!(config.get_max_memory_pages(), 65536);
             assert_eq!(
-                config.get_optimization_level(),
+                config.get_aot_optimization_level(),
                 CompilerOptimizationLevel::O3,
             );
             assert_eq!(
-                config.get_compiler_output_format(),
+                config.get_aot_compiler_output_format(),
                 CompilerOutputFormat::Wasm,
             );
 
@@ -961,11 +1104,11 @@ mod tests {
             config_mut.simd(false);
             config_mut.tail_call(true);
             config_mut.threads(true);
-            config_mut.measure_cost(true);
-            config_mut.measure_time(true);
-            config_mut.dump_ir(true);
-            config_mut.generic_binary(true);
-            config_mut.count_instructions(true);
+            config_mut.aot_measure_cost(true);
+            config_mut.aot_measure_time(true);
+            config_mut.aot_dump_ir(true);
+            config_mut.aot_generic_binary(true);
+            config_mut.aot_count_instructions(true);
 
             // check new settings
             assert!(config.annotations_enabled());
@@ -977,13 +1120,27 @@ mod tests {
             assert!(!config.simd_enabled());
             assert!(config.tail_call_enabled());
             assert!(config.threads_enabled());
-            assert!(config.is_cost_measuring());
-            assert!(config.is_dump_ir());
-            assert!(config.is_generic_binary());
-            assert!(config.is_instruction_counting());
-            assert!(config.is_time_measuring());
+            assert!(config.is_aot_cost_measuring());
+            assert!(config.is_aot_dump_ir());
+            assert!(config.is_aot_generic_binary());
+            assert!(config.is_aot_instruction_counting());
+            assert!(config.is_aot_time_measuring());
         });
 
         handle.join().unwrap();
+    }
+
+    #[test]
+    fn test_config_clone() {
+        // create a Config instance
+        let result = Config::create();
+        assert!(result.is_ok());
+        let mut config = result.unwrap();
+        config.memory64(true);
+
+        let result = Config::copy_from(&config);
+        assert!(result.is_ok());
+        let config_cloned = result.unwrap();
+        assert!(config_cloned.memory64_enabled());
     }
 }

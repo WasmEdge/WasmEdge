@@ -10,6 +10,11 @@ impl Config {
         Ok(Self { inner })
     }
 
+    pub fn copy_from(src: &Config) -> Result<Self> {
+        let inner = wasmedge::Config::copy_from(&src.inner)?;
+        Ok(Self { inner })
+    }
+
     pub fn wasi(self, enable: bool) -> Self {
         let inner = self.inner.wasi(enable);
         Self { inner }
@@ -155,75 +160,75 @@ impl Config {
     }
 
     pub fn set_aot_opt_level(self, opt_level: CompilerOptimizationLevel) -> Self {
-        let inner = self.inner.set_optimization_level(opt_level);
+        let inner = self.inner.set_aot_optimization_level(opt_level);
         Self { inner }
     }
 
     pub fn get_aot_opt_level(&self) -> CompilerOptimizationLevel {
-        self.inner.get_optimization_level()
+        self.inner.get_aot_optimization_level()
     }
 
     pub fn set_aot_out_format(self, format: CompilerOutputFormat) -> Self {
-        let inner = self.inner.set_compiler_output_format(format);
+        let inner = self.inner.set_aot_compiler_output_format(format);
         Self { inner }
     }
 
     pub fn get_aot_out_format(&self) -> CompilerOutputFormat {
-        self.inner.get_compiler_output_format()
+        self.inner.get_aot_compiler_output_format()
     }
 
     pub fn aot_dump_ir(self, enable: bool) -> Self {
-        let inner = self.inner.dump_ir(enable);
+        let inner = self.inner.aot_dump_ir(enable);
         Self { inner }
     }
 
     pub fn is_aot_dump_ir(&self) -> bool {
-        self.inner.is_dump_ir()
+        self.inner.is_aot_dump_ir()
     }
 
     pub fn aot_generic_binary(self, enable: bool) -> Self {
-        let inner = self.inner.generic_binary(enable);
+        let inner = self.inner.aot_generic_binary(enable);
         Self { inner }
     }
 
     pub fn is_aot_generic_binary(&self) -> bool {
-        self.inner.is_generic_binary()
+        self.inner.is_aot_generic_binary()
     }
 
     pub fn aot_instr_counting(self, enable: bool) -> Self {
-        let inner = self.inner.count_instructions(enable);
+        let inner = self.inner.aot_count_instructions(enable);
         Self { inner }
     }
 
     pub fn is_aot_instruction_counting(&self) -> bool {
-        self.inner.is_instruction_counting()
+        self.inner.is_aot_instruction_counting()
     }
 
     pub fn aot_cost_measuring(self, enable: bool) -> Self {
-        let inner = self.inner.measure_cost(enable);
+        let inner = self.inner.aot_measure_cost(enable);
         Self { inner }
     }
 
     pub fn is_aot_cost_measuring(&self) -> bool {
-        self.inner.is_cost_measuring()
+        self.inner.is_aot_cost_measuring()
     }
 
     pub fn aot_time_measuring(self, enable: bool) -> Self {
-        let inner = self.inner.measure_cost(enable);
+        let inner = self.inner.aot_measure_cost(enable);
         Self { inner }
     }
 
     pub fn is_aot_time_measuring(&self) -> bool {
-        self.inner.is_time_measuring()
+        self.inner.is_aot_time_measuring()
     }
 
     pub fn aot_interruptible(self, enable: bool) -> Self {
-        let inner = self.inner.interruptible(enable);
+        let inner = self.inner.aot_interruptible(enable);
         Self { inner }
     }
 
     pub fn is_aot_interruptible(&self) -> bool {
-        self.inner.interruptible_enabled()
+        self.inner.aot_interruptible_enabled()
     }
 }
 
@@ -298,5 +303,18 @@ mod tests {
             assert!(config.tail_call_enabled());
             assert!(config.threads_enabled());
         }
+    }
+
+    #[test]
+    fn test_config_copy() {
+        let result = Config::new();
+        assert!(result.is_ok());
+        let config = result.unwrap().memory64(true);
+
+        // make a copy
+        let result = Config::copy_from(&config);
+        assert!(result.is_ok());
+        let config_copied = result.unwrap();
+        assert!(config_copied.memory64_enabled());
     }
 }

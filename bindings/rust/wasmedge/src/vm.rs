@@ -50,15 +50,44 @@ impl<'a> VmBuilder<'a> {
             wasmedge::Vm::create(None, None)?
         };
 
-        Ok(Vm { inner })
+        Ok(Vm {
+            inner,
+            config: None,
+        })
     }
 }
 
 #[derive(Debug)]
 pub struct Vm {
     pub(crate) inner: wasmedge::Vm,
+    pub(crate) config: Option<Config>,
 }
 impl Vm {
+    pub fn new(config: Option<Config>) -> Result<Self> {
+        let mut config_copied = None;
+        let config = match config {
+            Some(config) => {
+                config_copied = Some(Config::copy_from(&config)?);
+                Some(config.inner)
+            }
+            None => None,
+        };
+
+        let inner = wasmedge::Vm::create(config, None)?;
+        Ok(Self {
+            inner,
+            config: config_copied,
+        })
+    }
+
+    pub fn store_mut(&self) -> Result<Store> {
+        let inner = self.inner.store_mut()?;
+        Ok(Store {
+            inner,
+            _marker: PhantomData,
+        })
+    }
+
     // validate + instantiate + register
     pub fn register_wasm_from_module(
         mut self,
@@ -185,27 +214,19 @@ impl Vm {
             _marker: PhantomData,
         })
     }
-
-    pub fn store_mut(&self) -> Result<Store> {
-        let inner = self.inner.store_mut()?;
-        Ok(Store {
-            inner,
-            _marker: PhantomData,
-        })
-    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::Store;
 
     #[test]
     fn test_vm_create() {
         {
-            let result = VmBuilder::new().build();
+            let result = Vm::new(None);
             assert!(result.is_ok());
             let vm = result.unwrap();
+            assert!(vm.config.is_none());
 
             let result = vm.store_mut();
             assert!(result.is_ok());
@@ -218,47 +239,11 @@ mod tests {
             let config = result.unwrap();
 
             // create a Vm context
-            let result = VmBuilder::new().with_config(config).build();
+            // let result = VmBuilder::new().with_config(config).build();
+            let result = Vm::new(Some(config));
             assert!(result.is_ok());
             let vm = result.unwrap();
-
-            let result = vm.store_mut();
-            assert!(result.is_ok());
-        }
-
-        {
-            // create a Store
-            let result = Store::new();
-            assert!(result.is_ok());
-            let store = result.unwrap();
-
-            // create a Vm context
-            let result = VmBuilder::new().with_store(store).build();
-            assert!(result.is_ok());
-            let vm = result.unwrap();
-
-            let result = vm.store_mut();
-            assert!(result.is_ok());
-        }
-
-        {
-            // create a Config
-            let result = Config::new();
-            assert!(result.is_ok());
-            let config = result.unwrap();
-
-            // create a Store
-            let result = Store::new();
-            assert!(result.is_ok());
-            let store = result.unwrap();
-
-            // create a Vm context
-            let result = VmBuilder::new()
-                .with_config(config)
-                .with_store(store)
-                .build();
-            assert!(result.is_ok());
-            let vm = result.unwrap();
+            assert!(vm.config.is_some());
 
             let result = vm.store_mut();
             assert!(result.is_ok());

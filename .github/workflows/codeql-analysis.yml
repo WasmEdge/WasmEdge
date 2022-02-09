@@ -66,7 +66,7 @@ jobs:
 
       - name: Build
         run: |
-          cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Debug -WASMEDGE_BUILD_WASI_CRYPTO=ON .
+          cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Debug -DWASMEDGE_BUILD_WASI_CRYPTO=ON .
           cmake --build build
 
       - name: Perform CodeQL Analysis

@@ -1,17 +1,17 @@
-# 宿主函数
+# Host 函数
 
-[宿主函数](https://webassembly.github.io/spec/core/exec/runtime.html#syntax-hostfunc) 是在 WebAssembly 之外的函数，它们以导入的方式传递到 WASM 模块中。以下步骤是将`host`模块注册到 WasmEdge runtime 的示例。
+[Host 函数](https://webassembly.github.io/spec/core/exec/runtime.html#syntax-hostfunc) 是在 WebAssembly 之外的函数，它们以导入的方式传递到 WASM 模块中。以下步骤是将 `host module` 注册到 WasmEdge runtime 的示例。
 
-此示例适用于使用 C++ 编写的 WasmEdge 项目的源代码编译。如果开发者想使用C/C++ 和 WasmEdge C API 来实现宿主函数，而不用 WasmEdge 项目进行编译，请参阅 [C API 文档](../../embed/c/ref.md#host-functions)。
+此示例适用于使用 C++ 编写的 WasmEdge 项目的源代码编译。如果开发者想使用C/C++ 和 WasmEdge C API 来实现 host 函数，而不用 WasmEdge 项目进行编译，请参阅 [C API 文档](../../embed/c/ref.md#host-functions)。
 
 ## Host 实例定义
 
-WasmEdge 支持以导入的形式注册 `host function`, `memory`, `table`, and `global` 等实例。
-详情请参阅`include/host/wasi/` 和 `test/core/spectest.h` 中的示例。
+WasmEdge 支持以导入的形式注册 `host function` 、`memory` 、`table` 和 `global` 等实例。
+详情请参阅 `include/host/wasi/` 和 `test/core/spectest.h` 中的示例。
 
 ### 函数
 
-可以按照如下方式声明一个简单的宿主函数类：
+可以按照如下方式声明一个简单的 host 函数类：
 
 ```cpp
 #include "common/errcode.h"
@@ -26,15 +26,15 @@ public:
   Expect<uint32_t> body(Runtime::Instance::MemoryInstance *MemInst, uint32_t Param1, float Param2);
 };
 
-} //  Host 命名空间
-} //  WasmEdge 命名空间
+} // namespace Host
+} // namespace WasmEdge
 ```
 
-在上述示例中，返回类型 `Expect<T>`表示该宿主函数的预期返回类型 `T`。`Param1` 和 `Param2`  的类型表示此宿主函数的参数类型。宿主函数仅支持 WASM 的内置类型（如 `uint32_t`、 `uint64_t`、 `float` 以及 `double`）。在实例化时会生成 `vec(valtype) -> resulttype` 的函数签名，它能被 WASM 模块导入。
+在上述示例中，返回类型 `Expect<T>` 表示该 host 函数的预期返回类型 `T`。 `Param1` 和 `Param2` 的类型表示此 host 函数的参数类型。 host 函数仅支持 WASM 的内置类型（如 `uint32_t`、 `uint64_t`、 `float` 以及 `double`）。在实例化时会生成 `vec(valtype) -> resulttype` 的函数签名，它能被 WASM 模块导入。
 
-注意：目前宿主函数仅支持单个返回值。
+注意：目前 host 函数仅支持单个返回值。
 
-另一种情况是传递需要由宿主函数体访问的环境或信息。 以下示例展示了如何实现宿主函数集群：
+另一种情况是传递需要由 `host function` 体访问的环境或信息。 以下示例展示了如何实现 host 函数集群：
 
 ```cpp
 #include "common/errcode.h"
@@ -71,17 +71,17 @@ public:
   }
 };
 
-} //  Host 命名空间
-} //  WasmEdge 命名空间
+} // namespace Host
+} // namespace WasmEdge
 ```
 
 ### 表、 内存、 以及全局实例
 
-要创建 `host table`、 `memory`、 以及 `global` 实例，唯一的办法就是使用 `host module` 中它们各自的构造器来创建。以下关于 `host module` 的章节将提供更详细的示例。
+要创建 `host table`、 `memory` 以及 `global` 实例，唯一的办法就是使用 `host module` 中它们各自的构造器来创建。以下关于 `host module` 的章节将提供更详细的示例。
 
-## Host Modules/宿主模块
+## Host Modules/ host 模块
 
-`Host module` 是一个可以注册到 WasmEdge runtime 的对象。`Host module` 包含了 `host functions`、 `tables`、 `memories`、 `globals` 以及其它用户自定义的数据。WasmEdge 提供 API 来注册 `host modules`。在注册后，`host modules` 中的这些宿主实例可以被 WASM 模块所导入。
+`Host module` 是一个可以注册到 WasmEdge runtime 的对象。`Host module` 包含了 `host functions`、 `tables`、 `memories`、 `globals` 以及其它用户自定义的数据。WasmEdge 提供 API 来注册 `host modules`。在注册后，`host modules` 中的这些 host 实例可以被 WASM 模块所导入。
 
 ### 声明
 
@@ -101,13 +101,13 @@ public:
   virtual ~TestModule() = default;
 };
 
-} //  Host 命名空间
-} //  WasmEdge 命名空间
+} // namespace Host
+} // namespace WasmEdge
 ```
 
 ### 添加实例
 
-`Host module` 提供了以下四种方法 `addHostFunc()`、 `addHostTable()`、 `addHostMemory()` 和 `addHostGlobal()` 来插入具有唯一名称的实例。插入操作可以在构造器中完成。下面的示例代码中还展示了如何创建`host memories`、 `tables` 和 `globals`。
+`Host module` 提供了以下四种方法 `addHostFunc()`、 `addHostTable()`、 `addHostMemory()` 和 `addHostGlobal()` 来插入具有唯一名称的实例。插入操作可以在构造器中完成。下面的示例代码中还展示了如何创建 `host memories`、 `tables` 和 `globals`。
 
 ```cpp
 #include "common/errcode.h"
@@ -180,15 +180,15 @@ private:
   std::vector<uint8_t> &Data;
 };
 
-} //  Host 命名空间
-} //  WasmEdge 命名空间
+} // namespace Host
+} // namespace WasmEdge
 ```
 
 `Host module` 提供了以下四种方法 `getFuncs()`、 `getTables()`、 `getMems()` 和 `getGlobals()` 用来通过唯一的导出名称搜索已注册的实例。更多细节和 APIs 请参阅 `include/runtime/importobj.h`。
 
-### 在 WasmEdge 中注册宿主模块
+### 在 WasmEdge 中注册 host module
 
-用户可以通过 `WasmEdge::VM::registerModule()` API 来注册宿主模块。
+用户可以通过 `WasmEdge::VM::registerModule()` API 来注册 `host module`。
 
 ```cpp
 #include "common/configure.h"
@@ -204,7 +204,7 @@ VM.registerModule(TestMod);
 
 ### 在 CMakeFile 中链接库以及包含目录
 
-为了从 WasmEdge 中查找头文件包含目录和链接的静态库，CMakeFile 需要如下设置：
+为了从 WasmEdge 的包含目录中查找头文件以及链接静态库，CMakeFile 需要如下设置
 
 ```
 add_library(wasmedgeHostModuleTest  # Static library name of host modules
@@ -218,20 +218,18 @@ target_include_directories(wasmedgeHostModuleTest
 )
 ```
 
-## 宿主函数体实现
+## host 函数体实现
 
-以下是一些实现宿主函数体的小技巧。
+以下是一些实现 host 函数体的小技巧。
 
 ### 使用时检查 Memory 实例
 
-宿主函数能够访问 WASM 内存，这些内存通常以 `MemoryInstance *` 参数的形式被传递。 当发生[函数调用](https://webassembly.github.io/spec/core/exec/instructions.html#function-calls) 时，被调用函数所属的带有模块的帧将被压入`堆栈`。 在宿主函数的例子中，堆栈顶部栈帧中的内存实例将作为宿主函数体的参数被传递。然而，一个 WASM 模块中可以不包含内存实例。因此，用户在访问时应检查内存实例指针是否为空指针。
-
-Host function can access WASM memory, which passed as `MemoryInstance *` argument. When a [function call occurs](https://webassembly.github.io/spec/core/exec/instructions.html#function-calls), a frame with module which the called function belonging to will be pushed onto the `stack`. In the `host function` case, the `memory` instance of the module of the top frame on the `stack` will be passed as the `host function` body's argument. But there can be no `memory` instance in a WASM module. Therefore, users should check if the memory instance pointer is a `nullptr` or not when accessing.
+Host 函数能够访问 WASM 内存，这些内存通常以 `MemoryInstance *` 参数的形式被传递。 当发生[函数调用](https://webassembly.github.io/spec/core/exec/instructions.html#function-calls) 时，被调用函数所属的带有模块的帧将被压入`堆栈`。 在 host 函数的例子中，堆栈顶部栈帧中的内存实例将作为 host 函数体的参数被传递。然而，一个 WASM 模块中可以不包含内存实例。因此，用户在访问时应检查内存实例指针是否为空指针。
 
 ### 预期返回
 
-在我们的机制里，`include/common/errcode.h` 中声明的 `Expect<T>` 被用作函数体的结果类型。在 `Expect<void>` 的情况下，预期场景需要 `return {};` 。其它情况下， 预期场景需要 `return Value;` ，其中 `Value` 是 `T` 类型的一个变量。如果出现意外情况，用户可以调用`return Unexpect(Code);` 来返回一个错误，其中 `Code` 是枚举 `ErrCode` 的一个元素。
+在我们的机制里， `include/common/errcode.h` 中声明的 `Expect<T>` 被用作函数体的结果类型。在 `Expect<void>` 的情况下，预期场景需要 `return {};` 。其它情况下， 预期场景需要 `return Value;` ，其中 `Value` 是 `T` 类型的一个变量。如果出现意外情况，用户可以调用 `return Unexpect(Code);` 来返回一个错误，其中 `Code` 是枚举 `ErrCode` 的一个元素。
 
 ### 强制终止
 
-WasmEdge 提供了一种在宿主函数中终止 WASM 执行的方法。开发者可以返回 `ErrCode::Terminated`  来触发当前执行的强制终止，并将 `ErrCode::Terminated`  传递给宿主函数的调用者。
+WasmEdge 提供了一种在 host 函数中终止 WASM 执行的方法。开发者可以返回 `ErrCode::Terminated`  来触发当前执行的强制终止，并将 `ErrCode::Terminated`  传递给 host 函数的调用者。

@@ -26,10 +26,8 @@
 #define WASMEDGE_CAPI_EXPORT __attribute__((visibility("default")))
 #endif // _WIN32
 
-#include <stdarg.h>
 #include <stdbool.h>
 #include <stdint.h>
-#include <stdlib.h>
 
 #include "wasmedge/enum_configure.h"
 #include "wasmedge/enum_errcode.h"

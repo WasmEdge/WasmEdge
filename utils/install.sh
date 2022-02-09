@@ -154,11 +154,15 @@ detect_os_arch() {
 
     case $OS in
     'Linux')
-        if [ "$ARCH" = "aarch64" ]; then
-            RELEASE_PKG="manylinux2014_$ARCH.tar.gz"
-            IM_EXT_COMPAT=0
-            TF_EXT_COMPAT=0
-        fi
+        case $ARCH in
+        'x86_64') ;;
+        'arm64' | 'armv8*' | "aarch64") RELEASE_PKG="manylinux2014_aarch64.tar.gz" ;;
+        "amd64") RELEASE_PKG="manylinux2014_amd64.tar.gz" ;;
+        *)
+            echo "${RED}Detected $OS-$ARCH${NC} - currently unsupported${NC}"
+            exit 1
+            ;;
+        esac
         ;;
     'Darwin')
         case $ARCH in
@@ -374,6 +378,9 @@ wasmedge_checks() {
         local version=$1
         shift
         for var in "$@"; do
+            if [ "$var" == "" ]; then
+                continue
+            fi
             local V=$("$IPATH/bin/$var" --version | sed 's/^.*[^0-9]\([0-9]*\.[0-9]*\.[0-9]*\).*$/\1/')
             local V_=$(echo $version | sed 's/\([0-9]*\.[0-9]*\.[0-9]*\).*$/\1/')
             if [ "$V" = "$V_" ]; then
@@ -403,21 +410,21 @@ install_wasmedge_image() {
 }
 
 get_wasmedge_tensorflow_deps() {
-    echo "Fetching WasmEdge-tensorflow-deps-TF-$VERSION_TF_DEPS"
+    [[ "$RELEASE_PKG" =~ "aarch64" ]] && echo "Tensorflow not supported" || echo "Fetching WasmEdge-tensorflow-deps-TF-$VERSION_TF_DEPS"
     _downloader "https://github.com/second-state/WasmEdge-tensorflow-deps/releases/download/$VERSION_TF_DEPS/WasmEdge-tensorflow-deps-TF-$VERSION_TF_DEPS-$RELEASE_PKG"
 
     echo "Fetching WasmEdge-tensorflow-deps-TFLite-$VERSION_TF_DEPS"
     _downloader "https://github.com/second-state/WasmEdge-tensorflow-deps/releases/download/$VERSION_TF_DEPS/WasmEdge-tensorflow-deps-TFLite-$VERSION_TF_DEPS-$RELEASE_PKG"
 
-    _extractor -C "$IPATH/lib" -vxzf "$TMP_DIR/WasmEdge-tensorflow-deps-TF-$VERSION_TF_DEPS-$RELEASE_PKG"
+    [[ "$RELEASE_PKG" =~ "aarch64" ]] || _extractor -C "$IPATH/lib" -vxzf "$TMP_DIR/WasmEdge-tensorflow-deps-TF-$VERSION_TF_DEPS-$RELEASE_PKG"
     _extractor -C "$IPATH/lib" -vxzf "$TMP_DIR/WasmEdge-tensorflow-deps-TFLite-$VERSION_TF_DEPS-$RELEASE_PKG"
 
     _ldconfig
 }
 
 install_wasmedge_tensorflow() {
-    echo "Fetching WasmEdge-tensorflow-$VERSION_TF"
-    _downloader "https://github.com/second-state/WasmEdge-tensorflow/releases/download/$VERSION_TF/WasmEdge-tensorflow-$VERSION_TF-$RELEASE_PKG"
+    [[ "$RELEASE_PKG" =~ "aarch64" ]] && echo "Tensorflow not supported" || echo "Fetching WasmEdge-tensorflow-$VERSION_TF" &&
+        _downloader "https://github.com/second-state/WasmEdge-tensorflow/releases/download/$VERSION_TF/WasmEdge-tensorflow-$VERSION_TF-$RELEASE_PKG"
 
     echo "Fetching WasmEdge-tensorflowlite-$VERSION_TF"
     _downloader "https://github.com/second-state/WasmEdge-tensorflow/releases/download/$VERSION_TF/WasmEdge-tensorflowlite-$VERSION_TF-$RELEASE_PKG"
@@ -425,7 +432,7 @@ install_wasmedge_tensorflow() {
     echo "Fetching WasmEdge-tensorflow-tools-$VERSION_TF_TOOLS"
     _downloader "https://github.com/second-state/WasmEdge-tensorflow-tools/releases/download/$VERSION_TF_TOOLS/WasmEdge-tensorflow-tools-$VERSION_TF_TOOLS-$RELEASE_PKG"
 
-    _extractor -C "$IPATH" -vxzf "$TMP_DIR/WasmEdge-tensorflow-$VERSION_TF-$RELEASE_PKG"
+    [[ "$RELEASE_PKG" =~ "aarch64" ]] || _extractor -C "$IPATH" -vxzf "$TMP_DIR/WasmEdge-tensorflow-$VERSION_TF-$RELEASE_PKG"
     _extractor -C "$IPATH" -vxzf "$TMP_DIR/WasmEdge-tensorflowlite-$VERSION_TF-$RELEASE_PKG"
     _extractor -C "$IPATH/bin" -vxzf "$TMP_DIR/WasmEdge-tensorflow-tools-$VERSION_TF_TOOLS-$RELEASE_PKG"
 
@@ -437,6 +444,10 @@ install_wasmedge_tensorflow() {
 }
 
 install_image_extensions() {
+    [[ "$RELEASE_PKG" =~ "aarch64" ]] &&
+        [ "$(printf %s\\n%s\\n "0.9.1-beta.1" "$VERSION_IM_DEPS")" != "$(printf %s\\n%s "0.9.1-beta.1" "$VERSION_IM_DEPS" | sort --version-sort)" ] &&
+        IM_EXT_COMPAT=0
+
     if [ $IM_EXT_COMPAT == 1 ]; then
 
         [ "$EXT_V_SET_WASMEDGE_IM" -eq 0 ] && VERSION_IM=$VERSION &&
@@ -455,6 +466,10 @@ install_image_extensions() {
 }
 
 install_tf_extensions() {
+    [[ "$RELEASE_PKG" =~ "aarch64" ]] &&
+        [ "$(printf %s\\n%s\\n "0.9.1-beta.1" "$VERSION_TF_DEPS")" != "$(printf %s\\n%s "0.9.1-beta.1" "$VERSION_TF_DEPS" | sort --version-sort)" ] &&
+        TF_EXT_COMPAT=0
+
     if [ $TF_EXT_COMPAT == 1 ]; then
 
         [ "$EXT_V_SET_WASMEDGE_TF" -eq 0 ] && VERSION_TF=$VERSION &&
@@ -469,7 +484,9 @@ install_tf_extensions() {
         get_wasmedge_tensorflow_deps
         install_wasmedge_tensorflow
 
-        wasmedge_checks "$VERSION_TF_TOOLS" wasmedge-tensorflow \
+        local _bin
+        [[ "$RELEASE_PKG" =~ "aarch64" ]] && _bin="" || _bin="wasmedge-tensorflow"
+        wasmedge_checks "$VERSION_TF_TOOLS" "$_bin" \
             wasmedge-tensorflow-lite
     else
         echo "${YELLOW}Tensorflow extensions not supported${NC}"
@@ -580,10 +597,7 @@ main() {
     local _source=". \"$IPATH/env\""
     local _grep=$(cat "$__HOME__/.profile" 2>/dev/null | grep "$IPATH/env")
     if [ "$_grep" = "" ]; then
-        if [ ! -f "$__HOME__/.profile" ]; then
-            echo "Generating $__HOME__/.profile"
-        fi
-        echo "$_source" >>"$__HOME__/.profile"
+        [ -f "$__HOME__/.profile" ] && echo "$_source" >>"$__HOME__/.profile"
     fi
 
     local _shell_ _shell_rc
@@ -593,26 +607,18 @@ main() {
     if [[ "$_shell_" =~ "zsh" ]]; then
         local _grep=$(cat "$__HOME__/.zprofile" 2>/dev/null | grep "$IPATH/env")
         if [ "$_grep" = "" ]; then
-            echo "$_source" >>"$__HOME__/.zprofile"
+            [ -f "$__HOME__/.zprofile" ] && echo "$_source" >>"$__HOME__/.zprofile"
         fi
     elif [[ "$_shell_" =~ "bash" ]]; then
-        if [ ! -f "$__HOME__/.bashrc" ]; then
-            local _grep=$(cat "$__HOME__/.bash_profile" 2>/dev/null | grep "$IPATH/env")
-            if [ "$_grep" = "" ]; then
-                if [ ! -f "$__HOME__/.bash_profile" ]; then
-                    echo "Generating $__HOME__/.bash_profile"
-                fi
-                echo "$_source" >>"$__HOME__/.bash_profile"
-            fi
+        local _grep=$(cat "$__HOME__/.bash_profile" 2>/dev/null | grep "$IPATH/env")
+        if [ "$_grep" = "" ]; then
+            [ -f "$__HOME__/.bash_profile" ] && echo "$_source" >>"$__HOME__/.bash_profile"
         fi
     fi
 
     local _grep=$(cat "$__HOME__/$_shell_rc" | grep "$IPATH/env")
     if [ "$_grep" = "" ]; then
-        if [ ! -f "$__HOME__/$_shell_rc" ]; then
-            echo "Generating $__HOME__/$_shell_rc"
-        fi
-        echo "$_source" >>"$__HOME__/$_shell_rc"
+        [ -f "$__HOME__/$_shell_rc" ] && echo "$_source" >>"$__HOME__/$_shell_rc"
     fi
 
     if [ ! $default == 1 ]; then

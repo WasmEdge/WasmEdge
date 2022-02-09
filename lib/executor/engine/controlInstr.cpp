@@ -3,7 +3,7 @@
 
 #include "executor/executor.h"
 
-#include <algorithm>
+#include <cstdint>
 
 namespace WasmEdge {
 namespace Executor {

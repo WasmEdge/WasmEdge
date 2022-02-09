@@ -19,11 +19,18 @@
 
 #include "../spec/hostfunc.h"
 #include "../spec/spectest.h"
-#include "gtest/gtest.h"
 
-#include <fstream>
-#include <memory>
+#include <array>
+#include <chrono>
+#include <cstdint>
+#include <filesystem>
+#include <functional>
+#include <gtest/gtest.h>
+#include <map>
 #include <string>
+#include <string_view>
+#include <type_traits>
+#include <utility>
 #include <vector>
 
 namespace {

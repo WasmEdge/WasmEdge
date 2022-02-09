@@ -8,7 +8,14 @@
 #include "loader/loader.h"
 #include "po/argument_parser.h"
 #include "validator/validator.h"
+#include <cstdint>
+#include <cstdlib>
 #include <iostream>
+#include <memory>
+#include <string>
+#include <string_view>
+#include <utility>
+#include <vector>
 
 int main(int Argc, const char *Argv[]) {
   namespace PO = WasmEdge::PO;

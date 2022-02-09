@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: CC0-1.0
-#include "gtest/gtest.h"
 #include <array>
 #include <experimental/expected.hpp>
+#include <gtest/gtest.h>
 
 TEST(ConstexprTest, Constexpr) {
   EXPECT_EQ(([]() { return *cxx20::expected<int, int>(5); }()), 5);

@@ -16,6 +16,10 @@
 
 #include "helper.h"
 
+#include <algorithm>
+#include <cstdint>
+#include <memory>
+
 namespace WasmEdge {
 
 static Proposal ProposalList[] = {

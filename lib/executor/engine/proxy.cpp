@@ -4,6 +4,8 @@
 #include "executor/executor.h"
 #include "system/fault.h"
 
+#include <cstdint>
+
 namespace WasmEdge {
 namespace Executor {
 

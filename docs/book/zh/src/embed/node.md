@@ -44,7 +44,7 @@ $ curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 $ source $HOME/.cargo/env
 $ rustup override set 1.50.0
 
-# 安装 Node.js and npm
+# 安装 Node.js 和 npm
 $ curl -sL https://deb.nodesource.com/setup_14.x |  bash
 $ sudo apt-get install -y nodejs npm
 
@@ -60,7 +60,7 @@ $ sudo apt install -y build-essential curl wget git vim libboost-all-dev llvm-de
 $ npm install wasmedge-core
 $ npm install wasmedge-extensions
 ```
-> WasmEdge Runtime 需要最新版本的 `libstdc++`。 Ubuntu 20.04 LTS 已经有最新的库了。 如果你使用的是比较老的 Linux 发行版中，有一些选项需要升级，链接的是[https://www.secondstate.io/articles/ubuntu-req-ssvm-20200715/](https://www.secondstate.io/articles/ubuntu-req-ssvm-20200715/)。
+> WasmEdge Runtime 需要最新版本的 `libstdc++`。 Ubuntu 20.04 LTS 已经有最新的库了。 如果你使用的是比较老的 Linux 发行版中，有一些选项需要升级，[更详细的信息在这儿](https://www.secondstate.io/articles/ubuntu-req-ssvm-20200715/)。
 
 然后，克隆示例源代码仓库。
 

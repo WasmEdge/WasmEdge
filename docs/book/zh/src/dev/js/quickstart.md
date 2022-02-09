@@ -49,7 +49,7 @@ Hello WasmEdge Runtime
 
 ## 更快地执行
 
-asmEdge 提供了一个 `wasmedgec` 实用程序来编绎并且添加一个本地机器代码部分到 `wasm` 文件中。你可以使用 `wasmedge` 来运行本地检测到的 `wasm` 文件，从而获得更快的性能。
+WasmEdge 提供了一个 `wasmedgec` 实用程序来编绎并且添加一个本地机器代码部分到 `wasm` 文件中。你可以使用 `wasmedge` 来运行本地检测到的 `wasm` 文件，从而获得更快的性能。
 
 ```bash
 $ wasmedgec ../../target/wasm32-wasi/release/wasmedge_quickjs.wasm wasmedge_quickjs.wasm

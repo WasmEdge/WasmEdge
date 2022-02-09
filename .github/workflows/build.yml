@@ -168,10 +168,10 @@ jobs:
         LD_LIBRARY_PATH=$(pwd)/build/lib/api cmake --build build --target codecov
     - name: Create and upload coverage report to Codecov
       if: ${{ matrix.coverage }}
-      uses: codecov/codecov-action@v1
+      uses: codecov/codecov-action@v2
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
-        file: ./build/codecov.xml
+        files: ./build/codecov.xml
         name: codecov-wasmedge
         fail_ci_if_error: true
         path_to_write_report: ./build/codecov_report.gz

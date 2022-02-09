@@ -5,10 +5,10 @@ For now, the easiest approach is just built it yourself from source. First, let'
 For other Linux distributions, please [see here](https://github.com/containers/crun#readme).
 
 ```bash
-$ sudo apt update
-$ sudo apt install -y make git gcc build-essential pkgconf libtool \
-      libsystemd-dev libprotobuf-c-dev libcap-dev libseccomp-dev libyajl-dev \
-      go-md2man libtool autoconf python3 automake
+sudo apt update
+sudo apt install -y make git gcc build-essential pkgconf libtool \
+    libsystemd-dev libprotobuf-c-dev libcap-dev libseccomp-dev libyajl-dev \
+    go-md2man libtool autoconf python3 automake
 ```
 
 Next, configure, build, and install a `crun` binary with WasmEdge support.

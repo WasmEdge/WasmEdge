@@ -37,7 +37,7 @@ curl -sSf https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/insta
 你可以将 `-v` 参数传递给 `install.sh` 脚本来安装指定版本的 WasmEdge（包括预发行版本和历史版本）。例子如下：
 
 ```bash
-curl -sSf https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh | bash -s -- -e all -v 0.9.0
+curl -sSf https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh | bash -s -- -e all -v 0.9.1
 ```
 
 如果你对 `master` 分支的 `HEAD` 中的最新的构建感兴趣（也就是 WasmEdge 的 nightly 版本），你可以直接从 Github Action 的 CI artifact 中下载已发布的包。[例子请看这里。](https://github.com/WasmEdge/WasmEdge/actions/runs/1521549504#artifacts)

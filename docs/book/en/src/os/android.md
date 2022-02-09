@@ -5,6 +5,5 @@ The WasmEdge Runtime releases come with pre-built binaries for the Android OS. H
 > If you prefer to build WasmEdge Runtime binary on Android for yourself, you can refer to the [build WasmEdge for Android](../extend/build_for_android.md) document.
 
 * [WasmEdge CLI tools for Android](android/cli.md)
-* [Call WasmEdge functions from an NDK native app](android/ndk.md) 
+* [Call WasmEdge functions from an NDK native app](android/ndk.md)
 * [Call WasmEdge functions from an Android APK app](android/studio.md)
-

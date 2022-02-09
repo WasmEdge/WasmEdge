@@ -20,7 +20,7 @@ $ sudo apt-get install adb
 
 To compile programs with the wasmedge-tensorflow c api, you need to install the [Android NDK](https://developer.android.google.cn/ndk/downloads). In this example, we use the latest LTS version (r23b).
 
-## Program
+## Review of source code
 
 The [`test.c`](https://github.com/second-state/wasm-learning/blob/master/android/test.c) uses the wasmedge-tensorflow c api to run a WebAssembly function. The WebAssembly file `birds_v1.wasm` is compiled from Rust source code and [explained here](../../dev/rust/tensorflow.md).
 
@@ -108,9 +108,9 @@ $ (/path/to/ndk)/toolchains/llvm/prebuilt/(HostPlatform)/bin/aarch64-linux-(Andr
 
 ## Run
 
-### push files onto Android
+### Push files onto Android
 
-Install the compiled program, Tensorflow Lite model file, test image file, as well as WasmEdge shared library files for Android, onto the Android device using `adb`.
+Install the compiled program, Tensorflow Lite model file, test image file, as well as WasmEdge shared library files for Android, onto the Android device using `adb` from your Ubuntu dev machine.
 
 ```bash
 $ adb push a.out /data/local/tmp
@@ -120,9 +120,9 @@ $ adb push bird.jpg /data/local/tmp
 $ adb push ./WasmEdge-0.9.1-rc.1-Android/lib /data/local/tmp
 ```
 
-### run the example
+### Run the example
 
-Now you can run the compiled C program on the Android device via a shell command.
+Now you can run the compiled C program on the Android device via a remote shell command. Run `adb shell` from your Ubuntu dev machine.
 
 ```bash
 $ adb shell

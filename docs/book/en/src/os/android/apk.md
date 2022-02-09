@@ -125,10 +125,6 @@ Java_org_wasmedge_native_1lib_NativeLib_nativeWasmFibonacci(JNIEnv *env, jobject
 
 The `factorial.wat` is a [handwritten WebAssembly script](https://github.com/WasmEdge/WasmEdge/blob/master/tools/wasmedge/examples/fibonacci.wat) to compute factorial numbers. It is compiled into WebAssembly using the [WABT tool](https://github.com/WebAssembly/wabt).
 
+### Build dependencies
 
-
-
-
-
-
-
+Android Studio and Gradle use CMake to build the C shared library. The [CMakeLists.txt file](https://github.com/WasmEdge/WasmEdge/blob/master/utils/android/app/lib/src/main/cpp/CMakeLists.txt) builds the WasmEdge source into Android shared library files and embeds them into the final APK application. In this case, there is no seperate step to install WasmEdge share libraries onto the Android device.

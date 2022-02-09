@@ -7,13 +7,13 @@ WasmEdge 可以通过其 [C](../../embed/c.md), [Go](../../embed/go.md), [Rust](
 * [教程](https://www.secondstate.io/articles/dapr-wasmedge-webassembly/)
 * [代码教程](https://github.com/second-state/dapr-wasm)
 
-## Service mesh (开发进行中):
+## Service mesh (开发进行中)
 
 * Linkerd
 * MOSN
 * Envoy
 
-## 编排和管理:
+## 编排和管理
 
 * [Kubernetes](https://www.secondstate.io/articles/manage-webassembly-apps-in-wasmedge-using-docker-tools/)
 * KubeEdge

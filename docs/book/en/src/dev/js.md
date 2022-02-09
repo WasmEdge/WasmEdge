@@ -6,11 +6,7 @@ As WebAssembly is increasingly used in the cloud, it is now a universal runtime 
 
 In cloud-native use cases, developers often want to use JavaScript to write business applications. That means we must now support JavaScript in WebAssembly. Furthermore, we should support calling C/C++ or Rust functions from JavaScript in a WebAssembly runtime to take advantage of WebAssembly's computational efficiency. The WasmEdge WebAssembly runtime allows you to do exactly that.
 
-<center>
-
-![](javascript.png)
-
-</center>
+![javascript](javascript.png)
 
 In this section, we will demonstrate how to run and enhance JavaScript in WasmEdge.
 

@@ -82,8 +82,8 @@ The [package.json](https://github.com/second-state/wasmedge-quickjs/blob/main/ex
 Run the following NPM commands to build [npm_main.js](https://github.com/second-state/wasmedge-quickjs/blob/main/example_js/simple_common_js_demo/npm_main.js) demo program into `dist/npm_main.mjs`.
 
 ```bash
-$ npm install
-$ npm run build
+npm install
+npm run build
 ```
 
 Run the result JS file in WasmEdge CLI as follows.

@@ -57,8 +57,8 @@ async function handle_response(s) {
 To run the JavaScript in the WasmEdge runtime, you can do this on the CLI.
 
 ```bash
-$ cd example_js
-$ wasmedge --dir .:. ../target/wasm32-wasi/release/wasmedge_quickjs.wasm wasi_http_client.js
+cd example_js
+wasmedge --dir .:. ../target/wasm32-wasi/release/wasmedge_quickjs.wasm wasi_http_client.js
 ```
 
 The results printed to the console are as follows.
@@ -120,14 +120,14 @@ The `server_start()` function starts the server at port 8000. When a request com
 
 To run the JavaScript in the WasmEdge runtime, you can do this on the CLI. Since it is a server, you should run it in the background.
 
-```
-$ cd example_js
-$ nohup wasmedge --dir .:. ../target/wasm32-wasi/release/wasmedge_quickjs.wasm wasi_net_echo.js &
+```bash
+cd example_js
+nohup wasmedge --dir .:. ../target/wasm32-wasi/release/wasmedge_quickjs.wasm wasi_net_echo.js &
 ```
 
 Then you can test the server by querying it over the network.
 
-```
+```bash
 $ curl -d "WasmEdge" -X POST http://localhost:8000
 echo:WasmEdge
 ```
@@ -200,8 +200,8 @@ The `server_start()` function starts the server at port 8000. When a request com
 To run the JavaScript in the WasmEdge runtime, you can do this on the CLI. Since it is a server, you should run it in the background.
 
 ```bash
-$ cd example_js
-$ nohup wasmedge --dir .:. ../target/wasm32-wasi/release/wasmedge_quickjs.wasm wasi_http_echo.js &
+cd example_js
+nohup wasmedge --dir .:. ../target/wasm32-wasi/release/wasmedge_quickjs.wasm wasi_http_echo.js &
 ```
 
 Then you can test the server by querying it over the network.

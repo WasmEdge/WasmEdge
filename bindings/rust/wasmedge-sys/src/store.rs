@@ -56,7 +56,6 @@ impl Store {
             false => Ok(Function {
                 ctx,
                 registered: true,
-                ty: None,
             }),
         }
     }
@@ -95,7 +94,6 @@ impl Store {
             false => Ok(Function {
                 ctx,
                 registered: true,
-                ty: None,
             }),
         }
     }
@@ -723,7 +721,7 @@ mod tests {
     use crate::{
         instance::{Function, Global, GlobalType, MemType, Memory, Table, TableType},
         types::Value,
-        Config, Executor, FuncType, ImportObj, Mutability, RefType, ValType,
+        Config, Executor, FuncType, ImportObject, Mutability, RefType, ValType,
     };
 
     #[test]
@@ -749,9 +747,9 @@ mod tests {
         assert!(store.reg_module_names().is_none());
 
         // create ImportObject instance
-        let result = ImportObj::create(module_name);
+        let result = ImportObject::create(module_name);
         assert!(result.is_ok());
-        let mut import_obj = result.unwrap();
+        let mut import = result.unwrap();
 
         // add host function
         let result = FuncType::create(vec![ValType::I32; 2], vec![ValType::I32]);
@@ -759,49 +757,43 @@ mod tests {
         let func_ty = result.unwrap();
         let result = Function::create(func_ty, Box::new(real_add), 0);
         assert!(result.is_ok());
-        let mut host_func = result.unwrap();
-        import_obj.add_func("add", &mut host_func);
-        assert!(host_func.ctx.is_null() && host_func.registered);
+        let host_func = result.unwrap();
+        import.add_func("add", host_func);
 
         // add table
         let result = TableType::create(RefType::FuncRef, 0..=u32::MAX);
         assert!(result.is_ok());
-        let mut ty = result.unwrap();
-        assert!(!ty.ctx.is_null());
-        assert!(!ty.registered);
-        let result = Table::create(&mut ty);
+        let ty = result.unwrap();
+        let result = Table::create(ty);
         assert!(result.is_ok());
-        let mut table = result.unwrap();
-        import_obj.add_table("table", &mut table);
-        assert!(table.ctx.is_null() && table.registered);
+        let table = result.unwrap();
+        import.add_table("table", table);
 
         // add memory
         let result = MemType::create(0..=u32::MAX);
         assert!(result.is_ok());
-        let mut mem_ty = result.unwrap();
-        let result = Memory::create(&mut mem_ty);
+        let mem_ty = result.unwrap();
+        let result = Memory::create(mem_ty);
         assert!(result.is_ok());
-        let mut memory = result.unwrap();
-        import_obj.add_memory("mem", &mut memory);
-        assert!(memory.ctx.is_null() && memory.registered);
+        let memory = result.unwrap();
+        import.add_memory("mem", memory);
 
         // add globals
         let result = GlobalType::create(ValType::F32, Mutability::Const);
         assert!(result.is_ok());
-        let mut ty = result.unwrap();
-        let result = Global::create(&mut ty, Value::from_f32(3.5));
+        let ty = result.unwrap();
+        let result = Global::create(ty, Value::from_f32(3.5));
         assert!(result.is_ok());
-        let mut global = result.unwrap();
-        import_obj.add_global("global", &mut global);
-        assert!(global.ctx.is_null() && global.registered);
+        let global = result.unwrap();
+        import.add_global("global", global);
 
         let result = Config::create();
         assert!(result.is_ok());
         let config = result.unwrap();
-        let result = Executor::create(Some(&config), None);
+        let result = Executor::create(Some(config), None);
         assert!(result.is_ok());
         let executor = result.unwrap();
-        let result = executor.register_import_object(&mut store, &import_obj);
+        let result = executor.register_import_object(&mut store, import);
         assert!(result.is_ok());
         let executor = result.unwrap();
 

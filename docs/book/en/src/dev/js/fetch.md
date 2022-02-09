@@ -54,10 +54,8 @@ test_fetch_put()
 To run those examples, use the following WasmEdge CLI command.
 
 ```bash
-$ cd example_js
-$ wasmedge --dir .:. ../target/wasm32-wasi/release/wasmedge_quickjs.wasm wasi_http_fetch.js
+cd example_js
+wasmedge --dir .:. ../target/wasm32-wasi/release/wasmedge_quickjs.wasm wasi_http_fetch.js
 ```
 
 You can see the HTTP responses printed to the console.
-
-

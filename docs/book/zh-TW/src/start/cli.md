@@ -49,18 +49,18 @@ WasmEdge 安裝完畢後您可以 [參考並執行我們的範例](../index.md)�
 
 ```bash
 # This is slow
-$ wasmedge app.wasm
+wasmedge app.wasm
 
 # AOT compile
-$ wasmedgec app.wasm app.wasm
+wasmedgec app.wasm app.wasm
 
 # This is now MUCH faster
-$ wasmedge app.wasm
+wasmedge app.wasm
 ```
 
 在 Linux 作業系統，它也可以生成一個 `so` 共享函式庫格式檔案並被 `wasmedge` CLI 執行。
 
 ```bash
-$ wasmedgec app.wasm app.so
-$ wasmedge app.so
+wasmedgec app.wasm app.so
+wasmedge app.so
 ```

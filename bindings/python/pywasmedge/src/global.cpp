@@ -6,8 +6,14 @@ pysdk::GlobalTypeCxt::GlobalTypeCxt(const WasmEdge_ValType &Type,
   GlobTypeCxt = WasmEdge_GlobalTypeCreate(Type, mut);
 }
 
+pysdk::GlobalTypeCxt::GlobalTypeCxt(WasmEdge_GlobalTypeContext *cxt, bool del) {
+  GlobTypeCxt = cxt;
+  delete_cxt = del;
+}
+
 pysdk::GlobalTypeCxt::~GlobalTypeCxt() {
-  WasmEdge_GlobalTypeDelete(GlobTypeCxt);
+  if (delete_cxt)
+    WasmEdge_GlobalTypeDelete(GlobTypeCxt);
 }
 
 WasmEdge_GlobalTypeContext *pysdk::GlobalTypeCxt::get() { return GlobTypeCxt; }

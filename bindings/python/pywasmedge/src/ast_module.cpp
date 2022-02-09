@@ -7,6 +7,10 @@ pysdk::ASTModuleCxt::ASTModuleCxt() { ASTCxt = NULL; }
 pysdk::ASTModuleCxt::ASTModuleCxt(WasmEdge_ASTModuleContext *cxt) {
   ASTCxt = cxt;
   external = true;
+  // WasmEdge_ASTModuleListExports();
+  // WasmEdge_ASTModuleListExportsLength();
+  // WasmEdge_ASTModuleListImports();
+  // WasmEdge_ASTModuleListImportsLength();
 }
 
 pysdk::ASTModuleCxt::~ASTModuleCxt() {
@@ -23,9 +27,9 @@ pybind11::list pysdk::ASTModuleCxt::listImports() {
   const WasmEdge_ImportTypeContext *import_cxt_types[len];
   len = WasmEdge_ASTModuleListImports(ASTCxt, import_cxt_types, len);
   for (size_t i = 0; i < len; i++) {
-    // TODO: Implement in a useful way
+    ret.append((pysdk::ImportTypeContext(
+        const_cast<WasmEdge_ImportTypeContext *>(import_cxt_types[i]))));
   }
-
   return ret;
 }
 

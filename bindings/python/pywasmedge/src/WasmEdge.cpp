@@ -63,6 +63,13 @@ PYBIND11_MODULE(WasmEdge, module) {
       .value("ExternRef", WasmEdge_ValType_ExternRef)
       .export_values();
 
+  pybind11::enum_<WasmEdge_ExternalType>(module, "ExternalType")
+      .value("Func", WasmEdge_ExternalType_Function)
+      .value("Glob", WasmEdge_ExternalType_Global)
+      .value("Mem", WasmEdge_ExternalType_Memory)
+      .value("Tab", WasmEdge_ExternalType_Table)
+      .export_values();
+
   pybind11::enum_<WasmEdge_RefType>(module, "RefType")
       .value("FuncRef", WasmEdge_RefType_FuncRef)
       .value("ExternRef", WasmEdge_RefType_ExternRef)
@@ -183,6 +190,13 @@ PYBIND11_MODULE(WasmEdge, module) {
       .def(pybind11::init<pysdk::FunctionTypeContext &, pybind11::function,
                           uint64_t &>())
       .def("GetType", &pysdk::Function::get_func_type);
+
+  pybind11::class_<pysdk::ImportTypeContext>(module, "ImportType")
+      .def(pybind11::init<>())
+      .def("GetFunctionType", &pysdk::ImportTypeContext::get_function_type_cxt)
+      .def("GetExternalType", &pysdk::ImportTypeContext::get_external_type)
+      .def("GetGlobalType", &pysdk::ImportTypeContext::get_global_type_cxt)
+      .def("GetExternalName", &pysdk::ImportTypeContext::get_external_name);
 
   pybind11::class_<pysdk::import_object>(module, "ImportObject")
       .def(pybind11::init<std::string &>())

@@ -248,9 +248,11 @@ public:
 class GlobalTypeCxt {
 private:
   WasmEdge_GlobalTypeContext *GlobTypeCxt;
+  bool delete_cxt = true;
 
 public:
   GlobalTypeCxt(const WasmEdge_ValType &, const WasmEdge_Mutability &);
+  GlobalTypeCxt(WasmEdge_GlobalTypeContext *,bool);
   ~GlobalTypeCxt();
   WasmEdge_GlobalTypeContext *get();
 };
@@ -263,6 +265,21 @@ private:
 public:
   StatisticsContext(WasmEdge_StatisticsContext *);
   ~StatisticsContext();
+};
+
+class ImportTypeContext {
+private:
+  WasmEdge_ImportTypeContext *Cxt;
+
+public:
+  ImportTypeContext();
+  ImportTypeContext(WasmEdge_ImportTypeContext *);
+  ~ImportTypeContext();
+  WasmEdge_ImportTypeContext *get();
+  std::string get_external_name();
+  WasmEdge_ExternalType get_external_type();
+  FunctionTypeContext get_function_type_cxt(ASTModuleCxt &);
+  GlobalTypeCxt get_global_type_cxt(ASTModuleCxt &);
 };
 
 class import_object {

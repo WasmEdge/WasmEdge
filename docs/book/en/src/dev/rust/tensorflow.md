@@ -11,7 +11,7 @@ The popular WebAssembly System Interface (WASI) provides a design pattern for sa
 * [A Rust example](#a-rust-example)
 * [Deployment options](#deployment-options)
 
-# A Rust example
+## A Rust example
 
 ### Prerequisite
 
@@ -22,15 +22,15 @@ You need to install [WasmEdge](../../start/install.md) and [Rust](https://www.ru
 Check out the example source code.
 
 ```bash
-$ git clone https://github.com/second-state/wasm-learning/
-$ cd cli/tflite
+git clone https://github.com/second-state/wasm-learning/
+cd cli/tflite
 ```
 
 Use Rust `Cargo` to build the WebAssembly target.
 
 ```bash
-$ rustup target add wasm32-wasi
-$ cargo build --target wasm32-wasi --release
+rustup target add wasm32-wasi
+cargo build --target wasm32-wasi --release
 ```
 
 ### Run
@@ -114,9 +114,9 @@ Finally, it prints the result to `STDOUT`.
     }
 ```
 
-# Deployment options
+## Deployment options
 
-All the tutorials below use the [WasmEdge Rust API for Tensorflow](https://github.com/second-state/wasmedge_tensorflow_interface) to create AI inference functions. Those Rust functions are then compiled to WebAssembly and deployed together with WasmEdge on the cloud. 
+All the tutorials below use the [WasmEdge Rust API for Tensorflow](https://github.com/second-state/wasmedge_tensorflow_interface) to create AI inference functions. Those Rust functions are then compiled to WebAssembly and deployed together with WasmEdge on the cloud.
 
 ### Serverless functions
 

@@ -35,17 +35,16 @@ impl Memory {
     /// ```
     /// use wasmedge_sys::{MemType, Memory};
     ///
-    /// let mut ty = MemType::create(10..=20).expect("fail to create memory type");
+    /// let ty = MemType::create(10..=20).expect("fail to create memory type");
     ///
-    /// let memory = Memory::create(&mut ty);
+    /// let memory = Memory::create(ty);
     ///
     /// ```
     ///
     ///
-    pub fn create(ty: &mut MemType) -> WasmEdgeResult<Self> {
+    pub fn create(mut ty: MemType) -> WasmEdgeResult<Self> {
         let ctx = unsafe { wasmedge::WasmEdge_MemoryInstanceCreate(ty.ctx) };
         ty.ctx = std::ptr::null_mut();
-        ty.registered = true;
 
         match ctx.is_null() {
             true => Err(WasmEdgeError::Mem(MemError::Create)),
@@ -83,9 +82,9 @@ impl Memory {
     ///
     /// # Errors
     ///
-    /// If the `offset` + `len` is larger than the data size in the [`Memory`], then an error is returned.
+    /// If the `offset + len` is larger than the data size in the [`Memory`], then an error is returned.
     ///
-    pub fn get_data(&self, offset: u32, len: u32) -> WasmEdgeResult<impl Iterator<Item = u8>> {
+    pub fn get_data(&self, offset: u32, len: u32) -> WasmEdgeResult<Vec<u8>> {
         let mut data = Vec::with_capacity(len as usize);
         unsafe {
             check(wasmedge::WasmEdge_MemoryInstanceGetData(
@@ -97,7 +96,7 @@ impl Memory {
             data.set_len(len as usize);
         }
 
-        Ok(data.into_iter())
+        Ok(data.into_iter().collect())
     }
 
     /// Copies the data from the given input buffer into the [`Memory`].
@@ -117,8 +116,8 @@ impl Memory {
     /// use wasmedge_sys::{error::{CoreError, CoreExecutionError}, WasmEdgeError, Memory, MemType};
     ///
     /// // create a Memory: the min size 1 and the max size 2
-    /// let mut ty = MemType::create(1..=2).expect("fail to create a memory type");
-    /// let mut mem = Memory::create(&mut ty).expect("fail to create a Memory");
+    /// let ty = MemType::create(1..=2).expect("fail to create a memory type");
+    /// let mut mem = Memory::create(ty).expect("fail to create a Memory");
     ///
     /// // set data and the data length is larger than the data size in the memory
     /// let result = mem.set_data(vec![1; 10], u32::pow(2, 16) - 9);
@@ -132,10 +131,10 @@ impl Memory {
     /// use wasmedge_sys::{MemType, Memory};
     ///
     /// // create a Memory: the min size 1 and the max size 2
-    /// let mut ty = MemType::create(1..=2).expect("fail to create a memory type");
-    /// let mut mem = Memory::create(&mut ty).expect("fail to create a Memory");
+    /// let ty = MemType::create(1..=2).expect("fail to create a memory type");
+    /// let mut mem = Memory::create(ty).expect("fail to create a Memory");
     /// // page count
-    /// let count = mem.page_count();
+    /// let count = mem.size();
     /// assert_eq!(count, 1);
     ///
     /// // set data
@@ -143,7 +142,6 @@ impl Memory {
     ///
     /// // get data
     /// let data = mem.get_data(10, 10).expect("fail to get data");
-    /// let data: Vec<_> = data.collect();
     /// assert_eq!(data, vec![1; 10]);
     /// ```
     ///
@@ -219,12 +217,12 @@ impl Memory {
         }
     }
 
-    /// Returns the page count (64 KiB of each page).
-    pub fn page_count(&self) -> u32 {
+    /// Returns the size, in WebAssembly pages (64 KiB of each page), of this wasm memory.
+    pub fn size(&self) -> u32 {
         unsafe { wasmedge::WasmEdge_MemoryInstanceGetPageSize(self.ctx) as u32 }
     }
 
-    /// Grows the page count of the [`Memory`].
+    /// Grows this WebAssembly memory by `count` pages.
     ///
     /// # Arguments
     ///
@@ -240,15 +238,15 @@ impl Memory {
     /// use wasmedge_sys::{MemType, Memory};
     ///
     /// // create a Memory with a limit range [10, 20]
-    /// let mut ty = MemType::create(10..=20).expect("fail to create a memory type");
-    /// let mut mem = Memory::create(&mut ty).expect("fail to create a Memory");
+    /// let ty = MemType::create(10..=20).expect("fail to create a memory type");
+    /// let mut mem = Memory::create(ty).expect("fail to create a Memory");
     /// // check page count
-    /// let count = mem.page_count();
+    /// let count = mem.size();
     /// assert_eq!(count, 10);
     ///
     /// // grow 5 pages
     /// mem.grow(10).expect("fail to grow the page count");
-    /// assert_eq!(mem.page_count(), 20);
+    /// assert_eq!(mem.size(), 20);
     /// ```
     ///
     pub fn grow(&mut self, count: u32) -> WasmEdgeResult<()> {
@@ -357,8 +355,8 @@ mod tests {
         // create a Memory with a limit range [10, 20]
         let result = MemType::create(10..=20);
         assert!(result.is_ok());
-        let mut ty = result.unwrap();
-        let result = Memory::create(&mut ty);
+        let ty = result.unwrap();
+        let result = Memory::create(ty);
         assert!(result.is_ok());
         let mut mem = result.unwrap();
         assert!(!mem.ctx.is_null());
@@ -374,13 +372,13 @@ mod tests {
         assert_eq!(ty.limit(), 10..=20);
 
         // check page count
-        let count = mem.page_count();
+        let count = mem.size();
         assert_eq!(count, 10);
 
         // grow 5 pages
         let result = mem.grow(10);
         assert!(result.is_ok());
-        assert_eq!(mem.page_count(), 20);
+        assert_eq!(mem.size(), 20);
 
         // grow additional  pages, which causes a failure
         let result = mem.grow(1);
@@ -392,21 +390,21 @@ mod tests {
         // create a Memory: the min size 1 and the max size 2
         let result = MemType::create(1..=2);
         assert!(result.is_ok());
-        let mut ty = result.unwrap();
-        let result = Memory::create(&mut ty);
+        let ty = result.unwrap();
+        let result = Memory::create(ty);
         assert!(result.is_ok());
         let mut mem = result.unwrap();
         assert!(!mem.ctx.is_null());
         assert!(!mem.registered);
 
         // check page count
-        let count = mem.page_count();
+        let count = mem.size();
         assert_eq!(count, 1);
 
         // get data before set data
         let result = mem.get_data(0, 10);
         assert!(result.is_ok());
-        let data: Vec<_> = result.unwrap().collect();
+        let data: Vec<_> = result.unwrap();
         assert_eq!(data, vec![0; 10]);
 
         // set data
@@ -415,7 +413,7 @@ mod tests {
         // get data after set data
         let result = mem.get_data(10, 10);
         assert!(result.is_ok());
-        let data: Vec<_> = result.unwrap().collect();
+        let data: Vec<_> = result.unwrap();
         assert_eq!(data, vec![1; 10]);
 
         // set data and the data length is larger than the data size in the memory
@@ -429,7 +427,7 @@ mod tests {
         // grow the memory size
         let result = mem.grow(1);
         assert!(result.is_ok());
-        assert_eq!(mem.page_count(), 2);
+        assert_eq!(mem.size(), 2);
         let result = mem.set_data(vec![1; 10], u32::pow(2, 16) - 9);
         assert!(result.is_ok());
     }

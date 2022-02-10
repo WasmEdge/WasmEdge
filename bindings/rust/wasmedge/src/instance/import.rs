@@ -123,8 +123,8 @@ mod tests {
             let store = result.unwrap();
 
             // check registered modules
-            assert_eq!(store.count_of_module(), 1);
-            let result = store.module_names();
+            assert_eq!(store.mod_count(), 1);
+            let result = store.mod_names();
             assert!(result.is_some());
             assert_eq!(result.unwrap(), ["wasmedge_process"]);
 
@@ -204,8 +204,8 @@ mod tests {
             let store = result.unwrap();
 
             // check registered modules
-            assert_eq!(store.count_of_module(), 1);
-            let result = store.module_names();
+            assert_eq!(store.mod_count(), 1);
+            let result = store.mod_names();
             assert!(result.is_some());
             assert_eq!(result.unwrap(), ["wasmedge_process"]);
 
@@ -241,8 +241,8 @@ mod tests {
             let store = result.unwrap();
 
             // check registered modules
-            assert_eq!(store.count_of_module(), 1);
-            let result = store.module_names();
+            assert_eq!(store.mod_count(), 1);
+            let result = store.mod_names();
             assert!(result.is_some());
             assert_eq!(result.unwrap(), ["wasi_snapshot_preview1"]);
 
@@ -322,8 +322,8 @@ mod tests {
             let store = result.unwrap();
 
             // check registered modules
-            assert_eq!(store.count_of_module(), 1);
-            let result = store.module_names();
+            assert_eq!(store.mod_count(), 1);
+            let result = store.mod_names();
             assert!(result.is_some());
             assert_eq!(result.unwrap(), ["wasi_snapshot_preview1"]);
 
@@ -520,7 +520,7 @@ mod tests {
         assert_eq!(table.name().unwrap(), "table");
         assert!(table.mod_name().is_some());
         assert_eq!(table.mod_name().unwrap(), "extern");
-        assert_eq!(table.len(), 10);
+        assert_eq!(table.size(), 10);
         let result = table.ty();
         assert!(result.is_ok());
         let ty = result.unwrap();

@@ -175,8 +175,8 @@ mod tests {
             let vm = result.unwrap();
             assert!(vm.config.is_none());
 
-            let result = vm.store_mut();
-            assert!(result.is_ok());
+            assert!(vm.store_mut().is_ok());
+            assert!(vm.statistics_mut().is_ok());
         }
 
         {
@@ -192,8 +192,31 @@ mod tests {
             let vm = result.unwrap();
             assert!(vm.config.is_some());
 
-            let result = vm.store_mut();
-            assert!(result.is_ok());
+            assert!(vm.store_mut().is_ok());
+            assert!(vm.statistics_mut().is_ok());
         }
+    }
+
+    #[test]
+    fn test_vm_statistics() {
+        // create a Config
+        let result = Config::new();
+        assert!(result.is_ok());
+
+        // enable the configuration options for statistics
+        let config = result
+            .unwrap()
+            .cost_measuring(true)
+            .time_measuring(true)
+            .instr_counting(true);
+
+        // create a Vm context
+        let result = Vm::new(Some(config));
+        assert!(result.is_ok());
+        let vm = result.unwrap();
+
+        // get the statistics
+        let result = vm.statistics_mut();
+        assert!(result.is_ok());
     }
 }

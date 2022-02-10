@@ -529,16 +529,16 @@ mod tests {
         assert_eq!(ty.maximum(), Some(20));
 
         // get value from table[0]
-        let result = table.get_data(0);
+        let result = table.get(0);
         assert!(result.is_ok());
         let value = result.unwrap();
         assert!(value.func_idx().is_none());
 
         // set value to table[0]
-        let result = table.set_data(Value::from_func_ref(5), 0);
+        let result = table.set(Value::from_func_ref(5), 0);
         assert!(result.is_ok());
         // get the value in table[0]
-        let result = table.get_data(0);
+        let result = table.get(0);
         assert!(result.is_ok());
         let value = result.unwrap();
         assert!(value.func_idx().is_some());
@@ -553,7 +553,7 @@ mod tests {
         let table = result.unwrap();
 
         // get the value in table[0]
-        let result = table.get_data(0);
+        let result = table.get(0);
         assert!(result.is_ok());
         let value = result.unwrap();
         assert!(value.func_idx().is_some());

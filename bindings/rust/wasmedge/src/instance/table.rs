@@ -9,21 +9,6 @@ pub struct Table<'store> {
     pub(crate) _marker: PhantomData<&'store ()>,
 }
 impl<'store> Table<'store> {
-    // pub fn new(ty: TableType) -> WasmEdgeResult<Self> {
-    //     let min = ty.minimum();
-    //     let max = match ty.maximum() {
-    //         Some(max) => max,
-    //         None => u32::MAX,
-    //     };
-    //     let mut ty = wasmedge::TableType::create(ty.elem_ty(), min..=max)?;
-    //     let inner = wasmedge::Table::create(&mut ty)?;
-    //     Ok(Self {
-    //         inner,
-    //         name: None,
-    //         mod_name: None,
-    //     })
-    // }
-
     pub fn name(&self) -> Option<&str> {
         match &self.name {
             Some(name) => Some(name.as_ref()),
@@ -42,6 +27,8 @@ impl<'store> Table<'store> {
         self.mod_name.is_some()
     }
 
+    /// Returns the underlying type of this table, including its element type as well as the maximum/minimum lower
+    /// bounds.
     pub fn ty(&self) -> Result<TableType> {
         let ty = self.inner.ty()?;
         let limit = ty.limit();
@@ -57,18 +44,21 @@ impl<'store> Table<'store> {
         self.inner.capacity() as u32
     }
 
+    /// Grows the size of this table by `size` more elements
     pub fn grow(&mut self, size: u32) -> Result<()> {
         self.inner.grow(size)?;
         Ok(())
     }
 
-    pub fn get_data(&self, idx: usize) -> Result<Value> {
-        let value = self.inner.get_data(idx)?;
+    /// Returns the table element value at `index`.
+    pub fn get(&self, index: u32) -> Result<Value> {
+        let value = self.inner.get_data(index)?;
         Ok(value)
     }
 
-    pub fn set_data(&mut self, data: Value, idx: usize) -> Result<()> {
-        self.inner.set_data(data, idx)?;
+    /// Writes the `data` provided into `index` within this table.
+    pub fn set(&mut self, data: Value, index: u32) -> Result<()> {
+        self.inner.set_data(data, index)?;
         Ok(())
     }
 }

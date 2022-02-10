@@ -35,6 +35,30 @@ impl Vm {
         })
     }
 
+    pub fn wasmedge_process_module(&mut self) -> Result<WasmEdgeProcessImportMod> {
+        let inner = self.inner.wasmedge_process_import_module_mut()?;
+        Ok(WasmEdgeProcessImportMod {
+            inner,
+            _marker: PhantomData,
+        })
+    }
+
+    pub fn wasi_module(&mut self) -> Result<WasiImportMod> {
+        let inner = self.inner.wasi_import_module_mut()?;
+        Ok(WasiImportMod {
+            inner,
+            _marker: PhantomData,
+        })
+    }
+
+    pub fn statistics_mut(&self) -> Result<Statistics> {
+        let inner = self.inner.statistics_mut()?;
+        Ok(Statistics {
+            inner,
+            _marker: PhantomData,
+        })
+    }
+
     // validate + instantiate + register
     pub fn register_wasm_from_module(
         mut self,
@@ -50,42 +74,6 @@ impl Vm {
     pub fn register_wasm_from_import(mut self, import: ImportMod) -> Result<Self> {
         self.inner.register_wasm_from_import(import.inner)?;
         Ok(self)
-    }
-
-    pub fn run_wasm_from_file(
-        &mut self,
-        file: impl AsRef<Path>,
-        func_name: impl AsRef<str>,
-        args: impl IntoIterator<Item = Value>,
-    ) -> Result<Vec<Value>> {
-        let returns = self
-            .inner
-            .run_wasm_from_file(file.as_ref(), func_name.as_ref(), args)?;
-        Ok(returns)
-    }
-
-    pub fn run_wasm_from_buffer(
-        &mut self,
-        buffer: &[u8],
-        func_name: impl AsRef<str>,
-        args: impl IntoIterator<Item = Value>,
-    ) -> Result<Vec<Value>> {
-        let returns = self
-            .inner
-            .run_wasm_from_buffer(buffer.as_ref(), func_name.as_ref(), args)?;
-        Ok(returns)
-    }
-
-    pub fn run_wasm_from_module(
-        &mut self,
-        module: Module,
-        func_name: impl AsRef<str>,
-        args: impl IntoIterator<Item = Value>,
-    ) -> Result<Vec<Value>> {
-        let returns = self
-            .inner
-            .run_wasm_from_module(module.inner, func_name.as_ref(), args)?;
-        Ok(returns)
     }
 
     // pub fn load_from_file() -> Result<Self> {
@@ -138,34 +126,47 @@ impl Vm {
         self.inner.reset()
     }
 
-    pub fn wasmedge_process_module(&mut self) -> Result<WasmEdgeProcessImportMod> {
-        let inner = self.inner.wasmedge_process_import_module_mut()?;
-        Ok(WasmEdgeProcessImportMod {
-            inner,
-            _marker: PhantomData,
-        })
+    pub fn run_wasm_from_file(
+        &mut self,
+        file: impl AsRef<Path>,
+        func_name: impl AsRef<str>,
+        args: impl IntoIterator<Item = Value>,
+    ) -> Result<Vec<Value>> {
+        let returns = self
+            .inner
+            .run_wasm_from_file(file.as_ref(), func_name.as_ref(), args)?;
+        Ok(returns)
     }
 
-    pub fn wasi_module(&mut self) -> Result<WasiImportMod> {
-        let inner = self.inner.wasi_import_module_mut()?;
-        Ok(WasiImportMod {
-            inner,
-            _marker: PhantomData,
-        })
+    pub fn run_wasm_from_buffer(
+        &mut self,
+        buffer: &[u8],
+        func_name: impl AsRef<str>,
+        args: impl IntoIterator<Item = Value>,
+    ) -> Result<Vec<Value>> {
+        let returns = self
+            .inner
+            .run_wasm_from_buffer(buffer.as_ref(), func_name.as_ref(), args)?;
+        Ok(returns)
     }
 
-    pub fn statistics_mut(&self) -> Result<Statistics> {
-        let inner = self.inner.statistics_mut()?;
-        Ok(Statistics {
-            inner,
-            _marker: PhantomData,
-        })
+    pub fn run_wasm_from_module(
+        &mut self,
+        module: Module,
+        func_name: impl AsRef<str>,
+        args: impl IntoIterator<Item = Value>,
+    ) -> Result<Vec<Value>> {
+        let returns = self
+            .inner
+            .run_wasm_from_module(module.inner, func_name.as_ref(), args)?;
+        Ok(returns)
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use wasmedge::ValType;
 
     #[test]
     fn test_vm_create() {
@@ -218,5 +219,48 @@ mod tests {
         // get the statistics
         let result = vm.statistics_mut();
         assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_vm_register_wasm_from_module() {
+        // create a Vm context
+        let result = Vm::new(None);
+        assert!(result.is_ok());
+        let vm = result.unwrap();
+
+        // load wasm module
+        let file = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
+            .join("bindings/rust/wasmedge-sys/tests/data/fibonacci.wasm");
+        let result = Module::from_file(&vm, file);
+        assert!(result.is_ok());
+        let module = result.unwrap();
+
+        // register the wasm module into vm
+        let result = vm.register_wasm_from_module("extern", module);
+        assert!(result.is_ok());
+        let vm = result.unwrap();
+
+        // show the names of the exported functions in the registered module named "extern"
+        let result = vm.store_mut();
+        assert!(result.is_ok());
+        let store = result.unwrap();
+        let result = store.functions_by_module("extern");
+        assert!(result.is_ok());
+        let funcs = result.unwrap();
+        assert_eq!(funcs.len(), 1);
+        assert_eq!(funcs[0].name().unwrap(), "fib");
+        // check the type of the func
+        let result = funcs[0].ty();
+        assert!(result.is_ok());
+        let signature = result.unwrap();
+        assert!(signature.args().is_some());
+        assert_eq!(signature.args().unwrap(), [ValType::I32]);
+        assert!(signature.returns().is_some());
+        assert_eq!(signature.returns().unwrap(), [ValType::I32]);
+        // run "fib" func
+        let result = funcs[0].call(&vm, [Value::from_i32(5)]);
+        assert!(result.is_ok());
+        let returns = result.unwrap();
+        assert_eq!(returns[0].to_i32(), 8);
     }
 }

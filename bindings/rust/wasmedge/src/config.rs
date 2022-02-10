@@ -159,6 +159,8 @@ impl Config {
         self.inner.function_references_enabled()
     }
 
+    // For AOT Compiler
+
     pub fn set_aot_opt_level(self, opt_level: CompilerOptimizationLevel) -> Self {
         let inner = self.inner.set_aot_optimization_level(opt_level);
         Self { inner }
@@ -195,33 +197,6 @@ impl Config {
         self.inner.is_aot_generic_binary()
     }
 
-    pub fn aot_instr_counting(self, enable: bool) -> Self {
-        let inner = self.inner.aot_count_instructions(enable);
-        Self { inner }
-    }
-
-    pub fn is_aot_instruction_counting(&self) -> bool {
-        self.inner.is_aot_instruction_counting()
-    }
-
-    pub fn aot_cost_measuring(self, enable: bool) -> Self {
-        let inner = self.inner.aot_measure_cost(enable);
-        Self { inner }
-    }
-
-    pub fn is_aot_cost_measuring(&self) -> bool {
-        self.inner.is_aot_cost_measuring()
-    }
-
-    pub fn aot_time_measuring(self, enable: bool) -> Self {
-        let inner = self.inner.aot_measure_cost(enable);
-        Self { inner }
-    }
-
-    pub fn is_aot_time_measuring(&self) -> bool {
-        self.inner.is_aot_time_measuring()
-    }
-
     pub fn aot_interruptible(self, enable: bool) -> Self {
         let inner = self.inner.aot_interruptible(enable);
         Self { inner }
@@ -229,6 +204,35 @@ impl Config {
 
     pub fn is_aot_interruptible(&self) -> bool {
         self.inner.aot_interruptible_enabled()
+    }
+
+    // For Statistics
+
+    pub fn instr_counting(self, enable: bool) -> Self {
+        let inner = self.inner.count_instructions(enable);
+        Self { inner }
+    }
+
+    pub fn is_instruction_counting(&self) -> bool {
+        self.inner.is_instruction_counting()
+    }
+
+    pub fn cost_measuring(self, enable: bool) -> Self {
+        let inner = self.inner.measure_cost(enable);
+        Self { inner }
+    }
+
+    pub fn is_cost_measuring(&self) -> bool {
+        self.inner.is_cost_measuring()
+    }
+
+    pub fn time_measuring(self, enable: bool) -> Self {
+        let inner = self.inner.measure_cost(enable);
+        Self { inner }
+    }
+
+    pub fn is_time_measuring(&self) -> bool {
+        self.inner.is_time_measuring()
     }
 }
 
@@ -309,12 +313,21 @@ mod tests {
     fn test_config_copy() {
         let result = Config::new();
         assert!(result.is_ok());
-        let config = result.unwrap().memory64(true);
+        let config = result
+            .unwrap()
+            .memory64(true)
+            .set_max_memory_pages(520)
+            .set_aot_opt_level(CompilerOptimizationLevel::O0);
 
         // make a copy
         let result = Config::copy_from(&config);
         assert!(result.is_ok());
         let config_copied = result.unwrap();
         assert!(config_copied.memory64_enabled());
+        assert_eq!(config_copied.get_max_memory_pages(), 520);
+        assert_eq!(
+            config_copied.get_aot_opt_level(),
+            CompilerOptimizationLevel::O0
+        );
     }
 }

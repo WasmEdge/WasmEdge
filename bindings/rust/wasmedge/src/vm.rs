@@ -60,45 +60,30 @@ impl Vm {
     }
 
     // validate + instantiate + register
-    pub fn register_wasm_from_module(
-        mut self,
-        mod_name: impl AsRef<str>,
-        module: Module,
-    ) -> Result<Self> {
+    pub fn add_named_module(mut self, mod_name: impl AsRef<str>, module: Module) -> Result<Self> {
         self.inner
             .register_wasm_from_module(mod_name.as_ref(), module.inner)?;
         Ok(self)
     }
 
     // validate + instantiate + register
-    pub fn register_wasm_from_import(mut self, import: ImportMod) -> Result<Self> {
+    pub fn add_named_import(mut self, import: ImportMod) -> Result<Self> {
         self.inner.register_wasm_from_import(import.inner)?;
         Ok(self)
     }
 
-    // pub fn load_from_file() -> Result<Self> {
-    //     unimplemented!()
-    // }
+    pub fn add_anonymous_module(mut self, module: Module) -> Result<Self> {
+        // load module into vm
+        self.inner.load_wasm_from_module(module.inner)?;
 
-    // pub fn load_from_buffer() -> Result<Self> {
-    //     unimplemented!()
-    // }
+        // validate
+        self.inner.validate()?;
 
-    // /// Loads a module.
-    // pub fn load(self, mut module: Module) -> Result<Self> {
-    //     self.inner.load_wasm_from_module(&mut module.inner)?;
-    //     Ok(self)
-    // }
+        // instantiate
+        self.inner.instantiate()?;
 
-    // pub fn validate(self) -> Result<Self> {
-    //     self.inner.validate()?;
-    //     Ok(self)
-    // }
-
-    // pub fn instantiate(self) -> Result<Self> {
-    //     self.inner.instantiate()?;
-    //     Ok(self)
-    // }
+        Ok(self)
+    }
 
     pub fn run_func(
         &self,
@@ -222,7 +207,7 @@ mod tests {
     }
 
     #[test]
-    fn test_vm_register_wasm_from_module() {
+    fn test_vm_add_named_module() {
         // create a Vm context
         let result = Vm::new(None);
         assert!(result.is_ok());
@@ -236,7 +221,7 @@ mod tests {
         let module = result.unwrap();
 
         // register the wasm module into vm
-        let result = vm.register_wasm_from_module("extern", module);
+        let result = vm.add_named_module("extern", module);
         assert!(result.is_ok());
         let vm = result.unwrap();
 

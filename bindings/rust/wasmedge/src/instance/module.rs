@@ -18,7 +18,7 @@ impl Module {
             None => None,
         };
 
-        // create a Loader instance
+        // create a Loader
         let loader = wasmedge::Loader::create(config)?;
 
         // load a module from a wasm file
@@ -48,8 +48,17 @@ impl Module {
         Ok(Self { inner })
     }
 
-    pub fn validate(self) -> Result<Self> {
-        // TODO add code for module validation
+    pub fn validate(self, vm: &Vm) -> Result<Self> {
+        let config = match &vm.config {
+            Some(config) => {
+                let config_copied = Config::copy_from(config)?;
+                Some(config_copied.inner)
+            }
+            None => None,
+        };
+
+        // validate
+        wasmedge::Validator::create(config)?.validate(&self.inner)?;
 
         Ok(self)
     }
@@ -217,5 +226,25 @@ mod tests {
                 wasmedge::error::CoreError::Load(wasmedge::error::CoreLoadError::UnexpectedEnd)
             ))
         );
+    }
+
+    #[test]
+    fn test_module_validate() {
+        // create a Vm context
+        let result = Vm::new(None);
+        assert!(result.is_ok());
+        let vm = result.unwrap();
+
+        // load wasm module from a specified wasm file
+        let file = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
+            .join("bindings/rust/wasmedge-sys/tests/data/fibonacci.wasm");
+
+        let result = Module::from_file(&vm, file);
+        assert!(result.is_ok());
+        let module = result.unwrap();
+
+        // validate
+        let result = module.validate(&vm);
+        assert!(result.is_ok());
     }
 }

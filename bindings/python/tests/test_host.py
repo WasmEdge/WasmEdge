@@ -22,7 +22,7 @@ def test_host_function():
     function_name = "func-add"
 
     mod = WasmEdge.ImportObject(module_name)
-    mod.add(func, function_name)
+    mod.AddFunction(func, function_name)
 
     res = vm.RegisterModuleFromImport(mod)
     assert res

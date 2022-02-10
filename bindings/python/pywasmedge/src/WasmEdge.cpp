@@ -202,7 +202,7 @@ PYBIND11_MODULE(WasmEdge, module) {
 
   pybind11::class_<pysdk::import_object>(module, "ImportObject")
       .def(pybind11::init<std::string &>())
-      .def("add", &pysdk::import_object::add);
+      .def("AddFunction", &pysdk::import_object::add);
 
   pybind11::class_<WasmEdge_Limit>(module, "Limit")
       .def(pybind11::init<bool, uint32_t, uint32_t>())

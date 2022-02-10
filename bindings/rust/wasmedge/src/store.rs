@@ -361,7 +361,7 @@ mod tests {
         let result = Module::from_file(&vm, file);
         assert!(result.is_ok());
         let module = result.unwrap();
-        let result = vm.register_wasm_from_module("fib-module", module);
+        let result = vm.add_named_module("fib-module", module);
         assert!(result.is_ok());
         let vm = result.unwrap();
 

@@ -214,25 +214,25 @@ func genSha1(buf []byte) string {
 // initVM initialize WasmEdge's VM
 func initVM() (*wasmedge.Configure, *wasmedge.VM) {
   wasmedge.SetLogErrorLevel()
-  /// Set Tensorflow not to print debug info
+  // Set Tensorflow not to print debug info
   os.Setenv("TF_CPP_MIN_LOG_LEVEL", "3")
   os.Setenv("TF_CPP_MIN_VLOG_LEVEL", "3")
 
-  /// Create configure
+  // Create configure
   vmConf := wasmedge.NewConfigure(wasmedge.WASI)
 
-  /// Create VM with configure
+  // Create VM with configure
   vm := wasmedge.NewVMWithConfig(vmConf)
 
-  /// Init WASI
+  // Init WASI
   var wasi = vm.GetImportObject(wasmedge.WASI)
   wasi.InitWasi(
-    os.Args[1:],   /// The args
-    os.Environ(),  /// The envs
-    []string{".:."}, /// The mapping directories
+    os.Args[1:],     // The args
+    os.Environ(),    // The envs
+    []string{".:."}, // The mapping directories
   )
 
-  /// Register WasmEdge-tensorflow and WasmEdge-image
+  // Register WasmEdge-tensorflow and WasmEdge-image
   var tfobj = wasmedge.NewTensorflowImportObject()
   var tfliteobj = wasmedge.NewTensorflowLiteImportObject()
   vm.RegisterImport(tfobj)
@@ -240,7 +240,7 @@ func initVM() (*wasmedge.Configure, *wasmedge.VM) {
   var imgobj = wasmedge.NewImageImportObject()
   vm.RegisterImport(imgobj)
 
-  /// Instantiate wasm
+  // Instantiate wasm
   vm.LoadWasmFile("rust_mobilenet_food_lib.so")
   vm.Validate()
 

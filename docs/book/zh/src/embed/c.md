@@ -69,8 +69,8 @@ int main(int Argc, const char* Argv[]) {
   /* 根据指定的输入和输出路径来编译 WASM 文件。 */
   Res = WasmEdge_CompilerCompile(CompilerCxt, Argv[1], Argv[2]);
   if (!WasmEdge_ResultOK(Res)) {
-      printf("Compilation failed: %s\n", WasmEdge_ResultGetMessage(Res));
-      return 1;
+    printf("Compilation failed: %s\n", WasmEdge_ResultGetMessage(Res));
+    return 1;
   }
 
   WasmEdge_CompilerDelete(CompilerCxt);

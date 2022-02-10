@@ -50,22 +50,22 @@ docker pull wasmedge/wasmedge # 等同於 wasmedge/wasmedge:latest
 
 ```bash
 # 工具和函式庫
-$ sudo apt install -y \
- software-properties-common \
- cmake \
- libboost-all-dev
+sudo apt install -y \
+    software-properties-common \
+    cmake \
+    libboost-all-dev
 
 # 需要 llvm 來支援 wasmedgec 工具
-$ sudo apt install -y \
- llvm-12-dev \
- liblld-12-dev
+sudo apt install -y \
+    llvm-12-dev \
+    liblld-12-dev
 
 # WasmEdge 同時支援 clang++ 和 g++ 編譯器
 # 您可以選擇其中一個來編譯這個專案
 # 如果您傾向使用 gcc
-$ sudo apt install -y gcc g++
+sudo apt install -y gcc g++
 # 或者您選擇使用 clang
-$ sudo apt install -y clang
+sudo apt install -y clang
 ```
 
 ### 對舊版作業系統的支援

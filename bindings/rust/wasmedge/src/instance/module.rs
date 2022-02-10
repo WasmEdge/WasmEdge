@@ -30,9 +30,12 @@ impl Module {
     /// Loads a wasm module from a buffer.
     ///
     /// This function does not validate the loaded module.
-    pub fn from_buffer(config: Option<Config>, buffer: impl AsRef<[u8]>) -> Result<Self> {
-        let config = match config {
-            Some(config) => Some(config.inner),
+    pub fn from_buffer(vm: &Vm, buffer: impl AsRef<[u8]>) -> Result<Self> {
+        let config = match &vm.config {
+            Some(config) => {
+                let config_copied = Config::copy_from(config)?;
+                Some(config_copied.inner)
+            }
             None => None,
         };
 
@@ -163,20 +166,56 @@ pub enum ExternalType {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::Vm;
+    use crate::{error::WasmEdgeError, wasmedge, Vm};
 
     #[test]
     fn test_module_from_file() {
-        // create Vm instance
+        // create a Vm context
         let result = Vm::new(None);
         assert!(result.is_ok());
         let vm = result.unwrap();
 
-        // load wasm module from a specified file
+        // load wasm module from a specified wasm file
         let file = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
             .join("bindings/rust/wasmedge-sys/tests/data/fibonacci.wasm");
 
         let result = Module::from_file(&vm, file);
         assert!(result.is_ok());
+
+        // attempt to load a non-existent wasm file
+        let result = Module::from_file(&vm, "not_exist_file.wasm");
+        assert!(result.is_err());
+        assert_eq!(
+            result.unwrap_err(),
+            WasmEdgeError::Operation(wasmedge::WasmEdgeError::Core(
+                wasmedge::error::CoreError::Load(wasmedge::error::CoreLoadError::IllegalPath)
+            ))
+        );
+    }
+
+    #[test]
+    fn test_module_from_buffer() {
+        // create a Vm context
+        let result = Vm::new(None);
+        assert!(result.is_ok());
+        let vm = result.unwrap();
+
+        let file = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
+            .join("bindings/rust/wasmedge-sys/tests/data/fibonacci.wasm");
+        let result = std::fs::read(file);
+        assert!(result.is_ok());
+        let buffer = result.unwrap();
+
+        let result = Module::from_buffer(&vm, &buffer);
+        assert!(result.is_ok());
+
+        // attempt to load an empty buffer
+        let result = Module::from_buffer(&vm, &[]);
+        assert_eq!(
+            result.unwrap_err(),
+            WasmEdgeError::Operation(wasmedge::WasmEdgeError::Core(
+                wasmedge::error::CoreError::Load(wasmedge::error::CoreLoadError::UnexpectedEnd)
+            ))
+        );
     }
 }

@@ -78,13 +78,13 @@ impl Table {
     /// # Error
     ///
     /// If fail to get the data, then an error is returned.
-    pub fn get_data(&self, idx: usize) -> WasmEdgeResult<Value> {
+    pub fn get_data(&self, idx: u32) -> WasmEdgeResult<Value> {
         let raw_val = unsafe {
             let mut data = wasmedge::WasmEdge_ValueGenI32(0);
             check(wasmedge::WasmEdge_TableInstanceGetData(
                 self.inner.0,
                 &mut data as *mut _,
-                idx as u32,
+                idx,
             ))?;
             data
         };
@@ -102,12 +102,12 @@ impl Table {
     /// # Error
     ///
     /// If fail to set data, then an error is returned.
-    pub fn set_data(&mut self, data: Value, idx: usize) -> WasmEdgeResult<()> {
+    pub fn set_data(&mut self, data: Value, idx: u32) -> WasmEdgeResult<()> {
         unsafe {
             check(wasmedge::WasmEdge_TableInstanceSetData(
                 self.inner.0,
                 data.as_raw(),
-                idx as u32,
+                idx,
             ))
         }
     }

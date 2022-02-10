@@ -63,9 +63,9 @@ func main() {
   var vm = wasmedge.NewVMWithConfig(conf)
   var wasi = vm.GetImportObject(wasmedge.WASI)
   wasi.InitWasi(
-    os.Args[1:],     /// The args
-    os.Environ(),    /// The envs
-    []string{".:."}, /// The mapping preopens
+    os.Args[1:],     // The args
+    os.Environ(),    // The envs
+    []string{".:."}, // The mapping preopens
   )
 
   // Register WasmEdge-tensorflow

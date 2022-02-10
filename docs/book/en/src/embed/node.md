@@ -154,12 +154,12 @@ The [HTML file](https://github.com/second-state/wasm-learning/blob/master/nodejs
 
 ```javascript
 $(function() {
-    var options = {
-      target: '#roots',
-      url: "/solve",
-      type: "post"
-    };
-    $('#solve').ajaxForm(options);
+  var options = {
+    target: '#roots',
+    url: "/solve",
+    type: "post"
+  };
+  $('#solve').ajaxForm(options);
 });
 ```
 

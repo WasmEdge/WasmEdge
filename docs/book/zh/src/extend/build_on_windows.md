@@ -11,8 +11,8 @@ WasmEdge 支持 Windows 10 。我们也同时提供了二进制安装包和库�
 ## 下载源代码
 
 ```bash
-$ git clone https://github.com/WasmEdge/WasmEdge.git
-$ cd WasmEdge
+git clone https://github.com/WasmEdge/WasmEdge.git
+cd WasmEdge
 ```
 
 ## 依赖说明
@@ -48,10 +48,10 @@ $Env:CXX = "clang-cl"
 
 ### 如果不需要构建AOT运行时或者编译器
 
-如果不需要 AOT 运行时或者编译器，可以将 CMake 选项 `WASMEDGE_BUILD_AOT_RUNTIME`  设置为 `OFF `。
+如果不需要 AOT 运行时或者编译器，可以将 CMake 选项 `WASMEDGE_BUILD_AOT_RUNTIME`  设置为 `OFF`。
 
 ```bash
-$ cmake -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_BUILD_AOT_RUNTIME=OFF ..
+cmake -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_BUILD_AOT_RUNTIME=OFF ..
 ```
 
 ## 构建 WasmEdge
@@ -61,15 +61,15 @@ $ cmake -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_BUILD_AOT_RUNTIME=OFF ..
 构建成功后，你可以找到这些 wasmedge 相关工具：
 
 1. `wasmedge`  是一个通用的 wasm 运行时。
-   * `wasmedge`  可以解释执行 `WASM`  文件或者以 AOT 模式执行一个编译过的 WASM `dyld` 文件。
-   * 在构建 WasmEdge 时，可以设置 CMake 选项 `WASMEDGE_BUILD_TOOLS` 为`OFF` 来不构建所有工具。
+   - `wasmedge`  可以解释执行 `WASM`  文件或者以 AOT 模式执行一个编译过的 WASM `dyld` 文件。
+   - 在构建 WasmEdge 时，可以设置 CMake 选项 `WASMEDGE_BUILD_TOOLS` 为`OFF` 来不构建所有工具。
 2. `wasmedgec` 是一个 AOT `WASM` 编译器。
-   * `wasmedgec` 将一个 `WASM` 格式的文件编译为`dll` 格式文件。
-   * 如果你不需要构建 AOT 编译器，可以将 CMake 选项 `WASMEDGE_BUILD_AOT_RUNTIME`  设置为  `OFF` 。
+   - `wasmedgec` 将一个 `WASM` 格式的文件编译为`dll` 格式文件。
+   - 如果你不需要构建 AOT 编译器，可以将 CMake 选项 `WASMEDGE_BUILD_AOT_RUNTIME`  设置为  `OFF` 。
 3. `libwasmedge_c.dll` 是 WasmEdge 的 C API 共享库.
-   * `libwasmedge_c.dll` 为 AOT 编译器和 WASM 运行时提供 C API。
-   * CMake 选项 `WASMEDGE_BUILD_AOT_RUNTIME` 设置为 `OFF` 后，调用与 AOT 编译器相关的 API 只会返回失败值。
-   * 如果你不需要构建共享库，可以将 CMake 选项 `WASMEDGE_BUILD_SHARED_LIB`  设置为 `OFF` 。
+   - `libwasmedge_c.dll` 为 AOT 编译器和 WASM 运行时提供 C API。
+   - CMake 选项 `WASMEDGE_BUILD_AOT_RUNTIME` 设置为 `OFF` 后，调用与 AOT 编译器相关的 API 只会返回失败值。
+   - 如果你不需要构建共享库，可以将 CMake 选项 `WASMEDGE_BUILD_SHARED_LIB`  设置为 `OFF` 。
 
 ```bash
 $vsPath = (vswhere -latest -property installationPath)

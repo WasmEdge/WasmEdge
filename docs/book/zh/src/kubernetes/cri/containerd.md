@@ -18,38 +18,38 @@
 使用以下命令在您的系统上安装 containerd。
 
 ```bash
-$ export VERSION="1.5.7"
-$ echo -e "Version: $VERSION"
-$ echo -e "Installing libseccomp2 ..."
-$ sudo apt install -y libseccomp2
-$ echo -e "Installing wget"
-$ sudo apt install -y wget
+export VERSION="1.5.7"
+echo -e "Version: $VERSION"
+echo -e "Installing libseccomp2 ..."
+sudo apt install -y libseccomp2
+echo -e "Installing wget"
+sudo apt install -y wget
 
-$ wget https://github.com/containerd/containerd/releases/download/v${VERSION}/cri-containerd-cni-${VERSION}-linux-amd64.tar.gz
-$ wget https://github.com/containerd/containerd/releases/download/v${VERSION}/cri-containerd-cni-${VERSION}-linux-amd64.tar.gz.sha256sum
-$ sha256sum --check cri-containerd-cni-${VERSION}-linux-amd64.tar.gz.sha256sum
+wget https://github.com/containerd/containerd/releases/download/v${VERSION}/cri-containerd-cni-${VERSION}-linux-amd64.tar.gz
+wget https://github.com/containerd/containerd/releases/download/v${VERSION}/cri-containerd-cni-${VERSION}-linux-amd64.tar.gz.sha256sum
+sha256sum --check cri-containerd-cni-${VERSION}-linux-amd64.tar.gz.sha256sum
 
-$ sudo tar --no-overwrite-dir -C / -xzf cri-containerd-cni-${VERSION}-linux-amd64.tar.gz
-$ sudo systemctl daemon-reload
+sudo tar --no-overwrite-dir -C / -xzf cri-containerd-cni-${VERSION}-linux-amd64.tar.gz
+sudo systemctl daemon-reload
 ```
 
 将 containerd 配置为使用 `crun` 作为底层 OCI runtime。
 此处需要修改 `/etc/containerd/config.toml` 文件。
 
 ```bash
-$ sudo mkdir -p /etc/containerd/
-$ sudo bash -c "containerd config default > /etc/containerd/config.toml"
-$ wget https://raw.githubusercontent.com/second-state/wasmedge-containers-examples/main/containerd/containerd_config.diff
-$ sudo patch -d/ -p0 < containerd_config.diff
+sudo mkdir -p /etc/containerd/
+sudo bash -c "containerd config default > /etc/containerd/config.toml"
+wget https://raw.githubusercontent.com/second-state/wasmedge-containers-examples/main/containerd/containerd_config.diff
+sudo patch -d/ -p0 < containerd_config.diff
 ```
 
 启动 containerd 服务。
 
 ```bash
-$ sudo systemctl start containerd
+sudo systemctl start containerd
 ```
 
-在运行下一步之前，请确保你已经构建并安装好了[支持 `WasmEdge`的 `crun`二进制文件](../container/crun.md)。 
+在运行下一步之前，请确保你已经构建并安装好了[支持 `WasmEdge`的 `crun`二进制文件](../container/crun.md)。
 
 ## 运行简单 WebAssembly 应用
 
@@ -58,13 +58,13 @@ $ sudo systemctl start containerd
 在本节中，我们需要先使用 containerd 工具将这个基于 WebAssembly 的容器镜像从 Docker hub 中拉取下来。
 
 ```bash
-$ sudo ctr i pull docker.io/hydai/wasm-wasi-example:with-wasm-annotation
+sudo ctr i pull docker.io/hydai/wasm-wasi-example:with-wasm-annotation
 ```
 
 现在，您可以使用 ctr（containerd cli 工具）运行此示例。
 
 ```bash
-$ sudo ctr run --rm --runc-binary crun --runtime io.containerd.runc.v2 --label module.wasm.image/variant=compat docker.io/hydai/wasm-wasi-example:with-wasm-annotation wasm-example /wasi_example_main.wasm 50000000
+sudo ctr run --rm --runc-binary crun --runtime io.containerd.runc.v2 --label module.wasm.image/variant=compat docker.io/hydai/wasm-wasi-example:with-wasm-annotation wasm-example /wasi_example_main.wasm 50000000
 ```
 
 启动容器会执行 WebAssembly 程序， 您可以在控制台中看到输出。
@@ -91,13 +91,13 @@ File content is This is in a file
 在本节中，我们需要先使用 containerd 工具将这个基于 WebAssembly 的容器镜像从 Docker hub 中拉取下来。
 
 ```bash
-$ sudo ctr i pull docker.io/avengermojo/http_server:with-wasm-annotation
+sudo ctr i pull docker.io/avengermojo/http_server:with-wasm-annotation
 ```
 
 现在，您可以使用 ctr（containerd cli 工具）运行该示例。（请注意，我们需要加上 `--net-host` 参数来运行容器，以便可以从外部访问 WasmEdge 容器内的 HTTP server。）
 
 ```bash
-$ sudo ctr run --rm --net-host --runc-binary crun --runtime io.containerd.runc.v2 --label module.wasm.image/variant=compat docker.io/avengermojo/http_server:with-wasm-annotation http-server-example /http_server.wasm
+sudo ctr run --rm --net-host --runc-binary crun --runtime io.containerd.runc.v2 --label module.wasm.image/variant=compat docker.io/avengermojo/http_server:with-wasm-annotation http-server-example /http_server.wasm
 ```
 
 启动容器会执行 WebAssembly 程序， 您可以在控制台中看到输出。

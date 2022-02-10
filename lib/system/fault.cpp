@@ -8,9 +8,10 @@
 #include "common/log.h"
 
 #include <atomic>
-#include <cassert>
 #include <csetjmp>
 #include <csignal>
+#include <cstdint>
+#include <utility>
 
 #if WASMEDGE_OS_WINDOWS
 

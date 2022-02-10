@@ -17,8 +17,6 @@
 #include "common/types.h"
 
 #include <blake3.h>
-#include <cstdint>
-#include <string_view>
 
 namespace WasmEdge {
 namespace AOT {

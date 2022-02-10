@@ -3,8 +3,8 @@
 
 #include "common/errinfo.h"
 
-#include "gtest/gtest.h"
-
+#include <cstdint>
+#include <gtest/gtest.h>
 #include <iostream>
 #include <vector>
 

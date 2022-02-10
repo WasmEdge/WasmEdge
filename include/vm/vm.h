@@ -26,8 +26,11 @@
 #include "runtime/storemgr.h"
 
 #include <cstdint>
+#include <map>
 #include <memory>
 #include <string>
+#include <string_view>
+#include <utility>
 #include <vector>
 
 namespace WasmEdge {

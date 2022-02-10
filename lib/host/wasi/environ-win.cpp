@@ -7,6 +7,7 @@
 #include "common/errcode.h"
 #include "host/wasi/environ.h"
 #include "win.h"
+#include <csignal>
 
 namespace WasmEdge {
 namespace Host {

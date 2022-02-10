@@ -1,6 +1,13 @@
 // SPDX-License-Identifier: CC0-1.0
 #include "experimental/span.hpp"
-#include "gtest/gtest.h"
+#include <algorithm>
+#include <array>
+#include <gtest/gtest.h>
+#include <initializer_list>
+#include <string>
+#include <string_view>
+#include <type_traits>
+#include <utility>
 #include <vector>
 
 static_assert(!cxx20::detail::is_compatible_element_v<int, unsigned int>);

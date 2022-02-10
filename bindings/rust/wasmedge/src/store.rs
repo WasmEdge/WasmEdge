@@ -7,14 +7,6 @@ pub struct Store<'vm> {
     pub(crate) _marker: PhantomData<&'vm Vm>,
 }
 impl<'vm> Store<'vm> {
-    pub fn new() -> Result<Self> {
-        let inner = wasmedge::Store::create()?;
-        Ok(Self {
-            inner,
-            _marker: PhantomData,
-        })
-    }
-
     pub fn count_of_module(&self) -> u32 {
         self.inner.reg_module_len()
     }
@@ -402,7 +394,7 @@ mod tests {
             assert_eq!(func.name().unwrap(), "fib");
 
             // check function signation
-            let result = func.signature();
+            let result = func.ty();
             assert!(result.is_ok());
             let signature = result.unwrap();
             assert_eq!(

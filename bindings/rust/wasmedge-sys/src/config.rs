@@ -248,41 +248,47 @@ impl Config {
             config.wasmedge_process(false)
         };
 
+        if src.is_aot_cost_measuring() {
+            config.aot_measure_cost(true)
+        } else {
+            config.aot_measure_cost(false)
+        };
+
+        if src.is_aot_instruction_counting() {
+            config.aot_count_instructions(true)
+        } else {
+            config.aot_count_instructions(false)
+        };
+
+        if src.is_aot_time_measuring() {
+            config.aot_measure_time(true)
+        } else {
+            config.aot_measure_time(false)
+        };
+
+        config.set_max_memory_pages(src.get_max_memory_pages());
+
         // let config = if src.aot_interruptible_enabled() {
         //     config.aot_interruptible(true)
         // } else {
         //     config.aot_interruptible(false)
         // };
 
-        // let config = if src.is_aot_cost_measuring() {
-        //     config.aot_measure_cost(true)
-        // } else {
-        //     config.aot_measure_cost(false)
-        // };
+        if src.is_aot_dump_ir() {
+            config.aot_dump_ir(true)
+        } else {
+            config.aot_dump_ir(false)
+        };
 
-        // let config = if src.is_aot_dump_ir() {
-        //     config.aot_dump_ir(true)
-        // } else {
-        //     config.aot_dump_ir(false)
-        // };
+        if src.is_aot_generic_binary() {
+            config.aot_generic_binary(true)
+        } else {
+            config.aot_generic_binary(false)
+        };
 
-        // let config = if src.is_aot_generic_binary() {
-        //     config.aot_generic_binary(true)
-        // } else {
-        //     config.aot_generic_binary(false)
-        // };
+        config.set_aot_compiler_output_format(src.get_aot_compiler_output_format());
 
-        // let config = if src.is_aot_instruction_counting() {
-        //     config.aot_count_instructions(true)
-        // } else {
-        //     config.aot_count_instructions(false)
-        // };
-
-        // let config = if src.is_aot_time_measuring() {
-        //     config.aot_measure_time(true)
-        // } else {
-        //     config.aot_measure_time(false)
-        // };
+        config.set_aot_optimization_level(src.get_aot_optimization_level());
 
         Ok(config)
     }
@@ -826,6 +832,24 @@ impl Config {
         unsafe { wasmedge::WasmEdge_ConfigureCompilerIsGenericBinary(self.inner.0) }
     }
 
+    /// Enables or Disables the `Interruptible` option of AOT compiler.
+    ///
+    /// This option determines to generate interruptible binary or not when compilation in AOT compiler.
+    ///
+    /// # Argument
+    ///
+    /// - `enable` specifies if turn on the `Interruptible` option.
+    pub fn aot_interruptible(&mut self, enable: bool) {
+        unsafe { wasmedge::WasmEdge_ConfigureCompilerSetInterruptible(self.inner.0, enable) }
+    }
+
+    /// Checks if the `Interruptible` option of AOT Compiler turns on or not.
+    pub fn aot_interruptible_enabled(&self) -> bool {
+        unsafe { wasmedge::WasmEdge_ConfigureCompilerIsInterruptible(self.inner.0) }
+    }
+
+    // For Statistics
+
     /// Sets the instruction counting option.
     ///
     /// # Argument
@@ -866,22 +890,6 @@ impl Config {
     /// Checks if the cost measuring option turns on or not.
     pub fn is_aot_time_measuring(&self) -> bool {
         unsafe { wasmedge::WasmEdge_ConfigureStatisticsIsTimeMeasuring(self.inner.0) }
-    }
-
-    /// Enables or Disables the `Interruptible` option of AOT compiler.
-    ///
-    /// This option determines to generate interruptible binary or not when compilation in AOT compiler.
-    ///
-    /// # Argument
-    ///
-    /// - `enable` specifies if turn on the `Interruptible` option.
-    pub fn aot_interruptible(&mut self, enable: bool) {
-        unsafe { wasmedge::WasmEdge_ConfigureCompilerSetInterruptible(self.inner.0, enable) }
-    }
-
-    /// Checks if the `Interruptible` option of AOT Compiler turns on or not.
-    pub fn aot_interruptible_enabled(&self) -> bool {
-        unsafe { wasmedge::WasmEdge_ConfigureCompilerIsInterruptible(self.inner.0) }
     }
 }
 

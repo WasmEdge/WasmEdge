@@ -28,6 +28,7 @@ pysdk::ImportTypeContext::ImportTypeContext() {}
 
 pysdk::ImportTypeContext::ImportTypeContext(WasmEdge_ImportTypeContext *cxt) {
   Cxt = cxt;
+  // TODO:
   // WasmEdge_ImportTypeGetMemoryType();
   // WasmEdge_ImportTypeGetModuleName();
   // WasmEdge_ImportTypeGetTableType();

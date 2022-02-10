@@ -7,6 +7,7 @@ pysdk::ASTModuleCxt::ASTModuleCxt() { ASTCxt = NULL; }
 pysdk::ASTModuleCxt::ASTModuleCxt(WasmEdge_ASTModuleContext *cxt) {
   ASTCxt = cxt;
   external = true;
+  // TODO:
   // WasmEdge_ASTModuleListExports();
   // WasmEdge_ASTModuleListExportsLength();
   // WasmEdge_ASTModuleListImports();

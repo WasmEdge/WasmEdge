@@ -252,7 +252,7 @@ private:
 
 public:
   GlobalTypeCxt(const WasmEdge_ValType &, const WasmEdge_Mutability &);
-  GlobalTypeCxt(WasmEdge_GlobalTypeContext *,bool);
+  GlobalTypeCxt(WasmEdge_GlobalTypeContext *, bool);
   ~GlobalTypeCxt();
   WasmEdge_GlobalTypeContext *get();
 };

@@ -59,7 +59,7 @@ cast(uint64_t Algorithm) noexcept {
   case __WASI_ALGORITHM_TYPE_KEY_EXCHANGE:
     return static_cast<__wasi_algorithm_type_e_t>(Algorithm);
   default:
-    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_OPERATION);
+    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_UNSUPPORTED_ENCODING);
   }
 }
 
@@ -70,10 +70,12 @@ cast(uint64_t Algorithm) noexcept {
   case __WASI_KEYPAIR_ENCODING_RAW:
   case __WASI_KEYPAIR_ENCODING_PKCS8:
   case __WASI_KEYPAIR_ENCODING_PEM:
+  case __WASI_KEYPAIR_ENCODING_COMPRESSED_PKCS8:
+  case __WASI_KEYPAIR_ENCODING_COMPRESSED_PEM:
   case __WASI_KEYPAIR_ENCODING_LOCAL:
     return static_cast<__wasi_keypair_encoding_e_t>(Algorithm);
   default:
-    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_OPERATION);
+    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_UNSUPPORTED_ENCODING);
   }
 }
 
@@ -86,10 +88,12 @@ cast(uint64_t Algorithm) noexcept {
   case __WASI_PUBLICKEY_ENCODING_PEM:
   case __WASI_PUBLICKEY_ENCODING_SEC:
   case __WASI_PUBLICKEY_ENCODING_COMPRESSED_SEC:
+  case __WASI_PUBLICKEY_ENCODING_COMPRESSED_PKCS8:
+  case __WASI_PUBLICKEY_ENCODING_COMPRESSED_PEM:
   case __WASI_PUBLICKEY_ENCODING_LOCAL:
     return static_cast<__wasi_publickey_encoding_e_t>(Algorithm);
   default:
-    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_OPERATION);
+    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_UNSUPPORTED_ENCODING);
   }
 }
 
@@ -104,7 +108,7 @@ cast(uint64_t Algorithm) noexcept {
   case __WASI_SECRETKEY_ENCODING_LOCAL:
     return static_cast<__wasi_secretkey_encoding_e_t>(Algorithm);
   default:
-    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_OPERATION);
+    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_UNSUPPORTED_ENCODING);
   }
 }
 
@@ -116,7 +120,7 @@ cast(uint64_t Algorithm) noexcept {
   case __WASI_SIGNATURE_ENCODING_DER:
     return static_cast<__wasi_signature_encoding_e_t>(Algorithm);
   default:
-    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_OPERATION);
+    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_UNSUPPORTED_ENCODING);
   }
 }
 

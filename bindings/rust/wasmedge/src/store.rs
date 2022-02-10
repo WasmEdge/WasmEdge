@@ -541,20 +541,12 @@ mod tests {
         assert_eq!(store.mod_names().unwrap()[0], module_name);
         assert_eq!(store.func_count(), 0);
         assert_eq!(store.func_count_by_module(module_name), 1);
-        // assert!(store.functions_by_module(module_name).is_some());
-        // assert_eq!(store.functions_by_module(module_name).unwrap()[0], "add");
         assert_eq!(store.table_count(), 0);
         assert_eq!(store.table_count_by_module(module_name), 1);
-        // assert!(store.reg_table_names(module_name).is_some());
-        // assert_eq!(store.reg_table_names(module_name).unwrap()[0], "table");
         assert_eq!(store.global_count(), 0);
         assert_eq!(store.global_count_by_module(module_name), 1);
-        // assert!(store.reg_global_names(module_name).is_some());
-        // assert_eq!(store.reg_global_names(module_name).unwrap()[0], "global");
         assert_eq!(store.memory_count(), 0);
         assert_eq!(store.memory_count_by_module(module_name), 1);
-        // assert!(store.reg_mem_names(module_name).is_some());
-        // assert_eq!(store.reg_mem_names(module_name).unwrap()[0], "mem");
 
         // check the function list after instantiation
         let result = store.function("add", None);
@@ -562,6 +554,16 @@ mod tests {
         let result = store.function("add", Some("extern_module"));
         assert!(result.is_ok());
         let host_func = result.unwrap();
+        assert_eq!(host_func.name().unwrap(), "add");
+        assert!(host_func.registered());
+        assert_eq!(host_func.mod_name().unwrap(), "extern_module");
+        assert_eq!(
+            host_func.ty().unwrap(),
+            SignatureBuilder::new()
+                .with_args(vec![ValType::I32; 2])
+                .with_returns(vec![ValType::I32])
+                .build()
+        );
         let result = host_func.call(&vm, vec![Value::from_i32(12), Value::from_i32(21)]);
         assert!(result.is_ok());
         let returns = result.unwrap();

@@ -98,7 +98,7 @@ mod tests {
     use super::*;
     use crate::{
         error::WasmEdgeError, wasmedge, Config, Mutability, RefType, SignatureBuilder, ValType,
-        Value, VmBuilder,
+        Value,
     };
 
     #[test]
@@ -109,7 +109,7 @@ mod tests {
             let config = result.unwrap().wasmedge_process(true);
 
             // create a Vm context
-            let result = VmBuilder::new().with_config(config).build();
+            let result = Vm::new(Some(config));
             assert!(result.is_ok());
             let mut vm = result.unwrap();
 
@@ -153,7 +153,7 @@ mod tests {
             let config = result.unwrap();
 
             // create a Vm context
-            let result = VmBuilder::new().with_config(config).build();
+            let result = Vm::new(Some(config));
             assert!(result.is_ok());
             let mut vm = result.unwrap();
 
@@ -227,7 +227,7 @@ mod tests {
             let config = result.unwrap().wasi(true);
 
             // create a Vm context
-            let result = VmBuilder::new().with_config(config).build();
+            let result = Vm::new(Some(config));
             assert!(result.is_ok());
             let mut vm = result.unwrap();
 
@@ -271,7 +271,7 @@ mod tests {
             let config = result.unwrap();
 
             // create a Vm context
-            let result = VmBuilder::new().with_config(config).build();
+            let result = Vm::new(Some(config));
             assert!(result.is_ok());
             let mut vm = result.unwrap();
 
@@ -348,7 +348,7 @@ mod tests {
         assert!(result.is_ok());
 
         // create a Vm context
-        let result = VmBuilder::new().build();
+        let result = Vm::new(None);
         assert!(result.is_ok());
         let vm = result.unwrap();
 
@@ -413,7 +413,7 @@ mod tests {
         assert!(result.is_ok());
 
         // create a Vm context
-        let result = VmBuilder::new().build();
+        let result = Vm::new(None);
         assert!(result.is_ok());
         let vm = result.unwrap();
 
@@ -498,7 +498,7 @@ mod tests {
         assert!(result.is_ok());
 
         // create a Vm context
-        let result = VmBuilder::new().build();
+        let result = Vm::new(None);
         assert!(result.is_ok());
         let vm = result.unwrap();
 

@@ -5,59 +5,6 @@ use crate::{
 use std::{marker::PhantomData, path::Path};
 
 #[derive(Debug)]
-pub struct VmBuilder<'a> {
-    config: Option<Config>,
-    store: Option<Store<'a>>,
-    vm: Option<wasmedge::Vm>,
-}
-
-impl<'a> VmBuilder<'a> {
-    pub fn new() -> Self {
-        Self {
-            vm: None,
-            config: None,
-            store: None,
-        }
-    }
-
-    pub fn with_config(self, config: Config) -> Self {
-        Self {
-            config: Some(config),
-            vm: self.vm,
-            store: self.store,
-        }
-    }
-
-    pub fn with_store(self, store: Store<'a>) -> Self {
-        Self {
-            config: self.config,
-            store: Some(store),
-            vm: self.vm,
-        }
-    }
-
-    pub fn build(self) -> Result<Vm> {
-        let inner = if self.config.is_some() && self.store.is_some() {
-            wasmedge::Vm::create(
-                Some(self.config.unwrap().inner),
-                Some(self.store.unwrap().inner),
-            )?
-        } else if self.config.is_some() {
-            wasmedge::Vm::create(Some(self.config.unwrap().inner), None)?
-        } else if self.store.is_some() {
-            wasmedge::Vm::create(None, Some(self.store.unwrap().inner))?
-        } else {
-            wasmedge::Vm::create(None, None)?
-        };
-
-        Ok(Vm {
-            inner,
-            config: None,
-        })
-    }
-}
-
-#[derive(Debug)]
 pub struct Vm {
     pub(crate) inner: wasmedge::Vm,
     pub(crate) config: Option<Config>,

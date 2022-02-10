@@ -14,7 +14,7 @@ pub use instance::{
 };
 pub use statistics::Statistics;
 pub use store::Store;
-pub use vm::{Vm, VmBuilder};
+pub use vm::Vm;
 pub use wasmedge_sys::types::*;
 
 pub trait Engine {

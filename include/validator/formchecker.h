@@ -19,7 +19,10 @@
 #include "common/errcode.h"
 #include "common/span.h"
 
+#include <cstddef>
+#include <cstdint>
 #include <unordered_set>
+#include <utility>
 #include <vector>
 
 namespace WasmEdge {

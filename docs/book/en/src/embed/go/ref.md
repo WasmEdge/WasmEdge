@@ -53,13 +53,13 @@ go version go1.16.5 linux/amd64
 Developers must [install the WasmEdge shared library](start/install.md) with the same `WasmEdge-go` release or pre-release version.
 
 ```bash
-$ wget -qO- https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh | bash -s -- -v 0.9.0
+curl -sSf https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh | bash -s -- -v 0.9.1
 ```
 
 For the developers need the `TensorFlow` or `Image` extension for `WasmEdge-go`, please install the `WasmEdge` with extensions:
 
 ```bash
-$ wget -qO- https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh | bash -s -- -e tf,image -v 0.9.0
+curl -sSf https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh | bash -s -- -e tf,image -v 0.9.1
 ```
 
 Noticed that the `TensorFlow` and `Image` extensions are only for the `Linux` platforms.
@@ -70,8 +70,8 @@ After installation, developers can use the `source` command to update the includ
 After the WasmEdge installation, developers can get the `WasmEdge-go` package and build it in your Go project directory.
 
 ```bash
-$ go get github.com/second-state/WasmEdge-go/wasmedge@v0.9.0
-$ go build
+go get github.com/second-state/WasmEdge-go/wasmedge@v0.9.1
+go build
 ```
 
 ### WasmEdge-go Extensions
@@ -86,7 +86,7 @@ By default, the `WasmEdge-go` only turns on the basic runtime.
   * For using this extension, the tag `tensorflow` when building is required:
 
     ```bash
-    $ go build -tags tensorflow
+    go build -tags tensorflow
     ```
 
 * Image
@@ -95,13 +95,13 @@ By default, the `WasmEdge-go` only turns on the basic runtime.
   * For using this extension, the tag `image` when building is required:
 
     ```bash
-    $ go build -tags image
+    go build -tags image
     ```
 
 Users can also turn on the multiple extensions when building:
 
 ```bash
-$ go build -tags image,tensorflow
+go build -tags image,tensorflow
 ```
 
 ### Example of Embedding A Function with wasm-bindgen
@@ -154,9 +154,9 @@ pub fn keccak_digest(s: &[u8]) -> Vec<u8> {
 First, we use the [`rustwasmc` tool](dev/rust/bindgen.md) to compile the Rust source code into WebAssembly bytecode functions using Rust 1.50 or less.
 
 ```bash
-$ rustup default 1.50.0
-$ cd rust_bindgen_funcs
-$ rustwasmc build
+rustup default 1.50.0
+cd rust_bindgen_funcs
+rustwasmc build
 # The output WASM will be pkg/rust_bindgen_funcs_lib_bg.wasm
 ```
 
@@ -173,8 +173,8 @@ import (
 )
 
 func main() {
-    /// Expected Args[0]: program name (./bindgen_funcs)
-    /// Expected Args[1]: wasm or wasm-so file (rust_bindgen_funcs_lib_bg.wasm)
+    // Expected Args[0]: program name (./bindgen_funcs)
+    // Expected Args[1]: wasm or wasm-so file (rust_bindgen_funcs_lib_bg.wasm)
 
     wasmedge.SetLogErrorLevel()
 
@@ -182,17 +182,17 @@ func main() {
     var vm = wasmedge.NewVMWithConfig(conf)
     var wasi = vm.GetImportObject(wasmedge.WASI)
     wasi.InitWasi(
-        os.Args[1:],     /// The args
-        os.Environ(),    /// The envs
-        []string{".:."}, /// The mapping directories
+        os.Args[1:],     // The args
+        os.Environ(),    // The envs
+        []string{".:."}, // The mapping directories
     )
 
-    /// Instantiate wasm
+    // Instantiate wasm
     vm.LoadWasmFile(os.Args[1])
     vm.Validate()
     vm.Instantiate()
 
-    /// Run bindgen functions
+    // Run bindgen functions
     var res interface{}
     var err error
     
@@ -225,8 +225,8 @@ func main() {
 Next, build the Golang application with the WasmEdge Golang SDK.
 
 ```bash
-$ go get github.com/second-state/WasmEdge-go/wasmedge@v0.9.0
-$ go build
+go get github.com/second-state/WasmEdge-go/wasmedge@v0.9.1
+go build
 ```
 
 Run the Golang application and it will run the WebAssembly functions embedded in the WasmEdge runtime.
@@ -302,18 +302,18 @@ fn main() {
 Use the `rustwasmc` tool to compile the application into WebAssembly.
 
 ```bash
-$ cd rust_readfile
-$ rustwasmc build
+cd rust_readfile
+rustwasmc build
 # The output file will be at `pkg/rust_readfile.wasm`.
 ```
 
 Or you can compile the application into WebAssembly directly by `cargo`:
 
 ```bash
-$ cd rust_readfile
+cd rust_readfile
 # Need to add the `wasm32-wasi` target.
-$ rustup target add wasm32-wasi
-$ cargo build --release --target=wasm32-wasi
+rustup target add wasm32-wasi
+cargo build --release --target=wasm32-wasi
 # The output wasm will be at `target/wasm32-wasi/release/rust_readfile.wasm`.
 ```
 
@@ -336,12 +336,12 @@ func main() {
     var vm = wasmedge.NewVMWithConfig(conf)
     var wasi = vm.GetImportObject(wasmedge.WASI)
     wasi.InitWasi(
-        os.Args[1:],     /// The args
-        os.Environ(),    /// The envs
-        []string{".:."}, /// The mapping directories
+        os.Args[1:],     // The args
+        os.Environ(),    // The envs
+        []string{".:."}, // The mapping directories
     )
 
-    /// Instantiate and run WASM "_start" function, which refers to the main() function
+    // Instantiate and run WASM "_start" function, which refers to the main() function
     vm.RunWasmFile(os.Args[1], "_start")
 
     vm.Release()
@@ -352,8 +352,8 @@ func main() {
 Next, build the Golang application with the WasmEdge Golang SDK.
 
 ```bash
-$ go get github.com/second-state/WasmEdge-go/wasmedge@v0.9.0
-$ go build
+go get github.com/second-state/WasmEdge-go/wasmedge@v0.9.1
+go build
 ```
 
 Run the Golang application.
@@ -726,14 +726,14 @@ Developers can adjust the settings about the proposals, VM host pre-registration
         CompilerOptLevel_O3 = CompilerOptimizationLevel(C.WasmEdge_CompilerOptimizationLevel_O3)
         // Optimize for small code size as much as possible without triggering significant incremental compile time or execution time slowdowns.
         CompilerOptLevel_Os = CompilerOptimizationLevel(C.WasmEdge_CompilerOptimizationLevel_Os)
-        /// Optimize for small code size as much as possible.
+        // Optimize for small code size as much as possible.
         CompilerOptLevel_Oz = CompilerOptimizationLevel(C.WasmEdge_CompilerOptimizationLevel_Oz)
     )
 
     const (
-        /// Native dynamic library format.
+        // Native dynamic library format.
         CompilerOutputFormat_Native = CompilerOutputFormat(C.WasmEdge_CompilerOutputFormat_Native)
-        /// WebAssembly with AOT compiled codes in custom section.
+        // WebAssembly with AOT compiled codes in custom section.
         CompilerOutputFormat_Wasm = CompilerOutputFormat(C.WasmEdge_CompilerOutputFormat_Wasm)
     )
     ```
@@ -782,7 +782,7 @@ In this partition, we will introduce the functions of `wasmedge.VM` object and s
 The following shows the example of running the WASM for getting the Fibonacci.
 This example uses the [fibonacci.wasm](../tools/wasmedge/examples/fibonacci.wasm), and the corresponding WAT file is at [fibonacci.wat](../tools/wasmedge/examples/fibonacci.wat).
 
-```
+```wasm
 (module
  (export "fib" (func $fib))
  (func $fib (param $n i32) (result i32)
@@ -805,8 +805,8 @@ This example uses the [fibonacci.wasm](../tools/wasmedge/examples/fibonacci.wasm
     Create a new Go project first:
 
     ```bash
-    $ mkdir wasmedge_test && cd wasmedge_test
-    $ go mod init wasmedge_test
+    mkdir wasmedge_test && cd wasmedge_test
+    go mod init wasmedge_test
     ```
 
     Assume that the WASM file [`fibonacci.wasm`](../tools/wasmedge/examples/fibonacci.wasm) is copied into the current `wasmedge_test` directory, and create and edit the Go file `main.go` as following:
@@ -845,7 +845,7 @@ This example uses the [fibonacci.wasm](../tools/wasmedge/examples/fibonacci.wasm
     Then you can build and run the Golang application with the WasmEdge Golang SDK: (the 21 Fibonacci number is 17711 in 0-based index)
 
     ```bash
-    $ go get github.com/second-state/WasmEdge-go/wasmedge@v0.9.0
+    $ go get github.com/second-state/WasmEdge-go/wasmedge@v0.9.1
     $ go build
     $ ./wasmedge_test
     Get fibonacci[21]: 17711
@@ -920,7 +920,7 @@ This example uses the [fibonacci.wasm](../tools/wasmedge/examples/fibonacci.wasm
 
     The following graph explains the status of the `VM` object.
 
-    ```
+    ```text
                            |========================|
                   |------->|      VM: Initiated     |
                   |        |========================|
@@ -1111,8 +1111,8 @@ WasmEdge VM provides APIs for developers to register and export any WASM modules
     Create a new Go project first:
 
     ```bash
-    $ mkdir wasmedge_test && cd wasmedge_test
-    $ go mod init wasmedge_test
+    mkdir wasmedge_test && cd wasmedge_test
+    go mod init wasmedge_test
     ```
 
     Assume that the WASM file [`fibonacci.wasm`](../tools/wasmedge/examples/fibonacci.wasm) is copied into the current directory.
@@ -1190,7 +1190,7 @@ WasmEdge VM provides APIs for developers to register and export any WASM modules
     Then you can build and run: (the 25th Fibonacci number is 121393 in 0-based index)
 
     ```bash
-    $ go get github.com/second-state/WasmEdge-go/wasmedge@v0.9.0
+    $ go get github.com/second-state/WasmEdge-go/wasmedge@v0.9.1
     $ go build
     $ ./wasmedge_test
     Get fibonacci[25]: 121393
@@ -1235,8 +1235,8 @@ The `VM` object supplies the APIs to retrieve the instances.
     Assume that a new Go project is created as following:
 
     ```bash
-    $ mkdir wasmedge_test && cd wasmedge_test
-    $ go mod init wasmedge_test
+    mkdir wasmedge_test && cd wasmedge_test
+    go mod init wasmedge_test
     ```
 
     Then assume that the WASM file [`fibonacci.wasm`](../tools/wasmedge/examples/fibonacci.wasm) is copied into the current directory, and create and edit a Go file `main.go`:
@@ -1292,7 +1292,7 @@ The `VM` object supplies the APIs to retrieve the instances.
     Then you can build and run: (the only exported function in `fibonacci.wasm` is `fib`)
 
     ```bash
-    $ go get github.com/second-state/WasmEdge-go/wasmedge@v0.9.0
+    $ go get github.com/second-state/WasmEdge-go/wasmedge@v0.9.1
     $ go build
     $ ./wasmedge_test
     Exported function name: fib
@@ -1325,8 +1325,8 @@ Besides the WASM execution through the [`VM` object](#WasmEdge-VM) rapidly, deve
 Assume that a new Go project is created as following:
 
 ```bash
-$ mkdir wasmedge_test && cd wasmedge_test
-$ go mod init wasmedge_test
+mkdir wasmedge_test && cd wasmedge_test
+go mod init wasmedge_test
 ```
 
 Then assume that the WASM file [`fibonacci.wasm`](../tools/wasmedge/examples/fibonacci.wasm) is copied into the current directory, and create and edit a Go file `main.go`:
@@ -1414,7 +1414,7 @@ func main() {
 Then you can build and run: (the 18th Fibonacci number is 1346269 in 30-based index)
 
 ```bash
-$ go get github.com/second-state/WasmEdge-go/wasmedge@v0.9.0
+$ go get github.com/second-state/WasmEdge-go/wasmedge@v0.9.1
 $ go build
 $ ./wasmedge_test
 Exported function name: fib
@@ -1826,11 +1826,11 @@ In WasmEdge-go, developers can create the `Function`, `Memory`, `Table`, and `Gl
         // add: i32, i32 -> i32
         res := params[0].(int32) + params[1].(int32)
 
-        /// Set the returns
+        // Set the returns
         returns := make([]interface{}, 1)
         returns[0] = res
 
-        /// Return
+        // Return
         return returns, wasmedge.Result_Success
     }
     ```
@@ -1866,11 +1866,11 @@ In WasmEdge-go, developers can create the `Function`, `Memory`, `Table`, and `Gl
         // add: i32, i32 -> i32
         res := params[0].(int32) + params[1].(int32)
 
-        /// Set the returns
+        // Set the returns
         returns := make([]interface{}, 1)
         returns[0] = res
 
-        /// Return
+        // Return
         return returns, wasmedge.Result_Success
     }
 
@@ -1949,13 +1949,13 @@ In WasmEdge-go, developers can create the `Function`, `Memory`, `Table`, and `Gl
     Create a new Go project first:
 
     ```bash
-    $ mkdir wasmedge_test && cd wasmedge_test
-    $ go mod init wasmedge_test
+    mkdir wasmedge_test && cd wasmedge_test
+    go mod init wasmedge_test
     ```
 
     Assume that there is a simple WASM from the WAT as following:
 
-    ```
+    ```wasm
     (module
       (type $t0 (func (param i32 i32) (result i32)))
       (import "extern" "func-add" (func $f-add (type $t0)))
@@ -1982,11 +1982,11 @@ In WasmEdge-go, developers can create the `Function`, `Memory`, `Table`, and `Gl
         // add: i32, i32 -> i32
         res := params[0].(int32) + params[1].(int32)
 
-        /// Set the returns
+        // Set the returns
         returns := make([]interface{}, 1)
         returns[0] = res
 
-        /// Return
+        // Return
         return returns, wasmedge.Result_Success
     }
 
@@ -2054,7 +2054,7 @@ In WasmEdge-go, developers can create the `Function`, `Memory`, `Table`, and `Gl
     Then you can build and run the Golang application with the WasmEdge Golang SDK:
 
     ```bash
-    $ go get github.com/second-state/WasmEdge-go/wasmedge@v0.9.0
+    $ go get github.com/second-state/WasmEdge-go/wasmedge@v0.9.1
     $ go build
     $ ./wasmedge_test
     Get the result: 6912
@@ -2079,14 +2079,14 @@ In WasmEdge-go, developers can create the `Function`, `Memory`, `Table`, and `Gl
         // add: i32, i32 -> i32
         res := params[0].(int32) + params[1].(int32)
 
-        /// Set the returns
+        // Set the returns
         returns := make([]interface{}, 1)
         returns[0] = res
 
         // Also set the result to the data.
         *data.(*int32) = res
 
-        /// Return
+        // Return
         return returns, wasmedge.Result_Success
     }
 
@@ -2158,7 +2158,7 @@ In WasmEdge-go, developers can create the `Function`, `Memory`, `Table`, and `Gl
     Then you can build and run the Golang application with the WasmEdge Golang SDK:
 
     ```bash
-    $ go get github.com/second-state/WasmEdge-go/wasmedge@v0.9.0
+    $ go get github.com/second-state/WasmEdge-go/wasmedge@v0.9.1
     $ go build
     $ ./wasmedge_test
     Get the result: 6912
@@ -2191,14 +2191,14 @@ const (
     CompilerOptLevel_O3 = CompilerOptimizationLevel(C.WasmEdge_CompilerOptimizationLevel_O3)
     // Optimize for small code size as much as possible without triggering significant incremental compile time or execution time slowdowns.
     CompilerOptLevel_Os = CompilerOptimizationLevel(C.WasmEdge_CompilerOptimizationLevel_Os)
-    /// Optimize for small code size as much as possible.
+    // Optimize for small code size as much as possible.
     CompilerOptLevel_Oz = CompilerOptimizationLevel(C.WasmEdge_CompilerOptimizationLevel_Oz)
 )
 
 const (
-    /// Native dynamic library format.
+    // Native dynamic library format.
     CompilerOutputFormat_Native = CompilerOutputFormat(C.WasmEdge_CompilerOutputFormat_Native)
-    /// WebAssembly with AOT compiled codes in custom section.
+    // WebAssembly with AOT compiled codes in custom section.
     CompilerOutputFormat_Wasm = CompilerOutputFormat(C.WasmEdge_CompilerOutputFormat_Wasm)
 )
 ```

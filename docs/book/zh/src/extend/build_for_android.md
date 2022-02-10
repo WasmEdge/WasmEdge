@@ -35,8 +35,8 @@
 2. 使用 `adb push`命令推送 build/tools/wasmedge 到 Android 设备的 /data/local/tmp 目录
 
     ```bash
-    $ cd build
-    $ adb push ./tools/wasmedge /data/local/tmp  
+    cd build
+    adb push ./tools/wasmedge /data/local/tmp  
     ```
 
 #### 在 Android 设备中执行 WasmEdge
@@ -51,13 +51,16 @@ hello
 1
 2
 3
+
 $ ../wasmedge --reactor add.wasm add 2 2
 4
+
 $ ../wasmedge --reactor fibonacci.wasm fib 8
 34
+
 $ ../wasmedge --reactor factorial.wasm fac 12
 479001600
-$
+
 $ cd js
 $ ./../wasmedge --dir .:. qjs.wasm hello.js 1 2 3
 Hello 1 2 3

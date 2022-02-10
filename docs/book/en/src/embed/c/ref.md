@@ -46,7 +46,7 @@
 The easiest way to install WasmEdge is to run the following command. Your system should have `git` and `wget` as prerequisites.
 
 ```bash
-$ wget -qO- https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh | bash -s -- -v 0.9.0
+curl -sSf https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh | bash -s -- -v 0.9.1
 ```
 
 For more details, please refer to the [Installation Guide](/start/install.md) for the WasmEdge installation.
@@ -69,14 +69,14 @@ After the installation of WasmEdge, the following guide can help you to test for
 2. Compile the file with `gcc` or `clang`.
 
     ```bash
-    $ gcc test.c -lwasmedge_c
+    gcc test.c -lwasmedge_c
     ```
 
 3. Run and get the expected output.
 
     ```bash
     $ ./a.out
-    WasmEdge version: 0.9.0
+    WasmEdge version: 0.9.1
     ```
 
 ## WasmEdge Basics
@@ -655,7 +655,7 @@ In this partition, we will introduce the functions of `WasmEdge_VMContext` objec
 The following shows the example of running the WASM for getting the Fibonacci.
 This example uses the [fibonacci.wasm](../tools/wasmedge/examples/fibonacci.wasm), and the corresponding WAT file is at [fibonacci.wat](../tools/wasmedge/examples/fibonacci.wat).
 
-```
+```wasm
 (module
  (export "fib" (func $fib))
  (func $fib (param $n i32) (result i32)
@@ -798,7 +798,7 @@ This example uses the [fibonacci.wasm](../tools/wasmedge/examples/fibonacci.wasm
 
     The following graph explains the status of the `VM` context.
 
-    ```
+    ```text
                            |========================|
                   |------->|      VM: Initiated     |
                   |        |========================|
@@ -1915,7 +1915,7 @@ In WasmEdge, developers can create the `Function`, `Memory`, `Table`, and `Globa
 
     Assume that a simple WASM from the WAT as following:
 
-    ```
+    ```wasm
     (module
       (type $t0 (func (param i32 i32) (result i32)))
       (import "extern" "func-add" (func $f-add (type $t0)))
@@ -2027,7 +2027,7 @@ In WasmEdge, developers can create the `Function`, `Memory`, `Table`, and `Globa
     Developers can set a external data object to the function context, and access to the object in the function body.
     Assume that a simple WASM from the WAT as following:
 
-    ```
+    ```wasm
     (module
       (type $t0 (func (param i32 i32) (result i32)))
       (import "extern" "func-add" (func $f-add (type $t0)))

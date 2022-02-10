@@ -14,9 +14,13 @@
 
 #include "aot/blake3.h"
 
-#include "common/span.h"
-#include "gtest/gtest.h"
+#include "common/types.h"
+#include "experimental/span.hpp"
 
+#include <array>
+#include <cstddef>
+#include <gtest/gtest.h>
+#include <string_view>
 #include <vector>
 
 namespace {

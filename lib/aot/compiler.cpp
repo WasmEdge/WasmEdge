@@ -8,16 +8,19 @@
 #include "common/filesystem.h"
 #include "common/log.h"
 
+#include <algorithm>
+#include <array>
 #include <charconv>
 #include <cinttypes>
+#include <cstdint>
 #include <cstdlib>
+#include <limits>
 #include <lld/Common/Driver.h>
 #include <llvm/Analysis/TargetLibraryInfo.h>
 #include <llvm/IR/IRBuilder.h>
 #include <llvm/IR/LegacyPassManager.h>
 #include <llvm/IR/Verifier.h>
 #include <llvm/MC/SubtargetFeature.h>
-#include <llvm/Object/COFF.h>
 #include <llvm/Object/ObjectFile.h>
 #include <llvm/Passes/PassBuilder.h>
 #include <llvm/Support/FileSystem.h>
@@ -27,8 +30,15 @@
 #include <llvm/Target/TargetMachine.h>
 #include <llvm/Transforms/IPO/AlwaysInliner.h>
 #include <llvm/Transforms/Utils/BasicBlockUtils.h>
-
+#include <memory>
 #include <numeric>
+#include <string>
+#include <string_view>
+#include <system_error>
+
+#if WASMEDGE_OS_WINDOWS
+#include <llvm/Object/COFF.h>
+#endif
 
 #if LLVM_VERSION_MAJOR >= 12
 #include <llvm/Analysis/AliasAnalysis.h>

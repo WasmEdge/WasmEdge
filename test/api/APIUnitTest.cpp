@@ -2,13 +2,15 @@
 // SPDX-FileCopyrightText: 2019-2022 Second State INC
 
 #include "wasmedge/wasmedge.h"
-#include "gtest/gtest.h"
 
+#include <algorithm>
 #include <cstdint>
+#include <cstdlib>
 #include <cstring>
 #include <fstream>
-#include <initializer_list>
+#include <gtest/gtest.h>
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace {

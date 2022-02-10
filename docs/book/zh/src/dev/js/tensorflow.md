@@ -55,12 +55,14 @@ confidence:
 ```
 
 > 注意: 命令行中的 `--dir .:.` 是为了给 wasmedge 开启本地文件读取权限， 以便正常读取到 `main.js` 文件.
-#### 注意
+
+## 注意
 
 * 编译器标志 `--features=tensorflow` 构建了一个包含 WasmEdge TensorFlow 扩展的 QuickJS 引擎。
 * 程序 `wasmedge-tensorflow-lite` 是 WasmEdge 包的一部分。它是内含有 Tensorflow 扩展的 WasmEdge runtime。
 
 你现在应该可以看到食物的名字了，它被 TensorFlow lite ImageNet 模型识别出来了。
+
 ## 使其更快
 
 以上 Tensorflow 推断示例执行一次需要耗时 1-2 秒. 在 web 应用场景中虽然可以接受，但是仍然有改进空间。回想一下，WasmEdge 是如今最快的 WebAssembly runtime，这是由于它的提前编译（AOT, Ahead-of-time compiler）优化。WasmEdge 提供了一个 `wasmedgec` 实用程序去编译和添加原生机器码段，并放到 `wasm` 文件里，从而达到更快的性能。

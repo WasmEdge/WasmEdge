@@ -1,4 +1,4 @@
-use crate::{error::Result, wasmedge, ValType, Value};
+use crate::{error::Result, wasmedge, ValType, Value, Vm};
 
 #[derive(Debug)]
 pub struct Func {
@@ -38,9 +38,14 @@ impl Func {
         self.mod_name.is_some()
     }
 
-    pub fn signature(&self) -> Result<Signature> {
+    pub fn ty(&self) -> Result<Signature> {
         let func_ty = self.inner.ty()?;
         Ok(func_ty.into())
+    }
+
+    pub fn call(&self, vm: &Vm, args: impl IntoIterator<Item = Value>) -> Result<Vec<Value>> {
+        let returns = vm.run_func(self.mod_name(), self.name().unwrap(), args)?;
+        Ok(returns)
     }
 }
 

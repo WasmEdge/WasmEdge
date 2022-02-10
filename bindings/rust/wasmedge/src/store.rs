@@ -7,20 +7,20 @@ pub struct Store<'vm> {
     pub(crate) _marker: PhantomData<&'vm Vm>,
 }
 impl<'vm> Store<'vm> {
-    pub fn count_of_module(&self) -> u32 {
+    pub fn mod_count(&self) -> u32 {
         self.inner.reg_module_len()
     }
 
     /// Returns the names of all registered [modules](crate::Module)
-    pub fn module_names(&self) -> Option<Vec<String>> {
+    pub fn mod_names(&self) -> Option<Vec<String>> {
         self.inner.reg_module_names()
     }
 
-    pub fn count_of_func(&self) -> u32 {
+    pub fn func_count(&self) -> u32 {
         self.inner.func_len()
     }
 
-    pub fn func_len_by_module(&self, mod_name: impl AsRef<str>) -> u32 {
+    pub fn func_count_by_module(&self, mod_name: impl AsRef<str>) -> u32 {
         self.inner.reg_func_len(mod_name)
     }
 
@@ -44,7 +44,7 @@ impl<'vm> Store<'vm> {
 
         // funcs in the registered modules
         if self.inner.reg_module_len() > 0 {
-            let mod_names = self.module_names().unwrap();
+            let mod_names = self.mod_names().unwrap();
             for mod_name in mod_names {
                 if self.inner.reg_func_len(&mod_name) > 0 {
                     let func_names = self.inner.reg_func_names(&mod_name).unwrap();
@@ -116,6 +116,14 @@ impl<'vm> Store<'vm> {
         }
     }
 
+    pub fn table_count(&self) -> u32 {
+        self.inner.table_len()
+    }
+
+    pub fn table_count_by_module(&self, mod_name: impl AsRef<str>) -> u32 {
+        self.inner.reg_table_len(mod_name)
+    }
+
     pub fn tables(&self) -> Result<Vec<Table>> {
         let mut tables = Vec::new();
 
@@ -136,7 +144,7 @@ impl<'vm> Store<'vm> {
 
         // tables in the registered modules
         if self.inner.reg_module_len() > 0 {
-            let mod_names = self.module_names().unwrap();
+            let mod_names = self.mod_names().unwrap();
             for mod_name in mod_names {
                 if self.inner.reg_table_len(&mod_name) > 0 {
                     let table_names = self.inner.reg_table_names(&mod_name).unwrap();
@@ -190,6 +198,14 @@ impl<'vm> Store<'vm> {
         }
     }
 
+    pub fn memory_count(&self) -> u32 {
+        self.inner.mem_len()
+    }
+
+    pub fn memory_count_by_module(&self, mod_name: impl AsRef<str>) -> u32 {
+        self.inner.reg_mem_len(mod_name)
+    }
+
     pub fn memories(&self) -> Result<Vec<Memory>> {
         let mut memories = Vec::new();
 
@@ -210,7 +226,7 @@ impl<'vm> Store<'vm> {
 
         // memories in the registered modules
         if self.inner.reg_module_len() > 0 {
-            let mod_names = self.module_names().unwrap();
+            let mod_names = self.mod_names().unwrap();
             for mod_name in mod_names {
                 if self.inner.reg_mem_len(&mod_name) > 0 {
                     let mem_names = self.inner.reg_mem_names(&mod_name).unwrap();
@@ -264,6 +280,14 @@ impl<'vm> Store<'vm> {
         }
     }
 
+    pub fn global_count(&self) -> u32 {
+        self.inner.global_len()
+    }
+
+    pub fn global_count_by_module(&self, mod_name: impl AsRef<str>) -> u32 {
+        self.inner.reg_global_len(mod_name)
+    }
+
     pub fn globals(&self) -> Result<Vec<Global>> {
         let mut globals = Vec::new();
 
@@ -284,7 +308,7 @@ impl<'vm> Store<'vm> {
 
         // globals in the registered modules
         if self.inner.reg_module_len() > 0 {
-            let mod_names = self.module_names().unwrap();
+            let mod_names = self.mod_names().unwrap();
             for mod_name in mod_names {
                 if self.inner.reg_global_len(&mod_name) > 0 {
                     let global_names = self.inner.reg_global_names(&mod_name).unwrap();
@@ -341,8 +365,11 @@ impl<'vm> Store<'vm> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use crate::{Config, Module, SignatureBuilder, ValType};
+    use crate::{
+        wasmedge::{Mutability, RefType},
+        Config, Func, GlobalType, ImportMod, MemoryType, Module, SignatureBuilder, TableType,
+        ValType, Value, Vm,
+    };
 
     #[test]
     fn test_store_instance() {
@@ -405,9 +432,11 @@ mod tests {
                     .build()
             );
 
-            // TODO run the "fib" registered function
-            // let result = vm.run_func(None, "fib", [Value::I32(5)]);
-            // assert!(result.is_ok());
+            // run the "fib" function
+            let result = func.call(&vm, [Value::from_i32(5)]);
+            assert!(result.is_ok());
+            let returns = result.unwrap();
+            assert_eq!(returns[0].to_i32(), 8);
         }
 
         {
@@ -437,4 +466,158 @@ mod tests {
 
     #[test]
     fn test_store_table() {}
+
+    #[test]
+    fn test_store_basic() {
+        let module_name = "extern_module";
+
+        // create a Vm context
+        let result = Vm::new(None);
+        assert!(result.is_ok());
+        let vm = result.unwrap();
+
+        {
+            // get store
+            let result = vm.store_mut();
+            assert!(result.is_ok());
+            let store = result.unwrap();
+
+            // check the exported instances
+            assert_eq!(store.func_count(), 0);
+            assert_eq!(store.func_count_by_module(module_name), 0);
+            assert_eq!(store.table_count(), 0);
+            assert_eq!(store.table_count_by_module(module_name), 0);
+            assert_eq!(store.global_count(), 0);
+            assert_eq!(store.global_count_by_module(module_name), 0);
+            assert_eq!(store.memory_count(), 0);
+            assert_eq!(store.memory_count_by_module(module_name), 0);
+            assert_eq!(store.mod_count(), 0);
+            assert!(store.mod_names().is_none());
+        }
+
+        // create an ImportMod instance
+        let result = ImportMod::new(module_name);
+        assert!(result.is_ok());
+        let mut import = result.unwrap();
+
+        // add host function
+        let sig = SignatureBuilder::new()
+            .with_args(vec![ValType::I32; 2])
+            .with_returns(vec![ValType::I32])
+            .build();
+        let result = Func::new(sig, Box::new(real_add), 0);
+        assert!(result.is_ok());
+        let host_func = result.unwrap();
+        import.add_func("add", host_func);
+
+        // add table
+        let ty = TableType::new(RefType::FuncRef, 5, None);
+        let result = import.add_table("table", ty);
+        assert!(result.is_ok());
+
+        // add memory
+        let ty = MemoryType::new(10, None);
+        let result = import.add_memory("mem", ty);
+        assert!(result.is_ok());
+
+        // add globals
+        let ty = GlobalType::new(ValType::F32, Mutability::Const);
+        let result = import.add_global("global", ty, Value::from_f32(3.5));
+        assert!(result.is_ok());
+
+        // add the import module into vm
+        let result = vm.add_named_import(import);
+        assert!(result.is_ok());
+        let vm = result.unwrap();
+
+        // get store
+        let result = vm.store_mut();
+        assert!(result.is_ok());
+        let store = result.unwrap();
+
+        // check the exported instances
+        assert_eq!(store.mod_count(), 1);
+        assert!(store.mod_names().is_some());
+        assert_eq!(store.mod_names().unwrap()[0], module_name);
+        assert_eq!(store.func_count(), 0);
+        assert_eq!(store.func_count_by_module(module_name), 1);
+        // assert!(store.functions_by_module(module_name).is_some());
+        // assert_eq!(store.functions_by_module(module_name).unwrap()[0], "add");
+        assert_eq!(store.table_count(), 0);
+        assert_eq!(store.table_count_by_module(module_name), 1);
+        // assert!(store.reg_table_names(module_name).is_some());
+        // assert_eq!(store.reg_table_names(module_name).unwrap()[0], "table");
+        assert_eq!(store.global_count(), 0);
+        assert_eq!(store.global_count_by_module(module_name), 1);
+        // assert!(store.reg_global_names(module_name).is_some());
+        // assert_eq!(store.reg_global_names(module_name).unwrap()[0], "global");
+        assert_eq!(store.memory_count(), 0);
+        assert_eq!(store.memory_count_by_module(module_name), 1);
+        // assert!(store.reg_mem_names(module_name).is_some());
+        // assert_eq!(store.reg_mem_names(module_name).unwrap()[0], "mem");
+
+        // check the function list after instantiation
+        let result = store.function("add", None);
+        assert!(result.is_err());
+        let result = store.function("add", Some("extern_module"));
+        assert!(result.is_ok());
+        let host_func = result.unwrap();
+        let result = host_func.call(&vm, vec![Value::from_i32(12), Value::from_i32(21)]);
+        assert!(result.is_ok());
+        let returns = result.unwrap();
+        assert_eq!(returns[0].to_i32(), 33);
+
+        // check the table list after instantiation
+        let result = store.table("table", None);
+        assert!(result.is_err());
+        let result = store.table("table", Some("extern_module"));
+        assert!(result.is_ok());
+        let table = result.unwrap();
+        assert_eq!(table.name().unwrap(), "table");
+        assert!(table.registered());
+        assert_eq!(table.mod_name().unwrap(), "extern_module");
+        assert_eq!(table.size(), 5);
+
+        // check the memory list after instantiation
+        let result = store.memory("mem", None);
+        assert!(result.is_err());
+        let result = store.memory("mem", Some("extern_module"));
+        assert!(result.is_ok());
+        let memory = result.unwrap();
+        assert_eq!(memory.name().unwrap(), "mem");
+        assert!(memory.registered());
+        assert_eq!(memory.mod_name().unwrap(), "extern_module");
+        assert_eq!(memory.size(), 10);
+
+        // check the global list after instantiation
+        let result = store.global("global", None);
+        assert!(result.is_err());
+        let result = store.global("global", Some("extern_module"));
+        assert!(result.is_ok());
+        let global = result.unwrap();
+        let val = global.get_value();
+        assert_eq!(val.to_f32(), 3.5);
+    }
+
+    fn real_add(inputs: Vec<Value>) -> std::result::Result<Vec<Value>, u8> {
+        if inputs.len() != 2 {
+            return Err(1);
+        }
+
+        let a = if inputs[0].ty() == ValType::I32 {
+            inputs[0].to_i32()
+        } else {
+            return Err(2);
+        };
+
+        let b = if inputs[1].ty() == ValType::I32 {
+            inputs[1].to_i32()
+        } else {
+            return Err(3);
+        };
+
+        let c = a + b;
+
+        Ok(vec![Value::from_i32(c)])
+    }
 }

@@ -52,8 +52,9 @@ impl<'store> Table<'store> {
         })
     }
 
-    pub fn len(&self) -> usize {
-        self.inner.capacity()
+    /// Returns the current size of this table.
+    pub fn size(&self) -> u32 {
+        self.inner.capacity() as u32
     }
 
     pub fn grow(&mut self, size: u32) -> Result<()> {

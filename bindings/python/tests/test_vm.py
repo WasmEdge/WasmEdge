@@ -36,3 +36,21 @@ def test_execute_registered():
     res, l = vm.ExecuteRegistered(mod_name, "fib", [num_w], 1)
     assert res
     assert l[0].Value == fibonacci(num)
+
+
+def test_vm_steps():
+    fib_wasm = os.path.join(
+        os.path.abspath(os.path.join(__file__, "../../../..")),
+        "tools/wasmedge/examples/fibonacci.wasm",
+    )
+    mod_name = "mod"
+    vm = WasmEdge.VM()
+    num = random.randint(2, 20)
+    num_w = WasmEdge.Value(num, WasmEdge.Type.I32)
+
+    assert vm.LoadWasmFromFile(fib_wasm)
+    assert vm.Validate()
+    assert vm.Instantiate()
+    res, l = vm.Execute("fib", (num_w,), 1)
+    assert res
+    assert l[0].Value == fibonacci(num)

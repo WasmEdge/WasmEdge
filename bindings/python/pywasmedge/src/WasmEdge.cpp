@@ -177,7 +177,9 @@ PYBIND11_MODULE(WasmEdge, module) {
       .def("LoadWasmFromASTModule", &pysdk::VM::load_from_ast)
       .def("LoadWasmFromBuffer", &pysdk::VM::load_from_buffer)
       .def("LoadWasmFromFile", &pysdk::VM::load_from_file)
-      .def("ExecuteRegistered", &pysdk::VM::execute_registered);
+      .def("ExecuteRegistered", &pysdk::VM::execute_registered)
+      .def("Execute", &pysdk::VM::execute)
+      .def("Validate", &pysdk::VM::validate);
 
   pybind11::class_<pysdk::FunctionTypeContext>(module, "FunctionType")
       .def(pybind11::init<pybind11::list, pybind11::list>())

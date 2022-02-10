@@ -276,4 +276,30 @@ pybind11::tuple pysdk::VM::run_from_ast(pysdk::ASTModuleCxt &cxt,
   }
   return pybind11::make_tuple(res, list);
 }
+
+pybind11::tuple pysdk::VM::execute(std::string &function_name,
+                                   pybind11::tuple params, uint32_t &ret_len) {
+  WasmEdge_String func_name =
+      WasmEdge_StringCreateByCString(function_name.c_str());
+  auto const param_len = pybind11::len(params);
+  WasmEdge_Value param[param_len];
+
+  for (size_t i = 0; i < param_len; i++) {
+    param[i] = params[i].cast<pysdk::Value>().get();
+  }
+  WasmEdge_Value ret[ret_len];
+
+  pysdk::result res(
+      WasmEdge_VMExecute(VMCxt, func_name, param, param_len, ret, ret_len));
+  pybind11::list list;
+
+  for (size_t i = 0; i < ret_len; i++) {
+    list.append(pysdk::Value(ret[i]));
+  }
+  return pybind11::make_tuple(res, list);
+}
+
+pysdk::result pysdk::VM::validate() {
+  return pysdk::result(WasmEdge_VMValidate(VMCxt));
+}
 /* --------------- VM End -------------------------------- */

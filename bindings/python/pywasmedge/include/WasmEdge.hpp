@@ -313,6 +313,10 @@ public:
 
   pybind11::tuple execute_registered(std::string &, std::string &,
                                      pybind11::list, const uint32_t &);
+  pybind11::tuple execute(std::string &function_name, pybind11::tuple params,
+                          uint32_t &ret_len);
+
+  result validate();
 
   pybind11::dict get_functions(uint32_t &);
   uint32_t get_functions_len();

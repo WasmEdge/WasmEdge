@@ -21,7 +21,8 @@
 #include "loader/filemgr.h"
 #include "loader/ldmgr.h"
 
-#include <string>
+#include <cstdint>
+#include <memory>
 #include <vector>
 
 namespace WasmEdge {

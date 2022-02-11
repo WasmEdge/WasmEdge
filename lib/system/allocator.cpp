@@ -7,10 +7,6 @@
 #include "common/defines.h"
 #include "common/errcode.h"
 
-#include <cctype>
-#include <cstdlib>
-#include <cstring>
-
 #if defined(HAVE_MMAP) && defined(__x86_64__) || defined(__aarch64__) ||       \
     defined(__arm__)
 #include <sys/mman.h>
@@ -46,6 +42,10 @@ BOOST_CONSTEXPR_OR_CONST DWORD_ MEM_RELEASE_ = 0x00008000;
 #endif
 } // namespace winapi
 } // namespace boost
+#else
+#include <cctype>
+#include <cstdlib>
+#include <cstring>
 #endif
 
 namespace WasmEdge {

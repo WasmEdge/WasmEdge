@@ -4,9 +4,10 @@ version = "0.1.0"
 edition = "2021"
 description = "WasmEdge Runtime is a high-performance, extensible, and hardware optimized WebAssembly Virtual Machine for automotive, cloud, AI, and blockchain applications."
 license = "Apache-2.0"
+categories = ["api-bindings"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-wasmedge-sys = { path = "../wasmedge-sys" }
+wasmedge-sys = { path = "../wasmedge-sys", version="0.3.0" }
 thiserror = "1.0.30"

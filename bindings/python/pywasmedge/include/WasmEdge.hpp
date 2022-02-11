@@ -11,6 +11,7 @@
 #include <wasmedge/wasmedge.h>
 
 namespace pysdk {
+class Memory;
 
 struct logging {
   const char *str() { return _str.c_str(); };
@@ -91,6 +92,7 @@ public:
   pybind11::list listFunctions();
   pybind11::list listModules();
   pybind11::list listRegisteredFunctions(const std::string &);
+  Memory get_memory(std::string &str);
 };
 
 class ASTModuleCxt {
@@ -208,9 +210,11 @@ public:
 class Memory {
 private:
   WasmEdge_MemoryInstanceContext *HostMemory;
+  bool delete_mem = true;
 
 public:
   Memory(MemoryTypeCxt &);
+  Memory(WasmEdge_MemoryInstanceContext *, bool);
   ~Memory();
   pysdk::result set_data(pybind11::tuple, const uint32_t &);
   uint32_t get_page_size();

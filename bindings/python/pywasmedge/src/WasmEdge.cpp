@@ -122,6 +122,7 @@ PYBIND11_MODULE(WasmEdge, module) {
   pybind11::class_<pysdk::Store>(module, "Store")
       .def(pybind11::init())
       .def("__doc__", &pysdk::Store::doc)
+      .def("GetMemory", &pysdk::Store::get_memory)
       .def("listFunctions", &pysdk::Store::listFunctions)
       .def("listModules", &pysdk::Store::listModules)
       .def("listRegisteredFunctions", &pysdk::Store::listRegisteredFunctions);

@@ -74,4 +74,8 @@ pysdk::Store::listRegisteredFunctions(const std::string &module_name) {
   return ret;
 }
 
+pysdk::Memory pysdk::Store::get_memory(std::string &str) {
+  const WasmEdge_String name = WasmEdge_StringCreateByCString(str.c_str());
+  return pysdk::Memory(WasmEdge_StoreFindMemory(StoreCxt, name), false);
+}
 /* --------------- Store End -------------------------------- */

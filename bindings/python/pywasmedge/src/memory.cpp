@@ -17,7 +17,15 @@ pysdk::Memory::Memory(pysdk::MemoryTypeCxt &mem_cxt) {
   HostMemory = WasmEdge_MemoryInstanceCreate(mem_cxt.get());
 }
 
-pysdk::Memory::~Memory() { WasmEdge_MemoryInstanceDelete(HostMemory); }
+pysdk::Memory::Memory(WasmEdge_MemoryInstanceContext *cxt, bool del) {
+  HostMemory = cxt;
+  delete_mem = del;
+}
+
+pysdk::Memory::~Memory() {
+  if (delete_mem)
+    WasmEdge_MemoryInstanceDelete(HostMemory);
+}
 
 pysdk::result pysdk::Memory::set_data(pybind11::tuple data_,
                                       const uint32_t &offset) {

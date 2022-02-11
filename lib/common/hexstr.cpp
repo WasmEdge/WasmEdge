@@ -3,7 +3,7 @@
 
 #include "common/hexstr.h"
 
-#include <cinttypes>
+#include <algorithm>
 #include <spdlog/fmt/fmt.h>
 
 namespace WasmEdge {

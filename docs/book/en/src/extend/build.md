@@ -51,22 +51,22 @@ docker pull wasmedge/wasmedge # Equals to wasmedge/wasmedge:latest
 
 ```bash
 # Tools and libraries
-$ sudo apt install -y \
+sudo apt install -y \
    software-properties-common \
    cmake \
    libboost-all-dev
 
 # And you will need to install llvm for wasmedgec tool
-$ sudo apt install -y \
+sudo apt install -y \
    llvm-12-dev \
    liblld-12-dev
 
 # WasmEdge supports both clang++ and g++ compilers
 # You can choose one of them for building this project
 # If you prefer GCC
-$ sudo apt install -y gcc g++
+sudo apt install -y gcc g++
 # Else you can choose clang
-$ sudo apt install -y clang-12
+sudo apt install -y clang-12
 ```
 
 ### Support for legacy operating systems
@@ -85,7 +85,7 @@ If you are looking for the pre-built binaries for the older operating system, we
 
 ### If you don't want to build Ahead-of-Time runtime/compiler
 
-If users don't need Ahead-of-Time runtime/compiler support, they can set the CMake option `WASMEDGE_BUILD_AOT_RUNTIME` to `OFF`.
+If you don't need Ahead-of-Time runtime/compiler support, you can set the CMake option `WASMEDGE_BUILD_AOT_RUNTIME` to `OFF`.
 
 ```bash
 cmake -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_BUILD_AOT_RUNTIME=OFF ..

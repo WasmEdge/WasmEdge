@@ -11,7 +11,7 @@
 #include "po/helper.h"
 
 #include <string_view>
-#include <vector>
+#include <utility>
 
 namespace WasmEdge {
 namespace PO {

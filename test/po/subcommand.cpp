@@ -2,12 +2,10 @@
 // SPDX-FileCopyrightText: 2019-2022 Second State INC
 
 #include "po/subcommand.h"
-#include "experimental/span.hpp"
 #include "po/argument_parser.h"
-#include "po/list.h"
 #include "po/option.h"
-#include "gtest/gtest.h"
-#include <numeric>
+#include <array>
+#include <gtest/gtest.h>
 #include <vector>
 
 using namespace WasmEdge::PO;

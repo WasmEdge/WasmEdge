@@ -3512,6 +3512,42 @@ WasmEdge_VMGetStoreContext(WasmEdge_VMContext *Cxt);
 WASMEDGE_CAPI_EXPORT extern WasmEdge_StatisticsContext *
 WasmEdge_VMGetStatisticsContext(WasmEdge_VMContext *Cxt);
 
+/// Get the executor context used in the WasmEdge_VMContext.
+///
+/// The executor context links to the executor in the VM context and owned
+/// by the VM context. The caller should __NOT__ call the
+/// `WasmEdge_ExecutorDelete`.
+///
+/// \param Cxt the WasmEdge_VMContext.
+///
+/// \returns pointer to the executor context.
+WASMEDGE_CAPI_EXPORT extern WasmEdge_ExecutorContext *
+WasmEdge_VMGetExecutorContext(WasmEdge_VMContext *Cxt);
+
+/// Get the validator context used in the WasmEdge_VMContext.
+///
+/// The validator context links to the validator in the VM context and owned
+/// by the VM context. The caller should __NOT__ call the
+/// `WasmEdge_ValidatorDelete`.
+///
+/// \param Cxt the WasmEdge_VMContext.
+///
+/// \returns pointer to the validator context.
+WASMEDGE_CAPI_EXPORT extern WasmEdge_ValidatorContext *
+WasmEdge_VMGetValidatorContext(WasmEdge_VMContext *Cxt);
+
+/// Get the loader context used in the WasmEdge_VMContext.
+///
+/// The loader context links to the loader in the VM context and owned
+/// by the VM context. The caller should __NOT__ call the
+/// `WasmEdge_LoaderDelete`.
+///
+/// \param Cxt the WasmEdge_VMContext.
+///
+/// \returns pointer to the loader context.
+WASMEDGE_CAPI_EXPORT extern WasmEdge_LoaderContext *
+WasmEdge_VMGetLoaderContext(WasmEdge_VMContext *Cxt);
+
 /// Deletion of the WasmEdge_VMContext.
 ///
 /// After calling this function, the context will be freed and should __NOT__ be

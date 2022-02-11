@@ -176,11 +176,7 @@ impl Config {
             config.exception_handling(false)
         };
 
-        let config = if src.function_references_enabled() {
-            config.function_references(true)
-        } else {
-            config.function_references(false)
-        };
+        config.function_references(src.function_references_enabled());
 
         if src.memory64_enabled() {
             config.memory64(true)
@@ -268,11 +264,7 @@ impl Config {
 
         config.set_max_memory_pages(src.get_max_memory_pages());
 
-        // let config = if src.aot_interruptible_enabled() {
-        //     config.aot_interruptible(true)
-        // } else {
-        //     config.aot_interruptible(false)
-        // };
+        // let config = config.aot_interruptible(src.aot_interruptible_enabled());
 
         if src.is_aot_dump_ir() {
             config.aot_dump_ir(true)

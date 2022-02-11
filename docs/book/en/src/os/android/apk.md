@@ -9,7 +9,7 @@ The demo project is [available here](https://github.com/WasmEdge/WasmEdge/tree/m
 ### Building Project with Gradle
 
 1. Setup environment variable `ANDROID_HOME=path/to/your/android/sdk`
-2. Run Command `./gradlew assemblyRelease`
+2. Run Command `./gradlew assembleRelease`
 3. Sign your APK file with `apksigner`. The apk file is at `./app/build/outputs/apk/release`. The `apksigner` utility is at `$ANDROID_HOME/build-tools/$VERSION/apksigner`.
 
 ### Building Project with Android Studio

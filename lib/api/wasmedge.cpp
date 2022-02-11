@@ -356,6 +356,9 @@ private:
   inline QUANT auto *to##SIMP##Cxt(QUANT INST *Cxt) noexcept {                 \
     return reinterpret_cast<QUANT WasmEdge_##NAME##Context *>(Cxt);            \
   }
+CONVTO(Ldr, Loader::Loader, Loader, )
+CONVTO(Valid, Validator::Validator, Validator, )
+CONVTO(Exec, Executor::Executor, Executor, )
 CONVTO(Stat, Statistics::Statistics, Statistics, )
 CONVTO(FuncType, AST::FunctionType, FunctionType, )
 CONVTO(FuncType, AST::FunctionType, FunctionType, const)
@@ -2857,6 +2860,30 @@ WASMEDGE_CAPI_EXPORT WasmEdge_StatisticsContext *
 WasmEdge_VMGetStatisticsContext(WasmEdge_VMContext *Cxt) {
   if (Cxt) {
     return toStatCxt(&Cxt->VM.getStatistics());
+  }
+  return nullptr;
+}
+
+WASMEDGE_CAPI_EXPORT WasmEdge_ExecutorContext *
+WasmEdge_VMGetExecutorContext(WasmEdge_VMContext *Cxt) {
+  if (Cxt) {
+    return toExecCxt(&Cxt->VM.getExecutor());
+  }
+  return nullptr;
+}
+
+WASMEDGE_CAPI_EXPORT WasmEdge_ValidatorContext *
+WasmEdge_VMGetValidatorContext(WasmEdge_VMContext *Cxt) {
+  if (Cxt) {
+    return toValidCxt(&Cxt->VM.getValidator());
+  }
+  return nullptr;
+}
+
+WASMEDGE_CAPI_EXPORT WasmEdge_LoaderContext *
+WasmEdge_VMGetLoaderContext(WasmEdge_VMContext *Cxt) {
+  if (Cxt) {
+    return toLdrCxt(&Cxt->VM.getLoader());
   }
   return nullptr;
 }

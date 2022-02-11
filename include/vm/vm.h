@@ -191,6 +191,15 @@ public:
   /// Getter of statistics.
   Statistics::Statistics &getStatistics() { return Stat; }
 
+  /// Getter of executor
+  Executor::Executor &getExecutor() { return ExecutorEngine; }
+
+  /// Getter of validator
+  Validator::Validator &getValidator() { return ValidatorEngine; }
+
+  /// Getter of loader
+  Loader::Loader &getLoader() { return LoaderEngine; }
+
 private:
   Expect<void> unsafeRegisterModule(std::string_view Name,
                                     const std::filesystem::path &Path);

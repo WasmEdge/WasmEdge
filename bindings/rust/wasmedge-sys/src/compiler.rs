@@ -72,6 +72,7 @@ pub(crate) struct InnerCompiler(pub(crate) *mut wasmedge::WasmEdge_CompilerConte
 unsafe impl Send for InnerCompiler {}
 unsafe impl Sync for InnerCompiler {}
 
+#[cfg(feature = "aot")]
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -125,7 +126,7 @@ mod tests {
             assert!(result.is_ok());
             let mut config = result.unwrap();
             // compile file for shared library output format
-            config.set_compiler_output_format(CompilerOutputFormat::Native);
+            config.set_aot_compiler_output_format(CompilerOutputFormat::Native);
 
             let result = Compiler::create(Some(config));
             assert!(result.is_ok());

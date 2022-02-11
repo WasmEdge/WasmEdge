@@ -33,6 +33,7 @@ fn test_aot() {
     let mut config = result.unwrap();
     config.set_aot_optimization_level(CompilerOptimizationLevel::O0);
     config.set_aot_compiler_output_format(CompilerOutputFormat::Native);
+    config.aot_interruptible(true);
     let result = Compiler::create(Some(config));
     assert!(result.is_ok());
     let compiler = result.unwrap();

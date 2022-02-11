@@ -29,8 +29,6 @@ public:
 
   friend class X25519SecretKey;
 
-  inline static size_t PkSize = 32;
-
 private:
   EvpPkeyPtr Ctx;
 };
@@ -50,8 +48,6 @@ public:
 
   WasiCryptoExpect<std::vector<uint8_t>>
   dh(std::shared_ptr<PublicKey> Pk) override;
-
-  inline static size_t SkSize = 32;
 
 private:
   EvpPkeyPtr Ctx;

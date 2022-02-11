@@ -6,11 +6,16 @@
 #include "host/wasi_crypto/evpwrapper.h"
 #include "openssl/x509.h"
 #include "wasi_crypto/api.hpp"
+#include <cstdint>
 
 namespace WasmEdge {
 namespace Host {
 namespace WASICrypto {
 namespace Kx {
+namespace {
+inline const size_t PkSize = 32;
+inline const size_t SkSize = 32;
+} // namespace
 
 WasiCryptoExpect<std::unique_ptr<X25519PublicKey>>
 X25519PublicKey::import(Span<const uint8_t> Encoded,
@@ -31,10 +36,12 @@ WasiCryptoExpect<std::vector<uint8_t>>
 X25519PublicKey::exportData(__wasi_publickey_encoding_e_t Encoding) {
   switch (Encoding) {
   case __WASI_PUBLICKEY_ENCODING_RAW: {
+    std::vector<uint8_t> Res(PkSize);
+
     size_t Size;
-    opensslAssuming(EVP_PKEY_get_raw_public_key(Ctx.get(), nullptr, &Size));
-    std::vector<uint8_t> Res(Size);
     opensslAssuming(EVP_PKEY_get_raw_public_key(Ctx.get(), Res.data(), &Size));
+    ensureOrReturn(Size == PkSize, __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
+
     return Res;
   }
   default:
@@ -65,11 +72,12 @@ WasiCryptoExpect<std::vector<uint8_t>>
 X25519SecretKey::exportData(__wasi_secretkey_encoding_e_t Encoding) {
   switch (Encoding) {
   case __WASI_SECRETKEY_ENCODING_RAW: {
-    size_t Size;
-    opensslAssuming(EVP_PKEY_get_raw_private_key(Ctx.get(), nullptr, &Size));
+    std::vector<uint8_t> Res(SkSize);
 
-    std::vector<uint8_t> Res(Size);
+    size_t Size;
     opensslAssuming(EVP_PKEY_get_raw_private_key(Ctx.get(), Res.data(), &Size));
+    ensureOrReturn(Size == SkSize, __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
+
     return Res;
   }
   default:
@@ -78,11 +86,11 @@ X25519SecretKey::exportData(__wasi_secretkey_encoding_e_t Encoding) {
 }
 
 WasiCryptoExpect<std::unique_ptr<PublicKey>> X25519SecretKey::publicKey() {
-  size_t Size;
-  opensslAssuming(EVP_PKEY_get_raw_public_key(Ctx.get(), nullptr, &Size));
+  std::array<uint8_t, SkSize> Res;
 
-  std::vector<uint8_t> Res(Size);
+  size_t Size;
   opensslAssuming(EVP_PKEY_get_raw_public_key(Ctx.get(), Res.data(), &Size));
+  ensureOrReturn(Size == SkSize, __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
 
   EvpPkeyPtr Pk{EVP_PKEY_new_raw_public_key(EVP_PKEY_X25519, nullptr,
                                             Res.data(), Res.size())};
@@ -119,12 +127,12 @@ X25519SecretKey::dh(std::shared_ptr<PublicKey> PkKey) {
 
 WasiCryptoExpect<std::unique_ptr<KeyPair>>
 X25519KeyPair::Builder::generate(std::shared_ptr<Options>) {
-  EvpPkeyCtxPtr Ct{EVP_PKEY_CTX_new_id(EVP_PKEY_X25519, nullptr)};
-  opensslAssuming(Ct);
-  opensslAssuming(EVP_PKEY_keygen_init(Ct.get()));
+  EvpPkeyCtxPtr Ctx{EVP_PKEY_CTX_new_id(EVP_PKEY_X25519, nullptr)};
+  opensslAssuming(Ctx);
+  opensslAssuming(EVP_PKEY_keygen_init(Ctx.get()));
 
   EVP_PKEY *PKey = nullptr;
-  opensslAssuming(EVP_PKEY_keygen(Ct.get(), &PKey));
+  opensslAssuming(EVP_PKEY_keygen(Ctx.get(), &PKey));
 
   return std::make_unique<X25519KeyPair>(EvpPkeyPtr{PKey});
 }
@@ -136,11 +144,11 @@ X25519KeyPair::Builder::import(Span<const uint8_t>,
 }
 
 WasiCryptoExpect<std::unique_ptr<PublicKey>> X25519KeyPair::publicKey() {
-  size_t Size;
-  opensslAssuming(EVP_PKEY_get_raw_public_key(Ctx.get(), nullptr, &Size));
+  std::array<uint8_t, PkSize> Res;
 
-  std::vector<uint8_t> Res(Size);
+  size_t Size;
   opensslAssuming(EVP_PKEY_get_raw_public_key(Ctx.get(), Res.data(), &Size));
+  ensureOrReturn(Size == PkSize, __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
 
   EvpPkeyPtr Pk{EVP_PKEY_new_raw_public_key(EVP_PKEY_X25519, nullptr,
                                             Res.data(), Res.size())};
@@ -148,11 +156,11 @@ WasiCryptoExpect<std::unique_ptr<PublicKey>> X25519KeyPair::publicKey() {
 }
 
 WasiCryptoExpect<std::unique_ptr<SecretKey>> X25519KeyPair::secretKey() {
-  size_t Size;
-  opensslAssuming(EVP_PKEY_get_raw_private_key(Ctx.get(), nullptr, &Size));
+  std::array<uint8_t, SkSize> Res;
 
-  std::vector<uint8_t> Res(Size);
+  size_t Size;
   opensslAssuming(EVP_PKEY_get_raw_private_key(Ctx.get(), Res.data(), &Size));
+  ensureOrReturn(Size == SkSize, __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
 
   EvpPkeyPtr Sk{EVP_PKEY_new_raw_private_key(EVP_PKEY_X25519, nullptr,
                                              Res.data(), Res.size())};
@@ -163,11 +171,14 @@ WasiCryptoExpect<std::vector<uint8_t>>
 X25519KeyPair::exportData(__wasi_keypair_encoding_e_t Encoding) {
   switch (Encoding) {
   case __WASI_KEYPAIR_ENCODING_RAW: {
-    size_t Size;
-    opensslAssuming(EVP_PKEY_get_raw_private_key(Ctx.get(), nullptr, &Size));
+    std::vector<uint8_t> Res(PkSize + SkSize);
 
-    std::vector<uint8_t> Res(Size);
+    size_t Size;
+    opensslAssuming(EVP_PKEY_get_raw_public_key(Ctx.get(), Res.data(), &Size));
+    ensureOrReturn(Size == PkSize, __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
+
     opensslAssuming(EVP_PKEY_get_raw_private_key(Ctx.get(), Res.data(), &Size));
+    ensureOrReturn(Size == SkSize, __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
     return Res;
   }
   default:

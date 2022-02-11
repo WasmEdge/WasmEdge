@@ -2,17 +2,17 @@
 
 The `appdev` Docker images provide a complete WasmEdge application development environment. To use it, do the following.
 
-### On x86_64 machines
+## On x86_64 machines
 
-```
+```bash
 $ docker pull wasmedge/appdev_x86_64:0.9.0
 $ docker run --rm -v $(pwd):/app -it wasmedge/appdev_x86_64:0.9.0
 (docker) #
 ```
 
-### On arm64 machines
+## On arm64 machines
 
-```
+```bash
 $ docker pull wasmedge/appdev_aarch64:0.9.0
 $ docker run --rm -v $(pwd):/app -it wasmedge/appdev_aarch64:0.9.0
 (docker) #
@@ -31,7 +31,7 @@ It installs the following components.
 
 Hello World. [See more simple examples](https://github.com/WasmEdge/WasmEdge/tree/master/tools/wasmedge/examples)
 
-```
+```bash
 $ wasmedge hello.wasm world
 hello
 world
@@ -39,7 +39,7 @@ world
 
 Use AOT to run it *much faster*.
 
-```
+```bash
 $ wasmedgec hello.wasm hello.so
 $ wasmedge hello.so world
 hello
@@ -48,7 +48,7 @@ world
 
 Here are some JavaScript examples. [See more](https://github.com/WasmEdge/WasmEdge/tree/master/tools/wasmedge/examples/js)
 
-```
+```bash
 $ wasmedge --dir .:. qjs.wasm hello.js 1 2 3
 Hello 1 2 3
 
@@ -63,15 +63,14 @@ Run these commands to build and publish the `appdev` Docker images.
 
 ### Build on an x86_64 machine
 
-```
+```bash
 docker build -t wasmedge/appdev_x86_64:0.9.0 -f Dockerfile.appdev_x86_64 ./ 
 docker image push wasmedge/appdev_x86_64:0.9.0
 ```
 
 ### Build on an ARM64 / aarch64 machine
 
-```
+```bash
 docker build -t wasmedge/appdev_aarch64:0.9.0 -f Dockerfile.appdev_aarch64 ./
 docker image push wasmedge/appdev_aarch64:0.9.0
 ```
-

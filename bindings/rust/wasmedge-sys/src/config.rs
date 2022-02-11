@@ -176,11 +176,11 @@ impl Config {
             config.exception_handling(false)
         };
 
-        // let config = if src.function_references_enabled() {
-        //     config.function_references(true)
-        // } else {
-        //     config.function_references(false)
-        // };
+        let config = if src.function_references_enabled() {
+            config.function_references(true)
+        } else {
+            config.function_references(false)
+        };
 
         if src.memory64_enabled() {
             config.memory64(true)

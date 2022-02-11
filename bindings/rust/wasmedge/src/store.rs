@@ -165,12 +165,34 @@ impl<'vm> Store<'vm> {
         Ok(tables)
     }
 
-    pub fn tables_by_module(&self, _mod_name: impl AsRef<str>) -> Result<Vec<Table>> {
-        unimplemented!()
+    pub fn tables_by_module(&self, mod_name: impl AsRef<str>) -> Result<Vec<Table>> {
+        let mut tables = Vec::new();
+
+        // table in the registered modules
+        if self.inner.reg_table_len(mod_name.as_ref()) > 0 {
+            let table_names = self.inner.reg_table_names(mod_name.as_ref()).unwrap();
+            for name in table_names {
+                let inner = self.inner.find_table_registered(mod_name.as_ref(), &name)?;
+                let table = Table {
+                    inner,
+                    name: Some(name),
+                    mod_name: Some(mod_name.as_ref().into()),
+                    _marker: PhantomData,
+                };
+                tables.push(table);
+            }
+        }
+
+        Ok(tables)
     }
 
-    pub fn tables_by_name(&self, _table_name: impl AsRef<str>) -> Result<Vec<Table>> {
-        unimplemented!()
+    pub fn tables_by_name(&self, table_name: impl AsRef<str>) -> Result<Vec<Table>> {
+        let tables = self
+            .tables()?
+            .into_iter()
+            .filter(|x| x.name().is_some() && (x.name().unwrap() == table_name.as_ref()));
+
+        Ok(tables.collect())
     }
 
     pub fn table(&self, table_name: impl AsRef<str>, mod_name: Option<&str>) -> Result<Table> {
@@ -247,12 +269,36 @@ impl<'vm> Store<'vm> {
         Ok(memories)
     }
 
-    pub fn memories_by_module(&self, _mod_name: impl AsRef<str>) -> Result<Vec<Memory>> {
-        unimplemented!()
+    pub fn memories_by_module(&self, mod_name: impl AsRef<str>) -> Result<Vec<Memory>> {
+        let mut memories = Vec::new();
+
+        // memory in the registered modules
+        if self.inner.reg_mem_len(mod_name.as_ref()) > 0 {
+            let mem_names = self.inner.reg_mem_names(mod_name.as_ref()).unwrap();
+            for name in mem_names {
+                let inner = self
+                    .inner
+                    .find_memory_registered(mod_name.as_ref(), &name)?;
+                let memory = Memory {
+                    inner,
+                    name: Some(name),
+                    mod_name: Some(mod_name.as_ref().into()),
+                    _marker: PhantomData,
+                };
+                memories.push(memory);
+            }
+        }
+
+        Ok(memories)
     }
 
-    pub fn memories_by_name(&self, _mem_name: impl AsRef<str>) -> Result<Vec<Memory>> {
-        unimplemented!()
+    pub fn memories_by_name(&self, mem_name: impl AsRef<str>) -> Result<Vec<Memory>> {
+        let memories = self
+            .memories()?
+            .into_iter()
+            .filter(|x| x.name().is_some() && (x.name().unwrap() == mem_name.as_ref()));
+
+        Ok(memories.collect())
     }
 
     pub fn memory(&self, mem_name: impl AsRef<str>, mod_name: Option<&str>) -> Result<Memory> {
@@ -329,12 +375,36 @@ impl<'vm> Store<'vm> {
         Ok(globals)
     }
 
-    pub fn globals_by_module(&self, _mod_name: impl AsRef<str>) -> Result<Vec<Global>> {
-        unimplemented!()
+    pub fn globals_by_module(&self, mod_name: impl AsRef<str>) -> Result<Vec<Global>> {
+        let mut globals = Vec::new();
+
+        // global in the registered modules
+        if self.inner.reg_global_len(mod_name.as_ref()) > 0 {
+            let global_names = self.inner.reg_global_names(mod_name.as_ref()).unwrap();
+            for name in global_names {
+                let inner = self
+                    .inner
+                    .find_global_registered(mod_name.as_ref(), &name)?;
+                let global = Global {
+                    inner,
+                    name: Some(name),
+                    mod_name: Some(mod_name.as_ref().into()),
+                    _marker: PhantomData,
+                };
+                globals.push(global);
+            }
+        }
+
+        Ok(globals)
     }
 
-    pub fn globals_by_name(&self, _global_name: impl AsRef<str>) -> Result<Vec<Global>> {
-        unimplemented!()
+    pub fn globals_by_name(&self, global_name: impl AsRef<str>) -> Result<Vec<Global>> {
+        let globals = self
+            .globals()?
+            .into_iter()
+            .filter(|x| x.name().is_some() && (x.name().unwrap() == global_name.as_ref()));
+
+        Ok(globals.collect())
     }
 
     pub fn global(&self, global_name: impl AsRef<str>, mod_name: Option<&str>) -> Result<Global> {

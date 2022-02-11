@@ -2,7 +2,7 @@
 
 `appdev` Docker 镜像提供了一个完整的 WasmEdge 应用程序开发环境。要想使用该镜像，请执行以下操作。
 
-### x86_64 系统
+## 使用 x86_64 系统
 
 ```bash
 $ docker pull wasmedge/appdev_x86_64:0.9.0
@@ -10,9 +10,9 @@ $ docker run --rm -v $(pwd):/app -it wasmedge/appdev_x86_64:0.9.0
 (docker) #
 ```
 
-查看 `	appdev` 的 [Dockerfile](https://github.com/WasmEdge/WasmEdge/blob/master/utils/docker/Dockerfile.appdev_x86_64) 和 [Docker Hub 镜像](https://hub.docker.com/repository/docker/wasmedge/appdev_x86_64)。
+查看 `appdev` 的 [Dockerfile](https://github.com/WasmEdge/WasmEdge/blob/master/utils/docker/Dockerfile.appdev_x86_64) 和 [Docker Hub 镜像](https://hub.docker.com/repository/docker/wasmedge/appdev_x86_64)。
 
-### arm64 系统
+## 使用 arm64 系统
 
 ```bash
 $ docker pull wasmedge/appdev_aarch64:0.9.0

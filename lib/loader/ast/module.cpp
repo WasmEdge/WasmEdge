@@ -4,6 +4,12 @@
 #include "loader/loader.h"
 
 #include <bitset>
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <string>
+#include <utility>
+#include <vector>
 
 namespace WasmEdge {
 namespace Loader {

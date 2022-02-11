@@ -5,8 +5,13 @@
 
 #include "aot/version.h"
 
+#include <algorithm>
+#include <cstddef>
 #include <fstream>
+#include <limits>
 #include <string_view>
+#include <system_error>
+#include <utility>
 
 namespace WasmEdge {
 namespace Loader {

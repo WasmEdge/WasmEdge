@@ -9,8 +9,8 @@ If you would like to develop WasmEdge on Windows 10, please follow this guide to
 ## Get Source Code
 
 ```bash
-$ git clone https://github.com/WasmEdge/WasmEdge.git
-$ cd WasmEdge
+git clone https://github.com/WasmEdge/WasmEdge.git
+cd WasmEdge
 ```
 
 ## Requirements and Dependencies
@@ -45,10 +45,10 @@ $Env:CXX = "clang-cl"
 
 ### If you don't want to build Ahead-of-Time runtime/compiler
 
-If users don't need Ahead-of-Time runtime/compiler support, they can set the CMake option `WASMEDGE_BUILD_AOT_RUNTIME` to `OFF`.
+If you don't need Ahead-of-Time runtime/compiler support, you can set the CMake option `WASMEDGE_BUILD_AOT_RUNTIME` to `OFF`.
 
 ```bash
-$ cmake -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_BUILD_AOT_RUNTIME=OFF ..
+cmake -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_BUILD_AOT_RUNTIME=OFF ..
 ```
 
 ## Build WasmEdge
@@ -57,15 +57,15 @@ WasmEdge provides various tools for enabling different runtime environments for 
 After the build is finished, you can find there are several wasmedge related tools:
 
 1. `wasmedge` is for general wasm runtime.
-	* `wasmedge` executes a `WASM` file in interpreter mode or a compiled WASM `dyld` file in ahead-of-time compilation mode.
-	* To disable building all tools, you can set the CMake option `WASMEDGE_BUILD_TOOLS` to `OFF`.
+   - `wasmedge` executes a `WASM` file in interpreter mode or a compiled WASM `dll` file in ahead-of-time compilation mode.
+   - To disable building all tools, you can set the CMake option `WASMEDGE_BUILD_TOOLS` to `OFF`.
 2. `wasmedgec` is for ahead-of-time `WASM` compiler.
-	* `wasmedgec` compiles a general `WASM` file into a `dyld` file.
-	* To disable building the ahead-of-time compiler only, you can set the CMake option `WASMEDGE_BUILD_AOT_RUNTIME` to `OFF`.
-3. `libwasmedge_c.dyld` is the WasmEdge C API shared library.
-	* `libwasmedge_c.dyld` provides C API for the ahead-of-time compiler and the WASM runtime.
-	* The APIs about the ahead-of-time compiler will always return failed if the CMake option `WASMEDGE_BUILD_AOT_RUNTIME` is set as `OFF`.
-	* To disable building the shared library only, you can set the CMake option `WASMEDGE_BUILD_SHARED_LIB` to `OFF`.
+   - `wasmedgec` compiles a general `WASM` file into a `dll` file.
+   - To disable building the ahead-of-time compiler only, you can set the CMake option `WASMEDGE_BUILD_AOT_RUNTIME` to `OFF`.
+3. `libwasmedge_c.dll` is the WasmEdge C API shared library.
+   - `libwasmedge_c.dll` provides C API for the ahead-of-time compiler and the WASM runtime.
+   - The APIs about the ahead-of-time compiler will always return failed if the CMake option `WASMEDGE_BUILD_AOT_RUNTIME` is set as `OFF`.
+   - To disable building the shared library only, you can set the CMake option `WASMEDGE_BUILD_SHARED_LIB` to `OFF`.
 
 ```bash
 $vsPath = (vswhere -latest -property installationPath)

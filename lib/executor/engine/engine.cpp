@@ -3,6 +3,10 @@
 
 #include "executor/executor.h"
 
+#include <array>
+#include <cstdint>
+#include <cstring>
+
 namespace WasmEdge {
 namespace Executor {
 

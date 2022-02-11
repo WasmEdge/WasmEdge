@@ -20,7 +20,9 @@
 #include "common/filesystem.h"
 #include "common/symbol.h"
 
+#include <cstdint>
 #include <memory>
+#include <vector>
 
 #if WASMEDGE_OS_WINDOWS
 #include <boost/winapi/dll.hpp>

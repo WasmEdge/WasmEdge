@@ -1,13 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "host/wasi_crypto/signature/eddsa.h"
-
 #include "host/wasi_crypto/error.h"
 #include "host/wasi_crypto/evpwrapper.h"
 #include "host/wasi_crypto/util.h"
-#include "openssl/x509.h"
 #include "wasi_crypto/api.hpp"
-#include <openssl/evp.h>
+
+#include "openssl/x509.h"
 
 namespace WasmEdge {
 namespace Host {
@@ -106,12 +105,7 @@ EddsaKeyPair::import(Span<const uint8_t> Encoded,
   switch (Encoding) {
   case __WASI_KEYPAIR_ENCODING_RAW: {
     ensureOrReturn(Encoded.size() == KpSize, __WASI_CRYPTO_ERRNO_INVALID_KEY);
-    // would auto generate public key
-    // EvpPkeyPtr PkCtx{EVP_PKEY_new_raw_public_key(EVP_PKEY_ED25519, nullptr,
-    //                                              Encoded.data() +
-    //                                              EddsaSecretKey::SkSize,
-    //                                              EddsaPublicKey::PkSize)};
-    // ensureOrReturn(PkCtx, __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
+    // no way to set the public key in openssl, just auto generate.
     EvpPkeyPtr SkCtx{EVP_PKEY_new_raw_private_key(
         EVP_PKEY_ED25519, nullptr, Encoded.data(), EddsaSecretKey::SkSize)};
     ensureOrReturn(SkCtx, __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
@@ -144,21 +138,21 @@ EddsaKeyPair::exportData(__wasi_keypair_encoding_e_t Encoding) {
 }
 
 WasiCryptoExpect<std::unique_ptr<PublicKey>> EddsaKeyPair::publicKey() {
-  BioPtr B{BIO_new(BIO_s_mem())};
-  opensslAssuming(i2d_PUBKEY_bio(B.get(), Ctx.get()));
+  BioPtr Bio{BIO_new(BIO_s_mem())};
+  opensslAssuming(i2d_PUBKEY_bio(Bio.get(), Ctx.get()));
 
   EVP_PKEY *Res = nullptr;
-  opensslAssuming(d2i_PUBKEY_bio(B.get(), &Res));
+  opensslAssuming(d2i_PUBKEY_bio(Bio.get(), &Res));
 
   return std::make_unique<EddsaPublicKey>(EvpPkeyPtr{Res});
 }
 
 WasiCryptoExpect<std::unique_ptr<SecretKey>> EddsaKeyPair::secretKey() {
-  BioPtr B{BIO_new(BIO_s_mem())};
-  opensslAssuming(i2d_PrivateKey_bio(B.get(), Ctx.get()));
+  BioPtr Bio{BIO_new(BIO_s_mem())};
+  opensslAssuming(i2d_PrivateKey_bio(Bio.get(), Ctx.get()));
 
   EVP_PKEY *Res = nullptr;
-  opensslAssuming(d2i_PrivateKey_bio(B.get(), &Res));
+  opensslAssuming(d2i_PrivateKey_bio(Bio.get(), &Res));
 
   return std::make_unique<EddsaSecretKey>(EvpPkeyPtr{Res});
 }

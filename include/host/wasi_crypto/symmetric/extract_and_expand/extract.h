@@ -8,7 +8,7 @@ namespace Host {
 namespace WASICrypto {
 namespace Symmetric {
 
-class ExtractAndExpandState : public State {
+class ExtractState : public State {
 public:
   /// Absorbs the salt of the key information. The absence of an absorb() call
   /// MUST be equivalent the an empty salt or key information. Multiple calls to
@@ -19,12 +19,6 @@ public:
   /// @return Nothing or WasiCrypto error
   virtual WasiCryptoExpect<void> absorb(Span<const uint8_t> Data) override = 0;
 
-  /// @param[out] Out the output buffer
-  /// @return If the requested size exceeds what the hash function
-  /// can output, the `__WASI_CRYPTO_ERRNO_INVALID_LENGTH` error code MUST be
-  /// returned.
-  virtual WasiCryptoExpect<void> squeeze(Span<uint8_t> Out) override = 0;
-
   /// @param[in] Alg Key's Alg
   /// @return returns the PRK, whose algorithm type is set to the EXPAND
   /// counterpart of the EXTRACT operation.
@@ -32,6 +26,10 @@ public:
   squeezeKey(SymmetricAlgorithm Alg) override = 0;
 
 private:
+  WasiCryptoExpect<void> squeeze(Span<uint8_t> Out) override final {
+    return State::squeeze(Out);
+  }
+
   WasiCryptoExpect<void> ratchet() override final { return State::ratchet(); }
 
   WasiCryptoExpect<size_t> encrypt(Span<uint8_t> Out,

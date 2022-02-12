@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 #pragma once
 
-#include "host/wasi_crypto/symmetric/extract_and_expand/eae_state.h"
-
 #include "host/wasi_crypto/evpwrapper.h"
+#include "host/wasi_crypto/symmetric/extract_and_expand/eae_state.h"
 #include "openssl/kdf.h"
 
 namespace WasmEdge {
@@ -11,7 +10,7 @@ namespace Host {
 namespace WASICrypto {
 namespace Symmetric {
 
-template <uint32_t Sha, uint32_t Mode> class Hkdf {
+template <uint32_t ShaNid, uint32_t Mode> class Hkdf {
 public:
   class KeyBuilder final : public Key::Builder {
   public:
@@ -31,8 +30,8 @@ public:
   ///
   class State final : public ExtractAndExpandState {
   public:
-    State(std::shared_ptr<Options> OptOption, EVP_PKEY_CTX *Ctx)
-        : OptOption(OptOption), Ctx(Ctx) {}
+    State(std::shared_ptr<Options> OptOption, EvpPkeyCtxPtr Ctx)
+        : OptOption(OptOption), Ctx(std::move(Ctx)) {}
 
     ~State() override;
 
@@ -62,15 +61,28 @@ public:
     std::shared_ptr<Options> OptOption;
     EvpPkeyCtxPtr Ctx;
   };
+
+private:
+  constexpr static uint32_t getKeySize() {
+    if constexpr (ShaNid == NID_sha256)
+      return 32;
+    if constexpr (ShaNid == NID_sha512)
+      return 64;
+  }
+
+  /// Type erasure to pass clang-tidy check
+  constexpr static void *getShaCtx() {
+    return static_cast<void *>(
+        const_cast<EVP_MD *>(EVP_get_digestbynid(ShaNid)));
+  }
 };
 
-using Hkdf256Extract = Hkdf<256, EVP_PKEY_HKDEF_MODE_EXTRACT_ONLY>;
-using Hkdf512Extract = Hkdf<512, EVP_PKEY_HKDEF_MODE_EXTRACT_ONLY>;
-using Hkdf256Expand = Hkdf<256, EVP_PKEY_HKDEF_MODE_EXPAND_ONLY>;
-using Hkdf512Expand = Hkdf<512, EVP_PKEY_HKDEF_MODE_EXPAND_ONLY>;
+using Hkdf256Extract = Hkdf<NID_sha256, EVP_PKEY_HKDEF_MODE_EXTRACT_ONLY>;
+using Hkdf512Extract = Hkdf<NID_sha256, EVP_PKEY_HKDEF_MODE_EXTRACT_ONLY>;
+using Hkdf256Expand = Hkdf<NID_sha512, EVP_PKEY_HKDEF_MODE_EXPAND_ONLY>;
+using Hkdf512Expand = Hkdf<NID_sha512, EVP_PKEY_HKDEF_MODE_EXPAND_ONLY>;
 
 } // namespace Symmetric
-
 } // namespace WASICrypto
 } // namespace Host
 } // namespace WasmEdge

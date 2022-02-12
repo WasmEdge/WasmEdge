@@ -36,10 +36,11 @@ WasiCryptoExpect<void> bioWriteToSpan(BIO *Ptr, Span<uint8_t> Span) {
 
 // raw secret scalar encoded as big endian, SEC-1, compressed SEC-1, unencrypted
 // PKCS#8, PEM-encoded unencrypted PKCS#8
-template <uint32_t Pad, uint32_t Size, uint32_t Sha>
-WasiCryptoExpect<std::unique_ptr<typename Rsa<Pad, Size, Sha>::PublicKey>>
-Rsa<Pad, Size, Sha>::PublicKey::import(Span<const uint8_t> Encoded,
-                                       __wasi_publickey_encoding_e_t Encoding) {
+template <int PadMode, int KeyBits, int ShaNid>
+WasiCryptoExpect<
+    std::unique_ptr<typename Rsa<PadMode, KeyBits, ShaNid>::PublicKey>>
+Rsa<PadMode, KeyBits, ShaNid>::PublicKey::import(
+    Span<const uint8_t> Encoded, __wasi_publickey_encoding_e_t Encoding) {
   switch (Encoding) {
   case __WASI_PUBLICKEY_ENCODING_PKCS8:
     return importPkcs8(Encoded);
@@ -52,9 +53,11 @@ Rsa<Pad, Size, Sha>::PublicKey::import(Span<const uint8_t> Encoded,
   }
 }
 
-template <uint32_t Pad, uint32_t Size, uint32_t Sha>
-WasiCryptoExpect<std::unique_ptr<typename Rsa<Pad, Size, Sha>::PublicKey>>
-Rsa<Pad, Size, Sha>::PublicKey::importPkcs8(Span<const uint8_t> Encoded) {
+template <int PadMode, int KeyBits, int ShaNid>
+WasiCryptoExpect<
+    std::unique_ptr<typename Rsa<PadMode, KeyBits, ShaNid>::PublicKey>>
+Rsa<PadMode, KeyBits, ShaNid>::PublicKey::importPkcs8(
+    Span<const uint8_t> Encoded) {
   BioPtr Bio{BIO_new(BIO_s_mem())};
 
   auto WriteRes = spanWriteToBio(Bio.get(), Encoded);
@@ -70,9 +73,11 @@ Rsa<Pad, Size, Sha>::PublicKey::importPkcs8(Span<const uint8_t> Encoded) {
   return std::make_unique<PublicKey>(std::move(Ctx));
 }
 
-template <uint32_t Pad, uint32_t Size, uint32_t Sha>
-WasiCryptoExpect<std::unique_ptr<typename Rsa<Pad, Size, Sha>::PublicKey>>
-Rsa<Pad, Size, Sha>::PublicKey::importPem(Span<const uint8_t> Encoded) {
+template <int PadMode, int KeyBits, int ShaNid>
+WasiCryptoExpect<
+    std::unique_ptr<typename Rsa<PadMode, KeyBits, ShaNid>::PublicKey>>
+Rsa<PadMode, KeyBits, ShaNid>::PublicKey::importPem(
+    Span<const uint8_t> Encoded) {
   BioPtr Bio{BIO_new(BIO_s_mem())};
 
   auto WriteRes = spanWriteToBio(Bio.get(), Encoded);
@@ -88,15 +93,16 @@ Rsa<Pad, Size, Sha>::PublicKey::importPem(Span<const uint8_t> Encoded) {
   return std::make_unique<PublicKey>(std::move(Ctx));
 }
 
-template <uint32_t Pad, uint32_t Size, uint32_t Sha>
-WasiCryptoExpect<std::unique_ptr<typename Rsa<Pad, Size, Sha>::PublicKey>>
-Rsa<Pad, Size, Sha>::PublicKey::importLocal(Span<const uint8_t>) {
+template <int PadMode, int KeyBits, int ShaNid>
+WasiCryptoExpect<
+    std::unique_ptr<typename Rsa<PadMode, KeyBits, ShaNid>::PublicKey>>
+Rsa<PadMode, KeyBits, ShaNid>::PublicKey::importLocal(Span<const uint8_t>) {
   return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
 }
 
-template <uint32_t Pad, uint32_t Size, uint32_t Sha>
+template <int PadMode, int KeyBits, int ShaNid>
 WasiCryptoExpect<std::vector<uint8_t>>
-Rsa<Pad, Size, Sha>::PublicKey::exportData(
+Rsa<PadMode, KeyBits, ShaNid>::PublicKey::exportData(
     __wasi_publickey_encoding_e_t Encoding) {
   switch (Encoding) {
   case __WASI_PUBLICKEY_ENCODING_PKCS8:
@@ -110,17 +116,17 @@ Rsa<Pad, Size, Sha>::PublicKey::exportData(
   }
 }
 
-template <uint32_t Pad, uint32_t Size, uint32_t Sha>
+template <int PadMode, int KeyBits, int ShaNid>
 WasiCryptoExpect<std::vector<uint8_t>>
-Rsa<Pad, Size, Sha>::PublicKey::exportPkcs8() {
+Rsa<PadMode, KeyBits, ShaNid>::PublicKey::exportPkcs8() {
   std::vector<uint8_t> Res(static_cast<size_t>(i2d_PUBKEY(Ctx.get(), nullptr)));
   opensslAssuming(i2d_PUBKEY(Ctx.get(), addressOfTempory(Res.data())));
   return Res;
 }
 
-template <uint32_t Pad, uint32_t Size, uint32_t Sha>
+template <int PadMode, int KeyBits, int ShaNid>
 WasiCryptoExpect<std::vector<uint8_t>>
-Rsa<Pad, Size, Sha>::PublicKey::exportPem() {
+Rsa<PadMode, KeyBits, ShaNid>::PublicKey::exportPem() {
   BioPtr Bio{BIO_new(BIO_s_mem())};
   ensureOrReturn(PEM_write_bio_PUBKEY(Bio.get(), Ctx.get()),
                  __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
@@ -135,26 +141,27 @@ Rsa<Pad, Size, Sha>::PublicKey::exportPem() {
   return Pem;
 }
 
-template <uint32_t Pad, uint32_t Size, uint32_t Sha>
+template <int PadMode, int KeyBits, int ShaNid>
 WasiCryptoExpect<std::vector<uint8_t>>
-Rsa<Pad, Size, Sha>::PublicKey::exportLocal() {
+Rsa<PadMode, KeyBits, ShaNid>::PublicKey::exportLocal() {
   return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
 }
 
-template <uint32_t Pad, uint32_t Size, uint32_t Sha>
+template <int PadMode, int KeyBits, int ShaNid>
 WasiCryptoExpect<std::unique_ptr<VerificationState>>
-Rsa<Pad, Size, Sha>::PublicKey::openVerificationState() {
+Rsa<PadMode, KeyBits, ShaNid>::PublicKey::openVerificationState() {
   EvpMdCtxPtr SignCtx{EVP_MD_CTX_create()};
-  opensslAssuming(EVP_DigestVerifyInit(SignCtx.get(), nullptr, ShaMap.at(Sha),
-                                       nullptr, Ctx.get()));
+  opensslAssuming(EVP_DigestVerifyInit(
+      SignCtx.get(), nullptr, EVP_get_digestbynid(ShaNid), nullptr, Ctx.get()));
 
   return std::make_unique<VerificationState>(std::move(SignCtx));
 }
 
-template <uint32_t Pad, uint32_t Size, uint32_t Sha>
-WasiCryptoExpect<std::unique_ptr<typename Rsa<Pad, Size, Sha>::SecretKey>>
-Rsa<Pad, Size, Sha>::SecretKey::import(Span<const uint8_t> Encoded,
-                                       __wasi_secretkey_encoding_e_t Encoding) {
+template <int PadMode, int KeyBits, int ShaNid>
+WasiCryptoExpect<
+    std::unique_ptr<typename Rsa<PadMode, KeyBits, ShaNid>::SecretKey>>
+Rsa<PadMode, KeyBits, ShaNid>::SecretKey::import(
+    Span<const uint8_t> Encoded, __wasi_secretkey_encoding_e_t Encoding) {
 
   switch (Encoding) {
   case __WASI_SECRETKEY_ENCODING_PKCS8:
@@ -168,9 +175,11 @@ Rsa<Pad, Size, Sha>::SecretKey::import(Span<const uint8_t> Encoded,
   }
 }
 
-template <uint32_t Pad, uint32_t Size, uint32_t Sha>
-WasiCryptoExpect<std::unique_ptr<typename Rsa<Pad, Size, Sha>::SecretKey>>
-Rsa<Pad, Size, Sha>::SecretKey::importPem(Span<const uint8_t> Encoded) {
+template <int PadMode, int KeyBits, int ShaNid>
+WasiCryptoExpect<
+    std::unique_ptr<typename Rsa<PadMode, KeyBits, ShaNid>::SecretKey>>
+Rsa<PadMode, KeyBits, ShaNid>::SecretKey::importPem(
+    Span<const uint8_t> Encoded) {
   BioPtr Bio{BIO_new(BIO_s_mem())};
 
   auto WriteRes = spanWriteToBio(Bio.get(), Encoded);
@@ -186,9 +195,11 @@ Rsa<Pad, Size, Sha>::SecretKey::importPem(Span<const uint8_t> Encoded) {
   return std::make_unique<SecretKey>(std::move(Ctx));
 }
 
-template <uint32_t Pad, uint32_t Size, uint32_t Sha>
-WasiCryptoExpect<std::unique_ptr<typename Rsa<Pad, Size, Sha>::SecretKey>>
-Rsa<Pad, Size, Sha>::SecretKey::importPkcs8(Span<const uint8_t> Encoded) {
+template <int PadMode, int KeyBits, int ShaNid>
+WasiCryptoExpect<
+    std::unique_ptr<typename Rsa<PadMode, KeyBits, ShaNid>::SecretKey>>
+Rsa<PadMode, KeyBits, ShaNid>::SecretKey::importPkcs8(
+    Span<const uint8_t> Encoded) {
   BioPtr Bio{BIO_new(BIO_s_mem())};
 
   auto WriteRes = spanWriteToBio(Bio.get(), Encoded);
@@ -204,15 +215,16 @@ Rsa<Pad, Size, Sha>::SecretKey::importPkcs8(Span<const uint8_t> Encoded) {
   return std::make_unique<SecretKey>(std::move(Ctx));
 }
 
-template <uint32_t Pad, uint32_t Size, uint32_t Sha>
-WasiCryptoExpect<std::unique_ptr<typename Rsa<Pad, Size, Sha>::SecretKey>>
-Rsa<Pad, Size, Sha>::SecretKey::importLocal(Span<const uint8_t>) {
+template <int PadMode, int KeyBits, int ShaNid>
+WasiCryptoExpect<
+    std::unique_ptr<typename Rsa<PadMode, KeyBits, ShaNid>::SecretKey>>
+Rsa<PadMode, KeyBits, ShaNid>::SecretKey::importLocal(Span<const uint8_t>) {
   return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
 }
 
-template <uint32_t Pad, uint32_t Size, uint32_t Sha>
+template <int PadMode, int KeyBits, int ShaNid>
 WasiCryptoExpect<std::vector<uint8_t>>
-Rsa<Pad, Size, Sha>::SecretKey::exportData(
+Rsa<PadMode, KeyBits, ShaNid>::SecretKey::exportData(
     __wasi_secretkey_encoding_e_t Encoding) {
   switch (Encoding) {
   case __WASI_SECRETKEY_ENCODING_PKCS8:
@@ -226,9 +238,9 @@ Rsa<Pad, Size, Sha>::SecretKey::exportData(
   }
 }
 
-template <uint32_t Pad, uint32_t Size, uint32_t Sha>
+template <int PadMode, int KeyBits, int ShaNid>
 WasiCryptoExpect<std::vector<uint8_t>>
-Rsa<Pad, Size, Sha>::SecretKey::exportPem() {
+Rsa<PadMode, KeyBits, ShaNid>::SecretKey::exportPem() {
   BioPtr Bio{BIO_new(BIO_s_mem())};
   ensureOrReturn(PEM_write_bio_PrivateKey(Bio.get(), Ctx.get(), nullptr,
                                           nullptr, 0, nullptr, nullptr),
@@ -244,28 +256,29 @@ Rsa<Pad, Size, Sha>::SecretKey::exportPem() {
   return Pem;
 }
 
-template <uint32_t Pad, uint32_t Size, uint32_t Sha>
+template <int PadMode, int KeyBits, int ShaNid>
 WasiCryptoExpect<std::vector<uint8_t>>
-Rsa<Pad, Size, Sha>::SecretKey::exportPkcs8() {
+Rsa<PadMode, KeyBits, ShaNid>::SecretKey::exportPkcs8() {
   std::vector<uint8_t> Res(
       static_cast<size_t>(i2d_PrivateKey(Ctx.get(), nullptr)));
   opensslAssuming(i2d_PrivateKey(Ctx.get(), addressOfTempory(Res.data())));
   return Res;
 }
 
-template <uint32_t Pad, uint32_t Size, uint32_t Sha>
+template <int PadMode, int KeyBits, int ShaNid>
 WasiCryptoExpect<std::vector<uint8_t>>
-Rsa<Pad, Size, Sha>::SecretKey::exportLocal() {
+Rsa<PadMode, KeyBits, ShaNid>::SecretKey::exportLocal() {
   std::vector<uint8_t> Res(
       static_cast<size_t>(i2d_PrivateKey(Ctx.get(), nullptr)));
   opensslAssuming(i2d_PrivateKey(Ctx.get(), addressOfTempory(Res.data())));
   return Res;
 }
 
-template <uint32_t Pad, uint32_t Size, uint32_t Sha>
-WasiCryptoExpect<std::unique_ptr<typename Rsa<Pad, Size, Sha>::KeyPair>>
-Rsa<Pad, Size, Sha>::KeyPair::import(Span<const uint8_t> Encoded,
-                                     __wasi_keypair_encoding_e_t Encoding) {
+template <int PadMode, int KeyBits, int ShaNid>
+WasiCryptoExpect<
+    std::unique_ptr<typename Rsa<PadMode, KeyBits, ShaNid>::KeyPair>>
+Rsa<PadMode, KeyBits, ShaNid>::KeyPair::import(
+    Span<const uint8_t> Encoded, __wasi_keypair_encoding_e_t Encoding) {
 
   switch (Encoding) {
   case __WASI_KEYPAIR_ENCODING_PKCS8:
@@ -279,9 +292,10 @@ Rsa<Pad, Size, Sha>::KeyPair::import(Span<const uint8_t> Encoded,
   }
 }
 
-template <uint32_t Pad, uint32_t Size, uint32_t Sha>
-WasiCryptoExpect<std::unique_ptr<typename Rsa<Pad, Size, Sha>::KeyPair>>
-Rsa<Pad, Size, Sha>::KeyPair::importPem(Span<const uint8_t> Encoded) {
+template <int PadMode, int KeyBits, int ShaNid>
+WasiCryptoExpect<
+    std::unique_ptr<typename Rsa<PadMode, KeyBits, ShaNid>::KeyPair>>
+Rsa<PadMode, KeyBits, ShaNid>::KeyPair::importPem(Span<const uint8_t> Encoded) {
   BioPtr Bio{BIO_new(BIO_s_mem())};
 
   auto WriteRes = spanWriteToBio(Bio.get(), Encoded);
@@ -297,9 +311,11 @@ Rsa<Pad, Size, Sha>::KeyPair::importPem(Span<const uint8_t> Encoded) {
   return std::make_unique<KeyPair>(std::move(Ctx));
 }
 
-template <uint32_t Pad, uint32_t Size, uint32_t Sha>
-WasiCryptoExpect<std::unique_ptr<typename Rsa<Pad, Size, Sha>::KeyPair>>
-Rsa<Pad, Size, Sha>::KeyPair::importPkcs8(Span<const uint8_t> Encoded) {
+template <int PadMode, int KeyBits, int ShaNid>
+WasiCryptoExpect<
+    std::unique_ptr<typename Rsa<PadMode, KeyBits, ShaNid>::KeyPair>>
+Rsa<PadMode, KeyBits, ShaNid>::KeyPair::importPkcs8(
+    Span<const uint8_t> Encoded) {
   BioPtr Bio{BIO_new(BIO_s_mem())};
 
   auto WriteRes = spanWriteToBio(Bio.get(), Encoded);
@@ -315,45 +331,44 @@ Rsa<Pad, Size, Sha>::KeyPair::importPkcs8(Span<const uint8_t> Encoded) {
   return std::make_unique<KeyPair>(std::move(Ctx));
 }
 
-template <uint32_t Pad, uint32_t Size, uint32_t Sha>
-WasiCryptoExpect<std::unique_ptr<typename Rsa<Pad, Size, Sha>::KeyPair>>
-Rsa<Pad, Size, Sha>::KeyPair::importLocal(Span<const uint8_t>) {
+template <int PadMode, int KeyBits, int ShaNid>
+WasiCryptoExpect<
+    std::unique_ptr<typename Rsa<PadMode, KeyBits, ShaNid>::KeyPair>>
+Rsa<PadMode, KeyBits, ShaNid>::KeyPair::importLocal(Span<const uint8_t>) {
   return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
 }
 
-template <uint32_t Pad, uint32_t Size, uint32_t Sha>
+template <int PadMode, int KeyBits, int ShaNid>
 WasiCryptoExpect<std::unique_ptr<Signatures::SignState>>
-Rsa<Pad, Size, Sha>::KeyPair::openSignState() {
+Rsa<PadMode, KeyBits, ShaNid>::KeyPair::openSignState() {
   EvpMdCtxPtr SignCtx{EVP_MD_CTX_create()};
 
-  opensslAssuming(EVP_DigestSignInit(SignCtx.get(), nullptr, ShaMap.at(Sha),
-                                     nullptr, Ctx.get()));
+  opensslAssuming(EVP_DigestSignInit(
+      SignCtx.get(), nullptr, EVP_get_digestbynid(ShaNid), nullptr, Ctx.get()));
 
   return std::make_unique<SignState>(std::move(SignCtx));
 }
 
-template <uint32_t Pad, uint32_t Size, uint32_t Sha>
-WasiCryptoExpect<std::unique_ptr<typename Rsa<Pad, Size, Sha>::KeyPair>>
-Rsa<Pad, Size, Sha>::KeyPair::generate(std::shared_ptr<Options>) {
-
+template <int PadMode, int KeyBits, int ShaNid>
+WasiCryptoExpect<
+    std::unique_ptr<typename Rsa<PadMode, KeyBits, ShaNid>::KeyPair>>
+Rsa<PadMode, KeyBits, ShaNid>::KeyPair::generate(std::shared_ptr<Options>) {
   // notice: there cann't reuse initRsa(), careful
   EvpPkeyCtxPtr Ctx{EVP_PKEY_CTX_new_id(EVP_PKEY_RSA, nullptr)};
   EVP_PKEY_keygen_init(Ctx.get());
-  EVP_PKEY_CTX_set_rsa_padding(Ctx.get(), Pad);
-  EVP_PKEY_CTX_set_rsa_keygen_bits(Ctx.get(), Size);
-  // ugly pass error
-  EVP_PKEY_CTX_set_signature_md(
-      Ctx.get(), static_cast<void *>(const_cast<EVP_MD *>(ShaMap.at(Sha))));
+  EVP_PKEY_CTX_set_rsa_padding(Ctx.get(), PadMode);
+  EVP_PKEY_CTX_set_rsa_keygen_bits(Ctx.get(), KeyBits);
+  EVP_PKEY_CTX_set_signature_md(Ctx.get(), getShaCtx());
 
   EVP_PKEY *Res = nullptr;
   EVP_PKEY_keygen(Ctx.get(), &Res);
-
   return std::make_unique<KeyPair>(EvpPkeyPtr{Res});
 }
 
-template <uint32_t Pad, uint32_t Size, uint32_t Sha>
+template <int PadMode, int KeyBits, int ShaNid>
 WasiCryptoExpect<std::vector<uint8_t>>
-Rsa<Pad, Size, Sha>::KeyPair::exportData(__wasi_keypair_encoding_e_t Encoding) {
+Rsa<PadMode, KeyBits, ShaNid>::KeyPair::exportData(
+    __wasi_keypair_encoding_e_t Encoding) {
   switch (Encoding) {
   case __WASI_KEYPAIR_ENCODING_PKCS8:
     return exportPkcs8();
@@ -366,9 +381,9 @@ Rsa<Pad, Size, Sha>::KeyPair::exportData(__wasi_keypair_encoding_e_t Encoding) {
   }
 }
 
-template <uint32_t Pad, uint32_t Size, uint32_t Sha>
+template <int PadMode, int KeyBits, int ShaNid>
 WasiCryptoExpect<std::vector<uint8_t>>
-Rsa<Pad, Size, Sha>::KeyPair::exportPem() {
+Rsa<PadMode, KeyBits, ShaNid>::KeyPair::exportPem() {
   BioPtr Bio{BIO_new(BIO_s_mem())};
   ensureOrReturn(PEM_write_bio_PrivateKey(Bio.get(), Ctx.get(), nullptr,
                                           nullptr, 0, nullptr, nullptr),
@@ -385,24 +400,24 @@ Rsa<Pad, Size, Sha>::KeyPair::exportPem() {
   return Pem;
 }
 
-template <uint32_t Pad, uint32_t Size, uint32_t Sha>
+template <int PadMode, int KeyBits, int ShaNid>
 WasiCryptoExpect<std::vector<uint8_t>>
-Rsa<Pad, Size, Sha>::KeyPair::exportPkcs8() {
+Rsa<PadMode, KeyBits, ShaNid>::KeyPair::exportPkcs8() {
   std::vector<uint8_t> Res(
       static_cast<size_t>(i2d_PrivateKey(Ctx.get(), nullptr)));
   opensslAssuming(i2d_PrivateKey(Ctx.get(), addressOfTempory(Res.data())));
   return Res;
 }
 
-template <uint32_t Pad, uint32_t Size, uint32_t Sha>
+template <int PadMode, int KeyBits, int ShaNid>
 WasiCryptoExpect<std::vector<uint8_t>>
-Rsa<Pad, Size, Sha>::KeyPair::exportLocal() {
+Rsa<PadMode, KeyBits, ShaNid>::KeyPair::exportLocal() {
   return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
 }
 
-template <uint32_t Pad, uint32_t Size, uint32_t Sha>
+template <int PadMode, int KeyBits, int ShaNid>
 WasiCryptoExpect<std::unique_ptr<Signatures::PublicKey>>
-Rsa<Pad, Size, Sha>::KeyPair::publicKey() {
+Rsa<PadMode, KeyBits, ShaNid>::KeyPair::publicKey() {
   BioPtr B{BIO_new(BIO_s_mem())};
   opensslAssuming(i2d_PUBKEY_bio(B.get(), Ctx.get()));
 
@@ -413,9 +428,9 @@ Rsa<Pad, Size, Sha>::KeyPair::publicKey() {
   return std::make_unique<PublicKey>(EvpPkeyPtr{Res});
 }
 
-template <uint32_t Pad, uint32_t Size, uint32_t Sha>
+template <int PadMode, int KeyBits, int ShaNid>
 WasiCryptoExpect<std::unique_ptr<Signatures::SecretKey>>
-Rsa<Pad, Size, Sha>::KeyPair::secretKey() {
+Rsa<PadMode, KeyBits, ShaNid>::KeyPair::secretKey() {
   BioPtr B{BIO_new(BIO_s_mem())};
   opensslAssuming(i2d_PrivateKey_bio(B.get(), Ctx.get()));
 
@@ -425,13 +440,14 @@ Rsa<Pad, Size, Sha>::KeyPair::secretKey() {
   return std::make_unique<SecretKey>(EvpPkeyPtr{Res});
 }
 
-template <uint32_t Pad, uint32_t Size, uint32_t Sha>
-WasiCryptoExpect<std::unique_ptr<typename Rsa<Pad, Size, Sha>::Signature>>
-Rsa<Pad, Size, Sha>::Signature::import(Span<const uint8_t> Encoded,
-                                       __wasi_signature_encoding_e_t Encoding) {
+template <int PadMode, int KeyBits, int ShaNid>
+WasiCryptoExpect<
+    std::unique_ptr<typename Rsa<PadMode, KeyBits, ShaNid>::Signature>>
+Rsa<PadMode, KeyBits, ShaNid>::Signature::import(
+    Span<const uint8_t> Encoded, __wasi_signature_encoding_e_t Encoding) {
   switch (Encoding) {
   case __WASI_SIGNATURE_ENCODING_RAW:
-    ensureOrReturn(Encoded.size() == Size / 8,
+    ensureOrReturn(Encoded.size() == getKeySize(),
                    __WASI_CRYPTO_ERRNO_INVALID_SIGNATURE);
     return std::make_unique<Signature>(
         std::vector<uint8_t>{Encoded.begin(), Encoded.end()});
@@ -442,9 +458,9 @@ Rsa<Pad, Size, Sha>::Signature::import(Span<const uint8_t> Encoded,
   }
 }
 
-template <uint32_t Pad, uint32_t Size, uint32_t Sha>
+template <int PadMode, int KeyBits, int ShaNid>
 WasiCryptoExpect<std::vector<uint8_t>>
-Rsa<Pad, Size, Sha>::Signature::exportData(
+Rsa<PadMode, KeyBits, ShaNid>::Signature::exportData(
     __wasi_signature_encoding_e_t Encoding) {
   switch (Encoding) {
   case __WASI_SIGNATURE_ENCODING_RAW:
@@ -456,16 +472,16 @@ Rsa<Pad, Size, Sha>::Signature::exportData(
   }
 }
 
-template <uint32_t Pad, uint32_t Size, uint32_t Sha>
+template <int PadMode, int KeyBits, int ShaNid>
 WasiCryptoExpect<void>
-Rsa<Pad, Size, Sha>::SignState::update(Span<const uint8_t> Data) {
+Rsa<PadMode, KeyBits, ShaNid>::SignState::update(Span<const uint8_t> Data) {
   opensslAssuming(EVP_DigestSignUpdate(Ctx.get(), Data.data(), Data.size()));
   return {};
 }
 
-template <uint32_t Pad, uint32_t Size, uint32_t Sha>
+template <int PadMode, int KeyBits, int ShaNid>
 WasiCryptoExpect<std::unique_ptr<Signatures::Signature>>
-Rsa<Pad, Size, Sha>::SignState::sign() {
+Rsa<PadMode, KeyBits, ShaNid>::SignState::sign() {
   size_t Siz;
   opensslAssuming(EVP_DigestSignFinal(Ctx.get(), nullptr, &Siz));
 
@@ -476,18 +492,17 @@ Rsa<Pad, Size, Sha>::SignState::sign() {
   return std::make_unique<Signature>(std::move(Res));
 }
 
-template <uint32_t Pad, uint32_t Size, uint32_t Sha>
-WasiCryptoExpect<void>
-Rsa<Pad, Size, Sha>::VerificationState::update(Span<const uint8_t> Data) {
+template <int PadMode, int KeyBits, int ShaNid>
+WasiCryptoExpect<void> Rsa<PadMode, KeyBits, ShaNid>::VerificationState::update(
+    Span<const uint8_t> Data) {
   opensslAssuming(EVP_DigestVerifyUpdate(Ctx.get(), Data.data(), Data.size()));
   return {};
 }
 
-template <uint32_t Pad, uint32_t Size, uint32_t Sha>
-WasiCryptoExpect<void> Rsa<Pad, Size, Sha>::VerificationState::verify(
+template <int PadMode, int KeyBits, int ShaNid>
+WasiCryptoExpect<void> Rsa<PadMode, KeyBits, ShaNid>::VerificationState::verify(
     std::shared_ptr<Signatures::Signature> Sig) {
   ensureOrReturn(Sig->alg() == getAlg(), __WASI_CRYPTO_ERRNO_INVALID_SIGNATURE);
-
   ensureOrReturn(
       EVP_DigestVerifyFinal(Ctx.get(), Sig->data().data(), Sig->data().size()),
       __WASI_CRYPTO_ERRNO_VERIFICATION_FAILED);
@@ -495,38 +510,35 @@ WasiCryptoExpect<void> Rsa<Pad, Size, Sha>::VerificationState::verify(
   return {};
 }
 
-template <uint32_t Pad, uint32_t Size, uint32_t Sha>
-EvpPkeyPtr Rsa<Pad, Size, Sha>::initRsa() {
+template <int PadMode, int KeyBits, int ShaNid>
+EvpPkeyPtr Rsa<PadMode, KeyBits, ShaNid>::initRsa() {
   EvpPkeyCtxPtr PCtx{EVP_PKEY_CTX_new_id(EVP_PKEY_RSA, nullptr)};
-  EVP_PKEY_CTX_set_rsa_padding(PCtx.get(), Pad);
-  EVP_PKEY_CTX_set_rsa_keygen_bits(PCtx.get(), Size);
-  // ugly pass error
-  EVP_PKEY_CTX_set_signature_md(
-      PCtx.get(), static_cast<void *>(const_cast<EVP_MD *>(ShaMap.at(Sha))));
+  EVP_PKEY_CTX_set_rsa_padding(PCtx.get(), PadMode);
+  EVP_PKEY_CTX_set_rsa_keygen_bits(PCtx.get(), KeyBits);
+  EVP_PKEY_CTX_set_signature_md(PCtx.get(), getShaCtx());
 
   EVP_PKEY *Res = nullptr;
   EVP_PKEY_paramgen(PCtx.get(), &Res);
-
   return EvpPkeyPtr{Res};
 }
 
-template class Rsa<RSA_PKCS1_PADDING, 2048, 256>;
-template class Rsa<RSA_PKCS1_PADDING, 2048, 384>;
-template class Rsa<RSA_PKCS1_PADDING, 2048, 512>;
+template class Rsa<RSA_PKCS1_PADDING, 2048, NID_sha256>;
+template class Rsa<RSA_PKCS1_PADDING, 2048, NID_sha384>;
+template class Rsa<RSA_PKCS1_PADDING, 2048, NID_sha512>;
 
-template class Rsa<RSA_PKCS1_PADDING, 3072, 384>;
-template class Rsa<RSA_PKCS1_PADDING, 3072, 512>;
+template class Rsa<RSA_PKCS1_PADDING, 3072, NID_sha384>;
+template class Rsa<RSA_PKCS1_PADDING, 3072, NID_sha512>;
 
-template class Rsa<RSA_PKCS1_PADDING, 4096, 512>;
+template class Rsa<RSA_PKCS1_PADDING, 4096, NID_sha512>;
 
-template class Rsa<RSA_PKCS1_PSS_PADDING, 2048, 256>;
-template class Rsa<RSA_PKCS1_PSS_PADDING, 2048, 384>;
-template class Rsa<RSA_PKCS1_PSS_PADDING, 2048, 512>;
+template class Rsa<RSA_PKCS1_PSS_PADDING, 2048, NID_sha256>;
+template class Rsa<RSA_PKCS1_PSS_PADDING, 2048, NID_sha384>;
+template class Rsa<RSA_PKCS1_PSS_PADDING, 2048, NID_sha512>;
 
-template class Rsa<RSA_PKCS1_PSS_PADDING, 3072, 384>;
-template class Rsa<RSA_PKCS1_PSS_PADDING, 3072, 512>;
+template class Rsa<RSA_PKCS1_PSS_PADDING, 3072, NID_sha384>;
+template class Rsa<RSA_PKCS1_PSS_PADDING, 3072, NID_sha512>;
 
-template class Rsa<RSA_PKCS1_PSS_PADDING, 4096, 512>;
+template class Rsa<RSA_PKCS1_PSS_PADDING, 4096, NID_sha512>;
 
 } // namespace Signatures
 } // namespace WASICrypto

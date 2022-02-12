@@ -17,7 +17,7 @@ namespace Host {
 namespace WASICrypto {
 namespace Signatures {
 
-template <uint32_t Nid> class Ecdsa {
+template <uint32_t CurveNid> class Ecdsa {
 public:
   class PublicKey final : public Signatures::PublicKey {
   public:
@@ -159,9 +159,9 @@ public:
 
 private:
   static constexpr SignatureAlgorithm getAlg() {
-    if constexpr (Nid == NID_X9_62_prime256v1)
+    if constexpr (CurveNid == NID_X9_62_prime256v1)
       return SignatureAlgorithm::ECDSA_P256_SHA256;
-    else if constexpr (Nid == NID_secp256k1)
+    else if constexpr (CurveNid == NID_secp256k1)
       return SignatureAlgorithm::ECDSA_K256_SHA256;
     else
       assumingUnreachable();

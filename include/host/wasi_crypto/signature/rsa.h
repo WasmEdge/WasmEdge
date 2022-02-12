@@ -12,73 +12,14 @@
 
 #include "host/wasi_crypto/evpwrapper.h"
 #include "openssl/rsa.h"
+#include <openssl/evp.h>
 
 namespace WasmEdge {
 namespace Host {
 namespace WASICrypto {
 namespace Signatures {
 
-template <uint32_t Pad, uint32_t Size, uint32_t Sha> class Rsa {
-  static constexpr SignatureAlgorithm getAlg() {
-    if constexpr (Pad == RSA_PKCS1_PADDING) {
-      if constexpr (Size == 2048) {
-        if constexpr (Sha == 256) {
-          return SignatureAlgorithm::RSA_PKCS1_2048_SHA256;
-        }
-        if constexpr (Sha == 384) {
-          return SignatureAlgorithm::RSA_PKCS1_2048_SHA384;
-        }
-        if constexpr (Sha == 512) {
-          return SignatureAlgorithm::RSA_PKCS1_2048_SHA512;
-        }
-      }
-
-      if constexpr (Size == 3072) {
-        if constexpr (Sha == 384) {
-          return SignatureAlgorithm::RSA_PKCS1_3072_SHA384;
-        }
-        if constexpr (Sha == 512) {
-          return SignatureAlgorithm::RSA_PKCS1_3072_SHA512;
-        }
-      }
-
-      if constexpr (Size == 4096) {
-        if constexpr (Sha == 512) {
-          return SignatureAlgorithm::RSA_PKCS1_4096_SHA512;
-        }
-      }
-    }
-
-    if constexpr (Pad == RSA_PKCS1_PSS_PADDING) {
-      if constexpr (Size == 2048) {
-        if constexpr (Sha == 256) {
-          return SignatureAlgorithm::RSA_PSS_2048_SHA256;
-        }
-        if constexpr (Sha == 384) {
-          return SignatureAlgorithm::RSA_PSS_2048_SHA384;
-        }
-        if constexpr (Sha == 512) {
-          return SignatureAlgorithm::RSA_PSS_2048_SHA512;
-        }
-      }
-
-      if constexpr (Size == 3072) {
-        if constexpr (Sha == 384) {
-          return SignatureAlgorithm::RSA_PSS_3072_SHA384;
-        }
-        if constexpr (Sha == 512) {
-          return SignatureAlgorithm::RSA_PSS_3072_SHA512;
-        }
-      }
-
-      if constexpr (Size == 4096) {
-        if constexpr (Sha == 512) {
-          return SignatureAlgorithm::RSA_PSS_4096_SHA512;
-        }
-      }
-    }
-  }
-
+template <int PadMode, int KeyBits, int ShaNid> class Rsa {
 public:
   class PublicKey final : public Signatures::PublicKey {
   public:
@@ -219,26 +160,94 @@ public:
     EvpMdCtxPtr Ctx;
   };
 
+private:
   static EvpPkeyPtr initRsa();
+
+  static constexpr size_t getKeySize() { return KeyBits / 8; }
+
+  static constexpr SignatureAlgorithm getAlg() {
+    if constexpr (PadMode == RSA_PKCS1_PADDING) {
+      if constexpr (KeyBits == 2048) {
+        if constexpr (ShaNid == NID_sha256) {
+          return SignatureAlgorithm::RSA_PKCS1_2048_SHA256;
+        }
+        if constexpr (ShaNid == NID_sha384) {
+          return SignatureAlgorithm::RSA_PKCS1_2048_SHA384;
+        }
+        if constexpr (ShaNid == NID_sha512) {
+          return SignatureAlgorithm::RSA_PKCS1_2048_SHA512;
+        }
+      }
+
+      if constexpr (KeyBits == 3072) {
+        if constexpr (ShaNid == NID_sha384) {
+          return SignatureAlgorithm::RSA_PKCS1_3072_SHA384;
+        }
+        if constexpr (ShaNid == NID_sha512) {
+          return SignatureAlgorithm::RSA_PKCS1_3072_SHA512;
+        }
+      }
+
+      if constexpr (KeyBits == 4096) {
+        if constexpr (ShaNid == NID_sha512) {
+          return SignatureAlgorithm::RSA_PKCS1_4096_SHA512;
+        }
+      }
+    }
+
+    if constexpr (PadMode == RSA_PKCS1_PSS_PADDING) {
+      if constexpr (KeyBits == 2048) {
+        if constexpr (ShaNid == NID_sha256) {
+          return SignatureAlgorithm::RSA_PSS_2048_SHA256;
+        }
+        if constexpr (ShaNid == NID_sha384) {
+          return SignatureAlgorithm::RSA_PSS_2048_SHA384;
+        }
+        if constexpr (ShaNid == NID_sha512) {
+          return SignatureAlgorithm::RSA_PSS_2048_SHA512;
+        }
+      }
+
+      if constexpr (KeyBits == 3072) {
+        if constexpr (ShaNid == NID_sha384) {
+          return SignatureAlgorithm::RSA_PSS_3072_SHA384;
+        }
+        if constexpr (ShaNid == NID_sha512) {
+          return SignatureAlgorithm::RSA_PSS_3072_SHA512;
+        }
+      }
+
+      if constexpr (KeyBits == 4096) {
+        if constexpr (ShaNid == NID_sha512) {
+          return SignatureAlgorithm::RSA_PSS_4096_SHA512;
+        }
+      }
+    }
+  }
+
+  static void *getShaCtx() {
+    return static_cast<void *>(
+        const_cast<EVP_MD *>(EVP_get_digestbynid(ShaNid)));
+  }
 };
 
-using RsaPkcs12048SHA256 = Rsa<RSA_PKCS1_PADDING, 2048, 256>;
-using RsaPkcs12048SHA384 = Rsa<RSA_PKCS1_PADDING, 2048, 384>;
-using RsaPkcs12048SHA512 = Rsa<RSA_PKCS1_PADDING, 2048, 512>;
+using RsaPkcs12048SHA256 = Rsa<RSA_PKCS1_PADDING, 2048, NID_sha256>;
+using RsaPkcs12048SHA384 = Rsa<RSA_PKCS1_PADDING, 2048, NID_sha384>;
+using RsaPkcs12048SHA512 = Rsa<RSA_PKCS1_PADDING, 2048, NID_sha512>;
 
-using RsaPkcs13072SHA384 = Rsa<RSA_PKCS1_PADDING, 3072, 384>;
-using RsaPkcs13072SHA512 = Rsa<RSA_PKCS1_PADDING, 3072, 512>;
+using RsaPkcs13072SHA384 = Rsa<RSA_PKCS1_PADDING, 3072, NID_sha384>;
+using RsaPkcs13072SHA512 = Rsa<RSA_PKCS1_PADDING, 3072, NID_sha512>;
 
-using RsaPkcs14096SHA512 = Rsa<RSA_PKCS1_PADDING, 4096, 512>;
+using RsaPkcs14096SHA512 = Rsa<RSA_PKCS1_PADDING, 4096, NID_sha512>;
 
-using RsaPss2048SHA256 = Rsa<RSA_PKCS1_PSS_PADDING, 2048, 256>;
-using RsaPss2048SHA384 = Rsa<RSA_PKCS1_PSS_PADDING, 2048, 384>;
-using RsaPss2048SHA512 = Rsa<RSA_PKCS1_PSS_PADDING, 2048, 512>;
+using RsaPss2048SHA256 = Rsa<RSA_PKCS1_PSS_PADDING, 2048, NID_sha256>;
+using RsaPss2048SHA384 = Rsa<RSA_PKCS1_PSS_PADDING, 2048, NID_sha384>;
+using RsaPss2048SHA512 = Rsa<RSA_PKCS1_PSS_PADDING, 2048, NID_sha512>;
 
-using RsaPss3072SHA384 = Rsa<RSA_PKCS1_PSS_PADDING, 3072, 384>;
-using RsaPss3072SHA512 = Rsa<RSA_PKCS1_PSS_PADDING, 3072, 512>;
+using RsaPss3072SHA384 = Rsa<RSA_PKCS1_PSS_PADDING, 3072, NID_sha384>;
+using RsaPss3072SHA512 = Rsa<RSA_PKCS1_PSS_PADDING, 3072, NID_sha512>;
 
-using RsaPss4096SHA512 = Rsa<RSA_PKCS1_PSS_PADDING, 4096, 512>;
+using RsaPss4096SHA512 = Rsa<RSA_PKCS1_PSS_PADDING, 4096, NID_sha512>;
 
 } // namespace Signatures
 } // namespace WASICrypto

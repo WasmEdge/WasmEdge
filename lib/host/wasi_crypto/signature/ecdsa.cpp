@@ -33,10 +33,10 @@ WasiCryptoExpect<void> bioWriteToSpan(BIO *Ptr, Span<uint8_t> Span) {
 } // namespace
 // raw secret scalar encoded as big endian, SEC-1, compressed SEC-1, unencrypted
 // PKCS#8, PEM-encoded unencrypted PKCS#8
-template <uint32_t Nid>
-WasiCryptoExpect<std::unique_ptr<typename Ecdsa<Nid>::PublicKey>>
-Ecdsa<Nid>::PublicKey::import(Span<const uint8_t> Encoded,
-                              __wasi_publickey_encoding_e_t Encoding) {
+template <uint32_t CurveNid>
+WasiCryptoExpect<std::unique_ptr<typename Ecdsa<CurveNid>::PublicKey>>
+Ecdsa<CurveNid>::PublicKey::import(Span<const uint8_t> Encoded,
+                                   __wasi_publickey_encoding_e_t Encoding) {
   switch (Encoding) {
   case __WASI_PUBLICKEY_ENCODING_PKCS8:
     return importPkcs8(Encoded);
@@ -50,9 +50,9 @@ Ecdsa<Nid>::PublicKey::import(Span<const uint8_t> Encoded,
   }
 }
 
-template <uint32_t Nid>
+template <uint32_t CurveNid>
 WasiCryptoExpect<std::vector<uint8_t>>
-Ecdsa<Nid>::PublicKey::exportData(__wasi_publickey_encoding_e_t Encoding) {
+Ecdsa<CurveNid>::PublicKey::exportData(__wasi_publickey_encoding_e_t Encoding) {
   switch (Encoding) {
   case __WASI_PUBLICKEY_ENCODING_SEC:
     return exportSec();
@@ -63,18 +63,18 @@ Ecdsa<Nid>::PublicKey::exportData(__wasi_publickey_encoding_e_t Encoding) {
   }
 }
 
-template <uint32_t Nid>
+template <uint32_t CurveNid>
 WasiCryptoExpect<std::unique_ptr<Signatures::VerificationState>>
-Ecdsa<Nid>::PublicKey::openVerificationState() {
+Ecdsa<CurveNid>::PublicKey::openVerificationState() {
   EvpMdCtxPtr SignCtx{EVP_MD_CTX_create()};
   opensslAssuming(EVP_DigestVerifyInit(SignCtx.get(), nullptr, EVP_sha256(),
                                        nullptr, Ctx.get()));
   return std::make_unique<VerificationState>(std::move(SignCtx));
 }
 
-template <uint32_t Nid>
-WasiCryptoExpect<std::unique_ptr<typename Ecdsa<Nid>::PublicKey>>
-Ecdsa<Nid>::PublicKey::importPkcs8(Span<const uint8_t> Encoded) {
+template <uint32_t CurveNid>
+WasiCryptoExpect<std::unique_ptr<typename Ecdsa<CurveNid>::PublicKey>>
+Ecdsa<CurveNid>::PublicKey::importPkcs8(Span<const uint8_t> Encoded) {
   BioPtr Bio{BIO_new(BIO_s_mem())};
 
   auto WriteRes = spanWriteToBio(Bio.get(), Encoded);
@@ -88,9 +88,9 @@ Ecdsa<Nid>::PublicKey::importPkcs8(Span<const uint8_t> Encoded) {
   return std::make_unique<PublicKey>(std::move(Ctx));
 }
 
-template <uint32_t Nid>
-WasiCryptoExpect<std::unique_ptr<typename Ecdsa<Nid>::PublicKey>>
-Ecdsa<Nid>::PublicKey::importPem(Span<const uint8_t> Encoded) {
+template <uint32_t CurveNid>
+WasiCryptoExpect<std::unique_ptr<typename Ecdsa<CurveNid>::PublicKey>>
+Ecdsa<CurveNid>::PublicKey::importPem(Span<const uint8_t> Encoded) {
   BioPtr Bio{BIO_new(BIO_s_mem())};
 
   auto WriteRes = spanWriteToBio(Bio.get(), Encoded);
@@ -104,9 +104,9 @@ Ecdsa<Nid>::PublicKey::importPem(Span<const uint8_t> Encoded) {
   return std::make_unique<PublicKey>(std::move(Ctx));
 }
 
-template <uint32_t Nid>
-WasiCryptoExpect<std::unique_ptr<typename Ecdsa<Nid>::PublicKey>>
-Ecdsa<Nid>::PublicKey::importRaw(Span<const uint8_t> Encoded) {
+template <uint32_t CurveNid>
+WasiCryptoExpect<std::unique_ptr<typename Ecdsa<CurveNid>::PublicKey>>
+Ecdsa<CurveNid>::PublicKey::importRaw(Span<const uint8_t> Encoded) {
   BioPtr Bio{BIO_new(BIO_s_mem())};
 
   auto WriteRes = spanWriteToBio(Bio.get(), Encoded);
@@ -120,8 +120,8 @@ Ecdsa<Nid>::PublicKey::importRaw(Span<const uint8_t> Encoded) {
   return std::make_unique<PublicKey>(std::move(Ctx));
 }
 
-template <uint32_t Nid>
-WasiCryptoExpect<std::vector<uint8_t>> Ecdsa<Nid>::PublicKey::exportSec() {
+template <uint32_t CurveNid>
+WasiCryptoExpect<std::vector<uint8_t>> Ecdsa<CurveNid>::PublicKey::exportSec() {
   EC_KEY_set_conv_form(EVP_PKEY_get0_EC_KEY(Ctx.get()),
                        POINT_CONVERSION_UNCOMPRESSED);
   std::vector<uint8_t> Res(static_cast<size_t>(i2d_PUBKEY(Ctx.get(), nullptr)));
@@ -129,9 +129,9 @@ WasiCryptoExpect<std::vector<uint8_t>> Ecdsa<Nid>::PublicKey::exportSec() {
   return Res;
 }
 
-template <uint32_t Nid>
+template <uint32_t CurveNid>
 WasiCryptoExpect<std::vector<uint8_t>>
-Ecdsa<Nid>::PublicKey::exportCompressedSec() {
+Ecdsa<CurveNid>::PublicKey::exportCompressedSec() {
   EC_KEY_set_conv_form(EVP_PKEY_get0_EC_KEY(Ctx.get()),
                        POINT_CONVERSION_COMPRESSED);
   std::vector<uint8_t> Res(static_cast<size_t>(i2d_PUBKEY(Ctx.get(), nullptr)));
@@ -139,10 +139,10 @@ Ecdsa<Nid>::PublicKey::exportCompressedSec() {
   return Res;
 }
 
-template <uint32_t Nid>
-WasiCryptoExpect<std::unique_ptr<typename Ecdsa<Nid>::SecretKey>>
-Ecdsa<Nid>::SecretKey::import(Span<const uint8_t> Encoded,
-                              __wasi_secretkey_encoding_e_t Encoding) {
+template <uint32_t CurveNid>
+WasiCryptoExpect<std::unique_ptr<typename Ecdsa<CurveNid>::SecretKey>>
+Ecdsa<CurveNid>::SecretKey::import(Span<const uint8_t> Encoded,
+                                   __wasi_secretkey_encoding_e_t Encoding) {
   switch (Encoding) {
   case __WASI_SECRETKEY_ENCODING_RAW:
     return importRaw(Encoded);
@@ -155,9 +155,9 @@ Ecdsa<Nid>::SecretKey::import(Span<const uint8_t> Encoded,
   }
 }
 
-template <uint32_t Nid>
-WasiCryptoExpect<std::unique_ptr<typename Ecdsa<Nid>::SecretKey>>
-Ecdsa<Nid>::SecretKey::importPkcs8(Span<const uint8_t> Encoded) {
+template <uint32_t CurveNid>
+WasiCryptoExpect<std::unique_ptr<typename Ecdsa<CurveNid>::SecretKey>>
+Ecdsa<CurveNid>::SecretKey::importPkcs8(Span<const uint8_t> Encoded) {
   BioPtr Bio{BIO_new(BIO_s_mem())};
 
   auto WriteRes = spanWriteToBio(Bio.get(), Encoded);
@@ -171,9 +171,9 @@ Ecdsa<Nid>::SecretKey::importPkcs8(Span<const uint8_t> Encoded) {
   return std::make_unique<SecretKey>(std::move(Ctx));
 }
 
-template <uint32_t Nid>
-WasiCryptoExpect<std::unique_ptr<typename Ecdsa<Nid>::SecretKey>>
-Ecdsa<Nid>::SecretKey::importPem(Span<const uint8_t> Encoded) {
+template <uint32_t CurveNid>
+WasiCryptoExpect<std::unique_ptr<typename Ecdsa<CurveNid>::SecretKey>>
+Ecdsa<CurveNid>::SecretKey::importPem(Span<const uint8_t> Encoded) {
   BioPtr Bio{BIO_new(BIO_s_mem())};
 
   auto WriteRes = spanWriteToBio(Bio.get(), Encoded);
@@ -187,9 +187,9 @@ Ecdsa<Nid>::SecretKey::importPem(Span<const uint8_t> Encoded) {
   return std::make_unique<SecretKey>(std::move(Ctx));
 }
 
-template <uint32_t Nid>
-WasiCryptoExpect<std::unique_ptr<typename Ecdsa<Nid>::SecretKey>>
-Ecdsa<Nid>::SecretKey::importRaw(Span<const uint8_t> Encoded) {
+template <uint32_t CurveNid>
+WasiCryptoExpect<std::unique_ptr<typename Ecdsa<CurveNid>::SecretKey>>
+Ecdsa<CurveNid>::SecretKey::importRaw(Span<const uint8_t> Encoded) {
   BioPtr Bio{BIO_new(BIO_s_mem())};
 
   auto WriteRes = spanWriteToBio(Bio.get(), Encoded);
@@ -203,9 +203,9 @@ Ecdsa<Nid>::SecretKey::importRaw(Span<const uint8_t> Encoded) {
   return std::make_unique<SecretKey>(std::move(Ctx));
 }
 
-template <uint32_t Nid>
+template <uint32_t CurveNid>
 WasiCryptoExpect<std::vector<uint8_t>>
-Ecdsa<Nid>::SecretKey::exportData(__wasi_secretkey_encoding_e_t Encoding) {
+Ecdsa<CurveNid>::SecretKey::exportData(__wasi_secretkey_encoding_e_t Encoding) {
   switch (Encoding) {
   case __WASI_SECRETKEY_ENCODING_RAW:
     return exportRaw();
@@ -217,16 +217,17 @@ Ecdsa<Nid>::SecretKey::exportData(__wasi_secretkey_encoding_e_t Encoding) {
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_UNSUPPORTED_ENCODING);
   }
 }
-template <uint32_t Nid>
-WasiCryptoExpect<std::vector<uint8_t>> Ecdsa<Nid>::SecretKey::exportPkcs8() {
+template <uint32_t CurveNid>
+WasiCryptoExpect<std::vector<uint8_t>>
+Ecdsa<CurveNid>::SecretKey::exportPkcs8() {
   std::vector<uint8_t> Res(
       static_cast<size_t>(i2d_PrivateKey(Ctx.get(), nullptr)));
   opensslAssuming(i2d_PrivateKey(Ctx.get(), addressOfTempory(Res.data())));
   return Res;
 }
 
-template <uint32_t Nid>
-WasiCryptoExpect<std::vector<uint8_t>> Ecdsa<Nid>::SecretKey::exportPem() {
+template <uint32_t CurveNid>
+WasiCryptoExpect<std::vector<uint8_t>> Ecdsa<CurveNid>::SecretKey::exportPem() {
   BioPtr Bio{BIO_new(BIO_s_mem())};
   ensureOrReturn(PEM_write_bio_PrivateKey(Bio.get(), Ctx.get(), nullptr,
                                           nullptr, 0, nullptr, nullptr),
@@ -242,17 +243,17 @@ WasiCryptoExpect<std::vector<uint8_t>> Ecdsa<Nid>::SecretKey::exportPem() {
   return Pem;
 }
 
-template <uint32_t Nid>
-WasiCryptoExpect<std::vector<uint8_t>> Ecdsa<Nid>::SecretKey::exportRaw() {
+template <uint32_t CurveNid>
+WasiCryptoExpect<std::vector<uint8_t>> Ecdsa<CurveNid>::SecretKey::exportRaw() {
   std::vector<uint8_t> Res(
       static_cast<size_t>(i2d_PrivateKey(Ctx.get(), nullptr)));
   opensslAssuming(i2d_PrivateKey(Ctx.get(), addressOfTempory(Res.data())));
   return Res;
 }
 
-template <uint32_t Nid>
-WasiCryptoExpect<std::unique_ptr<typename Ecdsa<Nid>::KeyPair>>
-Ecdsa<Nid>::KeyPair::generate(std::shared_ptr<Options>) {
+template <uint32_t CurveNid>
+WasiCryptoExpect<std::unique_ptr<typename Ecdsa<CurveNid>::KeyPair>>
+Ecdsa<CurveNid>::KeyPair::generate(std::shared_ptr<Options>) {
   auto InitCtx = initEC();
 
   // Generate Key
@@ -266,10 +267,10 @@ Ecdsa<Nid>::KeyPair::generate(std::shared_ptr<Options>) {
   return std::make_unique<KeyPair>(EvpPkeyPtr{Key});
 }
 
-template <uint32_t Nid>
-WasiCryptoExpect<std::unique_ptr<typename Ecdsa<Nid>::KeyPair>>
-Ecdsa<Nid>::KeyPair::import(Span<const uint8_t> Encoded,
-                            __wasi_keypair_encoding_e_t Encoding) {
+template <uint32_t CurveNid>
+WasiCryptoExpect<std::unique_ptr<typename Ecdsa<CurveNid>::KeyPair>>
+Ecdsa<CurveNid>::KeyPair::import(Span<const uint8_t> Encoded,
+                                 __wasi_keypair_encoding_e_t Encoding) {
 
   switch (Encoding) {
   case __WASI_KEYPAIR_ENCODING_RAW:
@@ -283,9 +284,9 @@ Ecdsa<Nid>::KeyPair::import(Span<const uint8_t> Encoded,
   }
 }
 
-template <uint32_t Nid>
+template <uint32_t CurveNid>
 WasiCryptoExpect<std::vector<uint8_t>>
-Ecdsa<Nid>::KeyPair::exportData(__wasi_keypair_encoding_e_t Encoding) {
+Ecdsa<CurveNid>::KeyPair::exportData(__wasi_keypair_encoding_e_t Encoding) {
   switch (Encoding) {
   case __WASI_KEYPAIR_ENCODING_RAW:
     return exportRaw();
@@ -298,9 +299,9 @@ Ecdsa<Nid>::KeyPair::exportData(__wasi_keypair_encoding_e_t Encoding) {
   }
 }
 
-template <uint32_t Nid>
+template <uint32_t CurveNid>
 WasiCryptoExpect<std::unique_ptr<Signatures::PublicKey>>
-Ecdsa<Nid>::KeyPair::publicKey() {
+Ecdsa<CurveNid>::KeyPair::publicKey() {
   BioPtr B{BIO_new(BIO_s_mem())};
   opensslAssuming(i2d_PUBKEY_bio(B.get(), Ctx.get()));
 
@@ -310,8 +311,9 @@ Ecdsa<Nid>::KeyPair::publicKey() {
   return std::make_unique<PublicKey>(EvpPkeyPtr{Res});
 }
 
-template <uint32_t Nid>
-WasiCryptoExpect<std::unique_ptr<SecretKey>> Ecdsa<Nid>::KeyPair::secretKey() {
+template <uint32_t CurveNid>
+WasiCryptoExpect<std::unique_ptr<SecretKey>>
+Ecdsa<CurveNid>::KeyPair::secretKey() {
   BioPtr B{BIO_new(BIO_s_mem())};
   opensslAssuming(i2d_PrivateKey_bio(B.get(), Ctx.get()));
 
@@ -321,9 +323,9 @@ WasiCryptoExpect<std::unique_ptr<SecretKey>> Ecdsa<Nid>::KeyPair::secretKey() {
   return std::make_unique<SecretKey>(EvpPkeyPtr{Res});
 }
 
-template <uint32_t Nid>
+template <uint32_t CurveNid>
 WasiCryptoExpect<std::unique_ptr<SignState>>
-Ecdsa<Nid>::KeyPair::openSignState() {
+Ecdsa<CurveNid>::KeyPair::openSignState() {
   EvpMdCtxPtr SignCtx{EVP_MD_CTX_create()};
   opensslAssuming(EVP_DigestSignInit(SignCtx.get(), nullptr, EVP_sha256(),
                                      nullptr, Ctx.get()));
@@ -331,9 +333,9 @@ Ecdsa<Nid>::KeyPair::openSignState() {
   return std::make_unique<SignState>(std::move(SignCtx));
 }
 
-template <uint32_t Nid>
-WasiCryptoExpect<std::unique_ptr<typename Ecdsa<Nid>::KeyPair>>
-Ecdsa<Nid>::KeyPair::importPkcs8(Span<const uint8_t> Encoded) {
+template <uint32_t CurveNid>
+WasiCryptoExpect<std::unique_ptr<typename Ecdsa<CurveNid>::KeyPair>>
+Ecdsa<CurveNid>::KeyPair::importPkcs8(Span<const uint8_t> Encoded) {
   BioPtr Bio{BIO_new(BIO_s_mem())};
 
   auto WriteRes = spanWriteToBio(Bio.get(), Encoded);
@@ -347,9 +349,9 @@ Ecdsa<Nid>::KeyPair::importPkcs8(Span<const uint8_t> Encoded) {
   return std::make_unique<KeyPair>(std::move(Ctx));
 }
 
-template <uint32_t Nid>
-WasiCryptoExpect<std::unique_ptr<typename Ecdsa<Nid>::KeyPair>>
-Ecdsa<Nid>::KeyPair::importPem(Span<const uint8_t> Encoded) {
+template <uint32_t CurveNid>
+WasiCryptoExpect<std::unique_ptr<typename Ecdsa<CurveNid>::KeyPair>>
+Ecdsa<CurveNid>::KeyPair::importPem(Span<const uint8_t> Encoded) {
   BioPtr Bio{BIO_new(BIO_s_mem())};
 
   auto WriteRes = spanWriteToBio(Bio.get(), Encoded);
@@ -363,9 +365,9 @@ Ecdsa<Nid>::KeyPair::importPem(Span<const uint8_t> Encoded) {
   return std::make_unique<KeyPair>(std::move(Ctx));
 }
 
-template <uint32_t Nid>
-WasiCryptoExpect<std::unique_ptr<typename Ecdsa<Nid>::KeyPair>>
-Ecdsa<Nid>::KeyPair::importRaw(Span<const uint8_t> Encoded) {
+template <uint32_t CurveNid>
+WasiCryptoExpect<std::unique_ptr<typename Ecdsa<CurveNid>::KeyPair>>
+Ecdsa<CurveNid>::KeyPair::importRaw(Span<const uint8_t> Encoded) {
   BioPtr Bio{BIO_new(BIO_s_mem())};
 
   auto WriteRes = spanWriteToBio(Bio.get(), Encoded);
@@ -379,16 +381,16 @@ Ecdsa<Nid>::KeyPair::importRaw(Span<const uint8_t> Encoded) {
   return std::make_unique<KeyPair>(std::move(Ctx));
 }
 
-template <uint32_t Nid>
-WasiCryptoExpect<std::vector<uint8_t>> Ecdsa<Nid>::KeyPair::exportPkcs8() {
+template <uint32_t CurveNid>
+WasiCryptoExpect<std::vector<uint8_t>> Ecdsa<CurveNid>::KeyPair::exportPkcs8() {
   std::vector<uint8_t> Res(
       static_cast<size_t>(i2d_PrivateKey(Ctx.get(), nullptr)));
   opensslAssuming(i2d_PrivateKey(Ctx.get(), addressOfTempory(Res.data())));
   return Res;
 }
 
-template <uint32_t Nid>
-WasiCryptoExpect<std::vector<uint8_t>> Ecdsa<Nid>::KeyPair::exportPem() {
+template <uint32_t CurveNid>
+WasiCryptoExpect<std::vector<uint8_t>> Ecdsa<CurveNid>::KeyPair::exportPem() {
   BioPtr Bio{BIO_new(BIO_s_mem())};
   ensureOrReturn(PEM_write_bio_PrivateKey(Bio.get(), Ctx.get(), nullptr,
                                           nullptr, 0, nullptr, nullptr),
@@ -405,18 +407,18 @@ WasiCryptoExpect<std::vector<uint8_t>> Ecdsa<Nid>::KeyPair::exportPem() {
   return Pem;
 }
 
-template <uint32_t Nid>
-WasiCryptoExpect<std::vector<uint8_t>> Ecdsa<Nid>::KeyPair::exportRaw() {
+template <uint32_t CurveNid>
+WasiCryptoExpect<std::vector<uint8_t>> Ecdsa<CurveNid>::KeyPair::exportRaw() {
   std::vector<uint8_t> Res(
       static_cast<size_t>(i2d_PrivateKey(Ctx.get(), nullptr)));
   opensslAssuming(i2d_PrivateKey(Ctx.get(), addressOfTempory(Res.data())));
   return Res;
 }
 
-template <uint32_t Nid>
-WasiCryptoExpect<std::unique_ptr<typename Ecdsa<Nid>::Signature>>
-Ecdsa<Nid>::Signature::import(Span<const uint8_t> Encoded,
-                              __wasi_signature_encoding_e_t Encoding) {
+template <uint32_t CurveNid>
+WasiCryptoExpect<std::unique_ptr<typename Ecdsa<CurveNid>::Signature>>
+Ecdsa<CurveNid>::Signature::import(Span<const uint8_t> Encoded,
+                                   __wasi_signature_encoding_e_t Encoding) {
   switch (Encoding) {
   case __WASI_SIGNATURE_ENCODING_RAW:
     return std::make_unique<Signature>(
@@ -428,9 +430,9 @@ Ecdsa<Nid>::Signature::import(Span<const uint8_t> Encoded,
   }
 }
 
-template <uint32_t Nid>
+template <uint32_t CurveNid>
 WasiCryptoExpect<std::vector<uint8_t>>
-Ecdsa<Nid>::Signature::exportData(__wasi_signature_encoding_e_t Encoding) {
+Ecdsa<CurveNid>::Signature::exportData(__wasi_signature_encoding_e_t Encoding) {
   switch (Encoding) {
   case __WASI_SIGNATURE_ENCODING_RAW:
     return Data;
@@ -441,14 +443,16 @@ Ecdsa<Nid>::Signature::exportData(__wasi_signature_encoding_e_t Encoding) {
   }
 }
 
-template <uint32_t Nid>
-WasiCryptoExpect<void> Ecdsa<Nid>::SignState::update(Span<const uint8_t> Data) {
+template <uint32_t CurveNid>
+WasiCryptoExpect<void>
+Ecdsa<CurveNid>::SignState::update(Span<const uint8_t> Data) {
   opensslAssuming(EVP_DigestSignUpdate(Ctx.get(), Data.data(), Data.size()));
   return {};
 }
 
-template <uint32_t Nid>
-WasiCryptoExpect<std::unique_ptr<Signature>> Ecdsa<Nid>::SignState::sign() {
+template <uint32_t CurveNid>
+WasiCryptoExpect<std::unique_ptr<Signature>>
+Ecdsa<CurveNid>::SignState::sign() {
   size_t Size;
   opensslAssuming(EVP_DigestSignFinal(Ctx.get(), nullptr, &Size));
 
@@ -458,15 +462,15 @@ WasiCryptoExpect<std::unique_ptr<Signature>> Ecdsa<Nid>::SignState::sign() {
   return std::make_unique<Signature>(std::move(Res));
 }
 
-template <uint32_t Nid>
+template <uint32_t CurveNid>
 WasiCryptoExpect<void>
-Ecdsa<Nid>::VerificationState::update(Span<const uint8_t> Data) {
+Ecdsa<CurveNid>::VerificationState::update(Span<const uint8_t> Data) {
   opensslAssuming(EVP_DigestVerifyUpdate(Ctx.get(), Data.data(), Data.size()));
   return {};
 }
 
-template <uint32_t Nid>
-WasiCryptoExpect<void> Ecdsa<Nid>::VerificationState::verify(
+template <uint32_t CurveNid>
+WasiCryptoExpect<void> Ecdsa<CurveNid>::VerificationState::verify(
     std::shared_ptr<Signatures::Signature> Sig) {
   ensureOrReturn(Sig->alg() == getAlg(), __WASI_CRYPTO_ERRNO_INVALID_SIGNATURE);
 
@@ -476,10 +480,10 @@ WasiCryptoExpect<void> Ecdsa<Nid>::VerificationState::verify(
   return {};
 }
 
-template <uint32_t Nid> EvpPkeyPtr Ecdsa<Nid>::initEC() {
+template <uint32_t CurveNid> EvpPkeyPtr Ecdsa<CurveNid>::initEC() {
   EvpPkeyCtxPtr PCtx{EVP_PKEY_CTX_new_id(EVP_PKEY_EC, nullptr)};
   EVP_PKEY_paramgen_init(PCtx.get());
-  EVP_PKEY_CTX_set_ec_paramgen_curve_nid(PCtx.get(), Nid);
+  EVP_PKEY_CTX_set_ec_paramgen_curve_nid(PCtx.get(), CurveNid);
 
   EVP_PKEY *Params = nullptr;
   EVP_PKEY_paramgen(PCtx.get(), &Params);

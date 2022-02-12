@@ -18,7 +18,7 @@ namespace Host {
 namespace WASICrypto {
 namespace Symmetric {
 
-template <uint32_t Sha> class HmacSha2 {
+template <uint32_t ShaNid> class HmacSha2 {
 public:
   class KeyBuilder final : public Key::Builder {
   public:
@@ -53,10 +53,20 @@ public:
     std::shared_ptr<Options> OptOption;
     EvpMdCtxPtr Ctx;
   };
+
+private:
+  constexpr static size_t getKeySize() {
+    if constexpr (ShaNid == NID_sha256) {
+      return 32;
+    }
+    if constexpr (ShaNid == NID_sha512) {
+      return 64;
+    }
+  }
 };
 
-using HmacSha256 = HmacSha2<256>;
-using HmacSha512 = HmacSha2<512>;
+using HmacSha256 = HmacSha2<NID_sha256>;
+using HmacSha512 = HmacSha2<NID_sha512>;
 
 } // namespace Symmetric
 } // namespace WASICrypto

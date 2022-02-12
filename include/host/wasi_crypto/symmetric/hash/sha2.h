@@ -13,7 +13,7 @@ namespace Host {
 namespace WASICrypto {
 namespace Symmetric {
 
-template <uint32_t Sha> class Sha2State final : public HashState {
+template <uint32_t ShaNid> class Sha2State final : public HashState {
 public:
   Sha2State(std::shared_ptr<Options> OptOption, EvpMdCtxPtr Ctx)
       : OptOption(OptOption), Ctx(std::move(Ctx)) {}
@@ -33,11 +33,20 @@ public:
 private:
   std::shared_ptr<Options> OptOption;
   EvpMdCtxPtr Ctx;
+
+  constexpr static size_t getDigestSize() {
+    if constexpr (ShaNid == NID_sha256)
+      return 32;
+    if constexpr (ShaNid == NID_sha512)
+      return 64;
+    if constexpr (ShaNid == NID_sha512_256)
+      return 32;
+  }
 };
 
-using Sha256State = Sha2State<256>;
-using Sha512State = Sha2State<512>;
-using Sha512_256State = Sha2State<512256>;
+using Sha256State = Sha2State<NID_sha256>;
+using Sha512State = Sha2State<NID_sha512>;
+using Sha512_256State = Sha2State<NID_sha512_256>;
 
 } // namespace Symmetric
 } // namespace WASICrypto

@@ -18,12 +18,6 @@ template <typename T, auto Fn>
 using OpenSSLUniquePtr = std::unique_ptr<T, Deleter<Fn>>;
 } // namespace
 
-inline const std::map<uint32_t, const EVP_MD *> ShaMap{
-    {256, EVP_sha256()},
-    {384, EVP_sha384()},
-    {512, EVP_sha512()},
-    {512256, EVP_sha512_256()}};
-
 #ifdef NDEBUG
 #define opensslAssuming(Cond)                                                  \
   do {                                                                         \

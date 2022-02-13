@@ -106,5 +106,5 @@
     - [用 Windows 编译](extend/build_on_windows.md)
     - [为 Android 编译](extend/build_for_android.md)
   - [WasmEdge plug-in API](extend/plugin.md)
-    - [Host functions](extend/plugin/hostfunction.md)
-    - [External references](extend/plugin/externref.md)
+    - [Host 函数](extend/plugin/hostfunction.md)
+    - [外部引用](extend/plugin/externref.md)

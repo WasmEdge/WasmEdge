@@ -268,10 +268,15 @@ fn build_linux() -> Paths {
     #[cfg(not(feature = "standalone"))]
     println!("cargo:warning=[wasmedge-sys] not_standalone");
 
+    let out_dir = env_path!("OUT_DIR").expect("fail to find the OUT_DIR env variable");
+
     let wasmedge_dir =
-        env_path!("WASMEDGE_DIR").expect("fail to get the WASMEDGE_DIR env variable");
+        env_path!("WASMEDGE_DIR").expect("fail to find the WASMEDGE_DIR env variable");
 
     // create build_dir
+    #[cfg(not(feature = "standalone"))]
+    let build_dir = out_dir.join("build");
+    #[cfg(feature = "standalone")]
     let build_dir = wasmedge_dir.join("build");
     if !build_dir.exists() {
         std::fs::create_dir(&build_dir).expect("fail to create build_dir");
@@ -285,7 +290,7 @@ fn build_linux() -> Paths {
             "-DWASMEDGE_BUILD_TESTS=ON",
             #[cfg(not(feature = "aot"))]
             "-DWASMEDGE_BUILD_AOT_RUNTIME=OFF",
-            "..",
+            wasmedge_dir.to_str().unwrap(),
         ])
         .output()
         .expect("fail to cmake setup wasmedge project");

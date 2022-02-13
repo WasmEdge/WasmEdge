@@ -58,32 +58,31 @@ fn find_wasmedge() -> Option<Paths> {
     // search in the env variables: WASMEDGE_INCLUDE_DIR, WASMEDGE_LIB_DIR
     let inc_dir = env_path!("WASMEDGE_INCLUDE_DIR");
     let lib_dir = env_path!("WASMEDGE_LIB_DIR");
-    if inc_dir.is_some() && lib_dir.is_some() {
-        let inc_dir = inc_dir.unwrap();
-        let lib_dir = lib_dir.unwrap();
-        let header = inc_dir.join("wasmedge");
-        let header = header.join(WASMEDGE_H);
-        if inc_dir.exists() && lib_dir.exists() && header.exists() {
-            println!(
-                "cargo:warning=[wasmedge-sys] Use WASMEDGE_INCLUDE_DIR: {:?}",
-                inc_dir
-            );
-            println!(
-                "cargo:warning=[wasmedge-sys] Use WASMEDGE_LIB_DIR: {:?}",
-                lib_dir
-            );
-            return Some(Paths {
-                header,
-                lib_dir,
-                inc_dir,
-            });
+    if let Some(inc_dir) = inc_dir {
+        if let Some(lib_dir) = lib_dir {
+            let header = inc_dir.join("wasmedge");
+            let header = header.join(WASMEDGE_H);
+            if inc_dir.exists() && lib_dir.exists() && header.exists() {
+                println!(
+                    "cargo:warning=[wasmedge-sys] Use WASMEDGE_INCLUDE_DIR: {:?}",
+                    inc_dir
+                );
+                println!(
+                    "cargo:warning=[wasmedge-sys] Use WASMEDGE_LIB_DIR: {:?}",
+                    lib_dir
+                );
+                return Some(Paths {
+                    header,
+                    lib_dir,
+                    inc_dir,
+                });
+            }
         }
     }
 
     // search in the env variable: WASMEDGE_BUILD_DIR
     let build_dir = env_path!("WASMEDGE_BUILD_DIR");
-    if build_dir.is_some() {
-        let build_dir = build_dir.unwrap();
+    if let Some(build_dir) = build_dir {
         if build_dir.exists() {
             // WASMEDGE_INCLUDE_DIR
             let inc_dir = build_dir.join("include");
@@ -115,8 +114,7 @@ fn find_wasmedge() -> Option<Paths> {
 
     // search in xdg
     let xdg_dir = env_path!("HOME").map(|d| d.join(".local"));
-    if xdg_dir.is_some() {
-        let xdg_dir = xdg_dir.unwrap();
+    if let Some(xdg_dir) = xdg_dir {
         if xdg_dir.exists() {
             let inc_dir = xdg_dir.join("include");
             let header = inc_dir.join(WASMEDGE_H);
@@ -138,8 +136,7 @@ fn find_wasmedge() -> Option<Paths> {
 
     // search in the official docker container
     let docker_dir = env_path!("HOME").map(|d| d.join(".wasmedge"));
-    if docker_dir.is_some() {
-        let docker_dir = docker_dir.unwrap();
+    if let Some(docker_dir) = docker_dir {
         if docker_dir.exists() {
             // WASMEDGE_INCLUDE_DIR
             let inc_dir = docker_dir.join("include");

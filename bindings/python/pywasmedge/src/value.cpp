@@ -27,7 +27,9 @@ pysdk::Value::Value(WasmEdge_Value *val) {
     obj = pybind11::int_(WasmEdge_ValueGetFuncIdx(Val));
     break;
   default:
-    throw std::runtime_error("Unknown Value type");
+    throw std::runtime_error(
+        __FILE__ ": L" + std::to_string(__LINE__) +
+        " :Unknown Value type:" + std::to_string(val->Type));
     break;
   }
 }
@@ -54,7 +56,9 @@ pysdk::Value::Value(const WasmEdge_Value &val) {
     obj = pybind11::int_(WasmEdge_ValueGetFuncIdx(Val));
     break;
   default:
-    throw std::runtime_error("Unknown Value type");
+    throw std::runtime_error(
+        __FILE__ ": L" + std::to_string(__LINE__) +
+        " :Unknown Value type:" + std::to_string(val.Type));
     break;
   }
 }
@@ -87,7 +91,8 @@ void pysdk::Value::set_value(pybind11::object obj_, WasmEdge_ValType &type) {
     Val = WasmEdge_ValueGenFuncRef(obj.cast<uint32_t>());
     break;
   default:
-    throw std::runtime_error("Data type not supported currently");
+    throw std::runtime_error(__FILE__ ": L" + std::to_string(__LINE__) +
+                             " :Unknown Value type:" + std::to_string(type));
     break;
   }
 }

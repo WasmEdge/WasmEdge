@@ -55,19 +55,14 @@ fn main() {
 
 /// Check header and Returns the location of wasmedge.h and libwasmedge_c.(dylib|so)
 fn find_wasmedge() -> Option<Paths> {
-    macro_rules! env_path {
-        ($env_var:literal) => {
-            std::env::var_os($env_var).map(PathBuf::from)
-        };
-    }
-
     // search in the env variables: WASMEDGE_INCLUDE_DIR, WASMEDGE_LIB_DIR
     let inc_dir = env_path!("WASMEDGE_INCLUDE_DIR");
     let lib_dir = env_path!("WASMEDGE_LIB_DIR");
     if inc_dir.is_some() && lib_dir.is_some() {
         let inc_dir = inc_dir.unwrap();
         let lib_dir = lib_dir.unwrap();
-        let header = inc_dir.join(WASMEDGE_H);
+        let header = inc_dir.join("wasmedge");
+        let header = header.join(WASMEDGE_H);
         if inc_dir.exists() && lib_dir.exists() && header.exists() {
             println!(
                 "cargo:warning=[wasmedge-sys] Use WASMEDGE_INCLUDE_DIR: {:?}",
@@ -90,13 +85,20 @@ fn find_wasmedge() -> Option<Paths> {
     if build_dir.is_some() {
         let build_dir = build_dir.unwrap();
         if build_dir.exists() {
-            let inc_dir = build_dir.join("include/api/wasmedge");
-            let header = inc_dir.join(WASMEDGE_H);
+            // WASMEDGE_INCLUDE_DIR
+            let inc_dir = build_dir.join("include");
+            let inc_dir = inc_dir.join("api");
+            // header
+            let header = inc_dir.join("wasmedge");
+            let header = header.join(WASMEDGE_H);
+            // WASMEDGE_LIB_DIR
             let lib_dir = if build_dir.join("lib64").exists() {
-                build_dir.join("lib64/api")
+                build_dir.join("lib64")
             } else {
-                build_dir.join("lib/api")
+                build_dir.join("lib")
             };
+            let lib_dir = lib_dir.join("api");
+
             if inc_dir.exists() && lib_dir.exists() && header.exists() {
                 println!(
                     "cargo:warning=[wasmedge-sys] Use WASMEDGE_BUILD_DIR: {:?}",
@@ -139,13 +141,18 @@ fn find_wasmedge() -> Option<Paths> {
     if docker_dir.is_some() {
         let docker_dir = docker_dir.unwrap();
         if docker_dir.exists() {
-            let inc_dir = docker_dir.join("include/wasmedge");
-            let header = inc_dir.join(WASMEDGE_H);
+            // WASMEDGE_INCLUDE_DIR
+            let inc_dir = docker_dir.join("include");
+            // header
+            let header = inc_dir.join("wasmedge");
+            let header = header.join(WASMEDGE_H);
+            // WASMEDGE_LIB_DIR
             let lib_dir = if docker_dir.join("lib64").exists() {
                 docker_dir.join("lib64")
             } else {
                 docker_dir.join("lib")
             };
+
             if inc_dir.exists() && lib_dir.exists() && header.exists() {
                 println!(
                     "cargo:warning=[wasmedge-sys] Use docker env path: {:?}",
@@ -165,7 +172,7 @@ fn find_wasmedge() -> Option<Paths> {
 
 fn build_wasmedge() -> Option<Paths> {
     let target_os = env::var("CARGO_CFG_TARGET_OS").unwrap();
-    println!("cargo:warning=TARGET_OS: {}", target_os);
+    println!("cargo:warning=[wasmedge-sys] TARGET_OS: {}", target_os);
 
     match target_os.as_str() {
         "linux" => Some(build_linux()),
@@ -255,6 +262,12 @@ fn build_macos(hash: String) -> Paths {
 }
 
 fn build_linux() -> Paths {
+    #[cfg(feature = "standalone")]
+    println!("cargo:warning=[wasmedge-sys] standalone");
+
+    #[cfg(not(feature = "standalone"))]
+    println!("cargo:warning=[wasmedge-sys] not_standalone");
+
     let wasmedge_dir =
         env_path!("WASMEDGE_DIR").expect("fail to get the WASMEDGE_DIR env variable");
 
@@ -284,29 +297,37 @@ fn build_linux() -> Paths {
         .expect("fail to compile wasmedge project");
 
     // WASMEDGE_INCLUDE_DIR
-    let inc_dir = build_dir.join("include/api/wasmedge");
+    let inc_dir = build_dir.join("include");
+    assert!(inc_dir.exists());
+    let inc_dir = inc_dir.join("api");
     assert!(inc_dir.exists());
     println!(
-        "cargo:warning=WASMEDGE_INCLUDE_DIR: {}",
+        "cargo:warning=[wasmedge-sys] WASMEDGE_INCLUDE_DIR: {}",
         inc_dir.to_str().unwrap()
     );
 
     // WASMEDGE_LIB_DIR
     let lib_dir = if build_dir.join("lib64").exists() {
-        build_dir.join("lib64/api")
+        build_dir.join("lib64")
     } else {
-        build_dir.join("lib/api")
+        build_dir.join("lib")
     };
+    let lib_dir = lib_dir.join("api");
     assert!(lib_dir.exists());
     println!(
-        "cargo:warning=WASMEDGE_LIB_DIR: {}",
+        "cargo:warning=[wasmedge-sys] WASMEDGE_LIB_DIR: {}",
         lib_dir.to_str().unwrap()
     );
 
     // Path to wasmedge.h
-    let header = inc_dir.join(WASMEDGE_H);
+    let header = inc_dir.join("wasmedge");
     assert!(header.exists());
-    println!("cargo:warning=header path: {}", header.to_str().unwrap());
+    let header = header.join(WASMEDGE_H);
+    assert!(header.exists());
+    println!(
+        "cargo:warning=[wasmedge-sys] header path: {}",
+        header.to_str().unwrap()
+    );
 
     Paths {
         inc_dir,

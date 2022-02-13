@@ -42,8 +42,6 @@ The definitions of WasmEdge Rust SDK involve two Rust crates, [wasmedge-sys](htt
   * Set `WASMEDGE_INCLUDE_DIR` and `WASMEDGE_LIB_DIR` environment variables to specify the `include` and `lib` (or `lib64`) directories. After that, go to the `wasmedge-sys` directory and `cargo build` the crate.
 
     ```bash
-    ...
-    
     root@0a877562f39e:~/workspace/me/WasmEdge/bindings/rust/wasmedge-sys# export WASMEDGE_INCLUDE_DIR=/root/workspace/me/WasmEdge-0.9.1-Linux/include/wasmedge
     
     root@0a877562f39e:~/workspace/me/WasmEdge/bindings/rust/wasmedge-sys# export WASMEDGE_LIB_DIR=/root/workspace/me/WasmEdge-0.9.1-Linux/lib64
@@ -59,9 +57,23 @@ The definitions of WasmEdge Rust SDK involve two Rust crates, [wasmedge-sys](htt
     root@0a877562f39e:~/workspace/me/WasmEdge# export WASMEDGE_BUILD_DIR=/root/workspace/me/WasmEdge/build
     ```
 
-* `cargo build` `wasmedge-sys` directly
+* By the `standalone` mode
 
-    If the environment variables mentioned above are not available, the build script (`build.rs`) of `wasmedge-sys` enables building `WasmEdge` native library directly before building the crate itself.
+  Besides the two methods mentioned above, the `standalone` mode enables building `WasmEdge` native library directly before building the crate itself.
+
+  * Suppose that you `git clone` WasmEdge repo in `~/workspace/me/WasmEdge`. Go to the `wasmedge-sys` directory, and follow the instructions shown below:
+
+    ```bash
+    // set WASMEDGE_DIR
+    root@0a877562f39e:~/workspace/me/WasmEdge/bindings/rust/wasmedge-sys# export WASMEDGE_DIR=/root/workspace/me/WasmEdge
+
+    // cargo build with standalone feature
+    root@0a877562f39e:~/workspace/me/WasmEdge/bindings/rust/wasmedge-sys# cargo build --features standalone
+    ```
+
+* By WasmEdge docker image
+
+  If you choose WasmEdge docker image to build your own container for development, the pre-built WasmEdge binary package is located in `$HOME/.wasmedge` directory by default. The build script (`build.rs`) of `wasmedge-sys` crate can detect the package and build the crate automatically.
 
 ## Examples
 

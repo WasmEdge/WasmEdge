@@ -62,65 +62,65 @@ The [Go source code](https://github.com/second-state/WasmEdge-go-examples/blob/m
 package main
 
 import (
-    "fmt"
-    "os"
-    "github.com/second-state/WasmEdge-go/wasmedge"
+  "fmt"
+  "os"
+  "github.com/second-state/WasmEdge-go/wasmedge"
 )
 
 func main() {
-    /// Expected Args[0]: program name (./bindgen_funcs)
-    /// Expected Args[1]: wasm or wasm-so file (rust_bindgen_funcs_lib_bg.wasm))
+  /// Expected Args[0]: program name (./bindgen_funcs)
+  /// Expected Args[1]: wasm or wasm-so file (rust_bindgen_funcs_lib_bg.wasm))
 
-    wasmedge.SetLogErrorLevel()
+  wasmedge.SetLogErrorLevel()
 
-    var conf = wasmedge.NewConfigure(wasmedge.WASI)
-    var vm = wasmedge.NewVMWithConfig(conf)
-    var wasi = vm.GetImportObject(wasmedge.WASI)
-    wasi.InitWasi(
-        os.Args[1:],     /// The args
-        os.Environ(),    /// The envs
-        []string{".:."}, /// The mapping directories
-    )
+  var conf = wasmedge.NewConfigure(wasmedge.WASI)
+  var vm = wasmedge.NewVMWithConfig(conf)
+  var wasi = vm.GetImportObject(wasmedge.WASI)
+  wasi.InitWasi(
+    os.Args[1:],   /// The args
+    os.Environ(),  /// The envs
+    []string{".:."}, /// The mapping directories
+  )
 
-    /// Instantiate wasm
-    vm.LoadWasmFile(os.Args[1])
-    vm.Validate()
-    vm.Instantiate()
+  /// Instantiate wasm
+  vm.LoadWasmFile(os.Args[1])
+  vm.Validate()
+  vm.Instantiate()
 
-    /// Run bindgen functions
-    var res interface{}
-    var err error
-    
-    res, err = vm.ExecuteBindgen("say", wasmedge.Bindgen_return_array, []byte("bindgen funcs test"))
-    if err == nil {
-        fmt.Println("Run bindgen -- say:", string(res.([]byte)))
-    } 
-    res, err = vm.ExecuteBindgen("obfusticate", wasmedge.Bindgen_return_array, []byte("A quick brown fox jumps over the lazy dog"))
-    if err == nil {
-        fmt.Println("Run bindgen -- obfusticate:", string(res.([]byte)))
-    } 
-    res, err = vm.ExecuteBindgen("lowest_common_multiple", wasmedge.Bindgen_return_i32, int32(123), int32(2))
-    if err == nil {
-        fmt.Println("Run bindgen -- lowest_common_multiple:", res.(int32))
-    } 
-    res, err = vm.ExecuteBindgen("sha3_digest", wasmedge.Bindgen_return_array, []byte("This is an important message"))
-    if err == nil {
-        fmt.Println("Run bindgen -- sha3_digest:", res.([]byte))
-    } 
-    res, err = vm.ExecuteBindgen("keccak_digest", wasmedge.Bindgen_return_array, []byte("This is an important message"))
-    if err == nil {
-        fmt.Println("Run bindgen -- keccak_digest:", res.([]byte))
-    } 
+  /// Run bindgen functions
+  var res interface{}
+  var err error
+  
+  res, err = vm.ExecuteBindgen("say", wasmedge.Bindgen_return_array, []byte("bindgen funcs test"))
+  if err == nil {
+    fmt.Println("Run bindgen -- say:", string(res.([]byte)))
+  } 
+  res, err = vm.ExecuteBindgen("obfusticate", wasmedge.Bindgen_return_array, []byte("A quick brown fox jumps over the lazy dog"))
+  if err == nil {
+    fmt.Println("Run bindgen -- obfusticate:", string(res.([]byte)))
+  } 
+  res, err = vm.ExecuteBindgen("lowest_common_multiple", wasmedge.Bindgen_return_i32, int32(123), int32(2))
+  if err == nil {
+    fmt.Println("Run bindgen -- lowest_common_multiple:", res.(int32))
+  } 
+  res, err = vm.ExecuteBindgen("sha3_digest", wasmedge.Bindgen_return_array, []byte("This is an important message"))
+  if err == nil {
+    fmt.Println("Run bindgen -- sha3_digest:", res.([]byte))
+  } 
+  res, err = vm.ExecuteBindgen("keccak_digest", wasmedge.Bindgen_return_array, []byte("This is an important message"))
+  if err == nil {
+    fmt.Println("Run bindgen -- keccak_digest:", res.([]byte))
+  } 
 
-    vm.Release()
-    conf.Release()
+  vm.Release()
+  conf.Release()
 }
 ```
 
 Next, let's build the Go application with the WasmEdge Go SDK.
 
 ```bash
-go get github.com/second-state/WasmEdge-go/wasmedge@v0.9.0
+go get github.com/second-state/WasmEdge-go/wasmedge@v0.9.1
 go build
 ```
 

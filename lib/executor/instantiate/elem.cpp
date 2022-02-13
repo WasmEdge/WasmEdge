@@ -5,6 +5,8 @@
 
 #include "common/errinfo.h"
 #include "common/log.h"
+#include <cstdint>
+#include <vector>
 
 namespace WasmEdge {
 namespace Executor {

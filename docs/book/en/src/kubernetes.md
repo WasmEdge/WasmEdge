@@ -6,11 +6,7 @@ Compared with Linux containers, [WebAssembly could be 100x faster at startup](ht
 
 One of the great advantages of Linux application containers is the rich ecosystem of tools. The good news is that you can use the exact same tools to manage WebAssembly applications, enabling Linux containers and WebAssembly apps to run side-by-side in the same system.
 
-<center>
-
-![](kubernetes.png)
-
-</center>
+![kubernetes](kubernetes.png)
 
 The contents of this chapter are organized as follows.
 

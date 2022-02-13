@@ -5,12 +5,13 @@
 
 #include "common/config.h"
 #include "common/defines.h"
-#include "common/errcode.h"
+#include <string_view>
 
 #if defined(HAVE_PWD_H)
 #include <pwd.h>
 #include <unistd.h>
 #elif WASMEDGE_OS_WINDOWS
+#include "common/errcode.h"
 #include <shlobj_core.h>
 #endif
 

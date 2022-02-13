@@ -6,7 +6,8 @@
 #include "common/log.h"
 #include "host/wasi/environ.h"
 #include "host/wasi/vfs.h"
-#include <cassert>
+#include <algorithm>
+#include <cstddef>
 #include <numeric>
 #include <string>
 

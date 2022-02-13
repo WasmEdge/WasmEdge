@@ -69,8 +69,8 @@ int main(int Argc, const char* Argv[]) {
   /* 根據命令列參數來指定輸入輸出檔案位置。 */
   Res = WasmEdge_CompilerCompile(CompilerCxt, Argv[1], Argv[2]);
   if (!WasmEdge_ResultOK(Res)) {
-      printf("Compilation failed: %s\n", WasmEdge_ResultGetMessage(Res));
-      return 1;
+    printf("Compilation failed: %s\n", WasmEdge_ResultGetMessage(Res));
+    return 1;
   }
 
   WasmEdge_CompilerDelete(CompilerCxt);
@@ -98,16 +98,16 @@ $ ./test_wasmedge_compiler fibonacci.wasm fibonacci.wasm.so
 $ time ./test_wasmedge fibonacci.wasm
 Get result: 5702887
 
-real	0m2.715s
-user	0m2.700s
-sys	0m0.008s
+real 0m2.715s
+user 0m2.700s
+sys 0m0.008s
 
 $ time ./test_wasmedge fibonacci.wasm.so
 Get result: 5702887
 
-real	0m0.036s
-user	0m0.022s
-sys	0m0.011s
+real 0m0.036s
+user 0m0.022s
+sys 0m0.011s
 ```
 
 如果要了解 API 的細節，請參考 [API 標頭檔](https://github.com/WasmEdge/WasmEdge/blob/master/include/api/wasmedge/wasmedge.h)。

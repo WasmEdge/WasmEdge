@@ -14,10 +14,11 @@
 
 #include "loader/filemgr.h"
 
-#include "gtest/gtest.h"
-
 #include <cmath>
-#include <limits>
+#include <cstdint>
+#include <gtest/gtest.h>
+#include <string>
+#include <vector>
 
 namespace {
 

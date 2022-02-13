@@ -21,11 +21,18 @@
 
 #include "../spec/hostfunc.h"
 #include "../spec/spectest.h"
-#include "gtest/gtest.h"
 
-#include <fstream>
+#include <array>
+#include <chrono>
+#include <cstdint>
+#include <functional>
+#include <gtest/gtest.h>
+#include <map>
 #include <memory>
 #include <string>
+#include <string_view>
+#include <type_traits>
+#include <utility>
 #include <vector>
 
 #if WASMEDGE_OS_LINUX

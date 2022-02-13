@@ -4,6 +4,7 @@
 #include "loader/ldmgr.h"
 
 #include "common/log.h"
+#include <cstdint>
 
 namespace WasmEdge {
 

@@ -10,19 +10,25 @@ You can install WasmEdge using our one-line installer.
 Your system should have `git` and `curl` as prerequisites.
 
 ```bash
-$ curl -sSf https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh | bash
+curl -sSf https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh | bash
+```
+
+For Windows 10, you could use Windows Package Manager Client (aka winget.exe) to install WasmEdge with a single command in your terminal.
+
+```
+winget install wasmedge
 ```
 
 If you would like to install WasmEdge with its [Tensorflow and image processing extensions](https://www.secondstate.io/articles/wasi-tensorflow/), please run the following command. It will attempt to install Tensorflow and image shared libraries on your system.
 
 ```bash
-$ curl -sSf https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh | bash -s -- -e all
+curl -sSf https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh | bash -s -- -e all
 ```
 
 Run the following command to make the installed binary available in the current session.
 
 ```bash
-$ source $HOME/.wasmedge/env
+source $HOME/.wasmedge/env
 ```
 
 ## Use Docker
@@ -133,7 +139,7 @@ $ wasmedge --enable-all-statistics --gas-limit 20 hello.wasm second state
 
 It is possible to use WasmEdge as a high-performance, secure, extensible, easy to deploy, and [Kubernetes-compliant](https://github.com/second-state/wasmedge-containers-examples) JavaScript runtime.
 
-The [qjs.wasm](https://github.com/WasmEdge/WasmEdge/raw/master/tools/wasmedge/examples/js/qjs.wasm) program is a JavaScript interpreter compiled into WebAssembly. 
+The [qjs.wasm](https://github.com/WasmEdge/WasmEdge/raw/master/tools/wasmedge/examples/js/qjs.wasm) program is a JavaScript interpreter compiled into WebAssembly.
 The [hello.js](https://github.com/WasmEdge/WasmEdge/raw/master/tools/wasmedge/examples/js/hello.js) file is a very simple JavaScript program.
 
 ```bash

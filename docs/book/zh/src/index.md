@@ -10,19 +10,25 @@ WasmEdge 最简单的使用方式是通过 WasmEdge CLI。
 你的系统必须预先安装 `git` 和 `curl`。
 
 ```bash
-$ curl -sSf https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh | bash
+curl -sSf https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh | bash
+```
+
+如果你正在使用Windows 10，你可以使用Windows Package Manager Client (也称winget.exe)来安装WasmEdge。
+
+```
+winget install wasmedge
 ```
 
 如果你希望一并安装 [Tensorflow 和图像处理扩展](https://www.secondstate.io/articles/wasi-tensorflow/)，请执行以下命令。它将尝试在你的系统上安装 Tensorflow 和图像共享库。
 
 ```bash
-$ curl -sSf https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh | bash -s -- -e all
+curl -sSf https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh | bash -s -- -e all
 ```
 
 执行以下命令能使已安装的二进制文件在当前会话中可用。
 
 ```bash
-$ source $HOME/.wasmedge/env
+source $HOME/.wasmedge/env
 ```
 
 ## 使用 Docker 进行安装
@@ -67,7 +73,6 @@ $ wasmedge --reactor add.wasm add 2 2
 
 我们手动创建了 [fibonacci.wat](https://github.com/WasmEdge/WasmEdge/raw/master/tools/wasmedge/examples/fibonacci.wat) 程序，并使用了 [wat2wasm](https://github.com/WebAssembly/wabt) 编译器来构建 [fibonacci.wasm](https://github.com/WasmEdge/WasmEdge/raw/master/tools/wasmedge/examples/fibonacci.wasm) 这个 WebAssembly 程序。
 它包含了一个 `fib()` 函数，这个函数以一个整数作为输入参数。我们在反应器模式下使用 WasmEdge 来调用这个导出函数。
-
 
 ```bash
 $ wasmedge --reactor fibonacci.wasm fib 10

@@ -6,7 +6,6 @@
 #include "common/log.h"
 #include "host/wasi/vfs.h"
 #include "host/wasi/vinode.h"
-#include <random>
 
 using namespace std::literals;
 

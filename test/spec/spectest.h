@@ -22,7 +22,10 @@
 #include "common/types.h"
 
 #include <functional>
+#include <string>
 #include <string_view>
+#include <tuple>
+#include <utility>
 #include <vector>
 
 namespace WasmEdge {

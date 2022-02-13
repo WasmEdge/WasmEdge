@@ -81,7 +81,6 @@ if(WASMEDGE_BUILD_COVERAGE)
     NAME codecov
     EXECUTABLE ctest -j ${PROCESSOR_COUNT}
     DEPENDENCIES wasmedge
-    BASE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
     EXCLUDE
       "${PROJECT_SOURCE_DIR}/thirdparty/*"
       "${PROJECT_SOURCE_DIR}/test/*"

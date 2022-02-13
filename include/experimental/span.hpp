@@ -16,7 +16,9 @@
 
 #include <array>
 #include <cstddef>
+#include <iterator>
 #include <limits>
+#include <memory>
 #include <type_traits>
 
 namespace cxx20 {

@@ -145,7 +145,7 @@ func main() {
 To build the Go SDK example, run the following commands.
 
 ```bash
-go get github.com/second-state/WasmEdge-go/wasmedge@v0.9.0
+go get github.com/second-state/WasmEdge-go/wasmedge@v0.9.1
 go build greet_memory.go
 ```
 
@@ -287,7 +287,7 @@ func main() {
 To build the Go SDK example, run the following commands.
 
 ```bash
-go get github.com/second-state/WasmEdge-go/wasmedge@v0.9.0
+go get github.com/second-state/WasmEdge-go/wasmedge@v0.9.1
 go build greet_memory.go
 ```
 
@@ -463,7 +463,7 @@ func main() {
 To build the Go SDK example, run the following commands.
 
 ```bash
-go get github.com/second-state/WasmEdge-go/wasmedge@v0.9.0
+go get github.com/second-state/WasmEdge-go/wasmedge@v0.9.1
 go build run.go
 ```
 
@@ -631,7 +631,7 @@ func main() {
 To build the Go SDK example, run the following commands.
 
 ```bash
-go get github.com/second-state/WasmEdge-go/wasmedge@v0.9.0
+go get github.com/second-state/WasmEdge-go/wasmedge@v0.9.1
 go build run.go
 ```
 

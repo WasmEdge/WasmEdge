@@ -19,20 +19,20 @@
 使用以下命令在你的系统上安装 CRI-O。
 
 ```bash
-$ export OS="xUbuntu_20.04"
-$ export VERSION="1.21"
-$ apt update
-$ apt install -y libseccomp2 || sudo apt update -y libseccomp2
-$ echo "deb https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/$OS/ /" > /etc/apt/sources.list.d/devel:kubic:libcontainers:stable.list
-$ echo "deb https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable:/cri-o:/$VERSION/$OS/ /" > /etc/apt/sources.list.d/devel:kubic:libcontainers:stable:cri-o:$VERSION.list
+export OS="xUbuntu_20.04"
+export VERSION="1.21"
+apt update
+apt install -y libseccomp2 || sudo apt update -y libseccomp2
+echo "deb https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/$OS/ /" > /etc/apt/sources.list.d/devel:kubic:libcontainers:stable.list
+echo "deb https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable:/cri-o:/$VERSION/$OS/ /" > /etc/apt/sources.list.d/devel:kubic:libcontainers:stable:cri-o:$VERSION.list
 
-$ curl -L https://download.opensuse.org/repositories/devel:kubic:libcontainers:stable:cri-o:$VERSION/$OS/Release.key | apt-key add -
-$ curl -L https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/$OS/Release.key | apt-key add -
+curl -L https://download.opensuse.org/repositories/devel:kubic:libcontainers:stable:cri-o:$VERSION/$OS/Release.key | apt-key add -
+curl -L https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/$OS/Release.key | apt-key add -
 
-$ apt-get update
-$ apt-get install criu libyajl2
-$ apt-get install cri-o cri-o-runc cri-tools containernetworking-plugins
-$ systemctl start crio
+apt-get update
+apt-get install criu libyajl2
+apt-get install cri-o cri-o-runc cri-tools containernetworking-plugins
+systemctl start crio
 ```
 
 ## 配置 CRI-O 以使用 crun
@@ -40,7 +40,7 @@ $ systemctl start crio
 CRI-O 默认使用 `runc` 运行时，我们需要修改配置以使用 `crun` 代替。
 这需要添加到两个配置文件来完成。
 
->在运行下一步之前，请确保你已经构建并安装好了[支持 `WasmEdge` 的 `crun` 二进制文件](../container/crun.md)。 
+>在运行下一步之前，请确保你已经构建并安装好了[支持 `WasmEdge` 的 `crun` 二进制文件](../container/crun.md)。
 
 首先，创建一个 `/etc/crio/crio.conf` 文件并添加以下内容，它会使 CRI-O 默认使用 `crun` 作为运行时。
 
@@ -68,7 +68,7 @@ runtime_root = "/run/crun"
 接下来，重新启动 CRI-O 以应用配置更改。
 
 ```bash
-$ systemctl restart crio
+systemctl restart crio
 ```
 
 ## 运行简单 WebAssembly 应用
@@ -78,14 +78,14 @@ $ systemctl restart crio
 在本节中，我们需要先使用 CRI-O 工具将这个基于 WebAssembly 的容器镜像从 Docker hub 中拉取下来。
 
 ```bash
-$ sudo crictl pull docker.io/hydai/wasm-wasi-example:with-wasm-annotation
+sudo crictl pull docker.io/hydai/wasm-wasi-example:with-wasm-annotation
 ```
 
 接下来，我们需要创建两个简单的配置文件，指定 CRI-O 应该如何在 sandbox 中运行这个 WebAssembly 镜像。 我们已经有 [container_wasi.json](https://github.com/second-state/wasmedge-containers-examples/blob/main/crio/container_wasi.json) 和 [sandbox_config.json](https://github.com/second-state/wasmedge-containers-examples/blob/main/crio/sandbox_config.json) 这两个文件。你可以使用下面的命令将它们下载到本地目录。
 
 ```bash
-$ wget https://raw.githubusercontent.com/second-state/wasmedge-containers-examples/main/crio/sandbox_config.json
-$ wget https://raw.githubusercontent.com/second-state/wasmedge-containers-examples/main/crio/container_wasi.json
+wget https://raw.githubusercontent.com/second-state/wasmedge-containers-examples/main/crio/sandbox_config.json
+wget https://raw.githubusercontent.com/second-state/wasmedge-containers-examples/main/crio/container_wasi.json
 ```
 
 现在你可以用 CRI-O 创建 pod 和容器。只需用本文的配置选项即可。
@@ -159,14 +159,14 @@ Test 7: Delete the previous file
 
 接下来，你可尝试在 [Kubernetes](../../kubernetes/kubernetes.md) 中运行这个应用!
 
-##  **运行 HTTP 服务端应用**
+## **运行 HTTP 服务端应用**
 
 最后，我们可以在 CRI-O 中运行一个简单的基于 WebAssembly 的 HTTP 微服务。
 [另一篇文章](../demo/server.md) 解释了如何编译、打包和将 WebAssembly 程序作为容器镜像发布至 Docker hub 。
 在本节中，我们需要先使用 CRI-O 工具将这个基于 WebAssembly 的容器镜像从 Docker hub 中拉取下来。
 
 ```bash
-$ sudo crictl pull docker.io/avengermojo/http_server:with-wasm-annotation
+sudo crictl pull docker.io/avengermojo/http_server:with-wasm-annotation
 ```
 
 接下来，我们需要创建两个简单的配置文件，指定 CRI-O 应该如何在 sandbox 中运行这个 WebAssembly 镜像。 我们已经有 [container_http_server.json](https://raw.githubusercontent.com/second-state/wasmedge-containers-examples/main/crio/http_server/container_http_server.json) 和 [sandbox_config.json](https://github.com/second-state/wasmedge-containers-examples/blob/main/crio/sandbox_config.json) 这两个文件。你可以使用下面的命令将它们下载到本地目录。
@@ -174,8 +174,8 @@ $ sudo crictl pull docker.io/avengermojo/http_server:with-wasm-annotation
 > HTTP 服务端示例和 WASI 简单示例使用的 `sandbox_config.json` 文件是相同的。 但另一个 `container_*.json` 文件是特定的，因为它包含应用程序的 Docker Hub 链接。
 
 ```bash
-$ wget https://raw.githubusercontent.com/second-state/wasmedge-containers-examples/main/crio/sandbox_config.json
-$ wget https://raw.githubusercontent.com/second-state/wasmedge-containers-examples/main/crio/http_server/container_http_server.json
+wget https://raw.githubusercontent.com/second-state/wasmedge-containers-examples/main/crio/sandbox_config.json
+wget https://raw.githubusercontent.com/second-state/wasmedge-containers-examples/main/crio/http_server/container_http_server.json
 ```
 
 现在你可以用 CRI-O 创建 pod 和容器。只需用本文的配置选项即可。
@@ -219,4 +219,3 @@ echo: name=WasmEdge
 ```
 
 接下来，你可尝试在 [Kubernetes](../../kubernetes/kubernetes.md) 中运行这个应用!
-

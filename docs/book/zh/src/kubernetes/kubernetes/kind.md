@@ -10,9 +10,9 @@ KinD 是在 Docker 内部运行的 Kubernetes 发行版，非常适合本地开�
 
 ```bash
 # Create a "WASM in KinD" Cluster
-$ kind create cluster --image ghcr.io/liquid-reply/kind-crun-wasm:v1.23.0
+kind create cluster --image ghcr.io/liquid-reply/kind-crun-wasm:v1.23.0
 # Run the example
-$ kubectl run -it --rm --restart=Never wasi-demo --image=hydai/wasm-wasi-example:with-wasm-annotation --annotations="module.wasm.image/variant=compat" /wasi_example_main.wasm 50000000
+kubectl run -it --rm --restart=Never wasi-demo --image=hydai/wasm-wasi-example:with-wasm-annotation --annotations="module.wasm.image/variant=compat" /wasi_example_main.wasm 50000000
 ```
 
 在这个章节的剩余部分，我们会介绍如何去创建一个带有 wasmedge 的支持 KinD 的节点镜像。

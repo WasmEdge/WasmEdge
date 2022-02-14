@@ -38,19 +38,19 @@ go build
 
 `WasmEdge-go` 有以下扩展：
 
- - TensorFlow
-    - 该扩展支持 [WasmEdge-tensorflow](https://github.com/second-state/WasmEdge-tensorflow) 中的 host 函数。
-    - 若要安装 `tensorflow` 扩展。请在 WasmEdge 安装器命令中使用 `-e tensorflow` 标志。   
-    - 若使用该扩展，在构建时需要打上 `tensorflow` 标签：
+- TensorFlow
+  - 该扩展支持 [WasmEdge-tensorflow](https://github.com/second-state/WasmEdge-tensorflow) 中的 host 函数。
+  - 若要安装 `tensorflow` 扩展。请在 WasmEdge 安装器命令中使用 `-e tensorflow` 标志。
+  - 若使用该扩展，在构建时需要打上 `tensorflow` 标签：
 
       ```bash
       go build -tags tensorflow
       ```
 
- - Image
-    - 该扩展支持 [WasmEdge-image](https://github.com/second-state/WasmEdge-image) 中的 host 函数。
-    - 若要安装 `image` 扩展。请在 WasmEdge 安装器命令中使用 `-e image` 标志。
-    - 若使用该扩展，在构建时需要打上 `image` 标签：
+- Image
+  - 该扩展支持 [WasmEdge-image](https://github.com/second-state/WasmEdge-image) 中的 host 函数。
+  - 若要安装 `image` 扩展。请在 WasmEdge 安装器命令中使用 `-e image` 标志。
+  - 若使用该扩展，在构建时需要打上 `image` 标签：
 
       ```bash
       go build -tags image

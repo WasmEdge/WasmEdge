@@ -206,7 +206,7 @@ VM.registerModule(TestMod);
 
 为了从 WasmEdge 的包含目录中查找头文件以及链接静态库，CMakeFile 需要如下设置
 
-```
+```cmake
 add_library(wasmedgeHostModuleTest  # Static library name of host modules
   test.cpp  # Path to host modules cpp files
 )

@@ -1,6 +1,5 @@
 //! Defines WasmEdge Vm struct.
 
-use super::wasmedge;
 use crate::{
     error::{check, VmError, WasmEdgeError, WasmEdgeResult},
     import_obj::{ImportObject, InnerImportObject},
@@ -8,11 +7,11 @@ use crate::{
     statistics::{InnerStat, Statistics},
     store::{InnerStore, Store},
     types::WasmEdgeString,
-    utils,
+    utils, wasmedge,
     wasmedge::{WasmEdge_HostRegistration_Wasi, WasmEdge_HostRegistration_WasmEdge_Process},
     Config, Module, Value,
 };
-use std::path::Path;
+use std::{collections::HashMap, path::Path};
 
 /// Struct of WasmEdge Vm.
 ///
@@ -20,6 +19,7 @@ use std::path::Path;
 #[derive(Debug)]
 pub struct Vm {
     pub(crate) inner: InnerVm,
+    imports: HashMap<String, ImportObject>,
 }
 impl Vm {
     /// Creates a new [`Vm`] to be associated with the given [configuration](crate::Config) and [store](crate::Store).
@@ -69,6 +69,7 @@ impl Vm {
             true => Err(WasmEdgeError::Vm(VmError::Create)),
             false => Ok(Self {
                 inner: InnerVm(ctx),
+                imports: HashMap::new(),
             }),
         }
     }
@@ -129,11 +130,22 @@ impl Vm {
     /// # Error
     ///
     /// If fail to register the WASM module, then an error is returned.
-    pub fn register_wasm_from_import(&mut self, mut import: ImportObject) -> WasmEdgeResult<()> {
+    pub fn register_wasm_from_import(&mut self, import: ImportObject) -> WasmEdgeResult<()> {
+        let io_name = import.name().to_string();
+        if self.imports.contains_key(import.name()) {
+            return Err(WasmEdgeError::Vm(VmError::DuplicateImportObject));
+        } else {
+            self.imports.insert(import.name().to_string(), import);
+        }
+
         unsafe {
             check(wasmedge::WasmEdge_VMRegisterModuleFromImport(
                 self.inner.0,
-                import.inner.0,
+                self.imports
+                    .get(&io_name)
+                    .ok_or(WasmEdgeError::Vm(VmError::NotFoundImportObject(io_name)))?
+                    .inner
+                    .0,
             ))?;
         }
         import.inner.0 = std::ptr::null_mut();
@@ -652,6 +664,8 @@ impl Vm {
             false => Ok(ImportObject {
                 inner: InnerImportObject(io_ctx),
                 registered: true,
+                // TODO: get module name from ImportObjectContext instance
+                name: String::new(),
             }),
         }
     }
@@ -671,6 +685,8 @@ impl Vm {
             false => Ok(ImportObject {
                 inner: InnerImportObject(io_ctx),
                 registered: true,
+                // TODO: get module name from ImportObjectContext instance
+                name: String::new(),
             }),
         }
     }
@@ -753,6 +769,9 @@ impl Drop for Vm {
         if !self.inner.0.is_null() {
             unsafe { wasmedge::WasmEdge_VMDelete(self.inner.0) };
         }
+
+        // drop imports
+        self.imports.drain();
     }
 }
 

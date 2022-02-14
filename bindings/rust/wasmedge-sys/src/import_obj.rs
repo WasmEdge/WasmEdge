@@ -15,6 +15,7 @@ use crate::{
 pub struct ImportObject {
     pub(crate) inner: InnerImportObject,
     pub(crate) registered: bool,
+    pub(crate) name: String,
 }
 impl ImportObject {
     /// Creates a new host module with the given name.
@@ -34,8 +35,13 @@ impl ImportObject {
             false => Ok(ImportObject {
                 inner: InnerImportObject(ctx),
                 registered: false,
+                name: name.as_ref().to_string(),
             }),
         }
+    }
+
+    pub fn name(&self) -> &str {
+        self.name.as_str()
     }
 
     /// Creates a WASI host module which contains the WASI host functions, and initializes it with the given parameters.
@@ -92,6 +98,8 @@ impl ImportObject {
             false => Ok(ImportObject {
                 inner: InnerImportObject(ctx),
                 registered: false,
+                // TODO: get module name from ImportObjectContext instance
+                name: String::new(),
             }),
         }
     }
@@ -186,6 +194,8 @@ impl ImportObject {
             false => Ok(Self {
                 inner: InnerImportObject(ctx),
                 registered: false,
+                // TODO: get module name from ImportObjectContext instance
+                name: String::new(),
             }),
         }
     }

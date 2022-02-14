@@ -219,6 +219,12 @@ pub enum VmError {
         "Fail to register import object. Another import object with the name has already existed."
     )]
     DuplicateImportObject,
+    #[error("Fail to get Loader context")]
+    NotFoundLoader,
+    #[error("Fail to get Validator context")]
+    NotFoundValidator,
+    #[error("Fail to get Executor context")]
+    NotFoundExecutor,
 }
 
 #[derive(Error, Clone, Debug, PartialEq)]

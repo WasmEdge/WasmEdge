@@ -9,7 +9,7 @@ use crate::{
     types::WasmEdgeString,
     utils, wasmedge,
     wasmedge::{WasmEdge_HostRegistration_Wasi, WasmEdge_HostRegistration_WasmEdge_Process},
-    Config, Module, Value,
+    Config, Executor, ImportObject, Loader, Module, Statistics, Store, Validator, Value,
 };
 use std::{collections::HashMap, path::Path};
 
@@ -716,6 +716,36 @@ impl Vm {
         }
     }
 
+    pub fn loader(&self) -> WasmEdgeResult<Loader> {
+        let loder_ctx = unsafe { wasmedge::WasmEdge_VMGetLoaderContext(self.ctx) };
+        match loder_ctx.is_null() {
+            true => Err(WasmEdgeError::Vm(VmError::NotFoundLoader)),
+            false => Ok(Loader {
+                inner: InnerLoader(loder_ctx),
+            }),
+        }
+    }
+
+    pub fn validator(&self) -> WasmEdgeResult<Validator> {
+        let vdr_ctx = unsafe { wasmedge::WasmEdge_VMGetValidatorContext(self.ctx) };
+        match vdr_ctx.is_null() {
+            true => Err(WasmEdgeError::Vm(VmError::NotFoundValidator)),
+            false => Ok(Validator {
+                inner: InnerLoader(vdr_ctx),
+            }),
+        }
+    }
+
+    pub fn executor(&self) -> WasmEdgeResult<Executor> {
+        let exr_ctx = unsafe { wasmedge::WasmEdge_VMGetExecutorContext(self.ctx) };
+        match exr_ctx.is_null() {
+            true => Err(WasmEdgeError::Vm(VmError::NotFoundExecutor)),
+            false => Ok(Executor {
+                inner: InnerExecutor(exr_ctx),
+            }),
+        }
+    }
+
     /// Checks if the [store](crate::Store) of the [`Vm`] contains a function of which the name matches the given
     /// `func_name`.
     ///
@@ -811,6 +841,24 @@ mod tests {
             assert!(result.is_ok());
             let store = result.unwrap();
             assert!(!store.inner.0.is_null() && store.registered);
+
+            // get loader
+            let result = vm.loader();
+            assert!(result.is_ok());
+            let loader = result.unwrap();
+            assert!(!loader.inner.0.is_null() && loader.registered);
+
+            // get validator
+            let result = vm.validator();
+            assert!(result.is_ok());
+            let validator = result.unwrap();
+            assert!(!validator.inner.0.is_null() && validator.registered);
+
+            // get executor
+            let result = vm.executor();
+            assert!(result.is_ok());
+            let executor = result.unwrap();
+            assert!(!executor.inner.0.is_null() && executor.registered);
         }
 
         {
@@ -831,6 +879,30 @@ mod tests {
             assert!(result.is_ok());
             let vm = result.unwrap();
             assert!(!vm.inner.0.is_null());
+
+            // get store
+            let result = vm.store_mut();
+            assert!(result.is_ok());
+            let store = result.unwrap();
+            assert!(!store.inner.0.is_null() && store.registered);
+
+            // get loader
+            let result = vm.loader();
+            assert!(result.is_ok());
+            let loader = result.unwrap();
+            assert!(!loader.inner.0.is_null() && loader.registered);
+
+            // get validator
+            let result = vm.validator();
+            assert!(result.is_ok());
+            let validator = result.unwrap();
+            assert!(!validator.inner.0.is_null() && validator.registered);
+
+            // get executor
+            let result = vm.executor();
+            assert!(result.is_ok());
+            let executor = result.unwrap();
+            assert!(!executor.inner.0.is_null() && executor.registered);
         }
 
         {
@@ -852,6 +924,24 @@ mod tests {
             assert!(result.is_ok());
             let store = result.unwrap();
             assert!(!store.inner.0.is_null() && store.registered);
+
+            // get loader
+            let result = vm.loader();
+            assert!(result.is_ok());
+            let loader = result.unwrap();
+            assert!(!loader.inner.0.is_null() && loader.registered);
+
+            // get validator
+            let result = vm.validator();
+            assert!(result.is_ok());
+            let validator = result.unwrap();
+            assert!(!validator.inner.0.is_null() && validator.registered);
+
+            // get executor
+            let result = vm.executor();
+            assert!(result.is_ok());
+            let executor = result.unwrap();
+            assert!(!executor.inner.0.is_null() && executor.registered);
         }
 
         {
@@ -865,6 +955,30 @@ mod tests {
             assert!(result.is_ok());
             let vm = result.unwrap();
             assert!(!vm.inner.0.is_null());
+
+            // get store
+            let result = vm.store_mut();
+            assert!(result.is_ok());
+            let store = result.unwrap();
+            assert!(!store.inner.0.is_null() && store.registered);
+
+            // get loader
+            let result = vm.loader();
+            assert!(result.is_ok());
+            let loader = result.unwrap();
+            assert!(!loader.inner.0.is_null() && loader.registered);
+
+            // get validator
+            let result = vm.validator();
+            assert!(result.is_ok());
+            let validator = result.unwrap();
+            assert!(!validator.inner.0.is_null() && validator.registered);
+
+            // get executor
+            let result = vm.executor();
+            assert!(result.is_ok());
+            let executor = result.unwrap();
+            assert!(!executor.inner.0.is_null() && executor.registered);
         }
     }
 

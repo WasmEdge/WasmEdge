@@ -10,6 +10,7 @@ namespace Executor {
 
 // Instantiate global instance. See "include/executor/executor.h".
 Expect<void> Executor::instantiate(Runtime::StoreManager &StoreMgr,
+                                   Runtime::StackManager &StackMgr,
                                    Runtime::Instance::ModuleInstance &ModInst,
                                    const AST::GlobalSection &GlobSec) {
   // A frame with temp. module is pushed into the stack in caller.
@@ -36,7 +37,8 @@ Expect<void> Executor::instantiate(Runtime::StoreManager &StoreMgr,
     ModInst.addGlobalAddr(NewGlobInstAddr);
 
     // Run initialize expression.
-    if (auto Res = runExpression(StoreMgr, GlobSeg.getExpr().getInstrs());
+    if (auto Res =
+            runExpression(StoreMgr, StackMgr, GlobSeg.getExpr().getInstrs());
         !Res) {
       spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Expression));
       return Unexpect(Res);

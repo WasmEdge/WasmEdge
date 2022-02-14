@@ -16,4 +16,3 @@ API proxy 是服务网格中的另一个关键组件。 它以保持系统可扩
 * [MOSN](mesh/mosn.md) 展示了如何使用 WasmEdge 作为 MOSN 的扩展。
 
 如果你对 WasmEdge 和微服务有一些好的想法，请随时在 [WasmEdge](https://github.com/WasmEdge/WasmEdge) GitHub 存储库上创建问题或 PR！
-

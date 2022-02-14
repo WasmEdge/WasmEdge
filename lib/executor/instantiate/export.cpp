@@ -11,6 +11,7 @@ namespace Executor {
 
 // Instantiate exports. See "include/executor/executor.h".
 Expect<void> Executor::instantiate(Runtime::StoreManager &,
+                                   Runtime::StackManager &,
                                    Runtime::Instance::ModuleInstance &ModInst,
                                    const AST::ExportSection &ExportSec) {
   // Iterate and istantiate export descriptions.

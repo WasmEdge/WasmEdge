@@ -1,9 +1,9 @@
 # Linux
 
 WasmEdge 支持广泛的2007年之后的 Linux 发行版。官方发布包包含静态链接的二进制文件和库，适用于旧的 Linux 系统。
-下表展示了 WasmEdge 的官方发布包中的构建目标。
+下表展示了 WasmEdge 官方发布包中的构建目标。
 
-| 镜像 tag                | 指令集架构    | 基础操作系统 | LLVM 版本 | 环境变量                  | 兼容性            | 说明                                                                            |
+| 镜像 tag   | 指令集架构  | 基础操作系统 | LLVM 版本 | 环境变量   |  兼容性 | 说明  |
 | ---                     | ---     | ---                    | ---          | ---                   | ---                      | ---                                                                                 |
 | `latest`                | x86\_64 | Ubuntu 20.04 LTS       | 12.0.0       | CC=clang, CXX=clang++ | Ubuntu 20.04+            | 始终使用最新的 Ubuntu 版本提供给 CI                          |
 | `ubuntu-build-gcc`      | x86\_64 | Ubuntu 20.04 LTS       | 12.0.0       | CC=gcc, CXX=g++       | Ubuntu 20.04+            | 始终使用最新的 Ubuntu 版本提供给 CI                            |

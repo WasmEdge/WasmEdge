@@ -15,13 +15,13 @@
 在终端窗口运行下面的脚本，就可以在本地开发环境中安装和启动一个 Kubernetes。
 
 ```bash
-# Install go
+# 安装 go
 $ wget https://golang.org/dl/go1.17.1.linux-amd64.tar.gz
 $ sudo rm -rf /usr/local/go
 sudo tar -C /usr/local -xzf go1.17.1.linux-amd64.tar.gz
 source /home/${USER}/.profile
 
-# Clone k8s
+# 克隆 k8s
 git clone https://github.com/kubernetes/kubernetes.git
 cd kubernetes
 git checkout v1.22.2
@@ -33,7 +33,7 @@ sudo cp third_party/etcd/etcd* /usr/local/bin/
 
 # 以上命令运行完毕以后，系统中就可以找到以下文件：/usr/local/bin/etcd  /usr/local/bin/etcdctl  /usr/local/bin/etcdutl 
 
-# Build and run k8s with CRI-O
+# 用 CRI-O 构建运行 k8s
 sudo apt-get install -y build-essential
 sudo CGROUP_DRIVER=systemd CONTAINER_RUNTIME=remote CONTAINER_RUNTIME_ENDPOINT='unix:///var/run/crio/crio.sock' ./hack/local-up-cluster.sh
 
@@ -45,7 +45,7 @@ Local Kubernetes cluster is running. Press Ctrl-C to shut it down.
 
 ## 在 Kubernetes 中运行 WebAssembly 容器镜像
 
-本节的内容，我们需要打开另一个终端，将 WebAssembly 程序以 pod 中的容器形式运行在 Kubernetes 上。
+本节的内容介绍了如何在 Kubernetes 中，以 pod 中的容器的形式来运行 WebAssembly 程序。我们需要打开另一个终端。
 
 ```bash
 $ export KUBERNETES_PROVIDER=local
@@ -62,7 +62,7 @@ $ sudo cluster/kubectl.sh
 ```bash
 $ sudo cluster/kubectl.sh cluster-info
 
-# Expected output
+# 运行命令后预计会有以下输出
 Cluster "local" set.
 User "myself" set.
 Context "local" created.
@@ -98,7 +98,7 @@ pod "wasi-demo-2" deleted
 
 ### 基于 WebAssembly 的 HTTP 服务
 
-[这篇文章](../demo/server.md) 描述了如何编译、打包一个基于 WebAssembly 的 HTTP 服务应用程序，以及将它以容器镜像的形式发布到 Docker hub 的完整过程。由于 运行 HTTP 服务的容器需要 Kubernetes 提供网络支持，我们需要用 [k8s-http_server.yaml](https://github.com/second-state/wasmedge-containers-examples/blob/main/kubernetes_crio/http_server/k8s-http_server.yaml) 文件设定具体的配置。
+[这篇文章](../demo/server.md) 描述了如何编译、打包一个基于 WebAssembly 的 HTTP 服务应用程序，以及将它以容器镜像的形式发布到 Docker hub 的完整过程。由于运行 HTTP 服务的容器需要 Kubernetes 提供网络支持，我们需要用 [k8s-http_server.yaml](https://github.com/second-state/wasmedge-containers-examples/blob/main/kubernetes_crio/http_server/k8s-http_server.yaml) 文件设定具体的配置。
 
 ```yaml
 apiVersion: v1

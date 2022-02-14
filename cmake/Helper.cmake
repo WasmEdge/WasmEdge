@@ -18,7 +18,6 @@ endif()
 list(APPEND WASMEDGE_CFLAGS
   -Wall
   -Wextra
-  -Werror
   -Wno-error=pedantic
 )
 if(NOT CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang")

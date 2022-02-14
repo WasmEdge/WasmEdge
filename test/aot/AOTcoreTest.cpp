@@ -15,6 +15,11 @@
 #include "aot/compiler.h"
 #include "common/defines.h"
 #include "common/log.h"
+
+#if !WASMEDGE_OS_SEL4
+
+#include "aot/compiler.h"
+#include "validator/validator.h"
 #include "vm/vm.h"
 
 #include "../spec/hostfunc.h"
@@ -260,6 +265,8 @@ INSTANTIATE_TEST_SUITE_P(TestUnit, NativeCoreTest,
 INSTANTIATE_TEST_SUITE_P(TestUnit, CustomWasmCoreTest,
                          testing::ValuesIn(T.enumerate()));
 } // namespace
+
+#endif // !WASMEDGE_OS_SEL4
 
 GTEST_API_ int main(int argc, char **argv) {
   WasmEdge::Log::setErrorLoggingLevel();

@@ -12,7 +12,7 @@
 namespace winapi = boost::winapi;
 #elif WASMEDGE_OS_LINUX || WASMEDGE_OS_MACOS
 #include <dlfcn.h>
-#else
+#elif !WASMEDGE_OS_SEL4
 #error Unsupported os!
 #endif
 
@@ -38,6 +38,7 @@ namespace Loader {
 
 /// Open so file. See "include/loader/shared_library.h".
 Expect<void> SharedLibrary::load(const std::filesystem::path &Path) noexcept {
+#if !WASMEDGE_OS_SEL4
 #if WASMEDGE_OS_WINDOWS
   Handle = winapi::load_library_ex(Path.c_str(), nullptr, 0);
 #else
@@ -66,6 +67,9 @@ Expect<void> SharedLibrary::load(const std::filesystem::path &Path) noexcept {
     return Unexpect(ErrCode::IllegalPath);
   }
   return {};
+#else
+  return Unexpect(ErrCode::IllegalPath);
+#endif
 }
 
 Expect<void> SharedLibrary::load(const AST::AOTSection &AOTSec) noexcept {
@@ -117,6 +121,7 @@ Expect<void> SharedLibrary::load(const AST::AOTSection &AOTSec) noexcept {
 }
 
 void SharedLibrary::unload() noexcept {
+#if !WASMEDGE_OS_SEL4
   if (Binary) {
     Allocator::set_chunk_readable_writable(Binary, BinarySize);
     Allocator::release_chunk(Binary, BinarySize);
@@ -126,13 +131,15 @@ void SharedLibrary::unload() noexcept {
 #if WASMEDGE_OS_WINDOWS
     boost::winapi::FreeLibrary(Handle);
 #else
-    ::dlclose(Handle);
+    /*::dlclose(Handle)*/;
 #endif
     Handle = NativeHandle{};
   }
+#endif
 }
 
 void *SharedLibrary::getSymbolAddr(const char *Name) const noexcept {
+#if !WASMEDGE_OS_SEL4
   if (!Handle) {
     return nullptr;
   }
@@ -141,6 +148,9 @@ void *SharedLibrary::getSymbolAddr(const char *Name) const noexcept {
       boost::winapi::get_proc_address(Handle, Name));
 #else
   return ::dlsym(Handle, Name);
+#endif
+#else
+  return nullptr;
 #endif
 }
 

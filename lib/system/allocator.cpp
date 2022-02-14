@@ -5,6 +5,7 @@
 #include "common/config.h"
 #include "common/defines.h"
 #include "common/errcode.h"
+#include "common/log.h"
 
 #include <cassert>
 #include <cctype>
@@ -67,7 +68,8 @@ static inline constexpr const uint64_t k12G = UINT64_C(0x300000000);
 } // namespace
 
 uint8_t *Allocator::allocate(uint32_t PageCount) noexcept {
-#if defined(HAVE_MMAP) && defined(__x86_64__) || defined(__aarch64__)
+#if defined(HAVE_MMAP) && defined(__x86_64__) ||                               \
+    defined(__aarch64__) && !WASMEDGE_OS_SEL4
   auto Reserved = reinterpret_cast<uint8_t *>(
       mmap(nullptr, k12G, PROT_NONE,
            MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE, -1, 0));
@@ -98,7 +100,8 @@ uint8_t *Allocator::allocate(uint32_t PageCount) noexcept {
   }
   return Pointer;
 #else
-  auto Result = reinterpret_cast<uint8_t *>(std::malloc(kPageSize * PageCount));
+  auto Result = reinterpret_cast<uint8_t *>(
+      std::aligned_alloc(kPageSize, kPageSize * PageCount));
   if (Result == nullptr) {
     return nullptr;
   }
@@ -110,7 +113,8 @@ uint8_t *Allocator::allocate(uint32_t PageCount) noexcept {
 uint8_t *Allocator::resize(uint8_t *Pointer, uint32_t OldPageCount,
                            uint32_t NewPageCount) noexcept {
   assert(NewPageCount > OldPageCount);
-#if defined(HAVE_MMAP) && defined(__x86_64__) || defined(__aarch64__)
+#if defined(HAVE_MMAP) && defined(__x86_64__) ||                               \
+    defined(__aarch64__) && !WASMEDGE_OS_SEL4
   if (mmap(Pointer + OldPageCount * kPageSize,
            (NewPageCount - OldPageCount) * kPageSize, PROT_READ | PROT_WRITE,
            MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, -1, 0) == MAP_FAILED) {
@@ -138,7 +142,8 @@ uint8_t *Allocator::resize(uint8_t *Pointer, uint32_t OldPageCount,
 }
 
 void Allocator::release(uint8_t *Pointer, uint32_t) noexcept {
-#if defined(HAVE_MMAP) && defined(__x86_64__) || defined(__aarch64__)
+#if defined(HAVE_MMAP) && defined(__x86_64__) ||                               \
+    defined(__aarch64__) && !WASMEDGE_OS_SEL4
   if (Pointer == nullptr) {
     return;
   }
@@ -151,7 +156,7 @@ void Allocator::release(uint8_t *Pointer, uint32_t) noexcept {
 }
 
 uint8_t *Allocator::allocate_chunk(uint64_t Size) noexcept {
-#if defined(HAVE_MMAP)
+#if defined(HAVE_MMAP) && !WASMEDGE_OS_SEL4
   if (auto Pointer = mmap(nullptr, Size, PROT_READ | PROT_WRITE,
                           MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
       unlikely(Pointer == MAP_FAILED)) {
@@ -169,12 +174,13 @@ uint8_t *Allocator::allocate_chunk(uint64_t Size) noexcept {
     return Pointer;
   }
 #else
-  return std::malloc(Size);
+  auto Pointer = std::aligned_alloc(PAGE_SIZE, Size);
+  return static_cast<uint8_t *>(Pointer);
 #endif
 }
 
 void Allocator::release_chunk(uint8_t *Pointer, uint64_t Size) noexcept {
-#if defined(HAVE_MMAP)
+#if defined(HAVE_MMAP) && !WASMEDGE_OS_SEL4
   munmap(Pointer, Size);
 #elif WASMEDGE_OS_WINDOWS
   boost::winapi::VirtualFree(Pointer, 0, boost::winapi::MEM_RELEASE_);
@@ -184,18 +190,20 @@ void Allocator::release_chunk(uint8_t *Pointer, uint64_t Size) noexcept {
 }
 
 bool Allocator::set_chunk_executable(uint8_t *Pointer, uint64_t Size) noexcept {
-#if defined(HAVE_MMAP)
+#if defined(HAVE_MMAP) && !WASMEDGE_OS_SEL4
   return mprotect(Pointer, Size, PROT_EXEC | PROT_READ) == 0;
 #elif WASMEDGE_OS_WINDOWS
   return boost::winapi::VirtualProtect(
              Pointer, Size, boost::winapi::PAGE_EXECUTE_READ_, nullptr) == TRUE;
+#elif WASMEDGE_OS_SEL4
+  return true;
 #else
   return true;
 #endif
 }
 
 bool Allocator::set_chunk_readable(uint8_t *Pointer, uint64_t Size) noexcept {
-#if defined(HAVE_MMAP)
+#if defined(HAVE_MMAP) && !WASMEDGE_OS_SEL4
   return mprotect(Pointer, Size, PROT_READ) == 0;
 #elif WASMEDGE_OS_WINDOWS
   return boost::winapi::VirtualProtect(
@@ -207,7 +215,7 @@ bool Allocator::set_chunk_readable(uint8_t *Pointer, uint64_t Size) noexcept {
 
 bool Allocator::set_chunk_readable_writable(uint8_t *Pointer,
                                             uint64_t Size) noexcept {
-#if defined(HAVE_MMAP)
+#if defined(HAVE_MMAP) && !WASMEDGE_OS_SEL4
   return mprotect(Pointer, Size, PROT_READ | PROT_WRITE) == 0;
 #elif WASMEDGE_OS_WINDOWS
   return boost::winapi::VirtualProtect(

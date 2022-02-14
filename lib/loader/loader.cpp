@@ -21,6 +21,7 @@ namespace Loader {
 /// Load data from file path. See "include/loader/loader.h".
 Expect<std::vector<Byte>>
 Loader::loadFile(const std::filesystem::path &FilePath) {
+#if !WASMEDGE_OS_SEL4
   std::error_code EC;
   size_t FileSize = std::filesystem::file_size(FilePath, EC);
   if (EC) {
@@ -60,11 +61,15 @@ Loader::loadFile(const std::filesystem::path &FilePath) {
     FileSize -= static_cast<size_t>(BlockSize);
   }
   return Buf;
+#else
+  return Unexpect(ErrCode::IllegalPath);
+#endif
 }
 
 /// Parse module from file path. See "include/loader/loader.h".
 Expect<std::unique_ptr<AST::Module>>
 Loader::parseModule(const std::filesystem::path &FilePath) {
+#if !WASMEDGE_OS_SEL4
   using namespace std::literals::string_view_literals;
   if (FilePath.extension() == EXTENSION) {
     if (auto Res = LMgr.setPath(FilePath); !Res) {
@@ -122,6 +127,9 @@ Loader::parseModule(const std::filesystem::path &FilePath) {
       return Unexpect(Res);
     }
   }
+#else
+  return Unexpect(ErrCode::IllegalPath);
+#endif
 }
 
 /// Parse module from byte code. See "include/loader/loader.h".
@@ -131,7 +139,16 @@ Loader::parseModule(Span<const uint8_t> Code) {
   if (auto Res = FMgr.setCode(Code); !Res) {
     return Unexpect(Res);
   }
-  return loadModule();
+  if (auto Res = loadModule()) {
+    if (auto &Symbol = (*Res)->getSymbol()) {
+      *Symbol = IntrinsicsTable;
+    } else {
+      spdlog::error("intrinsics table symbol not found");
+    }
+    return std::move(*Res);
+  } else {
+    return Unexpect(Res);
+  }
 }
 
 /// Helper function of checking the valid value types.

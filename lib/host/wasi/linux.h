@@ -1,9 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0
 #include "common/defines.h"
-#if !WASMEDGE_OS_LINUX
+#if !WASMEDGE_OS_SEL4 && !WASMEDGE_OS_LINUX
 #error
 #endif
 
+#if WASMEDGE_OS_SEL4
+#define __GLIBC_PREREQ(...) (0)
+#endif
 // Uncomment these flag to test CentOS 6
 // #undef __GLIBC_MINOR__
 // #define __GLIBC_MINOR__ 5
@@ -269,6 +272,7 @@ inline constexpr int toAdvice(__wasi_advice_t Advice) noexcept {
 }
 
 inline constexpr __wasi_filetype_t fromFileType(mode_t Mode) noexcept {
+#if !WASMEDGE_OS_SEL4
   switch (Mode & S_IFMT) {
   case S_IFBLK:
     return __WASI_FILETYPE_BLOCK_DEVICE;
@@ -286,6 +290,9 @@ inline constexpr __wasi_filetype_t fromFileType(mode_t Mode) noexcept {
   default:
     return __WASI_FILETYPE_UNKNOWN;
   }
+#else
+  return __WASI_FILETYPE_REGULAR_FILE;
+#endif
 }
 
 inline constexpr __wasi_filetype_t fromFileType(uint8_t Type) noexcept {

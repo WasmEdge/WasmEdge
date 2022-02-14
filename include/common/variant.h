@@ -43,28 +43,28 @@ union VariadicUnion<FirstT, RestT...> {
 
   template <typename T> constexpr const T &get() const &noexcept {
     if constexpr (std::is_same_v<T, FirstT>) {
-      return *std::launder(reinterpret_cast<const FirstT *>(&First));
+      return First;
     } else {
       return Rest.template get<T>();
     }
   }
   template <typename T> constexpr T &get() &noexcept {
     if constexpr (std::is_same_v<T, FirstT>) {
-      return *std::launder(reinterpret_cast<FirstT *>(&First));
+      return First;
     } else {
       return Rest.template get<T>();
     }
   }
   template <typename T> constexpr const T &&get() const &&noexcept {
     if constexpr (std::is_same_v<T, FirstT>) {
-      return std::move(*std::launder(reinterpret_cast<const FirstT *>(&First)));
+      return std::move(First);
     } else {
       return std::move(Rest).template get<T>();
     }
   }
   template <typename T> constexpr T &&get() &&noexcept {
     if constexpr (std::is_same_v<T, FirstT>) {
-      return std::move(*std::launder(reinterpret_cast<FirstT *>(&First)));
+      return std::move(First);
     } else {
       return std::move(Rest).template get<T>();
     }
@@ -90,7 +90,7 @@ union VariadicUnion<FirstT, RestT...> {
     }
   }
 
-  std::aligned_storage_t<sizeof(FirstT), alignof(FirstT)> First;
+  FirstT First;
   VariadicUnion<RestT...> Rest;
 };
 

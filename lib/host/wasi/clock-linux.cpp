@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 #include "common/defines.h"
-#if WASMEDGE_OS_LINUX
+#if WASMEDGE_OS_SEL4 || WASMEDGE_OS_LINUX
 
 #include "host/wasi/clock.h"
 #include "linux.h"

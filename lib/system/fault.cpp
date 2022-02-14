@@ -97,9 +97,13 @@ namespace WasmEdge {
 namespace {
 
 std::atomic_uint handlerCount = 0;
+
 thread_local Fault *localHandler = nullptr;
 
-#if defined(SA_SIGINFO)
+#if WASMEDGE_OS_SEL4
+void enableHandler() noexcept {}
+void disableHandler() noexcept {}
+#elif defined(SA_SIGINFO)
 [[noreturn]] void signalHandler(int Signal, siginfo_t *Siginfo [[maybe_unused]],
                                 void *) noexcept {
   {
@@ -191,7 +195,7 @@ Fault::~Fault() noexcept {
   localHandler = std::exchange(Prev, nullptr);
 }
 
-[[noreturn]] inline void Fault::emitFault(ErrCode Error) {
+[[noreturn]] void Fault::emitFault(ErrCode Error) {
   assert(localHandler != nullptr);
   longjmp(localHandler->Buffer, uint8_t(Error));
 }

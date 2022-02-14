@@ -182,7 +182,7 @@ private:
   Expect<void> loadSection(AST::CodeSection &Sec);
   Expect<void> loadSection(AST::DataSection &Sec);
   Expect<void> loadSection(AST::DataCountSection &Sec);
-  Expect<void> loadSection(AST::AOTSection &Sec);
+  static Expect<void> loadSection(FileMgr &VecMgr, AST::AOTSection &Sec);
   Expect<void> loadSegment(AST::GlobalSegment &GlobSeg);
   Expect<void> loadSegment(AST::ElementSegment &ElemSeg);
   Expect<void> loadSegment(AST::CodeSegment &CodeSeg);

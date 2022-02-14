@@ -3,7 +3,7 @@
 #include <cstdint>
 #include <cstring>
 #include <netinet/in.h>
-#if WASMEDGE_OS_LINUX
+#if WASMEDGE_OS_SEL4 || WASMEDGE_OS_LINUX
 
 #include "common/errcode.h"
 #include "host/wasi/environ.h"
@@ -171,6 +171,7 @@ WasiExpect<void> INode::fdDatasync() const noexcept {
 }
 
 WasiExpect<void> INode::fdFdstatGet(__wasi_fdstat_t &FdStat) const noexcept {
+#if !WASMEDGE_OS_SEL4
   if (auto Res = updateStat(); unlikely(!Res)) {
     return WasiUnexpect(Res);
   }
@@ -194,6 +195,10 @@ WasiExpect<void> INode::fdFdstatGet(__wasi_fdstat_t &FdStat) const noexcept {
       FdStat.fs_flags |= __WASI_FDFLAGS_RSYNC | __WASI_FDFLAGS_SYNC;
     }
   }
+#else
+  FdStat.fs_filetype = __WASI_FILETYPE_BLOCK_DEVICE;
+  FdStat.fs_flags = static_cast<__wasi_fdflags_t>(0);
+#endif
 
   return {};
 }
@@ -1093,8 +1098,10 @@ WasiExpect<void> Poller::Timer::create(__wasi_clockid_t Clock,
   }
 
   this->FdHolder::operator=(std::move(Timer));
+#if !WASMEDGE_OS_SEL4
   this->Notify = std::move(Notify);
   this->TimerId = std::move(TimerId);
+#endif
   return {};
 }
 #endif

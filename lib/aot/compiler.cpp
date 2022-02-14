@@ -3858,7 +3858,7 @@ Expect<void> outputNativeLibrary(const std::filesystem::path &OutputPath,
             "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk",
             ObjectName.c_str(), "-o", OutputPath.u8string().c_str(), "-lSystem"
       },
-#elif WASMEDGE_OS_LINUX
+#elif WASMEDGE_OS_SEL4 || WASMEDGE_OS_LINUX
   lld::elf::link(
       std::array{"ld.lld", "--shared", "--gc-sections", "--discard-all",
                  ObjectName.c_str(), "-o", OutputPath.u8string().c_str()},
@@ -4102,7 +4102,7 @@ Expect<void> Compiler::compile(Span<const Byte> Data, const AST::Module &Module,
   LLModule.setTargetTriple(llvm::sys::getProcessTriple());
 #if WASMEDGE_OS_MACOS
   LLModule.setPICLevel(llvm::PICLevel::Level::BigPIC);
-#elif WASMEDGE_OS_LINUX | WASMEDGE_OS_WINDOWS
+#elif WASMEDGE_OS_SEL4 || WASMEDGE_OS_LINUX | WASMEDGE_OS_WINDOWS
   LLModule.setPICLevel(llvm::PICLevel::Level::SmallPIC);
 #endif
   CompileContext NewContext(LLModule,

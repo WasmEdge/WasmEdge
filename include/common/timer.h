@@ -11,6 +11,7 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
+#include "defines.h"
 #include <array>
 #include <cassert>
 #include <chrono>
@@ -24,7 +25,11 @@ enum class TimerTag : uint32_t { Wasm, HostFunc, Max };
 
 class Timer {
 public:
+#if WASMEDGE_OS_SEL4
+  using Clock = std::chrono::system_clock;
+#else
   using Clock = std::chrono::steady_clock;
+#endif
 
   constexpr Timer() noexcept { reset(); }
 

@@ -16,6 +16,8 @@
 #elif WASMEDGE_OS_WINDOWS
 #endif
 
+#define __GLIBC_PREREQ(a, b) 1
+
 namespace WasmEdge {
 namespace Host {
 

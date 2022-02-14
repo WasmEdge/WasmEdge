@@ -25,7 +25,11 @@ namespace Host {
 namespace WASI {
 
 inline namespace detail {
+#if !WASMEDGE_OS_SEL4
 inline constexpr const int32_t kIOVMax = 1024;
+#else
+inline constexpr const int32_t kIOVMax = 16;
+#endif
 } // namespace detail
 
 class EVPoller;

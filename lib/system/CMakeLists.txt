@@ -16,4 +16,6 @@ target_link_libraries(wasmedgeSystem
   PUBLIC
   wasmedgeCommon
   Boost::boost
+  sel4runtime
+  sel4platsupport
 )

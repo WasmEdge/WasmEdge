@@ -37,9 +37,9 @@ target_link_libraries(wasmedgeHostModuleWasi
   wasmedgeSystem
 )
 
-if(NOT APPLE AND NOT WIN32)
-  target_link_libraries(wasmedgeHostModuleWasi
-    PUBLIC
-    rt
-  )
-endif()
+#if(NOT APPLE AND NOT WIN32)
+#  target_link_libraries(wasmedgeHostModuleWasi
+#    PUBLIC
+#    rt
+#  )
+#endif()

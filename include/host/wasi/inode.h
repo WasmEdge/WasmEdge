@@ -9,7 +9,7 @@
 #include <string_view>
 #include <vector>
 
-#if WASMEDGE_OS_LINUX || WASMEDGE_OS_MACOS
+#if WASMEDGE_OS_SEL4 || WASMEDGE_OS_LINUX || WASMEDGE_OS_MACOS
 #include <dirent.h>
 #include <sys/stat.h>
 
@@ -24,7 +24,7 @@ namespace WasmEdge {
 namespace Host {
 namespace WASI {
 
-#if WASMEDGE_OS_LINUX || WASMEDGE_OS_MACOS
+#if WASMEDGE_OS_SEL4 || WASMEDGE_OS_LINUX || WASMEDGE_OS_MACOS
 struct FdHolder {
   FdHolder(const FdHolder &) = delete;
   FdHolder &operator=(const FdHolder &) = delete;
@@ -81,7 +81,7 @@ struct DirHolder {
 };
 #endif
 
-#if WASMEDGE_OS_LINUX
+#if WASMEDGE_OS_SEL4 || WASMEDGE_OS_LINUX
 struct TimerHolder {
   TimerHolder(const TimerHolder &) = delete;
   TimerHolder &operator=(const TimerHolder &) = delete;
@@ -139,7 +139,7 @@ struct HandleHolder {
 class Poller;
 
 class INode
-#if WASMEDGE_OS_LINUX || WASMEDGE_OS_MACOS
+#if WASMEDGE_OS_SEL4 || WASMEDGE_OS_LINUX || WASMEDGE_OS_MACOS
     : public FdHolder
 #elif WASMEDGE_OS_WINDOWS
     : public HandleHolder
@@ -541,7 +541,7 @@ private:
 
   __wasi_filetype_t unsafeFiletype() const noexcept;
 
-#if WASMEDGE_OS_LINUX || WASMEDGE_OS_MACOS
+#if WASMEDGE_OS_SEL4 || WASMEDGE_OS_LINUX || WASMEDGE_OS_MACOS
 public:
   using FdHolder::FdHolder;
 
@@ -559,7 +559,7 @@ public:
 };
 
 class Poller
-#if WASMEDGE_OS_LINUX || WASMEDGE_OS_MACOS
+#if WASMEDGE_OS_SEL4 || WASMEDGE_OS_LINUX || WASMEDGE_OS_MACOS
     : public FdHolder
 #endif
 {
@@ -588,7 +588,7 @@ public:
 private:
   std::vector<__wasi_event_t> Events;
 
-#if WASMEDGE_OS_LINUX
+#if WASMEDGE_OS_SEL4 || WASMEDGE_OS_LINUX
 private:
   struct Timer : public FdHolder {
     Timer(const Timer &) = delete;
@@ -601,9 +601,11 @@ private:
                             __wasi_timestamp_t Precision,
                             __wasi_subclockflags_t Flags) noexcept;
 
+#if !WASMEDGE_OS_SEL4
 #if !__GLIBC_PREREQ(2, 8)
     FdHolder Notify;
     TimerHolder TimerId;
+#endif
 #endif
   };
 

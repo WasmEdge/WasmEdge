@@ -1,4 +1,4 @@
-use crate::{error::Result, wasmedge, Config, GlobalType, MemoryType, Signature, TableType, Vm};
+use crate::{error::Result, wasmedge, GlobalType, MemoryType, Signature, TableType, Vm};
 use std::{borrow::Cow, path::Path};
 
 #[derive(Debug)]
@@ -10,16 +10,7 @@ impl Module {
     ///
     /// This function does not validate the loaded module.
     pub fn from_file(vm: &Vm, file: impl AsRef<Path>) -> Result<Self> {
-        let config = match &vm.config {
-            Some(config) => {
-                let config_copied = Config::copy_from(config)?;
-                Some(config_copied.inner)
-            }
-            None => None,
-        };
-
-        // create a Loader
-        let loader = wasmedge::Loader::create(config)?;
+        let loader = vm.inner.loader()?;
 
         // load a module from a wasm file
         let inner = loader.from_file(file.as_ref())?;
@@ -31,16 +22,7 @@ impl Module {
     ///
     /// This function does not validate the loaded module.
     pub fn from_buffer(vm: &Vm, buffer: impl AsRef<[u8]>) -> Result<Self> {
-        let config = match &vm.config {
-            Some(config) => {
-                let config_copied = Config::copy_from(config)?;
-                Some(config_copied.inner)
-            }
-            None => None,
-        };
-
-        // create a Loader instance
-        let loader = wasmedge::Loader::create(config)?;
+        let loader = vm.inner.loader()?;
 
         // load a module from a wasm buffer
         let inner = loader.from_buffer(buffer.as_ref())?;
@@ -49,16 +31,8 @@ impl Module {
     }
 
     pub fn validate(self, vm: &Vm) -> Result<Self> {
-        let config = match &vm.config {
-            Some(config) => {
-                let config_copied = Config::copy_from(config)?;
-                Some(config_copied.inner)
-            }
-            None => None,
-        };
-
         // validate
-        wasmedge::Validator::create(config)?.validate(&self.inner)?;
+        vm.inner.validator()?.validate(&self.inner)?;
 
         Ok(self)
     }

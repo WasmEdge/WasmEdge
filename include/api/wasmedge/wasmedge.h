@@ -2697,25 +2697,27 @@ WasmEdge_GlobalInstanceDelete(WasmEdge_GlobalInstanceContext *Cxt);
 WASMEDGE_CAPI_EXPORT extern WasmEdge_ImportObjectContext *
 WasmEdge_ImportObjectCreate(const WasmEdge_String ModuleName);
 
+WASMEDGE_CAPI_EXPORT extern WasmEdge_String
+WasmEdge_ImportObjectGetModuleName(const WasmEdge_ImportObjectContext *Cxt);
+
 /// Creation of the WasmEdge_ImportObjectContext for the WASI specification.
 ///
 /// This function will create a WASI host module that contains the WASI host
 /// functions and initialize it. The caller owns the object and should call
 /// `WasmEdge_ImportObjectDelete` to free it.
 ///
-/// \param Args the command line arguments. The first argument suggests being
-/// the program name. NULL if the length is 0.
-/// \param ArgLen the length of the command line arguments.
-/// \param Envs the environment variables in the format `ENV=VALUE`. NULL if the
-/// length is 0.
-/// \param EnvLen the length of the environment variables.
-/// \param Preopens the directory paths to preopen. String format in
-/// `PATH1:PATH2` means the path mapping, or the same path will be mapped. NULL
-/// if the length is 0.
+/// \param Args the command line arguments. The first argument suggests
+/// being the program name. NULL if the length is 0. \param ArgLen the
+/// length of the command line arguments. \param Envs the environment
+/// variables in the format `ENV=VALUE`. NULL if the length is 0. \param
+/// EnvLen the length of the environment variables. \param Preopens the
+/// directory paths to preopen. String format in `PATH1:PATH2` means the
+/// path mapping, or the same path will be mapped. NULL if the length is 0.
 /// \param PreopenLen the length of the directory paths to preopen.
 ///
 /// \returns pointer to context, NULL if failed.
-WASMEDGE_CAPI_EXPORT extern WasmEdge_ImportObjectContext *
+WASMEDGE_CAPI_EXPORT
+extern WasmEdge_ImportObjectContext *
 WasmEdge_ImportObjectCreateWASI(const char *const *Args, const uint32_t ArgLen,
                                 const char *const *Envs, const uint32_t EnvLen,
                                 const char *const *Preopens,

@@ -2345,6 +2345,16 @@ WasmEdge_ImportObjectCreate(const WasmEdge_String ModuleName) {
       new WasmEdge::Runtime::ImportObject(genStrView(ModuleName)));
 }
 
+WASMEDGE_CAPI_EXPORT WasmEdge_String
+WasmEdge_ImportObjectGetModuleName(const WasmEdge_ImportObjectContext *Cxt) {
+  if (Cxt) {
+    auto StrView = fromImpObjCxt(Cxt)->getModuleName();
+    return WasmEdge_String{.Length = static_cast<uint32_t>(StrView.length()),
+                           .Buf = StrView.data()};
+  }
+  return WasmEdge_String{.Length = 0, .Buf = nullptr};
+}
+
 WASMEDGE_CAPI_EXPORT WasmEdge_ImportObjectContext *
 WasmEdge_ImportObjectCreateWASI(const char *const *Args, const uint32_t ArgLen,
                                 const char *const *Envs, const uint32_t EnvLen,

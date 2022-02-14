@@ -131,12 +131,17 @@ impl Vm {
     ///
     /// If fail to register the WASM module, then an error is returned.
     pub fn register_wasm_from_import(&mut self, import: ImportObject) -> WasmEdgeResult<()> {
-        let io_name = import.name().to_string();
-        if self.imports.contains_key(import.name()) {
+        let io_name = import.name();
+        if self.imports.contains_key(&io_name) {
             return Err(WasmEdgeError::Vm(VmError::DuplicateImportObject));
         } else {
-            self.imports.insert(import.name().to_string(), import);
+            self.imports.insert(io_name.clone(), import);
         }
+
+        let import = self
+            .imports
+            .get(&io_name)
+            .ok_or(WasmEdgeError::Vm(VmError::NotFoundImportObject(io_name)))?;
 
         unsafe {
             check(wasmedge::WasmEdge_VMRegisterModuleFromImport(
@@ -664,8 +669,6 @@ impl Vm {
             false => Ok(ImportObject {
                 inner: InnerImportObject(io_ctx),
                 registered: true,
-                // TODO: get module name from ImportObjectContext instance
-                name: String::new(),
             }),
         }
     }
@@ -685,8 +688,6 @@ impl Vm {
             false => Ok(ImportObject {
                 inner: InnerImportObject(io_ctx),
                 registered: true,
-                // TODO: get module name from ImportObjectContext instance
-                name: String::new(),
             }),
         }
     }

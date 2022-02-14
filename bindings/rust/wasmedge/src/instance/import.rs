@@ -28,6 +28,9 @@ impl ImportMod {
         Ok(Self { inner })
     }
 
+    pub fn name(&self) -> String {
+        self.inner.name()
+    }
     pub fn add_func(&mut self, name: impl AsRef<str>, func: Func) {
         self.inner.add_func(name.as_ref(), func.inner)
     }
@@ -68,6 +71,10 @@ pub struct WasiImportMod<'vm> {
     pub(crate) _marker: PhantomData<&'vm Vm>,
 }
 impl<'vm> WasiImportMod<'vm> {
+    pub fn name(&self) -> String {
+        self.inner.name()
+    }
+
     pub fn init(
         &mut self,
         args: Option<Vec<&str>>,
@@ -88,6 +95,10 @@ pub struct WasmEdgeProcessImportMod<'vm> {
     pub(crate) _marker: PhantomData<&'vm Vm>,
 }
 impl<'vm> WasmEdgeProcessImportMod<'vm> {
+    pub fn name(&self) -> String {
+        self.inner.name()
+    }
+
     pub fn init(&mut self, allowed_cmds: Option<Vec<&str>>, allowed: bool) {
         self.inner.init_wasmedge_process(allowed_cmds, allowed)
     }

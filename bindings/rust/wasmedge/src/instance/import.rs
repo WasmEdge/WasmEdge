@@ -31,6 +31,7 @@ impl ImportMod {
     pub fn name(&self) -> String {
         self.inner.name()
     }
+
     pub fn add_func(&mut self, name: impl AsRef<str>, func: Func) {
         self.inner.add_func(name.as_ref(), func.inner)
     }

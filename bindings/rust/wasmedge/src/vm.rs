@@ -7,24 +7,16 @@ use std::{marker::PhantomData, path::Path};
 #[derive(Debug)]
 pub struct Vm {
     pub(crate) inner: wasmedge::Vm,
-    pub(crate) config: Option<Config>,
 }
 impl Vm {
     pub fn new(config: Option<Config>) -> Result<Self> {
-        let mut config_copied = None;
         let config = match config {
-            Some(config) => {
-                config_copied = Some(Config::copy_from(&config)?);
-                Some(config.inner)
-            }
+            Some(config) => Some(config.inner),
             None => None,
         };
 
         let inner = wasmedge::Vm::create(config, None)?;
-        Ok(Self {
-            inner,
-            config: config_copied,
-        })
+        Ok(Self { inner })
     }
 
     pub fn store_mut(&self) -> Result<Store> {
@@ -159,7 +151,6 @@ mod tests {
             let result = Vm::new(None);
             assert!(result.is_ok());
             let vm = result.unwrap();
-            assert!(vm.config.is_none());
 
             assert!(vm.store_mut().is_ok());
             assert!(vm.statistics_mut().is_ok());
@@ -176,7 +167,6 @@ mod tests {
             let result = Vm::new(Some(config));
             assert!(result.is_ok());
             let vm = result.unwrap();
-            assert!(vm.config.is_some());
 
             assert!(vm.store_mut().is_ok());
             assert!(vm.statistics_mut().is_ok());

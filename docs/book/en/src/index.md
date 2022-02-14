@@ -13,6 +13,12 @@ Your system should have `git` and `curl` as prerequisites.
 curl -sSf https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh | bash
 ```
 
+For Windows 10, you could use Windows Package Manager Client (aka winget.exe) to install WasmEdge with a single command in your terminal.
+
+```bash
+winget install wasmedge
+```
+
 If you would like to install WasmEdge with its [Tensorflow and image processing extensions](https://www.secondstate.io/articles/wasi-tensorflow/), please run the following command. It will attempt to install Tensorflow and image shared libraries on your system.
 
 ```bash

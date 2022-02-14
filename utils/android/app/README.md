@@ -10,7 +10,7 @@ You could deploy these components via [Android Studio](https://developer.android
 
 ## Building Project with Gradle
 1. Setup environment variable `ANDROID_HOME=path/to/your/android/sdk`
-2. Run Command `./gradlew assemblyRelease`
+2. Run Command `./gradlew assembleRelease`
 3. Sign your APK file with `apksigner`
     > apk file location `./app/build/outputs/apk/release`
     > `apksigner` location `$ANDROID_HOME/build-tools/$VERSION/apksigner` 

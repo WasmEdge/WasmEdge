@@ -8,7 +8,17 @@
 #include "host/wasmedge_process/processmodule.h"
 #include "vm/vm.h"
 
+#include <algorithm>
+#include <chrono>
+#include <cstdint>
+#include <cstdlib>
 #include <cstring>
+#include <functional>
+#include <map>
+#include <memory>
+#include <string>
+#include <string_view>
+#include <utility>
 #include <vector>
 
 // WasmEdge_ConfigureContext implementation.

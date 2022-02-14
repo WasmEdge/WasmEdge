@@ -19,9 +19,6 @@
 #include "common/filesystem.h"
 #include "common/span.h"
 
-#include <cstdint>
-#include <string_view>
-
 namespace WasmEdge {
 namespace AOT {
 

@@ -2,13 +2,11 @@
 
 QuickJS WasmEdge Runtime 支持 WasmEdge 的[网络 sockets 拓展](https://github.com/second-state/wasmedge_wasi_socket)， 所以 JavaScript 程序也可以在网络上建立 HTTP 连接。此文将向你展示相关的 [HTTP 客户端](https://github.com/second-state/wasmedge-quickjs/blob/main/example_js/wasi_http_client.js)和 [HTTP 服务端](https://github.com/second-state/wasmedge-quickjs/blob/main/example_js/wasi_http_echo.js)例子.
 
-
 > WasmEdge 的网络 API 是非阻塞的，所以能够开发出强异步 I/O 交互的应用。当网络请求 handler 正在创建一个对外的请求并等待服务应答的时候，应用仍然可以处理另外一个进来的请求。这让单线程应用可以并发处理多个请求。
 
 ## JavaScript 客户端网络通讯例子
 
 以下是一个使用 JavaScript 编写的异步客户端的例子。你可以在 [example_js/wasi_http_client.js](https://github.com/second-state/wasmedge-quickjs/blob/main/example_js/wasi_http_client.js) 中找到源码。以下的代码会向你展示如何发送一个异步 HTTP GET 请求。
-
 
 ```javascript
 async function get_test() {
@@ -59,8 +57,8 @@ async function handle_response(s) {
 使用以下 CLI 命令，就可以在 WasmEdge runtime 中运行以上的 JavaScript 代码。
 
 ```bash
-$ cd example_js
-$ wasmedge --dir .:. ../target/wasm32-wasi/release/wasmedge_quickjs.wasm wasi_http_client.js
+cd example_js
+wasmedge --dir .:. ../target/wasm32-wasi/release/wasmedge_quickjs.wasm wasi_http_client.js
 ```
 
 将会有如下内容被打印出来。
@@ -83,13 +81,11 @@ $ wasmedge --dir .:. ../target/wasm32-wasi/release/wasmedge_quickjs.wasm wasi_ht
 }
 ```
 
-
 以上应用例子发出了两个 HTTP 请求，一个是 `GET` 请求另一个是 `POST` 请求。该应用会异步等待这两个请求的应答数据，并且哪一个先从服务端返回就先会处理哪个。从日志中你可以看到这两个请求的 handlers 是交错执行的。
 
 ## JavaScript 网络服务例子
 
 以下的例子是使用 JavaScript 运行了一个监听 8000 端口的 TCP 服务器。接收到的网络请求都会被异步处理。你可以在 [example_js/wasi_net_echo.js](https://github.com/second-state/wasmedge-quickjs/blob/main/example_js/wasi_net_echo.js) 中找到源码。
-
 
 ```javascript
 import * as net from 'wasi_net';
@@ -122,21 +118,19 @@ server_start();
 
 调用 `server_start()` 方法会在 8000 端口启动一个监听服务。当一个请求进入，会异步传给 `handle_client()` function 函数处理。这意味着当应用返回应答数据后，它又可以处理下一个进来的请求了。
 
-
 使用以下 CLI 命令，就可以在 WasmEdge runtime 中运行这段 JavaScript 代码。因为它将作为一个服务运行，你最好是以后台应用的形式启动。
 
-```
-$ cd example_js
-$ nohup wasmedge --dir .:. ../target/wasm32-wasi/release/wasmedge_quickjs.wasm wasi_net_echo.js &
+```bash
+cd example_js
+nohup wasmedge --dir .:. ../target/wasm32-wasi/release/wasmedge_quickjs.wasm wasi_net_echo.js &
 ```
 
 然后你就可以向它发出网络请求，观察运行效果。
 
-```
+```bash
 $ curl -d "WasmEdge" -X POST http://localhost:8000
 echo:WasmEdge
 ```
-
 
 WasmEdge 的 `wasi_net` 包为 JavaScript 应用提供了一种自适应的动态网络栈。在很多高级用法中，我们基于这个包，设计了很多抽象良好的 API。在下一章节，我们会带着具体的常见应用，向你展示如何处理 HTTP 请求。在 [React 服务器渲染文章](ssr.md)中，我们还将会讨论一下如何基于这种异步网络的 API 来创建一个 React 服务器渲染功能。
 
@@ -203,13 +197,11 @@ server_start();
 
 `server_start()` 方法会启动一个监听 8000 端口的服务。当请求进来，会被传给 `handle_client()` 方法来处理。当请求是合法的 HTTP 请求，对应的 handler 方法会调用 `handle_req()` 来解析对应的字段，组装新的 HTTP 应答，然后异步把应答数据发送回去。这意味着当应用发送完数据，又能继续处理下一个进来的请求了。
 
-
 使用以下 CLI 命令，就可以在 WasmEdge runtime 中运行这段 JavaScript 代码。因为它将作为一个服务运行，你最好是以后台应用的形式运行。
 
-
 ```bash
-$ cd example_js
-$ nohup wasmedge --dir .:. ../target/wasm32-wasi/release/wasmedge_quickjs.wasm wasi_http_echo.js &
+cd example_js
+nohup wasmedge --dir .:. ../target/wasm32-wasi/release/wasmedge_quickjs.wasm wasi_http_echo.js &
 ```
 
 然后你就可以向它发出网络请求，观察运行效果。

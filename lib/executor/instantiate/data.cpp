@@ -13,6 +13,7 @@ namespace Executor {
 
 // Instantiate data instance. See "include/executor/executor.h".
 Expect<void> Executor::instantiate(Runtime::StoreManager &StoreMgr,
+                                   Runtime::StackManager &StackMgr,
                                    Runtime::Instance::ModuleInstance &ModInst,
                                    const AST::DataSection &DataSec) {
   // A frame with module is pushed into stack outside.
@@ -22,7 +23,8 @@ Expect<void> Executor::instantiate(Runtime::StoreManager &StoreMgr,
     // Initialize memory if data mode is active.
     if (DataSeg.getMode() == AST::DataSegment::DataMode::Active) {
       // Run initialize expression.
-      if (auto Res = runExpression(StoreMgr, DataSeg.getExpr().getInstrs());
+      if (auto Res =
+              runExpression(StoreMgr, StackMgr, DataSeg.getExpr().getInstrs());
           unlikely(!Res)) {
         spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Expression));
         spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Seg_Data));
@@ -35,7 +37,7 @@ Expect<void> Executor::instantiate(Runtime::StoreManager &StoreMgr,
       if (!Conf.hasProposal(Proposal::ReferenceTypes) &&
           !Conf.hasProposal(Proposal::BulkMemoryOperations)) {
         // Memory index should be 0. Checked in validation phase.
-        auto *MemInst = getMemInstByIdx(StoreMgr, DataSeg.getIdx());
+        auto *MemInst = getMemInstByIdx(StoreMgr, StackMgr, DataSeg.getIdx());
         // Check data fits.
         assuming(MemInst);
         if (!MemInst->checkAccessBound(
@@ -62,6 +64,7 @@ Expect<void> Executor::instantiate(Runtime::StoreManager &StoreMgr,
 // Initialize memory with Data Instances. See
 // "include/executor/executor.h".
 Expect<void> Executor::initMemory(Runtime::StoreManager &StoreMgr,
+                                  Runtime::StackManager &StackMgr,
                                   Runtime::Instance::ModuleInstance &,
                                   const AST::DataSection &DataSec) {
   // initialize memory.
@@ -70,10 +73,10 @@ Expect<void> Executor::initMemory(Runtime::StoreManager &StoreMgr,
     // Initialize memory if data mode is active.
     if (DataSeg.getMode() == AST::DataSegment::DataMode::Active) {
       // Memory index should be 0. Checked in validation phase.
-      auto *MemInst = getMemInstByIdx(StoreMgr, DataSeg.getIdx());
+      auto *MemInst = getMemInstByIdx(StoreMgr, StackMgr, DataSeg.getIdx());
       assuming(MemInst);
 
-      auto *DataInst = getDataInstByIdx(StoreMgr, Idx);
+      auto *DataInst = getDataInstByIdx(StoreMgr, StackMgr, Idx);
       assuming(DataInst);
       const uint32_t Off = DataInst->getOffset();
 

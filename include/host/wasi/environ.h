@@ -228,7 +228,7 @@ public:
   ///
   /// @return Nothing or WASI error
   WasiExpect<void> fdClose(__wasi_fd_t Fd) noexcept {
-    std::unique_lock<std::shared_mutex> lock(FdMutex);
+    std::unique_lock Lock(FdMutex);
     if (auto It = FdMap.find(Fd); It == FdMap.end()) {
       return WasiUnexpect(__WASI_ERRNO_BADF);
     } else if (It->second->isPreopened()) {
@@ -501,7 +501,7 @@ public:
   /// @param[in] To The file descriptor to overwrite.
   /// @return Nothing or WASI error
   WasiExpect<void> fdRenumber(__wasi_fd_t Fd, __wasi_fd_t To) noexcept {
-    std::unique_lock<std::shared_mutex> lock(FdMutex);
+    std::unique_lock Lock(FdMutex);
     if (auto It = FdMap.find(Fd); It == FdMap.end()) {
       return WasiUnexpect(__WASI_ERRNO_BADF);
     } else if (auto It2 = FdMap.find(To); It2 == FdMap.end()) {
@@ -1034,7 +1034,7 @@ private:
   friend class EVPoller;
 
   std::shared_ptr<VINode> getNodeOrNull(__wasi_fd_t Fd) const {
-    std::shared_lock<std::shared_mutex> lock(FdMutex);
+    std::shared_lock Lock(FdMutex);
     if (auto It = FdMap.find(Fd); It != FdMap.end()) {
       return It->second;
     }
@@ -1049,7 +1049,7 @@ private:
     __wasi_fd_t NewFd;
     while (!Success) {
       NewFd = Distribution(Engine);
-      std::unique_lock<std::shared_mutex> lock(FdMutex);
+      std::unique_lock Lock(FdMutex);
       Success = FdMap.emplace(NewFd, Node).second;
     }
     return NewFd;

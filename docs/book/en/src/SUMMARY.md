@@ -54,6 +54,7 @@
     - [API references](embed/go/ref.md)
   - [Node.js SDK](embed/node.md)
   - [Rust SDK](embed/rust.md)
+    - [wasmedge-sys API](embed/rust/wasmedge-sys-api.md)
   - [Python SDK](embed/python.md)
 
 - [WasmEdge in Kubernetes](kubernetes.md)

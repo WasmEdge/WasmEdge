@@ -146,15 +146,15 @@ TEST_P(NativeCoreTest, TestSuites) {
     }
 
     // Get global instance.
-    auto &Globs = ModInst->getGlobalExports();
-    if (Globs.find(Field) == Globs.cend()) {
+    if (auto Res = ModInst->findGlobalExports(Field); unlikely(!Res)) {
       return Unexpect(ErrCode::IncompatibleImportType);
-    }
-    uint32_t GlobAddr = Globs.find(Field)->second;
-    auto *GlobInst = *Store.getGlobal(GlobAddr);
+    } else {
+      uint32_t GlobAddr = *Res;
+      auto *GlobInst = *Store.getGlobal(GlobAddr);
 
-    return std::make_pair(GlobInst->getValue(),
-                          GlobInst->getGlobalType().getValType());
+      return std::make_pair(GlobInst->getValue(),
+                            GlobInst->getGlobalType().getValType());
+    }
   };
 
   T.run(Proposal, UnitName);
@@ -251,15 +251,15 @@ TEST_P(CustomWasmCoreTest, TestSuites) {
     }
 
     // Get global instance.
-    auto &Globs = ModInst->getGlobalExports();
-    if (Globs.find(Field) == Globs.cend()) {
+    if (auto Res = ModInst->findGlobalExports(Field); unlikely(!Res)) {
       return Unexpect(ErrCode::IncompatibleImportType);
-    }
-    uint32_t GlobAddr = Globs.find(Field)->second;
-    auto *GlobInst = *Store.getGlobal(GlobAddr);
+    } else {
+      uint32_t GlobAddr = *Res;
+      auto *GlobInst = *Store.getGlobal(GlobAddr);
 
-    return std::make_pair(GlobInst->getValue(),
-                          GlobInst->getGlobalType().getValType());
+      return std::make_pair(GlobInst->getValue(),
+                            GlobInst->getGlobalType().getValType());
+    }
   };
 
   T.run(Proposal, UnitName);

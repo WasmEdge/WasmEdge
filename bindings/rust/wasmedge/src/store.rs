@@ -1,4 +1,4 @@
-use crate::{error::Result, wasmedge, Func, Global, Memory, Table, Vm};
+use crate::{error::Result, wasmedge, Func, Global, Instance, Memory, Table, Vm};
 use std::marker::PhantomData;
 
 #[derive(Debug)]
@@ -14,6 +14,10 @@ impl<'vm> Store<'vm> {
     /// Returns the names of all registered [modules](crate::Module)
     pub fn mod_names(&self) -> Option<Vec<String>> {
         self.inner.reg_module_names()
+    }
+
+    pub fn instance(&self) -> Option<Instance> {
+        unimplemented!()
     }
 
     pub fn func_count(&self) -> u32 {

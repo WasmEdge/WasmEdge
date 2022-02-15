@@ -1,4 +1,3 @@
-# Second State Functions
 # Second State 函数
 
 Second State 函数是由 WasmEdge 驱动，并且支持 Rust 语言作为其一等公民。

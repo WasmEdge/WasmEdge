@@ -458,7 +458,7 @@ mod tests {
         let result = Module::from_file(&vm, file);
         assert!(result.is_ok());
         let module = result.unwrap();
-        let result = vm.add_named_module("fib-module", module);
+        let result = vm.add_module(module, Some("fib-module"));
         assert!(result.is_ok());
         let vm = result.unwrap();
 
@@ -596,7 +596,7 @@ mod tests {
         assert!(result.is_ok());
 
         // add the import module into vm
-        let result = vm.add_named_import(import);
+        let result = vm.add_import(import);
         assert!(result.is_ok());
         let vm = result.unwrap();
 

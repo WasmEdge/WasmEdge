@@ -147,7 +147,7 @@ mod tests {
             assert!(result.is_ok());
             let import_process = result.unwrap();
 
-            let result = vm.add_named_import(import_process);
+            let result = vm.add_import(import_process);
             assert!(result.is_err());
             assert_eq!(
                 result.unwrap_err(),
@@ -196,7 +196,7 @@ mod tests {
             let host_func = result.unwrap();
             import_process.add_func("add", host_func);
 
-            let result = vm.add_named_import(import_process);
+            let result = vm.add_import(import_process);
             assert!(result.is_ok());
             let mut vm = result.unwrap();
 
@@ -265,7 +265,7 @@ mod tests {
             assert!(result.is_ok());
             let import_wasi = result.unwrap();
 
-            let result = vm.add_named_import(import_wasi);
+            let result = vm.add_import(import_wasi);
             assert!(result.is_err());
             assert_eq!(
                 result.unwrap_err(),
@@ -314,7 +314,7 @@ mod tests {
             let host_func = result.unwrap();
             import_wasi.add_func("add", host_func);
 
-            let result = vm.add_named_import(import_wasi);
+            let result = vm.add_import(import_wasi);
             assert!(result.is_ok());
             let mut vm = result.unwrap();
 
@@ -365,7 +365,7 @@ mod tests {
         let vm = result.unwrap();
 
         // register the ImportObject module into vm
-        let result = vm.add_named_import(import);
+        let result = vm.add_import(import);
         assert!(result.is_ok());
         let vm = result.unwrap();
 
@@ -430,7 +430,7 @@ mod tests {
         let vm = result.unwrap();
 
         // register the ImportObject module into vm
-        let result = vm.add_named_import(import);
+        let result = vm.add_import(import);
         assert!(result.is_ok());
         let vm = result.unwrap();
 
@@ -515,7 +515,7 @@ mod tests {
         let vm = result.unwrap();
 
         // register the ImportObject module into vm
-        let result = vm.add_named_import(import);
+        let result = vm.add_import(import);
         assert!(result.is_ok());
         let vm = result.unwrap();
 

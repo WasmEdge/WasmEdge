@@ -6,6 +6,11 @@
 #include "common/errinfo.h"
 #include "common/log.h"
 
+#include <algorithm>
+#include <array>
+#include <cstdint>
+#include <tuple>
+
 namespace WasmEdge {
 namespace Validator {
 

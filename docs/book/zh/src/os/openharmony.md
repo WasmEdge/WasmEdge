@@ -38,8 +38,7 @@ $ docker run -it -v $(pwd):/home/openharmony openharmony-docker-standard:0.0.5
 
 修改 OpenHarmony 的 build 目录下的 `subsystem_config.json` 文件，添加 `wasmedge` 子系统。
 
-
-```
+```json
 {
   ...
   
@@ -57,8 +56,7 @@ $ docker run -it -v $(pwd):/home/openharmony openharmony-docker-standard:0.0.5
 修改 OpenHarmony 产品配置文件，标准系统对应的配置文件：`productdefine/common/products/Hi3516DV300.json`。
 在该配置文件中添加 `"wasmedge:wasmedge":{}`，表示该产品中会编译并打包 wasmedge 子系统下的 `wasmedge` 模块到版本中。
 
-
-```
+```json
 {
   ...
   "parts":{
@@ -79,6 +77,7 @@ $ docker run -it -v $(pwd):/home/openharmony openharmony-docker-standard:0.0.5
 ### 执行构建脚本
 
 通过执行 WasmEdge 源码下的 `utils/build_for_ohos.sh` 命令行脚本，将自动执行以下工作：
+
 1. 将 .gn 等 OpenHarmony 需要的构建配置文件移动到 WasmEdge 项目根目录。
 2. 使用 OpenHarmony 的编译工具链进行交叉编译构建 WasmEdge。
 3. 运行 OpenHarmony 的构建脚本 `build.sh` 进行全量编译，该步骤将 `wasmedge` 添加进 OpenHarmony OS。
@@ -90,7 +89,8 @@ $ docker run -it -v $(pwd):/home/openharmony openharmony-docker-standard:0.0.5
 ```
 
 当显示以下信息时，表明编译完成.
-```
+
+```bash
 ...
 
 post_process
@@ -119,27 +119,29 @@ post_process
 
 在 OpenHarmony 标准系统中，WasmEdge 提供了测试样例，并写入了 system 镜像中，供用户进行测试。
 通过串口工具连接上开发板并启动OpenHarmony标准系统后，用户可以进行以下测试。
-```
-# cd /system/usr/wasmedge_example
-# wasmedge hello.wasm 1 2 3
+
+```bash
+$ cd /system/usr/wasmedge_example
+$ wasmedge hello.wasm 1 2 3
 hello
 1
 2
 3
-# wasmedge --reactor add.wasm add 2 2
-4
-# wasmedge --reactor fibonacci.wasm fib 8
-34
-# wasmedge --reactor factorial.wasm fac 12
-479001600
-#
-# cd js
-# wasmedge --dir .:. qjs.wasm hello.js 1 2 3
-Hello 1 2 3
 
+$ wasmedge --reactor add.wasm add 2 2
+4
+
+$ wasmedge --reactor fibonacci.wasm fib 8
+34
+
+$ wasmedge --reactor factorial.wasm fac 12
+479001600
+
+$ cd js
+$ wasmedge --dir .:. qjs.wasm hello.js 1 2 3
+Hello 1 2 3
 ```
 
 ## 开发
 
 接下来，你可以使用 WasmEdge Runtime 在 OpenHarmony 标准系统中进行 WebAssembly 的相关开发工作。
-

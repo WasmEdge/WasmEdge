@@ -15,6 +15,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "hostfunc_c.h"
+#include <stddef.h>
 
 WasmEdge_Result SpecTestPrint(void *Data __attribute__((unused)),
                               WasmEdge_MemoryInstanceContext *MemCxt

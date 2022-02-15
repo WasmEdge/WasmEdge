@@ -2,14 +2,21 @@
 // SPDX-FileCopyrightText: 2019-2022 Second State INC
 
 #include "common/defines.h"
-#include "gtest/gtest.h"
+#include <gtest/gtest.h>
 
 #if WASMEDGE_OS_LINUX || WASMEDGE_OS_MACOS
 
 #include "host/wasi/wasibase.h"
 #include "host/wasi/wasifunc.h"
+#include <algorithm>
+#include <array>
+#include <cerrno>
+#include <cstdint>
+#include <cstring>
+#include <ctime>
 #include <string>
-#include <vector>
+#include <string_view>
+
 using namespace std::literals;
 
 namespace {

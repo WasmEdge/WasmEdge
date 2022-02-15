@@ -23,13 +23,15 @@ The easiest way to get started is to use Docker to build a dev environment. Just
 
 ```bash
 # Get the code
-$ git clone https://github.com/second-state/wasmedge-nodejs-starter
-$ cd wasmedge-nodejs-starter
+git clone https://github.com/second-state/wasmedge-nodejs-starter
+cd wasmedge-nodejs-starter
 
 # Run Docker container
-$ docker pull wasmedge/appdev_x86_64:0.8.2
-$ docker run -p 3000:3000 --rm -it -v $(pwd):/app wasmedge/appdev_x86_64:0.8.2
-(docker) $ cd /app
+docker pull wasmedge/appdev_x86_64:0.8.2
+docker run -p 3000:3000 --rm -it -v $(pwd):/app wasmedge/appdev_x86_64:0.8.2
+
+# In docker
+cd /app
 ```
 
 That's it! You are now ready to compile and run the code.
@@ -40,25 +42,25 @@ The commands are as follows.
 
 ```bash
 # Install Rust
-$ curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
-$ source $HOME/.cargo/env
-$ rustup override set 1.50.0
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+source $HOME/.cargo/env
+rustup override set 1.50.0
 
 # Install Node.js and npm
-$ curl -sL https://deb.nodesource.com/setup_14.x |  bash
-$ sudo apt-get install -y nodejs npm
+curl -sL https://deb.nodesource.com/setup_14.x |  bash
+sudo apt-get install -y nodejs npm
 
 # Install rustwasmc toolchain
-$ npm install -g rustwasmc # Append --unsafe-perm if permission denied
+npm install -g rustwasmc # Append --unsafe-perm if permission denied
 
 # OS dependencies for WasmEdge
-$ sudo apt-get update
-$ sudo apt-get -y upgrade
-$ sudo apt install -y build-essential curl wget git vim libboost-all-dev llvm-dev liblld-10-dev
+sudo apt-get update
+sudo apt-get -y upgrade
+sudo apt install -y build-essential curl wget git vim libboost-all-dev llvm-dev liblld-10-dev
 
 # Install the nodejs addon for WasmEdge
-$ npm install wasmedge-core
-$ npm install wasmedge-extensions
+npm install wasmedge-core
+npm install wasmedge-extensions
 ```
 
 > The WasmEdge Runtime depends on the latest version of `libstdc++`. Ubuntu 20.04 LTS already has the latest libraries. If you are running an older Linux distribution, you have [several options to upgrade](/articles/ubuntu-req-ssvm-20200715/).
@@ -66,8 +68,8 @@ $ npm install wasmedge-extensions
 Next, clone the example source code repository.
 
 ```bash
-$ git clone https://github.com/second-state/wasmedge-nodejs-starter
-$ cd wasmedge-nodejs-starter
+git clone https://github.com/second-state/wasmedge-nodejs-starter
+cd wasmedge-nodejs-starter
 ```
 
 ## Hello World
@@ -91,7 +93,7 @@ pub fn say(s: String) -> String {
 Next, you can compile the Rust source code into WebAssembly bytecode and generate the accompanying JavaScript module for the Node.js host environment.
 
 ```bash
-$ rustwasmc build
+rustwasmc build
 ```
 
 The result are files in the `pkg/` directory. the `.wasm` file is the WebAssembly bytecode program, and the `.js` files are for the JavaScript module.
@@ -146,18 +148,18 @@ a*X^2 + b*X + c = 0
 
 The roots for `X` are displayed in the area below the input form.
 
-![](/articles/getting-started-with-rust-function-01.png)
+![getting-started-with-rust-function](https://www.secondstate.io/articles/getting-started-with-rust-function-01.png)
 
-The [HTML file](https://github.com/second-state/wasm-learning/blob/master/nodejs/quadratic/node/public/index.html) contains the client side JavaScript to submit the web form to `/solve`, and put result into the `#roots` HTML element on the page. 
+The [HTML file](https://github.com/second-state/wasm-learning/blob/master/nodejs/quadratic/node/public/index.html) contains the client side JavaScript to submit the web form to `/solve`, and put result into the `#roots` HTML element on the page.
 
 ```javascript
 $(function() {
-    var options = {
-      target: '#roots',
-      url: "/solve",
-      type: "post"
-    };
-    $('#solve').ajaxForm(options);
+  var options = {
+    target: '#roots',
+    url: "/solve",
+    type: "post"
+  };
+  $('#solve').ajaxForm(options);
 });
 ```
 
@@ -193,10 +195,10 @@ pub fn solve(params: &str) -> String {
 Let's try it.
 
 ```bash
-$ rustwasmc build
-$ npm install express # The application requires the Express framework in Node.js
+rustwasmc build
+npm install express # The application requires the Express framework in Node.js
 
-$ node node/server.js
+node node/server.js
 ```
 
 From the web browser, go to `http://ip-addr:8080/` to access this application. Note: If you are using Docker, make sure that the Docker container port 8080 is mapped to the host port 8080.
@@ -209,7 +211,7 @@ Besides passing string values between Rust and JavaScript, the `rustwasmc` tool 
 
 * Rust call parameters can be any combo of `i32`, `String`, `&str`, `Vec<u8>`, and `&[u8]`
 * Return value can be `i32` or `String` or `Vec<u8>` or void
-* For complex data types, such as structs, you could use JSON strings to pass data. 
+* For complex data types, such as structs, you could use JSON strings to pass data.
 
 > With JSON support, you can call Rust functions with any number of input parameters and return any number of return values of any type.
 

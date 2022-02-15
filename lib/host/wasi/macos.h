@@ -14,6 +14,7 @@
 #include <TargetConditionals.h>
 #include <cerrno>
 #include <chrono>
+#include <csignal>
 #include <dirent.h>
 #include <fcntl.h>
 #include <netdb.h>

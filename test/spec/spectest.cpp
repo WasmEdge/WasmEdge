@@ -219,6 +219,7 @@ static const TestsuiteProposal TestsuiteProposals[] = {
     {"multi-memory"sv, {Proposal::MultiMemories}},
     {"tail-call"sv, {Proposal::TailCall}},
     {"extended-const"sv, {Proposal::ExtendedConst}},
+    {"threads"sv, {Proposal::Threads}},
 };
 
 } // namespace

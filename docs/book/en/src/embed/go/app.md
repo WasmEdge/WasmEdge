@@ -10,48 +10,48 @@ use std::fs::File;
 use std::io::{self, BufRead};
 
 fn main() {
-    // Get the argv.
-    let args: Vec<String> = env::args().collect();
-    if args.len() <= 1 {
-        println!("Rust: ERROR - No input file name.");
-        return;
-    }
+  // Get the argv.
+  let args: Vec<String> = env::args().collect();
+  if args.len() <= 1 {
+    println!("Rust: ERROR - No input file name.");
+    return;
+  }
 
-    // Open the file.
-    println!("Rust: Opening input file \"{}\"...", args[1]);
-    let file = match File::open(&args[1]) {
-        Err(why) => {
-            println!("Rust: ERROR - Open file \"{}\" failed: {}", args[1], why);
-            return;
-        },
-        Ok(file) => file,
-    };
+  // Open the file.
+  println!("Rust: Opening input file \"{}\"...", args[1]);
+  let file = match File::open(&args[1]) {
+    Err(why) => {
+      println!("Rust: ERROR - Open file \"{}\" failed: {}", args[1], why);
+      return;
+    },
+    Ok(file) => file,
+  };
 
-    // Read lines.
-    let reader = io::BufReader::new(file);
-    let mut texts:Vec<String> = Vec::new();
-    for line in reader.lines() {
-        if let Ok(text) = line {
-            texts.push(text);
-        }
+  // Read lines.
+  let reader = io::BufReader::new(file);
+  let mut texts:Vec<String> = Vec::new();
+  for line in reader.lines() {
+    if let Ok(text) = line {
+      texts.push(text);
     }
-    println!("Rust: Read input file \"{}\" succeeded.", args[1]);
+  }
+  println!("Rust: Read input file \"{}\" succeeded.", args[1]);
 
-    // Get stdin to print lines.
-    println!("Rust: Please input the line number to print the line of file.");
-    let stdin = io::stdin();
-    for line in stdin.lock().lines() {
-        let input = line.unwrap();
-        match input.parse::<usize>() {
-            Ok(n) => if n > 0 && n <= texts.len() {
-                println!("{}", texts[n - 1]);
-            } else {
-                println!("Rust: ERROR - Line \"{}\" is out of range.", n);
-            },
-            Err(e) => println!("Rust: ERROR - Input \"{}\" is not an integer: {}", input, e),
-        }
+  // Get stdin to print lines.
+  println!("Rust: Please input the line number to print the line of file.");
+  let stdin = io::stdin();
+  for line in stdin.lock().lines() {
+    let input = line.unwrap();
+    match input.parse::<usize>() {
+      Ok(n) => if n > 0 && n <= texts.len() {
+        println!("{}", texts[n - 1]);
+      } else {
+        println!("Rust: ERROR - Line \"{}\" is out of range.", n);
+      },
+      Err(e) => println!("Rust: ERROR - Input \"{}\" is not an integer: {}", input, e),
     }
-    println!("Rust: Process end.");
+  }
+  println!("Rust: Process end.");
 }
 ```
 
@@ -69,35 +69,35 @@ The Go source code to run the WebAssembly function in WasmEdge is as follows.
 package main
 
 import (
-    "os"
-    "github.com/second-state/WasmEdge-go/wasmedge"
+  "os"
+  "github.com/second-state/WasmEdge-go/wasmedge"
 )
 
 func main() {
-    wasmedge.SetLogErrorLevel()
+  wasmedge.SetLogErrorLevel()
 
-    var conf = wasmedge.NewConfigure(wasmedge.REFERENCE_TYPES)
-    conf.AddConfig(wasmedge.WASI)
-    var vm = wasmedge.NewVMWithConfig(conf)
-    var wasi = vm.GetImportObject(wasmedge.WASI)
-    wasi.InitWasi(
-        os.Args[1:],     /// The args
-        os.Environ(),    /// The envs
-        []string{".:."}, /// The mapping directories
-    )
+  var conf = wasmedge.NewConfigure(wasmedge.REFERENCE_TYPES)
+  conf.AddConfig(wasmedge.WASI)
+  var vm = wasmedge.NewVMWithConfig(conf)
+  var wasi = vm.GetImportObject(wasmedge.WASI)
+  wasi.InitWasi(
+    os.Args[1:],     // The args
+    os.Environ(),    // The envs
+    []string{".:."}, // The mapping directories
+  )
 
-    /// Instantiate wasm. _start refers to the main() function
-    vm.RunWasmFile(os.Args[1], "_start")
+  // Instantiate wasm. _start refers to the main() function
+  vm.RunWasmFile(os.Args[1], "_start")
 
-    vm.Release()
-    conf.Release()
+  vm.Release()
+  conf.Release()
 }
 ```
 
 Next, let's build the Go application with the WasmEdge Go SDK.
 
 ```bash
-go get github.com/second-state/WasmEdge-go/wasmedge@v0.9.0
+go get github.com/second-state/WasmEdge-go/wasmedge@v0.9.1
 go build
 ```
 

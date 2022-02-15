@@ -16,14 +16,25 @@
 
 #include "common/enum_configure.h"
 
+#include <atomic>
 #include <bitset>
 #include <cstdint>
 #include <initializer_list>
+#include <mutex>
+#include <shared_mutex>
 
 namespace WasmEdge {
 
 class CompilerConfigure {
 public:
+  CompilerConfigure() noexcept = default;
+  CompilerConfigure(const CompilerConfigure &RHS) noexcept
+      : OptLevel(RHS.OptLevel.load(std::memory_order_relaxed)),
+        OFormat(RHS.OFormat.load(std::memory_order_relaxed)),
+        DumpIR(RHS.DumpIR.load(std::memory_order_relaxed)),
+        GenericBinary(RHS.GenericBinary.load(std::memory_order_relaxed)),
+        Interruptible(RHS.Interruptible.load(std::memory_order_relaxed)) {}
+
   /// AOT compiler optimization level enum class.
   enum class OptimizationLevel : uint8_t {
     // Disable as many optimizations as possible.
@@ -42,9 +53,11 @@ public:
     Oz
   };
   void setOptimizationLevel(OptimizationLevel Level) noexcept {
-    OptLevel = Level;
+    OptLevel.store(Level, std::memory_order_relaxed);
   }
-  OptimizationLevel getOptimizationLevel() const noexcept { return OptLevel; }
+  OptimizationLevel getOptimizationLevel() const noexcept {
+    return OptLevel.load(std::memory_order_relaxed);
+  }
 
   /// AOT compiler output binary format.
   enum class OutputFormat : uint8_t {
@@ -53,108 +66,156 @@ public:
     // WebAssembly with AOT compiled codes in custom sections.
     Wasm,
   };
-  void setOutputFormat(OutputFormat Format) noexcept { OFormat = Format; }
-  OutputFormat getOutputFormat() const noexcept { return OFormat; }
+  void setOutputFormat(OutputFormat Format) noexcept {
+    OFormat.store(Format, std::memory_order_relaxed);
+  }
+  OutputFormat getOutputFormat() const noexcept {
+    return OFormat.load(std::memory_order_relaxed);
+  }
 
-  void setDumpIR(bool IsDump) noexcept { DumpIR = IsDump; }
+  void setDumpIR(bool IsDump) noexcept {
+    DumpIR.store(IsDump, std::memory_order_relaxed);
+  }
 
-  bool isDumpIR() const noexcept { return DumpIR; }
+  bool isDumpIR() const noexcept {
+    return DumpIR.load(std::memory_order_relaxed);
+  }
 
   void setGenericBinary(bool IsGenericBinary) noexcept {
-    GenericBinary = IsGenericBinary;
+    GenericBinary.store(IsGenericBinary, std::memory_order_relaxed);
   }
 
-  bool isGenericBinary() const noexcept { return GenericBinary; }
+  bool isGenericBinary() const noexcept {
+    return GenericBinary.load(std::memory_order_relaxed);
+  }
 
   void setInterruptible(bool IsInterruptible) noexcept {
-    Interruptible = IsInterruptible;
+    Interruptible.store(IsInterruptible, std::memory_order_relaxed);
   }
 
-  bool isInterruptible() const noexcept { return Interruptible; }
+  bool isInterruptible() const noexcept {
+    return Interruptible.load(std::memory_order_relaxed);
+  }
 
 private:
-  OptimizationLevel OptLevel = OptimizationLevel::O3;
-  OutputFormat OFormat = OutputFormat::Wasm;
-  bool DumpIR = false;
-  bool GenericBinary = false;
-  bool Interruptible = false;
+  std::atomic<OptimizationLevel> OptLevel = OptimizationLevel::O3;
+  std::atomic<OutputFormat> OFormat = OutputFormat::Wasm;
+  std::atomic<bool> DumpIR = false;
+  std::atomic<bool> GenericBinary = false;
+  std::atomic<bool> Interruptible = false;
 };
 
 class RuntimeConfigure {
 public:
-  void setMaxMemoryPage(const uint32_t Page) noexcept { MaxMemPage = Page; }
+  RuntimeConfigure() noexcept = default;
+  RuntimeConfigure(const RuntimeConfigure &RHS) noexcept
+      : MaxMemPage(RHS.MaxMemPage.load(std::memory_order_relaxed)) {}
 
-  uint32_t getMaxMemoryPage() const noexcept { return MaxMemPage; }
+  void setMaxMemoryPage(const uint32_t Page) noexcept {
+    MaxMemPage.store(Page, std::memory_order_relaxed);
+  }
+
+  uint32_t getMaxMemoryPage() const noexcept {
+    return MaxMemPage.load(std::memory_order_relaxed);
+  }
 
 private:
-  uint32_t MaxMemPage = 65536;
+  std::atomic<uint32_t> MaxMemPage = 65536;
 };
 
 class StatisticsConfigure {
 public:
+  StatisticsConfigure() noexcept = default;
+  StatisticsConfigure(const StatisticsConfigure &RHS) noexcept
+      : InstrCounting(RHS.InstrCounting.load(std::memory_order_relaxed)),
+        CostMeasuring(RHS.CostMeasuring.load(std::memory_order_relaxed)),
+        TimeMeasuring(RHS.TimeMeasuring.load(std::memory_order_relaxed)) {}
+
   void setInstructionCounting(bool IsCount) noexcept {
-    InstrCounting = IsCount;
+    InstrCounting.store(IsCount, std::memory_order_relaxed);
   }
 
-  bool isInstructionCounting() const noexcept { return InstrCounting; }
+  bool isInstructionCounting() const noexcept {
+    return InstrCounting.load(std::memory_order_relaxed);
+  }
 
-  void setCostMeasuring(bool IsMeasure) noexcept { CostMeasuring = IsMeasure; }
+  void setCostMeasuring(bool IsMeasure) noexcept {
+    CostMeasuring.store(IsMeasure, std::memory_order_relaxed);
+  }
 
-  bool isCostMeasuring() const noexcept { return CostMeasuring; }
+  bool isCostMeasuring() const noexcept {
+    return CostMeasuring.load(std::memory_order_relaxed);
+  }
 
   void setTimeMeasuring(bool IsTimeMeasure) noexcept {
-    TimeMeasuring = IsTimeMeasure;
+    TimeMeasuring.store(IsTimeMeasure, std::memory_order_relaxed);
   }
 
-  bool isTimeMeasuring() const noexcept { return TimeMeasuring; }
+  bool isTimeMeasuring() const noexcept {
+    return TimeMeasuring.load(std::memory_order_relaxed);
+  }
 
-  void setCostLimit(uint64_t Cost) noexcept { CostLimit = Cost; }
+  void setCostLimit(uint64_t Cost) noexcept {
+    CostLimit.store(Cost, std::memory_order_relaxed);
+  }
 
-  uint64_t getCostLimit() const noexcept { return CostLimit; }
+  uint64_t getCostLimit() const noexcept {
+    return CostLimit.load(std::memory_order_relaxed);
+  }
 
 private:
-  bool InstrCounting = false;
-  bool CostMeasuring = false;
-  bool TimeMeasuring = false;
-  uint64_t CostLimit = UINT64_C(-1);
+  std::atomic<bool> InstrCounting = false;
+  std::atomic<bool> CostMeasuring = false;
+  std::atomic<bool> TimeMeasuring = false;
+  std::atomic<uint64_t> CostLimit = UINT64_C(-1);
 };
 
 class Configure {
 public:
   Configure() noexcept {
-    addProposal(Proposal::ImportExportMutGlobals);
-    addProposal(Proposal::NonTrapFloatToIntConversions);
-    addProposal(Proposal::SignExtensionOperators);
-    addProposal(Proposal::MultiValue);
-    addProposal(Proposal::BulkMemoryOperations);
-    addProposal(Proposal::ReferenceTypes);
-    addProposal(Proposal::SIMD);
+    unsafeAddProposal(Proposal::ImportExportMutGlobals);
+    unsafeAddProposal(Proposal::NonTrapFloatToIntConversions);
+    unsafeAddProposal(Proposal::SignExtensionOperators);
+    unsafeAddProposal(Proposal::MultiValue);
+    unsafeAddProposal(Proposal::BulkMemoryOperations);
+    unsafeAddProposal(Proposal::ReferenceTypes);
+    unsafeAddProposal(Proposal::SIMD);
   }
   template <typename... ArgsT> Configure(ArgsT... Args) noexcept : Configure() {
-    (addSet(Args), ...);
+    (unsafeAddSet(Args), ...);
   }
+  Configure(const Configure &RHS) noexcept
+      : Proposals(RHS.Proposals), Hosts(RHS.Hosts),
+        CompilerConf(RHS.CompilerConf), RuntimeConf(RHS.RuntimeConf),
+        StatisticsConf(RHS.StatisticsConf) {}
 
   void addProposal(const Proposal Type) noexcept {
-    Proposals.set(static_cast<uint8_t>(Type));
+    std::unique_lock Lock(Mutex);
+    unsafeAddProposal(Type);
   }
 
   void removeProposal(const Proposal Type) noexcept {
+    std::unique_lock Lock(Mutex);
     Proposals.reset(static_cast<uint8_t>(Type));
   }
 
   bool hasProposal(const Proposal Type) const noexcept {
+    std::shared_lock Lock(Mutex);
     return Proposals.test(static_cast<uint8_t>(Type));
   }
 
   void addHostRegistration(const HostRegistration Host) noexcept {
+    std::unique_lock Lock(Mutex);
     Hosts.set(static_cast<uint8_t>(Host));
   }
 
   void removeHostRegistration(const HostRegistration Host) noexcept {
+    std::unique_lock Lock(Mutex);
     Hosts.reset(static_cast<uint8_t>(Host));
   }
 
   bool hasHostRegistration(const HostRegistration Host) const noexcept {
+    std::shared_lock Lock(Mutex);
     return Hosts.test(static_cast<uint8_t>(Host));
   }
 
@@ -176,8 +237,20 @@ public:
   }
 
 private:
-  void addSet(const Proposal P) noexcept { addProposal(P); }
-  void addSet(const HostRegistration H) noexcept { addHostRegistration(H); }
+  void unsafeAddSet(const Proposal P) noexcept { unsafeAddProposal(P); }
+  void unsafeAddSet(const HostRegistration H) noexcept {
+    unsafeAddHostRegistration(H);
+  }
+
+  void unsafeAddProposal(const Proposal Type) noexcept {
+    Proposals.set(static_cast<uint8_t>(Type));
+  }
+
+  void unsafeAddHostRegistration(const HostRegistration Host) noexcept {
+    Hosts.set(static_cast<uint8_t>(Host));
+  }
+
+  mutable std::shared_mutex Mutex;
   std::bitset<static_cast<uint8_t>(Proposal::Max)> Proposals;
   std::bitset<static_cast<uint8_t>(HostRegistration::Max)> Hosts;
 

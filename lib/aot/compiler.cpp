@@ -546,7 +546,7 @@ public:
 
       if (GasMeasuring) {
         LocalGas = Builder.CreateAlloca(Context.Int64Ty);
-        readGas();
+        Builder.CreateStore(Builder.getInt64(0), LocalGas);
       }
 
       for (llvm::Argument *Arg = F->arg_begin() + 1; Arg != F->arg_end();
@@ -593,7 +593,7 @@ public:
     for (auto &[Error, BB] : TrapBB) {
       Builder.SetInsertPoint(BB);
       updateInstrCount();
-      writeGas();
+      updateGas();
       auto *CallTrap = Builder.CreateCall(
           Context.Trap, {Builder.getInt8(static_cast<uint8_t>(Error))});
       CallTrap->setDoesNotReturn();
@@ -627,6 +627,7 @@ public:
         enterBlock(EndBlock, nullptr, nullptr, std::move(Args),
                    std::move(Type));
         checkStop();
+        updateGas();
         return;
       }
       case OpCode::Loop: {
@@ -658,6 +659,7 @@ public:
         }
         enterBlock(Loop, EndLoop, nullptr, std::move(Args), std::move(Type));
         checkStop();
+        updateGas();
         return;
       }
       case OpCode::If: {
@@ -770,12 +772,12 @@ public:
       }
       case OpCode::Call:
         updateInstrCount();
-        writeGas();
+        updateGas();
         compileCallOp(Instr.getTargetIndex());
         break;
       case OpCode::Call_indirect:
         updateInstrCount();
-        writeGas();
+        updateGas();
         compileIndirectCallOp(Instr.getSourceIndex(), Instr.getTargetIndex());
         break;
       case OpCode::Ref__null:
@@ -2711,11 +2713,12 @@ public:
       if (LocalGas) {
         auto *NewGas = Builder.CreateAdd(
             Builder.CreateLoad(Context.Int64Ty, LocalGas),
-            Builder.CreateLoad(Context.Int64Ty,
-                               Builder.CreateConstInBoundsGEP2_64(
-                                   Context.Int64PtrTy,
-                                   Context.getCostTable(Builder, ExecCtx), 0,
-                                   uint16_t(Instr.getOpCode()))));
+            Builder.CreateLoad(
+                Context.Int64Ty,
+                Builder.CreateConstInBoundsGEP2_64(
+                    llvm::ArrayType::get(Context.Int64Ty, UINT16_MAX + 1),
+                    Context.getCostTable(Builder, ExecCtx), 0,
+                    uint16_t(Instr.getOpCode()))));
         Builder.CreateStore(NewGas, LocalGas);
       }
 
@@ -2878,7 +2881,7 @@ public:
 
   void compileReturn() {
     updateInstrCount();
-    writeGas();
+    updateGas();
     auto *Ty = F->getReturnType();
     if (Ty->isVoidTy()) {
       Builder.CreateRetVoid();
@@ -2897,28 +2900,27 @@ public:
 
   void updateInstrCount() {
     if (LocalInstrCount) {
-      auto *Ptr = Context.getInstrCount(Builder, ExecCtx);
-      Builder.CreateStore(
-          Builder.CreateAdd(
-              Builder.CreateLoad(Context.Int64Ty, LocalInstrCount),
-              Builder.CreateLoad(Context.Int64Ty, Ptr)),
-          Ptr);
+      Builder.CreateAtomicRMW(
+          llvm::AtomicRMWInst::BinOp::Add,
+          Context.getInstrCount(Builder, ExecCtx),
+          Builder.CreateLoad(Context.Int64Ty, LocalInstrCount),
+#if LLVM_VERSION_MAJOR >= 13
+          llvm::MaybeAlign(8),
+#endif
+          llvm::AtomicOrdering::Monotonic);
       Builder.CreateStore(Builder.getInt64(0), LocalInstrCount);
     }
   }
 
-  void readGas() {
+  void updateGas() {
     if (LocalGas) {
-      Builder.CreateStore(
-          Builder.CreateLoad(Context.Int64Ty, Context.getGas(Builder, ExecCtx)),
-          LocalGas);
-    }
-  }
-
-  void writeGas() {
-    if (LocalGas) {
-      Builder.CreateStore(Builder.CreateLoad(Context.Int64Ty, LocalGas),
-                          Context.getGas(Builder, ExecCtx));
+      Builder.CreateAtomicRMW(llvm::AtomicRMWInst::BinOp::Add,
+                              Context.getGas(Builder, ExecCtx),
+                              Builder.CreateLoad(Context.Int64Ty, LocalGas),
+#if LLVM_VERSION_MAJOR >= 13
+                              llvm::MaybeAlign(8),
+#endif
+                              llvm::AtomicOrdering::Monotonic);
     }
   }
 
@@ -2947,8 +2949,6 @@ private:
     } else {
       stackPush(Ret);
     }
-
-    readGas();
   }
 
   void compileIndirectCallOp(const uint32_t TableIndex,
@@ -3017,8 +3017,6 @@ private:
         stackPush(Builder.CreateLoad(RTy->getStructElementType(I), Ptr));
       }
     }
-
-    readGas();
   }
 
   void compileLoadOp(unsigned MemoryIndex, unsigned Offset, unsigned Alignment,
@@ -3771,7 +3769,7 @@ private:
         llvm::AtomicRMWInst::BinOp::Xchg,
         Context.getStopToken(Builder, ExecCtx), Builder.getInt32(0),
 #if LLVM_VERSION_MAJOR >= 13
-        llvm::MaybeAlign(),
+        llvm::MaybeAlign(4),
 #endif
         llvm::AtomicOrdering::Monotonic);
     auto *NotStop = createLikely(
@@ -4228,6 +4226,7 @@ Expect<void> Compiler::compile(Span<const Byte> Data, const AST::Module &Module,
                                std::filesystem::path OutputPath) {
   using namespace std::literals;
 
+  std::unique_lock Lock(Mutex);
   spdlog::info("compile start");
   std::filesystem::path LLPath(OutputPath);
   LLPath.replace_extension("ll"sv);

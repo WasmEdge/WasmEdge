@@ -88,16 +88,18 @@ public:
   Executor(const Configure &Conf, Statistics::Statistics *S = nullptr) noexcept
       : Conf(Conf), Stat(S) {
     assuming(This == nullptr);
-    This = this;
-    ExecutionContext.StopToken = &StopToken;
+    newThread();
     if (Stat) {
-      ExecutionContext.InstrCount = &Stat->getInstrCountRef();
-      ExecutionContext.CostTable = Stat->getCostTable().data();
-      ExecutionContext.Gas = &Stat->getTotalCostRef();
       Stat->setCostLimit(Conf.getStatisticsConfigure().getCostLimit());
     }
   }
-  ~Executor() noexcept { This = nullptr; }
+  ~Executor() noexcept {
+    This = nullptr;
+    ExecutionContext.StopToken = nullptr;
+    ExecutionContext.InstrCount = nullptr;
+    ExecutionContext.CostTable = nullptr;
+    ExecutionContext.Gas = nullptr;
+  }
 
   /// Instantiate Wasm Module as the anonymous active module.
   Expect<void> instantiateModule(Runtime::StoreManager &StoreMgr,
@@ -117,22 +119,34 @@ public:
          Span<const ValVariant> Params, Span<const ValType> ParamTypes);
 
   /// Register new thread
-  void newThread() noexcept { This = this; }
+  void newThread() noexcept {
+    This = this;
+    ExecutionContext.StopToken = &StopToken;
+    if (Stat) {
+      ExecutionContext.InstrCount = &Stat->getInstrCountRef();
+      ExecutionContext.CostTable = Stat->getCostTable().data();
+      ExecutionContext.Gas = &Stat->getTotalCostRef();
+    }
+  }
+
   /// Stop execution
   void stop() noexcept { StopToken.store(1, std::memory_order_relaxed); }
 
 private:
   /// Run Wasm bytecode expression for initialization.
   Expect<void> runExpression(Runtime::StoreManager &StoreMgr,
+                             Runtime::StackManager &StackMgr,
                              AST::InstrView Instrs);
 
   /// Run Wasm function.
   Expect<void> runFunction(Runtime::StoreManager &StoreMgr,
+                           Runtime::StackManager &StackMgr,
                            const Runtime::Instance::FunctionInstance &Func,
                            Span<const ValVariant> Params);
 
   /// Execute instructions.
   Expect<void> execute(Runtime::StoreManager &StoreMgr,
+                       Runtime::StackManager &StackMgr,
                        const AST::InstrView::iterator Start,
                        const AST::InstrView::iterator End);
 
@@ -144,52 +158,62 @@ private:
 
   /// Instantiation of Import Section.
   Expect<void> instantiate(Runtime::StoreManager &StoreMgr,
+                           Runtime::StackManager &StackMgr,
                            Runtime::Instance::ModuleInstance &ModInst,
                            const AST::ImportSection &ImportSec);
 
   /// Instantiation of Function Instances.
   Expect<void> instantiate(Runtime::StoreManager &StoreMgr,
+                           Runtime::StackManager &StackMgr,
                            Runtime::Instance::ModuleInstance &ModInst,
                            const AST::FunctionSection &FuncSec,
                            const AST::CodeSection &CodeSec);
 
   /// Instantiation of Global Instances.
   Expect<void> instantiate(Runtime::StoreManager &StoreMgr,
+                           Runtime::StackManager &StackMgr,
                            Runtime::Instance::ModuleInstance &ModInst,
                            const AST::GlobalSection &GlobSec);
 
   /// Instantiation of Table Instances.
   Expect<void> instantiate(Runtime::StoreManager &StoreMgr,
+                           Runtime::StackManager &StackMgr,
                            Runtime::Instance::ModuleInstance &ModInst,
                            const AST::TableSection &TabSec);
 
   /// Instantiation of Memory Instances.
   Expect<void> instantiate(Runtime::StoreManager &StoreMgr,
+                           Runtime::StackManager &StackMgr,
                            Runtime::Instance::ModuleInstance &ModInst,
                            const AST::MemorySection &MemSec);
 
   /// Instantiation of Element Instances.
   Expect<void> instantiate(Runtime::StoreManager &StoreMgr,
+                           Runtime::StackManager &StackMgr,
                            Runtime::Instance::ModuleInstance &ModInst,
                            const AST::ElementSection &ElemSec);
 
   /// Initialize table with Element Instances.
   Expect<void> initTable(Runtime::StoreManager &StoreMgr,
+                         Runtime::StackManager &StackMgr,
                          Runtime::Instance::ModuleInstance &ModInst,
                          const AST::ElementSection &ElemSec);
 
   /// Initialize memory with Data Instances.
   Expect<void> initMemory(Runtime::StoreManager &StoreMgr,
+                          Runtime::StackManager &StackMgr,
                           Runtime::Instance::ModuleInstance &ModInst,
                           const AST::DataSection &DataSec);
 
   /// Instantiation of Data Instances.
   Expect<void> instantiate(Runtime::StoreManager &StoreMgr,
+                           Runtime::StackManager &StackMgr,
                            Runtime::Instance::ModuleInstance &ModInst,
                            const AST::DataSection &DataSec);
 
   /// Instantiation of Export Instances.
   Expect<void> instantiate(Runtime::StoreManager &StoreMgr,
+                           Runtime::StackManager &StackMgr,
                            Runtime::Instance::ModuleInstance &ModInst,
                            const AST::ExportSection &ExportSec);
   /// @}
@@ -199,15 +223,18 @@ private:
   /// Helper function for calling functions. Return the continuation iterator.
   Expect<AST::InstrView::iterator>
   enterFunction(Runtime::StoreManager &StoreMgr,
+                Runtime::StackManager &StackMgr,
                 const Runtime::Instance::FunctionInstance &Func,
                 const AST::InstrView::iterator From);
 
   /// Helper function for branching to label.
   Expect<void> branchToLabel(Runtime::StoreManager &StoreMgr,
+                             Runtime::StackManager &StackMgr,
                              const uint32_t Cnt, AST::InstrView::iterator &PC);
 
   /// Helper function for getting arity from block type.
   std::pair<uint32_t, uint32_t> getBlockArity(Runtime::StoreManager &StoreMgr,
+                                              Runtime::StackManager &StackMgr,
                                               const BlockType &BType);
   /// @}
 
@@ -215,96 +242,129 @@ private:
   /// @{
   /// Helper function for get table instance by index.
   Runtime::Instance::TableInstance *
-  getTabInstByIdx(Runtime::StoreManager &StoreMgr, const uint32_t Idx);
+  getTabInstByIdx(Runtime::StoreManager &StoreMgr,
+                  Runtime::StackManager &StackMgr, const uint32_t Idx);
 
   /// Helper function for get memory instance by index.
   Runtime::Instance::MemoryInstance *
-  getMemInstByIdx(Runtime::StoreManager &StoreMgr, const uint32_t Idx);
+  getMemInstByIdx(Runtime::StoreManager &StoreMgr,
+                  Runtime::StackManager &StackMgr, const uint32_t Idx);
 
   /// Helper function for get global instance by index.
   Runtime::Instance::GlobalInstance *
-  getGlobInstByIdx(Runtime::StoreManager &StoreMgr, const uint32_t Idx);
+  getGlobInstByIdx(Runtime::StoreManager &StoreMgr,
+                   Runtime::StackManager &StackMgr, const uint32_t Idx);
 
   /// Helper function for get element instance by index.
   Runtime::Instance::ElementInstance *
-  getElemInstByIdx(Runtime::StoreManager &StoreMgr, const uint32_t Idx);
+  getElemInstByIdx(Runtime::StoreManager &StoreMgr,
+                   Runtime::StackManager &StackMgr, const uint32_t Idx);
 
   /// Helper function for get data instance by index.
   Runtime::Instance::DataInstance *
-  getDataInstByIdx(Runtime::StoreManager &StoreMgr, const uint32_t Idx);
+  getDataInstByIdx(Runtime::StoreManager &StoreMgr,
+                   Runtime::StackManager &StackMgr, const uint32_t Idx);
   /// @}
 
   /// \name Run instructions functions
   /// @{
   /// ======= Control instructions =======
   Expect<void> runBlockOp(Runtime::StoreManager &StoreMgr,
+                          Runtime::StackManager &StackMgr,
                           const AST::Instruction &Instr,
                           AST::InstrView::iterator &PC);
   Expect<void> runLoopOp(Runtime::StoreManager &StoreMgr,
+                         Runtime::StackManager &StackMgr,
                          const AST::Instruction &Instr,
                          AST::InstrView::iterator &PC);
   Expect<void> runIfElseOp(Runtime::StoreManager &StoreMgr,
+                           Runtime::StackManager &StackMgr,
                            const AST::Instruction &Instr,
                            AST::InstrView::iterator &PC);
   Expect<void> runBrOp(Runtime::StoreManager &StoreMgr,
+                       Runtime::StackManager &StackMgr,
                        const AST::Instruction &Instr,
                        AST::InstrView::iterator &PC);
   Expect<void> runBrIfOp(Runtime::StoreManager &StoreMgr,
+                         Runtime::StackManager &StackMgr,
                          const AST::Instruction &Instr,
                          AST::InstrView::iterator &PC);
   Expect<void> runBrTableOp(Runtime::StoreManager &StoreMgr,
+                            Runtime::StackManager &StackMgr,
                             const AST::Instruction &Instr,
                             AST::InstrView::iterator &PC);
-  Expect<void> runReturnOp(AST::InstrView::iterator &PC);
+  Expect<void> runReturnOp(Runtime::StackManager &StackMgr,
+                           AST::InstrView::iterator &PC);
   Expect<void> runCallOp(Runtime::StoreManager &StoreMgr,
+                         Runtime::StackManager &StackMgr,
                          const AST::Instruction &Instr,
                          AST::InstrView::iterator &PC);
   Expect<void> runCallIndirectOp(Runtime::StoreManager &StoreMgr,
+                                 Runtime::StackManager &StackMgr,
                                  const AST::Instruction &Instr,
                                  AST::InstrView::iterator &PC);
   /// ======= Variable instructions =======
-  Expect<void> runLocalGetOp(const uint32_t Idx);
-  Expect<void> runLocalSetOp(const uint32_t Idx);
-  Expect<void> runLocalTeeOp(const uint32_t Idx);
+  Expect<void> runLocalGetOp(Runtime::StackManager &StackMgr,
+                             const uint32_t Idx);
+  Expect<void> runLocalSetOp(Runtime::StackManager &StackMgr,
+                             const uint32_t Idx);
+  Expect<void> runLocalTeeOp(Runtime::StackManager &StackMgr,
+                             const uint32_t Idx);
   Expect<void> runGlobalGetOp(Runtime::StoreManager &StoreMgr,
+                              Runtime::StackManager &StackMgr,
                               const uint32_t Idx);
   Expect<void> runGlobalSetOp(Runtime::StoreManager &StoreMgr,
+                              Runtime::StackManager &StackMgr,
                               const uint32_t Idx);
   /// ======= Table instructions =======
-  Expect<void> runTableGetOp(Runtime::Instance::TableInstance &TabInst,
+  Expect<void> runTableGetOp(Runtime::StackManager &StackMgr,
+                             Runtime::Instance::TableInstance &TabInst,
                              const AST::Instruction &Instr);
-  Expect<void> runTableSetOp(Runtime::Instance::TableInstance &TabInst,
+  Expect<void> runTableSetOp(Runtime::StackManager &StackMgr,
+                             Runtime::Instance::TableInstance &TabInst,
                              const AST::Instruction &Instr);
-  Expect<void> runTableInitOp(Runtime::Instance::TableInstance &TabInst,
+  Expect<void> runTableInitOp(Runtime::StackManager &StackMgr,
+                              Runtime::Instance::TableInstance &TabInst,
                               Runtime::Instance::ElementInstance &ElemInst,
                               const AST::Instruction &Instr);
   Expect<void> runElemDropOp(Runtime::Instance::ElementInstance &ElemInst);
-  Expect<void> runTableCopyOp(Runtime::Instance::TableInstance &TabInstDst,
+  Expect<void> runTableCopyOp(Runtime::StackManager &StackMgr,
+                              Runtime::Instance::TableInstance &TabInstDst,
                               Runtime::Instance::TableInstance &TabInstSrc,
                               const AST::Instruction &Instr);
-  Expect<void> runTableGrowOp(Runtime::Instance::TableInstance &TabInst);
-  Expect<void> runTableSizeOp(Runtime::Instance::TableInstance &TabInst);
-  Expect<void> runTableFillOp(Runtime::Instance::TableInstance &TabInst,
+  Expect<void> runTableGrowOp(Runtime::StackManager &StackMgr,
+                              Runtime::Instance::TableInstance &TabInst);
+  Expect<void> runTableSizeOp(Runtime::StackManager &StackMgr,
+                              Runtime::Instance::TableInstance &TabInst);
+  Expect<void> runTableFillOp(Runtime::StackManager &StackMgr,
+                              Runtime::Instance::TableInstance &TabInst,
                               const AST::Instruction &Instr);
   /// ======= Memory instructions =======
   template <typename T>
-  TypeT<T> runLoadOp(Runtime::Instance::MemoryInstance &MemInst,
+  TypeT<T> runLoadOp(Runtime::StackManager &StackMgr,
+                     Runtime::Instance::MemoryInstance &MemInst,
                      const AST::Instruction &Instr,
                      const uint32_t BitWidth = sizeof(T) * 8);
   template <typename T>
-  TypeN<T> runStoreOp(Runtime::Instance::MemoryInstance &MemInst,
+  TypeN<T> runStoreOp(Runtime::StackManager &StackMgr,
+                      Runtime::Instance::MemoryInstance &MemInst,
                       const AST::Instruction &Instr,
                       const uint32_t BitWidth = sizeof(T) * 8);
-  Expect<void> runMemorySizeOp(Runtime::Instance::MemoryInstance &MemInst);
-  Expect<void> runMemoryGrowOp(Runtime::Instance::MemoryInstance &MemInst);
-  Expect<void> runMemoryInitOp(Runtime::Instance::MemoryInstance &MemInst,
+  Expect<void> runMemorySizeOp(Runtime::StackManager &StackMgr,
+                               Runtime::Instance::MemoryInstance &MemInst);
+  Expect<void> runMemoryGrowOp(Runtime::StackManager &StackMgr,
+                               Runtime::Instance::MemoryInstance &MemInst);
+  Expect<void> runMemoryInitOp(Runtime::StackManager &StackMgr,
+                               Runtime::Instance::MemoryInstance &MemInst,
                                Runtime::Instance::DataInstance &DataInst,
                                const AST::Instruction &Instr);
   Expect<void> runDataDropOp(Runtime::Instance::DataInstance &DataInst);
-  Expect<void> runMemoryCopyOp(Runtime::Instance::MemoryInstance &MemInstDst,
+  Expect<void> runMemoryCopyOp(Runtime::StackManager &StackMgr,
+                               Runtime::Instance::MemoryInstance &MemInstDst,
                                Runtime::Instance::MemoryInstance &MemInstSrc,
                                const AST::Instruction &Instr);
-  Expect<void> runMemoryFillOp(Runtime::Instance::MemoryInstance &MemInst,
+  Expect<void> runMemoryFillOp(Runtime::StackManager &StackMgr,
+                               Runtime::Instance::MemoryInstance &MemInst,
                                const AST::Instruction &Instr);
   /// ======= Test and Relation Numeric instructions =======
   template <typename T> TypeU<T> runEqzOp(ValVariant &Val) const;
@@ -384,16 +444,20 @@ private:
   TypeNN<TIn, TOut> runReinterpretOp(ValVariant &Val) const;
   /// ======= SIMD Memory instructions =======
   template <typename TIn, typename TOut>
-  Expect<void> runLoadExpandOp(Runtime::Instance::MemoryInstance &MemInst,
+  Expect<void> runLoadExpandOp(Runtime::StackManager &StackMgr,
+                               Runtime::Instance::MemoryInstance &MemInst,
                                const AST::Instruction &Instr);
   template <typename T>
-  Expect<void> runLoadSplatOp(Runtime::Instance::MemoryInstance &MemInst,
+  Expect<void> runLoadSplatOp(Runtime::StackManager &StackMgr,
+                              Runtime::Instance::MemoryInstance &MemInst,
                               const AST::Instruction &Instr);
   template <typename T>
-  Expect<void> runLoadLaneOp(Runtime::Instance::MemoryInstance &MemInst,
+  Expect<void> runLoadLaneOp(Runtime::StackManager &StackMgr,
+                             Runtime::Instance::MemoryInstance &MemInst,
                              const AST::Instruction &Instr);
   template <typename T>
-  Expect<void> runStoreLaneOp(Runtime::Instance::MemoryInstance &MemInst,
+  Expect<void> runStoreLaneOp(Runtime::StackManager &StackMgr,
+                              Runtime::Instance::MemoryInstance &MemInst,
                               const AST::Instruction &Instr);
   /// ======= SIMD Lane instructions =======
   template <typename TIn, typename TOut = TIn>
@@ -484,75 +548,98 @@ private:
   /// @{
 public:
   Expect<void> trap(Runtime::StoreManager &StoreMgr,
+                    Runtime::StackManager &StackMgr,
                     const uint8_t Code) noexcept;
-  Expect<void> call(Runtime::StoreManager &StoreMgr, const uint32_t FuncIdx,
+  Expect<void> call(Runtime::StoreManager &StoreMgr,
+                    Runtime::StackManager &StackMgr, const uint32_t FuncIdx,
                     const ValVariant *Args, ValVariant *Rets) noexcept;
   Expect<void> callIndirect(Runtime::StoreManager &StoreMgr,
+                            Runtime::StackManager &StackMgr,
                             const uint32_t TableIdx, const uint32_t FuncTypeIdx,
                             const uint32_t FuncIdx, const ValVariant *Args,
                             ValVariant *Rets) noexcept;
 
   Expect<uint32_t> memGrow(Runtime::StoreManager &StoreMgr,
+                           Runtime::StackManager &StackMgr,
                            const uint32_t MemIdx,
                            const uint32_t NewSize) noexcept;
   Expect<uint32_t> memSize(Runtime::StoreManager &StoreMgr,
+                           Runtime::StackManager &StackMgr,
                            const uint32_t MemIdx) noexcept;
   Expect<void> memCopy(Runtime::StoreManager &StoreMgr,
+                       Runtime::StackManager &StackMgr,
                        const uint32_t DstMemIdx, const uint32_t SrcMemIdx,
                        const uint32_t DstOff, const uint32_t SrcOff,
                        const uint32_t Len) noexcept;
-  Expect<void> memFill(Runtime::StoreManager &StoreMgr, const uint32_t MemIdx,
+  Expect<void> memFill(Runtime::StoreManager &StoreMgr,
+                       Runtime::StackManager &StackMgr, const uint32_t MemIdx,
                        const uint32_t Off, const uint8_t Val,
                        const uint32_t Len) noexcept;
-  Expect<void> memInit(Runtime::StoreManager &StoreMgr, const uint32_t MemIdx,
+  Expect<void> memInit(Runtime::StoreManager &StoreMgr,
+                       Runtime::StackManager &StackMgr, const uint32_t MemIdx,
                        const uint32_t DataIdx, const uint32_t DstOff,
                        const uint32_t SrcOff, const uint32_t Len) noexcept;
   Expect<void> dataDrop(Runtime::StoreManager &StoreMgr,
+                        Runtime::StackManager &StackMgr,
                         const uint32_t DataIdx) noexcept;
 
   Expect<RefVariant> tableGet(Runtime::StoreManager &StoreMgr,
+                              Runtime::StackManager &StackMgr,
                               const uint32_t TableIdx,
                               const uint32_t Off) noexcept;
   Expect<void> tableSet(Runtime::StoreManager &StoreMgr,
+                        Runtime::StackManager &StackMgr,
                         const uint32_t TableIdx, const uint32_t Off,
                         const RefVariant Ref) noexcept;
   Expect<void> tableCopy(Runtime::StoreManager &StoreMgr,
+                         Runtime::StackManager &StackMgr,
                          const uint32_t TableIdxDst, const uint32_t TableIdxSrc,
                          const uint32_t DstOff, const uint32_t SrcOff,
                          const uint32_t Len) noexcept;
   Expect<uint32_t> tableGrow(Runtime::StoreManager &StoreMgr,
+                             Runtime::StackManager &StackMgr,
                              const uint32_t TableIdx, const RefVariant Val,
                              const uint32_t NewSize) noexcept;
   Expect<uint32_t> tableSize(Runtime::StoreManager &StoreMgr,
+                             Runtime::StackManager &StackMgr,
                              const uint32_t TableIdx) noexcept;
   Expect<void> tableFill(Runtime::StoreManager &StoreMgr,
+                         Runtime::StackManager &StackMgr,
                          const uint32_t TableIdx, const uint32_t Off,
                          const RefVariant Ref, const uint32_t Len) noexcept;
   Expect<void> tableInit(Runtime::StoreManager &StoreMgr,
+                         Runtime::StackManager &StackMgr,
                          const uint32_t TableIdx, const uint32_t ElemIdx,
                          const uint32_t DstOff, const uint32_t SrcOff,
                          const uint32_t Len) noexcept;
   Expect<void> elemDrop(Runtime::StoreManager &StoreMgr,
+                        Runtime::StackManager &StackMgr,
                         const uint32_t ElemIdx) noexcept;
   Expect<RefVariant> refFunc(Runtime::StoreManager &StoreMgr,
+                             Runtime::StackManager &StackMgr,
                              const uint32_t FuncIdx) noexcept;
 
   template <typename FuncPtr> struct ProxyHelper;
 
 private:
+  /// Execution context for compiled functions
+  struct ExecutionContextStruct {
+    uint8_t *const *Memories;
+    ValVariant *const *Globals;
+    std::atomic_uint64_t *InstrCount;
+    uint64_t *CostTable;
+    std::atomic_uint64_t *Gas;
+    std::atomic_uint32_t *StopToken;
+  };
+
   /// Pointer to current object.
   static thread_local Executor *This;
   /// Store for passing into compiled functions
-  Runtime::StoreManager *CurrentStore;
+  static thread_local Runtime::StoreManager *CurrentStore;
+  /// Stack for passing into compiled functions
+  static thread_local Runtime::StackManager *CurrentStack;
   /// Execution context for compiled functions
-  struct ExecutionContext {
-    uint8_t *const *Memories;
-    ValVariant *const *Globals;
-    uint64_t *InstrCount;
-    uint64_t *CostTable;
-    uint64_t *Gas;
-    std::atomic_uint32_t *StopToken;
-  } ExecutionContext;
+  static thread_local ExecutionContextStruct ExecutionContext;
   /// @}
 
 private:
@@ -562,8 +649,6 @@ private:
   const Configure Conf;
   /// Instantiation mode
   InstantiateMode InsMode;
-  /// Stack
-  Runtime::StackManager StackMgr;
   /// Executor statistics
   Statistics::Statistics *Stat;
 

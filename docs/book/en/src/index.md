@@ -15,7 +15,7 @@ curl -sSf https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/insta
 
 For Windows 10, you could use Windows Package Manager Client (aka winget.exe) to install WasmEdge with a single command in your terminal.
 
-```
+```bash
 winget install wasmedge
 ```
 

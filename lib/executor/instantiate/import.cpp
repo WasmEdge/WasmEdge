@@ -46,30 +46,26 @@ Expect<uint32_t> getImportAddr(std::string_view ModName,
                                std::string_view ExtName,
                                const ExternalType ExtType, ASTNodeAttr Node,
                                Runtime::Instance::ModuleInstance &ModInst) {
-  const auto &FuncList = ModInst.getFuncExports();
-  const auto &TabList = ModInst.getTableExports();
-  const auto &MemList = ModInst.getMemExports();
-  const auto &GlobList = ModInst.getGlobalExports();
-
   switch (ExtType) {
   case ExternalType::Function:
-    if (FuncList.find(ExtName) != FuncList.cend()) {
-      return FuncList.find(ExtName)->second;
+    if (auto Res = ModInst.findFuncExports(ExtName); likely(Res.has_value())) {
+      return *Res;
     }
     break;
   case ExternalType::Table:
-    if (TabList.find(ExtName) != TabList.cend()) {
-      return TabList.find(ExtName)->second;
+    if (auto Res = ModInst.findTableExports(ExtName); likely(Res.has_value())) {
+      return *Res;
     }
     break;
   case ExternalType::Memory:
-    if (MemList.find(ExtName) != MemList.cend()) {
-      return MemList.find(ExtName)->second;
+    if (auto Res = ModInst.findMemExports(ExtName); likely(Res.has_value())) {
+      return *Res;
     }
     break;
   case ExternalType::Global:
-    if (GlobList.find(ExtName) != GlobList.cend()) {
-      return GlobList.find(ExtName)->second;
+    if (auto Res = ModInst.findGlobalExports(ExtName);
+        likely(Res.has_value())) {
+      return *Res;
     }
     break;
   default:
@@ -77,19 +73,19 @@ Expect<uint32_t> getImportAddr(std::string_view ModName,
   }
 
   // Check is error external type or unknown imports.
-  if (FuncList.find(ExtName) != FuncList.cend()) {
+  if (ModInst.findFuncExports(ExtName)) {
     return logMatchError(ModName, ExtName, ExtType, Node, ExtType,
                          ExternalType::Function);
   }
-  if (TabList.find(ExtName) != TabList.cend()) {
+  if (ModInst.findTableExports(ExtName)) {
     return logMatchError(ModName, ExtName, ExtType, Node, ExtType,
                          ExternalType::Table);
   }
-  if (MemList.find(ExtName) != MemList.cend()) {
+  if (ModInst.findMemExports(ExtName)) {
     return logMatchError(ModName, ExtName, ExtType, Node, ExtType,
                          ExternalType::Memory);
   }
-  if (GlobList.find(ExtName) != GlobList.cend()) {
+  if (ModInst.findGlobalExports(ExtName)) {
     return logMatchError(ModName, ExtName, ExtType, Node, ExtType,
                          ExternalType::Global);
   }
@@ -100,6 +96,7 @@ Expect<uint32_t> getImportAddr(std::string_view ModName,
 
 // Instantiate imports. See "include/executor/executor.h".
 Expect<void> Executor::instantiate(Runtime::StoreManager &StoreMgr,
+                                   Runtime::StackManager &,
                                    Runtime::Instance::ModuleInstance &ModInst,
                                    const AST::ImportSection &ImportSec) {
   // Iterate and instantiate import descriptions.

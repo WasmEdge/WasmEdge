@@ -11,15 +11,15 @@
 ## 下载样例代码
 
 ```bash
-$ git clone https://github.com/second-state/wasm-learning
-$ cd wasm-learning/cli/wasi
+git clone https://github.com/second-state/wasm-learning
+cd wasm-learning/cli/wasi
 ```
 
 ## 构建 WASM 字节码
 
 ```bash
-$ rustup target add wasm32-wasi
-$ cargo build --target wasm32-wasi --release
+rustup target add wasm32-wasi
+cargo build --target wasm32-wasi --release
 ```
 
 wasm 字节码应用程序位于 `target/wasm32-wasi/release/wasi_example_main.wasm` 文件中。你现在可以将其发布并用作容器镜像。
@@ -27,7 +27,7 @@ wasm 字节码应用程序位于 `target/wasm32-wasi/release/wasi_example_main.w
 ## 申请 Wasm 字节码的执行权限
 
 ```bash
-$ chmod +x target/wasm32-wasi/release/wasi_example_main.wasm
+chmod +x target/wasm32-wasi/release/wasi_example_main.wasm
 ```
 
 ## 创建 Dockerfile
@@ -53,29 +53,29 @@ CMD ["/wasi_example_main.wasm"]
 在 Ubuntu zesty 和 xenial 上，使用这些命令为 buildah 做准备。
 
 ```bash
-$ sudo apt-get -y install software-properties-common
+sudo apt-get -y install software-properties-common
 
-$ export OS="xUbuntu_20.04"
-$ sudo bash -c "echo \"deb https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/$OS/ /\" > /etc/apt/sources.list.d/devel:kubic:libcontainers:stable.list"
-$ sudo bash -c "curl -L https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/$OS/Release.key | apt-key add -"
+export OS="xUbuntu_20.04"
+sudo bash -c "echo \"deb https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/$OS/ /\" > /etc/apt/sources.list.d/devel:kubic:libcontainers:stable.list"
+sudo bash -c "curl -L https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/$OS/Release.key | apt-key add -"
 
-$ sudo add-apt-repository -y ppa:alexlarsson/flatpak
-$ sudo apt-get -y -qq update
-$ sudo apt-get -y install bats git libapparmor-dev libdevmapper-dev libglib2.0-dev libgpgme-dev libseccomp-dev libselinux1-dev skopeo-containers go-md2man containers-common
-$ sudo apt-get -y install golang-1.16 make
+sudo add-apt-repository -y ppa:alexlarsson/flatpak
+sudo apt-get -y -qq update
+sudo apt-get -y install bats git libapparmor-dev libdevmapper-dev libglib2.0-dev libgpgme-dev libseccomp-dev libselinux1-dev skopeo-containers go-md2man containers-common
+sudo apt-get -y install golang-1.16 make
 ```
 
 然后，按照下列步骤在 Ubuntu 上编译和安装 buildah。
 
 ```bash
-$ mkdir -p ~/buildah
-$ cd ~/buildah
-$ export GOPATH=`pwd`
-$ git clone https://github.com/containers/buildah ./src/github.com/containers/buildah
-$ cd ./src/github.com/containers/buildah
-$ PATH=/usr/lib/go-1.16/bin:$PATH make
-$ cp bin/buildah /usr/bin/buildah
-$ buildah --help
+mkdir -p ~/buildah
+cd ~/buildah
+export GOPATH=`pwd`
+git clone https://github.com/containers/buildah ./src/github.com/containers/buildah
+cd ./src/github.com/containers/buildah
+PATH=/usr/lib/go-1.16/bin:$PATH make
+cp bin/buildah /usr/bin/buildah
+buildah --help
 ```
 
 ### 创建和发布具备 buildah 的容器镜像

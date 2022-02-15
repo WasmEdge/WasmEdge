@@ -11,6 +11,7 @@ namespace Executor {
 
 // Instantiate function instance. See "include/executor/executor.h".
 Expect<void> Executor::instantiate(Runtime::StoreManager &StoreMgr,
+                                   Runtime::StackManager &,
                                    Runtime::Instance::ModuleInstance &ModInst,
                                    const AST::FunctionSection &FuncSec,
                                    const AST::CodeSection &CodeSec) {

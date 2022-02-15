@@ -52,27 +52,28 @@ impl Vm {
     }
 
     // validate + instantiate + register
-    pub fn add_named_module(mut self, mod_name: impl AsRef<str>, module: Module) -> Result<Self> {
-        self.inner
-            .register_wasm_from_module(mod_name.as_ref(), module.inner)?;
-        Ok(self)
-    }
-
-    // validate + instantiate + register
-    pub fn add_named_import(mut self, import: ImportMod) -> Result<Self> {
+    pub fn add_import(mut self, import: ImportMod) -> Result<Self> {
         self.inner.register_wasm_from_import(import.inner)?;
         Ok(self)
     }
 
-    pub fn add_anonymous_module(mut self, module: Module) -> Result<Self> {
-        // load module into vm
-        self.inner.load_wasm_from_module(module.inner)?;
+    // validate + instantiate + register a named module or an active module
+    pub fn add_module(mut self, module: Module, name: Option<&str>) -> Result<Self> {
+        match name {
+            Some(name) => {
+                self.inner.register_wasm_from_module(name, module.inner)?;
+            }
+            None => {
+                // load module into vm
+                self.inner.load_wasm_from_module(module.inner)?;
 
-        // validate
-        self.inner.validate()?;
+                // validate
+                self.inner.validate()?;
 
-        // instantiate
-        self.inner.instantiate()?;
+                // instantiate
+                self.inner.instantiate()?;
+            }
+        }
 
         Ok(self)
     }
@@ -211,7 +212,7 @@ mod tests {
         let module = result.unwrap();
 
         // register the wasm module into vm
-        let result = vm.add_named_module("extern", module);
+        let result = vm.add_module(module, Some("extern"));
         assert!(result.is_ok());
         let vm = result.unwrap();
 

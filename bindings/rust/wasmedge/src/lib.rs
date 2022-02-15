@@ -9,8 +9,9 @@ pub mod vm;
 
 pub use config::Config;
 pub use instance::{
-    ExportType, ExternalType, Func, Global, GlobalType, ImportMod, ImportType, Memory, MemoryType,
-    Module, Signature, SignatureBuilder, Table, TableType, WasiImportMod, WasmEdgeProcessImportMod,
+    ExportType, ExternalType, Func, Global, GlobalType, ImportMod, ImportType, Instance, Memory,
+    MemoryType, Module, Signature, SignatureBuilder, Table, TableType, WasiImportMod,
+    WasmEdgeProcessImportMod,
 };
 pub use statistics::Statistics;
 pub use store::Store;

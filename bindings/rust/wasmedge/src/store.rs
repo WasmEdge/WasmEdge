@@ -7,12 +7,12 @@ pub struct Store<'vm> {
     pub(crate) _marker: PhantomData<&'vm Vm>,
 }
 impl<'vm> Store<'vm> {
-    pub fn mod_count(&self) -> u32 {
+    pub fn instance_count(&self) -> u32 {
         self.inner.reg_module_len()
     }
 
     /// Returns the names of all registered [modules](crate::Module)
-    pub fn mod_names(&self) -> Option<Vec<String>> {
+    pub fn instance_names(&self) -> Option<Vec<String>> {
         self.inner.reg_module_names()
     }
 
@@ -48,7 +48,7 @@ impl<'vm> Store<'vm> {
 
         // funcs in the registered modules
         if self.inner.reg_module_len() > 0 {
-            let mod_names = self.mod_names().unwrap();
+            let mod_names = self.instance_names().unwrap();
             for mod_name in mod_names {
                 if self.inner.reg_func_len(&mod_name) > 0 {
                     let func_names = self.inner.reg_func_names(&mod_name).unwrap();
@@ -148,7 +148,7 @@ impl<'vm> Store<'vm> {
 
         // tables in the registered modules
         if self.inner.reg_module_len() > 0 {
-            let mod_names = self.mod_names().unwrap();
+            let mod_names = self.instance_names().unwrap();
             for mod_name in mod_names {
                 if self.inner.reg_table_len(&mod_name) > 0 {
                     let table_names = self.inner.reg_table_names(&mod_name).unwrap();
@@ -252,7 +252,7 @@ impl<'vm> Store<'vm> {
 
         // memories in the registered modules
         if self.inner.reg_module_len() > 0 {
-            let mod_names = self.mod_names().unwrap();
+            let mod_names = self.instance_names().unwrap();
             for mod_name in mod_names {
                 if self.inner.reg_mem_len(&mod_name) > 0 {
                     let mem_names = self.inner.reg_mem_names(&mod_name).unwrap();
@@ -358,7 +358,7 @@ impl<'vm> Store<'vm> {
 
         // globals in the registered modules
         if self.inner.reg_module_len() > 0 {
-            let mod_names = self.mod_names().unwrap();
+            let mod_names = self.instance_names().unwrap();
             for mod_name in mod_names {
                 if self.inner.reg_global_len(&mod_name) > 0 {
                     let global_names = self.inner.reg_global_names(&mod_name).unwrap();
@@ -565,8 +565,8 @@ mod tests {
             assert_eq!(store.global_count_by_module(module_name), 0);
             assert_eq!(store.memory_count(), 0);
             assert_eq!(store.memory_count_by_module(module_name), 0);
-            assert_eq!(store.mod_count(), 0);
-            assert!(store.mod_names().is_none());
+            assert_eq!(store.instance_count(), 0);
+            assert!(store.instance_names().is_none());
         }
 
         // create an ImportMod instance
@@ -610,9 +610,9 @@ mod tests {
         let store = result.unwrap();
 
         // check the exported instances
-        assert_eq!(store.mod_count(), 1);
-        assert!(store.mod_names().is_some());
-        assert_eq!(store.mod_names().unwrap()[0], module_name);
+        assert_eq!(store.instance_count(), 1);
+        assert!(store.instance_names().is_some());
+        assert_eq!(store.instance_names().unwrap()[0], module_name);
         assert_eq!(store.func_count(), 0);
         assert_eq!(store.func_count_by_module(module_name), 1);
         assert_eq!(store.table_count(), 0);

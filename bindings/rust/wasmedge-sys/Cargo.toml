@@ -1,9 +1,14 @@
 [package]
 name = "wasmedge-sys"
-version = "0.2.2"
-edition = "2018"
+version = "0.3.0"
+edition = "2021"
+links = "wasmedge_c"
+build = "build.rs"
 description = "WasmEdge Runtime is a high-performance, extensible, and hardware optimized WebAssembly Virtual Machine for automotive, cloud, AI, and blockchain applications."
 license = "Apache-2.0"
+readme = "README.md"
+repository = "https://github.com/WasmEdge/WasmEdge"
+categories = ["api-bindings"]
 
 [dependencies]
 paste = "1.0.5"

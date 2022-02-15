@@ -77,4 +77,4 @@ The definitions of WasmEdge Rust SDK involve two Rust crates, [wasmedge-sys](htt
 
 ## Examples
 
-* [Run a WebAssembly function with WasmEdge low-level APIs](rust/wasmedge_sys_api.md)
+* [Run a WebAssembly function with WasmEdge low-level APIs](rust/wasmedge-sys-api.md)

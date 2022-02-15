@@ -1,0 +1,40 @@
+name: Run FOSSA Scans
+
+concurrency:
+  group: fossa-${{ github.head_ref }}
+  cancel-in-progress: true
+
+on:
+  push:
+    branches:
+      - master
+    paths-ignore:
+      - 'docs/**'
+      - 'rpm/**'
+      - '**/*.md'
+  pull_request:
+    branches:
+      - master
+      - 'proposal/**'
+    paths-ignore:
+      - 'docs/**'
+      - 'rpm/**'
+      - '**/*.md'
+
+jobs:
+  fossa-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: "Checkout Code"
+        uses: actions/checkout@v2
+
+      - name: "Run FOSSA Scan"
+        uses: fossas/fossa-action@main
+        with:
+          api-key: ${{secrets.fossaApiKey}}
+
+      - name: "Run FOSSA Test"
+        uses: fossas/fossa-action@main
+        with:
+          api-key: ${{secrets.fossaApiKey}}
+          run-tests: true

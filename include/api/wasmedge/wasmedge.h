@@ -464,6 +464,8 @@ WasmEdge_ConfigureCreate(void);
 /// WasmEdge_VMContext *VM = WasmEdge_VMCreate(Conf, NULL);
 /// ```
 ///
+/// This function is thread-safe.
+///
 /// \param Cxt the WasmEdge_ConfigureContext to add the proposal value.
 /// \param Prop the proposal value.
 WASMEDGE_CAPI_EXPORT extern void
@@ -472,6 +474,8 @@ WasmEdge_ConfigureAddProposal(WasmEdge_ConfigureContext *Cxt,
 
 /// Remove a proposal setting in the WasmEdge_ConfigureContext.
 ///
+/// This function is thread-safe.
+///
 /// \param Cxt the WasmEdge_ConfigureContext to remove the proposal.
 /// \param Prop the proposal value.
 WASMEDGE_CAPI_EXPORT extern void
@@ -479,6 +483,8 @@ WasmEdge_ConfigureRemoveProposal(WasmEdge_ConfigureContext *Cxt,
                                  const enum WasmEdge_Proposal Prop);
 
 /// Check if a proposal setting exists in the WasmEdge_ConfigureContext or not.
+///
+/// This function is thread-safe.
 ///
 /// \param Cxt the WasmEdge_ConfigureContext to check the proposal value.
 /// \param Prop the proposal value.
@@ -499,12 +505,16 @@ WasmEdge_ConfigureHasProposal(const WasmEdge_ConfigureContext *Cxt,
 /// WasmEdge_VMContext *VM = WasmEdge_VMCreate(Conf, NULL);
 /// ```
 ///
+/// This function is thread-safe.
+///
 /// \param Cxt the WasmEdge_ConfigureContext to add host pre-registration.
 /// \param Host the host pre-registration value.
 WASMEDGE_CAPI_EXPORT extern void WasmEdge_ConfigureAddHostRegistration(
     WasmEdge_ConfigureContext *Cxt, const enum WasmEdge_HostRegistration Host);
 
 /// Remove a host pre-registration setting in the WasmEdge_ConfigureContext.
+///
+/// This function is thread-safe.
 ///
 /// \param Cxt the WasmEdge_ConfigureContext to remove the host
 /// pre-registration.
@@ -514,6 +524,8 @@ WASMEDGE_CAPI_EXPORT extern void WasmEdge_ConfigureRemoveHostRegistration(
 
 /// Check if a host pre-registration setting exists in the
 /// WasmEdge_ConfigureContext or not.
+///
+/// This function is thread-safe.
 ///
 /// \param Cxt the WasmEdge_ConfigureContext to check the host pre-registration.
 /// \param Host the host pre-registration value.
@@ -527,6 +539,8 @@ WASMEDGE_CAPI_EXPORT extern bool WasmEdge_ConfigureHasHostRegistration(
 ///
 /// Limit the page count (64KiB per page) in memory instances.
 ///
+/// This function is thread-safe.
+///
 /// \param Cxt the WasmEdge_ConfigureContext to set the maximum page count.
 /// \param Page the maximum page count.
 WASMEDGE_CAPI_EXPORT extern void
@@ -534,6 +548,8 @@ WasmEdge_ConfigureSetMaxMemoryPage(WasmEdge_ConfigureContext *Cxt,
                                    const uint32_t Page);
 
 /// Get the page limit of memory instances.
+///
+/// This function is thread-safe.
 ///
 /// \param Cxt the WasmEdge_ConfigureContext to get the maximum page count
 /// setting.
@@ -544,6 +560,8 @@ WasmEdge_ConfigureGetMaxMemoryPage(const WasmEdge_ConfigureContext *Cxt);
 
 /// Set the optimization level of AOT compiler.
 ///
+/// This function is thread-safe.
+///
 /// \param Cxt the WasmEdge_ConfigureContext to set the optimization level.
 /// \param Level the AOT compiler optimization level.
 WASMEDGE_CAPI_EXPORT extern void WasmEdge_ConfigureCompilerSetOptimizationLevel(
@@ -551,6 +569,8 @@ WASMEDGE_CAPI_EXPORT extern void WasmEdge_ConfigureCompilerSetOptimizationLevel(
     const enum WasmEdge_CompilerOptimizationLevel Level);
 
 /// Get the optimization level of AOT compiler.
+///
+/// This function is thread-safe.
 ///
 /// \param Cxt the WasmEdge_ConfigureContext to get the optimization level.
 ///
@@ -561,6 +581,8 @@ WasmEdge_ConfigureCompilerGetOptimizationLevel(
 
 /// Set the output binary format of AOT compiler.
 ///
+/// This function is thread-safe.
+///
 /// \param Cxt the WasmEdge_ConfigureContext to set the output binary format.
 /// \param Format the AOT compiler output binary format.
 WASMEDGE_CAPI_EXPORT extern void WasmEdge_ConfigureCompilerSetOutputFormat(
@@ -569,6 +591,8 @@ WASMEDGE_CAPI_EXPORT extern void WasmEdge_ConfigureCompilerSetOutputFormat(
 
 /// Get the output binary format of AOT compiler.
 ///
+/// This function is thread-safe.
+///
 /// \param Cxt the WasmEdge_ConfigureContext to get the output binary format.
 ///
 /// \returns the AOT compiler output binary format.
@@ -576,6 +600,8 @@ WASMEDGE_CAPI_EXPORT extern enum WasmEdge_CompilerOutputFormat
 WasmEdge_ConfigureCompilerGetOutputFormat(const WasmEdge_ConfigureContext *Cxt);
 
 /// Set the dump IR option of AOT compiler.
+///
+/// This function is thread-safe.
 ///
 /// \param Cxt the WasmEdge_ConfigureContext to set the boolean value.
 /// \param IsDump the boolean value to determine to dump IR or not when
@@ -586,6 +612,8 @@ WasmEdge_ConfigureCompilerSetDumpIR(WasmEdge_ConfigureContext *Cxt,
 
 /// Get the dump IR option of AOT compiler.
 ///
+/// This function is thread-safe.
+///
 /// \param Cxt the WasmEdge_ConfigureContext to get the boolean value.
 ///
 /// \returns the boolean value to determine to dump IR or not when compilation
@@ -594,6 +622,8 @@ WASMEDGE_CAPI_EXPORT extern bool
 WasmEdge_ConfigureCompilerIsDumpIR(const WasmEdge_ConfigureContext *Cxt);
 
 /// Set the generic binary option of AOT compiler.
+///
+/// This function is thread-safe.
 ///
 /// \param Cxt the WasmEdge_ConfigureContext to set the boolean value.
 /// \param IsGeneric the boolean value to determine to generate the generic
@@ -604,6 +634,8 @@ WasmEdge_ConfigureCompilerSetGenericBinary(WasmEdge_ConfigureContext *Cxt,
 
 /// Get the generic binary option of AOT compiler.
 ///
+/// This function is thread-safe.
+///
 /// \param Cxt the WasmEdge_ConfigureContext to get the boolean value.
 ///
 /// \returns the boolean value to determine to generate the generic binary or
@@ -612,6 +644,8 @@ WASMEDGE_CAPI_EXPORT extern bool
 WasmEdge_ConfigureCompilerIsGenericBinary(const WasmEdge_ConfigureContext *Cxt);
 
 /// Set the interruptible option of AOT compiler.
+///
+/// This function is thread-safe.
 ///
 /// \param Cxt the WasmEdge_ConfigureContext to set the boolean value.
 /// \param IsInterruptible the boolean value to determine to generate
@@ -622,6 +656,8 @@ WasmEdge_ConfigureCompilerSetInterruptible(WasmEdge_ConfigureContext *Cxt,
 
 /// Get the interruptible option of AOT compiler.
 ///
+/// This function is thread-safe.
+///
 /// \param Cxt the WasmEdge_ConfigureContext to get the boolean value.
 ///
 /// \returns the boolean value to determine to generate interruptible binary or
@@ -631,6 +667,8 @@ WasmEdge_ConfigureCompilerIsInterruptible(const WasmEdge_ConfigureContext *Cxt);
 
 /// Set the instruction counting option.
 ///
+/// This function is thread-safe.
+///
 /// \param Cxt the WasmEdge_ConfigureContext to set the boolean value.
 /// \param IsCount the boolean value to determine to support instruction
 /// counting when execution or not after compilation by the AOT compiler.
@@ -639,6 +677,8 @@ WasmEdge_ConfigureStatisticsSetInstructionCounting(
     WasmEdge_ConfigureContext *Cxt, const bool IsCount);
 
 /// Get the instruction counting option.
+///
+/// This function is thread-safe.
 ///
 /// \param Cxt the WasmEdge_ConfigureContext to get the boolean value.
 ///
@@ -650,6 +690,8 @@ WasmEdge_ConfigureStatisticsIsInstructionCounting(
 
 /// Set the cost measuring option.
 ///
+/// This function is thread-safe.
+///
 /// \param Cxt the WasmEdge_ConfigureContext to set the boolean value.
 /// \param IsMeasure the boolean value to determine to support cost measuring
 /// when execution or not after compilation by the AOT compiler.
@@ -658,6 +700,8 @@ WasmEdge_ConfigureStatisticsSetCostMeasuring(WasmEdge_ConfigureContext *Cxt,
                                              const bool IsMeasure);
 
 /// Get the cost measuring option.
+///
+/// This function is thread-safe.
 ///
 /// \param Cxt the WasmEdge_ConfigureContext to get the boolean value.
 ///
@@ -668,6 +712,8 @@ WASMEDGE_CAPI_EXPORT extern bool WasmEdge_ConfigureStatisticsIsCostMeasuring(
 
 /// Set the time measuring option.
 ///
+/// This function is thread-safe.
+///
 /// \param Cxt the WasmEdge_ConfigureContext to set the boolean value.
 /// \param IsMeasure the boolean value to determine to support time when
 /// execution or not after compilation by the AOT compiler.
@@ -677,6 +723,8 @@ WasmEdge_ConfigureStatisticsSetTimeMeasuring(WasmEdge_ConfigureContext *Cxt,
 
 /// Get the time measuring option.
 ///
+/// This function is thread-safe.
+///
 /// \param Cxt the WasmEdge_ConfigureContext to get the boolean value.
 ///
 /// \returns the boolean value to determine to support time measuring when
@@ -685,6 +733,8 @@ WASMEDGE_CAPI_EXPORT extern bool WasmEdge_ConfigureStatisticsIsTimeMeasuring(
     const WasmEdge_ConfigureContext *Cxt);
 
 /// Deletion of the WasmEdge_ConfigureContext.
+///
+/// This function is thread-safe.
 ///
 /// After calling this function, the context will be freed and should __NOT__ be
 /// used.
@@ -1497,6 +1547,8 @@ WASMEDGE_CAPI_EXPORT extern WasmEdge_StoreContext *WasmEdge_StoreCreate(void);
 /// context links to the function instance in the store context and owned by the
 /// store context.
 ///
+/// This function is thread-safe.
+///
 /// \param Cxt the WasmEdge_StoreContext.
 /// \param Name the function name WasmEdge_String.
 ///
@@ -1511,6 +1563,8 @@ WasmEdge_StoreFindFunction(WasmEdge_StoreContext *Cxt,
 /// exported function instance context by the module name and the function name.
 /// The result function instance context links to the function instance in the
 /// store context and owned by the store context.
+///
+/// This function is thread-safe.
 ///
 /// \param Cxt the WasmEdge_StoreContext.
 /// \param ModuleName the module name WasmEdge_String.
@@ -1533,6 +1587,8 @@ WasmEdge_StoreFindFunctionRegistered(WasmEdge_StoreContext *Cxt,
 /// context and owned by the store context. The caller should __NOT__ call the
 /// `WasmEdge_TableInstanceDelete`.
 ///
+/// This function is thread-safe.
+///
 /// \param Cxt the WasmEdge_StoreContext.
 /// \param Name the table name WasmEdge_String.
 ///
@@ -1547,6 +1603,8 @@ WasmEdge_StoreFindTable(WasmEdge_StoreContext *Cxt, const WasmEdge_String Name);
 /// The result table instance context links to the table instance in the store
 /// context and owned by the store context. The caller should __NOT__ call the
 /// `WasmEdge_TableInstanceDelete`.
+///
+/// This function is thread-safe.
 ///
 /// \param Cxt the WasmEdge_StoreContext.
 /// \param ModuleName the module name WasmEdge_String.
@@ -1569,6 +1627,8 @@ WasmEdge_StoreFindTableRegistered(WasmEdge_StoreContext *Cxt,
 /// context and owned by the store context. The caller should __NOT__ call the
 /// `WasmEdge_MemoryInstanceDelete`.
 ///
+/// This function is thread-safe.
+///
 /// \param Cxt the WasmEdge_StoreContext.
 /// \param Name the memory name WasmEdge_String.
 ///
@@ -1584,6 +1644,8 @@ WasmEdge_StoreFindMemory(WasmEdge_StoreContext *Cxt,
 /// The result memory instance context links to the memory instance in the store
 /// context and owned by the store context. The caller should __NOT__ call the
 /// `WasmEdge_MemoryInstanceDelete`.
+///
+/// This function is thread-safe.
 ///
 /// \param Cxt the WasmEdge_StoreContext.
 /// \param ModuleName the module name WasmEdge_String.
@@ -1606,6 +1668,8 @@ WasmEdge_StoreFindMemoryRegistered(WasmEdge_StoreContext *Cxt,
 /// context and owned by the store context. The caller should __NOT__ call the
 /// `WasmEdge_GlobalInstanceDelete`.
 ///
+/// This function is thread-safe.
+///
 /// \param Cxt the WasmEdge_StoreContext.
 /// \param Name the global name WasmEdge_String.
 ///
@@ -1622,6 +1686,8 @@ WasmEdge_StoreFindGlobal(WasmEdge_StoreContext *Cxt,
 /// context and owned by the store context. The caller should __NOT__ call the
 /// `WasmEdge_GlobalInstanceDelete`.
 ///
+/// This function is thread-safe.
+///
 /// \param Cxt the WasmEdge_StoreContext.
 /// \param ModuleName the module name WasmEdge_String.
 /// \param GlobalName the global name WasmEdge_String.
@@ -1637,6 +1703,8 @@ WasmEdge_StoreFindGlobalRegistered(WasmEdge_StoreContext *Cxt,
 /// If you want to get the function list of the registered named modules in the
 /// store context, please call `WasmEdge_StoreListFunctionRegisteredLength`
 /// instead.
+///
+/// This function is thread-safe.
 ///
 /// \param Cxt the WasmEdge_StoreContext.
 ///
@@ -1657,6 +1725,8 @@ WasmEdge_StoreListFunctionLength(const WasmEdge_StoreContext *Cxt);
 /// If the `Names` buffer length is smaller than the result of the exported
 /// function list size, the overflowed return values will be discarded.
 ///
+/// This function is thread-safe.
+///
 /// \param Cxt the WasmEdge_StoreContext.
 /// \param [out] Names the output WasmEdge_String buffer of the function names.
 /// \param Len the buffer length.
@@ -1667,6 +1737,8 @@ WasmEdge_StoreListFunction(const WasmEdge_StoreContext *Cxt,
                            WasmEdge_String *Names, const uint32_t Len);
 
 /// Get the exported function list length of the registered module in store.
+///
+/// This function is thread-safe.
 ///
 /// \param Cxt the WasmEdge_StoreContext.
 /// \param ModuleName the module name WasmEdge_String.
@@ -1686,6 +1758,8 @@ WasmEdge_StoreListFunctionRegisteredLength(const WasmEdge_StoreContext *Cxt,
 /// If the `Names` buffer length is smaller than the result of the exported
 /// function list size, the overflowed return values will be discarded.
 ///
+/// This function is thread-safe.
+///
 /// \param Cxt the WasmEdge_StoreContext.
 /// \param ModuleName the module name WasmEdge_String.
 /// \param [out] Names the output WasmEdge_String buffer of the function names.
@@ -1701,6 +1775,8 @@ WASMEDGE_CAPI_EXPORT extern uint32_t WasmEdge_StoreListFunctionRegistered(
 /// If you want to get the table list of the registered named modules in the
 /// store context, please call `WasmEdge_StoreListTableRegisteredLength`
 /// instead.
+///
+/// This function is thread-safe.
 ///
 /// \param Cxt the WasmEdge_StoreContext.
 ///
@@ -1721,6 +1797,8 @@ WasmEdge_StoreListTableLength(const WasmEdge_StoreContext *Cxt);
 /// If the `Names` buffer length is smaller than the result of the exported
 /// table list size, the overflowed return values will be discarded.
 ///
+/// This function is thread-safe.
+///
 /// \param Cxt the WasmEdge_StoreContext.
 /// \param [out] Names the output WasmEdge_String buffer of the table names.
 /// \param Len the buffer length.
@@ -1731,6 +1809,8 @@ WasmEdge_StoreListTable(const WasmEdge_StoreContext *Cxt,
                         WasmEdge_String *Names, const uint32_t Len);
 
 /// Get the exported table list length of the registered module in store.
+///
+/// This function is thread-safe.
 ///
 /// \param Cxt the WasmEdge_StoreContext.
 /// \param ModuleName the module name WasmEdge_String.
@@ -1750,6 +1830,8 @@ WasmEdge_StoreListTableRegisteredLength(const WasmEdge_StoreContext *Cxt,
 /// If the `Names` buffer length is smaller than the result of the exported
 /// table list size, the overflowed return values will be discarded.
 ///
+/// This function is thread-safe.
+///
 /// \param Cxt the WasmEdge_StoreContext.
 /// \param ModuleName the module name WasmEdge_String.
 /// \param [out] Names the output WasmEdge_String buffer of the table names.
@@ -1766,6 +1848,8 @@ WasmEdge_StoreListTableRegistered(const WasmEdge_StoreContext *Cxt,
 /// If you want to get the memory list of the registered named modules in the
 /// store context, please call `WasmEdge_StoreListMemoryRegisteredLength`
 /// instead.
+///
+/// This function is thread-safe.
 ///
 /// \param Cxt the WasmEdge_StoreContext.
 ///
@@ -1786,6 +1870,8 @@ WasmEdge_StoreListMemoryLength(const WasmEdge_StoreContext *Cxt);
 /// If the `Names` buffer length is smaller than the result of the exported
 /// memory list size, the overflowed return values will be discarded.
 ///
+/// This function is thread-safe.
+///
 /// \param Cxt the WasmEdge_StoreContext.
 /// \param [out] Names the output WasmEdge_String buffer of the memory names.
 /// \param Len the buffer length.
@@ -1796,6 +1882,8 @@ WasmEdge_StoreListMemory(const WasmEdge_StoreContext *Cxt,
                          WasmEdge_String *Names, const uint32_t Len);
 
 /// Get the exported memory list length of the registered module in store.
+///
+/// This function is thread-safe.
 ///
 /// \param Cxt the WasmEdge_StoreContext.
 /// \param ModuleName the module name WasmEdge_String.
@@ -1815,6 +1903,8 @@ WasmEdge_StoreListMemoryRegisteredLength(const WasmEdge_StoreContext *Cxt,
 /// If the `Names` buffer length is smaller than the result of the exported
 /// memory list size, the overflowed return values will be discarded.
 ///
+/// This function is thread-safe.
+///
 /// \param Cxt the WasmEdge_StoreContext.
 /// \param ModuleName the module name WasmEdge_String.
 /// \param [out] Names the output WasmEdge_String buffer of the memory names.
@@ -1831,6 +1921,8 @@ WasmEdge_StoreListMemoryRegistered(const WasmEdge_StoreContext *Cxt,
 /// If you want to get the global list of the registered named modules in the
 /// store context, please call `WasmEdge_StoreListGlobalRegisteredLength`
 /// instead.
+///
+/// This function is thread-safe.
 ///
 /// \param Cxt the WasmEdge_StoreContext.
 ///
@@ -1851,6 +1943,8 @@ WasmEdge_StoreListGlobalLength(const WasmEdge_StoreContext *Cxt);
 /// If the `Names` buffer length is smaller than the result of the exported
 /// global list size, the overflowed return values will be discarded.
 ///
+/// This function is thread-safe.
+///
 /// \param Cxt the WasmEdge_StoreContext.
 /// \param [out] Names the output WasmEdge_String buffer of the global names.
 /// \param Len the buffer length.
@@ -1861,6 +1955,8 @@ WasmEdge_StoreListGlobal(const WasmEdge_StoreContext *Cxt,
                          WasmEdge_String *Names, const uint32_t Len);
 
 /// Get the exported global list length of the registered module in store.
+///
+/// This function is thread-safe.
 ///
 /// \param Cxt the WasmEdge_StoreContext.
 /// \param ModuleName the module name WasmEdge_String.
@@ -1880,6 +1976,8 @@ WasmEdge_StoreListGlobalRegisteredLength(const WasmEdge_StoreContext *Cxt,
 /// If the `Names` buffer length is smaller than the result of the exported
 /// global list size, the overflowed return values will be discarded.
 ///
+/// This function is thread-safe.
+///
 /// \param Cxt the WasmEdge_StoreContext.
 /// \param ModuleName the module name WasmEdge_String.
 /// \param [out] Names the output WasmEdge_String buffer of the global names.
@@ -1892,6 +1990,8 @@ WasmEdge_StoreListGlobalRegistered(const WasmEdge_StoreContext *Cxt,
                                    WasmEdge_String *Names, const uint32_t Len);
 
 /// Get the length of registered module list in store.
+///
+/// This function is thread-safe.
 ///
 /// \param Cxt the WasmEdge_StoreContext.
 ///
@@ -1907,6 +2007,8 @@ WasmEdge_StoreListModuleLength(const WasmEdge_StoreContext *Cxt);
 /// call the `WasmEdge_StringDelete`.
 /// If the `Names` buffer length is smaller than the result of the registered
 /// named module list size, the overflowed return values will be discarded.
+///
+/// This function is thread-safe.
 ///
 /// \param Cxt the WasmEdge_StoreContext.
 /// \param [out] Names the output names WasmEdge_String buffer of named modules.
@@ -2607,6 +2709,8 @@ WasmEdge_VMCreate(const WasmEdge_ConfigureContext *ConfCxt,
 /// instantiate them into the store in VM with their exported name and module
 /// name.
 ///
+/// This function is thread-safe.
+///
 /// \param Cxt the WasmEdge_VMContext which contains the store.
 /// \param ModuleName the WasmEdge_String of module name for all exported
 /// instances.
@@ -2624,6 +2728,8 @@ WasmEdge_VMRegisterModuleFromFile(WasmEdge_VMContext *Cxt,
 /// Load a WASM module from a buffer, and register all exported instances and
 /// instantiate them into the store in VM with their exported name and module
 /// name.
+///
+/// This function is thread-safe.
 ///
 /// \param Cxt the WasmEdge_VMContext which contains the store.
 /// \param ModuleName the WasmEdge_String of module name for all exported
@@ -2643,6 +2749,8 @@ WasmEdge_VMRegisterModuleFromBuffer(WasmEdge_VMContext *Cxt,
 /// Instantiate the instances in WasmEdge import object context and register
 /// them into the store in VM with their exported name and the host module name.
 ///
+/// This function is thread-safe.
+///
 /// \param Cxt the WasmEdge_VMContext which contains the store.
 /// \param ImportCxt the WasmEdge_ImportObjectContext to register.
 ///
@@ -2657,6 +2765,8 @@ WASMEDGE_CAPI_EXPORT extern WasmEdge_Result WasmEdge_VMRegisterModuleFromImport(
 /// Load from the WasmEdge AST Module, and register all exported instances and
 /// instantiate them into the store in VM with their exported name and module
 /// name.
+///
+/// This function is thread-safe.
 ///
 /// \param Cxt the WasmEdge_VMContext which contains the store.
 /// \param ModuleName the WasmEdge_String of module name for all exported
@@ -2678,6 +2788,8 @@ WasmEdge_VMRegisterModuleFromASTModule(WasmEdge_VMContext *Cxt,
 /// function by name and parameters. If the `Returns` buffer length is smaller
 /// than the arity of the function, the overflowed return values will be
 /// discarded.
+///
+/// This function is thread-safe.
 ///
 /// \param Cxt the WasmEdge_VMContext.
 /// \param Path the NULL-terminated C string of the WASM file path.
@@ -2701,6 +2813,8 @@ WASMEDGE_CAPI_EXPORT extern WasmEdge_Result WasmEdge_VMRunWasmFromFile(
 /// function by name and parameters. If the `Returns` buffer length is smaller
 /// than the arity of the function, the overflowed return values will be
 /// discarded.
+///
+/// This function is thread-safe.
 ///
 /// \param Cxt the WasmEdge_VMContext.
 /// \param Buf the buffer of WASM binary.
@@ -2726,6 +2840,8 @@ WASMEDGE_CAPI_EXPORT extern WasmEdge_Result WasmEdge_VMRunWasmFromBuffer(
 /// invoke the function by name and parameters. If the `Returns` buffer length
 /// is smaller than the arity of the function, the overflowed return values will
 /// be discarded.
+///
+/// This function is thread-safe.
 ///
 /// \param Cxt the WasmEdge_VMContext.
 /// \param ASTCxt the WasmEdge AST Module context generated by loader or
@@ -2755,6 +2871,8 @@ WASMEDGE_CAPI_EXPORT extern WasmEdge_Result WasmEdge_VMRunWasmFromASTModule(
 /// The caller owns the object and should call `WasmEdge_AsyncDelete` to free
 /// it.
 ///
+/// This function is thread-safe.
+///
 /// \param Cxt the WasmEdge_VMContext.
 /// \param Path the NULL-terminated C string of the WASM file path.
 /// \param FuncName the function name WasmEdge_String.
@@ -2778,6 +2896,8 @@ WASMEDGE_CAPI_EXPORT extern WasmEdge_Async *WasmEdge_VMAsyncRunWasmFromFile(
 ///
 /// The caller owns the object and should call `WasmEdge_AsyncDelete` to free
 /// it.
+///
+/// This function is thread-safe.
 ///
 /// \param Cxt the WasmEdge_VMContext.
 /// \param Buf the buffer of WASM binary.
@@ -2805,6 +2925,8 @@ WASMEDGE_CAPI_EXPORT extern WasmEdge_Async *WasmEdge_VMAsyncRunWasmFromBuffer(
 /// The caller owns the object and should call `WasmEdge_AsyncDelete` to free
 /// it.
 ///
+/// This function is thread-safe.
+///
 /// \param Cxt the WasmEdge_VMContext.
 /// \param ASTCxt the WasmEdge AST Module context generated by loader or
 /// compiler.
@@ -2827,6 +2949,8 @@ WasmEdge_VMAsyncRunWasmFromASTModule(WasmEdge_VMContext *Cxt,
 /// Load and parse the WASM module from the file path. You can then call
 /// `WasmEdge_VMValidate` for the next step.
 ///
+/// This function is thread-safe.
+///
 /// \param Cxt the WasmEdge_VMContext.
 /// \param Path the NULL-terminated C string of the WASM file path.
 ///
@@ -2840,6 +2964,8 @@ WasmEdge_VMLoadWasmFromFile(WasmEdge_VMContext *Cxt, const char *Path);
 /// This is the first step to invoke a WASM function step by step.
 /// Load and parse the WASM module from a buffer. You can then call
 /// `WasmEdge_VMValidate` for the next step.
+///
+/// This function is thread-safe.
 ///
 /// \param Cxt the WasmEdge_VMContext.
 /// \param Buf the buffer of WASM binary.
@@ -2857,6 +2983,8 @@ WasmEdge_VMLoadWasmFromBuffer(WasmEdge_VMContext *Cxt, const uint8_t *Buf,
 /// Copy the loaded WasmEdge AST Module context into VM. The VM context has no
 /// dependency on the input AST Module context. You can then call
 /// `WasmEdge_VMValidate` for the next step.
+///
+/// This function is thread-safe.
 ///
 /// \param Cxt the WasmEdge_VMContext.
 /// \param ASTCxt the WasmEdge AST Module context generated by loader or
@@ -2876,6 +3004,8 @@ WasmEdge_VMLoadWasmFromASTModule(WasmEdge_VMContext *Cxt,
 /// step. Note that only validated WASM modules can be instantiated in the VM
 /// context.
 ///
+/// This function is thread-safe.
+///
 /// \param Cxt the WasmEdge_VMContext.
 ///
 /// \returns WasmEdge_Result. Call `WasmEdge_ResultGetMessage` for the error
@@ -2889,6 +3019,8 @@ WasmEdge_VMValidate(WasmEdge_VMContext *Cxt);
 /// After validating a WASM module in the VM context, You can call this function
 /// to instantiate it. And you can then call `WasmEdge_VMExecute` for invoking
 /// the exported function in this WASM module.
+///
+/// This function is thread-safe.
 ///
 /// \param Cxt the WasmEdge_VMContext.
 ///
@@ -2908,6 +3040,8 @@ WasmEdge_VMInstantiate(WasmEdge_VMContext *Cxt);
 /// names, please use `WasmEdge_VMExecuteRegistered` instead. If the `Returns`
 /// buffer length is smaller than the arity of the function, the overflowed
 /// return values will be discarded.
+///
+/// This function is thread-safe.
 ///
 /// \param Cxt the WasmEdge_VMContext.
 /// \param FuncName the function name WasmEdge_String.
@@ -2930,6 +3064,8 @@ WasmEdge_VMExecute(WasmEdge_VMContext *Cxt, const WasmEdge_String FuncName,
 /// function names until the VM context is reset. If the `Returns` buffer length
 /// is smaller than the arity of the function, the overflowed return values will
 /// be discarded.
+///
+/// This function is thread-safe.
 ///
 /// \param Cxt the WasmEdge_VMContext.
 /// \param ModuleName the module name WasmEdge_String.
@@ -2956,6 +3092,8 @@ WASMEDGE_CAPI_EXPORT extern WasmEdge_Result WasmEdge_VMExecuteRegistered(
 /// or loaded. For calling the functions in registered WASM modules with module
 /// names, please use `WasmEdge_VMAsyncExecuteRegistered` instead.
 ///
+/// This function is thread-safe.
+///
 /// \param Cxt the WasmEdge_VMContext.
 /// \param FuncName the function name WasmEdge_String.
 /// \param Params the WasmEdge_Value buffer with the parameter values.
@@ -2972,6 +3110,8 @@ WasmEdge_VMAsyncExecute(WasmEdge_VMContext *Cxt, const WasmEdge_String FuncName,
 /// After registering a WASM module in the VM context, you can repeatedly call
 /// this function to invoke exported WASM functions by their module names and
 /// function names until the VM context is reset.
+///
+/// This function is thread-safe.
 ///
 /// \param Cxt the WasmEdge_VMContext.
 /// \param ModuleName the module name WasmEdge_String.
@@ -2999,6 +3139,8 @@ WASMEDGE_CAPI_EXPORT extern WasmEdge_Async *WasmEdge_VMAsyncExecuteRegistered(
 /// context, and the caller should __NOT__ call the
 /// `WasmEdge_FunctionTypeDelete` to delete it.
 ///
+/// This function is thread-safe.
+///
 /// \param Cxt the WasmEdge_VMContext.
 /// \param FuncName the function name WasmEdge_String.
 ///
@@ -3016,6 +3158,8 @@ WasmEdge_VMGetFunctionType(WasmEdge_VMContext *Cxt,
 /// context, and the caller should __NOT__ call the
 /// `WasmEdge_FunctionTypeDelete` to delete it.
 ///
+/// This function is thread-safe.
+///
 /// \param Cxt the WasmEdge_VMContext.
 /// \param ModuleName the module name WasmEdge_String.
 /// \param FuncName the function name WasmEdge_String.
@@ -3031,10 +3175,14 @@ WasmEdge_VMGetFunctionTypeRegistered(WasmEdge_VMContext *Cxt,
 /// After calling this function, the statistics, loaded module, and the
 /// instances in the store except registered instances will be cleared.
 ///
+/// This function is thread-safe.
+///
 /// \param Cxt the WasmEdge_VMContext to reset.
 WASMEDGE_CAPI_EXPORT extern void WasmEdge_VMCleanup(WasmEdge_VMContext *Cxt);
 
 /// Get the length of exported function list.
+///
+/// This function is thread-safe.
 ///
 /// \param Cxt the WasmEdge_VMContext.
 ///
@@ -3054,6 +3202,8 @@ WasmEdge_VMGetFunctionListLength(WasmEdge_VMContext *Cxt);
 /// If the `Names` and `FuncTypes` buffer lengths are smaller than the result of
 /// the exported function list size, the overflowed return values will be
 /// discarded.
+///
+/// This function is thread-safe.
 ///
 /// \param Cxt the WasmEdge_VMContext.
 /// \param [out] Names the output names WasmEdge_String buffer of exported
@@ -3091,6 +3241,8 @@ WasmEdge_VMGetFunctionList(WasmEdge_VMContext *Cxt, WasmEdge_String *Names,
 ///         VM, WasmEdge_HostRegistration_WasmEdge_Process);
 /// ```
 ///
+/// This function is thread-safe.
+///
 /// \param Cxt the WasmEdge_VMContext.
 /// \param Reg the host registration value to get the import module.
 ///
@@ -3104,6 +3256,8 @@ WasmEdge_VMGetImportModuleContext(WasmEdge_VMContext *Cxt,
 /// The store context links to the store in the VM context and owned by the VM
 /// context. The caller should __NOT__ call the `WasmEdge_StoreDelete`.
 ///
+/// This function is thread-safe.
+///
 /// \param Cxt the WasmEdge_VMContext.
 ///
 /// \returns pointer to the store context.
@@ -3115,6 +3269,8 @@ WasmEdge_VMGetStoreContext(WasmEdge_VMContext *Cxt);
 /// The statistics context links to the statistics in the VM context and owned
 /// by the VM context. The caller should __NOT__ call the
 /// `WasmEdge_StatisticsDelete`.
+///
+/// This function is thread-safe.
 ///
 /// \param Cxt the WasmEdge_VMContext.
 ///

@@ -6,4 +6,4 @@
 
 * [适用于 Android 的 WasmEdge CLI 工具](android/cli.md)
 * [从 NDK 原生应用调用 WasmEdge 函数](android/ndk.md)
-* [从 Android APK 应用调用 WasmEdge 函数](android/studio.md) 
+* [从 Android APK 应用调用 WasmEdge 函数](android/studio.md)

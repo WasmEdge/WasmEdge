@@ -135,8 +135,8 @@ mod tests {
             let store = result.unwrap();
 
             // check registered modules
-            assert_eq!(store.mod_count(), 1);
-            let result = store.mod_names();
+            assert_eq!(store.instance_count(), 1);
+            let result = store.instance_names();
             assert!(result.is_some());
             assert_eq!(result.unwrap(), ["wasmedge_process"]);
 
@@ -216,8 +216,8 @@ mod tests {
             let store = result.unwrap();
 
             // check registered modules
-            assert_eq!(store.mod_count(), 1);
-            let result = store.mod_names();
+            assert_eq!(store.instance_count(), 1);
+            let result = store.instance_names();
             assert!(result.is_some());
             assert_eq!(result.unwrap(), ["wasmedge_process"]);
 
@@ -253,8 +253,8 @@ mod tests {
             let store = result.unwrap();
 
             // check registered modules
-            assert_eq!(store.mod_count(), 1);
-            let result = store.mod_names();
+            assert_eq!(store.instance_count(), 1);
+            let result = store.instance_names();
             assert!(result.is_some());
             assert_eq!(result.unwrap(), ["wasi_snapshot_preview1"]);
 
@@ -334,8 +334,8 @@ mod tests {
             let store = result.unwrap();
 
             // check registered modules
-            assert_eq!(store.mod_count(), 1);
-            let result = store.mod_names();
+            assert_eq!(store.instance_count(), 1);
+            let result = store.instance_names();
             assert!(result.is_some());
             assert_eq!(result.unwrap(), ["wasi_snapshot_preview1"]);
 

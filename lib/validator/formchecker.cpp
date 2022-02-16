@@ -1293,190 +1293,190 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
                               std::array{VType::I32, VType::I64, VType::I64},
                               std::array{VType::I32});
 
-  case OpCode::I32__atomic_load_s:
+  case OpCode::I32__atomic__load:
     return checkAlignAndTrans(32, std::array{VType::I32},
                               std::array{VType::I32});
-  case OpCode::I64__atomic_load_s:
+  case OpCode::I64__atomic__load:
     return checkAlignAndTrans(64, std::array{VType::I32},
                               std::array{VType::I64});
-  case OpCode::I32__atomic_load8_u:
+  case OpCode::I32__atomic__load8_u:
     return checkAlignAndTrans(8, std::array{VType::I32},
                               std::array{VType::I32});
-  case OpCode::I32__atomic_load16_u:
+  case OpCode::I32__atomic__load16_u:
     return checkAlignAndTrans(16, std::array{VType::I32},
                               std::array{VType::I32});
-  case OpCode::I64__atomic_load8_u:
+  case OpCode::I64__atomic__load8_u:
     return checkAlignAndTrans(8, std::array{VType::I32},
                               std::array{VType::I64});
-  case OpCode::I64__atomic_load16_u:
+  case OpCode::I64__atomic__load16_u:
     return checkAlignAndTrans(16, std::array{VType::I32},
                               std::array{VType::I64});
-  case OpCode::I64__atomic_load32_u:
+  case OpCode::I64__atomic__load32_u:
     return checkAlignAndTrans(32, std::array{VType::I32},
                               std::array{VType::I64});
-  case OpCode::I32__atomic_store_s:
+  case OpCode::I32__atomic__store:
     return checkAlignAndTrans(32, std::array{VType::I32, VType::I32}, {});
-  case OpCode::I64__atomic_store_s:
+  case OpCode::I64__atomic__store:
     return checkAlignAndTrans(64, std::array{VType::I32, VType::I64}, {});
-  case OpCode::I32__atomic_store8_u:
+  case OpCode::I32__atomic__store8_u:
     return checkAlignAndTrans(8, std::array{VType::I32, VType::I32}, {});
-  case OpCode::I32__atomic_store16_u:
+  case OpCode::I32__atomic__store16_u:
     return checkAlignAndTrans(16, std::array{VType::I32, VType::I32}, {});
-  case OpCode::I64__atomic_store8_u:
+  case OpCode::I64__atomic__store8_u:
     return checkAlignAndTrans(8, std::array{VType::I32, VType::I64}, {});
-  case OpCode::I64__atomic_store16_u:
+  case OpCode::I64__atomic__store16_u:
     return checkAlignAndTrans(16, std::array{VType::I32, VType::I64}, {});
-  case OpCode::I64__atomic_store32_u:
+  case OpCode::I64__atomic__store32_u:
     return checkAlignAndTrans(32, std::array{VType::I32, VType::I64}, {});
-  case OpCode::I32__atomic_add_s:
+  case OpCode::I32__atomic__rmw__add:
     return checkAlignAndTrans(32, std::array{VType::I32, VType::I32},
                               std::array{VType::I32});
-  case OpCode::I64__atomic_add_s:
+  case OpCode::I64__atomic__rmw__add:
     return checkAlignAndTrans(64, std::array{VType::I32, VType::I64},
                               std::array{VType::I64});
-  case OpCode::I32__atomic_add8_u:
+  case OpCode::I32__atomic__rmw8__add_u:
     return checkAlignAndTrans(8, std::array{VType::I32, VType::I32},
                               std::array{VType::I32});
-  case OpCode::I32__atomic_add16_u:
+  case OpCode::I32__atomic__rmw16__add_u:
     return checkAlignAndTrans(16, std::array{VType::I32, VType::I32},
                               std::array{VType::I32});
-  case OpCode::I64__atomic_add8_u:
+  case OpCode::I64__atomic__rmw8__add_u:
     return checkAlignAndTrans(8, std::array{VType::I32, VType::I64},
                               std::array{VType::I64});
-  case OpCode::I64__atomic_add16_u:
+  case OpCode::I64__atomic__rmw16__add_u:
     return checkAlignAndTrans(16, std::array{VType::I32, VType::I64},
                               std::array{VType::I64});
-  case OpCode::I64__atomic_add32_u:
+  case OpCode::I64__atomic__rmw32__add_u:
     return checkAlignAndTrans(32, std::array{VType::I32, VType::I64},
                               std::array{VType::I64});
-  case OpCode::I32__atomic_sub_s:
+  case OpCode::I32__atomic__rmw__sub:
     return checkAlignAndTrans(32, std::array{VType::I32, VType::I32},
                               std::array{VType::I32});
-  case OpCode::I64__atomic_sub_s:
+  case OpCode::I64__atomic__rmw__sub:
     return checkAlignAndTrans(64, std::array{VType::I32, VType::I64},
                               std::array{VType::I64});
-  case OpCode::I32__atomic_sub8_u:
+  case OpCode::I32__atomic__rmw8__sub_u:
     return checkAlignAndTrans(8, std::array{VType::I32, VType::I32},
                               std::array{VType::I32});
-  case OpCode::I32__atomic_sub16_u:
+  case OpCode::I32__atomic__rmw16__sub_u:
     return checkAlignAndTrans(16, std::array{VType::I32, VType::I32},
                               std::array{VType::I32});
-  case OpCode::I64__atomic_sub8_u:
+  case OpCode::I64__atomic__rmw8__sub_u:
     return checkAlignAndTrans(8, std::array{VType::I32, VType::I64},
                               std::array{VType::I64});
-  case OpCode::I64__atomic_sub16_u:
+  case OpCode::I64__atomic__rmw16__sub_u:
     return checkAlignAndTrans(16, std::array{VType::I32, VType::I64},
                               std::array{VType::I64});
-  case OpCode::I64__atomic_sub32_u:
+  case OpCode::I64__atomic__rmw32__sub_u:
     return checkAlignAndTrans(32, std::array{VType::I32, VType::I64},
                               std::array{VType::I64});
-  case OpCode::I32__atomic_and_s:
+  case OpCode::I32__atomic__rmw__and:
     return checkAlignAndTrans(32, std::array{VType::I32, VType::I32},
                               std::array{VType::I32});
-  case OpCode::I64__atomic_and_s:
+  case OpCode::I64__atomic__rmw__and:
     return checkAlignAndTrans(64, std::array{VType::I32, VType::I64},
                               std::array{VType::I64});
-  case OpCode::I32__atomic_and8_u:
+  case OpCode::I32__atomic__rmw8__and_u:
     return checkAlignAndTrans(8, std::array{VType::I32, VType::I32},
                               std::array{VType::I32});
-  case OpCode::I32__atomic_and16_u:
+  case OpCode::I32__atomic__rmw16__and_u:
     return checkAlignAndTrans(16, std::array{VType::I32, VType::I32},
                               std::array{VType::I32});
-  case OpCode::I64__atomic_and8_u:
+  case OpCode::I64__atomic__rmw8__and_u:
     return checkAlignAndTrans(8, std::array{VType::I32, VType::I64},
                               std::array{VType::I64});
-  case OpCode::I64__atomic_and16_u:
+  case OpCode::I64__atomic__rmw16__and_u:
     return checkAlignAndTrans(16, std::array{VType::I32, VType::I64},
                               std::array{VType::I64});
-  case OpCode::I64__atomic_and32_u:
+  case OpCode::I64__atomic__rmw32__and_u:
     return checkAlignAndTrans(32, std::array{VType::I32, VType::I64},
                               std::array{VType::I64});
-  case OpCode::I32__atomic_or_s:
+  case OpCode::I32__atomic__rmw__or:
     return checkAlignAndTrans(32, std::array{VType::I32, VType::I32},
                               std::array{VType::I32});
-  case OpCode::I64__atomic_or_s:
+  case OpCode::I64__atomic__rmw__or:
     return checkAlignAndTrans(64, std::array{VType::I32, VType::I64},
                               std::array{VType::I64});
-  case OpCode::I32__atomic_or8_u:
+  case OpCode::I32__atomic__rmw8__or_u:
     return checkAlignAndTrans(8, std::array{VType::I32, VType::I32},
                               std::array{VType::I32});
-  case OpCode::I32__atomic_or16_u:
+  case OpCode::I32__atomic__rmw16__or_u:
     return checkAlignAndTrans(16, std::array{VType::I32, VType::I32},
                               std::array{VType::I32});
-  case OpCode::I64__atomic_or8_u:
+  case OpCode::I64__atomic__rmw8__or_u:
     return checkAlignAndTrans(8, std::array{VType::I32, VType::I64},
                               std::array{VType::I64});
-  case OpCode::I64__atomic_or16_u:
+  case OpCode::I64__atomic__rmw16__or_u:
     return checkAlignAndTrans(16, std::array{VType::I32, VType::I64},
                               std::array{VType::I64});
-  case OpCode::I64__atomic_or32_u:
+  case OpCode::I64__atomic__rmw32__or_u:
     return checkAlignAndTrans(32, std::array{VType::I32, VType::I64},
                               std::array{VType::I64});
-  case OpCode::I32__atomic_xor_s:
+  case OpCode::I32__atomic__rmw__xor:
     return checkAlignAndTrans(32, std::array{VType::I32, VType::I32},
                               std::array{VType::I32});
-  case OpCode::I64__atomic_xor_s:
+  case OpCode::I64__atomic__rmw__xor:
     return checkAlignAndTrans(64, std::array{VType::I32, VType::I64},
                               std::array{VType::I64});
-  case OpCode::I32__atomic_xor8_u:
+  case OpCode::I32__atomic__rmw8__xor_u:
     return checkAlignAndTrans(8, std::array{VType::I32, VType::I32},
                               std::array{VType::I32});
-  case OpCode::I32__atomic_xor16_u:
+  case OpCode::I32__atomic__rmw16__xor_u:
     return checkAlignAndTrans(16, std::array{VType::I32, VType::I32},
                               std::array{VType::I32});
-  case OpCode::I64__atomic_xor8_u:
+  case OpCode::I64__atomic__rmw8__xor_u:
     return checkAlignAndTrans(8, std::array{VType::I32, VType::I64},
                               std::array{VType::I64});
-  case OpCode::I64__atomic_xor16_u:
+  case OpCode::I64__atomic__rmw16__xor_u:
     return checkAlignAndTrans(16, std::array{VType::I32, VType::I64},
                               std::array{VType::I64});
-  case OpCode::I64__atomic_xor32_u:
+  case OpCode::I64__atomic__rmw32__xor_u:
     return checkAlignAndTrans(32, std::array{VType::I32, VType::I64},
                               std::array{VType::I64});
-  case OpCode::I32__atomic_xchg_s:
+  case OpCode::I32__atomic__rmw__xchg:
     return checkAlignAndTrans(32, std::array{VType::I32, VType::I32},
                               std::array{VType::I32});
-  case OpCode::I64__atomic_xchg_s:
+  case OpCode::I64__atomic__rmw__xchg:
     return checkAlignAndTrans(64, std::array{VType::I32, VType::I64},
                               std::array{VType::I64});
-  case OpCode::I32__atomic_xchg8_u:
+  case OpCode::I32__atomic__rmw8__xchg_u:
     return checkAlignAndTrans(8, std::array{VType::I32, VType::I32},
                               std::array{VType::I32});
-  case OpCode::I32__atomic_xchg16_u:
+  case OpCode::I32__atomic__rmw16__xchg_u:
     return checkAlignAndTrans(16, std::array{VType::I32, VType::I32},
                               std::array{VType::I32});
-  case OpCode::I64__atomic_xchg8_u:
+  case OpCode::I64__atomic__rmw8__xchg_u:
     return checkAlignAndTrans(8, std::array{VType::I32, VType::I64},
                               std::array{VType::I64});
-  case OpCode::I64__atomic_xchg16_u:
+  case OpCode::I64__atomic__rmw16__xchg_u:
     return checkAlignAndTrans(16, std::array{VType::I32, VType::I64},
                               std::array{VType::I64});
-  case OpCode::I64__atomic_xchg32_u:
+  case OpCode::I64__atomic__rmw32__xchg_u:
     return checkAlignAndTrans(32, std::array{VType::I32, VType::I64},
                               std::array{VType::I64});
-  case OpCode::I32__atomic_cmpxchg_s:
+  case OpCode::I32__atomic__rmw__cmpxchg:
     return checkAlignAndTrans(32,
                               std::array{VType::I32, VType::I32, VType::I32},
                               std::array{VType::I32});
-  case OpCode::I64__atomic_cmpxchg_s:
+  case OpCode::I64__atomic__rmw__cmpxchg:
     return checkAlignAndTrans(64,
                               std::array{VType::I32, VType::I64, VType::I64},
                               std::array{VType::I64});
-  case OpCode::I32__atomic_cmpxchg8_u:
+  case OpCode::I32__atomic__rmw8__cmpxchg_u:
     return checkAlignAndTrans(8, std::array{VType::I32, VType::I32, VType::I32},
                               std::array{VType::I32});
-  case OpCode::I32__atomic_cmpxchg16_u:
+  case OpCode::I32__atomic__rmw16__cmpxchg_u:
     return checkAlignAndTrans(16,
                               std::array{VType::I32, VType::I32, VType::I32},
                               std::array{VType::I32});
-  case OpCode::I64__atomic_cmpxchg8_u:
+  case OpCode::I64__atomic__rmw8__cmpxchg_u:
     return checkAlignAndTrans(8, std::array{VType::I32, VType::I64, VType::I64},
                               std::array{VType::I64});
-  case OpCode::I64__atomic_cmpxchg16_u:
+  case OpCode::I64__atomic__rmw16__cmpxchg_u:
     return checkAlignAndTrans(16,
                               std::array{VType::I32, VType::I64, VType::I64},
                               std::array{VType::I64});
-  case OpCode::I64__atomic_cmpxchg32_u:
+  case OpCode::I64__atomic__rmw32__cmpxchg_u:
     return checkAlignAndTrans(32,
                               std::array{VType::I32, VType::I64, VType::I64},
                               std::array{VType::I64});

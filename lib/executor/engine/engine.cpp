@@ -1624,299 +1624,299 @@ Expect<void> Executor::execute(Runtime::StoreManager &StoreMgr,
           StackMgr,
           *getMemInstByIdx(StoreMgr, StackMgr, Instr.getTargetIndex()), Instr);
 
-    case OpCode::I32__atomic_load_s:
+    case OpCode::I32__atomic__load:
       return runAtomicLoadOp<int32_t>(
           StackMgr,
           *getMemInstByIdx(StoreMgr, StackMgr, Instr.getTargetIndex()), Instr);
-    case OpCode::I64__atomic_load_s:
+    case OpCode::I64__atomic__load:
       return runAtomicLoadOp<int64_t>(
           StackMgr,
           *getMemInstByIdx(StoreMgr, StackMgr, Instr.getTargetIndex()), Instr);
-    case OpCode::I32__atomic_load8_u:
+    case OpCode::I32__atomic__load8_u:
       return runAtomicLoadOp<uint32_t>(
           StackMgr,
           *getMemInstByIdx(StoreMgr, StackMgr, Instr.getTargetIndex()), Instr,
           8);
-    case OpCode::I32__atomic_load16_u:
+    case OpCode::I32__atomic__load16_u:
       return runAtomicLoadOp<uint32_t>(
           StackMgr,
           *getMemInstByIdx(StoreMgr, StackMgr, Instr.getTargetIndex()), Instr,
           16);
-    case OpCode::I64__atomic_load8_u:
+    case OpCode::I64__atomic__load8_u:
       return runAtomicLoadOp<uint64_t>(
           StackMgr,
           *getMemInstByIdx(StoreMgr, StackMgr, Instr.getTargetIndex()), Instr,
           8);
-    case OpCode::I64__atomic_load16_u:
+    case OpCode::I64__atomic__load16_u:
       return runAtomicLoadOp<uint64_t>(
           StackMgr,
           *getMemInstByIdx(StoreMgr, StackMgr, Instr.getTargetIndex()), Instr,
           16);
-    case OpCode::I64__atomic_load32_u:
+    case OpCode::I64__atomic__load32_u:
       return runAtomicLoadOp<uint64_t>(
           StackMgr,
           *getMemInstByIdx(StoreMgr, StackMgr, Instr.getTargetIndex()), Instr,
           32);
-    case OpCode::I32__atomic_store_s:
+    case OpCode::I32__atomic__store:
       return runAtomicStoreOp<int32_t>(
           StackMgr,
           *getMemInstByIdx(StoreMgr, StackMgr, Instr.getTargetIndex()), Instr);
-    case OpCode::I64__atomic_store_s:
+    case OpCode::I64__atomic__store:
       return runAtomicStoreOp<int64_t>(
           StackMgr,
           *getMemInstByIdx(StoreMgr, StackMgr, Instr.getTargetIndex()), Instr);
-    case OpCode::I32__atomic_store8_u:
+    case OpCode::I32__atomic__store8_u:
       return runAtomicStoreOp<uint32_t>(
           StackMgr,
           *getMemInstByIdx(StoreMgr, StackMgr, Instr.getTargetIndex()), Instr,
           8);
-    case OpCode::I32__atomic_store16_u:
+    case OpCode::I32__atomic__store16_u:
       return runAtomicStoreOp<uint32_t>(
           StackMgr,
           *getMemInstByIdx(StoreMgr, StackMgr, Instr.getTargetIndex()), Instr,
           16);
-    case OpCode::I64__atomic_store8_u:
+    case OpCode::I64__atomic__store8_u:
       return runAtomicStoreOp<uint64_t>(
           StackMgr,
           *getMemInstByIdx(StoreMgr, StackMgr, Instr.getTargetIndex()), Instr,
           8);
-    case OpCode::I64__atomic_store16_u:
+    case OpCode::I64__atomic__store16_u:
       return runAtomicStoreOp<uint64_t>(
           StackMgr,
           *getMemInstByIdx(StoreMgr, StackMgr, Instr.getTargetIndex()), Instr,
           16);
-    case OpCode::I64__atomic_store32_u:
+    case OpCode::I64__atomic__store32_u:
       return runAtomicStoreOp<uint64_t>(
           StackMgr,
           *getMemInstByIdx(StoreMgr, StackMgr, Instr.getTargetIndex()), Instr,
           32);
-    case OpCode::I32__atomic_add_s:
+    case OpCode::I32__atomic__rmw__add:
       return runAtomicAddOp<int32_t>(
           StackMgr,
           *getMemInstByIdx(StoreMgr, StackMgr, Instr.getTargetIndex()), Instr);
-    case OpCode::I64__atomic_add_s:
+    case OpCode::I64__atomic__rmw__add:
       return runAtomicAddOp<int64_t>(
           StackMgr,
           *getMemInstByIdx(StoreMgr, StackMgr, Instr.getTargetIndex()), Instr);
-    case OpCode::I32__atomic_add8_u:
+    case OpCode::I32__atomic__rmw8__add_u:
       return runAtomicAddOp<uint32_t>(
           StackMgr,
           *getMemInstByIdx(StoreMgr, StackMgr, Instr.getTargetIndex()), Instr,
           8);
-    case OpCode::I32__atomic_add16_u:
+    case OpCode::I32__atomic__rmw16__add_u:
       return runAtomicAddOp<uint32_t>(
           StackMgr,
           *getMemInstByIdx(StoreMgr, StackMgr, Instr.getTargetIndex()), Instr,
           16);
-    case OpCode::I64__atomic_add8_u:
+    case OpCode::I64__atomic__rmw8__add_u:
       return runAtomicAddOp<uint64_t>(
           StackMgr,
           *getMemInstByIdx(StoreMgr, StackMgr, Instr.getTargetIndex()), Instr,
           8);
-    case OpCode::I64__atomic_add16_u:
+    case OpCode::I64__atomic__rmw16__add_u:
       return runAtomicAddOp<uint64_t>(
           StackMgr,
           *getMemInstByIdx(StoreMgr, StackMgr, Instr.getTargetIndex()), Instr,
           16);
-    case OpCode::I64__atomic_add32_u:
+    case OpCode::I64__atomic__rmw32__add_u:
       return runAtomicAddOp<uint64_t>(
           StackMgr,
           *getMemInstByIdx(StoreMgr, StackMgr, Instr.getTargetIndex()), Instr,
           32);
-    case OpCode::I32__atomic_sub_s:
+    case OpCode::I32__atomic__rmw__sub:
       return runAtomicSubOp<int32_t>(
           StackMgr,
           *getMemInstByIdx(StoreMgr, StackMgr, Instr.getTargetIndex()), Instr);
-    case OpCode::I64__atomic_sub_s:
+    case OpCode::I64__atomic__rmw__sub:
       return runAtomicSubOp<int64_t>(
           StackMgr,
           *getMemInstByIdx(StoreMgr, StackMgr, Instr.getTargetIndex()), Instr);
-    case OpCode::I32__atomic_sub8_u:
+    case OpCode::I32__atomic__rmw8__sub_u:
       return runAtomicSubOp<uint32_t>(
           StackMgr,
           *getMemInstByIdx(StoreMgr, StackMgr, Instr.getTargetIndex()), Instr,
           8);
-    case OpCode::I32__atomic_sub16_u:
+    case OpCode::I32__atomic__rmw16__sub_u:
       return runAtomicSubOp<uint32_t>(
           StackMgr,
           *getMemInstByIdx(StoreMgr, StackMgr, Instr.getTargetIndex()), Instr,
           16);
-    case OpCode::I64__atomic_sub8_u:
+    case OpCode::I64__atomic__rmw8__sub_u:
       return runAtomicSubOp<uint64_t>(
           StackMgr,
           *getMemInstByIdx(StoreMgr, StackMgr, Instr.getTargetIndex()), Instr,
           8);
-    case OpCode::I64__atomic_sub16_u:
+    case OpCode::I64__atomic__rmw16__sub_u:
       return runAtomicSubOp<uint64_t>(
           StackMgr,
           *getMemInstByIdx(StoreMgr, StackMgr, Instr.getTargetIndex()), Instr,
           16);
-    case OpCode::I64__atomic_sub32_u:
+    case OpCode::I64__atomic__rmw32__sub_u:
       return runAtomicSubOp<uint64_t>(
           StackMgr,
           *getMemInstByIdx(StoreMgr, StackMgr, Instr.getTargetIndex()), Instr,
           32);
-    case OpCode::I32__atomic_and_s:
+    case OpCode::I32__atomic__rmw__and:
       return runAtomicAndOp<int32_t>(
           StackMgr,
           *getMemInstByIdx(StoreMgr, StackMgr, Instr.getTargetIndex()), Instr);
-    case OpCode::I64__atomic_and_s:
+    case OpCode::I64__atomic__rmw__and:
       return runAtomicAndOp<int64_t>(
           StackMgr,
           *getMemInstByIdx(StoreMgr, StackMgr, Instr.getTargetIndex()), Instr);
-    case OpCode::I32__atomic_and8_u:
+    case OpCode::I32__atomic__rmw8__and_u:
       return runAtomicAndOp<uint32_t>(
           StackMgr,
           *getMemInstByIdx(StoreMgr, StackMgr, Instr.getTargetIndex()), Instr,
           8);
-    case OpCode::I32__atomic_and16_u:
+    case OpCode::I32__atomic__rmw16__and_u:
       return runAtomicAndOp<uint32_t>(
           StackMgr,
           *getMemInstByIdx(StoreMgr, StackMgr, Instr.getTargetIndex()), Instr,
           16);
-    case OpCode::I64__atomic_and8_u:
+    case OpCode::I64__atomic__rmw8__and_u:
       return runAtomicAndOp<uint64_t>(
           StackMgr,
           *getMemInstByIdx(StoreMgr, StackMgr, Instr.getTargetIndex()), Instr,
           8);
-    case OpCode::I64__atomic_and16_u:
+    case OpCode::I64__atomic__rmw16__and_u:
       return runAtomicAndOp<uint64_t>(
           StackMgr,
           *getMemInstByIdx(StoreMgr, StackMgr, Instr.getTargetIndex()), Instr,
           16);
-    case OpCode::I64__atomic_and32_u:
+    case OpCode::I64__atomic__rmw32__and_u:
       return runAtomicAndOp<uint64_t>(
           StackMgr,
           *getMemInstByIdx(StoreMgr, StackMgr, Instr.getTargetIndex()), Instr,
           32);
-    case OpCode::I32__atomic_or_s:
+    case OpCode::I32__atomic__rmw__or:
       return runAtomicOrOp<int32_t>(
           StackMgr,
           *getMemInstByIdx(StoreMgr, StackMgr, Instr.getTargetIndex()), Instr);
-    case OpCode::I64__atomic_or_s:
+    case OpCode::I64__atomic__rmw__or:
       return runAtomicOrOp<int64_t>(
           StackMgr,
           *getMemInstByIdx(StoreMgr, StackMgr, Instr.getTargetIndex()), Instr);
-    case OpCode::I32__atomic_or8_u:
+    case OpCode::I32__atomic__rmw8__or_u:
       return runAtomicOrOp<uint32_t>(
           StackMgr,
           *getMemInstByIdx(StoreMgr, StackMgr, Instr.getTargetIndex()), Instr,
           8);
-    case OpCode::I32__atomic_or16_u:
+    case OpCode::I32__atomic__rmw16__or_u:
       return runAtomicOrOp<uint32_t>(
           StackMgr,
           *getMemInstByIdx(StoreMgr, StackMgr, Instr.getTargetIndex()), Instr,
           16);
-    case OpCode::I64__atomic_or8_u:
+    case OpCode::I64__atomic__rmw8__or_u:
       return runAtomicOrOp<uint64_t>(
           StackMgr,
           *getMemInstByIdx(StoreMgr, StackMgr, Instr.getTargetIndex()), Instr,
           8);
-    case OpCode::I64__atomic_or16_u:
+    case OpCode::I64__atomic__rmw16__or_u:
       return runAtomicOrOp<uint64_t>(
           StackMgr,
           *getMemInstByIdx(StoreMgr, StackMgr, Instr.getTargetIndex()), Instr,
           16);
-    case OpCode::I64__atomic_or32_u:
+    case OpCode::I64__atomic__rmw32__or_u:
       return runAtomicOrOp<uint64_t>(
           StackMgr,
           *getMemInstByIdx(StoreMgr, StackMgr, Instr.getTargetIndex()), Instr,
           32);
-    case OpCode::I32__atomic_xor_s:
+    case OpCode::I32__atomic__rmw__xor:
       return runAtomicXorOp<int32_t>(
           StackMgr,
           *getMemInstByIdx(StoreMgr, StackMgr, Instr.getTargetIndex()), Instr);
-    case OpCode::I64__atomic_xor_s:
+    case OpCode::I64__atomic__rmw__xor:
       return runAtomicXorOp<int64_t>(
           StackMgr,
           *getMemInstByIdx(StoreMgr, StackMgr, Instr.getTargetIndex()), Instr);
-    case OpCode::I32__atomic_xor8_u:
+    case OpCode::I32__atomic__rmw8__xor_u:
       return runAtomicXorOp<uint32_t>(
           StackMgr,
           *getMemInstByIdx(StoreMgr, StackMgr, Instr.getTargetIndex()), Instr,
           8);
-    case OpCode::I32__atomic_xor16_u:
+    case OpCode::I32__atomic__rmw16__xor_u:
       return runAtomicXorOp<uint32_t>(
           StackMgr,
           *getMemInstByIdx(StoreMgr, StackMgr, Instr.getTargetIndex()), Instr,
           16);
-    case OpCode::I64__atomic_xor8_u:
+    case OpCode::I64__atomic__rmw8__xor_u:
       return runAtomicXorOp<uint64_t>(
           StackMgr,
           *getMemInstByIdx(StoreMgr, StackMgr, Instr.getTargetIndex()), Instr,
           8);
-    case OpCode::I64__atomic_xor16_u:
+    case OpCode::I64__atomic__rmw16__xor_u:
       return runAtomicXorOp<uint64_t>(
           StackMgr,
           *getMemInstByIdx(StoreMgr, StackMgr, Instr.getTargetIndex()), Instr,
           16);
-    case OpCode::I64__atomic_xor32_u:
+    case OpCode::I64__atomic__rmw32__xor_u:
       return runAtomicXorOp<uint64_t>(
           StackMgr,
           *getMemInstByIdx(StoreMgr, StackMgr, Instr.getTargetIndex()), Instr,
           32);
-    case OpCode::I32__atomic_xchg_s:
+    case OpCode::I32__atomic__rmw__xchg:
       return runAtomicExchangeOp<int32_t>(
           StackMgr,
           *getMemInstByIdx(StoreMgr, StackMgr, Instr.getTargetIndex()), Instr);
-    case OpCode::I64__atomic_xchg_s:
+    case OpCode::I64__atomic__rmw__xchg:
       return runAtomicExchangeOp<int64_t>(
           StackMgr,
           *getMemInstByIdx(StoreMgr, StackMgr, Instr.getTargetIndex()), Instr);
-    case OpCode::I32__atomic_xchg8_u:
+    case OpCode::I32__atomic__rmw8__xchg_u:
       return runAtomicExchangeOp<uint32_t>(
           StackMgr,
           *getMemInstByIdx(StoreMgr, StackMgr, Instr.getTargetIndex()), Instr,
           8);
-    case OpCode::I32__atomic_xchg16_u:
+    case OpCode::I32__atomic__rmw16__xchg_u:
       return runAtomicExchangeOp<uint32_t>(
           StackMgr,
           *getMemInstByIdx(StoreMgr, StackMgr, Instr.getTargetIndex()), Instr,
           16);
-    case OpCode::I64__atomic_xchg8_u:
+    case OpCode::I64__atomic__rmw8__xchg_u:
       return runAtomicExchangeOp<uint64_t>(
           StackMgr,
           *getMemInstByIdx(StoreMgr, StackMgr, Instr.getTargetIndex()), Instr,
           8);
-    case OpCode::I64__atomic_xchg16_u:
+    case OpCode::I64__atomic__rmw16__xchg_u:
       return runAtomicExchangeOp<uint64_t>(
           StackMgr,
           *getMemInstByIdx(StoreMgr, StackMgr, Instr.getTargetIndex()), Instr,
           16);
-    case OpCode::I64__atomic_xchg32_u:
+    case OpCode::I64__atomic__rmw32__xchg_u:
       return runAtomicExchangeOp<uint64_t>(
           StackMgr,
           *getMemInstByIdx(StoreMgr, StackMgr, Instr.getTargetIndex()), Instr,
           32);
-    case OpCode::I32__atomic_cmpxchg_s:
+    case OpCode::I32__atomic__rmw__cmpxchg:
       return runAtomicCompareExchangeOp<int32_t>(
           StackMgr,
           *getMemInstByIdx(StoreMgr, StackMgr, Instr.getTargetIndex()), Instr);
-    case OpCode::I64__atomic_cmpxchg_s:
+    case OpCode::I64__atomic__rmw__cmpxchg:
       return runAtomicCompareExchangeOp<int64_t>(
           StackMgr,
           *getMemInstByIdx(StoreMgr, StackMgr, Instr.getTargetIndex()), Instr);
-    case OpCode::I32__atomic_cmpxchg8_u:
+    case OpCode::I32__atomic__rmw8__cmpxchg_u:
       return runAtomicCompareExchangeOp<uint32_t>(
           StackMgr,
           *getMemInstByIdx(StoreMgr, StackMgr, Instr.getTargetIndex()), Instr,
           8);
-    case OpCode::I32__atomic_cmpxchg16_u:
+    case OpCode::I32__atomic__rmw16__cmpxchg_u:
       return runAtomicCompareExchangeOp<uint32_t>(
           StackMgr,
           *getMemInstByIdx(StoreMgr, StackMgr, Instr.getTargetIndex()), Instr,
           16);
-    case OpCode::I64__atomic_cmpxchg8_u:
+    case OpCode::I64__atomic__rmw8__cmpxchg_u:
       return runAtomicCompareExchangeOp<uint64_t>(
           StackMgr,
           *getMemInstByIdx(StoreMgr, StackMgr, Instr.getTargetIndex()), Instr,
           8);
-    case OpCode::I64__atomic_cmpxchg16_u:
+    case OpCode::I64__atomic__rmw16__cmpxchg_u:
       return runAtomicCompareExchangeOp<uint64_t>(
           StackMgr,
           *getMemInstByIdx(StoreMgr, StackMgr, Instr.getTargetIndex()), Instr,
           16);
-    case OpCode::I64__atomic_cmpxchg32_u:
+    case OpCode::I64__atomic__rmw32__cmpxchg_u:
       return runAtomicCompareExchangeOp<uint64_t>(
           StackMgr,
           *getMemInstByIdx(StoreMgr, StackMgr, Instr.getTargetIndex()), Instr,

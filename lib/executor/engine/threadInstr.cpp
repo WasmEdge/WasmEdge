@@ -9,8 +9,8 @@ Expect<void> Executor::runAtomicNofityOp(
     [[maybe_unused]] const AST::Instruction &Instr) {
 
   detail::atomicLock();
-  ValVariant Address = StackMgr.pop();
-  ValVariant Count = StackMgr.pop();
+  [[maybe_unused]] ValVariant Address = StackMgr.pop();
+  [[maybe_unused]] ValVariant Count = StackMgr.pop();
   // TODO: Implemnt Notify
   StackMgr.push(ValVariant(0));
   detail::atomicUnlock();

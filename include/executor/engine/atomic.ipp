@@ -15,7 +15,7 @@ TypeT<T> Executor::runAtomicWaitOp(Runtime::StackManager &StackMgr,
   detail::atomicLock();
   ValVariant Address = StackMgr.pop();
   ValVariant Val = StackMgr.pop();
-  ValVariant Timeout = StackMgr.pop();
+  [[maybe_unused]] ValVariant Timeout = StackMgr.pop();
 
   StackMgr.push(Address);
   runLoadOp<T>(StackMgr, MemInst, Instr, BitWidth);

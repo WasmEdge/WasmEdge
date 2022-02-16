@@ -54,12 +54,6 @@ file(COPY
   ${CMAKE_CURRENT_BINARY_DIR}/testSuites
 )
 
-file(COPY
-  ${wasmedge_unit_test_SOURCE_DIR}/threads
-  DESTINATION
-  ${CMAKE_CURRENT_BINARY_DIR}/testSuites
-)
-
 wasmedge_add_library(wasmedgeTestSpec
   spectest.cpp
 )

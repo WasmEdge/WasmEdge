@@ -20,7 +20,7 @@ Expect<OpCode> Loader::loadOpCode() {
   }
 
   if (Payload == 0xFCU || Payload == 0xFDU || Payload == 0xFEU) {
-    /// 2-bytes OpCode case.
+    // 2-bytes OpCode case.
     if (auto B2 = FMgr.readU32()) {
       Payload <<= 8;
       Payload += (*B2);
@@ -849,69 +849,69 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
   case OpCode::Memory__atomic__wait32:
   case OpCode::Memory__atomic__wait64:
 
-  case OpCode::I32__atomic_load_s:
-  case OpCode::I64__atomic_load_s:
-  case OpCode::I32__atomic_load8_u:
-  case OpCode::I32__atomic_load16_u:
-  case OpCode::I64__atomic_load8_u:
-  case OpCode::I64__atomic_load16_u:
-  case OpCode::I64__atomic_load32_u:
-  case OpCode::I32__atomic_store_s:
-  case OpCode::I64__atomic_store_s:
-  case OpCode::I32__atomic_store8_u:
-  case OpCode::I32__atomic_store16_u:
-  case OpCode::I64__atomic_store8_u:
-  case OpCode::I64__atomic_store16_u:
-  case OpCode::I64__atomic_store32_u:
-  case OpCode::I32__atomic_add_s:
-  case OpCode::I64__atomic_add_s:
-  case OpCode::I32__atomic_add8_u:
-  case OpCode::I32__atomic_add16_u:
-  case OpCode::I64__atomic_add8_u:
-  case OpCode::I64__atomic_add16_u:
-  case OpCode::I64__atomic_add32_u:
-  case OpCode::I32__atomic_sub_s:
-  case OpCode::I64__atomic_sub_s:
-  case OpCode::I32__atomic_sub8_u:
-  case OpCode::I32__atomic_sub16_u:
-  case OpCode::I64__atomic_sub8_u:
-  case OpCode::I64__atomic_sub16_u:
-  case OpCode::I64__atomic_sub32_u:
-  case OpCode::I32__atomic_and_s:
-  case OpCode::I64__atomic_and_s:
-  case OpCode::I32__atomic_and8_u:
-  case OpCode::I32__atomic_and16_u:
-  case OpCode::I64__atomic_and8_u:
-  case OpCode::I64__atomic_and16_u:
-  case OpCode::I64__atomic_and32_u:
-  case OpCode::I32__atomic_or_s:
-  case OpCode::I64__atomic_or_s:
-  case OpCode::I32__atomic_or8_u:
-  case OpCode::I32__atomic_or16_u:
-  case OpCode::I64__atomic_or8_u:
-  case OpCode::I64__atomic_or16_u:
-  case OpCode::I64__atomic_or32_u:
-  case OpCode::I32__atomic_xor_s:
-  case OpCode::I64__atomic_xor_s:
-  case OpCode::I32__atomic_xor8_u:
-  case OpCode::I32__atomic_xor16_u:
-  case OpCode::I64__atomic_xor8_u:
-  case OpCode::I64__atomic_xor16_u:
-  case OpCode::I64__atomic_xor32_u:
-  case OpCode::I32__atomic_xchg_s:
-  case OpCode::I64__atomic_xchg_s:
-  case OpCode::I32__atomic_xchg8_u:
-  case OpCode::I32__atomic_xchg16_u:
-  case OpCode::I64__atomic_xchg8_u:
-  case OpCode::I64__atomic_xchg16_u:
-  case OpCode::I64__atomic_xchg32_u:
-  case OpCode::I32__atomic_cmpxchg_s:
-  case OpCode::I64__atomic_cmpxchg_s:
-  case OpCode::I32__atomic_cmpxchg8_u:
-  case OpCode::I32__atomic_cmpxchg16_u:
-  case OpCode::I64__atomic_cmpxchg8_u:
-  case OpCode::I64__atomic_cmpxchg16_u:
-  case OpCode::I64__atomic_cmpxchg32_u:
+  case OpCode::I32__atomic__load:
+  case OpCode::I64__atomic__load:
+  case OpCode::I32__atomic__load8_u:
+  case OpCode::I32__atomic__load16_u:
+  case OpCode::I64__atomic__load8_u:
+  case OpCode::I64__atomic__load16_u:
+  case OpCode::I64__atomic__load32_u:
+  case OpCode::I32__atomic__store:
+  case OpCode::I64__atomic__store:
+  case OpCode::I32__atomic__store8_u:
+  case OpCode::I32__atomic__store16_u:
+  case OpCode::I64__atomic__store8_u:
+  case OpCode::I64__atomic__store16_u:
+  case OpCode::I64__atomic__store32_u:
+  case OpCode::I32__atomic__rmw__add:
+  case OpCode::I64__atomic__rmw__add:
+  case OpCode::I32__atomic__rmw8__add_u:
+  case OpCode::I32__atomic__rmw16__add_u:
+  case OpCode::I64__atomic__rmw8__add_u:
+  case OpCode::I64__atomic__rmw16__add_u:
+  case OpCode::I64__atomic__rmw32__add_u:
+  case OpCode::I32__atomic__rmw__sub:
+  case OpCode::I64__atomic__rmw__sub:
+  case OpCode::I32__atomic__rmw8__sub_u:
+  case OpCode::I32__atomic__rmw16__sub_u:
+  case OpCode::I64__atomic__rmw8__sub_u:
+  case OpCode::I64__atomic__rmw16__sub_u:
+  case OpCode::I64__atomic__rmw32__sub_u:
+  case OpCode::I32__atomic__rmw__and:
+  case OpCode::I64__atomic__rmw__and:
+  case OpCode::I32__atomic__rmw8__and_u:
+  case OpCode::I32__atomic__rmw16__and_u:
+  case OpCode::I64__atomic__rmw8__and_u:
+  case OpCode::I64__atomic__rmw16__and_u:
+  case OpCode::I64__atomic__rmw32__and_u:
+  case OpCode::I32__atomic__rmw__or:
+  case OpCode::I64__atomic__rmw__or:
+  case OpCode::I32__atomic__rmw8__or_u:
+  case OpCode::I32__atomic__rmw16__or_u:
+  case OpCode::I64__atomic__rmw8__or_u:
+  case OpCode::I64__atomic__rmw16__or_u:
+  case OpCode::I64__atomic__rmw32__or_u:
+  case OpCode::I32__atomic__rmw__xor:
+  case OpCode::I64__atomic__rmw__xor:
+  case OpCode::I32__atomic__rmw8__xor_u:
+  case OpCode::I32__atomic__rmw16__xor_u:
+  case OpCode::I64__atomic__rmw8__xor_u:
+  case OpCode::I64__atomic__rmw16__xor_u:
+  case OpCode::I64__atomic__rmw32__xor_u:
+  case OpCode::I32__atomic__rmw__xchg:
+  case OpCode::I64__atomic__rmw__xchg:
+  case OpCode::I32__atomic__rmw8__xchg_u:
+  case OpCode::I32__atomic__rmw16__xchg_u:
+  case OpCode::I64__atomic__rmw8__xchg_u:
+  case OpCode::I64__atomic__rmw16__xchg_u:
+  case OpCode::I64__atomic__rmw32__xchg_u:
+  case OpCode::I32__atomic__rmw__cmpxchg:
+  case OpCode::I64__atomic__rmw__cmpxchg:
+  case OpCode::I32__atomic__rmw8__cmpxchg_u:
+  case OpCode::I32__atomic__rmw16__cmpxchg_u:
+  case OpCode::I64__atomic__rmw8__cmpxchg_u:
+  case OpCode::I64__atomic__rmw16__cmpxchg_u:
+  case OpCode::I64__atomic__rmw32__cmpxchg_u:
     if (auto Res = readU32(Instr.getMemoryAlign()); unlikely(!Res)) {
       return Unexpect(Res);
     }
@@ -965,9 +965,9 @@ Expect<void> Loader::checkInstrProposals(OpCode Code, uint64_t Offset) {
       return logNeedProposal(ErrCode::IllegalOpCode, Proposal::SIMD, Offset,
                              ASTNodeAttr::Instruction);
     }
-  } else if (Code >= OpCode::I32__atomic_load_s &&
-             Code <= OpCode::I64__atomic_cmpxchg32_u) {
-    /// These instructions are for Thread proposal.
+  } else if (Code >= OpCode::I32__atomic__load &&
+             Code <= OpCode::I64__atomic__rmw32__cmpxchg_u) {
+    // These instructions are for Thread proposal.
     if (!Conf.hasProposal(Proposal::Threads)) {
       return logNeedProposal(ErrCode::IllegalOpCode, Proposal::Threads, Offset,
                              ASTNodeAttr::Instruction);

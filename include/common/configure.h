@@ -173,13 +173,13 @@ private:
 class Configure {
 public:
   Configure() noexcept {
-    addProposal(Proposal::ImportExportMutGlobals);
-    addProposal(Proposal::NonTrapFloatToIntConversions);
-    addProposal(Proposal::SignExtensionOperators);
-    addProposal(Proposal::MultiValue);
-    addProposal(Proposal::BulkMemoryOperations);
-    addProposal(Proposal::ReferenceTypes);
-    addProposal(Proposal::SIMD);
+    unsafeAddProposal(Proposal::ImportExportMutGlobals);
+    unsafeAddProposal(Proposal::NonTrapFloatToIntConversions);
+    unsafeAddProposal(Proposal::SignExtensionOperators);
+    unsafeAddProposal(Proposal::MultiValue);
+    unsafeAddProposal(Proposal::BulkMemoryOperations);
+    unsafeAddProposal(Proposal::ReferenceTypes);
+    unsafeAddProposal(Proposal::SIMD);
   }
   template <typename... ArgsT> Configure(ArgsT... Args) noexcept : Configure() {
     (unsafeAddSet(Args), ...);

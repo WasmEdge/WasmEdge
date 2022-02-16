@@ -77,6 +77,8 @@ WasiCryptoExpect<void> checkEcPkIsValid(EVP_PKEY *Ctx, bool Compressed) {
 template <int CurveNid>
 WasiCryptoExpect<void> checkEcKpIsValid(EVP_PKEY *Ctx, bool Compressed) {
   checkEcPkIsValid<CurveNid>(Ctx, Compressed);
+
+  return {};
 }
 
 } // namespace

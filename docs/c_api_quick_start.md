@@ -14,15 +14,27 @@ int main(int Argc, const char* Argv[]) {
   /* Create the configure context and add the WASI support. */
   /* This step is not necessary unless you need WASI support. */
   WasmEdge_ConfigureContext *ConfCxt = WasmEdge_ConfigureCreate();
+  if (ConfCxt == NULL) {
+    printf("Error: failed to alloc configure context\n");
+    return 0;
+  }
   WasmEdge_ConfigureAddHostRegistration(ConfCxt, WasmEdge_HostRegistration_Wasi);
   /* The configure and store context to the VM creation can be NULL. */
   WasmEdge_VMContext *VMCxt = WasmEdge_VMCreate(ConfCxt, NULL);
+  if (VMCxt == NULL) {
+    printf("Error: failed to alloc vm context\n");
+    return 0;
+  }
 
   /* The parameters and returns arrays. */
   WasmEdge_Value Params[1] = { WasmEdge_ValueGenI32(32) };
   WasmEdge_Value Returns[1];
   /* Function name. */
   WasmEdge_String FuncName = WasmEdge_StringCreateByCString("fib");
+  if (FuncName == NULL) {
+    printf("Error: failed to alloc function name\n");
+    return 0;
+  }
   /* Run the WASM function from file. */
   WasmEdge_Result Res = WasmEdge_VMRunWasmFromFile(VMCxt, Argv[1], FuncName, Params, 1, Returns, 1);
 

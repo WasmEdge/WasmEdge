@@ -734,14 +734,26 @@ This example uses the [fibonacci.wasm](../tools/wasmedge/examples/fibonacci.wasm
       /* This step is not necessary unless you need the WASI support. */
       WasmEdge_ConfigureContext *ConfCxt = WasmEdge_ConfigureCreate();
       WasmEdge_ConfigureAddHostRegistration(ConfCxt, WasmEdge_HostRegistration_Wasi);
+      if (ConfCxt == NULL) {
+        printf("Error: failed to alloc configure context\n");
+        return 0;
+      }
       /* The configure and store context to the VM creation can be NULL. */
       WasmEdge_VMContext *VMCxt = WasmEdge_VMCreate(ConfCxt, NULL);
+      if (VMCxt == NULL) {
+        printf("Error: failed to alloc vm context\n");
+        return 0;
+      }
 
       /* The parameters and returns arrays. */
       WasmEdge_Value Params[1] = { WasmEdge_ValueGenI32(10) };
       WasmEdge_Value Returns[1];
       /* Function name. */
       WasmEdge_String FuncName = WasmEdge_StringCreateByCString("fib");
+      if (FuncName == NULL) {
+        printf("Error: failed to alloc function name\n");
+        return 0;
+      }
       /* Result. */
       WasmEdge_Result Res;
       

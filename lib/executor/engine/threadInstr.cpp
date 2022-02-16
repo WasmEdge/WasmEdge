@@ -4,6 +4,7 @@ namespace WasmEdge {
 namespace Executor {
 
 Expect<void> Executor::runAtomicNofityOp(
+    Runtime::StackManager &StackMgr,
     [[maybe_unused]] Runtime::Instance::MemoryInstance &MemInst,
     [[maybe_unused]] const AST::Instruction &Instr) {
 
@@ -17,6 +18,7 @@ Expect<void> Executor::runAtomicNofityOp(
 }
 
 Expect<void> Executor::runMemoryFenceOp(
+    [[maybe_unused]] Runtime::StackManager &StackMgr,
     [[maybe_unused]] Runtime::Instance::MemoryInstance &MemInst,
     [[maybe_unused]] const AST::Instruction &Instr) {
   detail::atomicLock();

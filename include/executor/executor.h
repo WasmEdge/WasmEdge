@@ -515,50 +515,62 @@ private:
   template <typename T> Expect<void> runVectorTruncOp(ValVariant &Val) const;
   template <typename T> Expect<void> runVectorNearestOp(ValVariant &Val) const;
   /// ======= Atomic instructions =======
-  Expect<void> runAtomicNofityOp(Runtime::Instance::MemoryInstance &MemInst,
+  Expect<void> runAtomicNofityOp(Runtime::StackManager &StackMgr,
+                                 Runtime::Instance::MemoryInstance &MemInst,
                                  const AST::Instruction &Instr);
-  Expect<void> runMemoryFenceOp(Runtime::Instance::MemoryInstance &MemInst,
+  Expect<void> runMemoryFenceOp(Runtime::StackManager &StackMgr,
+                                Runtime::Instance::MemoryInstance &MemInst,
                                 const AST::Instruction &Instr);
   template <typename T>
-  TypeT<T> runAtomicWaitOp(Runtime::Instance::MemoryInstance &MemInst,
+  TypeT<T> runAtomicWaitOp(Runtime::StackManager &StackMgr,
+                           Runtime::Instance::MemoryInstance &MemInst,
                            const AST::Instruction &Instr,
                            const uint32_t BitWidth = sizeof(T) * 8);
 
   template <typename T>
-  TypeT<T> runAtomicLoadOp(Runtime::Instance::MemoryInstance &MemInst,
+  TypeT<T> runAtomicLoadOp(Runtime::StackManager &StackMgr,
+                           Runtime::Instance::MemoryInstance &MemInst,
                            const AST::Instruction &Instr,
                            const uint32_t BitWidth = sizeof(T) * 8);
   template <typename T>
-  TypeT<T> runAtomicStoreOp(Runtime::Instance::MemoryInstance &MemInst,
+  TypeT<T> runAtomicStoreOp(Runtime::StackManager &StackMgr,
+                            Runtime::Instance::MemoryInstance &MemInst,
                             const AST::Instruction &Instr,
                             const uint32_t BitWidth = sizeof(T) * 8);
   template <typename T>
-  TypeT<T> runAtomicAddOp(Runtime::Instance::MemoryInstance &MemInst,
+  TypeT<T> runAtomicAddOp(Runtime::StackManager &StackMgr,
+                          Runtime::Instance::MemoryInstance &MemInst,
                           const AST::Instruction &Instr,
                           const uint32_t BitWidth = sizeof(T) * 8);
   template <typename T>
-  TypeT<T> runAtomicSubOp(Runtime::Instance::MemoryInstance &MemInst,
+  TypeT<T> runAtomicSubOp(Runtime::StackManager &StackMgr,
+                          Runtime::Instance::MemoryInstance &MemInst,
                           const AST::Instruction &Instr,
                           const uint32_t BitWidth = sizeof(T) * 8);
   template <typename T>
-  TypeT<T> runAtomicOrOp(Runtime::Instance::MemoryInstance &MemInst,
+  TypeT<T> runAtomicOrOp(Runtime::StackManager &StackMgr,
+                         Runtime::Instance::MemoryInstance &MemInst,
                          const AST::Instruction &Instr,
                          const uint32_t BitWidth = sizeof(T) * 8);
   template <typename T>
-  TypeT<T> runAtomicAndOp(Runtime::Instance::MemoryInstance &MemInst,
+  TypeT<T> runAtomicAndOp(Runtime::StackManager &StackMgr,
+                          Runtime::Instance::MemoryInstance &MemInst,
                           const AST::Instruction &Instr,
                           const uint32_t BitWidth = sizeof(T) * 8);
   template <typename T>
-  TypeT<T> runAtomicXorOp(Runtime::Instance::MemoryInstance &MemInst,
+  TypeT<T> runAtomicXorOp(Runtime::StackManager &StackMgr,
+                          Runtime::Instance::MemoryInstance &MemInst,
                           const AST::Instruction &Instr,
                           const uint32_t BitWidth = sizeof(T) * 8);
   template <typename T>
-  TypeT<T> runAtomicExchangeOp(Runtime::Instance::MemoryInstance &MemInst,
+  TypeT<T> runAtomicExchangeOp(Runtime::StackManager &StackMgr,
+                               Runtime::Instance::MemoryInstance &MemInst,
                                const AST::Instruction &Instr,
                                const uint32_t BitWidth = sizeof(T) * 8);
   template <typename T>
   TypeT<T>
-  runAtomicCompareExchangeOp(Runtime::Instance::MemoryInstance &MemInst,
+  runAtomicCompareExchangeOp(Runtime::StackManager &StackMgr,
+                             Runtime::Instance::MemoryInstance &MemInst,
                              const AST::Instruction &Instr,
                              const uint32_t BitWidth = sizeof(T) * 8);
   /// @}

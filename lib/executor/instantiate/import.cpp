@@ -33,6 +33,9 @@ auto logUnknownError(std::string_view ModName, std::string_view ExtName,
 }
 
 bool isLimitMatched(const AST::Limit &Lim1, const AST::Limit &Lim2) {
+  if (Lim1.isShared() != Lim2.isShared()) {
+    return false;
+  }
   if ((Lim1.getMin() < Lim2.getMin()) || (!Lim1.hasMax() && Lim2.hasMax())) {
     return false;
   }

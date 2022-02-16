@@ -180,7 +180,6 @@ public:
     addProposal(Proposal::BulkMemoryOperations);
     addProposal(Proposal::ReferenceTypes);
     addProposal(Proposal::SIMD);
-    addProposal(Proposal::Threads);
   }
   template <typename... ArgsT> Configure(ArgsT... Args) noexcept : Configure() {
     (unsafeAddSet(Args), ...);

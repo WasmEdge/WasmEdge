@@ -38,15 +38,22 @@ public:
   Limit() noexcept : Type(LimitType::HasMin), Min(0U), Max(0U) {}
   Limit(uint32_t MinVal) noexcept
       : Type(LimitType::HasMin), Min(MinVal), Max(MinVal) {}
-  Limit(uint32_t MinVal, uint32_t MaxVal) noexcept
-      : Type(LimitType::HasMinMax), Min(MinVal), Max(MaxVal) {}
+  Limit(uint32_t MinVal, uint32_t MaxVal, bool Shared = false) noexcept
+      : Min(MinVal), Max(MaxVal) {
+    if (Shared) {
+      Type = LimitType::Shared;
+    } else {
+      Type = LimitType::HasMinMax;
+    }
+  }
   Limit(const Limit &L) noexcept : Type(L.Type), Min(L.Min), Max(L.Max) {}
 
   /// Getter and setter of limit mode.
-  bool hasMax() const noexcept { return Type == LimitType::HasMinMax; }
-  void setHasMax(bool HasMax) noexcept {
-    Type = HasMax ? LimitType::HasMinMax : LimitType::HasMin;
+  bool hasMax() const noexcept {
+    return Type == LimitType::HasMinMax || Type == LimitType::Shared;
   }
+  bool isShared() const noexcept { return Type == LimitType::Shared; }
+  void setType(LimitType TargetType) noexcept { Type = TargetType; }
 
   /// Getter and setter of min value.
   uint32_t getMin() const noexcept { return Min; }
@@ -123,7 +130,8 @@ public:
   /// Constructors.
   MemoryType() noexcept = default;
   MemoryType(uint32_t MinVal) noexcept : Lim(MinVal) {}
-  MemoryType(uint32_t MinVal, uint32_t MaxVal) noexcept : Lim(MinVal, MaxVal) {}
+  MemoryType(uint32_t MinVal, uint32_t MaxVal, bool Shared = false) noexcept
+      : Lim(MinVal, MaxVal, Shared) {}
   MemoryType(const Limit &L) noexcept : Lim(L) {}
 
   /// Getter of limit.

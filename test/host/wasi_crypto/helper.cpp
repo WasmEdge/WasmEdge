@@ -31,8 +31,7 @@ void WasiCryptoTest::writeSpan(Span<const uint8_t> Content, uint32_t Ptr) {
   std::copy(Content.begin(), Content.end(), MemInst.getPointer<uint8_t *>(Ptr));
 }
 
-void WasiCryptoTest::writeOptKey(
-    std::optional<uint32_t> OptKey, uint32_t Ptr) {
+void WasiCryptoTest::writeOptKey(std::optional<uint32_t> OptKey, uint32_t Ptr) {
   __wasi_opt_symmetric_key_t Key;
   if (OptKey) {
     Key.tag = __WASI_OPT_SYMMETRIC_KEY_U_SOME;

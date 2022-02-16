@@ -1959,7 +1959,7 @@ Expect<uint32_t> WasiSockSend::body(Runtime::Instance::MemoryInstance *MemInst,
 Expect<uint32_t>
 WasiSockSendTo::body(Runtime::Instance::MemoryInstance *MemInst, int32_t Fd,
                      uint32_t SiDataPtr, uint32_t SiDataLen,
-                     uint32_t AddressPtr, uint32_t SiFlags,
+                     uint32_t AddressPtr, int32_t Port, uint32_t SiFlags,
                      uint32_t /* Out */ SoDataLenPtr) {
   // Check memory instance from module.
   if (MemInst == nullptr) {
@@ -2032,7 +2032,7 @@ WasiSockSendTo::body(Runtime::Instance::MemoryInstance *MemInst, int32_t Fd,
 
   if (auto Res = Env.sockSendTo(
           WasiFd, {WasiSiData.data(), WasiSiDataLen}, WasiSiFlags, AddressBuf,
-          static_cast<uint8_t>(InnerAddress->buf_len), *SoDataLen);
+          static_cast<uint8_t>(InnerAddress->buf_len), Port, *SoDataLen);
       unlikely(!Res)) {
     return Res.error();
   }

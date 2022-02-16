@@ -223,7 +223,7 @@ WasiExpect<void> INode::sockSend(Span<Span<const uint8_t>>, __wasi_siflags_t,
 }
 
 WasiExpect<void> INode::sockSendTo(Span<Span<const uint8_t>>, __wasi_siflags_t,
-                                   uint8_t *, uint8_t,
+                                   uint8_t *, uint8_t, int32_t,
                                    __wasi_size_t &) const noexcept {
   return WasiUnexpect(__WASI_ERRNO_NOSYS);
 }

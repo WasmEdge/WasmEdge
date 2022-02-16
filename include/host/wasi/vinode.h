@@ -626,9 +626,10 @@ public:
   /// @return Nothing or WASI error
   WasiExpect<void> sockSendTo(Span<Span<const uint8_t>> SiData,
                               __wasi_siflags_t SiFlags, uint8_t *Address,
-                              uint8_t AddressLength,
+                              uint8_t AddressLength, int32_t Port,
                               __wasi_size_t &NWritten) const noexcept {
-    return Node.sockSendTo(SiData, SiFlags, Address, AddressLength, NWritten);
+    return Node.sockSendTo(SiData, SiFlags, Address, AddressLength, Port,
+                           NWritten);
   }
 
   /// Shut down socket send and receive channels.

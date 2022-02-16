@@ -2,11 +2,10 @@
 #pragma once
 
 #include "common/log.h"
+#include "openssl/ec.h"
 #include "openssl/err.h"
 #include "openssl/evp.h"
 #include "wasi_crypto/api.hpp"
-
-#include <map>
 
 namespace WasmEdge {
 namespace Host {
@@ -49,6 +48,9 @@ using EvpPkeyCtxPtr = OpenSSLUniquePtr<EVP_PKEY_CTX, EVP_PKEY_CTX_free>;
 using EvpCipherCtxPtr = OpenSSLUniquePtr<EVP_CIPHER_CTX, EVP_CIPHER_CTX_free>;
 using EvpPkeyPtr = OpenSSLUniquePtr<EVP_PKEY, EVP_PKEY_free>;
 using BioPtr = OpenSSLUniquePtr<BIO, BIO_free>;
+using EcKeyPtr = OpenSSLUniquePtr<EC_KEY, EC_KEY_free>;
+using BnPtr = OpenSSLUniquePtr<BIGNUM, BN_free>;
+using EcPointPtr = OpenSSLUniquePtr<EC_POINT, EC_POINT_free>;
 } // namespace WASICrypto
 } // namespace Host
 } // namespace WasmEdge

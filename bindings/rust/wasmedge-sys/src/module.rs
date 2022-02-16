@@ -3,7 +3,12 @@
 use super::wasmedge;
 use crate::{
     error::{ExportError, ImportError, WasmEdgeError, WasmEdgeResult},
-    instance::{function::FuncType, global::GlobalType, memory::MemType, table::TableType},
+    instance::{
+        function::FuncType,
+        global::{GlobalType, InnerGlobalType},
+        memory::MemType,
+        table::TableType,
+    },
     types::ExternalType,
 };
 use std::{borrow::Cow, ffi::CStr, marker::PhantomData};
@@ -224,7 +229,7 @@ impl<'module> Import<'module> {
                 "Fail to get the global type".into(),
             ))),
             false => Ok(GlobalType {
-                ctx: ctx_global_ty as *mut _,
+                inner: InnerGlobalType(ctx_global_ty as *mut _),
                 registered: true,
             }),
         }
@@ -375,7 +380,7 @@ impl<'module> Export<'module> {
                 "Fail to get the function type".into(),
             ))),
             false => Ok(GlobalType {
-                ctx: ctx_global_ty as *mut _,
+                inner: InnerGlobalType(ctx_global_ty as *mut _),
                 registered: true,
             }),
         }

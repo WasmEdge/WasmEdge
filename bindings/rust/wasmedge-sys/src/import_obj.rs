@@ -269,9 +269,13 @@ impl ImportObject {
     pub fn add_global(&mut self, name: impl AsRef<str>, mut global: Global) {
         let global_name: WasmEdgeString = name.as_ref().into();
         unsafe {
-            wasmedge::WasmEdge_ImportObjectAddGlobal(self.ctx, global_name.as_raw(), global.ctx);
+            wasmedge::WasmEdge_ImportObjectAddGlobal(
+                self.ctx,
+                global_name.as_raw(),
+                global.inner.0,
+            );
         }
-        global.ctx = std::ptr::null_mut();
+        global.inner.0 = std::ptr::null_mut();
     }
 }
 impl Drop for ImportObject {

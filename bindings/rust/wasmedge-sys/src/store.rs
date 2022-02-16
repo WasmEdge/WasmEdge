@@ -1,7 +1,10 @@
 //! Defines WasmEdge Store struct.
 
 use crate::{
-    instance::{Function, Global, Memory, Table},
+    instance::{
+        global::{Global, InnerGlobal},
+        Function, Memory, Table,
+    },
     types::WasmEdgeString,
     wasmedge, StoreError, WasmEdgeError, WasmEdgeResult,
 };
@@ -246,7 +249,7 @@ impl Store {
                 name.as_ref().to_string(),
             ))),
             false => Ok(Global {
-                ctx,
+                inner: InnerGlobal(ctx),
                 registered: true,
             }),
         }
@@ -284,7 +287,7 @@ impl Store {
                 mod_name: mod_name.as_ref().to_string(),
             })),
             false => Ok(Global {
-                ctx,
+                inner: InnerGlobal(ctx),
                 registered: true,
             }),
         }
@@ -842,7 +845,7 @@ mod tests {
         let result = store.find_global_registered("extern_module", "global");
         assert!(result.is_ok());
         let global = result.unwrap();
-        assert!(!global.ctx.is_null() && global.registered);
+        assert!(!global.inner.0.is_null() && global.registered);
         let val = global.get_value();
         assert_eq!(val.to_f32(), 3.5);
 

@@ -1,6 +1,6 @@
 # 适用于 Android 的 WasmEdge CLI 工具
 
-在本节中，我们将向您展示如何在 Android 设备上使用 WasmEdge CLI 工具。 我们将展示一个完整的 WasmEdge 演示，以在 Android 设备上执行图像分类任务（基于 Tensorflow 的 AI 推理）。 
+在本节中，我们将向您展示如何在 Android 设备上使用 WasmEdge CLI 工具。 我们将展示一个完整的 WasmEdge 演示，以在 Android 设备上执行图像分类任务（基于 Tensorflow 的 AI 推理）。
 
 ## 在 Android 环境下安装 WasmEdge-TensorFlow-Tools
 
@@ -58,7 +58,7 @@ adb push WasmEdge-tensorflow-tools /data/local/tmp
 
 ### 获取示例应用程序
 
-在此示例中，我们将演示一个标准的 [WasmEdge Tensorflow-Lite 示例应用程序](https://github.com/second-state/wasm-learning/tree/master/rust/birds_v1)。它可以从鸟类的 JPG 或 PNG 图片中识别和分类鸟类类型。源代码的解释可以[在这里找到](https://wasmedge.org/book/en/dev/rust/tensorflow.html)。 
+在此示例中，我们将演示一个标准的 [WasmEdge Tensorflow-Lite 示例应用程序](https://github.com/second-state/wasm-learning/tree/master/rust/birds_v1)。它可以从鸟类的 JPG 或 PNG 图片中识别和分类鸟类类型。源代码的解释可以[在这里找到](https://wasmedge.org/book/en/dev/rust/tensorflow.html)。
 
 ```bash
 git clone https://github.com/second-state/wasm-learning.git
@@ -112,7 +112,7 @@ Output tensor nums: 1
         tensor byte size: 965
 ```
 
-使用 `wasmedge-tensorflow-lite` 中扩展的 WasmEdge Runtime 在 Android 设备上执行编译好的 Wasm 程序。 它加载 Tensorflow Lite 模型和鸟类图像，并输出鸟类分类及其置信度。 
+使用 `wasmedge-tensorflow-lite` 中扩展的 WasmEdge Runtime 在 Android 设备上执行编译好的 Wasm 程序。 它加载 Tensorflow Lite 模型和鸟类图像，并输出鸟类分类及其置信度。
 
 ```bash
 sirius:/data/local/tmp/WasmEdge-tensorflow-tools $ chmod 777 wasmedge-tensorflow-lite
@@ -121,4 +121,4 @@ INFO: Initialized TensorFlow Lite runtime.
 166 : 0.84705883
 ```
 
-结果显示鸟的类型在 [标签文件的第166行](https://github.com/second-state/wasm-learning/blob/master/rust/birds_v1/aiy_birds_V1_labels.txt#L166)（Sicalis flaveola)，置信水平为 84%。 
+结果显示鸟的类型在 [标签文件的第166行](https://github.com/second-state/wasm-learning/blob/master/rust/birds_v1/aiy_birds_V1_labels.txt#L166)（Sicalis flaveola)，置信水平为 84%。

@@ -58,7 +58,7 @@ public:
                                                   std::string Name,
                                                   std::string SystemPath);
 
-  bool isPreopened() const { return !Parent; }
+  bool isPreopened() const { return !Parent && !Name.empty(); }
 
   constexpr const std::string &name() const { return Name; }
 

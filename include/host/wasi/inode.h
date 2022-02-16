@@ -7,9 +7,14 @@
 #include "common/span.h"
 #include "host/wasi/error.h"
 #include <functional>
+#include <limits>
 #include <optional>
 #include <string_view>
 #include <vector>
+
+#if WASMEDGE_OS_LINUX
+#include <unordered_map>
+#endif
 
 #if WASMEDGE_OS_LINUX || WASMEDGE_OS_MACOS
 #include <dirent.h>
@@ -26,7 +31,11 @@
 #if defined(__GLIBC_PREREQ)
 #define _LIBCPP_GLIBC_PREREQ(a, b) 0
 #else
+#if defined(_LIBCPP_GLIBC_PREREQ)
 #define __GLIBC_PREREQ(a, b) _LIBCPP_GLIBC_PREREQ(a, b)
+#else
+#define __GLIBC_PREREQ(a, b) 1
+#endif
 #endif
 #endif
 
@@ -636,7 +645,15 @@ private:
 #endif
   };
 
+  struct FdData {
+    uint32_t Events = 0;
+    uint32_t ReadIndex = std::numeric_limits<uint32_t>::max();
+    uint32_t WriteIndex = std::numeric_limits<uint32_t>::max();
+    constexpr FdData(uint32_t E) noexcept : Events(E) {}
+  };
+
   std::vector<Timer> Timers;
+  std::unordered_map<int, FdData> FdDatas;
 #endif
 };
 

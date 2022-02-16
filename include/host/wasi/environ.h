@@ -985,13 +985,13 @@ public:
   /// @return Nothing or WASI error
   WasiExpect<void> sockSendTo(__wasi_fd_t Fd, Span<Span<const uint8_t>> SiData,
                               __wasi_siflags_t SiFlags, uint8_t *Address,
-                              uint8_t AddressLength,
+                              uint8_t AddressLength, int32_t Port,
                               __wasi_size_t &NWritten) const noexcept {
     auto Node = getNodeOrNull(Fd);
     if (unlikely(!Node)) {
       return WasiUnexpect(__WASI_ERRNO_BADF);
     } else {
-      return Node->sockSendTo(SiData, SiFlags, Address, AddressLength,
+      return Node->sockSendTo(SiData, SiFlags, Address, AddressLength, Port,
                               NWritten);
     }
   }

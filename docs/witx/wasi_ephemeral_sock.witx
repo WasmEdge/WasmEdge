@@ -101,6 +101,8 @@
     (param $buf (@witx pointer u8))
     (param $buf_len $size)
     ;;; The pointer to the destination address.
+    (param $port $size)
+    ;;; The destination port.
     (param $addr (@witx pointer $address))
     ;;; Message flags.
     (param $_flags $siflags)

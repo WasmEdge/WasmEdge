@@ -438,7 +438,7 @@ public:
 
   Expect<uint32_t> body(Runtime::Instance::MemoryInstance *MemInst, int32_t Fd,
                         uint32_t SiDataPtr, uint32_t SiDataLen,
-                        uint32_t AddressPtr, uint32_t SiFlags,
+                        uint32_t AddressPtr, int32_t Port, uint32_t SiFlags,
                         uint32_t /* Out */ SoDataLenPtr);
 };
 

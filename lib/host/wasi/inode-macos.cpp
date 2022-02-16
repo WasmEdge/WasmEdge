@@ -923,14 +923,37 @@ WasiExpect<void> INode::sockRecvFrom(Span<Span<uint8_t>> RiData,
 WasiExpect<void> INode::sockSend(Span<Span<const uint8_t>> SiData,
                                  __wasi_siflags_t SiFlags,
                                  __wasi_size_t &NWritten) const noexcept {
-  return sockSendTo(SiData, SiFlags, nullptr, 0, NWritten);
+  return sockSendTo(SiData, SiFlags, nullptr, 0, 0, NWritten);
 }
 
 WasiExpect<void> INode::sockSendTo(Span<Span<const uint8_t>> SiData,
                                    __wasi_siflags_t, uint8_t *Address,
-                                   uint8_t AddressLength,
+                                   uint8_t AddressLength, int32_t Port,
                                    __wasi_size_t &NWritten) const noexcept {
-  int SysSiFlags = 0;
+  int SysSiFlags = MSG_NOSIGNAL;
+
+  void *MsgName = nullptr;
+  socklen_t MsgNameLen = 0;
+  struct sockaddr_in ClientSocketAddr;
+  struct sockaddr_in6 ClientSocketAddr6;
+
+  if (Address) {
+    if (AddressLength == 4) {
+      ClientSocketAddr.sin_family = AF_INET;
+      ClientSocketAddr.sin_port = htons(Port);
+      ::memcpy(&ClientSocketAddr.sin_addr.s_addr, Address, AddressLength);
+
+      MsgName = &ClientSocketAddr;
+      MsgNameLen = sizeof(ClientSocketAddr);
+    } else if (AddressLength == 16) {
+      ClientSocketAddr6.sin6_family = AF_INET6;
+      ClientSocketAddr6.sin6_port = htons(Port);
+      ::memcpy(&ClientSocketAddr6.sin6_addr.s6_addr, Address, AddressLength);
+
+      MsgName = &ClientSocketAddr6;
+      MsgNameLen = sizeof(ClientSocketAddr6);
+    }
+  }
 
   iovec SysIOVs[kIOVMax];
   size_t SysIOVsSize = 0;
@@ -941,8 +964,8 @@ WasiExpect<void> INode::sockSendTo(Span<Span<const uint8_t>> SiData,
   }
 
   msghdr SysMsgHdr;
-  SysMsgHdr.msg_name = Address;
-  SysMsgHdr.msg_namelen = AddressLength;
+  SysMsgHdr.msg_name = MsgName;
+  SysMsgHdr.msg_namelen = MsgNameLen;
   SysMsgHdr.msg_iov = SysIOVs;
   SysMsgHdr.msg_iovlen = SysIOVsSize;
   SysMsgHdr.msg_control = nullptr;

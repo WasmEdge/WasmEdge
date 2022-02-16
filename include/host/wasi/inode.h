@@ -565,11 +565,12 @@ public:
   /// @param[in] SiFlags Message flags.
   /// @param[in] Address Address of the target.
   /// @param[in] AddressLength The buffer size of Address.
+  /// @param[in] Port Connected port.
   /// @param[out] NWritten The number of bytes transmitted.
   /// @return Nothing or WASI error
   WasiExpect<void> sockSendTo(Span<Span<const uint8_t>> SiData,
                               __wasi_siflags_t SiFlags, uint8_t *Address,
-                              uint8_t AddressLength,
+                              uint8_t AddressLength, int32_t Port,
                               __wasi_size_t &NWritten) const noexcept;
 
   /// Shut down socket send and receive channels.

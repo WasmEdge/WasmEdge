@@ -620,8 +620,8 @@ WasmEdge_ResultGetMessage(const WasmEdge_Result Res) {
 
 WASMEDGE_CAPI_EXPORT bool WasmEdge_LimitIsEqual(const WasmEdge_Limit Lim1,
                                                 const WasmEdge_Limit Lim2) {
-  return Lim1.HasMax == Lim2.HasMax && Lim1.Min == Lim2.Min &&
-         Lim1.Max == Lim2.Max;
+  return Lim1.HasMax == Lim2.HasMax && Lim1.Shared == Lim2.Shared &&
+         Lim1.Min == Lim2.Min && Lim1.Max == Lim2.Max;
 }
 
 // <<<<<<<< WasmEdge limit functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
@@ -1050,10 +1050,12 @@ WASMEDGE_CAPI_EXPORT WasmEdge_Limit
 WasmEdge_TableTypeGetLimit(const WasmEdge_TableTypeContext *Cxt) {
   if (Cxt) {
     const auto &Lim = fromTabTypeCxt(Cxt)->getLimit();
-    return WasmEdge_Limit{
-        .HasMax = Lim.hasMax(), .Min = Lim.getMin(), .Max = Lim.getMax()};
+    return WasmEdge_Limit{.HasMax = Lim.hasMax(),
+                          .Shared = Lim.isShared(),
+                          .Min = Lim.getMin(),
+                          .Max = Lim.getMax()};
   }
-  return WasmEdge_Limit{.HasMax = false, .Min = 0, .Max = 0};
+  return WasmEdge_Limit{.HasMax = false, .Shared = false, .Min = 0, .Max = 0};
 }
 
 WASMEDGE_CAPI_EXPORT void
@@ -1067,7 +1069,10 @@ WasmEdge_TableTypeDelete(WasmEdge_TableTypeContext *Cxt) {
 
 WASMEDGE_CAPI_EXPORT WasmEdge_MemoryTypeContext *
 WasmEdge_MemoryTypeCreate(const WasmEdge_Limit Limit) {
-  if (Limit.HasMax) {
+  if (Limit.Shared) {
+    return toMemTypeCxt(
+        new WasmEdge::AST::MemoryType(Limit.Min, Limit.Max, true));
+  } else if (Limit.HasMax) {
     return toMemTypeCxt(new WasmEdge::AST::MemoryType(Limit.Min, Limit.Max));
   } else {
     return toMemTypeCxt(new WasmEdge::AST::MemoryType(Limit.Min));
@@ -1078,10 +1083,12 @@ WASMEDGE_CAPI_EXPORT WasmEdge_Limit
 WasmEdge_MemoryTypeGetLimit(const WasmEdge_MemoryTypeContext *Cxt) {
   if (Cxt) {
     const auto &Lim = fromMemTypeCxt(Cxt)->getLimit();
-    return WasmEdge_Limit{
-        .HasMax = Lim.hasMax(), .Min = Lim.getMin(), .Max = Lim.getMax()};
+    return WasmEdge_Limit{.HasMax = Lim.hasMax(),
+                          .Shared = Lim.isShared(),
+                          .Min = Lim.getMin(),
+                          .Max = Lim.getMax()};
   }
-  return WasmEdge_Limit{.HasMax = false, .Min = 0, .Max = 0};
+  return WasmEdge_Limit{.HasMax = false, .Shared = false, .Min = 0, .Max = 0};
 }
 
 WASMEDGE_CAPI_EXPORT void

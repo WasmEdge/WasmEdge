@@ -17,7 +17,7 @@ namespace Host {
 namespace WASICrypto {
 namespace Signatures {
 
-template <uint32_t CurveNid> class Ecdsa {
+template <int CurveNid> class Ecdsa {
 public:
   class PublicKey final : public Signatures::PublicKey {
   public:
@@ -34,18 +34,19 @@ public:
 
   private:
     static WasiCryptoExpect<std::unique_ptr<PublicKey>>
-    importPkcs8(Span<uint8_t const> Encoded);
+    importPkcs8(Span<uint8_t const> Encoded, bool Compressed);
 
     static WasiCryptoExpect<std::unique_ptr<PublicKey>>
-    importPem(Span<uint8_t const> Encoded);
+    importPem(Span<uint8_t const> Encoded, bool Compressed);
 
-    // all ok, compress or not compress
     static WasiCryptoExpect<std::unique_ptr<PublicKey>>
-    importRaw(Span<uint8_t const> Encoded);
+    importSec(Span<uint8_t const> Encoded, bool Compressed);
 
-    WasiCryptoExpect<std::vector<uint8_t>> exportSec();
+    WasiCryptoExpect<std::vector<uint8_t>> exportSec(bool Compressed);
 
-    WasiCryptoExpect<std::vector<uint8_t>> exportCompressedSec();
+    WasiCryptoExpect<std::vector<uint8_t>> exportPem(bool Compressed);
+
+    WasiCryptoExpect<std::vector<uint8_t>> exportPkcs8(bool Compressed);
 
     EvpPkeyPtr Ctx;
   };

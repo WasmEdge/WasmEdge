@@ -25,6 +25,10 @@ namespace Signatures {
 namespace {
 inline const size_t UnCompressedPkSize = 65;
 inline const size_t CompressedPkSize = 33;
+constexpr size_t getRawPkSize(bool Compressed) {
+  return Compressed ? CompressedPkSize : UnCompressedPkSize;
+}
+
 inline const size_t SkSize = 32;
 
 constexpr point_conversion_form_t getForm(bool Compressed) {
@@ -178,8 +182,7 @@ template <int CurveNid>
 WasiCryptoExpect<std::unique_ptr<typename Ecdsa<CurveNid>::PublicKey>>
 Ecdsa<CurveNid>::PublicKey::importSec(Span<const uint8_t> Encoded,
                                       bool Compressed) {
-  ensureOrReturn(Encoded.size() == Compressed ? CompressedPkSize
-                                              : UnCompressedPkSize,
+  ensureOrReturn(Encoded.size() == getRawPkSize(Compressed),
                  __WASI_CRYPTO_ERRNO_INVALID_KEY);
 
   EcKeyPtr EcCtx{EC_KEY_new_by_curve_name(CurveNid)};
@@ -198,7 +201,7 @@ template <int CurveNid>
 WasiCryptoExpect<std::vector<uint8_t>>
 Ecdsa<CurveNid>::PublicKey::exportSec(bool Compressed) {
   EC_KEY *EcCtx = EVP_PKEY_get0_EC_KEY(Ctx.get());
-  std::vector<uint8_t> Res(Compressed ? CompressedPkSize : UnCompressedPkSize);
+  std::vector<uint8_t> Res(getRawPkSize(Compressed));
   opensslAssuming(EC_POINT_point2oct(
       EC_KEY_get0_group(EcCtx), EC_KEY_get0_public_key(EcCtx),
       getForm(Compressed), Res.data(), Res.size(), nullptr));

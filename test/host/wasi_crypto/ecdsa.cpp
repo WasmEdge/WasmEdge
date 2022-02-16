@@ -213,11 +213,11 @@ TEST_F(WasiCryptoTest, EcdsaP256Sha256) {
       EXPECT_EQ(testRun<AsymmetricCommon::PublickeyImport>(
                     {static_cast<uint32_t>(__WASI_ALGORITHM_TYPE_SIGNATURES), 0,
                      17, 17, ExpectedPk.size(), static_cast<uint32_t>(Encoding),
-                     17 + ExpectedPk.size()})
+                     static_cast<uint32_t>(17 + ExpectedPk.size())})
                     .value(),
                 __WASI_CRYPTO_ERRNO_SUCCESS);
       auto PkHandle = *MemInst.getPointer<__wasi_signature_keypair_t *>(
-          17 + ExpectedPk.size());
+          static_cast<uint32_t>(17 + ExpectedPk.size()));
 
       EXPECT_EQ(testRun<AsymmetricCommon::PublickeyExport>(
                     {PkHandle, static_cast<uint32_t>(Encoding), 0})
@@ -232,7 +232,7 @@ TEST_F(WasiCryptoTest, EcdsaP256Sha256) {
                     .value(),
                 __WASI_CRYPTO_ERRNO_SUCCESS);
       EXPECT_EQ(*MemInst.getPointer<__wasi_size_t *>(ExpectedPk.size()),
-                ExpectedPk.size());
+                static_cast<__wasi_size_t>(ExpectedPk.size()));
       EXPECT_EQ((std::vector<uint8_t>{MemInst.getPointer<uint8_t *>(0),
                                       MemInst.getPointer<uint8_t *>(0) +
                                           ExpectedPk.size()}),

@@ -39,7 +39,11 @@
 #if defined(__GLIBC_PREREQ)
 #define _LIBCPP_GLIBC_PREREQ(a, b) 0
 #else
+#if defined(_LIBCPP_GLIBC_PREREQ)
 #define __GLIBC_PREREQ(a, b) _LIBCPP_GLIBC_PREREQ(a, b)
+#else
+#define __GLIBC_PREREQ(a, b) 1
+#endif
 #endif
 
 #if __GLIBC_PREREQ(2, 8)

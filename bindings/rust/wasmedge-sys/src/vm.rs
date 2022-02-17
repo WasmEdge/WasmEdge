@@ -37,15 +37,16 @@ impl Vm {
             Some(mut config) => {
                 let vm_ctx = match store {
                     Some(mut store) => {
-                        let vm_ctx = unsafe { wasmedge::WasmEdge_VMCreate(config.ctx, store.ctx) };
+                        let vm_ctx =
+                            unsafe { wasmedge::WasmEdge_VMCreate(config.inner.0, store.ctx) };
                         store.ctx = std::ptr::null_mut();
                         vm_ctx
                     }
                     None => unsafe {
-                        wasmedge::WasmEdge_VMCreate(config.ctx, std::ptr::null_mut())
+                        wasmedge::WasmEdge_VMCreate(config.inner.0, std::ptr::null_mut())
                     },
                 };
-                config.ctx = std::ptr::null_mut();
+                config.inner.0 = std::ptr::null_mut();
                 vm_ctx
             }
             None => match store {
@@ -770,8 +771,8 @@ mod tests {
             // create a Config context
             let result = Config::create();
             assert!(result.is_ok());
-            let config = result.unwrap();
-            let config = config.bulk_memory_operations(true);
+            let mut config = result.unwrap();
+            config.bulk_memory_operations(true);
             assert!(config.bulk_memory_operations_enabled());
 
             // create a Store context
@@ -790,8 +791,8 @@ mod tests {
             // create a Config context
             let result = Config::create();
             assert!(result.is_ok());
-            let config = result.unwrap();
-            let config = config.bulk_memory_operations(true);
+            let mut config = result.unwrap();
+            config.bulk_memory_operations(true);
             assert!(config.bulk_memory_operations_enabled());
 
             // create a Vm context with the given Config
@@ -820,8 +821,8 @@ mod tests {
         // create Config instance
         let result = Config::create();
         assert!(result.is_ok());
-        let conf = result.unwrap();
-        let config = conf.bulk_memory_operations(true);
+        let mut config = result.unwrap();
+        config.bulk_memory_operations(true);
         assert!(config.bulk_memory_operations_enabled());
 
         // create Store instance
@@ -854,9 +855,9 @@ mod tests {
         // create Config instance
         let result = Config::create();
         assert!(result.is_ok());
-        let conf = result.unwrap();
-        let conf = conf.bulk_memory_operations(true);
-        assert!(conf.bulk_memory_operations_enabled());
+        let mut config = result.unwrap();
+        config.bulk_memory_operations(true);
+        assert!(config.bulk_memory_operations_enabled());
 
         // create Store instance
         let result = Store::create();
@@ -864,7 +865,7 @@ mod tests {
         let store = result.unwrap();
 
         // create Vm instance
-        let result = Vm::create(Some(conf), Some(store));
+        let result = Vm::create(Some(config), Some(store));
         assert!(result.is_ok());
         let mut vm = result.unwrap();
 
@@ -892,7 +893,8 @@ mod tests {
         // create a Config context
         let result = Config::create();
         assert!(result.is_ok());
-        let config = result.unwrap().bulk_memory_operations(true);
+        let mut config = result.unwrap();
+        config.bulk_memory_operations(true);
         assert!(config.bulk_memory_operations_enabled());
 
         // create a Store context
@@ -908,7 +910,8 @@ mod tests {
         // create a loader
         let result = Config::create();
         assert!(result.is_ok());
-        let config = result.unwrap().wasi(true);
+        let mut config = result.unwrap();
+        config.wasi(true);
         assert!(config.wasi_enabled());
         let result = Loader::create(Some(config));
         assert!(result.is_ok());
@@ -942,7 +945,8 @@ mod tests {
         // create a loader
         let result = Config::create();
         assert!(result.is_ok());
-        let config = result.unwrap().wasi(true);
+        let mut config = result.unwrap();
+        config.wasi(true);
         assert!(config.wasi_enabled());
         let result = Loader::create(Some(config));
         assert!(result.is_ok());
@@ -979,7 +983,8 @@ mod tests {
         // create a loader
         let result = Config::create();
         assert!(result.is_ok());
-        let config = result.unwrap().wasi(true);
+        let mut config = result.unwrap();
+        config.wasi(true);
         assert!(config.wasi_enabled());
         let result = Loader::create(Some(config));
         assert!(result.is_ok());
@@ -1015,8 +1020,8 @@ mod tests {
             .join("bindings/rust/wasmedge-sys/tests/data/fibonacci.wasm");
         let result = Config::create();
         assert!(result.is_ok());
-        let config = result.unwrap();
-        let config = config.bulk_memory_operations(true);
+        let mut config = result.unwrap();
+        config.bulk_memory_operations(true);
         assert!(config.bulk_memory_operations_enabled());
 
         // load module from file
@@ -1030,8 +1035,8 @@ mod tests {
         // create Vm instance
         let result = Config::create();
         assert!(result.is_ok());
-        let config = result.unwrap();
-        let config = config.bulk_memory_operations(true);
+        let mut config = result.unwrap();
+        config.bulk_memory_operations(true);
         assert!(config.bulk_memory_operations_enabled());
 
         let result = Store::create();
@@ -1115,8 +1120,8 @@ mod tests {
         // create a Config context
         let result = Config::create();
         assert!(result.is_ok());
-        let config = result.unwrap();
-        let config = config.bulk_memory_operations(true);
+        let mut config = result.unwrap();
+        config.bulk_memory_operations(true);
         assert!(config.bulk_memory_operations_enabled());
 
         // create a Store context
@@ -1149,7 +1154,8 @@ mod tests {
         // create a Config context
         let result = Config::create();
         assert!(result.is_ok());
-        let config = result.unwrap().bulk_memory_operations(true);
+        let mut config = result.unwrap();
+        config.bulk_memory_operations(true);
         assert!(config.bulk_memory_operations_enabled());
 
         // create a Store context
@@ -1165,7 +1171,8 @@ mod tests {
         // create a loader
         let result = Config::create();
         assert!(result.is_ok());
-        let config = result.unwrap().wasi(true);
+        let mut config = result.unwrap();
+        config.wasi(true);
         assert!(config.wasi_enabled());
         let result = Loader::create(Some(config));
         assert!(result.is_ok());
@@ -1246,10 +1253,10 @@ mod tests {
         // create a Config context
         let result = Config::create();
         assert!(result.is_ok());
-        let config = result.unwrap();
-        let config = config.bulk_memory_operations(true);
+        let mut config = result.unwrap();
+        config.bulk_memory_operations(true);
         assert!(config.bulk_memory_operations_enabled());
-        let config = config.wasi(true);
+        config.wasi(true);
         assert!(config.wasi_enabled());
 
         // create a Store context
@@ -1306,8 +1313,8 @@ mod tests {
         // create a Config context
         let result = Config::create();
         assert!(result.is_ok());
-        let config = result.unwrap();
-        let config = config.bulk_memory_operations(true);
+        let mut config = result.unwrap();
+        config.bulk_memory_operations(true);
         assert!(config.bulk_memory_operations_enabled());
 
         // create a Store context
@@ -1335,8 +1342,8 @@ mod tests {
         // create a Config context
         let result = Config::create();
         assert!(result.is_ok());
-        let config = result.unwrap();
-        let config = config.bulk_memory_operations(true);
+        let mut config = result.unwrap();
+        config.bulk_memory_operations(true);
         assert!(config.bulk_memory_operations_enabled());
 
         // create a Store context
@@ -1395,8 +1402,8 @@ mod tests {
         // create a Config context
         let result = Config::create();
         assert!(result.is_ok());
-        let config = result.unwrap();
-        let config = config.bulk_memory_operations(true);
+        let mut config = result.unwrap();
+        config.bulk_memory_operations(true);
         assert!(config.bulk_memory_operations_enabled());
 
         // create a Store context
@@ -1459,8 +1466,8 @@ mod tests {
         // create a Config context
         let result = Config::create();
         assert!(result.is_ok());
-        let config = result.unwrap();
-        let config = config.bulk_memory_operations(true);
+        let mut config = result.unwrap();
+        config.bulk_memory_operations(true);
         assert!(config.bulk_memory_operations_enabled());
 
         // create a Store context

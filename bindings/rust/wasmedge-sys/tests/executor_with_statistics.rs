@@ -10,12 +10,11 @@ fn test_executor_with_statistics() {
     // create a Config context
     let result = Config::create();
     assert!(result.is_ok());
-    let config = result.unwrap();
+    let mut config = result.unwrap();
     // enable Statistics
-    let config = config
-        .count_instructions(true)
-        .measure_time(true)
-        .measure_cost(true);
+    config.count_instructions(true);
+    config.measure_time(true);
+    config.measure_cost(true);
 
     // create a Statistics context
     let result = Statistics::create();

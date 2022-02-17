@@ -23,8 +23,8 @@ impl Loader {
     pub fn create(config: Option<Config>) -> WasmEdgeResult<Self> {
         let ctx = match config {
             Some(mut config) => {
-                let ctx = unsafe { wasmedge::WasmEdge_LoaderCreate(config.ctx) };
-                config.ctx = std::ptr::null_mut();
+                let ctx = unsafe { wasmedge::WasmEdge_LoaderCreate(config.inner.0) };
+                config.inner.0 = std::ptr::null_mut();
                 ctx
             }
             None => unsafe { wasmedge::WasmEdge_LoaderCreate(std::ptr::null_mut()) },
@@ -127,8 +127,8 @@ mod tests {
         // create a Loader instance with configuration
         let result = Config::create();
         assert!(result.is_ok());
-        let config = result.unwrap();
-        let config = config.reference_types(true);
+        let mut config = result.unwrap();
+        config.reference_types(true);
         let result = Loader::create(Some(config));
         assert!(result.is_ok());
         let loader = result.unwrap();

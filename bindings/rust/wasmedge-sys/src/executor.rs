@@ -31,16 +31,17 @@ impl Executor {
         let ctx = match config {
             Some(mut config) => match stat {
                 Some(mut stat) => {
-                    let ctx = unsafe { wasmedge::WasmEdge_ExecutorCreate(config.ctx, stat.ctx) };
-                    config.ctx = std::ptr::null_mut();
+                    let ctx =
+                        unsafe { wasmedge::WasmEdge_ExecutorCreate(config.inner.0, stat.ctx) };
+                    config.inner.0 = std::ptr::null_mut();
                     stat.ctx = std::ptr::null_mut();
                     ctx
                 }
                 None => {
                     let ctx = unsafe {
-                        wasmedge::WasmEdge_ExecutorCreate(config.ctx, std::ptr::null_mut())
+                        wasmedge::WasmEdge_ExecutorCreate(config.inner.0, std::ptr::null_mut())
                     };
-                    config.ctx = std::ptr::null_mut();
+                    config.inner.0 = std::ptr::null_mut();
                     ctx
                 }
             },

@@ -24,8 +24,8 @@ impl Compiler {
     pub fn create(config: Option<Config>) -> WasmEdgeResult<Self> {
         let ctx = match config {
             Some(mut config) => {
-                let ctx = unsafe { wasmedge::WasmEdge_CompilerCreate(config.ctx) };
-                config.ctx = std::ptr::null_mut();
+                let ctx = unsafe { wasmedge::WasmEdge_CompilerCreate(config.inner.0) };
+                config.inner.0 = std::ptr::null_mut();
                 ctx
             }
             None => unsafe { wasmedge::WasmEdge_CompilerCreate(std::ptr::null_mut()) },
@@ -112,9 +112,9 @@ mod tests {
         {
             let result = Config::create();
             assert!(result.is_ok());
-            let config = result.unwrap();
+            let mut config = result.unwrap();
             // compile file for shared library output format
-            let config = config.set_compiler_output_format(CompilerOutputFormat::Native);
+            config.set_compiler_output_format(CompilerOutputFormat::Native);
 
             let result = Compiler::create(Some(config));
             assert!(result.is_ok());

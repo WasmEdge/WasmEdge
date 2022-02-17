@@ -57,6 +57,9 @@ jobs:
 
       - name: Test wasmedge-sys in standalone mode
         run: |
+          apt update
+          apt install libssl-dev
+          export OPENSSL_ROOT_DIR=/usr/local
           cd bindings/rust/
           export WASMEDGE_DIR="$(pwd)/../../"
           cargo +nightly test -p wasmedge-sys --lib --examples
@@ -73,7 +76,7 @@ jobs:
           apt-get install -y make
           mkdir -p build
           cd build
-          cmake -DCMAKE_BUILD_TYPE=Debug -DWASMEDGE_BUILD_TESTS=ON ..
+          cmake -DCMAKE_BUILD_TYPE=Debug -DWASMEDGE_BUILD_TESTS=ON -DWASMEDGE_BUILD_WASI_CRYPTO=ON ..
           make -j
 
       - name: Clippy
@@ -127,12 +130,13 @@ jobs:
 
       - name: Test wasmedge-sys in standalone mode
         run: |
-          brew install llvm ninja boost cmake
+          brew install llvm ninja boost cmake openssl@1.1
           export PATH="/usr/local/opt/llvm/bin:$PATH"
           export LDFLAGS="-L/usr/local/opt/llvm/lib -Wl,-rpath,/usr/local/opt/llvm/lib"
           export CPPFLAGS="-I/usr/local/opt/llvm/include"
           export CC=clang
           export CXX=clang++
+          export OPENSSL_ROOT_DIR=/usr/local/opt/openssl
           cd bindings/rust/
           export WASMEDGE_DIR="$(pwd)/../../"
           cargo +nightly test -p wasmedge-sys --lib --examples
@@ -145,14 +149,15 @@ jobs:
 
       - name: Build WasmEdge
         run: |
-          brew install llvm ninja boost cmake
+          brew install llvm ninja boost cmake openssl@1.1
           export PATH="/usr/local/opt/llvm/bin:$PATH"
           export LDFLAGS="-L/usr/local/opt/llvm/lib -Wl,-rpath,/usr/local/opt/llvm/lib"
           export CPPFLAGS="-I/usr/local/opt/llvm/include"
           export CC=clang
           export CXX=clang++
-          cmake -Bbuild -GNinja -DWASMEDGE_BUILD_TESTS=ON .
-          cmake -Bbuild -GNinja -DWASMEDGE_BUILD_TESTS=ON -DWASMEDGE_BUILD_PACKAGE="TGZ" .
+          export OPENSSL_ROOT_DIR=/usr/local/opt/openssl
+          cmake -Bbuild -GNinja -DWASMEDGE_BUILD_TESTS=ON -DWASMEDGE_BUILD_WASI_CRYPTO=ON .
+          cmake -Bbuild -GNinja -DWASMEDGE_BUILD_TESTS=ON -DWASMEDGE_BUILD_WASI_CRYPTO=ON -DWASMEDGE_BUILD_PACKAGE="TGZ" .
           cmake --build build
 
       - name: Clippy

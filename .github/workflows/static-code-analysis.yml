@@ -52,14 +52,14 @@ jobs:
         lsb_release -a
         sudo apt update
         sudo apt upgrade -y
-        sudo apt install -y software-properties-common libboost-all-dev llvm-11-dev liblld-11-dev liblld-11 clang-11 tar
+        sudo apt install -y software-properties-common libboost-all-dev llvm-11-dev liblld-11-dev liblld-11 clang-11 tar libssl-dev
         curl -sSL "https://github.com/facebook/infer/releases/download/v1.1.0/infer-linux64-v1.1.0.tar.xz" | sudo tar -C /opt -xJ && sudo ln -s "/opt/infer-linux64-v1.1.0/bin/infer" /usr/local/bin/infer
 
     - name: Generate compilation database
       run: |
         mkdir build
         cd build
-        infer compile -- cmake -DCMAKE_BUILD_TYPE=Debug -DLLVM_DIR=/usr/lib/llvm-11/lib/cmake/llvm ..
+        infer compile -- cmake -DCMAKE_BUILD_TYPE=Debug -DLLVM_DIR=/usr/lib/llvm-11/lib/cmake/llvm -DWASMEDGE_BUILD_WASI_CRYPTO=ON ..
 
     - name: Run Infer Static Code Analysis
       run: |

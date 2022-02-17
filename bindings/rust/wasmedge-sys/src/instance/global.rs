@@ -57,13 +57,9 @@ impl GlobalType {
 }
 impl Drop for GlobalType {
     fn drop(&mut self) {
-        dbg!("*** drop SafeGlobalType start ...");
         if !self.registered && !self.inner.0.is_null() {
-            dbg!("*** drop InnerGlobalType start ...");
             unsafe { wasmedge::WasmEdge_GlobalTypeDelete(self.inner.0) };
-            dbg!("*** drop InnerGlobalType done!");
         }
-        dbg!("*** drop SafeGlobalType done!");
     }
 }
 
@@ -164,13 +160,9 @@ impl Global {
 }
 impl Drop for Global {
     fn drop(&mut self) {
-        dbg!("*** drop SafeGlobal start ...");
         if !self.registered && !self.inner.0.is_null() {
-            dbg!("*** drop InnerGlobal start ...");
             unsafe { wasmedge::WasmEdge_GlobalInstanceDelete(self.inner.0) };
-            dbg!("*** drop InnerGlobal done!");
         }
-        dbg!("*** drop SafeGlobal done!");
     }
 }
 
@@ -178,6 +170,10 @@ impl Drop for Global {
 mod tests {
     use super::*;
     use crate::{Mutability, ValType};
+    use std::{
+        sync::{Arc, Mutex},
+        thread,
+    };
 
     #[test]
     fn test_global_type() {
@@ -291,8 +287,6 @@ mod tests {
 
     #[test]
     fn test_global_send() {
-        use std::thread;
-
         {
             // create a GlobalType instance
             let result = GlobalType::create(ValType::I32, Mutability::Const);
@@ -330,5 +324,27 @@ mod tests {
 
             handle.join().unwrap()
         }
+    }
+
+    #[test]
+    fn test_global_sync() {
+        // create a GlobalType instance
+        let result = GlobalType::create(ValType::I32, Mutability::Const);
+        assert!(result.is_ok());
+        let global_ty = result.unwrap();
+
+        // create a Global instance
+        let result = Global::create(global_ty, Value::from_i32(5));
+        assert!(result.is_ok());
+        let global = Arc::new(Mutex::new(result.unwrap()));
+
+        let global_cloned = Arc::clone(&global);
+        let handle = thread::spawn(move || {
+            let global = global_cloned.lock().unwrap();
+
+            assert_eq!(global.get_value().to_i32(), 5);
+        });
+
+        handle.join().unwrap()
     }
 }

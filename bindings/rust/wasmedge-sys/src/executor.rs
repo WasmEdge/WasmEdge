@@ -32,9 +32,9 @@ impl Executor {
             Some(mut config) => match stat {
                 Some(mut stat) => {
                     let ctx =
-                        unsafe { wasmedge::WasmEdge_ExecutorCreate(config.inner.0, stat.ctx) };
+                        unsafe { wasmedge::WasmEdge_ExecutorCreate(config.inner.0, stat.inner.0) };
                     config.inner.0 = std::ptr::null_mut();
-                    stat.ctx = std::ptr::null_mut();
+                    stat.inner.0 = std::ptr::null_mut();
                     ctx
                 }
                 None => {
@@ -48,9 +48,9 @@ impl Executor {
             None => match stat {
                 Some(mut stat) => {
                     let ctx = unsafe {
-                        wasmedge::WasmEdge_ExecutorCreate(std::ptr::null_mut(), stat.ctx)
+                        wasmedge::WasmEdge_ExecutorCreate(std::ptr::null_mut(), stat.inner.0)
                     };
-                    stat.ctx = std::ptr::null_mut();
+                    stat.inner.0 = std::ptr::null_mut();
                     ctx
                 }
                 None => unsafe {

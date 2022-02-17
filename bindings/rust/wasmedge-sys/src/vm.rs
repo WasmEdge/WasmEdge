@@ -5,10 +5,11 @@ use crate::{
     error::{check, VmError, WasmEdgeError, WasmEdgeResult},
     import_obj::{ImportObject, InnerImportObject},
     instance::function::{FuncType, InnerFuncType},
+    statistics::{InnerStat, Statistics},
     types::WasmEdgeString,
     utils,
     wasmedge::{WasmEdge_HostRegistration_Wasi, WasmEdge_HostRegistration_WasmEdge_Process},
-    Config, Module, Statistics, Store, Value,
+    Config, Module, Store, Value,
 };
 use std::path::Path;
 
@@ -686,7 +687,7 @@ impl Vm {
         match stat_ctx.is_null() {
             true => Err(WasmEdgeError::Vm(VmError::NotFoundStatistics)),
             false => Ok(Statistics {
-                ctx: stat_ctx,
+                inner: InnerStat(stat_ctx),
                 registered: true,
             }),
         }

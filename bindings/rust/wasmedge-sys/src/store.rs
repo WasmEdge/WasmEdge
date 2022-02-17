@@ -2,10 +2,10 @@
 
 use crate::{
     instance::{
+        function::{Function, InnerFunc},
         global::{Global, InnerGlobal},
         memory::{InnerMemory, Memory},
         table::{InnerTable, Table},
-        Function,
     },
     types::WasmEdgeString,
     wasmedge, StoreError, WasmEdgeError, WasmEdgeResult,
@@ -59,7 +59,7 @@ impl Store {
                 name.as_ref().to_string(),
             ))),
             false => Ok(Function {
-                ctx,
+                inner: InnerFunc(ctx),
                 registered: true,
             }),
         }
@@ -97,7 +97,7 @@ impl Store {
                 mod_name: mod_name.as_ref().to_string(),
             })),
             false => Ok(Function {
-                ctx,
+                inner: InnerFunc(ctx),
                 registered: true,
             }),
         }

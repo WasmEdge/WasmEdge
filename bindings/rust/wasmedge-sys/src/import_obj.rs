@@ -224,9 +224,9 @@ impl ImportObject {
     pub fn add_func(&mut self, name: impl AsRef<str>, mut func: Function) {
         let func_name: WasmEdgeString = name.into();
         unsafe {
-            wasmedge::WasmEdge_ImportObjectAddFunction(self.ctx, func_name.as_raw(), func.ctx);
+            wasmedge::WasmEdge_ImportObjectAddFunction(self.ctx, func_name.as_raw(), func.inner.0);
         }
-        func.ctx = std::ptr::null_mut();
+        func.inner.0 = std::ptr::null_mut();
     }
 
     /// Adds a [`Table`] into the host module.

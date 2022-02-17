@@ -3,7 +3,7 @@
 use super::wasmedge;
 use crate::{
     error::{check, VmError, WasmEdgeError, WasmEdgeResult},
-    instance::function::FuncType,
+    instance::function::{FuncType, InnerFuncType},
     types::WasmEdgeString,
     utils,
     wasmedge::{WasmEdge_HostRegistration_Wasi, WasmEdge_HostRegistration_WasmEdge_Process},
@@ -453,7 +453,8 @@ impl Vm {
         let func_type = self.get_function_type(func_name.as_ref())?;
 
         // get the info of the funtion return
-        let returns_len = unsafe { wasmedge::WasmEdge_FunctionTypeGetReturnsLength(func_type.ctx) };
+        let returns_len =
+            unsafe { wasmedge::WasmEdge_FunctionTypeGetReturnsLength(func_type.inner.0) };
         let mut returns = Vec::with_capacity(returns_len as usize);
 
         let func_name: WasmEdgeString = func_name.as_ref().into();
@@ -501,7 +502,8 @@ impl Vm {
         let func_type = self.get_registered_function_type(mod_name.as_ref(), func_name.as_ref())?;
 
         // get the info of the funtion return
-        let returns_len = unsafe { wasmedge::WasmEdge_FunctionTypeGetReturnsLength(func_type.ctx) };
+        let returns_len =
+            unsafe { wasmedge::WasmEdge_FunctionTypeGetReturnsLength(func_type.inner.0) };
         let mut returns = Vec::with_capacity(returns_len as usize);
 
         let mod_name: WasmEdgeString = mod_name.as_ref().into();
@@ -546,7 +548,7 @@ impl Vm {
                 func_name.as_ref().to_string(),
             ))),
             false => Ok(FuncType {
-                ctx: ty_ctx as *mut _,
+                inner: InnerFuncType(ty_ctx as *mut _),
                 registered: true,
             }),
         }
@@ -583,7 +585,7 @@ impl Vm {
                 func_name.as_ref().to_string(),
             ))),
             false => Ok(FuncType {
-                ctx: ty_ctx as *mut _,
+                inner: InnerFuncType(ty_ctx as *mut _),
                 registered: true,
             }),
         }
@@ -621,7 +623,7 @@ impl Vm {
             let func_ty = match ty.is_null() {
                 true => None,
                 false => Some(FuncType {
-                    ctx: ty as *mut _,
+                    inner: InnerFuncType(ty as *mut _),
                     registered: true,
                 }),
             };

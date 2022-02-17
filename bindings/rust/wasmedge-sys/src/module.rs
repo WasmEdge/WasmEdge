@@ -4,7 +4,7 @@ use super::wasmedge;
 use crate::{
     error::{ExportError, ImportError, WasmEdgeError, WasmEdgeResult},
     instance::{
-        function::FuncType,
+        function::{FuncType, InnerFuncType},
         global::{GlobalType, InnerGlobalType},
         memory::{InnerMemType, MemType},
         table::{InnerTableType, TableType},
@@ -140,7 +140,7 @@ impl<'module> Import<'module> {
                 "Fail to get the function type".into(),
             ))),
             false => Ok(FuncType {
-                ctx: ctx_func_ty as *mut _,
+                inner: InnerFuncType(ctx_func_ty as *mut _),
                 registered: true,
             }),
         }
@@ -291,7 +291,7 @@ impl<'module> Export<'module> {
                 "Fail to get the function type".into(),
             ))),
             false => Ok(FuncType {
-                ctx: ctx_func_ty as *mut _,
+                inner: InnerFuncType(ctx_func_ty as *mut _),
                 registered: true,
             }),
         }

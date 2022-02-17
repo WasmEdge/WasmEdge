@@ -2,3 +2,6 @@
 # SPDX-FileCopyrightText: 2019-2022 Second State INC
 
 add_subdirectory(wasi)
+if (WASMEDGE_BUILD_WASI_CRYPTO)
+  add_subdirectory(wasi_crypto)
+endif()

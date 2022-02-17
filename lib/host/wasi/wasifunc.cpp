@@ -1913,16 +1913,12 @@ WasiGetAddrinfo::body(Runtime::Instance::MemoryInstance *MemInst,
   if (MemInst == nullptr) {
     return __WASI_ERRNO_FAULT;
   }
-  const char *Node = nullptr;
-  if (NodeLen != 0) {
-    Node = MemInst->getPointer<const char *>(NodePtr, NodeLen);
-  }
-  const char *Service = nullptr;
-  if (ServiceLen != 0) {
-    Service = MemInst->getPointer<const char *>(ServicePtr, ServiceLen);
-  }
-  // service and node can not be nullptr at the same time
-  if (Service == nullptr && Node == nullptr) {
+  std::string_view Node(MemInst->getPointer<const char *>(NodePtr, NodeLen),
+                        NodeLen);
+  std::string_view Service(
+      MemInst->getPointer<const char *>(ServicePtr, ServiceLen), ServiceLen);
+  // service and node can not be empty at the same time
+  if (Service.empty() && Node.empty()) {
     return __WASI_ERRNO_AINONAME;
   }
 

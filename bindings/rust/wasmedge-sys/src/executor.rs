@@ -13,7 +13,7 @@ use crate::{
 /// [Store](crate::Store).
 #[derive(Debug)]
 pub struct Executor {
-    ctx: *mut wasmedge::WasmEdge_ExecutorContext,
+    inner: InnerExecutor,
 }
 impl Executor {
     /// Creates a new [`Executor`] to be associated with the given [`Config`] and [`Statistics`].
@@ -61,7 +61,9 @@ impl Executor {
 
         match ctx.is_null() {
             true => Err(WasmEdgeError::ExecutorCreate),
-            false => Ok(Executor { ctx }),
+            false => Ok(Executor {
+                inner: InnerExecutor(ctx),
+            }),
         }
     }
 
@@ -83,7 +85,9 @@ impl Executor {
     ) -> WasmEdgeResult<Self> {
         unsafe {
             check(wasmedge::WasmEdge_ExecutorRegisterImport(
-                self.ctx, store.ctx, import.ctx,
+                self.inner.0,
+                store.ctx,
+                import.ctx,
             ))?;
         }
         import.ctx = std::ptr::null_mut();
@@ -115,7 +119,7 @@ impl Executor {
         let mod_name: WasmEdgeString = mod_name.as_ref().into();
         unsafe {
             check(wasmedge::WasmEdge_ExecutorRegisterModule(
-                self.ctx,
+                self.inner.0,
                 store.ctx,
                 module.ctx,
                 mod_name.as_raw(),
@@ -146,7 +150,9 @@ impl Executor {
     pub fn instantiate(self, store: &mut Store, mut module: Module) -> WasmEdgeResult<Self> {
         unsafe {
             check(wasmedge::WasmEdge_ExecutorInstantiate(
-                self.ctx, store.ctx, module.ctx,
+                self.inner.0,
+                store.ctx,
+                module.ctx,
             ))?;
         }
         module.ctx = std::ptr::null_mut();
@@ -190,7 +196,7 @@ impl Executor {
         let func_name: WasmEdgeString = func_name.as_ref().into();
         unsafe {
             check(wasmedge::WasmEdge_ExecutorInvoke(
-                self.ctx,
+                self.inner.0,
                 store.ctx,
                 func_name.as_raw(),
                 raw_params.as_ptr(),
@@ -242,7 +248,7 @@ impl Executor {
         let func_name: WasmEdgeString = func_name.as_ref().into();
         unsafe {
             check(wasmedge::WasmEdge_ExecutorInvokeRegistered(
-                self.ctx,
+                self.inner.0,
                 store.ctx,
                 mod_name.as_raw(),
                 func_name.as_raw(),
@@ -259,16 +265,25 @@ impl Executor {
 }
 impl Drop for Executor {
     fn drop(&mut self) {
-        if !self.ctx.is_null() {
-            unsafe { wasmedge::WasmEdge_ExecutorDelete(self.ctx) }
+        if !self.inner.0.is_null() {
+            unsafe { wasmedge::WasmEdge_ExecutorDelete(self.inner.0) }
         }
     }
 }
+
+#[derive(Debug)]
+pub(crate) struct InnerExecutor(pub(crate) *mut wasmedge::WasmEdge_ExecutorContext);
+unsafe impl Send for InnerExecutor {}
+unsafe impl Sync for InnerExecutor {}
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::{Config, Statistics};
+    use std::{
+        sync::{Arc, Mutex},
+        thread,
+    };
 
     #[test]
     fn test_executor_create() {
@@ -277,7 +292,7 @@ mod tests {
             let result = Executor::create(None, None);
             assert!(result.is_ok());
             let executor = result.unwrap();
-            assert!(!executor.ctx.is_null());
+            assert!(!executor.inner.0.is_null());
         }
 
         {
@@ -288,7 +303,7 @@ mod tests {
             let result = Executor::create(Some(config), None);
             assert!(result.is_ok());
             let executor = result.unwrap();
-            assert!(!executor.ctx.is_null());
+            assert!(!executor.inner.0.is_null());
         }
 
         {
@@ -299,7 +314,7 @@ mod tests {
             let result = Executor::create(None, Some(stat));
             assert!(result.is_ok());
             let executor = result.unwrap();
-            assert!(!executor.ctx.is_null());
+            assert!(!executor.inner.0.is_null());
         }
 
         {
@@ -315,7 +330,58 @@ mod tests {
             let result = Executor::create(Some(config), Some(stat));
             assert!(result.is_ok());
             let executor = result.unwrap();
-            assert!(!executor.ctx.is_null());
+            assert!(!executor.inner.0.is_null());
         }
+    }
+
+    #[test]
+    fn test_executor_send() {
+        // create an Executor context with the given configuration and statistics.
+        let result = Config::create();
+        assert!(result.is_ok());
+        let config = result.unwrap();
+
+        let result = Statistics::create();
+        assert!(result.is_ok());
+        let stat = result.unwrap();
+
+        let result = Executor::create(Some(config), Some(stat));
+        assert!(result.is_ok());
+        let executor = result.unwrap();
+        assert!(!executor.inner.0.is_null());
+
+        let handle = thread::spawn(move || {
+            assert!(!executor.inner.0.is_null());
+            println!("{:?}", executor.inner);
+        });
+
+        handle.join().unwrap();
+    }
+
+    #[test]
+    fn test_executor_sync() {
+        // create an Executor context with the given configuration and statistics.
+        let result = Config::create();
+        assert!(result.is_ok());
+        let config = result.unwrap();
+
+        let result = Statistics::create();
+        assert!(result.is_ok());
+        let stat = result.unwrap();
+
+        let result = Executor::create(Some(config), Some(stat));
+        assert!(result.is_ok());
+        let executor = Arc::new(Mutex::new(result.unwrap()));
+
+        let executor_cloned = Arc::clone(&executor);
+        let handle = thread::spawn(move || {
+            let result = executor_cloned.lock();
+            assert!(result.is_ok());
+            let executor = result.unwrap();
+
+            assert!(!executor.inner.0.is_null());
+        });
+
+        handle.join().unwrap();
     }
 }

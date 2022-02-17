@@ -346,6 +346,8 @@ mod tests {
         let table = result.unwrap();
 
         let handle = thread::spawn(move || {
+            assert!(!table.inner.0.is_null());
+
             // check capacity
             assert_eq!(table.capacity(), 10);
 

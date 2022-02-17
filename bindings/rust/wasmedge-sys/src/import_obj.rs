@@ -254,9 +254,9 @@ impl ImportObject {
     pub fn add_memory(&mut self, name: impl AsRef<str>, mut memory: Memory) {
         let mem_name: WasmEdgeString = name.as_ref().into();
         unsafe {
-            wasmedge::WasmEdge_ImportObjectAddMemory(self.ctx, mem_name.as_raw(), memory.ctx);
+            wasmedge::WasmEdge_ImportObjectAddMemory(self.ctx, mem_name.as_raw(), memory.inner.0);
         }
-        memory.ctx = std::ptr::null_mut();
+        memory.inner.0 = std::ptr::null_mut();
     }
 
     /// Adds a [`Global`] into the host module.

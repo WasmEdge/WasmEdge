@@ -6,7 +6,7 @@ use crate::{
     instance::{
         function::FuncType,
         global::{GlobalType, InnerGlobalType},
-        memory::MemType,
+        memory::{InnerMemType, MemType},
         table::TableType,
     },
     types::ExternalType,
@@ -199,7 +199,7 @@ impl<'module> Import<'module> {
                 "Fail to get the memory type".into(),
             ))),
             false => Ok(MemType {
-                ctx: ctx_mem_ty as *mut _,
+                inner: InnerMemType(ctx_mem_ty as *mut _),
                 registered: true,
             }),
         }
@@ -350,7 +350,7 @@ impl<'module> Export<'module> {
                 "Fail to get the function type".into(),
             ))),
             false => Ok(MemType {
-                ctx: ctx_mem_ty as *mut _,
+                inner: InnerMemType(ctx_mem_ty as *mut _),
                 registered: true,
             }),
         }

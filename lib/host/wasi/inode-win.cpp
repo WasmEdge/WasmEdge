@@ -219,7 +219,7 @@ WasiExpect<void> INode::sockSend(Span<Span<const uint8_t>>, __wasi_siflags_t,
 WasiExpect<void> INode::sockShutdown(__wasi_sdflags_t) const noexcept {
   return WasiUnexpect(__WASI_ERRNO_NOSYS);
 }
-WasiExpect<void> INode::getAddrinfo(const char *, const char *,
+WasiExpect<void> INode::getAddrinfo(std::string_view, std::string_view,
                                     const __wasi_addrinfo_t &, uint32_t,
                                     Span<__wasi_addrinfo_t *>,
                                     Span<__wasi_sockaddr_t *>, Span<char *>,

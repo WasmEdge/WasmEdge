@@ -618,6 +618,10 @@ public:
   Expect<RefVariant> refFunc(Runtime::StoreManager &StoreMgr,
                              Runtime::StackManager &StackMgr,
                              const uint32_t FuncIdx) noexcept;
+  Expect<void *> ptrFunc(Runtime::StoreManager &StoreMgr,
+                         Runtime::StackManager &StackMgr,
+                         const uint32_t TableIdx, const uint32_t FuncTypeIdx,
+                         const uint32_t FuncIdx) noexcept;
 
   template <typename FuncPtr> struct ProxyHelper;
 

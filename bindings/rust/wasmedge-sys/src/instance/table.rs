@@ -17,7 +17,7 @@ use std::ops::RangeInclusive;
 /// A WasmEdge [`Table`] defines a table described by its [`TableType`].
 #[derive(Debug)]
 pub struct Table {
-    pub(crate) ctx: *mut wasmedge::WasmEdge_TableInstanceContext,
+    pub(crate) inner: InnerTable,
     pub(crate) registered: bool,
 }
 impl Table {
@@ -42,12 +42,12 @@ impl Table {
     /// let table = Table::create(ty).expect("fail to create a Table");
     /// ```
     pub fn create(mut ty: TableType) -> WasmEdgeResult<Self> {
-        let ctx = unsafe { wasmedge::WasmEdge_TableInstanceCreate(ty.ctx) };
-        ty.ctx = std::ptr::null_mut();
+        let ctx = unsafe { wasmedge::WasmEdge_TableInstanceCreate(ty.inner.0) };
+        ty.inner.0 = std::ptr::null_mut();
         match ctx.is_null() {
             true => Err(WasmEdgeError::Table(TableError::Create)),
             false => Ok(Table {
-                ctx,
+                inner: InnerTable(ctx),
                 registered: false,
             }),
         }
@@ -59,11 +59,11 @@ impl Table {
     ///
     /// If fail to get type, then an error is returned.
     pub fn ty(&self) -> WasmEdgeResult<TableType> {
-        let ty_ctx = unsafe { wasmedge::WasmEdge_TableInstanceGetTableType(self.ctx) };
+        let ty_ctx = unsafe { wasmedge::WasmEdge_TableInstanceGetTableType(self.inner.0) };
         match ty_ctx.is_null() {
             true => Err(WasmEdgeError::Table(TableError::Type)),
             false => Ok(TableType {
-                ctx: ty_ctx as *mut _,
+                inner: InnerTableType(ty_ctx as *mut _),
                 registered: true,
             }),
         }
@@ -82,7 +82,7 @@ impl Table {
         let raw_val = unsafe {
             let mut data = wasmedge::WasmEdge_ValueGenI32(0);
             check(wasmedge::WasmEdge_TableInstanceGetData(
-                self.ctx,
+                self.inner.0,
                 &mut data as *mut _,
                 idx as u32,
             ))?;
@@ -105,7 +105,7 @@ impl Table {
     pub fn set_data(&mut self, data: Value, idx: usize) -> WasmEdgeResult<()> {
         unsafe {
             check(wasmedge::WasmEdge_TableInstanceSetData(
-                self.ctx,
+                self.inner.0,
                 data.as_raw(),
                 idx as u32,
             ))
@@ -128,7 +128,7 @@ impl Table {
     /// ```
     ///
     pub fn capacity(&self) -> usize {
-        unsafe { wasmedge::WasmEdge_TableInstanceGetSize(self.ctx) as usize }
+        unsafe { wasmedge::WasmEdge_TableInstanceGetSize(self.inner.0) as usize }
     }
 
     /// Increases the capacity of the [`Table`].
@@ -143,32 +143,37 @@ impl Table {
     ///
     /// If fail to increase the size of the [`Table`], then an error is returned.
     pub fn grow(&mut self, size: u32) -> WasmEdgeResult<()> {
-        unsafe { check(wasmedge::WasmEdge_TableInstanceGrow(self.ctx, size)) }
+        unsafe { check(wasmedge::WasmEdge_TableInstanceGrow(self.inner.0, size)) }
     }
 }
 impl Drop for Table {
     fn drop(&mut self) {
-        if !self.registered && !self.ctx.is_null() {
+        if !self.registered && !self.inner.0.is_null() {
             unsafe {
-                wasmedge::WasmEdge_TableInstanceDelete(self.ctx);
+                wasmedge::WasmEdge_TableInstanceDelete(self.inner.0);
             }
         }
     }
 }
+
+#[derive(Debug)]
+pub(crate) struct InnerTable(pub(crate) *mut wasmedge::WasmEdge_TableInstanceContext);
+unsafe impl Send for InnerTable {}
+unsafe impl Sync for InnerTable {}
 
 /// Struct of WasmEdge TableType
 ///
 /// A WasmEdge [`TableType`] classify a [`Table`] over elements of element types within a size range.
 #[derive(Debug)]
 pub struct TableType {
-    pub(crate) ctx: *mut wasmedge::WasmEdge_TableTypeContext,
+    pub(crate) inner: InnerTableType,
     pub(crate) registered: bool,
 }
 impl Drop for TableType {
     fn drop(&mut self) {
-        if !self.registered && !self.ctx.is_null() {
+        if !self.registered && !self.inner.0.is_null() {
             unsafe {
-                wasmedge::WasmEdge_TableTypeDelete(self.ctx);
+                wasmedge::WasmEdge_TableTypeDelete(self.inner.0);
             }
         }
     }
@@ -202,7 +207,7 @@ impl TableType {
         match ctx.is_null() {
             true => Err(WasmEdgeError::TableTypeCreate),
             false => Ok(Self {
-                ctx,
+                inner: InnerTableType(ctx),
                 registered: false,
             }),
         }
@@ -210,7 +215,7 @@ impl TableType {
 
     /// Returns the element type.
     pub fn elem_ty(&self) -> RefType {
-        let ty = unsafe { wasmedge::WasmEdge_TableTypeGetRefType(self.ctx) };
+        let ty = unsafe { wasmedge::WasmEdge_TableTypeGetRefType(self.inner.0) };
         ty.into()
     }
 
@@ -228,15 +233,24 @@ impl TableType {
     /// assert_eq!(ty.limit(), 10..=20);
     /// ```
     pub fn limit(&self) -> RangeInclusive<u32> {
-        let limit = unsafe { wasmedge::WasmEdge_TableTypeGetLimit(self.ctx) };
+        let limit = unsafe { wasmedge::WasmEdge_TableTypeGetLimit(self.inner.0) };
         limit.into()
     }
 }
+
+#[derive(Debug)]
+pub(crate) struct InnerTableType(pub(crate) *mut wasmedge::WasmEdge_TableTypeContext);
+unsafe impl Send for InnerTableType {}
+unsafe impl Sync for InnerTableType {}
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::{RefType, ValType};
+    use std::{
+        sync::{Arc, Mutex},
+        thread,
+    };
 
     #[test]
     fn test_table_type() {
@@ -244,7 +258,7 @@ mod tests {
         let result = TableType::create(RefType::FuncRef, 10..=20);
         assert!(result.is_ok());
         let ty = result.unwrap();
-        assert!(!ty.ctx.is_null());
+        assert!(!ty.inner.0.is_null());
         assert!(!ty.registered);
 
         // check element type
@@ -272,7 +286,7 @@ mod tests {
         let result = table.ty();
         assert!(result.is_ok());
         let ty = result.unwrap();
-        assert!(!ty.ctx.is_null());
+        assert!(!ty.inner.0.is_null());
         assert!(ty.registered);
 
         // check limit and element type
@@ -317,5 +331,72 @@ mod tests {
         let idx = result.unwrap().func_idx();
         assert!(idx.is_some());
         assert_eq!(idx.unwrap(), 5);
+    }
+
+    #[test]
+    fn test_table_send() {
+        // create a TableType instance
+        let result = TableType::create(RefType::FuncRef, 10..=20);
+        assert!(result.is_ok());
+        let ty = result.unwrap();
+
+        // create a Table instance
+        let result = Table::create(ty);
+        assert!(result.is_ok());
+        let table = result.unwrap();
+
+        let handle = thread::spawn(move || {
+            // check capacity
+            assert_eq!(table.capacity(), 10);
+
+            // get type
+            let result = table.ty();
+            assert!(result.is_ok());
+            let ty = result.unwrap();
+            assert!(!ty.inner.0.is_null());
+            assert!(ty.registered);
+
+            // check limit and element type
+            assert_eq!(ty.limit(), 10..=20);
+            assert_eq!(ty.elem_ty(), RefType::FuncRef);
+        });
+
+        handle.join().unwrap();
+    }
+
+    #[test]
+    fn test_table_sync() {
+        // create a TableType instance
+        let result = TableType::create(RefType::FuncRef, 10..=20);
+        assert!(result.is_ok());
+        let ty = result.unwrap();
+
+        // create a Table instance
+        let result = Table::create(ty);
+        assert!(result.is_ok());
+        let table = Arc::new(Mutex::new(result.unwrap()));
+
+        let table_cloned = Arc::clone(&table);
+        let handle = thread::spawn(move || {
+            let result = table_cloned.lock();
+            assert!(result.is_ok());
+            let table = result.unwrap();
+
+            // check capacity
+            assert_eq!(table.capacity(), 10);
+
+            // get type
+            let result = table.ty();
+            assert!(result.is_ok());
+            let ty = result.unwrap();
+            assert!(!ty.inner.0.is_null());
+            assert!(ty.registered);
+
+            // check limit and element type
+            assert_eq!(ty.limit(), 10..=20);
+            assert_eq!(ty.elem_ty(), RefType::FuncRef);
+        });
+
+        handle.join().unwrap();
     }
 }

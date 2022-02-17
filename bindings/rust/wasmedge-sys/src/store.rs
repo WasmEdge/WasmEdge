@@ -4,7 +4,8 @@ use crate::{
     instance::{
         global::{Global, InnerGlobal},
         memory::{InnerMemory, Memory},
-        Function, Table,
+        table::{InnerTable, Table},
+        Function,
     },
     types::WasmEdgeString,
     wasmedge, StoreError, WasmEdgeError, WasmEdgeResult,
@@ -122,7 +123,7 @@ impl Store {
                 name.as_ref().to_string(),
             ))),
             false => Ok(Table {
-                ctx,
+                inner: InnerTable(ctx),
                 registered: true,
             }),
         }
@@ -160,7 +161,7 @@ impl Store {
                 mod_name: mod_name.as_ref().to_string(),
             })),
             false => Ok(Table {
-                ctx,
+                inner: InnerTable(ctx),
                 registered: true,
             }),
         }

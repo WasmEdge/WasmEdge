@@ -239,9 +239,9 @@ impl ImportObject {
     pub fn add_table(&mut self, name: impl AsRef<str>, mut table: Table) {
         let table_name: WasmEdgeString = name.as_ref().into();
         unsafe {
-            wasmedge::WasmEdge_ImportObjectAddTable(self.ctx, table_name.as_raw(), table.ctx);
+            wasmedge::WasmEdge_ImportObjectAddTable(self.ctx, table_name.as_raw(), table.inner.0);
         }
-        table.ctx = std::ptr::null_mut();
+        table.inner.0 = std::ptr::null_mut();
     }
 
     /// Adds a [`Memory`] into the host module.

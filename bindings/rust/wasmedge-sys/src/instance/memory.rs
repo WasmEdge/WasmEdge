@@ -531,5 +531,7 @@ mod tests {
             let count = mem.size();
             assert_eq!(count, 10);
         });
+
+        handle.join().unwrap()
     }
 }

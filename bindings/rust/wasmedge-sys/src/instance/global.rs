@@ -340,7 +340,9 @@ mod tests {
 
         let global_cloned = Arc::clone(&global);
         let handle = thread::spawn(move || {
-            let global = global_cloned.lock().unwrap();
+            let result = global_cloned.lock();
+            assert!(result.is_ok());
+            let global = result.unwrap();
 
             assert_eq!(global.get_value().to_i32(), 5);
         });

@@ -1,0 +1,162 @@
+(use "proposal_asymmetric_common.witx")
+
+;;; `$signature_keypair` is just an alias for `$keypair`
+;;;
+;;; However, bindings may want to define a specialized type `signature_keypair` as a super class of `keypair`, with additional methods such as `sign`.
+(typename $signature_keypair $keypair)
+
+;;; `$signature_publickey` is just an alias for `$publickey`
+;;;
+;;; However, bindings may want to define a specialized type `signature_publickey` as a super class of `publickey`, with additional methods such as `verify`.
+(typename $signature_publickey $publickey)
+
+;;; `$signature_secretkey` is just an alias for `$secretkey`
+;;;
+;;; However, bindings may want to define a specialized type `signature_secretkey` as a super class of `secretkey`.
+(typename $signature_secretkey $secretkey)
+
+;;; Digital signatures.
+
+(module $wasi_ephemeral_crypto_signatures
+  (import "memory" (memory))
+
+  ;;; Export a signature.
+  ;;;
+  ;;; This function exports a signature object using the specified encoding.
+  ;;;
+  ;;; May return `unsupported_encoding` if the signature cannot be encoded into the given format.
+  (@interface func (export "signature_export")
+    (param $signature $signature)
+    (param $encoding $signature_encoding)
+    (result $error (expected $array_output (error $crypto_errno)))
+  )
+
+  ;;; Create a signature object.
+  ;;;
+  ;;; This object can be used along with a public key to verify an existing signature.
+  ;;;
+  ;;; It may return `invalid_signature` if the signature is invalid or incompatible with the specified algorithm, as well as `unsupported_encoding` if the encoding is not compatible with the signature type.
+  ;;;
+  ;;; The function may also return `unsupported_algorithm` if the algorithm is not supported by the host.
+  ;;;
+  ;;; Example usage:
+  ;;;
+  ;;; ```rust
+  ;;; let signature_handle = ctx.signature_import("ECDSA_P256_SHA256", SignatureEncoding::DER, encoded)?;
+  ;;; ```
+  (@interface func (export "signature_import")
+    (param $algorithm string)
+    (param $encoded (@witx const_pointer u8))
+    (param $encoded_len $size)
+    (param $encoding $signature_encoding)
+    (result $error (expected $signature (error $crypto_errno)))
+  )
+
+  ;;; Create a new state to collect data to compute a signature on.
+  ;;;
+  ;;; This function allows data to be signed to be supplied in a streaming fashion.
+  ;;;
+  ;;; The state is not closed and can be used after a signature has been computed, allowing incremental updates by calling `signature_state_update()` again afterwards.
+  ;;;
+  ;;; Example usage - signature creation
+  ;;;
+  ;;; ```rust
+  ;;; let kp_handle = ctx.keypair_import(AlgorithmType::Signatures, "Ed25519ph", keypair, KeypairEncoding::Raw)?;
+  ;;; let state_handle = ctx.signature_state_open(kp_handle)?;
+  ;;; ctx.signature_state_update(state_handle, b"message part 1")?;
+  ;;; ctx.signature_state_update(state_handle, b"message part 2")?;
+  ;;; let sig_handle = ctx.signature_state_sign(state_handle)?;
+  ;;; let raw_sig = ctx.signature_export(sig_handle, SignatureEncoding::Raw)?;
+  ;;; ```
+  (@interface func (export "signature_state_open")
+    (param $kp $signature_keypair)
+    (result $error (expected $signature_state (error $crypto_errno)))
+  )
+
+  ;;; Absorb data into the signature state.
+  ;;;
+  ;;; This function may return `unsupported_feature` is the selected algorithm doesn't support incremental updates.
+  (@interface func (export "signature_state_update")
+    (param $state $signature_state)
+    (param $input (@witx const_pointer u8))
+    (param $input_len $size)
+    (result $error (expected (error $crypto_errno)))
+  )
+
+  ;;; Compute a signature for all the data collected up to that point.
+  ;;;
+  ;;; The function can be called multiple times for incremental signing.
+  (@interface func (export "signature_state_sign")
+    (param $state $signature_state)
+    (result $error (expected $array_output (error $crypto_errno)))
+  )
+
+  ;;; Destroy a signature state.
+  ;;;
+  ;;; Objects are reference counted. It is safe to close an object immediately after the last function needing it is called.
+  ;;;
+  ;;; Note that closing a signature state doesn't close or invalidate the key pair object, that be reused for further signatures.
+  (@interface func (export "signature_state_close")
+    (param $state $signature_state)
+    (result $error (expected (error $crypto_errno)))
+  )
+
+  ;;; Create a new state to collect data to verify a signature on.
+  ;;;
+  ;;; This is the verification counterpart of `signature_state`.
+  ;;;
+  ;;; Data can be injected using `signature_verification_state_update()`, and the state is not closed after a verification, allowing incremental verification.
+  ;;;
+  ;;; Example usage - signature verification:
+  ;;;
+  ;;; ```rust
+  ;;; let pk_handle = ctx.publickey_import(AlgorithmType::Signatures, "ECDSA_P256_SHA256", encoded_pk, PublicKeyEncoding::Sec)?;
+  ;;; let signature_handle = ctx.signature_import(AlgorithmType::Signatures, "ECDSA_P256_SHA256", encoded_sig, SignatureEncoding::Der)?;
+  ;;; let state_handle = ctx.signature_verification_state_open(pk_handle)?;
+  ;;; ctx.signature_verification_state_update(state_handle, "message")?;
+  ;;; ctx.signature_verification_state_verify(signature_handle)?;
+  ;;; ```
+  (@interface func (export "signature_verification_state_open")
+    (param $kp $signature_publickey)
+    (result $error (expected $signature_verification_state (error $crypto_errno)))
+  )
+
+  ;;; Absorb data into the signature verification state.
+  ;;;
+  ;;; This function may return `unsupported_feature` is the selected algorithm doesn't support incremental updates.
+  (@interface func (export "signature_verification_state_update")
+    (param $state $signature_verification_state)
+    (param $input (@witx const_pointer u8))
+    (param $input_len $size)
+    (result $error (expected (error $crypto_errno)))
+  )
+
+  ;;; Check that the given signature is verifies for the data collected up to that point point.
+  ;;;
+  ;;; The state is not closed and can absorb more data to allow for incremental verification.
+  ;;;
+  ;;; The function returns `invalid_signature` if the signature doesn't appear to be valid.
+  (@interface func (export "signature_verification_state_verify")
+    (param $state $signature_verification_state)
+    (param $signature $signature)
+    (result $error (expected (error $crypto_errno)))
+  )
+
+  ;;; Destroy a signature verification state.
+  ;;;
+  ;;; Objects are reference counted. It is safe to close an object immediately after the last function needing it is called.
+  ;;;
+  ;;; Note that closing a signature state doesn't close or invalidate the public key object, that be reused for further verifications.
+  (@interface func (export "signature_verification_state_close")
+    (param $state $signature_verification_state)
+    (result $error (expected (error $crypto_errno)))
+  )
+
+  ;;; Destroy a signature.
+  ;;;
+  ;;; Objects are reference counted. It is safe to close an object immediately after the last function needing it is called.
+  (@interface func (export "signature_close")
+    (param $signature $signature)
+    (result $error (expected (error $crypto_errno)))
+  )
+)

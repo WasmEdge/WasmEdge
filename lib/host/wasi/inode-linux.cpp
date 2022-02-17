@@ -1058,22 +1058,24 @@ WasiExpect<void> INode::sockShutdown(__wasi_sdflags_t SdFlags) const noexcept {
   return {};
 }
 
-WasiExpect<void> INode::sockGetOpt(int32_t Level, int32_t OptName,
+WasiExpect<void> INode::sockGetOpt(__wasi_sock_opt_level_t SockOptLevel,
+                                   __wasi_sock_opt_so_t SockOptName,
                                    void *FlagPtr,
                                    uint32_t *FlagSizePtr) const noexcept {
-  auto SysLevel = toSockOptLevel(static_cast<__wasi_sock_opt_level_t>(Level));
-  auto SysOptName = toSockOptSoName(static_cast<__wasi_sock_opt_so_t>(OptName));
-  if (OptName == __WASI_SOCK_OPT_SO_ERROR) {
+  auto SysSockOptLevel = toSockOptLevel(SockOptLevel);
+  auto SysSockOptName = toSockOptSoName(SockOptName);
+  if (SockOptName == __WASI_SOCK_OPT_SO_ERROR) {
     int ErrorCode = 0;
     int *WasiErrorPtr = static_cast<int *>(FlagPtr);
-    if (auto Res =
-            ::getsockopt(Fd, SysLevel, SysOptName, &ErrorCode, FlagSizePtr);
+    if (auto Res = ::getsockopt(Fd, SysSockOptLevel, SysSockOptName, &ErrorCode,
+                                FlagSizePtr);
         unlikely(Res < 0)) {
       return WasiUnexpect(fromErrNo(errno));
     }
     *WasiErrorPtr = fromErrNo(ErrorCode);
   } else {
-    if (auto Res = ::getsockopt(Fd, SysLevel, SysOptName, FlagPtr, FlagSizePtr);
+    if (auto Res = ::getsockopt(Fd, SysSockOptLevel, SysSockOptName, FlagPtr,
+                                FlagSizePtr);
         unlikely(Res < 0)) {
       return WasiUnexpect(fromErrNo(errno));
     }
@@ -1082,13 +1084,15 @@ WasiExpect<void> INode::sockGetOpt(int32_t Level, int32_t OptName,
   return {};
 }
 
-WasiExpect<void> INode::sockSetOpt(int32_t Level, int32_t OptName,
+WasiExpect<void> INode::sockSetOpt(__wasi_sock_opt_level_t SockOptLevel,
+                                   __wasi_sock_opt_so_t SockOptName,
                                    void *FlagPtr,
                                    uint32_t FlagSizePtr) const noexcept {
-  auto SysLevel = toSockOptLevel(static_cast<__wasi_sock_opt_level_t>(Level));
-  auto SysOptName = toSockOptSoName(static_cast<__wasi_sock_opt_so_t>(OptName));
+  auto SysSockOptLevel = toSockOptLevel(SockOptLevel);
+  auto SysSockOptName = toSockOptSoName(SockOptName);
 
-  if (auto Res = ::setsockopt(Fd, SysLevel, SysOptName, FlagPtr, FlagSizePtr);
+  if (auto Res = ::setsockopt(Fd, SysSockOptLevel, SysSockOptName, FlagPtr,
+                              FlagSizePtr);
       unlikely(Res < 0)) {
     return WasiUnexpect(fromErrNo(errno));
   }

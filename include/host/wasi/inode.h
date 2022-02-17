@@ -548,9 +548,12 @@ public:
   /// @return Nothing or WASI error
   WasiExpect<void> sockShutdown(__wasi_sdflags_t SdFlags) const noexcept;
 
-  WasiExpect<void> sockGetOpt(int32_t Level, int32_t Name, void *FlagPtr,
+  WasiExpect<void> sockGetOpt(__wasi_sock_opt_level_t SockOptLevel,
+                              __wasi_sock_opt_so_t SockOptName, void *FlagPtr,
                               uint32_t *FlagSizePtr) const noexcept;
-  WasiExpect<void> sockSetOpt(int32_t Level, int32_t Name, void *FlagPtr,
+
+  WasiExpect<void> sockSetOpt(__wasi_sock_opt_level_t SockOptLevel,
+                              __wasi_sock_opt_so_t SockOptName, void *FlagPtr,
                               uint32_t FlagSizePtr) const noexcept;
 
   WasiExpect<void> sockGetLoaclAddr(uint8_t *Address, uint32_t *AddrTypePtr,

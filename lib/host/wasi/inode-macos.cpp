@@ -943,12 +943,14 @@ WasiExpect<void> INode::sockShutdown(__wasi_sdflags_t SdFlags) const noexcept {
   return {};
 }
 
-WasiExpect<void> INode::sockGetOpt(int32_t, int32_t, void *,
+WasiExpect<void> INode::sockGetOpt(__wasi_sock_opt_level_t,
+                                   __wasi_sock_opt_so_t, void *,
                                    uint32_t *) const noexcept {
   return WasiUnexpect(__WASI_ERRNO_NOSYS);
 }
 
-WasiExpect<void> INode::sockSetOpt(int32_t, int32_t, void *,
+WasiExpect<void> INode::sockSetOpt(__wasi_sock_opt_level_t,
+                                   __wasi_sock_opt_so_t, void *,
                                    uint32_t) const noexcept {
   return WasiUnexpect(__WASI_ERRNO_NOSYS);
 }

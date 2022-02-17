@@ -87,10 +87,10 @@ impl Executor {
             check(wasmedge::WasmEdge_ExecutorRegisterImport(
                 self.inner.0,
                 store.ctx,
-                import.ctx,
+                import.inner.0,
             ))?;
         }
-        import.ctx = std::ptr::null_mut();
+        import.inner.0 = std::ptr::null_mut();
         Ok(self)
     }
 

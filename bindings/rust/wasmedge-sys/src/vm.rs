@@ -3,11 +3,12 @@
 use super::wasmedge;
 use crate::{
     error::{check, VmError, WasmEdgeError, WasmEdgeResult},
+    import_obj::{ImportObject, InnerImportObject},
     instance::function::{FuncType, InnerFuncType},
     types::WasmEdgeString,
     utils,
     wasmedge::{WasmEdge_HostRegistration_Wasi, WasmEdge_HostRegistration_WasmEdge_Process},
-    Config, ImportObject, Module, Statistics, Store, Value,
+    Config, Module, Statistics, Store, Value,
 };
 use std::path::Path;
 
@@ -127,10 +128,11 @@ impl Vm {
     pub fn register_wasm_from_import(&mut self, mut import: ImportObject) -> WasmEdgeResult<()> {
         unsafe {
             check(wasmedge::WasmEdge_VMRegisterModuleFromImport(
-                self.ctx, import.ctx,
+                self.ctx,
+                import.inner.0,
             ))?;
         }
-        import.ctx = std::ptr::null_mut();
+        import.inner.0 = std::ptr::null_mut();
 
         Ok(())
     }
@@ -640,7 +642,7 @@ impl Vm {
         match io_ctx.is_null() {
             true => Err(WasmEdgeError::Vm(VmError::NotFoundWasiImportObjectModule)),
             false => Ok(ImportObject {
-                ctx: io_ctx,
+                inner: InnerImportObject(io_ctx),
                 registered: true,
             }),
         }
@@ -659,7 +661,7 @@ impl Vm {
                 VmError::NotFoundWasmEdgeProcessImportObjectModule,
             )),
             false => Ok(ImportObject {
-                ctx: io_ctx,
+                inner: InnerImportObject(io_ctx),
                 registered: true,
             }),
         }

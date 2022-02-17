@@ -121,10 +121,10 @@ impl Executor {
             check(wasmedge::WasmEdge_ExecutorRegisterModule(
                 self.inner.0,
                 store.ctx,
-                module.ctx,
+                module.inner.0,
                 mod_name.as_raw(),
             ))?;
-            module.ctx = std::ptr::null_mut();
+            module.inner.0 = std::ptr::null_mut();
         }
         Ok(self)
     }
@@ -152,10 +152,10 @@ impl Executor {
             check(wasmedge::WasmEdge_ExecutorInstantiate(
                 self.inner.0,
                 store.ctx,
-                module.ctx,
+                module.inner.0,
             ))?;
         }
-        module.ctx = std::ptr::null_mut();
+        module.inner.0 = std::ptr::null_mut();
         Ok(self)
     }
 

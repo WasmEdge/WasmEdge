@@ -45,7 +45,12 @@ impl Validator {
     ///
     /// If the validation fails, then an error is returned.
     pub fn validate(&self, module: &Module) -> WasmEdgeResult<()> {
-        unsafe { check(wasmedge::WasmEdge_ValidatorValidate(self.ctx, module.ctx)) }
+        unsafe {
+            check(wasmedge::WasmEdge_ValidatorValidate(
+                self.ctx,
+                module.inner.0,
+            ))
+        }
     }
 }
 impl Drop for Validator {
@@ -82,7 +87,7 @@ mod tests {
         let result = loader.from_file(path);
         assert!(result.is_ok());
         let module = result.unwrap();
-        assert!(!module.ctx.is_null());
+        assert!(!module.inner.0.is_null());
 
         // create a Validator context without configuration
         let result = Validator::create(None);

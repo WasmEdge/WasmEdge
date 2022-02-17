@@ -206,10 +206,10 @@ impl Vm {
             check(wasmedge::WasmEdge_VMRegisterModuleFromASTModule(
                 self.ctx,
                 mod_name.as_raw(),
-                module.ctx,
+                module.inner.0,
             ))?;
         }
-        module.ctx = std::ptr::null_mut();
+        module.inner.0 = std::ptr::null_mut();
         Ok(())
     }
 
@@ -345,10 +345,11 @@ impl Vm {
     pub fn load_wasm_from_module(&mut self, mut module: Module) -> WasmEdgeResult<()> {
         unsafe {
             check(wasmedge::WasmEdge_VMLoadWasmFromASTModule(
-                self.ctx, module.ctx,
+                self.ctx,
+                module.inner.0,
             ))?;
         }
-        module.ctx = std::ptr::null_mut();
+        module.inner.0 = std::ptr::null_mut();
         Ok(())
     }
 

@@ -1,6 +1,10 @@
 //! Defines WasmEdge Loader struct.
 
-use crate::{error::check, utils, wasmedge, Config, Module, WasmEdgeError, WasmEdgeResult};
+use crate::{
+    error::check,
+    module::{InnerModule, Module},
+    utils, wasmedge, Config, WasmEdgeError, WasmEdgeResult,
+};
 use std::path::Path;
 
 /// Struct of WasmEdge Loader.
@@ -60,7 +64,9 @@ impl Loader {
 
         match mod_ctx.is_null() {
             true => Err(WasmEdgeError::ModuleCreate),
-            false => Ok(Module { ctx: mod_ctx }),
+            false => Ok(Module {
+                inner: InnerModule(mod_ctx),
+            }),
         }
     }
 
@@ -100,7 +106,9 @@ impl Loader {
 
         match mod_ctx.is_null() {
             true => Err(WasmEdgeError::ModuleCreate),
-            false => Ok(Module { ctx: mod_ctx }),
+            false => Ok(Module {
+                inner: InnerModule(mod_ctx),
+            }),
         }
     }
 }
@@ -151,7 +159,7 @@ mod tests {
             let result = loader.from_file(path);
             assert!(result.is_ok());
             let module = result.unwrap();
-            assert!(!module.ctx.is_null());
+            assert!(!module.inner.0.is_null());
 
             let result = loader.from_file("not_exist_file");
             assert!(result.is_err());
@@ -172,7 +180,7 @@ mod tests {
             let result = loader.from_buffer(&buffer);
             assert!(result.is_ok());
             let module = result.unwrap();
-            assert!(!module.ctx.is_null());
+            assert!(!module.inner.0.is_null());
 
             let result = loader.from_buffer(&[]);
             assert!(result.is_err());

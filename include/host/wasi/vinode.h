@@ -533,7 +533,7 @@ public:
   pollOneoff(__wasi_size_t NSubscriptions) noexcept;
 
   static WasiExpect<void>
-  getAddrinfo(const char *NodeStr, const char *ServiceStr,
+  getAddrinfo(std::string_view Node, std::string_view Service,
               const __wasi_addrinfo_t &Hint, uint32_t MaxResLength,
               Span<__wasi_addrinfo_t *> WasiAddrinfoArray,
               Span<__wasi_sockaddr_t *> WasiSockaddrArray,

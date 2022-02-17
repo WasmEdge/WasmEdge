@@ -89,6 +89,23 @@ constexpr int openFlags(__wasi_oflags_t OpenFlags, __wasi_fdflags_t FdFlags,
   return Flags;
 }
 
+std::pair<const char *, std::unique_ptr<char[]>>
+createNullTerminatedString(std::string_view View) noexcept {
+  const char *CStr = nullptr;
+  std::unique_ptr<char[]> Buffer;
+  if (!View.empty()) {
+    if (const auto Pos = View.find_first_of('\0');
+        Pos != std::string_view::npos) {
+      CStr = View.data();
+    } else {
+      Buffer = std::make_unique<char[]>(View.size() + 1);
+      std::copy(View.begin(), View.end(), Buffer.get());
+      CStr = Buffer.get();
+    }
+  }
+  return {CStr, std::move(Buffer)};
+}
+
 } // namespace
 
 void FdHolder::reset() noexcept {
@@ -1153,7 +1170,8 @@ WasiExpect<void> Poller::wait(CallbackType Callback) noexcept {
   return {};
 }
 
-WasiExpect<void> INode::getAddrinfo(const char *NodeStr, const char *ServiceStr,
+WasiExpect<void> INode::getAddrinfo(std::string_view Node,
+                                    std::string_view Service,
                                     const __wasi_addrinfo_t &Hint,
                                     uint32_t MaxResLength,
                                     Span<__wasi_addrinfo_t *> WasiAddrinfoArray,
@@ -1161,6 +1179,9 @@ WasiExpect<void> INode::getAddrinfo(const char *NodeStr, const char *ServiceStr,
                                     Span<char *> AiAddrSaDataArray,
                                     Span<char *> AiCanonnameArray,
                                     /*Out*/ __wasi_size_t &ResLength) noexcept {
+  const auto [NodeCStr, NodeBuf] = createNullTerminatedString(Node);
+  const auto [ServiceCStr, ServiceBuf] = createNullTerminatedString(Service);
+
   struct addrinfo SysHint;
   SysHint.ai_flags = Hint.ai_flags;
   SysHint.ai_family = Hint.ai_family;
@@ -1172,7 +1193,7 @@ WasiExpect<void> INode::getAddrinfo(const char *NodeStr, const char *ServiceStr,
   SysHint.ai_next = nullptr;
 
   struct addrinfo *SysResPtr = nullptr;
-  if (auto Res = ::getaddrinfo(NodeStr, ServiceStr, &SysHint, &SysResPtr);
+  if (auto Res = ::getaddrinfo(NodeCStr, ServiceCStr, &SysHint, &SysResPtr);
       unlikely(Res < 0)) {
     return WasiUnexpect(fromEAIErrNo(Res));
   }

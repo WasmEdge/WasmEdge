@@ -44,7 +44,7 @@ public:
 
   void fini() noexcept;
 
-  WasiExpect<void> getAddrInfo(const char *Node, const char *Service,
+  WasiExpect<void> getAddrInfo(std::string_view Node, std::string_view Service,
                                const __wasi_addrinfo_t &Hint,
                                uint32_t MaxResLength,
                                Span<__wasi_addrinfo_t *> WasiAddrinfoArray,

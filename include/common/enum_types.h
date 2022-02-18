@@ -17,9 +17,10 @@
 
 #if (defined(__cplusplus) && __cplusplus > 201402L) ||                         \
     (defined(_MSVC_LANG) && _MSVC_LANG > 201402L)
+#include "common/dense_enum_map.h"
+#include "common/spare_enum_map.h"
 #include <cstdint>
-#include <string>
-#include <unordered_map>
+#include <string_view>
 #endif
 
 #if (defined(__cplusplus) && __cplusplus > 201402L) ||                         \
@@ -38,11 +39,18 @@ enum class ValType : uint8_t {
   ExternRef = 0x6F
 };
 
-static inline std::unordered_map<ValType, std::string> ValTypeStr = {
-    {ValType::None, "none"},       {ValType::I32, "i32"},
-    {ValType::I64, "i64"},         {ValType::F32, "f32"},
-    {ValType::F64, "f64"},         {ValType::V128, "v128"},
-    {ValType::FuncRef, "funcref"}, {ValType::ExternRef, "externref"}};
+static inline constexpr const auto ValTypeStr = []() constexpr {
+  using namespace std::literals::string_view_literals;
+  std::pair<ValType, std::string_view> Array[] = {
+      {ValType::None, "none"sv},       {ValType::I32, "i32"sv},
+      {ValType::I64, "i64"sv},         {ValType::F32, "f32"sv},
+      {ValType::F64, "f64"sv},         {ValType::V128, "v128"sv},
+      {ValType::FuncRef, "funcref"sv}, {ValType::ExternRef, "externref"sv},
+  };
+  return SpareEnumMap(Array);
+}
+();
+
 } // namespace WasmEdge
 
 #endif
@@ -106,8 +114,15 @@ namespace WasmEdge {
 /// WASM Mutability C++ enumeration class.
 enum class ValMut : uint8_t { Const = 0x00, Var = 0x01 };
 
-static inline std::unordered_map<ValMut, std::string> ValMutStr = {
-    {ValMut::Const, "const"}, {ValMut::Var, "var"}};
+static inline constexpr auto ValMutStr = []() constexpr {
+  using namespace std::literals::string_view_literals;
+  std::pair<ValMut, std::string_view> Array[] = {
+      {ValMut::Const, "const"sv},
+      {ValMut::Var, "var"sv},
+  };
+  return DenseEnumMap(Array);
+} // namespace WasmEdge
+();
 
 } // namespace WasmEdge
 #endif
@@ -130,11 +145,17 @@ enum class ExternalType : uint8_t {
   Global = 0x03U
 };
 
-static inline std::unordered_map<ExternalType, std::string> ExternalTypeStr = {
-    {ExternalType::Function, "function"},
-    {ExternalType::Table, "table"},
-    {ExternalType::Memory, "memory"},
-    {ExternalType::Global, "global"}};
+static inline constexpr auto ExternalTypeStr = []() constexpr {
+  using namespace std::literals::string_view_literals;
+  std::pair<ExternalType, std::string_view> Array[] = {
+      {ExternalType::Function, "function"sv},
+      {ExternalType::Table, "table"sv},
+      {ExternalType::Memory, "memory"sv},
+      {ExternalType::Global, "global"sv},
+  };
+  return DenseEnumMap(Array);
+}
+();
 
 } // namespace WasmEdge
 #endif

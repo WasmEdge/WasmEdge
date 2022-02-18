@@ -1670,9 +1670,10 @@ TEST(WasiTest, GetAddrinfo) {
   }
   // node is nullptr, service is not nullptr
   {
+    uint32_t TmpNodeLen = 0;
     EXPECT_TRUE(WasiGetAddrinfo.run(
         &MemInst,
-        std::array<WasmEdge::ValVariant, 8>{NodePtr, NodeLen, ServicePtr,
+        std::array<WasmEdge::ValVariant, 8>{NodePtr, TmpNodeLen, ServicePtr,
                                             ServiceLen, HintsPtr, ResultPtr,
                                             MaxLength, ResLengthPtr},
         Errno));

@@ -44,7 +44,7 @@ public:
 
   void fini() noexcept;
 
-  WasiExpect<void> getAddrInfo(const char *Node, const char *Service,
+  WasiExpect<void> getAddrInfo(std::string_view Node, std::string_view Service,
                                const __wasi_addrinfo_t &Hint,
                                uint32_t MaxResLength,
                                Span<__wasi_addrinfo_t *> WasiAddrinfoArray,
@@ -962,25 +962,27 @@ public:
     }
   }
 
-  WasiExpect<void> sockGetOpt(__wasi_fd_t Fd, int32_t Level, int32_t Name,
-                              void *FlagPtr,
+  WasiExpect<void> sockGetOpt(__wasi_fd_t Fd,
+                              __wasi_sock_opt_level_t SockOptLevel,
+                              __wasi_sock_opt_so_t SockOptName, void *FlagPtr,
                               uint32_t *FlagSizePtr) const noexcept {
     auto Node = getNodeOrNull(Fd);
     if (unlikely(!Node)) {
       return WasiUnexpect(__WASI_ERRNO_BADF);
     } else {
-      return Node->sockGetOpt(Level, Name, FlagPtr, FlagSizePtr);
+      return Node->sockGetOpt(SockOptLevel, SockOptName, FlagPtr, FlagSizePtr);
     }
   }
 
-  WasiExpect<void> sockSetOpt(__wasi_fd_t Fd, int32_t Level, int32_t Name,
-                              void *FlagPtr,
+  WasiExpect<void> sockSetOpt(__wasi_fd_t Fd,
+                              __wasi_sock_opt_level_t SockOptLevel,
+                              __wasi_sock_opt_so_t SockOptName, void *FlagPtr,
                               uint32_t FlagSizePtr) const noexcept {
     auto Node = getNodeOrNull(Fd);
     if (unlikely(!Node)) {
       return WasiUnexpect(__WASI_ERRNO_BADF);
     } else {
-      return Node->sockSetOpt(Level, Name, FlagPtr, FlagSizePtr);
+      return Node->sockSetOpt(SockOptLevel, SockOptName, FlagPtr, FlagSizePtr);
     }
   }
 

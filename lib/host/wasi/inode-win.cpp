@@ -219,7 +219,7 @@ WasiExpect<void> INode::sockSend(Span<Span<const uint8_t>>, __wasi_siflags_t,
 WasiExpect<void> INode::sockShutdown(__wasi_sdflags_t) const noexcept {
   return WasiUnexpect(__WASI_ERRNO_NOSYS);
 }
-WasiExpect<void> INode::getAddrinfo(const char *, const char *,
+WasiExpect<void> INode::getAddrinfo(std::string_view, std::string_view,
                                     const __wasi_addrinfo_t &, uint32_t,
                                     Span<__wasi_addrinfo_t *>,
                                     Span<__wasi_sockaddr_t *>, Span<char *>,
@@ -228,12 +228,14 @@ WasiExpect<void> INode::getAddrinfo(const char *, const char *,
   return WasiUnexpect(__WASI_ERRNO_NOSYS);
 }
 
-WasiExpect<void> INode::sockGetOpt(int32_t, int32_t, void *,
+WasiExpect<void> INode::sockGetOpt(__wasi_sock_opt_level_t,
+                                   __wasi_sock_opt_so_t, void *,
                                    uint32_t *) const noexcept {
   return WasiUnexpect(__WASI_ERRNO_NOSYS);
 }
 
-WasiExpect<void> INode::sockSetOpt(int32_t, int32_t, void *,
+WasiExpect<void> INode::sockSetOpt(__wasi_sock_opt_level_t,
+                                   __wasi_sock_opt_so_t, void *,
                                    uint32_t) const noexcept {
   return WasiUnexpect(__WASI_ERRNO_NOSYS);
 }

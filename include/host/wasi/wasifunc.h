@@ -454,8 +454,8 @@ public:
   WasiSockGetOpt(WASI::Environ &HostEnv) : Wasi(HostEnv) {}
 
   Expect<uint32_t> body(Runtime::Instance::MemoryInstance *MemInst, int32_t Fd,
-                        int32_t Level, int32_t Name, uint32_t FlagPtr,
-                        uint32_t FlagSizePtr);
+                        uint32_t SockOptLevel, uint32_t SockOptName,
+                        uint32_t FlagPtr, uint32_t FlagSizePtr);
 };
 
 class WasiSockSetOpt : public Wasi<WasiSockSetOpt> {
@@ -463,8 +463,8 @@ public:
   WasiSockSetOpt(WASI::Environ &HostEnv) : Wasi(HostEnv) {}
 
   Expect<uint32_t> body(Runtime::Instance::MemoryInstance *MemInst, int32_t Fd,
-                        int32_t Level, int32_t Name, uint32_t FlagPtr,
-                        uint32_t FlagSizePtr);
+                        uint32_t SockOptLevel, uint32_t SockOptName,
+                        uint32_t FlagPtr, uint32_t FlagSizePtr);
 };
 
 class WasiSockGetLocalAddr : public Wasi<WasiSockGetLocalAddr> {

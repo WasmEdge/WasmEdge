@@ -2,7 +2,191 @@ use std::{env, path::PathBuf, process::Command};
 
 const WASMEDGE_H: &str = "wasmedge.h";
 
-fn build_wasmedge_project(hash: String) -> Paths {
+macro_rules! env_path {
+    ($env_var:literal) => {
+        std::env::var_os($env_var).map(PathBuf::from)
+    };
+}
+
+#[derive(Debug)]
+struct Paths {
+    header: PathBuf,
+    lib_dir: PathBuf,
+    inc_dir: PathBuf,
+}
+
+fn main() {
+    #[cfg(not(feature = "standalone"))]
+    let Paths {
+        header,
+        lib_dir,
+        inc_dir,
+    } = find_wasmedge()
+        .or_else(build_wasmedge)
+        .expect("should be dependency paths");
+
+    #[cfg(feature = "standalone")]
+    let Paths {
+        header,
+        lib_dir,
+        inc_dir,
+    } = build_wasmedge().expect("should be dependency paths");
+
+    let out_file = PathBuf::from(std::env::var("OUT_DIR").unwrap()).join("wasmedge.rs");
+    bindgen::builder()
+        .header(
+            header
+                .to_str()
+                .unwrap_or_else(|| panic!("`{}` must be a utf-8 path", header.display())),
+        )
+        .clang_arg(format!("-I{}", inc_dir.as_path().display()))
+        .prepend_enum_name(false) // The API already prepends the name.
+        .dynamic_link_require_all(true)
+        .parse_callbacks(Box::new(bindgen::CargoCallbacks))
+        .generate()
+        .expect("failed to generate bindings")
+        .write_to_file(out_file)
+        .expect("failed to write bindings");
+
+    println!("cargo:rustc-env=LD_LIBRARY_PATH={}", lib_dir.display());
+    println!("cargo:rustc-link-search={}", lib_dir.display());
+    println!("cargo:rustc-link-lib=dylib=wasmedge_c");
+}
+
+/// Check header and Returns the location of wasmedge.h and libwasmedge_c.(dylib|so)
+fn find_wasmedge() -> Option<Paths> {
+    // search in the env variables: WASMEDGE_INCLUDE_DIR, WASMEDGE_LIB_DIR
+    let inc_dir = env_path!("WASMEDGE_INCLUDE_DIR");
+    let lib_dir = env_path!("WASMEDGE_LIB_DIR");
+    if let Some(inc_dir) = inc_dir {
+        if let Some(lib_dir) = lib_dir {
+            let header = inc_dir.join("wasmedge");
+            let header = header.join(WASMEDGE_H);
+            if inc_dir.exists() && lib_dir.exists() && header.exists() {
+                println!(
+                    "cargo:warning=[wasmedge-sys] Use WASMEDGE_INCLUDE_DIR: {:?}",
+                    inc_dir
+                );
+                println!(
+                    "cargo:warning=[wasmedge-sys] Use WASMEDGE_LIB_DIR: {:?}",
+                    lib_dir
+                );
+                return Some(Paths {
+                    header,
+                    lib_dir,
+                    inc_dir,
+                });
+            }
+        }
+    }
+
+    // search in the env variable: WASMEDGE_BUILD_DIR
+    let build_dir = env_path!("WASMEDGE_BUILD_DIR");
+    if let Some(build_dir) = build_dir {
+        if build_dir.exists() {
+            // WASMEDGE_INCLUDE_DIR
+            let inc_dir = build_dir.join("include");
+            let inc_dir = inc_dir.join("api");
+            // header
+            let header = inc_dir.join("wasmedge");
+            let header = header.join(WASMEDGE_H);
+            // WASMEDGE_LIB_DIR
+            let lib_dir = if build_dir.join("lib64").exists() {
+                build_dir.join("lib64")
+            } else {
+                build_dir.join("lib")
+            };
+            let lib_dir = lib_dir.join("api");
+
+            if inc_dir.exists() && lib_dir.exists() && header.exists() {
+                println!(
+                    "cargo:warning=[wasmedge-sys] Use WASMEDGE_BUILD_DIR: {:?}",
+                    build_dir
+                );
+                return Some(Paths {
+                    header,
+                    lib_dir,
+                    inc_dir,
+                });
+            }
+        }
+    }
+
+    // search in xdg
+    let xdg_dir = env_path!("HOME").map(|d| d.join(".local"));
+    if let Some(xdg_dir) = xdg_dir {
+        if xdg_dir.exists() {
+            let inc_dir = xdg_dir.join("include");
+            let header = inc_dir.join(WASMEDGE_H);
+            let lib_dir = if xdg_dir.join("lib64").exists() {
+                xdg_dir.join("lib64")
+            } else {
+                xdg_dir.join("lib")
+            };
+            if inc_dir.exists() && lib_dir.exists() && header.exists() {
+                println!("cargo:warning=[wasmedge-sys] Use xdg path: {:?}", xdg_dir);
+                return Some(Paths {
+                    header,
+                    lib_dir,
+                    inc_dir,
+                });
+            }
+        }
+    }
+
+    // search in the official docker container
+    let docker_dir = env_path!("HOME").map(|d| d.join(".wasmedge"));
+    if let Some(docker_dir) = docker_dir {
+        if docker_dir.exists() {
+            // WASMEDGE_INCLUDE_DIR
+            let inc_dir = docker_dir.join("include");
+            // header
+            let header = inc_dir.join("wasmedge");
+            let header = header.join(WASMEDGE_H);
+            // WASMEDGE_LIB_DIR
+            let lib_dir = if docker_dir.join("lib64").exists() {
+                docker_dir.join("lib64")
+            } else {
+                docker_dir.join("lib")
+            };
+
+            if inc_dir.exists() && lib_dir.exists() && header.exists() {
+                println!(
+                    "cargo:warning=[wasmedge-sys] Use docker env path: {:?}",
+                    docker_dir
+                );
+                return Some(Paths {
+                    header,
+                    lib_dir,
+                    inc_dir,
+                });
+            }
+        }
+    }
+
+    None
+}
+
+fn build_wasmedge() -> Option<Paths> {
+    let target_os = env::var("CARGO_CFG_TARGET_OS").unwrap();
+    println!("cargo:warning=[wasmedge-sys] TARGET_OS: {}", target_os);
+
+    match target_os.as_str() {
+        "linux" => Some(build_linux()),
+        "macos" => {
+            let output = Command::new("git")
+                .args(&["rev-parse", "HEAD"])
+                .output()
+                .unwrap();
+            let git_hash = String::from_utf8(output.stdout)
+                .expect("fail to get the git hash for current build");
+            Some(build_macos(git_hash))
+        }
+        _ => None,
+    }
+}
+
+fn build_macos(hash: String) -> Paths {
     let out_dir = env::var("OUT_DIR").expect("fail to get the out dir");
 
     let wasmedge_src = format!("{}/wasmedge", &out_dir);
@@ -74,137 +258,82 @@ fn build_wasmedge_project(hash: String) -> Paths {
     }
 }
 
-fn build_wasmedge() -> Option<Paths> {
-    let output = Command::new("git")
-        .args(&["rev-parse", "HEAD"])
-        .output()
-        .unwrap();
-    let git_hash =
-        String::from_utf8(output.stdout).expect("fail to get the git hash for current build");
-    Some(build_wasmedge_project(git_hash))
-}
-
-fn main() {
-    #[cfg(not(feature = "standalone"))]
-    let Paths {
-        header,
-        lib_dir,
-        inc_dir,
-    } = find_wasmedge()
-        .or_else(build_wasmedge)
-        .expect("should be dependency paths");
-
+fn build_linux() -> Paths {
     #[cfg(feature = "standalone")]
-    let Paths {
+    println!("cargo:warning=[wasmedge-sys] standalone");
+
+    #[cfg(not(feature = "standalone"))]
+    println!("cargo:warning=[wasmedge-sys] not_standalone");
+
+    let out_dir = env_path!("OUT_DIR").expect("fail to find the OUT_DIR env variable");
+
+    let wasmedge_dir =
+        env_path!("WASMEDGE_DIR").expect("fail to find the WASMEDGE_DIR env variable");
+
+    // create build_dir
+    #[cfg(not(feature = "standalone"))]
+    let build_dir = out_dir.join("build");
+    #[cfg(feature = "standalone")]
+    let build_dir = wasmedge_dir.join("build");
+    if !build_dir.exists() {
+        std::fs::create_dir(&build_dir).expect("fail to create build_dir");
+    }
+    let build_dir_str = build_dir.to_str().unwrap();
+
+    Command::new("cmake")
+        .current_dir(&build_dir_str)
+        .args([
+            "-DCMAKE_BUILD_TYPE=Release",
+            "-DWASMEDGE_BUILD_TESTS=ON",
+            #[cfg(not(feature = "aot"))]
+            "-DWASMEDGE_BUILD_AOT_RUNTIME=OFF",
+            wasmedge_dir.to_str().unwrap(),
+        ])
+        .output()
+        .expect("fail to cmake setup wasmedge project");
+
+    Command::new("make")
+        .current_dir(&build_dir_str)
+        .arg("-j")
+        .output()
+        .expect("fail to compile wasmedge project");
+
+    // WASMEDGE_INCLUDE_DIR
+    let inc_dir = build_dir.join("include");
+    assert!(inc_dir.exists());
+    let inc_dir = inc_dir.join("api");
+    assert!(inc_dir.exists());
+    println!(
+        "cargo:warning=[wasmedge-sys] WASMEDGE_INCLUDE_DIR: {}",
+        inc_dir.to_str().unwrap()
+    );
+
+    // WASMEDGE_LIB_DIR
+    let lib_dir = if build_dir.join("lib64").exists() {
+        build_dir.join("lib64")
+    } else {
+        build_dir.join("lib")
+    };
+    let lib_dir = lib_dir.join("api");
+    assert!(lib_dir.exists());
+    println!(
+        "cargo:warning=[wasmedge-sys] WASMEDGE_LIB_DIR: {}",
+        lib_dir.to_str().unwrap()
+    );
+
+    // Path to wasmedge.h
+    let header = inc_dir.join("wasmedge");
+    assert!(header.exists());
+    let header = header.join(WASMEDGE_H);
+    assert!(header.exists());
+    println!(
+        "cargo:warning=[wasmedge-sys] header path: {}",
+        header.to_str().unwrap()
+    );
+
+    Paths {
+        inc_dir,
         header,
         lib_dir,
-        inc_dir,
-    } = build_wasmedge().expect("should be dependency paths");
-
-    let out_file = PathBuf::from(std::env::var("OUT_DIR").unwrap()).join("wasmedge.rs");
-    bindgen::builder()
-        .header(
-            header
-                .to_str()
-                .unwrap_or_else(|| panic!("`{}` must be a utf-8 path", header.display())),
-        )
-        .clang_arg(format!("-I{}", inc_dir.as_path().display()))
-        .prepend_enum_name(false) // The API already prepends the name.
-        .dynamic_link_require_all(true)
-        .parse_callbacks(Box::new(bindgen::CargoCallbacks))
-        .generate()
-        .expect("failed to generate bindings")
-        .write_to_file(out_file)
-        .expect("failed to write bindings");
-
-    println!("cargo:rustc-env=LD_LIBRARY_PATH={}", lib_dir.display());
-    println!("cargo:rustc-link-search={}", lib_dir.display());
-    println!("cargo:rustc-link-lib=dylib=wasmedge_c");
-}
-
-/// Check header and Returns the location of wasmedge.h and libwasmedge_c.(dylib|so)
-/// The priorities are:
-/// 1. The locations specified by `WASMEDGE_INCLUDE_DIR` and `WASMEDGE_LIB_DIR`.
-/// 2. The build directory, if this is an in-tree build.
-/// 3. The "XDG" local installation dirs: `~/.local/include` and `~/.local/lib`.
-/// 4. The global installation dirs: `/usr/include` and `/usr/bin`.
-/// 5. Backward compatiable the path berfore 0.9
-fn find_wasmedge() -> Option<Paths> {
-    macro_rules! env_path {
-        ($env_var:literal) => {
-            std::env::var_os($env_var).map(PathBuf::from)
-        };
     }
-
-    let mut inc_dir = env_path!("WASMEDGE_INCLUDE_DIR");
-    let mut lib_dir = env_path!("WASMEDGE_LIB_DIR");
-
-    let build_dir = env_path!("WASMEDGE_BUILD_DIR");
-    if let Some((build_dir, found_inc_dir)) = contains_wasmedge_h(build_dir, "include/api/wasmedge")
-    {
-        inc_dir = inc_dir.or(Some(found_inc_dir));
-        lib_dir = lib_dir.or_else(|| Some(build_dir.join("lib/api")));
-    }
-
-    let xdg_dir = env_path!("HOME").map(|d| d.join(".local"));
-    if let Some((xdg_dir, found_inc_dir)) = contains_wasmedge_h(xdg_dir, "include") {
-        inc_dir = inc_dir.or(Some(found_inc_dir));
-        lib_dir = lib_dir.or_else(|| Some(xdg_dir.join("lib")));
-    }
-
-    let header = inc_dir
-        .clone()
-        .unwrap_or_else(|| PathBuf::from("/usr/include/wasmedge"))
-        .join(WASMEDGE_H);
-
-    if header.exists() {
-        Some(Paths {
-            header,
-            lib_dir: lib_dir.unwrap_or_else(|| PathBuf::from("/usr/lib")),
-            inc_dir: inc_dir
-                .unwrap_or_else(|| PathBuf::from("/usr/include/wasmedge"))
-                .parent()
-                .unwrap()
-                .to_path_buf(),
-        })
-    } else if PathBuf::from("/usr/include").join(WASMEDGE_H).exists() {
-        // check the header path of old version
-        Some(Paths {
-            header: PathBuf::from("/usr/include").join(WASMEDGE_H),
-            lib_dir: PathBuf::from("/usr/lib"),
-            inc_dir: PathBuf::from("/usr/include"),
-        })
-    } else if PathBuf::from(env!("HOME"))
-        .join(".wasmedge/include/wasmedge")
-        .join(WASMEDGE_H)
-        .exists()
-    {
-        // this path only works in the official docker container for the purpose of development
-        Some(Paths {
-            header: PathBuf::from(env!("HOME")).join(".wasmedge/include/wasmedge/wasmedge.h"),
-            lib_dir: PathBuf::from(env!("HOME")).join(".wasmedge/lib"),
-            inc_dir: PathBuf::from(env!("HOME")).join(".wasmedge/include"),
-        })
-    } else {
-        None
-    }
-}
-
-/// If the WasmEdge header file is found under `base_dir/inc_subdir`, returns
-/// `Some((base_dir, base_dir/inc_subdir))`.
-fn contains_wasmedge_h(base_dir: Option<PathBuf>, inc_subdir: &str) -> Option<(PathBuf, PathBuf)> {
-    base_dir.and_then(|base_dir| {
-        let inc_dir = base_dir.join(inc_subdir);
-        inc_dir
-            .join(WASMEDGE_H)
-            .is_file()
-            .then(|| (base_dir, inc_dir))
-    })
-}
-
-#[derive(Debug)]
-struct Paths {
-    header: PathBuf,
-    lib_dir: PathBuf,
-    inc_dir: PathBuf,
 }

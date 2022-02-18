@@ -37,10 +37,10 @@ fn main() {
   let mut buf = vec![];
   match image_format_detected {
     ImageFormat::Gif => {
-        filtered.write_to(&mut buf, ImageOutputFormat::Gif).unwrap();
+      filtered.write_to(&mut buf, ImageOutputFormat::Gif).unwrap();
     },
     _ => {
-        filtered.write_to(&mut buf, ImageOutputFormat::Png).unwrap();
+      filtered.write_to(&mut buf, ImageOutputFormat::Png).unwrap();
     },
   };
   io::stdout().write_all(&buf).unwrap();
@@ -102,37 +102,37 @@ It is in [the same GitHub repo](https://github.com/second-state/netlify-wasm-run
 
 ```rust
 pub fn main() {
-    // Step 1: Load the TFLite model
-    let model_data: &[u8] = include_bytes!("models/mobilenet_v1_1.0_224/mobilenet_v1_1.0_224_quant.tflite");
-    let labels = include_str!("models/mobilenet_v1_1.0_224/labels_mobilenet_quant_v1_224.txt");
+  // Step 1: Load the TFLite model
+  let model_data: &[u8] = include_bytes!("models/mobilenet_v1_1.0_224/mobilenet_v1_1.0_224_quant.tflite");
+  let labels = include_str!("models/mobilenet_v1_1.0_224/labels_mobilenet_quant_v1_224.txt");
 
-    // Step 2: Read image from STDIN
-    let mut buf = Vec::new();
-    io::stdin().read_to_end(&mut buf).unwrap();
+  // Step 2: Read image from STDIN
+  let mut buf = Vec::new();
+  io::stdin().read_to_end(&mut buf).unwrap();
 
-    // Step 3: Resize the input image for the tensorflow model
-    let flat_img = wasmedge_tensorflow_interface::load_jpg_image_to_rgb8(&buf, 224, 224);
+  // Step 3: Resize the input image for the tensorflow model
+  let flat_img = wasmedge_tensorflow_interface::load_jpg_image_to_rgb8(&buf, 224, 224);
 
-    // Step 4: AI inference
-    let mut session = wasmedge_tensorflow_interface::Session::new(&model_data, wasmedge_tensorflow_interface::ModelType::TensorFlowLite);
-    session.add_input("input", &flat_img, &[1, 224, 224, 3])
-           .run();
-    let res_vec: Vec<u8> = session.get_output("MobilenetV1/Predictions/Reshape_1");
+  // Step 4: AI inference
+  let mut session = wasmedge_tensorflow_interface::Session::new(&model_data, wasmedge_tensorflow_interface::ModelType::TensorFlowLite);
+  session.add_input("input", &flat_img, &[1, 224, 224, 3])
+         .run();
+  let res_vec: Vec<u8> = session.get_output("MobilenetV1/Predictions/Reshape_1");
 
-    // Step 5: Find the food label that responds to the highest probability in res_vec
-    // ... ...
-    let mut label_lines = labels.lines();
-    for _i in 0..max_index {
-      label_lines.next();
-    }
+  // Step 5: Find the food label that responds to the highest probability in res_vec
+  // ... ...
+  let mut label_lines = labels.lines();
+  for _i in 0..max_index {
+    label_lines.next();
+  }
 
-    // Step 6: Generate the output text
-    let class_name = label_lines.next().unwrap().to_string();
-    if max_value > 50 {
-      println!("It {} a <a href='https://www.google.com/search?q={}'>{}</a> in the picture", confidence.to_string(), class_name, class_name);
-    } else {
-      println!("It does not appears to be any food item in the picture.");
-    }
+  // Step 6: Generate the output text
+  let class_name = label_lines.next().unwrap().to_string();
+  if max_value > 50 {
+    println!("It {} a <a href='https://www.google.com/search?q={}'>{}</a> in the picture", confidence.to_string(), class_name, class_name);
+  } else {
+    println!("It does not appears to be any food item in the picture.");
+  }
 }
 ```
 

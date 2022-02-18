@@ -88,14 +88,14 @@ Dec 07 06:24:13 master crio[6868]: time="2021-12-07 06:24:13.717381882Z" level=i
 #### 安装 K8s
 
 ```bash
-$ sudo apt-get update
-$ sudo apt-get install -y apt-transport-https curl
-$ echo "deb [signed-by=/usr/share/keyrings/kubernetes-archive-keyring.gpg] https://apt.kubernetes.io/ kubernetes-xenial main" | sudo tee /etc/apt/sources.list.d/kubernetes.list
+sudo apt-get update
+sudo apt-get install -y apt-transport-https curl
+echo "deb [signed-by=/usr/share/keyrings/kubernetes-archive-keyring.gpg] https://apt.kubernetes.io/ kubernetes-xenial main" | sudo tee /etc/apt/sources.list.d/kubernetes.list
 
-$ sudo apt update
-$ K_VER="1.21.0-00"
-$ sudo apt install -y kubelet=${K_VER} kubectl=${K_VER} kubeadm=${K_VER}
-$ sudo apt-mark hold kubelet kubeadm kubectl
+sudo apt update
+K_VER="1.21.0-00"
+sudo apt install -y kubelet=${K_VER} kubectl=${K_VER} kubeadm=${K_VER}
+sudo apt-mark hold kubelet kubeadm kubectl
 ```
 
 #### 使用 kubeadm 创建集群
@@ -159,9 +159,9 @@ as root:
 要让 kubectl 为你的非 root 用户工作，请运行这些命令，这些命令也是 kubeadm init 输出的一部分：
 
 ```bash
-$ mkdir -p $HOME/.kube
-$ sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
-$ sudo chown $(id -u):$(id -g) $HOME/.kube/config
+mkdir -p $HOME/.kube
+sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
+sudo chown $(id -u):$(id -g) $HOME/.kube/config
 ```
 
 ### 设置 KubeEdge 主节点
@@ -175,10 +175,10 @@ $ sudo chown $(id -u):$(id -g) $HOME/.kube/config
 3. `--advertise-address`（仅 1.3 版本起有效）为云端公开的地址（将添加到 CloudCore 证书的 SAN 中），默认值为本地IP。
 
 ```bash
-$ wget https://github.com/kubeedge/kubeedge/releases/download/v1.8.0/keadm-v1.8.0-linux-amd64.tar.gz
-$ tar xzvf keadm-v1.8.0-linux-amd64.tar.gz
-$ cd keadm-v1.8.0-linux-amd64/keadm/
-$ sudo ./keadm init --advertise-address=192.168.122.160 --kube-config=/home/${user}/.kube/config
+wget https://github.com/kubeedge/kubeedge/releases/download/v1.8.0/keadm-v1.8.0-linux-amd64.tar.gz
+tar xzvf keadm-v1.8.0-linux-amd64.tar.gz
+cd keadm-v1.8.0-linux-amd64/keadm/
+sudo ./keadm init --advertise-address=192.168.122.160 --kube-config=/home/${user}/.kube/config
 ```
 
 输出：
@@ -194,10 +194,10 @@ KubeEdge cloudcore is running, For logs visit:  /var/log/kubeedge/cloudcore.log
 你可以使用 CRI-O install.sh 脚本 `crun` 在 Ubuntu 20.04 上安装 CRI-O。
 
 ```bash
-$ wget -qO- https://raw.githubusercontent.com/second-state/wasmedge-containers-examples/main/crio/install.sh | bash
+wget -qO- https://raw.githubusercontent.com/second-state/wasmedge-containers-examples/main/crio/install.sh | bash
 ```
 
-### 安装 Go
+### 在工作节点安装 Go
 
 ```bash
 $ wget https://golang.org/dl/go1.17.3.linux-amd64.tar.gz

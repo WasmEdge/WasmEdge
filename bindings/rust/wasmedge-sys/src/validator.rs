@@ -5,7 +5,7 @@ use crate::{error::check, wasmedge, Config, Module, WasmEdgeError, WasmEdgeResul
 /// Struct of WasmEdge Validator.
 #[derive(Debug)]
 pub struct Validator {
-    pub(crate) ctx: *mut wasmedge::WasmEdge_ValidatorContext,
+    pub(crate) inner: InnerValidator,
 }
 impl Validator {
     /// Creates a new [`Validator`] to be associated with the given global configuration.
@@ -28,7 +28,9 @@ impl Validator {
         };
         match ctx.is_null() {
             true => Err(WasmEdgeError::CompilerCreate),
-            false => Ok(Self { ctx }),
+            false => Ok(Self {
+                inner: InnerValidator(ctx),
+            }),
         }
     }
 
@@ -47,7 +49,7 @@ impl Validator {
     pub fn validate(&self, module: &Module) -> WasmEdgeResult<()> {
         unsafe {
             check(wasmedge::WasmEdge_ValidatorValidate(
-                self.ctx,
+                self.inner.0,
                 module.inner.0,
             ))
         }
@@ -55,16 +57,25 @@ impl Validator {
 }
 impl Drop for Validator {
     fn drop(&mut self) {
-        if !self.ctx.is_null() {
-            unsafe { wasmedge::WasmEdge_ValidatorDelete(self.ctx) }
+        if !self.inner.0.is_null() {
+            unsafe { wasmedge::WasmEdge_ValidatorDelete(self.inner.0) }
         }
     }
 }
+
+#[derive(Debug)]
+pub(crate) struct InnerValidator(pub(crate) *mut wasmedge::WasmEdge_ValidatorContext);
+unsafe impl Send for InnerValidator {}
+unsafe impl Sync for InnerValidator {}
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::{Config, Loader};
+    use std::{
+        sync::{Arc, Mutex},
+        thread,
+    };
 
     #[test]
     fn test_validator() {
@@ -97,5 +108,65 @@ mod tests {
         // validate the module loaded.
         let result = validator.validate(&module);
         assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_validator_send() {
+        // create a Validator
+        let result = Validator::create(None);
+        assert!(result.is_ok());
+        let validator = result.unwrap();
+
+        let handle = thread::spawn(move || {
+            let result = Loader::create(None);
+            assert!(result.is_ok());
+            let loader = result.unwrap();
+
+            // load a WASM module
+            let path = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
+                .join("test/api/apiTestData/test.wasm");
+            let result = loader.from_file(path);
+            assert!(result.is_ok());
+            let module = result.unwrap();
+            assert!(!module.inner.0.is_null());
+
+            // validate the module loaded.
+            let result = validator.validate(&module);
+            assert!(result.is_ok());
+        });
+
+        handle.join().unwrap();
+    }
+
+    #[test]
+    fn test_validator_sync() {
+        // create a Validator
+        let result = Validator::create(None);
+        assert!(result.is_ok());
+        let validator = Arc::new(Mutex::new(result.unwrap()));
+
+        let validator_cloned = Arc::clone(&validator);
+        let handle = thread::spawn(move || {
+            let result = Loader::create(None);
+            assert!(result.is_ok());
+            let loader = result.unwrap();
+
+            // load a WASM module
+            let path = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
+                .join("test/api/apiTestData/test.wasm");
+            let result = loader.from_file(path);
+            assert!(result.is_ok());
+            let module = result.unwrap();
+            assert!(!module.inner.0.is_null());
+
+            // validate the module loaded.
+            let result = validator_cloned.lock();
+            assert!(result.is_ok());
+            let validator = result.unwrap();
+            let result = validator.validate(&module);
+            assert!(result.is_ok());
+        });
+
+        handle.join().unwrap();
     }
 }

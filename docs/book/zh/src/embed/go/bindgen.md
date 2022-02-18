@@ -2,11 +2,11 @@
 
 > 本章节中讨论的 `wasm_bindgen` 方法已经废弃，我们推荐你查看 [wasmedge_bindgen](function.md)，或者直接传入内存指针；
 
-在这个例子中，我们将演示如何从 Go 应用中调用一些非常简单的 WebAssembly 函数。这些[函数](https://github.com/second-state/WasmEdge-go-examples/blob/master/go_BindgenFuncs/rust_bindgen_funcs/src/lib.rs)都是基于Rust语言编写，并且调用参数和返回值都比较复杂。编译工具需要函数声明`#[wasm_bindgen]`宏才能自动生成正确的代码，以便支持从Go中传递调用参数给 WebAssembly。
+在这个例子中，我们将演示如何从 Go 应用中调用一些非常简单的 WebAssembly 函数。这些[函数](https://github.com/second-state/WasmEdge-go-examples/blob/master/go_BindgenFuncs/rust_bindgen_funcs/src/lib.rs)都是基于  Rust 语言编写，并且调用参数和返回值都比较复杂。编译工具需要函数声明  `#[wasm_bindgen]` 宏才能自动生成正确的代码，以便支持从 Go 中传递调用参数给 WebAssembly。
 
 WebAssembly 规范只支持几种开箱即用的简单数据类型，并不支持字符串和数组类型。为了实现在 Go 中向 WebAssembly 传递更丰富的类型，编译器需要将其转换成简单的整数。比如，将一个字符串转换成内存地址和字符串长度。`wasm_bindgen` 工具嵌入在 [rustwasmc](../../dev/rust/bindgen.md) 中自动执行转换。
 
-> 在编写本文档的时候，我们要求 Rust 编译器必须是1.50或者以下的版本，这样才能够让 WebAssembly 函数与 WasmEdge 的 Go API 正常工作。当接口类型规范最终确定并完成支持后，我们会尽快迁移到[最新的 Rust 版本 ](https://github.com/WasmEdge/WasmEdge/issues/264)。
+> 在编写本文档的时候，我们要求 Rust 编译器必须是 1.50 或者以下的版本，这样才能够让 WebAssembly 函数与 WasmEdge 的 Go API 正常工作。当接口类型规范最终确定并完成支持后，我们会尽快迁移到[最新的 Rust 版本 ](https://github.com/WasmEdge/WasmEdge/issues/264)。
 
 ```rust
 use wasm_bindgen::prelude::*;
@@ -56,7 +56,7 @@ $ rustwasmc build
 # The output WASM will be pkg/rust_bindgen_funcs_lib_bg.wasm
 ```
 
-下面是在 WasmEdge 中运行 WebAssembly 函数的[Go 源代码]https://github.com/second-state/WasmEdge-go-examples/blob/master/go_BindgenFuncs/bindgen_funcs.go，`ExecuteBindgen()` 函数调用 `#[wasm_bindgen]` 转换后的 WebAssembly 函数并传递调用参数。
+我们在 Go 程序里面嵌入 WasmEdge 运行 WebAssembly 函数，[Go 程序源码如下](https://github.com/second-state/WasmEdge-go-examples/blob/master/go_BindgenFuncs/bindgen_funcs.go)，`ExecuteBindgen()` 函数调用 `#[wasm_bindgen]` 转换后的 WebAssembly 函数并传递调用参数。
 
 ```golang
 package main

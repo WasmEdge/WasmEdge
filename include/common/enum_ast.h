@@ -19,8 +19,8 @@
 #define WASMEDGE_C_API_ENUM_AST_H
 
 #ifdef __cplusplus
-#include "common/dense_enum_map.h"
-#include "common/spare_enum_map.h"
+#include "dense_enum_map.h"
+#include "spare_enum_map.h"
 #include <cstdint>
 #include <string>
 #endif

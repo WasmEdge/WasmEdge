@@ -17,8 +17,8 @@
 
 #if (defined(__cplusplus) && __cplusplus > 201402L) ||                         \
     (defined(_MSVC_LANG) && _MSVC_LANG > 201402L)
-#include "common/dense_enum_map.h"
-#include "common/spare_enum_map.h"
+#include "dense_enum_map.h"
+#include "spare_enum_map.h"
 #include <cstdint>
 #include <string_view>
 #endif

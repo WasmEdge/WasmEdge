@@ -6,12 +6,12 @@ use std::path::Path;
 /// Struct of WasmEdge AOT Compiler.
 #[derive(Debug)]
 pub struct Compiler {
-    pub(crate) ctx: *mut wasmedge::WasmEdge_CompilerContext,
+    pub(crate) inner: InnerCompiler,
 }
 impl Drop for Compiler {
     fn drop(&mut self) {
-        if !self.ctx.is_null() {
-            unsafe { wasmedge::WasmEdge_CompilerDelete(self.ctx) }
+        if !self.inner.0.is_null() {
+            unsafe { wasmedge::WasmEdge_CompilerDelete(self.inner.0) }
         }
     }
 }
@@ -33,7 +33,9 @@ impl Compiler {
 
         match ctx.is_null() {
             true => Err(WasmEdgeError::CompilerCreate),
-            false => Ok(Self { ctx }),
+            false => Ok(Self {
+                inner: InnerCompiler(ctx),
+            }),
         }
     }
 
@@ -57,13 +59,18 @@ impl Compiler {
         let out_path = utils::path_to_cstring(out_path.as_ref())?;
         unsafe {
             check(wasmedge::WasmEdge_CompilerCompile(
-                self.ctx,
+                self.inner.0,
                 in_path.as_ptr(),
                 out_path.as_ptr(),
             ))
         }
     }
 }
+
+#[derive(Debug)]
+pub(crate) struct InnerCompiler(pub(crate) *mut wasmedge::WasmEdge_CompilerContext);
+unsafe impl Send for InnerCompiler {}
+unsafe impl Sync for InnerCompiler {}
 
 #[cfg(test)]
 mod tests {
@@ -72,7 +79,11 @@ mod tests {
         error::{CoreError, CoreLoadError},
         CompilerOutputFormat, Config,
     };
-    use std::io::Read;
+    use std::{
+        io::Read,
+        sync::{Arc, Mutex},
+        thread,
+    };
 
     #[test]
     fn test_compiler() {
@@ -139,5 +150,85 @@ mod tests {
 
             assert!(std::fs::remove_file(out_path).is_ok());
         }
+    }
+
+    #[test]
+    fn test_compiler_send() {
+        let result = Config::create();
+        assert!(result.is_ok());
+        let config = result.unwrap();
+
+        // create a AOT Compiler without configuration
+        let result = Compiler::create(None);
+        assert!(result.is_ok());
+
+        // create a AOT Compiler with a given configuration
+        let result = Compiler::create(Some(config));
+        assert!(result.is_ok());
+        let compiler = result.unwrap();
+
+        let handle = thread::spawn(move || {
+            // compile a file for universal WASM output format
+            let in_path = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
+                .join("test/api/apiTestData/test.wasm");
+            let out_path = std::path::PathBuf::from("test_aot.wasm");
+            assert!(!out_path.exists());
+            let result = compiler.compile(&in_path, &out_path);
+            assert!(result.is_ok());
+            assert!(out_path.exists());
+            assert!(std::fs::remove_file(out_path).is_ok());
+        });
+
+        handle.join().unwrap();
+    }
+
+    #[test]
+    fn test_compiler_sync() {
+        let result = Config::create();
+        assert!(result.is_ok());
+        let config = result.unwrap();
+
+        // create a AOT Compiler without configuration
+        let result = Compiler::create(None);
+        assert!(result.is_ok());
+
+        // create a AOT Compiler with a given configuration
+        let result = Compiler::create(Some(config));
+        assert!(result.is_ok());
+        let compiler = Arc::new(Mutex::new(result.unwrap()));
+
+        let compiler_cloned = Arc::clone(&compiler);
+        let handle = thread::spawn(move || {
+            let result = compiler_cloned.lock();
+            assert!(result.is_ok());
+            let compiler = result.unwrap();
+
+            // compile a file for universal WASM output format
+            let in_path = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
+                .join("test/api/apiTestData/test.wasm");
+            let out_path = std::path::PathBuf::from("test_aot_thread.wasm");
+            assert!(!out_path.exists());
+            let result = compiler.compile(&in_path, &out_path);
+            assert!(result.is_ok());
+            assert!(out_path.exists());
+            assert!(std::fs::remove_file(out_path).is_ok());
+        });
+
+        {
+            let result = compiler.lock();
+            assert!(result.is_ok());
+            let compiler_main = result.unwrap();
+            // compile a file for universal WASM output format
+            let in_path = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
+                .join("test/api/apiTestData/test.wasm");
+            let out_path = std::path::PathBuf::from("test_aot_main.wasm");
+            assert!(!out_path.exists());
+            let result = compiler_main.compile(&in_path, &out_path);
+            assert!(result.is_ok());
+            assert!(out_path.exists());
+            assert!(std::fs::remove_file(out_path).is_ok());
+        }
+
+        handle.join().unwrap();
     }
 }

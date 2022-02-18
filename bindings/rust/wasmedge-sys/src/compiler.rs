@@ -103,7 +103,7 @@ mod tests {
 
             // compile a file for universal WASM output format
             let in_path = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
-                .join("test/api/apiTestData/test.wasm");
+                .join("bindings/rust/wasmedge-sys/tests/data/test.wasm");
             let out_path = std::path::PathBuf::from("test_aot.wasm");
             assert!(!out_path.exists());
             let result = compiler.compile(&in_path, &out_path);
@@ -153,6 +153,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn test_compiler_send() {
         let result = Config::create();
         assert!(result.is_ok());
@@ -170,8 +171,8 @@ mod tests {
         let handle = thread::spawn(move || {
             // compile a file for universal WASM output format
             let in_path = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
-                .join("test/api/apiTestData/test.wasm");
-            let out_path = std::path::PathBuf::from("test_aot.wasm");
+                .join("bindings/rust/wasmedge-sys/examples/data/fibonacci.wasm");
+            let out_path = std::path::PathBuf::from("fibonacci_send_thread_aot.wasm");
             assert!(!out_path.exists());
             let result = compiler.compile(&in_path, &out_path);
             assert!(result.is_ok());
@@ -183,6 +184,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn test_compiler_sync() {
         let result = Config::create();
         assert!(result.is_ok());
@@ -205,8 +207,8 @@ mod tests {
 
             // compile a file for universal WASM output format
             let in_path = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
-                .join("test/api/apiTestData/test.wasm");
-            let out_path = std::path::PathBuf::from("test_aot_thread.wasm");
+                .join("bindings/rust/wasmedge-sys/examples/data/fibonacci.wasm");
+            let out_path = std::path::PathBuf::from("fibonacci_sync_thread_aot.wasm");
             assert!(!out_path.exists());
             let result = compiler.compile(&in_path, &out_path);
             assert!(result.is_ok());
@@ -220,8 +222,8 @@ mod tests {
             let compiler_main = result.unwrap();
             // compile a file for universal WASM output format
             let in_path = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
-                .join("test/api/apiTestData/test.wasm");
-            let out_path = std::path::PathBuf::from("test_aot_main.wasm");
+                .join("bindings/rust/wasmedge-sys/examples/data/fibonacci.wasm");
+            let out_path = std::path::PathBuf::from("fibonacci_sync_main_aot.wasm");
             assert!(!out_path.exists());
             let result = compiler_main.compile(&in_path, &out_path);
             assert!(result.is_ok());

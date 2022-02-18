@@ -6,10 +6,11 @@ use crate::{
     import_obj::{ImportObject, InnerImportObject},
     instance::function::{FuncType, InnerFuncType},
     statistics::{InnerStat, Statistics},
+    store::{InnerStore, Store},
     types::WasmEdgeString,
     utils,
     wasmedge::{WasmEdge_HostRegistration_Wasi, WasmEdge_HostRegistration_WasmEdge_Process},
-    Config, Module, Store, Value,
+    Config, Module, Value,
 };
 use std::path::Path;
 
@@ -40,8 +41,8 @@ impl Vm {
                 let vm_ctx = match store {
                     Some(mut store) => {
                         let vm_ctx =
-                            unsafe { wasmedge::WasmEdge_VMCreate(config.inner.0, store.ctx) };
-                        store.ctx = std::ptr::null_mut();
+                            unsafe { wasmedge::WasmEdge_VMCreate(config.inner.0, store.inner.0) };
+                        store.inner.0 = std::ptr::null_mut();
                         vm_ctx
                     }
                     None => unsafe {
@@ -54,8 +55,8 @@ impl Vm {
             None => match store {
                 Some(mut store) => {
                     let vm_ctx =
-                        unsafe { wasmedge::WasmEdge_VMCreate(std::ptr::null_mut(), store.ctx) };
-                    store.ctx = std::ptr::null_mut();
+                        unsafe { wasmedge::WasmEdge_VMCreate(std::ptr::null_mut(), store.inner.0) };
+                    store.inner.0 = std::ptr::null_mut();
                     vm_ctx
                 }
                 None => unsafe {
@@ -675,7 +676,7 @@ impl Vm {
         match store_ctx.is_null() {
             true => Err(WasmEdgeError::Vm(VmError::NotFoundStore)),
             false => Ok(Store {
-                ctx: store_ctx,
+                inner: InnerStore(store_ctx),
                 registered: true,
             }),
         }

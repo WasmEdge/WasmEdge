@@ -86,7 +86,7 @@ impl Executor {
         unsafe {
             check(wasmedge::WasmEdge_ExecutorRegisterImport(
                 self.inner.0,
-                store.ctx,
+                store.inner.0,
                 import.inner.0,
             ))?;
         }
@@ -120,7 +120,7 @@ impl Executor {
         unsafe {
             check(wasmedge::WasmEdge_ExecutorRegisterModule(
                 self.inner.0,
-                store.ctx,
+                store.inner.0,
                 module.inner.0,
                 mod_name.as_raw(),
             ))?;
@@ -151,7 +151,7 @@ impl Executor {
         unsafe {
             check(wasmedge::WasmEdge_ExecutorInstantiate(
                 self.inner.0,
-                store.ctx,
+                store.inner.0,
                 module.inner.0,
             ))?;
         }
@@ -197,7 +197,7 @@ impl Executor {
         unsafe {
             check(wasmedge::WasmEdge_ExecutorInvoke(
                 self.inner.0,
-                store.ctx,
+                store.inner.0,
                 func_name.as_raw(),
                 raw_params.as_ptr(),
                 raw_params.len() as u32,
@@ -249,7 +249,7 @@ impl Executor {
         unsafe {
             check(wasmedge::WasmEdge_ExecutorInvokeRegistered(
                 self.inner.0,
-                store.ctx,
+                store.inner.0,
                 mod_name.as_raw(),
                 func_name.as_raw(),
                 raw_params.as_ptr(),

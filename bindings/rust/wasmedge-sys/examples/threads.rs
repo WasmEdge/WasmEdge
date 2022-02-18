@@ -1,3 +1,8 @@
+//! This example is to demonstrate computing multiple Fibonacci numbers concurrently.
+//!
+//! The main thread is responsible for computing `Fib(4), while a child thread is taking care of `Fib(5)`. Finally,
+//! `Fib(6)` can be computed with the results of `Fib(5)` and `Fib(4)`.
+
 use std::{
     sync::{Arc, Mutex},
     thread,

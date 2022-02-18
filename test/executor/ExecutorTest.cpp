@@ -19,11 +19,18 @@
 
 #include "../spec/hostfunc.h"
 #include "../spec/spectest.h"
-#include "gtest/gtest.h"
 
-#include <fstream>
-#include <memory>
+#include <array>
+#include <chrono>
+#include <cstdint>
+#include <filesystem>
+#include <functional>
+#include <gtest/gtest.h>
+#include <map>
 #include <string>
+#include <string_view>
+#include <type_traits>
+#include <utility>
 #include <vector>
 
 namespace {
@@ -93,15 +100,15 @@ TEST_P(CoreTest, TestSuites) {
     }
 
     // Get global instance.
-    auto &Globs = ModInst->getGlobalExports();
-    if (Globs.find(Field) == Globs.cend()) {
+    if (auto Res = ModInst->findGlobalExports(Field); unlikely(!Res)) {
       return Unexpect(ErrCode::IncompatibleImportType);
-    }
-    uint32_t GlobAddr = Globs.find(Field)->second;
-    auto *GlobInst = *Store.getGlobal(GlobAddr);
+    } else {
+      uint32_t GlobAddr = *Res;
+      auto *GlobInst = *Store.getGlobal(GlobAddr);
 
-    return std::make_pair(GlobInst->getValue(),
-                          GlobInst->getGlobalType().getValType());
+      return std::make_pair(GlobInst->getValue(),
+                            GlobInst->getGlobalType().getValType());
+    }
   };
 
   T.run(Proposal, UnitName);

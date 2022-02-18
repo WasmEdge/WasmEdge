@@ -2,13 +2,15 @@
 // SPDX-FileCopyrightText: 2019-2022 Second State INC
 
 #include "wasmedge/wasmedge.h"
-#include "gtest/gtest.h"
 
+#include <algorithm>
 #include <cstdint>
+#include <cstdlib>
 #include <cstring>
 #include <fstream>
-#include <initializer_list>
+#include <gtest/gtest.h>
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace {
@@ -1404,6 +1406,7 @@ TEST(APICoreTest, Store) {
   EXPECT_EQ(WasmEdge_StoreListMemoryRegisteredLength(Store, ModName[1]), 0U);
   EXPECT_EQ(WasmEdge_StoreListGlobalRegisteredLength(Store, ModName[1]), 0U);
   EXPECT_EQ(WasmEdge_StoreListModuleLength(Store), 0U);
+  EXPECT_EQ(WasmEdge_StoreGetActiveModule(Store), nullptr);
 
   // Register host module and instantiate wasm module
   WasmEdge_ImportObjectContext *ImpObj = createExternModule("extern");
@@ -1418,6 +1421,15 @@ TEST(APICoreTest, Store) {
   // Store deletion
   WasmEdge_StoreDelete(nullptr);
   EXPECT_TRUE(true);
+
+  // Store get active module
+  EXPECT_NE(WasmEdge_StoreGetActiveModule(Store), nullptr);
+  EXPECT_EQ(WasmEdge_StoreGetActiveModule(nullptr), nullptr);
+
+  // Store find module
+  EXPECT_NE(WasmEdge_StoreFindModule(Store, ModName[1]), nullptr);
+  EXPECT_EQ(WasmEdge_StoreFindModule(nullptr, ModName[1]), nullptr);
+  EXPECT_EQ(WasmEdge_StoreFindModule(Store, ModName[2]), nullptr);
 
   // Store list function exports
   EXPECT_EQ(WasmEdge_StoreListFunctionLength(Store), 11U);
@@ -1667,6 +1679,132 @@ TEST(APICoreTest, Store) {
   EXPECT_EQ(std::string(Names[0].Buf, Names[0].Length), std::string("extern"));
   EXPECT_EQ(std::string(Names[1].Buf, Names[1].Length), std::string("module"));
 
+  // Module instance context tests
+  const WasmEdge_ModuleInstanceContext *ModCxt =
+      WasmEdge_StoreFindModule(Store, ModName[0]);
+
+  // Module instance get module name
+  Names[0] = WasmEdge_ModuleInstanceGetModuleName(nullptr);
+  EXPECT_EQ(std::string(Names[0].Buf, Names[0].Length), std::string(""));
+  Names[0] = WasmEdge_ModuleInstanceGetModuleName(ModCxt);
+  EXPECT_EQ(std::string(Names[0].Buf, Names[0].Length), std::string("module"));
+
+  // Module instance list function exports
+  EXPECT_EQ(WasmEdge_ModuleInstanceListFunctionLength(ModCxt), 11U);
+  EXPECT_EQ(WasmEdge_ModuleInstanceListFunctionLength(nullptr), 0U);
+  EXPECT_EQ(WasmEdge_ModuleInstanceListFunction(nullptr, Names, 15), 0U);
+  EXPECT_EQ(WasmEdge_ModuleInstanceListFunction(ModCxt, nullptr, 15), 11U);
+  std::memset(Names, 0, sizeof(WasmEdge_String) * 15);
+  EXPECT_EQ(WasmEdge_ModuleInstanceListFunction(ModCxt, Names, 4), 11U);
+  EXPECT_EQ(std::string(Names[0].Buf, Names[0].Length), std::string("func-1"));
+  EXPECT_EQ(std::string(Names[1].Buf, Names[1].Length), std::string("func-2"));
+  EXPECT_EQ(std::string(Names[2].Buf, Names[2].Length), std::string("func-3"));
+  EXPECT_EQ(std::string(Names[3].Buf, Names[3].Length), std::string("func-4"));
+  std::memset(Names, 0, sizeof(WasmEdge_String) * 15);
+  EXPECT_EQ(WasmEdge_ModuleInstanceListFunction(ModCxt, Names, 15), 11U);
+  EXPECT_EQ(std::string(Names[0].Buf, Names[0].Length), std::string("func-1"));
+  EXPECT_EQ(std::string(Names[1].Buf, Names[1].Length), std::string("func-2"));
+  EXPECT_EQ(std::string(Names[2].Buf, Names[2].Length), std::string("func-3"));
+  EXPECT_EQ(std::string(Names[3].Buf, Names[3].Length), std::string("func-4"));
+  EXPECT_EQ(std::string(Names[4].Buf, Names[4].Length),
+            std::string("func-add"));
+  EXPECT_EQ(std::string(Names[5].Buf, Names[5].Length),
+            std::string("func-call-indirect"));
+  EXPECT_EQ(std::string(Names[6].Buf, Names[6].Length),
+            std::string("func-host-add"));
+  EXPECT_EQ(std::string(Names[7].Buf, Names[7].Length),
+            std::string("func-host-div"));
+  EXPECT_EQ(std::string(Names[8].Buf, Names[8].Length),
+            std::string("func-host-mul"));
+  EXPECT_EQ(std::string(Names[9].Buf, Names[9].Length),
+            std::string("func-host-sub"));
+  EXPECT_EQ(std::string(Names[10].Buf, Names[10].Length),
+            std::string("func-mul-2"));
+
+  // Module instance find function
+  EXPECT_NE(WasmEdge_ModuleInstanceFindFunction(ModCxt, Store, Names[7]),
+            nullptr);
+  EXPECT_EQ(WasmEdge_ModuleInstanceFindFunction(nullptr, nullptr, Names[7]),
+            nullptr);
+  EXPECT_EQ(WasmEdge_ModuleInstanceFindFunction(nullptr, Store, Names[7]),
+            nullptr);
+  EXPECT_EQ(WasmEdge_ModuleInstanceFindFunction(ModCxt, nullptr, Names[7]),
+            nullptr);
+  EXPECT_EQ(WasmEdge_ModuleInstanceFindFunction(ModCxt, Store, ErrName),
+            nullptr);
+
+  // Module instance list table exports
+  EXPECT_EQ(WasmEdge_ModuleInstanceListTableLength(ModCxt), 2U);
+  EXPECT_EQ(WasmEdge_ModuleInstanceListTableLength(nullptr), 0U);
+  EXPECT_EQ(WasmEdge_ModuleInstanceListTable(nullptr, Names, 15), 0U);
+  EXPECT_EQ(WasmEdge_ModuleInstanceListTable(ModCxt, nullptr, 15), 2U);
+  std::memset(Names, 0, sizeof(WasmEdge_String) * 15);
+  EXPECT_EQ(WasmEdge_ModuleInstanceListTable(ModCxt, Names, 1), 2U);
+  EXPECT_EQ(std::string(Names[0].Buf, Names[0].Length), std::string("tab-ext"));
+  std::memset(Names, 0, sizeof(WasmEdge_String) * 15);
+  EXPECT_EQ(WasmEdge_ModuleInstanceListTable(ModCxt, Names, 15), 2U);
+  EXPECT_EQ(std::string(Names[0].Buf, Names[0].Length), std::string("tab-ext"));
+  EXPECT_EQ(std::string(Names[1].Buf, Names[1].Length),
+            std::string("tab-func"));
+
+  // Module instance find table
+  EXPECT_NE(WasmEdge_ModuleInstanceFindTable(ModCxt, Store, Names[1]), nullptr);
+  EXPECT_EQ(WasmEdge_ModuleInstanceFindTable(nullptr, nullptr, Names[1]),
+            nullptr);
+  EXPECT_EQ(WasmEdge_ModuleInstanceFindTable(nullptr, Store, Names[1]),
+            nullptr);
+  EXPECT_EQ(WasmEdge_ModuleInstanceFindTable(ModCxt, nullptr, Names[1]),
+            nullptr);
+  EXPECT_EQ(WasmEdge_ModuleInstanceFindTable(ModCxt, Store, ErrName), nullptr);
+
+  // Module instance list memory exports
+  EXPECT_EQ(WasmEdge_ModuleInstanceListMemoryLength(ModCxt), 1U);
+  EXPECT_EQ(WasmEdge_ModuleInstanceListMemoryLength(nullptr), 0U);
+  EXPECT_EQ(WasmEdge_ModuleInstanceListMemory(nullptr, Names, 15), 0U);
+  EXPECT_EQ(WasmEdge_ModuleInstanceListMemory(ModCxt, nullptr, 15), 1U);
+  EXPECT_EQ(WasmEdge_ModuleInstanceListMemory(ModCxt, Names, 0), 1U);
+  std::memset(Names, 0, sizeof(WasmEdge_String) * 15);
+  EXPECT_EQ(WasmEdge_ModuleInstanceListMemory(ModCxt, Names, 15), 1U);
+  EXPECT_EQ(std::string(Names[0].Buf, Names[0].Length), std::string("mem"));
+
+  // Module instance find memory
+  EXPECT_NE(WasmEdge_ModuleInstanceFindMemory(ModCxt, Store, Names[0]),
+            nullptr);
+  EXPECT_EQ(WasmEdge_ModuleInstanceFindMemory(nullptr, nullptr, Names[0]),
+            nullptr);
+  EXPECT_EQ(WasmEdge_ModuleInstanceFindMemory(nullptr, Store, Names[0]),
+            nullptr);
+  EXPECT_EQ(WasmEdge_ModuleInstanceFindMemory(ModCxt, nullptr, Names[0]),
+            nullptr);
+  EXPECT_EQ(WasmEdge_ModuleInstanceFindMemory(ModCxt, Store, ErrName), nullptr);
+
+  // Module instance list global exports
+  EXPECT_EQ(WasmEdge_ModuleInstanceListGlobalLength(ModCxt), 2U);
+  EXPECT_EQ(WasmEdge_ModuleInstanceListGlobalLength(nullptr), 0U);
+  EXPECT_EQ(WasmEdge_ModuleInstanceListGlobal(nullptr, Names, 15), 0U);
+  EXPECT_EQ(WasmEdge_ModuleInstanceListGlobal(ModCxt, nullptr, 15), 2U);
+  std::memset(Names, 0, sizeof(WasmEdge_String) * 15);
+  EXPECT_EQ(WasmEdge_ModuleInstanceListGlobal(ModCxt, Names, 1), 2U);
+  EXPECT_EQ(std::string(Names[0].Buf, Names[0].Length),
+            std::string("glob-const-f32"));
+  std::memset(Names, 0, sizeof(WasmEdge_String) * 15);
+  EXPECT_EQ(WasmEdge_ModuleInstanceListGlobal(ModCxt, Names, 15), 2U);
+  EXPECT_EQ(std::string(Names[0].Buf, Names[0].Length),
+            std::string("glob-const-f32"));
+  EXPECT_EQ(std::string(Names[1].Buf, Names[1].Length),
+            std::string("glob-mut-i32"));
+
+  // Module instance find global
+  EXPECT_NE(WasmEdge_ModuleInstanceFindGlobal(ModCxt, Store, Names[1]),
+            nullptr);
+  EXPECT_EQ(WasmEdge_ModuleInstanceFindGlobal(nullptr, nullptr, Names[1]),
+            nullptr);
+  EXPECT_EQ(WasmEdge_ModuleInstanceFindGlobal(nullptr, Store, Names[1]),
+            nullptr);
+  EXPECT_EQ(WasmEdge_ModuleInstanceFindGlobal(ModCxt, nullptr, Names[1]),
+            nullptr);
+  EXPECT_EQ(WasmEdge_ModuleInstanceFindGlobal(ModCxt, Store, ErrName), nullptr);
+
   WasmEdge_StringDelete(ModName[0]);
   WasmEdge_StringDelete(ModName[1]);
   WasmEdge_StringDelete(ModName[2]);
@@ -1677,7 +1815,13 @@ TEST(APICoreTest, Store) {
 
 TEST(APICoreTest, Instance) {
   WasmEdge_Value Val, TmpVal;
+
   // WasmEdge_FunctionInstanceGetFunctionType() tested in `Store` test case.
+  // WasmEdge_FunctionInstanceCreate(),
+  // WasmEdge_FunctionInstanceCreateBinding(), and
+  // WasmEdge_FunctionInstanceDelete() tested in `ImportObject` test case.
+
+  // WasmEdge_ModuleInstanceContext related APIs tested in `Store` test case.
 
   // Table instance
   WasmEdge_TableInstanceContext *TabCxt;

@@ -55,6 +55,7 @@ endif()
 add_subdirectory(spec)
 add_subdirectory(loader)
 add_subdirectory(executor)
+add_subdirectory(thread)
 if (WASMEDGE_BUILD_SHARED_LIB)
   add_subdirectory(api)
 endif()
@@ -81,7 +82,6 @@ if(WASMEDGE_BUILD_COVERAGE)
     NAME codecov
     EXECUTABLE ctest -j ${PROCESSOR_COUNT}
     DEPENDENCIES wasmedge
-    BASE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
     EXCLUDE
       "${PROJECT_SOURCE_DIR}/thirdparty/*"
       "${PROJECT_SOURCE_DIR}/test/*"

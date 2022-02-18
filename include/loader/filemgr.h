@@ -18,6 +18,9 @@
 #include "common/types.h"
 #include "system/mmap.h"
 
+#include <algorithm>
+#include <cstddef>
+#include <cstdint>
 #include <optional>
 #include <string>
 #include <vector>

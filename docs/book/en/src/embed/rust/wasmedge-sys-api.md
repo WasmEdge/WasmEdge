@@ -10,34 +10,34 @@ We use `fibonacci.wasm` in this demo, and the contents of the WebAssembly file a
 
 ```wasm
 (module
- (export "fib" (func $fib))
- (func $fib (param $n i32) (result i32)
-  (if
-   (i32.lt_s
-    (get_local $n)
-    (i32.const 2)
-   )
-   (return
-    (i32.const 1)
-   )
-  )
-  (return
-   (i32.add
-    (call $fib
-     (i32.sub
-      (get_local $n)
-      (i32.const 2)
-     )
+  (export "fib" (func $fib))
+  (func $fib (param $n i32) (result i32)
+    (if
+      (i32.lt_s
+        (get_local $n)
+        (i32.const 2)
+      )
+      (return
+        (i32.const 1)
+      )
     )
-    (call $fib
-     (i32.sub
-      (get_local $n)
-      (i32.const 1)
-     )
+    (return
+      (i32.add
+        (call $fib
+          (i32.sub
+            (get_local $n)
+            (i32.const 2)
+          )
+        )
+        (call $fib
+          (i32.sub
+            (get_local $n)
+            (i32.const 1)
+          )
+        )
+      )
     )
-   )
   )
- )
 )
 ```
 
@@ -75,7 +75,7 @@ let config = Config::create().expect("fail to create a Config context");
 let store = Store::create().expect("fail to create a Store context");
 
 // create a Vm context with the given Config and Store
-let vm = Vm::create(Some(&config), Some(&store)).expect("fail to create a Vm context");
+let mut vm = Vm::create(Some(config), Some(store)).expect("fail to create a Vm context");
 ```
 
 ### Step 3: Invoke the `fib` function
@@ -86,7 +86,7 @@ In Step 1, we got a module that hosts the target `fib` function defined in the W
 use wasmedge_sys::Value;
 
 // run a function
-let returns = vm.run_wasm_from_module(&mut module, "fib", [Value::from_i32(5)]).expect("fail to run the target function in the module");
+let returns = vm.run_wasm_from_module(module, "fib", [Value::from_i32(5)]).expect("fail to run the target function in the module");
 
 println!("The result of fib(5) is {}", returns[0].to_i32());
 ```

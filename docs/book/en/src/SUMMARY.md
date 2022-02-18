@@ -54,6 +54,7 @@
     - [API references](embed/go/ref.md)
   - [Node.js SDK](embed/node.md)
   - [Rust SDK](embed/rust.md)
+    - [wasmedge-sys API](embed/rust/wasmedge-sys-api.md)
   - [Python SDK](embed/python.md)
 
 - [WasmEdge in Kubernetes](kubernetes.md)
@@ -96,6 +97,9 @@
   - [Windows](os/windows.md)
   - [Mac](os/mac.md)
   - [Android](os/android.md)
+    - [CLI tools](os/android/cli.md)
+    - [NDK native app](os/android/ndk.md)
+    - [APK app](os/android/apk.md)
   - [seL4](os/sel4.md)
   - [Open Harmony](os/openharmony.md)
   - [Raspberry Pi](os/raspberrypi.md)

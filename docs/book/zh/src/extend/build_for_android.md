@@ -51,13 +51,16 @@ hello
 1
 2
 3
+
 $ ../wasmedge --reactor add.wasm add 2 2
 4
+
 $ ../wasmedge --reactor fibonacci.wasm fib 8
 34
+
 $ ../wasmedge --reactor factorial.wasm fac 12
 479001600
-$
+
 $ cd js
 $ ./../wasmedge --dir .:. qjs.wasm hello.js 1 2 3
 Hello 1 2 3

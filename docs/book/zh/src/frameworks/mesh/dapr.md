@@ -1,14 +1,14 @@
 # Dapr
 
-在这篇文章中，我将演示如何使用 WasmEdge 作为 Dapr sidecar 应用程序的 runtime。我们将使用一个用 Rust 或 Go 编写的简单的 NaCl 用于监听微服务的 API 请求。它会将请求数据传递给 WebAssembly runtime 进行处理。而微服务的业务逻辑由应用开发者创建和部署的 WebAssembly 函数实现，您也可以观看相关的 [演示视频](https://www.youtube.com/watch?v=t_sQP6Qpf7U) 。
+在这篇文章中，我将演示如何使用 WasmEdge 作为 Dapr sidecar 应用程序的 runtime。我们将使用一个用 Rust 或 Go 编写的简单的 NaCl 用于监听微服务的 API 请求。它会将请求的数据传递给 WebAssembly runtime 进行处理。而微服务的业务逻辑由应用开发者创建和部署的 WebAssembly 函数实现，你也可以观看相关的 [演示视频](https://www.youtube.com/watch?v=t_sQP6Qpf7U) 。
 
 > 更多有关于在 Dapr 上运行 WasmEdge 的内容，请参阅文章 [A Lightweight, Safe, Portable, and High-performance Runtime for Dapr](https://www.secondstate.io/articles/dapr-wasmedge-webassembly/)
 
 ## 快速开始
 
-首先，您需要安装 [Go](https://golang.org/doc/install), [Rust](https://www.rust-lang.org/tools/install), [Dapr](https://docs.dapr.io/getting-started/install-dapr-cli), [WasmEdge](../../start/install.md), 和 [rustwasmc](../../dev/rust/bindgen.md) 编译器工具。
+首先，你需要安装 [Go](https://golang.org/doc/install)、[Rust](https://www.rust-lang.org/tools/install)、 [Dapr](https://docs.dapr.io/getting-started/install-dapr-cli)、 [WasmEdge](../../start/install.md)、 和 [rustwasmc](../../dev/rust/bindgen.md) 编译器工具。
 
-接着，从 Github fork 或 clone 应用程序的 demo。您也可以将这个 repo 作为您自己的应用程序模板。
+接着，从 Github fork 或 clone 应用程序的 demo。你也可以将这个 repo 作为你自己的应用程序模板。
 
 ```bash
 git clone https://github.com/second-state/dapr-wasm
@@ -24,7 +24,7 @@ git clone https://github.com/second-state/dapr-wasm
 
 如上，Dapr sidecar 微服务在这个 demo 应用程序中示意图。
 
-您可以按照 [README](https://github.com/second-state/dapr-wasm/blob/main/README.md) 中的说明启动 sidecar 服务。以下是构建 WebAssembly 函数和启动上述 3 个 sidecar 服务的命令。
+你可以按照 [README](https://github.com/second-state/dapr-wasm/blob/main/README.md) 中的说明启动 sidecar 服务。以下是构建 WebAssembly 函数和启动上述 3 个 sidecar 服务的命令。
 
 ```bash
 # 构建分类和 grayscale WebAssembly 函数，并将它们部署到 Sidecar 项目
@@ -35,7 +35,7 @@ cd functions/classify
 ./build.sh
 cd ../../
 
-# Build 并启动 Web 服务用于应用程序的 UI 
+# 构建并启动 Web 服务用于应用程序的 UI 
 cd web-port
 go build
 ./run_web.sh
@@ -54,7 +54,7 @@ go build --tags "tensorflow image"
 cd ../
 ```
 
-最后，您应该能够通过浏览器看见 Web UI 如下:
+最后，你应该能够通过浏览器看见 Web UI 如下:
 
 ![dapr-wasmedge](https://github.com/WasmEdge/WasmEdge/blob/master/docs/book/en/src/frameworks/mesh/dapr-wasmedge-in-action.png)
 
@@ -64,7 +64,7 @@ cd ../
 
 我们有两个用 Rust 编写并被编译的 WebAssembly 函数。它们将部署在 sidecar 微服务中，分别执行图像处理和图像分类的任务。
 
-虽然我们的示例 WebAssembly 函数是用 Rust 编写的，但您也可以用 C/C++、Swift、Kotlin 和 AssemblyScript 编写并编译成 WebAssembly 函数。此外 WasmEdge 还支持运行 JavaScript 和 DSL 编写的函数。
+虽然我们的示例 WebAssembly 函数是用 Rust 编写的，但你也可以用 C/C++、Swift、Kotlin 和 AssemblyScript 编写并编译成 WebAssembly 函数。此外 WasmEdge 还支持运行 JavaScript 和 DSL 编写的函数。
 
 [grayscale](https://github.com/second-state/dapr-wasm/tree/main/functions/grayscale) 函数是一个 Rust 编写的程序，它通过 `STDIN` 读取图像数据，并将 grayscale 图像写入 `STDOUT`。
 
@@ -149,9 +149,9 @@ cp ./pkg/classify_bg.wasm ../../image-api-go/lib/classify_bg.wasm
 
 ## 图像处理 sidecar
 
-[image-api-rs](https://github.com/second-state/dapr-wasm/tree/main/image-api-rs) sidecar 应用程序是用 Rust 编写。在上一步中，已经通过安装 `lib/grayscale.wasm` 拥有 WebAssembly 函数。请参考 [functions/bin/install.sh](https://github.com/second-state/dapr-wasm/blob/main/functions/bin/install.sh) 脚本来安装 WasmEdge Runtime 的二进制文件 `lib/wasmedge-tensorflow-lite` 及其依赖项。
+[image-api-rs](https://github.com/second-state/dapr-wasm/tree/main/image-api-rs) sidecar 应用程序是用 Rust 编写的。在上一步中，已经通过安装 `lib/grayscale.wasm` 拥有了 WebAssembly 函数。请参考 [functions/bin/install.sh](https://github.com/second-state/dapr-wasm/blob/main/functions/bin/install.sh) 脚本来安装 WasmEdge Runtime 的二进制文件 `lib/wasmedge-tensorflow-lite` 及其依赖项。
 
-Sidecar 微服务运行了一个基于 Tokio 的事件循环，用于侦听 `/api/image` 路径上接收的 HTTP 请求。
+Sidecar 微服务运行了一个基于 Tokio 的事件循环，用于侦听 `/api/image` 路径上接收到的 HTTP 请求。
 
 ```rust
 #[tokio::main]
@@ -178,7 +178,7 @@ pub async fn run_server(port: u16) {
 }
 ```
 
-一旦它接收到通过 HTTP POST 请求发送的图像文件，调用 WasmEdge 中的 WebAssembly 函数来执行图像处理任务。它创建一个 WasmEdge 实例来与 WebAssembly 程序交互。
+一旦它接收到通过 HTTP POST 请求发送的图像文件，就会调用 WasmEdge 中的 WebAssembly 函数来执行图像处理任务。它创建一个 WasmEdge 实例来与 WebAssembly 程序交互。
 
 ```rust
 pub fn image_process(buf: &Vec<u8>) -> Vec<u8> {
@@ -198,7 +198,7 @@ pub fn image_process(buf: &Vec<u8>) -> Vec<u8> {
 }
 ```
 
-以下 Dapr CLI 命令在 Dapr runtime 环境中启动 image-api-rs 微服务。
+执行以下 Dapr CLI 命令将在 Dapr runtime 环境中启动 image-api-rs 微服务。
 
 ```bash
 cd image-api-rs
@@ -216,7 +216,7 @@ cd ../
 
 [image-api-go](https://github.com/second-state/dapr-wasm/tree/main/image-api-go) sidecar 应用程序是用 Go 编写的。通过之前安装 `lib/classify\_bg.wasm` 的步骤已有 WebAssembly 函数。请参考 [functions/bin/install.sh](https://github.com/second-state/dapr-wasm/blob/main/functions/bin/install.sh) 脚本来安装 WasmEdge Runtime 的 Go SDK。
 
-Sidecar 微服务运行一个事件循环，在 `/api/image` 路径上监听传入的 HTTP 请求 。
+Sidecar 微服务运行一个事件循环，在 `/api/image` 路径上监听传入的 HTTP 请求。
 
 ```go
 func main() {
@@ -232,7 +232,7 @@ func main() {
 }
 ```
 
-一旦程序接收到通过 HTTP POST 请求发送的图像文件，调用 WasmEdge 中的 WebAssembly 函数执行基于 Tensorflow 的图像分类任务。它使用 WasmEdge 的 Go API 与 WebAssembly 程序进行交互。
+一旦程序接收到通过 HTTP POST 请求发送的图像文件，就会调用 WasmEdge 中的 WebAssembly 函数执行基于 Tensorflow 的图像分类任务。它使用 WasmEdge 的 Go API 与 WebAssembly 程序进行交互。
 
 ```go
 func imageHandlerWASI(_ context.Context, in *common.InvocationEvent) (out *common.Content, err error) {
@@ -277,7 +277,7 @@ func imageHandlerWASI(_ context.Context, in *common.InvocationEvent) (out *commo
 }
 ```
 
-执行以下 Dapr CLI 命令在 Dapr runtime 环境中启动微服务。
+执行以下 Dapr CLI 命令会在 Dapr runtime 环境中启动 image-api-go 微服务。
 
 ```bash
 cd image-api-go
@@ -369,4 +369,4 @@ sudo dapr run --app-id go-web-port \
 cd ../
 ```
 
-至此。您现在有一个用两种语言编写的由三部分组成的分布式应用程序！
+至此，你现在有一个用两种语言编写的并由三部分组成的分布式应用程序了！

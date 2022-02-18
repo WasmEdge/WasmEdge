@@ -17,9 +17,9 @@
 
 #if (defined(__cplusplus) && __cplusplus > 201402L) ||                         \
     (defined(_MSVC_LANG) && _MSVC_LANG > 201402L)
+#include "common/dense_enum_map.h"
 #include <cstdint>
-#include <string>
-#include <unordered_map>
+#include <string_view>
 #endif
 
 #if (defined(__cplusplus) && __cplusplus > 201402L) ||                         \
@@ -45,30 +45,28 @@ enum class Proposal : uint8_t {
   Max
 };
 
-namespace detail {
-
-using namespace std::literals::string_view_literals;
-static inline std::unordered_map<Proposal, std::string_view> ProposalStr = {
-    {Proposal::ImportExportMutGlobals, "Import/Export of mutable globals"sv},
-    {Proposal::NonTrapFloatToIntConversions,
-     "Non-trapping float-to-int conversions"sv},
-    {Proposal::SignExtensionOperators, "Sign-extension operators"sv},
-    {Proposal::MultiValue, "Multi-value returns"sv},
-    {Proposal::BulkMemoryOperations, "Bulk memory operations"sv},
-    {Proposal::ReferenceTypes, "Reference types"sv},
-    {Proposal::SIMD, "Fixed-width SIMD"sv},
-    {Proposal::TailCall, "Tail call"sv},
-    {Proposal::MultiMemories, "Multiple memories"sv},
-    {Proposal::Annotations, "Custom Annotation Syntax in the Text Format"sv},
-    {Proposal::Memory64, "Memory64"sv},
-    {Proposal::ExceptionHandling, "Exception handling"sv},
-    {Proposal::Threads, "Threads"sv},
-    {Proposal::FunctionReferences, "Typed Function References"sv},
-};
-
-} // namespace detail
-
-using detail::ProposalStr;
+static inline constexpr auto ProposalStr = []() constexpr {
+  using namespace std::literals::string_view_literals;
+  std::pair<Proposal, std::string_view> Array[] = {
+      {Proposal::ImportExportMutGlobals, "Import/Export of mutable globals"sv},
+      {Proposal::NonTrapFloatToIntConversions,
+       "Non-trapping float-to-int conversions"sv},
+      {Proposal::SignExtensionOperators, "Sign-extension operators"sv},
+      {Proposal::MultiValue, "Multi-value returns"sv},
+      {Proposal::BulkMemoryOperations, "Bulk memory operations"sv},
+      {Proposal::ReferenceTypes, "Reference types"sv},
+      {Proposal::SIMD, "Fixed-width SIMD"sv},
+      {Proposal::TailCall, "Tail call"sv},
+      {Proposal::MultiMemories, "Multiple memories"sv},
+      {Proposal::Annotations, "Custom Annotation Syntax in the Text Format"sv},
+      {Proposal::Memory64, "Memory64"sv},
+      {Proposal::ExceptionHandling, "Exception handling"sv},
+      {Proposal::Threads, "Threads"sv},
+      {Proposal::FunctionReferences, "Typed Function References"sv},
+  };
+  return DenseEnumMap(Array);
+}
+();
 
 } // namespace WasmEdge
 #endif

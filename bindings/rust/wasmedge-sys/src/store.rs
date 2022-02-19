@@ -120,7 +120,7 @@ impl Store {
         let table_name: WasmEdgeString = name.as_ref().into();
         let ctx = unsafe { wasmedge::WasmEdge_StoreFindTable(self.inner.0, table_name.as_raw()) };
         match ctx.is_null() {
-            true => Err(WasmEdgeError::Store(StoreError::NotFoundGlobal(
+            true => Err(WasmEdgeError::Store(StoreError::NotFoundTable(
                 name.as_ref().to_string(),
             ))),
             false => Ok(Table {

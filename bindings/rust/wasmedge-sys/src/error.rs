@@ -157,6 +157,12 @@ pub enum ExportError {
 pub enum InstanceError {
     #[error("Fail to find the target function ({0})")]
     NotFoundFunc(String),
+    #[error("Fail to find the target table ({0})")]
+    NotFoundTable(String),
+    #[error("Fail to find the target memory ({0})")]
+    NotFoundMem(String),
+    #[error("Fail to find the target global ({0})")]
+    NotFoundGlobal(String),
 }
 
 /// Defines the errors raised from [Store](crate::Store).

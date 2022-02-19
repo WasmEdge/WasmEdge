@@ -4,6 +4,7 @@ use crate::{
     instance::{
         function::{Function, InnerFunc},
         global::{Global, InnerGlobal},
+        instance::{InnerInstance, Instance},
         memory::{InnerMemory, Memory},
         table::{InnerTable, Table},
     },
@@ -613,6 +614,45 @@ impl Store {
         }
     }
 
+    /// Returns the active anonymous module instance.
+    ///
+    /// # Error
+    ///
+    /// If fail to find the target [module instance](crate::Instance), then an error is returned.
+    pub fn active_module<'a>(&'a self) -> WasmEdgeResult<Instance<'a>> {
+        let ctx = unsafe { wasmedge::WasmEdge_StoreGetActiveModule(self.inner.0) };
+        match ctx.is_null() {
+            true => Err(WasmEdgeError::Store(StoreError::NotFoundActiveModule)),
+            false => Ok(Instance {
+                inner: InnerInstance(ctx),
+                store: self,
+            }),
+        }
+    }
+
+    /// Returns the registered module instance by the module name.
+    ///
+    /// # Argument
+    ///
+    /// - `mod_name` specifies the name of the registered module instance.
+    ///
+    /// # Error
+    ///
+    /// If fail to find the target [module instance](crate::Instance), then an error is returned.
+    pub fn named_module<'a>(&'a self, name: impl AsRef<str>) -> WasmEdgeResult<Instance<'a>> {
+        let mod_name: WasmEdgeString = name.as_ref().into();
+        let ctx = unsafe { wasmedge::WasmEdge_StoreFindModule(self.inner.0, mod_name.as_raw()) };
+        match ctx.is_null() {
+            true => Err(WasmEdgeError::Store(StoreError::NotFoundModule(
+                name.as_ref().to_string(),
+            ))),
+            false => Ok(Instance {
+                inner: InnerInstance(ctx),
+                store: self,
+            }),
+        }
+    }
+
     /// Checks if the [`Store`] contains a function of which the name matches the given
     /// `func_name`.
     ///
@@ -739,7 +779,7 @@ mod tests {
     use crate::{
         instance::{Function, Global, GlobalType, MemType, Memory, Table, TableType},
         types::Value,
-        Config, Executor, FuncType, ImportObject, Mutability, RefType, ValType,
+        Config, Executor, FuncType, ImportObject, Mutability, RefType, ValType, Vm,
     };
     use std::{
         sync::{Arc, Mutex},
@@ -955,6 +995,115 @@ mod tests {
         });
 
         handle.join().unwrap();
+    }
+
+    fn test_store_active_module() {
+        let result = Vm::create(None, None);
+        assert!(result.is_ok());
+        let mut vm = result.unwrap();
+
+        // load wasm module from a specified file
+        let path = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
+            .join("bindings/rust/wasmedge-sys/tests/data/fibonacci.wasm");
+        let result = vm.load_wasm_from_file(path);
+        assert!(result.is_ok());
+
+        // validate
+        let result = vm.validate();
+        assert!(result.is_ok());
+
+        // instantiate
+        let result = vm.instantiate();
+        assert!(result.is_ok());
+
+        // get the store in vm
+        let result = vm.store_mut();
+        assert!(result.is_ok());
+        let store = result.unwrap();
+
+        // get the active module
+        let result = store.active_module();
+        assert!(result.is_ok());
+        let instance = result.unwrap();
+
+        // check the name of the module instance
+        assert!(instance.name().is_none());
+
+        // get the exported function named "fib"
+        let result = instance.find_func("fib");
+        assert!(result.is_ok());
+        let func = result.unwrap();
+
+        // check the type of the function
+        let result = func.ty();
+        assert!(result.is_ok());
+        let ty = result.unwrap();
+
+        // check the parameter types
+        let param_types = ty.params_type_iter().collect::<Vec<ValType>>();
+        assert_eq!(param_types, [ValType::I32]);
+
+        // check the return types
+        let return_types = ty.returns_type_iter().collect::<Vec<ValType>>();
+        assert_eq!(return_types, [ValType::I32]);
+    }
+
+    #[test]
+    fn test_store_named_module() {
+        // create a Config context
+        let result = Config::create();
+        assert!(result.is_ok());
+        let config = result.unwrap();
+        config.bulk_memory_operations(true);
+        assert!(config.bulk_memory_operations_enabled());
+
+        // create a Store context
+        let result = Store::create();
+        assert!(result.is_ok(), "Failed to create Store instance");
+        let store = result.unwrap();
+
+        // create a Vm context with the given Config and Store
+        let result = Vm::create(Some(config), Some(store));
+        assert!(result.is_ok());
+        let mut vm = result.unwrap();
+
+        // register a wasm module from a wasm file
+        let path = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
+            .join("bindings/rust/wasmedge-sys/tests/data/fibonacci.wasm");
+        let result = vm.register_wasm_from_file("extern", path);
+        assert!(result.is_ok());
+
+        // get the store in vm
+        let result = vm.store_mut();
+        assert!(result.is_ok());
+        let store = result.unwrap();
+
+        // get the module named "extern"
+        let result = store.named_module("extern");
+        assert!(result.is_ok());
+        let instance = result.unwrap();
+
+        // check the name of the module
+        assert!(instance.name().is_some());
+        assert_eq!(instance.name().unwrap(), "extern");
+
+        // get the exported function named "fib"
+        let result = instance.find_func("fib");
+        assert!(result.is_ok());
+        let func = result.unwrap();
+
+        // check the type of the function
+        let result = func.ty();
+        assert!(result.is_ok());
+        let ty = result.unwrap();
+
+        // check the parameter types
+        let param_types = ty.params_type_iter().collect::<Vec<ValType>>();
+        assert_eq!(param_types, [ValType::I32]);
+
+        // check the return types
+        let return_types = ty.returns_type_iter().collect::<Vec<ValType>>();
+        assert_eq!(return_types, [ValType::I32]);
     }
 
     fn real_add(inputs: Vec<Value>) -> Result<Vec<Value>, u8> {

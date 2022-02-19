@@ -4,8 +4,12 @@ use crate::{
     error::InstanceError, types::WasmEdgeString, wasmedge, Function, Global, Memory, Store, Table,
     WasmEdgeError, WasmEdgeResult,
 };
-// use std::marker::PhantomData;
 
+/// Struct of WasmEdge Instance.
+///
+/// An [`Instance`] represents an instantiated module. In the instantiation process, An [`Instance`] is created from a
+/// [`Module`](crate::Module). From an [`Instance`] the exported [functions](crate::Function), [tables](crate::Table),
+/// [memories](crate::Memory), and [globals](crate::Global) can be fetched.
 pub struct Instance<'store> {
     pub(crate) inner: InnerInstance,
     pub(crate) store: &'store Store,

@@ -145,6 +145,126 @@ impl<'store> Instance<'store> {
             }),
         }
     }
+
+    /// Returns the length of the exported [functions](crate::Function) in this module.
+    pub fn func_len(&self) -> u32 {
+        unsafe { wasmedge::WasmEdge_ModuleInstanceListFunctionLength(self.inner.0) }
+    }
+
+    /// Returns the names of the exported [functions](crate::Function) in this module.
+    pub fn func_names(&self) -> Option<Vec<String>> {
+        let len_func_names = self.func_len();
+        match len_func_names > 0 {
+            true => {
+                let mut func_names = Vec::with_capacity(len_func_names as usize);
+                unsafe {
+                    wasmedge::WasmEdge_ModuleInstanceListFunction(
+                        self.inner.0,
+                        func_names.as_mut_ptr(),
+                        len_func_names,
+                    );
+                    func_names.set_len(len_func_names as usize);
+                }
+
+                let names = func_names
+                    .into_iter()
+                    .map(|x| x.into())
+                    .collect::<Vec<String>>();
+                Some(names)
+            }
+            false => None,
+        }
+    }
+
+    /// Returns the length of the exported [tables](crate::Table) in this module.
+    pub fn table_len(&self) -> u32 {
+        unsafe { wasmedge::WasmEdge_ModuleInstanceListTableLength(self.inner.0) }
+    }
+
+    /// Returns the names of the exported [tables](crate::Table) in this module.
+    pub fn table_names(&self) -> Option<Vec<String>> {
+        let len_table_names = self.table_len();
+        match len_table_names > 0 {
+            true => {
+                let mut table_names = Vec::with_capacity(len_table_names as usize);
+                unsafe {
+                    wasmedge::WasmEdge_ModuleInstanceListTable(
+                        self.inner.0,
+                        table_names.as_mut_ptr(),
+                        len_table_names,
+                    );
+                    table_names.set_len(len_table_names as usize);
+                }
+
+                let names = table_names
+                    .into_iter()
+                    .map(|x| x.into())
+                    .collect::<Vec<String>>();
+                Some(names)
+            }
+            false => None,
+        }
+    }
+
+    /// Returns the length of the exported [memories](crate::Memory) in this module.
+    pub fn mem_len(&self) -> u32 {
+        unsafe { wasmedge::WasmEdge_ModuleInstanceListMemoryLength(self.inner.0) }
+    }
+
+    /// Returns the names of all exported [memories](crate::Memory) in this module.
+    pub fn mem_names(&self) -> Option<Vec<String>> {
+        let len_mem_names = self.mem_len();
+        match len_mem_names > 0 {
+            true => {
+                let mut mem_names = Vec::with_capacity(len_mem_names as usize);
+                unsafe {
+                    wasmedge::WasmEdge_ModuleInstanceListMemory(
+                        self.inner.0,
+                        mem_names.as_mut_ptr(),
+                        len_mem_names,
+                    );
+                    mem_names.set_len(len_mem_names as usize);
+                }
+
+                let names = mem_names
+                    .into_iter()
+                    .map(|x| x.into())
+                    .collect::<Vec<String>>();
+                Some(names)
+            }
+            false => None,
+        }
+    }
+
+    /// Returns the length of the exported [globals](crate::Global) in this module.
+    pub fn global_len(&self) -> u32 {
+        unsafe { wasmedge::WasmEdge_ModuleInstanceListGlobalLength(self.inner.0) }
+    }
+
+    /// Returns the names of the exported [globals](crate::Global) in this module.
+    pub fn global_names(&self) -> Option<Vec<String>> {
+        let len_global_names = self.global_len();
+        match len_global_names > 0 {
+            true => {
+                let mut global_names = Vec::with_capacity(len_global_names as usize);
+                unsafe {
+                    wasmedge::WasmEdge_ModuleInstanceListGlobal(
+                        self.inner.0,
+                        global_names.as_mut_ptr(),
+                        len_global_names,
+                    );
+                    global_names.set_len(len_global_names as usize);
+                }
+
+                let names = global_names
+                    .into_iter()
+                    .map(|x| x.into())
+                    .collect::<Vec<String>>();
+                Some(names)
+            }
+            false => None,
+        }
+    }
 }
 
 pub(crate) struct InnerInstance(pub(crate) *const wasmedge::WasmEdge_ModuleInstanceContext);
@@ -160,7 +280,7 @@ mod tests {
     };
 
     #[test]
-    fn test_instance() {
+    fn test_instance_find_xxx() {
         let vm = create_vm();
         let result = vm.store_mut();
         assert!(result.is_ok());
@@ -227,6 +347,42 @@ mod tests {
         let global = result.unwrap();
         assert_eq!(global.value_type(), ValType::F32);
         assert_eq!(global.mutability(), Mutability::Const);
+    }
+
+    fn test_instance_find_names() {
+        let vm = create_vm();
+        let result = vm.store_mut();
+        assert!(result.is_ok());
+        let store = result.unwrap();
+
+        // get the module named "extern"
+        let result = store.named_module("extern_module");
+        assert!(result.is_ok());
+        let instance = result.unwrap();
+
+        // check the name of the module
+        assert!(instance.name().is_some());
+        assert_eq!(instance.name().unwrap(), "extern_module");
+
+        assert_eq!(instance.func_len(), 1);
+        let result = instance.func_names();
+        assert!(result.is_some());
+        assert_eq!(result.unwrap(), ["add"]);
+
+        assert_eq!(instance.table_len(), 1);
+        let result = instance.table_names();
+        assert!(result.is_some());
+        assert_eq!(result.unwrap(), ["table"]);
+
+        assert_eq!(instance.mem_len(), 1);
+        let result = instance.mem_names();
+        assert!(result.is_some());
+        assert_eq!(result.unwrap(), ["memory"]);
+
+        assert_eq!(instance.global_len(), 1);
+        let result = instance.global_names();
+        assert!(result.is_some());
+        assert_eq!(result.unwrap(), ["global"]);
     }
 
     fn create_vm() -> Vm {

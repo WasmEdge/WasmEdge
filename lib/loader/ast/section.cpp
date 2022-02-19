@@ -5,6 +5,9 @@
 
 #include "aot/version.h"
 #include "common/defines.h"
+#include <cstdint>
+#include <tuple>
+#include <utility>
 
 namespace WasmEdge {
 namespace Loader {

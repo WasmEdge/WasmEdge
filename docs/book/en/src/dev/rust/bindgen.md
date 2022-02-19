@@ -20,4 +20,3 @@ Of course, once the above Rust code is compiled into WASM, the function `say()` 
 **[A complete wasmedge-bindgen example in Rust (WASM) and Go (host)](../../embed/go/function.md)**
 
 Of course, the developer could choose to do `wasmedge-bindgen`'s work by hand and pass a memory pointer directly. If you are interested in this approach to call Rust compiled WASM functions, check out our [examples in the Go SDK](../../embed/go/memory.md).
-

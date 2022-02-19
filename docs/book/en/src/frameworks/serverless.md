@@ -21,8 +21,8 @@ In this section, we will show you how to run WebAssembly serverless functions in
 
 > If you would like to add more WasmEdge examples on public cloud platform,like Google Cloud Functions, feel free to create a PR for WasmEdge and let the community know what you did.
 
-![](serverless-wasmedge.png)
+![serverless-wasmedge.png](serverless-wasmedge.png)
 
 Running WasmEdge from Docker containers deployed on public cloud is an easy way to add high-performance functions to web applications. Going forward an even better approach is to use [WasmEdge as the container itself](https://www.computer.org/csdl/magazine/so/5555/01/09214403/1nHNGfu2Ypi). There will be no Docker and no Node.js to bootstrap WasmEdge. This way, we can reach much higher efficiency for running serverless functions.
 
-* [Second State Functions](serverless/secondstate.md) will discuss how to use WasmEdge ad the container itself, since Second State Functions is a serverless platform with pure WebAssembly/WasmEdge. 
+* [Second State Functions](serverless/secondstate.md) will discuss how to use WasmEdge ad the container itself, since Second State Functions is a serverless platform with pure WebAssembly/WasmEdge.

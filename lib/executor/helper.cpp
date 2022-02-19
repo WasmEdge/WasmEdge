@@ -6,11 +6,16 @@
 #include "common/log.h"
 #include "system/fault.h"
 
+#include <cstdint>
+#include <utility>
+#include <vector>
+
 namespace WasmEdge {
 namespace Executor {
 
 Expect<AST::InstrView::iterator>
 Executor::enterFunction(Runtime::StoreManager &StoreMgr,
+                        Runtime::StackManager &StackMgr,
                         const Runtime::Instance::FunctionInstance &Func,
                         const AST::InstrView::iterator From) {
   if (unlikely(StopToken.exchange(0, std::memory_order_relaxed))) {
@@ -30,7 +35,7 @@ Executor::enterFunction(Runtime::StoreManager &StoreMgr,
     // Get memory instance from current frame.
     // It'll be nullptr if current frame is dummy frame or no memory instance
     // in current module.
-    auto *MemoryInst = getMemInstByIdx(StoreMgr, 0);
+    auto *MemoryInst = getMemInstByIdx(StoreMgr, StackMgr, 0);
 
     if (Stat) {
       // Check host function cost.
@@ -83,10 +88,15 @@ Executor::enterFunction(Runtime::StoreManager &StoreMgr,
 
     {
       CurrentStore = &StoreMgr;
+      CurrentStack = &StackMgr;
       auto &ModInst = *(*StoreMgr.getModule(Func.getModuleAddr()));
       for (uint32_t I = 0; I < ModInst.getMemNum(); ++I) {
-        ModInst.MemoryPtrs[I] =
-            (*(CurrentStore->getMemory(*ModInst.getMemAddr(I))))->getDataPtr();
+        auto MemoryPtr =
+            reinterpret_cast<std::atomic<uint8_t *> *>(&ModInst.MemoryPtrs[I]);
+        uint8_t *const DataPtr =
+            (*(StoreMgr.getMemory(*ModInst.getMemAddr(I))))->getDataPtr();
+        std::atomic_store_explicit(MemoryPtr, DataPtr,
+                                   std::memory_order_relaxed);
       }
       ExecutionContext.Memories = ModInst.MemoryPtrs.data();
       ExecutionContext.Globals = ModInst.GlobalPtrs.data();
@@ -137,6 +147,7 @@ Executor::enterFunction(Runtime::StoreManager &StoreMgr,
 
 std::pair<uint32_t, uint32_t>
 Executor::getBlockArity(Runtime::StoreManager &StoreMgr,
+                        Runtime::StackManager &StackMgr,
                         const BlockType &BType) {
   uint32_t Locals = 0, Arity = 0;
   if (BType.IsValType) {
@@ -152,6 +163,7 @@ Executor::getBlockArity(Runtime::StoreManager &StoreMgr,
 }
 
 Expect<void> Executor::branchToLabel(Runtime::StoreManager &StoreMgr,
+                                     Runtime::StackManager &StackMgr,
                                      const uint32_t Cnt,
                                      AST::InstrView::iterator &PC) {
   // Check stop token
@@ -169,7 +181,8 @@ Expect<void> Executor::branchToLabel(Runtime::StoreManager &StoreMgr,
   // Jump to the continuation of Label if is a loop.
   if (ContIt) {
     // Get result type for arity.
-    auto BlockSig = getBlockArity(StoreMgr, (*ContIt)->getBlockType());
+    auto BlockSig =
+        getBlockArity(StoreMgr, StackMgr, (*ContIt)->getBlockType());
 
     // Create Label{ loop-instruction } and push.
     StackMgr.pushLabel(BlockSig.first, BlockSig.first, PC, *ContIt);
@@ -181,7 +194,8 @@ Expect<void> Executor::branchToLabel(Runtime::StoreManager &StoreMgr,
 }
 
 Runtime::Instance::TableInstance *
-Executor::getTabInstByIdx(Runtime::StoreManager &StoreMgr, const uint32_t Idx) {
+Executor::getTabInstByIdx(Runtime::StoreManager &StoreMgr,
+                          Runtime::StackManager &StackMgr, const uint32_t Idx) {
   // When top frame is dummy frame, cannot find instance.
   if (StackMgr.isTopDummyFrame()) {
     return nullptr;
@@ -201,7 +215,8 @@ Executor::getTabInstByIdx(Runtime::StoreManager &StoreMgr, const uint32_t Idx) {
 }
 
 Runtime::Instance::MemoryInstance *
-Executor::getMemInstByIdx(Runtime::StoreManager &StoreMgr, const uint32_t Idx) {
+Executor::getMemInstByIdx(Runtime::StoreManager &StoreMgr,
+                          Runtime::StackManager &StackMgr, const uint32_t Idx) {
   // When top frame is dummy frame, cannot find instance.
   if (StackMgr.isTopDummyFrame()) {
     return nullptr;
@@ -222,6 +237,7 @@ Executor::getMemInstByIdx(Runtime::StoreManager &StoreMgr, const uint32_t Idx) {
 
 Runtime::Instance::GlobalInstance *
 Executor::getGlobInstByIdx(Runtime::StoreManager &StoreMgr,
+                           Runtime::StackManager &StackMgr,
                            const uint32_t Idx) {
   // When top frame is dummy frame, cannot find instance.
   if (StackMgr.isTopDummyFrame()) {
@@ -243,6 +259,7 @@ Executor::getGlobInstByIdx(Runtime::StoreManager &StoreMgr,
 
 Runtime::Instance::ElementInstance *
 Executor::getElemInstByIdx(Runtime::StoreManager &StoreMgr,
+                           Runtime::StackManager &StackMgr,
                            const uint32_t Idx) {
   // When top frame is dummy frame, cannot find instance.
   if (StackMgr.isTopDummyFrame()) {
@@ -264,6 +281,7 @@ Executor::getElemInstByIdx(Runtime::StoreManager &StoreMgr,
 
 Runtime::Instance::DataInstance *
 Executor::getDataInstByIdx(Runtime::StoreManager &StoreMgr,
+                           Runtime::StackManager &StackMgr,
                            const uint32_t Idx) {
   // When top frame is dummy frame, cannot find instance.
   if (StackMgr.isTopDummyFrame()) {

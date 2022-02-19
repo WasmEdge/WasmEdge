@@ -2,7 +2,7 @@
 
 The `appdev` Docker images provide a complete WasmEdge application development environment. To use it, do the following.
 
-### On x86_64 machines
+## On x86_64 machines
 
 ```bash
 $ docker pull wasmedge/appdev_x86_64:0.9.0
@@ -12,7 +12,7 @@ $ docker run --rm -v $(pwd):/app -it wasmedge/appdev_x86_64:0.9.0
 
 Here is the [Dockerfile](https://github.com/WasmEdge/WasmEdge/blob/master/utils/docker/Dockerfile.appdev_x86_64) and [Docker Hub image](https://hub.docker.com/repository/docker/wasmedge/appdev_x86_64).
 
-### On arm64 machines
+## On arm64 machines
 
 ```bash
 $ docker pull wasmedge/appdev_aarch64:0.9.0
@@ -68,13 +68,13 @@ Run these commands to build and publish the `appdev` Docker images.
 ### Build on an x86_64 machine
 
 ```bash
-$ docker build -t wasmedge/appdev_x86_64:0.9.0 -f Dockerfile.appdev_x86_64 ./ 
-$ docker image push wasmedge/appdev_x86_64:0.9.0
+docker build -t wasmedge/appdev_x86_64:0.9.0 -f Dockerfile.appdev_x86_64 ./ 
+docker image push wasmedge/appdev_x86_64:0.9.0
 ```
 
 ### Build on an ARM64 / aarch64 machine
 
 ```bash
-$ docker build -t wasmedge/appdev_aarch64:0.9.0 -f Dockerfile.appdev_aarch64 ./
-$ docker image push wasmedge/appdev_aarch64:0.9.0
+docker build -t wasmedge/appdev_aarch64:0.9.0 -f Dockerfile.appdev_aarch64 ./
+docker image push wasmedge/appdev_aarch64:0.9.0
 ```

@@ -24,7 +24,22 @@ on:
       - '**/*.md'
 
 jobs:
-  get_version:
+  get_version_v1:
+    name: Retrieve version information
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.prep.outputs.version }}
+    steps:
+    - uses: actions/checkout@v1
+      with:
+        fetch-depth: 0
+    - name: Get version
+      id: prep
+      run: |
+        # Retrieve annotated tags. Details: https://github.com/actions/checkout/issues/290
+        git fetch --tags --force
+        echo ::set-output name=version::$(git describe --match "[0-9].[0-9]*" --tag)
+  get_version_v2:
     name: Retrieve version information
     runs-on: ubuntu-latest
     outputs:
@@ -43,7 +58,7 @@ jobs:
   create_source_tarball:
     name: Create source tarball
     runs-on: ubuntu-latest
-    needs: get_version
+    needs: get_version_v2
     steps:
     - uses: actions/checkout@v2
       with:
@@ -52,7 +67,7 @@ jobs:
       run: |
         echo $VERSION | tee VERSION
       env:
-        VERSION: ${{ needs.get_version.outputs.version }}
+        VERSION: ${{ needs.get_version_v2.outputs.version }}
     - name: Create source tarball
       run: |
         TEMPDIR=$(mktemp -d)
@@ -66,12 +81,12 @@ jobs:
     - name: Upload artifact
       uses: actions/upload-artifact@v2
       with:
-        name: WasmEdge-${{ needs.get_version.outputs.version }}-src.tar.gz
-        path: wasmedge_${{ needs.get_version.outputs.version }}.tar.gz
+        name: WasmEdge-${{ needs.get_version_v2.outputs.version }}-src.tar.gz
+        path: wasmedge_${{ needs.get_version_v2.outputs.version }}.tar.gz
 
   build_fedora:
     name: Fedora 35
-    needs: get_version
+    needs: get_version_v2
     runs-on: ubuntu-latest
     container:
       image: fedora:latest
@@ -100,8 +115,8 @@ jobs:
     - name: Upload artifact
       uses: actions/upload-artifact@v2
       with:
-        name: WasmEdge-${{ needs.get_version.outputs.version }}-fedora35.tar.gz
-        path: build/WasmEdge-${{ needs.get_version.outputs.version }}-Linux.tar.gz
+        name: WasmEdge-${{ needs.get_version_v2.outputs.version }}-fedora35.tar.gz
+        path: build/WasmEdge-${{ needs.get_version_v2.outputs.version }}-Linux.tar.gz
 
   build_ubuntu:
     strategy:
@@ -168,10 +183,10 @@ jobs:
         LD_LIBRARY_PATH=$(pwd)/build/lib/api cmake --build build --target codecov
     - name: Create and upload coverage report to Codecov
       if: ${{ matrix.coverage }}
-      uses: codecov/codecov-action@v1
+      uses: codecov/codecov-action@v2
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
-        file: ./build/codecov.xml
+        files: ./build/codecov.xml
         name: codecov-wasmedge
         fail_ci_if_error: true
         path_to_write_report: ./build/codecov_report.gz
@@ -198,7 +213,7 @@ jobs:
             checkout_version: v2
     name: ${{ matrix.name }} platform
     runs-on: ${{ matrix.host_runner }}
-    needs: get_version
+    needs: [get_version_v1, get_version_v2]
     container:
       image: wasmedge/wasmedge:${{ matrix.docker_tag }}
     steps:
@@ -218,20 +233,20 @@ jobs:
       uses: actions/upload-artifact@v1
       if: ${{ matrix.checkout_version == 'v1' }}
       with:
-        name: WasmEdge-${{ needs.get_version.outputs.version }}-${{ matrix.docker_tag }}.tar.gz
-        path: build/WasmEdge-${{ needs.get_version.outputs.version }}-Linux.tar.gz
+        name: WasmEdge-${{ needs.get_version_v1.outputs.version }}-${{ matrix.docker_tag }}.tar.gz
+        path: build/WasmEdge-${{ needs.get_version_v1.outputs.version }}-Linux.tar.gz
 
     - name: Upload artifact
       uses: actions/upload-artifact@v2
       if: ${{ matrix.checkout_version == 'v2' }}
       with:
-        name: WasmEdge-${{ needs.get_version.outputs.version }}-${{ matrix.docker_tag }}.tar.gz
-        path: build/WasmEdge-${{ needs.get_version.outputs.version }}-Linux.tar.gz
+        name: WasmEdge-${{ needs.get_version_v2.outputs.version }}-${{ matrix.docker_tag }}.tar.gz
+        path: build/WasmEdge-${{ needs.get_version_v2.outputs.version }}-Linux.tar.gz
 
   build_macos:
     name: macOS
     runs-on: macos-latest
-    needs: get_version
+    needs: get_version_v2
 
     steps:
     - uses: actions/checkout@v2
@@ -261,13 +276,13 @@ jobs:
     - name: Upload artifact
       uses: actions/upload-artifact@v2
       with:
-        name: WasmEdge-${{ needs.get_version.outputs.version }}-darwin_x86_64.tar.gz
-        path: build/WasmEdge-${{ needs.get_version.outputs.version }}-Darwin.tar.gz
+        name: WasmEdge-${{ needs.get_version_v2.outputs.version }}-darwin_x86_64.tar.gz
+        path: build/WasmEdge-${{ needs.get_version_v2.outputs.version }}-Darwin.tar.gz
 
   build_windows:
     name: Windows 10
     runs-on: windows-latest
-    needs: get_version
+    needs: get_version_v2
     steps:
     - uses: actions/checkout@v2
       with:
@@ -319,12 +334,12 @@ jobs:
     - name: Upload artifact
       uses: actions/upload-artifact@v2
       with:
-        name: WasmEdge-${{ needs.get_version.outputs.version }}-windows.zip
-        path: build\\WasmEdge-${{ needs.get_version.outputs.version }}-Windows.zip
+        name: WasmEdge-${{ needs.get_version_v2.outputs.version }}-windows.zip
+        path: build\\WasmEdge-${{ needs.get_version_v2.outputs.version }}-Windows.zip
 
     - name: Package Windows Installer
       run: |
-        $Env:product_version = ("${{ needs.get_version.outputs.version }}").split("-")[0]
+        $Env:product_version = ("${{ needs.get_version_v2.outputs.version }}").split("-")[0]
         . "$Env:WIX\bin\candle.exe" -arch x64 -o build\wasmedge.wixobj .github\scripts\wasmedge.wxs
         . "$Env:WIX\bin\light.exe" -out build\WasmEdge-$Env:product_version-windows.msi build\wasmedge.wixobj
         echo "product_version=$Env:product_version" | Out-File -FilePath $Env:GITHUB_ENV -Encoding utf8 -Append
@@ -334,3 +349,39 @@ jobs:
       with:
         name: WasmEdge-${{ env.product_version }}-windows.msi
         path: build\\WasmEdge-${{ env.product_version }}-windows.msi
+
+  build_android:
+    name: Android
+    runs-on: ubuntu-latest
+    needs: get_version_v2
+    container:
+      image: wasmedge/wasmedge:latest
+
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
+
+    - name: Install dependency
+      run: |
+        apt update && apt install -y unzip
+        apt remove -y cmake
+        curl -sLO https://github.com/Kitware/CMake/releases/download/v3.22.2/cmake-3.22.2-linux-x86_64.tar.gz
+        tar -zxf cmake-3.22.2-linux-x86_64.tar.gz
+        cp -r cmake-3.22.2-linux-x86_64/bin /usr/local
+        cp -r cmake-3.22.2-linux-x86_64/share /usr/local
+        curl -sLO https://dl.google.com/android/repository/android-ndk-r23b-linux.zip
+        unzip -q android-ndk-r23b-linux.zip
+
+    - name: Build WasmEdge for Android
+      run: |
+        export ANDROID_NDK_HOME=$(pwd)/android-ndk-r23b/
+        cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_BUILD_PACKAGE="TGZ" -DWASMEDGE_BUILD_AOT_RUNTIME=OFF -DCMAKE_SYSTEM_NAME=Android -DCMAKE_SYSTEM_VERSION=23 -DCMAKE_ANDROID_ARCH_ABI=arm64-v8a -DCMAKE_ANDROID_NDK=$ANDROID_NDK_HOME -DCMAKE_ANDROID_STL_TYPE=c++_static
+        cmake --build build
+        cmake --build build --target package
+
+    - name: Upload artifact
+      uses: actions/upload-artifact@v2
+      with:
+        name: WasmEdge-${{ needs.get_version_v2.outputs.version }}-android_aarch64.tar.gz
+        path: build/WasmEdge-${{ needs.get_version_v2.outputs.version }}-Android.tar.gz

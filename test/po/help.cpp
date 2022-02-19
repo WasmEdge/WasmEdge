@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2019-2022 Second State INC
 
-#include "experimental/span.hpp"
 #include "po/argument_parser.h"
 #include "po/list.h"
 #include "po/option.h"
 #include "po/subcommand.h"
-#include "gtest/gtest.h"
-#include <numeric>
+#include <array>
+#include <gtest/gtest.h>
+#include <string_view>
 #include <vector>
 
 using namespace WasmEdge::PO;

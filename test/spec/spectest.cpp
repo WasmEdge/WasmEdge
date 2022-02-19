@@ -24,14 +24,20 @@
 #endif
 
 #include "spectest.h"
-
 #include "common/log.h"
-#include "rapidjson/document.h"
-#include "rapidjson/istreamwrapper.h"
-#include "gtest/gtest.h"
 
+#include <algorithm>
 #include <cmath>
+#include <cstddef>
+#include <cstdint>
 #include <fstream>
+#include <gtest/gtest.h>
+#include <iterator>
+#include <map>
+#include <memory>
+#include <rapidjson/document.h>
+#include <rapidjson/istreamwrapper.h>
+#include <unordered_map>
 
 namespace {
 

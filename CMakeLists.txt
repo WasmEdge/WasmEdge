@@ -68,6 +68,7 @@ set(WASMEDGE_BUILD_PACKAGE "DEB;RPM" CACHE STRING "Package generate types")
 set(CPACK_PROJECT_CONFIG_FILE ${CMAKE_CURRENT_SOURCE_DIR}/cmake/cpack_config.cmake)
 
 if(WASMEDGE_BUILD_COVERAGE)
+  set(GCOVR_ADDITIONAL_ARGS "--exclude-unreachable-branches;--exclude-throw-branches")
   include(CodeCoverage)
   append_coverage_compiler_flags()
 endif()

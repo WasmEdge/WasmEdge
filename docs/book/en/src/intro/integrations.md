@@ -22,7 +22,7 @@ WasmEdge provides an OCI compliant interface. You can use container tools, such 
 
 ## Call native host functions from WasmEdge
 
-A key feature of WasmEdge is its extensibility. WasmEdge APIs allow developers to register "host functions" from any shared library into a WasmEdge instance, and then call these functions from the WebAssembly bytecode program. 
+A key feature of WasmEdge is its extensibility. WasmEdge APIs allow developers to register "host functions" from any shared library into a WasmEdge instance, and then call these functions from the WebAssembly bytecode program.
 
 * The WasmEdge C API supports the [C host functions](../embed/c/ref.md#host-functions).
 * The WasmEdge Go API supports the [Go host functions](../embed/go/ref.md#host-functions).

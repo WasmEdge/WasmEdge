@@ -3,11 +3,14 @@
 
 #include "executor/executor.h"
 
+#include <cstdint>
+
 namespace WasmEdge {
 namespace Executor {
 
 // Instantiate memory instance. See "include/executor/executor.h".
 Expect<void> Executor::instantiate(Runtime::StoreManager &StoreMgr,
+                                   Runtime::StackManager &,
                                    Runtime::Instance::ModuleInstance &ModInst,
                                    const AST::MemorySection &MemSec) {
   // Prepare pointers vector for compiled functions.

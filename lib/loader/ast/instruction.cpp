@@ -3,6 +3,10 @@
 
 #include "loader/loader.h"
 
+#include <cstdint>
+#include <utility>
+#include <vector>
+
 namespace WasmEdge {
 namespace Loader {
 

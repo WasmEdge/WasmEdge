@@ -1,8 +1,12 @@
 // SPDX-License-Identifier: CC0-1.0
-#include "gtest/gtest.h"
+#include <cstdint>
 #include <experimental/expected.hpp>
+#include <gtest/gtest.h>
 #include <memory>
 #include <string>
+#include <type_traits>
+#include <utility>
+#include <vector>
 
 static cxx20::expected<int, std::string> getInt3(int val) { return val; }
 

@@ -8,16 +8,19 @@
 #include "common/filesystem.h"
 #include "common/log.h"
 
+#include <algorithm>
+#include <array>
 #include <charconv>
 #include <cinttypes>
+#include <cstdint>
 #include <cstdlib>
+#include <limits>
 #include <lld/Common/Driver.h>
 #include <llvm/Analysis/TargetLibraryInfo.h>
 #include <llvm/IR/IRBuilder.h>
 #include <llvm/IR/LegacyPassManager.h>
 #include <llvm/IR/Verifier.h>
 #include <llvm/MC/SubtargetFeature.h>
-#include <llvm/Object/COFF.h>
 #include <llvm/Object/ObjectFile.h>
 #include <llvm/Passes/PassBuilder.h>
 #include <llvm/Support/FileSystem.h>
@@ -27,8 +30,15 @@
 #include <llvm/Target/TargetMachine.h>
 #include <llvm/Transforms/IPO/AlwaysInliner.h>
 #include <llvm/Transforms/Utils/BasicBlockUtils.h>
-
+#include <memory>
 #include <numeric>
+#include <string>
+#include <string_view>
+#include <system_error>
+
+#if WASMEDGE_OS_WINDOWS
+#include <llvm/Object/COFF.h>
+#endif
 
 #if LLVM_VERSION_MAJOR >= 12
 #include <llvm/Analysis/AliasAnalysis.h>
@@ -536,7 +546,7 @@ public:
 
       if (GasMeasuring) {
         LocalGas = Builder.CreateAlloca(Context.Int64Ty);
-        readGas();
+        Builder.CreateStore(Builder.getInt64(0), LocalGas);
       }
 
       for (llvm::Argument *Arg = F->arg_begin() + 1; Arg != F->arg_end();
@@ -583,7 +593,7 @@ public:
     for (auto &[Error, BB] : TrapBB) {
       Builder.SetInsertPoint(BB);
       updateInstrCount();
-      writeGas();
+      updateGas();
       auto *CallTrap = Builder.CreateCall(
           Context.Trap, {Builder.getInt8(static_cast<uint8_t>(Error))});
       CallTrap->setDoesNotReturn();
@@ -617,6 +627,7 @@ public:
         enterBlock(EndBlock, nullptr, nullptr, std::move(Args),
                    std::move(Type));
         checkStop();
+        updateGas();
         return;
       }
       case OpCode::Loop: {
@@ -648,6 +659,7 @@ public:
         }
         enterBlock(Loop, EndLoop, nullptr, std::move(Args), std::move(Type));
         checkStop();
+        updateGas();
         return;
       }
       case OpCode::If: {
@@ -760,12 +772,12 @@ public:
       }
       case OpCode::Call:
         updateInstrCount();
-        writeGas();
+        updateGas();
         compileCallOp(Instr.getTargetIndex());
         break;
       case OpCode::Call_indirect:
         updateInstrCount();
-        writeGas();
+        updateGas();
         compileIndirectCallOp(Instr.getSourceIndex(), Instr.getTargetIndex());
         break;
       case OpCode::Ref__null:
@@ -2701,11 +2713,12 @@ public:
       if (LocalGas) {
         auto *NewGas = Builder.CreateAdd(
             Builder.CreateLoad(Context.Int64Ty, LocalGas),
-            Builder.CreateLoad(Context.Int64Ty,
-                               Builder.CreateConstInBoundsGEP2_64(
-                                   Context.Int64PtrTy,
-                                   Context.getCostTable(Builder, ExecCtx), 0,
-                                   uint16_t(Instr.getOpCode()))));
+            Builder.CreateLoad(
+                Context.Int64Ty,
+                Builder.CreateConstInBoundsGEP2_64(
+                    llvm::ArrayType::get(Context.Int64Ty, UINT16_MAX + 1),
+                    Context.getCostTable(Builder, ExecCtx), 0,
+                    uint16_t(Instr.getOpCode()))));
         Builder.CreateStore(NewGas, LocalGas);
       }
 
@@ -2868,7 +2881,7 @@ public:
 
   void compileReturn() {
     updateInstrCount();
-    writeGas();
+    updateGas();
     auto *Ty = F->getReturnType();
     if (Ty->isVoidTy()) {
       Builder.CreateRetVoid();
@@ -2887,28 +2900,27 @@ public:
 
   void updateInstrCount() {
     if (LocalInstrCount) {
-      auto *Ptr = Context.getInstrCount(Builder, ExecCtx);
-      Builder.CreateStore(
-          Builder.CreateAdd(
-              Builder.CreateLoad(Context.Int64Ty, LocalInstrCount),
-              Builder.CreateLoad(Context.Int64Ty, Ptr)),
-          Ptr);
+      Builder.CreateAtomicRMW(
+          llvm::AtomicRMWInst::BinOp::Add,
+          Context.getInstrCount(Builder, ExecCtx),
+          Builder.CreateLoad(Context.Int64Ty, LocalInstrCount),
+#if LLVM_VERSION_MAJOR >= 13
+          llvm::MaybeAlign(8),
+#endif
+          llvm::AtomicOrdering::Monotonic);
       Builder.CreateStore(Builder.getInt64(0), LocalInstrCount);
     }
   }
 
-  void readGas() {
+  void updateGas() {
     if (LocalGas) {
-      Builder.CreateStore(
-          Builder.CreateLoad(Context.Int64Ty, Context.getGas(Builder, ExecCtx)),
-          LocalGas);
-    }
-  }
-
-  void writeGas() {
-    if (LocalGas) {
-      Builder.CreateStore(Builder.CreateLoad(Context.Int64Ty, LocalGas),
-                          Context.getGas(Builder, ExecCtx));
+      Builder.CreateAtomicRMW(llvm::AtomicRMWInst::BinOp::Add,
+                              Context.getGas(Builder, ExecCtx),
+                              Builder.CreateLoad(Context.Int64Ty, LocalGas),
+#if LLVM_VERSION_MAJOR >= 13
+                              llvm::MaybeAlign(8),
+#endif
+                              llvm::AtomicOrdering::Monotonic);
     }
   }
 
@@ -2937,12 +2949,14 @@ private:
     } else {
       stackPush(Ret);
     }
-
-    readGas();
   }
 
   void compileIndirectCallOp(const uint32_t TableIndex,
                              const uint32_t FuncTypeIndex) {
+    auto *NotNullBB = llvm::BasicBlock::Create(LLContext, "c_i.not_null", F);
+    auto *IsNullBB = llvm::BasicBlock::Create(LLContext, "c_i.is_null", F);
+    auto *EndBB = llvm::BasicBlock::Create(LLContext, "c_i.end", F);
+
     llvm::Value *FuncIndex = stackPop();
     const auto &FuncType = *Context.FunctionTypes[FuncTypeIndex];
     auto *FTy = toLLVMType(Context.ExecCtxPtrTy, FuncType);
@@ -2951,64 +2965,112 @@ private:
     const size_t ArgSize = FuncType.getParamTypes().size();
     const size_t RetSize =
         RTy->isVoidTy() ? 0 : FuncType.getReturnTypes().size();
-
-    llvm::Value *Args;
-    if (ArgSize == 0) {
-      Args = llvm::ConstantPointerNull::get(Builder.getInt8PtrTy());
-    } else {
-      auto *Alloca = Builder.CreateAlloca(Builder.getInt8Ty(),
-                                          Builder.getInt64(ArgSize * kValSize));
-      Alloca->setAlignment(Align(kValSize));
-      Args = Alloca;
-    }
-
-    llvm::Value *Rets;
-    if (RetSize == 0) {
-      Rets = llvm::ConstantPointerNull::get(Builder.getInt8PtrTy());
-    } else {
-      auto *Alloca = Builder.CreateAlloca(Builder.getInt8Ty(),
-                                          Builder.getInt64(RetSize * kValSize));
-      Alloca->setAlignment(Align(kValSize));
-      Rets = Alloca;
-    }
-
+    std::vector<llvm::Value *> ArgsVec(ArgSize + 1, nullptr);
+    ArgsVec[0] = F->arg_begin();
     for (size_t I = 0; I < ArgSize; ++I) {
-      const size_t J = ArgSize - 1 - I;
-      auto *Arg = stackPop();
-      auto *Ptr = Builder.CreateConstInBoundsGEP1_64(Context.Int8Ty, Args,
-                                                     J * kValSize);
-      Builder.CreateStore(
-          Arg, Builder.CreateBitCast(Ptr, Arg->getType()->getPointerTo()));
+      const size_t J = ArgSize - I;
+      ArgsVec[J] = stackPop();
     }
 
-    Builder.CreateCall(
-        Context.getIntrinsic(
-            Builder, AST::Module::Intrinsics::kCallIndirect,
-            llvm::FunctionType::get(Context.VoidTy,
-                                    {Context.Int32Ty, Context.Int32Ty,
-                                     Context.Int32Ty, Context.Int8PtrTy,
-                                     Context.Int8PtrTy},
-                                    false)),
-        {Builder.getInt32(TableIndex), Builder.getInt32(FuncTypeIndex),
-         FuncIndex, Args, Rets});
+    std::vector<llvm::Value *> FPtrRetsVec;
+    FPtrRetsVec.reserve(RetSize);
+    {
+      auto *FPtr = Builder.CreateCall(
+          Context.getIntrinsic(
+              Builder, AST::Module::Intrinsics::kPtrFunc,
+              llvm::FunctionType::get(
+                  FTy->getPointerTo(),
+                  {Context.Int32Ty, Context.Int32Ty, Context.Int32Ty}, false)),
+          {Builder.getInt32(TableIndex), Builder.getInt32(FuncTypeIndex),
+           FuncIndex});
+      Builder.CreateCondBr(
+          createLikely(Builder, Builder.CreateNot(Builder.CreateIsNull(FPtr))),
+          NotNullBB, IsNullBB);
+      Builder.SetInsertPoint(NotNullBB);
 
-    if (RetSize == 0) {
-      // nothing to do
-    } else if (RetSize == 1) {
-      auto *VPtr = Builder.CreateConstInBoundsGEP1_64(Context.Int8Ty, Rets, 0);
-      auto *Ptr = Builder.CreateBitCast(VPtr, RTy->getPointerTo());
-      stackPush(Builder.CreateLoad(RTy, Ptr));
-    } else {
-      for (unsigned I = 0; I < RetSize; ++I) {
-        auto *VPtr = Builder.CreateConstInBoundsGEP1_64(Context.Int8Ty, Rets,
-                                                        I * kValSize);
-        auto *Ptr = Builder.CreateBitCast(
-            VPtr, RTy->getStructElementType(I)->getPointerTo());
-        stackPush(Builder.CreateLoad(RTy->getStructElementType(I), Ptr));
+      auto *FPtrRet =
+          Builder.CreateCall(llvm::FunctionCallee(FTy, FPtr), ArgsVec);
+      if (RetSize == 0) {
+        // nothing to do
+      } else if (RetSize == 1) {
+        FPtrRetsVec.push_back(FPtrRet);
+      } else {
+        for (auto *Val : unpackStruct(Builder, FPtrRet)) {
+          FPtrRetsVec.push_back(Val);
+        }
       }
     }
 
-    readGas();
+    Builder.CreateBr(EndBB);
+    Builder.SetInsertPoint(IsNullBB);
+
+    std::vector<llvm::Value *> RetsVec(RetSize);
+    {
+      llvm::Value *Args;
+      if (ArgSize == 0) {
+        Args = llvm::ConstantPointerNull::get(Builder.getInt8PtrTy());
+      } else {
+        auto *Alloca = Builder.CreateAlloca(
+            Builder.getInt8Ty(), Builder.getInt64(ArgSize * kValSize));
+        Alloca->setAlignment(Align(kValSize));
+        Args = Alloca;
+      }
+
+      llvm::Value *Rets;
+      if (RetSize == 0) {
+        Rets = llvm::ConstantPointerNull::get(Builder.getInt8PtrTy());
+      } else {
+        auto *Alloca = Builder.CreateAlloca(
+            Builder.getInt8Ty(), Builder.getInt64(RetSize * kValSize));
+        Alloca->setAlignment(Align(kValSize));
+        Rets = Alloca;
+      }
+
+      for (size_t I = 0; I < ArgSize; ++I) {
+        auto *Ptr = Builder.CreateConstInBoundsGEP1_64(Context.Int8Ty, Args,
+                                                       I * kValSize);
+        auto *Arg = ArgsVec[I + 1];
+        Builder.CreateStore(
+            Arg, Builder.CreateBitCast(Ptr, Arg->getType()->getPointerTo()));
+      }
+
+      Builder.CreateCall(
+          Context.getIntrinsic(
+              Builder, AST::Module::Intrinsics::kCallIndirect,
+              llvm::FunctionType::get(Context.VoidTy,
+                                      {Context.Int32Ty, Context.Int32Ty,
+                                       Context.Int32Ty, Context.Int8PtrTy,
+                                       Context.Int8PtrTy},
+                                      false)),
+          {Builder.getInt32(TableIndex), Builder.getInt32(FuncTypeIndex),
+           FuncIndex, Args, Rets});
+
+      if (RetSize == 0) {
+        // nothing to do
+      } else if (RetSize == 1) {
+        auto *VPtr =
+            Builder.CreateConstInBoundsGEP1_64(Context.Int8Ty, Rets, 0);
+        auto *Ptr = Builder.CreateBitCast(VPtr, RTy->getPointerTo());
+        RetsVec[0] = Builder.CreateLoad(RTy, Ptr);
+      } else {
+        for (unsigned I = 0; I < RetSize; ++I) {
+          auto *VPtr = Builder.CreateConstInBoundsGEP1_64(Context.Int8Ty, Rets,
+                                                          I * kValSize);
+          auto *Ptr = Builder.CreateBitCast(
+              VPtr, RTy->getStructElementType(I)->getPointerTo());
+          RetsVec[I] = Builder.CreateLoad(RTy->getStructElementType(I), Ptr);
+        }
+      }
+      Builder.CreateBr(EndBB);
+      Builder.SetInsertPoint(EndBB);
+    }
+
+    for (unsigned I = 0; I < RetSize; ++I) {
+      auto *PHIRet = Builder.CreatePHI(FPtrRetsVec[I]->getType(), 2);
+      PHIRet->addIncoming(FPtrRetsVec[I], NotNullBB);
+      PHIRet->addIncoming(RetsVec[I], IsNullBB);
+      stackPush(PHIRet);
+    }
   }
 
   void compileLoadOp(unsigned MemoryIndex, unsigned Offset, unsigned Alignment,
@@ -3761,7 +3823,7 @@ private:
         llvm::AtomicRMWInst::BinOp::Xchg,
         Context.getStopToken(Builder, ExecCtx), Builder.getInt32(0),
 #if LLVM_VERSION_MAJOR >= 13
-        llvm::MaybeAlign(),
+        llvm::MaybeAlign(4),
 #endif
         llvm::AtomicOrdering::Monotonic);
     auto *NotStop = createLikely(
@@ -4218,6 +4280,7 @@ Expect<void> Compiler::compile(Span<const Byte> Data, const AST::Module &Module,
                                std::filesystem::path OutputPath) {
   using namespace std::literals;
 
+  std::unique_lock Lock(Mutex);
   spdlog::info("compile start");
   std::filesystem::path LLPath(OutputPath);
   LLPath.replace_extension("ll"sv);

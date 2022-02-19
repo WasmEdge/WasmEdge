@@ -31,13 +31,13 @@ fn main() {
 }
 ```
 
-### Build the WASM bytecode
+### Hello world: Build the WASM bytecode
 
 ```bash
 cargo build --target wasm32-wasi
 ```
 
-### Run the application from command line
+### Hello world: Run the application from command line
 
 We will use the `wasmedge` command to run the program.
 
@@ -63,13 +63,13 @@ pub fn add(a: i32, b: i32) -> i32 {
 }
 ```
 
-### Build the WASM bytecode
+### A simple function: Build the WASM bytecode
 
 ```bash
 cargo build --target wasm32-wasi
 ```
 
-### Run the application from command line
+### A simple function: Run the application from command line
 
 We will use `wasmedge` in reactor mode to run the program. We pass the function name and its input parameters as command line arguments.
 
@@ -78,7 +78,7 @@ $ wasmedge --reactor target/wasm32-wasi/debug/add.wasm add 2 2
 4
 ```
 
-### Pass complex call parameters
+## Pass complex call parameters
 
 Of course, in most cases, you will not call functions using CLI arguments.
 Instead, you will probably need to use a [language SDK from WasmEdge](../../embed.md)

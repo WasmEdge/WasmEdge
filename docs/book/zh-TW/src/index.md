@@ -10,20 +10,20 @@
 您的環境必須已有安裝 `git` 和 `curl` 。
 
 ```bash
-$ curl -sSf https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh | bash
+curl -sSf https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh | bash
 ```
 
 若您想安裝附帶有 [Tensorflow 與 image 擴充](https://www.secondstate.io/articles/wasi-tensorflow/) 的 WasmEdge ，請執行以下指令。
 下列指令將嘗試在您的系統安裝 Tensorflow 與 image 相關的相依函式庫。
 
 ```bash
-$ curl -sSf https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh | bash -s -- -e all
+curl -sSf https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh | bash -s -- -e all
 ```
 
 執行以下指令可以讓已安裝的 WasmEdge 執行檔與函式庫在當前 session 加入 `PATH` 路徑中。
 
 ```bash
-$ source $HOME/.wasmedge/env
+source $HOME/.wasmedge/env
 ```
 
 ## 使用 Docker

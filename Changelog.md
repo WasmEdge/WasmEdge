@@ -1,4 +1,4 @@
-### 0.9.1 (unreleased)
+### 0.9.1 (2022-02-10)
 
 Features:
 
@@ -62,14 +62,14 @@ Misc:
 * Added the copyright text.
 * Fixed the coding style of the comments.
 * Added the Windows installer release CI.
-
+* Added the aarch64 Android support based on r23b.
+* Added the Android example for WasmEdge C API.
 
 Thank all the contributors that made this release possible!
 
-2021, Antonio Yang, AvengerMoJo, Harinath Nampally, KernelErr, Michael Yuan, O3Ol, Shen-Ta Hsieh, Shreyas Atre, SonOfMagic, Stephan Renatus, Sven Pfennig, Vaughn Dice, Xin Liu, YiYing He, Yukang Chen, alabulei1, alittlehorse, hydai, wangshishuo, wolfishLamb
+2021, Antonio Yang, AvengerMoJo, Hanged Fish, Harinath Nampally, KernelErr, Michael Yuan, MileyFu, O3Ol, Saksham Sharma, Shen-Ta Hsieh(BestSteve), Shreyas Atre, SonOfMagic, Stephan Renatus, Sven Pfennig, Vaughn Dice, Xin Liu, Yi, Yi-Ying He, Yukang Chen, ZefengYu, ZhengX, alabulei1, alittlehorse, baiyutang, 董哲, hydai, javadoors, majinghe, meoww-bot, pasico, peterbi, villanel, wangshishuo, wangyuan249, wby, wolfishLamb, 王琦
 
-
-If you want to build from source, please use WasmEdge-0.9.1-beta.1-src.tar.gz instead of the zip or tarball provided by GitHub directly.
+If you want to build from source, please use WasmEdge-0.9.1-src.tar.gz instead of the zip or tarball provided by GitHub directly.
 
 ### 0.9.0 (2021-12-09)
 
@@ -254,11 +254,9 @@ Misc:
 * Enabled GitHub CodeSpaces
 * Added `assuming` for `assert` checking to help compiler to generate better codes.
 
-
 Thank all the contributors that made this release possible!
 
 2021, actly, alabulei1, Alex, Antonio Yang, Ashutosh Sharma, Avinal Kumar, blackanger, Chojan Shang, dm4, eee4017, fossabot, hydai, Jayita Pramanik, Kenvi Zhu, luishsu, LuisHsu, MaazKhan711635, Michael Yuan, MileyFu, Nick Hynes, O3Ol, Peter Chang, robnanarivo, Shen-Ta Hsieh, Shreyas Atre, slidoooor, Sylveon, Timothy McCallum, Vikas S Shetty, vincent, Xin Liu, Yi Huang, yiying, YiYing He, Yona, Yukang, 牟展佑
-
 
 If you want to build from source, please use WasmEdge-0.9.0-src.tar.gz instead of the zip or tarball provided by GitHub directly.
 
@@ -645,7 +643,6 @@ Tests:
 
 * Applied new test suite of the reference types and bulk memory operation proposal for AOT.
 
-
 ### 0.7.0 (2020-10-16)
 
 Features:
@@ -806,7 +803,6 @@ Refactor:
 * Refactored instruction classes for supporting 2-byte instructions.
 * Refined corresponding switch cases in validator, interpreter, and AOT.
 
-
 ### 0.6.3 (2020-07-23)
 
 This is a bug-fix release for the wasi component.
@@ -814,7 +810,6 @@ This is a bug-fix release for the wasi component.
 Fixed Issues:
 
 * Change the fd number remap mechanism from static offset to dynamic map.
-
 
 ### 0.6.2 (2020-07-22)
 
@@ -876,7 +871,6 @@ Tools:
 
 * CI: Update base image from Ubuntu 18.04 to Ubuntu 20.04
 
-
 ### 0.6.1 (2020-06-24)
 
 Features:
@@ -886,6 +880,7 @@ Features:
   * Apply error logging in every phase.
 
 Refactor:
+
 * Internal tuple span mechanism
   * Apply C++20 `span` features instead of `std::vector &`.
 * Internal string passing mechanism
@@ -897,6 +892,7 @@ Refactor:
   * Pass pointer instead of reference of memory instance to allow `nullptr`.
 
 Fixed Issues:
+
 * Instantiation Phase
   * Fixed boundary checking bugs when initializing data sections.
 * Function invocation
@@ -1110,7 +1106,6 @@ Tests:
     * Approve
     * Check allowance
 
-
 ### 0.3.2 (2020-01-09)
 
 Fixed issues:
@@ -1128,7 +1123,6 @@ Fixed issues:
   * Add `argument_types` and `return_types` in input JSON format.
 * Expand home directory path
   * Accept ~ in the file path
-
 
 ### 0.3.0 (2019-12-27)
 
@@ -1149,7 +1143,6 @@ Tools:
   * SSVM-PROXY is a component of [SSVMRPC service](https://github.com/second-state/SSVMRPC).
   * SSVM-PROXY can archive current execution states and serialize these data into output JSON format.
   * SSVM-PROXY can restore previous program states from input JSON format.
-
 
 ### 0.2.0 (2019-12-18)
 
@@ -1186,7 +1179,6 @@ Tools:
 * Sub-project General Wasi Support
   * SSVM tool provides basic Wasi functions support, such as print function.
 
-
 ### 0.1.0 (2019-11-29)
 
 Features:
@@ -1203,4 +1195,3 @@ Runtime:
 Test:
 
 * Support ERC20 token contracts
-

@@ -154,6 +154,8 @@ jobs:
           export PATH="/usr/local/opt/llvm/bin:$PATH"
           export LDFLAGS="-L/usr/local/opt/llvm/lib -Wl,-rpath,/usr/local/opt/llvm/lib"
           export CPPFLAGS="-I/usr/local/opt/llvm/include"
+          export CC=clang
+          export CXX=clang++
           rm -rf build
           cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_BUILD_PACKAGE="TGZ" .
           cmake --build build
@@ -386,3 +388,43 @@ jobs:
         asset_path: build\\WasmEdge-${{ needs.create_release.outputs.version }}-windows.msi
         asset_name: WasmEdge-${{ needs.create_release.outputs.version }}-windows.msi
         asset_content_type: application/octet-stream
+
+  build_android:
+    name: Android
+    runs-on: ubuntu-latest
+    needs: create_release
+    container:
+      image: wasmedge/wasmedge:latest
+
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
+
+    - name: Install dependency
+      run: |
+        apt update && apt install -y unzip
+        apt remove -y cmake
+        curl -sLO https://github.com/Kitware/CMake/releases/download/v3.22.2/cmake-3.22.2-linux-x86_64.tar.gz
+        tar -zxf cmake-3.22.2-linux-x86_64.tar.gz
+        cp -r cmake-3.22.2-linux-x86_64/bin /usr/local
+        cp -r cmake-3.22.2-linux-x86_64/share /usr/local
+        curl -sLO https://dl.google.com/android/repository/android-ndk-r23b-linux.zip
+        unzip -q android-ndk-r23b-linux.zip
+
+    - name: Build WasmEdge for Android
+      run: |
+        export ANDROID_NDK_HOME=$(pwd)/android-ndk-r23b/
+        cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_BUILD_PACKAGE="TGZ" -DWASMEDGE_BUILD_AOT_RUNTIME=OFF -DCMAKE_SYSTEM_NAME=Android -DCMAKE_SYSTEM_VERSION=23 -DCMAKE_ANDROID_ARCH_ABI=arm64-v8a -DCMAKE_ANDROID_NDK=$ANDROID_NDK_HOME -DCMAKE_ANDROID_STL_TYPE=c++_static
+        cmake --build build
+        cmake --build build --target package
+
+    - name: Upload tar.gz package
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ needs.create_release.outputs.upload_url }}
+        asset_path: build/WasmEdge-${{ needs.create_release.outputs.version }}-Android.tar.gz
+        asset_name: WasmEdge-${{ needs.create_release.outputs.version }}-android_aarch64.tar.gz
+        asset_content_type: application/x-gzip

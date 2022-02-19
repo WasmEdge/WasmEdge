@@ -14,7 +14,9 @@
 
 #include "loader/loader.h"
 
-#include "gtest/gtest.h"
+#include <cstdint>
+#include <gtest/gtest.h>
+#include <vector>
 
 // AST::Limit test is contained in AST::MemoryType.
 

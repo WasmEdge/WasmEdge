@@ -19,6 +19,7 @@
 * [rustwasmc 编译器工具链](/dev/rust/bindgen.md)
 
 ### Docker
+
 最简单的启动方式就是使用 Docker 来搭建开发环境。只需要[克隆这个模板](https://github.com/second-state/wasmedge-nodejs-starter/)到你的电脑，然后运行如下 Docker 命令：
 
 ```bash
@@ -60,13 +61,14 @@ $ sudo apt install -y build-essential curl wget git vim libboost-all-dev llvm-de
 $ npm install wasmedge-core
 $ npm install wasmedge-extensions
 ```
+
 > WasmEdge Runtime 需要最新版本的 `libstdc++`。 Ubuntu 20.04 LTS 已经有最新的库了。 如果你使用的是比较老的 Linux 发行版中，有一些选项需要升级，[更详细的信息在这儿](https://www.secondstate.io/articles/ubuntu-req-ssvm-20200715/)。
 
 然后，克隆示例源代码仓库。
 
 ```bash
-$ git clone https://github.com/second-state/wasmedge-nodejs-starter
-$ cd wasmedge-nodejs-starter
+git clone https://github.com/second-state/wasmedge-nodejs-starter
+cd wasmedge-nodejs-starter
 ```
 
 ## Hello World
@@ -90,8 +92,9 @@ pub fn say(s: String) -> String {
 然后你可以将 Rust 源代码编译成 WebAssembly 字节码，并且生成相应的 JavaScript 模块供 Node.js host 环境调用。
 
 ```bash
-$ rustwasmc build
+rustwasmc build
 ```
+
 生成的文件在 `pkg/` 目录下，`.wasm` 文件是 WebAssembly 字节码程序，`.js` 文件是 JavaScript 模块。
 
 ### Node.js host 应用程序
@@ -133,6 +136,7 @@ hello Wasm
 ```
 
 ## 完整的 web 应用程序
+
 下面的例子展示了一个计算二次方程根的 web 应用程序，请在这里查看[完整源代码](https://github.com/second-state/wasm-learning/tree/master/nodejs/quadratic).
 
 用户在 web 表单中输入 `a`, `b`, `c` 三个值，web 应用程序调用 web 服务 `/solve`，计算出二次方程的根。
@@ -140,9 +144,10 @@ hello Wasm
 ```src
 a*X^2 + b*X + c = 0
 ```
+
 `X` 的根展示在输入表单下面。
 
-![](/articles/getting-started-with-rust-function-01.png)
+![getting-started-with-rust-function](https://www.secondstate.io/articles/getting-started-with-rust-function-01.png)
 
 [HTML 文件](https://github.com/second-state/wasm-learning/blob/master/nodejs/quadratic/node/public/index.html) 包含提交 web 表单到 `/solve` 的客户端 JavaScript，并且将结果放到页面的 `#roots` HTML 元素里。
 
@@ -156,6 +161,7 @@ $(function() {
     $('#solve').ajaxForm(options);
 });
 ```
+
 `/solve` URL 端点后的 [Node.js 应用程序](https://github.com/second-state/wasm-learning/blob/master/nodejs/quadratic/node/server.js)如下所示。他从输入表单中读取数据，将他们作为数组传递给 `solve` 函数，将返回结果放到 HTTP 返回内容中。
 
 ```javascript
@@ -188,9 +194,9 @@ pub fn solve(params: &str) -> String {
 让我们试试。
 
 ```bash
-$ rustwasmc build
-$ npm install express # 这个应用程序需要 Node.js 的 express 框架
-$ node node/server.js
+rustwasmc build
+npm install express # 这个应用程序需要 Node.js 的 express 框架
+node node/server.js
 ```
 
 在 web 浏览器中，输入 `http://ip-addr:8080/` 来获取应用程序。注意：如果你使用的是 Docker，确保 Docker 容器中的 8080 端口映射到宿主的 8080 端口。
@@ -203,7 +209,7 @@ $ node node/server.js
 
 * Rust 调用参数可以是 `i32`、`String`、`&str`、`Vec<u8>` 和 `&[u8]` 的组合。
 * 返回值可能是 `i32` 或者 `String` 或者 `Vec<u8>` 或者 void。
-* 对于复杂的数据结构，比如结构体，你可以使用 JSON 字符串来传递数据。 
+* 对于复杂的数据结构，比如结构体，你可以使用 JSON 字符串来传递数据。
 
 > 支持了 JSON，你可以用任意数量的输入参数调用 Rust 函数，并返回任意数量、任意类型的结果。
 
@@ -237,8 +243,8 @@ pub fn keccak_digest(s: &[u8]) -> Vec<u8> {
   return Keccak256::digest(s).as_slice().to_vec();
 }
 ```
-最有意思的可能是 `create_line()` 函数。它需要两个 JSON 字符串，每一个都代表一个 `Point` 结构，返回一个 JSON 字符串代表 `Line` 结构。注意，`Point` 和 `Line` 结构都使用了 `Serialize` 和 `Deserialize` 注解，这样 Rust 编译器就会自动生成必要的代码来支持和 JSON 字符串之间的转换。
 
+最有意思的可能是 `create_line()` 函数。它需要两个 JSON 字符串，每一个都代表一个 `Point` 结构，返回一个 JSON 字符串代表 `Line` 结构。注意，`Point` 和 `Line` 结构都使用了 `Serialize` 和 `Deserialize` 注解，这样 Rust 编译器就会自动生成必要的代码来支持和 JSON 字符串之间的转换。
 
 ```rust
 use wasm_bindgen::prelude::*;
@@ -275,8 +281,8 @@ pub fn say(s: &str) -> String {
   return r + s;
 }
 ```
-然后，让我们来检查下 JavaScript 程序 [`app.js`](https://github.com/second-state/wasm-learning/blob/master/nodejs/functions/node/app.js)，它展示了如何调用 Rust 函数。你可以看到，`String` 和 `&str` 在 JavaScript 是简单的字符串，`i32` 是数字，`Vec<u8>` 或者 `&[8]` 是 JavaScript `Uint8Array`。JavaScript 对象在传入或者从 Rust 函数结果返回需要通过 `JSON.stringify()` 或者 `JSON.parse()` 转换。
 
+然后，让我们来检查下 JavaScript 程序 [`app.js`](https://github.com/second-state/wasm-learning/blob/master/nodejs/functions/node/app.js)，它展示了如何调用 Rust 函数。你可以看到，`String` 和 `&str` 在 JavaScript 是简单的字符串，`i32` 是数字，`Vec<u8>` 或者 `&[8]` 是 JavaScript `Uint8Array`。JavaScript 对象在传入或者从 Rust 函数结果返回需要通过 `JSON.stringify()` 或者 `JSON.parse()` 转换。
 
 ```javascript
 const { say, obfusticate, lowest_common_denominator, sha3_digest, keccak_digest, create_line } = require('./functions_lib.js');

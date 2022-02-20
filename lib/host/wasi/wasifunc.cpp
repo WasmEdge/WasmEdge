@@ -274,6 +274,41 @@ cast<__wasi_sock_type_t>(uint64_t SockType) noexcept {
   }
 }
 
+template <>
+WASI::WasiExpect<__wasi_sock_opt_level_t>
+cast<__wasi_sock_opt_level_t>(uint64_t SockOptLevel) noexcept {
+  switch (WasiRawTypeT<__wasi_sock_opt_level_t>(SockOptLevel)) {
+  case __WASI_SOCK_OPT_LEVEL_SOL_SOCKET:
+    return static_cast<__wasi_sock_opt_level_t>(SockOptLevel);
+  default:
+    return WASI::WasiUnexpect(__WASI_ERRNO_INVAL);
+  }
+}
+
+template <>
+WASI::WasiExpect<__wasi_sock_opt_so_t>
+cast<__wasi_sock_opt_so_t>(uint64_t SockOptName) noexcept {
+  switch (WasiRawTypeT<__wasi_sock_opt_so_t>(SockOptName)) {
+  case __WASI_SOCK_OPT_SO_REUSEADDR:
+  case __WASI_SOCK_OPT_SO_TYPE:
+  case __WASI_SOCK_OPT_SO_ERROR:
+  case __WASI_SOCK_OPT_SO_DONTROUTE:
+  case __WASI_SOCK_OPT_SO_BROADCAST:
+  case __WASI_SOCK_OPT_SO_SNDBUF:
+  case __WASI_SOCK_OPT_SO_RCVBUF:
+  case __WASI_SOCK_OPT_SO_KEEPALIVE:
+  case __WASI_SOCK_OPT_SO_OOBINLINE:
+  case __WASI_SOCK_OPT_SO_LINGER:
+  case __WASI_SOCK_OPT_SO_RCVLOWAT:
+  case __WASI_SOCK_OPT_SO_RCVTIMEO:
+  case __WASI_SOCK_OPT_SO_SNDTIMEO:
+  case __WASI_SOCK_OPT_SO_ACCEPTCONN:
+    return static_cast<__wasi_sock_opt_so_t>(SockOptName);
+  default:
+    return WASI::WasiUnexpect(__WASI_ERRNO_INVAL);
+  }
+}
+
 } // namespace
 
 Expect<uint32_t> WasiArgsGet::body(Runtime::Instance::MemoryInstance *MemInst,
@@ -1853,11 +1888,24 @@ Expect<uint32_t> WasiSockShutdown::body(Runtime::Instance::MemoryInstance *,
 
 Expect<uint32_t>
 WasiSockGetOpt::body(Runtime::Instance::MemoryInstance *MemInst, int32_t Fd,
-                     int32_t Level, int32_t Name, uint32_t FlagPtr,
-                     uint32_t FlagSizePtr) {
-
+                     uint32_t SockOptLevel, uint32_t SockOptName,
+                     uint32_t FlagPtr, uint32_t FlagSizePtr) {
   if (MemInst == nullptr) {
     return __WASI_ERRNO_FAULT;
+  }
+
+  __wasi_sock_opt_level_t WasiSockOptLevel;
+  if (auto Res = cast<__wasi_sock_opt_level_t>(SockOptLevel); unlikely(!Res)) {
+    return Res.error();
+  } else {
+    WasiSockOptLevel = *Res;
+  }
+
+  __wasi_sock_opt_so_t WasiSockOptName;
+  if (auto Res = cast<__wasi_sock_opt_so_t>(SockOptName); unlikely(!Res)) {
+    return Res.error();
+  } else {
+    WasiSockOptName = *Res;
   }
 
   uint32_t *InnerFlagSizePtr = MemInst->getPointer<uint32_t *>(FlagSizePtr);
@@ -1873,8 +1921,8 @@ WasiSockGetOpt::body(Runtime::Instance::MemoryInstance *MemInst, int32_t Fd,
 
   const __wasi_fd_t WasiFd = Fd;
 
-  if (auto Res =
-          Env.sockGetOpt(WasiFd, Level, Name, InnerFlagPtr, InnerFlagSizePtr);
+  if (auto Res = Env.sockGetOpt(WasiFd, WasiSockOptLevel, WasiSockOptName,
+                                InnerFlagPtr, InnerFlagSizePtr);
       unlikely(!Res)) {
     return Res.error();
   }
@@ -1883,10 +1931,24 @@ WasiSockGetOpt::body(Runtime::Instance::MemoryInstance *MemInst, int32_t Fd,
 
 Expect<uint32_t>
 WasiSockSetOpt::body(Runtime::Instance::MemoryInstance *MemInst, int32_t Fd,
-                     int32_t Level, int32_t Name, uint32_t FlagPtr,
-                     uint32_t FlagSize) {
+                     uint32_t SockOptLevel, uint32_t SockOptName,
+                     uint32_t FlagPtr, uint32_t FlagSize) {
   if (MemInst == nullptr) {
     return __WASI_ERRNO_FAULT;
+  }
+
+  __wasi_sock_opt_level_t WasiSockOptLevel;
+  if (auto Res = cast<__wasi_sock_opt_level_t>(SockOptLevel); unlikely(!Res)) {
+    return Res.error();
+  } else {
+    WasiSockOptLevel = *Res;
+  }
+
+  __wasi_sock_opt_so_t WasiSockOptName;
+  if (auto Res = cast<__wasi_sock_opt_so_t>(SockOptName); unlikely(!Res)) {
+    return Res.error();
+  } else {
+    WasiSockOptName = *Res;
   }
 
   void *InnerFlagPtr = MemInst->getPointer<uint8_t *>(FlagPtr, FlagSize);
@@ -1896,7 +1958,8 @@ WasiSockSetOpt::body(Runtime::Instance::MemoryInstance *MemInst, int32_t Fd,
 
   const __wasi_fd_t WasiFd = Fd;
 
-  if (auto Res = Env.sockSetOpt(WasiFd, Level, Name, InnerFlagPtr, FlagSize);
+  if (auto Res = Env.sockSetOpt(WasiFd, WasiSockOptLevel, WasiSockOptName,
+                                InnerFlagPtr, FlagSize);
       unlikely(!Res)) {
     return Res.error();
   }
@@ -1913,16 +1976,12 @@ WasiGetAddrinfo::body(Runtime::Instance::MemoryInstance *MemInst,
   if (MemInst == nullptr) {
     return __WASI_ERRNO_FAULT;
   }
-  const char *Node = nullptr;
-  if (NodeLen != 0) {
-    Node = MemInst->getPointer<const char *>(NodePtr, NodeLen);
-  }
-  const char *Service = nullptr;
-  if (ServiceLen != 0) {
-    Service = MemInst->getPointer<const char *>(ServicePtr, ServiceLen);
-  }
-  // service and node can not be nullptr at the same time
-  if (Service == nullptr && Node == nullptr) {
+  std::string_view Node(MemInst->getPointer<const char *>(NodePtr, NodeLen),
+                        NodeLen);
+  std::string_view Service(
+      MemInst->getPointer<const char *>(ServicePtr, ServiceLen), ServiceLen);
+  // service and node can not be empty at the same time
+  if (Service.empty() && Node.empty()) {
     return __WASI_ERRNO_AINONAME;
   }
 

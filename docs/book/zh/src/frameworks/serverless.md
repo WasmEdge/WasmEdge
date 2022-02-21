@@ -23,6 +23,6 @@
 
 ![serverless-wasmedge.png](serverless-wasmedge.png)
 
-在公有云上的 Docker 容器中运行 WasmEdge，是 web 应用程序提高性能的一种简单方法。望未来，更好的方法是使用 [WasmEdge 作为容器](https://www.computer.org/csdl/magazine/so/5555/01/09214403/1nHNGfu2Ypi)。不需要 Docker 和 Node.js 来引入 WasmEdge。这样，我们可以更加高效的执行 serverless 函数。
+在公有云上的 Docker 容器中运行 WasmEdge，是 web 应用程序提高性能的一种简单方法。展望未来，更好的方法是使用 [WasmEdge 作为容器](https://www.computer.org/csdl/magazine/so/5555/01/09214403/1nHNGfu2Ypi)。不需要 Docker 和 Node.js 来引入 WasmEdge。这样，我们可以更加高效的执行 serverless 函数。
 
 * [Second State Functions](serverless/secondstate.md) 将讨论如何使用 WasmEdge 作为容器，因为 Second State Functions 是一个纯 WebAssembly/WasmEdge 的 serverless 平台。

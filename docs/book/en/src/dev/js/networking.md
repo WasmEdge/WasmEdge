@@ -1,8 +1,8 @@
-# Async networking sockets
+# Async networking apps
 
 The QuickJS WasmEdge Runtime supports the WasmEdge [networking socket extension](https://github.com/second-state/wasmedge_wasi_socket) so that the JavaScript programs can make HTTP connections to the Internet. This article will show you both [HTTP Client](https://github.com/second-state/wasmedge-quickjs/blob/main/example_js/wasi_http_client.js) and [HTTP Server](https://github.com/second-state/wasmedge-quickjs/blob/main/example_js/wasi_http_echo.js) examples.
 
-> The networking API in WasmEdge is non-blocking and hence allows asynchronous I/O intensive applications. When the network request handler is making an outbound request and waiting for a response, the app can handle another incoming request. That allows the single-threaded application to handle multiple multiple concurrent requests.
+> The networking API in WasmEdge is non-blocking and hence supports asynchronous I/O intensive applications. With this API, the JavaScript program can open multiple connections concurrently. It polls those connections, or registers async callback functions, to process data whenever data comes in, without waiting for any one connection to complete its data transfer. That allows the single-threaded application to handle multiple multiple concurrent requests.
 
 ## A JavaScript networking client example
 
@@ -27,7 +27,7 @@ async function get_test() {
 }
 ```
 
-The program can do other tasks while waiting for the server to respond. Once the server responds, the `handle_response()` function is called asynchronously to process the response and to print out the content.
+The program can open multiple requests while waiting for the servers to respond. Once a server responds, the `handle_response()` function is called asynchronously to process the response and to print out the content.
 
 ```javascript
 async function handle_response(s) {
@@ -91,32 +91,37 @@ Below is an example of JavaScript running a TCP server listening at port 8000. T
 import * as net from 'wasi_net';
 
 async function handle_client(cs) {
-  while (true) {
-    try {
+  try {
+    while (true) {
       let d = await cs.read();
-      if (d.byteLength <= 0) {
+      if (d == undefined || d.byteLength <= 0) {
         break;
       }
       let s = newStringFromUTF8(d);
       cs.write('echo:' + s);
-    } catch (e) {
-      print(e);
     }
+  } catch (e) {
+    print(e);
   }
 }
 
 async function server_start() {
-  let s = new net.WasiTcpServer(8000);
-  for (var i = 0; i < 100; i++) {
-    let cs = await s.accept();
-    handle_client(cs);
+  print('listen 8000 ...');
+  try {
+    let s = new net.WasiTcpServer(8000);
+    for (var i = 0; i < 100; i++) {
+      let cs = await s.accept();
+      handle_client(cs);
+    }
+  } catch (e) {
+    print(e)
   }
 }
 
 server_start();
 ```
 
-The `server_start()` function starts the server at port 8000. When a request comes in, it passes to the `handle_client()` function to process it asynchronously. That means while the app is sending back the response, it could start handling the next incoming request.
+The `server_start()` function starts the server at port 8000. When a request comes in, it accepts immediately and calls the `handle_client()` function to process it asynchronously when the request data is received later. While the `handle_client()` is waiting for the data to arrive from the network, the app could accept another request concurrently.
 
 To run the JavaScript in the WasmEdge runtime, you can do this on the CLI. Since it is a server, you should run it in the background.
 
@@ -195,7 +200,7 @@ async function server_start() {
 server_start();
 ```
 
-The `server_start()` function starts the server at port 8000. When a request comes in, it passes to the `handle_client()` function to process the request. Once the request is validated as an HTTP request, the handler function in turn calls `handle_req()` to parse the fields in the HTTP request, compose a HTTP reponse, and then send the response back asynchronously. That means while the app is sending back the response, it could start handling the next incoming request.
+The `server_start()` function starts the server at port 8000. When a request comes in, it accepts immediately and calls the `handle_client()` async function to process the request data when the data is received later. Once the request is validated as an HTTP request, the handler function in turn calls `handle_req()` to parse the fields in the HTTP request, compose a HTTP reponse, and then send the response back. While the program is waiting for the request data to arrive from the network, it can accept another request concurrently.
 
 To run the JavaScript in the WasmEdge runtime, you can do this on the CLI. Since it is a server, you should run it in the background.
 

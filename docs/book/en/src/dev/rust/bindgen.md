@@ -1,66 +1,22 @@
-# Bindgen and rustwasmc
+# Call Rust functions
 
-**NOTE: This has been deprecated. We recommend using [wasmedge-bindgen](https://github.com/second-state/wasmedge-bindgen) when calling WebAssembly functions from another application (e.g., from [Go](https://wasmedge.org/book/en/embed/go/function.html)).**
+If your Rust program has a `main()` function, you could compile it into a WASM bytecode file, and run it using the `wasmedge` CLI tool as a standalone application. However, a far more common use case is to compile a Rust function into a WASM bytecode file, and then call it from a host application. That is known as an embedded WASM function. The host application uses WasmEdge language SDKs (e.g., [Go](../../embed/go.md), [Rust](../../embed/rust.md), [C](../../embed/c.md), [Python](../../embed/go.md) and [Node.js](../../embed/node.md)) to call those WASM functions compiled from Rust source code.
 
----
+All the WasmEdge host language SDKs support simple function calls. However, the WASM spec only supports a few simple data types as call parameters and return values. The `wasmedge-bindgen` crate would transform call parameters and return values of Rust functions into simple integer types when the Rust function is compiled into WASM. For example, a string is automatically converted into two integers, a memory address and a length, which can be handled by the standard WASM spec. It is very easy to do this in Rust source code. Just annotate your function with the `#[wasmedge-bindgen]` macro. You can compile the annotated Rust code using the standard Rust compiler toolchain (e.g., the latest `Cargo`).
 
-The [rustwasmc](https://github.com/second-state/rustwasmc) tool is inspired by the wasm-pack project but is optimized for edge cloud and device applications. Specifically, it supports the [WasmEdge](https://github.com/WasmEdge/WasmEdge) WebAssembly runtime.
+```rust
+use wasmedge_bindgen::*;
+use wasmedge_bindgen_macro::*;
 
-One of the key features of `rustwasmc` over the standard `wasm32-wasi` compiler target is that `rustwasmc` processes compiled Rust functions using the `wasm-bindgen` tool.
-By default, WebAssembly functions only support a few simple data types as input call arguments. Tools like `wasm-bindgen` turn WebAssembly function arguments into memory pointers, and allow host applications to pass complex arguments, such as strings and arrays, to WebAssembly functions.
-WasmEdge's [Node.js SDK](../../embed/node.md) and [Go SDK](../../embed/go.md) both support `wasm-bindgen`, allowing JavaScript and Go programs to call WebAssembly function with complex call arguments.
-
-> At this time, we require Rust compiler version 1.50 or less in order for WebAssembly functions to work with `wasm-bindgen` and `rustwasmc`. We will [catch up to the latest Rust compiler](https://github.com/WasmEdge/WasmEdge/issues/264) version once the Interface Types spec is finalized and supported.
-
-## Prerequisites
-
-The `rustwasmc` depends on the Rust cargo toolchain to compile Rust source code to WebAssembly. You must have [Rust installed](https://www.rust-lang.org/tools/install) on your machine.
-
-```bash
-curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
-source $HOME/.cargo/env
-rustup override set 1.50.0
+#[wasmedge_bindgen]
+pub fn say(s: String) -> Result<Vec<u8>, String> {
+  let r = String::from("hello ");
+  return Ok((r + s.as_str()).as_bytes().to_vec());
+}
 ```
 
-## Install
+Of course, once the above Rust code is compiled into WASM, the function `say()` no longer takes the `String` parameter nor returns the `Vec<u8>`. So, the caller (i.e., the host application) must also deconstruct the call parameter into the memory pointer first before the call, and assemble the return value from the memory pointer after the call. These actions can be handled automagically by the WasmEdge language SDKs. To see a complete example, including the Rust WASM function and the Go host application, check out our tutorial in the Go SDK documentation.
 
-The easiest way to install [rustwasmc](https://github.com/second-state/rustwasmc) is to use its installer.
+**[A complete wasmedge-bindgen example in Rust (WASM) and Go (host)](../../embed/go/function.md)**
 
-```bash
-curl https://raw.githubusercontent.com/second-state/rustwasmc/master/installer/init.sh -sSf | sh
-```
-
-Alternatively, you can [install using the NPM](https://github.com/second-state/rustwasmc#install) if you'd like.
-
-## Usage
-
-To build [Rust functions for Node.js](../../embed/node.md) applications, use the following command. See a [template application](https://github.com/second-state/wasmedge-nodejs-starter).
-
-```bash
-rustwasmc build
-```
-
-Use the `--enable-ext` flag to compile Rust programs that use WASI extensions, such as WasmEdge's storage and [Tensorflow](tensorflow.md) APIs. The `rustwasmc` will generates the compiled WebAssembly bytecode program for the `wasmedge-extensions` Node.js module instead of the `wasmedge-core` module in this case.
-
-```bash
-rustwasmc build --enable-ext
-```
-
-## Support AOT
-
-A key feature of the WasmEdge runtime is its support for Ahead-of-Time (AOT) compilers. When you run WebAssembly programs in Node.js `wasmedge-core` and `wasmedge-extensions` add-ons, you typically do not need to worry about it as the add-on handles AOT compilation transparently. However, in some cases, you do want the `rustwasmc` to compile and generate native code for the program.
-Then, use the commands below to bring your operating system up to date with the latest developer tools. The commands here are tested on Ubuntu 20.04.
-
-```bash
-sudo apt-get update
-sudo apt-get -y upgrade
-sudo apt install build-essential curl wget git vim libboost-all-dev llvm-dev liblld-10-dev
-```
-
-Now, you can build the `.so` files for the AOT native target like the following.
-
-```bash
-rustwasmc build --enable-aot
-```
-
-Enjoy coding!
+Of course, the developer could choose to do `wasmedge-bindgen`'s work by hand and pass a memory pointer directly. If you are interested in this approach to call Rust compiled WASM functions, check out our [examples in the Go SDK](../../embed/go/memory.md).

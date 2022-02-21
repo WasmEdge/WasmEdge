@@ -603,8 +603,8 @@ E(MalformedVersion, 0x24, "unknown binary version")
 E(MalformedSection, 0x25, "malformed section id")
 // Section size mismatched
 E(SectionSizeMismatch, 0x26, "section size mismatch")
-// Name size out of bounds
-E(NameSizeOutOfBounds, 0x27, "length out of bounds")
+// Length out of bounds
+E(LengthOutOfBounds, 0x27, "length out of bounds")
 // Junk sections
 E(JunkSection, 0x28, "unexpected content after last section")
 // Incompatible function and code section
@@ -639,8 +639,10 @@ E(IntegerTooLarge, 0x35, "integer too large")
 E(IntegerTooLong, 0x36, "integer representation too long")
 // Illegal OpCode
 E(IllegalOpCode, 0x37, "illegal opcode")
+// END OpCode expected
+E(ENDCodeExpected, 0x38, "END opcode expected")
 // Parsing error
-E(IllegalGrammar, 0x38, "invalid wasm grammar")
+E(IllegalGrammar, 0x39, "invalid wasm grammar")
 // @}
 
 // Validation phase

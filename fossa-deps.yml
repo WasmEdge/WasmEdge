@@ -1,0 +1,16 @@
+remote-dependencies:
+  - name: "Boost"
+    version: "1.76"
+    url: "https://boostorg.jfrog.io/artifactory/main/release/1.76.0/source/boost_1_76_0.tar.bz2"
+    metadata:
+      homepage: "https://www.boost.org/"
+  - name: "GoogleTest"
+    version: "1.11.0"
+    url: "https://github.com/google/googletest/archive/refs/tags/release-1.11.0.tar.gz"
+    metadata:
+      homepage: "https://github.com/google/googletest"
+  - name: "spdlog"
+    version: "1.9.1"
+    url: "https://github.com/gabime/spdlog/archive/refs/tags/v1.9.1.tar.gz"
+    metadata:
+      homepage: "https://github.com/gabime/spdlog"

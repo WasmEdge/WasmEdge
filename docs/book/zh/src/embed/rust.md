@@ -14,7 +14,7 @@ WasmEdge Rust SDK 的定义涉及两个 Rust crate，[wasmedge-sys](https://crat
 
 * 通过指定 `WASMEDGE_INCLUDE_DIR` 和 `WASMEDGE_LIB_DIR`
 
-  * 假设你已经从 [WasmEdge Releases](https://github.com/WasmEdge/WasmEdge/releases) 下载 `Wasmedge-0.9.1` 二进制包并放在 `~/workspace/me/`目录中，发布包的目录结构如下图所示：
+  * 假设你已经从 [WasmEdge Releases](https://github.com/WasmEdge/WasmEdge/releases) 下载 `Wasmedge-0.9.1` 二进制包并放在 `~/workspace/me/`目录中，发布包的目录结构如下所示：
 
   ```bash
   root@0a877562f39e:~/workspace/me/WasmEdge-0.9.1-Linux# pwd

@@ -66,6 +66,7 @@ const AST::Module::IntrinsicsTable Executor::Intrinsics = {
     ENTRY(kTableInit, tableInit),
     ENTRY(kElemDrop, elemDrop),
     ENTRY(kRefFunc, refFunc),
+    ENTRY(kPtrFunc, ptrFunc),
 #undef ENTRY
 };
 
@@ -112,6 +113,43 @@ Expect<void> Executor::call(Runtime::StoreManager &StoreMgr,
   }
 
   return {};
+}
+
+Expect<void *> Executor::ptrFunc(Runtime::StoreManager &StoreMgr,
+                                 Runtime::StackManager &StackMgr,
+                                 const uint32_t TableIdx,
+                                 const uint32_t FuncTypeIdx,
+                                 const uint32_t FuncIdx) noexcept {
+  const auto *TabInst = getTabInstByIdx(StoreMgr, StackMgr, TableIdx);
+  assuming(TabInst);
+
+  if (unlikely(FuncIdx >= TabInst->getSize())) {
+    return Unexpect(ErrCode::UndefinedElement);
+  }
+
+  auto Ref = TabInst->getRefAddr(FuncIdx);
+  assuming(Ref);
+  if (unlikely(isNullRef(*Ref))) {
+    return Unexpect(ErrCode::UninitializedElement);
+  }
+  const auto FuncAddr = retrieveFuncIdx(*Ref);
+
+  const auto ModInst = StoreMgr.getModule(StackMgr.getModuleAddr());
+  assuming(ModInst && *ModInst);
+  const auto TargetFuncType = (*ModInst)->getFuncType(FuncTypeIdx);
+  assuming(TargetFuncType && *TargetFuncType);
+  const auto FuncInst = *StoreMgr.getFunction(FuncAddr);
+  assuming(FuncInst);
+  const auto &FuncType = FuncInst->getFuncType();
+  if (unlikely(**TargetFuncType != FuncType)) {
+    return Unexpect(ErrCode::IndirectCallTypeMismatch);
+  }
+
+  if (unlikely(!FuncInst->isCompiledFunction())) {
+    return nullptr;
+  }
+
+  return FuncInst->getSymbol().get();
 }
 
 Expect<void>

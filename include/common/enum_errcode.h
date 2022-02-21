@@ -17,9 +17,10 @@
 
 #if (defined(__cplusplus) && __cplusplus > 201402L) ||                         \
     (defined(_MSVC_LANG) && _MSVC_LANG > 201402L)
+#include "dense_enum_map.h"
+#include "spare_enum_map.h"
 #include <cstdint>
-#include <string>
-#include <unordered_map>
+#include <string_view>
 #endif
 
 #if (defined(__cplusplus) && __cplusplus > 201402L) ||                         \
@@ -36,12 +37,18 @@ enum class WasmPhase : uint8_t {
   Execution = 0x04
 };
 
-static inline std::unordered_map<WasmPhase, std::string> WasmPhaseStr = {
-    {WasmPhase::WasmEdge, "wasmedge runtime"},
-    {WasmPhase::Loading, "loading"},
-    {WasmPhase::Validation, "validation"},
-    {WasmPhase::Instantiation, "instantiation"},
-    {WasmPhase::Execution, "execution"}};
+static inline constexpr auto WasmPhaseStr = []() constexpr {
+  using namespace std::literals::string_view_literals;
+  std::pair<WasmPhase, std::string_view> Array[] = {
+      {WasmPhase::WasmEdge, "wasmedge runtime"sv},
+      {WasmPhase::Loading, "loading"sv},
+      {WasmPhase::Validation, "validation"sv},
+      {WasmPhase::Instantiation, "instantiation"sv},
+      {WasmPhase::Execution, "execution"sv},
+  };
+  return DenseEnumMap(Array);
+}
+();
 
 } // namespace WasmEdge
 #endif
@@ -137,90 +144,98 @@ enum class ErrCode : uint8_t {
   RefTypeMismatch = 0x8E           // Reference type not match
 };
 
-static inline std::unordered_map<ErrCode, std::string> ErrCodeStr = {
-    // WasmEdge runtime
-    {ErrCode::Success, "success"},
-    {ErrCode::Terminated, "terminated"},
-    {ErrCode::RuntimeError, "generic runtime error"},
-    {ErrCode::CostLimitExceeded, "cost limit exceeded"},
-    {ErrCode::WrongVMWorkflow, "wrong VM workflow"},
-    {ErrCode::FuncNotFound, "wasm function not found"},
-    {ErrCode::AOTDisabled, "AOT runtime is disabled in this build"},
-    {ErrCode::Interrupted, "execution interrupted"},
-    // Load phase
-    {ErrCode::IllegalPath, "invalid path"},
-    {ErrCode::ReadError, "read error"},
-    {ErrCode::UnexpectedEnd, "unexpected end"},
-    {ErrCode::MalformedMagic, "magic header not detected"},
-    {ErrCode::MalformedVersion, "unknown binary version"},
-    {ErrCode::MalformedSection, "malformed section id"},
-    {ErrCode::SectionSizeMismatch, "section size mismatch"},
-    {ErrCode::NameSizeOutOfBounds, "length out of bounds"},
-    {ErrCode::JunkSection, "unexpected content after last section"},
-    {ErrCode::IncompatibleFuncCode,
-     "function and code section have inconsistent lengths"},
-    {ErrCode::IncompatibleDataCount,
-     "data count and data section have inconsistent lengths"},
-    {ErrCode::DataCountRequired, "data count section required"},
-    {ErrCode::MalformedImportKind, "malformed import kind"},
-    {ErrCode::MalformedExportKind, "malformed export kind"},
-    {ErrCode::ExpectedZeroByte, "zero byte expected"},
-    {ErrCode::InvalidMut, "malformed mutability"},
-    {ErrCode::TooManyLocals, "too many locals"},
-    {ErrCode::MalformedValType, "malformed value type"},
-    {ErrCode::MalformedElemType, "malformed element type"},
-    {ErrCode::MalformedRefType, "malformed reference type"},
-    {ErrCode::MalformedUTF8, "malformed UTF-8 encoding"},
-    {ErrCode::IntegerTooLarge, "integer too large"},
-    {ErrCode::IntegerTooLong, "integer representation too long"},
-    {ErrCode::IllegalOpCode, "illegal opcode"},
-    {ErrCode::IllegalGrammar, "invalid wasm grammar"},
-    // Validation phase
-    {ErrCode::InvalidAlignment, "alignment must not be larger than natural"},
-    {ErrCode::TypeCheckFailed, "type mismatch"},
-    {ErrCode::InvalidLabelIdx, "unknown label"},
-    {ErrCode::InvalidLocalIdx, "unknown local"},
-    {ErrCode::InvalidFuncTypeIdx, "unknown type"},
-    {ErrCode::InvalidFuncIdx, "unknown function"},
-    {ErrCode::InvalidTableIdx, "unknown table"},
-    {ErrCode::InvalidMemoryIdx, "unknown memory"},
-    {ErrCode::InvalidGlobalIdx, "unknown global"},
-    {ErrCode::InvalidElemIdx, "unknown elem segment"},
-    {ErrCode::InvalidDataIdx, "unknown data segment"},
-    {ErrCode::InvalidRefIdx, "undeclared function reference"},
-    {ErrCode::ConstExprRequired, "constant expression required"},
-    {ErrCode::DupExportName, "duplicate export name"},
-    {ErrCode::ImmutableGlobal, "global is immutable"},
-    {ErrCode::InvalidResultArity, "invalid result arity"},
-    {ErrCode::MultiTables, "multiple tables"},
-    {ErrCode::MultiMemories, "multiple memories"},
-    {ErrCode::InvalidLimit, "size minimum must not be greater than maximum"},
-    {ErrCode::InvalidMemPages,
-     "memory size must be at most 65536 pages (4GiB)"},
-    {ErrCode::InvalidStartFunc, "start function"},
-    {ErrCode::InvalidLaneIdx, "invalid lane index"},
-    // Instantiation phase
-    {ErrCode::ModuleNameConflict, "module name conflict"},
-    {ErrCode::IncompatibleImportType, "incompatible import type"},
-    {ErrCode::UnknownImport, "unknown import"},
-    {ErrCode::DataSegDoesNotFit, "data segment does not fit"},
-    {ErrCode::ElemSegDoesNotFit, "elements segment does not fit"},
-    // Execution phase
-    {ErrCode::WrongInstanceAddress, "wrong instance address"},
-    {ErrCode::WrongInstanceIndex, "wrong instance index"},
-    {ErrCode::InstrTypeMismatch, "instruction type mismatch"},
-    {ErrCode::FuncSigMismatch, "function signature mismatch"},
-    {ErrCode::DivideByZero, "integer divide by zero"},
-    {ErrCode::IntegerOverflow, "integer overflow"},
-    {ErrCode::InvalidConvToInt, "invalid conversion to integer"},
-    {ErrCode::TableOutOfBounds, "out of bounds table access"},
-    {ErrCode::MemoryOutOfBounds, "out of bounds memory access"},
-    {ErrCode::Unreachable, "unreachable"},
-    {ErrCode::UninitializedElement, "uninitialized element"},
-    {ErrCode::UndefinedElement, "undefined element"},
-    {ErrCode::IndirectCallTypeMismatch, "indirect call type mismatch"},
-    {ErrCode::ExecutionFailed, "host function failed"},
-    {ErrCode::RefTypeMismatch, "reference type mismatch"}};
+static inline constexpr const auto ErrCodeStr = []() constexpr {
+  using namespace std::literals::string_view_literals;
+  std::pair<ErrCode, std::string_view> Array[] = {
+      // WasmEdge runtime
+      {ErrCode::Success, "success"sv},
+      {ErrCode::Terminated, "terminated"sv},
+      {ErrCode::RuntimeError, "generic runtime error"sv},
+      {ErrCode::CostLimitExceeded, "cost limit exceeded"sv},
+      {ErrCode::WrongVMWorkflow, "wrong VM workflow"sv},
+      {ErrCode::FuncNotFound, "wasm function not found"sv},
+      {ErrCode::AOTDisabled, "AOT runtime is disabled in this build"sv},
+      {ErrCode::Interrupted, "execution interrupted"sv},
+      // Load phase
+      {ErrCode::IllegalPath, "invalid path"sv},
+      {ErrCode::ReadError, "read error"sv},
+      {ErrCode::UnexpectedEnd, "unexpected end"sv},
+      {ErrCode::MalformedMagic, "magic header not detected"sv},
+      {ErrCode::MalformedVersion, "unknown binary version"sv},
+      {ErrCode::MalformedSection, "malformed section id"sv},
+      {ErrCode::SectionSizeMismatch, "section size mismatch"sv},
+      {ErrCode::NameSizeOutOfBounds, "length out of bounds"sv},
+      {ErrCode::JunkSection, "unexpected content after last section"sv},
+      {ErrCode::IncompatibleFuncCode,
+       "function and code section have inconsistent lengths"sv},
+      {ErrCode::IncompatibleDataCount,
+       "data count and data section have inconsistent lengths"sv},
+      {ErrCode::DataCountRequired, "data count section required"sv},
+      {ErrCode::MalformedImportKind, "malformed import kind"sv},
+      {ErrCode::MalformedExportKind, "malformed export kind"sv},
+      {ErrCode::ExpectedZeroByte, "zero byte expected"sv},
+      {ErrCode::InvalidMut, "malformed mutability"sv},
+      {ErrCode::TooManyLocals, "too many locals"sv},
+      {ErrCode::MalformedValType, "malformed value type"sv},
+      {ErrCode::MalformedElemType, "malformed element type"sv},
+      {ErrCode::MalformedRefType, "malformed reference type"sv},
+      {ErrCode::MalformedUTF8, "malformed UTF-8 encoding"sv},
+      {ErrCode::IntegerTooLarge, "integer too large"sv},
+      {ErrCode::IntegerTooLong, "integer representation too long"sv},
+      {ErrCode::IllegalOpCode, "illegal opcode"sv},
+      {ErrCode::IllegalGrammar, "invalid wasm grammar"sv},
+      // Validation phase
+      {ErrCode::InvalidAlignment,
+       "alignment must not be larger than natural"sv},
+      {ErrCode::TypeCheckFailed, "type mismatch"sv},
+      {ErrCode::InvalidLabelIdx, "unknown label"sv},
+      {ErrCode::InvalidLocalIdx, "unknown local"sv},
+      {ErrCode::InvalidFuncTypeIdx, "unknown type"sv},
+      {ErrCode::InvalidFuncIdx, "unknown function"sv},
+      {ErrCode::InvalidTableIdx, "unknown table"sv},
+      {ErrCode::InvalidMemoryIdx, "unknown memory"sv},
+      {ErrCode::InvalidGlobalIdx, "unknown global"sv},
+      {ErrCode::InvalidElemIdx, "unknown elem segment"sv},
+      {ErrCode::InvalidDataIdx, "unknown data segment"sv},
+      {ErrCode::InvalidRefIdx, "undeclared function reference"sv},
+      {ErrCode::ConstExprRequired, "constant expression required"sv},
+      {ErrCode::DupExportName, "duplicate export name"sv},
+      {ErrCode::ImmutableGlobal, "global is immutable"sv},
+      {ErrCode::InvalidResultArity, "invalid result arity"sv},
+      {ErrCode::MultiTables, "multiple tables"sv},
+      {ErrCode::MultiMemories, "multiple memories"sv},
+      {ErrCode::InvalidLimit,
+       "size minimum must not be greater than maximum"sv},
+      {ErrCode::InvalidMemPages,
+       "memory size must be at most 65536 pages (4GiB)"sv},
+      {ErrCode::InvalidStartFunc, "start function"sv},
+      {ErrCode::InvalidLaneIdx, "invalid lane index"sv},
+      // Instantiation phase
+      {ErrCode::ModuleNameConflict, "module name conflict"sv},
+      {ErrCode::IncompatibleImportType, "incompatible import type"sv},
+      {ErrCode::UnknownImport, "unknown import"sv},
+      {ErrCode::DataSegDoesNotFit, "data segment does not fit"sv},
+      {ErrCode::ElemSegDoesNotFit, "elements segment does not fit"sv},
+      // Execution phase
+      {ErrCode::WrongInstanceAddress, "wrong instance address"sv},
+      {ErrCode::WrongInstanceIndex, "wrong instance index"sv},
+      {ErrCode::InstrTypeMismatch, "instruction type mismatch"sv},
+      {ErrCode::FuncSigMismatch, "function signature mismatch"sv},
+      {ErrCode::DivideByZero, "integer divide by zero"sv},
+      {ErrCode::IntegerOverflow, "integer overflow"sv},
+      {ErrCode::InvalidConvToInt, "invalid conversion to integer"sv},
+      {ErrCode::TableOutOfBounds, "out of bounds table access"sv},
+      {ErrCode::MemoryOutOfBounds, "out of bounds memory access"sv},
+      {ErrCode::Unreachable, "unreachable"sv},
+      {ErrCode::UninitializedElement, "uninitialized element"sv},
+      {ErrCode::UndefinedElement, "undefined element"sv},
+      {ErrCode::IndirectCallTypeMismatch, "indirect call type mismatch"sv},
+      {ErrCode::ExecutionFailed, "host function failed"sv},
+      {ErrCode::RefTypeMismatch, "reference type mismatch"sv},
+  };
+  return SpareEnumMap(Array);
+}
+();
 
 } // namespace WasmEdge
 #endif

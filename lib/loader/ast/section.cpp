@@ -15,6 +15,10 @@ namespace Loader {
 // Load content size. See "include/loader/loader.h".
 Expect<uint32_t> Loader::loadSectionSize(ASTNodeAttr Node) {
   if (auto Res = FMgr.readU32()) {
+    if (unlikely(FMgr.getRemainSize() < (*Res))) {
+      return logLoadError(ErrCode::LengthOutOfBounds, FMgr.getLastOffset(),
+                          Node);
+    }
     return *Res;
   } else {
     return logLoadError(Res.error(), FMgr.getLastOffset(), Node);
@@ -33,7 +37,11 @@ Expect<void> Loader::loadSection(AST::CustomSection &Sec) {
                           ASTNodeAttr::Sec_Custom);
     }
     auto ReadSize = FMgr.getOffset() - StartOffset;
-    // Read remain bytes.
+    // Read remain bytes. Check is overread or not first.
+    if (Sec.getContentSize() < ReadSize) {
+      return logLoadError(ErrCode::UnexpectedEnd, FMgr.getLastOffset(),
+                          ASTNodeAttr::Sec_Custom);
+    }
     if (auto Res = FMgr.readBytes(Sec.getContentSize() - ReadSize)) {
       Sec.getContent().insert(Sec.getContent().end(), (*Res).begin(),
                               (*Res).end());

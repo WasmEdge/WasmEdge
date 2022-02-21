@@ -221,6 +221,7 @@ Expect<void> Loader::loadSegment(AST::CodeSegment &CodeSeg) {
     return logLoadError(Res.error(), FMgr.getLastOffset(),
                         ASTNodeAttr::Seg_Code);
   }
+  auto ExprSizeBound = FMgr.getOffset() + CodeSeg.getSegSize();
 
   // Read the vector of local variable counts and types.
   uint32_t VecCnt = 0;
@@ -262,8 +263,9 @@ Expect<void> Loader::loadSegment(AST::CodeSegment &CodeSeg) {
     CodeSeg.getLocals().push_back(std::make_pair(LocalCnt, LocalType));
   }
 
-  // Read function body.
-  if (auto Res = loadExpression(CodeSeg.getExpr()); unlikely(!Res)) {
+  // Read function body with expected expression size.
+  if (auto Res = loadExpression(CodeSeg.getExpr(), ExprSizeBound);
+      unlikely(!Res)) {
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Seg_Code));
     return Unexpect(Res);
   }

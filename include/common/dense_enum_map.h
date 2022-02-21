@@ -96,8 +96,12 @@ public:
       : Data(std::addressof(D)), Value(static_cast<Key>(I), D[I]) {}
 
   constexpr reference operator*() noexcept { return Value; }
+  constexpr const_reference operator*() const noexcept { return Value; }
 
   constexpr pointer operator->() noexcept { return std::addressof(Value); }
+  constexpr const_pointer operator->() const noexcept {
+    return std::addressof(Value);
+  }
 
   constexpr ConstIterator &operator++() noexcept {
     size_type I = static_cast<size_type>(Value.first);
@@ -127,14 +131,14 @@ public:
 
   constexpr ConstIterator &operator+=(difference_type N) noexcept {
     size_type I = static_cast<size_type>(Value.first);
-    I += N;
+    I = static_cast<size_type>(static_cast<difference_type>(I) + N);
     Value = {static_cast<Key>(I), (*Data)[I]};
     return *this;
   }
 
   constexpr ConstIterator &operator-=(difference_type N) noexcept {
     size_type I = static_cast<size_type>(Value.first);
-    I -= N;
+    I = static_cast<size_type>(static_cast<difference_type>(I) - N);
     Value = {static_cast<Key>(I), (*Data)[I]};
     return *this;
   }

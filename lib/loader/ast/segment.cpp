@@ -193,6 +193,7 @@ Expect<void> Loader::loadSegment(AST::ElementSegment &ElemSeg) {
     } else {
       VecCnt = *Res;
     }
+    ElemSeg.getInitExprs().clear();
     ElemSeg.getInitExprs().reserve(VecCnt);
     for (uint32_t I = 0; I < VecCnt; ++I) {
       ElemSeg.getInitExprs().emplace_back();
@@ -227,6 +228,7 @@ Expect<void> Loader::loadSegment(AST::CodeSegment &CodeSeg) {
   uint32_t VecCnt = 0;
   if (auto Res = FMgr.readU32()) {
     VecCnt = *Res;
+    CodeSeg.getLocals().clear();
     CodeSeg.getLocals().reserve(VecCnt);
   } else {
     return logLoadError(Res.error(), FMgr.getLastOffset(),
@@ -263,11 +265,16 @@ Expect<void> Loader::loadSegment(AST::CodeSegment &CodeSeg) {
     CodeSeg.getLocals().push_back(std::make_pair(LocalCnt, LocalType));
   }
 
-  // Read function body with expected expression size.
-  if (auto Res = loadExpression(CodeSeg.getExpr(), ExprSizeBound);
-      unlikely(!Res)) {
-    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Seg_Code));
-    return Unexpect(Res);
+  if (IsUniversalWASM || IsSharedLibraryWASM) {
+    // For the AOT mode, skip the function body.
+    FMgr.seek(ExprSizeBound);
+  } else {
+    // Read function body with expected expression size.
+    if (auto Res = loadExpression(CodeSeg.getExpr(), ExprSizeBound);
+        unlikely(!Res)) {
+      spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Seg_Code));
+      return Unexpect(Res);
+    }
   }
 
   return {};

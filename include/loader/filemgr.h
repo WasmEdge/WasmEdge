@@ -93,6 +93,18 @@ public:
   /// Get remain size.
   uint64_t getRemainSize() const noexcept { return Size - Pos; }
 
+  /// Jump the content with size (size + content).
+  Expect<void> jumpContent();
+
+  /// Change the access position of the file.
+  void seek(uint64_t NewPos) {
+    if (Status != ErrCode::IllegalPath) {
+      Pos = std::min(NewPos, Size);
+      LastPos = Pos;
+      Status = ErrCode::Success;
+    }
+  }
+
   /// Reset status
   void reset() {
     Status = ErrCode::UnexpectedEnd;

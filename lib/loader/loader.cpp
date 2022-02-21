@@ -71,12 +71,14 @@ Loader::parseModule(const std::filesystem::path &FilePath) {
     spdlog::error(ErrInfo::InfoFile(FilePath));
     return Unexpect(Res);
   }
+
   switch (FMgr.getHeaderType()) {
   case FileMgr::FileHeader::ELF:
   case FileMgr::FileHeader::DLL:
   case FileMgr::FileHeader::MachO_32:
   case FileMgr::FileHeader::MachO_64: {
-    // AOT compiled WASM cases. Use ldmgr to load the module.
+    // AOT compiled shared-library-WASM cases. Use ldmgr to load the module.
+    IsSharedLibraryWASM = true;
     FMgr.reset();
     if (auto Res = LMgr.setPath(FilePath); !Res) {
       spdlog::error(ErrInfo::InfoFile(FilePath));
@@ -95,7 +97,13 @@ Loader::parseModule(const std::filesystem::path &FilePath) {
 
     std::unique_ptr<AST::Module> Mod;
     if (auto Code = LMgr.getWasm()) {
-      if (auto Res = parseModule(*Code)) {
+      // Set the binary and load module.
+      // Not to use parseModule() here to keep the `IsSharedLibraryWASM` value.
+      if (auto Res = FMgr.setCode(*Code); !Res) {
+        spdlog::error(ErrInfo::InfoFile(FilePath));
+        return Unexpect(Res);
+      }
+      if (auto Res = loadModule()) {
         Mod = std::move(*Res);
       } else {
         spdlog::error(ErrInfo::InfoFile(FilePath));
@@ -112,6 +120,8 @@ Loader::parseModule(const std::filesystem::path &FilePath) {
     return Mod;
   }
   default:
+    // Universal WASM, WASM, or other cases. Load and parse the module directly.
+    IsSharedLibraryWASM = false;
     if (auto Res = loadModule()) {
       if (auto &Symbol = (*Res)->getSymbol()) {
         *Symbol = IntrinsicsTable;
@@ -131,8 +141,10 @@ Loader::parseModule(Span<const uint8_t> Code) {
   if (auto Res = FMgr.setCode(Code); !Res) {
     return Unexpect(Res);
   }
-  // Filter out the Windows .dll, MacOS .dylib, or Linux .so AOT compiled WASM.
+
   switch (FMgr.getHeaderType()) {
+  // Filter out the Windows .dll, MacOS .dylib, or Linux .so AOT compiled
+  // shared-library-WASM.
   case FileMgr::FileHeader::ELF:
   case FileMgr::FileHeader::DLL:
   case FileMgr::FileHeader::MachO_32:
@@ -141,12 +153,13 @@ Loader::parseModule(Span<const uint8_t> Code) {
     spdlog::error(
         "    The AOT compiled WASM shared library is not supported for loading "
         "from memory. Please use the universal WASM binary or pure WASM, or "
-        "load the AOT compiled WASM from file.");
+        "load the AOT compiled WASM shared library from file.");
     return Unexpect(ErrCode::MalformedMagic);
   default:
     break;
   }
-  // For other header checking, handle in the module loading.
+  // For malformed header checking, handle in the module loading.
+  IsSharedLibraryWASM = false;
   return loadModule();
 }
 

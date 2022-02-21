@@ -152,7 +152,7 @@ public:
 
   friend constexpr difference_type
   operator-(const ConstIterator &LHS, const ConstIterator &RHS) noexcept {
-    const std::pair<Key, T> *const L = std::addressof((*LHS.Data)[RHS.Index]);
+    const std::pair<Key, T> *const L = std::addressof((*LHS.Data)[LHS.Index]);
     const std::pair<Key, T> *const R = std::addressof((*RHS.Data)[RHS.Index]);
     return L - R;
   }

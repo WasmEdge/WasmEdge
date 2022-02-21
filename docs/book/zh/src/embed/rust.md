@@ -14,7 +14,7 @@ WasmEdge Rust SDK 涉及两个 Rust crate [wasmedge-sys](https://crates.io/crate
 
 * 通过指定 `WASMEDGE_INCLUDE_DIR` 和 `WASMEDGE_LIB_DIR`
 
-  * 假设你已经从 [WasmEdge Releases](https://github.com/WasmEdge/WasmEdge/releases) 下载 `Wasmedge-0.9.1` 二进制包并放在 `~/workspace/me/`目录中，发布包的目录结构如下所示：
+  * 假设在 [WasmEdge Releases](https://github.com/WasmEdge/WasmEdge/releases) 下载 `Wasmedge-0.9.1` 二进制包并放在 `~/workspace/me/`目录中，发布包的目录结构如下所示：
 
   ```bash
   root@0a877562f39e:~/workspace/me/WasmEdge-0.9.1-Linux# pwd
@@ -49,7 +49,7 @@ WasmEdge Rust SDK 涉及两个 Rust crate [wasmedge-sys](https://crates.io/crate
 
 * 通过指定 `WASMEDGE_BUILD_DIR`
 
-  * 假设你在 `~/workspace/me/WasmEdge` 中 `git clone` WasmEdge repo，并按照 [instructions](https://wasmedge.org/book/en/extend/build.html) 构建 WasmEdge native library 生成 `include` 和 `lib` 目录应该在 `~/workspace/me/WasmEdge/build` 中。
+  * 假设在 `~/workspace/me/WasmEdge` 中 `git clone` WasmEdge repo，并按照 [instructions](https://wasmedge.org/book/en/extend/build.html) 构建 WasmEdge native library 生成 `include` 和 `lib` 目录应该在 `~/workspace/me/WasmEdge/build` 中。
 
   * 设置 `WASMEDGE_BUILD_DIR` 环境变量并指定 `build` 目录，进入 `wasmedge-sys` 目录和`cargo build` 构建。
 
@@ -62,7 +62,7 @@ WasmEdge Rust SDK 涉及两个 Rust crate [wasmedge-sys](https://crates.io/crate
 
   上述提到的两种方法之外，`standalone` 模式可以在构建 crate 之前直接构建 `WasmEdge` 原生库。
 
-  * 假设在 `~/workspace/me/WasmEdge` 中有 `git clone` WasmEdge repo，在`wasmedge-sys` 目录中按照以下说明进行操作：
+  * 假设 `~/workspace/me/WasmEdge` 中有 `git clone` WasmEdge repo，在`wasmedge-sys` 目录中按照以下说明进行操作：
 
     ```bash
     // set WASMEDGE_DIR
@@ -74,7 +74,7 @@ WasmEdge Rust SDK 涉及两个 Rust crate [wasmedge-sys](https://crates.io/crate
 
 * 通过 WasmEdge docker image
 
-  如果你选择 WasmEdge docker image 来构建自己的容器进行开发，则预构建的 WasmEdge 二进制包默认位于 `$HOME/.wasmedge` 目录中，`wasmedge-sys` 的构建脚本 (`build.rs`) 可以检测并自动构建 crate。
+  如果选择 WasmEdge docker image 来构建容器进行开发，则预构建 WasmEdge 二进制包默认位于 `$HOME/.wasmedge` 目录中，`wasmedge-sys` 的构建脚本 (`build.rs`) 可以检测并自动构建 crate。
 
 ## 案例
 

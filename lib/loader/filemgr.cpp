@@ -389,6 +389,28 @@ FileMgr::FileHeader FileMgr::getHeaderType() {
   return FileMgr::FileHeader::Unknown;
 }
 
+// Jump a section. See "include/loader/filemgr.h".
+Expect<void> FileMgr::jumpContent() {
+  if (unlikely(Status != ErrCode::Success)) {
+    return Unexpect(Status);
+  }
+  // Set the flag to the start offset.
+  LastPos = Pos;
+  // Read the section size.
+  uint32_t SecSize = 0;
+  if (auto Res = readU32()) {
+    SecSize = *Res;
+  } else {
+    return Unexpect(Res);
+  }
+  // Jump the content.
+  if (auto Res = testRead(SecSize); unlikely(!Res)) {
+    return Unexpect(ErrCode::LengthOutOfBounds);
+  }
+  Pos += SecSize;
+  return {};
+}
+
 // Helper function for reading number of bytes. See "include/loader/filemgr.h".
 Expect<void> FileMgr::readBytes(Span<Byte> Buffer) {
   if (unlikely(Status != ErrCode::Success)) {

@@ -129,6 +129,7 @@ private:
   Expect<uint32_t> loadSectionSize(ASTNodeAttr Node);
   template <typename T, typename L>
   Expect<void> loadSectionContent(T &Sec, L &&Func) {
+    Sec.setStartOffset(FMgr.getOffset());
     if (auto Res = loadSectionSize(NodeAttrFromAST<T>())) {
       // Set the section size.
       Sec.setContentSize(*Res);
@@ -212,6 +213,8 @@ private:
   const AST::Module::IntrinsicsTable *IntrinsicsTable;
   std::recursive_mutex Mutex;
   bool HasDataSection;
+  bool IsSharedLibraryWASM;
+  bool IsUniversalWASM;
   /// @}
 };
 

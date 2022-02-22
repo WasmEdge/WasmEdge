@@ -4,6 +4,7 @@
 #include "host/wasi_crypto/ctx.h"
 #include "host/wasi_crypto/common/array_output.h"
 #include "host/wasi_crypto/common/options.h"
+#include "wasi_crypto/api.hpp"
 
 namespace WasmEdge {
 namespace Host {
@@ -64,6 +65,22 @@ Context::optionsSetGuestBuffer(__wasi_options_t OptionsHandle,
       .and_then([Name, Buf](auto &&Options) noexcept {
         return Common::optionsSetGuestBuffer(Options, Name, Buf);
       });
+}
+
+WasiCryptoExpect<__wasi_secrets_manager_t>
+Context::secretsManagerOpen(std::optional<__wasi_options_t>) noexcept {
+  return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
+}
+
+WasiCryptoExpect<void>
+Context::secretsManagerClose(__wasi_secrets_manager_t) noexcept {
+  return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
+}
+
+WasiCryptoExpect<void>
+Context::secretsManagerInvalidate(__wasi_secrets_manager_t, Span<const uint8_t>,
+                                  __wasi_version_t) noexcept {
+  return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
 }
 
 } // namespace WasiCrypto

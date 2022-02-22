@@ -75,7 +75,7 @@ let config = Config::create().expect("fail to create a Config context");
 let store = Store::create().expect("fail to create a Store context");
 
 // create a Vm context with the given Config and Store
-let vm = Vm::create(Some(&config), Some(&store)).expect("fail to create a Vm context");
+let mut vm = Vm::create(Some(config), Some(store)).expect("fail to create a Vm context");
 ```
 
 ### Step 3: Invoke the `fib` function
@@ -86,7 +86,7 @@ In Step 1, we got a module that hosts the target `fib` function defined in the W
 use wasmedge_sys::Value;
 
 // run a function
-let returns = vm.run_wasm_from_module(&mut module, "fib", [Value::from_i32(5)]).expect("fail to run the target function in the module");
+let returns = vm.run_wasm_from_module(module, "fib", [Value::from_i32(5)]).expect("fail to run the target function in the module");
 
 println!("The result of fib(5) is {}", returns[0].to_i32());
 ```

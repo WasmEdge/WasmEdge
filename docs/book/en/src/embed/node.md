@@ -148,7 +148,7 @@ a*X^2 + b*X + c = 0
 
 The roots for `X` are displayed in the area below the input form.
 
-![getting-started-with-rust-function](/articles/getting-started-with-rust-function-01.png)
+![getting-started-with-rust-function](https://www.secondstate.io/articles/getting-started-with-rust-function-01.png)
 
 The [HTML file](https://github.com/second-state/wasm-learning/blob/master/nodejs/quadratic/node/public/index.html) contains the client side JavaScript to submit the web form to `/solve`, and put result into the `#roots` HTML element on the page.
 

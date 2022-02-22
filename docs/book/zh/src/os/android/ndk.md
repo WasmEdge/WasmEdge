@@ -1,6 +1,6 @@
-# 从 NDK 原生应用调用 WasmEdge 函数 
+# 从 NDK 原生应用调用 WasmEdge 函数
 
-在本章节中，我们将演示如何使用 C 和 Android NDK 构建 Android 原生应用程序。原生应用使用 WasmEdge C SDK 嵌入 WasmEdge Runtime，通过 WasmEdge 调用 WASM 函数。 
+在本章节中，我们将演示如何使用 C 和 Android NDK 构建 Android 原生应用程序。原生应用使用 WasmEdge C SDK 嵌入 WasmEdge Runtime，通过 WasmEdge 调用 WASM 函数。
 
 ## 环境准备
 
@@ -13,7 +13,7 @@
 Ubuntu 环境下，开发者可以通过 `apt-get` 获取 Android 平台调试工具 `adb` 。通过在 Ubuntu 开发环境上执行 `adb shell` 指令，开发者可以进入设备并使用命令行操作 Android 操作系统。
 
 ```bash
-$ sudo apt-get install adb
+sudo apt-get install adb
 ```
 
 ### Android NDK
@@ -22,7 +22,7 @@ T开发者需要下载并安装 [Android NDK](https://developer.android.google.c
 
 ## C 语言源码编程
 
-[`test.c`](https://github.com/second-state/wasm-learning/blob/master/android/test.c) 使用 wasmedge-tensorflow c api 来运行 WebAssembly 函数。 WebAssembly 文件 `birds_v1.wasm` 是从 Rust 源代码编译而来的，[在此处查看解释](../../dev/rust/tensorflow.md)。 
+[`test.c`](https://github.com/second-state/wasm-learning/blob/master/android/test.c) 使用 wasmedge-tensorflow c api 来运行 WebAssembly 函数。 WebAssembly 文件 `birds_v1.wasm` 是从 Rust 源代码编译而来的，[在此处查看解释](../../dev/rust/tensorflow.md)。
 
 ```c
 #include <wasmedge/wasmedge.h>
@@ -85,25 +85,25 @@ int main(int argc, char *argv[]) {
 
 ### 安装依赖包
 
-使用以下命令在您的 Ubuntu 开发环境上下载适用于 Android 的 WasmEdge。 
+使用以下命令在您的 Ubuntu 开发环境上下载适用于 Android 的 WasmEdge。
 
 ```bash
-$ wget https://github.com/WasmEdge/WasmEdge/releases/download/0.9.1-rc.1/WasmEdge-0.9.1-rc.1-android_aarch64.tar.gz
-$ wget https://github.com/second-state/WasmEdge-image/releases/download/0.9.1-rc.1/WasmEdge-image-0.9.1-rc.1-android_aarch64.tar.gz
-$ wget https://github.com/second-state/WasmEdge-tensorflow/releases/download/0.9.1-rc.1/WasmEdge-tensorflowlite-0.9.1-rc.1-android_aarch64.tar.gz
-$ wget https://github.com/second-state/WasmEdge-tensorflow-deps/releases/download/0.9.1-rc.1/WasmEdge-tensorflow-deps-TFLite-0.9.1-rc.1-android_aarch64.tar.gz
-$ tar -zxf WasmEdge-0.9.1-rc.1-android_aarch64.tar.gz
-$ tar -zxf WasmEdge-image-0.9.1-rc.1-android_aarch64.tar.gz -C WasmEdge-0.9.1-rc.1-Android/
-$ tar -zxf WasmEdge-tensorflowlite-0.9.1-rc.1-android_aarch64.tar.gz -C WasmEdge-0.9.1-rc.1-Android/
-$ tar -zxf WasmEdge-tensorflow-deps-TFLite-0.9.1-rc.1-android_aarch64.tar.gz -C WasmEdge-0.9.1-rc.1-Android/lib/
+wget https://github.com/WasmEdge/WasmEdge/releases/download/0.9.1-rc.1/WasmEdge-0.9.1-rc.1-android_aarch64.tar.gz
+wget https://github.com/second-state/WasmEdge-image/releases/download/0.9.1-rc.1/WasmEdge-image-0.9.1-rc.1-android_aarch64.tar.gz
+wget https://github.com/second-state/WasmEdge-tensorflow/releases/download/0.9.1-rc.1/WasmEdge-tensorflowlite-0.9.1-rc.1-android_aarch64.tar.gz
+wget https://github.com/second-state/WasmEdge-tensorflow-deps/releases/download/0.9.1-rc.1/WasmEdge-tensorflow-deps-TFLite-0.9.1-rc.1-android_aarch64.tar.gz
+tar -zxf WasmEdge-0.9.1-rc.1-android_aarch64.tar.gz
+tar -zxf WasmEdge-image-0.9.1-rc.1-android_aarch64.tar.gz -C WasmEdge-0.9.1-rc.1-Android/
+tar -zxf WasmEdge-tensorflowlite-0.9.1-rc.1-android_aarch64.tar.gz -C WasmEdge-0.9.1-rc.1-Android/
+tar -zxf WasmEdge-tensorflow-deps-TFLite-0.9.1-rc.1-android_aarch64.tar.gz -C WasmEdge-0.9.1-rc.1-Android/lib/
 ```
 
 ### 编译
 
-使用以下命令在 Ubunu 开发环境上将 C 源码编译为 Android 上可以运行的程序 `a.out`。 
+使用以下命令在 Ubunu 开发环境上将 C 源码编译为 Android 上可以运行的程序 `a.out`。
 
 ```bash
-$ (/path/to/ndk)/toolchains/llvm/prebuilt/(HostPlatform)/bin/aarch64-linux-(AndroidApiVersion)-clang test.c -I./WasmEdge-0.9.1-rc.1-Android/include -L./WasmEdge-0.9.1-rc.1-Android/lib -lwasmedge-image_c -lwasmedge-tensorflowlite_c -ltensorflowlite_c -lwasmedge_c
+(/path/to/ndk)/toolchains/llvm/prebuilt/(HostPlatform)/bin/aarch64-linux-(AndroidApiVersion)-clang test.c -I./WasmEdge-0.9.1-rc.1-Android/include -L./WasmEdge-0.9.1-rc.1-Android/lib -lwasmedge-image_c -lwasmedge-tensorflowlite_c -ltensorflowlite_c -lwasmedge_c
 ```
 
 ## 测试
@@ -113,11 +113,11 @@ $ (/path/to/ndk)/toolchains/llvm/prebuilt/(HostPlatform)/bin/aarch64-linux-(Andr
 在 Ubuntu 开发环境上使用 `adb` 命令将编译后的程序、Tensorflow Lite 模型文件、测试图像文件以及 Android 的 WasmEdge 共享库文件安装到 Android 设备上。
 
 ```bash
-$ adb push a.out /data/local/tmp
-$ adb push birds_v1.wasm /data/local/tmp
-$ adb push lite-model_aiy_vision_classifier_birds_V1_3.tflite /data/local/tmp
-$ adb push bird.jpg /data/local/tmp
-$ adb push ./WasmEdge-0.9.1-rc.1-Android/lib /data/local/tmp
+adb push a.out /data/local/tmp
+adb push birds_v1.wasm /data/local/tmp
+adb push lite-model_aiy_vision_classifier_birds_V1_3.tflite /data/local/tmp
+adb push bird.jpg /data/local/tmp
+adb push ./WasmEdge-0.9.1-rc.1-Android/lib /data/local/tmp
 ```
 
 ### 运行示例

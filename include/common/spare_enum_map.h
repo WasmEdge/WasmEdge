@@ -107,8 +107,14 @@ public:
       : Data(std::addressof(D)), Index(I) {}
 
   constexpr reference operator*() noexcept { return (*Data)[Index]; }
+  constexpr const_reference operator*() const noexcept {
+    return (*Data)[Index];
+  }
 
   constexpr pointer operator->() noexcept {
+    return std::addressof((*Data)[Index]);
+  }
+  constexpr const_pointer operator->() const noexcept {
     return std::addressof((*Data)[Index]);
   }
 
@@ -135,12 +141,12 @@ public:
   }
 
   constexpr ConstIterator &operator+=(difference_type N) noexcept {
-    Index += N;
+    Index = static_cast<size_type>(static_cast<difference_type>(Index) + N);
     return *this;
   }
 
   constexpr ConstIterator &operator-=(difference_type N) noexcept {
-    Index -= N;
+    Index = static_cast<size_type>(static_cast<difference_type>(Index) - N);
     return *this;
   }
 
@@ -152,7 +158,7 @@ public:
 
   friend constexpr difference_type
   operator-(const ConstIterator &LHS, const ConstIterator &RHS) noexcept {
-    const std::pair<Key, T> *const L = std::addressof((*LHS.Data)[RHS.Index]);
+    const std::pair<Key, T> *const L = std::addressof((*LHS.Data)[LHS.Index]);
     const std::pair<Key, T> *const R = std::addressof((*RHS.Data)[RHS.Index]);
     return L - R;
   }

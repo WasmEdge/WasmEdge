@@ -172,6 +172,11 @@ fn find_wasmedge() -> Option<Paths> {
 }
 
 fn build_wasmedge() -> Option<Paths> {
+    #[cfg(feature = "standalone")]
+    println!("cargo:warning=[wasmedge-sys] standalone");
+    #[cfg(not(feature = "standalone"))]
+    println!("cargo:warning=[wasmedge-sys] not_standalone");
+
     let target_os = env::var("CARGO_CFG_TARGET_OS").unwrap();
     println!("cargo:warning=[wasmedge-sys] TARGET_OS: {}", target_os);
 
@@ -199,12 +204,12 @@ fn build_wasmedge() -> Option<Paths> {
         .to_str()
         .expect("[wasmedge-sys] fail to convert PathBuf to str");
 
-    let status = Command::new("git")
+    Command::new("git")
         .args(&["init", wasmedge_dir_str])
         .status()
         .expect("[wasmedge-sys] fail to init wasmedge project");
 
-    let status = Command::new("git")
+    Command::new("git")
         .current_dir(&wasmedge_dir)
         .args(&[
             "remote",
@@ -215,27 +220,17 @@ fn build_wasmedge() -> Option<Paths> {
         .status()
         .expect("[wasmedge-sys] fail to add wasmedge upstream");
 
-    let output = Command::new("git")
+    Command::new("git")
         .current_dir(&wasmedge_dir)
         .args(["fetch", "origin", git_hash])
         .output()
         .expect("[wasmedge-sys] fail to fetch a commit using its hash");
 
-    println!(
-        "cargo:warning=[wasmedge-sys] git fetch commit: {:?}",
-        output
-    );
-
-    let output = Command::new("git")
+    Command::new("git")
         .current_dir(&wasmedge_dir)
         .args(["checkout", "FETCH_HEAD"])
         .output()
         .expect("[wasmedge-sys] fail to reset repository to the commit");
-
-    println!(
-        "cargo:warning=[wasmedge-sys] git reset fetch_head: {:?}",
-        output
-    );
 
     match target_os.as_str() {
         "linux" => Some(build_linux(&wasmedge_dir)),
@@ -325,11 +320,6 @@ fn build_macos(wasmedge_dir: impl AsRef<Path>) -> Paths {
 }
 
 fn build_linux(wasmedge_dir: impl AsRef<Path>) -> Paths {
-    #[cfg(feature = "standalone")]
-    println!("cargo:warning=[wasmedge-sys] standalone");
-    #[cfg(not(feature = "standalone"))]
-    println!("cargo:warning=[wasmedge-sys] not_standalone");
-
     let out_dir = env_path!("OUT_DIR").expect("[wasmedge-sys] fail to get the OUT_DIR.");
     let out_dir_str = out_dir
         .to_str()

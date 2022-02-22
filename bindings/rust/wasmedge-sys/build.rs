@@ -320,11 +320,6 @@ fn build_macos(wasmedge_dir: impl AsRef<Path>) -> Paths {
 }
 
 fn build_linux(wasmedge_dir: impl AsRef<Path>) -> Paths {
-    let out_dir = env_path!("OUT_DIR").expect("[wasmedge-sys] fail to get the OUT_DIR.");
-    let out_dir_str = out_dir
-        .to_str()
-        .expect("[wasmedge-sys] fail to convert PathBuf to str");
-
     // create build_dir
     let build_dir = wasmedge_dir.as_ref().join("build");
     if !build_dir.exists() {
@@ -341,7 +336,6 @@ fn build_linux(wasmedge_dir: impl AsRef<Path>) -> Paths {
             "-DWASMEDGE_BUILD_TESTS=ON",
             #[cfg(not(feature = "aot"))]
             "-DWASMEDGE_BUILD_AOT_RUNTIME=OFF",
-            &format!("-DCMAKE_INSTALL_PREFIX={}", out_dir_str),
             wasmedge_dir.as_ref().to_str().unwrap(),
         ])
         .output()
@@ -360,7 +354,9 @@ fn build_linux(wasmedge_dir: impl AsRef<Path>) -> Paths {
         .expect("[wasmedge-sys] fail to compile wasmedge project");
 
     // WASMEDGE_INCLUDE_DIR
-    let inc_dir = out_dir.join("include");
+    let inc_dir = build_dir.join("include");
+    assert!(inc_dir.exists());
+    let inc_dir = inc_dir.join("api");
     assert!(inc_dir.exists());
     println!(
         "cargo:warning=[wasmedge-sys] WASMEDGE_INCLUDE_DIR: {}",
@@ -368,11 +364,13 @@ fn build_linux(wasmedge_dir: impl AsRef<Path>) -> Paths {
     );
 
     // WASMEDGE_LIB_DIR
-    let lib_dir = if out_dir.join("lib64").exists() {
+    let lib_dir = if build_dir.join("lib64").exists() {
         build_dir.join("lib64")
     } else {
         build_dir.join("lib")
     };
+    let lib_dir = lib_dir.join("api");
+    assert!(lib_dir.exists());
     println!(
         "cargo:warning=[wasmedge-sys] WASMEDGE_LIB_DIR: {}",
         lib_dir.to_str().unwrap()

@@ -176,27 +176,35 @@ fn build_wasmedge() -> Option<Paths> {
     println!("cargo:warning=[wasmedge-sys] TARGET_OS: {}", target_os);
 
     let output = Command::new("git")
-        .args(&["rev-parse", "HEAD"])
+        .args(["rev-parse", "HEAD"])
         .output()
         .unwrap();
-    let git_hash =
-        String::from_utf8(output.stdout).expect("fail to get the git hash for current build");
 
-    let out_dir = env_path!("OUT_DIR").expect("fail to get the OUT_DIR");
+    let git_hash = String::from_utf8(output.stdout)
+        .expect("[wasmedge-sys] fail to get the git hash for current build");
+    let git_hash = git_hash.trim().trim_end_matches('\n');
+
+    let out_dir = env_path!("OUT_DIR").expect("[wasmedge-sys] fail to get the OUT_DIR");
     let wasmedge_dir = out_dir.join("wasmedge");
     if !wasmedge_dir.exists() {
-        std::fs::create_dir(&wasmedge_dir)
-            .expect(format!("fail to create wasmedge_dir: {:?}", &wasmedge_dir).as_str());
+        std::fs::create_dir(&wasmedge_dir).expect(
+            format!(
+                "[wasmedge-sys] fail to create wasmedge_dir: {:?}",
+                &wasmedge_dir
+            )
+            .as_str(),
+        );
     }
     let wasmedge_dir_str = wasmedge_dir
         .to_str()
-        .expect("fail to convert PathBuf to str");
+        .expect("[wasmedge-sys] fail to convert PathBuf to str");
 
-    Command::new("git")
+    let status = Command::new("git")
         .args(&["init", wasmedge_dir_str])
-        .output()
-        .expect("fail to init wasmedge project");
-    Command::new("git")
+        .status()
+        .expect("[wasmedge-sys] fail to init wasmedge project");
+
+    let status = Command::new("git")
         .current_dir(&wasmedge_dir)
         .args(&[
             "remote",
@@ -204,18 +212,30 @@ fn build_wasmedge() -> Option<Paths> {
             "origin",
             "https://github.com/WasmEdge/WasmEdge.git",
         ])
-        .output()
-        .expect("fail to add wasmedge upstream");
-    Command::new("git")
+        .status()
+        .expect("[wasmedge-sys] fail to add wasmedge upstream");
+
+    let output = Command::new("git")
         .current_dir(&wasmedge_dir)
-        .args(&["fetch", "--tags", "origin", git_hash.trim()])
+        .args(["fetch", "origin", git_hash])
         .output()
-        .expect("fail to fetch the commit");
-    Command::new("git")
+        .expect("[wasmedge-sys] fail to fetch a commit using its hash");
+
+    println!(
+        "cargo:warning=[wasmedge-sys] git fetch commit: {:?}",
+        output
+    );
+
+    let output = Command::new("git")
         .current_dir(&wasmedge_dir)
-        .args(&["checkout", "FETCH_HEAD"])
+        .args(["checkout", "FETCH_HEAD"])
         .output()
-        .expect("fail to checkout the commit");
+        .expect("[wasmedge-sys] fail to reset repository to the commit");
+
+    println!(
+        "cargo:warning=[wasmedge-sys] git reset fetch_head: {:?}",
+        output
+    );
 
     match target_os.as_str() {
         "linux" => Some(build_linux(&wasmedge_dir)),
@@ -226,8 +246,10 @@ fn build_wasmedge() -> Option<Paths> {
 }
 
 fn build_macos(wasmedge_dir: impl AsRef<Path>) -> Paths {
-    let out_dir = env_path!("OUT_DIR").expect("fail to get the OUT_DIR.");
-    let out_dir_str = out_dir.to_str().expect("fail to convert PathBuf to str");
+    let out_dir = env_path!("OUT_DIR").expect("[wasmedge-sys] fail to get the OUT_DIR.");
+    let out_dir_str = out_dir
+        .to_str()
+        .expect("[wasmedge-sys] fail to convert PathBuf to str");
 
     Command::new("cmake")
         .current_dir(wasmedge_dir.as_ref())
@@ -247,18 +269,18 @@ fn build_macos(wasmedge_dir: impl AsRef<Path>) -> Paths {
         .current_dir(wasmedge_dir.as_ref())
         .args(&["--build", "build"])
         .output()
-        .expect("fail to cmake build wasmedge project");
+        .expect("[wasmedge-sys] fail to cmake build wasmedge project");
 
     // create build_dir
     let build_dir = wasmedge_dir.as_ref().join("build");
     if !build_dir.exists() {
-        std::fs::create_dir(&build_dir).expect("fail to create build_dir");
+        std::fs::create_dir(&build_dir).expect("[wasmedge-sys] fail to create build_dir");
     }
     Command::new("ninja")
         .current_dir(build_dir)
         .args(&["install"])
         .output()
-        .expect("fail to ninja build wasmedge project");
+        .expect("[wasmedge-sys] fail to ninja build wasmedge project");
 
     // WASMEDGE_INCLUDE_DIR
     let mut inc_dir = out_dir.join("include");
@@ -308,12 +330,19 @@ fn build_linux(wasmedge_dir: impl AsRef<Path>) -> Paths {
     #[cfg(not(feature = "standalone"))]
     println!("cargo:warning=[wasmedge-sys] not_standalone");
 
+    let out_dir = env_path!("OUT_DIR").expect("[wasmedge-sys] fail to get the OUT_DIR.");
+    let out_dir_str = out_dir
+        .to_str()
+        .expect("[wasmedge-sys] fail to convert PathBuf to str");
+
     // create build_dir
     let build_dir = wasmedge_dir.as_ref().join("build");
     if !build_dir.exists() {
-        std::fs::create_dir(&build_dir).expect("fail to create build_dir");
+        std::fs::create_dir(&build_dir).expect("[wasmedge-sys] fail to create build_dir");
     }
-    let build_dir_str = build_dir.to_str().expect("fail to convert PathBuf to str");
+    let build_dir_str = build_dir
+        .to_str()
+        .expect("[wasmedge-sys] fail to convert PathBuf to str");
 
     Command::new("cmake")
         .current_dir(build_dir_str)
@@ -322,21 +351,26 @@ fn build_linux(wasmedge_dir: impl AsRef<Path>) -> Paths {
             "-DWASMEDGE_BUILD_TESTS=ON",
             #[cfg(not(feature = "aot"))]
             "-DWASMEDGE_BUILD_AOT_RUNTIME=OFF",
+            &format!("-DCMAKE_INSTALL_PREFIX={}", out_dir_str),
             wasmedge_dir.as_ref().to_str().unwrap(),
         ])
         .output()
-        .expect("fail to cmake setup wasmedge project");
+        .expect("[wasmedge-sys] fail to cmake setup wasmedge project");
 
     Command::new("make")
         .current_dir(build_dir_str)
         .arg("-j")
         .output()
-        .expect("fail to compile wasmedge project");
+        .expect("[wasmedge-sys] fail to compile wasmedge project");
+
+    Command::new("make")
+        .current_dir(build_dir_str)
+        .arg("install")
+        .output()
+        .expect("[wasmedge-sys] fail to compile wasmedge project");
 
     // WASMEDGE_INCLUDE_DIR
-    let inc_dir = build_dir.join("include");
-    assert!(inc_dir.exists());
-    let inc_dir = inc_dir.join("api");
+    let inc_dir = out_dir.join("include");
     assert!(inc_dir.exists());
     println!(
         "cargo:warning=[wasmedge-sys] WASMEDGE_INCLUDE_DIR: {}",
@@ -344,13 +378,11 @@ fn build_linux(wasmedge_dir: impl AsRef<Path>) -> Paths {
     );
 
     // WASMEDGE_LIB_DIR
-    let lib_dir = if build_dir.join("lib64").exists() {
+    let lib_dir = if out_dir.join("lib64").exists() {
         build_dir.join("lib64")
     } else {
         build_dir.join("lib")
     };
-    let lib_dir = lib_dir.join("api");
-    assert!(lib_dir.exists());
     println!(
         "cargo:warning=[wasmedge-sys] WASMEDGE_LIB_DIR: {}",
         lib_dir.to_str().unwrap()
@@ -374,8 +406,10 @@ fn build_linux(wasmedge_dir: impl AsRef<Path>) -> Paths {
 }
 
 fn build_windows(wasmedge_dir: impl AsRef<Path>) -> Paths {
-    let out_dir = env_path!("OUT_DIR").expect("fail to get the OUT_DIR.");
-    let out_dir_str = out_dir.to_str().expect("fail to convert PathBuf to str");
+    let out_dir = env_path!("OUT_DIR").expect("[wasmedge-sys] fail to get the OUT_DIR.");
+    let out_dir_str = out_dir
+        .to_str()
+        .expect("[wasmedge-sys] fail to convert PathBuf to str");
 
     Command::new("cmake")
         .current_dir(wasmedge_dir.as_ref())
@@ -394,23 +428,23 @@ fn build_windows(wasmedge_dir: impl AsRef<Path>) -> Paths {
             ".",
         ])
         .output()
-        .expect("fail to cmake setup wasmedge project");
+        .expect("[wasmedge-sys] fail to cmake setup wasmedge project");
     Command::new("cmake")
         .current_dir(wasmedge_dir.as_ref())
         .args(&["--build", "build"])
         .output()
-        .expect("fail to cmake build wasmedge project");
+        .expect("[wasmedge-sys] fail to cmake build wasmedge project");
 
     // create build_dir
     let build_dir = wasmedge_dir.as_ref().join("build");
     if !build_dir.exists() {
-        std::fs::create_dir(&build_dir).expect("fail to create build_dir");
+        std::fs::create_dir(&build_dir).expect("[wasmedge-sys] fail to create build_dir");
     }
     Command::new("ninja")
         .current_dir(build_dir)
         .args(&["install"])
         .output()
-        .expect("fail to ninja build wasmedge project");
+        .expect("[wasmedge-sys] fail to ninja build wasmedge project");
 
     // WASMEDGE_INCLUDE_DIR
     let mut inc_dir = out_dir.join("include");

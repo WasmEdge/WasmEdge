@@ -108,6 +108,23 @@ constexpr int openFlags(__wasi_oflags_t OpenFlags, __wasi_fdflags_t FdFlags,
   return Flags;
 }
 
+std::pair<const char *, std::unique_ptr<char[]>>
+createNullTerminatedString(std::string_view View) noexcept {
+  const char *CStr = nullptr;
+  std::unique_ptr<char[]> Buffer;
+  if (!View.empty()) {
+    if (const auto Pos = View.find_first_of('\0');
+        Pos != std::string_view::npos) {
+      CStr = View.data();
+    } else {
+      Buffer = std::make_unique<char[]>(View.size() + 1);
+      std::copy(View.begin(), View.end(), Buffer.get());
+      CStr = Buffer.get();
+    }
+  }
+  return {CStr, std::move(Buffer)};
+}
+
 } // namespace
 
 void FdHolder::reset() noexcept {
@@ -769,7 +786,8 @@ WasiExpect<Poller> INode::pollOneoff(__wasi_size_t NSubscriptions) noexcept {
   }
 }
 
-WasiExpect<void> INode::getAddrinfo(const char *NodeStr, const char *ServiceStr,
+WasiExpect<void> INode::getAddrinfo(std::string_view Node,
+                                    std::string_view Service,
                                     const __wasi_addrinfo_t &Hint,
                                     uint32_t MaxResLength,
                                     Span<__wasi_addrinfo_t *> WasiAddrinfoArray,
@@ -777,6 +795,9 @@ WasiExpect<void> INode::getAddrinfo(const char *NodeStr, const char *ServiceStr,
                                     Span<char *> AiAddrSaDataArray,
                                     Span<char *> AiCanonnameArray,
                                     /*Out*/ __wasi_size_t &ResLength) noexcept {
+  const auto [NodeCStr, NodeBuf] = createNullTerminatedString(Node);
+  const auto [ServiceCStr, ServiceBuf] = createNullTerminatedString(Service);
+
   struct addrinfo SysHint;
   SysHint.ai_flags = Hint.ai_flags;
   SysHint.ai_family = Hint.ai_family;
@@ -788,7 +809,7 @@ WasiExpect<void> INode::getAddrinfo(const char *NodeStr, const char *ServiceStr,
   SysHint.ai_next = nullptr;
 
   struct addrinfo *SysResPtr = nullptr;
-  if (auto Res = ::getaddrinfo(NodeStr, ServiceStr, &SysHint, &SysResPtr);
+  if (auto Res = ::getaddrinfo(NodeCStr, ServiceCStr, &SysHint, &SysResPtr);
       unlikely(Res < 0)) {
     return WasiUnexpect(fromEAIErrNo(Res));
   }
@@ -1058,22 +1079,24 @@ WasiExpect<void> INode::sockShutdown(__wasi_sdflags_t SdFlags) const noexcept {
   return {};
 }
 
-WasiExpect<void> INode::sockGetOpt(int32_t Level, int32_t OptName,
+WasiExpect<void> INode::sockGetOpt(__wasi_sock_opt_level_t SockOptLevel,
+                                   __wasi_sock_opt_so_t SockOptName,
                                    void *FlagPtr,
                                    uint32_t *FlagSizePtr) const noexcept {
-  auto SysLevel = toSockOptLevel(static_cast<__wasi_sock_opt_level_t>(Level));
-  auto SysOptName = toSockOptSoName(static_cast<__wasi_sock_opt_so_t>(OptName));
-  if (OptName == __WASI_SOCK_OPT_SO_ERROR) {
+  auto SysSockOptLevel = toSockOptLevel(SockOptLevel);
+  auto SysSockOptName = toSockOptSoName(SockOptName);
+  if (SockOptName == __WASI_SOCK_OPT_SO_ERROR) {
     int ErrorCode = 0;
     int *WasiErrorPtr = static_cast<int *>(FlagPtr);
-    if (auto Res =
-            ::getsockopt(Fd, SysLevel, SysOptName, &ErrorCode, FlagSizePtr);
+    if (auto Res = ::getsockopt(Fd, SysSockOptLevel, SysSockOptName, &ErrorCode,
+                                FlagSizePtr);
         unlikely(Res < 0)) {
       return WasiUnexpect(fromErrNo(errno));
     }
     *WasiErrorPtr = fromErrNo(ErrorCode);
   } else {
-    if (auto Res = ::getsockopt(Fd, SysLevel, SysOptName, FlagPtr, FlagSizePtr);
+    if (auto Res = ::getsockopt(Fd, SysSockOptLevel, SysSockOptName, FlagPtr,
+                                FlagSizePtr);
         unlikely(Res < 0)) {
       return WasiUnexpect(fromErrNo(errno));
     }
@@ -1082,13 +1105,15 @@ WasiExpect<void> INode::sockGetOpt(int32_t Level, int32_t OptName,
   return {};
 }
 
-WasiExpect<void> INode::sockSetOpt(int32_t Level, int32_t OptName,
+WasiExpect<void> INode::sockSetOpt(__wasi_sock_opt_level_t SockOptLevel,
+                                   __wasi_sock_opt_so_t SockOptName,
                                    void *FlagPtr,
                                    uint32_t FlagSizePtr) const noexcept {
-  auto SysLevel = toSockOptLevel(static_cast<__wasi_sock_opt_level_t>(Level));
-  auto SysOptName = toSockOptSoName(static_cast<__wasi_sock_opt_so_t>(OptName));
+  auto SysSockOptLevel = toSockOptLevel(SockOptLevel);
+  auto SysSockOptName = toSockOptSoName(SockOptName);
 
-  if (auto Res = ::setsockopt(Fd, SysLevel, SysOptName, FlagPtr, FlagSizePtr);
+  if (auto Res = ::setsockopt(Fd, SysSockOptLevel, SysSockOptName, FlagPtr,
+                              FlagSizePtr);
       unlikely(Res < 0)) {
     return WasiUnexpect(fromErrNo(errno));
   }
@@ -1338,12 +1363,16 @@ WasiExpect<void> Poller::clock(__wasi_clockid_t Clock,
 #if defined(EPOLLRDHUP)
   EPollEvent.events |= EPOLLRDHUP;
 #endif
-  EPollEvent.data.u64 = Events.size() - 1;
+  EPollEvent.data.fd = Timer.Fd;
 
+  auto [Iter, Added] = FdDatas.emplace(Timer.Fd, FdData(EPollEvent.events));
+  assuming(Added);
   if (auto Res = ::epoll_ctl(this->Fd, EPOLL_CTL_ADD, Timer.Fd, &EPollEvent);
       unlikely(Res < 0)) {
+    FdDatas.erase(Iter);
     return WasiUnexpect(fromErrNo(errno));
   }
+  Iter->second.ReadIndex = Events.size() - 1;
   return {};
 }
 
@@ -1363,12 +1392,25 @@ WasiExpect<void> Poller::read(const INode &Fd,
 #if defined(EPOLLRDHUP)
   EPollEvent.events |= EPOLLRDHUP;
 #endif
-  EPollEvent.data.u64 = Events.size() - 1;
+  EPollEvent.data.fd = Fd.Fd;
 
-  if (auto Res = ::epoll_ctl(this->Fd, EPOLL_CTL_ADD, Fd.Fd, &EPollEvent);
-      unlikely(Res < 0)) {
-    return WasiUnexpect(fromErrNo(errno));
+  auto [Iter, Added] = FdDatas.emplace(Fd.Fd, FdData(EPollEvent.events));
+  if (likely(Added)) {
+    if (auto Res = ::epoll_ctl(this->Fd, EPOLL_CTL_ADD, Fd.Fd, &EPollEvent);
+        unlikely(Res < 0)) {
+      FdDatas.erase(Iter);
+      return WasiUnexpect(fromErrNo(errno));
+    }
+  } else {
+    EPollEvent.events |= Iter->second.Events;
+    if (auto Res = ::epoll_ctl(this->Fd, EPOLL_CTL_MOD, Fd.Fd, &EPollEvent);
+        unlikely(Res < 0)) {
+      return WasiUnexpect(fromErrNo(errno));
+    }
   }
+
+  Iter->second.Events = EPollEvent.events;
+  Iter->second.ReadIndex = Events.size() - 1;
   return {};
 }
 
@@ -1387,12 +1429,25 @@ WasiExpect<void> Poller::write(const INode &Fd,
 #if defined(EPOLLRDHUP)
   EPollEvent.events |= EPOLLRDHUP;
 #endif
-  EPollEvent.data.u64 = Events.size() - 1;
+  EPollEvent.data.fd = Fd.Fd;
 
-  if (auto Res = ::epoll_ctl(this->Fd, EPOLL_CTL_ADD, Fd.Fd, &EPollEvent);
-      unlikely(Res < 0)) {
-    return WasiUnexpect(fromErrNo(errno));
+  auto [Iter, Added] = FdDatas.emplace(Fd.Fd, FdData(EPollEvent.events));
+  if (likely(Added)) {
+    if (auto Res = ::epoll_ctl(this->Fd, EPOLL_CTL_ADD, Fd.Fd, &EPollEvent);
+        unlikely(Res < 0)) {
+      FdDatas.erase(Iter);
+      return WasiUnexpect(fromErrNo(errno));
+    }
+  } else {
+    EPollEvent.events |= Iter->second.Events;
+    if (auto Res = ::epoll_ctl(this->Fd, EPOLL_CTL_MOD, Fd.Fd, &EPollEvent);
+        unlikely(Res < 0)) {
+      return WasiUnexpect(fromErrNo(errno));
+    }
   }
+
+  Iter->second.Events = EPollEvent.events;
+  Iter->second.WriteIndex = Events.size() - 1;
   return {};
 }
 
@@ -1408,11 +1463,12 @@ WasiExpect<void> Poller::wait(CallbackType Callback) noexcept {
   if (unlikely(Count < 0)) {
     return WasiUnexpect(fromErrNo(errno));
   }
-  for (int I = 0; I < Count; ++I) {
-    auto &EPollEvent = EPollEvents[I];
-    const auto Index = EPollEvent.data.u64;
-    __wasi_filesize_t NBytes = 0;
+
+  auto ProcessEvent = [this](CallbackType &Callback,
+                             const struct epoll_event &EPollEvent,
+                             const uint64_t Index) {
     auto Flags = static_cast<__wasi_eventrwflags_t>(0);
+    __wasi_filesize_t NBytes = 0;
     switch (Events[Index].type) {
     case __WASI_EVENTTYPE_CLOCK:
       break;
@@ -1446,8 +1502,24 @@ WasiExpect<void> Poller::wait(CallbackType Callback) noexcept {
       break;
     }
     }
+
     Callback(Events[Index].userdata, __WASI_ERRNO_SUCCESS, Events[Index].type,
              NBytes, Flags);
+  };
+
+  for (int I = 0; I < Count; ++I) {
+    const auto &EPollEvent = EPollEvents[I];
+    const auto Iter = FdDatas.find(EPollEvent.data.fd);
+    assuming(Iter != FdDatas.end());
+
+    if (EPollEvent.events & EPOLLIN) {
+      assuming(Iter->second.ReadIndex < Events.size());
+      ProcessEvent(Callback, EPollEvent, Iter->second.ReadIndex);
+    }
+    if (EPollEvent.events & EPOLLOUT) {
+      assuming(Iter->second.WriteIndex < Events.size());
+      ProcessEvent(Callback, EPollEvent, Iter->second.WriteIndex);
+    }
   }
   return {};
 }

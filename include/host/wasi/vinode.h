@@ -58,7 +58,7 @@ public:
                                                   std::string Name,
                                                   std::string SystemPath);
 
-  bool isPreopened() const { return !Parent; }
+  bool isPreopened() const { return !Parent && !Name.empty(); }
 
   constexpr const std::string &name() const { return Name; }
 
@@ -533,7 +533,7 @@ public:
   pollOneoff(__wasi_size_t NSubscriptions) noexcept;
 
   static WasiExpect<void>
-  getAddrinfo(const char *NodeStr, const char *ServiceStr,
+  getAddrinfo(std::string_view Node, std::string_view Service,
               const __wasi_addrinfo_t &Hint, uint32_t MaxResLength,
               Span<__wasi_addrinfo_t *> WasiAddrinfoArray,
               Span<__wasi_sockaddr_t *> WasiSockaddrArray,
@@ -602,13 +602,16 @@ public:
     return Node.sockShutdown(SdFlags);
   }
 
-  WasiExpect<void> sockGetOpt(int32_t Level, int32_t OptName, void *FlagPtr,
+  WasiExpect<void> sockGetOpt(__wasi_sock_opt_level_t SockOptLevel,
+                              __wasi_sock_opt_so_t SockOptName, void *FlagPtr,
                               uint32_t *FlagSizePtr) const noexcept {
-    return Node.sockGetOpt(Level, OptName, FlagPtr, FlagSizePtr);
+    return Node.sockGetOpt(SockOptLevel, SockOptName, FlagPtr, FlagSizePtr);
   }
-  WasiExpect<void> sockSetOpt(int32_t Level, int32_t OptName, void *FlagPtr,
+
+  WasiExpect<void> sockSetOpt(__wasi_sock_opt_level_t SockOptLevel,
+                              __wasi_sock_opt_so_t SockOptName, void *FlagPtr,
                               uint32_t FlagSizePtr) const noexcept {
-    return Node.sockSetOpt(Level, OptName, FlagPtr, FlagSizePtr);
+    return Node.sockSetOpt(SockOptLevel, SockOptName, FlagPtr, FlagSizePtr);
   }
 
   WasiExpect<void> sockGetLoaclAddr(uint8_t *Address, uint32_t *AddrTypePtr,

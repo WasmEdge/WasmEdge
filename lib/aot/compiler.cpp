@@ -2953,6 +2953,10 @@ private:
 
   void compileIndirectCallOp(const uint32_t TableIndex,
                              const uint32_t FuncTypeIndex) {
+    auto *NotNullBB = llvm::BasicBlock::Create(LLContext, "c_i.not_null", F);
+    auto *IsNullBB = llvm::BasicBlock::Create(LLContext, "c_i.is_null", F);
+    auto *EndBB = llvm::BasicBlock::Create(LLContext, "c_i.end", F);
+
     llvm::Value *FuncIndex = stackPop();
     const auto &FuncType = *Context.FunctionTypes[FuncTypeIndex];
     auto *FTy = toLLVMType(Context.ExecCtxPtrTy, FuncType);
@@ -2961,61 +2965,111 @@ private:
     const size_t ArgSize = FuncType.getParamTypes().size();
     const size_t RetSize =
         RTy->isVoidTy() ? 0 : FuncType.getReturnTypes().size();
-
-    llvm::Value *Args;
-    if (ArgSize == 0) {
-      Args = llvm::ConstantPointerNull::get(Builder.getInt8PtrTy());
-    } else {
-      auto *Alloca = Builder.CreateAlloca(Builder.getInt8Ty(),
-                                          Builder.getInt64(ArgSize * kValSize));
-      Alloca->setAlignment(Align(kValSize));
-      Args = Alloca;
-    }
-
-    llvm::Value *Rets;
-    if (RetSize == 0) {
-      Rets = llvm::ConstantPointerNull::get(Builder.getInt8PtrTy());
-    } else {
-      auto *Alloca = Builder.CreateAlloca(Builder.getInt8Ty(),
-                                          Builder.getInt64(RetSize * kValSize));
-      Alloca->setAlignment(Align(kValSize));
-      Rets = Alloca;
-    }
-
+    std::vector<llvm::Value *> ArgsVec(ArgSize + 1, nullptr);
+    ArgsVec[0] = F->arg_begin();
     for (size_t I = 0; I < ArgSize; ++I) {
-      const size_t J = ArgSize - 1 - I;
-      auto *Arg = stackPop();
-      auto *Ptr = Builder.CreateConstInBoundsGEP1_64(Context.Int8Ty, Args,
-                                                     J * kValSize);
-      Builder.CreateStore(
-          Arg, Builder.CreateBitCast(Ptr, Arg->getType()->getPointerTo()));
+      const size_t J = ArgSize - I;
+      ArgsVec[J] = stackPop();
     }
 
-    Builder.CreateCall(
-        Context.getIntrinsic(
-            Builder, AST::Module::Intrinsics::kCallIndirect,
-            llvm::FunctionType::get(Context.VoidTy,
-                                    {Context.Int32Ty, Context.Int32Ty,
-                                     Context.Int32Ty, Context.Int8PtrTy,
-                                     Context.Int8PtrTy},
-                                    false)),
-        {Builder.getInt32(TableIndex), Builder.getInt32(FuncTypeIndex),
-         FuncIndex, Args, Rets});
+    std::vector<llvm::Value *> FPtrRetsVec;
+    FPtrRetsVec.reserve(RetSize);
+    {
+      auto *FPtr = Builder.CreateCall(
+          Context.getIntrinsic(
+              Builder, AST::Module::Intrinsics::kPtrFunc,
+              llvm::FunctionType::get(
+                  FTy->getPointerTo(),
+                  {Context.Int32Ty, Context.Int32Ty, Context.Int32Ty}, false)),
+          {Builder.getInt32(TableIndex), Builder.getInt32(FuncTypeIndex),
+           FuncIndex});
+      Builder.CreateCondBr(
+          createLikely(Builder, Builder.CreateNot(Builder.CreateIsNull(FPtr))),
+          NotNullBB, IsNullBB);
+      Builder.SetInsertPoint(NotNullBB);
 
-    if (RetSize == 0) {
-      // nothing to do
-    } else if (RetSize == 1) {
-      auto *VPtr = Builder.CreateConstInBoundsGEP1_64(Context.Int8Ty, Rets, 0);
-      auto *Ptr = Builder.CreateBitCast(VPtr, RTy->getPointerTo());
-      stackPush(Builder.CreateLoad(RTy, Ptr));
-    } else {
-      for (unsigned I = 0; I < RetSize; ++I) {
-        auto *VPtr = Builder.CreateConstInBoundsGEP1_64(Context.Int8Ty, Rets,
-                                                        I * kValSize);
-        auto *Ptr = Builder.CreateBitCast(
-            VPtr, RTy->getStructElementType(I)->getPointerTo());
-        stackPush(Builder.CreateLoad(RTy->getStructElementType(I), Ptr));
+      auto *FPtrRet =
+          Builder.CreateCall(llvm::FunctionCallee(FTy, FPtr), ArgsVec);
+      if (RetSize == 0) {
+        // nothing to do
+      } else if (RetSize == 1) {
+        FPtrRetsVec.push_back(FPtrRet);
+      } else {
+        for (auto *Val : unpackStruct(Builder, FPtrRet)) {
+          FPtrRetsVec.push_back(Val);
+        }
       }
+    }
+
+    Builder.CreateBr(EndBB);
+    Builder.SetInsertPoint(IsNullBB);
+
+    std::vector<llvm::Value *> RetsVec(RetSize);
+    {
+      llvm::Value *Args;
+      if (ArgSize == 0) {
+        Args = llvm::ConstantPointerNull::get(Builder.getInt8PtrTy());
+      } else {
+        auto *Alloca = Builder.CreateAlloca(
+            Builder.getInt8Ty(), Builder.getInt64(ArgSize * kValSize));
+        Alloca->setAlignment(Align(kValSize));
+        Args = Alloca;
+      }
+
+      llvm::Value *Rets;
+      if (RetSize == 0) {
+        Rets = llvm::ConstantPointerNull::get(Builder.getInt8PtrTy());
+      } else {
+        auto *Alloca = Builder.CreateAlloca(
+            Builder.getInt8Ty(), Builder.getInt64(RetSize * kValSize));
+        Alloca->setAlignment(Align(kValSize));
+        Rets = Alloca;
+      }
+
+      for (size_t I = 0; I < ArgSize; ++I) {
+        auto *Ptr = Builder.CreateConstInBoundsGEP1_64(Context.Int8Ty, Args,
+                                                       I * kValSize);
+        auto *Arg = ArgsVec[I + 1];
+        Builder.CreateStore(
+            Arg, Builder.CreateBitCast(Ptr, Arg->getType()->getPointerTo()));
+      }
+
+      Builder.CreateCall(
+          Context.getIntrinsic(
+              Builder, AST::Module::Intrinsics::kCallIndirect,
+              llvm::FunctionType::get(Context.VoidTy,
+                                      {Context.Int32Ty, Context.Int32Ty,
+                                       Context.Int32Ty, Context.Int8PtrTy,
+                                       Context.Int8PtrTy},
+                                      false)),
+          {Builder.getInt32(TableIndex), Builder.getInt32(FuncTypeIndex),
+           FuncIndex, Args, Rets});
+
+      if (RetSize == 0) {
+        // nothing to do
+      } else if (RetSize == 1) {
+        auto *VPtr =
+            Builder.CreateConstInBoundsGEP1_64(Context.Int8Ty, Rets, 0);
+        auto *Ptr = Builder.CreateBitCast(VPtr, RTy->getPointerTo());
+        RetsVec[0] = Builder.CreateLoad(RTy, Ptr);
+      } else {
+        for (unsigned I = 0; I < RetSize; ++I) {
+          auto *VPtr = Builder.CreateConstInBoundsGEP1_64(Context.Int8Ty, Rets,
+                                                          I * kValSize);
+          auto *Ptr = Builder.CreateBitCast(
+              VPtr, RTy->getStructElementType(I)->getPointerTo());
+          RetsVec[I] = Builder.CreateLoad(RTy->getStructElementType(I), Ptr);
+        }
+      }
+      Builder.CreateBr(EndBB);
+      Builder.SetInsertPoint(EndBB);
+    }
+
+    for (unsigned I = 0; I < RetSize; ++I) {
+      auto *PHIRet = Builder.CreatePHI(FPtrRetsVec[I]->getType(), 2);
+      PHIRet->addIncoming(FPtrRetsVec[I], NotNullBB);
+      PHIRet->addIncoming(RetsVec[I], IsNullBB);
+      stackPush(PHIRet);
     }
   }
 

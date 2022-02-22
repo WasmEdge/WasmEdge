@@ -4,7 +4,7 @@
 
 在本文中，我们演示了如何在 seL4 RTOS 上运行 WasmEdge，分为两部分：
 
-1. seL4 上的 Guest Linux OS：这是 WasmEdge runtime的控制器，它将把 wasm 程序发送到作为 seL4 上的代理的 WasmEdge runner 来执行。
+1. seL4 上的 Guest Linux OS：这是 WasmEdge runtime 的控制器，它将把 wasm 程序发送到作为 seL4 上的代理的 WasmEdge runner 来执行。
 2. seL4 上的 WasmEdge runner：这是 wasm 程序运行时，它将从 Guest Linux OS 执行给定的 wasm 程序。
 
 下图说明了系统的架构。
@@ -30,7 +30,7 @@ $ docker run --rm -v $(pwd):/app -it wasmedge/sel4_build
 (docker) root#
 ```
 
-> 如果你不想自己搭建seL4系统模拟器，你可以从我们的 GitHub Actions 下载 [build artifact](https://github.com/second-state/wasmedge-seL4/actions/runs/1374510169), 并直接跳到 [启动 wasmedge-seL4](#boot-wasmedge-sel4)。
+> 如果你不想自己搭建seL4系统模拟器，你可以从我们的 GitHub Actions 下载 [build artifact](https://github.com/second-state/wasmedge-seL4/actions/runs/1374510169), 并直接跳到 [启动-wasmedge-seL4](#boot-wasmedge-sel4)。
 
 ### 自动安装：一体化脚本
 
@@ -44,7 +44,7 @@ wget -qO- https://raw.githubusercontent.com/second-state/wasmedge-seL4/main/buil
 
 完成构建脚本后，你会生成一个文件夹 `sel4_wasmedge`.
 
-如果此自动安装成功完成，请跳过手动安装信息并继续 [启动 wasmedge-sel4](https://github.com/second-state/wasmedge-seL4#boot-wasmedge-sel4)
+如果此自动安装成功完成，请跳过手动安装信息并继续 [启动-wasmedge-sel4](https://github.com/second-state/wasmedge-seL4#boot-wasmedge-sel4)
 
 ### 手动安装：管理内存使用
 
@@ -82,9 +82,9 @@ sudo chmod a+x build.sh
 ./build.sh
 ```
 
-完成此手动安装后，请按照以下步骤操作； 启动 wasmedge-sel4；
+完成此手动安装后，请按照以下步骤操作； 启动-wasmedge-sel4；
 
-### 启动 wasmedge-seL4
+### 启动-wasmedge-seL4
 
 ```bash
 cd sel4_wasmedge/build

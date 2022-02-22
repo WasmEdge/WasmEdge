@@ -4,8 +4,8 @@
 
 在本文中，我们演示了如何在 seL4 RTOS 上运行 WasmEdge，分为两部分：
 
-1. seL4 上的 Guest Linux OS：这是 WasmEdge 运行时的控制器，它将把 wasm 程序发送到作为 seL4 上的代理的 WasmEdge runner 来执行。
-2. seL4上的 WasmEdge runner：这是 wasm 程序运行时，它将从 Guest Linux OS 执行给定的 wasm 程序。
+1. seL4 上的 Guest Linux OS：这是 WasmEdge runtime的控制器，它将把 wasm 程序发送到作为 seL4 上的代理的 WasmEdge runner 来执行。
+2. seL4 上的 WasmEdge runner：这是 wasm 程序运行时，它将从 Guest Linux OS 执行给定的 wasm 程序。
 
 下图说明了系统的架构。
 
@@ -22,7 +22,7 @@
 - 至少 4GB 的 内存
 - 至少 20GB 的磁盘存储空间（以下安装完成后 wasmedge_sel4 目录将包含超过 11GB 的数据）
 
-软件: 安装了开发工具包（例如：Python）的 Ubuntu 20.04。 我们推荐 [GitHub Actions Ubuntu 20.04 VM](https://github.com/actions/virtual-environments/blob/main/images/linux/Ubuntu2004-README.md) (查看 [已安装的 apt 包](https://github.com/actions/virtual-environments/blob/main/images/linux/Ubuntu2004-README.md#installed-apt-packages) 列表). 或者，您可以使用我们的 Docker 镜像 (查看 [Dockerfile](https://github.com/second-state/wasmedge-seL4/blob/main/docs/Dockerfile.sel4_build)).
+软件: 安装了开发工具包（例如：Python）的 Ubuntu 20.04。 我们推荐 [GitHub Actions Ubuntu 20.04 VM](https://github.com/actions/virtual-environments/blob/main/images/linux/Ubuntu2004-README.md) (查看 [已安装的 apt 包](https://github.com/actions/virtual-environments/blob/main/images/linux/Ubuntu2004-README.md#installed-apt-packages) 列表). 或者，你可以使用我们的 Docker 镜像 (查看 [Dockerfile](https://github.com/second-state/wasmedge-seL4/blob/main/docs/Dockerfile.sel4_build)).
 
 ```bash
 $ docker pull wasmedge/sel4_build
@@ -30,7 +30,7 @@ $ docker run --rm -v $(pwd):/app -it wasmedge/sel4_build
 (docker) root#
 ```
 
-> 如果不想自己搭建seL4系统模拟器，可以从我们的 GitHub Actions 下载 [build artifact](https://github.com/second-state/wasmedge-seL4/actions/runs/1374510169), 并直接跳到 [启动 wasmedge-seL4](#boot-wasmedge-sel4)
+> 如果你不想自己搭建seL4系统模拟器，你可以从我们的 GitHub Actions 下载 [build artifact](https://github.com/second-state/wasmedge-seL4/actions/runs/1374510169), 并直接跳到 [启动 wasmedge-seL4](#boot-wasmedge-sel4)。
 
 ### 自动安装：一体化脚本
 
@@ -40,15 +40,15 @@ $ docker run --rm -v $(pwd):/app -it wasmedge/sel4_build
 wget -qO- https://raw.githubusercontent.com/second-state/wasmedge-seL4/main/build.sh | bash
 ```
 
-这将在 seL4 上克隆并构建我们的 wasmedge 到镜像。
+这将在 seL4 上克隆并构建 wasmedge 到镜像。
 
-完成构建脚本后，您会生成一个文件夹 `sel4_wasmedge`.
+完成构建脚本后，你会生成一个文件夹 `sel4_wasmedge`.
 
 如果此自动安装成功完成，请跳过手动安装信息并继续 [启动 wasmedge-sel4](https://github.com/second-state/wasmedge-seL4#boot-wasmedge-sel4)
 
 ### 手动安装：管理内存使用
 
-上述所有的一体化脚本在大多数情况下都可以使用。 但是，如果您的系统资源紧张并且遇到错误，例如 `ninja: build stopped: subcommand failed`，请注意，您可以通过将 `-j` 参数显式传递给 `ninja` 命令（在 `build.sh` 文件的最后一行）来降低安装的并行度。 您会看到，Ninja 默认运行最多的并行进程，因此以下过程是一种显式设置/减少并行化的方法。
+上述一体化脚本在大多数情况下都可以使用。 但是，如果你的系统资源紧张并且遇到错误，例如 `ninja: build stopped: subcommand failed`，请注意，你可以通过将 `-j` 参数显式传递给 `ninja` 命令（在 `build.sh` 文件的最后一行）来降低安装的并行度。 你会看到，Ninja 默认运行最多的并行进程，因此以下过程是一种显式设置/减少并行化的方法。
 
 手动拉取 `wasmedge-sel4` 仓库。
 
@@ -76,7 +76,7 @@ ninja -j 2
 sudo chmod a+x build.sh
 ```
 
-运行编辑后的`build.sh 文件。
+运行编辑后的 `build.sh` 文件。
 
 ```bash
 ./build.sh
@@ -138,7 +138,7 @@ buildroot login:
 
 ### 在 guest linux 上登录
 
-输入“root”登录
+输入 `root` 登录
 
 ```bash
 buildroot login: root

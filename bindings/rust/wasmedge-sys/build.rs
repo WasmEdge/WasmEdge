@@ -192,13 +192,12 @@ fn build_wasmedge() -> Option<Paths> {
     let out_dir = env_path!("OUT_DIR").expect("[wasmedge-sys] fail to get the OUT_DIR");
     let wasmedge_dir = out_dir.join("wasmedge");
     if !wasmedge_dir.exists() {
-        std::fs::create_dir(&wasmedge_dir).expect(
-            format!(
+        std::fs::create_dir(&wasmedge_dir).unwrap_or_else(|_| {
+            panic!(
                 "[wasmedge-sys] fail to create wasmedge_dir: {:?}",
                 &wasmedge_dir
             )
-            .as_str(),
-        );
+        });
     }
     let wasmedge_dir_str = wasmedge_dir
         .to_str()

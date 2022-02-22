@@ -2514,9 +2514,9 @@ public:
             Builder.CreateBitCast(stackPop(), Context.Int16x8Ty), ExtendTy);
         auto *M = Builder.CreateMul(LHS, RHS);
         auto *L = Builder.CreateShuffleVector(
-            M, Undef, std::array<ShuffleElement, 4>{0, 2, 4, 6});
+            M, Undef, std::initializer_list<ShuffleElement>{0, 2, 4, 6});
         auto *R = Builder.CreateShuffleVector(
-            M, Undef, std::array<ShuffleElement, 4>{1, 3, 5, 7});
+            M, Undef, std::initializer_list<ShuffleElement>{1, 3, 5, 7});
         auto *V = Builder.CreateAdd(L, R);
         stackPush(Builder.CreateBitCast(V, Context.Int64x2Ty));
         break;
@@ -3760,14 +3760,14 @@ private:
           V, llvm::VectorType::get(Context.FloatTy, 2, false));
       auto *ZeroV = llvm::ConstantAggregateZero::get(Demoted->getType());
       return Builder.CreateShuffleVector(
-          Demoted, ZeroV, std::array<ShuffleElement, 4>{0, 1, 2, 3});
+          Demoted, ZeroV, std::initializer_list<ShuffleElement>{0, 1, 2, 3});
     });
   }
   void compileVectorPromote() {
     compileVectorOp(Context.Floatx4Ty, [this](auto *V) {
       auto *UndefV = llvm::UndefValue::get(V->getType());
       auto *Low = Builder.CreateShuffleVector(
-          V, UndefV, std::array<ShuffleElement, 2>{0, 1});
+          V, UndefV, std::initializer_list<ShuffleElement>{0, 1});
       return Builder.CreateFPExt(
           Low, llvm::VectorType::get(Context.DoubleTy, 2, false));
     });
@@ -4005,7 +4005,7 @@ Expect<void> outputNativeLibrary(const std::filesystem::path &OutputPath,
   // link
 #if WASMEDGE_OS_MACOS
   lld::mach_o::link(
-      std::array {
+      std::initializer_list<const char *> {
         "lld", "-arch",
 #if defined(__x86_64__)
             "x86_64",
@@ -4021,12 +4021,14 @@ Expect<void> outputNativeLibrary(const std::filesystem::path &OutputPath,
       },
 #elif WASMEDGE_OS_LINUX
   lld::elf::link(
-      std::array{"ld.lld", "--shared", "--gc-sections", "--discard-all",
-                 ObjectName.c_str(), "-o", OutputPath.u8string().c_str()},
+      std::initializer_list<const char *>{"ld.lld", "--shared", "--gc-sections",
+                                          "--discard-all", ObjectName.c_str(),
+                                          "-o", OutputPath.u8string().c_str()},
 #elif WASMEDGE_OS_WINDOWS
   lld::coff::link(
-      std::array{"lld-link", "-dll", "-defaultlib:libcmt", "-base:0", "-nologo",
-                 ObjectName.c_str(), ("-out:" + OutputPath.u8string()).c_str()},
+      std::initializer_list<const char *>{
+          "lld-link", "-dll", "-defaultlib:libcmt", "-base:0", "-nologo",
+          ObjectName.c_str(), ("-out:" + OutputPath.u8string()).c_str()},
 #endif
       false,
 #if LLVM_VERSION_MAJOR >= 10

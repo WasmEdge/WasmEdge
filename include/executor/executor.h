@@ -346,81 +346,96 @@ private:
                                Runtime::Instance::MemoryInstance &MemInst,
                                const AST::Instruction &Instr);
   /// ======= Test and Relation Numeric instructions =======
-  template <typename T> TypeU<T> runEqzOp(ValVariant &Val) const;
   template <typename T>
-  TypeT<T> runEqOp(ValVariant &Val1, const ValVariant &Val2) const;
+  TypeU<T> runEqzOp(Runtime::StackManager &StackMgr) const noexcept;
   template <typename T>
-  TypeT<T> runNeOp(ValVariant &Val1, const ValVariant &Val2) const;
+  TypeT<T> runEqOp(Runtime::StackManager &StackMgr) const noexcept;
   template <typename T>
-  TypeT<T> runLtOp(ValVariant &Val1, const ValVariant &Val2) const;
+  TypeT<T> runNeOp(Runtime::StackManager &StackMgr) const noexcept;
   template <typename T>
-  TypeT<T> runGtOp(ValVariant &Val1, const ValVariant &Val2) const;
+  TypeT<T> runLtOp(Runtime::StackManager &StackMgr) const noexcept;
   template <typename T>
-  TypeT<T> runLeOp(ValVariant &Val1, const ValVariant &Val2) const;
+  TypeT<T> runGtOp(Runtime::StackManager &StackMgr) const noexcept;
   template <typename T>
-  TypeT<T> runGeOp(ValVariant &Val1, const ValVariant &Val2) const;
+  TypeT<T> runLeOp(Runtime::StackManager &StackMgr) const noexcept;
+  template <typename T>
+  TypeT<T> runGeOp(Runtime::StackManager &StackMgr) const noexcept;
   /// ======= Unary Numeric instructions =======
-  template <typename T> TypeU<T> runClzOp(ValVariant &Val) const;
-  template <typename T> TypeU<T> runCtzOp(ValVariant &Val) const;
-  template <typename T> TypeU<T> runPopcntOp(ValVariant &Val) const;
-  template <typename T> TypeF<T> runAbsOp(ValVariant &Val) const;
-  template <typename T> TypeF<T> runNegOp(ValVariant &Val) const;
-  template <typename T> TypeF<T> runCeilOp(ValVariant &Val) const;
-  template <typename T> TypeF<T> runFloorOp(ValVariant &Val) const;
-  template <typename T> TypeF<T> runTruncOp(ValVariant &Val) const;
-  template <typename T> TypeF<T> runNearestOp(ValVariant &Val) const;
-  template <typename T> TypeF<T> runSqrtOp(ValVariant &Val) const;
+  template <typename T>
+  TypeU<T> runClzOp(Runtime::StackManager &StackMgr) const noexcept;
+  template <typename T>
+  TypeU<T> runCtzOp(Runtime::StackManager &StackMgr) const noexcept;
+  template <typename T>
+  TypeU<T> runPopcntOp(Runtime::StackManager &StackMgr) const noexcept;
+  template <typename T>
+  TypeF<T> runAbsOp(Runtime::StackManager &StackMgr) const noexcept;
+  template <typename T>
+  TypeF<T> runNegOp(Runtime::StackManager &StackMgr) const noexcept;
+  template <typename T>
+  TypeF<T> runCeilOp(Runtime::StackManager &StackMgr) const noexcept;
+  template <typename T>
+  TypeF<T> runFloorOp(Runtime::StackManager &StackMgr) const noexcept;
+  template <typename T>
+  TypeF<T> runTruncOp(Runtime::StackManager &StackMgr) const noexcept;
+  template <typename T>
+  TypeF<T> runNearestOp(Runtime::StackManager &StackMgr) const noexcept;
+  template <typename T>
+  TypeF<T> runSqrtOp(Runtime::StackManager &StackMgr) const noexcept;
   /// ======= Binary Numeric instructions =======
   template <typename T>
-  TypeN<T> runAddOp(ValVariant &Val1, const ValVariant &Val2) const;
+  TypeN<T> runAddOp(Runtime::StackManager &StackMgr) const noexcept;
   template <typename T>
-  TypeN<T> runSubOp(ValVariant &Val1, const ValVariant &Val2) const;
+  TypeN<T> runSubOp(Runtime::StackManager &StackMgr) const noexcept;
   template <typename T>
-  TypeN<T> runMulOp(ValVariant &Val1, const ValVariant &Val2) const;
+  TypeN<T> runMulOp(Runtime::StackManager &StackMgr) const noexcept;
   template <typename T>
-  TypeT<T> runDivOp(const AST::Instruction &Instr, ValVariant &Val1,
-                    const ValVariant &Val2) const;
+  TypeT<T> runDivOp(Runtime::StackManager &StackMgr,
+                    const AST::Instruction &Instr) const noexcept;
   template <typename T>
-  TypeI<T> runRemOp(const AST::Instruction &Instr, ValVariant &Val1,
-                    const ValVariant &Val2) const;
+  TypeI<T> runRemOp(Runtime::StackManager &StackMgr,
+                    const AST::Instruction &Instr) const noexcept;
   template <typename T>
-  TypeU<T> runAndOp(ValVariant &Val1, const ValVariant &Val2) const;
+  TypeU<T> runAndOp(Runtime::StackManager &StackMgr) const noexcept;
   template <typename T>
-  TypeU<T> runOrOp(ValVariant &Val1, const ValVariant &Val2) const;
+  TypeU<T> runOrOp(Runtime::StackManager &StackMgr) const noexcept;
   template <typename T>
-  TypeU<T> runXorOp(ValVariant &Val1, const ValVariant &Val2) const;
+  TypeU<T> runXorOp(Runtime::StackManager &StackMgr) const noexcept;
   template <typename T>
-  TypeU<T> runShlOp(ValVariant &Val1, const ValVariant &Val2) const;
+  TypeU<T> runShlOp(Runtime::StackManager &StackMgr) const noexcept;
   template <typename T>
-  TypeI<T> runShrOp(ValVariant &Val1, const ValVariant &Val2) const;
+  TypeI<T> runShrOp(Runtime::StackManager &StackMgr) const noexcept;
   template <typename T>
-  TypeU<T> runRotlOp(ValVariant &Val1, const ValVariant &Val2) const;
+  TypeU<T> runRotlOp(Runtime::StackManager &StackMgr) const noexcept;
   template <typename T>
-  TypeU<T> runRotrOp(ValVariant &Val1, const ValVariant &Val2) const;
+  TypeU<T> runRotrOp(Runtime::StackManager &StackMgr) const noexcept;
   template <typename T>
-  TypeF<T> runMinOp(ValVariant &Val1, const ValVariant &Val2) const;
+  TypeF<T> runMinOp(Runtime::StackManager &StackMgr) const noexcept;
   template <typename T>
-  TypeF<T> runMaxOp(ValVariant &Val1, const ValVariant &Val2) const;
+  TypeF<T> runMaxOp(Runtime::StackManager &StackMgr) const noexcept;
   template <typename T>
-  TypeF<T> runCopysignOp(ValVariant &Val1, const ValVariant &Val2) const;
+  TypeF<T> runCopysignOp(Runtime::StackManager &StackMgr) const noexcept;
   /// ======= Cast Numeric instructions =======
   template <typename TIn, typename TOut>
-  TypeUU<TIn, TOut> runWrapOp(ValVariant &Val) const;
+  TypeUU<TIn, TOut> runWrapOp(Runtime::StackManager &StackMgr) const noexcept;
   template <typename TIn, typename TOut>
-  TypeFI<TIn, TOut> runTruncateOp(const AST::Instruction &Instr,
-                                  ValVariant &Val) const;
+  TypeFI<TIn, TOut> runTruncateOp(Runtime::StackManager &StackMgr,
+                                  const AST::Instruction &Instr) const noexcept;
   template <typename TIn, typename TOut>
-  TypeFI<TIn, TOut> runTruncateSatOp(ValVariant &Val) const;
+  TypeFI<TIn, TOut>
+  runTruncateSatOp(Runtime::StackManager &StackMgr) const noexcept;
   template <typename TIn, typename TOut, size_t B = sizeof(TIn) * 8>
-  TypeIU<TIn, TOut> runExtendOp(ValVariant &Val) const;
+  TypeIU<TIn, TOut> runExtendOp(Runtime::StackManager &StackMgr) const noexcept;
   template <typename TIn, typename TOut>
-  TypeIF<TIn, TOut> runConvertOp(ValVariant &Val) const;
+  TypeIF<TIn, TOut>
+  runConvertOp(Runtime::StackManager &StackMgr) const noexcept;
   template <typename TIn, typename TOut>
-  TypeFF<TIn, TOut> runDemoteOp(ValVariant &Val) const;
+  TypeFF<TIn, TOut> runDemoteOp(Runtime::StackManager &StackMgr) const noexcept;
   template <typename TIn, typename TOut>
-  TypeFF<TIn, TOut> runPromoteOp(ValVariant &Val) const;
+  TypeFF<TIn, TOut>
+  runPromoteOp(Runtime::StackManager &StackMgr) const noexcept;
   template <typename TIn, typename TOut>
-  TypeNN<TIn, TOut> runReinterpretOp(ValVariant &Val) const;
+  TypeNN<TIn, TOut>
+  runReinterpretOp(Runtime::StackManager &StackMgr) const noexcept;
   /// ======= SIMD Memory instructions =======
   template <typename TIn, typename TOut>
   Expect<void> runLoadExpandOp(Runtime::StackManager &StackMgr,
@@ -440,87 +455,109 @@ private:
                               const AST::Instruction &Instr);
   /// ======= SIMD Lane instructions =======
   template <typename TIn, typename TOut = TIn>
-  Expect<void> runExtractLaneOp(ValVariant &Val, const uint8_t Index) const;
+  Expect<void> runExtractLaneOp(Runtime::StackManager &StackMgr,
+                                const uint8_t Index) const noexcept;
   template <typename TIn, typename TOut = TIn>
-  Expect<void> runReplaceLaneOp(ValVariant &Val1, const ValVariant &Val2,
-                                const uint8_t Index) const;
+  Expect<void> runReplaceLaneOp(Runtime::StackManager &StackMgr,
+                                const uint8_t Index) const noexcept;
   /// ======= SIMD Numeric instructions =======
   template <typename TIn, typename TOut = TIn>
-  Expect<void> runSplatOp(ValVariant &Val) const;
+  Expect<void> runSplatOp(Runtime::StackManager &StackMgr) const noexcept;
   template <typename T>
-  Expect<void> runVectorEqOp(ValVariant &Val1, const ValVariant &Val2) const;
+  Expect<void> runVectorEqOp(Runtime::StackManager &StackMgr) const noexcept;
   template <typename T>
-  Expect<void> runVectorNeOp(ValVariant &Val1, const ValVariant &Val2) const;
+  Expect<void> runVectorNeOp(Runtime::StackManager &StackMgr) const noexcept;
   template <typename T>
-  Expect<void> runVectorLtOp(ValVariant &Val1, const ValVariant &Val2) const;
+  Expect<void> runVectorLtOp(Runtime::StackManager &StackMgr) const noexcept;
   template <typename T>
-  Expect<void> runVectorGtOp(ValVariant &Val1, const ValVariant &Val2) const;
+  Expect<void> runVectorGtOp(Runtime::StackManager &StackMgr) const noexcept;
   template <typename T>
-  Expect<void> runVectorLeOp(ValVariant &Val1, const ValVariant &Val2) const;
+  Expect<void> runVectorLeOp(Runtime::StackManager &StackMgr) const noexcept;
   template <typename T>
-  Expect<void> runVectorGeOp(ValVariant &Val1, const ValVariant &Val2) const;
-  template <typename T> Expect<void> runVectorAbsOp(ValVariant &Val) const;
-  template <typename T> Expect<void> runVectorNegOp(ValVariant &Val) const;
-  inline Expect<void> runVectorPopcntOp(ValVariant &Val) const;
-  template <typename T> Expect<void> runVectorSqrtOp(ValVariant &Val) const;
+  Expect<void> runVectorGeOp(Runtime::StackManager &StackMgr) const noexcept;
+  template <typename T>
+  Expect<void> runVectorAbsOp(Runtime::StackManager &StackMgr) const noexcept;
+  template <typename T>
+  Expect<void> runVectorNegOp(Runtime::StackManager &StackMgr) const noexcept;
+  inline Expect<void>
+  runVectorPopcntOp(Runtime::StackManager &StackMgr) const noexcept;
+  template <typename T>
+  Expect<void> runVectorSqrtOp(Runtime::StackManager &StackMgr) const noexcept;
   template <typename TIn, typename TOut>
-  Expect<void> runVectorTruncSatOp(ValVariant &Val) const;
+  Expect<void>
+  runVectorTruncSatOp(Runtime::StackManager &StackMgr) const noexcept;
   template <typename TIn, typename TOut>
-  Expect<void> runVectorConvertOp(ValVariant &Val) const;
-  inline Expect<void> runVectorDemoteOp(ValVariant &Val) const;
-  inline Expect<void> runVectorPromoteOp(ValVariant &Val) const;
-  inline Expect<void> runVectorAnyTrueOp(ValVariant &Val) const;
-  template <typename T> Expect<void> runVectorAllTrueOp(ValVariant &Val) const;
-  template <typename T> Expect<void> runVectorBitMaskOp(ValVariant &Val) const;
+  Expect<void>
+  runVectorConvertOp(Runtime::StackManager &StackMgr) const noexcept;
+  inline Expect<void>
+  runVectorDemoteOp(Runtime::StackManager &StackMgr) const noexcept;
+  inline Expect<void>
+  runVectorPromoteOp(Runtime::StackManager &StackMgr) const noexcept;
+  inline Expect<void>
+  runVectorAnyTrueOp(Runtime::StackManager &StackMgr) const noexcept;
+  template <typename T>
+  Expect<void>
+  runVectorAllTrueOp(Runtime::StackManager &StackMgr) const noexcept;
+  template <typename T>
+  Expect<void>
+  runVectorBitMaskOp(Runtime::StackManager &StackMgr) const noexcept;
   template <typename TIn, typename TOut>
-  Expect<void> runVectorNarrowOp(ValVariant &Val1,
-                                 const ValVariant &Val2) const;
+  Expect<void>
+  runVectorNarrowOp(Runtime::StackManager &StackMgr) const noexcept;
   template <typename TIn, typename TOut>
-  Expect<void> runVectorExtendLowOp(ValVariant &Val) const;
+  Expect<void>
+  runVectorExtendLowOp(Runtime::StackManager &StackMgr) const noexcept;
   template <typename TIn, typename TOut>
-  Expect<void> runVectorExtendHighOp(ValVariant &Val) const;
+  Expect<void>
+  runVectorExtendHighOp(Runtime::StackManager &StackMgr) const noexcept;
   template <typename TIn, typename TOut>
-  Expect<void> runVectorExtAddPairwiseOp(ValVariant &Val) const;
+  Expect<void>
+  runVectorExtAddPairwiseOp(Runtime::StackManager &StackMgr) const noexcept;
   template <typename TIn, typename TOut>
-  Expect<void> runVectorExtMulLowOp(ValVariant &Val1,
-                                    const ValVariant &Val2) const;
+  Expect<void>
+  runVectorExtMulLowOp(Runtime::StackManager &StackMgr) const noexcept;
   template <typename TIn, typename TOut>
-  Expect<void> runVectorExtMulHighOp(ValVariant &Val1,
-                                     const ValVariant &Val2) const;
-  inline Expect<void> runVectorQ15MulSatOp(ValVariant &Val1,
-                                           const ValVariant &Val2) const;
+  Expect<void>
+  runVectorExtMulHighOp(Runtime::StackManager &StackMgr) const noexcept;
+  inline Expect<void>
+  runVectorQ15MulSatOp(Runtime::StackManager &StackMgr) const noexcept;
   template <typename T>
-  Expect<void> runVectorShlOp(ValVariant &Val1, const ValVariant &Val2) const;
+  Expect<void> runVectorShlOp(Runtime::StackManager &StackMgr) const noexcept;
   template <typename T>
-  Expect<void> runVectorShrOp(ValVariant &Val1, const ValVariant &Val2) const;
+  Expect<void> runVectorShrOp(Runtime::StackManager &StackMgr) const noexcept;
   template <typename T>
-  Expect<void> runVectorAddOp(ValVariant &Val1, const ValVariant &Val2) const;
+  Expect<void> runVectorAddOp(Runtime::StackManager &StackMgr) const noexcept;
   template <typename T>
-  Expect<void> runVectorAddSatOp(ValVariant &Val1,
-                                 const ValVariant &Val2) const;
+  Expect<void>
+  runVectorAddSatOp(Runtime::StackManager &StackMgr) const noexcept;
   template <typename T>
-  Expect<void> runVectorSubOp(ValVariant &Val1, const ValVariant &Val2) const;
+  Expect<void> runVectorSubOp(Runtime::StackManager &StackMgr) const noexcept;
   template <typename T>
-  Expect<void> runVectorSubSatOp(ValVariant &Val1,
-                                 const ValVariant &Val2) const;
+  Expect<void>
+  runVectorSubSatOp(Runtime::StackManager &StackMgr) const noexcept;
   template <typename T>
-  Expect<void> runVectorMulOp(ValVariant &Val1, const ValVariant &Val2) const;
+  Expect<void> runVectorMulOp(Runtime::StackManager &StackMgr) const noexcept;
   template <typename T>
-  Expect<void> runVectorDivOp(ValVariant &Val1, const ValVariant &Val2) const;
+  Expect<void> runVectorDivOp(Runtime::StackManager &StackMgr) const noexcept;
   template <typename T>
-  Expect<void> runVectorMinOp(ValVariant &Val1, const ValVariant &Val2) const;
+  Expect<void> runVectorMinOp(Runtime::StackManager &StackMgr) const noexcept;
   template <typename T>
-  Expect<void> runVectorMaxOp(ValVariant &Val1, const ValVariant &Val2) const;
+  Expect<void> runVectorMaxOp(Runtime::StackManager &StackMgr) const noexcept;
   template <typename T>
-  Expect<void> runVectorFMinOp(ValVariant &Val1, const ValVariant &Val2) const;
+  Expect<void> runVectorFMinOp(Runtime::StackManager &StackMgr) const noexcept;
   template <typename T>
-  Expect<void> runVectorFMaxOp(ValVariant &Val1, const ValVariant &Val2) const;
+  Expect<void> runVectorFMaxOp(Runtime::StackManager &StackMgr) const noexcept;
   template <typename T, typename ET>
-  Expect<void> runVectorAvgrOp(ValVariant &Val1, const ValVariant &Val2) const;
-  template <typename T> Expect<void> runVectorCeilOp(ValVariant &Val) const;
-  template <typename T> Expect<void> runVectorFloorOp(ValVariant &Val) const;
-  template <typename T> Expect<void> runVectorTruncOp(ValVariant &Val) const;
-  template <typename T> Expect<void> runVectorNearestOp(ValVariant &Val) const;
+  Expect<void> runVectorAvgrOp(Runtime::StackManager &StackMgr) const noexcept;
+  template <typename T>
+  Expect<void> runVectorCeilOp(Runtime::StackManager &StackMgr) const noexcept;
+  template <typename T>
+  Expect<void> runVectorFloorOp(Runtime::StackManager &StackMgr) const noexcept;
+  template <typename T>
+  Expect<void> runVectorTruncOp(Runtime::StackManager &StackMgr) const noexcept;
+  template <typename T>
+  Expect<void>
+  runVectorNearestOp(Runtime::StackManager &StackMgr) const noexcept;
   /// @}
 
   /// \name Run compiled functions

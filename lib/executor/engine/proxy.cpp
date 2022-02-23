@@ -87,13 +87,13 @@ Expect<void> Executor::call(Runtime::StoreManager &StoreMgr,
   const uint32_t FuncAddr = *ModInst->getFuncAddr(FuncIdx);
   const auto *FuncInst = *StoreMgr.getFunction(FuncAddr);
   const auto &FuncType = FuncInst->getFuncType();
-  const uint32_t ParamsSize =
-      static_cast<uint32_t>(FuncType.getParamTypes().size());
-  const uint32_t ReturnsSize =
-      static_cast<uint32_t>(FuncType.getReturnTypes().size());
+  const auto &ParamTypes = FuncType.getParamTypes();
+  const auto &ReturnTypes = FuncType.getReturnTypes();
+  const uint32_t ParamsSize = static_cast<uint32_t>(ParamTypes.size());
+  const uint32_t ReturnsSize = static_cast<uint32_t>(ReturnTypes.size());
 
   for (uint32_t I = 0; I < ParamsSize; ++I) {
-    StackMgr.push(Args[I]);
+    StackMgr.push(ParamTypes[I], Args[I]);
   }
 
   auto Instrs = FuncInst->getInstrs();
@@ -109,7 +109,7 @@ Expect<void> Executor::call(Runtime::StoreManager &StoreMgr,
   }
 
   for (uint32_t I = 0; I < ReturnsSize; ++I) {
-    Rets[ReturnsSize - 1 - I] = StackMgr.pop();
+    Rets[ReturnsSize - 1 - I] = StackMgr.pop(ReturnTypes[ReturnsSize - 1 - I]);
   }
 
   return {};
@@ -182,13 +182,13 @@ Executor::callIndirect(Runtime::StoreManager &StoreMgr,
     return Unexpect(ErrCode::IndirectCallTypeMismatch);
   }
 
-  const uint32_t ParamsSize =
-      static_cast<uint32_t>(FuncType.getParamTypes().size());
-  const uint32_t ReturnsSize =
-      static_cast<uint32_t>(FuncType.getReturnTypes().size());
+  const auto &ParamTypes = FuncType.getParamTypes();
+  const auto &ReturnTypes = FuncType.getReturnTypes();
+  const uint32_t ParamsSize = static_cast<uint32_t>(ParamTypes.size());
+  const uint32_t ReturnsSize = static_cast<uint32_t>(ReturnTypes.size());
 
   for (uint32_t I = 0; I < ParamsSize; ++I) {
-    StackMgr.push(Args[I]);
+    StackMgr.push(ParamTypes[I], Args[I]);
   }
 
   auto Instrs = (*FuncInst)->getInstrs();
@@ -204,7 +204,7 @@ Executor::callIndirect(Runtime::StoreManager &StoreMgr,
   }
 
   for (uint32_t I = 0; I < ReturnsSize; ++I) {
-    Rets[ReturnsSize - 1 - I] = StackMgr.pop();
+    Rets[ReturnsSize - 1 - I] = StackMgr.pop(ReturnTypes[ReturnsSize - 1 - I]);
   }
 
   return {};

@@ -31,8 +31,9 @@ Executor::runFunction(Runtime::StoreManager &StoreMgr,
   StackMgr.pushDummyFrame();
 
   // Push arguments.
-  for (auto &Val : Params) {
-    StackMgr.push(Val);
+  assuming(Params.size() == Func.getFuncType().getParamTypes().size());
+  for (uint32_t I = 0; I < Params.size(); ++I) {
+    StackMgr.push(Func.getFuncType().getParamTypes()[I], Params[I]);
   }
 
   // Enter and execute function.
@@ -127,11 +128,11 @@ Expect<void> Executor::execute(Runtime::StoreManager &StoreMgr,
       StackMgr.push<UnknownRef>(UnknownRef());
       return {};
     case OpCode::Ref__is_null: {
-      ValVariant &Val = StackMgr.getTop();
+      RefVariant Val = StackMgr.pop<UnknownRef>();
       if (isNullRef(Val)) {
-        Val.emplace<uint32_t>(UINT32_C(1));
+        StackMgr.push<uint32_t>(UINT32_C(1));
       } else {
-        Val.emplace<uint32_t>(UINT32_C(0));
+        StackMgr.push<uint32_t>(UINT32_C(0));
       }
       return {};
     }
@@ -144,20 +145,20 @@ Expect<void> Executor::execute(Runtime::StoreManager &StoreMgr,
 
     // Parametric Instructions
     case OpCode::Drop:
-      StackMgr.pop();
+      StackMgr.popUnknown();
       return {};
     case OpCode::Select:
     case OpCode::Select_t: {
       // Pop the i32 value and select values from stack.
-      ValVariant CondVal = StackMgr.pop();
-      ValVariant Val2 = StackMgr.pop();
-      ValVariant Val1 = StackMgr.pop();
+      uint32_t CondVal = StackMgr.pop<uint32_t>();
+      ValVariant Val2 = StackMgr.popUnknown();
+      ValVariant Val1 = StackMgr.popUnknown();
 
       // Select the value.
-      if (CondVal.get<uint32_t>() == 0) {
-        StackMgr.push(Val2);
+      if (CondVal == 0) {
+        StackMgr.pushUnknown(Val2);
       } else {
-        StackMgr.push(Val1);
+        StackMgr.pushUnknown(Val1);
       }
       return {};
     }
@@ -343,439 +344,293 @@ Expect<void> Executor::execute(Runtime::StoreManager &StoreMgr,
 
     // Const numeric instructions
     case OpCode::I32__const:
+      StackMgr.push<uint32_t>(Instr.getNum().get<uint32_t>());
+      return {};
     case OpCode::I64__const:
+      StackMgr.push<uint64_t>(Instr.getNum().get<uint64_t>());
+      return {};
     case OpCode::F32__const:
+      StackMgr.push<float>(Instr.getNum().get<float>());
+      return {};
     case OpCode::F64__const:
-      StackMgr.push(Instr.getNum());
+      StackMgr.push<double>(Instr.getNum().get<double>());
       return {};
 
     // Unary numeric instructions
     case OpCode::I32__eqz:
-      return runEqzOp<uint32_t>(StackMgr.getTop());
+      return runEqzOp<uint32_t>(StackMgr);
     case OpCode::I64__eqz:
-      return runEqzOp<uint64_t>(StackMgr.getTop());
+      return runEqzOp<uint64_t>(StackMgr);
     case OpCode::I32__clz:
-      return runClzOp<uint32_t>(StackMgr.getTop());
+      return runClzOp<uint32_t>(StackMgr);
     case OpCode::I32__ctz:
-      return runCtzOp<uint32_t>(StackMgr.getTop());
+      return runCtzOp<uint32_t>(StackMgr);
     case OpCode::I32__popcnt:
-      return runPopcntOp<uint32_t>(StackMgr.getTop());
+      return runPopcntOp<uint32_t>(StackMgr);
     case OpCode::I64__clz:
-      return runClzOp<uint64_t>(StackMgr.getTop());
+      return runClzOp<uint64_t>(StackMgr);
     case OpCode::I64__ctz:
-      return runCtzOp<uint64_t>(StackMgr.getTop());
+      return runCtzOp<uint64_t>(StackMgr);
     case OpCode::I64__popcnt:
-      return runPopcntOp<uint64_t>(StackMgr.getTop());
+      return runPopcntOp<uint64_t>(StackMgr);
     case OpCode::F32__abs:
-      return runAbsOp<float>(StackMgr.getTop());
+      return runAbsOp<float>(StackMgr);
     case OpCode::F32__neg:
-      return runNegOp<float>(StackMgr.getTop());
+      return runNegOp<float>(StackMgr);
     case OpCode::F32__ceil:
-      return runCeilOp<float>(StackMgr.getTop());
+      return runCeilOp<float>(StackMgr);
     case OpCode::F32__floor:
-      return runFloorOp<float>(StackMgr.getTop());
+      return runFloorOp<float>(StackMgr);
     case OpCode::F32__trunc:
-      return runTruncOp<float>(StackMgr.getTop());
+      return runTruncOp<float>(StackMgr);
     case OpCode::F32__nearest:
-      return runNearestOp<float>(StackMgr.getTop());
+      return runNearestOp<float>(StackMgr);
     case OpCode::F32__sqrt:
-      return runSqrtOp<float>(StackMgr.getTop());
+      return runSqrtOp<float>(StackMgr);
     case OpCode::F64__abs:
-      return runAbsOp<double>(StackMgr.getTop());
+      return runAbsOp<double>(StackMgr);
     case OpCode::F64__neg:
-      return runNegOp<double>(StackMgr.getTop());
+      return runNegOp<double>(StackMgr);
     case OpCode::F64__ceil:
-      return runCeilOp<double>(StackMgr.getTop());
+      return runCeilOp<double>(StackMgr);
     case OpCode::F64__floor:
-      return runFloorOp<double>(StackMgr.getTop());
+      return runFloorOp<double>(StackMgr);
     case OpCode::F64__trunc:
-      return runTruncOp<double>(StackMgr.getTop());
+      return runTruncOp<double>(StackMgr);
     case OpCode::F64__nearest:
-      return runNearestOp<double>(StackMgr.getTop());
+      return runNearestOp<double>(StackMgr);
     case OpCode::F64__sqrt:
-      return runSqrtOp<double>(StackMgr.getTop());
+      return runSqrtOp<double>(StackMgr);
     case OpCode::I32__wrap_i64:
-      return runWrapOp<uint64_t, uint32_t>(StackMgr.getTop());
+      return runWrapOp<uint64_t, uint32_t>(StackMgr);
     case OpCode::I32__trunc_f32_s:
-      return runTruncateOp<float, int32_t>(Instr, StackMgr.getTop());
+      return runTruncateOp<float, int32_t>(StackMgr, Instr);
     case OpCode::I32__trunc_f32_u:
-      return runTruncateOp<float, uint32_t>(Instr, StackMgr.getTop());
+      return runTruncateOp<float, uint32_t>(StackMgr, Instr);
     case OpCode::I32__trunc_f64_s:
-      return runTruncateOp<double, int32_t>(Instr, StackMgr.getTop());
+      return runTruncateOp<double, int32_t>(StackMgr, Instr);
     case OpCode::I32__trunc_f64_u:
-      return runTruncateOp<double, uint32_t>(Instr, StackMgr.getTop());
+      return runTruncateOp<double, uint32_t>(StackMgr, Instr);
     case OpCode::I64__extend_i32_s:
-      return runExtendOp<int32_t, uint64_t>(StackMgr.getTop());
+      return runExtendOp<int32_t, uint64_t>(StackMgr);
     case OpCode::I64__extend_i32_u:
-      return runExtendOp<uint32_t, uint64_t>(StackMgr.getTop());
+      return runExtendOp<uint32_t, uint64_t>(StackMgr);
     case OpCode::I64__trunc_f32_s:
-      return runTruncateOp<float, int64_t>(Instr, StackMgr.getTop());
+      return runTruncateOp<float, int64_t>(StackMgr, Instr);
     case OpCode::I64__trunc_f32_u:
-      return runTruncateOp<float, uint64_t>(Instr, StackMgr.getTop());
+      return runTruncateOp<float, uint64_t>(StackMgr, Instr);
     case OpCode::I64__trunc_f64_s:
-      return runTruncateOp<double, int64_t>(Instr, StackMgr.getTop());
+      return runTruncateOp<double, int64_t>(StackMgr, Instr);
     case OpCode::I64__trunc_f64_u:
-      return runTruncateOp<double, uint64_t>(Instr, StackMgr.getTop());
+      return runTruncateOp<double, uint64_t>(StackMgr, Instr);
     case OpCode::F32__convert_i32_s:
-      return runConvertOp<int32_t, float>(StackMgr.getTop());
+      return runConvertOp<int32_t, float>(StackMgr);
     case OpCode::F32__convert_i32_u:
-      return runConvertOp<uint32_t, float>(StackMgr.getTop());
+      return runConvertOp<uint32_t, float>(StackMgr);
     case OpCode::F32__convert_i64_s:
-      return runConvertOp<int64_t, float>(StackMgr.getTop());
+      return runConvertOp<int64_t, float>(StackMgr);
     case OpCode::F32__convert_i64_u:
-      return runConvertOp<uint64_t, float>(StackMgr.getTop());
+      return runConvertOp<uint64_t, float>(StackMgr);
     case OpCode::F32__demote_f64:
-      return runDemoteOp<double, float>(StackMgr.getTop());
+      return runDemoteOp<double, float>(StackMgr);
     case OpCode::F64__convert_i32_s:
-      return runConvertOp<int32_t, double>(StackMgr.getTop());
+      return runConvertOp<int32_t, double>(StackMgr);
     case OpCode::F64__convert_i32_u:
-      return runConvertOp<uint32_t, double>(StackMgr.getTop());
+      return runConvertOp<uint32_t, double>(StackMgr);
     case OpCode::F64__convert_i64_s:
-      return runConvertOp<int64_t, double>(StackMgr.getTop());
+      return runConvertOp<int64_t, double>(StackMgr);
     case OpCode::F64__convert_i64_u:
-      return runConvertOp<uint64_t, double>(StackMgr.getTop());
+      return runConvertOp<uint64_t, double>(StackMgr);
     case OpCode::F64__promote_f32:
-      return runPromoteOp<float, double>(StackMgr.getTop());
+      return runPromoteOp<float, double>(StackMgr);
     case OpCode::I32__reinterpret_f32:
-      return runReinterpretOp<float, uint32_t>(StackMgr.getTop());
+      return runReinterpretOp<float, uint32_t>(StackMgr);
     case OpCode::I64__reinterpret_f64:
-      return runReinterpretOp<double, uint64_t>(StackMgr.getTop());
+      return runReinterpretOp<double, uint64_t>(StackMgr);
     case OpCode::F32__reinterpret_i32:
-      return runReinterpretOp<uint32_t, float>(StackMgr.getTop());
+      return runReinterpretOp<uint32_t, float>(StackMgr);
     case OpCode::F64__reinterpret_i64:
-      return runReinterpretOp<uint64_t, double>(StackMgr.getTop());
+      return runReinterpretOp<uint64_t, double>(StackMgr);
     case OpCode::I32__extend8_s:
-      return runExtendOp<int32_t, uint32_t, 8>(StackMgr.getTop());
+      return runExtendOp<int32_t, uint32_t, 8>(StackMgr);
     case OpCode::I32__extend16_s:
-      return runExtendOp<int32_t, uint32_t, 16>(StackMgr.getTop());
+      return runExtendOp<int32_t, uint32_t, 16>(StackMgr);
     case OpCode::I64__extend8_s:
-      return runExtendOp<int64_t, uint64_t, 8>(StackMgr.getTop());
+      return runExtendOp<int64_t, uint64_t, 8>(StackMgr);
     case OpCode::I64__extend16_s:
-      return runExtendOp<int64_t, uint64_t, 16>(StackMgr.getTop());
+      return runExtendOp<int64_t, uint64_t, 16>(StackMgr);
     case OpCode::I64__extend32_s:
-      return runExtendOp<int64_t, uint64_t, 32>(StackMgr.getTop());
+      return runExtendOp<int64_t, uint64_t, 32>(StackMgr);
     case OpCode::I32__trunc_sat_f32_s:
-      return runTruncateSatOp<float, int32_t>(StackMgr.getTop());
+      return runTruncateSatOp<float, int32_t>(StackMgr);
     case OpCode::I32__trunc_sat_f32_u:
-      return runTruncateSatOp<float, uint32_t>(StackMgr.getTop());
+      return runTruncateSatOp<float, uint32_t>(StackMgr);
     case OpCode::I32__trunc_sat_f64_s:
-      return runTruncateSatOp<double, int32_t>(StackMgr.getTop());
+      return runTruncateSatOp<double, int32_t>(StackMgr);
     case OpCode::I32__trunc_sat_f64_u:
-      return runTruncateSatOp<double, uint32_t>(StackMgr.getTop());
+      return runTruncateSatOp<double, uint32_t>(StackMgr);
     case OpCode::I64__trunc_sat_f32_s:
-      return runTruncateSatOp<float, int64_t>(StackMgr.getTop());
+      return runTruncateSatOp<float, int64_t>(StackMgr);
     case OpCode::I64__trunc_sat_f32_u:
-      return runTruncateSatOp<float, uint64_t>(StackMgr.getTop());
+      return runTruncateSatOp<float, uint64_t>(StackMgr);
     case OpCode::I64__trunc_sat_f64_s:
-      return runTruncateSatOp<double, int64_t>(StackMgr.getTop());
+      return runTruncateSatOp<double, int64_t>(StackMgr);
     case OpCode::I64__trunc_sat_f64_u:
-      return runTruncateSatOp<double, uint64_t>(StackMgr.getTop());
+      return runTruncateSatOp<double, uint64_t>(StackMgr);
 
       // Binary numeric instructions
-    case OpCode::I32__eq: {
-      ValVariant Rhs = StackMgr.pop();
-      return runEqOp<uint32_t>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::I32__ne: {
-      ValVariant Rhs = StackMgr.pop();
-      return runNeOp<uint32_t>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::I32__lt_s: {
-      ValVariant Rhs = StackMgr.pop();
-      return runLtOp<int32_t>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::I32__lt_u: {
-      ValVariant Rhs = StackMgr.pop();
-      return runLtOp<uint32_t>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::I32__gt_s: {
-      ValVariant Rhs = StackMgr.pop();
-      return runGtOp<int32_t>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::I32__gt_u: {
-      ValVariant Rhs = StackMgr.pop();
-      return runGtOp<uint32_t>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::I32__le_s: {
-      ValVariant Rhs = StackMgr.pop();
-      return runLeOp<int32_t>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::I32__le_u: {
-      ValVariant Rhs = StackMgr.pop();
-      return runLeOp<uint32_t>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::I32__ge_s: {
-      ValVariant Rhs = StackMgr.pop();
-      return runGeOp<int32_t>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::I32__ge_u: {
-      ValVariant Rhs = StackMgr.pop();
-      return runGeOp<uint32_t>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::I64__eq: {
-      ValVariant Rhs = StackMgr.pop();
-      return runEqOp<uint64_t>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::I64__ne: {
-      ValVariant Rhs = StackMgr.pop();
-      return runNeOp<uint64_t>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::I64__lt_s: {
-      ValVariant Rhs = StackMgr.pop();
-      return runLtOp<int64_t>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::I64__lt_u: {
-      ValVariant Rhs = StackMgr.pop();
-      return runLtOp<uint64_t>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::I64__gt_s: {
-      ValVariant Rhs = StackMgr.pop();
-      return runGtOp<int64_t>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::I64__gt_u: {
-      ValVariant Rhs = StackMgr.pop();
-      return runGtOp<uint64_t>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::I64__le_s: {
-      ValVariant Rhs = StackMgr.pop();
-      return runLeOp<int64_t>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::I64__le_u: {
-      ValVariant Rhs = StackMgr.pop();
-      return runLeOp<uint64_t>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::I64__ge_s: {
-      ValVariant Rhs = StackMgr.pop();
-      return runGeOp<int64_t>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::I64__ge_u: {
-      ValVariant Rhs = StackMgr.pop();
-      return runGeOp<uint64_t>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::F32__eq: {
-      ValVariant Rhs = StackMgr.pop();
-      return runEqOp<float>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::F32__ne: {
-      ValVariant Rhs = StackMgr.pop();
-      return runNeOp<float>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::F32__lt: {
-      ValVariant Rhs = StackMgr.pop();
-      return runLtOp<float>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::F32__gt: {
-      ValVariant Rhs = StackMgr.pop();
-      return runGtOp<float>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::F32__le: {
-      ValVariant Rhs = StackMgr.pop();
-      return runLeOp<float>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::F32__ge: {
-      ValVariant Rhs = StackMgr.pop();
-      return runGeOp<float>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::F64__eq: {
-      ValVariant Rhs = StackMgr.pop();
-      return runEqOp<double>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::F64__ne: {
-      ValVariant Rhs = StackMgr.pop();
-      return runNeOp<double>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::F64__lt: {
-      ValVariant Rhs = StackMgr.pop();
-      return runLtOp<double>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::F64__gt: {
-      ValVariant Rhs = StackMgr.pop();
-      return runGtOp<double>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::F64__le: {
-      ValVariant Rhs = StackMgr.pop();
-      return runLeOp<double>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::F64__ge: {
-      ValVariant Rhs = StackMgr.pop();
-      return runGeOp<double>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::I32__add: {
-      ValVariant Rhs = StackMgr.pop();
-      return runAddOp<uint32_t>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::I32__sub: {
-      ValVariant Rhs = StackMgr.pop();
-      return runSubOp<uint32_t>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::I32__mul: {
-      ValVariant Rhs = StackMgr.pop();
-      return runMulOp<uint32_t>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::I32__div_s: {
-      ValVariant Rhs = StackMgr.pop();
-      return runDivOp<int32_t>(Instr, StackMgr.getTop(), Rhs);
-    }
-    case OpCode::I32__div_u: {
-      ValVariant Rhs = StackMgr.pop();
-      return runDivOp<uint32_t>(Instr, StackMgr.getTop(), Rhs);
-    }
-    case OpCode::I32__rem_s: {
-      ValVariant Rhs = StackMgr.pop();
-      return runRemOp<int32_t>(Instr, StackMgr.getTop(), Rhs);
-    }
-    case OpCode::I32__rem_u: {
-      ValVariant Rhs = StackMgr.pop();
-      return runRemOp<uint32_t>(Instr, StackMgr.getTop(), Rhs);
-    }
-    case OpCode::I32__and: {
-      ValVariant Rhs = StackMgr.pop();
-      return runAndOp<uint32_t>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::I32__or: {
-      ValVariant Rhs = StackMgr.pop();
-      return runOrOp<uint32_t>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::I32__xor: {
-      ValVariant Rhs = StackMgr.pop();
-      return runXorOp<uint32_t>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::I32__shl: {
-      ValVariant Rhs = StackMgr.pop();
-      return runShlOp<uint32_t>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::I32__shr_s: {
-      ValVariant Rhs = StackMgr.pop();
-      return runShrOp<int32_t>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::I32__shr_u: {
-      ValVariant Rhs = StackMgr.pop();
-      return runShrOp<uint32_t>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::I32__rotl: {
-      ValVariant Rhs = StackMgr.pop();
-      return runRotlOp<uint32_t>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::I32__rotr: {
-      ValVariant Rhs = StackMgr.pop();
-      return runRotrOp<uint32_t>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::I64__add: {
-      ValVariant Rhs = StackMgr.pop();
-      return runAddOp<uint64_t>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::I64__sub: {
-      ValVariant Rhs = StackMgr.pop();
-      return runSubOp<uint64_t>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::I64__mul: {
-      ValVariant Rhs = StackMgr.pop();
-      return runMulOp<uint64_t>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::I64__div_s: {
-      ValVariant Rhs = StackMgr.pop();
-      return runDivOp<int64_t>(Instr, StackMgr.getTop(), Rhs);
-    }
-    case OpCode::I64__div_u: {
-      ValVariant Rhs = StackMgr.pop();
-      return runDivOp<uint64_t>(Instr, StackMgr.getTop(), Rhs);
-    }
-    case OpCode::I64__rem_s: {
-      ValVariant Rhs = StackMgr.pop();
-      return runRemOp<int64_t>(Instr, StackMgr.getTop(), Rhs);
-    }
-    case OpCode::I64__rem_u: {
-      ValVariant Rhs = StackMgr.pop();
-      return runRemOp<uint64_t>(Instr, StackMgr.getTop(), Rhs);
-    }
-    case OpCode::I64__and: {
-      ValVariant Rhs = StackMgr.pop();
-      return runAndOp<uint64_t>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::I64__or: {
-      ValVariant Rhs = StackMgr.pop();
-      return runOrOp<uint64_t>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::I64__xor: {
-      ValVariant Rhs = StackMgr.pop();
-      return runXorOp<uint64_t>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::I64__shl: {
-      ValVariant Rhs = StackMgr.pop();
-      return runShlOp<uint64_t>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::I64__shr_s: {
-      ValVariant Rhs = StackMgr.pop();
-      return runShrOp<int64_t>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::I64__shr_u: {
-      ValVariant Rhs = StackMgr.pop();
-      return runShrOp<uint64_t>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::I64__rotl: {
-      ValVariant Rhs = StackMgr.pop();
-      return runRotlOp<uint64_t>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::I64__rotr: {
-      ValVariant Rhs = StackMgr.pop();
-      return runRotrOp<uint64_t>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::F32__add: {
-      ValVariant Rhs = StackMgr.pop();
-      return runAddOp<float>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::F32__sub: {
-      ValVariant Rhs = StackMgr.pop();
-      return runSubOp<float>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::F32__mul: {
-      ValVariant Rhs = StackMgr.pop();
-      return runMulOp<float>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::F32__div: {
-      ValVariant Rhs = StackMgr.pop();
-      return runDivOp<float>(Instr, StackMgr.getTop(), Rhs);
-    }
-    case OpCode::F32__min: {
-      ValVariant Rhs = StackMgr.pop();
-      return runMinOp<float>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::F32__max: {
-      ValVariant Rhs = StackMgr.pop();
-      return runMaxOp<float>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::F32__copysign: {
-      ValVariant Rhs = StackMgr.pop();
-      return runCopysignOp<float>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::F64__add: {
-      ValVariant Rhs = StackMgr.pop();
-      return runAddOp<double>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::F64__sub: {
-      ValVariant Rhs = StackMgr.pop();
-      return runSubOp<double>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::F64__mul: {
-      ValVariant Rhs = StackMgr.pop();
-      return runMulOp<double>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::F64__div: {
-      ValVariant Rhs = StackMgr.pop();
-      return runDivOp<double>(Instr, StackMgr.getTop(), Rhs);
-    }
-    case OpCode::F64__min: {
-      ValVariant Rhs = StackMgr.pop();
-      return runMinOp<double>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::F64__max: {
-      ValVariant Rhs = StackMgr.pop();
-      return runMaxOp<double>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::F64__copysign: {
-      ValVariant Rhs = StackMgr.pop();
-      return runCopysignOp<double>(StackMgr.getTop(), Rhs);
-    }
+    case OpCode::I32__eq:
+      return runEqOp<uint32_t>(StackMgr);
+    case OpCode::I32__ne:
+      return runNeOp<uint32_t>(StackMgr);
+    case OpCode::I32__lt_s:
+      return runLtOp<int32_t>(StackMgr);
+    case OpCode::I32__lt_u:
+      return runLtOp<uint32_t>(StackMgr);
+    case OpCode::I32__gt_s:
+      return runGtOp<int32_t>(StackMgr);
+    case OpCode::I32__gt_u:
+      return runGtOp<uint32_t>(StackMgr);
+    case OpCode::I32__le_s:
+      return runLeOp<int32_t>(StackMgr);
+    case OpCode::I32__le_u:
+      return runLeOp<uint32_t>(StackMgr);
+    case OpCode::I32__ge_s:
+      return runGeOp<int32_t>(StackMgr);
+    case OpCode::I32__ge_u:
+      return runGeOp<uint32_t>(StackMgr);
+    case OpCode::I64__eq:
+      return runEqOp<uint64_t>(StackMgr);
+    case OpCode::I64__ne:
+      return runNeOp<uint64_t>(StackMgr);
+    case OpCode::I64__lt_s:
+      return runLtOp<int64_t>(StackMgr);
+    case OpCode::I64__lt_u:
+      return runLtOp<uint64_t>(StackMgr);
+    case OpCode::I64__gt_s:
+      return runGtOp<int64_t>(StackMgr);
+    case OpCode::I64__gt_u:
+      return runGtOp<uint64_t>(StackMgr);
+    case OpCode::I64__le_s:
+      return runLeOp<int64_t>(StackMgr);
+    case OpCode::I64__le_u:
+      return runLeOp<uint64_t>(StackMgr);
+    case OpCode::I64__ge_s:
+      return runGeOp<int64_t>(StackMgr);
+    case OpCode::I64__ge_u:
+      return runGeOp<uint64_t>(StackMgr);
+    case OpCode::F32__eq:
+      return runEqOp<float>(StackMgr);
+    case OpCode::F32__ne:
+      return runNeOp<float>(StackMgr);
+    case OpCode::F32__lt:
+      return runLtOp<float>(StackMgr);
+    case OpCode::F32__gt:
+      return runGtOp<float>(StackMgr);
+    case OpCode::F32__le:
+      return runLeOp<float>(StackMgr);
+    case OpCode::F32__ge:
+      return runGeOp<float>(StackMgr);
+    case OpCode::F64__eq:
+      return runEqOp<double>(StackMgr);
+    case OpCode::F64__ne:
+      return runNeOp<double>(StackMgr);
+    case OpCode::F64__lt:
+      return runLtOp<double>(StackMgr);
+    case OpCode::F64__gt:
+      return runGtOp<double>(StackMgr);
+    case OpCode::F64__le:
+      return runLeOp<double>(StackMgr);
+    case OpCode::F64__ge:
+      return runGeOp<double>(StackMgr);
+    case OpCode::I32__add:
+      return runAddOp<uint32_t>(StackMgr);
+    case OpCode::I32__sub:
+      return runSubOp<uint32_t>(StackMgr);
+    case OpCode::I32__mul:
+      return runMulOp<uint32_t>(StackMgr);
+    case OpCode::I32__div_s:
+      return runDivOp<int32_t>(StackMgr, Instr);
+    case OpCode::I32__div_u:
+      return runDivOp<uint32_t>(StackMgr, Instr);
+    case OpCode::I32__rem_s:
+      return runRemOp<int32_t>(StackMgr, Instr);
+    case OpCode::I32__rem_u:
+      return runRemOp<uint32_t>(StackMgr, Instr);
+    case OpCode::I32__and:
+      return runAndOp<uint32_t>(StackMgr);
+    case OpCode::I32__or:
+      return runOrOp<uint32_t>(StackMgr);
+    case OpCode::I32__xor:
+      return runXorOp<uint32_t>(StackMgr);
+    case OpCode::I32__shl:
+      return runShlOp<uint32_t>(StackMgr);
+    case OpCode::I32__shr_s:
+      return runShrOp<int32_t>(StackMgr);
+    case OpCode::I32__shr_u:
+      return runShrOp<uint32_t>(StackMgr);
+    case OpCode::I32__rotl:
+      return runRotlOp<uint32_t>(StackMgr);
+    case OpCode::I32__rotr:
+      return runRotrOp<uint32_t>(StackMgr);
+    case OpCode::I64__add:
+      return runAddOp<uint64_t>(StackMgr);
+    case OpCode::I64__sub:
+      return runSubOp<uint64_t>(StackMgr);
+    case OpCode::I64__mul:
+      return runMulOp<uint64_t>(StackMgr);
+    case OpCode::I64__div_s:
+      return runDivOp<int64_t>(StackMgr, Instr);
+    case OpCode::I64__div_u:
+      return runDivOp<uint64_t>(StackMgr, Instr);
+    case OpCode::I64__rem_s:
+      return runRemOp<int64_t>(StackMgr, Instr);
+    case OpCode::I64__rem_u:
+      return runRemOp<uint64_t>(StackMgr, Instr);
+    case OpCode::I64__and:
+      return runAndOp<uint64_t>(StackMgr);
+    case OpCode::I64__or:
+      return runOrOp<uint64_t>(StackMgr);
+    case OpCode::I64__xor:
+      return runXorOp<uint64_t>(StackMgr);
+    case OpCode::I64__shl:
+      return runShlOp<uint64_t>(StackMgr);
+    case OpCode::I64__shr_s:
+      return runShrOp<int64_t>(StackMgr);
+    case OpCode::I64__shr_u:
+      return runShrOp<uint64_t>(StackMgr);
+    case OpCode::I64__rotl:
+      return runRotlOp<uint64_t>(StackMgr);
+    case OpCode::I64__rotr:
+      return runRotrOp<uint64_t>(StackMgr);
+    case OpCode::F32__add:
+      return runAddOp<float>(StackMgr);
+    case OpCode::F32__sub:
+      return runSubOp<float>(StackMgr);
+    case OpCode::F32__mul:
+      return runMulOp<float>(StackMgr);
+    case OpCode::F32__div:
+      return runDivOp<float>(StackMgr, Instr);
+    case OpCode::F32__min:
+      return runMinOp<float>(StackMgr);
+    case OpCode::F32__max:
+      return runMaxOp<float>(StackMgr);
+    case OpCode::F32__copysign:
+      return runCopysignOp<float>(StackMgr);
+    case OpCode::F64__add:
+      return runAddOp<double>(StackMgr);
+    case OpCode::F64__sub:
+      return runSubOp<double>(StackMgr);
+    case OpCode::F64__mul:
+      return runMulOp<double>(StackMgr);
+    case OpCode::F64__div:
+      return runDivOp<double>(StackMgr, Instr);
+    case OpCode::F64__min:
+      return runMinOp<double>(StackMgr);
+    case OpCode::F64__max:
+      return runMaxOp<double>(StackMgr);
+    case OpCode::F64__copysign:
+      return runCopysignOp<double>(StackMgr);
 
     // SIMD Memory Instructions
     case OpCode::V128__load:
@@ -871,86 +726,67 @@ Expect<void> Executor::execute(Runtime::StoreManager &StoreMgr,
 
     // SIMD Const Instructions
     case OpCode::V128__const:
-      StackMgr.push(Instr.getNum());
+      StackMgr.push<uint128_t>(Instr.getNum().get<uint128_t>());
       return {};
 
     // SIMD Shuffle Instructions
     case OpCode::I8x16__shuffle: {
-      ValVariant Val2 = StackMgr.pop();
-      ValVariant &Val1 = StackMgr.getTop();
+      const uint128_t V2 = StackMgr.pop<uint128_t>();
+      const uint128_t V1 = StackMgr.pop<uint128_t>();
+      const uint128_t V3 = Instr.getNum().get<uint128_t>();
       std::array<uint8_t, 32> Data;
       std::array<uint8_t, 16> Result;
-      std::memcpy(&Data[0], &Val1, 16);
-      std::memcpy(&Data[16], &Val2, 16);
-      const auto V3 = Instr.getNum().get<uint128_t>();
+      std::memcpy(&Data[0], &V1, 16);
+      std::memcpy(&Data[16], &V2, 16);
       for (size_t I = 0; I < 16; ++I) {
-        const uint8_t Index = static_cast<uint8_t>(V3 >> (I * 8));
+        const uint8_t Index = static_cast<uint8_t>(V3 >> (I * 8)) % 32;
         Result[I] = Data[Index];
       }
-      std::memcpy(&Val1, &Result[0], 16);
+      uint128_t R;
+      std::memcpy(&R, &Result[0], 16);
+      StackMgr.push<uint128_t>(R);
       return {};
     }
 
     // SIMD Lane Instructions
     case OpCode::I8x16__extract_lane_s:
-      return runExtractLaneOp<int8_t, int32_t>(StackMgr.getTop(),
-                                               Instr.getMemoryLane());
+      return runExtractLaneOp<int8_t, int32_t>(StackMgr, Instr.getMemoryLane());
     case OpCode::I8x16__extract_lane_u:
-      return runExtractLaneOp<uint8_t, uint32_t>(StackMgr.getTop(),
+      return runExtractLaneOp<uint8_t, uint32_t>(StackMgr,
                                                  Instr.getMemoryLane());
     case OpCode::I16x8__extract_lane_s:
-      return runExtractLaneOp<int16_t, int32_t>(StackMgr.getTop(),
+      return runExtractLaneOp<int16_t, int32_t>(StackMgr,
                                                 Instr.getMemoryLane());
     case OpCode::I16x8__extract_lane_u:
-      return runExtractLaneOp<uint16_t, uint32_t>(StackMgr.getTop(),
+      return runExtractLaneOp<uint16_t, uint32_t>(StackMgr,
                                                   Instr.getMemoryLane());
     case OpCode::I32x4__extract_lane:
-      return runExtractLaneOp<uint32_t>(StackMgr.getTop(),
-                                        Instr.getMemoryLane());
+      return runExtractLaneOp<uint32_t>(StackMgr, Instr.getMemoryLane());
     case OpCode::I64x2__extract_lane:
-      return runExtractLaneOp<uint64_t>(StackMgr.getTop(),
-                                        Instr.getMemoryLane());
+      return runExtractLaneOp<uint64_t>(StackMgr, Instr.getMemoryLane());
     case OpCode::F32x4__extract_lane:
-      return runExtractLaneOp<float>(StackMgr.getTop(), Instr.getMemoryLane());
+      return runExtractLaneOp<float>(StackMgr, Instr.getMemoryLane());
     case OpCode::F64x2__extract_lane:
-      return runExtractLaneOp<double>(StackMgr.getTop(), Instr.getMemoryLane());
-    case OpCode::I8x16__replace_lane: {
-      ValVariant Rhs = StackMgr.pop();
-      return runReplaceLaneOp<uint32_t, uint8_t>(StackMgr.getTop(), Rhs,
+      return runExtractLaneOp<double>(StackMgr, Instr.getMemoryLane());
+    case OpCode::I8x16__replace_lane:
+      return runReplaceLaneOp<uint32_t, uint8_t>(StackMgr,
                                                  Instr.getMemoryLane());
-    }
-    case OpCode::I16x8__replace_lane: {
-      ValVariant Rhs = StackMgr.pop();
-      return runReplaceLaneOp<uint32_t, uint16_t>(StackMgr.getTop(), Rhs,
+    case OpCode::I16x8__replace_lane:
+      return runReplaceLaneOp<uint32_t, uint16_t>(StackMgr,
                                                   Instr.getMemoryLane());
-    }
-    case OpCode::I32x4__replace_lane: {
-      ValVariant Rhs = StackMgr.pop();
-      return runReplaceLaneOp<uint32_t>(StackMgr.getTop(), Rhs,
-                                        Instr.getMemoryLane());
-    }
-    case OpCode::I64x2__replace_lane: {
-      ValVariant Rhs = StackMgr.pop();
-      return runReplaceLaneOp<uint64_t>(StackMgr.getTop(), Rhs,
-                                        Instr.getMemoryLane());
-    }
-    case OpCode::F32x4__replace_lane: {
-      ValVariant Rhs = StackMgr.pop();
-      return runReplaceLaneOp<float>(StackMgr.getTop(), Rhs,
-                                     Instr.getMemoryLane());
-    }
-    case OpCode::F64x2__replace_lane: {
-      ValVariant Rhs = StackMgr.pop();
-      return runReplaceLaneOp<double>(StackMgr.getTop(), Rhs,
-                                      Instr.getMemoryLane());
-    }
+    case OpCode::I32x4__replace_lane:
+      return runReplaceLaneOp<uint32_t>(StackMgr, Instr.getMemoryLane());
+    case OpCode::I64x2__replace_lane:
+      return runReplaceLaneOp<uint64_t>(StackMgr, Instr.getMemoryLane());
+    case OpCode::F32x4__replace_lane:
+      return runReplaceLaneOp<float>(StackMgr, Instr.getMemoryLane());
+    case OpCode::F64x2__replace_lane:
+      return runReplaceLaneOp<double>(StackMgr, Instr.getMemoryLane());
 
       // SIMD Numeric Instructions
     case OpCode::I8x16__swizzle: {
-      const ValVariant Val2 = StackMgr.pop();
-      ValVariant &Val1 = StackMgr.getTop();
-      const uint8x16_t &Index = Val2.get<uint8x16_t>();
-      uint8x16_t &Vector = Val1.get<uint8x16_t>();
+      const uint8x16_t Index = StackMgr.pop<uint8x16_t>();
+      const uint8x16_t Vector = StackMgr.pop<uint8x16_t>();
       const uint8x16_t Limit = uint8x16_t{} + 16;
       const uint8x16_t Zero = uint8x16_t{};
       const uint8x16_t Exceed = (Index >= Limit);
@@ -966,701 +802,445 @@ Expect<void> Executor::execute(Runtime::StoreManager &StoreMgr,
 #else
       uint8x16_t Result = __builtin_shuffle(Vector, Index);
 #endif
-      Vector = detail::vectorSelect(Exceed, Zero, Result);
+      StackMgr.push<uint8x16_t>(detail::vectorSelect(Exceed, Zero, Result));
       return {};
     }
     case OpCode::I8x16__splat:
-      return runSplatOp<uint32_t, uint8_t>(StackMgr.getTop());
+      return runSplatOp<uint32_t, uint8_t>(StackMgr);
     case OpCode::I16x8__splat:
-      return runSplatOp<uint32_t, uint16_t>(StackMgr.getTop());
+      return runSplatOp<uint32_t, uint16_t>(StackMgr);
     case OpCode::I32x4__splat:
-      return runSplatOp<uint32_t>(StackMgr.getTop());
+      return runSplatOp<uint32_t>(StackMgr);
     case OpCode::I64x2__splat:
-      return runSplatOp<uint64_t>(StackMgr.getTop());
+      return runSplatOp<uint64_t>(StackMgr);
     case OpCode::F32x4__splat:
-      return runSplatOp<float>(StackMgr.getTop());
+      return runSplatOp<float>(StackMgr);
     case OpCode::F64x2__splat:
-      return runSplatOp<double>(StackMgr.getTop());
-    case OpCode::I8x16__eq: {
-      ValVariant Rhs = StackMgr.pop();
-      return runVectorEqOp<uint8_t>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::I8x16__ne: {
-      ValVariant Rhs = StackMgr.pop();
-      return runVectorNeOp<uint8_t>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::I8x16__lt_s: {
-      ValVariant Rhs = StackMgr.pop();
-      return runVectorLtOp<int8_t>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::I8x16__lt_u: {
-      ValVariant Rhs = StackMgr.pop();
-      return runVectorLtOp<uint8_t>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::I8x16__gt_s: {
-      ValVariant Rhs = StackMgr.pop();
-      return runVectorGtOp<int8_t>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::I8x16__gt_u: {
-      ValVariant Rhs = StackMgr.pop();
-      return runVectorGtOp<uint8_t>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::I8x16__le_s: {
-      ValVariant Rhs = StackMgr.pop();
-      return runVectorLeOp<int8_t>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::I8x16__le_u: {
-      ValVariant Rhs = StackMgr.pop();
-      return runVectorLeOp<uint8_t>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::I8x16__ge_s: {
-      ValVariant Rhs = StackMgr.pop();
-      return runVectorGeOp<int8_t>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::I8x16__ge_u: {
-      ValVariant Rhs = StackMgr.pop();
-      return runVectorGeOp<uint8_t>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::I16x8__eq: {
-      ValVariant Rhs = StackMgr.pop();
-      return runVectorEqOp<uint16_t>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::I16x8__ne: {
-      ValVariant Rhs = StackMgr.pop();
-      return runVectorNeOp<uint16_t>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::I16x8__lt_s: {
-      ValVariant Rhs = StackMgr.pop();
-      return runVectorLtOp<int16_t>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::I16x8__lt_u: {
-      ValVariant Rhs = StackMgr.pop();
-      return runVectorLtOp<uint16_t>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::I16x8__gt_s: {
-      ValVariant Rhs = StackMgr.pop();
-      return runVectorGtOp<int16_t>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::I16x8__gt_u: {
-      ValVariant Rhs = StackMgr.pop();
-      return runVectorGtOp<uint16_t>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::I16x8__le_s: {
-      ValVariant Rhs = StackMgr.pop();
-      return runVectorLeOp<int16_t>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::I16x8__le_u: {
-      ValVariant Rhs = StackMgr.pop();
-      return runVectorLeOp<uint16_t>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::I16x8__ge_s: {
-      ValVariant Rhs = StackMgr.pop();
-      return runVectorGeOp<int16_t>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::I16x8__ge_u: {
-      ValVariant Rhs = StackMgr.pop();
-      return runVectorGeOp<uint16_t>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::I32x4__eq: {
-      ValVariant Rhs = StackMgr.pop();
-      return runVectorEqOp<uint32_t>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::I32x4__ne: {
-      ValVariant Rhs = StackMgr.pop();
-      return runVectorNeOp<uint32_t>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::I32x4__lt_s: {
-      ValVariant Rhs = StackMgr.pop();
-      return runVectorLtOp<int32_t>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::I32x4__lt_u: {
-      ValVariant Rhs = StackMgr.pop();
-      return runVectorLtOp<uint32_t>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::I32x4__gt_s: {
-      ValVariant Rhs = StackMgr.pop();
-      return runVectorGtOp<int32_t>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::I32x4__gt_u: {
-      ValVariant Rhs = StackMgr.pop();
-      return runVectorGtOp<uint32_t>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::I32x4__le_s: {
-      ValVariant Rhs = StackMgr.pop();
-      return runVectorLeOp<int32_t>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::I32x4__le_u: {
-      ValVariant Rhs = StackMgr.pop();
-      return runVectorLeOp<uint32_t>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::I32x4__ge_s: {
-      ValVariant Rhs = StackMgr.pop();
-      return runVectorGeOp<int32_t>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::I32x4__ge_u: {
-      ValVariant Rhs = StackMgr.pop();
-      return runVectorGeOp<uint32_t>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::I64x2__eq: {
-      ValVariant Rhs = StackMgr.pop();
-      return runVectorEqOp<uint64_t>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::I64x2__ne: {
-      ValVariant Rhs = StackMgr.pop();
-      return runVectorNeOp<uint64_t>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::I64x2__lt_s: {
-      ValVariant Rhs = StackMgr.pop();
-      return runVectorLtOp<int64_t>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::I64x2__gt_s: {
-      ValVariant Rhs = StackMgr.pop();
-      return runVectorGtOp<int64_t>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::I64x2__le_s: {
-      ValVariant Rhs = StackMgr.pop();
-      return runVectorLeOp<int64_t>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::I64x2__ge_s: {
-      ValVariant Rhs = StackMgr.pop();
-      return runVectorGeOp<int64_t>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::F32x4__eq: {
-      ValVariant Rhs = StackMgr.pop();
-      return runVectorEqOp<float>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::F32x4__ne: {
-      ValVariant Rhs = StackMgr.pop();
-      return runVectorNeOp<float>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::F32x4__lt: {
-      ValVariant Rhs = StackMgr.pop();
-      return runVectorLtOp<float>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::F32x4__gt: {
-      ValVariant Rhs = StackMgr.pop();
-      return runVectorGtOp<float>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::F32x4__le: {
-      ValVariant Rhs = StackMgr.pop();
-      return runVectorLeOp<float>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::F32x4__ge: {
-      ValVariant Rhs = StackMgr.pop();
-      return runVectorGeOp<float>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::F64x2__eq: {
-      ValVariant Rhs = StackMgr.pop();
-      return runVectorEqOp<double>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::F64x2__ne: {
-      ValVariant Rhs = StackMgr.pop();
-      return runVectorNeOp<double>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::F64x2__lt: {
-      ValVariant Rhs = StackMgr.pop();
-      return runVectorLtOp<double>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::F64x2__gt: {
-      ValVariant Rhs = StackMgr.pop();
-      return runVectorGtOp<double>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::F64x2__le: {
-      ValVariant Rhs = StackMgr.pop();
-      return runVectorLeOp<double>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::F64x2__ge: {
-      ValVariant Rhs = StackMgr.pop();
-      return runVectorGeOp<double>(StackMgr.getTop(), Rhs);
-    }
+      return runSplatOp<double>(StackMgr);
+    case OpCode::I8x16__eq:
+      return runVectorEqOp<uint8_t>(StackMgr);
+    case OpCode::I8x16__ne:
+      return runVectorNeOp<uint8_t>(StackMgr);
+    case OpCode::I8x16__lt_s:
+      return runVectorLtOp<int8_t>(StackMgr);
+    case OpCode::I8x16__lt_u:
+      return runVectorLtOp<uint8_t>(StackMgr);
+    case OpCode::I8x16__gt_s:
+      return runVectorGtOp<int8_t>(StackMgr);
+    case OpCode::I8x16__gt_u:
+      return runVectorGtOp<uint8_t>(StackMgr);
+    case OpCode::I8x16__le_s:
+      return runVectorLeOp<int8_t>(StackMgr);
+    case OpCode::I8x16__le_u:
+      return runVectorLeOp<uint8_t>(StackMgr);
+    case OpCode::I8x16__ge_s:
+      return runVectorGeOp<int8_t>(StackMgr);
+    case OpCode::I8x16__ge_u:
+      return runVectorGeOp<uint8_t>(StackMgr);
+    case OpCode::I16x8__eq:
+      return runVectorEqOp<uint16_t>(StackMgr);
+    case OpCode::I16x8__ne:
+      return runVectorNeOp<uint16_t>(StackMgr);
+    case OpCode::I16x8__lt_s:
+      return runVectorLtOp<int16_t>(StackMgr);
+    case OpCode::I16x8__lt_u:
+      return runVectorLtOp<uint16_t>(StackMgr);
+    case OpCode::I16x8__gt_s:
+      return runVectorGtOp<int16_t>(StackMgr);
+    case OpCode::I16x8__gt_u:
+      return runVectorGtOp<uint16_t>(StackMgr);
+    case OpCode::I16x8__le_s:
+      return runVectorLeOp<int16_t>(StackMgr);
+    case OpCode::I16x8__le_u:
+      return runVectorLeOp<uint16_t>(StackMgr);
+    case OpCode::I16x8__ge_s:
+      return runVectorGeOp<int16_t>(StackMgr);
+    case OpCode::I16x8__ge_u:
+      return runVectorGeOp<uint16_t>(StackMgr);
+    case OpCode::I32x4__eq:
+      return runVectorEqOp<uint32_t>(StackMgr);
+    case OpCode::I32x4__ne:
+      return runVectorNeOp<uint32_t>(StackMgr);
+    case OpCode::I32x4__lt_s:
+      return runVectorLtOp<int32_t>(StackMgr);
+    case OpCode::I32x4__lt_u:
+      return runVectorLtOp<uint32_t>(StackMgr);
+    case OpCode::I32x4__gt_s:
+      return runVectorGtOp<int32_t>(StackMgr);
+    case OpCode::I32x4__gt_u:
+      return runVectorGtOp<uint32_t>(StackMgr);
+    case OpCode::I32x4__le_s:
+      return runVectorLeOp<int32_t>(StackMgr);
+    case OpCode::I32x4__le_u:
+      return runVectorLeOp<uint32_t>(StackMgr);
+    case OpCode::I32x4__ge_s:
+      return runVectorGeOp<int32_t>(StackMgr);
+    case OpCode::I32x4__ge_u:
+      return runVectorGeOp<uint32_t>(StackMgr);
+    case OpCode::I64x2__eq:
+      return runVectorEqOp<uint64_t>(StackMgr);
+    case OpCode::I64x2__ne:
+      return runVectorNeOp<uint64_t>(StackMgr);
+    case OpCode::I64x2__lt_s:
+      return runVectorLtOp<int64_t>(StackMgr);
+    case OpCode::I64x2__gt_s:
+      return runVectorGtOp<int64_t>(StackMgr);
+    case OpCode::I64x2__le_s:
+      return runVectorLeOp<int64_t>(StackMgr);
+    case OpCode::I64x2__ge_s:
+      return runVectorGeOp<int64_t>(StackMgr);
+    case OpCode::F32x4__eq:
+      return runVectorEqOp<float>(StackMgr);
+    case OpCode::F32x4__ne:
+      return runVectorNeOp<float>(StackMgr);
+    case OpCode::F32x4__lt:
+      return runVectorLtOp<float>(StackMgr);
+    case OpCode::F32x4__gt:
+      return runVectorGtOp<float>(StackMgr);
+    case OpCode::F32x4__le:
+      return runVectorLeOp<float>(StackMgr);
+    case OpCode::F32x4__ge:
+      return runVectorGeOp<float>(StackMgr);
+    case OpCode::F64x2__eq:
+      return runVectorEqOp<double>(StackMgr);
+    case OpCode::F64x2__ne:
+      return runVectorNeOp<double>(StackMgr);
+    case OpCode::F64x2__lt:
+      return runVectorLtOp<double>(StackMgr);
+    case OpCode::F64x2__gt:
+      return runVectorGtOp<double>(StackMgr);
+    case OpCode::F64x2__le:
+      return runVectorLeOp<double>(StackMgr);
+    case OpCode::F64x2__ge:
+      return runVectorGeOp<double>(StackMgr);
 
     case OpCode::V128__not: {
-      auto &Val = StackMgr.getTop().get<uint64x2_t>();
-      Val = ~Val;
+      const uint64x2_t V = StackMgr.pop<uint64x2_t>();
+      StackMgr.push<uint64x2_t>(~V);
       return {};
     }
     case OpCode::V128__and: {
-      const ValVariant Val2 = StackMgr.pop();
-      ValVariant &Val1 = StackMgr.getTop();
-      Val1.get<uint64x2_t>() &= Val2.get<uint64x2_t>();
+      const uint64x2_t V2 = StackMgr.pop<uint64x2_t>();
+      const uint64x2_t V1 = StackMgr.pop<uint64x2_t>();
+      StackMgr.push<uint64x2_t>(V1 & V2);
       return {};
     }
     case OpCode::V128__andnot: {
-      const ValVariant Val2 = StackMgr.pop();
-      ValVariant &Val1 = StackMgr.getTop();
-      Val1.get<uint64x2_t>() &= ~Val2.get<uint64x2_t>();
+      const uint64x2_t V2 = StackMgr.pop<uint64x2_t>();
+      const uint64x2_t V1 = StackMgr.pop<uint64x2_t>();
+      StackMgr.push<uint64x2_t>(V1 & ~V2);
       return {};
     }
     case OpCode::V128__or: {
-      const ValVariant Val2 = StackMgr.pop();
-      ValVariant &Val1 = StackMgr.getTop();
-      Val1.get<uint64x2_t>() |= Val2.get<uint64x2_t>();
+      const uint64x2_t V2 = StackMgr.pop<uint64x2_t>();
+      const uint64x2_t V1 = StackMgr.pop<uint64x2_t>();
+      StackMgr.push<uint64x2_t>(V1 | V2);
       return {};
     }
     case OpCode::V128__xor: {
-      const ValVariant Val2 = StackMgr.pop();
-      ValVariant &Val1 = StackMgr.getTop();
-      Val1.get<uint64x2_t>() ^= Val2.get<uint64x2_t>();
+      const uint64x2_t V2 = StackMgr.pop<uint64x2_t>();
+      const uint64x2_t V1 = StackMgr.pop<uint64x2_t>();
+      StackMgr.push<uint64x2_t>(V1 ^ V2);
       return {};
     }
     case OpCode::V128__bitselect: {
-      const uint64x2_t C = StackMgr.pop().get<uint64x2_t>();
-      const uint64x2_t Val2 = StackMgr.pop().get<uint64x2_t>();
-      uint64x2_t &Val1 = StackMgr.getTop().get<uint64x2_t>();
-      Val1 = (Val1 & C) | (Val2 & ~C);
+      const uint64x2_t C = StackMgr.pop<uint64x2_t>();
+      const uint64x2_t V2 = StackMgr.pop<uint64x2_t>();
+      const uint64x2_t V1 = StackMgr.pop<uint64x2_t>();
+      StackMgr.push<uint64x2_t>((V1 & C) | (V2 & ~C));
       return {};
     }
     case OpCode::V128__any_true:
-      return runVectorAnyTrueOp(StackMgr.getTop());
+      return runVectorAnyTrueOp(StackMgr);
 
     case OpCode::I8x16__abs:
-      return runVectorAbsOp<int8_t>(StackMgr.getTop());
+      return runVectorAbsOp<int8_t>(StackMgr);
     case OpCode::I8x16__neg:
-      return runVectorNegOp<int8_t>(StackMgr.getTop());
+      return runVectorNegOp<int8_t>(StackMgr);
     case OpCode::I8x16__popcnt:
-      return runVectorPopcntOp(StackMgr.getTop());
+      return runVectorPopcntOp(StackMgr);
     case OpCode::I8x16__all_true:
-      return runVectorAllTrueOp<uint8_t>(StackMgr.getTop());
+      return runVectorAllTrueOp<uint8_t>(StackMgr);
     case OpCode::I8x16__bitmask:
-      return runVectorBitMaskOp<uint8_t>(StackMgr.getTop());
-    case OpCode::I8x16__narrow_i16x8_s: {
-      ValVariant Rhs = StackMgr.pop();
-      return runVectorNarrowOp<int16_t, int8_t>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::I8x16__narrow_i16x8_u: {
-      ValVariant Rhs = StackMgr.pop();
-      return runVectorNarrowOp<int16_t, uint8_t>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::I8x16__shl: {
-      ValVariant Rhs = StackMgr.pop();
-      return runVectorShlOp<uint8_t>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::I8x16__shr_s: {
-      ValVariant Rhs = StackMgr.pop();
-      return runVectorShrOp<int8_t>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::I8x16__shr_u: {
-      ValVariant Rhs = StackMgr.pop();
-      return runVectorShrOp<uint8_t>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::I8x16__add: {
-      ValVariant Rhs = StackMgr.pop();
-      return runVectorAddOp<uint8_t>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::I8x16__add_sat_s: {
-      ValVariant Rhs = StackMgr.pop();
-      return runVectorAddSatOp<int8_t>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::I8x16__add_sat_u: {
-      ValVariant Rhs = StackMgr.pop();
-      return runVectorAddSatOp<uint8_t>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::I8x16__sub: {
-      ValVariant Rhs = StackMgr.pop();
-      return runVectorSubOp<uint8_t>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::I8x16__sub_sat_s: {
-      ValVariant Rhs = StackMgr.pop();
-      return runVectorSubSatOp<int8_t>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::I8x16__sub_sat_u: {
-      ValVariant Rhs = StackMgr.pop();
-      return runVectorSubSatOp<uint8_t>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::I8x16__min_s: {
-      ValVariant Rhs = StackMgr.pop();
-      return runVectorMinOp<int8_t>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::I8x16__min_u: {
-      ValVariant Rhs = StackMgr.pop();
-      return runVectorMinOp<uint8_t>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::I8x16__max_s: {
-      ValVariant Rhs = StackMgr.pop();
-      return runVectorMaxOp<int8_t>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::I8x16__max_u: {
-      ValVariant Rhs = StackMgr.pop();
-      return runVectorMaxOp<uint8_t>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::I8x16__avgr_u: {
-      ValVariant Rhs = StackMgr.pop();
-      return runVectorAvgrOp<uint8_t, uint16_t>(StackMgr.getTop(), Rhs);
-    }
+      return runVectorBitMaskOp<uint8_t>(StackMgr);
+    case OpCode::I8x16__narrow_i16x8_s:
+      return runVectorNarrowOp<int16_t, int8_t>(StackMgr);
+    case OpCode::I8x16__narrow_i16x8_u:
+      return runVectorNarrowOp<int16_t, uint8_t>(StackMgr);
+    case OpCode::I8x16__shl:
+      return runVectorShlOp<uint8_t>(StackMgr);
+    case OpCode::I8x16__shr_s:
+      return runVectorShrOp<int8_t>(StackMgr);
+    case OpCode::I8x16__shr_u:
+      return runVectorShrOp<uint8_t>(StackMgr);
+    case OpCode::I8x16__add:
+      return runVectorAddOp<uint8_t>(StackMgr);
+    case OpCode::I8x16__add_sat_s:
+      return runVectorAddSatOp<int8_t>(StackMgr);
+    case OpCode::I8x16__add_sat_u:
+      return runVectorAddSatOp<uint8_t>(StackMgr);
+    case OpCode::I8x16__sub:
+      return runVectorSubOp<uint8_t>(StackMgr);
+    case OpCode::I8x16__sub_sat_s:
+      return runVectorSubSatOp<int8_t>(StackMgr);
+    case OpCode::I8x16__sub_sat_u:
+      return runVectorSubSatOp<uint8_t>(StackMgr);
+    case OpCode::I8x16__min_s:
+      return runVectorMinOp<int8_t>(StackMgr);
+    case OpCode::I8x16__min_u:
+      return runVectorMinOp<uint8_t>(StackMgr);
+    case OpCode::I8x16__max_s:
+      return runVectorMaxOp<int8_t>(StackMgr);
+    case OpCode::I8x16__max_u:
+      return runVectorMaxOp<uint8_t>(StackMgr);
+    case OpCode::I8x16__avgr_u:
+      return runVectorAvgrOp<uint8_t, uint16_t>(StackMgr);
 
     case OpCode::I16x8__abs:
-      return runVectorAbsOp<int16_t>(StackMgr.getTop());
+      return runVectorAbsOp<int16_t>(StackMgr);
     case OpCode::I16x8__neg:
-      return runVectorNegOp<int16_t>(StackMgr.getTop());
+      return runVectorNegOp<int16_t>(StackMgr);
     case OpCode::I16x8__all_true:
-      return runVectorAllTrueOp<uint16_t>(StackMgr.getTop());
+      return runVectorAllTrueOp<uint16_t>(StackMgr);
     case OpCode::I16x8__bitmask:
-      return runVectorBitMaskOp<uint16_t>(StackMgr.getTop());
-    case OpCode::I16x8__narrow_i32x4_s: {
-      ValVariant Rhs = StackMgr.pop();
-      return runVectorNarrowOp<int32_t, int16_t>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::I16x8__narrow_i32x4_u: {
-      ValVariant Rhs = StackMgr.pop();
-      return runVectorNarrowOp<int32_t, uint16_t>(StackMgr.getTop(), Rhs);
-    }
+      return runVectorBitMaskOp<uint16_t>(StackMgr);
+    case OpCode::I16x8__narrow_i32x4_s:
+      return runVectorNarrowOp<int32_t, int16_t>(StackMgr);
+    case OpCode::I16x8__narrow_i32x4_u:
+      return runVectorNarrowOp<int32_t, uint16_t>(StackMgr);
     case OpCode::I16x8__extend_low_i8x16_s:
-      return runVectorExtendLowOp<int8_t, int16_t>(StackMgr.getTop());
+      return runVectorExtendLowOp<int8_t, int16_t>(StackMgr);
     case OpCode::I16x8__extend_high_i8x16_s:
-      return runVectorExtendHighOp<int8_t, int16_t>(StackMgr.getTop());
+      return runVectorExtendHighOp<int8_t, int16_t>(StackMgr);
     case OpCode::I16x8__extend_low_i8x16_u:
-      return runVectorExtendLowOp<uint8_t, uint16_t>(StackMgr.getTop());
+      return runVectorExtendLowOp<uint8_t, uint16_t>(StackMgr);
     case OpCode::I16x8__extend_high_i8x16_u:
-      return runVectorExtendHighOp<uint8_t, uint16_t>(StackMgr.getTop());
-    case OpCode::I16x8__shl: {
-      ValVariant Rhs = StackMgr.pop();
-      return runVectorShlOp<uint16_t>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::I16x8__shr_s: {
-      ValVariant Rhs = StackMgr.pop();
-      return runVectorShrOp<int16_t>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::I16x8__shr_u: {
-      ValVariant Rhs = StackMgr.pop();
-      return runVectorShrOp<uint16_t>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::I16x8__add: {
-      ValVariant Rhs = StackMgr.pop();
-      return runVectorAddOp<uint16_t>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::I16x8__add_sat_s: {
-      ValVariant Rhs = StackMgr.pop();
-      return runVectorAddSatOp<int16_t>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::I16x8__add_sat_u: {
-      ValVariant Rhs = StackMgr.pop();
-      return runVectorAddSatOp<uint16_t>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::I16x8__sub: {
-      ValVariant Rhs = StackMgr.pop();
-      return runVectorSubOp<uint16_t>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::I16x8__sub_sat_s: {
-      ValVariant Rhs = StackMgr.pop();
-      return runVectorSubSatOp<int16_t>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::I16x8__sub_sat_u: {
-      ValVariant Rhs = StackMgr.pop();
-      return runVectorSubSatOp<uint16_t>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::I16x8__mul: {
-      ValVariant Rhs = StackMgr.pop();
-      return runVectorMulOp<uint16_t>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::I16x8__min_s: {
-      ValVariant Rhs = StackMgr.pop();
-      return runVectorMinOp<int16_t>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::I16x8__min_u: {
-      ValVariant Rhs = StackMgr.pop();
-      return runVectorMinOp<uint16_t>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::I16x8__max_s: {
-      ValVariant Rhs = StackMgr.pop();
-      return runVectorMaxOp<int16_t>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::I16x8__max_u: {
-      ValVariant Rhs = StackMgr.pop();
-      return runVectorMaxOp<uint16_t>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::I16x8__avgr_u: {
-      ValVariant Rhs = StackMgr.pop();
-      return runVectorAvgrOp<uint16_t, uint32_t>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::I16x8__extmul_low_i8x16_s: {
-      ValVariant Rhs = StackMgr.pop();
-      return runVectorExtMulLowOp<int8_t, int16_t>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::I16x8__extmul_high_i8x16_s: {
-      ValVariant Rhs = StackMgr.pop();
-      return runVectorExtMulHighOp<int8_t, int16_t>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::I16x8__extmul_low_i8x16_u: {
-      ValVariant Rhs = StackMgr.pop();
-      return runVectorExtMulLowOp<uint8_t, uint16_t>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::I16x8__extmul_high_i8x16_u: {
-      ValVariant Rhs = StackMgr.pop();
-      return runVectorExtMulHighOp<uint8_t, uint16_t>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::I16x8__q15mulr_sat_s: {
-      ValVariant Rhs = StackMgr.pop();
-      return runVectorQ15MulSatOp(StackMgr.getTop(), Rhs);
-    }
+      return runVectorExtendHighOp<uint8_t, uint16_t>(StackMgr);
+    case OpCode::I16x8__shl:
+      return runVectorShlOp<uint16_t>(StackMgr);
+    case OpCode::I16x8__shr_s:
+      return runVectorShrOp<int16_t>(StackMgr);
+    case OpCode::I16x8__shr_u:
+      return runVectorShrOp<uint16_t>(StackMgr);
+    case OpCode::I16x8__add:
+      return runVectorAddOp<uint16_t>(StackMgr);
+    case OpCode::I16x8__add_sat_s:
+      return runVectorAddSatOp<int16_t>(StackMgr);
+    case OpCode::I16x8__add_sat_u:
+      return runVectorAddSatOp<uint16_t>(StackMgr);
+    case OpCode::I16x8__sub:
+      return runVectorSubOp<uint16_t>(StackMgr);
+    case OpCode::I16x8__sub_sat_s:
+      return runVectorSubSatOp<int16_t>(StackMgr);
+    case OpCode::I16x8__sub_sat_u:
+      return runVectorSubSatOp<uint16_t>(StackMgr);
+    case OpCode::I16x8__mul:
+      return runVectorMulOp<uint16_t>(StackMgr);
+    case OpCode::I16x8__min_s:
+      return runVectorMinOp<int16_t>(StackMgr);
+    case OpCode::I16x8__min_u:
+      return runVectorMinOp<uint16_t>(StackMgr);
+    case OpCode::I16x8__max_s:
+      return runVectorMaxOp<int16_t>(StackMgr);
+    case OpCode::I16x8__max_u:
+      return runVectorMaxOp<uint16_t>(StackMgr);
+    case OpCode::I16x8__avgr_u:
+      return runVectorAvgrOp<uint16_t, uint32_t>(StackMgr);
+    case OpCode::I16x8__extmul_low_i8x16_s:
+      return runVectorExtMulLowOp<int8_t, int16_t>(StackMgr);
+    case OpCode::I16x8__extmul_high_i8x16_s:
+      return runVectorExtMulHighOp<int8_t, int16_t>(StackMgr);
+    case OpCode::I16x8__extmul_low_i8x16_u:
+      return runVectorExtMulLowOp<uint8_t, uint16_t>(StackMgr);
+    case OpCode::I16x8__extmul_high_i8x16_u:
+      return runVectorExtMulHighOp<uint8_t, uint16_t>(StackMgr);
+    case OpCode::I16x8__q15mulr_sat_s:
+      return runVectorQ15MulSatOp(StackMgr);
     case OpCode::I16x8__extadd_pairwise_i8x16_s:
-      return runVectorExtAddPairwiseOp<int8_t, int16_t>(StackMgr.getTop());
+      return runVectorExtAddPairwiseOp<int8_t, int16_t>(StackMgr);
     case OpCode::I16x8__extadd_pairwise_i8x16_u:
-      return runVectorExtAddPairwiseOp<uint8_t, uint16_t>(StackMgr.getTop());
+      return runVectorExtAddPairwiseOp<uint8_t, uint16_t>(StackMgr);
 
     case OpCode::I32x4__abs:
-      return runVectorAbsOp<int32_t>(StackMgr.getTop());
+      return runVectorAbsOp<int32_t>(StackMgr);
     case OpCode::I32x4__neg:
-      return runVectorNegOp<int32_t>(StackMgr.getTop());
+      return runVectorNegOp<int32_t>(StackMgr);
     case OpCode::I32x4__all_true:
-      return runVectorAllTrueOp<uint32_t>(StackMgr.getTop());
+      return runVectorAllTrueOp<uint32_t>(StackMgr);
     case OpCode::I32x4__bitmask:
-      return runVectorBitMaskOp<uint32_t>(StackMgr.getTop());
+      return runVectorBitMaskOp<uint32_t>(StackMgr);
     case OpCode::I32x4__extend_low_i16x8_s:
-      return runVectorExtendLowOp<int16_t, int32_t>(StackMgr.getTop());
+      return runVectorExtendLowOp<int16_t, int32_t>(StackMgr);
     case OpCode::I32x4__extend_high_i16x8_s:
-      return runVectorExtendHighOp<int16_t, int32_t>(StackMgr.getTop());
+      return runVectorExtendHighOp<int16_t, int32_t>(StackMgr);
     case OpCode::I32x4__extend_low_i16x8_u:
-      return runVectorExtendLowOp<uint16_t, uint32_t>(StackMgr.getTop());
+      return runVectorExtendLowOp<uint16_t, uint32_t>(StackMgr);
     case OpCode::I32x4__extend_high_i16x8_u:
-      return runVectorExtendHighOp<uint16_t, uint32_t>(StackMgr.getTop());
-    case OpCode::I32x4__shl: {
-      ValVariant Rhs = StackMgr.pop();
-      return runVectorShlOp<uint32_t>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::I32x4__shr_s: {
-      ValVariant Rhs = StackMgr.pop();
-      return runVectorShrOp<int32_t>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::I32x4__shr_u: {
-      ValVariant Rhs = StackMgr.pop();
-      return runVectorShrOp<uint32_t>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::I32x4__add: {
-      ValVariant Rhs = StackMgr.pop();
-      return runVectorAddOp<uint32_t>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::I32x4__sub: {
-      ValVariant Rhs = StackMgr.pop();
-      return runVectorSubOp<uint32_t>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::I32x4__mul: {
-      ValVariant Rhs = StackMgr.pop();
-      return runVectorMulOp<uint32_t>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::I32x4__min_s: {
-      ValVariant Rhs = StackMgr.pop();
-      return runVectorMinOp<int32_t>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::I32x4__min_u: {
-      ValVariant Rhs = StackMgr.pop();
-      return runVectorMinOp<uint32_t>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::I32x4__max_s: {
-      ValVariant Rhs = StackMgr.pop();
-      return runVectorMaxOp<int32_t>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::I32x4__max_u: {
-      ValVariant Rhs = StackMgr.pop();
-      return runVectorMaxOp<uint32_t>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::I32x4__extmul_low_i16x8_s: {
-      ValVariant Rhs = StackMgr.pop();
-      return runVectorExtMulLowOp<int16_t, int32_t>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::I32x4__extmul_high_i16x8_s: {
-      ValVariant Rhs = StackMgr.pop();
-      return runVectorExtMulHighOp<int16_t, int32_t>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::I32x4__extmul_low_i16x8_u: {
-      ValVariant Rhs = StackMgr.pop();
-      return runVectorExtMulLowOp<uint16_t, uint32_t>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::I32x4__extmul_high_i16x8_u: {
-      ValVariant Rhs = StackMgr.pop();
-      return runVectorExtMulHighOp<uint16_t, uint32_t>(StackMgr.getTop(), Rhs);
-    }
+      return runVectorExtendHighOp<uint16_t, uint32_t>(StackMgr);
+    case OpCode::I32x4__shl:
+      return runVectorShlOp<uint32_t>(StackMgr);
+    case OpCode::I32x4__shr_s:
+      return runVectorShrOp<int32_t>(StackMgr);
+    case OpCode::I32x4__shr_u:
+      return runVectorShrOp<uint32_t>(StackMgr);
+    case OpCode::I32x4__add:
+      return runVectorAddOp<uint32_t>(StackMgr);
+    case OpCode::I32x4__sub:
+      return runVectorSubOp<uint32_t>(StackMgr);
+    case OpCode::I32x4__mul:
+      return runVectorMulOp<uint32_t>(StackMgr);
+    case OpCode::I32x4__min_s:
+      return runVectorMinOp<int32_t>(StackMgr);
+    case OpCode::I32x4__min_u:
+      return runVectorMinOp<uint32_t>(StackMgr);
+    case OpCode::I32x4__max_s:
+      return runVectorMaxOp<int32_t>(StackMgr);
+    case OpCode::I32x4__max_u:
+      return runVectorMaxOp<uint32_t>(StackMgr);
+    case OpCode::I32x4__extmul_low_i16x8_s:
+      return runVectorExtMulLowOp<int16_t, int32_t>(StackMgr);
+    case OpCode::I32x4__extmul_high_i16x8_s:
+      return runVectorExtMulHighOp<int16_t, int32_t>(StackMgr);
+    case OpCode::I32x4__extmul_low_i16x8_u:
+      return runVectorExtMulLowOp<uint16_t, uint32_t>(StackMgr);
+    case OpCode::I32x4__extmul_high_i16x8_u:
+      return runVectorExtMulHighOp<uint16_t, uint32_t>(StackMgr);
     case OpCode::I32x4__extadd_pairwise_i16x8_s:
-      return runVectorExtAddPairwiseOp<int16_t, int32_t>(StackMgr.getTop());
+      return runVectorExtAddPairwiseOp<int16_t, int32_t>(StackMgr);
     case OpCode::I32x4__extadd_pairwise_i16x8_u:
-      return runVectorExtAddPairwiseOp<uint16_t, uint32_t>(StackMgr.getTop());
+      return runVectorExtAddPairwiseOp<uint16_t, uint32_t>(StackMgr);
 
     case OpCode::I64x2__abs:
-      return runVectorAbsOp<int64_t>(StackMgr.getTop());
+      return runVectorAbsOp<int64_t>(StackMgr);
     case OpCode::I64x2__neg:
-      return runVectorNegOp<int64_t>(StackMgr.getTop());
+      return runVectorNegOp<int64_t>(StackMgr);
     case OpCode::I64x2__all_true:
-      return runVectorAllTrueOp<uint64_t>(StackMgr.getTop());
+      return runVectorAllTrueOp<uint64_t>(StackMgr);
     case OpCode::I64x2__bitmask:
-      return runVectorBitMaskOp<uint64_t>(StackMgr.getTop());
+      return runVectorBitMaskOp<uint64_t>(StackMgr);
     case OpCode::I64x2__extend_low_i32x4_s:
-      return runVectorExtendLowOp<int32_t, int64_t>(StackMgr.getTop());
+      return runVectorExtendLowOp<int32_t, int64_t>(StackMgr);
     case OpCode::I64x2__extend_high_i32x4_s:
-      return runVectorExtendHighOp<int32_t, int64_t>(StackMgr.getTop());
+      return runVectorExtendHighOp<int32_t, int64_t>(StackMgr);
     case OpCode::I64x2__extend_low_i32x4_u:
-      return runVectorExtendLowOp<uint32_t, uint64_t>(StackMgr.getTop());
+      return runVectorExtendLowOp<uint32_t, uint64_t>(StackMgr);
     case OpCode::I64x2__extend_high_i32x4_u:
-      return runVectorExtendHighOp<uint32_t, uint64_t>(StackMgr.getTop());
-    case OpCode::I64x2__shl: {
-      ValVariant Rhs = StackMgr.pop();
-      return runVectorShlOp<uint64_t>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::I64x2__shr_s: {
-      ValVariant Rhs = StackMgr.pop();
-      return runVectorShrOp<int64_t>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::I64x2__shr_u: {
-      ValVariant Rhs = StackMgr.pop();
-      return runVectorShrOp<uint64_t>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::I64x2__add: {
-      ValVariant Rhs = StackMgr.pop();
-      return runVectorAddOp<uint64_t>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::I64x2__sub: {
-      ValVariant Rhs = StackMgr.pop();
-      return runVectorSubOp<uint64_t>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::I64x2__mul: {
-      ValVariant Rhs = StackMgr.pop();
-      return runVectorMulOp<uint64_t>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::I64x2__extmul_low_i32x4_s: {
-      ValVariant Rhs = StackMgr.pop();
-      return runVectorExtMulLowOp<int32_t, int64_t>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::I64x2__extmul_high_i32x4_s: {
-      ValVariant Rhs = StackMgr.pop();
-      return runVectorExtMulHighOp<int32_t, int64_t>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::I64x2__extmul_low_i32x4_u: {
-      ValVariant Rhs = StackMgr.pop();
-      return runVectorExtMulLowOp<uint32_t, uint64_t>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::I64x2__extmul_high_i32x4_u: {
-      ValVariant Rhs = StackMgr.pop();
-      return runVectorExtMulHighOp<uint32_t, uint64_t>(StackMgr.getTop(), Rhs);
-    }
+      return runVectorExtendHighOp<uint32_t, uint64_t>(StackMgr);
+    case OpCode::I64x2__shl:
+      return runVectorShlOp<uint64_t>(StackMgr);
+    case OpCode::I64x2__shr_s:
+      return runVectorShrOp<int64_t>(StackMgr);
+    case OpCode::I64x2__shr_u:
+      return runVectorShrOp<uint64_t>(StackMgr);
+    case OpCode::I64x2__add:
+      return runVectorAddOp<uint64_t>(StackMgr);
+    case OpCode::I64x2__sub:
+      return runVectorSubOp<uint64_t>(StackMgr);
+    case OpCode::I64x2__mul:
+      return runVectorMulOp<uint64_t>(StackMgr);
+    case OpCode::I64x2__extmul_low_i32x4_s:
+      return runVectorExtMulLowOp<int32_t, int64_t>(StackMgr);
+    case OpCode::I64x2__extmul_high_i32x4_s:
+      return runVectorExtMulHighOp<int32_t, int64_t>(StackMgr);
+    case OpCode::I64x2__extmul_low_i32x4_u:
+      return runVectorExtMulLowOp<uint32_t, uint64_t>(StackMgr);
+    case OpCode::I64x2__extmul_high_i32x4_u:
+      return runVectorExtMulHighOp<uint32_t, uint64_t>(StackMgr);
 
     case OpCode::F32x4__abs:
-      return runVectorAbsOp<float>(StackMgr.getTop());
+      return runVectorAbsOp<float>(StackMgr);
     case OpCode::F32x4__neg:
-      return runVectorNegOp<float>(StackMgr.getTop());
+      return runVectorNegOp<float>(StackMgr);
     case OpCode::F32x4__sqrt:
-      return runVectorSqrtOp<float>(StackMgr.getTop());
-    case OpCode::F32x4__add: {
-      ValVariant Rhs = StackMgr.pop();
-      return runVectorAddOp<float>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::F32x4__sub: {
-      ValVariant Rhs = StackMgr.pop();
-      return runVectorSubOp<float>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::F32x4__mul: {
-      ValVariant Rhs = StackMgr.pop();
-      return runVectorMulOp<float>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::F32x4__div: {
-      ValVariant Rhs = StackMgr.pop();
-      return runVectorDivOp<float>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::F32x4__min: {
-      ValVariant Rhs = StackMgr.pop();
-      return runVectorFMinOp<float>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::F32x4__max: {
-      ValVariant Rhs = StackMgr.pop();
-      return runVectorFMaxOp<float>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::F32x4__pmin: {
-      ValVariant Rhs = StackMgr.pop();
-      return runVectorMinOp<float>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::F32x4__pmax: {
-      ValVariant Rhs = StackMgr.pop();
-      return runVectorMaxOp<float>(StackMgr.getTop(), Rhs);
-    }
+      return runVectorSqrtOp<float>(StackMgr);
+    case OpCode::F32x4__add:
+      return runVectorAddOp<float>(StackMgr);
+    case OpCode::F32x4__sub:
+      return runVectorSubOp<float>(StackMgr);
+    case OpCode::F32x4__mul:
+      return runVectorMulOp<float>(StackMgr);
+    case OpCode::F32x4__div:
+      return runVectorDivOp<float>(StackMgr);
+    case OpCode::F32x4__min:
+      return runVectorFMinOp<float>(StackMgr);
+    case OpCode::F32x4__max:
+      return runVectorFMaxOp<float>(StackMgr);
+    case OpCode::F32x4__pmin:
+      return runVectorMinOp<float>(StackMgr);
+    case OpCode::F32x4__pmax:
+      return runVectorMaxOp<float>(StackMgr);
 
     case OpCode::F64x2__abs:
-      return runVectorAbsOp<double>(StackMgr.getTop());
+      return runVectorAbsOp<double>(StackMgr);
     case OpCode::F64x2__neg:
-      return runVectorNegOp<double>(StackMgr.getTop());
+      return runVectorNegOp<double>(StackMgr);
     case OpCode::F64x2__sqrt:
-      return runVectorSqrtOp<double>(StackMgr.getTop());
-    case OpCode::F64x2__add: {
-      ValVariant Rhs = StackMgr.pop();
-      return runVectorAddOp<double>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::F64x2__sub: {
-      ValVariant Rhs = StackMgr.pop();
-      return runVectorSubOp<double>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::F64x2__mul: {
-      ValVariant Rhs = StackMgr.pop();
-      return runVectorMulOp<double>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::F64x2__div: {
-      ValVariant Rhs = StackMgr.pop();
-      return runVectorDivOp<double>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::F64x2__min: {
-      ValVariant Rhs = StackMgr.pop();
-      return runVectorFMinOp<double>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::F64x2__max: {
-      ValVariant Rhs = StackMgr.pop();
-      return runVectorFMaxOp<double>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::F64x2__pmin: {
-      ValVariant Rhs = StackMgr.pop();
-      return runVectorMinOp<double>(StackMgr.getTop(), Rhs);
-    }
-    case OpCode::F64x2__pmax: {
-      ValVariant Rhs = StackMgr.pop();
-      return runVectorMaxOp<double>(StackMgr.getTop(), Rhs);
-    }
+      return runVectorSqrtOp<double>(StackMgr);
+    case OpCode::F64x2__add:
+      return runVectorAddOp<double>(StackMgr);
+    case OpCode::F64x2__sub:
+      return runVectorSubOp<double>(StackMgr);
+    case OpCode::F64x2__mul:
+      return runVectorMulOp<double>(StackMgr);
+    case OpCode::F64x2__div:
+      return runVectorDivOp<double>(StackMgr);
+    case OpCode::F64x2__min:
+      return runVectorFMinOp<double>(StackMgr);
+    case OpCode::F64x2__max:
+      return runVectorFMaxOp<double>(StackMgr);
+    case OpCode::F64x2__pmin:
+      return runVectorMinOp<double>(StackMgr);
+    case OpCode::F64x2__pmax:
+      return runVectorMaxOp<double>(StackMgr);
 
     case OpCode::I32x4__trunc_sat_f32x4_s:
-      return runVectorTruncSatOp<float, int32_t>(StackMgr.getTop());
+      return runVectorTruncSatOp<float, int32_t>(StackMgr);
     case OpCode::I32x4__trunc_sat_f32x4_u:
-      return runVectorTruncSatOp<float, uint32_t>(StackMgr.getTop());
+      return runVectorTruncSatOp<float, uint32_t>(StackMgr);
     case OpCode::F32x4__convert_i32x4_s:
-      return runVectorConvertOp<int32_t, float>(StackMgr.getTop());
+      return runVectorConvertOp<int32_t, float>(StackMgr);
     case OpCode::F32x4__convert_i32x4_u:
-      return runVectorConvertOp<uint32_t, float>(StackMgr.getTop());
+      return runVectorConvertOp<uint32_t, float>(StackMgr);
     case OpCode::I32x4__trunc_sat_f64x2_s_zero:
-      return runVectorTruncSatOp<double, int32_t>(StackMgr.getTop());
+      return runVectorTruncSatOp<double, int32_t>(StackMgr);
     case OpCode::I32x4__trunc_sat_f64x2_u_zero:
-      return runVectorTruncSatOp<double, uint32_t>(StackMgr.getTop());
+      return runVectorTruncSatOp<double, uint32_t>(StackMgr);
     case OpCode::F64x2__convert_low_i32x4_s:
-      return runVectorConvertOp<int32_t, double>(StackMgr.getTop());
+      return runVectorConvertOp<int32_t, double>(StackMgr);
     case OpCode::F64x2__convert_low_i32x4_u:
-      return runVectorConvertOp<uint32_t, double>(StackMgr.getTop());
+      return runVectorConvertOp<uint32_t, double>(StackMgr);
     case OpCode::F32x4__demote_f64x2_zero:
-      return runVectorDemoteOp(StackMgr.getTop());
+      return runVectorDemoteOp(StackMgr);
     case OpCode::F64x2__promote_low_f32x4:
-      return runVectorPromoteOp(StackMgr.getTop());
+      return runVectorPromoteOp(StackMgr);
 
     case OpCode::I32x4__dot_i16x8_s: {
       using int32x8_t [[gnu::vector_size(32)]] = int32_t;
-      const ValVariant Val2 = StackMgr.pop();
-      ValVariant &Val1 = StackMgr.getTop();
-
-      auto &V2 = Val2.get<int16x8_t>();
-      auto &V1 = Val1.get<int16x8_t>();
+      const auto V2 = StackMgr.pop<int16x8_t>();
+      const auto V1 = StackMgr.pop<int16x8_t>();
       const auto M = __builtin_convertvector(V1, int32x8_t) *
                      __builtin_convertvector(V2, int32x8_t);
       const int32x4_t L = {M[0], M[2], M[4], M[6]};
       const int32x4_t R = {M[1], M[3], M[5], M[7]};
-      Val1.emplace<int32x4_t>(L + R);
-
+      StackMgr.push<int32x4_t>(L + R);
       return {};
     }
     case OpCode::F32x4__ceil:
-      return runVectorCeilOp<float>(StackMgr.getTop());
+      return runVectorCeilOp<float>(StackMgr);
     case OpCode::F32x4__floor:
-      return runVectorFloorOp<float>(StackMgr.getTop());
+      return runVectorFloorOp<float>(StackMgr);
     case OpCode::F32x4__trunc:
-      return runVectorTruncOp<float>(StackMgr.getTop());
+      return runVectorTruncOp<float>(StackMgr);
     case OpCode::F32x4__nearest:
-      return runVectorNearestOp<float>(StackMgr.getTop());
+      return runVectorNearestOp<float>(StackMgr);
     case OpCode::F64x2__ceil:
-      return runVectorCeilOp<double>(StackMgr.getTop());
+      return runVectorCeilOp<double>(StackMgr);
     case OpCode::F64x2__floor:
-      return runVectorFloorOp<double>(StackMgr.getTop());
+      return runVectorFloorOp<double>(StackMgr);
     case OpCode::F64x2__trunc:
-      return runVectorTruncOp<double>(StackMgr.getTop());
+      return runVectorTruncOp<double>(StackMgr);
     case OpCode::F64x2__nearest:
-      return runVectorNearestOp<double>(StackMgr.getTop());
+      return runVectorNearestOp<double>(StackMgr);
 
     default:
       return {};

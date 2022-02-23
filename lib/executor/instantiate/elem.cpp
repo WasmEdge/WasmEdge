@@ -29,7 +29,7 @@ Expect<void> Executor::instantiate(Runtime::StoreManager &StoreMgr,
         return Unexpect(Res);
       }
       // Pop result from stack.
-      InitVals.push_back(StackMgr.pop().get<UnknownRef>());
+      InitVals.push_back(StackMgr.pop<UnknownRef>());
     }
 
     uint32_t Offset = 0;
@@ -42,7 +42,7 @@ Expect<void> Executor::instantiate(Runtime::StoreManager &StoreMgr,
         spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Seg_Element));
         return Unexpect(Res);
       }
-      Offset = StackMgr.pop().get<uint32_t>();
+      Offset = StackMgr.pop<uint32_t>();
 
       // Check boundary unless ReferenceTypes or BulkMemoryOperations proposal
       // enabled.

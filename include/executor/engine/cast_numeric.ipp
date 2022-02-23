@@ -31,137 +31,147 @@ using TypeFromBytesT = typename TypeFromBytes<T, B>::type;
 } // namespace
 
 template <typename TIn, typename TOut>
-TypeUU<TIn, TOut> Executor::runWrapOp(ValVariant &Val) const {
-  Val.emplace<TOut>(static_cast<TOut>(Val.get<TIn>()));
+TypeUU<TIn, TOut>
+Executor::runWrapOp(Runtime::StackManager &StackMgr) const noexcept {
+  StackMgr.push<TOut>(static_cast<TOut>(StackMgr.pop<TIn>()));
   return {};
 }
 
 template <typename TIn, typename TOut>
-TypeFI<TIn, TOut> Executor::runTruncateOp(const AST::Instruction &Instr,
-                                          ValVariant &Val) const {
-  TIn Z = Val.get<TIn>();
+TypeFI<TIn, TOut>
+Executor::runTruncateOp(Runtime::StackManager &StackMgr,
+                        const AST::Instruction &Instr) const noexcept {
+  TIn Z = StackMgr.pop<TIn>();
   // If z is a NaN or an infinity, then the result is undefined.
   if (std::isnan(Z)) {
     spdlog::error(ErrCode::InvalidConvToInt);
     spdlog::error(ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset(),
-                                           {Val}, {ValTypeFromType<TIn>()}));
+                                           {Z}, {ValTypeFromType<TIn>()}));
     return Unexpect(ErrCode::InvalidConvToInt);
   }
   if (std::isinf(Z)) {
     spdlog::error(ErrCode::IntegerOverflow);
     spdlog::error(ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset(),
-                                           {Val}, {ValTypeFromType<TIn>()}));
+                                           {Z}, {ValTypeFromType<TIn>()}));
     return Unexpect(ErrCode::IntegerOverflow);
   }
   // If trunc(z) is out of range of target type, then the result is undefined.
   Z = std::trunc(Z);
-  TIn ValTOutMin = static_cast<TIn>(std::numeric_limits<TOut>::min());
-  TIn ValTOutMax = static_cast<TIn>(std::numeric_limits<TOut>::max());
+  const TIn ValTOutMin = static_cast<TIn>(std::numeric_limits<TOut>::min());
+  const TIn ValTOutMax = static_cast<TIn>(std::numeric_limits<TOut>::max());
   if (sizeof(TIn) > sizeof(TOut)) {
     // Floating precision is better than integer case.
     if (Z < ValTOutMin || Z > ValTOutMax) {
       spdlog::error(ErrCode::IntegerOverflow);
-      spdlog::error(ErrInfo::InfoInstruction(Instr.getOpCode(),
-                                             Instr.getOffset(), {Val},
-                                             {ValTypeFromType<TIn>()}));
+      spdlog::error(ErrInfo::InfoInstruction(
+          Instr.getOpCode(), Instr.getOffset(), {Z}, {ValTypeFromType<TIn>()}));
       return Unexpect(ErrCode::IntegerOverflow);
     }
   } else {
     // Floating precision is worse than integer case.
     if (Z < ValTOutMin || Z >= ValTOutMax) {
       spdlog::error(ErrCode::IntegerOverflow);
-      spdlog::error(ErrInfo::InfoInstruction(Instr.getOpCode(),
-                                             Instr.getOffset(), {Val},
-                                             {ValTypeFromType<TIn>()}));
+      spdlog::error(ErrInfo::InfoInstruction(
+          Instr.getOpCode(), Instr.getOffset(), {Z}, {ValTypeFromType<TIn>()}));
       return Unexpect(ErrCode::IntegerOverflow);
     }
   }
   // Else, return trunc(z). Signed case handled.
-  Val.emplace<TOut>(static_cast<TOut>(Z));
+  StackMgr.push<TOut>(static_cast<TOut>(Z));
   return {};
 }
 
 template <typename TIn, typename TOut>
-TypeFI<TIn, TOut> Executor::runTruncateSatOp(ValVariant &Val) const {
-  TIn Z = Val.get<TIn>();
+TypeFI<TIn, TOut>
+Executor::runTruncateSatOp(Runtime::StackManager &StackMgr) const noexcept {
+  TIn Z = StackMgr.pop<TIn>();
+  TOut R;
   if (std::isnan(Z)) {
     // If z is a NaN, return 0.
-    Val.emplace<TOut>(static_cast<TOut>(0));
+    R = static_cast<TOut>(0);
   } else if (std::isinf(Z)) {
     if (Z < std::numeric_limits<TIn>::lowest()) {
       // If z is -inf, return min limit.
-      Val.emplace<TOut>(std::numeric_limits<TOut>::min());
+      R = std::numeric_limits<TOut>::min();
     } else {
       // If z is +inf, return max limit.
-      Val.emplace<TOut>(std::numeric_limits<TOut>::max());
+      R = std::numeric_limits<TOut>::max();
     }
   } else {
     Z = std::trunc(Z);
     TIn ValTOutMin = static_cast<TIn>(std::numeric_limits<TOut>::min());
     TIn ValTOutMax = static_cast<TIn>(std::numeric_limits<TOut>::max());
-    if (sizeof(TIn) > sizeof(TOut)) {
+    if constexpr (sizeof(TIn) > sizeof(TOut)) {
       // Floating precision is better than integer case.
       if (Z < ValTOutMin) {
-        Val.emplace<TOut>(std::numeric_limits<TOut>::min());
+        R = std::numeric_limits<TOut>::min();
       } else if (Z > ValTOutMax) {
-        Val.emplace<TOut>(std::numeric_limits<TOut>::max());
+        R = std::numeric_limits<TOut>::max();
       } else {
-        Val.emplace<TOut>(static_cast<TOut>(Z));
+        R = static_cast<TOut>(Z);
       }
     } else {
       // Floating precision is worse than integer case.
       if (Z < ValTOutMin) {
-        Val.emplace<TOut>(std::numeric_limits<TOut>::min());
+        R = std::numeric_limits<TOut>::min();
       } else if (Z >= ValTOutMax) {
-        Val.emplace<TOut>(std::numeric_limits<TOut>::max());
+        R = std::numeric_limits<TOut>::max();
       } else {
-        Val.emplace<TOut>(static_cast<TOut>(Z));
+        R = static_cast<TOut>(Z);
       }
     }
   }
+  StackMgr.push<TOut>(R);
   return {};
 }
 
 template <typename TIn, typename TOut, size_t B>
-TypeIU<TIn, TOut> Executor::runExtendOp(ValVariant &Val) const {
+TypeIU<TIn, TOut>
+Executor::runExtendOp(Runtime::StackManager &StackMgr) const noexcept {
   // Return i extend to TOut. Signed case handled.
-  if (B == sizeof(TIn) * 8) {
-    Val.emplace<TOut>(static_cast<TOut>(Val.get<TIn>()));
+  const TIn V = StackMgr.pop<TIn>();
+  TOut R;
+  if constexpr (B == sizeof(TIn) * 8) {
+    R = static_cast<TOut>(V);
   } else {
-    Val.emplace<TOut>(
-        static_cast<TOut>(static_cast<TypeFromBytesT<TIn, B>>(Val.get<TIn>())));
+    R = static_cast<TOut>(static_cast<TypeFromBytesT<TIn, B>>(V));
   }
+  StackMgr.push<TOut>(R);
   return {};
 }
 
 template <typename TIn, typename TOut>
-TypeIF<TIn, TOut> Executor::runConvertOp(ValVariant &Val) const {
+TypeIF<TIn, TOut>
+Executor::runConvertOp(Runtime::StackManager &StackMgr) const noexcept {
   // Return i convert to TOut. Signed case handled.
-  Val.emplace<TOut>(static_cast<TOut>(Val.get<TIn>()));
+  StackMgr.push<TOut>(static_cast<TOut>(StackMgr.pop<TIn>()));
   return {};
 }
 
 template <typename TIn, typename TOut>
-TypeFF<TIn, TOut> Executor::runDemoteOp(ValVariant &Val) const {
+TypeFF<TIn, TOut>
+Executor::runDemoteOp(Runtime::StackManager &StackMgr) const noexcept {
   // Return i convert to TOut. (NaN, inf, and zeros handled)
-  Val.emplace<TOut>(static_cast<TOut>(Val.get<TIn>()));
+  StackMgr.push<TOut>(static_cast<TOut>(StackMgr.pop<TIn>()));
   return {};
 }
 
 template <typename TIn, typename TOut>
-TypeFF<TIn, TOut> Executor::runPromoteOp(ValVariant &Val) const {
+TypeFF<TIn, TOut>
+Executor::runPromoteOp(Runtime::StackManager &StackMgr) const noexcept {
   // Return i convert to TOut. (NaN, inf, and zeros handled)
-  Val.emplace<TOut>(static_cast<TOut>(Val.get<TIn>()));
+  StackMgr.push<TOut>(static_cast<TOut>(StackMgr.pop<TIn>()));
   return {};
 }
 
 template <typename TIn, typename TOut>
-TypeNN<TIn, TOut> Executor::runReinterpretOp(ValVariant &Val) const {
+TypeNN<TIn, TOut>
+Executor::runReinterpretOp(Runtime::StackManager &StackMgr) const noexcept {
   // Return ValVariant with type TOut which copy bits of V.
+  const TIn VIn = StackMgr.pop<TIn>();
   TOut VOut;
-  TIn VIn = Val.get<TIn>();
   std::memcpy(&VOut, &VIn, sizeof(TIn));
-  Val.emplace<TOut>(VOut);
+  StackMgr.push<TOut>(VOut);
   return {};
 }
 

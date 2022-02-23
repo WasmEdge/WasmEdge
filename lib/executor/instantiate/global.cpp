@@ -46,7 +46,8 @@ Expect<void> Executor::instantiate(Runtime::StoreManager &StoreMgr,
 
     // Pop result from stack.
     auto *NewGlobInst = *StoreMgr.getGlobal(NewGlobInstAddr);
-    NewGlobInst->getValue() = StackMgr.pop();
+    NewGlobInst->getValue() =
+        StackMgr.pop(GlobSeg.getGlobalType().getValType());
   }
   return {};
 }

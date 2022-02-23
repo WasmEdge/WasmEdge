@@ -10,13 +10,14 @@ namespace Executor {
 
 Expect<void> Executor::runLocalGetOp(Runtime::StackManager &StackMgr,
                                      uint32_t StackOffset) const noexcept {
-  StackMgr.push(StackMgr.getTopN(StackOffset));
+  StackMgr.pushUnknown(StackMgr.getBottomN(StackOffset));
   return {};
 }
 
 Expect<void> Executor::runLocalSetOp(Runtime::StackManager &StackMgr,
+<<<<<<< HEAD
                                      uint32_t StackOffset) const noexcept {
-  StackMgr.getTopN(StackOffset - 1) = StackMgr.pop();
+  StackMgr.getTopN(StackOffset - 1) = StackMgr.popUnknowN();
   return {};
 }
 
@@ -32,7 +33,7 @@ Expect<void> Executor::runGlobalGetOp(Runtime::StoreManager &StoreMgr,
                                       const uint32_t Idx) noexcept {
   auto *GlobInst = getGlobInstByIdx(StoreMgr, StackMgr, Idx);
   assuming(GlobInst);
-  StackMgr.push(GlobInst->getValue());
+  StackMgr.push(GlobInst->getGlobalType().getValType(), GlobInst->getValue());
   return {};
 }
 
@@ -41,7 +42,7 @@ Expect<void> Executor::runGlobalSetOp(Runtime::StoreManager &StoreMgr,
                                       const uint32_t Idx) noexcept {
   auto *GlobInst = getGlobInstByIdx(StoreMgr, StackMgr, Idx);
   assuming(GlobInst);
-  GlobInst->getValue() = StackMgr.pop();
+  GlobInst->getValue() = StackMgr.popUnknown();
   return {};
 }
 

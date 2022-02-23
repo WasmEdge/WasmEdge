@@ -115,7 +115,8 @@ Executor::invoke(Runtime::StoreManager &StoreMgr, const uint32_t FuncAddr,
   std::vector<std::pair<ValVariant, ValType>> Returns(RTypes.size());
   for (uint32_t I = 0; I < RTypes.size(); ++I) {
     Returns[RTypes.size() - I - 1] =
-        std::make_pair(StackMgr.pop(), RTypes[RTypes.size() - I - 1]);
+        std::make_pair(StackMgr.pop(RTypes[RTypes.size() - I - 1]),
+                       RTypes[RTypes.size() - I - 1]);
   }
   return Returns;
 }

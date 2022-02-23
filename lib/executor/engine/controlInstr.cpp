@@ -12,7 +12,7 @@ Expect<void> Executor::runIfElseOp(Runtime::StackManager &StackMgr,
                                    const AST::Instruction &Instr,
                                    AST::InstrView::iterator &PC) noexcept {
   // Get condition.
-  uint32_t Cond = StackMgr.pop().get<uint32_t>();
+  const uint32_t Cond = StackMgr.pop<uint32_t>();
 
   // If non-zero, run if-statement; else, run else-statement.
   if (Cond == 0) {
@@ -44,7 +44,7 @@ Expect<void> Executor::runBrOp(Runtime::StackManager &StackMgr,
 Expect<void> Executor::runBrIfOp(Runtime::StackManager &StackMgr,
                                  const AST::Instruction &Instr,
                                  AST::InstrView::iterator &PC) noexcept {
-  if (StackMgr.pop().get<uint32_t>() != 0) {
+  if (StackMgr.pop<uint32_t>() != 0) {
     return runBrOp(StackMgr, Instr, PC);
   }
   return {};
@@ -54,7 +54,7 @@ Expect<void> Executor::runBrTableOp(Runtime::StackManager &StackMgr,
                                     const AST::Instruction &Instr,
                                     AST::InstrView::iterator &PC) noexcept {
   // Get value on top of stack.
-  uint32_t Value = StackMgr.pop().get<uint32_t>();
+  const uint32_t Value = StackMgr.pop<uint32_t>();
 
   // Do branch.
   auto LabelTable = Instr.getLabelList();
@@ -110,7 +110,7 @@ Expect<void> Executor::runCallIndirectOp(
   const auto *TargetFuncType = *ModInst->getFuncType(Instr.getTargetIndex());
 
   // Pop the value i32.const i from the Stack.
-  uint32_t Idx = StackMgr.pop().get<uint32_t>();
+  const uint32_t Idx = StackMgr.pop<uint32_t>();
 
   // If idx not small than tab.elem, trap.
   if (Idx >= TabInst->getSize()) {

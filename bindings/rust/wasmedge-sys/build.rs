@@ -240,10 +240,11 @@ fn build_wasmedge() -> Option<Paths> {
 }
 
 fn build_macos(wasmedge_dir: impl AsRef<Path>) -> Paths {
-    let out_dir = env_path!("OUT_DIR").expect("[wasmedge-sys] fail to get the OUT_DIR.");
-    let out_dir_str = out_dir
-        .to_str()
-        .expect("[wasmedge-sys] fail to convert PathBuf to str");
+    // create build_dir
+    let build_dir = wasmedge_dir.as_ref().join("build");
+    if !build_dir.exists() {
+        std::fs::create_dir(&build_dir).expect("[wasmedge-sys] fail to create build_dir");
+    }
 
     Command::new("cmake")
         .current_dir(wasmedge_dir.as_ref())
@@ -251,10 +252,10 @@ fn build_macos(wasmedge_dir: impl AsRef<Path>) -> Paths {
             "-Bbuild",
             "-GNinja",
             "-DCMAKE_BUILD_TYPE=Release",
+            r#"-DWASMEDGE_BUILD_PACKAGE="TGZ""#,
             "-DWASMEDGE_BUILD_TESTS=ON",
             #[cfg(not(feature = "aot"))]
             "-DWASMEDGE_BUILD_AOT_RUNTIME=OFF",
-            &format!("-DCMAKE_INSTALL_PREFIX={}", out_dir_str),
             ".",
         ])
         .output()
@@ -265,19 +266,8 @@ fn build_macos(wasmedge_dir: impl AsRef<Path>) -> Paths {
         .output()
         .expect("[wasmedge-sys] fail to cmake build wasmedge project");
 
-    // create build_dir
-    let build_dir = wasmedge_dir.as_ref().join("build");
-    if !build_dir.exists() {
-        std::fs::create_dir(&build_dir).expect("[wasmedge-sys] fail to create build_dir");
-    }
-    Command::new("ninja")
-        .current_dir(build_dir)
-        .args(&["install"])
-        .output()
-        .expect("[wasmedge-sys] fail to ninja build wasmedge project");
-
     // WASMEDGE_INCLUDE_DIR
-    let mut inc_dir = out_dir.join("include");
+    let mut inc_dir = build_dir.join("include");
     assert!(inc_dir.exists());
     if inc_dir.join("api").exists() {
         inc_dir = inc_dir.join("api");
@@ -288,10 +278,10 @@ fn build_macos(wasmedge_dir: impl AsRef<Path>) -> Paths {
     );
 
     // WASMEDGE_LIB_DIR
-    let mut lib_dir = if out_dir.join("lib64").exists() {
-        out_dir.join("lib64")
+    let mut lib_dir = if build_dir.join("lib64").exists() {
+        build_dir.join("lib64")
     } else {
-        out_dir.join("lib")
+        build_dir.join("lib")
     };
     if lib_dir.join("api").exists() {
         lib_dir = lib_dir.join("api");

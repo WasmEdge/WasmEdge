@@ -89,7 +89,6 @@ jobs:
     strategy:
       matrix:
         os: [macos-11]
-    needs: get_version_v2
 
     steps:
       - name: Checkout sources

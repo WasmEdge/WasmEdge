@@ -1,6 +1,6 @@
 # Serverless 平台
 
-在云原生基础设施中，我们希望将 WebAssembly 作为轻量级运行时的替代方案，与 Docker 和 microVMs 一同使用。WebAssembly 提供了比类似 Docker 的容器或 MicroMs 更高的性能和更少的资源消耗。然而，公有云只支持在 microVM 中运行 WebAssembly。尽管如此，在 microVM 中运行 WebAssembly 函数仍然比与运行容器化的 NaCI 程序有诸多优势。
+在云原生基础设施中，我们希望将 WebAssembly 作为轻量级运行时的替代方案，与 Docker 和 microVMs 一同使用。WebAssembly 提供了比类似 Docker 的容器或 microVMs 更高的性能和更少的资源消耗。然而，公有云只支持在 microVM 中运行 WebAssembly。尽管如此，在 microVM 中运行 WebAssembly 函数仍然比与运行容器化的 NaCI 程序有诸多优势。
 
 与直接在 Docker 容器中运行 NaCI 程序相比，在类似 Docker 的容器中运行 WebAssembly 函数具有如下优势：
 

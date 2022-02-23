@@ -189,7 +189,7 @@ int main(int Argc, const char *Argv[]) {
     std::cout << "Sign\n";
     if (auto Result = SignatureEngine.signWasmFile(
             SignTargetPath.u8string(), PrikeyPath.u8string(),
-            OutputPath.u8string(), PubkeyPath.u8string());
+            PubkeyPath.u8string(), OutputPath.u8string());
         Result || Result.error() == WasmEdge::ErrCode::Terminated) {
       return EXIT_SUCCESS;
     }
@@ -208,7 +208,7 @@ int main(int Argc, const char *Argv[]) {
         Result || Result.error() == WasmEdge::ErrCode::Terminated) {
       return EXIT_SUCCESS;
     }
-    return EXIT_SUCCESS;
+    return EXIT_FAILURE;
   }
 
   WasmEdge::Configure Conf;

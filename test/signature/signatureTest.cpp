@@ -11,6 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "signature/signature.h"
+#include "common/enum_errcode.h"
 
 #include "gtest/gtest.h"
 #include <filesystem>
@@ -33,7 +34,6 @@ TEST(SignatureTEST, KEYGEN) {
   fs::path PrikeyFile = Base / "id_ed25519";
   fs::path PubkeyFile = Base / "id_ed25519.pub";
   fs::path TargetFile = Base / "hello_signed.wasm";
-  testing::internal::CaptureStdout();
 
   RecordProperty("WasmPath: ", WasmFile);
   RecordProperty("CurrentPath: ", fs::current_path());
@@ -63,7 +63,13 @@ TEST(SignatureTEST, VERIFY) {
   ASSERT_TRUE(fs::exists(WasmFile));
   ASSERT_TRUE(SignatureEngine.signWasmFile(WasmFile, "", "", TargetFile));
 
-  ASSERT_TRUE(SignatureEngine.verifyWasmFile(TargetFile, PubkeyFile));
+  testing::internal::CaptureStdout();
+  auto Result = SignatureEngine.verifyWasmFile(TargetFile, PubkeyFile);
+  std::string ErrStr = WasmEdge::ErrCodeStr[Result.error()];
+  RecordProperty("Result: ", ErrStr);
+  std::string StdOut = testing::internal::GetCapturedStdout();
+  RecordProperty("Stdout: ", StdOut);
+  // ASSERT_TRUE(SignatureEngine.verifyWasmFile(TargetFile, PubkeyFile));
   ASSERT_TRUE(fs::remove_all(Base));
 }
 } // namespace

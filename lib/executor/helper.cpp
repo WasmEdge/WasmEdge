@@ -24,9 +24,10 @@ Executor::enterFunction(Runtime::StoreManager &StoreMgr,
   }
   // Get function type
   const auto &FuncType = Func.getFuncType();
-  const uint32_t ArgsN = static_cast<uint32_t>(FuncType.getParamTypes().size());
-  const uint32_t RetsN =
-      static_cast<uint32_t>(FuncType.getReturnTypes().size());
+  const auto &ParamTypes = FuncType.getParamTypes();
+  const auto &ReturnTypes = FuncType.getReturnTypes();
+  const uint32_t ArgsN = static_cast<uint32_t>(ParamTypes.size());
+  const uint32_t RetsN = static_cast<uint32_t>(ReturnTypes.size());
 
   if (Func.isHostFunction()) {
     // Host function case: Push args and call function.
@@ -49,7 +50,10 @@ Executor::enterFunction(Runtime::StoreManager &StoreMgr,
     }
 
     // Run host function.
-    Span<ValVariant> Args = StackMgr.getTopSpan(ArgsN);
+    std::vector<ValVariant> Args(ArgsN);
+    for (uint32_t I = 0; I < ArgsN; ++I) {
+      Args[ArgsN - 1 - I] = StackMgr.pop(ParamTypes[ArgsN - 1 - I]);
+    }
     std::vector<ValVariant> Rets(RetsN);
     auto Ret = HostFunc.run(MemoryInst, std::move(Args), Rets);
 
@@ -67,11 +71,8 @@ Executor::enterFunction(Runtime::StoreManager &StoreMgr,
     }
 
     // Push returns back to stack.
-    for (uint32_t I = 0; I < ArgsN; ++I) {
-      ValVariant Val [[maybe_unused]] = StackMgr.pop();
-    }
-    for (auto &R : Rets) {
-      StackMgr.push(std::move(R));
+    for (uint32_t I = 0; I < RetsN; ++I) {
+      StackMgr.push(ReturnTypes[I], Rets[I]);
     }
 
     // For host function case, the continuation will be the next.
@@ -83,7 +84,10 @@ Executor::enterFunction(Runtime::StoreManager &StoreMgr,
                        RetsN                 // Returns num
     );
 
-    Span<ValVariant> Args = StackMgr.getTopSpan(ArgsN);
+    std::vector<ValVariant> Args(ArgsN);
+    for (uint32_t I = 0; I < ArgsN; ++I) {
+      Args[ArgsN - 1 - I] = StackMgr.pop(ParamTypes[ArgsN - 1 - I]);
+    }
     std::vector<ValVariant> Rets(RetsN);
 
     {
@@ -116,8 +120,8 @@ Executor::enterFunction(Runtime::StoreManager &StoreMgr,
               Rets.data());
     }
 
-    for (uint32_t I = 0; I < Rets.size(); ++I) {
-      StackMgr.push(Rets[I]);
+    for (uint32_t I = 0; I < RetsN; ++I) {
+      StackMgr.push(ReturnTypes[I], Rets[I]);
     }
 
     StackMgr.popFrame();
@@ -133,7 +137,7 @@ Executor::enterFunction(Runtime::StoreManager &StoreMgr,
     // Push local variables to stack.
     for (auto &Def : Func.getLocals()) {
       for (uint32_t i = 0; i < Def.first; i++) {
-        StackMgr.push(ValueFromType(Def.second));
+        StackMgr.push(Def.second, ValueFromType(Def.second));
       }
     }
 

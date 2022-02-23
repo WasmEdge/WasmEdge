@@ -68,21 +68,81 @@ public:
   /// Unsafe Getter of bottom N-th value entry of stack.
   Value &getBottomN(uint32_t N) { return ValueStack[N]; }
 
-  /// Unsafe Getter of top N value entries of stack.
-  Span<Value> getTopSpan(uint32_t N) {
-    return Span<Value>(ValueStack.end() - N, N);
-  }
-
   /// Push a new value entry to stack.
-  template <typename T> void push(T &&Val) {
-    ValueStack.push_back(std::forward<T>(Val));
+  template <typename T,
+            typename = std::enable_if_t<
+                !std::is_same_v<std::remove_cv_t<std::remove_reference_t<T>>,
+                                ValVariant> &&
+                !std::is_same_v<std::remove_cv_t<std::remove_reference_t<T>>,
+                                RefVariant>>>
+  void push(T Val) noexcept {
+    ValueStack.push_back(Val);
   }
 
   /// Unsafe Pop and return the top entry.
-  Value pop() {
-    Value V = std::move(ValueStack.back());
+  template <typename T,
+            typename = std::enable_if_t<
+                !std::is_same_v<std::remove_cv_t<std::remove_reference_t<T>>,
+                                ValVariant> &&
+                !std::is_same_v<std::remove_cv_t<std::remove_reference_t<T>>,
+                                RefVariant>>>
+  T pop() noexcept {
+    T V = std::move(ValueStack.back()).get<T>();
     ValueStack.pop_back();
     return V;
+  }
+
+  void push(ValType Type, ValVariant Val) noexcept {
+    switch (Type) {
+    case ValType::I32:
+      return push<uint32_t>(Val.get<uint32_t>());
+    case ValType::F32:
+      return push<float>(Val.get<float>());
+    case ValType::I64:
+      return push<uint64_t>(Val.get<uint64_t>());
+    case ValType::F64:
+      return push<double>(Val.get<double>());
+    case ValType::FuncRef:
+    case ValType::ExternRef:
+      return push<UnknownRef>(Val.get<UnknownRef>());
+    case ValType::V128:
+      return push<uint128_t>(Val.get<uint128_t>());
+    case ValType::None:
+    default:
+      assumingUnreachable();
+    }
+  }
+
+  ValVariant pop(ValType Type) noexcept {
+    switch (Type) {
+    case ValType::I32:
+      return pop<uint32_t>();
+    case ValType::F32:
+      return pop<float>();
+    case ValType::I64:
+      return pop<uint64_t>();
+    case ValType::F64:
+      return pop<double>();
+    case ValType::FuncRef:
+    case ValType::ExternRef:
+      return pop<UnknownRef>();
+    case ValType::V128:
+      return pop<uint128_t>();
+    case ValType::None:
+    default:
+      assumingUnreachable();
+    }
+  }
+
+  /// Unsafe Pop and return the top entry.
+  ValVariant popUnknown() noexcept {
+    Value Val = std::move(ValueStack.back());
+    ValueStack.pop_back();
+    return Val;
+  }
+
+  void pushUnknown(ValVariant Val) noexcept {
+    ValueStack.push_back(Val);
   }
 
   /// Push a new frame entry to stack.

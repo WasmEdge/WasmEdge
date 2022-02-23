@@ -10,7 +10,7 @@ Expect<void>
 Executor::runMemorySizeOp(Runtime::StackManager &StackMgr,
                           Runtime::Instance::MemoryInstance &MemInst) {
   // Push SZ = page size to stack.
-  StackMgr.push(MemInst.getPageSize());
+  StackMgr.push<uint32_t>(MemInst.getPageSize());
   return {};
 }
 
@@ -18,14 +18,14 @@ Expect<void>
 Executor::runMemoryGrowOp(Runtime::StackManager &StackMgr,
                           Runtime::Instance::MemoryInstance &MemInst) {
   // Pop N for growing page size.
-  uint32_t &N = StackMgr.getTop().get<uint32_t>();
+  const uint32_t N = StackMgr.pop<uint32_t>();
 
   // Grow page and push result.
   const uint32_t CurrPageSize = static_cast<uint32_t>(MemInst.getPageSize());
   if (MemInst.growPage(N)) {
-    N = CurrPageSize;
+    StackMgr.push<uint32_t>(CurrPageSize);
   } else {
-    N = static_cast<uint32_t>(-1);
+    StackMgr.push<int32_t>(static_cast<uint32_t>(-1));
   }
   return {};
 }
@@ -34,9 +34,9 @@ Expect<void> Executor::runMemoryInitOp(
     Runtime::StackManager &StackMgr, Runtime::Instance::MemoryInstance &MemInst,
     Runtime::Instance::DataInstance &DataInst, const AST::Instruction &Instr) {
   // Pop the length, source, and destination from stack.
-  uint32_t Len = StackMgr.pop().get<uint32_t>();
-  uint32_t Src = StackMgr.pop().get<uint32_t>();
-  uint32_t Dst = StackMgr.pop().get<uint32_t>();
+  const uint32_t Len = StackMgr.pop<uint32_t>();
+  const uint32_t Src = StackMgr.pop<uint32_t>();
+  const uint32_t Dst = StackMgr.pop<uint32_t>();
 
   // Replace mem[Dst : Dst + Len] with data[Src : Src + Len].
   if (auto Res = MemInst.setBytes(DataInst.getData(), Dst, Src, Len)) {
@@ -61,9 +61,9 @@ Executor::runMemoryCopyOp(Runtime::StackManager &StackMgr,
                           Runtime::Instance::MemoryInstance &MemInstSrc,
                           const AST::Instruction &Instr) {
   // Pop the length, source, and destination from stack.
-  uint32_t Len = StackMgr.pop().get<uint32_t>();
-  uint32_t Src = StackMgr.pop().get<uint32_t>();
-  uint32_t Dst = StackMgr.pop().get<uint32_t>();
+  const uint32_t Len = StackMgr.pop<uint32_t>();
+  const uint32_t Src = StackMgr.pop<uint32_t>();
+  const uint32_t Dst = StackMgr.pop<uint32_t>();
 
   // Replace mem[Dst : Dst + Len] with mem[Src : Src + Len].
   if (auto Data = MemInstSrc.getBytes(Src, Len)) {
@@ -86,9 +86,9 @@ Executor::runMemoryFillOp(Runtime::StackManager &StackMgr,
                           Runtime::Instance::MemoryInstance &MemInst,
                           const AST::Instruction &Instr) {
   // Pop the length, value, and offset from stack.
-  uint32_t Len = StackMgr.pop().get<uint32_t>();
-  uint8_t Val = static_cast<uint8_t>(StackMgr.pop().get<uint32_t>());
-  uint32_t Off = StackMgr.pop().get<uint32_t>();
+  const uint32_t Len = StackMgr.pop<uint32_t>();
+  const uint8_t Val = static_cast<uint8_t>(StackMgr.pop<uint32_t>());
+  const uint32_t Off = StackMgr.pop<uint32_t>();
 
   // Fill data with Val.
   if (auto Res = MemInst.fillBytes(Val, Off, Len)) {

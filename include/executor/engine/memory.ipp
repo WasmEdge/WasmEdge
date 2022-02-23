@@ -14,39 +14,8 @@ TypeT<T> Executor::runLoadOp(Runtime::StackManager &StackMgr,
                              Runtime::Instance::MemoryInstance &MemInst,
                              const AST::Instruction &Instr,
                              const uint32_t BitWidth) {
-  // Calculate EA
-  ValVariant &Val = StackMgr.getTop();
-  if (Val.get<uint32_t>() >
-      std::numeric_limits<uint32_t>::max() - Instr.getMemoryOffset()) {
-    spdlog::error(ErrCode::MemoryOutOfBounds);
-    spdlog::error(ErrInfo::InfoBoundary(
-        Val.get<uint32_t>() + static_cast<uint64_t>(Instr.getMemoryOffset()),
-        BitWidth / 8, MemInst.getBoundIdx()));
-    spdlog::error(
-        ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
-    return Unexpect(ErrCode::MemoryOutOfBounds);
-  }
-  uint32_t EA = Val.get<uint32_t>() + Instr.getMemoryOffset();
-
-  // Value = Mem.Data[EA : N / 8]
-  if (auto Res = MemInst.loadValue(Val.emplace<T>(), EA, BitWidth / 8); !Res) {
-    spdlog::error(
-        ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
-    return Unexpect(Res);
-  }
-  return {};
-}
-
-template <typename T>
-TypeN<T> Executor::runStoreOp(Runtime::StackManager &StackMgr,
-                              Runtime::Instance::MemoryInstance &MemInst,
-                              const AST::Instruction &Instr,
-                              const uint32_t BitWidth) {
-  // Pop the value t.const c from the Stack
-  T C = StackMgr.pop().get<T>();
-
-  // Calculate EA = i + offset
-  uint32_t I = StackMgr.pop().get<uint32_t>();
+  // Calculate EA = I + Offset
+  const uint32_t I = StackMgr.pop<uint32_t>();
   if (I > std::numeric_limits<uint32_t>::max() - Instr.getMemoryOffset()) {
     spdlog::error(ErrCode::MemoryOutOfBounds);
     spdlog::error(ErrInfo::InfoBoundary(
@@ -56,7 +25,39 @@ TypeN<T> Executor::runStoreOp(Runtime::StackManager &StackMgr,
         ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
     return Unexpect(ErrCode::MemoryOutOfBounds);
   }
-  uint32_t EA = I + Instr.getMemoryOffset();
+  const uint32_t EA = I + Instr.getMemoryOffset();
+
+  // Value = Mem.Data[EA : N / 8]
+  T Value;
+  if (auto Res = MemInst.loadValue(Value, EA, BitWidth / 8); !Res) {
+    spdlog::error(
+        ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
+    return Unexpect(Res);
+  }
+  StackMgr.push<T>(Value);
+  return {};
+}
+
+template <typename T>
+TypeN<T> Executor::runStoreOp(Runtime::StackManager &StackMgr,
+                              Runtime::Instance::MemoryInstance &MemInst,
+                              const AST::Instruction &Instr,
+                              const uint32_t BitWidth) {
+  // Pop the value t.const c from the Stack
+  const T C = StackMgr.pop<T>();
+
+  // Calculate EA = I + Offset
+  const uint32_t I = StackMgr.pop<uint32_t>();
+  if (I > std::numeric_limits<uint32_t>::max() - Instr.getMemoryOffset()) {
+    spdlog::error(ErrCode::MemoryOutOfBounds);
+    spdlog::error(ErrInfo::InfoBoundary(
+        I + static_cast<uint64_t>(Instr.getMemoryOffset()), BitWidth / 8,
+        MemInst.getBoundIdx()));
+    spdlog::error(
+        ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
+    return Unexpect(ErrCode::MemoryOutOfBounds);
+  }
+  const uint32_t EA = I + Instr.getMemoryOffset();
 
   // Store value to bytes.
   if (auto Res = MemInst.storeValue(C, EA, BitWidth / 8); !Res) {
@@ -73,19 +74,18 @@ Executor::runLoadExpandOp(Runtime::StackManager &StackMgr,
                           Runtime::Instance::MemoryInstance &MemInst,
                           const AST::Instruction &Instr) {
   static_assert(sizeof(TOut) == sizeof(TIn) * 2);
-  // Calculate EA
-  ValVariant &Val = StackMgr.getTop();
-  if (Val.get<uint32_t>() >
-      std::numeric_limits<uint32_t>::max() - Instr.getMemoryOffset()) {
+  // Calculate EA = I + Offset
+  const uint32_t I = StackMgr.pop<uint32_t>();
+  if (I > std::numeric_limits<uint32_t>::max() - Instr.getMemoryOffset()) {
     spdlog::error(ErrCode::MemoryOutOfBounds);
     spdlog::error(ErrInfo::InfoBoundary(
-        Val.get<uint32_t>() + static_cast<uint64_t>(Instr.getMemoryOffset()), 8,
+        I + static_cast<uint64_t>(Instr.getMemoryOffset()), 8,
         MemInst.getBoundIdx()));
     spdlog::error(
         ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
     return Unexpect(ErrCode::MemoryOutOfBounds);
   }
-  uint32_t EA = Val.get<uint32_t>() + Instr.getMemoryOffset();
+  const uint32_t EA = I + Instr.getMemoryOffset();
 
   // Value = Mem.Data[EA : N / 8]
   uint64_t Buffer;
@@ -102,12 +102,12 @@ Executor::runLoadExpandOp(Runtime::StackManager &StackMgr,
   std::memcpy(&Value, &Buffer, 8);
 
   if constexpr (sizeof(TOut) == 2) {
-    Val.emplace<VTOut>(VTOut{Value[0], Value[1], Value[2], Value[3], Value[4],
-                             Value[5], Value[6], Value[7]});
+    StackMgr.push<VTOut>(VTOut{Value[0], Value[1], Value[2], Value[3], Value[4],
+                               Value[5], Value[6], Value[7]});
   } else if constexpr (sizeof(TOut) == 4) {
-    Val.emplace<VTOut>(VTOut{Value[0], Value[1], Value[2], Value[3]});
+    StackMgr.push<VTOut>(VTOut{Value[0], Value[1], Value[2], Value[3]});
   } else if constexpr (sizeof(TOut) == 8) {
-    Val.emplace<VTOut>(VTOut{Value[0], Value[1]});
+    StackMgr.push<VTOut>(VTOut{Value[0], Value[1]});
   }
   return {};
 }
@@ -117,19 +117,18 @@ Expect<void>
 Executor::runLoadSplatOp(Runtime::StackManager &StackMgr,
                          Runtime::Instance::MemoryInstance &MemInst,
                          const AST::Instruction &Instr) {
-  // Calculate EA
-  ValVariant &Val = StackMgr.getTop();
-  if (Val.get<uint32_t>() >
-      std::numeric_limits<uint32_t>::max() - Instr.getMemoryOffset()) {
+  // Calculate EA = I + Offset
+  const uint32_t I = StackMgr.pop<uint32_t>();
+  if (I > std::numeric_limits<uint32_t>::max() - Instr.getMemoryOffset()) {
     spdlog::error(ErrCode::MemoryOutOfBounds);
     spdlog::error(ErrInfo::InfoBoundary(
-        Val.get<uint32_t>() + static_cast<uint64_t>(Instr.getMemoryOffset()),
-        sizeof(T), MemInst.getBoundIdx()));
+        I + static_cast<uint64_t>(Instr.getMemoryOffset()), sizeof(T),
+        MemInst.getBoundIdx()));
     spdlog::error(
         ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
     return Unexpect(ErrCode::MemoryOutOfBounds);
   }
-  uint32_t EA = Val.get<uint32_t>() + Instr.getMemoryOffset();
+  const uint32_t EA = I + Instr.getMemoryOffset();
 
   // Value = Mem.Data[EA : N / 8]
   using VT [[gnu::vector_size(16)]] = T;
@@ -142,14 +141,14 @@ Executor::runLoadSplatOp(Runtime::StackManager &StackMgr,
   const T Part = static_cast<T>(Buffer);
 
   if constexpr (sizeof(T) == 1) {
-    Val.emplace<VT>(VT{Part, Part, Part, Part, Part, Part, Part, Part, Part,
-                       Part, Part, Part, Part, Part, Part, Part});
+    StackMgr.push<VT>(VT{Part, Part, Part, Part, Part, Part, Part, Part, Part,
+                         Part, Part, Part, Part, Part, Part, Part});
   } else if constexpr (sizeof(T) == 2) {
-    Val.emplace<VT>(VT{Part, Part, Part, Part, Part, Part, Part, Part});
+    StackMgr.push<VT>(VT{Part, Part, Part, Part, Part, Part, Part, Part});
   } else if constexpr (sizeof(T) == 4) {
-    Val.emplace<VT>(VT{Part, Part, Part, Part});
+    StackMgr.push<VT>(VT{Part, Part, Part, Part});
   } else if constexpr (sizeof(T) == 8) {
-    Val.emplace<VT>(VT{Part, Part});
+    StackMgr.push<VT>(VT{Part, Part});
   }
   return {};
 }
@@ -159,21 +158,20 @@ Expect<void> Executor::runLoadLaneOp(Runtime::StackManager &StackMgr,
                                      Runtime::Instance::MemoryInstance &MemInst,
                                      const AST::Instruction &Instr) {
   using VT [[gnu::vector_size(16)]] = T;
-  VT Result = StackMgr.pop().get<VT>();
+  const VT V = StackMgr.pop<VT>();
 
   // Calculate EA
-  ValVariant &Val = StackMgr.getTop();
-  const uint32_t Offset = Val.get<uint32_t>();
-  if (Offset > std::numeric_limits<uint32_t>::max() - Instr.getMemoryOffset()) {
+  const uint32_t I = StackMgr.pop<uint32_t>();
+  if (I > std::numeric_limits<uint32_t>::max() - Instr.getMemoryOffset()) {
     spdlog::error(ErrCode::MemoryOutOfBounds);
     spdlog::error(ErrInfo::InfoBoundary(
-        Offset + static_cast<uint64_t>(Instr.getMemoryOffset()), sizeof(T),
+        I + static_cast<uint64_t>(Instr.getMemoryOffset()), sizeof(T),
         MemInst.getBoundIdx()));
     spdlog::error(
         ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
     return Unexpect(ErrCode::MemoryOutOfBounds);
   }
-  const uint32_t EA = Offset + Instr.getMemoryOffset();
+  const uint32_t EA = I + Instr.getMemoryOffset();
 
   // Value = Mem.Data[EA : N / 8]
   uint64_t Buffer;
@@ -183,8 +181,9 @@ Expect<void> Executor::runLoadLaneOp(Runtime::StackManager &StackMgr,
     return Unexpect(Res);
   }
 
-  Result[Instr.getMemoryLane()] = static_cast<T>(Buffer);
-  Val.emplace<VT>(Result);
+  VT R = V;
+  R[Instr.getMemoryLane()] = static_cast<T>(Buffer);
+  StackMgr.push<VT>(R);
   return {};
 }
 
@@ -195,10 +194,10 @@ Executor::runStoreLaneOp(Runtime::StackManager &StackMgr,
                          const AST::Instruction &Instr) {
   using VT [[gnu::vector_size(16)]] = T;
   using TBuf = std::conditional_t<sizeof(T) < 4, uint32_t, T>;
-  const TBuf C = StackMgr.pop().get<VT>()[Instr.getMemoryLane()];
+  const TBuf C = StackMgr.pop<VT>()[Instr.getMemoryLane()];
 
-  // Calculate EA = i + offset
-  uint32_t I = StackMgr.pop().get<uint32_t>();
+  // Calculate EA = I + Offset
+  const uint32_t I = StackMgr.pop<uint32_t>();
   if (I > std::numeric_limits<uint32_t>::max() - Instr.getMemoryOffset()) {
     spdlog::error(ErrCode::MemoryOutOfBounds);
     spdlog::error(ErrInfo::InfoBoundary(
@@ -208,7 +207,7 @@ Executor::runStoreLaneOp(Runtime::StackManager &StackMgr,
         ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
     return Unexpect(ErrCode::MemoryOutOfBounds);
   }
-  uint32_t EA = I + Instr.getMemoryOffset();
+  const uint32_t EA = I + Instr.getMemoryOffset();
 
   // Store value to bytes.
   if (auto Res = MemInst.storeValue(C, EA, sizeof(T)); !Res) {

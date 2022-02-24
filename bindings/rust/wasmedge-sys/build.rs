@@ -248,7 +248,7 @@ fn build_macos(wasmedge_dir: impl AsRef<Path>) -> Paths {
 
     Command::new("cmake")
         .current_dir(wasmedge_dir.as_ref())
-        .args(&[
+        .args([
             "-Bbuild",
             "-GNinja",
             "-DCMAKE_BUILD_TYPE=Release",
@@ -262,9 +262,14 @@ fn build_macos(wasmedge_dir: impl AsRef<Path>) -> Paths {
         .expect("fail to cmake setup wasmedge project");
     Command::new("cmake")
         .current_dir(wasmedge_dir.as_ref())
-        .args(&["--build", "build"])
+        .args(["--build", "build"])
         .output()
         .expect("[wasmedge-sys] fail to cmake build wasmedge project");
+    Command::new("ninja")
+        .current_dir(&build_dir)
+        .args(["install"])
+        .output()
+        .expect("[wasmedge-sys] fail to ninja build wasmedge project");
 
     // WASMEDGE_INCLUDE_DIR
     let mut inc_dir = build_dir.join("include");
@@ -314,12 +319,9 @@ fn build_linux(wasmedge_dir: impl AsRef<Path>) -> Paths {
     if !build_dir.exists() {
         std::fs::create_dir(&build_dir).expect("[wasmedge-sys] fail to create build_dir");
     }
-    let build_dir_str = build_dir
-        .to_str()
-        .expect("[wasmedge-sys] fail to convert PathBuf to str");
 
     Command::new("cmake")
-        .current_dir(build_dir_str)
+        .current_dir(&build_dir)
         .args([
             "-DCMAKE_BUILD_TYPE=Release",
             "-DWASMEDGE_BUILD_TESTS=ON",
@@ -331,13 +333,13 @@ fn build_linux(wasmedge_dir: impl AsRef<Path>) -> Paths {
         .expect("[wasmedge-sys] fail to cmake setup wasmedge project");
 
     Command::new("make")
-        .current_dir(build_dir_str)
+        .current_dir(&build_dir)
         .arg("-j")
         .output()
         .expect("[wasmedge-sys] fail to compile wasmedge project");
 
     Command::new("make")
-        .current_dir(build_dir_str)
+        .current_dir(&build_dir)
         .arg("install")
         .output()
         .expect("[wasmedge-sys] fail to compile wasmedge project");

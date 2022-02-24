@@ -152,9 +152,8 @@ Expect<void> Validator::validate(const AST::MemoryType &Mem) {
 // Validate Global segment. See "include/validator/validator.h".
 Expect<void> Validator::validate(const AST::GlobalSegment &GlobSeg) {
   // Check global initialization is a const expression.
-  if (auto Res =
-          validateConstExpr(GlobSeg.getExpr().getInstrs(),
-                            std::array{GlobSeg.getGlobalType().getValType()});
+  if (auto Res = validateConstExpr(GlobSeg.getExpr().getInstrs(),
+                                   {GlobSeg.getGlobalType().getValType()});
       !Res) {
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Expression));
     return Unexpect(Res);
@@ -166,8 +165,8 @@ Expect<void> Validator::validate(const AST::GlobalSegment &GlobSeg) {
 Expect<void> Validator::validate(const AST::ElementSegment &ElemSeg) {
   // Check initialization expressions are const expressions.
   for (auto &Expr : ElemSeg.getInitExprs()) {
-    if (auto Res = validateConstExpr(
-            Expr.getInstrs(), std::array{ToValType(ElemSeg.getRefType())});
+    if (auto Res = validateConstExpr(Expr.getInstrs(),
+                                     {ToValType(ElemSeg.getRefType())});
         !Res) {
       spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Expression));
       return Unexpect(Res);
@@ -191,8 +190,8 @@ Expect<void> Validator::validate(const AST::ElementSegment &ElemSeg) {
       return Unexpect(ErrCode::InvalidTableIdx);
     }
     // Check table initialization is a const expression.
-    if (auto Res = validateConstExpr(ElemSeg.getExpr().getInstrs(),
-                                     std::array{ValType::I32});
+    if (auto Res =
+            validateConstExpr(ElemSeg.getExpr().getInstrs(), {ValType::I32});
         !Res) {
       spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Expression));
       return Unexpect(Res);
@@ -238,8 +237,8 @@ Expect<void> Validator::validate(const AST::DataSegment &DataSeg) {
       return Unexpect(ErrCode::InvalidMemoryIdx);
     }
     // Check memory initialization is a const expression.
-    if (auto Res = validateConstExpr(DataSeg.getExpr().getInstrs(),
-                                     std::array{ValType::I32});
+    if (auto Res =
+            validateConstExpr(DataSeg.getExpr().getInstrs(), {ValType::I32});
         !Res) {
       spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Expression));
       return Unexpect(Res);

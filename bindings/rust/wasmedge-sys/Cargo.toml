@@ -8,7 +8,8 @@ description = "WasmEdge Runtime is a high-performance, extensible, and hardware 
 license = "Apache-2.0"
 readme = "README.md"
 repository = "https://github.com/WasmEdge/WasmEdge"
-categories = ["api-bindings"]
+categories = ["api-bindings", "wasm"]
+exclude = ["tests/", "examples/"]
 
 [dependencies]
 paste = "1.0.5"

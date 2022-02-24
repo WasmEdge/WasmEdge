@@ -10,6 +10,7 @@ wasmedge_add_library(wasmedgeHostModuleWasiCrypto
   asymmetric_common/func.cpp
   kx/func.cpp
   signatures/func.cpp
+  common/ctx.cpp
 )
 
 target_include_directories(wasmedgeHostModuleWasiCrypto

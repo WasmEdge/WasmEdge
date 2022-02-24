@@ -3,7 +3,9 @@
 
 find_package(OpenSSL REQUIRED)
 
-wasmedge_add_library(wasmedgeHostModuleWasiCrypto module.cpp)
+wasmedge_add_library(wasmedgeHostModuleWasiCrypto 
+  module.cpp
+)
 
 target_include_directories(wasmedgeHostModuleWasiCrypto
   PUBLIC

@@ -240,36 +240,34 @@ fn build_wasmedge() -> Option<Paths> {
 }
 
 fn build_macos(wasmedge_dir: impl AsRef<Path>) -> Paths {
-    // create build_dir
-    let build_dir = wasmedge_dir.as_ref().join("build");
-    if !build_dir.exists() {
-        std::fs::create_dir(&build_dir).expect("[wasmedge-sys] fail to create build_dir");
-    }
-
-    Command::new("cmake")
+    let status = Command::new("cmake")
         .current_dir(wasmedge_dir.as_ref())
         .args([
             "-Bbuild",
             "-GNinja",
             "-DCMAKE_BUILD_TYPE=Release",
-            r#"-DWASMEDGE_BUILD_PACKAGE="TGZ""#,
             "-DWASMEDGE_BUILD_TESTS=ON",
             #[cfg(not(feature = "aot"))]
             "-DWASMEDGE_BUILD_AOT_RUNTIME=OFF",
             ".",
         ])
-        .output()
+        .status()
         .expect("fail to cmake setup wasmedge project");
-    Command::new("cmake")
+    println!("cargo:warning=[wasmedge-sys] cmake status: {:?}", status);
+
+    let status = Command::new("cmake")
         .current_dir(wasmedge_dir.as_ref())
         .args(["--build", "build"])
-        .output()
+        .status()
         .expect("[wasmedge-sys] fail to cmake build wasmedge project");
-    Command::new("ninja")
-        .current_dir(&build_dir)
-        .args(["install"])
-        .output()
-        .expect("[wasmedge-sys] fail to ninja build wasmedge project");
+    println!(
+        "cargo:warning=[wasmedge-sys] cmake build status: {:?}",
+        status
+    );
+
+    // create build_dir
+    let build_dir = wasmedge_dir.as_ref().join("build");
+    assert!(build_dir.exists());
 
     // WASMEDGE_INCLUDE_DIR
     let mut inc_dir = build_dir.join("include");
@@ -320,7 +318,7 @@ fn build_linux(wasmedge_dir: impl AsRef<Path>) -> Paths {
         std::fs::create_dir(&build_dir).expect("[wasmedge-sys] fail to create build_dir");
     }
 
-    Command::new("cmake")
+    let status = Command::new("cmake")
         .current_dir(&build_dir)
         .args([
             "-DCMAKE_BUILD_TYPE=Release",
@@ -329,20 +327,16 @@ fn build_linux(wasmedge_dir: impl AsRef<Path>) -> Paths {
             "-DWASMEDGE_BUILD_AOT_RUNTIME=OFF",
             wasmedge_dir.as_ref().to_str().unwrap(),
         ])
-        .output()
+        .status()
         .expect("[wasmedge-sys] fail to cmake setup wasmedge project");
+    println!("cargo:warning=[wasmedge-sys] cmake status: {:?}", status);
 
-    Command::new("make")
+    let status = Command::new("make")
         .current_dir(&build_dir)
         .arg("-j")
-        .output()
+        .status()
         .expect("[wasmedge-sys] fail to compile wasmedge project");
-
-    Command::new("make")
-        .current_dir(&build_dir)
-        .arg("install")
-        .output()
-        .expect("[wasmedge-sys] fail to compile wasmedge project");
+    println!("cargo:warning=[wasmedge-sys] make status: {:?}", status);
 
     // WASMEDGE_INCLUDE_DIR
     let inc_dir = build_dir.join("include");

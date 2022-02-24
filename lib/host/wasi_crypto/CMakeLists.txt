@@ -16,6 +16,7 @@ wasmedge_add_library(wasmedgeHostModuleWasiCrypto
   kx/options.cpp
   signatures/options.cpp
   common/options.cpp
+  symmetric/ctx.cpp
 )
 
 target_include_directories(wasmedgeHostModuleWasiCrypto

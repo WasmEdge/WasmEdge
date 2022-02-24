@@ -275,7 +275,7 @@ fn build_macos(wasmedge_dir: impl AsRef<Path>) -> Paths {
     if inc_dir.join("api").exists() {
         inc_dir = inc_dir.join("api");
     }
-    assert!(inc_dir.join("wasmedge.h").exists());
+    assert!(inc_dir.join("wasmedge").join("wasmedge.h").exists());
     println!(
         "cargo:warning=[wasmedge-sys] WASMEDGE_INCLUDE_DIR: {}",
         inc_dir.to_str().unwrap()

@@ -11,7 +11,9 @@
 /// This file contains the declaration of the wasi-crypto module class.
 ///
 //===----------------------------------------------------------------------===//
+#pragma once
 
+#include "host/wasi_crypto/ctx.h"
 #include "runtime/importobj.h"
 
 namespace WasmEdge {
@@ -21,7 +23,10 @@ class WasiCryptoModule : public Runtime::ImportObject {
 public:
   WasiCryptoModule();
 
+  WasiCrypto::Context &getContext() { return Ctx; }
+
 private:
+  WasiCrypto::Context Ctx;
 };
 
 } // namespace Host

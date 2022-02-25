@@ -2697,6 +2697,11 @@ WasmEdge_GlobalInstanceDelete(WasmEdge_GlobalInstanceContext *Cxt);
 WASMEDGE_CAPI_EXPORT extern WasmEdge_ImportObjectContext *
 WasmEdge_ImportObjectCreate(const WasmEdge_String ModuleName);
 
+/// Get the module name.
+///
+/// \param Cxt the target WasmEdge_ImportObjectContext.
+///
+/// \returns the name of the WasmEdge_ImportObjectContext.
 WASMEDGE_CAPI_EXPORT extern WasmEdge_String
 WasmEdge_ImportObjectGetModuleName(const WasmEdge_ImportObjectContext *Cxt);
 

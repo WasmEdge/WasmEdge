@@ -1,54 +1,14 @@
 #include "WasmEdge.hpp"
+#include "doc_strings.hpp"
 
 std::string pysdk::logging::_str = "logging: Level not set";
 
 /* --------------- Python Module ----------------------------------------*/
 
 PYBIND11_MODULE(WasmEdge, module) {
-  module.doc() = R"pbdoc(
-        WasmEdge
-        -----------------------
-        .. currentmodule:: WasmEdge
-        .. autosummary::
-           :toctree: _generate
-           
-           VersionGet
-           VersionGetMajor
-           VersionGetMinor
-           VersionGetPatch
-           Logging
-           Configure
-           Store
-           Optimization
-           CompilerOutput
-           Type
-           ExternalType
-           RefType
-           Value
-           Ref
-           Result
-           Proposal
-           Host
-           ASTModule
-           Loader
-           Validator
-           Executor
-           VM
-           FunctionType
-           Function
-           ImportType
-           ImportObject
-           Limit
-           MemoryType
-           Mutability
-           GlobalType
-           Memory
-           TableType
-           Table
-    )pbdoc";
+  module.doc() = pysdk::doc::module;
 
-  module.def("VersionGet", WasmEdge_VersionGet,
-             "Get the version string of the WasmEdge C API");
+  module.def("VersionGet", WasmEdge_VersionGet, pysdk::doc::VersionGet);
   module.def("VersionGetMajor", WasmEdge_VersionGetMajor,
              "Get the major version value of the WasmEdge C API.");
   module.def("VersionGetMinor", WasmEdge_VersionGetMinor,
@@ -79,7 +39,6 @@ PYBIND11_MODULE(WasmEdge, module) {
 
   pybind11::class_<pysdk::Configure>(module, "Configure")
       .def(pybind11::init())
-      .def("__doc__", &pysdk::Configure::doc)
       .def("add", add_prop)
       .def("remove", remove_prop)
       .def("add", add_host)
@@ -144,7 +103,6 @@ PYBIND11_MODULE(WasmEdge, module) {
   pybind11::class_<pysdk::result>(module, "Result")
       .def(pybind11::init())
       .def(pybind11::init<int &>())
-      .def("__doc__", &pysdk::result::doc)
       .def("__str__", &pysdk::result::message)
       .def("__bool__", &pysdk::result::operator bool)
       .def("message", &pysdk::result::message)
@@ -172,7 +130,6 @@ PYBIND11_MODULE(WasmEdge, module) {
 
   pybind11::class_<pysdk::Store>(module, "Store")
       .def(pybind11::init())
-      .def("__doc__", &pysdk::Store::doc)
       .def("GetMemory", &pysdk::Store::get_memory)
       .def("listFunctions", &pysdk::Store::listFunctions)
       .def("listModules", &pysdk::Store::listModules)
@@ -208,7 +165,6 @@ PYBIND11_MODULE(WasmEdge, module) {
       .def(pybind11::init<pysdk::Configure &>())
       .def(pybind11::init<pysdk::Store &>())
       .def(pybind11::init<pysdk::Configure &, pysdk::Store &>())
-      .def("__doc__", &pysdk::VM::doc)
       .def("RunWasmFromFile", &pysdk::VM::run_from_wasm_file)
       .def("RunWasmFromBuffer", &pysdk::VM::run_from_buffer)
       .def("RunWasmFromASTModule", &pysdk::VM::run_from_ast)

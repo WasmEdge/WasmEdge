@@ -3,6 +3,63 @@
 
 namespace pysdk {
 
+namespace doc {
+
+constexpr char *const module = R"pbdoc(
+        WasmEdge
+        -----------------------
+        .. currentmodule:: WasmEdge
+        .. autosummary::
+           :toctree: _generate
+           
+           VersionGet
+           VersionGetMajor
+           VersionGetMinor
+           VersionGetPatch
+           Logging
+           Configure
+           Store
+           Optimization
+           CompilerOutput
+           Type
+           ExternalType
+           RefType
+           Value
+           Ref
+           Result
+           Proposal
+           Host
+           ASTModule
+           Loader
+           Validator
+           Executor
+           VM
+           FunctionType
+           Function
+           ImportType
+           ImportObject
+           Limit
+           MemoryType
+           Mutability
+           GlobalType
+           Memory
+           TableType
+           Table
+    )pbdoc";
+
+constexpr char *const VersionGet = R"pbdoc(
+                Get the version string of the WasmEdge C API.
+
+                Parameters
+                ----------
+                None
+
+                Returns
+                -------
+                The version string
+                )pbdoc";
+} // namespace doc
+
 const char *const vm_doc =
     "                       |========================|\n"
     "              |------->|      VM: Initiated     |\n"

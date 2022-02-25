@@ -1,7 +1,6 @@
 #ifndef PY_WASMEDGE_H
 #define PY_WASMEDGE_H
 
-#include "doc_strings.hpp"
 #include "pybind11/pybind11.h"
 #include <functional>
 #include <sstream>
@@ -65,7 +64,6 @@ private:
 public:
   Configure();
   ~Configure();
-  const char *doc() { return pysdk::Configure_doc; }
   WasmEdge_ConfigureContext *get();
   void add(WasmEdge_Proposal);
   void add(WasmEdge_HostRegistration);
@@ -86,7 +84,6 @@ public:
   Store();
   Store(WasmEdge_StoreContext *);
   ~Store();
-  const char *doc() { return pysdk::Store_doc; }
   WasmEdge_StoreContext *get();
   pybind11::list listFunctions();
   pybind11::list listModules();
@@ -118,7 +115,6 @@ public:
   result(WasmEdge_Result);
   result(int &);
   void operator=(const WasmEdge_Result &res) { Res = res; }
-  const char *doc() { return pysdk::result_doc; }
   explicit operator bool();
   const char *message();
   WasmEdge_Result get();
@@ -307,7 +303,6 @@ public:
   VM(Configure &);
   VM(Configure &, Store &);
   ~VM();
-  const char *doc() { return vm_doc; };
 
   result register_module_from_file(std::string &, std::string &);
   result register_module_from_ast(std::string &, ASTModuleCxt &);

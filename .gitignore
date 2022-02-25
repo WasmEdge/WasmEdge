@@ -232,3 +232,5 @@ dmypy.json
 
 # Cython debug symbols
 cython_debug/
+bindings/python/docs_sphinx/_build
+bindings/python/docs_sphinx/_generate

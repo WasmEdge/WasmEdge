@@ -5,6 +5,44 @@ std::string pysdk::logging::_str = "logging: Level not set";
 /* --------------- Python Module ----------------------------------------*/
 
 PYBIND11_MODULE(WasmEdge, module) {
+  module.doc() = R"pbdoc(
+        WasmEdge
+        -----------------------
+        .. currentmodule:: WasmEdge
+        .. autosummary::
+           :toctree: _generate
+           
+           version
+           Logging
+           Configure
+           Store
+           Optimization
+           CompilerOutput
+           Type
+           ExternalType
+           RefType
+           Value
+           Ref
+           Result
+           Proposal
+           Host
+           ASTModule
+           Loader
+           Validator
+           Executor
+           VM
+           FunctionType
+           Function
+           ImportType
+           ImportObject
+           Limit
+           MemoryType
+           Mutability
+           GlobalType
+           Memory
+           TableType
+           Table
+    )pbdoc";
 
   module.def("version", WasmEdge_VersionGet);
 

@@ -71,7 +71,9 @@ use wasmedge_types::{CompilerOptimizationLevel, CompilerOutputFormat};
 ///
 ///     - `WasmEdgeProcess` turns on the `wasmedge_process` support in [Vm](crate::Vm).
 ///     
-///     The two options are only effective to [Vm](crate::Vm).
+///     - `WasiCrypto` turns on the `WasiCrypto` support in [Vm](crate::Vm).
+///
+///     The three options are only effective to [Vm](crate::Vm).
 ///
 /// - **Memory Management**
 ///     - `maximum_memory_page` limits the page size of [Memory](crate::Memory). This option is only effective to
@@ -286,6 +288,34 @@ impl Config {
             ffi::WasmEdge_ConfigureHasHostRegistration(
                 self.inner.0,
                 ffi::WasmEdge_HostRegistration_WasmEdge_Process,
+            )
+        }
+    }
+
+    /// Enables or disables host registration wasi crypto.
+    pub fn wasi_crypto(self, enable: bool) -> Self {
+        unsafe {
+            if (enable) {
+                ffi::WasmEdge_ConfigureAddHostRegistration(
+                    self.ctx,
+                    ffi::WasmEdge_HostRegistration_Wasi_Crypto,
+                )
+            } else {
+                ffi::WasmEdge_ConfigureRemoveHostRegistration(
+                    self.ctx,
+                    ffi::WasmEdge_HostRegistration_Wasi_Crypto,
+                )
+            }
+        };
+        self
+    }
+
+    /// Checks if host registration wasi crypto turns on or not.
+    pub fn wasi_crypto_enabled(&self) -> bool {
+        unsafe {
+            ffi::WasmEdge_ConfigureHasHostRegistration(
+                self.ctx,
+                ffi::WasmEdge_HostRegistration_Wasi_Crypto,
             )
         }
     }

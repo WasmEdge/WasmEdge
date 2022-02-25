@@ -7,6 +7,7 @@
 #include "common/version.h"
 #include "host/wasi/wasimodule.h"
 #include "plugin/plugin.h"
+#include "host/wasi_crypto/module.h"
 #include "po/argument_parser.h"
 #include "vm/vm.h"
 
@@ -215,6 +216,9 @@ int main(int Argc, const char *Argv[]) {
 
   Conf.addHostRegistration(WasmEdge::HostRegistration::Wasi);
   Conf.addHostRegistration(WasmEdge::HostRegistration::WasmEdge_Process);
+#ifdef WASMEDGE_BUILD_WASI_CRYPTO
+  Conf.addHostRegistration(WasmEdge::HostRegistration::Wasi_Crypto);
+#endif
   const auto InputPath = std::filesystem::absolute(SoName.value());
   WasmEdge::VM::VM VM(Conf);
 

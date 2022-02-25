@@ -94,13 +94,15 @@ jobs:
     steps:
     - name: Install requirment
       run: |
-        apk update -y
-        apk add -y binutils build-base clang cmake compiler-rt compiler-rt-static git lld lld-dev lld-static llvm12-dev llvm12-static musl musl-dev ninja
+        apk update
+        apk add binutils build-base clang cmake compiler-rt compiler-rt-static git lld lld-dev lld-static llvm12-dev llvm12-static musl musl-dev ninja
     - uses: actions/checkout@v2
       with:
         fetch-depth: 0
     - name: Build WasmEdge with Release mode
       run: |
+        export CC=clang
+        export CXX=clang++
         cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_BUILD_TESTS=ON -DWASMEDGE_BUILD_PACKAGE="TGZ" .
         cmake --build build
     - name: Test WasmEdge
@@ -112,11 +114,16 @@ jobs:
     - name: Test WasmEdge Package
       run: |
         cmake --build build --target package
-    - name: Upload artifact
+    - name: Upload build artifact
       uses: actions/upload-artifact@v2
       with:
         name: WasmEdge-${{ needs.get_version_v2.outputs.version }}-alpine.tar.gz
         path: build/WasmEdge-${{ needs.get_version_v2.outputs.version }}-Linux.tar.gz
+    - name: Upload test artifact
+      uses: actions/upload-artifact@v2
+      with:
+        name: WasmEdge-${{ needs.get_version_v2.outputs.version }}-alpine-test.log
+        path: build/Testing/Temporary/LastTest.log
 
   build_fedora:
     name: Fedora 35
@@ -307,11 +314,16 @@ jobs:
     - name: Test WasmEdge Package
       run: |
         cmake --build build --target package
-    - name: Upload artifact
+    - name: Upload build artifact
       uses: actions/upload-artifact@v2
       with:
         name: WasmEdge-${{ needs.get_version_v2.outputs.version }}-darwin_x86_64.tar.gz
         path: build/WasmEdge-${{ needs.get_version_v2.outputs.version }}-Darwin.tar.gz
+    - name: Upload test artifact
+      uses: actions/upload-artifact@v2
+      with:
+        name: WasmEdge-${{ needs.get_version_v2.outputs.version }}-darwin_x86_64-test.log
+        path: build/Testing/Temporary/LastTest.log
 
   build_windows:
     name: Windows 10
@@ -365,11 +377,16 @@ jobs:
       run: |
         Get-ChildItem -Path "$pwd\\build"
 
-    - name: Upload artifact
+    - name: Upload build artifact
       uses: actions/upload-artifact@v2
       with:
         name: WasmEdge-${{ needs.get_version_v2.outputs.version }}-windows.zip
         path: build\\WasmEdge-${{ needs.get_version_v2.outputs.version }}-Windows.zip
+    - name: Upload test artifact
+      uses: actions/upload-artifact@v2
+      with:
+        name: WasmEdge-${{ needs.get_version_v2.outputs.version }}-windows-test.log
+        path: build\\Testing\\Temporary\\LastTest.log
 
     - name: Package Windows Installer
       run: |

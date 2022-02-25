@@ -11,7 +11,38 @@ curl -s -L -O --remote-name-all https://boostorg.jfrog.io/artifactory/main/relea
 echo "475d589d51a7f8b3ba2ba4eda022b170e562ca3b760ee922c146b6c65856ef39  boost_1_79_0.tar.bz2" | sha256sum -c
 git config --global --add safe.directory $(pwd)
 bzip2 -dc boost_1_79_0.tar.bz2 | tar -xf -
-if ! cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_BUILD_PACKAGE="TGZ;TBZ2;TXZ;TZST;RPM;DEB" -DBoost_NO_SYSTEM_PATHS=TRUE -DBOOST_INCLUDEDIR=$(pwd)/boost_1_79_0/; then
+
+extra="-DWASMEDGE_BUILD_WASI_CRYPTO=OFF"
+if [ "-enable-wasi-crypto" == "$1" ]; then
+    echo "Building wasi-crypto..."
+    # install openssl
+    curl -s -L -O --remote-name-all https://www.openssl.org/source/openssl-1.1.1n.tar.gz
+    echo "40dceb51a4f6a5275bde0e6bf20ef4b91bfc32ed57c0552e2e8e15463372b17a openssl-1.1.1n.tar.gz" | sha256sum -c
+    tar -xf openssl-1.1.1n.tar.gz
+    cd ./openssl-1.1.1n
+    # openssl configure need newer perl
+    curl -s -L -O --remote-name-all https://www.cpan.org/src/5.0/perl-5.34.0.tar.gz
+    tar -xf perl-5.34.0.tar.gz
+    cd perl-5.34.0
+    mkdir localperl
+    ./Configure -des -Dprefix=$(pwd)/localperl/
+    make -j
+    # too long!
+    # make test
+    make install
+    export PATH="$(pwd)/localperl/bin/:$PATH"
+    cd ..
+    # configure by previous perl
+    mkdir openssl
+    ./perl-5.34.0/localperl/bin/perl ./config --prefix=$(pwd)/openssl --openssldir=$(pwd)/openssl
+    make -j
+    make test
+    make install
+    cd ..
+    extra="-DOPENSSL_ROOT_DIR=$(pwd)/openssl-1.1.1n/openssl -DWASMEDGE_BUILD_WASI_CRYPTO=ON";
+fi
+
+if ! cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_BUILD_PACKAGE="TGZ;TBZ2;TXZ;TZST;RPM;DEB" -DBoost_NO_SYSTEM_PATHS=TRUE -DBOOST_INCLUDEDIR=$(pwd)/boost_1_79_0/ $extra; then
     echo === CMakeOutput.log ===
     cat build/CMakeFiles/CMakeOutput.log
     echo === CMakeError.log ===

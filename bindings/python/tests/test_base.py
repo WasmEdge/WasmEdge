@@ -55,7 +55,7 @@ def test_add():
 
 def test_version():
     assert (
-        "wasmedge version " + WasmEdge.version()
+        "wasmedge version " + WasmEdge.VersionGet()
         == subprocess.run(
             ["wasmedge", "--version"], stdout=subprocess.PIPE
         ).stdout.decode("utf-8")[:-1]

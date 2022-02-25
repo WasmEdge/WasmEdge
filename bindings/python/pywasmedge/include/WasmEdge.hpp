@@ -24,7 +24,6 @@ struct logging {
     WasmEdge_LogSetDebugLevel();
   };
   static std::string _str;
-  const char *doc() { return pysdk::logging_doc; }
 };
 
 class Value {

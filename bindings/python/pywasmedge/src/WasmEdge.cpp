@@ -12,7 +12,10 @@ PYBIND11_MODULE(WasmEdge, module) {
         .. autosummary::
            :toctree: _generate
            
-           version
+           VersionGet
+           VersionGetMajor
+           VersionGetMinor
+           VersionGetPatch
            Logging
            Configure
            Store
@@ -44,11 +47,21 @@ PYBIND11_MODULE(WasmEdge, module) {
            Table
     )pbdoc";
 
-  module.def("version", WasmEdge_VersionGet);
+  module.def("VersionGet", WasmEdge_VersionGet,
+             "Get the version string of the WasmEdge C API");
+  module.def("VersionGetMajor", WasmEdge_VersionGetMajor,
+             "Get the major version value of the WasmEdge C API.");
+  module.def("VersionGetMinor", WasmEdge_VersionGetMinor,
+             "Get the minor version value of the WasmEdge C API.");
+  module.def("VersionGetPatch", WasmEdge_VersionGetPatch,
+             "Get the patch version value of the WasmEdge C API.");
 
-  pybind11::class_<pysdk::logging>(module, "Logging")
+  pybind11::class_<pysdk::logging>(
+      module, "Logging",
+      "The WasmEdge_LogSetErrorLevel() and WasmEdge_LogSetDebugLevel() APIs "
+      "can set the logging system to debug level or error level. By default, "
+      "the error level is set, and the debug info is hidden.")
       .def(pybind11::init())
-      .def("__doc__", &pysdk::logging::doc)
       .def("__str__", &pysdk::logging::str)
       .def_static("error", &pysdk::logging::error)
       .def_static("debug", &pysdk::logging::debug);

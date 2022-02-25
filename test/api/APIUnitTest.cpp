@@ -2107,6 +2107,9 @@ TEST(APICoreTest, ImportObject) {
   ImpObj = WasmEdge_ImportObjectCreate(HostName);
   WasmEdge_StringDelete(HostName);
   EXPECT_NE(ImpObj, nullptr);
+  WasmEdge_String ExpectedHostName = WasmEdge_StringCreateByCString("extern");
+  WasmEdge_String ActualHostName = WasmEdge_ImportObjectGetModuleName(ImpObj);
+  EXPECT_TRUE(WasmEdge_StringIsEqual(ExpectedHostName, ActualHostName));
 
   // Add host function "func-add": {externref, i32} -> {i32}
   Param[0] = WasmEdge_ValType_ExternRef;
@@ -3221,6 +3224,18 @@ TEST(APICoreTest, VM) {
   // VM get statistics
   EXPECT_NE(WasmEdge_VMGetStatisticsContext(VM), nullptr);
   EXPECT_EQ(WasmEdge_VMGetStatisticsContext(nullptr), nullptr);
+
+  // VM get executor
+  EXPECT_NE(WasmEdge_VMGetExecutorContext(VM), nullptr);
+  EXPECT_EQ(WasmEdge_VMGetExecutorContext(nullptr), nullptr);
+
+  // VM get validator
+  EXPECT_NE(WasmEdge_VMGetValidatorContext(VM), nullptr);
+  EXPECT_EQ(WasmEdge_VMGetValidatorContext(nullptr), nullptr);
+
+  // VM get loader
+  EXPECT_NE(WasmEdge_VMGetLoaderContext(VM), nullptr);
+  EXPECT_EQ(WasmEdge_VMGetLoaderContext(nullptr), nullptr);
 
   WasmEdge_ASTModuleDelete(Mod);
   WasmEdge_ImportObjectDelete(ImpObj);

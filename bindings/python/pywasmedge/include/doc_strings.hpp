@@ -5,7 +5,7 @@ namespace pysdk {
 
 namespace doc {
 
-constexpr char *const module = R"pbdoc(
+constexpr const char *module = R"pbdoc(
         WasmEdge
         -----------------------
         .. currentmodule:: WasmEdge
@@ -47,92 +47,56 @@ constexpr char *const module = R"pbdoc(
            Table
     )pbdoc";
 
-constexpr char *const VersionGet = R"pbdoc(
+constexpr const char *VersionGet = R"pbdoc(
                 Get the version string of the WasmEdge C API.
 
-                Parameters
-                ----------
-                None
+                :return: String of version
+                :rtype: str
+                )pbdoc";
 
-                Returns
-                -------
-                The version string
+constexpr const char *VersionGetMajor = R"pbdoc(
+                Get the major version value of the WasmEdge C API.
+
+                :return: Int of major version
+                :rtype: int
+                )pbdoc";
+
+constexpr const char *VersionGetMinor = R"pbdoc(
+                Get the minor version value of the WasmEdge C API.
+
+                :return: Int of minor version
+                :rtype: int
+                )pbdoc";
+
+constexpr const char *VersionGetPatch = R"pbdoc(
+                Get the patch version value of the WasmEdge C API.
+
+                :return: Int of patch version
+                :rtype: int
+                )pbdoc";
+
+constexpr const char *Logging = R"pbdoc(
+                Set the log level.
+                )pbdoc";
+
+constexpr const char *error = R"pbdoc(
+                Set the log level to error i.e. no debug info is printed.
+                )pbdoc";
+
+constexpr const char *debug = R"pbdoc(
+                Set the log level to debug i.e. debug info is printed.
+                )pbdoc";
+
+constexpr const char *Configure = R"pbdoc(
+                The configuration context, `WasmEdge_ConfigureContext`, 
+                is wrapped in the class `Configure` manages the 
+                configurations for `Loader`, `Validator`, `Executor`,
+                `VM`, and `Compiler`. Developers can adjust the settings
+                about the proposals, VM host pre-registrations (such as 
+                `WASI`), and AOT compiler options, and then apply the
+                `Configure` context to create other runtime contexts.
                 )pbdoc";
 } // namespace doc
-
-const char *const vm_doc =
-    "                       |========================|\n"
-    "              |------->|      VM: Initiated     |\n"
-    "              |        |========================|\n"
-    "              |                    |\n"
-    "              |                 LoadWasm\n"
-    "              |                    |\n"
-    "              |                    v\n"
-    "              |        |========================|\n"
-    "              |--------|       VM: Loaded       |<-------|\n"
-    "              |        |========================|        |\n"
-    "              |              |            ^              |\n"
-    "              |         Validate          |              |\n"
-    "          Cleanup            |          LoadWasm         |\n"
-    "              |              v            |            LoadWasm\n"
-    "              |        |========================|        |\n"
-    "              |--------|      VM: Validated     |        |\n"
-    "              |        |========================|        |\n"
-    "              |              |            ^              |\n"
-    "              |      Instantiate          |              |\n"
-    "              |              |          RegisterModule   |\n"
-    "              |              v            |              |\n"
-    "              |        |========================|        |\n"
-    "              |--------|    VM: Instantiated    |--------|\n"
-    "                       |========================|\n"
-    "                             |            ^\n"
-    "                             |            |\n"
-    "                             --------------\n"
-    "                Instantiate, Execute, ExecuteRegistered.\n"
-    "The status of the VM context would be Inited when created. After loading "
-    "WASM successfully, the status will be Loaded. After validating WASM "
-    "successfully, the status will be Validated. After instantiating WASM "
-    "successfully, the status will be Instantiated, and developers can invoke "
-    "functions. Developers can register WASM or import objects in any status, "
-    "but they should instantiate WASM again. Developers can also load WASM in "
-    "any status, and they should validate and instantiate the WASM module "
-    "before function invocation. When in the Instantiated status, developers "
-    "can instantiate the WASM module again to reset the old WASM runtime "
-    "structures.The VM creation API accepts the Configure context and the "
-    "Store context. If developers only need the default settings, just pass "
-    "NULL to the creation API. The details of the Store context will be "
-    "introduced in Store.";
-
-const char *const logging_doc =
-    "The WasmEdge_LogSetErrorLevel() and "
-    "WasmEdge_LogSetDebugLevel() APIs can set the logging "
-    "system to debug level or error level. By default, the "
-    "error level is set, and the debug info is hidden.";
-
-const char *const Configure_doc =
-    "The objects, such as VM, Store, and HostFunction, are composed of "
-    "Contexts. All of the contexts can be created by calling the corresponding "
-    "creation APIs and should be destroyed by calling the corresponding "
-    "deletion APIs. Developers have responsibilities to manage the contexts "
-    "for memory management.";
-
-const char *const result_doc =
-    "The WasmEdge_Result object specifies the execution status. APIs about "
-    "WASM execution will return the WasmEdge_Result to denote the status.";
-
-const char *const Store_doc =
-    "Store is the runtime structure for the representation of all instances of "
-    "Functions, Tables, Memorys, and Globals that have been allocated during "
-    "the lifetime of the abstract machine. The Store context in WasmEdge "
-    "provides APIs to list the exported instances with their names or find the "
-    "instances by exported names. For adding instances into Store contexts, "
-    "please instantiate or register WASM modules or Import Object contexts via "
-    "the Interpreter context.\nIf the VM context is created without assigning "
-    "a Store context, the VM context will allocate and own a Store "
-    "context.Developers can also create the VM context with a Store context. "
-    "In this case, developers should guarantee the life cycle of the Store "
-    "context. ";
-
 } // namespace pysdk
 
 #endif // WASMEDGE_DOC_STRINGS_HPP

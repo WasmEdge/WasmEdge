@@ -44,7 +44,7 @@ def test_add():
     log = WasmEdge.Logging()
     log.debug()
     cfx = WasmEdge.Configure()
-    cfx.add(WasmEdge.Host.Wasi)
+    cfx.AddHostRegistration(WasmEdge.Host.Wasi)
     vm = WasmEdge.VM(cfx)
     nums = [random.randint(2, 20), random.randint(2, 20)]
     nums_w = tuple([WasmEdge.Value(x, WasmEdge.Type.I32) for x in nums])

@@ -10,43 +10,58 @@ PYBIND11_MODULE(WasmEdge, module) {
 
   module.def("VersionGet", WasmEdge_VersionGet, pysdk::doc::VersionGet);
   module.def("VersionGetMajor", WasmEdge_VersionGetMajor,
-             "Get the major version value of the WasmEdge C API.");
+             pysdk::doc::VersionGetMajor);
   module.def("VersionGetMinor", WasmEdge_VersionGetMinor,
-             "Get the minor version value of the WasmEdge C API.");
+             pysdk::doc::VersionGetMinor);
   module.def("VersionGetPatch", WasmEdge_VersionGetPatch,
-             "Get the patch version value of the WasmEdge C API.");
+             pysdk::doc::VersionGetPatch);
 
-  pybind11::class_<pysdk::logging>(
-      module, "Logging",
-      "The WasmEdge_LogSetErrorLevel() and WasmEdge_LogSetDebugLevel() APIs "
-      "can set the logging system to debug level or error level. By default, "
-      "the error level is set, and the debug info is hidden.")
+  pybind11::class_<pysdk::logging>(module, "Logging", pysdk::doc::Logging)
       .def(pybind11::init())
       .def("__str__", &pysdk::logging::str)
-      .def_static("error", &pysdk::logging::error)
-      .def_static("debug", &pysdk::logging::debug);
+      .def_static("error", &pysdk::logging::error, pysdk::doc::error)
+      .def_static("debug", &pysdk::logging::debug, pysdk::doc::debug);
 
-  /*Overloading Python add and remove functions for Configure class*/
-
-  void (pysdk::Configure::*add_prop)(WasmEdge_Proposal) =
-      &pysdk::Configure::add;
-  void (pysdk::Configure::*remove_prop)(WasmEdge_Proposal) =
-      &pysdk::Configure::remove;
-  void (pysdk::Configure::*add_host)(WasmEdge_HostRegistration) =
-      &pysdk::Configure::add;
-  void (pysdk::Configure::*remove_host)(WasmEdge_HostRegistration) =
-      &pysdk::Configure::remove;
-
-  pybind11::class_<pysdk::Configure>(module, "Configure")
+  pybind11::class_<pysdk::Configure>(module, "Configure", pysdk::doc::Configure)
       .def(pybind11::init())
-      .def("add", add_prop)
-      .def("remove", remove_prop)
-      .def("add", add_host)
-      .def("remove", remove_host)
-      .def_property("max_paging", &pysdk::Configure::get_max_paging,
-                    &pysdk::Configure::set_max_paging)
-      .def_property("optimization_level", &pysdk::Configure::get_opt_level,
-                    &pysdk::Configure::set_opt_level);
+      .def("AddProposal", &pysdk::Configure::AddProposal)
+      .def("AddHostRegistration", &pysdk::Configure::AddHostRegistration)
+      .def("RemoveProposal", &pysdk::Configure::RemoveProposal)
+      .def("RemoveHostRegistration", &pysdk::Configure::RemoveHostRegistration)
+      .def("CompilerGetOptimizationLevel",
+           &pysdk::Configure::CompilerGetOptimizationLevel)
+      .def("CompilerGetOutputFormat",
+           &pysdk::Configure::CompilerGetOutputFormat)
+      .def("CompilerIsDumpIR", &pysdk::Configure::CompilerIsDumpIR)
+      .def("CompilerIsGenericBinary",
+           &pysdk::Configure::CompilerIsGenericBinary)
+      .def("CompilerIsInterruptible",
+           &pysdk::Configure::CompilerIsInterruptible)
+      .def("CompilerSetDumpIR", &pysdk::Configure::CompilerSetDumpIR)
+      .def("CompilerSetGenericBinary",
+           &pysdk::Configure::CompilerSetGenericBinary)
+      .def("CompilerSetInterruptible",
+           &pysdk::Configure::CompilerSetInterruptible)
+      .def("CompilerSetOptimizationLevel",
+           &pysdk::Configure::CompilerSetOptimizationLevel)
+      .def("CompilerSetOutputFormat",
+           &pysdk::Configure::CompilerSetOutputFormat)
+      .def("GetMaxMemoryPage", &pysdk::Configure::GetMaxMemoryPage)
+      .def("SetMaxMemoryPage", &pysdk::Configure::SetMaxMemoryPage)
+      .def("HasHostRegistration", &pysdk::Configure::HasHostRegistration)
+      .def("HasProposal", &pysdk::Configure::HasProposal)
+      .def("StatisticsIsCostMeasuring",
+           &pysdk::Configure::StatisticsIsCostMeasuring)
+      .def("StatisticsIsInstructionCounting",
+           &pysdk::Configure::StatisticsIsInstructionCounting)
+      .def("StatisticsIsTimeMeasuring",
+           &pysdk::Configure::StatisticsIsTimeMeasuring)
+      .def("StatisticsSetCostMeasuring",
+           &pysdk::Configure::StatisticsSetCostMeasuring)
+      .def("StatisticsSetInstructionCounting",
+           &pysdk::Configure::StatisticsSetInstructionCounting)
+      .def("StatisticsSetTimeMeasuring",
+           &pysdk::Configure::StatisticsSetTimeMeasuring);
 
   pybind11::enum_<WasmEdge_CompilerOptimizationLevel>(module, "Optimization")
       .value("O0", WasmEdge_CompilerOptimizationLevel_O0)

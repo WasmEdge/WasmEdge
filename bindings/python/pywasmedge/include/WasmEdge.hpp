@@ -65,14 +65,30 @@ public:
   Configure();
   ~Configure();
   WasmEdge_ConfigureContext *get();
-  void add(WasmEdge_Proposal);
-  void add(WasmEdge_HostRegistration);
-  void remove(WasmEdge_Proposal);
-  void remove(WasmEdge_HostRegistration);
-  void set_max_paging(uint32_t);
-  uint32_t get_max_paging();
-  void set_opt_level(WasmEdge_CompilerOptimizationLevel);
-  WasmEdge_CompilerOptimizationLevel get_opt_level();
+  void AddProposal(WasmEdge_Proposal &);
+  void AddHostRegistration(WasmEdge_HostRegistration &);
+  void RemoveProposal(WasmEdge_Proposal &);
+  void RemoveHostRegistration(WasmEdge_HostRegistration &);
+  WasmEdge_CompilerOptimizationLevel CompilerGetOptimizationLevel();
+  WasmEdge_CompilerOutputFormat CompilerGetOutputFormat();
+  bool CompilerIsDumpIR();
+  bool CompilerIsGenericBinary();
+  bool CompilerIsInterruptible();
+  void CompilerSetDumpIR(bool &);
+  void CompilerSetGenericBinary(bool &);
+  void CompilerSetInterruptible(bool &);
+  void CompilerSetOptimizationLevel(WasmEdge_CompilerOptimizationLevel &);
+  void CompilerSetOutputFormat(WasmEdge_CompilerOutputFormat &);
+  uint32_t GetMaxMemoryPage();
+  void SetMaxMemoryPage(uint32_t &);
+  bool HasHostRegistration(WasmEdge_HostRegistration &);
+  bool HasProposal(WasmEdge_Proposal &);
+  bool StatisticsIsCostMeasuring();
+  bool StatisticsIsInstructionCounting();
+  bool StatisticsIsTimeMeasuring();
+  void StatisticsSetCostMeasuring(bool &);
+  void StatisticsSetInstructionCounting(bool &);
+  void StatisticsSetTimeMeasuring(bool &);
 };
 
 class Store {

@@ -45,15 +45,21 @@ enum class InfoType : uint8_t {
 
 /// Error info instance addressing type C++ enumeration class.
 enum class PtrType : uint8_t {
-  Index,  // Index of instances
-  Address // Absolute address
+#define UsePtrType
+#define Line(NAME, STRING) NAME,
+#include "enum.inc"
+#undef Line
+#undef UsePtrType
 };
 
 static inline constexpr auto PtrTypeStr = []() constexpr {
   using namespace std::literals::string_view_literals;
   std::pair<PtrType, std::string_view> Array[] = {
-      {PtrType::Index, "index"sv},
-      {PtrType::Address, "address"sv},
+#define UsePtrType
+#define Line(NAME, STRING) {PtrType::NAME, STRING},
+#include "enum.inc"
+#undef Line
+#undef UsePtrType
   };
   return DenseEnumMap(Array);
 }
@@ -61,31 +67,21 @@ static inline constexpr auto PtrTypeStr = []() constexpr {
 
 /// Error info mismatch category C++ enumeration class.
 enum class MismatchCategory : uint8_t {
-  Alignment,    // Alignment in memory instructions
-  ValueType,    // Value type
-  ValueTypes,   // Value type list
-  Mutation,     // Const or Var
-  ExternalType, // External typing
-  FunctionType, // Function type
-  Table,        // Table instance
-  Memory,       // Memory instance
-  Global,       // Global instance
-  Version       // Versions
+#define UseMismatchCategory
+#define Line(NAME, STRING) NAME,
+#include "enum.inc"
+#undef Line
+#undef UseMismatchCategory
 };
 
 static inline constexpr auto MismatchCategoryStr = []() constexpr {
   using namespace std::literals::string_view_literals;
   std::pair<MismatchCategory, std::string_view> Array[] = {
-      {MismatchCategory::Alignment, "memory alignment"sv},
-      {MismatchCategory::ValueType, "value type"sv},
-      {MismatchCategory::ValueTypes, "value types"sv},
-      {MismatchCategory::Mutation, "mutation"sv},
-      {MismatchCategory::ExternalType, "external type"sv},
-      {MismatchCategory::FunctionType, "function type"sv},
-      {MismatchCategory::Table, "table"sv},
-      {MismatchCategory::Memory, "memory"sv},
-      {MismatchCategory::Global, "global"sv},
-      {MismatchCategory::Version, "version"sv},
+#define UseMismatchCategory
+#define Line(NAME, STRING) {MismatchCategory::NAME, STRING},
+#include "enum.inc"
+#undef Line
+#undef UseMismatchCategory
   };
   return DenseEnumMap(Array);
 }
@@ -93,31 +89,21 @@ static inline constexpr auto MismatchCategoryStr = []() constexpr {
 
 /// Error info index category C++ enumeration class.
 enum class IndexCategory : uint8_t {
-  Label,
-  Local,
-  FunctionType,
-  Function,
-  Table,
-  Memory,
-  Global,
-  Element,
-  Data,
-  Lane
+#define UseIndexCategory
+#define Line(NAME, STRING) NAME,
+#include "enum.inc"
+#undef Line
+#undef UseIndexCategory
 };
 
 static inline constexpr auto IndexCategoryStr = []() constexpr {
   using namespace std::literals::string_view_literals;
   std::pair<IndexCategory, std::string_view> Array[] = {
-      {IndexCategory::Label, "label"sv},
-      {IndexCategory::Local, "local"sv},
-      {IndexCategory::FunctionType, "function type"sv},
-      {IndexCategory::Function, "function"sv},
-      {IndexCategory::Table, "table"sv},
-      {IndexCategory::Memory, "memory"sv},
-      {IndexCategory::Global, "global"sv},
-      {IndexCategory::Element, "element"sv},
-      {IndexCategory::Data, "data"sv},
-      {IndexCategory::Lane, "lane"sv},
+#define UseIndexCategory
+#define Line(NAME, STRING) {IndexCategory::NAME, STRING},
+#include "enum.inc"
+#undef Line
+#undef UseIndexCategory
   };
   return DenseEnumMap(Array);
 }

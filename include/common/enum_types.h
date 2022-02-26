@@ -29,23 +29,21 @@ namespace WasmEdge {
 
 /// WASM Value type C++ enumeration class.
 enum class ValType : uint8_t {
-  None = 0x40,
-  I32 = 0x7F,
-  I64 = 0x7E,
-  F32 = 0x7D,
-  F64 = 0x7C,
-  V128 = 0x7B,
-  FuncRef = 0x70,
-  ExternRef = 0x6F
+#define UseValType
+#define Line(NAME, VALUE, STRING) NAME = VALUE,
+#include "enum.inc"
+#undef Line
+#undef UseValType
 };
 
 static inline constexpr const auto ValTypeStr = []() constexpr {
   using namespace std::literals::string_view_literals;
   std::pair<ValType, std::string_view> Array[] = {
-      {ValType::None, "none"sv},       {ValType::I32, "i32"sv},
-      {ValType::I64, "i64"sv},         {ValType::F32, "f32"sv},
-      {ValType::F64, "f64"sv},         {ValType::V128, "v128"sv},
-      {ValType::FuncRef, "funcref"sv}, {ValType::ExternRef, "externref"sv},
+#define UseValType
+#define Line(NAME, VALUE, STRING) {ValType::NAME, STRING},
+#include "enum.inc"
+#undef Line
+#undef UseValType
   };
   return SpareEnumMap(Array);
 }
@@ -57,13 +55,11 @@ static inline constexpr const auto ValTypeStr = []() constexpr {
 
 /// WASM Value type C enumeration.
 enum WasmEdge_ValType {
-  WasmEdge_ValType_I32 = 0x7FU,
-  WasmEdge_ValType_I64 = 0x7EU,
-  WasmEdge_ValType_F32 = 0x7DU,
-  WasmEdge_ValType_F64 = 0x7CU,
-  WasmEdge_ValType_V128 = 0x7BU,
-  WasmEdge_ValType_FuncRef = 0x70U,
-  WasmEdge_ValType_ExternRef = 0x6FU
+#define UseValType
+#define Line(NAME, VALUE, STRING) WasmEdge_ValType_##NAME = VALUE,
+#include "enum.inc"
+#undef Line
+#undef UseValType
 };
 
 #if (defined(__cplusplus) && __cplusplus > 201402L) ||                         \
@@ -72,11 +68,11 @@ namespace WasmEdge {
 
 /// WASM Number type C++ enumeration class.
 enum class NumType : uint8_t {
-  I32 = 0x7F,
-  I64 = 0x7E,
-  F32 = 0x7D,
-  F64 = 0x7C,
-  V128 = 0x7B
+#define UseNumType
+#define Line(NAME, VALUE) NAME = VALUE,
+#include "enum.inc"
+#undef Line
+#undef UseNumType
 };
 
 } // namespace WasmEdge
@@ -84,11 +80,11 @@ enum class NumType : uint8_t {
 
 /// WASM Number type C enumeration.
 enum WasmEdge_NumType {
-  WasmEdge_NumType_I32 = 0x7FU,
-  WasmEdge_NumType_I64 = 0x7EU,
-  WasmEdge_NumType_F32 = 0x7DU,
-  WasmEdge_NumType_F64 = 0x7CU,
-  WasmEdge_NumType_V128 = 0x7BU
+#define UseNumType
+#define Line(NAME, VALUE) WasmEdge_NumType_##NAME = VALUE,
+#include "enum.inc"
+#undef Line
+#undef UseNumType
 };
 
 #if (defined(__cplusplus) && __cplusplus > 201402L) ||                         \
@@ -96,15 +92,24 @@ enum WasmEdge_NumType {
 namespace WasmEdge {
 
 /// WASM Reference type C++ enumeration class.
-enum class RefType : uint8_t { ExternRef = 0x6F, FuncRef = 0x70 };
+enum class RefType : uint8_t {
+#define UseRefType
+#define Line(NAME, VALUE) NAME = VALUE,
+#include "enum.inc"
+#undef Line
+#undef UseRefType
+};
 
 } // namespace WasmEdge
 #endif
 
 /// WASM Reference type C enumeration.
 enum WasmEdge_RefType {
-  WasmEdge_RefType_FuncRef = 0x70U,
-  WasmEdge_RefType_ExternRef = 0x6FU
+#define UseRefType
+#define Line(NAME, VALUE) WasmEdge_RefType_##NAME = VALUE,
+#include "enum.inc"
+#undef Line
+#undef UseRefType
 };
 
 #if (defined(__cplusplus) && __cplusplus > 201402L) ||                         \
@@ -112,13 +117,22 @@ enum WasmEdge_RefType {
 namespace WasmEdge {
 
 /// WASM Mutability C++ enumeration class.
-enum class ValMut : uint8_t { Const = 0x00, Var = 0x01 };
+enum class ValMut : uint8_t {
+#define UseValMut
+#define Line(NAME, VALUE, STRING) NAME = VALUE,
+#include "enum.inc"
+#undef Line
+#undef UseValMut
+};
 
 static inline constexpr auto ValMutStr = []() constexpr {
   using namespace std::literals::string_view_literals;
   std::pair<ValMut, std::string_view> Array[] = {
-      {ValMut::Const, "const"sv},
-      {ValMut::Var, "var"sv},
+#define UseValMut
+#define Line(NAME, VALUE, STRING) {ValMut::NAME, STRING},
+#include "enum.inc"
+#undef Line
+#undef UseValMut
   };
   return DenseEnumMap(Array);
 } // namespace WasmEdge
@@ -129,8 +143,11 @@ static inline constexpr auto ValMutStr = []() constexpr {
 
 /// WASM Mutability C enumeration.
 enum WasmEdge_Mutability {
-  WasmEdge_Mutability_Const = 0x00U,
-  WasmEdge_Mutability_Var = 0x01U
+#define UseValMut
+#define Line(NAME, VALUE, STRING) WasmEdge_Mutability_##NAME = VALUE,
+#include "enum.inc"
+#undef Line
+#undef UseValMut
 };
 
 #if (defined(__cplusplus) && __cplusplus > 201402L) ||                         \
@@ -139,19 +156,21 @@ namespace WasmEdge {
 
 /// WASM External type C++ enumeration class.
 enum class ExternalType : uint8_t {
-  Function = 0x00U,
-  Table = 0x01U,
-  Memory = 0x02U,
-  Global = 0x03U
+#define UseExternalType
+#define Line(NAME, VALUE, STRING) NAME = VALUE,
+#include "enum.inc"
+#undef Line
+#undef UseExternalType
 };
 
 static inline constexpr auto ExternalTypeStr = []() constexpr {
   using namespace std::literals::string_view_literals;
   std::pair<ExternalType, std::string_view> Array[] = {
-      {ExternalType::Function, "function"sv},
-      {ExternalType::Table, "table"sv},
-      {ExternalType::Memory, "memory"sv},
-      {ExternalType::Global, "global"sv},
+#define UseExternalType
+#define Line(NAME, VALUE, STRING) {ExternalType::NAME, STRING},
+#include "enum.inc"
+#undef Line
+#undef UseExternalType
   };
   return DenseEnumMap(Array);
 }
@@ -162,10 +181,11 @@ static inline constexpr auto ExternalTypeStr = []() constexpr {
 
 /// WASM External type C enumeration.
 enum WasmEdge_ExternalType {
-  WasmEdge_ExternalType_Function = 0x00U,
-  WasmEdge_ExternalType_Table = 0x01U,
-  WasmEdge_ExternalType_Memory = 0x02U,
-  WasmEdge_ExternalType_Global = 0x03U
+#define UseExternalType
+#define Line(NAME, VALUE, STRING) WasmEdge_ExternalType_##NAME = VALUE,
+#include "enum.inc"
+#undef Line
+#undef UseExternalType
 };
 
 #endif // WASMEDGE_C_API_ENUM_TYPES_H

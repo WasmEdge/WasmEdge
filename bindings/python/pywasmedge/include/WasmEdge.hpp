@@ -272,14 +272,20 @@ public:
   WasmEdge_GlobalTypeContext *get();
 };
 
-class StatisticsContext {
+class Statistics {
 private:
   WasmEdge_StatisticsContext *StatCxt;
-  bool external = false;
+  bool delete_stat = false;
 
 public:
-  StatisticsContext(WasmEdge_StatisticsContext *);
-  ~StatisticsContext();
+  Statistics();
+  Statistics(WasmEdge_StatisticsContext *, bool);
+  ~Statistics();
+  uint64_t GetInstrCount();
+  double GetInstrPerSecond();
+  uint64_t GetTotalCost();
+  void SetCostLimit(uint64_t &);
+  void SetCostTable(pybind11::tuple);
 };
 
 class ImportTypeContext {
@@ -338,7 +344,7 @@ public:
   FunctionTypeContext get_function_type_registered(std::string &,
                                                    std::string &);
   import_object get_import_module_context(WasmEdge_HostRegistration &);
-  StatisticsContext get_statistics_context();
+  Statistics get_statistics_context();
   Store get_store_cxt();
   result instantiate();
   result load_from_ast(pysdk::ASTModuleCxt &);

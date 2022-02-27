@@ -63,6 +63,14 @@ PYBIND11_MODULE(WasmEdge, module) {
       .def("StatisticsSetTimeMeasuring",
            &pysdk::Configure::StatisticsSetTimeMeasuring);
 
+  pybind11::class_<pysdk::Statistics>(module, "Statistics")
+      .def(pybind11::init())
+      .def("GetInstrCount", &pysdk::Statistics::GetInstrCount)
+      .def("GetInstrPerSecond", &pysdk::Statistics::GetInstrPerSecond)
+      .def("GetTotalCost", &pysdk::Statistics::GetTotalCost)
+      .def("SetCostLimit", &pysdk::Statistics::SetCostLimit)
+      .def("SetCostTable", &pysdk::Statistics::SetCostTable);
+
   pybind11::enum_<WasmEdge_CompilerOptimizationLevel>(module, "Optimization")
       .value("O0", WasmEdge_CompilerOptimizationLevel_O0)
       .value("O1", WasmEdge_CompilerOptimizationLevel_O1)
@@ -194,7 +202,7 @@ PYBIND11_MODULE(WasmEdge, module) {
       .def("GetFunctionTypeRegistered",
            &pysdk::VM::get_function_type_registered)
       .def("GetImportModuleContext", &pysdk::VM::get_import_module_context)
-      .def("GetStatisticsContext", &pysdk::VM::get_statistics_context)
+      .def("GetStatistics", &pysdk::VM::get_statistics_context)
       .def("GetStoreContext", &pysdk::VM::get_store_cxt)
       .def("Instantiate", &pysdk::VM::instantiate)
       .def("LoadWasmFromASTModule", &pysdk::VM::load_from_ast)

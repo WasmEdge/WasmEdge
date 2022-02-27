@@ -19,6 +19,7 @@ constexpr const char *module = R"pbdoc(
            Logging
            Configure
            Store
+           Statistics
            Optimization
            CompilerOutput
            Type

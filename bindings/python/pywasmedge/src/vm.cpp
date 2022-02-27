@@ -222,8 +222,8 @@ pysdk::VM::get_import_module_context(WasmEdge_HostRegistration &reg) {
   return pysdk::import_object(WasmEdge_VMGetImportModuleContext(VMCxt, reg));
 }
 
-pysdk::StatisticsContext pysdk::VM::get_statistics_context() {
-  return pysdk::StatisticsContext(WasmEdge_VMGetStatisticsContext(VMCxt));
+pysdk::Statistics pysdk::VM::get_statistics_context() {
+  return pysdk::Statistics(WasmEdge_VMGetStatisticsContext(VMCxt), false);
 }
 
 pysdk::Store pysdk::VM::get_store_cxt() {

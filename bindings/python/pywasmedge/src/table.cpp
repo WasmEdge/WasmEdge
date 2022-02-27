@@ -23,7 +23,15 @@ pysdk::Table::Table(pysdk::TableTypeCxt &tab_cxt) {
   HostTable = WasmEdge_TableInstanceCreate(tab_cxt.get());
 }
 
-pysdk::Table::~Table() { WasmEdge_TableInstanceDelete(HostTable); }
+pysdk::Table::Table(WasmEdge_TableInstanceContext *tab_cxt, bool del) {
+  delete_cxt = del;
+  HostTable = tab_cxt;
+}
+
+pysdk::Table::~Table() {
+  if (delete_cxt)
+    WasmEdge_TableInstanceDelete(HostTable);
+}
 
 WasmEdge_TableInstanceContext *pysdk::Table::get() { return HostTable; }
 

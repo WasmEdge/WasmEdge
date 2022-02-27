@@ -18,15 +18,14 @@ constexpr const char *module = R"pbdoc(
            VersionGetPatch
            Logging
            Configure
-           Store
            Statistics
            Optimization
-           CompilerOutput
            Type
            ExternalType
            RefType
+           Store
            Value
-           Ref
+           CompilerOutput
            Result
            Proposal
            Host

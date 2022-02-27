@@ -27,7 +27,7 @@ def test_host_function():
     res = vm.RegisterModuleFromImport(mod)
     assert res
 
-    mods = store.listModules()
+    mods = store.ListModule(1)
 
     tup = (
         # /* WASM header */

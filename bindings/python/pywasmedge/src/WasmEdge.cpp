@@ -115,14 +115,6 @@ PYBIND11_MODULE(WasmEdge, module) {
       .def_property("Value", &pysdk::Value::get_value, &pysdk::Value::set_value)
       .def_property_readonly("Type", &pysdk::Value::get_type);
 
-  pybind11::class_<pysdk::Ref>(module, "Ref")
-      .def(pybind11::init<pybind11::object, pybind11::object>(),
-           pybind11::arg("type"), pybind11::arg("ref_obj") = pybind11::none())
-      .def("isNull", &pysdk::Ref::is_null)
-      .def("FuncIdx", &pysdk::Ref::get_function_index)
-      .def_property_readonly("Type", &pysdk::Ref::get_type)
-      .def_property_readonly("Value", &pysdk::Ref::get_py_obj);
-
   pybind11::class_<pysdk::result>(module, "Result")
       .def(pybind11::init())
       .def(pybind11::init<int &>())
@@ -153,10 +145,36 @@ PYBIND11_MODULE(WasmEdge, module) {
 
   pybind11::class_<pysdk::Store>(module, "Store")
       .def(pybind11::init())
-      .def("GetMemory", &pysdk::Store::get_memory)
-      .def("listFunctions", &pysdk::Store::listFunctions)
-      .def("listModules", &pysdk::Store::listModules)
-      .def("listRegisteredFunctions", &pysdk::Store::listRegisteredFunctions);
+      .def("FindMemory", &pysdk::Store::FindMemory)
+      .def("ListFunction", &pysdk::Store::ListFunction)
+      .def("ListFunctionRegistered", &pysdk::Store::ListFunctionRegistered)
+      .def("FindFunction", &pysdk::Store::FindFunction)
+      .def("FindFunctionRegistered", &pysdk::Store::FindFunctionRegistered)
+      .def("FindGlobal", &pysdk::Store::FindGlobal)
+      .def("FindGlobalRegistered", &pysdk::Store::FindGlobalRegistered)
+      .def("FindMemoryRegistered", &pysdk::Store::FindMemoryRegistered)
+      .def("FindTable", &pysdk::Store::FindTable)
+      .def("FindTableRegistered", &pysdk::Store::FindTableRegistered)
+      .def("ListFunctionLength", &pysdk::Store::ListFunctionLength)
+      .def("ListFunctionRegisteredLength",
+           &pysdk::Store::ListFunctionRegisteredLength)
+      .def("ListGlobal", &pysdk::Store::ListGlobal)
+      .def("ListGlobalRegistered", &pysdk::Store::ListGlobalRegistered)
+      .def("ListGlobalLength", &pysdk::Store::ListGlobalLength)
+      .def("ListGlobalRegisteredLength",
+           &pysdk::Store::ListGlobalRegisteredLength)
+      .def("ListMemory", &pysdk::Store::ListMemory)
+      .def("ListMemoryLength", &pysdk::Store::ListMemoryLength)
+      .def("ListMemoryRegistered", &pysdk::Store::ListMemoryRegistered)
+      .def("ListMemoryRegisteredLength",
+           &pysdk::Store::ListMemoryRegisteredLength)
+      .def("ListModule", &pysdk::Store::ListModule)
+      .def("ListModuleLength", &pysdk::Store::ListModuleLength)
+      .def("ListTable", &pysdk::Store::ListTable)
+      .def("ListTableLength", &pysdk::Store::ListTableLength)
+      .def("ListTableRegistered", &pysdk::Store::ListTableRegistered)
+      .def("ListTableRegisteredLength",
+           &pysdk::Store::ListTableRegisteredLength);
 
   pybind11::class_<pysdk::ASTModuleCxt>(module, "ASTModule")
       .def(pybind11::init())

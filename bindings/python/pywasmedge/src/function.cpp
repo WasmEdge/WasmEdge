@@ -93,9 +93,17 @@ pysdk::Function::Function(FunctionTypeContext &cxt, pybind11::function func,
       host_function, (void *)func_util, cost);
 }
 
+pysdk::Function::Function(WasmEdge_FunctionInstanceContext *cxt, bool del) {
+  HostFuncCxt = cxt;
+  delete_cxt = cxt;
+}
+
 pysdk::Function::~Function() {
-  WasmEdge_FunctionInstanceDelete(HostFuncCxt);
-  delete func_util;
+  if (delete_cxt)
+    WasmEdge_FunctionInstanceDelete(HostFuncCxt);
+
+  if (func_util != nullptr)
+    delete func_util;
 }
 
 WasmEdge_FunctionInstanceContext *pysdk::Function::get() { return HostFuncCxt; }

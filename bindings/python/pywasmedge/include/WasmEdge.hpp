@@ -41,20 +41,135 @@ public:
   WasmEdge_Value get();
 };
 
-class Ref {
+class result {
 private:
-  WasmEdge_Value Val;
-  void *Ptr;
+  WasmEdge_Result Res;
 
 public:
-  Ref(pybind11::object type, pybind11::object obj = pybind11::none());
-  ~Ref();
-  pybind11::object get_py_obj();
-  WasmEdge_ValType get_type();
-  void *get();
-  WasmEdge_Value get_val();
-  uint32_t get_function_index();
-  bool is_null();
+  result();
+  result(WasmEdge_Result);
+  result(int &);
+  void operator=(const WasmEdge_Result &res) { Res = res; }
+  explicit operator bool();
+  const char *message();
+  WasmEdge_Result get();
+  int get_code();
+};
+
+WasmEdge_Result host_function(void *, WasmEdge_MemoryInstanceContext *,
+                              const WasmEdge_Value *, WasmEdge_Value *);
+
+struct function_utility {
+  size_t param_len;
+  pybind11::function func;
+};
+
+class FunctionTypeContext {
+private:
+  WasmEdge_FunctionTypeContext *HostFType;
+  bool external = false;
+
+public:
+  FunctionTypeContext(pybind11::list, pybind11::list);
+  FunctionTypeContext(WasmEdge_FunctionTypeContext *Hfcxt);
+  ~FunctionTypeContext();
+  WasmEdge_FunctionTypeContext *get();
+  uint32_t get_param_len();
+  pybind11::list get_param_types(const uint32_t &);
+  uint32_t get_ret_len();
+  pybind11::list get_ret_types(const uint32_t &);
+};
+
+class Function {
+private:
+  WasmEdge_FunctionInstanceContext *HostFuncCxt;
+  function_utility *func_util;
+  bool delete_cxt = true;
+
+public:
+  Function(FunctionTypeContext &, pybind11::function, uint64_t &);
+  Function(WasmEdge_FunctionInstanceContext *, bool);
+  ~Function();
+  WasmEdge_FunctionInstanceContext *get();
+  FunctionTypeContext get_func_type();
+};
+
+class GlobalTypeCxt {
+private:
+  WasmEdge_GlobalTypeContext *GlobTypeCxt;
+  bool delete_cxt = true;
+
+public:
+  GlobalTypeCxt(const WasmEdge_ValType &, const WasmEdge_Mutability &);
+  GlobalTypeCxt(WasmEdge_GlobalTypeContext *, bool);
+  ~GlobalTypeCxt();
+  WasmEdge_GlobalTypeContext *get();
+};
+
+class Global {
+private:
+  WasmEdge_GlobalInstanceContext *Glob;
+  bool delete_cxt = true;
+
+public:
+  Global(GlobalTypeCxt &, Value &);
+  Global(WasmEdge_GlobalInstanceContext *, bool);
+  ~Global();
+  WasmEdge_GlobalInstanceContext *get();
+};
+
+class MemoryTypeCxt {
+private:
+  WasmEdge_MemoryTypeContext *MemTypeCxt;
+
+public:
+  MemoryTypeCxt(WasmEdge_Limit &);
+  ~MemoryTypeCxt();
+  WasmEdge_MemoryTypeContext *get();
+};
+
+class Memory {
+private:
+  WasmEdge_MemoryInstanceContext *HostMemory;
+  bool delete_mem = true;
+
+public:
+  Memory(MemoryTypeCxt &);
+  Memory(WasmEdge_MemoryInstanceContext *, bool);
+  ~Memory();
+  result set_data(pybind11::tuple, const uint32_t &);
+  uint32_t get_page_size();
+  result grow_page(const uint32_t &);
+  pybind11::tuple get_data(const uint32_t &, const uint32_t &);
+};
+
+class TableTypeCxt {
+private:
+  WasmEdge_TableTypeContext *TabTypeCxt;
+  bool external = false;
+
+public:
+  TableTypeCxt(WasmEdge_RefType &, WasmEdge_Limit &);
+  TableTypeCxt(const WasmEdge_TableTypeContext *);
+  ~TableTypeCxt();
+  WasmEdge_TableTypeContext *get();
+};
+
+class Table {
+private:
+  WasmEdge_TableInstanceContext *HostTable;
+  bool delete_cxt = true;
+
+public:
+  Table(TableTypeCxt &);
+  Table(WasmEdge_TableInstanceContext *, bool);
+  ~Table();
+  WasmEdge_TableInstanceContext *get();
+  TableTypeCxt get_type();
+  uint32_t get_size();
+  result grow_size(const uint32_t &);
+  result set_data(Value &, const uint32_t &);
+  pybind11::tuple get_data(const uint32_t &);
 };
 
 class Configure {
@@ -101,10 +216,32 @@ public:
   Store(WasmEdge_StoreContext *);
   ~Store();
   WasmEdge_StoreContext *get();
-  pybind11::list listFunctions();
-  pybind11::list listModules();
-  pybind11::list listRegisteredFunctions(const std::string &);
-  Memory get_memory(std::string &str);
+  pybind11::list ListFunction(uint32_t &);
+  pybind11::list ListModule(uint32_t &);
+  pybind11::list ListFunctionRegistered(const std::string &, uint32_t &);
+  Memory FindMemory(std::string &);
+  Function FindFunction(std::string &);
+  Function FindFunctionRegistered(std::string &, std::string &);
+  Global FindGlobal(std::string &);
+  Global FindGlobalRegistered(std::string &, std::string &);
+  Memory FindMemoryRegistered(std::string &, std::string &);
+  Table FindTable(std::string &);
+  Table FindTableRegistered(std::string &, std::string &);
+  uint32_t ListFunctionLength();
+  uint32_t ListFunctionRegisteredLength(std::string &);
+  pybind11::list ListGlobal(uint32_t &);
+  uint32_t ListGlobalLength();
+  uint32_t ListGlobalRegisteredLength(std::string &);
+  pybind11::list ListGlobalRegistered(std::string &, uint32_t &);
+  pybind11::list ListMemory(uint32_t &);
+  pybind11::list ListMemoryRegistered(std::string &, uint32_t &);
+  uint32_t ListMemoryLength();
+  uint32_t ListMemoryRegisteredLength(std::string &);
+  uint32_t ListModuleLength();
+  pybind11::list ListTable(uint32_t &);
+  pybind11::list ListTableRegistered(std::string &, uint32_t &);
+  uint32_t ListTableLength();
+  uint32_t ListTableRegisteredLength(std::string &);
 };
 
 class ASTModuleCxt {
@@ -122,31 +259,16 @@ public:
   pybind11::list listImports();
 };
 
-class result {
-private:
-  WasmEdge_Result Res;
-
-public:
-  result();
-  result(WasmEdge_Result);
-  result(int &);
-  void operator=(const WasmEdge_Result &res) { Res = res; }
-  explicit operator bool();
-  const char *message();
-  WasmEdge_Result get();
-  int get_code();
-};
-
 class Loader {
 private:
   WasmEdge_LoaderContext *LoadCxt;
 
 public:
-  Loader(pysdk::Configure &);
+  Loader(Configure &);
   ~Loader();
   WasmEdge_LoaderContext *get();
-  pysdk::result parse(pysdk::ASTModuleCxt &, std::string &);
-  pysdk::result parse(pysdk::ASTModuleCxt &, pybind11::tuple);
+  result parse(ASTModuleCxt &, std::string &);
+  result parse(ASTModuleCxt &, pybind11::tuple);
 };
 
 class Validator {
@@ -154,10 +276,10 @@ private:
   WasmEdge_ValidatorContext *ValidCxt;
 
 public:
-  Validator(pysdk::Configure &);
+  Validator(Configure &);
   ~Validator();
   WasmEdge_ValidatorContext *get();
-  pysdk::result validate(pysdk::ASTModuleCxt &);
+  result validate(ASTModuleCxt &);
 };
 
 class Executor {
@@ -165,111 +287,11 @@ private:
   WasmEdge_ExecutorContext *ExecCxt;
 
 public:
-  Executor(pysdk::Configure &);
+  Executor(Configure &);
   ~Executor();
   WasmEdge_ExecutorContext *get();
-  pysdk::result instantiate(pysdk::Store &, pysdk::ASTModuleCxt &);
-  pybind11::tuple invoke(pysdk::Store &, std::string &, pybind11::list);
-};
-
-WasmEdge_Result host_function(void *, WasmEdge_MemoryInstanceContext *,
-                              const WasmEdge_Value *, WasmEdge_Value *);
-
-struct function_utility {
-  size_t param_len;
-  pybind11::function func;
-};
-
-class FunctionTypeContext {
-private:
-  WasmEdge_FunctionTypeContext *HostFType;
-  bool external = false;
-
-public:
-  FunctionTypeContext(pybind11::list, pybind11::list);
-  FunctionTypeContext(WasmEdge_FunctionTypeContext *Hfcxt);
-  ~FunctionTypeContext();
-  WasmEdge_FunctionTypeContext *get();
-  uint32_t get_param_len();
-  pybind11::list get_param_types(const uint32_t &);
-  uint32_t get_ret_len();
-  pybind11::list get_ret_types(const uint32_t &);
-};
-
-class Function {
-private:
-  WasmEdge_FunctionInstanceContext *HostFuncCxt;
-  function_utility *func_util;
-
-public:
-  Function(FunctionTypeContext &, pybind11::function, uint64_t &);
-  ~Function();
-  WasmEdge_FunctionInstanceContext *get();
-  FunctionTypeContext get_func_type();
-};
-
-class MemoryTypeCxt {
-private:
-  WasmEdge_MemoryTypeContext *MemTypeCxt;
-
-public:
-  MemoryTypeCxt(WasmEdge_Limit &);
-  ~MemoryTypeCxt();
-  WasmEdge_MemoryTypeContext *get();
-};
-
-class Memory {
-private:
-  WasmEdge_MemoryInstanceContext *HostMemory;
-  bool delete_mem = true;
-
-public:
-  Memory(MemoryTypeCxt &);
-  Memory(WasmEdge_MemoryInstanceContext *, bool);
-  ~Memory();
-  pysdk::result set_data(pybind11::tuple, const uint32_t &);
-  uint32_t get_page_size();
-  result grow_page(const uint32_t &);
-  pybind11::tuple get_data(const uint32_t &, const uint32_t &);
-};
-
-class TableTypeCxt {
-private:
-  WasmEdge_TableTypeContext *TabTypeCxt;
-  bool external = false;
-
-public:
-  TableTypeCxt(WasmEdge_RefType &, WasmEdge_Limit &);
-  TableTypeCxt(const WasmEdge_TableTypeContext *);
-  ~TableTypeCxt();
-  WasmEdge_TableTypeContext *get();
-};
-
-class Table {
-private:
-  WasmEdge_TableInstanceContext *HostTable;
-
-public:
-  Table(TableTypeCxt &);
-  ~Table();
-  WasmEdge_TableInstanceContext *get();
-  TableTypeCxt get_type();
-  uint32_t get_size();
-  result grow_size(const uint32_t &);
-  result set_data(Value &, const uint32_t &);
-  pybind11::tuple get_data(const uint32_t &);
-};
-
-class GlobalTypeCxt {
-private:
-  WasmEdge_GlobalTypeContext *GlobTypeCxt;
-  bool delete_cxt = true;
-
-public:
-  GlobalTypeCxt(const WasmEdge_ValType &, const WasmEdge_Mutability &);
-  GlobalTypeCxt(WasmEdge_GlobalTypeContext *, bool);
-  ~GlobalTypeCxt();
-  WasmEdge_GlobalTypeContext *get();
+  result instantiate(Store &, ASTModuleCxt &);
+  pybind11::tuple invoke(Store &, std::string &, pybind11::list);
 };
 
 class Statistics {
@@ -329,7 +351,7 @@ public:
   result register_module_from_file(std::string &, std::string &);
   result register_module_from_ast(std::string &, ASTModuleCxt &);
   result register_module_from_buffer(std::string &, pybind11::tuple);
-  result register_module_from_import_object(pysdk::import_object &);
+  result register_module_from_import_object(import_object &);
 
   pybind11::tuple execute_registered(std::string &, std::string &,
                                      pybind11::list, const uint32_t &);
@@ -347,12 +369,12 @@ public:
   Statistics get_statistics_context();
   Store get_store_cxt();
   result instantiate();
-  result load_from_ast(pysdk::ASTModuleCxt &);
+  result load_from_ast(ASTModuleCxt &);
   result load_from_buffer(pybind11::tuple);
   result load_from_file(std::string &);
 
-  pybind11::tuple run_from_ast(pysdk::ASTModuleCxt &, std::string &,
-                               pybind11::tuple, uint32_t &);
+  pybind11::tuple run_from_ast(ASTModuleCxt &, std::string &, pybind11::tuple,
+                               uint32_t &);
   pybind11::tuple run_from_buffer(pybind11::tuple, pybind11::tuple,
                                   std::string &, uint32_t &);
   pybind11::tuple run_from_wasm_file(std::string &, std::string &,

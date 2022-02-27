@@ -76,7 +76,7 @@ WasmEdge Rust SDK 涉及两个 Rust crate [wasmedge-sys](https://crates.io/crate
 
 * 通过 WasmEdge docker image
 
-如果选择通过 WasmEdge docker镜像 来构建容器进行开发，则预构建 WasmEdge 二进制包默认位于 `$HOME/.wasmedge` 目录中， wasmedge-sys 的构建脚本 (build.rs) 可以自动检测并构建 crate。
+如果选择通过 WasmEdge docker 镜像来构建容器进行开发，则预构建 WasmEdge 二进制包默认位于 `$HOME/.wasmedge` 目录中， wasmedge-sys 的构建脚本 (build.rs) 可以自动检测并构建 crate。
 
 ## 案例
 

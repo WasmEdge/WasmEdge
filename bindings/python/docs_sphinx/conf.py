@@ -32,7 +32,6 @@ extensions = [
     "sphinx.ext.intersphinx",
     "sphinx.ext.autosummary",
     "sphinx.ext.napoleon",
-    "sphinx_rtd_dark_mode",
 ]
 
 autosummary_generate = True

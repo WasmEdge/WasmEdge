@@ -46,6 +46,7 @@ help:
 	@echo "  linkcheck  to check all external links for integrity"
 	@echo "  doctest    to run all doctests embedded in the documentation (if enabled)"
 	@echo "  coverage   to run coverage check of the documentation (if enabled)"
+	@echo "  serve   	to start python server at 8000"
 
 .PHONY: clean
 clean:
@@ -56,6 +57,10 @@ html:
 	$(SPHINXBUILD) -b html $(ALLSPHINXOPTS) $(BUILDDIR)/html
 	@echo
 	@echo "Build finished. The HTML pages are in $(BUILDDIR)/html."
+
+.PHONY: serve
+serve:
+	@python -m http.server 8000 -d _build/html/
 
 .PHONY: dirhtml
 dirhtml:

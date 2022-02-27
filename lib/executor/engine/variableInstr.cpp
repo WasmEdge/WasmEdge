@@ -33,12 +33,11 @@ Expect<void> Executor::runLocalTeeOp(Runtime::StackManager &StackMgr,
 
 Expect<void> Executor::runGlobalGetOp(Runtime::StoreManager &StoreMgr,
                                       Runtime::StackManager &StackMgr,
-                                      uint32_t Idx,
-                                      ValType Type) noexcept {
+                                      uint32_t Idx, ValType Type) noexcept {
   auto *GlobInst = getGlobInstByIdx(StoreMgr, StackMgr, Idx);
   assuming(GlobInst);
   assuming(GlobInst->getGlobalType().getValType() == Type);
-  StackMgr.push(GlobInst->getGlobalType().getValType(), GlobInst->getValue());
+  StackMgr.push(Type, GlobInst->getValue());
   return {};
 }
 
@@ -49,7 +48,7 @@ Expect<void> Executor::runGlobalSetOp(Runtime::StoreManager &StoreMgr,
   auto *GlobInst = getGlobInstByIdx(StoreMgr, StackMgr, Idx);
   assuming(GlobInst);
   assuming(GlobInst->getGlobalType().getValType() == Type);
-  GlobInst->getValue() = StackMgr.popUnknown();
+  GlobInst->getValue() = StackMgr.pop(Type);
   return {};
 }
 

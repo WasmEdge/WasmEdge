@@ -500,8 +500,11 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
     return StackTrans({}, {VType::FuncRef});
 
   // Parametric Instructions.
-  case OpCode::Drop:
+  case OpCode::Drop: {
+    const_cast<AST::Instruction &>(Instr).getType() =
+        VTypeToAST(ValStack.back());
     return StackTrans({VType::Unknown}, {});
+  }
   case OpCode::Select: {
     // Pop I32.
     if (auto Res = popType(VType::I32); !Res) {
@@ -538,8 +541,10 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
     }
     // Push value.
     if (T1 == VType::Unknown) {
+      const_cast<AST::Instruction &>(Instr).getType() = VTypeToAST(T2);
       pushType(T2);
     } else {
+      const_cast<AST::Instruction &>(Instr).getType() = VTypeToAST(T1);
       pushType(T1);
     }
     return {};

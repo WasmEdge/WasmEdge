@@ -145,20 +145,30 @@ Expect<void> Executor::execute(Runtime::StoreManager &StoreMgr,
 
     // Parametric Instructions
     case OpCode::Drop:
-      StackMgr.popUnknown();
+      StackMgr.pop(Instr.getType());
       return {};
     case OpCode::Select:
     case OpCode::Select_t: {
       // Pop the i32 value and select values from stack.
       uint32_t CondVal = StackMgr.pop<uint32_t>();
-      ValVariant Val2 = StackMgr.popUnknown();
-      ValVariant Val1 = StackMgr.popUnknown();
+      ValType Type;
+      if (Instr.getOpCode() == OpCode::Select) {
+        Type = Instr.getType();
+      } else if (Instr.getOpCode() == OpCode::Select_t) {
+        Type = Instr.getValTypeList()[0];
+      } else {
+        assumingUnreachable();
+      }
 
       // Select the value.
       if (CondVal == 0) {
-        StackMgr.pushUnknown(Val2);
+        ValVariant Val2 = StackMgr.pop(Type);
+        StackMgr.pop(Type);
+        StackMgr.push(Type, Val2);
       } else {
-        StackMgr.pushUnknown(Val1);
+        StackMgr.pop(Type);
+        ValVariant Val1 = StackMgr.pop(Type);
+        StackMgr.push(Type, Val1);
       }
       return {};
     }

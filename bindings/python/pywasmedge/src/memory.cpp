@@ -5,8 +5,14 @@ pysdk::MemoryTypeCxt::MemoryTypeCxt(WasmEdge_Limit &Lim) {
   MemTypeCxt = WasmEdge_MemoryTypeCreate(Lim);
 }
 
+pysdk::MemoryTypeCxt::MemoryTypeCxt(WasmEdge_MemoryTypeContext *cxt, bool del) {
+  MemTypeCxt = cxt;
+  delete_cxt = del;
+}
+
 pysdk::MemoryTypeCxt::~MemoryTypeCxt() {
-  WasmEdge_MemoryTypeDelete(MemTypeCxt);
+  if (delete_cxt)
+    WasmEdge_MemoryTypeDelete(MemTypeCxt);
 }
 
 WasmEdge_MemoryTypeContext *pysdk::MemoryTypeCxt::get() { return MemTypeCxt; }

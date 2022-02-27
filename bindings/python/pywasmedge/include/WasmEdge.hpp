@@ -121,9 +121,11 @@ public:
 class MemoryTypeCxt {
 private:
   WasmEdge_MemoryTypeContext *MemTypeCxt;
+  bool delete_cxt = true;
 
 public:
   MemoryTypeCxt(WasmEdge_Limit &);
+  MemoryTypeCxt(WasmEdge_MemoryTypeContext *, bool);
   ~MemoryTypeCxt();
   WasmEdge_MemoryTypeContext *get();
 };
@@ -255,8 +257,26 @@ public:
   ~ASTModuleCxt();
   WasmEdge_ASTModuleContext *get();
   WasmEdge_ASTModuleContext **get_addr();
-  pybind11::list listExports();
-  pybind11::list listImports();
+  pybind11::list ListExports(uint32_t &);
+  pybind11::list ListImports(uint32_t &);
+  uint32_t ListImportsLength();
+  uint32_t ListExportsLength();
+};
+
+class ExportType {
+private:
+  WasmEdge_ExportTypeContext *ExpoCxt;
+
+public:
+  ExportType();
+  ExportType(WasmEdge_ExportTypeContext *);
+  ~ExportType();
+  WasmEdge_ExportTypeContext *get();
+  std::string GetExternalName();
+  WasmEdge_ExternalType GetExternalType();
+  FunctionTypeContext GetFunctionType(ASTModuleCxt &);
+  GlobalTypeCxt GetGlobalType(ASTModuleCxt &);
+  MemoryTypeCxt GetMemoryType(ASTModuleCxt &);
 };
 
 class Loader {

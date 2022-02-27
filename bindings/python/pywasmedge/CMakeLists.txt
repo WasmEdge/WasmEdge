@@ -15,6 +15,7 @@ pybind11_add_module(WasmEdge
     src/global.cpp
     src/table.cpp
     src/statistics.cpp
+    src/export.cpp
 )
 INCLUDE_DIRECTORIES("include/")
 set_target_properties(WasmEdge PROPERTIES 

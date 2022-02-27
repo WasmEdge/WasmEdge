@@ -176,10 +176,20 @@ PYBIND11_MODULE(WasmEdge, module) {
       .def("ListTableRegisteredLength",
            &pysdk::Store::ListTableRegisteredLength);
 
+  pybind11::class_<pysdk::ExportType>(module, "ExportType")
+      .def(pybind11::init())
+      .def("GetExternalName", &pysdk::ExportType::GetExternalName)
+      .def("GetExternalType", &pysdk::ExportType::GetExternalType)
+      .def("GetFunctionType", &pysdk::ExportType::GetFunctionType)
+      .def("GetGlobalType", &pysdk::ExportType::GetGlobalType)
+      .def("GetMemoryType", &pysdk::ExportType::GetMemoryType);
+
   pybind11::class_<pysdk::ASTModuleCxt>(module, "ASTModule")
       .def(pybind11::init())
-      .def("imports", &pysdk::ASTModuleCxt::listImports)
-      .def("exports", &pysdk::ASTModuleCxt::listExports);
+      .def("ListExports", &pysdk::ASTModuleCxt::ListExports)
+      .def("ListExportsLength", &pysdk::ASTModuleCxt::ListExportsLength)
+      .def("ListImports", &pysdk::ASTModuleCxt::ListImports)
+      .def("ListImportsLength", &pysdk::ASTModuleCxt::ListImportsLength);
 
   /* Loader parse function overload */
   auto (pysdk::Loader::*parse_file)(pysdk::ASTModuleCxt &, std::string &) =

@@ -142,6 +142,14 @@ public:
   uint32_t getSourceIndex() const noexcept { return Data.Indices.SourceIdx; }
   uint32_t &getSourceIndex() noexcept { return Data.Indices.SourceIdx; }
 
+  /// Getter and setter of stack offset.
+  uint32_t getStackOffset() const noexcept { return Data.Indices.StackOffset; }
+  uint32_t &getStackOffset() noexcept { return Data.Indices.StackOffset; }
+
+  /// Getter and setter of value type.
+  ValType getType() const noexcept { return Data.Indices.Type; }
+  ValType &getType() noexcept { return Data.Indices.Type; }
+
   /// Getter and setter of memory alignment.
   uint32_t getMemoryAlign() const noexcept { return Data.Memories.MemAlign; }
   uint32_t &getMemoryAlign() noexcept { return Data.Memories.MemAlign; }
@@ -202,10 +210,12 @@ private:
       uint32_t JumpElse;
       BlockType ResType;
     } Blocks;
-    // Type 2: TargetIdx and SourceIdx.
+    // Type 2: TargetIdx, SourceIdx, StackOffset and ValType.
     struct {
       uint32_t TargetIdx;
       uint32_t SourceIdx;
+      uint32_t StackOffset;
+      ValType Type;
     } Indices;
     // Type 3: TargetIdx and LabelList.
     struct {

@@ -120,17 +120,6 @@ public:
     }
   }
 
-  /// Unsafe Pop and return the top entry.
-  ValVariant popUnknown() noexcept {
-    Value Val = std::move(ValueStack.back());
-    ValueStack.pop_back();
-    return Val;
-  }
-
-  void pushUnknown(ValVariant Val) noexcept {
-    ValueStack.push_back(Val);
-  }
-
   template <typename T,
             typename = std::enable_if_t<
                 !std::is_same_v<std::remove_cv_t<std::remove_reference_t<T>>,

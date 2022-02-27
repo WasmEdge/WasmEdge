@@ -143,6 +143,7 @@ public:
   uint32_t get_page_size();
   result grow_page(const uint32_t &);
   pybind11::tuple get_data(const uint32_t &, const uint32_t &);
+  MemoryTypeCxt get_type();
 };
 
 class TableTypeCxt {

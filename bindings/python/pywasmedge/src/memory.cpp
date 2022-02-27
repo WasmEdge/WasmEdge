@@ -67,4 +67,11 @@ uint32_t pysdk::Memory::get_page_size() {
 pysdk::result pysdk::Memory::grow_page(const uint32_t &size) {
   return pysdk::result(WasmEdge_MemoryInstanceGrowPage(HostMemory, size));
 }
+
+pysdk::MemoryTypeCxt pysdk::Memory::get_type() {
+  return pysdk::MemoryTypeCxt(
+      const_cast<WasmEdge_MemoryTypeContext *>(
+          WasmEdge_MemoryInstanceGetMemoryType(HostMemory)),
+      false);
+}
 /* --------------- Memory End -------------------------------- */

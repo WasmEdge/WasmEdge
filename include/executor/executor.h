@@ -284,17 +284,17 @@ private:
                                  AST::InstrView::iterator &PC) noexcept;
   /// ======= Variable instructions =======
   Expect<void> runLocalGetOp(Runtime::StackManager &StackMgr,
-                             uint32_t StackOffset) const noexcept;
+                             uint32_t StackOffset, ValType Type) const noexcept;
   Expect<void> runLocalSetOp(Runtime::StackManager &StackMgr,
-                             uint32_t StackOffset) const noexcept;
+                             uint32_t StackOffset, ValType Type) const noexcept;
   Expect<void> runLocalTeeOp(Runtime::StackManager &StackMgr,
-                             uint32_t StackOffset) const noexcept;
+                             uint32_t StackOffset, ValType Type) const noexcept;
   Expect<void> runGlobalGetOp(Runtime::StoreManager &StoreMgr,
                               Runtime::StackManager &StackMgr,
-                              const uint32_t Idx) noexcept;
+                              const uint32_t Idx, ValType Type) noexcept;
   Expect<void> runGlobalSetOp(Runtime::StoreManager &StoreMgr,
                               Runtime::StackManager &StackMgr,
-                              const uint32_t Idx) noexcept;
+                              const uint32_t Idx, ValType Type) noexcept;
   /// ======= Table instructions =======
   Expect<void> runTableGetOp(Runtime::StackManager &StackMgr,
                              Runtime::Instance::TableInstance &TabInst,

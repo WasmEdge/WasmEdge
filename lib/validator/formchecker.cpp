@@ -618,6 +618,7 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
     const_cast<AST::Instruction &>(Instr).getStackOffset() =
         static_cast<uint32_t>(ValStack.size() +
                               (Locals.size() - Instr.getTargetIndex()));
+    const_cast<AST::Instruction &>(Instr).getType() = VTypeToAST(TExpect);
     if (Instr.getOpCode() == OpCode::Local__get) {
       return StackTrans({}, {TExpect});
     } else if (Instr.getOpCode() == OpCode::Local__set) {
@@ -642,6 +643,7 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
           Instr.getTargetIndex(), static_cast<uint32_t>(Globals.size()));
     }
     VType ExpT = Globals[Instr.getTargetIndex()].first;
+    const_cast<AST::Instruction &>(Instr).getType() = VTypeToAST(ExpT);
     if (Instr.getOpCode() == OpCode::Global__set) {
       return StackTrans({ExpT}, {});
     } else {

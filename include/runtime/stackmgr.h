@@ -54,15 +54,6 @@ public:
   /// Getter of stack size.
   size_t size() const noexcept { return ValueStack.size(); }
 
-  /// Unsafe Getter of top entry of stack.
-  Value &getTop() { return ValueStack.back(); }
-
-  /// Unsafe Getter of top N-th value entry of stack.
-  Value &getTopN(uint32_t Offset) noexcept {
-    assuming(0 < Offset && Offset <= ValueStack.size());
-    return ValueStack[ValueStack.size() - Offset];
-  }
-
   /// Push a new value entry to stack.
   template <typename T,
             typename = std::enable_if_t<
@@ -138,6 +129,71 @@ public:
 
   void pushUnknown(ValVariant Val) noexcept {
     ValueStack.push_back(Val);
+  }
+
+  template <typename T,
+            typename = std::enable_if_t<
+                !std::is_same_v<std::remove_cv_t<std::remove_reference_t<T>>,
+                                ValVariant> &&
+                !std::is_same_v<std::remove_cv_t<std::remove_reference_t<T>>,
+                                RefVariant>>>
+  T getTopN(uint32_t Offset) const noexcept {
+    assuming(0 < Offset && Offset <= ValueStack.size());
+    T V = ValueStack[ValueStack.size() - Offset].get<T>();
+    return V;
+  }
+
+  ValVariant getTopN(uint32_t Offset, ValType Type) const noexcept {
+    switch (Type) {
+    case ValType::I32:
+      return getTopN<uint32_t>(Offset);
+    case ValType::F32:
+      return getTopN<float>(Offset);
+    case ValType::I64:
+      return getTopN<uint64_t>(Offset);
+    case ValType::F64:
+      return getTopN<double>(Offset);
+    case ValType::FuncRef:
+    case ValType::ExternRef:
+      return getTopN<UnknownRef>(Offset);
+    case ValType::V128:
+      return getTopN<uint128_t>(Offset);
+    case ValType::None:
+    default:
+      assumingUnreachable();
+    }
+  }
+
+  template <typename T,
+            typename = std::enable_if_t<
+                !std::is_same_v<std::remove_cv_t<std::remove_reference_t<T>>,
+                                ValVariant> &&
+                !std::is_same_v<std::remove_cv_t<std::remove_reference_t<T>>,
+                                RefVariant>>>
+  void setTopN(uint32_t Offset, T Val) noexcept {
+    assuming(0 < Offset && Offset <= ValueStack.size());
+    ValueStack[ValueStack.size() - Offset].get<T>() = Val;
+  }
+
+  void setTopN(uint32_t Offset, ValType Type, ValVariant Val) noexcept {
+    switch (Type) {
+    case ValType::I32:
+      return setTopN<uint32_t>(Offset, Val.get<uint32_t>());
+    case ValType::F32:
+      return setTopN<float>(Offset, Val.get<float>());
+    case ValType::I64:
+      return setTopN<uint64_t>(Offset, Val.get<uint64_t>());
+    case ValType::F64:
+      return setTopN<double>(Offset, Val.get<double>());
+    case ValType::FuncRef:
+    case ValType::ExternRef:
+      return setTopN<UnknownRef>(Offset, Val.get<UnknownRef>());
+    case ValType::V128:
+      return setTopN<uint128_t>(Offset, Val.get<uint128_t>());
+    case ValType::None:
+    default:
+      assumingUnreachable();
+    }
   }
 
   /// Push a new frame entry to stack.

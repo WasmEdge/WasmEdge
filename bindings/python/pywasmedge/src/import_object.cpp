@@ -123,10 +123,6 @@ pysdk::ImportTypeContext::ImportTypeContext() {}
 
 pysdk::ImportTypeContext::ImportTypeContext(WasmEdge_ImportTypeContext *cxt) {
   Cxt = cxt;
-  // TODO:
-  // WasmEdge_ImportTypeGetMemoryType();
-  // WasmEdge_ImportTypeGetModuleName();
-  // WasmEdge_ImportTypeGetTableType();
 }
 
 pysdk::ImportTypeContext::~ImportTypeContext() {}
@@ -161,4 +157,24 @@ pysdk::ImportTypeContext::get_global_type_cxt(pysdk::ASTModuleCxt &ast_cxt) {
 }
 
 WasmEdge_ImportTypeContext *pysdk::ImportTypeContext::get() { return Cxt; }
+
+pysdk::MemoryTypeCxt
+pysdk::ImportTypeContext::GetMemoryType(pysdk::ASTModuleCxt &ast_cxt) {
+  return pysdk::MemoryTypeCxt(
+      const_cast<WasmEdge_MemoryTypeContext *>(
+          WasmEdge_ImportTypeGetMemoryType(ast_cxt.get(), Cxt)),
+      false);
+}
+
+std::string pysdk::ImportTypeContext::GetModuleName() {
+  WasmEdge_String str = WasmEdge_ImportTypeGetModuleName(Cxt);
+  char temp[str.Length];
+  WasmEdge_StringCopy(str, temp, str.Length);
+  return std::string(temp);
+}
+
+pysdk::TableTypeCxt
+pysdk::ImportTypeContext::GetTableType(pysdk::ASTModuleCxt &ast) {
+  return pysdk::TableTypeCxt(WasmEdge_ImportTypeGetTableType(ast.get(), Cxt));
+}
 /* --------------- ImportTypeContext End -----------------------------------*/

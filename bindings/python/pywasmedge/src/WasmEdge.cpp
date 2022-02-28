@@ -257,6 +257,9 @@ PYBIND11_MODULE(WasmEdge, module) {
       .def("GetFunctionType", &pysdk::ImportTypeContext::get_function_type_cxt)
       .def("GetExternalType", &pysdk::ImportTypeContext::get_external_type)
       .def("GetGlobalType", &pysdk::ImportTypeContext::get_global_type_cxt)
+      .def("GetMemoryType", &pysdk::ImportTypeContext::GetMemoryType)
+      .def("GetModuleName", &pysdk::ImportTypeContext::GetModuleName)
+      .def("GetTableType", &pysdk::ImportTypeContext::GetTableType)
       .def("GetExternalName", &pysdk::ImportTypeContext::get_external_name);
 
   pybind11::class_<pysdk::import_object>(module, "ImportObject")

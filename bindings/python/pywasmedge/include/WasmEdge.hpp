@@ -353,6 +353,9 @@ public:
   WasmEdge_ExternalType get_external_type();
   FunctionTypeContext get_function_type_cxt(ASTModuleCxt &);
   GlobalTypeCxt get_global_type_cxt(ASTModuleCxt &);
+  MemoryTypeCxt GetMemoryType(ASTModuleCxt &);
+  std::string GetModuleName();
+  TableTypeCxt GetTableType(ASTModuleCxt &);
 };
 
 class import_object {

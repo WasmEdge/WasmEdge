@@ -294,6 +294,12 @@ PYBIND11_MODULE(WasmEdge, module) {
         return WasmEdge_GlobalTypeGetValType(g.get());
       });
 
+  pybind11::class_<pysdk::Global>(module, "Global")
+      .def(pybind11::init())
+      .def("GetGlobalType", &pysdk::Global::GetGlobalType)
+      .def("GetValue", &pysdk::Global::GetValue)
+      .def("SetValue", &pysdk::Global::SetValue);
+
   pybind11::class_<pysdk::Memory>(module, "Memory")
       .def(pybind11::init<pysdk::MemoryTypeCxt &>())
       .def("SetData", &pysdk::Memory::set_data)

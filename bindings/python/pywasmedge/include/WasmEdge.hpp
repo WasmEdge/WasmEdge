@@ -112,10 +112,14 @@ private:
   bool delete_cxt = true;
 
 public:
+  Global();
   Global(GlobalTypeCxt &, Value &);
   Global(WasmEdge_GlobalInstanceContext *, bool);
   ~Global();
   WasmEdge_GlobalInstanceContext *get();
+  GlobalTypeCxt GetGlobalType();
+  Value GetValue();
+  void SetValue(Value &);
 };
 
 class MemoryTypeCxt {

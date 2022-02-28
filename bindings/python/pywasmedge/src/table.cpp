@@ -16,6 +16,14 @@ pysdk::TableTypeCxt::~TableTypeCxt() {
 }
 
 WasmEdge_TableTypeContext *pysdk::TableTypeCxt::get() { return TabTypeCxt; }
+
+WasmEdge_Limit pysdk::TableTypeCxt::GetLimit() {
+  return WasmEdge_TableTypeGetLimit(TabTypeCxt);
+}
+
+WasmEdge_RefType pysdk::TableTypeCxt::GetRefType() {
+  return WasmEdge_TableTypeGetRefType(TabTypeCxt);
+}
 /* --------------- TableTypeCxt End -------------------------------- */
 
 /* --------------- Table End -------------------------------- */

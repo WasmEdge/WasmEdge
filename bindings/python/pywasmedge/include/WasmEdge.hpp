@@ -161,6 +161,8 @@ public:
   TableTypeCxt(const WasmEdge_TableTypeContext *);
   ~TableTypeCxt();
   WasmEdge_TableTypeContext *get();
+  WasmEdge_Limit GetLimit();
+  WasmEdge_RefType GetRefType();
 };
 
 class Table {

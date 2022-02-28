@@ -318,13 +318,8 @@ PYBIND11_MODULE(WasmEdge, module) {
 
   pybind11::class_<pysdk::TableTypeCxt>(module, "TableType")
       .def(pybind11::init<WasmEdge_RefType &, WasmEdge_Limit &>())
-      .def("GetLimit",
-           [](pysdk::TableTypeCxt &tcxt) {
-             return WasmEdge_TableTypeGetLimit(tcxt.get());
-           })
-      .def("GetRefType", [](pysdk::TableTypeCxt &tcxt) {
-        return WasmEdge_TableTypeGetRefType(tcxt.get());
-      });
+      .def("GetLimit", &pysdk::TableTypeCxt::GetLimit)
+      .def("GetRefType", &pysdk::TableTypeCxt::GetRefType);
 
   pybind11::class_<pysdk::Table>(module, "Table")
       .def(pybind11::init<pysdk::TableTypeCxt &>())

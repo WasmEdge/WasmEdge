@@ -38,12 +38,10 @@
 /// WasmEdge WASM value struct.
 typedef struct WasmEdge_Value {
   uint128_t Value;
-  // The value type is used in the parameters of invoking functions. For the
-  // return values of invoking functions, this member will always be
-  // `WasmEdge_ValType_I32`. Users should use APIs to retrieve the WASM
-  // function's `WasmEdge_FunctionTypeContext` to get the actual return list
-  // value types, and then use the corresponding `WasmEdge_ValueGet` functions
-  // to retrieve the value.
+  // The value type `Type` is used in the parameters or returns of invoking
+  // functions. Developers should use the corresponding `WasmEdge_ValueGen`
+  // functions to generate this struct, and the `WasmEdge_ValueGet` functions to
+  // retrieve the value from this struct.
   enum WasmEdge_ValType Type;
 } WasmEdge_Value;
 
@@ -112,6 +110,9 @@ typedef struct WasmEdge_ExecutorContext WasmEdge_ExecutorContext;
 
 /// Opaque struct of WasmEdge store.
 typedef struct WasmEdge_StoreContext WasmEdge_StoreContext;
+
+/// Opaque struct of WasmEdge module instance.
+typedef struct WasmEdge_ModuleInstanceContext WasmEdge_ModuleInstanceContext;
 
 /// Opaque struct of WasmEdge function instance.
 typedef struct WasmEdge_FunctionInstanceContext
@@ -1524,7 +1525,7 @@ WASMEDGE_CAPI_EXPORT extern WasmEdge_Result WasmEdge_ExecutorInvokeRegistered(
 WASMEDGE_CAPI_EXPORT extern void
 WasmEdge_ExecutorDelete(WasmEdge_ExecutorContext *Cxt);
 
-// <<<<<<<< WasmEdge executor functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+// <<<<<<<< WasmEdge executor functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 // >>>>>>>> WasmEdge store functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
@@ -1657,7 +1658,7 @@ WasmEdge_StoreFindMemoryRegistered(WasmEdge_StoreContext *Cxt,
                                    const WasmEdge_String ModuleName,
                                    const WasmEdge_String MemoryName);
 
-/// Get the global instance context by the instance address.
+/// Get the global instance context by the global name.
 ///
 /// After instantiating a WASM module, the WASM module is registered into the
 /// store context as an anonymous module. Then you can call this function to get
@@ -1697,6 +1698,36 @@ WASMEDGE_CAPI_EXPORT extern WasmEdge_GlobalInstanceContext *
 WasmEdge_StoreFindGlobalRegistered(WasmEdge_StoreContext *Cxt,
                                    const WasmEdge_String ModuleName,
                                    const WasmEdge_String GlobalName);
+
+/// Get the active anonymous module instance context.
+///
+/// After instantiating a WASM module, the WASM module is registered into the
+/// store context as an anonymous module. Then you can call this function to get
+/// the anonymous module instance context. If you want to get the registered and
+/// named module instance, please call `WasmEdge_StoreFindModule` instead.
+///
+/// This function is thread-safe.
+///
+/// \param Cxt the WasmEdge_StoreContext.
+///
+/// \returns pointer to the module instance context. NULL if not found.
+WASMEDGE_CAPI_EXPORT extern const WasmEdge_ModuleInstanceContext *
+WasmEdge_StoreGetActiveModule(WasmEdge_StoreContext *Cxt);
+
+/// Get the module instance context by the module name.
+///
+/// After registering a WASM module, you can call this function to get the
+/// registered module instance context by the module name.
+///
+/// This function is thread-safe.
+///
+/// \param Cxt the WasmEdge_StoreContext.
+/// \param Name the module name WasmEdge_String.
+///
+/// \returns pointer to the module instance context. NULL if not found.
+WASMEDGE_CAPI_EXPORT extern const WasmEdge_ModuleInstanceContext *
+WasmEdge_StoreFindModule(WasmEdge_StoreContext *Cxt,
+                         const WasmEdge_String Name);
 
 /// Get the length of exported function list in store.
 ///
@@ -2029,6 +2060,209 @@ WASMEDGE_CAPI_EXPORT extern void
 WasmEdge_StoreDelete(WasmEdge_StoreContext *Cxt);
 
 // <<<<<<<< WasmEdge store functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+// >>>>>>>> WasmEdge module instance functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+/// Get the export module name of a module instance.
+///
+/// The returned string object is linked to the module name of the module
+/// instance, and the caller should __NOT__ call the `WasmEdge_StringDelete`.
+///
+/// \param Cxt the WasmEdge_ModuleInstanceContext.
+///
+/// \returns string object. Length will be 0 and Buf will be NULL if failed.
+WASMEDGE_CAPI_EXPORT extern WasmEdge_String
+WasmEdge_ModuleInstanceGetModuleName(const WasmEdge_ModuleInstanceContext *Cxt);
+
+/// Get the exported function instance context of a module instance.
+///
+/// The result function instance context links to the function instance in the
+/// store context and owned by the store context, and the caller should __NOT__
+/// call the `WasmEdge_FunctionInstanceDelete`.
+///
+/// This function is thread-safe.
+///
+/// \param Cxt the WasmEdge_ModuleInstanceContext.
+/// \param StoreCxt the WasmEdge_StoreContext.
+/// \param Name the function name WasmEdge_String.
+///
+/// \returns pointer to the function instance context. NULL if not found.
+WASMEDGE_CAPI_EXPORT extern WasmEdge_FunctionInstanceContext *
+WasmEdge_ModuleInstanceFindFunction(const WasmEdge_ModuleInstanceContext *Cxt,
+                                    WasmEdge_StoreContext *StoreCxt,
+                                    const WasmEdge_String Name);
+
+/// Get the exported table instance context of a module instance.
+///
+/// The result table instance context links to the table instance in the store
+/// context and owned by the store context, and the caller should __NOT__ call
+/// the `WasmEdge_TableInstanceDelete`.
+///
+/// This function is thread-safe.
+///
+/// \param Cxt the WasmEdge_ModuleInstanceContext.
+/// \param StoreCxt the WasmEdge_StoreContext.
+/// \param Name the table name WasmEdge_String.
+///
+/// \returns pointer to the table instance context. NULL if not found.
+WASMEDGE_CAPI_EXPORT extern WasmEdge_TableInstanceContext *
+WasmEdge_ModuleInstanceFindTable(const WasmEdge_ModuleInstanceContext *Cxt,
+                                 WasmEdge_StoreContext *StoreCxt,
+                                 const WasmEdge_String Name);
+
+/// Get the exported memory instance context of a module instance.
+///
+/// The result memory instance context links to the memory instance in the store
+/// context and owned by the store context, and the caller should __NOT__ call
+/// the `WasmEdge_MemoryInstanceDelete`.
+///
+/// This function is thread-safe.
+///
+/// \param Cxt the WasmEdge_ModuleInstanceContext.
+/// \param StoreCxt the WasmEdge_StoreContext.
+/// \param Name the memory name WasmEdge_String.
+///
+/// \returns pointer to the memory instance context. NULL if not found.
+WASMEDGE_CAPI_EXPORT extern WasmEdge_MemoryInstanceContext *
+WasmEdge_ModuleInstanceFindMemory(const WasmEdge_ModuleInstanceContext *Cxt,
+                                  WasmEdge_StoreContext *StoreCxt,
+                                  const WasmEdge_String Name);
+
+/// Get the exported global instance context of a module instance.
+///
+/// The result global instance context links to the global instance in the store
+/// context and owned by the store context, and the caller should __NOT__ call
+/// the `WasmEdge_GlobalInstanceDelete`.
+///
+/// This function is thread-safe.
+///
+/// \param Cxt the WasmEdge_ModuleInstanceContext.
+/// \param StoreCxt the WasmEdge_StoreContext.
+/// \param Name the global name WasmEdge_String.
+///
+/// \returns pointer to the global instance context. NULL if not found.
+WASMEDGE_CAPI_EXPORT extern WasmEdge_GlobalInstanceContext *
+WasmEdge_ModuleInstanceFindGlobal(const WasmEdge_ModuleInstanceContext *Cxt,
+                                  WasmEdge_StoreContext *StoreCxt,
+                                  const WasmEdge_String Name);
+
+/// Get the length of exported function list of a module instance.
+///
+/// This function is thread-safe.
+///
+/// \param Cxt the WasmEdge_ModuleInstanceContext.
+///
+/// \returns length of the exported function list.
+WASMEDGE_CAPI_EXPORT extern uint32_t WasmEdge_ModuleInstanceListFunctionLength(
+    const WasmEdge_ModuleInstanceContext *Cxt);
+
+/// List the exported function names of a module instance.
+///
+/// The returned function names filled into the `Names` array are linked to the
+/// exported names of functions of the module intance context, and the caller
+/// should __NOT__ call the `WasmEdge_StringDelete`.
+/// If the `Names` buffer length is smaller than the result of the exported
+/// function list size, the overflowed return values will be discarded.
+///
+/// This function is thread-safe.
+///
+/// \param Cxt the WasmEdge_ModuleInstanceContext.
+/// \param [out] Names the output WasmEdge_String buffer of the function names.
+/// \param Len the buffer length.
+///
+/// \returns actual exported function list size.
+WASMEDGE_CAPI_EXPORT extern uint32_t
+WasmEdge_ModuleInstanceListFunction(const WasmEdge_ModuleInstanceContext *Cxt,
+                                    WasmEdge_String *Names, const uint32_t Len);
+
+/// Get the length of exported table list of a module instance.
+///
+/// This function is thread-safe.
+///
+/// \param Cxt the WasmEdge_ModuleInstanceContext.
+///
+/// \returns length of the exported table list.
+WASMEDGE_CAPI_EXPORT extern uint32_t WasmEdge_ModuleInstanceListTableLength(
+    const WasmEdge_ModuleInstanceContext *Cxt);
+
+/// List the exported table names of a module instance.
+///
+/// The returned table names filled into the `Names` array are linked to the
+/// exported names of tables of the module instance context, and the caller
+/// should __NOT__ call the `WasmEdge_StringDelete`.
+/// If the `Names` buffer length is smaller than the result of the exported
+/// table list size, the overflowed return values will be discarded.
+///
+/// This function is thread-safe.
+///
+/// \param Cxt the WasmEdge_ModuleInstanceContext.
+/// \param [out] Names the output WasmEdge_String buffer of the table names.
+/// \param Len the buffer length.
+///
+/// \returns actual exported table list size.
+WASMEDGE_CAPI_EXPORT extern uint32_t
+WasmEdge_ModuleInstanceListTable(const WasmEdge_ModuleInstanceContext *Cxt,
+                                 WasmEdge_String *Names, const uint32_t Len);
+
+/// Get the length of exported memory list of a module instance.
+///
+/// This function is thread-safe.
+///
+/// \param Cxt the WasmEdge_ModuleInstanceContext.
+///
+/// \returns length of the exported memory list.
+WASMEDGE_CAPI_EXPORT extern uint32_t WasmEdge_ModuleInstanceListMemoryLength(
+    const WasmEdge_ModuleInstanceContext *Cxt);
+
+/// List the exported memory names of a module instance.
+///
+/// The returned memory names filled into the `Names` array are linked to the
+/// exported names of memories of the module instance context, and the caller
+/// should __NOT__ call the `WasmEdge_StringDelete`.
+/// If the `Names` buffer length is smaller than the result of the exported
+/// memory list size, the overflowed return values will be discarded.
+///
+/// This function is thread-safe.
+///
+/// \param Cxt the WasmEdge_ModuleInstanceContext.
+/// \param [out] Names the output WasmEdge_String buffer of the memory names.
+/// \param Len the buffer length.
+///
+/// \returns actual exported memory list size.
+WASMEDGE_CAPI_EXPORT extern uint32_t
+WasmEdge_ModuleInstanceListMemory(const WasmEdge_ModuleInstanceContext *Cxt,
+                                  WasmEdge_String *Names, const uint32_t Len);
+
+/// Get the length of exported global list of a module instance.
+///
+/// This function is thread-safe.
+///
+/// \param Cxt the WasmEdge_ModuleInstanceContext.
+///
+/// \returns length of the exported global list.
+WASMEDGE_CAPI_EXPORT extern uint32_t WasmEdge_ModuleInstanceListGlobalLength(
+    const WasmEdge_ModuleInstanceContext *Cxt);
+
+/// List the exported global names of a module instance.
+///
+/// The returned global names filled into the `Names` array are linked to the
+/// exported names of globals of the module instance context, and the caller
+/// should __NOT__ call the `WasmEdge_StringDelete`.
+/// If the `Names` buffer length is smaller than the result of the exported
+/// global list size, the overflowed return values will be discarded.
+///
+/// This function is thread-safe.
+///
+/// \param Cxt the WasmEdge_ModuleInstanceContext.
+/// \param [out] Names the output WasmEdge_String buffer of the global names.
+/// \param Len the buffer length.
+///
+/// \returns actual exported global list size.
+WASMEDGE_CAPI_EXPORT extern uint32_t
+WasmEdge_ModuleInstanceListGlobal(const WasmEdge_ModuleInstanceContext *Cxt,
+                                  WasmEdge_String *Names, const uint32_t Len);
+
+// <<<<<<<< WasmEdge module instance functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 // >>>>>>>> WasmEdge function instance functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 

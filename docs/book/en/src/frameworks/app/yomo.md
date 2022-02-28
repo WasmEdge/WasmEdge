@@ -10,7 +10,7 @@ However, a challenge for YoMo is to incorporate and manage handler functions wri
 
 WebAssembly provides a lightweight and high-performance software container. It is ideally suited as a runtime for YoMo’s data processing handler functions.
 
-In this article, we will show you how to create a Rust function for Tensorflow-based image classification, compile it into WebAssembly, and then use YoMo to run it as a stream data handler. We use [WasmEdge](https://wasmedge.org/) as our WebAssembly runtime because it offers the highest performance and flexibility compared with other WebAssembly runtimes. It is the only WebAssembly VM that reliably supports Tensorflow. YoMo manages WasmEdge VM instances and the contained WebAssembly bytecode apps through [WasmEdge’s Golang API](https://www.secondstate.io/articles/extend-golang-app-with-webassembly-rust/).
+In this article, we will show you how to create a Rust function for Tensorflow-based image classification, compile it into WebAssembly, and then use YoMo to run it as a stream data handler. We use [WasmEdge](https://wasmedge.org/) as our WebAssembly runtime because it offers the highest performance and flexibility compared with other WebAssembly runtimes. It is the only WebAssembly VM that reliably supports Tensorflow. YoMo manages WasmEdge VM instances and the contained WebAssembly bytecode apps through [WasmEdge’s Golang API](https://github.com/WasmEdge/WasmEdge/blob/master/docs/book/en/src/embed/go.md).
 
 > Source code: <https://github.com/yomorun/yomo-wasmedge-tensorflow>
 
@@ -33,7 +33,7 @@ YoMo CLI version: v0.1.3
 Next, please install the WasmEdge and its Tensorflow shared libraries. [WasmEdge](https://wasmedge.org/) is a leading WebAssembly runtime hosted by the CNCF. We will use it to embed and run WebAssembly programs from YoMo.
 
 ```bash
-wget -qO- https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh | bash -s -- -e all -p /usr/local
+curl -sSf https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh | bash
 ```
 
 Finally, since our demo WebAssembly functions are written in Rust, you will also need a [Rust compiler](https://www.rust-lang.org/tools/install).

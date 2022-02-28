@@ -17,9 +17,9 @@
 
 #if (defined(__cplusplus) && __cplusplus > 201402L) ||                         \
     (defined(_MSVC_LANG) && _MSVC_LANG > 201402L)
+#include "dense_enum_map.h"
 #include <cstdint>
-#include <string>
-#include <unordered_map>
+#include <string_view>
 #endif
 
 #if (defined(__cplusplus) && __cplusplus > 201402L) ||                         \
@@ -28,67 +28,37 @@ namespace WasmEdge {
 
 /// WASM Proposal C++ enumeration class.
 enum class Proposal : uint8_t {
-  ImportExportMutGlobals = 0,
-  NonTrapFloatToIntConversions,
-  SignExtensionOperators,
-  MultiValue,
-  BulkMemoryOperations,
-  ReferenceTypes,
-  SIMD,
-  TailCall,
-  MultiMemories,
-  Annotations,
-  Memory64,
-  ExceptionHandling,
-  Threads,
-  FunctionReferences,
+#define UseProposal
+#define Line(NAME, STRING) NAME,
+#include "enum.inc"
+#undef Line
+#undef UseProposal
   Max
 };
 
-namespace detail {
-
-using namespace std::literals::string_view_literals;
-static inline std::unordered_map<Proposal, std::string_view> ProposalStr = {
-    {Proposal::ImportExportMutGlobals, "Import/Export of mutable globals"sv},
-    {Proposal::NonTrapFloatToIntConversions,
-     "Non-trapping float-to-int conversions"sv},
-    {Proposal::SignExtensionOperators, "Sign-extension operators"sv},
-    {Proposal::MultiValue, "Multi-value returns"sv},
-    {Proposal::BulkMemoryOperations, "Bulk memory operations"sv},
-    {Proposal::ReferenceTypes, "Reference types"sv},
-    {Proposal::SIMD, "Fixed-width SIMD"sv},
-    {Proposal::TailCall, "Tail call"sv},
-    {Proposal::MultiMemories, "Multiple memories"sv},
-    {Proposal::Annotations, "Custom Annotation Syntax in the Text Format"sv},
-    {Proposal::Memory64, "Memory64"sv},
-    {Proposal::ExceptionHandling, "Exception handling"sv},
-    {Proposal::Threads, "Threads"sv},
-    {Proposal::FunctionReferences, "Typed Function References"sv},
-};
-
-} // namespace detail
-
-using detail::ProposalStr;
+static inline constexpr auto ProposalStr = []() constexpr {
+  using namespace std::literals::string_view_literals;
+  std::pair<Proposal, std::string_view> Array[] = {
+#define UseProposal
+#define Line(NAME, STRING) {Proposal::NAME, STRING##sv},
+#include "enum.inc"
+#undef Line
+#undef UseProposal
+  };
+  return DenseEnumMap(Array);
+}
+();
 
 } // namespace WasmEdge
 #endif
 
 /// WASM Proposal C enumeration.
 enum WasmEdge_Proposal {
-  WasmEdge_Proposal_ImportExportMutGlobals = 0,
-  WasmEdge_Proposal_NonTrapFloatToIntConversions,
-  WasmEdge_Proposal_SignExtensionOperators,
-  WasmEdge_Proposal_MultiValue,
-  WasmEdge_Proposal_BulkMemoryOperations,
-  WasmEdge_Proposal_ReferenceTypes,
-  WasmEdge_Proposal_SIMD,
-  WasmEdge_Proposal_TailCall,
-  WasmEdge_Proposal_MultiMemories,
-  WasmEdge_Proposal_Annotations,
-  WasmEdge_Proposal_Memory64,
-  WasmEdge_Proposal_ExceptionHandling,
-  WasmEdge_Proposal_Threads,
-  WasmEdge_Proposal_FunctionReferences
+#define UseProposal
+#define Line(NAME, STRING) WasmEdge_Proposal_##NAME,
+#include "enum.inc"
+#undef Line
+#undef UseProposal
 };
 
 #if (defined(__cplusplus) && __cplusplus > 201402L) ||                         \
@@ -96,15 +66,25 @@ enum WasmEdge_Proposal {
 namespace WasmEdge {
 
 /// Host Module Registration C++ enumeration class.
-enum class HostRegistration : uint8_t { Wasi = 0, WasmEdge_Process, Max };
+enum class HostRegistration : uint8_t {
+#define UseHostRegistration
+#define Line(NAME) NAME,
+#include "enum.inc"
+#undef Line
+#undef UseHostRegistration
+  Max
+};
 
 } // namespace WasmEdge
 #endif
 
 /// Host Module Registration C enumeration.
 enum WasmEdge_HostRegistration {
-  WasmEdge_HostRegistration_Wasi = 0,
-  WasmEdge_HostRegistration_WasmEdge_Process
+#define UseHostRegistration
+#define Line(NAME) WasmEdge_HostRegistration_##NAME,
+#include "enum.inc"
+#undef Line
+#undef UseHostRegistration
 };
 
 /// AOT compiler optimization level C enumeration.

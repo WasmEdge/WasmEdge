@@ -294,13 +294,8 @@ PYBIND11_MODULE(WasmEdge, module) {
   pybind11::class_<pysdk::GlobalTypeCxt>(module, "GlobalType")
       .def(pybind11::init<const WasmEdge_ValType &,
                           const WasmEdge_Mutability &>())
-      .def("GetMutability",
-           [](pysdk::GlobalTypeCxt &g) {
-             return WasmEdge_GlobalTypeGetMutability(g.get());
-           })
-      .def("GetValType", [](pysdk::GlobalTypeCxt &g) {
-        return WasmEdge_GlobalTypeGetValType(g.get());
-      });
+      .def("GetMutability", &pysdk::GlobalTypeCxt::GetMutability)
+      .def("GetValType", &pysdk::GlobalTypeCxt::GetValType);
 
   pybind11::class_<pysdk::Global>(module, "Global")
       .def(pybind11::init())

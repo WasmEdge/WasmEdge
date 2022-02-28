@@ -104,6 +104,8 @@ public:
   GlobalTypeCxt(WasmEdge_GlobalTypeContext *, bool);
   ~GlobalTypeCxt();
   WasmEdge_GlobalTypeContext *get();
+  WasmEdge_Mutability GetMutability();
+  WasmEdge_ValType GetValType();
 };
 
 class Global {

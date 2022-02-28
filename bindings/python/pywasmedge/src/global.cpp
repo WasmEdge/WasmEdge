@@ -17,6 +17,14 @@ pysdk::GlobalTypeCxt::~GlobalTypeCxt() {
 }
 
 WasmEdge_GlobalTypeContext *pysdk::GlobalTypeCxt::get() { return GlobTypeCxt; }
+
+WasmEdge_Mutability pysdk::GlobalTypeCxt::GetMutability() {
+  return WasmEdge_GlobalTypeGetMutability(GlobTypeCxt);
+}
+
+WasmEdge_ValType pysdk::GlobalTypeCxt::GetValType() {
+  return WasmEdge_GlobalTypeGetValType(GlobTypeCxt);
+}
 /* --------------- GlobalTypeCxt End -------------------------------- */
 
 /* --------------- Global -------------------------------- */

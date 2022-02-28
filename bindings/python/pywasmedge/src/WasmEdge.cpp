@@ -240,7 +240,12 @@ PYBIND11_MODULE(WasmEdge, module) {
       .def("LoadWasmFromFile", &pysdk::VM::load_from_file)
       .def("ExecuteRegistered", &pysdk::VM::execute_registered)
       .def("Execute", &pysdk::VM::execute)
-      .def("Validate", &pysdk::VM::validate);
+      .def("Validate", &pysdk::VM::validate)
+      .def("AsyncExecute", &pysdk::VM::executeAsync)
+      .def("AsyncExecuteRegistered", &pysdk::VM::executeAsyncRegistered)
+      .def("AsyncRunWasmFromASTModule", &pysdk::VM::run_from_ast_async)
+      .def("AsyncRunWasmFromBuffer", &pysdk::VM::run_from_buffer_async)
+      .def("AsyncRunWasmFromFile", &pysdk::VM::run_from_wasm_file_async);
 
   pybind11::class_<pysdk::FunctionTypeContext>(module, "FunctionType")
       .def(pybind11::init<pybind11::list, pybind11::list>())
@@ -332,6 +337,17 @@ PYBIND11_MODULE(WasmEdge, module) {
   pybind11::class_<pysdk::Compiler>(module, "Compiler")
       .def(pybind11::init<pysdk::Configure &>())
       .def("Compile", &pysdk::Compiler::Compile);
+
+  pybind11::class_<pysdk::Async>(module, "Async")
+      .def(pybind11::init<>())
+      .def("Get", &pysdk::Async::Get)
+      .def("GetReturnsLength", &pysdk::Async::GetReturnsLength)
+      .def("Wait", &pysdk::Async::Wait)
+      .def("WaitFor", &pysdk::Async::WaitFor)
+      .def("Cancel", &pysdk::Async::Cancel);
+
+  module.def("AsyncDelete",
+             [](pysdk::Async &async) { WasmEdge_AsyncDelete(async.get()); });
 };
 
 /* --------------- Python Module End ----------------------------------------*/

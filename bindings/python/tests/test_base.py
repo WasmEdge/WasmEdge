@@ -53,6 +53,26 @@ def test_add():
     assert l[0].Value == sum(nums)
 
 
+def test_add_async():
+    wasm_base_path = os.path.abspath(os.path.join(__file__, "../../../.."))
+    add_wasm = os.path.join(wasm_base_path, "tools/wasmedge/examples/add.wasm")
+    log = WasmEdge.Logging()
+    log.debug()
+    cfx = WasmEdge.Configure()
+    cfx.AddHostRegistration(WasmEdge.Host.Wasi)
+    vm = WasmEdge.VM(cfx)
+    nums = [random.randint(2, 20), random.randint(2, 20)]
+    nums_w = tuple([WasmEdge.Value(x, WasmEdge.Type.I32) for x in nums])
+    async_obj = vm.AsyncRunWasmFromFile(add_wasm, "add", nums_w)
+    async_obj.Wait()
+    ret_len = async_obj.GetReturnsLength()
+    assert ret_len == 1
+    res, l = async_obj.Get(ret_len)
+    WasmEdge.AsyncDelete(async_obj)
+    assert bool(res)
+    assert l[0].Value == sum(nums)
+
+
 def test_version():
     assert (
         "wasmedge version " + WasmEdge.VersionGet()

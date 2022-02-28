@@ -58,6 +58,27 @@ pybind11::tuple pysdk::VM::run_from_wasm_file(std::string &FileName,
   return pybind11::make_tuple(res, returns);
 }
 
+pysdk::Async pysdk::VM::run_from_wasm_file_async(std::string &FileName,
+                                                 std::string &FuncName,
+                                                 pybind11::tuple param_list) {
+  auto const param_len = pybind11::len(param_list);
+
+  WasmEdge_Value Params[param_len];
+
+  for (int i = 0; i < param_len; i++) {
+    Params[i] = param_list[i].cast<pysdk::Value>().get();
+  }
+
+  WasmEdge_String funcName = WasmEdge_StringCreateByCString(FuncName.c_str());
+
+  pysdk::Async res(WasmEdge_VMAsyncRunWasmFromFile(
+      VMCxt, FileName.c_str(), funcName, Params, param_len));
+
+  WasmEdge_StringDelete(funcName);
+
+  return res;
+}
+
 pybind11::tuple pysdk::VM::run_from_buffer(pybind11::tuple wasm_buffer,
                                            pybind11::tuple params_,
                                            std::string &executor_func_name,
@@ -95,6 +116,35 @@ pybind11::tuple pysdk::VM::run_from_buffer(pybind11::tuple wasm_buffer,
   }
 
   return pybind11::make_tuple(res, returns);
+}
+
+pysdk::Async pysdk::VM::run_from_buffer_async(pybind11::tuple wasm_buffer,
+                                              pybind11::tuple params_,
+                                              std::string &executor_func_name) {
+
+  auto params = params_.cast<pybind11::tuple>();
+  auto param_len = pybind11::len(params);
+  auto size = wasm_buffer.size();
+  uint8_t WASM_Buffer[size];
+
+  for (size_t i = 0; i < size; i++) {
+    WASM_Buffer[i] = wasm_buffer[i].cast<uint8_t>();
+  }
+
+  WasmEdge_Value Params[param_len];
+  for (int i = 0; i < param_len; i++) {
+    Params[i] = params[i].cast<pysdk::Value>().get();
+  }
+
+  WasmEdge_String ex_func_name_wasm =
+      WasmEdge_StringCreateByCString(executor_func_name.c_str());
+
+  pysdk::Async res(WasmEdge_VMAsyncRunWasmFromBuffer(
+      VMCxt, WASM_Buffer, size, ex_func_name_wasm, Params, param_len));
+
+  WasmEdge_StringDelete(ex_func_name_wasm);
+
+  return res;
 }
 
 pysdk::result pysdk::VM::register_module_from_file(std::string &mod_name_,
@@ -277,6 +327,22 @@ pybind11::tuple pysdk::VM::run_from_ast(pysdk::ASTModuleCxt &cxt,
   return pybind11::make_tuple(res, list);
 }
 
+pysdk::Async pysdk::VM::run_from_ast_async(pysdk::ASTModuleCxt &cxt,
+                                           std::string &function_name,
+                                           pybind11::tuple params) {
+  WasmEdge_String func_name =
+      WasmEdge_StringCreateByCString(function_name.c_str());
+  auto const param_len = pybind11::len(params);
+  WasmEdge_Value param[param_len];
+
+  for (size_t i = 0; i < param_len; i++) {
+    param[i] = params[i].cast<pysdk::Value>().get();
+  }
+
+  return pysdk::Async(WasmEdge_VMAsyncRunWasmFromASTModule(
+      VMCxt, cxt.get(), func_name, param, param_len));
+}
+
 pybind11::tuple pysdk::VM::execute(std::string &function_name,
                                    pybind11::tuple params, uint32_t &ret_len) {
   WasmEdge_String func_name =
@@ -297,6 +363,39 @@ pybind11::tuple pysdk::VM::execute(std::string &function_name,
     list.append(pysdk::Value(ret[i]));
   }
   return pybind11::make_tuple(res, list);
+}
+
+pysdk::Async pysdk::VM::executeAsync(std::string &function_name,
+                                     pybind11::tuple params) {
+  WasmEdge_String func_name =
+      WasmEdge_StringCreateByCString(function_name.c_str());
+  auto const param_len = pybind11::len(params);
+  WasmEdge_Value param[param_len];
+
+  for (size_t i = 0; i < param_len; i++) {
+    param[i] = params[i].cast<pysdk::Value>().get();
+  }
+
+  return pysdk::Async(
+      WasmEdge_VMAsyncExecute(VMCxt, func_name, param, param_len));
+}
+
+pysdk::Async pysdk::VM::executeAsyncRegistered(std::string &mod,
+                                               std::string &function_name,
+                                               pybind11::tuple params) {
+  WasmEdge_String func_name =
+      WasmEdge_StringCreateByCString(function_name.c_str());
+  WasmEdge_String mod_name = WasmEdge_StringCreateByCString(mod.c_str());
+
+  auto const param_len = pybind11::len(params);
+  WasmEdge_Value param[param_len];
+
+  for (size_t i = 0; i < param_len; i++) {
+    param[i] = params[i].cast<pysdk::Value>().get();
+  }
+
+  return pysdk::Async(WasmEdge_VMAsyncExecuteRegistered(
+      VMCxt, mod_name, func_name, param, param_len));
 }
 
 pysdk::result pysdk::VM::validate() {

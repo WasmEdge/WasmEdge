@@ -390,6 +390,22 @@ public:
   result Compile(std::string &, std::string &);
 };
 
+class Async {
+private:
+  WasmEdge_Async *async;
+
+public:
+  Async();
+  Async(WasmEdge_Async *);
+  ~Async();
+  WasmEdge_Async *get();
+  pybind11::tuple Get(uint32_t &);
+  uint32_t GetReturnsLength();
+  void Wait();
+  bool WaitFor(uint64_t &);
+  void Cancel();
+};
+
 class VM {
 private:
   WasmEdge_VMContext *VMCxt;
@@ -408,8 +424,13 @@ public:
 
   pybind11::tuple execute_registered(std::string &, std::string &,
                                      pybind11::list, const uint32_t &);
-  pybind11::tuple execute(std::string &function_name, pybind11::tuple params,
-                          uint32_t &ret_len);
+  pybind11::tuple execute(std::string &, pybind11::tuple, uint32_t &);
+  Async executeAsync(std::string &, pybind11::tuple);
+  Async executeAsyncRegistered(std::string &, std::string &, pybind11::tuple);
+  Async run_from_ast_async(pysdk::ASTModuleCxt &, std::string &,
+                           pybind11::tuple);
+  Async run_from_buffer_async(pybind11::tuple, pybind11::tuple, std::string &);
+  Async run_from_wasm_file_async(std::string &, std::string &, pybind11::tuple);
 
   result validate();
 

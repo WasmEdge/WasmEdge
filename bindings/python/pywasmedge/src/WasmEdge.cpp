@@ -261,7 +261,15 @@ PYBIND11_MODULE(WasmEdge, module) {
 
   pybind11::class_<pysdk::import_object>(module, "ImportObject")
       .def(pybind11::init<std::string &>())
-      .def("AddFunction", &pysdk::import_object::add);
+      .def(pybind11::init<pybind11::tuple, pybind11::tuple, pybind11::tuple>())
+      .def(pybind11::init<pybind11::tuple, bool &>())
+      .def("AddFunction", &pysdk::import_object::AddFunction)
+      .def("AddGlobal", &pysdk::import_object::AddGlobal)
+      .def("AddMemory", &pysdk::import_object::AddMemory)
+      .def("AddTable", &pysdk::import_object::AddTable)
+      .def("InitWASI", &pysdk::import_object::InitWASI)
+      .def("InitWasmEdgeProcess", &pysdk::import_object::InitWasmEdgeProcess)
+      .def("WASIGetExitCode", &pysdk::import_object::WASIGetExitCode);
 
   pybind11::class_<WasmEdge_Limit>(module, "Limit")
       .def(pybind11::init<bool, uint32_t, uint32_t>())

@@ -143,6 +143,7 @@ public:
   Memory(MemoryTypeCxt &);
   Memory(WasmEdge_MemoryInstanceContext *, bool);
   ~Memory();
+  WasmEdge_MemoryInstanceContext *get();
   result set_data(pybind11::tuple, const uint32_t &);
   uint32_t get_page_size();
   result grow_page(const uint32_t &);
@@ -356,10 +357,18 @@ private:
 
 public:
   import_object(std::string &);
+  import_object(pybind11::tuple, pybind11::tuple, pybind11::tuple);
+  import_object(pybind11::tuple, bool &);
   import_object(WasmEdge_ImportObjectContext *);
   ~import_object();
   WasmEdge_ImportObjectContext *get();
-  void add(Function &, std::string &);
+  void AddFunction(std::string &, Function &);
+  void AddGlobal(std::string &, Global &);
+  void AddMemory(std::string &, Memory &);
+  void AddTable(std::string &, Table &);
+  void InitWASI(pybind11::tuple, pybind11::tuple, pybind11::tuple);
+  void InitWasmEdgeProcess(pybind11::tuple, bool &);
+  uint32_t WASIGetExitCode();
 };
 
 class VM {

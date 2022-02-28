@@ -33,6 +33,8 @@ pysdk::Memory::~Memory() {
     WasmEdge_MemoryInstanceDelete(HostMemory);
 }
 
+WasmEdge_MemoryInstanceContext *pysdk::Memory::get() { return HostMemory; }
+
 pysdk::result pysdk::Memory::set_data(pybind11::tuple data_,
                                       const uint32_t &offset) {
   const uint32_t length = pybind11::len(data_);

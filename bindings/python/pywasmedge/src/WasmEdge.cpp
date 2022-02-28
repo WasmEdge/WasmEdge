@@ -328,6 +328,10 @@ PYBIND11_MODULE(WasmEdge, module) {
       .def("GrowSize", &pysdk::Table::grow_size)
       .def("SetData", &pysdk::Table::set_data)
       .def("GetData", &pysdk::Table::get_data);
+
+  pybind11::class_<pysdk::Compiler>(module, "Compiler")
+      .def(pybind11::init<pysdk::Configure &>())
+      .def("Compile", &pysdk::Compiler::Compile);
 };
 
 /* --------------- Python Module End ----------------------------------------*/

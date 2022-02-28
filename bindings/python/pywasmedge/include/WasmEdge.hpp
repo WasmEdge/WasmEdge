@@ -380,6 +380,16 @@ public:
   result RegisterModule(Store &, ASTModuleCxt &, std::string &);
 };
 
+class Compiler {
+private:
+  WasmEdge_CompilerContext *cxt;
+
+public:
+  Compiler(Configure &);
+  ~Compiler();
+  result Compile(std::string &, std::string &);
+};
+
 class VM {
 private:
   WasmEdge_VMContext *VMCxt;

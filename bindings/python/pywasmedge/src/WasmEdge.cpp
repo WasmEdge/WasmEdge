@@ -209,6 +209,8 @@ PYBIND11_MODULE(WasmEdge, module) {
   pybind11::class_<pysdk::Executor>(module, "Executor")
       .def(pybind11::init<pysdk::Configure &>())
       .def("instantiate", &pysdk::Executor::instantiate)
+      .def("RegisterImport", &pysdk::Executor::RegisterImport)
+      .def("RegisterModule", &pysdk::Executor::RegisterModule)
       .def("invoke", &pysdk::Executor::invoke);
 
   pybind11::class_<pysdk::VM>(module, "VM")

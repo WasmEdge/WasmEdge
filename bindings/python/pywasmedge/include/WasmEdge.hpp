@@ -312,18 +312,6 @@ public:
   result validate(ASTModuleCxt &);
 };
 
-class Executor {
-private:
-  WasmEdge_ExecutorContext *ExecCxt;
-
-public:
-  Executor(Configure &);
-  ~Executor();
-  WasmEdge_ExecutorContext *get();
-  result instantiate(Store &, ASTModuleCxt &);
-  pybind11::tuple invoke(Store &, std::string &, pybind11::list);
-};
-
 class Statistics {
 private:
   WasmEdge_StatisticsContext *StatCxt;
@@ -376,6 +364,20 @@ public:
   void InitWASI(pybind11::tuple, pybind11::tuple, pybind11::tuple);
   void InitWasmEdgeProcess(pybind11::tuple, bool &);
   uint32_t WASIGetExitCode();
+};
+
+class Executor {
+private:
+  WasmEdge_ExecutorContext *ExecCxt;
+
+public:
+  Executor(Configure &);
+  ~Executor();
+  WasmEdge_ExecutorContext *get();
+  result instantiate(Store &, ASTModuleCxt &);
+  pybind11::tuple invoke(Store &, std::string &, pybind11::list);
+  result RegisterImport(Store &, import_object &);
+  result RegisterModule(Store &, ASTModuleCxt &, std::string &);
 };
 
 class VM {

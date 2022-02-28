@@ -108,4 +108,19 @@ pybind11::tuple pysdk::Executor::invoke(pysdk::Store &st, std::string &FuncName,
   return pybind11::make_tuple(res, returns);
 }
 
+pysdk::result pysdk::Executor::RegisterImport(pysdk::Store &store,
+                                              pysdk::import_object &iobj) {
+  return pysdk::result(
+      WasmEdge_ExecutorRegisterImport(ExecCxt, store.get(), iobj.get()));
+}
+
+pysdk::result pysdk::Executor::RegisterModule(pysdk::Store &store,
+                                              pysdk::ASTModuleCxt &ast,
+                                              std::string &str) {
+  WasmEdge_String name = WasmEdge_StringCreateByCString(str.c_str());
+  pysdk::result res(
+      WasmEdge_ExecutorRegisterModule(ExecCxt, store.get(), ast.get(), name));
+  WasmEdge_StringDelete(name);
+  return res;
+}
 /* --------------- Executor End -------------------------------- */

@@ -353,6 +353,7 @@ mod tests {
         assert_eq!(global.mutability(), Mutability::Const);
     }
 
+    #[test]
     fn test_instance_find_names() {
         let vm = create_vm();
         let result = vm.store_mut();
@@ -381,7 +382,7 @@ mod tests {
         assert_eq!(instance.mem_len(), 1);
         let result = instance.mem_names();
         assert!(result.is_some());
-        assert_eq!(result.unwrap(), ["memory"]);
+        assert_eq!(result.unwrap(), ["mem"]);
 
         assert_eq!(instance.global_len(), 1);
         let result = instance.global_names();

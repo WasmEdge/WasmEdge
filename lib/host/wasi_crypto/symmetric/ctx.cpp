@@ -3,6 +3,7 @@
 
 #include "host/wasi_crypto/ctx.h"
 #include "host/wasi_crypto/common/options.h"
+#include "host/wasi_crypto/symmetric/key.h"
 #include "host/wasi_crypto/symmetric/tag.h"
 #include "wasi_crypto/api.hpp"
 
@@ -32,6 +33,20 @@ Context::symmetricTagVerify(__wasi_symmetric_tag_t TagHandle,
 WasiCryptoExpect<void>
 Context::symmetricTagClose(__wasi_symmetric_tag_t TagHandle) noexcept {
   return SymmetricTagManager.close(TagHandle);
+}
+
+WasiCryptoExpect<__wasi_array_output_t>
+Context::symmetricKeyExport(__wasi_symmetric_key_t KeyHandle) noexcept {
+  return SymmetricKeyManager.get(KeyHandle)
+      .map(Symmetric::keyExportData)
+      .and_then([this](auto &&Data) noexcept {
+        return ArrayOutputManger.registerManager(std::move(Data));
+      });
+}
+
+WasiCryptoExpect<void>
+Context::symmetricKeyClose(__wasi_symmetric_key_t SymmetricKey) noexcept {
+  return SymmetricKeyManager.close(SymmetricKey);
 }
 
 } // namespace WasiCrypto

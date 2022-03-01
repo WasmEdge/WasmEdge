@@ -260,6 +260,36 @@ WasiCryptoExpect<__wasi_symmetric_state_t> Context::symmetricStateOpen(
       });
 }
 
+WasiCryptoExpect<__wasi_symmetric_key_t>
+Context::symmetricKeyGenerateManaged(__wasi_secrets_manager_t,
+                                     Symmetric::Algorithm,
+                                     std::optional<__wasi_options_t>) noexcept {
+  return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
+}
+
+WasiCryptoExpect<void> Context::symmetricKeyStoreManaged(
+    __wasi_secrets_manager_t, __wasi_symmetric_key_t, Span<uint8_t>) noexcept {
+  return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
+}
+
+WasiCryptoExpect<__wasi_version_t>
+Context::symmetricKeyReplaceManaged(__wasi_secrets_manager_t,
+                                    __wasi_symmetric_key_t,
+                                    __wasi_symmetric_key_t) noexcept {
+  return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
+}
+
+WasiCryptoExpect<std::tuple<size_t, __wasi_version_t>>
+Context::symmetricKeyId(__wasi_symmetric_key_t, Span<uint8_t>) noexcept {
+  return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
+}
+
+WasiCryptoExpect<__wasi_symmetric_key_t>
+Context::symmetricKeyFromId(__wasi_secrets_manager_t, Span<uint8_t>,
+                            __wasi_version_t) noexcept {
+  return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
+}
+
 } // namespace WasiCrypto
 } // namespace Host
 } // namespace WasmEdge

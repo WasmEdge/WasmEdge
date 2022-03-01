@@ -18,6 +18,7 @@ wasmedge_add_library(wasmedgeHostModuleWasiCrypto
   common/options.cpp
   symmetric/ctx.cpp
   symmetric/tag.cpp
+  symmetric/key.cpp
 )
 
 target_include_directories(wasmedgeHostModuleWasiCrypto

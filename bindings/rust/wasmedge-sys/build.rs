@@ -240,62 +240,57 @@ fn build_wasmedge() -> Option<Paths> {
 }
 
 fn build_macos(wasmedge_dir: impl AsRef<Path>) -> Paths {
-    let out_dir = env_path!("OUT_DIR").expect("[wasmedge-sys] fail to get the OUT_DIR.");
-    let out_dir_str = out_dir
-        .to_str()
-        .expect("[wasmedge-sys] fail to convert PathBuf to str");
-
-    Command::new("cmake")
+    let status = Command::new("cmake")
         .current_dir(wasmedge_dir.as_ref())
-        .args(&[
+        .args([
             "-Bbuild",
             "-GNinja",
             "-DCMAKE_BUILD_TYPE=Release",
             "-DWASMEDGE_BUILD_TESTS=ON",
             #[cfg(not(feature = "aot"))]
             "-DWASMEDGE_BUILD_AOT_RUNTIME=OFF",
-            &format!("-DCMAKE_INSTALL_PREFIX={}", out_dir_str),
             ".",
         ])
-        .output()
+        .status()
         .expect("fail to cmake setup wasmedge project");
-    Command::new("cmake")
+    println!("cargo:warning=[wasmedge-sys] cmake status: {:?}", status);
+
+    let status = Command::new("cmake")
         .current_dir(wasmedge_dir.as_ref())
-        .args(&["--build", "build"])
-        .output()
+        .args(["--build", "build"])
+        .status()
         .expect("[wasmedge-sys] fail to cmake build wasmedge project");
+    println!(
+        "cargo:warning=[wasmedge-sys] cmake build status: {:?}",
+        status
+    );
 
     // create build_dir
     let build_dir = wasmedge_dir.as_ref().join("build");
-    if !build_dir.exists() {
-        std::fs::create_dir(&build_dir).expect("[wasmedge-sys] fail to create build_dir");
-    }
-    Command::new("ninja")
-        .current_dir(build_dir)
-        .args(&["install"])
-        .output()
-        .expect("[wasmedge-sys] fail to ninja build wasmedge project");
+    assert!(build_dir.exists());
 
     // WASMEDGE_INCLUDE_DIR
-    let mut inc_dir = out_dir.join("include");
+    let mut inc_dir = build_dir.join("include");
     assert!(inc_dir.exists());
     if inc_dir.join("api").exists() {
         inc_dir = inc_dir.join("api");
     }
+    assert!(inc_dir.join("wasmedge").join("wasmedge.h").exists());
     println!(
         "cargo:warning=[wasmedge-sys] WASMEDGE_INCLUDE_DIR: {}",
         inc_dir.to_str().unwrap()
     );
 
     // WASMEDGE_LIB_DIR
-    let mut lib_dir = if out_dir.join("lib64").exists() {
-        out_dir.join("lib64")
+    let mut lib_dir = if build_dir.join("lib64").exists() {
+        build_dir.join("lib64")
     } else {
-        out_dir.join("lib")
+        build_dir.join("lib")
     };
     if lib_dir.join("api").exists() {
         lib_dir = lib_dir.join("api");
     }
+    assert!(lib_dir.join("libwasmedge_c.dylib").exists());
     println!(
         "cargo:warning=[wasmedge-sys] WASMEDGE_LIB_DIR: {}",
         lib_dir.to_str().unwrap()
@@ -324,12 +319,9 @@ fn build_linux(wasmedge_dir: impl AsRef<Path>) -> Paths {
     if !build_dir.exists() {
         std::fs::create_dir(&build_dir).expect("[wasmedge-sys] fail to create build_dir");
     }
-    let build_dir_str = build_dir
-        .to_str()
-        .expect("[wasmedge-sys] fail to convert PathBuf to str");
 
-    Command::new("cmake")
-        .current_dir(build_dir_str)
+    let status = Command::new("cmake")
+        .current_dir(&build_dir)
         .args([
             "-DCMAKE_BUILD_TYPE=Release",
             "-DWASMEDGE_BUILD_TESTS=ON",
@@ -337,39 +329,39 @@ fn build_linux(wasmedge_dir: impl AsRef<Path>) -> Paths {
             "-DWASMEDGE_BUILD_AOT_RUNTIME=OFF",
             wasmedge_dir.as_ref().to_str().unwrap(),
         ])
-        .output()
+        .status()
         .expect("[wasmedge-sys] fail to cmake setup wasmedge project");
+    println!("cargo:warning=[wasmedge-sys] cmake status: {:?}", status);
 
-    Command::new("make")
-        .current_dir(build_dir_str)
+    let status = Command::new("make")
+        .current_dir(&build_dir)
         .arg("-j")
-        .output()
+        .status()
         .expect("[wasmedge-sys] fail to compile wasmedge project");
-
-    Command::new("make")
-        .current_dir(build_dir_str)
-        .arg("install")
-        .output()
-        .expect("[wasmedge-sys] fail to compile wasmedge project");
+    println!("cargo:warning=[wasmedge-sys] make status: {:?}", status);
 
     // WASMEDGE_INCLUDE_DIR
-    let inc_dir = build_dir.join("include");
+    let mut inc_dir = build_dir.join("include");
     assert!(inc_dir.exists());
-    let inc_dir = inc_dir.join("api");
-    assert!(inc_dir.exists());
+    if inc_dir.join("api").exists() {
+        inc_dir = inc_dir.join("api");
+    }
+    assert!(inc_dir.join("wasmedge").join("wasmedge.h").exists());
     println!(
         "cargo:warning=[wasmedge-sys] WASMEDGE_INCLUDE_DIR: {}",
         inc_dir.to_str().unwrap()
     );
 
     // WASMEDGE_LIB_DIR
-    let lib_dir = if build_dir.join("lib64").exists() {
+    let mut lib_dir = if build_dir.join("lib64").exists() {
         build_dir.join("lib64")
     } else {
         build_dir.join("lib")
     };
-    let lib_dir = lib_dir.join("api");
-    assert!(lib_dir.exists());
+    if lib_dir.join("api").exists() {
+        lib_dir = lib_dir.join("api");
+    }
+    assert!(lib_dir.join("libwasmedge_c.so").exists());
     println!(
         "cargo:warning=[wasmedge-sys] WASMEDGE_LIB_DIR: {}",
         lib_dir.to_str().unwrap()

@@ -20,6 +20,7 @@
 #include "host/wasi_crypto/signatures/alg.h"
 #include "host/wasi_crypto/symmetric/alg.h"
 #include "host/wasi_crypto/symmetric/key.h"
+#include "host/wasi_crypto/symmetric/state.h"
 #include "host/wasi_crypto/symmetric/tag.h"
 #include "host/wasi_crypto/utils/error.h"
 #include "host/wasi_crypto/utils/handles_manager.h"
@@ -312,6 +313,8 @@ private:
       0xa};
   RcHandlesManager<__wasi_symmetric_key_t, Symmetric::KeyVariant>
       SymmetricKeyManager{0x09};
+  RcHandlesManager<__wasi_symmetric_state_t, Symmetric::StateVariant>
+      SymmetricStateManager{0x08};
 };
 
 } // namespace WasiCrypto

@@ -11,6 +11,7 @@ wasmedge_add_library(wasmedgeHostModuleWasiCrypto
   kx/func.cpp
   signatures/func.cpp
   common/ctx.cpp
+  common/array_output.cpp
 )
 
 target_include_directories(wasmedgeHostModuleWasiCrypto

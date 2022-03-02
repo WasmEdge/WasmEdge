@@ -14,10 +14,12 @@
 #pragma once
 
 #include "common/span.h"
+#include "host/wasi_crypto/common/array_output.h"
 #include "host/wasi_crypto/kx/alg.h"
 #include "host/wasi_crypto/signatures/alg.h"
 #include "host/wasi_crypto/symmetric/alg.h"
 #include "host/wasi_crypto/utils/error.h"
+#include "host/wasi_crypto/utils/handles_manager.h"
 #include "wasi_crypto/api.hpp"
 
 #include <optional>
@@ -298,6 +300,10 @@ public:
 
   WasiCryptoExpect<void> signatureVerificationStateClose(
       __wasi_signature_verification_state_t StateHandle) noexcept;
+
+private:
+  RefHandlesManager<__wasi_array_output_t, Common::ArrayOutput>
+      ArrayOutputManger{0x00};
 };
 
 } // namespace WasiCrypto

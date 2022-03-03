@@ -1,8 +1,10 @@
 //! Defines WasmEdge Instancestruct.
 
 use crate::{
-    error::InstanceError, types::WasmEdgeString, wasmedge, Function, Global, Memory, Store, Table,
-    WasmEdgeError, WasmEdgeResult,
+    error::InstanceError,
+    instance::{function::InnerFunc, global::InnerGlobal, memory::InnerMemory, table::InnerTable},
+    types::WasmEdgeString,
+    wasmedge, Function, Global, Memory, Store, Table, WasmEdgeError, WasmEdgeResult,
 };
 
 /// Struct of WasmEdge Instance.
@@ -45,7 +47,7 @@ impl<'store> Instance<'store> {
         let func_ctx = unsafe {
             wasmedge::WasmEdge_ModuleInstanceFindFunction(
                 self.inner.0,
-                self.store.ctx,
+                self.store.inner.0,
                 func_name.as_raw(),
             )
         };
@@ -54,7 +56,7 @@ impl<'store> Instance<'store> {
                 name.as_ref().to_string(),
             ))),
             false => Ok(Function {
-                ctx: func_ctx,
+                inner: InnerFunc(func_ctx),
                 registered: true,
             }),
         }
@@ -75,7 +77,7 @@ impl<'store> Instance<'store> {
         let ctx = unsafe {
             wasmedge::WasmEdge_ModuleInstanceFindTable(
                 self.inner.0,
-                self.store.ctx,
+                self.store.inner.0,
                 table_name.as_raw(),
             )
         };
@@ -84,7 +86,7 @@ impl<'store> Instance<'store> {
                 name.as_ref().to_string(),
             ))),
             false => Ok(Table {
-                ctx,
+                inner: InnerTable(ctx),
                 registered: true,
             }),
         }
@@ -105,7 +107,7 @@ impl<'store> Instance<'store> {
         let ctx = unsafe {
             wasmedge::WasmEdge_ModuleInstanceFindMemory(
                 self.inner.0,
-                self.store.ctx,
+                self.store.inner.0,
                 mem_name.as_raw(),
             )
         };
@@ -114,7 +116,7 @@ impl<'store> Instance<'store> {
                 name.as_ref().to_string(),
             ))),
             false => Ok(Memory {
-                ctx,
+                inner: InnerMemory(ctx),
                 registered: true,
             }),
         }
@@ -135,7 +137,7 @@ impl<'store> Instance<'store> {
         let ctx = unsafe {
             wasmedge::WasmEdge_ModuleInstanceFindGlobal(
                 self.inner.0,
-                self.store.ctx,
+                self.store.inner.0,
                 global_name.as_raw(),
             )
         };
@@ -144,7 +146,7 @@ impl<'store> Instance<'store> {
                 name.as_ref().to_string(),
             ))),
             false => Ok(Global {
-                ctx,
+                inner: InnerGlobal(ctx),
                 registered: true,
             }),
         }

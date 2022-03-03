@@ -997,6 +997,7 @@ mod tests {
         handle.join().unwrap();
     }
 
+    #[test]
     fn test_store_active_module() {
         let result = Vm::create(None, None);
         assert!(result.is_ok());
@@ -1053,7 +1054,7 @@ mod tests {
         // create a Config context
         let result = Config::create();
         assert!(result.is_ok());
-        let config = result.unwrap();
+        let mut config = result.unwrap();
         config.bulk_memory_operations(true);
         assert!(config.bulk_memory_operations_enabled());
 

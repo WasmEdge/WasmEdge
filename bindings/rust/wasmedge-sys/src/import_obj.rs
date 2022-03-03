@@ -13,7 +13,7 @@ use crate::{
 /// host functions which are defined outside WebAssembly and passed to WASM modules as imports.
 #[derive(Debug)]
 pub struct ImportObject {
-    pub(crate) ctx: *mut wasmedge::WasmEdge_ImportObjectContext,
+    pub(crate) inner: InnerImportObject,
     pub(crate) registered: bool,
 }
 impl ImportObject {
@@ -32,7 +32,7 @@ impl ImportObject {
         match ctx.is_null() {
             true => Err(WasmEdgeError::ImportObjCreate),
             false => Ok(ImportObject {
-                ctx,
+                inner: InnerImportObject(ctx),
                 registered: false,
             }),
         }
@@ -90,7 +90,7 @@ impl ImportObject {
         match ctx.is_null() {
             true => Err(WasmEdgeError::ImportObjCreate),
             false => Ok(ImportObject {
-                ctx,
+                inner: InnerImportObject(ctx),
                 registered: false,
             }),
         }
@@ -134,7 +134,7 @@ impl ImportObject {
 
         unsafe {
             wasmedge::WasmEdge_ImportObjectInitWASI(
-                self.ctx,
+                self.inner.0,
                 args.as_ptr(),
                 args_len as u32,
                 envs.as_ptr(),
@@ -149,7 +149,7 @@ impl ImportObject {
     ///
     /// The WASI exit code can be accessed after running the "_start" function of a `wasm32-wasi` program.
     pub fn exit_code(&self) -> u32 {
-        unsafe { wasmedge::WasmEdge_ImportObjectWASIGetExitCode(self.ctx) }
+        unsafe { wasmedge::WasmEdge_ImportObjectWASIGetExitCode(self.inner.0) }
     }
 
     /// Creates a wasmedge_process host module that contains the wasmedge_process host functions and
@@ -184,7 +184,7 @@ impl ImportObject {
         match ctx.is_null() {
             true => Err(WasmEdgeError::ImportObjCreate),
             false => Ok(Self {
-                ctx,
+                inner: InnerImportObject(ctx),
                 registered: false,
             }),
         }
@@ -206,7 +206,7 @@ impl ImportObject {
 
         unsafe {
             wasmedge::WasmEdge_ImportObjectInitWasmEdgeProcess(
-                self.ctx,
+                self.inner.0,
                 cmds.as_ptr(),
                 cmds_len as u32,
                 allowed,
@@ -224,9 +224,13 @@ impl ImportObject {
     pub fn add_func(&mut self, name: impl AsRef<str>, mut func: Function) {
         let func_name: WasmEdgeString = name.into();
         unsafe {
-            wasmedge::WasmEdge_ImportObjectAddFunction(self.ctx, func_name.as_raw(), func.ctx);
+            wasmedge::WasmEdge_ImportObjectAddFunction(
+                self.inner.0,
+                func_name.as_raw(),
+                func.inner.0,
+            );
         }
-        func.ctx = std::ptr::null_mut();
+        func.inner.0 = std::ptr::null_mut();
     }
 
     /// Adds a [`Table`] into the host module.
@@ -239,9 +243,13 @@ impl ImportObject {
     pub fn add_table(&mut self, name: impl AsRef<str>, mut table: Table) {
         let table_name: WasmEdgeString = name.as_ref().into();
         unsafe {
-            wasmedge::WasmEdge_ImportObjectAddTable(self.ctx, table_name.as_raw(), table.ctx);
+            wasmedge::WasmEdge_ImportObjectAddTable(
+                self.inner.0,
+                table_name.as_raw(),
+                table.inner.0,
+            );
         }
-        table.ctx = std::ptr::null_mut();
+        table.inner.0 = std::ptr::null_mut();
     }
 
     /// Adds a [`Memory`] into the host module.
@@ -254,9 +262,13 @@ impl ImportObject {
     pub fn add_memory(&mut self, name: impl AsRef<str>, mut memory: Memory) {
         let mem_name: WasmEdgeString = name.as_ref().into();
         unsafe {
-            wasmedge::WasmEdge_ImportObjectAddMemory(self.ctx, mem_name.as_raw(), memory.ctx);
+            wasmedge::WasmEdge_ImportObjectAddMemory(
+                self.inner.0,
+                mem_name.as_raw(),
+                memory.inner.0,
+            );
         }
-        memory.ctx = std::ptr::null_mut();
+        memory.inner.0 = std::ptr::null_mut();
     }
 
     /// Adds a [`Global`] into the host module.
@@ -269,18 +281,27 @@ impl ImportObject {
     pub fn add_global(&mut self, name: impl AsRef<str>, mut global: Global) {
         let global_name: WasmEdgeString = name.as_ref().into();
         unsafe {
-            wasmedge::WasmEdge_ImportObjectAddGlobal(self.ctx, global_name.as_raw(), global.ctx);
+            wasmedge::WasmEdge_ImportObjectAddGlobal(
+                self.inner.0,
+                global_name.as_raw(),
+                global.inner.0,
+            );
         }
-        global.ctx = std::ptr::null_mut();
+        global.inner.0 = std::ptr::null_mut();
     }
 }
 impl Drop for ImportObject {
     fn drop(&mut self) {
-        if !self.registered && !self.ctx.is_null() {
-            unsafe { wasmedge::WasmEdge_ImportObjectDelete(self.ctx) };
+        if !self.registered && !self.inner.0.is_null() {
+            unsafe { wasmedge::WasmEdge_ImportObjectDelete(self.inner.0) };
         }
     }
 }
+
+#[derive(Debug)]
+pub(crate) struct InnerImportObject(pub(crate) *mut wasmedge::WasmEdge_ImportObjectContext);
+unsafe impl Send for InnerImportObject {}
+unsafe impl Sync for InnerImportObject {}
 
 #[cfg(test)]
 mod tests {
@@ -288,9 +309,13 @@ mod tests {
     use crate::{
         Config, FuncType, GlobalType, MemType, Mutability, RefType, TableType, ValType, Value, Vm,
     };
+    use std::{
+        sync::{Arc, Mutex},
+        thread,
+    };
 
     #[test]
-    fn test_import_obj_add_instance() {
+    fn test_import_object_add_instance() {
         let host_name = "extern";
 
         // create an ImportObj module
@@ -342,7 +367,7 @@ mod tests {
     }
 
     #[test]
-    fn test_import_obj_wasi() {
+    fn test_import_object_wasi() {
         // create WASI
         {
             let result = ImportObject::create_wasi(None, None, None);
@@ -380,8 +405,8 @@ mod tests {
         {
             let result = Config::create();
             assert!(result.is_ok());
-            let config = result.unwrap();
-            let config = config.wasi(true);
+            let mut config = result.unwrap();
+            config.wasi(true);
             let result = Vm::create(Some(config), None);
             assert!(result.is_ok());
             let mut vm = result.unwrap();
@@ -407,7 +432,7 @@ mod tests {
     }
 
     #[test]
-    fn test_import_obj_wasmedge_process() {
+    fn test_import_object_wasmedge_process() {
         // create wasmedge_process
         {
             let result = ImportObject::create_wasmedge_process(Some(vec!["arg1", "arg2"]), true);
@@ -424,8 +449,8 @@ mod tests {
         {
             let result = Config::create();
             assert!(result.is_ok());
-            let config = result.unwrap();
-            let config = config.wasmedge_process(true);
+            let mut config = result.unwrap();
+            config.wasmedge_process(true);
             let result = Vm::create(Some(config), None);
             assert!(result.is_ok());
             let mut vm = result.unwrap();
@@ -435,6 +460,43 @@ mod tests {
             let mut import_wasmedge_process = result.unwrap();
             import_wasmedge_process.init_wasmedge_process(Some(vec!["arg1", "arg2"]), false);
         }
+    }
+
+    #[test]
+    fn test_import_object_send() {
+        let host_name = "extern";
+
+        // create an ImportObj module
+        let result = ImportObject::create(host_name);
+        assert!(result.is_ok());
+        let import = result.unwrap();
+
+        let handle = thread::spawn(move || {
+            assert!(!import.inner.0.is_null());
+            println!("{:?}", import.inner);
+        });
+
+        handle.join().unwrap();
+    }
+
+    #[test]
+    fn test_import_object_sync() {
+        let host_name = "extern";
+
+        // create an ImportObj module
+        let result = ImportObject::create(host_name);
+        assert!(result.is_ok());
+        let import = Arc::new(Mutex::new(result.unwrap()));
+
+        let import_cloned = Arc::clone(&import);
+        let handle = thread::spawn(move || {
+            let result = import_cloned.lock();
+            assert!(result.is_ok());
+            let import = result.unwrap();
+            assert!(!import.inner.0.is_null());
+        });
+
+        handle.join().unwrap();
     }
 
     fn real_add(inputs: Vec<Value>) -> Result<Vec<Value>, u8> {

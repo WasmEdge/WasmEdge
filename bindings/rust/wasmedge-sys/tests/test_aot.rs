@@ -10,15 +10,14 @@ fn test_aot() {
     // create a Config context
     let result = Config::create();
     assert!(result.is_ok());
-    let config = result.unwrap();
+    let mut config = result.unwrap();
     // enable options
-    let config = config
-        .tail_call(true)
-        .annotations(true)
-        .memory64(true)
-        .threads(true)
-        .exception_handling(true)
-        .function_references(true);
+    config.tail_call(true);
+    config.annotations(true);
+    config.memory64(true);
+    config.threads(true);
+    config.exception_handling(true);
+    config.function_references(true);
 
     // create a Vm context
     let result = Vm::create(Some(config), None);
@@ -31,10 +30,9 @@ fn test_aot() {
     // set the AOT compiler options
     let result = Config::create();
     assert!(result.is_ok());
-    let config = result.unwrap();
-    let config = config
-        .set_optimization_level(CompilerOptimizationLevel::O0)
-        .set_compiler_output_format(CompilerOutputFormat::Native);
+    let mut config = result.unwrap();
+    config.set_optimization_level(CompilerOptimizationLevel::O0);
+    config.set_compiler_output_format(CompilerOutputFormat::Native);
     let result = Compiler::create(Some(config));
     assert!(result.is_ok());
     let compiler = result.unwrap();

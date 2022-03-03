@@ -83,14 +83,6 @@ If you are looking for the pre-built binaries for the older operating system, we
 | `manylinux2014`                         | CentOS 7.9  | GLIBC <= 2.17</br>CXXABI <= 1.3.7</br>GLIBCXX <= 3.4.19</br>GCC <= 4.8.0 | wasmedge/wasmedge:manylinux2014\_x86\_64 |
 | `manylinux2014`                         | CentOS 7.9  | GLIBC <= 2.17</br>CXXABI <= 1.3.7</br>GLIBCXX <= 3.4.19</br>GCC <= 4.8.0 | wasmedge/wasmedge:manylinux2014\_aarch64 |
 
-### If you don't want to build Ahead-of-Time runtime/compiler
-
-If you don't need Ahead-of-Time runtime/compiler support, you can set the CMake option `WASMEDGE_BUILD_AOT_RUNTIME` to `OFF`.
-
-```bash
-cmake -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_BUILD_AOT_RUNTIME=OFF ..
-```
-
 ## Build WasmEdge
 
 WasmEdge provides various tools for enabling different runtime environments for optimal performance.
@@ -119,6 +111,14 @@ docker run -it --rm \
 cd /root/wasmedge
 mkdir -p build && cd build
 cmake -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_BUILD_TESTS=ON .. && make -j
+```
+
+### If you don't want to build Ahead-of-Time runtime/compiler
+
+If you don't need Ahead-of-Time runtime/compiler support, you can set the CMake option `WASMEDGE_BUILD_AOT_RUNTIME` to `OFF`.
+
+```bash
+cmake -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_BUILD_AOT_RUNTIME=OFF ..
 ```
 
 ## Run built-in tests

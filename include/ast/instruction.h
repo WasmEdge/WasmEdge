@@ -26,6 +26,14 @@ namespace AST {
 /// Instruction node class.
 class Instruction {
 public:
+  struct JumpDescriptor {
+    uint32_t TargetIndex;
+    uint32_t StackEraseBegin;
+    uint32_t StackEraseEnd;
+    int32_t PCOffset;
+  };
+
+public:
   /// Constructor assigns the OpCode and the Offset.
   Instruction(OpCode Byte, uint32_t Off = 0) noexcept
       : Offset(Off), Code(Byte) {
@@ -44,7 +52,7 @@ public:
       : Data(Instr.Data), Offset(Instr.Offset), Code(Instr.Code),
         Flags(Instr.Flags) {
     if (Flags.IsAllocLabelList) {
-      Data.BrTable.LabelList = new uint32_t[Data.BrTable.LabelListSize];
+      Data.BrTable.LabelList = new JumpDescriptor[Data.BrTable.LabelListSize];
       std::copy_n(Instr.Data.BrTable.LabelList, Data.BrTable.LabelListSize,
                   Data.BrTable.LabelList);
     } else if (Flags.IsAllocValTypeList) {
@@ -104,17 +112,24 @@ public:
     reset();
     if (Size > 0) {
       Data.BrTable.LabelListSize = Size;
-      Data.BrTable.LabelList = new uint32_t[Size];
+      Data.BrTable.LabelList = new JumpDescriptor[Size];
       Flags.IsAllocLabelList = true;
     }
   }
-  Span<const uint32_t> getLabelList() const noexcept {
-    return Span<const uint32_t>(Data.BrTable.LabelList,
-                                Data.BrTable.LabelListSize);
+  Span<const JumpDescriptor> getLabelList() const noexcept {
+    return Span<const JumpDescriptor>(
+        Data.BrTable.LabelList,
+        Flags.IsAllocLabelList ? Data.BrTable.LabelListSize : 0);
   }
-  Span<uint32_t> getLabelList() noexcept {
-    return Span<uint32_t>(Data.BrTable.LabelList, Data.BrTable.LabelListSize);
+  Span<JumpDescriptor> getLabelList() noexcept {
+    return Span<JumpDescriptor>(
+        Data.BrTable.LabelList,
+        Flags.IsAllocLabelList ? Data.BrTable.LabelListSize : 0);
   }
+
+  /// Getter and setter of Jump for Br* instruction.
+  const JumpDescriptor &getJump() const noexcept { return Data.BrTable.Jump; }
+  JumpDescriptor &getJump() noexcept { return Data.BrTable.Jump; }
 
   /// Getter and setter of selecting value types list.
   void setValTypeListSize(uint32_t Size) {
@@ -212,11 +227,11 @@ private:
       uint32_t SourceIdx;
       uint32_t StackOffset;
     } Indices;
-    // Type 3: TargetIdx and LabelList.
+    // Type 3: Jump and LabelList.
     struct {
-      uint32_t TargetIdx;
+      JumpDescriptor Jump;
       uint32_t LabelListSize;
-      uint32_t *LabelList;
+      JumpDescriptor *LabelList;
     } BrTable;
     // Type 4: RefType.
     RefType ReferenceType;

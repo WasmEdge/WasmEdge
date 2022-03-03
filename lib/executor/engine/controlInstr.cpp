@@ -69,7 +69,10 @@ Expect<void> Executor::runBrOp(Runtime::StoreManager &StoreMgr,
                                Runtime::StackManager &StackMgr,
                                const AST::Instruction &Instr,
                                AST::InstrView::iterator &PC) {
-  return branchToLabel(StoreMgr, StackMgr, Instr.getTargetIndex(), PC);
+  return branchToLabel(StoreMgr, StackMgr, Instr.getJump().TargetIndex,
+                       Instr.getJump().StackEraseBegin,
+                       Instr.getJump().StackEraseEnd, Instr.getJump().PCOffset,
+                       PC);
 }
 
 Expect<void> Executor::runBrIfOp(Runtime::StoreManager &StoreMgr,
@@ -92,9 +95,15 @@ Expect<void> Executor::runBrTableOp(Runtime::StoreManager &StoreMgr,
   // Do branch.
   auto LabelTable = Instr.getLabelList();
   if (Value < LabelTable.size()) {
-    return branchToLabel(StoreMgr, StackMgr, LabelTable[Value], PC);
+    return branchToLabel(StoreMgr, StackMgr, LabelTable[Value].TargetIndex,
+                         LabelTable[Value].StackEraseBegin,
+                         LabelTable[Value].StackEraseEnd,
+                         LabelTable[Value].PCOffset, PC);
   }
-  return branchToLabel(StoreMgr, StackMgr, Instr.getTargetIndex(), PC);
+  return branchToLabel(StoreMgr, StackMgr, Instr.getJump().TargetIndex,
+                       Instr.getJump().StackEraseBegin,
+                       Instr.getJump().StackEraseEnd, Instr.getJump().PCOffset,
+                       PC);
 }
 
 Expect<void> Executor::runReturnOp(Runtime::StackManager &StackMgr,

@@ -1,7 +1,12 @@
 //! Defines WasmEdge Store struct.
 
 use crate::{
-    instance::{Function, Global, Memory, Table},
+    instance::{
+        function::{Function, InnerFunc},
+        global::{Global, InnerGlobal},
+        memory::{InnerMemory, Memory},
+        table::{InnerTable, Table},
+    },
     types::WasmEdgeString,
     wasmedge, StoreError, WasmEdgeError, WasmEdgeResult,
 };
@@ -14,7 +19,7 @@ use crate::{
 /// life time of the [Vm](crate::Vm).
 #[derive(Debug)]
 pub struct Store {
-    pub(crate) ctx: *mut wasmedge::WasmEdge_StoreContext,
+    pub(crate) inner: InnerStore,
     pub(crate) registered: bool,
 }
 impl Store {
@@ -28,7 +33,7 @@ impl Store {
         match ctx.is_null() {
             true => Err(WasmEdgeError::Store(StoreError::Create)),
             false => Ok(Store {
-                ctx,
+                inner: InnerStore(ctx),
                 registered: false,
             }),
         }
@@ -48,13 +53,13 @@ impl Store {
     /// If fail to find the target [function](crate::Function), then an error is returned.
     pub fn find_func(&self, name: impl AsRef<str>) -> WasmEdgeResult<Function> {
         let func_name: WasmEdgeString = name.as_ref().into();
-        let ctx = unsafe { wasmedge::WasmEdge_StoreFindFunction(self.ctx, func_name.as_raw()) };
+        let ctx = unsafe { wasmedge::WasmEdge_StoreFindFunction(self.inner.0, func_name.as_raw()) };
         match ctx.is_null() {
             true => Err(WasmEdgeError::Store(StoreError::NotFoundFunc(
                 name.as_ref().to_string(),
             ))),
             false => Ok(Function {
-                ctx,
+                inner: InnerFunc(ctx),
                 registered: true,
             }),
         }
@@ -81,7 +86,7 @@ impl Store {
             let mod_name: WasmEdgeString = mod_name.as_ref().into();
             let func_name: WasmEdgeString = func_name.as_ref().into();
             wasmedge::WasmEdge_StoreFindFunctionRegistered(
-                self.ctx,
+                self.inner.0,
                 mod_name.as_raw(),
                 func_name.as_raw(),
             )
@@ -92,7 +97,7 @@ impl Store {
                 mod_name: mod_name.as_ref().to_string(),
             })),
             false => Ok(Function {
-                ctx,
+                inner: InnerFunc(ctx),
                 registered: true,
             }),
         }
@@ -112,13 +117,13 @@ impl Store {
     /// If fail to find the target [table](crate::Table), then an error is returned.
     pub fn find_table(&self, name: impl AsRef<str>) -> WasmEdgeResult<Table> {
         let table_name: WasmEdgeString = name.as_ref().into();
-        let ctx = unsafe { wasmedge::WasmEdge_StoreFindTable(self.ctx, table_name.as_raw()) };
+        let ctx = unsafe { wasmedge::WasmEdge_StoreFindTable(self.inner.0, table_name.as_raw()) };
         match ctx.is_null() {
             true => Err(WasmEdgeError::Store(StoreError::NotFoundGlobal(
                 name.as_ref().to_string(),
             ))),
             false => Ok(Table {
-                ctx,
+                inner: InnerTable(ctx),
                 registered: true,
             }),
         }
@@ -145,7 +150,7 @@ impl Store {
             let mod_name: WasmEdgeString = mod_name.as_ref().into();
             let table_name: WasmEdgeString = table_name.as_ref().into();
             wasmedge::WasmEdge_StoreFindTableRegistered(
-                self.ctx,
+                self.inner.0,
                 mod_name.as_raw(),
                 table_name.as_raw(),
             )
@@ -156,7 +161,7 @@ impl Store {
                 mod_name: mod_name.as_ref().to_string(),
             })),
             false => Ok(Table {
-                ctx,
+                inner: InnerTable(ctx),
                 registered: true,
             }),
         }
@@ -176,13 +181,13 @@ impl Store {
     /// If fail to find the target [memory](crate::Memory), then an error is returned.
     pub fn find_memory(&self, name: impl AsRef<str>) -> WasmEdgeResult<Memory> {
         let mem_name: WasmEdgeString = name.as_ref().into();
-        let ctx = unsafe { wasmedge::WasmEdge_StoreFindMemory(self.ctx, mem_name.as_raw()) };
+        let ctx = unsafe { wasmedge::WasmEdge_StoreFindMemory(self.inner.0, mem_name.as_raw()) };
         match ctx.is_null() {
             true => Err(WasmEdgeError::Store(StoreError::NotFoundMem(
                 name.as_ref().to_string(),
             ))),
             false => Ok(Memory {
-                ctx,
+                inner: InnerMemory(ctx),
                 registered: true,
             }),
         }
@@ -209,7 +214,7 @@ impl Store {
             let mod_name: WasmEdgeString = mod_name.as_ref().into();
             let mem_name: WasmEdgeString = mem_name.as_ref().into();
             wasmedge::WasmEdge_StoreFindMemoryRegistered(
-                self.ctx,
+                self.inner.0,
                 mod_name.as_raw(),
                 mem_name.as_raw(),
             )
@@ -220,7 +225,7 @@ impl Store {
                 mod_name: mod_name.as_ref().to_string(),
             })),
             false => Ok(Memory {
-                ctx,
+                inner: InnerMemory(ctx),
                 registered: true,
             }),
         }
@@ -240,13 +245,13 @@ impl Store {
     /// If fail to find the target [global](crate::Global), then an error is returned.
     pub fn find_global(&self, name: impl AsRef<str>) -> WasmEdgeResult<Global> {
         let global_name: WasmEdgeString = name.as_ref().into();
-        let ctx = unsafe { wasmedge::WasmEdge_StoreFindGlobal(self.ctx, global_name.as_raw()) };
+        let ctx = unsafe { wasmedge::WasmEdge_StoreFindGlobal(self.inner.0, global_name.as_raw()) };
         match ctx.is_null() {
             true => Err(WasmEdgeError::Store(StoreError::NotFoundGlobal(
                 name.as_ref().to_string(),
             ))),
             false => Ok(Global {
-                ctx,
+                inner: InnerGlobal(ctx),
                 registered: true,
             }),
         }
@@ -273,7 +278,7 @@ impl Store {
             let mod_name: WasmEdgeString = mod_name.as_ref().into();
             let global_name: WasmEdgeString = global_name.as_ref().into();
             wasmedge::WasmEdge_StoreFindGlobalRegistered(
-                self.ctx,
+                self.inner.0,
                 mod_name.as_raw(),
                 global_name.as_raw(),
             )
@@ -284,7 +289,7 @@ impl Store {
                 mod_name: mod_name.as_ref().to_string(),
             })),
             false => Ok(Global {
-                ctx,
+                inner: InnerGlobal(ctx),
                 registered: true,
             }),
         }
@@ -292,7 +297,7 @@ impl Store {
 
     /// Returns the length of the exported [functions](crate::Function) in the anonymous module.
     pub fn func_len(&self) -> u32 {
-        unsafe { wasmedge::WasmEdge_StoreListFunctionLength(self.ctx) }
+        unsafe { wasmedge::WasmEdge_StoreListFunctionLength(self.inner.0) }
     }
 
     /// Returns the names of the exported [functions](crate::Function) in the anonymous module.
@@ -303,7 +308,7 @@ impl Store {
                 let mut func_names = Vec::with_capacity(len_func_names as usize);
                 unsafe {
                     wasmedge::WasmEdge_StoreListFunction(
-                        self.ctx,
+                        self.inner.0,
                         func_names.as_mut_ptr(),
                         len_func_names,
                     );
@@ -327,7 +332,9 @@ impl Store {
     /// - `mod_name` specifies the name of the registered module.
     pub fn reg_func_len(&self, mod_name: impl AsRef<str>) -> u32 {
         let mod_name: WasmEdgeString = mod_name.as_ref().into();
-        unsafe { wasmedge::WasmEdge_StoreListFunctionRegisteredLength(self.ctx, mod_name.as_raw()) }
+        unsafe {
+            wasmedge::WasmEdge_StoreListFunctionRegisteredLength(self.inner.0, mod_name.as_raw())
+        }
     }
 
     /// Returns the names of the exported [functions](crate::Function) in the registered module.
@@ -343,7 +350,7 @@ impl Store {
                 let mod_name: WasmEdgeString = mod_name.as_ref().into();
                 unsafe {
                     wasmedge::WasmEdge_StoreListFunctionRegistered(
-                        self.ctx,
+                        self.inner.0,
                         mod_name.as_raw(),
                         func_names.as_mut_ptr(),
                         len_func_names,
@@ -363,7 +370,7 @@ impl Store {
 
     /// Returns the length of the exported [tables](crate::Table) in the anonymous module.
     pub fn table_len(&self) -> u32 {
-        unsafe { wasmedge::WasmEdge_StoreListTableLength(self.ctx) }
+        unsafe { wasmedge::WasmEdge_StoreListTableLength(self.inner.0) }
     }
 
     /// Returns the names of the exported [tables](crate::Table) in the anonynous module.
@@ -374,7 +381,7 @@ impl Store {
                 let mut table_names = Vec::with_capacity(len_table_names as usize);
                 unsafe {
                     wasmedge::WasmEdge_StoreListTable(
-                        self.ctx,
+                        self.inner.0,
                         table_names.as_mut_ptr(),
                         len_table_names,
                     );
@@ -398,7 +405,9 @@ impl Store {
     /// - `mod_name` specifies the name of the registered module.
     pub fn reg_table_len(&self, mod_name: impl AsRef<str>) -> u32 {
         let mod_name: WasmEdgeString = mod_name.as_ref().into();
-        unsafe { wasmedge::WasmEdge_StoreListTableRegisteredLength(self.ctx, mod_name.as_raw()) }
+        unsafe {
+            wasmedge::WasmEdge_StoreListTableRegisteredLength(self.inner.0, mod_name.as_raw())
+        }
     }
 
     /// Returns the names of the exported [tables](crate::Table) in the registered module.
@@ -414,7 +423,7 @@ impl Store {
                 let mod_name: WasmEdgeString = mod_name.as_ref().into();
                 unsafe {
                     wasmedge::WasmEdge_StoreListTableRegistered(
-                        self.ctx,
+                        self.inner.0,
                         mod_name.as_raw(),
                         table_names.as_mut_ptr(),
                         len_table_names,
@@ -434,7 +443,7 @@ impl Store {
 
     /// Returns the length of the exported [globals](crate::Global) in the anonymous module.
     pub fn global_len(&self) -> u32 {
-        unsafe { wasmedge::WasmEdge_StoreListGlobalLength(self.ctx) }
+        unsafe { wasmedge::WasmEdge_StoreListGlobalLength(self.inner.0) }
     }
 
     /// Returns the names of the exported [globals](crate::Global) in the anonymous module.
@@ -445,7 +454,7 @@ impl Store {
                 let mut global_names = Vec::with_capacity(len_global_names as usize);
                 unsafe {
                     wasmedge::WasmEdge_StoreListGlobal(
-                        self.ctx,
+                        self.inner.0,
                         global_names.as_mut_ptr(),
                         len_global_names,
                     );
@@ -469,7 +478,9 @@ impl Store {
     /// - `mod_name` specifies the name of the registered module.
     pub fn reg_global_len(&self, mod_name: impl AsRef<str>) -> u32 {
         let mod_name: WasmEdgeString = mod_name.as_ref().into();
-        unsafe { wasmedge::WasmEdge_StoreListGlobalRegisteredLength(self.ctx, mod_name.as_raw()) }
+        unsafe {
+            wasmedge::WasmEdge_StoreListGlobalRegisteredLength(self.inner.0, mod_name.as_raw())
+        }
     }
 
     /// Returns the names of all exported [globals](crate::Global) in the registered module.
@@ -485,7 +496,7 @@ impl Store {
                 let mod_name: WasmEdgeString = mod_name.as_ref().into();
                 unsafe {
                     wasmedge::WasmEdge_StoreListGlobalRegistered(
-                        self.ctx,
+                        self.inner.0,
                         mod_name.as_raw(),
                         global_names.as_mut_ptr(),
                         len_global_names,
@@ -505,7 +516,7 @@ impl Store {
 
     /// Returns the length of the exported [memories](crate::Memory) in the anonymous module.
     pub fn mem_len(&self) -> u32 {
-        unsafe { wasmedge::WasmEdge_StoreListMemoryLength(self.ctx) }
+        unsafe { wasmedge::WasmEdge_StoreListMemoryLength(self.inner.0) }
     }
 
     /// Returns the names of all exported [memories](crate::Memory) in the anonymous module.
@@ -516,7 +527,7 @@ impl Store {
                 let mut mem_names = Vec::with_capacity(len_mem_names as usize);
                 unsafe {
                     wasmedge::WasmEdge_StoreListMemory(
-                        self.ctx,
+                        self.inner.0,
                         mem_names.as_mut_ptr(),
                         len_mem_names,
                     );
@@ -540,7 +551,9 @@ impl Store {
     /// - `mod_name` specifies the name of the registered module.
     pub fn reg_mem_len(&self, mod_name: impl AsRef<str>) -> u32 {
         let mod_name: WasmEdgeString = mod_name.as_ref().into();
-        unsafe { wasmedge::WasmEdge_StoreListMemoryRegisteredLength(self.ctx, mod_name.as_raw()) }
+        unsafe {
+            wasmedge::WasmEdge_StoreListMemoryRegisteredLength(self.inner.0, mod_name.as_raw())
+        }
     }
 
     /// Returns the names of all exported [memories](crate::Memory) in the registered module.
@@ -552,7 +565,7 @@ impl Store {
                 let mod_name: WasmEdgeString = mod_name.as_ref().into();
                 unsafe {
                     wasmedge::WasmEdge_StoreListMemoryRegistered(
-                        self.ctx,
+                        self.inner.0,
                         mod_name.as_raw(),
                         mem_names.as_mut_ptr(),
                         len_mem_names,
@@ -572,7 +585,7 @@ impl Store {
 
     /// Returns the length of the registered [modules](crate::Module).
     pub fn reg_module_len(&self) -> u32 {
-        unsafe { wasmedge::WasmEdge_StoreListModuleLength(self.ctx) }
+        unsafe { wasmedge::WasmEdge_StoreListModuleLength(self.inner.0) }
     }
 
     /// Returns the names of all registered [modules](crate::Module).
@@ -583,7 +596,7 @@ impl Store {
                 let mut mod_names = Vec::with_capacity(len_mod_names as usize);
                 unsafe {
                     wasmedge::WasmEdge_StoreListModule(
-                        self.ctx,
+                        self.inner.0,
                         mod_names.as_mut_ptr(),
                         len_mod_names,
                     );
@@ -709,11 +722,16 @@ impl Store {
 }
 impl Drop for Store {
     fn drop(&mut self) {
-        if !self.registered && !self.ctx.is_null() {
-            unsafe { wasmedge::WasmEdge_StoreDelete(self.ctx) }
+        if !self.registered && !self.inner.0.is_null() {
+            unsafe { wasmedge::WasmEdge_StoreDelete(self.inner.0) }
         }
     }
 }
+
+#[derive(Debug)]
+pub(crate) struct InnerStore(pub(crate) *mut wasmedge::WasmEdge_StoreContext);
+unsafe impl Send for InnerStore {}
+unsafe impl Sync for InnerStore {}
 
 #[cfg(test)]
 mod tests {
@@ -723,6 +741,10 @@ mod tests {
         types::Value,
         Config, Executor, FuncType, ImportObject, Mutability, RefType, ValType,
     };
+    use std::{
+        sync::{Arc, Mutex},
+        thread,
+    };
 
     #[test]
     fn test_store_basic() {
@@ -731,7 +753,7 @@ mod tests {
         let result = Store::create();
         assert!(result.is_ok());
         let mut store = result.unwrap();
-        assert!(!store.ctx.is_null());
+        assert!(!store.inner.0.is_null());
         assert!(!store.registered);
 
         // check the length of registered module list in store before instatiation
@@ -842,7 +864,7 @@ mod tests {
         let result = store.find_global_registered("extern_module", "global");
         assert!(result.is_ok());
         let global = result.unwrap();
-        assert!(!global.ctx.is_null() && global.registered);
+        assert!(!global.inner.0.is_null() && global.registered);
         let val = global.get_value();
         assert_eq!(val.to_f32(), 3.5);
 
@@ -864,6 +886,75 @@ mod tests {
             vec![Value::from_i32(12), Value::from_i32(21)],
         );
         assert!(second_run.is_ok());
+    }
+
+    #[test]
+    fn test_store_send() {
+        let result = Store::create();
+        assert!(result.is_ok());
+        let store = result.unwrap();
+        assert!(!store.inner.0.is_null());
+        assert!(!store.registered);
+
+        let handle = thread::spawn(move || {
+            let s = store;
+            assert!(!s.inner.0.is_null());
+        });
+
+        handle.join().unwrap();
+    }
+
+    #[test]
+    fn test_store_sync() {
+        let result = Store::create();
+        assert!(result.is_ok());
+        let store = Arc::new(Mutex::new(result.unwrap()));
+
+        let store_cloned = Arc::clone(&store);
+        let handle = thread::spawn(move || {
+            // create ImportObject instance
+            let result = ImportObject::create("extern_module");
+            assert!(result.is_ok());
+            let mut import = result.unwrap();
+
+            // add host function
+            let result = FuncType::create(vec![ValType::I32; 2], vec![ValType::I32]);
+            assert!(result.is_ok());
+            let func_ty = result.unwrap();
+            let result = Function::create(func_ty, Box::new(real_add), 0);
+            assert!(result.is_ok());
+            let host_func = result.unwrap();
+            import.add_func("add", host_func);
+
+            // create an Executor
+            let result = Config::create();
+            assert!(result.is_ok());
+            let config = result.unwrap();
+            let result = Executor::create(Some(config), None);
+            assert!(result.is_ok());
+            let executor = result.unwrap();
+
+            let result = store_cloned.lock();
+            assert!(result.is_ok());
+            let mut store = result.unwrap();
+
+            let result = executor.register_import_object(&mut store, import);
+            assert!(result.is_ok());
+            let executor = result.unwrap();
+
+            // run the registered function
+            let result = executor.run_func_registered(
+                &store,
+                "extern_module",
+                "add",
+                vec![Value::from_i32(12), Value::from_i32(21)],
+            );
+            assert!(result.is_ok());
+            let returns = result.unwrap();
+            assert_eq!(returns[0].to_i32(), 33);
+        });
+
+        handle.join().unwrap();
     }
 
     fn real_add(inputs: Vec<Value>) -> Result<Vec<Value>, u8> {

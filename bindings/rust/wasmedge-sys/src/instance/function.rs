@@ -66,7 +66,7 @@ extern "C" fn wraper_fn(
 /// [Store](crate::Store).
 #[derive(Debug)]
 pub struct Function {
-    pub(crate) ctx: *mut wasmedge::WasmEdge_FunctionInstanceContext,
+    pub(crate) inner: InnerFunc,
     pub(crate) registered: bool,
 }
 impl Function {
@@ -150,19 +150,19 @@ impl Function {
 
         let ctx = unsafe {
             wasmedge::WasmEdge_FunctionInstanceCreateBinding(
-                ty.ctx,
+                ty.inner.0,
                 Some(wraper_fn),
                 key as *const usize as *mut c_void,
                 std::ptr::null_mut(),
                 cost,
             )
         };
-        ty.ctx = std::ptr::null_mut();
+        ty.inner.0 = std::ptr::null_mut();
 
         match ctx.is_null() {
             true => Err(WasmEdgeError::Func(FuncError::Create)),
             false => Ok(Self {
-                ctx,
+                inner: InnerFunc(ctx),
                 registered: false,
             }),
         }
@@ -175,11 +175,11 @@ impl Function {
     /// If fail to get the function type, then an error is returned.
     ///
     pub fn ty(&self) -> WasmEdgeResult<FuncType> {
-        let ty = unsafe { wasmedge::WasmEdge_FunctionInstanceGetFunctionType(self.ctx) };
+        let ty = unsafe { wasmedge::WasmEdge_FunctionInstanceGetFunctionType(self.inner.0) };
         match ty.is_null() {
             true => Err(WasmEdgeError::Func(FuncError::Type)),
             false => Ok(FuncType {
-                ctx: ty as *mut _,
+                inner: InnerFuncType(ty as *mut _),
                 registered: true,
             }),
         }
@@ -187,19 +187,24 @@ impl Function {
 }
 impl Drop for Function {
     fn drop(&mut self) {
-        if !self.registered && !self.ctx.is_null() {
-            unsafe { wasmedge::WasmEdge_FunctionInstanceDelete(self.ctx) };
+        if !self.registered && !self.inner.0.is_null() {
+            unsafe { wasmedge::WasmEdge_FunctionInstanceDelete(self.inner.0) };
         }
     }
 }
+
+#[derive(Debug)]
+pub(crate) struct InnerFunc(pub(crate) *mut wasmedge::WasmEdge_FunctionInstanceContext);
+unsafe impl Send for InnerFunc {}
+unsafe impl Sync for InnerFunc {}
 
 /// Struct of WasmEdge FuncType.
 ///
 /// A WasmEdge [`FuncType`] classifies the signature of a [`Function`], including the type information
 /// of both the arguments and the returns.
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct FuncType {
-    pub(crate) ctx: *mut wasmedge::WasmEdge_FunctionTypeContext,
+    pub(crate) inner: InnerFuncType,
     pub(crate) registered: bool,
 }
 impl FuncType {
@@ -246,7 +251,7 @@ impl FuncType {
         match ctx.is_null() {
             true => Err(WasmEdgeError::FuncTypeCreate),
             false => Ok(Self {
-                ctx,
+                inner: InnerFuncType(ctx),
                 registered: false,
             }),
         }
@@ -254,7 +259,7 @@ impl FuncType {
 
     /// Returns the number of the arguments of a [`Function`].
     pub fn params_len(&self) -> usize {
-        unsafe { wasmedge::WasmEdge_FunctionTypeGetParametersLength(self.ctx) as usize }
+        unsafe { wasmedge::WasmEdge_FunctionTypeGetParametersLength(self.inner.0) as usize }
     }
 
     /// Returns an Iterator of the arguments of a [`Function`].
@@ -262,7 +267,11 @@ impl FuncType {
         let len = self.params_len();
         let mut types = Vec::with_capacity(len);
         unsafe {
-            wasmedge::WasmEdge_FunctionTypeGetParameters(self.ctx, types.as_mut_ptr(), len as u32);
+            wasmedge::WasmEdge_FunctionTypeGetParameters(
+                self.inner.0,
+                types.as_mut_ptr(),
+                len as u32,
+            );
             types.set_len(len);
         }
 
@@ -271,7 +280,7 @@ impl FuncType {
 
     ///Returns the number of the returns of a [`Function`].
     pub fn returns_len(&self) -> usize {
-        unsafe { wasmedge::WasmEdge_FunctionTypeGetReturnsLength(self.ctx) as usize }
+        unsafe { wasmedge::WasmEdge_FunctionTypeGetReturnsLength(self.inner.0) as usize }
     }
 
     /// Returns an Iterator of the return types of a [`Function`].
@@ -279,7 +288,7 @@ impl FuncType {
         let len = self.returns_len();
         let mut types = Vec::with_capacity(len);
         unsafe {
-            wasmedge::WasmEdge_FunctionTypeGetReturns(self.ctx, types.as_mut_ptr(), len as u32);
+            wasmedge::WasmEdge_FunctionTypeGetReturns(self.inner.0, types.as_mut_ptr(), len as u32);
             types.set_len(len);
         }
 
@@ -288,16 +297,25 @@ impl FuncType {
 }
 impl Drop for FuncType {
     fn drop(&mut self) {
-        if !self.registered && !self.ctx.is_null() {
-            unsafe { wasmedge::WasmEdge_FunctionTypeDelete(self.ctx) };
+        if !self.registered && !self.inner.0.is_null() {
+            unsafe { wasmedge::WasmEdge_FunctionTypeDelete(self.inner.0) };
         }
     }
 }
+
+#[derive(Debug)]
+pub(crate) struct InnerFuncType(pub(crate) *mut wasmedge::WasmEdge_FunctionTypeContext);
+unsafe impl Send for InnerFuncType {}
+unsafe impl Sync for InnerFuncType {}
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::ValType;
+    use std::{
+        sync::{Arc, Mutex},
+        thread,
+    };
 
     #[test]
     fn test_func_type() {
@@ -381,6 +399,73 @@ mod tests {
         assert_eq!(ty.returns_len(), 1);
         let return_tys = ty.returns_type_iter().collect::<Vec<_>>();
         assert_eq!(return_tys, vec![ValType::I32]);
+    }
+
+    #[test]
+    fn test_func_send() {
+        // create a FuncType
+        let result = FuncType::create(vec![ValType::I32; 2], vec![ValType::I32]);
+        assert!(result.is_ok());
+        let func_ty = result.unwrap();
+        // create a host function
+        let result = Function::create(func_ty, Box::new(real_add), 0);
+        assert!(result.is_ok());
+        let host_func = result.unwrap();
+
+        let handle = thread::spawn(move || {
+            // get func type
+            let result = host_func.ty();
+            assert!(result.is_ok());
+            let ty = result.unwrap();
+
+            // check parameters
+            assert_eq!(ty.params_len(), 2);
+            let param_tys = ty.params_type_iter().collect::<Vec<_>>();
+            assert_eq!(param_tys, vec![ValType::I32; 2]);
+
+            // check returns
+            assert_eq!(ty.returns_len(), 1);
+            let return_tys = ty.returns_type_iter().collect::<Vec<_>>();
+            assert_eq!(return_tys, vec![ValType::I32]);
+        });
+
+        handle.join().unwrap()
+    }
+
+    #[test]
+    fn test_func_sync() {
+        // create a FuncType
+        let result = FuncType::create(vec![ValType::I32; 2], vec![ValType::I32]);
+        assert!(result.is_ok());
+        let func_ty = result.unwrap();
+        // create a host function
+        let result = Function::create(func_ty, Box::new(real_add), 0);
+        assert!(result.is_ok());
+        let host_func = Arc::new(Mutex::new(result.unwrap()));
+
+        let host_func_cloned = Arc::clone(&host_func);
+        let handle = thread::spawn(move || {
+            let result = host_func_cloned.lock();
+            assert!(result.is_ok());
+            let host_func = result.unwrap();
+
+            // get func type
+            let result = host_func.ty();
+            assert!(result.is_ok());
+            let ty = result.unwrap();
+
+            // check parameters
+            assert_eq!(ty.params_len(), 2);
+            let param_tys = ty.params_type_iter().collect::<Vec<_>>();
+            assert_eq!(param_tys, vec![ValType::I32; 2]);
+
+            // check returns
+            assert_eq!(ty.returns_len(), 1);
+            let return_tys = ty.returns_type_iter().collect::<Vec<_>>();
+            assert_eq!(return_tys, vec![ValType::I32]);
+        });
+
+        handle.join().unwrap();
     }
 
     fn real_add(input: Vec<Value>) -> Result<Vec<Value>, u8> {

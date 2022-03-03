@@ -735,7 +735,7 @@ public:
             llvm::BasicBlock::Create(LLContext, "ret.end", F));
         break;
       case OpCode::Br: {
-        const auto Label = Instr.getTargetIndex();
+        const auto Label = Instr.getJump().TargetIndex;
         setLableJumpPHI(Label);
         Builder.CreateBr(getLabel(Label));
         setUnreachable();
@@ -744,7 +744,7 @@ public:
         break;
       }
       case OpCode::Br_if: {
-        const auto Label = Instr.getTargetIndex();
+        const auto Label = Instr.getJump().TargetIndex;
         auto *Cond = Builder.CreateICmpNE(stackPop(), Builder.getInt32(0));
         setLableJumpPHI(Label);
         auto *Next = llvm::BasicBlock::Create(LLContext, "br_if.end", F);
@@ -762,8 +762,9 @@ public:
         auto *Switch = Builder.CreateSwitch(
             Value, getLabel(Instr.getTargetIndex()), LabelTableSize);
         for (uint32_t I = 0; I < LabelTableSize; ++I) {
-          setLableJumpPHI(LabelTable[I]);
-          Switch->addCase(Builder.getInt32(I), getLabel(LabelTable[I]));
+          setLableJumpPHI(LabelTable[I].TargetIndex);
+          Switch->addCase(Builder.getInt32(I),
+                          getLabel(LabelTable[I].TargetIndex));
         }
         setUnreachable();
         Builder.SetInsertPoint(

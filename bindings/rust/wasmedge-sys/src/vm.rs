@@ -2,14 +2,18 @@
 
 use crate::{
     error::{check, VmError, WasmEdgeError, WasmEdgeResult},
+    executor::InnerExecutor,
     import_obj::{ImportObject, InnerImportObject},
     instance::function::{FuncType, InnerFuncType},
+    loader::InnerLoader,
     statistics::{InnerStat, Statistics},
     store::{InnerStore, Store},
     types::WasmEdgeString,
-    utils, wasmedge,
+    utils,
+    validator::InnerValidator,
+    wasmedge,
     wasmedge::{WasmEdge_HostRegistration_Wasi, WasmEdge_HostRegistration_WasmEdge_Process},
-    Config, Executor, ImportObject, Loader, Module, Statistics, Store, Validator, Value,
+    Config, Executor, Loader, Module, Validator, Value,
 };
 use std::{collections::HashMap, path::Path};
 
@@ -138,11 +142,6 @@ impl Vm {
             self.imports.insert(io_name.clone(), import);
         }
 
-        let import = self
-            .imports
-            .get(&io_name)
-            .ok_or(WasmEdgeError::Vm(VmError::NotFoundImportObject(io_name)))?;
-
         unsafe {
             check(wasmedge::WasmEdge_VMRegisterModuleFromImport(
                 self.inner.0,
@@ -153,7 +152,6 @@ impl Vm {
                     .0,
             ))?;
         }
-        import.inner.0 = std::ptr::null_mut();
 
         Ok(())
     }
@@ -717,31 +715,34 @@ impl Vm {
     }
 
     pub fn loader(&self) -> WasmEdgeResult<Loader> {
-        let loder_ctx = unsafe { wasmedge::WasmEdge_VMGetLoaderContext(self.ctx) };
+        let loder_ctx = unsafe { wasmedge::WasmEdge_VMGetLoaderContext(self.inner.0) };
         match loder_ctx.is_null() {
             true => Err(WasmEdgeError::Vm(VmError::NotFoundLoader)),
             false => Ok(Loader {
                 inner: InnerLoader(loder_ctx),
+                registered: true,
             }),
         }
     }
 
     pub fn validator(&self) -> WasmEdgeResult<Validator> {
-        let vdr_ctx = unsafe { wasmedge::WasmEdge_VMGetValidatorContext(self.ctx) };
+        let vdr_ctx = unsafe { wasmedge::WasmEdge_VMGetValidatorContext(self.inner.0) };
         match vdr_ctx.is_null() {
             true => Err(WasmEdgeError::Vm(VmError::NotFoundValidator)),
             false => Ok(Validator {
-                inner: InnerLoader(vdr_ctx),
+                inner: InnerValidator(vdr_ctx),
+                registered: true,
             }),
         }
     }
 
     pub fn executor(&self) -> WasmEdgeResult<Executor> {
-        let exr_ctx = unsafe { wasmedge::WasmEdge_VMGetExecutorContext(self.ctx) };
+        let exr_ctx = unsafe { wasmedge::WasmEdge_VMGetExecutorContext(self.inner.0) };
         match exr_ctx.is_null() {
             true => Err(WasmEdgeError::Vm(VmError::NotFoundExecutor)),
             false => Ok(Executor {
                 inner: InnerExecutor(exr_ctx),
+                registered: true,
             }),
         }
     }

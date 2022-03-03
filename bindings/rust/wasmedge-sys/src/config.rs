@@ -941,6 +941,10 @@ mod tests {
         config.exception_handling(true);
         config.function_references(true);
         config.memory64(true);
+        config.multi_value(false);
+        config.mutable_globals(false);
+        config.non_trap_conversions(false);
+        config.sign_extension_operators(false);
         config.reference_types(false);
         config.simd(false);
         config.tail_call(true);

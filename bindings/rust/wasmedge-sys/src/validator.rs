@@ -6,6 +6,7 @@ use crate::{error::check, wasmedge, Config, Module, WasmEdgeError, WasmEdgeResul
 #[derive(Debug)]
 pub struct Validator {
     pub(crate) inner: InnerValidator,
+    pub(crate) registered: bool,
 }
 impl Validator {
     /// Creates a new [`Validator`] to be associated with the given global configuration.
@@ -30,6 +31,7 @@ impl Validator {
             true => Err(WasmEdgeError::CompilerCreate),
             false => Ok(Self {
                 inner: InnerValidator(ctx),
+                registered: false,
             }),
         }
     }
@@ -57,7 +59,7 @@ impl Validator {
 }
 impl Drop for Validator {
     fn drop(&mut self) {
-        if !self.inner.0.is_null() {
+        if !self.registered && !self.inner.0.is_null() {
             unsafe { wasmedge::WasmEdge_ValidatorDelete(self.inner.0) }
         }
     }

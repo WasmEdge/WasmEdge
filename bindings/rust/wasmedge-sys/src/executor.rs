@@ -13,7 +13,8 @@ use crate::{
 /// [Store](crate::Store).
 #[derive(Debug)]
 pub struct Executor {
-    inner: InnerExecutor,
+    pub(crate) inner: InnerExecutor,
+    pub(crate) registered: bool,
 }
 impl Executor {
     /// Creates a new [`Executor`] to be associated with the given [`Config`] and [`Statistics`].
@@ -63,6 +64,7 @@ impl Executor {
             true => Err(WasmEdgeError::ExecutorCreate),
             false => Ok(Executor {
                 inner: InnerExecutor(ctx),
+                registered: false,
             }),
         }
     }
@@ -265,7 +267,7 @@ impl Executor {
 }
 impl Drop for Executor {
     fn drop(&mut self) {
-        if !self.inner.0.is_null() {
+        if !self.registered && !self.inner.0.is_null() {
             unsafe { wasmedge::WasmEdge_ExecutorDelete(self.inner.0) }
         }
     }

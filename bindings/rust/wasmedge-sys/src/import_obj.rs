@@ -40,7 +40,7 @@ impl ImportObject {
 
     pub fn name(&self) -> String {
         let raw_name =
-            unsafe { wasmedge::WasmEdge_ImportObjectGetModuleName(self.ctx as *const _) };
+            unsafe { wasmedge::WasmEdge_ImportObjectGetModuleName(self.inner.0 as *const _) };
         raw_name.into()
     }
 

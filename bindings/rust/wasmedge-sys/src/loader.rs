@@ -13,6 +13,7 @@ use std::path::Path;
 #[derive(Debug)]
 pub struct Loader {
     pub(crate) inner: InnerLoader,
+    pub(crate) registered: bool,
 }
 impl Loader {
     /// Create a new [`Loader`] to be associated with the given global configuration.
@@ -38,6 +39,7 @@ impl Loader {
             true => Err(WasmEdgeError::LoaderCreate),
             false => Ok(Self {
                 inner: InnerLoader(ctx),
+                registered: false,
             }),
         }
     }
@@ -134,7 +136,7 @@ impl Loader {
 }
 impl Drop for Loader {
     fn drop(&mut self) {
-        if !self.inner.0.is_null() {
+        if !self.registered && !self.inner.0.is_null() {
             unsafe { wasmedge::WasmEdge_LoaderDelete(self.inner.0) }
         }
     }

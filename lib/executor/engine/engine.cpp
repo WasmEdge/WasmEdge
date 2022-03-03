@@ -107,9 +107,10 @@ Expect<void> Executor::execute(Runtime::StoreManager &StoreMgr,
         }
       }
       [[fallthrough]];
-    case OpCode::End:
-      PC = StackMgr.leaveLabel();
+    case OpCode::End: {
+      PC = StackMgr.leaveLabel(PC->isLast());
       return {};
+    }
     case OpCode::Br:
       return runBrOp(StoreMgr, StackMgr, Instr, PC);
     case OpCode::Br_if:

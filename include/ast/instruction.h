@@ -127,6 +127,10 @@ public:
         Flags.IsAllocLabelList ? Data.BrTable.LabelListSize : 0);
   }
 
+  /// Getter and setter of IsLast for End instruction.
+  bool isLast() const noexcept { return Data.IsLast; }
+  void setLast(bool Last = true) noexcept { Data.IsLast = Last; }
+
   /// Getter and setter of Jump for Br* instruction.
   const JumpDescriptor &getJump() const noexcept { return Data.BrTable.Jump; }
   JumpDescriptor &getJump() noexcept { return Data.BrTable.Jump; }
@@ -261,6 +265,8 @@ private:
       uint64_t High;
     } Num;
 #endif
+    // Type 8: IsLast.
+    bool IsLast;
   } Data;
   uint32_t Offset = 0;
   OpCode Code = OpCode::End;

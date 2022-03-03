@@ -133,9 +133,10 @@ public:
   }
 
   /// Unsafe leave top label.
-  AST::InstrView::iterator leaveLabel() {
+  AST::InstrView::iterator leaveLabel(bool IsLast) {
     auto It = LabelStack.back().From;
     LabelStack.pop_back();
+    assuming(IsLast == (FrameStack.back().LStackOff == LabelStack.size()));
     if (FrameStack.size() > 1 &&
         FrameStack.back().LStackOff == LabelStack.size()) {
       // Noted that there's always a base frame in stack.

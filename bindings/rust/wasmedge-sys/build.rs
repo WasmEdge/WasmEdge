@@ -332,14 +332,14 @@ fn build_linux(wasmedge_dir: impl AsRef<Path>) -> Paths {
     #[cfg(feature = "aot")]
     let dst = cmake::Config::new(&wasmedge_dir)
         .profile("Release")
-        .define("-DWASMEDGE_BUILD_TESTS", "ON")
+        .define("WASMEDGE_BUILD_TESTS", "ON")
         .very_verbose(true)
         .build();
     #[cfg(not(feature = "aot"))]
     let dst = cmake::Config::new(&wasmedge_dir)
         .profile("Release")
-        .define("-DWASMEDGE_BUILD_TESTS", "ON")
-        .define("-DWASMEDGE_BUILD_AOT_RUNTIME", "OFF")
+        .define("WASMEDGE_BUILD_TESTS", "ON")
+        .define("WASMEDGE_BUILD_AOT_RUNTIME", "OFF")
         .very_verbose(true)
         .build();
     println!("cargo:warning=[wasmedge-sys] cmake build dir: {:?}", dst);
@@ -347,8 +347,7 @@ fn build_linux(wasmedge_dir: impl AsRef<Path>) -> Paths {
     // WASMEDGE_INCLUDE_DIR
     let inc_dir = out_dir.join("include");
     assert!(inc_dir.exists());
-    let inc_dir = inc_dir.join("wasmedge");
-    assert!(inc_dir.exists());
+    assert!(inc_dir.join("wasmedge").exists());
     println!(
         "cargo:warning=[wasmedge-sys] WASMEDGE_INCLUDE_DIR: {}",
         inc_dir.to_str().unwrap()
@@ -367,7 +366,7 @@ fn build_linux(wasmedge_dir: impl AsRef<Path>) -> Paths {
     );
 
     // Path to wasmedge.h
-    let header = inc_dir.join(WASMEDGE_H);
+    let header = inc_dir.join("wasmedge").join(WASMEDGE_H);
     assert!(header.exists());
     println!(
         "cargo:warning=[wasmedge-sys] header path: {}",

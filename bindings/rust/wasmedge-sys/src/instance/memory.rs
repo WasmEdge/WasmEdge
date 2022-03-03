@@ -16,7 +16,7 @@ use std::ops::RangeInclusive;
 /// A WasmEdge [`Memory`] defines a linear memory as described by [`MemType`].
 #[derive(Debug)]
 pub struct Memory {
-    pub(crate) ctx: *mut wasmedge::WasmEdge_MemoryInstanceContext,
+    pub(crate) inner: InnerMemory,
     pub(crate) registered: bool,
 }
 impl Memory {
@@ -43,13 +43,13 @@ impl Memory {
     ///
     ///
     pub fn create(mut ty: MemType) -> WasmEdgeResult<Self> {
-        let ctx = unsafe { wasmedge::WasmEdge_MemoryInstanceCreate(ty.ctx) };
-        ty.ctx = std::ptr::null_mut();
+        let ctx = unsafe { wasmedge::WasmEdge_MemoryInstanceCreate(ty.inner.0) };
+        ty.inner.0 = std::ptr::null_mut();
 
         match ctx.is_null() {
             true => Err(WasmEdgeError::Mem(MemError::Create)),
             false => Ok(Memory {
-                ctx,
+                inner: InnerMemory(ctx),
                 registered: false,
             }),
         }
@@ -62,11 +62,11 @@ impl Memory {
     /// If fail to get the type from the [`Memory`], then an error is returned.
     ///
     pub fn ty(&self) -> WasmEdgeResult<MemType> {
-        let ty_ctx = unsafe { wasmedge::WasmEdge_MemoryInstanceGetMemoryType(self.ctx) };
+        let ty_ctx = unsafe { wasmedge::WasmEdge_MemoryInstanceGetMemoryType(self.inner.0) };
         match ty_ctx.is_null() {
             true => Err(WasmEdgeError::Mem(MemError::Type)),
             false => Ok(MemType {
-                ctx: ty_ctx as *mut _,
+                inner: InnerMemType(ty_ctx as *mut _),
                 registered: true,
             }),
         }
@@ -88,7 +88,7 @@ impl Memory {
         let mut data = Vec::with_capacity(len as usize);
         unsafe {
             check(wasmedge::WasmEdge_MemoryInstanceGetData(
-                self.ctx,
+                self.inner.0,
                 data.as_mut_ptr(),
                 offset,
                 len,
@@ -153,7 +153,7 @@ impl Memory {
         let data = data.into_iter().collect::<Vec<u8>>();
         unsafe {
             check(wasmedge::WasmEdge_MemoryInstanceSetData(
-                self.ctx,
+                self.inner.0,
                 data.as_ptr() as *mut _,
                 offset,
                 data.len() as u32,
@@ -177,7 +177,7 @@ impl Memory {
     ///
     pub fn data_pointer(&self, offset: u32, len: u32) -> WasmEdgeResult<&u8> {
         let ptr =
-            unsafe { wasmedge::WasmEdge_MemoryInstanceGetPointerConst(self.ctx, offset, len) };
+            unsafe { wasmedge::WasmEdge_MemoryInstanceGetPointerConst(self.inner.0, offset, len) };
         match ptr.is_null() {
             true => Err(WasmEdgeError::Mem(MemError::ConstPtr)),
             false => {
@@ -204,7 +204,7 @@ impl Memory {
     /// If fail to get the data pointer, then an error is returned.
     ///
     pub fn data_pointer_mut(&mut self, offset: u32, len: u32) -> WasmEdgeResult<&mut u8> {
-        let ptr = unsafe { wasmedge::WasmEdge_MemoryInstanceGetPointer(self.ctx, offset, len) };
+        let ptr = unsafe { wasmedge::WasmEdge_MemoryInstanceGetPointer(self.inner.0, offset, len) };
         match ptr.is_null() {
             true => Err(WasmEdgeError::Mem(MemError::MutPtr)),
             false => {
@@ -219,7 +219,7 @@ impl Memory {
 
     /// Returns the size, in WebAssembly pages (64 KiB of each page), of this wasm memory.
     pub fn size(&self) -> u32 {
-        unsafe { wasmedge::WasmEdge_MemoryInstanceGetPageSize(self.ctx) as u32 }
+        unsafe { wasmedge::WasmEdge_MemoryInstanceGetPageSize(self.inner.0) as u32 }
     }
 
     /// Grows this WebAssembly memory by `count` pages.
@@ -250,23 +250,33 @@ impl Memory {
     /// ```
     ///
     pub fn grow(&mut self, count: u32) -> WasmEdgeResult<()> {
-        unsafe { check(wasmedge::WasmEdge_MemoryInstanceGrowPage(self.ctx, count)) }
+        unsafe {
+            check(wasmedge::WasmEdge_MemoryInstanceGrowPage(
+                self.inner.0,
+                count,
+            ))
+        }
     }
 }
 impl Drop for Memory {
     fn drop(&mut self) {
-        if !self.registered && !self.ctx.is_null() {
-            unsafe { wasmedge::WasmEdge_MemoryInstanceDelete(self.ctx) };
+        if !self.registered && !self.inner.0.is_null() {
+            unsafe { wasmedge::WasmEdge_MemoryInstanceDelete(self.inner.0) };
         }
     }
 }
+
+#[derive(Debug)]
+pub(crate) struct InnerMemory(pub(crate) *mut wasmedge::WasmEdge_MemoryInstanceContext);
+unsafe impl Send for InnerMemory {}
+unsafe impl Sync for InnerMemory {}
 
 /// Struct of WasmEdge MemType.
 ///
 /// A [`MemType`] classifies a [`Memory`] and its size range.
 #[derive(Debug)]
 pub struct MemType {
-    pub(crate) ctx: *mut wasmedge::WasmEdge_MemoryTypeContext,
+    pub(crate) inner: InnerMemType,
     pub(crate) registered: bool,
 }
 impl MemType {
@@ -294,7 +304,7 @@ impl MemType {
         match ctx.is_null() {
             true => Err(WasmEdgeError::MemTypeCreate),
             false => Ok(Self {
-                ctx,
+                inner: InnerMemType(ctx),
                 registered: false,
             }),
         }
@@ -312,29 +322,38 @@ impl MemType {
     /// ```
     ///
     pub fn limit(&self) -> RangeInclusive<u32> {
-        let limit = unsafe { wasmedge::WasmEdge_MemoryTypeGetLimit(self.ctx) };
+        let limit = unsafe { wasmedge::WasmEdge_MemoryTypeGetLimit(self.inner.0) };
         RangeInclusive::from(limit)
     }
 }
 impl Drop for MemType {
     fn drop(&mut self) {
-        if !self.registered && !self.ctx.is_null() {
-            unsafe { wasmedge::WasmEdge_MemoryTypeDelete(self.ctx) }
+        if !self.registered && !self.inner.0.is_null() {
+            unsafe { wasmedge::WasmEdge_MemoryTypeDelete(self.inner.0) }
         }
     }
 }
+
+#[derive(Debug)]
+pub(crate) struct InnerMemType(pub(crate) *mut wasmedge::WasmEdge_MemoryTypeContext);
+unsafe impl Send for InnerMemType {}
+unsafe impl Sync for InnerMemType {}
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::error::{CoreError, CoreExecutionError, WasmEdgeError};
+    use std::{
+        sync::{Arc, Mutex},
+        thread,
+    };
 
     #[test]
     fn test_memory_type() {
         let result = MemType::create(0..=u32::MAX);
         assert!(result.is_ok());
         let ty = result.unwrap();
-        assert!(!ty.ctx.is_null());
+        assert!(!ty.inner.0.is_null());
         assert!(!ty.registered);
 
         let limit = ty.limit();
@@ -343,7 +362,7 @@ mod tests {
         let result = MemType::create(10..=101);
         assert!(result.is_ok());
         let ty = result.unwrap();
-        assert!(!ty.ctx.is_null());
+        assert!(!ty.inner.0.is_null());
         assert!(!ty.registered);
 
         let limit = ty.limit();
@@ -359,14 +378,14 @@ mod tests {
         let result = Memory::create(ty);
         assert!(result.is_ok());
         let mut mem = result.unwrap();
-        assert!(!mem.ctx.is_null());
+        assert!(!mem.inner.0.is_null());
         assert!(!mem.registered);
 
         // get type
         let result = mem.ty();
         assert!(result.is_ok());
         let ty = result.unwrap();
-        assert!(!ty.ctx.is_null());
+        assert!(!ty.inner.0.is_null());
         assert!(ty.registered);
         // check limit
         assert_eq!(ty.limit(), 10..=20);
@@ -394,7 +413,7 @@ mod tests {
         let result = Memory::create(ty);
         assert!(result.is_ok());
         let mut mem = result.unwrap();
-        assert!(!mem.ctx.is_null());
+        assert!(!mem.inner.0.is_null());
         assert!(!mem.registered);
 
         // check page count
@@ -430,5 +449,89 @@ mod tests {
         assert_eq!(mem.size(), 2);
         let result = mem.set_data(vec![1; 10], u32::pow(2, 16) - 9);
         assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_memory_send() {
+        {
+            let result = MemType::create(10..=101);
+            assert!(result.is_ok());
+            let ty = result.unwrap();
+            assert!(!ty.inner.0.is_null());
+            assert!(!ty.registered);
+
+            let handle = thread::spawn(move || {
+                assert!(!ty.inner.0.is_null());
+                assert!(!ty.registered);
+
+                let limit = ty.limit();
+                assert_eq!(limit, 10..=101);
+            });
+
+            handle.join().unwrap()
+        }
+
+        {
+            // create a Memory with a limit range [10, 20]
+            let result = MemType::create(10..=20);
+            assert!(result.is_ok());
+            let ty = result.unwrap();
+            let result = Memory::create(ty);
+            assert!(result.is_ok());
+            let mem = result.unwrap();
+            assert!(!mem.inner.0.is_null());
+            assert!(!mem.registered);
+
+            let handle = thread::spawn(move || {
+                // get type
+                let result = mem.ty();
+                assert!(result.is_ok());
+                let ty = result.unwrap();
+                assert!(!ty.inner.0.is_null());
+                assert!(ty.registered);
+                // check limit
+                assert_eq!(ty.limit(), 10..=20);
+
+                // check page count
+                let count = mem.size();
+                assert_eq!(count, 10);
+            });
+
+            handle.join().unwrap()
+        }
+    }
+
+    #[test]
+    fn test_memory_sync() {
+        // create a Memory with a limit range [10, 20]
+        let result = MemType::create(10..=20);
+        assert!(result.is_ok());
+        let ty = result.unwrap();
+        let result = Memory::create(ty);
+        assert!(result.is_ok());
+        let mem = result.unwrap();
+        assert!(!mem.inner.0.is_null());
+        assert!(!mem.registered);
+        let memory = Arc::new(Mutex::new(mem));
+
+        let memory_cloned = Arc::clone(&memory);
+        let handle = thread::spawn(move || {
+            let mem = memory_cloned.lock().unwrap();
+
+            // get type
+            let result = mem.ty();
+            assert!(result.is_ok());
+            let ty = result.unwrap();
+            assert!(!ty.inner.0.is_null());
+            assert!(ty.registered);
+            // check limit
+            assert_eq!(ty.limit(), 10..=20);
+
+            // check page count
+            let count = mem.size();
+            assert_eq!(count, 10);
+        });
+
+        handle.join().unwrap()
     }
 }

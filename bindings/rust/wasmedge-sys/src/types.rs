@@ -266,18 +266,18 @@ impl fmt::Display for ExternalType {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub(crate) struct WasmEdgeString {
-    ctx: wasmedge::WasmEdge_String,
+    inner: InnerWasmEdgeString,
 }
 impl Drop for WasmEdgeString {
     fn drop(&mut self) {
-        unsafe { wasmedge::WasmEdge_StringDelete(self.ctx) }
+        unsafe { wasmedge::WasmEdge_StringDelete(self.inner.0) }
     }
 }
 impl WasmEdgeString {
     pub(crate) fn as_raw(&self) -> wasmedge::WasmEdge_String {
-        self.ctx
+        self.inner.0
     }
 }
 impl<T: AsRef<str>> From<T> for WasmEdgeString {
@@ -297,12 +297,14 @@ impl<T: AsRef<str>> From<T> for WasmEdgeString {
             unsafe { wasmedge::WasmEdge_StringCreateByCString(cs.as_ptr()) }
         };
 
-        Self { ctx }
+        Self {
+            inner: InnerWasmEdgeString(ctx),
+        }
     }
 }
 impl PartialEq for WasmEdgeString {
     fn eq(&self, other: &Self) -> bool {
-        unsafe { wasmedge::WasmEdge_StringIsEqual(self.ctx, other.ctx) }
+        unsafe { wasmedge::WasmEdge_StringIsEqual(self.inner.0, other.inner.0) }
     }
 }
 impl Eq for WasmEdgeString {}
@@ -323,16 +325,21 @@ impl From<wasmedge::WasmEdge_String> for String {
     }
 }
 
+#[derive(Debug)]
+pub(crate) struct InnerWasmEdgeString(pub(crate) wasmedge::WasmEdge_String);
+unsafe impl Send for InnerWasmEdgeString {}
+unsafe impl Sync for InnerWasmEdgeString {}
+
 /// Struct of WasmEdge Value.
 #[derive(Debug, Clone, Copy)]
 pub struct Value {
-    raw: wasmedge::WasmEdge_Value,
+    ctx: wasmedge::WasmEdge_Value,
     ty: ValType,
 }
 impl Value {
     /// Returns the raw `WasmEdge_Value`.
     pub fn as_raw(&self) -> wasmedge::WasmEdge_Value {
-        self.raw
+        self.ctx
     }
 
     /// Returns the type of a [`Value`].
@@ -347,14 +354,14 @@ impl Value {
     /// - `val` specifies the source `i32` value.
     pub fn from_i32(val: i32) -> Self {
         Self {
-            raw: unsafe { wasmedge::WasmEdge_ValueGenI32(val) },
+            ctx: unsafe { wasmedge::WasmEdge_ValueGenI32(val) },
             ty: ValType::I32,
         }
     }
 
     /// Generates a `i32` value from a [`Value`].
     pub fn to_i32(&self) -> i32 {
-        unsafe { wasmedge::WasmEdge_ValueGetI32(self.raw) }
+        unsafe { wasmedge::WasmEdge_ValueGetI32(self.ctx) }
     }
 
     /// Creates a [`Value`] from a `i64` value.
@@ -364,14 +371,14 @@ impl Value {
     /// - `val` specifies the source `i64` value.
     pub fn from_i64(val: i64) -> Self {
         Self {
-            raw: unsafe { wasmedge::WasmEdge_ValueGenI64(val) },
+            ctx: unsafe { wasmedge::WasmEdge_ValueGenI64(val) },
             ty: ValType::I64,
         }
     }
 
     /// Generates a `i64` value from a [`Value`].
     pub fn to_i64(&self) -> i64 {
-        unsafe { wasmedge::WasmEdge_ValueGetI64(self.raw) }
+        unsafe { wasmedge::WasmEdge_ValueGetI64(self.ctx) }
     }
 
     /// Creates a [`Value`] from a `f32` value.
@@ -381,14 +388,14 @@ impl Value {
     /// - `val` specifies the source `f32` value.
     pub fn from_f32(val: f32) -> Self {
         Self {
-            raw: unsafe { wasmedge::WasmEdge_ValueGenF32(val) },
+            ctx: unsafe { wasmedge::WasmEdge_ValueGenF32(val) },
             ty: ValType::F32,
         }
     }
 
     /// Generates a `f32` value from a [`Value`].
     pub fn to_f32(&self) -> f32 {
-        unsafe { wasmedge::WasmEdge_ValueGetF32(self.raw) }
+        unsafe { wasmedge::WasmEdge_ValueGetF32(self.ctx) }
     }
 
     /// Creates a [`Value`] from a `f64` value.
@@ -398,14 +405,14 @@ impl Value {
     /// - `val` specifies the source `f64` value.
     pub fn from_f64(val: f64) -> Self {
         Self {
-            raw: unsafe { wasmedge::WasmEdge_ValueGenF64(val) },
+            ctx: unsafe { wasmedge::WasmEdge_ValueGenF64(val) },
             ty: ValType::F64,
         }
     }
 
     /// Generates a `f64` value from a [`Value`].
     pub fn to_f64(&self) -> f64 {
-        unsafe { wasmedge::WasmEdge_ValueGetF64(self.raw) }
+        unsafe { wasmedge::WasmEdge_ValueGetF64(self.ctx) }
     }
 
     /// Creates a [`Value`] from a `i128` value.
@@ -415,14 +422,14 @@ impl Value {
     /// - `val` specifies the source `i128` value.
     pub fn from_v128(val: i128) -> Self {
         Self {
-            raw: unsafe { wasmedge::WasmEdge_ValueGenV128(val) },
+            ctx: unsafe { wasmedge::WasmEdge_ValueGenV128(val) },
             ty: ValType::V128,
         }
     }
 
     /// Generates a `v128` value from a [`Value`].
     pub fn to_v128(&self) -> i128 {
-        unsafe { wasmedge::WasmEdge_ValueGetV128(self.raw) }
+        unsafe { wasmedge::WasmEdge_ValueGetV128(self.ctx) }
     }
 
     /// Creates a [`Value`] from a [`RefType`] value.
@@ -432,7 +439,7 @@ impl Value {
     /// - `val` specifies the `[`RefType`] value.
     pub fn from_null_ref(ref_ty: RefType) -> Self {
         Self {
-            raw: unsafe { wasmedge::WasmEdge_ValueGenNullRef(ref_ty.into()) },
+            ctx: unsafe { wasmedge::WasmEdge_ValueGenNullRef(ref_ty.into()) },
             ty: match ref_ty {
                 RefType::FuncRef => ValType::FuncRef,
                 RefType::ExternRef => ValType::ExternRef,
@@ -442,7 +449,7 @@ impl Value {
 
     /// Checks if a [`Value`] is NullRef or not.
     pub fn is_null_ref(&self) -> bool {
-        unsafe { wasmedge::WasmEdge_ValueIsNullRef(self.raw) }
+        unsafe { wasmedge::WasmEdge_ValueIsNullRef(self.ctx) }
     }
 
     /// Creates a [`Value`] from a the function reference.
@@ -455,7 +462,7 @@ impl Value {
     /// - `idx` specifies the function index.
     pub fn from_func_ref(idx: u32) -> Self {
         Self {
-            raw: unsafe { wasmedge::WasmEdge_ValueGenFuncRef(idx) },
+            ctx: unsafe { wasmedge::WasmEdge_ValueGenFuncRef(idx) },
             ty: ValType::FuncRef,
         }
     }
@@ -465,10 +472,10 @@ impl Value {
     /// If the [`Value`] is a `NullRef`, then `None` is returned.
     pub fn func_idx(&self) -> Option<u32> {
         unsafe {
-            match wasmedge::WasmEdge_ValueIsNullRef(self.raw) {
+            match wasmedge::WasmEdge_ValueIsNullRef(self.ctx) {
                 true => None,
                 false => {
-                    let idx = wasmedge::WasmEdge_ValueGetFuncIdx(self.raw);
+                    let idx = wasmedge::WasmEdge_ValueGetFuncIdx(self.ctx);
                     Some(idx)
                 }
             }
@@ -486,7 +493,7 @@ impl Value {
     pub fn from_extern_ref<T>(extern_obj: &mut T) -> Self {
         let ptr = extern_obj as *mut T as *mut c_void;
         Self {
-            raw: unsafe { wasmedge::WasmEdge_ValueGenExternRef(ptr) },
+            ctx: unsafe { wasmedge::WasmEdge_ValueGenExternRef(ptr) },
             ty: ValType::ExternRef,
         }
     }
@@ -496,10 +503,10 @@ impl Value {
     /// If the [`Value`] is a `NullRef`, then `None` is returned.
     pub fn extern_ref<T>(&self) -> Option<&T> {
         unsafe {
-            match wasmedge::WasmEdge_ValueIsNullRef(self.raw) {
+            match wasmedge::WasmEdge_ValueIsNullRef(self.ctx) {
                 true => None,
                 false => {
-                    let ptr = wasmedge::WasmEdge_ValueGetExternRef(self.raw);
+                    let ptr = wasmedge::WasmEdge_ValueGetExternRef(self.ctx);
                     let x = ptr as *mut T;
                     Some(&*x)
                 }
@@ -511,31 +518,31 @@ impl From<wasmedge::WasmEdge_Value> for Value {
     fn from(raw_val: wasmedge::WasmEdge_Value) -> Self {
         match raw_val.Type {
             wasmedge::WasmEdge_ValType_I32 => Self {
-                raw: raw_val,
+                ctx: raw_val,
                 ty: ValType::I32,
             },
             wasmedge::WasmEdge_ValType_I64 => Self {
-                raw: raw_val,
+                ctx: raw_val,
                 ty: ValType::I64,
             },
             wasmedge::WasmEdge_ValType_F32 => Self {
-                raw: raw_val,
+                ctx: raw_val,
                 ty: ValType::F32,
             },
             wasmedge::WasmEdge_ValType_F64 => Self {
-                raw: raw_val,
+                ctx: raw_val,
                 ty: ValType::F64,
             },
             wasmedge::WasmEdge_ValType_V128 => Self {
-                raw: raw_val,
+                ctx: raw_val,
                 ty: ValType::V128,
             },
             wasmedge::WasmEdge_ValType_FuncRef => Self {
-                raw: raw_val,
+                ctx: raw_val,
                 ty: ValType::FuncRef,
             },
             wasmedge::WasmEdge_ValType_ExternRef => Self {
-                raw: raw_val,
+                ctx: raw_val,
                 ty: ValType::ExternRef,
             },
             _ => panic!("unknown WasmEdge_ValType `{}`", raw_val.Type),
@@ -547,9 +554,13 @@ impl From<wasmedge::WasmEdge_Value> for Value {
 mod tests {
     use super::*;
     use crate::{RefType, Table, TableType};
+    use std::{
+        sync::{Arc, Mutex},
+        thread,
+    };
 
     #[test]
-    fn test_value() {
+    fn test_types_value() {
         // I32
         let val = Value::from_i32(1314);
         assert_eq!(val.ty(), ValType::I32);
@@ -595,7 +606,159 @@ mod tests {
     }
 
     #[test]
-    fn test_string() {
+    fn test_types_value_send() {
+        // I32
+        let val_i32 = Value::from_i32(1314);
+        // I64
+        let val_i64 = Value::from_i64(1314);
+        // F32
+        let val_f32 = Value::from_f32(13.14);
+        // F64
+        let val_f64 = Value::from_f64(13.14);
+        // V128
+        let val_v128 = Value::from_v128(1314);
+
+        // ExternRef
+        let result = TableType::create(RefType::FuncRef, 10..=20);
+        assert!(result.is_ok());
+        let ty = result.unwrap();
+        let result = Table::create(ty);
+        assert!(result.is_ok());
+        let mut table = result.unwrap();
+        let val_extern_ref = Value::from_extern_ref(&mut table);
+
+        // NullRef(FuncRef)
+        let val_null_func_ref = Value::from_null_ref(RefType::FuncRef);
+
+        // NullRef(ExternRef)
+        let val_null_extern_ref = Value::from_null_ref(RefType::ExternRef);
+
+        let handle = thread::spawn(move || {
+            let val_i32_c = val_i32;
+            assert_eq!(val_i32_c.ty(), ValType::I32);
+
+            let val_i64_c = val_i64;
+            assert_eq!(val_i64_c.ty(), ValType::I64);
+
+            let val_f32_c = val_f32;
+            assert_eq!(val_f32_c.ty(), ValType::F32);
+
+            let val_f64_c = val_f64;
+            assert_eq!(val_f64_c.ty(), ValType::F64);
+
+            let val_v128_c = val_v128;
+            assert_eq!(val_v128_c.ty(), ValType::V128);
+
+            let val_extern_ref_c = val_extern_ref;
+            assert_eq!(val_extern_ref_c.ty(), ValType::ExternRef);
+            assert!(val_extern_ref_c.extern_ref::<Table>().is_some());
+
+            let val_null_func_ref_c = val_null_func_ref;
+            assert_eq!(val_null_func_ref_c.ty(), ValType::FuncRef);
+            assert!(val_null_func_ref_c.is_null_ref());
+            assert_eq!(val_null_func_ref_c.ty(), ValType::FuncRef);
+
+            let val_null_extern_ref_c = val_null_extern_ref;
+            assert_eq!(val_null_extern_ref_c.ty(), ValType::ExternRef);
+            assert!(val_null_extern_ref_c.is_null_ref());
+            assert_eq!(val_null_extern_ref_c.ty(), ValType::ExternRef);
+        });
+
+        handle.join().unwrap();
+    }
+
+    #[test]
+    fn test_types_value_sync() {
+        // I32
+        let val_i32 = Arc::new(Mutex::new(Value::from_i32(1314)));
+        let val_i32_cloned = Arc::clone(&val_i32);
+
+        // I64
+        let val_i64 = Arc::new(Mutex::new(Value::from_i64(1314)));
+        let val_i64_cloned = Arc::clone(&val_i64);
+
+        // F32
+        let val_f32 = Arc::new(Mutex::new(Value::from_f32(13.14)));
+        let val_f32_cloned = Arc::clone(&val_f32);
+
+        // F64
+        let val_f64 = Arc::new(Mutex::new(Value::from_f64(13.14)));
+        let val_f64_cloned = Arc::clone(&val_f64);
+
+        // V128
+        let val_v128 = Arc::new(Mutex::new(Value::from_v128(1314)));
+        let val_v128_cloned = Arc::clone(&val_v128);
+
+        // ExternRef
+        let result = TableType::create(RefType::FuncRef, 10..=20);
+        assert!(result.is_ok());
+        let ty = result.unwrap();
+        let result = Table::create(ty);
+        assert!(result.is_ok());
+        let mut table = result.unwrap();
+        let val_extern_ref = Arc::new(Mutex::new(Value::from_extern_ref(&mut table)));
+        let val_extern_ref_cloned = Arc::clone(&val_extern_ref);
+
+        // NullRef(FuncRef)
+        let val_null_func_ref = Arc::new(Mutex::new(Value::from_null_ref(RefType::FuncRef)));
+        let val_null_func_ref_cloned = Arc::clone(&val_null_func_ref);
+
+        // NullRef(ExternRef)
+        let val_null_extern_ref = Arc::new(Mutex::new(Value::from_null_ref(RefType::ExternRef)));
+        let val_null_extern_ref_cloned = Arc::clone(&val_null_extern_ref);
+
+        let handle = thread::spawn(move || {
+            let result = val_i32_cloned.lock();
+            assert!(result.is_ok());
+            let val_i32_c = result.unwrap();
+            assert_eq!(val_i32_c.ty(), ValType::I32);
+
+            let result = val_i64_cloned.lock();
+            assert!(result.is_ok());
+            let val_i64_c = result.unwrap();
+            assert_eq!(val_i64_c.ty(), ValType::I64);
+
+            let result = val_f32_cloned.lock();
+            assert!(result.is_ok());
+            let val_f32_c = result.unwrap();
+            assert_eq!(val_f32_c.ty(), ValType::F32);
+
+            let result = val_f64_cloned.lock();
+            assert!(result.is_ok());
+            let val_f64_c = result.unwrap();
+            assert_eq!(val_f64_c.ty(), ValType::F64);
+
+            let result = val_v128_cloned.lock();
+            assert!(result.is_ok());
+            let val_v128_c = result.unwrap();
+            assert_eq!(val_v128_c.ty(), ValType::V128);
+
+            let result = val_extern_ref_cloned.lock();
+            assert!(result.is_ok());
+            let val_extern_ref_c = result.unwrap();
+            assert_eq!(val_extern_ref_c.ty(), ValType::ExternRef);
+            assert!(val_extern_ref_c.extern_ref::<Table>().is_some());
+
+            let result = val_null_func_ref_cloned.lock();
+            assert!(result.is_ok());
+            let val_null_func_ref_c = result.unwrap();
+            assert_eq!(val_null_func_ref_c.ty(), ValType::FuncRef);
+            assert!(val_null_func_ref_c.is_null_ref());
+            assert_eq!(val_null_func_ref_c.ty(), ValType::FuncRef);
+
+            let result = val_null_extern_ref_cloned.lock();
+            assert!(result.is_ok());
+            let val_null_extern_ref_c = result.unwrap();
+            assert_eq!(val_null_extern_ref_c.ty(), ValType::ExternRef);
+            assert!(val_null_extern_ref_c.is_null_ref());
+            assert_eq!(val_null_extern_ref_c.ty(), ValType::ExternRef);
+        });
+
+        handle.join().unwrap();
+    }
+
+    #[test]
+    fn test_types_string() {
         let s: WasmEdgeString = "hello".into();
         let t: WasmEdgeString = "hello".into();
         assert_eq!(s, t);
@@ -615,5 +778,35 @@ mod tests {
         let s: WasmEdgeString = "he\0llo\0".into();
         let t = String::from(s);
         assert_eq!(t, "he\0llo\0");
+    }
+
+    #[test]
+    fn test_types_string_send() {
+        let s: WasmEdgeString = "hello".into();
+
+        let handle = thread::spawn(move || {
+            let t: WasmEdgeString = "hello".into();
+            assert_eq!(s, t);
+        });
+
+        handle.join().unwrap();
+    }
+
+    #[test]
+    fn test_types_string_sync() {
+        let s: WasmEdgeString = "hello".into();
+        let p = Arc::new(Mutex::new(s));
+
+        let s_cloned = Arc::clone(&p);
+        let handle = thread::spawn(move || {
+            let result = s_cloned.lock();
+            assert!(result.is_ok());
+            let s = result.unwrap();
+
+            let t: WasmEdgeString = "hello".into();
+            assert_eq!(*s, t);
+        });
+
+        handle.join().unwrap();
     }
 }

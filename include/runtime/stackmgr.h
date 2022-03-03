@@ -225,14 +225,15 @@ public:
   }
 
   /// Unsafe pop top label.
-  AST::InstrView::iterator popLabel(const uint32_t Cnt = 1) {
+  AST::InstrView::iterator popLabel(uint32_t Cnt, uint32_t EraseBegin,
+                                    uint32_t EraseEnd) noexcept {
     const auto &L = getLabelWithCount(Cnt - 1);
-    ValueStack.erase(ValueStack.begin() + L.VStackOff,
-                     ValueStack.end() - L.Arity);
+    assuming(EraseBegin == ValueStack.size() - L.VStackOff);
+    assuming(EraseEnd == L.Arity);
+    ValueStack.erase(ValueStack.end() - EraseBegin,
+                     ValueStack.end() - EraseEnd);
     auto It = L.From;
-    for (uint32_t I = 0; I < Cnt; ++I) {
-      LabelStack.pop_back();
-    }
+    LabelStack.erase(LabelStack.end() - Cnt, LabelStack.end());
     return It;
   }
 

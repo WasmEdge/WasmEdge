@@ -190,7 +190,7 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
 
   case OpCode::Br:
   case OpCode::Br_if:
-    return readU32(Instr.getTargetIndex());
+    return readU32(Instr.getJump().TargetIndex);
 
   case OpCode::Br_table: {
     uint32_t VecCnt = 0;
@@ -204,7 +204,7 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
       if (auto Res = readU32(Label); unlikely(!Res)) {
         return Unexpect(Res);
       } else {
-        Instr.getLabelList()[I] = Label;
+        Instr.getLabelList()[I].TargetIndex = Label;
       }
     }
     // Read default label.

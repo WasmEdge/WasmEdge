@@ -229,8 +229,10 @@ private:
 
   /// Helper function for branching to label.
   Expect<void> branchToLabel(Runtime::StoreManager &StoreMgr,
-                             Runtime::StackManager &StackMgr,
-                             const uint32_t Cnt, AST::InstrView::iterator &PC);
+                             Runtime::StackManager &StackMgr, uint32_t Cnt,
+                             uint32_t EraseBegin, uint32_t EraseEnd,
+                             int32_t PCOffset,
+                             AST::InstrView::iterator &PC) noexcept;
 
   /// Helper function for getting arity from block type.
   std::pair<uint32_t, uint32_t> getBlockArity(Runtime::StoreManager &StoreMgr,

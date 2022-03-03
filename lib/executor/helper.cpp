@@ -168,8 +168,9 @@ Executor::getBlockArity(Runtime::StoreManager &StoreMgr,
 
 Expect<void> Executor::branchToLabel(Runtime::StoreManager &StoreMgr,
                                      Runtime::StackManager &StackMgr,
-                                     const uint32_t Cnt,
-                                     AST::InstrView::iterator &PC) {
+                                     uint32_t Cnt, uint32_t EraseBegin,
+                                     uint32_t EraseEnd, int32_t PCOffset,
+                                     AST::InstrView::iterator &PC) noexcept {
   // Check stop token
   if (unlikely(StopToken.exchange(0, std::memory_order_relaxed))) {
     spdlog::error(ErrCode::Interrupted);
@@ -180,7 +181,8 @@ Expect<void> Executor::branchToLabel(Runtime::StoreManager &StoreMgr,
   const auto ContIt = StackMgr.getLabelWithCount(Cnt).Cont;
 
   // Pop L + 1 labels and jump back.
-  PC = StackMgr.popLabel(Cnt + 1);
+  AST::InstrView::iterator NextPC;
+  NextPC = StackMgr.popLabel(Cnt + 1, EraseBegin, EraseEnd);
 
   // Jump to the continuation of Label if is a loop.
   if (ContIt) {
@@ -189,11 +191,14 @@ Expect<void> Executor::branchToLabel(Runtime::StoreManager &StoreMgr,
         getBlockArity(StoreMgr, StackMgr, (*ContIt)->getBlockType());
 
     // Create Label{ loop-instruction } and push.
-    StackMgr.pushLabel(BlockSig.first, BlockSig.first, PC, *ContIt);
+    StackMgr.pushLabel(BlockSig.first, BlockSig.first, NextPC, *ContIt);
 
     // Move PC to loop start.
-    PC = *ContIt;
+    NextPC = *ContIt;
   }
+  const int32_t RealOffset = NextPC - PC;
+  assuming(RealOffset == PCOffset);
+  PC += PCOffset;
   return {};
 }
 

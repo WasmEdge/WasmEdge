@@ -5,7 +5,9 @@
 #include "runtime/importobj.h"
 #include "spdlog/sinks/stdout_color_sinks.h"
 #include <memory>
+#ifdef WASINN_BUILD_ONNX
 #include <onnxruntime_cxx_api.h>
+#endif
 
 namespace WasmEdge {
 namespace Host {
@@ -15,9 +17,11 @@ WasiNNModule::WasiNNModule() : ImportObject("wasi_ephemeral_nn") {
   spdlog::set_level(spdlog::level::info);
   spdlog::stdout_color_mt("WasiNN");
 
-  this->Ctx.MemoryInfo =
+#ifdef WASINN_BUILD_ONNX
+  this->Ctx.OnnxMemoryInfo =
       std::make_unique<Ort::MemoryInfo>(Ort::MemoryInfo::CreateCpu(
           OrtAllocatorType::OrtArenaAllocator, OrtMemType::OrtMemTypeDefault));
+#endif
 
   addHostFunc("load", std::make_unique<WasiNNLoad>(Ctx));
   addHostFunc("init_execution_context",

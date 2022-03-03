@@ -177,8 +177,8 @@ Expect<void> Executor::branchToLabel(Runtime::StoreManager &StoreMgr,
   const auto ContIt = StackMgr.getLabelWithCount(Cnt).Cont;
 
   // Pop L + 1 labels and jump back.
-  AST::InstrView::iterator NextPC;
-  NextPC = StackMgr.popLabel(Cnt + 1, EraseBegin, EraseEnd);
+  AST::InstrView::iterator NextPC =
+      StackMgr.popLabel(Cnt + 1, EraseBegin, EraseEnd);
 
   // Jump to the continuation of Label if is a loop.
   if (ContIt) {

@@ -20,6 +20,7 @@ thiserror = "1.0.30"
 
 [build-dependencies]
 bindgen = { version = "0.59.1", default-features = false, features = ["runtime"] }
+cmake = "0.1"
 
 [features]
 default = ["aot"]

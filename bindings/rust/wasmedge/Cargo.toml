@@ -9,5 +9,5 @@ categories = ["api-bindings"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-wasmedge-sys = { path = "../wasmedge-sys", version="0.3.0" }
+wasmedge-sys = { path = "../wasmedge-sys", version="0.4.0" }
 thiserror = "1.0.30"

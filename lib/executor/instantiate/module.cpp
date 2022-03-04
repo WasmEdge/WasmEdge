@@ -87,7 +87,7 @@ Expect<void> Executor::instantiate(Runtime::StoreManager &StoreMgr,
   }
 
   // Push a new frame {TmpModInst:{globaddrs}, locals:none}
-  StackMgr.pushFrame(TmpModInstAddr, 0, 0);
+  StackMgr.pushFrame(TmpModInstAddr, AST::InstrView::iterator(), 0, 0);
 
   // Instantiate GlobalSection (GlobalSec)
   const AST::GlobalSection &GlobSec = Mod.getGlobalSection();
@@ -112,7 +112,7 @@ Expect<void> Executor::instantiate(Runtime::StoreManager &StoreMgr,
   }
 
   // Push a new frame {ModInst, locals:none}
-  StackMgr.pushFrame(ModInst->Addr, 0, 0);
+  StackMgr.pushFrame(ModInst->Addr, AST::InstrView::iterator(), 0, 0);
 
   // Instantiate ElementSection (ElemSec)
   const AST::ElementSection &ElemSec = Mod.getElementSection();

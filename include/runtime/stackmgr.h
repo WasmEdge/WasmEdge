@@ -23,27 +23,15 @@ namespace Runtime {
 
 class StackManager {
 public:
-  struct Label {
-    Label() = delete;
-    Label(const uint32_t S, const uint32_t A, AST::InstrView::iterator FromIt,
-          std::optional<AST::InstrView::iterator> ContIt)
-        : VStackOff(S), Arity(A), From(FromIt), Cont(ContIt) {}
-    uint32_t VStackOff;
-    uint32_t Arity;
-    AST::InstrView::iterator From;
-    std::optional<AST::InstrView::iterator> Cont;
-  };
-
   struct Frame {
     Frame() = delete;
-    Frame(const uint32_t Addr, const uint32_t VS, const uint32_t LS,
-          const uint32_t A, const bool Dummy = false)
-        : ModAddr(Addr), VStackOff(VS), LStackOff(LS), Arity(A),
-          IsDummy(Dummy) {}
+    Frame(uint32_t Addr, uint32_t L, uint32_t A,
+          AST::InstrView::iterator FromIt, const bool Dummy = false) noexcept
+        : ModAddr(Addr), Locals(L), Arity(A), From(FromIt), IsDummy(Dummy) {}
     uint32_t ModAddr;
-    uint32_t VStackOff;
-    uint32_t LStackOff;
+    uint32_t Locals;
     uint32_t Arity;
+    AST::InstrView::iterator From;
     bool IsDummy;
   };
 
@@ -52,15 +40,14 @@ public:
   /// Stack manager provides the stack control for Wasm execution with VALIDATED
   /// modules. All operations of instructions passed validation, therefore no
   /// unexpect operations will occur.
-  StackManager() {
+  StackManager() noexcept {
     ValueStack.reserve(2048U);
-    LabelStack.reserve(64U);
     FrameStack.reserve(16U);
   }
   ~StackManager() = default;
 
   /// Getter of stack size.
-  size_t size() const { return ValueStack.size(); }
+  size_t size() const noexcept { return ValueStack.size(); }
 
   /// Unsafe Getter of top entry of stack.
   Value &getTop() { return ValueStack.back(); }
@@ -89,87 +76,62 @@ public:
   }
 
   /// Push a new frame entry to stack.
-  void pushFrame(const uint32_t ModuleAddr, const uint32_t LocalNum = 0,
-                 const uint32_t ArityNum = 0) {
-    FrameStack.emplace_back(ModuleAddr, ValueStack.size() - LocalNum,
-                            LabelStack.size(), ArityNum);
+  void pushFrame(const uint32_t ModuleAddr, AST::InstrView::iterator From,
+                 const uint32_t LocalNum = 0,
+                 const uint32_t Arity = 0) noexcept {
+    FrameStack.emplace_back(ModuleAddr, LocalNum, Arity, From);
   }
 
   /// Push a dummy frame for invokation base.
-  void pushDummyFrame() {
-    FrameStack.emplace_back(0, ValueStack.size(), LabelStack.size(), 0, true);
+  void pushDummyFrame() noexcept {
+    FrameStack.emplace_back(0, ValueStack.size(), 0, AST::InstrView::iterator{},
+                            true);
   }
 
   /// Unsafe pop top frame.
-  void popFrame() {
-    assuming(LabelStack.size() >= FrameStack.back().LStackOff);
-    LabelStack.erase(LabelStack.begin() + FrameStack.back().LStackOff,
-                     LabelStack.end());
+  AST::InstrView::iterator popFrame() noexcept {
+    assuming(!FrameStack.empty());
     assuming(ValueStack.size() >=
-             FrameStack.back().VStackOff + FrameStack.back().Arity);
-    ValueStack.erase(ValueStack.begin() + FrameStack.back().VStackOff,
+             FrameStack.back().Locals + FrameStack.back().Arity);
+    ValueStack.erase(ValueStack.end() - FrameStack.back().Locals -
+                         FrameStack.back().Arity,
                      ValueStack.end() - FrameStack.back().Arity);
+    auto From = FrameStack.back().From;
     FrameStack.pop_back();
+    return From;
   }
 
-  /// Push a new label entry to stack.
-  void pushLabel(const uint32_t LocalNum, const uint32_t ArityNum,
-                 AST::InstrView::iterator From,
-                 std::optional<AST::InstrView::iterator> Cont = std::nullopt) {
-    LabelStack.emplace_back(ValueStack.size() - LocalNum, ArityNum, From, Cont);
-  }
-
-  /// Unsafe pop top label.
-  AST::InstrView::iterator popLabel(uint32_t Cnt, uint32_t EraseBegin,
-                                    uint32_t EraseEnd) noexcept {
-    const auto &L = getLabelWithCount(Cnt - 1);
-    assuming(EraseBegin == ValueStack.size() - L.VStackOff);
-    assuming(EraseEnd == L.Arity);
+  /// Unsafe erase stack.
+  void stackErase(uint32_t EraseBegin, uint32_t EraseEnd) noexcept {
+    assuming(EraseEnd <= EraseBegin && EraseBegin <= ValueStack.size());
     ValueStack.erase(ValueStack.end() - EraseBegin,
                      ValueStack.end() - EraseEnd);
-    auto It = L.From;
-    LabelStack.erase(LabelStack.end() - Cnt, LabelStack.end());
-    return It;
   }
 
   /// Unsafe leave top label.
-  AST::InstrView::iterator leaveLabel(bool IsLast) {
-    auto It = LabelStack.back().From;
-    LabelStack.pop_back();
-    assuming(IsLast == (FrameStack.back().LStackOff == LabelStack.size()));
-    if (FrameStack.size() > 1 &&
-        FrameStack.back().LStackOff == LabelStack.size()) {
+  AST::InstrView::iterator maybePopFrame(AST::InstrView::iterator PC) noexcept {
+    if (FrameStack.size() > 1 && PC->isLast()) {
       // Noted that there's always a base frame in stack.
-      popFrame();
+      return popFrame();
     }
-    return It;
+    return PC;
   }
 
   /// Unsafe getter of module address.
-  uint32_t getModuleAddr() const { return FrameStack.back().ModAddr; }
-
-  /// Unsafe getter for stack offset of local values by index.
-  uint32_t getOffset(uint32_t Idx) const {
-    return FrameStack.back().VStackOff + Idx;
-  }
-
-  /// Unsafe getter of the top count of label which index start from 0.
-  const Label &getLabelWithCount(const uint32_t Count) const {
-    return LabelStack[LabelStack.size() - Count - 1];
-  }
-
-  /// Unsafe getter of the bottom label on the top frame.
-  const Label &getBottomLabel() const {
-    return LabelStack[FrameStack.back().LStackOff];
+  uint32_t getModuleAddr() const noexcept {
+    assuming(!FrameStack.empty());
+    return FrameStack.back().ModAddr;
   }
 
   /// Unsafe checker of top frame is a dummy frame.
-  bool isTopDummyFrame() { return FrameStack.back().IsDummy; }
+  bool isTopDummyFrame() noexcept {
+    assuming(!FrameStack.empty());
+    return FrameStack.back().IsDummy;
+  }
 
   /// Reset stack.
-  void reset() {
+  void reset() noexcept {
     ValueStack.clear();
-    LabelStack.clear();
     FrameStack.clear();
   }
 
@@ -177,7 +139,6 @@ private:
   /// \name Data of stack manager.
   /// @{
   std::vector<Value> ValueStack;
-  std::vector<Label> LabelStack;
   std::vector<Frame> FrameStack;
   /// @}
 };

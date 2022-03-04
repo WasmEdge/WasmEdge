@@ -181,11 +181,10 @@ mod tests {
         assert!(result.is_ok());
 
         // enable the configuration options for statistics
-        let config = result
-            .unwrap()
-            .cost_measuring(true)
-            .time_measuring(true)
-            .instr_counting(true);
+        let mut config = result.unwrap();
+        config.aot_cost_measuring(true);
+        config.aot_time_measuring(true);
+        config.aot_instr_counting(true);
 
         // create a Vm context
         let result = Vm::new(Some(config));

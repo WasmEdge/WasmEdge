@@ -5,7 +5,7 @@ include(FetchContent)
 FetchContent_Declare(
   wasmedge_unit_test
   GIT_REPOSITORY https://github.com/second-state/WasmEdge-unittest
-  GIT_TAG wasm-dev-0.9.1
+  GIT_TAG        wasm-dev
 )
 FetchContent_MakeAvailable(wasmedge_unit_test)
 
@@ -40,11 +40,6 @@ target_include_directories(rapidjson INTERFACE ${rapidjson_SOURCE_DIR}/include)
 
 file(COPY
   ${wasmedge_unit_test_SOURCE_DIR}/core
-  DESTINATION
-  ${CMAKE_CURRENT_BINARY_DIR}/testSuites
-)
-file(COPY
-  ${wasmedge_unit_test_SOURCE_DIR}/simd
   DESTINATION
   ${CMAKE_CURRENT_BINARY_DIR}/testSuites
 )

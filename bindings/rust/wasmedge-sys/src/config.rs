@@ -158,125 +158,49 @@ impl Config {
     pub fn copy_from(src: &Config) -> WasmEdgeResult<Self> {
         let mut config = Config::create()?;
 
-        if src.annotations_enabled() {
-            config.annotations(true)
-        } else {
-            config.annotations(false)
-        };
+        config.annotations(src.annotations_enabled());
 
-        if src.bulk_memory_operations_enabled() {
-            config.bulk_memory_operations(true)
-        } else {
-            config.bulk_memory_operations(false)
-        };
+        config.bulk_memory_operations(src.bulk_memory_operations_enabled());
 
-        if src.exception_handling_enabled() {
-            config.exception_handling(true)
-        } else {
-            config.exception_handling(false)
-        };
+        config.exception_handling(src.exception_handling_enabled());
 
         config.function_references(src.function_references_enabled());
 
-        if src.memory64_enabled() {
-            config.memory64(true)
-        } else {
-            config.memory64(false)
-        };
+        config.memory64(src.memory64_enabled());
 
-        if src.multi_value_enabled() {
-            config.multi_value(true)
-        } else {
-            config.multi_value(false)
-        };
+        config.multi_value(src.multi_value_enabled());
 
-        if src.mutable_globals_enabled() {
-            config.mutable_globals(true)
-        } else {
-            config.mutable_globals(false)
-        };
+        config.mutable_globals(src.mutable_globals_enabled());
 
-        if src.non_trap_conversions_enabled() {
-            config.non_trap_conversions(true)
-        } else {
-            config.non_trap_conversions(false)
-        };
+        config.non_trap_conversions(src.non_trap_conversions_enabled());
 
-        if src.reference_types_enabled() {
-            config.reference_types(true)
-        } else {
-            config.reference_types(false)
-        };
+        config.reference_types(src.reference_types_enabled());
 
-        if src.sign_extension_operators_enabled() {
-            config.sign_extension_operators(true)
-        } else {
-            config.sign_extension_operators(false)
-        };
+        config.sign_extension_operators(src.sign_extension_operators_enabled());
 
-        if src.simd_enabled() {
-            config.simd(true)
-        } else {
-            config.simd(false)
-        };
+        config.simd(src.simd_enabled());
 
-        if src.tail_call_enabled() {
-            config.tail_call(true)
-        } else {
-            config.tail_call(false)
-        };
+        config.tail_call(src.tail_call_enabled());
 
-        if src.threads_enabled() {
-            config.threads(true)
-        } else {
-            config.threads(false)
-        };
+        config.threads(src.threads_enabled());
 
-        if src.wasi_enabled() {
-            config.wasi(true)
-        } else {
-            config.wasi(false)
-        };
+        config.wasi(src.wasi_enabled());
 
-        if src.wasmedge_process_enabled() {
-            config.wasmedge_process(true)
-        } else {
-            config.wasmedge_process(false)
-        };
+        config.wasmedge_process(src.wasmedge_process_enabled());
 
-        if src.is_aot_cost_measuring() {
-            config.aot_measure_cost(true)
-        } else {
-            config.aot_measure_cost(false)
-        };
+        config.aot_measure_cost(src.is_aot_cost_measuring());
 
-        if src.is_aot_instruction_counting() {
-            config.aot_count_instructions(true)
-        } else {
-            config.aot_count_instructions(false)
-        };
+        config.aot_count_instructions(src.is_aot_instruction_counting());
 
-        if src.is_aot_time_measuring() {
-            config.aot_measure_time(true)
-        } else {
-            config.aot_measure_time(false)
-        };
+        config.aot_measure_time(src.is_aot_time_measuring());
 
         config.set_max_memory_pages(src.get_max_memory_pages());
 
-        // let config = config.aot_interruptible(src.aot_interruptible_enabled());
+        config.aot_interruptible(src.aot_interruptible_enabled());
 
-        if src.is_aot_dump_ir() {
-            config.aot_dump_ir(true)
-        } else {
-            config.aot_dump_ir(false)
-        };
+        config.aot_dump_ir(src.is_aot_dump_ir());
 
-        if src.is_aot_generic_binary() {
-            config.aot_generic_binary(true)
-        } else {
-            config.aot_generic_binary(false)
-        };
+        config.aot_generic_binary(src.is_aot_generic_binary());
 
         config.set_aot_compiler_output_format(src.get_aot_compiler_output_format());
 

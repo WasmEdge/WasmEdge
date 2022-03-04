@@ -226,7 +226,7 @@ mod tests {
             assert!(!config.annotations_enabled());
             assert!(config.bulk_memory_operations_enabled());
             assert!(!config.exception_handling_enabled());
-            // assert!(config.function_references_enabled());
+            assert!(!config.function_references_enabled());
             assert_eq!(config.get_max_memory_pages(), 65536);
             assert!(!config.memory64_enabled());
             assert!(config.multi_value_enabled());
@@ -257,7 +257,7 @@ mod tests {
             config.annotations(true);
             config.bulk_memory_operations(false);
             config.exception_handling(true);
-            // config.function_references()
+            config.function_references(true);
             config.set_max_memory_pages(20);
             config.memory64(true);
             config.multi_value(false);
@@ -272,7 +272,7 @@ mod tests {
             assert!(config.annotations_enabled());
             assert!(!config.bulk_memory_operations_enabled());
             assert!(config.exception_handling_enabled());
-            // assert!(config.function_references_enabled());
+            assert!(config.function_references_enabled());
             assert_eq!(config.get_max_memory_pages(), 20);
             assert!(config.memory64_enabled());
             assert!(!config.multi_value_enabled());

@@ -7,6 +7,7 @@
 #include "system/fault.h"
 
 #include <cstdint>
+#include <numeric>
 #include <utility>
 #include <vector>
 
@@ -80,7 +81,8 @@ Executor::enterFunction(Runtime::StoreManager &StoreMgr,
   } else if (Func.isCompiledFunction()) {
     // Compiled function case: Push frame with locals and args.
     StackMgr.pushFrame(Func.getModuleAddr(), // Module address
-                       ArgsN,                // No Arguments in stack
+                       From - 1,             // Return PC
+                       0,                    // No Arguments in stack
                        RetsN                 // Returns num
     );
 
@@ -128,9 +130,15 @@ Executor::enterFunction(Runtime::StoreManager &StoreMgr,
     // For compiled function case, the continuation will be the next.
     return From;
   } else {
+    const uint32_t LocalN = std::accumulate(
+        Func.getLocals().begin(), Func.getLocals().end(), UINT32_C(0),
+        [](uint32_t N, const auto &Pair) -> uint32_t {
+          return N + Pair.first;
+        });
     // Native function case: Push frame with locals and args.
     StackMgr.pushFrame(Func.getModuleAddr(), // Module address
-                       ArgsN,                // Arguments num
+                       From - 1,             // Return PC
+                       ArgsN + LocalN,       // Arguments num + local num
                        RetsN                 // Returns num
     );
 
@@ -141,35 +149,15 @@ Executor::enterFunction(Runtime::StoreManager &StoreMgr,
       }
     }
 
-    // Enter function block []->[returns] with label{none}.
-    StackMgr.pushLabel(0, RetsN, From - 1);
     // For native function case, the continuation will be the start of
     // function body.
     return Func.getInstrs().begin();
   }
 }
 
-std::pair<uint32_t, uint32_t>
-Executor::getBlockArity(Runtime::StoreManager &StoreMgr,
-                        Runtime::StackManager &StackMgr,
-                        const BlockType &BType) {
-  uint32_t Locals = 0, Arity = 0;
-  if (BType.IsValType) {
-    Arity = (BType.Data.Type == ValType::None) ? 0 : 1;
-  } else {
-    // Get function type at index x.
-    const auto *ModInst = *StoreMgr.getModule(StackMgr.getModuleAddr());
-    const auto *FuncType = *ModInst->getFuncType(BType.Data.Idx);
-    Locals = static_cast<uint32_t>(FuncType->getParamTypes().size());
-    Arity = static_cast<uint32_t>(FuncType->getReturnTypes().size());
-  }
-  return {Locals, Arity};
-}
-
-Expect<void> Executor::branchToLabel(Runtime::StoreManager &StoreMgr,
-                                     Runtime::StackManager &StackMgr,
-                                     uint32_t Cnt, uint32_t EraseBegin,
-                                     uint32_t EraseEnd, int32_t PCOffset,
+Expect<void> Executor::branchToLabel(Runtime::StackManager &StackMgr,
+                                     uint32_t EraseBegin, uint32_t EraseEnd,
+                                     int32_t PCOffset,
                                      AST::InstrView::iterator &PC) noexcept {
   // Check stop token
   if (unlikely(StopToken.exchange(0, std::memory_order_relaxed))) {
@@ -177,27 +165,7 @@ Expect<void> Executor::branchToLabel(Runtime::StoreManager &StoreMgr,
     return Unexpect(ErrCode::Interrupted);
   }
 
-  // Get the L-th label from top of stack and the continuation instruction.
-  const auto ContIt = StackMgr.getLabelWithCount(Cnt).Cont;
-
-  // Pop L + 1 labels and jump back.
-  AST::InstrView::iterator NextPC =
-      StackMgr.popLabel(Cnt + 1, EraseBegin, EraseEnd);
-
-  // Jump to the continuation of Label if is a loop.
-  if (ContIt) {
-    // Get result type for arity.
-    auto BlockSig =
-        getBlockArity(StoreMgr, StackMgr, (*ContIt)->getBlockType());
-
-    // Create Label{ loop-instruction } and push.
-    StackMgr.pushLabel(BlockSig.first, BlockSig.first, NextPC, *ContIt);
-
-    // Move PC to loop start.
-    NextPC = *ContIt;
-  }
-  const int32_t RealOffset = NextPC - PC;
-  assuming(RealOffset == PCOffset);
+  StackMgr.stackErase(EraseBegin, EraseEnd);
   PC += PCOffset;
   return {};
 }

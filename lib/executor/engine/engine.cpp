@@ -164,11 +164,11 @@ Expect<void> Executor::execute(Runtime::StoreManager &StoreMgr,
 
     // Variable Instructions
     case OpCode::Local__get:
-      return runLocalGetOp(StackMgr, Instr.getTargetIndex());
+      return runLocalGetOp(StackMgr, Instr.getStackOffset());
     case OpCode::Local__set:
-      return runLocalSetOp(StackMgr, Instr.getTargetIndex());
+      return runLocalSetOp(StackMgr, Instr.getStackOffset());
     case OpCode::Local__tee:
-      return runLocalTeeOp(StackMgr, Instr.getTargetIndex());
+      return runLocalTeeOp(StackMgr, Instr.getStackOffset());
     case OpCode::Global__get:
       return runGlobalGetOp(StoreMgr, StackMgr, Instr.getTargetIndex());
     case OpCode::Global__set:

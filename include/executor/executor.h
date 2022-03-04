@@ -305,17 +305,17 @@ private:
                                  AST::InstrView::iterator &PC);
   /// ======= Variable instructions =======
   Expect<void> runLocalGetOp(Runtime::StackManager &StackMgr,
-                             const uint32_t Idx);
+                             uint32_t StackOffset) const noexcept;
   Expect<void> runLocalSetOp(Runtime::StackManager &StackMgr,
-                             const uint32_t Idx);
+                             uint32_t StackOffset) const noexcept;
   Expect<void> runLocalTeeOp(Runtime::StackManager &StackMgr,
-                             const uint32_t Idx);
+                             uint32_t StackOffset) const noexcept;
   Expect<void> runGlobalGetOp(Runtime::StoreManager &StoreMgr,
                               Runtime::StackManager &StackMgr,
-                              const uint32_t Idx);
+                              const uint32_t Idx) noexcept;
   Expect<void> runGlobalSetOp(Runtime::StoreManager &StoreMgr,
                               Runtime::StackManager &StackMgr,
-                              const uint32_t Idx);
+                              const uint32_t Idx) noexcept;
   /// ======= Table instructions =======
   Expect<void> runTableGetOp(Runtime::StackManager &StackMgr,
                              Runtime::Instance::TableInstance &TabInst,

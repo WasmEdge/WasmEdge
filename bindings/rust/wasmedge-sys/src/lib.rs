@@ -64,8 +64,8 @@ pub use import_obj::ImportObject;
 pub use instance::{
     function::{FuncType, Function},
     global::{Global, GlobalType},
-    instance::Instance,
     memory::{MemType, Memory},
+    module::Instance,
     table::{Table, TableType},
 };
 #[doc(inline)]

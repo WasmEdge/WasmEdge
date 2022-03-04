@@ -25,7 +25,7 @@ impl<'store> Instance<'store> {
             unsafe { wasmedge::WasmEdge_ModuleInstanceGetModuleName(self.inner.0 as *const _) };
 
         let name: String = name.into();
-        if name.len() == 0 {
+        if name.is_empty() {
             return None;
         }
 

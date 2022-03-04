@@ -4,8 +4,8 @@ use crate::{
     instance::{
         function::{Function, InnerFunc},
         global::{Global, InnerGlobal},
-        instance::{InnerInstance, Instance},
         memory::{InnerMemory, Memory},
+        module::{InnerInstance, Instance},
         table::{InnerTable, Table},
     },
     types::WasmEdgeString,
@@ -619,7 +619,7 @@ impl Store {
     /// # Error
     ///
     /// If fail to find the target [module instance](crate::Instance), then an error is returned.
-    pub fn active_module<'a>(&'a self) -> WasmEdgeResult<Instance<'a>> {
+    pub fn active_module(&self) -> WasmEdgeResult<Instance<'_>> {
         let ctx = unsafe { wasmedge::WasmEdge_StoreGetActiveModule(self.inner.0) };
         match ctx.is_null() {
             true => Err(WasmEdgeError::Store(StoreError::NotFoundActiveModule)),
@@ -639,7 +639,7 @@ impl Store {
     /// # Error
     ///
     /// If fail to find the target [module instance](crate::Instance), then an error is returned.
-    pub fn named_module<'a>(&'a self, name: impl AsRef<str>) -> WasmEdgeResult<Instance<'a>> {
+    pub fn named_module(&self, name: impl AsRef<str>) -> WasmEdgeResult<Instance<'_>> {
         let mod_name: WasmEdgeString = name.as_ref().into();
         let ctx = unsafe { wasmedge::WasmEdge_StoreFindModule(self.inner.0, mod_name.as_raw()) };
         match ctx.is_null() {

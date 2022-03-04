@@ -84,10 +84,14 @@ Expect<AST::InstrVec> Loader::loadInstrSeq(std::optional<uint64_t> SizeBound) {
       if (BlockStack.size() > 0) {
         uint32_t Pos = BlockStack.back().second;
         Instrs[Pos].setJumpEnd(Cnt - Pos);
-        if (BlockStack.back().first == OpCode::If &&
-            Instrs[Pos].getJumpElse() == 0) {
-          // If block without else. Set the else jump the same as end jump.
-          Instrs[Pos].setJumpElse(Cnt - Pos);
+        if (BlockStack.back().first == OpCode::If) {
+          if (Instrs[Pos].getJumpElse() == 0) {
+            // If block without else. Set the else jump the same as end jump.
+            Instrs[Pos].setJumpElse(Cnt - Pos);
+          } else {
+            const uint32_t ElsePos = Pos + Instrs[Pos].getJumpElse();
+            Instrs[ElsePos].setJumpEnd(Cnt - ElsePos);
+          }
         }
         BlockStack.pop_back();
       } else {

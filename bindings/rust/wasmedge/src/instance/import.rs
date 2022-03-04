@@ -118,7 +118,8 @@ mod tests {
         {
             // create a Config
             let result = Config::new();
-            let config = result.unwrap().wasmedge_process(true);
+            let mut config = result.unwrap();
+            config.wasmedge_process(true);
 
             // create a Vm context
             let result = Vm::new(Some(config));
@@ -236,7 +237,8 @@ mod tests {
             // create a Config
             let result = Config::new();
             assert!(result.is_ok());
-            let config = result.unwrap().wasi(true);
+            let mut config = result.unwrap();
+            config.wasi(true);
 
             // create a Vm context
             let result = Vm::new(Some(config));

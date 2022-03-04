@@ -65,8 +65,11 @@ public:
   /// Unsafe Getter of top entry of stack.
   Value &getTop() { return ValueStack.back(); }
 
-  /// Unsafe Getter of bottom N-th value entry of stack.
-  Value &getBottomN(uint32_t N) { return ValueStack[N]; }
+  /// Unsafe Getter of top N-th value entry of stack.
+  Value &getTopN(uint32_t Offset) noexcept {
+    assuming(0 < Offset && Offset <= ValueStack.size());
+    return ValueStack[ValueStack.size() - Offset];
+  }
 
   /// Unsafe Getter of top N value entries of stack.
   Span<Value> getTopSpan(uint32_t N) {

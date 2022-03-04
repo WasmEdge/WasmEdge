@@ -568,6 +568,9 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
           Instr.getTargetIndex(), static_cast<uint32_t>(Locals.size()));
     }
     VType TExpect = Locals[Instr.getTargetIndex()];
+    const_cast<AST::Instruction &>(Instr).getStackOffset() =
+        static_cast<uint32_t>(ValStack.size() +
+                              (Locals.size() - Instr.getTargetIndex()));
     if (Instr.getOpCode() == OpCode::Local__get) {
       return StackTrans({}, {TExpect});
     } else if (Instr.getOpCode() == OpCode::Local__set) {

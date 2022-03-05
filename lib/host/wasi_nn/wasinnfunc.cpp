@@ -10,6 +10,11 @@
 #include <onnxruntime_cxx_api.h>
 #endif
 
+#ifdef WASINN_BUILD_OPENVINO
+#include <inference_engine.hpp>
+namespace IE = InferenceEngine;
+#endif
+
 namespace WasmEdge {
 namespace Host {
 
@@ -18,14 +23,13 @@ Expect<uint32_t> WasiNNLoad::body(
     [[maybe_unused]] uint32_t BuilderPtr, [[maybe_unused]] uint32_t BuilderLen,
     [[maybe_unused]] uint32_t Encoding, [[maybe_unused]] uint32_t Target,
     [[maybe_unused]] uint32_t GraphPtr) {
-  (void)Target;
 
   auto log = spdlog::get("WasiNN");
   [[maybe_unused]] uint8_t *Model;
   [[maybe_unused]] uint32_t *Graph;
 
   // ONNX backends
-  if (Encoding == 1) {
+  if (Encoding == this->Ctx.BackendsMapping.at("Onnx")) {
 #ifdef WASINN_BUILD_ONNX
     log->info("BuilderPtr: {:<d} BuilderLen: {:<d}", BuilderPtr, BuilderLen);
 
@@ -40,13 +44,20 @@ Expect<uint32_t> WasiNNLoad::body(
       OnnxModel[i] = Model[i];
 
     this->Ctx.ModelsNum++;
-    this->Ctx.Models.emplace(this->Ctx.ModelsNum, std::move(OnnxModel));
+    this->Ctx.OnnxModels.emplace(this->Ctx.ModelsNum, std::move(OnnxModel));
     this->Ctx.GraphBackends.emplace(this->Ctx.ModelsNum, Encoding);
     *Graph = this->Ctx.ModelsNum;
     return 0;
 #else
     log->error(
         "ONNX backend is not built. define -DWASINN_BUILD_ONNX to build it.");
+#endif
+  } else if (Encoding == this->Ctx.BackendsMapping.at("OpenVINO")) {
+#ifdef WASINN_BUILD_OPENVINO
+    log->error("OpenVINO currently a placeholder");
+#else
+    log->error("OpenVINO backend is not built. define -DWASINN_BUILD_OPENVINO "
+               "to build it.");
 #endif
   } else {
     log->error("Current backend is not supported.");
@@ -59,15 +70,15 @@ Expect<uint32_t> WasiNNInitExecCtx::body(
     [[maybe_unused]] uint32_t Graph, [[maybe_unused]] uint32_t ContextPtr) {
   auto log = spdlog::get("WasiNN");
 
-  if (this->Ctx.Models.find(Graph) == this->Ctx.Models.end()) {
+  if (this->Ctx.GraphBackends.find(Graph) == this->Ctx.GraphBackends.end()) {
     log->error("init_execution_context: Graph does not exist");
     return -1;
   }
 
-  if (this->Ctx.GraphBackends[Graph] == 1) {
+  if (this->Ctx.GraphBackends[Graph] == this->Ctx.BackendsMapping.at("Onnx")) {
 #ifdef WASINN_BUILD_ONNX
     uint32_t *Context = MemInst->getPointer<uint32_t *>(ContextPtr, 1);
-    std::vector<uint8_t> &Model = this->Ctx.Models[Graph];
+    std::vector<uint8_t> &Model = this->Ctx.OnnxModels[Graph];
 
     OnnxSession Session;
     Session.SessionOpt = std::make_unique<Ort::SessionOptions>();
@@ -82,13 +93,25 @@ Expect<uint32_t> WasiNNInitExecCtx::body(
     Session.Allocator = std::make_unique<Ort::AllocatorWithDefaultOptions>();
 
     this->Ctx.ExecutionsNum++;
-    this->Ctx.Executions.emplace(this->Ctx.ExecutionsNum, std::move(Session));
-    this->Ctx.GraphContextBackends.emplace(this->Ctx.ExecutionsNum, this->Ctx.GraphBackends[Graph]);
+    this->Ctx.OnnxExecutions.emplace(this->Ctx.ExecutionsNum,
+                                     std::move(Session));
+    this->Ctx.GraphContextBackends.emplace(this->Ctx.ExecutionsNum,
+                                           this->Ctx.GraphBackends[Graph]);
     *Context = this->Ctx.ExecutionsNum;
     return 0;
 #else
     log->error(
         "ONNX backend is not built. define -DWASINN_BUILD_ONNX to build it.");
+#endif
+  } else if (this->Ctx.GraphBackends[Graph] ==
+             this->Ctx.BackendsMapping.at("OpenVINO")) {
+#ifdef WASINN_BUILD_OPENVINO
+    // OpenVINOSession Session;
+    // Session.
+    // IE::InferRequest infer_request = 
+#else
+    log->error("OpenVINO backend is not built. define -DWASINN_BUILD_OPENVINO "
+               "to build it.");
 #endif
   } else {
     log->error("Current backend is not supported.");
@@ -106,7 +129,6 @@ Expect<uint32_t> WasiNNSetInput::body(
   /// one tensor to inference at once.
   /// Also, they are required to record the index of the input tensor in order
   /// to get the corresponding output tensor
-  (void)Index;
 
   auto log = spdlog::get("WasiNN");
 
@@ -115,9 +137,10 @@ Expect<uint32_t> WasiNNSetInput::body(
     log->error("set_input: Execution Context does not exist");
     return -1;
   }
-  if (this->Ctx.GraphContextBackends[Context] == 1) {
+  if (this->Ctx.GraphContextBackends[Context] ==
+      this->Ctx.BackendsMapping.at("Onnx")) {
 #ifdef WASINN_BUILD_ONNX
-    OnnxSession &Session = this->Ctx.Executions[Context];
+    OnnxSession &Session = this->Ctx.OnnxExecutions[Context];
 
     uint32_t *Tensor = MemInst->getPointer<uint32_t *>(TensorPtr, 1);
     uint32_t *DimensionBuf = MemInst->getPointer<uint32_t *>(Tensor[0]);
@@ -197,6 +220,14 @@ Expect<uint32_t> WasiNNSetInput::body(
     log->error(
         "ONNX backend is not built. define -DWASINN_BUILD_ONNX to build it.");
 #endif
+  } else if (this->Ctx.GraphContextBackends[Context] ==
+             this->Ctx.BackendsMapping.at("OpenVINO")) {
+#ifdef WASINN_BUILD_OPENVINO
+    log->error("OpenVINO currently a placeholder");
+#else
+    log->error("OpenVINO backend is not built. define -DWASINN_BUILD_OPENVINO "
+               "to build it.");
+#endif
   } else {
     log->error("Current backend is not supported.");
   }
@@ -221,12 +252,13 @@ Expect<uint32_t> WasiNNGetOuput::body(
     return -1;
   }
   log->info("get_output: getting output");
-  if (this->Ctx.GraphContextBackends[Context] == 1) {
+  if (this->Ctx.GraphContextBackends[Context] ==
+      this->Ctx.BackendsMapping.at("Onnx")) {
 #ifdef WASINN_BUILD_ONNX
     OutBufferPtr = MemInst->getPointer<uint8_t *>(OutBuffer, 1);
     BytesWritten = MemInst->getPointer<uint32_t *>(BytesWrittenPtr, 1);
 
-    OnnxSession &Session = this->Ctx.Executions[Context];
+    OnnxSession &Session = this->Ctx.OnnxExecutions[Context];
     log->info("get_output: OutputTensorsValue.size(): {:d}",
               Session.OutputTensorsValue[Index].size());
 
@@ -247,6 +279,14 @@ Expect<uint32_t> WasiNNGetOuput::body(
     log->error(
         "ONNX backend is not built. define -DWASINN_BUILD_ONNX to build it.");
 #endif
+  } else if (this->Ctx.GraphContextBackends[Context] ==
+             this->Ctx.BackendsMapping.at("OpenVINO")) {
+#ifdef WASINN_BUILD_OPENVINO
+    log->error("OpenVINO currently a placeholder");
+#else
+    log->error("OpenVINO backend is not built. define -DWASINN_BUILD_OPENVINO "
+               "to build it.");
+#endif
   } else {
     log->error("Current backend is not supported.");
   }
@@ -266,9 +306,10 @@ WasiNNCompute::body([[maybe_unused]] Runtime::Instance::MemoryInstance *,
   }
 
   log->info("compute: Start inferencing");
-  if (this->Ctx.GraphContextBackends[Context] == 1) {
+  if (this->Ctx.GraphContextBackends[Context] ==
+      this->Ctx.BackendsMapping.at("Onnx")) {
 #ifdef WASINN_BUILD_ONNX
-    OnnxSession &Session = this->Ctx.Executions[Context];
+    OnnxSession &Session = this->Ctx.OnnxExecutions[Context];
 
     const char *InputName =
         Session.OrtSession->GetInputName(0, *Session.Allocator);
@@ -289,6 +330,14 @@ WasiNNCompute::body([[maybe_unused]] Runtime::Instance::MemoryInstance *,
     log->error(
         "ONNX backend is not built. define -DWASINN_BUILD_ONNX to build it.");
 #endif // DEBUG
+  } else if (this->Ctx.GraphContextBackends[Context] ==
+             this->Ctx.BackendsMapping.at("OpenVINO")) {
+#ifdef WASINN_BUILD_OPENVINO
+    log->error("OpenVINO currently a placeholder");
+#else
+    log->error("OpenVINO backend is not built. define -DWASINN_BUILD_OPENVINO "
+               "to build it.");
+#endif
   } else {
     log->error("Current backend is not supported.");
   }

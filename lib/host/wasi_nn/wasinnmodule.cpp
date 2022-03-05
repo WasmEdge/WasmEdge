@@ -17,6 +17,9 @@ WasiNNModule::WasiNNModule() : ImportObject("wasi_ephemeral_nn") {
   spdlog::set_level(spdlog::level::info);
   spdlog::stdout_color_mt("WasiNN");
 
+  this->Ctx.BackendsMapping.emplace("Onnx", 1);
+  this->Ctx.BackendsMapping.emplace("OpenVINO", 0);
+
 #ifdef WASINN_BUILD_ONNX
   this->Ctx.OnnxMemoryInfo =
       std::make_unique<Ort::MemoryInfo>(Ort::MemoryInfo::CreateCpu(

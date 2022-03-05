@@ -20,21 +20,79 @@ struct Paths {
 }
 
 fn main() {
-    #[cfg(not(feature = "standalone"))]
     let Paths {
         header,
         lib_dir,
         inc_dir,
-    } = find_wasmedge()
-        .or_else(build_wasmedge)
-        .expect("should be dependency paths");
+    } = if let Ok(_) = std::env::var("DOCS_RS") {
+        let curr_dir = env::current_dir().unwrap();
+        let wasmedge_dir = curr_dir.join("libwasmedge");
+        println!(
+            "cargo:warning=[wasmedge-sys] libwasmedge dir: {}",
+            wasmedge_dir.to_str().unwrap()
+        );
 
-    #[cfg(feature = "standalone")]
-    let Paths {
-        header,
-        lib_dir,
-        inc_dir,
-    } = build_wasmedge().expect("should be dependency paths");
+        // WASMEDGE_INCLUDE_DIR
+        let inc_dir = wasmedge_dir.join("include");
+        assert!(inc_dir.exists());
+        assert!(inc_dir.join("wasmedge").exists());
+        println!(
+            "cargo:warning=[wasmedge-sys] WASMEDGE_INCLUDE_DIR: {}",
+            inc_dir.to_str().unwrap()
+        );
+
+        // WASMEDGE_LIB_DIR
+        let lib_dir = if wasmedge_dir.join("lib64").exists() {
+            wasmedge_dir.join("lib64")
+        } else {
+            wasmedge_dir.join("lib")
+        };
+        assert!(lib_dir.join("libwasmedge_c.so").exists());
+        println!(
+            "cargo:warning=[wasmedge-sys] WASMEDGE_LIB_DIR: {}",
+            lib_dir.to_str().unwrap()
+        );
+
+        // Path to wasmedge.h
+        let header = inc_dir.join("wasmedge").join(WASMEDGE_H);
+        assert!(header.exists());
+        println!(
+            "cargo:warning=[wasmedge-sys] header path: {}",
+            header.to_str().unwrap()
+        );
+
+        Paths {
+            inc_dir,
+            header,
+            lib_dir,
+        }
+    } else {
+        #[cfg(not(feature = "standalone"))]
+        let paths = find_wasmedge()
+            .or_else(build_wasmedge)
+            .expect("should be dependency paths");
+
+        #[cfg(feature = "standalone")]
+        let paths = build_wasmedge().expect("should be dependency paths");
+
+        paths
+    };
+
+    // #[cfg(not(feature = "standalone"))]
+    // let Paths {
+    //     header,
+    //     lib_dir,
+    //     inc_dir,
+    // } = find_wasmedge()
+    //     .or_else(build_wasmedge)
+    //     .expect("should be dependency paths");
+
+    // #[cfg(feature = "standalone")]
+    // let Paths {
+    //     header,
+    //     lib_dir,
+    //     inc_dir,
+    // } = build_wasmedge().expect("should be dependency paths");
 
     let out_file = PathBuf::from(std::env::var("OUT_DIR").unwrap()).join("wasmedge.rs");
     bindgen::builder()

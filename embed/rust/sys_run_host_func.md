@@ -4,7 +4,7 @@
 
 您可能知道，一些主流编程语言，如 C/C++、Rust、Go和Python，都支持将程序编译成 WebAssembly 二进制文件。在本演示中，我们将介绍如何使用 WasmEdge Rust API 调用 WebAssembly 函数，该函数可以用上述任何编程语言编写。
 
-我们使用 `fibonacci.wasm` 和WebAssembly文件的内容如下所示。语句 `(export“fib”（func$fib))` 声明了一个名为 `fib` 的导出函数。此函数使用给定的 `i32` 数作为输入计算斐波那契数。我们稍后将使用函数名来实现计算斐波那契数的目标。
+我们使用 `fibonacci.wasm` 和 WebAssembly 文件的内容如下所示。语句 `(export“fib”（func$fib))` 声明了一个名为 `fib` 的导出函数。此函数使用给定的 `i32` 数作为输入计算斐波那契数。我们稍后将使用函数名来实现计算斐波那契数的目标。
 
 ```wasm
 (module
@@ -44,7 +44,7 @@
 
 - 首先，创建一个 `loader` 上下文;
 
-- 然后，通过 `loader` 程序上下文的 `from_file` 方法加载指定的WebAssebly文件（“fibonacci.wasm”）。如果该过程成功，则返回一个WasmEdge `AST module` 实例。
+- 然后，通过 `loader` 程序上下文的 `from_file` 方法加载指定的 WebAssebly 文件（“fibonacci.wasm”）。如果该过程成功，则返回一个 WasmEdge `AST module` 实例。
 
 ```rust
 use wasmedge_sys::Loader
@@ -58,7 +58,7 @@ let path = PathBuf::from("fibonacci.wasm");
 let mut module = loader.from_file(path).expect("fail to load the WebAssembly file");
 ```
 ## 步骤 2: 创建一个 `Vm` 上下文
-在WasmEdge中， `Vm` 定义了一个运行环境，在其中存储和维护各种实例和上下文。在下面的演示代码中，我们显式创建了一个 WasmEdge `store` 上下文，然后将其用作创建 `Vm` 上下文的输入之一。如果没有明确指定 `store` 上下文，那么 `Vm` 将自己创建一个 `store` 。
+在 WasmEdge 中， `Vm` 定义了一个运行环境，在其中存储和维护各种实例和上下文。在下面的演示代码中，我们显式创建了一个 WasmEdge `store` 上下文，然后将其用作创建 `Vm` 上下文的输入之一。如果没有明确指定 `store` 上下文，那么 `Vm` 将自己创建一个 `store` 。
 
 ```rust
 use wasmedge_sys::{Config, Store, Vm};

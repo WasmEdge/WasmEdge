@@ -53,7 +53,7 @@ use std::path::PathBuf;
 // 创建 Loader 程序上下文
 let loader = Loader::create(None).expect("fail to create a Loader context");
 
-// 从指定的wasm文件加载wasm模块，并返回WasmEdge AST模块实例
+// 从指定的 wasm 文件加载 wasm 模块，并返回 WasmEdge AST 模块实例
 let path = PathBuf::from("fibonacci.wasm");
 let mut module = loader.from_file(path).expect("fail to load the WebAssembly file");
 ```
@@ -69,7 +69,7 @@ let config = Config::create().expect("fail to create a Config context");
 // 创建 store 上下文
 let store = Store::create().expect("fail to create a Store context");
 
-// 使用指定的配置和存储创建Vm上下文
+// 使用指定的配置和存储创建 Vm 上下文
 let mut vm = Vm::create(Some(config), Some(store)).expect("fail to create a Vm context");
 ```
 ## 步骤 3: 调用 fib 函数

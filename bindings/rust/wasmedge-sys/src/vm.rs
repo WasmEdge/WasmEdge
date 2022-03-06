@@ -1685,7 +1685,7 @@ mod tests {
             let func_ty = result.unwrap();
             let result = Function::create(func_ty, Box::new(real_add), 0);
             assert!(result.is_ok());
-            let mut host_func = result.unwrap();
+            let host_func = result.unwrap();
             import_wasi.add_func("add", host_func);
 
             let result = vm.register_wasm_from_import(import_wasi);
@@ -1734,7 +1734,7 @@ mod tests {
             let mut vm = result.unwrap();
 
             // get the WasmEdgeProcess module
-            let result = vm.wasi_import_module_mut();
+            let result = vm.wasmedge_process_import_module_mut();
             assert!(result.is_ok());
 
             // *** try to add another WasmEdgeProcess module, that causes error.
@@ -1742,7 +1742,7 @@ mod tests {
             // create a WasmEdgeProcess module
             let result = ImportObject::create_wasmedge_process(None, false);
             assert!(result.is_ok());
-            let mut import_process = result.unwrap();
+            let import_process = result.unwrap();
 
             let result = vm.register_wasm_from_import(import_process);
             assert!(result.is_err());
@@ -1779,7 +1779,7 @@ mod tests {
             let mut vm = result.unwrap();
 
             // get the WasmEdgeProcess module
-            let result = vm.wasi_import_module_mut();
+            let result = vm.wasmedge_process_import_module_mut();
             assert!(result.is_err());
 
             // *** try to add a WasmEdgeProcess module.
@@ -1802,7 +1802,7 @@ mod tests {
             assert!(result.is_ok());
 
             // get the WasmEdgeProcess module
-            let result = vm.wasi_import_module_mut();
+            let result = vm.wasmedge_process_import_module_mut();
             assert!(result.is_err());
             assert_eq!(
                 result.unwrap_err(),

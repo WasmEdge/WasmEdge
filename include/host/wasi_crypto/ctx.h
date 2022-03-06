@@ -15,6 +15,7 @@
 
 #include "common/span.h"
 #include "host/wasi_crypto/common/array_output.h"
+#include "host/wasi_crypto/common/options.h"
 #include "host/wasi_crypto/kx/alg.h"
 #include "host/wasi_crypto/signatures/alg.h"
 #include "host/wasi_crypto/symmetric/alg.h"
@@ -304,6 +305,7 @@ public:
 private:
   RefHandlesManager<__wasi_array_output_t, Common::ArrayOutput>
       ArrayOutputManger{0x00};
+  RcHandlesManager<__wasi_options_t, Common::Options> OptionsManager{0x01};
 };
 
 } // namespace WasiCrypto

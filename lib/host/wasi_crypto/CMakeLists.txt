@@ -12,6 +12,10 @@ wasmedge_add_library(wasmedgeHostModuleWasiCrypto
   signatures/func.cpp
   common/ctx.cpp
   common/array_output.cpp
+  symmetric/options.cpp
+  kx/options.cpp
+  signatures/options.cpp
+  common/options.cpp
 )
 
 target_include_directories(wasmedgeHostModuleWasiCrypto

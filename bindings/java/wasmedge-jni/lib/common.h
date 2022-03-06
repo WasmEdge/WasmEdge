@@ -8,6 +8,7 @@
 #include "jni.h"
 #include "wasmedge/wasmedge.h"
 
+#define MAX_BUF_LEN 2014
 
 enum ErrorCode {
     JVM_ERROR,
@@ -59,5 +60,11 @@ bool checkAndHandleException(JNIEnv *env, const char* msg);
 void setJavaValueObject(JNIEnv *env, WasmEdge_Value value, jobject j_val);
 
 jobject WasmEdgeStringArrayToJavaList(JNIEnv* env, WasmEdge_String* wStrList, int32_t len);
+
+jstring WasmEdgeStringToJString(JNIEnv* env, WasmEdge_String wStr);
+
+jobject CreateJavaArrayList(JNIEnv* env, jint len);
+
+bool AddElementToJavaList(JNIEnv* env, jobject jList, jobject ele);
 
 #endif //WASMEDGE_JAVA_COMMON_H

@@ -13,11 +13,8 @@ public class ImportTypeContextTest extends BaseTest {
     @Test
     public void testCreation() {
         LoaderContext loaderContext = new LoaderContext(null);
-
         ASTModuleContext astModuleContext = loaderContext.parseFromFile(getResourcePath(IMPORT_WASM_PATH));
-
         Assert.assertNotEquals(astModuleContext, null);
-
     }
 
 //    @Test

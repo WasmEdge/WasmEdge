@@ -9,6 +9,14 @@ extern "C" {
 #endif
 /*
  * Class:     org_wasmedge_MemoryTypeContext
+ * Method:    getLimit
+ * Signature: ()Lorg/wasmedge/WasmEdgeLimit;
+ */
+JNIEXPORT jobject JNICALL Java_org_wasmedge_MemoryTypeContext_getLimit
+  (JNIEnv *, jobject);
+
+/*
+ * Class:     org_wasmedge_MemoryTypeContext
  * Method:    nativeInit
  * Signature: (Lorg/wasmedge/WasmEdgeLimit;)V
  */

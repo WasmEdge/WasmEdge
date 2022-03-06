@@ -7,4 +7,5 @@
 
 WasmEdge_GlobalTypeContext * getGlobalTypeContext(JNIEnv* env, jobject jGlobalTypeContext);
 
+jobject createJGlobalTypeContext(JNIEnv* env, const WasmEdge_GlobalTypeContext* globalTypeContext);
 #endif //WASMEDGE_JAVA_GLOBALTYPECONTEXT_H

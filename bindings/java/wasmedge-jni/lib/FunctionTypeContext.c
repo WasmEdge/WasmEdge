@@ -238,3 +238,10 @@ jobject ConvertToJavaFunctionType(JNIEnv* env, const WasmEdge_FunctionTypeContex
 }
 
 
+jobject createJFunctionTypeContext(JNIEnv* env, const WasmEdge_FunctionTypeContext * functionTypeContext) {
+
+    jclass clazz = (*env)->FindClass(env, "org/wasmedge/FunctionTypeContext");
+    jmethodID constructorId = (*env)->GetMethodID(env, clazz, "<init>", "(J)V");
+    return (*env)->NewObject(env, clazz, constructorId, (long) functionTypeContext);
+}
+

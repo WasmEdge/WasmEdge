@@ -24,7 +24,7 @@ WasmEdge_StoreContext* getStoreContext(JNIEnv* env, jobject jStoreContext) {
 jobject CreateJavaStoreContext(JNIEnv* env, WasmEdge_StoreContext* storeContext) {
     jclass storeClass = findJavaClass(env, "org/wasmedge/StoreContext");
 
-    jmethodID constructor = (*env)->GetMethodID(env, storeClass, "<init>", "(L)V");
+    jmethodID constructor = (*env)->GetMethodID(env, storeClass, "<init>", "(J)V");
 
     jobject jStoreContext = (*env)->NewObject(env, storeClass, constructor, (long)storeContext);
 

@@ -8,6 +8,9 @@ public class ASTModuleContext {
     public ASTModuleContext() {
     }
 
+    private ASTModuleContext(long pointer) {
+        this.pointer = pointer;
+    }
 
     public native List<ImportTypeContext> listImports();
 

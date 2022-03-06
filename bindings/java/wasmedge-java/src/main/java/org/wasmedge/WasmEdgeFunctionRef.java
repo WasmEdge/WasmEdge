@@ -3,8 +3,8 @@ package org.wasmedge;
 import org.wasmedge.enums.ValueType;
 
 public class WasmEdgeFunctionRef implements WasmEdgeValue {
-    private int value;
-    public WasmEdgeFunctionRef(int index) {
+    private long value;
+    public WasmEdgeFunctionRef(long index) {
         this.value = index;
     }
 
@@ -13,7 +13,11 @@ public class WasmEdgeFunctionRef implements WasmEdgeValue {
         return ValueType.FuncRef;
     }
 
-    public int getIndex() {
+    public long getValue() {
+        return this.value;
+    }
+
+    public long getIndex() {
         return value;
     }
 }

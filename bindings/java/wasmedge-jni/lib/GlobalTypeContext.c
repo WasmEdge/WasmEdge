@@ -27,6 +27,12 @@ JNIEXPORT void JNICALL Java_org_wasmedge_GlobalTypeContext_nativeInit
 
 }
 
+jobject createJGlobalTypeContext(JNIEnv* env, const WasmEdge_GlobalTypeContext* globalTypeContext) {
+
+    jclass clazz = (*env)->FindClass(env, "org/wasmedge/GlobalTypeContext");
+    jmethodID constructorId = (*env)->GetMethodID(env, clazz, "<init>", "(J)V");
+    return (*env)->NewObject(env, clazz, constructorId, (long) globalTypeContext);
+}
 JNIEXPORT void JNICALL Java_org_wasmedge_GlobalTypeContext_delete
         (JNIEnv *env, jobject thisObject) {
     WasmEdge_GlobalTypeContext* wasmEdgeGlobalTypeContext = getGlobalTypeContext(env, thisObject);

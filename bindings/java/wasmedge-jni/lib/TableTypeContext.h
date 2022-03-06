@@ -7,4 +7,6 @@
 
 WasmEdge_TableTypeContext * getTableTypeContext(JNIEnv* env, jobject jTableTypeContext);
 
+jobject createJTableTypeContext(JNIEnv* env, const WasmEdge_TableTypeContext * tableTypeContext);
+
 #endif //WASMEDGE_JAVA_TABLETYPECONTEXT_H

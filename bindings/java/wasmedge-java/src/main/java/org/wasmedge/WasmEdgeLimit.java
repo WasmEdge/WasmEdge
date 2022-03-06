@@ -21,4 +21,15 @@ public class WasmEdgeLimit {
     public long getMax() {
         return max;
     }
+
+    @Override
+    public boolean equals(Object other) {
+        if(other instanceof WasmEdgeLimit){
+            WasmEdgeLimit that = (WasmEdgeLimit) other;
+            return this.hasMax == that.hasMax
+                    && this.min == that.min
+                    && (!this.hasMax || (this.max == that.max));
+        }
+        return false;
+    }
 }

@@ -20,6 +20,10 @@ public class FunctionTypeContext {
         nativeInit(getTypeValues(Arrays.asList(paramTypes)), getTypeValues(Arrays.asList(returnTypes)));
     }
 
+    private FunctionTypeContext(long pointer) {
+        this.pointer = pointer;
+    }
+
     private native void nativeInit(int[] paramsTypes, int[] returnTypes);
 
     private int[] getTypeValues(List<ValueType> valueTypeList) {

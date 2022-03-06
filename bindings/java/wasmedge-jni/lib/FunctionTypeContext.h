@@ -12,4 +12,5 @@ WasmEdge_FunctionTypeContext * getFunctionTypeContext(JNIEnv* env, jobject jFunc
 jobject ConvertToJavaFunctionList(JNIEnv * env, WasmEdge_String* nameList, const WasmEdge_FunctionTypeContext** funcList, int32_t len, jobject jFuncList);
 
 jobject ConvertToJavaFunctionType(JNIEnv* env, const WasmEdge_FunctionTypeContext* functionTypeContext, WasmEdge_String name);
+jobject createJFunctionTypeContext(JNIEnv* env, const WasmEdge_FunctionTypeContext * functionTypeContext);
 #endif //WASMEDGE_JAVA_FUNCTIONTYPECONTEXT_H

@@ -10,6 +10,10 @@ public class GlobalTypeContext {
         nativeInit(valueType.getValue(), wasmEdgeMutability.getValue());
     }
 
+    private GlobalTypeContext(long pointer) {
+        this.pointer = pointer;
+    }
+
     private native void nativeInit(int valueType, int wasmEdgeMutability);
 
     public native void delete();
@@ -19,7 +23,6 @@ public class GlobalTypeContext {
     }
 
     private native int nativeGetValueType();
-
 
     public WasmEdgeMutability getMutability() {
         return WasmEdgeMutability.parseMutability(nativeGetMutability());

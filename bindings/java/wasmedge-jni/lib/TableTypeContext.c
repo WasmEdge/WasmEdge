@@ -41,8 +41,11 @@ JNIEXPORT jobject JNICALL Java_org_wasmedge_TableTypeContext_getLimit
 
     WasmEdge_Limit limit = WasmEdge_TableTypeGetLimit(tableTypeContext);
 
-    jclass limitClass = findJavaClass(env, "org.wasmedge.WasmEdgeLimit");
-    jmethodID constructor = findJavaMethod(env, limitClass, "<init>", "(BJJ)");
+    jclass limitClass = findJavaClass(env, "org/wasmedge/WasmEdgeLimit");
+
+
+    jmethodID constructor = findJavaMethod(env, limitClass, "<init>", "(ZJJ)V");
+
     return (*env)->NewObject(env, limitClass, constructor,
                              (jboolean)limit.HasMax, (jlong)limit.Min, (jlong)limit.Max);
 }
@@ -58,5 +61,25 @@ JNIEXPORT void JNICALL Java_org_wasmedge_TableTypeContext_delete
         (JNIEnv *env, jobject thisObject) {
     WasmEdge_TableTypeContext* tableTypeContext = getTableTypeContext(env, thisObject);
     WasmEdge_TableTypeDelete(tableTypeContext);
+}
+
+jobject createJTableTypeContext(JNIEnv* env, const WasmEdge_TableTypeContext * tableTypeContext) {
+
+    jclass clazz = (*env)->FindClass(env, "org/wasmedge/TableTypeContext");
+    if(clazz == NULL) {
+        printf("table type not found\n\n");
+    }
+
+    jmethodID constructorId = (*env)->GetMethodID(env, clazz, "<init>", "(J)V");
+
+    if(constructorId == NULL) {
+        printf("constructor not foudn \n \n");
+    }
+    jobject table = (*env)->NewObject(env, clazz, constructorId, (long) tableTypeContext);
+
+    if(table == NULL) {
+        printf("table not constructed \n\n");
+    }
+    return table;
 }
 

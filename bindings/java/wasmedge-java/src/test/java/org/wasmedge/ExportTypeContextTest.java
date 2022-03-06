@@ -20,13 +20,13 @@ public class ExportTypeContextTest extends BaseTest {
 
         String[] externalNames = {
                 "func-1", "func-2", "func-3", "func-4", "func-add",
-                "func-add", "func-mul-2", "func-mul-2", "func-host-add",
+                 "func-mul-2", "func-call-indirect", "func-host-add",
                 "func-host-sub", "func-host-mul", "func-host-div", "tab-func",
-                "tab-ext", "mem", "glob-mut-32", "glob-const-32" };
+                "tab-ext", "mem", "glob-mut-i32", "glob-const-f32" };
         ExternalType[] exportTypes = {
                 ExternalType.FUNCTION, ExternalType.FUNCTION, ExternalType.FUNCTION, ExternalType.FUNCTION,
                 ExternalType.FUNCTION, ExternalType.FUNCTION, ExternalType.FUNCTION, ExternalType.FUNCTION,
-                ExternalType.FUNCTION, ExternalType.FUNCTION, ExternalType.TABLE, ExternalType.TABLE,
+                ExternalType.FUNCTION, ExternalType.FUNCTION, ExternalType.FUNCTION, ExternalType.TABLE, ExternalType.TABLE,
                 ExternalType.MEMORY, ExternalType.GLOBAL, ExternalType.GLOBAL
         };
 
@@ -39,7 +39,7 @@ public class ExportTypeContextTest extends BaseTest {
         Assert.assertEquals(exportList.size(), 16);
 
         for (int i = 0; i < exportList.size(); i++) {
-            Assert.assertEquals(exportList.get(i).getExternalName(), exportTypes[i]);
+            Assert.assertEquals(exportList.get(i).getExternalName(), externalNames[i]);
             Assert.assertEquals(exportList.get(i).getExternalType(), exportTypes[i]);
         }
 

@@ -10,6 +10,10 @@ public class TableTypeContext {
         nativeInit(refType.getVal(), limit);
     }
 
+    private TableTypeContext(long pointer) {
+        this.pointer = pointer;
+    }
+
     private native void nativeInit(int refType, WasmEdgeLimit limit);
 
     public native WasmEdgeLimit getLimit();
@@ -19,5 +23,7 @@ public class TableTypeContext {
     }
     private native int nativeGetRefType();
     public native void delete();
+
+
 
 }

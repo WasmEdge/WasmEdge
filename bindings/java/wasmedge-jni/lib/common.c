@@ -139,8 +139,18 @@ int getIntVal(JNIEnv *env, jobject val) {
 
 long getLongVal(JNIEnv *env, jobject val) {
     jclass clazz = (*env)->GetObjectClass(env, val);
-    jmethodID methodId = findJavaMethod(env, clazz, "getValue", "()L");
+
+    char buf[256];
+    getClassName(env, val, buf);
+    printf("get method for %s\n", buf);
+    jmethodID methodId = (*env)->GetMethodID(env, clazz, "getValue", "()L");
+    if(methodId == NULL) {
+        printf("invalid method id\n");
+    }
+
+    printf("get value\n");
     jlong value = (*env)->CallLongMethod(env, val, methodId);
+    printf("return value\n");
     return value;
 }
 
@@ -198,13 +208,14 @@ WasmEdge_Value *parseJavaParams(JNIEnv *env, jobjectArray params, jintArray para
                 break;
             case 4:
                 //TODO
-                val = WasmEdge_ValueGenV128(0);
+                val = WasmEdge_ValueGenV128(getLongVal(env, val_object));
                 break;
             case 5:
                 //TODO
-                val = WasmEdge_ValueGenFuncRef(0);
+                val = WasmEdge_ValueGenFuncRef(getLongVal(env, val_object));
                 break;
             case 6:
+                //TODO
                 val = WasmEdge_ValueGenExternRef(&val_object);
                 break;
             default:
@@ -305,13 +316,12 @@ jobject WasmEdgeStringArrayToJavaList(JNIEnv* env, WasmEdge_String* wStrList, in
     }
 
     WasmEdge_String * ptr = wStrList;
-    int BUFLEN = 256;
-    char buf[BUFLEN];
+    char buf[MAX_BUF_LEN];
     for (int i = 0; i < len; ++i) {
 
 
-        memset(buf, 0, BUFLEN);
-        WasmEdge_StringCopy(*ptr, buf, BUFLEN);
+        memset(buf, 0, MAX_BUF_LEN);
+        WasmEdge_StringCopy(*ptr, buf, MAX_BUF_LEN);
         jobject jStr = (*env)->NewStringUTF(env, buf);
 
         (*env)->CallBooleanMethod(env, jList, addMethod, jStr);
@@ -325,4 +335,51 @@ jobject WasmEdgeStringArrayToJavaList(JNIEnv* env, WasmEdge_String* wStrList, in
 
     return jList;
 
+}
+
+jstring WasmEdgeStringToJString(JNIEnv* env, WasmEdge_String wStr) {
+     char buf[MAX_BUF_LEN];
+     memset(buf, 0, MAX_BUF_LEN);
+    WasmEdge_StringCopy(wStr, buf, MAX_BUF_LEN);
+
+    jobject jStr = (*env)->NewStringUTF(env, buf);
+
+    return jStr;
+}
+
+jobject CreateJavaArrayList(JNIEnv* env, jint len) {
+    jclass listClass = findJavaClass(env, "java/util/ArrayList");
+
+    if (listClass == NULL) {
+        return NULL;
+    }
+
+    jmethodID listConstructor = findJavaMethod(env, listClass, "<init>", "(I)V");
+
+    if(listConstructor == NULL) {
+        return NULL;
+    }
+
+    jobject jList = (*env)->NewObject(env, listClass, listConstructor, len);
+
+    if(jList == NULL) {
+        return NULL;
+    }
+
+    if(checkAndHandleException(env, "Error when creating java list\n")) {
+        return NULL;
+    }
+    return jList;
+}
+
+bool AddElementToJavaList(JNIEnv* env, jobject jList, jobject ele) {
+    jclass listClass = findJavaClass(env, "java/util/ArrayList");
+
+    if (listClass == NULL) {
+        return false;
+    }
+
+    jmethodID addMethod = findJavaMethod(env, listClass, "add", "(Ljava/lang/Object;)Z");
+
+    return (*env)->CallBooleanMethod(env, jList, addMethod, ele);
 }

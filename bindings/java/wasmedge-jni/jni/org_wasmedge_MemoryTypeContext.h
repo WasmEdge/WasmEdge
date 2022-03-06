@@ -18,10 +18,10 @@ JNIEXPORT jobject JNICALL Java_org_wasmedge_MemoryTypeContext_getLimit
 /*
  * Class:     org_wasmedge_MemoryTypeContext
  * Method:    nativeInit
- * Signature: (Lorg/wasmedge/WasmEdgeLimit;)V
+ * Signature: (ZJJ)V
  */
 JNIEXPORT void JNICALL Java_org_wasmedge_MemoryTypeContext_nativeInit
-  (JNIEnv *, jobject, jobject);
+  (JNIEnv *, jobject, jboolean, jlong, jlong);
 
 /*
  * Class:     org_wasmedge_MemoryTypeContext

@@ -9,12 +9,12 @@ public class MemoryTypeContext {
     }
     public MemoryTypeContext(WasmEdgeLimit limit) {
         this.limit = limit;
-        nativeInit(limit);
+        nativeInit(limit.isHasMax(), limit.getMin(), limit.getMax());
     }
 
     public native WasmEdgeLimit getLimit();
 
-    private native void nativeInit(WasmEdgeLimit limit);
+    private native void nativeInit(boolean hasMax, long min, long max);
 
     public native void delete();
 }

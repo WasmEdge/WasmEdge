@@ -1,6 +1,7 @@
 package org.wasmedge;
 
 import org.junit.Assert;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.wasmedge.enums.HostRegistration;
 import org.wasmedge.enums.ValueType;
@@ -116,7 +117,8 @@ public class WasmEdgeVMTest extends BaseTest {
         Assert.assertEquals(function.getReturns().get(0), ValueType.i32);
     }
 
-//    @Test
+    @Test
+    @Ignore
     public void testRegisterModuleFromImport() {
         Assert.fail("not implemented");
     }

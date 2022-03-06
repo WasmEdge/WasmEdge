@@ -1,6 +1,7 @@
 package org.wasmedge;
 
 import org.junit.Assert;
+import org.junit.Ignore;
 import org.junit.Test;
 
 public class StoreContextTest extends BaseTest {
@@ -19,7 +20,8 @@ public class StoreContextTest extends BaseTest {
         Assert.assertEquals(storeContext.listModule().size(), 0);
     }
 
-//    @Test
+    @Test
+    @Ignore
     public void testStore() {
         ConfigureContext conf = new ConfigureContext();
         ASTModuleContext mod = loadMode(conf);

@@ -1,10 +1,12 @@
 package org.wasmedge;
 
 import org.junit.Assert;
+import org.junit.Ignore;
 import org.junit.Test;
 
 public class MemoryInstanceTest extends BaseTest {
-//    @Test
+    @Test
+    @Ignore
     public void test() {
         MemoryTypeContext memType =
                 new MemoryTypeContext(new WasmEdgeLimit(false, 1, 1));
@@ -13,7 +15,8 @@ public class MemoryInstanceTest extends BaseTest {
         memType.delete();
     }
 
-//    @Test
+    @Test
+    @Ignore
     public void testSetDataAndGetData() {
         MemoryTypeContext memType =
                 new MemoryTypeContext(new WasmEdgeLimit(false, 1, 1));
@@ -27,12 +30,14 @@ public class MemoryInstanceTest extends BaseTest {
         memCxt.delete();
         memType.delete();
     }
-//    @Test
+    @Test
+    @Ignore
     public void testGetPointer() {
         Assert.fail("not implemented");
     }
 
-//    @Test
+    @Test
+    @Ignore
     public void testGetSizeAndGrow() {
         MemoryTypeContext memType =
                 new MemoryTypeContext(new WasmEdgeLimit(false, 1, 1));

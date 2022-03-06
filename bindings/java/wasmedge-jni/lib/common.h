@@ -8,7 +8,7 @@
 #include "jni.h"
 #include "wasmedge/wasmedge.h"
 
-#define MAX_BUF_LEN 2014
+#define MAX_BUF_LEN 1024
 
 enum ErrorCode {
     JVM_ERROR,

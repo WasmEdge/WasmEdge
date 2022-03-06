@@ -18,9 +18,13 @@ WasmEdge_MemoryTypeContext * getMemoryTypeContext(JNIEnv* env, jobject jMemoryTy
 }
 
 JNIEXPORT void JNICALL Java_org_wasmedge_MemoryTypeContext_nativeInit
-(JNIEnv * env, jobject thisObject, jobject jLimit) {
+        (JNIEnv *env, jobject thisObject, jboolean jHasMax, jlong jMin, jlong jMax){
 
+    const WasmEdge_Limit limit = {.HasMax = jHasMax, .Min = jMin, .Max = jMax};
 
+    WasmEdge_MemoryTypeContext* memCxt = WasmEdge_MemoryTypeCreate(limit);
+
+    setPointer(env, thisObject, (long)memCxt);
 }
 JNIEXPORT void JNICALL Java_org_wasmedge_MemoryTypeContext_delete
 (JNIEnv *env , jobject thisObject) {

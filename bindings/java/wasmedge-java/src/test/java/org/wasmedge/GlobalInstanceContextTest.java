@@ -1,6 +1,7 @@
 package org.wasmedge;
 
 import org.junit.Assert;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.wasmedge.enums.ValueType;
 import org.wasmedge.enums.WasmEdgeMutability;
@@ -9,7 +10,8 @@ public class GlobalInstanceContextTest extends BaseTest {
     private GlobalTypeContext typeCxt;
     private GlobalInstanceContext instCxt;
 
-//    @Test
+    @Test
+    @Ignore
     public void testCreation() {
         typeCxt = new GlobalTypeContext(ValueType.i64, WasmEdgeMutability.VAR);
         instCxt = new GlobalInstanceContext(typeCxt, new WasmEdgeI64Value(66666666666L));
@@ -18,7 +20,8 @@ public class GlobalInstanceContextTest extends BaseTest {
         instCxt.delete();
     }
 
-//    @Test
+    @Test
+    @Ignore
     public void testGetValType() {
         typeCxt = new GlobalTypeContext(ValueType.i64, WasmEdgeMutability.VAR);
         instCxt = new GlobalInstanceContext(typeCxt, new WasmEdgeI64Value(66666666666L));
@@ -32,7 +35,8 @@ public class GlobalInstanceContextTest extends BaseTest {
         instCxt.delete();
     }
 
-//    @Test
+    @Test
+    @Ignore
     public void testGetValue() {
         typeCxt = new GlobalTypeContext(ValueType.i64, WasmEdgeMutability.VAR);
         instCxt = new GlobalInstanceContext(typeCxt, new WasmEdgeI64Value(66666666666L));

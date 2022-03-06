@@ -1,6 +1,7 @@
 package org.wasmedge;
 
 import org.junit.Assert;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.wasmedge.enums.ExternalType;
 import org.wasmedge.enums.RefType;
@@ -17,7 +18,8 @@ public class ImportTypeContextTest extends BaseTest {
         Assert.assertNotEquals(astModuleContext, null);
     }
 
-//    @Test
+    @Test
+    @Ignore
     public void test() {
         LoaderContext loaderContext = new LoaderContext(null);
 
@@ -50,7 +52,8 @@ public class ImportTypeContextTest extends BaseTest {
         loaderContext.delete();
         mod.delete();
     }
-//    @Test
+    @Test
+    @Ignore
     public void testGetFunctionType() {
         LoaderContext loaderContext = new LoaderContext(null);
 
@@ -63,7 +66,8 @@ public class ImportTypeContextTest extends BaseTest {
         mod.delete();
     }
 
-//    @Test
+    @Test
+    @Ignore
     public void testGetTableType() {
         LoaderContext loaderContext = new LoaderContext(null);
 
@@ -76,7 +80,8 @@ public class ImportTypeContextTest extends BaseTest {
         mod.delete();
     }
 
-//    @Test
+    @Test
+    @Ignore
     public void testGetMemoryType() {
         LoaderContext loaderContext = new LoaderContext(null);
 
@@ -89,7 +94,8 @@ public class ImportTypeContextTest extends BaseTest {
     }
 
 
-//    @Test
+    @Test
+    @Ignore
     public void testGetGlobalType() {
         LoaderContext loaderContext = new LoaderContext(null);
 

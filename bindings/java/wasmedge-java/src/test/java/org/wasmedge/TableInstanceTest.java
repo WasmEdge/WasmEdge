@@ -1,6 +1,7 @@
 package org.wasmedge;
 
 import org.junit.Assert;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.wasmedge.enums.RefType;
 import org.wasmedge.enums.ValueType;
@@ -29,7 +30,8 @@ public class TableInstanceTest extends BaseTest {
         tabInstance.delete();
     }
 
-//    @Test
+    @Test
+    @Ignore
     public void testSetDataAndGetExternRefData() {
         TableTypeContext tabCxt = new TableTypeContext(RefType.EXTERREF,
                 new WasmEdgeLimit(false, 10, 10));
@@ -44,7 +46,8 @@ public class TableInstanceTest extends BaseTest {
         Assert.assertEquals(num.intValue(), returnVal.intValue());
     }
 
-//    @Test
+    @Test
+    @Ignore
     public void testSetAndGetFuncRefData() {
         TableTypeContext tabCxt = new TableTypeContext(RefType.FUNCREF,
                 new WasmEdgeLimit(false, 10, 10));
@@ -58,7 +61,8 @@ public class TableInstanceTest extends BaseTest {
         Assert.assertEquals(idx, returnRef.getIndex());
     }
 
-//    @Test(expected = RuntimeException.class)
+    @Test(expected = RuntimeException.class)
+    @Ignore
     public void testSetDataInvalid() {
         TableTypeContext tabCxt = new TableTypeContext(RefType.EXTERREF,
                 new WasmEdgeLimit(true, 10, 10));

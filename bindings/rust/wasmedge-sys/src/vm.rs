@@ -3,11 +3,14 @@
 use super::wasmedge;
 use crate::{
     error::{check, VmError, WasmEdgeError, WasmEdgeResult},
-    instance::function::FuncType,
+    import_obj::{ImportObject, InnerImportObject},
+    instance::function::{FuncType, InnerFuncType},
+    statistics::{InnerStat, Statistics},
+    store::{InnerStore, Store},
     types::WasmEdgeString,
     utils,
     wasmedge::{WasmEdge_HostRegistration_Wasi, WasmEdge_HostRegistration_WasmEdge_Process},
-    Config, ImportObject, Module, Statistics, Store, Value,
+    Config, Module, Value,
 };
 use std::path::Path;
 
@@ -16,7 +19,7 @@ use std::path::Path;
 /// A [`Vm`] defines a virtual environment for managing WebAssembly programs.
 #[derive(Debug)]
 pub struct Vm {
-    pub(crate) ctx: *mut wasmedge::WasmEdge_VMContext,
+    pub(crate) inner: InnerVm,
 }
 impl Vm {
     /// Creates a new [`Vm`] to be associated with the given [configuration](crate::Config) and [store](crate::Store).
@@ -37,22 +40,23 @@ impl Vm {
             Some(mut config) => {
                 let vm_ctx = match store {
                     Some(mut store) => {
-                        let vm_ctx = unsafe { wasmedge::WasmEdge_VMCreate(config.ctx, store.ctx) };
-                        store.ctx = std::ptr::null_mut();
+                        let vm_ctx =
+                            unsafe { wasmedge::WasmEdge_VMCreate(config.inner.0, store.inner.0) };
+                        store.inner.0 = std::ptr::null_mut();
                         vm_ctx
                     }
                     None => unsafe {
-                        wasmedge::WasmEdge_VMCreate(config.ctx, std::ptr::null_mut())
+                        wasmedge::WasmEdge_VMCreate(config.inner.0, std::ptr::null_mut())
                     },
                 };
-                config.ctx = std::ptr::null_mut();
+                config.inner.0 = std::ptr::null_mut();
                 vm_ctx
             }
             None => match store {
                 Some(mut store) => {
                     let vm_ctx =
-                        unsafe { wasmedge::WasmEdge_VMCreate(std::ptr::null_mut(), store.ctx) };
-                    store.ctx = std::ptr::null_mut();
+                        unsafe { wasmedge::WasmEdge_VMCreate(std::ptr::null_mut(), store.inner.0) };
+                    store.inner.0 = std::ptr::null_mut();
                     vm_ctx
                 }
                 None => unsafe {
@@ -63,7 +67,9 @@ impl Vm {
 
         match ctx.is_null() {
             true => Err(WasmEdgeError::Vm(VmError::Create)),
-            false => Ok(Self { ctx }),
+            false => Ok(Self {
+                inner: InnerVm(ctx),
+            }),
         }
     }
 
@@ -96,7 +102,7 @@ impl Vm {
         let mod_name: WasmEdgeString = mod_name.as_ref().into();
         unsafe {
             check(wasmedge::WasmEdge_VMRegisterModuleFromFile(
-                self.ctx,
+                self.inner.0,
                 mod_name.as_raw(),
                 path.as_ptr(),
             ))?
@@ -126,10 +132,11 @@ impl Vm {
     pub fn register_wasm_from_import(&mut self, mut import: ImportObject) -> WasmEdgeResult<()> {
         unsafe {
             check(wasmedge::WasmEdge_VMRegisterModuleFromImport(
-                self.ctx, import.ctx,
+                self.inner.0,
+                import.inner.0,
             ))?;
         }
-        import.ctx = std::ptr::null_mut();
+        import.inner.0 = std::ptr::null_mut();
 
         Ok(())
     }
@@ -162,7 +169,7 @@ impl Vm {
         let mod_name: WasmEdgeString = mod_name.as_ref().into();
         unsafe {
             check(wasmedge::WasmEdge_VMRegisterModuleFromBuffer(
-                self.ctx,
+                self.inner.0,
                 mod_name.as_raw(),
                 buffer.as_ptr(),
                 buffer.len() as u32,
@@ -201,12 +208,12 @@ impl Vm {
         let mod_name: WasmEdgeString = mod_name.as_ref().into();
         unsafe {
             check(wasmedge::WasmEdge_VMRegisterModuleFromASTModule(
-                self.ctx,
+                self.inner.0,
                 mod_name.as_raw(),
-                module.ctx,
+                module.inner.0,
             ))?;
         }
-        module.ctx = std::ptr::null_mut();
+        module.inner.0 = std::ptr::null_mut();
         Ok(())
     }
 
@@ -342,10 +349,11 @@ impl Vm {
     pub fn load_wasm_from_module(&mut self, mut module: Module) -> WasmEdgeResult<()> {
         unsafe {
             check(wasmedge::WasmEdge_VMLoadWasmFromASTModule(
-                self.ctx, module.ctx,
+                self.inner.0,
+                module.inner.0,
             ))?;
         }
-        module.ctx = std::ptr::null_mut();
+        module.inner.0 = std::ptr::null_mut();
         Ok(())
     }
 
@@ -363,7 +371,7 @@ impl Vm {
     pub fn load_wasm_from_buffer(&mut self, buffer: &[u8]) -> WasmEdgeResult<()> {
         unsafe {
             check(wasmedge::WasmEdge_VMLoadWasmFromBuffer(
-                self.ctx,
+                self.inner.0,
                 buffer.as_ptr() as *const _,
                 buffer.len() as u32,
             ))?;
@@ -386,7 +394,7 @@ impl Vm {
         let path = utils::path_to_cstring(path.as_ref())?;
         unsafe {
             check(wasmedge::WasmEdge_VMLoadWasmFromFile(
-                self.ctx,
+                self.inner.0,
                 path.as_ptr(),
             ))?;
         }
@@ -403,7 +411,7 @@ impl Vm {
     /// If fail to validate, then an error is returned.
     pub fn validate(&self) -> WasmEdgeResult<()> {
         unsafe {
-            check(wasmedge::WasmEdge_VMValidate(self.ctx))?;
+            check(wasmedge::WasmEdge_VMValidate(self.inner.0))?;
         }
         Ok(())
     }
@@ -418,7 +426,7 @@ impl Vm {
     /// If fail to instantiate, then an error is returned.
     pub fn instantiate(&mut self) -> WasmEdgeResult<()> {
         unsafe {
-            check(wasmedge::WasmEdge_VMInstantiate(self.ctx))?;
+            check(wasmedge::WasmEdge_VMInstantiate(self.inner.0))?;
         }
         Ok(())
     }
@@ -453,13 +461,14 @@ impl Vm {
         let func_type = self.get_function_type(func_name.as_ref())?;
 
         // get the info of the funtion return
-        let returns_len = unsafe { wasmedge::WasmEdge_FunctionTypeGetReturnsLength(func_type.ctx) };
+        let returns_len =
+            unsafe { wasmedge::WasmEdge_FunctionTypeGetReturnsLength(func_type.inner.0) };
         let mut returns = Vec::with_capacity(returns_len as usize);
 
         let func_name: WasmEdgeString = func_name.as_ref().into();
         unsafe {
             check(wasmedge::WasmEdge_VMExecute(
-                self.ctx,
+                self.inner.0,
                 func_name.as_raw(),
                 raw_params.as_ptr(),
                 raw_params.len() as u32,
@@ -501,14 +510,15 @@ impl Vm {
         let func_type = self.get_registered_function_type(mod_name.as_ref(), func_name.as_ref())?;
 
         // get the info of the funtion return
-        let returns_len = unsafe { wasmedge::WasmEdge_FunctionTypeGetReturnsLength(func_type.ctx) };
+        let returns_len =
+            unsafe { wasmedge::WasmEdge_FunctionTypeGetReturnsLength(func_type.inner.0) };
         let mut returns = Vec::with_capacity(returns_len as usize);
 
         let mod_name: WasmEdgeString = mod_name.as_ref().into();
         let func_name: WasmEdgeString = func_name.as_ref().into();
         unsafe {
             check(wasmedge::WasmEdge_VMExecuteRegistered(
-                self.ctx,
+                self.inner.0,
                 mod_name.as_raw(),
                 func_name.as_raw(),
                 raw_params.as_ptr(),
@@ -538,7 +548,7 @@ impl Vm {
 
         let ty_ctx = unsafe {
             let func_name: WasmEdgeString = func_name.as_ref().into();
-            wasmedge::WasmEdge_VMGetFunctionType(self.ctx, func_name.as_raw())
+            wasmedge::WasmEdge_VMGetFunctionType(self.inner.0, func_name.as_raw())
         };
 
         match ty_ctx.is_null() {
@@ -546,7 +556,7 @@ impl Vm {
                 func_name.as_ref().to_string(),
             ))),
             false => Ok(FuncType {
-                ctx: ty_ctx as *mut _,
+                inner: InnerFuncType(ty_ctx as *mut _),
                 registered: true,
             }),
         }
@@ -572,7 +582,7 @@ impl Vm {
             let mod_name: WasmEdgeString = mod_name.as_ref().into();
             let func_name: WasmEdgeString = func_name.as_ref().into();
             wasmedge::WasmEdge_VMGetFunctionTypeRegistered(
-                self.ctx,
+                self.inner.0,
                 mod_name.as_raw(),
                 func_name.as_raw(),
             )
@@ -583,7 +593,7 @@ impl Vm {
                 func_name.as_ref().to_string(),
             ))),
             false => Ok(FuncType {
-                ctx: ty_ctx as *mut _,
+                inner: InnerFuncType(ty_ctx as *mut _),
                 registered: true,
             }),
         }
@@ -591,12 +601,12 @@ impl Vm {
 
     /// Resets the [`Vm`].
     pub fn reset(&mut self) {
-        unsafe { wasmedge::WasmEdge_VMCleanup(self.ctx) }
+        unsafe { wasmedge::WasmEdge_VMCleanup(self.inner.0) }
     }
 
     /// Returns the length of the exported function list.
     pub fn function_list_len(&self) -> usize {
-        unsafe { wasmedge::WasmEdge_VMGetFunctionListLength(self.ctx) as usize }
+        unsafe { wasmedge::WasmEdge_VMGetFunctionListLength(self.inner.0) as usize }
     }
 
     /// Returns an iterator of the exported functions.
@@ -606,7 +616,7 @@ impl Vm {
         let mut types = Vec::with_capacity(len);
         unsafe {
             wasmedge::WasmEdge_VMGetFunctionList(
-                self.ctx,
+                self.inner.0,
                 names.as_mut_ptr(),
                 types.as_mut_ptr(),
                 len as u32,
@@ -621,7 +631,7 @@ impl Vm {
             let func_ty = match ty.is_null() {
                 true => None,
                 false => Some(FuncType {
-                    ctx: ty as *mut _,
+                    inner: InnerFuncType(ty as *mut _),
                     registered: true,
                 }),
             };
@@ -632,12 +642,15 @@ impl Vm {
     /// Returns the mutable Wasi [ImportObject](crate::ImportObject)
     pub fn wasi_import_module_mut(&mut self) -> WasmEdgeResult<ImportObject> {
         let io_ctx = unsafe {
-            wasmedge::WasmEdge_VMGetImportModuleContext(self.ctx, WasmEdge_HostRegistration_Wasi)
+            wasmedge::WasmEdge_VMGetImportModuleContext(
+                self.inner.0,
+                WasmEdge_HostRegistration_Wasi,
+            )
         };
         match io_ctx.is_null() {
             true => Err(WasmEdgeError::Vm(VmError::NotFoundWasiImportObjectModule)),
             false => Ok(ImportObject {
-                ctx: io_ctx,
+                inner: InnerImportObject(io_ctx),
                 registered: true,
             }),
         }
@@ -647,7 +660,7 @@ impl Vm {
     pub fn wasmedge_process_import_module_mut(&mut self) -> WasmEdgeResult<ImportObject> {
         let io_ctx = unsafe {
             wasmedge::WasmEdge_VMGetImportModuleContext(
-                self.ctx,
+                self.inner.0,
                 WasmEdge_HostRegistration_WasmEdge_Process,
             )
         };
@@ -656,7 +669,7 @@ impl Vm {
                 VmError::NotFoundWasmEdgeProcessImportObjectModule,
             )),
             false => Ok(ImportObject {
-                ctx: io_ctx,
+                inner: InnerImportObject(io_ctx),
                 registered: true,
             }),
         }
@@ -664,11 +677,11 @@ impl Vm {
 
     /// Returns the mutable [Store](crate::Store) from the [`Vm`].
     pub fn store_mut(&self) -> WasmEdgeResult<Store> {
-        let store_ctx = unsafe { wasmedge::WasmEdge_VMGetStoreContext(self.ctx) };
+        let store_ctx = unsafe { wasmedge::WasmEdge_VMGetStoreContext(self.inner.0) };
         match store_ctx.is_null() {
             true => Err(WasmEdgeError::Vm(VmError::NotFoundStore)),
             false => Ok(Store {
-                ctx: store_ctx,
+                inner: InnerStore(store_ctx),
                 registered: true,
             }),
         }
@@ -676,11 +689,11 @@ impl Vm {
 
     /// Returns the mutable [Statistics](crate::Statistics) from the [`Vm`].
     pub fn statistics_mut(&self) -> WasmEdgeResult<Statistics> {
-        let stat_ctx = unsafe { wasmedge::WasmEdge_VMGetStatisticsContext(self.ctx) };
+        let stat_ctx = unsafe { wasmedge::WasmEdge_VMGetStatisticsContext(self.inner.0) };
         match stat_ctx.is_null() {
             true => Err(WasmEdgeError::Vm(VmError::NotFoundStatistics)),
             false => Ok(Statistics {
-                ctx: stat_ctx,
+                inner: InnerStat(stat_ctx),
                 registered: true,
             }),
         }
@@ -737,11 +750,16 @@ impl Vm {
 }
 impl Drop for Vm {
     fn drop(&mut self) {
-        if !self.ctx.is_null() {
-            unsafe { wasmedge::WasmEdge_VMDelete(self.ctx) };
+        if !self.inner.0.is_null() {
+            unsafe { wasmedge::WasmEdge_VMDelete(self.inner.0) };
         }
     }
 }
+
+#[derive(Debug)]
+pub(crate) struct InnerVm(pub(crate) *mut wasmedge::WasmEdge_VMContext);
+unsafe impl Send for InnerVm {}
+unsafe impl Sync for InnerVm {}
 
 #[cfg(test)]
 mod tests {
@@ -753,6 +771,10 @@ mod tests {
         Config, FuncType, Function, ImportObject, Loader, Module, Store, ValType, Value,
         WasmEdgeError,
     };
+    use std::{
+        sync::{Arc, Mutex},
+        thread,
+    };
 
     #[test]
     fn test_vm_create() {
@@ -761,15 +783,15 @@ mod tests {
             let result = Vm::create(None, None);
             assert!(result.is_ok());
             let vm = result.unwrap();
-            assert!(!vm.ctx.is_null());
+            assert!(!vm.inner.0.is_null());
         }
 
         {
             // create a Config context
             let result = Config::create();
             assert!(result.is_ok());
-            let config = result.unwrap();
-            let config = config.bulk_memory_operations(true);
+            let mut config = result.unwrap();
+            config.bulk_memory_operations(true);
             assert!(config.bulk_memory_operations_enabled());
 
             // create a Store context
@@ -781,22 +803,22 @@ mod tests {
             let result = Vm::create(Some(config), Some(store));
             assert!(result.is_ok());
             let vm = result.unwrap();
-            assert!(!vm.ctx.is_null());
+            assert!(!vm.inner.0.is_null());
         }
 
         {
             // create a Config context
             let result = Config::create();
             assert!(result.is_ok());
-            let config = result.unwrap();
-            let config = config.bulk_memory_operations(true);
+            let mut config = result.unwrap();
+            config.bulk_memory_operations(true);
             assert!(config.bulk_memory_operations_enabled());
 
             // create a Vm context with the given Config
             let result = Vm::create(Some(config), None);
             assert!(result.is_ok());
             let vm = result.unwrap();
-            assert!(!vm.ctx.is_null());
+            assert!(!vm.inner.0.is_null());
         }
 
         {
@@ -809,7 +831,7 @@ mod tests {
             let result = Vm::create(None, Some(store));
             assert!(result.is_ok());
             let vm = result.unwrap();
-            assert!(!vm.ctx.is_null());
+            assert!(!vm.inner.0.is_null());
         }
     }
 
@@ -818,8 +840,8 @@ mod tests {
         // create Config instance
         let result = Config::create();
         assert!(result.is_ok());
-        let conf = result.unwrap();
-        let config = conf.bulk_memory_operations(true);
+        let mut config = result.unwrap();
+        config.bulk_memory_operations(true);
         assert!(config.bulk_memory_operations_enabled());
 
         // create Store instance
@@ -852,9 +874,9 @@ mod tests {
         // create Config instance
         let result = Config::create();
         assert!(result.is_ok());
-        let conf = result.unwrap();
-        let conf = conf.bulk_memory_operations(true);
-        assert!(conf.bulk_memory_operations_enabled());
+        let mut config = result.unwrap();
+        config.bulk_memory_operations(true);
+        assert!(config.bulk_memory_operations_enabled());
 
         // create Store instance
         let result = Store::create();
@@ -862,7 +884,7 @@ mod tests {
         let store = result.unwrap();
 
         // create Vm instance
-        let result = Vm::create(Some(conf), Some(store));
+        let result = Vm::create(Some(config), Some(store));
         assert!(result.is_ok());
         let mut vm = result.unwrap();
 
@@ -890,7 +912,8 @@ mod tests {
         // create a Config context
         let result = Config::create();
         assert!(result.is_ok());
-        let config = result.unwrap().bulk_memory_operations(true);
+        let mut config = result.unwrap();
+        config.bulk_memory_operations(true);
         assert!(config.bulk_memory_operations_enabled());
 
         // create a Store context
@@ -906,7 +929,8 @@ mod tests {
         // create a loader
         let result = Config::create();
         assert!(result.is_ok());
-        let config = result.unwrap().wasi(true);
+        let mut config = result.unwrap();
+        config.wasi(true);
         assert!(config.wasi_enabled());
         let result = Loader::create(Some(config));
         assert!(result.is_ok());
@@ -940,7 +964,8 @@ mod tests {
         // create a loader
         let result = Config::create();
         assert!(result.is_ok());
-        let config = result.unwrap().wasi(true);
+        let mut config = result.unwrap();
+        config.wasi(true);
         assert!(config.wasi_enabled());
         let result = Loader::create(Some(config));
         assert!(result.is_ok());
@@ -977,7 +1002,8 @@ mod tests {
         // create a loader
         let result = Config::create();
         assert!(result.is_ok());
-        let config = result.unwrap().wasi(true);
+        let mut config = result.unwrap();
+        config.wasi(true);
         assert!(config.wasi_enabled());
         let result = Loader::create(Some(config));
         assert!(result.is_ok());
@@ -1013,8 +1039,8 @@ mod tests {
             .join("bindings/rust/wasmedge-sys/tests/data/fibonacci.wasm");
         let result = Config::create();
         assert!(result.is_ok());
-        let config = result.unwrap();
-        let config = config.bulk_memory_operations(true);
+        let mut config = result.unwrap();
+        config.bulk_memory_operations(true);
         assert!(config.bulk_memory_operations_enabled());
 
         // load module from file
@@ -1028,12 +1054,12 @@ mod tests {
         // create Vm instance
         let result = Config::create();
         assert!(result.is_ok());
-        let config = result.unwrap();
-        let config = config.bulk_memory_operations(true);
+        let mut config = result.unwrap();
+        config.bulk_memory_operations(true);
         assert!(config.bulk_memory_operations_enabled());
 
         let result = Store::create();
-        assert!(result.is_ok(), "Failed to create Store instance");
+        assert!(result.is_ok());
         let store = result.unwrap();
 
         let result = Vm::create(Some(config), Some(store));
@@ -1113,8 +1139,8 @@ mod tests {
         // create a Config context
         let result = Config::create();
         assert!(result.is_ok());
-        let config = result.unwrap();
-        let config = config.bulk_memory_operations(true);
+        let mut config = result.unwrap();
+        config.bulk_memory_operations(true);
         assert!(config.bulk_memory_operations_enabled());
 
         // create a Store context
@@ -1147,7 +1173,8 @@ mod tests {
         // create a Config context
         let result = Config::create();
         assert!(result.is_ok());
-        let config = result.unwrap().bulk_memory_operations(true);
+        let mut config = result.unwrap();
+        config.bulk_memory_operations(true);
         assert!(config.bulk_memory_operations_enabled());
 
         // create a Store context
@@ -1163,7 +1190,8 @@ mod tests {
         // create a loader
         let result = Config::create();
         assert!(result.is_ok());
-        let config = result.unwrap().wasi(true);
+        let mut config = result.unwrap();
+        config.wasi(true);
         assert!(config.wasi_enabled());
         let result = Loader::create(Some(config));
         assert!(result.is_ok());
@@ -1244,10 +1272,10 @@ mod tests {
         // create a Config context
         let result = Config::create();
         assert!(result.is_ok());
-        let config = result.unwrap();
-        let config = config.bulk_memory_operations(true);
+        let mut config = result.unwrap();
+        config.bulk_memory_operations(true);
         assert!(config.bulk_memory_operations_enabled());
-        let config = config.wasi(true);
+        config.wasi(true);
         assert!(config.wasi_enabled());
 
         // create a Store context
@@ -1304,8 +1332,8 @@ mod tests {
         // create a Config context
         let result = Config::create();
         assert!(result.is_ok());
-        let config = result.unwrap();
-        let config = config.bulk_memory_operations(true);
+        let mut config = result.unwrap();
+        config.bulk_memory_operations(true);
         assert!(config.bulk_memory_operations_enabled());
 
         // create a Store context
@@ -1333,8 +1361,8 @@ mod tests {
         // create a Config context
         let result = Config::create();
         assert!(result.is_ok());
-        let config = result.unwrap();
-        let config = config.bulk_memory_operations(true);
+        let mut config = result.unwrap();
+        config.bulk_memory_operations(true);
         assert!(config.bulk_memory_operations_enabled());
 
         // create a Store context
@@ -1393,8 +1421,8 @@ mod tests {
         // create a Config context
         let result = Config::create();
         assert!(result.is_ok());
-        let config = result.unwrap();
-        let config = config.bulk_memory_operations(true);
+        let mut config = result.unwrap();
+        config.bulk_memory_operations(true);
         assert!(config.bulk_memory_operations_enabled());
 
         // create a Store context
@@ -1457,8 +1485,8 @@ mod tests {
         // create a Config context
         let result = Config::create();
         assert!(result.is_ok());
-        let config = result.unwrap();
-        let config = config.bulk_memory_operations(true);
+        let mut config = result.unwrap();
+        config.bulk_memory_operations(true);
         assert!(config.bulk_memory_operations_enabled());
 
         // create a Store context
@@ -1504,6 +1532,76 @@ mod tests {
             result.unwrap_err(),
             WasmEdgeError::Store(StoreError::NotFoundFunc("fib2".into()))
         );
+    }
+
+    #[test]
+    fn test_vm_send() {
+        // create a Config context
+        let result = Config::create();
+        assert!(result.is_ok());
+        let mut config = result.unwrap();
+        config.bulk_memory_operations(true);
+        assert!(config.bulk_memory_operations_enabled());
+
+        // create a Store context
+        let result = Store::create();
+        assert!(result.is_ok(), "Failed to create Store instance");
+        let store = result.unwrap();
+
+        // create a Vm context with the given Config and Store
+        let result = Vm::create(Some(config), Some(store));
+        assert!(result.is_ok());
+        let mut vm = result.unwrap();
+        assert!(!vm.inner.0.is_null());
+
+        let handle = thread::spawn(move || {
+            // run a function from a wasm file
+            let path = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
+                .join("bindings/rust/wasmedge-sys/tests/data/fibonacci.wasm");
+            let result = vm.run_wasm_from_file(&path, "fib", [Value::from_i32(5)]);
+            assert!(result.is_ok());
+            let returns = result.unwrap();
+            assert_eq!(returns[0].to_i32(), 8);
+        });
+
+        handle.join().unwrap();
+    }
+
+    #[test]
+    fn test_vm_sync() {
+        // create a Config context
+        let result = Config::create();
+        assert!(result.is_ok());
+        let mut config = result.unwrap();
+        config.bulk_memory_operations(true);
+        assert!(config.bulk_memory_operations_enabled());
+
+        // create a Store context
+        let result = Store::create();
+        assert!(result.is_ok(), "Failed to create Store instance");
+        let store = result.unwrap();
+
+        // create a Vm context with the given Config and Store
+        let result = Vm::create(Some(config), Some(store));
+        assert!(result.is_ok());
+        let vm = Arc::new(Mutex::new(result.unwrap()));
+
+        let vm_cloned = Arc::clone(&vm);
+        let handle = thread::spawn(move || {
+            let result = vm_cloned.lock();
+            assert!(result.is_ok());
+            let mut vm = result.unwrap();
+
+            // run a function from a wasm file
+            let path = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
+                .join("bindings/rust/wasmedge-sys/tests/data/fibonacci.wasm");
+            let result = vm.run_wasm_from_file(&path, "fib", [Value::from_i32(5)]);
+            assert!(result.is_ok());
+            let returns = result.unwrap();
+            assert_eq!(returns[0].to_i32(), 8);
+        });
+
+        handle.join().unwrap();
     }
 
     fn load_fib_module() -> Module {

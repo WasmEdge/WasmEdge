@@ -19,6 +19,7 @@
 #include "host/wasi_crypto/kx/alg.h"
 #include "host/wasi_crypto/signatures/alg.h"
 #include "host/wasi_crypto/symmetric/alg.h"
+#include "host/wasi_crypto/symmetric/tag.h"
 #include "host/wasi_crypto/utils/error.h"
 #include "host/wasi_crypto/utils/handles_manager.h"
 #include "wasi_crypto/api.hpp"
@@ -306,6 +307,8 @@ private:
   RefHandlesManager<__wasi_array_output_t, Common::ArrayOutput>
       ArrayOutputManger{0x00};
   RcHandlesManager<__wasi_options_t, Common::Options> OptionsManager{0x01};
+  RefHandlesManager<__wasi_symmetric_tag_t, Symmetric::Tag> SymmetricTagManager{
+      0xa};
 };
 
 } // namespace WasiCrypto

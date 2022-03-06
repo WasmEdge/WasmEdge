@@ -769,7 +769,6 @@ mod tests {
             CoreCommonError, CoreError, CoreExecutionError, CoreInstantiationError, CoreLoadError,
             StoreError, VmError,
         },
-        types::HostRegistration,
         Config, FuncType, Function, ImportObject, Loader, Module, Store, ValType, Value,
         WasmEdgeError,
     };
@@ -1795,7 +1794,7 @@ mod tests {
             let func_ty = result.unwrap();
             let result = Function::create(func_ty, Box::new(real_add), 0);
             assert!(result.is_ok());
-            let mut host_func = result.unwrap();
+            let host_func = result.unwrap();
             import_process.add_func("add", host_func);
 
             let result = vm.register_wasm_from_import(import_process);

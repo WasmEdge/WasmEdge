@@ -3,6 +3,7 @@
 
 #include "host/wasi_crypto/ctx.h"
 #include "host/wasi_crypto/common/array_output.h"
+#include "host/wasi_crypto/common/options.h"
 
 namespace WasmEdge {
 namespace Host {
@@ -24,6 +25,44 @@ Context::arrayOutputPull(__wasi_array_output_t ArrayOutputHandle,
           ArrayOutputManger.close(ArrayOutputHandle);
         }
         return Size;
+      });
+}
+
+WasiCryptoExpect<__wasi_options_t>
+Context::optionsOpen(__wasi_algorithm_type_e_t AlgType) noexcept {
+  return OptionsManager.registerManager(Common::optionsOpen(AlgType));
+}
+
+WasiCryptoExpect<void>
+Context::optionsClose(__wasi_options_t OptionsHandle) noexcept {
+  return OptionsManager.close(OptionsHandle);
+}
+
+WasiCryptoExpect<void> Context::optionsSet(__wasi_options_t OptionsHandle,
+                                           std::string_view Name,
+                                           Span<const uint8_t> Value) noexcept {
+  return OptionsManager.get(OptionsHandle)
+      .and_then([Name, Value](auto &&Options) noexcept {
+        return Common::optionsSet(Options, Name, Value);
+      });
+}
+
+WasiCryptoExpect<void> Context::optionsSetU64(__wasi_options_t OptionsHandle,
+                                              std::string_view Name,
+                                              uint64_t Value) noexcept {
+  return OptionsManager.get(OptionsHandle)
+      .and_then([Name, Value](auto &&Options) noexcept {
+        return Common::optionsSetU64(Options, Name, Value);
+      });
+}
+
+WasiCryptoExpect<void>
+Context::optionsSetGuestBuffer(__wasi_options_t OptionsHandle,
+                               std::string_view Name,
+                               Span<uint8_t> Buf) noexcept {
+  return OptionsManager.get(OptionsHandle)
+      .and_then([Name, Buf](auto &&Options) noexcept {
+        return Common::optionsSetGuestBuffer(Options, Name, Buf);
       });
 }
 

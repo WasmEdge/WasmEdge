@@ -213,7 +213,6 @@ struct TestsuiteProposal {
 };
 static const TestsuiteProposal TestsuiteProposals[] = {
     {"core"sv, {}},
-    {"simd"sv, {}},
     {"multi-memory"sv, {Proposal::MultiMemories}},
 };
 
@@ -443,8 +442,8 @@ bool SpecTest::compares(
   return true;
 }
 
-bool SpecTest::stringContains(const std::string &Expected,
-                              const std::string &Got) const {
+bool SpecTest::stringContains(std::string_view Expected,
+                              std::string_view Got) const {
   if (Expected.rfind(Got, 0) != 0) {
     spdlog::error("   ##### expected text : {}", Expected);
     spdlog::error("   ######## error text : {}", Got);

@@ -1,8 +1,6 @@
-# WasmEdge low-level Rust APIs
+# Run a WebAssembly function with WasmEdge low-level Rust APIs
 
-This section demonstrates how to use the low-level Rust APIs provided in the `wasmedge-sys` crate with several common use cases.
-
-## Example 1: Run a WebAssembly function
+This section demonstrates how to use the Rust APIs of the `wasmedge-sys` crate to run a host function.
 
 As you may know, several mainstream programming languages, such as C/C++, Rust, Go, and Python, support compiling their programs into WebAssembly binary. In this demo, we'll introduce how to use WasmEdge Rust APIs to call a WebAssembly function which could be coded in any programming language mentioned above.
 
@@ -41,7 +39,7 @@ We use `fibonacci.wasm` in this demo, and the contents of the WebAssembly file a
 )
 ```
 
-### Step 1: Create a WasmEdge AST Module
+## Step 1: Create a WasmEdge AST Module
 
 In this step,  we'll create a WasmEdge `AST Module` instance from a WebAssembly file.
 
@@ -61,7 +59,7 @@ let path = PathBuf::from("fibonacci.wasm");
 let mut module = loader.from_file(path).expect("fail to load the WebAssembly file");
 ```
 
-### Step 2: Create a WasmEdge `Vm` context
+## Step 2: Create a WasmEdge `Vm` context
 
 In WasmEdge, a `Vm` defines a running environment, in which all varieties of instances and contexts are stored and maintained. In the demo code below, we explicitly create a WasmEdge `Store` context, and then use it as one of the inputs in the creation of a `Vm` context. If not specify a `Store` context explicitly, then `Vm` will create a store by itself.
 
@@ -75,10 +73,10 @@ let config = Config::create().expect("fail to create a Config context");
 let store = Store::create().expect("fail to create a Store context");
 
 // create a Vm context with the given Config and Store
-let vm = Vm::create(Some(&config), Some(&store)).expect("fail to create a Vm context");
+let mut vm = Vm::create(Some(config), Some(store)).expect("fail to create a Vm context");
 ```
 
-### Step 3: Invoke the `fib` function
+## Step 3: Invoke the `fib` function
 
 In Step 1, we got a module that hosts the target `fib` function defined in the WebAssembly. Now, we can call the function via the `run_wasm_from_module` method of the `Vm` context by passing the exported function name, `fib`.
 
@@ -86,7 +84,7 @@ In Step 1, we got a module that hosts the target `fib` function defined in the W
 use wasmedge_sys::Value;
 
 // run a function
-let returns = vm.run_wasm_from_module(&mut module, "fib", [Value::from_i32(5)]).expect("fail to run the target function in the module");
+let returns = vm.run_wasm_from_module(module, "fib", [Value::from_i32(5)]).expect("fail to run the target function in the module");
 
 println!("The result of fib(5) is {}", returns[0].to_i32());
 ```

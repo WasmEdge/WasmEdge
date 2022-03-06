@@ -1,6 +1,10 @@
 //! Defines WasmEdge Loader struct.
 
-use crate::{error::check, utils, wasmedge, Config, Module, WasmEdgeError, WasmEdgeResult};
+use crate::{
+    error::check,
+    module::{InnerModule, Module},
+    utils, wasmedge, Config, WasmEdgeError, WasmEdgeResult,
+};
 use std::path::Path;
 
 /// Struct of WasmEdge Loader.
@@ -8,7 +12,7 @@ use std::path::Path;
 /// [`Loader`] is used to load WASM modules from the given WASM files or buffers.
 #[derive(Debug)]
 pub struct Loader {
-    pub(crate) ctx: *mut wasmedge::WasmEdge_LoaderContext,
+    pub(crate) inner: InnerLoader,
 }
 impl Loader {
     /// Create a new [`Loader`] to be associated with the given global configuration.
@@ -23,8 +27,8 @@ impl Loader {
     pub fn create(config: Option<Config>) -> WasmEdgeResult<Self> {
         let ctx = match config {
             Some(mut config) => {
-                let ctx = unsafe { wasmedge::WasmEdge_LoaderCreate(config.ctx) };
-                config.ctx = std::ptr::null_mut();
+                let ctx = unsafe { wasmedge::WasmEdge_LoaderCreate(config.inner.0) };
+                config.inner.0 = std::ptr::null_mut();
                 ctx
             }
             None => unsafe { wasmedge::WasmEdge_LoaderCreate(std::ptr::null_mut()) },
@@ -32,7 +36,9 @@ impl Loader {
 
         match ctx.is_null() {
             true => Err(WasmEdgeError::LoaderCreate),
-            false => Ok(Self { ctx }),
+            false => Ok(Self {
+                inner: InnerLoader(ctx),
+            }),
         }
     }
 
@@ -50,7 +56,7 @@ impl Loader {
         let mut mod_ctx = std::ptr::null_mut();
         unsafe {
             check(wasmedge::WasmEdge_LoaderParseFromFile(
-                self.ctx,
+                self.inner.0,
                 &mut mod_ctx,
                 c_path.as_ptr(),
             ))?;
@@ -58,7 +64,9 @@ impl Loader {
 
         match mod_ctx.is_null() {
             true => Err(WasmEdgeError::ModuleCreate),
-            false => Ok(Module { ctx: mod_ctx }),
+            false => Ok(Module {
+                inner: InnerModule(mod_ctx),
+            }),
         }
     }
 
@@ -87,7 +95,7 @@ impl Loader {
             dst.copy_from_slice(src);
 
             check(wasmedge::WasmEdge_LoaderParseFromBuffer(
-                self.ctx,
+                self.inner.0,
                 &mut mod_ctx,
                 ptr as *const u8,
                 buffer.as_ref().len() as u32,
@@ -98,17 +106,24 @@ impl Loader {
 
         match mod_ctx.is_null() {
             true => Err(WasmEdgeError::ModuleCreate),
-            false => Ok(Module { ctx: mod_ctx }),
+            false => Ok(Module {
+                inner: InnerModule(mod_ctx),
+            }),
         }
     }
 }
 impl Drop for Loader {
     fn drop(&mut self) {
-        if !self.ctx.is_null() {
-            unsafe { wasmedge::WasmEdge_LoaderDelete(self.ctx) }
+        if !self.inner.0.is_null() {
+            unsafe { wasmedge::WasmEdge_LoaderDelete(self.inner.0) }
         }
     }
 }
+
+#[derive(Debug)]
+pub(crate) struct InnerLoader(pub(crate) *mut wasmedge::WasmEdge_LoaderContext);
+unsafe impl Send for InnerLoader {}
+unsafe impl Sync for InnerLoader {}
 
 #[cfg(test)]
 mod tests {
@@ -116,6 +131,10 @@ mod tests {
     use crate::{
         error::{CoreError, CoreLoadError},
         Config, WasmEdgeError,
+    };
+    use std::{
+        sync::{Arc, Mutex},
+        thread,
     };
 
     #[test]
@@ -127,8 +146,8 @@ mod tests {
         // create a Loader instance with configuration
         let result = Config::create();
         assert!(result.is_ok());
-        let config = result.unwrap();
-        let config = config.reference_types(true);
+        let mut config = result.unwrap();
+        config.reference_types(true);
         let result = Loader::create(Some(config));
         assert!(result.is_ok());
         let loader = result.unwrap();
@@ -140,7 +159,7 @@ mod tests {
             let result = loader.from_file(path);
             assert!(result.is_ok());
             let module = result.unwrap();
-            assert!(!module.ctx.is_null());
+            assert!(!module.inner.0.is_null());
 
             let result = loader.from_file("not_exist_file");
             assert!(result.is_err());
@@ -161,7 +180,7 @@ mod tests {
             let result = loader.from_buffer(&buffer);
             assert!(result.is_ok());
             let module = result.unwrap();
-            assert!(!module.ctx.is_null());
+            assert!(!module.inner.0.is_null());
 
             let result = loader.from_buffer(&[]);
             assert!(result.is_err());
@@ -170,5 +189,55 @@ mod tests {
                 WasmEdgeError::Core(CoreError::Load(CoreLoadError::UnexpectedEnd))
             );
         }
+    }
+
+    #[test]
+    fn test_loader_send() {
+        // create a Loader instance without configuration
+        let result = Loader::create(None);
+        assert!(result.is_ok());
+
+        // create a Loader instance with configuration
+        let result = Config::create();
+        assert!(result.is_ok());
+        let mut config = result.unwrap();
+        config.reference_types(true);
+        let result = Loader::create(Some(config));
+        assert!(result.is_ok());
+        let loader = result.unwrap();
+
+        let handle = thread::spawn(move || {
+            assert!(!loader.inner.0.is_null());
+            println!("{:?}", loader.inner);
+        });
+
+        handle.join().unwrap();
+    }
+
+    #[test]
+    fn test_loader_sync() {
+        // create a Loader instance without configuration
+        let result = Loader::create(None);
+        assert!(result.is_ok());
+
+        // create a Loader instance with configuration
+        let result = Config::create();
+        assert!(result.is_ok());
+        let mut config = result.unwrap();
+        config.reference_types(true);
+        let result = Loader::create(Some(config));
+        assert!(result.is_ok());
+        let loader = Arc::new(Mutex::new(result.unwrap()));
+
+        let loader_cloned = Arc::clone(&loader);
+        let handle = thread::spawn(move || {
+            let result = loader_cloned.lock();
+            assert!(result.is_ok());
+            let loader = result.unwrap();
+
+            assert!(!loader.inner.0.is_null());
+        });
+
+        handle.join().unwrap();
     }
 }

@@ -3,9 +3,12 @@
 
 #include "host/wasi_crypto/ctx.h"
 #include "host/wasi_crypto/common/options.h"
+#include "host/wasi_crypto/symmetric/factory.h"
 #include "host/wasi_crypto/symmetric/key.h"
 #include "host/wasi_crypto/symmetric/state.h"
 #include "host/wasi_crypto/symmetric/tag.h"
+#include "host/wasi_crypto/utils/error.h"
+#include "host/wasi_crypto/utils/optional.h"
 #include "wasi_crypto/api.hpp"
 
 namespace WasmEdge {
@@ -168,6 +171,92 @@ Context::symmetricStateRatchet(__wasi_symmetric_state_t StateHandle) noexcept {
   return SymmetricStateManager.get(StateHandle)
       .and_then([=](auto &&State) noexcept {
         return Symmetric::stateRatchet(State);
+      });
+}
+
+WasiCryptoExpect<__wasi_symmetric_key_t>
+Context::symmetricKeyImport(Symmetric::Algorithm Alg,
+                            Span<const uint8_t> Raw) noexcept {
+  return Symmetric::importKey(Alg, Raw).and_then([this](auto &&Key) {
+    return SymmetricKeyManager.registerManager(std::move(Key));
+  });
+}
+
+WasiCryptoExpect<__wasi_symmetric_key_t> Context::symmetricKeyGenerate(
+    Symmetric::Algorithm Alg,
+    std::optional<__wasi_options_t> OptOptionsHandle) noexcept {
+  auto OptOptionsResult = transposeOptional(
+      OptOptionsHandle, [this](__wasi_options_t OptionsHandle) {
+        return OptionsManager.get(OptionsHandle);
+      });
+  if (!OptOptionsResult) {
+    return WasiCryptoUnexpect(OptOptionsResult);
+  }
+
+  /// reference to OptOptionsResult if it's symmetric Options
+  auto OptSymmetricOptionsResult = transposeOptionalToRef(
+      *OptOptionsResult,
+      [](auto &&Options) noexcept
+      -> WasiCryptoExpect<OptionalRef<Symmetric::Options>> {
+        auto *SymmetricOptions = std::get_if<Symmetric::Options>(&Options);
+        if (!SymmetricOptions) {
+          return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_HANDLE);
+        }
+        return SymmetricOptions;
+      });
+  if (!OptSymmetricOptionsResult) {
+    return WasiCryptoUnexpect(OptSymmetricOptionsResult);
+  }
+
+  return Symmetric::generateKey(Alg, *OptSymmetricOptionsResult)
+      .and_then([=](auto &&Key) {
+        return SymmetricKeyManager.registerManager(std::move(Key));
+      });
+}
+
+WasiCryptoExpect<__wasi_symmetric_state_t> Context::symmetricStateOpen(
+    Symmetric::Algorithm Alg,
+    std::optional<__wasi_symmetric_key_t> OptKeyHandle,
+    std::optional<__wasi_options_t> OptOptionsHandle) noexcept {
+  /// copy from KeyManager
+  auto OptKeyResult =
+      transposeOptional(OptKeyHandle,
+                        [this](__wasi_symmetric_key_t KeyHandle)
+                            -> WasiCryptoExpect<Symmetric::KeyVariant> {
+                          return SymmetricKeyManager.get(KeyHandle);
+                        });
+  if (!OptKeyResult) {
+    return WasiCryptoUnexpect(OptKeyResult);
+  }
+
+  // copy from OptionsManger
+  auto OptOptionsResult = transposeOptional(
+      OptOptionsHandle, [this](__wasi_options_t OptionsHandle) {
+        return OptionsManager.get(OptionsHandle);
+      });
+  if (!OptOptionsResult) {
+    return WasiCryptoUnexpect(OptOptionsResult);
+  }
+
+  /// reference to OptOptionsResult if it's symmetric Options
+  auto OptSymmetricOptionsResult = transposeOptionalToRef(
+      *OptOptionsResult,
+      [](auto &&Options) mutable
+      -> WasiCryptoExpect<OptionalRef<Symmetric::Options>> {
+        auto *SymmetricOptions = std::get_if<Symmetric::Options>(&Options);
+        if (!SymmetricOptions) {
+          return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_HANDLE);
+        }
+        return SymmetricOptions;
+      });
+  if (!OptSymmetricOptionsResult) {
+    return WasiCryptoUnexpect(OptSymmetricOptionsResult);
+  }
+
+  return Symmetric::openState(Alg, asOptionalRef(*OptKeyResult),
+                              *OptSymmetricOptionsResult)
+      .and_then([this](auto &&State) {
+        return SymmetricStateManager.registerManager(std::move(State));
       });
 }
 

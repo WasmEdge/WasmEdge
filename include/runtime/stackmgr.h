@@ -42,13 +42,15 @@ public:
   struct Frame {
     Frame() = delete;
     Frame(const uint32_t Addr, const uint32_t VS, const uint32_t LS,
-          const uint32_t A, const bool Dummy = false)
+          const uint32_t A, const bool TailCall = false,
+          const bool Dummy = false)
         : ModAddr(Addr), VStackOff(VS), LStackOff(LS), Arity(A),
-          IsDummy(Dummy) {}
+          IsTailCall(TailCall), IsDummy(Dummy) {}
     uint32_t ModAddr;
     uint32_t VStackOff;
     uint32_t LStackOff;
     uint32_t Arity;
+    bool IsTailCall;
     bool IsDummy;
   };
 
@@ -73,11 +75,6 @@ public:
   /// Unsafe Getter of bottom N-th value entry of stack.
   Value &getBottomN(uint32_t N) { return ValueStack[N]; }
 
-  /// Unsafe Getter of top N value entries of stack.
-  Span<Value> getTopSpan(uint32_t N) {
-    return Span<Value>(ValueStack.end() - N, N);
-  }
-
   /// Push a new value entry to stack.
   template <typename T> void push(T &&Val) {
     ValueStack.push_back(std::forward<T>(Val));
@@ -90,28 +87,46 @@ public:
     return V;
   }
 
+  /// Unsafe Pop and return the top N value entries.
+  std::vector<Value> popTopN(uint32_t N) {
+    std::vector<Value> TopN;
+    TopN.insert(TopN.end(), std::make_move_iterator(ValueStack.end() - N),
+                std::make_move_iterator(ValueStack.end()));
+    ValueStack.erase(ValueStack.end() - N, ValueStack.end());
+    return TopN;
+  }
+
   /// Push a new frame entry to stack.
   void pushFrame(const uint32_t ModuleAddr, const uint32_t LocalNum = 0,
-                 const uint32_t ArityNum = 0) {
+                 const uint32_t ArityNum = 0, const bool IsTail = false) {
     FrameStack.emplace_back(ModuleAddr, ValueStack.size() - LocalNum,
-                            LabelStack.size(), ArityNum);
+                            LabelStack.size(), ArityNum, IsTail);
   }
 
   /// Push a dummy frame for invokation base.
   void pushDummyFrame() {
-    FrameStack.emplace_back(0, ValueStack.size(), LabelStack.size(), 0, true);
+    FrameStack.emplace_back(0, ValueStack.size(), LabelStack.size(), 0, false,
+                            true);
   }
 
   /// Unsafe pop top frame.
-  void popFrame() {
-    assuming(LabelStack.size() >= FrameStack.back().LStackOff);
-    LabelStack.erase(LabelStack.begin() + FrameStack.back().LStackOff,
+  AST::InstrView::iterator popFrame() {
+    AST::InstrView::iterator It = nullptr;
+    assuming(FrameStack.size() > 0);
+    uint32_t PopIdx = static_cast<uint32_t>(FrameStack.size() - 1);
+    while (FrameStack[PopIdx].IsTailCall) {
+      PopIdx--;
+    }
+    It = LabelStack[FrameStack[PopIdx].LStackOff].From;
+    assuming(LabelStack.size() >= FrameStack[PopIdx].LStackOff);
+    LabelStack.erase(LabelStack.begin() + FrameStack[PopIdx].LStackOff,
                      LabelStack.end());
     assuming(ValueStack.size() >=
-             FrameStack.back().VStackOff + FrameStack.back().Arity);
-    ValueStack.erase(ValueStack.begin() + FrameStack.back().VStackOff,
-                     ValueStack.end() - FrameStack.back().Arity);
-    FrameStack.pop_back();
+             FrameStack[PopIdx].VStackOff + FrameStack[PopIdx].Arity);
+    ValueStack.erase(ValueStack.begin() + FrameStack[PopIdx].VStackOff,
+                     ValueStack.end() - FrameStack[PopIdx].Arity);
+    FrameStack.erase(FrameStack.begin() + PopIdx, FrameStack.end());
+    return It;
   }
 
   /// Push a new label entry to stack.
@@ -140,7 +155,7 @@ public:
     if (FrameStack.size() > 1 &&
         FrameStack.back().LStackOff == LabelStack.size()) {
       // Noted that there's always a base frame in stack.
-      popFrame();
+      It = popFrame();
     }
     return It;
   }
@@ -171,6 +186,7 @@ public:
     ValueStack.clear();
     LabelStack.clear();
     FrameStack.clear();
+    TailReturnCount = 0;
   }
 
 private:
@@ -179,6 +195,7 @@ private:
   std::vector<Value> ValueStack;
   std::vector<Label> LabelStack;
   std::vector<Frame> FrameStack;
+  uint32_t TailReturnCount;
   /// @}
 };
 

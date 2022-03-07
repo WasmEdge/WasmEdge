@@ -13,11 +13,12 @@
 namespace WasmEdge {
 namespace Executor {
 
-Expect<AST::InstrView::iterator>
-Executor::enterFunction(Runtime::StoreManager &StoreMgr,
-                        Runtime::StackManager &StackMgr,
-                        const Runtime::Instance::FunctionInstance &Func,
-                        const AST::InstrView::iterator From) {
+Expect<AST::InstrView::iterator> Executor::enterFunction(
+    Runtime::StoreManager &StoreMgr, Runtime::StackManager &StackMgr,
+    const Runtime::Instance::FunctionInstance &Func,
+    const AST::InstrView::iterator BackPos, const bool IsTailCall) {
+  // BackPos: the back position if the entered function returns.
+
   if (unlikely(StopToken.exchange(0, std::memory_order_relaxed))) {
     spdlog::error(ErrCode::Interrupted);
     return Unexpect(ErrCode::Interrupted);
@@ -28,8 +29,24 @@ Executor::enterFunction(Runtime::StoreManager &StoreMgr,
   const uint32_t RetsN =
       static_cast<uint32_t>(FuncType.getReturnTypes().size());
 
+  // Push frame with locals and args nums.
+  StackMgr.pushFrame(Func.getModuleAddr(), // Module address
+                     ArgsN,                // Arguments num
+                     RetsN,                // Returns num
+                     IsTailCall            // Is tail call
+  );
+
   if (Func.isHostFunction()) {
-    // Host function case: Push args and call function.
+    // Host function case: Execute the function and jump to the continuation.
+
+    // Enter function block []->[returns] with label{none}.
+    // The label continuation will be the the `BackPos`, which is the
+    // instruction after the `call` or `call_indirect` instruction or the
+    // expression end. Therefore when the label popped, the PC will be `BackPos`
+    // because the host function body are not instructions and will not be
+    // iterated by interpreter.
+    StackMgr.pushLabel(0, RetsN, BackPos);
+
     auto &HostFunc = Func.getHostFunc();
 
     // Get memory instance from current frame.
@@ -37,6 +54,7 @@ Executor::enterFunction(Runtime::StoreManager &StoreMgr,
     // in current module.
     auto *MemoryInst = getMemInstByIdx(StoreMgr, StackMgr, 0);
 
+    // Do the statistics if the statistics turned on.
     if (Stat) {
       // Check host function cost.
       if (unlikely(!Stat->addCost(HostFunc.getCost()))) {
@@ -49,16 +67,18 @@ Executor::enterFunction(Runtime::StoreManager &StoreMgr,
     }
 
     // Run host function.
-    Span<ValVariant> Args = StackMgr.getTopSpan(ArgsN);
+    std::vector<ValVariant> Args = StackMgr.popTopN(ArgsN);
     std::vector<ValVariant> Rets(RetsN);
     auto Ret = HostFunc.run(MemoryInst, std::move(Args), Rets);
 
+    // Do the statistics if the statistics turned on.
     if (Stat) {
       // Stop recording time of running host function.
       Stat->stopRecordHost();
       Stat->startRecordWasm();
     }
 
+    // Check the host function execution status.
     if (!Ret) {
       if (Ret.error() == ErrCode::ExecutionFailed) {
         spdlog::error(Ret.error());
@@ -67,23 +87,27 @@ Executor::enterFunction(Runtime::StoreManager &StoreMgr,
     }
 
     // Push returns back to stack.
-    for (uint32_t I = 0; I < ArgsN; ++I) {
-      ValVariant Val [[maybe_unused]] = StackMgr.pop();
-    }
     for (auto &R : Rets) {
       StackMgr.push(std::move(R));
     }
 
-    // For host function case, the continuation will be the next.
-    return From;
+    // For host function case, the continuation will be the continuation from
+    // the popped frame.
+    return StackMgr.popFrame();
   } else if (Func.isCompiledFunction()) {
-    // Compiled function case: Push frame with locals and args.
-    StackMgr.pushFrame(Func.getModuleAddr(), // Module address
-                       ArgsN,                // No Arguments in stack
-                       RetsN                 // Returns num
-    );
+    // Compiled function case: Execute the function and jump to the
+    // continuation.
 
-    Span<ValVariant> Args = StackMgr.getTopSpan(ArgsN);
+    // Enter function block []->[returns] with label{none}.
+    // The label continuation will be the the `BackPos`, which is the
+    // instruction after the `call` or `call_indirect` instruction or the
+    // expression end. Therefore when the label popped, the PC will be `BackPos`
+    // because the AOT compiled function body are not instructions and will not
+    // be iterated by interpreter.
+    StackMgr.pushLabel(0, RetsN, BackPos);
+
+    // Run AOT compiled function.
+    std::vector<ValVariant> Args = StackMgr.popTopN(ArgsN);
     std::vector<ValVariant> Rets(RetsN);
 
     {
@@ -116,31 +140,33 @@ Executor::enterFunction(Runtime::StoreManager &StoreMgr,
               Rets.data());
     }
 
+    // Push returns back to stack.
     for (uint32_t I = 0; I < Rets.size(); ++I) {
       StackMgr.push(Rets[I]);
     }
 
-    StackMgr.popFrame();
-    // For compiled function case, the continuation will be the next.
-    return From;
+    // For AOT compiled function case, the continuation will be the
+    // continuation from the popped frame.
+    return StackMgr.popFrame();
   } else {
-    // Native function case: Push frame with locals and args.
-    StackMgr.pushFrame(Func.getModuleAddr(), // Module address
-                       ArgsN,                // Arguments num
-                       RetsN                 // Returns num
-    );
+    // Native function case: Jump to the start of the function body.
 
-    // Push local variables to stack.
+    // Push local variables into the stack.
     for (auto &Def : Func.getLocals()) {
-      for (uint32_t i = 0; i < Def.first; i++) {
+      for (uint32_t I = 0; I < Def.first; I++) {
         StackMgr.push(ValueFromType(Def.second));
       }
     }
 
     // Enter function block []->[returns] with label{none}.
-    StackMgr.pushLabel(0, RetsN, From - 1);
-    // For native function case, the continuation will be the start of
-    // function body.
+    // The label continuation will be the the `BackPos - 1`, which is the `call`
+    // or `call_indirect` instruction or the instruction before the expression
+    // end. Therefore when the label popped, the PC will be `BackPos - 1`, and
+    // the next instruction will be `BackPos` in the next iteration cycle.
+    StackMgr.pushLabel(0, RetsN, BackPos - 1);
+
+    // For AOT compiled function case, the continuation will be the start of
+    // the function body.
     return Func.getInstrs().begin();
   }
 }

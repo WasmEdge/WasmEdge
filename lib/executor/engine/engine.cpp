@@ -125,7 +125,7 @@ Expect<void> Executor::execute(Runtime::StoreManager &StoreMgr,
 
     // Reference Instructions
     case OpCode::Ref__null:
-      StackMgr.push<UnknownRef>(UnknownRef());
+      StackMgr.push<UnknownRef>(UnknownRef(0));
       return {};
     case OpCode::Ref__is_null: {
       RefVariant Val = StackMgr.pop<UnknownRef>();

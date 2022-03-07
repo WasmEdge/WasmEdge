@@ -40,8 +40,6 @@ public:
     bool IsDummy;
   };
 
-  using Value = ValVariant;
-
   /// Stack manager provides the stack control for Wasm execution with VALIDATED
   /// modules. All operations of instructions passed validation, therefore no
   /// unexpect operations will occur.
@@ -51,9 +49,6 @@ public:
   }
   ~StackManager() = default;
 
-  /// Getter of stack size.
-  size_t size() const noexcept { return ValueStack.size(); }
-
   /// Push a new value entry to stack.
   template <typename T,
             typename = std::enable_if_t<
@@ -62,7 +57,10 @@ public:
                 !std::is_same_v<std::remove_cv_t<std::remove_reference_t<T>>,
                                 RefVariant>>>
   void push(T Val) noexcept {
-    ValueStack.push_back(Val);
+    constexpr const size_t Size = sizeof(T) / sizeof(uint32_t);
+    std::array<uint32_t, Size> Array;
+    std::memcpy(&Array, &Val, sizeof(T));
+    ValueStack.insert(ValueStack.end(), Array.cbegin(), Array.cend());
   }
 
   /// Unsafe Pop and return the top entry.
@@ -73,9 +71,11 @@ public:
                 !std::is_same_v<std::remove_cv_t<std::remove_reference_t<T>>,
                                 RefVariant>>>
   T pop() noexcept {
-    T V = std::move(ValueStack.back()).get<T>();
-    ValueStack.pop_back();
-    return V;
+    constexpr const size_t Size = sizeof(T) / sizeof(uint32_t);
+    T Val;
+    std::memcpy(&Val, &ValueStack[ValueStack.size() - Size], sizeof(T));
+    ValueStack.erase(ValueStack.end() - Size, ValueStack.end());
+    return Val;
   }
 
   void push(ValType Type, ValVariant Val) noexcept {
@@ -127,9 +127,11 @@ public:
                 !std::is_same_v<std::remove_cv_t<std::remove_reference_t<T>>,
                                 RefVariant>>>
   T getTopN(uint32_t Offset) const noexcept {
-    assuming(0 < Offset && Offset <= ValueStack.size());
-    T V = ValueStack[ValueStack.size() - Offset].get<T>();
-    return V;
+    constexpr const size_t Size = sizeof(T) / sizeof(uint32_t);
+    assuming(Size <= Offset && Offset <= ValueStack.size());
+    T Val;
+    std::memcpy(&Val, &ValueStack[ValueStack.size() - Offset], sizeof(T));
+    return Val;
   }
 
   ValVariant getTopN(uint32_t Offset, ValType Type) const noexcept {
@@ -160,8 +162,9 @@ public:
                 !std::is_same_v<std::remove_cv_t<std::remove_reference_t<T>>,
                                 RefVariant>>>
   void setTopN(uint32_t Offset, T Val) noexcept {
-    assuming(0 < Offset && Offset <= ValueStack.size());
-    ValueStack[ValueStack.size() - Offset].get<T>() = Val;
+    constexpr const size_t Size = sizeof(T) / sizeof(uint32_t);
+    assuming(Size <= Offset && Offset <= ValueStack.size());
+    std::memcpy(&ValueStack[ValueStack.size() - Offset], &Val, sizeof(T));
   }
 
   void setTopN(uint32_t Offset, ValType Type, ValVariant Val) noexcept {
@@ -248,7 +251,7 @@ public:
 private:
   /// \name Data of stack manager.
   /// @{
-  std::vector<Value> ValueStack;
+  std::vector<uint32_t> ValueStack;
   std::vector<Frame> FrameStack;
   /// @}
 };

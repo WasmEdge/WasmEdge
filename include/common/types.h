@@ -52,8 +52,9 @@ using floatx4_t [[gnu::vector_size(16)]] = float;
 
 /// UnknownRef definition.
 struct UnknownRef {
-  uint64_t Value = 0;
+  uint64_t Value;
   UnknownRef() = default;
+  UnknownRef(uint64_t V) noexcept : Value(V) {}
 };
 
 /// FuncRef definition.

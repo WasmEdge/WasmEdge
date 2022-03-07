@@ -14,6 +14,36 @@
 namespace WasmEdge {
 namespace Executor {
 
+namespace {
+
+uint32_t calculateValueSize(ValType Type) noexcept {
+  switch (Type) {
+  case ValType::I32:
+  case ValType::F32:
+    return 1;
+  case ValType::I64:
+  case ValType::F64:
+  case ValType::FuncRef:
+  case ValType::ExternRef:
+    return 2;
+  case ValType::V128:
+    return 4;
+  default:
+    assumingUnreachable();
+  }
+}
+
+template <typename IterT>
+uint32_t calculateValueSize(IterT First, IterT Last) noexcept {
+  uint32_t Result = 0;
+  for (; First != Last; ++First) {
+    Result += calculateValueSize(*First);
+  }
+  return Result;
+}
+
+} // namespace
+
 Expect<AST::InstrView::iterator>
 Executor::enterFunction(Runtime::StoreManager &StoreMgr,
                         Runtime::StackManager &StackMgr,
@@ -29,6 +59,10 @@ Executor::enterFunction(Runtime::StoreManager &StoreMgr,
   const auto &ReturnTypes = FuncType.getReturnTypes();
   const uint32_t ArgsN = static_cast<uint32_t>(ParamTypes.size());
   const uint32_t RetsN = static_cast<uint32_t>(ReturnTypes.size());
+  const uint32_t ArgsSize =
+      calculateValueSize(ParamTypes.begin(), ParamTypes.end());
+  const uint32_t RetsSize =
+      calculateValueSize(ReturnTypes.begin(), ReturnTypes.end());
 
   if (Func.isHostFunction()) {
     // Host function case: Push args and call function.
@@ -83,7 +117,7 @@ Executor::enterFunction(Runtime::StoreManager &StoreMgr,
     StackMgr.pushFrame(Func.getModuleAddr(), // Module address
                        From - 1,             // Return PC
                        0,                    // No Arguments in stack
-                       RetsN                 // Returns num
+                       RetsSize              // Returns num
     );
 
     std::vector<ValVariant> Args(ArgsN);
@@ -130,16 +164,16 @@ Executor::enterFunction(Runtime::StoreManager &StoreMgr,
     // For compiled function case, the continuation will be the next.
     return From;
   } else {
-    const uint32_t LocalN = std::accumulate(
+    const uint32_t LocalSize = std::accumulate(
         Func.getLocals().begin(), Func.getLocals().end(), UINT32_C(0),
         [](uint32_t N, const auto &Pair) -> uint32_t {
-          return N + Pair.first;
+          return N + Pair.first * calculateValueSize(Pair.second);
         });
     // Native function case: Push frame with locals and args.
     StackMgr.pushFrame(Func.getModuleAddr(), // Module address
                        From - 1,             // Return PC
-                       ArgsN + LocalN,       // Arguments num + local num
-                       RetsN                 // Returns num
+                       ArgsSize + LocalSize, // Arguments num + local num
+                       RetsSize              // Returns num
     );
 
     // Push local variables to stack.

@@ -30,7 +30,7 @@ class TableInstance {
 public:
   TableInstance() = delete;
   TableInstance(const AST::TableType &TType)
-      : TabType(TType), Refs(TType.getLimit().getMin(), UnknownRef()) {}
+      : TabType(TType), Refs(TType.getLimit().getMin(), UnknownRef(0)) {}
   virtual ~TableInstance() = default;
 
   /// Get size of table.refs
@@ -72,7 +72,7 @@ public:
     return true;
   }
   bool growTable(const uint32_t Count) {
-    return growTable(Count, UnknownRef());
+    return growTable(Count, UnknownRef(0));
   }
 
   /// Get slice of Refs[Offset : Offset + Length - 1]

@@ -24,6 +24,33 @@ auto logOutOfRange(ErrCode Code, ErrInfo::IndexCategory Cate, uint32_t Idx,
   return Unexpect(Code);
 }
 
+template <typename IterT>
+uint32_t calculateValueSize(IterT First, IterT Last) noexcept {
+  uint32_t Result = 0;
+  for (; First != Last; ++First) {
+    VType Type = *First;
+    switch (Type) {
+    case VType::I32:
+    case VType::F32:
+      Result += 1;
+      break;
+    case VType::I64:
+    case VType::F64:
+    case VType::FuncRef:
+    case VType::ExternRef:
+      Result += 2;
+      break;
+    case VType::V128:
+      Result += 4;
+      break;
+    case VType::Unknown:
+      spdlog::error("VType::Unknown in calculateValueSize");
+      break;
+    }
+  }
+  return Result;
+}
+
 } // namespace
 
 void FormChecker::reset(bool CleanGlobal) {
@@ -378,9 +405,9 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
       if (auto Res = popTypes(NTypes); !Res) {
         return Unexpect(Res);
       }
-      const uint32_t Remain =
-          static_cast<uint32_t>(ValStack.size() - CtrlStack[*D].Height);
-      const uint32_t Arity = static_cast<uint32_t>(NTypes.size());
+      const uint32_t Remain = calculateValueSize(
+          ValStack.begin() + CtrlStack[*D].Height, ValStack.end());
+      const uint32_t Arity = calculateValueSize(NTypes.begin(), NTypes.end());
       auto &Jump = const_cast<AST::Instruction &>(Instr).getJump();
       Jump.StackEraseBegin = Remain + Arity;
       Jump.StackEraseEnd = Arity;
@@ -399,9 +426,9 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
       if (auto Res = popTypes(NTypes); !Res) {
         return Unexpect(Res);
       }
-      const uint32_t Remain =
-          static_cast<uint32_t>(ValStack.size() - CtrlStack[*D].Height);
-      const uint32_t Arity = static_cast<uint32_t>(NTypes.size());
+      const uint32_t Remain = calculateValueSize(
+          ValStack.begin() + CtrlStack[*D].Height, ValStack.end());
+      const uint32_t Arity = calculateValueSize(NTypes.begin(), NTypes.end());
       auto &Jump = const_cast<AST::Instruction &>(Instr).getJump();
       Jump.StackEraseBegin = Remain + Arity;
       Jump.StackEraseEnd = Arity;
@@ -445,9 +472,10 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
               return Unexpect(Res);
             }
           }
-          const uint32_t Remain =
-              static_cast<uint32_t>(ValStack.size() - CtrlStack[*N].Height);
-          const uint32_t Arity = static_cast<uint32_t>(NTypes.size());
+          const uint32_t Remain = calculateValueSize(
+              ValStack.begin() + CtrlStack[*N].Height, ValStack.end());
+          const uint32_t Arity =
+              calculateValueSize(NTypes.begin(), NTypes.end());
           LabelTable[LabelIdx].StackEraseBegin = Remain + Arity;
           LabelTable[LabelIdx].StackEraseEnd = Arity;
           LabelTable[LabelIdx].PCOffset =
@@ -461,9 +489,9 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
       if (auto Res = popTypes(NTypes); !Res) {
         return Unexpect(Res);
       }
-      const uint32_t Remain =
-          static_cast<uint32_t>(ValStack.size() - CtrlStack[*M].Height);
-      const uint32_t Arity = static_cast<uint32_t>(NTypes.size());
+      const uint32_t Remain = calculateValueSize(
+          ValStack.begin() + CtrlStack[*M].Height, ValStack.end());
+      const uint32_t Arity = calculateValueSize(NTypes.begin(), NTypes.end());
       LabelTable[LabelTableSize].StackEraseBegin = Remain + Arity;
       LabelTable[LabelTableSize].StackEraseEnd = Arity;
       LabelTable[LabelTableSize].PCOffset =
@@ -479,9 +507,9 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
       return Unexpect(Res);
     } else {
       assuming(CtrlStack.front().Height == 0);
-      const uint32_t Remain =
-          static_cast<uint32_t>(ValStack.size() - CtrlStack.front().Height);
-      const uint32_t Arity = static_cast<uint32_t>(Returns.size());
+      const uint32_t Remain = calculateValueSize(
+          ValStack.begin() + CtrlStack.front().Height, ValStack.end());
+      const uint32_t Arity = calculateValueSize(Returns.begin(), Returns.end());
       auto &Jump = const_cast<AST::Instruction &>(Instr).getJump();
       Jump.StackEraseBegin = Remain + Arity;
       Jump.StackEraseEnd = Arity;
@@ -621,8 +649,9 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
     }
     VType TExpect = Locals[Instr.getTargetIndex()];
     const_cast<AST::Instruction &>(Instr).getStackOffset() =
-        static_cast<uint32_t>(ValStack.size() +
-                              (Locals.size() - Instr.getTargetIndex()));
+        calculateValueSize(Locals.begin() + Instr.getTargetIndex(),
+                           Locals.end()) +
+        calculateValueSize(ValStack.begin(), ValStack.end());
     const_cast<AST::Instruction &>(Instr).getType() = VTypeToAST(TExpect);
     if (Instr.getOpCode() == OpCode::Local__get) {
       return StackTrans({}, {TExpect});

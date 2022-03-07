@@ -24,7 +24,7 @@ fn main() {
         header,
         lib_dir,
         inc_dir,
-    } = if let Ok(_) = std::env::var("DOCS_RS") {
+    } = if std::env::var("DOCS_RS").is_ok() {
         let curr_dir = env::current_dir().unwrap();
         let wasmedge_dir = curr_dir.join("libwasmedge");
         println!(

@@ -755,12 +755,13 @@ public:
       case OpCode::Br_table: {
         auto LabelTable = Instr.getLabelList();
         assuming(LabelTable.size() <= std::numeric_limits<uint32_t>::max());
-        const uint32_t LabelTableSize =
-            static_cast<uint32_t>(LabelTable.size());
+        const auto LabelTableSize =
+            static_cast<uint32_t>(LabelTable.size() - 1);
         auto *Value = stackPop();
-        setLableJumpPHI(Instr.getTargetIndex());
+        setLableJumpPHI(LabelTable[LabelTableSize].TargetIndex);
         auto *Switch = Builder.CreateSwitch(
-            Value, getLabel(Instr.getTargetIndex()), LabelTableSize);
+            Value, getLabel(LabelTable[LabelTableSize].TargetIndex),
+            LabelTableSize);
         for (uint32_t I = 0; I < LabelTableSize; ++I) {
           setLableJumpPHI(LabelTable[I].TargetIndex);
           Switch->addCase(Builder.getInt32(I),

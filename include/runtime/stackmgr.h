@@ -14,6 +14,11 @@
 #pragma once
 
 #include "ast/instruction.h"
+#include "runtime/instance/function.h"
+#include "runtime/instance/global.h"
+#include "runtime/instance/memory.h"
+#include "runtime/instance/module.h"
+#include "runtime/instance/table.h"
 
 #include <optional>
 #include <vector>

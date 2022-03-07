@@ -15,6 +15,12 @@
 
 #include "ast/type.h"
 #include "common/errcode.h"
+#include "runtime/instance/data.h"
+#include "runtime/instance/elem.h"
+#include "runtime/instance/function.h"
+#include "runtime/instance/global.h"
+#include "runtime/instance/memory.h"
+#include "runtime/instance/table.h"
 
 #include <atomic>
 #include <map>
@@ -45,69 +51,69 @@ public:
   }
 
   /// Register module owns instances with address in Store.
-  void addFuncAddr(const uint32_t FuncAddr) {
+  void addFunc(FunctionInstance *Func) {
     std::unique_lock Lock(Mutex);
-    unsafeAddFuncAddr(FuncAddr);
+    unsafeAddInsts(FuncInsts, Func);
   }
-  void addTableAddr(const uint32_t TabAddr) {
+  void addTable(TableInstance *Tab) {
     std::unique_lock Lock(Mutex);
-    unsafeAddTableAddr(TabAddr);
+    unsafeAddInsts(TabInsts, Tab);
   }
-  void addMemAddr(const uint32_t MemAddr) {
+  void addMemory(MemoryInstance *Mem) {
     std::unique_lock Lock(Mutex);
-    unsafeAddMemAddr(MemAddr);
+    unsafeAddInsts(MemInsts, Mem);
   }
-  void addGlobalAddr(const uint32_t GlobAddr) {
+  void addGlobal(GlobalInstance *Glob) {
     std::unique_lock Lock(Mutex);
-    unsafeAddGlobalAddr(GlobAddr);
+    unsafeAddInsts(GlobInsts, Glob);
   }
-  void addElemAddr(const uint32_t ElemAddr) {
+  void addElem(ElementInstance *Elem) {
     std::unique_lock Lock(Mutex);
-    unsafeAddElemAddr(ElemAddr);
+    unsafeAddInsts(ElemInsts, Elem);
   }
-  void addDataAddr(const uint32_t DataAddr) {
+  void addData(DataInstance *Data) {
     std::unique_lock Lock(Mutex);
-    unsafeAddDataAddr(DataAddr);
+    unsafeAddInsts(DataInsts, Data);
   }
 
   /// Import instances.
-  void importFunction(const uint32_t FuncAddr) {
+  void importFunction(FunctionInstance *Func) {
     std::unique_lock Lock(Mutex);
     ImpFuncNum++;
-    unsafeAddFuncAddr(FuncAddr);
+    unsafeAddInsts(FuncInsts, Func);
   }
-  void importTable(const uint32_t TabAddr) {
+  void importTable(TableInstance *Tab) {
     std::unique_lock Lock(Mutex);
     ImpTableNum++;
-    unsafeAddTableAddr(TabAddr);
+    unsafeAddInsts(TabInsts, Tab);
   }
-  void importMemory(const uint32_t MemAddr) {
+  void importMemory(MemoryInstance *Mem) {
     std::unique_lock Lock(Mutex);
     ImpMemNum++;
-    unsafeAddMemAddr(MemAddr);
+    unsafeAddInsts(MemInsts, Mem);
   }
-  void importGlobal(const uint32_t GlobAddr) {
+  void importGlobal(GlobalInstance *Glob) {
     std::unique_lock Lock(Mutex);
     ImpGlobalNum++;
-    unsafeAddGlobalAddr(GlobAddr);
+    unsafeAddInsts(GlobInsts, Glob);
   }
 
   /// Export instances.
   void exportFunction(std::string_view Name, const uint32_t Idx) {
     std::unique_lock Lock(Mutex);
-    ExpFuncs.insert_or_assign(std::string(Name), FuncAddrs[Idx]);
+    ExpFuncs.insert_or_assign(std::string(Name), FuncInsts[Idx]);
   }
   void exportTable(std::string_view Name, const uint32_t Idx) {
     std::unique_lock Lock(Mutex);
-    ExpTables.insert_or_assign(std::string(Name), TableAddrs[Idx]);
+    ExpTables.insert_or_assign(std::string(Name), TabInsts[Idx]);
   }
   void exportMemory(std::string_view Name, const uint32_t Idx) {
     std::unique_lock Lock(Mutex);
-    ExpMems.insert_or_assign(std::string(Name), MemAddrs[Idx]);
+    ExpMems.insert_or_assign(std::string(Name), MemInsts[Idx]);
   }
   void exportGlobal(std::string_view Name, const uint32_t Idx) {
     std::unique_lock Lock(Mutex);
-    ExpGlobals.insert_or_assign(std::string(Name), GlobalAddrs[Idx]);
+    ExpGlobals.insert_or_assign(std::string(Name), GlobInsts[Idx]);
   }
 
   /// Get import nums.
@@ -117,19 +123,19 @@ public:
   uint32_t getGlobalImportNum() const { return ImpGlobalNum; }
 
   /// Get export maps.
-  std::optional<uint32_t> findFuncExports(std::string_view ExtName) const {
+  FunctionInstance *findFuncExports(std::string_view ExtName) const {
     std::shared_lock Lock(Mutex);
     return unsafeFindExports(ExpFuncs, ExtName);
   }
-  std::optional<uint32_t> findTableExports(std::string_view ExtName) const {
+  TableInstance *findTableExports(std::string_view ExtName) const {
     std::shared_lock Lock(Mutex);
     return unsafeFindExports(ExpTables, ExtName);
   }
-  std::optional<uint32_t> findMemExports(std::string_view ExtName) const {
+  MemoryInstance *findMemExports(std::string_view ExtName) const {
     std::shared_lock Lock(Mutex);
     return unsafeFindExports(ExpMems, ExtName);
   }
-  std::optional<uint32_t> findGlobalExports(std::string_view ExtName) const {
+  GlobalInstance *findGlobalExports(std::string_view ExtName) const {
     std::shared_lock Lock(Mutex);
     return unsafeFindExports(ExpGlobals, ExtName);
   }
@@ -174,106 +180,99 @@ public:
   /// Get function type by index.
   Expect<const AST::FunctionType *> getFuncType(const uint32_t Idx) const {
     std::shared_lock Lock(Mutex);
-    if (Idx >= FuncTypes.size()) {
+    if (unlikely(Idx >= FuncTypes.size())) {
       // Error logging need to be handled in caller.
       return Unexpect(ErrCode::WrongInstanceIndex);
     }
     return &FuncTypes[Idx];
   }
-  /// Get the external values by index. Addr will be address in Store.
-  Expect<uint32_t> getFuncAddr(const uint32_t Idx) const {
+  /// Get function by index.
+  Expect<FunctionInstance *> getFunc(const uint32_t Idx) const {
     std::shared_lock Lock(Mutex);
-    if (Idx >= FuncAddrs.size()) {
+    if (Idx >= FuncInsts.size()) {
       // Error logging need to be handled in caller.
       return Unexpect(ErrCode::WrongInstanceIndex);
     }
-    return FuncAddrs[Idx];
+    return FuncInsts[Idx];
   }
-  Expect<uint32_t> getTableAddr(const uint32_t Idx) const {
+  Expect<TableInstance *> getTable(const uint32_t Idx) const {
     std::shared_lock Lock(Mutex);
-    if (Idx >= TableAddrs.size()) {
+    if (Idx >= TabInsts.size()) {
       // Error logging need to be handled in caller.
       return Unexpect(ErrCode::WrongInstanceIndex);
     }
-    return TableAddrs[Idx];
+    return TabInsts[Idx];
   }
-  Expect<uint32_t> getMemAddr(const uint32_t Idx) const {
+  Expect<MemoryInstance *> getMemory(const uint32_t Idx) const {
     std::shared_lock Lock(Mutex);
-    if (Idx >= MemAddrs.size()) {
+    if (Idx >= MemInsts.size()) {
       // Error logging need to be handled in caller.
       return Unexpect(ErrCode::WrongInstanceIndex);
     }
-    return MemAddrs[Idx];
+    return MemInsts[Idx];
   }
-  Expect<uint32_t> getGlobalAddr(const uint32_t Idx) const {
+  Expect<GlobalInstance *> getGlobal(const uint32_t Idx) const {
     std::shared_lock Lock(Mutex);
-    if (Idx >= GlobalAddrs.size()) {
+    if (Idx >= GlobInsts.size()) {
       // Error logging need to be handled in caller.
       return Unexpect(ErrCode::WrongInstanceIndex);
     }
-    return GlobalAddrs[Idx];
+    return GlobInsts[Idx];
   }
-  Expect<uint32_t> getElemAddr(const uint32_t Idx) const {
+  Expect<ElementInstance *> getElem(const uint32_t Idx) const {
     std::shared_lock Lock(Mutex);
-    if (Idx >= ElemAddrs.size()) {
+    if (Idx >= ElemInsts.size()) {
       // Error logging need to be handled in caller.
       return Unexpect(ErrCode::WrongInstanceIndex);
     }
-    return ElemAddrs[Idx];
+    return ElemInsts[Idx];
   }
-  Expect<uint32_t> getDataAddr(const uint32_t Idx) const {
+  Expect<DataInstance *> getData(const uint32_t Idx) const {
     std::shared_lock Lock(Mutex);
-    if (Idx >= DataAddrs.size()) {
+    if (Idx >= DataInsts.size()) {
       // Error logging need to be handled in caller.
       return Unexpect(ErrCode::WrongInstanceIndex);
     }
-    return DataAddrs[Idx];
+    return DataInsts[Idx];
   }
 
   /// Get the added external values' numbers.
   uint32_t getFuncNum() const {
     std::shared_lock Lock(Mutex);
-    return static_cast<uint32_t>(FuncAddrs.size());
+    return static_cast<uint32_t>(FuncInsts.size());
   }
   uint32_t getTableNum() const {
     std::shared_lock Lock(Mutex);
-    return static_cast<uint32_t>(TableAddrs.size());
+    return static_cast<uint32_t>(TabInsts.size());
   }
   uint32_t getMemNum() const {
     std::shared_lock Lock(Mutex);
-    return static_cast<uint32_t>(MemAddrs.size());
+    return static_cast<uint32_t>(MemInsts.size());
   }
   uint32_t getGlobalNum() const {
     std::shared_lock Lock(Mutex);
-    return static_cast<uint32_t>(GlobalAddrs.size());
+    return static_cast<uint32_t>(GlobInsts.size());
   }
   uint32_t getElemNum() const {
     std::shared_lock Lock(Mutex);
-    return static_cast<uint32_t>(ElemAddrs.size());
+    return static_cast<uint32_t>(ElemInsts.size());
   }
   uint32_t getDataNum() const {
     std::shared_lock Lock(Mutex);
-    return static_cast<uint32_t>(DataAddrs.size());
+    return static_cast<uint32_t>(DataInsts.size());
   }
 
-  /// Set start function index and find the address in Store.
+  /// Set the start function index and find the function instance.
   void setStartIdx(const uint32_t Idx) {
     std::unique_lock Lock(Mutex);
-    StartAddr = FuncAddrs[Idx];
-    HasStartFunc = true;
+    StartFunc = FuncInsts[Idx];
   }
 
   /// Get start function address in Store.
-  std::optional<uint32_t> getStartAddr() const {
+  FunctionInstance *getStartFunc() const {
     std::shared_lock Lock(Mutex);
-    if (!HasStartFunc) {
-      return std::nullopt;
-    }
-    return {StartAddr};
+    return StartFunc;
   }
-
-  /// Module Instance address in store manager.
-  uint32_t Addr;
 
   /// \name Data for compiled functions.
   /// @{
@@ -282,30 +281,19 @@ public:
   /// @}
 
 private:
-  /// Register module owns instances with address in Store.
-  void unsafeAddFuncAddr(const uint32_t FuncAddr) {
-    FuncAddrs.push_back(FuncAddr);
+  /// Add the instances under the module by pointers.
+  template <typename T> void unsafeAddInsts(std::vector<T *> &Vec, T *Ptr) {
+    Vec.push_back(Ptr);
   }
-  void unsafeAddTableAddr(const uint32_t TabAddr) {
-    TableAddrs.push_back(TabAddr);
-  }
-  void unsafeAddMemAddr(const uint32_t MemAddr) { MemAddrs.push_back(MemAddr); }
-  void unsafeAddGlobalAddr(const uint32_t GlobAddr) {
-    GlobalAddrs.push_back(GlobAddr);
-  }
-  void unsafeAddElemAddr(const uint32_t ElemAddr) {
-    ElemAddrs.push_back(ElemAddr);
-  }
-  void unsafeAddDataAddr(const uint32_t DataAddr) {
-    DataAddrs.push_back(DataAddr);
-  }
-  static std::optional<uint32_t>
-  unsafeFindExports(const std::map<std::string, uint32_t, std::less<>> &Map,
-                    std::string_view ExtName) {
-    if (auto Iter = Map.find(ExtName); Iter != Map.cend()) {
+  /// Export the instances with name.
+  template <typename T>
+  T *unsafeFindExports(const std::map<std::string, T *, std::less<>> &Map,
+                       std::string_view ExtName) const {
+    auto Iter = Map.find(ExtName);
+    if (likely(Iter != Map.cend())) {
       return Iter->second;
     }
-    return std::nullopt;
+    return nullptr;
   }
 
   /// Mutex.
@@ -317,13 +305,13 @@ private:
   /// Function types.
   std::vector<AST::FunctionType> FuncTypes;
 
-  /// Elements address index in this module in Store.
-  std::vector<uint32_t> FuncAddrs;
-  std::vector<uint32_t> TableAddrs;
-  std::vector<uint32_t> MemAddrs;
-  std::vector<uint32_t> GlobalAddrs;
-  std::vector<uint32_t> ElemAddrs;
-  std::vector<uint32_t> DataAddrs;
+  /// Instances of this module. The instances are owned by store.
+  std::vector<FunctionInstance *> FuncInsts;
+  std::vector<TableInstance *> TabInsts;
+  std::vector<MemoryInstance *> MemInsts;
+  std::vector<GlobalInstance *> GlobInsts;
+  std::vector<ElementInstance *> ElemInsts;
+  std::vector<DataInstance *> DataInsts;
 
   /// Imports.
   uint32_t ImpFuncNum = 0;
@@ -332,14 +320,13 @@ private:
   uint32_t ImpGlobalNum = 0;
 
   /// Exports.
-  std::map<std::string, uint32_t, std::less<>> ExpFuncs;
-  std::map<std::string, uint32_t, std::less<>> ExpTables;
-  std::map<std::string, uint32_t, std::less<>> ExpMems;
-  std::map<std::string, uint32_t, std::less<>> ExpGlobals;
+  std::map<std::string, FunctionInstance *, std::less<>> ExpFuncs;
+  std::map<std::string, TableInstance *, std::less<>> ExpTables;
+  std::map<std::string, MemoryInstance *, std::less<>> ExpMems;
+  std::map<std::string, GlobalInstance *, std::less<>> ExpGlobals;
 
-  /// Start function address
-  bool HasStartFunc = false;
-  uint32_t StartAddr;
+  /// Start function instance
+  FunctionInstance *StartFunc = nullptr;
 };
 
 } // namespace Instance

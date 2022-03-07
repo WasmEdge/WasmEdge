@@ -3,6 +3,7 @@ package org.wasmedge;
 public class GlobalInstanceContext {
     private GlobalTypeContext globalTypeContext;
     private WasmEdgeValue value;
+    private long pointer;
 
     public GlobalInstanceContext(GlobalTypeContext typeCxt,
                                  WasmEdgeValue value) {

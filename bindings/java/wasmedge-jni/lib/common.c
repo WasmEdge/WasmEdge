@@ -112,8 +112,6 @@ long getPointer(JNIEnv* env, jobject obj) {
 void setPointer(JNIEnv* env, jobject obj, jlong val) {
     jclass cls = (*env)->GetObjectClass(env, obj);
     jfieldID fidPointer = (*env)->GetFieldID(env, cls, "pointer", "J");
-    char buf[216];
-    getClassName(env, obj, buf);
     (*env)->SetLongField(env, obj, fidPointer, val);
 }
 
@@ -140,17 +138,8 @@ int getIntVal(JNIEnv *env, jobject val) {
 long getLongVal(JNIEnv *env, jobject val) {
     jclass clazz = (*env)->GetObjectClass(env, val);
 
-    char buf[256];
-    getClassName(env, val, buf);
-    printf("get method for %s\n", buf);
-    jmethodID methodId = (*env)->GetMethodID(env, clazz, "getValue", "()L");
-    if(methodId == NULL) {
-        printf("invalid method id\n");
-    }
-
-    printf("get value\n");
+    jmethodID methodId = (*env)->GetMethodID(env, clazz, "getValue", "()J");
     jlong value = (*env)->CallLongMethod(env, val, methodId);
-    printf("return value\n");
     return value;
 }
 

@@ -211,17 +211,20 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
     if (auto Res = readU32(VecCnt); unlikely(!Res)) {
       return Unexpect(Res);
     }
-    Instr.setLabelListSize(VecCnt);
+    if (VecCnt == std::numeric_limits<uint32_t>::max()) {
+      // Too many label for Br_table.
+      return logLoadError(ErrCode::IntegerTooLong, FMgr.getLastOffset(),
+                          ASTNodeAttr::Instruction);
+    }
+    Instr.setLabelListSize(VecCnt + 1);
     for (uint32_t I = 0; I < VecCnt; ++I) {
-      uint32_t Label = 0;
-      if (auto Res = readU32(Label); unlikely(!Res)) {
+      if (auto Res = readU32(Instr.getLabelList()[I].TargetIndex);
+          unlikely(!Res)) {
         return Unexpect(Res);
-      } else {
-        Instr.getLabelList()[I].TargetIndex = Label;
       }
     }
     // Read default label.
-    return readU32(Instr.getTargetIndex());
+    return readU32(Instr.getLabelList()[VecCnt].TargetIndex);
   }
 
   case OpCode::Call:

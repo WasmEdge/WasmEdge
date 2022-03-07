@@ -132,8 +132,8 @@ public:
   void setLast(bool Last = true) noexcept { Data.IsLast = Last; }
 
   /// Getter and setter of Jump for Br* instruction.
-  const JumpDescriptor &getJump() const noexcept { return Data.BrTable.Jump; }
-  JumpDescriptor &getJump() noexcept { return Data.BrTable.Jump; }
+  const JumpDescriptor &getJump() const noexcept { return Data.Jump; }
+  JumpDescriptor &getJump() noexcept { return Data.Jump; }
 
   /// Getter and setter of selecting value types list.
   void setValTypeListSize(uint32_t Size) {
@@ -231,27 +231,28 @@ private:
       uint32_t SourceIdx;
       uint32_t StackOffset;
     } Indices;
-    // Type 3: Jump and LabelList.
+    // Type 3: Jump.
+    JumpDescriptor Jump;
+    // Type 4: LabelList.
     struct {
-      JumpDescriptor Jump;
       uint32_t LabelListSize;
       JumpDescriptor *LabelList;
     } BrTable;
-    // Type 4: RefType.
+    // Type 5: RefType.
     RefType ReferenceType;
-    // Type 5: ValTypeList.
+    // Type 6: ValTypeList.
     struct {
       uint32_t ValTypeListSize;
       ValType *ValTypeList;
     } SelectT;
-    // Type 6: TargetIdx, MemAlign, MemOffset, and MemLane.
+    // Type 7: TargetIdx, MemAlign, MemOffset, and MemLane.
     struct {
       uint32_t TargetIdx;
       uint32_t MemAlign;
       uint32_t MemOffset;
       uint8_t MemLane;
     } Memories;
-    // Type 7: Num.
+    // Type 8: Num.
 #if defined(__x86_64__) || defined(__aarch64__)
     uint128_t Num;
 #else
@@ -260,7 +261,7 @@ private:
       uint64_t High;
     } Num;
 #endif
-    // Type 8: IsLast.
+    // Type 9: IsLast.
     bool IsLast;
   } Data;
   uint32_t Offset = 0;

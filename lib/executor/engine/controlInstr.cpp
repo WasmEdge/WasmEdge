@@ -58,14 +58,15 @@ Expect<void> Executor::runBrTableOp(Runtime::StackManager &StackMgr,
 
   // Do branch.
   auto LabelTable = Instr.getLabelList();
-  if (Value < LabelTable.size()) {
+  const auto LabelTableSize = static_cast<uint32_t>(LabelTable.size() - 1);
+  if (Value < LabelTableSize) {
     return branchToLabel(StackMgr, LabelTable[Value].StackEraseBegin,
                          LabelTable[Value].StackEraseEnd,
                          LabelTable[Value].PCOffset, PC);
   }
-  return branchToLabel(StackMgr, Instr.getJump().StackEraseBegin,
-                       Instr.getJump().StackEraseEnd, Instr.getJump().PCOffset,
-                       PC);
+  return branchToLabel(StackMgr, LabelTable[LabelTableSize].StackEraseBegin,
+                       LabelTable[LabelTableSize].StackEraseEnd,
+                       LabelTable[LabelTableSize].PCOffset, PC);
 }
 
 Expect<void> Executor::runReturnOp(Runtime::StackManager &StackMgr,

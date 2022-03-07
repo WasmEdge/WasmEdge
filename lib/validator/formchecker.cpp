@@ -409,16 +409,17 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
       pushTypes(NTypes);
       return {};
     }
-  case OpCode::Br_table:
+  case OpCode::Br_table: {
     if (auto Res = popType(VType::I32); !Res) {
       return Unexpect(Res);
     }
-    if (auto M = checkCtrlStackDepth(Instr.getTargetIndex())) {
+    auto LabelTable = const_cast<AST::Instruction &>(Instr).getLabelList();
+    const auto LabelTableSize = static_cast<uint32_t>(LabelTable.size() - 1);
+    if (auto M = checkCtrlStackDepth(LabelTable[LabelTableSize].TargetIndex)) {
       // M is the last M element of control stack.
       auto MTypes = getLabelTypes(CtrlStack[*M]);
-      auto LabelList = const_cast<AST::Instruction &>(Instr).getLabelList();
-      for (uint32_t LabelIdx = 0; LabelIdx < LabelList.size(); ++LabelIdx) {
-        const uint32_t L = LabelList[LabelIdx].TargetIndex;
+      for (uint32_t LabelIdx = 0; LabelIdx < LabelTableSize; ++LabelIdx) {
+        const uint32_t L = LabelTable[LabelIdx].TargetIndex;
         if (auto N = checkCtrlStackDepth(L)) {
           // N is the last N element of control stack.
           const auto NTypes = getLabelTypes(CtrlStack[*N]);
@@ -447,9 +448,9 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
           const uint32_t Remain =
               static_cast<uint32_t>(ValStack.size() - CtrlStack[*N].Height);
           const uint32_t Arity = static_cast<uint32_t>(NTypes.size());
-          LabelList[LabelIdx].StackEraseBegin = Remain + Arity;
-          LabelList[LabelIdx].StackEraseEnd = Arity;
-          LabelList[LabelIdx].PCOffset =
+          LabelTable[LabelIdx].StackEraseBegin = Remain + Arity;
+          LabelTable[LabelIdx].StackEraseEnd = Arity;
+          LabelTable[LabelIdx].PCOffset =
               static_cast<int32_t>(CtrlStack[*N].Jump - &Instr);
           pushTypes(TypeBuf);
         } else {
@@ -463,14 +464,15 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
       const uint32_t Remain =
           static_cast<uint32_t>(ValStack.size() - CtrlStack[*M].Height);
       const uint32_t Arity = static_cast<uint32_t>(NTypes.size());
-      auto &Jump = const_cast<AST::Instruction &>(Instr).getJump();
-      Jump.StackEraseBegin = Remain + Arity;
-      Jump.StackEraseEnd = Arity;
-      Jump.PCOffset = static_cast<int32_t>(CtrlStack[*M].Jump - &Instr);
+      LabelTable[LabelTableSize].StackEraseBegin = Remain + Arity;
+      LabelTable[LabelTableSize].StackEraseEnd = Arity;
+      LabelTable[LabelTableSize].PCOffset =
+          static_cast<int32_t>(CtrlStack[*M].Jump - &Instr);
       return unreachable();
     } else {
       return Unexpect(M);
     }
+  }
 
   case OpCode::Return:
     if (auto Res = popTypes(Returns); !Res) {

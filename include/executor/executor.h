@@ -158,13 +158,11 @@ private:
 
   /// Instantiation of Import Section.
   Expect<void> instantiate(Runtime::StoreManager &StoreMgr,
-                           Runtime::StackManager &StackMgr,
                            Runtime::Instance::ModuleInstance &ModInst,
                            const AST::ImportSection &ImportSec);
 
   /// Instantiation of Function Instances.
   Expect<void> instantiate(Runtime::StoreManager &StoreMgr,
-                           Runtime::StackManager &StackMgr,
                            Runtime::Instance::ModuleInstance &ModInst,
                            const AST::FunctionSection &FuncSec,
                            const AST::CodeSection &CodeSec);
@@ -177,13 +175,11 @@ private:
 
   /// Instantiation of Table Instances.
   Expect<void> instantiate(Runtime::StoreManager &StoreMgr,
-                           Runtime::StackManager &StackMgr,
                            Runtime::Instance::ModuleInstance &ModInst,
                            const AST::TableSection &TabSec);
 
   /// Instantiation of Memory Instances.
   Expect<void> instantiate(Runtime::StoreManager &StoreMgr,
-                           Runtime::StackManager &StackMgr,
                            Runtime::Instance::ModuleInstance &ModInst,
                            const AST::MemorySection &MemSec);
 
@@ -212,9 +208,7 @@ private:
                            const AST::DataSection &DataSec);
 
   /// Instantiation of Export Instances.
-  Expect<void> instantiate(Runtime::StoreManager &StoreMgr,
-                           Runtime::StackManager &StackMgr,
-                           Runtime::Instance::ModuleInstance &ModInst,
+  Expect<void> instantiate(Runtime::Instance::ModuleInstance &ModInst,
                            const AST::ExportSection &ExportSec);
   /// @}
 

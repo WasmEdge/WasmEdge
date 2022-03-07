@@ -1,6 +1,6 @@
 [package]
 name = "wasmedge-sys"
-version = "0.4.1"
+version = "0.4.2"
 edition = "2021"
 links = "wasmedge_c"
 build = "build.rs"

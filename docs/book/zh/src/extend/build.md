@@ -46,22 +46,22 @@ docker pull wasmedge/wasmedge # 等同于 wasmedge/wasmedge:latest
 
 ```bash
 # 工具和库
-$ sudo apt install -y \
- software-properties-common \
- cmake \
- libboost-all-dev
+sudo apt install -y \
+    software-properties-common \
+    cmake \
+    libboost-all-dev
 
 # 你需要 llvm 来支持 wasmedgec 工具
-$ sudo apt install -y \
- llvm-12-dev \
- liblld-12-dev
+sudo apt install -y \
+    llvm-12-dev \
+    liblld-12-dev
 
 # WasmEdge 支持 clang++ 和 g++ 编译器
 # 你可以选择其中任一个用来编译这个项目
 # 如果你倾向于 GCC
-$ sudo apt install -y gcc g++
+sudo apt install -y gcc g++
 # 或者你选择 clang
-$ sudo apt install -y clang
+sudo apt install -y clang
 ```
 
 ### 对过时操作系统的支持
@@ -77,14 +77,6 @@ $ sudo apt install -y clang
 | `manylinux2010`                         | CentOS 6.10 | GLIBC <= 2.12</br>CXXABI <= 1.3.3</br>GLIBCXX <= 3.4.13</br>GCC <= 4.5.0 | wasmedge/wasmedge:manylinux2010\_x86\_64 |
 | `manylinux2014`                         | CentOS 7.9  | GLIBC <= 2.17</br>CXXABI <= 1.3.7</br>GLIBCXX <= 3.4.19</br>GCC <= 4.8.0 | wasmedge/wasmedge:manylinux2014\_x86\_64 |
 | `manylinux2014`                         | CentOS 7.9  | GLIBC <= 2.17</br>CXXABI <= 1.3.7</br>GLIBCXX <= 3.4.19</br>GCC <= 4.8.0 | wasmedge/wasmedge:manylinux2014\_aarch64 |
-
-### 如果你不需要预编译运行时/编译器
-
-如果用户不需要预编译运行时和编译器特性的话，可以将 CMAKE 配置项 `WASMEDGE_BUILD_AOT_RUNTIME` 设置成 `OFF`。
-
-```bash
-cmake -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_BUILD_AOT_RUNTIME=OFF ..
-```
 
 ## 构建 WasmEdge
 
@@ -106,12 +98,21 @@ WasmEdge 提供了丰富的工具来支撑更好的性能以及更多样的运�
 
 ```bash
 # 获取到 wasm docker 镜像后
-$ docker run -it --rm \
+docker run -it --rm \
     -v <path/to/your/wasmedge/source/folder>:/root/wasmedge \
     wasmedge/wasmedge:latest
-(docker)$ cd /root/wasmedge
-(docker)$ mkdir -p build && cd build
-(docker)$ cmake -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_BUILD_TESTS=ON .. && make -j
+# In docker
+cd /root/wasmedge
+mkdir -p build && cd build
+cmake -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_BUILD_TESTS=ON .. && make -j
+```
+
+### 如果你不需要预编译运行时/编译器
+
+如果用户不需要预编译运行时和编译器特性的话，可以将 CMAKE 配置项 `WASMEDGE_BUILD_AOT_RUNTIME` 设置成 `OFF`。
+
+```bash
+cmake -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_BUILD_AOT_RUNTIME=OFF ..
 ```
 
 ## 执行内置的测试

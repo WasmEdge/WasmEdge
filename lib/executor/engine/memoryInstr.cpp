@@ -7,14 +7,16 @@ namespace WasmEdge {
 namespace Executor {
 
 Expect<void>
-Executor::runMemorySizeOp(Runtime::Instance::MemoryInstance &MemInst) {
+Executor::runMemorySizeOp(Runtime::StackManager &StackMgr,
+                          Runtime::Instance::MemoryInstance &MemInst) {
   // Push SZ = page size to stack.
   StackMgr.push(MemInst.getPageSize());
   return {};
 }
 
 Expect<void>
-Executor::runMemoryGrowOp(Runtime::Instance::MemoryInstance &MemInst) {
+Executor::runMemoryGrowOp(Runtime::StackManager &StackMgr,
+                          Runtime::Instance::MemoryInstance &MemInst) {
   // Pop N for growing page size.
   uint32_t &N = StackMgr.getTop().get<uint32_t>();
 
@@ -28,10 +30,9 @@ Executor::runMemoryGrowOp(Runtime::Instance::MemoryInstance &MemInst) {
   return {};
 }
 
-Expect<void>
-Executor::runMemoryInitOp(Runtime::Instance::MemoryInstance &MemInst,
-                          Runtime::Instance::DataInstance &DataInst,
-                          const AST::Instruction &Instr) {
+Expect<void> Executor::runMemoryInitOp(
+    Runtime::StackManager &StackMgr, Runtime::Instance::MemoryInstance &MemInst,
+    Runtime::Instance::DataInstance &DataInst, const AST::Instruction &Instr) {
   // Pop the length, source, and destination from stack.
   uint32_t Len = StackMgr.pop().get<uint32_t>();
   uint32_t Src = StackMgr.pop().get<uint32_t>();
@@ -55,7 +56,8 @@ Executor::runDataDropOp(Runtime::Instance::DataInstance &DataInst) {
 }
 
 Expect<void>
-Executor::runMemoryCopyOp(Runtime::Instance::MemoryInstance &MemInstDst,
+Executor::runMemoryCopyOp(Runtime::StackManager &StackMgr,
+                          Runtime::Instance::MemoryInstance &MemInstDst,
                           Runtime::Instance::MemoryInstance &MemInstSrc,
                           const AST::Instruction &Instr) {
   // Pop the length, source, and destination from stack.
@@ -80,7 +82,8 @@ Executor::runMemoryCopyOp(Runtime::Instance::MemoryInstance &MemInstDst,
 }
 
 Expect<void>
-Executor::runMemoryFillOp(Runtime::Instance::MemoryInstance &MemInst,
+Executor::runMemoryFillOp(Runtime::StackManager &StackMgr,
+                          Runtime::Instance::MemoryInstance &MemInst,
                           const AST::Instruction &Instr) {
   // Pop the length, value, and offset from stack.
   uint32_t Len = StackMgr.pop().get<uint32_t>();

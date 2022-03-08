@@ -4,7 +4,7 @@ In this section, we will demonstrate how to build an Android native application 
 
 ## Prerequisite
 
-### Android 
+### Android
 
 Currently, WasmEdge only supports the arm64-v8a architecture on Android devices. You need an arm64-v8a Android simulator or a physical device with [developer options turned on](https://developer.android.com/studio/debug/dev-options). WasmEdge requires Android 6.0 and above.
 
@@ -13,7 +13,7 @@ Currently, WasmEdge only supports the arm64-v8a architecture on Android devices.
 In Ubuntu Linux, you can use the `apt-get` command to install Android debugging and testing tool `adb`. Using the `adb shell` command on the Ubuntu dev machine, you can open a CLI shell to execute commands on the connected Android device.
 
 ```bash
-$ sudo apt-get install adb
+sudo apt-get install adb
 ```
 
 ### Android NDK
@@ -88,14 +88,14 @@ int main(int argc, char *argv[]) {
 Use the following commands to download WasmEdge for Android on your Ubuntu dev machine.
 
 ```bash
-$ wget https://github.com/WasmEdge/WasmEdge/releases/download/0.9.1-rc.1/WasmEdge-0.9.1-rc.1-android_aarch64.tar.gz
-$ wget https://github.com/second-state/WasmEdge-image/releases/download/0.9.1-rc.1/WasmEdge-image-0.9.1-rc.1-android_aarch64.tar.gz
-$ wget https://github.com/second-state/WasmEdge-tensorflow/releases/download/0.9.1-rc.1/WasmEdge-tensorflowlite-0.9.1-rc.1-android_aarch64.tar.gz
-$ wget https://github.com/second-state/WasmEdge-tensorflow-deps/releases/download/0.9.1-rc.1/WasmEdge-tensorflow-deps-TFLite-0.9.1-rc.1-android_aarch64.tar.gz
-$ tar -zxf WasmEdge-0.9.1-rc.1-android_aarch64.tar.gz
-$ tar -zxf WasmEdge-image-0.9.1-rc.1-android_aarch64.tar.gz -C WasmEdge-0.9.1-rc.1-Android/
-$ tar -zxf WasmEdge-tensorflowlite-0.9.1-rc.1-android_aarch64.tar.gz -C WasmEdge-0.9.1-rc.1-Android/
-$ tar -zxf WasmEdge-tensorflow-deps-TFLite-0.9.1-rc.1-android_aarch64.tar.gz -C WasmEdge-0.9.1-rc.1-Android/lib/
+wget https://github.com/WasmEdge/WasmEdge/releases/download/0.9.1-rc.1/WasmEdge-0.9.1-rc.1-android_aarch64.tar.gz
+wget https://github.com/second-state/WasmEdge-image/releases/download/0.9.1-rc.1/WasmEdge-image-0.9.1-rc.1-android_aarch64.tar.gz
+wget https://github.com/second-state/WasmEdge-tensorflow/releases/download/0.9.1-rc.1/WasmEdge-tensorflowlite-0.9.1-rc.1-android_aarch64.tar.gz
+wget https://github.com/second-state/WasmEdge-tensorflow-deps/releases/download/0.9.1-rc.1/WasmEdge-tensorflow-deps-TFLite-0.9.1-rc.1-android_aarch64.tar.gz
+tar -zxf WasmEdge-0.9.1-rc.1-android_aarch64.tar.gz
+tar -zxf WasmEdge-image-0.9.1-rc.1-android_aarch64.tar.gz -C WasmEdge-0.9.1-rc.1-Android/
+tar -zxf WasmEdge-tensorflowlite-0.9.1-rc.1-android_aarch64.tar.gz -C WasmEdge-0.9.1-rc.1-Android/
+tar -zxf WasmEdge-tensorflow-deps-TFLite-0.9.1-rc.1-android_aarch64.tar.gz -C WasmEdge-0.9.1-rc.1-Android/lib/
 ```
 
 ### Compile
@@ -103,7 +103,7 @@ $ tar -zxf WasmEdge-tensorflow-deps-TFLite-0.9.1-rc.1-android_aarch64.tar.gz -C 
 The following command compiles the C program to `a.out` on your Ubunu dev machine.
 
 ```bash
-$ (/path/to/ndk)/toolchains/llvm/prebuilt/(HostPlatform)/bin/aarch64-linux-(AndroidApiVersion)-clang test.c -I./WasmEdge-0.9.1-rc.1-Android/include -L./WasmEdge-0.9.1-rc.1-Android/lib -lwasmedge-image_c -lwasmedge-tensorflowlite_c -ltensorflowlite_c -lwasmedge_c
+(/path/to/ndk)/toolchains/llvm/prebuilt/(HostPlatform)/bin/aarch64-linux-(AndroidApiVersion)-clang test.c -I./WasmEdge-0.9.1-rc.1-Android/include -L./WasmEdge-0.9.1-rc.1-Android/lib -lwasmedge-image_c -lwasmedge-tensorflowlite_c -ltensorflowlite_c -lwasmedge_c
 ```
 
 ## Run
@@ -113,11 +113,11 @@ $ (/path/to/ndk)/toolchains/llvm/prebuilt/(HostPlatform)/bin/aarch64-linux-(Andr
 Install the compiled program, Tensorflow Lite model file, test image file, as well as WasmEdge shared library files for Android, onto the Android device using `adb` from your Ubuntu dev machine.
 
 ```bash
-$ adb push a.out /data/local/tmp
-$ adb push birds_v1.wasm /data/local/tmp
-$ adb push lite-model_aiy_vision_classifier_birds_V1_3.tflite /data/local/tmp
-$ adb push bird.jpg /data/local/tmp
-$ adb push ./WasmEdge-0.9.1-rc.1-Android/lib /data/local/tmp
+adb push a.out /data/local/tmp
+adb push birds_v1.wasm /data/local/tmp
+adb push lite-model_aiy_vision_classifier_birds_V1_3.tflite /data/local/tmp
+adb push bird.jpg /data/local/tmp
+adb push ./WasmEdge-0.9.1-rc.1-Android/lib /data/local/tmp
 ```
 
 ### Run the example

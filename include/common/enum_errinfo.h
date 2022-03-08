@@ -18,9 +18,9 @@
 #define WASMEDGE_C_API_ENUM_ERRINFO_H
 
 #ifdef __cplusplus
+#include "dense_enum_map.h"
 #include <cstdint>
-#include <string>
-#include <unordered_map>
+#include <string_view>
 #endif
 
 namespace WasmEdge {
@@ -45,64 +45,69 @@ enum class InfoType : uint8_t {
 
 /// Error info instance addressing type C++ enumeration class.
 enum class PtrType : uint8_t {
-  Index,  // Index of instances
-  Address // Absolute address
+#define UsePtrType
+#define Line(NAME, STRING) NAME,
+#include "enum.inc"
+#undef Line
+#undef UsePtrType
 };
 
-static inline std::unordered_map<PtrType, std::string> PtrTypeStr = {
-    {PtrType::Index, "index"}, {PtrType::Address, "address"}};
+static inline constexpr auto PtrTypeStr = []() constexpr {
+  using namespace std::literals::string_view_literals;
+  std::pair<PtrType, std::string_view> Array[] = {
+#define UsePtrType
+#define Line(NAME, STRING) {PtrType::NAME, STRING},
+#include "enum.inc"
+#undef Line
+#undef UsePtrType
+  };
+  return DenseEnumMap(Array);
+}
+();
 
 /// Error info mismatch category C++ enumeration class.
 enum class MismatchCategory : uint8_t {
-  Alignment,    // Alignment in memory instructions
-  ValueType,    // Value type
-  ValueTypes,   // Value type list
-  Mutation,     // Const or Var
-  ExternalType, // External typing
-  FunctionType, // Function type
-  Table,        // Table instance
-  Memory,       // Memory instance
-  Global,       // Global instance
-  Version       // Versions
+#define UseMismatchCategory
+#define Line(NAME, STRING) NAME,
+#include "enum.inc"
+#undef Line
+#undef UseMismatchCategory
 };
 
-static inline std::unordered_map<MismatchCategory, std::string>
-    MismatchCategoryStr = {{MismatchCategory::Alignment, "memory alignment"},
-                           {MismatchCategory::ValueType, "value type"},
-                           {MismatchCategory::ValueTypes, "value types"},
-                           {MismatchCategory::Mutation, "mutation"},
-                           {MismatchCategory::ExternalType, "external type"},
-                           {MismatchCategory::FunctionType, "function type"},
-                           {MismatchCategory::Table, "table"},
-                           {MismatchCategory::Memory, "memory"},
-                           {MismatchCategory::Global, "global"},
-                           {MismatchCategory::Version, "version"}};
+static inline constexpr auto MismatchCategoryStr = []() constexpr {
+  using namespace std::literals::string_view_literals;
+  std::pair<MismatchCategory, std::string_view> Array[] = {
+#define UseMismatchCategory
+#define Line(NAME, STRING) {MismatchCategory::NAME, STRING},
+#include "enum.inc"
+#undef Line
+#undef UseMismatchCategory
+  };
+  return DenseEnumMap(Array);
+}
+();
 
 /// Error info index category C++ enumeration class.
 enum class IndexCategory : uint8_t {
-  Label,
-  Local,
-  FunctionType,
-  Function,
-  Table,
-  Memory,
-  Global,
-  Element,
-  Data,
-  Lane
+#define UseIndexCategory
+#define Line(NAME, STRING) NAME,
+#include "enum.inc"
+#undef Line
+#undef UseIndexCategory
 };
 
-static inline std::unordered_map<IndexCategory, std::string> IndexCategoryStr =
-    {{IndexCategory::Label, "label"},
-     {IndexCategory::Local, "local"},
-     {IndexCategory::FunctionType, "function type"},
-     {IndexCategory::Function, "function"},
-     {IndexCategory::Table, "table"},
-     {IndexCategory::Memory, "memory"},
-     {IndexCategory::Global, "global"},
-     {IndexCategory::Element, "element"},
-     {IndexCategory::Data, "data"},
-     {IndexCategory::Lane, "lane"}};
+static inline constexpr auto IndexCategoryStr = []() constexpr {
+  using namespace std::literals::string_view_literals;
+  std::pair<IndexCategory, std::string_view> Array[] = {
+#define UseIndexCategory
+#define Line(NAME, STRING) {IndexCategory::NAME, STRING},
+#include "enum.inc"
+#undef Line
+#undef UseIndexCategory
+  };
+  return DenseEnumMap(Array);
+}
+();
 
 } // namespace ErrInfo
 } // namespace WasmEdge

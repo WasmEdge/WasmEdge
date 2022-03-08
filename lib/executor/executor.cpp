@@ -104,8 +104,10 @@ Executor::invoke(Runtime::StoreManager &StoreMgr, const uint32_t FuncAddr,
     return Unexpect(ErrCode::FuncSigMismatch);
   }
 
+  Runtime::StackManager StackMgr;
+
   // Call runFunction.
-  if (auto Res = runFunction(StoreMgr, *FuncInst, Params); !Res) {
+  if (auto Res = runFunction(StoreMgr, StackMgr, *FuncInst, Params); !Res) {
     return Unexpect(Res);
   }
 

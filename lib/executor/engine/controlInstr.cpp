@@ -8,39 +8,11 @@
 namespace WasmEdge {
 namespace Executor {
 
-Expect<void> Executor::runBlockOp(Runtime::StoreManager &StoreMgr,
-                                  const AST::Instruction &Instr,
-                                  AST::InstrView::iterator &PC) {
-  // Get result type for arity.
-  auto BlockSig = getBlockArity(StoreMgr, Instr.getBlockType());
-  AST::InstrView::iterator Cont = PC + Instr.getJumpEnd();
-
-  // Create Label{ nothing } and push.
-  StackMgr.pushLabel(BlockSig.first, BlockSig.second, Cont);
-  return {};
-}
-
-Expect<void> Executor::runLoopOp(Runtime::StoreManager &StoreMgr,
-                                 const AST::Instruction &Instr,
-                                 AST::InstrView::iterator &PC) {
-  // Get result type for arity.
-  auto BlockSig = getBlockArity(StoreMgr, Instr.getBlockType());
-  AST::InstrView::iterator Cont = PC + Instr.getJumpEnd();
-
-  // Create Label{ loop-instruction } and push.
-  StackMgr.pushLabel(BlockSig.first, BlockSig.first, Cont, PC);
-  return {};
-}
-
-Expect<void> Executor::runIfElseOp(Runtime::StoreManager &StoreMgr,
+Expect<void> Executor::runIfElseOp(Runtime::StackManager &StackMgr,
                                    const AST::Instruction &Instr,
-                                   AST::InstrView::iterator &PC) {
+                                   AST::InstrView::iterator &PC) noexcept {
   // Get condition.
   uint32_t Cond = StackMgr.pop().get<uint32_t>();
-
-  // Get result type for arity.
-  auto BlockSig = getBlockArity(StoreMgr, Instr.getBlockType());
-  AST::InstrView::iterator Cont = PC + Instr.getJumpEnd();
 
   // If non-zero, run if-statement; else, run else-statement.
   if (Cond == 0) {
@@ -58,53 +30,67 @@ Expect<void> Executor::runIfElseOp(Runtime::StoreManager &StoreMgr,
       PC += Instr.getJumpElse();
     }
   }
-  StackMgr.pushLabel(BlockSig.first, BlockSig.second, Cont);
   return {};
 }
 
-Expect<void> Executor::runBrOp(Runtime::StoreManager &StoreMgr,
+Expect<void> Executor::runBrOp(Runtime::StackManager &StackMgr,
                                const AST::Instruction &Instr,
-                               AST::InstrView::iterator &PC) {
-  return branchToLabel(StoreMgr, Instr.getTargetIndex(), PC);
+                               AST::InstrView::iterator &PC) noexcept {
+  return branchToLabel(StackMgr, Instr.getJump().StackEraseBegin,
+                       Instr.getJump().StackEraseEnd, Instr.getJump().PCOffset,
+                       PC);
 }
 
-Expect<void> Executor::runBrIfOp(Runtime::StoreManager &StoreMgr,
+Expect<void> Executor::runBrIfOp(Runtime::StackManager &StackMgr,
                                  const AST::Instruction &Instr,
-                                 AST::InstrView::iterator &PC) {
+                                 AST::InstrView::iterator &PC) noexcept {
   if (StackMgr.pop().get<uint32_t>() != 0) {
-    return runBrOp(StoreMgr, Instr, PC);
+    return runBrOp(StackMgr, Instr, PC);
   }
   return {};
 }
 
-Expect<void> Executor::runBrTableOp(Runtime::StoreManager &StoreMgr,
+Expect<void> Executor::runBrTableOp(Runtime::StackManager &StackMgr,
                                     const AST::Instruction &Instr,
-                                    AST::InstrView::iterator &PC) {
+                                    AST::InstrView::iterator &PC) noexcept {
   // Get value on top of stack.
   uint32_t Value = StackMgr.pop().get<uint32_t>();
 
   // Do branch.
   auto LabelTable = Instr.getLabelList();
-  if (Value < LabelTable.size()) {
-    return branchToLabel(StoreMgr, LabelTable[Value], PC);
+  const auto LabelTableSize = static_cast<uint32_t>(LabelTable.size() - 1);
+  if (Value < LabelTableSize) {
+    return branchToLabel(StackMgr, LabelTable[Value].StackEraseBegin,
+                         LabelTable[Value].StackEraseEnd,
+                         LabelTable[Value].PCOffset, PC);
   }
-  return branchToLabel(StoreMgr, Instr.getTargetIndex(), PC);
+  return branchToLabel(StackMgr, LabelTable[LabelTableSize].StackEraseBegin,
+                       LabelTable[LabelTableSize].StackEraseEnd,
+                       LabelTable[LabelTableSize].PCOffset, PC);
 }
 
-Expect<void> Executor::runReturnOp(AST::InstrView::iterator &PC) {
-  PC = StackMgr.getBottomLabel().From;
-  StackMgr.popFrame();
+Expect<void> Executor::runReturnOp(Runtime::StackManager &StackMgr,
+                                   const AST::Instruction &Instr,
+                                   AST::InstrView::iterator &PC) noexcept {
+  if (auto Res = branchToLabel(StackMgr, Instr.getJump().StackEraseBegin,
+                               Instr.getJump().StackEraseEnd,
+                               Instr.getJump().PCOffset, PC);
+      !Res) {
+    return Unexpect(Res);
+  }
+  PC = StackMgr.popFrame();
   return {};
 }
 
 Expect<void> Executor::runCallOp(Runtime::StoreManager &StoreMgr,
+                                 Runtime::StackManager &StackMgr,
                                  const AST::Instruction &Instr,
-                                 AST::InstrView::iterator &PC) {
+                                 AST::InstrView::iterator &PC) noexcept {
   // Get Function address.
   const auto *ModInst = *StoreMgr.getModule(StackMgr.getModuleAddr());
   const uint32_t FuncAddr = *ModInst->getFuncAddr(Instr.getTargetIndex());
   const auto *FuncInst = *StoreMgr.getFunction(FuncAddr);
-  if (auto Res = enterFunction(StoreMgr, *FuncInst, PC + 1); !Res) {
+  if (auto Res = enterFunction(StoreMgr, StackMgr, *FuncInst, PC + 1); !Res) {
     return Unexpect(Res);
   } else {
     PC = (*Res) - 1;
@@ -112,11 +98,12 @@ Expect<void> Executor::runCallOp(Runtime::StoreManager &StoreMgr,
   return {};
 }
 
-Expect<void> Executor::runCallIndirectOp(Runtime::StoreManager &StoreMgr,
-                                         const AST::Instruction &Instr,
-                                         AST::InstrView::iterator &PC) {
+Expect<void> Executor::runCallIndirectOp(
+    Runtime::StoreManager &StoreMgr, Runtime::StackManager &StackMgr,
+    const AST::Instruction &Instr, AST::InstrView::iterator &PC) noexcept {
   // Get Table Instance
-  const auto *TabInst = getTabInstByIdx(StoreMgr, Instr.getSourceIndex());
+  const auto *TabInst =
+      getTabInstByIdx(StoreMgr, StackMgr, Instr.getSourceIndex());
 
   // Get function type at index x.
   const auto *ModInst = *StoreMgr.getModule(StackMgr.getModuleAddr());
@@ -158,7 +145,7 @@ Expect<void> Executor::runCallIndirectOp(Runtime::StoreManager &StoreMgr,
         FuncType.getParamTypes(), FuncType.getReturnTypes()));
     return Unexpect(ErrCode::IndirectCallTypeMismatch);
   }
-  if (auto Res = enterFunction(StoreMgr, *FuncInst, PC + 1); !Res) {
+  if (auto Res = enterFunction(StoreMgr, StackMgr, *FuncInst, PC + 1); !Res) {
     return Unexpect(Res);
   } else {
     PC = (*Res) - 1;

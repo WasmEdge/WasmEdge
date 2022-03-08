@@ -1,4 +1,4 @@
-# Android CLI tools
+# WasmEdge CLI tools for Android
 
 In this section, we will show you how to use WasmEdge CLI tools on Android devices. We will showcase a full WasmEdge demo to perform image classification (Tensorflow-based AI inference) on an Android device.
 
@@ -118,7 +118,7 @@ Use the extended WasmEdge Runtime in `wasmedge-tensorflow-lite` to execute the c
 sirius:/data/local/tmp/WasmEdge-tensorflow-tools $ chmod 777 wasmedge-tensorflow-lite
 sirius:/data/local/tmp/WasmEdge-tensorflow-tools $ ./wasmedge-tensorflow-lite --dir .:. birds_v1.wasm lite-model_aiy_vision_classifier_birds_V1_3.tflite bird.jpg
 INFO: Initialized TensorFlow Lite runtime.
-166 : 0.88235295
+166 : 0.84705883
 ```
 
-The result shows that the bird type is in [line 166 of the label file](https://github.com/second-state/wasm-learning/blob/master/rust/birds_v1/aiy_birds_V1_labels.txt#L166) (Sicalis flaveola) and the confidence level is 88%.
+The result shows that the bird type is in [line 166 of the label file](https://github.com/second-state/wasm-learning/blob/master/rust/birds_v1/aiy_birds_V1_labels.txt#L166) (Sicalis flaveola) and the confidence level is 84.7%.

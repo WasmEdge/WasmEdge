@@ -65,6 +65,7 @@ pub use instance::{
     function::{FuncType, Function},
     global::{Global, GlobalType},
     memory::{MemType, Memory},
+    module::Instance,
     table::{Table, TableType},
 };
 #[doc(inline)]

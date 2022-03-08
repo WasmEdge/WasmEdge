@@ -42,7 +42,7 @@ impl Loader {
         }
     }
 
-    /// Loads a WASM module from a WASM file.
+    /// Loads a WASM module from a WASM file with the suffix ".wasm".
     ///
     /// # Arguments
     ///
@@ -51,6 +51,13 @@ impl Loader {
     /// # Error
     ///
     /// If fail to load, then an error is returned.
+    ///
+    /// # Example
+    ///
+    /// ```ignore
+    /// let file = "path/to/foo.wasm"
+    /// let module = loader.from_file(file)?;
+    /// ```
     pub fn from_file(&self, path: impl AsRef<Path>) -> WasmEdgeResult<Module> {
         let c_path = utils::path_to_cstring(path.as_ref())?;
         let mut mod_ctx = std::ptr::null_mut();
@@ -79,6 +86,19 @@ impl Loader {
     /// # Error
     ///
     /// If fail to load, then an error is returned.
+    ///
+    /// # Example
+    ///
+    /// ```ignore
+    /// let buffer = b"\0asm\x01\0\0\0";
+    /// let module = loader.from_buffer(&buffer)?;
+    /// ```
+    ///
+    /// Note that the text format is not accepted:
+    ///
+    /// ```ignore
+    /// assert!(loader.from_buffer(b"(module)").is_err());
+    /// ```
     pub fn from_buffer(&self, buffer: impl AsRef<[u8]>) -> WasmEdgeResult<Module> {
         let mut mod_ctx: *mut wasmedge::WasmEdge_ASTModuleContext = std::ptr::null_mut();
 
@@ -154,12 +174,23 @@ mod tests {
 
         // load from file
         {
+            // load .wasm file
             let path = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
                 .join("bindings/rust/wasmedge-sys/tests/data/fibonacci.wasm");
             let result = loader.from_file(path);
             assert!(result.is_ok());
             let module = result.unwrap();
             assert!(!module.inner.0.is_null());
+
+            // Not support .wat file
+            let path = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
+                .join("bindings/rust/wasmedge-sys/tests/data/fibonacci.wat");
+            let result = loader.from_file(path);
+            assert!(result.is_err());
+            assert_eq!(
+                result.unwrap_err(),
+                WasmEdgeError::Core(CoreError::Load(CoreLoadError::MalformedMagic))
+            );
 
             let result = loader.from_file("not_exist_file");
             assert!(result.is_err());
@@ -171,17 +202,21 @@ mod tests {
 
         // load from buffer
         {
-            let path = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
-                .join("bindings/rust/wasmedge-sys/tests/data/fibonacci.wasm");
-            let result = std::fs::read(path);
-            assert!(result.is_ok());
-            let buffer = result.unwrap();
-
+            let buffer = b"\0asm\x01\0\0\0";
             let result = loader.from_buffer(&buffer);
             assert!(result.is_ok());
             let module = result.unwrap();
             assert!(!module.inner.0.is_null());
 
+            // the text format is not accepted
+            let result = loader.from_buffer(b"(module)");
+            assert!(result.is_err());
+            assert_eq!(
+                result.unwrap_err(),
+                WasmEdgeError::Core(CoreError::Load(CoreLoadError::MalformedMagic))
+            );
+
+            // empty is not accepted
             let result = loader.from_buffer(&[]);
             assert!(result.is_err());
             assert_eq!(

@@ -84,10 +84,14 @@ Expect<AST::InstrVec> Loader::loadInstrSeq(std::optional<uint64_t> SizeBound) {
       if (BlockStack.size() > 0) {
         uint32_t Pos = BlockStack.back().second;
         Instrs[Pos].setJumpEnd(Cnt - Pos);
-        if (BlockStack.back().first == OpCode::If &&
-            Instrs[Pos].getJumpElse() == 0) {
-          // If block without else. Set the else jump the same as end jump.
-          Instrs[Pos].setJumpElse(Cnt - Pos);
+        if (BlockStack.back().first == OpCode::If) {
+          if (Instrs[Pos].getJumpElse() == 0) {
+            // If block without else. Set the else jump the same as end jump.
+            Instrs[Pos].setJumpElse(Cnt - Pos);
+          } else {
+            const uint32_t ElsePos = Pos + Instrs[Pos].getJumpElse();
+            Instrs[ElsePos].setJumpEnd(Cnt - ElsePos);
+          }
         }
         BlockStack.pop_back();
       } else {
@@ -199,7 +203,7 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
 
   case OpCode::Br:
   case OpCode::Br_if:
-    return readU32(Instr.getTargetIndex());
+    return readU32(Instr.getJump().TargetIndex);
 
   case OpCode::Br_table: {
     uint32_t VecCnt = 0;
@@ -207,17 +211,20 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
     if (auto Res = readU32(VecCnt); unlikely(!Res)) {
       return Unexpect(Res);
     }
-    Instr.setLabelListSize(VecCnt);
+    if (VecCnt == std::numeric_limits<uint32_t>::max()) {
+      // Too many label for Br_table.
+      return logLoadError(ErrCode::IntegerTooLong, FMgr.getLastOffset(),
+                          ASTNodeAttr::Instruction);
+    }
+    Instr.setLabelListSize(VecCnt + 1);
     for (uint32_t I = 0; I < VecCnt; ++I) {
-      uint32_t Label = 0;
-      if (auto Res = readU32(Label); unlikely(!Res)) {
+      if (auto Res = readU32(Instr.getLabelList()[I].TargetIndex);
+          unlikely(!Res)) {
         return Unexpect(Res);
-      } else {
-        Instr.getLabelList()[I] = Label;
       }
     }
     // Read default label.
-    return readU32(Instr.getTargetIndex());
+    return readU32(Instr.getLabelList()[VecCnt].TargetIndex);
   }
 
   case OpCode::Call:

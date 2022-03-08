@@ -56,6 +56,8 @@ pub enum WasmEdgeError {
     Import(ImportError),
     #[error("{0}")]
     Export(ExportError),
+    #[error("{0}")]
+    Instance(InstanceError),
 
     // std
     #[error("Found an interior nul byte")]
@@ -150,6 +152,19 @@ pub enum ExportError {
     GlobalType(String),
 }
 
+/// Defines the errors raised from [Instance](crate::Instance).
+#[derive(Error, Clone, Debug, PartialEq)]
+pub enum InstanceError {
+    #[error("Fail to find the target function ({0})")]
+    NotFoundFunc(String),
+    #[error("Fail to find the target table ({0})")]
+    NotFoundTable(String),
+    #[error("Fail to find the target memory ({0})")]
+    NotFoundMem(String),
+    #[error("Fail to find the target global ({0})")]
+    NotFoundGlobal(String),
+}
+
 /// Defines the errors raised from [Store](crate::Store).
 #[derive(Error, Clone, Debug, PartialEq)]
 pub enum StoreError {
@@ -179,6 +194,8 @@ pub enum StoreError {
     },
     #[error("Not found the target module ({0})")]
     NotFoundModule(String),
+    #[error("Not found the active module")]
+    NotFoundActiveModule,
 }
 
 /// Defines the errors raised from [Vm](crate::Vm).

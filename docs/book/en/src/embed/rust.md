@@ -77,4 +77,6 @@ The definitions of WasmEdge Rust SDK involve two Rust crates, [wasmedge-sys](htt
 
 ## Examples
 
-* [Run a WebAssembly function with WasmEdge low-level APIs](rust/wasmedge-sys-api.md)
+* [[wasmedge-sys] Run a WebAssembly function with WasmEdge low-level APIs](rust/sys_run_host_func.md)
+
+* [[wasmedge-sys] Compute Fibonacci numbers concurrently](rust/concurrent_fib.md)

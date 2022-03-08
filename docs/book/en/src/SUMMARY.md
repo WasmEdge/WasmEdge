@@ -55,7 +55,8 @@
     - [API references](embed/go/ref.md)
   - [Node.js SDK](embed/node.md)
   - [Rust SDK](embed/rust.md)
-    - [wasmedge-sys API](embed/rust/wasmedge-sys-api.md)
+    - [Run a WebAssembly function with WasmEdge low-level APIs](embed/rust/sys_run_host_func.md)
+    - [Compute Fibonacci numbers concurrently](embed/rust/concurrent_fib.md)
   - [Python SDK](embed/python.md)
 
 - [WasmEdge in Kubernetes](kubernetes.md)

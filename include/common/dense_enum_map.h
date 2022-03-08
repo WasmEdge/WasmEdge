@@ -93,7 +93,8 @@ public:
   constexpr ConstIterator &operator=(ConstIterator &&) noexcept = default;
 
   constexpr ConstIterator(const std::array<T, Size> &D, size_type I) noexcept
-      : Data(std::addressof(D)), Value(static_cast<Key>(I), D[I]) {}
+      : Data(std::addressof(D)),
+        Value(static_cast<Key>(I), I < Size ? D[I] : T{}) {}
 
   constexpr reference operator*() noexcept { return Value; }
   constexpr const_reference operator*() const noexcept { return Value; }
@@ -106,14 +107,14 @@ public:
   constexpr ConstIterator &operator++() noexcept {
     size_type I = static_cast<size_type>(Value.first);
     ++I;
-    Value = {static_cast<Key>(I), (*Data)[I]};
+    Value = {static_cast<Key>(I), I < Size ? (*Data)[I] : T{}};
     return *this;
   }
 
   constexpr ConstIterator &operator--() noexcept {
     size_type I = static_cast<size_type>(Value.first);
     --I;
-    Value = {static_cast<Key>(I), (*Data)[I]};
+    Value = {static_cast<Key>(I), I < Size ? (*Data)[I] : T{}};
     return *this;
   }
 
@@ -132,14 +133,14 @@ public:
   constexpr ConstIterator &operator+=(difference_type N) noexcept {
     size_type I = static_cast<size_type>(Value.first);
     I = static_cast<size_type>(static_cast<difference_type>(I) + N);
-    Value = {static_cast<Key>(I), (*Data)[I]};
+    Value = {static_cast<Key>(I), I < Size ? (*Data)[I] : T{}};
     return *this;
   }
 
   constexpr ConstIterator &operator-=(difference_type N) noexcept {
     size_type I = static_cast<size_type>(Value.first);
     I = static_cast<size_type>(static_cast<difference_type>(I) - N);
-    Value = {static_cast<Key>(I), (*Data)[I]};
+    Value = {static_cast<Key>(I), I < Size ? (*Data)[I] : T{}};
     return *this;
   }
 

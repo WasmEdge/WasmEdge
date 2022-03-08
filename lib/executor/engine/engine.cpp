@@ -13,7 +13,6 @@ namespace Executor {
 Expect<void> Executor::runExpression(Runtime::StoreManager &StoreMgr,
                                      Runtime::StackManager &StackMgr,
                                      AST::InstrView Instrs) {
-  StackMgr.pushLabel(0, 0, Instrs.end() - 1);
   return execute(StoreMgr, StackMgr, Instrs.begin(), Instrs.end());
 }
 
@@ -86,11 +85,11 @@ Expect<void> Executor::execute(Runtime::StoreManager &StoreMgr,
     case OpCode::Nop:
       return {};
     case OpCode::Block:
-      return runBlockOp(StoreMgr, StackMgr, Instr, PC);
+      return {};
     case OpCode::Loop:
-      return runLoopOp(StoreMgr, StackMgr, Instr, PC);
+      return {};
     case OpCode::If:
-      return runIfElseOp(StoreMgr, StackMgr, Instr, PC);
+      return runIfElseOp(StackMgr, Instr, PC);
     case OpCode::Else:
       if (Stat && Conf.getStatisticsConfigure().isCostMeasuring()) {
         // Reach here means end of if-statement.
@@ -105,18 +104,19 @@ Expect<void> Executor::execute(Runtime::StoreManager &StoreMgr,
           return Unexpect(ErrCode::CostLimitExceeded);
         }
       }
+      PC += PC->getJumpEnd();
       [[fallthrough]];
     case OpCode::End:
-      PC = StackMgr.leaveLabel();
+      PC = StackMgr.maybePopFrame(PC);
       return {};
     case OpCode::Br:
-      return runBrOp(StoreMgr, StackMgr, Instr, PC);
+      return runBrOp(StackMgr, Instr, PC);
     case OpCode::Br_if:
-      return runBrIfOp(StoreMgr, StackMgr, Instr, PC);
+      return runBrIfOp(StackMgr, Instr, PC);
     case OpCode::Br_table:
-      return runBrTableOp(StoreMgr, StackMgr, Instr, PC);
+      return runBrTableOp(StackMgr, Instr, PC);
     case OpCode::Return:
-      return runReturnOp(StackMgr, PC);
+      return runReturnOp(StackMgr, Instr, PC);
     case OpCode::Call:
       return runCallOp(StoreMgr, StackMgr, Instr, PC);
     case OpCode::Call_indirect:
@@ -124,7 +124,7 @@ Expect<void> Executor::execute(Runtime::StoreManager &StoreMgr,
 
     // Reference Instructions
     case OpCode::Ref__null:
-      StackMgr.push(UnknownRef());
+      StackMgr.push<UnknownRef>(UnknownRef());
       return {};
     case OpCode::Ref__is_null: {
       ValVariant &Val = StackMgr.getTop();
@@ -138,7 +138,7 @@ Expect<void> Executor::execute(Runtime::StoreManager &StoreMgr,
     case OpCode::Ref__func: {
       const auto *ModInst = *StoreMgr.getModule(StackMgr.getModuleAddr());
       const uint32_t FuncAddr = *ModInst->getFuncAddr(Instr.getTargetIndex());
-      StackMgr.push(FuncRef(FuncAddr));
+      StackMgr.push<FuncRef>(FuncRef(FuncAddr));
       return {};
     }
 
@@ -164,11 +164,11 @@ Expect<void> Executor::execute(Runtime::StoreManager &StoreMgr,
 
     // Variable Instructions
     case OpCode::Local__get:
-      return runLocalGetOp(StackMgr, Instr.getTargetIndex());
+      return runLocalGetOp(StackMgr, Instr.getStackOffset());
     case OpCode::Local__set:
-      return runLocalSetOp(StackMgr, Instr.getTargetIndex());
+      return runLocalSetOp(StackMgr, Instr.getStackOffset());
     case OpCode::Local__tee:
-      return runLocalTeeOp(StackMgr, Instr.getTargetIndex());
+      return runLocalTeeOp(StackMgr, Instr.getStackOffset());
     case OpCode::Global__get:
       return runGlobalGetOp(StoreMgr, StackMgr, Instr.getTargetIndex());
     case OpCode::Global__set:

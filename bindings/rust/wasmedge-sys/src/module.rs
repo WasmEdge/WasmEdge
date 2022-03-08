@@ -15,14 +15,10 @@ use std::{borrow::Cow, ffi::CStr, marker::PhantomData};
 
 /// Struct of WasmEdge AST (short for abstract syntax tree) Module.
 ///
-/// [`Module`] is the representation of WasmEdge AST Module concept, but not equivalent to
-/// *[W3C Module](https://www.w3.org/TR/wasm-core-1/#concepts%E2%91%A0)*.
-/// The initial state of a [`Module`] loaded from a file or buffer is a AST module; After the instantiation step,
-/// it "transform"s a module which is equivalent to W3C Module in semantics. The state transformation can be summarized
-/// as below:
-///
-/// `a WASM file ---<load>--> AST Module ---<instantiate>--> Module`
-///
+/// [`Module`] is also called `AST Module` in WasmEdge terminology. An `AST Module` is a compiled in-memory
+/// representation of an input WebAssembly binary. In the instantiation process, a [`Module`] is used to create a
+/// [module stance](crate::instance), from which the exported [functions](crate::Function), [tables](crate::Table),
+/// [memories](crate::Memory), and [globals](crate::Global) can be fetched.
 #[derive(Debug)]
 pub struct Module {
     pub(crate) inner: InnerModule,

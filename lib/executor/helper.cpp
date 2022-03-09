@@ -36,7 +36,7 @@ Executor::enterFunction(Runtime::StoreManager &StoreMgr,
     // Get memory instance from current frame.
     // It'll be nullptr if current frame is dummy frame or no memory instance
     // in current module.
-    auto *MemoryInst = getMemInstByIdx(StoreMgr, StackMgr, 0);
+    auto *MemoryInst = getMemInstByIdx(StackMgr, 0);
 
     if (Stat) {
       // Check host function cost.
@@ -79,10 +79,10 @@ Executor::enterFunction(Runtime::StoreManager &StoreMgr,
     return From;
   } else if (Func.isCompiledFunction()) {
     // Compiled function case: Push frame with locals and args.
-    StackMgr.pushFrame(Func.getModuleAddr(), // Module address
-                       From - 1,             // Return PC
-                       0,                    // No Arguments in stack
-                       RetsN                 // Returns num
+    StackMgr.pushFrame(Func.getModule(), // Module address
+                       From - 1,         // Return PC
+                       0,                // No Arguments in stack
+                       RetsN             // Returns num
     );
 
     Span<ValVariant> Args = StackMgr.getTopSpan(ArgsN);
@@ -91,12 +91,11 @@ Executor::enterFunction(Runtime::StoreManager &StoreMgr,
     {
       CurrentStore = &StoreMgr;
       CurrentStack = &StackMgr;
-      auto &ModInst = *(*StoreMgr.getModule(Func.getModuleAddr()));
+      auto &ModInst = *Func.getModule();
       for (uint32_t I = 0; I < ModInst.getMemNum(); ++I) {
         auto MemoryPtr =
             reinterpret_cast<std::atomic<uint8_t *> *>(&ModInst.MemoryPtrs[I]);
-        uint8_t *const DataPtr =
-            (*(StoreMgr.getMemory(*ModInst.getMemAddr(I))))->getDataPtr();
+        uint8_t *const DataPtr = (*ModInst.getMemory(I))->getDataPtr();
         std::atomic_store_explicit(MemoryPtr, DataPtr,
                                    std::memory_order_relaxed);
       }
@@ -132,10 +131,10 @@ Executor::enterFunction(Runtime::StoreManager &StoreMgr,
           return N + Pair.first;
         });
     // Native function case: Push frame with locals and args.
-    StackMgr.pushFrame(Func.getModuleAddr(), // Module address
-                       From - 1,             // Return PC
-                       ArgsN + LocalN,       // Arguments num + local num
-                       RetsN                 // Returns num
+    StackMgr.pushFrame(Func.getModule(), // Module address
+                       From - 1,         // Return PC
+                       ArgsN + LocalN,   // Arguments num + local num
+                       RetsN             // Returns num
     );
 
     // Push local variables to stack.
@@ -167,20 +166,14 @@ Expect<void> Executor::branchToLabel(Runtime::StackManager &StackMgr,
 }
 
 Runtime::Instance::TableInstance *
-Executor::getTabInstByIdx(Runtime::StoreManager &StoreMgr,
-                          Runtime::StackManager &StackMgr, const uint32_t Idx) {
+Executor::getTabInstByIdx(Runtime::StackManager &StackMgr,
+                          const uint32_t Idx) const {
   // When top frame is dummy frame, cannot find instance.
   if (StackMgr.isTopDummyFrame()) {
     return nullptr;
   }
-  const auto *ModInst = *StoreMgr.getModule(StackMgr.getModuleAddr());
-  uint32_t TabAddr;
-  if (auto Res = ModInst->getTableAddr(Idx)) {
-    TabAddr = *Res;
-  } else {
-    return nullptr;
-  }
-  if (auto Res = StoreMgr.getTable(TabAddr)) {
+  const auto *ModInst = StackMgr.getModule();
+  if (auto Res = ModInst->getTable(Idx)) {
     return *Res;
   } else {
     return nullptr;
@@ -188,20 +181,14 @@ Executor::getTabInstByIdx(Runtime::StoreManager &StoreMgr,
 }
 
 Runtime::Instance::MemoryInstance *
-Executor::getMemInstByIdx(Runtime::StoreManager &StoreMgr,
-                          Runtime::StackManager &StackMgr, const uint32_t Idx) {
+Executor::getMemInstByIdx(Runtime::StackManager &StackMgr,
+                          const uint32_t Idx) const {
   // When top frame is dummy frame, cannot find instance.
   if (StackMgr.isTopDummyFrame()) {
     return nullptr;
   }
-  const auto *ModInst = *StoreMgr.getModule(StackMgr.getModuleAddr());
-  uint32_t MemAddr;
-  if (auto Res = ModInst->getMemAddr(Idx)) {
-    MemAddr = *Res;
-  } else {
-    return nullptr;
-  }
-  if (auto Res = StoreMgr.getMemory(MemAddr)) {
+  const auto *ModInst = StackMgr.getModule();
+  if (auto Res = ModInst->getMemory(Idx)) {
     return *Res;
   } else {
     return nullptr;
@@ -209,21 +196,14 @@ Executor::getMemInstByIdx(Runtime::StoreManager &StoreMgr,
 }
 
 Runtime::Instance::GlobalInstance *
-Executor::getGlobInstByIdx(Runtime::StoreManager &StoreMgr,
-                           Runtime::StackManager &StackMgr,
-                           const uint32_t Idx) {
+Executor::getGlobInstByIdx(Runtime::StackManager &StackMgr,
+                           const uint32_t Idx) const {
   // When top frame is dummy frame, cannot find instance.
   if (StackMgr.isTopDummyFrame()) {
     return nullptr;
   }
-  const auto *ModInst = *StoreMgr.getModule(StackMgr.getModuleAddr());
-  uint32_t GlobAddr;
-  if (auto Res = ModInst->getGlobalAddr(Idx)) {
-    GlobAddr = *Res;
-  } else {
-    return nullptr;
-  }
-  if (auto Res = StoreMgr.getGlobal(GlobAddr)) {
+  const auto *ModInst = StackMgr.getModule();
+  if (auto Res = ModInst->getGlobal(Idx)) {
     return *Res;
   } else {
     return nullptr;
@@ -231,21 +211,14 @@ Executor::getGlobInstByIdx(Runtime::StoreManager &StoreMgr,
 }
 
 Runtime::Instance::ElementInstance *
-Executor::getElemInstByIdx(Runtime::StoreManager &StoreMgr,
-                           Runtime::StackManager &StackMgr,
-                           const uint32_t Idx) {
+Executor::getElemInstByIdx(Runtime::StackManager &StackMgr,
+                           const uint32_t Idx) const {
   // When top frame is dummy frame, cannot find instance.
   if (StackMgr.isTopDummyFrame()) {
     return nullptr;
   }
-  const auto *ModInst = *StoreMgr.getModule(StackMgr.getModuleAddr());
-  uint32_t ElemAddr;
-  if (auto Res = ModInst->getElemAddr(Idx)) {
-    ElemAddr = *Res;
-  } else {
-    return nullptr;
-  }
-  if (auto Res = StoreMgr.getElement(ElemAddr)) {
+  const auto *ModInst = StackMgr.getModule();
+  if (auto Res = ModInst->getElem(Idx)) {
     return *Res;
   } else {
     return nullptr;
@@ -253,21 +226,14 @@ Executor::getElemInstByIdx(Runtime::StoreManager &StoreMgr,
 }
 
 Runtime::Instance::DataInstance *
-Executor::getDataInstByIdx(Runtime::StoreManager &StoreMgr,
-                           Runtime::StackManager &StackMgr,
-                           const uint32_t Idx) {
+Executor::getDataInstByIdx(Runtime::StackManager &StackMgr,
+                           const uint32_t Idx) const {
   // When top frame is dummy frame, cannot find instance.
   if (StackMgr.isTopDummyFrame()) {
     return nullptr;
   }
-  const auto *ModInst = *StoreMgr.getModule(StackMgr.getModuleAddr());
-  uint32_t DataAddr;
-  if (auto Res = ModInst->getDataAddr(Idx)) {
-    DataAddr = *Res;
-  } else {
-    return nullptr;
-  }
-  if (auto Res = StoreMgr.getData(DataAddr)) {
+  const auto *ModInst = StackMgr.getModule();
+  if (auto Res = ModInst->getData(Idx)) {
     return *Res;
   } else {
     return nullptr;

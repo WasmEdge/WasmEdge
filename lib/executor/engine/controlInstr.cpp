@@ -87,9 +87,8 @@ Expect<void> Executor::runCallOp(Runtime::StoreManager &StoreMgr,
                                  const AST::Instruction &Instr,
                                  AST::InstrView::iterator &PC) noexcept {
   // Get Function address.
-  const auto *ModInst = *StoreMgr.getModule(StackMgr.getModuleAddr());
-  const uint32_t FuncAddr = *ModInst->getFuncAddr(Instr.getTargetIndex());
-  const auto *FuncInst = *StoreMgr.getFunction(FuncAddr);
+  const auto *ModInst = StackMgr.getModule();
+  const auto *FuncInst = *ModInst->getFunc(Instr.getTargetIndex());
   if (auto Res = enterFunction(StoreMgr, StackMgr, *FuncInst, PC + 1); !Res) {
     return Unexpect(Res);
   } else {
@@ -102,11 +101,10 @@ Expect<void> Executor::runCallIndirectOp(
     Runtime::StoreManager &StoreMgr, Runtime::StackManager &StackMgr,
     const AST::Instruction &Instr, AST::InstrView::iterator &PC) noexcept {
   // Get Table Instance
-  const auto *TabInst =
-      getTabInstByIdx(StoreMgr, StackMgr, Instr.getSourceIndex());
+  const auto *TabInst = getTabInstByIdx(StackMgr, Instr.getSourceIndex());
 
   // Get function type at index x.
-  const auto *ModInst = *StoreMgr.getModule(StackMgr.getModuleAddr());
+  const auto *ModInst = StackMgr.getModule();
   const auto *TargetFuncType = *ModInst->getFuncType(Instr.getTargetIndex());
 
   // Pop the value i32.const i from the Stack.

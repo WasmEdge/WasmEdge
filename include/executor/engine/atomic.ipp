@@ -1,4 +1,3 @@
-#include "executor/engine/atomic_helper.h"
 #include "executor/executor.h"
 #include "runtime/instance/memory.h"
 
@@ -10,9 +9,9 @@ namespace Executor {
 template <typename T>
 TypeT<T> Executor::runAtomicWaitOp(Runtime::StackManager &StackMgr,
                                    Runtime::Instance::MemoryInstance &MemInst,
-                                   const AST::Instruction &Instr,
-                                   const uint32_t BitWidth) {
-  detail::atomicLock();
+                                   const AST::Instruction &Instr) {
+
+  const uint32_t BitWidth = sizeof(T) * 8;
   ValVariant Address = StackMgr.pop();
   ValVariant Val = StackMgr.pop();
   [[maybe_unused]] ValVariant Timeout = StackMgr.pop();
@@ -27,221 +26,219 @@ TypeT<T> Executor::runAtomicWaitOp(Runtime::StackManager &StackMgr,
     StackMgr.push(ValVariant(1));
   }
   // TODO: Implement Timeout
-  detail::atomicUnlock();
   return {};
 }
 
-template <typename T>
+template <typename T, typename I>
 TypeT<T> Executor::runAtomicLoadOp(Runtime::StackManager &StackMgr,
                                    Runtime::Instance::MemoryInstance &MemInst,
-                                   const AST::Instruction &Instr,
-                                   const uint32_t BitWidth) {
-  detail::atomicLock();
+                                   const AST::Instruction &Instr) {
+
+  const uint32_t BitWidth = sizeof(I) * 8;
   ValVariant &Address = StackMgr.getTop();
   if ((Address.get<uint32_t>() & ((BitWidth >> 3U) - 1)) != 0) {
     spdlog::error(ErrCode::UnalignedAtomicAccess);
     spdlog::error(
         ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
-    detail::atomicUnlock();
     return Unexpect(ErrCode::UnalignedAtomicAccess);
   }
   runLoadOp<T>(StackMgr, MemInst, Instr, BitWidth);
-  detail::atomicUnlock();
   return {};
 }
 
-template <typename T>
+template <typename T, typename I>
 TypeT<T> Executor::runAtomicStoreOp(Runtime::StackManager &StackMgr,
                                     Runtime::Instance::MemoryInstance &MemInst,
-                                    const AST::Instruction &Instr,
-                                    const uint32_t BitWidth) {
-  detail::atomicLock();
+                                    const AST::Instruction &Instr) {
+
+  const uint32_t BitWidth = sizeof(I) * 8;
   ValVariant &Address = StackMgr.getBottomN(2);
   if ((Address.get<uint32_t>() & ((BitWidth >> 3U) - 1)) != 0) {
     spdlog::error(ErrCode::UnalignedAtomicAccess);
     spdlog::error(
         ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
-    detail::atomicUnlock();
     return Unexpect(ErrCode::UnalignedAtomicAccess);
   }
   typedef typename std::make_unsigned<T>::type UT;
   runStoreOp<UT>(StackMgr, MemInst, Instr, BitWidth);
-  detail::atomicUnlock();
   return {};
 }
 
-template <typename T>
+template <typename T, typename I>
 TypeT<T> Executor::runAtomicAddOp(Runtime::StackManager &StackMgr,
                                   Runtime::Instance::MemoryInstance &MemInst,
-                                  const AST::Instruction &Instr,
-                                  const uint32_t BitWidth) {
-  detail::atomicLock();
-  ValVariant RHS = StackMgr.pop();
-  ValVariant Address = StackMgr.getTop();
-  if ((Address.get<uint32_t>() & ((BitWidth >> 3U) - 1)) != 0) {
+                                  const AST::Instruction &Instr) {
+  const uint32_t BitWidth = sizeof(I) * 8;
+  ValVariant RawValue = StackMgr.pop();
+  ValVariant RawAddress = StackMgr.pop();
+  int32_t Address = RawAddress.get<int32_t>();
+  if ((Address & ((BitWidth >> 3U) - 1)) != 0) {
     spdlog::error(ErrCode::UnalignedAtomicAccess);
     spdlog::error(
         ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
-    detail::atomicUnlock();
     return Unexpect(ErrCode::UnalignedAtomicAccess);
   }
-  runLoadOp<T>(StackMgr, MemInst, Instr, BitWidth);
 
-  typedef typename std::make_unsigned<T>::type UT;
-  ValVariant Loaded = StackMgr.getTop();
-  ValVariant &Val = StackMgr.getTop();
-  runAddOp<UT>(Val, RHS);
+  // make sure the address no OOB with size I
+  I *RawPointer = MemInst.getPointer<I *>(Address);
+  if (!RawPointer) {
+    spdlog::error(ErrCode::MemoryOutOfBounds);
+    spdlog::error(
+        ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
+    return Unexpect(ErrCode::MemoryOutOfBounds);
+  }
+  auto *AtomicObj =
+      static_cast<std::atomic<I> *>(reinterpret_cast<void *>(RawPointer));
+  I Value = static_cast<I>(RawValue.get<T>());
 
-  ValVariant Result = StackMgr.pop();
-  StackMgr.push(Address);
-  StackMgr.push(Result);
-  runStoreOp<UT>(StackMgr, MemInst, Instr, BitWidth);
-
-  StackMgr.push(Loaded);
-  detail::atomicUnlock();
+  I Return = AtomicObj->fetch_add(Value, std::memory_order_acquire);
+  StackMgr.push(static_cast<T>(Return));
   return {};
 }
 
-template <typename T>
+template <typename T, typename I>
 TypeT<T> Executor::runAtomicSubOp(Runtime::StackManager &StackMgr,
                                   Runtime::Instance::MemoryInstance &MemInst,
-                                  const AST::Instruction &Instr,
-                                  const uint32_t BitWidth) {
-  detail::atomicLock();
-  ValVariant RHS = StackMgr.pop();
-  ValVariant Address = StackMgr.getTop();
-  if ((Address.get<uint32_t>() & ((BitWidth >> 3U) - 1)) != 0) {
+                                  const AST::Instruction &Instr) {
+  const uint32_t BitWidth = sizeof(I) * 8;
+  ValVariant RawValue = StackMgr.pop();
+  ValVariant RawAddress = StackMgr.pop();
+  int32_t Address = RawAddress.get<int32_t>();
+  if ((Address & ((BitWidth >> 3U) - 1)) != 0) {
     spdlog::error(ErrCode::UnalignedAtomicAccess);
     spdlog::error(
         ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
-    detail::atomicUnlock();
     return Unexpect(ErrCode::UnalignedAtomicAccess);
   }
-  runLoadOp<T>(StackMgr, MemInst, Instr, BitWidth);
 
-  typedef typename std::make_unsigned<T>::type UT;
-  ValVariant Loaded = StackMgr.getTop();
-  ValVariant &Val = StackMgr.getTop();
-  runSubOp<UT>(Val, RHS);
+  // make sure the address no OOB with size I
+  I *RawPointer = MemInst.getPointer<I *>(Address);
+  if (!RawPointer) {
+    spdlog::error(ErrCode::MemoryOutOfBounds);
+    spdlog::error(
+        ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
+    return Unexpect(ErrCode::MemoryOutOfBounds);
+  }
+  auto *AtomicObj =
+      static_cast<std::atomic<I> *>(reinterpret_cast<void *>(RawPointer));
+  I Value = static_cast<I>(RawValue.get<T>());
 
-  ValVariant Result = StackMgr.pop();
-  StackMgr.push(Address);
-  StackMgr.push(Result);
-  runStoreOp<UT>(StackMgr, MemInst, Instr, BitWidth);
-
-  StackMgr.push(Loaded);
-  detail::atomicUnlock();
+  I Return = AtomicObj->fetch_sub(Value, std::memory_order_acquire);
+  StackMgr.push(static_cast<T>(Return));
   return {};
 }
 
-template <typename T>
+template <typename T, typename I>
 TypeT<T> Executor::runAtomicOrOp(Runtime::StackManager &StackMgr,
                                  Runtime::Instance::MemoryInstance &MemInst,
-                                 const AST::Instruction &Instr,
-                                 const uint32_t BitWidth) {
-  detail::atomicLock();
-  ValVariant RHS = StackMgr.pop();
-  ValVariant Address = StackMgr.getTop();
-  if ((Address.get<uint32_t>() & ((BitWidth >> 3U) - 1)) != 0) {
+                                 const AST::Instruction &Instr) {
+  const uint32_t BitWidth = sizeof(I) * 8;
+  ValVariant RawValue = StackMgr.pop();
+  ValVariant RawAddress = StackMgr.pop();
+  int32_t Address = RawAddress.get<int32_t>();
+  if ((Address & ((BitWidth >> 3U) - 1)) != 0) {
     spdlog::error(ErrCode::UnalignedAtomicAccess);
     spdlog::error(
         ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
-    detail::atomicUnlock();
     return Unexpect(ErrCode::UnalignedAtomicAccess);
   }
-  runLoadOp<T>(StackMgr, MemInst, Instr, BitWidth);
 
-  typedef typename std::make_unsigned<T>::type UT;
-  ValVariant Loaded = StackMgr.getTop();
-  ValVariant &Val = StackMgr.getTop();
-  runOrOp<UT>(Val, RHS);
+  // make sure the address no OOB with size I
+  I *RawPointer = MemInst.getPointer<I *>(Address);
+  if (!RawPointer) {
+    spdlog::error(ErrCode::MemoryOutOfBounds);
+    spdlog::error(
+        ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
+    return Unexpect(ErrCode::MemoryOutOfBounds);
+  }
+  auto *AtomicObj =
+      static_cast<std::atomic<I> *>(reinterpret_cast<void *>(RawPointer));
+  I Value = static_cast<I>(RawValue.get<T>());
 
-  ValVariant Result = StackMgr.pop();
-  StackMgr.push(Address);
-  StackMgr.push(Result);
-  runStoreOp<UT>(StackMgr, MemInst, Instr, BitWidth);
-
-  StackMgr.push(Loaded);
-  detail::atomicUnlock();
+  I Return = AtomicObj->fetch_or(Value, std::memory_order_acquire);
+  StackMgr.push(static_cast<T>(Return));
   return {};
 }
 
-template <typename T>
+template <typename T, typename I>
 TypeT<T> Executor::runAtomicAndOp(Runtime::StackManager &StackMgr,
                                   Runtime::Instance::MemoryInstance &MemInst,
-                                  const AST::Instruction &Instr,
-                                  const uint32_t BitWidth) {
-  detail::atomicLock();
-  ValVariant RHS = StackMgr.pop();
-  ValVariant Address = StackMgr.getTop();
-  if ((Address.get<uint32_t>() & ((BitWidth >> 3U) - 1)) != 0) {
+                                  const AST::Instruction &Instr) {
+  const uint32_t BitWidth = sizeof(I) * 8;
+  ValVariant RawValue = StackMgr.pop();
+  ValVariant RawAddress = StackMgr.pop();
+  int32_t Address = RawAddress.get<int32_t>();
+  if ((Address & ((BitWidth >> 3U) - 1)) != 0) {
     spdlog::error(ErrCode::UnalignedAtomicAccess);
     spdlog::error(
         ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
-    detail::atomicUnlock();
     return Unexpect(ErrCode::UnalignedAtomicAccess);
   }
-  runLoadOp<T>(StackMgr, MemInst, Instr, BitWidth);
 
-  typedef typename std::make_unsigned<T>::type UT;
-  ValVariant Loaded = StackMgr.getTop();
-  ValVariant &Val = StackMgr.getTop();
-  runAndOp<UT>(Val, RHS);
+  // make sure the address no OOB with size I
+  I *RawPointer = MemInst.getPointer<I *>(Address);
+  if (!RawPointer) {
+    spdlog::error(ErrCode::MemoryOutOfBounds);
+    spdlog::error(
+        ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
+    return Unexpect(ErrCode::MemoryOutOfBounds);
+  }
+  auto *AtomicObj =
+      static_cast<std::atomic<I> *>(reinterpret_cast<void *>(RawPointer));
+  I Value = static_cast<I>(RawValue.get<T>());
 
-  ValVariant Result = StackMgr.pop();
-  StackMgr.push(Address);
-  StackMgr.push(Result);
-  runStoreOp<UT>(StackMgr, MemInst, Instr, BitWidth);
-
-  StackMgr.push(Loaded);
-  detail::atomicUnlock();
+  I Return = AtomicObj->fetch_and(Value, std::memory_order_acquire);
+  StackMgr.push(static_cast<T>(Return));
   return {};
 }
 
-template <typename T>
+template <typename T, typename I>
 TypeT<T> Executor::runAtomicXorOp(Runtime::StackManager &StackMgr,
                                   Runtime::Instance::MemoryInstance &MemInst,
-                                  const AST::Instruction &Instr,
-                                  const uint32_t BitWidth) {
-  detail::atomicLock();
-  ValVariant RHS = StackMgr.pop();
-  ValVariant Address = StackMgr.getTop();
-  if ((Address.get<uint32_t>() & ((BitWidth >> 3U) - 1)) != 0) {
+                                  const AST::Instruction &Instr) {
+  const uint32_t BitWidth = sizeof(I) * 8;
+  ValVariant RawValue = StackMgr.pop();
+  ValVariant RawAddress = StackMgr.pop();
+  int32_t Address = RawAddress.get<int32_t>();
+  if ((Address & ((BitWidth >> 3U) - 1)) != 0) {
     spdlog::error(ErrCode::UnalignedAtomicAccess);
     spdlog::error(
         ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
-    detail::atomicUnlock();
     return Unexpect(ErrCode::UnalignedAtomicAccess);
   }
-  runLoadOp<T>(StackMgr, MemInst, Instr, BitWidth);
 
-  typedef typename std::make_unsigned<T>::type UT;
-  ValVariant Loaded = StackMgr.getTop();
-  ValVariant &Val = StackMgr.getTop();
-  runXorOp<UT>(Val, RHS);
+  // make sure the address no OOB with size I
+  I *RawPointer = MemInst.getPointer<I *>(Address);
+  if (!RawPointer) {
+    spdlog::error(ErrCode::MemoryOutOfBounds);
+    spdlog::error(
+        ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
+    return Unexpect(ErrCode::MemoryOutOfBounds);
+  }
+  auto *AtomicObj =
+      static_cast<std::atomic<I> *>(reinterpret_cast<void *>(RawPointer));
+  I Value = static_cast<I>(RawValue.get<T>());
 
-  ValVariant Result = StackMgr.pop();
-  StackMgr.push(Address);
-  StackMgr.push(Result);
-  runStoreOp<UT>(StackMgr, MemInst, Instr, BitWidth);
-
-  StackMgr.push(Loaded);
-  detail::atomicUnlock();
+  I Return = AtomicObj->fetch_xor(Value, std::memory_order_acquire);
+  StackMgr.push(static_cast<T>(Return));
   return {};
 }
 
-template <typename T>
-TypeT<T> Executor::runAtomicExchangeOp(
-    Runtime::StackManager &StackMgr, Runtime::Instance::MemoryInstance &MemInst,
-    const AST::Instruction &Instr, const uint32_t BitWidth) {
-  detail::atomicLock();
+// ------------------------
+
+template <typename T, typename I>
+TypeT<T>
+Executor::runAtomicExchangeOp(Runtime::StackManager &StackMgr,
+                              Runtime::Instance::MemoryInstance &MemInst,
+                              const AST::Instruction &Instr) {
+
+  const uint32_t BitWidth = sizeof(I) * 8;
   ValVariant RHS = StackMgr.pop();
   ValVariant Address = StackMgr.getTop();
   if ((Address.get<uint32_t>() & ((BitWidth >> 3U) - 1)) != 0) {
     spdlog::error(ErrCode::UnalignedAtomicAccess);
     spdlog::error(
         ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
-    detail::atomicUnlock();
     return Unexpect(ErrCode::UnalignedAtomicAccess);
   }
   runLoadOp<T>(StackMgr, MemInst, Instr, BitWidth);
@@ -253,15 +250,16 @@ TypeT<T> Executor::runAtomicExchangeOp(
   runStoreOp<UT>(StackMgr, MemInst, Instr, BitWidth);
 
   StackMgr.push(Loaded);
-  detail::atomicUnlock();
   return {};
 }
 
-template <typename T>
-TypeT<T> Executor::runAtomicCompareExchangeOp(
-    Runtime::StackManager &StackMgr, Runtime::Instance::MemoryInstance &MemInst,
-    const AST::Instruction &Instr, const uint32_t BitWidth) {
-  detail::atomicLock();
+template <typename T, typename I>
+TypeT<T>
+Executor::runAtomicCompareExchangeOp(Runtime::StackManager &StackMgr,
+                                     Runtime::Instance::MemoryInstance &MemInst,
+                                     const AST::Instruction &Instr) {
+
+  const uint32_t BitWidth = sizeof(I) * 8;
   ValVariant Val = StackMgr.pop();
   ValVariant Cmp = StackMgr.pop();
   ValVariant Address = StackMgr.getTop();
@@ -269,7 +267,6 @@ TypeT<T> Executor::runAtomicCompareExchangeOp(
     spdlog::error(ErrCode::UnalignedAtomicAccess);
     spdlog::error(
         ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
-    detail::atomicUnlock();
     return Unexpect(ErrCode::UnalignedAtomicAccess);
   }
   runLoadOp<T>(StackMgr, MemInst, Instr, BitWidth);
@@ -283,7 +280,6 @@ TypeT<T> Executor::runAtomicCompareExchangeOp(
   }
 
   StackMgr.push(Loaded);
-  detail::atomicUnlock();
   return {};
 }
 

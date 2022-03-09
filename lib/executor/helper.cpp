@@ -168,11 +168,11 @@ Expect<void> Executor::branchToLabel(Runtime::StackManager &StackMgr,
 Runtime::Instance::TableInstance *
 Executor::getTabInstByIdx(Runtime::StackManager &StackMgr,
                           const uint32_t Idx) const {
+  const auto *ModInst = StackMgr.getModule();
   // When top frame is dummy frame, cannot find instance.
-  if (StackMgr.isTopDummyFrame()) {
+  if (unlikely(ModInst == nullptr)) {
     return nullptr;
   }
-  const auto *ModInst = StackMgr.getModule();
   if (auto Res = ModInst->getTable(Idx)) {
     return *Res;
   } else {
@@ -183,11 +183,11 @@ Executor::getTabInstByIdx(Runtime::StackManager &StackMgr,
 Runtime::Instance::MemoryInstance *
 Executor::getMemInstByIdx(Runtime::StackManager &StackMgr,
                           const uint32_t Idx) const {
+  const auto *ModInst = StackMgr.getModule();
   // When top frame is dummy frame, cannot find instance.
-  if (StackMgr.isTopDummyFrame()) {
+  if (unlikely(ModInst == nullptr)) {
     return nullptr;
   }
-  const auto *ModInst = StackMgr.getModule();
   if (auto Res = ModInst->getMemory(Idx)) {
     return *Res;
   } else {
@@ -198,11 +198,11 @@ Executor::getMemInstByIdx(Runtime::StackManager &StackMgr,
 Runtime::Instance::GlobalInstance *
 Executor::getGlobInstByIdx(Runtime::StackManager &StackMgr,
                            const uint32_t Idx) const {
+  const auto *ModInst = StackMgr.getModule();
   // When top frame is dummy frame, cannot find instance.
-  if (StackMgr.isTopDummyFrame()) {
+  if (unlikely(ModInst == nullptr)) {
     return nullptr;
   }
-  const auto *ModInst = StackMgr.getModule();
   if (auto Res = ModInst->getGlobal(Idx)) {
     return *Res;
   } else {
@@ -213,11 +213,11 @@ Executor::getGlobInstByIdx(Runtime::StackManager &StackMgr,
 Runtime::Instance::ElementInstance *
 Executor::getElemInstByIdx(Runtime::StackManager &StackMgr,
                            const uint32_t Idx) const {
+  const auto *ModInst = StackMgr.getModule();
   // When top frame is dummy frame, cannot find instance.
-  if (StackMgr.isTopDummyFrame()) {
+  if (unlikely(ModInst == nullptr)) {
     return nullptr;
   }
-  const auto *ModInst = StackMgr.getModule();
   if (auto Res = ModInst->getElem(Idx)) {
     return *Res;
   } else {
@@ -228,11 +228,11 @@ Executor::getElemInstByIdx(Runtime::StackManager &StackMgr,
 Runtime::Instance::DataInstance *
 Executor::getDataInstByIdx(Runtime::StackManager &StackMgr,
                            const uint32_t Idx) const {
+  const auto *ModInst = StackMgr.getModule();
   // When top frame is dummy frame, cannot find instance.
-  if (StackMgr.isTopDummyFrame()) {
+  if (unlikely(ModInst == nullptr)) {
     return nullptr;
   }
-  const auto *ModInst = StackMgr.getModule();
   if (auto Res = ModInst->getData(Idx)) {
     return *Res;
   } else {

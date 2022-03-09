@@ -27,13 +27,12 @@ public:
   struct Frame {
     Frame() = delete;
     Frame(Instance::ModuleInstance *Mod, uint32_t L, uint32_t A,
-          AST::InstrView::iterator FromIt, const bool Dummy = false) noexcept
-        : Module(Mod), Locals(L), Arity(A), From(FromIt), IsDummy(Dummy) {}
+          AST::InstrView::iterator FromIt) noexcept
+        : Module(Mod), Locals(L), Arity(A), From(FromIt) {}
     Instance::ModuleInstance *Module;
     uint32_t Locals;
     uint32_t Arity;
     AST::InstrView::iterator From;
-    bool IsDummy;
   };
 
   using Value = ValVariant;
@@ -83,12 +82,6 @@ public:
     FrameStack.emplace_back(Module, LocalNum, Arity, From);
   }
 
-  /// Push a dummy frame for invokation base.
-  void pushDummyFrame() noexcept {
-    FrameStack.emplace_back(nullptr, ValueStack.size(), 0,
-                            AST::InstrView::iterator{}, true);
-  }
-
   /// Unsafe pop top frame.
   AST::InstrView::iterator popFrame() noexcept {
     assuming(!FrameStack.empty());
@@ -122,12 +115,6 @@ public:
   Instance::ModuleInstance *getModule() const noexcept {
     assuming(!FrameStack.empty());
     return FrameStack.back().Module;
-  }
-
-  /// Unsafe checker of top frame is a dummy frame.
-  bool isTopDummyFrame() const noexcept {
-    assuming(!FrameStack.empty());
-    return FrameStack.back().IsDummy;
   }
 
   /// Reset stack.

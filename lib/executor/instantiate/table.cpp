@@ -15,13 +15,13 @@ Expect<void> Executor::instantiate(Runtime::StoreManager &StoreMgr,
   // Iterate and instantiate table types.
   for (const auto &TabType : TabSec.getContent()) {
     // Insert table instance to store manager.
-    uint32_t NewTabInstAddr;
+    Runtime::Instance::TableInstance *TabInst = nullptr;
     if (InsMode == InstantiateMode::Instantiate) {
-      NewTabInstAddr = StoreMgr.pushTable(TabType);
+      TabInst = StoreMgr.pushTable(TabType);
     } else {
-      NewTabInstAddr = StoreMgr.importTable(TabType);
+      TabInst = StoreMgr.importTable(TabType);
     }
-    ModInst.addTableAddr(NewTabInstAddr);
+    ModInst.addTable(TabInst);
   }
   return {};
 }

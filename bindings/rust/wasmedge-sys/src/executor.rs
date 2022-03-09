@@ -28,14 +28,14 @@ impl Executor {
     /// # Error
     ///
     /// If fail to create a [`Executor`], then an error is returned.
-    pub fn create(config: Option<Config>, stat: Option<Statistics>) -> WasmEdgeResult<Self> {
+    pub fn create(config: Option<Config>, stat: Option<&Statistics>) -> WasmEdgeResult<Self> {
         let ctx = match config {
             Some(mut config) => match stat {
-                Some(mut stat) => {
+                Some(stat) => {
                     let ctx =
                         unsafe { wasmedge::WasmEdge_ExecutorCreate(config.inner.0, stat.inner.0) };
                     config.inner.0 = std::ptr::null_mut();
-                    stat.inner.0 = std::ptr::null_mut();
+                    // stat.inner.0 = std::ptr::null_mut();
                     ctx
                 }
                 None => {
@@ -47,11 +47,11 @@ impl Executor {
                 }
             },
             None => match stat {
-                Some(mut stat) => {
+                Some(stat) => {
                     let ctx = unsafe {
                         wasmedge::WasmEdge_ExecutorCreate(std::ptr::null_mut(), stat.inner.0)
                     };
-                    stat.inner.0 = std::ptr::null_mut();
+                    // stat.inner.0 = std::ptr::null_mut();
                     ctx
                 }
                 None => unsafe {
@@ -313,7 +313,7 @@ mod tests {
             let result = Statistics::create();
             assert!(result.is_ok());
             let stat = result.unwrap();
-            let result = Executor::create(None, Some(stat));
+            let result = Executor::create(None, Some(&stat));
             assert!(result.is_ok());
             let executor = result.unwrap();
             assert!(!executor.inner.0.is_null());
@@ -329,7 +329,7 @@ mod tests {
             assert!(result.is_ok());
             let stat = result.unwrap();
 
-            let result = Executor::create(Some(config), Some(stat));
+            let result = Executor::create(Some(config), Some(&stat));
             assert!(result.is_ok());
             let executor = result.unwrap();
             assert!(!executor.inner.0.is_null());
@@ -347,7 +347,7 @@ mod tests {
         assert!(result.is_ok());
         let stat = result.unwrap();
 
-        let result = Executor::create(Some(config), Some(stat));
+        let result = Executor::create(Some(config), Some(&stat));
         assert!(result.is_ok());
         let executor = result.unwrap();
         assert!(!executor.inner.0.is_null());
@@ -371,7 +371,7 @@ mod tests {
         assert!(result.is_ok());
         let stat = result.unwrap();
 
-        let result = Executor::create(Some(config), Some(stat));
+        let result = Executor::create(Some(config), Some(&stat));
         assert!(result.is_ok());
         let executor = Arc::new(Mutex::new(result.unwrap()));
 

@@ -201,6 +201,9 @@ public:
       // Error logging need to be handled in caller.
       return Unexpect(ErrCode::WrongInstanceIndex);
     }
+    return unsafeGetTable(Idx);
+  }
+  TableInstance *unsafeGetTable(const uint32_t Idx) const {
     return TabInsts[Idx];
   }
   Expect<MemoryInstance *> getMemory(const uint32_t Idx) const {
@@ -209,6 +212,9 @@ public:
       // Error logging need to be handled in caller.
       return Unexpect(ErrCode::WrongInstanceIndex);
     }
+    return unsafeGetMemory(Idx);
+  }
+  MemoryInstance *unsafeGetMemory(const uint32_t Idx) const {
     return MemInsts[Idx];
   }
   Expect<GlobalInstance *> getGlobal(const uint32_t Idx) const {
@@ -217,6 +223,9 @@ public:
       // Error logging need to be handled in caller.
       return Unexpect(ErrCode::WrongInstanceIndex);
     }
+    return unsafeGetGlobal(Idx);
+  }
+  GlobalInstance *unsafeGetGlobal(const uint32_t Idx) const {
     return GlobInsts[Idx];
   }
   Expect<ElementInstance *> getElem(const uint32_t Idx) const {
@@ -225,6 +234,9 @@ public:
       // Error logging need to be handled in caller.
       return Unexpect(ErrCode::WrongInstanceIndex);
     }
+    return unsafeGetElem(Idx);
+  }
+  ElementInstance *unsafeGetElem(const uint32_t Idx) const {
     return ElemInsts[Idx];
   }
   Expect<DataInstance *> getData(const uint32_t Idx) const {
@@ -233,6 +245,9 @@ public:
       // Error logging need to be handled in caller.
       return Unexpect(ErrCode::WrongInstanceIndex);
     }
+    return unsafeGetData(Idx);
+  }
+  DataInstance *unsafeGetData(const uint32_t Idx) const {
     return DataInsts[Idx];
   }
 

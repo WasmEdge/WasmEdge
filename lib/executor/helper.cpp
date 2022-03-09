@@ -36,7 +36,13 @@ Executor::enterFunction(Runtime::StoreManager &StoreMgr,
     // Get memory instance from current frame.
     // It'll be nullptr if current frame is dummy frame or no memory instance
     // in current module.
-    auto *MemoryInst = getMemInstByIdx(StackMgr, 0);
+    const auto *ModInst = StackMgr.getModule();
+    Runtime::Instance::MemoryInstance *MemoryInst = nullptr;
+    if (ModInst != nullptr) {
+      if (auto Res = ModInst->getMemory(0); Res) {
+        MemoryInst = *Res;
+      }
+    }
 
     if (Stat) {
       // Check host function cost.
@@ -173,11 +179,7 @@ Executor::getTabInstByIdx(Runtime::StackManager &StackMgr,
   if (unlikely(ModInst == nullptr)) {
     return nullptr;
   }
-  if (auto Res = ModInst->getTable(Idx)) {
-    return *Res;
-  } else {
-    return nullptr;
-  }
+  return ModInst->unsafeGetTable(Idx);
 }
 
 Runtime::Instance::MemoryInstance *
@@ -188,11 +190,7 @@ Executor::getMemInstByIdx(Runtime::StackManager &StackMgr,
   if (unlikely(ModInst == nullptr)) {
     return nullptr;
   }
-  if (auto Res = ModInst->getMemory(Idx)) {
-    return *Res;
-  } else {
-    return nullptr;
-  }
+  return ModInst->unsafeGetMemory(Idx);
 }
 
 Runtime::Instance::GlobalInstance *
@@ -203,11 +201,7 @@ Executor::getGlobInstByIdx(Runtime::StackManager &StackMgr,
   if (unlikely(ModInst == nullptr)) {
     return nullptr;
   }
-  if (auto Res = ModInst->getGlobal(Idx)) {
-    return *Res;
-  } else {
-    return nullptr;
-  }
+  return ModInst->unsafeGetGlobal(Idx);
 }
 
 Runtime::Instance::ElementInstance *
@@ -218,11 +212,7 @@ Executor::getElemInstByIdx(Runtime::StackManager &StackMgr,
   if (unlikely(ModInst == nullptr)) {
     return nullptr;
   }
-  if (auto Res = ModInst->getElem(Idx)) {
-    return *Res;
-  } else {
-    return nullptr;
-  }
+  return ModInst->unsafeGetElem(Idx);
 }
 
 Runtime::Instance::DataInstance *
@@ -233,11 +223,7 @@ Executor::getDataInstByIdx(Runtime::StackManager &StackMgr,
   if (unlikely(ModInst == nullptr)) {
     return nullptr;
   }
-  if (auto Res = ModInst->getData(Idx)) {
-    return *Res;
-  } else {
-    return nullptr;
-  }
+  return ModInst->unsafeGetData(Idx);
 }
 
 } // namespace Executor

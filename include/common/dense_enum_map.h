@@ -48,7 +48,7 @@ public:
 
   constexpr DenseEnumMap(
       const std::pair<Key, std::string_view> (&Array)[Size]) noexcept {
-    for (size_type I = 0; I < Size - 1; ++I) {
+    for (size_type I = 0; I < Size; ++I) {
       Data[static_cast<size_type>(Array[I].first)] = Array[I].second;
     }
   }

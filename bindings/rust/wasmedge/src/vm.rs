@@ -6,25 +6,74 @@ use std::{marker::PhantomData, path::Path};
 
 #[derive(Debug)]
 pub struct Vm {
-    pub(crate) inner: wasmedge::Vm,
+    // pub(crate) inner: wasmedge::Vm,
+    inner_config: wasmedge::Config,
+    inner_store: wasmedge::Store,
+    inner_loader: wasmedge::Loader,
+    inner_validator: wasmedge::Validator,
+    inner_executor: wasmedge::Executor,
+    inner_statistics: wasmedge::Statistics,
 }
 impl Vm {
     pub fn new(config: Option<Config>) -> Result<Self> {
-        let config = match config {
-            Some(config) => Some(config.inner),
-            None => None,
+        let inner_config = match config {
+            Some(config) => config.inner,
+            None => wasmedge::Config::create()?,
         };
 
-        let inner = wasmedge::Vm::create(config, None)?;
-        Ok(Self { inner })
+        // create an inner store
+        let inner_store = wasmedge::Store::create()?;
+
+        // create an inner loader
+        let inner_config_copied = wasmedge::Config::copy_from(&inner_config)?;
+        let inner_loader = wasmedge::Loader::create(Some(inner_config_copied))?;
+
+        // create an inner validator
+        let inner_config_copied = wasmedge::Config::copy_from(&inner_config)?;
+        let inner_validator = wasmedge::Validator::create(Some(inner_config_copied))?;
+
+        // create an inner statistics
+        let inner_statistics = wasmedge::Statistics::create()?;
+
+        // create an inner executor
+        let inner_config_copied = wasmedge::Config::copy_from(&inner_config)?;
+        let mut inner_executor =
+            wasmedge::Executor::create(Some(inner_config_copied), Some(&inner_statistics))?;
+
+        // init vm
+        if inner_config.wasi_enabled() {
+            let wasi_mod = ImportMod::new_wasi(None, None, None)?;
+            inner_executor =
+                inner_executor.register_import_object(&mut inner_store, wasi_mod.inner)?;
+        }
+        if inner_config.wasmedge_process_enabled() {
+            let proc_mod = ImportMod::new_wasmedge_process(None, false)?;
+            inner_executor =
+                inner_executor.register_import_object(&mut inner_store, proc_mod.inner)?;
+        }
+
+        Ok(Self {
+            inner_config,
+            inner_store,
+            inner_loader,
+            inner_validator,
+            inner_executor,
+            inner_statistics,
+        })
     }
 
-    pub fn store_mut(&self) -> Result<Store> {
-        let inner = self.inner.store_mut()?;
-        Ok(Store {
-            inner,
+    pub fn store_mut(&self) -> Store {
+        Store {
+            inner: self.inner_store,
             _marker: PhantomData,
-        })
+        }
+    }
+
+    pub fn statistics_mut(&self) -> Statistics {
+        Statistics {
+            inner: self.inner_statistics,
+            _marker: PhantomData,
+        }
     }
 
     pub fn wasmedge_process_module(&mut self) -> Result<WasmEdgeProcessImportMod> {
@@ -38,14 +87,6 @@ impl Vm {
     pub fn wasi_module(&mut self) -> Result<WasiImportMod> {
         let inner = self.inner.wasi_import_module_mut()?;
         Ok(WasiImportMod {
-            inner,
-            _marker: PhantomData,
-        })
-    }
-
-    pub fn statistics_mut(&self) -> Result<Statistics> {
-        let inner = self.inner.statistics_mut()?;
-        Ok(Statistics {
             inner,
             _marker: PhantomData,
         })

@@ -39,14 +39,13 @@ impl Vm {
     /// # Error
     ///
     /// If fail to create, then an error is returned.
-    pub fn create(config: Option<Config>, store: Option<Store>) -> WasmEdgeResult<Self> {
+    pub fn create(config: Option<Config>, store: Option<&mut Store>) -> WasmEdgeResult<Self> {
         let ctx = match config {
             Some(mut config) => {
                 let vm_ctx = match store {
-                    Some(mut store) => {
+                    Some(store) => {
                         let vm_ctx =
                             unsafe { wasmedge::WasmEdge_VMCreate(config.inner.0, store.inner.0) };
-                        store.inner.0 = std::ptr::null_mut();
                         vm_ctx
                     }
                     None => unsafe {
@@ -57,10 +56,9 @@ impl Vm {
                 vm_ctx
             }
             None => match store {
-                Some(mut store) => {
+                Some(store) => {
                     let vm_ctx =
                         unsafe { wasmedge::WasmEdge_VMCreate(std::ptr::null_mut(), store.inner.0) };
-                    store.inner.0 = std::ptr::null_mut();
                     vm_ctx
                 }
                 None => unsafe {
@@ -873,10 +871,10 @@ mod tests {
             // create a Store context
             let result = Store::create();
             assert!(result.is_ok(), "Failed to create Store instance");
-            let store = result.unwrap();
+            let mut store = result.unwrap();
 
             // create a Vm context with the given Config and Store
-            let result = Vm::create(Some(config), Some(store));
+            let result = Vm::create(Some(config), Some(&mut store));
             assert!(result.is_ok());
             let vm = result.unwrap();
             assert!(!vm.inner.0.is_null());
@@ -949,10 +947,10 @@ mod tests {
             // create a Store context
             let result = Store::create();
             assert!(result.is_ok(), "Failed to create Store instance");
-            let store = result.unwrap();
+            let mut store = result.unwrap();
 
             // create a Vm context with the given Store
-            let result = Vm::create(None, Some(store));
+            let result = Vm::create(None, Some(&mut store));
             assert!(result.is_ok());
             let vm = result.unwrap();
             assert!(!vm.inner.0.is_null());
@@ -995,10 +993,10 @@ mod tests {
         // create Store instance
         let result = Store::create();
         assert!(result.is_ok(), "Failed to create Store instance");
-        let store = result.unwrap();
+        let mut store = result.unwrap();
 
         // create Vm instance
-        let result = Vm::create(Some(config), Some(store));
+        let result = Vm::create(Some(config), Some(&mut store));
         assert!(result.is_ok());
         let mut vm = result.unwrap();
 
@@ -1029,10 +1027,10 @@ mod tests {
         // create Store instance
         let result = Store::create();
         assert!(result.is_ok(), "Failed to create Store instance");
-        let store = result.unwrap();
+        let mut store = result.unwrap();
 
         // create Vm instance
-        let result = Vm::create(Some(config), Some(store));
+        let result = Vm::create(Some(config), Some(&mut store));
         assert!(result.is_ok());
         let mut vm = result.unwrap();
 
@@ -1067,10 +1065,10 @@ mod tests {
         // create a Store context
         let result = Store::create();
         assert!(result.is_ok(), "Failed to create Store instance");
-        let store = result.unwrap();
+        let mut store = result.unwrap();
 
         // create a Vm context with the given Config and Store
-        let result = Vm::create(Some(config), Some(store));
+        let result = Vm::create(Some(config), Some(&mut store));
         assert!(result.is_ok());
         let mut vm = result.unwrap();
 
@@ -1208,9 +1206,9 @@ mod tests {
 
         let result = Store::create();
         assert!(result.is_ok());
-        let store = result.unwrap();
+        let mut store = result.unwrap();
 
-        let result = Vm::create(Some(config), Some(store));
+        let result = Vm::create(Some(config), Some(&mut store));
         assert!(result.is_ok());
         let mut vm = result.unwrap();
 
@@ -1294,10 +1292,10 @@ mod tests {
         // create a Store context
         let result = Store::create();
         assert!(result.is_ok(), "Failed to create Store instance");
-        let store = result.unwrap();
+        let mut store = result.unwrap();
 
         // create a Vm context with the given Config and Store
-        let result = Vm::create(Some(config), Some(store));
+        let result = Vm::create(Some(config), Some(&mut store));
         assert!(result.is_ok());
         let mut vm = result.unwrap();
 
@@ -1328,10 +1326,10 @@ mod tests {
         // create a Store context
         let result = Store::create();
         assert!(result.is_ok(), "Failed to create Store instance");
-        let store = result.unwrap();
+        let mut store = result.unwrap();
 
         // create a Vm context with the given Config and Store
-        let result = Vm::create(Some(config), Some(store));
+        let result = Vm::create(Some(config), Some(&mut store));
         assert!(result.is_ok());
         let mut vm = result.unwrap();
 
@@ -1429,10 +1427,10 @@ mod tests {
         // create a Store context
         let result = Store::create();
         assert!(result.is_ok(), "Failed to create Store instance");
-        let store = result.unwrap();
+        let mut store = result.unwrap();
 
         // create a Vm context with the given Config and Store
-        let result = Vm::create(Some(config), Some(store));
+        let result = Vm::create(Some(config), Some(&mut store));
         assert!(result.is_ok());
         let mut vm = result.unwrap();
 
@@ -1487,10 +1485,10 @@ mod tests {
         // create a Store context
         let result = Store::create();
         assert!(result.is_ok(), "Failed to create Store instance");
-        let store = result.unwrap();
+        let mut store = result.unwrap();
 
         // create a Vm context with the given Config and Store
-        let result = Vm::create(Some(config), Some(store));
+        let result = Vm::create(Some(config), Some(&mut store));
         assert!(result.is_ok());
         let mut vm = result.unwrap();
 
@@ -1516,10 +1514,10 @@ mod tests {
         // create a Store context
         let result = Store::create();
         assert!(result.is_ok(), "Failed to create Store instance");
-        let store = result.unwrap();
+        let mut store = result.unwrap();
 
         // create a Vm context with the given Config and Store
-        let result = Vm::create(Some(config), Some(store));
+        let result = Vm::create(Some(config), Some(&mut store));
         assert!(result.is_ok());
         let mut vm = result.unwrap();
 
@@ -1576,10 +1574,10 @@ mod tests {
         // create a Store context
         let result = Store::create();
         assert!(result.is_ok(), "Failed to create Store instance");
-        let store = result.unwrap();
+        let mut store = result.unwrap();
 
         // create a Vm context with the given Config and Store
-        let result = Vm::create(Some(config), Some(store));
+        let result = Vm::create(Some(config), Some(&mut store));
         assert!(result.is_ok());
         let mut vm = result.unwrap();
 
@@ -1640,10 +1638,10 @@ mod tests {
         // create a Store context
         let result = Store::create();
         assert!(result.is_ok(), "Failed to create Store instance");
-        let store = result.unwrap();
+        let mut store = result.unwrap();
 
         // create a Vm context with the given Config and Store
-        let result = Vm::create(Some(config), Some(store));
+        let result = Vm::create(Some(config), Some(&mut store));
         assert!(result.is_ok());
         let mut vm = result.unwrap();
 
@@ -1694,10 +1692,10 @@ mod tests {
         // create a Store context
         let result = Store::create();
         assert!(result.is_ok(), "Failed to create Store instance");
-        let store = result.unwrap();
+        let mut store = result.unwrap();
 
         // create a Vm context with the given Config and Store
-        let result = Vm::create(Some(config), Some(store));
+        let result = Vm::create(Some(config), Some(&mut store));
         assert!(result.is_ok());
         let mut vm = result.unwrap();
         assert!(!vm.inner.0.is_null());
@@ -1727,10 +1725,10 @@ mod tests {
         // create a Store context
         let result = Store::create();
         assert!(result.is_ok(), "Failed to create Store instance");
-        let store = result.unwrap();
+        let mut store = result.unwrap();
 
         // create a Vm context with the given Config and Store
-        let result = Vm::create(Some(config), Some(store));
+        let result = Vm::create(Some(config), Some(&mut store));
         assert!(result.is_ok());
         let vm = Arc::new(Mutex::new(result.unwrap()));
 

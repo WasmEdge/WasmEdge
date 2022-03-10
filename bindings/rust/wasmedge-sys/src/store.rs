@@ -1061,10 +1061,10 @@ mod tests {
         // create a Store context
         let result = Store::create();
         assert!(result.is_ok(), "Failed to create Store instance");
-        let store = result.unwrap();
+        let mut store = result.unwrap();
 
         // create a Vm context with the given Config and Store
-        let result = Vm::create(Some(config), Some(store));
+        let result = Vm::create(Some(config), Some(&mut store));
         assert!(result.is_ok());
         let mut vm = result.unwrap();
 

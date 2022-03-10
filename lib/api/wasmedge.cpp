@@ -5,6 +5,7 @@
 
 #include "aot/compiler.h"
 #include "host/wasi/wasimodule.h"
+#include "host/wasi_nn/wasinnmodule.h"
 #include "plugin/plugin.h"
 #include "vm/vm.h"
 

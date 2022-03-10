@@ -104,7 +104,7 @@ mod tests {
     use super::*;
     use crate::{
         error::WasmEdgeError, wasmedge, Config, Mutability, RefType, SignatureBuilder, ValType,
-        Value,
+        Value, Vm,
     };
 
     #[test]
@@ -122,12 +122,10 @@ mod tests {
 
             // get WasmEdgeProcess module from vm
             let result = vm.wasmedge_process_module();
-            assert!(result.is_ok());
+            assert!(result.is_some());
 
             // get store from vm
-            let result = vm.store_mut();
-            assert!(result.is_ok());
-            let store = result.unwrap();
+            let store = vm.store_mut();
 
             // check registered modules
             assert_eq!(store.instance_count(), 1);
@@ -142,7 +140,7 @@ mod tests {
             assert!(result.is_ok());
             let import_process = result.unwrap();
 
-            let result = vm.add_import(import_process);
+            let result = vm.add_import(&import_process);
             assert!(result.is_err());
             assert_eq!(
                 result.unwrap_err(),
@@ -166,13 +164,7 @@ mod tests {
 
             // get WasmEdgeProcess module from vm
             let result = vm.wasmedge_process_module();
-            assert!(result.is_err());
-            assert_eq!(
-                result.unwrap_err(),
-                WasmEdgeError::Operation(wasmedge::error::WasmEdgeError::Vm(
-                    wasmedge::error::VmError::NotFoundWasmEdgeProcessImportObjectModule
-                ))
-            );
+            assert!(result.is_none());
 
             // *** try to add a WasmEdgeProcess module.
 
@@ -191,24 +183,16 @@ mod tests {
             let host_func = result.unwrap();
             import_process.add_func("add", host_func);
 
-            let result = vm.add_import(import_process);
+            let result = vm.add_import(&import_process);
             assert!(result.is_ok());
             let mut vm = result.unwrap();
 
             // get the WasmEdgeProcess module
             let result = vm.wasmedge_process_module();
-            assert!(result.is_err());
-            assert_eq!(
-                result.unwrap_err(),
-                WasmEdgeError::Operation(wasmedge::error::WasmEdgeError::Vm(
-                    wasmedge::error::VmError::NotFoundWasmEdgeProcessImportObjectModule
-                ))
-            );
+            assert!(result.is_none());
 
             // get store from vm
-            let result = vm.store_mut();
-            assert!(result.is_ok());
-            let store = result.unwrap();
+            let store = vm.store_mut();
 
             // check registered modules
             assert_eq!(store.instance_count(), 1);
@@ -241,12 +225,10 @@ mod tests {
 
             // get Wasi module from vm
             let result = vm.wasi_module();
-            assert!(result.is_ok());
+            assert!(result.is_some());
 
             // get store from vm
-            let result = vm.store_mut();
-            assert!(result.is_ok());
-            let store = result.unwrap();
+            let store = vm.store_mut();
 
             // check registered modules
             assert_eq!(store.instance_count(), 1);
@@ -261,7 +243,7 @@ mod tests {
             assert!(result.is_ok());
             let import_wasi = result.unwrap();
 
-            let result = vm.add_import(import_wasi);
+            let result = vm.add_import(&import_wasi);
             assert!(result.is_err());
             assert_eq!(
                 result.unwrap_err(),
@@ -285,13 +267,7 @@ mod tests {
 
             // get Wasi module from vm
             let result = vm.wasi_module();
-            assert!(result.is_err());
-            assert_eq!(
-                result.unwrap_err(),
-                WasmEdgeError::Operation(wasmedge::error::WasmEdgeError::Vm(
-                    wasmedge::error::VmError::NotFoundWasiImportObjectModule
-                ))
-            );
+            assert!(result.is_none());
 
             // *** try to add a Wasi module.
 
@@ -310,24 +286,16 @@ mod tests {
             let host_func = result.unwrap();
             import_wasi.add_func("add", host_func);
 
-            let result = vm.add_import(import_wasi);
+            let result = vm.add_import(&import_wasi);
             assert!(result.is_ok());
             let mut vm = result.unwrap();
 
             // get the Wasi module
             let result = vm.wasi_module();
-            assert!(result.is_err());
-            assert_eq!(
-                result.unwrap_err(),
-                WasmEdgeError::Operation(wasmedge::error::WasmEdgeError::Vm(
-                    wasmedge::error::VmError::NotFoundWasiImportObjectModule
-                ))
-            );
+            assert!(result.is_none());
 
             // get store from vm
-            let result = vm.store_mut();
-            assert!(result.is_ok());
-            let store = result.unwrap();
+            let store = vm.store_mut();
 
             // check registered modules
             assert_eq!(store.instance_count(), 1);
@@ -361,14 +329,12 @@ mod tests {
         let vm = result.unwrap();
 
         // register the ImportObject module into vm
-        let result = vm.add_import(import);
+        let result = vm.add_import(&import);
         assert!(result.is_ok());
-        let vm = result.unwrap();
+        let mut vm = result.unwrap();
 
         // get the memory from vm
-        let result = vm.store_mut();
-        assert!(result.is_ok());
-        let store = result.unwrap();
+        let store = vm.store_mut();
         let result = store.memory("memory", Some("extern"));
         assert!(result.is_ok());
         let mut memory = result.unwrap();
@@ -426,13 +392,11 @@ mod tests {
         let vm = result.unwrap();
 
         // register the ImportObject module into vm
-        let result = vm.add_import(import);
+        let result = vm.add_import(&import);
         assert!(result.is_ok());
-        let vm = result.unwrap();
+        let mut vm = result.unwrap();
 
-        let result = vm.store_mut();
-        assert!(result.is_ok());
-        let store = result.unwrap();
+        let store = vm.store_mut();
 
         // get the Const global from the store of vm
         let result = store.global("const-global", Some("extern"));
@@ -463,9 +427,7 @@ mod tests {
         );
 
         // get the Var global from the store of vm
-        let result = vm.store_mut();
-        assert!(result.is_ok());
-        let store = result.unwrap();
+        let store = vm.store_mut();
 
         // get the Var global from the store of vm
         let result = store.global("var-global", Some("extern"));
@@ -511,14 +473,12 @@ mod tests {
         let vm = result.unwrap();
 
         // register the ImportObject module into vm
-        let result = vm.add_import(import);
+        let result = vm.add_import(&import);
         assert!(result.is_ok());
-        let vm = result.unwrap();
+        let mut vm = result.unwrap();
 
         // get the table from vm
-        let result = vm.store_mut();
-        assert!(result.is_ok());
-        let store = result.unwrap();
+        let store = vm.store_mut();
         let result = store.table("table", Some("extern"));
         assert!(result.is_ok());
         let mut table = result.unwrap();
@@ -553,9 +513,7 @@ mod tests {
         assert_eq!(value.func_idx().unwrap(), 5);
 
         // get the table from vm
-        let result = vm.store_mut();
-        assert!(result.is_ok());
-        let store = result.unwrap();
+        let store = vm.store_mut();
         let result = store.table("table", Some("extern"));
         assert!(result.is_ok());
         let table = result.unwrap();

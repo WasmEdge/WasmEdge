@@ -566,6 +566,7 @@ P(FunctionReferences, "Typed Function References")
 #define H Line
 H(Wasi)
 H(WasmEdge_Process)
+H(WasiNN)
 #undef H
 #endif // UseHostRegistration
 

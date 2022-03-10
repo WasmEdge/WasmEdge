@@ -5,6 +5,7 @@
 #include "vm/async.h"
 
 #include "host/wasi/wasimodule.h"
+#include "host/wasi_nn/wasinnmodule.h"
 #include "plugin/plugin.h"
 
 namespace WasmEdge {
@@ -63,6 +64,12 @@ void VM::unsafeInitVM() {
       ImpObjs.emplace(static_cast<HostRegistration>(Index++),
                       std::move(ModObj));
     }
+  }
+  if (Conf.hasHostRegistration(HostRegistration::WasiNN)) {
+    std::unique_ptr<Runtime::ImportObject> WasiNNMod =
+        std::make_unique<Host::WasiNNModule>();
+    ExecutorEngine.registerModule(StoreRef, *WasiNNMod.get());
+    ImpObjs.insert({HostRegistration::WasiNN, std::move(WasiNNMod)});
   }
 }
 

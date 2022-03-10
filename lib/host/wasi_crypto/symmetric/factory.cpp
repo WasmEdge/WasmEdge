@@ -21,6 +21,10 @@ FactoryVariant makeFactory(Algorithm Alg) noexcept {
     return Sha512{};
   case Algorithm::Sha512_256:
     return Sha512_256{};
+  case Algorithm::HmacSha256:
+    return HmacSha256{};
+  case Algorithm::HmacSha512:
+    return HmacSha512{};
   default:
     assumingUnreachable();
   }

@@ -34,6 +34,12 @@ FactoryVariant makeFactory(Algorithm Alg) noexcept {
     return HkdfSha512Expand{};
   case Algorithm::HkdfSha512Extract:
     return HkdfSha512Extract{};
+  case Algorithm::Aes128Gcm:
+    return Aes128Gcm{};
+  case Algorithm::Aes256Gcm:
+    return Aes256Gcm{};
+  case Algorithm::ChaCha20Poly1305:
+    return ChaCha20Poly1305{};
   default:
     assumingUnreachable();
   }

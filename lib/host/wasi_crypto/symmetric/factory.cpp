@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: 2019-2022 Second State INC
 
 #include "host/wasi_crypto/symmetric/factory.h"
+#include "host/wasi_crypto/symmetric/eae/hkdf.h"
 #include "host/wasi_crypto/symmetric/key.h"
 #include "host/wasi_crypto/symmetric/state.h"
 #include "host/wasi_crypto/utils/error.h"
@@ -25,6 +26,14 @@ FactoryVariant makeFactory(Algorithm Alg) noexcept {
     return HmacSha256{};
   case Algorithm::HmacSha512:
     return HmacSha512{};
+  case Algorithm::HkdfSha256Expand:
+    return HkdfSha256Expand{};
+  case Algorithm::HkdfSha256Extract:
+    return HkdfSha256Extract{};
+  case Algorithm::HkdfSha512Expand:
+    return HkdfSha512Expand{};
+  case Algorithm::HkdfSha512Extract:
+    return HkdfSha512Extract{};
   default:
     assumingUnreachable();
   }

@@ -13,6 +13,7 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
+#include "host/wasi_crypto/symmetric/eae/hkdf.h"
 #include "host/wasi_crypto/symmetric/hash/sha2.h"
 #include "host/wasi_crypto/symmetric/mac/hmac.h"
 #include "host/wasi_crypto/utils/error.h"
@@ -31,8 +32,9 @@ template <typename... T> struct Registed {
   using Variant = std::variant<T...>;
 };
 
-using RegistedAlg =
-    Registed<Sha256, Sha512, Sha512_256, HmacSha256, HmacSha512>;
+using RegistedAlg = Registed<Sha256, Sha512, Sha512_256, HmacSha256, HmacSha512,
+                             HkdfSha256Expand, HkdfSha256Extract,
+                             HkdfSha512Expand, HkdfSha512Extract>;
 
 } // namespace Symmetric
 } // namespace WasiCrypto

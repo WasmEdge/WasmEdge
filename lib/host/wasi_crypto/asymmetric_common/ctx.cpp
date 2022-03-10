@@ -29,6 +29,32 @@ Context::publickeyClose(__wasi_publickey_t PkHandle) noexcept {
   return PublicKeyManager.close(PkHandle);
 }
 
+WasiCryptoExpect<__wasi_array_output_t>
+Context::secretkeyExport(__wasi_secretkey_t SkHandle,
+                         __wasi_secretkey_encoding_e_t SkEncoding) noexcept {
+  return SecretKeyManager.get(SkHandle)
+      .and_then([=](auto &&Sk) {
+        return AsymmetricCommon::skExportData(Sk, SkEncoding);
+      })
+      .and_then([this](auto &&Data) noexcept {
+        return ArrayOutputManger.registerManager(std::move(Data));
+      });
+}
+
+WasiCryptoExpect<void>
+Context::secretkeyClose(__wasi_secretkey_t SkHandle) noexcept {
+  return SecretKeyManager.close(SkHandle);
+}
+
+WasiCryptoExpect<__wasi_publickey_t>
+Context::publickeyFromSecretkey(__wasi_secretkey_t SkHandle) noexcept {
+  return SecretKeyManager.get(SkHandle)
+      .and_then(AsymmetricCommon::skPublicKey)
+      .and_then([this](auto &&Pk) noexcept {
+        return PublicKeyManager.registerManager(std::move(Pk));
+      });
+}
+
 } // namespace WasiCrypto
 } // namespace Host
 } // namespace WasmEdge

@@ -27,7 +27,6 @@ Executor::runFunction(Runtime::StoreManager &StoreMgr,
   }
 
   // Reset and push a dummy frame into stack.
-  StackMgr.reset();
   StackMgr.pushFrame(nullptr, AST::InstrView::iterator(), 0, 0);
 
   // Push arguments.

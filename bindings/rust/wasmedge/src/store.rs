@@ -463,12 +463,10 @@ mod tests {
         let module = result.unwrap();
         let result = vm.add_module(module, Some("fib-module"));
         assert!(result.is_ok());
-        let vm = result.unwrap();
+        let mut vm = result.unwrap();
 
         // get store
-        let result = vm.store_mut();
-        assert!(result.is_ok());
-        let store = result.unwrap();
+        let store = vm.store_mut();
 
         // check the Func instances
         {
@@ -504,12 +502,6 @@ mod tests {
                     .with_returns([ValType::I32])
                     .build()
             );
-
-            // run the "fib" function
-            let result = func.call(&vm, [Value::from_i32(5)]);
-            assert!(result.is_ok());
-            let returns = result.unwrap();
-            assert_eq!(returns[0].to_i32(), 8);
         }
 
         {
@@ -544,13 +536,11 @@ mod tests {
         // create a Vm context
         let result = Vm::new(None);
         assert!(result.is_ok());
-        let vm = result.unwrap();
+        let mut vm = result.unwrap();
 
         {
             // get store
-            let result = vm.store_mut();
-            assert!(result.is_ok());
-            let store = result.unwrap();
+            let store = vm.store_mut();
 
             // check the exported instances
             assert_eq!(store.func_count(), 0);
@@ -596,14 +586,12 @@ mod tests {
         assert!(result.is_ok());
 
         // add the import module into vm
-        let result = vm.add_import(import);
+        let result = vm.add_import(&import);
         assert!(result.is_ok());
-        let vm = result.unwrap();
+        let mut vm = result.unwrap();
 
         // get store
-        let result = vm.store_mut();
-        assert!(result.is_ok());
-        let store = result.unwrap();
+        let store = vm.store_mut();
 
         // check the exported instances
         assert_eq!(store.instance_count(), 1);
@@ -634,10 +622,6 @@ mod tests {
                 .with_returns(vec![ValType::I32])
                 .build()
         );
-        let result = host_func.call(&vm, vec![Value::from_i32(12), Value::from_i32(21)]);
-        assert!(result.is_ok());
-        let returns = result.unwrap();
-        assert_eq!(returns[0].to_i32(), 33);
 
         // check the table list after instantiation
         let result = store.table("table", None);

@@ -15,7 +15,6 @@
 #pragma once
 
 #include "host/wasi_crypto/symmetric/alg.h"
-#include "host/wasi_crypto/symmetric/hash/sha2.h"
 #include "host/wasi_crypto/symmetric/key.h"
 #include "host/wasi_crypto/symmetric/options.h"
 #include "host/wasi_crypto/symmetric/registed.h"

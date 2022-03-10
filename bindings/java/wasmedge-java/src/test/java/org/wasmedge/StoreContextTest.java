@@ -21,10 +21,9 @@ public class StoreContextTest extends BaseTest {
     }
 
     @Test
-    @Ignore
     public void testStore() {
         ConfigureContext conf = new ConfigureContext();
-        ASTModuleContext mod = loadMode(conf);
+        ASTModuleContext mod = loadMode(conf, TEST_WASM_PATH);
         ValidatorContext validatorContext = new ValidatorContext(conf);
         validatorContext.validate(mod);
         StoreContext storeContext = new StoreContext();

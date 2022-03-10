@@ -43,7 +43,7 @@ public class StatisticsContextTest extends BaseTest {
         List<WasmEdgeValue> returns = new ArrayList<>();
         returns.add(new WasmEdgeI32Value());
 
-        vm.runWasmFromFile(getResourcePath(WASM_PATH), FUNC_NAME, params, returns);
+        vm.runWasmFromFile(getResourcePath(FIB_WASM_PATH), FUNC_NAME, params, returns);
         Assert.assertEquals(3, ((WasmEdgeI32Value) returns.get(0)).getValue());
 
         long cost = statisticsContext.getTotalCost();

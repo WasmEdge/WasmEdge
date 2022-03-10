@@ -8,7 +8,7 @@ import java.net.URL;
 import java.nio.file.Paths;
 
 public class BaseTest {
-    protected static final String WASM_PATH = "apiTestData/fibonacci.wasm";
+    protected static final String FIB_WASM_PATH = "apiTestData/fibonacci.wasm";
     protected static final String TEST_WASM_PATH = "apiTestData/test.wasm";
     protected static final String IMPORT_WASM_PATH = "apiTestData/import.wasm";
     protected static final String INVALID_WASM_PATH = "apiTestData/invalid_path.wasm";
@@ -16,14 +16,12 @@ public class BaseTest {
     byte[] WASM_MAGIC = {0x00, 0x61, 0x73, 0x6D};
 
     static  {
-        System.out.println("init native lib");
         WasmEdge.init();
-        System.out.println("done init native lib ");
     }
 
-    public static ASTModuleContext loadMode(ConfigureContext configureContext) {
+    public static ASTModuleContext loadMode(ConfigureContext configureContext, String path) {
         LoaderContext loaderContext = new LoaderContext(configureContext);
-        ASTModuleContext astModuleContext = loaderContext.parseFromFile(getResourcePath(TEST_WASM_PATH));
+        ASTModuleContext astModuleContext = loaderContext.parseFromFile(getResourcePath(path));
         loaderContext.delete();
         return astModuleContext;
     }

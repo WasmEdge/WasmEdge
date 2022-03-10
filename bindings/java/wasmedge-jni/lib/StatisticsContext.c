@@ -8,6 +8,9 @@
 #include "common.h"
 
 WasmEdge_StatisticsContext *getStatisticsContext(JNIEnv * env, jobject jStatCxt) {
+    if(jStatCxt == NULL) {
+        return NULL;
+    }
     return (WasmEdge_StatisticsContext *)getPointer(env, jStatCxt);
 }
 

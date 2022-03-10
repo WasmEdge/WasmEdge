@@ -19,7 +19,6 @@ public class ImportTypeContextTest extends BaseTest {
     }
 
     @Test
-    @Ignore
     public void test() {
         LoaderContext loaderContext = new LoaderContext(null);
 
@@ -31,17 +30,18 @@ public class ImportTypeContextTest extends BaseTest {
 
         String[][] imports= {
                 {"func-add", "extern"}, {"func-sub", "extern"}, {"func-mul", "extern"},
-                {"func-mul", "extern"}, {"func-div", "extern"}, {"func-term", "extern"},
-                {"func-fail", "extern"}, {"global-i32", "dummy"}, {"global-i64", "dummy"},
-                {"global-f32", "dummy"}, {"global-f64", "dummy"}, {"tab-func", "dummy"},
+                {"func-div", "extern"}, {"func-term", "extern"},
+                {"func-fail", "extern"}, {"glob-i32", "dummy"}, {"glob-i64", "dummy"},
+                {"glob-f32", "dummy"}, {"glob-f64", "dummy"}, {"tab-func", "dummy"},
                 {"tab-ext", "dummy"}, {"mem1", "dummy"}, {"mem2", "dummy"}
         };
         ExternalType[] types = {
                 ExternalType.FUNCTION, ExternalType.FUNCTION, ExternalType.FUNCTION,
                 ExternalType.FUNCTION, ExternalType.FUNCTION,
-                ExternalType.GLOBAL, ExternalType.GLOBAL, ExternalType.GLOBAL, ExternalType.GLOBAL,
-                ExternalType.TABLE, ExternalType.TABLE,
-                ExternalType.MEMORY, ExternalType.MEMORY
+                ExternalType.FUNCTION, ExternalType.GLOBAL, ExternalType.GLOBAL, ExternalType.GLOBAL,
+                ExternalType.GLOBAL, ExternalType.TABLE,
+                ExternalType.TABLE, ExternalType.MEMORY,ExternalType.MEMORY
+
         };
 
         for (int i = 0; i < imports.length; i++) {
@@ -53,7 +53,6 @@ public class ImportTypeContextTest extends BaseTest {
         mod.delete();
     }
     @Test
-    @Ignore
     public void testGetFunctionType() {
         LoaderContext loaderContext = new LoaderContext(null);
 
@@ -67,7 +66,6 @@ public class ImportTypeContextTest extends BaseTest {
     }
 
     @Test
-    @Ignore
     public void testGetTableType() {
         LoaderContext loaderContext = new LoaderContext(null);
 
@@ -81,7 +79,6 @@ public class ImportTypeContextTest extends BaseTest {
     }
 
     @Test
-    @Ignore
     public void testGetMemoryType() {
         LoaderContext loaderContext = new LoaderContext(null);
 
@@ -95,7 +92,6 @@ public class ImportTypeContextTest extends BaseTest {
 
 
     @Test
-    @Ignore
     public void testGetGlobalType() {
         LoaderContext loaderContext = new LoaderContext(null);
 

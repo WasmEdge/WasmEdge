@@ -15,7 +15,11 @@ public class ImportTypeContext {
     public native String getModuleName();
     public native String getExternalName();
 
-    public native ExternalType getExternalType();
+    public ExternalType getExternalType() {
+        return ExternalType.getByValue(nativeGetExternalType());
+    }
+
+    private native int nativeGetExternalType();
 
     public FunctionTypeContext getFunctionType() {
         return nativeGetFunctionType(astCtx);

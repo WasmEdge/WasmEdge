@@ -23,7 +23,7 @@ public class WasmEdgeVMTest extends BaseTest {
         List<WasmEdgeValue> returns = new ArrayList<>();
         returns.add(new WasmEdgeI32Value());
 
-        vm.runWasmFromFile(getResourcePath(WASM_PATH), FUNC_NAME, params, returns);
+        vm.runWasmFromFile(getResourcePath(FIB_WASM_PATH), FUNC_NAME, params, returns);
         Assert.assertEquals(3, ((WasmEdgeI32Value) returns.get(0)).getValue());
         vm.destroy();
     }
@@ -33,7 +33,7 @@ public class WasmEdgeVMTest extends BaseTest {
         ConfigureContext configureContext = new ConfigureContext();
         configureContext.addHostRegistration(HostRegistration.WasmEdge_HostRegistration_Wasi);
         WasmEdgeVM vm = new WasmEdgeVM(new ConfigureContext(), null);
-        vm.loadWasmFromFile(getResourcePath(WASM_PATH));
+        vm.loadWasmFromFile(getResourcePath(FIB_WASM_PATH));
         vm.validate();
         vm.instantiate();
         List<WasmEdgeValue> params = new ArrayList<>();
@@ -56,7 +56,7 @@ public class WasmEdgeVMTest extends BaseTest {
     @Test(expected = Exception.class)
     public void testInvalidFuncName() {
         WasmEdgeVM vm = new WasmEdgeVM(new ConfigureContext(), new StoreContext());
-        vm.loadWasmFromFile(getResourcePath(WASM_PATH));
+        vm.loadWasmFromFile(getResourcePath(FIB_WASM_PATH));
         vm.validate();
         vm.instantiate();
         List<WasmEdgeValue> params = new ArrayList<>();
@@ -70,7 +70,7 @@ public class WasmEdgeVMTest extends BaseTest {
     @Test(expected = Exception.class)
     public void testInvalidFlow() {
         WasmEdgeVM vm = new WasmEdgeVM(new ConfigureContext(), new StoreContext());
-        vm.loadWasmFromFile(getResourcePath(WASM_PATH));
+        vm.loadWasmFromFile(getResourcePath(FIB_WASM_PATH));
         vm.instantiate();
         vm.validate();
     }
@@ -79,7 +79,7 @@ public class WasmEdgeVMTest extends BaseTest {
     public void testRegisterModuleFromFile() {
         WasmEdgeVM vm = new WasmEdgeVM(null, null);
         String modName = "module";
-        vm.registerModuleFromFile(modName, getResourcePath(WASM_PATH));
+        vm.registerModuleFromFile(modName, getResourcePath(FIB_WASM_PATH));
         vm.destroy();
     }
 
@@ -87,7 +87,7 @@ public class WasmEdgeVMTest extends BaseTest {
     @Test
     public void testGetFunctionList() {
         WasmEdgeVM vm = new WasmEdgeVM(new ConfigureContext(), new StoreContext());
-        vm.loadWasmFromFile(getResourcePath(WASM_PATH));
+        vm.loadWasmFromFile(getResourcePath(FIB_WASM_PATH));
         vm.validate();
         vm.instantiate();
         List<FunctionTypeContext> functionList = vm.getFunctionList();
@@ -105,7 +105,7 @@ public class WasmEdgeVMTest extends BaseTest {
     @Test
     public void getFunctionByName() {
         WasmEdgeVM vm = new WasmEdgeVM(new ConfigureContext(), new StoreContext());
-        vm.loadWasmFromFile(getResourcePath(WASM_PATH));
+        vm.loadWasmFromFile(getResourcePath(FIB_WASM_PATH));
         vm.validate();
         vm.instantiate();
         FunctionTypeContext function = vm.getFunctionType(FUNC_NAME);
@@ -127,7 +127,7 @@ public class WasmEdgeVMTest extends BaseTest {
     @Test
     public void testRegisterModuleFromBuffer() {
         WasmEdgeVM vm = new WasmEdgeVM(new ConfigureContext(), new StoreContext());
-        vm.registerModuleFromBuffer("module", loadFile(getResourcePath(WASM_PATH)));
+        vm.registerModuleFromBuffer("module", loadFile(getResourcePath(FIB_WASM_PATH)));
         vm.destroy();
     }
 
@@ -135,7 +135,7 @@ public class WasmEdgeVMTest extends BaseTest {
     public void testExecuteRegisterModule() {
         WasmEdgeVM vm = new WasmEdgeVM(new ConfigureContext(), new StoreContext());
         String modName = "module";
-        vm.registerModuleFromBuffer(modName, loadFile(getResourcePath(WASM_PATH)));
+        vm.registerModuleFromBuffer(modName, loadFile(getResourcePath(FIB_WASM_PATH)));
 
         List<WasmEdgeValue> params = new ArrayList<>();
         params.add(new WasmEdgeI32Value(3));
@@ -153,7 +153,7 @@ public class WasmEdgeVMTest extends BaseTest {
     @Test
     public void testRegisterModuleFromAstModule() {
         LoaderContext loaderContext = new LoaderContext(new ConfigureContext());
-        ASTModuleContext mod = loaderContext.parseFromFile(getResourcePath(WASM_PATH));
+        ASTModuleContext mod = loaderContext.parseFromFile(getResourcePath(FIB_WASM_PATH));
 
         WasmEdgeVM vm = new WasmEdgeVM(null, null);
         vm.registerModuleFromASTModule("module", mod);
@@ -164,7 +164,7 @@ public class WasmEdgeVMTest extends BaseTest {
 
     @Test
     public void testRunWasmFromBuffer() {
-        byte[] data = loadFile(getResourcePath(WASM_PATH));
+        byte[] data = loadFile(getResourcePath(FIB_WASM_PATH));
         WasmEdgeVM vm = new WasmEdgeVM(null, null);
 
         List<WasmEdgeValue> params = new ArrayList<>();
@@ -181,7 +181,7 @@ public class WasmEdgeVMTest extends BaseTest {
     @Test
     public void testRunWasmFromASTModule() {
         LoaderContext loaderContext = new LoaderContext(new ConfigureContext());
-        ASTModuleContext mod = loaderContext.parseFromFile(getResourcePath(WASM_PATH));
+        ASTModuleContext mod = loaderContext.parseFromFile(getResourcePath(FIB_WASM_PATH));
 
         WasmEdgeVM vm = new WasmEdgeVM(null, null);
 

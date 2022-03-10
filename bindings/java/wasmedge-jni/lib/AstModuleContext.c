@@ -6,8 +6,12 @@
 #include "jni.h"
 #include "common.h"
 #include "ExportTypeContext.h"
+#include "ImportTypeContext.h"
 
 WasmEdge_ASTModuleContext * getASTModuleContext(JNIEnv* env, jobject thisObject) {
+    if(thisObject == NULL) {
+        return NULL;
+    }
     return (WasmEdge_ASTModuleContext*) getPointer(env, thisObject);
 }
 
@@ -24,10 +28,10 @@ JNIEXPORT jobject JNICALL Java_org_wasmedge_ASTModuleContext_listImports
     WasmEdge_ASTModuleListImports(cxt, pEdgeImportTypeContext, len);
 
     jobject importList = CreateJavaArrayList(env, len);
-//    for (int i = 0; i < len; ++i) {
-//
-//        AddElementToJavaList(env, importList, createExportTypeContext(env, pEdgeImportTypeContext[i], thisObject));
-//    }
+    for (int i = 0; i < len; ++i) {
+
+        AddElementToJavaList(env, importList, createImportTypeContext(env, pEdgeImportTypeContext[i], thisObject));
+    }
 
     return importList;
 }

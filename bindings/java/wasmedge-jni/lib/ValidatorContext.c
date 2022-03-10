@@ -10,6 +10,9 @@
 #include "ConfigureContext.h"
 
 WasmEdge_ValidatorContext * getValidatorContext(JNIEnv* env, jobject thisObject) {
+    if(thisObject == NULL) {
+        return NULL;
+    }
     return (WasmEdge_ValidatorContext *) getPointer(env, thisObject);
 }
 

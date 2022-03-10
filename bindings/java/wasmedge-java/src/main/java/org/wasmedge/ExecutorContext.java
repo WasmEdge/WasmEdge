@@ -1,6 +1,7 @@
 package org.wasmedge;
 
 import java.util.List;
+import java.util.Objects;
 
 public class ExecutorContext {
     private long pointer;
@@ -16,9 +17,15 @@ public class ExecutorContext {
 
     public void invoke(StoreContext storeContext, String funcName,
                                List<WasmEdgeValue> params, List<WasmEdgeValue> returns) {
+
+        if(params == null || returns == null ||
+                params.stream().anyMatch(Objects::isNull) || returns.stream().anyMatch(Objects::isNull)){
+            throw new IllegalArgumentException("paras or returns contain null value");
+        }
         invoke(storeContext, funcName, valueListToArray(params), getValueTypeArray(params),
                 valueListToArray(returns), getValueTypeArray(returns));
     }
+
 
     private int[] getValueTypeArray(List<WasmEdgeValue> values) {
 

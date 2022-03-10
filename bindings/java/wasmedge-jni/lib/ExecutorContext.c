@@ -12,6 +12,10 @@
 #include "common.h"
 
 WasmEdge_ExecutorContext *getExecutorContext(JNIEnv * env, jobject jExeCtx) {
+    if(jExeCtx == NULL) {
+        return NULL;
+    }
+
     return (WasmEdge_ExecutorContext*)getPointer(env, jExeCtx);
 }
 
@@ -22,12 +26,6 @@ JNIEXPORT void JNICALL Java_org_wasmedge_ExecutorContext_nativeInit
 
     WasmEdge_ExecutorContext * exeCxt = WasmEdge_ExecutorCreate(confCxt, statCxt);
     setPointer(env, thisObject, (long)exeCxt);
-}
-
-JNIEXPORT void JNICALL Java_org_wasmedge_ExecutorContext_instantiate__
-        (JNIEnv * env, jobject thisObject) {
-
-
 }
 
 /*

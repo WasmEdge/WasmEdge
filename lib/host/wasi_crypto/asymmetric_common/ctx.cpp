@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: 2019-2022 Second State INC
 
 #include "host/wasi_crypto/ctx.h"
+#include "host/wasi_crypto/asymmetric_common/factory.h"
 
 namespace WasmEdge {
 namespace Host {
@@ -88,6 +89,72 @@ Context::keypairSecretkey(__wasi_keypair_t KpHandle) noexcept {
 WasiCryptoExpect<void>
 Context::keypairClose(__wasi_keypair_t KpHandle) noexcept {
   return KeyPairManager.close(KpHandle);
+}
+
+WasiCryptoExpect<__wasi_keypair_t>
+Context::keypairFromPkAndSk(__wasi_publickey_t PkHandle,
+                            __wasi_secretkey_t SkHandle) noexcept {
+  auto Pk = PublicKeyManager.get(PkHandle);
+  if (!Pk) {
+    return WasiCryptoUnexpect(Pk);
+  }
+
+  auto Sk = SecretKeyManager.get(SkHandle);
+  if (!Sk) {
+    return WasiCryptoUnexpect(Sk);
+  }
+
+  return AsymmetricCommon::kpFromPkAndSk(*Pk, *Sk).and_then(
+      [this](auto &&Kp) noexcept {
+        return KeyPairManager.registerManager(std::move(Kp));
+      });
+}
+
+WasiCryptoExpect<__wasi_keypair_t> Context::keypairGenerate(
+    __wasi_algorithm_type_e_t AlgType, std::string_view AlgStr,
+    std::optional<__wasi_options_t> OptOptionsHandle) noexcept {
+  return mapAndTransposeOptional(
+             OptOptionsHandle,
+             [this](__wasi_options_t OptionsHandle) noexcept {
+               return OptionsManager.get(OptionsHandle);
+             })
+      .and_then([=](auto &&OptOptions) noexcept {
+        return AsymmetricCommon::generateKp(AlgType, AlgStr,
+                                            asOptionalRef(OptOptions));
+      })
+      .and_then([this](auto &&Keypair) noexcept {
+        return KeyPairManager.registerManager(std::move(Keypair));
+      });
+}
+
+WasiCryptoExpect<__wasi_keypair_t>
+Context::keypairImport(__wasi_algorithm_type_e_t AlgType,
+                       std::string_view AlgStr, Span<const uint8_t> Encoded,
+                       __wasi_keypair_encoding_e_t Encoding) noexcept {
+  return AsymmetricCommon::importKp(AlgType, AlgStr, Encoded, Encoding)
+      .and_then([this](auto &&Kp) noexcept {
+        return KeyPairManager.registerManager(std::move(Kp));
+      });
+}
+
+WasiCryptoExpect<__wasi_publickey_t>
+Context::publickeyImport(__wasi_algorithm_type_e_t AlgType,
+                         std::string_view AlgStr, Span<const uint8_t> Encoded,
+                         __wasi_publickey_encoding_e_t Encoding) noexcept {
+  return AsymmetricCommon::importPk(AlgType, AlgStr, Encoded, Encoding)
+      .and_then([this](auto &&Pk) noexcept {
+        return PublicKeyManager.registerManager(std::move(Pk));
+      });
+}
+
+WasiCryptoExpect<__wasi_secretkey_t>
+Context::secretkeyImport(__wasi_algorithm_type_e_t AlgType,
+                         std::string_view AlgStr, Span<const uint8_t> Encoded,
+                         __wasi_secretkey_encoding_e_t Encoding) noexcept {
+  return AsymmetricCommon::importSk(AlgType, AlgStr, Encoded, Encoding)
+      .and_then([this](auto &&Sk) noexcept {
+        return SecretKeyManager.registerManager(std::move(Sk));
+      });
 }
 
 } // namespace WasiCrypto

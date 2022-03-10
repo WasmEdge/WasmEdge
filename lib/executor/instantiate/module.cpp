@@ -150,16 +150,8 @@ Expect<void> Executor::instantiate(Runtime::StoreManager &StoreMgr,
     // Get function instance.
     const auto *FuncInst = ModInst->getStartFunc();
 
-    // Execute instruction: call start.func
-    auto Instrs = FuncInst->getInstrs();
-    AST::InstrView::iterator StartIt;
-    if (auto Res = enterFunction(StoreMgr, StackMgr, *FuncInst, Instrs.end())) {
-      StartIt = *Res;
-    } else {
-      spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Module));
-      return Unexpect(Res);
-    }
-    if (auto Res = execute(StoreMgr, StackMgr, StartIt, Instrs.end());
+    // Execute instruction.
+    if (auto Res = runFunction(StoreMgr, StackMgr, *FuncInst, {});
         unlikely(!Res)) {
       spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Module));
       return Unexpect(Res);

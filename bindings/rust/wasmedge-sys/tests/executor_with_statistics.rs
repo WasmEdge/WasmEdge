@@ -30,7 +30,7 @@ fn test_executor_with_statistics() {
     // create an Executor context
     let result = Executor::create(Some(config), Some(&mut stat));
     assert!(result.is_ok());
-    let executor = result.unwrap();
+    let mut executor = result.unwrap();
 
     // create an ImportObj module
     let import_obj = common::create_extern_module("extern");
@@ -43,7 +43,6 @@ fn test_executor_with_statistics() {
     // register the import_obj module into the store context
     let result = executor.register_import_object(&mut store, &import_obj);
     assert!(result.is_ok());
-    let executor = result.unwrap();
 
     // load module from a wasm file
     let result = Config::create();
@@ -71,7 +70,6 @@ fn test_executor_with_statistics() {
     // register a wasm module into the store context
     let result = executor.register_module(&mut store, &module, "module");
     assert!(result.is_ok());
-    let executor = result.unwrap();
 
     // load module from a wasm file
     let result = Config::create();
@@ -99,7 +97,6 @@ fn test_executor_with_statistics() {
     // instantiate wasm module
     let result = executor.instantiate(&mut store, &module);
     assert!(result.is_ok());
-    let mut executor = result.unwrap();
 
     // invoke the registered function in the module
     let result = executor.run_func(

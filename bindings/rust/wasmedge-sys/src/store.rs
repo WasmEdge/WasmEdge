@@ -854,10 +854,9 @@ mod tests {
         let config = result.unwrap();
         let result = Executor::create(Some(config), None);
         assert!(result.is_ok());
-        let executor = result.unwrap();
+        let mut executor = result.unwrap();
         let result = executor.register_import_object(&mut store, &import);
         assert!(result.is_ok());
-        let mut executor = result.unwrap();
 
         // check the module list after instantiation
         assert_eq!(store.reg_module_len(), 1);
@@ -972,7 +971,7 @@ mod tests {
             let config = result.unwrap();
             let result = Executor::create(Some(config), None);
             assert!(result.is_ok());
-            let executor = result.unwrap();
+            let mut executor = result.unwrap();
 
             let result = store_cloned.lock();
             assert!(result.is_ok());
@@ -980,7 +979,6 @@ mod tests {
 
             let result = executor.register_import_object(&mut store, &import);
             assert!(result.is_ok());
-            let mut executor = result.unwrap();
 
             // run the registered function
             let result = executor.run_func_registered(

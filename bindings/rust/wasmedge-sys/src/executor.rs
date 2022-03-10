@@ -79,10 +79,10 @@ impl Executor {
     ///
     /// If fail to register the given [`ImportObject`], then an error is returned.
     pub fn register_import_object(
-        self,
+        &mut self,
         store: &mut Store,
         import: &ImportObject,
-    ) -> WasmEdgeResult<Self> {
+    ) -> WasmEdgeResult<()> {
         unsafe {
             check(wasmedge::WasmEdge_ExecutorRegisterImport(
                 self.inner.0,
@@ -90,7 +90,7 @@ impl Executor {
                 import.inner.0 as *const _,
             ))?;
         }
-        Ok(self)
+        Ok(())
     }
 
     /// Registers and instantiates a WasmEdge AST [`Module`] into a store.
@@ -110,11 +110,11 @@ impl Executor {
     ///
     /// If fail to register the given [`Module`], then an error is returned.
     pub fn register_module(
-        self,
+        &mut self,
         store: &mut Store,
         module: &Module,
         mod_name: impl AsRef<str>,
-    ) -> WasmEdgeResult<Self> {
+    ) -> WasmEdgeResult<()> {
         let mod_name: WasmEdgeString = mod_name.as_ref().into();
         unsafe {
             check(wasmedge::WasmEdge_ExecutorRegisterModule(
@@ -124,7 +124,7 @@ impl Executor {
                 mod_name.as_raw(),
             ))?;
         }
-        Ok(self)
+        Ok(())
     }
 
     /// Instantiates a WasmEdge AST [Module](crate::Module) into a [Store](crate::Store).
@@ -145,7 +145,7 @@ impl Executor {
     /// # Error
     ///
     /// If fail to instantiate the given [Module](crate::Module), then an error is returned.
-    pub fn instantiate(self, store: &mut Store, module: &Module) -> WasmEdgeResult<Self> {
+    pub fn instantiate(&mut self, store: &mut Store, module: &Module) -> WasmEdgeResult<()> {
         unsafe {
             check(wasmedge::WasmEdge_ExecutorInstantiate(
                 self.inner.0,
@@ -153,8 +153,7 @@ impl Executor {
                 module.inner.0,
             ))?;
         }
-        // module.inner.0 = std::ptr::null_mut();
-        Ok(self)
+        Ok(())
     }
 
     /// Invokes a WASM function in the anonymous [`Module`], and returns the results.

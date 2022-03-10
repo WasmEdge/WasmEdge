@@ -518,9 +518,7 @@ private:
   Expect<void> runAtomicNofityOp(Runtime::StackManager &StackMgr,
                                  Runtime::Instance::MemoryInstance &MemInst,
                                  const AST::Instruction &Instr);
-  Expect<void> runMemoryFenceOp(Runtime::StackManager &StackMgr,
-                                Runtime::Instance::MemoryInstance &MemInst,
-                                const AST::Instruction &Instr);
+  Expect<void> runMemoryFenceOp();
   template <typename T>
   TypeT<T> runAtomicWaitOp(Runtime::StackManager &StackMgr,
                                      Runtime::Instance::MemoryInstance &MemInst,

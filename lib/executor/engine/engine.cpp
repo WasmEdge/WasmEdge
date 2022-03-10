@@ -1607,9 +1607,7 @@ Expect<void> Executor::execute(Runtime::StoreManager &StoreMgr,
 
     // Threads instructions
     case OpCode::Atomic__fence:
-      return runMemoryFenceOp(
-          StackMgr,
-          *getMemInstByIdx(StoreMgr, StackMgr, Instr.getTargetIndex()), Instr);
+      return runMemoryFenceOp();
 
     case OpCode::Memory__atomic__notify:
       return runAtomicNofityOp(

@@ -14,4 +14,5 @@ target_link_libraries(wasmedgeVM
   wasmedgeValidator
   wasmedgeExecutor
   wasmedgeHostModuleWasi
+  wasmedgeHostModuleWasiNN
 )

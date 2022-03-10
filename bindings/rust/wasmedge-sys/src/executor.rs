@@ -28,7 +28,7 @@ impl Executor {
     /// # Error
     ///
     /// If fail to create a [`Executor`], then an error is returned.
-    pub fn create(config: Option<Config>, stat: Option<&Statistics>) -> WasmEdgeResult<Self> {
+    pub fn create(config: Option<Config>, stat: Option<&mut Statistics>) -> WasmEdgeResult<Self> {
         let ctx = match config {
             Some(mut config) => match stat {
                 Some(stat) => {
@@ -81,16 +81,15 @@ impl Executor {
     pub fn register_import_object(
         self,
         store: &mut Store,
-        mut import: ImportObject,
+        import: &ImportObject,
     ) -> WasmEdgeResult<Self> {
         unsafe {
             check(wasmedge::WasmEdge_ExecutorRegisterImport(
                 self.inner.0,
                 store.inner.0,
-                import.inner.0,
+                import.inner.0 as *const _,
             ))?;
         }
-        import.inner.0 = std::ptr::null_mut();
         Ok(self)
     }
 
@@ -113,7 +112,7 @@ impl Executor {
     pub fn register_module(
         self,
         store: &mut Store,
-        mut module: Module,
+        module: &Module,
         mod_name: impl AsRef<str>,
     ) -> WasmEdgeResult<Self> {
         let mod_name: WasmEdgeString = mod_name.as_ref().into();
@@ -121,10 +120,9 @@ impl Executor {
             check(wasmedge::WasmEdge_ExecutorRegisterModule(
                 self.inner.0,
                 store.inner.0,
-                module.inner.0,
+                module.inner.0 as *const _,
                 mod_name.as_raw(),
             ))?;
-            module.inner.0 = std::ptr::null_mut();
         }
         Ok(self)
     }
@@ -147,7 +145,7 @@ impl Executor {
     /// # Error
     ///
     /// If fail to instantiate the given [Module](crate::Module), then an error is returned.
-    pub fn instantiate(self, store: &mut Store, mut module: Module) -> WasmEdgeResult<Self> {
+    pub fn instantiate(self, store: &mut Store, module: &Module) -> WasmEdgeResult<Self> {
         unsafe {
             check(wasmedge::WasmEdge_ExecutorInstantiate(
                 self.inner.0,
@@ -155,7 +153,7 @@ impl Executor {
                 module.inner.0,
             ))?;
         }
-        module.inner.0 = std::ptr::null_mut();
+        // module.inner.0 = std::ptr::null_mut();
         Ok(self)
     }
 
@@ -180,8 +178,8 @@ impl Executor {
     ///
     /// If fail to invoke the function specified by `func_name`, then an error is returned.
     pub fn run_func(
-        &self,
-        store: &Store,
+        &mut self,
+        store: &mut Store,
         func_name: impl AsRef<str>,
         params: impl IntoIterator<Item = Value>,
     ) -> WasmEdgeResult<Vec<Value>> {
@@ -227,8 +225,8 @@ impl Executor {
     /// If fail to invoke the target registered function, then an error is returned.
     ///
     pub fn run_func_registered(
-        &self,
-        store: &Store,
+        &mut self,
+        store: &mut Store,
         mod_name: impl AsRef<str>,
         func_name: impl AsRef<str>,
         params: impl IntoIterator<Item = Value>,
@@ -310,8 +308,8 @@ mod tests {
             // create an Executor context with a given statistics
             let result = Statistics::create();
             assert!(result.is_ok());
-            let stat = result.unwrap();
-            let result = Executor::create(None, Some(&stat));
+            let mut stat = result.unwrap();
+            let result = Executor::create(None, Some(&mut stat));
             assert!(result.is_ok());
             let executor = result.unwrap();
             assert!(!executor.inner.0.is_null());
@@ -325,9 +323,9 @@ mod tests {
 
             let result = Statistics::create();
             assert!(result.is_ok());
-            let stat = result.unwrap();
+            let mut stat = result.unwrap();
 
-            let result = Executor::create(Some(config), Some(&stat));
+            let result = Executor::create(Some(config), Some(&mut stat));
             assert!(result.is_ok());
             let executor = result.unwrap();
             assert!(!executor.inner.0.is_null());
@@ -343,9 +341,9 @@ mod tests {
 
         let result = Statistics::create();
         assert!(result.is_ok());
-        let stat = result.unwrap();
+        let mut stat = result.unwrap();
 
-        let result = Executor::create(Some(config), Some(&stat));
+        let result = Executor::create(Some(config), Some(&mut stat));
         assert!(result.is_ok());
         let executor = result.unwrap();
         assert!(!executor.inner.0.is_null());
@@ -367,9 +365,9 @@ mod tests {
 
         let result = Statistics::create();
         assert!(result.is_ok());
-        let stat = result.unwrap();
+        let mut stat = result.unwrap();
 
-        let result = Executor::create(Some(config), Some(&stat));
+        let result = Executor::create(Some(config), Some(&mut stat));
         assert!(result.is_ok());
         let executor = Arc::new(Mutex::new(result.unwrap()));
 

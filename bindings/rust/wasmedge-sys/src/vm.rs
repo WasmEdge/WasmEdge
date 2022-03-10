@@ -335,7 +335,7 @@ impl Vm {
         params: impl IntoIterator<Item = Value>,
     ) -> WasmEdgeResult<Vec<Value>> {
         // load
-        self.load_wasm_from_module(module)?;
+        self.load_wasm_from_module(&module)?;
 
         // validate
         self.validate()?;
@@ -359,14 +359,13 @@ impl Vm {
     /// # Error
     ///
     /// If fail to load, then an error is returned.
-    pub fn load_wasm_from_module(&mut self, mut module: Module) -> WasmEdgeResult<()> {
+    pub fn load_wasm_from_module(&mut self, module: &Module) -> WasmEdgeResult<()> {
         unsafe {
             check(wasmedge::WasmEdge_VMLoadWasmFromASTModule(
                 self.inner.0,
-                module.inner.0,
+                module.inner.0 as *const _,
             ))?;
         }
-        module.inner.0 = std::ptr::null_mut();
         Ok(())
     }
 
@@ -1090,7 +1089,7 @@ mod tests {
         let module = result.unwrap();
 
         // load wasm module from an ast module
-        let result = vm.load_wasm_from_module(module);
+        let result = vm.load_wasm_from_module(&module);
         assert!(result.is_ok());
     }
 
@@ -1125,7 +1124,7 @@ mod tests {
         let module = result.unwrap();
 
         // load a wasm module from a ast module
-        let result = vm.load_wasm_from_module(module);
+        let result = vm.load_wasm_from_module(&module);
         assert!(result.is_ok());
 
         let result = vm.validate();
@@ -1162,7 +1161,7 @@ mod tests {
         assert!(result.is_ok());
         let module = result.unwrap();
 
-        let result = vm.load_wasm_from_module(module);
+        let result = vm.load_wasm_from_module(&module);
         assert!(result.is_ok());
 
         // call instantiate before validate
@@ -1213,7 +1212,7 @@ mod tests {
         let mut vm = result.unwrap();
 
         // load wasm module from a ast module instance
-        let result = vm.load_wasm_from_module(ast_module);
+        let result = vm.load_wasm_from_module(&ast_module);
         assert!(result.is_ok());
 
         // validate vm instance

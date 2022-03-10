@@ -207,7 +207,7 @@ impl From<u32> for CompilerOutputFormat {
 }
 
 /// Defines WasmEdge host module registration enum.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum HostRegistration {
     Wasi,
     WasmEdgeProcess,

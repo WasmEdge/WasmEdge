@@ -855,9 +855,9 @@ mod tests {
         let result = Executor::create(Some(config), None);
         assert!(result.is_ok());
         let executor = result.unwrap();
-        let result = executor.register_import_object(&mut store, import);
+        let result = executor.register_import_object(&mut store, &import);
         assert!(result.is_ok());
-        let executor = result.unwrap();
+        let mut executor = result.unwrap();
 
         // check the module list after instantiation
         assert_eq!(store.reg_module_len(), 1);
@@ -910,7 +910,7 @@ mod tests {
 
         // run the registered function
         let result = executor.run_func_registered(
-            &store,
+            &mut store,
             "extern_module",
             "add",
             vec![Value::from_i32(12), Value::from_i32(21)],
@@ -920,7 +920,7 @@ mod tests {
         assert_eq!(returns[0].to_i32(), 33);
 
         let second_run = executor.run_func_registered(
-            &store,
+            &mut store,
             "extern_module",
             "add",
             vec![Value::from_i32(12), Value::from_i32(21)],
@@ -978,13 +978,13 @@ mod tests {
             assert!(result.is_ok());
             let mut store = result.unwrap();
 
-            let result = executor.register_import_object(&mut store, import);
+            let result = executor.register_import_object(&mut store, &import);
             assert!(result.is_ok());
-            let executor = result.unwrap();
+            let mut executor = result.unwrap();
 
             // run the registered function
             let result = executor.run_func_registered(
-                &store,
+                &mut store,
                 "extern_module",
                 "add",
                 vec![Value::from_i32(12), Value::from_i32(21)],

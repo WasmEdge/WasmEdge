@@ -157,6 +157,36 @@ Context::secretkeyImport(__wasi_algorithm_type_e_t AlgType,
       });
 }
 
+WasiCryptoExpect<__wasi_keypair_t>
+Context::keypairGenerateManaged(__wasi_secrets_manager_t,
+                                __wasi_algorithm_type_e_t, std::string_view,
+                                std::optional<__wasi_options_t>) noexcept {
+  return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
+}
+
+WasiCryptoExpect<void> Context::keypairStoreManaged(__wasi_secrets_manager_t,
+                                                    __wasi_keypair_t,
+                                                    Span<uint8_t>) noexcept {
+  return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
+}
+
+WasiCryptoExpect<__wasi_version_t>
+Context::keypairReplaceManaged(__wasi_secrets_manager_t, __wasi_keypair_t,
+                               __wasi_keypair_t) noexcept {
+  return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
+}
+
+WasiCryptoExpect<std::tuple<size_t, __wasi_version_t>>
+Context::keypairId(__wasi_keypair_t, Span<uint8_t>) noexcept {
+  return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
+}
+
+WasiCryptoExpect<__wasi_keypair_t>
+Context::keypairFromId(__wasi_secrets_manager_t, Span<const uint8_t>,
+                       __wasi_version_t) noexcept {
+  return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
+}
+
 } // namespace WasiCrypto
 } // namespace Host
 } // namespace WasmEdge

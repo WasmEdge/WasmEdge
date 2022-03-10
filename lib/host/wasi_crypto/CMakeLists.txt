@@ -26,6 +26,7 @@ wasmedge_add_library(wasmedgeHostModuleWasiCrypto
   symmetric/mac/hmac.cpp
   symmetric/eae/hkdf.cpp
   symmetric/aeads/cipher.cpp
+  asymmetric_common/ctx.cpp
 )
 
 target_include_directories(wasmedgeHostModuleWasiCrypto

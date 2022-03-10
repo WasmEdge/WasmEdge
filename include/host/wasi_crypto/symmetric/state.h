@@ -20,6 +20,7 @@
 #include "host/wasi_crypto/symmetric/registed.h"
 #include "host/wasi_crypto/symmetric/tag.h"
 #include "host/wasi_crypto/utils/error.h"
+#include "wasi_crypto/api.hpp"
 
 namespace WasmEdge {
 namespace Host {

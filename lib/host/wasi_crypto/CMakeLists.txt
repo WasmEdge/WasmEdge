@@ -22,6 +22,7 @@ wasmedge_add_library(wasmedgeHostModuleWasiCrypto
   symmetric/state.cpp
   symmetric/factory.cpp
   utils/evp_wrapper.cpp
+  symmetric/hash/sha2.cpp
 )
 
 target_include_directories(wasmedgeHostModuleWasiCrypto

@@ -13,6 +13,7 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
+#include "host/wasi_crypto/symmetric/hash/sha2.h"
 #include "host/wasi_crypto/utils/error.h"
 
 #include <variant>
@@ -29,7 +30,7 @@ template <typename... T> struct Registed {
   using Variant = std::variant<T...>;
 };
 
-using RegistedAlg = Registed</* Not Algorithm */>;
+using RegistedAlg = Registed<Sha256, Sha512, Sha512_256>;
 
 } // namespace Symmetric
 } // namespace WasiCrypto

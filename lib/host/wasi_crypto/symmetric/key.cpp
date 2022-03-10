@@ -9,8 +9,9 @@ namespace Host {
 namespace WasiCrypto {
 namespace Symmetric {
 
-std::vector<uint8_t> keyGetData(const KeyVariant &) noexcept {
-  assumingUnreachable();
+std::vector<uint8_t> keyExportData(const KeyVariant &KeyVariant) noexcept {
+  return std::visit([](auto &&Key) noexcept { return Key.exportData(); },
+                    KeyVariant);
 }
 
 } // namespace Symmetric

@@ -104,6 +104,13 @@ Expect<AST::InstrVec> Loader::loadInstrSeq(std::optional<uint64_t> SizeBound) {
     if (auto Res = loadInstruction(Instrs.back()); !Res) {
       return Unexpect(Res);
     }
+    if (Code == OpCode::End) {
+      if (IsReachEnd) {
+        Instrs.back().setLast(true);
+      } else {
+        Instrs.back().setLast(false);
+      }
+    }
     Cnt++;
   } while (!IsReachEnd);
   return Instrs;

@@ -362,7 +362,6 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
     return {};
   case OpCode::End:
     if (auto Res = popCtrl()) {
-      const_cast<AST::Instruction &>(Instr).setLast(CtrlStack.empty());
       pushTypes((*Res).EndTypes);
     } else {
       return Unexpect(Res);

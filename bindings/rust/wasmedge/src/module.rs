@@ -10,10 +10,8 @@ impl Module {
     ///
     /// This function does not validate the loaded module.
     pub fn from_file(vm: &Vm, file: impl AsRef<Path>) -> Result<Self> {
-        let loader = vm.inner.loader()?;
-
         // load a module from a wasm file
-        let inner = loader.from_file(file.as_ref())?;
+        let inner = vm.inner_loader.from_file(file.as_ref())?;
 
         Ok(Self { inner })
     }
@@ -22,17 +20,15 @@ impl Module {
     ///
     /// This function does not validate the loaded module.
     pub fn from_buffer(vm: &Vm, buffer: impl AsRef<[u8]>) -> Result<Self> {
-        let loader = vm.inner.loader()?;
-
         // load a module from a wasm buffer
-        let inner = loader.from_buffer(buffer.as_ref())?;
+        let inner = vm.inner_loader.from_buffer(buffer.as_ref())?;
 
         Ok(Self { inner })
     }
 
     pub fn validate(self, vm: &Vm) -> Result<Self> {
         // validate
-        vm.inner.validator()?.validate(&self.inner)?;
+        vm.inner_validator.validate(&self.inner)?;
 
         Ok(self)
     }

@@ -1,5 +1,4 @@
-use crate::{error::Result, wasmedge, Func, GlobalType, MemoryType, TableType, Value, Vm};
-use std::marker::PhantomData;
+use crate::{error::Result, wasmedge, Func, GlobalType, MemoryType, TableType, Value};
 
 #[derive(Debug)]
 pub struct ImportMod {
@@ -65,8 +64,7 @@ impl ImportMod {
 
 #[derive(Debug)]
 pub struct WasiImportMod<'vm> {
-    pub(crate) inner: wasmedge::ImportObject,
-    pub(crate) _marker: PhantomData<&'vm Vm>,
+    pub(crate) inner: &'vm mut wasmedge::ImportObject,
 }
 impl<'vm> WasiImportMod<'vm> {
     pub fn name(&self) -> String {
@@ -89,8 +87,7 @@ impl<'vm> WasiImportMod<'vm> {
 
 #[derive(Debug)]
 pub struct WasmEdgeProcessImportMod<'vm> {
-    pub(crate) inner: wasmedge::ImportObject,
-    pub(crate) _marker: PhantomData<&'vm Vm>,
+    pub(crate) inner: &'vm mut wasmedge::ImportObject,
 }
 impl<'vm> WasmEdgeProcessImportMod<'vm> {
     pub fn name(&self) -> String {

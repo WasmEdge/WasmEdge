@@ -2,17 +2,17 @@ use crate::{
     error::Result, wasmedge, Config, ImportMod, Module, Statistics, Store, Value, WasiImportMod,
     WasmEdgeProcessImportMod,
 };
-use std::{marker::PhantomData, path::Path};
+use std::{collections::HashMap, path::Path};
 
 #[derive(Debug)]
 pub struct Vm {
-    // pub(crate) inner: wasmedge::Vm,
-    inner_config: wasmedge::Config,
+    _inner_config: wasmedge::Config,
     inner_store: wasmedge::Store,
-    inner_loader: wasmedge::Loader,
-    inner_validator: wasmedge::Validator,
+    pub(crate) inner_loader: wasmedge::Loader,
+    pub(crate) inner_validator: wasmedge::Validator,
     inner_executor: wasmedge::Executor,
     inner_statistics: wasmedge::Statistics,
+    imports: HashMap<wasmedge::types::HostRegistration, ImportMod>,
 }
 impl Vm {
     pub fn new(config: Option<Config>) -> Result<Self> {
@@ -22,7 +22,7 @@ impl Vm {
         };
 
         // create an inner store
-        let inner_store = wasmedge::Store::create()?;
+        let mut inner_store = wasmedge::Store::create()?;
 
         // create an inner loader
         let inner_config_copied = wasmedge::Config::copy_from(&inner_config)?;
@@ -33,151 +33,187 @@ impl Vm {
         let inner_validator = wasmedge::Validator::create(Some(inner_config_copied))?;
 
         // create an inner statistics
-        let inner_statistics = wasmedge::Statistics::create()?;
+        let mut inner_statistics = wasmedge::Statistics::create()?;
 
         // create an inner executor
         let inner_config_copied = wasmedge::Config::copy_from(&inner_config)?;
         let mut inner_executor =
-            wasmedge::Executor::create(Some(inner_config_copied), Some(&inner_statistics))?;
+            wasmedge::Executor::create(Some(inner_config_copied), Some(&mut inner_statistics))?;
 
         // init vm
+        let mut imports = HashMap::new();
         if inner_config.wasi_enabled() {
             let wasi_mod = ImportMod::new_wasi(None, None, None)?;
             inner_executor =
-                inner_executor.register_import_object(&mut inner_store, wasi_mod.inner)?;
+                inner_executor.register_import_object(&mut inner_store, &wasi_mod.inner)?;
+            imports.insert(wasmedge::types::HostRegistration::Wasi, wasi_mod);
         }
         if inner_config.wasmedge_process_enabled() {
             let proc_mod = ImportMod::new_wasmedge_process(None, false)?;
             inner_executor =
-                inner_executor.register_import_object(&mut inner_store, proc_mod.inner)?;
+                inner_executor.register_import_object(&mut inner_store, &proc_mod.inner)?;
+            imports.insert(wasmedge::types::HostRegistration::WasmEdgeProcess, proc_mod);
         }
 
         Ok(Self {
-            inner_config,
+            _inner_config: inner_config,
             inner_store,
             inner_loader,
             inner_validator,
             inner_executor,
             inner_statistics,
+            imports,
         })
     }
 
-    pub fn store_mut(&self) -> Store {
+    pub fn store_mut(&mut self) -> Store {
         Store {
-            inner: self.inner_store,
-            _marker: PhantomData,
+            inner: &mut self.inner_store,
         }
     }
 
-    pub fn statistics_mut(&self) -> Statistics {
+    pub fn statistics_mut(&mut self) -> Statistics {
         Statistics {
-            inner: self.inner_statistics,
-            _marker: PhantomData,
+            inner: &mut self.inner_statistics,
         }
     }
 
-    pub fn wasmedge_process_module(&mut self) -> Result<WasmEdgeProcessImportMod> {
-        let inner = self.inner.wasmedge_process_import_module_mut()?;
-        Ok(WasmEdgeProcessImportMod {
-            inner,
-            _marker: PhantomData,
-        })
+    pub fn wasmedge_process_module(&mut self) -> Option<WasmEdgeProcessImportMod> {
+        self.imports
+            .get_mut(&wasmedge::types::HostRegistration::WasmEdgeProcess)
+            .map(|import| WasmEdgeProcessImportMod {
+                inner: &mut import.inner,
+            })
     }
 
-    pub fn wasi_module(&mut self) -> Result<WasiImportMod> {
-        let inner = self.inner.wasi_import_module_mut()?;
-        Ok(WasiImportMod {
-            inner,
-            _marker: PhantomData,
-        })
+    pub fn wasi_module(&mut self) -> Option<WasiImportMod> {
+        self.imports
+            .get_mut(&wasmedge::types::HostRegistration::Wasi)
+            .map(|import| WasiImportMod {
+                inner: &mut import.inner,
+            })
     }
 
     // validate + instantiate + register
-    pub fn add_import(mut self, import: ImportMod) -> Result<Self> {
-        self.inner.register_wasm_from_import(import.inner)?;
+    pub fn add_import(mut self, import: &ImportMod) -> Result<Self> {
+        self.inner_executor = self
+            .inner_executor
+            .register_import_object(&mut self.inner_store, &import.inner)?;
+
         Ok(self)
     }
 
-    // validate + instantiate + register a named module or an active module
+    // register a named or active module that is already validated.
     pub fn add_module(mut self, module: Module, name: Option<&str>) -> Result<Self> {
-        match name {
-            Some(name) => {
-                self.inner.register_wasm_from_module(name, module.inner)?;
-            }
-            None => {
-                // load module into vm
-                self.inner.load_wasm_from_module(module.inner)?;
+        let mod_name = match name {
+            Some(name) => name,
+            None => "",
+        };
 
-                // validate
-                self.inner.validate()?;
-
-                // instantiate
-                self.inner.instantiate()?;
-            }
-        }
+        self.inner_executor =
+            self.inner_executor
+                .register_module(&mut self.inner_store, &module.inner, mod_name)?;
 
         Ok(self)
     }
 
     pub fn run_func(
-        &self,
+        &mut self,
         mod_name: Option<&str>,
         func_name: impl AsRef<str>,
         args: impl IntoIterator<Item = Value>,
     ) -> Result<Vec<Value>> {
-        match mod_name {
+        let returns = match mod_name {
             Some(mod_name) => {
                 // run a function in the registered module
-                let returns =
-                    self.inner
-                        .run_registered_function(mod_name, func_name.as_ref(), args)?;
-                Ok(returns)
+                self.inner_executor.run_func_registered(
+                    &mut self.inner_store,
+                    mod_name,
+                    func_name.as_ref(),
+                    args,
+                )?
             }
             None => {
                 // run a function in the active module
-                let returns = self.inner.run_function(func_name.as_ref(), args)?;
-                Ok(returns)
+                self.inner_executor
+                    .run_func(&mut self.inner_store, func_name.as_ref(), args)?
             }
-        }
+        };
+
+        Ok(returns)
     }
 
-    pub fn reset(&mut self) {
-        self.inner.reset()
-    }
+    // pub fn reset(&mut self) {
+    //     self.inner.reset()
+    // }
 
     pub fn run_wasm_from_file(
-        &mut self,
+        mut self,
         file: impl AsRef<Path>,
         func_name: impl AsRef<str>,
         args: impl IntoIterator<Item = Value>,
     ) -> Result<Vec<Value>> {
+        // load module from file
+        let module = self.inner_loader.from_file(file)?;
+
+        // validate module
+        self.inner_validator.validate(&module)?;
+
+        // instantiate the module
+        self.inner_executor = self
+            .inner_executor
+            .instantiate(&mut self.inner_store, &module)?;
+
+        // run function
         let returns = self
-            .inner
-            .run_wasm_from_file(file.as_ref(), func_name.as_ref(), args)?;
+            .inner_executor
+            .run_func(&mut self.inner_store, func_name, args)?;
+
         Ok(returns)
     }
 
     pub fn run_wasm_from_buffer(
-        &mut self,
+        mut self,
         buffer: &[u8],
         func_name: impl AsRef<str>,
         args: impl IntoIterator<Item = Value>,
     ) -> Result<Vec<Value>> {
+        // load module from buffer
+        let module = self.inner_loader.from_buffer(buffer)?;
+
+        // validate module
+        self.inner_validator.validate(&module)?;
+
+        // instantiate the module
+        self.inner_executor = self
+            .inner_executor
+            .instantiate(&mut self.inner_store, &module)?;
+
+        // run function
         let returns = self
-            .inner
-            .run_wasm_from_buffer(buffer.as_ref(), func_name.as_ref(), args)?;
+            .inner_executor
+            .run_func(&mut self.inner_store, func_name, args)?;
+
         Ok(returns)
     }
 
+    // run a function in the given module. The module must be validated.
     pub fn run_wasm_from_module(
-        &mut self,
+        mut self,
         module: Module,
         func_name: impl AsRef<str>,
         args: impl IntoIterator<Item = Value>,
     ) -> Result<Vec<Value>> {
+        // instantiate the module
+        self.inner_executor = self
+            .inner_executor
+            .instantiate(&mut self.inner_store, &module.inner)?;
+
+        // run function
         let returns = self
-            .inner
-            .run_wasm_from_module(module.inner, func_name.as_ref(), args)?;
+            .inner_executor
+            .run_func(&mut self.inner_store, func_name, args)?;
+
         Ok(returns)
     }
 }

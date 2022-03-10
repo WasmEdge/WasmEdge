@@ -217,6 +217,11 @@ impl Vm {
         Ok(returns)
     }
 }
+impl Default for Vm {
+    fn default() -> Self {
+        Self::new(None).unwrap()
+    }
+}
 
 #[cfg(test)]
 mod tests {
@@ -228,10 +233,6 @@ mod tests {
         {
             let result = Vm::new(None);
             assert!(result.is_ok());
-            let vm = result.unwrap();
-
-            assert!(vm.store_mut().is_ok());
-            assert!(vm.statistics_mut().is_ok());
         }
 
         {
@@ -241,13 +242,8 @@ mod tests {
             let config = result.unwrap();
 
             // create a Vm context
-            // let result = VmBuilder::new().with_config(config).build();
             let result = Vm::new(Some(config));
             assert!(result.is_ok());
-            let vm = result.unwrap();
-
-            assert!(vm.store_mut().is_ok());
-            assert!(vm.statistics_mut().is_ok());
         }
     }
 
@@ -266,11 +262,10 @@ mod tests {
         // create a Vm context
         let result = Vm::new(Some(config));
         assert!(result.is_ok());
-        let vm = result.unwrap();
+        let mut vm = result.unwrap();
 
         // get the statistics
-        let result = vm.statistics_mut();
-        assert!(result.is_ok());
+        let _stat = vm.statistics_mut();
     }
 
     #[test]
@@ -290,12 +285,10 @@ mod tests {
         // register the wasm module into vm
         let result = vm.add_module(module, Some("extern"));
         assert!(result.is_ok());
-        let vm = result.unwrap();
+        let mut vm = result.unwrap();
 
         // show the names of the exported functions in the registered module named "extern"
-        let result = vm.store_mut();
-        assert!(result.is_ok());
-        let store = result.unwrap();
+        let store = vm.store_mut();
         let result = store.functions_by_module("extern");
         assert!(result.is_ok());
         let funcs = result.unwrap();
@@ -310,7 +303,7 @@ mod tests {
         assert!(signature.returns().is_some());
         assert_eq!(signature.returns().unwrap(), [ValType::I32]);
         // run "fib" func
-        let result = funcs[0].call(&vm, [Value::from_i32(5)]);
+        let result = funcs[0].call(&mut vm, [Value::from_i32(5)]);
         assert!(result.is_ok());
         let returns = result.unwrap();
         assert_eq!(returns[0].to_i32(), 8);

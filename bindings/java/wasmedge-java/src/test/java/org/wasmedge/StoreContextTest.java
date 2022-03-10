@@ -23,14 +23,14 @@ public class StoreContextTest extends BaseTest {
     @Test
     public void testStore() {
         ConfigureContext conf = new ConfigureContext();
-        ASTModuleContext mod = loadMode(conf, TEST_WASM_PATH);
+        ASTModuleContext mod = loadMode(conf, FIB_WASM_PATH);
         ValidatorContext validatorContext = new ValidatorContext(conf);
         validatorContext.validate(mod);
         StoreContext storeContext = new StoreContext();
         ExecutorContext exeCxt = new ExecutorContext(conf, new StatisticsContext());
         exeCxt.registerModule(storeContext, mod, "module");
         exeCxt.instantiate(storeContext, mod);
-        Assert.assertEquals(storeContext.listFunction().size(), 11);
+        Assert.assertEquals(storeContext.listFunction().size(), 1);
     }
 
 //    @Test

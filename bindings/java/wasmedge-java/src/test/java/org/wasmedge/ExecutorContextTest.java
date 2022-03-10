@@ -38,17 +38,19 @@ public class ExecutorContextTest extends BaseTest {
         executorContext.registerModule(storeContext, mod, modName);
     }
 
-    @Test//(expected = RuntimeException.class)
+    @Test(expected = Exception.class)
     public void testRegisterWasmModuleNameConflict() {
         ConfigureContext configureContext = new ConfigureContext();
         StatisticsContext statisticsContext = new StatisticsContext();
-        ASTModuleContext mod = loadMode(configureContext, IMPORT_WASM_PATH);
+        ASTModuleContext mod = loadMode(configureContext, FIB_WASM_PATH);
         ExecutorContext executorContext = new ExecutorContext(configureContext, statisticsContext);
         StoreContext storeContext = new StoreContext();
-        String modName = "extern";
-        String modName2 = "extern2";
-        executorContext.registerModule(storeContext, mod, modName);
-//        executorContext.registerModule(storeContext, mod, modName2);
+
+        String modName2 = "extern";
+        executorContext.registerModule(storeContext, mod, modName2);
+
+        ASTModuleContext mod2 = loadMode(configureContext, FIB_WASM_PATH);
+        executorContext.registerModule(storeContext, mod2, modName2);
     }
 
     @Test

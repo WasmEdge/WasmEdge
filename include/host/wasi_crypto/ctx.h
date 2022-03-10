@@ -15,6 +15,7 @@
 
 #include "common/span.h"
 #include "host/wasi_crypto/asymmetric_common/publickey.h"
+#include "host/wasi_crypto/asymmetric_common/secretkey.h"
 #include "host/wasi_crypto/common/array_output.h"
 #include "host/wasi_crypto/common/options.h"
 #include "host/wasi_crypto/kx/alg.h"
@@ -318,6 +319,8 @@ private:
       SymmetricStateManager{0x08};
   RcHandlesManager<__wasi_publickey_t, AsymmetricCommon::PkVariant>
       PublicKeyManager{0x03};
+  RcHandlesManager<__wasi_secretkey_t, AsymmetricCommon::SkVariant>
+      SecretKeyManager{0x04};
 };
 
 } // namespace WasiCrypto

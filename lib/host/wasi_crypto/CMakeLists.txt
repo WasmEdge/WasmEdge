@@ -29,6 +29,7 @@ wasmedge_add_library(wasmedgeHostModuleWasiCrypto
   asymmetric_common/ctx.cpp
   asymmetric_common/publickey.cpp
   asymmetric_common/secretkey.cpp
+  asymmetric_common/keypair.cpp
 )
 
 target_include_directories(wasmedgeHostModuleWasiCrypto

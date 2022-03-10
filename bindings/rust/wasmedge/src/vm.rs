@@ -44,14 +44,12 @@ impl Vm {
         let mut imports = HashMap::new();
         if inner_config.wasi_enabled() {
             let wasi_mod = ImportMod::new_wasi(None, None, None)?;
-            inner_executor =
-                inner_executor.register_import_object(&mut inner_store, &wasi_mod.inner)?;
+            inner_executor.register_import_object(&mut inner_store, &wasi_mod.inner)?;
             imports.insert(wasmedge::types::HostRegistration::Wasi, wasi_mod);
         }
         if inner_config.wasmedge_process_enabled() {
             let proc_mod = ImportMod::new_wasmedge_process(None, false)?;
-            inner_executor =
-                inner_executor.register_import_object(&mut inner_store, &proc_mod.inner)?;
+            inner_executor.register_import_object(&mut inner_store, &proc_mod.inner)?;
             imports.insert(wasmedge::types::HostRegistration::WasmEdgeProcess, proc_mod);
         }
 
@@ -96,8 +94,7 @@ impl Vm {
 
     // validate + instantiate + register
     pub fn add_import(mut self, import: &ImportMod) -> Result<Self> {
-        self.inner_executor = self
-            .inner_executor
+        self.inner_executor
             .register_import_object(&mut self.inner_store, &import.inner)?;
 
         Ok(self)
@@ -110,9 +107,8 @@ impl Vm {
             None => "",
         };
 
-        self.inner_executor =
-            self.inner_executor
-                .register_module(&mut self.inner_store, &module.inner, mod_name)?;
+        self.inner_executor
+            .register_module(&mut self.inner_store, &module.inner, mod_name)?;
 
         Ok(self)
     }
@@ -147,8 +143,8 @@ impl Vm {
     //     self.inner.reset()
     // }
 
-    pub fn run_wasm_from_file(
-        mut self,
+    pub fn run_hostfunc_from_file(
+        &mut self,
         file: impl AsRef<Path>,
         func_name: impl AsRef<str>,
         args: impl IntoIterator<Item = Value>,
@@ -160,8 +156,7 @@ impl Vm {
         self.inner_validator.validate(&module)?;
 
         // instantiate the module
-        self.inner_executor = self
-            .inner_executor
+        self.inner_executor
             .instantiate(&mut self.inner_store, &module)?;
 
         // run function
@@ -172,7 +167,7 @@ impl Vm {
         Ok(returns)
     }
 
-    pub fn run_wasm_from_buffer(
+    pub fn run_hostfunc_from_buffer(
         mut self,
         buffer: &[u8],
         func_name: impl AsRef<str>,
@@ -185,8 +180,7 @@ impl Vm {
         self.inner_validator.validate(&module)?;
 
         // instantiate the module
-        self.inner_executor = self
-            .inner_executor
+        self.inner_executor
             .instantiate(&mut self.inner_store, &module)?;
 
         // run function
@@ -198,15 +192,14 @@ impl Vm {
     }
 
     // run a function in the given module. The module must be validated.
-    pub fn run_wasm_from_module(
+    pub fn run_hostfunc_from_module(
         mut self,
         module: Module,
         func_name: impl AsRef<str>,
         args: impl IntoIterator<Item = Value>,
     ) -> Result<Vec<Value>> {
         // instantiate the module
-        self.inner_executor = self
-            .inner_executor
+        self.inner_executor
             .instantiate(&mut self.inner_store, &module.inner)?;
 
         // run function
@@ -302,10 +295,5 @@ mod tests {
         assert_eq!(signature.args().unwrap(), [ValType::I32]);
         assert!(signature.returns().is_some());
         assert_eq!(signature.returns().unwrap(), [ValType::I32]);
-        // run "fib" func
-        let result = funcs[0].call(&mut vm, [Value::from_i32(5)]);
-        assert!(result.is_ok());
-        let returns = result.unwrap();
-        assert_eq!(returns[0].to_i32(), 8);
     }
 }

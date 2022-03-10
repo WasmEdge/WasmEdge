@@ -1,10 +1,8 @@
-use crate::{wasmedge, Vm};
-use std::marker::PhantomData;
+use crate::wasmedge;
 
 #[derive(Debug)]
 pub struct Statistics<'vm> {
-    pub(crate) inner: wasmedge::Statistics,
-    pub(crate) _marker: PhantomData<&'vm Vm>,
+    pub(crate) inner: &'vm mut wasmedge::Statistics,
 }
 impl<'vm> Statistics<'vm> {
     pub fn count_of_instr(&self) -> u64 {

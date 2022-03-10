@@ -1,10 +1,9 @@
-use crate::{error::Result, wasmedge, Func, Global, Instance, Memory, Table, Vm};
+use crate::{error::Result, wasmedge, Func, Global, Instance, Memory, Table};
 use std::marker::PhantomData;
 
 #[derive(Debug)]
 pub struct Store<'vm> {
-    pub(crate) inner: wasmedge::Store,
-    pub(crate) _marker: PhantomData<&'vm Vm>,
+    pub(crate) inner: &'vm wasmedge::Store,
 }
 impl<'vm> Store<'vm> {
     pub fn instance_count(&self) -> u32 {

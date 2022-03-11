@@ -2,13 +2,13 @@ use crate::{error::Result, wasmedge, RefType, Value};
 use std::marker::PhantomData;
 
 #[derive(Debug)]
-pub struct Table<'store> {
+pub struct Table<'instance> {
     pub(crate) inner: wasmedge::Table,
     pub(crate) name: Option<String>,
     pub(crate) mod_name: Option<String>,
-    pub(crate) _marker: PhantomData<&'store ()>,
+    pub(crate) _marker: PhantomData<&'instance ()>,
 }
-impl<'store> Table<'store> {
+impl<'instance> Table<'instance> {
     pub fn name(&self) -> Option<&str> {
         match &self.name {
             Some(name) => Some(name.as_ref()),

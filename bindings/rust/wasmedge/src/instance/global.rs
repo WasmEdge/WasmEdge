@@ -2,13 +2,13 @@ use crate::{error::Result, wasmedge, Mutability, ValType, Value};
 use std::marker::PhantomData;
 
 #[derive(Debug)]
-pub struct Global<'store> {
+pub struct Global<'instance> {
     pub(crate) inner: wasmedge::Global,
     pub(crate) name: Option<String>,
     pub(crate) mod_name: Option<String>,
-    pub(crate) _marker: PhantomData<&'store ()>,
+    pub(crate) _marker: PhantomData<&'instance ()>,
 }
-impl<'store> Global<'store> {
+impl<'instance> Global<'instance> {
     pub fn name(&self) -> Option<&str> {
         match &self.name {
             Some(name) => Some(name.as_ref()),

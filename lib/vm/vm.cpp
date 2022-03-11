@@ -288,18 +288,17 @@ Expect<std::vector<std::pair<ValVariant, ValType>>>
 VM::unsafeExecute(Runtime::Instance::ModuleInstance *ModInst,
                   std::string_view Func, Span<const ValVariant> Params,
                   Span<const ValType> ParamTypes) {
-  uint32_t FuncAddr;
-  // Get exports and find function.
-  if (auto Res = ModInst->findFuncExports(Func); unlikely(!Res)) {
+  // Find exported function by name.
+  Runtime::Instance::FunctionInstance *FuncInst =
+      ModInst->findFuncExports(Func);
+  if (unlikely(FuncInst == nullptr)) {
     spdlog::error(ErrCode::FuncNotFound);
     spdlog::error(ErrInfo::InfoExecuting(ModInst->getModuleName(), Func));
     return Unexpect(ErrCode::FuncNotFound);
-  } else {
-    FuncAddr = *Res;
   }
 
   // Execute function.
-  if (auto Res = ExecutorEngine.invoke(StoreRef, FuncAddr, Params, ParamTypes);
+  if (auto Res = ExecutorEngine.invoke(StoreRef, *FuncInst, Params, ParamTypes);
       unlikely(!Res)) {
     spdlog::error(ErrInfo::InfoExecuting(ModInst->getModuleName(), Func));
     return Unexpect(Res);
@@ -350,8 +349,7 @@ VM::unsafeGetFunctionList() const {
     ModInst->getFuncExports([&](const auto &FuncExports) {
       Map.reserve(FuncExports.size());
       for (auto &&Func : FuncExports) {
-        const auto *FuncInst = *StoreRef.getFunction(Func.second);
-        const auto &FuncType = FuncInst->getFuncType();
+        const auto &FuncType = (Func.second)->getFuncType();
         Map.emplace_back(Func.first, FuncType);
       }
     });

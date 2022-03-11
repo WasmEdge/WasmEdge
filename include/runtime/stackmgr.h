@@ -14,11 +14,7 @@
 #pragma once
 
 #include "ast/instruction.h"
-#include "runtime/instance/function.h"
-#include "runtime/instance/global.h"
-#include "runtime/instance/memory.h"
 #include "runtime/instance/module.h"
-#include "runtime/instance/table.h"
 
 #include <optional>
 #include <vector>
@@ -30,14 +26,13 @@ class StackManager {
 public:
   struct Frame {
     Frame() = delete;
-    Frame(uint32_t Addr, uint32_t L, uint32_t A,
-          AST::InstrView::iterator FromIt, const bool Dummy = false) noexcept
-        : ModAddr(Addr), Locals(L), Arity(A), From(FromIt), IsDummy(Dummy) {}
-    uint32_t ModAddr;
+    Frame(Instance::ModuleInstance *Mod, uint32_t L, uint32_t A,
+          AST::InstrView::iterator FromIt) noexcept
+        : Module(Mod), Locals(L), Arity(A), From(FromIt) {}
+    Instance::ModuleInstance *Module;
     uint32_t Locals;
     uint32_t Arity;
     AST::InstrView::iterator From;
-    bool IsDummy;
   };
 
   using Value = ValVariant;
@@ -81,16 +76,10 @@ public:
   }
 
   /// Push a new frame entry to stack.
-  void pushFrame(const uint32_t ModuleAddr, AST::InstrView::iterator From,
-                 const uint32_t LocalNum = 0,
+  void pushFrame(Instance::ModuleInstance *Module,
+                 AST::InstrView::iterator From, const uint32_t LocalNum = 0,
                  const uint32_t Arity = 0) noexcept {
-    FrameStack.emplace_back(ModuleAddr, LocalNum, Arity, From);
-  }
-
-  /// Push a dummy frame for invokation base.
-  void pushDummyFrame() noexcept {
-    FrameStack.emplace_back(0, ValueStack.size(), 0, AST::InstrView::iterator{},
-                            true);
+    FrameStack.emplace_back(Module, LocalNum, Arity, From);
   }
 
   /// Unsafe pop top frame.
@@ -123,15 +112,9 @@ public:
   }
 
   /// Unsafe getter of module address.
-  uint32_t getModuleAddr() const noexcept {
+  Instance::ModuleInstance *getModule() const noexcept {
     assuming(!FrameStack.empty());
-    return FrameStack.back().ModAddr;
-  }
-
-  /// Unsafe checker of top frame is a dummy frame.
-  bool isTopDummyFrame() noexcept {
-    assuming(!FrameStack.empty());
-    return FrameStack.back().IsDummy;
+    return FrameStack.back().Module;
   }
 
   /// Reset stack.

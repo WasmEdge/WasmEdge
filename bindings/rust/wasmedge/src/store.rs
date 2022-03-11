@@ -15,8 +15,28 @@ impl<'vm> Store<'vm> {
         self.inner.reg_module_names()
     }
 
-    pub fn instance(&self) -> Option<Instance> {
-        unimplemented!()
+    /// Returns the [instance](crate::Instance) with the specified name.
+    pub fn named_instance(&self, name: impl AsRef<str>) -> Option<Instance> {
+        let inner_instance = self.inner.named_module(name.as_ref()).ok();
+        if let Some(inner_instance) = inner_instance {
+            return Some(Instance {
+                inner: inner_instance,
+            });
+        }
+
+        None
+    }
+
+    /// Returns the active [instance](crate::Instance).
+    pub fn active_instance(&self) -> Option<Instance> {
+        let inner_instance = self.inner.active_module().ok();
+        if let Some(inner_instance) = inner_instance {
+            return Some(Instance {
+                inner: inner_instance,
+            });
+        }
+
+        None
     }
 
     pub fn func_count(&self) -> u32 {

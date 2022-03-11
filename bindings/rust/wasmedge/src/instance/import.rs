@@ -199,12 +199,17 @@ mod tests {
             let result = store.instance_names();
             assert!(result.is_some());
             assert_eq!(result.unwrap(), ["wasmedge_process"]);
+            let result = store.named_instance("wasmedge_process");
+            assert!(result.is_some());
+            let instance = result.unwrap();
 
             // find "add" host function
-            let result = store.function("add", Some("wasmedge_process"));
-            assert!(result.is_ok());
+            let result = instance.func("add");
+            assert!(result.is_some());
             let host_func = result.unwrap();
+            assert!(host_func.name().is_some());
             assert_eq!(host_func.name().unwrap(), "add");
+            assert!(host_func.mod_name().is_some());
             assert_eq!(host_func.mod_name().unwrap(), "wasmedge_process");
         }
     }
@@ -303,9 +308,13 @@ mod tests {
             assert!(result.is_some());
             assert_eq!(result.unwrap(), ["wasi_snapshot_preview1"]);
 
+            let result = store.named_instance("wasi_snapshot_preview1");
+            assert!(result.is_some());
+            let instance = result.unwrap();
+
             // find "add" host function
-            let result = store.function("add", Some("wasi_snapshot_preview1"));
-            assert!(result.is_ok());
+            let result = instance.func("add");
+            assert!(result.is_some());
             let host_func = result.unwrap();
             assert_eq!(host_func.name().unwrap(), "add");
             assert_eq!(host_func.mod_name().unwrap(), "wasi_snapshot_preview1");
@@ -332,11 +341,14 @@ mod tests {
         let result = vm.add_import(&import);
         assert!(result.is_ok());
         let mut vm = result.unwrap();
+        let store = vm.store_mut();
+        let result = store.named_instance("extern");
+        assert!(result.is_some());
+        let instance = result.unwrap();
 
         // get the memory from vm
-        let store = vm.store_mut();
-        let result = store.memory("memory", Some("extern"));
-        assert!(result.is_ok());
+        let result = instance.memory("memory");
+        assert!(result.is_some());
         let mut memory = result.unwrap();
 
         // check memory
@@ -356,9 +368,9 @@ mod tests {
         assert!(result.is_ok());
         assert_eq!(memory.size(), 15);
 
-        // get memory from store agains
-        let result = store.memory("memory", Some("extern"));
-        assert!(result.is_ok());
+        // get memory from instance agains
+        let result = instance.memory("memory");
+        assert!(result.is_some());
         let memory = result.unwrap();
         assert_eq!(memory.size(), 15);
     }
@@ -398,9 +410,13 @@ mod tests {
 
         let store = vm.store_mut();
 
+        let result = store.named_instance("extern");
+        assert!(result.is_some());
+        let instance = result.unwrap();
+
         // get the Const global from the store of vm
-        let result = store.global("const-global", Some("extern"));
-        assert!(result.is_ok());
+        let result = instance.global("const-global");
+        assert!(result.is_some());
         let mut const_global = result.unwrap();
 
         // check global
@@ -429,9 +445,13 @@ mod tests {
         // get the Var global from the store of vm
         let store = vm.store_mut();
 
+        let result = store.named_instance("extern");
+        assert!(result.is_some());
+        let instance = result.unwrap();
+
         // get the Var global from the store of vm
-        let result = store.global("var-global", Some("extern"));
-        assert!(result.is_ok());
+        let result = instance.global("var-global");
+        assert!(result.is_some());
         let mut var_global = result.unwrap();
 
         // check global
@@ -452,7 +472,9 @@ mod tests {
         assert!(result.is_ok());
 
         // get the value of var_global again
-        let var_global = store.global("var-global", Some("extern")).unwrap();
+        let result = instance.global("var-global");
+        assert!(result.is_some());
+        let var_global = result.unwrap();
         assert_eq!(var_global.get_value().to_f32(), 1.314);
     }
 
@@ -479,8 +501,13 @@ mod tests {
 
         // get the table from vm
         let store = vm.store_mut();
-        let result = store.table("table", Some("extern"));
-        assert!(result.is_ok());
+
+        let result = store.named_instance("extern");
+        assert!(result.is_some());
+        let instance = result.unwrap();
+
+        let result = instance.table("table");
+        assert!(result.is_some());
         let mut table = result.unwrap();
 
         // check table
@@ -514,8 +541,13 @@ mod tests {
 
         // get the table from vm
         let store = vm.store_mut();
-        let result = store.table("table", Some("extern"));
-        assert!(result.is_ok());
+
+        let result = store.named_instance("extern");
+        assert!(result.is_some());
+        let instance = result.unwrap();
+
+        let result = instance.table("table");
+        assert!(result.is_some());
         let table = result.unwrap();
 
         // get the value in table[0]

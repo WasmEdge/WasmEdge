@@ -9,7 +9,7 @@ impl<'store> Instance<'store> {
         self.inner.name()
     }
 
-    pub fn func_len(&self) -> usize {
+    pub fn func_count(&self) -> usize {
         self.inner.func_len() as usize
     }
 
@@ -30,6 +30,22 @@ impl<'store> Instance<'store> {
         None
     }
 
+    pub fn global_count(&self) -> usize {
+        self.inner.global_len() as usize
+    }
+
+    pub fn global_names(&self) -> Option<Vec<String>> {
+        self.inner.global_names()
+    }
+
+    pub fn memory_count(&self) -> usize {
+        self.inner.mem_len() as usize
+    }
+
+    pub fn memory_names(&self) -> Option<Vec<String>> {
+        self.inner.mem_names()
+    }
+
     pub fn global(&self, name: impl AsRef<str>) -> Option<Global> {
         let inner_global = self.inner.find_global(name.as_ref()).ok();
         if let Some(inner_global) = inner_global {
@@ -42,14 +58,6 @@ impl<'store> Instance<'store> {
         }
 
         None
-    }
-
-    pub fn global_len(&self) -> usize {
-        self.inner.global_len() as usize
-    }
-
-    pub fn global_names(&self) -> Option<Vec<String>> {
-        self.inner.global_names()
     }
 
     pub fn memory(&self, name: impl AsRef<str>) -> Option<Memory> {
@@ -66,12 +74,12 @@ impl<'store> Instance<'store> {
         None
     }
 
-    pub fn memory_len(&self) -> usize {
-        self.inner.mem_len() as usize
+    pub fn table_count(&self) -> usize {
+        self.inner.table_len() as usize
     }
 
-    pub fn memory_names(&self) -> Option<Vec<String>> {
-        self.inner.mem_names()
+    pub fn table_names(&self) -> Option<Vec<String>> {
+        self.inner.table_names()
     }
 
     pub fn table(&self, name: impl AsRef<str>) -> Option<Table> {
@@ -80,19 +88,208 @@ impl<'store> Instance<'store> {
             return Some(Table {
                 inner: inner_table,
                 name: Some(name.as_ref().into()),
-                mod_name: None,
+                mod_name: self.inner.name(),
                 _marker: PhantomData,
             });
         }
 
         None
     }
+}
 
-    pub fn table_len(&self) -> usize {
-        self.inner.table_len() as usize
+#[cfg(test)]
+mod tests {
+    use crate::{
+        wasmedge::{Mutability, RefType},
+        Func, GlobalType, ImportMod, MemoryType, Module, SignatureBuilder, TableType, ValType,
+        Value, Vm,
+    };
+
+    #[test]
+    fn test_instance_basic() {
+        // create a Vm context
+        let result = Vm::new(None);
+        assert!(result.is_ok());
+        let mut vm = result.unwrap();
+
+        // get store
+        let store = vm.store_mut();
+
+        // check the exported instances
+        assert_eq!(store.instance_count(), 0);
+        assert!(store.instance_names().is_none());
+
+        // create an ImportMod instance
+        let result = ImportMod::new("extern-module");
+        assert!(result.is_ok());
+        let mut import = result.unwrap();
+
+        // add host function
+        let sig = SignatureBuilder::new()
+            .with_args(vec![ValType::I32; 2])
+            .with_returns(vec![ValType::I32])
+            .build();
+        let result = Func::new(sig, Box::new(real_add), 0);
+        assert!(result.is_ok());
+        let host_func = result.unwrap();
+        import.add_func("add", host_func);
+
+        // add table
+        let ty = TableType::new(RefType::FuncRef, 5, None);
+        let result = import.add_table("table", ty);
+        assert!(result.is_ok());
+
+        // add memory
+        let ty = MemoryType::new(10, None);
+        let result = import.add_memory("mem", ty);
+        assert!(result.is_ok());
+
+        // add globals
+        let ty = GlobalType::new(ValType::F32, Mutability::Const);
+        let result = import.add_global("global", ty, Value::from_f32(3.5));
+        assert!(result.is_ok());
+
+        // add the import module into vm
+        let result = vm.add_import(&import);
+        assert!(result.is_ok());
+        let vm = result.unwrap();
+
+        // add a wasm module from a file
+        let file = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
+            .join("tools/wasmedge/examples/fibonacci.wasm");
+        let result = Module::from_file(&vm, file);
+        assert!(result.is_ok());
+        let module = result.unwrap();
+        let result = vm.add_module(module, Some("fib-module"));
+        assert!(result.is_ok());
+        let mut vm = result.unwrap();
+
+        // get store
+        let store = vm.store_mut();
+
+        // check the exported instances
+        assert_eq!(store.instance_count(), 2);
+        assert!(store.instance_names().is_some());
+        let mod_names = store.instance_names().unwrap();
+        assert_eq!(mod_names[0], "extern-module");
+        assert_eq!(mod_names[1], "fib-module");
+
+        // check the module instance named "extern-module"
+        {
+            assert_eq!(mod_names[0], "extern-module");
+            let result = store.named_instance(mod_names[0].as_str());
+            assert!(result.is_some());
+            let instance = result.unwrap();
+            assert!(instance.name().is_some());
+            assert_eq!(instance.name().unwrap(), mod_names[0]);
+
+            assert_eq!(instance.func_count(), 1);
+            assert_eq!(instance.table_count(), 1);
+            assert_eq!(instance.global_count(), 1);
+            assert_eq!(instance.memory_count(), 1);
+
+            // check the exported host function
+            let result = instance.func("add");
+            assert!(result.is_some());
+            let host_func = result.unwrap();
+
+            let func_name = host_func.name();
+            assert!(func_name.is_some());
+            assert_eq!(func_name.unwrap(), "add");
+            assert!(host_func.registered());
+            assert_eq!(host_func.mod_name().unwrap(), "extern-module");
+            assert_eq!(
+                host_func.ty().unwrap(),
+                SignatureBuilder::new()
+                    .with_args(vec![ValType::I32; 2])
+                    .with_returns(vec![ValType::I32])
+                    .build()
+            );
+
+            // check the exported table
+            let result = instance.table("table");
+            assert!(result.is_some());
+            let table = result.unwrap();
+
+            let table_name = table.name();
+            assert!(table_name.is_some());
+            assert_eq!(table.name().unwrap(), "table");
+            assert!(table.registered());
+            assert_eq!(table.mod_name().unwrap(), "extern-module");
+            assert_eq!(table.size(), 5);
+
+            // check the exported memory
+            let result = instance.memory("mem");
+            assert!(result.is_some());
+            let memory = result.unwrap();
+
+            assert_eq!(memory.name().unwrap(), "mem");
+            assert!(memory.registered());
+            assert_eq!(memory.mod_name().unwrap(), "extern-module");
+            assert_eq!(memory.size(), 10);
+
+            // check the exported global
+            let result = instance.global("global");
+            assert!(result.is_some());
+            let global = result.unwrap();
+
+            let val = global.get_value();
+            assert_eq!(val.to_f32(), 3.5);
+        }
+
+        // check the module instance named "fib-module"
+        {
+            assert_eq!(mod_names[1], "fib-module");
+            let result = store.named_instance(mod_names[1].as_str());
+            assert!(result.is_some());
+            let instance = result.unwrap();
+            assert!(instance.name().is_some());
+            assert_eq!(instance.name().unwrap(), mod_names[1]);
+
+            assert_eq!(instance.func_count(), 1);
+            assert_eq!(instance.table_count(), 0);
+            assert_eq!(instance.global_count(), 0);
+            assert_eq!(instance.memory_count(), 0);
+
+            // check the exported host function
+            let result = instance.func("fib");
+            assert!(result.is_some());
+            let host_func = result.unwrap();
+
+            let func_name = host_func.name();
+            assert!(func_name.is_some());
+            assert_eq!(func_name.unwrap(), "fib");
+            assert!(host_func.registered());
+            assert_eq!(host_func.mod_name().unwrap(), "fib-module");
+            assert_eq!(
+                host_func.ty().unwrap(),
+                SignatureBuilder::new()
+                    .with_args(vec![ValType::I32])
+                    .with_returns(vec![ValType::I32])
+                    .build()
+            );
+        }
     }
 
-    pub fn table_names(&self) -> Option<Vec<String>> {
-        self.inner.table_names()
+    fn real_add(inputs: Vec<Value>) -> std::result::Result<Vec<Value>, u8> {
+        if inputs.len() != 2 {
+            return Err(1);
+        }
+
+        let a = if inputs[0].ty() == ValType::I32 {
+            inputs[0].to_i32()
+        } else {
+            return Err(2);
+        };
+
+        let b = if inputs[1].ty() == ValType::I32 {
+            inputs[1].to_i32()
+        } else {
+            return Err(3);
+        };
+
+        let c = a + b;
+
+        Ok(vec![Value::from_i32(c)])
     }
 }

@@ -280,15 +280,25 @@ mod tests {
         assert!(result.is_ok());
         let mut vm = result.unwrap();
 
-        // show the names of the exported functions in the registered module named "extern"
+        // check the exported functions in the "extern" module
         let store = vm.store_mut();
-        let result = store.functions_by_module("extern");
-        assert!(result.is_ok());
-        let funcs = result.unwrap();
-        assert_eq!(funcs.len(), 1);
-        assert_eq!(funcs[0].name().unwrap(), "fib");
-        // check the type of the func
-        let result = funcs[0].ty();
+        let result = store.named_instance("extern");
+        assert!(result.is_some());
+        let instance = result.unwrap();
+
+        assert_eq!(instance.func_count(), 1);
+        let result = instance.func_names();
+        assert!(result.is_some());
+        let func_names = result.unwrap();
+        assert_eq!(func_names, ["fib"]);
+
+        // get host_func
+        let result = instance.func("fib");
+        assert!(result.is_some());
+        let host_func = result.unwrap();
+
+        // check the type of host_func
+        let result = host_func.ty();
         assert!(result.is_ok());
         let signature = result.unwrap();
         assert!(signature.args().is_some());

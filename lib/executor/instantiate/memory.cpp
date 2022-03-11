@@ -18,15 +18,15 @@ Expect<void> Executor::instantiate(Runtime::StoreManager &StoreMgr,
   // Iterate and istantiate memory types.
   for (const auto &MemType : MemSec.getContent()) {
     // Insert memory instance to store manager.
-    uint32_t NewMemInstAddr;
+    Runtime::Instance::MemoryInstance *MemInst = nullptr;
     if (InsMode == InstantiateMode::Instantiate) {
-      NewMemInstAddr = StoreMgr.pushMemory(
+      MemInst = StoreMgr.pushMemory(
           MemType, Conf.getRuntimeConfigure().getMaxMemoryPage());
     } else {
-      NewMemInstAddr = StoreMgr.importMemory(
+      MemInst = StoreMgr.importMemory(
           MemType, Conf.getRuntimeConfigure().getMaxMemoryPage());
     }
-    ModInst.addMemAddr(NewMemInstAddr);
+    ModInst.addMemory(MemInst);
   }
   return {};
 }

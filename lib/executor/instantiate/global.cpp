@@ -18,23 +18,24 @@ Expect<void> Executor::instantiate(Runtime::StoreManager &StoreMgr,
   // Prepare pointers for compiled functions.
   ModInst.GlobalPtrs.resize(ModInst.getGlobalNum() +
                             GlobSec.getContent().size());
+
+  // Set the global pointers of imported globals.
   for (uint32_t I = 0; I < ModInst.getGlobalNum(); ++I) {
-    ModInst.GlobalPtrs[I] =
-        &(*StoreMgr.getGlobal(*ModInst.getGlobalAddr(I)))->getValue();
+    ModInst.GlobalPtrs[I] = &((*ModInst.getGlobal(I))->getValue());
   }
 
   // Instantiate and initialize globals.
   for (const auto &GlobSeg : GlobSec.getContent()) {
     // Insert global instance to store manager.
-    uint32_t NewGlobInstAddr;
+    Runtime::Instance::GlobalInstance *GlobInst = nullptr;
     if (InsMode == InstantiateMode::Instantiate) {
-      NewGlobInstAddr = StoreMgr.pushGlobal(GlobSeg.getGlobalType());
+      GlobInst = StoreMgr.pushGlobal(GlobSeg.getGlobalType());
     } else {
-      NewGlobInstAddr = StoreMgr.importGlobal(GlobSeg.getGlobalType());
+      GlobInst = StoreMgr.importGlobal(GlobSeg.getGlobalType());
     }
-    ModInst.GlobalPtrs[ModInst.getGlobalNum()] =
-        &(*StoreMgr.getGlobal(NewGlobInstAddr))->getValue();
-    ModInst.addGlobalAddr(NewGlobInstAddr);
+    // Set the global pointers of instantiated globals.
+    ModInst.GlobalPtrs[ModInst.getGlobalNum()] = &(GlobInst->getValue());
+    ModInst.addGlobal(GlobInst);
 
     // Run initialize expression.
     if (auto Res =
@@ -45,8 +46,7 @@ Expect<void> Executor::instantiate(Runtime::StoreManager &StoreMgr,
     }
 
     // Pop result from stack.
-    auto *NewGlobInst = *StoreMgr.getGlobal(NewGlobInstAddr);
-    NewGlobInst->getValue() = StackMgr.pop();
+    GlobInst->getValue() = StackMgr.pop();
   }
   return {};
 }

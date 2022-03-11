@@ -59,103 +59,120 @@ public:
   ~StoreManager() = default;
 
   /// Import instances and move owner to store manager.
-  template <typename... Args> uint32_t importModule(Args &&...Values) {
+  template <typename... Args>
+  Instance::ModuleInstance *importModule(Args &&...Values) {
     std::unique_lock Lock(Mutex);
-    uint32_t ModAddr = unsafeImportInstance(ImpModInsts, ModInsts,
-                                            std::forward<Args>(Values)...);
-    ModInsts.back()->Addr = ModAddr;
-    ModMap.emplace(ModInsts.back()->getModuleName(), ModAddr);
-    return ModAddr;
+    auto *ModInst = unsafeImportInstance(ImpModInsts, ModInsts,
+                                         std::forward<Args>(Values)...);
+    ModMap.emplace(ModInsts.back()->getModuleName(), ModInst);
+    return ModInst;
   }
-  template <typename... Args> uint32_t importFunction(Args &&...Values) {
+  template <typename... Args>
+  Instance::FunctionInstance *importFunction(Args &&...Values) {
     std::unique_lock Lock(Mutex);
-    return unsafeImportInstance(ImpFuncInsts, FuncInsts,
-                                std::forward<Args>(Values)...);
+    auto *FuncInst = unsafeImportInstance(ImpFuncInsts, FuncInsts,
+                                          std::forward<Args>(Values)...);
+    FuncInst->setAddr(static_cast<uint32_t>(FuncInsts.size() - 1));
+    return FuncInst;
   }
-  template <typename... Args> uint32_t importTable(Args &&...Values) {
+  template <typename... Args>
+  Instance::TableInstance *importTable(Args &&...Values) {
     std::unique_lock Lock(Mutex);
     return unsafeImportInstance(ImpTabInsts, TabInsts,
                                 std::forward<Args>(Values)...);
   }
-  template <typename... Args> uint32_t importMemory(Args &&...Values) {
+  template <typename... Args>
+  Instance::MemoryInstance *importMemory(Args &&...Values) {
     std::unique_lock Lock(Mutex);
     return unsafeImportInstance(ImpMemInsts, MemInsts,
                                 std::forward<Args>(Values)...);
   }
-  template <typename... Args> uint32_t importGlobal(Args &&...Values) {
+  template <typename... Args>
+  Instance::GlobalInstance *importGlobal(Args &&...Values) {
     std::unique_lock Lock(Mutex);
     return unsafeImportInstance(ImpGlobInsts, GlobInsts,
                                 std::forward<Args>(Values)...);
   }
-  template <typename... Args> uint32_t importElement(Args &&...Values) {
+  template <typename... Args>
+  Instance::ElementInstance *importElement(Args &&...Values) {
     std::unique_lock Lock(Mutex);
     return unsafeImportInstance(ImpElemInsts, ElemInsts,
                                 std::forward<Args>(Values)...);
   }
-  template <typename... Args> uint32_t importData(Args &&...Values) {
+  template <typename... Args>
+  Instance::DataInstance *importData(Args &&...Values) {
     std::unique_lock Lock(Mutex);
     return unsafeImportInstance(ImpDataInsts, DataInsts,
                                 std::forward<Args>(Values)...);
   }
 
   /// Import host instances but not move ownership.
-  uint32_t importHostFunction(Instance::FunctionInstance &Func) {
+  Instance::FunctionInstance *
+  importHostFunction(Instance::FunctionInstance &Func) {
     std::unique_lock Lock(Mutex);
+    Func.setAddr(static_cast<uint32_t>(FuncInsts.size()));
     return unsafeImportHostInstance(Func, FuncInsts);
   }
-  uint32_t importHostTable(Instance::TableInstance &Tab) {
+  Instance::TableInstance *importHostTable(Instance::TableInstance &Tab) {
     std::unique_lock Lock(Mutex);
     return unsafeImportHostInstance(Tab, TabInsts);
   }
-  uint32_t importHostMemory(Instance::MemoryInstance &Mem) {
+  Instance::MemoryInstance *importHostMemory(Instance::MemoryInstance &Mem) {
     std::unique_lock Lock(Mutex);
     return unsafeImportHostInstance(Mem, MemInsts);
   }
-  uint32_t importHostGlobal(Instance::GlobalInstance &Glob) {
+  Instance::GlobalInstance *importHostGlobal(Instance::GlobalInstance &Glob) {
     std::unique_lock Lock(Mutex);
     return unsafeImportHostInstance(Glob, GlobInsts);
   }
 
   /// Insert instances for instantiation and move ownership to store manager.
-  template <typename... Args> uint32_t pushModule(Args &&...Values) {
+  template <typename... Args>
+  Instance::ModuleInstance *pushModule(Args &&...Values) {
     std::unique_lock Lock(Mutex);
     ++NumMod;
-    uint32_t ModAddr = unsafeImportInstance(ImpModInsts, ModInsts,
-                                            std::forward<Args>(Values)...);
-    ModInsts.back()->Addr = ModAddr;
-    return ModAddr;
-  }
-  template <typename... Args> uint32_t pushFunction(Args &&...Values) {
-    std::unique_lock Lock(Mutex);
-    ++NumFunc;
-    return unsafeImportInstance(ImpFuncInsts, FuncInsts,
+    return unsafeImportInstance(ImpModInsts, ModInsts,
                                 std::forward<Args>(Values)...);
   }
-  template <typename... Args> uint32_t pushTable(Args &&...Values) {
+  template <typename... Args>
+  Instance::FunctionInstance *pushFunction(Args &&...Values) {
+    std::unique_lock Lock(Mutex);
+    ++NumFunc;
+    auto *FuncInst = unsafeImportInstance(ImpFuncInsts, FuncInsts,
+                                          std::forward<Args>(Values)...);
+    FuncInst->setAddr(static_cast<uint32_t>(FuncInsts.size() - 1));
+    return FuncInst;
+  }
+  template <typename... Args>
+  Instance::TableInstance *pushTable(Args &&...Values) {
     std::unique_lock Lock(Mutex);
     ++NumTab;
     return unsafeImportInstance(ImpTabInsts, TabInsts,
                                 std::forward<Args>(Values)...);
   }
-  template <typename... Args> uint32_t pushMemory(Args &&...Values) {
+  template <typename... Args>
+  Instance::MemoryInstance *pushMemory(Args &&...Values) {
     std::unique_lock Lock(Mutex);
     ++NumMem;
     return unsafeImportInstance(ImpMemInsts, MemInsts,
                                 std::forward<Args>(Values)...);
   }
-  template <typename... Args> uint32_t pushGlobal(Args &&...Values) {
+  template <typename... Args>
+  Instance::GlobalInstance *pushGlobal(Args &&...Values) {
     std::unique_lock Lock(Mutex);
     ++NumGlob;
     return unsafeImportInstance(ImpGlobInsts, GlobInsts,
                                 std::forward<Args>(Values)...);
   }
-  template <typename... Args> uint32_t pushElement(Args &&...Values) {
+  template <typename... Args>
+  Instance::ElementInstance *pushElement(Args &&...Values) {
     std::unique_lock Lock(Mutex);
     ++NumElem;
     return unsafeImportInstance(ImpElemInsts, ElemInsts,
                                 std::forward<Args>(Values)...);
   }
-  template <typename... Args> uint32_t pushData(Args &&...Values) {
+  template <typename... Args>
+  Instance::DataInstance *pushData(Args &&...Values) {
     std::unique_lock Lock(Mutex);
     ++NumData;
     return unsafeImportInstance(ImpDataInsts, DataInsts,
@@ -303,22 +320,20 @@ public:
 private:
   /// Helper function for importing instances and move ownership.
   template <typename T, typename... Args>
-  std::enable_if_t<IsInstanceV<T>, uint32_t>
+  std::enable_if_t<IsInstanceV<T>, T *>
   unsafeImportInstance(std::vector<std::unique_ptr<T>> &ImpInstsVec,
                        std::vector<T *> &InstsVec, Args &&...Values) {
-    const auto Addr = static_cast<uint32_t>(InstsVec.size());
     ImpInstsVec.push_back(std::make_unique<T>(std::forward<Args>(Values)...));
     InstsVec.push_back(ImpInstsVec.back().get());
-    return Addr;
+    return ImpInstsVec.back().get();
   }
 
   /// Helper function for importing host instances.
   template <typename T>
-  std::enable_if_t<IsImportEntityV<T>, uint32_t>
+  std::enable_if_t<IsImportEntityV<T>, T *>
   unsafeImportHostInstance(T &Inst, std::vector<T *> &InstsVec) {
-    const auto Addr = static_cast<uint32_t>(InstsVec.size());
     InstsVec.push_back(&Inst);
-    return Addr;
+    return InstsVec.back();
   }
 
   /// Helper function for getting instance from instance vector.
@@ -369,7 +384,7 @@ private:
 
   /// \name Module name mapping.
   /// @{
-  std::map<std::string, uint32_t, std::less<>> ModMap;
+  std::map<std::string, Instance::ModuleInstance *, std::less<>> ModMap;
   /// @}
 };
 

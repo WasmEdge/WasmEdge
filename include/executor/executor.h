@@ -219,7 +219,7 @@ private:
   enterFunction(Runtime::StoreManager &StoreMgr,
                 Runtime::StackManager &StackMgr,
                 const Runtime::Instance::FunctionInstance &Func,
-                const AST::InstrView::iterator From);
+                const AST::InstrView::iterator RetIt);
 
   /// Helper function for branching to label.
   Expect<void> branchToLabel(Runtime::StackManager &StackMgr,

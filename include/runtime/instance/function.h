@@ -18,6 +18,7 @@
 #include "runtime/hostfunc.h"
 
 #include <memory>
+#include <numeric>
 #include <string>
 #include <vector>
 
@@ -85,6 +86,11 @@ public:
     return std::get_if<WasmFunction>(&Data)->Locals;
   }
 
+  /// Getter of function local number.
+  uint32_t getLocalNum() const noexcept {
+    return std::get_if<WasmFunction>(&Data)->LocalNum;
+  }
+
   /// Getter of function body instrs.
   AST::InstrView getInstrs() const noexcept {
     if (std::holds_alternative<WasmFunction>(Data)) {
@@ -107,10 +113,16 @@ public:
 private:
   struct WasmFunction {
     const std::vector<std::pair<uint32_t, ValType>> Locals;
+    const uint32_t LocalNum;
     AST::InstrVec Instrs;
     WasmFunction(Span<const std::pair<uint32_t, ValType>> Locs,
                  AST::InstrView Expr) noexcept
-        : Locals(Locs.begin(), Locs.end()) {
+        : Locals(Locs.begin(), Locs.end()),
+          LocalNum(
+              std::accumulate(Locals.begin(), Locals.end(), UINT32_C(0),
+                              [](uint32_t N, const auto &Pair) -> uint32_t {
+                                return N + Pair.first;
+                              })) {
       // FIXME: Modify the capacity to prevent from connection of 2 vectors.
       Instrs.reserve(Expr.size() + 1);
       Instrs.assign(Expr.begin(), Expr.end());

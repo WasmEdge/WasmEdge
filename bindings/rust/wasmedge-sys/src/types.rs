@@ -553,6 +553,12 @@ impl From<wasmedge::WasmEdge_Value> for Value {
         }
     }
 }
+impl PartialEq for Value {
+    fn eq(&self, other: &Self) -> bool {
+        self.ctx.Value == other.ctx.Value && self.ctx.Type == other.ctx.Type
+    }
+}
+impl Eq for Value {}
 
 #[cfg(test)]
 mod tests {
@@ -607,6 +613,18 @@ mod tests {
         assert_eq!(val.ty(), ValType::ExternRef);
         assert!(val.is_null_ref());
         assert_eq!(val.ty(), ValType::ExternRef);
+
+        let val1 = Value::from_i32(1314);
+        let val2 = Value::from_i32(1314);
+        assert_eq!(val1, val2);
+
+        let val1 = Value::from_i32(1314);
+        let val2 = Value::from_i64(1314);
+        assert_ne!(val1, val2);
+
+        let val1 = Value::from_i32(1314);
+        let val2 = Value::from_f32(13.14);
+        assert_ne!(val1, val2);
     }
 
     #[test]

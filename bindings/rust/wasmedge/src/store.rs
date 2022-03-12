@@ -43,8 +43,7 @@ impl<'vm> Store<'vm> {
 mod tests {
     use crate::{
         wasmedge::{Mutability, RefType},
-        Func, GlobalType, ImportMod, MemoryType, Module, SignatureBuilder, TableType, ValType,
-        Value, Vm,
+        GlobalType, ImportMod, MemoryType, Module, SignatureBuilder, TableType, ValType, Value, Vm,
     };
 
     #[test]
@@ -70,10 +69,8 @@ mod tests {
             .with_args(vec![ValType::I32; 2])
             .with_returns(vec![ValType::I32])
             .build();
-        let result = Func::new(sig, Box::new(real_add), 0);
+        let result = import.add_func("add", sig, Box::new(real_add));
         assert!(result.is_ok());
-        let host_func = result.unwrap();
-        import.add_func("add", host_func);
 
         // add table
         let ty = TableType::new(RefType::FuncRef, 5, None);

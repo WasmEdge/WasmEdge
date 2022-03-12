@@ -1,4 +1,6 @@
-use crate::{error::Result, wasmedge, Func, GlobalType, MemoryType, TableType, Value};
+use crate::{
+    error::Result, wasmedge, GlobalType, HostFunc, MemoryType, Signature, TableType, Value,
+};
 
 #[derive(Debug)]
 pub struct ImportMod {
@@ -28,8 +30,15 @@ impl ImportMod {
         self.inner.name()
     }
 
-    pub fn add_func(&mut self, name: impl AsRef<str>, func: Func) {
-        self.inner.add_func(name.as_ref(), func.inner)
+    pub fn add_func(
+        &mut self,
+        name: impl AsRef<str>,
+        sig: Signature,
+        real_func: Box<HostFunc>,
+    ) -> Result<()> {
+        let inner = wasmedge::Function::create(sig.into(), real_func, 0)?;
+        self.inner.add_func(name.as_ref(), inner);
+        Ok(())
     }
 
     /// Given the type and the value, creates a new [Global](crate::Global) instance and adds it to this import module.
@@ -178,10 +187,8 @@ mod tests {
                 .with_args(vec![ValType::I32; 2])
                 .with_returns(vec![ValType::I32])
                 .build();
-            let result = Func::new(signature, Box::new(real_add), 0);
+            let result = import_process.add_func("add", signature, Box::new(real_add));
             assert!(result.is_ok());
-            let host_func = result.unwrap();
-            import_process.add_func("add", host_func);
 
             let result = vm.add_import(&import_process);
             assert!(result.is_ok());
@@ -286,10 +293,8 @@ mod tests {
                 .with_args(vec![ValType::I32; 2])
                 .with_returns(vec![ValType::I32])
                 .build();
-            let result = Func::new(signature, Box::new(real_add), 0);
+            let result = import_wasi.add_func("add", signature, Box::new(real_add));
             assert!(result.is_ok());
-            let host_func = result.unwrap();
-            import_wasi.add_func("add", host_func);
 
             let result = vm.add_import(&import_wasi);
             assert!(result.is_ok());

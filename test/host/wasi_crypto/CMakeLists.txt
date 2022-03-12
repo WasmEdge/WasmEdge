@@ -7,6 +7,8 @@ wasmedge_add_executable(wasiCryptoTests
   mac.cpp
   kdf.cpp
   cipher.cpp
+  asymmetric.cpp
+  x25519.cpp
 )
 
 add_test(wasiCryptoTests wasiCryptoTests)

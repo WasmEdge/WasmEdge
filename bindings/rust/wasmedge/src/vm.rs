@@ -298,7 +298,7 @@ mod tests {
         let host_func = result.unwrap();
 
         // check the type of host_func
-        let result = host_func.ty();
+        let result = host_func.signature();
         assert!(result.is_ok());
         let signature = result.unwrap();
         assert!(signature.args().is_some());

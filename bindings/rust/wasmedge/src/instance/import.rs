@@ -327,6 +327,58 @@ mod tests {
     }
 
     #[test]
+    fn test_import_add_func() {
+        // create an ImportObject module
+        let result = ImportMod::new("extern");
+        assert!(result.is_ok());
+        let mut import = result.unwrap();
+
+        // add host function
+        let signature = SignatureBuilder::new()
+            .with_args(vec![ValType::I32; 2])
+            .with_returns(vec![ValType::I32])
+            .build();
+        let result = import.add_func("add", signature, Box::new(real_add));
+        assert!(result.is_ok());
+
+        // create a Vm context
+        let result = Vm::new(None);
+        assert!(result.is_ok());
+        let vm = result.unwrap();
+
+        // register the ImportObject module into vm
+        let result = vm.add_import(&import);
+        assert!(result.is_ok());
+        let mut vm = result.unwrap();
+
+        // get the instance of the ImportObject module
+        let store = vm.store_mut();
+        let result = store.named_instance("extern");
+        assert!(result.is_some());
+        let instance = result.unwrap();
+
+        // get the exported host function
+        let result = instance.func("add");
+        assert!(result.is_some());
+        let host_func = result.unwrap();
+
+        // check the signature of the host function
+        let result = host_func.signature();
+        assert!(result.is_ok());
+        let signature = result.unwrap();
+        assert!(signature.args().is_some());
+        assert_eq!(signature.args().unwrap(), [ValType::I32; 2]);
+        assert!(signature.returns().is_some());
+        assert_eq!(signature.returns().unwrap(), [ValType::I32]);
+
+        // // call the host function
+        // let result = host_func.call(&mut vm, [Value::from_i32(2), Value::from_i32(3)]);
+        // assert!(result.is_ok());
+        // let returns = result.unwrap();
+        // assert_eq!(returns, [Value::from_i32(5)]);
+    }
+
+    #[test]
     fn test_import_add_memory() {
         // create an ImportObject module
         let result = ImportMod::new("extern");

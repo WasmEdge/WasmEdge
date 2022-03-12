@@ -28,7 +28,7 @@ impl<'instance> Func<'instance> {
         self.mod_name.is_some()
     }
 
-    pub fn ty(&self) -> Result<Signature> {
+    pub fn signature(&self) -> Result<Signature> {
         let func_ty = self.inner.ty()?;
         Ok(func_ty.into())
     }

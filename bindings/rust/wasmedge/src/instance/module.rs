@@ -197,7 +197,7 @@ mod tests {
             assert!(host_func.registered());
             assert_eq!(host_func.mod_name().unwrap(), "extern-module");
             assert_eq!(
-                host_func.ty().unwrap(),
+                host_func.signature().unwrap(),
                 SignatureBuilder::new()
                     .with_args(vec![ValType::I32; 2])
                     .with_returns(vec![ValType::I32])
@@ -260,7 +260,7 @@ mod tests {
             assert!(host_func.registered());
             assert_eq!(host_func.mod_name().unwrap(), "fib-module");
             assert_eq!(
-                host_func.ty().unwrap(),
+                host_func.signature().unwrap(),
                 SignatureBuilder::new()
                     .with_args(vec![ValType::I32])
                     .with_returns(vec![ValType::I32])

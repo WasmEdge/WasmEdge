@@ -9,14 +9,14 @@ pub struct Func {
     pub(crate) mod_name: Option<String>,
 }
 impl Func {
-    pub fn new(sig: Signature, real_fn: Box<HostFunc>, cost: u64) -> Result<Self> {
-        let inner = wasmedge::Function::create(sig.into(), real_fn, cost)?;
-        Ok(Self {
-            inner,
-            name: None,
-            mod_name: None,
-        })
-    }
+    // pub fn new(sig: Signature, real_fn: Box<HostFunc>, cost: u64) -> Result<Self> {
+    //     let inner = wasmedge::Function::create(sig.into(), real_fn, cost)?;
+    //     Ok(Self {
+    //         inner,
+    //         name: None,
+    //         mod_name: None,
+    //     })
+    // }
 
     pub fn name(&self) -> Option<&str> {
         match &self.name {

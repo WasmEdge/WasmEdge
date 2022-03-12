@@ -1,12 +1,11 @@
 use crate::{error::Result, wasmedge};
-use std::marker::PhantomData;
 
 #[derive(Debug)]
 pub struct Memory<'instance> {
     pub(crate) inner: wasmedge::Memory,
     pub(crate) name: Option<String>,
     pub(crate) mod_name: Option<String>,
-    pub(crate) _marker: PhantomData<&'instance ()>,
+    pub(crate) _marker: std::marker::PhantomData<&'instance ()>,
 }
 impl<'instance> Memory<'instance> {
     pub fn name(&self) -> Option<&str> {

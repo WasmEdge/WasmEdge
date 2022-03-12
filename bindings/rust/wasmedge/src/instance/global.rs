@@ -1,12 +1,11 @@
 use crate::{error::Result, wasmedge, Mutability, ValType, Value};
-use std::marker::PhantomData;
 
 #[derive(Debug)]
 pub struct Global<'instance> {
     pub(crate) inner: wasmedge::Global,
     pub(crate) name: Option<String>,
     pub(crate) mod_name: Option<String>,
-    pub(crate) _marker: PhantomData<&'instance ()>,
+    pub(crate) _marker: std::marker::PhantomData<&'instance ()>,
 }
 impl<'instance> Global<'instance> {
     pub fn name(&self) -> Option<&str> {

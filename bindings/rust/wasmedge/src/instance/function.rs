@@ -1,23 +1,15 @@
-use crate::{error::Result, wasmedge, ValType, Value};
+use crate::{error::Result, wasmedge, Instance, ValType, Value, Vm};
 
 pub type HostFunc = dyn Fn(Vec<Value>) -> std::result::Result<Vec<Value>, u8>;
 
 #[derive(Debug)]
-pub struct Func {
+pub struct Func<'instance> {
     pub(crate) inner: wasmedge::Function,
     pub(crate) name: Option<String>,
     pub(crate) mod_name: Option<String>,
+    pub(crate) _marker: std::marker::PhantomData<&'instance Instance<'instance>>,
 }
-impl Func {
-    // pub fn new(sig: Signature, real_fn: Box<HostFunc>, cost: u64) -> Result<Self> {
-    //     let inner = wasmedge::Function::create(sig.into(), real_fn, cost)?;
-    //     Ok(Self {
-    //         inner,
-    //         name: None,
-    //         mod_name: None,
-    //     })
-    // }
-
+impl<'instance> Func<'instance> {
     pub fn name(&self) -> Option<&str> {
         match &self.name {
             Some(name) => Some(name.as_ref()),
@@ -41,10 +33,10 @@ impl Func {
         Ok(func_ty.into())
     }
 
-    // pub fn call(&self, vm: &mut Vm, args: impl IntoIterator<Item = Value>) -> Result<Vec<Value>> {
-    //     let returns = vm.run_func(self.mod_name(), self.name().unwrap(), args)?;
-    //     Ok(returns)
-    // }
+    pub fn call(&self, vm: &mut Vm, args: impl IntoIterator<Item = Value>) -> Result<Vec<Value>> {
+        let returns = vm.run_func(self.mod_name(), self.name().unwrap(), args)?;
+        Ok(returns)
+    }
 }
 
 #[derive(Debug, Default)]

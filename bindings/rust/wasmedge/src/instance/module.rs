@@ -24,6 +24,7 @@ impl<'store> Instance<'store> {
                 inner: inner_func,
                 name: Some(name.as_ref().into()),
                 mod_name: self.inner.name(),
+                _marker: PhantomData,
             });
         }
 
@@ -38,14 +39,6 @@ impl<'store> Instance<'store> {
         self.inner.global_names()
     }
 
-    pub fn memory_count(&self) -> usize {
-        self.inner.mem_len() as usize
-    }
-
-    pub fn memory_names(&self) -> Option<Vec<String>> {
-        self.inner.mem_names()
-    }
-
     pub fn global(&self, name: impl AsRef<str>) -> Option<Global> {
         let inner_global = self.inner.find_global(name.as_ref()).ok();
         if let Some(inner_global) = inner_global {
@@ -58,6 +51,14 @@ impl<'store> Instance<'store> {
         }
 
         None
+    }
+
+    pub fn memory_count(&self) -> usize {
+        self.inner.mem_len() as usize
+    }
+
+    pub fn memory_names(&self) -> Option<Vec<String>> {
+        self.inner.mem_names()
     }
 
     pub fn memory(&self, name: impl AsRef<str>) -> Option<Memory> {

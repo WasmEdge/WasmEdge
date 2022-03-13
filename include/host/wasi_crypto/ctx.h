@@ -21,6 +21,7 @@
 #include "host/wasi_crypto/common/options.h"
 #include "host/wasi_crypto/kx/alg.h"
 #include "host/wasi_crypto/signatures/alg.h"
+#include "host/wasi_crypto/signatures/signatures.h"
 #include "host/wasi_crypto/symmetric/alg.h"
 #include "host/wasi_crypto/symmetric/key.h"
 #include "host/wasi_crypto/symmetric/state.h"
@@ -324,6 +325,8 @@ private:
       SecretKeyManager{0x04};
   RcHandlesManager<__wasi_keypair_t, AsymmetricCommon::KpVariant>
       KeyPairManager{0x05};
+  RcHandlesManager<__wasi_signature_t, Signatures::SigVariant> SignatureManager{
+      0x06};
 };
 
 } // namespace WasiCrypto

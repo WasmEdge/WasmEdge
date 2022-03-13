@@ -1,8 +1,6 @@
 # React SSR
 
-[React Server-Side Rendering (SSR)](https://medium.com/jspoint/a-beginners-guide-to-react-server-side-rendering-ssr-bf3853841d55) is a common use of JavaScript in BFF (backend for frontend) functions.
-Instead of rending HTML DOM elements in the browser, it uses the React framework to render HTML elements from the server side to speed up the application.
-It is an ideal use case for serverless functions in [Jamstack](https://jamstack.org/) applications.
+[React](https://reactjs.org/) is very popular JavaScript web UI framework. A React application is "compiled" into an HTML and JavaScript static web site. The web UI is rendered through the generated JavaScript code. However, it is often too slow and resource consuming to execute the complex generated JavaScript entirely in the browser to build the interactive HTML DOM objects. [React Server Side Rendering (SSR)](https://medium.com/jspoint/a-beginners-guide-to-react-server-side-rendering-ssr-bf3853841d55) delegates the JavaScript UI rendering to a server, and have the server stream rendered HTML DOM objects to the browser. The WasmEdge JavaScript runtime provides a lightweight and high performance container to run React SSR functions on edge servers. 
 
 In this article, we will show you how to use the WasmEdge QuickJS runtime to implement a React SSR function.
 Compared with the Docker + Linux + nodejs + v8 approach, WasmEdge is much lighter (1% of the footprint) and safer, provides better resource isolation and management, and has similar non-JIT (safe) performance.

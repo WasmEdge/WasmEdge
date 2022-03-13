@@ -8,7 +8,7 @@
   
 ![WasmEdge Logo](/docs/wasmedge-runtime-logo.png)
 
-WasmEdge (previously known as SSVM) is a lightweight, high-performance, and extensible WebAssembly runtime for cloud native, edge, and decentralized applications. It is [the fastest Wasm VM](https://ieeexplore.ieee.org/document/9214403) today. WasmEdge is an official sandbox project hosted by the [CNCF](https://www.cncf.io/). Its [use cases](https://wasmedge.org/book/en/intro/use.html) include serverless apps, embedded functions, microservices, smart contracts, and IoT devices.
+WasmEdge (previously known as SSVM) is a lightweight, high-performance, and extensible WebAssembly runtime for cloud native, edge, and decentralized applications. It is [the fastest Wasm VM](https://ieeexplore.ieee.org/document/9214403) today. WasmEdge is an official sandbox project hosted by the [CNCF](https://www.cncf.io/). Its [use cases](https://wasmedge.org/book/en/intro/use.html) include modern web infra (isomorphic Jamstack apps), microservices on the edge cloud, serrverless SaaS APIs, embedded functions, smart contracts, and smart devices.
 
 ![build](https://github.com/WasmEdge/WasmEdge/workflows/build/badge.svg)
 [![codecov](https://codecov.io/gh/WasmEdge/WasmEdge/branch/master/graph/badge.svg)](https://codecov.io/gh/WasmEdge/WasmEdge)
@@ -29,13 +29,7 @@ WasmEdge (previously known as SSVM) is a lightweight, high-performance, and exte
 
 # Introduction
 
-The WasmEdge Runtime provides a well-defined execution sandbox for its contained WebAssembly bytecode program. The runtime offers isolation and protection for operating system resources (e.g., file system, sockets, environment variables, processes) and memory space. The most important use case for WasmEdge is to safely execute user-defined or community-contributed code as plug-ins in a software product (e.g., SaaS, software-defined vehicles, edge nodes, or even blockchain nodes). It enables third-party developers, vendors, suppliers, and community members to extend and customize the software product.
-
-<div align="center">
-  
-**Checkout the [application use cases](https://wasmedge.org/book/en/intro/use.html) or the [technical highlights](https://wasmedge.org/book/en/intro/features.html) of WasmEdge.**
-
-</div>
+The WasmEdge Runtime provides a well-defined execution sandbox for its contained WebAssembly bytecode program. The runtime offers isolation and protection for operating system resources (e.g., file system, sockets, environment variables, processes) and memory space. The most important use case for WasmEdge is to safely execute user-defined or community-contributed code as plug-ins in a software product (e.g., SaaS, software-defined vehicles, edge nodes, or even blockchain nodes). It enables third-party developers, vendors, suppliers, and community members to extend and customize the software product. **[Learn more here](https://wasmedge.org/book/en/intro/use.html)**
 
 ## Performance
 
@@ -45,11 +39,13 @@ The WasmEdge Runtime provides a well-defined execution sandbox for its contained
 
 ## Features
 
-WasmEdge can run standard WebAssembly bytecode programs compiled from C/C++, Rust, Swift, AssemblyScript, or Kotlin source code. It [runs JavaScript](https://wasmedge.org/book/en/dev/js.html), including 3rd party ES6, CJS, and NPM modules, in a secure, fast, lightweight, portable, and containerized sandbox. It also supports mixing of those languages (e.g., to [use Rust to implement a JavaScript API](https://wasmedge.org/book/en/dev/js/rust.html)).
+WasmEdge can run standard WebAssembly bytecode programs compiled from C/C++, Rust, Swift, AssemblyScript, or Kotlin source code. It [runs JavaScript](https://wasmedge.org/book/en/dev/js.html), including 3rd party ES6, CJS, and NPM modules, in a secure, fast, lightweight, portable, and containerized sandbox. It also supports mixing of those languages (e.g., to [use Rust to implement a JavaScript API](https://wasmedge.org/book/en/dev/js/rust.html)), the [Fetch](https://wasmedge.org/book/en/dev/js/fetch.html) API, and [Server-side Rendering (SSR)](https://wasmedge.org/book/en/dev/js/ssr.html) functions on edge servers.
 
 WasmEdge supports all standard WebAssembly features and many proposed extensions. It also supports a number of extensions tailored for cloud-native and edge computing uses (e.g., the [WasmEdge network sockets](https://wasmedge.org/book/en/dev/rust/networking.html), and the [WasmEdge Tensorflow extension](https://wasmedge.org/book/en/dev/rust/tensorflow.html)).
 
-## Integrations
+ **Learn more about [technical highlights](https://wasmedge.org/book/en/intro/features.html) of WasmEdge.**
+
+## Integrations and management
 
 WasmEdge and its contained wasm program can be started from the [CLI](https://wasmedge.org/book/en/index.html) as a new process, or from a existing process. If started from an existing process (e.g., from a running [Node.js](https://wasmedge.org/book/en/embed/node.html) or [Go](https://wasmedge.org/book/en/embed/go.html) or [Rust](bindings/rust/wasmedge-rs) program), WasmEdge will simply run inside the process as a function. Currently, WasmEdge is not yet thread-safe. In order to use WasmEdge in your own application or cloud-native frameworks, please refer to the guides below.
 

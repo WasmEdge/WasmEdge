@@ -294,7 +294,7 @@ mod tests {
         let vm = create_vm();
         let result = vm.store_mut();
         assert!(result.is_ok());
-        let store = result.unwrap();
+        let mut store = result.unwrap();
 
         // get the module named "extern"
         let result = store.named_module("extern_module");
@@ -364,7 +364,7 @@ mod tests {
         let vm = create_vm();
         let result = vm.store_mut();
         assert!(result.is_ok());
-        let store = result.unwrap();
+        let mut store = result.unwrap();
 
         // get the module named "extern"
         let result = store.named_module("extern_module");

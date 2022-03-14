@@ -623,7 +623,7 @@ impl Store {
     /// # Error
     ///
     /// If fail to find the target [module instance](crate::Instance), then an error is returned.
-    pub fn active_module(&self) -> WasmEdgeResult<Instance<'_>> {
+    pub fn active_module(&mut self) -> WasmEdgeResult<Instance<'_>> {
         let ctx = unsafe { wasmedge::WasmEdge_StoreGetActiveModule(self.inner.0) };
         match ctx.is_null() {
             true => Err(WasmEdgeError::Store(StoreError::NotFoundActiveModule)),
@@ -643,7 +643,7 @@ impl Store {
     /// # Error
     ///
     /// If fail to find the target [module instance](crate::Instance), then an error is returned.
-    pub fn named_module(&self, name: impl AsRef<str>) -> WasmEdgeResult<Instance<'_>> {
+    pub fn named_module(&mut self, name: impl AsRef<str>) -> WasmEdgeResult<Instance<'_>> {
         let mod_name: WasmEdgeString = name.as_ref().into();
         let ctx = unsafe { wasmedge::WasmEdge_StoreFindModule(self.inner.0, mod_name.as_raw()) };
         match ctx.is_null() {
@@ -1030,7 +1030,7 @@ mod tests {
         // get the store in vm
         let result = vm.store_mut();
         assert!(result.is_ok());
-        let store = result.unwrap();
+        let mut store = result.unwrap();
 
         // get the active module
         let result = store.active_module();
@@ -1087,7 +1087,7 @@ mod tests {
         // get the store in vm
         let result = vm.store_mut();
         assert!(result.is_ok());
-        let store = result.unwrap();
+        let mut store = result.unwrap();
 
         // get the module named "extern"
         let result = store.named_module("extern");

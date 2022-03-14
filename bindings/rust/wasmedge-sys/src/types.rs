@@ -22,7 +22,7 @@ impl From<u32> for RefType {
         match value {
             0x70u32 => RefType::FuncRef,
             0x6Fu32 => RefType::ExternRef,
-            _ => panic!("fail to convert u32 to WasmEdgeRefType: {}", value),
+            _ => panic!("fail to convert u32 to WasmEdgeRefType: {:#X}", value),
         }
     }
 }
@@ -91,6 +91,8 @@ pub enum ValType {
     FuncRef,
     /// A reference to object owned by the [Vm](crate::Vm).
     ExternRef,
+    /// Unknown.
+    None,
 }
 impl From<ValType> for wasmedge::WasmEdge_ValType {
     fn from(ty: ValType) -> Self {
@@ -102,6 +104,7 @@ impl From<ValType> for wasmedge::WasmEdge_ValType {
             ValType::V128 => wasmedge::WasmEdge_ValType_V128,
             ValType::FuncRef => wasmedge::WasmEdge_ValType_FuncRef,
             ValType::ExternRef => wasmedge::WasmEdge_ValType_ExternRef,
+            ValType::None => wasmedge::WasmEdge_ValType_None,
         }
     }
 }
@@ -115,7 +118,8 @@ impl From<wasmedge::WasmEdge_ValType> for ValType {
             wasmedge::WasmEdge_ValType_V128 => ValType::V128,
             wasmedge::WasmEdge_ValType_FuncRef => ValType::FuncRef,
             wasmedge::WasmEdge_ValType_ExternRef => ValType::ExternRef,
-            _ => panic!("unknown WasmEdge_ValType `{}`", ty),
+            wasmedge::WasmEdge_ValType_None => ValType::None,
+            _ => panic!("unknown WasmEdge_ValType `{:#X}`", ty),
         }
     }
 }

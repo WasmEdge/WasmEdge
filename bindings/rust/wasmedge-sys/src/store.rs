@@ -62,6 +62,8 @@ impl Store {
             false => Ok(Function {
                 inner: InnerFunc(ctx),
                 registered: true,
+                name: Some(name.as_ref().to_string()),
+                mod_name: None,
             }),
         }
     }
@@ -100,6 +102,8 @@ impl Store {
             false => Ok(Function {
                 inner: InnerFunc(ctx),
                 registered: true,
+                name: Some(func_name.as_ref().to_string()),
+                mod_name: Some(mod_name.as_ref().to_string()),
             }),
         }
     }
@@ -642,6 +646,8 @@ impl Store {
     pub fn named_module(&self, name: impl AsRef<str>) -> WasmEdgeResult<Instance<'_>> {
         let mod_name: WasmEdgeString = name.as_ref().into();
         let ctx = unsafe { wasmedge::WasmEdge_StoreFindModule(self.inner.0, mod_name.as_raw()) };
+        dbg!(ctx);
+        dbg!(name.as_ref());
         match ctx.is_null() {
             true => Err(WasmEdgeError::Store(StoreError::NotFoundModule(
                 name.as_ref().to_string(),
@@ -832,12 +838,15 @@ mod tests {
         import.add_table("table", table);
 
         // add memory
-        let result = MemType::create(0..=u32::MAX);
-        assert!(result.is_ok());
-        let mem_ty = result.unwrap();
-        let result = Memory::create(mem_ty);
-        assert!(result.is_ok());
-        let memory = result.unwrap();
+        let memory = {
+            let result = MemType::create(10..=20);
+            assert!(result.is_ok());
+            let mem_ty = result.unwrap();
+            let result = Memory::create(&mem_ty);
+            assert!(result.is_ok());
+            let memory = result.unwrap();
+            memory
+        };
         import.add_memory("mem", memory);
 
         // add globals
@@ -896,6 +905,11 @@ mod tests {
         assert!(result.is_err());
         let result = store.find_memory_registered("extern_module", "mem");
         assert!(result.is_ok());
+        let memory = result.unwrap();
+        let result = memory.ty();
+        assert!(result.is_ok());
+        let ty = result.unwrap();
+        assert_eq!(ty.limit(), 10..=20);
 
         // check the global list after instantiation
         let result = store.find_global("global");

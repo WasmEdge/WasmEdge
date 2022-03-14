@@ -12,6 +12,7 @@ use crate::{
 /// An [`Instance`] represents an instantiated module. In the instantiation process, An [`Instance`] is created from a
 /// [`Module`](crate::Module). From an [`Instance`] the exported [functions](crate::Function), [tables](crate::Table),
 /// [memories](crate::Memory), and [globals](crate::Global) can be fetched.
+#[derive(Debug)]
 pub struct Instance<'store> {
     pub(crate) inner: InnerInstance,
     pub(crate) store: &'store Store,
@@ -58,6 +59,8 @@ impl<'store> Instance<'store> {
             false => Ok(Function {
                 inner: InnerFunc(func_ctx),
                 registered: true,
+                name: Some(name.as_ref().to_string()),
+                mod_name: self.name(),
             }),
         }
     }
@@ -273,6 +276,7 @@ impl<'store> Instance<'store> {
     }
 }
 
+#[derive(Debug)]
 pub(crate) struct InnerInstance(pub(crate) *const wasmedge::WasmEdge_ModuleInstanceContext);
 unsafe impl Send for InnerInstance {}
 unsafe impl Sync for InnerInstance {}
@@ -281,8 +285,8 @@ unsafe impl Sync for InnerInstance {}
 mod tests {
     use super::*;
     use crate::{
-        FuncType, GlobalType, ImportObject, MemType, Mutability, RefType, TableType, ValType,
-        Value, Vm,
+        Config, Executor, FuncType, GlobalType, ImportObject, MemType, Mutability, RefType,
+        TableType, ValType, Value, Vm,
     };
 
     #[test]
@@ -392,6 +396,96 @@ mod tests {
         assert_eq!(result.unwrap(), ["global"]);
     }
 
+    #[test]
+    fn test_instance_get() {
+        let module_name = "extern_module";
+
+        let result = Store::create();
+        assert!(result.is_ok());
+        let mut store = result.unwrap();
+        assert!(!store.inner.0.is_null());
+        assert!(!store.registered);
+
+        // check the length of registered module list in store before instatiation
+        assert_eq!(store.func_len(), 0);
+        assert_eq!(store.reg_func_len(module_name), 0);
+        assert_eq!(store.table_len(), 0);
+        assert_eq!(store.reg_table_len(module_name), 0);
+        assert_eq!(store.global_len(), 0);
+        assert_eq!(store.reg_global_len(module_name), 0);
+        assert_eq!(store.mem_len(), 0);
+        assert_eq!(store.reg_mem_len(module_name), 0);
+        assert_eq!(store.reg_module_len(), 0);
+        assert!(store.reg_module_names().is_none());
+
+        // create ImportObject instance
+        let result = ImportObject::create(module_name);
+        assert!(result.is_ok());
+        let mut import = result.unwrap();
+
+        // add host function
+        let result = FuncType::create(vec![ValType::I32; 2], vec![ValType::I32]);
+        assert!(result.is_ok());
+        let func_ty = result.unwrap();
+        let result = Function::create(func_ty, Box::new(real_add), 0);
+        assert!(result.is_ok());
+        let host_func = result.unwrap();
+        import.add_func("add", host_func);
+
+        // add table
+        let result = TableType::create(RefType::FuncRef, 0..=u32::MAX);
+        assert!(result.is_ok());
+        let ty = result.unwrap();
+        let result = Table::create(ty);
+        assert!(result.is_ok());
+        let table = result.unwrap();
+        import.add_table("table", table);
+
+        // add memory
+        let memory = {
+            let result = MemType::create(10..=20);
+            assert!(result.is_ok());
+            let mem_ty = result.unwrap();
+            let result = Memory::create(&mem_ty);
+            assert!(result.is_ok());
+            let memory = result.unwrap();
+            dbg!(mem_ty);
+            memory
+        };
+        import.add_memory("mem", memory);
+
+        // add globals
+        let result = GlobalType::create(ValType::F32, Mutability::Const);
+        assert!(result.is_ok());
+        let ty = result.unwrap();
+        let result = Global::create(ty, Value::from_f32(3.5));
+        assert!(result.is_ok());
+        let global = result.unwrap();
+        import.add_global("global", global);
+
+        let result = Config::create();
+        assert!(result.is_ok());
+        let config = result.unwrap();
+        let result = Executor::create(Some(config), None);
+        assert!(result.is_ok());
+        let mut executor = result.unwrap();
+        let result = executor.register_import_object(&mut store, &import);
+        assert!(result.is_ok());
+
+        let result = store.named_module(module_name);
+        assert!(result.is_ok());
+        let instance = result.unwrap();
+
+        // get the exported memory
+        let result = instance.find_memory("mem");
+        assert!(result.is_ok());
+        let memory = result.unwrap();
+        let result = memory.ty();
+        assert!(result.is_ok());
+        let ty = result.unwrap();
+        assert_eq!(ty.limit(), 10..=20);
+    }
+
     fn create_vm() -> Vm {
         let module_name = "extern_module";
 
@@ -422,7 +516,7 @@ mod tests {
         let result = MemType::create(0..=u32::MAX);
         assert!(result.is_ok());
         let mem_ty = result.unwrap();
-        let result = Memory::create(mem_ty);
+        let result = Memory::create(&mem_ty);
         assert!(result.is_ok());
         let memory = result.unwrap();
         import.add_memory("mem", memory);

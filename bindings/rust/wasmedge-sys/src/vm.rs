@@ -803,6 +803,76 @@ impl Drop for Vm {
         self.imports.drain();
     }
 }
+impl crate::instance::function::Engine for &mut Vm {
+    fn run_func(
+        &mut self,
+        _store: &mut Store,
+        func_name: impl AsRef<str>,
+        params: impl IntoIterator<Item = Value>,
+    ) -> WasmEdgeResult<Vec<Value>> {
+        // prepare parameters
+        let raw_params = params.into_iter().map(|x| x.as_raw()).collect::<Vec<_>>();
+
+        // prepare returns
+        let func_type = self.get_function_type(func_name.as_ref())?;
+
+        // get the info of the funtion return
+        let returns_len =
+            unsafe { wasmedge::WasmEdge_FunctionTypeGetReturnsLength(func_type.inner.0) };
+        let mut returns = Vec::with_capacity(returns_len as usize);
+
+        let func_name: WasmEdgeString = func_name.as_ref().into();
+        unsafe {
+            check(wasmedge::WasmEdge_VMExecute(
+                self.inner.0,
+                func_name.as_raw(),
+                raw_params.as_ptr(),
+                raw_params.len() as u32,
+                returns.as_mut_ptr(),
+                returns_len,
+            ))?;
+            returns.set_len(returns_len as usize);
+        }
+
+        Ok(returns.into_iter().map(Into::into).collect::<Vec<_>>())
+    }
+
+    fn run_func_registered(
+        &mut self,
+        _store: &mut Store,
+        mod_name: impl AsRef<str>,
+        func_name: impl AsRef<str>,
+        params: impl IntoIterator<Item = Value>,
+    ) -> WasmEdgeResult<Vec<Value>> {
+        // prepare parameters
+        let raw_params = params.into_iter().map(|x| x.as_raw()).collect::<Vec<_>>();
+
+        // prepare returns
+        let func_type = self.get_registered_function_type(mod_name.as_ref(), func_name.as_ref())?;
+
+        // get the info of the funtion return
+        let returns_len =
+            unsafe { wasmedge::WasmEdge_FunctionTypeGetReturnsLength(func_type.inner.0) };
+        let mut returns = Vec::with_capacity(returns_len as usize);
+
+        let mod_name: WasmEdgeString = mod_name.as_ref().into();
+        let func_name: WasmEdgeString = func_name.as_ref().into();
+        unsafe {
+            check(wasmedge::WasmEdge_VMExecuteRegistered(
+                self.inner.0,
+                mod_name.as_raw(),
+                func_name.as_raw(),
+                raw_params.as_ptr(),
+                raw_params.len() as u32,
+                returns.as_mut_ptr(),
+                returns_len,
+            ))?;
+            returns.set_len(returns_len as usize);
+        }
+
+        Ok(returns.into_iter().map(Into::into).collect::<Vec<_>>())
+    }
+}
 
 #[derive(Debug)]
 pub(crate) struct InnerVm(pub(crate) *mut wasmedge::WasmEdge_VMContext);

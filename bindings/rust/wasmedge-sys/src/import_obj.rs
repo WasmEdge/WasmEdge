@@ -313,7 +313,8 @@ unsafe impl Sync for InnerImportObject {}
 mod tests {
     use super::*;
     use crate::{
-        Config, FuncType, GlobalType, MemType, Mutability, RefType, TableType, ValType, Value, Vm,
+        Config, Executor, FuncType, GlobalType, MemType, Mutability, RefType, Statistics, Store,
+        TableType, ValType, Value, Vm,
     };
     use std::{
         sync::{Arc, Mutex},
@@ -353,7 +354,7 @@ mod tests {
         let result = MemType::create(1..=2);
         assert!(result.is_ok());
         let mem_ty = result.unwrap();
-        let result = Memory::create(mem_ty);
+        let result = Memory::create(&mem_ty);
         assert!(result.is_ok());
         let host_memory = result.unwrap();
         // add the memory into the import_obj module
@@ -370,6 +371,64 @@ mod tests {
         import_obj.add_global("global_i32", host_global);
 
         assert_eq!(import_obj.exit_code(), 1);
+    }
+
+    #[test]
+    fn test_import_add_memory() {
+        let module_name = "extern";
+
+        // create an ImportObj module
+        let result = ImportObject::create(module_name);
+        assert!(result.is_ok());
+        let mut import = result.unwrap();
+
+        // create a Memory instance
+        let host_memory = {
+            let result = MemType::create(10..=20);
+            assert!(result.is_ok());
+            let mem_ty = result.unwrap();
+            let result = Memory::create(&mem_ty);
+            assert!(result.is_ok());
+            let host_memory = result.unwrap();
+            drop(mem_ty);
+            host_memory
+        };
+
+        // add the memory into the import_obj module
+        import.add_memory("memory", host_memory);
+
+        let result = Config::create();
+        assert!(result.is_ok());
+        let config = result.unwrap();
+
+        let result = Statistics::create();
+        assert!(result.is_ok());
+        let mut stat = result.unwrap();
+
+        let result = Executor::create(Some(config), Some(&mut stat));
+        assert!(result.is_ok());
+        let mut executor = result.unwrap();
+
+        let result = Store::create();
+        assert!(result.is_ok());
+        let mut store = result.unwrap();
+
+        let result = executor.register_import_object(&mut store, &import);
+        assert!(result.is_ok());
+
+        let result = store.named_module(module_name);
+        assert!(result.is_ok());
+        let instance = result.unwrap();
+
+        let result = instance.find_memory("memory");
+        assert!(result.is_ok());
+        let memory = result.unwrap();
+
+        let result = memory.ty();
+        assert!(result.is_ok());
+        let ty = result.unwrap();
+
+        assert_eq!(ty.limit(), 10..=20);
     }
 
     #[test]

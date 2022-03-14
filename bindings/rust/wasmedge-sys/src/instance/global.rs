@@ -45,7 +45,7 @@ impl GlobalType {
 
     /// Returns the value type of a `GlobalType`.
     pub fn value_type(&self) -> ValType {
-        let val = unsafe { wasmedge::WasmEdge_GlobalTypeGetValType(self.inner.0) };
+        let val = unsafe { wasmedge::WasmEdge_GlobalTypeGetValType(self.inner.0 as *const _) };
         val.into()
     }
 

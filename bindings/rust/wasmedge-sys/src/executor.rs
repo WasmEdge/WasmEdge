@@ -267,6 +267,75 @@ impl Drop for Executor {
         }
     }
 }
+impl crate::instance::function::Engine for &mut Executor {
+    fn run_func(
+        &mut self,
+        store: &mut Store,
+        func_name: impl AsRef<str>,
+        params: impl IntoIterator<Item = Value>,
+    ) -> WasmEdgeResult<Vec<Value>> {
+        store.contains_func(func_name.as_ref())?;
+
+        let raw_params = params.into_iter().map(|x| x.as_raw()).collect::<Vec<_>>();
+
+        // get the length of the function's returns
+        let returns_len = store.find_func(func_name.as_ref())?.ty()?.returns_len();
+        let mut returns = Vec::with_capacity(returns_len);
+
+        let func_name: WasmEdgeString = func_name.as_ref().into();
+        unsafe {
+            check(wasmedge::WasmEdge_ExecutorInvoke(
+                self.inner.0,
+                store.inner.0,
+                func_name.as_raw(),
+                raw_params.as_ptr(),
+                raw_params.len() as u32,
+                returns.as_mut_ptr(),
+                returns_len as u32,
+            ))?;
+            returns.set_len(returns_len);
+        }
+
+        Ok(returns.into_iter().map(Into::into).collect::<Vec<_>>())
+    }
+
+    fn run_func_registered(
+        &mut self,
+        store: &mut Store,
+        mod_name: impl AsRef<str>,
+        func_name: impl AsRef<str>,
+        params: impl IntoIterator<Item = Value>,
+    ) -> WasmEdgeResult<Vec<Value>> {
+        store.contains_reg_func(mod_name.as_ref(), func_name.as_ref())?;
+
+        let raw_params = params.into_iter().map(|x| x.as_raw()).collect::<Vec<_>>();
+
+        // get the length of the function's returns
+        let returns_len = store
+            .find_func_registered(mod_name.as_ref(), func_name.as_ref())?
+            .ty()?
+            .returns_len();
+        let mut returns = Vec::with_capacity(returns_len);
+
+        let mod_name: WasmEdgeString = mod_name.as_ref().into();
+        let func_name: WasmEdgeString = func_name.as_ref().into();
+        unsafe {
+            check(wasmedge::WasmEdge_ExecutorInvokeRegistered(
+                self.inner.0,
+                store.inner.0,
+                mod_name.as_raw(),
+                func_name.as_raw(),
+                raw_params.as_ptr(),
+                raw_params.len() as u32,
+                returns.as_mut_ptr(),
+                returns_len as u32,
+            ))?;
+            returns.set_len(returns_len);
+        }
+
+        Ok(returns.into_iter().map(Into::into).collect::<Vec<_>>())
+    }
+}
 
 #[derive(Debug)]
 pub(crate) struct InnerExecutor(pub(crate) *mut wasmedge::WasmEdge_ExecutorContext);

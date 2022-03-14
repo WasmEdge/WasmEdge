@@ -37,14 +37,13 @@ impl Memory {
     ///
     /// let ty = MemType::create(10..=20).expect("fail to create memory type");
     ///
-    /// let memory = Memory::create(ty);
+    /// let memory = Memory::create(&ty);
     ///
     /// ```
     ///
     ///
-    pub fn create(mut ty: MemType) -> WasmEdgeResult<Self> {
-        let ctx = unsafe { wasmedge::WasmEdge_MemoryInstanceCreate(ty.inner.0) };
-        ty.inner.0 = std::ptr::null_mut();
+    pub fn create(ty: &MemType) -> WasmEdgeResult<Self> {
+        let ctx = unsafe { wasmedge::WasmEdge_MemoryInstanceCreate(ty.inner.0 as *const _) };
 
         match ctx.is_null() {
             true => Err(WasmEdgeError::Mem(MemError::Create)),
@@ -117,7 +116,7 @@ impl Memory {
     ///
     /// // create a Memory: the min size 1 and the max size 2
     /// let ty = MemType::create(1..=2).expect("fail to create a memory type");
-    /// let mut mem = Memory::create(ty).expect("fail to create a Memory");
+    /// let mut mem = Memory::create(&ty).expect("fail to create a Memory");
     ///
     /// // set data and the data length is larger than the data size in the memory
     /// let result = mem.set_data(vec![1; 10], u32::pow(2, 16) - 9);
@@ -132,7 +131,7 @@ impl Memory {
     ///
     /// // create a Memory: the min size 1 and the max size 2
     /// let ty = MemType::create(1..=2).expect("fail to create a memory type");
-    /// let mut mem = Memory::create(ty).expect("fail to create a Memory");
+    /// let mut mem = Memory::create(&ty).expect("fail to create a Memory");
     /// // page count
     /// let count = mem.size();
     /// assert_eq!(count, 1);
@@ -239,7 +238,7 @@ impl Memory {
     ///
     /// // create a Memory with a limit range [10, 20]
     /// let ty = MemType::create(10..=20).expect("fail to create a memory type");
-    /// let mut mem = Memory::create(ty).expect("fail to create a Memory");
+    /// let mut mem = Memory::create(&ty).expect("fail to create a Memory");
     /// // check page count
     /// let count = mem.size();
     /// assert_eq!(count, 10);
@@ -329,6 +328,7 @@ impl MemType {
 impl Drop for MemType {
     fn drop(&mut self) {
         if !self.registered && !self.inner.0.is_null() {
+            dbg!("drop memtype");
             unsafe { wasmedge::WasmEdge_MemoryTypeDelete(self.inner.0) }
         }
     }
@@ -375,7 +375,7 @@ mod tests {
         let result = MemType::create(10..=20);
         assert!(result.is_ok());
         let ty = result.unwrap();
-        let result = Memory::create(ty);
+        let result = Memory::create(&ty);
         assert!(result.is_ok());
         let mut mem = result.unwrap();
         assert!(!mem.inner.0.is_null());
@@ -410,7 +410,7 @@ mod tests {
         let result = MemType::create(1..=2);
         assert!(result.is_ok());
         let ty = result.unwrap();
-        let result = Memory::create(ty);
+        let result = Memory::create(&ty);
         assert!(result.is_ok());
         let mut mem = result.unwrap();
         assert!(!mem.inner.0.is_null());
@@ -476,7 +476,7 @@ mod tests {
             let result = MemType::create(10..=20);
             assert!(result.is_ok());
             let ty = result.unwrap();
-            let result = Memory::create(ty);
+            let result = Memory::create(&ty);
             assert!(result.is_ok());
             let mem = result.unwrap();
             assert!(!mem.inner.0.is_null());
@@ -507,7 +507,7 @@ mod tests {
         let result = MemType::create(10..=20);
         assert!(result.is_ok());
         let ty = result.unwrap();
-        let result = Memory::create(ty);
+        let result = Memory::create(&ty);
         assert!(result.is_ok());
         let mem = result.unwrap();
         assert!(!mem.inner.0.is_null());

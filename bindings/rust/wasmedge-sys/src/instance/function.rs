@@ -1,7 +1,7 @@
 //! Defines WasmEdge Function and FuncType structs.
 
 use crate::{
-    types::Value, wasmedge, FuncError, ValType, WasmEdgeError, WasmEdgeResult, HOST_FUNCS,
+    types::Value, wasmedge, FuncError, Store, ValType, WasmEdgeError, WasmEdgeResult, HOST_FUNCS,
 };
 use core::ffi::c_void;
 use rand::Rng;
@@ -68,6 +68,8 @@ extern "C" fn wraper_fn(
 pub struct Function {
     pub(crate) inner: InnerFunc,
     pub(crate) registered: bool,
+    pub(crate) name: Option<String>,
+    pub(crate) mod_name: Option<String>,
 }
 impl Function {
     #[allow(clippy::type_complexity)]
@@ -164,6 +166,8 @@ impl Function {
             false => Ok(Self {
                 inner: InnerFunc(ctx),
                 registered: false,
+                name: None,
+                mod_name: None,
             }),
         }
     }
@@ -183,6 +187,22 @@ impl Function {
                 registered: true,
             }),
         }
+    }
+
+    pub fn call(
+        &self,
+        ref mut engine: impl Engine,
+        store: &mut Store,
+        args: impl IntoIterator<Item = Value>,
+    ) -> WasmEdgeResult<Vec<Value>> {
+        let returns = match self.mod_name.as_ref() {
+            Some(mod_name) => {
+                engine.run_func_registered(store, mod_name, self.name.as_ref().unwrap(), args)?
+            }
+            None => engine.run_func(store, self.name.as_ref().unwrap(), args)?,
+        };
+
+        Ok(returns)
     }
 }
 impl Drop for Function {
@@ -308,10 +328,27 @@ pub(crate) struct InnerFuncType(pub(crate) *mut wasmedge::WasmEdge_FunctionTypeC
 unsafe impl Send for InnerFuncType {}
 unsafe impl Sync for InnerFuncType {}
 
+pub trait Engine {
+    fn run_func(
+        &mut self,
+        store: &mut Store,
+        func_name: impl AsRef<str>,
+        params: impl IntoIterator<Item = Value>,
+    ) -> WasmEdgeResult<Vec<Value>>;
+
+    fn run_func_registered(
+        &mut self,
+        store: &mut Store,
+        mod_name: impl AsRef<str>,
+        func_name: impl AsRef<str>,
+        params: impl IntoIterator<Item = Value>,
+    ) -> WasmEdgeResult<Vec<Value>>;
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::ValType;
+    use crate::{Executor, ImportObject, Store, ValType};
     use std::{
         sync::{Arc, Mutex},
         thread,
@@ -402,6 +439,57 @@ mod tests {
     }
 
     #[test]
+    fn test_func_call() {
+        // create a FuncType
+        let result = FuncType::create(vec![ValType::I32; 2], vec![ValType::I32]);
+        assert!(result.is_ok());
+        let func_ty = result.unwrap();
+        let result = Function::create(func_ty, Box::new(real_add), 0);
+        assert!(result.is_ok());
+        let host_func = result.unwrap();
+
+        // create an ImportObj module
+        let result = ImportObject::create("extern");
+        assert!(result.is_ok());
+        let mut import = result.unwrap();
+        // add the function into the import module
+        import.add_func("add", host_func);
+
+        let result = Executor::create(None, None);
+        assert!(result.is_ok());
+        let mut executor = result.unwrap();
+
+        let result = Store::create();
+        assert!(result.is_ok());
+        let mut store = result.unwrap();
+
+        // register the import module
+        let result = executor.register_import_object(&mut store, &import);
+        assert!(result.is_ok());
+
+        // get the exported module instance
+        let result = store.named_module("extern");
+        assert!(result.is_ok());
+        let instance = result.unwrap();
+
+        // get the exported host function
+        let result = instance.find_func("add");
+        assert!(result.is_ok());
+        let func_add = result.unwrap();
+
+        let result = func_add.call(
+            &mut executor,
+            &mut store,
+            [Value::from_i32(1), Value::from_i32(2)],
+        );
+        assert!(result.is_ok());
+        let returns = result.unwrap();
+        assert_eq!(returns, [Value::from_i32(3)]);
+
+        assert!(!executor.registered);
+    }
+
+    #[test]
     fn test_func_send() {
         // create a FuncType
         let result = FuncType::create(vec![ValType::I32; 2], vec![ValType::I32]);
@@ -482,7 +570,7 @@ mod tests {
         };
 
         let b = if input[1].ty() == ValType::I32 {
-            input[0].to_i32()
+            input[1].to_i32()
         } else {
             return Err(3);
         };

@@ -1,7 +1,6 @@
 package org.wasmedge;
 
 import org.junit.Assert;
-import org.junit.Ignore;
 import org.junit.Test;
 
 public class MemoryInstanceTest extends BaseTest {
@@ -25,11 +24,6 @@ public class MemoryInstanceTest extends BaseTest {
 
         memCxt.delete();
         memType.delete();
-    }
-    @Test
-    @Ignore
-    public void testGetPointer() {
-        Assert.fail("not implemented");
     }
 
     @Test

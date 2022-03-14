@@ -1,6 +1,7 @@
 package org.wasmedge;
 
 public class MemoryInstanceContext {
+
     private long pointer;
 
     private MemoryTypeContext memoryTypeContext;
@@ -9,6 +10,7 @@ public class MemoryInstanceContext {
         this.memoryTypeContext = memoryTypeContext;
         nativeInit(memoryTypeContext);
     }
+
 
     private native void nativeInit(MemoryTypeContext memoryTypeContext);
 

@@ -1,7 +1,6 @@
 package org.wasmedge;
 
 import org.junit.Assert;
-import org.junit.Ignore;
 import org.junit.Test;
 import org.wasmedge.enums.ExternalType;
 import org.wasmedge.enums.RefType;

@@ -15,8 +15,6 @@ public class TableInstanceTest extends BaseTest {
 
         tab.delete();
         tabInstance.delete();
-
-
     }
 
     @Test
@@ -31,43 +29,46 @@ public class TableInstanceTest extends BaseTest {
     }
 
     @Test
-    @Ignore
     public void testSetDataAndGetExternRefData() {
         TableTypeContext tabCxt = new TableTypeContext(RefType.EXTERREF,
                 new WasmEdgeLimit(false, 10, 10));
         TableInstanceContext tabIns = new TableInstanceContext(tabCxt);
         Integer num = 1;
-        WasmEdgeValue val = new WasmEdgeExternRef(num);
+        WasmEdgeValue val = new WasmEdgeExternRef<>(num);
 
         tabIns.setData(val, 5);
 
-        WasmEdgeExternRef returnRef = (WasmEdgeExternRef) tabIns.getData(ValueType.ExternRef, 5);
-        Integer returnVal = (Integer) returnRef.getExternRefVal();
+        WasmEdgeExternRef<Integer> returnRef = (WasmEdgeExternRef<Integer>) tabIns.getData(ValueType.ExternRef, 5);
+        Integer returnVal =  returnRef.getExtValue();
+
         Assert.assertEquals(num.intValue(), returnVal.intValue());
+        //change value
+        num = 5;
+        returnRef = (WasmEdgeExternRef<Integer>) tabIns.getData(ValueType.ExternRef, 5) ;
+
+        Assert.assertEquals(5, returnRef.getExtValue().intValue());
     }
 
     @Test
-    @Ignore
     public void testSetAndGetFuncRefData() {
         TableTypeContext tabCxt = new TableTypeContext(RefType.FUNCREF,
                 new WasmEdgeLimit(false, 10, 10));
         TableInstanceContext tabIns = new TableInstanceContext(tabCxt);
         int idx = 1;
-        WasmEdgeValue val = new WasmEdgeFunctionRef(1);
+        WasmEdgeValue val = new WasmEdgeFuncRef(1);
 
         tabIns.setData(val, 5);
 
-        WasmEdgeFunctionRef returnRef = (WasmEdgeFunctionRef) tabIns.getData(ValueType.ExternRef, 5);
+        WasmEdgeFuncRef returnRef = (WasmEdgeFuncRef) tabIns.getData(ValueType.ExternRef, 5);
         Assert.assertEquals(idx, returnRef.getIndex());
     }
 
-    @Test(expected = RuntimeException.class)
-    @Ignore
+    @Test(expected = Exception.class)
     public void testSetDataInvalid() {
-        TableTypeContext tabCxt = new TableTypeContext(RefType.EXTERREF,
+        TableTypeContext tabCxt = new TableTypeContext(RefType.FUNCREF,
                 new WasmEdgeLimit(true, 10, 10));
         TableInstanceContext tabIns = new TableInstanceContext(tabCxt);
-        WasmEdgeValue val = new WasmEdgeExternRef(Integer.valueOf(1));
+        WasmEdgeValue val = new WasmEdgeFuncRef(1);
         tabIns.setData(val, 12);
     }
 

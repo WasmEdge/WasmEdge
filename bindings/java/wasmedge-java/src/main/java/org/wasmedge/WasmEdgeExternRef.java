@@ -4,28 +4,41 @@ import org.wasmedge.enums.ValueType;
 
 import java.util.UUID;
 
-public class WasmEdgeExternRef implements WasmEdgeValue {
-    private String value;
+public class WasmEdgeExternRef<T> implements WasmEdgeValue {
     private long pointer;
-    public WasmEdgeExternRef(Object val) {
-        String key = UUID.randomUUID().toString();
+    private String value;
+    public WasmEdgeExternRef(T val) {
+        final String key = UUID.randomUUID().toString();
+        this.value = key;
         WasmEdgeVM.addExternRef(key, val);
         nativeInit(key);
     }
 
-    private void WasmEdgeFunctionRef() {
+    private WasmEdgeExternRef() {
 
     }
 
     private native void nativeInit(String key);
 
-    public Object getExternRefVal() {
-        return WasmEdgeVM.getExternRef(value);
+    private native String nativeGetKey();
+
+    public String getValue() {
+        return value;
     }
+    public T getExtValue() {
+        return (T)WasmEdgeVM.getExternRef(value);
+    }
+
+    public void setValue(String value) {
+        this.value = value;
+    }
+
 
     @Override
     public ValueType getType() {
         return ValueType.ExternRef;
     }
+
+    public native void delete();
 
 }

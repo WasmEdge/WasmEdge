@@ -10,17 +10,25 @@ extern "C" {
 /*
  * Class:     org_wasmedge_WasmEdgeExternRef
  * Method:    nativeInit
- * Signature: (Ljava/lang/Object;)V
+ * Signature: (Ljava/lang/String;)V
  */
 JNIEXPORT void JNICALL Java_org_wasmedge_WasmEdgeExternRef_nativeInit
-  (JNIEnv *, jobject, jobject);
+  (JNIEnv *, jobject, jstring);
 
 /*
  * Class:     org_wasmedge_WasmEdgeExternRef
- * Method:    getExternRefVal
- * Signature: ()Ljava/lang/Object;
+ * Method:    nativeGetKey
+ * Signature: ()Ljava/lang/String;
  */
-JNIEXPORT jobject JNICALL Java_org_wasmedge_WasmEdgeExternRef_getExternRefVal
+JNIEXPORT jstring JNICALL Java_org_wasmedge_WasmEdgeExternRef_nativeGetKey
+  (JNIEnv *, jobject);
+
+/*
+ * Class:     org_wasmedge_WasmEdgeExternRef
+ * Method:    delete
+ * Signature: ()V
+ */
+JNIEXPORT void JNICALL Java_org_wasmedge_WasmEdgeExternRef_delete
   (JNIEnv *, jobject);
 
 #ifdef __cplusplus

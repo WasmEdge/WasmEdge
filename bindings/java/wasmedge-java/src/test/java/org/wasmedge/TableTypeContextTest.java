@@ -7,7 +7,7 @@ import org.wasmedge.enums.RefType;
 public class TableTypeContextTest extends BaseTest {
 
     @Test
-    public void testCreation() {
+    public void testCreateExtRef() {
         RefType refType = RefType.EXTERREF;
         WasmEdgeLimit limit = new WasmEdgeLimit(true, 1, 1000);
         TableTypeContext tableTypeContext = new TableTypeContext(refType, limit);
@@ -17,4 +17,17 @@ public class TableTypeContextTest extends BaseTest {
         Assert.assertEquals(tableTypeContext.getLimit().getMax(), limit.getMax());
         Assert.assertEquals(tableTypeContext.getLimit().getMin(), limit.getMin());
     }
+
+    @Test
+    public void testCreateFunRef() {
+        RefType refType = RefType.FUNCREF;
+        WasmEdgeLimit limit = new WasmEdgeLimit(true, 1, 1000);
+        TableTypeContext tableTypeContext = new TableTypeContext(refType, limit);
+
+        Assert.assertEquals(tableTypeContext.getRefType(), refType);
+        Assert.assertEquals(tableTypeContext.getLimit().isHasMax(), limit.isHasMax());
+        Assert.assertEquals(tableTypeContext.getLimit().getMax(), limit.getMax());
+        Assert.assertEquals(tableTypeContext.getLimit().getMin(), limit.getMin());
+    }
+
 }

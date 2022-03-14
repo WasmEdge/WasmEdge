@@ -159,8 +159,21 @@ double getDoubleVal(JNIEnv *env, jobject val) {
 
 char* getStringVal(JNIEnv *env, jobject val) {
     jclass clazz = (*env)->GetObjectClass(env, val);
+
+    if(clazz == NULL) {
+        printf("class not found\n");
+    }
+
     jmethodID methodId = findJavaMethod(env, clazz, "getValue", "()Ljava/lang/String;");
+
+    if(methodId == NULL) {
+        printf("method not found \n");
+    }
     jstring value = (jstring)(*env)->CallObjectMethod(env, val, methodId);
+    if(value == NULL)  {
+        printf("value not found\n");
+    }
+
     const char* c_str = (*env)->GetStringUTFChars(env, value, NULL);
     size_t len = (*env)->GetStringUTFLength(env, value);
     char * buf = malloc(sizeof(char) * len);
@@ -265,7 +278,7 @@ void setJavaValueObject(JNIEnv *env, WasmEdge_Value value, jobject j_val) {
             setJavaDoubleValue(env, value, j_val);
             break;
         case WasmEdge_ValType_ExternRef:
-            setJavaValueObject(env, value, j_val);
+            setJavaStringValue(env, value, j_val);
             break;
         default:
             break;
@@ -371,4 +384,15 @@ bool AddElementToJavaList(JNIEnv* env, jobject jList, jobject ele) {
     jmethodID addMethod = findJavaMethod(env, listClass, "add", "(Ljava/lang/Object;)Z");
 
     return (*env)->CallBooleanMethod(env, jList, addMethod, ele);
+}
+
+WasmEdge_String JStringToWasmString(JNIEnv* env, jstring jstr) {
+     uint32_t len = (*env)->GetStringUTFLength(env, jstr);
+     const char* strPtr = (*env)->GetStringUTFChars(env, jstr, NULL);
+
+    WasmEdge_String wStr = WasmEdge_StringCreateByBuffer(strPtr, len);
+
+    (*env)->ReleaseStringUTFChars(env, jstr, strPtr);
+
+    return wStr;
 }

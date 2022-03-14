@@ -46,8 +46,10 @@ void setJavaDoubleValue(JNIEnv *env, WasmEdge_Value val, jobject jobj) {
 void setJavaStringValue(JNIEnv *env, WasmEdge_Value val, jobject jobj) {
     char* key = WasmEdge_ValueGetExternRef(val);
     jclass val_clazz = (*env)->GetObjectClass(env, jobj);
-    jmethodID  val_setter = (*env)->GetMethodID(env, val_clazz, "setValue", "(Ljava/lang/String;)");
-    jstring jkey = (*env)->NewString(env, key, strlen(key));
+
+    jmethodID  val_setter = (*env)->GetMethodID(env, val_clazz, "setValue", "(Ljava/lang/String;)V");
+
+    jstring jkey = (*env)->NewStringUTF(env, key);
     (*env)->CallObjectMethod(env, jobj, val_setter, jkey);
 }
 

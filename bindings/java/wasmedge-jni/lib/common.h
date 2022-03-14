@@ -67,4 +67,6 @@ jobject CreateJavaArrayList(JNIEnv* env, jint len);
 
 bool AddElementToJavaList(JNIEnv* env, jobject jList, jobject ele);
 
+WasmEdge_String JStringToWasmString(JNIEnv* env, jstring jstr);
+
 #endif //WASMEDGE_JAVA_COMMON_H

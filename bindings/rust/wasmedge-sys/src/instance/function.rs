@@ -1,7 +1,7 @@
 //! Defines WasmEdge Function and FuncType structs.
 
 use crate::{
-    types::Value, wasmedge, FuncError, Store, ValType, WasmEdgeError, WasmEdgeResult, HOST_FUNCS,
+    types::Value, wasmedge, FuncError, ValType, WasmEdgeError, WasmEdgeResult, HOST_FUNCS,
 };
 use core::ffi::c_void;
 use rand::Rng;
@@ -172,6 +172,20 @@ impl Function {
         }
     }
 
+    pub fn name(&self) -> Option<&str> {
+        match &self.name {
+            Some(name) => Some(name.as_ref()),
+            None => None,
+        }
+    }
+
+    pub fn mod_name(&self) -> Option<&str> {
+        match &self.mod_name {
+            Some(mod_name) => Some(mod_name.as_ref()),
+            None => None,
+        }
+    }
+
     /// Returns the underlying wasm type of a [`Function`].
     ///
     /// # Errors
@@ -187,22 +201,6 @@ impl Function {
                 registered: true,
             }),
         }
-    }
-
-    pub fn call(
-        &self,
-        ref mut engine: impl Engine,
-        store: &mut Store,
-        args: impl IntoIterator<Item = Value>,
-    ) -> WasmEdgeResult<Vec<Value>> {
-        let returns = match self.mod_name.as_ref() {
-            Some(mod_name) => {
-                engine.run_func_registered(store, mod_name, self.name.as_ref().unwrap(), args)?
-            }
-            None => engine.run_func(store, self.name.as_ref().unwrap(), args)?,
-        };
-
-        Ok(returns)
     }
 }
 impl Drop for Function {
@@ -327,23 +325,6 @@ impl Drop for FuncType {
 pub(crate) struct InnerFuncType(pub(crate) *mut wasmedge::WasmEdge_FunctionTypeContext);
 unsafe impl Send for InnerFuncType {}
 unsafe impl Sync for InnerFuncType {}
-
-pub trait Engine {
-    fn run_func(
-        &mut self,
-        store: &mut Store,
-        func_name: impl AsRef<str>,
-        params: impl IntoIterator<Item = Value>,
-    ) -> WasmEdgeResult<Vec<Value>>;
-
-    fn run_func_registered(
-        &mut self,
-        store: &mut Store,
-        mod_name: impl AsRef<str>,
-        func_name: impl AsRef<str>,
-        params: impl IntoIterator<Item = Value>,
-    ) -> WasmEdgeResult<Vec<Value>>;
-}
 
 #[cfg(test)]
 mod tests {
@@ -475,18 +456,6 @@ mod tests {
         // get the exported host function
         let result = instance.find_func("add");
         assert!(result.is_ok());
-        let func_add = result.unwrap();
-
-        let result = func_add.call(
-            &mut executor,
-            &mut store,
-            [Value::from_i32(1), Value::from_i32(2)],
-        );
-        assert!(result.is_ok());
-        let returns = result.unwrap();
-        assert_eq!(returns, [Value::from_i32(3)]);
-
-        assert!(!executor.registered);
     }
 
     #[test]

@@ -1,10 +1,15 @@
-use crate::wasmedge;
+use crate::{error::Result, wasmedge};
 
 #[derive(Debug)]
-pub struct Statistics<'vm> {
-    pub(crate) inner: &'vm mut wasmedge::Statistics,
+pub struct Statistics {
+    pub(crate) inner: wasmedge::Statistics,
 }
-impl<'vm> Statistics<'vm> {
+impl Statistics {
+    pub fn new() -> Result<Self> {
+        let inner = wasmedge::Statistics::create()?;
+        Ok(Self { inner })
+    }
+
     pub fn count_of_instr(&self) -> u64 {
         self.inner.instr_count()
     }

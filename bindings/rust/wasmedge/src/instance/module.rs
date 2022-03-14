@@ -1,6 +1,7 @@
 use crate::{wasmedge, Func, Global, Memory, Table};
 use std::marker::PhantomData;
 
+#[derive(Debug)]
 pub struct Instance<'store> {
     pub(crate) inner: wasmedge::Instance<'store>,
 }
@@ -102,21 +103,32 @@ impl<'store> Instance<'store> {
 mod tests {
     use crate::{
         wasmedge::{Mutability, RefType},
-        GlobalType, ImportMod, MemoryType, Module, SignatureBuilder, TableType, ValType, Value, Vm,
+        Config, Executor, GlobalType, ImportMod, MemoryType, Module, SignatureBuilder, Statistics,
+        Store, TableType, ValType, Value,
     };
 
     #[test]
     fn test_instance_basic() {
-        // create a Vm context
-        let result = Vm::new(None);
+        // create an executor
+        let result = Config::new();
         assert!(result.is_ok());
-        let mut vm = result.unwrap();
+        let config = result.unwrap();
 
-        // get store
-        let store = vm.store_mut();
+        let result = Statistics::new();
+        assert!(result.is_ok());
+        let mut stat = result.unwrap();
+
+        let result = Executor::new(Some(&config), Some(&mut stat));
+        assert!(result.is_ok());
+        let mut executor = result.unwrap();
+
+        // create a store
+        let result = Store::new();
+        assert!(result.is_ok());
+        let mut store = result.unwrap();
 
         // check the exported instances
-        assert_eq!(store.instance_count(), 0);
+        assert_eq!(store.named_instance_count(), 0);
         assert!(store.instance_names().is_none());
 
         // create an ImportMod instance
@@ -147,26 +159,22 @@ mod tests {
         let result = import.add_global("global", ty, Value::from_f32(3.5));
         assert!(result.is_ok());
 
-        // add the import module into vm
-        let result = vm.add_import(&import);
+        let result = store.register_import_module(&mut executor, &import);
         assert!(result.is_ok());
-        let vm = result.unwrap();
 
         // add a wasm module from a file
         let file = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
             .join("tools/wasmedge/examples/fibonacci.wasm");
-        let result = Module::from_file(&vm, file);
+        let result = Module::from_file(Some(&config), file);
         assert!(result.is_ok());
         let module = result.unwrap();
-        let result = vm.add_module(module, Some("fib-module"));
-        assert!(result.is_ok());
-        let mut vm = result.unwrap();
 
-        // get store
-        let store = vm.store_mut();
+        // register a module into store as a named module
+        let result = store.register_named_module(&mut executor, "fib-module", &module);
+        assert!(result.is_ok());
 
         // check the exported instances
-        assert_eq!(store.instance_count(), 2);
+        assert_eq!(store.named_instance_count(), 2);
         assert!(store.instance_names().is_some());
         let mod_names = store.instance_names().unwrap();
         assert_eq!(mod_names[0], "extern-module");

@@ -23,8 +23,6 @@ impl<'store> Instance<'store> {
         if let Some(inner_func) = inner_func {
             return Some(Func {
                 inner: inner_func,
-                name: Some(name.as_ref().into()),
-                mod_name: self.inner.name(),
                 _marker: PhantomData,
             });
         }

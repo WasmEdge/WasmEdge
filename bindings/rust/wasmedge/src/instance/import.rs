@@ -56,8 +56,8 @@ impl ImportMod {
 
     /// Given the type and the value, creates a new [Memory](crate::Memory) instance and adds it to this import module.
     pub fn add_memory(&mut self, name: impl AsRef<str>, memory_ty: MemoryType) -> Result<()> {
-        let ty = memory_ty.to_raw()?;
-        let memory = wasmedge::Memory::create(ty)?;
+        let inner_ty = memory_ty.to_raw()?;
+        let memory = wasmedge::Memory::create(&inner_ty)?;
         self.inner.add_memory(name.as_ref(), memory);
         Ok(())
     }
@@ -112,218 +112,142 @@ impl<'vm> WasmEdgeProcessImportMod<'vm> {
 mod tests {
     use super::*;
     use crate::{
-        error::WasmEdgeError, wasmedge, Config, Mutability, RefType, SignatureBuilder, ValType,
-        Value, Vm,
+        error::WasmEdgeError, wasmedge, Config, Executor, Mutability, RefType, SignatureBuilder,
+        Statistics, Store, ValType, Value,
     };
 
     #[test]
     fn test_import_new_wasmedgeprocess() {
-        {
-            // create a Config
-            let result = Config::new();
-            let mut config = result.unwrap();
-            config.wasmedge_process(true);
+        // create a WasmEdgeProcess module
+        let result = ImportMod::new_wasmedge_process(None, false);
+        assert!(result.is_ok());
+        let mut process_import = result.unwrap();
 
-            // create a Vm context
-            let result = Vm::new(Some(config));
-            assert!(result.is_ok());
-            let mut vm = result.unwrap();
+        // add host function
+        let signature = SignatureBuilder::new()
+            .with_args(vec![ValType::I32; 2])
+            .with_returns(vec![ValType::I32])
+            .build();
+        let result = process_import.add_func("add", signature, Box::new(real_add));
+        assert!(result.is_ok());
 
-            // get WasmEdgeProcess module from vm
-            let result = vm.wasmedge_process_module();
-            assert!(result.is_some());
+        // create an executor
+        let result = Config::new();
+        assert!(result.is_ok());
+        let config = result.unwrap();
 
-            // get store from vm
-            let store = vm.store_mut();
+        let result = Statistics::new();
+        assert!(result.is_ok());
+        let mut stat = result.unwrap();
 
-            // check registered modules
-            assert_eq!(store.instance_count(), 1);
-            let result = store.instance_names();
-            assert!(result.is_some());
-            assert_eq!(result.unwrap(), ["wasmedge_process"]);
+        let result = Executor::new(Some(&config), Some(&mut stat));
+        assert!(result.is_ok());
+        let mut executor = result.unwrap();
 
-            // * try to add another WasmEdgeProcess module, that causes error
+        // create a store
+        let result = Store::new();
+        assert!(result.is_ok());
+        let mut store = result.unwrap();
 
-            // create a WasmEdgeProcess module
-            let result = ImportMod::new_wasmedge_process(None, false);
-            assert!(result.is_ok());
-            let import_process = result.unwrap();
+        let result = store.register_import_module(&mut executor, &process_import);
+        assert!(result.is_ok());
 
-            let result = vm.add_import(&import_process);
-            assert!(result.is_err());
-            assert_eq!(
-                result.unwrap_err(),
-                WasmEdgeError::Operation(wasmedge::error::WasmEdgeError::Core(
-                    wasmedge::error::CoreError::Instantiation(
-                        wasmedge::error::CoreInstantiationError::ModuleNameConflict
-                    )
-                ))
-            );
-        }
+        // check registered modules
+        assert_eq!(store.named_instance_count(), 1);
+        let result = store.instance_names();
+        assert!(result.is_some());
+        assert_eq!(result.unwrap(), ["wasmedge_process"]);
+        let result = store.named_instance("wasmedge_process");
+        assert!(result.is_some());
+        let instance = result.unwrap();
 
-        {
-            // create a Config context, not enable wasi and wasmedge_process options.
-            let result = Config::new();
-            let config = result.unwrap();
+        // find "add" host function
+        let result = instance.func("add");
+        assert!(result.is_some());
+        let host_func = result.unwrap();
+        assert!(host_func.name().is_some());
+        assert_eq!(host_func.name().unwrap(), "add");
+        assert!(host_func.mod_name().is_some());
+        assert_eq!(host_func.mod_name().unwrap(), "wasmedge_process");
 
-            // create a Vm context
-            let result = Vm::new(Some(config));
-            assert!(result.is_ok());
-            let mut vm = result.unwrap();
+        // * try to add another WasmEdgeProcess module, that causes error
 
-            // get WasmEdgeProcess module from vm
-            let result = vm.wasmedge_process_module();
-            assert!(result.is_none());
+        // create a WasmEdgeProcess module
+        let result = ImportMod::new_wasmedge_process(None, false);
+        assert!(result.is_ok());
+        let import_process = result.unwrap();
 
-            // *** try to add a WasmEdgeProcess module.
-
-            // create a WasmEdgeProcess module
-            let result = ImportMod::new_wasmedge_process(None, false);
-            assert!(result.is_ok());
-            let mut import_process = result.unwrap();
-
-            // add host function
-            let signature = SignatureBuilder::new()
-                .with_args(vec![ValType::I32; 2])
-                .with_returns(vec![ValType::I32])
-                .build();
-            let result = import_process.add_func("add", signature, Box::new(real_add));
-            assert!(result.is_ok());
-
-            let result = vm.add_import(&import_process);
-            assert!(result.is_ok());
-            let mut vm = result.unwrap();
-
-            // get the WasmEdgeProcess module
-            let result = vm.wasmedge_process_module();
-            assert!(result.is_none());
-
-            // get store from vm
-            let store = vm.store_mut();
-
-            // check registered modules
-            assert_eq!(store.instance_count(), 1);
-            let result = store.instance_names();
-            assert!(result.is_some());
-            assert_eq!(result.unwrap(), ["wasmedge_process"]);
-            let result = store.named_instance("wasmedge_process");
-            assert!(result.is_some());
-            let instance = result.unwrap();
-
-            // find "add" host function
-            let result = instance.func("add");
-            assert!(result.is_some());
-            let host_func = result.unwrap();
-            assert!(host_func.name().is_some());
-            assert_eq!(host_func.name().unwrap(), "add");
-            assert!(host_func.mod_name().is_some());
-            assert_eq!(host_func.mod_name().unwrap(), "wasmedge_process");
-        }
+        let result = store.register_import_module(&mut executor, &import_process);
+        assert!(result.is_err());
+        assert_eq!(
+            result.unwrap_err(),
+            WasmEdgeError::Operation(wasmedge::error::WasmEdgeError::Core(
+                wasmedge::error::CoreError::Instantiation(
+                    wasmedge::error::CoreInstantiationError::ModuleNameConflict
+                )
+            ))
+        );
     }
 
     #[test]
     fn test_import_new_wasi() {
-        {
-            // create a Config
-            let result = Config::new();
-            assert!(result.is_ok());
-            let mut config = result.unwrap();
-            config.wasi(true);
+        // create a WasmEdgeProcess module
+        let result = ImportMod::new_wasi(None, None, None);
+        assert!(result.is_ok());
+        let mut wasi_import = result.unwrap();
 
-            // create a Vm context
-            let result = Vm::new(Some(config));
-            assert!(result.is_ok());
-            let mut vm = result.unwrap();
+        // add host function
+        let signature = SignatureBuilder::new()
+            .with_args(vec![ValType::I32; 2])
+            .with_returns(vec![ValType::I32])
+            .build();
+        let result = wasi_import.add_func("add", signature, Box::new(real_add));
+        assert!(result.is_ok());
 
-            // get Wasi module from vm
-            let result = vm.wasi_module();
-            assert!(result.is_some());
+        // create an executor
+        let result = Config::new();
+        assert!(result.is_ok());
+        let config = result.unwrap();
 
-            // get store from vm
-            let store = vm.store_mut();
+        let result = Statistics::new();
+        assert!(result.is_ok());
+        let mut stat = result.unwrap();
 
-            // check registered modules
-            assert_eq!(store.instance_count(), 1);
-            let result = store.instance_names();
-            assert!(result.is_some());
-            assert_eq!(result.unwrap(), ["wasi_snapshot_preview1"]);
+        let result = Executor::new(Some(&config), Some(&mut stat));
+        assert!(result.is_ok());
+        let mut executor = result.unwrap();
 
-            // * try to add another Wasi module, that causes error
+        // create a store
+        let result = Store::new();
+        assert!(result.is_ok());
+        let mut store = result.unwrap();
 
-            // create a Wasi module
-            let result = ImportMod::new_wasi(None, None, None);
-            assert!(result.is_ok());
-            let import_wasi = result.unwrap();
+        let result = store.register_import_module(&mut executor, &wasi_import);
+        assert!(result.is_ok());
 
-            let result = vm.add_import(&import_wasi);
-            assert!(result.is_err());
-            assert_eq!(
-                result.unwrap_err(),
-                WasmEdgeError::Operation(wasmedge::error::WasmEdgeError::Core(
-                    wasmedge::error::CoreError::Instantiation(
-                        wasmedge::error::CoreInstantiationError::ModuleNameConflict
-                    )
-                ))
-            );
-        }
+        // check registered modules
+        assert_eq!(store.named_instance_count(), 1);
+        let result = store.instance_names();
+        assert!(result.is_some());
+        assert_eq!(result.unwrap(), ["wasi_snapshot_preview1"]);
 
-        {
-            // create a Config context, not enable wasi and wasmedge_process options.
-            let result = Config::new();
-            let config = result.unwrap();
+        // * try to add another Wasi module, that causes error
 
-            // create a Vm context
-            let result = Vm::new(Some(config));
-            assert!(result.is_ok());
-            let mut vm = result.unwrap();
+        // create a Wasi module
+        let result = ImportMod::new_wasi(None, None, None);
+        assert!(result.is_ok());
+        let wasi_import = result.unwrap();
 
-            // get Wasi module from vm
-            let result = vm.wasi_module();
-            assert!(result.is_none());
-
-            // *** try to add a Wasi module.
-
-            // create a WasmEdgeProcess module
-            let result = ImportMod::new_wasi(None, None, None);
-            assert!(result.is_ok());
-            let mut import_wasi = result.unwrap();
-
-            // add host function
-            let signature = SignatureBuilder::new()
-                .with_args(vec![ValType::I32; 2])
-                .with_returns(vec![ValType::I32])
-                .build();
-            let result = import_wasi.add_func("add", signature, Box::new(real_add));
-            assert!(result.is_ok());
-
-            let result = vm.add_import(&import_wasi);
-            assert!(result.is_ok());
-            let mut vm = result.unwrap();
-
-            // get the Wasi module
-            let result = vm.wasi_module();
-            assert!(result.is_none());
-
-            // get store from vm
-            let store = vm.store_mut();
-
-            // check registered modules
-            assert_eq!(store.instance_count(), 1);
-            let result = store.instance_names();
-            assert!(result.is_some());
-            assert_eq!(result.unwrap(), ["wasi_snapshot_preview1"]);
-
-            let result = store.named_instance("wasi_snapshot_preview1");
-            assert!(result.is_some());
-            let instance = result.unwrap();
-
-            // find "add" host function
-            let result = instance.func("add");
-            assert!(result.is_some());
-            let host_func = result.unwrap();
-            assert_eq!(host_func.name().unwrap(), "add");
-            assert_eq!(host_func.mod_name().unwrap(), "wasi_snapshot_preview1");
-        }
+        let result = store.register_import_module(&mut executor, &wasi_import);
+        assert!(result.is_err());
+        assert_eq!(
+            result.unwrap_err(),
+            WasmEdgeError::Operation(wasmedge::error::WasmEdgeError::Core(
+                wasmedge::error::CoreError::Instantiation(
+                    wasmedge::error::CoreInstantiationError::ModuleNameConflict
+                )
+            ))
+        );
     }
 
     #[test]
@@ -341,18 +265,28 @@ mod tests {
         let result = import.add_func("add", signature, Box::new(real_add));
         assert!(result.is_ok());
 
-        // create a Vm context
-        let result = Vm::new(None);
+        // create an executor
+        let result = Config::new();
         assert!(result.is_ok());
-        let vm = result.unwrap();
+        let config = result.unwrap();
 
-        // register the ImportObject module into vm
-        let result = vm.add_import(&import);
+        let result = Statistics::new();
         assert!(result.is_ok());
-        let mut vm = result.unwrap();
+        let mut stat = result.unwrap();
+
+        let result = Executor::new(Some(&config), Some(&mut stat));
+        assert!(result.is_ok());
+        let mut executor = result.unwrap();
+
+        // create a store
+        let result = Store::new();
+        assert!(result.is_ok());
+        let mut store = result.unwrap();
+
+        let result = store.register_import_module(&mut executor, &import);
+        assert!(result.is_ok());
 
         // get the instance of the ImportObject module
-        let store = vm.store_mut();
         let result = store.named_instance("extern");
         assert!(result.is_some());
         let instance = result.unwrap();
@@ -370,12 +304,6 @@ mod tests {
         assert_eq!(signature.args().unwrap(), [ValType::I32; 2]);
         assert!(signature.returns().is_some());
         assert_eq!(signature.returns().unwrap(), [ValType::I32]);
-
-        // // call the host function
-        // let result = host_func.call(&mut vm, [Value::from_i32(2), Value::from_i32(3)]);
-        // assert!(result.is_ok());
-        // let returns = result.unwrap();
-        // assert_eq!(returns, [Value::from_i32(5)]);
     }
 
     #[test]
@@ -386,24 +314,41 @@ mod tests {
         let mut import = result.unwrap();
 
         // add a memory
-        let result = import.add_memory("memory", MemoryType::new(10, Some(20)));
+        let mem_ty = MemoryType::new(10, Some(20));
+
+        // add a memory to the import module
+        let result = import.add_memory("memory", mem_ty);
         assert!(result.is_ok());
 
-        // create a Vm context
-        let result = Vm::new(None);
+        // create an executor
+        let result = Config::new();
         assert!(result.is_ok());
-        let vm = result.unwrap();
+        let config = result.unwrap();
 
-        // register the ImportObject module into vm
-        let result = vm.add_import(&import);
+        let result = Statistics::new();
         assert!(result.is_ok());
-        let mut vm = result.unwrap();
-        let store = vm.store_mut();
+        let mut stat = result.unwrap();
+
+        let result = Executor::new(Some(&config), Some(&mut stat));
+        assert!(result.is_ok());
+        let mut executor = result.unwrap();
+
+        // create a store
+        let result = Store::new();
+        assert!(result.is_ok());
+        let mut store = result.unwrap();
+
+        let result = store.named_instance("extern");
+        assert!(result.is_none());
+
+        let result = store.register_import_module(&mut executor, &import);
+        assert!(result.is_ok());
+
         let result = store.named_instance("extern");
         assert!(result.is_some());
         let instance = result.unwrap();
 
-        // get the memory from vm
+        // get the exported memory
         let result = instance.memory("memory");
         assert!(result.is_some());
         let mut memory = result.unwrap();
@@ -417,8 +362,7 @@ mod tests {
         assert!(result.is_ok());
         let ty = result.unwrap();
         assert_eq!(ty.minimum(), 10);
-        assert!(ty.maximum().is_some());
-        assert_eq!(ty.maximum().unwrap(), 20);
+        assert_eq!(ty.maximum(), 20);
 
         // grow memory
         let result = memory.grow(5);
@@ -455,17 +399,26 @@ mod tests {
         );
         assert!(result.is_ok());
 
-        // create a Vm context
-        let result = Vm::new(None);
+        // create an executor
+        let result = Config::new();
         assert!(result.is_ok());
-        let vm = result.unwrap();
+        let config = result.unwrap();
 
-        // register the ImportObject module into vm
-        let result = vm.add_import(&import);
+        let result = Statistics::new();
         assert!(result.is_ok());
-        let mut vm = result.unwrap();
+        let mut stat = result.unwrap();
 
-        let store = vm.store_mut();
+        let result = Executor::new(Some(&config), Some(&mut stat));
+        assert!(result.is_ok());
+        let mut executor = result.unwrap();
+
+        // create a store
+        let result = Store::new();
+        assert!(result.is_ok());
+        let mut store = result.unwrap();
+
+        let result = store.register_import_module(&mut executor, &import);
+        assert!(result.is_ok());
 
         let result = store.named_instance("extern");
         assert!(result.is_some());
@@ -500,8 +453,6 @@ mod tests {
         );
 
         // get the Var global from the store of vm
-        let store = vm.store_mut();
-
         let result = store.named_instance("extern");
         assert!(result.is_some());
         let instance = result.unwrap();
@@ -546,18 +497,26 @@ mod tests {
         let result = import.add_table("table", TableType::new(RefType::FuncRef, 10, Some(20)));
         assert!(result.is_ok());
 
-        // create a Vm context
-        let result = Vm::new(None);
+        // create an executor
+        let result = Config::new();
         assert!(result.is_ok());
-        let vm = result.unwrap();
+        let config = result.unwrap();
 
-        // register the ImportObject module into vm
-        let result = vm.add_import(&import);
+        let result = Statistics::new();
         assert!(result.is_ok());
-        let mut vm = result.unwrap();
+        let mut stat = result.unwrap();
 
-        // get the table from vm
-        let store = vm.store_mut();
+        let result = Executor::new(Some(&config), Some(&mut stat));
+        assert!(result.is_ok());
+        let mut executor = result.unwrap();
+
+        // create a store
+        let result = Store::new();
+        assert!(result.is_ok());
+        let mut store = result.unwrap();
+
+        let result = store.register_import_module(&mut executor, &import);
+        assert!(result.is_ok());
 
         let result = store.named_instance("extern");
         assert!(result.is_some());
@@ -595,9 +554,6 @@ mod tests {
         let value = result.unwrap();
         assert!(value.func_idx().is_some());
         assert_eq!(value.func_idx().unwrap(), 5);
-
-        // get the table from vm
-        let store = vm.store_mut();
 
         let result = store.named_instance("extern");
         assert!(result.is_some());

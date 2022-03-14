@@ -1,4 +1,4 @@
-use crate::{error::Result, wasmedge, Instance, ValType, Value, Vm};
+use crate::{error::Result, wasmedge, Instance, ValType, Value};
 
 pub type HostFunc = dyn Fn(Vec<Value>) -> std::result::Result<Vec<Value>, u8>;
 
@@ -33,10 +33,15 @@ impl<'instance> Func<'instance> {
         Ok(func_ty.into())
     }
 
-    pub fn call(&self, vm: &mut Vm, args: impl IntoIterator<Item = Value>) -> Result<Vec<Value>> {
-        let returns = vm.run_func(self.mod_name(), self.name().unwrap(), args)?;
-        Ok(returns)
-    }
+    // pub fn call(
+    //     &self,
+    //     executor: &mut Executor,
+    //     store: &mut Store,
+    //     args: impl IntoIterator<Item = Value>,
+    // ) -> Result<Vec<Value>> {
+    //     let returns = executor.run_func(store, self.mod_name(), self.name().unwrap(), args)?;
+    //     Ok(returns)
+    // }
 }
 
 #[derive(Debug, Default)]

@@ -1,4 +1,4 @@
-use crate::{error::Result, wasmedge, GlobalType, MemoryType, Signature, TableType, Vm};
+use crate::{error::Result, wasmedge, Config, GlobalType, MemoryType, Signature, TableType};
 use std::{borrow::Cow, path::Path};
 
 #[derive(Debug)]
@@ -6,31 +6,50 @@ pub struct Module {
     pub(crate) inner: wasmedge::Module,
 }
 impl Module {
-    /// Loads a wasm module from a file.
+    /// Returns a validated module from a file.
     ///
     /// This function does not validate the loaded module.
-    pub fn from_file(vm: &Vm, file: impl AsRef<Path>) -> Result<Self> {
-        // load a module from a wasm file
-        let inner = vm.inner_loader.from_file(file.as_ref())?;
+    pub fn from_file(config: Option<&Config>, file: impl AsRef<Path>) -> Result<Self> {
+        let inner_config = match config {
+            Some(config) => Some(Config::copy_from(config)?.inner),
+            None => None,
+        };
+        let inner_loader = wasmedge::Loader::create(inner_config)?;
+        // load module
+        let inner = inner_loader.from_file(file.as_ref())?;
+
+        let inner_config = match config {
+            Some(config) => Some(Config::copy_from(config)?.inner),
+            None => None,
+        };
+        let inner_validator = wasmedge::Validator::create(inner_config)?;
+        // validate module
+        inner_validator.validate(&inner)?;
 
         Ok(Self { inner })
     }
 
-    /// Loads a wasm module from a buffer.
+    /// Returns a validated module from a buffer.
     ///
     /// This function does not validate the loaded module.
-    pub fn from_buffer(vm: &Vm, buffer: impl AsRef<[u8]>) -> Result<Self> {
+    pub fn from_buffer(config: Option<&Config>, buffer: impl AsRef<[u8]>) -> Result<Self> {
+        let inner_config = match config {
+            Some(config) => Some(Config::copy_from(config)?.inner),
+            None => None,
+        };
+        let inner_loader = wasmedge::Loader::create(inner_config)?;
         // load a module from a wasm buffer
-        let inner = vm.inner_loader.from_buffer(buffer.as_ref())?;
+        let inner = inner_loader.from_buffer(buffer.as_ref())?;
+
+        let inner_config = match config {
+            Some(config) => Some(Config::copy_from(config)?.inner),
+            None => None,
+        };
+        let inner_validator = wasmedge::Validator::create(inner_config)?;
+        // validate module
+        inner_validator.validate(&inner)?;
 
         Ok(Self { inner })
-    }
-
-    pub fn validate(self, vm: &Vm) -> Result<Self> {
-        // validate
-        vm.inner_validator.validate(&self.inner)?;
-
-        Ok(self)
     }
 
     pub fn count_of_imports(&self) -> u32 {
@@ -145,24 +164,19 @@ pub enum ExternalType {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{error::WasmEdgeError, wasmedge, Vm};
+    use crate::{error::WasmEdgeError, wasmedge};
 
     #[test]
     fn test_module_from_file() {
-        // create a Vm context
-        let result = Vm::new(None);
-        assert!(result.is_ok());
-        let vm = result.unwrap();
-
         // load wasm module from a specified wasm file
         let file = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
             .join("bindings/rust/wasmedge-sys/tests/data/fibonacci.wasm");
 
-        let result = Module::from_file(&vm, file);
+        let result = Module::from_file(None, file);
         assert!(result.is_ok());
 
         // attempt to load a non-existent wasm file
-        let result = Module::from_file(&vm, "not_exist_file.wasm");
+        let result = Module::from_file(None, "not_exist_file.wasm");
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
@@ -174,47 +188,22 @@ mod tests {
 
     #[test]
     fn test_module_from_buffer() {
-        // create a Vm context
-        let result = Vm::new(None);
-        assert!(result.is_ok());
-        let vm = result.unwrap();
-
         let file = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
             .join("bindings/rust/wasmedge-sys/tests/data/fibonacci.wasm");
         let result = std::fs::read(file);
         assert!(result.is_ok());
         let buffer = result.unwrap();
 
-        let result = Module::from_buffer(&vm, &buffer);
+        let result = Module::from_buffer(None, &buffer);
         assert!(result.is_ok());
 
         // attempt to load an empty buffer
-        let result = Module::from_buffer(&vm, &[]);
+        let result = Module::from_buffer(None, &[]);
         assert_eq!(
             result.unwrap_err(),
             WasmEdgeError::Operation(wasmedge::WasmEdgeError::Core(
                 wasmedge::error::CoreError::Load(wasmedge::error::CoreLoadError::UnexpectedEnd)
             ))
         );
-    }
-
-    #[test]
-    fn test_module_validate() {
-        // create a Vm context
-        let result = Vm::new(None);
-        assert!(result.is_ok());
-        let vm = result.unwrap();
-
-        // load wasm module from a specified wasm file
-        let file = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
-            .join("bindings/rust/wasmedge-sys/tests/data/fibonacci.wasm");
-
-        let result = Module::from_file(&vm, file);
-        assert!(result.is_ok());
-        let module = result.unwrap();
-
-        // validate
-        let result = module.validate(&vm);
-        assert!(result.is_ok());
     }
 }

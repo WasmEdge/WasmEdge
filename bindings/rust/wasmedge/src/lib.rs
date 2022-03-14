@@ -2,6 +2,7 @@ use wasmedge_sys as wasmedge;
 
 pub mod config;
 pub mod error;
+pub mod executor;
 pub mod instance;
 pub mod module;
 pub mod statistics;
@@ -9,6 +10,7 @@ pub mod store;
 pub mod vm;
 
 pub use config::Config;
+pub use executor::Executor;
 pub use instance::{
     Func, Global, GlobalType, HostFunc, ImportMod, Instance, Memory, MemoryType, Signature,
     SignatureBuilder, Table, TableType, WasiImportMod, WasmEdgeProcessImportMod,

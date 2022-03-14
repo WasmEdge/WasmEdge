@@ -2,7 +2,7 @@
 
 use super::wasmedge;
 use crate::{
-    error::{ExportError, ImportError, WasmEdgeError, WasmEdgeResult},
+    error::{ExportError, ImportError, WasmEdgeError},
     instance::{
         function::{FuncType, InnerFuncType},
         global::{GlobalType, InnerGlobalType},
@@ -10,6 +10,7 @@ use crate::{
         table::{InnerTableType, TableType},
     },
     types::ExternalType,
+    WasmEdgeResult,
 };
 use std::{borrow::Cow, ffi::CStr, marker::PhantomData};
 

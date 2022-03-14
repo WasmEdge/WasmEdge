@@ -54,7 +54,7 @@ pub use config::Config;
 #[doc(inline)]
 pub use error::{
     ExportError, FuncError, GlobalError, ImportError, StoreError, TableError, VmError,
-    WasmEdgeError, WasmEdgeResult,
+    WasmEdgeError,
 };
 #[doc(inline)]
 pub use executor::Executor;
@@ -85,6 +85,9 @@ pub use types::{
 pub use validator::Validator;
 #[doc(inline)]
 pub use vm::Vm;
+
+/// The WasmEdge result type.
+pub type WasmEdgeResult<T> = Result<T, WasmEdgeError>;
 
 thread_local! {
     // TODO: allow modify capacity before running

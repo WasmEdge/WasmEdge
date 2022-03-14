@@ -2,9 +2,9 @@
 
 use super::wasmedge;
 use crate::{
-    error::{check, WasmEdgeError, WasmEdgeResult},
+    error::{check, WasmEdgeError},
     types::WasmEdgeString,
-    Config, ImportObject, Module, Statistics, Store, Value,
+    Config, ImportObject, Module, Statistics, Store, Value, WasmEdgeResult,
 };
 
 /// Struct of WasmEdge Executor.

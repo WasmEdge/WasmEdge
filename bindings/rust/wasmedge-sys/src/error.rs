@@ -1,10 +1,8 @@
 use crate::{
     wasmedge::{WasmEdge_Result, WasmEdge_ResultGetCode, WasmEdge_ResultOK},
-    ExternalType,
+    ExternalType, WasmEdgeResult,
 };
 use thiserror::Error;
-
-pub type WasmEdgeResult<T> = Result<T, WasmEdgeError>;
 
 /// Defines the errors raised by the wasmedge-sys crate.
 #[derive(Error, Clone, Debug, PartialEq)]

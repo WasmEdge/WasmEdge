@@ -328,7 +328,6 @@ impl MemType {
 impl Drop for MemType {
     fn drop(&mut self) {
         if !self.registered && !self.inner.0.is_null() {
-            dbg!("drop memtype");
             unsafe { wasmedge::WasmEdge_MemoryTypeDelete(self.inner.0) }
         }
     }

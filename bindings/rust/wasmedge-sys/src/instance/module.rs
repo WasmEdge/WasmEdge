@@ -449,7 +449,6 @@ mod tests {
             let result = Memory::create(&mem_ty);
             assert!(result.is_ok());
             let memory = result.unwrap();
-            dbg!(mem_ty);
             memory
         };
         import.add_memory("mem", memory);

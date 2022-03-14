@@ -646,8 +646,6 @@ impl Store {
     pub fn named_module(&self, name: impl AsRef<str>) -> WasmEdgeResult<Instance<'_>> {
         let mod_name: WasmEdgeString = name.as_ref().into();
         let ctx = unsafe { wasmedge::WasmEdge_StoreFindModule(self.inner.0, mod_name.as_raw()) };
-        dbg!(ctx);
-        dbg!(name.as_ref());
         match ctx.is_null() {
             true => Err(WasmEdgeError::Store(StoreError::NotFoundModule(
                 name.as_ref().to_string(),

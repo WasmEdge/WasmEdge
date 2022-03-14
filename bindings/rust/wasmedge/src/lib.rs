@@ -1,6 +1,8 @@
 use wasmedge_sys as wasmedge;
 
 #[doc(hidden)]
+pub mod compiler;
+#[doc(hidden)]
 pub mod config;
 #[doc(hidden)]
 pub mod error;
@@ -17,6 +19,8 @@ pub mod store;
 #[doc(hidden)]
 pub mod vm;
 
+#[doc(hidden)]
+pub use compiler::Compiler;
 #[doc(inline)]
 pub use config::Config;
 #[doc(inline)]

@@ -111,6 +111,9 @@ Expect<void> Validator::validate(const AST::Module &Mod) {
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Module));
     return Unexpect(ErrCode::MultiMemories);
   }
+
+  // Set the validated flag.
+  const_cast<AST::Module &>(Mod).setIsValidated();
   return {};
 }
 

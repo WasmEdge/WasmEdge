@@ -1,24 +1,40 @@
 use wasmedge_sys as wasmedge;
 
+#[doc(hidden)]
 pub mod config;
+#[doc(hidden)]
 pub mod error;
+#[doc(hidden)]
 pub mod executor;
+#[doc(hidden)]
 pub mod instance;
+#[doc(hidden)]
 pub mod module;
+#[doc(hidden)]
 pub mod statistics;
+#[doc(hidden)]
 pub mod store;
+#[doc(hidden)]
 pub mod vm;
 
+#[doc(inline)]
 pub use config::Config;
+#[doc(inline)]
 pub use executor::Executor;
+#[doc(inline)]
 pub use instance::{
     Func, Global, GlobalType, HostFunc, ImportMod, Instance, Memory, MemoryType, Signature,
     SignatureBuilder, Table, TableType, WasiImportMod, WasmEdgeProcessImportMod,
 };
+#[doc(inline)]
 pub use module::{ExportType, ExternalType, ImportType, Module};
+#[doc(inline)]
 pub use statistics::Statistics;
+#[doc(inline)]
 pub use store::Store;
+#[doc(inline)]
 pub use vm::Vm;
+#[doc(hidden)]
 pub use wasmedge_sys::types::*;
 
 pub trait Engine {

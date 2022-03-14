@@ -5,43 +5,25 @@ pub type HostFunc = dyn Fn(Vec<Value>) -> std::result::Result<Vec<Value>, u8>;
 #[derive(Debug)]
 pub struct Func<'instance> {
     pub(crate) inner: wasmedge::Function,
-    pub(crate) name: Option<String>,
-    pub(crate) mod_name: Option<String>,
     pub(crate) _marker: std::marker::PhantomData<&'instance Instance<'instance>>,
 }
 impl<'instance> Func<'instance> {
     pub fn name(&self) -> Option<&str> {
-        match &self.name {
-            Some(name) => Some(name.as_ref()),
-            None => None,
-        }
+        self.inner.name()
     }
 
     pub fn mod_name(&self) -> Option<&str> {
-        match &self.mod_name {
-            Some(mod_name) => Some(mod_name.as_ref()),
-            None => None,
-        }
+        self.inner.mod_name()
     }
 
     pub fn registered(&self) -> bool {
-        self.mod_name.is_some()
+        self.inner.mod_name().is_some()
     }
 
     pub fn signature(&self) -> Result<Signature> {
         let func_ty = self.inner.ty()?;
         Ok(func_ty.into())
     }
-
-    // pub fn call(
-    //     &self,
-    //     executor: &mut Executor,
-    //     store: &mut Store,
-    //     args: impl IntoIterator<Item = Value>,
-    // ) -> Result<Vec<Value>> {
-    //     let returns = executor.run_func(store, self.mod_name(), self.name().unwrap(), args)?;
-    //     Ok(returns)
-    // }
 }
 
 #[derive(Debug, Default)]

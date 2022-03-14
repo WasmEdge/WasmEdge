@@ -586,6 +586,8 @@ E(FuncNotFound, 0x05, "wasm function not found")
 E(AOTDisabled, 0x06, "AOT runtime is disabled in this build")
 // Execution interrupted
 E(Interrupted, 0x07, "execution interrupted")
+// Not validated module
+E(NotValidated, 0x08, "wasm module hasn't passed validation yet")
 
 // Load phase
 // @{

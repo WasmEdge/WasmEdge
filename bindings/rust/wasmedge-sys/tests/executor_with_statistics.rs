@@ -68,7 +68,7 @@ fn test_executor_with_statistics() {
     assert!(result.is_ok());
 
     // register a wasm module into the store context
-    let result = executor.register_module(&mut store, &module, "module");
+    let result = executor.register_named_module(&mut store, &module, "module");
     assert!(result.is_ok());
 
     // load module from a wasm file
@@ -95,7 +95,7 @@ fn test_executor_with_statistics() {
     assert!(result.is_ok());
 
     // instantiate wasm module
-    let result = executor.instantiate(&mut store, &module);
+    let result = executor.register_active_module(&mut store, &module);
     assert!(result.is_ok());
 
     // invoke the registered function in the module

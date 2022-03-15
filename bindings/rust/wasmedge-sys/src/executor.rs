@@ -9,7 +9,7 @@ use crate::{
 
 /// Struct of WasmEdge Executor.
 ///
-/// [`Executor`] defines an execution environment for both WASM and compiled WASM. It works based on the
+/// [Executor](crate::Executor) defines an execution environment for both WASM and compiled WASM. It works based on the
 /// [Store](crate::Store).
 #[derive(Debug)]
 pub struct Executor {
@@ -17,17 +17,17 @@ pub struct Executor {
     pub(crate) registered: bool,
 }
 impl Executor {
-    /// Creates a new [`Executor`] to be associated with the given [`Config`] and [`Statistics`].
+    /// Creates a new [executor](crate::Executor) to be associated with the given [config](crate::Config) and [statistics](crate::Statistics).
     ///
     /// # Arguments
     ///
-    /// - `config` specifies the configuration of the new [`Executor`]. It is optional.
+    /// - `config` specifies the configuration of the new [executor](crate::Executor).
     ///
-    /// - `stat` specifies the [`Statistics`] needed by the new [`Executor`]. It is optional.
+    /// - `stat` specifies the [statistics](crate::Statistics) needed by the new [executor](crate::Executor).
     ///
     /// # Error
     ///
-    /// If fail to create a [`Executor`], then an error is returned.
+    /// If fail to create a [executor](crate::Executor), then an error is returned.
     pub fn create(config: Option<Config>, stat: Option<&mut Statistics>) -> WasmEdgeResult<Self> {
         let ctx = match config {
             Some(mut config) => match stat {
@@ -67,17 +67,17 @@ impl Executor {
         }
     }
 
-    /// Registers and instantiates a WasmEdge [`ImportObject`] into a [`Store`].
+    /// Registers and instantiates a WasmEdge [import object](crate::ImportObject) into a [store](crate::Store).
     ///
     /// # Arguments
     ///
-    /// - `store` specifies the target [`Store`], into which the given [`ImportObject`] is registered.
+    /// - `store` specifies the target [store](crate::Store), into which the given [import object](crate::ImportObject) is registered.
     ///
-    /// - `import` specifies the WasmEdge [`ImportObject`] to be registered.
+    /// - `import` specifies the WasmEdge [import object](crate::ImportObject) to be registered.
     ///
     /// # Error
     ///
-    /// If fail to register the given [`ImportObject`], then an error is returned.
+    /// If fail to register the given [import object](crate::ImportObject), then an error is returned.
     pub fn register_import_object(
         &mut self,
         store: &mut Store,
@@ -93,23 +93,22 @@ impl Executor {
         Ok(())
     }
 
-    /// Registers and instantiates a WasmEdge AST [`Module`] into a store.
+    /// Registers and instantiates a WasmEdge [module](crate::Module) into a store.
     ///
-    /// Instantiates the instances in a WasmEdge AST [`Module`], and then registers the [`Module`] into
-    /// a [`Store`] with their exported names and the given [`Module`] name.
+    /// Instantiates the given WasmEdge [module](crate::Module), including the [functions](crate::Function), [memories](crate::Memory), [tables](crate::Table), and [globals](crate::Global) it hosts; and then, registers the module [instance](crate::Instance) into the [store](crate::Store) with the given name.
     ///
     /// # Arguments
     ///
-    /// - `store` specifies the target [`Store`], into which the given [`Module`] is registered.
+    /// - `store` specifies the target [store](crate::Store), into which the given [module](crate::Module) is registered.
     ///
-    /// - `ast_mod` specifies the AST [`Module`] to be registered.
+    /// - `module` specifies a validated [module](crate::Module) to be registered.
     ///
-    /// - `mod_name` specifies the [`Module`] name for all exported instances.
+    /// - `mod_name` specifies the exported name of the registered [module](crate::Module).
     ///
     /// # Error
     ///
-    /// If fail to register the given [`Module`], then an error is returned.
-    pub fn register_module(
+    /// If fail to register the given [module](crate::Module), then an error is returned.
+    pub fn register_named_module(
         &mut self,
         store: &mut Store,
         module: &Module,
@@ -127,25 +126,26 @@ impl Executor {
         Ok(())
     }
 
-    /// Instantiates a WasmEdge AST [Module](crate::Module) into a [Store](crate::Store).
+    /// Registers and instantiates a WasmEdge [module](crate::Module) into a [store](crate::Store) as an anonymous module.
     ///
-    /// Instantiates the WasmEdge AST [Module](crate::Module) as an active anonymous module in the
-    /// [Store](crate::Store). Notice that when a new module is instantiated into the [Store](crate::Store), the old
-    /// instantiated module is removed; in addition, ensure that the [imports](crate::ImportObject) are registered into
-    /// the [Store](crate::Store).
+    /// Notice that when a new module is instantiated into the [store](crate::Store), the old instantiated module is removed; in addition, ensure that the [imports](crate::ImportObject) the module depends are already registered into the [store](crate::Store).
     ///
     ///
     /// # Arguments
     ///
-    /// - `store` specifies the [Store](crate::Store), in which the [Module](crate::Module) to be instantiated
+    /// - `store` specifies the [store](crate::Store), in which the [module](crate::Module) to be instantiated
     /// is stored.
     ///
-    /// - `ast_mod` specifies the target [Module](crate::Module) to be instantiated.
+    /// - `ast_mod` specifies the target [module](crate::Module) to be instantiated.
     ///
     /// # Error
     ///
-    /// If fail to instantiate the given [Module](crate::Module), then an error is returned.
-    pub fn instantiate(&mut self, store: &mut Store, module: &Module) -> WasmEdgeResult<()> {
+    /// If fail to instantiate the given [module](crate::Module), then an error is returned.
+    pub fn register_active_module(
+        &mut self,
+        store: &mut Store,
+        module: &Module,
+    ) -> WasmEdgeResult<()> {
         unsafe {
             check(wasmedge::WasmEdge_ExecutorInstantiate(
                 self.inner.0,
@@ -156,18 +156,15 @@ impl Executor {
         Ok(())
     }
 
-    /// Invokes a WASM function in the anonymous [`Module`], and returns the results.
+    /// Invokes a WASM function in the anonymous [module](crate::Module), and returns the results.
     ///
-    /// After instantiating a WasmEdge [`Module`], the [`Module`] is registered as an
-    /// anonymous module in the [`Store`]; then, you can repeatedly call this function
-    /// to invoke exported WASM functions by their names until the [`Store`] is reset or
-    /// a new [`Module`] is registered or instantiated.
+    /// After instantiating a WasmEdge [module](crate::Module), the [module](crate::Module) is registered as an anonymous module in the [store](crate::Store); then, you can repeatedly call this function to invoke exported WASM functions by their names until the [store](crate::Store) is reset or a new [module](crate::Module) is registered or instantiated.
     ///
-    /// For calling the functions in a registered [`Module`], reference `invoke_registered_function`.
+    /// For calling the functions in a registered [module](crate::Module), reference `run_func_registered`.
     ///
     /// # Arguments
     ///
-    /// - `store` specifies the target [`Store`] which owns the target function specified by `func_name`.
+    /// - `store` specifies the target [store](crate::Store) which owns the target function specified by `func_name`.
     ///
     /// - `func_name` specifies the name of the target function, which is stored in an anonymous module in `store`.
     ///
@@ -211,7 +208,7 @@ impl Executor {
     ///
     /// # Arguments
     ///
-    /// - `store` specifies the target [`Store`] which owns the module and the target function.
+    /// - `store` specifies the target [store](crate::Store) which owns the module and the target function.
     ///
     /// - `mod_name` specifies the name of the registered module.
     ///
@@ -276,7 +273,10 @@ unsafe impl Sync for InnerExecutor {}
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{Config, Statistics};
+    use crate::{
+        Config, FuncType, Function, Global, GlobalType, MemType, Memory, Mutability, RefType,
+        Statistics, Table, TableType, ValType,
+    };
     use std::{
         sync::{Arc, Mutex},
         thread,
@@ -332,6 +332,96 @@ mod tests {
     }
 
     #[test]
+    fn test_executor_register_import() {
+        // create an Executor
+        let result = Executor::create(None, None);
+        assert!(result.is_ok());
+        let mut executor = result.unwrap();
+        assert!(!executor.inner.0.is_null());
+
+        // create a Store
+        let result = Store::create();
+        assert!(result.is_ok());
+        let mut store = result.unwrap();
+
+        let host_name = "extern";
+
+        // create an ImportObj module
+        let result = ImportObject::create(host_name);
+        assert!(result.is_ok());
+        let mut import_obj = result.unwrap();
+
+        // add host function "func-add": (externref, i32) -> (i32)
+        let result = FuncType::create([ValType::ExternRef, ValType::I32], [ValType::I32]);
+        assert!(result.is_ok());
+        let func_ty = result.unwrap();
+        let result = Function::create(func_ty, Box::new(real_add), 0);
+        assert!(result.is_ok());
+        let host_func = result.unwrap();
+        // add the function into the import_obj module
+        import_obj.add_func("func-add", host_func);
+
+        // create a Table instance
+        let result = TableType::create(RefType::FuncRef, 10..=20);
+        assert!(result.is_ok());
+        let table_ty = result.unwrap();
+        let result = Table::create(table_ty);
+        assert!(result.is_ok());
+        let host_table = result.unwrap();
+        // add the table into the import_obj module
+        import_obj.add_table("table", host_table);
+
+        // create a Memory instance
+        let result = MemType::create(1..=2);
+        assert!(result.is_ok());
+        let mem_ty = result.unwrap();
+        let result = Memory::create(&mem_ty);
+        assert!(result.is_ok());
+        let host_memory = result.unwrap();
+        // add the memory into the import_obj module
+        import_obj.add_memory("memory", host_memory);
+
+        // create a Global instance
+        let result = GlobalType::create(ValType::I32, Mutability::Const);
+        assert!(result.is_ok());
+        let global_ty = result.unwrap();
+        let result = Global::create(global_ty, Value::from_i32(666));
+        assert!(result.is_ok());
+        let host_global = result.unwrap();
+        // add the global into import_obj module
+        import_obj.add_global("global_i32", host_global);
+
+        assert_eq!(import_obj.exit_code(), 1);
+
+        let result = executor.register_import_object(&mut store, &import_obj);
+        assert!(result.is_ok());
+
+        {
+            let result = store.named_module("extern");
+            assert!(result.is_ok());
+            let instance = result.unwrap();
+
+            let result = instance.find_global("global_i32");
+            assert!(result.is_ok());
+            let global = result.unwrap();
+            assert_eq!(global.get_value().to_i32(), 666);
+        }
+
+        let handle = thread::spawn(move || {
+            let result = store.named_module("extern");
+            assert!(result.is_ok());
+            let instance = result.unwrap();
+
+            let result = instance.find_global("global_i32");
+            assert!(result.is_ok());
+            let global = result.unwrap();
+            assert_eq!(global.get_value().to_i32(), 666);
+        });
+
+        handle.join().unwrap();
+    }
+
+    #[test]
     fn test_executor_send() {
         // create an Executor context with the given configuration and statistics.
         let result = Config::create();
@@ -380,5 +470,27 @@ mod tests {
         });
 
         handle.join().unwrap();
+    }
+
+    fn real_add(inputs: Vec<Value>) -> Result<Vec<Value>, u8> {
+        if inputs.len() != 2 {
+            return Err(1);
+        }
+
+        let a = if inputs[0].ty() == ValType::I32 {
+            inputs[0].to_i32()
+        } else {
+            return Err(2);
+        };
+
+        let b = if inputs[1].ty() == ValType::I32 {
+            inputs[1].to_i32()
+        } else {
+            return Err(3);
+        };
+
+        let c = a + b;
+
+        Ok(vec![Value::from_i32(c)])
     }
 }

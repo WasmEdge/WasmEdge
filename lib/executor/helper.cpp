@@ -17,7 +17,7 @@ Expect<AST::InstrView::iterator>
 Executor::enterFunction(Runtime::StoreManager &StoreMgr,
                         Runtime::StackManager &StackMgr,
                         const Runtime::Instance::FunctionInstance &Func,
-                        const AST::InstrView::iterator RetIt) {
+                        const AST::InstrView::iterator RetIt, bool IsTailCall) {
   // RetIt: the return position when the entered function returns.
 
   // Check if the interruption occurs.
@@ -48,10 +48,11 @@ Executor::enterFunction(Runtime::StoreManager &StoreMgr,
     }
 
     // Push frame.
-    StackMgr.pushFrame(nullptr, // Host function instance don't have module
-                       RetIt,   // Return PC
-                       ArgsN,   // Only args, no locals in stack
-                       RetsN    // Returns num
+    StackMgr.pushFrame(nullptr,   // Host function instance don't have module
+                       RetIt,     // Return PC
+                       ArgsN,     // Only args, no locals in stack
+                       RetsN,     // Returns num
+                       IsTailCall // For tail-call
     );
 
     // Do the statistics if the statistics turned on.
@@ -99,10 +100,11 @@ Executor::enterFunction(Runtime::StoreManager &StoreMgr,
     // continuation.
 
     // Push frame.
-    StackMgr.pushFrame(Func.getModule(), // Pointer to module instance
+    StackMgr.pushFrame(Func.getModule(), // Module address
                        RetIt,            // Return PC
                        ArgsN,            // Only args, no locals in stack
-                       RetsN             // Returns num
+                       RetsN,            // Returns num
+                       IsTailCall        // For tail-call
     );
 
     // Prepare arguments.
@@ -153,7 +155,7 @@ Executor::enterFunction(Runtime::StoreManager &StoreMgr,
 
     // Push local variables into the stack.
     for (auto &Def : Func.getLocals()) {
-      for (uint32_t i = 0; i < Def.first; i++) {
+      for (uint32_t I = 0; I < Def.first; I++) {
         StackMgr.push(ValueFromType(Def.second));
       }
     }
@@ -164,7 +166,8 @@ Executor::enterFunction(Runtime::StoreManager &StoreMgr,
     StackMgr.pushFrame(Func.getModule(),           // Module address
                        RetIt - 1,                  // Return PC
                        ArgsN + Func.getLocalNum(), // Arguments num + local num
-                       RetsN                       // Returns num
+                       RetsN,                      // Returns num
+                       IsTailCall                  // For tail-call
     );
 
     // For native function case, the continuation will be the start of the

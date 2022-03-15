@@ -78,9 +78,23 @@ public:
 
   /// Push a new frame entry to stack.
   void pushFrame(Instance::ModuleInstance *Module,
-                 AST::InstrView::iterator From, const uint32_t LocalNum = 0,
-                 const uint32_t Arity = 0) noexcept {
-    FrameStack.emplace_back(Module, From, LocalNum, Arity, ValueStack.size());
+                 AST::InstrView::iterator From, uint32_t LocalNum = 0,
+                 uint32_t Arity = 0, bool IsTailCall = false) noexcept {
+    if (likely(!IsTailCall)) {
+      FrameStack.emplace_back(Module, From, LocalNum, Arity, ValueStack.size());
+    } else {
+      assuming(!FrameStack.empty());
+      assuming(FrameStack.back().VPos >= FrameStack.back().Locals);
+      assuming(FrameStack.back().VPos - FrameStack.back().Locals <=
+               ValueStack.size() - LocalNum);
+      ValueStack.erase(ValueStack.begin() + FrameStack.back().VPos -
+                           FrameStack.back().Locals,
+                       ValueStack.end() - LocalNum);
+      FrameStack.back().Module = Module;
+      FrameStack.back().Locals = LocalNum;
+      FrameStack.back().Arity = Arity;
+      FrameStack.back().VPos = static_cast<uint32_t>(ValueStack.size());
+    }
   }
 
   /// Unsafe pop top frame.

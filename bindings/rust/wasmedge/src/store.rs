@@ -30,7 +30,7 @@ impl Store {
     ) -> Result<()> {
         executor
             .inner
-            .register_module(&mut self.inner, &module.inner, mod_name.as_ref())?;
+            .register_named_module(&mut self.inner, &module.inner, mod_name.as_ref())?;
 
         Ok(())
     }
@@ -40,7 +40,9 @@ impl Store {
         executor: &mut Executor,
         module: &Module,
     ) -> Result<()> {
-        executor.inner.instantiate(&mut self.inner, &module.inner)?;
+        executor
+            .inner
+            .register_active_module(&mut self.inner, &module.inner)?;
 
         Ok(())
     }

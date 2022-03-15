@@ -107,8 +107,11 @@ impl Vm {
             None => "",
         };
 
-        self.inner_executor
-            .register_module(&mut self.inner_store, &module.inner, mod_name)?;
+        self.inner_executor.register_named_module(
+            &mut self.inner_store,
+            &module.inner,
+            mod_name,
+        )?;
 
         Ok(self)
     }
@@ -157,7 +160,7 @@ impl Vm {
 
         // instantiate the module
         self.inner_executor
-            .instantiate(&mut self.inner_store, &module)?;
+            .register_active_module(&mut self.inner_store, &module)?;
 
         // run function
         let returns = self
@@ -181,7 +184,7 @@ impl Vm {
 
         // instantiate the module
         self.inner_executor
-            .instantiate(&mut self.inner_store, &module)?;
+            .register_active_module(&mut self.inner_store, &module)?;
 
         // run function
         let returns = self
@@ -200,7 +203,7 @@ impl Vm {
     ) -> Result<Vec<Value>> {
         // instantiate the module
         self.inner_executor
-            .instantiate(&mut self.inner_store, &module.inner)?;
+            .register_active_module(&mut self.inner_store, &module.inner)?;
 
         // run function
         let returns = self

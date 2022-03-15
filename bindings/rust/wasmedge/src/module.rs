@@ -180,7 +180,7 @@ mod tests {
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
-            WasmEdgeError::Operation(wasmedge::WasmEdgeError::Core(
+            WasmEdgeError::Operation(wasmedge::error::WasmEdgeError::Core(
                 wasmedge::error::CoreError::Load(wasmedge::error::CoreLoadError::IllegalPath)
             ))
         );
@@ -201,7 +201,7 @@ mod tests {
         let result = Module::from_buffer(None, &[]);
         assert_eq!(
             result.unwrap_err(),
-            WasmEdgeError::Operation(wasmedge::WasmEdgeError::Core(
+            WasmEdgeError::Operation(wasmedge::error::WasmEdgeError::Core(
                 wasmedge::error::CoreError::Load(wasmedge::error::CoreLoadError::UnexpectedEnd)
             ))
         );

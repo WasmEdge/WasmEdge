@@ -5,138 +5,69 @@ pub struct Config {
     pub(crate) inner: wasmedge::Config,
 }
 impl Config {
-    pub fn new() -> Result<Self> {
-        let inner = wasmedge::Config::create()?;
-        Ok(Self { inner })
-    }
-
     pub fn copy_from(src: &Config) -> Result<Self> {
         let inner = wasmedge::Config::copy_from(&src.inner)?;
         Ok(Self { inner })
-    }
-
-    pub fn wasi(&mut self, enable: bool) {
-        self.inner.wasi(enable);
     }
 
     pub fn wasi_enabled(&self) -> bool {
         self.inner.wasi_enabled()
     }
 
-    pub fn wasmedge_process(&mut self, enable: bool) {
-        self.inner.wasmedge_process(enable)
-    }
-
     pub fn wasmedge_process_enabled(&self) -> bool {
         self.inner.wasmedge_process_enabled()
     }
 
-    pub fn set_max_memory_pages(&mut self, count: u32) {
-        self.inner.set_max_memory_pages(count)
-    }
-
-    pub fn get_max_memory_pages(&self) -> u32 {
+    pub fn max_memory_pages(&self) -> u32 {
         self.inner.get_max_memory_pages()
-    }
-
-    pub fn mutable_globals(&mut self, enable: bool) {
-        self.inner.mutable_globals(enable)
     }
 
     pub fn mutable_globals_enabled(&self) -> bool {
         self.inner.mutable_globals_enabled()
     }
 
-    pub fn non_trap_conversions(&mut self, enable: bool) {
-        self.inner.non_trap_conversions(enable)
-    }
-
     pub fn non_trap_conversions_enabled(&self) -> bool {
         self.inner.non_trap_conversions_enabled()
-    }
-
-    pub fn sign_extension_operators(&mut self, enable: bool) {
-        self.inner.sign_extension_operators(enable)
     }
 
     pub fn sign_extension_operators_enabled(&self) -> bool {
         self.inner.sign_extension_operators_enabled()
     }
 
-    pub fn multi_value(&mut self, enable: bool) {
-        self.inner.multi_value(enable)
-    }
-
     pub fn multi_value_enabled(&self) -> bool {
         self.inner.multi_value_enabled()
-    }
-
-    pub fn bulk_memory_operations(&mut self, enable: bool) {
-        self.inner.bulk_memory_operations(enable)
     }
 
     pub fn bulk_memory_operations_enabled(&self) -> bool {
         self.inner.bulk_memory_operations_enabled()
     }
 
-    pub fn reference_types(&mut self, enable: bool) {
-        self.inner.reference_types(enable)
-    }
-
     pub fn reference_types_enabled(&self) -> bool {
         self.inner.reference_types_enabled()
-    }
-
-    pub fn simd(&mut self, enable: bool) {
-        self.inner.simd(enable)
     }
 
     pub fn simd_enabled(&self) -> bool {
         self.inner.simd_enabled()
     }
 
-    pub fn tail_call(&mut self, enable: bool) {
-        self.inner.tail_call(enable)
-    }
-
     pub fn tail_call_enabled(&self) -> bool {
         self.inner.tail_call_enabled()
-    }
-
-    pub fn annotations(&mut self, enable: bool) {
-        self.inner.annotations(enable)
     }
 
     pub fn annotations_enabled(&self) -> bool {
         self.inner.annotations_enabled()
     }
 
-    pub fn memory64(&mut self, enable: bool) {
-        self.inner.memory64(enable)
-    }
-
     pub fn memory64_enabled(&self) -> bool {
         self.inner.memory64_enabled()
-    }
-
-    pub fn threads(&mut self, enable: bool) {
-        self.inner.threads(enable)
     }
 
     pub fn threads_enabled(&self) -> bool {
         self.inner.threads_enabled()
     }
 
-    pub fn exception_handling(&mut self, enable: bool) {
-        self.inner.exception_handling(enable)
-    }
-
     pub fn exception_handling_enabled(&self) -> bool {
         self.inner.exception_handling_enabled()
-    }
-
-    pub fn function_references(&mut self, enable: bool) {
-        self.inner.function_references(enable)
     }
 
     pub fn function_references_enabled(&self) -> bool {
@@ -145,165 +76,461 @@ impl Config {
 
     // For AOT Compiler
 
-    pub fn set_aot_opt_level(&mut self, opt_level: CompilerOptimizationLevel) {
-        self.inner.set_aot_optimization_level(opt_level)
-    }
-
-    pub fn get_aot_opt_level(&self) -> CompilerOptimizationLevel {
+    pub fn optimization_level(&self) -> CompilerOptimizationLevel {
         self.inner.get_aot_optimization_level()
     }
 
-    pub fn set_aot_out_format(&mut self, format: CompilerOutputFormat) {
-        self.inner.set_aot_compiler_output_format(format)
-    }
-
-    pub fn get_aot_out_format(&self) -> CompilerOutputFormat {
+    pub fn out_format(&self) -> CompilerOutputFormat {
         self.inner.get_aot_compiler_output_format()
     }
 
-    pub fn aot_dump_ir(&mut self, enable: bool) {
-        self.inner.aot_dump_ir(enable)
-    }
-
-    pub fn is_aot_dump_ir(&self) -> bool {
+    pub fn dump_ir(&self) -> bool {
         self.inner.is_aot_dump_ir()
     }
 
-    pub fn aot_generic_binary(&mut self, enable: bool) {
-        self.inner.aot_generic_binary(enable)
-    }
-
-    pub fn is_aot_generic_binary(&self) -> bool {
+    pub fn generic_binary(&self) -> bool {
         self.inner.is_aot_generic_binary()
     }
 
-    pub fn aot_interruptible(&mut self, enable: bool) {
-        self.inner.aot_interruptible(enable)
-    }
-
-    pub fn is_aot_interruptible(&self) -> bool {
+    pub fn interruptible(&self) -> bool {
         self.inner.aot_interruptible_enabled()
     }
 
     // For Statistics
 
-    pub fn aot_instr_counting(&mut self, enable: bool) {
-        self.inner.aot_count_instructions(enable)
+    pub fn is_instruction_counting(&self) -> bool {
+        self.inner.is_instruction_counting()
     }
 
-    pub fn is_aot_instruction_counting(&self) -> bool {
-        self.inner.is_aot_instruction_counting()
+    pub fn is_cost_measuring(&self) -> bool {
+        self.inner.is_cost_measuring()
     }
 
-    pub fn aot_cost_measuring(&mut self, enable: bool) {
-        self.inner.aot_measure_cost(enable)
+    pub fn is_time_measuring(&self) -> bool {
+        self.inner.is_time_measuring()
+    }
+}
+
+#[derive(Debug)]
+pub struct CommonConfigOptions {
+    mutable_globals: bool,
+    non_trap_conversions: bool,
+    sign_extension_operators: bool,
+    multi_value: bool,
+    bulk_memory_operations: bool,
+    reference_types: bool,
+    simd: bool,
+}
+impl CommonConfigOptions {
+    pub fn new() -> Self {
+        Self {
+            mutable_globals: true,
+            non_trap_conversions: true,
+            sign_extension_operators: true,
+            multi_value: true,
+            bulk_memory_operations: true,
+            reference_types: true,
+            simd: true,
+        }
     }
 
-    pub fn is_aot_cost_measuring(&self) -> bool {
-        self.inner.is_aot_cost_measuring()
+    pub fn mutable_globals(self, enable: bool) -> Self {
+        Self {
+            mutable_globals: enable,
+            ..self
+        }
     }
 
-    pub fn aot_time_measuring(&mut self, enable: bool) {
-        self.inner.aot_measure_cost(enable)
+    pub fn non_trap_conversions(self, enable: bool) -> Self {
+        Self {
+            non_trap_conversions: enable,
+            ..self
+        }
     }
 
-    pub fn is_aot_time_measuring(&self) -> bool {
-        self.inner.is_aot_time_measuring()
+    pub fn sign_extension_operators(self, enable: bool) -> Self {
+        Self {
+            sign_extension_operators: enable,
+            ..self
+        }
+    }
+
+    pub fn multi_value(self, enable: bool) -> Self {
+        Self {
+            multi_value: enable,
+            ..self
+        }
+    }
+
+    pub fn bulk_memory_operations(self, enable: bool) -> Self {
+        Self {
+            bulk_memory_operations: enable,
+            ..self
+        }
+    }
+
+    pub fn reference_types(self, enable: bool) -> Self {
+        Self {
+            reference_types: enable,
+            ..self
+        }
+    }
+
+    pub fn simd(self, enable: bool) -> Self {
+        Self {
+            simd: enable,
+            ..self
+        }
+    }
+}
+impl Default for CommonConfigOptions {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+#[derive(Debug)]
+pub struct CompilerConfigOptions {
+    out_format: CompilerOutputFormat,
+    opt_level: CompilerOptimizationLevel,
+    dump_ir: bool,
+    generic_binary: bool,
+    interruptible: bool,
+}
+impl CompilerConfigOptions {
+    pub fn new() -> Self {
+        Self {
+            out_format: CompilerOutputFormat::Wasm,
+            opt_level: CompilerOptimizationLevel::O3,
+            dump_ir: false,
+            generic_binary: false,
+            interruptible: false,
+        }
+    }
+
+    pub fn out_format(self, format: CompilerOutputFormat) -> Self {
+        Self {
+            out_format: format,
+            ..self
+        }
+    }
+
+    pub fn optimization_level(self, level: CompilerOptimizationLevel) -> Self {
+        Self {
+            opt_level: level,
+            ..self
+        }
+    }
+
+    pub fn dump_ir(self, enable: bool) -> Self {
+        Self {
+            dump_ir: enable,
+            ..self
+        }
+    }
+
+    pub fn generic_binary(self, enable: bool) -> Self {
+        Self {
+            generic_binary: enable,
+            ..self
+        }
+    }
+
+    pub fn interruptible(self, enable: bool) -> Self {
+        Self {
+            interruptible: enable,
+            ..self
+        }
+    }
+}
+impl Default for CompilerConfigOptions {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+#[derive(Debug)]
+pub struct RuntimeConfigOptions {
+    max_memory_pages: u32,
+}
+impl RuntimeConfigOptions {
+    pub fn new() -> Self {
+        Self {
+            max_memory_pages: 65536,
+        }
+    }
+
+    pub fn max_memory_pages(self, pages: u32) -> Self {
+        Self {
+            max_memory_pages: pages,
+        }
+    }
+}
+impl Default for RuntimeConfigOptions {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+#[derive(Debug, Default)]
+pub struct StatisticsConfigOptions {
+    count_instructions: bool,
+    measure_cost: bool,
+    measure_time: bool,
+}
+impl StatisticsConfigOptions {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Sets the instruction counting option.
+    ///
+    /// # Argument
+    ///
+    /// - `enable` specifies if support instruction counting or not when execution after AOT compilation.
+    pub fn count_instructions(self, enable: bool) -> Self {
+        Self {
+            count_instructions: enable,
+            ..self
+        }
+    }
+
+    /// Sets the cost measuring option.
+    ///
+    /// # Argument
+    ///
+    /// - `enable` specifies if support cost measuring or not when execution after AOT compilation.
+    pub fn measure_cost(self, enable: bool) -> Self {
+        Self {
+            measure_cost: enable,
+            ..self
+        }
+    }
+
+    /// Sets the time measuring option.
+    ///
+    /// # Argument
+    ///
+    /// - `enable` specifies if support time measuring or not when execution after AOT compilation.
+    pub fn measure_time(self, enable: bool) -> Self {
+        Self {
+            measure_time: enable,
+            ..self
+        }
+    }
+}
+
+#[derive(Debug, Default)]
+pub struct HostRegistrationConfigOptions {
+    wasi: bool,
+    wasmedge_process: bool,
+}
+impl HostRegistrationConfigOptions {
+    pub fn new() -> Self {
+        Self {
+            wasi: false,
+            wasmedge_process: false,
+        }
+    }
+
+    pub fn wasi(self, enable: bool) -> Self {
+        Self {
+            wasi: enable,
+            ..self
+        }
+    }
+
+    pub fn wasmedge_process(self, enable: bool) -> Self {
+        Self {
+            wasmedge_process: enable,
+            ..self
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct ConfigBuilder {
+    common_config: CommonConfigOptions,
+    stat_config: Option<StatisticsConfigOptions>,
+    compiler_config: Option<CompilerConfigOptions>,
+    runtim_config: Option<RuntimeConfigOptions>,
+    host_config: Option<HostRegistrationConfigOptions>,
+}
+impl ConfigBuilder {
+    pub fn new(common: CommonConfigOptions) -> Self {
+        Self {
+            common_config: common,
+            stat_config: None,
+            compiler_config: None,
+            runtim_config: None,
+            host_config: None,
+        }
+    }
+
+    pub fn with_statistics_config(self, config: StatisticsConfigOptions) -> Self {
+        Self {
+            stat_config: Some(config),
+            ..self
+        }
+    }
+
+    pub fn with_runtime_config(self, config: RuntimeConfigOptions) -> Self {
+        Self {
+            runtim_config: Some(config),
+            ..self
+        }
+    }
+
+    pub fn with_compiler_config(self, config: CompilerConfigOptions) -> Self {
+        Self {
+            compiler_config: Some(config),
+            ..self
+        }
+    }
+
+    pub fn with_host_registration_config(self, config: HostRegistrationConfigOptions) -> Self {
+        Self {
+            host_config: Some(config),
+            ..self
+        }
+    }
+
+    pub fn build(self) -> Result<Config> {
+        let mut inner = wasmedge::Config::create()?;
+        inner.mutable_globals(self.common_config.mutable_globals);
+        inner.non_trap_conversions(self.common_config.non_trap_conversions);
+        inner.sign_extension_operators(self.common_config.sign_extension_operators);
+        inner.multi_value(self.common_config.multi_value);
+        inner.bulk_memory_operations(self.common_config.bulk_memory_operations);
+        inner.reference_types(self.common_config.reference_types);
+        inner.simd(self.common_config.simd);
+
+        if let Some(stat_config) = self.stat_config {
+            inner.count_instructions(stat_config.count_instructions);
+            inner.measure_cost(stat_config.measure_cost);
+            inner.measure_time(stat_config.measure_time);
+        }
+        if let Some(compiler_config) = self.compiler_config {
+            inner.set_aot_compiler_output_format(compiler_config.out_format);
+            inner.set_aot_optimization_level(compiler_config.opt_level);
+            inner.aot_dump_ir(compiler_config.dump_ir);
+            inner.aot_generic_binary(compiler_config.generic_binary);
+            inner.aot_interruptible(compiler_config.interruptible);
+        }
+        if let Some(runtim_config) = self.runtim_config {
+            inner.set_max_memory_pages(runtim_config.max_memory_pages);
+        }
+        if let Some(host_config) = self.host_config {
+            inner.wasi(host_config.wasi);
+            inner.wasmedge_process(host_config.wasmedge_process);
+        }
+
+        Ok(Config { inner })
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::{CompilerOptimizationLevel, CompilerOutputFormat};
 
     #[test]
     fn test_config_create() {
-        {
-            let result = Config::new();
-            assert!(result.is_ok());
-            let config = result.unwrap();
+        let common_config = CommonConfigOptions::default()
+            .bulk_memory_operations(true)
+            .multi_value(true)
+            .mutable_globals(true)
+            .non_trap_conversions(true)
+            .reference_types(true)
+            .sign_extension_operators(true)
+            .simd(true);
 
-            assert!(!config.annotations_enabled());
-            assert!(config.bulk_memory_operations_enabled());
-            assert!(!config.exception_handling_enabled());
-            assert!(!config.function_references_enabled());
-            assert_eq!(config.get_max_memory_pages(), 65536);
-            assert!(!config.memory64_enabled());
-            assert!(config.multi_value_enabled());
-            assert!(config.mutable_globals_enabled());
-            assert!(config.non_trap_conversions_enabled());
-            assert!(config.reference_types_enabled());
-            assert!(config.sign_extension_operators_enabled());
-            assert!(config.simd_enabled());
-            assert!(!config.tail_call_enabled());
-            assert!(!config.threads_enabled());
-        }
+        let compiler_config = CompilerConfigOptions::default()
+            .dump_ir(true)
+            .generic_binary(true)
+            .interruptible(true)
+            .optimization_level(CompilerOptimizationLevel::O0)
+            .out_format(CompilerOutputFormat::Native);
 
-        {
-            let result = Config::new();
-            assert!(result.is_ok());
-            let mut config = result.unwrap();
-            config.wasi(true);
-            config.wasmedge_process(true);
+        let stat_config = StatisticsConfigOptions::default()
+            .count_instructions(true)
+            .measure_cost(true)
+            .measure_time(true);
 
-            assert!(config.wasi_enabled());
-            assert!(config.wasmedge_process_enabled());
-        }
+        let runtime_config = RuntimeConfigOptions::default().max_memory_pages(1024);
 
-        {
-            let result = Config::new();
-            assert!(result.is_ok());
-            let mut config = result.unwrap();
-            config.annotations(true);
-            config.bulk_memory_operations(false);
-            config.exception_handling(true);
-            config.function_references(true);
-            config.set_max_memory_pages(20);
-            config.memory64(true);
-            config.multi_value(false);
-            config.mutable_globals(false);
-            config.non_trap_conversions(false);
-            config.reference_types(false);
-            config.sign_extension_operators(false);
-            config.simd(false);
-            config.tail_call(true);
-            config.threads(true);
+        let host_config = HostRegistrationConfigOptions::default()
+            .wasi(true)
+            .wasmedge_process(true);
 
-            assert!(config.annotations_enabled());
-            assert!(!config.bulk_memory_operations_enabled());
-            assert!(config.exception_handling_enabled());
-            assert!(config.function_references_enabled());
-            assert_eq!(config.get_max_memory_pages(), 20);
-            assert!(config.memory64_enabled());
-            assert!(!config.multi_value_enabled());
-            assert!(!config.mutable_globals_enabled());
-            assert!(!config.non_trap_conversions_enabled());
-            assert!(!config.reference_types_enabled());
-            assert!(!config.sign_extension_operators_enabled());
-            assert!(!config.simd_enabled());
-            assert!(config.tail_call_enabled());
-            assert!(config.threads_enabled());
-        }
+        let result = ConfigBuilder::new(common_config)
+            .with_statistics_config(stat_config)
+            .with_compiler_config(compiler_config)
+            .with_runtime_config(runtime_config)
+            .with_host_registration_config(host_config)
+            .build();
+        assert!(result.is_ok());
+        let config = result.unwrap();
+
+        // check common config options
+        assert!(config.bulk_memory_operations_enabled());
+        assert!(config.multi_value_enabled());
+        assert!(config.mutable_globals_enabled());
+        assert!(config.non_trap_conversions_enabled());
+        assert!(config.reference_types_enabled());
+        assert!(config.sign_extension_operators_enabled());
+        assert!(config.simd_enabled());
+
+        // check compiler config options
+        assert!(config.dump_ir());
+        assert!(config.generic_binary());
+        assert!(config.interruptible());
+        assert_eq!(config.optimization_level(), CompilerOptimizationLevel::O0);
+        assert_eq!(config.out_format(), CompilerOutputFormat::Native);
+
+        // check statistics config options
+        assert!(config.is_instruction_counting());
+        assert!(config.is_cost_measuring());
+        assert!(config.is_time_measuring());
+
+        // check runtime config options
+        assert_eq!(config.max_memory_pages(), 1024);
     }
 
     #[test]
     fn test_config_copy() {
-        let result = Config::new();
+        let common_config = CommonConfigOptions::default().simd(false);
+        let compiler_config =
+            CompilerConfigOptions::default().optimization_level(CompilerOptimizationLevel::O0);
+        let stat_config = StatisticsConfigOptions::default().measure_time(false);
+        let runtime_config = RuntimeConfigOptions::default().max_memory_pages(1024);
+        let host_config = HostRegistrationConfigOptions::default().wasi(true);
+
+        let result = ConfigBuilder::new(common_config)
+            .with_statistics_config(stat_config)
+            .with_compiler_config(compiler_config)
+            .with_runtime_config(runtime_config)
+            .with_host_registration_config(host_config)
+            .build();
         assert!(result.is_ok());
-        let mut config = result.unwrap();
-        config.memory64(true);
-        config.set_max_memory_pages(520);
-        config.set_aot_opt_level(CompilerOptimizationLevel::O0);
+        let config = result.unwrap();
+        assert!(!config.simd_enabled());
+        assert_eq!(config.optimization_level(), CompilerOptimizationLevel::O0);
+        assert!(!config.is_time_measuring());
+        assert_eq!(config.max_memory_pages(), 1024);
+        assert!(config.wasi_enabled());
 
         // make a copy
         let result = Config::copy_from(&config);
         assert!(result.is_ok());
         let config_copied = result.unwrap();
-        assert!(config_copied.memory64_enabled());
-        assert_eq!(config_copied.get_max_memory_pages(), 520);
+        assert!(!config_copied.simd_enabled());
         assert_eq!(
-            config_copied.get_aot_opt_level(),
+            config_copied.optimization_level(),
             CompilerOptimizationLevel::O0
         );
+        assert!(!config.is_time_measuring());
+        assert_eq!(config_copied.max_memory_pages(), 1024);
+        assert!(config_copied.wasi_enabled());
     }
 }

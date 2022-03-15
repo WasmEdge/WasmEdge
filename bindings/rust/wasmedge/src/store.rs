@@ -84,13 +84,13 @@ mod tests {
     use super::*;
     use crate::{
         wasmedge::{Mutability, RefType},
-        Config, Executor, GlobalType, ImportMod, MemoryType, Module, SignatureBuilder, Statistics,
-        TableType, ValType, Value,
+        CommonConfigOptions, ConfigBuilder, Executor, GlobalType, ImportMod, MemoryType, Module,
+        SignatureBuilder, Statistics, TableType, ValType, Value,
     };
 
     #[test]
     fn test_store_create() {
-        let result = Config::new();
+        let result = ConfigBuilder::new(CommonConfigOptions::default()).build();
         assert!(result.is_ok());
         let config = result.unwrap();
 
@@ -139,7 +139,7 @@ mod tests {
         assert!(result.is_ok());
 
         // create an executor
-        let result = Config::new();
+        let result = ConfigBuilder::new(CommonConfigOptions::default()).build();
         assert!(result.is_ok());
         let config = result.unwrap();
 
@@ -183,7 +183,7 @@ mod tests {
     #[test]
     fn test_store_register_named_module() {
         // create an executor
-        let result = Config::new();
+        let result = ConfigBuilder::new(CommonConfigOptions::default()).build();
         assert!(result.is_ok());
         let config = result.unwrap();
 
@@ -227,7 +227,7 @@ mod tests {
     #[test]
     fn test_store_register_active_module() {
         // create an executor
-        let result = Config::new();
+        let result = ConfigBuilder::new(CommonConfigOptions::default()).build();
         assert!(result.is_ok());
         let config = result.unwrap();
 
@@ -274,7 +274,7 @@ mod tests {
     #[test]
     fn test_store_basic() {
         // create an executor
-        let result = Config::new();
+        let result = ConfigBuilder::new(CommonConfigOptions::default()).build();
         assert!(result.is_ok());
         let config = result.unwrap();
 

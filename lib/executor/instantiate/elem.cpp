@@ -73,10 +73,8 @@ Expect<void> Executor::instantiate(Runtime::StoreManager &StoreMgr,
   return {};
 }
 
-// Initialize table with Element Instances. See
-// "include/executor/executor.h".
+// Initialize table with Element section. See "include/executor/executor.h".
 Expect<void> Executor::initTable(Runtime::StackManager &StackMgr,
-                                 Runtime::Instance::ModuleInstance &,
                                  const AST::ElementSection &ElemSec) {
   // Initialize tables.
   uint32_t Idx = 0;

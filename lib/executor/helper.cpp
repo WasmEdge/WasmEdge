@@ -50,7 +50,7 @@ Executor::enterFunction(Runtime::StoreManager &StoreMgr,
     // Push frame.
     StackMgr.pushFrame(nullptr, // Host function instance don't have module
                        RetIt,   // Return PC
-                       0,       // No Arguments in stack
+                       ArgsN,   // Only args, no locals in stack
                        RetsN    // Returns num
     );
 
@@ -87,11 +87,6 @@ Executor::enterFunction(Runtime::StoreManager &StoreMgr,
     }
 
     // Push returns back to stack.
-    for (uint32_t I = 0; I < ArgsN; ++I) {
-      ValVariant Val [[maybe_unused]] = StackMgr.pop();
-    }
-
-    // Push returns back to stack.
     for (auto &R : Rets) {
       StackMgr.push(std::move(R));
     }
@@ -106,7 +101,7 @@ Executor::enterFunction(Runtime::StoreManager &StoreMgr,
     // Push frame.
     StackMgr.pushFrame(Func.getModule(), // Pointer to module instance
                        RetIt,            // Return PC
-                       0,                // No Arguments in stack
+                       ArgsN,            // Only args, no locals in stack
                        RetsN             // Returns num
     );
 
@@ -156,6 +151,13 @@ Executor::enterFunction(Runtime::StoreManager &StoreMgr,
   } else {
     // Native function case: Jump to the start of the function body.
 
+    // Push local variables into the stack.
+    for (auto &Def : Func.getLocals()) {
+      for (uint32_t i = 0; i < Def.first; i++) {
+        StackMgr.push(ValueFromType(Def.second));
+      }
+    }
+
     // Push frame.
     // The PC must -1 here because in the interpreter mode execution, the PC
     // will increase after the callee return.
@@ -164,13 +166,6 @@ Executor::enterFunction(Runtime::StoreManager &StoreMgr,
                        ArgsN + Func.getLocalNum(), // Arguments num + local num
                        RetsN                       // Returns num
     );
-
-    // Push local variables into the stack.
-    for (auto &Def : Func.getLocals()) {
-      for (uint32_t i = 0; i < Def.first; i++) {
-        StackMgr.push(ValueFromType(Def.second));
-      }
-    }
 
     // For native function case, the continuation will be the start of the
     // function body.
@@ -189,7 +184,8 @@ Expect<void> Executor::branchToLabel(Runtime::StackManager &StackMgr,
   }
 
   StackMgr.stackErase(EraseBegin, EraseEnd);
-  PC += PCOffset;
+  // PC need to -1 here because the PC will increase in the next iteration.
+  PC += (PCOffset - 1);
   return {};
 }
 

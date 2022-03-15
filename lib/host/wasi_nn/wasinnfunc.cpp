@@ -6,8 +6,26 @@
 #include "runtime/hostfunc.h"
 #include "runtime/instance/memory.h"
 
+#ifdef WASINN_BUILD_OPENVINO
+#include <inference_engine.hpp>
+#include <string>
+namespace IE = InferenceEngine;
+#endif
 namespace WasmEdge {
 namespace Host {
+
+const std::string map_target_to_string(uint32_t Target) {
+  switch (Target) {
+  case 0:
+    return "CPU";
+  case 1:
+    return "GPU";
+  case 2:
+    return "TPU";
+  default:
+    return "";
+  }
+}
 
 Expect<uint32_t> WasiNNLoad::body(Runtime::Instance::MemoryInstance *MemInst
                                   [[maybe_unused]],
@@ -17,13 +35,63 @@ Expect<uint32_t> WasiNNLoad::body(Runtime::Instance::MemoryInstance *MemInst
                                   uint32_t Target [[maybe_unused]],
                                   uint32_t GraphPtr [[maybe_unused]]) {
   auto log = spdlog::get("WasiNN");
-  uint8_t *Model;
+  // GraphBuilders' Layout: |builder-0|builder-0 len|builder-1|builder-1 len|...
+  uint32_t *GraphBuilders;
   uint32_t *Graph;
-  Model = MemInst->getPointer<uint8_t *>(BuilderPtr, 1);
+  GraphBuilders = MemInst->getPointer<uint32_t *>(BuilderPtr, 1);
   Graph = MemInst->getPointer<uint32_t *>(GraphPtr, 1);
   if (Encoding == this->Ctx.BackendsMapping.at("OpenVINO")) {
 #ifdef WASINN_BUILD_OPENVINO
-    log->error("OpenVINO currently a placeholder");
+    if (BuilderLen != 2) {
+      log->error("Wrong GraphBuilder Length {:d}, expecting 2", BuilderLen);
+      return -1;
+    }
+    IE::Core ie_;
+    std::string device_name = map_target_to_string(Target);
+    if (device_name.length() == 0) {
+      log->error("Device target {:d} not support!", Target);
+      return -1;
+    } else {
+      log->info("Using device: {:s}", device_name);
+    }
+    uint32_t xml_strings_len = GraphBuilders[1];
+    uint32_t weight_bins_len = GraphBuilders[3];
+
+    uint8_t *xml_ptr = MemInst->getPointer<uint8_t *>(GraphBuilders[0], 1);
+    uint8_t *bin_ptr = MemInst->getPointer<uint8_t *>(GraphBuilders[2], 1);
+    std::vector<uint8_t> xml_strings(xml_ptr, xml_ptr + xml_strings_len);
+    std::vector<uint8_t> weight_bins(bin_ptr, bin_ptr + weight_bins_len);
+
+    log->info("read xml length {:d}", xml_strings.size());
+    log->info("read bin length {:d}", weight_bins.size());
+
+    std::string xml_model(xml_strings.begin(), xml_strings.end());
+    IE::TensorDesc binDesc(IE::Precision::U8, {weight_bins.size()},
+                           IE::Layout::C);
+
+    std::shared_ptr<IE::Data> data_node(new IE::Data("see", binDesc));
+    IE::Blob::Ptr weights_blob = IE::Blob::CreateFromData(data_node);
+    weights_blob->allocate();
+    uint8_t *buffer_ptr = static_cast<uint8_t *>(weights_blob->buffer());
+    for (size_t i = 0; i < weight_bins.size(); i++) {
+      buffer_ptr[i] = weight_bins[i];
+    }
+    IE::CNNNetwork network = ie_.ReadNetwork(xml_model, weights_blob);
+    IE::ExecutableNetwork executable_network =
+        ie_.LoadNetwork(network, device_name);
+
+    this->Ctx.ModelsNum++;
+    this->Ctx.OpenVINONetworks.emplace(this->Ctx.ModelsNum, std::move(network));
+    this->Ctx.OpenVINOExecutions.emplace(this->Ctx.ModelsNum,
+                                         std::move(executable_network));
+    this->Ctx.GraphBackends.emplace(this->Ctx.ModelsNum, Encoding);
+    log->info("Network created");
+    *Graph = this->Ctx.ModelsNum;
+    // std::vector<std::string> availableDevices = ie_.GetAvailableDevices();
+    // for (auto x : availableDevices) {
+    //   log->info("device: {:s}", x);
+    // }
+    return 0;
 #else
     log->error("OpenVINO backend is not built. define -DWASINN_BUILD_OPENVINO "
                "to build it.");
@@ -50,10 +118,9 @@ Expect<uint32_t> WasiNNInitExecCtx::body(
       this->Ctx.BackendsMapping.at("OpenVINO")) {
 #ifdef WASINN_BUILD_OPENVINO
     OpenVINOSession Session;
-    IE::InferRequest infer_request =
+    // std::unique_ptr<IE::InferRequest> unique_ir(&infer_request);
+    Session.infer_request =
         this->Ctx.OpenVINOExecutions[Graph].CreateInferRequest();
-    std::unique_ptr<IE::InferRequest> unique_ir(&infer_request);
-    Session.infer_request = std::move(unique_ir);
     Session.network = &(this->Ctx.OpenVINONetworks[Graph]);
     Session.executable_network = &(this->Ctx.OpenVINOExecutions[Graph]);
 
@@ -63,6 +130,7 @@ Expect<uint32_t> WasiNNInitExecCtx::body(
     this->Ctx.GraphContextBackends.emplace(this->Ctx.ExecutionsNum,
                                            this->Ctx.GraphBackends[Graph]);
     *Context = this->Ctx.ExecutionsNum;
+    log->info("Context created");
     return 0;
 #else
     log->error("OpenVINO backend is not built. define -DWASINN_BUILD_OPENVINO "
@@ -106,7 +174,7 @@ Expect<uint32_t> WasiNNSetInput::body(Runtime::Instance::MemoryInstance *MemInst
     std::vector<size_t> InputDims(DimensionLen);
     for (uint32_t i = 0; i < InputDims.size(); i++)
       InputDims[i] = static_cast<size_t>(DimensionBuf[i]);
-    size_t total = 0;
+    size_t total = 1;
     for (auto x : InputDims)
       total *= x;
     log->info("Tensor size: {:d}, {:d}", total, TensorDataLen / 4);
@@ -135,7 +203,7 @@ Expect<uint32_t> WasiNNSetInput::body(Runtime::Instance::MemoryInstance *MemInst
     default:
       break;
     }
-    IE::TensorDesc tDesc(tensor_precision, InputDims, IE::NHWC);
+    IE::TensorDesc tDesc(tensor_precision, InputDims, IE::Layout::NHWC);
     IE::CNNNetwork *network = Session.network;
 
     IE::InputsDataMap input_info = network->getInputsInfo();
@@ -145,6 +213,7 @@ Expect<uint32_t> WasiNNSetInput::body(Runtime::Instance::MemoryInstance *MemInst
     for (auto &item : input_info) {
       if (input_counts == Index) {
         input_name = item.first;
+        log->info("Index input: {:s}", input_name);
         item.second->setPrecision(tensor_precision);
         break;
       }
@@ -155,14 +224,16 @@ Expect<uint32_t> WasiNNSetInput::body(Runtime::Instance::MemoryInstance *MemInst
       return -1;
     }
 
-    IE::Blob::Ptr input_blob = Session.infer_request->GetBlob(input_name);
+    IE::Blob::Ptr input_blob = Session.infer_request.GetBlob(input_name);
+    log->info("Context created");
     IE::SizeVector blobSize = input_blob->getTensorDesc().getDims();
+    log->info("Context created");
     const size_t width = blobSize[3];
     const size_t height = blobSize[2];
     const size_t channels = blobSize[1];
     log->info("Input shape for {:s}: {:d}, {:d}, {:d}", input_name, channels,
               width, height);
-
+    log->info("Context created");
     IE::MemoryBlob::Ptr mblob = IE::as<IE::MemoryBlob>(input_blob);
     if (!mblob) {
       log->error("We expect image blob to be inherited from MemoryBlob in "
@@ -233,7 +304,7 @@ Expect<uint32_t> WasiNNGetOuput::body(
     }
 
     const IE::Blob::Ptr output_blob =
-        Session.infer_request->GetBlob(output_name);
+        Session.infer_request.GetBlob(output_name);
     IE::MemoryBlob::Ptr mblob = IE::as<IE::MemoryBlob>(output_blob);
     if (!mblob) {
       log->error("We expect output blob to be inherited from MemoryBlob in "
@@ -278,12 +349,12 @@ Expect<uint32_t> WasiNNCompute::body(Runtime::Instance::MemoryInstance *MemInst
     log->error("compute: Execution Context does not exist");
     return -1;
   }
-  
+
   if (this->Ctx.GraphContextBackends[Context] ==
       this->Ctx.BackendsMapping.at("OpenVINO")) {
 #ifdef WASINN_BUILD_OPENVINO
     OpenVINOSession &Session = this->Ctx.OpenVINOInfers[Context];
-    Session.infer_request->Infer();
+    Session.infer_request.Infer();
     return 0;
 #else
     log->error("OpenVINO backend is not built. define -DWASINN_BUILD_OPENVINO "

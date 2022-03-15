@@ -30,18 +30,20 @@ class OpenVINOSession {
 public:
   IE::CNNNetwork *network;
   IE::ExecutableNetwork *executable_network;
-  std::unique_ptr<IE::InferRequest> infer_request;
+  IE::InferRequest infer_request;
 };
 #endif
 
 class WasiNNContext {
 public:
-  WasiNNContext() : ModelsNum(-1), ExecutionsNum(-1) {}
-  // context for implementing WASI-NN
+  WasiNNContext()
+      : ModelsNum(-1),
+        ExecutionsNum(-1){
+        } // context for implementing WASI-NN
   std::map<Graph, GraphEncoding> GraphBackends;
   std::map<GraphExecutionContext, GraphEncoding> GraphContextBackends;
 #ifdef WASINN_BUILD_OPENVINO
-  IE::Core openvino_ie;
+  IE::Core openvino_core;
   std::map<Graph, IE::CNNNetwork> OpenVINONetworks;
   std::map<Graph, IE::ExecutableNetwork> OpenVINOExecutions;
   std::map<GraphExecutionContext, OpenVINOSession> OpenVINOInfers;

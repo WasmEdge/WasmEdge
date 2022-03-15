@@ -1,6 +1,9 @@
 //! Defines WasmEdge AOT Compiler.
 
-use crate::{error::check, utils, wasmedge, Config, WasmEdgeError, WasmEdgeResult};
+use crate::{
+    error::{check, WasmEdgeError},
+    utils, wasmedge, Config, WasmEdgeResult,
+};
 use std::path::Path;
 
 /// Struct of WasmEdge AOT Compiler.

@@ -1,3 +1,5 @@
+//! Defines the error types.
+
 use crate::{
     wasmedge::{WasmEdge_Result, WasmEdge_ResultGetCode, WasmEdge_ResultOK},
     ExternalType, WasmEdgeResult,
@@ -225,6 +227,7 @@ pub enum VmError {
     NotFoundExecutor,
 }
 
+/// Defines the errors raised from WasmEdge Core.
 #[derive(Error, Clone, Debug, PartialEq)]
 pub enum CoreError {
     #[error("{0}")]

@@ -1,10 +1,11 @@
 //! Defines WasmEdge ImportObj struct.
 
 use crate::{
+    error::WasmEdgeError,
     instance::{Function, Global, Memory, Table},
     types::WasmEdgeString,
     utils::string_to_c_char,
-    wasmedge, WasmEdgeError, WasmEdgeResult,
+    wasmedge, WasmEdgeResult,
 };
 
 /// Struct of WasmEdge ImportObj.

@@ -7,7 +7,7 @@ use std::{
     sync::{Arc, Mutex},
     thread,
 };
-use wasmedge_sys::{Config, Store, Value, Vm, WasmEdgeError};
+use wasmedge_sys::{error::WasmEdgeError, Config, Store, Value, Vm};
 
 fn main() -> Result<(), WasmEdgeError> {
     // create a Config context

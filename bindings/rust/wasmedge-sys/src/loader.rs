@@ -1,9 +1,9 @@
 //! Defines WasmEdge Loader struct.
 
 use crate::{
-    error::check,
+    error::{check, WasmEdgeError},
     module::{InnerModule, Module},
-    utils, wasmedge, Config, WasmEdgeError, WasmEdgeResult,
+    utils, wasmedge, Config, WasmEdgeResult,
 };
 use std::path::Path;
 
@@ -151,8 +151,8 @@ unsafe impl Sync for InnerLoader {}
 mod tests {
     use super::Loader;
     use crate::{
-        error::{CoreError, CoreLoadError},
-        Config, WasmEdgeError,
+        error::{CoreError, CoreLoadError, WasmEdgeError},
+        Config,
     };
     use std::{
         sync::{Arc, Mutex},

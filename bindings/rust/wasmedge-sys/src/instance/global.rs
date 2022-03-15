@@ -4,8 +4,9 @@
 //! `GlobalType` specifies whether a global variable is immutable or mutable.
 
 use crate::{
+    error::{GlobalError, WasmEdgeError},
     types::{Mutability, ValType},
-    wasmedge, GlobalError, Value, WasmEdgeError, WasmEdgeResult,
+    wasmedge, Value, WasmEdgeResult,
 };
 
 #[derive(Debug)]

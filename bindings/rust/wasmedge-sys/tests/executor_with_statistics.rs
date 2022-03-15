@@ -1,7 +1,7 @@
 mod common;
 use wasmedge_sys::{
-    error::{CoreError, CoreExecutionError},
-    Config, Executor, Loader, Statistics, Store, StoreError, Validator, Value, WasmEdgeError,
+    error::{CoreError, CoreExecutionError, StoreError, WasmEdgeError},
+    Config, Executor, Loader, Statistics, Store, Validator, Value,
 };
 
 #[warn(unused_assignments)]

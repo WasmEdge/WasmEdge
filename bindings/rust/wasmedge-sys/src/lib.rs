@@ -23,7 +23,6 @@ pub mod wasmedge {
 pub mod compiler;
 #[doc(hidden)]
 pub mod config;
-#[doc(hidden)]
 pub mod error;
 #[doc(hidden)]
 pub mod executor;
@@ -51,11 +50,6 @@ pub mod vm;
 pub use compiler::Compiler;
 #[doc(inline)]
 pub use config::Config;
-#[doc(inline)]
-pub use error::{
-    ExportError, FuncError, GlobalError, ImportError, StoreError, TableError, VmError,
-    WasmEdgeError,
-};
 #[doc(inline)]
 pub use executor::Executor;
 #[doc(inline)]
@@ -87,7 +81,7 @@ pub use validator::Validator;
 pub use vm::Vm;
 
 /// The WasmEdge result type.
-pub type WasmEdgeResult<T> = Result<T, WasmEdgeError>;
+pub type WasmEdgeResult<T> = Result<T, error::WasmEdgeError>;
 
 thread_local! {
     // TODO: allow modify capacity before running

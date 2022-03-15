@@ -815,10 +815,9 @@ mod tests {
     use crate::{
         error::{
             CoreCommonError, CoreError, CoreExecutionError, CoreInstantiationError, CoreLoadError,
-            StoreError, VmError,
+            StoreError, VmError, WasmEdgeError,
         },
         Config, FuncType, Function, ImportObject, Loader, Module, Store, ValType, Value,
-        WasmEdgeError,
     };
     use std::{
         sync::{Arc, Mutex},

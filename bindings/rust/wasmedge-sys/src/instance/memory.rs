@@ -6,8 +6,8 @@
 //! restricts the size to which the memory can grow later.
 
 use crate::{
-    error::{check, MemError},
-    wasmedge, WasmEdgeError, WasmEdgeResult,
+    error::{check, MemError, WasmEdgeError},
+    wasmedge, WasmEdgeResult,
 };
 use std::ops::RangeInclusive;
 
@@ -112,7 +112,7 @@ impl Memory {
     /// then an error is returned.
     ///
     /// ```
-    /// use wasmedge_sys::{error::{CoreError, CoreExecutionError}, WasmEdgeError, Memory, MemType};
+    /// use wasmedge_sys::{error::{CoreError, CoreExecutionError, WasmEdgeError}, Memory, MemType};
     ///
     /// // create a Memory: the min size 1 and the max size 2
     /// let ty = MemType::create(1..=2).expect("fail to create a memory type");

@@ -404,8 +404,8 @@ unsafe impl Sync for InnerExport {}
 #[cfg(test)]
 mod tests {
     use crate::{
-        Config, ExportError, ExternalType, ImportError, Loader, Mutability, RefType, ValType,
-        WasmEdgeError,
+        error::{ExportError, ImportError, WasmEdgeError},
+        Config, ExternalType, Loader, Mutability, RefType, ValType,
     };
     use std::{
         sync::{Arc, Mutex},

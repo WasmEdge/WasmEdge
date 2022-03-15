@@ -1,7 +1,9 @@
 //! Defines WasmEdge Function and FuncType structs.
 
 use crate::{
-    types::Value, wasmedge, FuncError, ValType, WasmEdgeError, WasmEdgeResult, HOST_FUNCS,
+    error::{FuncError, WasmEdgeError},
+    types::Value,
+    wasmedge, ValType, WasmEdgeResult, HOST_FUNCS,
 };
 use core::ffi::c_void;
 use rand::Rng;

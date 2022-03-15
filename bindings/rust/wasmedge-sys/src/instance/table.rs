@@ -6,9 +6,9 @@
 //! the end resticts the upper bound (inclusive).
 
 use crate::{
-    error::check,
+    error::{check, TableError, WasmEdgeError},
     types::{RefType, Value},
-    wasmedge, TableError, WasmEdgeError, WasmEdgeResult,
+    wasmedge, WasmEdgeResult,
 };
 use std::ops::RangeInclusive;
 

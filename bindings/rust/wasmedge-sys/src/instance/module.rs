@@ -1,10 +1,10 @@
 //! Defines WasmEdge Instancestruct.
 
 use crate::{
-    error::InstanceError,
+    error::{InstanceError, WasmEdgeError},
     instance::{function::InnerFunc, global::InnerGlobal, memory::InnerMemory, table::InnerTable},
     types::WasmEdgeString,
-    wasmedge, Function, Global, Memory, Store, Table, WasmEdgeError, WasmEdgeResult,
+    wasmedge, Function, Global, Memory, Store, Table, WasmEdgeResult,
 };
 
 /// Struct of WasmEdge Instance.

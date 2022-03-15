@@ -1,6 +1,7 @@
 //! Defines WasmEdge Store struct.
 
 use crate::{
+    error::{StoreError, WasmEdgeError},
     instance::{
         function::{Function, InnerFunc},
         global::{Global, InnerGlobal},
@@ -9,7 +10,7 @@ use crate::{
         table::{InnerTable, Table},
     },
     types::WasmEdgeString,
-    wasmedge, StoreError, WasmEdgeError, WasmEdgeResult,
+    wasmedge, WasmEdgeResult,
 };
 
 /// Struct of Wasmedge Store.

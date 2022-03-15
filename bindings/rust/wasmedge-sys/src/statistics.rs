@@ -1,6 +1,6 @@
 //! Defines WasmEdge Statistics struct.
 
-use crate::{wasmedge, WasmEdgeError, WasmEdgeResult};
+use crate::{error::WasmEdgeError, wasmedge, WasmEdgeResult};
 
 #[derive(Debug)]
 /// Struct of WasmEdge Statistics.

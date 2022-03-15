@@ -188,11 +188,11 @@ impl Config {
 
         config.wasmedge_process(src.wasmedge_process_enabled());
 
-        config.aot_measure_cost(src.is_aot_cost_measuring());
+        config.measure_cost(src.is_cost_measuring());
 
-        config.aot_count_instructions(src.is_aot_instruction_counting());
+        config.count_instructions(src.is_instruction_counting());
 
-        config.aot_measure_time(src.is_aot_time_measuring());
+        config.measure_time(src.is_time_measuring());
 
         config.set_max_memory_pages(src.get_max_memory_pages());
 
@@ -771,12 +771,12 @@ impl Config {
     /// # Argument
     ///
     /// - `flag` specifies if support instruction counting or not when execution after AOT compilation.
-    pub fn aot_count_instructions(&mut self, flag: bool) {
+    pub fn count_instructions(&mut self, flag: bool) {
         unsafe { wasmedge::WasmEdge_ConfigureStatisticsSetInstructionCounting(self.inner.0, flag) }
     }
 
     /// Checks if the instruction counting option turns on or not.
-    pub fn is_aot_instruction_counting(&self) -> bool {
+    pub fn is_instruction_counting(&self) -> bool {
         unsafe { wasmedge::WasmEdge_ConfigureStatisticsIsInstructionCounting(self.inner.0) }
     }
 
@@ -785,12 +785,12 @@ impl Config {
     /// # Argument
     ///
     /// - `flag` specifies if support cost measuring or not when execution after AOT compilation.
-    pub fn aot_measure_cost(&mut self, flag: bool) {
+    pub fn measure_cost(&mut self, flag: bool) {
         unsafe { wasmedge::WasmEdge_ConfigureStatisticsSetCostMeasuring(self.inner.0, flag) }
     }
 
     /// Checks if the cost measuring option turns on or not.
-    pub fn is_aot_cost_measuring(&self) -> bool {
+    pub fn is_cost_measuring(&self) -> bool {
         unsafe { wasmedge::WasmEdge_ConfigureStatisticsIsCostMeasuring(self.inner.0) }
     }
 
@@ -799,12 +799,12 @@ impl Config {
     /// # Argument
     ///
     /// - `flag` specifies if support time measuring or not when execution after AOT compilation.
-    pub fn aot_measure_time(&mut self, flag: bool) {
+    pub fn measure_time(&mut self, flag: bool) {
         unsafe { wasmedge::WasmEdge_ConfigureStatisticsSetTimeMeasuring(self.inner.0, flag) }
     }
 
     /// Checks if the cost measuring option turns on or not.
-    pub fn is_aot_time_measuring(&self) -> bool {
+    pub fn is_time_measuring(&self) -> bool {
         unsafe { wasmedge::WasmEdge_ConfigureStatisticsIsTimeMeasuring(self.inner.0) }
     }
 }
@@ -844,11 +844,13 @@ mod tests {
         assert!(config.simd_enabled());
         assert!(!config.tail_call_enabled());
         assert!(!config.threads_enabled());
-        assert!(!config.is_aot_cost_measuring());
+        assert!(!config.wasi_enabled());
+        assert!(!config.wasmedge_process_enabled());
+        assert!(!config.is_cost_measuring());
         assert!(!config.is_aot_dump_ir());
         assert!(!config.is_aot_generic_binary());
-        assert!(!config.is_aot_instruction_counting());
-        assert!(!config.is_aot_time_measuring());
+        assert!(!config.is_instruction_counting());
+        assert!(!config.is_time_measuring());
         assert_eq!(config.get_max_memory_pages(), 65536);
         assert_eq!(
             config.get_aot_optimization_level(),
@@ -873,11 +875,11 @@ mod tests {
         config.simd(false);
         config.tail_call(true);
         config.threads(true);
-        config.aot_measure_cost(true);
-        config.aot_measure_time(true);
+        config.measure_cost(true);
+        config.measure_time(true);
         config.aot_dump_ir(true);
         config.aot_generic_binary(true);
-        config.aot_count_instructions(true);
+        config.count_instructions(true);
 
         // check new settings
         assert!(config.annotations_enabled());
@@ -893,11 +895,11 @@ mod tests {
         assert!(!config.simd_enabled());
         assert!(config.tail_call_enabled());
         assert!(config.threads_enabled());
-        assert!(config.is_aot_cost_measuring());
+        assert!(config.is_cost_measuring());
         assert!(config.is_aot_dump_ir());
         assert!(config.is_aot_generic_binary());
-        assert!(config.is_aot_instruction_counting());
-        assert!(config.is_aot_time_measuring());
+        assert!(config.is_instruction_counting());
+        assert!(config.is_time_measuring());
 
         // set maxmimum memory pages
         config.set_max_memory_pages(10);
@@ -932,11 +934,11 @@ mod tests {
             assert!(config.simd_enabled());
             assert!(!config.tail_call_enabled());
             assert!(!config.threads_enabled());
-            assert!(!config.is_aot_cost_measuring());
+            assert!(!config.is_cost_measuring());
             assert!(!config.is_aot_dump_ir());
             assert!(!config.is_aot_generic_binary());
-            assert!(!config.is_aot_instruction_counting());
-            assert!(!config.is_aot_time_measuring());
+            assert!(!config.is_instruction_counting());
+            assert!(!config.is_time_measuring());
             assert_eq!(config.get_max_memory_pages(), 65536);
             assert_eq!(
                 config.get_aot_optimization_level(),
@@ -957,11 +959,11 @@ mod tests {
             config.simd(false);
             config.tail_call(true);
             config.threads(true);
-            config.aot_measure_cost(true);
-            config.aot_measure_time(true);
+            config.measure_cost(true);
+            config.measure_time(true);
             config.aot_dump_ir(true);
             config.aot_generic_binary(true);
-            config.aot_count_instructions(true);
+            config.count_instructions(true);
 
             // check new settings
             assert!(config.annotations_enabled());
@@ -973,11 +975,11 @@ mod tests {
             assert!(!config.simd_enabled());
             assert!(config.tail_call_enabled());
             assert!(config.threads_enabled());
-            assert!(config.is_aot_cost_measuring());
+            assert!(config.is_cost_measuring());
             assert!(config.is_aot_dump_ir());
             assert!(config.is_aot_generic_binary());
-            assert!(config.is_aot_instruction_counting());
-            assert!(config.is_aot_time_measuring());
+            assert!(config.is_instruction_counting());
+            assert!(config.is_time_measuring());
         });
 
         handle.join().unwrap();
@@ -1006,11 +1008,11 @@ mod tests {
             assert!(config.simd_enabled());
             assert!(!config.tail_call_enabled());
             assert!(!config.threads_enabled());
-            assert!(!config.is_aot_cost_measuring());
+            assert!(!config.is_cost_measuring());
             assert!(!config.is_aot_dump_ir());
             assert!(!config.is_aot_generic_binary());
-            assert!(!config.is_aot_instruction_counting());
-            assert!(!config.is_aot_time_measuring());
+            assert!(!config.is_instruction_counting());
+            assert!(!config.is_time_measuring());
             assert_eq!(config.get_max_memory_pages(), 65536);
             assert_eq!(
                 config.get_aot_optimization_level(),
@@ -1032,11 +1034,11 @@ mod tests {
             config_mut.simd(false);
             config_mut.tail_call(true);
             config_mut.threads(true);
-            config_mut.aot_measure_cost(true);
-            config_mut.aot_measure_time(true);
+            config_mut.measure_cost(true);
+            config_mut.measure_time(true);
             config_mut.aot_dump_ir(true);
             config_mut.aot_generic_binary(true);
-            config_mut.aot_count_instructions(true);
+            config_mut.count_instructions(true);
 
             // check new settings
             assert!(config.annotations_enabled());
@@ -1048,11 +1050,11 @@ mod tests {
             assert!(!config.simd_enabled());
             assert!(config.tail_call_enabled());
             assert!(config.threads_enabled());
-            assert!(config.is_aot_cost_measuring());
+            assert!(config.is_cost_measuring());
             assert!(config.is_aot_dump_ir());
             assert!(config.is_aot_generic_binary());
-            assert!(config.is_aot_instruction_counting());
-            assert!(config.is_aot_time_measuring());
+            assert!(config.is_instruction_counting());
+            assert!(config.is_time_measuring());
         });
 
         handle.join().unwrap();

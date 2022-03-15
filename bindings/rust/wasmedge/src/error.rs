@@ -6,12 +6,12 @@ pub type Result<T> = std::result::Result<T, WasmEdgeError>;
 #[derive(Error, Clone, Debug, PartialEq)]
 pub enum WasmEdgeError {
     #[error("{0}")]
-    Operation(wasmedge::WasmEdgeError),
+    Operation(wasmedge::error::WasmEdgeError),
     #[error("Unknown error")]
     Unknown,
 }
-impl From<wasmedge::WasmEdgeError> for WasmEdgeError {
-    fn from(error: wasmedge::WasmEdgeError) -> Self {
+impl From<wasmedge::error::WasmEdgeError> for WasmEdgeError {
+    fn from(error: wasmedge::error::WasmEdgeError) -> Self {
         WasmEdgeError::Operation(error)
     }
 }

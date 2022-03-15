@@ -447,8 +447,8 @@ mod tests {
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
-            WasmEdgeError::Operation(wasmedge::WasmEdgeError::Global(
-                wasmedge::GlobalError::ModifyConst
+            WasmEdgeError::Operation(wasmedge::error::WasmEdgeError::Global(
+                wasmedge::error::GlobalError::ModifyConst
             ))
         );
 

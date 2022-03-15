@@ -26,13 +26,14 @@ class StackManager {
 public:
   struct Frame {
     Frame() = delete;
-    Frame(Instance::ModuleInstance *Mod, uint32_t L, uint32_t A,
-          AST::InstrView::iterator FromIt) noexcept
-        : Module(Mod), Locals(L), Arity(A), From(FromIt) {}
+    Frame(Instance::ModuleInstance *Mod, AST::InstrView::iterator FromIt,
+          uint32_t L, uint32_t A, uint32_t V) noexcept
+        : Module(Mod), From(FromIt), Locals(L), Arity(A), VPos(V) {}
     Instance::ModuleInstance *Module;
+    AST::InstrView::iterator From;
     uint32_t Locals;
     uint32_t Arity;
-    AST::InstrView::iterator From;
+    uint32_t VPos;
   };
 
   using Value = ValVariant;
@@ -79,16 +80,17 @@ public:
   void pushFrame(Instance::ModuleInstance *Module,
                  AST::InstrView::iterator From, const uint32_t LocalNum = 0,
                  const uint32_t Arity = 0) noexcept {
-    FrameStack.emplace_back(Module, LocalNum, Arity, From);
+    FrameStack.emplace_back(Module, From, LocalNum, Arity, ValueStack.size());
   }
 
   /// Unsafe pop top frame.
   AST::InstrView::iterator popFrame() noexcept {
     assuming(!FrameStack.empty());
-    assuming(ValueStack.size() >=
-             FrameStack.back().Locals + FrameStack.back().Arity);
-    ValueStack.erase(ValueStack.end() - FrameStack.back().Locals -
-                         FrameStack.back().Arity,
+    assuming(FrameStack.back().VPos >= FrameStack.back().Locals);
+    assuming(FrameStack.back().VPos - FrameStack.back().Locals <=
+             ValueStack.size() - FrameStack.back().Arity);
+    ValueStack.erase(ValueStack.begin() + FrameStack.back().VPos -
+                         FrameStack.back().Locals,
                      ValueStack.end() - FrameStack.back().Arity);
     auto From = FrameStack.back().From;
     FrameStack.pop_back();

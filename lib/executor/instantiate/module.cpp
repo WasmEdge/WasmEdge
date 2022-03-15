@@ -135,14 +135,14 @@ Expect<void> Executor::instantiate(Runtime::StoreManager &StoreMgr,
   }
 
   // Initialize table instances
-  if (auto Res = initTable(StackMgr, *ModInst, ElemSec); !Res) {
+  if (auto Res = initTable(StackMgr, ElemSec); !Res) {
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Sec_Element));
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Module));
     return Unexpect(Res);
   }
 
   // Initialize memory instances
-  if (auto Res = initMemory(StackMgr, *ModInst, DataSec); !Res) {
+  if (auto Res = initMemory(StackMgr, DataSec); !Res) {
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Sec_Data));
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Module));
     return Unexpect(Res);

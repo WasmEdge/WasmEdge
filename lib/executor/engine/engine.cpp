@@ -115,7 +115,7 @@ Expect<void> Executor::execute(Runtime::StoreManager &StoreMgr,
     case OpCode::Br_table:
       return runBrTableOp(StackMgr, Instr, PC);
     case OpCode::Return:
-      return runReturnOp(StackMgr, Instr, PC);
+      return runReturnOp(StackMgr, PC);
     case OpCode::Call:
       return runCallOp(StoreMgr, StackMgr, Instr, PC);
     case OpCode::Call_indirect:

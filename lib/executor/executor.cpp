@@ -109,6 +109,9 @@ Executor::invoke(Runtime::StoreManager &StoreMgr,
     Returns[RTypes.size() - I - 1] =
         std::make_pair(StackMgr.pop(), RTypes[RTypes.size() - I - 1]);
   }
+
+  // After execution, the value stack size should be 0.
+  assuming(StackMgr.size() == 0);
   return Returns;
 }
 

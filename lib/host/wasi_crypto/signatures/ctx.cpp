@@ -4,6 +4,7 @@
 #include "host/wasi_crypto/signatures/factory.h"
 #include "host/wasi_crypto/signatures/signatures.h"
 #include "host/wasi_crypto/signatures/signstate.h"
+#include "host/wasi_crypto/signatures/verificationstate.h"
 
 namespace WasmEdge {
 namespace Host {
@@ -69,6 +70,50 @@ Context::signatureStateSign(__wasi_signature_state_t StateHandle) noexcept {
 WasiCryptoExpect<void>
 Context::signatureStateClose(__wasi_signature_state_t StateHandle) noexcept {
   return SignStateManager.close(StateHandle);
+}
+
+WasiCryptoExpect<__wasi_signature_verification_state_t>
+Context::signatureVerificationStateOpen(
+    __wasi_signature_publickey_t PkHandle) noexcept {
+  return PublicKeyManager.getAs<Signatures::PkVariant>(PkHandle)
+      .and_then([](auto &&PkVariant) noexcept {
+        return Signatures::verificationStateOpen(PkVariant);
+      })
+      .and_then([this](auto &&VerificationStateVariant) noexcept {
+        return VerificationStateManager.registerManager(
+            std::move(VerificationStateVariant));
+      });
+}
+
+WasiCryptoExpect<void> Context::signatureVerificationStateUpdate(
+    __wasi_signature_verification_state_t VerificationHandle,
+    Span<const uint8_t> Input) noexcept {
+  return VerificationStateManager.get(VerificationHandle)
+      .and_then([=](auto &&VerificationStateVariant) noexcept {
+        return Signatures::verificationStateUpdate(VerificationStateVariant,
+                                                   Input);
+      });
+}
+
+WasiCryptoExpect<void> Context::signatureVerificationStateVerify(
+    __wasi_signature_verification_state_t VerificationHandle,
+    __wasi_signature_t SigHandle) noexcept {
+  auto Verification = VerificationStateManager.get(VerificationHandle);
+  if (!Verification) {
+    return WasiCryptoUnexpect(Verification);
+  }
+
+  auto Sig = SignatureManager.get(SigHandle);
+  if (!Sig) {
+    return WasiCryptoUnexpect(Sig);
+  }
+
+  return Signatures::verificationStateVerify(*Verification, *Sig);
+}
+
+WasiCryptoExpect<void> Context::signatureVerificationStateClose(
+    __wasi_signature_verification_state_t VerificationHandle) noexcept {
+  return VerificationStateManager.close(VerificationHandle);
 }
 
 } // namespace WasiCrypto

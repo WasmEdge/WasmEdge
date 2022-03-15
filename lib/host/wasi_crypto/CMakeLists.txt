@@ -39,6 +39,7 @@ wasmedge_add_library(wasmedgeHostModuleWasiCrypto
   signatures/signatures.cpp
   signatures/factory.cpp
   signatures/signstate.cpp
+  signatures/verificationstate.cpp
 )
 
 target_include_directories(wasmedgeHostModuleWasiCrypto

@@ -23,6 +23,7 @@
 #include "host/wasi_crypto/signatures/alg.h"
 #include "host/wasi_crypto/signatures/signatures.h"
 #include "host/wasi_crypto/signatures/signstate.h"
+#include "host/wasi_crypto/signatures/verificationstate.h"
 #include "host/wasi_crypto/symmetric/alg.h"
 #include "host/wasi_crypto/symmetric/key.h"
 #include "host/wasi_crypto/symmetric/state.h"
@@ -330,6 +331,9 @@ private:
       0x06};
   RcHandlesManager<__wasi_signature_state_t, Signatures::SignStateVariant>
       SignStateManager{0x07};
+  RcHandlesManager<__wasi_signature_state_t,
+                   Signatures::VerificationStateVariant>
+      VerificationStateManager{0x02};
 };
 
 } // namespace WasiCrypto

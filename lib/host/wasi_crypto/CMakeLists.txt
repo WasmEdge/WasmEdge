@@ -32,6 +32,9 @@ wasmedge_add_library(wasmedgeHostModuleWasiCrypto
   asymmetric_common/keypair.cpp
   asymmetric_common/factory.cpp
   kx/ctx.cpp
+  kx/factory.cpp
+  kx/kx.cpp
+  kx/dh/x25519.cpp
 )
 
 target_include_directories(wasmedgeHostModuleWasiCrypto

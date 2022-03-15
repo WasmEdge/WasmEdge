@@ -10,7 +10,9 @@ namespace Kx {
 
 FactoryVariant makeFactory(Algorithm Alg) noexcept {
   switch (Alg) {
-    default:
+  case Algorithm::X25519:
+    return X25519{};
+  default:
     assumingUnreachable();
   }
 }

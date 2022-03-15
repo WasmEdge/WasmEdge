@@ -30,7 +30,7 @@ template <typename... T> struct Registed {
   using Variant = std::variant<T...>;
 };
 
-using RegistedAlg = Registed</* Not Implement */>;
+using RegistedAlg = Registed<X25519>;
 
 } // namespace Kx
 } // namespace WasiCrypto

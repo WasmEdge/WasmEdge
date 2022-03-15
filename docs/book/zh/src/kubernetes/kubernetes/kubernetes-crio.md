@@ -48,13 +48,13 @@ Local Kubernetes cluster is running. Press Ctrl-C to shut it down.
 本节的内容介绍了如何在 Kubernetes 中，以 pod 中的容器的形式来运行 WebAssembly 程序。我们需要打开另一个终端。
 
 ```bash
-$ export KUBERNETES_PROVIDER=local
+export KUBERNETES_PROVIDER=local
 
-$ sudo cluster/kubectl.sh config set-cluster local --server=https://localhost:6443 --certificate-authority=/var/run/kubernetes/server-ca.crt
-$ sudo cluster/kubectl.sh config set-credentials myself --client-key=/var/run/kubernetes/client-admin.key --client-certificate=/var/run/kubernetes/client-admin.crt
-$ sudo cluster/kubectl.sh config set-context local --cluster=local --user=myself
-$ sudo cluster/kubectl.sh config use-context local
-$ sudo cluster/kubectl.sh
+sudo cluster/kubectl.sh config set-cluster local --server=https://localhost:6443 --certificate-authority=/var/run/kubernetes/server-ca.crt
+sudo cluster/kubectl.sh config set-credentials myself --client-key=/var/run/kubernetes/client-admin.key --client-certificate=/var/run/kubernetes/client-admin.crt
+sudo cluster/kubectl.sh config set-context local --cluster=local --user=myself
+sudo cluster/kubectl.sh config use-context local
+sudo cluster/kubectl.sh
 ```
 
 检查一下集群状态，看看集群有没有正常运行。
@@ -78,7 +78,7 @@ To further debug and diagnose cluster problems, use 'kubectl cluster-info dump'.
 [这篇文章](../demo/wasi.md) 描述了如何编译、打包一个简单的 WebAssembly WASI 程序，以及将它以容器镜像的形式发布到 Docker hub 的完整过程。
 
 ```bash
-$ sudo cluster/kubectl.sh run -it --rm --restart=Never wasi-demo --image=hydai/wasm-wasi-example:with-wasm-annotation --annotations="module.wasm.image/variant=compat" /wasi_example_main.wasm 50000000
+sudo cluster/kubectl.sh run -it --rm --restart=Never wasi-demo --image=hydai/wasm-wasi-example:with-wasm-annotation --annotations="module.wasm.image/variant=compat" /wasi_example_main.wasm 50000000
 ```
 
 容器化后的应用程序的输出会被打印到控制台上。
@@ -127,7 +127,7 @@ spec:
 输入下面的命令，可以使用上面的 `k8s-http_server.yaml` 文件，从 Docker Hub 拉取并运行基于 WebAssembly 的镜像。
 
 ```bash
-$ sudo ./kubernetes/cluster/kubectl.sh apply -f k8s-http_server.yaml
+sudo ./kubernetes/cluster/kubectl.sh apply -f k8s-http_server.yaml
 ```
 
 然后运行以下命令，查看运行中的容器应用程序和他们的 IP 地址。我们在 yaml 配置中用的是 `hostNetwork` 网络，所以 HTTP 服务器镜像会在 IP 为 `127.0.0.1` 的本地网络中运行。

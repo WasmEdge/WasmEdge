@@ -68,8 +68,8 @@ import (
 )
 
 func main() {
-  /// Expected Args[0]: program name (./bindgen_funcs)
-  /// Expected Args[1]: wasm or wasm-so file (rust_bindgen_funcs_lib_bg.wasm))
+  // Expected Args[0]: program name (./bindgen_funcs)
+  // Expected Args[1]: wasm or wasm-so file (rust_bindgen_funcs_lib_bg.wasm))
 
   wasmedge.SetLogErrorLevel()
 
@@ -77,17 +77,17 @@ func main() {
   var vm = wasmedge.NewVMWithConfig(conf)
   var wasi = vm.GetImportObject(wasmedge.WASI)
   wasi.InitWasi(
-    os.Args[1:],   /// The args
-    os.Environ(),  /// The envs
-    []string{".:."}, /// The mapping directories
+    os.Args[1:],     // The args
+    os.Environ(),    // The envs
+    []string{".:."}, // The mapping directories
   )
 
-  /// Instantiate wasm
+  // Instantiate wasm
   vm.LoadWasmFile(os.Args[1])
   vm.Validate()
   vm.Instantiate()
 
-  /// Run bindgen functions
+  // Run bindgen functions
   var res interface{}
   var err error
   

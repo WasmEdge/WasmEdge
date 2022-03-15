@@ -12,11 +12,9 @@ WebAssembly 提供了一个轻量级和高性能的软件容器。 它非常适�
 
 在本文中，我们将向你展示如何创建一个基于 Tensorflow 图像分类的 Rust 函数，将其编译为 WebAssembly，然后使用 YoMo 作为流数据 handler 运行它。我们使用 [WasmEdge](https://wasmedge.org/) 作为我们 WebAssembly runtime，因为与其他 WebAssembly runtime 相比，WasmEdge 提供了最高的性能与灵活性。是唯一能稳定支持 Tensorflow 的 WebAssembly 虚拟机。[YoMo 通过 WasmEdge 的 Go SDK](https://github.com/WasmEdge/WasmEdge/blob/master/docs/book/en/src/embed/go.md) 来管理 WasmEdge 虚拟机实例和 contained 容器化 WebAssembly 字节码应用。
 
-> 源码: https://github.com/yomorun/yomo-wasmedge-tensorflow
+> 源码: <https://github.com/yomorun/yomo-wasmedge-tensorflow>
 
 详情可查看 [YoMo 中的 WasmEdge 图像分类函数实战](https://www.youtube.com/watch?v=E0ltsn6cLIU)
-
-
 
 ## 安装前提
 

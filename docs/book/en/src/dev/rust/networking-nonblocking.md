@@ -262,7 +262,7 @@ fn handle_connection(
 The following command compiles the Rust program.
 
 ```bash
-$ cargo build --target wasm32-wasi --release
+cargo build --target wasm32-wasi --release
 ```
 
 The following command runs the application in WasmEdge.

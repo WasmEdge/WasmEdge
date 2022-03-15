@@ -3,6 +3,7 @@
 #include "host/wasi_crypto/ctx.h"
 #include "host/wasi_crypto/signatures/factory.h"
 #include "host/wasi_crypto/signatures/signatures.h"
+#include "host/wasi_crypto/signatures/signstate.h"
 
 namespace WasmEdge {
 namespace Host {
@@ -32,6 +33,42 @@ Context::signatureImport(Signatures::Algorithm Alg, Span<const uint8_t> Encoded,
       .and_then([this](auto &&Sig) noexcept {
         return SignatureManager.registerManager(std::move(Sig));
       });
+}
+
+WasiCryptoExpect<__wasi_signature_state_t>
+Context::signatureStateOpen(__wasi_signature_keypair_t KpHandle) noexcept {
+  return KeyPairManager.getAs<Signatures::KpVariant>(KpHandle)
+      .and_then([](auto &&KpVariant) noexcept {
+        return Signatures::sigStateOpen(KpVariant);
+      })
+      .and_then([this](auto &&SignStateVariant) noexcept {
+        return SignStateManager.registerManager(std::move(SignStateVariant));
+      });
+}
+
+WasiCryptoExpect<void>
+Context::signatureStateUpdate(__wasi_signature_state_t StateHandle,
+                              Span<const uint8_t> Input) noexcept {
+  return SignStateManager.get(StateHandle)
+      .and_then([=](auto &&SignStateVariant) noexcept {
+        return Signatures::sigStateUpdate(SignStateVariant, Input);
+      });
+}
+
+WasiCryptoExpect<__wasi_signature_t>
+Context::signatureStateSign(__wasi_signature_state_t StateHandle) noexcept {
+  return SignStateManager.get(StateHandle)
+      .and_then([](auto &&SignStateVariant) noexcept {
+        return Signatures::sigStateSign(SignStateVariant);
+      })
+      .and_then([this](auto &&Signature) noexcept {
+        return SignatureManager.registerManager(std::move(Signature));
+      });
+}
+
+WasiCryptoExpect<void>
+Context::signatureStateClose(__wasi_signature_state_t StateHandle) noexcept {
+  return SignStateManager.close(StateHandle);
 }
 
 } // namespace WasiCrypto

@@ -38,6 +38,7 @@ wasmedge_add_library(wasmedgeHostModuleWasiCrypto
   signatures/ctx.cpp
   signatures/signatures.cpp
   signatures/factory.cpp
+  signatures/signstate.cpp
 )
 
 target_include_directories(wasmedgeHostModuleWasiCrypto

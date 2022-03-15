@@ -110,10 +110,12 @@ impl<'vm> WasmEdgeProcessImportMod<'vm> {
 
 #[cfg(test)]
 mod tests {
+    use std::borrow::Borrow;
+
     use super::*;
     use crate::{
-        error::WasmEdgeError, wasmedge, Config, Executor, Mutability, RefType, SignatureBuilder,
-        Statistics, Store, ValType, Value,
+        error::WasmEdgeError, wasmedge, CommonConfigOptions, ConfigBuilder, Executor, Mutability,
+        RefType, SignatureBuilder, Statistics, Store, ValType, Value,
     };
 
     #[test]
@@ -132,7 +134,7 @@ mod tests {
         assert!(result.is_ok());
 
         // create an executor
-        let result = Config::new();
+        let result = ConfigBuilder::new(CommonConfigOptions::default()).build();
         assert!(result.is_ok());
         let config = result.unwrap();
 
@@ -205,7 +207,7 @@ mod tests {
         assert!(result.is_ok());
 
         // create an executor
-        let result = Config::new();
+        let result = ConfigBuilder::new(CommonConfigOptions::default()).build();
         assert!(result.is_ok());
         let config = result.unwrap();
 
@@ -266,7 +268,7 @@ mod tests {
         assert!(result.is_ok());
 
         // create an executor
-        let result = Config::new();
+        let result = ConfigBuilder::new(CommonConfigOptions::default()).build();
         assert!(result.is_ok());
         let config = result.unwrap();
 
@@ -321,7 +323,7 @@ mod tests {
         assert!(result.is_ok());
 
         // create an executor
-        let result = Config::new();
+        let result = ConfigBuilder::new(CommonConfigOptions::default()).build();
         assert!(result.is_ok());
         let config = result.unwrap();
 
@@ -400,7 +402,7 @@ mod tests {
         assert!(result.is_ok());
 
         // create an executor
-        let result = Config::new();
+        let result = ConfigBuilder::new(CommonConfigOptions::default()).build();
         assert!(result.is_ok());
         let config = result.unwrap();
 
@@ -498,7 +500,7 @@ mod tests {
         assert!(result.is_ok());
 
         // create an executor
-        let result = Config::new();
+        let result = ConfigBuilder::new(CommonConfigOptions::default()).build();
         assert!(result.is_ok());
         let config = result.unwrap();
 

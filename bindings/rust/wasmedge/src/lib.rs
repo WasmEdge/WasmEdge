@@ -22,7 +22,10 @@ pub mod vm;
 #[doc(hidden)]
 pub use compiler::Compiler;
 #[doc(inline)]
-pub use config::Config;
+pub use config::{
+    CommonConfigOptions, CompilerConfigOptions, Config, ConfigBuilder,
+    HostRegistrationConfigOptions, RuntimeConfigOptions, StatisticsConfigOptions,
+};
 #[doc(inline)]
 pub use executor::Executor;
 #[doc(inline)]

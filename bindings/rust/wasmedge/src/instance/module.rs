@@ -101,14 +101,14 @@ impl<'store> Instance<'store> {
 mod tests {
     use crate::{
         wasmedge::{Mutability, RefType},
-        Config, Executor, GlobalType, ImportMod, MemoryType, Module, SignatureBuilder, Statistics,
-        Store, TableType, ValType, Value,
+        CommonConfigOptions, ConfigBuilder, Executor, GlobalType, ImportMod, MemoryType, Module,
+        SignatureBuilder, Statistics, Store, TableType, ValType, Value,
     };
 
     #[test]
     fn test_instance_basic() {
         // create an executor
-        let result = Config::new();
+        let result = ConfigBuilder::new(CommonConfigOptions::default()).build();
         assert!(result.is_ok());
         let config = result.unwrap();
 

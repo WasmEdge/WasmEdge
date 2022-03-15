@@ -52,7 +52,7 @@ impl Executor {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{Config, Module, Statistics};
+    use crate::{CommonConfigOptions, ConfigBuilder, Module, Statistics};
 
     #[test]
     fn test_executor_create() {
@@ -62,7 +62,7 @@ mod tests {
         }
 
         {
-            let result = Config::new();
+            let result = ConfigBuilder::new(CommonConfigOptions::default()).build();
             assert!(result.is_ok());
             let config = result.unwrap();
 
@@ -84,7 +84,7 @@ mod tests {
         }
 
         {
-            let result = Config::new();
+            let result = ConfigBuilder::new(CommonConfigOptions::default()).build();
             assert!(result.is_ok());
             let config = result.unwrap();
 
@@ -103,7 +103,7 @@ mod tests {
     #[test]
     fn test_executor_run_func() {
         // create an executor
-        let result = Config::new();
+        let result = ConfigBuilder::new(CommonConfigOptions::default()).build();
         assert!(result.is_ok());
         let config = result.unwrap();
 

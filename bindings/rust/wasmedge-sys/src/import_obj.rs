@@ -1,4 +1,4 @@
-//! Defines WasmEdge ImportObj struct.
+//! Defines WasmEdge ImportObject struct.
 
 use crate::{
     error::WasmEdgeError,
@@ -8,10 +8,9 @@ use crate::{
     wasmedge, WasmEdgeResult,
 };
 
-/// Struct of WasmEdge ImportObj.
+/// Struct of WasmEdge ImportObject.
 ///
-/// A [`ImportObject`] represents a host module with a name. A host module consists of one or more
-/// host functions which are defined outside WebAssembly and passed to WASM modules as imports.
+/// An [ImportObject](crate::ImportObject) represents a host module with a name. A host module consists of one or more host [functions](crate::Function), [tables](crate::Table), [memories](crate::Memory), and [globals](crate::Global),  which are defined outside WASM modules and fed into WASM modules as imports.
 #[derive(Debug)]
 pub struct ImportObject {
     pub(crate) inner: InnerImportObject,
@@ -39,6 +38,7 @@ impl ImportObject {
         }
     }
 
+    /// Returns the name of the [ImportObject](crate::ImportObject).
     pub fn name(&self) -> String {
         let raw_name =
             unsafe { wasmedge::WasmEdge_ImportObjectGetModuleName(self.inner.0 as *const _) };
@@ -221,13 +221,13 @@ impl ImportObject {
         }
     }
 
-    /// Adds a [`Function`] into the host module.
+    /// Adds a [host function](crate::Function) into the host module.
     ///
     /// # Arguments
     ///
     /// - `name` specifies the name of the host function in the host module.
     ///
-    /// - `func` specifies the host function instance to add.
+    /// - `func` specifies the exported host function instance to add.
     pub fn add_func(&mut self, name: impl AsRef<str>, mut func: Function) {
         let func_name: WasmEdgeString = name.into();
         unsafe {
@@ -240,13 +240,13 @@ impl ImportObject {
         func.inner.0 = std::ptr::null_mut();
     }
 
-    /// Adds a [`Table`] into the host module.
+    /// Adds a [table](crate::Table) into the host module.
     ///
     /// # Arguments
     ///
     /// - `name` specifies the name of the export table in the host module.
     ///
-    /// - `table` specifies the export table instance to add.
+    /// - `table` specifies the exported table instance to add.
     pub fn add_table(&mut self, name: impl AsRef<str>, mut table: Table) {
         let table_name: WasmEdgeString = name.as_ref().into();
         unsafe {
@@ -259,13 +259,13 @@ impl ImportObject {
         table.inner.0 = std::ptr::null_mut();
     }
 
-    /// Adds a [`Memory`] into the host module.
+    /// Adds a [memory](crate::Memory) into the host module.
     ///
     /// # Arguments
     ///
     /// - `name` specifies the name of the export memory in the host module.
     ///
-    /// - `memory` specifies the export memory instance to add.
+    /// - `memory` specifies the exported memory instance to add.
     pub fn add_memory(&mut self, name: impl AsRef<str>, mut memory: Memory) {
         let mem_name: WasmEdgeString = name.as_ref().into();
         unsafe {
@@ -278,13 +278,13 @@ impl ImportObject {
         memory.inner.0 = std::ptr::null_mut();
     }
 
-    /// Adds a [`Global`] into the host module.
+    /// Adds a [global](crate::Global) into the host module.
     ///
     /// # Arguments
     ///
     /// `name` specifies the name of the export global in the host module.
     ///
-    /// `global` specifies the export global instance to add.
+    /// `global` specifies the exported global instance to add.
     pub fn add_global(&mut self, name: impl AsRef<str>, mut global: Global) {
         let global_name: WasmEdgeString = name.as_ref().into();
         unsafe {

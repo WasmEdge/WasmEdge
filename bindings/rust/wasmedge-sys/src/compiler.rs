@@ -1,4 +1,4 @@
-//! Defines WasmEdge AOT Compiler.
+//! Defines WasmEdge ahead-of-time compiler.
 
 use crate::{
     error::{check, WasmEdgeError},
@@ -6,7 +6,7 @@ use crate::{
 };
 use std::path::Path;
 
-/// Struct of WasmEdge AOT Compiler.
+/// Struct of WasmEdge ahead-of-time(AOT) compiler.
 #[derive(Debug)]
 pub struct Compiler {
     pub(crate) inner: InnerCompiler,
@@ -19,11 +19,11 @@ impl Drop for Compiler {
     }
 }
 impl Compiler {
-    /// Creates a new AOT [`Compiler`].
+    /// Creates a new AOT [compiler](crate::Compiler).
     ///
     /// # Error
     ///
-    /// If fail to create a AOT [`Compiler`], then an error is returned.
+    /// If fail to create a AOT [compiler](crate::Compiler), then an error is returned.
     pub fn create(config: Option<Config>) -> WasmEdgeResult<Self> {
         let ctx = match config {
             Some(mut config) => {
@@ -42,7 +42,7 @@ impl Compiler {
         }
     }
 
-    /// Compiles the input WASM from the given file path.
+    /// The compiler compiles the input WASM from the given file path for the AOT mode and stores the result to the output file path.
     ///
     /// # Arguments
     ///

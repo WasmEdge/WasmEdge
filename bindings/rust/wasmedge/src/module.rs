@@ -1,4 +1,5 @@
 use crate::{error::Result, wasmedge, Config, GlobalType, MemoryType, Signature, TableType};
+use std::marker::PhantomData;
 use std::{borrow::Cow, path::Path};
 
 #[derive(Debug)]
@@ -56,27 +57,40 @@ impl Module {
         self.inner.count_of_imports()
     }
 
-    pub fn import_iter(&self) -> impl Iterator<Item = ImportType> {
-        self.inner.imports_iter().map(|inner| ImportType {
-            inner,
-            module: self,
-        })
+    pub fn imports(&self) -> Vec<ImportType> {
+        let mut imports = Vec::new();
+        for inner_import in self.inner.imports() {
+            let import = ImportType {
+                inner: inner_import,
+                // module: &self,
+                _marker: PhantomData,
+            };
+            imports.push(import);
+        }
+        imports
     }
 
     pub fn count_of_exports(&self) -> u32 {
         self.inner.count_of_exports()
     }
 
-    pub fn export_iter(&self) -> impl Iterator<Item = ExportType> {
-        self.inner.exports_iter().map(|inner| ExportType {
-            inner,
-            module: self,
-        })
+    pub fn exports(&self) -> Vec<ExportType> {
+        let mut exports = Vec::new();
+        for inner_export in self.inner.exports() {
+            let export = ExportType {
+                inner: inner_export,
+                // module: &self,
+                _marker: PhantomData,
+            };
+            exports.push(export);
+        }
+        exports
     }
 
     pub fn get_export(&self, name: impl AsRef<str>) -> Option<ExternalType> {
         let exports = self
-            .export_iter()
+            .exports()
+            .into_iter()
             .filter(|x| x.name() == name.as_ref())
             .collect::<Vec<_>>();
         match exports.is_empty() {
@@ -89,7 +103,7 @@ impl Module {
 #[derive(Debug)]
 pub struct ImportType<'module> {
     inner: wasmedge::Import<'module>,
-    module: &'module Module,
+    _marker: PhantomData<&'module Module>,
 }
 impl<'module> ImportType<'module> {
     pub fn name(&self) -> Cow<'_, str> {
@@ -103,19 +117,19 @@ impl<'module> ImportType<'module> {
     pub fn ty(&self) -> Result<ExternalType> {
         match self.inner.ty() {
             wasmedge::ExternalType::Function => {
-                let func_ty = self.inner.function_type(&self.module.inner)?;
+                let func_ty = self.inner.function_type()?;
                 Ok(ExternalType::Func(func_ty.into()))
             }
             wasmedge::ExternalType::Global => {
-                let global_ty = self.inner.global_type(&self.module.inner)?;
+                let global_ty = self.inner.global_type()?;
                 Ok(ExternalType::Global(global_ty.into()))
             }
             wasmedge::ExternalType::Memory => {
-                let mem_ty = self.inner.memory_type(&self.module.inner)?;
+                let mem_ty = self.inner.memory_type()?;
                 Ok(ExternalType::Memory(mem_ty.into()))
             }
             wasmedge::ExternalType::Table => {
-                let table_ty = self.inner.table_type(&self.module.inner)?;
+                let table_ty = self.inner.table_type()?;
                 Ok(ExternalType::Table(table_ty.into()))
             }
         }
@@ -125,7 +139,7 @@ impl<'module> ImportType<'module> {
 #[derive(Debug)]
 pub struct ExportType<'module> {
     inner: wasmedge::Export<'module>,
-    module: &'module Module,
+    _marker: PhantomData<&'module Module>,
 }
 impl<'module> ExportType<'module> {
     pub fn name(&self) -> Cow<'_, str> {
@@ -135,19 +149,19 @@ impl<'module> ExportType<'module> {
     pub fn ty(&self) -> Result<ExternalType> {
         match self.inner.ty() {
             wasmedge::ExternalType::Function => {
-                let func_ty = self.inner.function_type(&self.module.inner)?;
+                let func_ty = self.inner.function_type()?;
                 Ok(ExternalType::Func(func_ty.into()))
             }
             wasmedge::ExternalType::Global => {
-                let global_ty = self.inner.global_type(&self.module.inner)?;
+                let global_ty = self.inner.global_type()?;
                 Ok(ExternalType::Global(global_ty.into()))
             }
             wasmedge::ExternalType::Memory => {
-                let mem_ty = self.inner.memory_type(&self.module.inner)?;
+                let mem_ty = self.inner.memory_type()?;
                 Ok(ExternalType::Memory(mem_ty.into()))
             }
             wasmedge::ExternalType::Table => {
-                let table_ty = self.inner.table_type(&self.module.inner)?;
+                let table_ty = self.inner.table_type()?;
                 Ok(ExternalType::Table(table_ty.into()))
             }
         }

@@ -110,8 +110,6 @@ impl<'vm> WasmEdgeProcessImportMod<'vm> {
 
 #[cfg(test)]
 mod tests {
-    use std::borrow::Borrow;
-
     use super::*;
     use crate::{
         error::WasmEdgeError, wasmedge, CommonConfigOptions, ConfigBuilder, Executor, Mutability,

@@ -9,14 +9,14 @@ use std::path::Path;
 
 /// Struct of WasmEdge Loader.
 ///
-/// [`Loader`] is used to load WASM modules from the given WASM files or buffers.
+/// [Loader](crate::Loader) is used to load WASM modules from the given WASM files or buffers.
 #[derive(Debug)]
 pub struct Loader {
     pub(crate) inner: InnerLoader,
     pub(crate) registered: bool,
 }
 impl Loader {
-    /// Create a new [`Loader`] to be associated with the given global configuration.
+    /// Create a new [Loader](crate::Loader) to be associated with the given global configuration.
     ///
     /// # Arguements
     ///
@@ -24,7 +24,7 @@ impl Loader {
     ///
     /// # Error
     ///
-    /// If fail to create a [`Loader`], then an error is returned.
+    /// If fail to create a [Loader](crate), then an error is returned.
     pub fn create(config: Option<Config>) -> WasmEdgeResult<Self> {
         let ctx = match config {
             Some(mut config) => {
@@ -44,11 +44,11 @@ impl Loader {
         }
     }
 
-    /// Loads a WASM module from a WASM file with the suffix ".wasm".
+    /// Loads a WASM module from a WASM file with the suffix `.wasm`.
     ///
     /// # Arguments
     ///
-    /// - `path` specifies the file path to the target WASM file.
+    /// - `file` specifies the path to the target WASM file.
     ///
     /// # Error
     ///
@@ -60,8 +60,8 @@ impl Loader {
     /// let file = "path/to/foo.wasm"
     /// let module = loader.from_file(file)?;
     /// ```
-    pub fn from_file(&self, path: impl AsRef<Path>) -> WasmEdgeResult<Module> {
-        let c_path = utils::path_to_cstring(path.as_ref())?;
+    pub fn from_file(&self, file: impl AsRef<Path>) -> WasmEdgeResult<Module> {
+        let c_path = utils::path_to_cstring(file.as_ref())?;
         let mut mod_ctx = std::ptr::null_mut();
         unsafe {
             check(wasmedge::WasmEdge_LoaderParseFromFile(

@@ -858,11 +858,11 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
   case OpCode::I64__atomic__load32_u:
   case OpCode::I32__atomic__store:
   case OpCode::I64__atomic__store:
-  case OpCode::I32__atomic__store8_u:
-  case OpCode::I32__atomic__store16_u:
-  case OpCode::I64__atomic__store8_u:
-  case OpCode::I64__atomic__store16_u:
-  case OpCode::I64__atomic__store32_u:
+  case OpCode::I32__atomic__store8:
+  case OpCode::I32__atomic__store16:
+  case OpCode::I64__atomic__store8:
+  case OpCode::I64__atomic__store16:
+  case OpCode::I64__atomic__store32:
   case OpCode::I32__atomic__rmw__add:
   case OpCode::I64__atomic__rmw__add:
   case OpCode::I32__atomic__rmw8__add_u:

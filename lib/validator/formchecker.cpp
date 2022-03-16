@@ -1318,15 +1318,15 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
     return checkAlignAndTrans(32, std::array{VType::I32, VType::I32}, {});
   case OpCode::I64__atomic__store:
     return checkAlignAndTrans(64, std::array{VType::I32, VType::I64}, {});
-  case OpCode::I32__atomic__store8_u:
+  case OpCode::I32__atomic__store8:
     return checkAlignAndTrans(8, std::array{VType::I32, VType::I32}, {});
-  case OpCode::I32__atomic__store16_u:
+  case OpCode::I32__atomic__store16:
     return checkAlignAndTrans(16, std::array{VType::I32, VType::I32}, {});
-  case OpCode::I64__atomic__store8_u:
+  case OpCode::I64__atomic__store8:
     return checkAlignAndTrans(8, std::array{VType::I32, VType::I64}, {});
-  case OpCode::I64__atomic__store16_u:
+  case OpCode::I64__atomic__store16:
     return checkAlignAndTrans(16, std::array{VType::I32, VType::I64}, {});
-  case OpCode::I64__atomic__store32_u:
+  case OpCode::I64__atomic__store32:
     return checkAlignAndTrans(32, std::array{VType::I32, VType::I64}, {});
   case OpCode::I32__atomic__rmw__add:
     return checkAlignAndTrans(32, std::array{VType::I32, VType::I32},

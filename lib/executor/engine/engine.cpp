@@ -1658,23 +1658,23 @@ Expect<void> Executor::execute(Runtime::StoreManager &StoreMgr,
       return runAtomicStoreOp<int64_t, uint64_t>(
           StackMgr,
           *getMemInstByIdx(StackMgr, Instr.getTargetIndex()), Instr);
-    case OpCode::I32__atomic__store8_u:
+    case OpCode::I32__atomic__store8:
       return runAtomicStoreOp<uint32_t, uint8_t>(
           StackMgr,
           *getMemInstByIdx(StackMgr, Instr.getTargetIndex()), Instr);
-    case OpCode::I32__atomic__store16_u:
+    case OpCode::I32__atomic__store16:
       return runAtomicStoreOp<uint32_t, uint16_t>(
           StackMgr,
           *getMemInstByIdx(StackMgr, Instr.getTargetIndex()), Instr);
-    case OpCode::I64__atomic__store8_u:
+    case OpCode::I64__atomic__store8:
       return runAtomicStoreOp<uint64_t, uint8_t>(
           StackMgr,
           *getMemInstByIdx(StackMgr, Instr.getTargetIndex()), Instr);
-    case OpCode::I64__atomic__store16_u:
+    case OpCode::I64__atomic__store16:
       return runAtomicStoreOp<uint64_t, uint16_t>(
           StackMgr,
           *getMemInstByIdx(StackMgr, Instr.getTargetIndex()), Instr);
-    case OpCode::I64__atomic__store32_u:
+    case OpCode::I64__atomic__store32:
       return runAtomicStoreOp<uint64_t, uint32_t>(
           StackMgr,
           *getMemInstByIdx(StackMgr, Instr.getTargetIndex()), Instr);

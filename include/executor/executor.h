@@ -521,8 +521,8 @@ private:
   Expect<void> runMemoryFenceOp();
   template <typename T>
   TypeT<T> runAtomicWaitOp(Runtime::StackManager &StackMgr,
-                                     Runtime::Instance::MemoryInstance &MemInst,
-                                     const AST::Instruction &Instr);
+                           Runtime::Instance::MemoryInstance &MemInst,
+                           const AST::Instruction &Instr);
   template <typename T, typename I>
   TypeT<T> runAtomicLoadOp(Runtime::StackManager &StackMgr,
                            Runtime::Instance::MemoryInstance &MemInst,

@@ -715,7 +715,7 @@ E(ENDCodeExpected, 0x38, "END opcode expected")
 // Parsing error
 E(IllegalGrammar, 0x39, "invalid wasm grammar")
 // Shared memory must have max
-E(SharedMemoryNoMax, 0x40, "shared memory must have maximum")
+E(SharedMemoryNoMax, 0x3A, "shared memory must have maximum")
 // @}
 
 // Validation phase

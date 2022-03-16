@@ -296,8 +296,8 @@ Executor::runAtomicCompareExchangeOp(Runtime::StackManager &StackMgr,
                                      const AST::Instruction &Instr) {
 
   const uint32_t BitWidth = sizeof(I) * 8;
-  ValVariant RawValue = StackMgr.pop();
-  ValVariant RawCompare = StackMgr.pop();
+  ValVariant RawReplacement = StackMgr.pop();
+  ValVariant RawExpected = StackMgr.pop();
   ValVariant RawAddress = StackMgr.pop();
   int32_t Address = RawAddress.get<int32_t>();
   if ((Address & ((BitWidth >> 3U) - 1)) != 0) {
@@ -317,11 +317,12 @@ Executor::runAtomicCompareExchangeOp(Runtime::StackManager &StackMgr,
   }
   auto *AtomicObj =
       static_cast<std::atomic<I> *>(reinterpret_cast<void *>(RawPointer));
-  I Value = static_cast<I>(RawValue.get<T>());
-  I Compare = static_cast<I>(RawCompare.get<T>());
+  I Replacement = static_cast<I>(RawReplacement.get<T>());
+  I Expected = static_cast<I>(RawExpected.get<T>());
+  
+  AtomicObj->compare_exchange_strong(Expected, Replacement, std::memory_order_acquire);
+  StackMgr.push(static_cast<T>(Expected));
 
-  I Return = AtomicObj->compare_exchange_strong(Value, Compare, std::memory_order_acquire);
-  StackMgr.push(static_cast<T>(Return));
   return {};
 }
 

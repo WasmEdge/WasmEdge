@@ -396,3 +396,25 @@ WasmEdge_String JStringToWasmString(JNIEnv* env, jstring jstr) {
 
     return wStr;
 }
+
+const char** JStringArrayToPtr(JNIEnv* env, jarray jStrArray) {
+    int len = (*env)->GetArrayLength(env, jStrArray);
+
+    const char** ptr = malloc(sizeof(char*));
+
+    for(int i = 0; i < len; i++) {
+        jstring  jStr = (*env)->GetObjectArrayElement(env, jStrArray, i);
+        const* strPtr = (*env)->GetStringUTFChars(env, jStr, NULL);
+        ptr[i] = strPtr;
+    }
+    return ptr;
+}
+
+void ReleaseCString(JNIEnv* env, jarray jStrArray, const char** ptr) {
+    int len = (*env)->GetArrayLength(env, jStrArray);
+
+    for(int i = 0; i < len; i++) {
+        jstring  jStr = (*env)->GetObjectArrayElement(env, jStrArray, i);
+        (*env)->ReleaseStringUTFChars(env, jStr, ptr[i]);
+    }
+}

@@ -174,7 +174,13 @@ public class WasmEdgeVM {
 
     public native FunctionTypeContext getFunctionType(String funcName);
 
-    public native ImportObjectContext getImportModuleContext(HostRegistration reg);
+    public ImportObjectContext getImportModuleContext(HostRegistration reg) {
+        return nativeGetImportModuleContext(reg.getVal());
+    }
+
+    private native ImportObjectContext nativeGetImportModuleContext(int reg);
+
+
     public native StoreContext getStoreContext();
     public native StatisticsContext getStatisticsContext();
     public native FunctionTypeContext getFunctionTypeRegistered(String moduleName,

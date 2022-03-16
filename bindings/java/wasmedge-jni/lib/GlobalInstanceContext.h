@@ -7,6 +7,6 @@
 
 #include "jni.h"
 #include "wasmedge/wasmedge.h"
-WasmEdge_FunctionInstanceContext * getFunctionInstanceContext(JNIEnv* env, jobject jFuncInstance);
+WasmEdge_GlobalInstanceContext * getGlobalInstanceContext(JNIEnv* env, jobject jGlobalInstanceContext);
 
 #endif //WASMEDGE_JAVA_GLOBALINSTANCECONTEXT_H

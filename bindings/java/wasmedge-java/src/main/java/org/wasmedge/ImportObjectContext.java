@@ -7,11 +7,15 @@ public class ImportObjectContext {
         nativeInit(moduleName);
     }
 
+    private ImportObjectContext(long pointer) {
+        this.pointer = pointer;
+    }
+
     private native void nativeInit(String moduleName);
 
-    private native void initWASI(String[] args, String[] envs, String[] preopens);
+    public native void initWASI(String[] args, String[] envs, String[] preopens);
 
-    private native int getWASIExitCode();
+    public native int getWASIExitCode();
 
     public native static ImportObjectContext createWasmEdgeProcess(String[] allowedCmds, boolean allowAll);
 

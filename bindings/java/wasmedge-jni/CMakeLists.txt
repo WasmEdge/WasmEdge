@@ -37,7 +37,7 @@ add_library(${TARGET} SHARED
         lib/MemoryTypeContext.h
         lib/ExternRef.c
         lib/ExportTypeContext.c
-        lib/ImportTypeContext.c lib/ImportObjectContext.c lib/FunctionTypeInstance.c lib/FunctionTypeInstance.h lib/GlobalInstanceContext.h lib/MemoryInstanceContext.h lib/TableInstanceContext.h)
+        lib/ImportTypeContext.c lib/ImportObjectContext.c lib/FunctionTypeInstance.c lib/FunctionTypeInstance.h lib/GlobalInstanceContext.h lib/MemoryInstanceContext.h lib/TableInstanceContext.h lib/ImportObjectContext.h)
 
 target_link_libraries(${TARGET} wasmedge_c)
 

@@ -69,4 +69,8 @@ bool AddElementToJavaList(JNIEnv* env, jobject jList, jobject ele);
 
 WasmEdge_String JStringToWasmString(JNIEnv* env, jstring jstr);
 
+const char** JStringArrayToPtr(JNIEnv* env, jarray jStrArray);
+
+void ReleaseCString(JNIEnv* env, jarray jStrArray, const char** ptr);
+
 #endif //WASMEDGE_JAVA_COMMON_H

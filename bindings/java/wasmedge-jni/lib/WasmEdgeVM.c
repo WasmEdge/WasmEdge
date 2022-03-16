@@ -12,6 +12,7 @@
 #include "FunctionTypeContext.h"
 #include "AstModuleContext.h"
 #include "StatisticsContext.h"
+#include "ImportObjectContext.h"
 #include "string.h"
 
 void setJavaIntValue(JNIEnv *env, WasmEdge_Value val, jobject jobj) {
@@ -537,3 +538,27 @@ JNIEXPORT jobject JNICALL Java_org_wasmedge_WasmEdgeVM_getStatisticsContext
     printf("get java context\n;");
     return CreateJavaStatisticsContext(env, statCxt);
 }
+
+JNIEXPORT jobject JNICALL Java_org_wasmedge_WasmEdgeVM_nativeGetImportModuleContext
+        (JNIEnv *env, jobject thisObject, jint reg) {
+    WasmEdge_VMContext * vmContext = getVmContext(env, thisObject);
+    WasmEdge_ImportObjectContext* imp = WasmEdge_VMGetImportModuleContext(vmContext, (enum WasmEdge_HostRegistration)reg);
+
+    return createJImportObject(env, imp);
+}
+
+
+JNIEXPORT jobject JNICALL Java_org_wasmedge_WasmEdgeVM_getFunctionTypeRegistered
+        (JNIEnv *env, jobject thisObject, jstring jModName, jstring jFuncName) {
+    WasmEdge_VMContext * vmCxt = getVmContext(env, thisObject);
+    WasmEdge_String wModName = JStringToWasmString(env, jModName);
+    WasmEdge_String wFuncName = JStringToWasmString(env, jFuncName);
+
+    const WasmEdge_FunctionTypeContext* functionTypeContext = WasmEdge_VMGetFunctionTypeRegistered(vmCxt,wModName, wModName);
+
+    WasmEdge_StringDelete(wModName);
+    WasmEdge_StringDelete(wFuncName);
+
+    return createJFunctionTypeContext(env, functionTypeContext);
+}
+

@@ -9,11 +9,19 @@ extern "C" {
 #endif
 /*
  * Class:     org_wasmedge_FunctionInstanceContext
- * Method:    getFunctionType
- * Signature: ()Lorg/wasmedge/FunctionTypeContext;
+ * Method:    nativeCreateFunction
+ * Signature: (Lorg/wasmedge/FunctionTypeContext;Lorg/wasmedge/HostFunction;Ljava/lang/Object;J)V
  */
-JNIEXPORT jobject JNICALL Java_org_wasmedge_FunctionInstanceContext_getFunctionType
-  (JNIEnv *, jobject);
+JNIEXPORT void JNICALL Java_org_wasmedge_FunctionInstanceContext_nativeCreateFunction
+  (JNIEnv *, jobject, jobject, jobject, jobject, jlong);
+
+/*
+ * Class:     org_wasmedge_FunctionInstanceContext
+ * Method:    nativeCreateBinding
+ * Signature: (Lorg/wasmedge/FunctionTypeContext;Lorg/wasmedge/WrapFunction;Ljava/lang/Object;Ljava/lang/Object;J)V
+ */
+JNIEXPORT void JNICALL Java_org_wasmedge_FunctionInstanceContext_nativeCreateBinding
+  (JNIEnv *, jobject, jobject, jobject, jobject, jobject, jlong);
 
 /*
  * Class:     org_wasmedge_FunctionInstanceContext

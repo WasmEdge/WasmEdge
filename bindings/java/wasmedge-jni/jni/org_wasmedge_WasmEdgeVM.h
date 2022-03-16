@@ -25,11 +25,43 @@ JNIEXPORT void JNICALL Java_org_wasmedge_WasmEdgeVM_runWasmFromFile
 
 /*
  * Class:     org_wasmedge_WasmEdgeVM
+ * Method:    runWasmFromBuffer
+ * Signature: ([BLjava/lang/String;[Lorg/wasmedge/WasmEdgeValue;[I[Lorg/wasmedge/WasmEdgeValue;[I)V
+ */
+JNIEXPORT void JNICALL Java_org_wasmedge_WasmEdgeVM_runWasmFromBuffer
+  (JNIEnv *, jobject, jbyteArray, jstring, jobjectArray, jintArray, jobjectArray, jintArray);
+
+/*
+ * Class:     org_wasmedge_WasmEdgeVM
+ * Method:    runWasmFromASTModule
+ * Signature: (Lorg/wasmedge/ASTModuleContext;Ljava/lang/String;[Lorg/wasmedge/WasmEdgeValue;[I[Lorg/wasmedge/WasmEdgeValue;[I)V
+ */
+JNIEXPORT void JNICALL Java_org_wasmedge_WasmEdgeVM_runWasmFromASTModule
+  (JNIEnv *, jobject, jobject, jstring, jobjectArray, jintArray, jobjectArray, jintArray);
+
+/*
+ * Class:     org_wasmedge_WasmEdgeVM
  * Method:    loadWasmFromFile
  * Signature: (Ljava/lang/String;)V
  */
 JNIEXPORT void JNICALL Java_org_wasmedge_WasmEdgeVM_loadWasmFromFile
   (JNIEnv *, jobject, jstring);
+
+/*
+ * Class:     org_wasmedge_WasmEdgeVM
+ * Method:    loadWasmFromBuffer
+ * Signature: ([B)V
+ */
+JNIEXPORT void JNICALL Java_org_wasmedge_WasmEdgeVM_loadWasmFromBuffer
+  (JNIEnv *, jobject, jbyteArray);
+
+/*
+ * Class:     org_wasmedge_WasmEdgeVM
+ * Method:    loadWasmFromASTModule
+ * Signature: (Lorg/wasmedge/ASTModuleContext;)V
+ */
+JNIEXPORT void JNICALL Java_org_wasmedge_WasmEdgeVM_loadWasmFromASTModule
+  (JNIEnv *, jobject, jobject);
 
 /*
  * Class:     org_wasmedge_WasmEdgeVM
@@ -46,10 +78,6 @@ JNIEXPORT void JNICALL Java_org_wasmedge_WasmEdgeVM_validate
  */
 JNIEXPORT void JNICALL Java_org_wasmedge_WasmEdgeVM_instantiate
   (JNIEnv *, jobject);
-
-
-JNIEXPORT void JNICALL Java_org_wasmedge_WasmEdgeVM_delete
-        (JNIEnv *, jobject);
 
 /*
  * Class:     org_wasmedge_WasmEdgeVM
@@ -69,27 +97,99 @@ JNIEXPORT void JNICALL Java_org_wasmedge_WasmEdgeVM_registerModuleFromFile
 
 /*
  * Class:     org_wasmedge_WasmEdgeVM
+ * Method:    registerModuleFromBuffer
+ * Signature: (Ljava/lang/String;[B)V
+ */
+JNIEXPORT void JNICALL Java_org_wasmedge_WasmEdgeVM_registerModuleFromBuffer
+  (JNIEnv *, jobject, jstring, jbyteArray);
+
+/*
+ * Class:     org_wasmedge_WasmEdgeVM
+ * Method:    registerModuleFromImport
+ * Signature: (Lorg/wasmedge/ImportObjectContext;)V
+ */
+JNIEXPORT void JNICALL Java_org_wasmedge_WasmEdgeVM_registerModuleFromImport
+  (JNIEnv *, jobject, jobject);
+
+/*
+ * Class:     org_wasmedge_WasmEdgeVM
+ * Method:    registerModuleFromASTModule
+ * Signature: (Ljava/lang/String;Lorg/wasmedge/ASTModuleContext;)V
+ */
+JNIEXPORT void JNICALL Java_org_wasmedge_WasmEdgeVM_registerModuleFromASTModule
+  (JNIEnv *, jobject, jstring, jobject);
+
+/*
+ * Class:     org_wasmedge_WasmEdgeVM
  * Method:    executeRegistered
- * Signature: (Ljava/lang/String;Ljava/lang/String;)V
+ * Signature: (Ljava/lang/String;Ljava/lang/String;[Lorg/wasmedge/WasmEdgeValue;[I[Lorg/wasmedge/WasmEdgeValue;[I)V
  */
 JNIEXPORT void JNICALL Java_org_wasmedge_WasmEdgeVM_executeRegistered
-  (JNIEnv *, jobject, jstring, jstring);
+  (JNIEnv *, jobject, jstring, jstring, jobjectArray, jintArray, jobjectArray, jintArray);
 
 /*
  * Class:     org_wasmedge_WasmEdgeVM
  * Method:    getFunctionList
- * Signature: ()V
+ * Signature: (Ljava/util/List;)V
  */
 JNIEXPORT void JNICALL Java_org_wasmedge_WasmEdgeVM_getFunctionList
-  (JNIEnv *, jobject);
+  (JNIEnv *, jobject, jobject);
 
 /*
  * Class:     org_wasmedge_WasmEdgeVM
  * Method:    getFunctionType
- * Signature: (Ljava/lang/String;)V
+ * Signature: (Ljava/lang/String;)Lorg/wasmedge/FunctionTypeContext;
  */
-JNIEXPORT void JNICALL Java_org_wasmedge_WasmEdgeVM_getFunctionType
+JNIEXPORT jobject JNICALL Java_org_wasmedge_WasmEdgeVM_getFunctionType
   (JNIEnv *, jobject, jstring);
+
+/*
+ * Class:     org_wasmedge_WasmEdgeVM
+ * Method:    nativeGetImportModuleContext
+ * Signature: (I)Lorg/wasmedge/ImportObjectContext;
+ */
+JNIEXPORT jobject JNICALL Java_org_wasmedge_WasmEdgeVM_nativeGetImportModuleContext
+  (JNIEnv *, jobject, jint);
+
+/*
+ * Class:     org_wasmedge_WasmEdgeVM
+ * Method:    getStoreContext
+ * Signature: ()Lorg/wasmedge/StoreContext;
+ */
+JNIEXPORT jobject JNICALL Java_org_wasmedge_WasmEdgeVM_getStoreContext
+  (JNIEnv *, jobject);
+
+/*
+ * Class:     org_wasmedge_WasmEdgeVM
+ * Method:    getStatisticsContext
+ * Signature: ()Lorg/wasmedge/StatisticsContext;
+ */
+JNIEXPORT jobject JNICALL Java_org_wasmedge_WasmEdgeVM_getStatisticsContext
+  (JNIEnv *, jobject);
+
+/*
+ * Class:     org_wasmedge_WasmEdgeVM
+ * Method:    getFunctionTypeRegistered
+ * Signature: (Ljava/lang/String;Ljava/lang/String;)Lorg/wasmedge/FunctionTypeContext;
+ */
+JNIEXPORT jobject JNICALL Java_org_wasmedge_WasmEdgeVM_getFunctionTypeRegistered
+  (JNIEnv *, jobject, jstring, jstring);
+
+/*
+ * Class:     org_wasmedge_WasmEdgeVM
+ * Method:    cleanUp
+ * Signature: ()V
+ */
+JNIEXPORT void JNICALL Java_org_wasmedge_WasmEdgeVM_cleanUp
+  (JNIEnv *, jobject);
+
+/*
+ * Class:     org_wasmedge_WasmEdgeVM
+ * Method:    delete
+ * Signature: ()V
+ */
+JNIEXPORT void JNICALL Java_org_wasmedge_WasmEdgeVM_delete
+  (JNIEnv *, jobject);
 
 #ifdef __cplusplus
 }

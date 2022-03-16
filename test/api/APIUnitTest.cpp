@@ -487,9 +487,8 @@ TEST(APICoreTest, FunctionType) {
 }
 
 TEST(APICoreTest, TableType) {
-  WasmEdge_Limit Lim1 = {.HasMax = true, .Shared = false, .Min = 10, .Max = 20};
-  WasmEdge_Limit Lim2 = {
-      .HasMax = false, .Shared = false, .Min = 30, .Max = 30};
+  WasmEdge_Limit Lim1 = {.HasMax = true, .Min = 10, .Max = 20};
+  WasmEdge_Limit Lim2 = {.HasMax = false, .Min = 30, .Max = 30};
   WasmEdge_TableTypeContext *TType =
       WasmEdge_TableTypeCreate(WasmEdge_RefType_ExternRef, Lim1);
   EXPECT_EQ(WasmEdge_TableTypeGetRefType(TType), WasmEdge_RefType_ExternRef);
@@ -507,9 +506,8 @@ TEST(APICoreTest, TableType) {
 }
 
 TEST(APICoreTest, MemoryType) {
-  WasmEdge_Limit Lim1 = {.HasMax = true, .Shared = false, .Min = 10, .Max = 20};
-  WasmEdge_Limit Lim2 = {
-      .HasMax = false, .Shared = false, .Min = 30, .Max = 30};
+  WasmEdge_Limit Lim1 = {.HasMax = true, .Min = 10, .Max = 20};
+  WasmEdge_Limit Lim2 = {.HasMax = false, .Min = 30, .Max = 30};
   WasmEdge_MemoryTypeContext *MType = WasmEdge_MemoryTypeCreate(Lim1);
   EXPECT_TRUE(WasmEdge_LimitIsEqual(WasmEdge_MemoryTypeGetLimit(MType), Lim1));
   EXPECT_FALSE(
@@ -681,7 +679,7 @@ TEST(APICoreTest, ImportType) {
   EXPECT_EQ(WasmEdge_TableTypeGetRefType(
                 WasmEdge_ImportTypeGetTableType(Mod, ImpTypes[11])),
             WasmEdge_RefType_ExternRef);
-  Lim = {.HasMax = true, .Shared = false, .Min = 10, .Max = 30};
+  Lim = {.HasMax = true, .Min = 10, .Max = 30};
   EXPECT_TRUE(WasmEdge_LimitIsEqual(
       WasmEdge_TableTypeGetLimit(
           WasmEdge_ImportTypeGetTableType(Mod, ImpTypes[11])),
@@ -693,7 +691,7 @@ TEST(APICoreTest, ImportType) {
   EXPECT_EQ(WasmEdge_ImportTypeGetMemoryType(nullptr, ImpTypes[13]), nullptr);
   EXPECT_EQ(WasmEdge_ImportTypeGetMemoryType(Mod, ImpTypes[0]), nullptr);
   EXPECT_NE(WasmEdge_ImportTypeGetMemoryType(Mod, ImpTypes[13]), nullptr);
-  Lim = {.HasMax = false, .Shared = false, .Min = 2, .Max = 2};
+  Lim = {.HasMax = false, .Min = 2, .Max = 2};
   EXPECT_TRUE(WasmEdge_LimitIsEqual(
       WasmEdge_MemoryTypeGetLimit(
           WasmEdge_ImportTypeGetMemoryType(Mod, ImpTypes[13])),
@@ -837,7 +835,7 @@ TEST(APICoreTest, ExportType) {
   EXPECT_EQ(WasmEdge_TableTypeGetRefType(
                 WasmEdge_ExportTypeGetTableType(Mod, ExpTypes[12])),
             WasmEdge_RefType_ExternRef);
-  Lim = {.HasMax = false, .Shared = false, .Min = 10, .Max = 10};
+  Lim = {.HasMax = false, .Min = 10, .Max = 10};
   EXPECT_TRUE(WasmEdge_LimitIsEqual(
       WasmEdge_TableTypeGetLimit(
           WasmEdge_ExportTypeGetTableType(Mod, ExpTypes[12])),
@@ -849,7 +847,7 @@ TEST(APICoreTest, ExportType) {
   EXPECT_EQ(WasmEdge_ExportTypeGetMemoryType(nullptr, ExpTypes[13]), nullptr);
   EXPECT_EQ(WasmEdge_ExportTypeGetMemoryType(Mod, ExpTypes[0]), nullptr);
   EXPECT_NE(WasmEdge_ExportTypeGetMemoryType(Mod, ExpTypes[13]), nullptr);
-  Lim = {.HasMax = true, .Shared = false, .Min = 1, .Max = 3};
+  Lim = {.HasMax = true, .Min = 1, .Max = 3};
   EXPECT_TRUE(WasmEdge_LimitIsEqual(
       WasmEdge_MemoryTypeGetLimit(
           WasmEdge_ExportTypeGetMemoryType(Mod, ExpTypes[13])),
@@ -895,7 +893,7 @@ TEST(APICoreTest, Compiler) {
       Compiler, "../spec/testSuites/core/binary/binary.159.wasm",
       "binary_159_aot.wasm")));
   // File not found
-  EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_InvalidPath,
+  EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_IllegalPath,
                          WasmEdge_CompilerCompile(Compiler, "not_exist.wasm",
                                                   "not_exist_aot.wasm")));
   // Parse failed
@@ -963,7 +961,7 @@ TEST(APICoreTest, Loader) {
                          WasmEdge_LoaderParseFromFile(nullptr, ModPtr, TPath)));
   EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_WrongVMWorkflow,
                          WasmEdge_LoaderParseFromFile(Loader, nullptr, TPath)));
-  EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_InvalidPath,
+  EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_IllegalPath,
                          WasmEdge_LoaderParseFromFile(Loader, ModPtr, "file")));
   EXPECT_TRUE(
       isErrMatch(WasmEdge_ErrCode_WrongVMWorkflow,
@@ -997,7 +995,7 @@ TEST(APICoreTest, Loader) {
   EXPECT_TRUE(readToVector("test_aot.so", Buf));
   Mod = nullptr;
   EXPECT_TRUE(isErrMatch(
-      WasmEdge_ErrCode_InvalidMagic,
+      WasmEdge_ErrCode_MalformedMagic,
       WasmEdge_LoaderParseFromBuffer(Loader, ModPtr, Buf.data(),
                                      static_cast<uint32_t>(Buf.size()))));
 #endif
@@ -1834,7 +1832,7 @@ TEST(APICoreTest, Instance) {
   EXPECT_EQ(TabCxt, nullptr);
   TabType = WasmEdge_TableTypeCreate(
       WasmEdge_RefType_ExternRef,
-      WasmEdge_Limit{.HasMax = false, .Shared = false, .Min = 10, .Max = 10});
+      WasmEdge_Limit{.HasMax = false, .Min = 10, .Max = 10});
   TabCxt = WasmEdge_TableInstanceCreate(TabType);
   WasmEdge_TableTypeDelete(TabType);
   EXPECT_NE(TabCxt, nullptr);
@@ -1842,7 +1840,7 @@ TEST(APICoreTest, Instance) {
   EXPECT_TRUE(true);
   TabType = WasmEdge_TableTypeCreate(
       WasmEdge_RefType_ExternRef,
-      WasmEdge_Limit{.HasMax = true, .Shared = false, .Min = 10, .Max = 20});
+      WasmEdge_Limit{.HasMax = true, .Min = 10, .Max = 20});
   TabCxt = WasmEdge_TableInstanceCreate(TabType);
   WasmEdge_TableTypeDelete(TabType);
   EXPECT_NE(TabCxt, nullptr);
@@ -1910,14 +1908,14 @@ TEST(APICoreTest, Instance) {
   MemCxt = WasmEdge_MemoryInstanceCreate(nullptr);
   EXPECT_EQ(MemCxt, nullptr);
   MemType = WasmEdge_MemoryTypeCreate(
-      WasmEdge_Limit{.HasMax = false, .Shared = false, .Min = 1, .Max = 1});
+      WasmEdge_Limit{.HasMax = false, .Min = 1, .Max = 1});
   MemCxt = WasmEdge_MemoryInstanceCreate(MemType);
   WasmEdge_MemoryTypeDelete(MemType);
   EXPECT_NE(MemCxt, nullptr);
   WasmEdge_MemoryInstanceDelete(MemCxt);
   EXPECT_TRUE(true);
   MemType = WasmEdge_MemoryTypeCreate(
-      WasmEdge_Limit{.HasMax = true, .Shared = false, .Min = 1, .Max = 3});
+      WasmEdge_Limit{.HasMax = true, .Min = 1, .Max = 3});
   MemCxt = WasmEdge_MemoryInstanceCreate(MemType);
   WasmEdge_MemoryTypeDelete(MemType);
   EXPECT_NE(MemCxt, nullptr);
@@ -2148,8 +2146,7 @@ TEST(APICoreTest, ImportObject) {
   WasmEdge_FunctionTypeDelete(HostFType);
 
   // Add host table "table"
-  WasmEdge_Limit TabLimit = {
-      .HasMax = true, .Shared = false, .Min = 10, .Max = 20};
+  WasmEdge_Limit TabLimit = {.HasMax = true, .Min = 10, .Max = 20};
   HostTType = WasmEdge_TableTypeCreate(WasmEdge_RefType_FuncRef, TabLimit);
   HostTable = WasmEdge_TableInstanceCreate(HostTType);
   HostName = WasmEdge_StringCreateByCString("table");
@@ -2163,8 +2160,7 @@ TEST(APICoreTest, ImportObject) {
   WasmEdge_StringDelete(HostName);
 
   // Add host memory "memory"
-  WasmEdge_Limit MemLimit = {
-      .HasMax = true, .Shared = false, .Min = 1, .Max = 2};
+  WasmEdge_Limit MemLimit = {.HasMax = true, .Min = 1, .Max = 2};
   HostMType = WasmEdge_MemoryTypeCreate(MemLimit);
   HostMemory = WasmEdge_MemoryInstanceCreate(HostMType);
   HostName = WasmEdge_StringCreateByCString("memory");
@@ -2317,7 +2313,7 @@ TEST(APICoreTest, Async) {
   Async = WasmEdge_VMAsyncRunWasmFromFile(VM, "no_file", FuncName, P, 2);
   EXPECT_NE(Async, nullptr);
   EXPECT_TRUE(
-      isErrMatch(WasmEdge_ErrCode_InvalidPath, WasmEdge_AsyncGet(Async, R, 2)));
+      isErrMatch(WasmEdge_ErrCode_IllegalPath, WasmEdge_AsyncGet(Async, R, 2)));
   WasmEdge_AsyncDelete(Async);
   // Function type mismatch
   Async = WasmEdge_VMAsyncRunWasmFromFile(VM, TPath, FuncName, P, 1);
@@ -2766,7 +2762,7 @@ TEST(APICoreTest, VM) {
       isErrMatch(WasmEdge_ErrCode_WrongVMWorkflow,
                  WasmEdge_VMRegisterModuleFromFile(nullptr, ModName, TPath)));
   EXPECT_TRUE(
-      isErrMatch(WasmEdge_ErrCode_InvalidPath,
+      isErrMatch(WasmEdge_ErrCode_IllegalPath,
                  WasmEdge_VMRegisterModuleFromFile(VM, ModName, "no_file")));
   EXPECT_TRUE(
       WasmEdge_ResultOK(WasmEdge_VMRegisterModuleFromFile(VM, ModName, TPath)));
@@ -2820,7 +2816,7 @@ TEST(APICoreTest, VM) {
       WasmEdge_ErrCode_WrongVMWorkflow,
       WasmEdge_VMRunWasmFromFile(nullptr, TPath, FuncName, P, 2, R, 2)));
   EXPECT_TRUE(isErrMatch(
-      WasmEdge_ErrCode_InvalidPath,
+      WasmEdge_ErrCode_IllegalPath,
       WasmEdge_VMRunWasmFromFile(VM, "no_file", FuncName, P, 2, R, 2)));
   // Function type mismatch
   EXPECT_TRUE(
@@ -2972,7 +2968,7 @@ TEST(APICoreTest, VM) {
   EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_VMLoadWasmFromFile(VM, TPath)));
   EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_WrongVMWorkflow,
                          WasmEdge_VMLoadWasmFromFile(nullptr, TPath)));
-  EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_InvalidPath,
+  EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_IllegalPath,
                          WasmEdge_VMLoadWasmFromFile(VM, "file")));
 
   // VM load wasm from buffer

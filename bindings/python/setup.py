@@ -159,4 +159,6 @@ setup(
     extras_require={"test": read_requirements("requirements-test.txt")},
     packages=find_packages(exclude=["tests", ".github"]),
     install_requires=read_requirements("requirements.txt"),
+    package_data={"WasmEdge":["stubs/WasmEdge.pyi"]},
+    include_package_data=True,
 )

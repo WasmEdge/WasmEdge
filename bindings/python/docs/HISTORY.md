@@ -1,5 +1,68 @@
 (unreleased)
 ------------
+- [PySDK] Completion of Async. [Shreyas Atre]
+- [PySDK] Added Compiler Class wrapper. [Shreyas Atre]
+- [PySDK] Complete executor. [Shreyas Atre]
+- [PySDK] Import Type Complete. [Shreyas Atre]
+- [PySDK] Complete Global Type Context. [Shreyas Atre]
+- [PySDK] Table Type complete. [Shreyas Atre]
+- [PySDK] Complete ImportObject. [Shreyas Atre]
+- [PySDK] Complete Global Instance. [Shreyas Atre]
+- [PySDK] Memory Instance Complete. [Shreyas Atre]
+- [PySDK] Completed Export, AST Module. [Shreyas Atre]
+- [PySDK] Complete Store Context API. [Shreyas Atre]
+- [PySDK] Sphinx Docs RTD theme. [Shreyas Atre]
+- [PySDK] Complete Statistics Context wrapper. [Shreyas Atre]
+- [PySDK] Completed configure. [Shreyas Atre]
+- [PySDK] Restructure doc_strings. [Shreyas Atre]
+- [PySDK] Consistent with C-API. [Shreyas Atre]
+- [PySDK][Docs] Use Sphinx RTD for API Documentation. [Shreyas Atre]
+- [PySDK] Line number, file name, in runtime error. [Shreyas Atre]
+- [PySDK] Made it consistent with WasmEdge-C API. [Shreyas Atre]
+
+  * Necessary stuff to implement WasmEdge-bindgen
+- [PySDK] Renamed ImportObject.add to ImportObject.AddFunction. [Shreyas
+  Atre]
+- [PySDK] Added VM.Execute, VM.Instantiate, VM.Validate. [Shreyas Atre]
+- [PySDK] PyPi Release 0.2.1. [Shreyas Atre]
+- [PySDK] Added ExternalType enum and ImportType class. [Shreyas Atre]
+
+  * ExternalType Enum has name overlapping which creates import errors
+  ```
+    import WasmEdge
+  E   ImportError: generic_type: cannot initialize type "Function": an object with that name is already defined
+  ```
+- [PySDK] Made VM api consistent with WasmEdge C API. [Shreyas Atre]
+- [PySDK] Made VM.RunWasmFromBuffer name and signature consistent with C
+  SDK. [Shreyas Atre]
+- [PySDK] Added VM.RunWasmFromASTModule. [Shreyas Atre]
+- [PySDK] Renamed functions for consistency. [Shreyas Atre]
+- [PySDK] Added LoadWasmFromFile. [Shreyas Atre]
+- [PySDK] Added VM.LoadWasmFromBuffer. [Shreyas Atre]
+- [PySDK] Added Statistics Context and improved VM. [Shreyas Atre]
+- [PySDK] Added ExecuteRegistered method to VM. [Shreyas Atre]
+
+  * Removed max-fail in test cases
+- [PySDK] Added VM::ExecuteRegistered and fixed host function execution.
+  [Shreyas Atre]
+- [PySDK] Added VM.ExecuteRegistered. [Shreyas Atre]
+- [PySDK] Fundamental Improvements to SDK. [Shreyas Atre]
+
+  * Made pywasmedge/src/function.cpp significant change:
+  	Function that is written in python should accept
+  `WasmEdge.Value(s)` and return a tuple of `WasmEdge.Result(0)`
+  `and WasmEdge.Value(s).`
+
+  * Incorporated changes to function in pywasmedge/src/import_object.cpp
+
+  * Added arguments to `WasmEdge.Result`
+
+  * Added additional definitions to `WasmEdge.Value` class
+
+  * Changed `WasmEdge.VM` as per new `WasmEdge.Value`
+
+  * Added test for function instance and host function
+- [PySDK] Added FunctionTypeContext. [Shreyas Atre]
 - Release: version 0.2.0 🚀 [Shreyas Atre]
 - Release: version 0.2.0 🚀 [Shreyas Atre]
 - [PySDK] Added Table Context and Instance. [Shreyas Atre]

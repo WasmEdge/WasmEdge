@@ -21,6 +21,10 @@ install:          ## Install the project in dev mode.
 	@echo "Don't forget to run 'make virtualenv' if you got errors."
 	$(ENV_PREFIX)pip install -e .[test]
 
+.PHONY: stubgen
+stubgen:          ## Generate stub using stubgen
+	$(ENV_PREFIX)stubgen -m WasmEdge --doc-dir docs_sphinx/_generate -o pywasmedge/stubs -v
+
 .PHONY: pypi-test
 pypi-test:          ## PyPi testing
 	$(ENV_PREFIX)pip install build twine

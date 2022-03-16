@@ -6,15 +6,14 @@ use crate::{
 
 /// Struct of WasmEdge Config.
 ///
-/// [`Config`] manages the configuration options, which are used in WasmEdge [Vm](crate::Vm), [Loader](crate::Loader),
-/// [Validator](crate::Validator), [Executor](crate::Executor), and [Compiler](crate::Compiler).
+/// [Config](crate::Config) manages the configuration options, which are used to initiate WasmEdge [Vm](crate::Vm), [Loader](crate::Loader), [Validator](crate::Validator), [Executor](crate::Executor), and [Compiler](crate::Compiler).
 ///
 /// The configuration options are categorized into the following four groups:
 ///
 /// - **WebAssembly Proposals**
 ///
 ///     This group of options are used to turn on/off the WebAssembly proposals. They are effective to any WasmEdge
-///     context created with [`Config`].
+///     context created with [Config](crate::Config).
 ///     
 ///     - `ImportExportMutGlobals` supports mutable imported and exported globals.
 ///
@@ -48,8 +47,6 @@ use crate::{
 ///
 ///       Also see [Tail Call Proposal](https://github.com/WebAssembly/tail-call/blob/master/proposals/tail-call/Overview.md).
 ///
-///       Also see [](https://github.com/WebAssembly/tail-call/blob/master/proposals/tail-call/Overview.md).
-///
 ///     - `Annotations` supports annotations in WASM text format.
 ///
 ///       Also see [Annotations Proposal](https://github.com/WebAssembly/annotations/blob/master/proposals/annotations/Overview.md).
@@ -82,6 +79,7 @@ use crate::{
 ///       [Executor](crate::Executor) and [Vm](crate::Vm).
 ///
 /// - **AOT Compilation**
+///
 ///     The AOT compiler options configure the behavior about optimization level, output format, dump IR,
 ///     and generic binary.
 ///
@@ -133,7 +131,7 @@ impl Drop for Config {
     }
 }
 impl Config {
-    /// Creates a new [`Config`].
+    /// Creates a new [Config](crate::Config).
     ///
     /// # Error
     ///
@@ -148,9 +146,9 @@ impl Config {
         }
     }
 
-    /// Creates a new [`Config`] from an existed one.
+    /// Creates a new [Config](crate::Config) from an existed one.
     ///
-    /// - `src` specifies the source [`Config`].
+    /// - `src` specifies the source [Config](crate::Config).
     ///
     /// # Error
     ///

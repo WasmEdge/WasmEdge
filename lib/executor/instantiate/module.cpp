@@ -16,6 +16,13 @@ namespace Executor {
 Expect<void> Executor::instantiate(Runtime::StoreManager &StoreMgr,
                                    const AST::Module &Mod,
                                    std::string_view Name) {
+  // Check the module is validated.
+  if (unlikely(!Mod.getIsValidated())) {
+    spdlog::error(ErrCode::NotValidated);
+    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Module));
+    return Unexpect(ErrCode::NotValidated);
+  }
+
   // Reset store manager and stack manager.
   StoreMgr.reset();
   Runtime::StackManager StackMgr;

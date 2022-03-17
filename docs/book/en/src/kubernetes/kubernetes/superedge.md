@@ -8,13 +8,13 @@
 
 > Choose installation package according to your installation node CPU architecture [amd64, arm64]
 
-```shell
+```bash
 arch=amd64 version=v0.6.0 && rm -rf edgeadm-linux-* && wget https://superedge-1253687700.cos.ap-guangzhou.myqcloud.com/$version/$arch/edgeadm-linux-containerd-$arch-$version.tgz && tar -xzvf edgeadm-linux-* && cd edgeadm-linux-$arch-$version && ./edgeadm
 ```
 
 - Install edge Kubernetes master node with containerd runtime
 
-```shell
+```bash
 ./edgeadm init --kubernetes-version=1.18.2 --image-repository superedge.tencentcloudcr.com/superedge --service-cidr=10.96.0.0/12 --pod-network-cidr=192.168.0.0/16 --install-pkg-path ./kube-linux-*.tar.gz --apiserver-cert-extra-sans=<Master Public IP> --apiserver-advertise-address=<Master Intranet IP> --enable-edge=true --runtime=containerd
 ```
 
@@ -63,6 +63,7 @@ sudo make install
 Superedge containerd node has default config, we should modify the configuration file(/etc/containerd/config.toml) according to the following steps.
 
 Firstly, we generate `config.toml.diff` diff file and patch it.
+
 ```bash
 cat > config.toml.diff << EOF
 --- /etc/containerd/config.toml 2022-02-14 15:05:40.061562127 +0800
@@ -135,7 +136,7 @@ kubectl create -f wasmedge-app.yaml
 
 The output will show by executing `kubectl logs wasi-demo` command.
 
-```shell
+```bash
 Random number: -1643170076
 Random bytes: [15, 223, 242, 238, 69, 114, 217, 106, 80, 214, 44, 225, 20, 182, 2, 189, 226, 184, 97, 40, 154, 6, 56, 202, 45, 89, 184, 80, 5, 89, 73, 222, 143, 132, 17, 79, 145, 64, 33, 17, 250, 102, 91, 94, 26, 200, 28, 161, 46, 93, 123, 36, 100, 167, 43, 159, 82, 112, 255, 165, 37, 232, 17, 139, 97, 14, 28, 169, 225, 156, 147, 22, 174, 148, 209, 57, 82, 213, 19, 215, 11, 18, 32, 217, 188, 142, 54, 127, 237, 237, 230, 137, 86, 162, 185, 66, 88, 95, 226, 53, 174, 76, 226, 25, 151, 186, 156, 16, 62, 63, 230, 148, 133, 102, 33, 138, 20, 83, 31, 60, 246, 90, 167, 189, 103, 238, 106, 51]
 Printed from wasi: This is from a main function

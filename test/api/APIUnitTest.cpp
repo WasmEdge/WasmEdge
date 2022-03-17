@@ -1140,6 +1140,12 @@ TEST(APICoreTest, ExecutorWithStatistics) {
   EXPECT_TRUE(isErrMatch(
       WasmEdge_ErrCode_ModuleNameConflict,
       WasmEdge_ExecutorRegisterModule(ExecCxt, Store, Mod, ModName2)));
+  // Hasn't validated yet
+  WasmEdge_ASTModuleContext *ModNotValid = loadModule(Conf, TPath);
+  EXPECT_TRUE(isErrMatch(
+      WasmEdge_ErrCode_NotValidated,
+      WasmEdge_ExecutorRegisterModule(ExecCxt, Store, ModNotValid, ModName)));
+  WasmEdge_ASTModuleDelete(ModNotValid);
   EXPECT_TRUE(WasmEdge_ResultOK(
       WasmEdge_ExecutorRegisterModule(ExecCxt, Store, Mod, ModName)));
   WasmEdge_StringDelete(ModName);

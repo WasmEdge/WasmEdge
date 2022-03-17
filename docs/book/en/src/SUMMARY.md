@@ -25,6 +25,7 @@
         - [Tensorflow](dev/rust/tensorflow.md)
         - [Simple HTTP client & server](dev/rust/networking.md)
         - [Non-blocking network apps](dev/rust/networking-nonblocking.md)
+        - [Server-side rendering](dev/rust/ssr.md)
         - [Command interface](dev/rust/command.md)
     - [JavaScript](dev/js.md)
         - [Getting started](dev/js/quickstart.md)

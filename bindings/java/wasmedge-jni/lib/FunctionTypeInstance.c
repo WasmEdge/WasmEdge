@@ -15,7 +15,6 @@ WasmEdge_Result HostFunc(void *Ptr, WasmEdge_MemoryInstanceContext * Mem,
 
 }
 
-
 WasmEdge_FunctionInstanceContext * getFunctionInstanceContext(JNIEnv* env, jobject jFuncInstance) {
 
     if(jFuncInstance == NULL) {
@@ -33,8 +32,6 @@ JNIEXPORT jobject JNICALL Java_org_wasmedge_FunctionInstanceContext_getFunctionT
     const WasmEdge_FunctionTypeContext* funcType = WasmEdge_FunctionInstanceGetFunctionType(funcInstance);
     return createJFunctionTypeContext(env, funcType);
 }
-
-
 
 JNIEXPORT void JNICALL Java_org_wasmedge_FunctionInstanceContext_nativeCreateFunction
         (JNIEnv *env, jobject thisObject, jobject jFuncType, jobject jHostFunc, jobject jData, jlong jCost) {

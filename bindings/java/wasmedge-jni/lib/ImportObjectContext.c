@@ -124,14 +124,16 @@ JNIEXPORT jobject JNICALL Java_org_wasmedge_ImportObjectContext_CreateWASI
     const char** preopens = JStringArrayToPtr(env, jPreopens);
 
     printf("calling create wasi\n");
-    WasmEdge_ImportObjectContext * importObjectContext = WasmEdge_ImportObjectCreateWASI(NULL, 0,//args, (*env)->GetArrayLength(env, jArgs),
-                                    NULL, 0,//envs, (*env)->GetArrayLength(env,jEnvs),
-                                    NULL, 0);//preopens, (*env)->GetArrayLength(env,jPreopens));
+    WasmEdge_ImportObjectContext * importObjectContext = WasmEdge_ImportObjectCreateWASI(args, (*env)->GetArrayLength(env, jArgs),
+                                    envs, (*env)->GetArrayLength(env,jEnvs),
+                                    preopens, (*env)->GetArrayLength(env,jPreopens));
 
-    printf("releasing string resources\n");
+    printf("releasing arg string resources\n");
     ReleaseCString(env, jArgs, args);
+    printf("releasing env string resources\n");
     ReleaseCString(env, jEnvs, envs);
-    ReleaseCString(env, jPreopens, preopens);
+    printf("releasing preopens string resources\n");
+//    ReleaseCString(env, jPreopens, preopens);
 
     printf("calling create import context\n");
     return createJImportObject(env, importObjectContext);

@@ -73,14 +73,14 @@ public class ImportObjectContextTest extends BaseTest {
         impCxt.addGlobal("global_i32", glbIns);
     }
 
-//    @Test
+    @Test
     public void testCreateWASI() {
         ImportObjectContext importObjectContext = ImportObjectContext.CreateWASI(args, envs, preopens);
         int code = importObjectContext.getWASIExitCode();
         Assert.assertEquals(0, code);
     }
 
-//    @Test
+    @Test
     public void testInitWasiInVM() {
         ConfigureContext config = new ConfigureContext();
         config.addHostRegistration(HostRegistration.WasmEdge_HostRegistration_Wasi);

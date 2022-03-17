@@ -12,7 +12,7 @@ pub struct Validator {
     pub(crate) registered: bool,
 }
 impl Validator {
-    /// Creates a new [`Validator`] to be associated with the given global configuration.
+    /// Creates a new [Validator] to be associated with the given global configuration.
     ///
     /// # Arguments
     ///
@@ -20,7 +20,7 @@ impl Validator {
     ///
     /// # Error
     ///
-    /// If fail to create a [`Validator`], then an error is returned.
+    /// If fail to create a [Validator], then an error is returned.
     pub fn create(config: Option<Config>) -> WasmEdgeResult<Self> {
         let ctx = match config {
             Some(mut config) => {
@@ -39,14 +39,14 @@ impl Validator {
         }
     }
 
-    /// Validates a given WasmEdge [`Module`].
+    /// Validates a given WasmEdge [Module].
     ///
-    /// [`Module`]s are valid when all components they contain are valid. Furthermore, most
+    /// [Module]s are valid when all components they contain are valid. Furthermore, most
     /// definitions are themselves classified with a suitable type.
     ///
     /// # Arguments
     ///
-    /// - `module` specifies the [`Module`] to be validated.
+    /// - `module` specifies the [Module] to be validated.
     ///
     /// # Error
     ///

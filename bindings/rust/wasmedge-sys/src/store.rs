@@ -15,17 +15,14 @@ use crate::{
 
 /// Struct of Wasmedge Store.
 ///
-/// The [`Store`] represents all global state that can be manipulated by WebAssembly programs. It
-/// consists of the runtime representation of all instances of [functions](crate::Function), [tables](crate::Table),
-/// [memories](crate::Memory), and [globals](crate::Global) that have been allocated during the
-/// life time of the [Vm](crate::Vm).
+/// The [Store] represents all global state that can be manipulated by WebAssembly programs. It consists of the runtime representation of all instances of [functions](crate::Function), [tables](crate::Table), [memories](crate::Memory), and [globals](crate::Global) that have been allocated during the life time of the [Vm](crate::Vm).
 #[derive(Debug)]
 pub struct Store {
     pub(crate) inner: InnerStore,
     pub(crate) registered: bool,
 }
 impl Store {
-    /// Creates a new [`Store`].
+    /// Creates a new [Store].
     ///
     /// # Error
     ///
@@ -44,7 +41,7 @@ impl Store {
     /// Returns the exported [function](crate::Function) instance in the anonymous [module](crate::Module)
     /// by the given function name.
     ///
-    /// After instantiating a WASM module, the WASM module is registered into the [`Store`] as an anonymous module.
+    /// After instantiating a WASM module, the WASM module is registered into the [Store] as an anonymous module.
     ///
     /// # Argument
     ///
@@ -112,7 +109,7 @@ impl Store {
     /// Returns the exported [table](crate::Table) instance in the anonymous [module](crate::Module)
     /// by the given table name.
     ///
-    /// After instantiating a WASM module, the WASM module is registered into the [`Store`] as an anonymous module.
+    /// After instantiating a WASM module, the WASM module is registered into the [Store] as an anonymous module.
     ///
     /// # Argument
     ///
@@ -176,7 +173,7 @@ impl Store {
     /// Returns the exported [memory](crate::Memory) instance in the anonymous [module](crate::Module)
     /// by the given memory name.
     ///
-    /// After instantiating a WASM module, the WASM module is registered into the [`Store`] as an anonymous module.
+    /// After instantiating a WASM module, the WASM module is registered into the [Store] as an anonymous module.
     ///
     /// # Argument
     ///
@@ -240,7 +237,7 @@ impl Store {
     /// Returns the exported [global](crate::Global) instance in the anonymous [module](crate::Module)
     /// by the given global name.
     ///
-    /// After instantiating a WASM module, the WASM module is registered into the [`Store`] as an anonymous module.
+    /// After instantiating a WASM module, the WASM module is registered into the [Store] as an anonymous module.
     ///
     /// # Argument
     ///
@@ -658,7 +655,7 @@ impl Store {
         }
     }
 
-    /// Checks if the [`Store`] contains a function of which the name matches the given
+    /// Checks if the [Store] contains a function of which the name matches the given
     /// `func_name`.
     ///
     /// # Argument
@@ -667,7 +664,7 @@ impl Store {
     ///
     /// # Error
     ///
-    /// If fail to find the name in the [`Store`], then an error is returned.
+    /// If fail to find the name in the [Store], then an error is returned.
     pub fn contains_func(&self, func_name: impl AsRef<str>) -> WasmEdgeResult<()> {
         // check if the anonymous module contains functions
         if self.func_len() == 0 {
@@ -691,7 +688,7 @@ impl Store {
         Ok(())
     }
 
-    /// Checks if the [`Store`] contains a registered function of which the name matches the
+    /// Checks if the [Store] contains a registered function of which the name matches the
     /// given `func_name`.
     ///
     /// # Argument
@@ -700,7 +697,7 @@ impl Store {
     ///
     /// # Error
     ///
-    /// If fail to find the name in the [`Store`], then an error is returned.
+    /// If fail to find the name in the [Store], then an error is returned.
     pub fn contains_reg_func(
         &self,
         mod_name: impl AsRef<str>,
@@ -735,7 +732,7 @@ impl Store {
         Ok(())
     }
 
-    /// Checks if the [`Store`] contains a registered module of which the name matches the given
+    /// Checks if the [Store] contains a registered module of which the name matches the given
     /// `mod_name`.
     ///
     /// # Argument
@@ -744,7 +741,7 @@ impl Store {
     ///
     /// # Error
     ///
-    /// If fail to find the name in the [`Store`], then an error is returned.
+    /// If fail to find the name in the [Store], then an error is returned.
     pub fn contains_mod_name(&self, mod_name: impl AsRef<str>) -> WasmEdgeResult<()> {
         if self.reg_module_len() == 0 {
             return Err(WasmEdgeError::Store(StoreError::NotFoundModule(

@@ -46,12 +46,9 @@ impl Executor {
                 }
             },
             None => match stat {
-                Some(stat) => {
-                    let ctx = unsafe {
-                        wasmedge::WasmEdge_ExecutorCreate(std::ptr::null_mut(), stat.inner.0)
-                    };
-                    ctx
-                }
+                Some(stat) => unsafe {
+                    wasmedge::WasmEdge_ExecutorCreate(std::ptr::null_mut(), stat.inner.0)
+                },
                 None => unsafe {
                     wasmedge::WasmEdge_ExecutorCreate(std::ptr::null_mut(), std::ptr::null_mut())
                 },

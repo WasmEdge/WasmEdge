@@ -37,11 +37,9 @@ impl Vm {
         let ctx = match config {
             Some(mut config) => {
                 let vm_ctx = match store {
-                    Some(store) => {
-                        let vm_ctx =
-                            unsafe { wasmedge::WasmEdge_VMCreate(config.inner.0, store.inner.0) };
-                        vm_ctx
-                    }
+                    Some(store) => unsafe {
+                        wasmedge::WasmEdge_VMCreate(config.inner.0, store.inner.0)
+                    },
                     None => unsafe {
                         wasmedge::WasmEdge_VMCreate(config.inner.0, std::ptr::null_mut())
                     },
@@ -50,11 +48,9 @@ impl Vm {
                 vm_ctx
             }
             None => match store {
-                Some(store) => {
-                    let vm_ctx =
-                        unsafe { wasmedge::WasmEdge_VMCreate(std::ptr::null_mut(), store.inner.0) };
-                    vm_ctx
-                }
+                Some(store) => unsafe {
+                    wasmedge::WasmEdge_VMCreate(std::ptr::null_mut(), store.inner.0)
+                },
                 None => unsafe {
                     wasmedge::WasmEdge_VMCreate(std::ptr::null_mut(), std::ptr::null_mut())
                 },

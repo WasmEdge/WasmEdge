@@ -60,12 +60,9 @@ extern "C" fn wraper_fn(
 
 /// Struct of WasmEdge Function.
 ///
-/// A WasmEdge [`Function`] defines a host function described by its [`FuncType`]. A host function is a
-/// function defined outside WebAssembly and passed to WASM module.
+/// A WasmEdge [Function] defines a host function described by its [FuncType]. A host function is a function defined outside WASM module and passed to it.
 ///
-/// In WasmEdge, developers can create the [`Function`]s and other WasmEdge instances, such as [Memory](crate::Memory),
-/// and add them into a WasmEdge [ImportObject](crate::ImportObject) for registering into a WasmEdge [Vm](crate::Vm) or
-/// [Store](crate::Store).
+/// In WasmEdge, developers can create [host functions](crate::Function) and other WasmEdge instances, such as [Memory](crate::Memory), and add them into a WasmEdge [ImportObject](crate::ImportObject) for registering into a WasmEdge [Vm](crate::Vm) or [Store](crate::Store).
 #[derive(Debug)]
 pub struct Function {
     pub(crate) inner: InnerFunc,
@@ -75,7 +72,7 @@ pub struct Function {
 }
 impl Function {
     #[allow(clippy::type_complexity)]
-    /// Creates a [`Function`] for host functions.
+    /// Creates a [host function](crate::Function).
     ///
     /// # Arguments
     ///
@@ -87,11 +84,11 @@ impl Function {
     ///
     /// # Error
     ///
-    /// If fail to create a [`Function`], then an error is returned.
+    /// If fail to create a [Function], then an error is returned.
     ///
     /// # Example
     ///
-    /// The example defines a host function `real_add`, and creates a [`Function`] binding to it by calling
+    /// The example defines a host function `real_add`, and creates a [Function] binding to it by calling
     /// the `create_binding` method.
     ///
     /// ```rust
@@ -174,6 +171,7 @@ impl Function {
         }
     }
 
+    /// Returns the name of the host function.
     pub fn name(&self) -> Option<&str> {
         match &self.name {
             Some(name) => Some(name.as_ref()),
@@ -181,6 +179,7 @@ impl Function {
         }
     }
 
+    /// Returns the name of the [module instance](crate::Instance) which hosts the function.
     pub fn mod_name(&self) -> Option<&str> {
         match &self.mod_name {
             Some(mod_name) => Some(mod_name.as_ref()),
@@ -188,7 +187,7 @@ impl Function {
         }
     }
 
-    /// Returns the underlying wasm type of a [`Function`].
+    /// Returns the underlying wasm type of a [Function].
     ///
     /// # Errors
     ///
@@ -220,25 +219,24 @@ unsafe impl Sync for InnerFunc {}
 
 /// Struct of WasmEdge FuncType.
 ///
-/// A WasmEdge [`FuncType`] classifies the signature of a [`Function`], including the type information
-/// of both the arguments and the returns.
+/// A WasmEdge [FuncType] classifies the signature of a [Function], including the type information of both the arguments and the returns.
 #[derive(Debug)]
 pub struct FuncType {
     pub(crate) inner: InnerFuncType,
     pub(crate) registered: bool,
 }
 impl FuncType {
-    /// Create a new [`FuncType`] to be associated with the given arguments and returns.
+    /// Create a new [FuncType] to be associated with the given arguments and returns.
     ///
     /// # Arguments
     ///
-    /// - `args` specifies the agrgument types of a [`Function`].
+    /// - `args` specifies the agrgument types of a [Function].
     ///
-    /// - `returns` specifies the types of the returns of a [`Function`].
+    /// - `returns` specifies the types of the returns of a [Function].
     ///
     /// # Error
     ///
-    /// If fail to create a [`FuncType`], then a [WasmEdgeError::FuncTypeCreate](crate::error::WasmEdgeError::FuncTypeCreate) error is returned.
+    /// If fail to create a [FuncType], then an error is returned.
     ///
     /// # Example
     ///
@@ -277,12 +275,12 @@ impl FuncType {
         }
     }
 
-    /// Returns the number of the arguments of a [`Function`].
+    /// Returns the number of the arguments of a [Function].
     pub fn params_len(&self) -> usize {
         unsafe { wasmedge::WasmEdge_FunctionTypeGetParametersLength(self.inner.0) as usize }
     }
 
-    /// Returns an Iterator of the arguments of a [`Function`].
+    /// Returns an Iterator of the arguments of a [Function].
     pub fn params_type_iter(&self) -> impl Iterator<Item = ValType> {
         let len = self.params_len();
         let mut types = Vec::with_capacity(len);
@@ -298,12 +296,12 @@ impl FuncType {
         types.into_iter().map(Into::into)
     }
 
-    ///Returns the number of the returns of a [`Function`].
+    ///Returns the number of the returns of a [Function].
     pub fn returns_len(&self) -> usize {
         unsafe { wasmedge::WasmEdge_FunctionTypeGetReturnsLength(self.inner.0) as usize }
     }
 
-    /// Returns an Iterator of the return types of a [`Function`].
+    /// Returns an Iterator of the return types of a [Function].
     pub fn returns_type_iter(&self) -> impl Iterator<Item = ValType> {
         let len = self.returns_len();
         let mut types = Vec::with_capacity(len);

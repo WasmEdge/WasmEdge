@@ -10,7 +10,7 @@ Expect<void> Executor::runAtomicNofityOp(
 
   ValVariant RawAddress = StackMgr.pop();
   ValVariant &RawCount = StackMgr.getTop();
-  [[maybe_unused]] int32_t Address = RawAddress.get<int32_t>();
+  [[maybe_unused]] uint32_t Address = RawAddress.get<uint32_t>();
   [[maybe_unused]] int32_t Count = RawCount.get<int32_t>();
 
   // Notify will be supported in C++20

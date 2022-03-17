@@ -13,22 +13,22 @@ use std::ops::RangeInclusive;
 
 /// Struct of WasmEdge Memory.
 ///
-/// A WasmEdge [`Memory`] defines a linear memory as described by [`MemType`].
+/// A WasmEdge [Memory] defines a linear memory as described by [MemType].
 #[derive(Debug)]
 pub struct Memory {
     pub(crate) inner: InnerMemory,
     pub(crate) registered: bool,
 }
 impl Memory {
-    /// Create a new [`Memory`] to be associated with the given capacity limit.
+    /// Create a new [Memory] to be associated with the given capacity limit.
     ///
     /// # Arguments
     ///
-    /// - `ty` specifies the type of the new [`Memory`] instance.
+    /// - `ty` specifies the type of the new [Memory] instance.
     ///
     /// # Errors
     ///
-    /// If fail to create a [`Memory`], then an error is returned.
+    /// If fail to create a [Memory], then an error is returned.
     ///
     /// # Example
     ///
@@ -54,11 +54,11 @@ impl Memory {
         }
     }
 
-    /// Returns the type of the [`Memory`].
+    /// Returns the type of the [Memory].
     ///
     /// # Errors
     ///
-    /// If fail to get the type from the [`Memory`], then an error is returned.
+    /// If fail to get the type from the [Memory], then an error is returned.
     ///
     pub fn ty(&self) -> WasmEdgeResult<MemType> {
         let ty_ctx = unsafe { wasmedge::WasmEdge_MemoryInstanceGetMemoryType(self.inner.0) };
@@ -71,17 +71,17 @@ impl Memory {
         }
     }
 
-    /// Copies the data from the [`Memory`] to the output buffer.
+    /// Copies the data from the [Memory] to the output buffer.
     ///
     /// # Arguments
     ///
-    /// - `offset` specifies the data start offset in the [`Memory`].
+    /// - `offset` specifies the data start offset in the [Memory].
     ///
     /// - `len` specifies the requested data length.
     ///
     /// # Errors
     ///
-    /// If the `offset + len` is larger than the data size in the [`Memory`], then an error is returned.
+    /// If the `offset + len` is larger than the data size in the [Memory], then an error is returned.
     ///
     pub fn get_data(&self, offset: u32, len: u32) -> WasmEdgeResult<Vec<u8>> {
         let mut data = Vec::with_capacity(len as usize);
@@ -98,17 +98,17 @@ impl Memory {
         Ok(data.into_iter().collect())
     }
 
-    /// Copies the data from the given input buffer into the [`Memory`].
+    /// Copies the data from the given input buffer into the [Memory].
     ///
     /// # Arguments
     ///
     /// - `data` specifies the data buffer to copy.
     ///
-    /// - `offset` specifies the data start offset in the [`Memory`].
+    /// - `offset` specifies the data start offset in the [Memory].
     ///
     /// # Errors
     ///
-    /// If the sum of the `offset` and the data length is larger than the size of the [`Memory`],
+    /// If the sum of the `offset` and the data length is larger than the size of the [Memory],
     /// then an error is returned.
     ///
     /// ```
@@ -160,14 +160,14 @@ impl Memory {
         }
     }
 
-    /// Returns the const data pointer to the [`Memory`].
+    /// Returns the const data pointer to the [Memory].
     ///
     /// # Arguments
     ///
-    /// - `offset` specifies the data start offset in the [`Memory`].
+    /// - `offset` specifies the data start offset in the [Memory].
     ///
     /// - `len` specifies the requested data length. If the size of `offset` + `len` is larger
-    /// than the data size in the [`Memory`]
+    /// than the data size in the [Memory]
     ///   
     ///
     /// # Errors
@@ -189,14 +189,14 @@ impl Memory {
         }
     }
 
-    /// Returns the data pointer to the [`Memory`].
+    /// Returns the data pointer to the [Memory].
     ///
     /// # Arguments
     ///
-    /// - `offset` specifies the data start offset in the [`Memory`].
+    /// - `offset` specifies the data start offset in the [Memory].
     ///
     /// - `len` specifies the requested data length. If the size of `offset` + `len` is larger
-    /// than the data size in the [`Memory`]
+    /// than the data size in the [Memory]
     ///
     /// # Errors
     ///
@@ -225,7 +225,7 @@ impl Memory {
     ///
     /// # Arguments
     ///
-    /// - `count` specifies the page counts to be extended to the [`Memory`].
+    /// - `count` specifies the page counts to be extended to the [Memory].
     ///
     /// # Errors
     ///
@@ -272,24 +272,22 @@ unsafe impl Sync for InnerMemory {}
 
 /// Struct of WasmEdge MemType.
 ///
-/// A [`MemType`] classifies a [`Memory`] and its size range.
+/// A [MemType] classifies a [Memory] and its size range.
 #[derive(Debug)]
 pub struct MemType {
     pub(crate) inner: InnerMemType,
     pub(crate) registered: bool,
 }
 impl MemType {
-    /// Create a new [`MemType`] to be associated with the given limit range for the capacity.
+    /// Create a new [MemType] to be associated with the given limit range for the capacity.
     ///
     /// # Arguments
     ///
-    /// - `limit` specifies the linear memory size. The start value of the limit range
-    /// specifies the min size (also, initial size) of the memory, while the end value specifies
-    /// the max size allowed to grow. The maximum size is `u32::MAX`.
+    /// - `limit` specifies the linear memory size. The start value of the limit range specifies the min size (also, initial size) of the memory, while the end value specifies the max size allowed to grow. The maximum size is `u32::MAX`.
     ///
     /// # Errors
     ///
-    /// If fail to create a [`MemType`], then an error is returned.
+    /// If fail to create a [MemType], then an error is returned.
     ///
     /// # Example
     ///
@@ -309,7 +307,7 @@ impl MemType {
         }
     }
 
-    /// Returns the limit range of a [`MemType`].
+    /// Returns the limit range of a [MemType].
     ///
     /// # Example
     ///

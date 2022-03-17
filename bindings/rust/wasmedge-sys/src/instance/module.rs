@@ -9,18 +9,16 @@ use crate::{
 
 /// Struct of WasmEdge Instance.
 ///
-/// An [`Instance`] represents an instantiated module. In the instantiation process, An [`Instance`] is created from a
-/// [`Module`](crate::Module). From an [`Instance`] the exported [functions](crate::Function), [tables](crate::Table),
-/// [memories](crate::Memory), and [globals](crate::Global) can be fetched.
+/// An [Instance] represents an instantiated module. In the instantiation process, An [Instance] is created from al[Module](crate::Module). From an [Instance] the exported [functions](crate::Function), [tables](crate::Table), [memories](crate::Memory), and [globals](crate::Global) can be fetched.
 #[derive(Debug)]
 pub struct Instance<'store> {
     pub(crate) inner: InnerInstance,
     pub(crate) store: &'store Store,
 }
 impl<'store> Instance<'store> {
-    /// Returns the name of this exported module instance.
+    /// Returns the name of this exported [module instance](crate::Instance).
     ///
-    /// If this module is an active module, return None.
+    /// If this module [instance](crate::Instance) is an active [instance](crate::Instance), return None.
     pub fn name(&self) -> Option<String> {
         let name =
             unsafe { wasmedge::WasmEdge_ModuleInstanceGetModuleName(self.inner.0 as *const _) };
@@ -33,8 +31,7 @@ impl<'store> Instance<'store> {
         Some(name)
     }
 
-    /// Returns the exported [function](crate::Function) instance in the this [module instance](crate::Instance)
-    /// by the given function name.
+    /// Returns the exported [function](crate::Function) instance in the this [module instance](crate::Instance) by the given function name.
     ///
     /// # Argument
     ///

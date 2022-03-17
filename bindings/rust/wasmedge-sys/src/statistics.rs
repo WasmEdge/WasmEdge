@@ -9,11 +9,11 @@ pub struct Statistics {
     pub(crate) registered: bool,
 }
 impl Statistics {
-    /// Creates a new [`Statistics`].
+    /// Creates a new [Statistics].
     ///
     /// # Error
     ///
-    /// If fail to create a [`Statistics`], then an error is returned.
+    /// If fail to create a [Statistics], then an error is returned.
     pub fn create() -> WasmEdgeResult<Self> {
         let ctx = unsafe { wasmedge::WasmEdge_StatisticsCreate() };
         match ctx.is_null() {
@@ -35,10 +35,10 @@ impl Statistics {
     /// # Notice
     ///
     /// For the following cases,
-    /// - [`Statistics`] is not enabled, or
+    /// - [Statistics] is not enabled, or
     /// - the total execution time is 0
     ///
-    /// the instructions per second is `NaN`, which represents `divided-by-zero`.
+    /// The instructions per second could be `NaN`, which represents `divided-by-zero`.
     /// Use the `is_nan` function of F64 to check the return value before use it,
     /// for example,
     ///

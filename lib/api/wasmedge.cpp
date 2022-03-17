@@ -477,8 +477,9 @@ WasmEdge_ValueGenNullRef(const WasmEdge_RefType T) {
 }
 
 WASMEDGE_CAPI_EXPORT WasmEdge_Value
-WasmEdge_ValueGenFuncRef(const uint32_t Index) {
-  return genWasmEdge_Value(WasmEdge::FuncRef(Index), WasmEdge_ValType_FuncRef);
+WasmEdge_ValueGenFuncRef(WasmEdge_FunctionInstanceContext *Cxt) {
+  return genWasmEdge_Value(WasmEdge::FuncRef(fromFuncCxt(Cxt)),
+                           WasmEdge_ValType_FuncRef);
 }
 
 WASMEDGE_CAPI_EXPORT WasmEdge_Value WasmEdge_ValueGenExternRef(void *Ref) {
@@ -522,10 +523,11 @@ WASMEDGE_CAPI_EXPORT bool WasmEdge_ValueIsNullRef(const WasmEdge_Value Val) {
       to_WasmEdge_128_t<WasmEdge::uint128_t>(Val.Value)));
 }
 
-WASMEDGE_CAPI_EXPORT uint32_t
-WasmEdge_ValueGetFuncIdx(const WasmEdge_Value Val) {
-  return WasmEdge::retrieveFuncIdx(WasmEdge::ValVariant::wrap<FuncRef>(
-      to_WasmEdge_128_t<WasmEdge::uint128_t>(Val.Value)));
+WASMEDGE_CAPI_EXPORT WasmEdge_FunctionInstanceContext *
+WasmEdge_ValueGetFuncRef(const WasmEdge_Value Val) {
+  return toFuncCxt(
+      WasmEdge::retrieveFuncRef(WasmEdge::ValVariant::wrap<FuncRef>(
+          to_WasmEdge_128_t<WasmEdge::uint128_t>(Val.Value))));
 }
 
 WASMEDGE_CAPI_EXPORT void *

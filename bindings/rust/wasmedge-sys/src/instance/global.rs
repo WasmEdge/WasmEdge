@@ -16,18 +16,18 @@ unsafe impl Sync for InnerGlobalType {}
 
 /// Struct of WasmEdge GlobalType.
 ///
-/// A [`GlobalType`] classifies a global variable that hold a value and can either be mutable or immutable.
+/// A [GlobalType] classifies a global variable that hold a value and can either be mutable or immutable.
 #[derive(Debug)]
 pub struct GlobalType {
     pub(crate) inner: InnerGlobalType,
     pub(crate) registered: bool,
 }
 impl GlobalType {
-    /// Create a new `GlobalType` to be associated with the given `ValType` and `Mutability`.
+    /// Create a new [GlobalType] to be associated with the given [ValType](crate::ValType) and [Mutability](crate::Mutability).
     ///
     /// # Errors
     ///
-    /// If fail to create a new `GlobalType`, then an error is returned.
+    /// If fail to create a new [GlobalType], then an error is returned.
     pub fn create(val_ty: ValType, mutable: Mutability) -> WasmEdgeResult<Self> {
         let ctx = unsafe {
             wasmedge::WasmEdge_GlobalTypeCreate(
@@ -44,13 +44,13 @@ impl GlobalType {
         }
     }
 
-    /// Returns the value type of a `GlobalType`.
+    /// Returns the value type of the [GlobalType].
     pub fn value_type(&self) -> ValType {
         let val = unsafe { wasmedge::WasmEdge_GlobalTypeGetValType(self.inner.0 as *const _) };
         val.into()
     }
 
-    /// Returns a `Mutability` value of a `GlobalType`.
+    /// Returns the [Mutability](crate::Mutability) value of the [GlobalType].
     pub fn mutability(&self) -> Mutability {
         let val = unsafe { wasmedge::WasmEdge_GlobalTypeGetMutability(self.inner.0) };
         val.into()
@@ -71,21 +71,20 @@ unsafe impl Sync for InnerGlobal {}
 
 /// Struct of WasmEdge Global.
 ///
-/// A WasmEdge `Global` defines a global variable, which stores a single value of the given `GlobalType`.
+/// A WasmEdge [Global] defines a global variable, which stores a single value of the given [GlobalType].
 #[derive(Debug)]
 pub struct Global {
     pub(crate) inner: InnerGlobal,
     pub(crate) registered: bool,
 }
 impl Global {
-    /// Creates a new `Global` instance to be associated with the given `GlobalType` and `Value`.
+    /// Creates a new [Global] instance to be associated with the given [GlobalType] and [Value](crate::Value).
     ///
-    /// The type of the given `Value` must be matched with `GlobalType`; otherwise, it causes a failure. For example,
-    /// `Value::I32(520)` conflicts with a `GlobalType` with a value type defined as `ValType::F32`.
+    /// The type of the given [Value](crate::Value) must be matched with [GlobalType]; otherwise, it causes a failure. For example, `Value::I32(520)` conflicts with a [GlobalType] with a value type defined as `ValType::F32`.
     ///
     /// # Errors
     ///
-    /// If fail to create a `Global` instance, then an error is returned.
+    /// If fail to create a [Global] instance, then an error is returned.
     ///
     pub fn create(mut ty: GlobalType, val: Value) -> WasmEdgeResult<Self> {
         let ctx = unsafe { wasmedge::WasmEdge_GlobalInstanceCreate(ty.inner.0, val.as_raw()) };
@@ -100,7 +99,7 @@ impl Global {
         }
     }
 
-    /// Returns the underlying wasm type of a `Global` instance.
+    /// Returns the underlying wasm type of a [Global] instance.
     ///
     /// # Errors
     ///
@@ -117,16 +116,15 @@ impl Global {
         }
     }
 
-    /// Returns the value of the `Global` instance.
+    /// Returns the value of the [Global] instance.
     pub fn get_value(&self) -> Value {
         let val = unsafe { wasmedge::WasmEdge_GlobalInstanceGetValue(self.inner.0) };
         val.into()
     }
 
-    /// Sets the value of the `Global` instance.
+    /// Sets the value of the [Global] instance.
     ///
-    /// Notice that only the `Global` instance of Mutability::Var type can be set a new value. Setting a new value for a
-    /// `Global` of `Mutability::Const` causes a failure.
+    /// Notice that only the [Global] instance of `Mutability::Var` type can be set a new value. Setting a new value for a [Global] of `Mutability::Const` causes a failure.
     ///
     /// # Errors
     ///

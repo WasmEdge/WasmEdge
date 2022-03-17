@@ -114,7 +114,7 @@ Expect<void> Executor::call(Runtime::StoreManager &StoreMgr,
   return {};
 }
 
-Expect<void *> Executor::ptrFunc(Runtime::StoreManager &StoreMgr,
+Expect<void *> Executor::ptrFunc(Runtime::StoreManager &,
                                  Runtime::StackManager &StackMgr,
                                  const uint32_t TableIdx,
                                  const uint32_t FuncTypeIdx,
@@ -131,13 +131,12 @@ Expect<void *> Executor::ptrFunc(Runtime::StoreManager &StoreMgr,
   if (unlikely(isNullRef(*Ref))) {
     return Unexpect(ErrCode::UninitializedElement);
   }
-  const auto FuncAddr = retrieveFuncIdx(*Ref);
 
   const auto *ModInst = StackMgr.getModule();
   assuming(ModInst);
   const auto TargetFuncType = ModInst->getFuncType(FuncTypeIdx);
   assuming(TargetFuncType && *TargetFuncType);
-  const auto FuncInst = *StoreMgr.getFunction(FuncAddr);
+  const auto *FuncInst = retrieveFuncRef(*Ref);
   assuming(FuncInst);
   const auto &FuncType = FuncInst->getFuncType();
   if (unlikely(**TargetFuncType != FuncType)) {
@@ -168,15 +167,14 @@ Executor::callIndirect(Runtime::StoreManager &StoreMgr,
   if (unlikely(isNullRef(*Ref))) {
     return Unexpect(ErrCode::UninitializedElement);
   }
-  const auto FuncAddr = retrieveFuncIdx(*Ref);
 
   const auto *ModInst = StackMgr.getModule();
   assuming(ModInst);
   const auto TargetFuncType = ModInst->getFuncType(FuncTypeIdx);
   assuming(TargetFuncType && *TargetFuncType);
-  const auto FuncInst = StoreMgr.getFunction(FuncAddr);
-  assuming(FuncInst && *FuncInst);
-  const auto &FuncType = (*FuncInst)->getFuncType();
+  const auto *FuncInst = retrieveFuncRef(*Ref);
+  assuming(FuncInst);
+  const auto &FuncType = FuncInst->getFuncType();
   if (unlikely(**TargetFuncType != FuncType)) {
     return Unexpect(ErrCode::IndirectCallTypeMismatch);
   }
@@ -190,9 +188,9 @@ Executor::callIndirect(Runtime::StoreManager &StoreMgr,
     StackMgr.push(Args[I]);
   }
 
-  auto Instrs = (*FuncInst)->getInstrs();
+  auto Instrs = FuncInst->getInstrs();
   AST::InstrView::iterator StartIt;
-  if (auto Res = enterFunction(StoreMgr, StackMgr, **FuncInst, Instrs.end())) {
+  if (auto Res = enterFunction(StoreMgr, StackMgr, *FuncInst, Instrs.end())) {
     StartIt = *Res;
   } else {
     return Unexpect(Res);
@@ -415,7 +413,7 @@ Expect<RefVariant> Executor::refFunc(Runtime::StoreManager &,
   assuming(ModInst);
   const auto FuncInst = ModInst->getFunc(FuncIdx);
   assuming(FuncInst && *FuncInst);
-  return FuncRef((*FuncInst)->getAddr());
+  return FuncRef(*FuncInst);
 }
 
 } // namespace Executor

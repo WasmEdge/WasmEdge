@@ -35,22 +35,22 @@ public:
   FunctionInstance() = delete;
   /// Move constructor.
   FunctionInstance(FunctionInstance &&Inst) noexcept
-      : ModInst(Inst.ModInst), Addr(Inst.Addr), FuncType(Inst.FuncType),
+      : ModInst(Inst.ModInst), FuncType(Inst.FuncType),
         Data(std::move(Inst.Data)) {}
   /// Constructor for native function.
   FunctionInstance(ModuleInstance *Mod, const AST::FunctionType &Type,
                    Span<const std::pair<uint32_t, ValType>> Locs,
                    AST::InstrView Expr) noexcept
-      : ModInst(Mod), Addr(0), FuncType(Type),
+      : ModInst(Mod), FuncType(Type),
         Data(std::in_place_type_t<WasmFunction>(), Locs, Expr) {}
   /// Constructor for compiled function.
   FunctionInstance(ModuleInstance *Mod, const AST::FunctionType &Type,
                    Symbol<CompiledFunction> S) noexcept
-      : ModInst(Mod), Addr(0), FuncType(Type),
+      : ModInst(Mod), FuncType(Type),
         Data(std::in_place_type_t<Symbol<CompiledFunction>>(), std::move(S)) {}
   /// Constructor for host function. Module instance will not be used.
   FunctionInstance(std::unique_ptr<HostFunctionBase> &&Func) noexcept
-      : ModInst(nullptr), Addr(0), FuncType(Func->getFuncType()),
+      : ModInst(nullptr), FuncType(Func->getFuncType()),
         Data(std::in_place_type_t<std::unique_ptr<HostFunctionBase>>(),
              std::move(Func)) {}
 
@@ -73,10 +73,6 @@ public:
 
   /// Getter of module instance of this function instance.
   ModuleInstance *getModule() const noexcept { return ModInst; }
-
-  /// Getter and setter of function address in store manager.
-  uint32_t getAddr() const noexcept { return Addr; }
-  void setAddr(uint32_t A) noexcept { Addr = A; }
 
   /// Getter of function type.
   const AST::FunctionType &getFuncType() const { return FuncType; }
@@ -132,7 +128,6 @@ private:
   /// \name Data of function instance.
   /// @{
   ModuleInstance *ModInst;
-  uint32_t Addr;
   const AST::FunctionType &FuncType;
   std::variant<WasmFunction, Symbol<CompiledFunction>,
                std::unique_ptr<HostFunctionBase>>

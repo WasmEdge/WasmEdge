@@ -70,10 +70,8 @@ public:
   template <typename... Args>
   Instance::FunctionInstance *importFunction(Args &&...Values) {
     std::unique_lock Lock(Mutex);
-    auto *FuncInst = unsafeImportInstance(ImpFuncInsts, FuncInsts,
-                                          std::forward<Args>(Values)...);
-    FuncInst->setAddr(static_cast<uint32_t>(FuncInsts.size() - 1));
-    return FuncInst;
+    return unsafeImportInstance(ImpFuncInsts, FuncInsts,
+                                std::forward<Args>(Values)...);
   }
   template <typename... Args>
   Instance::TableInstance *importTable(Args &&...Values) {
@@ -110,7 +108,6 @@ public:
   Instance::FunctionInstance *
   importHostFunction(Instance::FunctionInstance &Func) {
     std::unique_lock Lock(Mutex);
-    Func.setAddr(static_cast<uint32_t>(FuncInsts.size()));
     return unsafeImportHostInstance(Func, FuncInsts);
   }
   Instance::TableInstance *importHostTable(Instance::TableInstance &Tab) {
@@ -138,10 +135,8 @@ public:
   Instance::FunctionInstance *pushFunction(Args &&...Values) {
     std::unique_lock Lock(Mutex);
     ++NumFunc;
-    auto *FuncInst = unsafeImportInstance(ImpFuncInsts, FuncInsts,
-                                          std::forward<Args>(Values)...);
-    FuncInst->setAddr(static_cast<uint32_t>(FuncInsts.size() - 1));
-    return FuncInst;
+    return unsafeImportInstance(ImpFuncInsts, FuncInsts,
+                                std::forward<Args>(Values)...);
   }
   template <typename... Args>
   Instance::TableInstance *pushTable(Args &&...Values) {
@@ -187,36 +182,6 @@ public:
       ImpModInsts.pop_back();
       ModInsts.pop_back();
     }
-  }
-
-  /// Get instance from store manager by address.
-  Expect<Instance::ModuleInstance *> getModule(const uint32_t Addr) {
-    std::shared_lock Lock(Mutex);
-    return unsafeGetInstance(Addr, ModInsts);
-  }
-  Expect<Instance::FunctionInstance *> getFunction(const uint32_t Addr) {
-    std::shared_lock Lock(Mutex);
-    return unsafeGetInstance(Addr, FuncInsts);
-  }
-  Expect<Instance::TableInstance *> getTable(const uint32_t Addr) {
-    std::shared_lock Lock(Mutex);
-    return unsafeGetInstance(Addr, TabInsts);
-  }
-  Expect<Instance::MemoryInstance *> getMemory(const uint32_t Addr) {
-    std::shared_lock Lock(Mutex);
-    return unsafeGetInstance(Addr, MemInsts);
-  }
-  Expect<Instance::GlobalInstance *> getGlobal(const uint32_t Addr) {
-    std::shared_lock Lock(Mutex);
-    return unsafeGetInstance(Addr, GlobInsts);
-  }
-  Expect<Instance::ElementInstance *> getElement(const uint32_t Addr) {
-    std::shared_lock Lock(Mutex);
-    return unsafeGetInstance(Addr, ElemInsts);
-  }
-  Expect<Instance::DataInstance *> getData(const uint32_t Addr) {
-    std::shared_lock Lock(Mutex);
-    return unsafeGetInstance(Addr, DataInsts);
   }
 
   /// Get list of registered modules.
@@ -334,17 +299,6 @@ private:
   unsafeImportHostInstance(T &Inst, std::vector<T *> &InstsVec) {
     InstsVec.push_back(&Inst);
     return InstsVec.back();
-  }
-
-  /// Helper function for getting instance from instance vector.
-  template <typename T>
-  std::enable_if_t<IsInstanceV<T>, Expect<T *>>
-  unsafeGetInstance(const uint32_t Addr, const std::vector<T *> &InstsVec) {
-    if (Addr >= static_cast<uint32_t>(InstsVec.size())) {
-      // Error logging need to be handled in caller.
-      return Unexpect(ErrCode::WrongInstanceAddress);
-    }
-    return InstsVec[Addr];
   }
 
   mutable std::shared_mutex Mutex;

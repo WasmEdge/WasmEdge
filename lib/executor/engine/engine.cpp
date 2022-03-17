@@ -139,9 +139,9 @@ Expect<void> Executor::execute(Runtime::StoreManager &StoreMgr,
       return {};
     }
     case OpCode::Ref__func: {
-      const auto *ModInst = StackMgr.getModule();
-      const auto *FuncInst = *ModInst->getFunc(Instr.getTargetIndex());
-      StackMgr.push<FuncRef>(FuncRef(FuncInst->getAddr()));
+      auto *ModInst = StackMgr.getModule();
+      auto *FuncInst = *ModInst->getFunc(Instr.getTargetIndex());
+      StackMgr.push<FuncRef>(FuncRef(FuncInst));
       return {};
     }
 

@@ -228,7 +228,7 @@ std::ostream &operator<<(std::ostream &OS, const struct InfoInstruction &Rhs) {
         if (isNullRef(Rhs.Args[I])) {
           OS << ":null";
         } else {
-          OS << ":" << retrieveFuncIdx(Rhs.Args[I]);
+          OS << ":" << &Rhs.Args[I].get<uint64_t>();
         }
         break;
       case ValType::ExternRef:

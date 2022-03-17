@@ -302,8 +302,8 @@ TEST(APICoreTest, Value) {
 #endif
   Val = WasmEdge_ValueGenNullRef(WasmEdge_RefType_FuncRef);
   EXPECT_TRUE(WasmEdge_ValueIsNullRef(Val));
-  Val = WasmEdge_ValueGenFuncRef(123U);
-  EXPECT_EQ(WasmEdge_ValueGetFuncIdx(Val), 123U);
+  Val = WasmEdge_ValueGenFuncRef(nullptr);
+  EXPECT_EQ(WasmEdge_ValueGetFuncRef(Val), nullptr);
   Val = WasmEdge_ValueGenExternRef(&Vec);
   EXPECT_EQ(
       static_cast<std::vector<uint32_t> *>(WasmEdge_ValueGetExternRef(Val))
@@ -1859,7 +1859,7 @@ TEST(APICoreTest, Instance) {
 
   // Table instance set data
   Val = WasmEdge_ValueGenExternRef(&TabCxt);
-  TmpVal = WasmEdge_ValueGenFuncRef(2);
+  TmpVal = WasmEdge_ValueGenFuncRef(nullptr);
   EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_TableInstanceSetData(TabCxt, Val, 5)));
   EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_RefTypeMismatch,
                          WasmEdge_TableInstanceSetData(TabCxt, TmpVal, 6)));

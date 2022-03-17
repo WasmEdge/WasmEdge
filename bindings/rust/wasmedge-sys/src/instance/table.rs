@@ -14,22 +14,22 @@ use std::ops::RangeInclusive;
 
 /// Struct of WasmEdge Table.
 ///
-/// A WasmEdge [`Table`] defines a table described by its [`TableType`].
+/// A WasmEdge [Table] defines a table described by its [TableType].
 #[derive(Debug)]
 pub struct Table {
     pub(crate) inner: InnerTable,
     pub(crate) registered: bool,
 }
 impl Table {
-    /// Creates a new [`Table`] to be associated with the given element type and the size.
+    /// Creates a new [Table] to be associated with the given element type and the size.
     ///
     /// # Arguments
     ///
-    /// - `ty` specifies the type of the new [`Table`].
+    /// - `ty` specifies the type of the new [Table].
     ///
     /// # Error
     ///
-    /// If fail to create a [`Table`], then an error is returned.
+    /// If fail to create a [Table], then an error is returned.
     ///
     /// # Example
     ///
@@ -53,7 +53,7 @@ impl Table {
         }
     }
 
-    /// Returns the [`TableType`] of the [`Table`].
+    /// Returns the [TableType] of the [Table].
     ///
     /// # Error
     ///
@@ -69,11 +69,11 @@ impl Table {
         }
     }
 
-    /// Returns the element value at a specific position in the [`Table`].
+    /// Returns the element value at a specific position in the [Table].
     ///
     /// # Arguments
     ///
-    /// - `idx` specifies the position in the [`Table`], at which the [`Value`] is returned.
+    /// - `idx` specifies the position in the [Table], at which the [Value](crate::Value) is returned.
     ///
     /// # Error
     ///
@@ -91,13 +91,13 @@ impl Table {
         Ok(raw_val.into())
     }
 
-    /// Sets a new element value at a specific position in the [`Table`].
+    /// Sets a new element value at a specific position in the [Table].
     ///
     /// # Arguments
     ///
     /// - `data` specifies the new data.
     ///
-    /// - `idx` specifies the position of the new data to be stored in the [`Table`].
+    /// - `idx` specifies the position of the new data to be stored in the [Table].
     ///
     /// # Error
     ///
@@ -112,7 +112,7 @@ impl Table {
         }
     }
 
-    /// Returns the capacity of the [`Table`].
+    /// Returns the capacity of the [Table].
     ///
     /// # Example
     ///
@@ -131,17 +131,17 @@ impl Table {
         unsafe { wasmedge::WasmEdge_TableInstanceGetSize(self.inner.0) as usize }
     }
 
-    /// Increases the capacity of the [`Table`].
+    /// Increases the capacity of the [Table].
     ///
     /// After growing, the new capacity must be in the range defined by `limit` when the table is created.
     ///
     /// # Argument
     ///
-    /// - `size` specifies the size to be added to the [`Table`].
+    /// - `size` specifies the size to be added to the [Table].
     ///
     /// # Error
     ///
-    /// If fail to increase the size of the [`Table`], then an error is returned.
+    /// If fail to increase the size of the [Table], then an error is returned.
     pub fn grow(&mut self, size: u32) -> WasmEdgeResult<()> {
         unsafe { check(wasmedge::WasmEdge_TableInstanceGrow(self.inner.0, size)) }
     }
@@ -163,7 +163,7 @@ unsafe impl Sync for InnerTable {}
 
 /// Struct of WasmEdge TableType
 ///
-/// A WasmEdge [`TableType`] classify a [`Table`] over elements of element types within a size range.
+/// A WasmEdge [TableType] classify a [Table] over elements of element types within a size range.
 #[derive(Debug)]
 pub struct TableType {
     pub(crate) inner: InnerTableType,
@@ -179,7 +179,7 @@ impl Drop for TableType {
     }
 }
 impl TableType {
-    /// Creates a new [`TableType`] to be associated with the given limit range of the size and the reference type.
+    /// Creates a new [TableType] to be associated with the given limit range of the size and the reference type.
     ///
     /// # Arguments
     ///
@@ -189,7 +189,7 @@ impl TableType {
     ///
     /// # Error
     ///
-    /// If fail to create a [`TableType`], then an error is returned.
+    /// If fail to create a [TableType], then an error is returned.
     ///
     /// # Example
     ///
@@ -219,7 +219,7 @@ impl TableType {
         ty.into()
     }
 
-    /// Returns a range of the limit size of a [`Table`].
+    /// Returns a range of the limit size of a [Table].
     ///
     /// # Example
     ///

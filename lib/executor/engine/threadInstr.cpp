@@ -9,12 +9,11 @@ Expect<void> Executor::runAtomicNofityOp(
     [[maybe_unused]] const AST::Instruction &Instr) {
 
   ValVariant RawAddress = StackMgr.pop();
-  ValVariant RawCount = StackMgr.pop();
+  ValVariant &RawCount = StackMgr.getTop();
   [[maybe_unused]] int32_t Address = RawAddress.get<int32_t>();
-  int32_t Count = RawCount.get<int32_t>();
+  [[maybe_unused]] int32_t Count = RawCount.get<int32_t>();
 
   // Notify will be supported in C++20
-  StackMgr.push(ValVariant(Count));
   return {};
 }
 

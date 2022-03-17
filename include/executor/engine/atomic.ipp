@@ -21,9 +21,9 @@ TypeT<T> Executor::runAtomicWaitOp(Runtime::StackManager &StackMgr,
   ValVariant &Loaded = StackMgr.getTop();
 
   if (Loaded.get<T>() == Val.get<T>()) {
-    StackMgr.push(ValVariant(0));
+    Loaded.emplace<T>(static_cast<T>(0));
   } else {
-    StackMgr.push(ValVariant(1));
+    Loaded.emplace<T>(static_cast<T>(1));
   }
   // Wait will be supported in C++20
   // TODO: Implement Timeout
@@ -36,7 +36,7 @@ TypeT<T> Executor::runAtomicLoadOp(Runtime::StackManager &StackMgr,
                                    const AST::Instruction &Instr) {
 
   const uint32_t BitWidth = sizeof(I) * 8;
-  ValVariant RawAddress = StackMgr.pop();
+  ValVariant &RawAddress = StackMgr.getTop();
   int32_t Address = RawAddress.get<int32_t>();
   if ((Address & ((BitWidth >> 3U) - 1)) != 0) {
     spdlog::error(ErrCode::UnalignedAtomicAccess);
@@ -57,7 +57,7 @@ TypeT<T> Executor::runAtomicLoadOp(Runtime::StackManager &StackMgr,
       static_cast<std::atomic<I> *>(reinterpret_cast<void *>(RawPointer));
 
   I Return = AtomicObj->load(std::memory_order_acquire);
-  StackMgr.push(static_cast<T>(Return));
+  RawAddress.emplace<T>(static_cast<T>(Return));
   return {};
 }
 
@@ -99,7 +99,7 @@ TypeT<T> Executor::runAtomicAddOp(Runtime::StackManager &StackMgr,
                                   const AST::Instruction &Instr) {
   const uint32_t BitWidth = sizeof(I) * 8;
   ValVariant RawValue = StackMgr.pop();
-  ValVariant RawAddress = StackMgr.pop();
+  ValVariant &RawAddress = StackMgr.getTop();
   int32_t Address = RawAddress.get<int32_t>();
   if ((Address & ((BitWidth >> 3U) - 1)) != 0) {
     spdlog::error(ErrCode::UnalignedAtomicAccess);
@@ -121,7 +121,7 @@ TypeT<T> Executor::runAtomicAddOp(Runtime::StackManager &StackMgr,
   I Value = static_cast<I>(RawValue.get<T>());
 
   I Return = AtomicObj->fetch_add(Value, std::memory_order_acquire);
-  StackMgr.push(static_cast<T>(Return));
+  RawAddress.emplace<T>(static_cast<T>(Return));
   return {};
 }
 
@@ -131,7 +131,7 @@ TypeT<T> Executor::runAtomicSubOp(Runtime::StackManager &StackMgr,
                                   const AST::Instruction &Instr) {
   const uint32_t BitWidth = sizeof(I) * 8;
   ValVariant RawValue = StackMgr.pop();
-  ValVariant RawAddress = StackMgr.pop();
+  ValVariant &RawAddress = StackMgr.getTop();
   int32_t Address = RawAddress.get<int32_t>();
   if ((Address & ((BitWidth >> 3U) - 1)) != 0) {
     spdlog::error(ErrCode::UnalignedAtomicAccess);
@@ -153,7 +153,7 @@ TypeT<T> Executor::runAtomicSubOp(Runtime::StackManager &StackMgr,
   I Value = static_cast<I>(RawValue.get<T>());
 
   I Return = AtomicObj->fetch_sub(Value, std::memory_order_acquire);
-  StackMgr.push(static_cast<T>(Return));
+  RawAddress.emplace<T>(static_cast<T>(Return));
   return {};
 }
 
@@ -163,7 +163,7 @@ TypeT<T> Executor::runAtomicOrOp(Runtime::StackManager &StackMgr,
                                  const AST::Instruction &Instr) {
   const uint32_t BitWidth = sizeof(I) * 8;
   ValVariant RawValue = StackMgr.pop();
-  ValVariant RawAddress = StackMgr.pop();
+  ValVariant &RawAddress = StackMgr.getTop();
   int32_t Address = RawAddress.get<int32_t>();
   if ((Address & ((BitWidth >> 3U) - 1)) != 0) {
     spdlog::error(ErrCode::UnalignedAtomicAccess);
@@ -185,7 +185,7 @@ TypeT<T> Executor::runAtomicOrOp(Runtime::StackManager &StackMgr,
   I Value = static_cast<I>(RawValue.get<T>());
 
   I Return = AtomicObj->fetch_or(Value, std::memory_order_acquire);
-  StackMgr.push(static_cast<T>(Return));
+  RawAddress.emplace<T>(static_cast<T>(Return));
   return {};
 }
 
@@ -195,7 +195,7 @@ TypeT<T> Executor::runAtomicAndOp(Runtime::StackManager &StackMgr,
                                   const AST::Instruction &Instr) {
   const uint32_t BitWidth = sizeof(I) * 8;
   ValVariant RawValue = StackMgr.pop();
-  ValVariant RawAddress = StackMgr.pop();
+  ValVariant &RawAddress = StackMgr.getTop();
   int32_t Address = RawAddress.get<int32_t>();
   if ((Address & ((BitWidth >> 3U) - 1)) != 0) {
     spdlog::error(ErrCode::UnalignedAtomicAccess);
@@ -217,7 +217,7 @@ TypeT<T> Executor::runAtomicAndOp(Runtime::StackManager &StackMgr,
   I Value = static_cast<I>(RawValue.get<T>());
 
   I Return = AtomicObj->fetch_and(Value, std::memory_order_acquire);
-  StackMgr.push(static_cast<T>(Return));
+  RawAddress.emplace<T>(static_cast<T>(Return));
   return {};
 }
 
@@ -227,7 +227,7 @@ TypeT<T> Executor::runAtomicXorOp(Runtime::StackManager &StackMgr,
                                   const AST::Instruction &Instr) {
   const uint32_t BitWidth = sizeof(I) * 8;
   ValVariant RawValue = StackMgr.pop();
-  ValVariant RawAddress = StackMgr.pop();
+  ValVariant &RawAddress = StackMgr.getTop();
   int32_t Address = RawAddress.get<int32_t>();
   if ((Address & ((BitWidth >> 3U) - 1)) != 0) {
     spdlog::error(ErrCode::UnalignedAtomicAccess);
@@ -249,10 +249,9 @@ TypeT<T> Executor::runAtomicXorOp(Runtime::StackManager &StackMgr,
   I Value = static_cast<I>(RawValue.get<T>());
 
   I Return = AtomicObj->fetch_xor(Value, std::memory_order_acquire);
-  StackMgr.push(static_cast<T>(Return));
+  RawAddress.emplace<T>(static_cast<T>(Return));
   return {};
 }
-
 
 template <typename T, typename I>
 TypeT<T>
@@ -262,7 +261,7 @@ Executor::runAtomicExchangeOp(Runtime::StackManager &StackMgr,
 
   const uint32_t BitWidth = sizeof(I) * 8;
   ValVariant RawValue = StackMgr.pop();
-  ValVariant RawAddress = StackMgr.pop();
+  ValVariant &RawAddress = StackMgr.getTop();
   int32_t Address = RawAddress.get<int32_t>();
   if ((Address & ((BitWidth >> 3U) - 1)) != 0) {
     spdlog::error(ErrCode::UnalignedAtomicAccess);
@@ -284,10 +283,9 @@ Executor::runAtomicExchangeOp(Runtime::StackManager &StackMgr,
   I Value = static_cast<I>(RawValue.get<T>());
 
   I Return = AtomicObj->exchange(Value, std::memory_order_acquire);
-  StackMgr.push(static_cast<T>(Return));
+  RawAddress.emplace<T>(static_cast<T>(Return));
   return {};
 }
-
 
 template <typename T, typename I>
 TypeT<T>
@@ -298,7 +296,7 @@ Executor::runAtomicCompareExchangeOp(Runtime::StackManager &StackMgr,
   const uint32_t BitWidth = sizeof(I) * 8;
   ValVariant RawReplacement = StackMgr.pop();
   ValVariant RawExpected = StackMgr.pop();
-  ValVariant RawAddress = StackMgr.pop();
+  ValVariant &RawAddress = StackMgr.getTop();
   int32_t Address = RawAddress.get<int32_t>();
   if ((Address & ((BitWidth >> 3U) - 1)) != 0) {
     spdlog::error(ErrCode::UnalignedAtomicAccess);
@@ -319,10 +317,10 @@ Executor::runAtomicCompareExchangeOp(Runtime::StackManager &StackMgr,
       static_cast<std::atomic<I> *>(reinterpret_cast<void *>(RawPointer));
   I Replacement = static_cast<I>(RawReplacement.get<T>());
   I Expected = static_cast<I>(RawExpected.get<T>());
-  
-  AtomicObj->compare_exchange_strong(Expected, Replacement, std::memory_order_acquire);
-  StackMgr.push(static_cast<T>(Expected));
 
+  AtomicObj->compare_exchange_strong(Expected, Replacement,
+                                     std::memory_order_acquire);
+  RawAddress.emplace<T>(static_cast<T>(Expected));
   return {};
 }
 

@@ -2,39 +2,33 @@
 
 use crate::{
     error::{check, VmError, WasmEdgeError},
-    executor::InnerExecutor,
     import_obj::{ImportObject, InnerImportObject},
     instance::function::{FuncType, InnerFuncType},
-    loader::InnerLoader,
     statistics::{InnerStat, Statistics},
     store::{InnerStore, Store},
     types::WasmEdgeString,
-    utils,
-    validator::InnerValidator,
-    wasmedge,
+    utils, wasmedge,
     wasmedge::{WasmEdge_HostRegistration_Wasi, WasmEdge_HostRegistration_WasmEdge_Process},
-    Config, Executor, Loader, Module, Validator, Value, WasmEdgeResult,
+    Config, Module, Value, WasmEdgeResult,
 };
 use std::{collections::HashMap, path::Path};
 
 /// Struct of WasmEdge Vm.
 ///
-/// A [`Vm`] defines a virtual environment for managing WebAssembly programs.
+/// A [Vm] defines a virtual environment for managing WebAssembly programs.
 #[derive(Debug)]
 pub struct Vm {
     pub(crate) inner: InnerVm,
     imports: HashMap<String, ImportObject>,
 }
 impl Vm {
-    /// Creates a new [`Vm`] to be associated with the given [configuration](crate::Config) and [store](crate::Store).
+    /// Creates a new [Vm] to be associated with the given [configuration](crate::Config) and [store](crate::Store).
     ///
     /// # Arguments
     ///
-    /// - `config` specifies a configuration for the new [`Vm`].
+    /// - `config` specifies a configuration for the new [Vm].
     ///
-    /// - `store` specifies an external WASM [store](crate::Store) used by the new [`Vm`]. The instantiation and
-    /// execution of the new [`Vm`] will consume this store context. If no store context is specified when creating
-    /// a [`Vm`], then the [`Vm`] itself will allocate and own a [`store`](crate::Store).
+    /// - `store` specifies an external WASM [store](crate::Store) used by the new [Vm]. The instantiation and execution of the new [Vm] will consume this store context. If no store context is specified when creating a [Vm], then the [Vm] itself will allocate and own a [store](crate::Store).
     ///
     /// # Error
     ///
@@ -76,13 +70,13 @@ impl Vm {
         }
     }
 
-    /// Registers and instantiates a WASM module into the [store](crate::Store) of the [`Vm`] from a WASM file.
+    /// Registers and instantiates a WASM module into the [store](crate::Store) of the [Vm] from a WASM file.
     ///
     /// The workflow of the function can be summarized as the following steps:
     ///
     /// - First, loads a WASM module from a given path, then
     ///
-    /// - Registers all exported instances in the WASM module into the [store](crate::Store) of the [`Vm`];
+    /// - Registers all exported instances in the WASM module into the [store](crate::Store) of the [Vm];
     ///
     /// - Finally, instantiates the exported instances.
     ///
@@ -115,12 +109,12 @@ impl Vm {
     }
 
     /// Consumes a given WasmEdge [ImportObject](crate::ImportObject) module to register and instantiate a WASM module
-    /// into the [store](crate::Store) of the [`Vm`].
+    /// into the [store](crate::Store) of the [Vm].
     ///
     /// The workflow of the function can be summarized as the following steps:
     ///
     /// - First, registers the exported instances in the [ImportObject](crate::ImportObject) module into the
-    /// [store](crate::Store) of the [`Vm`], then
+    /// [store](crate::Store) of the [Vm], then
     ///
     /// - Instatiates the exported instances.
     ///
@@ -154,14 +148,14 @@ impl Vm {
         Ok(())
     }
 
-    /// Registers and instantiates a WASM module into the [store](crate::Store) of the [`Vm`] from a given WASM
+    /// Registers and instantiates a WASM module into the [store](crate::Store) of the [Vm] from a given WASM
     /// binary buffer.
     ///
     /// The workflow of the function can be summarized as the following steps:
     ///
     /// - First, loads a WASM module from the given WASM binary buffer, then
     ///
-    /// - Registers all exported instances in the WASM module into the [store](crate::Store) of the [`Vm`];
+    /// - Registers all exported instances in the WASM module into the [store](crate::Store) of the [Vm];
     ///
     /// - Finally, instantiates the exported instances.
     ///
@@ -193,13 +187,13 @@ impl Vm {
     }
 
     /// Consumes a given WasmEdge AST [Module](crate::Module) to register and instantiate a WASM module into the
-    /// [store](crate::Store) of the [`Vm`].
+    /// [store](crate::Store) of the [Vm].
     ///
     /// The workflow of the function can be summarized as the following steps:
     ///
     /// - First, loads a WASM module from the given WasmEdge AST [Module](crate::Module), then
     ///
-    /// - Registers all exported instances in the WASM module into the [store](crate::Store) of the [`Vm`];
+    /// - Registers all exported instances in the WASM module into the [store](crate::Store) of the [Vm];
     ///
     /// - Finally, instantiates the exported instances.
     ///
@@ -413,10 +407,9 @@ impl Vm {
         Ok(())
     }
 
-    /// Validates a WASM module loaded into the [`Vm`].
+    /// Validates a WASM module loaded into the [Vm].
     ///
-    /// This is the second step to invoke a WASM function step by step. After loading a WASM module into the [`Vm`],
-    /// call this function to validate it. Note that only validated WASM modules can be instantiated in the [`Vm`].
+    /// This is the second step to invoke a WASM function step by step. After loading a WASM module into the [Vm], call this function to validate it. Note that only validated WASM modules can be instantiated in the [Vm].
     ///
     /// # Error
     ///
@@ -428,10 +421,9 @@ impl Vm {
         Ok(())
     }
 
-    /// Instantiates a validated WASM module in the [`Vm`].
+    /// Instantiates a validated WASM module in the [Vm].
     ///
-    /// This is the third step to invoke a WASM function step by step. After validating a WASM module in the [`Vm`],
-    /// call this function to instantiate it; then, call `execute` to invoke the exported function in this WASM module.
+    /// This is the third step to invoke a WASM function step by step. After validating a WASM module in the [Vm], call this function to instantiate it; then, call `execute` to invoke the exported function in this WASM module.
     ///
     /// # Error
     ///
@@ -444,13 +436,9 @@ impl Vm {
     }
 
     /// Runs an exported WASM function by name. The WASM function is hosted by the anonymous [module](crate::Module) in
-    /// the [store](crate::Store) of the [`Vm`].
+    /// the [store](crate::Store) of the [Vm].
     ///
-    /// This is the final step to invoke a WASM function step by step.
-    /// After instantiating a WASM module in the [`Vm`], the WASM module is registered into the [store](crate::Store)
-    /// of the [`Vm`] as an anonymous module. Then repeatedly call this function to invoke the exported WASM functions
-    /// by their names until the [`Vm`] is reset or a new WASM module is registered
-    /// or loaded.
+    /// This is the final step to invoke a WASM function step by step. After instantiating a WASM module in the [Vm], the WASM module is registered into the [store](crate::Store) of the [Vm] as an anonymous module. Then repeatedly call this function to invoke the exported WASM functions by their names until the [Vm] is reset or a new WASM module is registered or loaded.
     ///
     /// # Arguments
     ///
@@ -495,12 +483,11 @@ impl Vm {
 
     /// Runs an exported WASM function by its name and the module's name in which the WASM function is hosted.
     ///
-    /// After registering a WASM module in the [`Vm`], repeatedly call this function to run exported WASM functions by
-    /// their function names and the module names until the [`Vm`] is reset.
+    /// After registering a WASM module in the [Vm], repeatedly call this function to run exported WASM functions by their function names and the module names until the [Vm] is reset.
     ///
     /// # Arguments
     ///
-    /// - `mod_name` specifies the name of the WASM module registered into the [store](crate::Store) of the [`Vm`].
+    /// - `mod_name` specifies the name of the WASM module registered into the [store](crate::Store) of the [Vm].
     ///
     /// - `func_name` specifies the name of the exported WASM function to run.
     ///
@@ -544,8 +531,7 @@ impl Vm {
         Ok(returns.into_iter().map(Into::into).collect::<Vec<_>>())
     }
 
-    /// Returns the function type of a WASM function by its name. The function is hosted in the anonymous
-    /// [module](crate::Module) of the [`Vm`].
+    /// Returns the function type of a WASM function by its name. The function is hosted in the anonymous [module](crate::Module) of the [Vm].
     ///
     /// # Argument
     ///
@@ -687,7 +673,7 @@ impl Vm {
         }
     }
 
-    /// Returns the mutable [Store](crate::Store) from the [`Vm`].
+    /// Returns the mutable [Store](crate::Store) from the [Vm].
     pub fn store_mut(&self) -> WasmEdgeResult<Store> {
         let store_ctx = unsafe { wasmedge::WasmEdge_VMGetStoreContext(self.inner.0) };
         match store_ctx.is_null() {
@@ -699,7 +685,7 @@ impl Vm {
         }
     }
 
-    /// Returns the mutable [Statistics](crate::Statistics) from the [`Vm`].
+    /// Returns the mutable [Statistics](crate::Statistics) from the [Vm].
     pub fn statistics_mut(&self) -> WasmEdgeResult<Statistics> {
         let stat_ctx = unsafe { wasmedge::WasmEdge_VMGetStatisticsContext(self.inner.0) };
         match stat_ctx.is_null() {
@@ -711,41 +697,7 @@ impl Vm {
         }
     }
 
-    pub fn loader(&self) -> WasmEdgeResult<Loader> {
-        let loder_ctx = unsafe { wasmedge::WasmEdge_VMGetLoaderContext(self.inner.0) };
-        match loder_ctx.is_null() {
-            true => Err(WasmEdgeError::Vm(VmError::NotFoundLoader)),
-            false => Ok(Loader {
-                inner: InnerLoader(loder_ctx),
-                registered: true,
-            }),
-        }
-    }
-
-    pub fn validator(&self) -> WasmEdgeResult<Validator> {
-        let vdr_ctx = unsafe { wasmedge::WasmEdge_VMGetValidatorContext(self.inner.0) };
-        match vdr_ctx.is_null() {
-            true => Err(WasmEdgeError::Vm(VmError::NotFoundValidator)),
-            false => Ok(Validator {
-                inner: InnerValidator(vdr_ctx),
-                registered: true,
-            }),
-        }
-    }
-
-    pub fn executor(&self) -> WasmEdgeResult<Executor> {
-        let exr_ctx = unsafe { wasmedge::WasmEdge_VMGetExecutorContext(self.inner.0) };
-        match exr_ctx.is_null() {
-            true => Err(WasmEdgeError::Vm(VmError::NotFoundExecutor)),
-            false => Ok(Executor {
-                inner: InnerExecutor(exr_ctx),
-                registered: true,
-            }),
-        }
-    }
-
-    /// Checks if the [store](crate::Store) of the [`Vm`] contains a function of which the name matches the given
-    /// `func_name`.
+    /// Checks if the [store](crate::Store) of the [Vm] contains a function of which the name matches the given `func_name`.
     ///
     /// # Argument
     ///
@@ -759,8 +711,7 @@ impl Vm {
         store.contains_func(func_name.as_ref())
     }
 
-    /// Checks if the [store](crate::Store) of the [`Vm`] contains a registered function of which the name matches the
-    /// given `func_name`.
+    /// Checks if the [store](crate::Store) of the [Vm] contains a registered function of which the name matches the given `func_name`.
     ///
     /// # Argument
     ///
@@ -778,8 +729,7 @@ impl Vm {
         store.contains_reg_func(mod_name.as_ref(), func_name.as_ref())
     }
 
-    /// Checks if the [`Vm`] contains a registered module of which the name matches the given
-    /// `mod_name`.
+    /// Checks if the [Vm] contains a registered module of which the name matches the given `mod_name`.
     ///
     /// # Argument
     ///
@@ -838,24 +788,6 @@ mod tests {
             assert!(result.is_ok());
             let store = result.unwrap();
             assert!(!store.inner.0.is_null() && store.registered);
-
-            // get loader
-            let result = vm.loader();
-            assert!(result.is_ok());
-            let loader = result.unwrap();
-            assert!(!loader.inner.0.is_null() && loader.registered);
-
-            // get validator
-            let result = vm.validator();
-            assert!(result.is_ok());
-            let validator = result.unwrap();
-            assert!(!validator.inner.0.is_null() && validator.registered);
-
-            // get executor
-            let result = vm.executor();
-            assert!(result.is_ok());
-            let executor = result.unwrap();
-            assert!(!executor.inner.0.is_null() && executor.registered);
         }
 
         {
@@ -882,24 +814,6 @@ mod tests {
             assert!(result.is_ok());
             let store = result.unwrap();
             assert!(!store.inner.0.is_null() && store.registered);
-
-            // get loader
-            let result = vm.loader();
-            assert!(result.is_ok());
-            let loader = result.unwrap();
-            assert!(!loader.inner.0.is_null() && loader.registered);
-
-            // get validator
-            let result = vm.validator();
-            assert!(result.is_ok());
-            let validator = result.unwrap();
-            assert!(!validator.inner.0.is_null() && validator.registered);
-
-            // get executor
-            let result = vm.executor();
-            assert!(result.is_ok());
-            let executor = result.unwrap();
-            assert!(!executor.inner.0.is_null() && executor.registered);
         }
 
         {
@@ -921,24 +835,6 @@ mod tests {
             assert!(result.is_ok());
             let store = result.unwrap();
             assert!(!store.inner.0.is_null() && store.registered);
-
-            // get loader
-            let result = vm.loader();
-            assert!(result.is_ok());
-            let loader = result.unwrap();
-            assert!(!loader.inner.0.is_null() && loader.registered);
-
-            // get validator
-            let result = vm.validator();
-            assert!(result.is_ok());
-            let validator = result.unwrap();
-            assert!(!validator.inner.0.is_null() && validator.registered);
-
-            // get executor
-            let result = vm.executor();
-            assert!(result.is_ok());
-            let executor = result.unwrap();
-            assert!(!executor.inner.0.is_null() && executor.registered);
         }
 
         {
@@ -958,24 +854,6 @@ mod tests {
             assert!(result.is_ok());
             let store = result.unwrap();
             assert!(!store.inner.0.is_null() && store.registered);
-
-            // get loader
-            let result = vm.loader();
-            assert!(result.is_ok());
-            let loader = result.unwrap();
-            assert!(!loader.inner.0.is_null() && loader.registered);
-
-            // get validator
-            let result = vm.validator();
-            assert!(result.is_ok());
-            let validator = result.unwrap();
-            assert!(!validator.inner.0.is_null() && validator.registered);
-
-            // get executor
-            let result = vm.executor();
-            assert!(result.is_ok());
-            let executor = result.unwrap();
-            assert!(!executor.inner.0.is_null() && executor.registered);
         }
     }
 

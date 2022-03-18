@@ -1,7 +1,6 @@
 package org.wasmedge;
 
 import org.junit.Assert;
-import org.junit.Ignore;
 import org.junit.Test;
 
 import java.util.ArrayList;
@@ -156,14 +155,15 @@ public class ExecutorContextTest extends BaseTest {
     }
 
     @Test
-    @Ignore
     public void testCallHostFunction() {
         Assert.fail();
     }
 
     @Test
-    @Ignore
-    public void testRegisteredModule() {
-        Assert.fail();
+    public void testRegisterImport() {
+        ExecutorContext exeCxt = new ExecutorContext(null, null);
+        ImportObjectContext impCxt = new ImportObjectContext("ext");
+        StoreContext storeCxt = new StoreContext();
+        exeCxt.registerImport(storeCxt, impCxt);
     }
 }

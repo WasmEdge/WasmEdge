@@ -6,6 +6,7 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.net.URL;
 import java.nio.file.Paths;
+import java.util.List;
 
 public class BaseTest {
     protected static final String FIB_WASM_PATH = "apiTestData/fibonacci.wasm";
@@ -48,5 +49,40 @@ public class BaseTest {
         }
 
     }
+
+    public static HostFunction extAdd = new HostFunction() {
+        @Override
+        public Result apply(Object data, MemoryInstanceContext mem, List<WasmEdgeValue> params, List<WasmEdgeValue> returns) {
+            return new Result();
+        };
+    };
+
+    public static HostFunction extSub = new HostFunction() {
+        @Override
+        public Result apply(Object data, MemoryInstanceContext mem, List<WasmEdgeValue> params, List<WasmEdgeValue> returns) {
+            return new Result();
+        };
+    };
+
+    public static HostFunction extMul = new HostFunction() {
+        @Override
+        public Result apply(Object data, MemoryInstanceContext mem, List<WasmEdgeValue> params, List<WasmEdgeValue> returns) {
+            return new Result();
+        };
+    };
+
+    public static HostFunction extTerm = new HostFunction() {
+        @Override
+        public Result apply(Object data, MemoryInstanceContext mem, List<WasmEdgeValue> params, List<WasmEdgeValue> returns) {
+            return new Result();
+        };
+    };
+
+    public static HostFunction extFail = new HostFunction() {
+        @Override
+        public Result apply(Object data, MemoryInstanceContext mem, List<WasmEdgeValue> params, List<WasmEdgeValue> returns) {
+            return new Result();
+        };
+    };
 
 }

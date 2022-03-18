@@ -118,9 +118,10 @@ public class WasmEdgeVMTest extends BaseTest {
     }
 
     @Test
-    @Ignore
     public void testRegisterModuleFromImport() {
-        Assert.fail("not implemented");
+        WasmEdgeVM vm = new WasmEdgeVM(new ConfigureContext(),null);
+        ImportObjectContext importObjectContext = new ImportObjectContext("extern");
+        vm.registerModuleFromImport(importObjectContext);
     }
 
 

@@ -9,6 +9,7 @@
 #include "common.h"
 #include "AstModuleContext.h"
 #include "StoreContext.h"
+#include "ImportObjectContext.h"
 #include "common.h"
 
 WasmEdge_ExecutorContext *getExecutorContext(JNIEnv * env, jobject jExeCtx) {
@@ -192,6 +193,15 @@ JNIEXPORT void JNICALL Java_org_wasmedge_ExecutorContext_registerModule
 
 }
 
+JNIEXPORT void JNICALL Java_org_wasmedge_ExecutorContext_registerImport
+        (JNIEnv *env, jobject thisObject, jobject jStore, jobject jImpObj) {
+    WasmEdge_ExecutorContext *exeCxt = getExecutorContext(env, thisObject);
+    WasmEdge_StoreContext *storeCxt = getStoreContext(env, jStore);
+    WasmEdge_ImportObjectContext *impObj = getImportObjectContext(env, jImpObj);
+
+    WasmEdge_ExecutorRegisterImport(exeCxt, storeCxt, impObj);
+
+}
 
 JNIEXPORT void JNICALL Java_org_wasmedge_ExecutorContext_delete
         (JNIEnv * env, jobject thisObject) {

@@ -562,3 +562,13 @@ JNIEXPORT jobject JNICALL Java_org_wasmedge_WasmEdgeVM_getFunctionTypeRegistered
     return createJFunctionTypeContext(env, functionTypeContext);
 }
 
+JNIEXPORT void JNICALL Java_org_wasmedge_WasmEdgeVM_registerModuleFromImport
+        (JNIEnv * env, jobject thisObject, jobject jImport) {
+    WasmEdge_ImportObjectContext * impObj = getImportObjectContext(env, jImport);
+
+
+    WasmEdge_VMContext *vm = getVmContext(env, thisObject);
+
+    WasmEdge_Result result = WasmEdge_VMRegisterModuleFromImport(vm, impObj);
+    handleWasmEdgeResult(env, &result);
+}

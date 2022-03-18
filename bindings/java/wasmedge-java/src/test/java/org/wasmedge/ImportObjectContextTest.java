@@ -91,10 +91,18 @@ public class ImportObjectContextTest extends BaseTest {
 
     @Test
     public void testCreateWasmEdgeProcess() {
+
+        ImportObjectContext importObjectContext = ImportObjectContext.createWasmEdgeProcess(args, false);
+        Assert.assertNotNull(importObjectContext);
     }
 
     @Test
     public void testInitWasmEdgeProcessInVM() {
+        ConfigureContext config = new ConfigureContext();
+        config.addHostRegistration(HostRegistration.WasmEdge_HostRegistration_WasmEdge_Process);
+        WasmEdgeVM vm = new WasmEdgeVM(config, null);
+        ImportObjectContext importObjectContext = vm.getImportModuleContext(HostRegistration.WasmEdge_HostRegistration_WasmEdge_Process);
+        importObjectContext.initWasmEdgeProcess(args, false);
     }
 
 }

@@ -128,12 +128,9 @@ JNIEXPORT jobject JNICALL Java_org_wasmedge_ImportObjectContext_CreateWASI
                                     envs, (*env)->GetArrayLength(env,jEnvs),
                                     preopens, (*env)->GetArrayLength(env,jPreopens));
 
-    printf("releasing arg string resources\n");
     ReleaseCString(env, jArgs, args);
-    printf("releasing env string resources\n");
     ReleaseCString(env, jEnvs, envs);
-    printf("releasing preopens string resources\n");
-//    ReleaseCString(env, jPreopens, preopens);
+    ReleaseCString(env, jPreopens, preopens);
 
     printf("calling create import context\n");
     return createJImportObject(env, importObjectContext);

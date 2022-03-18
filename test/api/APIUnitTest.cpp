@@ -2113,6 +2113,9 @@ TEST(APICoreTest, ImportObject) {
   ImpObj = WasmEdge_ImportObjectCreate(HostName);
   WasmEdge_StringDelete(HostName);
   EXPECT_NE(ImpObj, nullptr);
+  WasmEdge_String ExpectedHostName = WasmEdge_StringCreateByCString("extern");
+  WasmEdge_String ActualHostName = WasmEdge_ImportObjectGetModuleName(ImpObj);
+  EXPECT_TRUE(WasmEdge_StringIsEqual(ExpectedHostName, ActualHostName));
 
   // Add host function "func-add": {externref, i32} -> {i32}
   Param[0] = WasmEdge_ValType_ExternRef;

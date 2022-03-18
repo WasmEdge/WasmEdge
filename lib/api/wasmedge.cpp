@@ -2399,6 +2399,16 @@ WASMEDGE_CAPI_EXPORT void WasmEdge_ImportObjectInitWasmEdgeProcess(
   }
 }
 
+WASMEDGE_CAPI_EXPORT WasmEdge_String
+WasmEdge_ImportObjectGetModuleName(const WasmEdge_ImportObjectContext *Cxt) {
+  if (Cxt) {
+    auto StrView = fromImpObjCxt(Cxt)->getModuleName();
+    return WasmEdge_String{.Length = static_cast<uint32_t>(StrView.length()),
+                           .Buf = StrView.data()};
+  }
+  return WasmEdge_String{.Length = 0, .Buf = nullptr};
+}
+
 WASMEDGE_CAPI_EXPORT void
 WasmEdge_ImportObjectAddFunction(WasmEdge_ImportObjectContext *Cxt,
                                  const WasmEdge_String Name,

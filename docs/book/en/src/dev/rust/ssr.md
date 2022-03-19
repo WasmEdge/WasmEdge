@@ -1,48 +1,36 @@
 # Server-side rendering
 
-As Rust becomes more popular, many things are being reinvented using Rust. Frontend frameworks are certainly among them.
-There are already many frameworks you can choose to build your browser based application.
-They all have the same underlying logic: rendering using the WebAssembly, which is built from Rust.
-And also, they all use [wasm-bindgen](https://github.com/rustwasm/wasm-bindgen) to tie the Rust to the DOM, which is the only option for now.
-While all of these frameworks send .wasm files to the browser and render the page on the client-side, some supply the choice for [Server-side rendering](https://en.wikipedia.org/wiki/Server-side_scripting).
+Frontend web frameworks allow developers to create web apps in a high level language and component model. The web app is built into a static web site to be rendered in the browser. While many frontend web frameworks are based on JavaScript, such as React and Vue, Rust-based frameworks are also emerging as the Rust language gains traction among developers. Those web frameworks render the HTML DOM UI using the WebAssembly, which is compiled from Rust source code. They use [wasm-bindgen](https://github.com/rustwasm/wasm-bindgen) to tie the Rust to the HTML DOM.
+While all of these frameworks send `.wasm` files to the browser to render the UI on the client-side, some provide the additional choice for [Server-side rendering](https://en.wikipedia.org/wiki/Server-side_scripting). That is to run the WebAssembly code and build the HTML DOM UI on the server, and stream the HTML content to the browser for faster performance and startup time on slow devices and networks.
 
-This article will explore how to render the page on the server that runs on the WasmEdge.
-We pick [Percy](https://github.com/chinedufn/percy) as our framework because it is relatively mature in SSR and [Hydration](https://en.wikipedia.org/wiki/Hydration_(web_development)).
+This article will explore how to render the web UI on the server using WasmEdge.
+We pick [Percy](https://github.com/chinedufn/percy) as our framework because it is relatively mature in SSR and [Hydration](https://en.wikipedia.org/wiki/Hydration_(web_development)). Percy already provides an [example](https://github.com/chinedufn/percy/tree/master/examples/isomorphic) for SSR. It's highly recommended to read it first to understand how it works. The default SSR setup with Percy utilizes a native Rust web server. The Rust code is compiled to machine native code for the server. However, in order to host user applications on the server, we need a sandbox. While we could run native code inside a Linux container (Docker), a far more efficient (and safer) approach is to run the compiled code in a WebAssembly VM on the server, especially considerring the rendering code is already compiled into WebAssembly.
 
-Percy already provides an [example](https://github.com/chinedufn/percy/tree/master/examples/isomorphic) for SSR. It's highly recommended to read it first to understand how it works.
+Now, let's go through the steps to run a Percy SSR service in a WasmEdge server.
 
-Then let's dive into changing the server to WasmEdge.
+Assuming we are in the `examples/isomorphic` directory, make a new crate beside the existing `server`.
 
-Assuming we are in the `examples/isomorphic` directory, make a new bin crate beside the existing `server`:
 ```bash
 cargo new server-wasmedge
 ```
-You'll receive a warning to let you put the new crate into the workspace, so insert below into `members` of `[workspace]`:
+
+You'll receive a warning to let you put the new crate into the workspace, so insert below into `members` of `[workspace]`. The file is `../../Cargo.toml`.
+
 ```toml
 "examples/isomorphic/server-wasmedge"
 ```
-File: `../../Cargo.toml`
 
-And with the file open, put these two lines in the bottom:
+With the file open, put these two lines in the bottom:
+
 ```toml
 [patch.crates-io]
 wasm-bindgen = { git = "https://github.com/KernelErr/wasm-bindgen.git", branch = "wasi-compat" }
 ```
-File: `../../Cargo.toml`
 
-What does this work for? As `wasm-bindgen` is the glue between Rust and Html, it is designed to work with both frontend and backend, means it should support both  architechture of `wasm32`, that is to say `wasm32-unknown-unknown` and `wasm32-wasi`.
-Unfortunately, there is still some problem of the support to `wasm32-wasi`.
+> Why do we need a forked `wasm-bindgen`? That is because `wasm-bindgen` is the required glue between Rust and HTML in the browser. On the server, however, we need to build the Rust code to the `wasm32-wasi` target, which is incompatible with `wasm-bindgen`. Our forked `wasm-bindgen` has conditional configs that removes browser-specific code in the generated `.wasm` file for the `wasm32-wasi` target.
 
-In the source code of `wasm-bindgen`, there are some conditinal configure like this:
-```rust
- #[cfg(all(target_arch = "wasm32", not(target_os = "emscripten")))]
-```
-When the built target is native code such as `x86_64`, the code under this configure will generate different path so the `server` in percy's original example will work.
-But if the built target is `wasm32-wasi`, the code will generate the same path with what can only work in the browser. And what we want to do is to build the `server-wasmedge` to WebAssembly and run it on WasmEdge.
-So we have forked the `wasm-bindgen` repository and made some tiny changes to the conditional configure. The result is the generated path is the same as native code and will not include the logic that only runs in the browser.
+Then replace the crate's `Cargo.toml` with following content.
 
-
-Then replace the crate's `Cargo.toml` with following content:
 ```toml
 [package]
 name = "isomorphic-server-wasmedge"
@@ -59,15 +47,14 @@ anyhow = "1"
 serde = { version = "1.0", features = ["derive"] }
 isomorphic-app = { path = "../app" } 
 ```
-The `wasmedge_wasi_socket` crate is the socket API of WasmEdge. This project is under intensive development and the API is not stable.
 
+The `wasmedge_wasi_socket` crate is the socket API of WasmEdge. This project is under development. Next copy the `index.html` file into the crate's root.
 
-Next copy the `index.html` into the crate's root:
 ```bash
 cp server/src/index.html server-wasmedge/src/
 ```
 
-Then let's type some Rust code!
+Then let's create some Rust code to start a web service in WasmEdge! The `main.rs` program listens to the request and sends the response via the stream.
 
 ```rust
 use std::io::Write;
@@ -103,9 +90,8 @@ fn main() {
     }
 }
 ```
-File: `main.rs`
 
-`main.rs` listens to the request and sends the response via the stream.
+The `handler.rs` parses the received data to the path and query objects and return the corresponding response.
 
 
 ```rust
@@ -164,10 +150,9 @@ pub fn handle_req(stream: &mut TcpStream, addr: SocketAddr) -> Result<(Response,
     Ok((res, binary))
 }
 ```
-File: `handler.rs`
 
-`handler.rs` parses the received data to the path and query objects and return the corresponding response.
-
+The `response.rs` program packs the response object for static assets and for server rendered content.
+For the latter, you could see that SSR happens at `app.render().to_string()`, the result string is put into HTML by replacing the placeholder text.
 
 ```rust
 use crate::mime::MimeType;
@@ -266,11 +251,8 @@ pub fn internal_error() -> (Response, Option<Vec<u8>>) {
     }, None)
 }
 ```
-File: `response.rs`
 
-`response.rs` packs the response object for static assets and for server rendered content.
-For the latter, you could see that SSR happens at `app.render().to_string()`, the result string is put into Html by replacing the placeholder text.
-
+The `mime.rs` program is a map for assets' extension name and the Mime type.
 
 ```rust
 pub struct MimeType {
@@ -302,27 +284,26 @@ impl MimeType {
     }
 }
 ```
-File: `mime.rs`
 
-`mime.rs` is a map for assets' extension name and the Mime type.
+That's it! Now let's build and run the web application. If you have tested the original example, you probably have already built the client WebAssembly.
 
-
-That's it! Now let's make a run. If you have tested the original example, you should have built the client WebAssembly:
 ```bash
 cd client
 ./build-wasm.sh
 ```
 
-Then build and run the server:
+Next, build and run the server.
+
 ```bash
 cd ../server-wasmedge
 cargo build --target wasm32-wasi
 OUTPUT_CSS="$(pwd)/../client/build/app.css" wasmedge --dir /static:../client/build ../../../target/wasm32-wasi/debug/isomorphic-server-wasmedge.wasm
 ```
-Now navigate to `http://127.0.0.1:3000` you will see the application.
 
+Navigate to `http://127.0.0.1:3000` and you will see the web application in action.
 
-For convenience, you can collect the steps into the following shell script and set up the Cargo config:
+Furthermore, you can place all the steps into a shell script `../start-wasmedge.sh`.
+
 ```bash
 #!/bin/bash
 
@@ -336,7 +317,8 @@ cd ../server-wasmedge
 
 OUTPUT_CSS="$(pwd)/../client/build/app.css" cargo run -p isomorphic-server-wasmedge
 ```
-File: `../start-wasmedge.sh`
+
+Add the following to the `.cargo/config.toml` file.
 
 ```toml
 [build]
@@ -345,9 +327,8 @@ target = "wasm32-wasi"
 [target.wasm32-wasi]
 runner = "wasmedge --dir /static:../client/build" 
 ```
-File: `.cargo/config.toml`
 
-After that, one command `./start-wasmedge.sh` will do all for you!
+After that, a single CLI command `./start-wasmedge.sh` would perform all the tasks to build and run the web application!
 
+We forked the Percy repository and made a ready-to-build [server-wasmedge](https://github.com/second-state/percy/tree/master/examples/isomorphic/server-wasmedge) example project for you. Happy coding!
 
-We have forked the percy repository and made a ready-to-build [server-wasmedge](https://github.com/second-state/percy/tree/master/examples/isomorphic/server-wasmedge) for you. Have a enjoy!

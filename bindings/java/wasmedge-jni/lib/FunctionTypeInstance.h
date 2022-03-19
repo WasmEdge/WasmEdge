@@ -15,4 +15,6 @@ typedef struct HostFuncParam {
 
 WasmEdge_FunctionInstanceContext * getFunctionInstanceContext(JNIEnv* env, jobject jFuncInstance);
 
+jobject createJFunctionInstanceContext(JNIEnv* env, const WasmEdge_FunctionInstanceContext * funcInstance);
+
 #endif //WASMEDGE_JAVA_FUNCTIONTYPEINSTANCE_H

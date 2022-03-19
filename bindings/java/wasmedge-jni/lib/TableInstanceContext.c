@@ -7,6 +7,7 @@
 #include "common.h"
 #include "ValueType.h"
 
+
 WasmEdge_TableInstanceContext * getTableInstanceContext(JNIEnv* env, jobject jTableInstanceContext) {
 
     if(jTableInstanceContext == NULL) {
@@ -91,4 +92,16 @@ JNIEXPORT jint JNICALL Java_org_wasmedge_TableInstanceContext_grow
     WasmEdge_Result result = WasmEdge_TableInstanceGrow(tableInstanceContext, jSize);
     handleWasmEdgeResult(env, &result);
 
+}
+
+jobject createJTableInstanceContext(JNIEnv* env, const WasmEdge_TableInstanceContext * tabInstance) {
+
+    // FIXME add to all instances.
+    if(tabInstance == NULL) {
+        return NULL;
+    }
+
+    jclass clazz = (*env)->FindClass(env, "org/wasmedge/TableInstanceContext");
+    jmethodID constructorId = (*env)->GetMethodID(env, clazz, "<init>", "(J)V");
+    return (*env)->NewObject(env, clazz, constructorId, (long) tabInstance);
 }

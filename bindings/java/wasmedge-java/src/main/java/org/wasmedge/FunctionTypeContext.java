@@ -17,7 +17,8 @@ public class FunctionTypeContext {
     }
 
     public FunctionTypeContext(ValueType[] paramTypes, ValueType[] returnTypes) {
-        nativeInit(getTypeValues(Arrays.asList(paramTypes)), getTypeValues(Arrays.asList(returnTypes)));
+        nativeInit(paramTypes == null? null : getTypeValues(Arrays.asList(paramTypes)),
+                returnTypes == null? null : getTypeValues(Arrays.asList(returnTypes)));
     }
 
     private FunctionTypeContext(long pointer) {
@@ -27,6 +28,7 @@ public class FunctionTypeContext {
     private native void nativeInit(int[] paramsTypes, int[] returnTypes);
 
     private int[] getTypeValues(List<ValueType> valueTypeList) {
+
         int[] valueTypes = new int[valueTypeList.size()];
         IntStream.range(0, valueTypeList.size())
                 .forEach(i -> valueTypes[i] = valueTypeList.get(i).getValue());

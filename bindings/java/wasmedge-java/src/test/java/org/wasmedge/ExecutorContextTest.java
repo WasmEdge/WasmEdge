@@ -154,10 +154,6 @@ public class ExecutorContextTest extends BaseTest {
         executorContext.invoke(storeContext, FUNC_NAME + UUID.randomUUID(), params, returns);
     }
 
-    @Test
-    public void testCallHostFunction() {
-        Assert.fail();
-    }
 
     @Test
     public void testRegisterImport() {

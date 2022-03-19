@@ -228,6 +228,10 @@ WasmEdge_Value *parseJavaParams(JNIEnv *env, jobjectArray params, jintArray para
 }
 
 enum WasmEdge_ValType *parseValueTypes(JNIEnv *env, jintArray jValueTypes) {
+    if(jValueTypes == NULL)  {
+        return NULL;
+    }
+
     jint len = (*env)->GetArrayLength(env, jValueTypes);
     enum WasmEdge_ValType* valTypes = malloc(len * sizeof(enum  WasmEdge_ValType));
     jint* elements = (*env)->GetIntArrayElements(env, jValueTypes, false);
@@ -287,62 +291,12 @@ void setJavaValueObject(JNIEnv *env, WasmEdge_Value value, jobject j_val) {
 
 
 
-jobject WasmEdgeStringArrayToJavaList(JNIEnv* env, WasmEdge_String* wStrList, int32_t len) {
-    jclass listClass = findJavaClass(env, "java/util/ArrayList");
-
-    if (listClass == NULL) {
-        return NULL;
-    }
-
-    jmethodID listConstructor = findJavaMethod(env, listClass, "<init>", "(I)V");
-
-    if(listConstructor == NULL) {
-        return NULL;
-    }
-
-    jobject jList = (*env)->NewObject(env, listClass, listConstructor, len);
-
-    if(jList == NULL) {
-        return NULL;
-    }
-
-    if(checkAndHandleException(env, "Error when creating java list\n")) {
-        return NULL;
-    }
-
-
-    jmethodID addMethod = findJavaMethod(env, listClass, "add", "(Ljava/lang/Object;)Z");
-
-    if(addMethod == NULL) {
-        return NULL;
-    }
-
-    WasmEdge_String * ptr = wStrList;
-    char buf[MAX_BUF_LEN];
-    for (int i = 0; i < len; ++i) {
-
-
-        memset(buf, 0, MAX_BUF_LEN);
-        WasmEdge_StringCopy(*ptr, buf, MAX_BUF_LEN);
-        jobject jStr = (*env)->NewStringUTF(env, buf);
-
-        (*env)->CallBooleanMethod(env, jList, addMethod, jStr);
-
-        if(checkAndHandleException(env, "Error when adding jstr\n")) {
-            return NULL;
-        }
-
-        ptr++;
-    }
-
-    return jList;
-
-}
 
 jstring WasmEdgeStringToJString(JNIEnv* env, WasmEdge_String wStr) {
      char buf[MAX_BUF_LEN];
      memset(buf, 0, MAX_BUF_LEN);
-    WasmEdge_StringCopy(wStr, buf, MAX_BUF_LEN);
+     WasmEdge_StringCopy(wStr, buf, MAX_BUF_LEN);
+     printf("converting %s\n", buf);
 
     jobject jStr = (*env)->NewStringUTF(env, buf);
 
@@ -418,4 +372,18 @@ void ReleaseCString(JNIEnv* env, jarray jStrArray, const char** ptr) {
         //TODO fixeme
         //(*env)->ReleaseStringUTFChars(env, jStr, ptr[i]);
     }
+}
+
+jobject WasmEdgeStringArrayToJavaList(JNIEnv* env, WasmEdge_String* wStrList, int32_t len) {
+    jobject strList = CreateJavaArrayList(env, len);
+
+    printf("total len %d\n", len);
+    for (int i = 0; i < len; ++i) {
+        printf("adding %d\n", i);
+
+        jstring jstr = WasmEdgeStringToJString(env, wStrList[i]);
+        AddElementToJavaList(env, strList, jstr);
+        printf("added %d\n", i);
+    }
+    return strList;
 }

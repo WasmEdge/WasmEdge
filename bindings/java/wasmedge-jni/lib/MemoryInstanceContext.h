@@ -9,5 +9,6 @@
 #include "wasmedge/wasmedge.h"
 
 WasmEdge_MemoryInstanceContext * getMemoryInstanceContext(JNIEnv* env, jobject jMemoryInstanceContext);
+jobject createJMemoryInstanceContext(JNIEnv* env, const WasmEdge_MemoryInstanceContext * memInstance);
 
 #endif //WASMEDGE_JAVA_MEMORYINSTANCECONTEXT_H

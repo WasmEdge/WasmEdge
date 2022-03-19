@@ -5,6 +5,9 @@ public class GlobalInstanceContext {
     private WasmEdgeValue value;
     private long pointer;
 
+    private GlobalInstanceContext(long pointer) {
+        this.pointer = pointer;
+    }
     public GlobalInstanceContext(GlobalTypeContext typeCxt,
                                  WasmEdgeValue value) {
         this.globalTypeContext = typeCxt;

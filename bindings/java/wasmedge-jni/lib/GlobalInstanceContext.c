@@ -44,4 +44,16 @@ JNIEXPORT void JNICALL Java_org_wasmedge_GlobalInstanceContext_delete
 
 }
 
+jobject createJGlobalInstanceContext(JNIEnv* env, const WasmEdge_GlobalInstanceContext * globInstance) {
+
+    // FIXME add to all instances.
+    if(globInstance == NULL) {
+        return NULL;
+    }
+
+    jclass clazz = (*env)->FindClass(env, "org/wasmedge/GlobalInstanceContext");
+    jmethodID constructorId = (*env)->GetMethodID(env, clazz, "<init>", "(J)V");
+    return (*env)->NewObject(env, clazz, constructorId, (long) globInstance);
+}
+
 

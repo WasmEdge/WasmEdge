@@ -1,6 +1,8 @@
 package org.wasmedge;
 
 
+import org.wasmedge.enums.ValueType;
+
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -71,6 +73,13 @@ public class BaseTest {
         };
     };
 
+    public static HostFunction extDiv = new HostFunction() {
+        @Override
+        public Result apply(Object data, MemoryInstanceContext mem, List<WasmEdgeValue> params, List<WasmEdgeValue> returns) {
+            return new Result();
+        };
+    };
+
     public static HostFunction extTerm = new HostFunction() {
         @Override
         public Result apply(Object data, MemoryInstanceContext mem, List<WasmEdgeValue> params, List<WasmEdgeValue> returns) {
@@ -84,5 +93,45 @@ public class BaseTest {
             return new Result();
         };
     };
+
+    ImportObjectContext createExternModule(String name) {
+        ImportObjectContext importObjectContext = new ImportObjectContext(name);
+
+        ValueType[] params = new ValueType[] {ValueType.ExternRef, ValueType.i32};
+        ValueType[] returns = new ValueType[] {ValueType.i32};
+
+        FunctionTypeContext functionTypeContext = new FunctionTypeContext(params, returns);
+
+        FunctionInstanceContext hostFunc = new FunctionInstanceContext(functionTypeContext,
+                extAdd, null, 0);
+        importObjectContext.addFunction("func-add", hostFunc);
+
+        hostFunc = new FunctionInstanceContext(functionTypeContext,
+                extSub, null, 0);
+        importObjectContext.addFunction("func-sub", hostFunc);
+
+        hostFunc = new FunctionInstanceContext(functionTypeContext,
+                extMul, null, 0) ;
+        importObjectContext.addFunction("func-mul", hostFunc);
+
+        hostFunc = new FunctionInstanceContext(functionTypeContext,
+                extDiv, null, 0);
+        importObjectContext.addFunction("func-div", hostFunc);
+
+        functionTypeContext.delete();
+
+        functionTypeContext = new FunctionTypeContext(null, returns);
+
+        hostFunc = new FunctionInstanceContext(functionTypeContext, extTerm, null, 0);
+        importObjectContext.addFunction("func-term", hostFunc);
+
+        hostFunc = new FunctionInstanceContext(functionTypeContext, extFail, null, 0);
+        importObjectContext.addFunction("func-fail", hostFunc);
+
+        functionTypeContext.delete();
+
+        return importObjectContext;
+
+    }
 
 }

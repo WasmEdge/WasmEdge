@@ -3,11 +3,16 @@ package org.wasmedge;
 public class FunctionInstanceContext {
     private long pointer;
 
+    private FunctionInstanceContext(long pointer) {
+        this.pointer = pointer;
+    }
+
     public FunctionInstanceContext(FunctionTypeContext type,
                                    HostFunction hostFunction, Object data,
                                    long cost) {
         nativeCreateFunction(type, hostFunction, data, cost);
     }
+
 
     private native void nativeCreateFunction(FunctionTypeContext typeContext, HostFunction hostFunction, Object data, long cost);
 

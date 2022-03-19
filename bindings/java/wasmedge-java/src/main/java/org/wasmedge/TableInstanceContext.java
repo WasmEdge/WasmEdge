@@ -8,6 +8,10 @@ public class TableInstanceContext {
 
     private TableTypeContext tableTypeContext;
 
+    private TableInstanceContext(long pointer) {
+        this.pointer = pointer;
+    }
+
     public TableInstanceContext(TableTypeContext tableTypeContext) {
         this.tableTypeContext = tableTypeContext;
         nativeInit(tableTypeContext);

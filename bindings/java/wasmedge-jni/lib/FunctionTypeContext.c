@@ -17,8 +17,8 @@ WasmEdge_FunctionTypeContext * getFunctionTypeContext(JNIEnv* env, jobject jFunc
 
 JNIEXPORT void JNICALL Java_org_wasmedge_FunctionTypeContext_nativeInit
         (JNIEnv * env, jobject thisObject, jintArray paramTypes, jintArray returnTypes) {
-    int paramLen = (*env)->GetArrayLength(env, paramTypes);
-    int returnLen = (*env)->GetArrayLength(env, returnTypes);
+    int paramLen =  paramTypes ==  NULL ? 0 : (*env)->GetArrayLength(env, paramTypes);
+    int returnLen = returnTypes == NULL? 0 : (*env)->GetArrayLength(env, returnTypes);
     enum WasmEdge_ValType* paramList = parseValueTypes(env, paramTypes);
     enum WasmEdge_ValType* returnList = parseValueTypes(env, returnTypes);
 

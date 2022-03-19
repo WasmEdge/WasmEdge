@@ -6,6 +6,10 @@ public class MemoryInstanceContext {
 
     private MemoryTypeContext memoryTypeContext;
 
+    private MemoryInstanceContext(long pointer) {
+        this.pointer = pointer;
+    }
+
     public MemoryInstanceContext(MemoryTypeContext memoryTypeContext) {
         this.memoryTypeContext = memoryTypeContext;
         nativeInit(memoryTypeContext);

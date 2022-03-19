@@ -47,3 +47,16 @@ JNIEXPORT void JNICALL Java_org_wasmedge_FunctionInstanceContext_nativeCreateBin
         (JNIEnv *env, jobject thisObject, jobject jWrapFuncType, jobject jWrapFunc, jobject jBinding, jobject jData, jlong jCost) {
 
 }
+
+jobject createJFunctionInstanceContext(JNIEnv* env, const WasmEdge_FunctionInstanceContext * funcInstance) {
+
+    // FIXME add to all instances.
+    if(funcInstance == NULL) {
+        return NULL;
+    }
+
+    jclass clazz = (*env)->FindClass(env, "org/wasmedge/FunctionInstanceContext");
+    jmethodID constructorId = (*env)->GetMethodID(env, clazz, "<init>", "(J)V");
+    return (*env)->NewObject(env, clazz, constructorId, (long) funcInstance);
+}
+

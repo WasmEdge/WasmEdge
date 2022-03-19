@@ -6,7 +6,7 @@
 #include "runtime/hostfunc.h"
 #include "runtime/instance/memory.h"
 
-#ifdef WASINN_BUILD_OPENVINO
+#ifdef WASMEDGE_WASINN_BUILD_OPENVINO
 #include <inference_engine.hpp>
 #include <string>
 namespace IE = InferenceEngine;
@@ -41,49 +41,50 @@ Expect<uint32_t> WasiNNLoad::body(Runtime::Instance::MemoryInstance *MemInst
   GraphBuilders = MemInst->getPointer<uint32_t *>(BuilderPtr, 1);
   Graph = MemInst->getPointer<uint32_t *>(GraphPtr, 1);
   if (Encoding == this->Ctx.BackendsMapping.at("OpenVINO")) {
-#ifdef WASINN_BUILD_OPENVINO
+#ifdef WASMEDGE_WASINN_BUILD_OPENVINO
     if (BuilderLen != 2) {
       log->error("Wrong GraphBuilder Length {:d}, expecting 2", BuilderLen);
       return -1;
     }
     IE::Core ie_;
-    std::string device_name = map_target_to_string(Target);
-    if (device_name.length() == 0) {
+    std::string DeviceName = map_target_to_string(Target);
+    if (DeviceName.length() == 0) {
       log->error("Device target {:d} not support!", Target);
       return -1;
     } else {
-      log->info("Using device: {:s}", device_name);
+      log->info("Using device: {:s}", DeviceName);
     }
-    uint32_t xml_strings_len = GraphBuilders[1];
-    uint32_t weight_bins_len = GraphBuilders[3];
+    uint32_t XMLStringLen = GraphBuilders[1];
+    uint32_t WeightBinsLen = GraphBuilders[3];
 
-    uint8_t *xml_ptr = MemInst->getPointer<uint8_t *>(GraphBuilders[0], 1);
-    uint8_t *bin_ptr = MemInst->getPointer<uint8_t *>(GraphBuilders[2], 1);
-    std::vector<uint8_t> xml_strings(xml_ptr, xml_ptr + xml_strings_len);
-    std::vector<uint8_t> weight_bins(bin_ptr, bin_ptr + weight_bins_len);
+    uint8_t *XMLPtr = MemInst->getPointer<uint8_t *>(GraphBuilders[0], 1);
+    uint8_t *BinPtr = MemInst->getPointer<uint8_t *>(GraphBuilders[2], 1);
+    std::vector<uint8_t> XMLStrings(XMLPtr, XMLPtr + XMLStringLen);
+    std::vector<uint8_t> WeightBins(BinPtr, BinPtr + WeightBinsLen);
 
-    log->info("read xml length {:d}", xml_strings.size());
-    log->info("read bin length {:d}", weight_bins.size());
+    log->info("read xml length {:d}", XMLStrings.size());
+    log->info("read bin length {:d}", WeightBins.size());
 
-    std::string xml_model(xml_strings.begin(), xml_strings.end());
-    IE::TensorDesc binDesc(IE::Precision::U8, {weight_bins.size()},
+    std::string XMLModel(XMLStrings.begin(), XMLStrings.end());
+    IE::TensorDesc BinTensorDesc(IE::Precision::U8, {WeightBins.size()},
                            IE::Layout::C);
 
-    std::shared_ptr<IE::Data> data_node(new IE::Data("see", binDesc));
-    IE::Blob::Ptr weights_blob = IE::Blob::CreateFromData(data_node);
-    weights_blob->allocate();
-    uint8_t *buffer_ptr = static_cast<uint8_t *>(weights_blob->buffer());
-    for (size_t i = 0; i < weight_bins.size(); i++) {
-      buffer_ptr[i] = weight_bins[i];
+    std::shared_ptr<IE::Data> WeightDataNode(
+        new IE::Data("WeightDataNode", BinTensorDesc));
+    IE::Blob::Ptr WeightBlob = IE::Blob::CreateFromData(WeightDataNode);
+    WeightBlob->allocate();
+    uint8_t *BufferPtr = static_cast<uint8_t *>(WeightBlob->buffer());
+    for (size_t I = 0; I < WeightBins.size(); I++) {
+      BufferPtr[I] = WeightBins[I];
     }
-    IE::CNNNetwork network = ie_.ReadNetwork(xml_model, weights_blob);
-    IE::ExecutableNetwork executable_network =
-        ie_.LoadNetwork(network, device_name);
+    IE::CNNNetwork Network = ie_.ReadNetwork(XMLModel, WeightBlob);
+    IE::ExecutableNetwork TargetedExecutableNetwork =
+        ie_.LoadNetwork(Network, DeviceName);
 
     this->Ctx.ModelsNum++;
-    this->Ctx.OpenVINONetworks.emplace(this->Ctx.ModelsNum, std::move(network));
+    this->Ctx.OpenVINONetworks.emplace(this->Ctx.ModelsNum, std::move(Network));
     this->Ctx.OpenVINOExecutions.emplace(this->Ctx.ModelsNum,
-                                         std::move(executable_network));
+                                         std::move(TargetedExecutableNetwork));
     this->Ctx.GraphBackends.emplace(this->Ctx.ModelsNum, Encoding);
     log->info("Network created");
     *Graph = this->Ctx.ModelsNum;
@@ -116,13 +117,12 @@ Expect<uint32_t> WasiNNInitExecCtx::body(
 
   if (this->Ctx.GraphBackends[Graph] ==
       this->Ctx.BackendsMapping.at("OpenVINO")) {
-#ifdef WASINN_BUILD_OPENVINO
+#ifdef WASMEDGE_WASINN_BUILD_OPENVINO
     OpenVINOSession Session;
-    // std::unique_ptr<IE::InferRequest> unique_ir(&infer_request);
-    Session.infer_request =
+    Session.SessionInferRequest =
         this->Ctx.OpenVINOExecutions[Graph].CreateInferRequest();
-    Session.network = &(this->Ctx.OpenVINONetworks[Graph]);
-    Session.executable_network = &(this->Ctx.OpenVINOExecutions[Graph]);
+    Session.Network = &(this->Ctx.OpenVINONetworks[Graph]);
+    Session.TargetedExecutableNetwork = &(this->Ctx.OpenVINOExecutions[Graph]);
 
     this->Ctx.ExecutionsNum++;
     this->Ctx.OpenVINOInfers.emplace(this->Ctx.ExecutionsNum,
@@ -156,7 +156,7 @@ Expect<uint32_t> WasiNNSetInput::body(Runtime::Instance::MemoryInstance *MemInst
   }
   if (this->Ctx.GraphContextBackends[Context] ==
       this->Ctx.BackendsMapping.at("OpenVINO")) {
-#ifdef WASINN_BUILD_OPENVINO
+#ifdef WASMEDGE_WASINN_BUILD_OPENVINO
     // reading tensor
     OpenVINOSession &Session = this->Ctx.OpenVINOInfers[Context];
     uint32_t *Tensor = MemInst->getPointer<uint32_t *>(TensorPtr, 1);
@@ -172,70 +172,70 @@ Expect<uint32_t> WasiNNSetInput::body(Runtime::Instance::MemoryInstance *MemInst
       return -1;
     }
     std::vector<size_t> InputDims(DimensionLen);
-    for (uint32_t i = 0; i < InputDims.size(); i++)
-      InputDims[i] = static_cast<size_t>(DimensionBuf[i]);
+    for (uint32_t I = 0; I < InputDims.size(); I++)
+      InputDims[I] = static_cast<size_t>(DimensionBuf[I]);
     size_t total = 1;
-    for (auto x : InputDims)
-      total *= x;
+    for (auto X : InputDims)
+      total *= X;
     log->info("Tensor size: {:d}, {:d}", total, TensorDataLen / 4);
-    TensorType rtype = static_cast<TensorType>(RType);
+    TensorType EnumRType = static_cast<TensorType>(RType);
 
-    IE::Precision tensor_precision;
-    switch (rtype) {
+    IE::Precision TensorPrecision;
+    switch (EnumRType) {
     // case TensorType::TENSOR_TYPE_U8:
-    //   tensor_precision = IE::Precision::U8;
+    //   TensorPrecision = IE::Precision::U8;
     //   log->info("Load tensor type U8");
     //   break;
     // case TensorType::TENSOR_TYPE_I32:
-    //   tensor_precision = IE::Precision::I32;
+    //   TensorPrecision = IE::Precision::I32;
     //   log->info("Load tensor type I32");
     //   break;
 
     /*Only FP32 supported*/
     case TensorType::TENSOR_TYPE_F32:
-      tensor_precision = IE::Precision::FP32;
+      TensorPrecision = IE::Precision::FP32;
       log->info("Load tensor type F32");
       break;
     // case TensorType::TENSOR_TYPE_F16:
-    //   tensor_precision = IE::Precision::FP16;
+    //   TensorPrecision = IE::Precision::FP16;
     //   log->info("Load tensor type F16");
     //   break;
     default:
       break;
     }
-    IE::TensorDesc tDesc(tensor_precision, InputDims, IE::Layout::NHWC);
-    IE::CNNNetwork *network = Session.network;
+    IE::TensorDesc tDesc(TensorPrecision, InputDims, IE::Layout::NHWC);
+    IE::CNNNetwork *Network = Session.Network;
 
-    IE::InputsDataMap input_info = network->getInputsInfo();
-    std::string input_name;
+    IE::InputsDataMap InputInfo = Network->getInputsInfo();
+    std::string InputName;
 
-    uint32_t input_counts = 0;
-    for (auto &item : input_info) {
-      if (input_counts == Index) {
-        input_name = item.first;
-        log->info("Index input: {:s}", input_name);
-        item.second->setPrecision(tensor_precision);
+    uint32_t InputIndex = 0;
+    for (auto &Item : InputInfo) {
+      if (InputIndex == Index) {
+        InputName = Item.first;
+        log->info("Index input: {:s}", InputName);
+        Item.second->setPrecision(TensorPrecision);
         break;
       }
-      input_counts++;
+      InputIndex++;
     }
-    if (input_counts >= input_info.size()) {
+    if (InputIndex >= InputInfo.size()) {
       log->error("Index of inputs is out of range");
       return -1;
     }
 
-    IE::Blob::Ptr input_blob = Session.infer_request.GetBlob(input_name);
+    IE::Blob::Ptr InputBlob = Session.SessionInferRequest.GetBlob(InputName);
     log->info("Context created");
-    IE::SizeVector blobSize = input_blob->getTensorDesc().getDims();
+    IE::SizeVector BlobSize = InputBlob->getTensorDesc().getDims();
     log->info("Context created");
-    const size_t width = blobSize[3];
-    const size_t height = blobSize[2];
-    const size_t channels = blobSize[1];
-    log->info("Input shape for {:s}: {:d}, {:d}, {:d}", input_name, channels,
+    const size_t width = BlobSize[3];
+    const size_t height = BlobSize[2];
+    const size_t channels = BlobSize[1];
+    log->info("Input shape for {:s}: {:d}, {:d}, {:d}", InputName, channels,
               width, height);
     log->info("Context created");
-    IE::MemoryBlob::Ptr mblob = IE::as<IE::MemoryBlob>(input_blob);
-    if (!mblob) {
+    IE::MemoryBlob::Ptr MBlob = IE::as<IE::MemoryBlob>(InputBlob);
+    if (!MBlob) {
       log->error("We expect image blob to be inherited from MemoryBlob in "
                  "OpenVINO backend, but "
                  "by fact we were not able "
@@ -244,13 +244,13 @@ Expect<uint32_t> WasiNNSetInput::body(Runtime::Instance::MemoryInstance *MemInst
     }
     // locked memory holder should be alive all time while access to its buffer
     // happens
-    auto mblobHolder = mblob->wmap();
-    float *blob_data = mblobHolder.as<float *>();
-    for (size_t i = 0; i < TensorDataLen / 4; i++) {
+    auto MBlobHolder = MBlob->wmap();
+    float *BlobData = MBlobHolder.as<float *>();
+    for (size_t I = 0; I < TensorDataLen / 4; I++) {
       uint32_t Tmp =
-          (TensorDataBuf[4 * i] << 0 | TensorDataBuf[4 * i + 1] << 8 |
-           TensorDataBuf[4 * i + 2] << 16 | TensorDataBuf[4 * i + 3] << 24);
-      blob_data[i] = *reinterpret_cast<float *>(&Tmp);
+          (TensorDataBuf[4 * I] << 0 | TensorDataBuf[4 * I + 1] << 8 |
+           TensorDataBuf[4 * I + 2] << 16 | TensorDataBuf[4 * I + 3] << 24);
+      BlobData[I] = *reinterpret_cast<float *>(&Tmp);
     }
     return 0;
 #else
@@ -281,53 +281,53 @@ Expect<uint32_t> WasiNNGetOuput::body(
 
   if (this->Ctx.GraphContextBackends[Context] ==
       this->Ctx.BackendsMapping.at("OpenVINO")) {
-#ifdef WASINN_BUILD_OPENVINO
+#ifdef WASMEDGE_WASINN_BUILD_OPENVINO
     OutBufferPtr = MemInst->getPointer<uint8_t *>(OutBuffer, 1);
     BytesWritten = MemInst->getPointer<uint32_t *>(BytesWrittenPtr, 1);
     OpenVINOSession &Session = this->Ctx.OpenVINOInfers[Context];
-    IE::CNNNetwork *network = Session.network;
+    IE::CNNNetwork *Network = Session.Network;
 
-    IE::OutputsDataMap output_info = network->getOutputsInfo();
-    std::string output_name;
-    uint32_t output_counts = 0;
-    for (auto &item : output_info) {
-      if (output_counts == Index) {
-        output_name = item.first;
-        item.second->setPrecision(IE::Precision::FP32);
+    IE::OutputsDataMap OutputInfo = Network->getOutputsInfo();
+    std::string OutputName;
+    uint32_t OutputIndex = 0;
+    for (auto &Item : OutputInfo) {
+      if (OutputIndex == Index) {
+        OutputName = Item.first;
+        Item.second->setPrecision(IE::Precision::FP32);
         break;
       }
-      output_counts++;
+      OutputIndex++;
     }
-    if (output_counts >= output_info.size()) {
+    if (OutputIndex >= OutputInfo.size()) {
       log->error("Index of outputs is out of range");
       return -1;
     }
 
-    const IE::Blob::Ptr output_blob =
-        Session.infer_request.GetBlob(output_name);
-    IE::MemoryBlob::Ptr mblob = IE::as<IE::MemoryBlob>(output_blob);
-    if (!mblob) {
+    const IE::Blob::Ptr OutputBlob =
+        Session.SessionInferRequest.GetBlob(OutputName);
+    IE::MemoryBlob::Ptr MBlob = IE::as<IE::MemoryBlob>(OutputBlob);
+    if (!MBlob) {
       log->error("We expect output blob to be inherited from MemoryBlob in "
                  "OpenVINO backend, but "
                  "by fact we were not able "
                  "to cast network output to MemoryBlob");
       return -1;
     }
-    auto mblobHolder = mblob->wmap();
-    float *blob_data = mblobHolder.as<float *>();
-    auto output_size = output_blob->size();
-    log->info("get ouput with total size {:d}", output_size);
-    for (uint32_t i = 0; i < output_size; i++) {
-      float Value = blob_data[i];
-      OutBufferPtr[4 * i] = *reinterpret_cast<uint32_t *>(&Value) & 0xff;
-      OutBufferPtr[4 * i + 1] =
+    auto MBlobHolder = MBlob->wmap();
+    float *BlobData = MBlobHolder.as<float *>();
+    auto OutputSize = OutputBlob->size();
+    log->info("get ouput with total size {:d}", OutputSize);
+    for (uint32_t I = 0; I < OutputSize; I++) {
+      float Value = BlobData[I];
+      OutBufferPtr[4 * I] = *reinterpret_cast<uint32_t *>(&Value) & 0xff;
+      OutBufferPtr[4 * I + 1] =
           (*reinterpret_cast<uint32_t *>(&Value) & 0xff00) >> 8;
-      OutBufferPtr[4 * i + 2] =
+      OutBufferPtr[4 * I + 2] =
           (*reinterpret_cast<uint32_t *>(&Value) & 0xff0000) >> 16;
-      OutBufferPtr[4 * i + 3] =
+      OutBufferPtr[4 * I + 3] =
           (*reinterpret_cast<uint32_t *>(&Value) & 0xff000000) >> 24;
     }
-    *BytesWritten = output_size * 4;
+    *BytesWritten = OutputSize * 4;
     return 0;
 #else
     log->error("OpenVINO backend is not built. define -DWASINN_BUILD_OPENVINO "
@@ -352,9 +352,9 @@ Expect<uint32_t> WasiNNCompute::body(Runtime::Instance::MemoryInstance *MemInst
 
   if (this->Ctx.GraphContextBackends[Context] ==
       this->Ctx.BackendsMapping.at("OpenVINO")) {
-#ifdef WASINN_BUILD_OPENVINO
+#ifdef WASMEDGE_WASINN_BUILD_OPENVINO
     OpenVINOSession &Session = this->Ctx.OpenVINOInfers[Context];
-    Session.infer_request.Infer();
+    Session.SessionInferRequest.Infer();
     return 0;
 #else
     log->error("OpenVINO backend is not built. define -DWASINN_BUILD_OPENVINO "

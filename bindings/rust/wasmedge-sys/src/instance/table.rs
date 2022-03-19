@@ -246,7 +246,7 @@ unsafe impl Sync for InnerTableType {}
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{RefType, ValType};
+    use crate::{FuncType, Function, RefType, ValType};
     use std::{
         sync::{Arc, Mutex},
         thread,
@@ -302,6 +302,15 @@ mod tests {
 
     #[test]
     fn test_table_data() {
+        // create a FuncType
+        let result = FuncType::create(vec![ValType::I32; 2], vec![ValType::I32]);
+        assert!(result.is_ok());
+        let func_ty = result.unwrap();
+        // create a host function
+        let result = Function::create(func_ty, Box::new(real_add), 0);
+        assert!(result.is_ok());
+        let mut host_func = result.unwrap();
+
         // create a TableType instance
         let result = TableType::create(RefType::FuncRef, 10..=20);
         assert!(result.is_ok());
@@ -323,14 +332,24 @@ mod tests {
         assert_eq!(value.ty(), ValType::FuncRef);
 
         // set data
-        let result = table.set_data(Value::from_func_ref(5), 3);
+        let result = table.set_data(Value::from_func_ref(&mut host_func), 3);
         assert!(result.is_ok());
         // get data
         let result = table.get_data(3);
         assert!(result.is_ok());
-        let idx = result.unwrap().func_idx();
-        assert!(idx.is_some());
-        assert_eq!(idx.unwrap(), 5);
+        let result = result.unwrap().func_ref();
+        assert!(result.is_some());
+        let func_ref = result.unwrap();
+
+        let result = func_ref.ty();
+        assert!(result.is_ok());
+        let func_ty = result.unwrap();
+        assert_eq!(func_ty.params_len(), 2);
+        let param_tys = func_ty.params_type_iter().collect::<Vec<_>>();
+        assert_eq!(param_tys, [ValType::I32, ValType::I32]);
+        assert_eq!(func_ty.returns_len(), 1);
+        let return_tys = func_ty.returns_type_iter().collect::<Vec<_>>();
+        assert_eq!(return_tys, [ValType::I32]);
     }
 
     #[test]
@@ -400,5 +419,31 @@ mod tests {
         });
 
         handle.join().unwrap();
+    }
+
+    fn real_add(input: Vec<Value>) -> Result<Vec<Value>, u8> {
+        println!("Rust: Entering Rust function real_add");
+
+        if input.len() != 2 {
+            return Err(1);
+        }
+
+        let a = if input[0].ty() == ValType::I32 {
+            input[0].to_i32()
+        } else {
+            return Err(2);
+        };
+
+        let b = if input[1].ty() == ValType::I32 {
+            input[0].to_i32()
+        } else {
+            return Err(3);
+        };
+
+        let c = a + b;
+        println!("Rust: calcuating in real_add c: {:?}", c);
+
+        println!("Rust: Leaving Rust function real_add");
+        Ok(vec![Value::from_i32(c)])
     }
 }

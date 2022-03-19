@@ -5,33 +5,30 @@ wasmedge_add_library(wasmedgeHostModuleWasiNN
   wasinnmodule.cpp
 )
 
-list(APPEND INCLUDE_DIRS "${Boost_INCLUDE_DIRS}")
-list(APPEND INCLUDE_DIRS "${PROJECT_SOURCE_DIR}/include")
-list(APPEND INCLUDES_DIRS "${PROJECT_SOURCE_DIR}/thirdparty")
-
-
-list(APPEND LIB_DIRS "wasmedgeSystem")
-
 # add backends building flags
-add_definitions(-DWASINN_BUILD_OPENVINO)
+option(WASMEDGE_WASINN_BUILD_OPENVINO "Enable WasmEdge Wasi-NN OpenVINO backend" ON)
 
 
-get_directory_property(WASINNDEFS COMPILE_DEFINITIONS)
-if(WASINNDEFS MATCHES "WASINN_BUILD_OPENVINO")
+if(WASMEDGE_WASINN_BUILD_OPENVINO)
   message( STATUS "Build OpenVINO backend for WASI-NN")
   find_package(ngraph REQUIRED)
   find_package(InferenceEngine REQUIRED)
-  list(APPEND LIB_DIRS ${InferenceEngine_LIBRARIES} )
-  list(APPEND LIB_DIRS ${NGRAPH_LIBRARIES})
+  target_link_libraries(wasmedgeHostModuleWasiNN
+    PUBLIC
+    ${InferenceEngine_LIBRARIES}
+    ${NGRAPH_LIBRARIES}
+  )
 endif()
 
 
 target_include_directories(wasmedgeHostModuleWasiNN
   PUBLIC
-  ${INCLUDE_DIRS}
+  "${Boost_INCLUDE_DIRS}"
+  "${PROJECT_SOURCE_DIR}/include"
+  "${PROJECT_SOURCE_DIR}/thirdparty"
 )
 
 target_link_libraries(wasmedgeHostModuleWasiNN
   PUBLIC
-  ${LIB_DIRS}
+  "wasmedgeSystem"
 )

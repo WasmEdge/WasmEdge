@@ -1,6 +1,6 @@
 //! Defines the WebAssembly primitive types.
 
-use crate::wasmedge;
+use crate::{instance::function::InnerFunc, wasmedge, Function};
 use core::ffi::c_void;
 use std::{ffi::CString, fmt, str::FromStr};
 
@@ -460,9 +460,9 @@ impl Value {
     /// # Argument
     ///
     /// - `idx` specifies the function index.
-    pub fn from_func_ref(idx: u32) -> Self {
+    pub fn from_func_ref(func: &mut Function) -> Self {
         Self {
-            ctx: unsafe { wasmedge::WasmEdge_ValueGenFuncRef(idx) },
+            ctx: unsafe { wasmedge::WasmEdge_ValueGenFuncRef(func.inner.0) },
             ty: ValType::FuncRef,
         }
     }
@@ -470,13 +470,17 @@ impl Value {
     /// Returns the function index.
     ///
     /// If the [`Value`] is a `NullRef`, then `None` is returned.
-    pub fn func_idx(&self) -> Option<u32> {
+    pub fn func_ref(&self) -> Option<Function> {
         unsafe {
             match wasmedge::WasmEdge_ValueIsNullRef(self.ctx) {
                 true => None,
                 false => {
-                    let idx = wasmedge::WasmEdge_ValueGetFuncIdx(self.ctx);
-                    Some(idx)
+                    let ctx = wasmedge::WasmEdge_ValueGetFuncRef(self.ctx);
+                    // Some(idx)
+                    Some(Function {
+                        inner: InnerFunc(ctx),
+                        registered: true,
+                    })
                 }
             }
         }

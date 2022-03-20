@@ -2,80 +2,160 @@ use crate::{
     error::Result, wasmedge, GlobalType, HostFunc, MemoryType, Signature, TableType, Value,
 };
 
-#[derive(Debug)]
-pub struct ImportMod {
-    pub(crate) inner: wasmedge::ImportObject,
+#[derive(Debug, Default)]
+pub struct ImportModuleBuilder {
+    funcs: Vec<(String, wasmedge::Function)>,
+    globals: Vec<(String, wasmedge::Global)>,
+    memories: Vec<(String, wasmedge::Memory)>,
+    tables: Vec<(String, wasmedge::Table)>,
 }
-impl ImportMod {
-    pub fn new(name: impl AsRef<str>) -> Result<Self> {
-        let inner = wasmedge::ImportObject::create(name.as_ref())?;
-        Ok(Self { inner })
+impl ImportModuleBuilder {
+    pub fn new() -> Self {
+        Self {
+            funcs: Vec::new(),
+            globals: Vec::new(),
+            memories: Vec::new(),
+            tables: Vec::new(),
+        }
     }
 
-    pub fn new_wasi<'a>(
-        args: Option<Vec<&'a str>>,
-        envs: Option<Vec<&'a str>>,
-        preopens: Option<Vec<&'a str>>,
-    ) -> Result<Self> {
-        let inner = wasmedge::ImportObject::create_wasi(args, envs, preopens)?;
-        Ok(Self { inner })
-    }
-
-    pub fn new_wasmedge_process(allowed_cmds: Option<Vec<&str>>, allowed: bool) -> Result<Self> {
-        let inner = wasmedge::ImportObject::create_wasmedge_process(allowed_cmds, allowed)?;
-        Ok(Self { inner })
-    }
-
-    pub fn name(&self) -> String {
-        self.inner.name()
-    }
-
-    pub fn add_func(
-        &mut self,
+    pub fn with_func(
+        mut self,
         name: impl AsRef<str>,
         sig: Signature,
         real_func: Box<HostFunc>,
-    ) -> Result<()> {
-        let inner = wasmedge::Function::create(sig.into(), real_func, 0)?;
-        self.inner.add_func(name.as_ref(), inner);
-        Ok(())
+    ) -> Result<Self> {
+        let inner_func = wasmedge::Function::create(sig.into(), real_func, 0)?;
+        self.funcs.push((name.as_ref().to_owned(), inner_func));
+        Ok(self)
     }
 
-    /// Given the type and the value, creates a new [Global](crate::Global) instance and adds it to this import module.
-    pub fn add_global(
-        &mut self,
+    pub fn with_global(
+        mut self,
         name: impl AsRef<str>,
-        global_ty: GlobalType,
-        value: Value,
-    ) -> Result<()> {
-        let ty = global_ty.to_raw()?;
-        let global = wasmedge::Global::create(ty, value)?;
-        self.inner.add_global(name.as_ref(), global);
-        Ok(())
+        ty: GlobalType,
+        init: Value,
+    ) -> Result<Self> {
+        let inner_global = wasmedge::Global::create(ty.to_raw()?, init)?;
+        self.globals.push((name.as_ref().to_owned(), inner_global));
+        Ok(self)
     }
 
-    /// Given the type and the value, creates a new [Memory](crate::Memory) instance and adds it to this import module.
-    pub fn add_memory(&mut self, name: impl AsRef<str>, memory_ty: MemoryType) -> Result<()> {
-        let inner_ty = memory_ty.to_raw()?;
-        let memory = wasmedge::Memory::create(&inner_ty)?;
-        self.inner.add_memory(name.as_ref(), memory);
-        Ok(())
+    pub fn with_memory(mut self, name: impl AsRef<str>, ty: MemoryType) -> Result<Self> {
+        let inner_memory = wasmedge::Memory::create(&ty.to_raw()?)?;
+        self.memories.push((name.as_ref().to_owned(), inner_memory));
+        Ok(self)
     }
 
-    /// Given the type and the value, creates a new [Table](crate::Table) instance and adds it to this import module.
-    pub fn add_table(&mut self, name: impl AsRef<str>, table_ty: TableType) -> Result<()> {
-        let ty = table_ty.to_raw()?;
-        let table = wasmedge::Table::create(ty)?;
-        self.inner.add_table(name.as_ref(), table);
-        Ok(())
+    pub fn with_table(mut self, name: impl AsRef<str>, ty: TableType) -> Result<Self> {
+        let inner_table = wasmedge::Table::create(ty.to_raw()?)?;
+        self.tables.push((name.as_ref().to_owned(), inner_table));
+        Ok(self)
+    }
+
+    pub fn build(self, name: impl AsRef<str>) -> Result<ImportModule> {
+        let mut inner = wasmedge::ImportObject::create(name.as_ref())?;
+
+        // add func
+        for (name, func) in self.funcs.into_iter() {
+            inner.add_func(name, func);
+        }
+
+        // add global
+        for (name, global) in self.globals.into_iter() {
+            inner.add_global(name, global);
+        }
+
+        // add memory
+        for (name, memory) in self.memories.into_iter() {
+            inner.add_memory(name, memory);
+        }
+
+        // add table
+        for (name, table) in self.tables.into_iter() {
+            inner.add_table(name, table);
+        }
+
+        Ok(ImportModule { inner })
+    }
+
+    pub fn build_as_wasi<'a>(
+        self,
+        args: Option<Vec<&'a str>>,
+        envs: Option<Vec<&'a str>>,
+        preopens: Option<Vec<&'a str>>,
+    ) -> Result<ImportModule> {
+        let mut inner = wasmedge::ImportObject::create_wasi(args, envs, preopens)?;
+
+        // add func
+        for (name, func) in self.funcs.into_iter() {
+            inner.add_func(name, func);
+        }
+
+        // add global
+        for (name, global) in self.globals.into_iter() {
+            inner.add_global(name, global);
+        }
+
+        // add memory
+        for (name, memory) in self.memories.into_iter() {
+            inner.add_memory(name, memory);
+        }
+
+        // add table
+        for (name, table) in self.tables.into_iter() {
+            inner.add_table(name, table);
+        }
+
+        Ok(ImportModule { inner })
+    }
+
+    pub fn build_as_wasmedge_process(
+        self,
+        allowed_cmds: Option<Vec<&str>>,
+        allowed: bool,
+    ) -> Result<ImportModule> {
+        let mut inner = wasmedge::ImportObject::create_wasmedge_process(allowed_cmds, allowed)?;
+
+        // add func
+        for (name, func) in self.funcs.into_iter() {
+            inner.add_func(name, func);
+        }
+
+        // add global
+        for (name, global) in self.globals.into_iter() {
+            inner.add_global(name, global);
+        }
+
+        // add memory
+        for (name, memory) in self.memories.into_iter() {
+            inner.add_memory(name, memory);
+        }
+
+        // add table
+        for (name, table) in self.tables.into_iter() {
+            inner.add_table(name, table);
+        }
+
+        Ok(ImportModule { inner })
     }
 }
 
 #[derive(Debug)]
-pub struct WasiImportMod<'vm> {
+pub struct ImportModule {
+    pub(crate) inner: wasmedge::ImportObject,
+}
+impl ImportModule {
+    pub fn name(&self) -> String {
+        self.inner.name()
+    }
+}
+
+#[derive(Debug)]
+pub struct WasiImportModule<'vm> {
     pub(crate) inner: &'vm mut wasmedge::ImportObject,
 }
-impl<'vm> WasiImportMod<'vm> {
+impl<'vm> WasiImportModule<'vm> {
     pub fn name(&self) -> String {
         self.inner.name()
     }
@@ -95,10 +175,10 @@ impl<'vm> WasiImportMod<'vm> {
 }
 
 #[derive(Debug)]
-pub struct WasmEdgeProcessImportMod<'vm> {
+pub struct WasmEdgeProcessImportModule<'vm> {
     pub(crate) inner: &'vm mut wasmedge::ImportObject,
 }
-impl<'vm> WasmEdgeProcessImportMod<'vm> {
+impl<'vm> WasmEdgeProcessImportModule<'vm> {
     pub fn name(&self) -> String {
         self.inner.name()
     }
@@ -117,19 +197,42 @@ mod tests {
     };
 
     #[test]
-    fn test_import_new_wasmedgeprocess() {
-        // create a WasmEdgeProcess module
-        let result = ImportMod::new_wasmedge_process(None, false);
-        assert!(result.is_ok());
-        let mut process_import = result.unwrap();
+    fn test_import_new() {
+        {
+            let result = ImportModuleBuilder::default().build("extern");
+            assert!(result.is_ok());
+            let import = result.unwrap();
+            assert_eq!(import.name(), "extern");
+        }
+        {
+            let result = ImportModuleBuilder::default().build_as_wasi(None, None, None);
+            assert!(result.is_ok());
+            let import = result.unwrap();
+            assert_eq!(import.name(), "wasi_snapshot_preview1");
+        }
+        {
+            let result = ImportModuleBuilder::default().build_as_wasmedge_process(None, false);
+            assert!(result.is_ok());
+            let import = result.unwrap();
+            assert_eq!(import.name(), "wasmedge_process");
+        }
+    }
 
-        // add host function
-        let signature = SignatureBuilder::new()
-            .with_args(vec![ValType::I32; 2])
-            .with_returns(vec![ValType::I32])
-            .build();
-        let result = process_import.add_func("add", signature, Box::new(real_add));
+    #[test]
+    fn test_import_new_wasmedgeprocess() {
+        let result = ImportModuleBuilder::new()
+            .with_func(
+                "add",
+                SignatureBuilder::new()
+                    .with_args(vec![ValType::I32; 2])
+                    .with_returns(vec![ValType::I32])
+                    .build(),
+                Box::new(real_add),
+            )
+            .expect("failed to add host func")
+            .build_as_wasmedge_process(None, false);
         assert!(result.is_ok());
+        let process_import = result.unwrap();
 
         // create an executor
         let result = ConfigBuilder::new(CommonConfigOptions::default()).build();
@@ -173,7 +276,7 @@ mod tests {
         // * try to add another WasmEdgeProcess module, that causes error
 
         // create a WasmEdgeProcess module
-        let result = ImportMod::new_wasmedge_process(None, false);
+        let result = ImportModuleBuilder::default().build_as_wasmedge_process(None, false);
         assert!(result.is_ok());
         let import_process = result.unwrap();
 
@@ -191,18 +294,20 @@ mod tests {
 
     #[test]
     fn test_import_new_wasi() {
-        // create a WasmEdgeProcess module
-        let result = ImportMod::new_wasi(None, None, None);
+        // create a wasi module
+        let result = ImportModuleBuilder::new()
+            .with_func(
+                "add",
+                SignatureBuilder::new()
+                    .with_args(vec![ValType::I32; 2])
+                    .with_returns(vec![ValType::I32])
+                    .build(),
+                Box::new(real_add),
+            )
+            .expect("failed to add host func")
+            .build_as_wasi(None, None, None);
         assert!(result.is_ok());
-        let mut wasi_import = result.unwrap();
-
-        // add host function
-        let signature = SignatureBuilder::new()
-            .with_args(vec![ValType::I32; 2])
-            .with_returns(vec![ValType::I32])
-            .build();
-        let result = wasi_import.add_func("add", signature, Box::new(real_add));
-        assert!(result.is_ok());
+        let wasi_import = result.unwrap();
 
         // create an executor
         let result = ConfigBuilder::new(CommonConfigOptions::default()).build();
@@ -234,7 +339,7 @@ mod tests {
         // * try to add another Wasi module, that causes error
 
         // create a Wasi module
-        let result = ImportMod::new_wasi(None, None, None);
+        let result = ImportModuleBuilder::default().build_as_wasi(None, None, None);
         assert!(result.is_ok());
         let wasi_import = result.unwrap();
 
@@ -252,18 +357,20 @@ mod tests {
 
     #[test]
     fn test_import_add_func() {
-        // create an ImportObject module
-        let result = ImportMod::new("extern");
+        // create an ImportModule
+        let result = ImportModuleBuilder::new()
+            .with_func(
+                "add",
+                SignatureBuilder::new()
+                    .with_args(vec![ValType::I32; 2])
+                    .with_returns(vec![ValType::I32])
+                    .build(),
+                Box::new(real_add),
+            )
+            .expect("failed to add host func")
+            .build("extern");
         assert!(result.is_ok());
-        let mut import = result.unwrap();
-
-        // add host function
-        let signature = SignatureBuilder::new()
-            .with_args(vec![ValType::I32; 2])
-            .with_returns(vec![ValType::I32])
-            .build();
-        let result = import.add_func("add", signature, Box::new(real_add));
-        assert!(result.is_ok());
+        let import = result.unwrap();
 
         // create an executor
         let result = ConfigBuilder::new(CommonConfigOptions::default()).build();
@@ -308,17 +415,13 @@ mod tests {
 
     #[test]
     fn test_import_add_memory() {
-        // create an ImportObject module
-        let result = ImportMod::new("extern");
+        // create an ImportModule
+        let result = ImportModuleBuilder::new()
+            .with_memory("memory", MemoryType::new(10, Some(20)))
+            .expect("failed to add memory")
+            .build("extern");
         assert!(result.is_ok());
-        let mut import = result.unwrap();
-
-        // add a memory
-        let mem_ty = MemoryType::new(10, Some(20));
-
-        // add a memory to the import module
-        let result = import.add_memory("memory", mem_ty);
-        assert!(result.is_ok());
+        let import = result.unwrap();
 
         // create an executor
         let result = ConfigBuilder::new(CommonConfigOptions::default()).build();
@@ -378,26 +481,23 @@ mod tests {
 
     #[test]
     fn test_import_add_global() {
-        // create an ImportObject module
-        let result = ImportMod::new("extern");
+        // create an ImportModule
+        let result = ImportModuleBuilder::new()
+            .with_global(
+                "const-global",
+                GlobalType::new(ValType::I32, Mutability::Const),
+                Value::from_i32(1314),
+            )
+            .expect("failed to add const-global")
+            .with_global(
+                "var-global",
+                GlobalType::new(ValType::F32, Mutability::Var),
+                Value::from_f32(13.14),
+            )
+            .expect("failed to add var-global")
+            .build("extern");
         assert!(result.is_ok());
-        let mut import = result.unwrap();
-
-        // add a Const global
-        let result = import.add_global(
-            "const-global",
-            GlobalType::new(ValType::I32, Mutability::Const),
-            Value::from_i32(1314),
-        );
-        assert!(result.is_ok());
-
-        // add a Var global
-        let result = import.add_global(
-            "var-global",
-            GlobalType::new(ValType::F32, Mutability::Var),
-            Value::from_f32(13.14),
-        );
-        assert!(result.is_ok());
+        let import = result.unwrap();
 
         // create an executor
         let result = ConfigBuilder::new(CommonConfigOptions::default()).build();
@@ -488,14 +588,13 @@ mod tests {
 
     #[test]
     fn test_import_add_table() {
-        // create an ImportObject module
-        let result = ImportMod::new("extern");
+        // create an ImportModule
+        let result = ImportModuleBuilder::new()
+            .with_table("table", TableType::new(RefType::FuncRef, 10, Some(20)))
+            .expect("failed to add table")
+            .build("extern");
         assert!(result.is_ok());
-        let mut import = result.unwrap();
-
-        // add a table
-        let result = import.add_table("table", TableType::new(RefType::FuncRef, 10, Some(20)));
-        assert!(result.is_ok());
+        let import = result.unwrap();
 
         // create an executor
         let result = ConfigBuilder::new(CommonConfigOptions::default()).build();

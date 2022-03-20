@@ -25,7 +25,7 @@ impl ImportModuleBuilder {
         sig: Signature,
         real_func: Box<HostFunc>,
     ) -> Result<Self> {
-        let inner_func = wasmedge::Function::create(sig.into(), real_func, 0)?;
+        let inner_func = wasmedge::Function::create(&sig.into(), real_func, 0)?;
         self.funcs.push((name.as_ref().to_owned(), inner_func));
         Ok(self)
     }
@@ -36,7 +36,7 @@ impl ImportModuleBuilder {
         ty: GlobalType,
         init: Value,
     ) -> Result<Self> {
-        let inner_global = wasmedge::Global::create(ty.to_raw()?, init)?;
+        let inner_global = wasmedge::Global::create(&ty.to_raw()?, init)?;
         self.globals.push((name.as_ref().to_owned(), inner_global));
         Ok(self)
     }
@@ -48,7 +48,7 @@ impl ImportModuleBuilder {
     }
 
     pub fn with_table(mut self, name: impl AsRef<str>, ty: TableType) -> Result<Self> {
-        let inner_table = wasmedge::Table::create(ty.to_raw()?)?;
+        let inner_table = wasmedge::Table::create(&ty.to_raw()?)?;
         self.tables.push((name.as_ref().to_owned(), inner_table));
         Ok(self)
     }

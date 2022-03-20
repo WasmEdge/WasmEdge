@@ -15,6 +15,7 @@
 
 #include "host/wasi_crypto/signatures/ecdsa.h"
 #include "host/wasi_crypto/signatures/eddsa.h"
+#include "host/wasi_crypto/signatures/rsa.h"
 #include "host/wasi_crypto/utils/error.h"
 
 #include <variant>
@@ -35,7 +36,13 @@ template <typename... T> struct Registed {
       std::variant<typename T::VerificationState...>;
 };
 
-using RegistedAlg = Registed<EcdsaK256, EcdsaP256, Eddsa>;
+using RegistedAlg =
+    Registed<EcdsaK256, EcdsaP256, Eddsa, RSA_PKCS1_2048_SHA256,
+             RSA_PKCS1_2048_SHA384, RSA_PKCS1_2048_SHA512,
+             RSA_PKCS1_3072_SHA384, RSA_PKCS1_3072_SHA512,
+             RSA_PKCS1_4096_SHA512, RSA_PSS_2048_SHA256, RSA_PSS_2048_SHA384,
+             RSA_PSS_2048_SHA512, RSA_PSS_3072_SHA384, RSA_PSS_3072_SHA512,
+             RSA_PSS_4096_SHA512>;
 
 } // namespace Signatures
 } // namespace WasiCrypto

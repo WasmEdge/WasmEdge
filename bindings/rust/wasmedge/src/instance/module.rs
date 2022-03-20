@@ -101,8 +101,8 @@ impl<'store> Instance<'store> {
 mod tests {
     use crate::{
         wasmedge::{Mutability, RefType},
-        CommonConfigOptions, ConfigBuilder, Executor, GlobalType, ImportMod, MemoryType, Module,
-        SignatureBuilder, Statistics, Store, TableType, ValType, Value,
+        CommonConfigOptions, ConfigBuilder, Executor, GlobalType, ImportModuleBuilder, MemoryType,
+        Module, SignatureBuilder, Statistics, Store, TableType, ValType, Value,
     };
 
     #[test]
@@ -129,33 +129,30 @@ mod tests {
         assert_eq!(store.named_instance_count(), 0);
         assert!(store.instance_names().is_none());
 
-        // create an ImportMod instance
-        let result = ImportMod::new("extern-module");
+        // create an ImportModule instance
+        let result = ImportModuleBuilder::new()
+            .with_func(
+                "add",
+                SignatureBuilder::new()
+                    .with_args(vec![ValType::I32; 2])
+                    .with_returns(vec![ValType::I32])
+                    .build(),
+                Box::new(real_add),
+            )
+            .expect("failed to add host function")
+            .with_global(
+                "global",
+                GlobalType::new(ValType::F32, Mutability::Const),
+                Value::from_f32(3.5),
+            )
+            .expect("failed to add const global")
+            .with_memory("mem", MemoryType::new(10, None))
+            .expect("failed to add memory")
+            .with_table("table", TableType::new(RefType::FuncRef, 5, None))
+            .expect("failed to add table")
+            .build("extern-module");
         assert!(result.is_ok());
-        let mut import = result.unwrap();
-
-        // add host function
-        let sig = SignatureBuilder::new()
-            .with_args(vec![ValType::I32; 2])
-            .with_returns(vec![ValType::I32])
-            .build();
-        let result = import.add_func("add", sig, Box::new(real_add));
-        assert!(result.is_ok());
-
-        // add table
-        let ty = TableType::new(RefType::FuncRef, 5, None);
-        let result = import.add_table("table", ty);
-        assert!(result.is_ok());
-
-        // add memory
-        let ty = MemoryType::new(10, None);
-        let result = import.add_memory("mem", ty);
-        assert!(result.is_ok());
-
-        // add globals
-        let ty = GlobalType::new(ValType::F32, Mutability::Const);
-        let result = import.add_global("global", ty, Value::from_f32(3.5));
-        assert!(result.is_ok());
+        let import = result.unwrap();
 
         let result = store.register_import_module(&mut executor, &import);
         assert!(result.is_ok());

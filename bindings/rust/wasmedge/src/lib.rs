@@ -30,8 +30,9 @@ pub use config::{
 pub use executor::Executor;
 #[doc(inline)]
 pub use instance::{
-    Func, Global, GlobalType, HostFunc, ImportMod, Instance, Memory, MemoryType, Signature,
-    SignatureBuilder, Table, TableType, WasiImportMod, WasmEdgeProcessImportMod,
+    Func, Global, GlobalType, HostFunc, ImportModule, ImportModuleBuilder, Instance, Memory,
+    MemoryType, Signature, SignatureBuilder, Table, TableType, WasiImportModule,
+    WasmEdgeProcessImportModule,
 };
 #[doc(inline)]
 pub use module::{ExportType, ExternalType, ImportType, Module};
@@ -46,6 +47,6 @@ pub use wasmedge_sys::types::*;
 
 pub trait Engine {
     fn register_wasm_from_module(&mut self);
-    fn register_wasm_from_import(&mut self, import: &mut ImportMod);
+    fn register_wasm_from_import(&mut self, import: &mut ImportModule);
     fn run_func(&self);
 }

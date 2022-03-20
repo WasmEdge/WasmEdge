@@ -9,7 +9,7 @@ The solution is server-side rendering (SSR). That is to have edge servers run th
 * [React JS SSR function](../../dev/js/ssr.md)
 * Vue JS SSR function (coming soon)
 * Yew Rust compiled to WebAssembly SSR function (coming soon)
-* Percy Rust compiled to WebAssembly SSR function (coming soon)
+* [Percy Rust compiled to WebAssembly SSR function](../../dev/rust/ssr.md)
 
 We also exploring ways to render more complex UI and interactions on WasmEdge-based edge servers, and then stream the rendered results to the client application. Potential examples include
 

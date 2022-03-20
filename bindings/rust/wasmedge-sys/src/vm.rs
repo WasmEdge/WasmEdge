@@ -1315,7 +1315,7 @@ mod tests {
         let result = FuncType::create(vec![ValType::I32; 2], vec![ValType::I32]);
         assert!(result.is_ok());
         let func_ty = result.unwrap();
-        let result = Function::create(func_ty, Box::new(real_add), 0);
+        let result = Function::create(&func_ty, Box::new(real_add), 0);
         assert!(result.is_ok());
         let host_func = result.unwrap();
         import_obj.add_func("add", host_func);
@@ -1699,7 +1699,7 @@ mod tests {
             let result = FuncType::create(vec![ValType::I32; 2], vec![ValType::I32]);
             assert!(result.is_ok());
             let func_ty = result.unwrap();
-            let result = Function::create(func_ty, Box::new(real_add), 0);
+            let result = Function::create(&func_ty, Box::new(real_add), 0);
             assert!(result.is_ok());
             let host_func = result.unwrap();
             import_wasi.add_func("add", host_func);
@@ -1809,7 +1809,7 @@ mod tests {
             let result = FuncType::create(vec![ValType::I32; 2], vec![ValType::I32]);
             assert!(result.is_ok());
             let func_ty = result.unwrap();
-            let result = Function::create(func_ty, Box::new(real_add), 0);
+            let result = Function::create(&func_ty, Box::new(real_add), 0);
             assert!(result.is_ok());
             let host_func = result.unwrap();
             import_process.add_func("add", host_func);

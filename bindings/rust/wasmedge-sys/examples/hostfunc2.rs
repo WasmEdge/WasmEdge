@@ -71,7 +71,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     );
     assert!(result.is_ok());
     let func_ty = result.unwrap();
-    let result = Function::create(func_ty, Box::new(real_add), 0);
+    let result = Function::create(&func_ty, Box::new(real_add), 0);
     assert!(result.is_ok());
     let host_func = result.unwrap();
     import_obj.add_func("add", host_func);

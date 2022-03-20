@@ -335,7 +335,7 @@ mod tests {
         let result = FuncType::create([ValType::ExternRef, ValType::I32], [ValType::I32]);
         assert!(result.is_ok());
         let func_ty = result.unwrap();
-        let result = Function::create(func_ty, Box::new(real_add), 0);
+        let result = Function::create(&func_ty, Box::new(real_add), 0);
         assert!(result.is_ok());
         let host_func = result.unwrap();
         // add the function into the import_obj module
@@ -345,7 +345,7 @@ mod tests {
         let result = TableType::create(RefType::FuncRef, 10..=20);
         assert!(result.is_ok());
         let table_ty = result.unwrap();
-        let result = Table::create(table_ty);
+        let result = Table::create(&table_ty);
         assert!(result.is_ok());
         let host_table = result.unwrap();
         // add the table into the import_obj module
@@ -365,7 +365,7 @@ mod tests {
         let result = GlobalType::create(ValType::I32, Mutability::Const);
         assert!(result.is_ok());
         let global_ty = result.unwrap();
-        let result = Global::create(global_ty, Value::from_i32(666));
+        let result = Global::create(&global_ty, Value::from_i32(666));
         assert!(result.is_ok());
         let host_global = result.unwrap();
         // add the global into import_obj module

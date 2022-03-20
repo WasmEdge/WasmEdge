@@ -424,7 +424,7 @@ mod tests {
         let result = FuncType::create(vec![ValType::I32; 2], vec![ValType::I32]);
         assert!(result.is_ok());
         let func_ty = result.unwrap();
-        let result = Function::create(func_ty, Box::new(real_add), 0);
+        let result = Function::create(&func_ty, Box::new(real_add), 0);
         assert!(result.is_ok());
         let host_func = result.unwrap();
         import.add_func("add", host_func);
@@ -433,7 +433,7 @@ mod tests {
         let result = TableType::create(RefType::FuncRef, 0..=u32::MAX);
         assert!(result.is_ok());
         let ty = result.unwrap();
-        let result = Table::create(ty);
+        let result = Table::create(&ty);
         assert!(result.is_ok());
         let table = result.unwrap();
         import.add_table("table", table);
@@ -453,7 +453,7 @@ mod tests {
         let result = GlobalType::create(ValType::F32, Mutability::Const);
         assert!(result.is_ok());
         let ty = result.unwrap();
-        let result = Global::create(ty, Value::from_f32(3.5));
+        let result = Global::create(&ty, Value::from_f32(3.5));
         assert!(result.is_ok());
         let global = result.unwrap();
         import.add_global("global", global);
@@ -493,7 +493,7 @@ mod tests {
         let result = FuncType::create(vec![ValType::I32; 2], vec![ValType::I32]);
         assert!(result.is_ok());
         let func_ty = result.unwrap();
-        let result = Function::create(func_ty, Box::new(real_add), 0);
+        let result = Function::create(&func_ty, Box::new(real_add), 0);
         assert!(result.is_ok());
         let host_func = result.unwrap();
         import.add_func("add", host_func);
@@ -502,7 +502,7 @@ mod tests {
         let result = TableType::create(RefType::FuncRef, 0..=u32::MAX);
         assert!(result.is_ok());
         let ty = result.unwrap();
-        let result = Table::create(ty);
+        let result = Table::create(&ty);
         assert!(result.is_ok());
         let table = result.unwrap();
         import.add_table("table", table);
@@ -520,7 +520,7 @@ mod tests {
         let result = GlobalType::create(ValType::F32, Mutability::Const);
         assert!(result.is_ok());
         let ty = result.unwrap();
-        let result = Global::create(ty, Value::from_f32(3.5));
+        let result = Global::create(&ty, Value::from_f32(3.5));
         assert!(result.is_ok());
         let global = result.unwrap();
         import.add_global("global", global);

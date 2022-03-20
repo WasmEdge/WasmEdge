@@ -39,11 +39,11 @@ impl Table {
     /// let ty = TableType::create(RefType::FuncRef, 10..=20).expect("fail to create a TableType");
     ///
     /// // create a Table instance
-    /// let table = Table::create(ty).expect("fail to create a Table");
+    /// let table = Table::create(&ty).expect("fail to create a Table");
     /// ```
-    pub fn create(mut ty: TableType) -> WasmEdgeResult<Self> {
+    pub fn create(ty: &TableType) -> WasmEdgeResult<Self> {
         let ctx = unsafe { wasmedge::WasmEdge_TableInstanceCreate(ty.inner.0) };
-        ty.inner.0 = std::ptr::null_mut();
+
         match ctx.is_null() {
             true => Err(WasmEdgeError::Table(TableError::Create)),
             false => Ok(Table {
@@ -121,7 +121,7 @@ impl Table {
     ///
     /// // create a TableType instance and a Table
     /// let ty = TableType::create(RefType::FuncRef, 10..=20).expect("fail to create a TableType");
-    /// let table = Table::create(ty).expect("fail to create a Table");
+    /// let table = Table::create(&ty).expect("fail to create a Table");
     ///
     /// // check capacity
     /// assert_eq!(table.capacity(), 10);
@@ -275,7 +275,7 @@ mod tests {
         let ty = result.unwrap();
 
         // create a Table instance
-        let result = Table::create(ty);
+        let result = Table::create(&ty);
         assert!(result.is_ok());
         let mut table = result.unwrap();
 
@@ -317,7 +317,7 @@ mod tests {
         let ty = result.unwrap();
 
         // create a Table instance
-        let result = Table::create(ty);
+        let result = Table::create(&ty);
         assert!(result.is_ok());
         let mut table = result.unwrap();
 
@@ -360,7 +360,7 @@ mod tests {
         let ty = result.unwrap();
 
         // create a Table instance
-        let result = Table::create(ty);
+        let result = Table::create(&ty);
         assert!(result.is_ok());
         let table = result.unwrap();
 
@@ -393,7 +393,7 @@ mod tests {
         let ty = result.unwrap();
 
         // create a Table instance
-        let result = Table::create(ty);
+        let result = Table::create(&ty);
         assert!(result.is_ok());
         let table = Arc::new(Mutex::new(result.unwrap()));
 

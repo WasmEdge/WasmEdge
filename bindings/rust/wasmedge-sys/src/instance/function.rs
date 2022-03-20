@@ -120,10 +120,10 @@ impl Function {
     /// let func_ty = FuncType::create(vec![ValType::I32; 2], vec![ValType::I32]).expect("fail to create a FuncType");
     ///
     /// // create a Function instance
-    /// let func = Function::create(func_ty, Box::new(real_add), 0).expect("fail to create a Function instance");
+    /// let func = Function::create(&func_ty, Box::new(real_add), 0).expect("fail to create a Function instance");
     /// ```
     pub fn create(
-        mut ty: FuncType,
+        ty: &FuncType,
         real_fn: Box<dyn Fn(Vec<Value>) -> Result<Vec<Value>, u8>>,
         cost: u64,
     ) -> WasmEdgeResult<Self> {
@@ -158,7 +158,6 @@ impl Function {
                 cost,
             )
         };
-        ty.inner.0 = std::ptr::null_mut();
 
         match ctx.is_null() {
             true => Err(WasmEdgeError::Func(FuncError::Create)),
@@ -399,7 +398,7 @@ mod tests {
         assert!(result.is_ok());
         let func_ty = result.unwrap();
         // create a host function
-        let result = Function::create(func_ty, Box::new(real_add), 0);
+        let result = Function::create(&func_ty, Box::new(real_add), 0);
         assert!(result.is_ok());
         let host_func = result.unwrap();
 
@@ -425,7 +424,7 @@ mod tests {
         let result = FuncType::create(vec![ValType::I32; 2], vec![ValType::I32]);
         assert!(result.is_ok());
         let func_ty = result.unwrap();
-        let result = Function::create(func_ty, Box::new(real_add), 0);
+        let result = Function::create(&func_ty, Box::new(real_add), 0);
         assert!(result.is_ok());
         let host_func = result.unwrap();
 
@@ -465,7 +464,7 @@ mod tests {
         assert!(result.is_ok());
         let func_ty = result.unwrap();
         // create a host function
-        let result = Function::create(func_ty, Box::new(real_add), 0);
+        let result = Function::create(&func_ty, Box::new(real_add), 0);
         assert!(result.is_ok());
         let host_func = result.unwrap();
 
@@ -496,7 +495,7 @@ mod tests {
         assert!(result.is_ok());
         let func_ty = result.unwrap();
         // create a host function
-        let result = Function::create(func_ty, Box::new(real_add), 0);
+        let result = Function::create(&func_ty, Box::new(real_add), 0);
         assert!(result.is_ok());
         let host_func = Arc::new(Mutex::new(result.unwrap()));
 

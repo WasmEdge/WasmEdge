@@ -599,7 +599,7 @@ mod tests {
         let result = TableType::create(RefType::FuncRef, 10..=20);
         assert!(result.is_ok());
         let ty = result.unwrap();
-        let result = Table::create(ty);
+        let result = Table::create(&ty);
         assert!(result.is_ok());
         let mut table = result.unwrap();
         let value = Value::from_extern_ref(&mut table);
@@ -648,7 +648,7 @@ mod tests {
         let result = TableType::create(RefType::FuncRef, 10..=20);
         assert!(result.is_ok());
         let ty = result.unwrap();
-        let result = Table::create(ty);
+        let result = Table::create(&ty);
         assert!(result.is_ok());
         let mut table = result.unwrap();
         let val_extern_ref = Value::from_extern_ref(&mut table);
@@ -719,7 +719,7 @@ mod tests {
         let result = TableType::create(RefType::FuncRef, 10..=20);
         assert!(result.is_ok());
         let ty = result.unwrap();
-        let result = Table::create(ty);
+        let result = Table::create(&ty);
         assert!(result.is_ok());
         let mut table = result.unwrap();
         let val_extern_ref = Arc::new(Mutex::new(Value::from_extern_ref(&mut table)));

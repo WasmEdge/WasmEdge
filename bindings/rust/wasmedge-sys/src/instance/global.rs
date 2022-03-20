@@ -86,9 +86,8 @@ impl Global {
     ///
     /// If fail to create a [Global] instance, then an error is returned.
     ///
-    pub fn create(mut ty: GlobalType, val: Value) -> WasmEdgeResult<Self> {
+    pub fn create(ty: &GlobalType, val: Value) -> WasmEdgeResult<Self> {
         let ctx = unsafe { wasmedge::WasmEdge_GlobalInstanceCreate(ty.inner.0, val.as_raw()) };
-        ty.inner.0 = std::ptr::null_mut();
 
         match ctx.is_null() {
             true => Err(WasmEdgeError::Global(GlobalError::Create)),
@@ -138,7 +137,7 @@ impl Global {
     /// // create a GlobalType instance
     /// let ty = GlobalType::create(ValType::F32, Mutability::Var).expect("fail to create a GlobalType");
     /// // create a Global instance
-    /// let mut global = Global::create(ty, Value::from_f32(3.1415)).expect("fail to create a Global");
+    /// let mut global = Global::create(&ty, Value::from_f32(3.1415)).expect("fail to create a Global");
     ///
     /// global.set_value(Value::from_f32(314.15)).expect("fail to set a new value for a Global");
     /// assert_eq!(global.get_value().to_f32(), 314.15);
@@ -198,7 +197,7 @@ mod tests {
         assert!(!ty.inner.0.is_null());
 
         // create a const Global instance
-        let result = Global::create(ty, Value::from_i32(99));
+        let result = Global::create(&ty, Value::from_i32(99));
         assert!(result.is_ok());
         let mut global_const = result.unwrap();
 
@@ -226,7 +225,7 @@ mod tests {
         assert!(!ty.inner.0.is_null());
 
         // create a Var Global instance
-        let result = Global::create(ty, Value::from_f32(13.14));
+        let result = Global::create(&ty, Value::from_f32(13.14));
         assert!(result.is_ok());
         let mut global_var = result.unwrap();
 
@@ -256,7 +255,7 @@ mod tests {
             assert!(!ty.inner.0.is_null());
 
             // create a Var Global instance with a value of mis-matched Value::I32 type
-            let result = Global::create(ty, Value::from_i32(520));
+            let result = Global::create(&ty, Value::from_i32(520));
             assert!(result.is_err());
         }
 
@@ -268,7 +267,7 @@ mod tests {
             assert!(!ty.inner.0.is_null());
 
             // create a Var Global instance with a value of Value::F32 type
-            let result = Global::create(ty, Value::from_f32(13.14));
+            let result = Global::create(&ty, Value::from_f32(13.14));
             assert!(result.is_ok());
             let mut global_var = result.unwrap();
 
@@ -312,7 +311,7 @@ mod tests {
             let global_ty = result.unwrap();
 
             // create a Global instance
-            let result = Global::create(global_ty, Value::from_i32(5));
+            let result = Global::create(&global_ty, Value::from_i32(5));
             assert!(result.is_ok());
             let global = result.unwrap();
 
@@ -333,7 +332,7 @@ mod tests {
         let global_ty = result.unwrap();
 
         // create a Global instance
-        let result = Global::create(global_ty, Value::from_i32(5));
+        let result = Global::create(&global_ty, Value::from_i32(5));
         assert!(result.is_ok());
         let global = Arc::new(Mutex::new(result.unwrap()));
 

@@ -91,7 +91,7 @@ fn create_spec_test_module() -> ImportObject {
     let result = FuncType::create([], []);
     assert!(result.is_ok());
     let func_ty = result.unwrap();
-    let result = Function::create(func_ty, Box::new(spec_test_print), 0);
+    let result = Function::create(&func_ty, Box::new(spec_test_print), 0);
     assert!(result.is_ok());
     let host_func = result.unwrap();
     // add host function "print"

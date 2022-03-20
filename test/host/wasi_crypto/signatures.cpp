@@ -41,6 +41,7 @@ TEST_F(WasiCryptoTest, Signatures) {
   };
   SigTest(__WASI_ALGORITHM_TYPE_SIGNATURES, "ECDSA_P256_SHA256"sv);
   SigTest(__WASI_ALGORITHM_TYPE_SIGNATURES, "ECDSA_K256_SHA256"sv);
+  SigTest(__WASI_ALGORITHM_TYPE_SIGNATURES, "Ed25519"sv);
 }
 
 } // namespace WasiCrypto

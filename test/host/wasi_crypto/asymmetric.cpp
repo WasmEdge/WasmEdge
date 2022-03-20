@@ -112,6 +112,14 @@ TEST_F(WasiCryptoTest, Asymmetric) {
   //   EncodingCheck("ECDSA_P256_SHA256"sv, __WASI_ALGORITHM_TYPE_SIGNATURES,
   //   {{}},
   //                 {{}}, {{}});
+  EncodingCheck(
+      "Ed25519"sv, __WASI_ALGORITHM_TYPE_SIGNATURES,
+      {{__WASI_PUBLICKEY_ENCODING_RAW,
+        "d75a980182b10ab7d54bfed3c964073a0ee172f3daa62325af021a68f707511a"_u8v}},
+      {{__WASI_SECRETKEY_ENCODING_RAW,
+        "9d61b19deffd5a60ba844af492ec2cc44449c5697b326919703bac031cae7f60"_u8v}},
+      {{__WASI_KEYPAIR_ENCODING_RAW,
+        "9d61b19deffd5a60ba844af492ec2cc44449c5697b326919703bac031cae7f60d75a980182b10ab7d54bfed3c964073a0ee172f3daa62325af021a68f707511a"_u8v}});
 }
 
 } // namespace WasiCrypto

@@ -15,6 +15,8 @@ FactoryVariant makeFactory(Algorithm Alg) noexcept {
     return EcdsaP256{};
   case Algorithm::ECDSA_K256_SHA256:
     return EcdsaK256{};
+  case Algorithm::Ed25519:
+    return Eddsa{};
   default:
     assumingUnreachable();
   }

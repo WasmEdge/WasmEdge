@@ -17,6 +17,31 @@ FactoryVariant makeFactory(Algorithm Alg) noexcept {
     return EcdsaK256{};
   case Algorithm::Ed25519:
     return Eddsa{};
+  case Algorithm::RSA_PKCS1_2048_SHA256:
+    return RSA_PKCS1_2048_SHA256{};
+  case Algorithm::RSA_PKCS1_2048_SHA384:
+    return RSA_PKCS1_2048_SHA384{};
+  case Algorithm::RSA_PKCS1_2048_SHA512:
+    return RSA_PKCS1_2048_SHA512{};
+  case Algorithm::RSA_PKCS1_3072_SHA384:
+    return RSA_PKCS1_3072_SHA384{};
+  case Algorithm::RSA_PKCS1_3072_SHA512:
+    return RSA_PKCS1_3072_SHA512{};
+  case Algorithm::RSA_PKCS1_4096_SHA512:
+    return RSA_PKCS1_4096_SHA512{};
+  case Algorithm::RSA_PSS_2048_SHA256:
+    return RSA_PSS_2048_SHA256{};
+  case Algorithm::RSA_PSS_2048_SHA384:
+    return RSA_PSS_2048_SHA384{};
+  case Algorithm::RSA_PSS_2048_SHA512:
+    return RSA_PSS_2048_SHA512{};
+  case Algorithm::RSA_PSS_3072_SHA384:
+    return RSA_PSS_3072_SHA384{};
+  case Algorithm::RSA_PSS_3072_SHA512:
+    return RSA_PSS_3072_SHA512{};
+  case Algorithm::RSA_PSS_4096_SHA512:
+    return RSA_PSS_4096_SHA512{};
+
   default:
     assumingUnreachable();
   }

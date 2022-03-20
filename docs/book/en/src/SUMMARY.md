@@ -8,8 +8,8 @@
 
 - [What is WasmEdge](intro.md)
   - [Use cases](intro/use.md)
-    - [Server-side rendering](intro/use/ssr.md)
-    - [Microservices](intro/use/runtime.md)
+    - [Server-side rendering](intro/use/jamstack.md)
+    - [Microservices](intro/use/microservice.md)
     - [Serverless SaaS API](intro/use/saas.md)
     - [Smart devices](intro/use/device.md)
   - [Feature highlights](intro/features.md)

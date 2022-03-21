@@ -4332,6 +4332,12 @@ namespace AOT {
 
 Expect<void> Compiler::compile(Span<const Byte> Data, const AST::Module &Module,
                                std::filesystem::path OutputPath) {
+  // Check the module is validated.
+  if (unlikely(!Module.getIsValidated())) {
+    spdlog::error(ErrCode::NotValidated);
+    return Unexpect(ErrCode::NotValidated);
+  }
+
   using namespace std::literals;
 
   std::unique_lock Lock(Mutex);

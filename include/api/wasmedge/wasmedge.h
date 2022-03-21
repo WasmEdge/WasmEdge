@@ -2772,6 +2772,17 @@ WasmEdge_ImportObjectCreateWasmEdgeProcess(const char *const *AllowedCmds,
                                            const uint32_t CmdsLen,
                                            const bool AllowAll);
 
+/// Get the module name.
+///
+/// The returned string object is linked to the module name of the import object
+/// context, and the caller should __NOT__ call the `WasmEdge_StringDelete`.
+///
+/// \param Cxt the target WasmEdge_ImportObjectContext.
+///
+/// \returns the name of the WasmEdge_ImportObjectContext.
+WASMEDGE_CAPI_EXPORT extern WasmEdge_String
+WasmEdge_ImportObjectGetModuleName(const WasmEdge_ImportObjectContext *Cxt);
+
 /// Initialize the WasmEdge_ImportObjectContext for the wasmedge_process
 /// specification.
 ///

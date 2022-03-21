@@ -1140,6 +1140,12 @@ TEST(APICoreTest, ExecutorWithStatistics) {
   EXPECT_TRUE(isErrMatch(
       WasmEdge_ErrCode_ModuleNameConflict,
       WasmEdge_ExecutorRegisterModule(ExecCxt, Store, Mod, ModName2)));
+  // Hasn't validated yet
+  WasmEdge_ASTModuleContext *ModNotValid = loadModule(Conf, TPath);
+  EXPECT_TRUE(isErrMatch(
+      WasmEdge_ErrCode_NotValidated,
+      WasmEdge_ExecutorRegisterModule(ExecCxt, Store, ModNotValid, ModName)));
+  WasmEdge_ASTModuleDelete(ModNotValid);
   EXPECT_TRUE(WasmEdge_ResultOK(
       WasmEdge_ExecutorRegisterModule(ExecCxt, Store, Mod, ModName)));
   WasmEdge_StringDelete(ModName);
@@ -2107,6 +2113,9 @@ TEST(APICoreTest, ImportObject) {
   ImpObj = WasmEdge_ImportObjectCreate(HostName);
   WasmEdge_StringDelete(HostName);
   EXPECT_NE(ImpObj, nullptr);
+  WasmEdge_String ExpectedHostName = WasmEdge_StringCreateByCString("extern");
+  WasmEdge_String ActualHostName = WasmEdge_ImportObjectGetModuleName(ImpObj);
+  EXPECT_TRUE(WasmEdge_StringIsEqual(ExpectedHostName, ActualHostName));
 
   // Add host function "func-add": {externref, i32} -> {i32}
   Param[0] = WasmEdge_ValType_ExternRef;

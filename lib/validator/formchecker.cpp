@@ -476,15 +476,6 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
   case OpCode::Return:
     if (auto Res = popTypes(Returns); !Res) {
       return Unexpect(Res);
-    } else {
-      assuming(CtrlStack.front().Height == 0);
-      const uint32_t Remain =
-          static_cast<uint32_t>(ValStack.size() - CtrlStack.front().Height);
-      const uint32_t Arity = static_cast<uint32_t>(Returns.size());
-      auto &Jump = const_cast<AST::Instruction &>(Instr).getJump();
-      Jump.StackEraseBegin = Remain + Arity;
-      Jump.StackEraseEnd = Arity;
-      Jump.PCOffset = static_cast<int32_t>(CtrlStack.front().Jump - &Instr);
     }
     return unreachable();
 

@@ -579,8 +579,7 @@ mod tests {
             let mem_ty = result.unwrap();
             let result = Memory::create(&mem_ty);
             assert!(result.is_ok());
-            let memory = result.unwrap();
-            memory
+            result.unwrap()
         };
         import.add_memory("memory", memory);
 

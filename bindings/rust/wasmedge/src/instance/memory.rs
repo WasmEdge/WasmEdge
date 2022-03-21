@@ -95,3 +95,19 @@ impl From<wasmedge::MemType> for MemoryType {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_memory_type() {
+        let ty = MemoryType::new(0, None);
+        assert_eq!(ty.minimum(), 0);
+        assert_eq!(ty.maximum(), u32::MAX);
+
+        let ty = MemoryType::new(10, Some(20));
+        assert_eq!(ty.minimum(), 10);
+        assert_eq!(ty.maximum(), 20);
+    }
+}

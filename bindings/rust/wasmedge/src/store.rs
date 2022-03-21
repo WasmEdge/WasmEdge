@@ -175,8 +175,6 @@ mod tests {
         let global = result.unwrap();
         let result = global.ty();
         assert!(result.is_ok());
-        let ty = result.unwrap();
-        dbg!(ty.value_ty());
     }
 
     #[test]

@@ -16,18 +16,18 @@ use wasmedge_sys::{Config, FuncType, Function, ImportObject, Loader, ValType, Va
 fn real_add(input: Vec<Value>) -> Result<Vec<Value>, u8> {
     println!("Rust: Entering Rust function real_add");
 
-    if input.len() != 2 {
+    if input.len() != 3 {
         return Err(1);
     }
 
-    let a = if input[0].ty() == ValType::I32 {
-        input[0].to_i32()
+    let a = if input[1].ty() == ValType::I32 {
+        input[1].to_i32()
     } else {
         return Err(2);
     };
 
-    let b = if input[1].ty() == ValType::I32 {
-        input[0].to_i32()
+    let b = if input[2].ty() == ValType::I32 {
+        input[2].to_i32()
     } else {
         return Err(3);
     };

@@ -5,6 +5,7 @@ wasmedge_add_executable(wasiCryptoTests
   helper.cpp
   hash.cpp
   mac.cpp
+  kdf.cpp
 )
 
 add_test(wasiCryptoTests wasiCryptoTests)

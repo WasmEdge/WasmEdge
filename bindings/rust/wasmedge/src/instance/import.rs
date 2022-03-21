@@ -195,6 +195,10 @@ mod tests {
         error::WasmEdgeError, wasmedge, CommonConfigOptions, ConfigBuilder, Executor, Mutability,
         RefType, SignatureBuilder, Statistics, Store, ValType, Value,
     };
+    use std::{
+        sync::{Arc, Mutex},
+        thread,
+    };
 
     #[test]
     fn test_import_new() {
@@ -668,6 +672,237 @@ mod tests {
         let value = result.unwrap();
         assert!(value.func_idx().is_some());
         assert_eq!(value.func_idx().unwrap(), 5);
+    }
+
+    #[test]
+    fn test_import_send() {
+        // create an ImportModule instance
+        let result = ImportModuleBuilder::new()
+            .with_func(
+                "add",
+                SignatureBuilder::new()
+                    .with_args(vec![ValType::I32; 2])
+                    .with_returns(vec![ValType::I32])
+                    .build(),
+                Box::new(real_add),
+            )
+            .expect("failed to add host function")
+            .with_global(
+                "global",
+                GlobalType::new(ValType::F32, Mutability::Const),
+                Value::from_f32(3.5),
+            )
+            .expect("failed to add const global")
+            .with_memory("memory", MemoryType::new(10, Some(20)))
+            .expect("failed to add memory")
+            .with_table("table", TableType::new(RefType::FuncRef, 10, Some(20)))
+            .expect("failed to add table")
+            .build("extern-module");
+        assert!(result.is_ok());
+        let import = result.unwrap();
+
+        let handle = thread::spawn(move || {
+            // create an executor
+            let result = ConfigBuilder::new(CommonConfigOptions::default()).build();
+            assert!(result.is_ok());
+            let config = result.unwrap();
+
+            let result = Statistics::new();
+            assert!(result.is_ok());
+            let mut stat = result.unwrap();
+
+            let result = Executor::new(Some(&config), Some(&mut stat));
+            assert!(result.is_ok());
+            let mut executor = result.unwrap();
+
+            // create a store
+            let result = Store::new();
+            assert!(result.is_ok());
+            let mut store = result.unwrap();
+
+            // register an import module into store
+            let result = store.register_import_module(&mut executor, &import);
+            assert!(result.is_ok());
+
+            // get active module instance
+            let result = store.named_instance("extern-module");
+            assert!(result.is_some());
+            let instance = result.unwrap();
+            assert!(instance.name().is_some());
+            assert_eq!(instance.name().unwrap(), "extern-module");
+
+            // check the exported global
+            let result = instance.global("global");
+            assert!(result.is_some());
+            let global = result.unwrap();
+            let result = global.ty();
+            assert!(result.is_ok());
+            assert_eq!(global.get_value().to_f32(), 3.5);
+
+            // get the exported memory
+            let result = instance.memory("memory");
+            assert!(result.is_some());
+            let mut memory = result.unwrap();
+            // write data
+            let result = memory.write(vec![1; 10], 10);
+            assert!(result.is_ok());
+            // read data after write data
+            let result = memory.read(10, 10);
+            assert!(result.is_ok());
+            let data = result.unwrap();
+            assert_eq!(data, vec![1; 10]);
+
+            // get the exported table by name
+            let result = instance.table("table");
+            assert!(result.is_some());
+            let table = result.unwrap();
+            // check table
+            assert!(table.name().is_some());
+            assert_eq!(table.name().unwrap(), "table");
+            assert!(table.mod_name().is_some());
+            assert_eq!(table.mod_name().unwrap(), "extern-module");
+            assert_eq!(table.capacity(), 10);
+            let result = table.ty();
+            assert!(result.is_ok());
+            // check table type
+            let ty = result.unwrap();
+            assert_eq!(ty.elem_ty(), RefType::FuncRef);
+            assert_eq!(ty.minimum(), 10);
+            assert_eq!(ty.maximum(), Some(20));
+
+            // get the exported host function
+            let result = instance.func("add");
+            assert!(result.is_some());
+            let host_func = result.unwrap();
+            // check the signature of the host function
+            let result = host_func.signature();
+            assert!(result.is_ok());
+            let signature = result.unwrap();
+            assert!(signature.args().is_some());
+            assert_eq!(signature.args().unwrap(), [ValType::I32; 2]);
+            assert!(signature.returns().is_some());
+            assert_eq!(signature.returns().unwrap(), [ValType::I32]);
+        });
+
+        handle.join().unwrap();
+    }
+
+    #[test]
+    fn test_import_sync() {
+        // create an ImportModule instance
+        let result = ImportModuleBuilder::new()
+            .with_func(
+                "add",
+                SignatureBuilder::new()
+                    .with_args(vec![ValType::I32; 2])
+                    .with_returns(vec![ValType::I32])
+                    .build(),
+                Box::new(real_add),
+            )
+            .expect("failed to add host function")
+            .with_global(
+                "global",
+                GlobalType::new(ValType::F32, Mutability::Const),
+                Value::from_f32(3.5),
+            )
+            .expect("failed to add const global")
+            .with_memory("memory", MemoryType::new(10, Some(20)))
+            .expect("failed to add memory")
+            .with_table("table", TableType::new(RefType::FuncRef, 10, Some(20)))
+            .expect("failed to add table")
+            .build("extern-module");
+        assert!(result.is_ok());
+        let import = Arc::new(Mutex::new(result.unwrap()));
+
+        let import_cloned = Arc::clone(&import);
+        let handle = thread::spawn(move || {
+            let result = import_cloned.lock();
+            assert!(result.is_ok());
+            let import = result.unwrap();
+
+            // create an executor
+            let result = ConfigBuilder::new(CommonConfigOptions::default()).build();
+            assert!(result.is_ok());
+            let config = result.unwrap();
+
+            let result = Statistics::new();
+            assert!(result.is_ok());
+            let mut stat = result.unwrap();
+
+            let result = Executor::new(Some(&config), Some(&mut stat));
+            assert!(result.is_ok());
+            let mut executor = result.unwrap();
+
+            // create a store
+            let result = Store::new();
+            assert!(result.is_ok());
+            let mut store = result.unwrap();
+
+            // register an import module into store
+            let result = store.register_import_module(&mut executor, &import);
+            assert!(result.is_ok());
+
+            // get active module instance
+            let result = store.named_instance("extern-module");
+            assert!(result.is_some());
+            let instance = result.unwrap();
+            assert!(instance.name().is_some());
+            assert_eq!(instance.name().unwrap(), "extern-module");
+
+            // check the exported global
+            let result = instance.global("global");
+            assert!(result.is_some());
+            let global = result.unwrap();
+            let result = global.ty();
+            assert!(result.is_ok());
+            assert_eq!(global.get_value().to_f32(), 3.5);
+
+            // get the exported memory
+            let result = instance.memory("memory");
+            assert!(result.is_some());
+            let mut memory = result.unwrap();
+            // write data
+            let result = memory.write(vec![1; 10], 10);
+            assert!(result.is_ok());
+            // read data after write data
+            let result = memory.read(10, 10);
+            assert!(result.is_ok());
+            let data = result.unwrap();
+            assert_eq!(data, vec![1; 10]);
+
+            // get the exported table by name
+            let result = instance.table("table");
+            assert!(result.is_some());
+            let table = result.unwrap();
+            // check table
+            assert!(table.name().is_some());
+            assert_eq!(table.name().unwrap(), "table");
+            assert!(table.mod_name().is_some());
+            assert_eq!(table.mod_name().unwrap(), "extern-module");
+            assert_eq!(table.capacity(), 10);
+            let result = table.ty();
+            assert!(result.is_ok());
+            // check table type
+            let ty = result.unwrap();
+            assert_eq!(ty.elem_ty(), RefType::FuncRef);
+            assert_eq!(ty.minimum(), 10);
+            assert_eq!(ty.maximum(), Some(20));
+
+            // get the exported host function
+            let result = instance.func("add");
+            assert!(result.is_some());
+            let host_func = result.unwrap();
+            // check the signature of the host function
+            let result = host_func.signature();
+            assert!(result.is_ok());
+            let signature = result.unwrap();
+            assert!(signature.args().is_some());
+            assert_eq!(signature.args().unwrap(), [ValType::I32; 2]);
+            assert!(signature.returns().is_some());
+            assert_eq!(signature.returns().unwrap(), [ValType::I32]);
+        });
+
+        handle.join().unwrap();
     }
 
     fn real_add(inputs: Vec<Value>) -> std::result::Result<Vec<Value>, u8> {

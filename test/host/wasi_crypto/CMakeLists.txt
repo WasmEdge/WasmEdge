@@ -1,7 +1,10 @@
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileCopyrightText: 2019-2022 Second State INC
 
-wasmedge_add_executable(wasiCryptoTests helper.cpp)
+wasmedge_add_executable(wasiCryptoTests 
+  helper.cpp
+  hash.cpp
+)
 
 add_test(wasiCryptoTests wasiCryptoTests)
 

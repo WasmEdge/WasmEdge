@@ -41,7 +41,7 @@ public:
     WasiCryptoExpect<void> squeeze(Span<uint8_t> Out) noexcept;
 
   private:
-    std::shared_ptr<EVP_MD_CTX> Ctx;
+    const std::shared_ptr<EVP_MD_CTX> Ctx;
   };
 
 private:

@@ -79,7 +79,10 @@ impl From<wasmedge::GlobalType> for GlobalType {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{Mutability, ValType};
+    use crate::{
+        error::WasmEdgeError, wasmedge, CommonConfigOptions, ConfigBuilder, Executor,
+        ImportModuleBuilder, Mutability, Statistics, Store, ValType,
+    };
 
     #[test]
     fn test_global_type() {
@@ -90,5 +93,112 @@ mod tests {
         assert_eq!(global_ty.value_ty(), ValType::I32);
         // Mutability
         assert_eq!(global_ty.mutability(), Mutability::Const);
+    }
+
+    #[test]
+    fn test_global() {
+        // create an ImportModule
+        let result = ImportModuleBuilder::new()
+            .with_global(
+                "const-global",
+                GlobalType::new(ValType::I32, Mutability::Const),
+                Value::from_i32(1314),
+            )
+            .expect("failed to add const-global")
+            .with_global(
+                "var-global",
+                GlobalType::new(ValType::F32, Mutability::Var),
+                Value::from_f32(13.14),
+            )
+            .expect("failed to add var-global")
+            .build("extern");
+        assert!(result.is_ok());
+        let import = result.unwrap();
+
+        // create an executor
+        let result = ConfigBuilder::new(CommonConfigOptions::default()).build();
+        assert!(result.is_ok());
+        let config = result.unwrap();
+
+        let result = Statistics::new();
+        assert!(result.is_ok());
+        let mut stat = result.unwrap();
+
+        let result = Executor::new(Some(&config), Some(&mut stat));
+        assert!(result.is_ok());
+        let mut executor = result.unwrap();
+
+        // create a store
+        let result = Store::new();
+        assert!(result.is_ok());
+        let mut store = result.unwrap();
+
+        let result = store.register_import_module(&mut executor, &import);
+        assert!(result.is_ok());
+
+        let result = store.named_instance("extern");
+        assert!(result.is_some());
+        let instance = result.unwrap();
+
+        // get the Const global from the store of vm
+        let result = instance.global("const-global");
+        assert!(result.is_some());
+        let mut const_global = result.unwrap();
+
+        // check global
+        assert!(const_global.name().is_some());
+        assert_eq!(const_global.name().unwrap(), "const-global");
+        assert!(const_global.mod_name().is_some());
+        assert_eq!(const_global.mod_name().unwrap(), "extern");
+        let result = const_global.ty();
+        assert!(result.is_ok());
+        let ty = result.unwrap();
+        assert_eq!(ty.value_ty(), ValType::I32);
+        assert_eq!(ty.mutability(), Mutability::Const);
+
+        // get value of global
+        assert_eq!(const_global.get_value().to_i32(), 1314);
+        // set a new value
+        let result = const_global.set_value(Value::from_i32(314));
+        assert!(result.is_err());
+        assert_eq!(
+            result.unwrap_err(),
+            WasmEdgeError::Operation(wasmedge::error::WasmEdgeError::Global(
+                wasmedge::error::GlobalError::ModifyConst
+            ))
+        );
+
+        // get the Var global from the store of vm
+        let result = store.named_instance("extern");
+        assert!(result.is_some());
+        let instance = result.unwrap();
+
+        // get the Var global from the store of vm
+        let result = instance.global("var-global");
+        assert!(result.is_some());
+        let mut var_global = result.unwrap();
+
+        // check global
+        assert!(var_global.name().is_some());
+        assert_eq!(var_global.name().unwrap(), "var-global");
+        assert!(var_global.mod_name().is_some());
+        assert_eq!(var_global.mod_name().unwrap(), "extern");
+        let result = var_global.ty();
+        assert!(result.is_ok());
+        let ty = result.unwrap();
+        assert_eq!(ty.value_ty(), ValType::F32);
+        assert_eq!(ty.mutability(), Mutability::Var);
+
+        // get the value of var_global
+        assert_eq!(var_global.get_value().to_f32(), 13.14);
+        // set a new value
+        let result = var_global.set_value(Value::from_f32(1.314));
+        assert!(result.is_ok());
+
+        // get the value of var_global again
+        let result = instance.global("var-global");
+        assert!(result.is_some());
+        let var_global = result.unwrap();
+        assert_eq!(var_global.get_value().to_f32(), 1.314);
     }
 }

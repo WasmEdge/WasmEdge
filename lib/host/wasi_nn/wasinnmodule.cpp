@@ -12,8 +12,8 @@ namespace WasmEdge {
 namespace Host {
 
 WasiNNModule::WasiNNModule() : ImportObject("wasi_ephemeral_nn") {
-  spdlog::set_level(spdlog::level::info);
-  spdlog::stdout_color_mt("WasiNN");
+  // spdlog::set_level(spdlog::level::info);
+  // spdlog::stdout_color_mt("WasiNN");
 
   // Add more backend flags here!
   this->Ctx.BackendsMapping.emplace("OpenVINO", 0);

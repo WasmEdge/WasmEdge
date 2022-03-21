@@ -34,7 +34,6 @@ Expect<uint32_t> WasiNNLoad::body(Runtime::Instance::MemoryInstance *MemInst
                                   uint32_t Encoding [[maybe_unused]],
                                   uint32_t Target [[maybe_unused]],
                                   uint32_t GraphPtr [[maybe_unused]]) {
-  auto log = spdlog::get("WasiNN");
   // GraphBuilders' Layout: |builder-0|builder-0 len|builder-1|builder-1 len|...
   uint32_t *GraphBuilders;
   uint32_t *Graph;
@@ -43,16 +42,16 @@ Expect<uint32_t> WasiNNLoad::body(Runtime::Instance::MemoryInstance *MemInst
   if (Encoding == this->Ctx.BackendsMapping.at("OpenVINO")) {
 #ifdef WASMEDGE_WASINN_BUILD_OPENVINO
     if (BuilderLen != 2) {
-      log->error("Wrong GraphBuilder Length {:d}, expecting 2", BuilderLen);
+      spdlog::error("Wrong GraphBuilder Length {:d}, expecting 2", BuilderLen);
       return -1;
     }
     IE::Core ie_;
     std::string DeviceName = map_target_to_string(Target);
     if (DeviceName.length() == 0) {
-      log->error("Device target {:d} not support!", Target);
+      spdlog::error("Device target {:d} not support!", Target);
       return -1;
     } else {
-      log->info("Using device: {:s}", DeviceName);
+      spdlog::info("Using device: {:s}", DeviceName);
     }
     uint32_t XMLStringLen = GraphBuilders[1];
     uint32_t WeightBinsLen = GraphBuilders[3];
@@ -62,8 +61,8 @@ Expect<uint32_t> WasiNNLoad::body(Runtime::Instance::MemoryInstance *MemInst
     std::vector<uint8_t> XMLStrings(XMLPtr, XMLPtr + XMLStringLen);
     std::vector<uint8_t> WeightBins(BinPtr, BinPtr + WeightBinsLen);
 
-    log->info("read xml length {:d}", XMLStrings.size());
-    log->info("read bin length {:d}", WeightBins.size());
+    spdlog::info("read xml length {:d}", XMLStrings.size());
+    spdlog::info("read bin length {:d}", WeightBins.size());
 
     std::string XMLModel(XMLStrings.begin(), XMLStrings.end());
     IE::TensorDesc BinTensorDesc(IE::Precision::U8, {WeightBins.size()},
@@ -86,19 +85,18 @@ Expect<uint32_t> WasiNNLoad::body(Runtime::Instance::MemoryInstance *MemInst
     this->Ctx.OpenVINOExecutions.emplace(this->Ctx.ModelsNum,
                                          std::move(TargetedExecutableNetwork));
     this->Ctx.GraphBackends.emplace(this->Ctx.ModelsNum, Encoding);
-    log->info("Network created");
     *Graph = this->Ctx.ModelsNum;
     // std::vector<std::string> availableDevices = ie_.GetAvailableDevices();
     // for (auto x : availableDevices) {
-    //   log->info("device: {:s}", x);
+    //   spdlog::info("device: {:s}", x);
     // }
     return 0;
 #else
-    log->error("OpenVINO backend is not built. define -DWASINN_BUILD_OPENVINO "
+    spdlog::error("OpenVINO backend is not built. define -DWASINN_BUILD_OPENVINO "
                "to build it.");
 #endif
   } else {
-    log->error("Current backend is not supported.");
+    spdlog::error("Current backend is not supported.");
   }
   return -1;
 }
@@ -106,10 +104,9 @@ Expect<uint32_t> WasiNNLoad::body(Runtime::Instance::MemoryInstance *MemInst
 Expect<uint32_t> WasiNNInitExecCtx::body(
     Runtime::Instance::MemoryInstance *MemInst [[maybe_unused]],
     uint32_t Graph [[maybe_unused]], uint32_t ContextPtr [[maybe_unused]]) {
-  auto log = spdlog::get("WasiNN");
 
   if (this->Ctx.GraphBackends.find(Graph) == this->Ctx.GraphBackends.end()) {
-    log->error("init_execution_context: Graph does not exist");
+    spdlog::error("init_execution_context: Graph does not exist");
     return -1;
   }
   [[maybe_unused]] uint32_t *Context =
@@ -130,14 +127,13 @@ Expect<uint32_t> WasiNNInitExecCtx::body(
     this->Ctx.GraphContextBackends.emplace(this->Ctx.ExecutionsNum,
                                            this->Ctx.GraphBackends[Graph]);
     *Context = this->Ctx.ExecutionsNum;
-    log->info("Context created");
     return 0;
 #else
-    log->error("OpenVINO backend is not built. define -DWASINN_BUILD_OPENVINO "
+    spdlog::error("OpenVINO backend is not built. define -DWASINN_BUILD_OPENVINO "
                "to build it.");
 #endif
   } else {
-    log->error("Current backend is not supported.");
+    spdlog::error("Current backend is not supported.");
   }
   return -1;
 }
@@ -147,11 +143,10 @@ Expect<uint32_t> WasiNNSetInput::body(Runtime::Instance::MemoryInstance *MemInst
                                       uint32_t Context [[maybe_unused]],
                                       uint32_t Index [[maybe_unused]],
                                       uint32_t TensorPtr [[maybe_unused]]) {
-  auto log = spdlog::get("WasiNN");
 
   if (this->Ctx.GraphContextBackends.find(Context) ==
       this->Ctx.GraphContextBackends.end()) {
-    log->error("set_input: Execution Context does not exist");
+    spdlog::error("set_input: Execution Context does not exist");
     return -1;
   }
   if (this->Ctx.GraphContextBackends[Context] ==
@@ -167,7 +162,7 @@ Expect<uint32_t> WasiNNSetInput::body(Runtime::Instance::MemoryInstance *MemInst
     uint32_t TensorDataLen = Tensor[4];
 
     if (RType != 1) {
-      log->error(
+      spdlog::error(
           "set_input: only F32 inputs and outputs are supported for now");
       return -1;
     }
@@ -177,28 +172,26 @@ Expect<uint32_t> WasiNNSetInput::body(Runtime::Instance::MemoryInstance *MemInst
     size_t total = 1;
     for (auto X : InputDims)
       total *= X;
-    log->info("Tensor size: {:d}, {:d}", total, TensorDataLen / 4);
     TensorType EnumRType = static_cast<TensorType>(RType);
 
     IE::Precision TensorPrecision;
     switch (EnumRType) {
     // case TensorType::TENSOR_TYPE_U8:
     //   TensorPrecision = IE::Precision::U8;
-    //   log->info("Load tensor type U8");
+    //   spdlog::info("Load tensor type U8");
     //   break;
     // case TensorType::TENSOR_TYPE_I32:
     //   TensorPrecision = IE::Precision::I32;
-    //   log->info("Load tensor type I32");
+    //   spdlog::info("Load tensor type I32");
     //   break;
 
     /*Only FP32 supported*/
     case TensorType::TENSOR_TYPE_F32:
       TensorPrecision = IE::Precision::FP32;
-      log->info("Load tensor type F32");
       break;
     // case TensorType::TENSOR_TYPE_F16:
     //   TensorPrecision = IE::Precision::FP16;
-    //   log->info("Load tensor type F16");
+    //   spdlog::info("Load tensor type F16");
     //   break;
     default:
       break;
@@ -213,30 +206,27 @@ Expect<uint32_t> WasiNNSetInput::body(Runtime::Instance::MemoryInstance *MemInst
     for (auto &Item : InputInfo) {
       if (InputIndex == Index) {
         InputName = Item.first;
-        log->info("Index input: {:s}", InputName);
+        spdlog::info("Index input: {:s}", InputName);
         Item.second->setPrecision(TensorPrecision);
         break;
       }
       InputIndex++;
     }
     if (InputIndex >= InputInfo.size()) {
-      log->error("Index of inputs is out of range");
+      spdlog::error("Index of inputs is out of range");
       return -1;
     }
 
     IE::Blob::Ptr InputBlob = Session.SessionInferRequest.GetBlob(InputName);
-    log->info("Context created");
     IE::SizeVector BlobSize = InputBlob->getTensorDesc().getDims();
-    log->info("Context created");
     const size_t width = BlobSize[3];
     const size_t height = BlobSize[2];
     const size_t channels = BlobSize[1];
-    log->info("Input shape for {:s}: {:d}, {:d}, {:d}", InputName, channels,
+    spdlog::info("Input shape for {:s}: {:d}, {:d}, {:d}", InputName, channels,
               width, height);
-    log->info("Context created");
     IE::MemoryBlob::Ptr MBlob = IE::as<IE::MemoryBlob>(InputBlob);
     if (!MBlob) {
-      log->error("We expect image blob to be inherited from MemoryBlob in "
+      spdlog::error("We expect image blob to be inherited from MemoryBlob in "
                  "OpenVINO backend, but "
                  "by fact we were not able "
                  "to cast imageInput to MemoryBlob");
@@ -254,11 +244,11 @@ Expect<uint32_t> WasiNNSetInput::body(Runtime::Instance::MemoryInstance *MemInst
     }
     return 0;
 #else
-    log->error("OpenVINO backend is not built. define -DWASINN_BUILD_OPENVINO "
+    spdlog::error("OpenVINO backend is not built. define -DWASINN_BUILD_OPENVINO "
                "to build it.");
 #endif
   } else {
-    log->error("Current backend is not supported.");
+    spdlog::error("Current backend is not supported.");
   }
   return -1;
 }
@@ -269,13 +259,12 @@ Expect<uint32_t> WasiNNGetOuput::body(
     uint32_t OutBuffer [[maybe_unused]],
     uint32_t OutBufferMaxSize [[maybe_unused]],
     uint32_t BytesWrittenPtr [[maybe_unused]]) {
-  auto log = spdlog::get("WasiNN");
   [[maybe_unused]] uint8_t *OutBufferPtr;
   [[maybe_unused]] uint32_t *BytesWritten;
 
   if (this->Ctx.GraphContextBackends.find(Context) ==
       this->Ctx.GraphContextBackends.end()) {
-    log->error("get_output: Execution Context does not exist");
+    spdlog::error("get_output: Execution Context does not exist");
     return -1;
   }
 
@@ -299,7 +288,7 @@ Expect<uint32_t> WasiNNGetOuput::body(
       OutputIndex++;
     }
     if (OutputIndex >= OutputInfo.size()) {
-      log->error("Index of outputs is out of range");
+      spdlog::error("Index of outputs is out of range");
       return -1;
     }
 
@@ -307,7 +296,7 @@ Expect<uint32_t> WasiNNGetOuput::body(
         Session.SessionInferRequest.GetBlob(OutputName);
     IE::MemoryBlob::Ptr MBlob = IE::as<IE::MemoryBlob>(OutputBlob);
     if (!MBlob) {
-      log->error("We expect output blob to be inherited from MemoryBlob in "
+      spdlog::error("We expect output blob to be inherited from MemoryBlob in "
                  "OpenVINO backend, but "
                  "by fact we were not able "
                  "to cast network output to MemoryBlob");
@@ -316,7 +305,7 @@ Expect<uint32_t> WasiNNGetOuput::body(
     auto MBlobHolder = MBlob->wmap();
     float *BlobData = MBlobHolder.as<float *>();
     auto OutputSize = OutputBlob->size();
-    log->info("get ouput with total size {:d}", OutputSize);
+    spdlog::info("get ouput with total size {:d}", OutputSize);
     for (uint32_t I = 0; I < OutputSize; I++) {
       float Value = BlobData[I];
       OutBufferPtr[4 * I] = *reinterpret_cast<uint32_t *>(&Value) & 0xff;
@@ -330,11 +319,11 @@ Expect<uint32_t> WasiNNGetOuput::body(
     *BytesWritten = OutputSize * 4;
     return 0;
 #else
-    log->error("OpenVINO backend is not built. define -DWASINN_BUILD_OPENVINO "
+    spdlog::error("OpenVINO backend is not built. define -DWASINN_BUILD_OPENVINO "
                "to build it.");
 #endif
   } else {
-    log->error("Current backend is not supported.");
+    spdlog::error("Current backend is not supported.");
   }
   return -1;
 }
@@ -342,11 +331,10 @@ Expect<uint32_t> WasiNNGetOuput::body(
 Expect<uint32_t> WasiNNCompute::body(Runtime::Instance::MemoryInstance *MemInst
                                      [[maybe_unused]],
                                      uint32_t Context [[maybe_unused]]) {
-  auto log = spdlog::get("WasiNN");
 
   if (this->Ctx.GraphContextBackends.find(Context) ==
       this->Ctx.GraphContextBackends.end()) {
-    log->error("compute: Execution Context does not exist");
+    spdlog::error("compute: Execution Context does not exist");
     return -1;
   }
 
@@ -357,11 +345,11 @@ Expect<uint32_t> WasiNNCompute::body(Runtime::Instance::MemoryInstance *MemInst
     Session.SessionInferRequest.Infer();
     return 0;
 #else
-    log->error("OpenVINO backend is not built. define -DWASINN_BUILD_OPENVINO "
+    spdlog::error("OpenVINO backend is not built. define -DWASINN_BUILD_OPENVINO "
                "to build it.");
 #endif
   } else {
-    log->error("Current backend is not supported.");
+    spdlog::error("Current backend is not supported.");
   }
 
   return -1;

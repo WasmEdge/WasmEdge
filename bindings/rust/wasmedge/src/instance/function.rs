@@ -46,11 +46,19 @@ impl SignatureBuilder {
         }
     }
 
+    pub fn with_arg(self, arg: ValType) -> Self {
+        self.with_args(std::iter::once(arg))
+    }
+
     pub fn with_returns(self, returns: impl IntoIterator<Item = ValType>) -> Self {
         Self {
             args: self.args,
             returns: Some(returns.into_iter().collect::<Vec<_>>()),
         }
+    }
+
+    pub fn with_return(self, ret: ValType) -> Self {
+        self.with_returns(std::iter::once(ret))
     }
 
     pub fn build(self) -> Signature {
@@ -109,5 +117,63 @@ impl From<Signature> for wasmedge::FuncType {
             None => Vec::new(),
         };
         wasmedge::FuncType::create(args, returns).expect("fail to convert Signature into FuncType")
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::ValType;
+
+    #[test]
+    fn test_signature() {
+        // test signature with args and returns
+        {
+            let sig = SignatureBuilder::new()
+                .with_args(vec![
+                    ValType::I32,
+                    ValType::I64,
+                    ValType::F32,
+                    ValType::F64,
+                    ValType::V128,
+                    ValType::FuncRef,
+                    ValType::ExternRef,
+                ])
+                .with_returns(vec![ValType::FuncRef, ValType::ExternRef, ValType::V128])
+                .build();
+
+            // check the arguments
+            let result = sig.args();
+            assert!(result.is_some());
+            let args = result.unwrap();
+            assert_eq!(
+                args,
+                &[
+                    ValType::I32,
+                    ValType::I64,
+                    ValType::F32,
+                    ValType::F64,
+                    ValType::V128,
+                    ValType::FuncRef,
+                    ValType::ExternRef,
+                ]
+            );
+
+            // check the returns
+            let result = sig.returns();
+            assert!(result.is_some());
+            let returns = result.unwrap();
+            assert_eq!(
+                returns,
+                &[ValType::FuncRef, ValType::ExternRef, ValType::V128]
+            );
+        }
+
+        // test signature without args and returns
+        {
+            let sig = SignatureBuilder::new().build();
+            assert_eq!(sig.args(), None);
+            assert_eq!(sig.returns(), None);
+        }
     }
 }

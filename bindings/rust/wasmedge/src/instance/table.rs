@@ -106,117 +106,21 @@ impl From<wasmedge::TableType> for TableType {
     }
 }
 
-// #[cfg(test)]
-// mod tests {
-//     use super::*;
-//     use crate::{RefType, ValType};
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::RefType;
 
-//     #[test]
-//     fn test_table_type() {
-//         // create a TableType instance
-//         let ty = TableType::new(RefType::FuncRef, 10, Some(20));
+    #[test]
+    fn test_table_type() {
+        // create a TableType instance
+        let ty = TableType::new(RefType::FuncRef, 10, Some(20));
 
-//         // check element type
-//         assert_eq!(ty.elem_ty(), RefType::FuncRef);
-//         // check minimum
-//         assert_eq!(ty.minimum(), 10);
-//         // check maximum
-//         assert_eq!(ty.maximum(), Some(20));
-//     }
-
-//     #[test]
-//     fn test_table() {
-//         {
-//             // create a TableType instance
-//             let ty = TableType::new(RefType::FuncRef, 10, None);
-
-//             // create a Table instance
-//             let result = Table::new(ty);
-//             assert!(result.is_ok());
-//             let mut table = result.unwrap();
-
-//             // check capacity
-//             assert_eq!(table.capacity(), 10);
-
-//             // get type
-//             let result = table.ty();
-//             assert!(result.is_ok());
-//             let ty = result.unwrap();
-
-//             // check element type
-//             assert_eq!(ty.elem_ty(), RefType::FuncRef);
-//             // check minimum
-//             assert_eq!(ty.minimum(), 10);
-//             // check maximum
-//             assert_eq!(ty.maximum(), Some(u32::MAX));
-
-//             // grow the capacity of table
-//             let result = table.grow(5);
-//             assert!(result.is_ok());
-//             // check capacity
-//             assert_eq!(table.capacity(), 15);
-//         }
-
-//         {
-//             // create a TableType instance
-//             let ty = TableType::new(RefType::FuncRef, 10, Some(20));
-
-//             // create a Table instance
-//             let result = Table::new(ty);
-//             assert!(result.is_ok());
-//             let mut table = result.unwrap();
-
-//             // check capacity
-//             assert_eq!(table.capacity(), 10);
-
-//             // get type
-//             let result = table.ty();
-//             assert!(result.is_ok());
-//             let ty = result.unwrap();
-
-//             // check element type
-//             assert_eq!(ty.elem_ty(), RefType::FuncRef);
-//             // check minimum
-//             assert_eq!(ty.minimum(), 10);
-//             // check maximum
-//             assert_eq!(ty.maximum(), Some(20));
-
-//             // grow the capacity of table
-//             let result = table.grow(5);
-//             assert!(result.is_ok());
-//             // check capacity
-//             assert_eq!(table.capacity(), 15);
-//         }
-//     }
-
-//     #[test]
-//     fn test_table_data() {
-//         // create a TableType instance
-//         let ty = TableType::new(RefType::FuncRef, 10, Some(20));
-
-//         // create a Table instance
-//         let result = Table::new(ty);
-//         assert!(result.is_ok());
-//         let mut table = result.unwrap();
-
-//         // check capacity
-//         assert_eq!(table.capacity(), 10);
-
-//         // get data in the scope of the capacity
-//         let result = table.get_data(9);
-//         assert!(result.is_ok());
-//         let value = result.unwrap();
-//         assert!(value.is_null_ref());
-//         assert_eq!(value.ty(), ValType::FuncRef);
-
-//         // set data
-//         let result = table.set_data(Value::from_func_ref(5), 3);
-//         assert!(result.is_ok());
-//         // get data
-//         let result = table.get_data(3);
-//         assert!(result.is_ok());
-//         let idx = result.unwrap().func_idx();
-//         assert!(idx.is_some());
-//         assert_eq!(idx.unwrap(), 5);
-//     }
-// }
+        // check element type
+        assert_eq!(ty.elem_ty(), RefType::FuncRef);
+        // check minimum
+        assert_eq!(ty.minimum(), 10);
+        // check maximum
+        assert_eq!(ty.maximum(), Some(20));
+    }
+}

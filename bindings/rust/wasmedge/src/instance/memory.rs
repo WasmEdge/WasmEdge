@@ -99,6 +99,9 @@ impl From<wasmedge::MemType> for MemoryType {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::{
+        CommonConfigOptions, ConfigBuilder, Executor, ImportModuleBuilder, Statistics, Store,
+    };
 
     #[test]
     fn test_memory_type() {
@@ -109,5 +112,88 @@ mod tests {
         let ty = MemoryType::new(10, Some(20));
         assert_eq!(ty.minimum(), 10);
         assert_eq!(ty.maximum(), 20);
+    }
+
+    #[test]
+    fn test_memory() {
+        // create an ImportModule
+        let result = ImportModuleBuilder::new()
+            .with_memory("memory", MemoryType::new(10, Some(20)))
+            .expect("failed to add memory")
+            .build("extern");
+        assert!(result.is_ok());
+        let import = result.unwrap();
+
+        // create an executor
+        let result = ConfigBuilder::new(CommonConfigOptions::default()).build();
+        assert!(result.is_ok());
+        let config = result.unwrap();
+
+        let result = Statistics::new();
+        assert!(result.is_ok());
+        let mut stat = result.unwrap();
+
+        let result = Executor::new(Some(&config), Some(&mut stat));
+        assert!(result.is_ok());
+        let mut executor = result.unwrap();
+
+        // create a store
+        let result = Store::new();
+        assert!(result.is_ok());
+        let mut store = result.unwrap();
+
+        let result = store.named_instance("extern");
+        assert!(result.is_none());
+
+        let result = store.register_import_module(&mut executor, &import);
+        assert!(result.is_ok());
+
+        let result = store.named_instance("extern");
+        assert!(result.is_some());
+        let instance = result.unwrap();
+
+        // get the exported memory
+        let result = instance.memory("memory");
+        assert!(result.is_some());
+        let mut memory = result.unwrap();
+
+        // check memory
+        assert!(memory.name().is_some());
+        assert_eq!(memory.name().unwrap(), "memory");
+        assert_eq!(memory.mod_name(), Some("extern"));
+        assert_eq!(memory.size(), 10);
+
+        // check memory type
+        let result = memory.ty();
+        assert!(result.is_ok());
+        let ty = result.unwrap();
+        assert_eq!(ty.minimum(), 10);
+        assert_eq!(ty.maximum(), 20);
+
+        // read data before write data
+        let result = memory.read(0, 10);
+        assert!(result.is_ok());
+        let data = result.unwrap();
+        assert_eq!(data, vec![0; 10]);
+
+        // write data
+        let result = memory.write(vec![1; 10], 10);
+        assert!(result.is_ok());
+        // read data after write data
+        let result = memory.read(10, 10);
+        assert!(result.is_ok());
+        let data = result.unwrap();
+        assert_eq!(data, vec![1; 10]);
+
+        // grow memory
+        let result = memory.grow(5);
+        assert!(result.is_ok());
+        assert_eq!(memory.size(), 15);
+
+        // get memory from instance agains
+        let result = instance.memory("memory");
+        assert!(result.is_some());
+        let memory = result.unwrap();
+        assert_eq!(memory.size(), 15);
     }
 }

@@ -123,10 +123,13 @@ impl From<Signature> for wasmedge::FuncType {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::ValType;
+    use crate::{
+        CommonConfigOptions, ConfigBuilder, Executor, ImportModuleBuilder, Statistics, Store,
+        ValType,
+    };
 
     #[test]
-    fn test_signature() {
+    fn test_func_signature() {
         // test signature with args and returns
         {
             let sig = SignatureBuilder::new()
@@ -175,5 +178,96 @@ mod tests {
             assert_eq!(sig.args(), None);
             assert_eq!(sig.returns(), None);
         }
+    }
+
+    #[test]
+    fn test_func() {
+        // create an ImportModule
+        let result = ImportModuleBuilder::new()
+            .with_func(
+                "add",
+                SignatureBuilder::new()
+                    .with_args(vec![ValType::I32; 2])
+                    .with_returns(vec![ValType::I32])
+                    .build(),
+                Box::new(real_add),
+            )
+            .expect("failed to add host func")
+            .build("extern");
+        assert!(result.is_ok());
+        let import = result.unwrap();
+
+        // create an executor
+        let result = ConfigBuilder::new(CommonConfigOptions::default()).build();
+        assert!(result.is_ok());
+        let config = result.unwrap();
+
+        let result = Statistics::new();
+        assert!(result.is_ok());
+        let mut stat = result.unwrap();
+
+        let result = Executor::new(Some(&config), Some(&mut stat));
+        assert!(result.is_ok());
+        let mut executor = result.unwrap();
+
+        // create a store
+        let result = Store::new();
+        assert!(result.is_ok());
+        let mut store = result.unwrap();
+
+        let result = store.register_import_module(&mut executor, &import);
+        assert!(result.is_ok());
+
+        // get the instance of the ImportObject module
+        let result = store.named_instance("extern");
+        assert!(result.is_some());
+        let instance = result.unwrap();
+
+        // get the exported host function
+        let result = instance.func("add");
+        assert!(result.is_some());
+        let host_func = result.unwrap();
+
+        // check the signature of the host function
+        let result = host_func.signature();
+        assert!(result.is_ok());
+        let signature = result.unwrap();
+        assert!(signature.args().is_some());
+        assert_eq!(signature.args().unwrap(), [ValType::I32; 2]);
+        assert!(signature.returns().is_some());
+        assert_eq!(signature.returns().unwrap(), [ValType::I32]);
+
+        let result = executor.run_func(
+            &mut store,
+            Some("extern"),
+            "add",
+            [Value::from_i32(2), Value::from_i32(3)],
+        );
+        assert!(result.is_ok());
+        let returns = result.unwrap();
+        assert_eq!(returns.len(), 1);
+        assert_eq!(returns[0].to_i32(), 5);
+    }
+
+    fn real_add(inputs: Vec<Value>) -> std::result::Result<Vec<Value>, u8> {
+        if inputs.len() != 2 {
+            return Err(1);
+        }
+
+        let a = if inputs[0].ty() == ValType::I32 {
+            inputs[0].to_i32()
+        } else {
+            return Err(2);
+        };
+
+        let b = if inputs[1].ty() == ValType::I32 {
+            inputs[1].to_i32()
+        } else {
+            return Err(3);
+        };
+
+        let c = a + b;
+
+        Ok(vec![Value::from_i32(c)])
     }
 }

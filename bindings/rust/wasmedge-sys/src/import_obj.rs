@@ -549,17 +549,106 @@ mod tests {
     fn test_import_object_sync() {
         let host_name = "extern";
 
-        // create an ImportObj module
+        // create ImportObject instance
         let result = ImportObject::create(host_name);
         assert!(result.is_ok());
-        let import = Arc::new(Mutex::new(result.unwrap()));
+        let mut import = result.unwrap();
 
+        // add host function
+        let result = FuncType::create(vec![ValType::I32; 2], vec![ValType::I32]);
+        assert!(result.is_ok());
+        let func_ty = result.unwrap();
+        let result = Function::create(&func_ty, Box::new(real_add), 0);
+        assert!(result.is_ok());
+        let host_func = result.unwrap();
+        import.add_func("add", host_func);
+
+        // add table
+        let result = TableType::create(RefType::FuncRef, 0..=u32::MAX);
+        assert!(result.is_ok());
+        let ty = result.unwrap();
+        let result = Table::create(&ty);
+        assert!(result.is_ok());
+        let table = result.unwrap();
+        import.add_table("table", table);
+
+        // add memory
+        let memory = {
+            let result = MemType::create(10..=20);
+            assert!(result.is_ok());
+            let mem_ty = result.unwrap();
+            let result = Memory::create(&mem_ty);
+            assert!(result.is_ok());
+            let memory = result.unwrap();
+            memory
+        };
+        import.add_memory("memory", memory);
+
+        // add globals
+        let result = GlobalType::create(ValType::F32, Mutability::Const);
+        assert!(result.is_ok());
+        let ty = result.unwrap();
+        let result = Global::create(&ty, Value::from_f32(3.5));
+        assert!(result.is_ok());
+        let global = result.unwrap();
+        import.add_global("global", global);
+
+        let import = Arc::new(Mutex::new(import));
         let import_cloned = Arc::clone(&import);
         let handle = thread::spawn(move || {
             let result = import_cloned.lock();
             assert!(result.is_ok());
             let import = result.unwrap();
             assert!(!import.inner.0.is_null());
+
+            // create a store
+            let result = Store::create();
+            assert!(result.is_ok());
+            let mut store = result.unwrap();
+            assert!(!store.inner.0.is_null());
+            assert!(!store.registered);
+
+            // create an executor
+            let result = Config::create();
+            assert!(result.is_ok());
+            let config = result.unwrap();
+            let result = Executor::create(Some(config), None);
+            assert!(result.is_ok());
+            let mut executor = result.unwrap();
+
+            // register import object into store
+            let result = executor.register_import_object(&mut store, &import);
+            assert!(result.is_ok());
+
+            // get the exported module by name
+            let result = store.named_module("extern");
+            assert!(result.is_ok());
+            let instance = result.unwrap();
+
+            // get the exported function by name
+            let result = instance.find_func("add");
+            assert!(result.is_ok());
+
+            // get the exported global by name
+            let result = instance.find_global("global");
+            assert!(result.is_ok());
+            let global = result.unwrap();
+            assert!(!global.inner.0.is_null() && global.registered);
+            let val = global.get_value();
+            assert_eq!(val.to_f32(), 3.5);
+
+            // get the exported memory by name
+            let result = instance.find_memory("memory");
+            assert!(result.is_ok());
+            let memory = result.unwrap();
+            let result = memory.ty();
+            assert!(result.is_ok());
+            let ty = result.unwrap();
+            assert_eq!(ty.limit(), 10..=20);
+
+            // get the exported table by name
+            let result = instance.find_table("table");
+            assert!(result.is_ok());
         });
 
         handle.join().unwrap();

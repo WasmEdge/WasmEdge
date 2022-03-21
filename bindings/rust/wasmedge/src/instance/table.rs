@@ -109,7 +109,10 @@ impl From<wasmedge::TableType> for TableType {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::RefType;
+    use crate::{
+        CommonConfigOptions, ConfigBuilder, Executor, ImportModuleBuilder, RefType, Statistics,
+        Store,
+    };
 
     #[test]
     fn test_table_type() {
@@ -122,5 +125,94 @@ mod tests {
         assert_eq!(ty.minimum(), 10);
         // check maximum
         assert_eq!(ty.maximum(), Some(20));
+    }
+
+    #[test]
+    fn test_table() {
+        // create an ImportModule
+        let result = ImportModuleBuilder::new()
+            .with_table("table", TableType::new(RefType::FuncRef, 10, Some(20)))
+            .expect("failed to add table")
+            .build("extern");
+        assert!(result.is_ok());
+        let import = result.unwrap();
+
+        // create an executor
+        let result = ConfigBuilder::new(CommonConfigOptions::default()).build();
+        assert!(result.is_ok());
+        let config = result.unwrap();
+
+        let result = Statistics::new();
+        assert!(result.is_ok());
+        let mut stat = result.unwrap();
+
+        let result = Executor::new(Some(&config), Some(&mut stat));
+        assert!(result.is_ok());
+        let mut executor = result.unwrap();
+
+        // create a store
+        let result = Store::new();
+        assert!(result.is_ok());
+        let mut store = result.unwrap();
+
+        // register the import module
+        let result = store.register_import_module(&mut executor, &import);
+        assert!(result.is_ok());
+
+        // get the module instance by name
+        let result = store.named_instance("extern");
+        assert!(result.is_some());
+        let instance = result.unwrap();
+
+        // get the exported table by name
+        let result = instance.table("table");
+        assert!(result.is_some());
+        let mut table = result.unwrap();
+
+        // check table
+        assert!(table.name().is_some());
+        assert_eq!(table.name().unwrap(), "table");
+        assert!(table.mod_name().is_some());
+        assert_eq!(table.mod_name().unwrap(), "extern");
+        assert_eq!(table.size(), 10);
+        let result = table.ty();
+        assert!(result.is_ok());
+
+        // check table type
+        let ty = result.unwrap();
+        assert_eq!(ty.elem_ty(), RefType::FuncRef);
+        assert_eq!(ty.minimum(), 10);
+        assert_eq!(ty.maximum(), Some(20));
+
+        // get value from table[0]
+        let result = table.get(0);
+        assert!(result.is_ok());
+        let value = result.unwrap();
+        assert!(value.func_idx().is_none());
+
+        // set value to table[0]
+        let result = table.set(Value::from_func_ref(5), 0);
+        assert!(result.is_ok());
+        // get the value in table[0]
+        let result = table.get(0);
+        assert!(result.is_ok());
+        let value = result.unwrap();
+        assert!(value.func_idx().is_some());
+        assert_eq!(value.func_idx().unwrap(), 5);
+
+        let result = store.named_instance("extern");
+        assert!(result.is_some());
+        let instance = result.unwrap();
+
+        let result = instance.table("table");
+        assert!(result.is_some());
+        let table = result.unwrap();
+
+        // get the value in table[0]
+        let result = table.get(0);
+        assert!(result.is_ok());
+        let value = result.unwrap();
+        assert!(value.func_idx().is_some());
+        assert_eq!(value.func_idx().unwrap(), 5);
     }
 }

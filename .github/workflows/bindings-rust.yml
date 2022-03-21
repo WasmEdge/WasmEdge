@@ -64,7 +64,8 @@ jobs:
 
       - name: Build WasmEdge using clang with Debug mode
         run: |
-          sudo apt-get install -y make
+          apt-get update
+          apt-get install -y make
           mkdir -p build
           cd build
           cmake -DCMAKE_BUILD_TYPE=Debug -DWASMEDGE_BUILD_TESTS=ON ..

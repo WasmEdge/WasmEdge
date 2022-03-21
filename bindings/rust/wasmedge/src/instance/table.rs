@@ -39,7 +39,7 @@ impl<'instance> Table<'instance> {
     }
 
     /// Returns the current size of this table.
-    pub fn size(&self) -> u32 {
+    pub fn capacity(&self) -> u32 {
         self.inner.capacity() as u32
     }
 
@@ -174,7 +174,7 @@ mod tests {
         assert_eq!(table.name().unwrap(), "table");
         assert!(table.mod_name().is_some());
         assert_eq!(table.mod_name().unwrap(), "extern");
-        assert_eq!(table.size(), 10);
+        assert_eq!(table.capacity(), 10);
         let result = table.ty();
         assert!(result.is_ok());
 

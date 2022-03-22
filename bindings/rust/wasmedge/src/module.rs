@@ -1,9 +1,14 @@
+//! Defines Module, ImportType, and ExportType.
+
 use crate::{
     config::Config, error::Result, wasmedge, GlobalType, MemoryType, Signature, TableType,
 };
 use std::marker::PhantomData;
 use std::{borrow::Cow, path::Path};
 
+/// Struct of WasmEdge Module.
+///
+/// A [Module] is a compiled in-memory representation of an input WebAssembly binary. In the instantiation process, a [Module] is instatiated to a module [instance](crate::instance), from which the exported [function](crate::Func), [table](crate::Table), [memory](crate::Memory), and [global](crate::Global) instances can be fetched.
 #[derive(Debug)]
 pub struct Module {
     pub(crate) inner: wasmedge::Module,
@@ -11,7 +16,15 @@ pub struct Module {
 impl Module {
     /// Returns a validated module from a file.
     ///
-    /// This function does not validate the loaded module.
+    /// # Arguments
+    ///
+    /// - `config` specifies a global configuration.
+    ///
+    /// - `file` specifies the path to the target WASM file.
+    ///
+    /// # Error
+    ///
+    /// If fail to load and valiate a module from a file, returns an error.
     pub fn from_file(config: Option<&Config>, file: impl AsRef<Path>) -> Result<Self> {
         let inner_config = match config {
             Some(config) => Some(Config::copy_from(config)?.inner),
@@ -34,7 +47,15 @@ impl Module {
 
     /// Returns a validated module from a buffer.
     ///
-    /// This function does not validate the loaded module.
+    /// # Arguments
+    ///
+    /// - `config` specifies a global configuration.
+    ///
+    /// - `buffer` specifies a WASM buffer.
+    ///
+    /// # Error
+    ///
+    /// If fail to load and valiate a module from a buffer, returns an error.
     pub fn from_buffer(config: Option<&Config>, buffer: impl AsRef<[u8]>) -> Result<Self> {
         let inner_config = match config {
             Some(config) => Some(Config::copy_from(config)?.inner),
@@ -55,10 +76,12 @@ impl Module {
         Ok(Self { inner })
     }
 
+    /// Returns the count of the [import types](crate::ImportType) of the [Module].
     pub fn count_of_imports(&self) -> u32 {
         self.inner.count_of_imports()
     }
 
+    /// Returns a vector of [import types](crate::ImportType) of the [module](crate::Module).
     pub fn imports(&self) -> Vec<ImportType> {
         let mut imports = Vec::new();
         for inner_import in self.inner.imports() {
@@ -72,10 +95,12 @@ impl Module {
         imports
     }
 
+    /// Returns the count of the [export types](crate::ExportType) of the [module](crate::Module).
     pub fn count_of_exports(&self) -> u32 {
         self.inner.count_of_exports()
     }
 
+    /// Returns the [export types](crate::ExportType) of the [module](crate::Module).
     pub fn exports(&self) -> Vec<ExportType> {
         let mut exports = Vec::new();
         for inner_export in self.inner.exports() {
@@ -89,6 +114,11 @@ impl Module {
         exports
     }
 
+    /// Gets the [export type](crate::ExportType) by name.
+    ///
+    /// # Argument
+    ///
+    /// - `name` specifies the name of the target [export type](crate::ExportType).
     pub fn get_export(&self, name: impl AsRef<str>) -> Option<ExternalType> {
         let exports = self
             .exports()
@@ -102,20 +132,26 @@ impl Module {
     }
 }
 
+/// Struct of WasmEdge ImportType.
+///
+/// [ImportType] is used for getting the type information of the imports from a WasmEdge [module](crate::Module).
 #[derive(Debug)]
 pub struct ImportType<'module> {
     inner: wasmedge::Import<'module>,
     _marker: PhantomData<&'module Module>,
 }
 impl<'module> ImportType<'module> {
+    /// Returns the name of the [ImportType].
     pub fn name(&self) -> Cow<'_, str> {
         self.inner.name()
     }
 
+    /// Returns the module name from the [ImportType].
     pub fn module_name(&self) -> Cow<'_, str> {
         self.inner.module_name()
     }
 
+    /// Returns the type of the [ImportType].
     pub fn ty(&self) -> Result<ExternalType> {
         match self.inner.ty() {
             wasmedge::ExternalType::Function => {
@@ -138,16 +174,21 @@ impl<'module> ImportType<'module> {
     }
 }
 
+/// Struct of WasmEdge ExportType.
+///
+/// [ExportType] is used for getting the type information of the exports from a [module](crate::Module).
 #[derive(Debug)]
 pub struct ExportType<'module> {
     inner: wasmedge::Export<'module>,
     _marker: PhantomData<&'module Module>,
 }
 impl<'module> ExportType<'module> {
+    /// Returns the name of the [ExportType].
     pub fn name(&self) -> Cow<'_, str> {
         self.inner.name()
     }
 
+    /// Returns the type of the [ExportType].
     pub fn ty(&self) -> Result<ExternalType> {
         match self.inner.ty() {
             wasmedge::ExternalType::Function => {
@@ -170,10 +211,15 @@ impl<'module> ExportType<'module> {
     }
 }
 
+/// Defines external types.
 pub enum ExternalType {
+    /// The [signature](crate::Signature) of a [host function](crate::Func).
     Func(Signature),
+    /// The [table type](crate::TableType) of a [table](crate::Table).
     Table(TableType),
+    /// The [memory type](crate::MemoryType) of a [memory](crate::Memory).
     Memory(MemoryType),
+    /// The [global type](crate::GlobalType) of a [global](crate::Global).
     Global(GlobalType),
 }
 

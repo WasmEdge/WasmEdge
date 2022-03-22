@@ -51,6 +51,7 @@ endif()
 
 if (WASMEDGE_BUILD_AOT_RUNTIME)
   add_subdirectory(aot)
+  add_subdirectory(mixcall)
 endif()
 add_subdirectory(spec)
 add_subdirectory(loader)

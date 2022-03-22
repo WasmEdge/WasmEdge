@@ -236,11 +236,11 @@ WasmEdge_ValueGenNullRef(const enum WasmEdge_RefType T);
 /// `WasmEdge_Proposal_BulkMemoryOperations` or the
 /// `WasmEdge_Proposal_ReferenceTypes` turns on in configuration.
 ///
-/// \param Index the function index.
+/// \param Cxt the function instance context to convert to the reference.
 ///
 /// \returns WasmEdge_Value struct with the function reference.
 WASMEDGE_CAPI_EXPORT extern WasmEdge_Value
-WasmEdge_ValueGenFuncRef(const uint32_t Index);
+WasmEdge_ValueGenFuncRef(WasmEdge_FunctionInstanceContext *Cxt);
 
 /// Generate the function reference WASM value.
 ///
@@ -301,13 +301,13 @@ WasmEdge_ValueGetV128(const WasmEdge_Value Val);
 WASMEDGE_CAPI_EXPORT extern bool
 WasmEdge_ValueIsNullRef(const WasmEdge_Value Val);
 
-/// Retrieve the function index from the WASM value.
+/// Retrieve the function instance context from the WASM value.
 ///
 /// \param Val the WasmEdge_Value struct.
 ///
-/// \returns function index in the input struct.
-WASMEDGE_CAPI_EXPORT extern uint32_t
-WasmEdge_ValueGetFuncIdx(const WasmEdge_Value Val);
+/// \returns pointer to function instance context in the input struct.
+WASMEDGE_CAPI_EXPORT extern WasmEdge_FunctionInstanceContext *
+WasmEdge_ValueGetFuncRef(const WasmEdge_Value Val);
 
 /// Retrieve the external reference from the WASM value.
 ///
@@ -2771,6 +2771,17 @@ WASMEDGE_CAPI_EXPORT extern WasmEdge_ImportObjectContext *
 WasmEdge_ImportObjectCreateWasmEdgeProcess(const char *const *AllowedCmds,
                                            const uint32_t CmdsLen,
                                            const bool AllowAll);
+
+/// Get the module name.
+///
+/// The returned string object is linked to the module name of the import object
+/// context, and the caller should __NOT__ call the `WasmEdge_StringDelete`.
+///
+/// \param Cxt the target WasmEdge_ImportObjectContext.
+///
+/// \returns the name of the WasmEdge_ImportObjectContext.
+WASMEDGE_CAPI_EXPORT extern WasmEdge_String
+WasmEdge_ImportObjectGetModuleName(const WasmEdge_ImportObjectContext *Cxt);
 
 /// Initialize the WasmEdge_ImportObjectContext for the wasmedge_process
 /// specification.

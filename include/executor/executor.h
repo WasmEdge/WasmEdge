@@ -193,12 +193,10 @@ private:
 
   /// Initialize table with Element Instances.
   Expect<void> initTable(Runtime::StackManager &StackMgr,
-                         Runtime::Instance::ModuleInstance &ModInst,
                          const AST::ElementSection &ElemSec);
 
   /// Initialize memory with Data Instances.
   Expect<void> initMemory(Runtime::StackManager &StackMgr,
-                          Runtime::Instance::ModuleInstance &ModInst,
                           const AST::DataSection &DataSec);
 
   /// Instantiation of Data Instances.
@@ -219,7 +217,7 @@ private:
   enterFunction(Runtime::StoreManager &StoreMgr,
                 Runtime::StackManager &StackMgr,
                 const Runtime::Instance::FunctionInstance &Func,
-                const AST::InstrView::iterator From);
+                const AST::InstrView::iterator RetIt, bool IsTailCall = false);
 
   /// Helper function for branching to label.
   Expect<void> branchToLabel(Runtime::StackManager &StackMgr,
@@ -264,19 +262,20 @@ private:
                          const AST::Instruction &Instr,
                          AST::InstrView::iterator &PC) noexcept;
   Expect<void> runBrTableOp(Runtime::StackManager &StackMgr,
-                            const AST::Instruction &Instrnoexcept,
+                            const AST::Instruction &Instr,
                             AST::InstrView::iterator &PC) noexcept;
   Expect<void> runReturnOp(Runtime::StackManager &StackMgr,
-                           const AST::Instruction &Instr,
                            AST::InstrView::iterator &PC) noexcept;
   Expect<void> runCallOp(Runtime::StoreManager &StoreMgr,
                          Runtime::StackManager &StackMgr,
                          const AST::Instruction &Instr,
-                         AST::InstrView::iterator &PC) noexcept;
+                         AST::InstrView::iterator &PC,
+                         bool IsTailCall = false) noexcept;
   Expect<void> runCallIndirectOp(Runtime::StoreManager &StoreMgr,
                                  Runtime::StackManager &StackMgr,
                                  const AST::Instruction &Instr,
-                                 AST::InstrView::iterator &PC) noexcept;
+                                 AST::InstrView::iterator &PC,
+                                 bool IsTailCall = false) noexcept;
   /// ======= Variable instructions =======
   Expect<void> runLocalGetOp(Runtime::StackManager &StackMgr,
                              uint32_t StackOffset) const noexcept;

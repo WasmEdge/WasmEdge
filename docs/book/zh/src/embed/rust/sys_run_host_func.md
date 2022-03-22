@@ -38,6 +38,7 @@
   )
 )
 ```
+
 ## 步骤 1: 创建 WasmEdge AST 模块
 
 在这一步中，我们将从 WebAssembly 文件创建一个 WasmEdge `AST Module` 实例。
@@ -57,7 +58,9 @@ let loader = Loader::create(None).expect("fail to create a Loader context");
 let path = PathBuf::from("fibonacci.wasm");
 let mut module = loader.from_file(path).expect("fail to load the WebAssembly file");
 ```
+
 ## 步骤 2: 创建一个 `Vm` 实例
+
 在 WasmEdge 中， `Vm` 定义了一个运行环境，在其中存储和维护各种实例。在下面的演示代码中，我们可以创建一个 WasmEdge `store` 实例，然后将其用作创建 `Vm` 实例的输入之一。如果没有明确指定 `store` 实例，那么 `Vm` 将自己创建一个 `store` 。
 
 ```rust
@@ -72,9 +75,11 @@ let store = Store::create().expect("fail to create a Store context");
 // 使用指定的配置和存储创建 Vm 实例
 let mut vm = Vm::create(Some(config), Some(store)).expect("fail to create a Vm context");
 ```
+
 ## 步骤 3: 调用 fib 函数
 
 在步骤 1中，我们得到了一个模块，该模块承载 WebAssembly 中定义的目标 `fib` 函数。现在，我们可以通过传递导出的函数名 `fib` ，通过 `Vm` 实例的 `run_wasm_from_module` 方法调用该函数。
+
 ```rust
 use wasmedge_sys::Value;
 
@@ -83,7 +88,9 @@ let returns = vm.run_wasm_from_module(module, "fib", [Value::from_i32(5)]).expec
 
 println!("The result of fib(5) is {}", returns[0].to_i32());
 ```
+
 这是在屏幕上打印的最终结果：
+
  ```bash
  The result of fib(5) is 8
  ```

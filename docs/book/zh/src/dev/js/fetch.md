@@ -4,7 +4,6 @@
 
 [example_js/wasi_http_fetch.js](https://github.com/second-state/wasmedge-quickjs/blob/main/example_js/wasi_http_fetch.js) 例子展示了如何在 WasmEdge 中使用 `fetch` API。下面的代码片段显示了一个异步的 HTTP GET 请求。当程序等待和处理 GET 内容的时候，它可以开始另一个请求。
 
-
 ```javascript
 import { fetch } from 'http'
 

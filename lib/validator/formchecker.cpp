@@ -362,7 +362,6 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
     return {};
   case OpCode::End:
     if (auto Res = popCtrl()) {
-      const_cast<AST::Instruction &>(Instr).setLast(CtrlStack.empty());
       pushTypes((*Res).EndTypes);
     } else {
       return Unexpect(Res);
@@ -477,15 +476,6 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
   case OpCode::Return:
     if (auto Res = popTypes(Returns); !Res) {
       return Unexpect(Res);
-    } else {
-      assuming(CtrlStack.front().Height == 0);
-      const uint32_t Remain =
-          static_cast<uint32_t>(ValStack.size() - CtrlStack.front().Height);
-      const uint32_t Arity = static_cast<uint32_t>(Returns.size());
-      auto &Jump = const_cast<AST::Instruction &>(Instr).getJump();
-      Jump.StackEraseBegin = Remain + Arity;
-      Jump.StackEraseEnd = Arity;
-      Jump.PCOffset = static_cast<int32_t>(CtrlStack.front().Jump - &Instr);
     }
     return unreachable();
 
@@ -521,6 +511,62 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
       return Unexpect(Res);
     }
     return StackTrans(Types[N].first, Types[N].second);
+  }
+  case OpCode::Return_call: {
+    auto N = Instr.getTargetIndex();
+    if (Funcs.size() <= N) {
+      // Call function index out of range
+      spdlog::error(ErrCode::InvalidFuncIdx);
+      spdlog::error(
+          ErrInfo::InfoForbidIndex(ErrInfo::IndexCategory::Function, N,
+                                   static_cast<uint32_t>(Funcs.size())));
+      return Unexpect(ErrCode::InvalidFuncIdx);
+    }
+    if (Types[Funcs[N]].second != Returns) {
+      spdlog::error(ErrCode::TypeCheckFailed);
+      // TODO: Print the error info of types.
+      return Unexpect(ErrCode::TypeCheckFailed);
+    }
+    if (auto Res = popTypes(Types[Funcs[N]].first); !Res) {
+      return Unexpect(Res);
+    }
+    return unreachable();
+  }
+  case OpCode::Return_call_indirect: {
+    auto N = Instr.getTargetIndex();
+    auto T = Instr.getSourceIndex();
+    // Check source table index.
+    if (Tables.size() <= T) {
+      spdlog::error(ErrCode::InvalidTableIdx);
+      spdlog::error(
+          ErrInfo::InfoForbidIndex(ErrInfo::IndexCategory::Table, T,
+                                   static_cast<uint32_t>(Tables.size())));
+      return Unexpect(ErrCode::InvalidTableIdx);
+    }
+    if (Tables[T] != RefType::FuncRef) {
+      spdlog::error(ErrCode::InvalidTableIdx);
+      return Unexpect(ErrCode::InvalidTableIdx);
+    }
+    // Check target function type index.
+    if (Types.size() <= N) {
+      spdlog::error(ErrCode::InvalidFuncTypeIdx);
+      spdlog::error(
+          ErrInfo::InfoForbidIndex(ErrInfo::IndexCategory::FunctionType, N,
+                                   static_cast<uint32_t>(Types.size())));
+      return Unexpect(ErrCode::InvalidFuncTypeIdx);
+    }
+    if (Types[N].second != Returns) {
+      spdlog::error(ErrCode::TypeCheckFailed);
+      // TODO: Print the error info of types.
+      return Unexpect(ErrCode::TypeCheckFailed);
+    }
+    if (auto Res = popType(VType::I32); !Res) {
+      return Unexpect(Res);
+    }
+    if (auto Res = popTypes(Types[N].first); !Res) {
+      return Unexpect(Res);
+    }
+    return unreachable();
   }
 
   // Reference Instructions.

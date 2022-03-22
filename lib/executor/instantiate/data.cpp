@@ -61,10 +61,8 @@ Expect<void> Executor::instantiate(Runtime::StoreManager &StoreMgr,
   return {};
 }
 
-// Initialize memory with Data Instances. See
-// "include/executor/executor.h".
+// Initialize memory with Data section. See "include/executor/executor.h".
 Expect<void> Executor::initMemory(Runtime::StackManager &StackMgr,
-                                  Runtime::Instance::ModuleInstance &,
                                   const AST::DataSection &DataSec) {
   // initialize memory.
   uint32_t Idx = 0;

@@ -27,7 +27,6 @@ Executor::runFunction(Runtime::StoreManager &StoreMgr,
   }
 
   // Reset and push a dummy frame into stack.
-  StackMgr.reset();
   StackMgr.pushFrame(nullptr, AST::InstrView::iterator(), 0, 0);
 
   // Push arguments.
@@ -116,11 +115,15 @@ Expect<void> Executor::execute(Runtime::StoreManager &StoreMgr,
     case OpCode::Br_table:
       return runBrTableOp(StackMgr, Instr, PC);
     case OpCode::Return:
-      return runReturnOp(StackMgr, Instr, PC);
+      return runReturnOp(StackMgr, PC);
     case OpCode::Call:
       return runCallOp(StoreMgr, StackMgr, Instr, PC);
     case OpCode::Call_indirect:
       return runCallIndirectOp(StoreMgr, StackMgr, Instr, PC);
+    case OpCode::Return_call:
+      return runCallOp(StoreMgr, StackMgr, Instr, PC, true);
+    case OpCode::Return_call_indirect:
+      return runCallIndirectOp(StoreMgr, StackMgr, Instr, PC, true);
 
     // Reference Instructions
     case OpCode::Ref__null:
@@ -136,9 +139,9 @@ Expect<void> Executor::execute(Runtime::StoreManager &StoreMgr,
       return {};
     }
     case OpCode::Ref__func: {
-      const auto *ModInst = StackMgr.getModule();
-      const auto *FuncInst = *ModInst->getFunc(Instr.getTargetIndex());
-      StackMgr.push<FuncRef>(FuncRef(FuncInst->getAddr()));
+      auto *ModInst = StackMgr.getModule();
+      auto *FuncInst = *ModInst->getFunc(Instr.getTargetIndex());
+      StackMgr.push<FuncRef>(FuncRef(FuncInst));
       return {};
     }
 

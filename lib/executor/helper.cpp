@@ -7,7 +7,6 @@
 #include "system/fault.h"
 
 #include <cstdint>
-#include <numeric>
 #include <utility>
 #include <vector>
 
@@ -18,12 +17,16 @@ Expect<AST::InstrView::iterator>
 Executor::enterFunction(Runtime::StoreManager &StoreMgr,
                         Runtime::StackManager &StackMgr,
                         const Runtime::Instance::FunctionInstance &Func,
-                        const AST::InstrView::iterator From) {
+                        const AST::InstrView::iterator RetIt, bool IsTailCall) {
+  // RetIt: the return position when the entered function returns.
+
+  // Check if the interruption occurs.
   if (unlikely(StopToken.exchange(0, std::memory_order_relaxed))) {
     spdlog::error(ErrCode::Interrupted);
     return Unexpect(ErrCode::Interrupted);
   }
-  // Get function type
+
+  // Get function type for the params and returns num.
   const auto &FuncType = Func.getFuncType();
   const uint32_t ArgsN = static_cast<uint32_t>(FuncType.getParamTypes().size());
   const uint32_t RetsN =
@@ -44,6 +47,15 @@ Executor::enterFunction(Runtime::StoreManager &StoreMgr,
       }
     }
 
+    // Push frame.
+    StackMgr.pushFrame(nullptr,   // Host function instance don't have module
+                       RetIt,     // Return PC
+                       ArgsN,     // Only args, no locals in stack
+                       RetsN,     // Returns num
+                       IsTailCall // For tail-call
+    );
+
+    // Do the statistics if the statistics turned on.
     if (Stat) {
       // Check host function cost.
       if (unlikely(!Stat->addCost(HostFunc.getCost()))) {
@@ -60,12 +72,14 @@ Executor::enterFunction(Runtime::StoreManager &StoreMgr,
     std::vector<ValVariant> Rets(RetsN);
     auto Ret = HostFunc.run(MemoryInst, std::move(Args), Rets);
 
+    // Do the statistics if the statistics turned on.
     if (Stat) {
       // Stop recording time of running host function.
       Stat->stopRecordHost();
       Stat->startRecordWasm();
     }
 
+    // Check the host function execution status.
     if (!Ret) {
       if (Ret.error() == ErrCode::ExecutionFailed) {
         spdlog::error(Ret.error());
@@ -74,27 +88,31 @@ Executor::enterFunction(Runtime::StoreManager &StoreMgr,
     }
 
     // Push returns back to stack.
-    for (uint32_t I = 0; I < ArgsN; ++I) {
-      ValVariant Val [[maybe_unused]] = StackMgr.pop();
-    }
     for (auto &R : Rets) {
       StackMgr.push(std::move(R));
     }
 
-    // For host function case, the continuation will be the next.
-    return From;
+    // For host function case, the continuation will be the continuation from
+    // the popped frame.
+    return StackMgr.popFrame();
   } else if (Func.isCompiledFunction()) {
-    // Compiled function case: Push frame with locals and args.
+    // Compiled function case: Execute the function and jump to the
+    // continuation.
+
+    // Push frame.
     StackMgr.pushFrame(Func.getModule(), // Module address
-                       From - 1,         // Return PC
-                       0,                // No Arguments in stack
-                       RetsN             // Returns num
+                       RetIt,            // Return PC
+                       ArgsN,            // Only args, no locals in stack
+                       RetsN,            // Returns num
+                       IsTailCall        // For tail-call
     );
 
+    // Prepare arguments.
     Span<ValVariant> Args = StackMgr.getTopSpan(ArgsN);
     std::vector<ValVariant> Rets(RetsN);
 
     {
+      // Prepare the execution context.
       CurrentStore = &StoreMgr;
       CurrentStack = &StackMgr;
       auto &ModInst = *Func.getModule();
@@ -110,6 +128,7 @@ Executor::enterFunction(Runtime::StoreManager &StoreMgr,
     }
 
     {
+      // Get symbol and execute the function.
       Fault FaultHandler;
       if (auto Err = PREPARE_FAULT(FaultHandler);
           unlikely(Err != ErrCode::Success)) {
@@ -123,34 +142,35 @@ Executor::enterFunction(Runtime::StoreManager &StoreMgr,
               Rets.data());
     }
 
+    // Push returns back to stack.
     for (uint32_t I = 0; I < Rets.size(); ++I) {
       StackMgr.push(Rets[I]);
     }
 
-    StackMgr.popFrame();
-    // For compiled function case, the continuation will be the next.
-    return From;
+    // For compiled function case, the continuation will be the continuation
+    // from the popped frame.
+    return StackMgr.popFrame();
   } else {
-    const uint32_t LocalN = std::accumulate(
-        Func.getLocals().begin(), Func.getLocals().end(), UINT32_C(0),
-        [](uint32_t N, const auto &Pair) -> uint32_t {
-          return N + Pair.first;
-        });
-    // Native function case: Push frame with locals and args.
-    StackMgr.pushFrame(Func.getModule(), // Module address
-                       From - 1,         // Return PC
-                       ArgsN + LocalN,   // Arguments num + local num
-                       RetsN             // Returns num
-    );
+    // Native function case: Jump to the start of the function body.
 
-    // Push local variables to stack.
+    // Push local variables into the stack.
     for (auto &Def : Func.getLocals()) {
-      for (uint32_t i = 0; i < Def.first; i++) {
+      for (uint32_t I = 0; I < Def.first; I++) {
         StackMgr.push(ValueFromType(Def.second));
       }
     }
 
-    // For native function case, the continuation will be the start of
+    // Push frame.
+    // The PC must -1 here because in the interpreter mode execution, the PC
+    // will increase after the callee return.
+    StackMgr.pushFrame(Func.getModule(),           // Module address
+                       RetIt - 1,                  // Return PC
+                       ArgsN + Func.getLocalNum(), // Arguments num + local num
+                       RetsN,                      // Returns num
+                       IsTailCall                  // For tail-call
+    );
+
+    // For native function case, the continuation will be the start of the
     // function body.
     return Func.getInstrs().begin();
   }
@@ -167,7 +187,8 @@ Expect<void> Executor::branchToLabel(Runtime::StackManager &StackMgr,
   }
 
   StackMgr.stackErase(EraseBegin, EraseEnd);
-  PC += PCOffset;
+  // PC need to -1 here because the PC will increase in the next iteration.
+  PC += (PCOffset - 1);
   return {};
 }
 

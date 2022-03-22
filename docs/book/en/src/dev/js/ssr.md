@@ -77,10 +77,13 @@ import ReactDOMServer from 'react-dom/server';
 import * as std from 'std';
 import * as http from 'wasi_http';
 import * as net from 'wasi_net';
+
 import App from '../src/App.js';
+
 async function handle_client(cs) {
 	print('open:', cs.peer());
 	let buffer = new http.Buffer();
+
 	while (true) {
 		try {
 			let d = await cs.read();
@@ -99,22 +102,60 @@ async function handle_client(cs) {
 	}
 	print('end:', cs.peer());
 }
+
+function enlargeArray(oldArr, newLength) {
+	let newArr = new Uint8Array(newLength);
+	oldArr && newArr.set(oldArr, 0);
+	return newArr;
+}
+
 async function handle_req(s, req) {
-	print('uri:', req.uri);
+	print('uri:', req.uri)
+
 	let resp = new http.WasiResponse();
 	let content = '';
 	if (req.uri == '/') {
 		const app = ReactDOMServer.renderToString(<App />);
 		content = std.loadFile('./build/index.html');
 		content = content.replace('<div id="root"></div>', `<div id="root">${app}</div>`);
-	} else if (req.uri.indexOf('/static') === 0) {
-		content = std.loadFile('./build' + req.uri);
 	} else {
-		content = std.loadFile('./public' + req.uri);
+		let chunk = 1000; // Chunk size of each reading
+		let length = 0; // The whole length of the file
+		let byteArray = null; // File content as Uint8Array
+		
+		// Read file into byteArray by chunk
+		let file = std.open('./build' + req.uri, 'r');
+		while (true) {
+			byteArray = enlargeArray(byteArray, length + chunk);
+			let readLen = file.read(byteArray.buffer, length, chunk);
+			length += readLen;
+			if (readLen < chunk) {
+				break;
+			}
+		}
+		content = byteArray.slice(0, length).buffer;
+		file.close();
 	}
+	let contentType = 'text/html; charset=utf-8';
+	if (req.uri.endsWith('.css')) {
+		contentType = 'text/css; charset=utf-8';
+	} else if (req.uri.endsWith('.js')) {
+		contentType = 'text/javascript; charset=utf-8';
+	} else if (req.uri.endsWith('.json')) {
+		contentType = 'text/json; charset=utf-8';
+	} else if (req.uri.endsWith('.ico')) {
+		contentType = 'image/vnd.microsoft.icon';
+	} else if (req.uri.endsWith('.png')) {
+		contentType = 'image/png';
+	}
+	resp.headers = {
+		'Content-Type': contentType
+	};
+
 	let r = resp.encode(content);
 	s.write(r);
 }
+
 async function server_start() {
 	print('listen 8002...');
 	try {
@@ -127,6 +168,7 @@ async function server_start() {
 		print(e);
 	}
 }
+
 server_start();
 ```
 
@@ -255,7 +297,104 @@ Output
 
 Alternatively, you could use the [rollup.js](https://rollupjs.org/guide/en/) tool to [package all application components and library modules](npm.md) into a single file for WasmEdge to execute.
 
-TBD
+Create a rollup config for the server that uses Babel Loader to transpile the code. Start by creating the `rollup.config.js` file in the project's root directory.
+
+```js
+const {babel} = require('@rollup/plugin-babel');
+const nodeResolve = require('@rollup/plugin-node-resolve');
+const commonjs = require('@rollup/plugin-commonjs');
+const replace = require('@rollup/plugin-replace');
+
+const globals = require('rollup-plugin-node-globals');
+const builtins = require('rollup-plugin-node-builtins');
+const plugin_async = require('rollup-plugin-async');
+const css = require("rollup-plugin-import-css");
+const svg = require('rollup-plugin-svg');
+
+const babelOptions = {
+	babelrc: false,
+	presets: [
+		'@babel/preset-react'
+	],
+	babelHelpers: 'bundled'
+};
+
+module.exports = [
+	{
+		input: './server/index.js',
+		output: {
+			file: 'server-build/index.js',
+			format: 'esm',
+		},
+		external: [ 'std', 'wasi_net','wasi_http'],
+		plugins: [
+			plugin_async(),
+			babel(babelOptions),
+			nodeResolve({preferBuiltins: true}),
+			commonjs({ignoreDynamicRequires: false}),
+			css(),
+			svg({base64: true}),
+			globals(),
+			builtins(),
+			replace({
+				preventAssignment: true,	
+				'process.env.NODE_ENV': JSON.stringify('production'),
+				'process.env.NODE_DEBUG': JSON.stringify(''),
+			}),
+		],
+	},
+];
+```
+
+With this configuration, the transpiled server bundle will be output to the `server-build` folder in a file called `index.js`.
+
+Next, add the dependent packages to the `package.json` then install with `npm`.
+
+```json
+  "devDependencies": {
+    //...
+    "@rollup/plugin-babel": "^5.3.0",
+    "@rollup/plugin-commonjs": "^21.0.1",
+    "@rollup/plugin-node-resolve": "^7.1.3",
+    "@rollup/plugin-replace": "^3.0.0",
+    "rollup": "^2.60.1",
+    "rollup-plugin-async": "^1.2.0",
+    "rollup-plugin-import-css": "^3.0.3",
+    "rollup-plugin-node-builtins": "^2.1.2",
+    "rollup-plugin-node-globals": "^1.4.0",
+    "rollup-plugin-svg": "^2.0.0"
+  }
+```
+
+```bash
+npm install
+```
+
+This completes the dependency installation and rollup configuration.
+
+Now, revisit `package.json` and add helper npm scripts. Add `dev:build-server`, `dev:start-server` scripts to the `package.json` file to build and serve the SSR application.
+
+```json
+"scripts": {
+  "dev:build-server": "rollup -c rollup.config.js",
+  "dev:start-server": "wasmedge --dir .:. wasmedge_quickjs.wasm ./server-build/index.js",
+  // ...
+},
+```
+
+The `dev:build-server` script invokes rollup with the configuration file you created earlier.
+
+Note: The `dev:start-server` script invokes `wasmedge` to serve the built output. The `wasmedge_quickjs.wasm` is compiled from QuickJS runtime.
+You can compile it using the following commands and copy the output wasm file to the root of current project's root directory.
+
+```bash
+DIR=`pwd`
+cd ..
+git clone https://github.com/second-state/wasmedge-quickjs
+cd wasmedge-quickjs
+cargo build --target wasm32-wasi --release
+cp target/wasm32-wasi/release/wasmedge_quickjs.wasm $DIR
+```
 
 Now you can run the following commands to build the client-side app, bundle and transpile the server code, and start up the server on `:8002`.
 

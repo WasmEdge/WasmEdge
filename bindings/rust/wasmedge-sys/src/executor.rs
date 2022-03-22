@@ -9,7 +9,7 @@ use crate::{
 
 /// Struct of WasmEdge Executor.
 ///
-/// [Executor](crate::Executor) defines an execution environment for both WASM and compiled WASM. It works based on the
+/// [Executor] defines an execution environment for both WASM and compiled WASM. It works with the
 /// [Store](crate::Store).
 #[derive(Debug)]
 pub struct Executor {

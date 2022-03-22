@@ -107,6 +107,8 @@ use crate::{
 ///
 ///     - `generic_binary` determines if AOT compiler generates the generic binary or not.
 ///     
+///     - `interruptible` determines if AOT compiler generates interruptible binary or not.
+///     
 ///     The configuration options above are only effective to [Compiler](crate::Compiler).
 ///
 /// - **Runtime Statistics**
@@ -801,7 +803,7 @@ impl Config {
         unsafe { wasmedge::WasmEdge_ConfigureStatisticsSetTimeMeasuring(self.inner.0, flag) }
     }
 
-    /// Checks if the cost measuring option turns on or not.
+    /// Checks if the time measuring option turns on or not.
     pub fn is_time_measuring(&self) -> bool {
         unsafe { wasmedge::WasmEdge_ConfigureStatisticsIsTimeMeasuring(self.inner.0) }
     }

@@ -78,8 +78,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         "call_add",
         [add_ref, Value::from_i32(1234), Value::from_i32(5678)],
     ) {
-        Ok(v) => println!("result from call_add: {:?}", v),
-        Err(r) => println!("error from call_add{:?}", r),
+        Ok(returns) => {
+            let ret = returns[0].to_i32();
+            assert_eq!(ret, 1234 + 5678);
+            println!("result from call_add: {}", ret)
+        }
+        Err(e) => println!("error from call_add{:?}", e),
     };
 
     Ok(())

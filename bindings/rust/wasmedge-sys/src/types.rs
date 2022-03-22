@@ -480,10 +480,11 @@ impl Value {
                 true => None,
                 false => {
                     let ctx = wasmedge::WasmEdge_ValueGetFuncRef(self.ctx);
-                    // Some(idx)
                     Some(Function {
                         inner: InnerFunc(ctx),
                         registered: true,
+                        name: None,
+                        mod_name: None,
                     })
                 }
             }

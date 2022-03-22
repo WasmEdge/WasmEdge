@@ -307,7 +307,7 @@ mod tests {
         assert!(result.is_ok());
         let func_ty = result.unwrap();
         // create a host function
-        let result = Function::create(func_ty, Box::new(real_add), 0);
+        let result = Function::create(&func_ty, Box::new(real_add), 0);
         assert!(result.is_ok());
         let mut host_func = result.unwrap();
 
@@ -337,7 +337,8 @@ mod tests {
         // get data
         let result = table.get_data(3);
         assert!(result.is_ok());
-        let result = result.unwrap().func_ref();
+        let value = result.unwrap();
+        let result = value.func_ref();
         assert!(result.is_some());
         let func_ref = result.unwrap();
 

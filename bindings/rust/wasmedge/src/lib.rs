@@ -2,7 +2,6 @@ use wasmedge_sys as wasmedge;
 
 #[doc(hidden)]
 pub mod compiler;
-#[doc(hidden)]
 pub mod config;
 #[doc(hidden)]
 pub mod error;
@@ -21,11 +20,6 @@ pub mod vm;
 
 #[doc(hidden)]
 pub use compiler::Compiler;
-#[doc(inline)]
-pub use config::{
-    CommonConfigOptions, CompilerConfigOptions, Config, ConfigBuilder,
-    HostRegistrationConfigOptions, RuntimeConfigOptions, StatisticsConfigOptions,
-};
 #[doc(inline)]
 pub use executor::Executor;
 #[doc(inline)]

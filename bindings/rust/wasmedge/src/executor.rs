@@ -1,10 +1,26 @@
-use crate::{error::Result, wasmedge, Config, Statistics, Store, Value};
+//! Defines Executor struct.
 
+use crate::{config::Config, error::Result, wasmedge, Statistics, Store, Value};
+
+/// Struct of WasmEdge Executor.
+///
+/// [Executor](crate::Executor) defines an execution environment for both pure WASM and compiled WASM . It works with a [Store](crate::Store).
 #[derive(Debug)]
 pub struct Executor {
     pub(crate) inner: wasmedge::Executor,
 }
 impl Executor {
+    /// Creates a new [executor](crate::Executor) to be associated with the given [config](crate::config::Config) and [statistics](crate::Statistics).
+    ///
+    /// # Arguments
+    ///
+    /// - `config` specifies the configuration of the new [executor](crate::Executor).
+    ///
+    /// - `stat` specifies the [statistics](crate::Statistics) needed by the new [executor](crate::Executor).
+    ///
+    /// # Error
+    ///
+    /// If fail to create a [executor](crate::Executor), then an error is returned.
     pub fn new(config: Option<&Config>, stat: Option<&mut Statistics>) -> Result<Self> {
         let inner_config = match config {
             Some(config) => Some(Config::copy_from(config)?.inner),
@@ -21,6 +37,21 @@ impl Executor {
         })
     }
 
+    /// Invokes a host function by specifying the function name and the name of the host [module instance](crate::Instance), and returns the results.
+    ///
+    /// # Arguments
+    ///
+    /// - `store` specifies the target [store](crate::Store) which owns the [module instance](crate::Instance) specified by `mod_name` and the target [host function](crate::Func) specified by `func_name`.
+    ///
+    /// - `mod_name` specifies the name of the host [module instance](crate::Instance).
+    ///
+    /// - `func_name` specifies the name of the target [host function](crate::Func).
+    ///
+    /// - `args` specifies the argument values for the target host function.
+    ///
+    /// # Error
+    ///
+    /// If fail to invoke the function specified by `func_name`, then an error is returned.
     pub fn run_func(
         &mut self,
         store: &mut Store,
@@ -52,7 +83,10 @@ impl Executor {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{CommonConfigOptions, ConfigBuilder, Module, Statistics};
+    use crate::{
+        config::{CommonConfigOptions, ConfigBuilder},
+        Module, Statistics,
+    };
 
     #[test]
     fn test_executor_create() {
@@ -136,6 +170,7 @@ mod tests {
         let result = executor.run_func(&mut store, Some("extern"), "fib", [Value::from_i32(5)]);
         assert!(result.is_ok());
         let returns = result.unwrap();
-        assert_eq!(returns, [Value::from_i32(8)]);
+        assert_eq!(returns.len(), 1);
+        assert_eq!(returns[0].to_i32(), 8);
     }
 }

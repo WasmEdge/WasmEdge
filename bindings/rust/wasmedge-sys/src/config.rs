@@ -196,11 +196,11 @@ impl Config {
 
         config.set_max_memory_pages(src.get_max_memory_pages());
 
-        config.aot_interruptible(src.aot_interruptible_enabled());
+        config.interruptible(src.interruptible_enabled());
 
-        config.aot_dump_ir(src.is_aot_dump_ir());
+        config.dump_ir(src.dump_ir_enabled());
 
-        config.aot_generic_binary(src.is_aot_generic_binary());
+        config.generic_binary(src.generic_binary_enabled());
 
         config.set_aot_compiler_output_format(src.get_aot_compiler_output_format());
 
@@ -725,12 +725,12 @@ impl Config {
     /// # Argument
     ///
     /// - `flag` specifies if dump ir or not.
-    pub fn aot_dump_ir(&mut self, flag: bool) {
+    pub fn dump_ir(&mut self, flag: bool) {
         unsafe { wasmedge::WasmEdge_ConfigureCompilerSetDumpIR(self.inner.0, flag) }
     }
 
     /// Checks if the dump IR option turns on or not.
-    pub fn is_aot_dump_ir(&self) -> bool {
+    pub fn dump_ir_enabled(&self) -> bool {
         unsafe { wasmedge::WasmEdge_ConfigureCompilerIsDumpIR(self.inner.0) }
     }
 
@@ -739,12 +739,12 @@ impl Config {
     /// # Argument
     ///
     /// - `flag` specifies if generate the generic binary or not when perform AOT compilation.
-    pub fn aot_generic_binary(&mut self, flag: bool) {
+    pub fn generic_binary(&mut self, flag: bool) {
         unsafe { wasmedge::WasmEdge_ConfigureCompilerSetGenericBinary(self.inner.0, flag) }
     }
 
     /// Checks if the generic binary option of AOT compiler turns on or not.
-    pub fn is_aot_generic_binary(&self) -> bool {
+    pub fn generic_binary_enabled(&self) -> bool {
         unsafe { wasmedge::WasmEdge_ConfigureCompilerIsGenericBinary(self.inner.0) }
     }
 
@@ -755,12 +755,12 @@ impl Config {
     /// # Argument
     ///
     /// - `enable` specifies if turn on the `Interruptible` option.
-    pub fn aot_interruptible(&mut self, enable: bool) {
+    pub fn interruptible(&mut self, enable: bool) {
         unsafe { wasmedge::WasmEdge_ConfigureCompilerSetInterruptible(self.inner.0, enable) }
     }
 
     /// Checks if the `Interruptible` option of AOT Compiler turns on or not.
-    pub fn aot_interruptible_enabled(&self) -> bool {
+    pub fn interruptible_enabled(&self) -> bool {
         unsafe { wasmedge::WasmEdge_ConfigureCompilerIsInterruptible(self.inner.0) }
     }
 
@@ -847,8 +847,8 @@ mod tests {
         assert!(!config.wasi_enabled());
         assert!(!config.wasmedge_process_enabled());
         assert!(!config.is_cost_measuring());
-        assert!(!config.is_aot_dump_ir());
-        assert!(!config.is_aot_generic_binary());
+        assert!(!config.dump_ir_enabled());
+        assert!(!config.generic_binary_enabled());
         assert!(!config.is_instruction_counting());
         assert!(!config.is_time_measuring());
         assert_eq!(config.get_max_memory_pages(), 65536);
@@ -877,8 +877,8 @@ mod tests {
         config.threads(true);
         config.measure_cost(true);
         config.measure_time(true);
-        config.aot_dump_ir(true);
-        config.aot_generic_binary(true);
+        config.dump_ir(true);
+        config.generic_binary(true);
         config.count_instructions(true);
 
         // check new settings
@@ -896,8 +896,8 @@ mod tests {
         assert!(config.tail_call_enabled());
         assert!(config.threads_enabled());
         assert!(config.is_cost_measuring());
-        assert!(config.is_aot_dump_ir());
-        assert!(config.is_aot_generic_binary());
+        assert!(config.dump_ir_enabled());
+        assert!(config.generic_binary_enabled());
         assert!(config.is_instruction_counting());
         assert!(config.is_time_measuring());
 
@@ -935,8 +935,8 @@ mod tests {
             assert!(!config.tail_call_enabled());
             assert!(!config.threads_enabled());
             assert!(!config.is_cost_measuring());
-            assert!(!config.is_aot_dump_ir());
-            assert!(!config.is_aot_generic_binary());
+            assert!(!config.dump_ir_enabled());
+            assert!(!config.generic_binary_enabled());
             assert!(!config.is_instruction_counting());
             assert!(!config.is_time_measuring());
             assert_eq!(config.get_max_memory_pages(), 65536);
@@ -961,8 +961,8 @@ mod tests {
             config.threads(true);
             config.measure_cost(true);
             config.measure_time(true);
-            config.aot_dump_ir(true);
-            config.aot_generic_binary(true);
+            config.dump_ir(true);
+            config.generic_binary(true);
             config.count_instructions(true);
 
             // check new settings
@@ -976,8 +976,8 @@ mod tests {
             assert!(config.tail_call_enabled());
             assert!(config.threads_enabled());
             assert!(config.is_cost_measuring());
-            assert!(config.is_aot_dump_ir());
-            assert!(config.is_aot_generic_binary());
+            assert!(config.dump_ir_enabled());
+            assert!(config.generic_binary_enabled());
             assert!(config.is_instruction_counting());
             assert!(config.is_time_measuring());
         });
@@ -1009,8 +1009,8 @@ mod tests {
             assert!(!config.tail_call_enabled());
             assert!(!config.threads_enabled());
             assert!(!config.is_cost_measuring());
-            assert!(!config.is_aot_dump_ir());
-            assert!(!config.is_aot_generic_binary());
+            assert!(!config.dump_ir_enabled());
+            assert!(!config.generic_binary_enabled());
             assert!(!config.is_instruction_counting());
             assert!(!config.is_time_measuring());
             assert_eq!(config.get_max_memory_pages(), 65536);
@@ -1036,8 +1036,8 @@ mod tests {
             config_mut.threads(true);
             config_mut.measure_cost(true);
             config_mut.measure_time(true);
-            config_mut.aot_dump_ir(true);
-            config_mut.aot_generic_binary(true);
+            config_mut.dump_ir(true);
+            config_mut.generic_binary(true);
             config_mut.count_instructions(true);
 
             // check new settings
@@ -1051,8 +1051,8 @@ mod tests {
             assert!(config.tail_call_enabled());
             assert!(config.threads_enabled());
             assert!(config.is_cost_measuring());
-            assert!(config.is_aot_dump_ir());
-            assert!(config.is_aot_generic_binary());
+            assert!(config.dump_ir_enabled());
+            assert!(config.generic_binary_enabled());
             assert!(config.is_instruction_counting());
             assert!(config.is_time_measuring());
         });

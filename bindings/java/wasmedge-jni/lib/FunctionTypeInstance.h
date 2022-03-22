@@ -9,7 +9,7 @@
 
 typedef struct HostFuncParam {
     JNIEnv * env;
-    jobject  jfunc;
+    char* jFuncKey;
 } HostFuncParam;
 
 

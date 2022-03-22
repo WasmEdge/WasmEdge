@@ -6,9 +6,11 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 public class WasmEdgeVM {
     private static final Map<String, Object> externRefMap = new HashMap<>();
+    public static final Map<String, HostFunction> funcMap = new HashMap<>();
     private long pointer;
     private ConfigureContext configureContext;
     private StoreContext storeContext;
@@ -25,6 +27,16 @@ public class WasmEdgeVM {
 
     protected static Object getExternRef(String key) {
         return externRefMap.get(key);
+    }
+
+    protected static String addHostFunc(HostFunction hostFunction) {
+        String key = UUID.randomUUID().toString();
+        funcMap.put(key, hostFunction);
+        return key;
+    }
+
+    protected static HostFunction getHostFunc(String key) {
+        return funcMap.get(key);
     }
 
     private native void nativeInit(ConfigureContext configureContext, StoreContext storeContext);

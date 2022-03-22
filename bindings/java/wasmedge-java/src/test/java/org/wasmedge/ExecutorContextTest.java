@@ -162,4 +162,33 @@ public class ExecutorContextTest extends BaseTest {
         StoreContext storeCxt = new StoreContext();
         exeCxt.registerImport(storeCxt, impCxt);
     }
+
+    @Test
+    public void testCallHostFunc() {
+        ConfigureContext conf = new ConfigureContext();
+        ASTModuleContext mod = loadMode(conf, TEST_WASM_PATH);
+        ExecutorContext exeCxt = new ExecutorContext(conf, null);
+        ImportObjectContext impCxt = createExternModule("extern");
+        StoreContext storeCxt = new StoreContext();
+        exeCxt.registerImport(storeCxt, impCxt);
+        exeCxt.registerModule(storeCxt, mod, "module");
+        exeCxt.instantiate(storeCxt, mod);
+
+        // get tab
+        TableInstanceContext tab = storeCxt.findTable("tab-ext");
+        Assert.assertNotNull(tab);
+
+        // call add
+        List<WasmEdgeValue> param = new ArrayList<>();
+        param.add(new WasmEdgeI32Value(777));
+
+        List<WasmEdgeValue> returns = new ArrayList<>();
+        returns.add(new WasmEdgeI32Value(0));
+        exeCxt.invoke(storeCxt, "func-host-add", param, returns);
+
+        Assert.assertEquals(0, ((WasmEdgeI32Value)returns.get(0)).getValue());
+
+
+
+    }
 }

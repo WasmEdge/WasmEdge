@@ -25,12 +25,7 @@ public class ImportObjectContextTest extends BaseTest {
     public void testAddHostFunction() {
         HostFunction addHostFunc = new HostFunction() {
             @Override
-            public Result apply(Object data, MemoryInstanceContext mem, List<WasmEdgeValue> params, List<WasmEdgeValue> returns) {
-                int a = ((WasmEdgeI32Value)params.get(0)).getValue();
-                int b = ((WasmEdgeI32Value)params.get(1)).getValue();
-                int c = a + b;
-                WasmEdgeI32Value result = (WasmEdgeI32Value) returns.get(0);
-                result.setValue(c);
+            public Result apply(MemoryInstanceContext mem, List<WasmEdgeValue> params, List<WasmEdgeValue> returns) {
                 return new Result();
             }
         };
@@ -86,7 +81,7 @@ public class ImportObjectContextTest extends BaseTest {
         config.addHostRegistration(HostRegistration.WasmEdge_HostRegistration_Wasi);
         WasmEdgeVM vm = new WasmEdgeVM(config, null);
         ImportObjectContext importObjectContext = vm.getImportModuleContext(HostRegistration.WasmEdge_HostRegistration_Wasi);
-        importObjectContext.initWASI(args, envs, preopens);
+        importObjectContext.initWASI(args, envs , preopens);
     }
 
     @Test

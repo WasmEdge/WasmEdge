@@ -10,11 +10,12 @@ public class FunctionInstanceContext {
     public FunctionInstanceContext(FunctionTypeContext type,
                                    HostFunction hostFunction, Object data,
                                    long cost) {
-        nativeCreateFunction(type, hostFunction, data, cost);
+        String funcKey = WasmEdgeVM.addHostFunc(hostFunction);
+        nativeCreateFunction(type, funcKey, data, cost);
     }
 
 
-    private native void nativeCreateFunction(FunctionTypeContext typeContext, HostFunction hostFunction, Object data, long cost);
+    private native void nativeCreateFunction(FunctionTypeContext typeContext, String funcKey, Object data, long cost);
 
     public FunctionInstanceContext(FunctionTypeContext type,
                                WrapFunction wrapFunction, Object binding,

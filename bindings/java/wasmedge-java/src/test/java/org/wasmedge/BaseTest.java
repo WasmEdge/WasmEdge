@@ -54,44 +54,44 @@ public class BaseTest {
 
     public static HostFunction extAdd = new HostFunction() {
         @Override
-        public Result apply(Object data, MemoryInstanceContext mem, List<WasmEdgeValue> params, List<WasmEdgeValue> returns) {
+        public Result apply(MemoryInstanceContext mem, List<WasmEdgeValue> params, List<WasmEdgeValue> returns) {
             return new Result();
-        };
+        }
     };
 
     public static HostFunction extSub = new HostFunction() {
         @Override
-        public Result apply(Object data, MemoryInstanceContext mem, List<WasmEdgeValue> params, List<WasmEdgeValue> returns) {
+        public Result apply(MemoryInstanceContext mem, List<WasmEdgeValue> params, List<WasmEdgeValue> returns) {
             return new Result();
-        };
+        }
     };
 
     public static HostFunction extMul = new HostFunction() {
         @Override
-        public Result apply(Object data, MemoryInstanceContext mem, List<WasmEdgeValue> params, List<WasmEdgeValue> returns) {
+        public Result apply(MemoryInstanceContext mem, List<WasmEdgeValue> params, List<WasmEdgeValue> returns) {
             return new Result();
-        };
+        }
     };
 
     public static HostFunction extDiv = new HostFunction() {
         @Override
-        public Result apply(Object data, MemoryInstanceContext mem, List<WasmEdgeValue> params, List<WasmEdgeValue> returns) {
+        public Result apply(MemoryInstanceContext mem, List<WasmEdgeValue> params, List<WasmEdgeValue> returns) {
             return new Result();
-        };
+        }
     };
 
     public static HostFunction extTerm = new HostFunction() {
         @Override
-        public Result apply(Object data, MemoryInstanceContext mem, List<WasmEdgeValue> params, List<WasmEdgeValue> returns) {
+        public Result apply(MemoryInstanceContext mem, List<WasmEdgeValue> params, List<WasmEdgeValue> returns) {
             return new Result();
-        };
+        }
     };
 
     public static HostFunction extFail = new HostFunction() {
         @Override
-        public Result apply(Object data, MemoryInstanceContext mem, List<WasmEdgeValue> params, List<WasmEdgeValue> returns) {
+        public Result apply(MemoryInstanceContext mem, List<WasmEdgeValue> params, List<WasmEdgeValue> returns) {
             return new Result();
-        };
+        }
     };
 
     ImportObjectContext createExternModule(String name) {

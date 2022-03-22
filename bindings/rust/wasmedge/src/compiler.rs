@@ -1,4 +1,4 @@
-use crate::{error::Result, wasmedge, Config};
+use crate::{config::Config, error::Result, wasmedge};
 use std::path::Path;
 
 #[derive(Debug)]

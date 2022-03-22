@@ -100,7 +100,8 @@ impl From<wasmedge::MemType> for MemoryType {
 mod tests {
     use super::*;
     use crate::{
-        CommonConfigOptions, ConfigBuilder, Executor, ImportModuleBuilder, Statistics, Store,
+        config::{CommonConfigOptions, ConfigBuilder},
+        Executor, ImportModuleBuilder, Statistics, Store,
     };
 
     #[test]

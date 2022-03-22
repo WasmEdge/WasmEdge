@@ -100,9 +100,10 @@ impl<'store> Instance<'store> {
 #[cfg(test)]
 mod tests {
     use crate::{
+        config::{CommonConfigOptions, ConfigBuilder},
         wasmedge::{Mutability, RefType},
-        CommonConfigOptions, ConfigBuilder, Executor, GlobalType, ImportModuleBuilder, MemoryType,
-        Module, SignatureBuilder, Statistics, Store, TableType, ValType, Value,
+        Executor, GlobalType, ImportModuleBuilder, MemoryType, Module, SignatureBuilder,
+        Statistics, Store, TableType, ValType, Value,
     };
 
     #[test]

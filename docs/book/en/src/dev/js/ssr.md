@@ -139,7 +139,121 @@ The server renders the `<App>` component, and then sends the rendered HTML strin
 
 ### Step 3 — Build and deploy
 
-For the server code to work, you will need to bundle and transpile it. We use the [rollup.js](https://rollupjs.org/guide/en/) tool to [package all application components and library modules](npm.md) into a single file for WasmEdge to execute.
+For the server code to work, you will need to bundle and transpile it. In this section, we will show you how to use webpack and Babel. In this next section, we will demonstrate an alternative (and potentially easier) approach using rollup.js.
+
+Create a new Babel configuration file named `.babelrc.json` in the project's root directory and add the `env` and `react-app` presets.
+
+```json
+{
+  "presets": [
+    "@babel/preset-env",
+    "@babel/preset-react"
+  ]
+}
+```
+
+Create a webpack config for the server that uses Babel Loader to transpile the code. Start by creating the `webpack.server.js` file in the project's root directory.
+
+```js
+const path = require('path');
+module.exports = {
+	entry: './server/index.js',
+	externals: [
+		{"wasi_http": "wasi_http"},
+		{"wasi_net": "wasi_net"},
+		{"std": "std"}
+	],
+	output: {
+		path: path.resolve('server-build'),
+		filename: 'index.js',
+		chunkFormat: "module",
+		library: {
+			type: "module"
+		},
+	},
+	experiments: {
+		outputModule: true
+	},
+	module: {
+		rules: [
+			{
+				test: /\.js$/,
+				use: 'babel-loader'
+			},
+			{
+				test: /\.css$/,
+				use: ["css-loader"]
+			},
+			{
+				test: /\.svg$/,
+				use: ["svg-url-loader"]
+			}
+		]
+	}
+};
+```
+
+With this configuration, the transpiled server bundle will be output to the `server-build` folder in a file called `index.js`.
+
+Next, add the `svg-url-loader` package by entering the following commands in your terminal.
+
+```bash
+npm install svg-url-loader --save-dev
+```
+
+This completes the dependency installation and webpack and Babel configuration.
+
+Now, revisit `package.json` and add helper npm scripts. Add `dev:build-server`, `dev:start-server` scripts to the `package.json` file to build and serve the SSR application.
+
+```json
+"scripts": {
+  "dev:build-server": "NODE_ENV=development webpack --config webpack.server.js --mode=development",
+  "dev:start-server": "wasmedge --dir .:. wasmedge_quickjs.wasm ./server-build/index.js",
+  // ...
+},
+```
+
+The `dev:build-server` script sets the environment to `"development"` and invokes webpack with the configuration file you created earlier.
+
+Note: The `dev:start-server` script invokes `wasmedge` to serve the built output. The `wasmedge_quickjs.wasm` is compiled from QuickJS runtime.
+You can compile it using the following commands and copy the output wasm file to the root of current project's root directory.
+
+```bash
+DIR=`pwd`
+cd ..
+git clone https://github.com/second-state/wasmedge-quickjs
+cd wasmedge-quickjs
+cargo build --target wasm32-wasi --release
+cp target/wasm32-wasi/release/wasmedge_quickjs.wasm $DIR
+```
+
+Now you can run the following commands to build the client-side app, bundle and transpile the server code, and start up the server on `:8002`.
+
+```bash
+npm run build
+npm run dev:build-server
+npm run dev:start-server
+```
+
+Open http://localhost:8002/ in your web browser and observe your server-side rendered app.
+
+Previously, the HTML source in the browser is simply the template with SSR placeholders.
+
+```html
+Output
+<div id="root"></div>
+```
+
+Now, with the SSR function running on the server, the HTML source in the browser is as follows.
+
+```html
+Output
+<div id="root"><div class="App" data-reactroot="">...</div></div>
+```
+
+### Step 4 (alternative) -- build and deploy with rollup.js
+
+Alternatively, you could use the [rollup.js](https://rollupjs.org/guide/en/) tool to [package all application components and library modules](npm.md) into a single file for WasmEdge to execute.
 
 TBD
 
@@ -168,6 +282,7 @@ Output
 ```
 
 In the next two sections, we will dive deeper into the source code for two ready-made sample applications for static and streaming rendering of SSR.
+
 
 ## Static rendering
 

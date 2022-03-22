@@ -192,8 +192,10 @@ impl<'vm> WasmEdgeProcessImportModule<'vm> {
 mod tests {
     use super::*;
     use crate::{
-        error::WasmEdgeError, wasmedge, CommonConfigOptions, ConfigBuilder, Executor, Mutability,
-        RefType, SignatureBuilder, Statistics, Store, ValType, Value,
+        config::{CommonConfigOptions, ConfigBuilder},
+        error::WasmEdgeError,
+        wasmedge, Executor, Mutability, RefType, SignatureBuilder, Statistics, Store, ValType,
+        Value,
     };
     use std::{
         sync::{Arc, Mutex},

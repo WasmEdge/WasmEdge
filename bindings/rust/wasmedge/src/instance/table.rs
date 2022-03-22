@@ -110,8 +110,8 @@ impl From<wasmedge::TableType> for TableType {
 mod tests {
     use super::*;
     use crate::{
-        CommonConfigOptions, ConfigBuilder, Executor, ImportModuleBuilder, RefType, Statistics,
-        Store,
+        config::{CommonConfigOptions, ConfigBuilder},
+        Executor, ImportModuleBuilder, RefType, Statistics, Store,
     };
 
     #[test]

@@ -80,8 +80,9 @@ impl From<wasmedge::GlobalType> for GlobalType {
 mod tests {
     use super::*;
     use crate::{
-        error::WasmEdgeError, wasmedge, CommonConfigOptions, ConfigBuilder, Executor,
-        ImportModuleBuilder, Mutability, Statistics, Store, ValType,
+        config::{CommonConfigOptions, ConfigBuilder},
+        error::WasmEdgeError,
+        wasmedge, Executor, ImportModuleBuilder, Mutability, Statistics, Store, ValType,
     };
 
     #[test]

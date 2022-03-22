@@ -85,9 +85,10 @@ impl Store {
 mod tests {
     use super::*;
     use crate::{
+        config::{CommonConfigOptions, ConfigBuilder},
         wasmedge::{Mutability, RefType},
-        CommonConfigOptions, ConfigBuilder, Executor, GlobalType, ImportModuleBuilder, MemoryType,
-        Module, SignatureBuilder, Statistics, TableType, ValType, Value,
+        Executor, GlobalType, ImportModuleBuilder, MemoryType, Module, SignatureBuilder,
+        Statistics, TableType, ValType, Value,
     };
 
     #[test]

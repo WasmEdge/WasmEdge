@@ -1,4 +1,6 @@
-use crate::{error::Result, wasmedge, Config, GlobalType, MemoryType, Signature, TableType};
+use crate::{
+    config::Config, error::Result, wasmedge, GlobalType, MemoryType, Signature, TableType,
+};
 use std::marker::PhantomData;
 use std::{borrow::Cow, path::Path};
 

@@ -1,5 +1,7 @@
+//! Defines Func, SignatureBuilder, and Signature structs.
 use crate::{error::Result, wasmedge, Instance, ValType, Value};
 
+/// Type alias for host function.
 pub type HostFunc = dyn Fn(Vec<Value>) -> std::result::Result<Vec<Value>, u8>;
 
 #[derive(Debug)]
@@ -124,8 +126,8 @@ impl From<Signature> for wasmedge::FuncType {
 mod tests {
     use super::*;
     use crate::{
-        CommonConfigOptions, ConfigBuilder, Executor, ImportModuleBuilder, Statistics, Store,
-        ValType,
+        config::{CommonConfigOptions, ConfigBuilder},
+        Executor, ImportModuleBuilder, Statistics, Store, ValType,
     };
 
     #[test]

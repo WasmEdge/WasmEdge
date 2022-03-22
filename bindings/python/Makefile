@@ -16,6 +16,14 @@ show:             ## Show the current environment.
 	@$(ENV_PREFIX)python -V
 	@$(ENV_PREFIX)python -m site
 
+.PHONY: build
+build:			## Build project
+	$(ENV_PREFIX)python setup.py build
+
+.PHONY: build_parallel
+build_parallel:			## Build project with threads equal to CPU count
+	$(ENV_PREFIX)python setup.py build --parallel $(shell nproc)
+
 .PHONY: install
 install:          ## Install the project in dev mode.
 	@echo "Don't forget to run 'make virtualenv' if you got errors."

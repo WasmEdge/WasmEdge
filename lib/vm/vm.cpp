@@ -28,13 +28,13 @@ VM::VM(const Configure &Conf, Runtime::StoreManager &S)
 void VM::unsafeInitVM() {
   // Create import modules from configuration.
   if (Conf.hasHostRegistration(HostRegistration::Wasi)) {
-    std::unique_ptr<Runtime::ImportObject> WasiMod =
+    std::unique_ptr<Runtime::Instance::ModuleInstance> WasiMod =
         std::make_unique<Host::WasiModule>();
     ExecutorEngine.registerModule(StoreRef, *WasiMod.get());
     ImpObjs.insert({HostRegistration::Wasi, std::move(WasiMod)});
   }
   if (Conf.hasHostRegistration(HostRegistration::WasmEdge_Process)) {
-    std::unique_ptr<Runtime::ImportObject> ProcMod =
+    std::unique_ptr<Runtime::Instance::ModuleInstance> ProcMod =
         std::make_unique<Host::WasmEdgeProcessModule>();
     ExecutorEngine.registerModule(StoreRef, *ProcMod.get());
     ImpObjs.insert({HostRegistration::WasmEdge_Process, std::move(ProcMod)});
@@ -71,15 +71,6 @@ Expect<void> VM::unsafeRegisterModule(std::string_view Name,
   }
 }
 
-Expect<void> VM::unsafeRegisterModule(const Runtime::ImportObject &Obj) {
-  if (Stage == VMStage::Instantiated) {
-    // When registering module, instantiated module in store will be reset.
-    // Therefore the instantiation should restart.
-    Stage = VMStage::Validated;
-  }
-  return ExecutorEngine.registerModule(StoreRef, Obj);
-}
-
 Expect<void> VM::unsafeRegisterModule(std::string_view Name,
                                       const AST::Module &Module) {
   if (Stage == VMStage::Instantiated) {
@@ -91,7 +82,23 @@ Expect<void> VM::unsafeRegisterModule(std::string_view Name,
   if (auto Res = ValidatorEngine.validate(Module); !Res) {
     return Unexpect(Res);
   }
-  return ExecutorEngine.registerModule(StoreRef, Module, Name);
+  // Instantiate and register module.
+  if (auto Res = ExecutorEngine.registerModule(StoreRef, Module, Name)) {
+    RegModInst.push_back(std::move(*Res));
+    return {};
+  } else {
+    return Unexpect(Res);
+  }
+}
+
+Expect<void>
+VM::unsafeRegisterModule(const Runtime::Instance::ModuleInstance &ModInst) {
+  if (Stage == VMStage::Instantiated) {
+    // When registering module, instantiated module in store will be reset.
+    // Therefore the instantiation should restart.
+    Stage = VMStage::Validated;
+  }
+  return ExecutorEngine.registerModule(StoreRef, ModInst);
 }
 
 Expect<std::vector<std::pair<ValVariant, ValType>>>
@@ -140,17 +147,19 @@ VM::unsafeRunWasmFile(const AST::Module &Module, std::string_view Func,
   if (auto Res = ValidatorEngine.validate(Module); !Res) {
     return Unexpect(Res);
   }
-  if (auto Res = ExecutorEngine.instantiateModule(StoreRef, Module); !Res) {
+  if (auto Res = ExecutorEngine.instantiateModule(StoreRef, Module)) {
+    ActiveModInst = std::move(*Res);
+  } else {
     return Unexpect(Res);
   }
   // Get module instance.
-  if (auto Res = StoreRef.getActiveModule()) {
+  if (ActiveModInst) {
     // Execute function and return values with the module instance.
-    return unsafeExecute(*Res, Func, Params, ParamTypes);
+    return unsafeExecute(ActiveModInst.get(), Func, Params, ParamTypes);
   } else {
-    spdlog::error(Res.error());
+    spdlog::error(ErrCode::WrongInstanceAddress);
     spdlog::error(ErrInfo::InfoExecuting("", Func));
-    return Unexpect(Res);
+    return Unexpect(ErrCode::WrongInstanceAddress);
   }
 }
 
@@ -249,6 +258,7 @@ Expect<void> VM::unsafeInstantiate() {
   }
   if (auto Res = ExecutorEngine.instantiateModule(StoreRef, *Mod.get())) {
     Stage = VMStage::Instantiated;
+    ActiveModInst = std::move(*Res);
     return {};
   } else {
     return Unexpect(Res);
@@ -258,14 +268,13 @@ Expect<void> VM::unsafeInstantiate() {
 Expect<std::vector<std::pair<ValVariant, ValType>>>
 VM::unsafeExecute(std::string_view Func, Span<const ValVariant> Params,
                   Span<const ValType> ParamTypes) {
-  // Get module instance.
-  if (auto Res = StoreRef.getActiveModule()) {
+  if (ActiveModInst) {
     // Execute function and return values with the module instance.
-    return unsafeExecute(*Res, Func, Params, ParamTypes);
+    return unsafeExecute(ActiveModInst.get(), Func, Params, ParamTypes);
   } else {
-    spdlog::error(Res.error());
+    spdlog::error(ErrCode::WrongInstanceAddress);
     spdlog::error(ErrInfo::InfoExecuting("", Func));
-    return Unexpect(Res);
+    return Unexpect(ErrCode::WrongInstanceAddress);
   }
 }
 
@@ -273,19 +282,20 @@ Expect<std::vector<std::pair<ValVariant, ValType>>>
 VM::unsafeExecute(std::string_view ModName, std::string_view Func,
                   Span<const ValVariant> Params,
                   Span<const ValType> ParamTypes) {
-  // Get module instance.
-  if (auto Res = StoreRef.findModule(ModName)) {
+  // Find module instance by name.
+  const auto *FindModInst = StoreRef.findModule(ModName);
+  if (FindModInst != nullptr) {
     // Execute function and return values with the module instance.
-    return unsafeExecute(*Res, Func, Params, ParamTypes);
+    return unsafeExecute(FindModInst, Func, Params, ParamTypes);
   } else {
-    spdlog::error(Res.error());
+    spdlog::error(ErrCode::WrongInstanceAddress);
     spdlog::error(ErrInfo::InfoExecuting(ModName, Func));
-    return Unexpect(Res);
+    return Unexpect(ErrCode::WrongInstanceAddress);
   }
 }
 
 Expect<std::vector<std::pair<ValVariant, ValType>>>
-VM::unsafeExecute(Runtime::Instance::ModuleInstance *ModInst,
+VM::unsafeExecute(const Runtime::Instance::ModuleInstance *ModInst,
                   std::string_view Func, Span<const ValVariant> Params,
                   Span<const ValType> ParamTypes) {
   // Find exported function by name.
@@ -298,7 +308,7 @@ VM::unsafeExecute(Runtime::Instance::ModuleInstance *ModInst,
   }
 
   // Execute function.
-  if (auto Res = ExecutorEngine.invoke(StoreRef, *FuncInst, Params, ParamTypes);
+  if (auto Res = ExecutorEngine.invoke(*FuncInst, Params, ParamTypes);
       unlikely(!Res)) {
     spdlog::error(ErrInfo::InfoExecuting(ModInst->getModuleName(), Func));
     return Unexpect(Res);
@@ -335,7 +345,7 @@ VM::asyncExecute(std::string_view ModName, std::string_view Func,
 
 void VM::unsafeCleanup() {
   Mod.reset();
-  StoreRef.reset();
+  ActiveModInst.reset();
   Stat.clear();
   Stage = VMStage::Inited;
 }
@@ -343,10 +353,8 @@ void VM::unsafeCleanup() {
 std::vector<std::pair<std::string, const AST::FunctionType &>>
 VM::unsafeGetFunctionList() const {
   std::vector<std::pair<std::string, const AST::FunctionType &>> Map;
-  // Get the active module instance.
-  if (auto Res = StoreRef.getActiveModule()) {
-    const auto *ModInst = *Res;
-    ModInst->getFuncExports([&](const auto &FuncExports) {
+  if (ActiveModInst) {
+    ActiveModInst->getFuncExports([&](const auto &FuncExports) {
       Map.reserve(FuncExports.size());
       for (auto &&Func : FuncExports) {
         const auto &FuncType = (Func.second)->getFuncType();
@@ -357,13 +365,20 @@ VM::unsafeGetFunctionList() const {
   return Map;
 }
 
-Runtime::ImportObject *
+Runtime::Instance::ModuleInstance *
 VM::unsafeGetImportModule(const HostRegistration Type) const {
   if (auto Iter = ImpObjs.find(Type); Iter != ImpObjs.cend()) {
     return Iter->second.get();
   }
   return nullptr;
 }
+
+const Runtime::Instance::ModuleInstance *VM::unsafeGetActiveModule() const {
+  if (ActiveModInst) {
+    return ActiveModInst.get();
+  }
+  return nullptr;
+};
 
 } // namespace VM
 } // namespace WasmEdge

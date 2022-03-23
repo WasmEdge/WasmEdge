@@ -10,8 +10,7 @@ namespace WasmEdge {
 namespace Executor {
 
 // Instantiate function instance. See "include/executor/executor.h".
-Expect<void> Executor::instantiate(Runtime::StoreManager &StoreMgr,
-                                   Runtime::Instance::ModuleInstance &ModInst,
+Expect<void> Executor::instantiate(Runtime::Instance::ModuleInstance &ModInst,
                                    const AST::FunctionSection &FuncSec,
                                    const AST::CodeSection &CodeSec) {
 
@@ -19,31 +18,16 @@ Expect<void> Executor::instantiate(Runtime::StoreManager &StoreMgr,
   auto TypeIdxs = FuncSec.getContent();
   auto CodeSegs = CodeSec.getContent();
 
-  // Iterate through code segments to make function instances.
+  // Iterate through the code segments to instantiate function instances.
   for (uint32_t I = 0; I < CodeSegs.size(); ++I) {
-    // Insert function instance to store manager.
-    Runtime::Instance::FunctionInstance *FuncInst = nullptr;
+    // Create and add the function instance into the module instance.
     auto *FuncType = *ModInst.getFuncType(TypeIdxs[I]);
-    if (InsMode == InstantiateMode::Instantiate) {
-      if (auto Symbol = CodeSegs[I].getSymbol()) {
-        FuncInst =
-            StoreMgr.pushFunction(&ModInst, *FuncType, std::move(Symbol));
-      } else {
-        FuncInst =
-            StoreMgr.pushFunction(&ModInst, *FuncType, CodeSegs[I].getLocals(),
-                                  CodeSegs[I].getExpr().getInstrs());
-      }
+    if (auto Symbol = CodeSegs[I].getSymbol()) {
+      ModInst.addFunc(&ModInst, *FuncType, std::move(Symbol));
     } else {
-      if (auto Symbol = CodeSegs[I].getSymbol()) {
-        FuncInst =
-            StoreMgr.importFunction(&ModInst, *FuncType, std::move(Symbol));
-      } else {
-        FuncInst = StoreMgr.importFunction(&ModInst, *FuncType,
-                                           CodeSegs[I].getLocals(),
-                                           CodeSegs[I].getExpr().getInstrs());
-      }
+      ModInst.addFunc(&ModInst, *FuncType, CodeSegs[I].getLocals(),
+                      CodeSegs[I].getExpr().getInstrs());
     }
-    ModInst.addFunc(FuncInst);
   }
   return {};
 }

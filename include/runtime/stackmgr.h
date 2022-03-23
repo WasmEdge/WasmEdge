@@ -16,7 +16,6 @@
 #include "ast/instruction.h"
 #include "runtime/instance/module.h"
 
-#include <optional>
 #include <vector>
 
 namespace WasmEdge {
@@ -26,10 +25,10 @@ class StackManager {
 public:
   struct Frame {
     Frame() = delete;
-    Frame(Instance::ModuleInstance *Mod, AST::InstrView::iterator FromIt,
+    Frame(const Instance::ModuleInstance *Mod, AST::InstrView::iterator FromIt,
           uint32_t L, uint32_t A, uint32_t V) noexcept
         : Module(Mod), From(FromIt), Locals(L), Arity(A), VPos(V) {}
-    Instance::ModuleInstance *Module;
+    const Instance::ModuleInstance *Module;
     AST::InstrView::iterator From;
     uint32_t Locals;
     uint32_t Arity;
@@ -77,7 +76,7 @@ public:
   }
 
   /// Push a new frame entry to stack.
-  void pushFrame(Instance::ModuleInstance *Module,
+  void pushFrame(const Instance::ModuleInstance *Module,
                  AST::InstrView::iterator From, uint32_t LocalNum = 0,
                  uint32_t Arity = 0, bool IsTailCall = false) noexcept {
     if (likely(!IsTailCall)) {
@@ -128,7 +127,7 @@ public:
   }
 
   /// Unsafe getter of module address.
-  Instance::ModuleInstance *getModule() const noexcept {
+  const Instance::ModuleInstance *getModule() const noexcept {
     assuming(!FrameStack.empty());
     return FrameStack.back().Module;
   }

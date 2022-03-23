@@ -42,10 +42,10 @@ bool isLimitMatched(const AST::Limit &Lim1, const AST::Limit &Lim2) {
   return true;
 }
 
-Expect<void> checkImportMatched(std::string_view ModName,
-                                std::string_view ExtName,
-                                const ExternalType ExtType,
-                                Runtime::Instance::ModuleInstance &ModInst) {
+Expect<void>
+checkImportMatched(std::string_view ModName, std::string_view ExtName,
+                   const ExternalType ExtType,
+                   const Runtime::Instance::ModuleInstance &ModInst) {
   switch (ExtType) {
   case ExternalType::Function:
     if (auto Res = ModInst.findFuncExports(ExtName); likely(Res != nullptr)) {
@@ -58,7 +58,7 @@ Expect<void> checkImportMatched(std::string_view ModName,
     }
     break;
   case ExternalType::Memory:
-    if (auto Res = ModInst.findMemExports(ExtName); likely(Res != nullptr)) {
+    if (auto Res = ModInst.findMemoryExports(ExtName); likely(Res != nullptr)) {
       return {};
     }
     break;
@@ -80,7 +80,7 @@ Expect<void> checkImportMatched(std::string_view ModName,
     return logMatchError(ModName, ExtName, ExtType, ExtType,
                          ExternalType::Table);
   }
-  if (ModInst.findMemExports(ExtName)) {
+  if (ModInst.findMemoryExports(ExtName)) {
     return logMatchError(ModName, ExtName, ExtType, ExtType,
                          ExternalType::Memory);
   }
@@ -103,10 +103,8 @@ Expect<void> Executor::instantiate(Runtime::StoreManager &StoreMgr,
     auto ExtType = ImpDesc.getExternalType();
     auto ModName = ImpDesc.getModuleName();
     auto ExtName = ImpDesc.getExternalName();
-    Runtime::Instance::ModuleInstance *TargetModInst;
-    if (auto Res = StoreMgr.findModule(ModName)) {
-      TargetModInst = *Res;
-    } else {
+    const auto *TargetModInst = StoreMgr.findModule(ModName);
+    if (unlikely(TargetModInst == nullptr)) {
       return logUnknownError(ModName, ExtName, ExtType);
     }
     if (auto Res =
@@ -158,7 +156,7 @@ Expect<void> Executor::instantiate(Runtime::StoreManager &StoreMgr,
       const auto &MemType = ImpDesc.getExternalMemoryType();
       const auto &MemLim = MemType.getLimit();
       // Import matching.
-      auto *TargetInst = TargetModInst->findMemExports(ExtName);
+      auto *TargetInst = TargetModInst->findMemoryExports(ExtName);
       const auto &TargetLim = TargetInst->getMemoryType().getLimit();
       if (!isLimitMatched(TargetLim, MemLim)) {
         return logMatchError(ModName, ExtName, ExtType, MemLim.hasMax(),

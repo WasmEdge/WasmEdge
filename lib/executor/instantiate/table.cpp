@@ -9,19 +9,12 @@ namespace WasmEdge {
 namespace Executor {
 
 // Instantiate table instance. See "include/executor/executor.h".
-Expect<void> Executor::instantiate(Runtime::StoreManager &StoreMgr,
-                                   Runtime::Instance::ModuleInstance &ModInst,
+Expect<void> Executor::instantiate(Runtime::Instance::ModuleInstance &ModInst,
                                    const AST::TableSection &TabSec) {
-  // Iterate and instantiate table types.
+  // Iterate through the table types to instantiate table instance.
   for (const auto &TabType : TabSec.getContent()) {
-    // Insert table instance to store manager.
-    Runtime::Instance::TableInstance *TabInst = nullptr;
-    if (InsMode == InstantiateMode::Instantiate) {
-      TabInst = StoreMgr.pushTable(TabType);
-    } else {
-      TabInst = StoreMgr.importTable(TabType);
-    }
-    ModInst.addTable(TabInst);
+    // Create and add the table instance into the module instance.
+    ModInst.addTable(TabType);
   }
   return {};
 }

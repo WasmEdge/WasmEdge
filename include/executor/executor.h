@@ -19,13 +19,15 @@
 #include "common/defines.h"
 #include "common/errcode.h"
 #include "common/statistics.h"
-#include "runtime/importobj.h"
+#include "runtime/instance/module.h"
 #include "runtime/stackmgr.h"
 #include "runtime/storemgr.h"
 
 #include <atomic>
 #include <csignal>
 #include <cstdint>
+#include <memory>
+#include <optional>
 #include <string_view>
 #include <type_traits>
 #include <utility>
@@ -108,22 +110,22 @@ public:
     ExecutionContext.Gas = nullptr;
   }
 
-  /// Instantiate Wasm Module as the anonymous active module.
-  Expect<void> instantiateModule(Runtime::StoreManager &StoreMgr,
-                                 const AST::Module &Mod);
+  /// Instantiate a WASM Module into an anonymous module instance.
+  Expect<std::unique_ptr<Runtime::Instance::ModuleInstance>>
+  instantiateModule(Runtime::StoreManager &StoreMgr, const AST::Module &Mod);
 
-  /// Register host module.
+  /// Instantiate and register a WASM module into a named module instance.
+  Expect<std::unique_ptr<Runtime::Instance::ModuleInstance>>
+  registerModule(Runtime::StoreManager &StoreMgr, const AST::Module &Mod,
+                 std::string_view Name);
+
+  /// Register an instantiated module into a named module instance.
   Expect<void> registerModule(Runtime::StoreManager &StoreMgr,
-                              const Runtime::ImportObject &Obj);
+                              const Runtime::Instance::ModuleInstance &ModInst);
 
-  /// Register Wasm module.
-  Expect<void> registerModule(Runtime::StoreManager &StoreMgr,
-                              const AST::Module &Mod, std::string_view Name);
-
-  /// Invoke function by function address in Store manager.
+  /// Invoke a WASM function by function instance.
   Expect<std::vector<std::pair<ValVariant, ValType>>>
-  invoke(Runtime::StoreManager &StoreMgr,
-         const Runtime::Instance::FunctionInstance &FuncInst,
+  invoke(const Runtime::Instance::FunctionInstance &FuncInst,
          Span<const ValVariant> Params, Span<const ValType> ParamTypes);
 
   /// Register new thread
@@ -143,58 +145,51 @@ public:
 
 private:
   /// Run Wasm bytecode expression for initialization.
-  Expect<void> runExpression(Runtime::StoreManager &StoreMgr,
-                             Runtime::StackManager &StackMgr,
+  Expect<void> runExpression(Runtime::StackManager &StackMgr,
                              AST::InstrView Instrs);
 
   /// Run Wasm function.
-  Expect<void> runFunction(Runtime::StoreManager &StoreMgr,
-                           Runtime::StackManager &StackMgr,
+  Expect<void> runFunction(Runtime::StackManager &StackMgr,
                            const Runtime::Instance::FunctionInstance &Func,
                            Span<const ValVariant> Params);
 
   /// Execute instructions.
-  Expect<void> execute(Runtime::StoreManager &StoreMgr,
-                       Runtime::StackManager &StackMgr,
+  Expect<void> execute(Runtime::StackManager &StackMgr,
                        const AST::InstrView::iterator Start,
                        const AST::InstrView::iterator End);
 
   /// \name Functions for instantiation.
   /// @{
   /// Instantiation of Module Instance.
-  Expect<void> instantiate(Runtime::StoreManager &StoreMgr,
-                           const AST::Module &Mod, std::string_view Name);
+  Expect<std::unique_ptr<Runtime::Instance::ModuleInstance>>
+  instantiate(Runtime::StoreManager &StoreMgr, const AST::Module &Mod,
+              std::optional<std::string_view> Name = std::nullopt);
 
-  /// Instantiation of Import Section.
+  /// Instantiation of Imports.
   Expect<void> instantiate(Runtime::StoreManager &StoreMgr,
                            Runtime::Instance::ModuleInstance &ModInst,
                            const AST::ImportSection &ImportSec);
 
   /// Instantiation of Function Instances.
-  Expect<void> instantiate(Runtime::StoreManager &StoreMgr,
-                           Runtime::Instance::ModuleInstance &ModInst,
+  Expect<void> instantiate(Runtime::Instance::ModuleInstance &ModInst,
                            const AST::FunctionSection &FuncSec,
                            const AST::CodeSection &CodeSec);
 
-  /// Instantiation of Global Instances.
-  Expect<void> instantiate(Runtime::StoreManager &StoreMgr,
-                           Runtime::StackManager &StackMgr,
-                           Runtime::Instance::ModuleInstance &ModInst,
-                           const AST::GlobalSection &GlobSec);
-
   /// Instantiation of Table Instances.
-  Expect<void> instantiate(Runtime::StoreManager &StoreMgr,
-                           Runtime::Instance::ModuleInstance &ModInst,
+  Expect<void> instantiate(Runtime::Instance::ModuleInstance &ModInst,
                            const AST::TableSection &TabSec);
 
   /// Instantiation of Memory Instances.
-  Expect<void> instantiate(Runtime::StoreManager &StoreMgr,
-                           Runtime::Instance::ModuleInstance &ModInst,
+  Expect<void> instantiate(Runtime::Instance::ModuleInstance &ModInst,
                            const AST::MemorySection &MemSec);
 
+  /// Instantiation of Global Instances.
+  Expect<void> instantiate(Runtime::StackManager &StackMgr,
+                           Runtime::Instance::ModuleInstance &ModInst,
+                           const AST::GlobalSection &GlobSec);
+
   /// Instantiation of Element Instances.
-  Expect<void> instantiate(Runtime::StoreManager &StoreMgr,
-                           Runtime::StackManager &StackMgr,
+  Expect<void> instantiate(Runtime::StackManager &StackMgr,
                            Runtime::Instance::ModuleInstance &ModInst,
                            const AST::ElementSection &ElemSec);
 
@@ -202,17 +197,16 @@ private:
   Expect<void> initTable(Runtime::StackManager &StackMgr,
                          const AST::ElementSection &ElemSec);
 
+  /// Instantiation of Data Instances.
+  Expect<void> instantiate(Runtime::StackManager &StackMgr,
+                           Runtime::Instance::ModuleInstance &ModInst,
+                           const AST::DataSection &DataSec);
+
   /// Initialize memory with Data Instances.
   Expect<void> initMemory(Runtime::StackManager &StackMgr,
                           const AST::DataSection &DataSec);
 
-  /// Instantiation of Data Instances.
-  Expect<void> instantiate(Runtime::StoreManager &StoreMgr,
-                           Runtime::StackManager &StackMgr,
-                           Runtime::Instance::ModuleInstance &ModInst,
-                           const AST::DataSection &DataSec);
-
-  /// Instantiation of Export Instances.
+  /// Instantiation of Exports.
   Expect<void> instantiate(Runtime::Instance::ModuleInstance &ModInst,
                            const AST::ExportSection &ExportSec);
   /// @}
@@ -221,8 +215,7 @@ private:
   /// @{
   /// Helper function for calling functions. Return the continuation iterator.
   Expect<AST::InstrView::iterator>
-  enterFunction(Runtime::StoreManager &StoreMgr,
-                Runtime::StackManager &StackMgr,
+  enterFunction(Runtime::StackManager &StackMgr,
                 const Runtime::Instance::FunctionInstance &Func,
                 const AST::InstrView::iterator RetIt, bool IsTailCall = false);
 
@@ -273,13 +266,11 @@ private:
                             AST::InstrView::iterator &PC) noexcept;
   Expect<void> runReturnOp(Runtime::StackManager &StackMgr,
                            AST::InstrView::iterator &PC) noexcept;
-  Expect<void> runCallOp(Runtime::StoreManager &StoreMgr,
-                         Runtime::StackManager &StackMgr,
+  Expect<void> runCallOp(Runtime::StackManager &StackMgr,
                          const AST::Instruction &Instr,
                          AST::InstrView::iterator &PC,
                          bool IsTailCall = false) noexcept;
-  Expect<void> runCallIndirectOp(Runtime::StoreManager &StoreMgr,
-                                 Runtime::StackManager &StackMgr,
+  Expect<void> runCallIndirectOp(Runtime::StackManager &StackMgr,
                                  const AST::Instruction &Instr,
                                  AST::InstrView::iterator &PC,
                                  bool IsTailCall = false) noexcept;
@@ -626,12 +617,8 @@ private:
   /// @}
 
 private:
-  /// Instantiation mode enumeration class
-  enum class InstantiateMode : uint8_t { Instantiate = 0, ImportWasm };
   /// WasmEdge configuration
   const Configure Conf;
-  /// Instantiation mode
-  InstantiateMode InsMode;
   /// Executor statistics
   Statistics::Statistics *Stat;
 

@@ -101,6 +101,7 @@ impl<'store> Instance<'store> {
 mod tests {
     use crate::{
         config::{CommonConfigOptions, ConfigBuilder},
+        types::Val,
         wasmedge::{Mutability, RefType},
         Executor, GlobalType, ImportModuleBuilder, MemoryType, Module, SignatureBuilder,
         Statistics, Store, TableType, ValType, Value,
@@ -144,7 +145,7 @@ mod tests {
             .with_global(
                 "global",
                 GlobalType::new(ValType::F32, Mutability::Const),
-                Value::from_f32(3.5),
+                Val::F32(3.5),
             )
             .expect("failed to add const global")
             .with_memory("mem", MemoryType::new(10, None))
@@ -234,9 +235,12 @@ mod tests {
             let result = instance.global("global");
             assert!(result.is_some());
             let global = result.unwrap();
-
             let val = global.get_value();
-            assert_eq!(val.to_f32(), 3.5);
+            if let Val::F32(val) = val {
+                assert_eq!(val, 3.5);
+            } else {
+                assert!(false);
+            }
         }
 
         // check the module instance named "fib-module"

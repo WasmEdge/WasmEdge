@@ -86,6 +86,7 @@ mod tests {
     use super::*;
     use crate::{
         config::{CommonConfigOptions, ConfigBuilder},
+        types::Val,
         wasmedge::{Mutability, RefType},
         Executor, GlobalType, ImportModuleBuilder, MemoryType, Module, SignatureBuilder,
         Statistics, TableType, ValType, Value,
@@ -127,7 +128,7 @@ mod tests {
             .with_global(
                 "global",
                 GlobalType::new(ValType::F32, Mutability::Const),
-                Value::from_f32(3.5),
+                Val::F32(3.5),
             )
             .expect("failed to add const global")
             .with_memory("mem", MemoryType::new(10, None))
@@ -303,7 +304,7 @@ mod tests {
             .with_global(
                 "global",
                 GlobalType::new(ValType::F32, Mutability::Const),
-                Value::from_f32(3.5),
+                Val::F32(3.5),
             )
             .expect("failed to add const global")
             .with_memory("mem", MemoryType::new(10, None))

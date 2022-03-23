@@ -1,4 +1,4 @@
-use crate::{error::Result, wasmedge, RefType, Value};
+use crate::{error::Result, types::Val, wasmedge, RefType};
 
 #[derive(Debug)]
 pub struct Table<'instance> {
@@ -49,15 +49,15 @@ impl<'instance> Table<'instance> {
         Ok(())
     }
 
-    /// Returns the table element value at `index`.
-    pub fn get(&self, index: u32) -> Result<Value> {
+    /// Returns the table element at the `index`.
+    pub fn get(&self, index: u32) -> Result<Val> {
         let value = self.inner.get_data(index)?;
-        Ok(value)
+        Ok(value.into())
     }
 
-    /// Writes the `data` provided into `index` within this table.
-    pub fn set(&mut self, data: Value, index: u32) -> Result<()> {
-        self.inner.set_data(data, index)?;
+    /// Stores the `data` at the `index` of this table.
+    pub fn set(&mut self, data: Val, index: u32) -> Result<()> {
+        self.inner.set_data(data.into(), index)?;
         Ok(())
     }
 }
@@ -111,7 +111,9 @@ mod tests {
     use super::*;
     use crate::{
         config::{CommonConfigOptions, ConfigBuilder},
-        Executor, ImportModuleBuilder, RefType, Statistics, Store,
+        types::{FuncRef, Val},
+        Executor, ImportModuleBuilder, RefType, SignatureBuilder, Statistics, Store, ValType,
+        Value,
     };
 
     #[test]
@@ -128,9 +130,18 @@ mod tests {
     }
 
     #[test]
-    fn test_table() {
+    fn test_table_basic() {
         // create an ImportModule
         let result = ImportModuleBuilder::new()
+            .with_func(
+                "add",
+                SignatureBuilder::new()
+                    .with_args(vec![ValType::I32; 2])
+                    .with_returns(vec![ValType::I32])
+                    .build(),
+                Box::new(real_add),
+            )
+            .expect("failed to add host func")
             .with_table("table", TableType::new(RefType::FuncRef, 10, Some(20)))
             .expect("failed to add table")
             .build("extern");
@@ -164,6 +175,11 @@ mod tests {
         assert!(result.is_some());
         let instance = result.unwrap();
 
+        // get the exported host function
+        let result = instance.func("add");
+        assert!(result.is_some());
+        let mut host_func = result.unwrap();
+
         // get the exported table by name
         let result = instance.table("table");
         assert!(result.is_some());
@@ -187,18 +203,36 @@ mod tests {
         // get value from table[0]
         let result = table.get(0);
         assert!(result.is_ok());
-        let value = result.unwrap();
-        assert!(value.func_idx().is_none());
+        if let Val::FuncRef(func_ref) = result.unwrap() {
+            assert!(func_ref.is_none());
+        } else {
+            assert!(false);
+        }
 
         // set value to table[0]
-        let result = table.set(Value::from_func_ref(5), 0);
+        let func_ref = FuncRef::new(&mut host_func);
+        let result = table.set(Val::FuncRef(Some(func_ref)), 0);
         assert!(result.is_ok());
         // get the value in table[0]
         let result = table.get(0);
         assert!(result.is_ok());
-        let value = result.unwrap();
-        assert!(value.func_idx().is_some());
-        assert_eq!(value.func_idx().unwrap(), 5);
+        if let Val::FuncRef(func_ref) = result.unwrap() {
+            assert!(func_ref.is_some());
+            let func_ref = func_ref.unwrap();
+            let result = func_ref.as_func();
+            assert!(result.is_some());
+            let host_func = result.unwrap();
+            // check the signature of the host function
+            let result = host_func.signature();
+            assert!(result.is_ok());
+            let signature = result.unwrap();
+            assert!(signature.args().is_some());
+            assert_eq!(signature.args().unwrap(), [ValType::I32; 2]);
+            assert!(signature.returns().is_some());
+            assert_eq!(signature.returns().unwrap(), [ValType::I32]);
+        } else {
+            assert!(false);
+        }
 
         let result = store.named_instance("extern");
         assert!(result.is_some());
@@ -211,8 +245,44 @@ mod tests {
         // get the value in table[0]
         let result = table.get(0);
         assert!(result.is_ok());
-        let value = result.unwrap();
-        assert!(value.func_idx().is_some());
-        assert_eq!(value.func_idx().unwrap(), 5);
+        if let Val::FuncRef(func_ref) = result.unwrap() {
+            assert!(func_ref.is_some());
+            let func_ref = func_ref.unwrap();
+            let result = func_ref.as_func();
+            assert!(result.is_some());
+            let host_func = result.unwrap();
+            // check the signature of the host function
+            let result = host_func.signature();
+            assert!(result.is_ok());
+            let signature = result.unwrap();
+            assert!(signature.args().is_some());
+            assert_eq!(signature.args().unwrap(), [ValType::I32; 2]);
+            assert!(signature.returns().is_some());
+            assert_eq!(signature.returns().unwrap(), [ValType::I32]);
+        } else {
+            assert!(false);
+        }
+    }
+
+    fn real_add(inputs: Vec<Value>) -> std::result::Result<Vec<Value>, u8> {
+        if inputs.len() != 2 {
+            return Err(1);
+        }
+
+        let a = if inputs[0].ty() == ValType::I32 {
+            inputs[0].to_i32()
+        } else {
+            return Err(2);
+        };
+
+        let b = if inputs[1].ty() == ValType::I32 {
+            inputs[1].to_i32()
+        } else {
+            return Err(3);
+        };
+
+        let c = a + b;
+
+        Ok(vec![Value::from_i32(c)])
     }
 }

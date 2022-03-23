@@ -58,7 +58,7 @@ TEST_P(CoreTest, TestSuites) {
       ConfCxt, WasmEdge_CompilerOutputFormat_Native);
   WasmEdge_CompilerContext *CompilerCxt = WasmEdge_CompilerCreate(ConfCxt);
   WasmEdge_ConfigureDelete(ConfCxt);
-  WasmEdge_ImportObjectContext *TestModCxt = createSpecTestModule();
+  WasmEdge_ModuleInstanceContext *TestModCxt = createSpecTestModule();
   WasmEdge_VMRegisterModuleFromImport(VM, TestModCxt);
 
   auto Compile = [&, Conf = std::cref(Conf)](
@@ -194,14 +194,25 @@ TEST_P(CoreTest, TestSuites) {
   // Helper function to get values.
   T.onGet = [&VM](const std::string &ModName, const std::string &Field)
       -> Expect<std::pair<ValVariant, ValType>> {
-    // Get global instance.
+    // Get module instance.
+    const WasmEdge_ModuleInstanceContext *ModCxt = nullptr;
     WasmEdge_StoreContext *StoreCxt = WasmEdge_VMGetStoreContext(VM);
-    WasmEdge_String ModStr = WasmEdge_StringWrap(
-        ModName.data(), static_cast<uint32_t>(ModName.length()));
+    if (ModName.empty()) {
+      ModCxt = WasmEdge_VMGetActiveModule(VM);
+    } else {
+      WasmEdge_String ModStr = WasmEdge_StringWrap(
+          ModName.data(), static_cast<uint32_t>(ModName.length()));
+      ModCxt = WasmEdge_StoreFindModule(StoreCxt, ModStr);
+    }
+    if (ModCxt == nullptr) {
+      return Unexpect(ErrCode::WrongInstanceAddress);
+    }
+
+    // Get global instance.
     WasmEdge_String FieldStr = WasmEdge_StringWrap(
         Field.data(), static_cast<uint32_t>(Field.length()));
     WasmEdge_GlobalInstanceContext *GlobCxt =
-        WasmEdge_StoreFindGlobalRegistered(StoreCxt, ModStr, FieldStr);
+        WasmEdge_ModuleInstanceFindGlobal(ModCxt, FieldStr);
     if (GlobCxt == nullptr) {
       return Unexpect(ErrCode::WrongInstanceAddress);
     }
@@ -219,7 +230,7 @@ TEST_P(CoreTest, TestSuites) {
   T.run(Proposal, UnitName);
 
   WasmEdge_VMDelete(VM);
-  WasmEdge_ImportObjectDelete(TestModCxt);
+  WasmEdge_ModuleInstanceDelete(TestModCxt);
   WasmEdge_CompilerDelete(CompilerCxt);
 }
 

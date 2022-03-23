@@ -22,7 +22,7 @@
 #include "loader/loader.h"
 #include "validator/validator.h"
 
-#include "runtime/importobj.h"
+#include "runtime/instance/module.h"
 #include "runtime/storemgr.h"
 
 #include <cstdint>
@@ -62,9 +62,10 @@ public:
     std::unique_lock Lock(Mutex);
     return unsafeRegisterModule(Name, Module);
   }
-  Expect<void> registerModule(const Runtime::ImportObject &Obj) {
+  Expect<void>
+  registerModule(const Runtime::Instance::ModuleInstance &ModInst) {
     std::unique_lock Lock(Mutex);
-    return unsafeRegisterModule(Obj);
+    return unsafeRegisterModule(ModInst);
   }
 
   /// Rapidly load, validate, instantiate, and run wasm function.
@@ -180,9 +181,16 @@ public:
   }
 
   /// Get import objects by configurations.
-  Runtime::ImportObject *getImportModule(const HostRegistration Type) const {
+  Runtime::Instance::ModuleInstance *
+  getImportModule(const HostRegistration Type) const {
     std::shared_lock Lock(Mutex);
     return unsafeGetImportModule(Type);
+  }
+
+  /// Get current instantiated module instance.
+  const Runtime::Instance::ModuleInstance *getActiveModule() const {
+    std::shared_lock Lock(Mutex);
+    return unsafeGetActiveModule();
   }
 
   /// Getter of store set in VM.
@@ -198,7 +206,8 @@ private:
                                     Span<const Byte> Code);
   Expect<void> unsafeRegisterModule(std::string_view Name,
                                     const AST::Module &Module);
-  Expect<void> unsafeRegisterModule(const Runtime::ImportObject &Obj);
+  Expect<void>
+  unsafeRegisterModule(const Runtime::Instance::ModuleInstance &ModInst);
 
   Expect<std::vector<std::pair<ValVariant, ValType>>>
   unsafeRunWasmFile(const std::filesystem::path &Path, std::string_view Func,
@@ -235,8 +244,10 @@ private:
   std::vector<std::pair<std::string, const AST::FunctionType &>>
   unsafeGetFunctionList() const;
 
-  Runtime::ImportObject *
+  Runtime::Instance::ModuleInstance *
   unsafeGetImportModule(const HostRegistration Type) const;
+
+  const Runtime::Instance::ModuleInstance *unsafeGetActiveModule() const;
 
   enum class VMStage : uint8_t { Inited, Loaded, Validated, Instantiated };
 
@@ -244,27 +255,29 @@ private:
 
   /// Helper function for execution.
   Expect<std::vector<std::pair<ValVariant, ValType>>>
-  unsafeExecute(Runtime::Instance::ModuleInstance *ModInst,
+  unsafeExecute(const Runtime::Instance::ModuleInstance *ModInst,
                 std::string_view Func, Span<const ValVariant> Params = {},
                 Span<const ValType> ParamTypes = {});
-
-  mutable std::shared_mutex Mutex;
 
   /// VM environment.
   const Configure Conf;
   Statistics::Statistics Stat;
   VMStage Stage;
+  mutable std::shared_mutex Mutex;
 
-  /// VM runners.
+  /// VM components.
   Loader::Loader LoaderEngine;
   Validator::Validator ValidatorEngine;
   Executor::Executor ExecutorEngine;
 
   /// VM Storage.
   std::unique_ptr<AST::Module> Mod;
+  std::unique_ptr<Runtime::Instance::ModuleInstance> ActiveModInst;
+  std::vector<std::unique_ptr<Runtime::Instance::ModuleInstance>> RegModInst;
   std::unique_ptr<Runtime::StoreManager> Store;
   Runtime::StoreManager &StoreRef;
-  std::map<HostRegistration, std::unique_ptr<Runtime::ImportObject>> ImpObjs;
+  std::map<HostRegistration, std::unique_ptr<Runtime::Instance::ModuleInstance>>
+      ImpObjs;
 };
 
 } // namespace VM

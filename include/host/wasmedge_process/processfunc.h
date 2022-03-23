@@ -5,6 +5,7 @@
 
 #include "common/defines.h"
 #include "host/wasmedge_process/processbase.h"
+
 #include <cstdint>
 
 namespace WasmEdge {

@@ -554,6 +554,10 @@ impl From<wasmedge::WasmEdge_Value> for Value {
                 ctx: raw_val,
                 ty: ValType::ExternRef,
             },
+            wasmedge::WasmEdge_ValType_None => Self {
+                ctx: raw_val,
+                ty: ValType::None,
+            },
             _ => panic!("unknown WasmEdge_ValType `{}`", raw_val.Type),
         }
     }

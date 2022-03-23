@@ -13,6 +13,7 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
+#include "host/wasi_crypto/signatures/ecdsa.h"
 #include "host/wasi_crypto/utils/error.h"
 
 #include <variant>
@@ -33,7 +34,7 @@ template <typename... T> struct Registed {
       std::variant<typename T::VerificationState...>;
 };
 
-using RegistedAlg = Registed</* Not Implement */>;
+using RegistedAlg = Registed<EcdsaK256, EcdsaP256>;
 
 } // namespace Signatures
 } // namespace WasiCrypto

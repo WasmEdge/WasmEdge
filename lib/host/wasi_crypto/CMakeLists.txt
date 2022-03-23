@@ -40,6 +40,7 @@ wasmedge_add_library(wasmedgeHostModuleWasiCrypto
   signatures/factory.cpp
   signatures/signstate.cpp
   signatures/verificationstate.cpp
+  signatures/ecdsa.cpp
 )
 
 target_include_directories(wasmedgeHostModuleWasiCrypto

@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2019-2022 Second State INC
 #include "host/wasi_crypto/signatures/factory.h"
+#include "host/wasi_crypto/signatures/ecdsa.h"
+#include "host/wasi_crypto/utils/error.h"
 
 namespace WasmEdge {
 namespace Host {
@@ -9,6 +11,10 @@ namespace Signatures {
 
 FactoryVariant makeFactory(Algorithm Alg) noexcept {
   switch (Alg) {
+  case Algorithm::ECDSA_P256_SHA256:
+    return EcdsaP256{};
+  case Algorithm::ECDSA_K256_SHA256:
+    return EcdsaK256{};
   default:
     assumingUnreachable();
   }

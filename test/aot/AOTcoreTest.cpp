@@ -133,23 +133,21 @@ TEST_P(NativeCoreTest, TestSuites) {
   T.onGet = [&VM](const std::string &ModName, const std::string &Field)
       -> Expect<std::pair<ValVariant, ValType>> {
     // Get module instance.
-    auto &Store = VM.getStoreManager();
-    WasmEdge::Runtime::Instance::ModuleInstance *ModInst = nullptr;
+    const WasmEdge::Runtime::Instance::ModuleInstance *ModInst = nullptr;
     if (ModName.empty()) {
-      ModInst = *Store.getActiveModule();
+      ModInst = VM.getActiveModule();
     } else {
-      if (auto Res = Store.findModule(ModName)) {
-        ModInst = *Res;
-      } else {
-        return Unexpect(Res);
-      }
+      ModInst = VM.getStoreManager().findModule(ModName);
+    }
+    if (ModInst == nullptr) {
+      return Unexpect(ErrCode::WrongInstanceAddress);
     }
 
     // Get global instance.
     WasmEdge::Runtime::Instance::GlobalInstance *GlobInst =
         ModInst->findGlobalExports(Field);
     if (unlikely(GlobInst == nullptr)) {
-      return Unexpect(ErrCode::IncompatibleImportType);
+      return Unexpect(ErrCode::WrongInstanceAddress);
     }
     return std::make_pair(GlobInst->getValue(),
                           GlobInst->getGlobalType().getValType());
@@ -236,23 +234,21 @@ TEST_P(CustomWasmCoreTest, TestSuites) {
   T.onGet = [&VM](const std::string &ModName, const std::string &Field)
       -> Expect<std::pair<ValVariant, ValType>> {
     // Get module instance.
-    auto &Store = VM.getStoreManager();
-    WasmEdge::Runtime::Instance::ModuleInstance *ModInst = nullptr;
+    const WasmEdge::Runtime::Instance::ModuleInstance *ModInst = nullptr;
     if (ModName.empty()) {
-      ModInst = *Store.getActiveModule();
+      ModInst = VM.getActiveModule();
     } else {
-      if (auto Res = Store.findModule(ModName)) {
-        ModInst = *Res;
-      } else {
-        return Unexpect(Res);
-      }
+      ModInst = VM.getStoreManager().findModule(ModName);
+    }
+    if (ModInst == nullptr) {
+      return Unexpect(ErrCode::WrongInstanceAddress);
     }
 
     // Get global instance.
     WasmEdge::Runtime::Instance::GlobalInstance *GlobInst =
         ModInst->findGlobalExports(Field);
     if (unlikely(GlobInst == nullptr)) {
-      return Unexpect(ErrCode::IncompatibleImportType);
+      return Unexpect(ErrCode::WrongInstanceAddress);
     }
     return std::make_pair(GlobInst->getValue(),
                           GlobInst->getGlobalType().getValType());

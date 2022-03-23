@@ -17,7 +17,7 @@
 #pragma once
 
 #include "common/errcode.h"
-#include "runtime/importobj.h"
+#include "runtime/instance/module.h"
 
 namespace WasmEdge {
 
@@ -57,9 +57,9 @@ public:
   }
 };
 
-class SpecTestModule : public Runtime::ImportObject {
+class SpecTestModule : public Runtime::Instance::ModuleInstance {
 public:
-  SpecTestModule() : ImportObject("spectest") {
+  SpecTestModule() : ModuleInstance("spectest") {
     addHostFunc("print", std::make_unique<SpecTestPrint>());
     addHostFunc("print_i32", std::make_unique<SpecTestPrintI32>());
     addHostFunc("print_f32", std::make_unique<SpecTestPrintF32>());

@@ -485,6 +485,7 @@ The [component/LazyHome.jsx](https://github.com/second-state/wasmedge-quickjs/bl
 
 ```javascript
 import React, { Suspense } from 'react';
+import * as LazyPage from './LazyPage.jsx';
 
 async function sleep(ms) {
   return new Promise((r, _) => {
@@ -494,7 +495,7 @@ async function sleep(ms) {
 
 async function loadLazyPage() {
   await sleep(2000);
-  return await import('./LazyPage.jsx');
+  return LazyPage
 }
 
 class LazyHome extends React.Component {

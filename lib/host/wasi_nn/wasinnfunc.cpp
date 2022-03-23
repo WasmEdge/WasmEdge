@@ -206,7 +206,6 @@ Expect<uint32_t> WasiNNSetInput::body(Runtime::Instance::MemoryInstance *MemInst
     for (auto &Item : InputInfo) {
       if (InputIndex == Index) {
         InputName = Item.first;
-        spdlog::info("Index input: {:s}", InputName);
         Item.second->setPrecision(TensorPrecision);
         break;
       }
@@ -222,7 +221,7 @@ Expect<uint32_t> WasiNNSetInput::body(Runtime::Instance::MemoryInstance *MemInst
     const size_t width = BlobSize[3];
     const size_t height = BlobSize[2];
     const size_t channels = BlobSize[1];
-    spdlog::info("Input shape for {:s}: {:d}, {:d}, {:d}", InputName, channels,
+    spdlog::info("Input shape for [{:s}]: {:d}, {:d}, {:d}", InputName, channels,
               width, height);
     IE::MemoryBlob::Ptr MBlob = IE::as<IE::MemoryBlob>(InputBlob);
     if (!MBlob) {
@@ -234,13 +233,17 @@ Expect<uint32_t> WasiNNSetInput::body(Runtime::Instance::MemoryInstance *MemInst
     }
     // locked memory holder should be alive all time while access to its buffer
     // happens
+
     auto MBlobHolder = MBlob->wmap();
     float *BlobData = MBlobHolder.as<float *>();
-    for (size_t I = 0; I < TensorDataLen / 4; I++) {
-      uint32_t Tmp =
-          (TensorDataBuf[4 * I] << 0 | TensorDataBuf[4 * I + 1] << 8 |
-           TensorDataBuf[4 * I + 2] << 16 | TensorDataBuf[4 * I + 3] << 24);
-      BlobData[I] = *reinterpret_cast<float *>(&Tmp);
+    if (BlobData == nullptr) {
+      spdlog::error("Input blob has not allocated buffer");
+      return -1;
+    }
+    float *CastedTensorDataBuf =
+        reinterpret_cast<float *>(TensorDataBuf);
+    for (size_t I = 0; I < TensorDataLen/4;I++){
+      BlobData[I] = CastedTensorDataBuf[I];
     }
     return 0;
 #else
@@ -282,7 +285,7 @@ Expect<uint32_t> WasiNNGetOuput::body(
     for (auto &Item : OutputInfo) {
       if (OutputIndex == Index) {
         OutputName = Item.first;
-        Item.second->setPrecision(IE::Precision::FP32);
+        // Item.second->setPrecision(IE::Precision::FP32);
         break;
       }
       OutputIndex++;
@@ -294,7 +297,7 @@ Expect<uint32_t> WasiNNGetOuput::body(
 
     const IE::Blob::Ptr OutputBlob =
         Session.SessionInferRequest.GetBlob(OutputName);
-    IE::MemoryBlob::Ptr MBlob = IE::as<IE::MemoryBlob>(OutputBlob);
+    IE::MemoryBlob::CPtr MBlob = IE::as<IE::MemoryBlob>(OutputBlob);
     if (!MBlob) {
       spdlog::error("We expect output blob to be inherited from MemoryBlob in "
                  "OpenVINO backend, but "
@@ -302,19 +305,15 @@ Expect<uint32_t> WasiNNGetOuput::body(
                  "to cast network output to MemoryBlob");
       return -1;
     }
-    auto MBlobHolder = MBlob->wmap();
+    auto MBlobHolder = MBlob->rmap();
     float *BlobData = MBlobHolder.as<float *>();
     auto OutputSize = OutputBlob->size();
-    spdlog::info("get ouput with total size {:d}", OutputSize);
-    for (uint32_t I = 0; I < OutputSize; I++) {
-      float Value = BlobData[I];
-      OutBufferPtr[4 * I] = *reinterpret_cast<uint32_t *>(&Value) & 0xff;
-      OutBufferPtr[4 * I + 1] =
-          (*reinterpret_cast<uint32_t *>(&Value) & 0xff00) >> 8;
-      OutBufferPtr[4 * I + 2] =
-          (*reinterpret_cast<uint32_t *>(&Value) & 0xff0000) >> 16;
-      OutBufferPtr[4 * I + 3] =
-          (*reinterpret_cast<uint32_t *>(&Value) & 0xff000000) >> 24;
+    spdlog::info("get ouput index [{:d}]-[{}] with total size {:d}", Index,
+                 OutputName, OutputSize);
+
+    uint8_t *CastedOutputData = reinterpret_cast<uint8_t *>(BlobData);
+    for (uint32_t I = 0; I < OutputSize*4; I++) {
+      OutBufferPtr[I] = CastedOutputData[I];
     }
     *BytesWritten = OutputSize * 4;
     return 0;

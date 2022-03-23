@@ -1,8 +1,6 @@
 //! Defines Module, ImportType, and ExportType.
 
-use crate::{
-    config::Config, error::Result, wasmedge, GlobalType, MemoryType, Signature, TableType,
-};
+use crate::{config::Config, error::Result, types::ExternalType, wasmedge};
 use std::marker::PhantomData;
 use std::{borrow::Cow, path::Path};
 
@@ -209,18 +207,6 @@ impl<'module> ExportType<'module> {
             }
         }
     }
-}
-
-/// Defines external types.
-pub enum ExternalType {
-    /// The [signature](crate::Signature) of a [host function](crate::Func).
-    Func(Signature),
-    /// The [table type](crate::TableType) of a [table](crate::Table).
-    Table(TableType),
-    /// The [memory type](crate::MemoryType) of a [memory](crate::Memory).
-    Memory(MemoryType),
-    /// The [global type](crate::GlobalType) of a [global](crate::Global).
-    Global(GlobalType),
 }
 
 #[cfg(test)]

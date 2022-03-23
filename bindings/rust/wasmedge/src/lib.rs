@@ -15,6 +15,7 @@ pub mod module;
 pub mod statistics;
 #[doc(hidden)]
 pub mod store;
+pub mod types;
 #[doc(hidden)]
 pub mod vm;
 
@@ -29,7 +30,7 @@ pub use instance::{
     WasmEdgeProcessImportModule,
 };
 #[doc(inline)]
-pub use module::{ExportType, ExternalType, ImportType, Module};
+pub use module::{ExportType, ImportType, Module};
 #[doc(inline)]
 pub use statistics::Statistics;
 #[doc(inline)]

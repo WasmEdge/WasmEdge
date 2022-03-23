@@ -1,5 +1,8 @@
-use crate::{error::Result, wasmedge, Mutability, ValType, Value};
+//! Defines Global and GlobalType.
 
+use crate::{error::Result, types::Val, wasmedge, Mutability, ValType};
+
+/// Struct of WasmEdge Global.
 #[derive(Debug)]
 pub struct Global<'instance> {
     pub(crate) inner: wasmedge::Global,
@@ -34,16 +37,17 @@ impl<'instance> Global<'instance> {
         })
     }
 
-    pub fn get_value(&self) -> Value {
-        self.inner.get_value()
+    pub fn get_value(&self) -> Val {
+        self.inner.get_value().into()
     }
 
-    pub fn set_value(&mut self, val: Value) -> Result<()> {
-        self.inner.set_value(val)?;
+    pub fn set_value(&mut self, val: Val) -> Result<()> {
+        self.inner.set_value(val.into())?;
         Ok(())
     }
 }
 
+/// Struct of WasmEdge GlobalType.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct GlobalType {
     ty: ValType,
@@ -97,19 +101,19 @@ mod tests {
     }
 
     #[test]
-    fn test_global() {
+    fn test_global_basic() {
         // create an ImportModule
         let result = ImportModuleBuilder::new()
             .with_global(
                 "const-global",
                 GlobalType::new(ValType::I32, Mutability::Const),
-                Value::from_i32(1314),
+                Val::I32(1314),
             )
             .expect("failed to add const-global")
             .with_global(
                 "var-global",
                 GlobalType::new(ValType::F32, Mutability::Var),
-                Value::from_f32(13.14),
+                Val::F32(13.14),
             )
             .expect("failed to add var-global")
             .build("extern");
@@ -158,9 +162,14 @@ mod tests {
         assert_eq!(ty.mutability(), Mutability::Const);
 
         // get value of global
-        assert_eq!(const_global.get_value().to_i32(), 1314);
+        if let Val::I32(value) = const_global.get_value() {
+            assert_eq!(value, 1314);
+        } else {
+            assert!(false);
+        }
+
         // set a new value
-        let result = const_global.set_value(Value::from_i32(314));
+        let result = const_global.set_value(Val::I32(314));
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
@@ -191,15 +200,24 @@ mod tests {
         assert_eq!(ty.mutability(), Mutability::Var);
 
         // get the value of var_global
-        assert_eq!(var_global.get_value().to_f32(), 13.14);
+        if let Val::F32(value) = var_global.get_value() {
+            assert_eq!(value, 13.14);
+        } else {
+            assert!(false);
+        }
+
         // set a new value
-        let result = var_global.set_value(Value::from_f32(1.314));
+        let result = var_global.set_value(Val::F32(1.314));
         assert!(result.is_ok());
 
         // get the value of var_global again
         let result = instance.global("var-global");
         assert!(result.is_some());
         let var_global = result.unwrap();
-        assert_eq!(var_global.get_value().to_f32(), 1.314);
+        if let Val::F32(value) = var_global.get_value() {
+            assert_eq!(value, 1.314);
+        } else {
+            assert!(false);
+        }
     }
 }

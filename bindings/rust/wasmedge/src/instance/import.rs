@@ -1,5 +1,5 @@
 use crate::{
-    error::Result, wasmedge, GlobalType, HostFunc, MemoryType, Signature, TableType, Value,
+    error::Result, types::Val, wasmedge, GlobalType, HostFunc, MemoryType, Signature, TableType,
 };
 
 #[derive(Debug, Default)]
@@ -30,13 +30,8 @@ impl ImportModuleBuilder {
         Ok(self)
     }
 
-    pub fn with_global(
-        mut self,
-        name: impl AsRef<str>,
-        ty: GlobalType,
-        init: Value,
-    ) -> Result<Self> {
-        let inner_global = wasmedge::Global::create(&ty.to_raw()?, init)?;
+    pub fn with_global(mut self, name: impl AsRef<str>, ty: GlobalType, init: Val) -> Result<Self> {
+        let inner_global = wasmedge::Global::create(&ty.to_raw()?, init.into())?;
         self.globals.push((name.as_ref().to_owned(), inner_global));
         Ok(self)
     }
@@ -194,6 +189,7 @@ mod tests {
     use crate::{
         config::{CommonConfigOptions, ConfigBuilder},
         error::WasmEdgeError,
+        types::{FuncRef, Val},
         wasmedge, Executor, Mutability, RefType, SignatureBuilder, Statistics, Store, ValType,
         Value,
     };
@@ -492,13 +488,13 @@ mod tests {
             .with_global(
                 "const-global",
                 GlobalType::new(ValType::I32, Mutability::Const),
-                Value::from_i32(1314),
+                Val::I32(1314),
             )
             .expect("failed to add const-global")
             .with_global(
                 "var-global",
                 GlobalType::new(ValType::F32, Mutability::Var),
-                Value::from_f32(13.14),
+                Val::F32(13.14),
             )
             .expect("failed to add var-global")
             .build("extern");
@@ -547,9 +543,14 @@ mod tests {
         assert_eq!(ty.mutability(), Mutability::Const);
 
         // get value of global
-        assert_eq!(const_global.get_value().to_i32(), 1314);
+        if let Val::I32(value) = const_global.get_value() {
+            assert_eq!(value, 1314);
+        } else {
+            assert!(false);
+        }
+
         // set a new value
-        let result = const_global.set_value(Value::from_i32(314));
+        let result = const_global.set_value(Val::I32(314));
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
@@ -580,22 +581,40 @@ mod tests {
         assert_eq!(ty.mutability(), Mutability::Var);
 
         // get the value of var_global
-        assert_eq!(var_global.get_value().to_f32(), 13.14);
+        if let Val::F32(value) = var_global.get_value() {
+            assert_eq!(value, 13.14);
+        } else {
+            assert!(false);
+        }
+
         // set a new value
-        let result = var_global.set_value(Value::from_f32(1.314));
+        let result = var_global.set_value(Val::F32(1.314));
         assert!(result.is_ok());
 
         // get the value of var_global again
         let result = instance.global("var-global");
         assert!(result.is_some());
         let var_global = result.unwrap();
-        assert_eq!(var_global.get_value().to_f32(), 1.314);
+        if let Val::F32(value) = var_global.get_value() {
+            assert_eq!(value, 1.314);
+        } else {
+            assert!(false);
+        }
     }
 
     #[test]
     fn test_import_add_table() {
         // create an ImportModule
         let result = ImportModuleBuilder::new()
+            .with_func(
+                "add",
+                SignatureBuilder::new()
+                    .with_args(vec![ValType::I32; 2])
+                    .with_returns(vec![ValType::I32])
+                    .build(),
+                Box::new(real_add),
+            )
+            .expect("failed to add host func")
             .with_table("table", TableType::new(RefType::FuncRef, 10, Some(20)))
             .expect("failed to add table")
             .build("extern");
@@ -627,6 +646,12 @@ mod tests {
         assert!(result.is_some());
         let instance = result.unwrap();
 
+        // get the exported host function
+        let result = instance.func("add");
+        assert!(result.is_some());
+        let mut host_func = result.unwrap();
+
+        // get the exported table
         let result = instance.table("table");
         assert!(result.is_some());
         let mut table = result.unwrap();
@@ -647,18 +672,36 @@ mod tests {
         // get value from table[0]
         let result = table.get(0);
         assert!(result.is_ok());
-        let value = result.unwrap();
-        assert!(value.func_idx().is_none());
+        if let Val::FuncRef(func_ref) = result.unwrap() {
+            assert!(func_ref.is_none());
+        } else {
+            assert!(false);
+        }
 
         // set value to table[0]
-        let result = table.set(Value::from_func_ref(5), 0);
+        let func_ref = FuncRef::new(&mut host_func);
+        let result = table.set(Val::FuncRef(Some(func_ref)), 0);
         assert!(result.is_ok());
         // get the value in table[0]
         let result = table.get(0);
         assert!(result.is_ok());
-        let value = result.unwrap();
-        assert!(value.func_idx().is_some());
-        assert_eq!(value.func_idx().unwrap(), 5);
+        if let Val::FuncRef(func_ref) = result.unwrap() {
+            assert!(func_ref.is_some());
+            let func_ref = func_ref.unwrap();
+            let result = func_ref.as_func();
+            assert!(result.is_some());
+            let host_func = result.unwrap();
+            // check the signature of the host function
+            let result = host_func.signature();
+            assert!(result.is_ok());
+            let signature = result.unwrap();
+            assert!(signature.args().is_some());
+            assert_eq!(signature.args().unwrap(), [ValType::I32; 2]);
+            assert!(signature.returns().is_some());
+            assert_eq!(signature.returns().unwrap(), [ValType::I32]);
+        } else {
+            assert!(false)
+        }
 
         let result = store.named_instance("extern");
         assert!(result.is_some());
@@ -671,9 +714,23 @@ mod tests {
         // get the value in table[0]
         let result = table.get(0);
         assert!(result.is_ok());
-        let value = result.unwrap();
-        assert!(value.func_idx().is_some());
-        assert_eq!(value.func_idx().unwrap(), 5);
+        if let Val::FuncRef(func_ref) = result.unwrap() {
+            assert!(func_ref.is_some());
+            let func_ref = func_ref.unwrap();
+            let result = func_ref.as_func();
+            assert!(result.is_some());
+            let host_func = result.unwrap();
+            // check the signature of the host function
+            let result = host_func.signature();
+            assert!(result.is_ok());
+            let signature = result.unwrap();
+            assert!(signature.args().is_some());
+            assert_eq!(signature.args().unwrap(), [ValType::I32; 2]);
+            assert!(signature.returns().is_some());
+            assert_eq!(signature.returns().unwrap(), [ValType::I32]);
+        } else {
+            assert!(false);
+        }
     }
 
     #[test]
@@ -692,7 +749,7 @@ mod tests {
             .with_global(
                 "global",
                 GlobalType::new(ValType::F32, Mutability::Const),
-                Value::from_f32(3.5),
+                Val::F32(3.5),
             )
             .expect("failed to add const global")
             .with_memory("memory", MemoryType::new(10, Some(20)))
@@ -739,7 +796,11 @@ mod tests {
             let global = result.unwrap();
             let result = global.ty();
             assert!(result.is_ok());
-            assert_eq!(global.get_value().to_f32(), 3.5);
+            if let Val::F32(value) = global.get_value() {
+                assert_eq!(value, 3.5);
+            } else {
+                assert!(false);
+            }
 
             // get the exported memory
             let result = instance.memory("memory");
@@ -805,7 +866,7 @@ mod tests {
             .with_global(
                 "global",
                 GlobalType::new(ValType::F32, Mutability::Const),
-                Value::from_f32(3.5),
+                Val::F32(3.5),
             )
             .expect("failed to add const global")
             .with_memory("memory", MemoryType::new(10, Some(20)))
@@ -857,7 +918,11 @@ mod tests {
             let global = result.unwrap();
             let result = global.ty();
             assert!(result.is_ok());
-            assert_eq!(global.get_value().to_f32(), 3.5);
+            if let Val::F32(v) = global.get_value() {
+                assert_eq!(v, 3.5);
+            } else {
+                assert!(false);
+            }
 
             // get the exported memory
             let result = instance.memory("memory");

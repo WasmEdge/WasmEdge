@@ -145,3 +145,149 @@ this=Ok(
   },
 )
 ```
+
+## 一个完整的 JavaScript 对象 API
+
+在前面的示例中，我们演示了从 Rust 创建 JavaScript API 的简单示例。 在这个例子中，我们将创建一个完整的 Rust 模块并将其作为 JavaScript 对象 API 提供。 该项目位于 [examples/embed_rust_module](https://github.com/second-state/wasmedge-quick js/three/main/examples/embed_rust_module) 文件夹中。 您可以在 WasmEdge 中将其作为标准 Rust 应用程序构建和运行。
+
+```bash
+cargo build --target wasm32-wasi --release
+wasmedge --dir .:. target/wasm32-wasi/release/embed_rust_module.wasm
+```
+
+该对象的 Rust 实现，如下面这个模块所示。它含有数据域，构造函数，访问器，设置器以及函数。
+
+```rust
+mod point {
+  use wasmedge_quickjs::*;
+
+  #[derive(Debug)]
+  struct Point(i32, i32);
+
+  struct PointDef;
+
+  impl JsClassDef<Point> for PointDef {
+    const CLASS_NAME: &'static str = "Point\0";
+    const CONSTRUCTOR_ARGC: u8 = 2;
+
+    fn constructor(_: &mut Context, argv: &[JsValue]) -> Option<Point> {
+      println!("rust-> new Point {:?}", argv);
+      let x = argv.get(0);
+      let y = argv.get(1);
+      if let ((Some(JsValue::Int(ref x)), Some(JsValue::Int(ref y)))) = (x, y) {
+        Some(Point(*x, *y))
+      } else {
+        None
+      }
+    }
+
+    fn proto_init(p: &mut JsClassProto<Point, PointDef>) {
+      struct X;
+      impl JsClassGetterSetter<Point> for X {
+        const NAME: &'static str = "x\0";
+
+        fn getter(_: &mut Context, this_val: &mut Point) -> JsValue {
+          println!("rust-> get x");
+          this_val.0.into()
+        }
+
+        fn setter(_: &mut Context, this_val: &mut Point, val: JsValue) {
+          println!("rust-> set x:{:?}", val);
+          if let JsValue::Int(x) = val {
+            this_val.0 = x
+          }
+        }
+      }
+
+      struct Y;
+      impl JsClassGetterSetter<Point> for Y {
+        const NAME: &'static str = "y\0";
+
+        fn getter(_: &mut Context, this_val: &mut Point) -> JsValue {
+          println!("rust-> get y");
+          this_val.1.into()
+        }
+
+        fn setter(_: &mut Context, this_val: &mut Point, val: JsValue) {
+          println!("rust-> set y:{:?}", val);
+          if let JsValue::Int(y) = val {
+            this_val.1 = y
+          }
+        }
+      }
+
+      struct FnPrint;
+      impl JsMethod<Point> for FnPrint {
+        const NAME: &'static str = "pprint\0";
+        const LEN: u8 = 0;
+
+        fn call(_: &mut Context, this_val: &mut Point, _argv: &[JsValue]) -> JsValue {
+          println!("rust-> pprint: {:?}", this_val);
+          JsValue::Int(1)
+        }
+      }
+
+      p.add_getter_setter(X);
+      p.add_getter_setter(Y);
+      p.add_function(FnPrint);
+    }
+  }
+
+  struct PointModule;
+  impl ModuleInit for PointModule {
+    fn init_module(ctx: &mut Context, m: &mut JsModuleDef) {
+      m.add_export("Point\0", PointDef::class_value(ctx));
+    }
+  }
+
+  pub fn init_point_module(ctx: &mut Context) {
+    ctx.register_class(PointDef);
+    ctx.register_module("point\0", PointModule, &["Point\0"]);
+  }
+}
+```
+
+在解释器实现中，我们首先调用 `point::init_point_module` 将 Rust 模块注册到 JavaScript 上下文中，然后我们可以运行一个仅使用 `point` 对象的 JavaScript 程序。
+
+```rust
+use wasmedge_quickjs::*;
+fn main() {
+  let mut ctx = Context::new();
+  point::init_point_module(&mut ctx);
+
+  let code = r#"
+    import('point').then((point)=>{
+    let p0 = new point.Point(1,2)
+    print("js->",p0.x,p0.y)
+    p0.pprint()
+    try{
+      let p = new point.Point()
+      print("js-> p:",p)
+      print("js->",p.x,p.y)
+      p.x=2
+      p.pprint()
+    } catch(e) {
+      print("An error has been caught");
+      print(e)
+    }  
+    })
+  "#;
+
+  ctx.eval_global_str(code);
+  ctx.promise_loop_poll();
+}
+```
+
+上述应用程序的执行结果如下。
+
+```bash
+rust-> new Point [Int(1), Int(2)]
+rust-> get x
+rust-> get y
+js-> 1 2
+rust-> pprint: Point(1, 2)
+rust-> new Point []
+js-> p: undefined
+An error has been caught
+TypeError: cannot read property 'x' of undefined
+```

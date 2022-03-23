@@ -38,13 +38,13 @@ public:
       : ModInst(Inst.ModInst), FuncType(Inst.FuncType),
         Data(std::move(Inst.Data)) {}
   /// Constructor for native function.
-  FunctionInstance(ModuleInstance *Mod, const AST::FunctionType &Type,
+  FunctionInstance(const ModuleInstance *Mod, const AST::FunctionType &Type,
                    Span<const std::pair<uint32_t, ValType>> Locs,
                    AST::InstrView Expr) noexcept
       : ModInst(Mod), FuncType(Type),
         Data(std::in_place_type_t<WasmFunction>(), Locs, Expr) {}
   /// Constructor for compiled function.
-  FunctionInstance(ModuleInstance *Mod, const AST::FunctionType &Type,
+  FunctionInstance(const ModuleInstance *Mod, const AST::FunctionType &Type,
                    Symbol<CompiledFunction> S) noexcept
       : ModInst(Mod), FuncType(Type),
         Data(std::in_place_type_t<Symbol<CompiledFunction>>(), std::move(S)) {}
@@ -53,8 +53,6 @@ public:
       : ModInst(nullptr), FuncType(Func->getFuncType()),
         Data(std::in_place_type_t<std::unique_ptr<HostFunctionBase>>(),
              std::move(Func)) {}
-
-  virtual ~FunctionInstance() = default;
 
   /// Getter of checking is native wasm function.
   bool isWasmFunction() const noexcept {
@@ -72,10 +70,10 @@ public:
   }
 
   /// Getter of module instance of this function instance.
-  ModuleInstance *getModule() const noexcept { return ModInst; }
+  const ModuleInstance *getModule() const noexcept { return ModInst; }
 
   /// Getter of function type.
-  const AST::FunctionType &getFuncType() const { return FuncType; }
+  const AST::FunctionType &getFuncType() const noexcept { return FuncType; }
 
   /// Getter of function local variables.
   Span<const std::pair<uint32_t, ValType>> getLocals() const noexcept {
@@ -127,7 +125,7 @@ private:
 
   /// \name Data of function instance.
   /// @{
-  ModuleInstance *ModInst;
+  const ModuleInstance *ModInst;
   const AST::FunctionType &FuncType;
   std::variant<WasmFunction, Symbol<CompiledFunction>,
                std::unique_ptr<HostFunctionBase>>

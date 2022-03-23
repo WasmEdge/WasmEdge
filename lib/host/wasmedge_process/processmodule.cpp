@@ -2,7 +2,6 @@
 // SPDX-FileCopyrightText: 2019-2022 Second State INC
 
 #include "host/wasmedge_process/processmodule.h"
-
 #include "host/wasmedge_process/processfunc.h"
 
 #include <memory>
@@ -11,7 +10,7 @@ namespace WasmEdge {
 namespace Host {
 
 WasmEdgeProcessModule::WasmEdgeProcessModule()
-    : ImportObject("wasmedge_process") {
+    : ModuleInstance("wasmedge_process") {
   addHostFunc("wasmedge_process_set_prog_name",
               std::make_unique<WasmEdgeProcessSetProgName>(Env));
   addHostFunc("wasmedge_process_add_arg",

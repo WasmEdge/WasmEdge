@@ -4,12 +4,12 @@
 #pragma once
 
 #include "host/wasmedge_process/processenv.h"
-#include "runtime/importobj.h"
+#include "runtime/instance/module.h"
 
 namespace WasmEdge {
 namespace Host {
 
-class WasmEdgeProcessModule : public Runtime::ImportObject {
+class WasmEdgeProcessModule : public Runtime::Instance::ModuleInstance {
 public:
   WasmEdgeProcessModule();
 

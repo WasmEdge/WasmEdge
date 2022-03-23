@@ -112,7 +112,6 @@ Executor::enterFunction(Runtime::StackManager &StackMgr,
 
     {
       // Prepare the execution context.
-      CurrentStore = &StoreMgr;
       CurrentStack = &StackMgr;
       auto *ModInst =
           const_cast<Runtime::Instance::ModuleInstance *>(Func.getModule());

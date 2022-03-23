@@ -64,9 +64,9 @@ struct FuncRef {
 #if __INTPTR_WIDTH__ == 32
   const uint32_t Padding = -1;
 #endif
-  Runtime::Instance::FunctionInstance *Ptr = nullptr;
+  const Runtime::Instance::FunctionInstance *Ptr = nullptr;
   FuncRef() = default;
-  FuncRef(Runtime::Instance::FunctionInstance *P) : Ptr(P) {}
+  FuncRef(const Runtime::Instance::FunctionInstance *P) : Ptr(P) {}
 };
 
 /// ExternRef definition.
@@ -286,19 +286,19 @@ inline constexpr bool isNullRef(const RefVariant &Val) {
   return Val.get<UnknownRef>().Value == 0;
 }
 
-inline Runtime::Instance::FunctionInstance *
+inline const Runtime::Instance::FunctionInstance *
 retrieveFuncRef(const ValVariant &Val) {
-  return reinterpret_cast<Runtime::Instance::FunctionInstance *>(
+  return reinterpret_cast<const Runtime::Instance::FunctionInstance *>(
       Val.get<FuncRef>().Ptr);
 }
-inline Runtime::Instance::FunctionInstance *
+inline const Runtime::Instance::FunctionInstance *
 retrieveFuncRef(const RefVariant &Val) {
-  return reinterpret_cast<Runtime::Instance::FunctionInstance *>(
+  return reinterpret_cast<const Runtime::Instance::FunctionInstance *>(
       Val.get<FuncRef>().Ptr);
 }
-inline Runtime::Instance::FunctionInstance *
+inline const Runtime::Instance::FunctionInstance *
 retrieveFuncRef(const FuncRef &Val) {
-  return reinterpret_cast<Runtime::Instance::FunctionInstance *>(Val.Ptr);
+  return reinterpret_cast<const Runtime::Instance::FunctionInstance *>(Val.Ptr);
 }
 
 template <typename T> inline T &retrieveExternRef(const ValVariant &Val) {

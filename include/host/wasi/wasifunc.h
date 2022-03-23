@@ -4,6 +4,7 @@
 #pragma once
 
 #include "host/wasi/wasibase.h"
+
 #include <cstdint>
 
 namespace WasmEdge {

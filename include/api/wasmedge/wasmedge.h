@@ -798,6 +798,12 @@ WASMEDGE_CAPI_EXPORT extern void
 WasmEdge_StatisticsSetCostLimit(WasmEdge_StatisticsContext *Cxt,
                                 const uint64_t Limit);
 
+/// Clear all data in the WasmEdge_StatisticsContext.
+///
+/// \param Cxt the WasmEdge_StatisticsContext to clear.
+WASMEDGE_CAPI_EXPORT extern void
+WasmEdge_StatisticsClear(WasmEdge_StatisticsContext *Cxt);
+
 /// Deletion of the WasmEdge_StatisticsContext.
 ///
 /// After calling this function, the context will be destroyed and should

@@ -191,7 +191,7 @@ mod tests {
         error::WasmEdgeError,
         types::{FuncRef, Val},
         wasmedge, Executor, Mutability, RefType, SignatureBuilder, Statistics, Store, ValType,
-        Value,
+        WasmValue,
     };
     use std::{
         sync::{Arc, Mutex},
@@ -967,12 +967,23 @@ mod tests {
             assert_eq!(signature.args().unwrap(), [ValType::I32; 2]);
             assert!(signature.returns().is_some());
             assert_eq!(signature.returns().unwrap(), [ValType::I32]);
+
+            // run host func
+            let result = executor.run_func(
+                &mut store,
+                Some("extern-module"),
+                "add",
+                [WasmValue::from_i32(2), WasmValue::from_i32(3)],
+            );
+            assert!(result.is_ok());
+            let returns = result.unwrap();
+            assert_eq!(returns[0].to_i32(), 5);
         });
 
         handle.join().unwrap();
     }
 
-    fn real_add(inputs: Vec<Value>) -> std::result::Result<Vec<Value>, u8> {
+    fn real_add(inputs: Vec<WasmValue>) -> std::result::Result<Vec<WasmValue>, u8> {
         if inputs.len() != 2 {
             return Err(1);
         }
@@ -991,6 +1002,6 @@ mod tests {
 
         let c = a + b;
 
-        Ok(vec![Value::from_i32(c)])
+        Ok(vec![WasmValue::from_i32(c)])
     }
 }

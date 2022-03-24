@@ -104,7 +104,7 @@ mod tests {
         types::Val,
         wasmedge::{Mutability, RefType},
         Executor, GlobalType, ImportModuleBuilder, MemoryType, Module, SignatureBuilder,
-        Statistics, Store, TableType, ValType, Value,
+        Statistics, Store, TableType, ValType, WasmValue,
     };
 
     #[test]
@@ -277,7 +277,7 @@ mod tests {
         }
     }
 
-    fn real_add(inputs: Vec<Value>) -> std::result::Result<Vec<Value>, u8> {
+    fn real_add(inputs: Vec<WasmValue>) -> std::result::Result<Vec<WasmValue>, u8> {
         if inputs.len() != 2 {
             return Err(1);
         }
@@ -296,6 +296,6 @@ mod tests {
 
         let c = a + b;
 
-        Ok(vec![Value::from_i32(c)])
+        Ok(vec![WasmValue::from_i32(c)])
     }
 }

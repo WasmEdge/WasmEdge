@@ -283,7 +283,7 @@ mod tests {
     use super::*;
     use crate::{
         Config, Executor, FuncType, GlobalType, ImportObject, MemType, Mutability, RefType,
-        TableType, ValType, Value, Vm,
+        TableType, ValType, Vm, WasmValue,
     };
 
     #[test]
@@ -453,7 +453,7 @@ mod tests {
         let result = GlobalType::create(ValType::F32, Mutability::Const);
         assert!(result.is_ok());
         let ty = result.unwrap();
-        let result = Global::create(&ty, Value::from_f32(3.5));
+        let result = Global::create(&ty, WasmValue::from_f32(3.5));
         assert!(result.is_ok());
         let global = result.unwrap();
         import.add_global("global", global);
@@ -520,7 +520,7 @@ mod tests {
         let result = GlobalType::create(ValType::F32, Mutability::Const);
         assert!(result.is_ok());
         let ty = result.unwrap();
-        let result = Global::create(&ty, Value::from_f32(3.5));
+        let result = Global::create(&ty, WasmValue::from_f32(3.5));
         assert!(result.is_ok());
         let global = result.unwrap();
         import.add_global("global", global);
@@ -535,7 +535,7 @@ mod tests {
         vm
     }
 
-    fn real_add(inputs: Vec<Value>) -> Result<Vec<Value>, u8> {
+    fn real_add(inputs: Vec<WasmValue>) -> Result<Vec<WasmValue>, u8> {
         if inputs.len() != 2 {
             return Err(1);
         }
@@ -554,6 +554,6 @@ mod tests {
 
         let c = a + b;
 
-        Ok(vec![Value::from_i32(c)])
+        Ok(vec![WasmValue::from_i32(c)])
     }
 }

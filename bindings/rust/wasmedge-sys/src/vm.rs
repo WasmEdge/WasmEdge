@@ -9,7 +9,7 @@ use crate::{
     types::WasmEdgeString,
     utils, wasmedge,
     wasmedge::{WasmEdge_HostRegistration_Wasi, WasmEdge_HostRegistration_WasmEdge_Process},
-    Config, Module, Value, WasmEdgeResult,
+    Config, Module, WasmEdgeResult, WasmValue,
 };
 use std::{collections::HashMap, path::Path};
 
@@ -245,8 +245,8 @@ impl Vm {
         &mut self,
         path: impl AsRef<Path>,
         func_name: impl AsRef<str>,
-        params: impl IntoIterator<Item = Value>,
-    ) -> WasmEdgeResult<Vec<Value>> {
+        params: impl IntoIterator<Item = WasmValue>,
+    ) -> WasmEdgeResult<Vec<WasmValue>> {
         // load
         self.load_wasm_from_file(path)?;
 
@@ -283,8 +283,8 @@ impl Vm {
         &mut self,
         buffer: &[u8],
         func_name: impl AsRef<str>,
-        params: impl IntoIterator<Item = Value>,
-    ) -> WasmEdgeResult<Vec<Value>> {
+        params: impl IntoIterator<Item = WasmValue>,
+    ) -> WasmEdgeResult<Vec<WasmValue>> {
         // load
         self.load_wasm_from_buffer(buffer)?;
 
@@ -322,8 +322,8 @@ impl Vm {
         &mut self,
         module: Module,
         func_name: impl AsRef<str>,
-        params: impl IntoIterator<Item = Value>,
-    ) -> WasmEdgeResult<Vec<Value>> {
+        params: impl IntoIterator<Item = WasmValue>,
+    ) -> WasmEdgeResult<Vec<WasmValue>> {
         // load
         self.load_wasm_from_module(&module)?;
 
@@ -448,8 +448,8 @@ impl Vm {
     pub fn run_function(
         &self,
         func_name: impl AsRef<str>,
-        params: impl IntoIterator<Item = Value>,
-    ) -> WasmEdgeResult<Vec<Value>> {
+        params: impl IntoIterator<Item = WasmValue>,
+    ) -> WasmEdgeResult<Vec<WasmValue>> {
         // prepare parameters
         let raw_params = params.into_iter().map(|x| x.as_raw()).collect::<Vec<_>>();
 
@@ -496,8 +496,8 @@ impl Vm {
         &self,
         mod_name: impl AsRef<str>,
         func_name: impl AsRef<str>,
-        params: impl IntoIterator<Item = Value>,
-    ) -> WasmEdgeResult<Vec<Value>> {
+        params: impl IntoIterator<Item = WasmValue>,
+    ) -> WasmEdgeResult<Vec<WasmValue>> {
         // prepare parameters
         let raw_params = params.into_iter().map(|x| x.as_raw()).collect::<Vec<_>>();
 
@@ -763,7 +763,7 @@ mod tests {
             CoreCommonError, CoreError, CoreExecutionError, CoreInstantiationError, CoreLoadError,
             StoreError, VmError, WasmEdgeError,
         },
-        Config, FuncType, Function, ImportObject, Loader, Module, Store, ValType, Value,
+        Config, FuncType, Function, ImportObject, Loader, Module, Store, ValType, WasmValue,
     };
     use std::{
         sync::{Arc, Mutex},
@@ -1097,7 +1097,7 @@ mod tests {
         assert!(result.is_ok());
 
         // run function
-        let result = vm.run_function("fib", [Value::from_i32(5)]);
+        let result = vm.run_function("fib", [WasmValue::from_i32(5)]);
         assert!(result.is_ok());
         let values = result.unwrap();
         assert_eq!(values[0].to_i32(), 8);
@@ -1111,7 +1111,7 @@ mod tests {
         );
 
         // run a function with the parameters of wrong type
-        let result = vm.run_function("fib", [Value::from_i64(5)]);
+        let result = vm.run_function("fib", [WasmValue::from_i64(5)]);
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
@@ -1119,7 +1119,7 @@ mod tests {
         );
 
         // run a function: the specified function name is non-existant
-        let result = vm.run_function("fib2", [Value::from_i32(5)]);
+        let result = vm.run_function("fib2", [WasmValue::from_i32(5)]);
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
@@ -1228,7 +1228,7 @@ mod tests {
         assert!(result.is_ok());
 
         // run a registered function
-        let result = vm.run_registered_function(mod_name, "fib", [Value::from_i32(5)]);
+        let result = vm.run_registered_function(mod_name, "fib", [WasmValue::from_i32(5)]);
         assert!(result.is_ok());
         let returns = result.unwrap();
         assert_eq!(returns[0].to_i32(), 8);
@@ -1257,7 +1257,7 @@ mod tests {
         );
 
         // run a registered function with empty parameters
-        let empty_params: Vec<Value> = vec![];
+        let empty_params: Vec<WasmValue> = vec![];
         let result = vm.run_registered_function(mod_name, "fib", empty_params);
         assert!(result.is_err());
         assert_eq!(
@@ -1266,7 +1266,7 @@ mod tests {
         );
 
         // run a registered function with the parameters of wrong type
-        let result = vm.run_registered_function(mod_name, "fib", [Value::from_i64(5)]);
+        let result = vm.run_registered_function(mod_name, "fib", [WasmValue::from_i64(5)]);
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
@@ -1274,7 +1274,7 @@ mod tests {
         );
 
         // run a registered function but give a wrong function name.
-        let result = vm.run_registered_function(mod_name, "fib2", [Value::from_i32(5)]);
+        let result = vm.run_registered_function(mod_name, "fib2", [WasmValue::from_i32(5)]);
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
@@ -1396,13 +1396,13 @@ mod tests {
         // run a function from a wasm file
         let path = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
             .join("bindings/rust/wasmedge-sys/tests/data/fibonacci.wasm");
-        let result = vm.run_wasm_from_file(&path, "fib", [Value::from_i32(5)]);
+        let result = vm.run_wasm_from_file(&path, "fib", [WasmValue::from_i32(5)]);
         assert!(result.is_ok());
         let returns = result.unwrap();
         assert_eq!(returns[0].to_i32(), 8);
 
         // run a function from a non-existent file
-        let result = vm.run_wasm_from_file("no_file", "fib", [Value::from_i32(5)]);
+        let result = vm.run_wasm_from_file("no_file", "fib", [WasmValue::from_i32(5)]);
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
@@ -1418,7 +1418,7 @@ mod tests {
         );
 
         // run a function from a WASM file with the parameters of wrong type
-        let result = vm.run_wasm_from_file(&path, "fib", [Value::from_i64(5)]);
+        let result = vm.run_wasm_from_file(&path, "fib", [WasmValue::from_i64(5)]);
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
@@ -1426,7 +1426,7 @@ mod tests {
         );
 
         // fun a function: the specified function name is non-existant
-        let result = vm.run_wasm_from_file(&path, "fib2", [Value::from_i32(5)]);
+        let result = vm.run_wasm_from_file(&path, "fib2", [WasmValue::from_i32(5)]);
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
@@ -1459,14 +1459,14 @@ mod tests {
         let result = std::fs::read(path);
         assert!(result.is_ok());
         let buffer = result.unwrap();
-        let result = vm.run_wasm_from_buffer(&buffer, "fib", [Value::from_i32(5)]);
+        let result = vm.run_wasm_from_buffer(&buffer, "fib", [WasmValue::from_i32(5)]);
         assert!(result.is_ok());
         let returns = result.unwrap();
         assert_eq!(returns[0].to_i32(), 8);
 
         // run a function from an empty buffer
         let empty_buffer: Vec<u8> = Vec::new();
-        let result = vm.run_wasm_from_buffer(&empty_buffer, "fib", [Value::from_i32(5)]);
+        let result = vm.run_wasm_from_buffer(&empty_buffer, "fib", [WasmValue::from_i32(5)]);
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
@@ -1482,7 +1482,7 @@ mod tests {
         );
 
         // run a function with the parameters of wrong type
-        let result = vm.run_wasm_from_buffer(&buffer, "fib", [Value::from_i64(5)]);
+        let result = vm.run_wasm_from_buffer(&buffer, "fib", [WasmValue::from_i64(5)]);
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
@@ -1490,7 +1490,7 @@ mod tests {
         );
 
         // fun a function: the specified function name is non-existant
-        let result = vm.run_wasm_from_buffer(&buffer, "fib2", [Value::from_i64(5)]);
+        let result = vm.run_wasm_from_buffer(&buffer, "fib2", [WasmValue::from_i64(5)]);
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
@@ -1519,7 +1519,7 @@ mod tests {
 
         // run a function from a module
         let module = load_fib_module();
-        let result = vm.run_wasm_from_module(module, "fib", [Value::from_i32(5)]);
+        let result = vm.run_wasm_from_module(module, "fib", [WasmValue::from_i32(5)]);
         assert!(result.is_ok());
         let returns = result.unwrap();
         assert_eq!(returns[0].to_i32(), 8);
@@ -1535,7 +1535,7 @@ mod tests {
 
         // run a function with the parameters of wrong type
         let module = load_fib_module();
-        let result = vm.run_wasm_from_module(module, "fib", [Value::from_i64(5)]);
+        let result = vm.run_wasm_from_module(module, "fib", [WasmValue::from_i64(5)]);
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
@@ -1544,7 +1544,7 @@ mod tests {
 
         // fun a function: the specified function name is non-existant
         let module = load_fib_module();
-        let result = vm.run_wasm_from_module(module, "fib2", [Value::from_i64(5)]);
+        let result = vm.run_wasm_from_module(module, "fib2", [WasmValue::from_i64(5)]);
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
@@ -1576,7 +1576,7 @@ mod tests {
             // run a function from a wasm file
             let path = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
                 .join("bindings/rust/wasmedge-sys/tests/data/fibonacci.wasm");
-            let result = vm.run_wasm_from_file(&path, "fib", [Value::from_i32(5)]);
+            let result = vm.run_wasm_from_file(&path, "fib", [WasmValue::from_i32(5)]);
             assert!(result.is_ok());
             let returns = result.unwrap();
             assert_eq!(returns[0].to_i32(), 8);
@@ -1613,7 +1613,7 @@ mod tests {
             // run a function from a wasm file
             let path = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
                 .join("bindings/rust/wasmedge-sys/tests/data/fibonacci.wasm");
-            let result = vm.run_wasm_from_file(&path, "fib", [Value::from_i32(5)]);
+            let result = vm.run_wasm_from_file(&path, "fib", [WasmValue::from_i32(5)]);
             assert!(result.is_ok());
             let returns = result.unwrap();
             assert_eq!(returns[0].to_i32(), 8);
@@ -1854,7 +1854,7 @@ mod tests {
         result.unwrap()
     }
 
-    fn real_add(inputs: Vec<Value>) -> Result<Vec<Value>, u8> {
+    fn real_add(inputs: Vec<WasmValue>) -> Result<Vec<WasmValue>, u8> {
         if inputs.len() != 2 {
             return Err(1);
         }
@@ -1873,6 +1873,6 @@ mod tests {
 
         let c = a + b;
 
-        Ok(vec![Value::from_i32(c)])
+        Ok(vec![WasmValue::from_i32(c)])
     }
 }

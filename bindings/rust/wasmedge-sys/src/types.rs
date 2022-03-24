@@ -336,11 +336,11 @@ unsafe impl Sync for InnerWasmEdgeString {}
 
 /// Struct of WasmEdge Value.
 #[derive(Debug, Clone, Copy)]
-pub struct Value {
+pub struct WasmValue {
     ctx: wasmedge::WasmEdge_Value,
     ty: ValType,
 }
-impl Value {
+impl WasmValue {
     /// Returns the raw `WasmEdge_Value`.
     pub fn as_raw(&self) -> wasmedge::WasmEdge_Value {
         self.ctx
@@ -523,7 +523,7 @@ impl Value {
         }
     }
 }
-impl From<wasmedge::WasmEdge_Value> for Value {
+impl From<wasmedge::WasmEdge_Value> for WasmValue {
     fn from(raw_val: wasmedge::WasmEdge_Value) -> Self {
         match raw_val.Type {
             wasmedge::WasmEdge_ValType_I32 => Self {
@@ -575,23 +575,23 @@ mod tests {
     #[test]
     fn test_types_value() {
         // I32
-        let val = Value::from_i32(1314);
+        let val = WasmValue::from_i32(1314);
         assert_eq!(val.ty(), ValType::I32);
 
         // I64
-        let val = Value::from_i64(1314);
+        let val = WasmValue::from_i64(1314);
         assert_eq!(val.ty(), ValType::I64);
 
         // F32
-        let val = Value::from_f32(13.14);
+        let val = WasmValue::from_f32(13.14);
         assert_eq!(val.ty(), ValType::F32);
 
         // F64
-        let val = Value::from_f64(13.14);
+        let val = WasmValue::from_f64(13.14);
         assert_eq!(val.ty(), ValType::F64);
 
         // V128
-        let val = Value::from_v128(1314);
+        let val = WasmValue::from_v128(1314);
         assert_eq!(val.ty(), ValType::V128);
 
         // ExternRef
@@ -601,39 +601,39 @@ mod tests {
         let result = Table::create(&ty);
         assert!(result.is_ok());
         let mut table = result.unwrap();
-        let value = Value::from_extern_ref(&mut table);
+        let value = WasmValue::from_extern_ref(&mut table);
         assert_eq!(value.ty(), ValType::ExternRef);
         assert!(value.extern_ref::<Table>().is_some());
 
         // NullRef(FuncRef)
-        let val = Value::from_null_ref(RefType::FuncRef);
+        let val = WasmValue::from_null_ref(RefType::FuncRef);
         assert_eq!(val.ty(), ValType::FuncRef);
         assert!(val.is_null_ref());
         assert_eq!(val.ty(), ValType::FuncRef);
 
         // NullRef(ExternRef)
-        let val = Value::from_null_ref(RefType::ExternRef);
+        let val = WasmValue::from_null_ref(RefType::ExternRef);
         assert_eq!(val.ty(), ValType::ExternRef);
         assert!(val.is_null_ref());
         assert_eq!(val.ty(), ValType::ExternRef);
 
-        let val1 = Value::from_i32(1314);
-        let val2 = Value::from_i32(1314);
+        let val1 = WasmValue::from_i32(1314);
+        let val2 = WasmValue::from_i32(1314);
         assert_eq!(val1.to_i32(), val2.to_i32());
     }
 
     #[test]
     fn test_types_value_send() {
         // I32
-        let val_i32 = Value::from_i32(1314);
+        let val_i32 = WasmValue::from_i32(1314);
         // I64
-        let val_i64 = Value::from_i64(1314);
+        let val_i64 = WasmValue::from_i64(1314);
         // F32
-        let val_f32 = Value::from_f32(13.14);
+        let val_f32 = WasmValue::from_f32(13.14);
         // F64
-        let val_f64 = Value::from_f64(13.14);
+        let val_f64 = WasmValue::from_f64(13.14);
         // V128
-        let val_v128 = Value::from_v128(1314);
+        let val_v128 = WasmValue::from_v128(1314);
 
         // ExternRef
         let result = TableType::create(RefType::FuncRef, 10..=20);
@@ -642,13 +642,13 @@ mod tests {
         let result = Table::create(&ty);
         assert!(result.is_ok());
         let mut table = result.unwrap();
-        let val_extern_ref = Value::from_extern_ref(&mut table);
+        let val_extern_ref = WasmValue::from_extern_ref(&mut table);
 
         // NullRef(FuncRef)
-        let val_null_func_ref = Value::from_null_ref(RefType::FuncRef);
+        let val_null_func_ref = WasmValue::from_null_ref(RefType::FuncRef);
 
         // NullRef(ExternRef)
-        let val_null_extern_ref = Value::from_null_ref(RefType::ExternRef);
+        let val_null_extern_ref = WasmValue::from_null_ref(RefType::ExternRef);
 
         let handle = thread::spawn(move || {
             let val_i32_c = val_i32;
@@ -687,23 +687,23 @@ mod tests {
     #[test]
     fn test_types_value_sync() {
         // I32
-        let val_i32 = Arc::new(Mutex::new(Value::from_i32(1314)));
+        let val_i32 = Arc::new(Mutex::new(WasmValue::from_i32(1314)));
         let val_i32_cloned = Arc::clone(&val_i32);
 
         // I64
-        let val_i64 = Arc::new(Mutex::new(Value::from_i64(1314)));
+        let val_i64 = Arc::new(Mutex::new(WasmValue::from_i64(1314)));
         let val_i64_cloned = Arc::clone(&val_i64);
 
         // F32
-        let val_f32 = Arc::new(Mutex::new(Value::from_f32(13.14)));
+        let val_f32 = Arc::new(Mutex::new(WasmValue::from_f32(13.14)));
         let val_f32_cloned = Arc::clone(&val_f32);
 
         // F64
-        let val_f64 = Arc::new(Mutex::new(Value::from_f64(13.14)));
+        let val_f64 = Arc::new(Mutex::new(WasmValue::from_f64(13.14)));
         let val_f64_cloned = Arc::clone(&val_f64);
 
         // V128
-        let val_v128 = Arc::new(Mutex::new(Value::from_v128(1314)));
+        let val_v128 = Arc::new(Mutex::new(WasmValue::from_v128(1314)));
         let val_v128_cloned = Arc::clone(&val_v128);
 
         // ExternRef
@@ -713,15 +713,16 @@ mod tests {
         let result = Table::create(&ty);
         assert!(result.is_ok());
         let mut table = result.unwrap();
-        let val_extern_ref = Arc::new(Mutex::new(Value::from_extern_ref(&mut table)));
+        let val_extern_ref = Arc::new(Mutex::new(WasmValue::from_extern_ref(&mut table)));
         let val_extern_ref_cloned = Arc::clone(&val_extern_ref);
 
         // NullRef(FuncRef)
-        let val_null_func_ref = Arc::new(Mutex::new(Value::from_null_ref(RefType::FuncRef)));
+        let val_null_func_ref = Arc::new(Mutex::new(WasmValue::from_null_ref(RefType::FuncRef)));
         let val_null_func_ref_cloned = Arc::clone(&val_null_func_ref);
 
         // NullRef(ExternRef)
-        let val_null_extern_ref = Arc::new(Mutex::new(Value::from_null_ref(RefType::ExternRef)));
+        let val_null_extern_ref =
+            Arc::new(Mutex::new(WasmValue::from_null_ref(RefType::ExternRef)));
         let val_null_extern_ref_cloned = Arc::clone(&val_null_extern_ref);
 
         let handle = thread::spawn(move || {

@@ -11,7 +11,13 @@
 
 #![deny(rust_2018_idioms, unreachable_pub)]
 
-use std::{cell::RefCell, collections::HashMap, env::var};
+#[macro_use]
+extern crate lazy_static;
+
+use std::{
+    collections::HashMap,
+    sync::{Arc, Mutex},
+};
 
 #[doc(hidden)]
 #[allow(warnings)]
@@ -73,7 +79,7 @@ pub use store::Store;
 #[doc(inline)]
 pub use types::{
     CompilerOptimizationLevel, CompilerOutputFormat, ExternalType, Mutability, RefType, ValType,
-    Value,
+    WasmValue,
 };
 #[doc(inline)]
 pub use validator::Validator;
@@ -83,10 +89,15 @@ pub use vm::Vm;
 /// The WasmEdge result type.
 pub type WasmEdgeResult<T> = Result<T, error::WasmEdgeError>;
 
-thread_local! {
-    // TODO: allow modify capacity before running
-    #[allow(clippy::type_complexity)]
-    static HOST_FUNCS:
-      RefCell<
-        HashMap<usize, Box<dyn Fn(Vec<types::Value>) -> Result<Vec<types::Value>, u8>>>> = RefCell::new(HashMap::with_capacity(var("MAX_HOST_FUNC_LENGTH").map(|s| s.parse::<usize>().expect("MAX_HOST_FUNC_LENGTH should be a number")).unwrap_or(500)));
+pub type HostFunc = Box<dyn Fn(Vec<WasmValue>) -> Result<Vec<WasmValue>, u8> + Send + Sync>;
+
+lazy_static! {
+    static ref HOST_FUNCS: Arc<Mutex<HashMap<usize, HostFunc>>> =
+        Arc::new(Mutex::new(HashMap::with_capacity(
+            std::env::var("MAX_HOST_FUNC_LENGTH")
+                .map(|s| s
+                    .parse::<usize>()
+                    .expect("MAX_HOST_FUNC_LENGTH should be a positive integer."))
+                .unwrap_or(500)
+        )));
 }

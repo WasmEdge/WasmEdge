@@ -7,7 +7,7 @@
 
 use crate::{
     error::{check, TableError, WasmEdgeError},
-    types::{RefType, Value},
+    types::{RefType, WasmValue},
     wasmedge, WasmEdgeResult,
 };
 use std::ops::RangeInclusive;
@@ -78,7 +78,7 @@ impl Table {
     /// # Error
     ///
     /// If fail to get the data, then an error is returned.
-    pub fn get_data(&self, idx: u32) -> WasmEdgeResult<Value> {
+    pub fn get_data(&self, idx: u32) -> WasmEdgeResult<WasmValue> {
         let raw_val = unsafe {
             let mut data = wasmedge::WasmEdge_ValueGenI32(0);
             check(wasmedge::WasmEdge_TableInstanceGetData(
@@ -102,7 +102,7 @@ impl Table {
     /// # Error
     ///
     /// If fail to set data, then an error is returned.
-    pub fn set_data(&mut self, data: Value, idx: u32) -> WasmEdgeResult<()> {
+    pub fn set_data(&mut self, data: WasmValue, idx: u32) -> WasmEdgeResult<()> {
         unsafe {
             check(wasmedge::WasmEdge_TableInstanceSetData(
                 self.inner.0,
@@ -332,7 +332,7 @@ mod tests {
         assert_eq!(value.ty(), ValType::FuncRef);
 
         // set data
-        let result = table.set_data(Value::from_func_ref(&mut host_func), 3);
+        let result = table.set_data(WasmValue::from_func_ref(&mut host_func), 3);
         assert!(result.is_ok());
         // get data
         let result = table.get_data(3);
@@ -422,7 +422,7 @@ mod tests {
         handle.join().unwrap();
     }
 
-    fn real_add(input: Vec<Value>) -> Result<Vec<Value>, u8> {
+    fn real_add(input: Vec<WasmValue>) -> Result<Vec<WasmValue>, u8> {
         println!("Rust: Entering Rust function real_add");
 
         if input.len() != 2 {
@@ -445,6 +445,6 @@ mod tests {
         println!("Rust: calcuating in real_add c: {:?}", c);
 
         println!("Rust: Leaving Rust function real_add");
-        Ok(vec![Value::from_i32(c)])
+        Ok(vec![WasmValue::from_i32(c)])
     }
 }

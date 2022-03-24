@@ -1,7 +1,7 @@
 #[cfg(feature = "aot")]
 use wasmedge_sys::{
     Compiler, CompilerOptimizationLevel, CompilerOutputFormat, Config, FuncType, Function,
-    ImportObject, Value, Vm,
+    ImportObject, Vm, WasmValue,
 };
 
 #[cfg(feature = "aot")]
@@ -55,7 +55,7 @@ fn test_aot() {
         let result = vm.contains_reg_func_name("extern", "fib");
         assert!(result.is_ok());
 
-        let result = vm.run_registered_function("extern", "fib", [Value::from_i32(5)]);
+        let result = vm.run_registered_function("extern", "fib", [WasmValue::from_i32(5)]);
         assert!(result.is_ok());
         let returns = result.unwrap();
         assert_eq!(returns[0].to_i32(), 8);
@@ -71,7 +71,7 @@ fn test_aot() {
         let result = vm.instantiate();
         assert!(result.is_ok());
 
-        let result = vm.run_function("fib", [Value::from_i32(5)]);
+        let result = vm.run_function("fib", [WasmValue::from_i32(5)]);
         assert!(result.is_ok());
         let returns = result.unwrap();
         assert_eq!(returns[0].to_i32(), 8);
@@ -99,6 +99,6 @@ fn create_spec_test_module() -> ImportObject {
     import_obj
 }
 
-fn spec_test_print(_inputs: Vec<Value>) -> Result<Vec<Value>, u8> {
+fn spec_test_print(_inputs: Vec<WasmValue>) -> Result<Vec<WasmValue>, u8> {
     Ok(vec![])
 }

@@ -4,7 +4,7 @@ use super::wasmedge;
 use crate::{
     error::{check, WasmEdgeError},
     types::WasmEdgeString,
-    Config, ImportObject, Module, Statistics, Store, Value, WasmEdgeResult,
+    Config, ImportObject, Module, Statistics, Store, WasmEdgeResult, WasmValue,
 };
 
 /// Struct of WasmEdge Executor.
@@ -174,8 +174,8 @@ impl Executor {
         &mut self,
         store: &mut Store,
         func_name: impl AsRef<str>,
-        params: impl IntoIterator<Item = Value>,
-    ) -> WasmEdgeResult<Vec<Value>> {
+        params: impl IntoIterator<Item = WasmValue>,
+    ) -> WasmEdgeResult<Vec<WasmValue>> {
         store.contains_func(func_name.as_ref())?;
 
         let raw_params = params.into_iter().map(|x| x.as_raw()).collect::<Vec<_>>();
@@ -222,8 +222,8 @@ impl Executor {
         store: &mut Store,
         mod_name: impl AsRef<str>,
         func_name: impl AsRef<str>,
-        params: impl IntoIterator<Item = Value>,
-    ) -> WasmEdgeResult<Vec<Value>> {
+        params: impl IntoIterator<Item = WasmValue>,
+    ) -> WasmEdgeResult<Vec<WasmValue>> {
         store.contains_reg_func(mod_name.as_ref(), func_name.as_ref())?;
 
         let raw_params = params.into_iter().map(|x| x.as_raw()).collect::<Vec<_>>();
@@ -382,7 +382,7 @@ mod tests {
         let result = GlobalType::create(ValType::I32, Mutability::Const);
         assert!(result.is_ok());
         let global_ty = result.unwrap();
-        let result = Global::create(&global_ty, Value::from_i32(666));
+        let result = Global::create(&global_ty, WasmValue::from_i32(666));
         assert!(result.is_ok());
         let host_global = result.unwrap();
         // add the global into import_obj module
@@ -469,7 +469,7 @@ mod tests {
         handle.join().unwrap();
     }
 
-    fn real_add(inputs: Vec<Value>) -> Result<Vec<Value>, u8> {
+    fn real_add(inputs: Vec<WasmValue>) -> Result<Vec<WasmValue>, u8> {
         if inputs.len() != 2 {
             return Err(1);
         }
@@ -488,6 +488,6 @@ mod tests {
 
         let c = a + b;
 
-        Ok(vec![Value::from_i32(c)])
+        Ok(vec![WasmValue::from_i32(c)])
     }
 }

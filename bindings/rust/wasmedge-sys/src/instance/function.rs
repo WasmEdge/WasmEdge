@@ -2,7 +2,7 @@
 
 use crate::{
     error::{FuncError, WasmEdgeError},
-    types::Value,
+    types::WasmValue,
     wasmedge, ValType, WasmEdgeResult, HOST_FUNCS,
 };
 use core::ffi::c_void;
@@ -19,7 +19,6 @@ extern "C" fn wraper_fn(
     return_len: u32,
 ) -> wasmedge::WasmEdge_Result {
     let key = key_ptr as *const usize as usize;
-    let mut result = Err(0);
 
     let input = {
         let raw_input = unsafe {
@@ -38,13 +37,13 @@ extern "C" fn wraper_fn(
         .expect("len of returns should not greater than usize");
     let raw_returns = unsafe { std::slice::from_raw_parts_mut(returns, return_len) };
 
-    HOST_FUNCS.with(|f| {
-        let host_functions = f.borrow();
+    let result = {
+        let host_functions = HOST_FUNCS.lock().expect("[wasmedge-sys] try lock failed.");
         let real_fn = host_functions
             .get(&key)
             .expect("host function should be there");
-        result = real_fn(input);
-    });
+        real_fn(input)
+    };
 
     match result {
         Ok(v) => {
@@ -92,9 +91,9 @@ impl Function {
     /// the `create_binding` method.
     ///
     /// ```rust
-    /// use wasmedge_sys::{FuncType, Function, ValType, Value, WasmEdgeResult};
+    /// use wasmedge_sys::{FuncType, Function, ValType, WasmValue, WasmEdgeResult};
     ///
-    /// fn real_add(inputs: Vec<Value>) -> Result<Vec<Value>, u8> {
+    /// fn real_add(inputs: Vec<WasmValue>) -> Result<Vec<WasmValue>, u8> {
     ///     if inputs.len() != 2 {
     ///         return Err(1);
     ///     }
@@ -113,7 +112,7 @@ impl Function {
     ///
     ///     let c = a + b;
     ///
-    ///     Ok(vec![Value::from_i32(c)])
+    ///     Ok(vec![WasmValue::from_i32(c)])
     /// }
     ///
     /// // create a FuncType
@@ -124,30 +123,24 @@ impl Function {
     /// ```
     pub fn create(
         ty: &FuncType,
-        real_fn: Box<dyn Fn(Vec<Value>) -> Result<Vec<Value>, u8>>,
+        real_fn: Box<dyn Fn(Vec<WasmValue>) -> Result<Vec<WasmValue>, u8> + Send + Sync>,
         cost: u64,
     ) -> WasmEdgeResult<Self> {
-        let mut key = 0usize;
+        let mut host_functions = HOST_FUNCS.lock().expect("[wasmedge-sys] try lock failed.");
+        if host_functions.len() >= host_functions.capacity() {
+            return Err(WasmEdgeError::Func(FuncError::CreateBinding(format!(
+                "The number of the host functions reaches the upper bound: {}",
+                host_functions.capacity()
+            ))));
+        }
 
-        HOST_FUNCS.with(|f| {
-            let mut host_functions = f.borrow_mut();
-            if host_functions.len() >= host_functions.capacity() {
-                return Err(WasmEdgeError::Func(FuncError::CreateBinding(format!(
-                    "The number of the host functions reaches the upper bound: {}",
-                    host_functions.capacity()
-                ))));
-            }
-
-            // generate key for the coming host function
-            let mut rng = rand::thread_rng();
-            key = rng.gen::<usize>();
-            while host_functions.contains_key(&key) {
-                key = rng.gen::<usize>();
-            }
-            host_functions.insert(key, real_fn);
-
-            Ok(())
-        })?;
+        // generate key for the coming host function
+        let mut rng = rand::thread_rng();
+        let mut key: usize = rng.gen();
+        while host_functions.contains_key(&key) {
+            key = rng.gen();
+        }
+        host_functions.insert(key, real_fn);
 
         let ctx = unsafe {
             wasmedge::WasmEdge_FunctionInstanceCreateBinding(
@@ -524,7 +517,7 @@ mod tests {
         handle.join().unwrap();
     }
 
-    fn real_add(input: Vec<Value>) -> Result<Vec<Value>, u8> {
+    fn real_add(input: Vec<WasmValue>) -> Result<Vec<WasmValue>, u8> {
         println!("Rust: Entering Rust function real_add");
 
         if input.len() != 2 {
@@ -547,6 +540,6 @@ mod tests {
         println!("Rust: calcuating in real_add c: {:?}", c);
 
         println!("Rust: Leaving Rust function real_add");
-        Ok(vec![Value::from_i32(c)])
+        Ok(vec![WasmValue::from_i32(c)])
     }
 }

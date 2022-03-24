@@ -36,15 +36,12 @@ public:
 
 class WasiNNContext {
 public:
-  WasiNNContext()
-      : ModelsNum(-1),
-        ExecutionsNum(-1){
-        } 
-        // context for implementing WASI-NN
+  WasiNNContext() : ModelsNum(-1), ExecutionsNum(-1) {}
+  // context for implementing WASI-NN
   std::map<Graph, GraphEncoding> GraphBackends;
   std::map<GraphExecutionContext, GraphEncoding> GraphContextBackends;
 #ifdef WASMEDGE_WASINN_BUILD_OPENVINO
-  IE::Core openvino_core;
+  IE::Core *openvino_core = nullptr;
   std::map<Graph, IE::CNNNetwork> OpenVINONetworks;
   std::map<Graph, IE::ExecutableNetwork> OpenVINOExecutions;
   std::map<GraphExecutionContext, OpenVINOSession> OpenVINOInfers;

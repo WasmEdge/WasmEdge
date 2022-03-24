@@ -2,8 +2,8 @@
 // SPDX-FileCopyrightText: 2019-2022 Second State INC
 
 #include "host/wasi_nn/wasinnmodule.h"
-#include "host/wasi_nn/wasinnfunc.h"
 #include "common/errcode.h"
+#include "host/wasi_nn/wasinnfunc.h"
 #include "runtime/hostfunc.h"
 #include "runtime/importobj.h"
 #include "spdlog/sinks/stdout_color_sinks.h"
@@ -12,8 +12,6 @@ namespace WasmEdge {
 namespace Host {
 
 WasiNNModule::WasiNNModule() : ImportObject("wasi_ephemeral_nn") {
-  // spdlog::set_level(spdlog::level::info);
-  // spdlog::stdout_color_mt("WasiNN");
 
   // Add more backend flags here!
   this->Ctx.BackendsMapping.emplace("OpenVINO", 0);

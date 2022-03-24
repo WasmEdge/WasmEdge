@@ -9,6 +9,7 @@ wasmedge_add_executable(wasiCryptoTests
   cipher.cpp
   asymmetric.cpp
   x25519.cpp
+  signatures.cpp
 )
 
 add_test(wasiCryptoTests wasiCryptoTests)

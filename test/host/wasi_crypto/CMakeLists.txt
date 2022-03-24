@@ -11,6 +11,7 @@ wasmedge_add_executable(wasiCryptoTests
   x25519.cpp
   signatures.cpp
   common.cpp
+  notimplement.cpp
 )
 
 add_test(wasiCryptoTests wasiCryptoTests)

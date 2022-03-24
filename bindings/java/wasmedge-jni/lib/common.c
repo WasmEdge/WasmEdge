@@ -131,6 +131,7 @@ int getIntVal(JNIEnv *env, jobject val) {
     jmethodID methodId = findJavaMethod(env, clazz, "getValue", "()I");
 
     jint value = (*env)->CallIntMethod(env, val, methodId);
+    printf("int value:%d\n", value);
     checkAndHandleException(env, "Error get int value");
     return value;
 }
@@ -338,6 +339,33 @@ bool AddElementToJavaList(JNIEnv* env, jobject jList, jobject ele) {
     jmethodID addMethod = findJavaMethod(env, listClass, "add", "(Ljava/lang/Object;)Z");
 
     return (*env)->CallBooleanMethod(env, jList, addMethod, ele);
+}
+
+jobject GetListElement(JNIEnv* env, jobject jList, jint idx) {
+    printf("get value from list\n");
+    jclass listClass = (*env)->GetObjectClass(env, jList);
+    if(listClass == NULL) {
+        printf("list class is null\n");
+    }
+    jmethodID getMethod = findJavaMethod(env, listClass, "get", "(I)Ljava/lang/Object;");
+    if(getMethod == NULL) {
+        printf("get method is null\n");
+    }
+
+    return (*env)->CallObjectMethod(env, jList, getMethod, idx);
+}
+
+jint GetListSize(JNIEnv* env, jobject jList) {
+    jclass listClass = (*env)->GetObjectClass(env, jList);
+    if(listClass == NULL) {
+        printf("list class is null\n");
+    }
+    jmethodID sizeMethod = (*env)->GetMethodID(env, listClass, "size", "()I");
+    if(sizeMethod == NULL) {
+        printf("size meethod is null\n");
+    }
+    jint size = (*env)->CallIntMethod(env, jList, sizeMethod);
+    return size;
 }
 
 WasmEdge_String JStringToWasmString(JNIEnv* env, jstring jstr) {

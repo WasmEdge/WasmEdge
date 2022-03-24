@@ -11,6 +11,8 @@
 #include "StoreContext.h"
 #include "ImportObjectContext.h"
 #include "common.h"
+#include "ValueType.h"
+#include "FunctionTypeInstance.h"
 
 WasmEdge_ExecutorContext *getExecutorContext(JNIEnv * env, jobject jExeCtx) {
     if(jExeCtx == NULL) {
@@ -44,48 +46,26 @@ JNIEXPORT void JNICALL Java_org_wasmedge_ExecutorContext_instantiate__Lorg_wasme
 }
 
 JNIEXPORT void JNICALL Java_org_wasmedge_ExecutorContext_invoke
-        (JNIEnv * env, jobject thisObject, jobject jStoreContext, jstring jFuncName, jobjectArray jParams,
-         jintArray jParamTypes, jobjectArray jReturns, jintArray jReturnTypes) {
+        (JNIEnv * env, jobject thisObject, jobject jStoreContext, jstring jFuncName, jobject jParams, jobject jReturns) {
     WasmEdge_ExecutorContext *exeCxt = getExecutorContext(env, thisObject);
     WasmEdge_StoreContext *storeCxt = getStoreContext(env, jStoreContext);
 
     const char* funcName = (*env)->GetStringUTFChars(env, jFuncName, NULL);
     WasmEdge_String wFuncName = WasmEdge_StringCreateByCString(funcName);
 
-    jsize paramLen = (*env)->GetArrayLength(env, jParams);
+    jsize paramLen = GetListSize(env, jParams);
 
     /* The parameters and returns arrays. */
     WasmEdge_Value *wasm_params = calloc(paramLen, sizeof(WasmEdge_Value));
-    int *type = (*env)->GetIntArrayElements(env, jParamTypes, JNI_FALSE);
     for (int i = 0; i < paramLen; i++) {
-        WasmEdge_Value val;
-
-        jobject val_object = (*env)->GetObjectArrayElement(env, jParams, i);
-
-        switch (type[i]) {
-
-            case 0:
-                val = WasmEdge_ValueGenI32(getIntVal(env, val_object));
-                break;
-            case 1:
-                val = WasmEdge_ValueGenI64(getLongVal(env, val_object));
-                break;
-            case 2:
-                val = WasmEdge_ValueGenF32(getFloatVal(env, val_object));
-                break;
-            case 3:
-                val = WasmEdge_ValueGenF64(getDoubleVal(env, val_object));
-                break;
-            default:
-                break;
-        }
-        wasm_params[i] = val;
+        wasm_params[i] = JavaValueToWasmEdgeValue(env, GetListElement(env, jParams, i));
     }
 
-    jsize returnLen = (*env)->GetArrayLength(env, jReturns);
+    uint32_t returnLen = GetReturnLen(WasmEdge_StoreFindFunction(storeCxt, wFuncName));
     WasmEdge_Value *returns = malloc(sizeof(WasmEdge_Value) * returnLen);
 
     //
+    printf("call function\n");
     WasmEdge_Result result = WasmEdge_ExecutorInvoke(exeCxt, storeCxt, wFuncName, wasm_params, paramLen, returns, returnLen);
 
     //release resource
@@ -94,12 +74,15 @@ JNIEXPORT void JNICALL Java_org_wasmedge_ExecutorContext_invoke
 
     handleWasmEdgeResult(env, & result);
 
+
+    printf("list size before: %d, %d\n", returnLen, GetListSize(env, jReturns));
     if (WasmEdge_ResultOK(result)) {
         for (int i = 0; i < returnLen; ++i) {
-            setJavaValueObject(env, returns[i], (*env)->GetObjectArrayElement(env, jReturns, i));
+            AddElementToJavaList(env, jReturns, WasmEdgeValueToJavaValue(env, returns[i]));
         }
     }
 
+    printf("list size after: %d, %d\n", returnLen, GetListSize(env, jReturns));
 
 }
 
@@ -109,8 +92,8 @@ JNIEXPORT void JNICALL Java_org_wasmedge_ExecutorContext_invoke
  * Signature: (Lorg/wasmedge/StoreContext;Ljava/lang/String;Ljava/lang/String;[Lorg/wasmedge/WasmEdgeValue;[I[Lorg/wasmedge/WasmEdgeValue;[I)V
  */
 JNIEXPORT void JNICALL Java_org_wasmedge_ExecutorContext_invokeRegistered
-        (JNIEnv * env, jobject thisObject, jobject jStoreCxt, jstring jModName, jstring jFuncName,
-         jobjectArray jParams, jintArray jParamTypes, jobjectArray jReturns, jintArray jReturnTypes) {
+        (JNIEnv *env, jobject thisObject, jobject jStoreCxt, jstring jModName, jstring jFuncName, jobject jParams, jobject jReturns) {
+
 
     WasmEdge_ExecutorContext * exeCxt = getExecutorContext(env, thisObject);
     WasmEdge_StoreContext * storeCxt = getStoreContext(env, jStoreCxt);
@@ -121,37 +104,18 @@ JNIEXPORT void JNICALL Java_org_wasmedge_ExecutorContext_invokeRegistered
     WasmEdge_String wModName = WasmEdge_StringCreateByCString(modName);
     WasmEdge_String wFuncName = WasmEdge_StringCreateByCString(funcName);
 
-    jsize paramLen = (*env)->GetArrayLength(env, jParams);
+    jsize paramLen = GetListSize(env, jParams);
 
     /* The parameters and returns arrays. */
-    WasmEdge_Value *wasm_params = calloc(paramLen, sizeof(WasmEdge_Value));
-    int *type = (*env)->GetIntArrayElements(env, jParamTypes, JNI_FALSE);
+    WasmEdge_Value *wasm_params = calloc(paramLen, sizeof(WasmEdge_Value) * paramLen);
     for (int i = 0; i < paramLen; i++) {
-        WasmEdge_Value val;
 
-        jobject val_object = (*env)->GetObjectArrayElement(env, jParams, i);
+        jobject val_object = GetListElement(env, jParams, i);
 
-        switch (type[i]) {
-
-            case 0:
-                val = WasmEdge_ValueGenI32(getIntVal(env, val_object));
-                break;
-            case 1:
-                val = WasmEdge_ValueGenI64(getLongVal(env, val_object));
-                break;
-            case 2:
-                val = WasmEdge_ValueGenF32(getFloatVal(env, val_object));
-                break;
-            case 3:
-                val = WasmEdge_ValueGenF64(getDoubleVal(env, val_object));
-                break;
-            default:
-                break;
-        }
-        wasm_params[i] = val;
+        wasm_params[i] = JavaValueToWasmEdgeValue(env, val_object);
     }
 
-    jsize returnLen = (*env)->GetArrayLength(env, jReturns);
+    jsize returnLen = GetListSize(env, jReturns);
     WasmEdge_Value *returns = malloc(sizeof(WasmEdge_Value) * returnLen);
 
     //
@@ -167,7 +131,7 @@ JNIEXPORT void JNICALL Java_org_wasmedge_ExecutorContext_invokeRegistered
 
     if (WasmEdge_ResultOK(result)) {
         for (int i = 0; i < returnLen; ++i) {
-            setJavaValueObject(env, returns[i], (*env)->GetObjectArrayElement(env, jReturns, i));
+//            setJavaValueObject(env, returns[i], (*env)->GetObjectArrayElement(env, jReturns, i));
         }
     }
 

@@ -38,11 +38,6 @@ public class ImportObjectContextTest extends BaseTest {
     }
 
     @Test
-    public void testAddHostFunctionForBinding() {
-        Assert.fail("Not implemented");
-    }
-
-    @Test
     public void testAddHostTable() {
         WasmEdgeLimit limit = new WasmEdgeLimit(true, 10, 20);
         TableTypeContext tableType = new TableTypeContext(RefType.FUNCREF, limit);

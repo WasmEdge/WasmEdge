@@ -7,14 +7,15 @@
 #include "FunctionTypeContext.h"
 #include "FunctionTypeInstance.h"
 #include "MemoryInstanceContext.h"
+#include "ValueType.h"
 
-WasmEdge_Result HostFunc(void *Ptr, WasmEdge_MemoryInstanceContext * Mem,
-                           const WasmEdge_Value *In, WasmEdge_Value *Out) {
-    printf("host function called\n");
+WasmEdge_Result HostFuncWrap(void *This, void* Data, WasmEdge_MemoryInstanceContext * Mem,
+                         const WasmEdge_Value *In, const uint32_t InLen, WasmEdge_Value *Out, const uint32_t OutLen) {
+    printf("host function wrap called\n");
 
-    HostFuncParam * param = (HostFuncParam*)Ptr;
+    HostFuncParam * param = (HostFuncParam*)This;
     JNIEnv * env = param->env;
-    char* funcKey = param->jFuncKey;
+    const char* funcKey = param->jFuncKey;
 
     jstring jFuncKey = (*env)->NewStringUTF(env, funcKey);
 
@@ -37,10 +38,21 @@ WasmEdge_Result HostFunc(void *Ptr, WasmEdge_MemoryInstanceContext * Mem,
 
     jobject jMem = createJMemoryInstanceContext(env, Mem);
 
-    jobject jParams = CreateJavaArrayList(env, 1);
-    jobject jReturns = CreateJavaArrayList(env, 1);
+    jobject jParams = CreateJavaArrayList(env, InLen);
+
+    for (int i = 0; i < InLen; ++i) {
+        AddElementToJavaList(env, jParams, WasmEdgeValueToJavaValue(env, In[i]));
+    }
+
+    jobject jReturns = CreateJavaArrayList(env, OutLen);
 
     (*env)->CallObjectMethod(env, jFunc, funcMethod, jMem, jParams, jReturns);
+
+//    Out = malloc(sizeof(WasmEdge_Value) * OutLen);
+    for (int i = 0; i < OutLen; ++i) {
+       Out[i] = JavaValueToWasmEdgeValue(env, GetListElement(env, jReturns, i));
+    }
+
     printf("return result\n");
 
     return WasmEdge_Result_Success;
@@ -70,10 +82,13 @@ JNIEXPORT void JNICALL Java_org_wasmedge_FunctionInstanceContext_nativeCreateFun
     WasmEdge_FunctionTypeContext* funcCxt = getFunctionTypeContext(env, jFuncType);
     HostFuncParam * params = malloc(sizeof(struct HostFuncParam));
 
-    char* funcKey = (*env)->GetStringUTFChars(env, jHostFuncKey, NULL);
+    const char* funcKey = (*env)->GetStringUTFChars(env, jHostFuncKey, NULL);
     params->jFuncKey= funcKey;
     params->env = env;
-    WasmEdge_FunctionInstanceContext *funcInstance = WasmEdge_FunctionInstanceCreate(funcCxt, HostFunc, params, jCost);
+    //WasmEdge_FunctionInstanceContext *funcInstance = WasmEdge_FunctionInstanceCreate(funcCxt, HostFunc, params, jCost);
+
+    WasmEdge_FunctionInstanceContext *funcInstance = WasmEdge_FunctionInstanceCreateBinding(funcCxt, HostFuncWrap, params, NULL, jCost);
+
     setPointer(env, thisObject, (long)funcInstance);
 }
 
@@ -94,3 +109,8 @@ jobject createJFunctionInstanceContext(JNIEnv* env, const WasmEdge_FunctionInsta
     return (*env)->NewObject(env, clazz, constructorId, (long) funcInstance);
 }
 
+
+uint32_t GetReturnLen(WasmEdge_FunctionInstanceContext* functionInstanceContext) {
+    const WasmEdge_FunctionTypeContext * type = WasmEdge_FunctionInstanceGetFunctionType(functionInstanceContext);
+    return WasmEdge_FunctionTypeGetReturnsLength(type);
+}

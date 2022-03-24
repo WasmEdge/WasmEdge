@@ -55,6 +55,8 @@ public class BaseTest {
     public static HostFunction extAdd = new HostFunction() {
         @Override
         public Result apply(MemoryInstanceContext mem, List<WasmEdgeValue> params, List<WasmEdgeValue> returns) {
+            WasmEdgeI32Value value = (WasmEdgeI32Value)params.get(1);
+            returns.add(new WasmEdgeI32Value(value.getValue() + 1));
             return new Result();
         }
     };

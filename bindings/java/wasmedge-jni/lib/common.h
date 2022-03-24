@@ -73,4 +73,8 @@ const char** JStringArrayToPtr(JNIEnv* env, jarray jStrArray);
 
 void ReleaseCString(JNIEnv* env, jarray jStrArray, const char** ptr);
 
+jobject GetListElement(JNIEnv* env, jobject jList, jint idx);
+
+jint GetListSize(JNIEnv* env, jobject jList);
+
 #endif //WASMEDGE_JAVA_COMMON_H

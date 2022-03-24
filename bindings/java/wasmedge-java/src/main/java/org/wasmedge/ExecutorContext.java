@@ -15,16 +15,8 @@ public class ExecutorContext {
 
     public native void instantiate(StoreContext storeContext, ASTModuleContext astModuleContext);
 
-    public void invoke(StoreContext storeContext, String funcName,
-                               List<WasmEdgeValue> params, List<WasmEdgeValue> returns) {
-
-        if(params == null || returns == null ||
-                params.stream().anyMatch(Objects::isNull) || returns.stream().anyMatch(Objects::isNull)){
-            throw new IllegalArgumentException("paras or returns contain null value");
-        }
-        invoke(storeContext, funcName, valueListToArray(params), getValueTypeArray(params),
-                valueListToArray(returns), getValueTypeArray(returns));
-    }
+    public native void invoke(StoreContext storeContext, String funcName,
+                               List<WasmEdgeValue> params, List<WasmEdgeValue> returns);
 
 
     private int[] getValueTypeArray(List<WasmEdgeValue> values) {
@@ -43,19 +35,9 @@ public class ExecutorContext {
         return valuesArray;
     }
 
-    private native void invoke(StoreContext storeContext, String funcNme, WasmEdgeValue[] params, int[] paramTypes, WasmEdgeValue[] returns,
-                               int[] returnTypes);
-
-
-    public void invokeRegistered(StoreContext storeContext,
+    public native void invokeRegistered(StoreContext storeContext,
                                         String modeName, String funcName,
-                              List<WasmEdgeValue> params, List<WasmEdgeValue> returns) {
-         invokeRegistered(storeContext, modeName, funcName, valueListToArray(params), getValueTypeArray(params),
-                 valueListToArray(returns), getValueTypeArray(returns));
-    }
-
-    private native void invokeRegistered(StoreContext storeContext, String modName, String funcName,
-                                         WasmEdgeValue[] params, int[] paramTypes, WasmEdgeValue[] returns, int[] returnTypes);
+                              List<WasmEdgeValue> params, List<WasmEdgeValue> returns);
 
     public native void registerModule(StoreContext storeCxt,
                                       ASTModuleContext astCxt,

@@ -17,6 +17,7 @@
 
 void setJavaIntValue(JNIEnv *env, WasmEdge_Value val, jobject jobj) {
     int int_val = WasmEdge_ValueGetI32(val);
+    printf("wasm value:%d\n", int_val);
     jclass val_clazz = (*env)->GetObjectClass(env, jobj);
     jmethodID val_setter = (*env)->GetMethodID(env, val_clazz, "setValue", "(I)V");
     (*env)->CallIntMethod(env, jobj, val_setter, int_val);

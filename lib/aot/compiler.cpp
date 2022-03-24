@@ -2703,6 +2703,246 @@ public:
       case OpCode::F64x2__promote_low_f32x4:
         compileVectorPromote();
         break;
+      case OpCode::Atomic__fence:
+        return compileMemoryFence();
+      case OpCode::Memory__atomic__notify:
+        return compileAtomicNotify();
+      case OpCode::Memory__atomic__wait32:
+        return compileAtomicWait(Context.Int32Ty);
+      case OpCode::Memory__atomic__wait64:
+        return compileAtomicWait(Context.Int64Ty);
+
+      case OpCode::I32__atomic__load:
+        return compileAtomicLoad(Instr.getTargetIndex(), Context.Int32Ty,
+                                 Context.Int32Ty, true);
+      case OpCode::I64__atomic__load:
+        return compileAtomicLoad(Instr.getTargetIndex(), Context.Int64Ty,
+                                 Context.Int64Ty, true);
+      case OpCode::I32__atomic__load8_u:
+        return compileAtomicLoad(Instr.getTargetIndex(), Context.Int32Ty,
+                                 Context.Int8Ty);
+      case OpCode::I32__atomic__load16_u:
+        return compileAtomicLoad(Instr.getTargetIndex(), Context.Int32Ty,
+                                 Context.Int16Ty);
+      case OpCode::I64__atomic__load8_u:
+        return compileAtomicLoad(Instr.getTargetIndex(), Context.Int64Ty,
+                                 Context.Int8Ty);
+      case OpCode::I64__atomic__load16_u:
+        return compileAtomicLoad(Instr.getTargetIndex(), Context.Int64Ty,
+                                 Context.Int16Ty);
+      case OpCode::I64__atomic__load32_u:
+        return compileAtomicLoad(Instr.getTargetIndex(), Context.Int64Ty,
+                                 Context.Int32Ty);
+      case OpCode::I32__atomic__store:
+        return compileAtomicStore(Instr.getTargetIndex(), Context.Int32Ty,
+                                  Context.Int32Ty, true);
+      case OpCode::I64__atomic__store:
+        return compileAtomicStore(Instr.getTargetIndex(), Context.Int64Ty,
+                                  Context.Int64Ty, true);
+      case OpCode::I32__atomic__store8:
+        return compileAtomicStore(Instr.getTargetIndex(), Context.Int32Ty,
+                                  Context.Int8Ty, true);
+      case OpCode::I32__atomic__store16:
+        return compileAtomicStore(Instr.getTargetIndex(), Context.Int32Ty,
+                                  Context.Int16Ty, true);
+      case OpCode::I64__atomic__store8:
+        return compileAtomicStore(Instr.getTargetIndex(), Context.Int64Ty,
+                                  Context.Int8Ty, true);
+      case OpCode::I64__atomic__store16:
+        return compileAtomicStore(Instr.getTargetIndex(), Context.Int64Ty,
+                                  Context.Int16Ty, true);
+      case OpCode::I64__atomic__store32:
+        return compileAtomicStore(Instr.getTargetIndex(), Context.Int64Ty,
+                                  Context.Int32Ty, true);
+      case OpCode::I32__atomic__rmw__add:
+        return compileAtomicRMWOp(Instr.getTargetIndex(),
+                                  llvm::AtomicRMWInst::BinOp::Add,
+                                  Context.Int32Ty, Context.Int32Ty, true);
+      case OpCode::I64__atomic__rmw__add:
+        return compileAtomicRMWOp(Instr.getTargetIndex(),
+                                  llvm::AtomicRMWInst::BinOp::Add,
+                                  Context.Int64Ty, Context.Int64Ty, true);
+      case OpCode::I32__atomic__rmw8__add_u:
+        return compileAtomicRMWOp(Instr.getTargetIndex(),
+                                  llvm::AtomicRMWInst::BinOp::Add,
+                                  Context.Int32Ty, Context.Int8Ty);
+      case OpCode::I32__atomic__rmw16__add_u:
+        return compileAtomicRMWOp(Instr.getTargetIndex(),
+                                  llvm::AtomicRMWInst::BinOp::Add,
+                                  Context.Int32Ty, Context.Int16Ty);
+      case OpCode::I64__atomic__rmw8__add_u:
+        return compileAtomicRMWOp(Instr.getTargetIndex(),
+                                  llvm::AtomicRMWInst::BinOp::Add,
+                                  Context.Int64Ty, Context.Int8Ty);
+      case OpCode::I64__atomic__rmw16__add_u:
+        return compileAtomicRMWOp(Instr.getTargetIndex(),
+                                  llvm::AtomicRMWInst::BinOp::Add,
+                                  Context.Int64Ty, Context.Int16Ty);
+      case OpCode::I64__atomic__rmw32__add_u:
+        return compileAtomicRMWOp(Instr.getTargetIndex(),
+                                  llvm::AtomicRMWInst::BinOp::Add,
+                                  Context.Int64Ty, Context.Int32Ty);
+      case OpCode::I32__atomic__rmw__sub:
+        return compileAtomicRMWOp(Instr.getTargetIndex(),
+                                  llvm::AtomicRMWInst::BinOp::Sub,
+                                  Context.Int32Ty, Context.Int32Ty, true);
+      case OpCode::I64__atomic__rmw__sub:
+        return compileAtomicRMWOp(Instr.getTargetIndex(),
+                                  llvm::AtomicRMWInst::BinOp::Sub,
+                                  Context.Int64Ty, Context.Int64Ty, true);
+      case OpCode::I32__atomic__rmw8__sub_u:
+        return compileAtomicRMWOp(Instr.getTargetIndex(),
+                                  llvm::AtomicRMWInst::BinOp::Sub,
+                                  Context.Int32Ty, Context.Int8Ty);
+      case OpCode::I32__atomic__rmw16__sub_u:
+        return compileAtomicRMWOp(Instr.getTargetIndex(),
+                                  llvm::AtomicRMWInst::BinOp::Sub,
+                                  Context.Int32Ty, Context.Int16Ty);
+      case OpCode::I64__atomic__rmw8__sub_u:
+        return compileAtomicRMWOp(Instr.getTargetIndex(),
+                                  llvm::AtomicRMWInst::BinOp::Sub,
+                                  Context.Int64Ty, Context.Int8Ty);
+      case OpCode::I64__atomic__rmw16__sub_u:
+        return compileAtomicRMWOp(Instr.getTargetIndex(),
+                                  llvm::AtomicRMWInst::BinOp::Sub,
+                                  Context.Int64Ty, Context.Int16Ty);
+      case OpCode::I64__atomic__rmw32__sub_u:
+        return compileAtomicRMWOp(Instr.getTargetIndex(),
+                                  llvm::AtomicRMWInst::BinOp::Sub,
+                                  Context.Int64Ty, Context.Int32Ty);
+      case OpCode::I32__atomic__rmw__and:
+        return compileAtomicRMWOp(Instr.getTargetIndex(),
+                                  llvm::AtomicRMWInst::BinOp::And,
+                                  Context.Int32Ty, Context.Int32Ty, true);
+      case OpCode::I64__atomic__rmw__and:
+        return compileAtomicRMWOp(Instr.getTargetIndex(),
+                                  llvm::AtomicRMWInst::BinOp::And,
+                                  Context.Int64Ty, Context.Int64Ty, true);
+      case OpCode::I32__atomic__rmw8__and_u:
+        return compileAtomicRMWOp(Instr.getTargetIndex(),
+                                  llvm::AtomicRMWInst::BinOp::And,
+                                  Context.Int32Ty, Context.Int8Ty);
+      case OpCode::I32__atomic__rmw16__and_u:
+        return compileAtomicRMWOp(Instr.getTargetIndex(),
+                                  llvm::AtomicRMWInst::BinOp::And,
+                                  Context.Int32Ty, Context.Int16Ty);
+      case OpCode::I64__atomic__rmw8__and_u:
+        return compileAtomicRMWOp(Instr.getTargetIndex(),
+                                  llvm::AtomicRMWInst::BinOp::And,
+                                  Context.Int64Ty, Context.Int8Ty);
+      case OpCode::I64__atomic__rmw16__and_u:
+        return compileAtomicRMWOp(Instr.getTargetIndex(),
+                                  llvm::AtomicRMWInst::BinOp::And,
+                                  Context.Int64Ty, Context.Int16Ty);
+      case OpCode::I64__atomic__rmw32__and_u:
+        return compileAtomicRMWOp(Instr.getTargetIndex(),
+                                  llvm::AtomicRMWInst::BinOp::And,
+                                  Context.Int64Ty, Context.Int32Ty);
+      case OpCode::I32__atomic__rmw__or:
+        return compileAtomicRMWOp(Instr.getTargetIndex(),
+                                  llvm::AtomicRMWInst::BinOp::Or,
+                                  Context.Int32Ty, Context.Int32Ty, true);
+      case OpCode::I64__atomic__rmw__or:
+        return compileAtomicRMWOp(Instr.getTargetIndex(),
+                                  llvm::AtomicRMWInst::BinOp::Or,
+                                  Context.Int64Ty, Context.Int64Ty, true);
+      case OpCode::I32__atomic__rmw8__or_u:
+        return compileAtomicRMWOp(Instr.getTargetIndex(),
+                                  llvm::AtomicRMWInst::BinOp::Or,
+                                  Context.Int32Ty, Context.Int8Ty);
+      case OpCode::I32__atomic__rmw16__or_u:
+        return compileAtomicRMWOp(Instr.getTargetIndex(),
+                                  llvm::AtomicRMWInst::BinOp::Or,
+                                  Context.Int32Ty, Context.Int16Ty);
+      case OpCode::I64__atomic__rmw8__or_u:
+        return compileAtomicRMWOp(Instr.getTargetIndex(),
+                                  llvm::AtomicRMWInst::BinOp::Or,
+                                  Context.Int64Ty, Context.Int8Ty);
+      case OpCode::I64__atomic__rmw16__or_u:
+        return compileAtomicRMWOp(Instr.getTargetIndex(),
+                                  llvm::AtomicRMWInst::BinOp::Or,
+                                  Context.Int64Ty, Context.Int16Ty);
+      case OpCode::I64__atomic__rmw32__or_u:
+        return compileAtomicRMWOp(Instr.getTargetIndex(),
+                                  llvm::AtomicRMWInst::BinOp::Or,
+                                  Context.Int64Ty, Context.Int32Ty);
+      case OpCode::I32__atomic__rmw__xor:
+        return compileAtomicRMWOp(Instr.getTargetIndex(),
+                                  llvm::AtomicRMWInst::BinOp::Xor,
+                                  Context.Int32Ty, Context.Int32Ty, true);
+      case OpCode::I64__atomic__rmw__xor:
+        return compileAtomicRMWOp(Instr.getTargetIndex(),
+                                  llvm::AtomicRMWInst::BinOp::Xor,
+                                  Context.Int64Ty, Context.Int64Ty, true);
+      case OpCode::I32__atomic__rmw8__xor_u:
+        return compileAtomicRMWOp(Instr.getTargetIndex(),
+                                  llvm::AtomicRMWInst::BinOp::Xor,
+                                  Context.Int32Ty, Context.Int8Ty);
+      case OpCode::I32__atomic__rmw16__xor_u:
+        return compileAtomicRMWOp(Instr.getTargetIndex(),
+                                  llvm::AtomicRMWInst::BinOp::Xor,
+                                  Context.Int32Ty, Context.Int16Ty);
+      case OpCode::I64__atomic__rmw8__xor_u:
+        return compileAtomicRMWOp(Instr.getTargetIndex(),
+                                  llvm::AtomicRMWInst::BinOp::Xor,
+                                  Context.Int64Ty, Context.Int8Ty);
+      case OpCode::I64__atomic__rmw16__xor_u:
+        return compileAtomicRMWOp(Instr.getTargetIndex(),
+                                  llvm::AtomicRMWInst::BinOp::Xor,
+                                  Context.Int64Ty, Context.Int16Ty);
+      case OpCode::I64__atomic__rmw32__xor_u:
+        return compileAtomicRMWOp(Instr.getTargetIndex(),
+                                  llvm::AtomicRMWInst::BinOp::Xor,
+                                  Context.Int64Ty, Context.Int32Ty);
+      case OpCode::I32__atomic__rmw__xchg:
+        return compileAtomicRMWOp(Instr.getTargetIndex(),
+                                  llvm::AtomicRMWInst::BinOp::Xchg,
+                                  Context.Int32Ty, Context.Int32Ty, true);
+      case OpCode::I64__atomic__rmw__xchg:
+        return compileAtomicRMWOp(Instr.getTargetIndex(),
+                                  llvm::AtomicRMWInst::BinOp::Xchg,
+                                  Context.Int64Ty, Context.Int64Ty, true);
+      case OpCode::I32__atomic__rmw8__xchg_u:
+        return compileAtomicRMWOp(Instr.getTargetIndex(),
+                                  llvm::AtomicRMWInst::BinOp::Xchg,
+                                  Context.Int32Ty, Context.Int8Ty);
+      case OpCode::I32__atomic__rmw16__xchg_u:
+        return compileAtomicRMWOp(Instr.getTargetIndex(),
+                                  llvm::AtomicRMWInst::BinOp::Xchg,
+                                  Context.Int32Ty, Context.Int16Ty);
+      case OpCode::I64__atomic__rmw8__xchg_u:
+        return compileAtomicRMWOp(Instr.getTargetIndex(),
+                                  llvm::AtomicRMWInst::BinOp::Xchg,
+                                  Context.Int64Ty, Context.Int8Ty);
+      case OpCode::I64__atomic__rmw16__xchg_u:
+        return compileAtomicRMWOp(Instr.getTargetIndex(),
+                                  llvm::AtomicRMWInst::BinOp::Xchg,
+                                  Context.Int64Ty, Context.Int16Ty);
+      case OpCode::I64__atomic__rmw32__xchg_u:
+        return compileAtomicRMWOp(Instr.getTargetIndex(),
+                                  llvm::AtomicRMWInst::BinOp::Xchg,
+                                  Context.Int64Ty, Context.Int32Ty);
+      case OpCode::I32__atomic__rmw__cmpxchg:
+        return compileAtomicCompareExchange(
+            Instr.getTargetIndex(), Context.Int32Ty, Context.Int32Ty, true);
+      case OpCode::I64__atomic__rmw__cmpxchg:
+        return compileAtomicCompareExchange(
+            Instr.getTargetIndex(), Context.Int64Ty, Context.Int64Ty, true);
+      case OpCode::I32__atomic__rmw8__cmpxchg_u:
+        return compileAtomicCompareExchange(Instr.getTargetIndex(),
+                                            Context.Int32Ty, Context.Int8Ty);
+      case OpCode::I32__atomic__rmw16__cmpxchg_u:
+        return compileAtomicCompareExchange(Instr.getTargetIndex(),
+                                            Context.Int32Ty, Context.Int16Ty);
+      case OpCode::I64__atomic__rmw8__cmpxchg_u:
+        return compileAtomicCompareExchange(Instr.getTargetIndex(),
+                                            Context.Int64Ty, Context.Int8Ty);
+      case OpCode::I64__atomic__rmw16__cmpxchg_u:
+        return compileAtomicCompareExchange(Instr.getTargetIndex(),
+                                            Context.Int64Ty, Context.Int16Ty);
+      case OpCode::I64__atomic__rmw32__cmpxchg_u:
+        return compileAtomicCompareExchange(Instr.getTargetIndex(),
+                                            Context.Int64Ty, Context.Int32Ty);
 
       default:
         assumingUnreachable();
@@ -2885,6 +3125,103 @@ public:
     PHIRet->addIncoming(IntValue, NotMaxBB);
 
     stackPush(PHIRet);
+  }
+
+  void compileMemoryFence() {
+    Builder.CreateFence(llvm::AtomicOrdering::Monotonic);
+  };
+  void compileAtomicNotify(){};
+  void compileAtomicWait([[maybe_unused]] llvm::IntegerType *IntType) {
+    [[maybe_unused]] auto *Offset =
+        Builder.CreateZExt(stackPop(), Context.Int64Ty);
+    [[maybe_unused]] auto *Value =
+        Builder.CreateBitCast(stackPop(), IntType);
+    [[maybe_unused]] auto *Timeout =
+        Builder.CreateBitCast(Stack.back(), IntType);
+  }
+  void compileAtomicLoad(unsigned MemoryIndex, llvm::IntegerType *IntType,
+                         llvm::IntegerType *TargetType, bool Signed = false) {
+
+    auto *Offset = Builder.CreateZExt(Stack.back(), Context.Int64Ty);
+    auto *VPtr = Builder.CreateInBoundsGEP(
+        Context.Int8Ty, Context.getMemory(Builder, ExecCtx, MemoryIndex),
+        Offset);
+    auto *Ptr = Builder.CreateBitCast(VPtr, TargetType->getPointerTo());
+    Stack.back() = Builder.CreateLoad(TargetType, Ptr, OptNone);
+
+    if (Signed) {
+      Stack.back() = Builder.CreateSExt(Stack.back(), IntType);
+    } else {
+      Stack.back() = Builder.CreateZExt(Stack.back(), IntType);
+    }
+  }
+  void compileAtomicStore(unsigned MemoryIndex, llvm::IntegerType *IntType,
+                          llvm::IntegerType *TargetType, bool Signed = false) {
+
+    auto *V = stackPop();
+    auto *Offset = Builder.CreateZExt(Stack.back(), Context.Int64Ty);
+    auto *VPtr = Builder.CreateInBoundsGEP(
+        Context.Int8Ty, Context.getMemory(Builder, ExecCtx, MemoryIndex),
+        Offset);
+    auto *Ptr = Builder.CreateBitCast(VPtr, TargetType->getPointerTo());
+    Stack.back() = Builder.CreateStore(V, Ptr, OptNone);
+
+    if (Signed) {
+      Stack.back() = Builder.CreateSExt(Stack.back(), IntType);
+    } else {
+      Stack.back() = Builder.CreateZExt(Stack.back(), IntType);
+    }
+  }
+
+  void compileAtomicRMWOp(unsigned MemoryIndex,
+                          llvm::AtomicRMWInst::BinOp BinOp,
+                          llvm::IntegerType *IntType,
+                          llvm::IntegerType *TargetType, bool Signed = false) {
+    auto *Value = Builder.CreateBitCast(stackPop(), TargetType);
+    auto *Offset = Builder.CreateZExt(Stack.back(), Context.Int64Ty);
+    auto *VPtr = Builder.CreateInBoundsGEP(
+        Context.Int8Ty, Context.getMemory(Builder, ExecCtx, MemoryIndex),
+        Offset); // Int8PtrTy
+    auto *Ptr = Builder.CreateBitCast(VPtr, TargetType->getPointerTo());
+
+    Stack.back() = Builder.CreateAtomicRMW(BinOp, Ptr, Value,
+#if LLVM_VERSION_MAJOR >= 13
+                                           llvm::MaybeAlign(8),
+#endif
+                                           llvm::AtomicOrdering::Monotonic);
+
+    if (Signed) {
+      Stack.back() = Builder.CreateSExt(Stack.back(), IntType);
+    } else {
+      Stack.back() = Builder.CreateZExt(Stack.back(), IntType);
+    }
+  }
+  void compileAtomicCompareExchange(unsigned MemoryIndex,
+                                    llvm::IntegerType *IntType,
+                                    llvm::IntegerType *TargetType,
+                                    bool Signed = false) {
+
+    auto *Replacement = Builder.CreateBitCast(stackPop(), TargetType);
+    auto *Expected = Builder.CreateBitCast(stackPop(), TargetType);
+    auto *Offset = Builder.CreateZExt(Stack.back(), Context.Int64Ty);
+
+    auto *VPtr = Builder.CreateInBoundsGEP(
+        Context.Int8Ty, Context.getMemory(Builder, ExecCtx, MemoryIndex),
+        Offset); // Int8PtrTy
+    auto *Ptr = Builder.CreateBitCast(VPtr, TargetType->getPointerTo());
+
+    Stack.back() = Builder.CreateAtomicCmpXchg(Ptr, Expected, Replacement,
+#if LLVM_VERSION_MAJOR >= 13
+                                               llvm::MaybeAlign(8),
+#endif
+                                               llvm::AtomicOrdering::Monotonic,
+                                               llvm::AtomicOrdering::Monotonic);
+
+    if (Signed) {
+      Stack.back() = Builder.CreateSExt(Stack.back(), IntType);
+    } else {
+      Stack.back() = Builder.CreateZExt(Stack.back(), IntType);
+    }
   }
 
   void compileReturn() {

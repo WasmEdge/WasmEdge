@@ -48,23 +48,25 @@ pub enum Val {
     /// extern` in Wasm.
     ExternRef(Option<ExternRef>),
 }
-impl From<Val> for wasmedge::Value {
+impl From<Val> for wasmedge::WasmValue {
     fn from(val: Val) -> Self {
         match val {
-            Val::I32(i) => wasmedge::Value::from_i32(i),
-            Val::I64(i) => wasmedge::Value::from_i64(i),
-            Val::F32(i) => wasmedge::Value::from_f32(i),
-            Val::F64(i) => wasmedge::Value::from_f64(i),
-            Val::V128(i) => wasmedge::Value::from_v128(i),
+            Val::I32(i) => wasmedge::WasmValue::from_i32(i),
+            Val::I64(i) => wasmedge::WasmValue::from_i64(i),
+            Val::F32(i) => wasmedge::WasmValue::from_f32(i),
+            Val::F64(i) => wasmedge::WasmValue::from_f64(i),
+            Val::V128(i) => wasmedge::WasmValue::from_v128(i),
             Val::FuncRef(Some(func_ref)) => func_ref.inner,
-            Val::FuncRef(None) => wasmedge::Value::from_null_ref(wasmedge::RefType::FuncRef),
+            Val::FuncRef(None) => wasmedge::WasmValue::from_null_ref(wasmedge::RefType::FuncRef),
             Val::ExternRef(Some(extern_ref)) => extern_ref.inner,
-            Val::ExternRef(None) => wasmedge::Value::from_null_ref(wasmedge::RefType::ExternRef),
+            Val::ExternRef(None) => {
+                wasmedge::WasmValue::from_null_ref(wasmedge::RefType::ExternRef)
+            }
         }
     }
 }
-impl From<wasmedge::Value> for Val {
-    fn from(value: wasmedge::Value) -> Self {
+impl From<wasmedge::WasmValue> for Val {
+    fn from(value: wasmedge::WasmValue) -> Self {
         match value.ty() {
             wasmedge::ValType::I32 => Val::I32(value.to_i32()),
             wasmedge::ValType::I64 => Val::I64(value.to_i64()),
@@ -93,11 +95,11 @@ impl From<wasmedge::Value> for Val {
 /// Struct of WasmEdge FuncRef.
 #[derive(Debug)]
 pub struct FuncRef {
-    pub(crate) inner: wasmedge::Value,
+    pub(crate) inner: wasmedge::WasmValue,
 }
 impl FuncRef {
     pub fn new(func_ref: &mut Func) -> Self {
-        let inner = wasmedge::Value::from_func_ref(&mut func_ref.inner);
+        let inner = wasmedge::WasmValue::from_func_ref(&mut func_ref.inner);
         Self { inner }
     }
 
@@ -116,7 +118,7 @@ impl FuncRef {
 /// Struct of WasmEdge ExternRef.
 #[derive(Debug)]
 pub struct ExternRef {
-    pub(crate) inner: wasmedge::Value,
+    pub(crate) inner: wasmedge::WasmValue,
 }
 impl ExternRef {
     /// Creates a new instance of `ExternRef` wrapping the given value.
@@ -124,7 +126,7 @@ impl ExternRef {
     where
         T: 'static + Send + Sync,
     {
-        let inner = wasmedge::Value::from_extern_ref(extern_obj);
+        let inner = wasmedge::WasmValue::from_extern_ref(extern_obj);
         Self { inner }
     }
 }

@@ -1,8 +1,8 @@
 //! Defines Func, SignatureBuilder, and Signature structs.
-use crate::{error::Result, wasmedge, Instance, ValType, Value};
+use crate::{error::Result, wasmedge, Instance, ValType, WasmValue};
 
 /// Type alias for host function.
-pub type HostFunc = dyn Fn(Vec<Value>) -> std::result::Result<Vec<Value>, u8>;
+pub type HostFunc = dyn Fn(Vec<WasmValue>) -> std::result::Result<Vec<WasmValue>, u8> + Send + Sync;
 
 #[derive(Debug)]
 pub struct Func<'instance> {
@@ -243,7 +243,7 @@ mod tests {
             &mut store,
             Some("extern"),
             "add",
-            [Value::from_i32(2), Value::from_i32(3)],
+            [WasmValue::from_i32(2), WasmValue::from_i32(3)],
         );
         assert!(result.is_ok());
         let returns = result.unwrap();
@@ -251,7 +251,7 @@ mod tests {
         assert_eq!(returns[0].to_i32(), 5);
     }
 
-    fn real_add(inputs: Vec<Value>) -> std::result::Result<Vec<Value>, u8> {
+    fn real_add(inputs: Vec<WasmValue>) -> std::result::Result<Vec<WasmValue>, u8> {
         if inputs.len() != 2 {
             return Err(1);
         }
@@ -270,6 +270,6 @@ mod tests {
 
         let c = a + b;
 
-        Ok(vec![Value::from_i32(c)])
+        Ok(vec![WasmValue::from_i32(c)])
     }
 }

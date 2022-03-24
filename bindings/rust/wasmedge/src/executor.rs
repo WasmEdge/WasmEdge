@@ -1,6 +1,6 @@
 //! Defines Executor struct.
 
-use crate::{config::Config, error::Result, wasmedge, Statistics, Store, Value};
+use crate::{config::Config, error::Result, wasmedge, Statistics, Store, WasmValue};
 
 /// Struct of WasmEdge Executor.
 ///
@@ -57,8 +57,8 @@ impl Executor {
         store: &mut Store,
         mod_name: Option<&str>,
         func_name: impl AsRef<str>,
-        args: impl IntoIterator<Item = Value>,
-    ) -> Result<Vec<Value>> {
+        args: impl IntoIterator<Item = WasmValue>,
+    ) -> Result<Vec<WasmValue>> {
         let returns = match mod_name {
             Some(mod_name) => {
                 // run a function in the registered module
@@ -167,7 +167,7 @@ mod tests {
         assert!(result.is_ok());
 
         // run the exported host function
-        let result = executor.run_func(&mut store, Some("extern"), "fib", [Value::from_i32(5)]);
+        let result = executor.run_func(&mut store, Some("extern"), "fib", [WasmValue::from_i32(5)]);
         assert!(result.is_ok());
         let returns = result.unwrap();
         assert_eq!(returns.len(), 1);

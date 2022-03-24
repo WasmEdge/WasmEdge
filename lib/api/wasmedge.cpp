@@ -887,6 +887,13 @@ WasmEdge_StatisticsSetCostLimit(WasmEdge_StatisticsContext *Cxt,
 }
 
 WASMEDGE_CAPI_EXPORT void
+WasmEdge_StatisticsClear(WasmEdge_StatisticsContext *Cxt) {
+  if (Cxt) {
+    fromStatCxt(Cxt)->clear();
+  }
+}
+
+WASMEDGE_CAPI_EXPORT void
 WasmEdge_StatisticsDelete(WasmEdge_StatisticsContext *Cxt) {
   delete fromStatCxt(Cxt);
 }

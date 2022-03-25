@@ -2,15 +2,12 @@
 
 use super::ffi;
 use crate::{
-    error::{check, WasmEdgeError},
-    types::WasmEdgeString,
-    Config, ImportObject, Module, Statistics, Store, WasmEdgeResult, WasmValue,
+    error::WasmEdgeError, instance::module::InnerInstance, types::WasmEdgeString, utils::check,
+    Config, Engine, FuncRef, Function, ImportObject, Instance, Module, Statistics, Store,
+    WasmEdgeResult, WasmValue,
 };
 
-/// Struct of WasmEdge Executor.
-///
-/// [Executor] defines an execution environment for both WASM and compiled WASM. It works with the
-/// [Store](crate::Store).
+/// Defines an execution environment for both pure WASM and compiled WASM.
 #[derive(Debug)]
 pub struct Executor {
     pub(crate) inner: InnerExecutor,
@@ -21,9 +18,9 @@ impl Executor {
     ///
     /// # Arguments
     ///
-    /// - `config` specifies the configuration of the new [executor](crate::Executor).
+    /// * `config` - The configuration of the new [executor](crate::Executor).
     ///
-    /// - `stat` specifies the [statistics](crate::Statistics) needed by the new [executor](crate::Executor).
+    /// * `stat` - The [statistics](crate::Statistics) needed by the new [executor](crate::Executor).
     ///
     /// # Error
     ///
@@ -67,9 +64,9 @@ impl Executor {
     ///
     /// # Arguments
     ///
-    /// - `store` specifies the target [store](crate::Store), into which the given [import object](crate::ImportObject) is registered.
+    /// * `store` - The target [store](crate::Store), into which the given [import object](crate::ImportObject) is registered.
     ///
-    /// - `import` specifies the WasmEdge [import object](crate::ImportObject) to be registered.
+    /// * `import` - The WasmEdge [import object](crate::ImportObject) to be registered.
     ///
     /// # Error
     ///
@@ -79,13 +76,30 @@ impl Executor {
         store: &mut Store,
         import: &ImportObject,
     ) -> WasmEdgeResult<()> {
-        unsafe {
-            check(ffi::WasmEdge_ExecutorRegisterImport(
-                self.inner.0,
-                store.inner.0,
-                import.inner.0 as *const _,
-            ))?;
+        match import {
+            ImportObject::Import(import) => unsafe {
+                check(ffi::WasmEdge_ExecutorRegisterImport(
+                    self.inner.0,
+                    store.inner.0,
+                    import.inner.0 as *const _,
+                ))?;
+            },
+            ImportObject::Wasi(import) => unsafe {
+                check(ffi::WasmEdge_ExecutorRegisterImport(
+                    self.inner.0,
+                    store.inner.0,
+                    import.inner.0 as *const _,
+                ))?;
+            },
+            ImportObject::WasmEdgeProcess(import) => unsafe {
+                check(ffi::WasmEdge_ExecutorRegisterImport(
+                    self.inner.0,
+                    store.inner.0,
+                    import.inner.0 as *const _,
+                ))?;
+            },
         }
+
         Ok(())
     }
 
@@ -95,11 +109,11 @@ impl Executor {
     ///
     /// # Arguments
     ///
-    /// - `store` specifies the target [store](crate::Store), into which the given [module](crate::Module) is registered.
+    /// * `store` - The target [store](crate::Store), into which the given [module](crate::Module) is registered.
     ///
-    /// - `module` specifies a validated [module](crate::Module) to be registered.
+    /// * `module` - A validated [module](crate::Module) to be registered.
     ///
-    /// - `mod_name` specifies the exported name of the registered [module](crate::Module).
+    /// * `name` - The exported name of the registered [module](crate::Module).
     ///
     /// # Error
     ///
@@ -108,18 +122,24 @@ impl Executor {
         &mut self,
         store: &mut Store,
         module: &Module,
-        mod_name: impl AsRef<str>,
-    ) -> WasmEdgeResult<()> {
-        let mod_name: WasmEdgeString = mod_name.as_ref().into();
+        name: impl AsRef<str>,
+    ) -> WasmEdgeResult<Instance> {
+        let mut instance_ctx = std::ptr::null_mut();
+        let mod_name: WasmEdgeString = name.as_ref().into();
         unsafe {
-            check(ffi::WasmEdge_ExecutorRegisterModule(
+            check(ffi::WasmEdge_ExecutorRegister(
                 self.inner.0,
+                &mut instance_ctx,
                 store.inner.0,
                 module.inner.0 as *const _,
                 mod_name.as_raw(),
             ))?;
         }
-        Ok(())
+
+        Ok(Instance {
+            inner: InnerInstance(instance_ctx),
+            registered: false,
+        })
     }
 
     /// Registers and instantiates a WasmEdge [module](crate::Module) into a [store](crate::Store) as an anonymous module.
@@ -129,10 +149,10 @@ impl Executor {
     ///
     /// # Arguments
     ///
-    /// - `store` specifies the [store](crate::Store), in which the [module](crate::Module) to be instantiated
+    /// * `store` - The [store](crate::Store), in which the [module](crate::Module) to be instantiated
     /// is stored.
     ///
-    /// - `ast_mod` specifies the target [module](crate::Module) to be instantiated.
+    /// * `ast_mod` - The target [module](crate::Module) to be instantiated.
     ///
     /// # Error
     ///
@@ -141,116 +161,20 @@ impl Executor {
         &mut self,
         store: &mut Store,
         module: &Module,
-    ) -> WasmEdgeResult<()> {
+    ) -> WasmEdgeResult<Instance> {
+        let mut instance_ctx = std::ptr::null_mut();
         unsafe {
             check(ffi::WasmEdge_ExecutorInstantiate(
                 self.inner.0,
+                &mut instance_ctx,
                 store.inner.0,
-                module.inner.0,
+                module.inner.0 as *const _,
             ))?;
         }
-        Ok(())
-    }
-
-    /// Invokes a WASM function in the anonymous [module](crate::Module), and returns the results.
-    ///
-    /// After instantiating a WasmEdge [module](crate::Module), the [module](crate::Module) is registered as an anonymous module in the [store](crate::Store); then, you can repeatedly call this function to invoke exported WASM functions by their names until the [store](crate::Store) is reset or a new [module](crate::Module) is registered or instantiated.
-    ///
-    /// For calling the functions in a registered [module](crate::Module), reference `run_func_registered`.
-    ///
-    /// # Arguments
-    ///
-    /// - `store` specifies the target [store](crate::Store) which owns the target function specified by `func_name`.
-    ///
-    /// - `func_name` specifies the name of the target function, which is stored in an anonymous module in `store`.
-    ///
-    /// - `params` specifies the argument values for the target function.
-    ///
-    /// # Error
-    ///
-    /// If fail to invoke the function specified by `func_name`, then an error is returned.
-    pub fn run_func(
-        &mut self,
-        store: &mut Store,
-        func_name: impl AsRef<str>,
-        params: impl IntoIterator<Item = WasmValue>,
-    ) -> WasmEdgeResult<Vec<WasmValue>> {
-        store.contains_func(func_name.as_ref())?;
-
-        let raw_params = params.into_iter().map(|x| x.as_raw()).collect::<Vec<_>>();
-
-        // get the length of the function's returns
-        let returns_len = store.find_func(func_name.as_ref())?.ty()?.returns_len();
-        let mut returns = Vec::with_capacity(returns_len);
-
-        let func_name: WasmEdgeString = func_name.as_ref().into();
-        unsafe {
-            check(ffi::WasmEdge_ExecutorInvoke(
-                self.inner.0,
-                store.inner.0,
-                func_name.as_raw(),
-                raw_params.as_ptr(),
-                raw_params.len() as u32,
-                returns.as_mut_ptr(),
-                returns_len as u32,
-            ))?;
-            returns.set_len(returns_len);
-        }
-
-        Ok(returns.into_iter().map(Into::into).collect::<Vec<_>>())
-    }
-
-    /// Invokes a registered WASM function by its module name and function name, and returns the results.
-    ///
-    /// # Arguments
-    ///
-    /// - `store` specifies the target [store](crate::Store) which owns the module and the target function.
-    ///
-    /// - `mod_name` specifies the name of the registered module.
-    ///
-    /// - `func_name` specifies the name of the target function.
-    ///
-    /// - `params` specifies the argument values for the target function.
-    ///
-    /// # Error
-    ///
-    /// If fail to invoke the target registered function, then an error is returned.
-    ///
-    pub fn run_func_registered(
-        &mut self,
-        store: &mut Store,
-        mod_name: impl AsRef<str>,
-        func_name: impl AsRef<str>,
-        params: impl IntoIterator<Item = WasmValue>,
-    ) -> WasmEdgeResult<Vec<WasmValue>> {
-        store.contains_reg_func(mod_name.as_ref(), func_name.as_ref())?;
-
-        let raw_params = params.into_iter().map(|x| x.as_raw()).collect::<Vec<_>>();
-
-        // get the length of the function's returns
-        let returns_len = store
-            .find_func_registered(mod_name.as_ref(), func_name.as_ref())?
-            .ty()?
-            .returns_len();
-        let mut returns = Vec::with_capacity(returns_len);
-
-        let mod_name: WasmEdgeString = mod_name.as_ref().into();
-        let func_name: WasmEdgeString = func_name.as_ref().into();
-        unsafe {
-            check(ffi::WasmEdge_ExecutorInvokeRegistered(
-                self.inner.0,
-                store.inner.0,
-                mod_name.as_raw(),
-                func_name.as_raw(),
-                raw_params.as_ptr(),
-                raw_params.len() as u32,
-                returns.as_mut_ptr(),
-                returns_len as u32,
-            ))?;
-            returns.set_len(returns_len);
-        }
-
-        Ok(returns.into_iter().map(Into::into).collect::<Vec<_>>())
+        Ok(Instance {
+            inner: InnerInstance(instance_ctx),
+            registered: false,
+        })
     }
 }
 impl Drop for Executor {
@@ -258,6 +182,61 @@ impl Drop for Executor {
         if !self.registered && !self.inner.0.is_null() {
             unsafe { ffi::WasmEdge_ExecutorDelete(self.inner.0) }
         }
+    }
+}
+impl Engine for Executor {
+    fn run_func(
+        &mut self,
+        func: &Function,
+        params: impl IntoIterator<Item = WasmValue>,
+    ) -> WasmEdgeResult<Vec<WasmValue>> {
+        let raw_params = params.into_iter().map(|x| x.as_raw()).collect::<Vec<_>>();
+
+        // get the length of the function's returns
+        let func_ty = func.ty()?;
+        let returns_len = func_ty.returns_len();
+        let mut returns = Vec::with_capacity(returns_len as usize);
+
+        unsafe {
+            check(ffi::WasmEdge_ExecutorInvoke(
+                self.inner.0,
+                func.inner.0 as *const _,
+                raw_params.as_ptr(),
+                raw_params.len() as u32,
+                returns.as_mut_ptr(),
+                returns_len,
+            ))?;
+            returns.set_len(returns_len as usize);
+        }
+
+        Ok(returns.into_iter().map(Into::into).collect::<Vec<_>>())
+    }
+
+    fn run_func_ref(
+        &mut self,
+        func_ref: &FuncRef,
+        params: impl IntoIterator<Item = WasmValue>,
+    ) -> WasmEdgeResult<Vec<WasmValue>> {
+        let raw_params = params.into_iter().map(|x| x.as_raw()).collect::<Vec<_>>();
+
+        // get the length of the function's returns
+        let func_ty = func_ref.ty()?;
+        let returns_len = func_ty.returns_len();
+        let mut returns = Vec::with_capacity(returns_len as usize);
+
+        unsafe {
+            check(ffi::WasmEdge_ExecutorInvoke(
+                self.inner.0,
+                func_ref.inner.0 as *const _,
+                raw_params.as_ptr(),
+                raw_params.len() as u32,
+                returns.as_mut_ptr(),
+                returns_len,
+            ))?;
+            returns.set_len(returns_len as usize);
+        }
+
+        Ok(returns.into_iter().map(Into::into).collect::<Vec<_>>())
     }
 }
 
@@ -270,13 +249,14 @@ unsafe impl Sync for InnerExecutor {}
 mod tests {
     use super::*;
     use crate::{
-        Config, FuncType, Function, Global, GlobalType, MemType, Memory, Mutability, RefType,
-        Statistics, Table, TableType, ValType,
+        Config, FuncType, Function, Global, GlobalType, ImportInstance, ImportModule, MemType,
+        Memory, Statistics, Table, TableType,
     };
     use std::{
         sync::{Arc, Mutex},
         thread,
     };
+    use wasmedge_types::{Mutability, RefType, ValType};
 
     #[test]
     fn test_executor_create() {
@@ -343,9 +323,9 @@ mod tests {
         let host_name = "extern";
 
         // create an ImportObj module
-        let result = ImportObject::create(host_name);
+        let result = ImportModule::create(host_name);
         assert!(result.is_ok());
-        let mut import_obj = result.unwrap();
+        let mut import = result.unwrap();
 
         // add host function "func-add": (externref, i32) -> (i32)
         let result = FuncType::create([ValType::ExternRef, ValType::I32], [ValType::I32]);
@@ -355,7 +335,7 @@ mod tests {
         assert!(result.is_ok());
         let host_func = result.unwrap();
         // add the function into the import_obj module
-        import_obj.add_func("func-add", host_func);
+        import.add_func("func-add", host_func);
 
         // create a Table instance
         let result = TableType::create(RefType::FuncRef, 10..=20);
@@ -365,7 +345,7 @@ mod tests {
         assert!(result.is_ok());
         let host_table = result.unwrap();
         // add the table into the import_obj module
-        import_obj.add_table("table", host_table);
+        import.add_table("table", host_table);
 
         // create a Memory instance
         let result = MemType::create(1..=2);
@@ -375,7 +355,7 @@ mod tests {
         assert!(result.is_ok());
         let host_memory = result.unwrap();
         // add the memory into the import_obj module
-        import_obj.add_memory("memory", host_memory);
+        import.add_memory("memory", host_memory);
 
         // create a Global instance
         let result = GlobalType::create(ValType::I32, Mutability::Const);
@@ -385,30 +365,29 @@ mod tests {
         assert!(result.is_ok());
         let host_global = result.unwrap();
         // add the global into import_obj module
-        import_obj.add_global("global_i32", host_global);
+        import.add_global("global_i32", host_global);
 
-        assert_eq!(import_obj.exit_code(), 1);
-
-        let result = executor.register_import_object(&mut store, &import_obj);
+        let import = ImportObject::Import(import);
+        let result = executor.register_import_object(&mut store, &import);
         assert!(result.is_ok());
 
         {
-            let result = store.named_module("extern");
+            let result = store.module("extern");
             assert!(result.is_ok());
             let instance = result.unwrap();
 
-            let result = instance.find_global("global_i32");
+            let result = instance.get_global("global_i32");
             assert!(result.is_ok());
             let global = result.unwrap();
             assert_eq!(global.get_value().to_i32(), 666);
         }
 
         let handle = thread::spawn(move || {
-            let result = store.named_module("extern");
+            let result = store.module("extern");
             assert!(result.is_ok());
             let instance = result.unwrap();
 
-            let result = instance.find_global("global_i32");
+            let result = instance.get_global("global_i32");
             assert!(result.is_ok());
             let global = result.unwrap();
             assert_eq!(global.get_value().to_i32(), 666);

@@ -5,74 +5,11 @@
 
 use crate::{
     error::{GlobalError, WasmEdgeError},
-    ffi,
-    types::{Mutability, ValType},
-    WasmEdgeResult, WasmValue,
+    ffi, WasmEdgeResult, WasmValue,
 };
+use wasmedge_types::{Mutability, ValType};
 
-#[derive(Debug)]
-pub(crate) struct InnerGlobalType(pub(crate) *mut ffi::WasmEdge_GlobalTypeContext);
-unsafe impl Send for InnerGlobalType {}
-unsafe impl Sync for InnerGlobalType {}
-
-/// Struct of WasmEdge GlobalType.
-///
-/// A [GlobalType] classifies a global variable that hold a value and can either be mutable or immutable.
-#[derive(Debug)]
-pub struct GlobalType {
-    pub(crate) inner: InnerGlobalType,
-    pub(crate) registered: bool,
-}
-impl GlobalType {
-    /// Create a new [GlobalType] to be associated with the given [ValType](crate::ValType) and [Mutability](crate::Mutability).
-    ///
-    /// # Errors
-    ///
-    /// If fail to create a new [GlobalType], then an error is returned.
-    pub fn create(val_ty: ValType, mutable: Mutability) -> WasmEdgeResult<Self> {
-        let ctx = unsafe {
-            ffi::WasmEdge_GlobalTypeCreate(
-                ffi::WasmEdge_ValType::from(val_ty),
-                ffi::WasmEdge_Mutability::from(mutable),
-            )
-        };
-        match ctx.is_null() {
-            true => Err(WasmEdgeError::GlobalTypeCreate),
-            false => Ok(Self {
-                inner: InnerGlobalType(ctx),
-                registered: false,
-            }),
-        }
-    }
-
-    /// Returns the value type of the [GlobalType].
-    pub fn value_type(&self) -> ValType {
-        let val = unsafe { ffi::WasmEdge_GlobalTypeGetValType(self.inner.0 as *const _) };
-        val.into()
-    }
-
-    /// Returns the [Mutability](crate::Mutability) value of the [GlobalType].
-    pub fn mutability(&self) -> Mutability {
-        let val = unsafe { ffi::WasmEdge_GlobalTypeGetMutability(self.inner.0) };
-        val.into()
-    }
-}
-impl Drop for GlobalType {
-    fn drop(&mut self) {
-        if !self.registered && !self.inner.0.is_null() {
-            unsafe { ffi::WasmEdge_GlobalTypeDelete(self.inner.0) };
-        }
-    }
-}
-
-#[derive(Debug)]
-pub(crate) struct InnerGlobal(pub(crate) *mut ffi::WasmEdge_GlobalInstanceContext);
-unsafe impl Send for InnerGlobal {}
-unsafe impl Sync for InnerGlobal {}
-
-/// Struct of WasmEdge Global.
-///
-/// A WasmEdge [Global] defines a global variable, which stores a single value of the given [GlobalType].
+/// Defines a WebAssembly global variable, which stores a single value of the given [type](crate::GlobalType) and a flag indicating whether it is mutable or not.
 #[derive(Debug)]
 pub struct Global {
     pub(crate) inner: InnerGlobal,
@@ -124,7 +61,11 @@ impl Global {
 
     /// Sets the value of the [Global] instance.
     ///
-    /// Notice that only the [Global] instance of [Mutability::Var](crate::Mutability::Var) type can be set a new value. Setting a new value for a [Global] of [Mutability::Const](crate::Mutability::Const) causes a failure.
+    /// Notice that only the [Global] instance of [Mutability::Var](wasmedge_types::Mutability::Var) type can be set a new value. Setting a new value for a [Global] of [Mutability::Const](wasmedge_types::Mutability::Const) causes a failure.
+    ///
+    /// # Argument
+    ///
+    /// * `val` - The new wasm value to be set.
     ///
     /// # Errors
     ///
@@ -133,7 +74,8 @@ impl Global {
     /// # Example
     ///
     /// ```
-    /// use wasmedge_sys::{Global, GlobalType, ValType, Mutability, WasmValue};
+    /// use wasmedge_sys::{Global, GlobalType, WasmValue};
+    /// use wasmedge_types::{ValType, Mutability};
     ///
     /// // create a GlobalType instance
     /// let ty = GlobalType::create(ValType::F32, Mutability::Var).expect("fail to create a GlobalType");
@@ -165,14 +107,87 @@ impl Drop for Global {
     }
 }
 
+#[derive(Debug)]
+pub(crate) struct InnerGlobal(pub(crate) *mut ffi::WasmEdge_GlobalInstanceContext);
+unsafe impl Send for InnerGlobal {}
+unsafe impl Sync for InnerGlobal {}
+
+/// Defines the type of a wasm global variable.
+///
+/// A [GlobalType] classifies a global variable that hold a value and can either be mutable or immutable.
+#[derive(Debug)]
+pub struct GlobalType {
+    pub(crate) inner: InnerGlobalType,
+    pub(crate) registered: bool,
+}
+impl GlobalType {
+    /// Create a new [GlobalType] to be associated with the given [ValType](wasmedge_types::ValType) and [Mutability](wasmedge_types::Mutability).
+    ///
+    /// # Arguments
+    ///
+    /// * `val_type` - The value type of the global variable.
+    ///
+    /// * `mutability` - The mutability of the global variable.
+    ///
+    /// # Errors
+    ///
+    /// If fail to create a new [GlobalType], then an error is returned.
+    pub fn create(val_ty: ValType, mutable: Mutability) -> WasmEdgeResult<Self> {
+        let ctx = unsafe { ffi::WasmEdge_GlobalTypeCreate(val_ty.into(), mutable.into()) };
+        match ctx.is_null() {
+            true => Err(WasmEdgeError::GlobalTypeCreate),
+            false => Ok(Self {
+                inner: InnerGlobalType(ctx),
+                registered: false,
+            }),
+        }
+    }
+
+    /// Returns the value type of the [GlobalType].
+    pub fn value_type(&self) -> ValType {
+        let val = unsafe { ffi::WasmEdge_GlobalTypeGetValType(self.inner.0 as *const _) };
+        val.into()
+    }
+
+    /// Returns the [Mutability](wasmedge_types::Mutability) value of the [GlobalType].
+    pub fn mutability(&self) -> Mutability {
+        let val = unsafe { ffi::WasmEdge_GlobalTypeGetMutability(self.inner.0) };
+        val.into()
+    }
+}
+impl Drop for GlobalType {
+    fn drop(&mut self) {
+        if !self.registered && !self.inner.0.is_null() {
+            unsafe { ffi::WasmEdge_GlobalTypeDelete(self.inner.0) };
+        }
+    }
+}
+impl From<wasmedge_types::GlobalType> for GlobalType {
+    fn from(ty: wasmedge_types::GlobalType) -> Self {
+        GlobalType::create(ty.value_ty(), ty.mutability()).expect(
+            "[wasmedge-sys] Failed to convert wasmedge_types::GlobalType into wasmedge_sys::GlobalType.",
+        )
+    }
+}
+impl From<GlobalType> for wasmedge_types::GlobalType {
+    fn from(ty: GlobalType) -> Self {
+        wasmedge_types::GlobalType::new(ty.value_type(), ty.mutability())
+    }
+}
+
+#[derive(Debug)]
+pub(crate) struct InnerGlobalType(pub(crate) *mut ffi::WasmEdge_GlobalTypeContext);
+unsafe impl Send for InnerGlobalType {}
+unsafe impl Sync for InnerGlobalType {}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{Mutability, ValType};
     use std::{
         sync::{Arc, Mutex},
         thread,
     };
+    use wasmedge_types::{Mutability, ValType};
 
     #[test]
     fn test_global_type() {

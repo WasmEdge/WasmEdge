@@ -1,21 +1,23 @@
 //! Defines WasmEdge Table and TableType structs.
 //!
-//! A WasmEdge `Table` defines a table described by its `TableType`.
+//! A WasmEdge `Table` defines a WebAssembly table instance described by its `TableType`.
 //! `TableType` specifies the limits on the size of a table. The start of
 //! the limit range specifies the lower bound (inclusive) of the size, while
 //! the end resticts the upper bound (inclusive).
 
 use crate::{
-    error::{check, TableError, WasmEdgeError},
+    error::{TableError, WasmEdgeError},
     ffi,
-    types::{RefType, WasmValue},
+    types::WasmValue,
+    utils::check,
     WasmEdgeResult,
 };
 use std::ops::RangeInclusive;
+use wasmedge_types::RefType;
 
-/// Struct of WasmEdge Table.
+/// A WasmEdge [Table] defines a WebAssembly table instance described by its [type](crate::TableType). A table is an array-like structure and stores function references.
 ///
-/// A WasmEdge [Table] defines a table described by its [TableType].
+/// This [example](https://github.com/WasmEdge/WasmEdge/tree/master/bindings/rust/wasmedge-sys/examples/table_and_funcref.rs) shows how to use [Table] to store and retrieve function references.
 #[derive(Debug)]
 pub struct Table {
     pub(crate) inner: InnerTable,
@@ -35,7 +37,9 @@ impl Table {
     /// # Example
     ///
     /// ```
-    /// use wasmedge_sys::{RefType, TableType, Table};
+    /// use wasmedge_sys::{TableType, Table};
+    /// use wasmedge_types::RefType;
+    ///
     /// // create a TableType instance
     /// let ty = TableType::create(RefType::FuncRef, 10..=20).expect("fail to create a TableType");
     ///
@@ -118,7 +122,8 @@ impl Table {
     /// # Example
     ///
     /// ```
-    /// use wasmedge_sys::{RefType, TableType, Table};
+    /// use wasmedge_sys::{TableType, Table};
+    /// use wasmedge_types::RefType;
     ///
     /// // create a TableType instance and a Table
     /// let ty = TableType::create(RefType::FuncRef, 10..=20).expect("fail to create a TableType");
@@ -162,9 +167,7 @@ pub(crate) struct InnerTable(pub(crate) *mut ffi::WasmEdge_TableInstanceContext)
 unsafe impl Send for InnerTable {}
 unsafe impl Sync for InnerTable {}
 
-/// Struct of WasmEdge TableType
-///
-/// A WasmEdge [TableType] classify a [Table] over elements of element types within a size range.
+/// A WasmEdge [TableType] classifies a [Table] instance over elements of element types within a size range.
 #[derive(Debug)]
 pub struct TableType {
     pub(crate) inner: InnerTableType,
@@ -184,9 +187,9 @@ impl TableType {
     ///
     /// # Arguments
     ///
-    /// - `elem_type` specifies the element type.
+    /// * `elem_type` - The element type.
     ///
-    /// - `limit` specifies a range of the table size. The upper bound for a `limit` is `u32::MAX`.
+    /// * `limit` - A range of the table size. The upper bound for a `limit` is `u32::MAX`.
     ///
     /// # Error
     ///
@@ -195,16 +198,11 @@ impl TableType {
     /// # Example
     ///
     /// ```ignore
-    /// let ty = TableType::create(RefType::FuncRef, 10..=20).expect("fail to create a TableType");
+    /// let ty = TableType::create(WasmRefType::FuncRef, 10..=20).expect("fail to create a TableType");
     /// ```
     ///
     pub fn create(elem_ty: RefType, limit: RangeInclusive<u32>) -> WasmEdgeResult<Self> {
-        let ctx = unsafe {
-            ffi::WasmEdge_TableTypeCreate(
-                ffi::WasmEdge_RefType::from(elem_ty),
-                ffi::WasmEdge_Limit::from(limit),
-            )
-        };
+        let ctx = unsafe { ffi::WasmEdge_TableTypeCreate(elem_ty.into(), limit.into()) };
         match ctx.is_null() {
             true => Err(WasmEdgeError::TableTypeCreate),
             false => Ok(Self {
@@ -225,7 +223,8 @@ impl TableType {
     /// # Example
     ///
     /// ```
-    /// use wasmedge_sys::{RefType, TableType};
+    /// use wasmedge_sys::TableType;
+    /// use wasmedge_types::RefType;
     ///
     /// // create a TableType instance
     /// let ty = TableType::create(RefType::FuncRef, 10..=20).expect("fail to create a TableType");
@@ -238,6 +237,22 @@ impl TableType {
         limit.into()
     }
 }
+impl From<wasmedge_types::TableType> for TableType {
+    fn from(ty: wasmedge_types::TableType) -> Self {
+        TableType::create(ty.elem_ty(), ty.minimum()..=ty.maximum()).expect(
+            "[wasmedge] Failed to convert wasmedge_types::TableType into wasmedge_sys::TableType.",
+        )
+    }
+}
+impl From<TableType> for wasmedge_types::TableType {
+    fn from(ty: TableType) -> Self {
+        wasmedge_types::TableType::new(
+            ty.elem_ty(),
+            ty.limit().start().to_owned(),
+            Some(ty.limit().end().to_owned()),
+        )
+    }
+}
 
 #[derive(Debug)]
 pub(crate) struct InnerTableType(pub(crate) *mut ffi::WasmEdge_TableTypeContext);
@@ -247,11 +262,12 @@ unsafe impl Sync for InnerTableType {}
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{FuncType, Function, RefType, ValType};
+    use crate::{FuncType, Function};
     use std::{
         sync::{Arc, Mutex},
         thread,
     };
+    use wasmedge_types::{RefType, ValType};
 
     #[test]
     fn test_table_type() {
@@ -310,7 +326,7 @@ mod tests {
         // create a host function
         let result = Function::create(&func_ty, Box::new(real_add), 0);
         assert!(result.is_ok());
-        let mut host_func = result.unwrap();
+        let host_func = result.unwrap();
 
         // create a TableType instance
         let result = TableType::create(RefType::FuncRef, 10..=20);
@@ -332,10 +348,10 @@ mod tests {
         assert!(value.is_null_ref());
         assert_eq!(value.ty(), ValType::FuncRef);
 
-        // set data
-        let result = table.set_data(WasmValue::from_func_ref(&mut host_func), 3);
+        // call set_data to store a function reference at the given index of the table instance
+        let result = table.set_data(WasmValue::from_func_ref(host_func.as_ref()), 3);
         assert!(result.is_ok());
-        // get data
+        // call get_data to recover the function reference from the value at the given index of the table instance
         let result = table.get_data(3);
         assert!(result.is_ok());
         let value = result.unwrap();
@@ -343,6 +359,7 @@ mod tests {
         assert!(result.is_some());
         let func_ref = result.unwrap();
 
+        // get the function type by func_ref
         let result = func_ref.ty();
         assert!(result.is_ok());
         let func_ty = result.unwrap();

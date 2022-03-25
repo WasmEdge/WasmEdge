@@ -35,8 +35,8 @@ impl Statistics {
     /// # Notice
     ///
     /// For the following cases,
-    /// - [Statistics] is not enabled, or
-    /// - the total execution time is 0
+    /// * [Statistics] is not enabled, or
+    /// * the total execution time is 0
     ///
     /// The instructions per second could be `NaN`, which represents `divided-by-zero`.
     /// Use the `is_nan` function of F64 to check the return value before use it,
@@ -64,7 +64,7 @@ impl Statistics {
     ///
     /// # Arguments
     ///
-    /// - `cost_table` specifies the slice of cost table.
+    /// * `cost_table` - The slice of cost table.
     pub fn set_cost_table(&mut self, cost_table: impl AsRef<[u64]>) {
         unsafe {
             ffi::WasmEdge_StatisticsSetCostTable(
@@ -79,9 +79,14 @@ impl Statistics {
     ///
     /// # Arguments
     ///
-    /// - `limit` specifies the cost limit.
+    /// * `limit` - The cost limit.
     pub fn set_cost_limit(&mut self, limit: u64) {
         unsafe { ffi::WasmEdge_StatisticsSetCostLimit(self.inner.0, limit) }
+    }
+
+    /// Clears the data in this statistics.
+    pub fn clear(&mut self) {
+        unsafe { ffi::WasmEdge_StatisticsClear(self.inner.0) }
     }
 }
 impl Drop for Statistics {

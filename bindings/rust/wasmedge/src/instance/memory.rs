@@ -1,8 +1,8 @@
-use crate::{error::Result, wasmedge};
+use crate::{error::Result, sys};
 
 #[derive(Debug)]
 pub struct Memory<'instance> {
-    pub(crate) inner: wasmedge::Memory,
+    pub(crate) inner: sys::Memory,
     pub(crate) name: Option<String>,
     pub(crate) mod_name: Option<String>,
     pub(crate) _marker: std::marker::PhantomData<&'instance ()>,
@@ -81,13 +81,13 @@ impl MemoryType {
         self.max
     }
 
-    pub fn to_raw(self) -> Result<wasmedge::MemType> {
-        let raw = wasmedge::MemType::create(self.min..=self.max)?;
+    pub fn to_raw(self) -> Result<sys::MemType> {
+        let raw = sys::MemType::create(self.min..=self.max)?;
         Ok(raw)
     }
 }
-impl From<wasmedge::MemType> for MemoryType {
-    fn from(ty: wasmedge::MemType) -> Self {
+impl From<sys::MemType> for MemoryType {
+    fn from(ty: sys::MemType) -> Self {
         let limit = ty.limit();
         Self {
             min: limit.start().to_owned(),

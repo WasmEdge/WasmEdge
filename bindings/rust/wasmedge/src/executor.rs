@@ -1,13 +1,13 @@
 //! Defines Executor struct.
 
-use crate::{config::Config, error::Result, wasmedge, Statistics, Store, WasmValue};
+use crate::{config::Config, error::Result, sys, Statistics, Store, WasmValue};
 
 /// Struct of WasmEdge Executor.
 ///
 /// [Executor](crate::Executor) defines an execution environment for both pure WASM and compiled WASM . It works with a [Store](crate::Store).
 #[derive(Debug)]
 pub struct Executor {
-    pub(crate) inner: wasmedge::Executor,
+    pub(crate) inner: sys::Executor,
 }
 impl Executor {
     /// Creates a new [executor](crate::Executor) to be associated with the given [config](crate::config::Config) and [statistics](crate::Statistics).
@@ -28,8 +28,8 @@ impl Executor {
         };
 
         let inner_executor = match stat {
-            Some(stat) => wasmedge::Executor::create(inner_config, Some(&mut stat.inner))?,
-            None => wasmedge::Executor::create(inner_config, None)?,
+            Some(stat) => sys::Executor::create(inner_config, Some(&mut stat.inner))?,
+            None => sys::Executor::create(inner_config, None)?,
         };
 
         Ok(Self {

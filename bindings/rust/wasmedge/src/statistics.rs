@@ -1,12 +1,12 @@
-use crate::{error::Result, wasmedge};
+use crate::{error::Result, sys};
 
 #[derive(Debug)]
 pub struct Statistics {
-    pub(crate) inner: wasmedge::Statistics,
+    pub(crate) inner: sys::Statistics,
 }
 impl Statistics {
     pub fn new() -> Result<Self> {
-        let inner = wasmedge::Statistics::create()?;
+        let inner = sys::Statistics::create()?;
         Ok(Self { inner })
     }
 

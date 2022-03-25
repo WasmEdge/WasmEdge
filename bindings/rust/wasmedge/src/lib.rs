@@ -1,4 +1,4 @@
-use wasmedge_sys as wasmedge;
+use wasmedge_sys as sys;
 
 #[doc(hidden)]
 pub mod compiler;

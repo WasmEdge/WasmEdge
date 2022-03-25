@@ -1,11 +1,11 @@
 //! Defines Global and GlobalType.
 
-use crate::{error::Result, types::Val, wasmedge, Mutability, ValType};
+use crate::{error::Result, sys, types::Val, Mutability, ValType};
 
 /// Struct of WasmEdge Global.
 #[derive(Debug)]
 pub struct Global<'instance> {
-    pub(crate) inner: wasmedge::Global,
+    pub(crate) inner: sys::Global,
     pub(crate) name: Option<String>,
     pub(crate) mod_name: Option<String>,
     pub(crate) _marker: std::marker::PhantomData<&'instance ()>,
@@ -66,13 +66,13 @@ impl GlobalType {
         self.mutability
     }
 
-    pub fn to_raw(self) -> Result<wasmedge::GlobalType> {
-        let raw = wasmedge::GlobalType::create(self.value_ty(), self.mutability())?;
+    pub fn to_raw(self) -> Result<sys::GlobalType> {
+        let raw = sys::GlobalType::create(self.value_ty(), self.mutability())?;
         Ok(raw)
     }
 }
-impl From<wasmedge::GlobalType> for GlobalType {
-    fn from(ty: wasmedge::GlobalType) -> Self {
+impl From<sys::GlobalType> for GlobalType {
+    fn from(ty: sys::GlobalType) -> Self {
         Self {
             ty: ty.value_type(),
             mutability: ty.mutability(),
@@ -86,7 +86,7 @@ mod tests {
     use crate::{
         config::{CommonConfigOptions, ConfigBuilder},
         error::WasmEdgeError,
-        wasmedge, Executor, ImportModuleBuilder, Mutability, Statistics, Store, ValType,
+        sys, Executor, ImportModuleBuilder, Mutability, Statistics, Store, ValType,
     };
 
     #[test]
@@ -173,8 +173,8 @@ mod tests {
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
-            WasmEdgeError::Operation(wasmedge::error::WasmEdgeError::Global(
-                wasmedge::error::GlobalError::ModifyConst
+            WasmEdgeError::Operation(sys::error::WasmEdgeError::Global(
+                sys::error::GlobalError::ModifyConst
             ))
         );
 

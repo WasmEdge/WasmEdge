@@ -1,9 +1,9 @@
-use crate::{wasmedge, Func, Global, Memory, Table};
+use crate::{sys, Func, Global, Memory, Table};
 use std::marker::PhantomData;
 
 #[derive(Debug)]
 pub struct Instance<'store> {
-    pub(crate) inner: wasmedge::Instance<'store>,
+    pub(crate) inner: sys::Instance<'store>,
 }
 impl<'store> Instance<'store> {
     pub fn name(&self) -> Option<String> {
@@ -101,8 +101,8 @@ impl<'store> Instance<'store> {
 mod tests {
     use crate::{
         config::{CommonConfigOptions, ConfigBuilder},
+        sys::{Mutability, RefType},
         types::Val,
-        wasmedge::{Mutability, RefType},
         Executor, GlobalType, ImportModuleBuilder, MemoryType, Module, SignatureBuilder,
         Statistics, Store, TableType, ValType, WasmValue,
     };

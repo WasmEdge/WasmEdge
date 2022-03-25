@@ -1,9 +1,9 @@
-use crate::{config::Config, error::Result, wasmedge};
+use crate::{config::Config, error::Result, sys};
 use std::path::Path;
 
 #[derive(Debug)]
 pub struct Compiler {
-    pub(crate) inner: wasmedge::Compiler,
+    pub(crate) inner: sys::Compiler,
 }
 impl Compiler {
     pub fn new(config: Option<&Config>) -> Result<Self> {
@@ -11,7 +11,7 @@ impl Compiler {
             Some(config) => Some(Config::copy_from(config)?.inner),
             None => None,
         };
-        let inner = wasmedge::Compiler::create(inner_config)?;
+        let inner = sys::Compiler::create(inner_config)?;
 
         Ok(Self { inner })
     }

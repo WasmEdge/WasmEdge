@@ -1,4 +1,4 @@
-use wasmedge_sys::{FuncType, Function, ImportObject, ValType, WasmValue};
+use wasmedge_sys::{FuncType, Function, ImportObject, WasmValue, WasmValueType};
 
 pub fn create_extern_module(name: impl AsRef<str>) -> ImportObject {
     // create an ImportObj module
@@ -7,7 +7,10 @@ pub fn create_extern_module(name: impl AsRef<str>) -> ImportObject {
     let mut import_obj = result.unwrap();
 
     // add host function: "func-add"
-    let result = FuncType::create(vec![ValType::ExternRef, ValType::I32], vec![ValType::I32]);
+    let result = FuncType::create(
+        vec![WasmValueType::ExternRef, WasmValueType::I32],
+        vec![WasmValueType::I32],
+    );
     let func_ty = result.unwrap();
     let result = Function::create(&func_ty, Box::new(extern_add), 0);
     assert!(result.is_ok());
@@ -15,7 +18,10 @@ pub fn create_extern_module(name: impl AsRef<str>) -> ImportObject {
     import_obj.add_func("func-add", host_func);
 
     // add host function: "func-sub"
-    let result = FuncType::create(vec![ValType::ExternRef, ValType::I32], vec![ValType::I32]);
+    let result = FuncType::create(
+        vec![WasmValueType::ExternRef, WasmValueType::I32],
+        vec![WasmValueType::I32],
+    );
     let func_ty = result.unwrap();
     let result = Function::create(&func_ty, Box::new(extern_sub), 0);
     assert!(result.is_ok());
@@ -23,7 +29,10 @@ pub fn create_extern_module(name: impl AsRef<str>) -> ImportObject {
     import_obj.add_func("func-sub", host_func);
 
     // add host function: "func-mul"
-    let result = FuncType::create(vec![ValType::ExternRef, ValType::I32], vec![ValType::I32]);
+    let result = FuncType::create(
+        vec![WasmValueType::ExternRef, WasmValueType::I32],
+        vec![WasmValueType::I32],
+    );
     let func_ty = result.unwrap();
     let result = Function::create(&func_ty, Box::new(extern_mul), 0);
     assert!(result.is_ok());
@@ -31,7 +40,10 @@ pub fn create_extern_module(name: impl AsRef<str>) -> ImportObject {
     import_obj.add_func("func-mul", host_func);
 
     // add host function: "func-div"
-    let result = FuncType::create(vec![ValType::ExternRef, ValType::I32], vec![ValType::I32]);
+    let result = FuncType::create(
+        vec![WasmValueType::ExternRef, WasmValueType::I32],
+        vec![WasmValueType::I32],
+    );
     let func_ty = result.unwrap();
     let result = Function::create(&func_ty, Box::new(extern_div), 0);
     assert!(result.is_ok());
@@ -39,7 +51,7 @@ pub fn create_extern_module(name: impl AsRef<str>) -> ImportObject {
     import_obj.add_func("func-div", host_func);
 
     // add host function: "func-term"
-    let result = FuncType::create([], [ValType::I32]);
+    let result = FuncType::create([], [WasmValueType::I32]);
     assert!(result.is_ok());
     let func_ty = result.unwrap();
     let result = Function::create(&func_ty, Box::new(extern_term), 0);
@@ -47,7 +59,7 @@ pub fn create_extern_module(name: impl AsRef<str>) -> ImportObject {
     import_obj.add_func("func-term", host_func);
 
     // add host function: "func-fail"
-    let result = FuncType::create([], [ValType::I32]);
+    let result = FuncType::create([], [WasmValueType::I32]);
     assert!(result.is_ok());
     let func_ty = result.unwrap();
     let result = Function::create(&func_ty, Box::new(extern_fail), 0);
@@ -66,13 +78,13 @@ fn _real_add(inputs: Vec<WasmValue>) -> Result<Vec<WasmValue>, u8> {
         return Err(1);
     }
 
-    let a = if inputs[0].ty() == ValType::I32 {
+    let a = if inputs[0].ty() == WasmValueType::I32 {
         inputs[0].to_i32()
     } else {
         return Err(2);
     };
 
-    let b = if inputs[1].ty() == ValType::I32 {
+    let b = if inputs[1].ty() == WasmValueType::I32 {
         inputs[0].to_i32()
     } else {
         return Err(3);
@@ -84,7 +96,7 @@ fn _real_add(inputs: Vec<WasmValue>) -> Result<Vec<WasmValue>, u8> {
 }
 
 fn extern_add(inputs: Vec<WasmValue>) -> Result<Vec<WasmValue>, u8> {
-    let val1 = if inputs[0].ty() == ValType::ExternRef {
+    let val1 = if inputs[0].ty() == WasmValueType::ExternRef {
         inputs[0]
     } else {
         return Err(2);
@@ -93,7 +105,7 @@ fn extern_add(inputs: Vec<WasmValue>) -> Result<Vec<WasmValue>, u8> {
         .extern_ref::<i32>()
         .expect("fail to get i32 from an ExternRef");
 
-    let val2 = if inputs[1].ty() == ValType::I32 {
+    let val2 = if inputs[1].ty() == WasmValueType::I32 {
         inputs[1].to_i32()
     } else {
         return Err(3);
@@ -103,7 +115,7 @@ fn extern_add(inputs: Vec<WasmValue>) -> Result<Vec<WasmValue>, u8> {
 }
 
 fn extern_sub(inputs: Vec<WasmValue>) -> Result<Vec<WasmValue>, u8> {
-    let val1 = if inputs[0].ty() == ValType::ExternRef {
+    let val1 = if inputs[0].ty() == WasmValueType::ExternRef {
         inputs[0]
     } else {
         return Err(2);
@@ -113,7 +125,7 @@ fn extern_sub(inputs: Vec<WasmValue>) -> Result<Vec<WasmValue>, u8> {
         .extern_ref::<i32>()
         .expect("fail to get i32 from an ExternRef");
 
-    let val2 = if inputs[1].ty() == ValType::I32 {
+    let val2 = if inputs[1].ty() == WasmValueType::I32 {
         inputs[1].to_i32()
     } else {
         return Err(3);
@@ -123,7 +135,7 @@ fn extern_sub(inputs: Vec<WasmValue>) -> Result<Vec<WasmValue>, u8> {
 }
 
 fn extern_mul(inputs: Vec<WasmValue>) -> Result<Vec<WasmValue>, u8> {
-    let val1 = if inputs[0].ty() == ValType::ExternRef {
+    let val1 = if inputs[0].ty() == WasmValueType::ExternRef {
         inputs[0]
     } else {
         return Err(2);
@@ -132,7 +144,7 @@ fn extern_mul(inputs: Vec<WasmValue>) -> Result<Vec<WasmValue>, u8> {
         .extern_ref::<i32>()
         .expect("fail to get i32 from an ExternRef");
 
-    let val2 = if inputs[1].ty() == ValType::I32 {
+    let val2 = if inputs[1].ty() == WasmValueType::I32 {
         inputs[1].to_i32()
     } else {
         return Err(3);
@@ -142,7 +154,7 @@ fn extern_mul(inputs: Vec<WasmValue>) -> Result<Vec<WasmValue>, u8> {
 }
 
 fn extern_div(inputs: Vec<WasmValue>) -> Result<Vec<WasmValue>, u8> {
-    let val1 = if inputs[0].ty() == ValType::ExternRef {
+    let val1 = if inputs[0].ty() == WasmValueType::ExternRef {
         inputs[0]
     } else {
         return Err(2);
@@ -151,7 +163,7 @@ fn extern_div(inputs: Vec<WasmValue>) -> Result<Vec<WasmValue>, u8> {
         .extern_ref::<i32>()
         .expect("fail to get i32 from an ExternRef");
 
-    let val2 = if inputs[1].ty() == ValType::I32 {
+    let val2 = if inputs[1].ty() == WasmValueType::I32 {
         inputs[1].to_i32()
     } else {
         return Err(3);

@@ -11,7 +11,9 @@
 //! base on the inputs and outputs of the real host function.
 //!
 
-use wasmedge_sys::{Config, FuncType, Function, ImportObject, Loader, ValType, Vm, WasmValue};
+use wasmedge_sys::{
+    Config, FuncType, Function, ImportObject, Loader, Vm, WasmValue, WasmValueType,
+};
 
 fn real_add(input: Vec<WasmValue>) -> Result<Vec<WasmValue>, u8> {
     println!("Rust: Entering Rust function real_add");
@@ -49,8 +51,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     let result = FuncType::create(
-        vec![ValType::ExternRef, ValType::I32, ValType::I32],
-        vec![ValType::I32],
+        vec![
+            WasmValueType::ExternRef,
+            WasmValueType::I32,
+            WasmValueType::I32,
+        ],
+        vec![WasmValueType::I32],
     );
     assert!(result.is_ok());
     let func_ty = result.unwrap();

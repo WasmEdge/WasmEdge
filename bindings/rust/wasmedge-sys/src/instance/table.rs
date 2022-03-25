@@ -247,7 +247,7 @@ unsafe impl Sync for InnerTableType {}
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{FuncType, Function, RefType, ValType};
+    use crate::{FuncType, Function, RefType, WasmValueType};
     use std::{
         sync::{Arc, Mutex},
         thread,
@@ -304,7 +304,7 @@ mod tests {
     #[test]
     fn test_table_data() {
         // create a FuncType
-        let result = FuncType::create(vec![ValType::I32; 2], vec![ValType::I32]);
+        let result = FuncType::create(vec![WasmValueType::I32; 2], vec![WasmValueType::I32]);
         assert!(result.is_ok());
         let func_ty = result.unwrap();
         // create a host function
@@ -330,7 +330,7 @@ mod tests {
         assert!(result.is_ok());
         let value = result.unwrap();
         assert!(value.is_null_ref());
-        assert_eq!(value.ty(), ValType::FuncRef);
+        assert_eq!(value.ty(), WasmValueType::FuncRef);
 
         // set data
         let result = table.set_data(WasmValue::from_func_ref(&mut host_func), 3);
@@ -348,10 +348,10 @@ mod tests {
         let func_ty = result.unwrap();
         assert_eq!(func_ty.params_len(), 2);
         let param_tys = func_ty.params_type_iter().collect::<Vec<_>>();
-        assert_eq!(param_tys, [ValType::I32, ValType::I32]);
+        assert_eq!(param_tys, [WasmValueType::I32, WasmValueType::I32]);
         assert_eq!(func_ty.returns_len(), 1);
         let return_tys = func_ty.returns_type_iter().collect::<Vec<_>>();
-        assert_eq!(return_tys, [ValType::I32]);
+        assert_eq!(return_tys, [WasmValueType::I32]);
     }
 
     #[test]
@@ -430,13 +430,13 @@ mod tests {
             return Err(1);
         }
 
-        let a = if input[0].ty() == ValType::I32 {
+        let a = if input[0].ty() == WasmValueType::I32 {
             input[0].to_i32()
         } else {
             return Err(2);
         };
 
-        let b = if input[1].ty() == ValType::I32 {
+        let b = if input[1].ty() == WasmValueType::I32 {
             input[0].to_i32()
         } else {
             return Err(3);

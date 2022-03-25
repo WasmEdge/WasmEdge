@@ -774,7 +774,7 @@ mod tests {
     use crate::{
         instance::{Function, Global, GlobalType, MemType, Memory, Table, TableType},
         types::WasmValue,
-        Config, Executor, FuncType, ImportObject, Mutability, RefType, ValType, Vm,
+        Config, Executor, FuncType, ImportObject, Mutability, RefType, Vm, WasmValueType,
     };
     use std::{
         sync::{Arc, Mutex},
@@ -809,7 +809,7 @@ mod tests {
         let mut import = result.unwrap();
 
         // add host function
-        let result = FuncType::create(vec![ValType::I32; 2], vec![ValType::I32]);
+        let result = FuncType::create(vec![WasmValueType::I32; 2], vec![WasmValueType::I32]);
         assert!(result.is_ok());
         let func_ty = result.unwrap();
         let result = Function::create(&func_ty, Box::new(real_add), 0);
@@ -838,7 +838,7 @@ mod tests {
         import.add_memory("mem", memory);
 
         // add globals
-        let result = GlobalType::create(ValType::F32, Mutability::Const);
+        let result = GlobalType::create(WasmValueType::F32, Mutability::Const);
         assert!(result.is_ok());
         let ty = result.unwrap();
         let result = Global::create(&ty, WasmValue::from_f32(3.5));
@@ -959,7 +959,7 @@ mod tests {
             let mut import = result.unwrap();
 
             // add host function
-            let result = FuncType::create(vec![ValType::I32; 2], vec![ValType::I32]);
+            let result = FuncType::create(vec![WasmValueType::I32; 2], vec![WasmValueType::I32]);
             assert!(result.is_ok());
             let func_ty = result.unwrap();
             let result = Function::create(&func_ty, Box::new(real_add), 0);
@@ -1041,12 +1041,12 @@ mod tests {
         let ty = result.unwrap();
 
         // check the parameter types
-        let param_types = ty.params_type_iter().collect::<Vec<ValType>>();
-        assert_eq!(param_types, [ValType::I32]);
+        let param_types = ty.params_type_iter().collect::<Vec<WasmValueType>>();
+        assert_eq!(param_types, [WasmValueType::I32]);
 
         // check the return types
-        let return_types = ty.returns_type_iter().collect::<Vec<ValType>>();
-        assert_eq!(return_types, [ValType::I32]);
+        let return_types = ty.returns_type_iter().collect::<Vec<WasmValueType>>();
+        assert_eq!(return_types, [WasmValueType::I32]);
     }
 
     #[test]
@@ -1099,12 +1099,12 @@ mod tests {
         let ty = result.unwrap();
 
         // check the parameter types
-        let param_types = ty.params_type_iter().collect::<Vec<ValType>>();
-        assert_eq!(param_types, [ValType::I32]);
+        let param_types = ty.params_type_iter().collect::<Vec<WasmValueType>>();
+        assert_eq!(param_types, [WasmValueType::I32]);
 
         // check the return types
-        let return_types = ty.returns_type_iter().collect::<Vec<ValType>>();
-        assert_eq!(return_types, [ValType::I32]);
+        let return_types = ty.returns_type_iter().collect::<Vec<WasmValueType>>();
+        assert_eq!(return_types, [WasmValueType::I32]);
     }
 
     fn real_add(inputs: Vec<WasmValue>) -> Result<Vec<WasmValue>, u8> {
@@ -1112,13 +1112,13 @@ mod tests {
             return Err(1);
         }
 
-        let a = if inputs[0].ty() == ValType::I32 {
+        let a = if inputs[0].ty() == WasmValueType::I32 {
             inputs[0].to_i32()
         } else {
             return Err(2);
         };
 
-        let b = if inputs[1].ty() == ValType::I32 {
+        let b = if inputs[1].ty() == WasmValueType::I32 {
             inputs[1].to_i32()
         } else {
             return Err(3);

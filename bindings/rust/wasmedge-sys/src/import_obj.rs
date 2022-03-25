@@ -295,7 +295,7 @@ mod tests {
     use super::*;
     use crate::{
         Config, Executor, FuncType, GlobalType, MemType, Mutability, RefType, Statistics, Store,
-        TableType, ValType, Vm, WasmValue,
+        TableType, Vm, WasmValue, WasmValueType,
     };
     use std::{
         sync::{Arc, Mutex},
@@ -312,7 +312,10 @@ mod tests {
         let mut import_obj = result.unwrap();
 
         // add host function "func-add": (externref, i32) -> (i32)
-        let result = FuncType::create([ValType::ExternRef, ValType::I32], [ValType::I32]);
+        let result = FuncType::create(
+            [WasmValueType::ExternRef, WasmValueType::I32],
+            [WasmValueType::I32],
+        );
         assert!(result.is_ok());
         let func_ty = result.unwrap();
         let result = Function::create(&func_ty, Box::new(real_add), 0);
@@ -342,7 +345,7 @@ mod tests {
         import_obj.add_memory("memory", host_memory);
 
         // create a Global instance
-        let result = GlobalType::create(ValType::I32, Mutability::Const);
+        let result = GlobalType::create(WasmValueType::I32, Mutability::Const);
         assert!(result.is_ok());
         let global_ty = result.unwrap();
         let result = Global::create(&global_ty, WasmValue::from_i32(666));
@@ -535,7 +538,7 @@ mod tests {
         let mut import = result.unwrap();
 
         // add host function
-        let result = FuncType::create(vec![ValType::I32; 2], vec![ValType::I32]);
+        let result = FuncType::create(vec![WasmValueType::I32; 2], vec![WasmValueType::I32]);
         assert!(result.is_ok());
         let func_ty = result.unwrap();
         let result = Function::create(&func_ty, Box::new(real_add), 0);
@@ -564,7 +567,7 @@ mod tests {
         import.add_memory("memory", memory);
 
         // add globals
-        let result = GlobalType::create(ValType::F32, Mutability::Const);
+        let result = GlobalType::create(WasmValueType::F32, Mutability::Const);
         assert!(result.is_ok());
         let ty = result.unwrap();
         let result = Global::create(&ty, WasmValue::from_f32(3.5));
@@ -638,13 +641,13 @@ mod tests {
             return Err(1);
         }
 
-        let a = if inputs[0].ty() == ValType::I32 {
+        let a = if inputs[0].ty() == WasmValueType::I32 {
             inputs[0].to_i32()
         } else {
             return Err(2);
         };
 
-        let b = if inputs[1].ty() == ValType::I32 {
+        let b = if inputs[1].ty() == WasmValueType::I32 {
             inputs[1].to_i32()
         } else {
             return Err(3);

@@ -370,7 +370,7 @@ unsafe impl Sync for InnerExport {}
 mod tests {
     use crate::{
         error::{ExportError, ImportError, WasmEdgeError},
-        Config, ExternalType, Loader, Mutability, RefType, ValType,
+        Config, ExternalType, Loader, Mutability, RefType, WasmValueType,
     };
     use std::{
         sync::{Arc, Mutex},
@@ -518,7 +518,7 @@ mod tests {
         let result = imports[7].global_type();
         assert!(result.is_ok());
         let global_ty = result.unwrap();
-        assert_eq!(global_ty.value_type(), ValType::I64);
+        assert_eq!(global_ty.value_type(), WasmValueType::I64);
         assert_eq!(global_ty.mutability(), Mutability::Const);
     }
 
@@ -658,7 +658,7 @@ mod tests {
         let result = exports[15].global_type();
         assert!(result.is_ok());
         let global_ty = result.unwrap();
-        assert_eq!(global_ty.value_type(), ValType::F32);
+        assert_eq!(global_ty.value_type(), WasmValueType::F32);
         assert_eq!(global_ty.mutability(), Mutability::Const);
     }
 
@@ -799,7 +799,7 @@ mod tests {
             let result = exports[15].global_type();
             assert!(result.is_ok());
             let global_ty = result.unwrap();
-            assert_eq!(global_ty.value_type(), ValType::F32);
+            assert_eq!(global_ty.value_type(), WasmValueType::F32);
             assert_eq!(global_ty.mutability(), Mutability::Const);
         });
 
@@ -947,7 +947,7 @@ mod tests {
             let result = exports[15].global_type();
             assert!(result.is_ok());
             let global_ty = result.unwrap();
-            assert_eq!(global_ty.value_type(), ValType::F32);
+            assert_eq!(global_ty.value_type(), WasmValueType::F32);
             assert_eq!(global_ty.mutability(), Mutability::Const);
         });
 

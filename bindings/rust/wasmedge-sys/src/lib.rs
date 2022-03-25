@@ -78,8 +78,8 @@ pub use statistics::Statistics;
 pub use store::Store;
 #[doc(inline)]
 pub use types::{
-    CompilerOptimizationLevel, CompilerOutputFormat, ExternalType, Mutability, RefType, ValType,
-    WasmValue,
+    CompilerOptimizationLevel, CompilerOutputFormat, ExternalType, Mutability, RefType, WasmValue,
+    WasmValueType,
 };
 #[doc(inline)]
 pub use validator::Validator;

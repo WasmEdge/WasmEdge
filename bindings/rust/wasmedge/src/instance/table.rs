@@ -1,4 +1,8 @@
-use crate::{error::Result, sys, types::Val, RefType};
+use crate::{
+    error::Result,
+    sys,
+    types::{RefType, Val},
+};
 
 #[derive(Debug)]
 pub struct Table<'instance> {
@@ -32,9 +36,9 @@ impl<'instance> Table<'instance> {
         let ty = self.inner.ty()?;
         let limit = ty.limit();
         Ok(TableType {
-            elem_ty: ty.elem_ty(),
+            elem_ty: ty.elem_ty().into(),
             min: limit.start().to_owned(),
-            max: Some(limit.end().to_owned()),
+            max: limit.end().to_owned(),
         })
     }
 
@@ -66,10 +70,14 @@ impl<'instance> Table<'instance> {
 pub struct TableType {
     elem_ty: RefType,
     min: u32,
-    max: Option<u32>,
+    max: u32,
 }
 impl TableType {
     pub fn new(elem_ty: RefType, min: u32, max: Option<u32>) -> Self {
+        let max = match max {
+            Some(val) => val,
+            None => u32::MAX,
+        };
         Self { elem_ty, min, max }
     }
 
@@ -81,28 +89,25 @@ impl TableType {
         self.min
     }
 
-    pub fn maximum(&self) -> Option<u32> {
+    pub fn maximum(&self) -> u32 {
         self.max
-    }
-
-    pub fn to_raw(self) -> Result<sys::TableType> {
-        let min = self.minimum();
-        let max = match self.maximum() {
-            Some(max) => max,
-            None => u32::MAX,
-        };
-        let raw = sys::TableType::create(self.elem_ty(), min..=max)?;
-        Ok(raw)
     }
 }
 impl From<sys::TableType> for TableType {
     fn from(ty: sys::TableType) -> Self {
         let limit = ty.limit();
         Self {
-            elem_ty: ty.elem_ty(),
+            elem_ty: ty.elem_ty().into(),
             min: limit.start().to_owned(),
-            max: Some(limit.end().to_owned()),
+            max: limit.end().to_owned(),
         }
+    }
+}
+impl From<TableType> for sys::TableType {
+    fn from(ty: TableType) -> Self {
+        sys::TableType::create(ty.elem_ty().into(), ty.min..=ty.max).expect(
+            "[wasmedge] Failed to convert wasmedge::TableType into wasmedge_sys::TableType.",
+        )
     }
 }
 
@@ -112,8 +117,8 @@ mod tests {
     use crate::{
         config::{CommonConfigOptions, ConfigBuilder},
         types::{FuncRef, Val},
-        Executor, ImportModuleBuilder, RefType, SignatureBuilder, Statistics, Store, ValType,
-        WasmValue,
+        Executor, ImportModuleBuilder, SignatureBuilder, Statistics, Store, WasmValue,
+        WasmValueType,
     };
 
     #[test]
@@ -126,7 +131,7 @@ mod tests {
         // check minimum
         assert_eq!(ty.minimum(), 10);
         // check maximum
-        assert_eq!(ty.maximum(), Some(20));
+        assert_eq!(ty.maximum(), 20);
     }
 
     #[test]
@@ -136,8 +141,8 @@ mod tests {
             .with_func(
                 "add",
                 SignatureBuilder::new()
-                    .with_args(vec![ValType::I32; 2])
-                    .with_returns(vec![ValType::I32])
+                    .with_args(vec![WasmValueType::I32; 2])
+                    .with_returns(vec![WasmValueType::I32])
                     .build(),
                 Box::new(real_add),
             )
@@ -198,7 +203,7 @@ mod tests {
         let ty = result.unwrap();
         assert_eq!(ty.elem_ty(), RefType::FuncRef);
         assert_eq!(ty.minimum(), 10);
-        assert_eq!(ty.maximum(), Some(20));
+        assert_eq!(ty.maximum(), 20);
 
         // get value from table[0]
         let result = table.get(0);
@@ -227,9 +232,9 @@ mod tests {
             assert!(result.is_ok());
             let signature = result.unwrap();
             assert!(signature.args().is_some());
-            assert_eq!(signature.args().unwrap(), [ValType::I32; 2]);
+            assert_eq!(signature.args().unwrap(), [WasmValueType::I32; 2]);
             assert!(signature.returns().is_some());
-            assert_eq!(signature.returns().unwrap(), [ValType::I32]);
+            assert_eq!(signature.returns().unwrap(), [WasmValueType::I32]);
         } else {
             assert!(false);
         }
@@ -256,9 +261,9 @@ mod tests {
             assert!(result.is_ok());
             let signature = result.unwrap();
             assert!(signature.args().is_some());
-            assert_eq!(signature.args().unwrap(), [ValType::I32; 2]);
+            assert_eq!(signature.args().unwrap(), [WasmValueType::I32; 2]);
             assert!(signature.returns().is_some());
-            assert_eq!(signature.returns().unwrap(), [ValType::I32]);
+            assert_eq!(signature.returns().unwrap(), [WasmValueType::I32]);
         } else {
             assert!(false);
         }
@@ -269,13 +274,13 @@ mod tests {
             return Err(1);
         }
 
-        let a = if inputs[0].ty() == ValType::I32 {
+        let a = if inputs[0].ty() == WasmValueType::I32 {
             inputs[0].to_i32()
         } else {
             return Err(2);
         };
 
-        let b = if inputs[1].ty() == ValType::I32 {
+        let b = if inputs[1].ty() == WasmValueType::I32 {
             inputs[1].to_i32()
         } else {
             return Err(3);

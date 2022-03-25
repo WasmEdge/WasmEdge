@@ -80,11 +80,6 @@ impl MemoryType {
     pub fn maximum(&self) -> u32 {
         self.max
     }
-
-    pub fn to_raw(self) -> Result<sys::MemType> {
-        let raw = sys::MemType::create(self.min..=self.max)?;
-        Ok(raw)
-    }
 }
 impl From<sys::MemType> for MemoryType {
     fn from(ty: sys::MemType) -> Self {
@@ -93,6 +88,12 @@ impl From<sys::MemType> for MemoryType {
             min: limit.start().to_owned(),
             max: limit.end().to_owned(),
         }
+    }
+}
+impl From<MemoryType> for sys::MemType {
+    fn from(ty: MemoryType) -> Self {
+        sys::MemType::create(ty.min..=ty.max)
+            .expect("[wasmedge] Failed to convert wasmedge::MemoryType into wasmedge_sys::MemType.")
     }
 }
 

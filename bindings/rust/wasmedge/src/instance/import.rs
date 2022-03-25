@@ -23,7 +23,7 @@ impl ImportModuleBuilder {
         mut self,
         name: impl AsRef<str>,
         sig: Signature,
-        real_func: Box<HostFunc>,
+        real_func: HostFunc,
     ) -> Result<Self> {
         let inner_func = sys::Function::create(&sig.into(), real_func, 0)?;
         self.funcs.push((name.as_ref().to_owned(), inner_func));

@@ -199,7 +199,6 @@ mod tests {
             let func_name = host_func.name();
             assert!(func_name.is_some());
             assert_eq!(func_name.unwrap(), "add");
-            assert!(host_func.registered());
             assert_eq!(host_func.mod_name().unwrap(), "extern-module");
             assert_eq!(
                 host_func.signature().unwrap(),
@@ -265,7 +264,6 @@ mod tests {
             let func_name = host_func.name();
             assert!(func_name.is_some());
             assert_eq!(func_name.unwrap(), "fib");
-            assert!(host_func.registered());
             assert_eq!(host_func.mod_name().unwrap(), "fib-module");
             assert_eq!(
                 host_func.signature().unwrap(),

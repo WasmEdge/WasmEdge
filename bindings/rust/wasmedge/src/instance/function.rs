@@ -1,5 +1,5 @@
 //! Defines Func, SignatureBuilder, and Signature structs.
-use crate::{error::Result, sys, Instance, ValType};
+use crate::{error::Result, sys, Instance, WasmValueType};
 
 /// Struct of WasmEdge Func.
 ///
@@ -10,7 +10,7 @@ use crate::{error::Result, sys, Instance, ValType};
 /// The following example shows how to create a host function, access it by its name and its type info.
 ///
 /// ```rust
-/// use wasmedge::{ImportModuleBuilder, config::{ConfigBuilder, CommonConfigOptions}, Statistics, Executor, Store, WasmValue, ValType, SignatureBuilder};
+/// use wasmedge::{ImportModuleBuilder, config::{ConfigBuilder, CommonConfigOptions}, Statistics, Executor, Store, WasmValue, WasmValueType, SignatureBuilder};
 ///
 /// // a function to be exported as host function
 /// fn real_add(inputs: Vec<WasmValue>) -> std::result::Result<Vec<WasmValue>, u8> {
@@ -18,13 +18,13 @@ use crate::{error::Result, sys, Instance, ValType};
 ///         return Err(1);
 ///     }
 ///
-///     let a = if inputs[0].ty() == ValType::I32 {
+///     let a = if inputs[0].ty() == WasmValueType::I32 {
 ///         inputs[0].to_i32()
 ///     } else {
 ///         return Err(2);
 ///     };
 ///
-///     let b = if inputs[1].ty() == ValType::I32 {
+///     let b = if inputs[1].ty() == WasmValueType::I32 {
 ///         inputs[1].to_i32()
 ///     } else {
 ///         return Err(3);
@@ -40,8 +40,8 @@ use crate::{error::Result, sys, Instance, ValType};
 /// .with_func(
 ///     "add",
 ///     SignatureBuilder::new()
-///         .with_args(vec![ValType::I32; 2])
-///         .with_returns(vec![ValType::I32])
+///         .with_args(vec![WasmValueType::I32; 2])
+///         .with_returns(vec![WasmValueType::I32])
 ///         .build(),
 ///     Box::new(real_add),
 /// )
@@ -87,9 +87,9 @@ use crate::{error::Result, sys, Instance, ValType};
 /// assert!(result.is_ok());
 /// let signature = result.unwrap();
 /// assert!(signature.args().is_some());
-/// assert_eq!(signature.args().unwrap(), [ValType::I32; 2]);
+/// assert_eq!(signature.args().unwrap(), [WasmValueType::I32; 2]);
 /// assert!(signature.returns().is_some());
-/// assert_eq!(signature.returns().unwrap(), [ValType::I32]);
+/// assert_eq!(signature.returns().unwrap(), [WasmValueType::I32]);
 ///
 /// ```
 #[derive(Debug)]
@@ -122,8 +122,8 @@ impl<'instance> Func<'instance> {
 /// [SignatureBuilder] is used to build a [Signature].
 #[derive(Debug, Default)]
 pub struct SignatureBuilder {
-    args: Option<Vec<ValType>>,
-    returns: Option<Vec<ValType>>,
+    args: Option<Vec<WasmValueType>>,
+    returns: Option<Vec<WasmValueType>>,
 }
 impl SignatureBuilder {
     /// Creates a new [SignatureBuilder].
@@ -139,7 +139,7 @@ impl SignatureBuilder {
     /// # Argument
     ///
     /// `args` specifies the arguments to be added to the signature.
-    pub fn with_args(self, args: impl IntoIterator<Item = ValType>) -> Self {
+    pub fn with_args(self, args: impl IntoIterator<Item = WasmValueType>) -> Self {
         Self {
             args: Some(args.into_iter().collect::<Vec<_>>()),
             returns: self.returns,
@@ -151,7 +151,7 @@ impl SignatureBuilder {
     /// # Argument
     ///
     /// `arg` specifies the argument to be added to the signature.
-    pub fn with_arg(self, arg: ValType) -> Self {
+    pub fn with_arg(self, arg: WasmValueType) -> Self {
         self.with_args(std::iter::once(arg))
     }
 
@@ -160,7 +160,7 @@ impl SignatureBuilder {
     /// # Argument
     ///
     /// `returns` specifies the returns to be added to the signature.
-    pub fn with_returns(self, returns: impl IntoIterator<Item = ValType>) -> Self {
+    pub fn with_returns(self, returns: impl IntoIterator<Item = WasmValueType>) -> Self {
         Self {
             args: self.args,
             returns: Some(returns.into_iter().collect::<Vec<_>>()),
@@ -172,7 +172,7 @@ impl SignatureBuilder {
     /// # Argument
     ///
     /// `return` specifies the return to be added to the signature.
-    pub fn with_return(self, ret: ValType) -> Self {
+    pub fn with_return(self, ret: WasmValueType) -> Self {
         self.with_returns(std::iter::once(ret))
     }
 
@@ -194,22 +194,22 @@ impl SignatureBuilder {
 /// The following example shows how to create the signature of a host function, which has two arguments of `ValType::I32` type and a single return of `ValType::I32` type.
 ///
 /// ```rust
-/// use wasmedge::{SignatureBuilder, Signature, ValType};
+/// use wasmedge::{SignatureBuilder, Signature, WasmValueType};
 ///
 /// let _: Signature = SignatureBuilder::new()
-///         .with_args(vec![ValType::I32; 2])
-///         .with_returns(vec![ValType::I32])
+///         .with_args(vec![WasmValueType::I32; 2])
+///         .with_returns(vec![WasmValueType::I32])
 ///         .build();
 /// ```
 ///
 #[derive(Debug, PartialEq)]
 pub struct Signature {
-    args: Option<Vec<ValType>>,
-    returns: Option<Vec<ValType>>,
+    args: Option<Vec<WasmValueType>>,
+    returns: Option<Vec<WasmValueType>>,
 }
 impl Signature {
     /// Returns the types of the arguments of a host function.
-    pub fn args(&self) -> Option<&[ValType]> {
+    pub fn args(&self) -> Option<&[WasmValueType]> {
         match &self.args {
             Some(args) => Some(args.as_ref()),
             None => None,
@@ -217,7 +217,7 @@ impl Signature {
     }
 
     /// Returns the types of the returns of a host function.
-    pub fn returns(&self) -> Option<&[ValType]> {
+    pub fn returns(&self) -> Option<&[WasmValueType]> {
         match &self.returns {
             Some(returns) => Some(returns.as_ref()),
             None => None,
@@ -261,7 +261,7 @@ mod tests {
     use crate::{
         config::{CommonConfigOptions, ConfigBuilder},
         sys::WasmValue,
-        Executor, ImportModuleBuilder, Statistics, Store, ValType,
+        Executor, ImportModuleBuilder, Statistics, Store, WasmValueType,
     };
 
     #[test]
@@ -270,15 +270,19 @@ mod tests {
         {
             let sig = SignatureBuilder::new()
                 .with_args(vec![
-                    ValType::I32,
-                    ValType::I64,
-                    ValType::F32,
-                    ValType::F64,
-                    ValType::V128,
-                    ValType::FuncRef,
-                    ValType::ExternRef,
+                    WasmValueType::I32,
+                    WasmValueType::I64,
+                    WasmValueType::F32,
+                    WasmValueType::F64,
+                    WasmValueType::V128,
+                    WasmValueType::FuncRef,
+                    WasmValueType::ExternRef,
                 ])
-                .with_returns(vec![ValType::FuncRef, ValType::ExternRef, ValType::V128])
+                .with_returns(vec![
+                    WasmValueType::FuncRef,
+                    WasmValueType::ExternRef,
+                    WasmValueType::V128,
+                ])
                 .build();
 
             // check the arguments
@@ -288,13 +292,13 @@ mod tests {
             assert_eq!(
                 args,
                 &[
-                    ValType::I32,
-                    ValType::I64,
-                    ValType::F32,
-                    ValType::F64,
-                    ValType::V128,
-                    ValType::FuncRef,
-                    ValType::ExternRef,
+                    WasmValueType::I32,
+                    WasmValueType::I64,
+                    WasmValueType::F32,
+                    WasmValueType::F64,
+                    WasmValueType::V128,
+                    WasmValueType::FuncRef,
+                    WasmValueType::ExternRef,
                 ]
             );
 
@@ -304,7 +308,11 @@ mod tests {
             let returns = result.unwrap();
             assert_eq!(
                 returns,
-                &[ValType::FuncRef, ValType::ExternRef, ValType::V128]
+                &[
+                    WasmValueType::FuncRef,
+                    WasmValueType::ExternRef,
+                    WasmValueType::V128
+                ]
             );
         }
 
@@ -323,8 +331,8 @@ mod tests {
             .with_func(
                 "add",
                 SignatureBuilder::new()
-                    .with_args(vec![ValType::I32; 2])
-                    .with_returns(vec![ValType::I32])
+                    .with_args(vec![WasmValueType::I32; 2])
+                    .with_returns(vec![WasmValueType::I32])
                     .build(),
                 Box::new(real_add),
             )
@@ -369,9 +377,9 @@ mod tests {
         assert!(result.is_ok());
         let signature = result.unwrap();
         assert!(signature.args().is_some());
-        assert_eq!(signature.args().unwrap(), [ValType::I32; 2]);
+        assert_eq!(signature.args().unwrap(), [WasmValueType::I32; 2]);
         assert!(signature.returns().is_some());
-        assert_eq!(signature.returns().unwrap(), [ValType::I32]);
+        assert_eq!(signature.returns().unwrap(), [WasmValueType::I32]);
 
         let result = executor.run_func(
             &mut store,
@@ -390,13 +398,13 @@ mod tests {
             return Err(1);
         }
 
-        let a = if inputs[0].ty() == ValType::I32 {
+        let a = if inputs[0].ty() == WasmValueType::I32 {
             inputs[0].to_i32()
         } else {
             return Err(2);
         };
 
-        let b = if inputs[1].ty() == ValType::I32 {
+        let b = if inputs[1].ty() == WasmValueType::I32 {
             inputs[1].to_i32()
         } else {
             return Err(3);

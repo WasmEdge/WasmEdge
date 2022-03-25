@@ -1,6 +1,11 @@
 //! Defines Global and GlobalType.
 
-use crate::{error::Result, sys, types::Val, Mutability, ValType};
+use crate::{
+    error::Result,
+    sys,
+    types::{Val, ValType},
+    Mutability,
+};
 
 /// Struct of WasmEdge Global.
 #[derive(Debug)]
@@ -32,7 +37,7 @@ impl<'instance> Global<'instance> {
     pub fn ty(&self) -> Result<GlobalType> {
         let gt = self.inner.ty()?;
         Ok(GlobalType {
-            ty: gt.value_type(),
+            ty: gt.value_type().into(),
             mutability: gt.mutability(),
         })
     }
@@ -65,18 +70,20 @@ impl GlobalType {
     pub fn mutability(&self) -> Mutability {
         self.mutability
     }
-
-    pub fn to_raw(self) -> Result<sys::GlobalType> {
-        let raw = sys::GlobalType::create(self.value_ty(), self.mutability())?;
-        Ok(raw)
-    }
 }
 impl From<sys::GlobalType> for GlobalType {
     fn from(ty: sys::GlobalType) -> Self {
         Self {
-            ty: ty.value_type(),
+            ty: ty.value_type().into(),
             mutability: ty.mutability(),
         }
+    }
+}
+impl From<GlobalType> for sys::GlobalType {
+    fn from(ty: GlobalType) -> Self {
+        Self::create(ty.value_ty().into(), ty.mutability()).expect(
+            "[wasmedge] Failed to convert wasmedge::GlobalType into wasmedge_sys::GlobalType.",
+        )
     }
 }
 
@@ -86,7 +93,7 @@ mod tests {
     use crate::{
         config::{CommonConfigOptions, ConfigBuilder},
         error::WasmEdgeError,
-        sys, Executor, ImportModuleBuilder, Mutability, Statistics, Store, ValType,
+        sys, Executor, ImportModuleBuilder, Mutability, Statistics, Store,
     };
 
     #[test]

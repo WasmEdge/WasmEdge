@@ -101,10 +101,10 @@ impl<'store> Instance<'store> {
 mod tests {
     use crate::{
         config::{CommonConfigOptions, ConfigBuilder},
-        sys::{Mutability, RefType},
-        types::Val,
+        sys::Mutability,
+        types::{RefType, Val, ValType},
         Executor, GlobalType, ImportModuleBuilder, MemoryType, Module, SignatureBuilder,
-        Statistics, Store, TableType, ValType, WasmValue,
+        Statistics, Store, TableType, WasmValue, WasmValueType,
     };
 
     #[test]
@@ -136,8 +136,8 @@ mod tests {
             .with_func(
                 "add",
                 SignatureBuilder::new()
-                    .with_args(vec![ValType::I32; 2])
-                    .with_returns(vec![ValType::I32])
+                    .with_args(vec![WasmValueType::I32; 2])
+                    .with_returns(vec![WasmValueType::I32])
                     .build(),
                 Box::new(real_add),
             )
@@ -203,8 +203,8 @@ mod tests {
             assert_eq!(
                 host_func.signature().unwrap(),
                 SignatureBuilder::new()
-                    .with_args(vec![ValType::I32; 2])
-                    .with_returns(vec![ValType::I32])
+                    .with_args(vec![WasmValueType::I32; 2])
+                    .with_returns(vec![WasmValueType::I32])
                     .build()
             );
 
@@ -268,8 +268,8 @@ mod tests {
             assert_eq!(
                 host_func.signature().unwrap(),
                 SignatureBuilder::new()
-                    .with_args(vec![ValType::I32])
-                    .with_returns(vec![ValType::I32])
+                    .with_args(vec![WasmValueType::I32])
+                    .with_returns(vec![WasmValueType::I32])
                     .build()
             );
         }
@@ -280,13 +280,13 @@ mod tests {
             return Err(1);
         }
 
-        let a = if inputs[0].ty() == ValType::I32 {
+        let a = if inputs[0].ty() == WasmValueType::I32 {
             inputs[0].to_i32()
         } else {
             return Err(2);
         };
 
-        let b = if inputs[1].ty() == ValType::I32 {
+        let b = if inputs[1].ty() == WasmValueType::I32 {
             inputs[1].to_i32()
         } else {
             return Err(3);

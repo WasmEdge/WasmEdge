@@ -270,8 +270,8 @@ unsafe impl Sync for InnerExecutor {}
 mod tests {
     use super::*;
     use crate::{
-        Config, FuncType, Function, Global, GlobalType, MemType, Memory, Mutability, RefType,
-        Statistics, Table, TableType, WasmValueType,
+        Config, FuncType, Function, Global, GlobalType, MemType, Memory, Mutability, Statistics,
+        Table, TableType, WasmRefType, WasmValueType,
     };
     use std::{
         sync::{Arc, Mutex},
@@ -361,7 +361,7 @@ mod tests {
         import_obj.add_func("func-add", host_func);
 
         // create a Table instance
-        let result = TableType::create(RefType::FuncRef, 10..=20);
+        let result = TableType::create(WasmRefType::FuncRef, 10..=20);
         assert!(result.is_ok());
         let table_ty = result.unwrap();
         let result = Table::create(&table_ty);

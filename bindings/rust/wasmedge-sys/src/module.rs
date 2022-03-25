@@ -370,7 +370,7 @@ unsafe impl Sync for InnerExport {}
 mod tests {
     use crate::{
         error::{ExportError, ImportError, WasmEdgeError},
-        Config, ExternalType, Loader, Mutability, RefType, WasmValueType,
+        Config, ExternalType, Loader, Mutability, WasmRefType, WasmValueType,
     };
     use std::{
         sync::{Arc, Mutex},
@@ -487,7 +487,7 @@ mod tests {
         let result = imports[11].table_type();
         assert!(result.is_ok());
         let table_ty = result.unwrap();
-        assert_eq!(table_ty.elem_ty(), RefType::ExternRef);
+        assert_eq!(table_ty.elem_ty(), WasmRefType::ExternRef);
         assert_eq!(table_ty.limit(), 10..=30);
 
         // check the memory_type function
@@ -627,7 +627,7 @@ mod tests {
         let result = exports[12].table_type();
         assert!(result.is_ok());
         let table_ty = result.unwrap();
-        assert_eq!(table_ty.elem_ty(), RefType::ExternRef);
+        assert_eq!(table_ty.elem_ty(), WasmRefType::ExternRef);
         assert_eq!(table_ty.limit(), 10..=10);
 
         // check the memory_type function
@@ -768,7 +768,7 @@ mod tests {
             let result = exports[12].table_type();
             assert!(result.is_ok());
             let table_ty = result.unwrap();
-            assert_eq!(table_ty.elem_ty(), RefType::ExternRef);
+            assert_eq!(table_ty.elem_ty(), WasmRefType::ExternRef);
             assert_eq!(table_ty.limit(), 10..=10);
 
             // check the memory_type function
@@ -916,7 +916,7 @@ mod tests {
             let result = exports[12].table_type();
             assert!(result.is_ok());
             let table_ty = result.unwrap();
-            assert_eq!(table_ty.elem_ty(), RefType::ExternRef);
+            assert_eq!(table_ty.elem_ty(), WasmRefType::ExternRef);
             assert_eq!(table_ty.limit(), 10..=10);
 
             // check the memory_type function

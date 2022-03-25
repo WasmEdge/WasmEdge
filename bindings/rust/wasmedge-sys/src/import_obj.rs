@@ -294,8 +294,8 @@ unsafe impl Sync for InnerImportObject {}
 mod tests {
     use super::*;
     use crate::{
-        Config, Executor, FuncType, GlobalType, MemType, Mutability, RefType, Statistics, Store,
-        TableType, Vm, WasmValue, WasmValueType,
+        Config, Executor, FuncType, GlobalType, MemType, Mutability, Statistics, Store, TableType,
+        Vm, WasmRefType, WasmValue, WasmValueType,
     };
     use std::{
         sync::{Arc, Mutex},
@@ -325,7 +325,7 @@ mod tests {
         import_obj.add_func("func-add", host_func);
 
         // create a Table instance
-        let result = TableType::create(RefType::FuncRef, 10..=20);
+        let result = TableType::create(WasmRefType::FuncRef, 10..=20);
         assert!(result.is_ok());
         let table_ty = result.unwrap();
         let result = Table::create(&table_ty);
@@ -547,7 +547,7 @@ mod tests {
         import.add_func("add", host_func);
 
         // add table
-        let result = TableType::create(RefType::FuncRef, 0..=u32::MAX);
+        let result = TableType::create(WasmRefType::FuncRef, 0..=u32::MAX);
         assert!(result.is_ok());
         let ty = result.unwrap();
         let result = Table::create(&ty);

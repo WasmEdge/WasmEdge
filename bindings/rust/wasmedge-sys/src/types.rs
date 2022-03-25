@@ -6,9 +6,9 @@ use std::{ffi::CString, fmt, str::FromStr};
 
 /// Defines reference types.
 ///
-/// `RefType` classifies first-class references to objects in the runtime [store](crate::Store).
+/// `WasmRefType` classifies first-class references to objects in the runtime [store](crate::Store).
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
-pub enum RefType {
+pub enum WasmRefType {
     /// `FuncRef` denotes the infinite union of all references to [functions](crate::Function), regardless of their
     /// [function types](crate::FuncType).
     FuncRef,
@@ -17,20 +17,20 @@ pub enum RefType {
     /// passed into WebAssembly under this type.
     ExternRef,
 }
-impl From<u32> for RefType {
+impl From<u32> for WasmRefType {
     fn from(value: u32) -> Self {
         match value {
-            0x70u32 => RefType::FuncRef,
-            0x6Fu32 => RefType::ExternRef,
+            0x70u32 => WasmRefType::FuncRef,
+            0x6Fu32 => WasmRefType::ExternRef,
             _ => panic!("fail to convert u32 to WasmEdgeRefType: {:#X}", value),
         }
     }
 }
-impl From<RefType> for ffi::WasmEdge_RefType {
-    fn from(ty: RefType) -> Self {
+impl From<WasmRefType> for ffi::WasmEdge_RefType {
+    fn from(ty: WasmRefType) -> Self {
         match ty {
-            RefType::FuncRef => ffi::WasmEdge_RefType_FuncRef,
-            RefType::ExternRef => ffi::WasmEdge_RefType_ExternRef,
+            WasmRefType::FuncRef => ffi::WasmEdge_RefType_FuncRef,
+            WasmRefType::ExternRef => ffi::WasmEdge_RefType_ExternRef,
         }
     }
 }
@@ -436,12 +436,12 @@ impl WasmValue {
     /// # Argument
     ///
     /// - `val` specifies the `[`RefType`] value.
-    pub fn from_null_ref(ref_ty: RefType) -> Self {
+    pub fn from_null_ref(ref_ty: WasmRefType) -> Self {
         Self {
             ctx: unsafe { ffi::WasmEdge_ValueGenNullRef(ref_ty.into()) },
             ty: match ref_ty {
-                RefType::FuncRef => WasmValueType::FuncRef,
-                RefType::ExternRef => WasmValueType::ExternRef,
+                WasmRefType::FuncRef => WasmValueType::FuncRef,
+                WasmRefType::ExternRef => WasmValueType::ExternRef,
             },
         }
     }
@@ -561,7 +561,7 @@ impl From<ffi::WasmEdge_Value> for WasmValue {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{RefType, Table, TableType};
+    use crate::{Table, TableType, WasmRefType};
     use std::{
         sync::{Arc, Mutex},
         thread,
@@ -590,7 +590,7 @@ mod tests {
         assert_eq!(val.ty(), WasmValueType::V128);
 
         // ExternRef
-        let result = TableType::create(RefType::FuncRef, 10..=20);
+        let result = TableType::create(WasmRefType::FuncRef, 10..=20);
         assert!(result.is_ok());
         let ty = result.unwrap();
         let result = Table::create(&ty);
@@ -601,13 +601,13 @@ mod tests {
         assert!(value.extern_ref::<Table>().is_some());
 
         // NullRef(FuncRef)
-        let val = WasmValue::from_null_ref(RefType::FuncRef);
+        let val = WasmValue::from_null_ref(WasmRefType::FuncRef);
         assert_eq!(val.ty(), WasmValueType::FuncRef);
         assert!(val.is_null_ref());
         assert_eq!(val.ty(), WasmValueType::FuncRef);
 
         // NullRef(ExternRef)
-        let val = WasmValue::from_null_ref(RefType::ExternRef);
+        let val = WasmValue::from_null_ref(WasmRefType::ExternRef);
         assert_eq!(val.ty(), WasmValueType::ExternRef);
         assert!(val.is_null_ref());
         assert_eq!(val.ty(), WasmValueType::ExternRef);
@@ -631,7 +631,7 @@ mod tests {
         let val_v128 = WasmValue::from_v128(1314);
 
         // ExternRef
-        let result = TableType::create(RefType::FuncRef, 10..=20);
+        let result = TableType::create(WasmRefType::FuncRef, 10..=20);
         assert!(result.is_ok());
         let ty = result.unwrap();
         let result = Table::create(&ty);
@@ -640,10 +640,10 @@ mod tests {
         let val_extern_ref = WasmValue::from_extern_ref(&mut table);
 
         // NullRef(FuncRef)
-        let val_null_func_ref = WasmValue::from_null_ref(RefType::FuncRef);
+        let val_null_func_ref = WasmValue::from_null_ref(WasmRefType::FuncRef);
 
         // NullRef(ExternRef)
-        let val_null_extern_ref = WasmValue::from_null_ref(RefType::ExternRef);
+        let val_null_extern_ref = WasmValue::from_null_ref(WasmRefType::ExternRef);
 
         let handle = thread::spawn(move || {
             let val_i32_c = val_i32;
@@ -702,7 +702,7 @@ mod tests {
         let val_v128_cloned = Arc::clone(&val_v128);
 
         // ExternRef
-        let result = TableType::create(RefType::FuncRef, 10..=20);
+        let result = TableType::create(WasmRefType::FuncRef, 10..=20);
         assert!(result.is_ok());
         let ty = result.unwrap();
         let result = Table::create(&ty);
@@ -712,12 +712,13 @@ mod tests {
         let val_extern_ref_cloned = Arc::clone(&val_extern_ref);
 
         // NullRef(FuncRef)
-        let val_null_func_ref = Arc::new(Mutex::new(WasmValue::from_null_ref(RefType::FuncRef)));
+        let val_null_func_ref =
+            Arc::new(Mutex::new(WasmValue::from_null_ref(WasmRefType::FuncRef)));
         let val_null_func_ref_cloned = Arc::clone(&val_null_func_ref);
 
         // NullRef(ExternRef)
         let val_null_extern_ref =
-            Arc::new(Mutex::new(WasmValue::from_null_ref(RefType::ExternRef)));
+            Arc::new(Mutex::new(WasmValue::from_null_ref(WasmRefType::ExternRef)));
         let val_null_extern_ref_cloned = Arc::clone(&val_null_extern_ref);
 
         let handle = thread::spawn(move || {

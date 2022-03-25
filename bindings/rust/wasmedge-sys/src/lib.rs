@@ -89,6 +89,7 @@ pub use vm::Vm;
 /// The WasmEdge result type.
 pub type WasmEdgeResult<T> = Result<T, error::WasmEdgeError>;
 
+/// Type alias for a host function.
 pub type HostFunc = Box<dyn Fn(Vec<WasmValue>) -> Result<Vec<WasmValue>, u8> + Send + Sync>;
 
 lazy_static! {

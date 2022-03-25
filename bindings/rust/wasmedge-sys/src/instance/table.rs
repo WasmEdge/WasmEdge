@@ -73,7 +73,7 @@ impl Table {
     ///
     /// # Arguments
     ///
-    /// - `idx` specifies the position in the [Table], at which the [Value](crate::Value) is returned.
+    /// - `idx` specifies the position in the [Table], at which the [WasmValue](crate::WasmValue) is returned.
     ///
     /// # Error
     ///

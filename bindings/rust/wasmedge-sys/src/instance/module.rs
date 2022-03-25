@@ -2,9 +2,10 @@
 
 use crate::{
     error::{InstanceError, WasmEdgeError},
+    ffi,
     instance::{function::InnerFunc, global::InnerGlobal, memory::InnerMemory, table::InnerTable},
     types::WasmEdgeString,
-    wasmedge, Function, Global, Memory, Store, Table, WasmEdgeResult,
+    Function, Global, Memory, Store, Table, WasmEdgeResult,
 };
 
 /// Struct of WasmEdge Instance.
@@ -20,8 +21,7 @@ impl<'store> Instance<'store> {
     ///
     /// If this module [instance](crate::Instance) is an active [instance](crate::Instance), return None.
     pub fn name(&self) -> Option<String> {
-        let name =
-            unsafe { wasmedge::WasmEdge_ModuleInstanceGetModuleName(self.inner.0 as *const _) };
+        let name = unsafe { ffi::WasmEdge_ModuleInstanceGetModuleName(self.inner.0 as *const _) };
 
         let name: String = name.into();
         if name.is_empty() {
@@ -43,7 +43,7 @@ impl<'store> Instance<'store> {
     pub fn find_func(&self, name: impl AsRef<str>) -> WasmEdgeResult<Function> {
         let func_name: WasmEdgeString = name.as_ref().into();
         let func_ctx = unsafe {
-            wasmedge::WasmEdge_ModuleInstanceFindFunction(
+            ffi::WasmEdge_ModuleInstanceFindFunction(
                 self.inner.0,
                 self.store.inner.0,
                 func_name.as_raw(),
@@ -75,7 +75,7 @@ impl<'store> Instance<'store> {
     pub fn find_table(&self, name: impl AsRef<str>) -> WasmEdgeResult<Table> {
         let table_name: WasmEdgeString = name.as_ref().into();
         let ctx = unsafe {
-            wasmedge::WasmEdge_ModuleInstanceFindTable(
+            ffi::WasmEdge_ModuleInstanceFindTable(
                 self.inner.0,
                 self.store.inner.0,
                 table_name.as_raw(),
@@ -105,7 +105,7 @@ impl<'store> Instance<'store> {
     pub fn find_memory(&self, name: impl AsRef<str>) -> WasmEdgeResult<Memory> {
         let mem_name: WasmEdgeString = name.as_ref().into();
         let ctx = unsafe {
-            wasmedge::WasmEdge_ModuleInstanceFindMemory(
+            ffi::WasmEdge_ModuleInstanceFindMemory(
                 self.inner.0,
                 self.store.inner.0,
                 mem_name.as_raw(),
@@ -135,7 +135,7 @@ impl<'store> Instance<'store> {
     pub fn find_global(&self, name: impl AsRef<str>) -> WasmEdgeResult<Global> {
         let global_name: WasmEdgeString = name.as_ref().into();
         let ctx = unsafe {
-            wasmedge::WasmEdge_ModuleInstanceFindGlobal(
+            ffi::WasmEdge_ModuleInstanceFindGlobal(
                 self.inner.0,
                 self.store.inner.0,
                 global_name.as_raw(),
@@ -154,7 +154,7 @@ impl<'store> Instance<'store> {
 
     /// Returns the length of the exported [functions](crate::Function) in this module.
     pub fn func_len(&self) -> u32 {
-        unsafe { wasmedge::WasmEdge_ModuleInstanceListFunctionLength(self.inner.0) }
+        unsafe { ffi::WasmEdge_ModuleInstanceListFunctionLength(self.inner.0) }
     }
 
     /// Returns the names of the exported [functions](crate::Function) in this module.
@@ -164,7 +164,7 @@ impl<'store> Instance<'store> {
             true => {
                 let mut func_names = Vec::with_capacity(len_func_names as usize);
                 unsafe {
-                    wasmedge::WasmEdge_ModuleInstanceListFunction(
+                    ffi::WasmEdge_ModuleInstanceListFunction(
                         self.inner.0,
                         func_names.as_mut_ptr(),
                         len_func_names,
@@ -184,7 +184,7 @@ impl<'store> Instance<'store> {
 
     /// Returns the length of the exported [tables](crate::Table) in this module.
     pub fn table_len(&self) -> u32 {
-        unsafe { wasmedge::WasmEdge_ModuleInstanceListTableLength(self.inner.0) }
+        unsafe { ffi::WasmEdge_ModuleInstanceListTableLength(self.inner.0) }
     }
 
     /// Returns the names of the exported [tables](crate::Table) in this module.
@@ -194,7 +194,7 @@ impl<'store> Instance<'store> {
             true => {
                 let mut table_names = Vec::with_capacity(len_table_names as usize);
                 unsafe {
-                    wasmedge::WasmEdge_ModuleInstanceListTable(
+                    ffi::WasmEdge_ModuleInstanceListTable(
                         self.inner.0,
                         table_names.as_mut_ptr(),
                         len_table_names,
@@ -214,7 +214,7 @@ impl<'store> Instance<'store> {
 
     /// Returns the length of the exported [memories](crate::Memory) in this module.
     pub fn mem_len(&self) -> u32 {
-        unsafe { wasmedge::WasmEdge_ModuleInstanceListMemoryLength(self.inner.0) }
+        unsafe { ffi::WasmEdge_ModuleInstanceListMemoryLength(self.inner.0) }
     }
 
     /// Returns the names of all exported [memories](crate::Memory) in this module.
@@ -224,7 +224,7 @@ impl<'store> Instance<'store> {
             true => {
                 let mut mem_names = Vec::with_capacity(len_mem_names as usize);
                 unsafe {
-                    wasmedge::WasmEdge_ModuleInstanceListMemory(
+                    ffi::WasmEdge_ModuleInstanceListMemory(
                         self.inner.0,
                         mem_names.as_mut_ptr(),
                         len_mem_names,
@@ -244,7 +244,7 @@ impl<'store> Instance<'store> {
 
     /// Returns the length of the exported [globals](crate::Global) in this module.
     pub fn global_len(&self) -> u32 {
-        unsafe { wasmedge::WasmEdge_ModuleInstanceListGlobalLength(self.inner.0) }
+        unsafe { ffi::WasmEdge_ModuleInstanceListGlobalLength(self.inner.0) }
     }
 
     /// Returns the names of the exported [globals](crate::Global) in this module.
@@ -254,7 +254,7 @@ impl<'store> Instance<'store> {
             true => {
                 let mut global_names = Vec::with_capacity(len_global_names as usize);
                 unsafe {
-                    wasmedge::WasmEdge_ModuleInstanceListGlobal(
+                    ffi::WasmEdge_ModuleInstanceListGlobal(
                         self.inner.0,
                         global_names.as_mut_ptr(),
                         len_global_names,
@@ -274,7 +274,7 @@ impl<'store> Instance<'store> {
 }
 
 #[derive(Debug)]
-pub(crate) struct InnerInstance(pub(crate) *const wasmedge::WasmEdge_ModuleInstanceContext);
+pub(crate) struct InnerInstance(pub(crate) *const ffi::WasmEdge_ModuleInstanceContext);
 unsafe impl Send for InnerInstance {}
 unsafe impl Sync for InnerInstance {}
 

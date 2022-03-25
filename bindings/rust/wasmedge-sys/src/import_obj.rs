@@ -2,10 +2,11 @@
 
 use crate::{
     error::WasmEdgeError,
+    ffi,
     instance::{Function, Global, Memory, Table},
     types::WasmEdgeString,
     utils::string_to_c_char,
-    wasmedge, WasmEdgeResult,
+    WasmEdgeResult,
 };
 
 /// Struct of WasmEdge ImportObject.
@@ -28,7 +29,7 @@ impl ImportObject {
     /// If fail to create a host module, then an error is returned.
     pub fn create(name: impl AsRef<str>) -> WasmEdgeResult<Self> {
         let mod_name: WasmEdgeString = name.as_ref().into();
-        let ctx = unsafe { wasmedge::WasmEdge_ImportObjectCreate(mod_name.as_raw()) };
+        let ctx = unsafe { ffi::WasmEdge_ImportObjectCreate(mod_name.as_raw()) };
         match ctx.is_null() {
             true => Err(WasmEdgeError::ImportObjCreate),
             false => Ok(ImportObject {
@@ -40,8 +41,7 @@ impl ImportObject {
 
     /// Returns the name of the [ImportObject](crate::ImportObject).
     pub fn name(&self) -> String {
-        let raw_name =
-            unsafe { wasmedge::WasmEdge_ImportObjectGetModuleName(self.inner.0 as *const _) };
+        let raw_name = unsafe { ffi::WasmEdge_ImportObjectGetModuleName(self.inner.0 as *const _) };
         raw_name.into()
     }
 
@@ -85,7 +85,7 @@ impl ImportObject {
         let preopens_len = preopens.len();
 
         let ctx = unsafe {
-            wasmedge::WasmEdge_ImportObjectCreateWASI(
+            ffi::WasmEdge_ImportObjectCreateWASI(
                 args.as_ptr(),
                 args_len as u32,
                 envs.as_ptr(),
@@ -140,7 +140,7 @@ impl ImportObject {
         let preopens_len = preopens.len();
 
         unsafe {
-            wasmedge::WasmEdge_ImportObjectInitWASI(
+            ffi::WasmEdge_ImportObjectInitWASI(
                 self.inner.0,
                 args.as_ptr(),
                 args_len as u32,
@@ -156,7 +156,7 @@ impl ImportObject {
     ///
     /// The WASI exit code can be accessed after running the "_start" function of a `wasm32-wasi` program.
     pub fn exit_code(&self) -> u32 {
-        unsafe { wasmedge::WasmEdge_ImportObjectWASIGetExitCode(self.inner.0) }
+        unsafe { ffi::WasmEdge_ImportObjectWASIGetExitCode(self.inner.0) }
     }
 
     /// Creates a wasmedge_process host module that contains the wasmedge_process host functions and
@@ -182,11 +182,7 @@ impl ImportObject {
         let cmds_len = cmds.len();
 
         let ctx = unsafe {
-            wasmedge::WasmEdge_ImportObjectCreateWasmEdgeProcess(
-                cmds.as_ptr(),
-                cmds_len as u32,
-                allowed,
-            )
+            ffi::WasmEdge_ImportObjectCreateWasmEdgeProcess(cmds.as_ptr(), cmds_len as u32, allowed)
         };
         match ctx.is_null() {
             true => Err(WasmEdgeError::ImportObjCreate),
@@ -212,7 +208,7 @@ impl ImportObject {
         let cmds_len = cmds.len();
 
         unsafe {
-            wasmedge::WasmEdge_ImportObjectInitWasmEdgeProcess(
+            ffi::WasmEdge_ImportObjectInitWasmEdgeProcess(
                 self.inner.0,
                 cmds.as_ptr(),
                 cmds_len as u32,
@@ -231,11 +227,7 @@ impl ImportObject {
     pub fn add_func(&mut self, name: impl AsRef<str>, mut func: Function) {
         let func_name: WasmEdgeString = name.into();
         unsafe {
-            wasmedge::WasmEdge_ImportObjectAddFunction(
-                self.inner.0,
-                func_name.as_raw(),
-                func.inner.0,
-            );
+            ffi::WasmEdge_ImportObjectAddFunction(self.inner.0, func_name.as_raw(), func.inner.0);
         }
         func.inner.0 = std::ptr::null_mut();
     }
@@ -250,11 +242,7 @@ impl ImportObject {
     pub fn add_table(&mut self, name: impl AsRef<str>, mut table: Table) {
         let table_name: WasmEdgeString = name.as_ref().into();
         unsafe {
-            wasmedge::WasmEdge_ImportObjectAddTable(
-                self.inner.0,
-                table_name.as_raw(),
-                table.inner.0,
-            );
+            ffi::WasmEdge_ImportObjectAddTable(self.inner.0, table_name.as_raw(), table.inner.0);
         }
         table.inner.0 = std::ptr::null_mut();
     }
@@ -269,11 +257,7 @@ impl ImportObject {
     pub fn add_memory(&mut self, name: impl AsRef<str>, mut memory: Memory) {
         let mem_name: WasmEdgeString = name.as_ref().into();
         unsafe {
-            wasmedge::WasmEdge_ImportObjectAddMemory(
-                self.inner.0,
-                mem_name.as_raw(),
-                memory.inner.0,
-            );
+            ffi::WasmEdge_ImportObjectAddMemory(self.inner.0, mem_name.as_raw(), memory.inner.0);
         }
         memory.inner.0 = std::ptr::null_mut();
     }
@@ -288,11 +272,7 @@ impl ImportObject {
     pub fn add_global(&mut self, name: impl AsRef<str>, mut global: Global) {
         let global_name: WasmEdgeString = name.as_ref().into();
         unsafe {
-            wasmedge::WasmEdge_ImportObjectAddGlobal(
-                self.inner.0,
-                global_name.as_raw(),
-                global.inner.0,
-            );
+            ffi::WasmEdge_ImportObjectAddGlobal(self.inner.0, global_name.as_raw(), global.inner.0);
         }
         global.inner.0 = std::ptr::null_mut();
     }
@@ -300,13 +280,13 @@ impl ImportObject {
 impl Drop for ImportObject {
     fn drop(&mut self) {
         if !self.registered && !self.inner.0.is_null() {
-            unsafe { wasmedge::WasmEdge_ImportObjectDelete(self.inner.0) };
+            unsafe { ffi::WasmEdge_ImportObjectDelete(self.inner.0) };
         }
     }
 }
 
 #[derive(Debug)]
-pub(crate) struct InnerImportObject(pub(crate) *mut wasmedge::WasmEdge_ImportObjectContext);
+pub(crate) struct InnerImportObject(pub(crate) *mut ffi::WasmEdge_ImportObjectContext);
 unsafe impl Send for InnerImportObject {}
 unsafe impl Sync for InnerImportObject {}
 

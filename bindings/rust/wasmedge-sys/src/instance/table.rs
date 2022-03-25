@@ -7,8 +7,9 @@
 
 use crate::{
     error::{check, TableError, WasmEdgeError},
+    ffi,
     types::{RefType, WasmValue},
-    wasmedge, WasmEdgeResult,
+    WasmEdgeResult,
 };
 use std::ops::RangeInclusive;
 
@@ -42,7 +43,7 @@ impl Table {
     /// let table = Table::create(&ty).expect("fail to create a Table");
     /// ```
     pub fn create(ty: &TableType) -> WasmEdgeResult<Self> {
-        let ctx = unsafe { wasmedge::WasmEdge_TableInstanceCreate(ty.inner.0) };
+        let ctx = unsafe { ffi::WasmEdge_TableInstanceCreate(ty.inner.0) };
 
         match ctx.is_null() {
             true => Err(WasmEdgeError::Table(TableError::Create)),
@@ -59,7 +60,7 @@ impl Table {
     ///
     /// If fail to get type, then an error is returned.
     pub fn ty(&self) -> WasmEdgeResult<TableType> {
-        let ty_ctx = unsafe { wasmedge::WasmEdge_TableInstanceGetTableType(self.inner.0) };
+        let ty_ctx = unsafe { ffi::WasmEdge_TableInstanceGetTableType(self.inner.0) };
         match ty_ctx.is_null() {
             true => Err(WasmEdgeError::Table(TableError::Type)),
             false => Ok(TableType {
@@ -80,8 +81,8 @@ impl Table {
     /// If fail to get the data, then an error is returned.
     pub fn get_data(&self, idx: u32) -> WasmEdgeResult<WasmValue> {
         let raw_val = unsafe {
-            let mut data = wasmedge::WasmEdge_ValueGenI32(0);
-            check(wasmedge::WasmEdge_TableInstanceGetData(
+            let mut data = ffi::WasmEdge_ValueGenI32(0);
+            check(ffi::WasmEdge_TableInstanceGetData(
                 self.inner.0,
                 &mut data as *mut _,
                 idx,
@@ -104,7 +105,7 @@ impl Table {
     /// If fail to set data, then an error is returned.
     pub fn set_data(&mut self, data: WasmValue, idx: u32) -> WasmEdgeResult<()> {
         unsafe {
-            check(wasmedge::WasmEdge_TableInstanceSetData(
+            check(ffi::WasmEdge_TableInstanceSetData(
                 self.inner.0,
                 data.as_raw(),
                 idx,
@@ -128,7 +129,7 @@ impl Table {
     /// ```
     ///
     pub fn capacity(&self) -> usize {
-        unsafe { wasmedge::WasmEdge_TableInstanceGetSize(self.inner.0) as usize }
+        unsafe { ffi::WasmEdge_TableInstanceGetSize(self.inner.0) as usize }
     }
 
     /// Increases the capacity of the [Table].
@@ -143,21 +144,21 @@ impl Table {
     ///
     /// If fail to increase the size of the [Table], then an error is returned.
     pub fn grow(&mut self, size: u32) -> WasmEdgeResult<()> {
-        unsafe { check(wasmedge::WasmEdge_TableInstanceGrow(self.inner.0, size)) }
+        unsafe { check(ffi::WasmEdge_TableInstanceGrow(self.inner.0, size)) }
     }
 }
 impl Drop for Table {
     fn drop(&mut self) {
         if !self.registered && !self.inner.0.is_null() {
             unsafe {
-                wasmedge::WasmEdge_TableInstanceDelete(self.inner.0);
+                ffi::WasmEdge_TableInstanceDelete(self.inner.0);
             }
         }
     }
 }
 
 #[derive(Debug)]
-pub(crate) struct InnerTable(pub(crate) *mut wasmedge::WasmEdge_TableInstanceContext);
+pub(crate) struct InnerTable(pub(crate) *mut ffi::WasmEdge_TableInstanceContext);
 unsafe impl Send for InnerTable {}
 unsafe impl Sync for InnerTable {}
 
@@ -173,7 +174,7 @@ impl Drop for TableType {
     fn drop(&mut self) {
         if !self.registered && !self.inner.0.is_null() {
             unsafe {
-                wasmedge::WasmEdge_TableTypeDelete(self.inner.0);
+                ffi::WasmEdge_TableTypeDelete(self.inner.0);
             }
         }
     }
@@ -199,9 +200,9 @@ impl TableType {
     ///
     pub fn create(elem_ty: RefType, limit: RangeInclusive<u32>) -> WasmEdgeResult<Self> {
         let ctx = unsafe {
-            wasmedge::WasmEdge_TableTypeCreate(
-                wasmedge::WasmEdge_RefType::from(elem_ty),
-                wasmedge::WasmEdge_Limit::from(limit),
+            ffi::WasmEdge_TableTypeCreate(
+                ffi::WasmEdge_RefType::from(elem_ty),
+                ffi::WasmEdge_Limit::from(limit),
             )
         };
         match ctx.is_null() {
@@ -215,7 +216,7 @@ impl TableType {
 
     /// Returns the element type.
     pub fn elem_ty(&self) -> RefType {
-        let ty = unsafe { wasmedge::WasmEdge_TableTypeGetRefType(self.inner.0) };
+        let ty = unsafe { ffi::WasmEdge_TableTypeGetRefType(self.inner.0) };
         ty.into()
     }
 
@@ -233,13 +234,13 @@ impl TableType {
     /// assert_eq!(ty.limit(), 10..=20);
     /// ```
     pub fn limit(&self) -> RangeInclusive<u32> {
-        let limit = unsafe { wasmedge::WasmEdge_TableTypeGetLimit(self.inner.0) };
+        let limit = unsafe { ffi::WasmEdge_TableTypeGetLimit(self.inner.0) };
         limit.into()
     }
 }
 
 #[derive(Debug)]
-pub(crate) struct InnerTableType(pub(crate) *mut wasmedge::WasmEdge_TableTypeContext);
+pub(crate) struct InnerTableType(pub(crate) *mut ffi::WasmEdge_TableTypeContext);
 unsafe impl Send for InnerTableType {}
 unsafe impl Sync for InnerTableType {}
 

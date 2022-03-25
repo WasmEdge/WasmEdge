@@ -1,6 +1,6 @@
 //! Defines WasmEdge Executor.
 
-use super::wasmedge;
+use super::ffi;
 use crate::{
     error::{check, WasmEdgeError},
     types::WasmEdgeString,
@@ -32,14 +32,13 @@ impl Executor {
         let ctx = match config {
             Some(mut config) => match stat {
                 Some(stat) => {
-                    let ctx =
-                        unsafe { wasmedge::WasmEdge_ExecutorCreate(config.inner.0, stat.inner.0) };
+                    let ctx = unsafe { ffi::WasmEdge_ExecutorCreate(config.inner.0, stat.inner.0) };
                     config.inner.0 = std::ptr::null_mut();
                     ctx
                 }
                 None => {
                     let ctx = unsafe {
-                        wasmedge::WasmEdge_ExecutorCreate(config.inner.0, std::ptr::null_mut())
+                        ffi::WasmEdge_ExecutorCreate(config.inner.0, std::ptr::null_mut())
                     };
                     config.inner.0 = std::ptr::null_mut();
                     ctx
@@ -47,10 +46,10 @@ impl Executor {
             },
             None => match stat {
                 Some(stat) => unsafe {
-                    wasmedge::WasmEdge_ExecutorCreate(std::ptr::null_mut(), stat.inner.0)
+                    ffi::WasmEdge_ExecutorCreate(std::ptr::null_mut(), stat.inner.0)
                 },
                 None => unsafe {
-                    wasmedge::WasmEdge_ExecutorCreate(std::ptr::null_mut(), std::ptr::null_mut())
+                    ffi::WasmEdge_ExecutorCreate(std::ptr::null_mut(), std::ptr::null_mut())
                 },
             },
         };
@@ -81,7 +80,7 @@ impl Executor {
         import: &ImportObject,
     ) -> WasmEdgeResult<()> {
         unsafe {
-            check(wasmedge::WasmEdge_ExecutorRegisterImport(
+            check(ffi::WasmEdge_ExecutorRegisterImport(
                 self.inner.0,
                 store.inner.0,
                 import.inner.0 as *const _,
@@ -113,7 +112,7 @@ impl Executor {
     ) -> WasmEdgeResult<()> {
         let mod_name: WasmEdgeString = mod_name.as_ref().into();
         unsafe {
-            check(wasmedge::WasmEdge_ExecutorRegisterModule(
+            check(ffi::WasmEdge_ExecutorRegisterModule(
                 self.inner.0,
                 store.inner.0,
                 module.inner.0 as *const _,
@@ -144,7 +143,7 @@ impl Executor {
         module: &Module,
     ) -> WasmEdgeResult<()> {
         unsafe {
-            check(wasmedge::WasmEdge_ExecutorInstantiate(
+            check(ffi::WasmEdge_ExecutorInstantiate(
                 self.inner.0,
                 store.inner.0,
                 module.inner.0,
@@ -186,7 +185,7 @@ impl Executor {
 
         let func_name: WasmEdgeString = func_name.as_ref().into();
         unsafe {
-            check(wasmedge::WasmEdge_ExecutorInvoke(
+            check(ffi::WasmEdge_ExecutorInvoke(
                 self.inner.0,
                 store.inner.0,
                 func_name.as_raw(),
@@ -238,7 +237,7 @@ impl Executor {
         let mod_name: WasmEdgeString = mod_name.as_ref().into();
         let func_name: WasmEdgeString = func_name.as_ref().into();
         unsafe {
-            check(wasmedge::WasmEdge_ExecutorInvokeRegistered(
+            check(ffi::WasmEdge_ExecutorInvokeRegistered(
                 self.inner.0,
                 store.inner.0,
                 mod_name.as_raw(),
@@ -257,13 +256,13 @@ impl Executor {
 impl Drop for Executor {
     fn drop(&mut self) {
         if !self.registered && !self.inner.0.is_null() {
-            unsafe { wasmedge::WasmEdge_ExecutorDelete(self.inner.0) }
+            unsafe { ffi::WasmEdge_ExecutorDelete(self.inner.0) }
         }
     }
 }
 
 #[derive(Debug)]
-pub(crate) struct InnerExecutor(pub(crate) *mut wasmedge::WasmEdge_ExecutorContext);
+pub(crate) struct InnerExecutor(pub(crate) *mut ffi::WasmEdge_ExecutorContext);
 unsafe impl Send for InnerExecutor {}
 unsafe impl Sync for InnerExecutor {}
 

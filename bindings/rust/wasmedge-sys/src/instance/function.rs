@@ -2,7 +2,7 @@
 
 use crate::{
     error::{FuncError, WasmEdgeError},
-    wasmedge, HostFunc, ValType, WasmEdgeResult, HOST_FUNCS,
+    ffi, HostFunc, ValType, WasmEdgeResult, HOST_FUNCS,
 };
 use core::ffi::c_void;
 use rand::Rng;
@@ -11,12 +11,12 @@ use std::convert::TryInto;
 extern "C" fn wraper_fn(
     key_ptr: *mut c_void,
     _data: *mut c_void,
-    _mem_cxt: *mut wasmedge::WasmEdge_MemoryInstanceContext,
-    params: *const wasmedge::WasmEdge_Value,
+    _mem_cxt: *mut ffi::WasmEdge_MemoryInstanceContext,
+    params: *const ffi::WasmEdge_Value,
     param_len: u32,
-    returns: *mut wasmedge::WasmEdge_Value,
+    returns: *mut ffi::WasmEdge_Value,
     return_len: u32,
-) -> wasmedge::WasmEdge_Result {
+) -> ffi::WasmEdge_Result {
     let key = key_ptr as *const usize as usize;
 
     let input = {
@@ -50,9 +50,9 @@ extern "C" fn wraper_fn(
             for (idx, item) in v.into_iter().enumerate() {
                 raw_returns[idx] = item.as_raw();
             }
-            wasmedge::WasmEdge_Result { Code: 0 }
+            ffi::WasmEdge_Result { Code: 0 }
         }
-        Err(c) => wasmedge::WasmEdge_Result { Code: c as u8 },
+        Err(c) => ffi::WasmEdge_Result { Code: c as u8 },
     }
 }
 
@@ -138,7 +138,7 @@ impl Function {
         host_functions.insert(key, real_fn);
 
         let ctx = unsafe {
-            wasmedge::WasmEdge_FunctionInstanceCreateBinding(
+            ffi::WasmEdge_FunctionInstanceCreateBinding(
                 ty.inner.0,
                 Some(wraper_fn),
                 key as *const usize as *mut c_void,
@@ -181,7 +181,7 @@ impl Function {
     /// If fail to get the function type, then an error is returned.
     ///
     pub fn ty(&self) -> WasmEdgeResult<FuncType> {
-        let ty = unsafe { wasmedge::WasmEdge_FunctionInstanceGetFunctionType(self.inner.0) };
+        let ty = unsafe { ffi::WasmEdge_FunctionInstanceGetFunctionType(self.inner.0) };
         match ty.is_null() {
             true => Err(WasmEdgeError::Func(FuncError::Type)),
             false => Ok(FuncType {
@@ -194,13 +194,13 @@ impl Function {
 impl Drop for Function {
     fn drop(&mut self) {
         if !self.registered && !self.inner.0.is_null() {
-            unsafe { wasmedge::WasmEdge_FunctionInstanceDelete(self.inner.0) };
+            unsafe { ffi::WasmEdge_FunctionInstanceDelete(self.inner.0) };
         }
     }
 }
 
 #[derive(Debug)]
-pub(crate) struct InnerFunc(pub(crate) *mut wasmedge::WasmEdge_FunctionInstanceContext);
+pub(crate) struct InnerFunc(pub(crate) *mut ffi::WasmEdge_FunctionInstanceContext);
 unsafe impl Send for InnerFunc {}
 unsafe impl Sync for InnerFunc {}
 
@@ -239,14 +239,14 @@ impl FuncType {
         let param_tys = args
             .into_iter()
             .map(|x| x.into())
-            .collect::<Vec<wasmedge::WasmEdge_ValType>>();
+            .collect::<Vec<ffi::WasmEdge_ValType>>();
         let ret_tys = returns
             .into_iter()
             .map(|x| x.into())
-            .collect::<Vec<wasmedge::WasmEdge_ValType>>();
+            .collect::<Vec<ffi::WasmEdge_ValType>>();
 
         let ctx = unsafe {
-            wasmedge::WasmEdge_FunctionTypeCreate(
+            ffi::WasmEdge_FunctionTypeCreate(
                 param_tys.as_ptr() as *const _,
                 param_tys.len() as u32,
                 ret_tys.as_ptr() as *const u32,
@@ -264,7 +264,7 @@ impl FuncType {
 
     /// Returns the number of the arguments of a [Function].
     pub fn params_len(&self) -> usize {
-        unsafe { wasmedge::WasmEdge_FunctionTypeGetParametersLength(self.inner.0) as usize }
+        unsafe { ffi::WasmEdge_FunctionTypeGetParametersLength(self.inner.0) as usize }
     }
 
     /// Returns an Iterator of the arguments of a [Function].
@@ -272,11 +272,7 @@ impl FuncType {
         let len = self.params_len();
         let mut types = Vec::with_capacity(len);
         unsafe {
-            wasmedge::WasmEdge_FunctionTypeGetParameters(
-                self.inner.0,
-                types.as_mut_ptr(),
-                len as u32,
-            );
+            ffi::WasmEdge_FunctionTypeGetParameters(self.inner.0, types.as_mut_ptr(), len as u32);
             types.set_len(len);
         }
 
@@ -285,7 +281,7 @@ impl FuncType {
 
     ///Returns the number of the returns of a [Function].
     pub fn returns_len(&self) -> usize {
-        unsafe { wasmedge::WasmEdge_FunctionTypeGetReturnsLength(self.inner.0) as usize }
+        unsafe { ffi::WasmEdge_FunctionTypeGetReturnsLength(self.inner.0) as usize }
     }
 
     /// Returns an Iterator of the return types of a [Function].
@@ -293,7 +289,7 @@ impl FuncType {
         let len = self.returns_len();
         let mut types = Vec::with_capacity(len);
         unsafe {
-            wasmedge::WasmEdge_FunctionTypeGetReturns(self.inner.0, types.as_mut_ptr(), len as u32);
+            ffi::WasmEdge_FunctionTypeGetReturns(self.inner.0, types.as_mut_ptr(), len as u32);
             types.set_len(len);
         }
 
@@ -303,13 +299,13 @@ impl FuncType {
 impl Drop for FuncType {
     fn drop(&mut self) {
         if !self.registered && !self.inner.0.is_null() {
-            unsafe { wasmedge::WasmEdge_FunctionTypeDelete(self.inner.0) };
+            unsafe { ffi::WasmEdge_FunctionTypeDelete(self.inner.0) };
         }
     }
 }
 
 #[derive(Debug)]
-pub(crate) struct InnerFuncType(pub(crate) *mut wasmedge::WasmEdge_FunctionTypeContext);
+pub(crate) struct InnerFuncType(pub(crate) *mut ffi::WasmEdge_FunctionTypeContext);
 unsafe impl Send for InnerFuncType {}
 unsafe impl Sync for InnerFuncType {}
 

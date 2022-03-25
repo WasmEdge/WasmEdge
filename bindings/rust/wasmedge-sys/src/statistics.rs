@@ -1,6 +1,6 @@
 //! Defines WasmEdge Statistics struct.
 
-use crate::{error::WasmEdgeError, wasmedge, WasmEdgeResult};
+use crate::{error::WasmEdgeError, ffi, WasmEdgeResult};
 
 #[derive(Debug)]
 /// Struct of WasmEdge Statistics.
@@ -15,7 +15,7 @@ impl Statistics {
     ///
     /// If fail to create a [Statistics], then an error is returned.
     pub fn create() -> WasmEdgeResult<Self> {
-        let ctx = unsafe { wasmedge::WasmEdge_StatisticsCreate() };
+        let ctx = unsafe { ffi::WasmEdge_StatisticsCreate() };
         match ctx.is_null() {
             true => Err(WasmEdgeError::StatisticsCreate),
             false => Ok(Statistics {
@@ -27,7 +27,7 @@ impl Statistics {
 
     /// Returns the instruction count in execution.
     pub fn instr_count(&self) -> u64 {
-        unsafe { wasmedge::WasmEdge_StatisticsGetInstrCount(self.inner.0) }
+        unsafe { ffi::WasmEdge_StatisticsGetInstrCount(self.inner.0) }
     }
 
     /// Returns the instruction count per second in execution.
@@ -52,12 +52,12 @@ impl Statistics {
     /// assert!(stat.instr_per_sec().is_nan());
     /// ```
     pub fn instr_per_sec(&self) -> f64 {
-        unsafe { wasmedge::WasmEdge_StatisticsGetInstrPerSecond(self.inner.0) }
+        unsafe { ffi::WasmEdge_StatisticsGetInstrPerSecond(self.inner.0) }
     }
 
     /// Returns the total cost in execution.
     pub fn cost_in_total(&self) -> u64 {
-        unsafe { wasmedge::WasmEdge_StatisticsGetTotalCost(self.inner.0) }
+        unsafe { ffi::WasmEdge_StatisticsGetTotalCost(self.inner.0) }
     }
 
     /// Sets the cost of instructions.
@@ -67,7 +67,7 @@ impl Statistics {
     /// - `cost_table` specifies the slice of cost table.
     pub fn set_cost_table(&mut self, cost_table: impl AsRef<[u64]>) {
         unsafe {
-            wasmedge::WasmEdge_StatisticsSetCostTable(
+            ffi::WasmEdge_StatisticsSetCostTable(
                 self.inner.0,
                 cost_table.as_ref().as_ptr() as *mut _,
                 cost_table.as_ref().len() as u32,
@@ -81,19 +81,19 @@ impl Statistics {
     ///
     /// - `limit` specifies the cost limit.
     pub fn set_cost_limit(&mut self, limit: u64) {
-        unsafe { wasmedge::WasmEdge_StatisticsSetCostLimit(self.inner.0, limit) }
+        unsafe { ffi::WasmEdge_StatisticsSetCostLimit(self.inner.0, limit) }
     }
 }
 impl Drop for Statistics {
     fn drop(&mut self) {
         if !self.registered && !self.inner.0.is_null() {
-            unsafe { wasmedge::WasmEdge_StatisticsDelete(self.inner.0) }
+            unsafe { ffi::WasmEdge_StatisticsDelete(self.inner.0) }
         }
     }
 }
 
 #[derive(Debug)]
-pub(crate) struct InnerStat(pub(crate) *mut wasmedge::WasmEdge_StatisticsContext);
+pub(crate) struct InnerStat(pub(crate) *mut ffi::WasmEdge_StatisticsContext);
 unsafe impl Send for InnerStat {}
 unsafe impl Sync for InnerStat {}
 

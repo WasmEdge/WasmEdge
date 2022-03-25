@@ -1,6 +1,6 @@
 //! Defines WasmEdge AST Module, Export, and Import structs.
 
-use super::wasmedge;
+use super::ffi;
 use crate::{
     error::{ExportError, ImportError, WasmEdgeError},
     instance::{
@@ -27,14 +27,14 @@ pub struct Module {
 impl Drop for Module {
     fn drop(&mut self) {
         if !self.inner.0.is_null() {
-            unsafe { wasmedge::WasmEdge_ASTModuleDelete(self.inner.0) };
+            unsafe { ffi::WasmEdge_ASTModuleDelete(self.inner.0) };
         }
     }
 }
 impl Module {
     /// Returns the number of the imports of the [Module].
     pub fn count_of_imports(&self) -> u32 {
-        unsafe { wasmedge::WasmEdge_ASTModuleListImportsLength(self.inner.0) }
+        unsafe { ffi::WasmEdge_ASTModuleListImportsLength(self.inner.0) }
     }
 
     /// Returns the imports of the [Module].
@@ -42,7 +42,7 @@ impl Module {
         let size = self.count_of_imports();
         let mut returns = Vec::with_capacity(size as usize);
         unsafe {
-            wasmedge::WasmEdge_ASTModuleListImports(self.inner.0, returns.as_mut_ptr(), size);
+            ffi::WasmEdge_ASTModuleListImports(self.inner.0, returns.as_mut_ptr(), size);
             returns.set_len(size as usize);
         }
 
@@ -57,7 +57,7 @@ impl Module {
 
     /// Returns the count of the exports of the [Module].
     pub fn count_of_exports(&self) -> u32 {
-        unsafe { wasmedge::WasmEdge_ASTModuleListExportsLength(self.inner.0) }
+        unsafe { ffi::WasmEdge_ASTModuleListExportsLength(self.inner.0) }
     }
 
     /// Returns the exports of the [Module].
@@ -65,7 +65,7 @@ impl Module {
         let size = self.count_of_exports();
         let mut returns = Vec::with_capacity(size as usize);
         unsafe {
-            wasmedge::WasmEdge_ASTModuleListExports(self.inner.0, returns.as_mut_ptr(), size);
+            ffi::WasmEdge_ASTModuleListExports(self.inner.0, returns.as_mut_ptr(), size);
             returns.set_len(size as usize);
         }
 
@@ -80,7 +80,7 @@ impl Module {
 }
 
 #[derive(Debug)]
-pub(crate) struct InnerModule(pub(crate) *mut wasmedge::WasmEdge_ASTModuleContext);
+pub(crate) struct InnerModule(pub(crate) *mut ffi::WasmEdge_ASTModuleContext);
 unsafe impl Send for InnerModule {}
 unsafe impl Sync for InnerModule {}
 
@@ -102,14 +102,14 @@ impl<'module> Drop for Import<'module> {
 impl<'module> Import<'module> {
     /// Returns the external type of the [Import].
     pub fn ty(&self) -> ExternalType {
-        let ty = unsafe { wasmedge::WasmEdge_ImportTypeGetExternalType(self.inner.0) };
+        let ty = unsafe { ffi::WasmEdge_ImportTypeGetExternalType(self.inner.0) };
         ty.into()
     }
 
     /// Returns the external name of the [Import].
     pub fn name(&self) -> Cow<'_, str> {
         let c_name = unsafe {
-            let raw_name = wasmedge::WasmEdge_ImportTypeGetExternalName(self.inner.0);
+            let raw_name = ffi::WasmEdge_ImportTypeGetExternalName(self.inner.0);
             CStr::from_ptr(raw_name.Buf)
         };
         c_name.to_string_lossy()
@@ -118,7 +118,7 @@ impl<'module> Import<'module> {
     /// Returns the module name from the [Import].
     pub fn module_name(&self) -> Cow<'_, str> {
         let c_name = unsafe {
-            let raw_name = wasmedge::WasmEdge_ImportTypeGetModuleName(self.inner.0);
+            let raw_name = ffi::WasmEdge_ImportTypeGetModuleName(self.inner.0);
             CStr::from_ptr(raw_name.Buf)
         };
         c_name.to_string_lossy()
@@ -138,7 +138,7 @@ impl<'module> Import<'module> {
             }));
         }
         let ctx_func_ty = unsafe {
-            wasmedge::WasmEdge_ImportTypeGetFunctionType(
+            ffi::WasmEdge_ImportTypeGetFunctionType(
                 self.module.inner.0 as *const _,
                 self.inner.0 as *const _,
             )
@@ -166,7 +166,7 @@ impl<'module> Import<'module> {
             }));
         }
         let ctx_tab_ty =
-            unsafe { wasmedge::WasmEdge_ImportTypeGetTableType(self.module.inner.0, self.inner.0) };
+            unsafe { ffi::WasmEdge_ImportTypeGetTableType(self.module.inner.0, self.inner.0) };
         match ctx_tab_ty.is_null() {
             true => Err(WasmEdgeError::Import(ImportError::TableType(
                 "Fail to get the table type".into(),
@@ -189,9 +189,8 @@ impl<'module> Import<'module> {
                 actual: external_ty,
             }));
         }
-        let ctx_mem_ty = unsafe {
-            wasmedge::WasmEdge_ImportTypeGetMemoryType(self.module.inner.0, self.inner.0)
-        };
+        let ctx_mem_ty =
+            unsafe { ffi::WasmEdge_ImportTypeGetMemoryType(self.module.inner.0, self.inner.0) };
         match ctx_mem_ty.is_null() {
             true => Err(WasmEdgeError::Import(ImportError::MemType(
                 "Fail to get the memory type".into(),
@@ -214,9 +213,8 @@ impl<'module> Import<'module> {
                 actual: external_ty,
             }));
         }
-        let ctx_global_ty = unsafe {
-            wasmedge::WasmEdge_ImportTypeGetGlobalType(self.module.inner.0, self.inner.0)
-        };
+        let ctx_global_ty =
+            unsafe { ffi::WasmEdge_ImportTypeGetGlobalType(self.module.inner.0, self.inner.0) };
         match ctx_global_ty.is_null() {
             true => Err(WasmEdgeError::Import(ImportError::MemType(
                 "Fail to get the global type".into(),
@@ -230,7 +228,7 @@ impl<'module> Import<'module> {
 }
 
 #[derive(Debug)]
-pub(crate) struct InnerImport(pub(crate) *const wasmedge::WasmEdge_ImportTypeContext);
+pub(crate) struct InnerImport(pub(crate) *const ffi::WasmEdge_ImportTypeContext);
 unsafe impl Send for InnerImport {}
 unsafe impl Sync for InnerImport {}
 
@@ -253,14 +251,14 @@ impl<'module> Drop for Export<'module> {
 impl<'module> Export<'module> {
     /// Returns the external type of the [Export].
     pub fn ty(&self) -> ExternalType {
-        let ty = unsafe { wasmedge::WasmEdge_ExportTypeGetExternalType(self.inner.0) };
+        let ty = unsafe { ffi::WasmEdge_ExportTypeGetExternalType(self.inner.0) };
         ty.into()
     }
 
     /// Returns the external name of the [Export].
     pub fn name(&self) -> Cow<'_, str> {
         let c_name = unsafe {
-            let raw_name = wasmedge::WasmEdge_ExportTypeGetExternalName(self.inner.0);
+            let raw_name = ffi::WasmEdge_ExportTypeGetExternalName(self.inner.0);
             CStr::from_ptr(raw_name.Buf)
         };
         c_name.to_string_lossy()
@@ -277,9 +275,8 @@ impl<'module> Export<'module> {
                 actual: external_ty,
             }));
         }
-        let ctx_func_ty = unsafe {
-            wasmedge::WasmEdge_ExportTypeGetFunctionType(self.module.inner.0, self.inner.0)
-        };
+        let ctx_func_ty =
+            unsafe { ffi::WasmEdge_ExportTypeGetFunctionType(self.module.inner.0, self.inner.0) };
         match ctx_func_ty.is_null() {
             true => Err(WasmEdgeError::Export(ExportError::FuncType(
                 "Fail to get the function type".into(),
@@ -303,7 +300,7 @@ impl<'module> Export<'module> {
             }));
         }
         let ctx_tab_ty =
-            unsafe { wasmedge::WasmEdge_ExportTypeGetTableType(self.module.inner.0, self.inner.0) };
+            unsafe { ffi::WasmEdge_ExportTypeGetTableType(self.module.inner.0, self.inner.0) };
         match ctx_tab_ty.is_null() {
             true => Err(WasmEdgeError::Export(ExportError::TableType(
                 "Fail to get the function type".into(),
@@ -326,9 +323,8 @@ impl<'module> Export<'module> {
                 actual: external_ty,
             }));
         }
-        let ctx_mem_ty = unsafe {
-            wasmedge::WasmEdge_ExportTypeGetMemoryType(self.module.inner.0, self.inner.0)
-        };
+        let ctx_mem_ty =
+            unsafe { ffi::WasmEdge_ExportTypeGetMemoryType(self.module.inner.0, self.inner.0) };
         match ctx_mem_ty.is_null() {
             true => Err(WasmEdgeError::Export(ExportError::MemType(
                 "Fail to get the function type".into(),
@@ -351,9 +347,8 @@ impl<'module> Export<'module> {
                 actual: external_ty,
             }));
         }
-        let ctx_global_ty = unsafe {
-            wasmedge::WasmEdge_ExportTypeGetGlobalType(self.module.inner.0, self.inner.0)
-        };
+        let ctx_global_ty =
+            unsafe { ffi::WasmEdge_ExportTypeGetGlobalType(self.module.inner.0, self.inner.0) };
         match ctx_global_ty.is_null() {
             true => Err(WasmEdgeError::Export(ExportError::GlobalType(
                 "Fail to get the function type".into(),
@@ -367,7 +362,7 @@ impl<'module> Export<'module> {
 }
 
 #[derive(Debug)]
-pub(crate) struct InnerExport(pub(crate) *const wasmedge::WasmEdge_ExportTypeContext);
+pub(crate) struct InnerExport(pub(crate) *const ffi::WasmEdge_ExportTypeContext);
 unsafe impl Send for InnerExport {}
 unsafe impl Sync for InnerExport {}
 

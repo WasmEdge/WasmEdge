@@ -7,7 +7,7 @@
 
 use crate::{
     error::{check, MemError, WasmEdgeError},
-    wasmedge, WasmEdgeResult,
+    ffi, WasmEdgeResult,
 };
 use std::ops::RangeInclusive;
 
@@ -43,7 +43,7 @@ impl Memory {
     ///
     ///
     pub fn create(ty: &MemType) -> WasmEdgeResult<Self> {
-        let ctx = unsafe { wasmedge::WasmEdge_MemoryInstanceCreate(ty.inner.0 as *const _) };
+        let ctx = unsafe { ffi::WasmEdge_MemoryInstanceCreate(ty.inner.0 as *const _) };
 
         match ctx.is_null() {
             true => Err(WasmEdgeError::Mem(MemError::Create)),
@@ -61,7 +61,7 @@ impl Memory {
     /// If fail to get the type from the [Memory], then an error is returned.
     ///
     pub fn ty(&self) -> WasmEdgeResult<MemType> {
-        let ty_ctx = unsafe { wasmedge::WasmEdge_MemoryInstanceGetMemoryType(self.inner.0) };
+        let ty_ctx = unsafe { ffi::WasmEdge_MemoryInstanceGetMemoryType(self.inner.0) };
         match ty_ctx.is_null() {
             true => Err(WasmEdgeError::Mem(MemError::Type)),
             false => Ok(MemType {
@@ -86,7 +86,7 @@ impl Memory {
     pub fn get_data(&self, offset: u32, len: u32) -> WasmEdgeResult<Vec<u8>> {
         let mut data = Vec::with_capacity(len as usize);
         unsafe {
-            check(wasmedge::WasmEdge_MemoryInstanceGetData(
+            check(ffi::WasmEdge_MemoryInstanceGetData(
                 self.inner.0,
                 data.as_mut_ptr(),
                 offset,
@@ -151,7 +151,7 @@ impl Memory {
     ) -> WasmEdgeResult<()> {
         let data = data.into_iter().collect::<Vec<u8>>();
         unsafe {
-            check(wasmedge::WasmEdge_MemoryInstanceSetData(
+            check(ffi::WasmEdge_MemoryInstanceSetData(
                 self.inner.0,
                 data.as_ptr() as *mut _,
                 offset,
@@ -175,8 +175,7 @@ impl Memory {
     /// If fail to get the data pointer, then an error is returned.
     ///
     pub fn data_pointer(&self, offset: u32, len: u32) -> WasmEdgeResult<&u8> {
-        let ptr =
-            unsafe { wasmedge::WasmEdge_MemoryInstanceGetPointerConst(self.inner.0, offset, len) };
+        let ptr = unsafe { ffi::WasmEdge_MemoryInstanceGetPointerConst(self.inner.0, offset, len) };
         match ptr.is_null() {
             true => Err(WasmEdgeError::Mem(MemError::ConstPtr)),
             false => {
@@ -203,7 +202,7 @@ impl Memory {
     /// If fail to get the data pointer, then an error is returned.
     ///
     pub fn data_pointer_mut(&mut self, offset: u32, len: u32) -> WasmEdgeResult<&mut u8> {
-        let ptr = unsafe { wasmedge::WasmEdge_MemoryInstanceGetPointer(self.inner.0, offset, len) };
+        let ptr = unsafe { ffi::WasmEdge_MemoryInstanceGetPointer(self.inner.0, offset, len) };
         match ptr.is_null() {
             true => Err(WasmEdgeError::Mem(MemError::MutPtr)),
             false => {
@@ -218,7 +217,7 @@ impl Memory {
 
     /// Returns the size, in WebAssembly pages (64 KiB of each page), of this wasm memory.
     pub fn size(&self) -> u32 {
-        unsafe { wasmedge::WasmEdge_MemoryInstanceGetPageSize(self.inner.0) as u32 }
+        unsafe { ffi::WasmEdge_MemoryInstanceGetPageSize(self.inner.0) as u32 }
     }
 
     /// Grows this WebAssembly memory by `count` pages.
@@ -249,24 +248,19 @@ impl Memory {
     /// ```
     ///
     pub fn grow(&mut self, count: u32) -> WasmEdgeResult<()> {
-        unsafe {
-            check(wasmedge::WasmEdge_MemoryInstanceGrowPage(
-                self.inner.0,
-                count,
-            ))
-        }
+        unsafe { check(ffi::WasmEdge_MemoryInstanceGrowPage(self.inner.0, count)) }
     }
 }
 impl Drop for Memory {
     fn drop(&mut self) {
         if !self.registered && !self.inner.0.is_null() {
-            unsafe { wasmedge::WasmEdge_MemoryInstanceDelete(self.inner.0) };
+            unsafe { ffi::WasmEdge_MemoryInstanceDelete(self.inner.0) };
         }
     }
 }
 
 #[derive(Debug)]
-pub(crate) struct InnerMemory(pub(crate) *mut wasmedge::WasmEdge_MemoryInstanceContext);
+pub(crate) struct InnerMemory(pub(crate) *mut ffi::WasmEdge_MemoryInstanceContext);
 unsafe impl Send for InnerMemory {}
 unsafe impl Sync for InnerMemory {}
 
@@ -296,8 +290,7 @@ impl MemType {
     /// ```
     ///
     pub fn create(limit: RangeInclusive<u32>) -> WasmEdgeResult<Self> {
-        let ctx =
-            unsafe { wasmedge::WasmEdge_MemoryTypeCreate(wasmedge::WasmEdge_Limit::from(limit)) };
+        let ctx = unsafe { ffi::WasmEdge_MemoryTypeCreate(ffi::WasmEdge_Limit::from(limit)) };
         match ctx.is_null() {
             true => Err(WasmEdgeError::MemTypeCreate),
             false => Ok(Self {
@@ -319,20 +312,20 @@ impl MemType {
     /// ```
     ///
     pub fn limit(&self) -> RangeInclusive<u32> {
-        let limit = unsafe { wasmedge::WasmEdge_MemoryTypeGetLimit(self.inner.0) };
+        let limit = unsafe { ffi::WasmEdge_MemoryTypeGetLimit(self.inner.0) };
         RangeInclusive::from(limit)
     }
 }
 impl Drop for MemType {
     fn drop(&mut self) {
         if !self.registered && !self.inner.0.is_null() {
-            unsafe { wasmedge::WasmEdge_MemoryTypeDelete(self.inner.0) }
+            unsafe { ffi::WasmEdge_MemoryTypeDelete(self.inner.0) }
         }
     }
 }
 
 #[derive(Debug)]
-pub(crate) struct InnerMemType(pub(crate) *mut wasmedge::WasmEdge_MemoryTypeContext);
+pub(crate) struct InnerMemType(pub(crate) *mut ffi::WasmEdge_MemoryTypeContext);
 unsafe impl Send for InnerMemType {}
 unsafe impl Sync for InnerMemType {}
 

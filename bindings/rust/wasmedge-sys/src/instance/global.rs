@@ -5,12 +5,13 @@
 
 use crate::{
     error::{GlobalError, WasmEdgeError},
+    ffi,
     types::{Mutability, ValType},
-    wasmedge, WasmEdgeResult, WasmValue,
+    WasmEdgeResult, WasmValue,
 };
 
 #[derive(Debug)]
-pub(crate) struct InnerGlobalType(pub(crate) *mut wasmedge::WasmEdge_GlobalTypeContext);
+pub(crate) struct InnerGlobalType(pub(crate) *mut ffi::WasmEdge_GlobalTypeContext);
 unsafe impl Send for InnerGlobalType {}
 unsafe impl Sync for InnerGlobalType {}
 
@@ -30,9 +31,9 @@ impl GlobalType {
     /// If fail to create a new [GlobalType], then an error is returned.
     pub fn create(val_ty: ValType, mutable: Mutability) -> WasmEdgeResult<Self> {
         let ctx = unsafe {
-            wasmedge::WasmEdge_GlobalTypeCreate(
-                wasmedge::WasmEdge_ValType::from(val_ty),
-                wasmedge::WasmEdge_Mutability::from(mutable),
+            ffi::WasmEdge_GlobalTypeCreate(
+                ffi::WasmEdge_ValType::from(val_ty),
+                ffi::WasmEdge_Mutability::from(mutable),
             )
         };
         match ctx.is_null() {
@@ -46,26 +47,26 @@ impl GlobalType {
 
     /// Returns the value type of the [GlobalType].
     pub fn value_type(&self) -> ValType {
-        let val = unsafe { wasmedge::WasmEdge_GlobalTypeGetValType(self.inner.0 as *const _) };
+        let val = unsafe { ffi::WasmEdge_GlobalTypeGetValType(self.inner.0 as *const _) };
         val.into()
     }
 
     /// Returns the [Mutability](crate::Mutability) value of the [GlobalType].
     pub fn mutability(&self) -> Mutability {
-        let val = unsafe { wasmedge::WasmEdge_GlobalTypeGetMutability(self.inner.0) };
+        let val = unsafe { ffi::WasmEdge_GlobalTypeGetMutability(self.inner.0) };
         val.into()
     }
 }
 impl Drop for GlobalType {
     fn drop(&mut self) {
         if !self.registered && !self.inner.0.is_null() {
-            unsafe { wasmedge::WasmEdge_GlobalTypeDelete(self.inner.0) };
+            unsafe { ffi::WasmEdge_GlobalTypeDelete(self.inner.0) };
         }
     }
 }
 
 #[derive(Debug)]
-pub(crate) struct InnerGlobal(pub(crate) *mut wasmedge::WasmEdge_GlobalInstanceContext);
+pub(crate) struct InnerGlobal(pub(crate) *mut ffi::WasmEdge_GlobalInstanceContext);
 unsafe impl Send for InnerGlobal {}
 unsafe impl Sync for InnerGlobal {}
 
@@ -87,7 +88,7 @@ impl Global {
     /// If fail to create a [Global] instance, then an error is returned.
     ///
     pub fn create(ty: &GlobalType, val: WasmValue) -> WasmEdgeResult<Self> {
-        let ctx = unsafe { wasmedge::WasmEdge_GlobalInstanceCreate(ty.inner.0, val.as_raw()) };
+        let ctx = unsafe { ffi::WasmEdge_GlobalInstanceCreate(ty.inner.0, val.as_raw()) };
 
         match ctx.is_null() {
             true => Err(WasmEdgeError::Global(GlobalError::Create)),
@@ -105,7 +106,7 @@ impl Global {
     /// If fail to get the type, then an error is returned.
     ///
     pub fn ty(&self) -> WasmEdgeResult<GlobalType> {
-        let ty_ctx = unsafe { wasmedge::WasmEdge_GlobalInstanceGetGlobalType(self.inner.0) };
+        let ty_ctx = unsafe { ffi::WasmEdge_GlobalInstanceGetGlobalType(self.inner.0) };
         match ty_ctx.is_null() {
             true => Err(WasmEdgeError::Global(GlobalError::Type)),
             false => Ok(GlobalType {
@@ -117,7 +118,7 @@ impl Global {
 
     /// Returns the value of the [Global] instance.
     pub fn get_value(&self) -> WasmValue {
-        let val = unsafe { wasmedge::WasmEdge_GlobalInstanceGetValue(self.inner.0) };
+        let val = unsafe { ffi::WasmEdge_GlobalInstanceGetValue(self.inner.0) };
         val.into()
     }
 
@@ -152,14 +153,14 @@ impl Global {
         if ty.value_type() != val.ty() {
             return Err(WasmEdgeError::Global(GlobalError::UnmatchedValType));
         }
-        unsafe { wasmedge::WasmEdge_GlobalInstanceSetValue(self.inner.0, val.as_raw()) }
+        unsafe { ffi::WasmEdge_GlobalInstanceSetValue(self.inner.0, val.as_raw()) }
         Ok(())
     }
 }
 impl Drop for Global {
     fn drop(&mut self) {
         if !self.registered && !self.inner.0.is_null() {
-            unsafe { wasmedge::WasmEdge_GlobalInstanceDelete(self.inner.0) };
+            unsafe { ffi::WasmEdge_GlobalInstanceDelete(self.inner.0) };
         }
     }
 }

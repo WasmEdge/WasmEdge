@@ -21,7 +21,7 @@ use std::{
 
 #[doc(hidden)]
 #[allow(warnings)]
-pub mod wasmedge {
+pub mod ffi {
     include!(concat!(env!("OUT_DIR"), "/wasmedge.rs"));
 }
 #[doc(hidden)]

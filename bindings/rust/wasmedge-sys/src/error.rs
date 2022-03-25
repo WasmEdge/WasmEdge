@@ -1,7 +1,7 @@
 //! Defines the error types.
 
 use crate::{
-    wasmedge::{WasmEdge_Result, WasmEdge_ResultGetCode, WasmEdge_ResultOK},
+    ffi::{WasmEdge_Result, WasmEdge_ResultGetCode, WasmEdge_ResultOK},
     ExternalType, WasmEdgeResult,
 };
 use thiserror::Error;

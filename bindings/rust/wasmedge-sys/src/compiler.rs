@@ -2,7 +2,7 @@
 
 use crate::{
     error::{check, WasmEdgeError},
-    utils, wasmedge, Config, WasmEdgeResult,
+    ffi, utils, Config, WasmEdgeResult,
 };
 use std::path::Path;
 
@@ -14,7 +14,7 @@ pub struct Compiler {
 impl Drop for Compiler {
     fn drop(&mut self) {
         if !self.inner.0.is_null() {
-            unsafe { wasmedge::WasmEdge_CompilerDelete(self.inner.0) }
+            unsafe { ffi::WasmEdge_CompilerDelete(self.inner.0) }
         }
     }
 }
@@ -27,11 +27,11 @@ impl Compiler {
     pub fn create(config: Option<Config>) -> WasmEdgeResult<Self> {
         let ctx = match config {
             Some(mut config) => {
-                let ctx = unsafe { wasmedge::WasmEdge_CompilerCreate(config.inner.0) };
+                let ctx = unsafe { ffi::WasmEdge_CompilerCreate(config.inner.0) };
                 config.inner.0 = std::ptr::null_mut();
                 ctx
             }
-            None => unsafe { wasmedge::WasmEdge_CompilerCreate(std::ptr::null_mut()) },
+            None => unsafe { ffi::WasmEdge_CompilerCreate(std::ptr::null_mut()) },
         };
 
         match ctx.is_null() {
@@ -61,7 +61,7 @@ impl Compiler {
         let in_path = utils::path_to_cstring(in_path.as_ref())?;
         let out_path = utils::path_to_cstring(out_path.as_ref())?;
         unsafe {
-            check(wasmedge::WasmEdge_CompilerCompile(
+            check(ffi::WasmEdge_CompilerCompile(
                 self.inner.0,
                 in_path.as_ptr(),
                 out_path.as_ptr(),
@@ -71,7 +71,7 @@ impl Compiler {
 }
 
 #[derive(Debug)]
-pub(crate) struct InnerCompiler(pub(crate) *mut wasmedge::WasmEdge_CompilerContext);
+pub(crate) struct InnerCompiler(pub(crate) *mut ffi::WasmEdge_CompilerContext);
 unsafe impl Send for InnerCompiler {}
 unsafe impl Sync for InnerCompiler {}
 

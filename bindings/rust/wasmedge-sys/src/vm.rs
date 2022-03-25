@@ -2,14 +2,14 @@
 
 use crate::{
     error::{check, VmError, WasmEdgeError},
+    ffi,
+    ffi::{WasmEdge_HostRegistration_Wasi, WasmEdge_HostRegistration_WasmEdge_Process},
     import_obj::{ImportObject, InnerImportObject},
     instance::function::{FuncType, InnerFuncType},
     statistics::{InnerStat, Statistics},
     store::{InnerStore, Store},
     types::WasmEdgeString,
-    utils, wasmedge,
-    wasmedge::{WasmEdge_HostRegistration_Wasi, WasmEdge_HostRegistration_WasmEdge_Process},
-    Config, Module, WasmEdgeResult, WasmValue,
+    utils, Config, Module, WasmEdgeResult, WasmValue,
 };
 use std::{collections::HashMap, path::Path};
 
@@ -37,22 +37,18 @@ impl Vm {
         let ctx = match config {
             Some(mut config) => {
                 let vm_ctx = match store {
-                    Some(store) => unsafe {
-                        wasmedge::WasmEdge_VMCreate(config.inner.0, store.inner.0)
-                    },
-                    None => unsafe {
-                        wasmedge::WasmEdge_VMCreate(config.inner.0, std::ptr::null_mut())
-                    },
+                    Some(store) => unsafe { ffi::WasmEdge_VMCreate(config.inner.0, store.inner.0) },
+                    None => unsafe { ffi::WasmEdge_VMCreate(config.inner.0, std::ptr::null_mut()) },
                 };
                 config.inner.0 = std::ptr::null_mut();
                 vm_ctx
             }
             None => match store {
                 Some(store) => unsafe {
-                    wasmedge::WasmEdge_VMCreate(std::ptr::null_mut(), store.inner.0)
+                    ffi::WasmEdge_VMCreate(std::ptr::null_mut(), store.inner.0)
                 },
                 None => unsafe {
-                    wasmedge::WasmEdge_VMCreate(std::ptr::null_mut(), std::ptr::null_mut())
+                    ffi::WasmEdge_VMCreate(std::ptr::null_mut(), std::ptr::null_mut())
                 },
             },
         };
@@ -94,7 +90,7 @@ impl Vm {
         let path = utils::path_to_cstring(path.as_ref())?;
         let mod_name: WasmEdgeString = mod_name.as_ref().into();
         unsafe {
-            check(wasmedge::WasmEdge_VMRegisterModuleFromFile(
+            check(ffi::WasmEdge_VMRegisterModuleFromFile(
                 self.inner.0,
                 mod_name.as_raw(),
                 path.as_ptr(),
@@ -131,7 +127,7 @@ impl Vm {
         }
 
         unsafe {
-            check(wasmedge::WasmEdge_VMRegisterModuleFromImport(
+            check(ffi::WasmEdge_VMRegisterModuleFromImport(
                 self.inner.0,
                 self.imports
                     .get(&io_name)
@@ -171,7 +167,7 @@ impl Vm {
     ) -> WasmEdgeResult<()> {
         let mod_name: WasmEdgeString = mod_name.as_ref().into();
         unsafe {
-            check(wasmedge::WasmEdge_VMRegisterModuleFromBuffer(
+            check(ffi::WasmEdge_VMRegisterModuleFromBuffer(
                 self.inner.0,
                 mod_name.as_raw(),
                 buffer.as_ptr(),
@@ -210,7 +206,7 @@ impl Vm {
     ) -> WasmEdgeResult<()> {
         let mod_name: WasmEdgeString = mod_name.as_ref().into();
         unsafe {
-            check(wasmedge::WasmEdge_VMRegisterModuleFromASTModule(
+            check(ffi::WasmEdge_VMRegisterModuleFromASTModule(
                 self.inner.0,
                 mod_name.as_raw(),
                 module.inner.0,
@@ -351,7 +347,7 @@ impl Vm {
     /// If fail to load, then an error is returned.
     pub fn load_wasm_from_module(&mut self, module: &Module) -> WasmEdgeResult<()> {
         unsafe {
-            check(wasmedge::WasmEdge_VMLoadWasmFromASTModule(
+            check(ffi::WasmEdge_VMLoadWasmFromASTModule(
                 self.inner.0,
                 module.inner.0 as *const _,
             ))?;
@@ -372,7 +368,7 @@ impl Vm {
     /// If fail to load, then an error is returned.
     pub fn load_wasm_from_buffer(&mut self, buffer: &[u8]) -> WasmEdgeResult<()> {
         unsafe {
-            check(wasmedge::WasmEdge_VMLoadWasmFromBuffer(
+            check(ffi::WasmEdge_VMLoadWasmFromBuffer(
                 self.inner.0,
                 buffer.as_ptr() as *const _,
                 buffer.len() as u32,
@@ -395,7 +391,7 @@ impl Vm {
     pub fn load_wasm_from_file(&mut self, path: impl AsRef<Path>) -> WasmEdgeResult<()> {
         let path = utils::path_to_cstring(path.as_ref())?;
         unsafe {
-            check(wasmedge::WasmEdge_VMLoadWasmFromFile(
+            check(ffi::WasmEdge_VMLoadWasmFromFile(
                 self.inner.0,
                 path.as_ptr(),
             ))?;
@@ -412,7 +408,7 @@ impl Vm {
     /// If fail to validate, then an error is returned.
     pub fn validate(&self) -> WasmEdgeResult<()> {
         unsafe {
-            check(wasmedge::WasmEdge_VMValidate(self.inner.0))?;
+            check(ffi::WasmEdge_VMValidate(self.inner.0))?;
         }
         Ok(())
     }
@@ -426,7 +422,7 @@ impl Vm {
     /// If fail to instantiate, then an error is returned.
     pub fn instantiate(&mut self) -> WasmEdgeResult<()> {
         unsafe {
-            check(wasmedge::WasmEdge_VMInstantiate(self.inner.0))?;
+            check(ffi::WasmEdge_VMInstantiate(self.inner.0))?;
         }
         Ok(())
     }
@@ -457,13 +453,12 @@ impl Vm {
         let func_type = self.get_function_type(func_name.as_ref())?;
 
         // get the info of the funtion return
-        let returns_len =
-            unsafe { wasmedge::WasmEdge_FunctionTypeGetReturnsLength(func_type.inner.0) };
+        let returns_len = unsafe { ffi::WasmEdge_FunctionTypeGetReturnsLength(func_type.inner.0) };
         let mut returns = Vec::with_capacity(returns_len as usize);
 
         let func_name: WasmEdgeString = func_name.as_ref().into();
         unsafe {
-            check(wasmedge::WasmEdge_VMExecute(
+            check(ffi::WasmEdge_VMExecute(
                 self.inner.0,
                 func_name.as_raw(),
                 raw_params.as_ptr(),
@@ -505,14 +500,13 @@ impl Vm {
         let func_type = self.get_registered_function_type(mod_name.as_ref(), func_name.as_ref())?;
 
         // get the info of the funtion return
-        let returns_len =
-            unsafe { wasmedge::WasmEdge_FunctionTypeGetReturnsLength(func_type.inner.0) };
+        let returns_len = unsafe { ffi::WasmEdge_FunctionTypeGetReturnsLength(func_type.inner.0) };
         let mut returns = Vec::with_capacity(returns_len as usize);
 
         let mod_name: WasmEdgeString = mod_name.as_ref().into();
         let func_name: WasmEdgeString = func_name.as_ref().into();
         unsafe {
-            check(wasmedge::WasmEdge_VMExecuteRegistered(
+            check(ffi::WasmEdge_VMExecuteRegistered(
                 self.inner.0,
                 mod_name.as_raw(),
                 func_name.as_raw(),
@@ -542,7 +536,7 @@ impl Vm {
 
         let ty_ctx = unsafe {
             let func_name: WasmEdgeString = func_name.as_ref().into();
-            wasmedge::WasmEdge_VMGetFunctionType(self.inner.0, func_name.as_raw())
+            ffi::WasmEdge_VMGetFunctionType(self.inner.0, func_name.as_raw())
         };
 
         match ty_ctx.is_null() {
@@ -575,7 +569,7 @@ impl Vm {
         let ty_ctx = unsafe {
             let mod_name: WasmEdgeString = mod_name.as_ref().into();
             let func_name: WasmEdgeString = func_name.as_ref().into();
-            wasmedge::WasmEdge_VMGetFunctionTypeRegistered(
+            ffi::WasmEdge_VMGetFunctionTypeRegistered(
                 self.inner.0,
                 mod_name.as_raw(),
                 func_name.as_raw(),
@@ -595,12 +589,12 @@ impl Vm {
 
     /// Resets the [`Vm`].
     pub fn reset(&mut self) {
-        unsafe { wasmedge::WasmEdge_VMCleanup(self.inner.0) }
+        unsafe { ffi::WasmEdge_VMCleanup(self.inner.0) }
     }
 
     /// Returns the length of the exported function list.
     pub fn function_list_len(&self) -> usize {
-        unsafe { wasmedge::WasmEdge_VMGetFunctionListLength(self.inner.0) as usize }
+        unsafe { ffi::WasmEdge_VMGetFunctionListLength(self.inner.0) as usize }
     }
 
     /// Returns an iterator of the exported functions.
@@ -609,7 +603,7 @@ impl Vm {
         let mut names = Vec::with_capacity(len);
         let mut types = Vec::with_capacity(len);
         unsafe {
-            wasmedge::WasmEdge_VMGetFunctionList(
+            ffi::WasmEdge_VMGetFunctionList(
                 self.inner.0,
                 names.as_mut_ptr(),
                 types.as_mut_ptr(),
@@ -636,10 +630,7 @@ impl Vm {
     /// Returns the mutable Wasi [ImportObject](crate::ImportObject)
     pub fn wasi_import_module_mut(&mut self) -> WasmEdgeResult<ImportObject> {
         let io_ctx = unsafe {
-            wasmedge::WasmEdge_VMGetImportModuleContext(
-                self.inner.0,
-                WasmEdge_HostRegistration_Wasi,
-            )
+            ffi::WasmEdge_VMGetImportModuleContext(self.inner.0, WasmEdge_HostRegistration_Wasi)
         };
         match io_ctx.is_null() {
             true => Err(WasmEdgeError::Vm(VmError::NotFoundWasiImportObjectModule)),
@@ -653,7 +644,7 @@ impl Vm {
     /// Returns the mutable WasmEdgeProcess [ImportObject](crate::ImportObject).
     pub fn wasmedge_process_import_module_mut(&mut self) -> WasmEdgeResult<ImportObject> {
         let io_ctx = unsafe {
-            wasmedge::WasmEdge_VMGetImportModuleContext(
+            ffi::WasmEdge_VMGetImportModuleContext(
                 self.inner.0,
                 WasmEdge_HostRegistration_WasmEdge_Process,
             )
@@ -671,7 +662,7 @@ impl Vm {
 
     /// Returns the mutable [Store](crate::Store) from the [Vm].
     pub fn store_mut(&self) -> WasmEdgeResult<Store> {
-        let store_ctx = unsafe { wasmedge::WasmEdge_VMGetStoreContext(self.inner.0) };
+        let store_ctx = unsafe { ffi::WasmEdge_VMGetStoreContext(self.inner.0) };
         match store_ctx.is_null() {
             true => Err(WasmEdgeError::Vm(VmError::NotFoundStore)),
             false => Ok(Store {
@@ -683,7 +674,7 @@ impl Vm {
 
     /// Returns the mutable [Statistics](crate::Statistics) from the [Vm].
     pub fn statistics_mut(&self) -> WasmEdgeResult<Statistics> {
-        let stat_ctx = unsafe { wasmedge::WasmEdge_VMGetStatisticsContext(self.inner.0) };
+        let stat_ctx = unsafe { ffi::WasmEdge_VMGetStatisticsContext(self.inner.0) };
         match stat_ctx.is_null() {
             true => Err(WasmEdgeError::Vm(VmError::NotFoundStatistics)),
             false => Ok(Statistics {
@@ -742,7 +733,7 @@ impl Vm {
 impl Drop for Vm {
     fn drop(&mut self) {
         if !self.inner.0.is_null() {
-            unsafe { wasmedge::WasmEdge_VMDelete(self.inner.0) };
+            unsafe { ffi::WasmEdge_VMDelete(self.inner.0) };
         }
 
         // drop imports
@@ -751,7 +742,7 @@ impl Drop for Vm {
 }
 
 #[derive(Debug)]
-pub(crate) struct InnerVm(pub(crate) *mut wasmedge::WasmEdge_VMContext);
+pub(crate) struct InnerVm(pub(crate) *mut ffi::WasmEdge_VMContext);
 unsafe impl Send for InnerVm {}
 unsafe impl Sync for InnerVm {}
 

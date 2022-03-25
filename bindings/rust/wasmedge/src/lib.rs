@@ -25,9 +25,8 @@ pub use compiler::Compiler;
 pub use executor::Executor;
 #[doc(inline)]
 pub use instance::{
-    Func, Global, GlobalType, HostFunc, ImportModule, ImportModuleBuilder, Instance, Memory,
-    MemoryType, Signature, SignatureBuilder, Table, TableType, WasiImportModule,
-    WasmEdgeProcessImportModule,
+    Func, Global, GlobalType, ImportModule, ImportModuleBuilder, Instance, Memory, MemoryType,
+    Signature, SignatureBuilder, Table, TableType, WasiImportModule, WasmEdgeProcessImportModule,
 };
 #[doc(inline)]
 pub use module::{ExportType, ImportType, Module};
@@ -45,3 +44,5 @@ pub trait Engine {
     fn register_wasm_from_import(&mut self, import: &mut ImportModule);
     fn run_func(&self);
 }
+
+pub type HostFunc = sys::HostFunc;

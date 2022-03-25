@@ -1,8 +1,8 @@
-use crate::{error::Result, types::Val, wasmedge, RefType};
+use crate::{error::Result, sys, types::Val, RefType};
 
 #[derive(Debug)]
 pub struct Table<'instance> {
-    pub(crate) inner: wasmedge::Table,
+    pub(crate) inner: sys::Table,
     pub(crate) name: Option<String>,
     pub(crate) mod_name: Option<String>,
     pub(crate) _marker: std::marker::PhantomData<&'instance ()>,
@@ -85,18 +85,18 @@ impl TableType {
         self.max
     }
 
-    pub fn to_raw(self) -> Result<wasmedge::TableType> {
+    pub fn to_raw(self) -> Result<sys::TableType> {
         let min = self.minimum();
         let max = match self.maximum() {
             Some(max) => max,
             None => u32::MAX,
         };
-        let raw = wasmedge::TableType::create(self.elem_ty(), min..=max)?;
+        let raw = sys::TableType::create(self.elem_ty(), min..=max)?;
         Ok(raw)
     }
 }
-impl From<wasmedge::TableType> for TableType {
-    fn from(ty: wasmedge::TableType) -> Self {
+impl From<sys::TableType> for TableType {
+    fn from(ty: sys::TableType) -> Self {
         let limit = ty.limit();
         Self {
             elem_ty: ty.elem_ty(),

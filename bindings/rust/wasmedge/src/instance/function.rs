@@ -1,12 +1,12 @@
 //! Defines Func, SignatureBuilder, and Signature structs.
-use crate::{error::Result, wasmedge, Instance, ValType, WasmValue};
+use crate::{error::Result, sys, Instance, ValType, WasmValue};
 
 /// Type alias for host function.
 pub type HostFunc = dyn Fn(Vec<WasmValue>) -> std::result::Result<Vec<WasmValue>, u8> + Send + Sync;
 
 #[derive(Debug)]
 pub struct Func<'instance> {
-    pub(crate) inner: wasmedge::Function,
+    pub(crate) inner: sys::Function,
     pub(crate) _marker: std::marker::PhantomData<&'instance Instance<'instance>>,
 }
 impl<'instance> Func<'instance> {
@@ -91,8 +91,8 @@ impl Signature {
         }
     }
 }
-impl From<wasmedge::FuncType> for Signature {
-    fn from(ty: wasmedge::FuncType) -> Self {
+impl From<sys::FuncType> for Signature {
+    fn from(ty: sys::FuncType) -> Self {
         let args = if ty.params_len() > 0 {
             Some(ty.params_type_iter().collect::<Vec<_>>())
         } else {
@@ -108,7 +108,7 @@ impl From<wasmedge::FuncType> for Signature {
         Self { args, returns }
     }
 }
-impl From<Signature> for wasmedge::FuncType {
+impl From<Signature> for sys::FuncType {
     fn from(sig: Signature) -> Self {
         let args = match sig.args() {
             Some(args) => args.to_owned(),
@@ -118,7 +118,7 @@ impl From<Signature> for wasmedge::FuncType {
             Some(returns) => returns.to_owned(),
             None => Vec::new(),
         };
-        wasmedge::FuncType::create(args, returns).expect("fail to convert Signature into FuncType")
+        sys::FuncType::create(args, returns).expect("fail to convert Signature into FuncType")
     }
 }
 

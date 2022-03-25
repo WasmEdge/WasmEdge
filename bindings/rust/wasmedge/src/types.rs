@@ -1,6 +1,6 @@
 //! Defines the general types.
 
-use crate::{wasmedge, Func, GlobalType, MemoryType, Signature, TableType};
+use crate::{sys, Func, GlobalType, MemoryType, Signature, TableType};
 use std::marker::PhantomData;
 
 /// External types.
@@ -48,39 +48,37 @@ pub enum Val {
     /// extern` in Wasm.
     ExternRef(Option<ExternRef>),
 }
-impl From<Val> for wasmedge::WasmValue {
+impl From<Val> for sys::WasmValue {
     fn from(val: Val) -> Self {
         match val {
-            Val::I32(i) => wasmedge::WasmValue::from_i32(i),
-            Val::I64(i) => wasmedge::WasmValue::from_i64(i),
-            Val::F32(i) => wasmedge::WasmValue::from_f32(i),
-            Val::F64(i) => wasmedge::WasmValue::from_f64(i),
-            Val::V128(i) => wasmedge::WasmValue::from_v128(i),
+            Val::I32(i) => sys::WasmValue::from_i32(i),
+            Val::I64(i) => sys::WasmValue::from_i64(i),
+            Val::F32(i) => sys::WasmValue::from_f32(i),
+            Val::F64(i) => sys::WasmValue::from_f64(i),
+            Val::V128(i) => sys::WasmValue::from_v128(i),
             Val::FuncRef(Some(func_ref)) => func_ref.inner,
-            Val::FuncRef(None) => wasmedge::WasmValue::from_null_ref(wasmedge::RefType::FuncRef),
+            Val::FuncRef(None) => sys::WasmValue::from_null_ref(sys::RefType::FuncRef),
             Val::ExternRef(Some(extern_ref)) => extern_ref.inner,
-            Val::ExternRef(None) => {
-                wasmedge::WasmValue::from_null_ref(wasmedge::RefType::ExternRef)
-            }
+            Val::ExternRef(None) => sys::WasmValue::from_null_ref(sys::RefType::ExternRef),
         }
     }
 }
-impl From<wasmedge::WasmValue> for Val {
-    fn from(value: wasmedge::WasmValue) -> Self {
+impl From<sys::WasmValue> for Val {
+    fn from(value: sys::WasmValue) -> Self {
         match value.ty() {
-            wasmedge::ValType::I32 => Val::I32(value.to_i32()),
-            wasmedge::ValType::I64 => Val::I64(value.to_i64()),
-            wasmedge::ValType::F32 => Val::F32(value.to_f32()),
-            wasmedge::ValType::F64 => Val::F64(value.to_f64()),
-            wasmedge::ValType::V128 => Val::V128(value.to_v128()),
-            wasmedge::ValType::FuncRef => {
+            sys::ValType::I32 => Val::I32(value.to_i32()),
+            sys::ValType::I64 => Val::I64(value.to_i64()),
+            sys::ValType::F32 => Val::F32(value.to_f32()),
+            sys::ValType::F64 => Val::F64(value.to_f64()),
+            sys::ValType::V128 => Val::V128(value.to_v128()),
+            sys::ValType::FuncRef => {
                 if value.is_null_ref() {
                     Val::FuncRef(None)
                 } else {
                     Val::FuncRef(Some(FuncRef { inner: value }))
                 }
             }
-            wasmedge::ValType::ExternRef => {
+            sys::ValType::ExternRef => {
                 if value.is_null_ref() {
                     Val::ExternRef(None)
                 } else {
@@ -95,11 +93,11 @@ impl From<wasmedge::WasmValue> for Val {
 /// Struct of WasmEdge FuncRef.
 #[derive(Debug)]
 pub struct FuncRef {
-    pub(crate) inner: wasmedge::WasmValue,
+    pub(crate) inner: sys::WasmValue,
 }
 impl FuncRef {
     pub fn new(func_ref: &mut Func) -> Self {
-        let inner = wasmedge::WasmValue::from_func_ref(&mut func_ref.inner);
+        let inner = sys::WasmValue::from_func_ref(&mut func_ref.inner);
         Self { inner }
     }
 
@@ -118,7 +116,7 @@ impl FuncRef {
 /// Struct of WasmEdge ExternRef.
 #[derive(Debug)]
 pub struct ExternRef {
-    pub(crate) inner: wasmedge::WasmValue,
+    pub(crate) inner: sys::WasmValue,
 }
 impl ExternRef {
     /// Creates a new instance of `ExternRef` wrapping the given value.
@@ -126,7 +124,7 @@ impl ExternRef {
     where
         T: 'static + Send + Sync,
     {
-        let inner = wasmedge::WasmValue::from_extern_ref(extern_obj);
+        let inner = sys::WasmValue::from_extern_ref(extern_obj);
         Self { inner }
     }
 }

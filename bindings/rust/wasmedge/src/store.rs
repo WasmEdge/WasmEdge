@@ -1,12 +1,12 @@
-use crate::{error::Result, wasmedge, Executor, ImportModule, Instance, Module};
+use crate::{error::Result, sys, Executor, ImportModule, Instance, Module};
 
 #[derive(Debug)]
 pub struct Store {
-    pub(crate) inner: wasmedge::Store,
+    pub(crate) inner: sys::Store,
 }
 impl Store {
     pub fn new() -> Result<Self> {
-        let inner = wasmedge::Store::create()?;
+        let inner = sys::Store::create()?;
         Ok(Self { inner })
     }
 
@@ -86,8 +86,8 @@ mod tests {
     use super::*;
     use crate::{
         config::{CommonConfigOptions, ConfigBuilder},
+        sys::{Mutability, RefType},
         types::Val,
-        wasmedge::{Mutability, RefType},
         Executor, GlobalType, ImportModuleBuilder, MemoryType, Module, SignatureBuilder,
         Statistics, TableType, ValType, WasmValue,
     };

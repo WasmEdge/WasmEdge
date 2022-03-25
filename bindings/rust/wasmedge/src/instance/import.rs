@@ -1,13 +1,13 @@
 use crate::{
-    error::Result, types::Val, wasmedge, GlobalType, HostFunc, MemoryType, Signature, TableType,
+    error::Result, sys, types::Val, GlobalType, HostFunc, MemoryType, Signature, TableType,
 };
 
 #[derive(Debug, Default)]
 pub struct ImportModuleBuilder {
-    funcs: Vec<(String, wasmedge::Function)>,
-    globals: Vec<(String, wasmedge::Global)>,
-    memories: Vec<(String, wasmedge::Memory)>,
-    tables: Vec<(String, wasmedge::Table)>,
+    funcs: Vec<(String, sys::Function)>,
+    globals: Vec<(String, sys::Global)>,
+    memories: Vec<(String, sys::Memory)>,
+    tables: Vec<(String, sys::Table)>,
 }
 impl ImportModuleBuilder {
     pub fn new() -> Self {
@@ -25,31 +25,31 @@ impl ImportModuleBuilder {
         sig: Signature,
         real_func: Box<HostFunc>,
     ) -> Result<Self> {
-        let inner_func = wasmedge::Function::create(&sig.into(), real_func, 0)?;
+        let inner_func = sys::Function::create(&sig.into(), real_func, 0)?;
         self.funcs.push((name.as_ref().to_owned(), inner_func));
         Ok(self)
     }
 
     pub fn with_global(mut self, name: impl AsRef<str>, ty: GlobalType, init: Val) -> Result<Self> {
-        let inner_global = wasmedge::Global::create(&ty.to_raw()?, init.into())?;
+        let inner_global = sys::Global::create(&ty.to_raw()?, init.into())?;
         self.globals.push((name.as_ref().to_owned(), inner_global));
         Ok(self)
     }
 
     pub fn with_memory(mut self, name: impl AsRef<str>, ty: MemoryType) -> Result<Self> {
-        let inner_memory = wasmedge::Memory::create(&ty.to_raw()?)?;
+        let inner_memory = sys::Memory::create(&ty.to_raw()?)?;
         self.memories.push((name.as_ref().to_owned(), inner_memory));
         Ok(self)
     }
 
     pub fn with_table(mut self, name: impl AsRef<str>, ty: TableType) -> Result<Self> {
-        let inner_table = wasmedge::Table::create(&ty.to_raw()?)?;
+        let inner_table = sys::Table::create(&ty.to_raw()?)?;
         self.tables.push((name.as_ref().to_owned(), inner_table));
         Ok(self)
     }
 
     pub fn build(self, name: impl AsRef<str>) -> Result<ImportModule> {
-        let mut inner = wasmedge::ImportObject::create(name.as_ref())?;
+        let mut inner = sys::ImportObject::create(name.as_ref())?;
 
         // add func
         for (name, func) in self.funcs.into_iter() {
@@ -80,7 +80,7 @@ impl ImportModuleBuilder {
         envs: Option<Vec<&'a str>>,
         preopens: Option<Vec<&'a str>>,
     ) -> Result<ImportModule> {
-        let mut inner = wasmedge::ImportObject::create_wasi(args, envs, preopens)?;
+        let mut inner = sys::ImportObject::create_wasi(args, envs, preopens)?;
 
         // add func
         for (name, func) in self.funcs.into_iter() {
@@ -110,7 +110,7 @@ impl ImportModuleBuilder {
         allowed_cmds: Option<Vec<&str>>,
         allowed: bool,
     ) -> Result<ImportModule> {
-        let mut inner = wasmedge::ImportObject::create_wasmedge_process(allowed_cmds, allowed)?;
+        let mut inner = sys::ImportObject::create_wasmedge_process(allowed_cmds, allowed)?;
 
         // add func
         for (name, func) in self.funcs.into_iter() {
@@ -138,7 +138,7 @@ impl ImportModuleBuilder {
 
 #[derive(Debug)]
 pub struct ImportModule {
-    pub(crate) inner: wasmedge::ImportObject,
+    pub(crate) inner: sys::ImportObject,
 }
 impl ImportModule {
     pub fn name(&self) -> String {
@@ -148,7 +148,7 @@ impl ImportModule {
 
 #[derive(Debug)]
 pub struct WasiImportModule<'vm> {
-    pub(crate) inner: &'vm mut wasmedge::ImportObject,
+    pub(crate) inner: &'vm mut sys::ImportObject,
 }
 impl<'vm> WasiImportModule<'vm> {
     pub fn name(&self) -> String {
@@ -171,7 +171,7 @@ impl<'vm> WasiImportModule<'vm> {
 
 #[derive(Debug)]
 pub struct WasmEdgeProcessImportModule<'vm> {
-    pub(crate) inner: &'vm mut wasmedge::ImportObject,
+    pub(crate) inner: &'vm mut sys::ImportObject,
 }
 impl<'vm> WasmEdgeProcessImportModule<'vm> {
     pub fn name(&self) -> String {
@@ -189,9 +189,9 @@ mod tests {
     use crate::{
         config::{CommonConfigOptions, ConfigBuilder},
         error::WasmEdgeError,
+        sys,
         types::{FuncRef, Val},
-        wasmedge, Executor, Mutability, RefType, SignatureBuilder, Statistics, Store, ValType,
-        WasmValue,
+        Executor, Mutability, RefType, SignatureBuilder, Statistics, Store, ValType, WasmValue,
     };
     use std::{
         sync::{Arc, Mutex},
@@ -286,9 +286,9 @@ mod tests {
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
-            WasmEdgeError::Operation(wasmedge::error::WasmEdgeError::Core(
-                wasmedge::error::CoreError::Instantiation(
-                    wasmedge::error::CoreInstantiationError::ModuleNameConflict
+            WasmEdgeError::Operation(sys::error::WasmEdgeError::Core(
+                sys::error::CoreError::Instantiation(
+                    sys::error::CoreInstantiationError::ModuleNameConflict
                 )
             ))
         );
@@ -349,9 +349,9 @@ mod tests {
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
-            WasmEdgeError::Operation(wasmedge::error::WasmEdgeError::Core(
-                wasmedge::error::CoreError::Instantiation(
-                    wasmedge::error::CoreInstantiationError::ModuleNameConflict
+            WasmEdgeError::Operation(sys::error::WasmEdgeError::Core(
+                sys::error::CoreError::Instantiation(
+                    sys::error::CoreInstantiationError::ModuleNameConflict
                 )
             ))
         );
@@ -554,8 +554,8 @@ mod tests {
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
-            WasmEdgeError::Operation(wasmedge::error::WasmEdgeError::Global(
-                wasmedge::error::GlobalError::ModifyConst
+            WasmEdgeError::Operation(sys::error::WasmEdgeError::Global(
+                sys::error::GlobalError::ModifyConst
             ))
         );
 

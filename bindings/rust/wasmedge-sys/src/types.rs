@@ -2,7 +2,7 @@
 
 use crate::{ffi, instance::function::InnerFunc, Function};
 use core::ffi::c_void;
-use std::{ffi::CString, fmt, str::FromStr};
+use std::{ffi::CString, str::FromStr};
 
 /// Defines reference types.
 ///
@@ -231,40 +231,6 @@ impl From<HostRegistration> for ffi::WasmEdge_HostRegistration {
             HostRegistration::Wasi => ffi::WasmEdge_HostRegistration_Wasi,
             HostRegistration::WasmEdgeProcess => ffi::WasmEdge_HostRegistration_WasmEdge_Process,
         }
-    }
-}
-
-/// Defines WasmEdge ExternType values.
-///
-/// `ExternType` classifies [imports](crate::Import) and external values with their respective types.
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
-#[repr(u32)]
-pub enum ExternalInstanceType {
-    Function = ffi::WasmEdge_ExternalType_Function,
-    Table = ffi::WasmEdge_ExternalType_Table,
-    Memory = ffi::WasmEdge_ExternalType_Memory,
-    Global = ffi::WasmEdge_ExternalType_Global,
-}
-impl From<u32> for ExternalInstanceType {
-    fn from(val: u32) -> Self {
-        match val {
-            0x00u32 => ExternalInstanceType::Function,
-            0x01u32 => ExternalInstanceType::Table,
-            0x02u32 => ExternalInstanceType::Memory,
-            0x03u32 => ExternalInstanceType::Global,
-            _ => panic!("Unknown ExternalType value: {}", val),
-        }
-    }
-}
-impl fmt::Display for ExternalInstanceType {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let message = match self {
-            ExternalInstanceType::Function => "function",
-            ExternalInstanceType::Table => "table",
-            ExternalInstanceType::Memory => "memory",
-            ExternalInstanceType::Global => "global",
-        };
-        write!(f, "{}", message)
     }
 }
 

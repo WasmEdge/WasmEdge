@@ -18,6 +18,7 @@ use std::{
     collections::HashMap,
     sync::{Arc, Mutex},
 };
+use wasmedge_types;
 
 #[doc(hidden)]
 #[allow(warnings)]
@@ -78,8 +79,8 @@ pub use statistics::Statistics;
 pub use store::Store;
 #[doc(inline)]
 pub use types::{
-    CompilerOptimizationLevel, CompilerOutputFormat, ExternalInstanceType, Mutability, WasmRefType,
-    WasmValue, WasmValueType,
+    CompilerOptimizationLevel, CompilerOutputFormat, Mutability, WasmRefType, WasmValue,
+    WasmValueType,
 };
 #[doc(inline)]
 pub use validator::Validator;

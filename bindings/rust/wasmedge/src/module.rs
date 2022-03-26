@@ -1,6 +1,6 @@
 //! Defines Module, ImportType, and ExportType.
 
-use crate::{config::Config, error::Result, sys, types::ExternalType};
+use crate::{config::Config, error::Result, sys, types::ExternalInstanceType};
 use std::marker::PhantomData;
 use std::{borrow::Cow, path::Path};
 
@@ -117,7 +117,7 @@ impl Module {
     /// # Argument
     ///
     /// - `name` specifies the name of the target [export type](crate::ExportType).
-    pub fn get_export(&self, name: impl AsRef<str>) -> Option<ExternalType> {
+    pub fn get_export(&self, name: impl AsRef<str>) -> Option<ExternalInstanceType> {
         let exports = self
             .exports()
             .into_iter()
@@ -150,23 +150,23 @@ impl<'module> ImportType<'module> {
     }
 
     /// Returns the type of the [ImportType].
-    pub fn ty(&self) -> Result<ExternalType> {
+    pub fn ty(&self) -> Result<ExternalInstanceType> {
         match self.inner.ty() {
-            sys::ExternalType::Function => {
+            sys::ExternalInstanceType::Function => {
                 let func_ty = self.inner.function_type()?;
-                Ok(ExternalType::Func(func_ty.into()))
+                Ok(ExternalInstanceType::Func(func_ty.into()))
             }
-            sys::ExternalType::Global => {
+            sys::ExternalInstanceType::Global => {
                 let global_ty = self.inner.global_type()?;
-                Ok(ExternalType::Global(global_ty.into()))
+                Ok(ExternalInstanceType::Global(global_ty.into()))
             }
-            sys::ExternalType::Memory => {
+            sys::ExternalInstanceType::Memory => {
                 let mem_ty = self.inner.memory_type()?;
-                Ok(ExternalType::Memory(mem_ty.into()))
+                Ok(ExternalInstanceType::Memory(mem_ty.into()))
             }
-            sys::ExternalType::Table => {
+            sys::ExternalInstanceType::Table => {
                 let table_ty = self.inner.table_type()?;
-                Ok(ExternalType::Table(table_ty.into()))
+                Ok(ExternalInstanceType::Table(table_ty.into()))
             }
         }
     }
@@ -187,23 +187,23 @@ impl<'module> ExportType<'module> {
     }
 
     /// Returns the type of the [ExportType].
-    pub fn ty(&self) -> Result<ExternalType> {
+    pub fn ty(&self) -> Result<ExternalInstanceType> {
         match self.inner.ty() {
-            sys::ExternalType::Function => {
+            sys::ExternalInstanceType::Function => {
                 let func_ty = self.inner.function_type()?;
-                Ok(ExternalType::Func(func_ty.into()))
+                Ok(ExternalInstanceType::Func(func_ty.into()))
             }
-            sys::ExternalType::Global => {
+            sys::ExternalInstanceType::Global => {
                 let global_ty = self.inner.global_type()?;
-                Ok(ExternalType::Global(global_ty.into()))
+                Ok(ExternalInstanceType::Global(global_ty.into()))
             }
-            sys::ExternalType::Memory => {
+            sys::ExternalInstanceType::Memory => {
                 let mem_ty = self.inner.memory_type()?;
-                Ok(ExternalType::Memory(mem_ty.into()))
+                Ok(ExternalInstanceType::Memory(mem_ty.into()))
             }
-            sys::ExternalType::Table => {
+            sys::ExternalInstanceType::Table => {
                 let table_ty = self.inner.table_type()?;
-                Ok(ExternalType::Table(table_ty.into()))
+                Ok(ExternalInstanceType::Table(table_ty.into()))
             }
         }
     }

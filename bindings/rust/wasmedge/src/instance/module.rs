@@ -101,8 +101,8 @@ impl<'store> Instance<'store> {
 mod tests {
     use crate::{
         config::{CommonConfigOptions, ConfigBuilder},
-        sys::Mutability,
         types::{RefType, Val, ValType},
+        wasmedge_types::Mutability,
         Executor, GlobalType, ImportModuleBuilder, MemoryType, Module, SignatureBuilder,
         Statistics, Store, TableType, WasmValue, WasmValueType,
     };

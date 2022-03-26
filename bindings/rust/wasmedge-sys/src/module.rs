@@ -3,13 +3,10 @@
 use super::ffi;
 use crate::{
     error::{ExportError, ImportError, WasmEdgeError},
-    instance::{
-        function::{FuncType, InnerFuncType},
-        global::{GlobalType, InnerGlobalType},
-        memory::{InnerMemType, MemType},
-        table::{InnerTableType, TableType},
+    wasmedge_types::{
+        ExternalInstanceType, FuncType, GlobalType, MemoryType, Mutability, RefType, TableType,
+        ValType,
     },
-    types::ExternalInstanceType,
     WasmEdgeResult,
 };
 use std::{borrow::Cow, ffi::CStr};
@@ -101,9 +98,127 @@ impl<'module> Drop for Import<'module> {
 }
 impl<'module> Import<'module> {
     /// Returns the external type of the [Import].
-    pub fn ty(&self) -> ExternalInstanceType {
+    pub fn ty(&self) -> WasmEdgeResult<ExternalInstanceType> {
         let ty = unsafe { ffi::WasmEdge_ImportTypeGetExternalType(self.inner.0) };
-        ty.into()
+        let ty: ExternalInstanceType = ty.into();
+        match ty {
+            ExternalInstanceType::Func(_) => {
+                let ctx_func_ty = unsafe {
+                    ffi::WasmEdge_ImportTypeGetFunctionType(
+                        self.module.inner.0 as *const _,
+                        self.inner.0 as *const _,
+                    )
+                };
+                match ctx_func_ty.is_null() {
+                    true => Err(WasmEdgeError::Import(ImportError::FuncType(
+                        "Fail to get the function type".into(),
+                    ))),
+                    false => {
+                        // get types of the arguments
+                        let args_len = unsafe {
+                            ffi::WasmEdge_FunctionTypeGetParametersLength(ctx_func_ty) as usize
+                        };
+                        let mut args = Vec::with_capacity(args_len);
+                        unsafe {
+                            ffi::WasmEdge_FunctionTypeGetParameters(
+                                ctx_func_ty,
+                                args.as_mut_ptr(),
+                                args_len as u32,
+                            );
+                            args.set_len(args_len);
+                        }
+                        let args: Vec<ValType> = args.into_iter().map(Into::into).collect();
+
+                        // get types of the returns
+                        let returns_len = unsafe {
+                            ffi::WasmEdge_FunctionTypeGetReturnsLength(ctx_func_ty) as usize
+                        };
+                        let mut returns = Vec::with_capacity(returns_len);
+                        unsafe {
+                            ffi::WasmEdge_FunctionTypeGetReturns(
+                                ctx_func_ty,
+                                returns.as_mut_ptr(),
+                                returns_len as u32,
+                            );
+                            returns.set_len(returns_len);
+                        }
+                        let returns: Vec<ValType> = returns.into_iter().map(Into::into).collect();
+
+                        Ok(ExternalInstanceType::Func(FuncType::new(
+                            Some(args),
+                            Some(returns),
+                        )))
+                    }
+                }
+            }
+            ExternalInstanceType::Global(_) => {
+                let ctx_global_ty = unsafe {
+                    ffi::WasmEdge_ImportTypeGetGlobalType(self.module.inner.0, self.inner.0)
+                };
+                match ctx_global_ty.is_null() {
+                    true => Err(WasmEdgeError::Import(ImportError::MemType(
+                        "Fail to get the global type".into(),
+                    ))),
+                    false => {
+                        // get the value type
+                        let val = unsafe { ffi::WasmEdge_GlobalTypeGetValType(ctx_global_ty) };
+                        let val_ty: ValType = val.into();
+
+                        // get mutability
+                        let val = unsafe { ffi::WasmEdge_GlobalTypeGetMutability(ctx_global_ty) };
+                        let mutability: Mutability = val.into();
+
+                        Ok(ExternalInstanceType::Global(GlobalType::new(
+                            val_ty, mutability,
+                        )))
+                    }
+                }
+            }
+            ExternalInstanceType::Memory(_) => {
+                let ctx_mem_ty = unsafe {
+                    ffi::WasmEdge_ImportTypeGetMemoryType(self.module.inner.0, self.inner.0)
+                };
+                match ctx_mem_ty.is_null() {
+                    true => Err(WasmEdgeError::Import(ImportError::MemType(
+                        "Fail to get the memory type".into(),
+                    ))),
+                    false => {
+                        let limit = unsafe { ffi::WasmEdge_MemoryTypeGetLimit(ctx_mem_ty) };
+                        let limit: std::ops::RangeInclusive<u32> = limit.into();
+
+                        Ok(ExternalInstanceType::Memory(MemoryType::new(
+                            limit.start().to_owned(),
+                            Some(limit.end().to_owned()),
+                        )))
+                    }
+                }
+            }
+            ExternalInstanceType::Table(_) => {
+                let ctx_tab_ty = unsafe {
+                    ffi::WasmEdge_ImportTypeGetTableType(self.module.inner.0, self.inner.0)
+                };
+                match ctx_tab_ty.is_null() {
+                    true => Err(WasmEdgeError::Import(ImportError::TableType(
+                        "Fail to get the table type".into(),
+                    ))),
+                    false => {
+                        // get the element type
+                        let elem_ty = unsafe { ffi::WasmEdge_TableTypeGetRefType(ctx_tab_ty) };
+                        let elem_ty: RefType = elem_ty.into();
+
+                        // get the limit
+                        let limit = unsafe { ffi::WasmEdge_TableTypeGetLimit(ctx_tab_ty) };
+                        let limit: std::ops::RangeInclusive<u32> = limit.into();
+
+                        Ok(ExternalInstanceType::Table(TableType::new(
+                            elem_ty,
+                            limit.start().to_owned(),
+                            Some(limit.end().to_owned()),
+                        )))
+                    }
+                }
+            }
+        }
     }
 
     /// Returns the external name of the [Import].
@@ -124,107 +239,109 @@ impl<'module> Import<'module> {
         c_name.to_string_lossy()
     }
 
-    /// Returns the [type](crate::FuncType) of the imported [function](crate::Function).
-    ///
-    /// # Error
-    ///
-    /// If fail to get the function type, then an error is returned.
-    pub fn function_type(&self) -> WasmEdgeResult<FuncType> {
-        let external_ty = self.ty();
-        if external_ty != ExternalInstanceType::Function {
-            return Err(WasmEdgeError::Import(ImportError::Type {
-                expected: ExternalInstanceType::Function,
-                actual: external_ty,
-            }));
-        }
-        let ctx_func_ty = unsafe {
-            ffi::WasmEdge_ImportTypeGetFunctionType(
-                self.module.inner.0 as *const _,
-                self.inner.0 as *const _,
-            )
-        };
-        match ctx_func_ty.is_null() {
-            true => Err(WasmEdgeError::Import(ImportError::FuncType(
-                "Fail to get the function type".into(),
-            ))),
-            false => Ok(FuncType {
-                inner: InnerFuncType(ctx_func_ty as *mut _),
-                registered: true,
-            }),
-        }
-    }
+    // /// Returns the [type](crate::FuncType) of the imported [function](crate::Function).
+    // ///
+    // /// # Error
+    // ///
+    // /// If fail to get the function type, then an error is returned.
+    // pub fn function_type(&self) -> WasmEdgeResult<FuncType> {
+    //     let external_ty = self.ty();
+    //     if external_ty != ExternalInstanceType::Func {
+    //         return Err(WasmEdgeError::Import(ImportError::Type {
+    //             expected: ExternalInstanceType::Func,
+    //             actual: external_ty,
+    //         }));
+    //     }
+    //     let ctx_func_ty = unsafe {
+    //         wasmedge::WasmEdge_ImportTypeGetFunctionType(
+    //             self.module.inner.0 as *const _,
+    //             self.inner.0 as *const _,
+    //         )
+    //     };
+    //     match ctx_func_ty.is_null() {
+    //         true => Err(WasmEdgeError::Import(ImportError::FuncType(
+    //             "Fail to get the function type".into(),
+    //         ))),
+    //         false => Ok(FuncType {
+    //             inner: InnerFuncType(ctx_func_ty as *mut _),
+    //             registered: true,
+    //         }),
+    //     }
+    // }
 
-    /// Returns the [table type](crate::TableType).
-    ///
-    /// If fail to get the table type, then an error is returned.
-    pub fn table_type(&self) -> WasmEdgeResult<TableType> {
-        let external_ty = self.ty();
-        if external_ty != ExternalInstanceType::Table {
-            return Err(WasmEdgeError::Import(ImportError::Type {
-                expected: ExternalInstanceType::Table,
-                actual: external_ty,
-            }));
-        }
-        let ctx_tab_ty =
-            unsafe { ffi::WasmEdge_ImportTypeGetTableType(self.module.inner.0, self.inner.0) };
-        match ctx_tab_ty.is_null() {
-            true => Err(WasmEdgeError::Import(ImportError::TableType(
-                "Fail to get the table type".into(),
-            ))),
-            false => Ok(TableType {
-                inner: InnerTableType(ctx_tab_ty as *mut _),
-                registered: true,
-            }),
-        }
-    }
+    // /// Returns the [table type](crate::TableType).
+    // ///
+    // /// If fail to get the table type, then an error is returned.
+    // pub fn table_type(&self) -> WasmEdgeResult<TableType> {
+    //     let external_ty = self.ty();
+    //     if external_ty != ExternalInstanceType::Table {
+    //         return Err(WasmEdgeError::Import(ImportError::Type {
+    //             expected: ExternalInstanceType::Table,
+    //             actual: external_ty,
+    //         }));
+    //     }
+    //     let ctx_tab_ty =
+    //         unsafe { wasmedge::WasmEdge_ImportTypeGetTableType(self.module.inner.0, self.inner.0) };
+    //     match ctx_tab_ty.is_null() {
+    //         true => Err(WasmEdgeError::Import(ImportError::TableType(
+    //             "Fail to get the table type".into(),
+    //         ))),
+    //         false => Ok(TableType {
+    //             inner: InnerTableType(ctx_tab_ty as *mut _),
+    //             registered: true,
+    //         }),
+    //     }
+    // }
 
-    /// Returns the [memory type](crate::MemType).
-    ///
-    /// If fail to get the memory type, then an error is returned.
-    pub fn memory_type(&self) -> WasmEdgeResult<MemType> {
-        let external_ty = self.ty();
-        if external_ty != ExternalInstanceType::Memory {
-            return Err(WasmEdgeError::Import(ImportError::Type {
-                expected: ExternalInstanceType::Memory,
-                actual: external_ty,
-            }));
-        }
-        let ctx_mem_ty =
-            unsafe { ffi::WasmEdge_ImportTypeGetMemoryType(self.module.inner.0, self.inner.0) };
-        match ctx_mem_ty.is_null() {
-            true => Err(WasmEdgeError::Import(ImportError::MemType(
-                "Fail to get the memory type".into(),
-            ))),
-            false => Ok(MemType {
-                inner: InnerMemType(ctx_mem_ty as *mut _),
-                registered: true,
-            }),
-        }
-    }
+    // /// Returns the [memory type](crate::MemType).
+    // ///
+    // /// If fail to get the memory type, then an error is returned.
+    // pub fn memory_type(&self) -> WasmEdgeResult<MemType> {
+    //     let external_ty = self.ty();
+    //     if external_ty != ExternalInstanceType::Memory {
+    //         return Err(WasmEdgeError::Import(ImportError::Type {
+    //             expected: ExternalInstanceType::Memory,
+    //             actual: external_ty,
+    //         }));
+    //     }
+    //     let ctx_mem_ty = unsafe {
+    //         wasmedge::WasmEdge_ImportTypeGetMemoryType(self.module.inner.0, self.inner.0)
+    //     };
+    //     match ctx_mem_ty.is_null() {
+    //         true => Err(WasmEdgeError::Import(ImportError::MemType(
+    //             "Fail to get the memory type".into(),
+    //         ))),
+    //         false => Ok(MemType {
+    //             inner: InnerMemType(ctx_mem_ty as *mut _),
+    //             registered: true,
+    //         }),
+    //     }
+    // }
 
-    /// Returns the [global type](crate::GlobalType).
-    ///
-    /// If fail to get the global type, then an error is returned.
-    pub fn global_type(&self) -> WasmEdgeResult<GlobalType> {
-        let external_ty = self.ty();
-        if external_ty != ExternalInstanceType::Global {
-            return Err(WasmEdgeError::Import(ImportError::Type {
-                expected: ExternalInstanceType::Global,
-                actual: external_ty,
-            }));
-        }
-        let ctx_global_ty =
-            unsafe { ffi::WasmEdge_ImportTypeGetGlobalType(self.module.inner.0, self.inner.0) };
-        match ctx_global_ty.is_null() {
-            true => Err(WasmEdgeError::Import(ImportError::MemType(
-                "Fail to get the global type".into(),
-            ))),
-            false => Ok(GlobalType {
-                inner: InnerGlobalType(ctx_global_ty as *mut _),
-                registered: true,
-            }),
-        }
-    }
+    // /// Returns the [global type](crate::GlobalType).
+    // ///
+    // /// If fail to get the global type, then an error is returned.
+    // pub fn global_type(&self) -> WasmEdgeResult<GlobalType> {
+    //     let external_ty = self.ty();
+    //     if external_ty != ExternalInstanceType::Global {
+    //         return Err(WasmEdgeError::Import(ImportError::Type {
+    //             expected: ExternalInstanceType::Global,
+    //             actual: external_ty,
+    //         }));
+    //     }
+    //     let ctx_global_ty = unsafe {
+    //         wasmedge::WasmEdge_ImportTypeGetGlobalType(self.module.inner.0, self.inner.0)
+    //     };
+    //     match ctx_global_ty.is_null() {
+    //         true => Err(WasmEdgeError::Import(ImportError::MemType(
+    //             "Fail to get the global type".into(),
+    //         ))),
+    //         false => Ok(GlobalType {
+    //             inner: InnerGlobalType(ctx_global_ty as *mut _),
+    //             registered: true,
+    //         }),
+    //     }
+    // }
 }
 
 #[derive(Debug)]
@@ -250,9 +367,124 @@ impl<'module> Drop for Export<'module> {
 }
 impl<'module> Export<'module> {
     /// Returns the external type of the [Export].
-    pub fn ty(&self) -> ExternalInstanceType {
+    pub fn ty(&self) -> WasmEdgeResult<ExternalInstanceType> {
         let ty = unsafe { ffi::WasmEdge_ExportTypeGetExternalType(self.inner.0) };
-        ty.into()
+        let ty: ExternalInstanceType = ty.into();
+        match ty {
+            ExternalInstanceType::Func(_) => {
+                let ctx_func_ty = unsafe {
+                    ffi::WasmEdge_ExportTypeGetFunctionType(self.module.inner.0, self.inner.0)
+                };
+                match ctx_func_ty.is_null() {
+                    true => Err(WasmEdgeError::Export(ExportError::FuncType(
+                        "Fail to get the function type".into(),
+                    ))),
+                    false => {
+                        // get types of the arguments
+                        let args_len = unsafe {
+                            ffi::WasmEdge_FunctionTypeGetParametersLength(ctx_func_ty) as usize
+                        };
+                        let mut args = Vec::with_capacity(args_len);
+                        unsafe {
+                            ffi::WasmEdge_FunctionTypeGetParameters(
+                                ctx_func_ty,
+                                args.as_mut_ptr(),
+                                args_len as u32,
+                            );
+                            args.set_len(args_len);
+                        }
+                        let args: Vec<ValType> = args.into_iter().map(Into::into).collect();
+
+                        // get types of the returns
+                        let returns_len = unsafe {
+                            ffi::WasmEdge_FunctionTypeGetReturnsLength(ctx_func_ty) as usize
+                        };
+                        let mut returns = Vec::with_capacity(returns_len);
+                        unsafe {
+                            ffi::WasmEdge_FunctionTypeGetReturns(
+                                ctx_func_ty,
+                                returns.as_mut_ptr(),
+                                returns_len as u32,
+                            );
+                            returns.set_len(returns_len);
+                        }
+                        let returns: Vec<ValType> = returns.into_iter().map(Into::into).collect();
+
+                        Ok(ExternalInstanceType::Func(FuncType::new(
+                            Some(args),
+                            Some(returns),
+                        )))
+                    }
+                }
+            }
+            ExternalInstanceType::Table(_) => {
+                let ctx_tab_ty = unsafe {
+                    ffi::WasmEdge_ExportTypeGetTableType(self.module.inner.0, self.inner.0)
+                };
+                match ctx_tab_ty.is_null() {
+                    true => Err(WasmEdgeError::Export(ExportError::TableType(
+                        "Fail to get the function type".into(),
+                    ))),
+                    false => {
+                        // get the element type
+                        let elem_ty = unsafe { ffi::WasmEdge_TableTypeGetRefType(ctx_tab_ty) };
+                        let elem_ty: RefType = elem_ty.into();
+
+                        // get the limit
+                        let limit = unsafe { ffi::WasmEdge_TableTypeGetLimit(ctx_tab_ty) };
+                        let limit: std::ops::RangeInclusive<u32> = limit.into();
+
+                        Ok(ExternalInstanceType::Table(TableType::new(
+                            elem_ty,
+                            limit.start().to_owned(),
+                            Some(limit.end().to_owned()),
+                        )))
+                    }
+                }
+            }
+            ExternalInstanceType::Memory(_) => {
+                let ctx_mem_ty = unsafe {
+                    ffi::WasmEdge_ExportTypeGetMemoryType(self.module.inner.0, self.inner.0)
+                };
+                match ctx_mem_ty.is_null() {
+                    true => Err(WasmEdgeError::Export(ExportError::MemType(
+                        "Fail to get the function type".into(),
+                    ))),
+                    false => {
+                        let limit = unsafe { ffi::WasmEdge_MemoryTypeGetLimit(ctx_mem_ty) };
+                        let limit: std::ops::RangeInclusive<u32> = limit.into();
+
+                        Ok(ExternalInstanceType::Memory(MemoryType::new(
+                            limit.start().to_owned(),
+                            Some(limit.end().to_owned()),
+                        )))
+                    }
+                }
+            }
+            ExternalInstanceType::Global(_) => {
+                let ctx_global_ty = unsafe {
+                    ffi::WasmEdge_ExportTypeGetGlobalType(self.module.inner.0, self.inner.0)
+                };
+                match ctx_global_ty.is_null() {
+                    true => Err(WasmEdgeError::Export(ExportError::GlobalType(
+                        "Fail to get the function type".into(),
+                    ))),
+                    false => {
+                        // get the value type
+                        let val = unsafe { ffi::WasmEdge_GlobalTypeGetValType(ctx_global_ty) };
+                        let val_ty: ValType = val.into();
+
+                        // get mutability
+                        let val = unsafe { ffi::WasmEdge_GlobalTypeGetMutability(ctx_global_ty) };
+                        let mutability: Mutability = val.into();
+
+                        Ok(ExternalInstanceType::Global(GlobalType::new(
+                            val_ty, mutability,
+                        )))
+                    }
+                }
+            }
+        }
     }
 
     /// Returns the external name of the [Export].
@@ -264,101 +496,104 @@ impl<'module> Export<'module> {
         c_name.to_string_lossy()
     }
 
-    /// Returns the [function type](crate::FuncType).
-    ///
-    /// If fail to get the function type, then an error is returned.
-    pub fn function_type(&self) -> WasmEdgeResult<FuncType> {
-        let external_ty = self.ty();
-        if external_ty != ExternalInstanceType::Function {
-            return Err(WasmEdgeError::Export(ExportError::Type {
-                expected: ExternalInstanceType::Function,
-                actual: external_ty,
-            }));
-        }
-        let ctx_func_ty =
-            unsafe { ffi::WasmEdge_ExportTypeGetFunctionType(self.module.inner.0, self.inner.0) };
-        match ctx_func_ty.is_null() {
-            true => Err(WasmEdgeError::Export(ExportError::FuncType(
-                "Fail to get the function type".into(),
-            ))),
-            false => Ok(FuncType {
-                inner: InnerFuncType(ctx_func_ty as *mut _),
-                registered: true,
-            }),
-        }
-    }
+    // /// Returns the [function type](crate::FuncType).
+    // ///
+    // /// If fail to get the function type, then an error is returned.
+    // pub fn function_type(&self) -> WasmEdgeResult<FuncType> {
+    //     let external_ty = self.ty();
+    //     if external_ty != ExternalInstanceType::Func {
+    //         return Err(WasmEdgeError::Export(ExportError::Type {
+    //             expected: ExternalInstanceType::Func,
+    //             actual: external_ty,
+    //         }));
+    //     }
+    //     let ctx_func_ty = unsafe {
+    //         wasmedge::WasmEdge_ExportTypeGetFunctionType(self.module.inner.0, self.inner.0)
+    //     };
+    //     match ctx_func_ty.is_null() {
+    //         true => Err(WasmEdgeError::Export(ExportError::FuncType(
+    //             "Fail to get the function type".into(),
+    //         ))),
+    //         false => Ok(FuncType {
+    //             inner: InnerFuncType(ctx_func_ty as *mut _),
+    //             registered: true,
+    //         }),
+    //     }
+    // }
 
-    /// Returns the [table type](crate::TableType).
-    ///
-    /// If fail to get the table type, then an error is returned.
-    pub fn table_type(&self) -> WasmEdgeResult<TableType> {
-        let external_ty = self.ty();
-        if external_ty != ExternalInstanceType::Table {
-            return Err(WasmEdgeError::Export(ExportError::Type {
-                expected: ExternalInstanceType::Table,
-                actual: external_ty,
-            }));
-        }
-        let ctx_tab_ty =
-            unsafe { ffi::WasmEdge_ExportTypeGetTableType(self.module.inner.0, self.inner.0) };
-        match ctx_tab_ty.is_null() {
-            true => Err(WasmEdgeError::Export(ExportError::TableType(
-                "Fail to get the function type".into(),
-            ))),
-            false => Ok(TableType {
-                inner: InnerTableType(ctx_tab_ty as *mut _),
-                registered: true,
-            }),
-        }
-    }
+    // /// Returns the [table type](crate::TableType).
+    // ///
+    // /// If fail to get the table type, then an error is returned.
+    // pub fn table_type(&self) -> WasmEdgeResult<TableType> {
+    //     let external_ty = self.ty();
+    //     if external_ty != ExternalInstanceType::Table {
+    //         return Err(WasmEdgeError::Export(ExportError::Type {
+    //             expected: ExternalInstanceType::Table,
+    //             actual: external_ty,
+    //         }));
+    //     }
+    //     let ctx_tab_ty =
+    //         unsafe { wasmedge::WasmEdge_ExportTypeGetTableType(self.module.inner.0, self.inner.0) };
+    //     match ctx_tab_ty.is_null() {
+    //         true => Err(WasmEdgeError::Export(ExportError::TableType(
+    //             "Fail to get the function type".into(),
+    //         ))),
+    //         false => Ok(TableType {
+    //             inner: InnerTableType(ctx_tab_ty as *mut _),
+    //             registered: true,
+    //         }),
+    //     }
+    // }
 
-    /// Returns the [memory type](crate::MemType).
-    ///
-    /// If fail to get the memory type, then an error is returned.
-    pub fn memory_type(&self) -> WasmEdgeResult<MemType> {
-        let external_ty = self.ty();
-        if external_ty != ExternalInstanceType::Memory {
-            return Err(WasmEdgeError::Export(ExportError::Type {
-                expected: ExternalInstanceType::Memory,
-                actual: external_ty,
-            }));
-        }
-        let ctx_mem_ty =
-            unsafe { ffi::WasmEdge_ExportTypeGetMemoryType(self.module.inner.0, self.inner.0) };
-        match ctx_mem_ty.is_null() {
-            true => Err(WasmEdgeError::Export(ExportError::MemType(
-                "Fail to get the function type".into(),
-            ))),
-            false => Ok(MemType {
-                inner: InnerMemType(ctx_mem_ty as *mut _),
-                registered: true,
-            }),
-        }
-    }
+    // /// Returns the [memory type](crate::MemType).
+    // ///
+    // /// If fail to get the memory type, then an error is returned.
+    // pub fn memory_type(&self) -> WasmEdgeResult<MemType> {
+    //     let external_ty = self.ty();
+    //     if external_ty != ExternalInstanceType::Memory {
+    //         return Err(WasmEdgeError::Export(ExportError::Type {
+    //             expected: ExternalInstanceType::Memory,
+    //             actual: external_ty,
+    //         }));
+    //     }
+    //     let ctx_mem_ty = unsafe {
+    //         wasmedge::WasmEdge_ExportTypeGetMemoryType(self.module.inner.0, self.inner.0)
+    //     };
+    //     match ctx_mem_ty.is_null() {
+    //         true => Err(WasmEdgeError::Export(ExportError::MemType(
+    //             "Fail to get the function type".into(),
+    //         ))),
+    //         false => Ok(MemType {
+    //             inner: InnerMemType(ctx_mem_ty as *mut _),
+    //             registered: true,
+    //         }),
+    //     }
+    // }
 
-    /// Returns the [global type](crate::GlobalType).
-    ///
-    /// If fail to get the global type, then an error is returned.
-    pub fn global_type(&self) -> WasmEdgeResult<GlobalType> {
-        let external_ty = self.ty();
-        if external_ty != ExternalInstanceType::Global {
-            return Err(WasmEdgeError::Export(ExportError::Type {
-                expected: ExternalInstanceType::Global,
-                actual: external_ty,
-            }));
-        }
-        let ctx_global_ty =
-            unsafe { ffi::WasmEdge_ExportTypeGetGlobalType(self.module.inner.0, self.inner.0) };
-        match ctx_global_ty.is_null() {
-            true => Err(WasmEdgeError::Export(ExportError::GlobalType(
-                "Fail to get the function type".into(),
-            ))),
-            false => Ok(GlobalType {
-                inner: InnerGlobalType(ctx_global_ty as *mut _),
-                registered: true,
-            }),
-        }
-    }
+    // /// Returns the [global type](crate::GlobalType).
+    // ///
+    // /// If fail to get the global type, then an error is returned.
+    // pub fn global_type(&self) -> WasmEdgeResult<GlobalType> {
+    //     let external_ty = self.ty();
+    //     if external_ty != ExternalInstanceType::Global {
+    //         return Err(WasmEdgeError::Export(ExportError::Type {
+    //             expected: ExternalInstanceType::Global,
+    //             actual: external_ty,
+    //         }));
+    //     }
+    //     let ctx_global_ty = unsafe {
+    //         wasmedge::WasmEdge_ExportTypeGetGlobalType(self.module.inner.0, self.inner.0)
+    //     };
+    //     match ctx_global_ty.is_null() {
+    //         true => Err(WasmEdgeError::Export(ExportError::GlobalType(
+    //             "Fail to get the function type".into(),
+    //         ))),
+    //         false => Ok(GlobalType {
+    //             inner: InnerGlobalType(ctx_global_ty as *mut _),
+    //             registered: true,
+    //         }),
+    //     }
+    // }
 }
 
 #[derive(Debug)]
@@ -369,8 +604,8 @@ unsafe impl Sync for InnerExport {}
 #[cfg(test)]
 mod tests {
     use crate::{
-        error::{ExportError, ImportError, WasmEdgeError},
-        Config, ExternalInstanceType, Loader, Mutability, WasmRefType, WasmValueType,
+        wasmedge_types::{ExternalInstanceType, Mutability, RefType, ValType},
+        Config, Loader,
     };
     use std::{
         sync::{Arc, Mutex},
@@ -403,123 +638,185 @@ mod tests {
         let imports = module.imports();
 
         // check the ty, name, and module_name functions
-        assert_eq!(imports[0].ty(), ExternalInstanceType::Function);
+        let result = imports[0].ty();
+        assert!(result.is_ok());
+        if let ExternalInstanceType::Func(_) = result.unwrap() {
+            assert!(true);
+        } else {
+            assert!(false);
+        }
         assert_eq!(imports[0].name(), "func-add");
         assert_eq!(imports[0].module_name(), "extern");
 
-        assert_eq!(imports[1].ty(), ExternalInstanceType::Function);
+        let result = imports[1].ty();
+        assert!(result.is_ok());
+        if let ExternalInstanceType::Func(_) = result.unwrap() {
+            assert!(true);
+        } else {
+            assert!(false);
+        }
         assert_eq!(imports[1].name(), "func-sub");
         assert_eq!(imports[1].module_name(), "extern");
 
-        assert_eq!(imports[2].ty(), ExternalInstanceType::Function);
+        let result = imports[2].ty();
+        assert!(result.is_ok());
+        if let ExternalInstanceType::Func(_) = result.unwrap() {
+            assert!(true);
+        } else {
+            assert!(false);
+        }
         assert_eq!(imports[2].name(), "func-mul");
         assert_eq!(imports[2].module_name(), "extern");
 
-        assert_eq!(imports[3].ty(), ExternalInstanceType::Function);
+        let result = imports[3].ty();
+        assert!(result.is_ok());
+        if let ExternalInstanceType::Func(_) = result.unwrap() {
+            assert!(true);
+        } else {
+            assert!(false);
+        }
         assert_eq!(imports[3].name(), "func-div");
         assert_eq!(imports[3].module_name(), "extern");
 
-        assert_eq!(imports[4].ty(), ExternalInstanceType::Function);
+        let result = imports[4].ty();
+        assert!(result.is_ok());
+        if let ExternalInstanceType::Func(_) = result.unwrap() {
+            assert!(true);
+        } else {
+            assert!(false);
+        }
         assert_eq!(imports[4].name(), "func-term");
         assert_eq!(imports[4].module_name(), "extern");
 
-        assert_eq!(imports[5].ty(), ExternalInstanceType::Function);
+        let result = imports[5].ty();
+        assert!(result.is_ok());
+        if let ExternalInstanceType::Func(_) = result.unwrap() {
+            assert!(true);
+        } else {
+            assert!(false);
+        }
         assert_eq!(imports[5].name(), "func-fail");
         assert_eq!(imports[5].module_name(), "extern");
 
-        assert_eq!(imports[6].ty(), ExternalInstanceType::Global);
+        let result = imports[6].ty();
+        assert!(result.is_ok());
+        if let ExternalInstanceType::Global(_) = result.unwrap() {
+            assert!(true);
+        } else {
+            assert!(false);
+        }
         assert_eq!(imports[6].name(), "glob-i32");
         assert_eq!(imports[6].module_name(), "dummy");
 
-        assert_eq!(imports[7].ty(), ExternalInstanceType::Global);
+        let result = imports[7].ty();
+        assert!(result.is_ok());
+        if let ExternalInstanceType::Global(_) = result.unwrap() {
+            assert!(true);
+        } else {
+            assert!(false);
+        }
         assert_eq!(imports[7].name(), "glob-i64");
         assert_eq!(imports[7].module_name(), "dummy");
 
-        assert_eq!(imports[8].ty(), ExternalInstanceType::Global);
+        let result = imports[8].ty();
+        assert!(result.is_ok());
+        if let ExternalInstanceType::Global(_) = result.unwrap() {
+            assert!(true);
+        } else {
+            assert!(false);
+        }
         assert_eq!(imports[8].name(), "glob-f32");
         assert_eq!(imports[8].module_name(), "dummy");
 
-        assert_eq!(imports[9].ty(), ExternalInstanceType::Global);
+        let result = imports[9].ty();
+        assert!(result.is_ok());
+        if let ExternalInstanceType::Global(_) = result.unwrap() {
+            assert!(true);
+        } else {
+            assert!(false);
+        }
         assert_eq!(imports[9].name(), "glob-f64");
         assert_eq!(imports[9].module_name(), "dummy");
 
-        assert_eq!(imports[10].ty(), ExternalInstanceType::Table);
+        let result = imports[10].ty();
+        assert!(result.is_ok());
+        if let ExternalInstanceType::Table(_) = result.unwrap() {
+            assert!(true);
+        } else {
+            assert!(false);
+        }
         assert_eq!(imports[10].name(), "tab-func");
         assert_eq!(imports[10].module_name(), "dummy");
 
-        assert_eq!(imports[11].ty(), ExternalInstanceType::Table);
+        let result = imports[11].ty();
+        assert!(result.is_ok());
+        if let ExternalInstanceType::Table(_) = result.unwrap() {
+            assert!(true);
+        } else {
+            assert!(false);
+        }
         assert_eq!(imports[11].name(), "tab-ext");
         assert_eq!(imports[11].module_name(), "dummy");
 
-        assert_eq!(imports[12].ty(), ExternalInstanceType::Memory);
+        let result = imports[12].ty();
+        assert!(result.is_ok());
+        if let ExternalInstanceType::Memory(_) = result.unwrap() {
+            assert!(true);
+        } else {
+            assert!(false);
+        }
         assert_eq!(imports[12].name(), "mem1");
         assert_eq!(imports[12].module_name(), "dummy");
 
-        assert_eq!(imports[13].ty(), ExternalInstanceType::Memory);
+        let result = imports[13].ty();
+        assert!(result.is_ok());
+        if let ExternalInstanceType::Memory(_) = result.unwrap() {
+            assert!(true);
+        } else {
+            assert!(false);
+        }
         assert_eq!(imports[13].name(), "mem2");
         assert_eq!(imports[13].module_name(), "dummy");
 
         // check the function_type function
-        let result = imports[8].function_type();
-        assert!(result.is_err());
-        assert_eq!(
-            result.unwrap_err(),
-            WasmEdgeError::Import(ImportError::Type {
-                expected: ExternalInstanceType::Function,
-                actual: ExternalInstanceType::Global,
-            })
-        );
-        let result = imports[4].function_type();
+        let result = imports[4].ty();
         assert!(result.is_ok());
-        let func_ty = result.unwrap();
-        assert_eq!(func_ty.returns_len(), 1);
+        if let ExternalInstanceType::Func(func_ty) = result.unwrap() {
+            assert_eq!(func_ty.returns_len(), 1);
+        } else {
+            assert!(false);
+        }
 
         // check the table_type function
-        let result = imports[0].table_type();
-        assert!(result.is_err());
-        assert_eq!(
-            result.unwrap_err(),
-            WasmEdgeError::Import(ImportError::Type {
-                expected: ExternalInstanceType::Table,
-                actual: ExternalInstanceType::Function,
-            })
-        );
-        let result = imports[11].table_type();
+        let result = imports[11].ty();
         assert!(result.is_ok());
-        let table_ty = result.unwrap();
-        assert_eq!(table_ty.elem_ty(), WasmRefType::ExternRef);
-        assert_eq!(table_ty.limit(), 10..=30);
+        if let ExternalInstanceType::Table(table_ty) = result.unwrap() {
+            assert_eq!(table_ty.elem_ty(), RefType::ExternRef);
+            assert_eq!(table_ty.minimum(), 10);
+            assert_eq!(table_ty.maximum(), 30);
+        } else {
+            assert!(false);
+        }
 
         // check the memory_type function
-        let result = imports[0].memory_type();
-        assert!(result.is_err());
-        assert_eq!(
-            result.unwrap_err(),
-            WasmEdgeError::Import(ImportError::Type {
-                expected: ExternalInstanceType::Memory,
-                actual: ExternalInstanceType::Function,
-            })
-        );
-        let result = imports[13].memory_type();
+        let result = imports[13].ty();
         assert!(result.is_ok());
-        let mem_ty = result.unwrap();
-        assert_eq!(mem_ty.limit(), 2..=2);
+        if let ExternalInstanceType::Memory(mem_ty) = result.unwrap() {
+            assert_eq!(mem_ty.minimum(), 2);
+            assert_eq!(mem_ty.maximum(), 2);
+        } else {
+            assert!(false);
+        }
 
         // check the global_type function
-        let result = imports[0].global_type();
-        assert!(result.is_err());
-        assert_eq!(
-            result.unwrap_err(),
-            WasmEdgeError::Import(ImportError::Type {
-                expected: ExternalInstanceType::Global,
-                actual: ExternalInstanceType::Function,
-            })
-        );
-        let result = imports[7].global_type();
+        let result = imports[7].ty();
         assert!(result.is_ok());
-        let global_ty = result.unwrap();
-        assert_eq!(global_ty.value_type(), WasmValueType::I64);
-        assert_eq!(global_ty.mutability(), Mutability::Const);
+        if let ExternalInstanceType::Global(global_ty) = result.unwrap() {
+            assert_eq!(global_ty.value_ty(), ValType::I64);
+            assert_eq!(global_ty.mutability(), Mutability::Const);
+        } else {
+            assert!(false);
+        }
     }
 
     #[test]
@@ -548,118 +845,192 @@ mod tests {
         let exports = module.exports();
 
         // check the ty and name functions
-        assert_eq!(exports[0].ty(), ExternalInstanceType::Function);
+        let result = exports[0].ty();
+        assert!(result.is_ok());
+        if let ExternalInstanceType::Func(_) = result.unwrap() {
+            assert!(true);
+        } else {
+            assert!(false);
+        }
         assert_eq!(exports[0].name(), "func-1");
 
-        assert_eq!(exports[1].ty(), ExternalInstanceType::Function);
+        let result = exports[1].ty();
+        assert!(result.is_ok());
+        if let ExternalInstanceType::Func(_) = result.unwrap() {
+            assert!(true);
+        } else {
+            assert!(false);
+        }
         assert_eq!(exports[1].name(), "func-2");
 
-        assert_eq!(exports[2].ty(), ExternalInstanceType::Function);
+        let result = exports[2].ty();
+        assert!(result.is_ok());
+        if let ExternalInstanceType::Func(_) = result.unwrap() {
+            assert!(true);
+        } else {
+            assert!(false);
+        }
         assert_eq!(exports[2].name(), "func-3");
 
-        assert_eq!(exports[3].ty(), ExternalInstanceType::Function);
+        let result = exports[3].ty();
+        assert!(result.is_ok());
+        if let ExternalInstanceType::Func(_) = result.unwrap() {
+            assert!(true);
+        } else {
+            assert!(false);
+        }
         assert_eq!(exports[3].name(), "func-4");
 
         assert_eq!(module.count_of_exports(), 16);
 
-        assert_eq!(exports[4].ty(), ExternalInstanceType::Function);
+        let result = exports[4].ty();
+        assert!(result.is_ok());
+        if let ExternalInstanceType::Func(_) = result.unwrap() {
+            assert!(true);
+        } else {
+            assert!(false);
+        }
         assert_eq!(exports[4].name(), "func-add");
 
-        assert_eq!(exports[5].ty(), ExternalInstanceType::Function);
+        let result = exports[5].ty();
+        assert!(result.is_ok());
+        if let ExternalInstanceType::Func(_) = result.unwrap() {
+            assert!(true);
+        } else {
+            assert!(false);
+        }
         assert_eq!(exports[5].name(), "func-mul-2");
 
-        assert_eq!(exports[6].ty(), ExternalInstanceType::Function);
+        let result = exports[6].ty();
+        assert!(result.is_ok());
+        if let ExternalInstanceType::Func(_) = result.unwrap() {
+            assert!(true);
+        } else {
+            assert!(false);
+        }
         assert_eq!(exports[6].name(), "func-call-indirect");
 
-        assert_eq!(exports[7].ty(), ExternalInstanceType::Function);
+        let result = exports[7].ty();
+        assert!(result.is_ok());
+        if let ExternalInstanceType::Func(_) = result.unwrap() {
+            assert!(true);
+        } else {
+            assert!(false);
+        }
         assert_eq!(exports[7].name(), "func-host-add");
 
-        assert_eq!(exports[8].ty(), ExternalInstanceType::Function);
+        let result = exports[8].ty();
+        assert!(result.is_ok());
+        if let ExternalInstanceType::Func(_) = result.unwrap() {
+            assert!(true);
+        } else {
+            assert!(false);
+        }
         assert_eq!(exports[8].name(), "func-host-sub");
 
-        assert_eq!(exports[9].ty(), ExternalInstanceType::Function);
+        let result = exports[9].ty();
+        assert!(result.is_ok());
+        if let ExternalInstanceType::Func(_) = result.unwrap() {
+            assert!(true);
+        } else {
+            assert!(false);
+        }
         assert_eq!(exports[9].name(), "func-host-mul");
 
-        assert_eq!(exports[10].ty(), ExternalInstanceType::Function);
+        let result = exports[10].ty();
+        assert!(result.is_ok());
+        if let ExternalInstanceType::Func(_) = result.unwrap() {
+            assert!(true);
+        } else {
+            assert!(false);
+        }
         assert_eq!(exports[10].name(), "func-host-div");
 
-        assert_eq!(exports[11].ty(), ExternalInstanceType::Table);
+        let result = exports[11].ty();
+        assert!(result.is_ok());
+        if let ExternalInstanceType::Table(_) = result.unwrap() {
+            assert!(true);
+        } else {
+            assert!(false);
+        }
         assert_eq!(exports[11].name(), "tab-func");
 
-        assert_eq!(exports[12].ty(), ExternalInstanceType::Table);
+        let result = exports[12].ty();
+        assert!(result.is_ok());
+        if let ExternalInstanceType::Table(_) = result.unwrap() {
+            assert!(true);
+        } else {
+            assert!(false);
+        }
         assert_eq!(exports[12].name(), "tab-ext");
 
-        assert_eq!(exports[13].ty(), ExternalInstanceType::Memory);
+        let result = exports[13].ty();
+        assert!(result.is_ok());
+        if let ExternalInstanceType::Memory(_) = result.unwrap() {
+            assert!(true);
+        } else {
+            assert!(false);
+        }
         assert_eq!(exports[13].name(), "mem");
 
-        assert_eq!(exports[14].ty(), ExternalInstanceType::Global);
+        let result = exports[14].ty();
+        assert!(result.is_ok());
+        if let ExternalInstanceType::Global(_) = result.unwrap() {
+            assert!(true);
+        } else {
+            assert!(false);
+        }
         assert_eq!(exports[14].name(), "glob-mut-i32");
 
-        assert_eq!(exports[15].ty(), ExternalInstanceType::Global);
+        let result = exports[15].ty();
+        assert!(result.is_ok());
+        if let ExternalInstanceType::Global(_) = result.unwrap() {
+            assert!(true);
+        } else {
+            assert!(false);
+        }
         assert_eq!(exports[15].name(), "glob-const-f32");
 
         // check the function_type function
-        let result = exports[15].function_type();
-        assert!(result.is_err());
-        assert_eq!(
-            result.unwrap_err(),
-            WasmEdgeError::Export(ExportError::Type {
-                expected: ExternalInstanceType::Function,
-                actual: ExternalInstanceType::Global,
-            })
-        );
-        let result = exports[4].function_type();
+        let result = exports[4].ty();
         assert!(result.is_ok());
-        let func_ty = result.unwrap();
-        assert_eq!(func_ty.params_len(), 2);
-        assert_eq!(func_ty.returns_len(), 1);
+        if let ExternalInstanceType::Func(func_ty) = result.unwrap() {
+            assert_eq!(func_ty.args_len(), 2);
+            assert_eq!(func_ty.returns_len(), 1);
+        } else {
+            assert!(false);
+        }
 
         // check the table_type function
-        let result = exports[0].table_type();
-        assert!(result.is_err());
-        assert_eq!(
-            result.unwrap_err(),
-            WasmEdgeError::Export(ExportError::Type {
-                expected: ExternalInstanceType::Table,
-                actual: ExternalInstanceType::Function,
-            })
-        );
-        let result = exports[12].table_type();
+        let result = exports[12].ty();
         assert!(result.is_ok());
-        let table_ty = result.unwrap();
-        assert_eq!(table_ty.elem_ty(), WasmRefType::ExternRef);
-        assert_eq!(table_ty.limit(), 10..=10);
+        if let ExternalInstanceType::Table(table_ty) = result.unwrap() {
+            assert_eq!(table_ty.elem_ty(), RefType::ExternRef);
+            assert_eq!(table_ty.minimum(), 10);
+            assert_eq!(table_ty.maximum(), 10);
+        } else {
+            assert!(false);
+        }
 
         // check the memory_type function
-        let result = exports[0].memory_type();
-        assert!(result.is_err());
-        assert_eq!(
-            result.unwrap_err(),
-            WasmEdgeError::Export(ExportError::Type {
-                expected: ExternalInstanceType::Memory,
-                actual: ExternalInstanceType::Function,
-            })
-        );
-        let result = exports[13].memory_type();
+        let result = exports[13].ty();
         assert!(result.is_ok());
-        let mem_ty = result.unwrap();
-        assert_eq!(mem_ty.limit(), 1..=3);
+        if let ExternalInstanceType::Memory(mem_ty) = result.unwrap() {
+            assert_eq!(mem_ty.minimum(), 1);
+            assert_eq!(mem_ty.maximum(), 3);
+        } else {
+            assert!(false);
+        }
 
         // check the global_type function
-        let result = exports[0].global_type();
-        assert!(result.is_err());
-        assert_eq!(
-            result.unwrap_err(),
-            WasmEdgeError::Export(ExportError::Type {
-                expected: ExternalInstanceType::Global,
-                actual: ExternalInstanceType::Function,
-            })
-        );
-        let result = exports[15].global_type();
+        let result = exports[15].ty();
         assert!(result.is_ok());
-        let global_ty = result.unwrap();
-        assert_eq!(global_ty.value_type(), WasmValueType::F32);
-        assert_eq!(global_ty.mutability(), Mutability::Const);
+        if let ExternalInstanceType::Global(global_ty) = result.unwrap() {
+            assert_eq!(global_ty.value_ty(), ValType::F32);
+            assert_eq!(global_ty.mutability(), Mutability::Const);
+        } else {
+            assert!(false);
+        }
     }
 
     #[test]
@@ -689,118 +1060,192 @@ mod tests {
             let exports = module.exports();
 
             // check the ty and name functions
-            assert_eq!(exports[0].ty(), ExternalInstanceType::Function);
+            let result = exports[0].ty();
+            assert!(result.is_ok());
+            if let ExternalInstanceType::Func(_) = result.unwrap() {
+                assert!(true);
+            } else {
+                assert!(false);
+            }
             assert_eq!(exports[0].name(), "func-1");
 
-            assert_eq!(exports[1].ty(), ExternalInstanceType::Function);
+            let result = exports[1].ty();
+            assert!(result.is_ok());
+            if let ExternalInstanceType::Func(_) = result.unwrap() {
+                assert!(true);
+            } else {
+                assert!(false);
+            }
             assert_eq!(exports[1].name(), "func-2");
 
-            assert_eq!(exports[2].ty(), ExternalInstanceType::Function);
+            let result = exports[2].ty();
+            assert!(result.is_ok());
+            if let ExternalInstanceType::Func(_) = result.unwrap() {
+                assert!(true);
+            } else {
+                assert!(false);
+            }
             assert_eq!(exports[2].name(), "func-3");
 
-            assert_eq!(exports[3].ty(), ExternalInstanceType::Function);
+            let result = exports[3].ty();
+            assert!(result.is_ok());
+            if let ExternalInstanceType::Func(_) = result.unwrap() {
+                assert!(true);
+            } else {
+                assert!(false);
+            }
             assert_eq!(exports[3].name(), "func-4");
 
             assert_eq!(module.count_of_exports(), 16);
 
-            assert_eq!(exports[4].ty(), ExternalInstanceType::Function);
+            let result = exports[4].ty();
+            assert!(result.is_ok());
+            if let ExternalInstanceType::Func(_) = result.unwrap() {
+                assert!(true);
+            } else {
+                assert!(false);
+            }
             assert_eq!(exports[4].name(), "func-add");
 
-            assert_eq!(exports[5].ty(), ExternalInstanceType::Function);
+            let result = exports[5].ty();
+            assert!(result.is_ok());
+            if let ExternalInstanceType::Func(_) = result.unwrap() {
+                assert!(true);
+            } else {
+                assert!(false);
+            }
             assert_eq!(exports[5].name(), "func-mul-2");
 
-            assert_eq!(exports[6].ty(), ExternalInstanceType::Function);
+            let result = exports[6].ty();
+            assert!(result.is_ok());
+            if let ExternalInstanceType::Func(_) = result.unwrap() {
+                assert!(true);
+            } else {
+                assert!(false);
+            }
             assert_eq!(exports[6].name(), "func-call-indirect");
 
-            assert_eq!(exports[7].ty(), ExternalInstanceType::Function);
+            let result = exports[7].ty();
+            assert!(result.is_ok());
+            if let ExternalInstanceType::Func(_) = result.unwrap() {
+                assert!(true);
+            } else {
+                assert!(false);
+            }
             assert_eq!(exports[7].name(), "func-host-add");
 
-            assert_eq!(exports[8].ty(), ExternalInstanceType::Function);
+            let result = exports[8].ty();
+            assert!(result.is_ok());
+            if let ExternalInstanceType::Func(_) = result.unwrap() {
+                assert!(true);
+            } else {
+                assert!(false);
+            }
             assert_eq!(exports[8].name(), "func-host-sub");
 
-            assert_eq!(exports[9].ty(), ExternalInstanceType::Function);
+            let result = exports[9].ty();
+            assert!(result.is_ok());
+            if let ExternalInstanceType::Func(_) = result.unwrap() {
+                assert!(true);
+            } else {
+                assert!(false);
+            }
             assert_eq!(exports[9].name(), "func-host-mul");
 
-            assert_eq!(exports[10].ty(), ExternalInstanceType::Function);
+            let result = exports[10].ty();
+            assert!(result.is_ok());
+            if let ExternalInstanceType::Func(_) = result.unwrap() {
+                assert!(true);
+            } else {
+                assert!(false);
+            }
             assert_eq!(exports[10].name(), "func-host-div");
 
-            assert_eq!(exports[11].ty(), ExternalInstanceType::Table);
+            let result = exports[11].ty();
+            assert!(result.is_ok());
+            if let ExternalInstanceType::Table(_) = result.unwrap() {
+                assert!(true);
+            } else {
+                assert!(false);
+            }
             assert_eq!(exports[11].name(), "tab-func");
 
-            assert_eq!(exports[12].ty(), ExternalInstanceType::Table);
+            let result = exports[12].ty();
+            assert!(result.is_ok());
+            if let ExternalInstanceType::Table(_) = result.unwrap() {
+                assert!(true);
+            } else {
+                assert!(false);
+            }
             assert_eq!(exports[12].name(), "tab-ext");
 
-            assert_eq!(exports[13].ty(), ExternalInstanceType::Memory);
+            let result = exports[13].ty();
+            assert!(result.is_ok());
+            if let ExternalInstanceType::Memory(_) = result.unwrap() {
+                assert!(true);
+            } else {
+                assert!(false);
+            }
             assert_eq!(exports[13].name(), "mem");
 
-            assert_eq!(exports[14].ty(), ExternalInstanceType::Global);
+            let result = exports[14].ty();
+            assert!(result.is_ok());
+            if let ExternalInstanceType::Global(_) = result.unwrap() {
+                assert!(true);
+            } else {
+                assert!(false);
+            }
             assert_eq!(exports[14].name(), "glob-mut-i32");
 
-            assert_eq!(exports[15].ty(), ExternalInstanceType::Global);
+            let result = exports[15].ty();
+            assert!(result.is_ok());
+            if let ExternalInstanceType::Global(_) = result.unwrap() {
+                assert!(true);
+            } else {
+                assert!(false);
+            }
             assert_eq!(exports[15].name(), "glob-const-f32");
 
             // check the function_type function
-            let result = exports[15].function_type();
-            assert!(result.is_err());
-            assert_eq!(
-                result.unwrap_err(),
-                WasmEdgeError::Export(ExportError::Type {
-                    expected: ExternalInstanceType::Function,
-                    actual: ExternalInstanceType::Global,
-                })
-            );
-            let result = exports[4].function_type();
+            let result = exports[4].ty();
             assert!(result.is_ok());
-            let func_ty = result.unwrap();
-            assert_eq!(func_ty.params_len(), 2);
-            assert_eq!(func_ty.returns_len(), 1);
+            if let ExternalInstanceType::Func(func_ty) = result.unwrap() {
+                assert_eq!(func_ty.args_len(), 2);
+                assert_eq!(func_ty.returns_len(), 1);
+            } else {
+                assert!(false);
+            }
 
             // check the table_type function
-            let result = exports[0].table_type();
-            assert!(result.is_err());
-            assert_eq!(
-                result.unwrap_err(),
-                WasmEdgeError::Export(ExportError::Type {
-                    expected: ExternalInstanceType::Table,
-                    actual: ExternalInstanceType::Function,
-                })
-            );
-            let result = exports[12].table_type();
+            let result = exports[12].ty();
             assert!(result.is_ok());
-            let table_ty = result.unwrap();
-            assert_eq!(table_ty.elem_ty(), WasmRefType::ExternRef);
-            assert_eq!(table_ty.limit(), 10..=10);
+            if let ExternalInstanceType::Table(table_ty) = result.unwrap() {
+                assert_eq!(table_ty.elem_ty(), RefType::ExternRef);
+                assert_eq!(table_ty.minimum(), 10);
+                assert_eq!(table_ty.maximum(), 10);
+            } else {
+                assert!(false);
+            }
 
             // check the memory_type function
-            let result = exports[0].memory_type();
-            assert!(result.is_err());
-            assert_eq!(
-                result.unwrap_err(),
-                WasmEdgeError::Export(ExportError::Type {
-                    expected: ExternalInstanceType::Memory,
-                    actual: ExternalInstanceType::Function,
-                })
-            );
-            let result = exports[13].memory_type();
+            let result = exports[13].ty();
             assert!(result.is_ok());
-            let mem_ty = result.unwrap();
-            assert_eq!(mem_ty.limit(), 1..=3);
+            if let ExternalInstanceType::Memory(mem_ty) = result.unwrap() {
+                assert_eq!(mem_ty.minimum(), 1);
+                assert_eq!(mem_ty.maximum(), 3);
+            } else {
+                assert!(false);
+            }
 
             // check the global_type function
-            let result = exports[0].global_type();
-            assert!(result.is_err());
-            assert_eq!(
-                result.unwrap_err(),
-                WasmEdgeError::Export(ExportError::Type {
-                    expected: ExternalInstanceType::Global,
-                    actual: ExternalInstanceType::Function,
-                })
-            );
-            let result = exports[15].global_type();
+            let result = exports[15].ty();
             assert!(result.is_ok());
-            let global_ty = result.unwrap();
-            assert_eq!(global_ty.value_type(), WasmValueType::F32);
-            assert_eq!(global_ty.mutability(), Mutability::Const);
+            if let ExternalInstanceType::Global(global_ty) = result.unwrap() {
+                assert_eq!(global_ty.value_ty(), ValType::F32);
+                assert_eq!(global_ty.mutability(), Mutability::Const);
+            } else {
+                assert!(false);
+            }
         });
 
         handle.join().unwrap();
@@ -837,118 +1282,192 @@ mod tests {
             let exports = module.exports();
 
             // check the ty and name functions
-            assert_eq!(exports[0].ty(), ExternalInstanceType::Function);
+            let result = exports[0].ty();
+            assert!(result.is_ok());
+            if let ExternalInstanceType::Func(_) = result.unwrap() {
+                assert!(true);
+            } else {
+                assert!(false);
+            }
             assert_eq!(exports[0].name(), "func-1");
 
-            assert_eq!(exports[1].ty(), ExternalInstanceType::Function);
+            let result = exports[1].ty();
+            assert!(result.is_ok());
+            if let ExternalInstanceType::Func(_) = result.unwrap() {
+                assert!(true);
+            } else {
+                assert!(false);
+            }
             assert_eq!(exports[1].name(), "func-2");
 
-            assert_eq!(exports[2].ty(), ExternalInstanceType::Function);
+            let result = exports[2].ty();
+            assert!(result.is_ok());
+            if let ExternalInstanceType::Func(_) = result.unwrap() {
+                assert!(true);
+            } else {
+                assert!(false);
+            }
             assert_eq!(exports[2].name(), "func-3");
 
-            assert_eq!(exports[3].ty(), ExternalInstanceType::Function);
+            let result = exports[3].ty();
+            assert!(result.is_ok());
+            if let ExternalInstanceType::Func(_) = result.unwrap() {
+                assert!(true);
+            } else {
+                assert!(false);
+            }
             assert_eq!(exports[3].name(), "func-4");
 
             assert_eq!(module.count_of_exports(), 16);
 
-            assert_eq!(exports[4].ty(), ExternalInstanceType::Function);
+            let result = exports[4].ty();
+            assert!(result.is_ok());
+            if let ExternalInstanceType::Func(_) = result.unwrap() {
+                assert!(true);
+            } else {
+                assert!(false);
+            }
             assert_eq!(exports[4].name(), "func-add");
 
-            assert_eq!(exports[5].ty(), ExternalInstanceType::Function);
+            let result = exports[5].ty();
+            assert!(result.is_ok());
+            if let ExternalInstanceType::Func(_) = result.unwrap() {
+                assert!(true);
+            } else {
+                assert!(false);
+            }
             assert_eq!(exports[5].name(), "func-mul-2");
 
-            assert_eq!(exports[6].ty(), ExternalInstanceType::Function);
+            let result = exports[6].ty();
+            assert!(result.is_ok());
+            if let ExternalInstanceType::Func(_) = result.unwrap() {
+                assert!(true);
+            } else {
+                assert!(false);
+            }
             assert_eq!(exports[6].name(), "func-call-indirect");
 
-            assert_eq!(exports[7].ty(), ExternalInstanceType::Function);
+            let result = exports[7].ty();
+            assert!(result.is_ok());
+            if let ExternalInstanceType::Func(_) = result.unwrap() {
+                assert!(true);
+            } else {
+                assert!(false);
+            }
             assert_eq!(exports[7].name(), "func-host-add");
 
-            assert_eq!(exports[8].ty(), ExternalInstanceType::Function);
+            let result = exports[8].ty();
+            assert!(result.is_ok());
+            if let ExternalInstanceType::Func(_) = result.unwrap() {
+                assert!(true);
+            } else {
+                assert!(false);
+            }
             assert_eq!(exports[8].name(), "func-host-sub");
 
-            assert_eq!(exports[9].ty(), ExternalInstanceType::Function);
+            let result = exports[9].ty();
+            assert!(result.is_ok());
+            if let ExternalInstanceType::Func(_) = result.unwrap() {
+                assert!(true);
+            } else {
+                assert!(false);
+            }
             assert_eq!(exports[9].name(), "func-host-mul");
 
-            assert_eq!(exports[10].ty(), ExternalInstanceType::Function);
+            let result = exports[10].ty();
+            assert!(result.is_ok());
+            if let ExternalInstanceType::Func(_) = result.unwrap() {
+                assert!(true);
+            } else {
+                assert!(false);
+            }
             assert_eq!(exports[10].name(), "func-host-div");
 
-            assert_eq!(exports[11].ty(), ExternalInstanceType::Table);
+            let result = exports[11].ty();
+            assert!(result.is_ok());
+            if let ExternalInstanceType::Table(_) = result.unwrap() {
+                assert!(true);
+            } else {
+                assert!(false);
+            }
             assert_eq!(exports[11].name(), "tab-func");
 
-            assert_eq!(exports[12].ty(), ExternalInstanceType::Table);
+            let result = exports[12].ty();
+            assert!(result.is_ok());
+            if let ExternalInstanceType::Table(_) = result.unwrap() {
+                assert!(true);
+            } else {
+                assert!(false);
+            }
             assert_eq!(exports[12].name(), "tab-ext");
 
-            assert_eq!(exports[13].ty(), ExternalInstanceType::Memory);
+            let result = exports[13].ty();
+            assert!(result.is_ok());
+            if let ExternalInstanceType::Memory(_) = result.unwrap() {
+                assert!(true);
+            } else {
+                assert!(false);
+            }
             assert_eq!(exports[13].name(), "mem");
 
-            assert_eq!(exports[14].ty(), ExternalInstanceType::Global);
+            let result = exports[14].ty();
+            assert!(result.is_ok());
+            if let ExternalInstanceType::Global(_) = result.unwrap() {
+                assert!(true);
+            } else {
+                assert!(false);
+            }
             assert_eq!(exports[14].name(), "glob-mut-i32");
 
-            assert_eq!(exports[15].ty(), ExternalInstanceType::Global);
+            let result = exports[15].ty();
+            assert!(result.is_ok());
+            if let ExternalInstanceType::Global(_) = result.unwrap() {
+                assert!(true);
+            } else {
+                assert!(false);
+            }
             assert_eq!(exports[15].name(), "glob-const-f32");
 
             // check the function_type function
-            let result = exports[15].function_type();
-            assert!(result.is_err());
-            assert_eq!(
-                result.unwrap_err(),
-                WasmEdgeError::Export(ExportError::Type {
-                    expected: ExternalInstanceType::Function,
-                    actual: ExternalInstanceType::Global,
-                })
-            );
-            let result = exports[4].function_type();
+            let result = exports[4].ty();
             assert!(result.is_ok());
-            let func_ty = result.unwrap();
-            assert_eq!(func_ty.params_len(), 2);
-            assert_eq!(func_ty.returns_len(), 1);
+            if let ExternalInstanceType::Func(func_ty) = result.unwrap() {
+                assert_eq!(func_ty.args_len(), 2);
+                assert_eq!(func_ty.returns_len(), 1);
+            } else {
+                assert!(false);
+            }
 
             // check the table_type function
-            let result = exports[0].table_type();
-            assert!(result.is_err());
-            assert_eq!(
-                result.unwrap_err(),
-                WasmEdgeError::Export(ExportError::Type {
-                    expected: ExternalInstanceType::Table,
-                    actual: ExternalInstanceType::Function,
-                })
-            );
-            let result = exports[12].table_type();
+            let result = exports[12].ty();
             assert!(result.is_ok());
-            let table_ty = result.unwrap();
-            assert_eq!(table_ty.elem_ty(), WasmRefType::ExternRef);
-            assert_eq!(table_ty.limit(), 10..=10);
+            if let ExternalInstanceType::Table(table_ty) = result.unwrap() {
+                assert_eq!(table_ty.elem_ty(), RefType::ExternRef);
+                assert_eq!(table_ty.minimum(), 10);
+                assert_eq!(table_ty.maximum(), 10);
+            } else {
+                assert!(false);
+            }
 
             // check the memory_type function
-            let result = exports[0].memory_type();
-            assert!(result.is_err());
-            assert_eq!(
-                result.unwrap_err(),
-                WasmEdgeError::Export(ExportError::Type {
-                    expected: ExternalInstanceType::Memory,
-                    actual: ExternalInstanceType::Function,
-                })
-            );
-            let result = exports[13].memory_type();
+            let result = exports[13].ty();
             assert!(result.is_ok());
-            let mem_ty = result.unwrap();
-            assert_eq!(mem_ty.limit(), 1..=3);
+            if let ExternalInstanceType::Memory(mem_ty) = result.unwrap() {
+                assert_eq!(mem_ty.minimum(), 1);
+                assert_eq!(mem_ty.maximum(), 3);
+            } else {
+                assert!(false);
+            }
 
             // check the global_type function
-            let result = exports[0].global_type();
-            assert!(result.is_err());
-            assert_eq!(
-                result.unwrap_err(),
-                WasmEdgeError::Export(ExportError::Type {
-                    expected: ExternalInstanceType::Global,
-                    actual: ExternalInstanceType::Function,
-                })
-            );
-            let result = exports[15].global_type();
+            let result = exports[15].ty();
             assert!(result.is_ok());
-            let global_ty = result.unwrap();
-            assert_eq!(global_ty.value_type(), WasmValueType::F32);
-            assert_eq!(global_ty.mutability(), Mutability::Const);
+            if let ExternalInstanceType::Global(global_ty) = result.unwrap() {
+                assert_eq!(global_ty.value_ty(), ValType::F32);
+                assert_eq!(global_ty.mutability(), Mutability::Const);
+            } else {
+                assert!(false);
+            }
         });
 
         handle.join().unwrap();

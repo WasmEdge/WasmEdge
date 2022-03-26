@@ -1,4 +1,5 @@
 use wasmedge_sys as sys;
+use wasmedge_types;
 
 #[doc(hidden)]
 pub mod compiler;

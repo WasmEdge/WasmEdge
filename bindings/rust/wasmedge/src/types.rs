@@ -2,22 +2,9 @@
 
 use crate::{
     sys::{WasmRefType, WasmValue, WasmValueType},
-    Func, GlobalType, MemoryType, Signature, TableType,
+    Func,
 };
 use std::marker::PhantomData;
-
-/// Defines external types.
-#[derive(Debug)]
-pub enum ExternalInstanceType {
-    /// The [signature](crate::Signature) of a [host function](crate::Func).
-    Func(Signature),
-    /// The [table type](crate::TableType) of a [table](crate::Table).
-    Table(TableType),
-    /// The [memory type](crate::MemoryType) of a [memory](crate::Memory).
-    Memory(MemoryType),
-    /// The [global type](crate::GlobalType) of a [global](crate::Global).
-    Global(GlobalType),
-}
 
 /// Defines value types.
 ///

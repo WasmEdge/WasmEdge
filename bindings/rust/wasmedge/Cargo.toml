@@ -11,3 +11,4 @@ categories = ["api-bindings"]
 [dependencies]
 wasmedge-sys = { path = "../wasmedge-sys", version="0.5" }
 thiserror = "1.0.30"
+wasmedge-types = { path = "../wasmedge-types", version="0.1.0" }

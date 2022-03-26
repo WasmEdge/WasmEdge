@@ -6,7 +6,8 @@
 use crate::{
     error::{GlobalError, WasmEdgeError},
     ffi,
-    types::{Mutability, WasmValueType},
+    types::WasmValueType,
+    wasmedge_types::Mutability,
     WasmEdgeResult, WasmValue,
 };
 
@@ -31,10 +32,7 @@ impl GlobalType {
     /// If fail to create a new [GlobalType], then an error is returned.
     pub fn create(val_ty: WasmValueType, mutable: Mutability) -> WasmEdgeResult<Self> {
         let ctx = unsafe {
-            ffi::WasmEdge_GlobalTypeCreate(
-                ffi::WasmEdge_ValType::from(val_ty),
-                ffi::WasmEdge_Mutability::from(mutable),
-            )
+            ffi::WasmEdge_GlobalTypeCreate(ffi::WasmEdge_ValType::from(val_ty), mutable.into())
         };
         match ctx.is_null() {
             true => Err(WasmEdgeError::GlobalTypeCreate),
@@ -133,7 +131,8 @@ impl Global {
     /// # Example
     ///
     /// ```
-    /// use wasmedge_sys::{Global, GlobalType, WasmValueType, Mutability, WasmValue};
+    /// use wasmedge_sys::{Global, GlobalType, WasmValueType, WasmValue};
+    /// use wasmedge_types::Mutability;
     ///
     /// // create a GlobalType instance
     /// let ty = GlobalType::create(WasmValueType::F32, Mutability::Var).expect("fail to create a GlobalType");
@@ -168,7 +167,7 @@ impl Drop for Global {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{Mutability, WasmValueType};
+    use crate::{wasmedge_types::Mutability, WasmValueType};
     use std::{
         sync::{Arc, Mutex},
         thread,

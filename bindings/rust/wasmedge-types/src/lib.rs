@@ -60,6 +60,9 @@ impl From<u32> for ValType {
     }
 }
 
+/// Defines WasmEdge mutability values.
+///
+/// `Mutability` determines a [global](crate::Global) variable is either mutable or immutable.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum Mutability {
     /// Identifies an immutable global variable
@@ -73,6 +76,14 @@ impl From<u32> for Mutability {
             0 => Mutability::Const,
             1 => Mutability::Var,
             _ => panic!("[wasmedge-types] Invalid WasmEdge_Mutability: {:#X}", value),
+        }
+    }
+}
+impl From<Mutability> for u32 {
+    fn from(value: Mutability) -> Self {
+        match value {
+            Mutability::Const => 0,
+            Mutability::Var => 1,
         }
     }
 }

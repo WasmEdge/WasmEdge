@@ -8,7 +8,7 @@ use std::marker::PhantomData;
 
 /// Defines external types.
 #[derive(Debug)]
-pub enum ExternalType {
+pub enum ExternalInstanceType {
     /// The [signature](crate::Signature) of a [host function](crate::Func).
     Func(Signature),
     /// The [table type](crate::TableType) of a [table](crate::Table).

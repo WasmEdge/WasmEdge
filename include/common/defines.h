@@ -39,3 +39,9 @@
 #error Unsupported environment!
 
 #endif
+
+#ifdef WASMEDGE_PLUGIN
+#define WASMEDGE_PLUGIN_WEAK [[gnu::weak]]
+#else // WASMEDGE_PLUGIN
+#define WASMEDGE_PLUGIN_WEAK
+#endif // WASMEDGE_PLUGIN

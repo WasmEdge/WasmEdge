@@ -13,15 +13,21 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
+#include "common/defines.h"
 #include <cstdint>
 
 namespace WasmEdge {
 
 class Allocator {
 public:
+  WASMEDGE_PLUGIN_WEAK
   static uint8_t *allocate(uint32_t PageCount) noexcept;
+
+  WASMEDGE_PLUGIN_WEAK
   static uint8_t *resize(uint8_t *Pointer, uint32_t OldPageCount,
                          uint32_t NewPageCount) noexcept;
+
+  WASMEDGE_PLUGIN_WEAK
   static void release(uint8_t *Pointer, uint32_t PageCount) noexcept;
 
   static uint8_t *allocate_chunk(uint64_t Size) noexcept;

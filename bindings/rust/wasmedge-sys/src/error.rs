@@ -2,7 +2,7 @@
 
 use crate::{
     ffi::{WasmEdge_Result, WasmEdge_ResultGetCode, WasmEdge_ResultOK},
-    ExternalType, WasmEdgeResult,
+    ExternalInstanceType, WasmEdgeResult,
 };
 use thiserror::Error;
 
@@ -121,8 +121,8 @@ pub enum TableError {
 pub enum ImportError {
     #[error("The expected Import type is {expected:?}, but found {actual:?}")]
     Type {
-        expected: ExternalType,
-        actual: ExternalType,
+        expected: ExternalInstanceType,
+        actual: ExternalInstanceType,
     },
     #[error("{0}")]
     FuncType(String),
@@ -139,8 +139,8 @@ pub enum ImportError {
 pub enum ExportError {
     #[error("The expected Export type is {expected:?}, but found {actual:?}")]
     Type {
-        expected: ExternalType,
-        actual: ExternalType,
+        expected: ExternalInstanceType,
+        actual: ExternalInstanceType,
     },
     #[error("{0}")]
     FuncType(String),

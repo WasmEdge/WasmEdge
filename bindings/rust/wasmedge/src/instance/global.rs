@@ -4,7 +4,7 @@ use crate::{
     error::Result,
     sys,
     types::{Val, ValType},
-    Mutability,
+    wasmedge_types::Mutability,
 };
 
 /// Struct of WasmEdge Global.
@@ -93,7 +93,9 @@ mod tests {
     use crate::{
         config::{CommonConfigOptions, ConfigBuilder},
         error::WasmEdgeError,
-        sys, Executor, ImportModuleBuilder, Mutability, Statistics, Store,
+        sys,
+        wasmedge_types::Mutability,
+        Executor, ImportModuleBuilder, Statistics, Store,
     };
 
     #[test]

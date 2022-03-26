@@ -191,7 +191,8 @@ mod tests {
         error::WasmEdgeError,
         sys,
         types::{FuncRef, RefType, Val, ValType},
-        Executor, Mutability, SignatureBuilder, Statistics, Store, WasmValue, WasmValueType,
+        wasmedge_types::Mutability,
+        Executor, SignatureBuilder, Statistics, Store, WasmValue, WasmValueType,
     };
     use std::{
         sync::{Arc, Mutex},

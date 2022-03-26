@@ -9,7 +9,7 @@ use crate::{
         memory::{InnerMemType, MemType},
         table::{InnerTableType, TableType},
     },
-    types::ExternalType,
+    types::ExternalInstanceType,
     WasmEdgeResult,
 };
 use std::{borrow::Cow, ffi::CStr};
@@ -101,7 +101,7 @@ impl<'module> Drop for Import<'module> {
 }
 impl<'module> Import<'module> {
     /// Returns the external type of the [Import].
-    pub fn ty(&self) -> ExternalType {
+    pub fn ty(&self) -> ExternalInstanceType {
         let ty = unsafe { ffi::WasmEdge_ImportTypeGetExternalType(self.inner.0) };
         ty.into()
     }
@@ -131,9 +131,9 @@ impl<'module> Import<'module> {
     /// If fail to get the function type, then an error is returned.
     pub fn function_type(&self) -> WasmEdgeResult<FuncType> {
         let external_ty = self.ty();
-        if external_ty != ExternalType::Function {
+        if external_ty != ExternalInstanceType::Function {
             return Err(WasmEdgeError::Import(ImportError::Type {
-                expected: ExternalType::Function,
+                expected: ExternalInstanceType::Function,
                 actual: external_ty,
             }));
         }
@@ -159,9 +159,9 @@ impl<'module> Import<'module> {
     /// If fail to get the table type, then an error is returned.
     pub fn table_type(&self) -> WasmEdgeResult<TableType> {
         let external_ty = self.ty();
-        if external_ty != ExternalType::Table {
+        if external_ty != ExternalInstanceType::Table {
             return Err(WasmEdgeError::Import(ImportError::Type {
-                expected: ExternalType::Table,
+                expected: ExternalInstanceType::Table,
                 actual: external_ty,
             }));
         }
@@ -183,9 +183,9 @@ impl<'module> Import<'module> {
     /// If fail to get the memory type, then an error is returned.
     pub fn memory_type(&self) -> WasmEdgeResult<MemType> {
         let external_ty = self.ty();
-        if external_ty != ExternalType::Memory {
+        if external_ty != ExternalInstanceType::Memory {
             return Err(WasmEdgeError::Import(ImportError::Type {
-                expected: ExternalType::Memory,
+                expected: ExternalInstanceType::Memory,
                 actual: external_ty,
             }));
         }
@@ -207,9 +207,9 @@ impl<'module> Import<'module> {
     /// If fail to get the global type, then an error is returned.
     pub fn global_type(&self) -> WasmEdgeResult<GlobalType> {
         let external_ty = self.ty();
-        if external_ty != ExternalType::Global {
+        if external_ty != ExternalInstanceType::Global {
             return Err(WasmEdgeError::Import(ImportError::Type {
-                expected: ExternalType::Global,
+                expected: ExternalInstanceType::Global,
                 actual: external_ty,
             }));
         }
@@ -250,7 +250,7 @@ impl<'module> Drop for Export<'module> {
 }
 impl<'module> Export<'module> {
     /// Returns the external type of the [Export].
-    pub fn ty(&self) -> ExternalType {
+    pub fn ty(&self) -> ExternalInstanceType {
         let ty = unsafe { ffi::WasmEdge_ExportTypeGetExternalType(self.inner.0) };
         ty.into()
     }
@@ -269,9 +269,9 @@ impl<'module> Export<'module> {
     /// If fail to get the function type, then an error is returned.
     pub fn function_type(&self) -> WasmEdgeResult<FuncType> {
         let external_ty = self.ty();
-        if external_ty != ExternalType::Function {
+        if external_ty != ExternalInstanceType::Function {
             return Err(WasmEdgeError::Export(ExportError::Type {
-                expected: ExternalType::Function,
+                expected: ExternalInstanceType::Function,
                 actual: external_ty,
             }));
         }
@@ -293,9 +293,9 @@ impl<'module> Export<'module> {
     /// If fail to get the table type, then an error is returned.
     pub fn table_type(&self) -> WasmEdgeResult<TableType> {
         let external_ty = self.ty();
-        if external_ty != ExternalType::Table {
+        if external_ty != ExternalInstanceType::Table {
             return Err(WasmEdgeError::Export(ExportError::Type {
-                expected: ExternalType::Table,
+                expected: ExternalInstanceType::Table,
                 actual: external_ty,
             }));
         }
@@ -317,9 +317,9 @@ impl<'module> Export<'module> {
     /// If fail to get the memory type, then an error is returned.
     pub fn memory_type(&self) -> WasmEdgeResult<MemType> {
         let external_ty = self.ty();
-        if external_ty != ExternalType::Memory {
+        if external_ty != ExternalInstanceType::Memory {
             return Err(WasmEdgeError::Export(ExportError::Type {
-                expected: ExternalType::Memory,
+                expected: ExternalInstanceType::Memory,
                 actual: external_ty,
             }));
         }
@@ -341,9 +341,9 @@ impl<'module> Export<'module> {
     /// If fail to get the global type, then an error is returned.
     pub fn global_type(&self) -> WasmEdgeResult<GlobalType> {
         let external_ty = self.ty();
-        if external_ty != ExternalType::Global {
+        if external_ty != ExternalInstanceType::Global {
             return Err(WasmEdgeError::Export(ExportError::Type {
-                expected: ExternalType::Global,
+                expected: ExternalInstanceType::Global,
                 actual: external_ty,
             }));
         }
@@ -370,7 +370,7 @@ unsafe impl Sync for InnerExport {}
 mod tests {
     use crate::{
         error::{ExportError, ImportError, WasmEdgeError},
-        Config, ExternalType, Loader, Mutability, WasmRefType, WasmValueType,
+        Config, ExternalInstanceType, Loader, Mutability, WasmRefType, WasmValueType,
     };
     use std::{
         sync::{Arc, Mutex},
@@ -403,59 +403,59 @@ mod tests {
         let imports = module.imports();
 
         // check the ty, name, and module_name functions
-        assert_eq!(imports[0].ty(), ExternalType::Function);
+        assert_eq!(imports[0].ty(), ExternalInstanceType::Function);
         assert_eq!(imports[0].name(), "func-add");
         assert_eq!(imports[0].module_name(), "extern");
 
-        assert_eq!(imports[1].ty(), ExternalType::Function);
+        assert_eq!(imports[1].ty(), ExternalInstanceType::Function);
         assert_eq!(imports[1].name(), "func-sub");
         assert_eq!(imports[1].module_name(), "extern");
 
-        assert_eq!(imports[2].ty(), ExternalType::Function);
+        assert_eq!(imports[2].ty(), ExternalInstanceType::Function);
         assert_eq!(imports[2].name(), "func-mul");
         assert_eq!(imports[2].module_name(), "extern");
 
-        assert_eq!(imports[3].ty(), ExternalType::Function);
+        assert_eq!(imports[3].ty(), ExternalInstanceType::Function);
         assert_eq!(imports[3].name(), "func-div");
         assert_eq!(imports[3].module_name(), "extern");
 
-        assert_eq!(imports[4].ty(), ExternalType::Function);
+        assert_eq!(imports[4].ty(), ExternalInstanceType::Function);
         assert_eq!(imports[4].name(), "func-term");
         assert_eq!(imports[4].module_name(), "extern");
 
-        assert_eq!(imports[5].ty(), ExternalType::Function);
+        assert_eq!(imports[5].ty(), ExternalInstanceType::Function);
         assert_eq!(imports[5].name(), "func-fail");
         assert_eq!(imports[5].module_name(), "extern");
 
-        assert_eq!(imports[6].ty(), ExternalType::Global);
+        assert_eq!(imports[6].ty(), ExternalInstanceType::Global);
         assert_eq!(imports[6].name(), "glob-i32");
         assert_eq!(imports[6].module_name(), "dummy");
 
-        assert_eq!(imports[7].ty(), ExternalType::Global);
+        assert_eq!(imports[7].ty(), ExternalInstanceType::Global);
         assert_eq!(imports[7].name(), "glob-i64");
         assert_eq!(imports[7].module_name(), "dummy");
 
-        assert_eq!(imports[8].ty(), ExternalType::Global);
+        assert_eq!(imports[8].ty(), ExternalInstanceType::Global);
         assert_eq!(imports[8].name(), "glob-f32");
         assert_eq!(imports[8].module_name(), "dummy");
 
-        assert_eq!(imports[9].ty(), ExternalType::Global);
+        assert_eq!(imports[9].ty(), ExternalInstanceType::Global);
         assert_eq!(imports[9].name(), "glob-f64");
         assert_eq!(imports[9].module_name(), "dummy");
 
-        assert_eq!(imports[10].ty(), ExternalType::Table);
+        assert_eq!(imports[10].ty(), ExternalInstanceType::Table);
         assert_eq!(imports[10].name(), "tab-func");
         assert_eq!(imports[10].module_name(), "dummy");
 
-        assert_eq!(imports[11].ty(), ExternalType::Table);
+        assert_eq!(imports[11].ty(), ExternalInstanceType::Table);
         assert_eq!(imports[11].name(), "tab-ext");
         assert_eq!(imports[11].module_name(), "dummy");
 
-        assert_eq!(imports[12].ty(), ExternalType::Memory);
+        assert_eq!(imports[12].ty(), ExternalInstanceType::Memory);
         assert_eq!(imports[12].name(), "mem1");
         assert_eq!(imports[12].module_name(), "dummy");
 
-        assert_eq!(imports[13].ty(), ExternalType::Memory);
+        assert_eq!(imports[13].ty(), ExternalInstanceType::Memory);
         assert_eq!(imports[13].name(), "mem2");
         assert_eq!(imports[13].module_name(), "dummy");
 
@@ -465,8 +465,8 @@ mod tests {
         assert_eq!(
             result.unwrap_err(),
             WasmEdgeError::Import(ImportError::Type {
-                expected: ExternalType::Function,
-                actual: ExternalType::Global,
+                expected: ExternalInstanceType::Function,
+                actual: ExternalInstanceType::Global,
             })
         );
         let result = imports[4].function_type();
@@ -480,8 +480,8 @@ mod tests {
         assert_eq!(
             result.unwrap_err(),
             WasmEdgeError::Import(ImportError::Type {
-                expected: ExternalType::Table,
-                actual: ExternalType::Function,
+                expected: ExternalInstanceType::Table,
+                actual: ExternalInstanceType::Function,
             })
         );
         let result = imports[11].table_type();
@@ -496,8 +496,8 @@ mod tests {
         assert_eq!(
             result.unwrap_err(),
             WasmEdgeError::Import(ImportError::Type {
-                expected: ExternalType::Memory,
-                actual: ExternalType::Function,
+                expected: ExternalInstanceType::Memory,
+                actual: ExternalInstanceType::Function,
             })
         );
         let result = imports[13].memory_type();
@@ -511,8 +511,8 @@ mod tests {
         assert_eq!(
             result.unwrap_err(),
             WasmEdgeError::Import(ImportError::Type {
-                expected: ExternalType::Global,
-                actual: ExternalType::Function,
+                expected: ExternalInstanceType::Global,
+                actual: ExternalInstanceType::Function,
             })
         );
         let result = imports[7].global_type();
@@ -548,54 +548,54 @@ mod tests {
         let exports = module.exports();
 
         // check the ty and name functions
-        assert_eq!(exports[0].ty(), ExternalType::Function);
+        assert_eq!(exports[0].ty(), ExternalInstanceType::Function);
         assert_eq!(exports[0].name(), "func-1");
 
-        assert_eq!(exports[1].ty(), ExternalType::Function);
+        assert_eq!(exports[1].ty(), ExternalInstanceType::Function);
         assert_eq!(exports[1].name(), "func-2");
 
-        assert_eq!(exports[2].ty(), ExternalType::Function);
+        assert_eq!(exports[2].ty(), ExternalInstanceType::Function);
         assert_eq!(exports[2].name(), "func-3");
 
-        assert_eq!(exports[3].ty(), ExternalType::Function);
+        assert_eq!(exports[3].ty(), ExternalInstanceType::Function);
         assert_eq!(exports[3].name(), "func-4");
 
         assert_eq!(module.count_of_exports(), 16);
 
-        assert_eq!(exports[4].ty(), ExternalType::Function);
+        assert_eq!(exports[4].ty(), ExternalInstanceType::Function);
         assert_eq!(exports[4].name(), "func-add");
 
-        assert_eq!(exports[5].ty(), ExternalType::Function);
+        assert_eq!(exports[5].ty(), ExternalInstanceType::Function);
         assert_eq!(exports[5].name(), "func-mul-2");
 
-        assert_eq!(exports[6].ty(), ExternalType::Function);
+        assert_eq!(exports[6].ty(), ExternalInstanceType::Function);
         assert_eq!(exports[6].name(), "func-call-indirect");
 
-        assert_eq!(exports[7].ty(), ExternalType::Function);
+        assert_eq!(exports[7].ty(), ExternalInstanceType::Function);
         assert_eq!(exports[7].name(), "func-host-add");
 
-        assert_eq!(exports[8].ty(), ExternalType::Function);
+        assert_eq!(exports[8].ty(), ExternalInstanceType::Function);
         assert_eq!(exports[8].name(), "func-host-sub");
 
-        assert_eq!(exports[9].ty(), ExternalType::Function);
+        assert_eq!(exports[9].ty(), ExternalInstanceType::Function);
         assert_eq!(exports[9].name(), "func-host-mul");
 
-        assert_eq!(exports[10].ty(), ExternalType::Function);
+        assert_eq!(exports[10].ty(), ExternalInstanceType::Function);
         assert_eq!(exports[10].name(), "func-host-div");
 
-        assert_eq!(exports[11].ty(), ExternalType::Table);
+        assert_eq!(exports[11].ty(), ExternalInstanceType::Table);
         assert_eq!(exports[11].name(), "tab-func");
 
-        assert_eq!(exports[12].ty(), ExternalType::Table);
+        assert_eq!(exports[12].ty(), ExternalInstanceType::Table);
         assert_eq!(exports[12].name(), "tab-ext");
 
-        assert_eq!(exports[13].ty(), ExternalType::Memory);
+        assert_eq!(exports[13].ty(), ExternalInstanceType::Memory);
         assert_eq!(exports[13].name(), "mem");
 
-        assert_eq!(exports[14].ty(), ExternalType::Global);
+        assert_eq!(exports[14].ty(), ExternalInstanceType::Global);
         assert_eq!(exports[14].name(), "glob-mut-i32");
 
-        assert_eq!(exports[15].ty(), ExternalType::Global);
+        assert_eq!(exports[15].ty(), ExternalInstanceType::Global);
         assert_eq!(exports[15].name(), "glob-const-f32");
 
         // check the function_type function
@@ -604,8 +604,8 @@ mod tests {
         assert_eq!(
             result.unwrap_err(),
             WasmEdgeError::Export(ExportError::Type {
-                expected: ExternalType::Function,
-                actual: ExternalType::Global,
+                expected: ExternalInstanceType::Function,
+                actual: ExternalInstanceType::Global,
             })
         );
         let result = exports[4].function_type();
@@ -620,8 +620,8 @@ mod tests {
         assert_eq!(
             result.unwrap_err(),
             WasmEdgeError::Export(ExportError::Type {
-                expected: ExternalType::Table,
-                actual: ExternalType::Function,
+                expected: ExternalInstanceType::Table,
+                actual: ExternalInstanceType::Function,
             })
         );
         let result = exports[12].table_type();
@@ -636,8 +636,8 @@ mod tests {
         assert_eq!(
             result.unwrap_err(),
             WasmEdgeError::Export(ExportError::Type {
-                expected: ExternalType::Memory,
-                actual: ExternalType::Function,
+                expected: ExternalInstanceType::Memory,
+                actual: ExternalInstanceType::Function,
             })
         );
         let result = exports[13].memory_type();
@@ -651,8 +651,8 @@ mod tests {
         assert_eq!(
             result.unwrap_err(),
             WasmEdgeError::Export(ExportError::Type {
-                expected: ExternalType::Global,
-                actual: ExternalType::Function,
+                expected: ExternalInstanceType::Global,
+                actual: ExternalInstanceType::Function,
             })
         );
         let result = exports[15].global_type();
@@ -689,54 +689,54 @@ mod tests {
             let exports = module.exports();
 
             // check the ty and name functions
-            assert_eq!(exports[0].ty(), ExternalType::Function);
+            assert_eq!(exports[0].ty(), ExternalInstanceType::Function);
             assert_eq!(exports[0].name(), "func-1");
 
-            assert_eq!(exports[1].ty(), ExternalType::Function);
+            assert_eq!(exports[1].ty(), ExternalInstanceType::Function);
             assert_eq!(exports[1].name(), "func-2");
 
-            assert_eq!(exports[2].ty(), ExternalType::Function);
+            assert_eq!(exports[2].ty(), ExternalInstanceType::Function);
             assert_eq!(exports[2].name(), "func-3");
 
-            assert_eq!(exports[3].ty(), ExternalType::Function);
+            assert_eq!(exports[3].ty(), ExternalInstanceType::Function);
             assert_eq!(exports[3].name(), "func-4");
 
             assert_eq!(module.count_of_exports(), 16);
 
-            assert_eq!(exports[4].ty(), ExternalType::Function);
+            assert_eq!(exports[4].ty(), ExternalInstanceType::Function);
             assert_eq!(exports[4].name(), "func-add");
 
-            assert_eq!(exports[5].ty(), ExternalType::Function);
+            assert_eq!(exports[5].ty(), ExternalInstanceType::Function);
             assert_eq!(exports[5].name(), "func-mul-2");
 
-            assert_eq!(exports[6].ty(), ExternalType::Function);
+            assert_eq!(exports[6].ty(), ExternalInstanceType::Function);
             assert_eq!(exports[6].name(), "func-call-indirect");
 
-            assert_eq!(exports[7].ty(), ExternalType::Function);
+            assert_eq!(exports[7].ty(), ExternalInstanceType::Function);
             assert_eq!(exports[7].name(), "func-host-add");
 
-            assert_eq!(exports[8].ty(), ExternalType::Function);
+            assert_eq!(exports[8].ty(), ExternalInstanceType::Function);
             assert_eq!(exports[8].name(), "func-host-sub");
 
-            assert_eq!(exports[9].ty(), ExternalType::Function);
+            assert_eq!(exports[9].ty(), ExternalInstanceType::Function);
             assert_eq!(exports[9].name(), "func-host-mul");
 
-            assert_eq!(exports[10].ty(), ExternalType::Function);
+            assert_eq!(exports[10].ty(), ExternalInstanceType::Function);
             assert_eq!(exports[10].name(), "func-host-div");
 
-            assert_eq!(exports[11].ty(), ExternalType::Table);
+            assert_eq!(exports[11].ty(), ExternalInstanceType::Table);
             assert_eq!(exports[11].name(), "tab-func");
 
-            assert_eq!(exports[12].ty(), ExternalType::Table);
+            assert_eq!(exports[12].ty(), ExternalInstanceType::Table);
             assert_eq!(exports[12].name(), "tab-ext");
 
-            assert_eq!(exports[13].ty(), ExternalType::Memory);
+            assert_eq!(exports[13].ty(), ExternalInstanceType::Memory);
             assert_eq!(exports[13].name(), "mem");
 
-            assert_eq!(exports[14].ty(), ExternalType::Global);
+            assert_eq!(exports[14].ty(), ExternalInstanceType::Global);
             assert_eq!(exports[14].name(), "glob-mut-i32");
 
-            assert_eq!(exports[15].ty(), ExternalType::Global);
+            assert_eq!(exports[15].ty(), ExternalInstanceType::Global);
             assert_eq!(exports[15].name(), "glob-const-f32");
 
             // check the function_type function
@@ -745,8 +745,8 @@ mod tests {
             assert_eq!(
                 result.unwrap_err(),
                 WasmEdgeError::Export(ExportError::Type {
-                    expected: ExternalType::Function,
-                    actual: ExternalType::Global,
+                    expected: ExternalInstanceType::Function,
+                    actual: ExternalInstanceType::Global,
                 })
             );
             let result = exports[4].function_type();
@@ -761,8 +761,8 @@ mod tests {
             assert_eq!(
                 result.unwrap_err(),
                 WasmEdgeError::Export(ExportError::Type {
-                    expected: ExternalType::Table,
-                    actual: ExternalType::Function,
+                    expected: ExternalInstanceType::Table,
+                    actual: ExternalInstanceType::Function,
                 })
             );
             let result = exports[12].table_type();
@@ -777,8 +777,8 @@ mod tests {
             assert_eq!(
                 result.unwrap_err(),
                 WasmEdgeError::Export(ExportError::Type {
-                    expected: ExternalType::Memory,
-                    actual: ExternalType::Function,
+                    expected: ExternalInstanceType::Memory,
+                    actual: ExternalInstanceType::Function,
                 })
             );
             let result = exports[13].memory_type();
@@ -792,8 +792,8 @@ mod tests {
             assert_eq!(
                 result.unwrap_err(),
                 WasmEdgeError::Export(ExportError::Type {
-                    expected: ExternalType::Global,
-                    actual: ExternalType::Function,
+                    expected: ExternalInstanceType::Global,
+                    actual: ExternalInstanceType::Function,
                 })
             );
             let result = exports[15].global_type();
@@ -837,54 +837,54 @@ mod tests {
             let exports = module.exports();
 
             // check the ty and name functions
-            assert_eq!(exports[0].ty(), ExternalType::Function);
+            assert_eq!(exports[0].ty(), ExternalInstanceType::Function);
             assert_eq!(exports[0].name(), "func-1");
 
-            assert_eq!(exports[1].ty(), ExternalType::Function);
+            assert_eq!(exports[1].ty(), ExternalInstanceType::Function);
             assert_eq!(exports[1].name(), "func-2");
 
-            assert_eq!(exports[2].ty(), ExternalType::Function);
+            assert_eq!(exports[2].ty(), ExternalInstanceType::Function);
             assert_eq!(exports[2].name(), "func-3");
 
-            assert_eq!(exports[3].ty(), ExternalType::Function);
+            assert_eq!(exports[3].ty(), ExternalInstanceType::Function);
             assert_eq!(exports[3].name(), "func-4");
 
             assert_eq!(module.count_of_exports(), 16);
 
-            assert_eq!(exports[4].ty(), ExternalType::Function);
+            assert_eq!(exports[4].ty(), ExternalInstanceType::Function);
             assert_eq!(exports[4].name(), "func-add");
 
-            assert_eq!(exports[5].ty(), ExternalType::Function);
+            assert_eq!(exports[5].ty(), ExternalInstanceType::Function);
             assert_eq!(exports[5].name(), "func-mul-2");
 
-            assert_eq!(exports[6].ty(), ExternalType::Function);
+            assert_eq!(exports[6].ty(), ExternalInstanceType::Function);
             assert_eq!(exports[6].name(), "func-call-indirect");
 
-            assert_eq!(exports[7].ty(), ExternalType::Function);
+            assert_eq!(exports[7].ty(), ExternalInstanceType::Function);
             assert_eq!(exports[7].name(), "func-host-add");
 
-            assert_eq!(exports[8].ty(), ExternalType::Function);
+            assert_eq!(exports[8].ty(), ExternalInstanceType::Function);
             assert_eq!(exports[8].name(), "func-host-sub");
 
-            assert_eq!(exports[9].ty(), ExternalType::Function);
+            assert_eq!(exports[9].ty(), ExternalInstanceType::Function);
             assert_eq!(exports[9].name(), "func-host-mul");
 
-            assert_eq!(exports[10].ty(), ExternalType::Function);
+            assert_eq!(exports[10].ty(), ExternalInstanceType::Function);
             assert_eq!(exports[10].name(), "func-host-div");
 
-            assert_eq!(exports[11].ty(), ExternalType::Table);
+            assert_eq!(exports[11].ty(), ExternalInstanceType::Table);
             assert_eq!(exports[11].name(), "tab-func");
 
-            assert_eq!(exports[12].ty(), ExternalType::Table);
+            assert_eq!(exports[12].ty(), ExternalInstanceType::Table);
             assert_eq!(exports[12].name(), "tab-ext");
 
-            assert_eq!(exports[13].ty(), ExternalType::Memory);
+            assert_eq!(exports[13].ty(), ExternalInstanceType::Memory);
             assert_eq!(exports[13].name(), "mem");
 
-            assert_eq!(exports[14].ty(), ExternalType::Global);
+            assert_eq!(exports[14].ty(), ExternalInstanceType::Global);
             assert_eq!(exports[14].name(), "glob-mut-i32");
 
-            assert_eq!(exports[15].ty(), ExternalType::Global);
+            assert_eq!(exports[15].ty(), ExternalInstanceType::Global);
             assert_eq!(exports[15].name(), "glob-const-f32");
 
             // check the function_type function
@@ -893,8 +893,8 @@ mod tests {
             assert_eq!(
                 result.unwrap_err(),
                 WasmEdgeError::Export(ExportError::Type {
-                    expected: ExternalType::Function,
-                    actual: ExternalType::Global,
+                    expected: ExternalInstanceType::Function,
+                    actual: ExternalInstanceType::Global,
                 })
             );
             let result = exports[4].function_type();
@@ -909,8 +909,8 @@ mod tests {
             assert_eq!(
                 result.unwrap_err(),
                 WasmEdgeError::Export(ExportError::Type {
-                    expected: ExternalType::Table,
-                    actual: ExternalType::Function,
+                    expected: ExternalInstanceType::Table,
+                    actual: ExternalInstanceType::Function,
                 })
             );
             let result = exports[12].table_type();
@@ -925,8 +925,8 @@ mod tests {
             assert_eq!(
                 result.unwrap_err(),
                 WasmEdgeError::Export(ExportError::Type {
-                    expected: ExternalType::Memory,
-                    actual: ExternalType::Function,
+                    expected: ExternalInstanceType::Memory,
+                    actual: ExternalInstanceType::Function,
                 })
             );
             let result = exports[13].memory_type();
@@ -940,8 +940,8 @@ mod tests {
             assert_eq!(
                 result.unwrap_err(),
                 WasmEdgeError::Export(ExportError::Type {
-                    expected: ExternalType::Global,
-                    actual: ExternalType::Function,
+                    expected: ExternalInstanceType::Global,
+                    actual: ExternalInstanceType::Function,
                 })
             );
             let result = exports[15].global_type();

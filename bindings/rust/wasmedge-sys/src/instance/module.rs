@@ -282,8 +282,8 @@ unsafe impl Sync for InnerInstance {}
 mod tests {
     use super::*;
     use crate::{
-        Config, Executor, FuncType, GlobalType, ImportObject, MemType, Mutability, TableType, Vm,
-        WasmRefType, WasmValue, WasmValueType,
+        wasmedge_types::Mutability, Config, Executor, FuncType, GlobalType, ImportObject, MemType,
+        TableType, Vm, WasmRefType, WasmValue, WasmValueType,
     };
 
     #[test]

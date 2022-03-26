@@ -774,7 +774,8 @@ mod tests {
     use crate::{
         instance::{Function, Global, GlobalType, MemType, Memory, Table, TableType},
         types::WasmValue,
-        Config, Executor, FuncType, ImportObject, Mutability, Vm, WasmRefType, WasmValueType,
+        wasmedge_types::Mutability,
+        Config, Executor, FuncType, ImportObject, Vm, WasmRefType, WasmValueType,
     };
     use std::{
         sync::{Arc, Mutex},

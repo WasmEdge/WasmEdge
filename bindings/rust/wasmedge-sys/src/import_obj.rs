@@ -294,8 +294,8 @@ unsafe impl Sync for InnerImportObject {}
 mod tests {
     use super::*;
     use crate::{
-        Config, Executor, FuncType, GlobalType, MemType, Mutability, Statistics, Store, TableType,
-        Vm, WasmRefType, WasmValue, WasmValueType,
+        wasmedge_types::Mutability, Config, Executor, FuncType, GlobalType, MemType, Statistics,
+        Store, TableType, Vm, WasmRefType, WasmValue, WasmValueType,
     };
     use std::{
         sync::{Arc, Mutex},

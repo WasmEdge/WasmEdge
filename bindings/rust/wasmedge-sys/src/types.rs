@@ -124,34 +124,6 @@ impl From<ffi::WasmEdge_ValType> for WasmValueType {
     }
 }
 
-/// Defines WasmEdge mutability values.
-///
-/// `Mutability` determines a [global](crate::Global) variable is either mutable or immutable.
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
-pub enum Mutability {
-    /// Identifies an immutable global variable
-    Const,
-    /// Identifies a mutable global variable
-    Var,
-}
-impl From<Mutability> for ffi::WasmEdge_Mutability {
-    fn from(mutable: Mutability) -> Self {
-        match mutable {
-            Mutability::Const => ffi::WasmEdge_Mutability_Const,
-            Mutability::Var => ffi::WasmEdge_Mutability_Var,
-        }
-    }
-}
-impl From<ffi::WasmEdge_Mutability> for Mutability {
-    fn from(mutable: ffi::WasmEdge_Mutability) -> Self {
-        match mutable {
-            ffi::WasmEdge_Mutability_Const => Mutability::Const,
-            ffi::WasmEdge_Mutability_Var => Mutability::Var,
-            _ => panic!("unknown Mutability value `{}`", mutable),
-        }
-    }
-}
-
 /// Defines WasmEdge AOT compiler optimization level.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(u32)]

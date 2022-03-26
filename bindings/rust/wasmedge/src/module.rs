@@ -1,6 +1,6 @@
 //! Defines Module, ImportType, and ExportType.
 
-use crate::{config::Config, error::Result, sys, types::ExternalInstanceType};
+use crate::{config::Config, error::Result, sys, wasmedge_types::ExternalInstanceType};
 use std::marker::PhantomData;
 use std::{borrow::Cow, path::Path};
 
@@ -151,24 +151,8 @@ impl<'module> ImportType<'module> {
 
     /// Returns the type of the [ImportType].
     pub fn ty(&self) -> Result<ExternalInstanceType> {
-        match self.inner.ty() {
-            sys::ExternalInstanceType::Function => {
-                let func_ty = self.inner.function_type()?;
-                Ok(ExternalInstanceType::Func(func_ty.into()))
-            }
-            sys::ExternalInstanceType::Global => {
-                let global_ty = self.inner.global_type()?;
-                Ok(ExternalInstanceType::Global(global_ty.into()))
-            }
-            sys::ExternalInstanceType::Memory => {
-                let mem_ty = self.inner.memory_type()?;
-                Ok(ExternalInstanceType::Memory(mem_ty.into()))
-            }
-            sys::ExternalInstanceType::Table => {
-                let table_ty = self.inner.table_type()?;
-                Ok(ExternalInstanceType::Table(table_ty.into()))
-            }
-        }
+        let ty = self.inner.ty()?;
+        Ok(ty)
     }
 }
 
@@ -188,24 +172,8 @@ impl<'module> ExportType<'module> {
 
     /// Returns the type of the [ExportType].
     pub fn ty(&self) -> Result<ExternalInstanceType> {
-        match self.inner.ty() {
-            sys::ExternalInstanceType::Function => {
-                let func_ty = self.inner.function_type()?;
-                Ok(ExternalInstanceType::Func(func_ty.into()))
-            }
-            sys::ExternalInstanceType::Global => {
-                let global_ty = self.inner.global_type()?;
-                Ok(ExternalInstanceType::Global(global_ty.into()))
-            }
-            sys::ExternalInstanceType::Memory => {
-                let mem_ty = self.inner.memory_type()?;
-                Ok(ExternalInstanceType::Memory(mem_ty.into()))
-            }
-            sys::ExternalInstanceType::Table => {
-                let table_ty = self.inner.table_type()?;
-                Ok(ExternalInstanceType::Table(table_ty.into()))
-            }
-        }
+        let ty = self.inner.ty()?;
+        Ok(ty)
     }
 }
 

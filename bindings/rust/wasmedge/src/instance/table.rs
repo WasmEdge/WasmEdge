@@ -1,8 +1,5 @@
-use crate::{
-    error::Result,
-    sys,
-    types::{RefType, Val},
-};
+use crate::{error::Result, sys, types::Val};
+use wasmedge_types::RefType;
 
 #[derive(Debug)]
 pub struct Table<'instance> {
@@ -36,7 +33,7 @@ impl<'instance> Table<'instance> {
         let ty = self.inner.ty()?;
         let limit = ty.limit();
         Ok(TableType {
-            elem_ty: ty.elem_ty().into(),
+            elem_ty: ty.elem_ty(),
             min: limit.start().to_owned(),
             max: limit.end().to_owned(),
         })
@@ -97,7 +94,7 @@ impl From<sys::TableType> for TableType {
     fn from(ty: sys::TableType) -> Self {
         let limit = ty.limit();
         Self {
-            elem_ty: ty.elem_ty().into(),
+            elem_ty: ty.elem_ty(),
             min: limit.start().to_owned(),
             max: limit.end().to_owned(),
         }

@@ -190,8 +190,8 @@ mod tests {
         config::{CommonConfigOptions, ConfigBuilder},
         error::WasmEdgeError,
         sys,
-        types::{FuncRef, RefType, Val, ValType},
-        wasmedge_types::Mutability,
+        types::{FuncRef, Val, ValType},
+        wasmedge_types::{Mutability, RefType},
         Executor, SignatureBuilder, Statistics, Store, WasmValue, WasmValueType,
     };
     use std::{

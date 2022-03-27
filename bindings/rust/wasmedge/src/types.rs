@@ -1,10 +1,11 @@
 //! Defines the general types.
 
 use crate::{
-    sys::{WasmRefType, WasmValue, WasmValueType},
+    sys::{WasmValue, WasmValueType},
     Func,
 };
 use std::marker::PhantomData;
+use wasmedge_types::RefType;
 
 /// Defines value types.
 ///
@@ -105,9 +106,9 @@ impl From<Val> for WasmValue {
             Val::F64(i) => WasmValue::from_f64(i),
             Val::V128(i) => WasmValue::from_v128(i),
             Val::FuncRef(Some(func_ref)) => func_ref.inner,
-            Val::FuncRef(None) => WasmValue::from_null_ref(WasmRefType::FuncRef),
+            Val::FuncRef(None) => WasmValue::from_null_ref(RefType::FuncRef),
             Val::ExternRef(Some(extern_ref)) => extern_ref.inner,
-            Val::ExternRef(None) => WasmValue::from_null_ref(WasmRefType::ExternRef),
+            Val::ExternRef(None) => WasmValue::from_null_ref(RefType::ExternRef),
         }
     }
 }
@@ -180,34 +181,5 @@ impl ExternRef {
     {
         let inner = WasmValue::from_extern_ref(extern_obj);
         Self { inner }
-    }
-}
-
-/// Defines reference types.
-///
-/// `RefType` classifies first-class references to objects in the runtime [store](crate::Store).
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
-pub enum RefType {
-    /// `FuncRef` denotes the infinite union of all references to [functions](crate::Func), regardless of their
-    /// [function signatures](crate::Signature).
-    FuncRef,
-
-    /// `ExternRef` denotes the infinite union of all references to objects and that can be passed into WebAssembly under this type.
-    ExternRef,
-}
-impl From<WasmRefType> for RefType {
-    fn from(ref_type: WasmRefType) -> Self {
-        match ref_type {
-            WasmRefType::FuncRef => RefType::FuncRef,
-            WasmRefType::ExternRef => RefType::ExternRef,
-        }
-    }
-}
-impl From<RefType> for WasmRefType {
-    fn from(ref_type: RefType) -> Self {
-        match ref_type {
-            RefType::FuncRef => WasmRefType::FuncRef,
-            RefType::ExternRef => WasmRefType::ExternRef,
-        }
     }
 }

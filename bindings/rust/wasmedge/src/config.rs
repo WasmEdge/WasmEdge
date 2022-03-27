@@ -1,7 +1,7 @@
 //! Defines the structs used to construct configurations.
 
-use crate::{error::Result, sys, CompilerOutputFormat};
-use wasmedge_types::CompilerOptimizationLevel;
+use crate::{error::Result, sys};
+use wasmedge_types::{CompilerOptimizationLevel, CompilerOutputFormat};
 
 /// Struct of WasmEdge ConfigBuilder.
 ///
@@ -121,8 +121,8 @@ impl ConfigBuilder {
 /// The following code shows how to create a [Config] with [ConfigBuilder].
 ///
 /// ```rust
-/// use wasmedge::{CompilerOutputFormat, config::{Config, ConfigBuilder, CommonConfigOptions, StatisticsConfigOptions, CompilerConfigOptions, RuntimeConfigOptions, HostRegistrationConfigOptions}};
-/// use wasmedge_types::CompilerOptimizationLevel;
+/// use wasmedge::{config::{Config, ConfigBuilder, CommonConfigOptions, StatisticsConfigOptions, CompilerConfigOptions, RuntimeConfigOptions, HostRegistrationConfigOptions}};
+/// use wasmedge_types::{CompilerOutputFormat, CompilerOptimizationLevel};
 ///
 /// let common_options = CommonConfigOptions::default()
 ///     .bulk_memory_operations(true)
@@ -666,8 +666,7 @@ impl HostRegistrationConfigOptions {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::CompilerOutputFormat;
-    use wasmedge_types::CompilerOptimizationLevel;
+    use wasmedge_types::{CompilerOptimizationLevel, CompilerOutputFormat};
 
     #[test]
     fn test_config_create() {

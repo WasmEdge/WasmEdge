@@ -1,5 +1,7 @@
 (unreleased)
 ------------
+- [PySDK] makefile: build parallel and build. [Shreyas Atre]
+- [PySDK] Stub files improvement. [Shreyas Atre]
 - [PySDK] Completion of Async. [Shreyas Atre]
 - [PySDK] Added Compiler Class wrapper. [Shreyas Atre]
 - [PySDK] Complete executor. [Shreyas Atre]

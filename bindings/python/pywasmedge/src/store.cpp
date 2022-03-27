@@ -83,7 +83,7 @@ pysdk::Store::ListFunctionRegistered(const std::string &module_name,
 
 pysdk::Function pysdk::Store::FindFunction(std::string &name) {
   WasmEdge_String fname = WasmEdge_StringCreateByCString(name.c_str());
-  pysdk::Function f(WasmEdge_StoreFindFunction(StoreCxt, fname), false);
+  pysdk::Function f(WasmEdge_StoreFindFunction(StoreCxt, fname));
   WasmEdge_StringDelete(fname);
   return f;
 }
@@ -93,7 +93,7 @@ pysdk::Function pysdk::Store::FindFunctionRegistered(std::string &mod,
   WasmEdge_String fname = WasmEdge_StringCreateByCString(func.c_str());
   WasmEdge_String mod_name = WasmEdge_StringCreateByCString(mod.c_str());
   pysdk::Function f(
-      WasmEdge_StoreFindFunctionRegistered(StoreCxt, mod_name, fname), false);
+      WasmEdge_StoreFindFunctionRegistered(StoreCxt, mod_name, fname));
   WasmEdge_StringDelete(fname);
   WasmEdge_StringDelete(mod_name);
   return f;

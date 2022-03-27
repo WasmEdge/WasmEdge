@@ -14,41 +14,33 @@ pysdk::FunctionTypeContext::FunctionTypeContext(pybind11::list param_list,
     ret_types[i] = return_list[i].cast<WasmEdge_ValType>();
   }
 
-  HostFType = WasmEdge_FunctionTypeCreate(
+  context = WasmEdge_FunctionTypeCreate(
       const_cast<const WasmEdge_ValType *>(param_types), param_len,
       const_cast<const WasmEdge_ValType *>(ret_types), ret_len);
 
-  if (HostFType == NULL) {
+  if (context == NULL) {
     throw std::runtime_error("Cannor Create Function Type");
   }
 }
 
 pysdk::FunctionTypeContext::FunctionTypeContext(
-    WasmEdge_FunctionTypeContext *Hfcxt) {
-  external = true;
-  HostFType = Hfcxt;
-}
+    const WasmEdge_FunctionTypeContext *Hfcxt)
+    : base(Hfcxt) {}
 
 pysdk::FunctionTypeContext::~FunctionTypeContext() {
-  if (!external)
-    WasmEdge_FunctionTypeDelete(HostFType);
-}
-
-WasmEdge_FunctionTypeContext *pysdk::FunctionTypeContext::get() {
-  return HostFType;
+  if (_del)
+    WasmEdge_FunctionTypeDelete(context);
 }
 
 uint32_t pysdk::FunctionTypeContext::get_param_len() {
-  return WasmEdge_FunctionTypeGetParametersLength(
-      const_cast<const WasmEdge_FunctionTypeContext *>(HostFType));
+  return WasmEdge_FunctionTypeGetParametersLength(get());
 }
 
 pybind11::list
 pysdk::FunctionTypeContext::get_param_types(const uint32_t &len) {
   pybind11::list ret;
   WasmEdge_ValType rets[len];
-  auto const len_api = WasmEdge_FunctionTypeGetParameters(
-      const_cast<const WasmEdge_FunctionTypeContext *>(HostFType), rets, len);
+  auto const len_api = WasmEdge_FunctionTypeGetParameters(get(), rets, len);
   for (size_t i = 0; i < len_api; i++) {
     ret.append(rets[i]);
   }
@@ -56,16 +48,13 @@ pysdk::FunctionTypeContext::get_param_types(const uint32_t &len) {
 }
 
 uint32_t pysdk::FunctionTypeContext::get_ret_len() {
-
-  return WasmEdge_FunctionTypeGetReturnsLength(
-      const_cast<const WasmEdge_FunctionTypeContext *>(HostFType));
+  return WasmEdge_FunctionTypeGetReturnsLength(get());
 }
 
 pybind11::list pysdk::FunctionTypeContext::get_ret_types(const uint32_t &len) {
   pybind11::list ret;
   WasmEdge_ValType rets[len];
-  auto const len_api = WasmEdge_FunctionTypeGetReturns(
-      const_cast<const WasmEdge_FunctionTypeContext *>(HostFType), rets, len);
+  auto const len_api = WasmEdge_FunctionTypeGetReturns(get(), rets, len);
   for (size_t i = 0; i < len_api; i++) {
     ret.append(rets[i]);
   }
@@ -88,29 +77,27 @@ pysdk::Function::Function(FunctionTypeContext &cxt, pybind11::function func,
     : func_util(new pysdk::function_utility) {
   func_util->func = func;
   func_util->param_len = cxt.get_param_len();
-  HostFuncCxt = WasmEdge_FunctionInstanceCreate(
-      const_cast<const WasmEdge_FunctionTypeContext *>(cxt.get()),
-      host_function, (void *)func_util, cost);
+  context = WasmEdge_FunctionInstanceCreate(cxt.get(), host_function,
+                                            (void *)func_util, cost);
 }
 
-pysdk::Function::Function(WasmEdge_FunctionInstanceContext *cxt, bool del) {
-  HostFuncCxt = cxt;
-  delete_cxt = cxt;
-}
+pysdk::Function::Function(const WasmEdge_FunctionInstanceContext *cxt)
+    : base(cxt) {}
+
+pysdk::Function::Function(WasmEdge_FunctionInstanceContext *cxt) : base(cxt) {}
 
 pysdk::Function::~Function() {
-  if (delete_cxt)
-    WasmEdge_FunctionInstanceDelete(HostFuncCxt);
+  if (_del)
+    WasmEdge_FunctionInstanceDelete(context);
 
-  if (func_util != nullptr)
+  if (func_util != nullptr) {
     delete func_util;
+  }
 }
 
-WasmEdge_FunctionInstanceContext *pysdk::Function::get() { return HostFuncCxt; }
-
 pysdk::FunctionTypeContext pysdk::Function::get_func_type() {
-  return pysdk::FunctionTypeContext(const_cast<WasmEdge_FunctionTypeContext *>(
-      WasmEdge_FunctionInstanceGetFunctionType(HostFuncCxt)));
+  return pysdk::FunctionTypeContext(
+      WasmEdge_FunctionInstanceGetFunctionType(context));
 }
 /* --------------- Function End ----------------------------------------*/
 

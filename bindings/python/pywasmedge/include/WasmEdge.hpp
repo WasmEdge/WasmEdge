@@ -10,6 +10,22 @@
 #include <wasmedge/wasmedge.h>
 
 namespace pysdk {
+
+template <typename T> class base {
+protected:
+  T *context;
+  bool _del = true;
+
+public:
+  base() = default;
+  base(T *cxt) : context(cxt) {}
+  base(const T *cxt) : context(const_cast<T *>(cxt)) { _del = false; }
+  virtual ~base() = default;
+
+  const T &get() const { return const_cast<const T *>(context); }
+  T *get() { return context; }
+};
+
 class Memory;
 
 struct logging {
@@ -64,33 +80,26 @@ struct function_utility {
   pybind11::function func;
 };
 
-class FunctionTypeContext {
-private:
-  WasmEdge_FunctionTypeContext *HostFType;
-  bool external = false;
-
+class FunctionTypeContext : public base<WasmEdge_FunctionTypeContext> {
 public:
   FunctionTypeContext(pybind11::list, pybind11::list);
-  FunctionTypeContext(WasmEdge_FunctionTypeContext *Hfcxt);
-  ~FunctionTypeContext();
-  WasmEdge_FunctionTypeContext *get();
+  FunctionTypeContext(const WasmEdge_FunctionTypeContext *);
+  ~FunctionTypeContext() override;
   uint32_t get_param_len();
   pybind11::list get_param_types(const uint32_t &);
   uint32_t get_ret_len();
   pybind11::list get_ret_types(const uint32_t &);
 };
 
-class Function {
+class Function : public base<WasmEdge_FunctionInstanceContext> {
 private:
-  WasmEdge_FunctionInstanceContext *HostFuncCxt;
   function_utility *func_util;
-  bool delete_cxt = true;
 
 public:
   Function(FunctionTypeContext &, pybind11::function, uint64_t &);
-  Function(WasmEdge_FunctionInstanceContext *, bool);
-  ~Function();
-  WasmEdge_FunctionInstanceContext *get();
+  Function(const WasmEdge_FunctionInstanceContext *);
+  Function(WasmEdge_FunctionInstanceContext *);
+  ~Function() override;
   FunctionTypeContext get_func_type();
 };
 

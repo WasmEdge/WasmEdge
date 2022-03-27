@@ -96,6 +96,7 @@ impl From<Mutability> for u32 {
     }
 }
 
+/// Defines WasmEdge AOT compiler optimization level.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum CompilerOptimizationLevel {
     /// Disable as many optimizations as possible.
@@ -116,6 +117,31 @@ pub enum CompilerOptimizationLevel {
 
     /// Optimize for small code size as much as possible.
     Oz,
+}
+impl From<u32> for CompilerOptimizationLevel {
+    fn from(val: u32) -> CompilerOptimizationLevel {
+        match val {
+            0 => CompilerOptimizationLevel::O0,
+            1 => CompilerOptimizationLevel::O1,
+            2 => CompilerOptimizationLevel::O2,
+            3 => CompilerOptimizationLevel::O3,
+            4 => CompilerOptimizationLevel::Os,
+            5 => CompilerOptimizationLevel::Oz,
+            _ => panic!("Unknown CompilerOptimizationLevel value: {}", val),
+        }
+    }
+}
+impl From<CompilerOptimizationLevel> for u32 {
+    fn from(val: CompilerOptimizationLevel) -> u32 {
+        match val {
+            CompilerOptimizationLevel::O0 => 0,
+            CompilerOptimizationLevel::O1 => 1,
+            CompilerOptimizationLevel::O2 => 2,
+            CompilerOptimizationLevel::O3 => 3,
+            CompilerOptimizationLevel::Os => 4,
+            CompilerOptimizationLevel::Oz => 5,
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

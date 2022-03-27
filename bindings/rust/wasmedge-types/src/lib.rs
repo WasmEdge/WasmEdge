@@ -67,6 +67,20 @@ impl From<u32> for ValType {
         }
     }
 }
+impl From<ValType> for u32 {
+    fn from(value: ValType) -> Self {
+        match value {
+            ValType::I32 => 127,
+            ValType::I64 => 126,
+            ValType::F32 => 125,
+            ValType::F64 => 124,
+            ValType::V128 => 123,
+            ValType::FuncRef => 112,
+            ValType::ExternRef => 111,
+            ValType::None => 64,
+        }
+    }
+}
 
 /// Defines WasmEdge mutability values.
 ///

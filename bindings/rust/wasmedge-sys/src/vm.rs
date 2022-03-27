@@ -754,12 +754,13 @@ mod tests {
             CoreCommonError, CoreError, CoreExecutionError, CoreInstantiationError, CoreLoadError,
             StoreError, VmError, WasmEdgeError,
         },
-        Config, FuncType, Function, ImportObject, Loader, Module, Store, WasmValue, WasmValueType,
+        Config, FuncType, Function, ImportObject, Loader, Module, Store, WasmValue,
     };
     use std::{
         sync::{Arc, Mutex},
         thread,
     };
+    use wasmedge_types::ValType;
 
     #[test]
     fn test_vm_create() {
@@ -1124,12 +1125,12 @@ mod tests {
         assert_eq!(func_ty.params_len(), 1);
         assert_eq!(
             func_ty.params_type_iter().collect::<Vec<_>>(),
-            vec![WasmValueType::I32]
+            vec![ValType::I32]
         );
         assert_eq!(func_ty.returns_len(), 1);
         assert_eq!(
             func_ty.returns_type_iter().collect::<Vec<_>>(),
-            vec![WasmValueType::I32]
+            vec![ValType::I32]
         );
 
         // check functions
@@ -1231,12 +1232,12 @@ mod tests {
         assert_eq!(func_ty.params_len(), 1);
         assert_eq!(
             func_ty.params_type_iter().collect::<Vec<_>>(),
-            vec![WasmValueType::I32]
+            vec![ValType::I32]
         );
         assert_eq!(func_ty.returns_len(), 1);
         assert_eq!(
             func_ty.returns_type_iter().collect::<Vec<_>>(),
-            vec![WasmValueType::I32]
+            vec![ValType::I32]
         );
 
         // get the registered function type by a wrong module name
@@ -1303,7 +1304,7 @@ mod tests {
         let mut import_obj = result.unwrap();
 
         // add host function
-        let result = FuncType::create(vec![WasmValueType::I32; 2], vec![WasmValueType::I32]);
+        let result = FuncType::create(vec![ValType::I32; 2], vec![ValType::I32]);
         assert!(result.is_ok());
         let func_ty = result.unwrap();
         let result = Function::create(&func_ty, Box::new(real_add), 0);
@@ -1687,7 +1688,7 @@ mod tests {
             let mut import_wasi = result.unwrap();
 
             // add host function
-            let result = FuncType::create(vec![WasmValueType::I32; 2], vec![WasmValueType::I32]);
+            let result = FuncType::create(vec![ValType::I32; 2], vec![ValType::I32]);
             assert!(result.is_ok());
             let func_ty = result.unwrap();
             let result = Function::create(&func_ty, Box::new(real_add), 0);
@@ -1797,7 +1798,7 @@ mod tests {
             let mut import_process = result.unwrap();
 
             // add host function
-            let result = FuncType::create(vec![WasmValueType::I32; 2], vec![WasmValueType::I32]);
+            let result = FuncType::create(vec![ValType::I32; 2], vec![ValType::I32]);
             assert!(result.is_ok());
             let func_ty = result.unwrap();
             let result = Function::create(&func_ty, Box::new(real_add), 0);
@@ -1850,13 +1851,13 @@ mod tests {
             return Err(1);
         }
 
-        let a = if inputs[0].ty() == WasmValueType::I32 {
+        let a = if inputs[0].ty() == ValType::I32 {
             inputs[0].to_i32()
         } else {
             return Err(2);
         };
 
-        let b = if inputs[1].ty() == WasmValueType::I32 {
+        let b = if inputs[1].ty() == ValType::I32 {
             inputs[1].to_i32()
         } else {
             return Err(3);

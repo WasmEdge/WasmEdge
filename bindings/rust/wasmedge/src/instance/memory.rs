@@ -1,4 +1,5 @@
 use crate::{error::Result, sys};
+use wasmedge_types::MemoryType;
 
 #[derive(Debug)]
 pub struct Memory<'instance> {
@@ -29,10 +30,7 @@ impl<'instance> Memory<'instance> {
     /// Returns the underlying type of this memory.
     pub fn ty(&self) -> Result<MemoryType> {
         let ty = self.inner.ty()?;
-        Ok(MemoryType {
-            min: ty.limit().start().to_owned(),
-            max: ty.limit().end().to_owned(),
-        })
+        Ok(ty.into())
     }
 
     /// Returns the size, in WebAssembly pages, of this wasm memory.
@@ -56,44 +54,6 @@ impl<'instance> Memory<'instance> {
     pub fn grow(&mut self, count: u32) -> Result<()> {
         self.inner.grow(count)?;
         Ok(())
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct MemoryType {
-    min: u32,
-    max: u32,
-}
-impl MemoryType {
-    pub fn new(min: u32, max: Option<u32>) -> Self {
-        let max = match max {
-            Some(max) => max,
-            None => u32::MAX,
-        };
-        Self { min, max }
-    }
-
-    pub fn minimum(&self) -> u32 {
-        self.min
-    }
-
-    pub fn maximum(&self) -> u32 {
-        self.max
-    }
-}
-impl From<sys::MemType> for MemoryType {
-    fn from(ty: sys::MemType) -> Self {
-        let limit = ty.limit();
-        Self {
-            min: limit.start().to_owned(),
-            max: limit.end().to_owned(),
-        }
-    }
-}
-impl From<MemoryType> for sys::MemType {
-    fn from(ty: MemoryType) -> Self {
-        sys::MemType::create(ty.min..=ty.max)
-            .expect("[wasmedge] Failed to convert wasmedge::MemoryType into wasmedge_sys::MemType.")
     }
 }
 

@@ -86,11 +86,11 @@ mod tests {
     use super::*;
     use crate::{
         config::{CommonConfigOptions, ConfigBuilder},
-        types::{Val, ValType},
-        wasmedge_types::{Mutability, RefType},
-        Executor, GlobalType, ImportModuleBuilder, MemoryType, Module, SignatureBuilder,
-        Statistics, TableType, WasmValue, WasmValueType,
+        types::Val,
+        Executor, ImportModuleBuilder, Module, SignatureBuilder, Statistics, TableType, WasmValue,
+        WasmValueType,
     };
+    use wasmedge_types::{GlobalType, MemoryType, Mutability, RefType, ValType};
 
     #[test]
     fn test_store_create() {

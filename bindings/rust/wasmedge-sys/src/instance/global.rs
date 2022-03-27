@@ -62,6 +62,18 @@ impl Drop for GlobalType {
         }
     }
 }
+impl From<wasmedge_types::GlobalType> for GlobalType {
+    fn from(ty: wasmedge_types::GlobalType) -> Self {
+        GlobalType::create(ty.value_ty().into(), ty.mutability()).expect(
+            "[wasmedge] Failed to convert wasmedge_types::GlobalType into wasmedge_sys::GlobalType.",
+        )
+    }
+}
+impl From<GlobalType> for wasmedge_types::GlobalType {
+    fn from(ty: GlobalType) -> Self {
+        wasmedge_types::GlobalType::new(ty.value_type().into(), ty.mutability())
+    }
+}
 
 #[derive(Debug)]
 pub(crate) struct InnerGlobal(pub(crate) *mut ffi::WasmEdge_GlobalInstanceContext);

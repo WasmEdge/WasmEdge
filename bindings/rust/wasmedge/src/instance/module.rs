@@ -102,10 +102,10 @@ mod tests {
     use crate::{
         config::{CommonConfigOptions, ConfigBuilder},
         types::Val,
-        Executor, ImportModuleBuilder, Module, SignatureBuilder, Statistics, Store, TableType,
-        WasmValue, WasmValueType,
+        Executor, ImportModuleBuilder, Module, SignatureBuilder, Statistics, Store, WasmValue,
+        WasmValueType,
     };
-    use wasmedge_types::{GlobalType, MemoryType, Mutability, RefType, ValType};
+    use wasmedge_types::{GlobalType, MemoryType, Mutability, RefType, TableType, ValType};
 
     #[test]
     fn test_instance_basic() {

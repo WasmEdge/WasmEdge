@@ -1,5 +1,5 @@
-use crate::{error::Result, sys, types::Val, HostFunc, Signature, TableType};
-use wasmedge_types::{GlobalType, MemoryType};
+use crate::{error::Result, sys, types::Val, HostFunc, Signature};
+use wasmedge_types::{GlobalType, MemoryType, TableType};
 
 #[derive(Debug, Default)]
 pub struct ImportModuleBuilder {

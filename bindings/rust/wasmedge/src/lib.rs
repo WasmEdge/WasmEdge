@@ -27,7 +27,7 @@ pub use executor::Executor;
 #[doc(inline)]
 pub use instance::{
     Func, Global, ImportModule, ImportModuleBuilder, Instance, Memory, Signature, SignatureBuilder,
-    Table, TableType, WasiImportModule, WasmEdgeProcessImportModule,
+    Table, WasiImportModule, WasmEdgeProcessImportModule,
 };
 #[doc(inline)]
 pub use module::{ExportType, ImportType, Module};

@@ -87,10 +87,10 @@ mod tests {
     use crate::{
         config::{CommonConfigOptions, ConfigBuilder},
         types::Val,
-        Executor, ImportModuleBuilder, Module, SignatureBuilder, Statistics, TableType, WasmValue,
+        Executor, ImportModuleBuilder, Module, SignatureBuilder, Statistics, WasmValue,
         WasmValueType,
     };
-    use wasmedge_types::{GlobalType, MemoryType, Mutability, RefType, ValType};
+    use wasmedge_types::{GlobalType, MemoryType, Mutability, RefType, TableType, ValType};
 
     #[test]
     fn test_store_create() {

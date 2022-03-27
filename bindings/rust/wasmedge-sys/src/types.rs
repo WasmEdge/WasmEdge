@@ -93,6 +93,34 @@ impl From<ffi::WasmEdge_ValType> for WasmValueType {
         }
     }
 }
+impl From<wasmedge_types::ValType> for WasmValueType {
+    fn from(ty: wasmedge_types::ValType) -> Self {
+        match ty {
+            wasmedge_types::ValType::I32 => WasmValueType::I32,
+            wasmedge_types::ValType::I64 => WasmValueType::I64,
+            wasmedge_types::ValType::F32 => WasmValueType::F32,
+            wasmedge_types::ValType::F64 => WasmValueType::F64,
+            wasmedge_types::ValType::V128 => WasmValueType::V128,
+            wasmedge_types::ValType::FuncRef => WasmValueType::FuncRef,
+            wasmedge_types::ValType::ExternRef => WasmValueType::ExternRef,
+            wasmedge_types::ValType::None => WasmValueType::None,
+        }
+    }
+}
+impl From<WasmValueType> for wasmedge_types::ValType {
+    fn from(ty: WasmValueType) -> Self {
+        match ty {
+            WasmValueType::I32 => wasmedge_types::ValType::I32,
+            WasmValueType::I64 => wasmedge_types::ValType::I64,
+            WasmValueType::F32 => wasmedge_types::ValType::F32,
+            WasmValueType::F64 => wasmedge_types::ValType::F64,
+            WasmValueType::V128 => wasmedge_types::ValType::V128,
+            WasmValueType::FuncRef => wasmedge_types::ValType::FuncRef,
+            WasmValueType::ExternRef => wasmedge_types::ValType::ExternRef,
+            WasmValueType::None => wasmedge_types::ValType::None,
+        }
+    }
+}
 
 #[derive(Debug)]
 pub(crate) struct WasmEdgeString {

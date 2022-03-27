@@ -12,4 +12,4 @@ pub use import::{
 };
 pub use memory::Memory;
 pub use module::Instance;
-pub use table::{Table, TableType};
+pub use table::Table;

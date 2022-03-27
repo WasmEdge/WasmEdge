@@ -1,5 +1,5 @@
 use crate::{error::Result, sys, types::Val};
-use wasmedge_types::RefType;
+use wasmedge_types::TableType;
 
 #[derive(Debug)]
 pub struct Table<'instance> {
@@ -31,12 +31,7 @@ impl<'instance> Table<'instance> {
     /// bounds.
     pub fn ty(&self) -> Result<TableType> {
         let ty = self.inner.ty()?;
-        let limit = ty.limit();
-        Ok(TableType {
-            elem_ty: ty.elem_ty(),
-            min: limit.start().to_owned(),
-            max: limit.end().to_owned(),
-        })
+        Ok(ty.into())
     }
 
     /// Returns the current size of this table.
@@ -63,51 +58,6 @@ impl<'instance> Table<'instance> {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct TableType {
-    elem_ty: RefType,
-    min: u32,
-    max: u32,
-}
-impl TableType {
-    pub fn new(elem_ty: RefType, min: u32, max: Option<u32>) -> Self {
-        let max = match max {
-            Some(val) => val,
-            None => u32::MAX,
-        };
-        Self { elem_ty, min, max }
-    }
-
-    pub fn elem_ty(&self) -> RefType {
-        self.elem_ty
-    }
-
-    pub fn minimum(&self) -> u32 {
-        self.min
-    }
-
-    pub fn maximum(&self) -> u32 {
-        self.max
-    }
-}
-impl From<sys::TableType> for TableType {
-    fn from(ty: sys::TableType) -> Self {
-        let limit = ty.limit();
-        Self {
-            elem_ty: ty.elem_ty(),
-            min: limit.start().to_owned(),
-            max: limit.end().to_owned(),
-        }
-    }
-}
-impl From<TableType> for sys::TableType {
-    fn from(ty: TableType) -> Self {
-        sys::TableType::create(ty.elem_ty().into(), ty.min..=ty.max).expect(
-            "[wasmedge] Failed to convert wasmedge::TableType into wasmedge_sys::TableType.",
-        )
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -117,6 +67,7 @@ mod tests {
         Executor, ImportModuleBuilder, SignatureBuilder, Statistics, Store, WasmValue,
         WasmValueType,
     };
+    use wasmedge_types::RefType;
 
     #[test]
     fn test_table_type() {

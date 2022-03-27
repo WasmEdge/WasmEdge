@@ -323,6 +323,21 @@ impl Drop for MemType {
         }
     }
 }
+impl From<wasmedge_types::MemoryType> for MemType {
+    fn from(ty: wasmedge_types::MemoryType) -> Self {
+        MemType::create(ty.minimum()..=ty.maximum()).expect(
+            "[wasmedge] Failed to convert wasmedge_types::MemoryType into wasmedge_sys::MemType.",
+        )
+    }
+}
+impl From<MemType> for wasmedge_types::MemoryType {
+    fn from(ty: MemType) -> Self {
+        wasmedge_types::MemoryType::new(
+            ty.limit().start().to_owned(),
+            Some(ty.limit().end().to_owned()),
+        )
+    }
+}
 
 #[derive(Debug)]
 pub(crate) struct InnerMemType(pub(crate) *mut ffi::WasmEdge_MemoryTypeContext);

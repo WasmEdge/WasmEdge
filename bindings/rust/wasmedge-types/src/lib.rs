@@ -171,10 +171,28 @@ impl From<CompilerOutputFormat> for u32 {
     }
 }
 
+/// Defines WasmEdge host module registration enum.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum HostRegistration {
     Wasi,
     WasmEdgeProcess,
+}
+impl From<u32> for HostRegistration {
+    fn from(val: u32) -> Self {
+        match val {
+            0 => HostRegistration::Wasi,
+            1 => HostRegistration::WasmEdgeProcess,
+            _ => panic!("Unknown WasmEdge_HostRegistration value: {}", val),
+        }
+    }
+}
+impl From<HostRegistration> for u32 {
+    fn from(val: HostRegistration) -> u32 {
+        match val {
+            HostRegistration::Wasi => 0,
+            HostRegistration::WasmEdgeProcess => 1,
+        }
+    }
 }
 
 /// Defines WasmEdge ExternalType values.

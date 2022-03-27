@@ -94,26 +94,6 @@ impl From<ffi::WasmEdge_ValType> for WasmValueType {
     }
 }
 
-/// Defines WasmEdge AOT compiler output binary format.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-#[repr(u32)]
-pub enum CompilerOutputFormat {
-    /// Native dynamic library format.
-    Native = ffi::WasmEdge_CompilerOutputFormat_Native,
-
-    /// WebAssembly with AOT compiled codes in custom sections.
-    Wasm = ffi::WasmEdge_CompilerOutputFormat_Wasm,
-}
-impl From<u32> for CompilerOutputFormat {
-    fn from(val: u32) -> CompilerOutputFormat {
-        match val {
-            0 => CompilerOutputFormat::Native,
-            1 => CompilerOutputFormat::Wasm,
-            _ => panic!("Unknown CompilerOutputFormat value: {}", val),
-        }
-    }
-}
-
 /// Defines WasmEdge host module registration enum.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum HostRegistration {

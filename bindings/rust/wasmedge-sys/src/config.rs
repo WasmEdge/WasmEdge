@@ -1,7 +1,7 @@
 //! Defines WasmEdge Config struct.
 
-use crate::{error::WasmEdgeError, ffi, CompilerOutputFormat, WasmEdgeResult};
-use wasmedge_types::CompilerOptimizationLevel;
+use crate::{error::WasmEdgeError, ffi, WasmEdgeResult};
+use wasmedge_types::{CompilerOptimizationLevel, CompilerOutputFormat};
 
 /// Struct of WasmEdge Config.
 ///

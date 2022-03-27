@@ -1,11 +1,7 @@
 //! Defines Global and GlobalType.
 
-use crate::{
-    error::Result,
-    sys,
-    types::{Val, ValType},
-    wasmedge_types::Mutability,
-};
+use crate::{error::Result, sys, types::Val};
+use wasmedge_types::GlobalType;
 
 /// Struct of WasmEdge Global.
 #[derive(Debug)]
@@ -36,10 +32,7 @@ impl<'instance> Global<'instance> {
 
     pub fn ty(&self) -> Result<GlobalType> {
         let gt = self.inner.ty()?;
-        Ok(GlobalType {
-            ty: gt.value_type().into(),
-            mutability: gt.mutability(),
-        })
+        Ok(gt.into())
     }
 
     pub fn get_value(&self) -> Val {
@@ -52,51 +45,15 @@ impl<'instance> Global<'instance> {
     }
 }
 
-/// Struct of WasmEdge GlobalType.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct GlobalType {
-    ty: ValType,
-    mutability: Mutability,
-}
-impl GlobalType {
-    pub fn new(ty: ValType, mutability: Mutability) -> Self {
-        Self { ty, mutability }
-    }
-
-    pub fn value_ty(&self) -> ValType {
-        self.ty
-    }
-
-    pub fn mutability(&self) -> Mutability {
-        self.mutability
-    }
-}
-impl From<sys::GlobalType> for GlobalType {
-    fn from(ty: sys::GlobalType) -> Self {
-        Self {
-            ty: ty.value_type().into(),
-            mutability: ty.mutability(),
-        }
-    }
-}
-impl From<GlobalType> for sys::GlobalType {
-    fn from(ty: GlobalType) -> Self {
-        Self::create(ty.value_ty().into(), ty.mutability()).expect(
-            "[wasmedge] Failed to convert wasmedge::GlobalType into wasmedge_sys::GlobalType.",
-        )
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::{
         config::{CommonConfigOptions, ConfigBuilder},
         error::WasmEdgeError,
-        sys,
-        wasmedge_types::Mutability,
-        Executor, ImportModuleBuilder, Statistics, Store,
+        sys, Executor, ImportModuleBuilder, Statistics, Store,
     };
+    use wasmedge_types::{Mutability, ValType};
 
     #[test]
     fn test_global_type() {

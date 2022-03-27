@@ -1,6 +1,5 @@
-use crate::{
-    error::Result, sys, types::Val, GlobalType, HostFunc, MemoryType, Signature, TableType,
-};
+use crate::{error::Result, sys, types::Val, HostFunc, Signature, TableType};
+use wasmedge_types::{GlobalType, MemoryType};
 
 #[derive(Debug, Default)]
 pub struct ImportModuleBuilder {
@@ -190,14 +189,14 @@ mod tests {
         config::{CommonConfigOptions, ConfigBuilder},
         error::WasmEdgeError,
         sys,
-        types::{FuncRef, Val, ValType},
-        wasmedge_types::{Mutability, RefType},
+        types::{FuncRef, Val},
         Executor, SignatureBuilder, Statistics, Store, WasmValue, WasmValueType,
     };
     use std::{
         sync::{Arc, Mutex},
         thread,
     };
+    use wasmedge_types::{Mutability, RefType, ValType};
 
     #[test]
     fn test_import_new() {

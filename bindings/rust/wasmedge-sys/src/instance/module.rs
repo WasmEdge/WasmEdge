@@ -282,9 +282,10 @@ unsafe impl Sync for InnerInstance {}
 mod tests {
     use super::*;
     use crate::{
-        wasmedge_types::Mutability, Config, Executor, FuncType, GlobalType, ImportObject, MemType,
-        TableType, Vm, WasmRefType, WasmValue, WasmValueType,
+        Config, Executor, FuncType, GlobalType, ImportObject, MemType, TableType, Vm, WasmValue,
+        WasmValueType,
     };
+    use wasmedge_types::{Mutability, RefType};
 
     #[test]
     fn test_instance_find_xxx() {
@@ -329,7 +330,7 @@ mod tests {
         let result = table.ty();
         assert!(result.is_ok());
         let ty = result.unwrap();
-        assert_eq!(ty.elem_ty(), WasmRefType::FuncRef);
+        assert_eq!(ty.elem_ty(), RefType::FuncRef);
         assert_eq!(ty.limit(), 0..=u32::MAX);
 
         // get the exported memory named "mem"
@@ -430,7 +431,7 @@ mod tests {
         import.add_func("add", host_func);
 
         // add table
-        let result = TableType::create(WasmRefType::FuncRef, 0..=u32::MAX);
+        let result = TableType::create(RefType::FuncRef, 0..=u32::MAX);
         assert!(result.is_ok());
         let ty = result.unwrap();
         let result = Table::create(&ty);
@@ -499,7 +500,7 @@ mod tests {
         import.add_func("add", host_func);
 
         // add table
-        let result = TableType::create(WasmRefType::FuncRef, 0..=u32::MAX);
+        let result = TableType::create(RefType::FuncRef, 0..=u32::MAX);
         assert!(result.is_ok());
         let ty = result.unwrap();
         let result = Table::create(&ty);

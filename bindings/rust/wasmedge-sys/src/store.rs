@@ -774,13 +774,13 @@ mod tests {
     use crate::{
         instance::{Function, Global, GlobalType, MemType, Memory, Table, TableType},
         types::WasmValue,
-        wasmedge_types::Mutability,
-        Config, Executor, FuncType, ImportObject, Vm, WasmRefType, WasmValueType,
+        Config, Executor, FuncType, ImportObject, Vm, WasmValueType,
     };
     use std::{
         sync::{Arc, Mutex},
         thread,
     };
+    use wasmedge_types::{Mutability, RefType};
 
     #[test]
     fn test_store_basic() {
@@ -819,7 +819,7 @@ mod tests {
         import.add_func("add", host_func);
 
         // add table
-        let result = TableType::create(WasmRefType::FuncRef, 0..=u32::MAX);
+        let result = TableType::create(RefType::FuncRef, 0..=u32::MAX);
         assert!(result.is_ok());
         let ty = result.unwrap();
         let result = Table::create(&ty);

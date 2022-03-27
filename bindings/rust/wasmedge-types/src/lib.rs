@@ -17,6 +17,14 @@ impl From<u32> for RefType {
         }
     }
 }
+impl From<RefType> for u32 {
+    fn from(value: RefType) -> Self {
+        match value {
+            RefType::FuncRef => 112,
+            RefType::ExternRef => 111,
+        }
+    }
+}
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum ValType {

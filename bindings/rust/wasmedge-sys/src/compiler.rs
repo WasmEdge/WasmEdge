@@ -81,13 +81,14 @@ mod tests {
     use super::*;
     use crate::{
         error::{CoreError, CoreLoadError},
-        CompilerOutputFormat, Config,
+        Config,
     };
     use std::{
         io::Read,
         sync::{Arc, Mutex},
         thread,
     };
+    use wasmedge_types::CompilerOutputFormat;
 
     #[test]
     fn test_compiler() {

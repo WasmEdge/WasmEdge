@@ -86,8 +86,8 @@ mod tests {
     use super::*;
     use crate::{
         config::{CommonConfigOptions, ConfigBuilder},
-        types::{RefType, Val, ValType},
-        wasmedge_types::Mutability,
+        types::{Val, ValType},
+        wasmedge_types::{Mutability, RefType},
         Executor, GlobalType, ImportModuleBuilder, MemoryType, Module, SignatureBuilder,
         Statistics, TableType, WasmValue, WasmValueType,
     };

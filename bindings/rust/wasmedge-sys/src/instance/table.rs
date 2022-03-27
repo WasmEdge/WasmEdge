@@ -238,6 +238,22 @@ impl TableType {
         limit.into()
     }
 }
+impl From<wasmedge_types::TableType> for TableType {
+    fn from(ty: wasmedge_types::TableType) -> Self {
+        TableType::create(ty.elem_ty(), ty.minimum()..=ty.maximum()).expect(
+            "[wasmedge] Failed to convert wasmedge_types::TableType into wasmedge_sys::TableType.",
+        )
+    }
+}
+impl From<TableType> for wasmedge_types::TableType {
+    fn from(ty: TableType) -> Self {
+        wasmedge_types::TableType::new(
+            ty.elem_ty(),
+            ty.limit().start().to_owned(),
+            Some(ty.limit().end().to_owned()),
+        )
+    }
+}
 
 #[derive(Debug)]
 pub(crate) struct InnerTableType(pub(crate) *mut ffi::WasmEdge_TableTypeContext);

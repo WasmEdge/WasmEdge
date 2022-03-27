@@ -5,7 +5,7 @@ use crate::{
     Func,
 };
 use std::marker::PhantomData;
-use wasmedge_types::RefType;
+use wasmedge_types::{self, RefType};
 
 /// Defines value types.
 ///
@@ -115,19 +115,19 @@ impl From<Val> for WasmValue {
 impl From<WasmValue> for Val {
     fn from(value: WasmValue) -> Self {
         match value.ty() {
-            WasmValueType::I32 => Val::I32(value.to_i32()),
-            WasmValueType::I64 => Val::I64(value.to_i64()),
-            WasmValueType::F32 => Val::F32(value.to_f32()),
-            WasmValueType::F64 => Val::F64(value.to_f64()),
-            WasmValueType::V128 => Val::V128(value.to_v128()),
-            WasmValueType::FuncRef => {
+            wasmedge_types::ValType::I32 => Val::I32(value.to_i32()),
+            wasmedge_types::ValType::I64 => Val::I64(value.to_i64()),
+            wasmedge_types::ValType::F32 => Val::F32(value.to_f32()),
+            wasmedge_types::ValType::F64 => Val::F64(value.to_f64()),
+            wasmedge_types::ValType::V128 => Val::V128(value.to_v128()),
+            wasmedge_types::ValType::FuncRef => {
                 if value.is_null_ref() {
                     Val::FuncRef(None)
                 } else {
                     Val::FuncRef(Some(FuncRef { inner: value }))
                 }
             }
-            WasmValueType::ExternRef => {
+            wasmedge_types::ValType::ExternRef => {
                 if value.is_null_ref() {
                     Val::ExternRef(None)
                 } else {

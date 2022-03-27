@@ -1,5 +1,5 @@
-use crate::{error::Result, sys, types::Val, HostFunc, Signature};
-use wasmedge_types::{GlobalType, MemoryType, TableType};
+use crate::{error::Result, sys, types::Val, HostFunc};
+use wasmedge_types::{FuncType, GlobalType, MemoryType, TableType};
 
 #[derive(Debug, Default)]
 pub struct ImportModuleBuilder {
@@ -21,10 +21,10 @@ impl ImportModuleBuilder {
     pub fn with_func(
         mut self,
         name: impl AsRef<str>,
-        sig: Signature,
+        ty: FuncType,
         real_func: HostFunc,
     ) -> Result<Self> {
-        let inner_func = sys::Function::create(&sig.into(), real_func, 0)?;
+        let inner_func = sys::Function::create(&ty.into(), real_func, 0)?;
         self.funcs.push((name.as_ref().to_owned(), inner_func));
         Ok(self)
     }
@@ -190,7 +190,7 @@ mod tests {
         error::WasmEdgeError,
         sys,
         types::{FuncRef, Val},
-        Executor, SignatureBuilder, Statistics, Store, WasmValue, WasmValueType,
+        Executor, FuncTypeBuilder, Statistics, Store, WasmValue,
     };
     use std::{
         sync::{Arc, Mutex},
@@ -225,9 +225,9 @@ mod tests {
         let result = ImportModuleBuilder::new()
             .with_func(
                 "add",
-                SignatureBuilder::new()
-                    .with_args(vec![WasmValueType::I32; 2])
-                    .with_returns(vec![WasmValueType::I32])
+                FuncTypeBuilder::new()
+                    .with_args(vec![ValType::I32; 2])
+                    .with_returns(vec![ValType::I32])
                     .build(),
                 Box::new(real_add),
             )
@@ -300,9 +300,9 @@ mod tests {
         let result = ImportModuleBuilder::new()
             .with_func(
                 "add",
-                SignatureBuilder::new()
-                    .with_args(vec![WasmValueType::I32; 2])
-                    .with_returns(vec![WasmValueType::I32])
+                FuncTypeBuilder::new()
+                    .with_args(vec![ValType::I32; 2])
+                    .with_returns(vec![ValType::I32])
                     .build(),
                 Box::new(real_add),
             )
@@ -363,9 +363,9 @@ mod tests {
         let result = ImportModuleBuilder::new()
             .with_func(
                 "add",
-                SignatureBuilder::new()
-                    .with_args(vec![WasmValueType::I32; 2])
-                    .with_returns(vec![WasmValueType::I32])
+                FuncTypeBuilder::new()
+                    .with_args(vec![ValType::I32; 2])
+                    .with_returns(vec![ValType::I32])
                     .build(),
                 Box::new(real_add),
             )
@@ -408,11 +408,11 @@ mod tests {
         // check the signature of the host function
         let result = host_func.signature();
         assert!(result.is_ok());
-        let signature = result.unwrap();
-        assert!(signature.args().is_some());
-        assert_eq!(signature.args().unwrap(), [WasmValueType::I32; 2]);
-        assert!(signature.returns().is_some());
-        assert_eq!(signature.returns().unwrap(), [WasmValueType::I32]);
+        let func_ty = result.unwrap();
+        assert!(func_ty.args().is_some());
+        assert_eq!(func_ty.args().unwrap(), [ValType::I32; 2]);
+        assert!(func_ty.returns().is_some());
+        assert_eq!(func_ty.returns().unwrap(), [ValType::I32]);
     }
 
     #[test]
@@ -608,9 +608,9 @@ mod tests {
         let result = ImportModuleBuilder::new()
             .with_func(
                 "add",
-                SignatureBuilder::new()
-                    .with_args(vec![WasmValueType::I32; 2])
-                    .with_returns(vec![WasmValueType::I32])
+                FuncTypeBuilder::new()
+                    .with_args(vec![ValType::I32; 2])
+                    .with_returns(vec![ValType::I32])
                     .build(),
                 Box::new(real_add),
             )
@@ -694,11 +694,11 @@ mod tests {
             // check the signature of the host function
             let result = host_func.signature();
             assert!(result.is_ok());
-            let signature = result.unwrap();
-            assert!(signature.args().is_some());
-            assert_eq!(signature.args().unwrap(), [WasmValueType::I32; 2]);
-            assert!(signature.returns().is_some());
-            assert_eq!(signature.returns().unwrap(), [WasmValueType::I32]);
+            let func_ty = result.unwrap();
+            assert!(func_ty.args().is_some());
+            assert_eq!(func_ty.args().unwrap(), [ValType::I32; 2]);
+            assert!(func_ty.returns().is_some());
+            assert_eq!(func_ty.returns().unwrap(), [ValType::I32]);
         } else {
             assert!(false)
         }
@@ -723,11 +723,11 @@ mod tests {
             // check the signature of the host function
             let result = host_func.signature();
             assert!(result.is_ok());
-            let signature = result.unwrap();
-            assert!(signature.args().is_some());
-            assert_eq!(signature.args().unwrap(), [WasmValueType::I32; 2]);
-            assert!(signature.returns().is_some());
-            assert_eq!(signature.returns().unwrap(), [WasmValueType::I32]);
+            let func_ty = result.unwrap();
+            assert!(func_ty.args().is_some());
+            assert_eq!(func_ty.args().unwrap(), [ValType::I32; 2]);
+            assert!(func_ty.returns().is_some());
+            assert_eq!(func_ty.returns().unwrap(), [ValType::I32]);
         } else {
             assert!(false);
         }
@@ -739,9 +739,9 @@ mod tests {
         let result = ImportModuleBuilder::new()
             .with_func(
                 "add",
-                SignatureBuilder::new()
-                    .with_args(vec![WasmValueType::I32; 2])
-                    .with_returns(vec![WasmValueType::I32])
+                FuncTypeBuilder::new()
+                    .with_args(vec![ValType::I32; 2])
+                    .with_returns(vec![ValType::I32])
                     .build(),
                 Box::new(real_add),
             )
@@ -840,11 +840,11 @@ mod tests {
             // check the signature of the host function
             let result = host_func.signature();
             assert!(result.is_ok());
-            let signature = result.unwrap();
-            assert!(signature.args().is_some());
-            assert_eq!(signature.args().unwrap(), [WasmValueType::I32; 2]);
-            assert!(signature.returns().is_some());
-            assert_eq!(signature.returns().unwrap(), [WasmValueType::I32]);
+            let func_ty = result.unwrap();
+            assert!(func_ty.args().is_some());
+            assert_eq!(func_ty.args().unwrap(), [ValType::I32; 2]);
+            assert!(func_ty.returns().is_some());
+            assert_eq!(func_ty.returns().unwrap(), [ValType::I32]);
         });
 
         handle.join().unwrap();
@@ -856,9 +856,9 @@ mod tests {
         let result = ImportModuleBuilder::new()
             .with_func(
                 "add",
-                SignatureBuilder::new()
-                    .with_args(vec![WasmValueType::I32; 2])
-                    .with_returns(vec![WasmValueType::I32])
+                FuncTypeBuilder::new()
+                    .with_args(vec![ValType::I32; 2])
+                    .with_returns(vec![ValType::I32])
                     .build(),
                 Box::new(real_add),
             )
@@ -962,11 +962,11 @@ mod tests {
             // check the signature of the host function
             let result = host_func.signature();
             assert!(result.is_ok());
-            let signature = result.unwrap();
-            assert!(signature.args().is_some());
-            assert_eq!(signature.args().unwrap(), [WasmValueType::I32; 2]);
-            assert!(signature.returns().is_some());
-            assert_eq!(signature.returns().unwrap(), [WasmValueType::I32]);
+            let func_ty = result.unwrap();
+            assert!(func_ty.args().is_some());
+            assert_eq!(func_ty.args().unwrap(), [ValType::I32; 2]);
+            assert!(func_ty.returns().is_some());
+            assert_eq!(func_ty.returns().unwrap(), [ValType::I32]);
 
             // run host func
             let result = executor.run_func(
@@ -988,13 +988,13 @@ mod tests {
             return Err(1);
         }
 
-        let a = if inputs[0].ty() == WasmValueType::I32 {
+        let a = if inputs[0].ty() == ValType::I32 {
             inputs[0].to_i32()
         } else {
             return Err(2);
         };
 
-        let b = if inputs[1].ty() == WasmValueType::I32 {
+        let b = if inputs[1].ty() == ValType::I32 {
             inputs[1].to_i32()
         } else {
             return Err(3);

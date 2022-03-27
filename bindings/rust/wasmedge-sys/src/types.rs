@@ -3,7 +3,7 @@
 use crate::{ffi, instance::function::InnerFunc, Function};
 use core::ffi::c_void;
 use std::{ffi::CString, str::FromStr};
-use wasmedge_types::RefType;
+use wasmedge_types::{RefType, ValType};
 
 impl From<std::ops::RangeInclusive<u32>> for ffi::WasmEdge_Limit {
     fn from(range: std::ops::RangeInclusive<u32>) -> Self {
@@ -196,8 +196,8 @@ impl WasmValue {
     }
 
     /// Returns the type of a [`Value`].
-    pub fn ty(&self) -> WasmValueType {
-        self.ty
+    pub fn ty(&self) -> ValType {
+        self.ty.into()
     }
 
     /// Creates a [WasmValue] from a `i32` value.
@@ -426,23 +426,23 @@ mod tests {
     fn test_types_value() {
         // I32
         let val = WasmValue::from_i32(1314);
-        assert_eq!(val.ty(), WasmValueType::I32);
+        assert_eq!(val.ty(), ValType::I32);
 
         // I64
         let val = WasmValue::from_i64(1314);
-        assert_eq!(val.ty(), WasmValueType::I64);
+        assert_eq!(val.ty(), ValType::I64);
 
         // F32
         let val = WasmValue::from_f32(13.14);
-        assert_eq!(val.ty(), WasmValueType::F32);
+        assert_eq!(val.ty(), ValType::F32);
 
         // F64
         let val = WasmValue::from_f64(13.14);
-        assert_eq!(val.ty(), WasmValueType::F64);
+        assert_eq!(val.ty(), ValType::F64);
 
         // V128
         let val = WasmValue::from_v128(1314);
-        assert_eq!(val.ty(), WasmValueType::V128);
+        assert_eq!(val.ty(), ValType::V128);
 
         // ExternRef
         let result = TableType::create(RefType::FuncRef, 10..=20);
@@ -452,20 +452,20 @@ mod tests {
         assert!(result.is_ok());
         let mut table = result.unwrap();
         let value = WasmValue::from_extern_ref(&mut table);
-        assert_eq!(value.ty(), WasmValueType::ExternRef);
+        assert_eq!(value.ty(), ValType::ExternRef);
         assert!(value.extern_ref::<Table>().is_some());
 
         // NullRef(FuncRef)
         let val = WasmValue::from_null_ref(RefType::FuncRef);
-        assert_eq!(val.ty(), WasmValueType::FuncRef);
+        assert_eq!(val.ty(), ValType::FuncRef);
         assert!(val.is_null_ref());
-        assert_eq!(val.ty(), WasmValueType::FuncRef);
+        assert_eq!(val.ty(), ValType::FuncRef);
 
         // NullRef(ExternRef)
         let val = WasmValue::from_null_ref(RefType::ExternRef);
-        assert_eq!(val.ty(), WasmValueType::ExternRef);
+        assert_eq!(val.ty(), ValType::ExternRef);
         assert!(val.is_null_ref());
-        assert_eq!(val.ty(), WasmValueType::ExternRef);
+        assert_eq!(val.ty(), ValType::ExternRef);
 
         let val1 = WasmValue::from_i32(1314);
         let val2 = WasmValue::from_i32(1314);
@@ -502,33 +502,33 @@ mod tests {
 
         let handle = thread::spawn(move || {
             let val_i32_c = val_i32;
-            assert_eq!(val_i32_c.ty(), WasmValueType::I32);
+            assert_eq!(val_i32_c.ty(), ValType::I32);
 
             let val_i64_c = val_i64;
-            assert_eq!(val_i64_c.ty(), WasmValueType::I64);
+            assert_eq!(val_i64_c.ty(), ValType::I64);
 
             let val_f32_c = val_f32;
-            assert_eq!(val_f32_c.ty(), WasmValueType::F32);
+            assert_eq!(val_f32_c.ty(), ValType::F32);
 
             let val_f64_c = val_f64;
-            assert_eq!(val_f64_c.ty(), WasmValueType::F64);
+            assert_eq!(val_f64_c.ty(), ValType::F64);
 
             let val_v128_c = val_v128;
-            assert_eq!(val_v128_c.ty(), WasmValueType::V128);
+            assert_eq!(val_v128_c.ty(), ValType::V128);
 
             let val_extern_ref_c = val_extern_ref;
-            assert_eq!(val_extern_ref_c.ty(), WasmValueType::ExternRef);
+            assert_eq!(val_extern_ref_c.ty(), ValType::ExternRef);
             assert!(val_extern_ref_c.extern_ref::<Table>().is_some());
 
             let val_null_func_ref_c = val_null_func_ref;
-            assert_eq!(val_null_func_ref_c.ty(), WasmValueType::FuncRef);
+            assert_eq!(val_null_func_ref_c.ty(), ValType::FuncRef);
             assert!(val_null_func_ref_c.is_null_ref());
-            assert_eq!(val_null_func_ref_c.ty(), WasmValueType::FuncRef);
+            assert_eq!(val_null_func_ref_c.ty(), ValType::FuncRef);
 
             let val_null_extern_ref_c = val_null_extern_ref;
-            assert_eq!(val_null_extern_ref_c.ty(), WasmValueType::ExternRef);
+            assert_eq!(val_null_extern_ref_c.ty(), ValType::ExternRef);
             assert!(val_null_extern_ref_c.is_null_ref());
-            assert_eq!(val_null_extern_ref_c.ty(), WasmValueType::ExternRef);
+            assert_eq!(val_null_extern_ref_c.ty(), ValType::ExternRef);
         });
 
         handle.join().unwrap();
@@ -579,47 +579,47 @@ mod tests {
             let result = val_i32_cloned.lock();
             assert!(result.is_ok());
             let val_i32_c = result.unwrap();
-            assert_eq!(val_i32_c.ty(), WasmValueType::I32);
+            assert_eq!(val_i32_c.ty(), ValType::I32);
 
             let result = val_i64_cloned.lock();
             assert!(result.is_ok());
             let val_i64_c = result.unwrap();
-            assert_eq!(val_i64_c.ty(), WasmValueType::I64);
+            assert_eq!(val_i64_c.ty(), ValType::I64);
 
             let result = val_f32_cloned.lock();
             assert!(result.is_ok());
             let val_f32_c = result.unwrap();
-            assert_eq!(val_f32_c.ty(), WasmValueType::F32);
+            assert_eq!(val_f32_c.ty(), ValType::F32);
 
             let result = val_f64_cloned.lock();
             assert!(result.is_ok());
             let val_f64_c = result.unwrap();
-            assert_eq!(val_f64_c.ty(), WasmValueType::F64);
+            assert_eq!(val_f64_c.ty(), ValType::F64);
 
             let result = val_v128_cloned.lock();
             assert!(result.is_ok());
             let val_v128_c = result.unwrap();
-            assert_eq!(val_v128_c.ty(), WasmValueType::V128);
+            assert_eq!(val_v128_c.ty(), ValType::V128);
 
             let result = val_extern_ref_cloned.lock();
             assert!(result.is_ok());
             let val_extern_ref_c = result.unwrap();
-            assert_eq!(val_extern_ref_c.ty(), WasmValueType::ExternRef);
+            assert_eq!(val_extern_ref_c.ty(), ValType::ExternRef);
             assert!(val_extern_ref_c.extern_ref::<Table>().is_some());
 
             let result = val_null_func_ref_cloned.lock();
             assert!(result.is_ok());
             let val_null_func_ref_c = result.unwrap();
-            assert_eq!(val_null_func_ref_c.ty(), WasmValueType::FuncRef);
+            assert_eq!(val_null_func_ref_c.ty(), ValType::FuncRef);
             assert!(val_null_func_ref_c.is_null_ref());
-            assert_eq!(val_null_func_ref_c.ty(), WasmValueType::FuncRef);
+            assert_eq!(val_null_func_ref_c.ty(), ValType::FuncRef);
 
             let result = val_null_extern_ref_cloned.lock();
             assert!(result.is_ok());
             let val_null_extern_ref_c = result.unwrap();
-            assert_eq!(val_null_extern_ref_c.ty(), WasmValueType::ExternRef);
+            assert_eq!(val_null_extern_ref_c.ty(), ValType::ExternRef);
             assert!(val_null_extern_ref_c.is_null_ref());
-            assert_eq!(val_null_extern_ref_c.ty(), WasmValueType::ExternRef);
+            assert_eq!(val_null_extern_ref_c.ty(), ValType::ExternRef);
         });
 
         handle.join().unwrap();

@@ -7,9 +7,9 @@ use crate::{
     error::{GlobalError, WasmEdgeError},
     ffi,
     types::WasmValueType,
-    wasmedge_types::Mutability,
     WasmEdgeResult, WasmValue,
 };
+use wasmedge_types::{Mutability, ValType};
 
 #[derive(Debug)]
 pub(crate) struct InnerGlobalType(pub(crate) *mut ffi::WasmEdge_GlobalTypeContext);
@@ -44,7 +44,7 @@ impl GlobalType {
     }
 
     /// Returns the value type of the [GlobalType].
-    pub fn value_type(&self) -> WasmValueType {
+    pub fn value_type(&self) -> ValType {
         let val = unsafe { ffi::WasmEdge_GlobalTypeGetValType(self.inner.0 as *const _) };
         val.into()
     }
@@ -65,7 +65,7 @@ impl Drop for GlobalType {
 impl From<wasmedge_types::GlobalType> for GlobalType {
     fn from(ty: wasmedge_types::GlobalType) -> Self {
         GlobalType::create(ty.value_ty().into(), ty.mutability()).expect(
-            "[wasmedge] Failed to convert wasmedge_types::GlobalType into wasmedge_sys::GlobalType.",
+            "[wasmedge-sys] Failed to convert wasmedge_types::GlobalType into wasmedge_sys::GlobalType.",
         )
     }
 }
@@ -179,11 +179,12 @@ impl Drop for Global {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{wasmedge_types::Mutability, WasmValueType};
+    use crate::WasmValueType;
     use std::{
         sync::{Arc, Mutex},
         thread,
     };
+    use wasmedge_types::{Mutability, ValType};
 
     #[test]
     fn test_global_type() {
@@ -195,7 +196,7 @@ mod tests {
         assert!(!global_ty.registered);
 
         // value type
-        assert_eq!(global_ty.value_type(), WasmValueType::I32);
+        assert_eq!(global_ty.value_type(), ValType::I32);
         // Mutability
         assert_eq!(global_ty.mutability(), Mutability::Const);
     }
@@ -224,7 +225,7 @@ mod tests {
         let ty = result.unwrap();
         assert!(!ty.inner.0.is_null());
         assert!(ty.registered);
-        assert_eq!(ty.value_type(), WasmValueType::I32);
+        assert_eq!(ty.value_type(), ValType::I32);
         assert_eq!(ty.mutability(), Mutability::Const);
     }
 
@@ -253,7 +254,7 @@ mod tests {
         let ty = result.unwrap();
         assert!(!ty.inner.0.is_null());
         assert!(ty.registered);
-        assert_eq!(ty.value_type(), WasmValueType::F32);
+        assert_eq!(ty.value_type(), ValType::F32);
         assert_eq!(ty.mutability(), Mutability::Var);
     }
 
@@ -308,7 +309,7 @@ mod tests {
                 assert!(!global_ty.registered);
 
                 // value type
-                assert_eq!(global_ty.value_type(), WasmValueType::I32);
+                assert_eq!(global_ty.value_type(), ValType::I32);
                 // Mutability
                 assert_eq!(global_ty.mutability(), Mutability::Const);
             });

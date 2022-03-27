@@ -301,7 +301,7 @@ mod tests {
         sync::{Arc, Mutex},
         thread,
     };
-    use wasmedge_types::{Mutability, RefType};
+    use wasmedge_types::{Mutability, RefType, ValType};
 
     #[test]
     fn test_import_object_add_instance() {
@@ -313,10 +313,7 @@ mod tests {
         let mut import_obj = result.unwrap();
 
         // add host function "func-add": (externref, i32) -> (i32)
-        let result = FuncType::create(
-            [WasmValueType::ExternRef, WasmValueType::I32],
-            [WasmValueType::I32],
-        );
+        let result = FuncType::create([ValType::ExternRef, ValType::I32], [ValType::I32]);
         assert!(result.is_ok());
         let func_ty = result.unwrap();
         let result = Function::create(&func_ty, Box::new(real_add), 0);
@@ -539,7 +536,7 @@ mod tests {
         let mut import = result.unwrap();
 
         // add host function
-        let result = FuncType::create(vec![WasmValueType::I32; 2], vec![WasmValueType::I32]);
+        let result = FuncType::create(vec![ValType::I32; 2], vec![ValType::I32]);
         assert!(result.is_ok());
         let func_ty = result.unwrap();
         let result = Function::create(&func_ty, Box::new(real_add), 0);
@@ -642,13 +639,13 @@ mod tests {
             return Err(1);
         }
 
-        let a = if inputs[0].ty() == WasmValueType::I32 {
+        let a = if inputs[0].ty() == ValType::I32 {
             inputs[0].to_i32()
         } else {
             return Err(2);
         };
 
-        let b = if inputs[1].ty() == WasmValueType::I32 {
+        let b = if inputs[1].ty() == ValType::I32 {
             inputs[1].to_i32()
         } else {
             return Err(3);

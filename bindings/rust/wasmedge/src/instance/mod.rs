@@ -5,7 +5,7 @@ mod memory;
 mod module;
 mod table;
 
-pub use function::{Func, Signature, SignatureBuilder};
+pub use function::{Func, FuncTypeBuilder};
 pub use global::Global;
 pub use import::{
     ImportModule, ImportModuleBuilder, WasiImportModule, WasmEdgeProcessImportModule,

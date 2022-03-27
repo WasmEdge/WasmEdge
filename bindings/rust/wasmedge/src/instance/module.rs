@@ -102,8 +102,7 @@ mod tests {
     use crate::{
         config::{CommonConfigOptions, ConfigBuilder},
         types::Val,
-        Executor, ImportModuleBuilder, Module, SignatureBuilder, Statistics, Store, WasmValue,
-        WasmValueType,
+        Executor, FuncTypeBuilder, ImportModuleBuilder, Module, Statistics, Store, WasmValue,
     };
     use wasmedge_types::{GlobalType, MemoryType, Mutability, RefType, TableType, ValType};
 
@@ -135,9 +134,9 @@ mod tests {
         let result = ImportModuleBuilder::new()
             .with_func(
                 "add",
-                SignatureBuilder::new()
-                    .with_args(vec![WasmValueType::I32; 2])
-                    .with_returns(vec![WasmValueType::I32])
+                FuncTypeBuilder::new()
+                    .with_args(vec![ValType::I32; 2])
+                    .with_returns(vec![ValType::I32])
                     .build(),
                 Box::new(real_add),
             )
@@ -202,9 +201,9 @@ mod tests {
             assert_eq!(host_func.mod_name().unwrap(), "extern-module");
             assert_eq!(
                 host_func.signature().unwrap(),
-                SignatureBuilder::new()
-                    .with_args(vec![WasmValueType::I32; 2])
-                    .with_returns(vec![WasmValueType::I32])
+                FuncTypeBuilder::new()
+                    .with_args(vec![ValType::I32; 2])
+                    .with_returns(vec![ValType::I32])
                     .build()
             );
 
@@ -267,9 +266,9 @@ mod tests {
             assert_eq!(host_func.mod_name().unwrap(), "fib-module");
             assert_eq!(
                 host_func.signature().unwrap(),
-                SignatureBuilder::new()
-                    .with_args(vec![WasmValueType::I32])
-                    .with_returns(vec![WasmValueType::I32])
+                FuncTypeBuilder::new()
+                    .with_args(vec![ValType::I32])
+                    .with_returns(vec![ValType::I32])
                     .build()
             );
         }
@@ -280,13 +279,13 @@ mod tests {
             return Err(1);
         }
 
-        let a = if inputs[0].ty() == WasmValueType::I32 {
+        let a = if inputs[0].ty() == ValType::I32 {
             inputs[0].to_i32()
         } else {
             return Err(2);
         };
 
-        let b = if inputs[1].ty() == WasmValueType::I32 {
+        let b = if inputs[1].ty() == ValType::I32 {
             inputs[1].to_i32()
         } else {
             return Err(3);

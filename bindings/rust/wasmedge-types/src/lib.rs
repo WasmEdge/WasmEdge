@@ -144,6 +144,7 @@ impl From<CompilerOptimizationLevel> for u32 {
     }
 }
 
+/// Defines WasmEdge AOT compiler output binary format.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum CompilerOutputFormat {
     /// Native dynamic library format.
@@ -151,6 +152,23 @@ pub enum CompilerOutputFormat {
 
     /// WebAssembly with AOT compiled codes in custom sections.
     Wasm,
+}
+impl From<u32> for CompilerOutputFormat {
+    fn from(val: u32) -> CompilerOutputFormat {
+        match val {
+            0 => CompilerOutputFormat::Native,
+            1 => CompilerOutputFormat::Wasm,
+            _ => panic!("Unknown CompilerOutputFormat value: {}", val),
+        }
+    }
+}
+impl From<CompilerOutputFormat> for u32 {
+    fn from(val: CompilerOutputFormat) -> u32 {
+        match val {
+            CompilerOutputFormat::Native => 0,
+            CompilerOutputFormat::Wasm => 1,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

@@ -225,7 +225,6 @@ mod tests {
             let memory = result.unwrap();
 
             assert_eq!(memory.name().unwrap(), "mem");
-            assert!(memory.registered());
             assert_eq!(memory.mod_name().unwrap(), "extern-module");
             assert_eq!(memory.size(), 10);
 

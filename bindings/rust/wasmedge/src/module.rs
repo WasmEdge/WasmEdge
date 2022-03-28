@@ -74,12 +74,12 @@ impl Module {
         Ok(Self { inner })
     }
 
-    /// Returns the count of the imported WasmEdge instances in the [module].
+    /// Returns the count of the imported WasmEdge instances in the [module](crate::Module).
     pub fn count_of_imports(&self) -> u32 {
         self.inner.count_of_imports()
     }
 
-    /// Returns the [import types](crate::ImportType) of all imported WasmEdge instances in the [module].
+    /// Returns the [import types](crate::ImportType) of all imported WasmEdge instances in the [module](crate::Module).
     pub fn imports(&self) -> Vec<ImportType> {
         let mut imports = Vec::new();
         for inner_import in self.inner.imports() {
@@ -93,12 +93,12 @@ impl Module {
         imports
     }
 
-    /// Returns the count of the exported WasmEdge instances from the [module].
+    /// Returns the count of the exported WasmEdge instances from the [module](crate::Module).
     pub fn count_of_exports(&self) -> u32 {
         self.inner.count_of_exports()
     }
 
-    /// Returns the [export types](crate::ExportType) of all exported WasmEdge instances from the [module].
+    /// Returns the [export types](crate::ExportType) of all exported WasmEdge instances from the [module](crate::Module).
     pub fn exports(&self) -> Vec<ExportType> {
         let mut exports = Vec::new();
         for inner_export in self.inner.exports() {

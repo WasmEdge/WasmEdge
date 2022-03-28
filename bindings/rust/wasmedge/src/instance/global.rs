@@ -4,6 +4,8 @@ use crate::{error::Result, sys, types::Val};
 use wasmedge_types::GlobalType;
 
 /// Struct of WasmEdge Global.
+///
+/// A WasmEdge [Global] defines a global variable, which stores a single value of the given [GlobalType](wasmedge_types::GlobalType).
 #[derive(Debug)]
 pub struct Global<'instance> {
     pub(crate) inner: sys::Global,
@@ -12,6 +14,7 @@ pub struct Global<'instance> {
     pub(crate) _marker: std::marker::PhantomData<&'instance ()>,
 }
 impl<'instance> Global<'instance> {
+    /// Returns the exported name of the [Global].
     pub fn name(&self) -> Option<&str> {
         match &self.name {
             Some(name) => Some(name.as_ref()),
@@ -19,6 +22,7 @@ impl<'instance> Global<'instance> {
         }
     }
 
+    /// Returns the name of the [module instance](crate::Instance) from which the [Global] exports.
     pub fn mod_name(&self) -> Option<&str> {
         match &self.mod_name {
             Some(mod_name) => Some(mod_name.as_ref()),
@@ -26,19 +30,28 @@ impl<'instance> Global<'instance> {
         }
     }
 
-    pub fn registered(&self) -> bool {
-        self.mod_name.is_some()
-    }
-
+    /// Returns the type of the [Global].
     pub fn ty(&self) -> Result<GlobalType> {
         let gt = self.inner.ty()?;
         Ok(gt.into())
     }
 
+    /// Returns the current value of the [Global].
     pub fn get_value(&self) -> Val {
         self.inner.get_value().into()
     }
 
+    /// Sets a new value of the [Global].
+    ///
+    /// Notice that only global variables of [Var](wasmedge_types::Mutability) type are allowed to perform this function.
+    ///
+    /// # Argument
+    ///
+    /// * `value` - The new value of the [Global].
+    ///
+    /// # Error
+    ///
+    /// If fail to update the value of the global variable, then an error is returned.
     pub fn set_value(&mut self, val: Val) -> Result<()> {
         self.inner.set_value(val.into())?;
         Ok(())

@@ -1,6 +1,9 @@
 use crate::{error::Result, sys, types::Val};
 use wasmedge_types::TableType;
 
+/// Struct of WasmEdge Table.
+///
+/// A WasmEdge [Table] defines a table that is used to store the references to host functions or external objects.
 #[derive(Debug)]
 pub struct Table<'instance> {
     pub(crate) inner: sys::Table,
@@ -9,6 +12,7 @@ pub struct Table<'instance> {
     pub(crate) _marker: std::marker::PhantomData<&'instance ()>,
 }
 impl<'instance> Table<'instance> {
+    /// Returns the exported name of this [Table].
     pub fn name(&self) -> Option<&str> {
         match &self.name {
             Some(name) => Some(name.as_ref()),
@@ -16,6 +20,7 @@ impl<'instance> Table<'instance> {
         }
     }
 
+    /// Returns the name of the [module instance](crate::Instance) from which this [Table] exports.
     pub fn mod_name(&self) -> Option<&str> {
         match &self.mod_name {
             Some(mod_name) => Some(mod_name.as_ref()),
@@ -23,31 +28,60 @@ impl<'instance> Table<'instance> {
         }
     }
 
-    /// Returns the underlying type of this table, including its element type as well as the maximum/minimum lower
-    /// bounds.
+    /// Returns the type of this table.
+    ///
+    /// # Error
+    ///
+    /// If fail to get the type of this table, then an error is returned.
     pub fn ty(&self) -> Result<TableType> {
         let ty = self.inner.ty()?;
         Ok(ty.into())
     }
 
-    /// Returns the current size of this table.
+    /// Returns the capacity of this [Table].
     pub fn capacity(&self) -> u32 {
         self.inner.capacity() as u32
     }
 
-    /// Grows the size of this table by `size` more elements
+    /// Grows the capacity of this table by `size` more elements
+    ///
+    /// # Arguments
+    ///
+    /// * `size` - the number of elements to grow the table by.
+    ///
+    /// # Error
+    ///
+    /// If fail to grow the table, then an error is returned.
     pub fn grow(&mut self, size: u32) -> Result<()> {
         self.inner.grow(size)?;
         Ok(())
     }
 
     /// Returns the table element at the `index`.
+    ///
+    /// # Argument
+    ///
+    /// * `index` - the index of the table element to get.
+    ///
+    /// # Error
+    ///
+    /// If fail to get the table element, then an error is returned.
     pub fn get(&self, index: u32) -> Result<Val> {
         let value = self.inner.get_data(index)?;
         Ok(value.into())
     }
 
     /// Stores the `data` at the `index` of this table.
+    ///
+    /// # Arguments
+    ///
+    /// * `data` - the data to store at the `index` of this table.
+    ///
+    /// * `index` - the index of the table element to store.
+    ///
+    /// # Error
+    ///
+    /// If fail to store the data, then an error is returned.
     pub fn set(&mut self, data: Val, index: u32) -> Result<()> {
         self.inner.set_data(data.into(), index)?;
         Ok(())

@@ -74,12 +74,12 @@ impl Module {
         Ok(Self { inner })
     }
 
-    /// Returns the count of the [import types](crate::ImportType) of the [Module].
+    /// Returns the count of the imported WasmEdge instances in the [module].
     pub fn count_of_imports(&self) -> u32 {
         self.inner.count_of_imports()
     }
 
-    /// Returns a vector of [import types](crate::ImportType) of the [module](crate::Module).
+    /// Returns the [import types](crate::ImportType) of all imported WasmEdge instances in the [module].
     pub fn imports(&self) -> Vec<ImportType> {
         let mut imports = Vec::new();
         for inner_import in self.inner.imports() {
@@ -93,12 +93,12 @@ impl Module {
         imports
     }
 
-    /// Returns the count of the [export types](crate::ExportType) of the [module](crate::Module).
+    /// Returns the count of the exported WasmEdge instances from the [module].
     pub fn count_of_exports(&self) -> u32 {
         self.inner.count_of_exports()
     }
 
-    /// Returns the [export types](crate::ExportType) of the [module](crate::Module).
+    /// Returns the [export types](crate::ExportType) of all exported WasmEdge instances from the [module].
     pub fn exports(&self) -> Vec<ExportType> {
         let mut exports = Vec::new();
         for inner_export in self.inner.exports() {
@@ -112,11 +112,11 @@ impl Module {
         exports
     }
 
-    /// Gets the [export type](crate::ExportType) by name.
+    /// Gets the [export type](crate::ExportType) by the name of a specific exported WasmEdge instance.
     ///
     /// # Argument
     ///
-    /// - `name` specifies the name of the target [export type](crate::ExportType).
+    /// - `name` specifies the name of the target exported WasmEdge instance.
     pub fn get_export(&self, name: impl AsRef<str>) -> Option<ExternalInstanceType> {
         let exports = self
             .exports()
@@ -132,24 +132,24 @@ impl Module {
 
 /// Struct of WasmEdge ImportType.
 ///
-/// [ImportType] is used for getting the type information of the imports from a WasmEdge [module](crate::Module).
+/// [ImportType] is used for getting the type information of the imported WasmEdge instances.
 #[derive(Debug)]
 pub struct ImportType<'module> {
     inner: sys::Import<'module>,
     _marker: PhantomData<&'module Module>,
 }
 impl<'module> ImportType<'module> {
-    /// Returns the name of the [ImportType].
+    /// Returns the imported name of the WasmEdge instance.
     pub fn name(&self) -> Cow<'_, str> {
         self.inner.name()
     }
 
-    /// Returns the module name from the [ImportType].
+    /// Returns the name of the module hosting the imported WasmEdge instance.
     pub fn module_name(&self) -> Cow<'_, str> {
         self.inner.module_name()
     }
 
-    /// Returns the type of the [ImportType].
+    /// Returns the type of the imported WasmEdge instance, which is one of the types defined in [ExternalInstanceType](wasmedge_types::ExternalInstanceType).
     pub fn ty(&self) -> Result<ExternalInstanceType> {
         let ty = self.inner.ty()?;
         Ok(ty)
@@ -158,19 +158,19 @@ impl<'module> ImportType<'module> {
 
 /// Struct of WasmEdge ExportType.
 ///
-/// [ExportType] is used for getting the type information of the exports from a [module](crate::Module).
+/// [ExportType] is used for getting the type information of the exported WasmEdge instances.
 #[derive(Debug)]
 pub struct ExportType<'module> {
     inner: sys::Export<'module>,
     _marker: PhantomData<&'module Module>,
 }
 impl<'module> ExportType<'module> {
-    /// Returns the name of the [ExportType].
+    /// Returns the exported name of the WasmEdge instance.
     pub fn name(&self) -> Cow<'_, str> {
         self.inner.name()
     }
 
-    /// Returns the type of the [ExportType].
+    /// Returns the type of the exported WasmEdge instance, which is one of the types defined in [ExternalInstanceType](wasmedge_types::ExternalInstanceType).
     pub fn ty(&self) -> Result<ExternalInstanceType> {
         let ty = self.inner.ty()?;
         Ok(ty)

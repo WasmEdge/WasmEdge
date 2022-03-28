@@ -215,7 +215,6 @@ mod tests {
             let table_name = table.name();
             assert!(table_name.is_some());
             assert_eq!(table.name().unwrap(), "table");
-            assert!(table.registered());
             assert_eq!(table.mod_name().unwrap(), "extern-module");
             assert_eq!(table.capacity(), 5);
 

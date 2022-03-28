@@ -107,7 +107,7 @@ impl WasmValue {
         self.ctx
     }
 
-    /// Returns the type of a [`Value`].
+    /// Returns the type of a [WasmValue].
     pub fn ty(&self) -> ValType {
         self.ty
     }
@@ -197,7 +197,7 @@ impl WasmValue {
         unsafe { ffi::WasmEdge_ValueGetV128(self.ctx) }
     }
 
-    /// Creates a [WasmValue] from a [RefType](crate::RefType) value.
+    /// Creates a [WasmValue] from a [RefType](wasmedge_sys::RefType) value.
     ///
     /// # Argument
     ///

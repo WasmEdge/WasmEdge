@@ -24,35 +24,26 @@ WasmEdge_ValType pysdk::GlobalTypeCxt::GetValType() {
 /* --------------- GlobalTypeCxt End -------------------------------- */
 
 /* --------------- Global -------------------------------- */
-pysdk::Global::Global() {}
-
 pysdk::Global::Global(pysdk::GlobalTypeCxt &type, pysdk::Value &val) {
-  Glob = WasmEdge_GlobalInstanceCreate(type.get(), val.get());
+  context = WasmEdge_GlobalInstanceCreate(type.get(), val.get());
 }
 
-pysdk::Global::Global(WasmEdge_GlobalInstanceContext *cxt, bool del) {
-  Glob = cxt;
-  delete_cxt = del;
-}
+pysdk::Global::Global(const WasmEdge_GlobalInstanceContext *cxt) : base(cxt) {}
 
 pysdk::Global::~Global() {
-  if (delete_cxt)
-    WasmEdge_GlobalInstanceDelete(Glob);
+  if (_del)
+    WasmEdge_GlobalInstanceDelete(context);
 }
 
-WasmEdge_GlobalInstanceContext *pysdk::Global::get() { return Glob; }
-
 pysdk::GlobalTypeCxt pysdk::Global::GetGlobalType() {
-  return pysdk::GlobalTypeCxt(WasmEdge_GlobalInstanceGetGlobalType(
-      const_cast<const WasmEdge_GlobalInstanceContext *>(Glob)));
+  return pysdk::GlobalTypeCxt(WasmEdge_GlobalInstanceGetGlobalType(get()));
 }
 
 pysdk::Value pysdk::Global::GetValue() {
-  return pysdk::Value(WasmEdge_GlobalInstanceGetValue(
-      const_cast<const WasmEdge_GlobalInstanceContext *>(Glob)));
+  return pysdk::Value(WasmEdge_GlobalInstanceGetValue(get()));
 }
 
 void pysdk::Global::SetValue(pysdk::Value &val) {
-  WasmEdge_GlobalInstanceSetValue(Glob, val.get());
+  WasmEdge_GlobalInstanceSetValue(context, val.get());
 }
 /* --------------- Global End -------------------------------- */

@@ -101,7 +101,7 @@ pysdk::Function pysdk::Store::FindFunctionRegistered(std::string &mod,
 
 pysdk::Global pysdk::Store::FindGlobal(std::string &str) {
   WasmEdge_String name = WasmEdge_StringCreateByCString(str.c_str());
-  pysdk::Global gl(WasmEdge_StoreFindGlobal(StoreCxt, name), false);
+  pysdk::Global gl(WasmEdge_StoreFindGlobal(StoreCxt, name));
   WasmEdge_StringDelete(name);
   return gl;
 }
@@ -111,8 +111,7 @@ pysdk::Global pysdk::Store::FindGlobalRegistered(std::string &mod,
   WasmEdge_String module_name = WasmEdge_StringCreateByCString(mod.c_str());
   WasmEdge_String func_name = WasmEdge_StringCreateByCString(func.c_str());
   pysdk::Global gl(
-      WasmEdge_StoreFindGlobalRegistered(StoreCxt, module_name, func_name),
-      false);
+      WasmEdge_StoreFindGlobalRegistered(StoreCxt, module_name, func_name));
   WasmEdge_StringDelete(module_name);
   WasmEdge_StringDelete(func_name);
   return gl;

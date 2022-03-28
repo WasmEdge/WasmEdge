@@ -104,26 +104,20 @@ public:
 };
 
 class GlobalTypeCxt : public base<WasmEdge_GlobalTypeContext> {
-private:
 public:
   GlobalTypeCxt(const WasmEdge_ValType &, const WasmEdge_Mutability &);
   GlobalTypeCxt(const WasmEdge_GlobalTypeContext *);
-  ~GlobalTypeCxt();
+  ~GlobalTypeCxt() override;
   WasmEdge_Mutability GetMutability();
   WasmEdge_ValType GetValType();
 };
 
-class Global {
-private:
-  WasmEdge_GlobalInstanceContext *Glob;
-  bool delete_cxt = true;
+class Global : public base<WasmEdge_GlobalInstanceContext> {
 
 public:
-  Global();
   Global(GlobalTypeCxt &, Value &);
-  Global(WasmEdge_GlobalInstanceContext *, bool);
-  ~Global();
-  WasmEdge_GlobalInstanceContext *get();
+  Global(const WasmEdge_GlobalInstanceContext *);
+  ~Global() override;
   GlobalTypeCxt GetGlobalType();
   Value GetValue();
   void SetValue(Value &);

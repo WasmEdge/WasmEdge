@@ -308,7 +308,7 @@ PYBIND11_MODULE(WasmEdge, module) {
       .def("GetValType", &pysdk::GlobalTypeCxt::GetValType);
 
   pybind11::class_<pysdk::Global>(module, "Global")
-      .def(pybind11::init())
+      .def(pybind11::init<pysdk::GlobalTypeCxt &, pysdk::Value &>())
       .def("GetGlobalType", &pysdk::Global::GetGlobalType)
       .def("GetValue", &pysdk::Global::GetValue)
       .def("SetValue", &pysdk::Global::SetValue);

@@ -118,4 +118,5 @@ $ wasmedge --reactor add.wasm add 2 2
 * [Tensorflow](rust/tensorflow.md) shows how to create Tensorflow-based AI inference applications for WebAssembly using the WasmEdge TensorFlow Rust SDK.
 * [Simple networking socket](rust/networking.md) shows how to create simple HTTP client and server applications using the WasmEdge networking socket Rust SDK.
 * [Non-blocking networking socket](rust/networking-nonblocking.md) shows how to create a high-performance non-blocking networking applications with concurrent open connections using the WasmEdge networking socket Rust SDK.
+* [Server-side rendering](rust/ssr.md) shows how to build an interactive web app with Rust, and then render the HTML DOM UI on the server using WasmEdge. The Rust source code is compiled to WebAssembly to render the HTML DOM in the browser or on the server.
 * [Command interface](rust/command.md) shows how to create native command applications for WebAssembly using the Wasmedge command interface Rust SDK.

@@ -40,10 +40,12 @@ pub use vm::Vm;
 #[doc(hidden)]
 pub use wasmedge_sys::types::*;
 
+#[doc(hidden)]
 pub trait Engine {
     fn register_wasm_from_module(&mut self);
     fn register_wasm_from_import(&mut self, import: &mut ImportModule);
     fn run_func(&self);
 }
 
+/// Alias type for host function
 pub type HostFunc = sys::HostFunc;

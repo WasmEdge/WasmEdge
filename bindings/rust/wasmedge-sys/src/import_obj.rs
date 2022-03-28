@@ -1,16 +1,17 @@
-//! Defines WasmEdge ImportObj struct.
+//! Defines WasmEdge ImportObject struct.
 
 use crate::{
+    error::WasmEdgeError,
+    ffi,
     instance::{Function, Global, Memory, Table},
     types::WasmEdgeString,
     utils::string_to_c_char,
-    wasmedge, WasmEdgeError, WasmEdgeResult,
+    WasmEdgeResult,
 };
 
-/// Struct of WasmEdge ImportObj.
+/// Struct of WasmEdge ImportObject.
 ///
-/// A [`ImportObject`] represents a host module with a name. A host module consists of one or more
-/// host functions which are defined outside WebAssembly and passed to WASM modules as imports.
+/// An [ImportObject](crate::ImportObject) represents a host module with a name. A host module consists of one or more host [functions](crate::Function), [tables](crate::Table), [memories](crate::Memory), and [globals](crate::Global),  which are defined outside WASM modules and fed into WASM modules as imports.
 #[derive(Debug)]
 pub struct ImportObject {
     pub(crate) inner: InnerImportObject,
@@ -28,7 +29,7 @@ impl ImportObject {
     /// If fail to create a host module, then an error is returned.
     pub fn create(name: impl AsRef<str>) -> WasmEdgeResult<Self> {
         let mod_name: WasmEdgeString = name.as_ref().into();
-        let ctx = unsafe { wasmedge::WasmEdge_ImportObjectCreate(mod_name.as_raw()) };
+        let ctx = unsafe { ffi::WasmEdge_ImportObjectCreate(mod_name.as_raw()) };
         match ctx.is_null() {
             true => Err(WasmEdgeError::ImportObjCreate),
             false => Ok(ImportObject {
@@ -36,6 +37,12 @@ impl ImportObject {
                 registered: false,
             }),
         }
+    }
+
+    /// Returns the name of the [ImportObject](crate::ImportObject).
+    pub fn name(&self) -> String {
+        let raw_name = unsafe { ffi::WasmEdge_ImportObjectGetModuleName(self.inner.0 as *const _) };
+        raw_name.into()
     }
 
     /// Creates a WASI host module which contains the WASI host functions, and initializes it with the given parameters.
@@ -78,7 +85,7 @@ impl ImportObject {
         let preopens_len = preopens.len();
 
         let ctx = unsafe {
-            wasmedge::WasmEdge_ImportObjectCreateWASI(
+            ffi::WasmEdge_ImportObjectCreateWASI(
                 args.as_ptr(),
                 args_len as u32,
                 envs.as_ptr(),
@@ -133,7 +140,7 @@ impl ImportObject {
         let preopens_len = preopens.len();
 
         unsafe {
-            wasmedge::WasmEdge_ImportObjectInitWASI(
+            ffi::WasmEdge_ImportObjectInitWASI(
                 self.inner.0,
                 args.as_ptr(),
                 args_len as u32,
@@ -149,7 +156,7 @@ impl ImportObject {
     ///
     /// The WASI exit code can be accessed after running the "_start" function of a `wasm32-wasi` program.
     pub fn exit_code(&self) -> u32 {
-        unsafe { wasmedge::WasmEdge_ImportObjectWASIGetExitCode(self.inner.0) }
+        unsafe { ffi::WasmEdge_ImportObjectWASIGetExitCode(self.inner.0) }
     }
 
     /// Creates a wasmedge_process host module that contains the wasmedge_process host functions and
@@ -175,11 +182,7 @@ impl ImportObject {
         let cmds_len = cmds.len();
 
         let ctx = unsafe {
-            wasmedge::WasmEdge_ImportObjectCreateWasmEdgeProcess(
-                cmds.as_ptr(),
-                cmds_len as u32,
-                allowed,
-            )
+            ffi::WasmEdge_ImportObjectCreateWasmEdgeProcess(cmds.as_ptr(), cmds_len as u32, allowed)
         };
         match ctx.is_null() {
             true => Err(WasmEdgeError::ImportObjCreate),
@@ -205,7 +208,7 @@ impl ImportObject {
         let cmds_len = cmds.len();
 
         unsafe {
-            wasmedge::WasmEdge_ImportObjectInitWasmEdgeProcess(
+            ffi::WasmEdge_ImportObjectInitWasmEdgeProcess(
                 self.inner.0,
                 cmds.as_ptr(),
                 cmds_len as u32,
@@ -214,78 +217,62 @@ impl ImportObject {
         }
     }
 
-    /// Adds a [`Function`] into the host module.
+    /// Adds a [host function](crate::Function) into the host module.
     ///
     /// # Arguments
     ///
     /// - `name` specifies the name of the host function in the host module.
     ///
-    /// - `func` specifies the host function instance to add.
+    /// - `func` specifies the exported host function instance to add.
     pub fn add_func(&mut self, name: impl AsRef<str>, mut func: Function) {
         let func_name: WasmEdgeString = name.into();
         unsafe {
-            wasmedge::WasmEdge_ImportObjectAddFunction(
-                self.inner.0,
-                func_name.as_raw(),
-                func.inner.0,
-            );
+            ffi::WasmEdge_ImportObjectAddFunction(self.inner.0, func_name.as_raw(), func.inner.0);
         }
         func.inner.0 = std::ptr::null_mut();
     }
 
-    /// Adds a [`Table`] into the host module.
+    /// Adds a [table](crate::Table) into the host module.
     ///
     /// # Arguments
     ///
     /// - `name` specifies the name of the export table in the host module.
     ///
-    /// - `table` specifies the export table instance to add.
+    /// - `table` specifies the exported table instance to add.
     pub fn add_table(&mut self, name: impl AsRef<str>, mut table: Table) {
         let table_name: WasmEdgeString = name.as_ref().into();
         unsafe {
-            wasmedge::WasmEdge_ImportObjectAddTable(
-                self.inner.0,
-                table_name.as_raw(),
-                table.inner.0,
-            );
+            ffi::WasmEdge_ImportObjectAddTable(self.inner.0, table_name.as_raw(), table.inner.0);
         }
         table.inner.0 = std::ptr::null_mut();
     }
 
-    /// Adds a [`Memory`] into the host module.
+    /// Adds a [memory](crate::Memory) into the host module.
     ///
     /// # Arguments
     ///
     /// - `name` specifies the name of the export memory in the host module.
     ///
-    /// - `memory` specifies the export memory instance to add.
+    /// - `memory` specifies the exported memory instance to add.
     pub fn add_memory(&mut self, name: impl AsRef<str>, mut memory: Memory) {
         let mem_name: WasmEdgeString = name.as_ref().into();
         unsafe {
-            wasmedge::WasmEdge_ImportObjectAddMemory(
-                self.inner.0,
-                mem_name.as_raw(),
-                memory.inner.0,
-            );
+            ffi::WasmEdge_ImportObjectAddMemory(self.inner.0, mem_name.as_raw(), memory.inner.0);
         }
         memory.inner.0 = std::ptr::null_mut();
     }
 
-    /// Adds a [`Global`] into the host module.
+    /// Adds a [global](crate::Global) into the host module.
     ///
     /// # Arguments
     ///
     /// `name` specifies the name of the export global in the host module.
     ///
-    /// `global` specifies the export global instance to add.
+    /// `global` specifies the exported global instance to add.
     pub fn add_global(&mut self, name: impl AsRef<str>, mut global: Global) {
         let global_name: WasmEdgeString = name.as_ref().into();
         unsafe {
-            wasmedge::WasmEdge_ImportObjectAddGlobal(
-                self.inner.0,
-                global_name.as_raw(),
-                global.inner.0,
-            );
+            ffi::WasmEdge_ImportObjectAddGlobal(self.inner.0, global_name.as_raw(), global.inner.0);
         }
         global.inner.0 = std::ptr::null_mut();
     }
@@ -293,13 +280,13 @@ impl ImportObject {
 impl Drop for ImportObject {
     fn drop(&mut self) {
         if !self.registered && !self.inner.0.is_null() {
-            unsafe { wasmedge::WasmEdge_ImportObjectDelete(self.inner.0) };
+            unsafe { ffi::WasmEdge_ImportObjectDelete(self.inner.0) };
         }
     }
 }
 
 #[derive(Debug)]
-pub(crate) struct InnerImportObject(pub(crate) *mut wasmedge::WasmEdge_ImportObjectContext);
+pub(crate) struct InnerImportObject(pub(crate) *mut ffi::WasmEdge_ImportObjectContext);
 unsafe impl Send for InnerImportObject {}
 unsafe impl Sync for InnerImportObject {}
 
@@ -307,7 +294,8 @@ unsafe impl Sync for InnerImportObject {}
 mod tests {
     use super::*;
     use crate::{
-        Config, FuncType, GlobalType, MemType, Mutability, RefType, TableType, ValType, Value, Vm,
+        Config, Executor, FuncType, GlobalType, MemType, Mutability, RefType, Statistics, Store,
+        TableType, ValType, Vm, WasmValue,
     };
     use std::{
         sync::{Arc, Mutex},
@@ -327,7 +315,7 @@ mod tests {
         let result = FuncType::create([ValType::ExternRef, ValType::I32], [ValType::I32]);
         assert!(result.is_ok());
         let func_ty = result.unwrap();
-        let result = Function::create(func_ty, Box::new(real_add), 0);
+        let result = Function::create(&func_ty, Box::new(real_add), 0);
         assert!(result.is_ok());
         let host_func = result.unwrap();
         // add the function into the import_obj module
@@ -337,7 +325,7 @@ mod tests {
         let result = TableType::create(RefType::FuncRef, 10..=20);
         assert!(result.is_ok());
         let table_ty = result.unwrap();
-        let result = Table::create(table_ty);
+        let result = Table::create(&table_ty);
         assert!(result.is_ok());
         let host_table = result.unwrap();
         // add the table into the import_obj module
@@ -347,7 +335,7 @@ mod tests {
         let result = MemType::create(1..=2);
         assert!(result.is_ok());
         let mem_ty = result.unwrap();
-        let result = Memory::create(mem_ty);
+        let result = Memory::create(&mem_ty);
         assert!(result.is_ok());
         let host_memory = result.unwrap();
         // add the memory into the import_obj module
@@ -357,13 +345,71 @@ mod tests {
         let result = GlobalType::create(ValType::I32, Mutability::Const);
         assert!(result.is_ok());
         let global_ty = result.unwrap();
-        let result = Global::create(global_ty, Value::from_i32(666));
+        let result = Global::create(&global_ty, WasmValue::from_i32(666));
         assert!(result.is_ok());
         let host_global = result.unwrap();
         // add the global into import_obj module
         import_obj.add_global("global_i32", host_global);
 
         assert_eq!(import_obj.exit_code(), 1);
+    }
+
+    #[test]
+    fn test_import_add_memory() {
+        let module_name = "extern";
+
+        // create an ImportObj module
+        let result = ImportObject::create(module_name);
+        assert!(result.is_ok());
+        let mut import = result.unwrap();
+
+        // create a Memory instance
+        let host_memory = {
+            let result = MemType::create(10..=20);
+            assert!(result.is_ok());
+            let mem_ty = result.unwrap();
+            let result = Memory::create(&mem_ty);
+            assert!(result.is_ok());
+            let host_memory = result.unwrap();
+            drop(mem_ty);
+            host_memory
+        };
+
+        // add the memory into the import_obj module
+        import.add_memory("memory", host_memory);
+
+        let result = Config::create();
+        assert!(result.is_ok());
+        let config = result.unwrap();
+
+        let result = Statistics::create();
+        assert!(result.is_ok());
+        let mut stat = result.unwrap();
+
+        let result = Executor::create(Some(config), Some(&mut stat));
+        assert!(result.is_ok());
+        let mut executor = result.unwrap();
+
+        let result = Store::create();
+        assert!(result.is_ok());
+        let mut store = result.unwrap();
+
+        let result = executor.register_import_object(&mut store, &import);
+        assert!(result.is_ok());
+
+        let result = store.named_module(module_name);
+        assert!(result.is_ok());
+        let instance = result.unwrap();
+
+        let result = instance.find_memory("memory");
+        assert!(result.is_ok());
+        let memory = result.unwrap();
+
+        let result = memory.ty();
+        assert!(result.is_ok());
+        let ty = result.unwrap();
+
+        assert_eq!(ty.limit(), 10..=20);
     }
 
     #[test]
@@ -483,23 +529,111 @@ mod tests {
     fn test_import_object_sync() {
         let host_name = "extern";
 
-        // create an ImportObj module
+        // create ImportObject instance
         let result = ImportObject::create(host_name);
         assert!(result.is_ok());
-        let import = Arc::new(Mutex::new(result.unwrap()));
+        let mut import = result.unwrap();
 
+        // add host function
+        let result = FuncType::create(vec![ValType::I32; 2], vec![ValType::I32]);
+        assert!(result.is_ok());
+        let func_ty = result.unwrap();
+        let result = Function::create(&func_ty, Box::new(real_add), 0);
+        assert!(result.is_ok());
+        let host_func = result.unwrap();
+        import.add_func("add", host_func);
+
+        // add table
+        let result = TableType::create(RefType::FuncRef, 0..=u32::MAX);
+        assert!(result.is_ok());
+        let ty = result.unwrap();
+        let result = Table::create(&ty);
+        assert!(result.is_ok());
+        let table = result.unwrap();
+        import.add_table("table", table);
+
+        // add memory
+        let memory = {
+            let result = MemType::create(10..=20);
+            assert!(result.is_ok());
+            let mem_ty = result.unwrap();
+            let result = Memory::create(&mem_ty);
+            assert!(result.is_ok());
+            result.unwrap()
+        };
+        import.add_memory("memory", memory);
+
+        // add globals
+        let result = GlobalType::create(ValType::F32, Mutability::Const);
+        assert!(result.is_ok());
+        let ty = result.unwrap();
+        let result = Global::create(&ty, WasmValue::from_f32(3.5));
+        assert!(result.is_ok());
+        let global = result.unwrap();
+        import.add_global("global", global);
+
+        let import = Arc::new(Mutex::new(import));
         let import_cloned = Arc::clone(&import);
         let handle = thread::spawn(move || {
             let result = import_cloned.lock();
             assert!(result.is_ok());
             let import = result.unwrap();
             assert!(!import.inner.0.is_null());
+
+            // create a store
+            let result = Store::create();
+            assert!(result.is_ok());
+            let mut store = result.unwrap();
+            assert!(!store.inner.0.is_null());
+            assert!(!store.registered);
+
+            // create an executor
+            let result = Config::create();
+            assert!(result.is_ok());
+            let config = result.unwrap();
+            let result = Executor::create(Some(config), None);
+            assert!(result.is_ok());
+            let mut executor = result.unwrap();
+
+            // register import object into store
+            let result = executor.register_import_object(&mut store, &import);
+            assert!(result.is_ok());
+
+            // get the exported module by name
+            let result = store.named_module("extern");
+            assert!(result.is_ok());
+            let instance = result.unwrap();
+
+            // get the exported function by name
+            let result = instance.find_func("add");
+            assert!(result.is_ok());
+
+            // get the exported global by name
+            let result = instance.find_global("global");
+            assert!(result.is_ok());
+            let global = result.unwrap();
+            assert!(!global.inner.0.is_null() && global.registered);
+            let val = global.get_value();
+            assert_eq!(val.to_f32(), 3.5);
+
+            // get the exported memory by name
+            let result = instance.find_memory("memory");
+            assert!(result.is_ok());
+            let memory = result.unwrap();
+            let result = memory.ty();
+            assert!(result.is_ok());
+            let ty = result.unwrap();
+            assert_eq!(ty.limit(), 10..=20);
+
+            // get the exported table by name
+            let result = instance.find_table("table");
+            assert!(result.is_ok());
         });
 
         handle.join().unwrap();
     }
 
-    fn real_add(inputs: Vec<Value>) -> Result<Vec<Value>, u8> {
+    fn real_add(inputs: Vec<WasmValue>) -> Result<Vec<WasmValue>, u8> {
         if inputs.len() != 2 {
             return Err(1);
         }
@@ -518,6 +652,6 @@ mod tests {
 
         let c = a + b;
 
-        Ok(vec![Value::from_i32(c)])
+        Ok(vec![WasmValue::from_i32(c)])
     }
 }

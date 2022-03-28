@@ -1,7 +1,8 @@
 //! Defines WasmEdge Function and FuncType structs.
 
 use crate::{
-    types::Value, wasmedge, FuncError, ValType, WasmEdgeError, WasmEdgeResult, HOST_FUNCS,
+    error::{FuncError, WasmEdgeError},
+    ffi, HostFunc, ValType, WasmEdgeResult, HOST_FUNCS,
 };
 use core::ffi::c_void;
 use rand::Rng;
@@ -10,14 +11,13 @@ use std::convert::TryInto;
 extern "C" fn wraper_fn(
     key_ptr: *mut c_void,
     _data: *mut c_void,
-    _mem_cxt: *mut wasmedge::WasmEdge_MemoryInstanceContext,
-    params: *const wasmedge::WasmEdge_Value,
+    _mem_cxt: *mut ffi::WasmEdge_MemoryInstanceContext,
+    params: *const ffi::WasmEdge_Value,
     param_len: u32,
-    returns: *mut wasmedge::WasmEdge_Value,
+    returns: *mut ffi::WasmEdge_Value,
     return_len: u32,
-) -> wasmedge::WasmEdge_Result {
+) -> ffi::WasmEdge_Result {
     let key = key_ptr as *const usize as usize;
-    let mut result = Err(0);
 
     let input = {
         let raw_input = unsafe {
@@ -36,13 +36,13 @@ extern "C" fn wraper_fn(
         .expect("len of returns should not greater than usize");
     let raw_returns = unsafe { std::slice::from_raw_parts_mut(returns, return_len) };
 
-    HOST_FUNCS.with(|f| {
-        let host_functions = f.borrow();
+    let result = {
+        let host_functions = HOST_FUNCS.lock().expect("[wasmedge-sys] try lock failed.");
         let real_fn = host_functions
             .get(&key)
             .expect("host function should be there");
-        result = real_fn(input);
-    });
+        real_fn(input)
+    };
 
     match result {
         Ok(v) => {
@@ -50,28 +50,27 @@ extern "C" fn wraper_fn(
             for (idx, item) in v.into_iter().enumerate() {
                 raw_returns[idx] = item.as_raw();
             }
-            wasmedge::WasmEdge_Result { Code: 0 }
+            ffi::WasmEdge_Result { Code: 0 }
         }
-        Err(c) => wasmedge::WasmEdge_Result { Code: c as u8 },
+        Err(c) => ffi::WasmEdge_Result { Code: c as u8 },
     }
 }
 
 /// Struct of WasmEdge Function.
 ///
-/// A WasmEdge [`Function`] defines a host function described by its [`FuncType`]. A host function is a
-/// function defined outside WebAssembly and passed to WASM module.
+/// A WasmEdge [Function] defines a host function described by its [FuncType]. A host function is a function defined outside WASM module and passed to it.
 ///
-/// In WasmEdge, developers can create the [`Function`]s and other WasmEdge instances, such as [Memory](crate::Memory),
-/// and add them into a WasmEdge [ImportObject](crate::ImportObject) for registering into a WasmEdge [Vm](crate::Vm) or
-/// [Store](crate::Store).
+/// In WasmEdge, developers can create [host functions](crate::Function) and other WasmEdge instances, such as [Memory](crate::Memory), and add them into a WasmEdge [ImportObject](crate::ImportObject) for registering into a WasmEdge [Vm](crate::Vm) or [Store](crate::Store).
 #[derive(Debug)]
 pub struct Function {
     pub(crate) inner: InnerFunc,
     pub(crate) registered: bool,
+    pub(crate) name: Option<String>,
+    pub(crate) mod_name: Option<String>,
 }
 impl Function {
     #[allow(clippy::type_complexity)]
-    /// Creates a [`Function`] for host functions.
+    /// Creates a [host function](crate::Function).
     ///
     /// # Arguments
     ///
@@ -83,17 +82,17 @@ impl Function {
     ///
     /// # Error
     ///
-    /// If fail to create a [`Function`], then an error is returned.
+    /// If fail to create a [Function], then an error is returned.
     ///
     /// # Example
     ///
-    /// The example defines a host function `real_add`, and creates a [`Function`] binding to it by calling
+    /// The example defines a host function `real_add`, and creates a [Function] binding to it by calling
     /// the `create_binding` method.
     ///
     /// ```rust
-    /// use wasmedge_sys::{FuncType, Function, ValType, Value, WasmEdgeResult};
+    /// use wasmedge_sys::{FuncType, Function, ValType, WasmValue, WasmEdgeResult};
     ///
-    /// fn real_add(inputs: Vec<Value>) -> Result<Vec<Value>, u8> {
+    /// fn real_add(inputs: Vec<WasmValue>) -> Result<Vec<WasmValue>, u8> {
     ///     if inputs.len() != 2 {
     ///         return Err(1);
     ///     }
@@ -112,44 +111,34 @@ impl Function {
     ///
     ///     let c = a + b;
     ///
-    ///     Ok(vec![Value::from_i32(c)])
+    ///     Ok(vec![WasmValue::from_i32(c)])
     /// }
     ///
     /// // create a FuncType
     /// let func_ty = FuncType::create(vec![ValType::I32; 2], vec![ValType::I32]).expect("fail to create a FuncType");
     ///
     /// // create a Function instance
-    /// let func = Function::create(func_ty, Box::new(real_add), 0).expect("fail to create a Function instance");
+    /// let func = Function::create(&func_ty, Box::new(real_add), 0).expect("fail to create a Function instance");
     /// ```
-    pub fn create(
-        mut ty: FuncType,
-        real_fn: Box<dyn Fn(Vec<Value>) -> Result<Vec<Value>, u8>>,
-        cost: u64,
-    ) -> WasmEdgeResult<Self> {
-        let mut key = 0usize;
+    pub fn create(ty: &FuncType, real_fn: HostFunc, cost: u64) -> WasmEdgeResult<Self> {
+        let mut host_functions = HOST_FUNCS.lock().expect("[wasmedge-sys] try lock failed.");
+        if host_functions.len() >= host_functions.capacity() {
+            return Err(WasmEdgeError::Func(FuncError::CreateBinding(format!(
+                "The number of the host functions reaches the upper bound: {}",
+                host_functions.capacity()
+            ))));
+        }
 
-        HOST_FUNCS.with(|f| {
-            let mut host_functions = f.borrow_mut();
-            if host_functions.len() >= host_functions.capacity() {
-                return Err(WasmEdgeError::Func(FuncError::CreateBinding(format!(
-                    "The number of the host functions reaches the upper bound: {}",
-                    host_functions.capacity()
-                ))));
-            }
-
-            // generate key for the coming host function
-            let mut rng = rand::thread_rng();
-            key = rng.gen::<usize>();
-            while host_functions.contains_key(&key) {
-                key = rng.gen::<usize>();
-            }
-            host_functions.insert(key, real_fn);
-
-            Ok(())
-        })?;
+        // generate key for the coming host function
+        let mut rng = rand::thread_rng();
+        let mut key: usize = rng.gen();
+        while host_functions.contains_key(&key) {
+            key = rng.gen();
+        }
+        host_functions.insert(key, real_fn);
 
         let ctx = unsafe {
-            wasmedge::WasmEdge_FunctionInstanceCreateBinding(
+            ffi::WasmEdge_FunctionInstanceCreateBinding(
                 ty.inner.0,
                 Some(wraper_fn),
                 key as *const usize as *mut c_void,
@@ -157,25 +146,42 @@ impl Function {
                 cost,
             )
         };
-        ty.inner.0 = std::ptr::null_mut();
 
         match ctx.is_null() {
             true => Err(WasmEdgeError::Func(FuncError::Create)),
             false => Ok(Self {
                 inner: InnerFunc(ctx),
                 registered: false,
+                name: None,
+                mod_name: None,
             }),
         }
     }
 
-    /// Returns the underlying wasm type of a [`Function`].
+    /// Returns the name of the host function.
+    pub fn name(&self) -> Option<&str> {
+        match &self.name {
+            Some(name) => Some(name.as_ref()),
+            None => None,
+        }
+    }
+
+    /// Returns the name of the [module instance](crate::Instance) which hosts the function.
+    pub fn mod_name(&self) -> Option<&str> {
+        match &self.mod_name {
+            Some(mod_name) => Some(mod_name.as_ref()),
+            None => None,
+        }
+    }
+
+    /// Returns the underlying wasm type of a [Function].
     ///
     /// # Errors
     ///
     /// If fail to get the function type, then an error is returned.
     ///
     pub fn ty(&self) -> WasmEdgeResult<FuncType> {
-        let ty = unsafe { wasmedge::WasmEdge_FunctionInstanceGetFunctionType(self.inner.0) };
+        let ty = unsafe { ffi::WasmEdge_FunctionInstanceGetFunctionType(self.inner.0) };
         match ty.is_null() {
             true => Err(WasmEdgeError::Func(FuncError::Type)),
             false => Ok(FuncType {
@@ -188,37 +194,36 @@ impl Function {
 impl Drop for Function {
     fn drop(&mut self) {
         if !self.registered && !self.inner.0.is_null() {
-            unsafe { wasmedge::WasmEdge_FunctionInstanceDelete(self.inner.0) };
+            unsafe { ffi::WasmEdge_FunctionInstanceDelete(self.inner.0) };
         }
     }
 }
 
 #[derive(Debug)]
-pub(crate) struct InnerFunc(pub(crate) *mut wasmedge::WasmEdge_FunctionInstanceContext);
+pub(crate) struct InnerFunc(pub(crate) *mut ffi::WasmEdge_FunctionInstanceContext);
 unsafe impl Send for InnerFunc {}
 unsafe impl Sync for InnerFunc {}
 
 /// Struct of WasmEdge FuncType.
 ///
-/// A WasmEdge [`FuncType`] classifies the signature of a [`Function`], including the type information
-/// of both the arguments and the returns.
+/// A WasmEdge [FuncType] classifies the signature of a [Function], including the type information of both the arguments and the returns.
 #[derive(Debug)]
 pub struct FuncType {
     pub(crate) inner: InnerFuncType,
     pub(crate) registered: bool,
 }
 impl FuncType {
-    /// Create a new [`FuncType`] to be associated with the given arguments and returns.
+    /// Create a new [FuncType] to be associated with the given arguments and returns.
     ///
     /// # Arguments
     ///
-    /// - `args` specifies the agrgument types of a [`Function`].
+    /// - `args` specifies the agrgument types of a [Function].
     ///
-    /// - `returns` specifies the types of the returns of a [`Function`].
+    /// - `returns` specifies the types of the returns of a [Function].
     ///
     /// # Error
     ///
-    /// If fail to create a [`FuncType`], then a [WasmEdgeError::FuncTypeCreate](crate::error::WasmEdgeError::FuncTypeCreate) error is returned.
+    /// If fail to create a [FuncType], then an error is returned.
     ///
     /// # Example
     ///
@@ -234,14 +239,14 @@ impl FuncType {
         let param_tys = args
             .into_iter()
             .map(|x| x.into())
-            .collect::<Vec<wasmedge::WasmEdge_ValType>>();
+            .collect::<Vec<ffi::WasmEdge_ValType>>();
         let ret_tys = returns
             .into_iter()
             .map(|x| x.into())
-            .collect::<Vec<wasmedge::WasmEdge_ValType>>();
+            .collect::<Vec<ffi::WasmEdge_ValType>>();
 
         let ctx = unsafe {
-            wasmedge::WasmEdge_FunctionTypeCreate(
+            ffi::WasmEdge_FunctionTypeCreate(
                 param_tys.as_ptr() as *const _,
                 param_tys.len() as u32,
                 ret_tys.as_ptr() as *const u32,
@@ -257,38 +262,34 @@ impl FuncType {
         }
     }
 
-    /// Returns the number of the arguments of a [`Function`].
+    /// Returns the number of the arguments of a [Function].
     pub fn params_len(&self) -> usize {
-        unsafe { wasmedge::WasmEdge_FunctionTypeGetParametersLength(self.inner.0) as usize }
+        unsafe { ffi::WasmEdge_FunctionTypeGetParametersLength(self.inner.0) as usize }
     }
 
-    /// Returns an Iterator of the arguments of a [`Function`].
+    /// Returns an Iterator of the arguments of a [Function].
     pub fn params_type_iter(&self) -> impl Iterator<Item = ValType> {
         let len = self.params_len();
         let mut types = Vec::with_capacity(len);
         unsafe {
-            wasmedge::WasmEdge_FunctionTypeGetParameters(
-                self.inner.0,
-                types.as_mut_ptr(),
-                len as u32,
-            );
+            ffi::WasmEdge_FunctionTypeGetParameters(self.inner.0, types.as_mut_ptr(), len as u32);
             types.set_len(len);
         }
 
         types.into_iter().map(Into::into)
     }
 
-    ///Returns the number of the returns of a [`Function`].
+    ///Returns the number of the returns of a [Function].
     pub fn returns_len(&self) -> usize {
-        unsafe { wasmedge::WasmEdge_FunctionTypeGetReturnsLength(self.inner.0) as usize }
+        unsafe { ffi::WasmEdge_FunctionTypeGetReturnsLength(self.inner.0) as usize }
     }
 
-    /// Returns an Iterator of the return types of a [`Function`].
+    /// Returns an Iterator of the return types of a [Function].
     pub fn returns_type_iter(&self) -> impl Iterator<Item = ValType> {
         let len = self.returns_len();
         let mut types = Vec::with_capacity(len);
         unsafe {
-            wasmedge::WasmEdge_FunctionTypeGetReturns(self.inner.0, types.as_mut_ptr(), len as u32);
+            ffi::WasmEdge_FunctionTypeGetReturns(self.inner.0, types.as_mut_ptr(), len as u32);
             types.set_len(len);
         }
 
@@ -298,20 +299,20 @@ impl FuncType {
 impl Drop for FuncType {
     fn drop(&mut self) {
         if !self.registered && !self.inner.0.is_null() {
-            unsafe { wasmedge::WasmEdge_FunctionTypeDelete(self.inner.0) };
+            unsafe { ffi::WasmEdge_FunctionTypeDelete(self.inner.0) };
         }
     }
 }
 
 #[derive(Debug)]
-pub(crate) struct InnerFuncType(pub(crate) *mut wasmedge::WasmEdge_FunctionTypeContext);
+pub(crate) struct InnerFuncType(pub(crate) *mut ffi::WasmEdge_FunctionTypeContext);
 unsafe impl Send for InnerFuncType {}
 unsafe impl Sync for InnerFuncType {}
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::ValType;
+    use crate::{Executor, ImportObject, Store, ValType, WasmValue};
     use std::{
         sync::{Arc, Mutex},
         thread,
@@ -381,7 +382,7 @@ mod tests {
         assert!(result.is_ok());
         let func_ty = result.unwrap();
         // create a host function
-        let result = Function::create(func_ty, Box::new(real_add), 0);
+        let result = Function::create(&func_ty, Box::new(real_add), 0);
         assert!(result.is_ok());
         let host_func = result.unwrap();
 
@@ -402,13 +403,52 @@ mod tests {
     }
 
     #[test]
+    fn test_func_call() {
+        // create a FuncType
+        let result = FuncType::create(vec![ValType::I32; 2], vec![ValType::I32]);
+        assert!(result.is_ok());
+        let func_ty = result.unwrap();
+        let result = Function::create(&func_ty, Box::new(real_add), 0);
+        assert!(result.is_ok());
+        let host_func = result.unwrap();
+
+        // create an ImportObj module
+        let result = ImportObject::create("extern");
+        assert!(result.is_ok());
+        let mut import = result.unwrap();
+        // add the function into the import module
+        import.add_func("add", host_func);
+
+        let result = Executor::create(None, None);
+        assert!(result.is_ok());
+        let mut executor = result.unwrap();
+
+        let result = Store::create();
+        assert!(result.is_ok());
+        let mut store = result.unwrap();
+
+        // register the import module
+        let result = executor.register_import_object(&mut store, &import);
+        assert!(result.is_ok());
+
+        // get the exported module instance
+        let result = store.named_module("extern");
+        assert!(result.is_ok());
+        let instance = result.unwrap();
+
+        // get the exported host function
+        let result = instance.find_func("add");
+        assert!(result.is_ok());
+    }
+
+    #[test]
     fn test_func_send() {
         // create a FuncType
         let result = FuncType::create(vec![ValType::I32; 2], vec![ValType::I32]);
         assert!(result.is_ok());
         let func_ty = result.unwrap();
         // create a host function
-        let result = Function::create(func_ty, Box::new(real_add), 0);
+        let result = Function::create(&func_ty, Box::new(real_add), 0);
         assert!(result.is_ok());
         let host_func = result.unwrap();
 
@@ -439,7 +479,7 @@ mod tests {
         assert!(result.is_ok());
         let func_ty = result.unwrap();
         // create a host function
-        let result = Function::create(func_ty, Box::new(real_add), 0);
+        let result = Function::create(&func_ty, Box::new(real_add), 0);
         assert!(result.is_ok());
         let host_func = Arc::new(Mutex::new(result.unwrap()));
 
@@ -468,7 +508,7 @@ mod tests {
         handle.join().unwrap();
     }
 
-    fn real_add(input: Vec<Value>) -> Result<Vec<Value>, u8> {
+    fn real_add(input: Vec<WasmValue>) -> Result<Vec<WasmValue>, u8> {
         println!("Rust: Entering Rust function real_add");
 
         if input.len() != 2 {
@@ -482,7 +522,7 @@ mod tests {
         };
 
         let b = if input[1].ty() == ValType::I32 {
-            input[0].to_i32()
+            input[1].to_i32()
         } else {
             return Err(3);
         };
@@ -491,6 +531,6 @@ mod tests {
         println!("Rust: calcuating in real_add c: {:?}", c);
 
         println!("Rust: Leaving Rust function real_add");
-        Ok(vec![Value::from_i32(c)])
+        Ok(vec![WasmValue::from_i32(c)])
     }
 }

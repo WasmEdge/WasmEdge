@@ -1,21 +1,23 @@
 //! Defines WasmEdge Loader struct.
 
 use crate::{
-    error::check,
+    error::{check, WasmEdgeError},
+    ffi,
     module::{InnerModule, Module},
-    utils, wasmedge, Config, WasmEdgeError, WasmEdgeResult,
+    utils, Config, WasmEdgeResult,
 };
 use std::path::Path;
 
 /// Struct of WasmEdge Loader.
 ///
-/// [`Loader`] is used to load WASM modules from the given WASM files or buffers.
+/// [Loader](crate::Loader) is used to load WASM modules from the given WASM files or buffers.
 #[derive(Debug)]
 pub struct Loader {
     pub(crate) inner: InnerLoader,
+    pub(crate) registered: bool,
 }
 impl Loader {
-    /// Create a new [`Loader`] to be associated with the given global configuration.
+    /// Create a new [Loader](crate::Loader) to be associated with the given global configuration.
     ///
     /// # Arguements
     ///
@@ -23,30 +25,31 @@ impl Loader {
     ///
     /// # Error
     ///
-    /// If fail to create a [`Loader`], then an error is returned.
+    /// If fail to create a [Loader](crate), then an error is returned.
     pub fn create(config: Option<Config>) -> WasmEdgeResult<Self> {
         let ctx = match config {
             Some(mut config) => {
-                let ctx = unsafe { wasmedge::WasmEdge_LoaderCreate(config.inner.0) };
+                let ctx = unsafe { ffi::WasmEdge_LoaderCreate(config.inner.0) };
                 config.inner.0 = std::ptr::null_mut();
                 ctx
             }
-            None => unsafe { wasmedge::WasmEdge_LoaderCreate(std::ptr::null_mut()) },
+            None => unsafe { ffi::WasmEdge_LoaderCreate(std::ptr::null_mut()) },
         };
 
         match ctx.is_null() {
             true => Err(WasmEdgeError::LoaderCreate),
             false => Ok(Self {
                 inner: InnerLoader(ctx),
+                registered: false,
             }),
         }
     }
 
-    /// Loads a WASM module from a WASM file with the suffix ".wasm".
+    /// Loads a WASM module from a WASM file with the suffix `.wasm`.
     ///
     /// # Arguments
     ///
-    /// - `path` specifies the file path to the target WASM file.
+    /// - `file` specifies the path to the target WASM file.
     ///
     /// # Error
     ///
@@ -58,11 +61,11 @@ impl Loader {
     /// let file = "path/to/foo.wasm"
     /// let module = loader.from_file(file)?;
     /// ```
-    pub fn from_file(&self, path: impl AsRef<Path>) -> WasmEdgeResult<Module> {
-        let c_path = utils::path_to_cstring(path.as_ref())?;
+    pub fn from_file(&self, file: impl AsRef<Path>) -> WasmEdgeResult<Module> {
+        let c_path = utils::path_to_cstring(file.as_ref())?;
         let mut mod_ctx = std::ptr::null_mut();
         unsafe {
-            check(wasmedge::WasmEdge_LoaderParseFromFile(
+            check(ffi::WasmEdge_LoaderParseFromFile(
                 self.inner.0,
                 &mut mod_ctx,
                 c_path.as_ptr(),
@@ -100,7 +103,7 @@ impl Loader {
     /// assert!(loader.from_buffer(b"(module)").is_err());
     /// ```
     pub fn from_buffer(&self, buffer: impl AsRef<[u8]>) -> WasmEdgeResult<Module> {
-        let mut mod_ctx: *mut wasmedge::WasmEdge_ASTModuleContext = std::ptr::null_mut();
+        let mut mod_ctx: *mut ffi::WasmEdge_ASTModuleContext = std::ptr::null_mut();
 
         unsafe {
             let ptr = libc::malloc(buffer.as_ref().len());
@@ -114,7 +117,7 @@ impl Loader {
             );
             dst.copy_from_slice(src);
 
-            check(wasmedge::WasmEdge_LoaderParseFromBuffer(
+            check(ffi::WasmEdge_LoaderParseFromBuffer(
                 self.inner.0,
                 &mut mod_ctx,
                 ptr as *const u8,
@@ -134,14 +137,14 @@ impl Loader {
 }
 impl Drop for Loader {
     fn drop(&mut self) {
-        if !self.inner.0.is_null() {
-            unsafe { wasmedge::WasmEdge_LoaderDelete(self.inner.0) }
+        if !self.registered && !self.inner.0.is_null() {
+            unsafe { ffi::WasmEdge_LoaderDelete(self.inner.0) }
         }
     }
 }
 
 #[derive(Debug)]
-pub(crate) struct InnerLoader(pub(crate) *mut wasmedge::WasmEdge_LoaderContext);
+pub(crate) struct InnerLoader(pub(crate) *mut ffi::WasmEdge_LoaderContext);
 unsafe impl Send for InnerLoader {}
 unsafe impl Sync for InnerLoader {}
 
@@ -149,8 +152,8 @@ unsafe impl Sync for InnerLoader {}
 mod tests {
     use super::Loader;
     use crate::{
-        error::{CoreError, CoreLoadError},
-        Config, WasmEdgeError,
+        error::{CoreError, CoreLoadError, WasmEdgeError},
+        Config,
     };
     use std::{
         sync::{Arc, Mutex},

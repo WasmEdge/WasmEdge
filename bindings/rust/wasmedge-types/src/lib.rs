@@ -1,11 +1,10 @@
+/// Defines WasmEdge reference types.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum RefType {
-    /// `FuncRef` denotes the infinite union of all references to [functions](crate::Function), regardless of their
-    /// [function types](crate::FuncType).
+    /// Refers to the infinite union of all references to host functions, regardless of their function types.
     FuncRef,
 
-    /// `ExternRef` denotes the infinite union of all references to objects owned by the [Vm](crate::Vm) and that can be
-    /// passed into WebAssembly under this type.
+    /// Refers to the infinite union of all references to objects and that can be passed into WebAssembly under this type.
     ExternRef,
 }
 impl From<u32> for RefType {
@@ -26,6 +25,7 @@ impl From<RefType> for u32 {
     }
 }
 
+/// Defines WasmEdge value types.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum ValType {
     /// 32-bit integer.
@@ -45,9 +45,9 @@ pub enum ValType {
     /// The packed data can be interpreted as signed or unsigned integers, single or double precision floating-point
     /// values, or a single 128 bit type. The interpretation is determined by individual operations.
     V128,
-    /// A reference to [functions](crate::Function).
+    /// A reference to a host function.
     FuncRef,
-    /// A reference to object owned by the [Vm](crate::Vm).
+    /// A reference to object.
     ExternRef,
     /// Unknown.
     None,
@@ -82,14 +82,14 @@ impl From<ValType> for u32 {
     }
 }
 
-/// Defines WasmEdge mutability values.
+/// Defines the mutability property of WasmEdge Global variables.
 ///
-/// `Mutability` determines a [global](crate::Global) variable is either mutable or immutable.
+/// `Mutability` determines the mutability property of a WasmEdge Global variable is either mutable or immutable.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum Mutability {
-    /// Identifies an immutable global variable
+    /// Identifies an immutable global variable.
     Const,
-    /// Identifies a mutable global variable
+    /// Identifies a mutable global variable.
     Var,
 }
 impl From<u32> for Mutability {
@@ -209,12 +209,16 @@ impl From<HostRegistration> for u32 {
     }
 }
 
-/// Defines WasmEdge ExternalType values.
+/// Defines the type of external WasmEdge instances.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ExternalInstanceType {
+    /// A WasmEdge instance that is a WasmEdge Func.
     Func(FuncType),
+    /// A WasmEdge instance that is a WasmEdge Table.
     Table(TableType),
+    /// A WasmEdge instance that is a WasmEdge Memory.
     Memory(MemoryType),
+    /// A WasmEdge instance that is a WasmEdge Global.
     Global(GlobalType),
 }
 impl From<u32> for ExternalInstanceType {
@@ -243,12 +247,22 @@ impl std::fmt::Display for ExternalInstanceType {
     }
 }
 
+/// Struct of WasmEdge FuncType.
+///
+/// A [FuncType] is used to declare the types of the parameters and return values of a WasmEdge Func to be created.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct FuncType {
     args: Option<Vec<ValType>>,
     returns: Option<Vec<ValType>>,
 }
 impl FuncType {
+    /// Creates a new [FuncType] with the given types of arguments and returns.
+    ///
+    /// # Arguments
+    ///
+    /// * `args` - A vector of [ValType]s that represent the types of the arguments.
+    ///
+    /// * `returns` - A vector of [ValType]s that represent the types of the returns.
     pub fn new(args: Option<Vec<ValType>>, returns: Option<Vec<ValType>>) -> Self {
         Self { args, returns }
     }
@@ -261,6 +275,7 @@ impl FuncType {
         }
     }
 
+    /// Returns the number of the arguments of a host function.
     pub fn args_len(&self) -> u32 {
         match &self.args {
             Some(args) => args.len() as u32,
@@ -276,6 +291,7 @@ impl FuncType {
         }
     }
 
+    /// Returns the number of the returns of a host function.
     pub fn returns_len(&self) -> u32 {
         match &self.returns {
             Some(returns) => returns.len() as u32,
@@ -284,6 +300,9 @@ impl FuncType {
     }
 }
 
+/// Struct of WasmEdge TableType.
+///
+/// A [TableType] is used to declare the element type and the size range of a WasmEdge Table to be created.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TableType {
     elem_ty: RefType,
@@ -291,6 +310,15 @@ pub struct TableType {
     max: u32,
 }
 impl TableType {
+    /// Creates a new [TableType] with the given element type and the size range.
+    ///
+    /// # Arguments
+    ///
+    /// * `elem_ty` - The element type of the table to be created.
+    ///
+    /// * `min` - The minimum size of the table to be created.
+    ///
+    /// * `max` - The maximum size of the table to be created.    
     pub fn new(elem_ty: RefType, min: u32, max: Option<u32>) -> Self {
         let max = match max {
             Some(val) => val,
@@ -299,14 +327,17 @@ impl TableType {
         Self { elem_ty, min, max }
     }
 
+    /// Returns the element type defined in the [TableType].
     pub fn elem_ty(&self) -> RefType {
         self.elem_ty
     }
 
+    /// Returns the minimum size defined in the [TableType].
     pub fn minimum(&self) -> u32 {
         self.min
     }
 
+    /// Returns the maximum size defined in the [TableType].
     pub fn maximum(&self) -> u32 {
         self.max
     }
@@ -321,12 +352,22 @@ impl Default for TableType {
     }
 }
 
+/// Struct of WasmEdge MemoryType.
+///
+/// A [MemoryType] is used to declare the size range of a WasmEdge Memory to be created.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MemoryType {
     min: u32,
     max: u32,
 }
 impl MemoryType {
+    /// Creates a new [MemoryType] with the given size range.
+    ///
+    /// # Arguments
+    ///
+    /// * `min` - The minimum size of the memory to be created.
+    ///
+    /// * `max` - The maximum size of the memory to be created.
     pub fn new(min: u32, max: Option<u32>) -> Self {
         let max = match max {
             Some(max) => max,
@@ -335,10 +376,12 @@ impl MemoryType {
         Self { min, max }
     }
 
+    /// Returns the minimum size defined in the [MemoryType].
     pub fn minimum(&self) -> u32 {
         self.min
     }
 
+    /// Returns the maximum size defined in the [MemoryType].
     pub fn maximum(&self) -> u32 {
         self.max
     }
@@ -353,20 +396,31 @@ impl Default for MemoryType {
 }
 
 /// Struct of WasmEdge GlobalType.
+///
+/// A [GlobalType] is used to declare the type of a WasmEdge Global to be created.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct GlobalType {
     ty: ValType,
     mutability: Mutability,
 }
 impl GlobalType {
+    /// Creates a new [GlobalType] with the given value type and mutability.
+    ///
+    /// # Arguments
+    ///
+    /// * `ty` - The value type of the global to be created.
+    ///
+    /// * `mutability` - The value mutability property of the global to be created.
     pub fn new(ty: ValType, mutability: Mutability) -> Self {
         Self { ty, mutability }
     }
 
+    /// Returns the value type defined in the [GlobalType].
     pub fn value_ty(&self) -> ValType {
         self.ty
     }
 
+    /// Returns the value mutability property defined in the [GlobalType].
     pub fn mutability(&self) -> Mutability {
         self.mutability
     }

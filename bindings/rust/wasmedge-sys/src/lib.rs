@@ -78,7 +78,7 @@ pub use statistics::Statistics;
 #[doc(inline)]
 pub use store::Store;
 #[doc(inline)]
-pub use types::{WasmValue, WasmValueType};
+pub use types::WasmValue;
 #[doc(inline)]
 pub use validator::Validator;
 #[doc(inline)]

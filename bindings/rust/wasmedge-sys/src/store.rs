@@ -774,7 +774,7 @@ mod tests {
     use crate::{
         instance::{Function, Global, GlobalType, MemType, Memory, Table, TableType},
         types::WasmValue,
-        Config, Executor, FuncType, ImportObject, Vm, WasmValueType,
+        Config, Executor, FuncType, ImportObject, Vm,
     };
     use std::{
         sync::{Arc, Mutex},
@@ -839,7 +839,7 @@ mod tests {
         import.add_memory("mem", memory);
 
         // add globals
-        let result = GlobalType::create(WasmValueType::F32, Mutability::Const);
+        let result = GlobalType::create(ValType::F32, Mutability::Const);
         assert!(result.is_ok());
         let ty = result.unwrap();
         let result = Global::create(&ty, WasmValue::from_f32(3.5));

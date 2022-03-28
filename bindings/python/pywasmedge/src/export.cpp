@@ -30,10 +30,8 @@ pysdk::ExportType::GetFunctionType(pysdk::ASTModuleCxt &ast) {
 }
 pysdk::GlobalTypeCxt
 pysdk::ExportType::GetGlobalType(pysdk::ASTModuleCxt &ast) {
-  return pysdk::GlobalTypeCxt(
-      const_cast<WasmEdge_GlobalTypeContext *>(WasmEdge_ExportTypeGetGlobalType(
-          const_cast<const WasmEdge_ASTModuleContext *>(ast.get()), ExpoCxt)),
-      false);
+  return pysdk::GlobalTypeCxt(WasmEdge_ExportTypeGetGlobalType(
+      const_cast<const WasmEdge_ASTModuleContext *>(ast.get()), ExpoCxt));
 }
 
 pysdk::MemoryTypeCxt

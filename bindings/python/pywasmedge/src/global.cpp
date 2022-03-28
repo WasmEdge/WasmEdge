@@ -3,27 +3,23 @@
 /* --------------- GlobalTypeCxt -------------------------------- */
 pysdk::GlobalTypeCxt::GlobalTypeCxt(const WasmEdge_ValType &Type,
                                     const WasmEdge_Mutability &mut) {
-  GlobTypeCxt = WasmEdge_GlobalTypeCreate(Type, mut);
+  context = WasmEdge_GlobalTypeCreate(Type, mut);
 }
 
-pysdk::GlobalTypeCxt::GlobalTypeCxt(WasmEdge_GlobalTypeContext *cxt, bool del) {
-  GlobTypeCxt = cxt;
-  delete_cxt = del;
-}
+pysdk::GlobalTypeCxt::GlobalTypeCxt(const WasmEdge_GlobalTypeContext *cxt)
+    : base(cxt) {}
 
 pysdk::GlobalTypeCxt::~GlobalTypeCxt() {
-  if (delete_cxt)
-    WasmEdge_GlobalTypeDelete(GlobTypeCxt);
+  if (_del)
+    WasmEdge_GlobalTypeDelete(context);
 }
 
-WasmEdge_GlobalTypeContext *pysdk::GlobalTypeCxt::get() { return GlobTypeCxt; }
-
 WasmEdge_Mutability pysdk::GlobalTypeCxt::GetMutability() {
-  return WasmEdge_GlobalTypeGetMutability(GlobTypeCxt);
+  return WasmEdge_GlobalTypeGetMutability(context);
 }
 
 WasmEdge_ValType pysdk::GlobalTypeCxt::GetValType() {
-  return WasmEdge_GlobalTypeGetValType(GlobTypeCxt);
+  return WasmEdge_GlobalTypeGetValType(context);
 }
 /* --------------- GlobalTypeCxt End -------------------------------- */
 
@@ -47,11 +43,8 @@ pysdk::Global::~Global() {
 WasmEdge_GlobalInstanceContext *pysdk::Global::get() { return Glob; }
 
 pysdk::GlobalTypeCxt pysdk::Global::GetGlobalType() {
-  return pysdk::GlobalTypeCxt(
-      const_cast<WasmEdge_GlobalTypeContext *>(
-          WasmEdge_GlobalInstanceGetGlobalType(
-              const_cast<const WasmEdge_GlobalInstanceContext *>(Glob))),
-      false);
+  return pysdk::GlobalTypeCxt(WasmEdge_GlobalInstanceGetGlobalType(
+      const_cast<const WasmEdge_GlobalInstanceContext *>(Glob)));
 }
 
 pysdk::Value pysdk::Global::GetValue() {

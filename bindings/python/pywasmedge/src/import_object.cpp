@@ -149,11 +149,9 @@ pysdk::ImportTypeContext::get_function_type_cxt(pysdk::ASTModuleCxt &ast_cxt) {
 
 pysdk::GlobalTypeCxt
 pysdk::ImportTypeContext::get_global_type_cxt(pysdk::ASTModuleCxt &ast_cxt) {
-  return pysdk::GlobalTypeCxt(
-      const_cast<WasmEdge_GlobalTypeContext *>(WasmEdge_ImportTypeGetGlobalType(
-          const_cast<const WasmEdge_ASTModuleContext *>(ast_cxt.get()),
-          const_cast<const WasmEdge_ImportTypeContext *>(Cxt))),
-      false);
+  return pysdk::GlobalTypeCxt(WasmEdge_ImportTypeGetGlobalType(
+      const_cast<const WasmEdge_ASTModuleContext *>(ast_cxt.get()),
+      const_cast<const WasmEdge_ImportTypeContext *>(Cxt)));
 }
 
 WasmEdge_ImportTypeContext *pysdk::ImportTypeContext::get() { return Cxt; }

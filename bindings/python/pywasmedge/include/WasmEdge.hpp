@@ -103,16 +103,12 @@ public:
   FunctionTypeContext get_func_type();
 };
 
-class GlobalTypeCxt {
+class GlobalTypeCxt : public base<WasmEdge_GlobalTypeContext> {
 private:
-  WasmEdge_GlobalTypeContext *GlobTypeCxt;
-  bool delete_cxt = true;
-
 public:
   GlobalTypeCxt(const WasmEdge_ValType &, const WasmEdge_Mutability &);
-  GlobalTypeCxt(WasmEdge_GlobalTypeContext *, bool);
+  GlobalTypeCxt(const WasmEdge_GlobalTypeContext *);
   ~GlobalTypeCxt();
-  WasmEdge_GlobalTypeContext *get();
   WasmEdge_Mutability GetMutability();
   WasmEdge_ValType GetValType();
 };

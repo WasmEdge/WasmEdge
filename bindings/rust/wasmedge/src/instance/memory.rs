@@ -20,7 +20,7 @@ impl<'instance> Memory<'instance> {
         }
     }
 
-    /// Returns the name of the [module instance](crate::Instance) from which this [Global] exports.
+    /// Returns the name of the [module instance](crate::Instance) from which this [Memory] exports.
     pub fn mod_name(&self) -> Option<&str> {
         match &self.mod_name {
             Some(mod_name) => Some(mod_name.as_ref()),

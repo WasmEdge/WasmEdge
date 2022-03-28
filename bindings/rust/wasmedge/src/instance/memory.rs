@@ -1,6 +1,9 @@
 use crate::{error::Result, sys};
 use wasmedge_types::MemoryType;
 
+/// Struct of WasmEdge Memory.
+///
+/// A WasmEdge [Memory] defines a linear memory.
 #[derive(Debug)]
 pub struct Memory<'instance> {
     pub(crate) inner: sys::Memory,
@@ -9,6 +12,7 @@ pub struct Memory<'instance> {
     pub(crate) _marker: std::marker::PhantomData<&'instance ()>,
 }
 impl<'instance> Memory<'instance> {
+    /// Returns the exported name of this [Memory].
     pub fn name(&self) -> Option<&str> {
         match &self.name {
             Some(name) => Some(name.as_ref()),
@@ -16,6 +20,7 @@ impl<'instance> Memory<'instance> {
         }
     }
 
+    /// Returns the name of the [module instance](crate::Instance) from which this [Global] exports.
     pub fn mod_name(&self) -> Option<&str> {
         match &self.mod_name {
             Some(mod_name) => Some(mod_name.as_ref()),
@@ -23,34 +28,58 @@ impl<'instance> Memory<'instance> {
         }
     }
 
-    pub fn registered(&self) -> bool {
-        self.mod_name.is_some()
-    }
-
-    /// Returns the underlying type of this memory.
+    /// Returns the type of this memory.
     pub fn ty(&self) -> Result<MemoryType> {
         let ty = self.inner.ty()?;
         Ok(ty.into())
     }
 
-    /// Returns the size, in WebAssembly pages, of this wasm memory.
+    /// Returns the size, in WebAssembly pages, of this memory.
     pub fn size(&self) -> u32 {
         self.inner.size()
     }
 
     /// Safely reads memory contents at the given offset into a buffer.
+    ///
+    /// # Arguments
+    ///
+    /// * `offset` - The offset from which to read.
+    ///
+    /// * `len` - the length of bytes to read.
+    ///
+    /// # Error
+    ///
+    /// If fail to read the memory, then an error is returned.
     pub fn read(&self, offset: u32, len: u32) -> Result<Vec<u8>> {
         let data = self.inner.get_data(offset, len)?;
         Ok(data)
     }
 
     /// Safely writes contents of a buffer to this memory at the given offset.
+    ///
+    /// # Arguments
+    ///
+    /// * `data` - The bytes to write to this memory..
+    ///
+    /// * `offset` - The offset at which to write.
+    ///
+    /// # Error
+    ///
+    /// If fail to write to the memory, then an error is returned.
     pub fn write(&mut self, data: impl IntoIterator<Item = u8>, offset: u32) -> Result<()> {
         self.inner.set_data(data, offset)?;
         Ok(())
     }
 
     /// Grows this WebAssembly memory by `count` pages.
+    ///
+    /// # Argument
+    ///
+    /// * `count` - The number of pages to grow the memory by.
+    ///
+    /// # Error
+    ///
+    /// If fail to grow the memory, then an error is returned.
     pub fn grow(&mut self, count: u32) -> Result<()> {
         self.inner.grow(count)?;
         Ok(())

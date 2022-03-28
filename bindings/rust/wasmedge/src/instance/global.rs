@@ -14,7 +14,7 @@ pub struct Global<'instance> {
     pub(crate) _marker: std::marker::PhantomData<&'instance ()>,
 }
 impl<'instance> Global<'instance> {
-    /// Returns the exported name of the [Global].
+    /// Returns the exported name of this [Global].
     pub fn name(&self) -> Option<&str> {
         match &self.name {
             Some(name) => Some(name.as_ref()),
@@ -22,7 +22,7 @@ impl<'instance> Global<'instance> {
         }
     }
 
-    /// Returns the name of the [module instance](crate::Instance) from which the [Global] exports.
+    /// Returns the name of the [module instance](crate::Instance) from which this [Global] exports.
     pub fn mod_name(&self) -> Option<&str> {
         match &self.mod_name {
             Some(mod_name) => Some(mod_name.as_ref()),
@@ -30,18 +30,18 @@ impl<'instance> Global<'instance> {
         }
     }
 
-    /// Returns the type of the [Global].
+    /// Returns the type of this [Global].
     pub fn ty(&self) -> Result<GlobalType> {
         let gt = self.inner.ty()?;
         Ok(gt.into())
     }
 
-    /// Returns the current value of the [Global].
+    /// Returns the current value of this [Global].
     pub fn get_value(&self) -> Val {
         self.inner.get_value().into()
     }
 
-    /// Sets a new value of the [Global].
+    /// Sets a new value of this [Global].
     ///
     /// Notice that only global variables of [Var](wasmedge_types::Mutability) type are allowed to perform this function.
     ///

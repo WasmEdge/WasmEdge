@@ -23,7 +23,7 @@ pub struct GlobalType {
     pub(crate) registered: bool,
 }
 impl GlobalType {
-    /// Create a new [GlobalType] to be associated with the given [WasmValueType](crate::WasmValueType) and [Mutability](crate::Mutability).
+    /// Create a new [GlobalType] to be associated with the given [ValType](wasmedge_types::ValType) and [Mutability](wasmedge_types::Mutability).
     ///
     /// # Errors
     ///
@@ -45,7 +45,7 @@ impl GlobalType {
         val.into()
     }
 
-    /// Returns the [Mutability](crate::Mutability) value of the [GlobalType].
+    /// Returns the [Mutability](wasmedge_types::Mutability) value of the [GlobalType].
     pub fn mutability(&self) -> Mutability {
         let val = unsafe { ffi::WasmEdge_GlobalTypeGetMutability(self.inner.0) };
         val.into()

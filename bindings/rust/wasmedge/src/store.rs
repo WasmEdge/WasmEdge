@@ -1,15 +1,36 @@
+//! Defines WasmEdge Store struct.
+
 use crate::{error::Result, sys, Executor, ImportModule, Instance, Module};
 
+/// Struct of Wasmedge Store.
+///
+/// The [Store] represents all global state that can be manipulated by WebAssembly programs. It consists of the runtime representation of all instances of [functions](crate::Func), [tables](crate::Table), [memories](crate::Memory), and [globals](crate::Global).
 #[derive(Debug)]
 pub struct Store {
     pub(crate) inner: sys::Store,
 }
 impl Store {
+    /// Creates a new [Store].
+    ///
+    /// # Error
+    ///
+    /// If fail to create a new [Store], then an error is returned.
     pub fn new() -> Result<Self> {
         let inner = sys::Store::create()?;
         Ok(Self { inner })
     }
 
+    /// Registers and instantiates a WasmEdge [import module](crate::ImportModule) into this [store](crate::Store).
+    ///
+    /// # Arguments
+    ///
+    /// * `executor` - The [executor](crate::Executor) that runs the host functions in this [store](crate::Store).
+    ///
+    /// * `import` - The WasmEdge [import module](crate::ImportModule) to be registered.
+    ///
+    /// # Error
+    ///
+    /// If fail to register the given [import module](crate::ImportModule), then an error is returned.
     pub fn register_import_module(
         &mut self,
         executor: &mut Executor,
@@ -22,6 +43,21 @@ impl Store {
         Ok(())
     }
 
+    /// Registers and instantiates a WasmEdge [compiled module](crate::Module) into this [store](crate::Store) as a named [module instance](crate::Instance).
+    ///
+    /// Instantiates the given WasmEdge [compiled module](crate::Module), including the [functions](crate::Func), [memories](crate::Memory), [tables](crate::Table), and [globals](crate::Global) it hosts; and then, registers the [module instance](crate::Instance) into the [store](crate::Store) with the given name.
+    ///
+    /// # Arguments
+    ///
+    /// * `executor` - The [executor](crate::Executor) that runs the host functions in this [store](crate::Store).
+    ///
+    /// * `mod_name` - The exported name of the registered [module](crate::Module).
+    ///
+    /// * `module` - The validated [module](crate::Module) to be registered.
+    ///
+    /// # Error
+    ///
+    /// If fail to register the given [module](crate::Module), then an error is returned.
     pub fn register_named_module(
         &mut self,
         executor: &mut Executor,
@@ -35,6 +71,17 @@ impl Store {
         Ok(())
     }
 
+    /// Registers and instantiates a WasmEdge [compiled module](crate::Module) into this [store](crate::Store) as an anonymous active [module instance](crate::Instance).
+    ///
+    /// # Arguments
+    ///
+    /// * `executor` - The [executor](crate::Executor) that runs the host functions in this [store](crate::Store).
+    ///
+    /// * `module` - The validated [module](crate::Module) to be registered.
+    ///
+    /// # Error
+    ///
+    /// If fail to register the given [module](crate::Module), then an error is returned.
     pub fn register_active_module(
         &mut self,
         executor: &mut Executor,
@@ -47,16 +94,21 @@ impl Store {
         Ok(())
     }
 
+    /// Returns the number of the named [module instances](crate::Instance) in this [store](crate::Store).
     pub fn named_instance_count(&self) -> u32 {
         self.inner.reg_module_len()
     }
 
-    /// Returns the names of all registered [modules](crate::Module)
+    /// Returns the names of all registered named [module instances](crate::Instance).
     pub fn instance_names(&self) -> Option<Vec<String>> {
         self.inner.reg_module_names()
     }
 
-    /// Returns the [instance](crate::Instance) with the specified name.
+    /// Returns the named [module instance](crate::Instance) with the given name.
+    ///
+    /// # Argument
+    ///
+    /// * `name` - The name of the target [module instance](crate::Instance) to be returned.
     pub fn named_instance(&mut self, name: impl AsRef<str>) -> Option<Instance> {
         let inner_instance = self.inner.named_module(name.as_ref()).ok();
         if let Some(inner_instance) = inner_instance {
@@ -68,7 +120,7 @@ impl Store {
         None
     }
 
-    /// Returns the active [instance](crate::Instance).
+    /// Returns the active [module instance](crate::Instance).
     pub fn active_instance(&mut self) -> Option<Instance> {
         let inner_instance = self.inner.active_module().ok();
         if let Some(inner_instance) = inner_instance {

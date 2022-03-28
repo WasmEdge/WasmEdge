@@ -2,27 +2,23 @@
 
 /* --------------- TableTypeCxt -------------------------------- */
 pysdk::TableTypeCxt::TableTypeCxt(WasmEdge_RefType &type, WasmEdge_Limit &Lim) {
-  TabTypeCxt = WasmEdge_TableTypeCreate(type, Lim);
+  context = WasmEdge_TableTypeCreate(type, Lim);
 }
 
-pysdk::TableTypeCxt::TableTypeCxt(const WasmEdge_TableTypeContext *cxt) {
-  TabTypeCxt = const_cast<WasmEdge_TableTypeContext *>(cxt);
-  external = true;
-}
+pysdk::TableTypeCxt::TableTypeCxt(const WasmEdge_TableTypeContext *cxt)
+    : base(cxt) {}
 
 pysdk::TableTypeCxt::~TableTypeCxt() {
-  if (!external)
-    WasmEdge_TableTypeDelete(TabTypeCxt);
+  if (_del)
+    WasmEdge_TableTypeDelete(context);
 }
 
-WasmEdge_TableTypeContext *pysdk::TableTypeCxt::get() { return TabTypeCxt; }
-
 WasmEdge_Limit pysdk::TableTypeCxt::GetLimit() {
-  return WasmEdge_TableTypeGetLimit(TabTypeCxt);
+  return WasmEdge_TableTypeGetLimit(context);
 }
 
 WasmEdge_RefType pysdk::TableTypeCxt::GetRefType() {
-  return WasmEdge_TableTypeGetRefType(TabTypeCxt);
+  return WasmEdge_TableTypeGetRefType(context);
 }
 /* --------------- TableTypeCxt End -------------------------------- */
 

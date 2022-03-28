@@ -143,16 +143,11 @@ public:
   MemoryTypeCxt get_type();
 };
 
-class TableTypeCxt {
-private:
-  WasmEdge_TableTypeContext *TabTypeCxt;
-  bool external = false;
-
+class TableTypeCxt : public base<WasmEdge_TableTypeContext> {
 public:
   TableTypeCxt(WasmEdge_RefType &, WasmEdge_Limit &);
   TableTypeCxt(const WasmEdge_TableTypeContext *);
-  ~TableTypeCxt();
-  WasmEdge_TableTypeContext *get();
+  ~TableTypeCxt() override;
   WasmEdge_Limit GetLimit();
   WasmEdge_RefType GetRefType();
 };

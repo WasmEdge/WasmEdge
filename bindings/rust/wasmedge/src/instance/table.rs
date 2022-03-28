@@ -23,10 +23,6 @@ impl<'instance> Table<'instance> {
         }
     }
 
-    pub fn registered(&self) -> bool {
-        self.mod_name.is_some()
-    }
-
     /// Returns the underlying type of this table, including its element type as well as the maximum/minimum lower
     /// bounds.
     pub fn ty(&self) -> Result<TableType> {

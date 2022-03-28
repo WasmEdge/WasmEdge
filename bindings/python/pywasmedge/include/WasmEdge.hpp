@@ -18,7 +18,7 @@ protected:
 
 public:
   base() = default;
-  base(T *cxt) : context(cxt) {}
+  base(T *cxt, bool del = false) : context(cxt), _del(del) {}
   base(const T *cxt) : context(const_cast<T *>(cxt)) { _del = false; }
   virtual ~base() = default;
 
@@ -130,16 +130,12 @@ public:
   ~MemoryTypeCxt() override;
 };
 
-class Memory {
-private:
-  WasmEdge_MemoryInstanceContext *HostMemory;
-  bool delete_mem = true;
-
+class Memory : public base<WasmEdge_MemoryInstanceContext> {
 public:
   Memory(MemoryTypeCxt &);
-  Memory(WasmEdge_MemoryInstanceContext *, bool);
-  ~Memory();
-  WasmEdge_MemoryInstanceContext *get();
+  Memory(const WasmEdge_MemoryInstanceContext *);
+  Memory(WasmEdge_MemoryInstanceContext *);
+  ~Memory() override;
   result set_data(pybind11::tuple, const uint32_t &);
   uint32_t get_page_size();
   result grow_page(const uint32_t &);

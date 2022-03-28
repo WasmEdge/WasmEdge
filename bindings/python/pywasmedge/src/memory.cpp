@@ -16,20 +16,17 @@ pysdk::MemoryTypeCxt::~MemoryTypeCxt() {
 
 /* --------------- Memory End -------------------------------- */
 pysdk::Memory::Memory(pysdk::MemoryTypeCxt &mem_cxt) {
-  HostMemory = WasmEdge_MemoryInstanceCreate(mem_cxt.get());
+  context = WasmEdge_MemoryInstanceCreate(mem_cxt.get());
 }
 
-pysdk::Memory::Memory(WasmEdge_MemoryInstanceContext *cxt, bool del) {
-  HostMemory = cxt;
-  delete_mem = del;
-}
+pysdk::Memory::Memory(const WasmEdge_MemoryInstanceContext *cxt) : base(cxt) {}
+
+pysdk::Memory::Memory(WasmEdge_MemoryInstanceContext *cxt) : base(cxt) {}
 
 pysdk::Memory::~Memory() {
-  if (delete_mem)
-    WasmEdge_MemoryInstanceDelete(HostMemory);
+  if (_del)
+    WasmEdge_MemoryInstanceDelete(context);
 }
-
-WasmEdge_MemoryInstanceContext *pysdk::Memory::get() { return HostMemory; }
 
 pysdk::result pysdk::Memory::set_data(pybind11::tuple data_,
                                       const uint32_t &offset) {
@@ -40,7 +37,7 @@ pysdk::result pysdk::Memory::set_data(pybind11::tuple data_,
   }
 
   return pysdk::result(
-      WasmEdge_MemoryInstanceSetData(HostMemory, Data, offset, length));
+      WasmEdge_MemoryInstanceSetData(context, Data, offset, length));
 }
 
 pybind11::tuple pysdk::Memory::get_data(const uint32_t &length,
@@ -49,7 +46,7 @@ pybind11::tuple pysdk::Memory::get_data(const uint32_t &length,
   uint8_t Data[length];
 
   pysdk::result res(
-      WasmEdge_MemoryInstanceGetData(HostMemory, Data, offset, length));
+      WasmEdge_MemoryInstanceGetData(context, Data, offset, length));
 
   pybind11::list ret_list;
   for (size_t i = 0; i < length; i++) {
@@ -59,14 +56,14 @@ pybind11::tuple pysdk::Memory::get_data(const uint32_t &length,
 }
 
 uint32_t pysdk::Memory::get_page_size() {
-  return WasmEdge_MemoryInstanceGetPageSize(HostMemory);
+  return WasmEdge_MemoryInstanceGetPageSize(context);
 }
 
 pysdk::result pysdk::Memory::grow_page(const uint32_t &size) {
-  return pysdk::result(WasmEdge_MemoryInstanceGrowPage(HostMemory, size));
+  return pysdk::result(WasmEdge_MemoryInstanceGrowPage(context, size));
 }
 
 pysdk::MemoryTypeCxt pysdk::Memory::get_type() {
-  return pysdk::MemoryTypeCxt(WasmEdge_MemoryInstanceGetMemoryType(HostMemory));
+  return pysdk::MemoryTypeCxt(WasmEdge_MemoryInstanceGetMemoryType(context));
 }
 /* --------------- Memory End -------------------------------- */

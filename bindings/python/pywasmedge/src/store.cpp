@@ -122,7 +122,7 @@ pysdk::Memory pysdk::Store::FindMemoryRegistered(std::string &mod,
   WasmEdge_String mod_name = WasmEdge_StringCreateByCString(mod.c_str());
   WasmEdge_String mem_name = WasmEdge_StringCreateByCString(str.c_str());
   pysdk::Memory m(
-      WasmEdge_StoreFindMemoryRegistered(StoreCxt, mod_name, mem_name), false);
+      WasmEdge_StoreFindMemoryRegistered(StoreCxt, mod_name, mem_name));
   WasmEdge_StringDelete(mod_name);
   WasmEdge_StringDelete(mem_name);
   return m;
@@ -130,7 +130,7 @@ pysdk::Memory pysdk::Store::FindMemoryRegistered(std::string &mod,
 
 pysdk::Memory pysdk::Store::FindMemory(std::string &str) {
   WasmEdge_String name = WasmEdge_StringCreateByCString(str.c_str());
-  pysdk::Memory m(WasmEdge_StoreFindMemory(StoreCxt, name), false);
+  pysdk::Memory m(WasmEdge_StoreFindMemory(StoreCxt, name));
   WasmEdge_StringDelete(name);
   return m;
 }

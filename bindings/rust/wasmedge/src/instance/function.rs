@@ -119,16 +119,16 @@ impl<'instance> Func<'instance> {
     }
 }
 
-/// Struct of WasmEdge SignatureBuilder.
+/// Struct of WasmEdge FuncTypeBuilder.
 ///
-/// [SignatureBuilder] is used to build a [Signature].
+/// [FuncTypeBuilder] is used to build a [FuncType](wasmedge_types::FuncType).
 #[derive(Debug, Default)]
 pub struct FuncTypeBuilder {
     args: Option<Vec<ValType>>,
     returns: Option<Vec<ValType>>,
 }
 impl FuncTypeBuilder {
-    /// Creates a new [SignatureBuilder].
+    /// Creates a new [FuncTypeBuilder].
     pub fn new() -> Self {
         Self {
             args: None,
@@ -136,11 +136,11 @@ impl FuncTypeBuilder {
         }
     }
 
-    /// Adds arguments to the signature.
+    /// Adds arguments to the function type.
     ///
     /// # Argument
     ///
-    /// `args` specifies the arguments to be added to the signature.
+    /// `args` specifies the arguments to be added to the function type.
     pub fn with_args(self, args: impl IntoIterator<Item = ValType>) -> Self {
         Self {
             args: Some(args.into_iter().collect::<Vec<_>>()),
@@ -148,20 +148,20 @@ impl FuncTypeBuilder {
         }
     }
 
-    /// Adds a single argument to the signature.
+    /// Adds a single argument to the function type.
     ///
     /// # Argument
     ///
-    /// `arg` specifies the argument to be added to the signature.
+    /// `arg` specifies the argument to be added to the function type.
     pub fn with_arg(self, arg: ValType) -> Self {
         self.with_args(std::iter::once(arg))
     }
 
-    /// Adds returns to the signature.
+    /// Adds returns to the function type.
     ///
     /// # Argument
     ///
-    /// `returns` specifies the returns to be added to the signature.
+    /// `returns` specifies the returns to be added to the function type.
     pub fn with_returns(self, returns: impl IntoIterator<Item = ValType>) -> Self {
         Self {
             args: self.args,
@@ -169,16 +169,16 @@ impl FuncTypeBuilder {
         }
     }
 
-    /// Adds a single return to the signature.
+    /// Adds a single return to the function type.
     ///
     /// # Argument
     ///
-    /// `return` specifies the return to be added to the signature.
+    /// `ret` specifies the return to be added to the function type.
     pub fn with_return(self, ret: ValType) -> Self {
         self.with_returns(std::iter::once(ret))
     }
 
-    /// Returns a [Signature].
+    /// Returns a function type.
     pub fn build(self) -> FuncType {
         FuncType::new(self.args, self.returns)
     }

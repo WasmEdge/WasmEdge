@@ -283,7 +283,6 @@ mod tests {
     use super::*;
     use crate::{
         Config, Executor, FuncType, GlobalType, ImportObject, MemType, TableType, Vm, WasmValue,
-        WasmValueType,
     };
     use wasmedge_types::{Mutability, RefType, ValType};
 
@@ -451,7 +450,7 @@ mod tests {
         import.add_memory("mem", memory);
 
         // add globals
-        let result = GlobalType::create(WasmValueType::F32, Mutability::Const);
+        let result = GlobalType::create(ValType::F32, Mutability::Const);
         assert!(result.is_ok());
         let ty = result.unwrap();
         let result = Global::create(&ty, WasmValue::from_f32(3.5));
@@ -518,7 +517,7 @@ mod tests {
         import.add_memory("mem", memory);
 
         // add global
-        let result = GlobalType::create(WasmValueType::F32, Mutability::Const);
+        let result = GlobalType::create(ValType::F32, Mutability::Const);
         assert!(result.is_ok());
         let ty = result.unwrap();
         let result = Global::create(&ty, WasmValue::from_f32(3.5));

@@ -34,94 +34,6 @@ impl From<ffi::WasmEdge_Limit> for std::ops::RangeInclusive<u32> {
     }
 }
 
-/// Defines value types.
-///
-/// `ValType` classifies the individual values that WebAssembly code can compute with and the values that a variable
-/// accepts.
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
-pub enum WasmValueType {
-    /// 32-bit integer.
-    ///
-    /// Integers are not inherently signed or unsigned, their interpretation is determined by individual operations.
-    I32,
-    /// 64-bit integer.
-    ///
-    /// Integers are not inherently signed or unsigned, their interpretation is determined by individual operations.
-    I64,
-    /// 32-bit floating-point data as defined by the [IEEE 754-2019](https://ieeexplore.ieee.org/document/8766229).
-    F32,
-    /// 64-bit floating-point data as defined by the [IEEE 754-2019](https://ieeexplore.ieee.org/document/8766229).
-    F64,
-    /// 128-bit vector of packed integer or floating-point data.
-    ///
-    /// The packed data can be interpreted as signed or unsigned integers, single or double precision floating-point
-    /// values, or a single 128 bit type. The interpretation is determined by individual operations.
-    V128,
-    /// A reference to [functions](crate::Function).
-    FuncRef,
-    /// A reference to object owned by the [Vm](crate::Vm).
-    ExternRef,
-    /// Unknown.
-    None,
-}
-impl From<WasmValueType> for ffi::WasmEdge_ValType {
-    fn from(ty: WasmValueType) -> Self {
-        match ty {
-            WasmValueType::I32 => ffi::WasmEdge_ValType_I32,
-            WasmValueType::I64 => ffi::WasmEdge_ValType_I64,
-            WasmValueType::F32 => ffi::WasmEdge_ValType_F32,
-            WasmValueType::F64 => ffi::WasmEdge_ValType_F64,
-            WasmValueType::V128 => ffi::WasmEdge_ValType_V128,
-            WasmValueType::FuncRef => ffi::WasmEdge_ValType_FuncRef,
-            WasmValueType::ExternRef => ffi::WasmEdge_ValType_ExternRef,
-            WasmValueType::None => ffi::WasmEdge_ValType_None,
-        }
-    }
-}
-impl From<ffi::WasmEdge_ValType> for WasmValueType {
-    fn from(ty: ffi::WasmEdge_ValType) -> Self {
-        match ty {
-            ffi::WasmEdge_ValType_I32 => WasmValueType::I32,
-            ffi::WasmEdge_ValType_I64 => WasmValueType::I64,
-            ffi::WasmEdge_ValType_F32 => WasmValueType::F32,
-            ffi::WasmEdge_ValType_F64 => WasmValueType::F64,
-            ffi::WasmEdge_ValType_V128 => WasmValueType::V128,
-            ffi::WasmEdge_ValType_FuncRef => WasmValueType::FuncRef,
-            ffi::WasmEdge_ValType_ExternRef => WasmValueType::ExternRef,
-            ffi::WasmEdge_ValType_None => WasmValueType::None,
-            _ => panic!("unknown WasmEdge_ValType `{:#X}`", ty),
-        }
-    }
-}
-impl From<wasmedge_types::ValType> for WasmValueType {
-    fn from(ty: wasmedge_types::ValType) -> Self {
-        match ty {
-            wasmedge_types::ValType::I32 => WasmValueType::I32,
-            wasmedge_types::ValType::I64 => WasmValueType::I64,
-            wasmedge_types::ValType::F32 => WasmValueType::F32,
-            wasmedge_types::ValType::F64 => WasmValueType::F64,
-            wasmedge_types::ValType::V128 => WasmValueType::V128,
-            wasmedge_types::ValType::FuncRef => WasmValueType::FuncRef,
-            wasmedge_types::ValType::ExternRef => WasmValueType::ExternRef,
-            wasmedge_types::ValType::None => WasmValueType::None,
-        }
-    }
-}
-impl From<WasmValueType> for wasmedge_types::ValType {
-    fn from(ty: WasmValueType) -> Self {
-        match ty {
-            WasmValueType::I32 => wasmedge_types::ValType::I32,
-            WasmValueType::I64 => wasmedge_types::ValType::I64,
-            WasmValueType::F32 => wasmedge_types::ValType::F32,
-            WasmValueType::F64 => wasmedge_types::ValType::F64,
-            WasmValueType::V128 => wasmedge_types::ValType::V128,
-            WasmValueType::FuncRef => wasmedge_types::ValType::FuncRef,
-            WasmValueType::ExternRef => wasmedge_types::ValType::ExternRef,
-            WasmValueType::None => wasmedge_types::ValType::None,
-        }
-    }
-}
-
 #[derive(Debug)]
 pub(crate) struct WasmEdgeString {
     inner: InnerWasmEdgeString,
@@ -187,7 +99,7 @@ unsafe impl Sync for InnerWasmEdgeString {}
 #[derive(Debug, Clone, Copy)]
 pub struct WasmValue {
     ctx: ffi::WasmEdge_Value,
-    ty: WasmValueType,
+    ty: ValType,
 }
 impl WasmValue {
     /// Returns the raw `WasmEdge_Value`.
@@ -197,7 +109,7 @@ impl WasmValue {
 
     /// Returns the type of a [`Value`].
     pub fn ty(&self) -> ValType {
-        self.ty.into()
+        self.ty
     }
 
     /// Creates a [WasmValue] from a `i32` value.
@@ -208,7 +120,7 @@ impl WasmValue {
     pub fn from_i32(val: i32) -> Self {
         Self {
             ctx: unsafe { ffi::WasmEdge_ValueGenI32(val) },
-            ty: WasmValueType::I32,
+            ty: ValType::I32,
         }
     }
 
@@ -225,7 +137,7 @@ impl WasmValue {
     pub fn from_i64(val: i64) -> Self {
         Self {
             ctx: unsafe { ffi::WasmEdge_ValueGenI64(val) },
-            ty: WasmValueType::I64,
+            ty: ValType::I64,
         }
     }
 
@@ -242,7 +154,7 @@ impl WasmValue {
     pub fn from_f32(val: f32) -> Self {
         Self {
             ctx: unsafe { ffi::WasmEdge_ValueGenF32(val) },
-            ty: WasmValueType::F32,
+            ty: ValType::F32,
         }
     }
 
@@ -259,7 +171,7 @@ impl WasmValue {
     pub fn from_f64(val: f64) -> Self {
         Self {
             ctx: unsafe { ffi::WasmEdge_ValueGenF64(val) },
-            ty: WasmValueType::F64,
+            ty: ValType::F64,
         }
     }
 
@@ -276,7 +188,7 @@ impl WasmValue {
     pub fn from_v128(val: i128) -> Self {
         Self {
             ctx: unsafe { ffi::WasmEdge_ValueGenV128(val) },
-            ty: WasmValueType::V128,
+            ty: ValType::V128,
         }
     }
 
@@ -294,8 +206,8 @@ impl WasmValue {
         Self {
             ctx: unsafe { ffi::WasmEdge_ValueGenNullRef(ref_ty.into()) },
             ty: match ref_ty {
-                RefType::FuncRef => WasmValueType::FuncRef,
-                RefType::ExternRef => WasmValueType::ExternRef,
+                RefType::FuncRef => ValType::FuncRef,
+                RefType::ExternRef => ValType::ExternRef,
             },
         }
     }
@@ -316,7 +228,7 @@ impl WasmValue {
     pub fn from_func_ref(func: &mut Function) -> Self {
         Self {
             ctx: unsafe { ffi::WasmEdge_ValueGenFuncRef(func.inner.0) },
-            ty: WasmValueType::FuncRef,
+            ty: ValType::FuncRef,
         }
     }
 
@@ -352,7 +264,7 @@ impl WasmValue {
         let ptr = extern_obj as *mut T as *mut c_void;
         Self {
             ctx: unsafe { ffi::WasmEdge_ValueGenExternRef(ptr) },
-            ty: WasmValueType::ExternRef,
+            ty: ValType::ExternRef,
         }
     }
 
@@ -377,35 +289,35 @@ impl From<ffi::WasmEdge_Value> for WasmValue {
         match raw_val.Type {
             ffi::WasmEdge_ValType_I32 => Self {
                 ctx: raw_val,
-                ty: WasmValueType::I32,
+                ty: ValType::I32,
             },
             ffi::WasmEdge_ValType_I64 => Self {
                 ctx: raw_val,
-                ty: WasmValueType::I64,
+                ty: ValType::I64,
             },
             ffi::WasmEdge_ValType_F32 => Self {
                 ctx: raw_val,
-                ty: WasmValueType::F32,
+                ty: ValType::F32,
             },
             ffi::WasmEdge_ValType_F64 => Self {
                 ctx: raw_val,
-                ty: WasmValueType::F64,
+                ty: ValType::F64,
             },
             ffi::WasmEdge_ValType_V128 => Self {
                 ctx: raw_val,
-                ty: WasmValueType::V128,
+                ty: ValType::V128,
             },
             ffi::WasmEdge_ValType_FuncRef => Self {
                 ctx: raw_val,
-                ty: WasmValueType::FuncRef,
+                ty: ValType::FuncRef,
             },
             ffi::WasmEdge_ValType_ExternRef => Self {
                 ctx: raw_val,
-                ty: WasmValueType::ExternRef,
+                ty: ValType::ExternRef,
             },
             ffi::WasmEdge_ValType_None => Self {
                 ctx: raw_val,
-                ty: WasmValueType::None,
+                ty: ValType::None,
             },
             _ => panic!("unknown WasmEdge_ValType `{}`", raw_val.Type),
         }

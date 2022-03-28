@@ -14,7 +14,7 @@ namespace Host {
 WasiNNModule::WasiNNModule() : ImportObject("wasi_ephemeral_nn") {
 
   // Add more backend flags here!
-  this->Ctx.BackendsMapping.emplace("OpenVINO", 0);
+  Ctx.BackendsMapping.emplace("OpenVINO", 0);
 
   addHostFunc("load", std::make_unique<WasiNNLoad>(Ctx));
   addHostFunc("init_execution_context",

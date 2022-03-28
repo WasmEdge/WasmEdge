@@ -7,8 +7,8 @@
 #include <vector>
 
 #ifdef WASMEDGE_WASINN_BUILD_OPENVINO
-#include <inference_engine.hpp>
-namespace IE = InferenceEngine;
+#include <common/log.h>
+#include <c_api/ie_c_api.h>
 #endif
 namespace WasmEdge {
 namespace Host {
@@ -28,27 +28,29 @@ enum class TensorType {
 #ifdef WASMEDGE_WASINN_BUILD_OPENVINO
 class OpenVINOSession {
 public:
-  IE::CNNNetwork *Network;
-  IE::ExecutableNetwork *TargetedExecutableNetwork;
-  IE::InferRequest SessionInferRequest;
+  ie_network_t *network = nullptr;
+  ie_executable_network_t *exe_network = nullptr;
+  ie_infer_request_t *infer_request = nullptr;
 };
 #endif
 
 class WasiNNContext {
 public:
-  WasiNNContext() : ModelsNum(-1), ExecutionsNum(-1) {}
+  WasiNNContext() : ModelsNum(-1), ExecutionsNum(-1) {
+    spdlog::info("Can you see WasiNNContext");
+  }
   // context for implementing WASI-NN
-  std::map<Graph, GraphEncoding> GraphBackends;
-  std::map<GraphExecutionContext, GraphEncoding> GraphContextBackends;
-#ifdef WASMEDGE_WASINN_BUILD_OPENVINO
-  IE::Core *openvino_core = nullptr;
-  std::map<Graph, IE::CNNNetwork> OpenVINONetworks;
-  std::map<Graph, IE::ExecutableNetwork> OpenVINOExecutions;
-  std::map<GraphExecutionContext, OpenVINOSession> OpenVINOInfers;
-#endif
   int ModelsNum;
   int ExecutionsNum;
+  std::map<Graph, GraphEncoding> GraphBackends;
+  std::map<GraphExecutionContext, GraphEncoding> GraphContextBackends;
   std::map<std::string, GraphEncoding> BackendsMapping;
+#ifdef WASMEDGE_WASINN_BUILD_OPENVINO
+  ie_core_t *openvino_core = nullptr;
+  std::map<Graph, ie_network_t *> OpenVINONetworks;
+  std::map<Graph, ie_executable_network_t *> OpenVINOExecutions;
+  std::map<GraphExecutionContext, OpenVINOSession> OpenVINOInfers;
+#endif
 };
 
 } // namespace Host

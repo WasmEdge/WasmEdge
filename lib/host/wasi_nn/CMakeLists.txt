@@ -12,12 +12,10 @@ option(WASMEDGE_WASINN_BUILD_OPENVINO "Enable WasmEdge Wasi-NN OpenVINO backend"
 if(WASMEDGE_WASINN_BUILD_OPENVINO)
   message( STATUS "Build OpenVINO backend for WASI-NN")
   add_definitions(-DWASMEDGE_WASINN_BUILD_OPENVINO)
-  find_package(ngraph REQUIRED)
   find_package(InferenceEngine REQUIRED)
   target_link_libraries(wasmedgeHostModuleWasiNN
     PUBLIC
     ${InferenceEngine_LIBRARIES}
-    ${NGRAPH_LIBRARIES}
   )
 endif()
 

@@ -137,7 +137,7 @@ pysdk::Memory pysdk::Store::FindMemory(std::string &str) {
 
 pysdk::Table pysdk::Store::FindTable(std::string &str) {
   WasmEdge_String name = WasmEdge_StringCreateByCString(str.c_str());
-  pysdk::Table t(WasmEdge_StoreFindTable(StoreCxt, name), false);
+  pysdk::Table t(WasmEdge_StoreFindTable(StoreCxt, name));
   WasmEdge_StringDelete(name);
   return t;
 }
@@ -147,7 +147,7 @@ pysdk::Table pysdk::Store::FindTableRegistered(std::string &mod,
   WasmEdge_String mod_name = WasmEdge_StringCreateByCString(mod.c_str());
   WasmEdge_String tab_name = WasmEdge_StringCreateByCString(tab.c_str());
   pysdk::Table t(
-      WasmEdge_StoreFindTableRegistered(StoreCxt, mod_name, tab_name), false);
+      WasmEdge_StoreFindTableRegistered(StoreCxt, mod_name, tab_name));
   WasmEdge_StringDelete(mod_name);
   WasmEdge_StringDelete(tab_name);
   return t;

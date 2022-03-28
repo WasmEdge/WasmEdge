@@ -152,16 +152,11 @@ public:
   WasmEdge_RefType GetRefType();
 };
 
-class Table {
-private:
-  WasmEdge_TableInstanceContext *HostTable;
-  bool delete_cxt = true;
-
+class Table : public base<WasmEdge_TableInstanceContext> {
 public:
   Table(TableTypeCxt &);
-  Table(WasmEdge_TableInstanceContext *, bool);
-  ~Table();
-  WasmEdge_TableInstanceContext *get();
+  Table(const WasmEdge_TableInstanceContext *);
+  ~Table() override;
   TableTypeCxt get_type();
   uint32_t get_size();
   result grow_size(const uint32_t &);

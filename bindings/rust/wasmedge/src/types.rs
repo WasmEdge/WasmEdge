@@ -1,70 +1,8 @@
 //! Defines the general types.
 
-use crate::{
-    sys::{WasmValue, WasmValueType},
-    Func,
-};
+use crate::{sys::WasmValue, Func};
 use std::marker::PhantomData;
 use wasmedge_types::{self, RefType};
-
-/// Defines value types.
-///
-/// `ValType` classifies the individual values that WebAssembly code can compute with and the values that a variable
-/// accepts.
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
-pub enum ValType {
-    /// 32-bit integer.
-    ///
-    /// Integers are not inherently signed or unsigned, their interpretation is determined by individual operations.
-    I32,
-    /// 64-bit integer.
-    ///
-    /// Integers are not inherently signed or unsigned, their interpretation is determined by individual operations.
-    I64,
-    /// 32-bit floating-point data as defined by the [IEEE 754-2019](https://ieeexplore.ieee.org/document/8766229).
-    F32,
-    /// 64-bit floating-point data as defined by the [IEEE 754-2019](https://ieeexplore.ieee.org/document/8766229).
-    F64,
-    /// 128-bit vector of packed integer or floating-point data.
-    ///
-    /// The packed data can be interpreted as signed or unsigned integers, single or double precision floating-point
-    /// values, or a single 128 bit type. The interpretation is determined by individual operations.
-    V128,
-    /// Type of [FuncRef] value which is a reference to a [host function](crate::Func).
-    FuncRef,
-    /// Type of [ExternRef] value which can hold opaque data to the Wasm instance itself.
-    ExternRef,
-    /// Unknown.
-    None,
-}
-impl From<WasmValueType> for ValType {
-    fn from(wasm_value_type: WasmValueType) -> Self {
-        match wasm_value_type {
-            WasmValueType::I32 => ValType::I32,
-            WasmValueType::I64 => ValType::I64,
-            WasmValueType::F32 => ValType::F32,
-            WasmValueType::F64 => ValType::F64,
-            WasmValueType::V128 => ValType::V128,
-            WasmValueType::FuncRef => ValType::FuncRef,
-            WasmValueType::ExternRef => ValType::ExternRef,
-            WasmValueType::None => ValType::None,
-        }
-    }
-}
-impl From<ValType> for WasmValueType {
-    fn from(val_type: ValType) -> Self {
-        match val_type {
-            ValType::I32 => WasmValueType::I32,
-            ValType::I64 => WasmValueType::I64,
-            ValType::F32 => WasmValueType::F32,
-            ValType::F64 => WasmValueType::F64,
-            ValType::V128 => WasmValueType::V128,
-            ValType::FuncRef => WasmValueType::FuncRef,
-            ValType::ExternRef => WasmValueType::ExternRef,
-            ValType::None => WasmValueType::None,
-        }
-    }
-}
 
 /// Defines runtime values that a WebAssembly module can either consume or produce.
 #[derive(Debug)]

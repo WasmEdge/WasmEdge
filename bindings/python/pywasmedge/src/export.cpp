@@ -36,9 +36,7 @@ pysdk::ExportType::GetGlobalType(pysdk::ASTModuleCxt &ast) {
 
 pysdk::MemoryTypeCxt
 pysdk::ExportType::GetMemoryType(pysdk::ASTModuleCxt &ast) {
-  return pysdk::MemoryTypeCxt(
-      const_cast<WasmEdge_MemoryTypeContext *>(WasmEdge_ExportTypeGetMemoryType(
-          const_cast<const WasmEdge_ASTModuleContext *>(ast.get()), ExpoCxt)),
-      false);
+  return pysdk::MemoryTypeCxt(WasmEdge_ExportTypeGetMemoryType(
+      const_cast<const WasmEdge_ASTModuleContext *>(ast.get()), ExpoCxt));
 }
 /* --------------- ExportType End -------------------------------- */

@@ -159,9 +159,7 @@ WasmEdge_ImportTypeContext *pysdk::ImportTypeContext::get() { return Cxt; }
 pysdk::MemoryTypeCxt
 pysdk::ImportTypeContext::GetMemoryType(pysdk::ASTModuleCxt &ast_cxt) {
   return pysdk::MemoryTypeCxt(
-      const_cast<WasmEdge_MemoryTypeContext *>(
-          WasmEdge_ImportTypeGetMemoryType(ast_cxt.get(), Cxt)),
-      false);
+      WasmEdge_ImportTypeGetMemoryType(ast_cxt.get(), Cxt));
 }
 
 std::string pysdk::ImportTypeContext::GetModuleName() {

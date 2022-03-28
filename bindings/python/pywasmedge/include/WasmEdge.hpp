@@ -123,16 +123,11 @@ public:
   void SetValue(Value &);
 };
 
-class MemoryTypeCxt {
-private:
-  WasmEdge_MemoryTypeContext *MemTypeCxt;
-  bool delete_cxt = true;
-
+class MemoryTypeCxt : public base<WasmEdge_MemoryTypeContext> {
 public:
   MemoryTypeCxt(WasmEdge_Limit &);
-  MemoryTypeCxt(WasmEdge_MemoryTypeContext *, bool);
-  ~MemoryTypeCxt();
-  WasmEdge_MemoryTypeContext *get();
+  MemoryTypeCxt(const WasmEdge_MemoryTypeContext *);
+  ~MemoryTypeCxt() override;
 };
 
 class Memory {

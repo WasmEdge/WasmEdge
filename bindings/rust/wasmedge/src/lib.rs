@@ -35,7 +35,7 @@ pub use module::{ExportType, ImportType, Module};
 pub use statistics::Statistics;
 #[doc(inline)]
 pub use store::Store;
-#[doc(inline)]
+#[doc(hidden)]
 pub use vm::Vm;
 #[doc(hidden)]
 pub use wasmedge_sys::types::*;

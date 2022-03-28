@@ -1,6 +1,9 @@
 use crate::{error::Result, sys, types::Val, HostFunc};
 use wasmedge_types::{FuncType, GlobalType, MemoryType, TableType};
 
+/// Struct of WasmEdge ImportModuleBuilder
+///
+/// [ImportModuleBuilder] is used to create a normal, wasi, or wasmedge process [import module](crate::ImportModule).
 #[derive(Debug, Default)]
 pub struct ImportModuleBuilder {
     funcs: Vec<(String, sys::Function)>,
@@ -9,6 +12,7 @@ pub struct ImportModuleBuilder {
     tables: Vec<(String, sys::Table)>,
 }
 impl ImportModuleBuilder {
+    /// Creates a new [ImportModuleBuilder].
     pub fn new() -> Self {
         Self {
             funcs: Vec::new(),
@@ -18,6 +22,19 @@ impl ImportModuleBuilder {
         }
     }
 
+    /// Adds a [host function](crate::Func) to the [ImportModule] to create.
+    ///
+    /// # Arguments
+    ///
+    /// * `name` - The exported name of the [host function](crate::Func) to add.
+    ///
+    /// * `ty` - The type of the arguments and returns of the [host function](crate::Func).
+    ///
+    /// * `real_func` - The host function.
+    ///
+    /// # error
+    ///
+    /// If fail to create or add the [host function](crate::Func), then an error is returned.
     pub fn with_func(
         mut self,
         name: impl AsRef<str>,
@@ -29,24 +46,68 @@ impl ImportModuleBuilder {
         Ok(self)
     }
 
+    /// Adds a [global](crate::Global) to the [ImportModule] to create.
+    ///
+    /// # Arguments
+    ///
+    /// * `name` - The exported name of the [global](crate::Global) to add.
+    ///
+    /// * `ty` - The type of the [global](crate::Global) to add.
+    ///
+    /// * `init` - The initial value of the [global](crate::Global) to add.
+    ///
+    /// # Error
+    ///
+    /// If fail to create or add the [global](crate::Global), then an error is returned.
     pub fn with_global(mut self, name: impl AsRef<str>, ty: GlobalType, init: Val) -> Result<Self> {
         let inner_global = sys::Global::create(&ty.into(), init.into())?;
         self.globals.push((name.as_ref().to_owned(), inner_global));
         Ok(self)
     }
 
+    /// Adds a [memory](crate::Memory) to the [ImportModule] to create.
+    ///
+    /// # Arguments
+    ///
+    /// * `name` - The exported name of the [memory](crate::Memory) to add.
+    ///
+    /// * `ty` - The type of the [memory](crate::Memory) to add.
+    ///
+    /// # Error
+    ///
+    /// If fail to create or add the [memory](crate::Memory), then an error is returned.
     pub fn with_memory(mut self, name: impl AsRef<str>, ty: MemoryType) -> Result<Self> {
         let inner_memory = sys::Memory::create(&ty.into())?;
         self.memories.push((name.as_ref().to_owned(), inner_memory));
         Ok(self)
     }
 
+    /// Adds a [table](crate::Table) to the [ImportModule] to create.
+    ///
+    /// # Arguments
+    ///
+    /// * `name` - The exported name of the [table](crate::Table) to add.
+    ///
+    /// * `ty` - The type of the [table](crate::Table) to add.
+    ///
+    /// # Error
+    ///
+    /// If fail to create or add the [table](crate::Table), then an error is returned.
     pub fn with_table(mut self, name: impl AsRef<str>, ty: TableType) -> Result<Self> {
         let inner_table = sys::Table::create(&ty.into())?;
         self.tables.push((name.as_ref().to_owned(), inner_table));
         Ok(self)
     }
 
+    /// Creates a new [ImportModule].
+    ///
+    /// # Argument
+    ///
+    /// * `name` - The name of the [ImportModule] to create.
+    ///
+    /// # Error
+    ///
+    /// If fail to create the [ImportModule], then an error is returned.
     pub fn build(self, name: impl AsRef<str>) -> Result<ImportModule> {
         let mut inner = sys::ImportObject::create(name.as_ref())?;
 
@@ -73,6 +134,19 @@ impl ImportModuleBuilder {
         Ok(ImportModule { inner })
     }
 
+    /// Creates a new [wasi import module](crate::ImportModule).
+    ///
+    /// # Arguments
+    ///
+    /// * `args` - The commandline arguments. The first argument is the program name.
+    ///
+    /// * `envs` - The environment variables in the format `ENV_VAR_NAME=VALUE`.
+    ///
+    /// * `preopens` - The directories to pre-open. The required format is `DIR1:DIR2`.
+    ///
+    /// # Error
+    ///
+    /// If fail to create a wasi import module, then an error is returned.
     pub fn build_as_wasi<'a>(
         self,
         args: Option<Vec<&'a str>>,
@@ -104,6 +178,17 @@ impl ImportModuleBuilder {
         Ok(ImportModule { inner })
     }
 
+    /// Creates a new [wasmedge process import module](crate::ImportModule).
+    ///
+    /// # Arguments
+    ///
+    /// * `allowed_cmds` - A white list of commands.
+    ///
+    /// * `allowed` - Determines if wasmedge_process is allowed to execute all commands on the white list.
+    ///
+    /// # Error
+    ///
+    /// If fail to create a wasmedge process import module, then an error is returned.
     pub fn build_as_wasmedge_process(
         self,
         allowed_cmds: Option<Vec<&str>>,
@@ -135,11 +220,15 @@ impl ImportModuleBuilder {
     }
 }
 
+/// Struct of WasmEdge ImportModule.
+///
+/// An [import module](crate::ImportModule) represents a host module with a name. A host module consists of one or more host [functions](crate::Func), [tables](crate::Table), [memories](crate::Memory), and [globals](crate::Global),  which are defined outside WASM modules and fed into WASM modules as imports.
 #[derive(Debug)]
 pub struct ImportModule {
     pub(crate) inner: sys::ImportObject,
 }
 impl ImportModule {
+    /// Returns the name of this [import module](crate::ImportModule).
     pub fn name(&self) -> String {
         self.inner.name()
     }

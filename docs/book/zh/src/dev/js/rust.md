@@ -11,7 +11,7 @@ cd examples/embed_js
 
 > 你必须安装有 [Rust](https://www.rust-lang.org/tools/install) 和 [WasmEdge](../../start/install.md) 以构建与运行我们展示给你的示例。
 
-对于如何将 JavaScript 嵌入到 Rust中，`embed_js` 列出了几个不同的例子。你可以按如下的命令构建并运行这些示例。
+对于如何将 JavaScript 嵌入到 Rust 中，`embed_js` 列出了几个不同的例子。你可以按如下的命令构建并运行这些示例。
 
 ```bash
 cargo build --target wasm32-wasi --release
@@ -87,7 +87,7 @@ fn rust_new_object_and_js_call(ctx: &mut Context) {
 }
 ```
 
-然后，我们在 Rust 端创建一个"对象"，设置好它的数据域，然后将该 Rust 函数作为一个 JavaScript 函数，关联到该对象中。
+然后，我们在 Rust 端创建一个"对象"，设置它的数据域，然后将该 Rust 函数注册为关联到该对象的 JavaScript 函数。
 
 ```rust
 let mut obj = ctx.new_object();
@@ -148,14 +148,14 @@ this=Ok(
 
 ## 一个完整的 JavaScript 对象 API
 
-在前面的示例中，我们简单地演示了如何在 Rust 中创建 JavaScript API。在这个例子中，我们将会创建一个完整的 Rust 模块并让它成为一个 JavaScript 对象 API。这个项目在文件夹 [examples/embed_rust_module](https://github.com/second-state/wasmedge-quickjs/tree/main/examples/embed_rust_module) 中。你可以构建并将其当做一个标准的 Rust 应用，在 WasmEdge 中运行它。
+在前面的示例中，我们简单地演示了如何用 Rust 创建 JavaScript API。在这个例子中，我们将会创建一个完整的 Rust 模块并让它成为一个 JavaScript 对象 API。这个项目在文件夹 [examples/embed_rust_module](https://github.com/second-state/wasmedge-quickjs/tree/main/examples/embed_rust_module) 中。你可以构建并将其当做一个标准的 Rust 应用，在 WasmEdge 中运行它。
 
 ```bash
 cargo build --target wasm32-wasi --release
 wasmedge --dir .:. target/wasm32-wasi/release/embed_rust_module.wasm
 ```
 
-该对象的 Rust 实现，如下面这个模块所示。它含有数据域，构造函数，访问器，设置器以及函数。
+该对象的 Rust 实现，如下面这个模块所示。它含有数据域、构造函数、访问器、设置器以及函数。
 
 ```rust
 mod point {

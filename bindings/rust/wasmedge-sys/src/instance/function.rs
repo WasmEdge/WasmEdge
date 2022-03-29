@@ -2,9 +2,7 @@
 
 use crate::{
     error::{FuncError, WasmEdgeError},
-    ffi,
-    types::WasmValue,
-    WasmEdgeResult, WasmValueType, HOST_FUNCS,
+    ffi, HostFunc, WasmEdgeResult, WasmValueType, HOST_FUNCS,
 };
 use core::ffi::c_void;
 use rand::Rng;
@@ -314,7 +312,7 @@ unsafe impl Sync for InnerFuncType {}
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{Executor, ImportObject, Store, WasmValueType};
+    use crate::{Executor, ImportObject, Store, WasmValue, WasmValueType};
     use std::{
         sync::{Arc, Mutex},
         thread,

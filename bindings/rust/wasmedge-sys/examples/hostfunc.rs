@@ -22,13 +22,13 @@ fn real_add(input: Vec<WasmValue>) -> Result<Vec<WasmValue>, u8> {
         return Err(1);
     }
 
-    let a = if input[1].ty() == ValType::I32 {
+    let a = if input[1].ty() == WasmValueType::I32 {
         input[1].to_i32()
     } else {
         return Err(2);
     };
 
-    let b = if input[2].ty() == ValType::I32 {
+    let b = if input[2].ty() == WasmValueType::I32 {
         input[2].to_i32()
     } else {
         return Err(3);

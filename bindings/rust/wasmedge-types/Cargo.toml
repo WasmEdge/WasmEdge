@@ -2,7 +2,11 @@
 name = "wasmedge-types"
 version = "0.1.0"
 edition = "2021"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+description = "The common data structures for WasmEdge Rust bindings."
+license = "Apache-2.0"
+readme = "README.md"
+documentation = "https://wasmedge.github.io/WasmEdge/wasmedge_types/"
+repository = "https://github.com/WasmEdge/WasmEdge/tree/master/bindings/rust/wasmedge-types"
+categores = ["data-structures"]
 
 [dependencies]

@@ -7,6 +7,6 @@ license = "Apache-2.0"
 readme = "README.md"
 documentation = "https://wasmedge.github.io/WasmEdge/wasmedge_types/"
 repository = "https://github.com/WasmEdge/WasmEdge/tree/master/bindings/rust/wasmedge-types"
-categores = ["data-structures"]
+categories = ["data-structures"]
 
 [dependencies]

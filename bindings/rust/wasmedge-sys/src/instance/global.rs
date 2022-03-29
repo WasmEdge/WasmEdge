@@ -46,13 +46,8 @@ impl GlobalType {
     }
 
     /// Returns the value type of the [GlobalType].
-<<<<<<< HEAD
-    pub fn value_type(&self) -> ValType {
-        let val = unsafe { ffi::WasmEdge_GlobalTypeGetValType(self.inner.0 as *const _) };
-=======
     pub fn value_type(&self) -> WasmValueType {
-        let val = unsafe { wasmedge::WasmEdge_GlobalTypeGetValType(self.inner.0 as *const _) };
->>>>>>> 9f957e7f ([Rust][refactor](types): Renamed ValType as WasmValueType.)
+        let val = unsafe { ffi::WasmEdge_GlobalTypeGetValType(self.inner.0 as *const _) };
         val.into()
     }
 
@@ -86,11 +81,7 @@ pub struct Global {
 impl Global {
     /// Creates a new [Global] instance to be associated with the given [GlobalType] and [WasmValue](crate::WasmValue).
     ///
-<<<<<<< HEAD
     /// The type of the given [WasmValue](crate::WasmValue) must be matched with [GlobalType]; otherwise, it causes a failure. For example, `WasmValue::I32(520)` conflicts with a [GlobalType] with a value type defined as `ValType::F32`.
-=======
-    /// The type of the given [Value](crate::Value) must be matched with [GlobalType]; otherwise, it causes a failure. For example, `Value::I32(520)` conflicts with a [GlobalType] with a value type defined as `WasmValueType::F32`.
->>>>>>> 9f957e7f ([Rust][refactor](types): Renamed ValType as WasmValueType.)
     ///
     /// # Errors
     ///

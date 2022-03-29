@@ -7,11 +7,12 @@ wasmedge_add_library(wasmedgeVM
 
 target_link_libraries(wasmedgeVM
   PUBLIC
+  wasmedgeHostModuleWasmEdgeProcess
   wasmedgeCommon
   wasmedgeSystem
+  wasmedgePlugin
   wasmedgeLoader
   wasmedgeValidator
   wasmedgeExecutor
   wasmedgeHostModuleWasi
-  wasmedgeHostModuleWasmEdgeProcess
 )

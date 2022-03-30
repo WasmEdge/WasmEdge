@@ -85,7 +85,7 @@ use wasmedge_types::{FuncType, ValType};
 /// let host_func = result.unwrap();
 ///
 /// // check the signature of the host function
-/// let result = host_func.signature();
+/// let result = host_func.ty();
 /// assert!(result.is_ok());
 /// let signature = result.unwrap();
 /// assert!(signature.args().is_some());
@@ -110,10 +110,10 @@ impl<'instance> Func<'instance> {
         self.inner.mod_name()
     }
 
-    /// Returns the signature of the host function.
+    /// Returns the type of the host function.
     ///
     /// If fail to get the signature, then an error is returned.
-    pub fn signature(&self) -> Result<FuncType> {
+    pub fn ty(&self) -> Result<FuncType> {
         let func_ty = self.inner.ty()?;
         Ok(func_ty.into())
     }
@@ -294,7 +294,7 @@ mod tests {
         let host_func = result.unwrap();
 
         // check the signature of the host function
-        let result = host_func.signature();
+        let result = host_func.ty();
         assert!(result.is_ok());
         let func_ty = result.unwrap();
         assert!(func_ty.args().is_some());

@@ -30,7 +30,7 @@ pub mod types;
 #[doc(hidden)]
 pub mod vm;
 
-#[doc(hidden)]
+#[doc(inline)]
 pub use compiler::Compiler;
 #[doc(inline)]
 pub use executor::Executor;

@@ -43,25 +43,25 @@ impl Module {
         Ok(Self { inner })
     }
 
-    /// Returns a validated module from a buffer.
+    /// Loads a WebAssembly binary module from in-memory bytes.
     ///
     /// # Arguments
     ///
     /// - `config` specifies a global configuration.
     ///
-    /// - `buffer` specifies a WASM buffer.
+    /// - `bytes` specifies the in-memory bytes to be parsed.
     ///
     /// # Error
     ///
-    /// If fail to load and valiate a module from a buffer, returns an error.
-    pub fn from_buffer(config: Option<&Config>, buffer: impl AsRef<[u8]>) -> Result<Self> {
+    /// If fail to load and valiate the WebAssembly module from the given in-memory bytes, returns an error.
+    pub fn from_bytes(config: Option<&Config>, bytes: impl AsRef<[u8]>) -> Result<Self> {
         let inner_config = match config {
             Some(config) => Some(Config::copy_from(config)?.inner),
             None => None,
         };
         let inner_loader = sys::Loader::create(inner_config)?;
         // load a module from a wasm buffer
-        let inner = inner_loader.from_buffer(buffer.as_ref())?;
+        let inner = inner_loader.from_buffer(bytes.as_ref())?;
 
         let inner_config = match config {
             Some(config) => Some(Config::copy_from(config)?.inner),
@@ -203,18 +203,18 @@ mod tests {
     }
 
     #[test]
-    fn test_module_from_buffer() {
+    fn test_module_from_bytes() {
         let file = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
             .join("bindings/rust/wasmedge-sys/tests/data/fibonacci.wasm");
         let result = std::fs::read(file);
         assert!(result.is_ok());
         let buffer = result.unwrap();
 
-        let result = Module::from_buffer(None, &buffer);
+        let result = Module::from_bytes(None, &buffer);
         assert!(result.is_ok());
 
         // attempt to load an empty buffer
-        let result = Module::from_buffer(None, &[]);
+        let result = Module::from_bytes(None, &[]);
         assert_eq!(
             result.unwrap_err(),
             WasmEdgeError::Operation(sys::error::WasmEdgeError::Core(

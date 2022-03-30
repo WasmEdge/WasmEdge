@@ -60,3 +60,6 @@ pub trait Engine {
 
 /// Alias type for host function
 pub type HostFunc = sys::HostFunc;
+
+/// Parses in-memory bytes as either the [WebAssembly Text format](http://webassembly.github.io/spec/core/text/index.html), or a binary WebAssembly module.
+pub use wat::parse_bytes as wat2wasm;

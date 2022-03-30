@@ -8,12 +8,14 @@ readme = "README.md"
 documentation = "https://docs.rs/crate/wasmedge-sdk"
 repository = "https://github.com/WasmEdge/WasmEdge/bindings/rust/wasmedge"
 categories = ["api-bindings", "wasm"]
+exclude = ["examples/"]
 
 [dependencies]
 wasmedge-sys = { path = "../wasmedge-sys", version="0.5" }
 thiserror = "1.0.30"
 wasmedge-types = { path = "../wasmedge-types", version="0.1.0" }
 wat = "1.0"
+anyhow = "1.0"
 
 [features]
 default = ["aot"]

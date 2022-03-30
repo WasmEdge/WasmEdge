@@ -5,6 +5,7 @@ use std::path::Path;
 
 /// Struct of WasmEdge ahead-of-time(AOT) compiler.
 #[derive(Debug)]
+#[cfg(feature = "aot")]
 pub struct Compiler {
     pub(crate) inner: sys::Compiler,
 }

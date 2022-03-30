@@ -190,7 +190,7 @@ TEST(WasiTest, SocketUDP) {
   // False SockType
   {
     uint32_t AddressFamily = __WASI_ADDRESS_FAMILY_INET4;
-    uint32_t SockType = 2;
+    uint32_t SockType = 3;
 
     writeDummyMemoryContent(MemInst);
     WasiSockOpen.run(&MemInst,
@@ -202,7 +202,7 @@ TEST(WasiTest, SocketUDP) {
   }
   // False AddressFamily
   {
-    uint32_t AddressFamily = 2;
+    uint32_t AddressFamily = 3;
     uint32_t SockType = __WASI_SOCK_TYPE_SOCK_DGRAM;
 
     writeDummyMemoryContent(MemInst);
@@ -281,9 +281,10 @@ TEST(WasiTest, GetAddrinfo) {
 
   __wasi_addrinfo_t Hints;
   std::memset(&Hints, 0, sizeof(Hints));
-  Hints.ai_family = __WASI_ADDRESS_FAMILY_INET4;   /* Allow IPv4 */
-  Hints.ai_socktype = __WASI_SOCK_TYPE_SOCK_DGRAM; /* Datagram socket */
-  Hints.ai_flags = __WASI_AIFLAGS_AI_PASSIVE;      /* For wildcard IP address */
+  Hints.ai_family = __WASI_ADDRESS_FAMILY_INET4;   // Allow IPv4
+  Hints.ai_socktype = __WASI_SOCK_TYPE_SOCK_DGRAM; // Datagram socket
+  Hints.ai_flags = __WASI_AIFLAGS_AI_PASSIVE;      // For wildcard IP address
+  Hints.ai_protocol = __WASI_PROTOCOL_IPPROTO_UDP; // UDP protocol
   writeString(MemInst, Node, NodePtr);
   writeString(MemInst, Service, ServicePtr);
   writeAddrinfo(MemInst, &Hints, HintsPtr);

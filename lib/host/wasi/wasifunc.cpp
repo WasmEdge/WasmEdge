@@ -2165,6 +2165,43 @@ WasiGetAddrinfo::body(Runtime::Instance::MemoryInstance *MemInst,
   auto *const ResLength = MemInst->getPointer<__wasi_size_t *>(
       ResLengthPtr, sizeof(__wasi_size_t *));
 
+  if (Hint != nullptr) {
+    if (Hint->ai_flags &
+        ~(__WASI_AIFLAGS_AI_PASSIVE | __WASI_AIFLAGS_AI_CANONNAME |
+          __WASI_AIFLAGS_AI_NUMERICHOST | __WASI_AIFLAGS_AI_NUMERICSERV |
+          __WASI_AIFLAGS_AI_ADDRCONFIG | __WASI_AIFLAGS_AI_V4MAPPED |
+          __WASI_AIFLAGS_AI_ALL)) {
+      return __WASI_ERRNO_AIBADFLAG;
+    }
+    if (Hint->ai_flags & __WASI_AIFLAGS_AI_CANONNAME && Node.empty()) {
+      return __WASI_ERRNO_AIBADFLAG;
+    }
+    switch (Hint->ai_family) {
+    case __WASI_ADDRESS_FAMILY_UNSPEC:
+    case __WASI_ADDRESS_FAMILY_INET4:
+    case __WASI_ADDRESS_FAMILY_INET6:
+      break;
+    default:
+      return __WASI_ERRNO_AIFAMILY;
+    }
+    switch (Hint->ai_protocol) {
+    case __WASI_PROTOCOL_IPPROTO_IP:
+    case __WASI_PROTOCOL_IPPROTO_TCP:
+    case __WASI_PROTOCOL_IPPROTO_UDP:
+      break;
+    default:
+      return __WASI_ERRNO_NOSYS;
+    }
+    switch (Hint->ai_socktype) {
+    case __WASI_SOCK_TYPE_SOCK_ANY:
+    case __WASI_SOCK_TYPE_SOCK_DGRAM:
+    case __WASI_SOCK_TYPE_SOCK_STREAM:
+      break;
+    default:
+      return __WASI_ERRNO_NOSYS;
+    }
+  }
+
   auto initWasiAddrinfoArray =
       [&MemInst](uint8_t_ptr Base, uint32_t Length,
                  Span<__wasi_addrinfo_t *> WasiAddrinfoArray) {

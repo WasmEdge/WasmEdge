@@ -7,9 +7,7 @@ mod table;
 
 pub use function::{Func, FuncTypeBuilder};
 pub use global::Global;
-pub use import::{
-    ImportModule, ImportModuleBuilder, WasiImportModule, WasmEdgeProcessImportModule,
-};
+pub use import::{ImportModule, ImportModuleBuilder};
 pub use memory::Memory;
 pub use module::Instance;
 pub use table::Table;

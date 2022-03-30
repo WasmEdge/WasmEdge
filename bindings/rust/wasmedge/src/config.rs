@@ -55,6 +55,7 @@ impl ConfigBuilder {
     /// # Argument
     ///
     /// - `options` specifies the [CompilerConfigOptions] settings to set.
+    #[cfg(feature = "aot")]
     pub fn with_compiler_config(self, options: CompilerConfigOptions) -> Self {
         Self {
             compiler_config: Some(options),
@@ -228,26 +229,31 @@ impl Config {
     }
 
     /// Returns the optimization level of AOT compiler.
+    #[cfg(feature = "aot")]
     pub fn optimization_level(&self) -> CompilerOptimizationLevel {
         self.inner.get_aot_optimization_level()
     }
 
     /// Returns the output binary format of AOT compiler.
+    #[cfg(feature = "aot")]
     pub fn out_format(&self) -> CompilerOutputFormat {
         self.inner.get_aot_compiler_output_format()
     }
 
     /// Checks if the dump IR option turns on or not.
+    #[cfg(feature = "aot")]
     pub fn dump_ir_enabled(&self) -> bool {
         self.inner.is_aot_dump_ir()
     }
 
     /// Checks if the generic binary option of AOT compiler turns on or not.
+    #[cfg(feature = "aot")]
     pub fn generic_binary_enabled(&self) -> bool {
         self.inner.is_aot_generic_binary()
     }
 
     /// Checks if the `Interruptible` option of AOT Compiler turns on or not.
+    #[cfg(feature = "aot")]
     pub fn interruptible_enabled(&self) -> bool {
         self.inner.aot_interruptible_enabled()
     }
@@ -437,6 +443,7 @@ impl Default for CommonConfigOptions {
 ///  
 ///  The configuration options above are only effective to [AOT compiler](crate::Compiler).
 #[derive(Debug)]
+#[cfg(feature = "aot")]
 pub struct CompilerConfigOptions {
     out_format: CompilerOutputFormat,
     opt_level: CompilerOptimizationLevel,

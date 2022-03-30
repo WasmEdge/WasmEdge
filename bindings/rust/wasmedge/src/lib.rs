@@ -12,6 +12,7 @@ use wasmedge_sys as sys;
 use wasmedge_types;
 
 #[doc(hidden)]
+#[cfg(feature = "aot")]
 pub mod compiler;
 pub mod config;
 #[doc(hidden)]
@@ -31,6 +32,7 @@ pub mod types;
 pub mod vm;
 
 #[doc(inline)]
+#[cfg(feature = "aot")]
 pub use compiler::Compiler;
 #[doc(inline)]
 pub use executor::Executor;

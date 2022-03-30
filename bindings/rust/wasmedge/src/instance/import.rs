@@ -234,42 +234,42 @@ impl ImportModule {
     }
 }
 
-#[derive(Debug)]
-pub struct WasiImportModule<'vm> {
-    pub(crate) inner: &'vm mut sys::ImportObject,
-}
-impl<'vm> WasiImportModule<'vm> {
-    pub fn name(&self) -> String {
-        self.inner.name()
-    }
+// #[derive(Debug)]
+// pub struct WasiImportModule<'vm> {
+//     pub(crate) inner: &'vm mut sys::ImportObject,
+// }
+// impl<'vm> WasiImportModule<'vm> {
+//     pub fn name(&self) -> String {
+//         self.inner.name()
+//     }
 
-    pub fn init(
-        &mut self,
-        args: Option<Vec<&str>>,
-        envs: Option<Vec<&str>>,
-        preopens: Option<Vec<&str>>,
-    ) {
-        self.inner.init_wasi(args, envs, preopens)
-    }
+//     pub fn init(
+//         &mut self,
+//         args: Option<Vec<&str>>,
+//         envs: Option<Vec<&str>>,
+//         preopens: Option<Vec<&str>>,
+//     ) {
+//         self.inner.init_wasi(args, envs, preopens)
+//     }
 
-    pub fn exit_code(&self) -> u32 {
-        self.inner.exit_code()
-    }
-}
+//     pub fn exit_code(&self) -> u32 {
+//         self.inner.exit_code()
+//     }
+// }
 
-#[derive(Debug)]
-pub struct WasmEdgeProcessImportModule<'vm> {
-    pub(crate) inner: &'vm mut sys::ImportObject,
-}
-impl<'vm> WasmEdgeProcessImportModule<'vm> {
-    pub fn name(&self) -> String {
-        self.inner.name()
-    }
+// #[derive(Debug)]
+// pub struct WasmEdgeProcessImportModule<'vm> {
+//     pub(crate) inner: &'vm mut sys::ImportObject,
+// }
+// impl<'vm> WasmEdgeProcessImportModule<'vm> {
+//     pub fn name(&self) -> String {
+//         self.inner.name()
+//     }
 
-    pub fn init(&mut self, allowed_cmds: Option<Vec<&str>>, allowed: bool) {
-        self.inner.init_wasmedge_process(allowed_cmds, allowed)
-    }
-}
+//     pub fn init(&mut self, allowed_cmds: Option<Vec<&str>>, allowed: bool) {
+//         self.inner.init_wasmedge_process(allowed_cmds, allowed)
+//     }
+// }
 
 #[cfg(test)]
 mod tests {

@@ -22,7 +22,6 @@ public:
   base(const T *cxt) : context(const_cast<T *>(cxt)) { _del = false; }
   virtual ~base() = default;
 
-  const T &get() const { return const_cast<const T *>(context); }
   T *get() { return context; }
 };
 
@@ -239,15 +238,11 @@ public:
   uint32_t ListExportsLength();
 };
 
-class ExportType {
-private:
-  WasmEdge_ExportTypeContext *ExpoCxt;
-
+class ExportType : public base<WasmEdge_ExportTypeContext> {
 public:
   ExportType();
-  ExportType(WasmEdge_ExportTypeContext *);
-  ~ExportType();
-  WasmEdge_ExportTypeContext *get();
+  ExportType(const WasmEdge_ExportTypeContext *);
+  ~ExportType() override;
   std::string GetExternalName();
   WasmEdge_ExternalType GetExternalType();
   FunctionTypeContext GetFunctionType(ASTModuleCxt &);

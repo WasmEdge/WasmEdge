@@ -72,8 +72,14 @@ if(WASMEDGE_BUILD_SHARED_LIB)
   )
 
   target_link_libraries(wasmedge_c_shared
-    PUBLIC
+    PRIVATE
     wasmedgeCAPI
+  )
+
+  target_include_directories(wasmedge_c_shared
+    PUBLIC
+    ${PROJECT_BINARY_DIR}/include/api
+    ${PROJECT_SOURCE_DIR}/include/api
   )
 
   set_target_properties(wasmedge_c_shared PROPERTIES OUTPUT_NAME wasmedge_c)

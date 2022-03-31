@@ -258,14 +258,10 @@ public:
   result parse(ASTModuleCxt &, pybind11::tuple);
 };
 
-class Validator {
-private:
-  WasmEdge_ValidatorContext *ValidCxt;
-
+class Validator : public base<WasmEdge_ValidatorContext> {
 public:
   Validator(Configure &);
-  ~Validator();
-  WasmEdge_ValidatorContext *get();
+  ~Validator() override;
   result validate(ASTModuleCxt &);
 };
 

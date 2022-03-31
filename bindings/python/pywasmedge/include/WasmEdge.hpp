@@ -324,15 +324,11 @@ public:
   result Compile(std::string &, std::string &);
 };
 
-class Async {
-private:
-  WasmEdge_Async *async;
-
+class Async : public base<WasmEdge_Async> {
 public:
   Async();
-  Async(WasmEdge_Async *);
-  ~Async();
-  WasmEdge_Async *get();
+  Async(const WasmEdge_Async *);
+  ~Async() override;
   pybind11::tuple Get(uint32_t &);
   uint32_t GetReturnsLength();
   void Wait();

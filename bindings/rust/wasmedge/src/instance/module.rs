@@ -252,7 +252,7 @@ mod tests {
             assert!(table_name.is_some());
             assert_eq!(table.name().unwrap(), "table");
             assert_eq!(table.mod_name().unwrap(), "extern-module");
-            assert_eq!(table.capacity(), 5);
+            assert_eq!(table.size(), 5);
 
             // check the exported memory
             let result = instance.memory("mem");

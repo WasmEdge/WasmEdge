@@ -38,8 +38,8 @@ impl<'instance> Table<'instance> {
         Ok(ty.into())
     }
 
-    /// Returns the capacity of this [Table].
-    pub fn capacity(&self) -> u32 {
+    /// Returns the size of this [Table].
+    pub fn size(&self) -> u32 {
         self.inner.capacity() as u32
     }
 
@@ -172,7 +172,7 @@ mod tests {
         assert_eq!(table.name().unwrap(), "table");
         assert!(table.mod_name().is_some());
         assert_eq!(table.mod_name().unwrap(), "extern");
-        assert_eq!(table.capacity(), 10);
+        assert_eq!(table.size(), 10);
         let result = table.ty();
         assert!(result.is_ok());
 

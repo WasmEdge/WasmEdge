@@ -39,6 +39,11 @@ impl<'instance> Memory<'instance> {
         self.inner.size()
     }
 
+    /// Returns the size, in bytes, of this memory.
+    pub fn data_size(&self) -> u64 {
+        self.size() as u64 * 65536 as u64
+    }
+
     /// Safely reads memory contents at the given offset into a buffer.
     ///
     /// # Arguments

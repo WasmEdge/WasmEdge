@@ -307,14 +307,10 @@ public:
   uint32_t WASIGetExitCode();
 };
 
-class Executor {
-private:
-  WasmEdge_ExecutorContext *ExecCxt;
-
+class Executor : public base<WasmEdge_ExecutorContext> {
 public:
   Executor(Configure &);
-  ~Executor();
-  WasmEdge_ExecutorContext *get();
+  ~Executor() override;
   result instantiate(Store &, ASTModuleCxt &);
   pybind11::tuple invoke(Store &, std::string &, pybind11::list);
   result RegisterImport(Store &, import_object &);

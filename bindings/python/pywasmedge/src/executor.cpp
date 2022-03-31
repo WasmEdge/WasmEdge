@@ -2,16 +2,19 @@
 
 /* --------------- Executor-------------------------------- */
 pysdk::Executor::Executor(pysdk::Configure &conf) {
-  ExecCxt = WasmEdge_ExecutorCreate(conf.get(), NULL);
+  context = WasmEdge_ExecutorCreate(conf.get(), NULL);
 }
 
-pysdk::Executor::~Executor() { WasmEdge_ExecutorDelete(ExecCxt); }
+pysdk::Executor::~Executor() {
+  if (_del)
+    WasmEdge_ExecutorDelete(context);
+}
 
 pysdk::result pysdk::Executor::instantiate(pysdk::Store &st,
                                            pysdk::ASTModuleCxt &ast) {
 
   return pysdk::result(
-      WasmEdge_ExecutorInstantiate(ExecCxt, st.get(), ast.get()));
+      WasmEdge_ExecutorInstantiate(context, st.get(), ast.get()));
 }
 
 pybind11::tuple pysdk::Executor::invoke(pysdk::Store &st, std::string &FuncName,
@@ -71,7 +74,7 @@ pybind11::tuple pysdk::Executor::invoke(pysdk::Store &st, std::string &FuncName,
   };
 
   WasmEdge_Value Returns[ret_len];
-  pysdk::result res(WasmEdge_ExecutorInvoke(ExecCxt, st.get(), funcName, Params,
+  pysdk::result res(WasmEdge_ExecutorInvoke(context, st.get(), funcName, Params,
                                             param_len, Returns, ret_len));
 
   pybind11::list returns;
@@ -111,7 +114,7 @@ pybind11::tuple pysdk::Executor::invoke(pysdk::Store &st, std::string &FuncName,
 pysdk::result pysdk::Executor::RegisterImport(pysdk::Store &store,
                                               pysdk::import_object &iobj) {
   return pysdk::result(
-      WasmEdge_ExecutorRegisterImport(ExecCxt, store.get(), iobj.get()));
+      WasmEdge_ExecutorRegisterImport(context, store.get(), iobj.get()));
 }
 
 pysdk::result pysdk::Executor::RegisterModule(pysdk::Store &store,
@@ -119,7 +122,7 @@ pysdk::result pysdk::Executor::RegisterModule(pysdk::Store &store,
                                               std::string &str) {
   WasmEdge_String name = WasmEdge_StringCreateByCString(str.c_str());
   pysdk::result res(
-      WasmEdge_ExecutorRegisterModule(ExecCxt, store.get(), ast.get(), name));
+      WasmEdge_ExecutorRegisterModule(context, store.get(), ast.get(), name));
   WasmEdge_StringDelete(name);
   return res;
 }

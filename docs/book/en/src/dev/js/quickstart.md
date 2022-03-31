@@ -14,14 +14,14 @@ Following the instructions from that repo, you will be able to build a JavaScrip
 
 ```bash
 # Install GCC
-$ sudo apt update
-$ sudo apt install build-essential
+sudo apt update
+sudo apt install build-essential
 
 # Install wasm32-wasi target for Rust
-$ rustup target add wasm32-wasi
+rustup target add wasm32-wasi
 
 # Build the QuickJS JavaScript interpreter
-$ cargo build --target wasm32-wasi --release
+cargo build --target wasm32-wasi --release
 ```
 
 The WebAssembly-based JavaScript interpreter program is located in the build target directory. You can now try a simple "hello world" JavaScript program ([example_js/hello.js](https://github.com/second-state/wasmedge-quickjs/blob/main/example_js/hello.js)), which prints out the command line arguments to the console.

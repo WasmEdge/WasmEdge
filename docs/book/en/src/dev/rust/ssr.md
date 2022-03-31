@@ -95,7 +95,6 @@ fn main() {
 
 The `handler.rs` parses the received data to the path and query objects and return the corresponding response.
 
-
 ```rust
 use crate::response;
 use anyhow::Result;
@@ -333,4 +332,3 @@ runner = "wasmedge --dir /static:../client/build"
 After that, a single CLI command `./start-wasmedge.sh` would perform all the tasks to build and run the web application!
 
 We forked the Percy repository and made a ready-to-build [server-wasmedge](https://github.com/second-state/percy/tree/master/examples/isomorphic/server-wasmedge) example project for you. Happy coding!
-

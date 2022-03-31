@@ -3,7 +3,7 @@
 /* --------------- import_object End ----------------------------------------*/
 
 pysdk::import_object::import_object(std::string &name) {
-  ModCxt =
+  context =
       WasmEdge_ImportObjectCreate(WasmEdge_StringCreateByCString(name.c_str()));
 }
 
@@ -28,8 +28,8 @@ pysdk::import_object::import_object(pybind11::tuple args, pybind11::tuple envs,
     PreOpens[i] = new char[str.length() + 1];
     strcpy(PreOpens[i], str.c_str());
   }
-  ModCxt = WasmEdge_ImportObjectCreateWASI(Args, arg_len, Envs, env_len,
-                                           PreOpens, pre_len);
+  context = WasmEdge_ImportObjectCreateWASI(Args, arg_len, Envs, env_len,
+                                            PreOpens, pre_len);
 }
 
 pysdk::import_object::import_object(pybind11::tuple commands, bool &val) {
@@ -40,39 +40,40 @@ pysdk::import_object::import_object(pybind11::tuple commands, bool &val) {
     Args[i] = new char[str.length() + 1];
     strcpy(Args[i], str.c_str());
   }
-  ModCxt = WasmEdge_ImportObjectCreateWasmEdgeProcess(Args, arg_len, val);
+  context = WasmEdge_ImportObjectCreateWasmEdgeProcess(Args, arg_len, val);
 }
 
-pysdk::import_object::import_object(WasmEdge_ImportObjectContext *cxt) {
-  ModCxt = cxt;
-}
+pysdk::import_object::import_object(const WasmEdge_ImportObjectContext *cxt)
+    : base(cxt) {}
 
 void pysdk::import_object::AddFunction(std::string &name,
                                        pysdk::Function &func) {
   WasmEdge_String function_name = WasmEdge_StringCreateByCString(name.c_str());
-  WasmEdge_ImportObjectAddFunction(ModCxt, function_name, func.get());
+  WasmEdge_ImportObjectAddFunction(context, function_name, func.get());
   WasmEdge_StringDelete(function_name);
 }
 
-pysdk::import_object::~import_object() {}
-
-WasmEdge_ImportObjectContext *pysdk::import_object::get() { return ModCxt; }
+pysdk::import_object::~import_object() {
+  if (_del) {
+    WasmEdge_ImportObjectDelete(context);
+  }
+}
 
 void pysdk::import_object::AddGlobal(std::string &str, pysdk::Global &glob) {
   WasmEdge_String name = WasmEdge_StringCreateByCString(str.c_str());
-  WasmEdge_ImportObjectAddGlobal(ModCxt, name, glob.get());
+  WasmEdge_ImportObjectAddGlobal(context, name, glob.get());
   WasmEdge_StringDelete(name);
 }
 
 void pysdk::import_object::AddMemory(std::string &str, pysdk::Memory &mem) {
   WasmEdge_String name = WasmEdge_StringCreateByCString(str.c_str());
-  WasmEdge_ImportObjectAddMemory(ModCxt, name, mem.get());
+  WasmEdge_ImportObjectAddMemory(context, name, mem.get());
   WasmEdge_StringDelete(name);
 }
 
 void pysdk::import_object::AddTable(std::string &str, pysdk::Table &tab) {
   WasmEdge_String name = WasmEdge_StringCreateByCString(str.c_str());
-  WasmEdge_ImportObjectAddTable(ModCxt, name, tab.get());
+  WasmEdge_ImportObjectAddTable(context, name, tab.get());
   WasmEdge_StringDelete(name);
 }
 
@@ -97,7 +98,7 @@ void pysdk::import_object::InitWASI(pybind11::tuple args, pybind11::tuple envs,
     PreOpens[i] = new char[str.length() + 1];
     strcpy(PreOpens[i], str.c_str());
   }
-  WasmEdge_ImportObjectInitWASI(ModCxt, Args, arg_len, Envs, env_len, PreOpens,
+  WasmEdge_ImportObjectInitWASI(context, Args, arg_len, Envs, env_len, PreOpens,
                                 pre_len);
 }
 
@@ -110,11 +111,11 @@ void pysdk::import_object::InitWasmEdgeProcess(pybind11::tuple commands,
     Args[i] = new char[str.length() + 1];
     strcpy(Args[i], str.c_str());
   }
-  WasmEdge_ImportObjectInitWasmEdgeProcess(ModCxt, Args, arg_len, val);
+  WasmEdge_ImportObjectInitWasmEdgeProcess(context, Args, arg_len, val);
 }
 
 uint32_t pysdk::import_object::WASIGetExitCode() {
-  return WasmEdge_ImportObjectWASIGetExitCode(ModCxt);
+  return WasmEdge_ImportObjectWASIGetExitCode(context);
 }
 /* --------------- import_object End ----------------------------------------*/
 

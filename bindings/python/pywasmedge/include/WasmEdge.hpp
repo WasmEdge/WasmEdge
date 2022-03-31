@@ -291,17 +291,13 @@ public:
   TableTypeCxt GetTableType(ASTModuleCxt &);
 };
 
-class import_object {
-private:
-  WasmEdge_ImportObjectContext *ModCxt;
-
+class import_object : public base<WasmEdge_ImportObjectContext> {
 public:
   import_object(std::string &);
   import_object(pybind11::tuple, pybind11::tuple, pybind11::tuple);
   import_object(pybind11::tuple, bool &);
-  import_object(WasmEdge_ImportObjectContext *);
-  ~import_object();
-  WasmEdge_ImportObjectContext *get();
+  import_object(const WasmEdge_ImportObjectContext *);
+  ~import_object() override;
   void AddFunction(std::string &, Function &);
   void AddGlobal(std::string &, Global &);
   void AddMemory(std::string &, Memory &);

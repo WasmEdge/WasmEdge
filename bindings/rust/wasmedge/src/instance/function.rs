@@ -1,5 +1,5 @@
 //! Defines Func, SignatureBuilder, and Signature structs.
-use crate::{error::Result, sys, Instance};
+use crate::{error::Result, sys, HostFunc, Instance};
 use wasmedge_types::{FuncType, ValType};
 
 /// Struct of WasmEdge Func.
@@ -116,6 +116,27 @@ impl<'instance> Func<'instance> {
     pub fn ty(&self) -> Result<FuncType> {
         let func_ty = self.inner.ty()?;
         Ok(func_ty.into())
+    }
+
+    /// Creates a new host function with the given [FuncType](wasmedge_types::FuncType).
+    ///
+    /// Notice that if intend to add a host function as an import object, then use the `with_func` function of [ImportModuleBuilder](crate::ImportModuleBuilder) instead. This function is only used to create a host function which is not an import object, for example, generate a funcref and store it in a table.
+    ///
+    /// # Arguments
+    ///
+    /// * `ty` - The type of the arguments and returns of the [host function](crate::Func).
+    ///
+    /// * `real_func` - The host function.
+    ///
+    /// # Error
+    ///
+    /// If fail to create the host function, then an error is returned.
+    pub fn new(ty: FuncType, real_func: HostFunc) -> Result<Self> {
+        let inner = sys::Function::create(&ty.into(), real_func, 0)?;
+        Ok(Self {
+            inner,
+            _marker: std::marker::PhantomData,
+        })
     }
 }
 

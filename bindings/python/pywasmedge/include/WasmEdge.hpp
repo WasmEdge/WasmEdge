@@ -194,16 +194,11 @@ public:
   void StatisticsSetTimeMeasuring(bool &);
 };
 
-class Store {
-private:
-  WasmEdge_StoreContext *StoreCxt;
-  bool external = false;
-
+class Store : public base<WasmEdge_StoreContext> {
 public:
   Store();
-  Store(WasmEdge_StoreContext *);
-  ~Store();
-  WasmEdge_StoreContext *get();
+  Store(const WasmEdge_StoreContext *);
+  ~Store() override;
   pybind11::list ListFunction(uint32_t &);
   pybind11::list ListModule(uint32_t &);
   pybind11::list ListFunctionRegistered(const std::string &, uint32_t &);
@@ -232,16 +227,11 @@ public:
   uint32_t ListTableRegisteredLength(std::string &);
 };
 
-class ASTModuleCxt {
-private:
-  WasmEdge_ASTModuleContext *ASTCxt;
-  bool external = false;
-
+class ASTModuleCxt : public base<WasmEdge_ASTModuleContext> {
 public:
   ASTModuleCxt();
-  ASTModuleCxt(WasmEdge_ASTModuleContext *);
-  ~ASTModuleCxt();
-  WasmEdge_ASTModuleContext *get();
+  ASTModuleCxt(const WasmEdge_ASTModuleContext *);
+  ~ASTModuleCxt() override;
   WasmEdge_ASTModuleContext **get_addr();
   pybind11::list ListExports(uint32_t &);
   pybind11::list ListImports(uint32_t &);

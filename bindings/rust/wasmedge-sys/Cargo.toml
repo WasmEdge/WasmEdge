@@ -1,13 +1,13 @@
 [package]
 name = "wasmedge-sys"
-version = "0.4.1"
+version = "0.5.0"
 edition = "2021"
 links = "wasmedge_c"
 build = "build.rs"
 description = "WasmEdge Runtime is a high-performance, extensible, and hardware optimized WebAssembly Virtual Machine for automotive, cloud, AI, and blockchain applications."
 license = "Apache-2.0"
 readme = "README.md"
-documentation = "https://docs.rs/crate/wasmedge-sys"
+documentation = "https://wasmedge.github.io/WasmEdge/wasmedge_sys/"
 repository = "https://github.com/WasmEdge/WasmEdge"
 categories = ["api-bindings", "wasm"]
 exclude = ["tests/", "examples/"]
@@ -17,6 +17,7 @@ paste = "1.0.5"
 rand = "0.8.4"
 libc = "0.2.94"
 thiserror = "1.0.30"
+lazy_static = "1.4.0"
 
 [build-dependencies]
 bindgen = { version = "0.59.1", default-features = false, features = ["runtime"] }

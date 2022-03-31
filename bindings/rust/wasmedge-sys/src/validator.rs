@@ -1,14 +1,18 @@
 //! Defines WasmEdge Validator struct.
 
-use crate::{error::check, wasmedge, Config, Module, WasmEdgeError, WasmEdgeResult};
+use crate::{
+    error::{check, WasmEdgeError},
+    ffi, Config, Module, WasmEdgeResult,
+};
 
 /// Struct of WasmEdge Validator.
 #[derive(Debug)]
 pub struct Validator {
     pub(crate) inner: InnerValidator,
+    pub(crate) registered: bool,
 }
 impl Validator {
-    /// Creates a new [`Validator`] to be associated with the given global configuration.
+    /// Creates a new [Validator] to be associated with the given global configuration.
     ///
     /// # Arguments
     ///
@@ -16,39 +20,40 @@ impl Validator {
     ///
     /// # Error
     ///
-    /// If fail to create a [`Validator`], then an error is returned.
+    /// If fail to create a [Validator], then an error is returned.
     pub fn create(config: Option<Config>) -> WasmEdgeResult<Self> {
         let ctx = match config {
             Some(mut config) => {
-                let ctx = unsafe { wasmedge::WasmEdge_ValidatorCreate(config.inner.0) };
+                let ctx = unsafe { ffi::WasmEdge_ValidatorCreate(config.inner.0) };
                 config.inner.0 = std::ptr::null_mut();
                 ctx
             }
-            None => unsafe { wasmedge::WasmEdge_ValidatorCreate(std::ptr::null_mut()) },
+            None => unsafe { ffi::WasmEdge_ValidatorCreate(std::ptr::null_mut()) },
         };
         match ctx.is_null() {
             true => Err(WasmEdgeError::CompilerCreate),
             false => Ok(Self {
                 inner: InnerValidator(ctx),
+                registered: false,
             }),
         }
     }
 
-    /// Validates a given WasmEdge [`Module`].
+    /// Validates a given WasmEdge [Module].
     ///
-    /// [`Module`]s are valid when all components they contain are valid. Furthermore, most
+    /// [Module]s are valid when all components they contain are valid. Furthermore, most
     /// definitions are themselves classified with a suitable type.
     ///
     /// # Arguments
     ///
-    /// - `module` specifies the [`Module`] to be validated.
+    /// - `module` specifies the [Module] to be validated.
     ///
     /// # Error
     ///
     /// If the validation fails, then an error is returned.
     pub fn validate(&self, module: &Module) -> WasmEdgeResult<()> {
         unsafe {
-            check(wasmedge::WasmEdge_ValidatorValidate(
+            check(ffi::WasmEdge_ValidatorValidate(
                 self.inner.0,
                 module.inner.0,
             ))
@@ -57,14 +62,14 @@ impl Validator {
 }
 impl Drop for Validator {
     fn drop(&mut self) {
-        if !self.inner.0.is_null() {
-            unsafe { wasmedge::WasmEdge_ValidatorDelete(self.inner.0) }
+        if !self.registered && !self.inner.0.is_null() {
+            unsafe { ffi::WasmEdge_ValidatorDelete(self.inner.0) }
         }
     }
 }
 
 #[derive(Debug)]
-pub(crate) struct InnerValidator(pub(crate) *mut wasmedge::WasmEdge_ValidatorContext);
+pub(crate) struct InnerValidator(pub(crate) *mut ffi::WasmEdge_ValidatorContext);
 unsafe impl Send for InnerValidator {}
 unsafe impl Sync for InnerValidator {}
 

@@ -1,28 +1,27 @@
 //! Defines WasmEdge Instancestruct.
 
 use crate::{
-    error::InstanceError,
+    error::{InstanceError, WasmEdgeError},
+    ffi,
     instance::{function::InnerFunc, global::InnerGlobal, memory::InnerMemory, table::InnerTable},
     types::WasmEdgeString,
-    wasmedge, Function, Global, Memory, Store, Table, WasmEdgeError, WasmEdgeResult,
+    Function, Global, Memory, Store, Table, WasmEdgeResult,
 };
 
 /// Struct of WasmEdge Instance.
 ///
-/// An [`Instance`] represents an instantiated module. In the instantiation process, An [`Instance`] is created from a
-/// [`Module`](crate::Module). From an [`Instance`] the exported [functions](crate::Function), [tables](crate::Table),
-/// [memories](crate::Memory), and [globals](crate::Global) can be fetched.
+/// An [Instance] represents an instantiated module. In the instantiation process, An [Instance] is created from al[Module](crate::Module). From an [Instance] the exported [functions](crate::Function), [tables](crate::Table), [memories](crate::Memory), and [globals](crate::Global) can be fetched.
+#[derive(Debug)]
 pub struct Instance<'store> {
     pub(crate) inner: InnerInstance,
     pub(crate) store: &'store Store,
 }
 impl<'store> Instance<'store> {
-    /// Returns the name of this exported module instance.
+    /// Returns the name of this exported [module instance](crate::Instance).
     ///
-    /// If this module is an active module, return None.
+    /// If this module [instance](crate::Instance) is an active [instance](crate::Instance), return None.
     pub fn name(&self) -> Option<String> {
-        let name =
-            unsafe { wasmedge::WasmEdge_ModuleInstanceGetModuleName(self.inner.0 as *const _) };
+        let name = unsafe { ffi::WasmEdge_ModuleInstanceGetModuleName(self.inner.0 as *const _) };
 
         let name: String = name.into();
         if name.is_empty() {
@@ -32,8 +31,7 @@ impl<'store> Instance<'store> {
         Some(name)
     }
 
-    /// Returns the exported [function](crate::Function) instance in the this [module instance](crate::Instance)
-    /// by the given function name.
+    /// Returns the exported [function](crate::Function) instance in the this [module instance](crate::Instance) by the given function name.
     ///
     /// # Argument
     ///
@@ -45,7 +43,7 @@ impl<'store> Instance<'store> {
     pub fn find_func(&self, name: impl AsRef<str>) -> WasmEdgeResult<Function> {
         let func_name: WasmEdgeString = name.as_ref().into();
         let func_ctx = unsafe {
-            wasmedge::WasmEdge_ModuleInstanceFindFunction(
+            ffi::WasmEdge_ModuleInstanceFindFunction(
                 self.inner.0,
                 self.store.inner.0,
                 func_name.as_raw(),
@@ -58,6 +56,8 @@ impl<'store> Instance<'store> {
             false => Ok(Function {
                 inner: InnerFunc(func_ctx),
                 registered: true,
+                name: Some(name.as_ref().to_string()),
+                mod_name: self.name(),
             }),
         }
     }
@@ -75,7 +75,7 @@ impl<'store> Instance<'store> {
     pub fn find_table(&self, name: impl AsRef<str>) -> WasmEdgeResult<Table> {
         let table_name: WasmEdgeString = name.as_ref().into();
         let ctx = unsafe {
-            wasmedge::WasmEdge_ModuleInstanceFindTable(
+            ffi::WasmEdge_ModuleInstanceFindTable(
                 self.inner.0,
                 self.store.inner.0,
                 table_name.as_raw(),
@@ -105,7 +105,7 @@ impl<'store> Instance<'store> {
     pub fn find_memory(&self, name: impl AsRef<str>) -> WasmEdgeResult<Memory> {
         let mem_name: WasmEdgeString = name.as_ref().into();
         let ctx = unsafe {
-            wasmedge::WasmEdge_ModuleInstanceFindMemory(
+            ffi::WasmEdge_ModuleInstanceFindMemory(
                 self.inner.0,
                 self.store.inner.0,
                 mem_name.as_raw(),
@@ -135,7 +135,7 @@ impl<'store> Instance<'store> {
     pub fn find_global(&self, name: impl AsRef<str>) -> WasmEdgeResult<Global> {
         let global_name: WasmEdgeString = name.as_ref().into();
         let ctx = unsafe {
-            wasmedge::WasmEdge_ModuleInstanceFindGlobal(
+            ffi::WasmEdge_ModuleInstanceFindGlobal(
                 self.inner.0,
                 self.store.inner.0,
                 global_name.as_raw(),
@@ -154,7 +154,7 @@ impl<'store> Instance<'store> {
 
     /// Returns the length of the exported [functions](crate::Function) in this module.
     pub fn func_len(&self) -> u32 {
-        unsafe { wasmedge::WasmEdge_ModuleInstanceListFunctionLength(self.inner.0) }
+        unsafe { ffi::WasmEdge_ModuleInstanceListFunctionLength(self.inner.0) }
     }
 
     /// Returns the names of the exported [functions](crate::Function) in this module.
@@ -164,7 +164,7 @@ impl<'store> Instance<'store> {
             true => {
                 let mut func_names = Vec::with_capacity(len_func_names as usize);
                 unsafe {
-                    wasmedge::WasmEdge_ModuleInstanceListFunction(
+                    ffi::WasmEdge_ModuleInstanceListFunction(
                         self.inner.0,
                         func_names.as_mut_ptr(),
                         len_func_names,
@@ -184,7 +184,7 @@ impl<'store> Instance<'store> {
 
     /// Returns the length of the exported [tables](crate::Table) in this module.
     pub fn table_len(&self) -> u32 {
-        unsafe { wasmedge::WasmEdge_ModuleInstanceListTableLength(self.inner.0) }
+        unsafe { ffi::WasmEdge_ModuleInstanceListTableLength(self.inner.0) }
     }
 
     /// Returns the names of the exported [tables](crate::Table) in this module.
@@ -194,7 +194,7 @@ impl<'store> Instance<'store> {
             true => {
                 let mut table_names = Vec::with_capacity(len_table_names as usize);
                 unsafe {
-                    wasmedge::WasmEdge_ModuleInstanceListTable(
+                    ffi::WasmEdge_ModuleInstanceListTable(
                         self.inner.0,
                         table_names.as_mut_ptr(),
                         len_table_names,
@@ -214,7 +214,7 @@ impl<'store> Instance<'store> {
 
     /// Returns the length of the exported [memories](crate::Memory) in this module.
     pub fn mem_len(&self) -> u32 {
-        unsafe { wasmedge::WasmEdge_ModuleInstanceListMemoryLength(self.inner.0) }
+        unsafe { ffi::WasmEdge_ModuleInstanceListMemoryLength(self.inner.0) }
     }
 
     /// Returns the names of all exported [memories](crate::Memory) in this module.
@@ -224,7 +224,7 @@ impl<'store> Instance<'store> {
             true => {
                 let mut mem_names = Vec::with_capacity(len_mem_names as usize);
                 unsafe {
-                    wasmedge::WasmEdge_ModuleInstanceListMemory(
+                    ffi::WasmEdge_ModuleInstanceListMemory(
                         self.inner.0,
                         mem_names.as_mut_ptr(),
                         len_mem_names,
@@ -244,7 +244,7 @@ impl<'store> Instance<'store> {
 
     /// Returns the length of the exported [globals](crate::Global) in this module.
     pub fn global_len(&self) -> u32 {
-        unsafe { wasmedge::WasmEdge_ModuleInstanceListGlobalLength(self.inner.0) }
+        unsafe { ffi::WasmEdge_ModuleInstanceListGlobalLength(self.inner.0) }
     }
 
     /// Returns the names of the exported [globals](crate::Global) in this module.
@@ -254,7 +254,7 @@ impl<'store> Instance<'store> {
             true => {
                 let mut global_names = Vec::with_capacity(len_global_names as usize);
                 unsafe {
-                    wasmedge::WasmEdge_ModuleInstanceListGlobal(
+                    ffi::WasmEdge_ModuleInstanceListGlobal(
                         self.inner.0,
                         global_names.as_mut_ptr(),
                         len_global_names,
@@ -273,7 +273,8 @@ impl<'store> Instance<'store> {
     }
 }
 
-pub(crate) struct InnerInstance(pub(crate) *const wasmedge::WasmEdge_ModuleInstanceContext);
+#[derive(Debug)]
+pub(crate) struct InnerInstance(pub(crate) *const ffi::WasmEdge_ModuleInstanceContext);
 unsafe impl Send for InnerInstance {}
 unsafe impl Sync for InnerInstance {}
 
@@ -281,8 +282,8 @@ unsafe impl Sync for InnerInstance {}
 mod tests {
     use super::*;
     use crate::{
-        FuncType, GlobalType, ImportObject, MemType, Mutability, RefType, TableType, ValType,
-        Value, Vm,
+        Config, Executor, FuncType, GlobalType, ImportObject, MemType, Mutability, RefType,
+        TableType, ValType, Vm, WasmValue,
     };
 
     #[test]
@@ -290,7 +291,7 @@ mod tests {
         let vm = create_vm();
         let result = vm.store_mut();
         assert!(result.is_ok());
-        let store = result.unwrap();
+        let mut store = result.unwrap();
 
         // get the module named "extern"
         let result = store.named_module("extern_module");
@@ -360,7 +361,7 @@ mod tests {
         let vm = create_vm();
         let result = vm.store_mut();
         assert!(result.is_ok());
-        let store = result.unwrap();
+        let mut store = result.unwrap();
 
         // get the module named "extern"
         let result = store.named_module("extern_module");
@@ -392,6 +393,94 @@ mod tests {
         assert_eq!(result.unwrap(), ["global"]);
     }
 
+    #[test]
+    fn test_instance_get() {
+        let module_name = "extern_module";
+
+        let result = Store::create();
+        assert!(result.is_ok());
+        let mut store = result.unwrap();
+        assert!(!store.inner.0.is_null());
+        assert!(!store.registered);
+
+        // check the length of registered module list in store before instatiation
+        assert_eq!(store.func_len(), 0);
+        assert_eq!(store.reg_func_len(module_name), 0);
+        assert_eq!(store.table_len(), 0);
+        assert_eq!(store.reg_table_len(module_name), 0);
+        assert_eq!(store.global_len(), 0);
+        assert_eq!(store.reg_global_len(module_name), 0);
+        assert_eq!(store.mem_len(), 0);
+        assert_eq!(store.reg_mem_len(module_name), 0);
+        assert_eq!(store.reg_module_len(), 0);
+        assert!(store.reg_module_names().is_none());
+
+        // create ImportObject instance
+        let result = ImportObject::create(module_name);
+        assert!(result.is_ok());
+        let mut import = result.unwrap();
+
+        // add host function
+        let result = FuncType::create(vec![ValType::I32; 2], vec![ValType::I32]);
+        assert!(result.is_ok());
+        let func_ty = result.unwrap();
+        let result = Function::create(&func_ty, Box::new(real_add), 0);
+        assert!(result.is_ok());
+        let host_func = result.unwrap();
+        import.add_func("add", host_func);
+
+        // add table
+        let result = TableType::create(RefType::FuncRef, 0..=u32::MAX);
+        assert!(result.is_ok());
+        let ty = result.unwrap();
+        let result = Table::create(&ty);
+        assert!(result.is_ok());
+        let table = result.unwrap();
+        import.add_table("table", table);
+
+        // add memory
+        let memory = {
+            let result = MemType::create(10..=20);
+            assert!(result.is_ok());
+            let mem_ty = result.unwrap();
+            let result = Memory::create(&mem_ty);
+            assert!(result.is_ok());
+            result.unwrap()
+        };
+        import.add_memory("mem", memory);
+
+        // add globals
+        let result = GlobalType::create(ValType::F32, Mutability::Const);
+        assert!(result.is_ok());
+        let ty = result.unwrap();
+        let result = Global::create(&ty, WasmValue::from_f32(3.5));
+        assert!(result.is_ok());
+        let global = result.unwrap();
+        import.add_global("global", global);
+
+        let result = Config::create();
+        assert!(result.is_ok());
+        let config = result.unwrap();
+        let result = Executor::create(Some(config), None);
+        assert!(result.is_ok());
+        let mut executor = result.unwrap();
+        let result = executor.register_import_object(&mut store, &import);
+        assert!(result.is_ok());
+
+        let result = store.named_module(module_name);
+        assert!(result.is_ok());
+        let instance = result.unwrap();
+
+        // get the exported memory
+        let result = instance.find_memory("mem");
+        assert!(result.is_ok());
+        let memory = result.unwrap();
+        let result = memory.ty();
+        assert!(result.is_ok());
+        let ty = result.unwrap();
+        assert_eq!(ty.limit(), 10..=20);
+    }
+
     fn create_vm() -> Vm {
         let module_name = "extern_module";
 
@@ -404,7 +493,7 @@ mod tests {
         let result = FuncType::create(vec![ValType::I32; 2], vec![ValType::I32]);
         assert!(result.is_ok());
         let func_ty = result.unwrap();
-        let result = Function::create(func_ty, Box::new(real_add), 0);
+        let result = Function::create(&func_ty, Box::new(real_add), 0);
         assert!(result.is_ok());
         let host_func = result.unwrap();
         import.add_func("add", host_func);
@@ -413,7 +502,7 @@ mod tests {
         let result = TableType::create(RefType::FuncRef, 0..=u32::MAX);
         assert!(result.is_ok());
         let ty = result.unwrap();
-        let result = Table::create(ty);
+        let result = Table::create(&ty);
         assert!(result.is_ok());
         let table = result.unwrap();
         import.add_table("table", table);
@@ -422,7 +511,7 @@ mod tests {
         let result = MemType::create(0..=u32::MAX);
         assert!(result.is_ok());
         let mem_ty = result.unwrap();
-        let result = Memory::create(mem_ty);
+        let result = Memory::create(&mem_ty);
         assert!(result.is_ok());
         let memory = result.unwrap();
         import.add_memory("mem", memory);
@@ -431,7 +520,7 @@ mod tests {
         let result = GlobalType::create(ValType::F32, Mutability::Const);
         assert!(result.is_ok());
         let ty = result.unwrap();
-        let result = Global::create(ty, Value::from_f32(3.5));
+        let result = Global::create(&ty, WasmValue::from_f32(3.5));
         assert!(result.is_ok());
         let global = result.unwrap();
         import.add_global("global", global);
@@ -446,7 +535,7 @@ mod tests {
         vm
     }
 
-    fn real_add(inputs: Vec<Value>) -> Result<Vec<Value>, u8> {
+    fn real_add(inputs: Vec<WasmValue>) -> Result<Vec<WasmValue>, u8> {
         if inputs.len() != 2 {
             return Err(1);
         }
@@ -465,6 +554,6 @@ mod tests {
 
         let c = a + b;
 
-        Ok(vec![Value::from_i32(c)])
+        Ok(vec![WasmValue::from_i32(c)])
     }
 }

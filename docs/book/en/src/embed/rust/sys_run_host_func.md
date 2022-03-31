@@ -56,7 +56,7 @@ let loader = Loader::create(None).expect("fail to create a Loader context");
 
 // load a wasm module from a specified wasm file, and return a WasmEdge AST Module instance
 let path = PathBuf::from("fibonacci.wasm");
-let mut module = loader.from_file(path).expect("fail to load the WebAssembly file");
+let module = loader.from_file(path).expect("fail to load the WebAssembly file");
 ```
 
 ## Step 2: Create a WasmEdge `Vm` context
@@ -70,10 +70,10 @@ use wasmedge_sys::{Config, Store, Vm};
 let config = Config::create().expect("fail to create a Config context");
 
 // create a Store context
-let store = Store::create().expect("fail to create a Store context");
+let mut store = Store::create().expect("fail to create a Store context");
 
 // create a Vm context with the given Config and Store
-let mut vm = Vm::create(Some(config), Some(store)).expect("fail to create a Vm context");
+let mut vm = Vm::create(Some(config), Some(&mut store)).expect("fail to create a Vm context");
 ```
 
 ## Step 3: Invoke the `fib` function

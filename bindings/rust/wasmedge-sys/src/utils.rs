@@ -1,6 +1,6 @@
 //! Defines the versioning and logging functions.
 
-use crate::{wasmedge, WasmEdgeResult};
+use crate::{ffi, WasmEdgeResult};
 use std::{
     ffi::{CStr, CString},
     path::Path,
@@ -40,25 +40,25 @@ pub(crate) fn string_to_c_char(arg: impl AsRef<str>) -> *const std::os::raw::c_c
 /// pub const WASMEDGE_VERSION_PATCH: u32 = 2;
 /// ```
 pub fn full_version() -> WasmEdgeResult<&'static str> {
-    Ok(CStr::from_bytes_with_nul(wasmedge::WASMEDGE_VERSION)?.to_str()?)
+    Ok(CStr::from_bytes_with_nul(ffi::WASMEDGE_VERSION)?.to_str()?)
 }
 
 /// Semantic Version.
 pub fn semv_version() -> String {
     format!(
         "{}.{}.{}",
-        wasmedge::WASMEDGE_VERSION_MAJOR,
-        wasmedge::WASMEDGE_VERSION_MINOR,
-        wasmedge::WASMEDGE_VERSION_PATCH
+        ffi::WASMEDGE_VERSION_MAJOR,
+        ffi::WASMEDGE_VERSION_MINOR,
+        ffi::WASMEDGE_VERSION_PATCH
     )
 }
 
 /// Logs the debug information.
 pub fn log_debug_info() {
-    unsafe { wasmedge::WasmEdge_LogSetDebugLevel() }
+    unsafe { ffi::WasmEdge_LogSetDebugLevel() }
 }
 
 /// Logs the error information.
 pub fn log_error_info() {
-    unsafe { wasmedge::WasmEdge_LogSetErrorLevel() }
+    unsafe { ffi::WasmEdge_LogSetErrorLevel() }
 }

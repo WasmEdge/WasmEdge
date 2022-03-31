@@ -164,14 +164,10 @@ public:
   pybind11::tuple get_data(const uint32_t &);
 };
 
-class Configure {
-private:
-  WasmEdge_ConfigureContext *ConfCxt;
-
+class Configure : public base<WasmEdge_ConfigureContext> {
 public:
   Configure();
-  ~Configure();
-  WasmEdge_ConfigureContext *get();
+  ~Configure() override;
   void AddProposal(WasmEdge_Proposal &);
   void AddHostRegistration(WasmEdge_HostRegistration &);
   void RemoveProposal(WasmEdge_Proposal &);

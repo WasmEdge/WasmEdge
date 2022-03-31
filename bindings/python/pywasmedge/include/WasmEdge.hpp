@@ -277,15 +277,11 @@ public:
   void SetCostTable(pybind11::tuple);
 };
 
-class ImportTypeContext {
-private:
-  WasmEdge_ImportTypeContext *Cxt;
-
+class ImportTypeContext : public base<WasmEdge_ImportTypeContext> {
 public:
   ImportTypeContext();
-  ImportTypeContext(WasmEdge_ImportTypeContext *);
-  ~ImportTypeContext();
-  WasmEdge_ImportTypeContext *get();
+  ImportTypeContext(const WasmEdge_ImportTypeContext *);
+  ~ImportTypeContext() override;
   std::string get_external_name();
   WasmEdge_ExternalType get_external_type();
   FunctionTypeContext get_function_type_cxt(ASTModuleCxt &);

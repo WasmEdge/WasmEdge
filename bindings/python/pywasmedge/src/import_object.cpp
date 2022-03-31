@@ -121,15 +121,15 @@ uint32_t pysdk::import_object::WASIGetExitCode() {
 /* --------------- ImportTypeContext ----------------------------------------*/
 pysdk::ImportTypeContext::ImportTypeContext() {}
 
-pysdk::ImportTypeContext::ImportTypeContext(WasmEdge_ImportTypeContext *cxt) {
-  Cxt = cxt;
-}
+pysdk::ImportTypeContext::ImportTypeContext(
+    const WasmEdge_ImportTypeContext *cxt)
+    : base(cxt) {}
 
 pysdk::ImportTypeContext::~ImportTypeContext() {}
 
 std::string pysdk::ImportTypeContext::get_external_name() {
   const WasmEdge_String name = WasmEdge_ImportTypeGetExternalName(
-      const_cast<const WasmEdge_ImportTypeContext *>(Cxt));
+      const_cast<const WasmEdge_ImportTypeContext *>(context));
   char buf[name.Length];
   WasmEdge_StringCopy(name, buf, name.Length);
   return std::string(buf);
@@ -137,33 +137,32 @@ std::string pysdk::ImportTypeContext::get_external_name() {
 
 WasmEdge_ExternalType pysdk::ImportTypeContext::get_external_type() {
   return WasmEdge_ImportTypeGetExternalType(
-      const_cast<const WasmEdge_ImportTypeContext *>(Cxt));
+      const_cast<const WasmEdge_ImportTypeContext *>(context));
 }
 
 pysdk::FunctionTypeContext
 pysdk::ImportTypeContext::get_function_type_cxt(pysdk::ASTModuleCxt &ast_cxt) {
   return pysdk::FunctionTypeContext(const_cast<WasmEdge_FunctionTypeContext *>(
       WasmEdge_ImportTypeGetFunctionType(
-          const_cast<const WasmEdge_ASTModuleContext *>(ast_cxt.get()), Cxt)));
+          const_cast<const WasmEdge_ASTModuleContext *>(ast_cxt.get()),
+          context)));
 }
 
 pysdk::GlobalTypeCxt
 pysdk::ImportTypeContext::get_global_type_cxt(pysdk::ASTModuleCxt &ast_cxt) {
   return pysdk::GlobalTypeCxt(WasmEdge_ImportTypeGetGlobalType(
       const_cast<const WasmEdge_ASTModuleContext *>(ast_cxt.get()),
-      const_cast<const WasmEdge_ImportTypeContext *>(Cxt)));
+      const_cast<const WasmEdge_ImportTypeContext *>(context)));
 }
-
-WasmEdge_ImportTypeContext *pysdk::ImportTypeContext::get() { return Cxt; }
 
 pysdk::MemoryTypeCxt
 pysdk::ImportTypeContext::GetMemoryType(pysdk::ASTModuleCxt &ast_cxt) {
   return pysdk::MemoryTypeCxt(
-      WasmEdge_ImportTypeGetMemoryType(ast_cxt.get(), Cxt));
+      WasmEdge_ImportTypeGetMemoryType(ast_cxt.get(), context));
 }
 
 std::string pysdk::ImportTypeContext::GetModuleName() {
-  WasmEdge_String str = WasmEdge_ImportTypeGetModuleName(Cxt);
+  WasmEdge_String str = WasmEdge_ImportTypeGetModuleName(context);
   char temp[str.Length];
   WasmEdge_StringCopy(str, temp, str.Length);
   return std::string(temp);
@@ -171,6 +170,7 @@ std::string pysdk::ImportTypeContext::GetModuleName() {
 
 pysdk::TableTypeCxt
 pysdk::ImportTypeContext::GetTableType(pysdk::ASTModuleCxt &ast) {
-  return pysdk::TableTypeCxt(WasmEdge_ImportTypeGetTableType(ast.get(), Cxt));
+  return pysdk::TableTypeCxt(
+      WasmEdge_ImportTypeGetTableType(ast.get(), context));
 }
 /* --------------- ImportTypeContext End -----------------------------------*/

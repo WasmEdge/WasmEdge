@@ -43,18 +43,27 @@ impl<'instance> Table<'instance> {
         self.inner.capacity() as u32
     }
 
-    /// Grows the capacity of this table by `size` more elements
+    /// Grows the size of this table by `delta`, initializating the elements with the provided init value if `init` is given.
     ///
     /// # Arguments
     ///
-    /// * `size` - the number of elements to grow the table by.
+    /// * `delta` - the number of elements to grow the table by.
     ///
     /// # Error
     ///
     /// If fail to grow the table, then an error is returned.
-    pub fn grow(&mut self, size: u32) -> Result<()> {
-        self.inner.grow(size)?;
-        Ok(())
+    pub fn grow(&mut self, delta: u32, init: Option<Val>) -> Result<u32> {
+        // get the current size
+        let original_size = self.size();
+        // grow the table by delta
+        self.inner.grow(delta)?;
+        // initialize the new elements
+        if let Some(init) = init {
+            for idx in original_size..original_size + delta {
+                self.inner.set_data(init.into(), idx)?;
+            }
+        }
+        Ok(original_size)
     }
 
     /// Returns the table element at the `index`.

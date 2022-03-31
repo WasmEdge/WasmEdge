@@ -5,7 +5,7 @@ use std::marker::PhantomData;
 use wasmedge_types::{self, RefType};
 
 /// Defines runtime values that a WebAssembly module can either consume or produce.
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum Val {
     /// 32-bit integer.
     ///
@@ -78,7 +78,7 @@ impl From<WasmValue> for Val {
 }
 
 /// Struct of WasmEdge FuncRef.
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct FuncRef {
     pub(crate) inner: WasmValue,
 }
@@ -107,7 +107,7 @@ impl FuncRef {
 }
 
 /// Struct of WasmEdge ExternRef.
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct ExternRef {
     pub(crate) inner: WasmValue,
 }

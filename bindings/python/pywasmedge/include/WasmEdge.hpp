@@ -250,14 +250,10 @@ public:
   MemoryTypeCxt GetMemoryType(ASTModuleCxt &);
 };
 
-class Loader {
-private:
-  WasmEdge_LoaderContext *LoadCxt;
-
+class Loader : public base<WasmEdge_LoaderContext> {
 public:
   Loader(Configure &);
-  ~Loader();
-  WasmEdge_LoaderContext *get();
+  ~Loader() override;
   result parse(ASTModuleCxt &, std::string &);
   result parse(ASTModuleCxt &, pybind11::tuple);
 };

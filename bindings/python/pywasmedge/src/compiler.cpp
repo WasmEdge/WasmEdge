@@ -2,12 +2,16 @@
 
 /* --------------- Compiler -------------------------------- */
 pysdk::Compiler::Compiler(pysdk::Configure &cfg) {
-  cxt = WasmEdge_CompilerCreate(cfg.get());
+  context = WasmEdge_CompilerCreate(cfg.get());
 }
 
-pysdk::Compiler::~Compiler() { WasmEdge_CompilerDelete(cxt); }
+pysdk::Compiler::~Compiler() {
+  if (_del)
+    WasmEdge_CompilerDelete(context);
+}
 
 pysdk::result pysdk::Compiler::Compile(std::string &in, std::string &out) {
-  return pysdk::result(WasmEdge_CompilerCompile(cxt, in.c_str(), out.c_str()));
+  return pysdk::result(
+      WasmEdge_CompilerCompile(context, in.c_str(), out.c_str()));
 }
 /* --------------- Compiler End -------------------------------- */

@@ -317,13 +317,10 @@ public:
   result RegisterModule(Store &, ASTModuleCxt &, std::string &);
 };
 
-class Compiler {
-private:
-  WasmEdge_CompilerContext *cxt;
-
+class Compiler : public base<WasmEdge_CompilerContext> {
 public:
   Compiler(Configure &);
-  ~Compiler();
+  ~Compiler() override;
   result Compile(std::string &, std::string &);
 };
 

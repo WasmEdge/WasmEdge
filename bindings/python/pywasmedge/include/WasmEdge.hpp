@@ -265,15 +265,11 @@ public:
   result validate(ASTModuleCxt &);
 };
 
-class Statistics {
-private:
-  WasmEdge_StatisticsContext *StatCxt;
-  bool delete_stat = false;
-
+class Statistics : public base<WasmEdge_StatisticsContext> {
 public:
   Statistics();
-  Statistics(WasmEdge_StatisticsContext *, bool);
-  ~Statistics();
+  Statistics(const WasmEdge_StatisticsContext *);
+  ~Statistics() override;
   uint64_t GetInstrCount();
   double GetInstrPerSecond();
   uint64_t GetTotalCost();

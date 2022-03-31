@@ -1,35 +1,30 @@
 #include "WasmEdge.hpp"
 
 /* --------------- Statistics -------------------------------- */
-pysdk::Statistics::Statistics() {
-  StatCxt = WasmEdge_StatisticsCreate();
-  delete_stat = true;
-}
+pysdk::Statistics::Statistics() { context = WasmEdge_StatisticsCreate(); }
 
-pysdk::Statistics::Statistics(WasmEdge_StatisticsContext *cxt, bool del) {
-  StatCxt = cxt;
-  delete_stat = del;
-}
+pysdk::Statistics::Statistics(const WasmEdge_StatisticsContext *cxt)
+    : base(cxt) {}
 
 pysdk::Statistics::~Statistics() {
-  if (delete_stat)
-    WasmEdge_StatisticsDelete(StatCxt);
+  if (_del)
+    WasmEdge_StatisticsDelete(context);
 }
 
 uint64_t pysdk::Statistics::GetInstrCount() {
-  return WasmEdge_StatisticsGetInstrCount(StatCxt);
+  return WasmEdge_StatisticsGetInstrCount(context);
 }
 
 double pysdk::Statistics::GetInstrPerSecond() {
-  return WasmEdge_StatisticsGetInstrPerSecond(StatCxt);
+  return WasmEdge_StatisticsGetInstrPerSecond(context);
 }
 
 uint64_t pysdk::Statistics::GetTotalCost() {
-  return WasmEdge_StatisticsGetTotalCost(StatCxt);
+  return WasmEdge_StatisticsGetTotalCost(context);
 }
 
 void pysdk::Statistics::SetCostLimit(uint64_t &lim) {
-  WasmEdge_StatisticsSetCostLimit(StatCxt, lim);
+  WasmEdge_StatisticsSetCostLimit(context, lim);
 }
 
 void pysdk::Statistics::SetCostTable(pybind11::tuple tup) {
@@ -38,6 +33,6 @@ void pysdk::Statistics::SetCostTable(pybind11::tuple tup) {
   for (size_t i = 0; i < len; i++) {
     cost_arr[i] = tup[i].cast<uint64_t>();
   }
-  WasmEdge_StatisticsSetCostTable(StatCxt, cost_arr, len);
+  WasmEdge_StatisticsSetCostTable(context, cost_arr, len);
 }
 /* --------------- Statistics End -------------------------------- */

@@ -750,7 +750,7 @@ mod tests {
         assert_eq!(table.name().unwrap(), "table");
         assert!(table.mod_name().is_some());
         assert_eq!(table.mod_name().unwrap(), "extern");
-        assert_eq!(table.capacity(), 10);
+        assert_eq!(table.size(), 10);
         let result = table.ty();
         assert!(result.is_ok());
         let ty = result.unwrap();
@@ -913,7 +913,7 @@ mod tests {
             assert_eq!(table.name().unwrap(), "table");
             assert!(table.mod_name().is_some());
             assert_eq!(table.mod_name().unwrap(), "extern-module");
-            assert_eq!(table.capacity(), 10);
+            assert_eq!(table.size(), 10);
             let result = table.ty();
             assert!(result.is_ok());
             // check table type
@@ -1035,7 +1035,7 @@ mod tests {
             assert_eq!(table.name().unwrap(), "table");
             assert!(table.mod_name().is_some());
             assert_eq!(table.mod_name().unwrap(), "extern-module");
-            assert_eq!(table.capacity(), 10);
+            assert_eq!(table.size(), 10);
             let result = table.ty();
             assert!(result.is_ok());
             // check table type

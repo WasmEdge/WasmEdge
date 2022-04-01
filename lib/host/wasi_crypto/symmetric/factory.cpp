@@ -73,13 +73,13 @@ template <typename P> struct StateOpenTraits;
 template <typename StateType, typename KeyType, typename OptionsType>
 struct StateOpenTraits<WasiCryptoExpect<StateType> (*)(
     KeyType &, OptionalRef<OptionsType>) noexcept> {
-  inline static constexpr bool NeedKey = true;
+  static inline constexpr bool NeedKey = true;
 };
 
 template <typename StateType, typename OptionsType>
 struct StateOpenTraits<WasiCryptoExpect<StateType> (*)(
     OptionalRef<OptionsType>) noexcept> {
-  inline static constexpr bool NeedKey = false;
+  static inline constexpr bool NeedKey = false;
 };
 
 template <typename T>

@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: 2019-2022 Second State INC
 
 #include "host/wasi_crypto/common/options.h"
+#include <utility>
 
 namespace WasmEdge {
 namespace Host {
@@ -11,11 +12,11 @@ namespace Common {
 Options optionsOpen(__wasi_algorithm_type_e_t Alg) noexcept {
   switch (Alg) {
   case __WASI_ALGORITHM_TYPE_SIGNATURES:
-    return Signatures::Options{};
+    return Options{std::in_place_type_t<Signatures::Options>{}};
   case __WASI_ALGORITHM_TYPE_SYMMETRIC:
-    return Symmetric::Options{};
+    return Options{std::in_place_type_t<Symmetric::Options>{}};
   case __WASI_ALGORITHM_TYPE_KEY_EXCHANGE:
-    return Kx::Options{};
+    return Options{std::in_place_type_t<Kx::Options>{}};
   default:
     assumingUnreachable();
   }

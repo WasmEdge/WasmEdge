@@ -85,7 +85,7 @@ template <int CurveNid>
 WasiCryptoExpect<typename Ecdsa<CurveNid>::VerificationState>
 Ecdsa<CurveNid>::PublicKey::openVerificationState() noexcept {
   EvpMdCtxPtr SignCtx{EVP_MD_CTX_create()};
-  opensslAssuming(EVP_DigestVerifyInit(SignCtx.get(), nullptr, EVP_sha256(),
+  opensslCheck(EVP_DigestVerifyInit(SignCtx.get(), nullptr, EVP_sha256(),
                                        nullptr, Ctx.get()));
   return SignCtx;
 }
@@ -131,10 +131,10 @@ Ecdsa<CurveNid>::PublicKey::importSec(Span<const uint8_t> Encoded,
   ensureOrReturn(EC_POINT_oct2point(EC_KEY_get0_group(EcCtx.get()), Pk.get(),
                                     Encoded.data(), Encoded.size(), nullptr),
                  __WASI_CRYPTO_ERRNO_INVALID_KEY);
-  opensslAssuming(EC_KEY_set_public_key(EcCtx.get(), Pk.get()));
+  opensslCheck(EC_KEY_set_public_key(EcCtx.get(), Pk.get()));
 
   EvpPkeyPtr Ctx{EVP_PKEY_new()};
-  opensslAssuming(EVP_PKEY_set1_EC_KEY(Ctx.get(), EcCtx.get()));
+  opensslCheck(EVP_PKEY_set1_EC_KEY(Ctx.get(), EcCtx.get()));
 
   return checkValid(std::move(Ctx), Compressed);
 }
@@ -144,7 +144,7 @@ WasiCryptoExpect<std::vector<uint8_t>>
 Ecdsa<CurveNid>::PublicKey::exportSec(bool Compressed) const noexcept {
   EC_KEY *EcCtx = EVP_PKEY_get0_EC_KEY(Ctx.get());
   std::vector<uint8_t> Res(getRawPkSize(Compressed));
-  opensslAssuming(EC_POINT_point2oct(
+  opensslCheck(EC_POINT_point2oct(
       EC_KEY_get0_group(EcCtx), EC_KEY_get0_public_key(EcCtx),
       getForm(Compressed), Res.data(), Res.size(), nullptr));
   return Res;
@@ -221,7 +221,7 @@ Ecdsa<CurveNid>::SecretKey::importRaw(Span<const uint8_t> Encoded) noexcept {
                  __WASI_CRYPTO_ERRNO_INVALID_KEY);
 
   EvpPkeyPtr Ctx{EVP_PKEY_new()};
-  opensslAssuming(EVP_PKEY_set1_EC_KEY(Ctx.get(), EcCtx.get()));
+  opensslCheck(EVP_PKEY_set1_EC_KEY(Ctx.get(), EcCtx.get()));
 
   return Ctx;
 }
@@ -265,7 +265,7 @@ Ecdsa<CurveNid>::SecretKey::exportRaw() const noexcept {
   /// must equal to SkSize, not check.
   const BIGNUM *Sk = EC_KEY_get0_private_key(EVP_PKEY_get0_EC_KEY(Ctx.get()));
   std::vector<uint8_t> Res(SkSize);
-  opensslAssuming(BN_bn2bin(Sk, Res.data()));
+  opensslCheck(BN_bn2bin(Sk, Res.data()));
 
   return Res;
 }
@@ -274,10 +274,10 @@ template <int CurveNid>
 WasiCryptoExpect<typename Ecdsa<CurveNid>::PublicKey>
 Ecdsa<CurveNid>::SecretKey::publicKey() const noexcept {
   BioPtr B{BIO_new(BIO_s_mem())};
-  opensslAssuming(i2d_PUBKEY_bio(B.get(), Ctx.get()));
+  opensslCheck(i2d_PUBKEY_bio(B.get(), Ctx.get()));
 
   EVP_PKEY *Res = nullptr;
-  opensslAssuming(d2i_PUBKEY_bio(B.get(), &Res));
+  opensslCheck(d2i_PUBKEY_bio(B.get(), &Res));
 
   return EvpPkeyPtr{Res};
 }
@@ -290,7 +290,7 @@ Ecdsa<CurveNid>::KeyPair::generate(OptionalRef<Options>) noexcept {
   EVP_PKEY_CTX_set_ec_paramgen_curve_nid(ParamCtx.get(), CurveNid);
 
   EVP_PKEY *Key = nullptr;
-  opensslAssuming(EVP_PKEY_keygen(ParamCtx.get(), &Key));
+  opensslCheck(EVP_PKEY_keygen(ParamCtx.get(), &Key));
 
   return EvpPkeyPtr{Key};
 }
@@ -353,10 +353,10 @@ template <int CurveNid>
 WasiCryptoExpect<typename Ecdsa<CurveNid>::PublicKey>
 Ecdsa<CurveNid>::KeyPair::publicKey() const noexcept {
   BioPtr B{BIO_new(BIO_s_mem())};
-  opensslAssuming(i2d_PUBKEY_bio(B.get(), Ctx.get()));
+  opensslCheck(i2d_PUBKEY_bio(B.get(), Ctx.get()));
 
   EVP_PKEY *Res = nullptr;
-  opensslAssuming(d2i_PUBKEY_bio(B.get(), &Res));
+  opensslCheck(d2i_PUBKEY_bio(B.get(), &Res));
 
   return EvpPkeyPtr{Res};
 }
@@ -365,10 +365,10 @@ template <int CurveNid>
 WasiCryptoExpect<typename Ecdsa<CurveNid>::SecretKey>
 Ecdsa<CurveNid>::KeyPair::secretKey() const noexcept {
   BioPtr B{BIO_new(BIO_s_mem())};
-  opensslAssuming(i2d_PrivateKey_bio(B.get(), Ctx.get()));
+  opensslCheck(i2d_PrivateKey_bio(B.get(), Ctx.get()));
 
   EVP_PKEY *Res = nullptr;
-  opensslAssuming(d2i_PrivateKey_bio(B.get(), &Res));
+  opensslCheck(d2i_PrivateKey_bio(B.get(), &Res));
 
   return EvpPkeyPtr{Res};
 }
@@ -377,7 +377,7 @@ template <int CurveNid>
 WasiCryptoExpect<typename Ecdsa<CurveNid>::SignState>
 Ecdsa<CurveNid>::KeyPair::openSignState() noexcept {
   EvpMdCtxPtr SignCtx{EVP_MD_CTX_create()};
-  opensslAssuming(EVP_DigestSignInit(SignCtx.get(), nullptr, EVP_sha256(),
+  opensslCheck(EVP_DigestSignInit(SignCtx.get(), nullptr, EVP_sha256(),
                                      nullptr, Ctx.get()));
 
   return SignCtx;
@@ -409,12 +409,12 @@ Ecdsa<CurveNid>::KeyPair::importRaw(Span<const uint8_t> Encoded) noexcept {
 
   /// calculate Pk and set
   EcPointPtr Pk{EC_POINT_new(EC_KEY_get0_group(EcCtx.get()))};
-  opensslAssuming(EC_POINT_mul(EC_KEY_get0_group(EcCtx.get()), Pk.get(),
+  opensslCheck(EC_POINT_mul(EC_KEY_get0_group(EcCtx.get()), Pk.get(),
                                Sk.get(), nullptr, nullptr, nullptr));
-  opensslAssuming(EC_KEY_set_public_key(EcCtx.get(), Pk.get()));
+  opensslCheck(EC_KEY_set_public_key(EcCtx.get(), Pk.get()));
 
   EvpPkeyPtr Ctx{EVP_PKEY_new()};
-  opensslAssuming(EVP_PKEY_set1_EC_KEY(Ctx.get(), EcCtx.get()));
+  opensslCheck(EVP_PKEY_set1_EC_KEY(Ctx.get(), EcCtx.get()));
   ensureOrReturn(Ctx, __WASI_CRYPTO_ERRNO_INVALID_KEY);
 
   return Ctx;
@@ -437,7 +437,7 @@ WasiCryptoExpect<std::vector<uint8_t>>
 Ecdsa<CurveNid>::KeyPair::exportRaw() const noexcept {
   const BIGNUM *Sk = EC_KEY_get0_private_key(EVP_PKEY_get0_EC_KEY(Ctx.get()));
   std::vector<uint8_t> Res(SkSize);
-  opensslAssuming(BN_bn2bin(Sk, Res.data()));
+  opensslCheck(BN_bn2bin(Sk, Res.data()));
 
   return Res;
 }
@@ -473,7 +473,7 @@ WasiCryptoExpect<std::vector<uint8_t>> Ecdsa<CurveNid>::Signature::exportData(
 template <int CurveNid>
 WasiCryptoExpect<void>
 Ecdsa<CurveNid>::SignState::update(Span<const uint8_t> Data) noexcept {
-  opensslAssuming(EVP_DigestSignUpdate(Ctx.get(), Data.data(), Data.size()));
+  opensslCheck(EVP_DigestSignUpdate(Ctx.get(), Data.data(), Data.size()));
   return {};
 }
 
@@ -481,10 +481,10 @@ template <int CurveNid>
 WasiCryptoExpect<typename Ecdsa<CurveNid>::Signature>
 Ecdsa<CurveNid>::SignState::sign() noexcept {
   size_t Size;
-  opensslAssuming(EVP_DigestSignFinal(Ctx.get(), nullptr, &Size));
+  opensslCheck(EVP_DigestSignFinal(Ctx.get(), nullptr, &Size));
 
   std::vector<uint8_t> Res(Size);
-  opensslAssuming(EVP_DigestSignFinal(Ctx.get(), Res.data(), &Size));
+  opensslCheck(EVP_DigestSignFinal(Ctx.get(), Res.data(), &Size));
 
   return Res;
 }
@@ -492,7 +492,7 @@ Ecdsa<CurveNid>::SignState::sign() noexcept {
 template <int CurveNid>
 WasiCryptoExpect<void>
 Ecdsa<CurveNid>::VerificationState::update(Span<const uint8_t> Data) noexcept {
-  opensslAssuming(EVP_DigestVerifyUpdate(Ctx.get(), Data.data(), Data.size()));
+  opensslCheck(EVP_DigestVerifyUpdate(Ctx.get(), Data.data(), Data.size()));
   return {};
 }
 

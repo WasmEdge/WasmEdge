@@ -36,11 +36,11 @@ WasiCryptoExpect<typename Hmac<ShaNid>::State>
 Hmac<ShaNid>::State::open(Key &Key, OptionalRef<Options>) noexcept {
   EvpPkeyPtr HmacKey{EVP_PKEY_new_raw_private_key(
       EVP_PKEY_HMAC, nullptr, Key.ref().data(), Key.ref().size())};
-  opensslAssuming(HmacKey);
+  opensslCheck(HmacKey);
 
   EvpMdCtxPtr Ctx{EVP_MD_CTX_new()};
 
-  opensslAssuming(EVP_DigestSignInit(
+  opensslCheck(EVP_DigestSignInit(
       Ctx.get(), nullptr, EVP_get_digestbynid(ShaNid), nullptr, HmacKey.get()));
 
   return Ctx;
@@ -49,7 +49,7 @@ Hmac<ShaNid>::State::open(Key &Key, OptionalRef<Options>) noexcept {
 template <int ShaNid>
 WasiCryptoExpect<void>
 Hmac<ShaNid>::State::absorb(Span<const uint8_t> Data) noexcept {
-  opensslAssuming(EVP_DigestSignUpdate(Ctx.get(), Data.data(), Data.size()));
+  opensslCheck(EVP_DigestSignUpdate(Ctx.get(), Data.data(), Data.size()));
   return {};
 }
 
@@ -58,7 +58,7 @@ WasiCryptoExpect<Tag> Hmac<ShaNid>::State::squeezeTag() noexcept {
   std::vector<uint8_t> Res(getKeySize());
 
   size_t ActualOutSize;
-  opensslAssuming(EVP_DigestSignFinal(Ctx.get(), Res.data(), &ActualOutSize));
+  opensslCheck(EVP_DigestSignFinal(Ctx.get(), Res.data(), &ActualOutSize));
   ensureOrReturn(ActualOutSize == getKeySize(),
                  __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
   return Res;

@@ -56,7 +56,7 @@ Hkdf<ShaNid>::Expand::State::open(Key &Key, OptionalRef<Options>) noexcept {
 template <int ShaNid>
 WasiCryptoExpect<void>
 Hkdf<ShaNid>::Expand::State::absorb(Span<const uint8_t> Data) noexcept {
-  opensslAssuming(
+  opensslCheck(
       EVP_PKEY_CTX_add1_hkdf_info(Ctx.get(), Data.data(), Data.size()));
   return {};
 }
@@ -105,13 +105,13 @@ Hkdf<ShaNid>::Extract::State::squeezeKey(Symmetric::Algorithm Alg) noexcept {
                  __WASI_CRYPTO_ERRNO_UNSUPPORTED_ALGORITHM);
 
   std::shared_lock<std::shared_mutex> Lock{Ctx->Mutex};
-  opensslAssuming(EVP_PKEY_CTX_set1_hkdf_salt(
+  opensslCheck(EVP_PKEY_CTX_set1_hkdf_salt(
       Ctx->RawCtx.get(), Ctx->Salt.data(), Ctx->Salt.size()));
 
   auto Data = std::make_shared<SecretKey>(getKeySize());
 
   size_t ActualOutSize;
-  opensslAssuming(
+  opensslCheck(
       EVP_PKEY_derive(Ctx->RawCtx.get(), Data->raw().data(), &ActualOutSize));
   ensureOrReturn(ActualOutSize == getKeySize(),
                  __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
@@ -124,9 +124,9 @@ WasiCryptoExpect<EvpPkeyCtxPtr>
 Hkdf<ShaNid>::openStateImpl(const std::vector<uint8_t> &Key,
                             int Mode) noexcept {
   EvpPkeyCtxPtr Ctx{EVP_PKEY_CTX_new_id(EVP_PKEY_HKDF, nullptr)};
-  opensslAssuming(EVP_PKEY_derive_init(Ctx.get()));
-  opensslAssuming(EVP_PKEY_CTX_set_hkdf_md(Ctx.get(), getShaCtx()));
-  opensslAssuming(EVP_PKEY_CTX_hkdf_mode(Ctx.get(), Mode));
+  opensslCheck(EVP_PKEY_derive_init(Ctx.get()));
+  opensslCheck(EVP_PKEY_CTX_set_hkdf_md(Ctx.get(), getShaCtx()));
+  opensslCheck(EVP_PKEY_CTX_hkdf_mode(Ctx.get(), Mode));
   ensureOrReturn(EVP_PKEY_CTX_set1_hkdf_key(Ctx.get(), Key.data(), Key.size()),
                  __WASI_CRYPTO_ERRNO_INVALID_KEY);
 

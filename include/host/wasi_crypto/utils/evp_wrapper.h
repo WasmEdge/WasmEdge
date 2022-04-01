@@ -50,7 +50,7 @@ using EcPointPtr = OpenSSLUniquePtr<EC_POINT, EC_POINT_free>;
 /// openssl function always return 1 for success and 0/NULL for failure. This
 /// used to reduce repeat check
 #ifdef NDEBUG
-#define opensslAssuming(Cond)                                                  \
+#define opensslCheck(Cond)                                                  \
   do {                                                                         \
     if (!(Cond)) {                                                             \
       ERR_print_errors_cb(                                                     \
@@ -63,7 +63,7 @@ using EcPointPtr = OpenSSLUniquePtr<EC_POINT, EC_POINT_free>;
     }                                                                          \
   } while (0)
 #else
-#define opensslAssuming(Cond)                                                  \
+#define opensslCheck(Cond)                                                  \
   (static_cast<bool>(Cond)                                                     \
        ? static_cast<void>(0)                                                  \
        : (ERR_print_errors_cb(                                                 \

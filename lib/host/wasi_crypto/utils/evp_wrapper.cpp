@@ -23,10 +23,10 @@ EVP_PKEY *pemReadPUBKEY(Span<const uint8_t> Encoded) {
 
 WasiCryptoExpect<std::vector<uint8_t>> pemWritePUBKEY(EVP_PKEY *Key) {
   BioPtr Bio{BIO_new(BIO_s_mem())};
-  opensslAssuming(PEM_write_bio_PUBKEY(Bio.get(), Key));
+  opensslCheck(PEM_write_bio_PUBKEY(Bio.get(), Key));
 
   BUF_MEM *Mem = nullptr;
-  opensslAssuming(BIO_get_mem_ptr(Bio.get(), &Mem));
+  opensslCheck(BIO_get_mem_ptr(Bio.get(), &Mem));
   std::vector<uint8_t> Ret(Mem->length);
 
   if (size_t Size; BIO_read_ex(Bio.get(), Ret.data(), Ret.size(), &Size)) {
@@ -55,11 +55,11 @@ EVP_PKEY *pemReadPrivateKey(Span<const uint8_t> Encoded) {
 
 WasiCryptoExpect<std::vector<uint8_t>> pemWritePrivateKey(EVP_PKEY *Key) {
   BioPtr Bio{BIO_new(BIO_s_mem())};
-  opensslAssuming(PEM_write_bio_PrivateKey(Bio.get(), Key, nullptr, nullptr, 0,
+  opensslCheck(PEM_write_bio_PrivateKey(Bio.get(), Key, nullptr, nullptr, 0,
                                            nullptr, nullptr));
 
   BUF_MEM *Mem = nullptr;
-  opensslAssuming(BIO_get_mem_ptr(Bio.get(), &Mem));
+  opensslCheck(BIO_get_mem_ptr(Bio.get(), &Mem));
   std::vector<uint8_t> Ret(Mem->length);
 
   if (size_t Size; BIO_read_ex(Bio.get(), Ret.data(), Ret.size(), &Size)) {
@@ -88,10 +88,10 @@ EVP_PKEY *d2iPUBKEY(Span<const uint8_t> Encoded) {
 
 WasiCryptoExpect<std::vector<uint8_t>> i2dPUBKEY(EVP_PKEY *Key) {
   BioPtr Bio{BIO_new(BIO_s_mem())};
-  opensslAssuming(i2d_PUBKEY_bio(Bio.get(), Key));
+  opensslCheck(i2d_PUBKEY_bio(Bio.get(), Key));
 
   BUF_MEM *Mem = nullptr;
-  opensslAssuming(BIO_get_mem_ptr(Bio.get(), &Mem));
+  opensslCheck(BIO_get_mem_ptr(Bio.get(), &Mem));
   std::vector<uint8_t> Ret(Mem->length);
 
   if (size_t Size; BIO_read_ex(Bio.get(), Ret.data(), Ret.size(), &Size)) {
@@ -120,10 +120,10 @@ EVP_PKEY *d2iPrivateKey(Span<const uint8_t> Encoded) {
 
 WasiCryptoExpect<std::vector<uint8_t>> i2dPrivateKey(EVP_PKEY *Key) {
   BioPtr Bio{BIO_new(BIO_s_mem())};
-  opensslAssuming(i2d_PrivateKey_bio(Bio.get(), Key));
+  opensslCheck(i2d_PrivateKey_bio(Bio.get(), Key));
 
   BUF_MEM *Mem = nullptr;
-  opensslAssuming(BIO_get_mem_ptr(Bio.get(), &Mem));
+  opensslCheck(BIO_get_mem_ptr(Bio.get(), &Mem));
   std::vector<uint8_t> Ret(Mem->length);
 
   if (size_t Size; BIO_read_ex(Bio.get(), Ret.data(), Ret.size(), &Size)) {

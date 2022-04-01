@@ -94,7 +94,7 @@ template <int PadMode, int KeyBits, int ShaNid>
 WasiCryptoExpect<typename Rsa<PadMode, KeyBits, ShaNid>::VerificationState>
 Rsa<PadMode, KeyBits, ShaNid>::PublicKey::openVerificationState() noexcept {
   EvpMdCtxPtr SignCtx{EVP_MD_CTX_create()};
-  opensslAssuming(EVP_DigestVerifyInit(
+  opensslCheck(EVP_DigestVerifyInit(
       SignCtx.get(), nullptr, EVP_get_digestbynid(ShaNid), nullptr, Ctx.get()));
 
   return SignCtx;
@@ -169,10 +169,10 @@ template <int PadMode, int KeyBits, int ShaNid>
 WasiCryptoExpect<typename Rsa<PadMode, KeyBits, ShaNid>::PublicKey>
 Rsa<PadMode, KeyBits, ShaNid>::SecretKey::publicKey() const noexcept {
   BioPtr B{BIO_new(BIO_s_mem())};
-  opensslAssuming(i2d_PUBKEY_bio(B.get(), Ctx.get()));
+  opensslCheck(i2d_PUBKEY_bio(B.get(), Ctx.get()));
 
   EVP_PKEY *Res = nullptr;
-  opensslAssuming(d2i_PUBKEY_bio(B.get(), &Res));
+  opensslCheck(d2i_PUBKEY_bio(B.get(), &Res));
 
   return EvpPkeyPtr{Res};
 }
@@ -238,7 +238,7 @@ template <int PadMode, int KeyBits, int ShaNid>
 WasiCryptoExpect<typename Rsa<PadMode, KeyBits, ShaNid>::SignState>
 Rsa<PadMode, KeyBits, ShaNid>::KeyPair::openSignState() noexcept {
   EvpMdCtxPtr SignCtx{EVP_MD_CTX_create()};
-  opensslAssuming(EVP_DigestSignInit(
+  opensslCheck(EVP_DigestSignInit(
       SignCtx.get(), nullptr, EVP_get_digestbynid(ShaNid), nullptr, Ctx.get()));
 
   return SignCtx;
@@ -289,10 +289,10 @@ template <int PadMode, int KeyBits, int ShaNid>
 WasiCryptoExpect<typename Rsa<PadMode, KeyBits, ShaNid>::PublicKey>
 Rsa<PadMode, KeyBits, ShaNid>::KeyPair::publicKey() const noexcept {
   BioPtr B{BIO_new(BIO_s_mem())};
-  opensslAssuming(i2d_PUBKEY_bio(B.get(), Ctx.get()));
+  opensslCheck(i2d_PUBKEY_bio(B.get(), Ctx.get()));
 
   EVP_PKEY *Res = nullptr;
-  opensslAssuming(d2i_PUBKEY_bio(B.get(), &Res));
+  opensslCheck(d2i_PUBKEY_bio(B.get(), &Res));
   ensureOrReturn(Res, __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
 
   return EvpPkeyPtr{Res};
@@ -302,10 +302,10 @@ template <int PadMode, int KeyBits, int ShaNid>
 WasiCryptoExpect<typename Rsa<PadMode, KeyBits, ShaNid>::SecretKey>
 Rsa<PadMode, KeyBits, ShaNid>::KeyPair::secretKey() const noexcept {
   BioPtr B{BIO_new(BIO_s_mem())};
-  opensslAssuming(i2d_PrivateKey_bio(B.get(), Ctx.get()));
+  opensslCheck(i2d_PrivateKey_bio(B.get(), Ctx.get()));
 
   EVP_PKEY *Res = nullptr;
-  opensslAssuming(d2i_PrivateKey_bio(B.get(), &Res));
+  opensslCheck(d2i_PrivateKey_bio(B.get(), &Res));
 
   return EvpPkeyPtr{Res};
 }
@@ -344,7 +344,7 @@ Rsa<PadMode, KeyBits, ShaNid>::Signature::exportData(
 template <int PadMode, int KeyBits, int ShaNid>
 WasiCryptoExpect<void> Rsa<PadMode, KeyBits, ShaNid>::SignState::update(
     Span<const uint8_t> Data) noexcept {
-  opensslAssuming(EVP_DigestSignUpdate(Ctx.get(), Data.data(), Data.size()));
+  opensslCheck(EVP_DigestSignUpdate(Ctx.get(), Data.data(), Data.size()));
   return {};
 }
 
@@ -352,11 +352,11 @@ template <int PadMode, int KeyBits, int ShaNid>
 WasiCryptoExpect<typename Rsa<PadMode, KeyBits, ShaNid>::Signature>
 Rsa<PadMode, KeyBits, ShaNid>::SignState::sign() noexcept {
   size_t Siz;
-  opensslAssuming(EVP_DigestSignFinal(Ctx.get(), nullptr, &Siz));
+  opensslCheck(EVP_DigestSignFinal(Ctx.get(), nullptr, &Siz));
 
   std::vector<uint8_t> Res(Siz);
 
-  opensslAssuming(EVP_DigestSignFinal(Ctx.get(), Res.data(), &Siz));
+  opensslCheck(EVP_DigestSignFinal(Ctx.get(), Res.data(), &Siz));
 
   return Res;
 }
@@ -364,7 +364,7 @@ Rsa<PadMode, KeyBits, ShaNid>::SignState::sign() noexcept {
 template <int PadMode, int KeyBits, int ShaNid>
 WasiCryptoExpect<void> Rsa<PadMode, KeyBits, ShaNid>::VerificationState::update(
     Span<const uint8_t> Data) noexcept {
-  opensslAssuming(EVP_DigestVerifyUpdate(Ctx.get(), Data.data(), Data.size()));
+  opensslCheck(EVP_DigestVerifyUpdate(Ctx.get(), Data.data(), Data.size()));
   return {};
 }
 

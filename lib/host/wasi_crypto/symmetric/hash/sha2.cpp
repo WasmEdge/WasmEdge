@@ -21,14 +21,14 @@ template <int ShaNid>
 WasiCryptoExpect<typename Sha2<ShaNid>::State>
 Sha2<ShaNid>::State::open(OptionalRef<Options>) noexcept {
   EvpMdCtxPtr Ctx{EVP_MD_CTX_new()};
-  opensslAssuming(EVP_DigestInit(Ctx.get(), EVP_get_digestbynid(ShaNid)));
+  opensslCheck(EVP_DigestInit(Ctx.get(), EVP_get_digestbynid(ShaNid)));
   return Ctx;
 }
 
 template <int ShaNid>
 WasiCryptoExpect<void>
 Sha2<ShaNid>::State::absorb(Span<const uint8_t> Data) noexcept {
-  opensslAssuming(EVP_DigestUpdate(Ctx.get(), Data.data(), Data.size()));
+  opensslCheck(EVP_DigestUpdate(Ctx.get(), Data.data(), Data.size()));
   return {};
 }
 
@@ -39,11 +39,11 @@ Sha2<ShaNid>::State::squeeze(Span<uint8_t> Out) noexcept {
                  __WASI_CRYPTO_ERRNO_INVALID_LENGTH);
 
   EvpMdCtxPtr CopyCtx{EVP_MD_CTX_new()};
-  opensslAssuming(EVP_MD_CTX_copy_ex(CopyCtx.get(), Ctx.get()));
+  opensslCheck(EVP_MD_CTX_copy_ex(CopyCtx.get(), Ctx.get()));
 
   if (getDigestSize() == Out.size()) {
     unsigned int Size;
-    opensslAssuming(EVP_DigestFinal_ex(CopyCtx.get(), Out.data(), &Size));
+    opensslCheck(EVP_DigestFinal_ex(CopyCtx.get(), Out.data(), &Size));
     ensureOrReturn(Size == getDigestSize(),
                    __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
   }
@@ -51,7 +51,7 @@ Sha2<ShaNid>::State::squeeze(Span<uint8_t> Out) noexcept {
   if (getDigestSize() > Out.size()) {
     unsigned int Size;
     std::array<uint8_t, getDigestSize()> Cache;
-    opensslAssuming(EVP_DigestFinal_ex(CopyCtx.get(), Cache.data(), &Size));
+    opensslCheck(EVP_DigestFinal_ex(CopyCtx.get(), Cache.data(), &Size));
     ensureOrReturn(Size == getDigestSize(),
                    __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
     std::copy(Cache.begin(), Cache.begin() + static_cast<ptrdiff_t>(Out.size()),

@@ -65,7 +65,7 @@ Cipher<CipherNid>::State::open(Key &Key,
                  __WASI_CRYPTO_ERRNO_INVALID_HANDLE);
 
   EvpCipherCtxPtr Ctx{EVP_CIPHER_CTX_new()};
-  opensslAssuming(EVP_CipherInit_ex(Ctx.get(), EVP_get_cipherbynid(CipherNid),
+  opensslCheck(EVP_CipherInit_ex(Ctx.get(), EVP_get_cipherbynid(CipherNid),
                                     nullptr, Key.ref().data(), Nonce.data(),
                                     Mode::Unchanged));
 
@@ -90,7 +90,7 @@ Cipher<CipherNid>::State::absorb(Span<const uint8_t> Data) noexcept {
 
   int ActualOutputSize;
   int DataSize = static_cast<int>(Data.size());
-  opensslAssuming(EVP_CipherUpdate(Ctx->RawCtx.get(), nullptr,
+  opensslCheck(EVP_CipherUpdate(Ctx->RawCtx.get(), nullptr,
                                    &ActualOutputSize, Data.data(), DataSize));
   ensureOrReturn(ActualOutputSize == DataSize,
                  __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
@@ -120,13 +120,13 @@ template <int CipherNid>
 WasiCryptoExpect<size_t>
 Cipher<CipherNid>::State::encryptImpl(Span<uint8_t> Out, Span<uint8_t> Tag,
                                       Span<const uint8_t> Data) noexcept {
-  opensslAssuming(EVP_CipherInit_ex(Ctx->RawCtx.get(), nullptr, nullptr,
+  opensslCheck(EVP_CipherInit_ex(Ctx->RawCtx.get(), nullptr, nullptr,
                                     nullptr, nullptr, Mode::Encrypt));
 
   ensureOrReturn(Data.size() <= INT_MAX, __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
 
   int ActualOutSize;
-  opensslAssuming(EVP_CipherUpdate(Ctx->RawCtx.get(), Out.data(),
+  opensslCheck(EVP_CipherUpdate(Ctx->RawCtx.get(), Out.data(),
                                    &ActualOutSize, Data.data(),
                                    static_cast<int>(Data.size())));
 
@@ -137,7 +137,7 @@ Cipher<CipherNid>::State::encryptImpl(Span<uint8_t> Out, Span<uint8_t> Tag,
                  __WASI_CRYPTO_ERRNO_INTERNAL_ERROR);
   ensureOrReturn(ActualOutSize == 0, __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
 
-  opensslAssuming(EVP_CIPHER_CTX_ctrl(Ctx->RawCtx.get(), EVP_CTRL_AEAD_GET_TAG,
+  opensslCheck(EVP_CIPHER_CTX_ctrl(Ctx->RawCtx.get(), EVP_CTRL_AEAD_GET_TAG,
                                       static_cast<int>(getTagSize()),
                                       Tag.data()));
 
@@ -164,18 +164,18 @@ WasiCryptoExpect<size_t>
 Cipher<CipherNid>::State::decryptImpl(Span<uint8_t> Out,
                                       Span<const uint8_t> Data,
                                       Span<const uint8_t> RawTag) noexcept {
-  opensslAssuming(EVP_CipherInit_ex(Ctx->RawCtx.get(), nullptr, nullptr,
+  opensslCheck(EVP_CipherInit_ex(Ctx->RawCtx.get(), nullptr, nullptr,
                                     nullptr, nullptr, Mode::Decrypt));
   int ActualOutSize;
 
   ensureOrReturn(Data.size() <= INT_MAX, __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
   int DataSize = static_cast<int>(Data.size());
-  opensslAssuming(EVP_CipherUpdate(Ctx->RawCtx.get(), Out.data(),
+  opensslCheck(EVP_CipherUpdate(Ctx->RawCtx.get(), Out.data(),
                                    &ActualOutSize, Data.data(), DataSize));
   ensureOrReturn(ActualOutSize == DataSize,
                  __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
 
-  opensslAssuming(EVP_CIPHER_CTX_ctrl(Ctx->RawCtx.get(), EVP_CTRL_AEAD_SET_TAG,
+  opensslCheck(EVP_CIPHER_CTX_ctrl(Ctx->RawCtx.get(), EVP_CTRL_AEAD_SET_TAG,
                                       static_cast<int>(getTagSize()),
                                       const_cast<uint8_t *>(RawTag.data())));
 

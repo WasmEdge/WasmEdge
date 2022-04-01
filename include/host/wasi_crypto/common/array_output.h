@@ -18,6 +18,7 @@
 
 #include <atomic>
 #include <memory>
+#include <mutex>
 #include <type_traits>
 #include <utility>
 #include <vector>
@@ -48,7 +49,8 @@ public:
 
 private:
   const std::vector<uint8_t> Data;
-  std::atomic<size_t> Pos = 0;
+  size_t Pos = 0;
+  std::mutex Mutex;
 };
 
 } // namespace Common

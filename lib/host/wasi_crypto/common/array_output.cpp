@@ -5,6 +5,7 @@
 
 #include <algorithm>
 #include <climits>
+#include <mutex>
 #include <vector>
 
 namespace WasmEdge {
@@ -13,17 +14,21 @@ namespace WasiCrypto {
 namespace Common {
 
 std::tuple<size_t, bool> ArrayOutput::pull(Span<uint8_t> Buf) noexcept {
-  size_t OutputSize = std::min(Buf.size(), Data.size() - Pos.load());
+  std::scoped_lock Lock{Mutex};
+
+  using DataPosT = decltype(Data)::difference_type;
+
+  size_t OutputSize = std::min(Buf.size(), Data.size() - Pos);
 
   std::copy(
       std::next(Data.begin(),
-                static_cast<decltype(Data)::difference_type>(Pos.load())),
+                static_cast<DataPosT>(Pos)),
       std::next(Data.begin(),
-                static_cast<decltype(Data)::difference_type>(Pos + OutputSize)),
+                static_cast<DataPosT>(Pos + OutputSize)),
       Buf.begin());
   Pos += OutputSize;
 
-  return {OutputSize, Pos.load() + OutputSize == Data.size()};
+  return {OutputSize, Pos + OutputSize == Data.size()};
 }
 
 } // namespace Common

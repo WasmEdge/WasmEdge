@@ -78,9 +78,6 @@ Cipher<CipherNid>::State::optionsGet(std::string_view Name,
                                      Span<uint8_t> Value) const noexcept {
   ensureOrReturn(Name == "nonce"sv, __WASI_CRYPTO_ERRNO_UNSUPPORTED_OPTION);
   ensureOrReturn(NonceSize <= Value.size(), __WASI_CRYPTO_ERRNO_OVERFLOW);
-  /// Not work, alway return pointer to '0', so replace with a member
-  // const uint8_t *Nonce = EVP_CIPHER_CTX_original_iv(Ctx.get());
-  // std::copy(Nonce, Nonce + getNonceSize(), Value.begin());
   std::copy(Ctx->Nonce.begin(), Ctx->Nonce.end(), Value.begin());
   return NonceSize;
 }

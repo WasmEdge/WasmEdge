@@ -25,7 +25,7 @@ namespace WasiCrypto {
 namespace Symmetric {
 
 template <int CipherNid> class Cipher {
-  inline constexpr static size_t NonceSize = 12;
+  static inline constexpr size_t NonceSize = 12;
 
 public:
   class Key {

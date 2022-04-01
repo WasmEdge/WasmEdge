@@ -12,7 +12,7 @@ namespace Signatures {
 Expect<uint32_t> Export::body(Runtime::Instance::MemoryInstance *MemInst,
                               int32_t SigHandle, uint32_t Encoding,
                               uint32_t /* Out */ ArrayOutputHandlePtr) {
-  assumingExist(MemInst);
+  checkExist(MemInst);
 
   __wasi_signature_encoding_e_t WasiEncoding;
   if (auto Res = cast<__wasi_signature_encoding_e_t>(Encoding);
@@ -24,7 +24,7 @@ Expect<uint32_t> Export::body(Runtime::Instance::MemoryInstance *MemInst,
 
   auto *const ArrayOutput =
       MemInst->getPointer<__wasi_array_output_t *>(ArrayOutputHandlePtr);
-  assumingExist(ArrayOutput);
+  checkExist(ArrayOutput);
 
   if (auto Res = Ctx.signatureExport(SigHandle, WasiEncoding); unlikely(!Res)) {
     return Res.error();
@@ -40,11 +40,11 @@ Expect<uint32_t> Import::body(Runtime::Instance::MemoryInstance *MemInst,
                               uint32_t EncodedPtr, uint32_t EncodedLen,
                               uint32_t Encoding,
                               uint32_t /* Out */ SigHandlePtr) {
-  assumingExist(MemInst);
+  checkExist(MemInst);
 
   const __wasi_size_t WasiAlgLen = AlgLen;
   auto *const Alg = MemInst->getPointer<const char *>(AlgPtr, WasiAlgLen);
-  assumingExist(Alg);
+  checkExist(Alg);
 
   Algorithm WasiAlg;
   if (auto Res = tryFrom<Algorithm>(Alg); unlikely(!Res)) {
@@ -56,7 +56,7 @@ Expect<uint32_t> Import::body(Runtime::Instance::MemoryInstance *MemInst,
   const __wasi_size_t WasiEncodedLen = EncodedLen;
   auto *const Encoded =
       MemInst->getPointer<uint8_t *>(EncodedPtr, WasiEncodedLen);
-  assumingExist(Encoded);
+  checkExist(Encoded);
 
   __wasi_signature_encoding_e_t WasiEncoding;
   if (auto Res = cast<__wasi_signature_encoding_e_t>(Encoding);
@@ -68,7 +68,7 @@ Expect<uint32_t> Import::body(Runtime::Instance::MemoryInstance *MemInst,
 
   auto *const SigHandle =
       MemInst->getPointer<__wasi_signature_t *>(SigHandlePtr);
-  assumingExist(SigHandle);
+  checkExist(SigHandle);
 
   if (auto Res =
           Ctx.signatureImport(WasiAlg, {Encoded, WasiEncodedLen}, WasiEncoding);
@@ -84,11 +84,11 @@ Expect<uint32_t> Import::body(Runtime::Instance::MemoryInstance *MemInst,
 Expect<uint32_t> StateOpen::body(Runtime::Instance::MemoryInstance *MemInst,
                                  int32_t KpHandle,
                                  uint32_t /* Out */ SigStatePtr) {
-  assumingExist(MemInst);
+  checkExist(MemInst);
 
   auto *const SigState =
       MemInst->getPointer<__wasi_signature_state_t *>(SigStatePtr);
-  assumingExist(SigState);
+  checkExist(SigState);
 
   if (auto Res = Ctx.signatureStateOpen(KpHandle); unlikely(!Res)) {
     return Res.error();
@@ -102,12 +102,12 @@ Expect<uint32_t> StateOpen::body(Runtime::Instance::MemoryInstance *MemInst,
 Expect<uint32_t> StateUpdate::body(Runtime::Instance::MemoryInstance *MemInst,
                                    int32_t SigStateHandle, uint32_t InputPtr,
                                    uint32_t InputSize) {
-  assumingExist(MemInst);
+  checkExist(MemInst);
 
   const __wasi_size_t WasiInputSize = InputSize;
   auto *const Input =
       MemInst->getPointer<const uint8_t *>(InputPtr, WasiInputSize);
-  assumingExist(Input);
+  checkExist(Input);
 
   if (auto Res =
           Ctx.signatureStateUpdate(SigStateHandle, {Input, WasiInputSize});
@@ -121,11 +121,11 @@ Expect<uint32_t> StateUpdate::body(Runtime::Instance::MemoryInstance *MemInst,
 Expect<uint32_t> StateSign::body(Runtime::Instance::MemoryInstance *MemInst,
                                  int32_t SigStateHandle,
                                  uint32_t /* Out */ ArrayOutputHandlePtr) {
-  assumingExist(MemInst);
+  checkExist(MemInst);
 
   auto *const ArrayOutputHandle =
       MemInst->getPointer<__wasi_array_output_t *>(ArrayOutputHandlePtr);
-  assumingExist(ArrayOutputHandle);
+  checkExist(ArrayOutputHandle);
 
   if (auto Res = Ctx.signatureStateSign(SigStateHandle); unlikely(!Res)) {
     return Res.error();
@@ -138,7 +138,7 @@ Expect<uint32_t> StateSign::body(Runtime::Instance::MemoryInstance *MemInst,
 
 Expect<uint32_t> StateClose::body(Runtime::Instance::MemoryInstance *MemInst,
                                   int32_t SigStateHandle) {
-  assumingExist(MemInst);
+  checkExist(MemInst);
 
   if (auto Res = Ctx.signatureStateClose(SigStateHandle); unlikely(!Res)) {
     return Res.error();
@@ -151,12 +151,12 @@ Expect<uint32_t>
 VerificationStateOpen::body(Runtime::Instance::MemoryInstance *MemInst,
                             int32_t SigPkHandle,
                             uint32_t /* Out */ VerificationStateHandlePtr) {
-  assumingExist(MemInst);
+  checkExist(MemInst);
 
   auto *const VerificationStateHandle =
       MemInst->getPointer<__wasi_signature_state_t *>(
           VerificationStateHandlePtr);
-  assumingExist(VerificationStateHandle);
+  checkExist(VerificationStateHandle);
 
   if (auto Res = Ctx.signatureVerificationStateOpen(SigPkHandle);
       unlikely(!Res)) {
@@ -172,11 +172,11 @@ Expect<uint32_t>
 VerificationStateUpdate::body(Runtime::Instance::MemoryInstance *MemInst,
                               int32_t SigStateHandle, uint32_t InputPtr,
                               uint32_t InputSize) {
-  assumingExist(MemInst);
+  checkExist(MemInst);
 
   const __wasi_size_t WasiInputSize = InputSize;
   auto *const Input = MemInst->getPointer<const uint8_t *>(InputPtr, InputSize);
-  assumingExist(Input);
+  checkExist(Input);
 
   if (auto Res = Ctx.signatureVerificationStateUpdate(SigStateHandle,
                                                       {Input, WasiInputSize});

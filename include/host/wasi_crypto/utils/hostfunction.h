@@ -260,8 +260,8 @@ tryFrom(std::string_view RawAlgStr) noexcept {
 }
 /// -----------------------------------------------------------------------------
 
-/// assuming exist or return `_algorithm_failure`
-#define assumingExist(Expr)                                                    \
+/// check exist or return `_algorithm_failure`
+#define checkExist(Expr)                                                       \
   do {                                                                         \
     if (unlikely(!(Expr))) {                                                   \
       return __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE;                            \

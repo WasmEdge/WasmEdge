@@ -24,14 +24,16 @@ Options optionsOpen(__wasi_algorithm_type_e_t Alg) noexcept {
 WasiCryptoExpect<void> optionsSet(Options &Options, std::string_view Name,
                                   Span<const uint8_t> Value) noexcept {
   return std::visit(
-      [Name, Value](auto &&Option) { return Option.set(Name, Value); },
+      [Name, Value](auto &Option) noexcept { return Option.set(Name, Value); },
       Options);
 }
 
 WasiCryptoExpect<void> optionsSetU64(Options &Options, std::string_view Name,
                                      uint64_t Value) noexcept {
   return std::visit(
-      [Name, Value](auto &&Option) { return Option.setU64(Name, Value); },
+      [Name, Value](auto &Option) noexcept {
+        return Option.setU64(Name, Value);
+      },
       Options);
 }
 
@@ -39,7 +41,7 @@ WasiCryptoExpect<void> optionsSetGuestBuffer(Options &Options,
                                              std::string_view Name,
                                              Span<uint8_t> Value) noexcept {
   return std::visit(
-      [Name, Value](auto &&Option) {
+      [Name, Value](auto &Option) noexcept {
         return Option.setGuestBuffer(Name, Value);
       },
       Options);

@@ -11,11 +11,11 @@ namespace Kx {
 Expect<uint32_t> Dh::body(Runtime::Instance::MemoryInstance *MemInst,
                           int32_t PkHandle, int32_t SkHandle,
                           uint32_t /* Out */ SharedSecretPtr) {
-  assumingExist(MemInst);
+  checkExist(MemInst);
 
   auto *const SharedSecret =
       MemInst->getPointer<__wasi_array_output_t *>(SharedSecretPtr);
-  assumingExist(SharedSecret);
+  checkExist(SharedSecret);
 
   if (auto Res = Ctx.kxDh(PkHandle, SkHandle); unlikely(!Res)) {
     return Res.error();
@@ -30,14 +30,14 @@ Expect<uint32_t> Encapsulate::body(Runtime::Instance::MemoryInstance *MemInst,
                                    int32_t PkHandle,
                                    uint32_t /* Out */ SecretPtr,
                                    uint32_t /* Out */ EncapsulatedSecretPtr) {
-  assumingExist(MemInst);
+  checkExist(MemInst);
 
   auto *const Secret = MemInst->getPointer<__wasi_array_output_t *>(SecretPtr);
-  assumingExist(Secret);
+  checkExist(Secret);
 
   auto *const EncapsulatedSecret =
       MemInst->getPointer<__wasi_array_output_t *>(EncapsulatedSecretPtr);
-  assumingExist(EncapsulatedSecret);
+  checkExist(EncapsulatedSecret);
 
   if (auto Res = Ctx.kxEncapsulate(PkHandle); unlikely(!Res)) {
     return Res.error();
@@ -54,16 +54,16 @@ Expect<uint32_t> Decapsulate::body(Runtime::Instance::MemoryInstance *MemInst,
                                    uint32_t EncapsulatedSecretPtr,
                                    uint32_t EncapsulatedSecretLen,
                                    uint32_t /* Out */ SecretPtr) {
-  assumingExist(MemInst);
+  checkExist(MemInst);
 
   const __wasi_size_t WasiEncapsulatedSecretLen = EncapsulatedSecretLen;
   auto *const EncapsulatedSecret = MemInst->getPointer<uint8_t *>(
       EncapsulatedSecretPtr, WasiEncapsulatedSecretLen);
 
-  assumingExist(EncapsulatedSecret);
+  checkExist(EncapsulatedSecret);
 
   auto *const Secret = MemInst->getPointer<__wasi_array_output_t *>(SecretPtr);
-  assumingExist(Secret);
+  checkExist(Secret);
 
   if (auto Res = Ctx.kxDecapsulate(
           SkHandle, {EncapsulatedSecret, WasiEncapsulatedSecretLen});

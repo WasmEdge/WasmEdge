@@ -12,10 +12,10 @@ Expect<uint32_t>
 ArrayOutputLen::body(Runtime::Instance::MemoryInstance *MemInst,
                      int32_t ArrayOutputHandle, uint32_t /* Out */ SizePtr) {
   /// Check memory instance from module.
-  assumingExist(MemInst);
+  checkExist(MemInst);
 
   auto *const Size = MemInst->getPointer<__wasi_size_t *>(SizePtr);
-  assumingExist(Size);
+  checkExist(Size);
 
   if (auto Res = Ctx.arrayOutputLen(ArrayOutputHandle).and_then(toWasiSize);
       unlikely(!Res)) {
@@ -32,14 +32,14 @@ ArrayOutputPull::body(Runtime::Instance::MemoryInstance *MemInst,
                       int32_t ArrayOutputHandle, uint32_t BufPtr,
                       uint32_t BufLen, uint32_t /* Out */ SizePtr) {
   /// Check memory instance from module.
-  assumingExist(MemInst);
+  checkExist(MemInst);
 
   const __wasi_size_t WasiBufLen = BufLen;
   auto *const Buf = MemInst->getPointer<uint8_t *>(BufPtr, WasiBufLen);
-  assumingExist(Buf);
+  checkExist(Buf);
 
   auto *const Size = MemInst->getPointer<__wasi_size_t *>(SizePtr);
-  assumingExist(Size);
+  checkExist(Size);
 
   if (auto Res = Ctx.arrayOutputPull(ArrayOutputHandle, {Buf, WasiBufLen})
                      .and_then(toWasiSize);
@@ -56,7 +56,7 @@ Expect<uint32_t> OptionsOpen::body(Runtime::Instance::MemoryInstance *MemInst,
                                    uint32_t AlgType,
                                    uint32_t /* Out */ OptionsHandlePtr) {
   /// Check memory instance from module.
-  assumingExist(MemInst);
+  checkExist(MemInst);
 
   __wasi_algorithm_type_e_t WasiAlgType;
   if (auto Res = cast<__wasi_algorithm_type_e_t>(AlgType); unlikely(!Res)) {
@@ -67,7 +67,7 @@ Expect<uint32_t> OptionsOpen::body(Runtime::Instance::MemoryInstance *MemInst,
 
   auto *const OptionsHandle =
       MemInst->getPointer<__wasi_options_t *>(OptionsHandlePtr);
-  assumingExist(OptionsHandle);
+  checkExist(OptionsHandle);
 
   if (auto Res = Ctx.optionsOpen(WasiAlgType); unlikely(!Res)) {
     return Res.error();
@@ -93,16 +93,16 @@ Expect<uint32_t> OptionsSet::body(Runtime::Instance::MemoryInstance *MemInst,
                                   uint32_t NameLen, uint32_t ValuePtr,
                                   uint32_t ValueLen) {
   /// Check memory instance from module.
-  assumingExist(MemInst);
+  checkExist(MemInst);
 
   const __wasi_size_t WasiNameLen = NameLen;
   auto *const Name = MemInst->getPointer<const char *>(NamePtr, WasiNameLen);
-  assumingExist(Name);
+  checkExist(Name);
 
   const __wasi_size_t WasiValueLen = ValueLen;
   auto *const Value =
       MemInst->getPointer<const uint8_t *>(ValuePtr, WasiValueLen);
-  assumingExist(Value);
+  checkExist(Value);
 
   if (auto Res = Ctx.optionsSet(OptionsHandle, {Name, WasiNameLen},
                                 {Value, WasiValueLen});
@@ -117,11 +117,11 @@ Expect<uint32_t> OptionsSetU64::body(Runtime::Instance::MemoryInstance *MemInst,
                                      int32_t OptionsHandle, uint32_t NamePtr,
                                      uint32_t NameLen, uint64_t Value) {
   /// Check memory instance from module.
-  assumingExist(MemInst);
+  checkExist(MemInst);
 
   const __wasi_size_t WasiNameLen = NameLen;
   auto *const Name = MemInst->getPointer<const char *>(NamePtr, WasiNameLen);
-  assumingExist(Name);
+  checkExist(Name);
 
   if (auto Res = Ctx.optionsSetU64(OptionsHandle, {Name, WasiNameLen}, Value);
       unlikely(!Res)) {
@@ -135,15 +135,15 @@ Expect<uint32_t> OptionsSetGuestBuffer::body(
     Runtime::Instance::MemoryInstance *MemInst, int32_t OptionsHandle,
     uint32_t NamePtr, uint32_t NameLen, uint32_t BufPtr, uint32_t BufLen) {
   /// Check memory instance from module.
-  assumingExist(MemInst);
+  checkExist(MemInst);
 
   const __wasi_size_t WasiNameLen = NameLen;
   auto *const Name = MemInst->getPointer<const char *>(NamePtr, WasiNameLen);
-  assumingExist(Name);
+  checkExist(Name);
 
   const __wasi_size_t WasiBufLen = BufLen;
   auto *const Buf = MemInst->getPointer<uint8_t *>(BufPtr, WasiBufLen);
-  assumingExist(Buf);
+  checkExist(Buf);
 
   if (auto Res = Ctx.optionsSetGuestBuffer(OptionsHandle, {Name, WasiNameLen},
                                            {Buf, WasiBufLen});
@@ -159,15 +159,15 @@ SecretsManagerOpen::body(Runtime::Instance::MemoryInstance *MemInst,
                          uint32_t OptOptionsHandlePtr,
                          uint32_t /* Out */ SecretsManagerHandlePtr) {
   /// Check memory instance from module.
-  assumingExist(MemInst);
+  checkExist(MemInst);
 
   auto *const OptOptionsHandle =
       MemInst->getPointer<__wasi_opt_options_t *>(OptOptionsHandlePtr);
-  assumingExist(OptOptionsHandle);
+  checkExist(OptOptionsHandle);
 
   auto *const SecretsManagerHandle =
       MemInst->getPointer<__wasi_secrets_manager_t *>(SecretsManagerHandlePtr);
-  assumingExist(SecretsManagerHandle);
+  checkExist(SecretsManagerHandle);
 
   if (auto Res = Ctx.secretsManagerOpen(toOptional(*OptOptionsHandle));
       unlikely(!Res)) {
@@ -194,12 +194,12 @@ SecretsManagerInvalidate::body(Runtime::Instance::MemoryInstance *MemInst,
                                int32_t SecretsManagerHandle, uint32_t KeyIdPtr,
                                uint32_t KeyIdLen, uint64_t Version) {
   /// Check memory instance from module.
-  assumingExist(MemInst);
+  checkExist(MemInst);
 
   const __wasi_size_t WasiKeyIdLen = KeyIdLen;
   auto *const KeyId =
       MemInst->getPointer<const uint8_t *>(KeyIdPtr, WasiKeyIdLen);
-  assumingExist(KeyId);
+  checkExist(KeyId);
 
   if (auto Res = Ctx.secretsManagerInvalidate(SecretsManagerHandle,
                                               {KeyId, WasiKeyIdLen}, Version);

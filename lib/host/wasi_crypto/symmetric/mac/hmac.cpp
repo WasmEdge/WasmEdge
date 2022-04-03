@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: 2019-2022 Second State INC
 
 #include "host/wasi_crypto/symmetric/mac/hmac.h"
-#include "host/wasi_crypto/utils/secret_key.h"
+#include "host/wasi_crypto/utils/secret_vec.h"
 #include "openssl/rand.h"
 
 namespace WasmEdge {
@@ -22,13 +22,13 @@ template <int ShaNid> constexpr size_t Hmac<ShaNid>::getKeySize() noexcept {
 template <int ShaNid>
 WasiCryptoExpect<typename Hmac<ShaNid>::Key>
 Hmac<ShaNid>::Key::generate(OptionalRef<Options>) noexcept {
-  return SecretKey::random(getKeySize());
+  return SecretVec::random<getKeySize()>();
 }
 
 template <int ShaNid>
 WasiCryptoExpect<typename Hmac<ShaNid>::Key>
 Hmac<ShaNid>::Key::import(Span<const uint8_t> Raw) noexcept {
-  return std::make_shared<SecretKey>(Raw);
+  return std::make_shared<SecretVec>(Raw);
 }
 
 template <int ShaNid>

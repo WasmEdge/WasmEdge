@@ -39,13 +39,13 @@ constexpr size_t Cipher<CipherNid>::getTagSize() noexcept {
 template <int CipherNid>
 WasiCryptoExpect<typename Cipher<CipherNid>::Key>
 Cipher<CipherNid>::Key::generate(OptionalRef<Options>) noexcept {
-  return SecretKey::random(getKeySize());
+  return SecretVec::random<getKeySize()>();
 }
 
 template <int CipherNid>
 WasiCryptoExpect<typename Cipher<CipherNid>::Key>
 Cipher<CipherNid>::Key::import(Span<const uint8_t> Raw) noexcept {
-  return std::make_shared<SecretKey>(Raw);
+  return std::make_shared<SecretVec>(Raw);
 }
 
 template <int CipherNid>

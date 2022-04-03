@@ -16,7 +16,7 @@
 #include "host/wasi_crypto/symmetric/aeads/helper.h"
 #include "host/wasi_crypto/utils/evp_wrapper.h"
 #include "host/wasi_crypto/utils/optional.h"
-#include "host/wasi_crypto/utils/secret_key.h"
+#include "host/wasi_crypto/utils/secret_vec.h"
 #include "wasi_crypto/api.hpp"
 
 namespace WasmEdge {
@@ -30,7 +30,7 @@ template <int CipherNid> class Cipher {
 public:
   class Key {
   public:
-    Key(std::shared_ptr<SecretKey> Data) noexcept : Data(std::move(Data)) {}
+    Key(std::shared_ptr<SecretVec> Data) noexcept : Data(std::move(Data)) {}
 
     static WasiCryptoExpect<Key> import(Span<const uint8_t> Data) noexcept;
 
@@ -42,7 +42,7 @@ public:
     const std::vector<uint8_t> &ref() const noexcept { return Data->raw(); }
 
   private:
-    const std::shared_ptr<SecretKey> Data;
+    const std::shared_ptr<SecretVec> Data;
   };
 
   // Nonce = IV,

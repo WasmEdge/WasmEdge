@@ -17,7 +17,7 @@
 #include "host/wasi_crypto/symmetric/options.h"
 #include "host/wasi_crypto/utils/evp_wrapper.h"
 #include "host/wasi_crypto/utils/optional.h"
-#include "host/wasi_crypto/utils/secret_key.h"
+#include "host/wasi_crypto/utils/secret_vec.h"
 
 #include <cstdint>
 #include <optional>
@@ -33,7 +33,7 @@ template <int ShaNid> class Hmac {
 public:
   class Key {
   public:
-    Key(std::shared_ptr<SecretKey> Data)
+    Key(std::shared_ptr<SecretVec> Data)
         : Data(std::move(Data)) {}
 
     static WasiCryptoExpect<Key> import(Span<const uint8_t> Data) noexcept;
@@ -46,7 +46,7 @@ public:
     const std::vector<uint8_t> &ref() const noexcept { return Data->raw(); }
 
   private:
-    const std::shared_ptr<SecretKey> Data;
+    const std::shared_ptr<SecretVec> Data;
   };
 
   class State : public MacState<Key> {

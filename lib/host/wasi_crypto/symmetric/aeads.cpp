@@ -4,6 +4,7 @@
 #include "host/wasi_crypto/symmetric/aeads.h"
 #include "host/wasi_crypto/utils/error.h"
 #include "host/wasi_crypto/utils/evp_wrapper.h"
+#include "openssl/crypto.h"
 #include "wasi_crypto/api.hpp"
 
 #include <cstdint>
@@ -183,7 +184,7 @@ Cipher<CipherNid>::State::decryptImpl(Span<uint8_t> Out,
 
   int ActualFinalSize;
   if (!EVP_CipherFinal_ex(Ctx->RawCtx.get(), nullptr, &ActualFinalSize)) {
-    std::fill(Out.begin(), Out.end(), 0);
+    OPENSSL_cleanse(Out.data(), Out.size());
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_TAG);
   }
   ensureOrReturn(ActualFinalSize + ActualUpdateSize == DataSize,

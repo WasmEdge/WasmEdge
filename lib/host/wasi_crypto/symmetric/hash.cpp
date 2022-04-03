@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2019-2022 Second State INC
 
-#include "host/wasi_crypto/symmetric/hash/sha2.h"
+#include "host/wasi_crypto/symmetric/hash.h"
 
 namespace WasmEdge {
 namespace Host {

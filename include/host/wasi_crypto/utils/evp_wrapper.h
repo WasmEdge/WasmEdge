@@ -75,11 +75,6 @@ using EcPointPtr = OpenSSLUniquePtr<EC_POINT, EC_POINT_free>;
           OPENSSL_die("assertion failed: " #Cond, __FILE__, __LINE__)))
 #endif
 
-/// Use caution! This is only for interacting with legacy openssl c api
-template <typename T> T *addressOfTemporary(T &&X) { return &X; }
-
-
-
 /// OpenSSL encoding parse api is too confusing, simplify them
 /// For example, `PEM_read_bio_PUBKEY` equal to `pemReadPUBKEY`
 // -------------------------------------------------------------------------  //

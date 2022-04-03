@@ -44,7 +44,7 @@ template <int ShaNid>
 WasiCryptoExpect<typename Hkdf<ShaNid>::Expand::Key>
 Hkdf<ShaNid>::Expand::Key::import(Span<const uint8_t> Raw) noexcept {
   ensureOrReturn(Raw.size() == getKeySize(), __WASI_CRYPTO_ERRNO_INVALID_KEY);
-  return SecretKey::random(getKeySize());
+  return std::make_shared<SecretKey>(Raw);
 }
 
 template <int ShaNid>
@@ -74,7 +74,7 @@ Hkdf<ShaNid>::Expand::State::squeeze(Span<uint8_t> Out) noexcept {
 template <int ShaNid>
 WasiCryptoExpect<typename Hkdf<ShaNid>::Extract::Key>
 Hkdf<ShaNid>::Extract::Key::generate(OptionalRef<Options>) noexcept {
-  return SecretKey::random(getKeySize());
+  return SecretKey::random<getKeySize()>();
 }
 
 template <int ShaNid>

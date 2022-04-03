@@ -15,8 +15,6 @@
 
 #include "host/wasi_crypto/symmetric/registed.h"
 
-#include <variant>
-
 namespace WasmEdge {
 namespace Host {
 namespace WasiCrypto {

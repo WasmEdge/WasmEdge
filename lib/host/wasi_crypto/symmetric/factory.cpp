@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: 2019-2022 Second State INC
 
 #include "host/wasi_crypto/symmetric/factory.h"
-#include "host/wasi_crypto/symmetric/eae/hkdf.h"
+#include "host/wasi_crypto/symmetric/kdf.h"
 #include "host/wasi_crypto/symmetric/key.h"
 #include "host/wasi_crypto/symmetric/state.h"
 #include "host/wasi_crypto/utils/error.h"

@@ -1,19 +1,21 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2019-2022 Second State INC
 
-//===-- wasi_crypto/symmetric/aeads/cipher.h - Cipher class declaration ---===//
+//===-- wasi_crypto/symmetric/aeads.h - Aeads relative declaration --------===//
 //
 // Part of the WasmEdge Project.
 //
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// This file contains the declaration of Cipher class.
+/// This file contains the declaration of Aeads relative class.
 ///
 //===----------------------------------------------------------------------===//
 #pragma once
 
-#include "host/wasi_crypto/symmetric/aeads/helper.h"
+#include "host/wasi_crypto/symmetric/alg.h"
+#include "host/wasi_crypto/symmetric/options.h"
+#include "host/wasi_crypto/symmetric/tag.h"
 #include "host/wasi_crypto/utils/evp_wrapper.h"
 #include "host/wasi_crypto/utils/optional.h"
 #include "host/wasi_crypto/utils/secret_vec.h"
@@ -23,6 +25,31 @@ namespace WasmEdge {
 namespace Host {
 namespace WasiCrypto {
 namespace Symmetric {
+
+/// Aeads invalid operation, every Aeads state should inherent from this class
+///
+/// More detailed:
+/// https://github.com/WebAssembly/wasi-crypto/blob/main/docs/wasi-crypto.md#aeads
+template <typename Key> class AEADsState {
+public:
+  WasiCryptoExpect<uint64_t> optionsGetU64(std::string_view) const noexcept {
+    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_UNSUPPORTED_OPTION);
+  }
+
+  WasiCryptoExpect<void> squeeze(Span<uint8_t>) {
+    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_OPERATION);
+  }
+  WasiCryptoExpect<void> ratchet() {
+    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_OPERATION);
+  }
+
+  WasiCryptoExpect<Key> squeezeKey(Algorithm) {
+    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_OPERATION);
+  }
+  WasiCryptoExpect<Tag> squeezeTag() {
+    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_OPERATION);
+  }
+};
 
 template <int CipherNid> class Cipher {
   static inline constexpr size_t NonceSize = 12;

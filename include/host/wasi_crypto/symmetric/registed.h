@@ -13,7 +13,7 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
-#include "host/wasi_crypto/symmetric/aeads/cipher.h"
+#include "host/wasi_crypto/symmetric/aeads.h"
 #include "host/wasi_crypto/symmetric/eae/hkdf.h"
 #include "host/wasi_crypto/symmetric/hash/sha2.h"
 #include "host/wasi_crypto/symmetric/mac/hmac.h"

@@ -15,6 +15,7 @@
 
 #include "common/span.h"
 #include "host/wasi_crypto/utils/error.h"
+#include "openssl/crypto.h"
 #include "openssl/rand.h"
 
 #include <climits>
@@ -35,7 +36,7 @@ public:
 
   SecretVec(size_t Size) : Data(Size) {}
 
-  ~SecretVec() { std::fill(Data.begin(), Data.end(), 0); }
+  ~SecretVec() { OPENSSL_cleanse(Data.data(), Data.size()); }
 
   auto &raw() { return Data; }
 

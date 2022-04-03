@@ -5,7 +5,7 @@
 #include "host/wasi_crypto/symmetric/factory.h"
 #include "host/wasi_crypto/utils/error.h"
 #include "host/wasi_crypto/utils/evp_wrapper.h"
-#include "host/wasi_crypto/utils/secret_key.h"
+#include "host/wasi_crypto/utils/secret_vec.h"
 #include "openssl/kdf.h"
 #include "openssl/rand.h"
 #include "wasi_crypto/api.hpp"
@@ -44,7 +44,7 @@ template <int ShaNid>
 WasiCryptoExpect<typename Hkdf<ShaNid>::Expand::Key>
 Hkdf<ShaNid>::Expand::Key::import(Span<const uint8_t> Raw) noexcept {
   ensureOrReturn(Raw.size() == getKeySize(), __WASI_CRYPTO_ERRNO_INVALID_KEY);
-  return std::make_shared<SecretKey>(Raw);
+  return std::make_shared<SecretVec>(Raw);
 }
 
 template <int ShaNid>
@@ -74,13 +74,13 @@ Hkdf<ShaNid>::Expand::State::squeeze(Span<uint8_t> Out) noexcept {
 template <int ShaNid>
 WasiCryptoExpect<typename Hkdf<ShaNid>::Extract::Key>
 Hkdf<ShaNid>::Extract::Key::generate(OptionalRef<Options>) noexcept {
-  return SecretKey::random<getKeySize()>();
+  return SecretVec::random<getKeySize()>();
 }
 
 template <int ShaNid>
 WasiCryptoExpect<typename Hkdf<ShaNid>::Extract::Key>
 Hkdf<ShaNid>::Extract::Key::import(Span<const uint8_t> Raw) noexcept {
-  return std::make_shared<SecretKey>(Raw);
+  return std::make_shared<SecretVec>(Raw);
 }
 
 template <int ShaNid>
@@ -108,7 +108,7 @@ Hkdf<ShaNid>::Extract::State::squeezeKey(Symmetric::Algorithm Alg) noexcept {
   opensslCheck(EVP_PKEY_CTX_set1_hkdf_salt(
       Ctx->RawCtx.get(), Ctx->Salt.data(), Ctx->Salt.size()));
 
-  auto Data = std::make_shared<SecretKey>(getKeySize());
+  auto Data = std::make_shared<SecretVec>(getKeySize());
 
   size_t ActualOutSize;
   opensslCheck(

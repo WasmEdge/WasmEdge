@@ -1,20 +1,20 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2019-2022 Second State INC
 
-//===-- wasi_crypto/utils/secret_key.h - Secret key definition ------===//
+//===-- wasi_crypto/utils/secret_vec.h - Secret Vec definition ------===//
 //
 // Part of the WasmEdge Project.
 //
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// This file contains definition of secret key
+/// This file contains definition of secret vec
 ///
 //===----------------------------------------------------------------------===//
 #pragma once
 
-#include "host/wasi_crypto/utils/error.h"
 #include "common/span.h"
+#include "host/wasi_crypto/utils/error.h"
 #include "openssl/rand.h"
 
 #include <climits>
@@ -27,23 +27,27 @@ namespace Host {
 namespace WasiCrypto {
 
 /// A vector wrapper, but swipe secret key info on destory
-class SecretKey {
+class SecretVec {
 public:
-  SecretKey(std::vector<uint8_t> Data) : Data(std::move(Data)) {}
-  
-  SecretKey(Span<const uint8_t> Data) : Data(Data.begin(), Data.end()) {}
+  SecretVec(std::vector<uint8_t> Data) : Data(std::move(Data)) {}
 
-  SecretKey(size_t Size) : Data(Size) {}
+  SecretVec(Span<const uint8_t> Data) : Data(Data.begin(), Data.end()) {}
 
-  ~SecretKey() { std::fill(Data.begin(), Data.end(), 0); }
+  SecretVec(size_t Size) : Data(Size) {}
+
+  ~SecretVec() { std::fill(Data.begin(), Data.end(), 0); }
 
   auto &raw() { return Data; }
 
-  /// Generate random size vector. Notice Size shouldn't beyond INT_MAX
-  /// because of the limitations of openssl
-  static WasiCryptoExpect<std::shared_ptr<SecretKey>> random(size_t Size) {
-    ensureOrReturn(Size <= INT_MAX, __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
-    auto Res = std::make_shared<SecretKey>(Size);
+  /// Generate random size vector. Notice Size shouldn't beyond
+  /// std::numeric_limits<int>::max() because of the limitations of openssl
+  template <size_t Size>
+  static WasiCryptoExpect<std::shared_ptr<SecretVec>> random() {
+    static_assert(
+        Size <= std::numeric_limits<int>::max(),
+        "Random key size shouldn't beyond std::numeric_limits<int>::max()");
+
+    auto Res = std::make_shared<SecretVec>(Size);
     ensureOrReturn(RAND_bytes(Res->raw().data(), static_cast<int>(Size)),
                    __WASI_CRYPTO_ERRNO_RNG_ERROR);
     return Res;

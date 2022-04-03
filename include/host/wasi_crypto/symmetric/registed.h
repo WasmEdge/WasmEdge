@@ -14,7 +14,7 @@
 #pragma once
 
 #include "host/wasi_crypto/symmetric/aeads.h"
-#include "host/wasi_crypto/symmetric/eae/hkdf.h"
+#include "host/wasi_crypto/symmetric/kdf.h"
 #include "host/wasi_crypto/symmetric/hash.h"
 #include "host/wasi_crypto/symmetric/mac.h"
 #include "host/wasi_crypto/utils/error.h"

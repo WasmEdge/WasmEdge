@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-#include "host/wasi_crypto/symmetric/eae/hkdf.h"
+#include "host/wasi_crypto/symmetric/kdf.h"
 #include "host/wasi_crypto/symmetric/alg.h"
 #include "host/wasi_crypto/symmetric/factory.h"
 #include "host/wasi_crypto/utils/error.h"

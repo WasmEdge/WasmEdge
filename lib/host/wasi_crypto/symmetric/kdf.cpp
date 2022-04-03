@@ -64,10 +64,10 @@ Hkdf<ShaNid>::Expand::State::absorb(Span<const uint8_t> Data) noexcept {
 template <int ShaNid>
 WasiCryptoExpect<void>
 Hkdf<ShaNid>::Expand::State::squeeze(Span<uint8_t> Out) noexcept {
-  ensureOrReturn(
-      EVP_PKEY_derive(Ctx.get(), Out.data(), addressOfTemporary(Out.size())),
-      __WASI_CRYPTO_ERRNO_INVALID_KEY);
-
+  size_t KeyLen = Out.size();
+  ensureOrReturn(EVP_PKEY_derive(Ctx.get(), Out.data(), &KeyLen),
+                 __WASI_CRYPTO_ERRNO_INVALID_KEY);
+  ensureOrReturn(KeyLen == getKeySize(), __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
   return {};
 }
 
@@ -105,8 +105,8 @@ Hkdf<ShaNid>::Extract::State::squeezeKey(Symmetric::Algorithm Alg) noexcept {
                  __WASI_CRYPTO_ERRNO_UNSUPPORTED_ALGORITHM);
 
   std::shared_lock<std::shared_mutex> Lock{Ctx->Mutex};
-  opensslCheck(EVP_PKEY_CTX_set1_hkdf_salt(
-      Ctx->RawCtx.get(), Ctx->Salt.data(), Ctx->Salt.size()));
+  opensslCheck(EVP_PKEY_CTX_set1_hkdf_salt(Ctx->RawCtx.get(), Ctx->Salt.data(),
+                                           Ctx->Salt.size()));
 
   auto Data = std::make_shared<SecretVec>(getKeySize());
 

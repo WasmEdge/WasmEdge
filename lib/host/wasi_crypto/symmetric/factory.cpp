@@ -9,6 +9,8 @@
 #include "wasi_crypto/api.hpp"
 
 #include <optional>
+#include <utility>
+
 namespace WasmEdge {
 namespace Host {
 namespace WasiCrypto {
@@ -17,29 +19,29 @@ namespace Symmetric {
 FactoryVariant makeFactory(Algorithm Alg) noexcept {
   switch (Alg) {
   case Algorithm::Sha256:
-    return Sha256{};
+    return FactoryVariant{std::in_place_type_t<Sha256>{}};
   case Algorithm::Sha512:
-    return Sha512{};
+    return FactoryVariant{std::in_place_type_t<Sha512>{}};
   case Algorithm::Sha512_256:
-    return Sha512_256{};
+    return FactoryVariant{std::in_place_type_t<Sha512_256>{}};
   case Algorithm::HmacSha256:
-    return HmacSha256{};
+    return FactoryVariant{std::in_place_type_t<HmacSha256>{}};
   case Algorithm::HmacSha512:
-    return HmacSha512{};
+    return FactoryVariant{std::in_place_type_t<HmacSha512>{}};
   case Algorithm::HkdfSha256Expand:
-    return HkdfSha256Expand{};
+    return FactoryVariant{std::in_place_type_t<HkdfSha256Expand>{}};
   case Algorithm::HkdfSha256Extract:
-    return HkdfSha256Extract{};
+    return FactoryVariant{std::in_place_type_t<HkdfSha256Extract>{}};
   case Algorithm::HkdfSha512Expand:
-    return HkdfSha512Expand{};
+    return FactoryVariant{std::in_place_type_t<HkdfSha512Expand>{}};
   case Algorithm::HkdfSha512Extract:
-    return HkdfSha512Extract{};
+    return FactoryVariant{std::in_place_type_t<HkdfSha512Extract>{}};
   case Algorithm::Aes128Gcm:
-    return Aes128Gcm{};
+    return FactoryVariant{std::in_place_type_t<Aes128Gcm>{}};
   case Algorithm::Aes256Gcm:
-    return Aes256Gcm{};
+    return FactoryVariant{std::in_place_type_t<Aes256Gcm>{}};
   case Algorithm::ChaCha20Poly1305:
-    return ChaCha20Poly1305{};
+    return FactoryVariant{std::in_place_type_t<ChaCha20Poly1305>{}};
   default:
     assumingUnreachable();
   }

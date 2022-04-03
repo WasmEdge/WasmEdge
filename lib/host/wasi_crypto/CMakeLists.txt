@@ -23,7 +23,7 @@ wasmedge_add_library(wasmedgeHostModuleWasiCrypto
   symmetric/factory.cpp
   utils/evp_wrapper.cpp
   symmetric/hash.cpp
-  symmetric/mac/hmac.cpp
+  symmetric/mac.cpp
   symmetric/eae/hkdf.cpp
   symmetric/aeads.cpp
   asymmetric_common/ctx.cpp

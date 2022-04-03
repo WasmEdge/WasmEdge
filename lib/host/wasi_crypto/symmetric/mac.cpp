@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2019-2022 Second State INC
 
-#include "host/wasi_crypto/symmetric/mac/hmac.h"
+#include "host/wasi_crypto/symmetric/mac.h"
 #include "host/wasi_crypto/utils/secret_vec.h"
 #include "openssl/rand.h"
 

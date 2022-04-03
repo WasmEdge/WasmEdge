@@ -160,8 +160,10 @@ public:
 
       State(EvpPkeyCtxPtr Ctx) noexcept : Ctx(std::move(Ctx)) {}
 
+      /// absorb info information.
       WasiCryptoExpect<void> absorb(Span<const uint8_t> Data) noexcept;
-
+      
+      /// derivation
       WasiCryptoExpect<void> squeeze(Span<uint8_t> Out) noexcept;
 
     private:
@@ -196,10 +198,9 @@ public:
       static WasiCryptoExpect<State>
       open(Key &Key, OptionalRef<Options> OptOption) noexcept;
 
-      /// absorbs the salt of the key(Extract)/info(Expand) information.
+      /// absorbs the salt information
       WasiCryptoExpect<void> absorb(Span<const uint8_t> Data) noexcept;
 
-      /// Extract:
       /// returns the PRK, whose algorithm type is set to the EXPAND counterpart
       /// of the EXTRACT operation
       WasiCryptoExpect<typename Expand::Key> squeezeKey(Algorithm Alg) noexcept;

@@ -81,14 +81,14 @@ template <typename T> using WasiRawTypeT = typename WasiRawType<T>::Type;
 
 template <>
 constexpr WasiCryptoExpect<__wasi_algorithm_type_e_t>
-cast(uint64_t Encoding) noexcept {
-  switch (static_cast<WasiRawTypeT<__wasi_algorithm_type_e_t>>(Encoding)) {
+cast(uint64_t AlgType) noexcept {
+  switch (static_cast<WasiRawTypeT<__wasi_algorithm_type_e_t>>(AlgType)) {
   case __WASI_ALGORITHM_TYPE_SIGNATURES:
   case __WASI_ALGORITHM_TYPE_SYMMETRIC:
   case __WASI_ALGORITHM_TYPE_KEY_EXCHANGE:
-    return static_cast<__wasi_algorithm_type_e_t>(Encoding);
+    return static_cast<__wasi_algorithm_type_e_t>(AlgType);
   default:
-    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_UNSUPPORTED_ENCODING);
+    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_UNSUPPORTED_ALGORITHM);
   }
 }
 

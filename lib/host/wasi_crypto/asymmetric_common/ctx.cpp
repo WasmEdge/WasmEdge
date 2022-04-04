@@ -10,10 +10,10 @@ namespace WasiCrypto {
 
 WasiCryptoExpect<__wasi_array_output_t>
 Context::publickeyExport(__wasi_publickey_t PkHandle,
-                         __wasi_publickey_encoding_e_t PkEncoding) noexcept {
+                         __wasi_publickey_encoding_e_t Encoding) noexcept {
   return PublicKeyManager.get(PkHandle)
-      .and_then([=](auto &&Pk) {
-        return AsymmetricCommon::pkExportData(Pk, PkEncoding);
+      .and_then([Encoding](auto &&Pk) {
+        return AsymmetricCommon::pkExportData(Pk, Encoding);
       })
       .and_then([this](auto &&Data) {
         return ArrayOutputManger.registerManager(std::move(Data));
@@ -32,10 +32,10 @@ Context::publickeyClose(__wasi_publickey_t PkHandle) noexcept {
 
 WasiCryptoExpect<__wasi_array_output_t>
 Context::secretkeyExport(__wasi_secretkey_t SkHandle,
-                         __wasi_secretkey_encoding_e_t SkEncoding) noexcept {
+                         __wasi_secretkey_encoding_e_t Encoding) noexcept {
   return SecretKeyManager.get(SkHandle)
-      .and_then([=](auto &&Sk) {
-        return AsymmetricCommon::skExportData(Sk, SkEncoding);
+      .and_then([Encoding](auto &&Sk) {
+        return AsymmetricCommon::skExportData(Sk, Encoding);
       })
       .and_then([this](auto &&Data) noexcept {
         return ArrayOutputManger.registerManager(std::move(Data));
@@ -58,10 +58,10 @@ Context::publickeyFromSecretkey(__wasi_secretkey_t SkHandle) noexcept {
 
 WasiCryptoExpect<__wasi_array_output_t>
 Context::keypairExport(__wasi_keypair_t KpHandle,
-                       __wasi_keypair_encoding_e_t KeypairEncoding) noexcept {
+                       __wasi_keypair_encoding_e_t Encoding) noexcept {
   return KeyPairManager.get(KpHandle)
-      .and_then([=](auto &&Kp) noexcept {
-        return AsymmetricCommon::kpExportData(Kp, KeypairEncoding);
+      .and_then([Encoding](auto &&Kp) noexcept {
+        return AsymmetricCommon::kpExportData(Kp, Encoding);
       })
       .and_then([this](auto &&Data) noexcept {
         return ArrayOutputManger.registerManager(std::move(Data));

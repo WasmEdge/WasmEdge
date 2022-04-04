@@ -11,14 +11,16 @@ namespace AsymmetricCommon {
 WasiCryptoExpect<std::vector<uint8_t>>
 skExportData(const SkVariant &SkVariant,
              __wasi_secretkey_encoding_e_t Encoding) noexcept {
-  return std::visit([=](auto &&Sk) noexcept { return Sk.exportData(Encoding); },
-                    SkVariant);
+  return std::visit(
+      [Encoding](const auto &Sk) noexcept { return Sk.exportData(Encoding); },
+      SkVariant);
 }
 
 WasiCryptoExpect<PkVariant> skPublicKey(const SkVariant &SkVariant) noexcept {
   return std::visit(
-      [](auto &&Sk) noexcept {
-        return Sk.publicKey().map([](auto &&Pk) { return PkVariant{Pk}; });
+      [](const auto &Sk) noexcept {
+        return Sk.publicKey().map(
+            [](auto &&Pk) { return PkVariant{std::move(Pk)}; });
       },
       SkVariant);
 }

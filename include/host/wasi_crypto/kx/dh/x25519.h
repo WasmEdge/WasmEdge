@@ -65,7 +65,7 @@ public:
 
     WasiCryptoExpect<std::vector<uint8_t>> dh(PublicKey &Pk) noexcept;
 
-    WasiCryptoExpect<KeyPair> toKeyPair(PublicKey &Pk) noexcept;
+    WasiCryptoExpect<KeyPair> toKeyPair(const PublicKey &Pk) const noexcept;
 
   private:
     std::shared_ptr<EVP_PKEY> Ctx;
@@ -74,7 +74,7 @@ public:
   class KeyPair {
   public:
     static WasiCryptoExpect<KeyPair>
-    generate(OptionalRef<Options> Options) noexcept;
+    generate(OptionalRef<const Options> Options) noexcept;
 
     static WasiCryptoExpect<KeyPair>
     import(Span<const uint8_t> Raw,

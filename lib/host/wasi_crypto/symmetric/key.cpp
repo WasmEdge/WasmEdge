@@ -10,7 +10,7 @@ namespace WasiCrypto {
 namespace Symmetric {
 
 std::vector<uint8_t> keyExportData(const KeyVariant &KeyVariant) noexcept {
-  return std::visit([](auto &Key) noexcept { return Key.exportData(); },
+  return std::visit([](const auto &Key) noexcept { return Key.exportData(); },
                     KeyVariant);
 }
 

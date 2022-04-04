@@ -12,7 +12,7 @@ WasiCryptoExpect<std::vector<uint8_t>>
 sigExportData(const SigVariant &SigVariant,
               __wasi_signature_encoding_e_t Encoding) noexcept {
   return std::visit(
-      [=](auto &&Sig) noexcept { return Sig.exportData(Encoding); },
+      [Encoding](auto &Sig) noexcept { return Sig.exportData(Encoding); },
       SigVariant);
 }
 

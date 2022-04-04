@@ -36,7 +36,7 @@ constexpr Algorithm Hkdf<ShaNid>::getExpandAlg() noexcept {
 
 template <int ShaNid>
 WasiCryptoExpect<typename Hkdf<ShaNid>::Expand::Key>
-Hkdf<ShaNid>::Expand::Key::generate(OptionalRef<Options>) noexcept {
+Hkdf<ShaNid>::Expand::Key::generate(OptionalRef<const Options>) noexcept {
   return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_UNSUPPORTED_FEATURE);
 }
 
@@ -49,7 +49,8 @@ Hkdf<ShaNid>::Expand::Key::import(Span<const uint8_t> Raw) noexcept {
 
 template <int ShaNid>
 WasiCryptoExpect<typename Hkdf<ShaNid>::Expand::State>
-Hkdf<ShaNid>::Expand::State::open(Key &Key, OptionalRef<Options>) noexcept {
+Hkdf<ShaNid>::Expand::State::open(const Key &Key,
+                                  OptionalRef<const Options>) noexcept {
   return openStateImpl(Key.ref(), EVP_PKEY_HKDEF_MODE_EXPAND_ONLY);
 }
 
@@ -73,7 +74,7 @@ Hkdf<ShaNid>::Expand::State::squeeze(Span<uint8_t> Out) noexcept {
 
 template <int ShaNid>
 WasiCryptoExpect<typename Hkdf<ShaNid>::Extract::Key>
-Hkdf<ShaNid>::Extract::Key::generate(OptionalRef<Options>) noexcept {
+Hkdf<ShaNid>::Extract::Key::generate(OptionalRef<const Options>) noexcept {
   return SecretVec::random<getKeySize()>();
 }
 
@@ -85,7 +86,8 @@ Hkdf<ShaNid>::Extract::Key::import(Span<const uint8_t> Raw) noexcept {
 
 template <int ShaNid>
 WasiCryptoExpect<typename Hkdf<ShaNid>::Extract::State>
-Hkdf<ShaNid>::Extract::State::open(Key &Key, OptionalRef<Options>) noexcept {
+Hkdf<ShaNid>::Extract::State::open(const Key &Key,
+                                   OptionalRef<const Options>) noexcept {
   return openStateImpl(Key.ref(), EVP_PKEY_HKDEF_MODE_EXTRACT_ONLY);
 }
 

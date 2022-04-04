@@ -35,7 +35,7 @@ public:
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_KEY_NOT_SUPPORTED);
   }
 
-  static WasiCryptoExpect<Key> generate(OptionalRef<Options>) noexcept {
+  static WasiCryptoExpect<Key> generate(OptionalRef<const Options>) noexcept {
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_KEY_NOT_SUPPORTED);
   }
 
@@ -104,7 +104,7 @@ public:
     State(EvpMdCtxPtr Ctx) noexcept : Ctx(std::move(Ctx)) {}
 
     static WasiCryptoExpect<State>
-    open(OptionalRef<Options> OptOption) noexcept;
+    open(OptionalRef<const Options> OptOption) noexcept;
 
     WasiCryptoExpect<void> absorb(Span<const uint8_t> Data) noexcept;
 

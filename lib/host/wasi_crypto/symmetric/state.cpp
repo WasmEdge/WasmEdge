@@ -22,55 +22,56 @@ WasiCryptoExpect<size_t> stateOptionsGet(const StateVariant &StateVariant,
                                          std::string_view Name,
                                          Span<uint8_t> Value) noexcept {
   return std::visit(
-      [=](auto &&State) noexcept { return State.optionsGet(Name, Value); },
+      [=](const auto &State) noexcept { return State.optionsGet(Name, Value); },
       StateVariant);
 }
 
 WasiCryptoExpect<uint64_t> stateOptionsGetU64(const StateVariant &StateVariant,
                                               std::string_view Name) noexcept {
   return std::visit(
-      [=](auto &&State) noexcept { return State.optionsGetU64(Name); },
+      [Name](const auto &State) noexcept { return State.optionsGetU64(Name); },
       StateVariant);
 }
 
 WasiCryptoExpect<void> stateAbsorb(StateVariant &StateVariant,
                                    Span<const uint8_t> Data) noexcept {
-  return std::visit([=](auto &&State) noexcept { return State.absorb(Data); },
+  return std::visit([Data](auto &State) noexcept { return State.absorb(Data); },
                     StateVariant);
 }
 
 WasiCryptoExpect<void> stateSqueeze(StateVariant &StateVariant,
                                     Span<uint8_t> Out) noexcept {
-  return std::visit([=](auto &&State) noexcept { return State.squeeze(Out); },
+  return std::visit([Out](auto &State) noexcept { return State.squeeze(Out); },
                     StateVariant);
 }
 
 WasiCryptoExpect<Tag> stateSqueezeTag(StateVariant &StateVariant) noexcept {
-  return std::visit([=](auto &&State) noexcept { return State.squeezeTag(); },
+  return std::visit([](auto &State) noexcept { return State.squeezeTag(); },
                     StateVariant);
 }
 
 WasiCryptoExpect<KeyVariant> stateSqueezeKey(StateVariant &StateVariant,
                                              Algorithm KeyAlg) noexcept {
   return std::visit(
-      [=](auto &&State) noexcept {
+      [KeyAlg](auto &State) noexcept {
         return State.squeezeKey(KeyAlg).map(
-            [](auto &&Key) { return KeyVariant{Key}; });
+            [](auto &&Key) { return KeyVariant{std::move(Key)}; });
       },
       StateVariant);
 }
 
 WasiCryptoExpect<size_t>
 stateMaxTagLen(const StateVariant &StateVariant) noexcept {
-  return std::visit([=](auto &&State) noexcept { return State.maxTagLen(); },
-                    StateVariant);
+  return std::visit(
+      [](const auto &State) noexcept { return State.maxTagLen(); },
+      StateVariant);
 }
 
 WasiCryptoExpect<size_t> stateEncrypt(StateVariant &StateVariant,
                                       Span<uint8_t> Out,
                                       Span<const uint8_t> Data) noexcept {
   return std::visit(
-      [=](auto &&State) noexcept -> WasiCryptoExpect<size_t> {
+      [=](auto &State) noexcept -> WasiCryptoExpect<size_t> {
         return State.maxTagLen()
             .and_then([DataSize = Data.size()](size_t TagLen) noexcept {
               return checkedAdd(DataSize, TagLen);
@@ -90,7 +91,7 @@ WasiCryptoExpect<Tag> stateEncryptDetached(StateVariant &StateVariant,
                                            Span<const uint8_t> Data) noexcept {
   ensureOrReturn(Data.size() == Out.size(), __WASI_CRYPTO_ERRNO_INVALID_LENGTH);
   return std::visit(
-      [=](auto &&State) noexcept { return State.encryptDetached(Out, Data); },
+      [=](auto &State) noexcept { return State.encryptDetached(Out, Data); },
       StateVariant);
 }
 
@@ -98,7 +99,7 @@ WasiCryptoExpect<size_t> stateDecrypt(StateVariant &StateVariant,
                                       Span<uint8_t> Out,
                                       Span<const uint8_t> Data) noexcept {
   return std::visit(
-      [=](auto &&State) noexcept -> WasiCryptoExpect<size_t> {
+      [=](auto &State) noexcept -> WasiCryptoExpect<size_t> {
         return State.maxTagLen()
             .and_then([OutSize = Out.size()](size_t TagLen) noexcept {
               return checkedAdd(OutSize, TagLen);
@@ -119,14 +120,14 @@ WasiCryptoExpect<size_t> stateDecryptDetached(StateVariant &StateVariant,
                                               Span<uint8_t> RawTag) noexcept {
   ensureOrReturn(Data.size() == Out.size(), __WASI_CRYPTO_ERRNO_INVALID_LENGTH);
   return std::visit(
-      [=](auto &&State) noexcept {
+      [=](auto &State) noexcept {
         return State.decryptDetached(Out, Data, RawTag);
       },
       StateVariant);
 }
 
 WasiCryptoExpect<void> stateRatchet(StateVariant &StateVariant) noexcept {
-  return std::visit([=](auto &&State) noexcept { return State.ratchet(); },
+  return std::visit([](auto &State) noexcept { return State.ratchet(); },
                     StateVariant);
 }
 

@@ -53,18 +53,18 @@ WasiCryptoExpect<KeyVariant> importKey(Algorithm Alg,
       [Data](auto Factory) noexcept {
         using KeyType = typename std::decay_t<decltype(Factory)>::Key;
         return KeyType::import(Data).map(
-            [](auto &&Key) noexcept { return KeyVariant{Key}; });
+            [](auto &&Key) noexcept { return KeyVariant{std::move(Key)}; });
       },
       makeFactory(Alg));
 }
 
 WasiCryptoExpect<KeyVariant>
-generateKey(Algorithm Alg, OptionalRef<Options> OptOptions) noexcept {
+generateKey(Algorithm Alg, OptionalRef<const Options> OptOptions) noexcept {
   return std::visit(
-      [=](auto Factory) mutable noexcept {
+      [OptOptions](auto Factory) mutable noexcept {
         using KeyType = typename std::decay_t<decltype(Factory)>::Key;
         return KeyType::generate(OptOptions).map([](auto &&Key) noexcept {
-          return KeyVariant{Key};
+          return KeyVariant{std::move(Key)};
         });
       },
       makeFactory(Alg));
@@ -74,13 +74,13 @@ namespace {
 template <typename P> struct StateOpenTraits;
 template <typename StateType, typename KeyType, typename OptionsType>
 struct StateOpenTraits<WasiCryptoExpect<StateType> (*)(
-    KeyType &, OptionalRef<OptionsType>) noexcept> {
+    const KeyType &, OptionalRef<const OptionsType>) noexcept> {
   static inline constexpr bool NeedKey = true;
 };
 
 template <typename StateType, typename OptionsType>
 struct StateOpenTraits<WasiCryptoExpect<StateType> (*)(
-    OptionalRef<OptionsType>) noexcept> {
+    OptionalRef<const OptionsType>) noexcept> {
   static inline constexpr bool NeedKey = false;
 };
 
@@ -90,8 +90,8 @@ inline constexpr bool RequireKey =
 } // namespace
 
 WasiCryptoExpect<StateVariant>
-openState(Algorithm Alg, OptionalRef<KeyVariant> OptKeyVariant,
-          OptionalRef<Options> OptOptions) noexcept {
+openState(Algorithm Alg, OptionalRef<const KeyVariant> OptKeyVariant,
+          OptionalRef<const Options> OptOptions) noexcept {
   return std::visit(
       [=](auto Factory) noexcept -> WasiCryptoExpect<StateVariant> {
         using FactoryType = std::decay_t<decltype(Factory)>;
@@ -99,10 +99,12 @@ openState(Algorithm Alg, OptionalRef<KeyVariant> OptKeyVariant,
         using StateType = typename FactoryType::State;
         /// need key
         if constexpr (RequireKey<FactoryType>) {
+
           /// have key
           if (OptKeyVariant) {
             return std::visit(
-                [OptOptions](auto &&Key) -> WasiCryptoExpect<StateVariant> {
+                [OptOptions](
+                    const auto &Key) -> WasiCryptoExpect<StateVariant> {
                   /// key type not same
                   if constexpr (!std::is_same_v<std::decay_t<decltype(Key)>,
                                                 KeyType>) {
@@ -111,7 +113,7 @@ openState(Algorithm Alg, OptionalRef<KeyVariant> OptKeyVariant,
                     /// key type same
                     return StateType::open(Key, OptOptions)
                         .map([](auto &&State) noexcept {
-                          return StateVariant{State};
+                          return StateVariant{std::move(State)};
                         });
                   }
                 },
@@ -130,7 +132,7 @@ openState(Algorithm Alg, OptionalRef<KeyVariant> OptKeyVariant,
 
           /// not have key
           return StateType::open(OptOptions).map([](auto &&State) noexcept {
-            return StateVariant{State};
+            return StateVariant{std::move(State)};
           });
         }
       },

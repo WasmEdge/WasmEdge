@@ -37,11 +37,11 @@ WasiCryptoExpect<KeyVariant> importKey(Algorithm Alg,
                                        Span<const uint8_t> Data) noexcept;
 
 WasiCryptoExpect<KeyVariant>
-generateKey(Algorithm Alg, OptionalRef<Options> OptOptions) noexcept;
+generateKey(Algorithm Alg, OptionalRef<const Options> OptOptions) noexcept;
 
 WasiCryptoExpect<StateVariant>
-openState(Algorithm Alg, OptionalRef<KeyVariant> OptKeyVariant,
-          OptionalRef<Options> OptOptions) noexcept;
+openState(Algorithm Alg, OptionalRef<const KeyVariant> OptKeyVariant,
+          OptionalRef<const Options> OptOptions) noexcept;
 
 } // namespace Symmetric
 } // namespace WasiCrypto

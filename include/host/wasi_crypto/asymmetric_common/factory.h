@@ -51,10 +51,10 @@ importKp(__wasi_algorithm_type_e_t AlgType, std::string_view AlgStr,
 
 WasiCryptoExpect<KpVariant>
 generateKp(__wasi_algorithm_type_e_t AlgType, std::string_view AlgStr,
-           OptionalRef<Common::Options> OptOptions) noexcept;
+           OptionalRef<const Common::Options> OptOptions) noexcept;
 
-WasiCryptoExpect<KpVariant> kpFromPkAndSk(PkVariant &Pk,
-                                          SkVariant &Sk) noexcept;
+WasiCryptoExpect<KpVariant> kpFromPkAndSk(const PkVariant &Pk,
+                                          const SkVariant &Sk) noexcept;
 
 } // namespace AsymmetricCommon
 } // namespace WasiCrypto

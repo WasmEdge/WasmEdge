@@ -5,11 +5,12 @@ namespace Host {
 namespace WasiCrypto {
 namespace Signatures {
 
-WasiCryptoExpect<SignStateVariant> sigStateOpen(KpVariant &KpVariant) noexcept {
+WasiCryptoExpect<SignStateVariant>
+sigStateOpen(const KpVariant &KpVariant) noexcept {
   return std::visit(
-      [](auto &&Kp) noexcept {
+      [](const auto &Kp) noexcept {
         return Kp.openSignState().map([](auto &&SignState) noexcept {
-          return SignStateVariant{SignState};
+          return SignStateVariant{std::move(SignState)};
         });
       },
       KpVariant);
@@ -18,16 +19,16 @@ WasiCryptoExpect<SignStateVariant> sigStateOpen(KpVariant &KpVariant) noexcept {
 WasiCryptoExpect<void> sigStateUpdate(SignStateVariant &SignStateVariant,
                                       Span<const uint8_t> Input) noexcept {
   return std::visit(
-      [=](auto &&SignState) noexcept { return SignState.update(Input); },
+      [Input](auto &SignState) noexcept { return SignState.update(Input); },
       SignStateVariant);
 }
 
 WasiCryptoExpect<SigVariant>
 sigStateSign(SignStateVariant &SignStateVariant) noexcept {
   return std::visit(
-      [](auto &&SignState) noexcept {
+      [](auto &SignState) noexcept {
         return SignState.sign().map(
-            [](auto &&Sig) noexcept { return SigVariant{Sig}; });
+            [](auto &&Sig) noexcept { return SigVariant{std::move(Sig)}; });
       },
       SignStateVariant);
 }

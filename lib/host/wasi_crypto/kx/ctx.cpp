@@ -54,7 +54,7 @@ WasiCryptoExpect<__wasi_array_output_t>
 Context::kxDecapsulate(__wasi_kx_secretkey_t SkHandle,
                        Span<const uint8_t> EncapsulatedSecret) noexcept {
   return SecretKeyManager.getAs<Kx::SkVariant>(SkHandle)
-      .and_then([=](auto &&KxSk) noexcept {
+      .and_then([EncapsulatedSecret](auto &&KxSk) noexcept {
         return Kx::decapsulate(KxSk, EncapsulatedSecret);
       })
       .and_then([this](auto &&Secret) noexcept {

@@ -11,12 +11,14 @@ namespace AsymmetricCommon {
 WasiCryptoExpect<std::vector<uint8_t>>
 pkExportData(const PkVariant &PkVariant,
              __wasi_publickey_encoding_e_t Encoding) noexcept {
-  return std::visit([=](auto &&Pk) noexcept { return Pk.exportData(Encoding); },
-                    PkVariant);
+  return std::visit(
+      [Encoding](const auto &Pk) noexcept { return Pk.exportData(Encoding); },
+      PkVariant);
 }
 
 WasiCryptoExpect<void> pkVerify(const PkVariant &PkVariant) noexcept {
-  return std::visit([=](auto &&Pk) noexcept { return Pk.verify(); }, PkVariant);
+  return std::visit([](const auto &Pk) noexcept { return Pk.verify(); },
+                    PkVariant);
 }
 
 } // namespace AsymmetricCommon

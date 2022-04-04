@@ -41,7 +41,6 @@ FactoryVariant makeFactory(Algorithm Alg) noexcept {
     return FactoryVariant{std::in_place_type<RSA_PSS_3072_SHA512>};
   case Algorithm::RSA_PSS_4096_SHA512:
     return FactoryVariant{std::in_place_type<RSA_PSS_4096_SHA512>};
-
   default:
     assumingUnreachable();
   }
@@ -54,7 +53,7 @@ sigImport(Algorithm Alg, Span<const uint8_t> Encoded,
       [=](auto Factory) noexcept {
         using FactoryType = std::decay_t<decltype(Factory)>;
         return FactoryType::Signature::import(Encoded, Encoding)
-            .map([](auto &&Sig) noexcept { return SigVariant{Sig}; });
+            .map([](auto &&Sig) noexcept { return SigVariant{std::move(Sig)}; });
       },
       makeFactory(Alg));
 }

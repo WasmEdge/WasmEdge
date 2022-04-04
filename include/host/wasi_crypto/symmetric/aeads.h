@@ -62,7 +62,7 @@ public:
     static WasiCryptoExpect<Key> import(Span<const uint8_t> Data) noexcept;
 
     static WasiCryptoExpect<Key>
-    generate(OptionalRef<Options> Options) noexcept;
+    generate(OptionalRef<const Options> Options) noexcept;
 
     std::vector<uint8_t> exportData() const noexcept { return Data->raw(); }
 
@@ -79,7 +79,7 @@ public:
     /// @param[in] Key The secret key for encrypt
     /// @param[in] OptOption `Must` contain an Nonce(Initialization vector).
     static WasiCryptoExpect<State>
-    open(Key &Key, OptionalRef<Options> OptOption) noexcept;
+    open(const Key &Key, OptionalRef<const Options> OptOption) noexcept;
 
     State(EvpCipherCtxPtr Ctx, std::array<uint8_t, NonceSize> Nonce) noexcept
         : Ctx(std::make_shared<Inner>(std::move(Ctx), Nonce)) {}

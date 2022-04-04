@@ -448,7 +448,7 @@ Ecdsa<CurveNid>::Signature::import(
     __wasi_signature_encoding_e_t Encoding) noexcept {
   switch (Encoding) {
   case __WASI_SIGNATURE_ENCODING_RAW:
-    return std::vector<uint8_t>{Encoded.begin(), Encoded.end()};
+    return std::vector(Encoded.begin(), Encoded.end());
   case __WASI_SIGNATURE_ENCODING_DER:
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
   default:

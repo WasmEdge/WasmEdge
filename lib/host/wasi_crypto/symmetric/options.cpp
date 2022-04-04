@@ -48,7 +48,7 @@ WasiCryptoExpect<void> Options::set(std::string_view Name,
   {
     std::unique_lock<std::shared_mutex> Lock{Inner->Mutex};
     Inner->ValueMap.insert_or_assign(ActuallyName,
-                            std::vector(Value.begin(), Value.end()));
+                                     std::vector(Value.begin(), Value.end()));
   }
   return {};
 }

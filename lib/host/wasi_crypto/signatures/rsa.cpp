@@ -321,7 +321,7 @@ Rsa<PadMode, KeyBits, ShaNid>::Signature::import(
   case __WASI_SIGNATURE_ENCODING_RAW:
     ensureOrReturn(Encoded.size() == getKeySize(),
                    __WASI_CRYPTO_ERRNO_INVALID_SIGNATURE);
-    return std::vector<uint8_t>{Encoded.begin(), Encoded.end()};
+    return std::vector<uint8_t>(Encoded.begin(), Encoded.end());
   case __WASI_SIGNATURE_ENCODING_DER:
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
   default:

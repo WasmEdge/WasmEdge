@@ -185,7 +185,7 @@ X25519::KeyPair::import(Span<const uint8_t> Encoded,
   switch (Encoding) {
   case __WASI_KEYPAIR_ENCODING_RAW: {
     ensureOrReturn(Encoded.size() == KpSize, __WASI_CRYPTO_ERRNO_INVALID_KEY);
-    // no found way to set the public key in openssl, just auto generate.
+    // PublicKey can auto generate from SecretKey.
     EvpPkeyPtr Sk{EVP_PKEY_new_raw_private_key(
         EVP_PKEY_X25519, nullptr, Encoded.data() + PkSize, SkSize)};
     ensureOrReturn(Sk, __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);

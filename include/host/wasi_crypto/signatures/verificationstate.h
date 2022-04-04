@@ -33,7 +33,7 @@ using VerificationStateVariant = RegistedAlg::VerificationStateVariant;
 using PkVariant = RegistedAlg::PkVariant;
 
 WasiCryptoExpect<VerificationStateVariant>
-verificationStateOpen(PkVariant &PkVariant) noexcept;
+verificationStateOpen(const PkVariant &PkVariant) noexcept;
 
 WasiCryptoExpect<void>
 verificationStateUpdate(VerificationStateVariant &VerificationStateVariant,
@@ -41,7 +41,7 @@ verificationStateUpdate(VerificationStateVariant &VerificationStateVariant,
 
 WasiCryptoExpect<void>
 verificationStateVerify(VerificationStateVariant &VerificationStateVariant,
-                        SigVariant &SigVariant) noexcept;
+                        const SigVariant &SigVariant) noexcept;
 
 } // namespace Signatures
 } // namespace WasiCrypto

@@ -100,7 +100,7 @@ namespace {
 template <typename P> struct GernerateKpTrait;
 template <typename OptionsType, typename KeyPairType>
 struct GernerateKpTrait<WasiCryptoExpect<KeyPairType> (*)(
-    OptionalRef<OptionsType>) noexcept> {
+    OptionalRef<const OptionsType>) noexcept> {
   using Options = OptionsType;
 };
 template <typename T>
@@ -110,7 +110,7 @@ using OptionsType =
 
 WasiCryptoExpect<KpVariant>
 generateKp(__wasi_algorithm_type_e_t AlgType, std::string_view AlgStr,
-           OptionalRef<Common::Options> OptOptions) noexcept {
+           OptionalRef<const Common::Options> OptOptions) noexcept {
   return makeFactory(AlgType, AlgStr)
       .and_then([=](auto FactoryVariant) noexcept
                 -> WasiCryptoExpect<KpVariant> {
@@ -135,7 +135,7 @@ generateKp(__wasi_algorithm_type_e_t AlgType, std::string_view AlgStr,
                                  __WASI_CRYPTO_ERRNO_INVALID_HANDLE);
                            }
                          })
-                  .and_then([=](auto OptRequiredOptions) {
+                  .and_then([](auto OptRequiredOptions) {
                     return KeyPairType::generate(OptRequiredOptions);
                   });
             },
@@ -147,7 +147,7 @@ namespace {
 template <typename P> struct toKeyPairTrait;
 template <typename PublicKeyType, typename SecretKeyType, typename KeyPairType>
 struct toKeyPairTrait<WasiCryptoExpect<KeyPairType> (SecretKeyType::*)(
-    PublicKeyType &) noexcept> {
+    const PublicKeyType &) const noexcept> {
   using PublicKey = PublicKeyType;
 };
 template <typename T>
@@ -155,10 +155,11 @@ using PublicKeyType =
     typename toKeyPairTrait<decltype(&T::toKeyPair)>::PublicKey;
 } // namespace
 
-WasiCryptoExpect<KpVariant> kpFromPkAndSk(PkVariant &PkVariant,
-                                          SkVariant &SkVariant) noexcept {
+WasiCryptoExpect<KpVariant> kpFromPkAndSk(const PkVariant &PkVariant,
+                                          const SkVariant &SkVariant) noexcept {
   return std::visit(
-      [](auto &&Pk, auto &&Sk) noexcept -> WasiCryptoExpect<KpVariant> {
+      [](const auto &Pk,
+         const auto &Sk) noexcept -> WasiCryptoExpect<KpVariant> {
         using RequiredPkType = PublicKeyType<std::decay_t<decltype(Sk)>>;
         if constexpr (std::is_same_v<RequiredPkType,
                                      std::decay_t<decltype(Pk)>>) {

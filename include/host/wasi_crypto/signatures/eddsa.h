@@ -40,7 +40,7 @@ public:
     WasiCryptoExpect<std::vector<uint8_t>>
     exportData(__wasi_signature_encoding_e_t Encoding) const noexcept;
 
-    auto &ref() { return Data; }
+    const std::vector<uint8_t> &ref() const { return Data; }
 
   private:
     const std::vector<uint8_t> Data;
@@ -72,7 +72,7 @@ public:
 
     WasiCryptoExpect<void> update(Span<const uint8_t> Input) noexcept;
 
-    WasiCryptoExpect<void> verify(Signature &Sig) noexcept;
+    WasiCryptoExpect<void> verify(const Signature &Sig) noexcept;
 
   private:
     struct Inner {
@@ -99,7 +99,7 @@ public:
     WasiCryptoExpect<std::vector<uint8_t>>
     exportData(__wasi_publickey_encoding_e_t Encoding) const noexcept;
 
-    WasiCryptoExpect<VerificationState> openVerificationState() noexcept;
+    WasiCryptoExpect<VerificationState> openVerificationState() const noexcept;
 
   private:
     std::shared_ptr<EVP_PKEY> Ctx;
@@ -115,7 +115,7 @@ public:
 
     WasiCryptoExpect<PublicKey> publicKey() const noexcept;
 
-    WasiCryptoExpect<KeyPair> toKeyPair(PublicKey &Pk) noexcept;
+    WasiCryptoExpect<KeyPair> toKeyPair(const PublicKey &Pk) const noexcept;
 
     WasiCryptoExpect<std::vector<uint8_t>>
     exportData(__wasi_secretkey_encoding_e_t Encoding) const noexcept;
@@ -129,7 +129,7 @@ public:
     KeyPair(EvpPkeyPtr Ctx) noexcept : Ctx(std::move(Ctx)) {}
 
     static WasiCryptoExpect<KeyPair>
-    generate(OptionalRef<Options> Options) noexcept;
+    generate(OptionalRef<const Options> Options) noexcept;
 
     static WasiCryptoExpect<KeyPair>
     import(Span<const uint8_t> Encoded,
@@ -142,7 +142,7 @@ public:
 
     WasiCryptoExpect<SecretKey> secretKey() const noexcept;
 
-    WasiCryptoExpect<SignState> openSignState() noexcept;
+    WasiCryptoExpect<SignState> openSignState() const noexcept;
 
   private:
     std::shared_ptr<EVP_PKEY> Ctx;

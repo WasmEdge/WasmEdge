@@ -30,20 +30,21 @@ namespace WasiCrypto {
 /// A vector wrapper, but swipe secret key info on destory
 class SecretVec {
 public:
-  SecretVec(std::vector<uint8_t> Data) : Data(std::move(Data)) {}
+  SecretVec(std::vector<uint8_t> Data) noexcept : Data(std::move(Data)) {}
 
-  SecretVec(Span<const uint8_t> Data) : Data(Data.begin(), Data.end()) {}
+  SecretVec(Span<const uint8_t> Data) noexcept
+      : Data(Data.begin(), Data.end()) {}
 
-  SecretVec(size_t Size) : Data(Size) {}
+  SecretVec(size_t Size) noexcept : Data(Size) {}
 
-  ~SecretVec() { OPENSSL_cleanse(Data.data(), Data.size()); }
+  ~SecretVec() noexcept { OPENSSL_cleanse(Data.data(), Data.size()); }
 
-  auto &raw() { return Data; }
+  std::vector<uint8_t> &raw() noexcept { return Data; }
 
   /// Generate random size vector. Notice Size shouldn't beyond
   /// std::numeric_limits<int>::max() because of the limitations of openssl
   template <size_t Size>
-  static WasiCryptoExpect<std::shared_ptr<SecretVec>> random() {
+  static WasiCryptoExpect<std::shared_ptr<SecretVec>> random() noexcept {
     static_assert(
         Size <= std::numeric_limits<int>::max(),
         "Random key size shouldn't beyond std::numeric_limits<int>::max()");

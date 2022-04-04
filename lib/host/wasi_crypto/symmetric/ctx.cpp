@@ -24,14 +24,16 @@ WasiCryptoExpect<size_t>
 Context::symmetricTagPull(__wasi_symmetric_tag_t TagHandle,
                           Span<uint8_t> Buf) noexcept {
   return SymmetricTagManager.get(TagHandle).and_then(
-      [=](Symmetric::Tag &Tag) noexcept { return Tag.pull(Buf); });
+      [Buf](const Symmetric::Tag &Tag) noexcept { return Tag.pull(Buf); });
 }
 
 WasiCryptoExpect<void>
 Context::symmetricTagVerify(__wasi_symmetric_tag_t TagHandle,
                             Span<const uint8_t> RawTag) noexcept {
   return SymmetricTagManager.get(TagHandle).and_then(
-      [=](Symmetric::Tag &Tag) noexcept { return Tag.verify(RawTag); });
+      [RawTag](const Symmetric::Tag &Tag) noexcept {
+        return Tag.verify(RawTag);
+      });
 }
 
 WasiCryptoExpect<void>
@@ -67,7 +69,7 @@ WasiCryptoExpect<uint64_t>
 Context::symmetricStateOptionsGetU64(__wasi_symmetric_state_t StateHandle,
                                      std::string_view Name) noexcept {
   return SymmetricStateManager.get(StateHandle)
-      .and_then([=](auto &&State) noexcept {
+      .and_then([Name](auto &&State) noexcept {
         return Symmetric::stateOptionsGetU64(State, Name);
       });
 }
@@ -81,7 +83,7 @@ WasiCryptoExpect<void>
 Context::symmetricStateAbsorb(__wasi_symmetric_state_t StateHandle,
                               Span<const uint8_t> Data) noexcept {
   return SymmetricStateManager.get(StateHandle)
-      .and_then([=](auto &&State) noexcept {
+      .and_then([Data](auto &&State) noexcept {
         return Symmetric::stateAbsorb(State, Data);
       });
 }
@@ -90,7 +92,7 @@ WasiCryptoExpect<void>
 Context::symmetricStateSqueeze(__wasi_symmetric_state_t StateHandle,
                                Span<uint8_t> Out) noexcept {
   return SymmetricStateManager.get(StateHandle)
-      .and_then([=](auto &&State) noexcept {
+      .and_then([Out](auto &&State) noexcept {
         return Symmetric::stateSqueeze(State, Out);
       });
 }
@@ -110,7 +112,7 @@ WasiCryptoExpect<__wasi_symmetric_key_t>
 Context::symmetricStateSqueezeKey(__wasi_symmetric_state_t StateHandle,
                                   Symmetric::Algorithm Alg) noexcept {
   return SymmetricStateManager.get(StateHandle)
-      .and_then([=](auto &&State) noexcept {
+      .and_then([Alg](auto &&State) noexcept {
         return Symmetric::stateSqueezeKey(State, Alg);
       })
       .and_then([this](auto &&Key) {
@@ -169,9 +171,8 @@ WasiCryptoExpect<size_t> Context::symmetricStateDecryptDetached(
 WasiCryptoExpect<void>
 Context::symmetricStateRatchet(__wasi_symmetric_state_t StateHandle) noexcept {
   return SymmetricStateManager.get(StateHandle)
-      .and_then([=](auto &&State) noexcept {
-        return Symmetric::stateRatchet(State);
-      });
+      .and_then(
+          [](auto &&State) noexcept { return Symmetric::stateRatchet(State); });
 }
 
 WasiCryptoExpect<__wasi_symmetric_key_t>
@@ -209,7 +210,7 @@ WasiCryptoExpect<__wasi_symmetric_key_t> Context::symmetricKeyGenerate(
   }
 
   return Symmetric::generateKey(Alg, *OptSymmetricOptionsResult)
-      .and_then([=](auto &&Key) noexcept {
+      .and_then([this](auto &&Key) noexcept {
         return SymmetricKeyManager.registerManager(std::move(Key));
       });
 }
@@ -241,8 +242,8 @@ WasiCryptoExpect<__wasi_symmetric_state_t> Context::symmetricStateOpen(
   /// reference to OptOptionsResult if it's symmetric Options
   auto OptSymmetricOptionsResult = transposeOptionalToRef(
       *OptOptionsResult,
-      [](auto &&Options) noexcept
-      -> WasiCryptoExpect<OptionalRef<Symmetric::Options>> {
+      [](const auto &Options) noexcept
+      -> WasiCryptoExpect<OptionalRef<const Symmetric::Options>> {
         auto *SymmetricOptions = std::get_if<Symmetric::Options>(&Options);
         if (!SymmetricOptions) {
           return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_HANDLE);

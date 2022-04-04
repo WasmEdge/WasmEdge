@@ -58,11 +58,11 @@ WasiCryptoExpect<std::vector<uint8_t>> Eddsa::PublicKey::exportData(
 }
 
 WasiCryptoExpect<Eddsa::VerificationState>
-Eddsa::PublicKey::openVerificationState() noexcept {
+Eddsa::PublicKey::openVerificationState() const noexcept {
   EvpMdCtxPtr SignCtx{EVP_MD_CTX_create()};
 
   opensslCheck(EVP_DigestVerifyInit(SignCtx.get(), nullptr, nullptr, nullptr,
-                                       Ctx.get()));
+                                    Ctx.get()));
   return SignCtx;
 }
 
@@ -94,7 +94,7 @@ Eddsa::SecretKey::publicKey() const noexcept {
 }
 
 WasiCryptoExpect<Eddsa::KeyPair>
-Eddsa::SecretKey::toKeyPair(PublicKey &) noexcept {
+Eddsa::SecretKey::toKeyPair(const PublicKey &) const noexcept {
   return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
 }
 
@@ -114,7 +114,7 @@ WasiCryptoExpect<std::vector<uint8_t>> Eddsa::SecretKey::exportData(
 }
 
 WasiCryptoExpect<Eddsa::KeyPair>
-Eddsa::KeyPair::generate(OptionalRef<Options>) noexcept {
+Eddsa::KeyPair::generate(OptionalRef<const Options>) noexcept {
   // Generate Key
   EvpPkeyCtxPtr KCtx{EVP_PKEY_CTX_new_id(EVP_PKEY_ED25519, nullptr)};
   opensslCheck(KCtx);
@@ -184,7 +184,8 @@ WasiCryptoExpect<Eddsa::SecretKey> Eddsa::KeyPair::secretKey() const noexcept {
   return EvpPkeyPtr{Res};
 }
 
-WasiCryptoExpect<Eddsa::SignState> Eddsa::KeyPair::openSignState() noexcept {
+WasiCryptoExpect<Eddsa::SignState>
+Eddsa::KeyPair::openSignState() const noexcept {
   EvpMdCtxPtr SignCtx{EVP_MD_CTX_create()};
   opensslCheck(SignCtx);
 
@@ -233,7 +234,7 @@ WasiCryptoExpect<Eddsa::Signature> Eddsa::SignState::sign() noexcept {
 
   std::shared_lock Lock{Ctx->Mutex};
   opensslCheck(EVP_DigestSign(Ctx->RawCtx.get(), Res.data(), &Size,
-                                 Ctx->Data.data(), Ctx->Data.size()));
+                              Ctx->Data.data(), Ctx->Data.size()));
   ensureOrReturn(Size == SigSize, __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
   return Res;
 }
@@ -248,7 +249,7 @@ Eddsa::VerificationState::update(Span<const uint8_t> Input) noexcept {
 }
 
 WasiCryptoExpect<void>
-Eddsa::VerificationState::verify(Signature &Sig) noexcept {
+Eddsa::VerificationState::verify(const Signature &Sig) noexcept {
   std::shared_lock Lock{Ctx->Mutex};
   // The call to EVP_DigestVerifyFinal() internally finalizes a copy of the
   // digest context. This means that EVP_VerifyUpdate() and EVP_VerifyFinal()

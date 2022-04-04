@@ -21,7 +21,7 @@ template <int ShaNid> constexpr size_t Hmac<ShaNid>::getKeySize() noexcept {
 
 template <int ShaNid>
 WasiCryptoExpect<typename Hmac<ShaNid>::Key>
-Hmac<ShaNid>::Key::generate(OptionalRef<Options>) noexcept {
+Hmac<ShaNid>::Key::generate(OptionalRef<const Options>) noexcept {
   return SecretVec::random<getKeySize()>();
 }
 
@@ -33,7 +33,7 @@ Hmac<ShaNid>::Key::import(Span<const uint8_t> Raw) noexcept {
 
 template <int ShaNid>
 WasiCryptoExpect<typename Hmac<ShaNid>::State>
-Hmac<ShaNid>::State::open(Key &Key, OptionalRef<Options>) noexcept {
+Hmac<ShaNid>::State::open(const Key &Key, OptionalRef<const Options>) noexcept {
   EvpPkeyPtr HmacKey{EVP_PKEY_new_raw_private_key(
       EVP_PKEY_HMAC, nullptr, Key.ref().data(), Key.ref().size())};
   opensslCheck(HmacKey);

@@ -19,7 +19,7 @@ template <int ShaNid> constexpr size_t Sha2<ShaNid>::getDigestSize() noexcept {
 
 template <int ShaNid>
 WasiCryptoExpect<typename Sha2<ShaNid>::State>
-Sha2<ShaNid>::State::open(OptionalRef<Options>) noexcept {
+Sha2<ShaNid>::State::open(OptionalRef<const Options>) noexcept {
   EvpMdCtxPtr Ctx{EVP_MD_CTX_new()};
   opensslCheck(EVP_DigestInit(Ctx.get(), EVP_get_digestbynid(ShaNid)));
   return Ctx;

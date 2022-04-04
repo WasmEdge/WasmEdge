@@ -92,7 +92,8 @@ Rsa<PadMode, KeyBits, ShaNid>::PublicKey::exportPem() const noexcept {
 
 template <int PadMode, int KeyBits, int ShaNid>
 WasiCryptoExpect<typename Rsa<PadMode, KeyBits, ShaNid>::VerificationState>
-Rsa<PadMode, KeyBits, ShaNid>::PublicKey::openVerificationState() noexcept {
+Rsa<PadMode, KeyBits, ShaNid>::PublicKey::openVerificationState()
+    const noexcept {
   EvpMdCtxPtr SignCtx{EVP_MD_CTX_create()};
   opensslCheck(EVP_DigestVerifyInit(
       SignCtx.get(), nullptr, EVP_get_digestbynid(ShaNid), nullptr, Ctx.get()));
@@ -147,7 +148,8 @@ Rsa<PadMode, KeyBits, ShaNid>::SecretKey::checkValid(EvpPkeyPtr Ctx) noexcept {
 
 template <int PadMode, int KeyBits, int ShaNid>
 WasiCryptoExpect<typename Rsa<PadMode, KeyBits, ShaNid>::KeyPair>
-Rsa<PadMode, KeyBits, ShaNid>::SecretKey::toKeyPair(PublicKey &) noexcept {
+Rsa<PadMode, KeyBits, ShaNid>::SecretKey::toKeyPair(
+    const PublicKey &) const noexcept {
   return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
 }
 
@@ -236,7 +238,7 @@ Rsa<PadMode, KeyBits, ShaNid>::KeyPair::checkValid(EvpPkeyPtr Ctx) noexcept {
 
 template <int PadMode, int KeyBits, int ShaNid>
 WasiCryptoExpect<typename Rsa<PadMode, KeyBits, ShaNid>::SignState>
-Rsa<PadMode, KeyBits, ShaNid>::KeyPair::openSignState() noexcept {
+Rsa<PadMode, KeyBits, ShaNid>::KeyPair::openSignState() const noexcept {
   EvpMdCtxPtr SignCtx{EVP_MD_CTX_create()};
   opensslCheck(EVP_DigestSignInit(
       SignCtx.get(), nullptr, EVP_get_digestbynid(ShaNid), nullptr, Ctx.get()));
@@ -247,7 +249,7 @@ Rsa<PadMode, KeyBits, ShaNid>::KeyPair::openSignState() noexcept {
 template <int PadMode, int KeyBits, int ShaNid>
 WasiCryptoExpect<typename Rsa<PadMode, KeyBits, ShaNid>::KeyPair>
 Rsa<PadMode, KeyBits, ShaNid>::KeyPair::generate(
-    OptionalRef<Options>) noexcept {
+    OptionalRef<const Options>) noexcept {
   EvpPkeyCtxPtr Ctx{EVP_PKEY_CTX_new_id(EVP_PKEY_RSA, nullptr)};
   EVP_PKEY_keygen_init(Ctx.get());
   EVP_PKEY_CTX_set_rsa_padding(Ctx.get(), PadMode);
@@ -370,7 +372,7 @@ WasiCryptoExpect<void> Rsa<PadMode, KeyBits, ShaNid>::VerificationState::update(
 
 template <int PadMode, int KeyBits, int ShaNid>
 WasiCryptoExpect<void> Rsa<PadMode, KeyBits, ShaNid>::VerificationState::verify(
-    Signature &Sig) noexcept {
+    const Signature &Sig) noexcept {
   ensureOrReturn(
       EVP_DigestVerifyFinal(Ctx.get(), Sig.ref().data(), Sig.ref().size()),
       __WASI_CRYPTO_ERRNO_VERIFICATION_FAILED);

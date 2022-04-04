@@ -14,7 +14,7 @@ WasiCryptoExpect<__wasi_array_output_t>
 Context::signatureExport(__wasi_signature_t SigHandle,
                          __wasi_signature_encoding_e_t Encoding) noexcept {
   return SignatureManager.get(SigHandle)
-      .and_then([=](auto &&SigVariant) noexcept {
+      .and_then([Encoding](auto &&SigVariant) noexcept {
         return Signatures::sigExportData(SigVariant, Encoding);
       })
       .and_then([this](auto &&Data) noexcept {
@@ -51,7 +51,7 @@ WasiCryptoExpect<void>
 Context::signatureStateUpdate(__wasi_signature_state_t StateHandle,
                               Span<const uint8_t> Input) noexcept {
   return SignStateManager.get(StateHandle)
-      .and_then([=](auto &&SignStateVariant) noexcept {
+      .and_then([Input](auto &&SignStateVariant) noexcept {
         return Signatures::sigStateUpdate(SignStateVariant, Input);
       });
 }
@@ -89,7 +89,7 @@ WasiCryptoExpect<void> Context::signatureVerificationStateUpdate(
     __wasi_signature_verification_state_t VerificationHandle,
     Span<const uint8_t> Input) noexcept {
   return VerificationStateManager.get(VerificationHandle)
-      .and_then([=](auto &&VerificationStateVariant) noexcept {
+      .and_then([Input](auto &&VerificationStateVariant) noexcept {
         return Signatures::verificationStateUpdate(VerificationStateVariant,
                                                    Input);
       });

@@ -39,7 +39,7 @@ constexpr size_t Cipher<CipherNid>::getTagSize() noexcept {
 
 template <int CipherNid>
 WasiCryptoExpect<typename Cipher<CipherNid>::Key>
-Cipher<CipherNid>::Key::generate(OptionalRef<Options>) noexcept {
+Cipher<CipherNid>::Key::generate(OptionalRef<const Options>) noexcept {
   return SecretVec::random<getKeySize()>();
 }
 
@@ -51,8 +51,8 @@ Cipher<CipherNid>::Key::import(Span<const uint8_t> Raw) noexcept {
 
 template <int CipherNid>
 WasiCryptoExpect<typename Cipher<CipherNid>::State>
-Cipher<CipherNid>::State::open(Key &Key,
-                               OptionalRef<Options> OptOption) noexcept {
+Cipher<CipherNid>::State::open(const Key &Key,
+                               OptionalRef<const Options> OptOption) noexcept {
   ensureOrReturn(OptOption, __WASI_CRYPTO_ERRNO_NONCE_REQUIRED);
 
   std::array<uint8_t, NonceSize> Nonce;

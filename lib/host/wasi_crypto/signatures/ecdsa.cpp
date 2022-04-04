@@ -7,7 +7,6 @@
 #include "host/wasi_crypto/utils/optional.h"
 #include "openssl/pem.h"
 #include "wasi_crypto/api.hpp"
-#include <openssl/ec.h>
 
 namespace WasmEdge {
 namespace Host {
@@ -83,10 +82,10 @@ WasiCryptoExpect<void> Ecdsa<CurveNid>::PublicKey::verify() const noexcept {
 
 template <int CurveNid>
 WasiCryptoExpect<typename Ecdsa<CurveNid>::VerificationState>
-Ecdsa<CurveNid>::PublicKey::openVerificationState() noexcept {
+Ecdsa<CurveNid>::PublicKey::openVerificationState() const noexcept {
   EvpMdCtxPtr SignCtx{EVP_MD_CTX_create()};
   opensslCheck(EVP_DigestVerifyInit(SignCtx.get(), nullptr, EVP_sha256(),
-                                       nullptr, Ctx.get()));
+                                    nullptr, Ctx.get()));
   return SignCtx;
 }
 
@@ -228,7 +227,7 @@ Ecdsa<CurveNid>::SecretKey::importRaw(Span<const uint8_t> Encoded) noexcept {
 
 template <int CurveNid>
 WasiCryptoExpect<typename Ecdsa<CurveNid>::KeyPair>
-Ecdsa<CurveNid>::SecretKey::toKeyPair(PublicKey &) noexcept {
+Ecdsa<CurveNid>::SecretKey::toKeyPair(const PublicKey &) const noexcept {
   return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
 }
 
@@ -284,7 +283,7 @@ Ecdsa<CurveNid>::SecretKey::publicKey() const noexcept {
 
 template <int CurveNid>
 WasiCryptoExpect<typename Ecdsa<CurveNid>::KeyPair>
-Ecdsa<CurveNid>::KeyPair::generate(OptionalRef<Options>) noexcept {
+Ecdsa<CurveNid>::KeyPair::generate(OptionalRef<const Options>) noexcept {
   EvpPkeyCtxPtr ParamCtx{EVP_PKEY_CTX_new_id(EVP_PKEY_EC, nullptr)};
   EVP_PKEY_keygen_init(ParamCtx.get());
   EVP_PKEY_CTX_set_ec_paramgen_curve_nid(ParamCtx.get(), CurveNid);
@@ -375,10 +374,10 @@ Ecdsa<CurveNid>::KeyPair::secretKey() const noexcept {
 
 template <int CurveNid>
 WasiCryptoExpect<typename Ecdsa<CurveNid>::SignState>
-Ecdsa<CurveNid>::KeyPair::openSignState() noexcept {
+Ecdsa<CurveNid>::KeyPair::openSignState() const noexcept {
   EvpMdCtxPtr SignCtx{EVP_MD_CTX_create()};
-  opensslCheck(EVP_DigestSignInit(SignCtx.get(), nullptr, EVP_sha256(),
-                                     nullptr, Ctx.get()));
+  opensslCheck(EVP_DigestSignInit(SignCtx.get(), nullptr, EVP_sha256(), nullptr,
+                                  Ctx.get()));
 
   return SignCtx;
 }
@@ -409,8 +408,8 @@ Ecdsa<CurveNid>::KeyPair::importRaw(Span<const uint8_t> Encoded) noexcept {
 
   /// calculate Pk and set
   EcPointPtr Pk{EC_POINT_new(EC_KEY_get0_group(EcCtx.get()))};
-  opensslCheck(EC_POINT_mul(EC_KEY_get0_group(EcCtx.get()), Pk.get(),
-                               Sk.get(), nullptr, nullptr, nullptr));
+  opensslCheck(EC_POINT_mul(EC_KEY_get0_group(EcCtx.get()), Pk.get(), Sk.get(),
+                            nullptr, nullptr, nullptr));
   opensslCheck(EC_KEY_set_public_key(EcCtx.get(), Pk.get()));
 
   EvpPkeyPtr Ctx{EVP_PKEY_new()};
@@ -498,7 +497,7 @@ Ecdsa<CurveNid>::VerificationState::update(Span<const uint8_t> Data) noexcept {
 
 template <int CurveNid>
 WasiCryptoExpect<void>
-Ecdsa<CurveNid>::VerificationState::verify(Signature &Sig) noexcept {
+Ecdsa<CurveNid>::VerificationState::verify(const Signature &Sig) noexcept {
   ensureOrReturn(
       EVP_DigestVerifyFinal(Ctx.get(), Sig.ref().data(), Sig.ref().size()),
       __WASI_CRYPTO_ERRNO_VERIFICATION_FAILED);

@@ -88,13 +88,12 @@ template <int ShaNid> class Hmac {
 public:
   class Key {
   public:
-    Key(std::shared_ptr<SecretVec> Data)
-        : Data(std::move(Data)) {}
+    Key(std::shared_ptr<SecretVec> Data) : Data(std::move(Data)) {}
 
     static WasiCryptoExpect<Key> import(Span<const uint8_t> Data) noexcept;
 
     static WasiCryptoExpect<Key>
-    generate(OptionalRef<Options> Options) noexcept;
+    generate(OptionalRef<const Options> Options) noexcept;
 
     std::vector<uint8_t> exportData() const noexcept { return Data->raw(); }
 
@@ -109,7 +108,7 @@ public:
     State(EvpMdCtxPtr Ctx) : Ctx(std::move(Ctx)) {}
 
     static WasiCryptoExpect<State>
-    open(Key &Key, OptionalRef<Options> OptOption) noexcept;
+    open(const Key &Key, OptionalRef<const Options> OptOption) noexcept;
 
     /// Adds input data to the state.
     ///

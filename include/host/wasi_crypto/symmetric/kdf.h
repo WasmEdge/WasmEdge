@@ -143,7 +143,7 @@ public:
       static WasiCryptoExpect<Key> import(Span<const uint8_t> Data) noexcept;
 
       static WasiCryptoExpect<Key>
-      generate(OptionalRef<Options> Options) noexcept;
+      generate(OptionalRef<const Options> Options) noexcept;
 
       std::vector<uint8_t> exportData() const noexcept { return Data->raw(); }
 
@@ -156,7 +156,7 @@ public:
     class State : public ExpandState<Key> {
     public:
       static WasiCryptoExpect<State>
-      open(Key &Key, OptionalRef<Options> OptOption) noexcept;
+      open(const Key &Key, OptionalRef<const Options> OptOption) noexcept;
 
       State(EvpPkeyCtxPtr Ctx) noexcept : Ctx(std::move(Ctx)) {}
 
@@ -180,7 +180,7 @@ public:
       static WasiCryptoExpect<Key> import(Span<const uint8_t> Data) noexcept;
 
       static WasiCryptoExpect<Key>
-      generate(OptionalRef<Options> Options) noexcept;
+      generate(OptionalRef<const Options> Options) noexcept;
 
       std::vector<uint8_t> exportData() const noexcept { return Data->raw(); }
 
@@ -196,7 +196,7 @@ public:
           : Ctx(std::make_shared<Inner>(std::move(Ctx))) {}
 
       static WasiCryptoExpect<State>
-      open(Key &Key, OptionalRef<Options> OptOption) noexcept;
+      open(const Key &Key, OptionalRef<const Options> OptOption) noexcept;
 
       /// absorbs the salt information
       WasiCryptoExpect<void> absorb(Span<const uint8_t> Data) noexcept;

@@ -87,7 +87,7 @@ X25519::SecretKey::dh(PublicKey &Pk) noexcept {
 }
 
 WasiCryptoExpect<X25519::KeyPair>
-X25519::SecretKey::toKeyPair(PublicKey &) noexcept {
+X25519::SecretKey::toKeyPair(const PublicKey &) const noexcept {
   return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
 }
 
@@ -169,7 +169,7 @@ X25519::SecretKey::import(Span<const uint8_t> Encoded,
 }
 
 WasiCryptoExpect<X25519::KeyPair>
-X25519::KeyPair::generate(OptionalRef<Options>) noexcept {
+X25519::KeyPair::generate(OptionalRef<const Options>) noexcept {
   EvpPkeyCtxPtr Ctx{EVP_PKEY_CTX_new_id(EVP_PKEY_X25519, nullptr)};
   opensslCheck(EVP_PKEY_keygen_init(Ctx.get()));
 

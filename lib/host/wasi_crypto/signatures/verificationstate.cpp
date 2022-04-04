@@ -9,12 +9,12 @@ namespace WasiCrypto {
 namespace Signatures {
 
 WasiCryptoExpect<VerificationStateVariant>
-verificationStateOpen(PkVariant &PkVariant) noexcept {
+verificationStateOpen(const PkVariant &PkVariant) noexcept {
   return std::visit(
-      [](auto &&Pk) noexcept {
+      [](const auto &Pk) noexcept {
         return Pk.openVerificationState().map(
             [](auto &&VerificationState) noexcept {
-              return VerificationStateVariant{VerificationState};
+              return VerificationStateVariant{std::move(VerificationState)};
             });
       },
       PkVariant);
@@ -24,25 +24,28 @@ WasiCryptoExpect<void>
 verificationStateUpdate(VerificationStateVariant &VerificationStateVariant,
                         Span<const uint8_t> Input) noexcept {
   return std::visit(
-      [=](auto &&VerificationState) noexcept {
+      [Input](auto &VerificationState) noexcept {
         return VerificationState.update(Input);
       },
       VerificationStateVariant);
 }
 
+namespace {
 template <class P> struct VerifySigType;
 template <class VerificationStateType, class SigType>
 struct VerifySigType<WasiCryptoExpect<void> (VerificationStateType::*)(
-    SigType &) noexcept> {
+    const SigType &) noexcept> {
   using Sig = SigType;
 };
 
+} // namespace
+
 WasiCryptoExpect<void>
 verificationStateVerify(VerificationStateVariant &VerificationStateVariant,
-                        SigVariant &SigVariant) noexcept {
+                        const SigVariant &SigVariant) noexcept {
   return std::visit(
-      [](auto &&VerificationState,
-         auto &&Sig) noexcept -> WasiCryptoExpect<void> {
+      [](auto &VerificationState,
+         const auto &Sig) noexcept -> WasiCryptoExpect<void> {
         using RequiredSigType = typename VerifySigType<
             decltype(&std::decay_t<decltype(VerificationState)>::verify)>::Sig;
         if constexpr (std::is_same_v<RequiredSigType,

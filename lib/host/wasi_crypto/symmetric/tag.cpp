@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: 2019-2022 Second State INC
 
 #include "host/wasi_crypto/symmetric/tag.h"
+#include "openssl/crypto.h"
 
 namespace WasmEdge {
 namespace Host {
@@ -9,9 +10,8 @@ namespace WasiCrypto {
 namespace Symmetric {
 
 WasiCryptoExpect<void> Tag::verify(Span<const uint8_t> RawTag) const noexcept {
-  ensureOrReturn(
-      std::equal(RawTag.begin(), RawTag.end(), Data.begin(), Data.end()),
-      __WASI_CRYPTO_ERRNO_INVALID_TAG);
+  ensureOrReturn(!CRYPTO_memcmp(RawTag.data(), Data.data(), RawTag.size()),
+                 __WASI_CRYPTO_ERRNO_INVALID_TAG);
 
   return {};
 }

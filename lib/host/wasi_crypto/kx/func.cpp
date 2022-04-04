@@ -42,8 +42,7 @@ Expect<uint32_t> Encapsulate::body(Runtime::Instance::MemoryInstance *MemInst,
   if (auto Res = Ctx.kxEncapsulate(PkHandle); unlikely(!Res)) {
     return Res.error();
   } else {
-    *Secret = std::get<0>(*Res);
-    *EncapsulatedSecret = std::get<1>(*Res);
+    std::tie(*Secret, *EncapsulatedSecret) = *Res;
   }
 
   return __WASI_CRYPTO_ERRNO_SUCCESS;

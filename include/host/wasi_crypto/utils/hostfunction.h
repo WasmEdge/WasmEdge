@@ -201,7 +201,7 @@ tryFrom(std::string_view RawAlgStr) noexcept {
   if (AlgStr == "X25519"sv) {
     return Kx::Algorithm::X25519;
   }
-  if (AlgStr == "X25519"sv) {
+  if (AlgStr == "P256_SHA256"sv) {
     return Kx::Algorithm::P256_SHA256;
   }
   return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_UNSUPPORTED_ALGORITHM);

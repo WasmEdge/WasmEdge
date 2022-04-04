@@ -13,8 +13,8 @@ namespace Symmetric {
 using namespace std::literals;
 
 namespace {
-constexpr std::array<std::string_view, 3> ValueName{"context"sv, "salt"sv,
-                                                    "nonce"sv};
+constexpr std::array<std::string_view, 3> ValidNames{"context"sv, "salt"sv,
+                                                     "nonce"sv};
 
 std::string toLower(std::string_view Name) noexcept {
   std::string Ret{Name};
@@ -23,17 +23,17 @@ std::string toLower(std::string_view Name) noexcept {
   return Ret;
 }
 
-bool valueNameMatch(std::string_view Name) noexcept {
-  return std::any_of(ValueName.begin(), ValueName.end(),
-                     [Name](auto &&Input) { return Name == Input; });
+bool isValidName(std::string_view Name) noexcept {
+  return std::find(ValidNames.begin(), ValidNames.end(), Name) !=
+         ValidNames.end();
 }
 
-constexpr std::array<std::string_view, 3> U64ValueName{
+constexpr std::array<std::string_view, 3> ValidU64Names{
     "memory_limit"sv, "ops_limit"sv, "parallelism"sv};
 
-bool u64ValueNameMatch(std::string_view Name) noexcept {
-  return std::any_of(U64ValueName.begin(), U64ValueName.end(),
-                     [Name](auto &&Input) { return Name == Input; });
+bool isValidU64Name(std::string_view Name) noexcept {
+  return std::find(ValidU64Names.begin(), ValidU64Names.end(), Name) !=
+         ValidU64Names.end();
 }
 
 } // namespace
@@ -42,13 +42,13 @@ WasiCryptoExpect<void> Options::set(std::string_view Name,
                                     Span<const uint8_t> Value) noexcept {
   std::string ActuallyName = toLower(Name);
 
-  ensureOrReturn(valueNameMatch(ActuallyName),
+  ensureOrReturn(isValidName(ActuallyName),
                  __WASI_CRYPTO_ERRNO_UNSUPPORTED_OPTION);
 
   {
     std::unique_lock<std::shared_mutex> Lock{Inner->Mutex};
-    Inner->ValueMap.try_emplace(
-        ActuallyName, std::vector<uint8_t>{Value.begin(), Value.end()});
+    Inner->ValueMap.insert_or_assign(ActuallyName,
+                            std::vector(Value.begin(), Value.end()));
   }
   return {};
 }
@@ -56,11 +56,11 @@ WasiCryptoExpect<void> Options::set(std::string_view Name,
 WasiCryptoExpect<void> Options::setU64(std::string_view Name,
                                        uint64_t Value) noexcept {
   std::string ActuallyName = toLower(Name);
-  ensureOrReturn(u64ValueNameMatch(ActuallyName),
+  ensureOrReturn(isValidU64Name(ActuallyName),
                  __WASI_CRYPTO_ERRNO_UNSUPPORTED_OPTION);
   {
     std::unique_lock<std::shared_mutex> Lock{Inner->Mutex};
-    Inner->U64ValueMap.try_emplace(ActuallyName, Value);
+    Inner->U64ValueMap.insert_or_assign(ActuallyName, Value);
   }
   return {};
 }
@@ -80,7 +80,7 @@ WasiCryptoExpect<void> Options::setGuestBuffer(std::string_view Name,
 WasiCryptoExpect<size_t> Options::get(std::string_view Name,
                                       Span<uint8_t> Value) const noexcept {
   std::string ActuallyName = toLower(Name);
-  ensureOrReturn(valueNameMatch(ActuallyName),
+  ensureOrReturn(isValidName(ActuallyName),
                  __WASI_CRYPTO_ERRNO_UNSUPPORTED_OPTION);
   {
     std::shared_lock<std::shared_mutex> Lock{Inner->Mutex};
@@ -98,7 +98,7 @@ WasiCryptoExpect<size_t> Options::get(std::string_view Name,
 WasiCryptoExpect<uint64_t>
 Options::getU64(std::string_view Name) const noexcept {
   std::string ActuallyName = toLower(Name);
-  ensureOrReturn(u64ValueNameMatch(ActuallyName),
+  ensureOrReturn(isValidU64Name(ActuallyName),
                  __WASI_CRYPTO_ERRNO_UNSUPPORTED_OPTION);
   {
     std::shared_lock<std::shared_mutex> Lock{Inner->Mutex};

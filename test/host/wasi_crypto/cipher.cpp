@@ -17,6 +17,8 @@ TEST_F(WasiCryptoTest, Aeads) {
                                symmetricKeyGenerate(Name, std::nullopt));
     WASI_CRYPTO_EXPECT_SUCCESS(OptionsHandle,
                                optionsOpen(__WASI_ALGORITHM_TYPE_SYMMETRIC));
+    // repeat set overwrite previous
+    WASI_CRYPTO_EXPECT_TRUE(optionsSet(OptionsHandle, "nonce"sv, "nonce"_u8));
     WASI_CRYPTO_EXPECT_TRUE(optionsSet(OptionsHandle, "nonce"sv, Nonce));
     WASI_CRYPTO_EXPECT_SUCCESS(
         State1Handle, symmetricStateOpen(Name, KeyHandle, OptionsHandle));

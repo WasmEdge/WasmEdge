@@ -12,35 +12,35 @@ namespace Signatures {
 FactoryVariant makeFactory(Algorithm Alg) noexcept {
   switch (Alg) {
   case Algorithm::ECDSA_P256_SHA256:
-    return EcdsaP256{};
+    return FactoryVariant{std::in_place_type<EcdsaP256>};
   case Algorithm::ECDSA_K256_SHA256:
-    return EcdsaK256{};
+    return FactoryVariant{std::in_place_type<EcdsaK256>};
   case Algorithm::Ed25519:
-    return Eddsa{};
+    return FactoryVariant{std::in_place_type<Eddsa>};
   case Algorithm::RSA_PKCS1_2048_SHA256:
-    return RSA_PKCS1_2048_SHA256{};
+    return FactoryVariant{std::in_place_type<RSA_PKCS1_2048_SHA256>};
   case Algorithm::RSA_PKCS1_2048_SHA384:
-    return RSA_PKCS1_2048_SHA384{};
+    return FactoryVariant{std::in_place_type<RSA_PKCS1_2048_SHA384>};
   case Algorithm::RSA_PKCS1_2048_SHA512:
-    return RSA_PKCS1_2048_SHA512{};
+    return FactoryVariant{std::in_place_type<RSA_PKCS1_2048_SHA512>};
   case Algorithm::RSA_PKCS1_3072_SHA384:
-    return RSA_PKCS1_3072_SHA384{};
+    return FactoryVariant{std::in_place_type<RSA_PKCS1_3072_SHA384>};
   case Algorithm::RSA_PKCS1_3072_SHA512:
-    return RSA_PKCS1_3072_SHA512{};
+    return FactoryVariant{std::in_place_type<RSA_PKCS1_3072_SHA512>};
   case Algorithm::RSA_PKCS1_4096_SHA512:
-    return RSA_PKCS1_4096_SHA512{};
+    return FactoryVariant{std::in_place_type<RSA_PKCS1_4096_SHA512>};
   case Algorithm::RSA_PSS_2048_SHA256:
-    return RSA_PSS_2048_SHA256{};
+    return FactoryVariant{std::in_place_type<RSA_PSS_2048_SHA256>};
   case Algorithm::RSA_PSS_2048_SHA384:
-    return RSA_PSS_2048_SHA384{};
+    return FactoryVariant{std::in_place_type<RSA_PSS_2048_SHA384>};
   case Algorithm::RSA_PSS_2048_SHA512:
-    return RSA_PSS_2048_SHA512{};
+    return FactoryVariant{std::in_place_type<RSA_PSS_2048_SHA512>};
   case Algorithm::RSA_PSS_3072_SHA384:
-    return RSA_PSS_3072_SHA384{};
+    return FactoryVariant{std::in_place_type<RSA_PSS_3072_SHA384>};
   case Algorithm::RSA_PSS_3072_SHA512:
-    return RSA_PSS_3072_SHA512{};
+    return FactoryVariant{std::in_place_type<RSA_PSS_3072_SHA512>};
   case Algorithm::RSA_PSS_4096_SHA512:
-    return RSA_PSS_4096_SHA512{};
+    return FactoryVariant{std::in_place_type<RSA_PSS_4096_SHA512>};
 
   default:
     assumingUnreachable();

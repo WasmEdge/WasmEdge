@@ -12,11 +12,11 @@ namespace Common {
 Options optionsOpen(__wasi_algorithm_type_e_t Alg) noexcept {
   switch (Alg) {
   case __WASI_ALGORITHM_TYPE_SIGNATURES:
-    return Options{std::in_place_type_t<Signatures::Options>{}};
+    return Options{std::in_place_type<Signatures::Options>};
   case __WASI_ALGORITHM_TYPE_SYMMETRIC:
-    return Options{std::in_place_type_t<Symmetric::Options>{}};
+    return Options{std::in_place_type<Symmetric::Options>};
   case __WASI_ALGORITHM_TYPE_KEY_EXCHANGE:
-    return Options{std::in_place_type_t<Kx::Options>{}};
+    return Options{std::in_place_type<Kx::Options>};
   default:
     assumingUnreachable();
   }

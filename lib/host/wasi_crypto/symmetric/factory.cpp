@@ -19,29 +19,29 @@ namespace Symmetric {
 FactoryVariant makeFactory(Algorithm Alg) noexcept {
   switch (Alg) {
   case Algorithm::Sha256:
-    return FactoryVariant{std::in_place_type_t<Sha256>{}};
+    return FactoryVariant{std::in_place_type<Sha256>};
   case Algorithm::Sha512:
-    return FactoryVariant{std::in_place_type_t<Sha512>{}};
+    return FactoryVariant{std::in_place_type<Sha512>};
   case Algorithm::Sha512_256:
-    return FactoryVariant{std::in_place_type_t<Sha512_256>{}};
+    return FactoryVariant{std::in_place_type<Sha512_256>};
   case Algorithm::HmacSha256:
-    return FactoryVariant{std::in_place_type_t<HmacSha256>{}};
+    return FactoryVariant{std::in_place_type<HmacSha256>};
   case Algorithm::HmacSha512:
-    return FactoryVariant{std::in_place_type_t<HmacSha512>{}};
+    return FactoryVariant{std::in_place_type<HmacSha512>};
   case Algorithm::HkdfSha256Expand:
-    return FactoryVariant{std::in_place_type_t<HkdfSha256Expand>{}};
+    return FactoryVariant{std::in_place_type<HkdfSha256Expand>};
   case Algorithm::HkdfSha256Extract:
-    return FactoryVariant{std::in_place_type_t<HkdfSha256Extract>{}};
+    return FactoryVariant{std::in_place_type<HkdfSha256Extract>};
   case Algorithm::HkdfSha512Expand:
-    return FactoryVariant{std::in_place_type_t<HkdfSha512Expand>{}};
+    return FactoryVariant{std::in_place_type<HkdfSha512Expand>};
   case Algorithm::HkdfSha512Extract:
-    return FactoryVariant{std::in_place_type_t<HkdfSha512Extract>{}};
+    return FactoryVariant{std::in_place_type<HkdfSha512Extract>};
   case Algorithm::Aes128Gcm:
-    return FactoryVariant{std::in_place_type_t<Aes128Gcm>{}};
+    return FactoryVariant{std::in_place_type<Aes128Gcm>};
   case Algorithm::Aes256Gcm:
-    return FactoryVariant{std::in_place_type_t<Aes256Gcm>{}};
+    return FactoryVariant{std::in_place_type<Aes256Gcm>};
   case Algorithm::ChaCha20Poly1305:
-    return FactoryVariant{std::in_place_type_t<ChaCha20Poly1305>{}};
+    return FactoryVariant{std::in_place_type<ChaCha20Poly1305>};
   default:
     assumingUnreachable();
   }

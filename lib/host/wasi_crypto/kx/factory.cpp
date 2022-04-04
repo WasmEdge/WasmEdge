@@ -3,6 +3,8 @@
 
 #include "host/wasi_crypto/kx/factory.h"
 
+#include <utility>
+
 namespace WasmEdge {
 namespace Host {
 namespace WasiCrypto {
@@ -11,7 +13,7 @@ namespace Kx {
 FactoryVariant makeFactory(Algorithm Alg) noexcept {
   switch (Alg) {
   case Algorithm::X25519:
-    return X25519{};
+    return FactoryVariant{std::in_place_type<X25519>};
   default:
     assumingUnreachable();
   }

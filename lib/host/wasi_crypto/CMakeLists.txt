@@ -4,45 +4,45 @@
 find_package(OpenSSL REQUIRED)
 
 wasmedge_add_library(wasmedgeHostModuleWasiCrypto
-  module.cpp
-  common/func.cpp
-  symmetric/func.cpp
-  asymmetric_common/func.cpp
-  kx/func.cpp
-  signatures/func.cpp
-  common/ctx.cpp
-  common/array_output.cpp
-  symmetric/options.cpp
-  kx/options.cpp
-  signatures/options.cpp
-  common/options.cpp
-  symmetric/ctx.cpp
-  symmetric/tag.cpp
-  symmetric/key.cpp
-  symmetric/state.cpp
-  symmetric/factory.cpp
-  utils/evp_wrapper.cpp
-  symmetric/hash.cpp
-  symmetric/mac.cpp
-  symmetric/kdf.cpp
-  symmetric/aeads.cpp
   asymmetric_common/ctx.cpp
+  asymmetric_common/factory.cpp
+  asymmetric_common/func.cpp
+  asymmetric_common/keypair.cpp
   asymmetric_common/publickey.cpp
   asymmetric_common/secretkey.cpp
-  asymmetric_common/keypair.cpp
-  asymmetric_common/factory.cpp
+  common/array_output.cpp
+  common/ctx.cpp
+  common/func.cpp
+  common/options.cpp
   kx/ctx.cpp
-  kx/factory.cpp
-  kx/kx.cpp
   kx/dh/x25519.cpp
+  kx/factory.cpp
+  kx/func.cpp
+  kx/kx.cpp
+  kx/options.cpp
+  module.cpp
   signatures/ctx.cpp
-  signatures/signatures.cpp
-  signatures/factory.cpp
-  signatures/signstate.cpp
-  signatures/verificationstate.cpp
   signatures/ecdsa.cpp
   signatures/eddsa.cpp
+  signatures/factory.cpp
+  signatures/func.cpp
+  signatures/options.cpp
   signatures/rsa.cpp
+  signatures/signatures.cpp
+  signatures/signstate.cpp
+  signatures/verificationstate.cpp
+  symmetric/aeads.cpp
+  symmetric/ctx.cpp
+  symmetric/factory.cpp
+  symmetric/func.cpp
+  symmetric/hash.cpp
+  symmetric/kdf.cpp
+  symmetric/key.cpp
+  symmetric/mac.cpp
+  symmetric/options.cpp
+  symmetric/state.cpp
+  symmetric/tag.cpp
+  utils/evp_wrapper.cpp
 )
 
 target_include_directories(wasmedgeHostModuleWasiCrypto
@@ -52,6 +52,6 @@ target_include_directories(wasmedgeHostModuleWasiCrypto
 
 target_link_libraries(wasmedgeHostModuleWasiCrypto
   PUBLIC
-  wasmedgeSystem
   OpenSSL::Crypto
+  wasmedgeSystem
 )

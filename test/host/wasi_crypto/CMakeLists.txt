@@ -2,16 +2,16 @@
 # SPDX-FileCopyrightText: 2019-2022 Second State INC
 
 wasmedge_add_executable(wasiCryptoTests 
-  helper.cpp
-  common.cpp
-  hash.cpp
-  mac.cpp
-  kdf.cpp
   aeads.cpp
   asymmetric.cpp
+  common.cpp
+  hash.cpp
+  helper.cpp
+  kdf.cpp
   kx.cpp
-  signatures.cpp
+  mac.cpp
   notimplement.cpp
+  signatures.cpp
 )
 
 add_test(wasiCryptoTests wasiCryptoTests)

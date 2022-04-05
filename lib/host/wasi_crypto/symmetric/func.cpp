@@ -28,7 +28,7 @@ Expect<uint32_t> KeyGenerate::body(Runtime::Instance::MemoryInstance *MemInst,
   }
 
   auto *const OptOptions =
-      MemInst->getPointer<__wasi_opt_options_t *>(OptOptionsPtr);
+      MemInst->getPointer<const __wasi_opt_options_t *>(OptOptionsPtr);
   checkExist(OptOptions);
 
   auto *const KeyHandle =
@@ -124,7 +124,7 @@ KeyGenerateManaged::body(Runtime::Instance::MemoryInstance *MemInst,
   }
 
   auto *const OptOptions =
-      MemInst->getPointer<__wasi_opt_options_t *>(OptOptionsPtr);
+      MemInst->getPointer<const __wasi_opt_options_t *>(OptOptionsPtr);
   checkExist(OptOptions);
 
   auto *const KeyHandle =
@@ -263,11 +263,11 @@ Expect<uint32_t> StateOpen::body(Runtime::Instance::MemoryInstance *MemInst,
   }
 
   auto *const OptKeyHandle =
-      MemInst->getPointer<__wasi_opt_symmetric_key_t *>(OptKeyHandlePtr);
+      MemInst->getPointer<const __wasi_opt_symmetric_key_t *>(OptKeyHandlePtr);
   checkExist(OptKeyHandle);
 
   auto *const OptOptions =
-      MemInst->getPointer<__wasi_opt_options_t *>(OptOptionsPtr);
+      MemInst->getPointer<const __wasi_opt_options_t *>(OptOptionsPtr);
   checkExist(OptOptions);
 
   auto *const State = MemInst->getPointer<__wasi_symmetric_state_t *>(StatePtr);

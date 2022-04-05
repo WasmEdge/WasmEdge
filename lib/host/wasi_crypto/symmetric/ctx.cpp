@@ -197,8 +197,8 @@ WasiCryptoExpect<__wasi_symmetric_key_t> Context::symmetricKeyGenerate(
   /// reference to OptOptionsResult if it's symmetric Options
   auto OptSymmetricOptionsResult = transposeOptionalToRef(
       *OptOptionsResult,
-      [](auto &&Options) noexcept
-      -> WasiCryptoExpect<OptionalRef<Symmetric::Options>> {
+      [](const auto &Options) noexcept
+      -> WasiCryptoExpect<OptionalRef<const Symmetric::Options>> {
         auto *SymmetricOptions = std::get_if<Symmetric::Options>(&Options);
         if (!SymmetricOptions) {
           return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_HANDLE);

@@ -3,14 +3,14 @@
 
 wasmedge_add_executable(wasiCryptoTests 
   helper.cpp
+  common.cpp
   hash.cpp
   mac.cpp
   kdf.cpp
-  cipher.cpp
+  aeads.cpp
   asymmetric.cpp
-  x25519.cpp
+  kx.cpp
   signatures.cpp
-  common.cpp
   notimplement.cpp
 )
 

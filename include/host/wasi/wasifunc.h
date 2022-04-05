@@ -384,7 +384,7 @@ public:
   WasiSockListen(WASI::Environ &HostEnv) : Wasi(HostEnv) {}
 
   Expect<uint32_t> body(Runtime::Instance::MemoryInstance *MemInst, int32_t Fd,
-                        uint32_t Backlog);
+                        int32_t Backlog);
 };
 
 class WasiSockAccept : public Wasi<WasiSockAccept> {

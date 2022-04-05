@@ -21,6 +21,7 @@
 #include <io.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <winsock2.h>
 
 #if !defined(BOOST_USE_WINDOWS_H)
 extern "C" {
@@ -487,6 +488,31 @@ fromLastError(boost::winapi::DWORD_ LastError) noexcept {
   }
 }
 
+inline constexpr __wasi_errno_t fromWSALastError(int WSALastError) noexcept {
+  return fromLastError(static_cast<boost::winapi::DWORD_>(WSALastError));
+}
+
+inline constexpr __wasi_errno_t fromWSAToEAIError(int WSALastError) noexcept {
+  switch (WSALastError) {
+  case boost::winapi::WSATRY_AGAIN_:
+    return __WASI_ERRNO_AIAGAIN;
+  case boost::winapi::WSAEINVAL_:
+    return __WASI_ERRNO_AIBADFLAG;
+  case boost::winapi::WSANO_RECOVERY_:
+    return __WASI_ERRNO_AIFAIL;
+  case boost::winapi::ERROR_NOT_ENOUGH_MEMORY_:
+    return __WASI_ERRNO_AIMEMORY;
+  case boost::winapi::WSAHOST_NOT_FOUND_:
+    return __WASI_ERRNO_AINONAME;
+  case boost::winapi::WSATYPE_NOT_FOUND_:
+    return __WASI_ERRNO_AISERVICE;
+  case boost::winapi::WSAESOCKTNOSUPPORT_:
+    return __WASI_ERRNO_AISOCKTYPE;
+  default:
+    return fromWSALastError(WSALastError);
+  }
+}
+
 using Days = std::chrono::duration<uint64_t, std::ratio<86400>>;
 using NS = std::chrono::nanoseconds;
 using HundredNS = std::chrono::duration<uint64_t, std::ratio<1, 10000000>>;
@@ -512,6 +538,51 @@ inline constexpr int toWhence(__wasi_whence_t Whence) noexcept {
     return SEEK_END;
   case __WASI_WHENCE_SET:
     return SEEK_SET;
+  default:
+    assumingUnreachable();
+  }
+}
+
+inline constexpr int toSockOptLevel(__wasi_sock_opt_level_t Level) noexcept {
+  switch (Level) {
+  case __WASI_SOCK_OPT_LEVEL_SOL_SOCKET:
+    return SOL_SOCKET;
+  default:
+    assumingUnreachable();
+  }
+}
+
+inline constexpr int toSockOptSoName(__wasi_sock_opt_so_t SoName) noexcept {
+  switch (SoName) {
+  case __WASI_SOCK_OPT_SO_REUSEADDR:
+    return SO_REUSEADDR;
+  case __WASI_SOCK_OPT_SO_TYPE:
+    return SO_TYPE;
+  case __WASI_SOCK_OPT_SO_ERROR:
+    return SO_REUSEADDR;
+  case __WASI_SOCK_OPT_SO_DONTROUTE:
+    return SO_TYPE;
+  case __WASI_SOCK_OPT_SO_BROADCAST:
+    return SO_REUSEADDR;
+  case __WASI_SOCK_OPT_SO_SNDBUF:
+    return SO_TYPE;
+  case __WASI_SOCK_OPT_SO_RCVBUF:
+    return SO_REUSEADDR;
+  case __WASI_SOCK_OPT_SO_KEEPALIVE:
+    return SO_TYPE;
+  case __WASI_SOCK_OPT_SO_OOBINLINE:
+    return SO_REUSEADDR;
+  case __WASI_SOCK_OPT_SO_LINGER:
+    return SO_TYPE;
+  case __WASI_SOCK_OPT_SO_RCVLOWAT:
+    return SO_REUSEADDR;
+  case __WASI_SOCK_OPT_SO_RCVTIMEO:
+    return SO_TYPE;
+  case __WASI_SOCK_OPT_SO_SNDTIMEO:
+    return SO_REUSEADDR;
+  case __WASI_SOCK_OPT_SO_ACCEPTCONN:
+    return SO_TYPE;
+
   default:
     assumingUnreachable();
   }

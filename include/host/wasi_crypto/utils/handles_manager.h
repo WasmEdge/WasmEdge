@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2019-2022 Second State INC
 
-//===-- wasi_crypto/utils/handles_manager.h - HandlesManger definition ----===//
+//===-- wasi_crypto/utils/handles_manager.h - HandlesManager definition ----===//
 //
 // Part of the WasmEdge Project.
 //
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// This file contains the class definitions of the WasiCrypto HandlesManger, it
+/// This file contains the class definitions of the WasiCrypto HandlesManager, it
 /// control handle and inner state
 ///
 //===----------------------------------------------------------------------===//
@@ -138,7 +138,7 @@ struct IsVariantMember<T, std::variant<AllType...>>
 
 } // namespace detail
 
-/// MangerType need reference count
+/// ManagerType need reference count
 template <typename HandleType, typename ManagerType,
           std::enable_if_t<std::is_copy_constructible_v<ManagerType>, bool> =
               false>
@@ -180,7 +180,7 @@ public:
   }
 };
 
-/// MangerType just use reference
+/// ManagerType just use reference
 template <typename HandleType, typename ManagerType>
 class RefHandlesManager
     : public detail::BaseHandlesManager<HandleType, ManagerType> {

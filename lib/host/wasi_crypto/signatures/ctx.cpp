@@ -18,7 +18,7 @@ Context::signatureExport(__wasi_signature_t SigHandle,
         return Signatures::sigExportData(SigVariant, Encoding);
       })
       .and_then([this](auto &&Data) noexcept {
-        return ArrayOutputManger.registerManager(std::move(Data));
+        return ArrayOutputManager.registerManager(std::move(Data));
       });
 }
 

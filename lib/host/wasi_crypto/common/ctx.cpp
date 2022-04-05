@@ -12,18 +12,18 @@ namespace WasiCrypto {
 
 WasiCryptoExpect<size_t>
 Context::arrayOutputLen(__wasi_array_output_t ArrayOutputHandle) noexcept {
-  return ArrayOutputManger.get(ArrayOutputHandle)
+  return ArrayOutputManager.get(ArrayOutputHandle)
       .map(&Common::ArrayOutput::len);
 }
 
 WasiCryptoExpect<size_t>
 Context::arrayOutputPull(__wasi_array_output_t ArrayOutputHandle,
                          Span<uint8_t> Buf) noexcept {
-  return ArrayOutputManger.get(ArrayOutputHandle)
+  return ArrayOutputManager.get(ArrayOutputHandle)
       .map([=](Common::ArrayOutput &ArrayOutput) noexcept {
         auto [Size, AlreadyConsumed] = ArrayOutput.pull(Buf);
         if (AlreadyConsumed) {
-          ArrayOutputManger.close(ArrayOutputHandle);
+          ArrayOutputManager.close(ArrayOutputHandle);
         }
         return Size;
       });

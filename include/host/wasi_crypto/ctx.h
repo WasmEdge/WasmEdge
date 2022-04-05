@@ -313,7 +313,7 @@ public:
 
 private:
   RefHandlesManager<__wasi_array_output_t, Common::ArrayOutput>
-      ArrayOutputManger{0x00};
+      ArrayOutputManager{0x00};
   RcHandlesManager<__wasi_options_t, Common::Options> OptionsManager{0x01};
   RefHandlesManager<__wasi_symmetric_tag_t, Symmetric::Tag> SymmetricTagManager{
       0xa};

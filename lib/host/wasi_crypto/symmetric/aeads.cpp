@@ -83,7 +83,7 @@ Cipher<CipherNid>::State::optionsGet(std::string_view Name,
   return NonceSize;
 }
 
-/// https://wiki.openssl.org/index.php/EVP_Authenticated_Encryption_and_Decryption
+// https://wiki.openssl.org/index.php/EVP_Authenticated_Encryption_and_Decryption
 template <int CipherNid>
 WasiCryptoExpect<void>
 Cipher<CipherNid>::State::absorb(Span<const uint8_t> Data) noexcept {

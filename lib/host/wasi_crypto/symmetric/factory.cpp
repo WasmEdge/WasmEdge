@@ -127,7 +127,7 @@ openState(Algorithm Alg, OptionalRef<const KeyVariant> OptKeyVariant,
           // not need key
 
           // have key
-          if (unlikely(OptKeyVariant)) {
+          if (unlikely(!!OptKeyVariant)) {
             return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_KEY_NOT_SUPPORTED);
           }
 

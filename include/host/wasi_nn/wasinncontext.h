@@ -7,7 +7,6 @@
 #include <vector>
 
 #ifdef WASMEDGE_WASINN_BUILD_OPENVINO
-#include <common/log.h>
 #include <c_api/ie_c_api.h>
 #endif
 namespace WasmEdge {
@@ -36,20 +35,35 @@ public:
 
 class WasiNNContext {
 public:
-  WasiNNContext() : ModelsNum(-1), ExecutionsNum(-1) {
-    spdlog::info("Can you see WasiNNContext");
+  WasiNNContext() : ModelsNum(-1), ExecutionsNum(-1) {}
+  ~WasiNNContext() {
+#ifdef WASMEDGE_WASINN_BUILD_OPENVINO
+    for (auto I : OpenVINOInputs) {
+      if (I != nullptr)
+        ie_blob_free(&I);
+    }
+    for (auto I : OpenVINOInfers)
+      ie_infer_request_free(&(I->infer_request));
+    for (auto I : OpenVINOExecutions)
+      ie_exec_network_free(&I);
+    for (auto I : OpenVINONetworks)
+      ie_network_free(&I);
+    ie_core_free(&openvino_core);
+#endif
   }
+
   // context for implementing WASI-NN
   int ModelsNum;
   int ExecutionsNum;
-  std::map<Graph, GraphEncoding> GraphBackends;
-  std::map<GraphExecutionContext, GraphEncoding> GraphContextBackends;
+  std::vector<GraphEncoding> GraphBackends;
+  std::vector<GraphEncoding> GraphContextBackends;
   std::map<std::string, GraphEncoding> BackendsMapping;
 #ifdef WASMEDGE_WASINN_BUILD_OPENVINO
   ie_core_t *openvino_core = nullptr;
-  std::map<Graph, ie_network_t *> OpenVINONetworks;
-  std::map<Graph, ie_executable_network_t *> OpenVINOExecutions;
-  std::map<GraphExecutionContext, OpenVINOSession> OpenVINOInfers;
+  std::vector<ie_network_t *> OpenVINONetworks;
+  std::vector<ie_executable_network_t *> OpenVINOExecutions;
+  std::vector<ie_blob_t *> OpenVINOInputs;
+  std::vector<OpenVINOSession *> OpenVINOInfers;
 #endif
 };
 

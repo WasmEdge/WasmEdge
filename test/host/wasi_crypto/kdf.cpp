@@ -37,31 +37,36 @@ TEST_F(WasiCryptoTest, Kdf) {
       EXPECT_TRUE(
           symmetricStateOpen(Name, InvaildHandle, std::nullopt).error() ==
           __WASI_CRYPTO_ERRNO_INVALID_HANDLE);
-      WASI_CRYPTO_EXPECT_FAILURE(symmetricStateOptionsGet(StateHandle, "foo"sv, {}),
-                __WASI_CRYPTO_ERRNO_UNSUPPORTED_OPTION);
-      WASI_CRYPTO_EXPECT_FAILURE(symmetricStateOptionsGetU64(StateHandle, "foo"sv),
-                __WASI_CRYPTO_ERRNO_UNSUPPORTED_OPTION);
+      WASI_CRYPTO_EXPECT_FAILURE(
+          symmetricStateOptionsGet(StateHandle, "foo"sv, {}),
+          __WASI_CRYPTO_ERRNO_UNSUPPORTED_OPTION);
+      WASI_CRYPTO_EXPECT_FAILURE(
+          symmetricStateOptionsGetU64(StateHandle, "foo"sv),
+          __WASI_CRYPTO_ERRNO_UNSUPPORTED_OPTION);
       WASI_CRYPTO_EXPECT_FAILURE(symmetricStateSqueezeTag(StateHandle),
-                __WASI_CRYPTO_ERRNO_INVALID_OPERATION);
+                                 __WASI_CRYPTO_ERRNO_INVALID_OPERATION);
       WASI_CRYPTO_EXPECT_FAILURE(symmetricStateMaxTagLen(StateHandle),
-                __WASI_CRYPTO_ERRNO_INVALID_OPERATION);
+                                 __WASI_CRYPTO_ERRNO_INVALID_OPERATION);
       WASI_CRYPTO_EXPECT_FAILURE(symmetricStateEncrypt(StateHandle, {}, {}),
-                __WASI_CRYPTO_ERRNO_INVALID_OPERATION);
-      WASI_CRYPTO_EXPECT_FAILURE(symmetricStateEncryptDetached(StateHandle, {}, {}),
-                __WASI_CRYPTO_ERRNO_INVALID_OPERATION);
+                                 __WASI_CRYPTO_ERRNO_INVALID_OPERATION);
+      WASI_CRYPTO_EXPECT_FAILURE(
+          symmetricStateEncryptDetached(StateHandle, {}, {}),
+          __WASI_CRYPTO_ERRNO_INVALID_OPERATION);
       WASI_CRYPTO_EXPECT_FAILURE(symmetricStateDecrypt(StateHandle, {}, {}),
-                __WASI_CRYPTO_ERRNO_INVALID_OPERATION);
-      WASI_CRYPTO_EXPECT_FAILURE(symmetricStateDecryptDetached(StateHandle, {}, {}, {}),
-                __WASI_CRYPTO_ERRNO_INVALID_OPERATION);
+                                 __WASI_CRYPTO_ERRNO_INVALID_OPERATION);
+      WASI_CRYPTO_EXPECT_FAILURE(
+          symmetricStateDecryptDetached(StateHandle, {}, {}, {}),
+          __WASI_CRYPTO_ERRNO_INVALID_OPERATION);
       WASI_CRYPTO_EXPECT_FAILURE(symmetricStateRatchet(StateHandle),
-                __WASI_CRYPTO_ERRNO_INVALID_OPERATION);
+                                 __WASI_CRYPTO_ERRNO_INVALID_OPERATION);
     };
     BothInvalid(ExpandAlg, ExtractStateHandle);
     BothInvalid(ExtractAlg, ExpandStateHandle);
     WASI_CRYPTO_EXPECT_FAILURE(symmetricStateSqueeze(ExtractStateHandle, {}),
-              __WASI_CRYPTO_ERRNO_INVALID_OPERATION);
-    WASI_CRYPTO_EXPECT_FAILURE(symmetricStateSqueezeKey(ExpandStateHandle, ExpandAlg),
-              __WASI_CRYPTO_ERRNO_INVALID_OPERATION);
+                               __WASI_CRYPTO_ERRNO_INVALID_OPERATION);
+    WASI_CRYPTO_EXPECT_FAILURE(
+        symmetricStateSqueezeKey(ExpandStateHandle, ExpandAlg),
+        __WASI_CRYPTO_ERRNO_INVALID_OPERATION);
     WASI_CRYPTO_EXPECT_TRUE(symmetricStateClose(ExtractStateHandle));
     WASI_CRYPTO_EXPECT_TRUE(symmetricStateClose(ExpandStateHandle));
 
@@ -69,7 +74,7 @@ TEST_F(WasiCryptoTest, Kdf) {
                                symmetricKeyGenerate(ExtractAlg, std::nullopt));
     WASI_CRYPTO_EXPECT_TRUE(symmetricKeyClose(NewKeyHandle));
     WASI_CRYPTO_EXPECT_FAILURE(symmetricKeyGenerate(ExpandAlg, std::nullopt),
-              __WASI_CRYPTO_ERRNO_UNSUPPORTED_FEATURE);
+                               __WASI_CRYPTO_ERRNO_UNSUPPORTED_FEATURE);
   };
   KdfTest("HKDF-EXTRACT/SHA-256"sv, "HKDF-EXPAND/SHA-256"sv, "IKM"_u8,
           "salt"_u8, "info"_u8, 32);

@@ -162,7 +162,7 @@ public:
 
       /// absorb info information.
       WasiCryptoExpect<void> absorb(Span<const uint8_t> Data) noexcept;
-      
+
       /// derivation
       WasiCryptoExpect<void> squeeze(Span<uint8_t> Out) noexcept;
 

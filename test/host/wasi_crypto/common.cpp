@@ -33,10 +33,12 @@ TEST_F(WasiCryptoTest, Options) {
         optionsSetU64(SymmetricOptionsHandle, "parallelism"sv, 0));
 
     // unsupport options
-    WASI_CRYPTO_EXPECT_FAILURE(optionsSet(SymmetricOptionsHandle, "foo"sv, "foo"_u8),
-              __WASI_CRYPTO_ERRNO_UNSUPPORTED_OPTION);
-    WASI_CRYPTO_EXPECT_FAILURE(optionsSetU64(SymmetricOptionsHandle, "foo"sv, 0),
-              __WASI_CRYPTO_ERRNO_UNSUPPORTED_OPTION);
+    WASI_CRYPTO_EXPECT_FAILURE(
+        optionsSet(SymmetricOptionsHandle, "foo"sv, "foo"_u8),
+        __WASI_CRYPTO_ERRNO_UNSUPPORTED_OPTION);
+    WASI_CRYPTO_EXPECT_FAILURE(
+        optionsSetU64(SymmetricOptionsHandle, "foo"sv, 0),
+        __WASI_CRYPTO_ERRNO_UNSUPPORTED_OPTION);
 
     writeDummyMemoryContent();
     static Common::OptionsSetGuestBuffer Func{Ctx};
@@ -49,8 +51,6 @@ TEST_F(WasiCryptoTest, Options) {
     EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_CRYPTO_ERRNO_UNSUPPORTED_OPTION);
 
     WASI_CRYPTO_EXPECT_TRUE(optionsClose(SymmetricOptionsHandle));
-
-
   }
   // sig options
   {
@@ -58,12 +58,12 @@ TEST_F(WasiCryptoTest, Options) {
     WASI_CRYPTO_EXPECT_SUCCESS(SigOptionsHandle,
                                optionsOpen(__WASI_ALGORITHM_TYPE_SIGNATURES));
     // unsupport options
-    
+
     WASI_CRYPTO_EXPECT_FAILURE(optionsSet(SigOptionsHandle, "foo"sv, "foo"_u8),
-              __WASI_CRYPTO_ERRNO_UNSUPPORTED_OPTION);
-              
+                               __WASI_CRYPTO_ERRNO_UNSUPPORTED_OPTION);
+
     WASI_CRYPTO_EXPECT_FAILURE(optionsSetU64(SigOptionsHandle, "foo"sv, 0),
-              __WASI_CRYPTO_ERRNO_UNSUPPORTED_OPTION);
+                               __WASI_CRYPTO_ERRNO_UNSUPPORTED_OPTION);
 
     writeDummyMemoryContent();
     static Common::OptionsSetGuestBuffer Func{Ctx};
@@ -86,10 +86,10 @@ TEST_F(WasiCryptoTest, Options) {
                                optionsOpen(__WASI_ALGORITHM_TYPE_KEY_EXCHANGE));
     // unsupport options
     WASI_CRYPTO_EXPECT_FAILURE(optionsSet(KxOptionsHandle, "foo"sv, "foo"_u8),
-              __WASI_CRYPTO_ERRNO_UNSUPPORTED_OPTION);
-              
+                               __WASI_CRYPTO_ERRNO_UNSUPPORTED_OPTION);
+
     WASI_CRYPTO_EXPECT_FAILURE(optionsSetU64(KxOptionsHandle, "foo"sv, 0),
-              __WASI_CRYPTO_ERRNO_UNSUPPORTED_OPTION);
+                               __WASI_CRYPTO_ERRNO_UNSUPPORTED_OPTION);
 
     writeDummyMemoryContent();
     static Common::OptionsSetGuestBuffer Func{Ctx};

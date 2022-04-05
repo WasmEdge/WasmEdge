@@ -51,36 +51,42 @@ TEST_F(WasiCryptoTest, Hash) {
     {
       // requested size exceeds return invalid_length.
       std::vector<uint8_t> SqueezeContent(ExpectedSqueezeData1.size() + 1);
-      WASI_CRYPTO_EXPECT_FAILURE(symmetricStateSqueeze(StateHandle, SqueezeContent),
-                __WASI_CRYPTO_ERRNO_INVALID_LENGTH);
+      WASI_CRYPTO_EXPECT_FAILURE(
+          symmetricStateSqueeze(StateHandle, SqueezeContent),
+          __WASI_CRYPTO_ERRNO_INVALID_LENGTH);
     }
 
     {
       // some error case check
       WASI_CRYPTO_EXPECT_FAILURE(symmetricKeyGenerate(Name, std::nullopt),
-                __WASI_CRYPTO_ERRNO_KEY_NOT_SUPPORTED);
-      WASI_CRYPTO_EXPECT_FAILURE(symmetricStateOpen(Name, InvaildHandle, std::nullopt),
-                __WASI_CRYPTO_ERRNO_INVALID_HANDLE);
-      WASI_CRYPTO_EXPECT_FAILURE(symmetricStateOptionsGet(StateHandle, "foo"sv, {}),
-                __WASI_CRYPTO_ERRNO_UNSUPPORTED_OPTION);
-      WASI_CRYPTO_EXPECT_FAILURE(symmetricStateOptionsGetU64(StateHandle, "foo"sv),
-                __WASI_CRYPTO_ERRNO_UNSUPPORTED_OPTION);
+                                 __WASI_CRYPTO_ERRNO_KEY_NOT_SUPPORTED);
+      WASI_CRYPTO_EXPECT_FAILURE(
+          symmetricStateOpen(Name, InvaildHandle, std::nullopt),
+          __WASI_CRYPTO_ERRNO_INVALID_HANDLE);
+      WASI_CRYPTO_EXPECT_FAILURE(
+          symmetricStateOptionsGet(StateHandle, "foo"sv, {}),
+          __WASI_CRYPTO_ERRNO_UNSUPPORTED_OPTION);
+      WASI_CRYPTO_EXPECT_FAILURE(
+          symmetricStateOptionsGetU64(StateHandle, "foo"sv),
+          __WASI_CRYPTO_ERRNO_UNSUPPORTED_OPTION);
       WASI_CRYPTO_EXPECT_FAILURE(symmetricStateSqueezeTag(StateHandle),
-                __WASI_CRYPTO_ERRNO_INVALID_OPERATION);
+                                 __WASI_CRYPTO_ERRNO_INVALID_OPERATION);
       WASI_CRYPTO_EXPECT_FAILURE(symmetricStateSqueezeKey(StateHandle, Name),
-                __WASI_CRYPTO_ERRNO_INVALID_OPERATION);
+                                 __WASI_CRYPTO_ERRNO_INVALID_OPERATION);
       WASI_CRYPTO_EXPECT_FAILURE(symmetricStateMaxTagLen(StateHandle),
-                __WASI_CRYPTO_ERRNO_INVALID_OPERATION);
+                                 __WASI_CRYPTO_ERRNO_INVALID_OPERATION);
       WASI_CRYPTO_EXPECT_FAILURE(symmetricStateEncrypt(StateHandle, {}, {}),
-                __WASI_CRYPTO_ERRNO_INVALID_OPERATION);
-      WASI_CRYPTO_EXPECT_FAILURE(symmetricStateEncryptDetached(StateHandle, {}, {}),
-                __WASI_CRYPTO_ERRNO_INVALID_OPERATION);
+                                 __WASI_CRYPTO_ERRNO_INVALID_OPERATION);
+      WASI_CRYPTO_EXPECT_FAILURE(
+          symmetricStateEncryptDetached(StateHandle, {}, {}),
+          __WASI_CRYPTO_ERRNO_INVALID_OPERATION);
       WASI_CRYPTO_EXPECT_FAILURE(symmetricStateDecrypt(StateHandle, {}, {}),
-                __WASI_CRYPTO_ERRNO_INVALID_OPERATION);
-      WASI_CRYPTO_EXPECT_FAILURE(symmetricStateDecryptDetached(StateHandle, {}, {}, {}),
-                __WASI_CRYPTO_ERRNO_INVALID_OPERATION);
+                                 __WASI_CRYPTO_ERRNO_INVALID_OPERATION);
+      WASI_CRYPTO_EXPECT_FAILURE(
+          symmetricStateDecryptDetached(StateHandle, {}, {}, {}),
+          __WASI_CRYPTO_ERRNO_INVALID_OPERATION);
       WASI_CRYPTO_EXPECT_FAILURE(symmetricStateRatchet(StateHandle),
-                __WASI_CRYPTO_ERRNO_INVALID_OPERATION);
+                                 __WASI_CRYPTO_ERRNO_INVALID_OPERATION);
     }
 
     // close

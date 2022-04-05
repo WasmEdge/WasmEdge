@@ -32,7 +32,8 @@ TEST_F(WasiCryptoTest, KxDh) {
 
     WASI_CRYPTO_EXPECT_SUCCESS(SharedKey1Handle, kxDh(Pk1Handle, Sk2Handle));
 
-    WASI_CRYPTO_EXPECT_SUCCESS(SharedKey1Size, arrayOutputLen(SharedKey1Handle));
+    WASI_CRYPTO_EXPECT_SUCCESS(SharedKey1Size,
+                               arrayOutputLen(SharedKey1Handle));
     EXPECT_EQ(SharedKey1Size, 32);
     std::vector<uint8_t> SharedKey1(32);
 
@@ -43,7 +44,8 @@ TEST_F(WasiCryptoTest, KxDh) {
 
     WASI_CRYPTO_EXPECT_SUCCESS(SharedKey2Handle, kxDh(Pk2Handle, Sk1Handle));
 
-    WASI_CRYPTO_EXPECT_SUCCESS(SharedKey2Size, arrayOutputLen(SharedKey2Handle));
+    WASI_CRYPTO_EXPECT_SUCCESS(SharedKey2Size,
+                               arrayOutputLen(SharedKey2Handle));
     EXPECT_EQ(SharedKey2Size, 32);
     std::vector<uint8_t> SharedKey2(32);
     WASI_CRYPTO_EXPECT_TRUE(arrayOutputPull(SharedKey2Handle, SharedKey2));
@@ -52,9 +54,9 @@ TEST_F(WasiCryptoTest, KxDh) {
     /// it only support in openssl 3.0
     /// see https://github.com/openssl/openssl/issues/7616
     WASI_CRYPTO_EXPECT_FAILURE(kxEncapsulate(Pk1Handle),
-              __WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
+                               __WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
     WASI_CRYPTO_EXPECT_FAILURE(kxDecapsulate(Sk1Handle, {}),
-              __WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
+                               __WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
     WASI_CRYPTO_EXPECT_TRUE(publickeyClose(Pk1Handle));
     WASI_CRYPTO_EXPECT_TRUE(secretkeyClose(Sk2Handle));
 

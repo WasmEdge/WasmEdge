@@ -30,7 +30,7 @@ KeypairGenerate::body(Runtime::Instance::MemoryInstance *MemInst,
   checkExist(Alg);
 
   auto *const OptOptionsHandle =
-      MemInst->getPointer<__wasi_opt_options_t *>(OptOptionsHandlePtr);
+      MemInst->getPointer<const __wasi_opt_options_t *>(OptOptionsHandlePtr);
   checkExist(OptOptionsHandle);
 
   auto *const KpHandle = MemInst->getPointer<__wasi_keypair_t *>(KpHandlePtr);
@@ -67,7 +67,7 @@ Expect<uint32_t> KeypairImport::body(Runtime::Instance::MemoryInstance *MemInst,
 
   const __wasi_size_t WasiEncodedLen = EncodedLen;
   auto *const Encoded =
-      MemInst->getPointer<uint8_t *>(EncodedPtr, WasiEncodedLen);
+      MemInst->getPointer<const uint8_t *>(EncodedPtr, WasiEncodedLen);
   checkExist(Encoded);
 
   const auto WasiEncoding = cast<__wasi_keypair_encoding_e_t>(Encoding);
@@ -105,7 +105,7 @@ Expect<uint32_t> KeypairGenerateManaged::body(
   checkExist(Alg);
 
   auto *const OptOptionsHandle =
-      MemInst->getPointer<__wasi_opt_options_t *>(OptOptionsHandlePtr);
+      MemInst->getPointer<const __wasi_opt_options_t *>(OptOptionsHandlePtr);
   checkExist(OptOptionsHandle);
 
   auto *const KpHandle = MemInst->getPointer<__wasi_keypair_t *>(KpHandlePtr);
@@ -436,7 +436,7 @@ SecretkeyImport::body(Runtime::Instance::MemoryInstance *MemInst,
 
   const __wasi_size_t WasiEncodedLen = EncodedLen;
   auto *const Encoded =
-      MemInst->getPointer<uint8_t *>(EncodedPtr, WasiEncodedLen);
+      MemInst->getPointer<const uint8_t *>(EncodedPtr, WasiEncodedLen);
   checkExist(Encoded);
 
   auto WasiEncoding = cast<__wasi_secretkey_encoding_e_t>(Encoding);

@@ -162,7 +162,7 @@ SecretsManagerOpen::body(Runtime::Instance::MemoryInstance *MemInst,
   checkExist(MemInst);
 
   auto *const OptOptionsHandle =
-      MemInst->getPointer<__wasi_opt_options_t *>(OptOptionsHandlePtr);
+      MemInst->getPointer<const __wasi_opt_options_t *>(OptOptionsHandlePtr);
   checkExist(OptOptionsHandle);
 
   auto *const SecretsManagerHandle =

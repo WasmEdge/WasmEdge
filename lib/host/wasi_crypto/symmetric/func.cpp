@@ -633,7 +633,7 @@ Expect<uint32_t> TagVerify::body(Runtime::Instance::MemoryInstance *MemInst,
   checkExist(MemInst);
 
   const __wasi_size_t WasiRawTagLen = RawTagLen;
-  auto *RawTag = MemInst->getPointer<uint8_t *>(RawTagPtr, WasiRawTagLen);
+  auto *RawTag = MemInst->getPointer<const uint8_t *>(RawTagPtr, WasiRawTagLen);
   checkExist(RawTag);
 
   if (auto Res = Ctx.symmetricTagVerify(TagHandle, {RawTag, RawTagLen});

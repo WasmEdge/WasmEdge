@@ -51,9 +51,9 @@ TEST_F(WasiCryptoTest, KxDh) {
 
     /// it only support in openssl 3.0
     /// see https://github.com/openssl/openssl/issues/7616
-    EXPECT_EQ(kxEncapsulate(Pk1Handle).error(),
+    WASI_CRYPTO_EXPECT_FAILURE(kxEncapsulate(Pk1Handle),
               __WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
-    EXPECT_EQ(kxDecapsulate(Sk1Handle, {}).error(),
+    WASI_CRYPTO_EXPECT_FAILURE(kxDecapsulate(Sk1Handle, {}),
               __WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
     WASI_CRYPTO_EXPECT_TRUE(publickeyClose(Pk1Handle));
     WASI_CRYPTO_EXPECT_TRUE(secretkeyClose(Sk2Handle));

@@ -51,41 +51,40 @@ TEST_F(WasiCryptoTest, Hash) {
     {
       // requested size exceeds return invalid_length.
       std::vector<uint8_t> SqueezeContent(ExpectedSqueezeData1.size() + 1);
-      EXPECT_EQ(symmetricStateSqueeze(StateHandle, SqueezeContent).error(),
+      WASI_CRYPTO_EXPECT_FAILURE(symmetricStateSqueeze(StateHandle, SqueezeContent),
                 __WASI_CRYPTO_ERRNO_INVALID_LENGTH);
     }
 
     {
       // some error case check
-      EXPECT_EQ(symmetricKeyGenerate(Name, std::nullopt).error(),
+      WASI_CRYPTO_EXPECT_FAILURE(symmetricKeyGenerate(Name, std::nullopt),
                 __WASI_CRYPTO_ERRNO_KEY_NOT_SUPPORTED);
-      EXPECT_EQ(symmetricStateOpen(Name, InvaildHandle, std::nullopt).error(),
+      WASI_CRYPTO_EXPECT_FAILURE(symmetricStateOpen(Name, InvaildHandle, std::nullopt),
                 __WASI_CRYPTO_ERRNO_INVALID_HANDLE);
-      EXPECT_EQ(symmetricStateOptionsGet(StateHandle, "foo"sv, {}).error(),
+      WASI_CRYPTO_EXPECT_FAILURE(symmetricStateOptionsGet(StateHandle, "foo"sv, {}),
                 __WASI_CRYPTO_ERRNO_UNSUPPORTED_OPTION);
-      EXPECT_EQ(symmetricStateOptionsGetU64(StateHandle, "foo"sv).error(),
+      WASI_CRYPTO_EXPECT_FAILURE(symmetricStateOptionsGetU64(StateHandle, "foo"sv),
                 __WASI_CRYPTO_ERRNO_UNSUPPORTED_OPTION);
-      EXPECT_EQ(symmetricStateSqueezeTag(StateHandle).error(),
+      WASI_CRYPTO_EXPECT_FAILURE(symmetricStateSqueezeTag(StateHandle),
                 __WASI_CRYPTO_ERRNO_INVALID_OPERATION);
-      EXPECT_EQ(symmetricStateSqueezeKey(StateHandle, Name).error(),
+      WASI_CRYPTO_EXPECT_FAILURE(symmetricStateSqueezeKey(StateHandle, Name),
                 __WASI_CRYPTO_ERRNO_INVALID_OPERATION);
-      EXPECT_EQ(symmetricStateMaxTagLen(StateHandle).error(),
+      WASI_CRYPTO_EXPECT_FAILURE(symmetricStateMaxTagLen(StateHandle),
                 __WASI_CRYPTO_ERRNO_INVALID_OPERATION);
-      EXPECT_EQ(symmetricStateEncrypt(StateHandle, {}, {}).error(),
+      WASI_CRYPTO_EXPECT_FAILURE(symmetricStateEncrypt(StateHandle, {}, {}),
                 __WASI_CRYPTO_ERRNO_INVALID_OPERATION);
-      EXPECT_EQ(symmetricStateEncryptDetached(StateHandle, {}, {}).error(),
+      WASI_CRYPTO_EXPECT_FAILURE(symmetricStateEncryptDetached(StateHandle, {}, {}),
                 __WASI_CRYPTO_ERRNO_INVALID_OPERATION);
-      EXPECT_EQ(symmetricStateDecrypt(StateHandle, {}, {}).error(),
+      WASI_CRYPTO_EXPECT_FAILURE(symmetricStateDecrypt(StateHandle, {}, {}),
                 __WASI_CRYPTO_ERRNO_INVALID_OPERATION);
-      EXPECT_EQ(symmetricStateDecryptDetached(StateHandle, {}, {}, {}).error(),
+      WASI_CRYPTO_EXPECT_FAILURE(symmetricStateDecryptDetached(StateHandle, {}, {}, {}),
                 __WASI_CRYPTO_ERRNO_INVALID_OPERATION);
-      EXPECT_EQ(symmetricStateRatchet(StateHandle).error(),
+      WASI_CRYPTO_EXPECT_FAILURE(symmetricStateRatchet(StateHandle),
                 __WASI_CRYPTO_ERRNO_INVALID_OPERATION);
     }
 
     // close
-    EXPECT_EQ(symmetricStateClose(StateHandle).error(),
-              __WASI_CRYPTO_ERRNO_SUCCESS);
+    WASI_CRYPTO_EXPECT_TRUE(symmetricStateClose(StateHandle));
   };
 
   HashTest(

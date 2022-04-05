@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: 2019-2022 Second State INC
 
 #include "host/wasi_crypto/symmetric/factory.h"
+#include "common/errcode.h"
 #include "host/wasi_crypto/symmetric/kdf.h"
 #include "host/wasi_crypto/symmetric/key.h"
 #include "host/wasi_crypto/symmetric/state.h"
@@ -85,7 +86,7 @@ struct StateOpenTraits<WasiCryptoExpect<StateType> (*)(
 };
 
 template <typename T>
-inline constexpr bool RequireKey =
+inline constexpr bool NeedKey =
     StateOpenTraits<decltype(&T::State::open)>::NeedKey;
 } // namespace
 
@@ -97,40 +98,40 @@ openState(Algorithm Alg, OptionalRef<const KeyVariant> OptKeyVariant,
         using FactoryType = std::decay_t<decltype(Factory)>;
         using KeyType = typename FactoryType::Key;
         using StateType = typename FactoryType::State;
-        /// need key
-        if constexpr (RequireKey<FactoryType>) {
+        // need key
+        if constexpr (NeedKey<FactoryType>) {
 
-          /// have key
-          if (OptKeyVariant) {
-            return std::visit(
-                [OptOptions](
-                    const auto &Key) -> WasiCryptoExpect<StateVariant> {
-                  /// key type not same
-                  if constexpr (!std::is_same_v<std::decay_t<decltype(Key)>,
-                                                KeyType>) {
-                    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_KEY);
-                  } else {
-                    /// key type same
-                    return StateType::open(Key, OptOptions)
-                        .map([](auto &&State) noexcept {
-                          return StateVariant{std::move(State)};
-                        });
-                  }
-                },
-                *OptKeyVariant);
-          }
           ///  not have key
-          return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_KEY_REQUIRED);
+          if (unlikely(!OptKeyVariant)) {
+            return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_KEY_REQUIRED);
+          }
+
+          // have key
+          return std::visit(
+              [OptOptions](const auto &Key) -> WasiCryptoExpect<StateVariant> {
+                // key type not same
+                if constexpr (!std::is_same_v<std::decay_t<decltype(Key)>,
+                                              KeyType>) {
+                  return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_KEY);
+                } else {
+                  // key type same
+                  return StateType::open(Key, OptOptions)
+                      .map([](auto &&State) noexcept {
+                        return StateVariant{std::move(State)};
+                      });
+                }
+              },
+              *OptKeyVariant);
 
         } else {
-          /// not need key
+          // not need key
 
-          /// have key
-          if (OptKeyVariant) {
+          // have key
+          if (unlikely(OptKeyVariant)) {
             return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_KEY_NOT_SUPPORTED);
           }
 
-          /// not have key
+          // not have key
           return StateType::open(OptOptions).map([](auto &&State) noexcept {
             return StateVariant{std::move(State)};
           });

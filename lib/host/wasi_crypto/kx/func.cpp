@@ -56,7 +56,7 @@ Expect<uint32_t> Decapsulate::body(Runtime::Instance::MemoryInstance *MemInst,
   checkExist(MemInst);
 
   const __wasi_size_t WasiEncapsulatedSecretLen = EncapsulatedSecretLen;
-  auto *const EncapsulatedSecret = MemInst->getPointer<uint8_t *>(
+  auto *const EncapsulatedSecret = MemInst->getPointer<const uint8_t *>(
       EncapsulatedSecretPtr, WasiEncapsulatedSecretLen);
 
   checkExist(EncapsulatedSecret);

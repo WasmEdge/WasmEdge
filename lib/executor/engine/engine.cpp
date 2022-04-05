@@ -1614,8 +1614,8 @@ Expect<void> Executor::execute(Runtime::StoreManager &StoreMgr,
   };
 
   while (PC != PCEnd) {
-    OpCode Code = PC->getOpCode();
     if (Stat) {
+      OpCode Code = PC->getOpCode();
       if (Conf.getStatisticsConfigure().isInstructionCounting()) {
         Stat->incInstrCount();
       }

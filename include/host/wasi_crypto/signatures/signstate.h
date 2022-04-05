@@ -32,7 +32,8 @@ namespace Signatures {
 using SignStateVariant = RegistedAlg::SignStateVariant;
 using KpVariant = RegistedAlg::KpVariant;
 
-WasiCryptoExpect<SignStateVariant> sigStateOpen(const KpVariant &PkVariant) noexcept;
+WasiCryptoExpect<SignStateVariant>
+sigStateOpen(const KpVariant &PkVariant) noexcept;
 
 WasiCryptoExpect<void> sigStateUpdate(SignStateVariant &SignStateVariant,
                                       Span<const uint8_t> Input) noexcept;

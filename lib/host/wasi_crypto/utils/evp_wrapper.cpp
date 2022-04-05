@@ -56,7 +56,7 @@ EVP_PKEY *pemReadPrivateKey(Span<const uint8_t> Encoded) {
 WasiCryptoExpect<std::vector<uint8_t>> pemWritePrivateKey(EVP_PKEY *Key) {
   BioPtr Bio{BIO_new(BIO_s_mem())};
   opensslCheck(PEM_write_bio_PrivateKey(Bio.get(), Key, nullptr, nullptr, 0,
-                                           nullptr, nullptr));
+                                        nullptr, nullptr));
 
   BUF_MEM *Mem = nullptr;
   opensslCheck(BIO_get_mem_ptr(Bio.get(), &Mem));

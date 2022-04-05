@@ -53,7 +53,8 @@ sigImport(Algorithm Alg, Span<const uint8_t> Encoded,
       [=](auto Factory) noexcept {
         using FactoryType = std::decay_t<decltype(Factory)>;
         return FactoryType::Signature::import(Encoded, Encoding)
-            .map([](auto &&Sig) noexcept { return SigVariant{std::move(Sig)}; });
+            .map(
+                [](auto &&Sig) noexcept { return SigVariant{std::move(Sig)}; });
       },
       makeFactory(Alg));
 }

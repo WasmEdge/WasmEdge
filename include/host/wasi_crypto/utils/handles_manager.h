@@ -1,15 +1,16 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2019-2022 Second State INC
 
-//===-- wasi_crypto/utils/handles_manager.h - HandlesManager definition ----===//
+//===-- wasi_crypto/utils/handles_manager.h - HandlesManager definition
+//----===//
 //
 // Part of the WasmEdge Project.
 //
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// This file contains the class definitions of the WasiCrypto HandlesManager, it
-/// control handle and inner state
+/// This file contains the class definitions of the WasiCrypto HandlesManager,
+/// it control handle and inner state
 ///
 //===----------------------------------------------------------------------===//
 #pragma once
@@ -17,6 +18,8 @@
 #include "host/wasi_crypto/utils/error.h"
 #include "wasi_crypto/api.hpp"
 
+#include <algorithm>
+#include <cstddef>
 #include <limits>
 #include <mutex>
 #include <shared_mutex>
@@ -29,106 +32,97 @@ namespace Host {
 namespace WasiCrypto {
 namespace detail {
 
-/// Reference from MSVC STL , It join the standard library after c++20
-/// https://en.cppreference.com/w/cpp/numeric/rotr
-template <class T> [[nodiscard]] constexpr T rotr(T Val, int Rotation) noexcept;
-
-/// https://en.cppreference.com/w/cpp/numeric/rotl
-template <class T>
-[[nodiscard]] constexpr T rotl(const T Val, const int Rotation) noexcept {
-  constexpr auto Digits = std::numeric_limits<T>::digits;
-  const auto Remainder = Rotation % Digits;
-  if (Remainder > 0) {
-    return static_cast<T>(static_cast<T>(Val << Remainder) |
-                          static_cast<T>(Val >> (Digits - Remainder)));
-  }
-  if (Remainder == 0) {
-    return Val;
-  }
-  // Remainder < 0
-  return rotr(Val, -Remainder);
-}
-
-template <class T>
-[[nodiscard]] constexpr T rotr(const T Val, const int Rotation) noexcept {
-  constexpr auto Digits = std::numeric_limits<T>::digits;
-  const auto Remainder = Rotation % Digits;
-  if (Remainder > 0) {
-    return static_cast<T>(static_cast<T>(Val >> Remainder) |
-                          static_cast<T>(Val << (Digits - Remainder)));
-  }
-  if (Remainder == 0) {
-    return Val;
-  }
-  // Remainder < 0
-  return rotl(Val, -Remainder);
-}
-
 ///
-/// @tparam HandleType This is the type of handle, notice they are all `32 byte
+/// @tparam HandleType This is the type of handle, notice it must `32 byte
 /// long`.
-/// @tparam ManagerType The shared content for handle to get
+/// @tparam ManagerType The managed content
 ///
-/// HandlesManager use handle as index to expression inner.
-/// The handle internal representation as [- TypeId-|------CurrentNumber------]
-/// Eg.For TypeId=1 first handle will be `00000001 00000000 00000000 00000001`,
-/// and next handle will get `00000001 00000000 00000000 00000002`
+/// HandlesManager use handle as index to expression managed content.
 ///
-/// More detail:
-/// https://github.com/WebAssembly/wasi-crypto/blob/main/docs/wasi-crypto.md#handles
+/// Referenced from:
+/// https://github.com/WebAssembly/wasi-crypto/blob/main/implementations/hostcalls/rust/src/handles.rs
 template <typename HandleType, typename ManagerType> class BaseHandlesManager {
 public:
-  static_assert(sizeof(HandleType) == 4, "HandleType must be 4 byte");
-
   BaseHandlesManager(const BaseHandlesManager &) = delete;
   BaseHandlesManager &operator=(const BaseHandlesManager &) = delete;
   BaseHandlesManager(BaseHandlesManager &&) = default;
   BaseHandlesManager &operator=(BaseHandlesManager &&) = default;
 
-  /// @param TypeId A unique number
-  BaseHandlesManager(uint8_t TypeId) noexcept
-      : LastHandle{rotr(static_cast<uint32_t>(TypeId), 8)}, TypeId{TypeId} {}
+  /// @param TypeID A unique number
+  BaseHandlesManager(uint8_t TypeID) noexcept : LastHandle{TypeID, 0} {}
 
   WasiCryptoExpect<void> close(HandleType Handle) noexcept {
     std::unique_lock<std::shared_mutex> Lock{Mutex};
 
-    if (!Map.erase(static_cast<uint32_t>(Handle)))
+    if (!Map.erase(HandleWrapper(Handle)))
       return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_CLOSED);
+
     return {};
   }
 
+  /// constructor a new manager
   template <typename... Args>
   WasiCryptoExpect<HandleType> registerManager(Args &&...Manager) noexcept {
     std::unique_lock<std::shared_mutex> Lock{Mutex};
 
-    uint32_t NextHandle = nextHandle(LastHandle);
+    // find a handle that can be used and emplace
+
+    // assume LastHandle is 0x01000000
+    // NextHandle is 0x01000001
+    auto NextHandle = LastHandle.nextHandle();
     while (true) {
-      // not have
-      if (Map.find(NextHandle) == Map.end()) {
-        break;
+      // try emplace NextHandle
+      if (Map.try_emplace(NextHandle, std::forward<Args>(Manager)...).second) {
+        // if success emplace which indicate NextHandle not exist managed
+        // content, update last handle and return it
+        LastHandle = NextHandle;
+        return LastHandle.Handle;
       }
+      // otherwise, in NextHandle Map already exist content, call NextHandle and
+      // loop
+      NextHandle = NextHandle.nextHandle();
+
+      // if after `many times(2^24 - 1)` loop we get 0x01000000 again
       if (NextHandle == LastHandle) {
+        // it indicate hashmap is full
         return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_TOO_MANY_HANDLES);
       }
-      NextHandle = nextHandle(LastHandle);
     }
-    LastHandle = NextHandle;
-    if (!Map.try_emplace(NextHandle, std::forward<Args>(Manager)...).second) {
-      return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_TOO_MANY_HANDLES);
-    }
-    return static_cast<HandleType>(NextHandle);
   }
 
 protected:
-  uint32_t nextHandle(uint32_t Handle) noexcept {
-    uint32_t AddedValue = (Handle + 1) << 8;
-    return rotr(AddedValue | static_cast<uint32_t>(TypeId), 8);
-  }
+  /// The handle internal representation as [-TypeID-|------CurrentNumber------]
+  union HandleWrapper {
+    static_assert(sizeof(HandleType) == 4, "HandleType must be 4 byte");
+    HandleWrapper(uint8_t TypeID, uint32_t CurrentNumber) noexcept
+        : TypeID(TypeID), CurrentNumber(CurrentNumber) {}
+    explicit HandleWrapper(HandleType Handle) : Handle(Handle) {}
+
+    HandleWrapper nextHandle() noexcept {
+      return {TypeID, static_cast<uint32_t>(CurrentNumber + 1)};
+    }
+
+    struct Hash {
+      size_t operator()(const HandleWrapper &Wrapper) const noexcept {
+        return static_cast<size_t>(Wrapper.Handle);
+      }
+    };
+
+    bool operator==(const HandleWrapper &Wrapper) const noexcept {
+      return Wrapper.Handle == this->Handle;
+    }
+
+    struct {
+      uint8_t TypeID : 8;
+      uint32_t CurrentNumber : 24;
+    };
+    HandleType Handle;
+  };
 
   std::shared_mutex Mutex;
-  uint32_t LastHandle;
-  std::unordered_map<uint32_t, ManagerType> Map;
-  uint8_t TypeId;
+  HandleWrapper LastHandle;
+  std::unordered_map<HandleWrapper, ManagerType, typename HandleWrapper::Hash>
+      Map;
 };
 
 template <typename T, typename VariantType> struct IsVariantMember;
@@ -144,12 +138,16 @@ template <typename HandleType, typename ManagerType,
               false>
 class RcHandlesManager
     : public detail::BaseHandlesManager<HandleType, ManagerType> {
+  using HandleWrapper =
+      typename detail::BaseHandlesManager<HandleType,
+                                          ManagerType>::HandleWrapper;
+
 public:
   /// get return copy
   WasiCryptoExpect<ManagerType> get(HandleType Handle) noexcept {
     std::shared_lock<std::shared_mutex> Lock{this->Mutex};
 
-    auto HandleValue = this->Map.find(static_cast<uint32_t>(Handle));
+    auto HandleValue = this->Map.find(HandleWrapper(Handle));
     if (HandleValue == this->Map.end()) {
       return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_HANDLE);
     }
@@ -161,7 +159,7 @@ public:
   WasiCryptoExpect<RequiredVariantType> getAs(HandleType Handle) noexcept {
     std::shared_lock<std::shared_mutex> Lock{this->Mutex};
 
-    auto HandleValue = this->Map.find(static_cast<uint32_t>(Handle));
+    auto HandleValue = this->Map.find(HandleWrapper(Handle));
     if (HandleValue == this->Map.end()) {
       return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_HANDLE);
     }
@@ -184,13 +182,17 @@ public:
 template <typename HandleType, typename ManagerType>
 class RefHandlesManager
     : public detail::BaseHandlesManager<HandleType, ManagerType> {
+  using HandleWrapper =
+      typename detail::BaseHandlesManager<HandleType,
+                                          ManagerType>::HandleWrapper;
+
 public:
   /// get return reference
   WasiCryptoExpect<std::reference_wrapper<ManagerType>>
   get(HandleType Handle) noexcept {
     std::shared_lock<std::shared_mutex> Lock{this->Mutex};
 
-    auto HandleValue = this->Map.find(static_cast<uint32_t>(Handle));
+    auto HandleValue = this->Map.find(HandleWrapper(Handle));
     if (HandleValue == this->Map.end()) {
       return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_HANDLE);
     }

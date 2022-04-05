@@ -16,7 +16,7 @@ Context::publickeyExport(__wasi_publickey_t PkHandle,
         return AsymmetricCommon::pkExportData(Pk, Encoding);
       })
       .and_then([this](auto &&Data) {
-        return ArrayOutputManger.registerManager(std::move(Data));
+        return ArrayOutputManager.registerManager(std::move(Data));
       });
 }
 
@@ -38,7 +38,7 @@ Context::secretkeyExport(__wasi_secretkey_t SkHandle,
         return AsymmetricCommon::skExportData(Sk, Encoding);
       })
       .and_then([this](auto &&Data) noexcept {
-        return ArrayOutputManger.registerManager(std::move(Data));
+        return ArrayOutputManager.registerManager(std::move(Data));
       });
 }
 
@@ -64,7 +64,7 @@ Context::keypairExport(__wasi_keypair_t KpHandle,
         return AsymmetricCommon::kpExportData(Kp, Encoding);
       })
       .and_then([this](auto &&Data) noexcept {
-        return ArrayOutputManger.registerManager(std::move(Data));
+        return ArrayOutputManager.registerManager(std::move(Data));
       });
 }
 

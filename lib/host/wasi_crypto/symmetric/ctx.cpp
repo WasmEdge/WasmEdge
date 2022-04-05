@@ -46,7 +46,7 @@ Context::symmetricKeyExport(__wasi_symmetric_key_t KeyHandle) noexcept {
   return SymmetricKeyManager.get(KeyHandle)
       .map(Symmetric::keyExportData)
       .and_then([this](auto &&Data) noexcept {
-        return ArrayOutputManger.registerManager(std::move(Data));
+        return ArrayOutputManager.registerManager(std::move(Data));
       });
 }
 
@@ -230,7 +230,7 @@ WasiCryptoExpect<__wasi_symmetric_state_t> Context::symmetricStateOpen(
     return WasiCryptoUnexpect(OptKeyResult);
   }
 
-  // copy from OptionsManger
+  // copy from OptionsManager
   auto OptOptionsResult = mapAndTransposeOptional(
       OptOptionsHandle, [this](__wasi_options_t OptionsHandle) noexcept {
         return OptionsManager.get(OptionsHandle);

@@ -22,7 +22,7 @@ Context::kxDh(__wasi_kx_publickey_t PkHandle,
   }
 
   return Kx::dh(*Pk, *Sk).and_then([this](auto &&Data) {
-    return ArrayOutputManger.registerManager(std::move(Data));
+    return ArrayOutputManager.registerManager(std::move(Data));
   });
 }
 
@@ -36,12 +36,12 @@ Context::kxEncapsulate(__wasi_kx_publickey_t PkHandle) noexcept {
   }
 
   auto SecretHandle =
-      ArrayOutputManger.registerManager(std::move(EncapsulatedSecret->Secret));
+      ArrayOutputManager.registerManager(std::move(EncapsulatedSecret->Secret));
   if (!SecretHandle) {
     return WasiCryptoUnexpect(SecretHandle);
   }
 
-  auto EncapsulatedSecretHandle = ArrayOutputManger.registerManager(
+  auto EncapsulatedSecretHandle = ArrayOutputManager.registerManager(
       std::move(EncapsulatedSecret->EncapsulatedSecretData));
   if (!EncapsulatedSecretHandle) {
     return WasiCryptoUnexpect(EncapsulatedSecretHandle);
@@ -58,7 +58,7 @@ Context::kxDecapsulate(__wasi_kx_secretkey_t SkHandle,
         return Kx::decapsulate(KxSk, EncapsulatedSecret);
       })
       .and_then([this](auto &&Secret) noexcept {
-        return ArrayOutputManger.registerManager(std::move(Secret));
+        return ArrayOutputManager.registerManager(std::move(Secret));
       });
 }
 

@@ -47,7 +47,7 @@ Context::kxEncapsulate(__wasi_kx_publickey_t PkHandle) noexcept {
     return WasiCryptoUnexpect(EncapsulatedSecretHandle);
   }
 
-  return std::make_tuple(*SecretHandle, *EncapsulatedSecretHandle);
+  return std::tuple(*SecretHandle, *EncapsulatedSecretHandle);
 }
 
 WasiCryptoExpect<__wasi_array_output_t>

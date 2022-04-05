@@ -4,17 +4,20 @@
 #include "common/defines.h"
 #include <gtest/gtest.h>
 
-#if WASMEDGE_OS_LINUX || WASMEDGE_OS_MACOS
-
 #include "host/wasi/wasibase.h"
 #include "host/wasi/wasifunc.h"
 #include <algorithm>
 #include <array>
 #include <cstdint>
 #include <cstring>
-#include <netinet/in.h>
 #include <string>
 #include <string_view>
+
+#if WASMEDGE_OS_WINDOWS
+#include <winsock2.h>
+#else
+#include <netinet/in.h>
+#endif
 
 using namespace std::literals;
 
@@ -169,6 +172,8 @@ TEST(WasiTest, SocketUDP) {
     MsgOutPack->buf = MsgOutPtr;
     MsgOutPack->buf_len = MaxMsgBufLen;
 
+    Addr->buf_len = sizeof(sockaddr);
+
     WasiSockRecvFrom.run(&MemInst,
                          std::array<WasmEdge::ValVariant, 7>{
                              FdServer, MsgOutPackPtr, UINT32_C(1), AddrPtr,
@@ -276,8 +281,8 @@ TEST(WasiTest, GetAddrinfo) {
   uint32_t MaxLength = 10;
   uint32_t CanonnameMaxSize = 50;
 
-  const uint32_t NodeLen = Node.size();
-  const uint32_t ServiceLen = Service.size();
+  const uint32_t NodeLen = static_cast<uint32_t>(Node.size());
+  const uint32_t ServiceLen = static_cast<uint32_t>(Service.size());
 
   __wasi_addrinfo_t Hints;
   std::memset(&Hints, 0, sizeof(Hints));
@@ -380,7 +385,7 @@ TEST(WasiTest, GetAddrinfo) {
   {
     std::string TmpNode = "google.com";
     writeString(MemInst, TmpNode, NodePtr);
-    uint32_t TmpNodeLen = TmpNode.size();
+    uint32_t TmpNodeLen = static_cast<uint32_t>(TmpNode.size());
     EXPECT_TRUE(
         WasiGetAddrinfo.run(&MemInst,
                             std::initializer_list<WasmEdge::ValVariant>{
@@ -403,7 +408,6 @@ TEST(WasiTest, GetAddrinfo) {
     EXPECT_EQ(WasiSockAddr->sa_data_len, 14);
   }
 }
-#endif
 
 GTEST_API_ int main(int argc, char **argv) {
   testing::InitGoogleTest(&argc, argv);

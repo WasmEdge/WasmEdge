@@ -10,6 +10,9 @@
 #include "host/wasi/vfs.h"
 #include "win.h"
 
+#include <winsock2.h>
+#include <ws2tcpip.h>
+
 namespace WasmEdge {
 namespace Host {
 namespace WASI {
@@ -18,11 +21,53 @@ namespace {
 
 namespace winapi = boost::winapi;
 
+inline constexpr __wasi_size_t
+calculateAddrinfoLinkedListSize(struct addrinfo *const Addrinfo) {
+  __wasi_size_t Length = 0;
+  for (struct addrinfo *TmpPointer = Addrinfo; TmpPointer != nullptr;
+       TmpPointer = TmpPointer->ai_next) {
+    Length++;
+  }
+  return Length;
+};
+
+// TODO: move isSocket to innode.h
+static bool isSocket(LPVOID H) {
+  if (likely(::GetFileType(H) != FILE_TYPE_PIPE)) {
+    return false;
+  }
+  return !::GetNamedPipeInfo(H, nullptr, nullptr, nullptr, nullptr);
+}
+
+static SOCKET toSocket(boost::winapi::HANDLE_ H) {
+  return reinterpret_cast<SOCKET>(H);
+}
+
+std::pair<const char *, std::unique_ptr<char[]>>
+createNullTerminatedString(std::string_view View) noexcept {
+  const char *CStr = nullptr;
+  std::unique_ptr<char[]> Buffer;
+  if (!View.empty()) {
+    if (const auto Pos = View.find_first_of('\0');
+        Pos != std::string_view::npos) {
+      CStr = View.data();
+    } else {
+      Buffer = std::make_unique<char[]>(View.size() + 1);
+      std::copy(View.begin(), View.end(), Buffer.get());
+      CStr = Buffer.get();
+    }
+  }
+  return {CStr, std::move(Buffer)};
+}
 } // namespace
 
 void HandleHolder::reset() noexcept {
   if (likely(ok())) {
-    winapi::CloseHandle(Handle);
+    if (likely(!isSocket(&Handle))) {
+      winapi::CloseHandle(Handle);
+    } else {
+      ::closesocket(reinterpret_cast<SOCKET>(Handle));
+    }
     Handle = nullptr;
   }
 }
@@ -184,72 +229,405 @@ WasiExpect<Poller> INode::pollOneoff(__wasi_size_t) noexcept {
   return WasiUnexpect(__WASI_ERRNO_NOSYS);
 }
 
-WasiExpect<INode> INode::sockOpen(__wasi_address_family_t,
-                                  __wasi_sock_type_t) noexcept {
-  return WasiUnexpect(__WASI_ERRNO_NOSYS);
+static bool EnsureWSAStartup() {
+  static bool WSALoad = false;
+  static WSADATA WSAData;
+
+  if (!WSALoad) {
+    int Err = WSAStartup(MAKEWORD(2, 2), &WSAData);
+    if (Err == 0) {
+      WSALoad = true;
+    }
+  }
+
+  return WSALoad;
 }
 
-WasiExpect<void> INode::sockBind(uint8_t *, uint8_t, uint16_t) noexcept {
-  return WasiUnexpect(__WASI_ERRNO_NOSYS);
+WasiExpect<void> INode::getAddrinfo(std::string_view Node,
+                                    std::string_view Service,
+                                    const __wasi_addrinfo_t &Hint,
+                                    uint32_t MaxResLength,
+                                    Span<__wasi_addrinfo_t *> WasiAddrinfoArray,
+                                    Span<__wasi_sockaddr_t *> WasiSockaddrArray,
+                                    Span<char *> AiAddrSaDataArray,
+                                    Span<char *> AiCanonnameArray,
+                                    /*Out*/ __wasi_size_t &ResLength) noexcept {
+  const auto [NodeCStr, NodeBuf] = createNullTerminatedString(Node);
+  const auto [ServiceCStr, ServiceBuf] = createNullTerminatedString(Service);
+
+  struct addrinfo SysHint;
+  SysHint.ai_flags = Hint.ai_flags;
+  SysHint.ai_family = Hint.ai_family;
+  SysHint.ai_socktype = Hint.ai_socktype;
+  SysHint.ai_protocol = Hint.ai_protocol;
+  SysHint.ai_addrlen = Hint.ai_addrlen;
+  SysHint.ai_addr = nullptr;
+  SysHint.ai_canonname = nullptr;
+  SysHint.ai_next = nullptr;
+
+  struct addrinfo *SysResPtr = nullptr;
+  if (auto Res = ::getaddrinfo(NodeCStr, ServiceCStr, &SysHint, &SysResPtr);
+      unlikely(Res != 0)) {
+    // By MSDN, on failure, getaddrinfo returns a nonzero Windows Sockets error
+    // code.
+    return WasiUnexpect(fromWSAToEAIError(Res));
+  }
+  // calculate ResLength
+  if (ResLength = calculateAddrinfoLinkedListSize(SysResPtr);
+      ResLength > MaxResLength) {
+    ResLength = MaxResLength;
+  }
+
+  struct addrinfo *SysResItem = SysResPtr;
+  for (uint32_t Idx = 0; Idx < ResLength; Idx++) {
+    auto &CurAddrinfo = WasiAddrinfoArray[Idx];
+    CurAddrinfo->ai_flags = static_cast<__wasi_aiflags_t>(SysResItem->ai_flags);
+    CurAddrinfo->ai_socktype =
+        static_cast<__wasi_sock_type_t>(SysResItem->ai_socktype);
+    CurAddrinfo->ai_protocol =
+        static_cast<__wasi_protocol_t>(SysResItem->ai_protocol);
+    CurAddrinfo->ai_family =
+        static_cast<__wasi_address_family_t>(SysResItem->ai_family);
+    CurAddrinfo->ai_addrlen = (uint32_t)SysResItem->ai_addrlen;
+
+    // process ai_canonname in addrinfo
+    if (SysResItem->ai_canonname != nullptr) {
+      CurAddrinfo->ai_canonname_len =
+          (uint32_t)std::strlen(SysResItem->ai_canonname);
+      auto &CurAiCanonname = AiCanonnameArray[Idx];
+      std::memcpy(CurAiCanonname, SysResItem->ai_canonname,
+                  CurAddrinfo->ai_canonname_len + 1);
+    } else {
+      CurAddrinfo->ai_canonname_len = 0;
+    }
+
+    // process socket address
+    if (SysResItem->ai_addrlen > 0) {
+      auto &CurSockaddr = WasiSockaddrArray[Idx];
+      switch (SysResItem->ai_addr->sa_family) {
+      case AF_INET:
+        CurSockaddr->sa_family = __WASI_ADDRESS_FAMILY_INET4;
+        break;
+      case AF_INET6:
+        CurSockaddr->sa_family = __WASI_ADDRESS_FAMILY_INET6;
+        break;
+      }
+
+      // process sa_data in socket address
+      std::memcpy(AiAddrSaDataArray[Idx], SysResItem->ai_addr->sa_data,
+                  WASI::kSaDataLen);
+      CurSockaddr->sa_data_len = WASI::kSaDataLen;
+    }
+    // process ai_next in addrinfo
+    SysResItem = SysResItem->ai_next;
+  }
+  ::freeaddrinfo(SysResPtr);
+
+  return {};
 }
 
-WasiExpect<void> INode::sockListen(uint32_t) noexcept {
-  return WasiUnexpect(__WASI_ERRNO_NOSYS);
+WasiExpect<INode> INode::sockOpen(__wasi_address_family_t AddressFamily,
+                                  __wasi_sock_type_t SockType) noexcept {
+  EnsureWSAStartup();
+
+  int SysProtocol = IPPROTO_IP;
+
+  int SysDomain = 0;
+  int SysType = 0;
+
+  switch (AddressFamily) {
+  case __WASI_ADDRESS_FAMILY_INET4:
+    SysDomain = AF_INET;
+    break;
+  case __WASI_ADDRESS_FAMILY_INET6:
+    SysDomain = AF_INET6;
+    break;
+  default:
+    return WasiUnexpect(__WASI_ERRNO_INVAL);
+  }
+
+  switch (SockType) {
+  case __WASI_SOCK_TYPE_SOCK_DGRAM:
+    SysType = SOCK_DGRAM;
+    break;
+  case __WASI_SOCK_TYPE_SOCK_STREAM:
+    SysType = SOCK_STREAM;
+    break;
+  default:
+    return WasiUnexpect(__WASI_ERRNO_INVAL);
+  }
+
+  if (auto NewSock = ::socket(SysDomain, SysType, SysProtocol);
+      unlikely(NewSock == INVALID_SOCKET)) {
+    return WasiUnexpect(fromWSALastError(WSAGetLastError()));
+  } else {
+    INode New(reinterpret_cast<boost::winapi::HANDLE_>(NewSock));
+    return New;
+  }
+}
+
+WasiExpect<void> INode::sockBind(uint8_t *Address, uint8_t AddressLength,
+                                 uint16_t Port) noexcept {
+  EnsureWSAStartup();
+
+  if (AddressLength == 4) {
+    struct sockaddr_in ServerAddr;
+    ServerAddr.sin_family = AF_INET;
+    ServerAddr.sin_port = htons(Port);
+    std::memcpy(&ServerAddr.sin_addr.s_addr, Address, AddressLength);
+
+    if (auto Res = ::bind(toSocket(Handle),
+                          reinterpret_cast<struct sockaddr *>(&ServerAddr),
+                          sizeof(ServerAddr));
+        unlikely(Res == SOCKET_ERROR)) {
+      return WasiUnexpect(fromWSALastError(WSAGetLastError()));
+    }
+  } else if (AddressLength == 16) {
+    struct sockaddr_in6 ServerAddr;
+
+    ServerAddr.sin6_family = AF_INET6;
+    ServerAddr.sin6_port = htons(Port);
+    std::memcpy(ServerAddr.sin6_addr.s6_addr, Address, AddressLength);
+    if (auto Res = ::bind(toSocket(Handle),
+                          reinterpret_cast<struct sockaddr *>(&ServerAddr),
+                          sizeof(ServerAddr));
+        unlikely(Res == SOCKET_ERROR)) {
+      return WasiUnexpect(fromWSALastError(WSAGetLastError()));
+    }
+  }
+  return {};
+}
+
+WasiExpect<void> INode::sockListen(int32_t Backlog) noexcept {
+  EnsureWSAStartup();
+  if (auto Res = ::listen(toSocket(Handle), Backlog);
+      unlikely(Res == SOCKET_ERROR)) {
+    return WasiUnexpect(fromWSALastError(WSAGetLastError()));
+  }
+  return {};
 }
 
 WasiExpect<INode> INode::sockAccept() noexcept {
-  return WasiUnexpect(__WASI_ERRNO_NOSYS);
+  EnsureWSAStartup();
+  struct sockaddr_in ServerSocketAddr;
+  ServerSocketAddr.sin_family = AF_INET;
+  ServerSocketAddr.sin_addr.s_addr = INADDR_ANY;
+  socklen_t AddressLen = sizeof(ServerSocketAddr);
+
+  if (auto NewSock = ::accept(
+          toSocket(Handle),
+          reinterpret_cast<struct sockaddr *>(&ServerSocketAddr), &AddressLen);
+      unlikely(NewSock == INVALID_SOCKET)) {
+    return WasiUnexpect(fromWSALastError(WSAGetLastError()));
+  } else {
+    INode New(reinterpret_cast<boost::winapi::HANDLE_>(NewSock));
+    return New;
+  }
 }
 
-WasiExpect<void> INode::sockConnect(uint8_t *, uint8_t, uint16_t) noexcept {
-  return WasiUnexpect(__WASI_ERRNO_NOSYS);
+WasiExpect<void> INode::sockConnect(uint8_t *Address, uint8_t AddressLength,
+                                    uint16_t Port) noexcept {
+  EnsureWSAStartup();
+  if (AddressLength == 4) {
+    struct sockaddr_in ClientSocketAddr;
+    ClientSocketAddr.sin_family = AF_INET;
+    ClientSocketAddr.sin_port = htons(Port);
+    std::memcpy(&ClientSocketAddr.sin_addr.s_addr, Address, AddressLength);
+
+    if (auto Res =
+            ::connect(toSocket(Handle),
+                      reinterpret_cast<struct sockaddr *>(&ClientSocketAddr),
+                      sizeof(ClientSocketAddr));
+        unlikely(Res == SOCKET_ERROR)) {
+      return WasiUnexpect(fromWSALastError(WSAGetLastError()));
+    }
+  } else if (AddressLength == 16) {
+    struct sockaddr_in6 ClientSocketAddr;
+
+    ClientSocketAddr.sin6_family = AF_INET6;
+    ClientSocketAddr.sin6_port = htons(Port);
+    std::memcpy(ClientSocketAddr.sin6_addr.s6_addr, Address, AddressLength);
+    if (auto Res =
+            ::bind(toSocket(Handle),
+                   reinterpret_cast<struct sockaddr *>(&ClientSocketAddr),
+                   sizeof(ClientSocketAddr));
+        unlikely(Res == SOCKET_ERROR)) {
+      return WasiUnexpect(fromWSALastError(WSAGetLastError()));
+    }
+  }
+  return {};
 }
 
-WasiExpect<void> INode::sockRecv(Span<Span<uint8_t>>, __wasi_riflags_t,
-                                 __wasi_size_t &,
-                                 __wasi_roflags_t &) const noexcept {
-  return WasiUnexpect(__WASI_ERRNO_NOSYS);
+WasiExpect<void> INode::sockRecv(Span<Span<uint8_t>> RiData,
+                                 __wasi_riflags_t RiFlags, __wasi_size_t &NRead,
+                                 __wasi_roflags_t &RoFlags) const noexcept {
+  return sockRecvFrom(RiData, RiFlags, nullptr, 0, NRead, RoFlags);
 }
 
-WasiExpect<void> INode::sockRecvFrom(Span<Span<uint8_t>>, __wasi_riflags_t,
-                                     uint8_t *, uint8_t, __wasi_size_t &,
-                                     __wasi_roflags_t &) const noexcept {
-  return WasiUnexpect(__WASI_ERRNO_NOSYS);
+WasiExpect<void> INode::sockRecvFrom(Span<Span<uint8_t>> RiData,
+                                     __wasi_riflags_t RiFlags, uint8_t *Address,
+                                     uint8_t AddressLength,
+                                     __wasi_size_t &NRead,
+                                     __wasi_roflags_t &RoFlags) const noexcept {
+  EnsureWSAStartup();
+  // recvmsg is not available on WINDOWS. fall back to call recvfrom
+  int SysRiFlags = 0;
+  if (RiFlags & __WASI_RIFLAGS_RECV_PEEK) {
+    SysRiFlags |= MSG_PEEK;
+  }
+  if (RiFlags & __WASI_RIFLAGS_RECV_WAITALL) {
+    SysRiFlags |= MSG_WAITALL;
+  }
+
+  std::size_t TmpBufSize = 0;
+  for (auto &IOV : RiData) {
+    TmpBufSize += IOV.size();
+  }
+
+  std::vector<uint8_t> TmpBuf(TmpBufSize, 0);
+  int AddrLen = AddressLength;
+
+  if (auto Res =
+          ::recvfrom(toSocket(Handle), reinterpret_cast<char *>(TmpBuf.data()),
+                     static_cast<int>(TmpBufSize), SysRiFlags,
+                     reinterpret_cast<sockaddr *>(Address), &AddrLen);
+      unlikely(Res == SOCKET_ERROR)) {
+    return WasiUnexpect(fromWSALastError(WSAGetLastError()));
+  } else {
+    NRead = static_cast<__wasi_size_t>(Res);
+  }
+
+  RoFlags = static_cast<__wasi_roflags_t>(0);
+  // TODO : check MSG_TRUNC
+
+  size_t BeginIdx = 0;
+  for (auto &IOV : RiData) {
+    std::copy(TmpBuf.data() + BeginIdx, TmpBuf.data() + BeginIdx + IOV.size(),
+              IOV.begin());
+    BeginIdx += IOV.size();
+  }
+
+  return {};
 }
 
-WasiExpect<void> INode::sockSend(Span<Span<const uint8_t>>, __wasi_siflags_t,
-                                 __wasi_size_t &) const noexcept {
-  return WasiUnexpect(__WASI_ERRNO_NOSYS);
+WasiExpect<void> INode::sockSend(Span<Span<const uint8_t>> SiData,
+                                 __wasi_siflags_t SiFlags,
+                                 __wasi_size_t &NWritten) const noexcept {
+  return sockSendTo(SiData, SiFlags, nullptr, 0, 0, NWritten);
+}
+WasiExpect<void> INode::sockSendTo(Span<Span<const uint8_t>> SiData,
+                                   __wasi_siflags_t, uint8_t *Address,
+                                   uint8_t AddressLength, int32_t Port,
+                                   __wasi_size_t &NWritten) const noexcept {
+  EnsureWSAStartup();
+  // sendmsg is not available on WINDOWS. fall back to call sendto
+  int SysSiFlags = 0;
+
+  std::vector<uint8_t> TmpBuf;
+  for (auto &IOV : SiData) {
+    copy(IOV.begin(), IOV.end(), std::back_inserter(TmpBuf));
+  }
+  std::size_t TmpBufSize = TmpBuf.size();
+
+  struct sockaddr_in ClientSocketAddr;
+  struct sockaddr_in6 ClientSocketAddr6;
+  void *Addr = nullptr;
+  socklen_t AddrLen = 0;
+
+  if (Address) {
+    if (AddressLength == 4) {
+      ClientSocketAddr.sin_family = AF_INET;
+      ClientSocketAddr.sin_port = htons(static_cast<u_short>(Port));
+      ::memcpy(&ClientSocketAddr.sin_addr.s_addr, Address, AddressLength);
+
+      Addr = &ClientSocketAddr;
+      AddrLen = sizeof(ClientSocketAddr);
+    } else if (AddressLength == 16) {
+      ClientSocketAddr6.sin6_family = AF_INET6;
+      ClientSocketAddr6.sin6_port = htons(static_cast<u_short>(Port));
+      ::memcpy(&ClientSocketAddr6.sin6_addr.s6_addr, Address, AddressLength);
+
+      Addr = &ClientSocketAddr6;
+      AddrLen = sizeof(ClientSocketAddr6);
+    }
+  }
+
+  if (auto Res =
+          ::sendto(toSocket(Handle), reinterpret_cast<char *>(TmpBuf.data()),
+                   static_cast<int>(TmpBufSize), SysSiFlags,
+                   reinterpret_cast<sockaddr *>(Addr), AddrLen);
+      unlikely(Res == SOCKET_ERROR)) {
+    return WasiUnexpect(fromWSALastError(WSAGetLastError()));
+  } else {
+    NWritten = static_cast<__wasi_size_t>(Res);
+  }
+
+  return {};
 }
 
-WasiExpect<void> INode::sockSendTo(Span<Span<const uint8_t>>, __wasi_siflags_t,
-                                   uint8_t *, uint8_t, int32_t,
-                                   __wasi_size_t &) const noexcept {
-  return WasiUnexpect(__WASI_ERRNO_NOSYS);
+WasiExpect<void> INode::sockShutdown(__wasi_sdflags_t SdFlags) const noexcept {
+  EnsureWSAStartup();
+  int SysFlags = 0;
+  if (SdFlags == __WASI_SDFLAGS_RD) {
+    SysFlags = SD_RECEIVE;
+  } else if (SdFlags == __WASI_SDFLAGS_WR) {
+    SysFlags = SD_SEND;
+  } else if (SdFlags == (__WASI_SDFLAGS_RD | __WASI_SDFLAGS_WR)) {
+    SysFlags = SD_BOTH;
+  }
+
+  if (auto Res = ::shutdown(toSocket(Handle), SysFlags);
+      unlikely(Res == SOCKET_ERROR)) {
+    return WasiUnexpect(fromWSALastError(WSAGetLastError()));
+  }
+
+  return {};
 }
 
-WasiExpect<void> INode::sockShutdown(__wasi_sdflags_t) const noexcept {
-  return WasiUnexpect(__WASI_ERRNO_NOSYS);
-}
-WasiExpect<void> INode::getAddrinfo(std::string_view, std::string_view,
-                                    const __wasi_addrinfo_t &, uint32_t,
-                                    Span<__wasi_addrinfo_t *>,
-                                    Span<__wasi_sockaddr_t *>, Span<char *>,
-                                    Span<char *>,
-                                    /*Out*/ __wasi_size_t &) noexcept {
-  return WasiUnexpect(__WASI_ERRNO_NOSYS);
+WasiExpect<void> INode::sockGetOpt(__wasi_sock_opt_level_t SockOptLevel,
+                                   __wasi_sock_opt_so_t SockOptName,
+                                   void *FlagPtr,
+                                   uint32_t *FlagSizePtr) const noexcept {
+  auto SysSockOptLevel = toSockOptLevel(SockOptLevel);
+  auto SysSockOptName = toSockOptSoName(SockOptName);
+  auto UnsafeFlagSizePtr = reinterpret_cast<int *>(FlagSizePtr);
+  if (SockOptName == __WASI_SOCK_OPT_SO_ERROR) {
+    char ErrorCode = 0;
+    int *WasiErrorPtr = static_cast<int *>(FlagPtr);
+    if (auto Res = ::getsockopt(toSocket(Handle), SysSockOptLevel,
+                                SysSockOptName, &ErrorCode, UnsafeFlagSizePtr);
+        unlikely(Res < 0)) {
+      return WasiUnexpect(fromErrNo(errno));
+    }
+    *WasiErrorPtr = fromErrNo(ErrorCode);
+  } else {
+    char *CFlagPtr = static_cast<char *>(FlagPtr);
+    if (auto Res = ::getsockopt(toSocket(Handle), SysSockOptLevel,
+                                SysSockOptName, CFlagPtr, UnsafeFlagSizePtr);
+        unlikely(Res < 0)) {
+      return WasiUnexpect(fromErrNo(errno));
+    }
+  }
+
+  return {};
 }
 
-WasiExpect<void> INode::sockGetOpt(__wasi_sock_opt_level_t,
-                                   __wasi_sock_opt_so_t, void *,
-                                   uint32_t *) const noexcept {
-  return WasiUnexpect(__WASI_ERRNO_NOSYS);
-}
+WasiExpect<void> INode::sockSetOpt(__wasi_sock_opt_level_t SockOptLevel,
+                                   __wasi_sock_opt_so_t SockOptName,
+                                   void *FlagPtr,
+                                   uint32_t FlagSize) const noexcept {
+  auto SysSockOptLevel = toSockOptLevel(SockOptLevel);
+  auto SysSockOptName = toSockOptSoName(SockOptName);
+  char *CFlagPtr = static_cast<char *>(FlagPtr);
+  auto UnsafeFlagSize = static_cast<int>(FlagSize);
 
-WasiExpect<void> INode::sockSetOpt(__wasi_sock_opt_level_t,
-                                   __wasi_sock_opt_so_t, void *,
-                                   uint32_t) const noexcept {
-  return WasiUnexpect(__WASI_ERRNO_NOSYS);
+  if (auto Res = ::setsockopt(toSocket(Handle), SysSockOptLevel, SysSockOptName,
+                              CFlagPtr, UnsafeFlagSize);
+      unlikely(Res < 0)) {
+    return WasiUnexpect(fromErrNo(errno));
+  }
+
+  return {};
 }
 
 WasiExpect<void> INode::sockGetLoaclAddr(uint8_t *, uint32_t *,

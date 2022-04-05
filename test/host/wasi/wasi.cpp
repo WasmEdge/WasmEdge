@@ -603,7 +603,7 @@ TEST(WasiTest, PollOneoffSocket) {
     std::array<WasmEdge::ValVariant, 1> Errno;
     const uint32_t FdPtr = 0;
     const uint32_t AddressPtr = 4;
-    const uint32_t Backlog = 1;
+    const int32_t Backlog = 1;
     int32_t ConnectionFd = -1;
 
     Env.init({}, "test"s, {}, {});

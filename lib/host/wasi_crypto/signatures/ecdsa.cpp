@@ -261,7 +261,7 @@ Ecdsa<CurveNid>::SecretKey::exportPem() const noexcept {
 template <int CurveNid>
 WasiCryptoExpect<std::vector<uint8_t>>
 Ecdsa<CurveNid>::SecretKey::exportRaw() const noexcept {
-  /// must equal to SkSize, not check.
+  // must equal to SkSize, not check.
   const BIGNUM *Sk = EC_KEY_get0_private_key(EVP_PKEY_get0_EC_KEY(Ctx.get()));
   std::vector<uint8_t> Res(SkSize);
   opensslCheck(BN_bn2bin(Sk, Res.data()));
@@ -301,12 +301,12 @@ Ecdsa<CurveNid>::KeyPair::checkValid(EvpPkeyPtr Ctx, bool) noexcept {
   EC_KEY *EcCtx = EVP_PKEY_get0_EC_KEY(Ctx.get());
   ensureOrReturn(EcCtx, __WASI_CRYPTO_ERRNO_INVALID_KEY);
 
-  /// curve id check
+  // curve id check
   const EC_GROUP *Group = EC_KEY_get0_group(EcCtx);
   ensureOrReturn(Group, __WASI_CRYPTO_ERRNO_INVALID_KEY);
   ensureOrReturn(EC_GROUP_get_curve_name(Group) == CurveNid,
                  __WASI_CRYPTO_ERRNO_INVALID_KEY);
-  /// have public key
+  // have public key
   ensureOrReturn(EC_KEY_get0_public_key(EcCtx),
                  __WASI_CRYPTO_ERRNO_INVALID_KEY);
   return {std::move(Ctx)};
@@ -406,7 +406,7 @@ Ecdsa<CurveNid>::KeyPair::importRaw(Span<const uint8_t> Encoded) noexcept {
   ensureOrReturn(EC_KEY_set_private_key(EcCtx.get(), Sk.get()),
                  __WASI_CRYPTO_ERRNO_INVALID_KEY);
 
-  /// calculate Pk and set
+  // calculate Pk and set
   EcPointPtr Pk{EC_POINT_new(EC_KEY_get0_group(EcCtx.get()))};
   opensslCheck(EC_POINT_mul(EC_KEY_get0_group(EcCtx.get()), Pk.get(), Sk.get(),
                             nullptr, nullptr, nullptr));

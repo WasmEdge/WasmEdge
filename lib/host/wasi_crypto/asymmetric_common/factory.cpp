@@ -18,7 +18,7 @@ namespace AsymmetricCommon {
 
 WasiCryptoExpect<FactoryVariant> makeFactory(__wasi_algorithm_type_e_t AlgType,
                                              std::string_view AlgStr) noexcept {
-  /// delegate to sig and kx factory
+  // delegate to sig and kx factory
   switch (AlgType) {
   case __WASI_ALGORITHM_TYPE_SIGNATURES: {
     return tryFrom<Signatures::Algorithm>(AlgStr).and_then(

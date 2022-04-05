@@ -194,7 +194,7 @@ WasiCryptoExpect<__wasi_symmetric_key_t> Context::symmetricKeyGenerate(
     return WasiCryptoUnexpect(OptOptionsResult);
   }
 
-  /// reference to OptOptionsResult if it's symmetric Options
+  // reference to OptOptionsResult if it's symmetric Options
   auto OptSymmetricOptionsResult = transposeOptionalToRef(
       *OptOptionsResult,
       [](const auto &Options) noexcept
@@ -219,7 +219,7 @@ WasiCryptoExpect<__wasi_symmetric_state_t> Context::symmetricStateOpen(
     Symmetric::Algorithm Alg,
     std::optional<__wasi_symmetric_key_t> OptKeyHandle,
     std::optional<__wasi_options_t> OptOptionsHandle) noexcept {
-  /// copy from KeyManager
+  // copy from KeyManager
   auto OptKeyResult =
       mapAndTransposeOptional(OptKeyHandle,
                               [this](__wasi_symmetric_key_t KeyHandle) noexcept
@@ -239,7 +239,7 @@ WasiCryptoExpect<__wasi_symmetric_state_t> Context::symmetricStateOpen(
     return WasiCryptoUnexpect(OptOptionsResult);
   }
 
-  /// reference to OptOptionsResult if it's symmetric Options
+  // reference to OptOptionsResult if it's symmetric Options
   auto OptSymmetricOptionsResult = transposeOptionalToRef(
       *OptOptionsResult,
       [](const auto &Options) noexcept

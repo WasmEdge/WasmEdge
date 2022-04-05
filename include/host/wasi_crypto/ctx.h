@@ -40,7 +40,7 @@ namespace WasiCrypto {
 
 class Context {
 public:
-  ///-------------------------------------------common---------------------------------------
+  // -------------------------------------------common--------------------------------------- //
 
   WasiCryptoExpect<size_t>
   arrayOutputLen(__wasi_array_output_t ArrayOutputHandle) noexcept;
@@ -77,7 +77,7 @@ public:
                            Span<const uint8_t> KeyId,
                            __wasi_version_t Version) noexcept;
 
-  ///-------------------------------------------symmetric---------------------------------------
+  // -------------------------------------------symmetric--------------------------------------- //
 
   WasiCryptoExpect<__wasi_symmetric_key_t> symmetricKeyGenerate(
       Symmetric::Algorithm Alg,
@@ -183,7 +183,7 @@ public:
   WasiCryptoExpect<void>
   symmetricTagClose(__wasi_symmetric_tag_t TagHandle) noexcept;
 
-  ///-------------------------------------------asymmetric_common---------------------------------------
+  // -------------------------------------------asymmetric_common--------------------------------------- //
 
   WasiCryptoExpect<__wasi_keypair_t>
   keypairGenerate(__wasi_algorithm_type_e_t AlgType, std::string_view Alg,
@@ -259,7 +259,7 @@ public:
 
   WasiCryptoExpect<void> secretkeyClose(__wasi_secretkey_t SkHandle) noexcept;
 
-  ///------------------------------------------key_exchange-------------------------------------
+  // ------------------------------------------key_exchange------------------------------------- //
 
   WasiCryptoExpect<__wasi_array_output_t>
   kxDh(__wasi_kx_publickey_t PkHandle, __wasi_kx_secretkey_t SkHandle) noexcept;
@@ -271,7 +271,7 @@ public:
   kxDecapsulate(__wasi_kx_secretkey_t SkHandle,
                 Span<const uint8_t> EncapsulatedSecret) noexcept;
 
-  ///-------------------------------------------signature---------------------------------------
+  // -------------------------------------------signature--------------------------------------- //
 
   WasiCryptoExpect<__wasi_array_output_t>
   signatureExport(__wasi_signature_t SigHandle,

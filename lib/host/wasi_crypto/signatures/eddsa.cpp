@@ -133,7 +133,7 @@ Eddsa::KeyPair::import(Span<const uint8_t> Encoded,
   switch (Encoding) {
   case __WASI_KEYPAIR_ENCODING_RAW: {
     ensureOrReturn(Encoded.size() == KpSize, __WASI_CRYPTO_ERRNO_INVALID_KEY);
-    /// not found way to set the public key in openssl, just auto generate.
+    // PublicKey can auto generate from SecretKey.
     EvpPkeyPtr SkCtx{EVP_PKEY_new_raw_private_key(EVP_PKEY_ED25519, nullptr,
                                                   Encoded.data(), SkSize)};
     ensureOrReturn(SkCtx, __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);

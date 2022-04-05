@@ -11,7 +11,7 @@ namespace Common {
 Expect<uint32_t>
 ArrayOutputLen::body(Runtime::Instance::MemoryInstance *MemInst,
                      int32_t ArrayOutputHandle, uint32_t /* Out */ SizePtr) {
-  /// Check memory instance from module.
+  // Check memory instance from module.
   checkExist(MemInst);
 
   auto *const Size = MemInst->getPointer<__wasi_size_t *>(SizePtr);
@@ -31,7 +31,7 @@ Expect<uint32_t>
 ArrayOutputPull::body(Runtime::Instance::MemoryInstance *MemInst,
                       int32_t ArrayOutputHandle, uint32_t BufPtr,
                       uint32_t BufLen, uint32_t /* Out */ SizePtr) {
-  /// Check memory instance from module.
+  // Check memory instance from module.
   checkExist(MemInst);
 
   const __wasi_size_t WasiBufLen = BufLen;
@@ -55,7 +55,7 @@ ArrayOutputPull::body(Runtime::Instance::MemoryInstance *MemInst,
 Expect<uint32_t> OptionsOpen::body(Runtime::Instance::MemoryInstance *MemInst,
                                    uint32_t AlgType,
                                    uint32_t /* Out */ OptionsHandlePtr) {
-  /// Check memory instance from module.
+  // Check memory instance from module.
   checkExist(MemInst);
 
   __wasi_algorithm_type_e_t WasiAlgType;
@@ -92,7 +92,7 @@ Expect<uint32_t> OptionsSet::body(Runtime::Instance::MemoryInstance *MemInst,
                                   int32_t OptionsHandle, uint32_t NamePtr,
                                   uint32_t NameLen, uint32_t ValuePtr,
                                   uint32_t ValueLen) {
-  /// Check memory instance from module.
+  // Check memory instance from module.
   checkExist(MemInst);
 
   const __wasi_size_t WasiNameLen = NameLen;
@@ -116,7 +116,7 @@ Expect<uint32_t> OptionsSet::body(Runtime::Instance::MemoryInstance *MemInst,
 Expect<uint32_t> OptionsSetU64::body(Runtime::Instance::MemoryInstance *MemInst,
                                      int32_t OptionsHandle, uint32_t NamePtr,
                                      uint32_t NameLen, uint64_t Value) {
-  /// Check memory instance from module.
+  // Check memory instance from module.
   checkExist(MemInst);
 
   const __wasi_size_t WasiNameLen = NameLen;
@@ -134,7 +134,7 @@ Expect<uint32_t> OptionsSetU64::body(Runtime::Instance::MemoryInstance *MemInst,
 Expect<uint32_t> OptionsSetGuestBuffer::body(
     Runtime::Instance::MemoryInstance *MemInst, int32_t OptionsHandle,
     uint32_t NamePtr, uint32_t NameLen, uint32_t BufPtr, uint32_t BufLen) {
-  /// Check memory instance from module.
+  // Check memory instance from module.
   checkExist(MemInst);
 
   const __wasi_size_t WasiNameLen = NameLen;
@@ -158,7 +158,7 @@ Expect<uint32_t>
 SecretsManagerOpen::body(Runtime::Instance::MemoryInstance *MemInst,
                          uint32_t OptOptionsHandlePtr,
                          uint32_t /* Out */ SecretsManagerHandlePtr) {
-  /// Check memory instance from module.
+  // Check memory instance from module.
   checkExist(MemInst);
 
   auto *const OptOptionsHandle =
@@ -193,7 +193,7 @@ Expect<uint32_t>
 SecretsManagerInvalidate::body(Runtime::Instance::MemoryInstance *MemInst,
                                int32_t SecretsManagerHandle, uint32_t KeyIdPtr,
                                uint32_t KeyIdLen, uint64_t Version) {
-  /// Check memory instance from module.
+  // Check memory instance from module.
   checkExist(MemInst);
 
   const __wasi_size_t WasiKeyIdLen = KeyIdLen;

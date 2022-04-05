@@ -33,9 +33,9 @@ TEST_F(WasiCryptoTest, Options) {
         optionsSetU64(SymmetricOptionsHandle, "parallelism"sv, 0));
 
     // unsupport options
-    EXPECT_EQ(optionsSet(SymmetricOptionsHandle, "foo"sv, "foo"_u8).error(),
+    WASI_CRYPTO_EXPECT_FAILURE(optionsSet(SymmetricOptionsHandle, "foo"sv, "foo"_u8),
               __WASI_CRYPTO_ERRNO_UNSUPPORTED_OPTION);
-    EXPECT_EQ(optionsSetU64(SymmetricOptionsHandle, "foo"sv, 0).error(),
+    WASI_CRYPTO_EXPECT_FAILURE(optionsSetU64(SymmetricOptionsHandle, "foo"sv, 0),
               __WASI_CRYPTO_ERRNO_UNSUPPORTED_OPTION);
 
     writeDummyMemoryContent();
@@ -59,10 +59,10 @@ TEST_F(WasiCryptoTest, Options) {
                                optionsOpen(__WASI_ALGORITHM_TYPE_SIGNATURES));
     // unsupport options
     
-    EXPECT_EQ(optionsSet(SigOptionsHandle, "foo"sv, "foo"_u8).error(),
+    WASI_CRYPTO_EXPECT_FAILURE(optionsSet(SigOptionsHandle, "foo"sv, "foo"_u8),
               __WASI_CRYPTO_ERRNO_UNSUPPORTED_OPTION);
               
-    EXPECT_EQ(optionsSetU64(SigOptionsHandle, "foo"sv, 0).error(),
+    WASI_CRYPTO_EXPECT_FAILURE(optionsSetU64(SigOptionsHandle, "foo"sv, 0),
               __WASI_CRYPTO_ERRNO_UNSUPPORTED_OPTION);
 
     writeDummyMemoryContent();
@@ -85,10 +85,10 @@ TEST_F(WasiCryptoTest, Options) {
     WASI_CRYPTO_EXPECT_SUCCESS(KxOptionsHandle,
                                optionsOpen(__WASI_ALGORITHM_TYPE_KEY_EXCHANGE));
     // unsupport options
-    EXPECT_EQ(optionsSet(KxOptionsHandle, "foo"sv, "foo"_u8).error(),
+    WASI_CRYPTO_EXPECT_FAILURE(optionsSet(KxOptionsHandle, "foo"sv, "foo"_u8),
               __WASI_CRYPTO_ERRNO_UNSUPPORTED_OPTION);
               
-    EXPECT_EQ(optionsSetU64(KxOptionsHandle, "foo"sv, 0).error(),
+    WASI_CRYPTO_EXPECT_FAILURE(optionsSetU64(KxOptionsHandle, "foo"sv, 0),
               __WASI_CRYPTO_ERRNO_UNSUPPORTED_OPTION);
 
     writeDummyMemoryContent();

@@ -79,17 +79,17 @@ TEST_F(WasiCryptoTest, Aeads) {
       EXPECT_TRUE(
           symmetricStateOpen(Name, InvaildHandle, std::nullopt).error() ==
           __WASI_CRYPTO_ERRNO_INVALID_HANDLE);
-      EXPECT_EQ(symmetricStateOptionsGet(State4Handle, "foo"sv, {}).error(),
+      WASI_CRYPTO_EXPECT_FAILURE(symmetricStateOptionsGet(State4Handle, "foo"sv, {}),
                 __WASI_CRYPTO_ERRNO_UNSUPPORTED_OPTION);
-      EXPECT_EQ(symmetricStateOptionsGetU64(State4Handle, "foo"sv).error(),
+      WASI_CRYPTO_EXPECT_FAILURE(symmetricStateOptionsGetU64(State4Handle, "foo"sv),
                 __WASI_CRYPTO_ERRNO_UNSUPPORTED_OPTION);
-      EXPECT_EQ(symmetricStateSqueezeTag(State4Handle).error(),
+      WASI_CRYPTO_EXPECT_FAILURE(symmetricStateSqueezeTag(State4Handle),
                 __WASI_CRYPTO_ERRNO_INVALID_OPERATION);
-      EXPECT_EQ(symmetricStateSqueezeKey(State4Handle, Name).error(),
+      WASI_CRYPTO_EXPECT_FAILURE(symmetricStateSqueezeKey(State4Handle, Name),
                 __WASI_CRYPTO_ERRNO_INVALID_OPERATION);
-      EXPECT_EQ(symmetricStateSqueeze(State4Handle, {}).error(),
+      WASI_CRYPTO_EXPECT_FAILURE(symmetricStateSqueeze(State4Handle, {}),
                 __WASI_CRYPTO_ERRNO_INVALID_OPERATION);
-      EXPECT_EQ(symmetricStateRatchet(State4Handle).error(),
+      WASI_CRYPTO_EXPECT_FAILURE(symmetricStateRatchet(State4Handle),
                 __WASI_CRYPTO_ERRNO_INVALID_OPERATION);
     }
     WASI_CRYPTO_EXPECT_TRUE(symmetricStateClose(State4Handle));

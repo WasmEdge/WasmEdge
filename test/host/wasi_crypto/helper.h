@@ -28,9 +28,15 @@
       << "Wasi Crypto Error code: " << Errno[0].get<int32_t>();                \
   auto &&Expr = Expr##__Result.value()
 
+#define WASI_CRYPTO_EXPECT_FAILURE(Function, ErrorCode)                        \
+  do {                                                                         \
+    auto Result = Function;                                                    \
+    EXPECT_FALSE(Result) << "The function result should be error but success"; \
+    EXPECT_EQ(Result.error(), ErrorCode);                                      \
+  } while (0)
+
 #define WASI_CRYPTO_EXPECT_TRUE(Function)                                      \
-  EXPECT_TRUE(Function) << "Wasi Crypto Error code: "                          \
-                        << Errno[0].get<int32_t>();
+  EXPECT_TRUE(Function) << "Wasi Crypto Error code: " << Errno[0].get<int32_t>()
 
 namespace WasmEdge {
 namespace Host {

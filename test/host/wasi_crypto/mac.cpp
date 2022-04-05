@@ -52,23 +52,23 @@ TEST_F(WasiCryptoTest, Mac) {
       WASI_CRYPTO_EXPECT_TRUE(symmetricTagClose(NewTagHandle));
 
       // error case check
-      EXPECT_EQ(symmetricStateOpen(Name, std::nullopt, std::nullopt).error(),
+      WASI_CRYPTO_EXPECT_FAILURE(symmetricStateOpen(Name, std::nullopt, std::nullopt),
                 __WASI_CRYPTO_ERRNO_KEY_REQUIRED);
-      EXPECT_EQ(symmetricStateSqueeze(StateHandle, {}).error(),
+      WASI_CRYPTO_EXPECT_FAILURE(symmetricStateSqueeze(StateHandle, {}),
                 __WASI_CRYPTO_ERRNO_INVALID_OPERATION);
-      EXPECT_EQ(symmetricStateSqueezeKey(StateHandle, Name).error(),
+      WASI_CRYPTO_EXPECT_FAILURE(symmetricStateSqueezeKey(StateHandle, Name),
                 __WASI_CRYPTO_ERRNO_INVALID_OPERATION);
-      EXPECT_EQ(symmetricStateMaxTagLen(StateHandle).error(),
+      WASI_CRYPTO_EXPECT_FAILURE(symmetricStateMaxTagLen(StateHandle),
                 __WASI_CRYPTO_ERRNO_INVALID_OPERATION);
-      EXPECT_EQ(symmetricStateEncrypt(StateHandle, {}, {}).error(),
+      WASI_CRYPTO_EXPECT_FAILURE(symmetricStateEncrypt(StateHandle, {}, {}),
                 __WASI_CRYPTO_ERRNO_INVALID_OPERATION);
-      EXPECT_EQ(symmetricStateEncryptDetached(StateHandle, {}, {}).error(),
+      WASI_CRYPTO_EXPECT_FAILURE(symmetricStateEncryptDetached(StateHandle, {}, {}),
                 __WASI_CRYPTO_ERRNO_INVALID_OPERATION);
-      EXPECT_EQ(symmetricStateDecrypt(StateHandle, {}, {}).error(),
+      WASI_CRYPTO_EXPECT_FAILURE(symmetricStateDecrypt(StateHandle, {}, {}),
                 __WASI_CRYPTO_ERRNO_INVALID_OPERATION);
-      EXPECT_EQ(symmetricStateDecryptDetached(StateHandle, {}, {}, {}).error(),
+      WASI_CRYPTO_EXPECT_FAILURE(symmetricStateDecryptDetached(StateHandle, {}, {}, {}),
                 __WASI_CRYPTO_ERRNO_INVALID_OPERATION);
-      EXPECT_EQ(symmetricStateRatchet(StateHandle).error(),
+      WASI_CRYPTO_EXPECT_FAILURE(symmetricStateRatchet(StateHandle),
                 __WASI_CRYPTO_ERRNO_INVALID_OPERATION);
 
       WASI_CRYPTO_EXPECT_TRUE(symmetricStateClose(StateHandle));

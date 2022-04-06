@@ -12,7 +12,7 @@ namespace Host {
 class WasiNNModule : public Runtime::ImportObject {
 public:
   WasiNNModule();
-  // virtual ~WasiNNModule() = default;
+  virtual ~WasiNNModule() = default;
 
 private:
   WasiNNContext Ctx;

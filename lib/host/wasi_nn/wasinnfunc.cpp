@@ -80,12 +80,25 @@ Expect<uint32_t> WasiNNLoad::body(Runtime::Instance::MemoryInstance *MemInst
 
     tensor_desc_t WeightsDesc{ANY, {1, {WeightBins.size()}}, U8};
     ie_blob_t *WeightsBlob = nullptr;
-    status = ie_blob_make_memory_from_preallocated(
-        &WeightsDesc, WeightBins.data(), WeightBins.size(), &WeightsBlob);
+    ie_blob_buffer_t BlobCBuffer;
+
+    status = ie_blob_make_memory(&WeightsDesc, &WeightsBlob);
     if (status != OK || WeightsBlob == nullptr) {
-      spdlog::error("Unable to create model's weight blob");
+      spdlog::error("Unable to create model's weight blob, error code: {}",
+                    status);
       return -1;
     }
+    status = ie_blob_get_cbuffer(WeightsBlob, &BlobCBuffer);
+    if (status != OK) {
+      spdlog::error("Unable to find weight blob's buffer, error code: {}",
+                    status);
+      return -1;
+    }
+    uint8_t *BlobData = (uint8_t *)(BlobCBuffer.cbuffer);
+    for (size_t I = 0; I < WeightBins.size(); I++)
+      BlobData[I] = WeightBins[I];
+    // status = ie_blob_make_memory_from_preallocated(
+    //     &WeightsDesc, WeightBins.data(), WeightBins.size(), &WeightsBlob);
 
     ie_network_t *Network = nullptr;
     ie_executable_network_t *ExeNetwork = nullptr;
@@ -241,12 +254,12 @@ Expect<uint32_t> WasiNNSetInput::body(Runtime::Instance::MemoryInstance *MemInst
      * In this case we will be able to set an input blob of any shape to an
      * infer request. Resize and layout conversions are executed automatically
      * during inference */
-    // status = ie_network_set_input_resize_algorithm(Network, InputName,
-    //                                                RESIZE_BILINEAR);
-    // if (status != OK) {
-    //   spdlog::error("Unable to set input resize correctly");
-    //   return -1;
-    // }
+    status = ie_network_set_input_resize_algorithm(Network, InputName,
+                                                   RESIZE_BILINEAR);
+    if (status != OK) {
+      spdlog::error("Unable to set input resize correctly");
+      return -1;
+    }
     status = ie_network_set_input_layout(
         Network, InputName, NHWC); // more layouts should be supported
     if (status != OK) {

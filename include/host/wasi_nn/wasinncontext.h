@@ -38,15 +38,15 @@ public:
   WasiNNContext() : ModelsNum(-1), ExecutionsNum(-1) {}
   ~WasiNNContext() {
 #ifdef WASMEDGE_WASINN_BUILD_OPENVINO
-    for (auto I : OpenVINOInputs) {
+    for (auto &I : OpenVINOInputs) {
       if (I != nullptr)
         ie_blob_free(&I);
     }
-    for (auto I : OpenVINOInfers)
+    for (auto &I : OpenVINOInfers)
       ie_infer_request_free(&(I->infer_request));
-    for (auto I : OpenVINOExecutions)
+    for (auto &I : OpenVINOExecutions)
       ie_exec_network_free(&I);
-    for (auto I : OpenVINONetworks)
+    for (auto &I : OpenVINONetworks)
       ie_network_free(&I);
     ie_core_free(&openvino_core);
 #endif

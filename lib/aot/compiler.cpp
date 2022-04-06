@@ -3160,8 +3160,8 @@ public:
 
   void compileMemoryFence() {
     Builder.CreateFence(llvm::AtomicOrdering::Monotonic);
-  };
-  void compileAtomicNotify(){};
+  }
+  void compileAtomicNotify() {}
   void compileAtomicWait(unsigned MemoryIndex, llvm::IntegerType *IntType) {
     auto *Offset = Builder.CreateZExt(Stack.back(), Context.Int64Ty);
     compileAtomicCheckOffsetAlignment(Offset, IntType);

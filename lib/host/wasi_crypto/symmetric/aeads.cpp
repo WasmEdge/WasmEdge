@@ -8,6 +8,7 @@
 #include "wasi_crypto/api.hpp"
 
 #include <cstdint>
+#include <limits>
 
 namespace WasmEdge {
 namespace Host {

@@ -135,14 +135,26 @@ struct wasm_ref_t : public wasm::Ref {};
 struct wasm_frame_t : public wasm::Frame {};
 struct wasm_trap_t : wasm::Trap {};
 struct wasm_foreign_t : wasm::Foreign {};
-struct wasm_module_t : wasm::Module {};
+struct wasm_module_t : wasm::Module {
+  // instaniate 和 fun invoke 會用到
+  // ModCxt 不需要去存，
+  // WasmEdge_ModuleInstanceContext *ModCxt;
+  wasm_module_t() noexcept = default;
+  ~wasm_module_t() noexcept = default;
+  WasmEdge::AST::Module *ast;
+};
+
 struct wasm_shared_module_t : wasm::Shared<wasm::Module> {};
 struct wasm_func_t : wasm::Func {};
 struct wasm_global_t : wasm::Global {};
 struct wasm_table_t : wasm::Table {};
 struct wasm_memory_t : wasm::Memory {};
 struct wasm_extern_t : wasm::Extern {};
-struct wasm_instance_t : wasm::Instance {};
+struct wasm_instance_t : wasm::Instance {
+  wasm_instance_t() noexcept = default;
+  ~wasm_instance_t() noexcept = default;
+  WasmEdge::Runtime::Instance::ModuleInstance instance;
+};
 
 namespace {
 
@@ -797,40 +809,46 @@ WASM_DEFINE_SHARABLE_REF(module, wasm::Module)
 
 WASMEDGE_CAPI_EXPORT OWN wasm_module_t *
 wasm_module_new(wasm_store_t *store, const wasm_byte_vec_t *binary) {
-  return static_cast<wasm_module_t *>(
-      wasm::Module::make(store,
-                         wasm::vec<byte_t>::adopt(binary->size, binary->data))
-          .release());
+  if (store && binary) {
+    return static_cast<wasm_module_t *>(
+        wasm::Module::make(store,
+                           wasm::vec<byte_t>::adopt(binary->size, binary->data))
+            .release());
+  }
+  return nullptr;
 }
 
 WASMEDGE_CAPI_EXPORT bool wasm_module_validate(wasm_store_t *store,
                                                const wasm_byte_vec_t *binary) {
-  return wasm::Module::validate(
-      store, wasm::vec<byte_t>::adopt(binary->size, binary->data));
+  if (store && binary) {
+    return wasm::Module::validate(
+        store, wasm::vec<byte_t>::adopt(binary->size, binary->data));
+  }
   return 0;
 }
 
 WASMEDGE_CAPI_EXPORT void wasm_module_imports(const wasm_module_t *module,
                                               OWN wasm_importtype_vec_t *out) {
-  auto v = static_cast<const wasm::Module *>(module)->imports();
-  wasm_importtype_vec_t v2 = {
-      v.size(), reinterpret_cast<wasm_importtype_t **>(v.release())};
-  *out = v2;
+  if (module) {
+    auto v = static_cast<const wasm::Module *>(module)->imports();
+    *out = {v.size(), reinterpret_cast<wasm_importtype_t **>(v.release())};
+  }
 }
 
 WASMEDGE_CAPI_EXPORT void wasm_module_exports(const wasm_module_t *module,
                                               OWN wasm_exporttype_vec_t *out) {
-  auto v = static_cast<const wasm::Module *>(module)->exports();
-  wasm_exporttype_vec_t v2 = {
-      v.size(), reinterpret_cast<wasm_exporttype_t **>(v.release())};
-  *out = v2;
+  if (module) {
+    auto v = static_cast<const wasm::Module *>(module)->exports();
+    *out = {v.size(), reinterpret_cast<wasm_exporttype_t **>(v.release())};
+  }
 }
 
 WASMEDGE_CAPI_EXPORT void wasm_module_serialize(const wasm_module_t *module,
                                                 OWN wasm_byte_vec_t *out) {
-  auto v = static_cast<const wasm::Module *>(module)->serialize();
-  wasm_byte_vec_t v2 = {v.size(), reinterpret_cast<wasm_byte_t *>(v.release())};
-  *out = v2;
+  if (module) {
+    auto v = static_cast<const wasm::Module *>(module)->serialize();
+    *out = {v.size(), reinterpret_cast<wasm_byte_t *>(v.release())};
+  }
 }
 
 WASMEDGE_CAPI_EXPORT OWN wasm_module_t *
@@ -930,6 +948,7 @@ WASMEDGE_CAPI_EXPORT size_t wasm_func_result_arity(const wasm_func_t *func) {
   return func->result_arity();
 }
 
+// 要帶一個 pointer 把 execCXT 放在 store_t 放在 func_t 內存起來
 WASMEDGE_CAPI_EXPORT OWN wasm_trap_t *wasm_func_call(const wasm_func_t *func,
                                                      const wasm_val_vec_t *args,
                                                      wasm_val_vec_t *results) {
@@ -1186,6 +1205,13 @@ WASMEDGE_CAPI_EXPORT void wasm_instance_exports(const wasm_instance_t *instance,
 #ifdef __cplusplus
 } // extern "C"
 #endif
+
+// Helper function for making a Span to a uint8_t array.
+template <typename T>
+inline constexpr WasmEdge::Span<const T> genSpan(const T *Buf,
+                                                 const uint32_t Len) noexcept {
+  return WasmEdge::Span<const T>(Buf, Len);
+}
 
 // The followings are the C++ API implementation.
 
@@ -1528,22 +1554,73 @@ wasm::own<wasm::Trap> wasm::Trap::copy() const {
 // >>>>>>>> wasm::Modules functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 void wasm::Module::destroy() {}
-bool wasm::Module::validate(wasm::Store *, const wasm::vec<byte_t> &binary) {
-  UNUSED(binary);
+bool wasm::Module::validate(wasm::Store *StoreWrap,
+                            const wasm::vec<byte_t> &binary) {
+
+  wasm_store_t *Store = static_cast<wasm_store_t *>(StoreWrap);
+  wasm_module_t *Module = new wasm_module_t;
+
+  if (Store) {
+    // Load module: WasmEdge_LoaderParseFromBuffer
+    auto Res = Store->load.parseModule(genSpan(
+        reinterpret_cast<const uint8_t *>(binary.get()), binary.size()));
+    Module->ast = reinterpret_cast<WasmEdge::AST::Module *>(((*Res).release()));
+  }
+  if (Module) {
+    auto Res = Store->valid.validate(
+        *reinterpret_cast<const WasmEdge::AST::Module *>(Module));
+  }
   return false;
 }
-wasm::own<wasm::Module> wasm::Module::make(wasm::Store *,
+
+wasm::own<wasm::Module> wasm::Module::make(wasm::Store *StoreWrap,
                                            const wasm::vec<byte_t> &binary) {
-  UNUSED(binary);
-  return wasm::own<wasm::Module>();
+
+  wasm_store_t *Store = static_cast<wasm_store_t *>(StoreWrap);
+  wasm_module_t *Module = new wasm_module_t;
+  if (Store) {
+    // Load module: WasmEdge_LoaderParseFromBuffer
+    auto Res = Store->load.parseModule(genSpan(
+        reinterpret_cast<const uint8_t *>(binary.get()), binary.size()));
+    Module->ast = reinterpret_cast<WasmEdge::AST::Module *>(((*Res).release()));
+    return static_cast<wasm::own<wasm::Module>>(Module);
+  }
+  return nullptr;
 }
+
 wasm::own<wasm::Module> wasm::Module::copy() const {
-  return wasm::own<wasm::Module>();
+  // module to store
+  const wasm_module_t *Module = reinterpret_cast<const wasm_module_t *>(this);
+  return wasm::own<wasm::Module>(Module->copy());
 }
+
 wasm::ownvec<wasm::ImportType> wasm::Module::imports() const {
+  const wasm_module_t *Module = reinterpret_cast<const wasm_module_t *>(this);
+  const uint32_t BUF_LEN = 256;
+  const WasmEdge_ImportTypeContext *ImpTypes[BUF_LEN];
+  uint32_t ImportNum = WasmEdge_ASTModuleListImportsLength(
+      reinterpret_cast<const WasmEdge_ASTModuleContext *>(Module->ast));
+  uint32_t RealImportNum = WasmEdge_ASTModuleListImports(
+      reinterpret_cast<const WasmEdge_ASTModuleContext *>(Module->ast),
+      ImpTypes, BUF_LEN);
+  UNUSED(ImportNum);
+  UNUSED(RealImportNum);
+  // TODO: return ImpTypes with ImportType;
   return wasm::ownvec<wasm::ImportType>::make_uninitialized();
 }
+
 wasm::ownvec<wasm::ExportType> wasm::Module::exports() const {
+  const wasm_module_t *Module = reinterpret_cast<const wasm_module_t *>(this);
+  const uint32_t BUF_LEN = 256;
+  const WasmEdge_ExportTypeContext *ExpTypes[BUF_LEN];
+  uint32_t ExportNum = WasmEdge_ASTModuleListExportsLength(
+      reinterpret_cast<const WasmEdge_ASTModuleContext *>(Module->ast));
+  uint32_t RealExportNum = WasmEdge_ASTModuleListExports(
+      reinterpret_cast<const WasmEdge_ASTModuleContext *>(Module->ast),
+      ExpTypes, BUF_LEN);
+  UNUSED(ExportNum);
+  UNUSED(RealExportNum);
+  // TODO: return ImpTypes with ExportType;
   return wasm::ownvec<wasm::ExportType>::make_uninitialized();
 }
 wasm::own<wasm::Shared<wasm::Module>> wasm::Module::share() const {
@@ -1709,10 +1786,21 @@ bool wasm::Memory::grow(wasm::Memory::pages_t delta) {
 // >>>>>>>> wasm::Instance functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 void wasm::Instance::destroy() {}
+// Extern: import
+// Trap: Error msg
 wasm::own<wasm::Instance>
-wasm::Instance::make(wasm::Store *, const wasm::Module *,
+wasm::Instance::make(wasm::Store *StoreWrap, const wasm::Module *ModCxt,
                      const wasm::vec<wasm::Extern *> &, own<wasm::Trap> *) {
-  return wasm::own<wasm::Instance>();
+  wasm_store_t *Store = static_cast<wasm_store_t *>(StoreWrap);
+  const wasm_module_t *Module = static_cast<const wasm_module_t *>(ModCxt);
+
+  // [WIT]
+  wasm_instance_t *Instance = new wasm_instance_t;
+
+  Instance * =
+      Store->engine->exec.instantiateModule(Store->store, *Module->ast);
+  return wasm::own<wasm::Instance>(Instance);
+  //  return wasm::own<wasm::Instance>((Instance *)*Res);
 }
 wasm::own<wasm::Instance> wasm::Instance::copy() const {
   return own<wasm::Instance>();

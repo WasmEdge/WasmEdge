@@ -797,54 +797,60 @@ WASM_DEFINE_SHARABLE_REF(module, wasm::Module)
 
 WASMEDGE_CAPI_EXPORT OWN wasm_module_t *
 wasm_module_new(wasm_store_t *store, const wasm_byte_vec_t *binary) {
-  UNUSED(store);
-  UNUSED(binary);
-  return nullptr;
+  return static_cast<wasm_module_t *>(
+      wasm::Module::make(store,
+                         wasm::vec<byte_t>::adopt(binary->size, binary->data))
+          .release());
 }
 
 WASMEDGE_CAPI_EXPORT bool wasm_module_validate(wasm_store_t *store,
                                                const wasm_byte_vec_t *binary) {
-  UNUSED(store);
-  UNUSED(binary);
+  return wasm::Module::validate(
+      store, wasm::vec<byte_t>::adopt(binary->size, binary->data));
   return 0;
 }
 
 WASMEDGE_CAPI_EXPORT void wasm_module_imports(const wasm_module_t *module,
                                               OWN wasm_importtype_vec_t *out) {
-  UNUSED(module);
-  UNUSED(out);
+  auto v = static_cast<const wasm::Module *>(module)->imports();
+  wasm_importtype_vec_t v2 = {
+      v.size(), reinterpret_cast<wasm_importtype_t **>(v.release())};
+  *out = v2;
 }
 
 WASMEDGE_CAPI_EXPORT void wasm_module_exports(const wasm_module_t *module,
                                               OWN wasm_exporttype_vec_t *out) {
-  UNUSED(module);
-  UNUSED(out);
+  auto v = static_cast<const wasm::Module *>(module)->exports();
+  wasm_exporttype_vec_t v2 = {
+      v.size(), reinterpret_cast<wasm_exporttype_t **>(v.release())};
+  *out = v2;
 }
 
 WASMEDGE_CAPI_EXPORT void wasm_module_serialize(const wasm_module_t *module,
                                                 OWN wasm_byte_vec_t *out) {
-  UNUSED(module);
-  UNUSED(out);
+  auto v = static_cast<const wasm::Module *>(module)->serialize();
+  wasm_byte_vec_t v2 = {v.size(), reinterpret_cast<wasm_byte_t *>(v.release())};
+  *out = v2;
 }
 
 WASMEDGE_CAPI_EXPORT OWN wasm_module_t *
 wasm_module_deserialize(wasm_store_t *store, const wasm_byte_vec_t *binary) {
-  UNUSED(store);
-  UNUSED(binary);
-  return nullptr;
+  return static_cast<wasm_module_t *>(
+      wasm::Module::deserialize(
+          store, wasm::vec<byte_t>::adopt(binary->size, binary->data))
+          .release());
 }
 
 WASMEDGE_CAPI_EXPORT OWN wasm_shared_module_t *
 wasm_module_share(const wasm_module_t *module) {
-  UNUSED(module);
-  return nullptr;
+  auto v = static_cast<const wasm::Module *>(module)->share();
+  return static_cast<wasm_shared_module_t *>(v.release());
 }
 
 WASMEDGE_CAPI_EXPORT OWN wasm_module_t *
 wasm_module_obtain(wasm_store_t *store, const wasm_shared_module_t *shared) {
-  UNUSED(store);
-  UNUSED(shared);
-  return nullptr;
+  return static_cast<wasm_module_t *>(
+      wasm::Module::obtain(store, shared).release());
 }
 
 // <<<<<<<< wasm_module_t functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<

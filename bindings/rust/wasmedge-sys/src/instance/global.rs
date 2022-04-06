@@ -130,7 +130,7 @@ impl Global {
 
     /// Sets the value of the [Global] instance.
     ///
-    /// Notice that only the [Global] instance of [Mutability::Var](crate::Mutability::Var) type can be set a new value. Setting a new value for a [Global] of [Mutability::Const](crate::Mutability::Const) causes a failure.
+    /// Notice that only the [Global] instance of [Mutability::Var](wasmedge_types::Mutability::Var) type can be set a new value. Setting a new value for a [Global] of [Mutability::Const](wasmedge_types::Mutability::Const) causes a failure.
     ///
     /// # Errors
     ///

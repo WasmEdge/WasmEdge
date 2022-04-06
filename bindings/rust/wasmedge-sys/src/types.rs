@@ -197,7 +197,7 @@ impl WasmValue {
         unsafe { ffi::WasmEdge_ValueGetV128(self.ctx) }
     }
 
-    /// Creates a [WasmValue] from a [RefType](wasmedge_sys::RefType) value.
+    /// Creates a [WasmValue] from a [RefType](wasmedge_types::RefType) value.
     ///
     /// # Argument
     ///

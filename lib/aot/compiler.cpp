@@ -2725,9 +2725,9 @@ public:
       case OpCode::Memory__atomic__notify:
         return compileAtomicNotify();
       case OpCode::Memory__atomic__wait32:
-        return compileAtomicWait(Context.Int32Ty);
+        return compileAtomicWait(Instr.getTargetIndex(), Context.Int32Ty);
       case OpCode::Memory__atomic__wait64:
-        return compileAtomicWait(Context.Int64Ty);
+        return compileAtomicWait(Instr.getTargetIndex(), Context.Int64Ty);
 
       case OpCode::I32__atomic__load:
         return compileAtomicLoad(Instr.getTargetIndex(), Context.Int32Ty,
@@ -3144,40 +3144,59 @@ public:
     stackPush(PHIRet);
   }
 
-  void printType(llvm::Type *T) {
-    std::string type_str;
-    llvm::raw_string_ostream rso(type_str);
-    T->print(rso);
-    std::cerr << "*" << rso.str() << "\n";
+  void compileAtomicCheckOffsetAlignment(llvm::Value *Offset,
+                                         llvm::IntegerType *IntType) {
+    const auto BitWidth = IntType->getBitWidth();
+    auto *BWMask = llvm::ConstantInt::get(Context.Int64Ty, (BitWidth >> 3) - 1);
+    auto *Value = Builder.CreateAnd(Offset, BWMask);
+    auto *OkBB = llvm::BasicBlock::Create(LLContext, "address_align_ok", F);
+    auto *IsAddressAligned =
+        createLikely(Builder, Builder.CreateICmpEQ(Value, Builder.getInt64(0)));
+    Builder.CreateCondBr(IsAddressAligned, OkBB,
+                         getTrapBB(ErrCode::UnalignedAtomicAccess));
+
+    Builder.SetInsertPoint(OkBB);
   }
 
   void compileMemoryFence() {
     Builder.CreateFence(llvm::AtomicOrdering::Monotonic);
   };
   void compileAtomicNotify(){};
-  void compileAtomicWait([[maybe_unused]] llvm::IntegerType *IntType) {
-    [[maybe_unused]] auto *Offset =
-        Builder.CreateZExt(stackPop(), Context.Int64Ty);
-    [[maybe_unused]] auto *Value =
-        Builder.CreateSExtOrTrunc(stackPop(), IntType);
+  void compileAtomicWait(unsigned MemoryIndex, llvm::IntegerType *IntType) {
+    auto *Offset = Builder.CreateZExt(Stack.back(), Context.Int64Ty);
+    compileAtomicCheckOffsetAlignment(Offset, IntType);
+    auto *ExpectedValue = Builder.CreateSExtOrTrunc(stackPop(), IntType);
+
     [[maybe_unused]] auto *Timeout =
         Builder.CreateSExtOrTrunc(Stack.back(), IntType);
+
+    auto *VPtr = Builder.CreateInBoundsGEP(
+        Context.Int8Ty, Context.getMemory(Builder, ExecCtx, MemoryIndex),
+        Offset);
+    auto *Ptr = Builder.CreateBitCast(VPtr, IntType->getPointerTo());
+    auto *Load = Builder.CreateLoad(IntType, Ptr, OptNone);
+    // Load->setAtomic(llvm::AtomicOrdering::Monotonic);
+
+    auto *NE = Builder.CreateICmpNE(Load, ExpectedValue);
+    Stack.back() = Builder.CreateZExt(NE, Context.Int32Ty);
   }
   void compileAtomicLoad(unsigned MemoryIndex, llvm::IntegerType *IntType,
                          llvm::IntegerType *TargetType, bool Signed = false) {
 
     auto *Offset = Builder.CreateZExt(Stack.back(), Context.Int64Ty);
+    compileAtomicCheckOffsetAlignment(Offset, TargetType);
     auto *VPtr = Builder.CreateInBoundsGEP(
         Context.Int8Ty, Context.getMemory(Builder, ExecCtx, MemoryIndex),
         Offset);
 
     auto *Ptr = Builder.CreateBitCast(VPtr, TargetType->getPointerTo());
-    Stack.back() = Builder.CreateLoad(TargetType, Ptr, OptNone);
+    auto *Load = Builder.CreateLoad(TargetType, Ptr, OptNone);
+    // Load->setAtomic(llvm::AtomicOrdering::Monotonic);
 
     if (Signed) {
-      Stack.back() = Builder.CreateSExt(Stack.back(), IntType);
+      Stack.back() = Builder.CreateSExt(Load, IntType);
     } else {
-      Stack.back() = Builder.CreateZExt(Stack.back(), IntType);
+      Stack.back() = Builder.CreateZExt(Load, IntType);
     }
   }
   void compileAtomicStore(unsigned MemoryIndex,
@@ -3192,11 +3211,13 @@ public:
       V = Builder.CreateZExtOrTrunc(V, TargetType);
     }
     auto *Offset = Builder.CreateZExt(Stack.back(), Context.Int64Ty);
+    compileAtomicCheckOffsetAlignment(Offset, TargetType);
     auto *VPtr = Builder.CreateInBoundsGEP(
         Context.Int8Ty, Context.getMemory(Builder, ExecCtx, MemoryIndex),
         Offset);
     auto *Ptr = Builder.CreateBitCast(VPtr, TargetType->getPointerTo());
-    Builder.CreateStore(V, Ptr, OptNone);
+    [[maybe_unused]] auto *Store = Builder.CreateStore(V, Ptr, OptNone);
+    // Store->setAtomic(llvm::AtomicOrdering::Monotonic);
   }
 
   void compileAtomicRMWOp(unsigned MemoryIndex,
@@ -3205,6 +3226,7 @@ public:
                           llvm::IntegerType *TargetType, bool Signed = false) {
     auto *Value = Builder.CreateSExtOrTrunc(stackPop(), TargetType);
     auto *Offset = Builder.CreateZExt(Stack.back(), Context.Int64Ty);
+    compileAtomicCheckOffsetAlignment(Offset, TargetType);
     auto *VPtr = Builder.CreateInBoundsGEP(
         Context.Int8Ty, Context.getMemory(Builder, ExecCtx, MemoryIndex),
         Offset); // Int8PtrTy
@@ -3230,7 +3252,7 @@ public:
     auto *Replacement = Builder.CreateSExtOrTrunc(stackPop(), TargetType);
     auto *Expected = Builder.CreateSExtOrTrunc(stackPop(), TargetType);
     auto *Offset = Builder.CreateZExt(Stack.back(), Context.Int64Ty);
-
+    compileAtomicCheckOffsetAlignment(Offset, TargetType);
     auto *VPtr = Builder.CreateInBoundsGEP(
         Context.Int8Ty, Context.getMemory(Builder, ExecCtx, MemoryIndex),
         Offset); // Int8PtrTy
@@ -3243,7 +3265,6 @@ public:
                                             llvm::AtomicOrdering::Monotonic,
                                             llvm::AtomicOrdering::Monotonic);
 
-    printType(Ret->getType());
     auto *OldVal = Builder.CreateExtractValue(Ret, 0);
     // auto *Succ = Builder.CreateExtractValue(Ret, 1);
     Stack.back() = OldVal;

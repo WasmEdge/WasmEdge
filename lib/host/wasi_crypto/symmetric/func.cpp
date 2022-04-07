@@ -35,7 +35,7 @@ Expect<uint32_t> KeyGenerate::body(Runtime::Instance::MemoryInstance *MemInst,
       MemInst->getPointer<__wasi_symmetric_key_t *>(KeyHandlePtr);
   checkExist(KeyHandle);
 
-  if (auto Res = Ctx.symmetricKeyGenerate(WasiAlg, toOptional(*OptOptions));
+  if (auto Res = Ctx.symmetricKeyGenerate(WasiAlg, *OptOptions);
       unlikely(!Res)) {
     return Res.error();
   } else {
@@ -132,7 +132,7 @@ KeyGenerateManaged::body(Runtime::Instance::MemoryInstance *MemInst,
   checkExist(KeyHandle);
 
   if (auto Res = Ctx.symmetricKeyGenerateManaged(SecretsManagerHandle, WasiAlg,
-                                                 toOptional(*OptOptions));
+                                                 *OptOptions);
       unlikely(!Res)) {
     return Res.error();
   } else {
@@ -275,8 +275,7 @@ Expect<uint32_t> StateOpen::body(Runtime::Instance::MemoryInstance *MemInst,
     return __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE;
   }
 
-  if (auto Res = Ctx.symmetricStateOpen(WasiAlg, toOptional(*OptKeyHandle),
-                                        toOptional(*OptOptions));
+  if (auto Res = Ctx.symmetricStateOpen(WasiAlg, *OptKeyHandle, *OptOptions);
       unlikely(!Res)) {
     return Res.error();
   } else {

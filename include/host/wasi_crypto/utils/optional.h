@@ -54,20 +54,34 @@ struct IsExpectedOptionalRef<WasiCryptoExpect<OptionalRef<T>>>
 
 /// std::optional<T> -> (T -> WasiCrypto<R>) ->
 /// WasiCryptoExpect<std::optional<R>>
-template <
-    typename O, typename F,
-    typename = std::enable_if_t<detail::IsOptional<std::decay_t<O>>::value>>
-inline auto mapAndTransposeOptional(O &&Optional, F &&Function) noexcept
+template <typename F>
+inline auto mapAndTransposeOptional(const __wasi_opt_options_t Optional,
+                                    F &&Function) noexcept
     -> std::enable_if_t<
         detail::IsExpected<std::decay_t<decltype(std::invoke(
-            std::forward<F>(Function), *std::forward<O>(Optional)))>>::value,
-        WasiCryptoExpect<std::optional<typename detail::IsExpected<std::decay_t<
-            decltype(std::invoke(std::forward<F>(Function),
-                                 *std::forward<O>(Optional)))>>::Type>>> {
-  if (!Optional)
+            std::forward<F>(Function), Optional.u.some))>>::value,
+        WasiCryptoExpect<std::optional<
+            typename detail::IsExpected<std::decay_t<decltype(std::invoke(
+                std::forward<F>(Function), Optional.u.some))>>::Type>>> {
+  if (Optional.tag == __WASI_OPT_OPTIONS_U_NONE)
     return std::nullopt;
 
-  return std::invoke(std::forward<F>(Function), *Optional);
+  return std::invoke(std::forward<F>(Function), Optional.u.some);
+}
+
+template <typename F>
+inline auto mapAndTransposeOptional(const __wasi_opt_symmetric_key_t Optional,
+                                    F &&Function) noexcept
+    -> std::enable_if_t<
+        detail::IsExpected<std::decay_t<decltype(std::invoke(
+            std::forward<F>(Function), Optional.u.some))>>::value,
+        WasiCryptoExpect<std::optional<
+            typename detail::IsExpected<std::decay_t<decltype(std::invoke(
+                std::forward<F>(Function), Optional.u.some))>>::Type>>> {
+  if (Optional.tag == __WASI_OPT_SYMMETRIC_KEY_U_NONE)
+    return std::nullopt;
+
+  return std::invoke(std::forward<F>(Function), Optional.u.some);
 }
 
 /// std::optional<T> -> (T -> WasiCryptoExpect<OptionalRef<R>>) ->

@@ -169,8 +169,7 @@ SecretsManagerOpen::body(Runtime::Instance::MemoryInstance *MemInst,
       MemInst->getPointer<__wasi_secrets_manager_t *>(SecretsManagerHandlePtr);
   checkExist(SecretsManagerHandle);
 
-  if (auto Res = Ctx.secretsManagerOpen(toOptional(*OptOptionsHandle));
-      unlikely(!Res)) {
+  if (auto Res = Ctx.secretsManagerOpen(*OptOptionsHandle); unlikely(!Res)) {
     return Res.error();
   } else {
     *SecretsManagerHandle = *Res;

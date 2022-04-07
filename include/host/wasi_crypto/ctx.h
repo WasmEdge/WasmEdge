@@ -67,7 +67,7 @@ public:
                                                Span<uint8_t> Buf) noexcept;
 
   WasiCryptoExpect<__wasi_secrets_manager_t>
-  secretsManagerOpen(std::optional<__wasi_options_t> OptOptionsHandle) noexcept;
+  secretsManagerOpen(__wasi_opt_options_t OptOptionsHandle) noexcept;
 
   WasiCryptoExpect<void>
   secretsManagerClose(__wasi_secrets_manager_t SecretsManagerHandle) noexcept;
@@ -79,9 +79,9 @@ public:
 
   // -------------------------------------------symmetric---------------------------------------
 
-  WasiCryptoExpect<__wasi_symmetric_key_t> symmetricKeyGenerate(
-      Symmetric::Algorithm Alg,
-      std::optional<__wasi_options_t> OptOptionsHandle) noexcept;
+  WasiCryptoExpect<__wasi_symmetric_key_t>
+  symmetricKeyGenerate(Symmetric::Algorithm Alg,
+                       __wasi_opt_options_t OptOptionsHandle) noexcept;
 
   WasiCryptoExpect<__wasi_symmetric_key_t>
   symmetricKeyImport(Symmetric::Algorithm Alg,
@@ -93,9 +93,10 @@ public:
   WasiCryptoExpect<void>
   symmetricKeyClose(__wasi_symmetric_key_t KeyHandle) noexcept;
 
-  WasiCryptoExpect<__wasi_symmetric_key_t> symmetricKeyGenerateManaged(
-      __wasi_secrets_manager_t SecretsManagerHandle, Symmetric::Algorithm Alg,
-      std::optional<__wasi_options_t> OptOptionsHandle) noexcept;
+  WasiCryptoExpect<__wasi_symmetric_key_t>
+  symmetricKeyGenerateManaged(__wasi_secrets_manager_t SecretsManagerHandle,
+                              Symmetric::Algorithm Alg,
+                              __wasi_opt_options_t OptOptionsHandle) noexcept;
 
   WasiCryptoExpect<void>
   symmetricKeyStoreManaged(__wasi_secrets_manager_t SecretsManagerHandle,
@@ -117,8 +118,8 @@ public:
 
   WasiCryptoExpect<__wasi_symmetric_state_t>
   symmetricStateOpen(Symmetric::Algorithm Alg,
-                     std::optional<__wasi_symmetric_key_t> OptKeyHandle,
-                     std::optional<__wasi_options_t> OptOptionsHandle) noexcept;
+                     __wasi_opt_symmetric_key_t OptKeyHandle,
+                     __wasi_opt_options_t OptOptionsHandle) noexcept;
 
   WasiCryptoExpect<size_t>
   symmetricStateOptionsGet(__wasi_symmetric_state_t StateHandle,
@@ -187,17 +188,18 @@ public:
 
   WasiCryptoExpect<__wasi_keypair_t>
   keypairGenerate(__wasi_algorithm_type_e_t AlgType, std::string_view Alg,
-                  std::optional<__wasi_options_t> OptOptionsHandle) noexcept;
+                  __wasi_opt_options_t OptOptionsHandle) noexcept;
 
   WasiCryptoExpect<__wasi_keypair_t>
   keypairImport(__wasi_algorithm_type_e_t AlgType, std::string_view Alg,
                 Span<const uint8_t> Encoded,
                 __wasi_keypair_encoding_e_t Encoding) noexcept;
 
-  WasiCryptoExpect<__wasi_keypair_t> keypairGenerateManaged(
-      __wasi_secrets_manager_t SecretsManagerHandle,
-      __wasi_algorithm_type_e_t AlgType, std::string_view Alg,
-      std::optional<__wasi_options_t> OptOptionsHandle) noexcept;
+  WasiCryptoExpect<__wasi_keypair_t>
+  keypairGenerateManaged(__wasi_secrets_manager_t SecretsManagerHandle,
+                         __wasi_algorithm_type_e_t AlgType,
+                         std::string_view Alg,
+                         __wasi_opt_options_t OptOptionsHandle) noexcept;
 
   WasiCryptoExpect<void>
   keypairStoreManaged(__wasi_secrets_manager_t SecretsManagerHandle,

@@ -37,7 +37,7 @@ KeypairGenerate::body(Runtime::Instance::MemoryInstance *MemInst,
   checkExist(KpHandle);
 
   if (auto Res = Ctx.keypairGenerate(WasiAlgType, {Alg, WasiAlgLen},
-                                     toOptional(*OptOptionsHandle));
+                                     *OptOptionsHandle);
       unlikely(!Res)) {
     return Res.error();
   } else {
@@ -111,9 +111,9 @@ Expect<uint32_t> KeypairGenerateManaged::body(
   auto *const KpHandle = MemInst->getPointer<__wasi_keypair_t *>(KpHandlePtr);
   checkExist(KpHandle);
 
-  if (auto Res = Ctx.keypairGenerateManaged(SecretsManagerHandle, WasiAlgType,
-                                            {Alg, WasiAlgLen},
-                                            toOptional(*OptOptionsHandle));
+  if (auto Res =
+          Ctx.keypairGenerateManaged(SecretsManagerHandle, WasiAlgType,
+                                     {Alg, WasiAlgLen}, *OptOptionsHandle);
       unlikely(!Res)) {
     return Res.error();
   } else {

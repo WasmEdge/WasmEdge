@@ -68,7 +68,7 @@ Context::optionsSetGuestBuffer(__wasi_options_t OptionsHandle,
 }
 
 WasiCryptoExpect<__wasi_secrets_manager_t>
-Context::secretsManagerOpen(std::optional<__wasi_options_t>) noexcept {
+Context::secretsManagerOpen(__wasi_opt_options_t) noexcept {
   return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
 }
 

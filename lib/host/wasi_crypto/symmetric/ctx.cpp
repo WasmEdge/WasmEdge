@@ -183,9 +183,9 @@ Context::symmetricKeyImport(Symmetric::Algorithm Alg,
   });
 }
 
-WasiCryptoExpect<__wasi_symmetric_key_t> Context::symmetricKeyGenerate(
-    Symmetric::Algorithm Alg,
-    std::optional<__wasi_options_t> OptOptionsHandle) noexcept {
+WasiCryptoExpect<__wasi_symmetric_key_t>
+Context::symmetricKeyGenerate(Symmetric::Algorithm Alg,
+                              __wasi_opt_options_t OptOptionsHandle) noexcept {
   auto OptOptionsResult = mapAndTransposeOptional(
       OptOptionsHandle, [this](__wasi_options_t OptionsHandle) noexcept {
         return OptionsManager.get(OptionsHandle);
@@ -215,10 +215,10 @@ WasiCryptoExpect<__wasi_symmetric_key_t> Context::symmetricKeyGenerate(
       });
 }
 
-WasiCryptoExpect<__wasi_symmetric_state_t> Context::symmetricStateOpen(
-    Symmetric::Algorithm Alg,
-    std::optional<__wasi_symmetric_key_t> OptKeyHandle,
-    std::optional<__wasi_options_t> OptOptionsHandle) noexcept {
+WasiCryptoExpect<__wasi_symmetric_state_t>
+Context::symmetricStateOpen(Symmetric::Algorithm Alg,
+                            __wasi_opt_symmetric_key_t OptKeyHandle,
+                            __wasi_opt_options_t OptOptionsHandle) noexcept {
   // copy from KeyManager
   auto OptKeyResult =
       mapAndTransposeOptional(OptKeyHandle,
@@ -264,7 +264,7 @@ WasiCryptoExpect<__wasi_symmetric_state_t> Context::symmetricStateOpen(
 WasiCryptoExpect<__wasi_symmetric_key_t>
 Context::symmetricKeyGenerateManaged(__wasi_secrets_manager_t,
                                      Symmetric::Algorithm,
-                                     std::optional<__wasi_options_t>) noexcept {
+                                     __wasi_opt_options_t) noexcept {
   return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
 }
 

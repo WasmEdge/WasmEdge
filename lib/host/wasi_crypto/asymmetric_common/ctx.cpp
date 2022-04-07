@@ -110,9 +110,10 @@ Context::keypairFromPkAndSk(__wasi_publickey_t PkHandle,
       });
 }
 
-WasiCryptoExpect<__wasi_keypair_t> Context::keypairGenerate(
-    __wasi_algorithm_type_e_t AlgType, std::string_view AlgStr,
-    std::optional<__wasi_options_t> OptOptionsHandle) noexcept {
+WasiCryptoExpect<__wasi_keypair_t>
+Context::keypairGenerate(__wasi_algorithm_type_e_t AlgType,
+                         std::string_view AlgStr,
+                         __wasi_opt_options_t OptOptionsHandle) noexcept {
   return mapAndTransposeOptional(
              OptOptionsHandle,
              [this](__wasi_options_t OptionsHandle) noexcept {
@@ -160,7 +161,7 @@ Context::secretkeyImport(__wasi_algorithm_type_e_t AlgType,
 WasiCryptoExpect<__wasi_keypair_t>
 Context::keypairGenerateManaged(__wasi_secrets_manager_t,
                                 __wasi_algorithm_type_e_t, std::string_view,
-                                std::optional<__wasi_options_t>) noexcept {
+                                __wasi_opt_options_t) noexcept {
   return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
 }
 

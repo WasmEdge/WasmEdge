@@ -49,23 +49,6 @@ protected:
   Context &Ctx;
 };
 
-/// Convert wasi optional type to C++ optional type
-constexpr std::optional<__wasi_options_t>
-toOptional(const __wasi_opt_options_t Union) noexcept {
-  if (Union.tag == __WASI_OPT_OPTIONS_U_SOME) {
-    return Union.u.some;
-  }
-  return std::nullopt;
-}
-
-constexpr std::optional<__wasi_symmetric_key_t>
-toOptional(const __wasi_opt_symmetric_key_t Union) noexcept {
-  if (Union.tag == __WASI_OPT_SYMMETRIC_KEY_U_SOME) {
-    return Union.u.some;
-  }
-  return std::nullopt;
-}
-
 /// Cast wasi enum to c++ enum
 template <typename T> constexpr WasiCryptoExpect<T> cast(uint64_t) noexcept;
 

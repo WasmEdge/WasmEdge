@@ -266,34 +266,34 @@ impl FuncType {
     }
 
     /// Returns the number of the arguments of a [Function].
-    pub fn params_len(&self) -> usize {
-        unsafe { ffi::WasmEdge_FunctionTypeGetParametersLength(self.inner.0) as usize }
+    pub fn params_len(&self) -> u32 {
+        unsafe { ffi::WasmEdge_FunctionTypeGetParametersLength(self.inner.0) }
     }
 
     /// Returns an Iterator of the arguments of a [Function].
     pub fn params_type_iter(&self) -> impl Iterator<Item = ValType> {
         let len = self.params_len();
-        let mut types = Vec::with_capacity(len);
+        let mut types = Vec::with_capacity(len as usize);
         unsafe {
-            ffi::WasmEdge_FunctionTypeGetParameters(self.inner.0, types.as_mut_ptr(), len as u32);
-            types.set_len(len);
+            ffi::WasmEdge_FunctionTypeGetParameters(self.inner.0, types.as_mut_ptr(), len);
+            types.set_len(len as usize);
         }
 
         types.into_iter().map(Into::into)
     }
 
     ///Returns the number of the returns of a [Function].
-    pub fn returns_len(&self) -> usize {
-        unsafe { ffi::WasmEdge_FunctionTypeGetReturnsLength(self.inner.0) as usize }
+    pub fn returns_len(&self) -> u32 {
+        unsafe { ffi::WasmEdge_FunctionTypeGetReturnsLength(self.inner.0) }
     }
 
     /// Returns an Iterator of the return types of a [Function].
     pub fn returns_type_iter(&self) -> impl Iterator<Item = ValType> {
         let len = self.returns_len();
-        let mut types = Vec::with_capacity(len);
+        let mut types = Vec::with_capacity(len as usize);
         unsafe {
-            ffi::WasmEdge_FunctionTypeGetReturns(self.inner.0, types.as_mut_ptr(), len as u32);
-            types.set_len(len);
+            ffi::WasmEdge_FunctionTypeGetReturns(self.inner.0, types.as_mut_ptr(), len);
+            types.set_len(len as usize);
         }
 
         types.into_iter().map(Into::into)
@@ -323,7 +323,7 @@ impl From<wasmedge_types::FuncType> for FuncType {
 impl From<FuncType> for wasmedge_types::FuncType {
     fn from(ty: FuncType) -> Self {
         let args = if ty.params_len() > 0 {
-            let mut args = Vec::with_capacity(ty.params_len());
+            let mut args = Vec::with_capacity(ty.params_len() as usize);
             for ty in ty.params_type_iter() {
                 args.push(ty.into());
             }
@@ -333,7 +333,7 @@ impl From<FuncType> for wasmedge_types::FuncType {
         };
 
         let returns = if ty.returns_len() > 0 {
-            let mut returns = Vec::with_capacity(ty.returns_len());
+            let mut returns = Vec::with_capacity(ty.returns_len() as usize);
             for ty in ty.returns_type_iter() {
                 returns.push(ty.into());
             }

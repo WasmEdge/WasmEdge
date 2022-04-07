@@ -88,7 +88,8 @@ Cipher<CipherNid>::State::optionsGet(std::string_view Name,
 template <int CipherNid>
 WasiCryptoExpect<void>
 Cipher<CipherNid>::State::absorb(Span<const uint8_t> Data) noexcept {
-  ensureOrReturn(Data.size() <= std::numeric_limits<int>::max(),
+  ensureOrReturn(Data.size() <=
+                     static_cast<size_t>(std::numeric_limits<int>::max()),
                  __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
   int DataSize = static_cast<int>(Data.size());
 
@@ -123,7 +124,8 @@ template <int CipherNid>
 WasiCryptoExpect<size_t>
 Cipher<CipherNid>::State::encryptImpl(Span<uint8_t> Out, Span<uint8_t> Tag,
                                       Span<const uint8_t> Data) noexcept {
-  ensureOrReturn(Data.size() <= std::numeric_limits<int>::max(),
+  ensureOrReturn(Data.size() <=
+                     static_cast<size_t>(std::numeric_limits<int>::max()),
                  __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
   int DataSize = static_cast<int>(Data.size());
 
@@ -169,7 +171,8 @@ WasiCryptoExpect<size_t>
 Cipher<CipherNid>::State::decryptImpl(Span<uint8_t> Out,
                                       Span<const uint8_t> Data,
                                       Span<const uint8_t> RawTag) noexcept {
-  ensureOrReturn(Data.size() <= std::numeric_limits<int>::max(),
+  ensureOrReturn(Data.size() <=
+                     static_cast<size_t>(std::numeric_limits<int>::max()),
                  __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
   int DataSize = static_cast<int>(Data.size());
 

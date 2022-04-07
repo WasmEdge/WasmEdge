@@ -227,7 +227,7 @@ impl WasmValue {
     /// - `idx` specifies the function index.
     pub fn from_func_ref(func: &mut Function) -> Self {
         Self {
-            ctx: unsafe { ffi::WasmEdge_ValueGenFuncRef(func.inner.0) },
+            ctx: unsafe { ffi::WasmEdge_ValueGenFuncRef(func.inner.0 as *const _) },
             ty: ValType::FuncRef,
         }
     }
@@ -242,7 +242,7 @@ impl WasmValue {
                 false => {
                     let ctx = ffi::WasmEdge_ValueGetFuncRef(self.ctx);
                     Some(Function {
-                        inner: InnerFunc(ctx),
+                        inner: InnerFunc(ctx as *mut _),
                         registered: true,
                         name: None,
                         mod_name: None,

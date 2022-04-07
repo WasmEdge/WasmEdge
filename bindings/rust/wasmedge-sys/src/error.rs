@@ -158,6 +158,12 @@ pub enum ExportError {
 pub enum InstanceError {
     #[error("Fail to create Instance context")]
     Create,
+    #[error("Fail to create WasiModule context")]
+    CreateWasi,
+    #[error("Fail to create WasmEdgeProcessModule context")]
+    CreateWasmEdgeProcess,
+    #[error("Fail to create ImportModule context")]
+    CreateImportModule,
     #[error("Fail to find the target function ({0})")]
     NotFoundFunc(String),
     #[error("Fail to find the target table ({0})")]
@@ -228,6 +234,8 @@ pub enum VmError {
     NotFoundValidator,
     #[error("Fail to get Executor context")]
     NotFoundExecutor,
+    #[error("Try to register an invalid import module")]
+    InvalidImportModule,
 }
 
 /// Defines the errors raised from WasmEdge Core.

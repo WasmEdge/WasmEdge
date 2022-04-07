@@ -16,6 +16,8 @@ use crate::{
     ImportModule,
     Instance,
     Module,
+    WasiModule,
+    WasmEdgeProcessModule,
     WasmEdgeResult,
     WasmValue,
 };
@@ -146,13 +148,6 @@ impl Vm {
                     .0 as *const _,
             ))?;
         }
-
-        // unsafe {
-        //     check(ffi::WasmEdge_VMRegisterModuleFromImport(
-        //         self.inner.0,
-        //         import.inner.0 as *const _,
-        //     ))?;
-        // }
 
         Ok(())
     }
@@ -639,13 +634,13 @@ impl Vm {
     }
 
     /// Returns the mutable Wasi [ImportObject](crate::ImportObject)
-    pub fn wasi_import_module_mut(&mut self) -> WasmEdgeResult<Instance> {
+    pub fn wasi_import_module_mut(&mut self) -> WasmEdgeResult<WasiModule> {
         let io_ctx = unsafe {
             ffi::WasmEdge_VMGetImportModuleContext(self.inner.0, WasmEdge_HostRegistration_Wasi)
         };
         match io_ctx.is_null() {
             true => Err(WasmEdgeError::Vm(VmError::NotFoundWasiImportObjectModule)),
-            false => Ok(Instance {
+            false => Ok(WasiModule {
                 inner: InnerInstance(io_ctx),
                 registered: true,
             }),
@@ -653,7 +648,7 @@ impl Vm {
     }
 
     /// Returns the mutable WasmEdgeProcess [ImportObject](crate::ImportObject).
-    pub fn wasmedge_process_import_module_mut(&mut self) -> WasmEdgeResult<Instance> {
+    pub fn wasmedge_process_import_module_mut(&mut self) -> WasmEdgeResult<WasmEdgeProcessModule> {
         let io_ctx = unsafe {
             ffi::WasmEdge_VMGetImportModuleContext(
                 self.inner.0,
@@ -664,7 +659,7 @@ impl Vm {
             true => Err(WasmEdgeError::Vm(
                 VmError::NotFoundWasmEdgeProcessImportObjectModule,
             )),
-            false => Ok(Instance {
+            false => Ok(WasmEdgeProcessModule {
                 inner: InnerInstance(io_ctx),
                 registered: true,
             }),

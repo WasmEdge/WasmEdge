@@ -383,7 +383,7 @@ mod tests {
             let func_ty = result.unwrap();
 
             // check parameters
-            assert_eq!(func_ty.params_len(), param_len);
+            assert_eq!(func_ty.params_len(), param_len as u32);
             let param_tys = func_ty.params_type_iter().collect::<Vec<_>>();
             assert_eq!(
                 param_tys,
@@ -398,7 +398,7 @@ mod tests {
             );
 
             // check returns
-            assert_eq!(func_ty.returns_len(), ret_len);
+            assert_eq!(func_ty.returns_len(), ret_len as u32);
             let return_tys = func_ty.returns_type_iter().collect::<Vec<_>>();
             assert_eq!(
                 return_tys,

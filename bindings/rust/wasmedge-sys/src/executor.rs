@@ -344,7 +344,7 @@ mod tests {
             assert!(result.is_ok());
             let instance = result.unwrap();
 
-            let result = instance.find_global("global_i32");
+            let result = instance.get_global("global_i32");
             assert!(result.is_ok());
             let global = result.unwrap();
             assert_eq!(global.get_value().to_i32(), 666);
@@ -355,7 +355,7 @@ mod tests {
             assert!(result.is_ok());
             let instance = result.unwrap();
 
-            let result = instance.find_global("global_i32");
+            let result = instance.get_global("global_i32");
             assert!(result.is_ok());
             let global = result.unwrap();
             assert_eq!(global.get_value().to_i32(), 666);

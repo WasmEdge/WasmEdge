@@ -83,6 +83,11 @@ impl Statistics {
     pub fn set_cost_limit(&mut self, limit: u64) {
         unsafe { ffi::WasmEdge_StatisticsSetCostLimit(self.inner.0, limit) }
     }
+
+    /// Clears all data in this store.
+    pub fn clear(&mut self) {
+        unsafe { ffi::WasmEdge_StatisticsClear(self.inner.0) }
+    }
 }
 impl Drop for Statistics {
     fn drop(&mut self) {

@@ -5,7 +5,7 @@ use crate::{
     ffi,
     instance::{function::InnerFunc, global::InnerGlobal, memory::InnerMemory, table::InnerTable},
     types::WasmEdgeString,
-    Function, Global, Memory, Store, Table, WasmEdgeResult,
+    Function, Global, Memory, Table, WasmEdgeResult,
 };
 
 /// Struct of WasmEdge Instance.
@@ -27,10 +27,11 @@ impl Drop for Instance {
 }
 impl Instance {
     pub fn create(name: impl AsRef<str>) -> WasmEdgeResult<Self> {
-        let ctx = unsafe { ffi::WasmEdge_ModuleInstanceCreate(name.as_ref().into()) };
+        let name = WasmEdgeString::from(name.as_ref());
+        let ctx = unsafe { ffi::WasmEdge_ModuleInstanceCreate(name.as_raw()) };
 
         match ctx.is_null() {
-            true => Err(WasmEdgeError::InstanceError(InstanceError::Create)),
+            true => Err(WasmEdgeError::Instance(InstanceError::Create)),
             false => Ok(Instance {
                 inner: InnerInstance(ctx),
                 registered: false,

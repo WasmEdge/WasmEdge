@@ -44,8 +44,8 @@ Expect<uint32_t> WasiNNLoad::body(Runtime::Instance::MemoryInstance *MemInst
   Graph = MemInst->getPointer<uint32_t *>(GraphPtr, 1);
   if (Encoding == Ctx.BackendsMapping.at("OpenVINO")) {
 #ifdef WASMEDGE_WASINN_BUILD_OPENVINO
-    spdlog::info("Sizes: {}, {}, {}", Ctx.OpenVINONetworks.size(),
-                 Ctx.OpenVINOExecutions.size(), Ctx.OpenVINOInfers.size());
+    spdlog::debug("Sizes: {}, {}, {}", Ctx.OpenVINONetworks.size(),
+                  Ctx.OpenVINOExecutions.size(), Ctx.OpenVINOInfers.size());
 
     if (BuilderLen != 2) {
       spdlog::error("Wrong GraphBuilder Length {:d}, expecting 2", BuilderLen);
@@ -58,7 +58,7 @@ Expect<uint32_t> WasiNNLoad::body(Runtime::Instance::MemoryInstance *MemInst
         spdlog::error("Error happened when init OpenVINO core.");
         return -1;
       }
-      spdlog::info("Initialize OpenVINO Core");
+      spdlog::debug("Initialize OpenVINO Core");
     }
 
     std::string DeviceName = map_target_to_string(Target);
@@ -66,7 +66,7 @@ Expect<uint32_t> WasiNNLoad::body(Runtime::Instance::MemoryInstance *MemInst
       spdlog::error("Device target {:d} not support!", Target);
       return -1;
     } else {
-      spdlog::info("Using device: {:s}", DeviceName);
+      spdlog::debug("Using device: {:s}", DeviceName);
     }
 
     uint32_t XMLStringLen = GraphBuilders[1];
@@ -75,8 +75,8 @@ Expect<uint32_t> WasiNNLoad::body(Runtime::Instance::MemoryInstance *MemInst
     uint8_t *BinPtr = MemInst->getPointer<uint8_t *>(GraphBuilders[2], 1);
     std::vector<uint8_t> XMLStrings(XMLPtr, XMLPtr + XMLStringLen);
     std::vector<uint8_t> WeightBins(BinPtr, BinPtr + WeightBinsLen);
-    spdlog::info("read xml length {:d}", XMLStrings.size());
-    spdlog::info("read bin length {:d}", WeightBins.size());
+    spdlog::debug("read xml length {:d}", XMLStrings.size());
+    spdlog::debug("read bin length {:d}", WeightBins.size());
 
     tensor_desc_t WeightsDesc{ANY, {1, {WeightBins.size()}}, U8};
     ie_blob_t *WeightsBlob = nullptr;
@@ -97,8 +97,6 @@ Expect<uint32_t> WasiNNLoad::body(Runtime::Instance::MemoryInstance *MemInst
     uint8_t *BlobData = (uint8_t *)(BlobCBuffer.cbuffer);
     for (size_t I = 0; I < WeightBins.size(); I++)
       BlobData[I] = WeightBins[I];
-    // status = ie_blob_make_memory_from_preallocated(
-    //     &WeightsDesc, WeightBins.data(), WeightBins.size(), &WeightsBlob);
 
     ie_network_t *Network = nullptr;
     ie_executable_network_t *ExeNetwork = nullptr;
@@ -118,13 +116,14 @@ Expect<uint32_t> WasiNNLoad::body(Runtime::Instance::MemoryInstance *MemInst
     for (size_t I = 0; I < NetworkInputSize; I++) {
       char *InputName = nullptr;
       status = ie_network_get_input_name(Network, I, &InputName);
-      spdlog::info("Setting [{}] to NHWC", InputName);
+      spdlog::debug("Setting [{}] to NHWC", InputName);
       status = ie_network_set_input_layout(
           Network, InputName, NHWC); // more layouts should be supported
       if (status != OK) {
         spdlog::error("Unable to set input name, error code {}", status);
         return -1;
       }
+      ie_network_name_free(&InputName);
     }
 
     ie_config_t Config = {NULL, NULL, NULL};
@@ -138,6 +137,7 @@ Expect<uint32_t> WasiNNLoad::body(Runtime::Instance::MemoryInstance *MemInst
     Ctx.ModelsNum = Ctx.OpenVINONetworks.size();
     Ctx.OpenVINONetworks.push_back(Network);
     Ctx.OpenVINOExecutions.push_back(ExeNetwork);
+    Ctx.OpenVINOModelWeights.push_back(WeightsBlob);
     Ctx.GraphBackends.push_back(Encoding);
     *Graph = Ctx.ModelsNum;
 
@@ -287,8 +287,8 @@ Expect<uint32_t> WasiNNSetInput::body(Runtime::Instance::MemoryInstance *MemInst
       return -1;
     }
     status = ie_blob_size(InputBlob, &BlobSize);
-    spdlog::info("Blob size {}, with Tensor size {}", BlobSize,
-                 TensorDataLen / 4);
+    spdlog::debug("Blob size {}, with Tensor size {}", BlobSize,
+                  TensorDataLen / 4);
     status = ie_blob_get_cbuffer(InputBlob, &BlobCBuffer);
     if (status != OK) {
       spdlog::error("Unable to find input tensor buffer");
@@ -308,6 +308,7 @@ Expect<uint32_t> WasiNNSetInput::body(Runtime::Instance::MemoryInstance *MemInst
       return -1;
     }
     Ctx.OpenVINOInputs.push_back(InputBlob);
+    ie_network_name_free(&InputName);
 
     return 0;
 #else
@@ -383,6 +384,9 @@ Expect<uint32_t> WasiNNGetOuput::body(
       OutBufferPtr[I] = CastedOutputData[I];
     }
     *BytesWritten = BlobSize * 4;
+    Ctx.OpenVINOOutputs.push_back(OutputBlob);
+    ie_network_name_free(&OutputName);
+
     return 0;
 #else
     spdlog::error(

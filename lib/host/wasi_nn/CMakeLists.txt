@@ -6,9 +6,6 @@ wasmedge_add_library(wasmedgeHostModuleWasiNN
 )
 
 # add backends building flags
-option(WASMEDGE_WASINN_BUILD_OPENVINO "Enable WasmEdge Wasi-NN OpenVINO backend" ON)
-
-
 if(WASMEDGE_WASINN_BUILD_OPENVINO)
   message( STATUS "Build OpenVINO backend for WASI-NN")
   add_definitions(-DWASMEDGE_WASINN_BUILD_OPENVINO)

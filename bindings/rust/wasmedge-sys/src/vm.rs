@@ -13,6 +13,7 @@ use crate::{
     types::WasmEdgeString,
     utils,
     Config,
+    ImportModule,
     Instance,
     Module,
     WasmEdgeResult,
@@ -26,7 +27,7 @@ use std::{collections::HashMap, path::Path};
 #[derive(Debug)]
 pub struct Vm {
     pub(crate) inner: InnerVm,
-    // imports: HashMap<String, ImportObject>,
+    imports: HashMap<String, ImportModule>,
 }
 impl Vm {
     /// Creates a new [Vm] to be associated with the given [configuration](crate::Config) and [store](crate::Store).
@@ -64,7 +65,7 @@ impl Vm {
             true => Err(WasmEdgeError::Vm(VmError::Create)),
             false => Ok(Self {
                 inner: InnerVm(ctx),
-                // imports: HashMap::new(),
+                imports: HashMap::new(),
             }),
         }
     }
@@ -125,13 +126,33 @@ impl Vm {
     /// # Error
     ///
     /// If fail to register the WASM module, then an error is returned.
-    pub fn register_wasm_from_import(&mut self, import: &Instance) -> WasmEdgeResult<()> {
+    pub fn register_wasm_from_import(&mut self, import: ImportModule) -> WasmEdgeResult<()> {
+        let io_name = import
+            .name()
+            .ok_or(WasmEdgeError::Vm(VmError::InvalidImportModule))?;
+        if self.imports.contains_key(&io_name) {
+            return Err(WasmEdgeError::Vm(VmError::DuplicateImportObject));
+        } else {
+            self.imports.insert(io_name.clone(), import);
+        }
+
         unsafe {
             check(ffi::WasmEdge_VMRegisterModuleFromImport(
                 self.inner.0,
-                import.inner.0 as *const _,
+                self.imports
+                    .get(&io_name)
+                    .ok_or(WasmEdgeError::Vm(VmError::NotFoundImportObject(io_name)))?
+                    .inner
+                    .0 as *const _,
             ))?;
         }
+
+        // unsafe {
+        //     check(ffi::WasmEdge_VMRegisterModuleFromImport(
+        //         self.inner.0,
+        //         import.inner.0 as *const _,
+        //     ))?;
+        // }
 
         Ok(())
     }
@@ -705,8 +726,8 @@ impl Drop for Vm {
             unsafe { ffi::WasmEdge_VMDelete(self.inner.0) };
         }
 
-        // // drop imports
-        // self.imports.drain();
+        // drop imports
+        self.imports.drain();
     }
 }
 

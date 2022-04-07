@@ -3,13 +3,7 @@
 use crate::{
     error::{StoreError, WasmEdgeError},
     ffi,
-    instance::{
-        function::{Function, InnerFunc},
-        global::{Global, InnerGlobal},
-        memory::{InnerMemory, Memory},
-        module::{InnerInstance, Instance},
-        table::{InnerTable, Table},
-    },
+    instance::module::{InnerInstance, Instance},
     types::WasmEdgeString,
     WasmEdgeResult,
 };
@@ -40,13 +34,13 @@ impl Store {
     }
 
     /// Returns the length of the registered [modules](crate::Module).
-    pub fn reg_module_len(&self) -> u32 {
+    pub fn module_len(&self) -> u32 {
         unsafe { ffi::WasmEdge_StoreListModuleLength(self.inner.0 as *const _) }
     }
 
     /// Returns the names of all registered [modules](crate::Module).
-    pub fn reg_module_names(&self) -> Option<Vec<String>> {
-        let len_mod_names = self.reg_module_len();
+    pub fn module_names(&self) -> Option<Vec<String>> {
+        let len_mod_names = self.module_len();
         match len_mod_names > 0 {
             true => {
                 let mut mod_names = Vec::with_capacity(len_mod_names as usize);
@@ -103,14 +97,14 @@ impl Store {
     ///
     /// If fail to find, then an error is returned.
     pub fn contains(&self, name: impl AsRef<str>) -> WasmEdgeResult<()> {
-        if self.reg_module_len() == 0 {
+        if self.module_len() == 0 {
             return Err(WasmEdgeError::Store(StoreError::NotFoundModule(
                 name.as_ref().into(),
             )));
         }
 
         let result = self
-            .reg_module_names()
+            .module_names()
             .ok_or_else(|| WasmEdgeError::Store(StoreError::NotFoundModule(name.as_ref().into())));
 
         let names = result.unwrap();
@@ -135,289 +129,242 @@ pub(crate) struct InnerStore(pub(crate) *mut ffi::WasmEdge_StoreContext);
 unsafe impl Send for InnerStore {}
 unsafe impl Sync for InnerStore {}
 
-// #[cfg(test)]
-// mod tests {
-//     use super::Store;
-//     use crate::{
-//         instance::{Function, Global, GlobalType, MemType, Memory, Table, TableType},
-//         types::WasmValue,
-//         Config, Executor, FuncType, Vm,
-//     };
-//     use std::{
-//         sync::{Arc, Mutex},
-//         thread,
-//     };
-//     use wasmedge_types::{Mutability, RefType, ValType};
+#[cfg(test)]
+mod tests {
+    use super::Store;
+    use crate::{
+        instance::{Function, Global, GlobalType, MemType, Memory, Table, TableType},
+        types::WasmValue,
+        AddInstance, Config, Executor, FuncType, ImportModule, Vm,
+    };
+    use std::{
+        sync::{Arc, Mutex},
+        thread,
+    };
+    use wasmedge_types::{Mutability, RefType, ValType};
 
-//     #[test]
-//     fn test_store_basic() {
-//         let module_name = "extern_module";
+    #[test]
+    fn test_store_basic() {
+        let module_name = "extern_module";
 
-//         let result = Store::create();
-//         assert!(result.is_ok());
-//         let mut store = result.unwrap();
-//         assert!(!store.inner.0.is_null());
-//         assert!(!store.registered);
+        let result = Store::create();
+        assert!(result.is_ok());
+        let mut store = result.unwrap();
+        assert!(!store.inner.0.is_null());
+        assert!(!store.registered);
 
-//         // check the length of registered module list in store before instatiation
-//         assert_eq!(store.reg_module_len(), 0);
-//         assert!(store.reg_module_names().is_none());
+        // check the length of registered module list in store before instatiation
+        assert_eq!(store.module_len(), 0);
+        assert!(store.module_names().is_none());
 
-//         // create ImportObject instance
-//         let result = ImportObject::create(module_name);
-//         assert!(result.is_ok());
-//         let mut import = result.unwrap();
+        // create ImportObject instance
+        let result = ImportModule::create(module_name);
+        assert!(result.is_ok());
+        let mut import = result.unwrap();
 
-//         // add host function
-//         let result = FuncType::create(vec![ValType::I32; 2], vec![ValType::I32]);
-//         assert!(result.is_ok());
-//         let func_ty = result.unwrap();
-//         let result = Function::create(&func_ty, Box::new(real_add), 0);
-//         assert!(result.is_ok());
-//         let host_func = result.unwrap();
-//         import.add_func("add", host_func);
+        // add host function
+        let result = FuncType::create(vec![ValType::I32; 2], vec![ValType::I32]);
+        assert!(result.is_ok());
+        let func_ty = result.unwrap();
+        let result = Function::create(&func_ty, Box::new(real_add), 0);
+        assert!(result.is_ok());
+        let host_func = result.unwrap();
+        import.add_func("add", host_func);
 
-//         // add table
-//         let result = TableType::create(RefType::FuncRef, 0..=u32::MAX);
-//         assert!(result.is_ok());
-//         let ty = result.unwrap();
-//         let result = Table::create(&ty);
-//         assert!(result.is_ok());
-//         let table = result.unwrap();
-//         import.add_table("table", table);
+        // add table
+        let result = TableType::create(RefType::FuncRef, 0..=u32::MAX);
+        assert!(result.is_ok());
+        let ty = result.unwrap();
+        let result = Table::create(&ty);
+        assert!(result.is_ok());
+        let table = result.unwrap();
+        import.add_table("table", table);
 
-//         // add memory
-//         let memory = {
-//             let result = MemType::create(10..=20);
-//             assert!(result.is_ok());
-//             let mem_ty = result.unwrap();
-//             let result = Memory::create(&mem_ty);
-//             assert!(result.is_ok());
-//             result.unwrap()
-//         };
-//         import.add_memory("mem", memory);
+        // add memory
+        let memory = {
+            let result = MemType::create(10..=20);
+            assert!(result.is_ok());
+            let mem_ty = result.unwrap();
+            let result = Memory::create(&mem_ty);
+            assert!(result.is_ok());
+            result.unwrap()
+        };
+        import.add_memory("mem", memory);
 
-//         // add globals
-//         let result = GlobalType::create(ValType::F32, Mutability::Const);
-//         assert!(result.is_ok());
-//         let ty = result.unwrap();
-//         let result = Global::create(&ty, WasmValue::from_f32(3.5));
-//         assert!(result.is_ok());
-//         let global = result.unwrap();
-//         import.add_global("global", global);
+        // add globals
+        let result = GlobalType::create(ValType::F32, Mutability::Const);
+        assert!(result.is_ok());
+        let ty = result.unwrap();
+        let result = Global::create(&ty, WasmValue::from_f32(3.5));
+        assert!(result.is_ok());
+        let global = result.unwrap();
+        import.add_global("global", global);
 
-//         let result = Config::create();
-//         assert!(result.is_ok());
-//         let config = result.unwrap();
-//         let result = Executor::create(Some(config), None);
-//         assert!(result.is_ok());
-//         let mut executor = result.unwrap();
-//         let result = executor.register_import_object(&mut store, &import);
-//         assert!(result.is_ok());
+        let result = Config::create();
+        assert!(result.is_ok());
+        let config = result.unwrap();
+        let result = Executor::create(Some(config), None);
+        assert!(result.is_ok());
+        let mut executor = result.unwrap();
+        let result = executor.register_import_object(&mut store, &import);
+        assert!(result.is_ok());
 
-//         // check the module list after instantiation
-//         assert_eq!(store.reg_module_len(), 1);
-//         assert!(store.reg_module_names().is_some());
-//         assert_eq!(store.reg_module_names().unwrap()[0], module_name);
-//     }
+        // check the module list after instantiation
+        assert_eq!(store.module_len(), 1);
+        assert!(store.module_names().is_some());
+        assert_eq!(store.module_names().unwrap()[0], module_name);
+    }
 
-//     #[test]
-//     fn test_store_send() {
-//         let result = Store::create();
-//         assert!(result.is_ok());
-//         let store = result.unwrap();
-//         assert!(!store.inner.0.is_null());
-//         assert!(!store.registered);
+    #[test]
+    fn test_store_send() {
+        let result = Store::create();
+        assert!(result.is_ok());
+        let store = result.unwrap();
+        assert!(!store.inner.0.is_null());
+        assert!(!store.registered);
 
-//         let handle = thread::spawn(move || {
-//             let s = store;
-//             assert!(!s.inner.0.is_null());
-//         });
+        let handle = thread::spawn(move || {
+            let s = store;
+            assert!(!s.inner.0.is_null());
+        });
 
-//         handle.join().unwrap();
-//     }
+        handle.join().unwrap();
+    }
 
-//     #[test]
-//     fn test_store_sync() {
-//         let result = Store::create();
-//         assert!(result.is_ok());
-//         let store = Arc::new(Mutex::new(result.unwrap()));
+    #[test]
+    fn test_store_sync() {
+        let result = Store::create();
+        assert!(result.is_ok());
+        let store = Arc::new(Mutex::new(result.unwrap()));
 
-//         let store_cloned = Arc::clone(&store);
-//         let handle = thread::spawn(move || {
-//             // create ImportObject instance
-//             let result = ImportObject::create("extern_module");
-//             assert!(result.is_ok());
-//             let mut import = result.unwrap();
+        let store_cloned = Arc::clone(&store);
+        let handle = thread::spawn(move || {
+            // create ImportObject instance
+            let result = ImportModule::create("extern_module");
+            assert!(result.is_ok());
+            let mut import = result.unwrap();
 
-//             // add host function
-//             let result = FuncType::create(vec![ValType::I32; 2], vec![ValType::I32]);
-//             assert!(result.is_ok());
-//             let func_ty = result.unwrap();
-//             let result = Function::create(&func_ty, Box::new(real_add), 0);
-//             assert!(result.is_ok());
-//             let host_func = result.unwrap();
-//             import.add_func("add", host_func);
+            // add host function
+            let result = FuncType::create(vec![ValType::I32; 2], vec![ValType::I32]);
+            assert!(result.is_ok());
+            let func_ty = result.unwrap();
+            let result = Function::create(&func_ty, Box::new(real_add), 0);
+            assert!(result.is_ok());
+            let host_func = result.unwrap();
+            import.add_func("add", host_func);
 
-//             // create an Executor
-//             let result = Config::create();
-//             assert!(result.is_ok());
-//             let config = result.unwrap();
-//             let result = Executor::create(Some(config), None);
-//             assert!(result.is_ok());
-//             let mut executor = result.unwrap();
+            // create an Executor
+            let result = Config::create();
+            assert!(result.is_ok());
+            let config = result.unwrap();
+            let result = Executor::create(Some(config), None);
+            assert!(result.is_ok());
+            let mut executor = result.unwrap();
 
-//             let result = store_cloned.lock();
-//             assert!(result.is_ok());
-//             let mut store = result.unwrap();
+            let result = store_cloned.lock();
+            assert!(result.is_ok());
+            let mut store = result.unwrap();
 
-//             let result = executor.register_import_object(&mut store, &import);
-//             assert!(result.is_ok());
+            let result = executor.register_import_object(&mut store, &import);
+            assert!(result.is_ok());
 
-//             // run the registered function
-//             let result = executor.run_func_registered(
-//                 &mut store,
-//                 "extern_module",
-//                 "add",
-//                 vec![WasmValue::from_i32(12), WasmValue::from_i32(21)],
-//             );
-//             assert!(result.is_ok());
-//             let returns = result.unwrap();
-//             assert_eq!(returns[0].to_i32(), 33);
-//         });
+            // get module instance
+            let result = store.module("extern_module");
+            assert!(result.is_ok());
+            let instance = result.unwrap();
 
-//         handle.join().unwrap();
-//     }
+            // get function instance
+            let result = instance.get_func("add");
+            assert!(result.is_ok());
+            let add = result.unwrap();
 
-//     #[test]
-//     fn test_store_active_module() {
-//         let result = Vm::create(None, None);
-//         assert!(result.is_ok());
-//         let mut vm = result.unwrap();
+            // run the function
+            let result = executor.run(&add, vec![WasmValue::from_i32(12), WasmValue::from_i32(21)]);
+            assert!(result.is_ok());
+            let returns = result.unwrap();
+            assert_eq!(returns[0].to_i32(), 33);
+        });
 
-//         // load wasm module from a specified file
-//         let path = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
-//             .join("bindings/rust/wasmedge-sys/tests/data/fibonacci.wasm");
-//         let result = vm.load_wasm_from_file(path);
-//         assert!(result.is_ok());
+        handle.join().unwrap();
+    }
 
-//         // validate
-//         let result = vm.validate();
-//         assert!(result.is_ok());
+    #[test]
+    fn test_store_named_module() {
+        // create a Config context
+        let result = Config::create();
+        assert!(result.is_ok());
+        let mut config = result.unwrap();
+        config.bulk_memory_operations(true);
+        assert!(config.bulk_memory_operations_enabled());
 
-//         // instantiate
-//         let result = vm.instantiate();
-//         assert!(result.is_ok());
+        // create a Store context
+        let result = Store::create();
+        assert!(result.is_ok(), "Failed to create Store instance");
+        let mut store = result.unwrap();
 
-//         // get the store in vm
-//         let result = vm.store_mut();
-//         assert!(result.is_ok());
-//         let mut store = result.unwrap();
+        // create a Vm context with the given Config and Store
+        let result = Vm::create(Some(config), Some(&mut store));
+        assert!(result.is_ok());
+        let mut vm = result.unwrap();
 
-//         // get the active module
-//         let result = store.active_module();
-//         assert!(result.is_ok());
-//         let instance = result.unwrap();
+        // register a wasm module from a wasm file
+        let path = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
+            .join("bindings/rust/wasmedge-sys/tests/data/fibonacci.wasm");
+        let result = vm.register_wasm_from_file("extern", path);
+        assert!(result.is_ok());
 
-//         // check the name of the module instance
-//         assert!(instance.name().is_none());
+        // get the store in vm
+        let result = vm.store_mut();
+        assert!(result.is_ok());
+        let mut store = result.unwrap();
 
-//         // get the exported function named "fib"
-//         let result = instance.find_func("fib");
-//         assert!(result.is_ok());
-//         let func = result.unwrap();
+        // get the module named "extern"
+        let result = store.module("extern");
+        assert!(result.is_ok());
+        let instance = result.unwrap();
 
-//         // check the type of the function
-//         let result = func.ty();
-//         assert!(result.is_ok());
-//         let ty = result.unwrap();
+        // check the name of the module
+        assert!(instance.name().is_some());
+        assert_eq!(instance.name().unwrap(), "extern");
 
-//         // check the parameter types
-//         let param_types = ty.params_type_iter().collect::<Vec<ValType>>();
-//         assert_eq!(param_types, [ValType::I32]);
+        // get the exported function named "fib"
+        let result = instance.get_func("fib");
+        assert!(result.is_ok());
+        let func = result.unwrap();
 
-//         // check the return types
-//         let return_types = ty.returns_type_iter().collect::<Vec<ValType>>();
-//         assert_eq!(return_types, [ValType::I32]);
-//     }
+        // check the type of the function
+        let result = func.ty();
+        assert!(result.is_ok());
+        let ty = result.unwrap();
 
-//     #[test]
-//     fn test_store_named_module() {
-//         // create a Config context
-//         let result = Config::create();
-//         assert!(result.is_ok());
-//         let mut config = result.unwrap();
-//         config.bulk_memory_operations(true);
-//         assert!(config.bulk_memory_operations_enabled());
+        // check the parameter types
+        let param_types = ty.params_type_iter().collect::<Vec<ValType>>();
+        assert_eq!(param_types, [ValType::I32]);
 
-//         // create a Store context
-//         let result = Store::create();
-//         assert!(result.is_ok(), "Failed to create Store instance");
-//         let mut store = result.unwrap();
+        // check the return types
+        let return_types = ty.returns_type_iter().collect::<Vec<ValType>>();
+        assert_eq!(return_types, [ValType::I32]);
+    }
 
-//         // create a Vm context with the given Config and Store
-//         let result = Vm::create(Some(config), Some(&mut store));
-//         assert!(result.is_ok());
-//         let mut vm = result.unwrap();
+    fn real_add(inputs: Vec<WasmValue>) -> Result<Vec<WasmValue>, u8> {
+        if inputs.len() != 2 {
+            return Err(1);
+        }
 
-//         // register a wasm module from a wasm file
-//         let path = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
-//             .join("bindings/rust/wasmedge-sys/tests/data/fibonacci.wasm");
-//         let result = vm.register_wasm_from_file("extern", path);
-//         assert!(result.is_ok());
+        let a = if inputs[0].ty() == ValType::I32 {
+            inputs[0].to_i32()
+        } else {
+            return Err(2);
+        };
 
-//         // get the store in vm
-//         let result = vm.store_mut();
-//         assert!(result.is_ok());
-//         let mut store = result.unwrap();
+        let b = if inputs[1].ty() == ValType::I32 {
+            inputs[1].to_i32()
+        } else {
+            return Err(3);
+        };
 
-//         // get the module named "extern"
-//         let result = store.named_module("extern");
-//         assert!(result.is_ok());
-//         let instance = result.unwrap();
+        let c = a + b;
 
-//         // check the name of the module
-//         assert!(instance.name().is_some());
-//         assert_eq!(instance.name().unwrap(), "extern");
-
-//         // get the exported function named "fib"
-//         let result = instance.find_func("fib");
-//         assert!(result.is_ok());
-//         let func = result.unwrap();
-
-//         // check the type of the function
-//         let result = func.ty();
-//         assert!(result.is_ok());
-//         let ty = result.unwrap();
-
-//         // check the parameter types
-//         let param_types = ty.params_type_iter().collect::<Vec<ValType>>();
-//         assert_eq!(param_types, [ValType::I32]);
-
-//         // check the return types
-//         let return_types = ty.returns_type_iter().collect::<Vec<ValType>>();
-//         assert_eq!(return_types, [ValType::I32]);
-//     }
-
-//     fn real_add(inputs: Vec<WasmValue>) -> Result<Vec<WasmValue>, u8> {
-//         if inputs.len() != 2 {
-//             return Err(1);
-//         }
-
-//         let a = if inputs[0].ty() == ValType::I32 {
-//             inputs[0].to_i32()
-//         } else {
-//             return Err(2);
-//         };
-
-//         let b = if inputs[1].ty() == ValType::I32 {
-//             inputs[1].to_i32()
-//         } else {
-//             return Err(3);
-//         };
-
-//         let c = a + b;
-
-//         Ok(vec![WasmValue::from_i32(c)])
-//     }
-// }
+        Ok(vec![WasmValue::from_i32(c)])
+    }
+}

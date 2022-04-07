@@ -63,7 +63,7 @@ impl Instance {
     /// # Error
     ///
     /// If fail to find the target [function](crate::Function), then an error is returned.
-    pub fn find_func(&self, name: impl AsRef<str>) -> WasmEdgeResult<Function> {
+    pub fn get_func(&self, name: impl AsRef<str>) -> WasmEdgeResult<Function> {
         let func_name: WasmEdgeString = name.as_ref().into();
         let func_ctx = unsafe {
             ffi::WasmEdge_ModuleInstanceFindFunction(self.inner.0 as *const _, func_name.as_raw())
@@ -91,7 +91,7 @@ impl Instance {
     /// # Error
     ///
     /// If fail to find the target [table](crate::Table), then an error is returned.
-    pub fn find_table(&self, name: impl AsRef<str>) -> WasmEdgeResult<Table> {
+    pub fn get_table(&self, name: impl AsRef<str>) -> WasmEdgeResult<Table> {
         let table_name: WasmEdgeString = name.as_ref().into();
         let ctx = unsafe {
             ffi::WasmEdge_ModuleInstanceFindTable(self.inner.0 as *const _, table_name.as_raw())
@@ -117,7 +117,7 @@ impl Instance {
     /// # Error
     ///
     /// If fail to find the target [memory](crate::Memory), then an error is returned.
-    pub fn find_memory(&self, name: impl AsRef<str>) -> WasmEdgeResult<Memory> {
+    pub fn get_memory(&self, name: impl AsRef<str>) -> WasmEdgeResult<Memory> {
         let mem_name: WasmEdgeString = name.as_ref().into();
         let ctx = unsafe {
             ffi::WasmEdge_ModuleInstanceFindMemory(self.inner.0 as *const _, mem_name.as_raw())
@@ -143,7 +143,7 @@ impl Instance {
     /// # Error
     ///
     /// If fail to find the target [global](crate::Global), then an error is returned.
-    pub fn find_global(&self, name: impl AsRef<str>) -> WasmEdgeResult<Global> {
+    pub fn get_global(&self, name: impl AsRef<str>) -> WasmEdgeResult<Global> {
         let global_name: WasmEdgeString = name.as_ref().into();
         let ctx = unsafe {
             ffi::WasmEdge_ModuleInstanceFindGlobal(self.inner.0 as *const _, global_name.as_raw())
@@ -795,7 +795,7 @@ mod tests {
         assert_eq!(instance.name().unwrap(), "extern_module");
 
         // get the exported function named "fib"
-        let result = instance.find_func("add");
+        let result = instance.get_func("add");
         assert!(result.is_ok());
         let func = result.unwrap();
 
@@ -813,7 +813,7 @@ mod tests {
         assert_eq!(return_types, [ValType::I32]);
 
         // get the exported table named "table"
-        let result = instance.find_table("table");
+        let result = instance.get_table("table");
         assert!(result.is_ok());
         let table = result.unwrap();
 
@@ -825,7 +825,7 @@ mod tests {
         assert_eq!(ty.limit(), 0..=u32::MAX);
 
         // get the exported memory named "mem"
-        let result = instance.find_memory("mem");
+        let result = instance.get_memory("mem");
         assert!(result.is_ok());
         let memory = result.unwrap();
 
@@ -836,7 +836,7 @@ mod tests {
         assert_eq!(ty.limit(), 0..=u32::MAX);
 
         // get the exported global named "global"
-        let result = instance.find_global("global");
+        let result = instance.get_global("global");
         assert!(result.is_ok());
         let global = result.unwrap();
 
@@ -896,8 +896,8 @@ mod tests {
         assert!(!store.registered);
 
         // check the length of registered module list in store before instatiation
-        assert_eq!(store.reg_module_len(), 0);
-        assert!(store.reg_module_names().is_none());
+        assert_eq!(store.module_len(), 0);
+        assert!(store.module_names().is_none());
 
         // create ImportObject instance
         let result = ImportModule::create(module_name);
@@ -956,7 +956,7 @@ mod tests {
         let instance = result.unwrap();
 
         // get the exported memory
-        let result = instance.find_memory("mem");
+        let result = instance.get_memory("mem");
         assert!(result.is_ok());
         let memory = result.unwrap();
         let result = memory.ty();

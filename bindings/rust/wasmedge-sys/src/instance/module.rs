@@ -280,7 +280,7 @@ impl Instance {
 }
 
 #[derive(Debug)]
-pub(crate) struct InnerInstance(pub(crate) *const ffi::WasmEdge_ModuleInstanceContext);
+pub(crate) struct InnerInstance(pub(crate) *mut ffi::WasmEdge_ModuleInstanceContext);
 unsafe impl Send for InnerInstance {}
 unsafe impl Sync for InnerInstance {}
 

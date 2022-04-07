@@ -54,18 +54,16 @@ struct IsExpectedOptionalRef<WasiCryptoExpect<OptionalRef<T>>>
 
 /// std::optional<T> -> (T -> WasiCrypto<R>) ->
 /// WasiCryptoExpect<std::optional<R>>
-template <typename O, typename F>
+template <
+    typename O, typename F,
+    typename = std::enable_if_t<detail::IsOptional<std::decay_t<O>>::value>>
 inline auto mapAndTransposeOptional(O &&Optional, F &&Function) noexcept
     -> std::enable_if_t<
-        detail::IsOptional<std::decay_t<O>>::value,
-        std::enable_if_t<
-            detail::IsExpected<std::decay_t<
-                decltype(std::invoke(std::forward<F>(Function),
-                                     *std::forward<O>(Optional)))>>::value,
-            WasiCryptoExpect<std::optional<
-                typename detail::IsExpected<std::decay_t<decltype(std::invoke(
-                    std::forward<F>(Function), *std::forward<O>(Optional)))>>::
-                    Type>>>> {
+        detail::IsExpected<std::decay_t<decltype(std::invoke(
+            std::forward<F>(Function), *std::forward<O>(Optional)))>>::value,
+        WasiCryptoExpect<std::optional<typename detail::IsExpected<std::decay_t<
+            decltype(std::invoke(std::forward<F>(Function),
+                                 *std::forward<O>(Optional)))>>::Type>>> {
   if (!Optional)
     return std::nullopt;
 
@@ -74,13 +72,13 @@ inline auto mapAndTransposeOptional(O &&Optional, F &&Function) noexcept
 
 /// std::optional<T> -> (T -> WasiCryptoExpect<OptionalRef<R>>) ->
 /// WasiCryptoExpect<OptionalRef<R>>
-template <typename O, typename F>
-inline auto
-transposeOptionalToRef(O &&Optional, F &&Function) noexcept -> std::enable_if_t<
-    detail::IsOptional<std::decay_t<O>>::value,
-    WasiCryptoExpect<OptionalRef<typename detail::IsExpectedOptionalRef<
+template <
+    typename O, typename F,
+    typename = std::enable_if_t<detail::IsOptional<std::decay_t<O>>::value>>
+inline auto transposeOptionalToRef(O &&Optional, F &&Function) noexcept
+    -> WasiCryptoExpect<OptionalRef<typename detail::IsExpectedOptionalRef<
         std::decay_t<decltype(std::invoke(
-            std::forward<F>(Function), *std::forward<O>(Optional)))>>::Type>>> {
+            std::forward<F>(Function), *std::forward<O>(Optional)))>>::Type>> {
   if (!Optional)
     return nullptr;
 
@@ -89,13 +87,13 @@ transposeOptionalToRef(O &&Optional, F &&Function) noexcept -> std::enable_if_t<
 
 /// OptionalRef<T> -> (T -> WasiCryptoExpect<OptionalRef<R>>) ->
 /// WasiCryptoExpect<OptionalRef<R>>
-template <typename O, typename F>
-inline auto
-transposeOptionalRef(O &&Optional, F &&Function) noexcept -> std::enable_if_t<
-    detail::IsOptionalRef<std::decay_t<O>>::value,
-    WasiCryptoExpect<OptionalRef<typename detail::IsExpectedOptionalRef<
+template <
+    typename O, typename F,
+    typename = std::enable_if_t<detail::IsOptionalRef<std::decay_t<O>>::value>>
+inline auto transposeOptionalRef(O &&Optional, F &&Function) noexcept
+    -> WasiCryptoExpect<OptionalRef<typename detail::IsExpectedOptionalRef<
         std::decay_t<decltype(std::invoke(
-            std::forward<F>(Function), *std::forward<O>(Optional)))>>::Type>>> {
+            std::forward<F>(Function), *std::forward<O>(Optional)))>>::Type>> {
   if (!Optional)
     return nullptr;
 
@@ -103,10 +101,10 @@ transposeOptionalRef(O &&Optional, F &&Function) noexcept -> std::enable_if_t<
 }
 
 /// std::optional<T> -> OptionalRef<T>
-template <typename O>
-inline auto asOptionalRef(O &&Optional) noexcept -> std::enable_if_t<
-    detail::IsOptional<std::decay_t<O>>::value,
-    OptionalRef<typename detail::IsOptional<std::decay_t<O>>::Type>> {
+template <typename O, typename = std::enable_if_t<
+                          detail::IsOptional<std::decay_t<O>>::value>>
+inline auto asOptionalRef(O &&Optional) noexcept
+    -> OptionalRef<typename detail::IsOptional<std::decay_t<O>>::Type> {
   if (!Optional)
     return nullptr;
 

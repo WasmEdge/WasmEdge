@@ -5,7 +5,7 @@ use crate::{
     error::{check, WasmEdgeError},
     instance::module::InnerInstance,
     types::WasmEdgeString,
-    Config, Function, Instance, Module, Statistics, Store, WasmEdgeResult, WasmValue,
+    Config, Function, ImportModule, Instance, Module, Statistics, Store, WasmEdgeResult, WasmValue,
 };
 
 /// Struct of WasmEdge Executor.
@@ -78,7 +78,7 @@ impl Executor {
     pub fn register_import_object(
         &mut self,
         store: &mut Store,
-        import: &Instance,
+        import: &ImportModule,
     ) -> WasmEdgeResult<()> {
         unsafe {
             check(ffi::WasmEdge_ExecutorRegisterImport(
@@ -214,228 +214,226 @@ pub(crate) struct InnerExecutor(pub(crate) *mut ffi::WasmEdge_ExecutorContext);
 unsafe impl Send for InnerExecutor {}
 unsafe impl Sync for InnerExecutor {}
 
-// #[cfg(test)]
-// mod tests {
-//     use super::*;
-//     use crate::{
-//         Config, FuncType, Function, Global, GlobalType, MemType, Memory, Statistics, Table,
-//         TableType,
-//     };
-//     use std::{
-//         sync::{Arc, Mutex},
-//         thread,
-//     };
-//     use wasmedge_types::{Mutability, RefType, ValType};
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{
+        AddInstance, Config, FuncType, Function, Global, GlobalType, ImportModule, MemType, Memory,
+        Statistics, Table, TableType,
+    };
+    use std::{
+        sync::{Arc, Mutex},
+        thread,
+    };
+    use wasmedge_types::{Mutability, RefType, ValType};
 
-//     #[test]
-//     fn test_executor_create() {
-//         {
-//             // create an Executor context without configuration and statistics
-//             let result = Executor::create(None, None);
-//             assert!(result.is_ok());
-//             let executor = result.unwrap();
-//             assert!(!executor.inner.0.is_null());
-//         }
+    #[test]
+    fn test_executor_create() {
+        {
+            // create an Executor context without configuration and statistics
+            let result = Executor::create(None, None);
+            assert!(result.is_ok());
+            let executor = result.unwrap();
+            assert!(!executor.inner.0.is_null());
+        }
 
-//         {
-//             // create an Executor context with a given configuration
-//             let result = Config::create();
-//             assert!(result.is_ok());
-//             let config = result.unwrap();
-//             let result = Executor::create(Some(config), None);
-//             assert!(result.is_ok());
-//             let executor = result.unwrap();
-//             assert!(!executor.inner.0.is_null());
-//         }
+        {
+            // create an Executor context with a given configuration
+            let result = Config::create();
+            assert!(result.is_ok());
+            let config = result.unwrap();
+            let result = Executor::create(Some(config), None);
+            assert!(result.is_ok());
+            let executor = result.unwrap();
+            assert!(!executor.inner.0.is_null());
+        }
 
-//         {
-//             // create an Executor context with a given statistics
-//             let result = Statistics::create();
-//             assert!(result.is_ok());
-//             let mut stat = result.unwrap();
-//             let result = Executor::create(None, Some(&mut stat));
-//             assert!(result.is_ok());
-//             let executor = result.unwrap();
-//             assert!(!executor.inner.0.is_null());
-//         }
+        {
+            // create an Executor context with a given statistics
+            let result = Statistics::create();
+            assert!(result.is_ok());
+            let mut stat = result.unwrap();
+            let result = Executor::create(None, Some(&mut stat));
+            assert!(result.is_ok());
+            let executor = result.unwrap();
+            assert!(!executor.inner.0.is_null());
+        }
 
-//         {
-//             // create an Executor context with the given configuration and statistics.
-//             let result = Config::create();
-//             assert!(result.is_ok());
-//             let config = result.unwrap();
+        {
+            // create an Executor context with the given configuration and statistics.
+            let result = Config::create();
+            assert!(result.is_ok());
+            let config = result.unwrap();
 
-//             let result = Statistics::create();
-//             assert!(result.is_ok());
-//             let mut stat = result.unwrap();
+            let result = Statistics::create();
+            assert!(result.is_ok());
+            let mut stat = result.unwrap();
 
-//             let result = Executor::create(Some(config), Some(&mut stat));
-//             assert!(result.is_ok());
-//             let executor = result.unwrap();
-//             assert!(!executor.inner.0.is_null());
-//         }
-//     }
+            let result = Executor::create(Some(config), Some(&mut stat));
+            assert!(result.is_ok());
+            let executor = result.unwrap();
+            assert!(!executor.inner.0.is_null());
+        }
+    }
 
-//     #[test]
-//     fn test_executor_register_import() {
-//         // create an Executor
-//         let result = Executor::create(None, None);
-//         assert!(result.is_ok());
-//         let mut executor = result.unwrap();
-//         assert!(!executor.inner.0.is_null());
+    #[test]
+    fn test_executor_register_import() {
+        // create an Executor
+        let result = Executor::create(None, None);
+        assert!(result.is_ok());
+        let mut executor = result.unwrap();
+        assert!(!executor.inner.0.is_null());
 
-//         // create a Store
-//         let result = Store::create();
-//         assert!(result.is_ok());
-//         let mut store = result.unwrap();
+        // create a Store
+        let result = Store::create();
+        assert!(result.is_ok());
+        let mut store = result.unwrap();
 
-//         let host_name = "extern";
+        let host_name = "extern";
 
-//         // create an ImportObj module
-//         let result = ImportObject::create(host_name);
-//         assert!(result.is_ok());
-//         let mut import_obj = result.unwrap();
+        // create an ImportObj module
+        let result = ImportModule::create(host_name);
+        assert!(result.is_ok());
+        let mut import = result.unwrap();
 
-//         // add host function "func-add": (externref, i32) -> (i32)
-//         let result = FuncType::create([ValType::ExternRef, ValType::I32], [ValType::I32]);
-//         assert!(result.is_ok());
-//         let func_ty = result.unwrap();
-//         let result = Function::create(&func_ty, Box::new(real_add), 0);
-//         assert!(result.is_ok());
-//         let host_func = result.unwrap();
-//         // add the function into the import_obj module
-//         import_obj.add_func("func-add", host_func);
+        // add host function "func-add": (externref, i32) -> (i32)
+        let result = FuncType::create([ValType::ExternRef, ValType::I32], [ValType::I32]);
+        assert!(result.is_ok());
+        let func_ty = result.unwrap();
+        let result = Function::create(&func_ty, Box::new(real_add), 0);
+        assert!(result.is_ok());
+        let host_func = result.unwrap();
+        // add the function into the import_obj module
+        import.add_func("func-add", host_func);
 
-//         // create a Table instance
-//         let result = TableType::create(RefType::FuncRef, 10..=20);
-//         assert!(result.is_ok());
-//         let table_ty = result.unwrap();
-//         let result = Table::create(&table_ty);
-//         assert!(result.is_ok());
-//         let host_table = result.unwrap();
-//         // add the table into the import_obj module
-//         import_obj.add_table("table", host_table);
+        // create a Table instance
+        let result = TableType::create(RefType::FuncRef, 10..=20);
+        assert!(result.is_ok());
+        let table_ty = result.unwrap();
+        let result = Table::create(&table_ty);
+        assert!(result.is_ok());
+        let host_table = result.unwrap();
+        // add the table into the import_obj module
+        import.add_table("table", host_table);
 
-//         // create a Memory instance
-//         let result = MemType::create(1..=2);
-//         assert!(result.is_ok());
-//         let mem_ty = result.unwrap();
-//         let result = Memory::create(&mem_ty);
-//         assert!(result.is_ok());
-//         let host_memory = result.unwrap();
-//         // add the memory into the import_obj module
-//         import_obj.add_memory("memory", host_memory);
+        // create a Memory instance
+        let result = MemType::create(1..=2);
+        assert!(result.is_ok());
+        let mem_ty = result.unwrap();
+        let result = Memory::create(&mem_ty);
+        assert!(result.is_ok());
+        let host_memory = result.unwrap();
+        // add the memory into the import_obj module
+        import.add_memory("memory", host_memory);
 
-//         // create a Global instance
-//         let result = GlobalType::create(ValType::I32, Mutability::Const);
-//         assert!(result.is_ok());
-//         let global_ty = result.unwrap();
-//         let result = Global::create(&global_ty, WasmValue::from_i32(666));
-//         assert!(result.is_ok());
-//         let host_global = result.unwrap();
-//         // add the global into import_obj module
-//         import_obj.add_global("global_i32", host_global);
+        // create a Global instance
+        let result = GlobalType::create(ValType::I32, Mutability::Const);
+        assert!(result.is_ok());
+        let global_ty = result.unwrap();
+        let result = Global::create(&global_ty, WasmValue::from_i32(666));
+        assert!(result.is_ok());
+        let host_global = result.unwrap();
+        // add the global into import_obj module
+        import.add_global("global_i32", host_global);
 
-//         assert_eq!(import_obj.exit_code(), 1);
+        let result = executor.register_import_object(&mut store, &import);
+        assert!(result.is_ok());
 
-//         let result = executor.register_import_object(&mut store, &import_obj);
-//         assert!(result.is_ok());
+        {
+            let result = store.module("extern");
+            assert!(result.is_ok());
+            let instance = result.unwrap();
 
-//         {
-//             let result = store.named_module("extern");
-//             assert!(result.is_ok());
-//             let instance = result.unwrap();
+            let result = instance.find_global("global_i32");
+            assert!(result.is_ok());
+            let global = result.unwrap();
+            assert_eq!(global.get_value().to_i32(), 666);
+        }
 
-//             let result = instance.find_global("global_i32");
-//             assert!(result.is_ok());
-//             let global = result.unwrap();
-//             assert_eq!(global.get_value().to_i32(), 666);
-//         }
+        let handle = thread::spawn(move || {
+            let result = store.module("extern");
+            assert!(result.is_ok());
+            let instance = result.unwrap();
 
-//         let handle = thread::spawn(move || {
-//             let result = store.named_module("extern");
-//             assert!(result.is_ok());
-//             let instance = result.unwrap();
+            let result = instance.find_global("global_i32");
+            assert!(result.is_ok());
+            let global = result.unwrap();
+            assert_eq!(global.get_value().to_i32(), 666);
+        });
 
-//             let result = instance.find_global("global_i32");
-//             assert!(result.is_ok());
-//             let global = result.unwrap();
-//             assert_eq!(global.get_value().to_i32(), 666);
-//         });
+        handle.join().unwrap();
+    }
 
-//         handle.join().unwrap();
-//     }
+    #[test]
+    fn test_executor_send() {
+        // create an Executor context with the given configuration and statistics.
+        let result = Config::create();
+        assert!(result.is_ok());
+        let config = result.unwrap();
 
-//     #[test]
-//     fn test_executor_send() {
-//         // create an Executor context with the given configuration and statistics.
-//         let result = Config::create();
-//         assert!(result.is_ok());
-//         let config = result.unwrap();
+        let result = Statistics::create();
+        assert!(result.is_ok());
+        let mut stat = result.unwrap();
 
-//         let result = Statistics::create();
-//         assert!(result.is_ok());
-//         let mut stat = result.unwrap();
+        let result = Executor::create(Some(config), Some(&mut stat));
+        assert!(result.is_ok());
+        let executor = result.unwrap();
+        assert!(!executor.inner.0.is_null());
 
-//         let result = Executor::create(Some(config), Some(&mut stat));
-//         assert!(result.is_ok());
-//         let executor = result.unwrap();
-//         assert!(!executor.inner.0.is_null());
+        let handle = thread::spawn(move || {
+            assert!(!executor.inner.0.is_null());
+            println!("{:?}", executor.inner);
+        });
 
-//         let handle = thread::spawn(move || {
-//             assert!(!executor.inner.0.is_null());
-//             println!("{:?}", executor.inner);
-//         });
+        handle.join().unwrap();
+    }
 
-//         handle.join().unwrap();
-//     }
+    #[test]
+    fn test_executor_sync() {
+        // create an Executor context with the given configuration and statistics.
+        let result = Config::create();
+        assert!(result.is_ok());
+        let config = result.unwrap();
 
-//     #[test]
-//     fn test_executor_sync() {
-//         // create an Executor context with the given configuration and statistics.
-//         let result = Config::create();
-//         assert!(result.is_ok());
-//         let config = result.unwrap();
+        let result = Statistics::create();
+        assert!(result.is_ok());
+        let mut stat = result.unwrap();
 
-//         let result = Statistics::create();
-//         assert!(result.is_ok());
-//         let mut stat = result.unwrap();
+        let result = Executor::create(Some(config), Some(&mut stat));
+        assert!(result.is_ok());
+        let executor = Arc::new(Mutex::new(result.unwrap()));
 
-//         let result = Executor::create(Some(config), Some(&mut stat));
-//         assert!(result.is_ok());
-//         let executor = Arc::new(Mutex::new(result.unwrap()));
+        let executor_cloned = Arc::clone(&executor);
+        let handle = thread::spawn(move || {
+            let result = executor_cloned.lock();
+            assert!(result.is_ok());
+            let executor = result.unwrap();
 
-//         let executor_cloned = Arc::clone(&executor);
-//         let handle = thread::spawn(move || {
-//             let result = executor_cloned.lock();
-//             assert!(result.is_ok());
-//             let executor = result.unwrap();
+            assert!(!executor.inner.0.is_null());
+        });
 
-//             assert!(!executor.inner.0.is_null());
-//         });
+        handle.join().unwrap();
+    }
 
-//         handle.join().unwrap();
-//     }
+    fn real_add(inputs: Vec<WasmValue>) -> Result<Vec<WasmValue>, u8> {
+        if inputs.len() != 2 {
+            return Err(1);
+        }
 
-//     fn real_add(inputs: Vec<WasmValue>) -> Result<Vec<WasmValue>, u8> {
-//         if inputs.len() != 2 {
-//             return Err(1);
-//         }
+        let a = if inputs[0].ty() == ValType::I32 {
+            inputs[0].to_i32()
+        } else {
+            return Err(2);
+        };
 
-//         let a = if inputs[0].ty() == ValType::I32 {
-//             inputs[0].to_i32()
-//         } else {
-//             return Err(2);
-//         };
+        let b = if inputs[1].ty() == ValType::I32 {
+            inputs[1].to_i32()
+        } else {
+            return Err(3);
+        };
 
-//         let b = if inputs[1].ty() == ValType::I32 {
-//             inputs[1].to_i32()
-//         } else {
-//             return Err(3);
-//         };
+        let c = a + b;
 
-//         let c = a + b;
-
-//         Ok(vec![WasmValue::from_i32(c)])
-//     }
-// }
+        Ok(vec![WasmValue::from_i32(c)])
+    }
+}

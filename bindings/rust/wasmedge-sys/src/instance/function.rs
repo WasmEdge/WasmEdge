@@ -354,7 +354,7 @@ unsafe impl Sync for InnerFuncType {}
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{types::WasmValue, Executor, ImportObject, Store};
+    use crate::types::WasmValue;
     use std::{
         sync::{Arc, Mutex},
         thread,
@@ -443,45 +443,6 @@ mod tests {
         assert_eq!(ty.returns_len(), 1);
         let return_tys = ty.returns_type_iter().collect::<Vec<_>>();
         assert_eq!(return_tys, vec![ValType::I32]);
-    }
-
-    #[test]
-    fn test_func_call() {
-        // create a FuncType
-        let result = FuncType::create(vec![ValType::I32; 2], vec![ValType::I32]);
-        assert!(result.is_ok());
-        let func_ty = result.unwrap();
-        let result = Function::create(&func_ty, Box::new(real_add), 0);
-        assert!(result.is_ok());
-        let host_func = result.unwrap();
-
-        // create an ImportObj module
-        let result = ImportObject::create("extern");
-        assert!(result.is_ok());
-        let mut import = result.unwrap();
-        // add the function into the import module
-        import.add_func("add", host_func);
-
-        let result = Executor::create(None, None);
-        assert!(result.is_ok());
-        let mut executor = result.unwrap();
-
-        let result = Store::create();
-        assert!(result.is_ok());
-        let mut store = result.unwrap();
-
-        // register the import module
-        let result = executor.register_import_object(&mut store, &import);
-        assert!(result.is_ok());
-
-        // get the exported module instance
-        let result = store.named_module("extern");
-        assert!(result.is_ok());
-        let instance = result.unwrap();
-
-        // get the exported host function
-        let result = instance.find_func("add");
-        assert!(result.is_ok());
     }
 
     #[test]

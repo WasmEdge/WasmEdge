@@ -222,12 +222,12 @@ pub enum VmError {
     NotFoundStore,
     #[error("Fail to get Statistics context")]
     NotFoundStatistics,
-    #[error("Fail to get the target ImportObject (name: {0})")]
-    NotFoundImportObject(String),
+    #[error("Fail to get the target ImportModule (name: {0})")]
+    NotFoundImportModule(String),
     #[error(
-        "Fail to register import object. Another import object with the name has already existed."
+        "Fail to register import module. Another import module with the name has already existed."
     )]
-    DuplicateImportObject,
+    DuplicateImportModule,
     #[error("Fail to get Loader context")]
     NotFoundLoader,
     #[error("Fail to get Validator context")]

@@ -12,11 +12,32 @@ use crate::{
 ///
 /// An [Instance] represents an instantiated module. In the instantiation process, An [Instance] is created from al[Module](crate::Module). From an [Instance] the exported [functions](crate::Function), [tables](crate::Table), [memories](crate::Memory), and [globals](crate::Global) can be fetched.
 #[derive(Debug)]
-pub struct Instance<'store> {
+pub struct Instance {
     pub(crate) inner: InnerInstance,
-    pub(crate) store: &'store Store,
+    pub(crate) registered: bool,
 }
-impl<'store> Instance<'store> {
+impl Drop for Instance {
+    fn drop(&mut self) {
+        if !self.registered && !self.inner.0.is_null() {
+            unsafe {
+                ffi::WasmEdge_ModuleInstanceDelete(self.inner.0);
+            }
+        }
+    }
+}
+impl Instance {
+    pub fn create(name: impl AsRef<str>) -> WasmEdgeResult<Self> {
+        let ctx = unsafe { ffi::WasmEdge_ModuleInstanceCreate(name.as_ref().into()) };
+
+        match ctx.is_null() {
+            true => Err(WasmEdgeError::InstanceError(InstanceError::Create)),
+            false => Ok(Instance {
+                inner: InnerInstance(ctx),
+                registered: false,
+            }),
+        }
+    }
+
     /// Returns the name of this exported [module instance](crate::Instance).
     ///
     /// If this module [instance](crate::Instance) is an active [instance](crate::Instance), return None.

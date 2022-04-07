@@ -156,6 +156,8 @@ pub enum ExportError {
 /// Defines the errors raised from [Instance](crate::Instance).
 #[derive(Error, Clone, Debug, PartialEq)]
 pub enum InstanceError {
+    #[error("Fail to create Instance context")]
+    Create,
     #[error("Fail to find the target function ({0})")]
     NotFoundFunc(String),
     #[error("Fail to find the target table ({0})")]

@@ -3,7 +3,6 @@
 use crate::{
     error::{check, VmError, WasmEdgeError},
     ffi::{self, WasmEdge_HostRegistration_Wasi, WasmEdge_HostRegistration_WasmEdge_Process},
-    // import_obj::{ImportObject, InnerImportObject},
     instance::{
         function::{FuncType, InnerFuncType},
         module::InnerInstance,
@@ -11,15 +10,8 @@ use crate::{
     statistics::{InnerStat, Statistics},
     store::{InnerStore, Store},
     types::WasmEdgeString,
-    utils,
-    Config,
-    ImportModule,
-    Instance,
-    Module,
-    WasiModule,
-    WasmEdgeProcessModule,
-    WasmEdgeResult,
-    WasmValue,
+    utils, Config, ImportModule, Instance, Module, WasiModule, WasmEdgeProcessModule,
+    WasmEdgeResult, WasmValue,
 };
 use std::{collections::HashMap, path::Path};
 

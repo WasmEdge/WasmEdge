@@ -33,8 +33,6 @@ pub mod config;
 pub mod error;
 #[doc(hidden)]
 pub mod executor;
-#[doc(hidden)]
-pub mod import_obj;
 pub mod instance;
 #[doc(hidden)]
 pub mod io;
@@ -59,14 +57,14 @@ pub use compiler::Compiler;
 pub use config::Config;
 #[doc(inline)]
 pub use executor::Executor;
-#[doc(inline)]
-pub use import_obj::ImportObject;
+// #[doc(inline)]
+// pub use import_obj::ImportObject;
 #[doc(inline)]
 pub use instance::{
     function::{FuncType, Function},
     global::{Global, GlobalType},
     memory::{MemType, Memory},
-    module::Instance,
+    module::{AddInstance, ImportModule, Instance, WasiModule, WasmEdgeProcessModule},
     table::{Table, TableType},
 };
 #[doc(inline)]

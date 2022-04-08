@@ -64,7 +64,9 @@ pub use instance::{
     function::{FuncType, Function},
     global::{Global, GlobalType},
     memory::{MemType, Memory},
-    module::{AddInstance, ImportModule, Instance, WasiModule, WasmEdgeProcessModule},
+    module::{
+        AddImportInstance, ImportModule, ImportObject, Instance, WasiModule, WasmEdgeProcessModule,
+    },
     table::{Table, TableType},
 };
 #[doc(inline)]

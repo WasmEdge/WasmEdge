@@ -218,8 +218,8 @@ unsafe impl Sync for InnerExecutor {}
 mod tests {
     use super::*;
     use crate::{
-        AddInstance, Config, FuncType, Function, Global, GlobalType, ImportModule, MemType, Memory,
-        Statistics, Table, TableType,
+        AddImportInstance, Config, FuncType, Function, Global, GlobalType, ImportModule, MemType,
+        Memory, Statistics, Table, TableType,
     };
     use std::{
         sync::{Arc, Mutex},

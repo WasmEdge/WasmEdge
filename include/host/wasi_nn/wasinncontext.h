@@ -2,8 +2,8 @@
 // SPDX-FileCopyrightText: 2019-2022 Second State INC
 
 #pragma once
+#include <cstdint>
 #include <map>
-#include <stdint.h>
 #include <vector>
 
 #ifdef WASMEDGE_WASINN_BUILD_OPENVINO
@@ -38,7 +38,8 @@ public:
   WasiNNContext() : ModelsNum(-1), ExecutionsNum(-1) {}
   ~WasiNNContext() {
 #ifdef WASMEDGE_WASINN_BUILD_OPENVINO
-    ie_core_free(&openvino_core);
+    if (OpenVINOCore == nullptr)
+      ie_core_free(&OpenVINOCore);
     for (auto &I : OpenVINONetworks)
       ie_network_free(&I);
     for (auto &I : OpenVINOExecutions)
@@ -67,7 +68,7 @@ public:
   std::vector<GraphEncoding> GraphContextBackends;
   std::map<std::string, GraphEncoding> BackendsMapping;
 #ifdef WASMEDGE_WASINN_BUILD_OPENVINO
-  ie_core_t *openvino_core = nullptr;
+  ie_core_t *OpenVINOCore = nullptr;
   std::vector<ie_network_t *> OpenVINONetworks;
   std::vector<ie_executable_network_t *> OpenVINOExecutions;
   std::vector<ie_blob_t *> OpenVINOInputs;

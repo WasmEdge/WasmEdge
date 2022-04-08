@@ -24,6 +24,7 @@ use std::{
 pub mod ffi {
     include!(concat!(env!("OUT_DIR"), "/wasmedge.rs"));
 }
+pub mod ast_module;
 #[doc(hidden)]
 #[cfg(feature = "aot")]
 pub mod compiler;
@@ -37,7 +38,6 @@ pub mod instance;
 pub mod io;
 #[doc(hidden)]
 pub mod loader;
-pub mod module;
 #[doc(hidden)]
 pub mod statistics;
 #[doc(hidden)]
@@ -59,6 +59,8 @@ pub use executor::Executor;
 // #[doc(inline)]
 // pub use import_obj::ImportObject;
 #[doc(inline)]
+pub use ast_module::{ExportType, ImportType, Module};
+#[doc(inline)]
 pub use instance::{
     function::{FuncType, Function},
     global::{Global, GlobalType},
@@ -70,8 +72,6 @@ pub use instance::{
 };
 #[doc(inline)]
 pub use loader::Loader;
-#[doc(inline)]
-pub use module::{ExportType, ImportType, Module};
 #[doc(inline)]
 pub use statistics::Statistics;
 #[doc(inline)]

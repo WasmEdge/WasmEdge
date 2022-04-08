@@ -1,10 +1,9 @@
 //! Defines WasmEdge Loader struct.
 
 use crate::{
+    ast_module::{InnerModule, Module},
     error::{check, WasmEdgeError},
-    ffi,
-    module::{InnerModule, Module},
-    utils, Config, WasmEdgeResult,
+    ffi, utils, Config, WasmEdgeResult,
 };
 use std::path::Path;
 

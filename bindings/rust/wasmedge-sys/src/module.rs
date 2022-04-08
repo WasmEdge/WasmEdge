@@ -434,182 +434,127 @@ mod tests {
         // check the ty, name, and module_name functions
         let result = imports[0].ty();
         assert!(result.is_ok());
-        if let ExternalInstanceType::Func(_) = result.unwrap() {
-            assert!(true);
-        } else {
-            assert!(false);
-        }
+        let ty = result.unwrap();
+        matches!(ty, ExternalInstanceType::Func(_));
         assert_eq!(imports[0].name(), "func-add");
         assert_eq!(imports[0].module_name(), "extern");
 
         let result = imports[1].ty();
         assert!(result.is_ok());
-        if let ExternalInstanceType::Func(_) = result.unwrap() {
-            assert!(true);
-        } else {
-            assert!(false);
-        }
+        matches!(result.unwrap(), ExternalInstanceType::Func(_));
         assert_eq!(imports[1].name(), "func-sub");
         assert_eq!(imports[1].module_name(), "extern");
 
         let result = imports[2].ty();
         assert!(result.is_ok());
-        if let ExternalInstanceType::Func(_) = result.unwrap() {
-            assert!(true);
-        } else {
-            assert!(false);
-        }
+        matches!(result.unwrap(), ExternalInstanceType::Func(_));
         assert_eq!(imports[2].name(), "func-mul");
         assert_eq!(imports[2].module_name(), "extern");
 
         let result = imports[3].ty();
         assert!(result.is_ok());
-        if let ExternalInstanceType::Func(_) = result.unwrap() {
-            assert!(true);
-        } else {
-            assert!(false);
-        }
+        matches!(result.unwrap(), ExternalInstanceType::Func(_));
         assert_eq!(imports[3].name(), "func-div");
         assert_eq!(imports[3].module_name(), "extern");
 
         let result = imports[4].ty();
         assert!(result.is_ok());
-        if let ExternalInstanceType::Func(_) = result.unwrap() {
-            assert!(true);
-        } else {
-            assert!(false);
-        }
+        matches!(result.unwrap(), ExternalInstanceType::Func(_));
         assert_eq!(imports[4].name(), "func-term");
         assert_eq!(imports[4].module_name(), "extern");
 
         let result = imports[5].ty();
         assert!(result.is_ok());
-        if let ExternalInstanceType::Func(_) = result.unwrap() {
-            assert!(true);
-        } else {
-            assert!(false);
-        }
+        matches!(result.unwrap(), ExternalInstanceType::Func(_));
         assert_eq!(imports[5].name(), "func-fail");
         assert_eq!(imports[5].module_name(), "extern");
 
         let result = imports[6].ty();
         assert!(result.is_ok());
-        if let ExternalInstanceType::Global(_) = result.unwrap() {
-            assert!(true);
-        } else {
-            assert!(false);
-        }
+        matches!(result.unwrap(), ExternalInstanceType::Global(_));
         assert_eq!(imports[6].name(), "glob-i32");
         assert_eq!(imports[6].module_name(), "dummy");
 
         let result = imports[7].ty();
         assert!(result.is_ok());
-        if let ExternalInstanceType::Global(_) = result.unwrap() {
-            assert!(true);
-        } else {
-            assert!(false);
-        }
+        matches!(result.unwrap(), ExternalInstanceType::Global(_));
         assert_eq!(imports[7].name(), "glob-i64");
         assert_eq!(imports[7].module_name(), "dummy");
 
         let result = imports[8].ty();
         assert!(result.is_ok());
-        if let ExternalInstanceType::Global(_) = result.unwrap() {
-            assert!(true);
-        } else {
-            assert!(false);
-        }
+        matches!(result.unwrap(), ExternalInstanceType::Global(_));
         assert_eq!(imports[8].name(), "glob-f32");
         assert_eq!(imports[8].module_name(), "dummy");
 
         let result = imports[9].ty();
         assert!(result.is_ok());
-        if let ExternalInstanceType::Global(_) = result.unwrap() {
-            assert!(true);
-        } else {
-            assert!(false);
-        }
+        matches!(result.unwrap(), ExternalInstanceType::Global(_));
         assert_eq!(imports[9].name(), "glob-f64");
         assert_eq!(imports[9].module_name(), "dummy");
 
         let result = imports[10].ty();
         assert!(result.is_ok());
-        if let ExternalInstanceType::Table(_) = result.unwrap() {
-            assert!(true);
-        } else {
-            assert!(false);
-        }
+        matches!(result.unwrap(), ExternalInstanceType::Table(_));
         assert_eq!(imports[10].name(), "tab-func");
         assert_eq!(imports[10].module_name(), "dummy");
 
         let result = imports[11].ty();
         assert!(result.is_ok());
-        if let ExternalInstanceType::Table(_) = result.unwrap() {
-            assert!(true);
-        } else {
-            assert!(false);
-        }
+        matches!(result.unwrap(), ExternalInstanceType::Table(_));
         assert_eq!(imports[11].name(), "tab-ext");
         assert_eq!(imports[11].module_name(), "dummy");
 
         let result = imports[12].ty();
         assert!(result.is_ok());
-        if let ExternalInstanceType::Memory(_) = result.unwrap() {
-            assert!(true);
-        } else {
-            assert!(false);
-        }
+        matches!(result.unwrap(), ExternalInstanceType::Memory(_));
         assert_eq!(imports[12].name(), "mem1");
         assert_eq!(imports[12].module_name(), "dummy");
 
         let result = imports[13].ty();
         assert!(result.is_ok());
-        if let ExternalInstanceType::Memory(_) = result.unwrap() {
-            assert!(true);
-        } else {
-            assert!(false);
-        }
+        matches!(result.unwrap(), ExternalInstanceType::Memory(_));
         assert_eq!(imports[13].name(), "mem2");
         assert_eq!(imports[13].module_name(), "dummy");
 
         // check the function_type function
         let result = imports[4].ty();
         assert!(result.is_ok());
-        if let ExternalInstanceType::Func(func_ty) = result.unwrap() {
+        let ty = result.unwrap();
+        matches!(ty, ExternalInstanceType::Func(_));
+        if let ExternalInstanceType::Func(func_ty) = ty {
             assert_eq!(func_ty.returns_len(), 1);
-        } else {
-            assert!(false);
         }
 
         // check the table_type function
         let result = imports[11].ty();
         assert!(result.is_ok());
-        if let ExternalInstanceType::Table(table_ty) = result.unwrap() {
+        let ty = result.unwrap();
+        matches!(ty, ExternalInstanceType::Table(_));
+        if let ExternalInstanceType::Table(table_ty) = ty {
             assert_eq!(table_ty.elem_ty(), RefType::ExternRef);
             assert_eq!(table_ty.minimum(), 10);
             assert_eq!(table_ty.maximum(), 30);
-        } else {
-            assert!(false);
         }
 
         // check the memory_type function
         let result = imports[13].ty();
         assert!(result.is_ok());
-        if let ExternalInstanceType::Memory(mem_ty) = result.unwrap() {
+        let ty = result.unwrap();
+        matches!(ty, ExternalInstanceType::Memory(_));
+        if let ExternalInstanceType::Memory(mem_ty) = ty {
             assert_eq!(mem_ty.minimum(), 2);
             assert_eq!(mem_ty.maximum(), 2);
-        } else {
-            assert!(false);
         }
 
         // check the global_type function
         let result = imports[7].ty();
         assert!(result.is_ok());
-        if let ExternalInstanceType::Global(global_ty) = result.unwrap() {
+        let ty = result.unwrap();
+        matches!(ty, ExternalInstanceType::Global(_));
+        if let ExternalInstanceType::Global(global_ty) = ty {
             assert_eq!(global_ty.value_ty(), ValType::I64);
             assert_eq!(global_ty.mutability(), Mutability::Const);
-        } else {
-            assert!(false);
         }
     }
 
@@ -641,189 +586,125 @@ mod tests {
         // check the ty and name functions
         let result = exports[0].ty();
         assert!(result.is_ok());
-        if let ExternalInstanceType::Func(_) = result.unwrap() {
-            assert!(true);
-        } else {
-            assert!(false);
-        }
+        matches!(result.unwrap(), ExternalInstanceType::Func(_));
         assert_eq!(exports[0].name(), "func-1");
 
         let result = exports[1].ty();
         assert!(result.is_ok());
-        if let ExternalInstanceType::Func(_) = result.unwrap() {
-            assert!(true);
-        } else {
-            assert!(false);
-        }
+        matches!(result.unwrap(), ExternalInstanceType::Func(_));
         assert_eq!(exports[1].name(), "func-2");
 
         let result = exports[2].ty();
         assert!(result.is_ok());
-        if let ExternalInstanceType::Func(_) = result.unwrap() {
-            assert!(true);
-        } else {
-            assert!(false);
-        }
+        matches!(result.unwrap(), ExternalInstanceType::Func(_));
         assert_eq!(exports[2].name(), "func-3");
 
         let result = exports[3].ty();
         assert!(result.is_ok());
-        if let ExternalInstanceType::Func(_) = result.unwrap() {
-            assert!(true);
-        } else {
-            assert!(false);
-        }
+        matches!(result.unwrap(), ExternalInstanceType::Func(_));
         assert_eq!(exports[3].name(), "func-4");
 
         assert_eq!(module.count_of_exports(), 16);
 
         let result = exports[4].ty();
         assert!(result.is_ok());
-        if let ExternalInstanceType::Func(_) = result.unwrap() {
-            assert!(true);
-        } else {
-            assert!(false);
-        }
+        matches!(result.unwrap(), ExternalInstanceType::Func(_));
         assert_eq!(exports[4].name(), "func-add");
 
         let result = exports[5].ty();
         assert!(result.is_ok());
-        if let ExternalInstanceType::Func(_) = result.unwrap() {
-            assert!(true);
-        } else {
-            assert!(false);
-        }
+        matches!(result.unwrap(), ExternalInstanceType::Func(_));
         assert_eq!(exports[5].name(), "func-mul-2");
 
         let result = exports[6].ty();
         assert!(result.is_ok());
-        if let ExternalInstanceType::Func(_) = result.unwrap() {
-            assert!(true);
-        } else {
-            assert!(false);
-        }
+        matches!(result.unwrap(), ExternalInstanceType::Func(_));
         assert_eq!(exports[6].name(), "func-call-indirect");
 
         let result = exports[7].ty();
         assert!(result.is_ok());
-        if let ExternalInstanceType::Func(_) = result.unwrap() {
-            assert!(true);
-        } else {
-            assert!(false);
-        }
+        matches!(result.unwrap(), ExternalInstanceType::Func(_));
         assert_eq!(exports[7].name(), "func-host-add");
 
         let result = exports[8].ty();
         assert!(result.is_ok());
-        if let ExternalInstanceType::Func(_) = result.unwrap() {
-            assert!(true);
-        } else {
-            assert!(false);
-        }
+        matches!(result.unwrap(), ExternalInstanceType::Func(_));
         assert_eq!(exports[8].name(), "func-host-sub");
 
         let result = exports[9].ty();
         assert!(result.is_ok());
-        if let ExternalInstanceType::Func(_) = result.unwrap() {
-            assert!(true);
-        } else {
-            assert!(false);
-        }
+        matches!(result.unwrap(), ExternalInstanceType::Func(_));
         assert_eq!(exports[9].name(), "func-host-mul");
 
         let result = exports[10].ty();
         assert!(result.is_ok());
-        if let ExternalInstanceType::Func(_) = result.unwrap() {
-            assert!(true);
-        } else {
-            assert!(false);
-        }
+        matches!(result.unwrap(), ExternalInstanceType::Func(_));
         assert_eq!(exports[10].name(), "func-host-div");
 
         let result = exports[11].ty();
         assert!(result.is_ok());
-        if let ExternalInstanceType::Table(_) = result.unwrap() {
-            assert!(true);
-        } else {
-            assert!(false);
-        }
+        matches!(result.unwrap(), ExternalInstanceType::Table(_));
         assert_eq!(exports[11].name(), "tab-func");
 
         let result = exports[12].ty();
         assert!(result.is_ok());
-        if let ExternalInstanceType::Table(_) = result.unwrap() {
-            assert!(true);
-        } else {
-            assert!(false);
-        }
+        matches!(result.unwrap(), ExternalInstanceType::Table(_));
         assert_eq!(exports[12].name(), "tab-ext");
 
         let result = exports[13].ty();
         assert!(result.is_ok());
-        if let ExternalInstanceType::Memory(_) = result.unwrap() {
-            assert!(true);
-        } else {
-            assert!(false);
-        }
+        matches!(result.unwrap(), ExternalInstanceType::Memory(_));
         assert_eq!(exports[13].name(), "mem");
 
         let result = exports[14].ty();
         assert!(result.is_ok());
-        if let ExternalInstanceType::Global(_) = result.unwrap() {
-            assert!(true);
-        } else {
-            assert!(false);
-        }
+        matches!(result.unwrap(), ExternalInstanceType::Global(_));
         assert_eq!(exports[14].name(), "glob-mut-i32");
 
         let result = exports[15].ty();
         assert!(result.is_ok());
-        if let ExternalInstanceType::Global(_) = result.unwrap() {
-            assert!(true);
-        } else {
-            assert!(false);
-        }
+        matches!(result.unwrap(), ExternalInstanceType::Global(_));
         assert_eq!(exports[15].name(), "glob-const-f32");
 
         // check the function_type function
         let result = exports[4].ty();
         assert!(result.is_ok());
-        if let ExternalInstanceType::Func(func_ty) = result.unwrap() {
+        let ty = result.unwrap();
+        matches!(ty, ExternalInstanceType::Func(_));
+        if let ExternalInstanceType::Func(func_ty) = ty {
             assert_eq!(func_ty.args_len(), 2);
             assert_eq!(func_ty.returns_len(), 1);
-        } else {
-            assert!(false);
         }
 
         // check the table_type function
         let result = exports[12].ty();
         assert!(result.is_ok());
-        if let ExternalInstanceType::Table(table_ty) = result.unwrap() {
+        let ty = result.unwrap();
+        matches!(ty, ExternalInstanceType::Table(_));
+        if let ExternalInstanceType::Table(table_ty) = ty {
             assert_eq!(table_ty.elem_ty(), RefType::ExternRef);
             assert_eq!(table_ty.minimum(), 10);
             assert_eq!(table_ty.maximum(), 10);
-        } else {
-            assert!(false);
         }
 
         // check the memory_type function
         let result = exports[13].ty();
         assert!(result.is_ok());
-        if let ExternalInstanceType::Memory(mem_ty) = result.unwrap() {
+        let ty = result.unwrap();
+        matches!(ty, ExternalInstanceType::Memory(_));
+        if let ExternalInstanceType::Memory(mem_ty) = ty {
             assert_eq!(mem_ty.minimum(), 1);
             assert_eq!(mem_ty.maximum(), 3);
-        } else {
-            assert!(false);
         }
 
         // check the global_type function
         let result = exports[15].ty();
         assert!(result.is_ok());
-        if let ExternalInstanceType::Global(global_ty) = result.unwrap() {
+        let ty = result.unwrap();
+        matches!(ty, ExternalInstanceType::Global(_));
+        if let ExternalInstanceType::Global(global_ty) = ty {
             assert_eq!(global_ty.value_ty(), ValType::F32);
             assert_eq!(global_ty.mutability(), Mutability::Const);
-        } else {
-            assert!(false);
         }
     }
 
@@ -856,189 +737,125 @@ mod tests {
             // check the ty and name functions
             let result = exports[0].ty();
             assert!(result.is_ok());
-            if let ExternalInstanceType::Func(_) = result.unwrap() {
-                assert!(true);
-            } else {
-                assert!(false);
-            }
+            matches!(result.unwrap(), ExternalInstanceType::Func(_));
             assert_eq!(exports[0].name(), "func-1");
 
             let result = exports[1].ty();
             assert!(result.is_ok());
-            if let ExternalInstanceType::Func(_) = result.unwrap() {
-                assert!(true);
-            } else {
-                assert!(false);
-            }
+            matches!(result.unwrap(), ExternalInstanceType::Func(_));
             assert_eq!(exports[1].name(), "func-2");
 
             let result = exports[2].ty();
             assert!(result.is_ok());
-            if let ExternalInstanceType::Func(_) = result.unwrap() {
-                assert!(true);
-            } else {
-                assert!(false);
-            }
+            matches!(result.unwrap(), ExternalInstanceType::Func(_));
             assert_eq!(exports[2].name(), "func-3");
 
             let result = exports[3].ty();
             assert!(result.is_ok());
-            if let ExternalInstanceType::Func(_) = result.unwrap() {
-                assert!(true);
-            } else {
-                assert!(false);
-            }
+            matches!(result.unwrap(), ExternalInstanceType::Func(_));
             assert_eq!(exports[3].name(), "func-4");
 
             assert_eq!(module.count_of_exports(), 16);
 
             let result = exports[4].ty();
             assert!(result.is_ok());
-            if let ExternalInstanceType::Func(_) = result.unwrap() {
-                assert!(true);
-            } else {
-                assert!(false);
-            }
+            matches!(result.unwrap(), ExternalInstanceType::Func(_));
             assert_eq!(exports[4].name(), "func-add");
 
             let result = exports[5].ty();
             assert!(result.is_ok());
-            if let ExternalInstanceType::Func(_) = result.unwrap() {
-                assert!(true);
-            } else {
-                assert!(false);
-            }
+            matches!(result.unwrap(), ExternalInstanceType::Func(_));
             assert_eq!(exports[5].name(), "func-mul-2");
 
             let result = exports[6].ty();
             assert!(result.is_ok());
-            if let ExternalInstanceType::Func(_) = result.unwrap() {
-                assert!(true);
-            } else {
-                assert!(false);
-            }
+            matches!(result.unwrap(), ExternalInstanceType::Func(_));
             assert_eq!(exports[6].name(), "func-call-indirect");
 
             let result = exports[7].ty();
             assert!(result.is_ok());
-            if let ExternalInstanceType::Func(_) = result.unwrap() {
-                assert!(true);
-            } else {
-                assert!(false);
-            }
+            matches!(result.unwrap(), ExternalInstanceType::Func(_));
             assert_eq!(exports[7].name(), "func-host-add");
 
             let result = exports[8].ty();
             assert!(result.is_ok());
-            if let ExternalInstanceType::Func(_) = result.unwrap() {
-                assert!(true);
-            } else {
-                assert!(false);
-            }
+            matches!(result.unwrap(), ExternalInstanceType::Func(_));
             assert_eq!(exports[8].name(), "func-host-sub");
 
             let result = exports[9].ty();
             assert!(result.is_ok());
-            if let ExternalInstanceType::Func(_) = result.unwrap() {
-                assert!(true);
-            } else {
-                assert!(false);
-            }
+            matches!(result.unwrap(), ExternalInstanceType::Func(_));
             assert_eq!(exports[9].name(), "func-host-mul");
 
             let result = exports[10].ty();
             assert!(result.is_ok());
-            if let ExternalInstanceType::Func(_) = result.unwrap() {
-                assert!(true);
-            } else {
-                assert!(false);
-            }
+            matches!(result.unwrap(), ExternalInstanceType::Func(_));
             assert_eq!(exports[10].name(), "func-host-div");
 
             let result = exports[11].ty();
             assert!(result.is_ok());
-            if let ExternalInstanceType::Table(_) = result.unwrap() {
-                assert!(true);
-            } else {
-                assert!(false);
-            }
+            matches!(result.unwrap(), ExternalInstanceType::Table(_));
             assert_eq!(exports[11].name(), "tab-func");
 
             let result = exports[12].ty();
             assert!(result.is_ok());
-            if let ExternalInstanceType::Table(_) = result.unwrap() {
-                assert!(true);
-            } else {
-                assert!(false);
-            }
+            matches!(result.unwrap(), ExternalInstanceType::Table(_));
             assert_eq!(exports[12].name(), "tab-ext");
 
             let result = exports[13].ty();
             assert!(result.is_ok());
-            if let ExternalInstanceType::Memory(_) = result.unwrap() {
-                assert!(true);
-            } else {
-                assert!(false);
-            }
+            matches!(result.unwrap(), ExternalInstanceType::Memory(_));
             assert_eq!(exports[13].name(), "mem");
 
             let result = exports[14].ty();
             assert!(result.is_ok());
-            if let ExternalInstanceType::Global(_) = result.unwrap() {
-                assert!(true);
-            } else {
-                assert!(false);
-            }
+            matches!(result.unwrap(), ExternalInstanceType::Global(_));
             assert_eq!(exports[14].name(), "glob-mut-i32");
 
             let result = exports[15].ty();
             assert!(result.is_ok());
-            if let ExternalInstanceType::Global(_) = result.unwrap() {
-                assert!(true);
-            } else {
-                assert!(false);
-            }
+            matches!(result.unwrap(), ExternalInstanceType::Global(_));
             assert_eq!(exports[15].name(), "glob-const-f32");
 
             // check the function_type function
             let result = exports[4].ty();
             assert!(result.is_ok());
-            if let ExternalInstanceType::Func(func_ty) = result.unwrap() {
+            let ty = result.unwrap();
+            matches!(ty, ExternalInstanceType::Func(_));
+            if let ExternalInstanceType::Func(func_ty) = ty {
                 assert_eq!(func_ty.args_len(), 2);
                 assert_eq!(func_ty.returns_len(), 1);
-            } else {
-                assert!(false);
             }
 
             // check the table_type function
             let result = exports[12].ty();
             assert!(result.is_ok());
-            if let ExternalInstanceType::Table(table_ty) = result.unwrap() {
+            let ty = result.unwrap();
+            matches!(ty, ExternalInstanceType::Table(_));
+            if let ExternalInstanceType::Table(table_ty) = ty {
                 assert_eq!(table_ty.elem_ty(), RefType::ExternRef);
                 assert_eq!(table_ty.minimum(), 10);
                 assert_eq!(table_ty.maximum(), 10);
-            } else {
-                assert!(false);
             }
 
             // check the memory_type function
             let result = exports[13].ty();
             assert!(result.is_ok());
-            if let ExternalInstanceType::Memory(mem_ty) = result.unwrap() {
+            let ty = result.unwrap();
+            matches!(ty, ExternalInstanceType::Memory(_));
+            if let ExternalInstanceType::Memory(mem_ty) = ty {
                 assert_eq!(mem_ty.minimum(), 1);
                 assert_eq!(mem_ty.maximum(), 3);
-            } else {
-                assert!(false);
             }
 
             // check the global_type function
             let result = exports[15].ty();
             assert!(result.is_ok());
-            if let ExternalInstanceType::Global(global_ty) = result.unwrap() {
+            let ty = result.unwrap();
+            matches!(ty, ExternalInstanceType::Global(_));
+            if let ExternalInstanceType::Global(global_ty) = ty {
                 assert_eq!(global_ty.value_ty(), ValType::F32);
                 assert_eq!(global_ty.mutability(), Mutability::Const);
-            } else {
-                assert!(false);
             }
         });
 
@@ -1078,189 +895,126 @@ mod tests {
             // check the ty and name functions
             let result = exports[0].ty();
             assert!(result.is_ok());
-            if let ExternalInstanceType::Func(_) = result.unwrap() {
-                assert!(true);
-            } else {
-                assert!(false);
-            }
+            matches!(result.unwrap(), ExternalInstanceType::Func(_));
             assert_eq!(exports[0].name(), "func-1");
 
             let result = exports[1].ty();
             assert!(result.is_ok());
-            if let ExternalInstanceType::Func(_) = result.unwrap() {
-                assert!(true);
-            } else {
-                assert!(false);
-            }
+            matches!(result.unwrap(), ExternalInstanceType::Func(_));
             assert_eq!(exports[1].name(), "func-2");
 
             let result = exports[2].ty();
             assert!(result.is_ok());
-            if let ExternalInstanceType::Func(_) = result.unwrap() {
-                assert!(true);
-            } else {
-                assert!(false);
-            }
+            matches!(result.unwrap(), ExternalInstanceType::Func(_));
             assert_eq!(exports[2].name(), "func-3");
 
             let result = exports[3].ty();
             assert!(result.is_ok());
-            if let ExternalInstanceType::Func(_) = result.unwrap() {
-                assert!(true);
-            } else {
-                assert!(false);
-            }
+            matches!(result.unwrap(), ExternalInstanceType::Func(_));
             assert_eq!(exports[3].name(), "func-4");
 
             assert_eq!(module.count_of_exports(), 16);
 
             let result = exports[4].ty();
             assert!(result.is_ok());
-            if let ExternalInstanceType::Func(_) = result.unwrap() {
-                assert!(true);
-            } else {
-                assert!(false);
-            }
+            matches!(result.unwrap(), ExternalInstanceType::Func(_));
             assert_eq!(exports[4].name(), "func-add");
 
             let result = exports[5].ty();
             assert!(result.is_ok());
-            if let ExternalInstanceType::Func(_) = result.unwrap() {
-                assert!(true);
-            } else {
-                assert!(false);
-            }
+            matches!(result.unwrap(), ExternalInstanceType::Func(_));
             assert_eq!(exports[5].name(), "func-mul-2");
 
             let result = exports[6].ty();
             assert!(result.is_ok());
-            if let ExternalInstanceType::Func(_) = result.unwrap() {
-                assert!(true);
-            } else {
-                assert!(false);
-            }
+            matches!(result.unwrap(), ExternalInstanceType::Func(_));
             assert_eq!(exports[6].name(), "func-call-indirect");
 
             let result = exports[7].ty();
             assert!(result.is_ok());
-            if let ExternalInstanceType::Func(_) = result.unwrap() {
-                assert!(true);
-            } else {
-                assert!(false);
-            }
+            matches!(result.unwrap(), ExternalInstanceType::Func(_));
             assert_eq!(exports[7].name(), "func-host-add");
 
             let result = exports[8].ty();
             assert!(result.is_ok());
-            if let ExternalInstanceType::Func(_) = result.unwrap() {
-                assert!(true);
-            } else {
-                assert!(false);
-            }
+            matches!(result.unwrap(), ExternalInstanceType::Func(_));
             assert_eq!(exports[8].name(), "func-host-sub");
 
             let result = exports[9].ty();
             assert!(result.is_ok());
-            if let ExternalInstanceType::Func(_) = result.unwrap() {
-                assert!(true);
-            } else {
-                assert!(false);
-            }
+            matches!(result.unwrap(), ExternalInstanceType::Func(_));
             assert_eq!(exports[9].name(), "func-host-mul");
 
             let result = exports[10].ty();
             assert!(result.is_ok());
-            if let ExternalInstanceType::Func(_) = result.unwrap() {
-                assert!(true);
-            } else {
-                assert!(false);
-            }
+            matches!(result.unwrap(), ExternalInstanceType::Func(_));
             assert_eq!(exports[10].name(), "func-host-div");
 
             let result = exports[11].ty();
             assert!(result.is_ok());
-            if let ExternalInstanceType::Table(_) = result.unwrap() {
-                assert!(true);
-            } else {
-                assert!(false);
-            }
+            matches!(result.unwrap(), ExternalInstanceType::Table(_));
             assert_eq!(exports[11].name(), "tab-func");
 
             let result = exports[12].ty();
             assert!(result.is_ok());
-            if let ExternalInstanceType::Table(_) = result.unwrap() {
-                assert!(true);
-            } else {
-                assert!(false);
-            }
+            matches!(result.unwrap(), ExternalInstanceType::Table(_));
             assert_eq!(exports[12].name(), "tab-ext");
 
             let result = exports[13].ty();
             assert!(result.is_ok());
-            if let ExternalInstanceType::Memory(_) = result.unwrap() {
-                assert!(true);
-            } else {
-                assert!(false);
-            }
+            matches!(result.unwrap(), ExternalInstanceType::Memory(_));
             assert_eq!(exports[13].name(), "mem");
 
             let result = exports[14].ty();
             assert!(result.is_ok());
-            if let ExternalInstanceType::Global(_) = result.unwrap() {
-                assert!(true);
-            } else {
-                assert!(false);
-            }
+            matches!(result.unwrap(), ExternalInstanceType::Global(_));
             assert_eq!(exports[14].name(), "glob-mut-i32");
 
             let result = exports[15].ty();
             assert!(result.is_ok());
-            if let ExternalInstanceType::Global(_) = result.unwrap() {
-                assert!(true);
-            } else {
-                assert!(false);
-            }
+            let ty = result.unwrap();
+            matches!(ty, ExternalInstanceType::Global(_));
             assert_eq!(exports[15].name(), "glob-const-f32");
 
             // check the function_type function
             let result = exports[4].ty();
             assert!(result.is_ok());
-            if let ExternalInstanceType::Func(func_ty) = result.unwrap() {
+            let ty = result.unwrap();
+            matches!(ty, ExternalInstanceType::Func(_));
+            if let ExternalInstanceType::Func(func_ty) = ty {
                 assert_eq!(func_ty.args_len(), 2);
                 assert_eq!(func_ty.returns_len(), 1);
-            } else {
-                assert!(false);
             }
 
             // check the table_type function
             let result = exports[12].ty();
             assert!(result.is_ok());
-            if let ExternalInstanceType::Table(table_ty) = result.unwrap() {
+            let ty = result.unwrap();
+            matches!(ty, ExternalInstanceType::Table(_));
+            if let ExternalInstanceType::Table(table_ty) = ty {
                 assert_eq!(table_ty.elem_ty(), RefType::ExternRef);
                 assert_eq!(table_ty.minimum(), 10);
                 assert_eq!(table_ty.maximum(), 10);
-            } else {
-                assert!(false);
             }
 
             // check the memory_type function
             let result = exports[13].ty();
             assert!(result.is_ok());
-            if let ExternalInstanceType::Memory(mem_ty) = result.unwrap() {
+            let ty = result.unwrap();
+            matches!(ty, ExternalInstanceType::Memory(_));
+            if let ExternalInstanceType::Memory(mem_ty) = ty {
                 assert_eq!(mem_ty.minimum(), 1);
                 assert_eq!(mem_ty.maximum(), 3);
-            } else {
-                assert!(false);
             }
 
             // check the global_type function
             let result = exports[15].ty();
             assert!(result.is_ok());
-            if let ExternalInstanceType::Global(global_ty) = result.unwrap() {
+            let ty = result.unwrap();
+            matches!(ty, ExternalInstanceType::Global(_));
+            if let ExternalInstanceType::Global(global_ty) = ty {
                 assert_eq!(global_ty.value_ty(), ValType::F32);
                 assert_eq!(global_ty.mutability(), Mutability::Const);
-            } else {
-                assert!(false);
             }
         });
 

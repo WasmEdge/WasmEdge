@@ -18,7 +18,6 @@ use std::{
     collections::HashMap,
     sync::{Arc, Mutex},
 };
-use wasmedge_types;
 
 #[doc(hidden)]
 #[allow(warnings)]

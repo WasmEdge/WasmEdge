@@ -2,10 +2,10 @@
 
 use crate::{
     ffi::{WasmEdge_Result, WasmEdge_ResultGetCode, WasmEdge_ResultOK},
-    wasmedge_types::ExternalInstanceType,
     WasmEdgeResult,
 };
 use thiserror::Error;
+use wasmedge_types::ExternalInstanceType;
 
 /// Defines the errors raised by the wasmedge-sys crate.
 #[derive(Error, Clone, Debug, PartialEq)]

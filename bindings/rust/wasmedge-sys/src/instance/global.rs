@@ -156,14 +156,14 @@ impl Drop for GlobalType {
 }
 impl From<wasmedge_types::GlobalType> for GlobalType {
     fn from(ty: wasmedge_types::GlobalType) -> Self {
-        GlobalType::create(ty.value_ty().into(), ty.mutability()).expect(
+        GlobalType::create(ty.value_ty(), ty.mutability()).expect(
             "[wasmedge-sys] Failed to convert wasmedge_types::GlobalType into wasmedge_sys::GlobalType.",
         )
     }
 }
 impl From<GlobalType> for wasmedge_types::GlobalType {
     fn from(ty: GlobalType) -> Self {
-        wasmedge_types::GlobalType::new(ty.value_type().into(), ty.mutability())
+        wasmedge_types::GlobalType::new(ty.value_type(), ty.mutability())
     }
 }
 

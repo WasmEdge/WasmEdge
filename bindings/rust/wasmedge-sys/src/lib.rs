@@ -47,7 +47,8 @@
 //!              )
 //!             )
 //!            )
-//!         "#)?;
+//! "#,
+//!     )?;
 //!
 //!     // create a Vm instance
 //!     let mut vm = Vm::create(None, None)?;
@@ -58,20 +59,21 @@
 //!
 //!     // run the exported function named "fib"
 //!     let func_name = "fib";
-//!     let result = vm.run_registered_function(module_name, func_name, //! [WasmValue::from_i32(5)])?;
+//!     let result = vm.run_registered_function(module_name, func_name, [WasmValue::from_i32(5)])?;
 //!
 //!     assert_eq!(result.len(), 1);
 //!     assert_eq!(result[0].to_i32(), 8);
 //!
 //!     Ok(())
 //! }
-//!
 //! ```
+//! [[Click for more examples]](https://github.com/WasmEdge/WasmEdge/tree/master/bindings/rust/wasmedge-sys/examples)
 //!
 //! ## See also
 //!
 //! - [WasmEdge Runtime](https://wasmedge.org/)
 //! - [WasmEdge C API Documentation](https://github.com/WasmEdge/WasmEdge/blob/master/docs/c_api.md)
+//!
 
 #![deny(rust_2018_idioms, unreachable_pub)]
 

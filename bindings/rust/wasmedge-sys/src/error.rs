@@ -117,7 +117,7 @@ pub enum TableError {
     Type,
 }
 
-/// Defines the errors raised from [Import](crate::Import).
+/// Defines the errors raised from [ImportType](crate::ImportType).
 #[derive(Error, Clone, Debug, PartialEq)]
 pub enum ImportError {
     #[error("The expected Import type is {expected:?}, but found {actual:?}")]
@@ -135,7 +135,7 @@ pub enum ImportError {
     GlobalType(String),
 }
 
-/// Defines the errors raised from [Export](crate::Export).
+/// Defines the errors raised from [ExportType](crate::ExportType).
 #[derive(Error, Clone, Debug, PartialEq)]
 pub enum ExportError {
     #[error("The expected Export type is {expected:?}, but found {actual:?}")]

@@ -24,8 +24,8 @@ TEST_F(WasiCryptoTest, NotImplement) {
   WASI_CRYPTO_EXPECT_FAILURE(symmetricKeyFromId(1, {}, 1),
                              __WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
 
-  EXPECT_EQ(keypairGenerateManaged(1, __WASI_ALGORITHM_TYPE_SIGNATURES, "foo"sv,
-                                   std::nullopt)
+  EXPECT_EQ(keypairGenerateManaged(1, __WASI_ALGORITHM_TYPE_SIGNATURES,
+                                   "Ed25519"sv, std::nullopt)
                 .error(),
             __WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
   WASI_CRYPTO_EXPECT_FAILURE(keypairStoreManaged(1, 1, {}),

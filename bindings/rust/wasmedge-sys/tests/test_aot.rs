@@ -1,5 +1,8 @@
 #[cfg(feature = "aot")]
-use wasmedge_sys::{Compiler, Config, FuncType, Function, ImportObject, Vm, WasmValue};
+use wasmedge_sys::{
+    AddImportInstance, Compiler, Config, FuncType, Function, ImportModule, ImportObject, Vm,
+    WasmValue,
+};
 use wasmedge_types::{CompilerOptimizationLevel, CompilerOutputFormat};
 
 #[cfg(feature = "aot")]
@@ -21,8 +24,8 @@ fn test_aot() {
     let result = Vm::create(Some(config), None);
     assert!(result.is_ok());
     let mut vm = result.unwrap();
-    let import_obj = create_spec_test_module();
-    let result = vm.register_wasm_from_import(import_obj);
+    let import = create_spec_test_module();
+    let result = vm.register_wasm_from_import(ImportObject::Import(import));
     assert!(result.is_ok());
 
     // set the AOT compiler options
@@ -48,9 +51,6 @@ fn test_aot() {
     {
         // register the wasm module from the generated wasm file
         let result = vm.register_wasm_from_file("extern", &out_path);
-        assert!(result.is_ok());
-
-        let result = vm.contains_reg_func_name("extern", "fib");
         assert!(result.is_ok());
 
         let result = vm.run_registered_function("extern", "fib", [WasmValue::from_i32(5)]);
@@ -79,11 +79,11 @@ fn test_aot() {
     assert!(std::fs::remove_file(&out_path).is_ok());
 }
 
-fn create_spec_test_module() -> ImportObject {
+fn create_spec_test_module() -> ImportModule {
     // create an ImportObj module
-    let result = ImportObject::create("spectest");
+    let result = ImportModule::create("spectest");
     assert!(result.is_ok());
-    let mut import_obj = result.unwrap();
+    let mut import = result.unwrap();
 
     // create a host function
     let result = FuncType::create([], []);
@@ -93,8 +93,8 @@ fn create_spec_test_module() -> ImportObject {
     assert!(result.is_ok());
     let host_func = result.unwrap();
     // add host function "print"
-    import_obj.add_func("print", host_func);
-    import_obj
+    import.add_func("print", host_func);
+    import
 }
 
 fn spec_test_print(_inputs: Vec<WasmValue>) -> Result<Vec<WasmValue>, u8> {

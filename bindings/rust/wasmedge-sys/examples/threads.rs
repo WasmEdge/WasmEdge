@@ -9,6 +9,7 @@ use std::{
 };
 use wasmedge_sys::{error::WasmEdgeError, Config, Store, Vm, WasmValue};
 
+#[cfg_attr(test, test)]
 fn main() -> Result<(), WasmEdgeError> {
     // create a Config context
     let mut config = Config::create()?;
@@ -30,7 +31,7 @@ fn main() -> Result<(), WasmEdgeError> {
     // compute fib(4) by a child thread
     let vm_cloned = Arc::clone(&vm);
     let handle_a = thread::spawn(move || {
-        let vm_child_thread = vm_cloned.lock().expect("fail to lock vm");
+        let mut vm_child_thread = vm_cloned.lock().expect("fail to lock vm");
         let returns = vm_child_thread
             .run_registered_function("extern", "fib", [WasmValue::from_i32(4)])
             .expect("fail to compute fib(4)");
@@ -44,7 +45,7 @@ fn main() -> Result<(), WasmEdgeError> {
     // compute fib(5) by a child thread
     let vm_cloned = Arc::clone(&vm);
     let handle_b = thread::spawn(move || {
-        let vm_child_thread = vm_cloned.lock().expect("fail to lock vm");
+        let mut vm_child_thread = vm_cloned.lock().expect("fail to lock vm");
         let returns = vm_child_thread
             .run_registered_function("extern", "fib", [WasmValue::from_i32(5)])
             .expect("fail to compute fib(5)");

@@ -16,7 +16,7 @@ use crate::{
 /// A module instance is usually returned via one of the following APIs:
 ///
 /// * [Executor](crate::Executor)
-///     * [Executor::register_named_module](crate::Executor::register_named_module)
+///     * [Executor::register_named_module](crate::Executor::register_named_module) ([example](https://github.com/WasmEdge/WasmEdge/tree/master/bindings/rust/wasmedge-sys/examples/executor_register_named_module.rs))
 ///     * [Executor::register_active_module](crate::Executor::register_active_module)
 /// * [Vm](crate::Vm)
 ///     * [Vm::active_module](crate::Vm::active_module)

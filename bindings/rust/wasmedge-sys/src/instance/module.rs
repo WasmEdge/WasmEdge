@@ -289,6 +289,7 @@ unsafe impl Sync for InnerInstance {}
 pub struct ImportModule {
     pub(crate) inner: InnerInstance,
     pub(crate) registered: bool,
+    name: String,
 }
 impl Drop for ImportModule {
     fn drop(&mut self) {
@@ -301,14 +302,15 @@ impl Drop for ImportModule {
 }
 impl ImportModule {
     pub fn create(name: impl AsRef<str>) -> WasmEdgeResult<Self> {
-        let name = WasmEdgeString::from(name.as_ref());
-        let ctx = unsafe { ffi::WasmEdge_ModuleInstanceCreate(name.as_raw()) };
+        let raw_name = WasmEdgeString::from(name.as_ref());
+        let ctx = unsafe { ffi::WasmEdge_ModuleInstanceCreate(raw_name.as_raw()) };
 
         match ctx.is_null() {
             true => Err(WasmEdgeError::Instance(InstanceError::CreateImportModule)),
             false => Ok(Self {
                 inner: InnerInstance(ctx),
                 registered: false,
+                name: name.as_ref().to_string(),
             }),
         }
     }
@@ -316,18 +318,11 @@ impl ImportModule {
     /// Returns the name of this exported [module instance](crate::Instance).
     ///
     /// If this module [instance](crate::Instance) is an active [instance](crate::Instance), return None.
-    pub fn name(&self) -> Option<String> {
-        let name = unsafe { ffi::WasmEdge_ModuleInstanceGetModuleName(self.inner.0 as *const _) };
-
-        let name: String = name.into();
-        if name.is_empty() {
-            return None;
-        }
-
-        Some(name)
+    pub fn name(&self) -> String {
+        self.name.to_owned()
     }
 }
-impl AddInstance for ImportModule {
+impl AddImportInstance for ImportModule {
     /// Adds a [host function](crate::Function) into the host module.
     ///
     /// # Arguments
@@ -421,7 +416,7 @@ impl WasiModule {
     /// # Error
     ///
     /// If fail to create a host module, then an error is returned.
-    pub fn create_wasi(
+    pub fn create(
         args: Option<Vec<&str>>,
         envs: Option<Vec<&str>>,
         preopens: Option<Vec<&str>>,
@@ -464,6 +459,10 @@ impl WasiModule {
                 registered: false,
             }),
         }
+    }
+
+    pub fn name(&self) -> String {
+        String::from("wasi_snapshot_preview1")
     }
 
     /// Initializes the WASI host module with the given parameters.
@@ -522,7 +521,7 @@ impl WasiModule {
         unsafe { ffi::WasmEdge_ModuleInstanceWASIGetExitCode(self.inner.0 as *const _) }
     }
 }
-impl AddInstance for WasiModule {
+impl AddImportInstance for WasiModule {
     /// Adds a [host function](crate::Function) into the host module.
     ///
     /// # Arguments
@@ -615,10 +614,7 @@ impl WasmEdgeProcessModule {
     /// # Error
     ///
     /// If fail to create a wasmedge_process host module, then an error is returned.
-    pub fn create_wasmedge_process(
-        allowed_cmds: Option<Vec<&str>>,
-        allowed: bool,
-    ) -> WasmEdgeResult<Self> {
+    pub fn create(allowed_cmds: Option<Vec<&str>>, allowed: bool) -> WasmEdgeResult<Self> {
         let cmds = match allowed_cmds {
             Some(cmds) => cmds.iter().map(string_to_c_char).collect::<Vec<_>>(),
             None => vec![],
@@ -639,6 +635,10 @@ impl WasmEdgeProcessModule {
                 registered: false,
             }),
         }
+    }
+
+    pub fn name(&self) -> String {
+        String::from("wasmedge_process")
     }
 
     /// Initializes the wasmedge_process host module with the parameters.
@@ -665,7 +665,7 @@ impl WasmEdgeProcessModule {
         }
     }
 }
-impl AddInstance for WasmEdgeProcessModule {
+impl AddImportInstance for WasmEdgeProcessModule {
     /// Adds a [host function](crate::Function) into the host module.
     ///
     /// # Arguments
@@ -731,7 +731,7 @@ impl AddInstance for WasmEdgeProcessModule {
     }
 }
 
-pub trait AddInstance {
+pub trait AddImportInstance {
     /// Adds a [host function](crate::Function) into the host module.
     ///
     /// # Arguments
@@ -767,6 +767,22 @@ pub trait AddInstance {
     ///
     /// `global` specifies the exported global instance to add.
     fn add_global(&mut self, name: impl AsRef<str>, global: Global);
+}
+
+#[derive(Debug)]
+pub enum ImportObject {
+    Import(ImportModule),
+    Wasi(WasiModule),
+    WasmEdgeProcess(WasmEdgeProcessModule),
+}
+impl ImportObject {
+    pub fn name(&self) -> String {
+        match self {
+            ImportObject::Import(import) => import.name(),
+            ImportObject::Wasi(wasi) => wasi.name(),
+            ImportObject::WasmEdgeProcess(wasmedge_process) => wasmedge_process.name(),
+        }
+    }
 }
 
 #[cfg(test)]
@@ -1013,7 +1029,7 @@ mod tests {
         assert!(result.is_ok());
         let mut vm = result.unwrap();
 
-        let result = vm.register_wasm_from_import(import);
+        let result = vm.register_wasm_from_import(ImportObject::Import(import));
         assert!(result.is_ok());
 
         vm

@@ -236,6 +236,8 @@ pub enum VmError {
     NotFoundExecutor,
     #[error("Try to register an invalid import module")]
     InvalidImportModule,
+    #[error("Not found active module instance")]
+    NotFoundActiveModule,
 }
 
 /// Defines the errors raised from WasmEdge Core.

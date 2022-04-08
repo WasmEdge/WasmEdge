@@ -79,7 +79,7 @@ impl Loader {
         }
     }
 
-    /// Loads a WASM module from a buffer.
+    /// Loads a WASM module from a in-memory bytes.
     ///
     /// # Arguments
     ///
@@ -101,7 +101,7 @@ impl Loader {
     /// ```ignore
     /// assert!(loader.from_buffer(b"(module)").is_err());
     /// ```
-    pub fn from_buffer(&self, buffer: impl AsRef<[u8]>) -> WasmEdgeResult<Module> {
+    pub fn from_bytes(&self, buffer: impl AsRef<[u8]>) -> WasmEdgeResult<Module> {
         let mut mod_ctx: *mut ffi::WasmEdge_ASTModuleContext = std::ptr::null_mut();
 
         unsafe {
@@ -205,13 +205,13 @@ mod tests {
         // load from buffer
         {
             let buffer = b"\0asm\x01\0\0\0";
-            let result = loader.from_buffer(&buffer);
+            let result = loader.from_bytes(&buffer);
             assert!(result.is_ok());
             let module = result.unwrap();
             assert!(!module.inner.0.is_null());
 
             // the text format is not accepted
-            let result = loader.from_buffer(b"(module)");
+            let result = loader.from_bytes(b"(module)");
             assert!(result.is_err());
             assert_eq!(
                 result.unwrap_err(),
@@ -219,7 +219,7 @@ mod tests {
             );
 
             // empty is not accepted
-            let result = loader.from_buffer(&[]);
+            let result = loader.from_bytes(&[]);
             assert!(result.is_err());
             assert_eq!(
                 result.unwrap_err(),

@@ -82,7 +82,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // load wasm from binary
     let loader = Loader::create(Some(config))?;
-    let module = loader.from_buffer(&wasm_binary)?;
+    let module = loader.from_bytes(&wasm_binary)?;
 
     // create a Vm context
     let config = Config::create().expect("fail to create Config instance");

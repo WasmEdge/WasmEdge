@@ -1,7 +1,7 @@
 mod common;
 use wasmedge_sys::{
-    error::{CoreError, CoreExecutionError, StoreError, WasmEdgeError},
-    Config, Executor, Loader, Statistics, Store, Validator, WasmValue,
+    error::{CoreError, CoreExecutionError, InstanceError, StoreError, WasmEdgeError},
+    Config, Executor, ImportObject, Loader, Statistics, Store, Validator, WasmValue,
 };
 
 #[warn(unused_assignments)]
@@ -33,7 +33,7 @@ fn test_executor_with_statistics() {
     let mut executor = result.unwrap();
 
     // create an ImportObj module
-    let import_obj = common::create_extern_module("extern");
+    let import = common::create_extern_module("extern");
 
     // create a Store context
     let result = Store::create();
@@ -41,7 +41,8 @@ fn test_executor_with_statistics() {
     let mut store = result.unwrap();
 
     // register the import_obj module into the store context
-    let result = executor.register_import_object(&mut store, &import_obj);
+    let import = ImportObject::Import(import);
+    let result = executor.register_import_object(&mut store, &import);
     assert!(result.is_ok());
 
     // load module from a wasm file
@@ -94,31 +95,35 @@ fn test_executor_with_statistics() {
     let result = validator.validate(&module);
     assert!(result.is_ok());
 
-    // instantiate wasm module
+    // register a wasm module as an active module
     let result = executor.register_active_module(&mut store, &module);
     assert!(result.is_ok());
+    let active_instance = result.unwrap();
 
-    // invoke the registered function in the module
-    let result = executor.run_func(
-        &mut store,
-        "func-mul-2",
+    // get the exported functions from the active module
+    let result = active_instance.get_func("func-mul-2");
+    assert!(result.is_ok());
+    let func_mul_2 = result.unwrap();
+    let result = executor.run(
+        &func_mul_2,
         [WasmValue::from_i32(123), WasmValue::from_i32(456)],
     );
     assert!(result.is_ok());
     let returns = result.unwrap();
     let returns = returns.iter().map(|x| x.to_i32()).collect::<Vec<_>>();
     assert_eq!(returns, vec![246, 912]);
+
     // function type mismatched
-    let result = executor.run_func(&mut store, "func-mul-2", []);
+    let result = executor.run(&func_mul_2, []);
     assert!(result.is_err());
     assert_eq!(
         result.unwrap_err(),
         WasmEdgeError::Core(CoreError::Execution(CoreExecutionError::FuncTypeMismatch))
     );
+
     // function type mismatched
-    let result = executor.run_func(
-        &mut store,
-        "func-mul-2",
+    let result = executor.run(
+        &func_mul_2,
         [WasmValue::from_i64(123), WasmValue::from_i32(456)],
     );
     assert!(result.is_err());
@@ -126,20 +131,17 @@ fn test_executor_with_statistics() {
         result.unwrap_err(),
         WasmEdgeError::Core(CoreError::Execution(CoreExecutionError::FuncTypeMismatch))
     );
-    // function not found
-    let result = executor.run_func(
-        &mut store,
-        "func-mul-3",
-        [WasmValue::from_i32(123), WasmValue::from_i32(456)],
-    );
+
+    // try to get non-existent exported function
+    let result = active_instance.get_func("func-mul-3");
     assert!(result.is_err());
     assert_eq!(
         result.unwrap_err(),
-        WasmEdgeError::Store(StoreError::NotFoundFunc("func-mul-3".into()))
+        WasmEdgeError::Instance(InstanceError::NotFoundFunc("func-mul-3".into()))
     );
 
     // call host function by using external reference
-    let result = store.find_table("tab-ext");
+    let result = active_instance.get_table("tab-ext");
     assert!(result.is_ok());
     let mut table = result.unwrap();
 
@@ -156,40 +158,63 @@ fn test_executor_with_statistics() {
     let result = table.set_data(data, 3);
     assert!(result.is_ok());
 
+    // get the exported host function named "func-host-add"
+    let result = active_instance.get_func("func-host-add");
+    assert!(result.is_ok());
+    let func_host_add = result.unwrap();
     // Call add: (777) + (223)
     test_value = 777;
-    let result = executor.run_func(&mut store, "func-host-add", [WasmValue::from_i32(223)]);
+    let result = executor.run(&func_host_add, [WasmValue::from_i32(223)]);
     assert!(result.is_ok());
     let returns = result.unwrap();
     assert_eq!(returns[0].to_i32(), 1000);
 
+    // get the exported host function named "func-host-add"
+    let result = active_instance.get_func("func-host-sub");
+    assert!(result.is_ok());
+    let func_host_sub = result.unwrap();
     // Call sub: (123) - (456)
     test_value = 123;
-    let result = executor.run_func(&mut store, "func-host-sub", [WasmValue::from_i32(456)]);
+    let result = executor.run(&func_host_sub, [WasmValue::from_i32(456)]);
     assert!(result.is_ok());
     let returns = result.unwrap();
     assert_eq!(returns[0].to_i32(), -333);
 
+    // get the exported host function named "func-host-add"
+    let result = active_instance.get_func("func-host-mul");
+    assert!(result.is_ok());
+    let func_host_mul = result.unwrap();
     // Call mul: (-30) * (-66)
     test_value = -30i32 as u32;
-    let result = executor.run_func(&mut store, "func-host-mul", [WasmValue::from_i32(-66)]);
+    let result = executor.run(&func_host_mul, [WasmValue::from_i32(-66)]);
     assert!(result.is_ok());
     let returns = result.unwrap();
     assert_eq!(returns[0].to_i32(), 1980);
 
+    // get the exported host function named "func-host-add"
+    let result = active_instance.get_func("func-host-div");
+    assert!(result.is_ok());
+    let func_host_div = result.unwrap();
     // Call div: (-9999) / (1234)
     test_value = -9999i32 as u32;
-    let result = executor.run_func(&mut store, "func-host-div", [WasmValue::from_i32(1234)]);
+    let result = executor.run(&func_host_div, [WasmValue::from_i32(1234)]);
     assert!(result.is_ok());
     let returns = result.unwrap();
     assert_eq!(returns[0].to_i32(), -8);
 
+    // get the module instance named "extern"
+    let result = store.module("extern");
+    assert!(result.is_ok());
+    let extern_instance = result.unwrap();
+
+    // get the exported host function named "func-add"
+    let result = extern_instance.get_func("func-add");
+    assert!(result.is_ok());
+    let func_add = result.unwrap();
     // Invoke the functions in the registered module
     test_value = 5000;
-    let result = executor.run_func_registered(
-        &mut store,
-        "extern",
-        "func-add",
+    let result = executor.run(
+        &func_add,
         [
             WasmValue::from_extern_ref(&mut test_value),
             WasmValue::from_i32(1500),
@@ -199,17 +224,15 @@ fn test_executor_with_statistics() {
     let returns = result.unwrap();
     assert_eq!(returns[0].to_i32(), 6500);
     // Function type mismatch
-    let result = executor.run_func_registered(&mut store, "extern", "func-add", []);
+    let result = executor.run(&func_add, []);
     assert!(result.is_err());
     assert_eq!(
         result.unwrap_err(),
         WasmEdgeError::Core(CoreError::Execution(CoreExecutionError::FuncTypeMismatch))
     );
     // Function type mismatch
-    let result = executor.run_func_registered(
-        &mut store,
-        "extern",
-        "func-add",
+    let result = executor.run(
+        &func_add,
         [
             WasmValue::from_extern_ref(&mut test_value),
             WasmValue::from_i64(1500),
@@ -221,45 +244,36 @@ fn test_executor_with_statistics() {
         WasmEdgeError::Core(CoreError::Execution(CoreExecutionError::FuncTypeMismatch))
     );
     // Module not found
-    let result = executor.run_func_registered(
-        &mut store,
-        "error-name",
-        "func-add",
-        [
-            WasmValue::from_extern_ref(&mut test_value),
-            WasmValue::from_i32(1500),
-        ],
-    );
+    let result = store.module("error-name");
     assert!(result.is_err());
     assert_eq!(
         result.unwrap_err(),
         WasmEdgeError::Store(StoreError::NotFoundModule("error-name".into()))
     );
     // Function not found
-    let result = executor.run_func_registered(
-        &mut store,
-        "extern",
-        "func-add2",
-        [
-            WasmValue::from_extern_ref(&mut test_value),
-            WasmValue::from_i32(1500),
-        ],
-    );
+    let result = extern_instance.get_func("func-add2");
     assert!(result.is_err());
     assert_eq!(
         result.unwrap_err(),
-        WasmEdgeError::Store(StoreError::NotFoundFuncRegistered {
-            func_name: "func-add2".into(),
-            mod_name: "extern".into(),
-        })
+        WasmEdgeError::Instance(InstanceError::NotFoundFunc("func-add2".into()))
     );
 
-    // Invoke host function to terminate or fail execution
-    let result = executor.run_func_registered(&mut store, "extern", "func-term", []);
+    // get the exported host function named "func-term"
+    let result = extern_instance.get_func("func-term");
+    assert!(result.is_ok());
+    let func_term = result.unwrap();
+    // Invoke host function to terminate execution
+    let result = executor.run(&func_term, []);
     assert!(result.is_ok());
     let returns = result.unwrap();
     assert_eq!(returns[0].to_i32(), 1234);
-    let result = executor.run_func_registered(&mut store, "extern", "func-fail", []);
+
+    // get the exported host function named "func-term"
+    let result = extern_instance.get_func("func-fail");
+    assert!(result.is_ok());
+    let func_fail = result.unwrap();
+    // Invoke host function to fail execution
+    let result = executor.run(&func_fail, []);
     assert!(result.is_err());
     assert_eq!(
         result.unwrap_err(),

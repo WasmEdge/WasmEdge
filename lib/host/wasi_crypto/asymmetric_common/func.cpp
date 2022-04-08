@@ -23,15 +23,15 @@ KeypairGenerate::body(Runtime::Instance::MemoryInstance *MemInst,
   auto *const Alg = MemInst->getPointer<const char *>(AlgPtr, WasiAlgLen);
   checkExist(Alg);
 
-  AsymmetricCommon::Algorithm WasiAlgType;
+  AsymmetricCommon::Algorithm WasiAlg;
   if (auto Res = cast<__wasi_algorithm_type_e_t>(AlgType).and_then(
-          [Alg, WasiAlgLen](auto AlgType) {
-            return tryFrom(AlgType, {Alg, WasiAlgLen});
+          [Alg, WasiAlgLen](auto WasiAlgType) {
+            return tryFrom(WasiAlgType, {Alg, WasiAlgLen});
           });
       unlikely(!Res)) {
     return Res.error();
   } else {
-    WasiAlgType = Res.value();
+    WasiAlg = Res.value();
   }
 
   auto *const OptOptionsHandle =
@@ -41,7 +41,7 @@ KeypairGenerate::body(Runtime::Instance::MemoryInstance *MemInst,
   auto *const KpHandle = MemInst->getPointer<__wasi_keypair_t *>(KpHandlePtr);
   checkExist(KpHandle);
 
-  if (auto Res = Ctx.keypairGenerate(WasiAlgType, *OptOptionsHandle);
+  if (auto Res = Ctx.keypairGenerate(WasiAlg, *OptOptionsHandle);
       unlikely(!Res)) {
     return Res.error();
   } else {
@@ -62,15 +62,15 @@ Expect<uint32_t> KeypairImport::body(Runtime::Instance::MemoryInstance *MemInst,
   auto *const Alg = MemInst->getPointer<const char *>(AlgPtr, WasiAlgLen);
   checkExist(Alg);
 
-  AsymmetricCommon::Algorithm WasiAlgType;
+  AsymmetricCommon::Algorithm WasiAlg;
   if (auto Res = cast<__wasi_algorithm_type_e_t>(AlgType).and_then(
-          [Alg, WasiAlgLen](auto AlgType) {
-            return tryFrom(AlgType, {Alg, WasiAlgLen});
+          [Alg, WasiAlgLen](auto WasiAlgType) {
+            return tryFrom(WasiAlgType, {Alg, WasiAlgLen});
           });
       unlikely(!Res)) {
     return Res.error();
   } else {
-    WasiAlgType = Res.value();
+    WasiAlg = Res.value();
   }
 
   const __wasi_size_t WasiEncodedLen = EncodedLen;
@@ -84,8 +84,8 @@ Expect<uint32_t> KeypairImport::body(Runtime::Instance::MemoryInstance *MemInst,
   auto *const KpHandle = MemInst->getPointer<__wasi_keypair_t *>(KpHandlePtr);
   checkExist(KpHandle);
 
-  if (auto Res = Ctx.keypairImport(WasiAlgType, {Encoded, WasiEncodedLen},
-                                   *WasiEncoding);
+  if (auto Res =
+          Ctx.keypairImport(WasiAlg, {Encoded, WasiEncodedLen}, *WasiEncoding);
       unlikely(!Res)) {
     return Res.error();
   } else {
@@ -105,15 +105,15 @@ Expect<uint32_t> KeypairGenerateManaged::body(
   auto *const Alg = MemInst->getPointer<const char *>(AlgPtr, WasiAlgLen);
   checkExist(Alg);
 
-  AsymmetricCommon::Algorithm WasiAlgType;
+  AsymmetricCommon::Algorithm WasiAlg;
   if (auto Res = cast<__wasi_algorithm_type_e_t>(AlgType).and_then(
-          [Alg, WasiAlgLen](auto AlgType) {
-            return tryFrom(AlgType, {Alg, WasiAlgLen});
+          [Alg, WasiAlgLen](auto WasiAlgType) {
+            return tryFrom(WasiAlgType, {Alg, WasiAlgLen});
           });
       unlikely(!Res)) {
     return Res.error();
   } else {
-    WasiAlgType = Res.value();
+    WasiAlg = Res.value();
   }
 
   auto *const OptOptionsHandle =
@@ -123,7 +123,7 @@ Expect<uint32_t> KeypairGenerateManaged::body(
   auto *const KpHandle = MemInst->getPointer<__wasi_keypair_t *>(KpHandlePtr);
   checkExist(KpHandle);
 
-  if (auto Res = Ctx.keypairGenerateManaged(SecretsManagerHandle, WasiAlgType,
+  if (auto Res = Ctx.keypairGenerateManaged(SecretsManagerHandle, WasiAlg,
                                             *OptOptionsHandle);
       unlikely(!Res)) {
     return Res.error();
@@ -332,15 +332,15 @@ PublickeyImport::body(Runtime::Instance::MemoryInstance *MemInst,
   auto *const Alg = MemInst->getPointer<const char *>(AlgPtr, WasiAlgLen);
   checkExist(Alg);
 
-  AsymmetricCommon::Algorithm WasiAlgType;
+  AsymmetricCommon::Algorithm WasiAlg;
   if (auto Res = cast<__wasi_algorithm_type_e_t>(AlgType).and_then(
-          [Alg, WasiAlgLen](auto AlgType) {
-            return tryFrom(AlgType, {Alg, WasiAlgLen});
+          [Alg, WasiAlgLen](auto WasiAlgType) {
+            return tryFrom(WasiAlgType, {Alg, WasiAlgLen});
           });
       unlikely(!Res)) {
     return Res.error();
   } else {
-    WasiAlgType = Res.value();
+    WasiAlg = Res.value();
   }
 
   const __wasi_size_t WasiEncodedLen = EncodedLen;
@@ -358,7 +358,7 @@ PublickeyImport::body(Runtime::Instance::MemoryInstance *MemInst,
   auto *const PkHandle = MemInst->getPointer<__wasi_publickey_t *>(PkHandlePtr);
   checkExist(PkHandle);
 
-  if (auto Res = Ctx.publickeyImport(WasiAlgType, {Encoded, WasiEncodedLen},
+  if (auto Res = Ctx.publickeyImport(WasiAlg, {Encoded, WasiEncodedLen},
                                      WasiPkEncoding);
       unlikely(!Res)) {
     return Res.error();
@@ -442,15 +442,15 @@ SecretkeyImport::body(Runtime::Instance::MemoryInstance *MemInst,
   auto *const Alg = MemInst->getPointer<const char *>(AlgPtr, WasiAlgLen);
   checkExist(Alg);
 
-  AsymmetricCommon::Algorithm WasiAlgType;
+  AsymmetricCommon::Algorithm WasiAlg;
   if (auto Res = cast<__wasi_algorithm_type_e_t>(AlgType).and_then(
-          [Alg, WasiAlgLen](auto AlgType) {
-            return tryFrom(AlgType, {Alg, WasiAlgLen});
+          [Alg, WasiAlgLen](auto WasiAlgType) {
+            return tryFrom(WasiAlgType, {Alg, WasiAlgLen});
           });
       unlikely(!Res)) {
     return Res.error();
   } else {
-    WasiAlgType = Res.value();
+    WasiAlg = Res.value();
   }
 
   const __wasi_size_t WasiEncodedLen = EncodedLen;
@@ -466,7 +466,7 @@ SecretkeyImport::body(Runtime::Instance::MemoryInstance *MemInst,
   auto *const SkHandle = MemInst->getPointer<__wasi_secretkey_t *>(SkHandlePtr);
   checkExist(SkHandle);
 
-  if (auto Res = Ctx.secretkeyImport(WasiAlgType, {Encoded, WasiEncodedLen},
+  if (auto Res = Ctx.secretkeyImport(WasiAlg, {Encoded, WasiEncodedLen},
                                      *WasiEncoding);
       unlikely(!Res)) {
     return Res.error();

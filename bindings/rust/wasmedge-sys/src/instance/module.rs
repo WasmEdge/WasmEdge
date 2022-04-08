@@ -285,6 +285,9 @@ pub(crate) struct InnerInstance(pub(crate) *mut ffi::WasmEdge_ModuleInstanceCont
 unsafe impl Send for InnerInstance {}
 unsafe impl Sync for InnerInstance {}
 
+/// Struct of WasmEdge ImportModule.
+///
+/// An [ImportModule] represents a host module with a name. A host module consists of one or more host [function](crate::Function), [table](crate::Table), [memory](crate::Memory), and [global](crate::Global) instances,  which are defined outside wasm modules and fed into wasm modules as imports.
 #[derive(Debug)]
 pub struct ImportModule {
     pub(crate) inner: InnerInstance,
@@ -301,6 +304,15 @@ impl Drop for ImportModule {
     }
 }
 impl ImportModule {
+    /// Creates a module instance which is used to import host functions, tables, memories, and globals into a wasm module.
+    ///
+    /// # Argument
+    ///
+    /// * `name` - The name of the import module instance.
+    ///
+    /// # Error
+    ///
+    /// If fail to create the import module instance, then an error is returned.
     pub fn create(name: impl AsRef<str>) -> WasmEdgeResult<Self> {
         let raw_name = WasmEdgeString::from(name.as_ref());
         let ctx = unsafe { ffi::WasmEdge_ModuleInstanceCreate(raw_name.as_raw()) };
@@ -315,21 +327,19 @@ impl ImportModule {
         }
     }
 
-    /// Returns the name of this exported [module instance](crate::Instance).
-    ///
-    /// If this module [instance](crate::Instance) is an active [instance](crate::Instance), return None.
+    /// Returns the name of this import module instance.
     pub fn name(&self) -> String {
         self.name.to_owned()
     }
 }
 impl AddImportInstance for ImportModule {
-    /// Adds a [host function](crate::Function) into the host module.
+    /// Adds a [host function](crate::Function) into this import module instance.
     ///
     /// # Arguments
     ///
-    /// - `name` specifies the name of the host function in the host module.
+    /// * `name` - The name of the host function to add.
     ///
-    /// - `func` specifies the exported host function instance to add.
+    /// * `func` - The host function instance to add.
     fn add_func(&mut self, name: impl AsRef<str>, mut func: Function) {
         let func_name: WasmEdgeString = name.into();
         unsafe {
@@ -731,51 +741,59 @@ impl AddImportInstance for WasmEdgeProcessModule {
     }
 }
 
+/// The object to be registered into a [Vm](crate::Vm) or an [Executor](crate::Executor) instance is required to implement this trait. The object that implements this trait can be registered via the [Vm::register_wasm_from_import](crate::Vm::register_wasm_from_import) function, or the [Executor::register_import_object](crate::Executor::register_import_object) function.
 pub trait AddImportInstance {
-    /// Adds a [host function](crate::Function) into the host module.
+    /// Imports a [host function instance](crate::Function).
     ///
     /// # Arguments
     ///
-    /// - `name` specifies the name of the host function in the host module.
+    /// * `name` - The name of the host function instance to import.
     ///
-    /// - `func` specifies the exported host function instance to add.
+    /// * `func` - The host function instance to import.
     fn add_func(&mut self, name: impl AsRef<str>, func: Function);
 
-    /// Adds a [table](crate::Table) into the host module.
+    /// Imports a [table instance](crate::Table).
     ///
     /// # Arguments
     ///
-    /// - `name` specifies the name of the export table in the host module.
+    /// * `name` - The name of the host table instance to import.
     ///
-    /// - `table` specifies the exported table instance to add.
+    /// * `table` - The host table instance to import.
     fn add_table(&mut self, name: impl AsRef<str>, table: Table);
 
-    /// Adds a [memory](crate::Memory) into the host module.
+    /// Imports a [memory instance](crate::Memory).
     ///
     /// # Arguments
     ///
-    /// - `name` specifies the name of the export memory in the host module.
+    /// * `name` - The name of the host memory instance to import.
     ///
-    /// - `memory` specifies the exported memory instance to add.
+    /// * `memory` - The host memory instance to import.
     fn add_memory(&mut self, name: impl AsRef<str>, memory: Memory);
 
-    /// Adds a [global](crate::Global) into the host module.
+    /// Imports a [global instance](crate::Global).
     ///
     /// # Arguments
     ///
-    /// `name` specifies the name of the export global in the host module.
+    /// * `name` - The name of the host global instance to import.
     ///
-    /// `global` specifies the exported global instance to add.
+    /// * `global` - The host global instance to import.
     fn add_global(&mut self, name: impl AsRef<str>, global: Global);
 }
 
+/// Enum of WasmEdge ImportObject.
+///
+/// [ImportObject] defines three types of module instances that can be imported into a WasmEdge [Store](crate::Store) instance.
 #[derive(Debug)]
 pub enum ImportObject {
+    /// Defines the import module instance is of ImportModule type.
     Import(ImportModule),
+    /// Defines the import module instance is of WasiModule type.
     Wasi(WasiModule),
+    /// Defines the import module instance is of WasmEdgeProcessModule type.
     WasmEdgeProcess(WasmEdgeProcessModule),
 }
 impl ImportObject {
+    /// Returns the name of the import object.
     pub fn name(&self) -> String {
         match self {
             ImportObject::Import(import) => import.name(),

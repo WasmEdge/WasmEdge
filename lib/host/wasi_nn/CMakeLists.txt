@@ -16,14 +16,6 @@ if(WASMEDGE_WASINN_BUILD_OPENVINO)
   )
 endif()
 
-
-target_include_directories(wasmedgeHostModuleWasiNN
-  PUBLIC
-  "${Boost_INCLUDE_DIRS}"
-  "${PROJECT_SOURCE_DIR}/include"
-  "${PROJECT_SOURCE_DIR}/thirdparty"
-)
-
 target_link_libraries(wasmedgeHostModuleWasiNN
   PUBLIC
   "wasmedgeSystem"

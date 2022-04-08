@@ -31,6 +31,14 @@ namespace AsymmetricCommon {
 
 using KpVariant = RegistedAlg::KpVariant;
 
+WasiCryptoExpect<KpVariant>
+importKp(AsymmetricCommon::Algorithm Alg, Span<const uint8_t> Encoded,
+         __wasi_keypair_encoding_e_t Encoding) noexcept;
+
+WasiCryptoExpect<KpVariant>
+generateKp(AsymmetricCommon::Algorithm Alg,
+           OptionalRef<const Common::Options> OptOptions) noexcept;
+
 WasiCryptoExpect<std::vector<uint8_t>>
 kpExportData(const KpVariant &KpVariant,
              __wasi_keypair_encoding_e_t Encoding) noexcept;
@@ -39,6 +47,8 @@ WasiCryptoExpect<PkVariant> kpPublicKey(const KpVariant &KpVariant) noexcept;
 
 WasiCryptoExpect<SkVariant> kpSecretKey(const KpVariant &KpVariant) noexcept;
 
+WasiCryptoExpect<KpVariant> kpFromPkAndSk(const PkVariant &Pk,
+                                          const SkVariant &Sk) noexcept;
 } // namespace AsymmetricCommon
 } // namespace WasiCrypto
 } // namespace Host

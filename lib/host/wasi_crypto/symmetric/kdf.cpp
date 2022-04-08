@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "host/wasi_crypto/symmetric/kdf.h"
-#include "host/wasi_crypto/symmetric/alg.h"
-#include "host/wasi_crypto/symmetric/factory.h"
 #include "host/wasi_crypto/utils/error.h"
 #include "host/wasi_crypto/utils/evp_wrapper.h"
 #include "host/wasi_crypto/utils/secret_vec.h"
@@ -24,14 +22,6 @@ template <int ShaNid> constexpr uint32_t Hkdf<ShaNid>::getKeySize() noexcept {
 
 template <int ShaNid> constexpr void *Hkdf<ShaNid>::getShaCtx() noexcept {
   return static_cast<void *>(const_cast<EVP_MD *>(EVP_get_digestbynid(ShaNid)));
-}
-
-template <int ShaNid>
-constexpr Algorithm Hkdf<ShaNid>::getExpandAlg() noexcept {
-  if constexpr (ShaNid == NID_sha256)
-    return Algorithm::HkdfSha256Expand;
-  if constexpr (ShaNid == NID_sha512)
-    return Algorithm::HkdfSha512Expand;
 }
 
 template <int ShaNid>
@@ -102,11 +92,9 @@ Hkdf<ShaNid>::Extract::State::absorb(Span<const uint8_t> Data) noexcept {
 
 template <int ShaNid>
 WasiCryptoExpect<typename Hkdf<ShaNid>::Expand::Key>
-Hkdf<ShaNid>::Extract::State::squeezeKey(Symmetric::Algorithm Alg) noexcept {
-  ensureOrReturn(Alg == getExpandAlg(),
-                 __WASI_CRYPTO_ERRNO_UNSUPPORTED_ALGORITHM);
-
+Hkdf<ShaNid>::Extract::State::squeezeKey() noexcept {
   std::shared_lock<std::shared_mutex> Lock{Ctx->Mutex};
+
   opensslCheck(EVP_PKEY_CTX_set1_hkdf_salt(Ctx->RawCtx.get(), Ctx->Salt.data(),
                                            Ctx->Salt.size()));
 

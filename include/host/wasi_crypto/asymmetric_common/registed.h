@@ -39,6 +39,8 @@ struct Registed<Signatures::Registed<Ts1...>, Kx::Registed<Ts2...>> {
 /// combine signatures and kx alg
 using RegistedAlg = Registed<Signatures::RegistedAlg, Kx::RegistedAlg>::Alg;
 
+using Algorithm = RegistedAlg::Variant;
+
 } // namespace AsymmetricCommon
 } // namespace WasiCrypto
 } // namespace Host

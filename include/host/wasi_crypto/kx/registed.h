@@ -32,6 +32,8 @@ template <typename... T> struct Registed {
 
 using RegistedAlg = Registed<X25519>;
 
+using Algorithm = RegistedAlg::Variant;
+
 } // namespace Kx
 } // namespace WasiCrypto
 } // namespace Host

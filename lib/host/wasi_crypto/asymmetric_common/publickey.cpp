@@ -8,6 +8,16 @@ namespace Host {
 namespace WasiCrypto {
 namespace AsymmetricCommon {
 
+WasiCryptoExpect<PkVariant>
+importPk(AsymmetricCommon::Algorithm Alg, Span<const uint8_t> Encoded,
+         __wasi_publickey_encoding_e_t Encoding) noexcept {
+  return std::visit(
+      [=](auto Factory) noexcept -> WasiCryptoExpect<PkVariant> {
+        return decltype(Factory)::PublicKey::import(Encoded, Encoding);
+      },
+      Alg);
+}
+
 WasiCryptoExpect<std::vector<uint8_t>>
 pkExportData(const PkVariant &PkVariant,
              __wasi_publickey_encoding_e_t Encoding) noexcept {

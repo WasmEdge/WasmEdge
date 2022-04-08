@@ -25,6 +25,10 @@ namespace Signatures {
 
 using SigVariant = RegistedAlg::SigVariant;
 
+WasiCryptoExpect<SigVariant>
+sigImport(Algorithm Alg, Span<const uint8_t> Encoded,
+          __wasi_signature_encoding_e_t Encoding) noexcept;
+
 WasiCryptoExpect<std::vector<uint8_t>>
 sigExportData(const SigVariant &SigVariant,
               __wasi_signature_encoding_e_t Encoding) noexcept;

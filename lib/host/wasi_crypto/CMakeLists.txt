@@ -5,7 +5,6 @@ find_package(OpenSSL REQUIRED)
 
 wasmedge_add_library(wasmedgeHostModuleWasiCrypto
   asymmetric_common/ctx.cpp
-  asymmetric_common/factory.cpp
   asymmetric_common/func.cpp
   asymmetric_common/keypair.cpp
   asymmetric_common/publickey.cpp
@@ -16,7 +15,6 @@ wasmedge_add_library(wasmedgeHostModuleWasiCrypto
   common/options.cpp
   kx/ctx.cpp
   kx/dh/x25519.cpp
-  kx/factory.cpp
   kx/func.cpp
   kx/kx.cpp
   kx/options.cpp
@@ -24,7 +22,6 @@ wasmedge_add_library(wasmedgeHostModuleWasiCrypto
   signatures/ctx.cpp
   signatures/ecdsa.cpp
   signatures/eddsa.cpp
-  signatures/factory.cpp
   signatures/func.cpp
   signatures/options.cpp
   signatures/rsa.cpp
@@ -33,7 +30,6 @@ wasmedge_add_library(wasmedgeHostModuleWasiCrypto
   signatures/verificationstate.cpp
   symmetric/aeads.cpp
   symmetric/ctx.cpp
-  symmetric/factory.cpp
   symmetric/func.cpp
   symmetric/hash.cpp
   symmetric/kdf.cpp
@@ -43,6 +39,7 @@ wasmedge_add_library(wasmedgeHostModuleWasiCrypto
   symmetric/state.cpp
   symmetric/tag.cpp
   utils/evp_wrapper.cpp
+  utils/hostfunction.cpp
 )
 
 target_include_directories(wasmedgeHostModuleWasiCrypto

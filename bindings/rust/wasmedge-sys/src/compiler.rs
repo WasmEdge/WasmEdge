@@ -6,6 +6,7 @@ use crate::{
 };
 use std::path::Path;
 
+#[cfg(feature = "aot")]
 /// Struct of WasmEdge ahead-of-time(AOT) compiler.
 #[derive(Debug)]
 pub struct Compiler {
@@ -24,6 +25,7 @@ impl Compiler {
     /// # Error
     ///
     /// If fail to create a AOT [compiler](crate::Compiler), then an error is returned.
+    #[cfg(feature = "aot")]
     pub fn create(config: Option<Config>) -> WasmEdgeResult<Self> {
         let ctx = match config {
             Some(mut config) => {
@@ -53,6 +55,7 @@ impl Compiler {
     /// # Error
     ///
     /// If fail to compile, then an error is returned.
+    #[cfg(feature = "aot")]
     pub fn compile(
         &self,
         in_path: impl AsRef<Path>,
@@ -70,6 +73,7 @@ impl Compiler {
     }
 }
 
+#[cfg(feature = "aot")]
 #[derive(Debug)]
 pub(crate) struct InnerCompiler(pub(crate) *mut ffi::WasmEdge_CompilerContext);
 unsafe impl Send for InnerCompiler {}

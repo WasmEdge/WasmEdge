@@ -13,7 +13,6 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
-#include "host/wasi_crypto/signatures/alg.h"
 #include "host/wasi_crypto/signatures/registed.h"
 #include "host/wasi_crypto/signatures/signatures.h"
 #include "host/wasi_crypto/utils/error.h"

@@ -3,7 +3,6 @@
 
 #include "host/wasi_crypto/ctx.h"
 #include "host/wasi_crypto/common/options.h"
-#include "host/wasi_crypto/symmetric/factory.h"
 #include "host/wasi_crypto/symmetric/key.h"
 #include "host/wasi_crypto/symmetric/state.h"
 #include "host/wasi_crypto/symmetric/tag.h"

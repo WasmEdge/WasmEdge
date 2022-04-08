@@ -8,6 +8,17 @@ namespace Host {
 namespace WasiCrypto {
 namespace AsymmetricCommon {
 
+WasiCryptoExpect<SkVariant>
+importSk(AsymmetricCommon::Algorithm Alg, Span<const uint8_t> Encoded,
+         __wasi_secretkey_encoding_e_t Encoding) noexcept {
+  return std::visit(
+      [=](auto Factory) noexcept -> WasiCryptoExpect<SkVariant> {
+        using FactoryType = std::decay_t<decltype(Factory)>;
+        return FactoryType::SecretKey::import(Encoded, Encoding);
+      },
+      Alg);
+}
+
 WasiCryptoExpect<std::vector<uint8_t>>
 skExportData(const SkVariant &SkVariant,
              __wasi_secretkey_encoding_e_t Encoding) noexcept {

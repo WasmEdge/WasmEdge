@@ -15,7 +15,6 @@
 #pragma once
 
 #include "common/span.h"
-#include "host/wasi_crypto/symmetric/alg.h"
 #include "host/wasi_crypto/symmetric/key.h"
 #include "host/wasi_crypto/symmetric/registed.h"
 #include "host/wasi_crypto/symmetric/tag.h"
@@ -33,6 +32,10 @@ namespace Symmetric {
 /// More detail:
 /// https://github.com/WebAssembly/wasi-crypto/blob/main/docs/wasi-crypto.md#state
 using StateVariant = RegistedAlg::State;
+
+WasiCryptoExpect<StateVariant>
+openState(Algorithm Alg, OptionalRef<const KeyVariant> OptKeyVariant,
+          OptionalRef<const Options> OptOptions) noexcept;
 
 WasiCryptoExpect<size_t> stateOptionsGet(const StateVariant &StateVariant,
                                          std::string_view Name,

@@ -44,6 +44,8 @@ using RegistedAlg =
              RSA_PSS_2048_SHA512, RSA_PSS_3072_SHA384, RSA_PSS_3072_SHA512,
              RSA_PSS_4096_SHA512>;
 
+using Algorithm = RegistedAlg::Variant;
+
 } // namespace Signatures
 } // namespace WasiCrypto
 } // namespace Host

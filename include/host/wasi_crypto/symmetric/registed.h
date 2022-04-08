@@ -38,6 +38,8 @@ using RegistedAlg =
              HkdfSha256Expand, HkdfSha256Extract, HkdfSha512Expand,
              HkdfSha512Extract, Aes128Gcm, Aes256Gcm, ChaCha20Poly1305>;
 
+using Algorithm = RegistedAlg::Variant;
+
 } // namespace Symmetric
 } // namespace WasiCrypto
 } // namespace Host

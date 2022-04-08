@@ -14,7 +14,6 @@
 #pragma once
 
 #include "common/span.h"
-#include "host/wasi_crypto/signatures/alg.h"
 #include "host/wasi_crypto/signatures/options.h"
 #include "host/wasi_crypto/utils/error.h"
 #include "host/wasi_crypto/utils/evp_wrapper.h"

@@ -11,7 +11,8 @@
 /// This file contains the key exchange relative function,
 ///
 //===----------------------------------------------------------------------===//
-#include "host/wasi_crypto/kx/alg.h"
+#pragma once
+
 #include "host/wasi_crypto/kx/registed.h"
 #include "host/wasi_crypto/utils/error.h"
 

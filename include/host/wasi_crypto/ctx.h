@@ -19,13 +19,13 @@
 #include "host/wasi_crypto/asymmetric_common/secretkey.h"
 #include "host/wasi_crypto/common/array_output.h"
 #include "host/wasi_crypto/common/options.h"
-#include "host/wasi_crypto/kx/alg.h"
-#include "host/wasi_crypto/signatures/alg.h"
+#include "host/wasi_crypto/kx/registed.h"
+#include "host/wasi_crypto/signatures/registed.h"
 #include "host/wasi_crypto/signatures/signatures.h"
 #include "host/wasi_crypto/signatures/signstate.h"
 #include "host/wasi_crypto/signatures/verificationstate.h"
-#include "host/wasi_crypto/symmetric/alg.h"
 #include "host/wasi_crypto/symmetric/key.h"
+#include "host/wasi_crypto/symmetric/registed.h"
 #include "host/wasi_crypto/symmetric/state.h"
 #include "host/wasi_crypto/symmetric/tag.h"
 #include "host/wasi_crypto/utils/error.h"
@@ -187,18 +187,16 @@ public:
   // -------------------------------------------asymmetric_common---------------------------------------
 
   WasiCryptoExpect<__wasi_keypair_t>
-  keypairGenerate(__wasi_algorithm_type_e_t AlgType, std::string_view Alg,
+  keypairGenerate(AsymmetricCommon::Algorithm Alg,
                   __wasi_opt_options_t OptOptionsHandle) noexcept;
 
   WasiCryptoExpect<__wasi_keypair_t>
-  keypairImport(__wasi_algorithm_type_e_t AlgType, std::string_view Alg,
-                Span<const uint8_t> Encoded,
+  keypairImport(AsymmetricCommon::Algorithm Alg, Span<const uint8_t> Encoded,
                 __wasi_keypair_encoding_e_t Encoding) noexcept;
 
   WasiCryptoExpect<__wasi_keypair_t>
   keypairGenerateManaged(__wasi_secrets_manager_t SecretsManagerHandle,
-                         __wasi_algorithm_type_e_t AlgType,
-                         std::string_view Alg,
+                         AsymmetricCommon::Algorithm Alg,
                          __wasi_opt_options_t OptOptionsHandle) noexcept;
 
   WasiCryptoExpect<void>
@@ -235,8 +233,7 @@ public:
   WasiCryptoExpect<void> keypairClose(__wasi_keypair_t KpHandle) noexcept;
 
   WasiCryptoExpect<__wasi_publickey_t>
-  publickeyImport(__wasi_algorithm_type_e_t AlgType, std::string_view Alg,
-                  Span<const uint8_t> Encoded,
+  publickeyImport(AsymmetricCommon::Algorithm Alg, Span<const uint8_t> Encoded,
                   __wasi_publickey_encoding_e_t Encoding) noexcept;
 
   WasiCryptoExpect<__wasi_array_output_t>
@@ -251,8 +248,7 @@ public:
   WasiCryptoExpect<void> publickeyClose(__wasi_publickey_t PkHandle) noexcept;
 
   WasiCryptoExpect<__wasi_secretkey_t>
-  secretkeyImport(__wasi_algorithm_type_e_t AlgType, std::string_view Alg,
-                  Span<const uint8_t> Encoded,
+  secretkeyImport(AsymmetricCommon::Algorithm Alg, Span<const uint8_t> Encoded,
                   __wasi_secretkey_encoding_e_t Encoding) noexcept;
 
   WasiCryptoExpect<__wasi_array_output_t>

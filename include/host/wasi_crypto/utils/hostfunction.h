@@ -15,9 +15,7 @@
 #pragma once
 
 #include "host/wasi_crypto/ctx.h"
-#include "host/wasi_crypto/kx/alg.h"
-#include "host/wasi_crypto/signatures/alg.h"
-#include "host/wasi_crypto/symmetric/alg.h"
+#include "host/wasi_crypto/symmetric/registed.h"
 #include "host/wasi_crypto/utils/error.h"
 #include "runtime/hostfunc.h"
 #include "runtime/instance/memory.h"
@@ -28,16 +26,6 @@
 namespace WasmEdge {
 namespace Host {
 namespace WasiCrypto {
-using namespace std::literals;
-
-namespace detail {
-inline std::string toUpper(std::string_view Name) noexcept {
-  std::string Ret{Name};
-  std::transform(Ret.begin(), Ret.end(), Ret.begin(),
-                 [](char C) { return std::toupper(C); });
-  return Ret;
-}
-} // namespace detail
 
 /// The wasi-crypto's base HostFunction class, every wasi-crypto HostFunction
 /// should inherit from this class
@@ -135,7 +123,6 @@ cast(uint64_t Encoding) noexcept {
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_UNSUPPORTED_ENCODING);
   }
 }
-
 /// Cast c++ size_t to wasi size_t
 constexpr WasiCryptoExpect<__wasi_size_t> toWasiSize(size_t Size) noexcept {
   ensureOrReturn(Size <= std::numeric_limits<__wasi_size_t>::max(),
@@ -143,104 +130,23 @@ constexpr WasiCryptoExpect<__wasi_size_t> toWasiSize(size_t Size) noexcept {
   return static_cast<__wasi_size_t>(Size);
 }
 
-/// convert string_view to inner enum Alg representation
+/// convert string_view to inner Alg representation
 template <typename T> WasiCryptoExpect<T> tryFrom(std::string_view) noexcept;
 
 template <>
-inline WasiCryptoExpect<Symmetric::Algorithm>
-tryFrom(std::string_view RawAlgStr) noexcept {
-  std::string AlgStr = detail::toUpper(RawAlgStr);
-  if (AlgStr == "HKDF-EXTRACT/SHA-256"sv)
-    return Symmetric::Algorithm::HkdfSha256Extract;
-  if (AlgStr == "HKDF-EXTRACT/SHA-512"sv)
-    return Symmetric::Algorithm::HkdfSha512Extract;
-  if (AlgStr == "HKDF-EXPAND/SHA-256"sv)
-    return Symmetric::Algorithm::HkdfSha256Expand;
-  if (AlgStr == "HKDF-EXPAND/SHA-512"sv)
-    return Symmetric::Algorithm::HkdfSha512Expand;
-  if (AlgStr == "HMAC/SHA-256"sv)
-    return Symmetric::Algorithm::HmacSha256;
-  if (AlgStr == "HMAC/SHA-512"sv)
-    return Symmetric::Algorithm::HmacSha512;
-  if (AlgStr == "SHA-256"sv)
-    return Symmetric::Algorithm::Sha256;
-  if (AlgStr == "SHA-512"sv)
-    return Symmetric::Algorithm::Sha512;
-  if (AlgStr == "SHA-512/256"sv)
-    return Symmetric::Algorithm::Sha512_256;
-  if (AlgStr == "AES-128-GCM"sv)
-    return Symmetric::Algorithm::Aes128Gcm;
-  if (AlgStr == "AES-256-GCM"sv)
-    return Symmetric::Algorithm::Aes256Gcm;
-  if (AlgStr == "CHACHA20-POLY1305"sv)
-    return Symmetric::Algorithm::ChaCha20Poly1305;
-  return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_UNSUPPORTED_ALGORITHM);
-}
+WasiCryptoExpect<Symmetric::Algorithm>
+tryFrom(std::string_view RawAlgStr) noexcept;
+
+WasiCryptoExpect<AsymmetricCommon::Algorithm>
+tryFrom(__wasi_algorithm_type_e_t AlgType, std::string_view RawAlgStr) noexcept;
 
 template <>
-inline WasiCryptoExpect<Kx::Algorithm>
-tryFrom(std::string_view RawAlgStr) noexcept {
-  std::string AlgStr = detail::toUpper(RawAlgStr);
-  if (AlgStr == "X25519"sv) {
-    return Kx::Algorithm::X25519;
-  }
-  if (AlgStr == "P256_SHA256"sv) {
-    return Kx::Algorithm::P256_SHA256;
-  }
-  return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_UNSUPPORTED_ALGORITHM);
-}
+WasiCryptoExpect<Kx::Algorithm> tryFrom(std::string_view RawAlgStr) noexcept;
 
 template <>
-inline WasiCryptoExpect<Signatures::Algorithm>
-tryFrom(std::string_view RawAlgStr) noexcept {
-  std::string AlgStr = detail::toUpper(RawAlgStr);
-  if (AlgStr == "ECDSA_P256_SHA256"sv) {
-    return Signatures::Algorithm::ECDSA_P256_SHA256;
-  }
-  if (AlgStr == "ECDSA_K256_SHA256"sv) {
-    return Signatures::Algorithm::ECDSA_K256_SHA256;
-  }
-  if (AlgStr == "ED25519"sv) {
-    return Signatures::Algorithm::Ed25519;
-  }
-  if (AlgStr == "RSA_PKCS1_2048_SHA256"sv) {
-    return Signatures::Algorithm::RSA_PKCS1_2048_SHA256;
-  }
-  if (AlgStr == "RSA_PKCS1_2048_SHA384"sv) {
-    return Signatures::Algorithm::RSA_PKCS1_2048_SHA384;
-  }
-  if (AlgStr == "RSA_PKCS1_2048_SHA512"sv) {
-    return Signatures::Algorithm::RSA_PKCS1_2048_SHA512;
-  }
-  if (AlgStr == "RSA_PKCS1_3072_SHA384"sv) {
-    return Signatures::Algorithm::RSA_PKCS1_3072_SHA384;
-  }
-  if (AlgStr == "RSA_PKCS1_3072_SHA512"sv) {
-    return Signatures::Algorithm::RSA_PKCS1_3072_SHA512;
-  }
-  if (AlgStr == "RSA_PKCS1_4096_SHA512"sv) {
-    return Signatures::Algorithm::RSA_PKCS1_4096_SHA512;
-  }
-  if (AlgStr == "RSA_PSS_2048_SHA256"sv) {
-    return Signatures::Algorithm::RSA_PSS_2048_SHA256;
-  }
-  if (AlgStr == "RSA_PSS_2048_SHA384"sv) {
-    return Signatures::Algorithm::RSA_PSS_2048_SHA384;
-  }
-  if (AlgStr == "RSA_PSS_2048_SHA512"sv) {
-    return Signatures::Algorithm::RSA_PSS_2048_SHA512;
-  }
-  if (AlgStr == "RSA_PSS_3072_SHA384"sv) {
-    return Signatures::Algorithm::RSA_PSS_3072_SHA384;
-  }
-  if (AlgStr == "RSA_PSS_3072_SHA512"sv) {
-    return Signatures::Algorithm::RSA_PSS_3072_SHA512;
-  }
-  if (AlgStr == "RSA_PSS_4096_SHA512"sv) {
-    return Signatures::Algorithm::RSA_PSS_4096_SHA512;
-  }
-  return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_UNSUPPORTED_ALGORITHM);
-}
+WasiCryptoExpect<Signatures::Algorithm>
+tryFrom(std::string_view RawAlgStr) noexcept;
+
 /// -----------------------------------------------------------------------------
 
 /// check exist or return `_algorithm_failure`

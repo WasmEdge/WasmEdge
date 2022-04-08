@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "host/wasi_crypto/ctx.h"
-#include "host/wasi_crypto/signatures/factory.h"
 #include "host/wasi_crypto/signatures/signatures.h"
 #include "host/wasi_crypto/signatures/signstate.h"
 #include "host/wasi_crypto/signatures/verificationstate.h"

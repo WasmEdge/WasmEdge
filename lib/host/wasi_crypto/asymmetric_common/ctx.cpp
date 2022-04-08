@@ -2,7 +2,6 @@
 // SPDX-FileCopyrightText: 2019-2022 Second State INC
 
 #include "host/wasi_crypto/ctx.h"
-#include "host/wasi_crypto/asymmetric_common/factory.h"
 
 namespace WasmEdge {
 namespace Host {
@@ -111,17 +110,15 @@ Context::keypairFromPkAndSk(__wasi_publickey_t PkHandle,
 }
 
 WasiCryptoExpect<__wasi_keypair_t>
-Context::keypairGenerate(__wasi_algorithm_type_e_t AlgType,
-                         std::string_view AlgStr,
+Context::keypairGenerate(AsymmetricCommon::Algorithm Alg,
                          __wasi_opt_options_t OptOptionsHandle) noexcept {
   return mapAndTransposeOptional(
              OptOptionsHandle,
              [this](__wasi_options_t OptionsHandle) noexcept {
                return OptionsManager.get(OptionsHandle);
              })
-      .and_then([=](auto &&OptOptions) noexcept {
-        return AsymmetricCommon::generateKp(AlgType, AlgStr,
-                                            asOptionalRef(OptOptions));
+      .and_then([Alg](auto &&OptOptions) noexcept {
+        return AsymmetricCommon::generateKp(Alg, asOptionalRef(OptOptions));
       })
       .and_then([this](auto &&Keypair) noexcept {
         return KeyPairManager.registerManager(std::move(Keypair));
@@ -129,30 +126,30 @@ Context::keypairGenerate(__wasi_algorithm_type_e_t AlgType,
 }
 
 WasiCryptoExpect<__wasi_keypair_t>
-Context::keypairImport(__wasi_algorithm_type_e_t AlgType,
-                       std::string_view AlgStr, Span<const uint8_t> Encoded,
+Context::keypairImport(AsymmetricCommon::Algorithm Alg,
+                       Span<const uint8_t> Encoded,
                        __wasi_keypair_encoding_e_t Encoding) noexcept {
-  return AsymmetricCommon::importKp(AlgType, AlgStr, Encoded, Encoding)
+  return AsymmetricCommon::importKp(Alg, Encoded, Encoding)
       .and_then([this](auto &&Kp) noexcept {
         return KeyPairManager.registerManager(std::move(Kp));
       });
 }
 
 WasiCryptoExpect<__wasi_publickey_t>
-Context::publickeyImport(__wasi_algorithm_type_e_t AlgType,
-                         std::string_view AlgStr, Span<const uint8_t> Encoded,
+Context::publickeyImport(AsymmetricCommon::Algorithm Alg,
+                         Span<const uint8_t> Encoded,
                          __wasi_publickey_encoding_e_t Encoding) noexcept {
-  return AsymmetricCommon::importPk(AlgType, AlgStr, Encoded, Encoding)
+  return AsymmetricCommon::importPk(Alg, Encoded, Encoding)
       .and_then([this](auto &&Pk) noexcept {
         return PublicKeyManager.registerManager(std::move(Pk));
       });
 }
 
 WasiCryptoExpect<__wasi_secretkey_t>
-Context::secretkeyImport(__wasi_algorithm_type_e_t AlgType,
-                         std::string_view AlgStr, Span<const uint8_t> Encoded,
+Context::secretkeyImport(AsymmetricCommon::Algorithm Alg,
+                         Span<const uint8_t> Encoded,
                          __wasi_secretkey_encoding_e_t Encoding) noexcept {
-  return AsymmetricCommon::importSk(AlgType, AlgStr, Encoded, Encoding)
+  return AsymmetricCommon::importSk(Alg, Encoded, Encoding)
       .and_then([this](auto &&Sk) noexcept {
         return SecretKeyManager.registerManager(std::move(Sk));
       });
@@ -160,7 +157,7 @@ Context::secretkeyImport(__wasi_algorithm_type_e_t AlgType,
 
 WasiCryptoExpect<__wasi_keypair_t>
 Context::keypairGenerateManaged(__wasi_secrets_manager_t,
-                                __wasi_algorithm_type_e_t, std::string_view,
+                                AsymmetricCommon::Algorithm,
                                 __wasi_opt_options_t) noexcept {
   return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
 }

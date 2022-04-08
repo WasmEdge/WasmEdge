@@ -26,6 +26,12 @@ namespace Symmetric {
 /// https://github.com/WebAssembly/wasi-crypto/blob/main/docs/wasi-crypto.md#symmetric-keys-1
 using KeyVariant = RegistedAlg::Key;
 
+WasiCryptoExpect<KeyVariant> importKey(Algorithm Alg,
+                                       Span<const uint8_t> Data) noexcept;
+
+WasiCryptoExpect<KeyVariant>
+generateKey(Algorithm Alg, OptionalRef<const Options> OptOptions) noexcept;
+
 /// get inner represent
 std::vector<uint8_t> keyExportData(const KeyVariant &Key) noexcept;
 

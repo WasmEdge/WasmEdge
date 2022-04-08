@@ -13,7 +13,6 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
-#include "host/wasi_crypto/symmetric/alg.h"
 #include "host/wasi_crypto/symmetric/options.h"
 #include "host/wasi_crypto/symmetric/tag.h"
 #include "host/wasi_crypto/utils/evp_wrapper.h"
@@ -36,17 +35,19 @@ public:
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_UNSUPPORTED_OPTION);
   }
 
-  WasiCryptoExpect<void> squeeze(Span<uint8_t>) {
-    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_OPERATION);
-  }
-  WasiCryptoExpect<void> ratchet() {
+  WasiCryptoExpect<void> squeeze(Span<uint8_t>) noexcept {
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_OPERATION);
   }
 
-  WasiCryptoExpect<Key> squeezeKey(Algorithm) {
+  WasiCryptoExpect<void> ratchet() noexcept {
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_OPERATION);
   }
-  WasiCryptoExpect<Tag> squeezeTag() {
+
+  WasiCryptoExpect<Key> squeezeKey() noexcept {
+    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_OPERATION);
+  }
+
+  WasiCryptoExpect<Tag> squeezeTag() noexcept {
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_OPERATION);
   }
 };

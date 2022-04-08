@@ -14,7 +14,6 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
-#include "host/wasi_crypto/symmetric/alg.h"
 #include "host/wasi_crypto/symmetric/options.h"
 #include "host/wasi_crypto/symmetric/tag.h"
 #include "host/wasi_crypto/utils/evp_wrapper.h"
@@ -67,7 +66,7 @@ public:
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_OPERATION);
   }
 
-  WasiCryptoExpect<Key> squeezeKey(Algorithm) noexcept {
+  WasiCryptoExpect<Key> squeezeKey() noexcept {
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_OPERATION);
   }
 
@@ -203,7 +202,7 @@ public:
 
       /// returns the PRK, whose algorithm type is set to the EXPAND counterpart
       /// of the EXTRACT operation
-      WasiCryptoExpect<typename Expand::Key> squeezeKey(Algorithm Alg) noexcept;
+      WasiCryptoExpect<typename Expand::Key> squeezeKey() noexcept;
 
     private:
       struct Inner {
@@ -221,8 +220,6 @@ private:
 
   /// Type erasure to pass clang-tidy check
   constexpr static void *getShaCtx() noexcept;
-
-  constexpr static Symmetric::Algorithm getExpandAlg() noexcept;
 
   static WasiCryptoExpect<EvpPkeyCtxPtr>
   openStateImpl(const std::vector<uint8_t> &Key, int Mode) noexcept;

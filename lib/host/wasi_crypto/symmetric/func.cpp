@@ -2,7 +2,6 @@
 // SPDX-FileCopyrightText: 2019-2022 Second State INC
 
 #include "host/wasi_crypto/symmetric/func.h"
-#include "host/wasi_crypto/symmetric/alg.h"
 #include "host/wasi_crypto/utils/hostfunction.h"
 #include "wasi_crypto/api.hpp"
 

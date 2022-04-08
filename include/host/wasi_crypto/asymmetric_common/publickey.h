@@ -28,6 +28,10 @@ namespace AsymmetricCommon {
 
 using PkVariant = RegistedAlg::PkVariant;
 
+WasiCryptoExpect<PkVariant>
+importPk(AsymmetricCommon::Algorithm Alg, Span<const uint8_t> Encoded,
+         __wasi_publickey_encoding_e_t Encoding) noexcept;
+
 WasiCryptoExpect<std::vector<uint8_t>>
 pkExportData(const PkVariant &PkVariant,
              __wasi_publickey_encoding_e_t Encoding) noexcept;

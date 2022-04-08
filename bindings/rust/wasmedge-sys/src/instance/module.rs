@@ -1,4 +1,4 @@
-//! Defines WasmEdge Instancestruct.
+//! Defines WasmEdge Instance and other relevant types.
 
 use crate::{
     error::{InstanceError, WasmEdgeError},
@@ -12,6 +12,17 @@ use crate::{
 /// Struct of WasmEdge Instance.
 ///
 /// An [Instance] represents an instantiated module. In the instantiation process, An [Instance] is created from al[Module](crate::Module). From an [Instance] the exported [functions](crate::Function), [tables](crate::Table), [memories](crate::Memory), and [globals](crate::Global) can be fetched.
+///
+/// A module instance is usually returned via one of the following APIs:
+///
+/// * [Executor](crate::Executor)
+///     * [Executor::register_named_module](crate::Executor::register_named_module)
+///     * [Executor::register_active_module](crate::Executor::register_active_module)
+/// * [Vm](crate::Vm)
+///     * [Vm::active_module](crate::Vm::active_module)
+/// * [Store](crate::Store)
+///     * [Store::module](crate::Store::module)
+///
 #[derive(Debug)]
 pub struct Instance {
     pub(crate) inner: InnerInstance,
@@ -27,22 +38,9 @@ impl Drop for Instance {
     }
 }
 impl Instance {
-    pub fn create(name: impl AsRef<str>) -> WasmEdgeResult<Self> {
-        let name = WasmEdgeString::from(name.as_ref());
-        let ctx = unsafe { ffi::WasmEdge_ModuleInstanceCreate(name.as_raw()) };
-
-        match ctx.is_null() {
-            true => Err(WasmEdgeError::Instance(InstanceError::Create)),
-            false => Ok(Instance {
-                inner: InnerInstance(ctx),
-                registered: false,
-            }),
-        }
-    }
-
     /// Returns the name of this exported [module instance](crate::Instance).
     ///
-    /// If this module [instance](crate::Instance) is an active [instance](crate::Instance), return None.
+    /// If this module instance is an active module instance, then None is returned.
     pub fn name(&self) -> Option<String> {
         let name = unsafe { ffi::WasmEdge_ModuleInstanceGetModuleName(self.inner.0 as *const _) };
 
@@ -54,11 +52,11 @@ impl Instance {
         Some(name)
     }
 
-    /// Returns the exported [function](crate::Function) instance in the this [module instance](crate::Instance) by the given function name.
+    /// Returns the exported [function instance](crate::Function) by name.
     ///
     /// # Argument
     ///
-    /// - `name` specifies the target exported [function](crate::Function) instance.
+    /// * `name` - The name of the target exported [function instance](crate::Function).
     ///
     /// # Error
     ///
@@ -81,16 +79,15 @@ impl Instance {
         }
     }
 
-    /// Returns the exported [table](crate::Table) instance in this [module instance](crate::Instance)
-    /// by the given table name.
+    /// Returns the exported [table instance](crate::Table) by name.
     ///
     /// # Argument
     ///
-    /// - `name` specifies the target exported [table](crate::Table) instance.
+    /// * `name` - The name of the target exported [table instance](crate::Table).
     ///
     /// # Error
     ///
-    /// If fail to find the target [table](crate::Table), then an error is returned.
+    /// If fail to find the target [table instance](crate::Table), then an error is returned.
     pub fn get_table(&self, name: impl AsRef<str>) -> WasmEdgeResult<Table> {
         let table_name: WasmEdgeString = name.as_ref().into();
         let ctx = unsafe {
@@ -107,16 +104,15 @@ impl Instance {
         }
     }
 
-    /// Returns the exported [memory](crate::Memory) instance in the [module instance](crate::Instance)
-    /// by the given memory name.
+    /// Returns the exported [memory instance](crate::Memory) by name.
     ///
     /// # Argument
     ///
-    /// - `name` specifies the target exported [memory](crate::Memory) instance.
+    /// * `name` - The name of the target exported [memory instance](crate::Memory).
     ///
     /// # Error
     ///
-    /// If fail to find the target [memory](crate::Memory), then an error is returned.
+    /// If fail to find the target [memory instance](crate::Memory), then an error is returned.
     pub fn get_memory(&self, name: impl AsRef<str>) -> WasmEdgeResult<Memory> {
         let mem_name: WasmEdgeString = name.as_ref().into();
         let ctx = unsafe {
@@ -133,16 +129,15 @@ impl Instance {
         }
     }
 
-    /// Returns the exported [global](crate::Global) instance in the [module instance](crate::Instance)
-    /// by the given global name.
+    /// Returns the exported [global instance](crate::Global) by name.
     ///
     /// # Argument
     ///
-    /// - `name` specifies the target exported [global](crate::Global) instance.
+    /// * `name` - The name of the target exported [global instance](crate::Global).
     ///
     /// # Error
     ///
-    /// If fail to find the target [global](crate::Global), then an error is returned.
+    /// If fail to find the target [global instance](crate::Global), then an error is returned.
     pub fn get_global(&self, name: impl AsRef<str>) -> WasmEdgeResult<Global> {
         let global_name: WasmEdgeString = name.as_ref().into();
         let ctx = unsafe {
@@ -159,12 +154,12 @@ impl Instance {
         }
     }
 
-    /// Returns the length of the exported [functions](crate::Function) in this module.
+    /// Returns the length of the exported [function instances](crate::Function) in this module instance.
     pub fn func_len(&self) -> u32 {
         unsafe { ffi::WasmEdge_ModuleInstanceListFunctionLength(self.inner.0) }
     }
 
-    /// Returns the names of the exported [functions](crate::Function) in this module.
+    /// Returns the names of the exported [function instances](crate::Function) in this module instance.
     pub fn func_names(&self) -> Option<Vec<String>> {
         let len_func_names = self.func_len();
         match len_func_names > 0 {
@@ -189,12 +184,12 @@ impl Instance {
         }
     }
 
-    /// Returns the length of the exported [tables](crate::Table) in this module.
+    /// Returns the length of the exported [table instances](crate::Table) in this module instance.
     pub fn table_len(&self) -> u32 {
         unsafe { ffi::WasmEdge_ModuleInstanceListTableLength(self.inner.0) }
     }
 
-    /// Returns the names of the exported [tables](crate::Table) in this module.
+    /// Returns the names of the exported [table instances](crate::Table) in this module instance.
     pub fn table_names(&self) -> Option<Vec<String>> {
         let len_table_names = self.table_len();
         match len_table_names > 0 {
@@ -219,12 +214,12 @@ impl Instance {
         }
     }
 
-    /// Returns the length of the exported [memories](crate::Memory) in this module.
+    /// Returns the length of the exported [memory instances](crate::Memory) in this module instance.
     pub fn mem_len(&self) -> u32 {
         unsafe { ffi::WasmEdge_ModuleInstanceListMemoryLength(self.inner.0) }
     }
 
-    /// Returns the names of all exported [memories](crate::Memory) in this module.
+    /// Returns the names of all exported [memory instances](crate::Memory) in this module instance.
     pub fn mem_names(&self) -> Option<Vec<String>> {
         let len_mem_names = self.mem_len();
         match len_mem_names > 0 {
@@ -249,12 +244,12 @@ impl Instance {
         }
     }
 
-    /// Returns the length of the exported [globals](crate::Global) in this module.
+    /// Returns the length of the exported [global instances](crate::Global) in this module instance.
     pub fn global_len(&self) -> u32 {
         unsafe { ffi::WasmEdge_ModuleInstanceListGlobalLength(self.inner.0) }
     }
 
-    /// Returns the names of the exported [globals](crate::Global) in this module.
+    /// Returns the names of the exported [global instances](crate::Global) in this module instance.
     pub fn global_names(&self) -> Option<Vec<String>> {
         let len_global_names = self.global_len();
         match len_global_names > 0 {
@@ -333,13 +328,6 @@ impl ImportModule {
     }
 }
 impl AddImportInstance for ImportModule {
-    /// Adds a [host function](crate::Function) into this import module instance.
-    ///
-    /// # Arguments
-    ///
-    /// * `name` - The name of the host function to add.
-    ///
-    /// * `func` - The host function instance to add.
     fn add_func(&mut self, name: impl AsRef<str>, mut func: Function) {
         let func_name: WasmEdgeString = name.into();
         unsafe {
@@ -348,13 +336,6 @@ impl AddImportInstance for ImportModule {
         func.inner.0 = std::ptr::null_mut();
     }
 
-    /// Adds a [table](crate::Table) into the host module.
-    ///
-    /// # Arguments
-    ///
-    /// - `name` specifies the name of the export table in the host module.
-    ///
-    /// - `table` specifies the exported table instance to add.
     fn add_table(&mut self, name: impl AsRef<str>, mut table: Table) {
         let table_name: WasmEdgeString = name.as_ref().into();
         unsafe {
@@ -363,13 +344,6 @@ impl AddImportInstance for ImportModule {
         table.inner.0 = std::ptr::null_mut();
     }
 
-    /// Adds a [memory](crate::Memory) into the host module.
-    ///
-    /// # Arguments
-    ///
-    /// - `name` specifies the name of the export memory in the host module.
-    ///
-    /// - `memory` specifies the exported memory instance to add.
     fn add_memory(&mut self, name: impl AsRef<str>, mut memory: Memory) {
         let mem_name: WasmEdgeString = name.as_ref().into();
         unsafe {
@@ -378,13 +352,6 @@ impl AddImportInstance for ImportModule {
         memory.inner.0 = std::ptr::null_mut();
     }
 
-    /// Adds a [global](crate::Global) into the host module.
-    ///
-    /// # Arguments
-    ///
-    /// `name` specifies the name of the export global in the host module.
-    ///
-    /// `global` specifies the exported global instance to add.
     fn add_global(&mut self, name: impl AsRef<str>, mut global: Global) {
         let global_name: WasmEdgeString = name.as_ref().into();
         unsafe {
@@ -398,6 +365,9 @@ impl AddImportInstance for ImportModule {
     }
 }
 
+/// Struct of WasmEdge WasiModule.
+///
+/// A [WasiModule] is a module instance for the WASI specification.
 #[derive(Debug)]
 pub struct WasiModule {
     pub(crate) inner: InnerInstance,
@@ -417,11 +387,11 @@ impl WasiModule {
     ///
     /// # Arguments
     ///
-    /// - `args` specifies the commandline arguments. The first argument is the program name.
+    /// * `args` - The commandline arguments. The first argument is the program name.
     ///
-    /// - `envs` specifies the environment variables in the format `ENV_VAR_NAME=VALUE`.
+    /// * `envs` - The environment variables in the format `ENV_VAR_NAME=VALUE`.
     ///
-    /// - `preopens` specifies the directories to pre-open. The required format is `DIR1:DIR2`.
+    /// * `preopens` - The directories to pre-open. The required format is `DIR1:DIR2`.
     ///
     /// # Error
     ///
@@ -471,6 +441,7 @@ impl WasiModule {
         }
     }
 
+    /// Returns the name of this wasi module instance.
     pub fn name(&self) -> String {
         String::from("wasi_snapshot_preview1")
     }
@@ -479,11 +450,11 @@ impl WasiModule {
     ///
     /// # Arguments
     ///
-    /// - `args` specifies the commandline arguments. The first argument is the program name.
+    /// * `args` - The commandline arguments. The first argument is the program name.
     ///
-    /// - `envs` specifies the environment variables in the format `ENV_VAR_NAME=VALUE`.
+    /// * `envs` - The environment variables in the format `ENV_VAR_NAME=VALUE`.
     ///
-    /// - `preopens` specifies the directories to pre-open. The required format is `DIR1:DIR2`.
+    /// * `preopens` - The directories to pre-open. The required format is `DIR1:DIR2`.
     pub fn init_wasi(
         &mut self,
         args: Option<Vec<&str>>,
@@ -532,13 +503,6 @@ impl WasiModule {
     }
 }
 impl AddImportInstance for WasiModule {
-    /// Adds a [host function](crate::Function) into the host module.
-    ///
-    /// # Arguments
-    ///
-    /// - `name` specifies the name of the host function in the host module.
-    ///
-    /// - `func` specifies the exported host function instance to add.
     fn add_func(&mut self, name: impl AsRef<str>, mut func: Function) {
         let func_name: WasmEdgeString = name.into();
         unsafe {
@@ -547,13 +511,6 @@ impl AddImportInstance for WasiModule {
         func.inner.0 = std::ptr::null_mut();
     }
 
-    /// Adds a [table](crate::Table) into the host module.
-    ///
-    /// # Arguments
-    ///
-    /// - `name` specifies the name of the export table in the host module.
-    ///
-    /// - `table` specifies the exported table instance to add.
     fn add_table(&mut self, name: impl AsRef<str>, mut table: Table) {
         let table_name: WasmEdgeString = name.as_ref().into();
         unsafe {
@@ -562,13 +519,6 @@ impl AddImportInstance for WasiModule {
         table.inner.0 = std::ptr::null_mut();
     }
 
-    /// Adds a [memory](crate::Memory) into the host module.
-    ///
-    /// # Arguments
-    ///
-    /// - `name` specifies the name of the export memory in the host module.
-    ///
-    /// - `memory` specifies the exported memory instance to add.
     fn add_memory(&mut self, name: impl AsRef<str>, mut memory: Memory) {
         let mem_name: WasmEdgeString = name.as_ref().into();
         unsafe {
@@ -577,13 +527,6 @@ impl AddImportInstance for WasiModule {
         memory.inner.0 = std::ptr::null_mut();
     }
 
-    /// Adds a [global](crate::Global) into the host module.
-    ///
-    /// # Arguments
-    ///
-    /// `name` specifies the name of the export global in the host module.
-    ///
-    /// `global` specifies the exported global instance to add.
     fn add_global(&mut self, name: impl AsRef<str>, mut global: Global) {
         let global_name: WasmEdgeString = name.as_ref().into();
         unsafe {
@@ -597,6 +540,9 @@ impl AddImportInstance for WasiModule {
     }
 }
 
+/// Struct of WasmEdge WasmEdgeProcessModule.
+///
+/// A [WasmEdgeProcessModule] is a module instance for the WasmEdge_Process specification.
 #[derive(Debug)]
 pub struct WasmEdgeProcessModule {
     pub(crate) inner: InnerInstance,
@@ -617,9 +563,9 @@ impl WasmEdgeProcessModule {
     ///
     /// # Arguments
     ///
-    /// - `allowed_cmds` specifies a white list of commands.
+    /// * `allowed_cmds` - A white list of commands.
     ///
-    /// - `allowed` determines if wasmedge_process is allowed to execute all commands on the white list.
+    /// * `allowed` - Determines if wasmedge_process is allowed to execute all commands on the white list.
     ///
     /// # Error
     ///
@@ -647,6 +593,7 @@ impl WasmEdgeProcessModule {
         }
     }
 
+    /// Returns the name of this wasmedge_process module instance.
     pub fn name(&self) -> String {
         String::from("wasmedge_process")
     }
@@ -655,9 +602,9 @@ impl WasmEdgeProcessModule {
     ///
     /// # Arguments
     ///
-    /// - `allowed_cmds` specifies a white list of commands.
+    /// * `allowed_cmds` - A white list of commands.
     ///
-    /// - `allowed` determines if wasmedge_process is allowed to execute all commands on the white list.
+    /// * `allowed` - Determines if wasmedge_process is allowed to execute all commands on the white list.
     pub fn init_wasmedge_process(&mut self, allowed_cmds: Option<Vec<&str>>, allowed: bool) {
         let cmds = match allowed_cmds {
             Some(cmds) => cmds.iter().map(string_to_c_char).collect::<Vec<_>>(),
@@ -676,13 +623,6 @@ impl WasmEdgeProcessModule {
     }
 }
 impl AddImportInstance for WasmEdgeProcessModule {
-    /// Adds a [host function](crate::Function) into the host module.
-    ///
-    /// # Arguments
-    ///
-    /// - `name` specifies the name of the host function in the host module.
-    ///
-    /// - `func` specifies the exported host function instance to add.
     fn add_func(&mut self, name: impl AsRef<str>, mut func: Function) {
         let func_name: WasmEdgeString = name.into();
         unsafe {
@@ -691,13 +631,6 @@ impl AddImportInstance for WasmEdgeProcessModule {
         func.inner.0 = std::ptr::null_mut();
     }
 
-    /// Adds a [table](crate::Table) into the host module.
-    ///
-    /// # Arguments
-    ///
-    /// - `name` specifies the name of the export table in the host module.
-    ///
-    /// - `table` specifies the exported table instance to add.
     fn add_table(&mut self, name: impl AsRef<str>, mut table: Table) {
         let table_name: WasmEdgeString = name.as_ref().into();
         unsafe {
@@ -706,13 +639,6 @@ impl AddImportInstance for WasmEdgeProcessModule {
         table.inner.0 = std::ptr::null_mut();
     }
 
-    /// Adds a [memory](crate::Memory) into the host module.
-    ///
-    /// # Arguments
-    ///
-    /// - `name` specifies the name of the export memory in the host module.
-    ///
-    /// - `memory` specifies the exported memory instance to add.
     fn add_memory(&mut self, name: impl AsRef<str>, mut memory: Memory) {
         let mem_name: WasmEdgeString = name.as_ref().into();
         unsafe {
@@ -721,13 +647,6 @@ impl AddImportInstance for WasmEdgeProcessModule {
         memory.inner.0 = std::ptr::null_mut();
     }
 
-    /// Adds a [global](crate::Global) into the host module.
-    ///
-    /// # Arguments
-    ///
-    /// `name` specifies the name of the export global in the host module.
-    ///
-    /// `global` specifies the exported global instance to add.
     fn add_global(&mut self, name: impl AsRef<str>, mut global: Global) {
         let global_name: WasmEdgeString = name.as_ref().into();
         unsafe {

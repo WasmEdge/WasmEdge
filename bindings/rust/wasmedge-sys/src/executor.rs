@@ -134,19 +134,20 @@ impl Executor {
         module: &Module,
         name: impl AsRef<str>,
     ) -> WasmEdgeResult<Instance> {
-        let mut instance_ctx = Vec::with_capacity(1);
+        let mut instance_ctx = std::ptr::null_mut();
         let mod_name: WasmEdgeString = name.as_ref().into();
         unsafe {
             check(ffi::WasmEdge_ExecutorRegister(
                 self.inner.0,
-                instance_ctx.as_mut_ptr(),
+                &mut instance_ctx,
                 store.inner.0,
                 module.inner.0 as *const _,
                 mod_name.as_raw(),
             ))?;
         }
+
         Ok(Instance {
-            inner: InnerInstance(instance_ctx.remove(0)),
+            inner: InnerInstance(instance_ctx),
             registered: false,
         })
     }
@@ -171,17 +172,17 @@ impl Executor {
         store: &mut Store,
         module: &Module,
     ) -> WasmEdgeResult<Instance> {
-        let mut instance_ctx = Vec::with_capacity(1);
+        let mut instance_ctx = std::ptr::null_mut();
         unsafe {
             check(ffi::WasmEdge_ExecutorInstantiate(
                 self.inner.0,
-                instance_ctx.as_mut_ptr(),
+                &mut instance_ctx,
                 store.inner.0,
                 module.inner.0 as *const _,
             ))?;
         }
         Ok(Instance {
-            inner: InnerInstance(instance_ctx.remove(0)),
+            inner: InnerInstance(instance_ctx),
             registered: false,
         })
     }

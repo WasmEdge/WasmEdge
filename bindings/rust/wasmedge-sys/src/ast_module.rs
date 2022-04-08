@@ -82,7 +82,7 @@ unsafe impl Sync for InnerModule {}
 
 /// Struct of WasmEdge ImportType.
 ///
-/// The [ImportType] is used for getting the information of the imports from a WasmEdge [Module].
+/// The [ImportType] describes the type info of an imported value into a wasm module.
 #[derive(Debug)]
 pub struct ImportType<'module> {
     pub(crate) inner: InnerImportType,
@@ -96,7 +96,7 @@ impl<'module> Drop for ImportType<'module> {
     }
 }
 impl<'module> ImportType<'module> {
-    /// Returns the external type of the [Import].
+    /// Returns the expected type of this import.
     pub fn ty(&self) -> WasmEdgeResult<ExternalInstanceType> {
         let ty = unsafe { ffi::WasmEdge_ImportTypeGetExternalType(self.inner.0) };
         let ty: ExternalInstanceType = ty.into();
@@ -220,7 +220,7 @@ impl<'module> ImportType<'module> {
         }
     }
 
-    /// Returns the external name of the [Import].
+    /// Returns the field name of the module that this import is expected to come from.
     pub fn name(&self) -> Cow<'_, str> {
         let c_name = unsafe {
             let raw_name = ffi::WasmEdge_ImportTypeGetExternalName(self.inner.0);
@@ -229,7 +229,7 @@ impl<'module> ImportType<'module> {
         c_name.to_string_lossy()
     }
 
-    /// Returns the module name from the [Import].
+    /// Returns the module name that this import is expected to come from.
     pub fn module_name(&self) -> Cow<'_, str> {
         let c_name = unsafe {
             let raw_name = ffi::WasmEdge_ImportTypeGetModuleName(self.inner.0);
@@ -246,7 +246,7 @@ unsafe impl Sync for InnerImportType {}
 
 /// Struct of WasmEdge ExportType.
 ///
-/// The [ExportType] is used for getting the information of the exports from a WasmEdge [module](crate::Module).
+/// The [ExportType] is used to describe the type info of an exported wasm value.
 #[derive(Debug)]
 pub struct ExportType<'module> {
     pub(crate) inner: InnerExportType,
@@ -261,7 +261,7 @@ impl<'module> Drop for ExportType<'module> {
     }
 }
 impl<'module> ExportType<'module> {
-    /// Returns the external type of the [Export].
+    /// Returns the type of this export.
     pub fn ty(&self) -> WasmEdgeResult<ExternalInstanceType> {
         let ty = unsafe { ffi::WasmEdge_ExportTypeGetExternalType(self.inner.0) };
         let ty: ExternalInstanceType = ty.into();
@@ -382,7 +382,7 @@ impl<'module> ExportType<'module> {
         }
     }
 
-    /// Returns the external name of the [Export].
+    /// Returns the name by which this export is known by.
     pub fn name(&self) -> Cow<'_, str> {
         let c_name = unsafe {
             let raw_name = ffi::WasmEdge_ExportTypeGetExternalName(self.inner.0);

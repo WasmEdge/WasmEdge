@@ -13,18 +13,12 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
+#include "common/errcode.h"
 #include "common/expected.h"
 #include "wasi_crypto/api.hpp"
 
 #include <cassert>
 #include <cstddef>
-
-#ifdef NDEBUG
-#define assumingUnreachable() __builtin_unreachable()
-#else
-#define assumingUnreachable()                                                  \
-  (assert(false && "unreachable"), __builtin_unreachable())
-#endif
 
 /// ensure Expr is true or return ErrorCode
 #define ensureOrReturn(Expr, ErrorCode)                                        \

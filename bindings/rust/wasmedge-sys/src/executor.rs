@@ -5,7 +5,7 @@ use crate::{
     error::{check, WasmEdgeError},
     instance::module::InnerInstance,
     types::WasmEdgeString,
-    Config, Function, ImportModule, Instance, Module, Statistics, Store, WasmEdgeResult, WasmValue,
+    Config, Function, ImportObject, Instance, Module, Statistics, Store, WasmEdgeResult, WasmValue,
 };
 
 /// Struct of WasmEdge Executor.
@@ -78,15 +78,38 @@ impl Executor {
     pub fn register_import_object(
         &mut self,
         store: &mut Store,
-        import: &ImportModule,
+        import: &ImportObject,
     ) -> WasmEdgeResult<()> {
-        unsafe {
-            check(ffi::WasmEdge_ExecutorRegisterImport(
-                self.inner.0,
-                store.inner.0,
-                import.inner.0 as *const _,
-            ))?;
+        match import {
+            ImportObject::Import(import) => unsafe {
+                check(ffi::WasmEdge_ExecutorRegisterImport(
+                    self.inner.0,
+                    store.inner.0,
+                    import.inner.0 as *const _,
+                ))?;
+            },
+            ImportObject::Wasi(import) => unsafe {
+                check(ffi::WasmEdge_ExecutorRegisterImport(
+                    self.inner.0,
+                    store.inner.0,
+                    import.inner.0 as *const _,
+                ))?;
+            },
+            ImportObject::WasmEdgeProcess(import) => unsafe {
+                check(ffi::WasmEdge_ExecutorRegisterImport(
+                    self.inner.0,
+                    store.inner.0,
+                    import.inner.0 as *const _,
+                ))?;
+            },
         }
+        // unsafe {
+        //     check(ffi::WasmEdge_ExecutorRegisterImport(
+        //         self.inner.0,
+        //         store.inner.0,
+        //         import.inner.0 as *const _,
+        //     ))?;
+        // }
         Ok(())
     }
 
@@ -336,6 +359,7 @@ mod tests {
         // add the global into import_obj module
         import.add_global("global_i32", host_global);
 
+        let import = ImportObject::Import(import);
         let result = executor.register_import_object(&mut store, &import);
         assert!(result.is_ok());
 

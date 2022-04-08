@@ -7,10 +7,10 @@ use std::{
     sync::{Arc, Mutex},
     thread,
 };
-use wasmedge_sys::{error::WasmEdgeError, Config, Store, Vm, WasmValue};
+use wasmedge_sys::{Config, Store, Vm, WasmValue};
 
 #[cfg_attr(test, test)]
-fn main() -> Result<(), WasmEdgeError> {
+fn main() -> Result<(), Box<dyn std::error::Error>> {
     // create a Config context
     let mut config = Config::create()?;
     config.bulk_memory_operations(true);

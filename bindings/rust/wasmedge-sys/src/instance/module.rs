@@ -964,6 +964,8 @@ mod tests {
         let result = Executor::create(Some(config), None);
         assert!(result.is_ok());
         let mut executor = result.unwrap();
+
+        let import = ImportObject::Import(import);
         let result = executor.register_import_object(&mut store, &import);
         assert!(result.is_ok());
 

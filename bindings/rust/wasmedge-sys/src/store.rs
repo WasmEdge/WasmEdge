@@ -135,7 +135,7 @@ mod tests {
     use crate::{
         instance::{Function, Global, GlobalType, MemType, Memory, Table, TableType},
         types::WasmValue,
-        AddImportInstance, Config, Executor, FuncType, ImportModule, Vm,
+        AddImportInstance, Config, Executor, FuncType, ImportModule, ImportObject, Vm,
     };
     use std::{
         sync::{Arc, Mutex},
@@ -206,6 +206,8 @@ mod tests {
         let result = Executor::create(Some(config), None);
         assert!(result.is_ok());
         let mut executor = result.unwrap();
+
+        let import = ImportObject::Import(import);
         let result = executor.register_import_object(&mut store, &import);
         assert!(result.is_ok());
 
@@ -265,6 +267,7 @@ mod tests {
             assert!(result.is_ok());
             let mut store = result.unwrap();
 
+            let import = ImportObject::Import(import);
             let result = executor.register_import_object(&mut store, &import);
             assert!(result.is_ok());
 

@@ -72,7 +72,7 @@ pub use instance::{
 #[doc(inline)]
 pub use loader::Loader;
 #[doc(inline)]
-pub use module::{Export, Import, Module};
+pub use module::{ExportType, ImportType, Module};
 #[doc(inline)]
 pub use statistics::Statistics;
 #[doc(inline)]

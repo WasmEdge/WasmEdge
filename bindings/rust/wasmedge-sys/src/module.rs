@@ -3,13 +3,12 @@
 use super::ffi;
 use crate::{
     error::{ExportError, ImportError, WasmEdgeError},
-    wasmedge_types::{
-        ExternalInstanceType, FuncType, GlobalType, MemoryType, Mutability, RefType, TableType,
-        ValType,
-    },
     WasmEdgeResult,
 };
 use std::{borrow::Cow, ffi::CStr};
+use wasmedge_types::{
+    ExternalInstanceType, FuncType, GlobalType, MemoryType, Mutability, RefType, TableType, ValType,
+};
 
 /// Struct of WasmEdge Module.
 ///
@@ -400,14 +399,12 @@ unsafe impl Sync for InnerExportType {}
 
 #[cfg(test)]
 mod tests {
-    use crate::{
-        wasmedge_types::{ExternalInstanceType, Mutability, RefType, ValType},
-        Config, Loader,
-    };
+    use crate::{Config, Loader};
     use std::{
         sync::{Arc, Mutex},
         thread,
     };
+    use wasmedge_types::{ExternalInstanceType, Mutability, RefType, ValType};
 
     #[test]
     fn test_module_import() {

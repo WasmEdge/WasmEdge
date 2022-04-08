@@ -309,11 +309,11 @@ impl Drop for FuncType {
 impl From<wasmedge_types::FuncType> for FuncType {
     fn from(ty: wasmedge_types::FuncType) -> Self {
         let param_tys: Vec<_> = match ty.args() {
-            Some(args) => args.iter().map(|&x| x.into()).collect(),
+            Some(args) => args.to_vec(),
             None => Vec::new(),
         };
         let ret_tys: Vec<_> = match ty.returns() {
-            Some(returns) => returns.iter().map(|&x| x.into()).collect(),
+            Some(returns) => returns.to_vec(),
             None => Vec::new(),
         };
 
@@ -325,7 +325,7 @@ impl From<FuncType> for wasmedge_types::FuncType {
         let args = if ty.params_len() > 0 {
             let mut args = Vec::with_capacity(ty.params_len() as usize);
             for ty in ty.params_type_iter() {
-                args.push(ty.into());
+                args.push(ty);
             }
             Some(args)
         } else {
@@ -335,7 +335,7 @@ impl From<FuncType> for wasmedge_types::FuncType {
         let returns = if ty.returns_len() > 0 {
             let mut returns = Vec::with_capacity(ty.returns_len() as usize);
             for ty in ty.returns_type_iter() {
-                returns.push(ty.into());
+                returns.push(ty);
             }
             Some(returns)
         } else {

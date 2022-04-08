@@ -35,7 +35,7 @@ impl Module {
     }
 
     /// Returns the imports of the [Module].
-    pub fn imports(&self) -> Vec<Import<'_>> {
+    pub fn imports(&self) -> Vec<ImportType<'_>> {
         let size = self.count_of_imports();
         let mut returns = Vec::with_capacity(size as usize);
         unsafe {
@@ -45,8 +45,8 @@ impl Module {
 
         returns
             .into_iter()
-            .map(|ctx| Import {
-                inner: InnerImport(ctx),
+            .map(|ctx| ImportType {
+                inner: InnerImportType(ctx),
                 module: self,
             })
             .collect()
@@ -58,7 +58,7 @@ impl Module {
     }
 
     /// Returns the exports of the [Module].
-    pub fn exports(&self) -> Vec<Export<'_>> {
+    pub fn exports(&self) -> Vec<ExportType<'_>> {
         let size = self.count_of_exports();
         let mut returns = Vec::with_capacity(size as usize);
         unsafe {
@@ -68,8 +68,8 @@ impl Module {
 
         returns
             .into_iter()
-            .map(|ctx| Export {
-                inner: InnerExport(ctx),
+            .map(|ctx| ExportType {
+                inner: InnerExportType(ctx),
                 module: self,
             })
             .collect()
@@ -81,22 +81,22 @@ pub(crate) struct InnerModule(pub(crate) *mut ffi::WasmEdge_ASTModuleContext);
 unsafe impl Send for InnerModule {}
 unsafe impl Sync for InnerModule {}
 
-/// Struct of WasmEdge Import.
+/// Struct of WasmEdge ImportType.
 ///
-/// The [Import] is used for getting the information of the imports from a WasmEdge [Module].
+/// The [ImportType] is used for getting the information of the imports from a WasmEdge [Module].
 #[derive(Debug)]
-pub struct Import<'module> {
-    pub(crate) inner: InnerImport,
+pub struct ImportType<'module> {
+    pub(crate) inner: InnerImportType,
     pub(crate) module: &'module Module,
 }
-impl<'module> Drop for Import<'module> {
+impl<'module> Drop for ImportType<'module> {
     fn drop(&mut self) {
         if !self.inner.0.is_null() {
             self.inner.0 = std::ptr::null();
         }
     }
 }
-impl<'module> Import<'module> {
+impl<'module> ImportType<'module> {
     /// Returns the external type of the [Import].
     pub fn ty(&self) -> WasmEdgeResult<ExternalInstanceType> {
         let ty = unsafe { ffi::WasmEdge_ImportTypeGetExternalType(self.inner.0) };
@@ -241,27 +241,27 @@ impl<'module> Import<'module> {
 }
 
 #[derive(Debug)]
-pub(crate) struct InnerImport(pub(crate) *const ffi::WasmEdge_ImportTypeContext);
-unsafe impl Send for InnerImport {}
-unsafe impl Sync for InnerImport {}
+pub(crate) struct InnerImportType(pub(crate) *const ffi::WasmEdge_ImportTypeContext);
+unsafe impl Send for InnerImportType {}
+unsafe impl Sync for InnerImportType {}
 
-/// Struct of WasmEdge Export.
+/// Struct of WasmEdge ExportType.
 ///
-/// The [Export](crate::Export) is used for getting the information of the exports from a WasmEdge [module](crate::Module).
+/// The [ExportType] is used for getting the information of the exports from a WasmEdge [module](crate::Module).
 #[derive(Debug)]
-pub struct Export<'module> {
-    pub(crate) inner: InnerExport,
+pub struct ExportType<'module> {
+    pub(crate) inner: InnerExportType,
     // pub(crate) _marker: PhantomData<&'module Module>,
     pub(crate) module: &'module Module,
 }
-impl<'module> Drop for Export<'module> {
+impl<'module> Drop for ExportType<'module> {
     fn drop(&mut self) {
         if !self.inner.0.is_null() {
             self.inner.0 = std::ptr::null();
         }
     }
 }
-impl<'module> Export<'module> {
+impl<'module> ExportType<'module> {
     /// Returns the external type of the [Export].
     pub fn ty(&self) -> WasmEdgeResult<ExternalInstanceType> {
         let ty = unsafe { ffi::WasmEdge_ExportTypeGetExternalType(self.inner.0) };
@@ -394,9 +394,9 @@ impl<'module> Export<'module> {
 }
 
 #[derive(Debug)]
-pub(crate) struct InnerExport(pub(crate) *const ffi::WasmEdge_ExportTypeContext);
-unsafe impl Send for InnerExport {}
-unsafe impl Sync for InnerExport {}
+pub(crate) struct InnerExportType(pub(crate) *const ffi::WasmEdge_ExportTypeContext);
+unsafe impl Send for InnerExportType {}
+unsafe impl Sync for InnerExportType {}
 
 #[cfg(test)]
 mod tests {

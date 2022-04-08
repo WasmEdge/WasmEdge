@@ -18,37 +18,7 @@ std::string toUpper(std::string_view Name) noexcept {
 }
 } // namespace
 
-template <>
-WasiCryptoExpect<Symmetric::Algorithm>
-tryFrom(std::string_view RawAlgStr) noexcept {
-  using namespace Symmetric;
-  std::string AlgStr = toUpper(RawAlgStr);
-  if (AlgStr == "SHA-256"sv)
-    return Algorithm{std::in_place_type<Sha256>};
-  if (AlgStr == "SHA-512"sv)
-    return Algorithm{std::in_place_type<Sha512>};
-  if (AlgStr == "SHA-512/256"sv)
-    return Algorithm{std::in_place_type<Sha512_256>};
-  if (AlgStr == "HMAC/SHA-256"sv)
-    return Algorithm{std::in_place_type<HmacSha256>};
-  if (AlgStr == "HMAC/SHA-512"sv)
-    return Algorithm{std::in_place_type<HmacSha512>};
-  if (AlgStr == "HKDF-EXPAND/SHA-256"sv)
-    return Algorithm{std::in_place_type<HkdfSha256Expand>};
-  if (AlgStr == "HKDF-EXTRACT/SHA-256"sv)
-    return Algorithm{std::in_place_type<HkdfSha256Extract>};
-  if (AlgStr == "HKDF-EXPAND/SHA-512"sv)
-    return Algorithm{std::in_place_type<HkdfSha512Expand>};
-  if (AlgStr == "HKDF-EXTRACT/SHA-512"sv)
-    return Algorithm{std::in_place_type<HkdfSha512Extract>};
-  if (AlgStr == "AES-128-GCM"sv)
-    return Algorithm{std::in_place_type<Aes128Gcm>};
-  if (AlgStr == "AES-256-GCM"sv)
-    return Algorithm{std::in_place_type<Aes256Gcm>};
-  if (AlgStr == "CHACHA20-POLY1305"sv)
-    return Algorithm{std::in_place_type<ChaCha20Poly1305>};
-  return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_UNSUPPORTED_ALGORITHM);
-}
+
 
 WasiCryptoExpect<AsymmetricCommon::Algorithm>
 tryFrom(__wasi_algorithm_type_e_t AlgType,
@@ -87,6 +57,50 @@ WasiCryptoExpect<Kx::Algorithm> tryFrom(std::string_view RawAlgStr) noexcept {
   std::string AlgStr = toUpper(RawAlgStr);
   if (AlgStr == "X25519"sv) {
     return Algorithm{std::in_place_type<X25519>};
+  }
+  return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_UNSUPPORTED_ALGORITHM);
+}
+
+template <>
+WasiCryptoExpect<Symmetric::Algorithm>
+tryFrom(std::string_view RawAlgStr) noexcept {
+  using namespace Symmetric;
+  std::string AlgStr = toUpper(RawAlgStr);
+  if (AlgStr == "SHA-256"sv) {
+    return Algorithm{std::in_place_type<Sha256>};
+  }
+  if (AlgStr == "SHA-512"sv) {
+    return Algorithm{std::in_place_type<Sha512>};
+  }
+  if (AlgStr == "SHA-512/256"sv) {
+    return Algorithm{std::in_place_type<Sha512_256>};
+  }
+  if (AlgStr == "HMAC/SHA-256"sv) {
+    return Algorithm{std::in_place_type<HmacSha256>};
+  }
+  if (AlgStr == "HMAC/SHA-512"sv) {
+    return Algorithm{std::in_place_type<HmacSha512>};
+  }
+  if (AlgStr == "HKDF-EXPAND/SHA-256"sv) {
+    return Algorithm{std::in_place_type<HkdfSha256Expand>};
+  }
+  if (AlgStr == "HKDF-EXTRACT/SHA-256"sv) {
+    return Algorithm{std::in_place_type<HkdfSha256Extract>};
+  }
+  if (AlgStr == "HKDF-EXPAND/SHA-512"sv) {
+    return Algorithm{std::in_place_type<HkdfSha512Expand>};
+  }
+  if (AlgStr == "HKDF-EXTRACT/SHA-512"sv) {
+    return Algorithm{std::in_place_type<HkdfSha512Extract>};
+  }
+  if (AlgStr == "AES-128-GCM"sv) {
+    return Algorithm{std::in_place_type<Aes128Gcm>};
+  }
+  if (AlgStr == "AES-256-GCM"sv) {
+    return Algorithm{std::in_place_type<Aes256Gcm>};
+  }
+  if (AlgStr == "CHACHA20-POLY1305"sv) {
+    return Algorithm{std::in_place_type<ChaCha20Poly1305>};
   }
   return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_UNSUPPORTED_ALGORITHM);
 }

@@ -87,7 +87,7 @@ template <int ShaNid> class Hmac {
 public:
   class Key {
   public:
-    Key(std::shared_ptr<SecretVec> Data) : Data(std::move(Data)) {}
+    Key(std::shared_ptr<SecretVec> Data) noexcept : Data(std::move(Data)) {}
 
     static WasiCryptoExpect<Key> import(Span<const uint8_t> Data) noexcept;
 

@@ -158,8 +158,7 @@ impl Vm {
         Ok(())
     }
 
-    /// Registers and instantiates a WASM module into the [store](crate::Store) of the [Vm] from a given WASM
-    /// binary buffer.
+    /// Registers and instantiates a WASM module into the [store](crate::Store) of the [Vm] from a given WASM in-memory bytes.
     ///
     /// The workflow of the function can be summarized as the following steps:
     ///
@@ -171,25 +170,25 @@ impl Vm {
     ///
     /// # Arguments
     ///
-    /// - `mod_name` specifies the name of the WASM module to be registered.
+    /// * `mod_name` - The name of the WASM module to be registered.
     ///
-    /// - `buffer` specifies the buffer of a WASM binary.
+    /// * `bytes` - The in-memory wasm bytes.
     ///
     /// # Error
     ///
     /// If fail to register the WASM module, then an error is returned.
-    pub fn register_wasm_from_buffer(
+    pub fn register_wasm_from_bytes(
         &mut self,
         mod_name: impl AsRef<str>,
-        buffer: &[u8],
+        bytes: &[u8],
     ) -> WasmEdgeResult<()> {
         let mod_name: WasmEdgeString = mod_name.as_ref().into();
         unsafe {
             check(ffi::WasmEdge_VMRegisterModuleFromBuffer(
                 self.inner.0,
                 mod_name.as_raw(),
-                buffer.as_ptr(),
-                buffer.len() as u32,
+                bytes.as_ptr(),
+                bytes.len() as u32,
             ))?;
         }
 
@@ -1326,7 +1325,7 @@ mod tests {
         let result = std::fs::read(path);
         assert!(result.is_ok());
         let buffer = result.unwrap();
-        let result = vm.register_wasm_from_buffer("reg-wasm-buffer", &buffer);
+        let result = vm.register_wasm_from_bytes("reg-wasm-buffer", &buffer);
         assert!(result.is_ok());
     }
 

@@ -31,7 +31,7 @@ namespace Symmetric {
 /// https://github.com/WebAssembly/wasi-crypto/blob/main/docs/wasi-crypto.md#authentication-tags
 class Tag {
 public:
-  Tag(std::vector<uint8_t> &&Data) : Data(std::move(Data)) {}
+  Tag(std::vector<uint8_t> &&Data) noexcept : Data(std::move(Data)) {}
 
   size_t len() const noexcept { return Data.raw().size(); }
 

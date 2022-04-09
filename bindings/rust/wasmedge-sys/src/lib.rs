@@ -1,8 +1,6 @@
 //! # Rust WasmEdge bindings
 //! This library contains safe Rust bindings for WasmEdge, a lightweight, high-performance, and extensible WebAssembly runtime for cloud native, edge, and decentralized applications.
 //!
-//! WasmEdge 0.9.0 is the lowest supported version for the underlying library.
-//!
 //! Most of this documentation is generated from the C API. Until all parts of the documentation have been reviewed there will be incongruities with the actual Rust API.
 //!
 //! ## Usage

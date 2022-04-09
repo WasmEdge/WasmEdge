@@ -18,8 +18,6 @@ std::string toUpper(std::string_view Name) noexcept {
 }
 } // namespace
 
-
-
 WasiCryptoExpect<AsymmetricCommon::Algorithm>
 tryFrom(__wasi_algorithm_type_e_t AlgType,
         std::string_view RawAlgStr) noexcept {

@@ -274,7 +274,7 @@ impl Vm {
         self.run_function(func_name, params)
     }
 
-    /// Instantiate a WASM module from a buffer and invokes a function by name.
+    /// Instantiate a WASM module from a in-memory wasm bytes and invokes a function by name.
     ///
     /// The workflow of the function can be summarized as the following steps:
     ///
@@ -284,23 +284,23 @@ impl Vm {
     ///
     /// # Arguments
     ///
-    /// - `buffer` specifies the buffer of a WASM binary.
+    /// * `bytes` - The in-memory wasm bytes.
     ///
-    /// - `func_name` specifies the name of the [function](crate::Function).
+    /// * `func_name` - The name of the [function](crate::Function).
     ///
-    /// - `params` specifies the parameter values which are used by the [function](crate::Function).
+    /// * `params` - The parameter values which are used by the [function](crate::Function).
     ///
     /// # Error
     ///
     /// If fail to run, then an error is returned.
-    pub fn run_wasm_from_buffer(
+    pub fn run_wasm_from_bytes(
         &mut self,
-        buffer: &[u8],
+        bytes: &[u8],
         func_name: impl AsRef<str>,
         params: impl IntoIterator<Item = WasmValue>,
     ) -> WasmEdgeResult<Vec<WasmValue>> {
         // load
-        self.load_wasm_from_buffer(buffer)?;
+        self.load_wasm_from_bytes(bytes)?;
 
         // validate
         self.validate()?;
@@ -373,23 +373,23 @@ impl Vm {
         Ok(())
     }
 
-    /// Loads a WASM module from a WASM binary buffer.
+    /// Loads a WASM module from a in-memory WASM bytes.
     ///
     /// This is the first step to invoke a WASM function step by step.
     ///
     /// # Argument
     ///
-    /// - `buffer` specifies the buffer of a WASM binary.
+    /// * `bytes` - The in-memory wasm bytes.
     ///
     /// # Error
     ///
     /// If fail to load, then an error is returned.
-    pub fn load_wasm_from_buffer(&mut self, buffer: &[u8]) -> WasmEdgeResult<()> {
+    pub fn load_wasm_from_bytes(&mut self, bytes: &[u8]) -> WasmEdgeResult<()> {
         unsafe {
             check(ffi::WasmEdge_VMLoadWasmFromBuffer(
                 self.inner.0,
-                buffer.as_ptr() as *const _,
-                buffer.len() as u32,
+                bytes.as_ptr() as *const _,
+                bytes.len() as u32,
             ))?;
         }
         Ok(())
@@ -424,7 +424,7 @@ impl Vm {
     /// # Error
     ///
     /// If fail to validate, then an error is returned.
-    pub fn validate(&self) -> WasmEdgeResult<()> {
+    pub fn validate(&mut self) -> WasmEdgeResult<()> {
         unsafe {
             check(ffi::WasmEdge_VMValidate(self.inner.0))?;
         }
@@ -871,12 +871,12 @@ mod tests {
         let result = std::fs::read(wasm_path);
         assert!(result.is_ok());
         let buffer = result.unwrap();
-        let result = vm.load_wasm_from_buffer(&buffer);
+        let result = vm.load_wasm_from_bytes(&buffer);
         assert!(result.is_ok());
 
         // load wasm module from an empty buffer
         let empty_buffer: Vec<u8> = vec![];
-        let result = vm.load_wasm_from_buffer(&empty_buffer);
+        let result = vm.load_wasm_from_bytes(&empty_buffer);
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
@@ -1415,14 +1415,14 @@ mod tests {
         let result = std::fs::read(path);
         assert!(result.is_ok());
         let buffer = result.unwrap();
-        let result = vm.run_wasm_from_buffer(&buffer, "fib", [WasmValue::from_i32(5)]);
+        let result = vm.run_wasm_from_bytes(&buffer, "fib", [WasmValue::from_i32(5)]);
         assert!(result.is_ok());
         let returns = result.unwrap();
         assert_eq!(returns[0].to_i32(), 8);
 
         // run a function from an empty buffer
         let empty_buffer: Vec<u8> = Vec::new();
-        let result = vm.run_wasm_from_buffer(&empty_buffer, "fib", [WasmValue::from_i32(5)]);
+        let result = vm.run_wasm_from_bytes(&empty_buffer, "fib", [WasmValue::from_i32(5)]);
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
@@ -1430,7 +1430,7 @@ mod tests {
         );
 
         // run a function with the empty parameters
-        let result = vm.run_wasm_from_buffer(&buffer, "fib", []);
+        let result = vm.run_wasm_from_bytes(&buffer, "fib", []);
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
@@ -1438,7 +1438,7 @@ mod tests {
         );
 
         // run a function with the parameters of wrong type
-        let result = vm.run_wasm_from_buffer(&buffer, "fib", [WasmValue::from_i64(5)]);
+        let result = vm.run_wasm_from_bytes(&buffer, "fib", [WasmValue::from_i64(5)]);
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
@@ -1446,7 +1446,7 @@ mod tests {
         );
 
         // fun a function: the specified function name is non-existant
-        let result = vm.run_wasm_from_buffer(&buffer, "fib2", [WasmValue::from_i64(5)]);
+        let result = vm.run_wasm_from_bytes(&buffer, "fib2", [WasmValue::from_i64(5)]);
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),

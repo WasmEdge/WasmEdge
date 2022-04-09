@@ -53,7 +53,7 @@
 //!
 //!     // register the wasm bytes
 //!     let module_name = "extern-module";
-//!     vm.register_wasm_from_buffer(module_name, &wasm_bytes)?;
+//!     vm.register_wasm_from_bytes(module_name, &wasm_bytes)?;
 //!
 //!     // run the exported function named "fib"
 //!     let func_name = "fib";

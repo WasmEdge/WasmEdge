@@ -448,7 +448,8 @@ Ecdsa<CurveNid>::Signature::import(
     __wasi_signature_encoding_e_t Encoding) noexcept {
   switch (Encoding) {
   case __WASI_SIGNATURE_ENCODING_RAW:
-    return std::vector(Encoded.begin(), Encoded.end());
+    return std::make_shared<std::vector<uint8_t>>(Encoded.begin(),
+                                                  Encoded.end());
   case __WASI_SIGNATURE_ENCODING_DER:
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
   default:
@@ -461,7 +462,7 @@ WasiCryptoExpect<std::vector<uint8_t>> Ecdsa<CurveNid>::Signature::exportData(
     __wasi_signature_encoding_e_t Encoding) const noexcept {
   switch (Encoding) {
   case __WASI_SIGNATURE_ENCODING_RAW:
-    return Data;
+    return *Data;
   case __WASI_SIGNATURE_ENCODING_DER:
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
   default:
@@ -482,8 +483,8 @@ Ecdsa<CurveNid>::SignState::sign() noexcept {
   size_t Size;
   opensslCheck(EVP_DigestSignFinal(Ctx.get(), nullptr, &Size));
 
-  std::vector<uint8_t> Res(Size);
-  opensslCheck(EVP_DigestSignFinal(Ctx.get(), Res.data(), &Size));
+  auto Res = std::make_shared<std::vector<uint8_t>>(Size);
+  opensslCheck(EVP_DigestSignFinal(Ctx.get(), Res->data(), &Size));
 
   return Res;
 }

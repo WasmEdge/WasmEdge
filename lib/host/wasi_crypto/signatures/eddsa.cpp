@@ -202,7 +202,8 @@ Eddsa::Signature::import(Span<const uint8_t> Encoded,
   case __WASI_SIGNATURE_ENCODING_RAW:
     ensureOrReturn(Encoded.size() == SigSize,
                    __WASI_CRYPTO_ERRNO_INVALID_SIGNATURE);
-    return std::vector<uint8_t>(Encoded.begin(), Encoded.end());
+    return std::make_shared<std::vector<uint8_t>>(Encoded.begin(),
+                                                  Encoded.end());
   default:
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_UNSUPPORTED_ENCODING);
   }
@@ -212,7 +213,7 @@ WasiCryptoExpect<std::vector<uint8_t>> Eddsa::Signature::exportData(
     __wasi_signature_encoding_e_t Encoding) const noexcept {
   switch (Encoding) {
   case __WASI_SIGNATURE_ENCODING_RAW:
-    return Data;
+    return *Data;
   default:
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_UNSUPPORTED_ENCODING);
   }
@@ -230,10 +231,10 @@ Eddsa::SignState::update(Span<const uint8_t> Input) noexcept {
 
 WasiCryptoExpect<Eddsa::Signature> Eddsa::SignState::sign() noexcept {
   size_t Size = SigSize;
-  std::vector<uint8_t> Res(Size);
+  auto Res = std::make_shared<std::vector<uint8_t>>(Size);
 
   std::shared_lock Lock{Ctx->Mutex};
-  opensslCheck(EVP_DigestSign(Ctx->RawCtx.get(), Res.data(), &Size,
+  opensslCheck(EVP_DigestSign(Ctx->RawCtx.get(), Res->data(), &Size,
                               Ctx->Data.data(), Ctx->Data.size()));
   ensureOrReturn(Size == SigSize, __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
   return Res;

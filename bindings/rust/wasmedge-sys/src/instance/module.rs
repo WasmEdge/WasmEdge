@@ -443,7 +443,7 @@ impl ImportInstance for ImportModule {
 ///
 /// * [WasiModule] implements ImportInstance trait, therefore it can be used to register function, table, memory and global instances.
 ///
-/// * A [WasiModule] can be created implicitly inside a [Vm](crate::Vm) by passing it a [config](crate::Config) argument in which the `wasi` option is enabled.
+/// * A [WasiModule] can be created implicitly inside a [Vm](crate::Vm) by passing the [Vm](crate::Vm) a [config](crate::Config) argument in which the `wasi` option is enabled.
 #[derive(Debug)]
 pub struct WasiModule {
     pub(crate) inner: InnerInstance,

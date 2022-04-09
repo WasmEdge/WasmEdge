@@ -321,7 +321,8 @@ Rsa<PadMode, KeyBits, ShaNid>::Signature::import(
   case __WASI_SIGNATURE_ENCODING_RAW:
     ensureOrReturn(Encoded.size() == getKeySize(),
                    __WASI_CRYPTO_ERRNO_INVALID_SIGNATURE);
-    return std::vector<uint8_t>(Encoded.begin(), Encoded.end());
+    return std::make_shared<std::vector<uint8_t>>(Encoded.begin(),
+                                                  Encoded.end());
   case __WASI_SIGNATURE_ENCODING_DER:
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
   default:
@@ -335,7 +336,7 @@ Rsa<PadMode, KeyBits, ShaNid>::Signature::exportData(
     __wasi_signature_encoding_e_t Encoding) const noexcept {
   switch (Encoding) {
   case __WASI_SIGNATURE_ENCODING_RAW:
-    return Data;
+    return *Data;
   case __WASI_SIGNATURE_ENCODING_DER:
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
   default:
@@ -353,12 +354,12 @@ WasiCryptoExpect<void> Rsa<PadMode, KeyBits, ShaNid>::SignState::update(
 template <int PadMode, int KeyBits, int ShaNid>
 WasiCryptoExpect<typename Rsa<PadMode, KeyBits, ShaNid>::Signature>
 Rsa<PadMode, KeyBits, ShaNid>::SignState::sign() noexcept {
-  size_t Siz;
-  opensslCheck(EVP_DigestSignFinal(Ctx.get(), nullptr, &Siz));
+  size_t Size;
+  opensslCheck(EVP_DigestSignFinal(Ctx.get(), nullptr, &Size));
 
-  std::vector<uint8_t> Res(Siz);
+  auto Res = std::make_shared<std::vector<uint8_t>>(Size);
 
-  opensslCheck(EVP_DigestSignFinal(Ctx.get(), Res.data(), &Siz));
+  opensslCheck(EVP_DigestSignFinal(Ctx.get(), Res->data(), &Size));
 
   return Res;
 }

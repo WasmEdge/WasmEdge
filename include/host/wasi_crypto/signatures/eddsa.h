@@ -31,7 +31,8 @@ class Eddsa {
 public:
   class Signature {
   public:
-    Signature(std::vector<uint8_t> &&Data) noexcept : Data(std::move(Data)) {}
+    Signature(std::shared_ptr<std::vector<uint8_t>> &&Data) noexcept
+        : Data(std::move(Data)) {}
 
     static WasiCryptoExpect<Signature>
     import(Span<const uint8_t> Encoded,
@@ -40,10 +41,10 @@ public:
     WasiCryptoExpect<std::vector<uint8_t>>
     exportData(__wasi_signature_encoding_e_t Encoding) const noexcept;
 
-    const std::vector<uint8_t> &ref() const { return Data; }
+    const std::vector<uint8_t> &ref() const { return *Data; }
 
   private:
-    const std::vector<uint8_t> Data;
+    std::shared_ptr<std::vector<uint8_t>> Data;
   };
 
   class SignState {

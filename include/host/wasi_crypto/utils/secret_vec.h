@@ -41,6 +41,8 @@ public:
 
   std::vector<uint8_t> &raw() noexcept { return Data; }
 
+  const std::vector<uint8_t> &raw() const noexcept { return Data; }
+
   /// Generate random size vector. Notice Size shouldn't beyond
   /// std::numeric_limits<int>::max() because of the limitations of openssl
   template <size_t Size>

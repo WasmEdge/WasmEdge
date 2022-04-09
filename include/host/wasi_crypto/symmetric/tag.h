@@ -15,9 +15,9 @@
 
 #include "common/span.h"
 #include "host/wasi_crypto/utils/error.h"
+#include "host/wasi_crypto/utils/secret_vec.h"
 
 #include <memory>
-#include <vector>
 
 namespace WasmEdge {
 namespace Host {
@@ -33,7 +33,7 @@ class Tag {
 public:
   Tag(std::vector<uint8_t> &&Data) : Data(std::move(Data)) {}
 
-  size_t len() const noexcept { return Data.size(); }
+  size_t len() const noexcept { return Data.raw().size(); }
 
   /// The function MUST return `__WASI_CRYPTO_ERRNO_INVALID_TAG` if the
   /// tags don't match.
@@ -42,7 +42,7 @@ public:
   WasiCryptoExpect<size_t> pull(Span<uint8_t> Raw) const noexcept;
 
 private:
-  const std::vector<uint8_t> Data;
+  SecretVec Data;
 };
 
 } // namespace Symmetric

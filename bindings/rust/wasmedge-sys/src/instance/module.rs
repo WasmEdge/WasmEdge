@@ -290,7 +290,7 @@ unsafe impl Sync for InnerInstance {}
 ///
 /// ```rust
 /// use wasmedge_sys::{
-///     AddImportInstance, FuncType, Function, Global, GlobalType, ImportModule, ImportObject, MemType,
+///     ImportInstance, FuncType, Function, Global, GlobalType, ImportModule, ImportObject, MemType,
 ///     Memory, Table, TableType, Vm, WasmValue,
 /// };
 /// use wasmedge_types::{Mutability, RefType, ValType};
@@ -397,7 +397,7 @@ impl ImportModule {
         self.name.to_owned()
     }
 }
-impl AddImportInstance for ImportModule {
+impl ImportInstance for ImportModule {
     fn add_func(&mut self, name: impl AsRef<str>, mut func: Function) {
         let func_name: WasmEdgeString = name.into();
         unsafe {
@@ -438,6 +438,12 @@ impl AddImportInstance for ImportModule {
 /// Struct of WasmEdge WasiModule.
 ///
 /// A [WasiModule] is a module instance for the WASI specification.
+///
+/// # Usage
+///
+/// * [WasiModule] implements ImportInstance trait, therefore it can be used to register function, table, memory and global instances.
+///
+/// * A [WasiModule] can be created implicitly inside a [Vm](crate::Vm) by passing it a [config](crate::Config) argument in which the `wasi` option is enabled.
 #[derive(Debug)]
 pub struct WasiModule {
     pub(crate) inner: InnerInstance,
@@ -572,7 +578,7 @@ impl WasiModule {
         unsafe { ffi::WasmEdge_ModuleInstanceWASIGetExitCode(self.inner.0 as *const _) }
     }
 }
-impl AddImportInstance for WasiModule {
+impl ImportInstance for WasiModule {
     fn add_func(&mut self, name: impl AsRef<str>, mut func: Function) {
         let func_name: WasmEdgeString = name.into();
         unsafe {
@@ -692,7 +698,7 @@ impl WasmEdgeProcessModule {
         }
     }
 }
-impl AddImportInstance for WasmEdgeProcessModule {
+impl ImportInstance for WasmEdgeProcessModule {
     fn add_func(&mut self, name: impl AsRef<str>, mut func: Function) {
         let func_name: WasmEdgeString = name.into();
         unsafe {
@@ -731,7 +737,7 @@ impl AddImportInstance for WasmEdgeProcessModule {
 }
 
 /// The object to be registered into a [Vm](crate::Vm) or an [Executor](crate::Executor) instance is required to implement this trait. The object that implements this trait can be registered via the [Vm::register_wasm_from_import](crate::Vm::register_wasm_from_import) function, or the [Executor::register_import_object](crate::Executor::register_import_object) function.
-pub trait AddImportInstance {
+pub trait ImportInstance {
     /// Imports a [host function instance](crate::Function).
     ///
     /// # Arguments

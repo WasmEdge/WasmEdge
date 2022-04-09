@@ -619,7 +619,7 @@ impl Vm {
             ffi::WasmEdge_VMGetImportModuleContext(self.inner.0, WasmEdge_HostRegistration_Wasi)
         };
         match io_ctx.is_null() {
-            true => Err(WasmEdgeError::Vm(VmError::NotFoundWasiImportObjectModule)),
+            true => Err(WasmEdgeError::Vm(VmError::NotFoundWasiModule)),
             false => Ok(WasiModule {
                 inner: InnerInstance(io_ctx),
                 registered: true,
@@ -636,9 +636,7 @@ impl Vm {
             )
         };
         match io_ctx.is_null() {
-            true => Err(WasmEdgeError::Vm(
-                VmError::NotFoundWasmEdgeProcessImportObjectModule,
-            )),
+            true => Err(WasmEdgeError::Vm(VmError::NotFoundWasmEdgeProcessModule)),
             false => Ok(WasmEdgeProcessModule {
                 inner: InnerInstance(io_ctx),
                 registered: true,
@@ -719,7 +717,7 @@ mod tests {
             CoreCommonError, CoreError, CoreExecutionError, CoreInstantiationError, CoreLoadError,
             InstanceError, StoreError, VmError, WasmEdgeError,
         },
-        AddImportInstance, Config, FuncType, Function, ImportModule, ImportObject, Loader, Module,
+        Config, FuncType, Function, ImportInstance, ImportModule, ImportObject, Loader, Module,
         Store, WasiModule, WasmEdgeProcessModule, WasmValue,
     };
     use std::{
@@ -1288,7 +1286,7 @@ mod tests {
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
-            WasmEdgeError::Vm(VmError::NotFoundWasmEdgeProcessImportObjectModule)
+            WasmEdgeError::Vm(VmError::NotFoundWasmEdgeProcessModule)
         );
 
         // get store
@@ -1642,6 +1640,10 @@ mod tests {
             // get the Wasi module
             let result = vm.wasi_import_module_mut();
             assert!(result.is_err());
+            assert_eq!(
+                result.unwrap_err(),
+                WasmEdgeError::Vm(VmError::NotFoundWasiModule)
+            );
 
             // *** try to add a Wasi module.
 
@@ -1667,7 +1669,7 @@ mod tests {
             assert!(result.is_err());
             assert_eq!(
                 result.unwrap_err(),
-                WasmEdgeError::Vm(VmError::NotFoundWasiImportObjectModule)
+                WasmEdgeError::Vm(VmError::NotFoundWasiModule)
             );
 
             // get store from vm
@@ -1784,7 +1786,7 @@ mod tests {
             assert!(result.is_err());
             assert_eq!(
                 result.unwrap_err(),
-                WasmEdgeError::Vm(VmError::NotFoundWasmEdgeProcessImportObjectModule)
+                WasmEdgeError::Vm(VmError::NotFoundWasmEdgeProcessModule)
             );
 
             // get store from vm

@@ -1,5 +1,5 @@
 use wasmedge_sys::{
-    AddImportInstance, FuncType, Function, Global, GlobalType, ImportModule, ImportObject, MemType,
+    FuncType, Function, Global, GlobalType, ImportInstance, ImportModule, ImportObject, MemType,
     Memory, Table, TableType, Vm, WasmValue,
 };
 use wasmedge_types::{Mutability, RefType, ValType};

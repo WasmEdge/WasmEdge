@@ -444,6 +444,7 @@ impl ImportInstance for ImportModule {
 /// * [WasiModule] implements ImportInstance trait, therefore it can be used to register function, table, memory and global instances.
 ///
 /// * A [WasiModule] can be created implicitly inside a [Vm](crate::Vm) by passing the [Vm](crate::Vm) a [config](crate::Config) argument in which the `wasi` option is enabled.
+///
 #[derive(Debug)]
 pub struct WasiModule {
     pub(crate) inner: InnerInstance,
@@ -619,6 +620,13 @@ impl ImportInstance for WasiModule {
 /// Struct of WasmEdge WasmEdgeProcessModule.
 ///
 /// A [WasmEdgeProcessModule] is a module instance for the WasmEdge_Process specification.
+///
+/// # Usage
+///
+/// * [WasmEdgeProcessModule] implements ImportInstance trait, therefore it can be used to register function, table, memory and global instances.
+///
+/// * A [WasmEdgeProcessModule] can be created implicitly inside a [Vm](crate::Vm) by passing the [Vm](crate::Vm) a [config](crate::Config) argument in which the `wasmedge_process` option is enabled.
+///
 #[derive(Debug)]
 pub struct WasmEdgeProcessModule {
     pub(crate) inner: InnerInstance,

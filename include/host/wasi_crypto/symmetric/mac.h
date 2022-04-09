@@ -99,7 +99,7 @@ public:
     const std::vector<uint8_t> &ref() const noexcept { return Data->raw(); }
 
   private:
-    const std::shared_ptr<SecretVec> Data;
+    std::shared_ptr<SecretVec> Data;
   };
 
   class State : public MacState<Key> {
@@ -124,7 +124,7 @@ public:
     WasiCryptoExpect<Tag> squeezeTag() noexcept;
 
   private:
-    const std::shared_ptr<EVP_MD_CTX> Ctx;
+    std::shared_ptr<EVP_MD_CTX> Ctx;
   };
 
 private:

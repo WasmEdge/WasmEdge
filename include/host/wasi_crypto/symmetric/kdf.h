@@ -149,7 +149,7 @@ public:
       const std::vector<uint8_t> &ref() const noexcept { return Data->raw(); }
 
     private:
-      const std::shared_ptr<SecretVec> Data;
+      std::shared_ptr<SecretVec> Data;
     };
 
     class State : public ExpandState<Key> {
@@ -166,7 +166,7 @@ public:
       WasiCryptoExpect<void> squeeze(Span<uint8_t> Out) noexcept;
 
     private:
-      const std::shared_ptr<EVP_PKEY_CTX> Ctx;
+      std::shared_ptr<EVP_PKEY_CTX> Ctx;
     };
   };
 
@@ -186,7 +186,7 @@ public:
       const std::vector<uint8_t> &ref() const noexcept { return Data->raw(); }
 
     private:
-      const std::shared_ptr<SecretVec> Data;
+      std::shared_ptr<SecretVec> Data;
     };
 
     class State : public ExtractState<Key> {
@@ -211,7 +211,7 @@ public:
         std::vector<uint8_t> Salt;
         EvpPkeyCtxPtr RawCtx;
       };
-      const std::shared_ptr<Inner> Ctx;
+      std::shared_ptr<Inner> Ctx;
     };
   };
 

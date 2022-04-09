@@ -21,7 +21,7 @@ use crate::{
 /// * [Vm](crate::Vm)
 ///     * [Vm::active_module](crate::Vm::active_module) ([example](https://github.com/WasmEdge/WasmEdge/tree/master/bindings/rust/wasmedge-sys/examples/vm_get_active_module.rs))
 /// * [Store](crate::Store)
-///     * [Store::module](crate::Store::module)
+///     * [Store::module](crate::Store::module) ([example](https://github.com/WasmEdge/WasmEdge/tree/master/bindings/rust/wasmedge-sys/examples/vm_get_active_module.rs))
 ///
 #[derive(Debug)]
 pub struct Instance {

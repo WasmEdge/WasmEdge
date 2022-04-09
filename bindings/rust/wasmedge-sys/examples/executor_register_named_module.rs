@@ -56,7 +56,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut store = Store::create()?;
 
     // register a wasm module into the store context
-    let instance = executor.register_named_module(&mut store, &module, "extern")?;
+    let module_name = "extern";
+    let instance = executor.register_named_module(&mut store, &module, module_name)?;
 
     assert!(instance.get_func("fib").is_ok());
 

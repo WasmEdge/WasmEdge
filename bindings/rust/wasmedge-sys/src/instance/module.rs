@@ -17,9 +17,9 @@ use crate::{
 ///
 /// * [Executor](crate::Executor)
 ///     * [Executor::register_named_module](crate::Executor::register_named_module) ([example](https://github.com/WasmEdge/WasmEdge/tree/master/bindings/rust/wasmedge-sys/examples/executor_register_named_module.rs))
-///     * [Executor::register_active_module](crate::Executor::register_active_module)
+///     * [Executor::register_active_module](crate::Executor::register_active_module) ([example](https://github.com/WasmEdge/WasmEdge/tree/master/bindings/rust/wasmedge-sys/examples/executor_register_active_module.rs))
 /// * [Vm](crate::Vm)
-///     * [Vm::active_module](crate::Vm::active_module)
+///     * [Vm::active_module](crate::Vm::active_module) ([example](https://github.com/WasmEdge/WasmEdge/tree/master/bindings/rust/wasmedge-sys/examples/vm_get_active_module.rs))
 /// * [Store](crate::Store)
 ///     * [Store::module](crate::Store::module)
 ///

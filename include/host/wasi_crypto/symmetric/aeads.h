@@ -70,7 +70,7 @@ public:
     const std::vector<uint8_t> &ref() const noexcept { return Data->raw(); }
 
   private:
-    const std::shared_ptr<SecretVec> Data;
+    std::shared_ptr<SecretVec> Data;
   };
 
   // Nonce = IV,
@@ -160,7 +160,7 @@ public:
       EvpCipherCtxPtr RawCtx;
       std::array<uint8_t, NonceSize> Nonce;
     };
-    const std::shared_ptr<Inner> Ctx;
+    std::shared_ptr<Inner> Ctx;
   };
 
 private:

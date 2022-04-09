@@ -16,8 +16,7 @@ use std::{
     io::Read,
 };
 use wasmedge_sys::{
-    AddImportInstance, Config, FuncType, Function, ImportModule, ImportObject, Loader, Vm,
-    WasmValue,
+    Config, FuncType, Function, ImportInstance, ImportModule, ImportObject, Loader, Vm, WasmValue,
 };
 use wasmedge_types::ValType;
 

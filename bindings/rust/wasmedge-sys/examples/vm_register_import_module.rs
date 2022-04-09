@@ -5,6 +5,11 @@ use wasmedge_sys::{
 use wasmedge_types::{Mutability, RefType, ValType};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let module_name = "extern_module";
+
+    // create ImportModule instance
+    let mut import = ImportModule::create(module_name)?;
+
     // a function to import
     fn real_add(inputs: Vec<WasmValue>) -> Result<Vec<WasmValue>, u8> {
         if inputs.len() != 2 {
@@ -27,11 +32,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         Ok(vec![WasmValue::from_i32(c)])
     }
-
-    let module_name = "extern_module";
-
-    // create ImportModule instance
-    let mut import = ImportModule::create(module_name)?;
 
     // add host function
     let func_ty = FuncType::create(vec![ValType::I32; 2], vec![ValType::I32])?;

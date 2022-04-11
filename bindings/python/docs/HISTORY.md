@@ -1,5 +1,6 @@
 (unreleased)
 ------------
+- Release: version 0.2.4 python 🚀 [Shreyas Atre]
 - [PySDK] Templating VM. [Shreyas Atre]
 
   * Minor: Remove delete constructor for import_object, namespace to

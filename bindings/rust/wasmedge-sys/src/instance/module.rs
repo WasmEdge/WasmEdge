@@ -817,7 +817,283 @@ mod tests {
         Config, Executor, FuncType, GlobalType, ImportModule, MemType, Store, TableType, Vm,
         WasmValue,
     };
+    use std::{
+        sync::{Arc, Mutex},
+        thread,
+    };
     use wasmedge_types::{Mutability, RefType, ValType};
+
+    #[test]
+    fn test_instance_add_instance() {
+        let host_name = "extern";
+
+        // create an import module
+        let result = ImportModule::create(host_name);
+        assert!(result.is_ok());
+        let mut import = result.unwrap();
+
+        // create a host function
+        let result = FuncType::create([ValType::ExternRef, ValType::I32], [ValType::I32]);
+        assert!(result.is_ok());
+        let func_ty = result.unwrap();
+        let result = Function::create(&func_ty, Box::new(real_add), 0);
+        assert!(result.is_ok());
+        let host_func = result.unwrap();
+        // add the host function
+        import.add_func("func-add", host_func);
+
+        // create a table
+        let result = TableType::create(RefType::FuncRef, 10..=20);
+        assert!(result.is_ok());
+        let table_ty = result.unwrap();
+        let result = Table::create(&table_ty);
+        assert!(result.is_ok());
+        let host_table = result.unwrap();
+        // add the table
+        import.add_table("table", host_table);
+
+        // create a memory
+        let result = MemType::create(1..=2);
+        assert!(result.is_ok());
+        let mem_ty = result.unwrap();
+        let result = Memory::create(&mem_ty);
+        assert!(result.is_ok());
+        let host_memory = result.unwrap();
+        // add the memory
+        import.add_memory("memory", host_memory);
+
+        // create a global
+        let result = GlobalType::create(ValType::I32, Mutability::Const);
+        assert!(result.is_ok());
+        let global_ty = result.unwrap();
+        let result = Global::create(&global_ty, WasmValue::from_i32(666));
+        assert!(result.is_ok());
+        let host_global = result.unwrap();
+        // add the global
+        import.add_global("global_i32", host_global);
+    }
+
+    #[test]
+    fn test_instance_import_module_send() {
+        let host_name = "extern";
+
+        // create an ImportModule instance
+        let result = ImportModule::create(host_name);
+        assert!(result.is_ok());
+        let import = result.unwrap();
+
+        let handle = thread::spawn(move || {
+            assert!(!import.inner.0.is_null());
+            println!("{:?}", import.inner);
+        });
+
+        handle.join().unwrap();
+    }
+
+    #[test]
+    fn test_instance_import_module_sync() {
+        let host_name = "extern";
+
+        // create an ImportModule instance
+        let result = ImportModule::create(host_name);
+        assert!(result.is_ok());
+        let mut import = result.unwrap();
+
+        // add host function
+        let result = FuncType::create(vec![ValType::I32; 2], vec![ValType::I32]);
+        assert!(result.is_ok());
+        let func_ty = result.unwrap();
+        let result = Function::create(&func_ty, Box::new(real_add), 0);
+        assert!(result.is_ok());
+        let host_func = result.unwrap();
+        import.add_func("add", host_func);
+
+        // add table
+        let result = TableType::create(RefType::FuncRef, 0..=u32::MAX);
+        assert!(result.is_ok());
+        let ty = result.unwrap();
+        let result = Table::create(&ty);
+        assert!(result.is_ok());
+        let table = result.unwrap();
+        import.add_table("table", table);
+
+        // add memory
+        let memory = {
+            let result = MemType::create(10..=20);
+            assert!(result.is_ok());
+            let mem_ty = result.unwrap();
+            let result = Memory::create(&mem_ty);
+            assert!(result.is_ok());
+            result.unwrap()
+        };
+        import.add_memory("memory", memory);
+
+        // add globals
+        let result = GlobalType::create(ValType::F32, Mutability::Const);
+        assert!(result.is_ok());
+        let ty = result.unwrap();
+        let result = Global::create(&ty, WasmValue::from_f32(3.5));
+        assert!(result.is_ok());
+        let global = result.unwrap();
+        import.add_global("global", global);
+
+        let import = ImportObject::Import(import);
+        let import = Arc::new(Mutex::new(import));
+        let import_cloned = Arc::clone(&import);
+        let handle = thread::spawn(move || {
+            let result = import_cloned.lock();
+            assert!(result.is_ok());
+            let import = result.unwrap();
+
+            // create a store
+            let result = Store::create();
+            assert!(result.is_ok());
+            let mut store = result.unwrap();
+            assert!(!store.inner.0.is_null());
+            assert!(!store.registered);
+
+            // create an executor
+            let result = Config::create();
+            assert!(result.is_ok());
+            let config = result.unwrap();
+            let result = Executor::create(Some(config), None);
+            assert!(result.is_ok());
+            let mut executor = result.unwrap();
+
+            // register import object into store
+            let result = executor.register_import_object(&mut store, &import);
+            assert!(result.is_ok());
+
+            // get the exported module by name
+            let result = store.module("extern");
+            assert!(result.is_ok());
+            let instance = result.unwrap();
+
+            // get the exported function by name
+            let result = instance.get_func("add");
+            assert!(result.is_ok());
+
+            // get the exported global by name
+            let result = instance.get_global("global");
+            assert!(result.is_ok());
+            let global = result.unwrap();
+            assert!(!global.inner.0.is_null() && global.registered);
+            let val = global.get_value();
+            assert_eq!(val.to_f32(), 3.5);
+
+            // get the exported memory by name
+            let result = instance.get_memory("memory");
+            assert!(result.is_ok());
+            let memory = result.unwrap();
+            let result = memory.ty();
+            assert!(result.is_ok());
+            let ty = result.unwrap();
+            assert_eq!(ty.limit(), 10..=20);
+
+            // get the exported table by name
+            let result = instance.get_table("table");
+            assert!(result.is_ok());
+        });
+
+        handle.join().unwrap();
+    }
+
+    #[test]
+    fn test_instance_wasi() {
+        // create a wasi module instance
+        {
+            let result = WasiModule::create(None, None, None);
+            assert!(result.is_ok());
+
+            let result = WasiModule::create(
+                Some(vec!["arg1", "arg2"]),
+                Some(vec!["ENV1=VAL1", "ENV1=VAL2", "ENV3=VAL3"]),
+                Some(vec![
+                    "apiTestData",
+                    "Makefile",
+                    "CMakeFiles",
+                    "ssvmAPICoreTests",
+                    ".:.",
+                ]),
+            );
+            assert!(result.is_ok());
+
+            let result = WasiModule::create(
+                None,
+                Some(vec!["ENV1=VAL1", "ENV1=VAL2", "ENV3=VAL3"]),
+                Some(vec![
+                    "apiTestData",
+                    "Makefile",
+                    "CMakeFiles",
+                    "ssvmAPICoreTests",
+                    ".:.",
+                ]),
+            );
+            assert!(result.is_ok());
+            let wasi_import = result.unwrap();
+            assert_eq!(wasi_import.exit_code(), 0);
+        }
+
+        // initialize WASI in VM
+        {
+            let result = Config::create();
+            assert!(result.is_ok());
+            let mut config = result.unwrap();
+            config.wasi(true);
+            let result = Vm::create(Some(config), None);
+            assert!(result.is_ok());
+            let mut vm = result.unwrap();
+
+            // get the ImportObject module from vm
+            let result = vm.wasi_import_module_mut();
+            assert!(result.is_ok());
+            let mut import_wasi = result.unwrap();
+
+            let args = vec!["arg1", "arg2"];
+            let envs = vec!["ENV1=VAL1", "ENV1=VAL2", "ENV3=VAL3"];
+            let preopens = vec![
+                "apiTestData",
+                "Makefile",
+                "CMakeFiles",
+                "ssvmAPICoreTests",
+                ".:.",
+            ];
+            import_wasi.init_wasi(Some(args), Some(envs), Some(preopens));
+
+            assert_eq!(import_wasi.exit_code(), 0);
+        }
+    }
+
+    #[test]
+    fn test_instance_wasmedge_process() {
+        // create wasmedge_process
+        {
+            let result = WasmEdgeProcessModule::create(Some(vec!["arg1", "arg2"]), true);
+            assert!(result.is_ok());
+
+            let result = WasmEdgeProcessModule::create(None, false);
+            assert!(result.is_ok());
+
+            let result = WasmEdgeProcessModule::create(Some(vec!["arg1", "arg2"]), false);
+            assert!(result.is_ok());
+        }
+
+        // initialize wasmedge_process in VM
+        {
+            let result = Config::create();
+            assert!(result.is_ok());
+            let mut config = result.unwrap();
+            config.wasmedge_process(true);
+            let result = Vm::create(Some(config), None);
+            assert!(result.is_ok());
+            let mut vm = result.unwrap();
+
+            let result = vm.wasmedge_process_import_module_mut();
+            assert!(result.is_ok());
+            let mut import_wasmedge_process = result.unwrap();
+            import_wasmedge_process.init_wasmedge_process(Some(vec!["arg1", "arg2"]), false);
+        }
+    }
 
     #[test]
     fn test_instance_find_xxx() {

@@ -2,7 +2,7 @@
 
 use crate::{
     error::{FuncError, WasmEdgeError},
-    ffi, HostFunc, WasmEdgeResult, HOST_FUNCS,
+    ffi, Engine, HostFunc, WasmEdgeResult, WasmValue, HOST_FUNCS,
 };
 use core::ffi::c_void;
 use rand::Rng;
@@ -192,6 +192,25 @@ impl Function {
             }),
         }
     }
+
+    /// Runs this host function and returns the result.
+    ///
+    /// # Arguments
+    ///
+    /// * `engine` - The object implements Engine trait.
+    ///
+    /// * `args` - The arguments passed to the host function.
+    ///
+    /// # Error
+    ///
+    /// If fail to run the host function, then an error is returned.
+    pub fn call<E: Engine>(
+        &self,
+        engine: &mut E,
+        args: impl IntoIterator<Item = WasmValue>,
+    ) -> WasmEdgeResult<Vec<WasmValue>> {
+        engine.run(&self, args)
+    }
 }
 impl Drop for Function {
     fn drop(&mut self) {
@@ -354,7 +373,7 @@ unsafe impl Sync for InnerFuncType {}
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::WasmValue;
+    use crate::{types::WasmValue, Executor};
     use std::{
         sync::{Arc, Mutex},
         thread,
@@ -443,6 +462,18 @@ mod tests {
         assert_eq!(ty.returns_len(), 1);
         let return_tys = ty.returns_type_iter().collect::<Vec<_>>();
         assert_eq!(return_tys, vec![ValType::I32]);
+
+        // run this function
+        let result = Executor::create(None, None);
+        assert!(result.is_ok());
+        let mut executor = result.unwrap();
+        let result = host_func.call(
+            &mut executor,
+            vec![WasmValue::from_i32(1), WasmValue::from_i32(2)],
+        );
+        assert!(result.is_ok());
+        let returns = result.unwrap();
+        assert_eq!(returns[0].to_i32(), 3);
     }
 
     #[test]

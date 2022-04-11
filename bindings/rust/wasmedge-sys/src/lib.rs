@@ -163,3 +163,23 @@ lazy_static! {
                 .unwrap_or(500)
         )));
 }
+
+/// The object that is used to perform a [host function](crate::Function) is required to implement this trait.
+pub trait Engine {
+    /// Runs a host function instance and returns a result.
+    ///
+    /// # Arguments
+    ///
+    /// * `func` - The function instance to run.
+    ///
+    /// * `params` - The arguments to pass to the function.
+    ///
+    /// # Erros
+    ///
+    /// If fail to run the host function, then an error is returned.
+    fn run(
+        &mut self,
+        func: &Function,
+        params: impl IntoIterator<Item = WasmValue>,
+    ) -> WasmEdgeResult<Vec<WasmValue>>;
+}

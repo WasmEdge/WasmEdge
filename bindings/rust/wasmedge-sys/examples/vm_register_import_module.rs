@@ -4,6 +4,7 @@ use wasmedge_sys::{
 };
 use wasmedge_types::{Mutability, RefType, ValType};
 
+#[cfg_attr(test, test)]
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let module_name = "extern_module";
 

@@ -1,6 +1,7 @@
 use wasmedge_sys::{Config, Store, Vm};
 use wasmedge_types::wat2wasm;
 
+#[cfg_attr(test, test)]
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // read the wasm bytes
     let wasm_bytes = wat2wasm(

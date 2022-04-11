@@ -5,7 +5,8 @@ use crate::{
     error::{check, WasmEdgeError},
     instance::module::InnerInstance,
     types::WasmEdgeString,
-    Config, Function, ImportObject, Instance, Module, Statistics, Store, WasmEdgeResult, WasmValue,
+    Config, Engine, Function, ImportObject, Instance, Module, Statistics, Store, WasmEdgeResult,
+    WasmValue,
 };
 
 /// Struct of WasmEdge Executor.
@@ -198,7 +199,7 @@ impl Executor {
     /// # Error
     ///
     /// If fail to invoke the function, then an error is returned.
-    pub fn run(
+    pub fn run_function(
         &mut self,
         func: &Function,
         params: impl IntoIterator<Item = WasmValue>,
@@ -230,6 +231,15 @@ impl Drop for Executor {
         if !self.registered && !self.inner.0.is_null() {
             unsafe { ffi::WasmEdge_ExecutorDelete(self.inner.0) }
         }
+    }
+}
+impl Engine for Executor {
+    fn run(
+        &mut self,
+        func: &Function,
+        params: impl IntoIterator<Item = WasmValue>,
+    ) -> WasmEdgeResult<Vec<WasmValue>> {
+        self.run_function(func, params)
     }
 }
 

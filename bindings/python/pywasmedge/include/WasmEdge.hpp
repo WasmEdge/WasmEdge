@@ -3,6 +3,7 @@
 
 #include "pybind11/pybind11.h"
 #include <functional>
+#include <iostream>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -92,7 +93,7 @@ public:
 
 class Function : public base<WasmEdge_FunctionInstanceContext> {
 private:
-  function_utility *func_util;
+  struct function_utility *func_util;
 
 public:
   Function(FunctionTypeContext &, pybind11::function, uint64_t &);
@@ -336,16 +337,13 @@ public:
   void Cancel();
 };
 
-class VM {
-private:
-  WasmEdge_VMContext *VMCxt;
-
+class VM : public base<WasmEdge_VMContext> {
 public:
   VM();
   VM(Store &);
   VM(Configure &);
   VM(Configure &, Store &);
-  ~VM();
+  ~VM() override;
 
   result register_module_from_file(std::string &, std::string &);
   result register_module_from_ast(std::string &, ASTModuleCxt &);

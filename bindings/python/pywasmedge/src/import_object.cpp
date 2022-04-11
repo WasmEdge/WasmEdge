@@ -53,11 +53,7 @@ void pysdk::import_object::AddFunction(std::string &name,
   WasmEdge_StringDelete(function_name);
 }
 
-pysdk::import_object::~import_object() {
-  if (_del) {
-    WasmEdge_ImportObjectDelete(context);
-  }
-}
+pysdk::import_object::~import_object() {}
 
 void pysdk::import_object::AddGlobal(std::string &str, pysdk::Global &glob) {
   WasmEdge_String name = WasmEdge_StringCreateByCString(str.c_str());

@@ -108,7 +108,7 @@ WasmEdge_Result pysdk::host_function(void *Data,
                                      WasmEdge_Value *Out) {
   pybind11::list params;
 
-  auto casted_data = (struct function_utility *)Data;
+  auto casted_data = (struct pysdk::function_utility *)Data;
 
   auto const &func = casted_data->func;
 

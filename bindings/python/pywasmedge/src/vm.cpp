@@ -3,21 +3,21 @@
 #include <string>
 
 /* --------------- VM -------------------------------- */
-pysdk::VM::VM() { VMCxt = WasmEdge_VMCreate(NULL, NULL); }
+pysdk::VM::VM() { context = WasmEdge_VMCreate(NULL, NULL); }
 
 pysdk::VM::VM(pysdk::Store &store) {
-  VMCxt = WasmEdge_VMCreate(NULL, store.get());
+  context = WasmEdge_VMCreate(NULL, store.get());
 }
 
 pysdk::VM::VM(pysdk::Configure &cfg) {
-  VMCxt = WasmEdge_VMCreate(cfg.get(), NULL);
+  context = WasmEdge_VMCreate(cfg.get(), NULL);
 }
 
 pysdk::VM::VM(pysdk::Configure &cfg, pysdk::Store &store) {
-  VMCxt = WasmEdge_VMCreate(cfg.get(), store.get());
+  context = WasmEdge_VMCreate(cfg.get(), store.get());
 }
 
-pysdk::VM::~VM() { WasmEdge_VMDelete(VMCxt); }
+pysdk::VM::~VM() { WasmEdge_VMDelete(context); }
 
 /**
  * @brief Instantiate the WASM module from a WASM file and invoke a function by
@@ -46,8 +46,9 @@ pybind11::tuple pysdk::VM::run_from_wasm_file(std::string &FileName,
 
   WasmEdge_String funcName = WasmEdge_StringCreateByCString(FuncName.c_str());
 
-  pysdk::result res(WasmEdge_VMRunWasmFromFile(
-      VMCxt, FileName.c_str(), funcName, Params, param_len, Returns, ret_len));
+  pysdk::result res(WasmEdge_VMRunWasmFromFile(context, FileName.c_str(),
+                                               funcName, Params, param_len,
+                                               Returns, ret_len));
 
   WasmEdge_StringDelete(funcName);
 
@@ -72,7 +73,7 @@ pysdk::Async pysdk::VM::run_from_wasm_file_async(std::string &FileName,
   WasmEdge_String funcName = WasmEdge_StringCreateByCString(FuncName.c_str());
 
   pysdk::Async res(WasmEdge_VMAsyncRunWasmFromFile(
-      VMCxt, FileName.c_str(), funcName, Params, param_len));
+      context, FileName.c_str(), funcName, Params, param_len));
 
   WasmEdge_StringDelete(funcName);
 
@@ -105,9 +106,9 @@ pybind11::tuple pysdk::VM::run_from_buffer(pybind11::tuple wasm_buffer,
 
   WasmEdge_Value Returns[return_len];
 
-  pysdk::result res(
-      WasmEdge_VMRunWasmFromBuffer(VMCxt, WASM_Buffer, size, ex_func_name_wasm,
-                                   Params, param_len, Returns, return_len));
+  pysdk::result res(WasmEdge_VMRunWasmFromBuffer(
+      context, WASM_Buffer, size, ex_func_name_wasm, Params, param_len, Returns,
+      return_len));
 
   WasmEdge_StringDelete(ex_func_name_wasm);
 
@@ -140,7 +141,7 @@ pysdk::Async pysdk::VM::run_from_buffer_async(pybind11::tuple wasm_buffer,
       WasmEdge_StringCreateByCString(executor_func_name.c_str());
 
   pysdk::Async res(WasmEdge_VMAsyncRunWasmFromBuffer(
-      VMCxt, WASM_Buffer, size, ex_func_name_wasm, Params, param_len));
+      context, WASM_Buffer, size, ex_func_name_wasm, Params, param_len));
 
   WasmEdge_StringDelete(ex_func_name_wasm);
 
@@ -151,7 +152,7 @@ pysdk::result pysdk::VM::register_module_from_file(std::string &mod_name_,
                                                    std::string &path) {
   WasmEdge_String mod_name = WasmEdge_StringCreateByCString(mod_name_.c_str());
   pysdk::result res(
-      WasmEdge_VMRegisterModuleFromFile(VMCxt, mod_name, path.c_str()));
+      WasmEdge_VMRegisterModuleFromFile(context, mod_name, path.c_str()));
   WasmEdge_StringDelete(mod_name);
   return res;
 }
@@ -160,7 +161,7 @@ pysdk::result pysdk::VM::register_module_from_ast(std::string &mod_name_,
                                                   pysdk::ASTModuleCxt &ast) {
   WasmEdge_String mod_name = WasmEdge_StringCreateByCString(mod_name_.c_str());
   pysdk::result res(
-      WasmEdge_VMRegisterModuleFromASTModule(VMCxt, mod_name, ast.get()));
+      WasmEdge_VMRegisterModuleFromASTModule(context, mod_name, ast.get()));
   WasmEdge_StringDelete(mod_name);
   return res;
 }
@@ -174,15 +175,15 @@ pysdk::result pysdk::VM::register_module_from_buffer(std::string &mod_name_,
   }
   WasmEdge_String mod_name = WasmEdge_StringCreateByCString(mod_name_.c_str());
   pysdk::result res(
-      WasmEdge_VMRegisterModuleFromBuffer(VMCxt, mod_name, buffer_, len));
+      WasmEdge_VMRegisterModuleFromBuffer(context, mod_name, buffer_, len));
   WasmEdge_StringDelete(mod_name);
   return res;
 }
 
 pysdk::result
 pysdk::VM::register_module_from_import_object(pysdk::import_object &imp_obj) {
-  pysdk::result res(WasmEdge_VMRegisterModuleFromImport(
-      VMCxt, const_cast<const WasmEdge_ImportObjectContext *>(imp_obj.get())));
+  pysdk::result res(
+      WasmEdge_VMRegisterModuleFromImport(context, imp_obj.get()));
   return res;
 }
 
@@ -217,7 +218,7 @@ pybind11::tuple pysdk::VM::execute_registered(std::string &mod_name,
   WasmEdge_Value Returns[ReturnLen];
 
   pysdk::result res(WasmEdge_VMExecuteRegistered(
-      VMCxt, ModuleName, FuncName, const_cast<const WasmEdge_Value *>(Params),
+      context, ModuleName, FuncName, const_cast<const WasmEdge_Value *>(Params),
       ParamLen, Returns, ReturnLen));
 
   pybind11::list ret;
@@ -232,7 +233,8 @@ pybind11::dict pysdk::VM::get_functions(uint32_t &len) {
   pybind11::dict dict;
   WasmEdge_String Names[len];
   const WasmEdge_FunctionTypeContext *FuncTypes[len];
-  const auto len_api = WasmEdge_VMGetFunctionList(VMCxt, Names, FuncTypes, len);
+  const auto len_api =
+      WasmEdge_VMGetFunctionList(context, Names, FuncTypes, len);
 
   for (size_t i = 0; i < len_api; i++) {
     char buf[Names[i].Length];
@@ -244,13 +246,13 @@ pybind11::dict pysdk::VM::get_functions(uint32_t &len) {
 }
 
 uint32_t pysdk::VM::get_functions_len() {
-  return WasmEdge_VMGetFunctionListLength(VMCxt);
+  return WasmEdge_VMGetFunctionListLength(context);
 }
 
 pysdk::FunctionTypeContext pysdk::VM::get_function_type(std::string &name) {
   WasmEdge_String str = WasmEdge_StringCreateByCString(name.c_str());
   pysdk::FunctionTypeContext cxt(const_cast<WasmEdge_FunctionTypeContext *>(
-      WasmEdge_VMGetFunctionType(VMCxt, str)));
+      WasmEdge_VMGetFunctionType(context, str)));
   WasmEdge_StringDelete(str);
   return cxt;
 }
@@ -261,7 +263,7 @@ pysdk::VM::get_function_type_registered(std::string &mod_name,
   WasmEdge_String mod = WasmEdge_StringCreateByCString(mod_name.c_str());
   WasmEdge_String func = WasmEdge_StringCreateByCString(name.c_str());
   pysdk::FunctionTypeContext cxt(const_cast<WasmEdge_FunctionTypeContext *>(
-      WasmEdge_VMGetFunctionTypeRegistered(VMCxt, mod, func)));
+      WasmEdge_VMGetFunctionTypeRegistered(context, mod, func)));
   WasmEdge_StringDelete(mod);
   WasmEdge_StringDelete(func);
   return cxt;
@@ -269,24 +271,24 @@ pysdk::VM::get_function_type_registered(std::string &mod_name,
 
 pysdk::import_object
 pysdk::VM::get_import_module_context(WasmEdge_HostRegistration &reg) {
-  return pysdk::import_object(WasmEdge_VMGetImportModuleContext(VMCxt, reg));
+  return pysdk::import_object(WasmEdge_VMGetImportModuleContext(context, reg));
 }
 
 pysdk::Statistics pysdk::VM::get_statistics_context() {
-  return pysdk::Statistics(WasmEdge_VMGetStatisticsContext(VMCxt));
+  return pysdk::Statistics(WasmEdge_VMGetStatisticsContext(context));
 }
 
 pysdk::Store pysdk::VM::get_store_cxt() {
-  return pysdk::Store(WasmEdge_VMGetStoreContext(VMCxt));
+  return pysdk::Store(WasmEdge_VMGetStoreContext(context));
 }
 
 pysdk::result pysdk::VM::instantiate() {
-  return pysdk::result(WasmEdge_VMInstantiate(VMCxt));
+  return pysdk::result(WasmEdge_VMInstantiate(context));
 }
 
 pysdk::result pysdk::VM::load_from_ast(pysdk::ASTModuleCxt &ast) {
   return pysdk::result(WasmEdge_VMLoadWasmFromASTModule(
-      VMCxt, const_cast<const WasmEdge_ASTModuleContext *>(ast.get())));
+      context, const_cast<const WasmEdge_ASTModuleContext *>(ast.get())));
 }
 
 pysdk::result pysdk::VM::load_from_buffer(pybind11::tuple tup) {
@@ -296,11 +298,11 @@ pysdk::result pysdk::VM::load_from_buffer(pybind11::tuple tup) {
     buf[i] = tup[i].cast<uint8_t>();
   }
   return pysdk::result(WasmEdge_VMLoadWasmFromBuffer(
-      VMCxt, const_cast<const uint8_t *>(buf), len));
+      context, const_cast<const uint8_t *>(buf), len));
 }
 
 pysdk::result pysdk::VM::load_from_file(std::string &path) {
-  return pysdk::result(WasmEdge_VMLoadWasmFromFile(VMCxt, path.c_str()));
+  return pysdk::result(WasmEdge_VMLoadWasmFromFile(context, path.c_str()));
 }
 
 pybind11::tuple pysdk::VM::run_from_ast(pysdk::ASTModuleCxt &cxt,
@@ -318,7 +320,7 @@ pybind11::tuple pysdk::VM::run_from_ast(pysdk::ASTModuleCxt &cxt,
   WasmEdge_Value ret[ret_len];
 
   pysdk::result res(WasmEdge_VMRunWasmFromASTModule(
-      VMCxt, cxt.get(), func_name, param, param_len, ret, ret_len));
+      context, cxt.get(), func_name, param, param_len, ret, ret_len));
   pybind11::list list;
 
   for (size_t i = 0; i < ret_len; i++) {
@@ -340,7 +342,7 @@ pysdk::Async pysdk::VM::run_from_ast_async(pysdk::ASTModuleCxt &cxt,
   }
 
   return pysdk::Async(WasmEdge_VMAsyncRunWasmFromASTModule(
-      VMCxt, cxt.get(), func_name, param, param_len));
+      context, cxt.get(), func_name, param, param_len));
 }
 
 pybind11::tuple pysdk::VM::execute(std::string &function_name,
@@ -356,7 +358,7 @@ pybind11::tuple pysdk::VM::execute(std::string &function_name,
   WasmEdge_Value ret[ret_len];
 
   pysdk::result res(
-      WasmEdge_VMExecute(VMCxt, func_name, param, param_len, ret, ret_len));
+      WasmEdge_VMExecute(context, func_name, param, param_len, ret, ret_len));
   pybind11::list list;
 
   for (size_t i = 0; i < ret_len; i++) {
@@ -377,7 +379,7 @@ pysdk::Async pysdk::VM::executeAsync(std::string &function_name,
   }
 
   return pysdk::Async(
-      WasmEdge_VMAsyncExecute(VMCxt, func_name, param, param_len));
+      WasmEdge_VMAsyncExecute(context, func_name, param, param_len));
 }
 
 pysdk::Async pysdk::VM::executeAsyncRegistered(std::string &mod,
@@ -395,10 +397,10 @@ pysdk::Async pysdk::VM::executeAsyncRegistered(std::string &mod,
   }
 
   return pysdk::Async(WasmEdge_VMAsyncExecuteRegistered(
-      VMCxt, mod_name, func_name, param, param_len));
+      context, mod_name, func_name, param, param_len));
 }
 
 pysdk::result pysdk::VM::validate() {
-  return pysdk::result(WasmEdge_VMValidate(VMCxt));
+  return pysdk::result(WasmEdge_VMValidate(context));
 }
 /* --------------- VM End -------------------------------- */

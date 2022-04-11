@@ -1,5 +1,30 @@
 (unreleased)
 ------------
+- [PySDK] Templating VM. [Shreyas Atre]
+
+  * Minor: Remove delete constructor for import_object, namespace to
+    casting
+- [PySDK] Templating Async. [Shreyas Atre]
+- [PySDK] Templating compiler. [Shreyas Atre]
+- [PySDK] Templating executor. [Shreyas Atre]
+- [PySDK] Templating import_object. [Shreyas Atre]
+- [PySDK] Templating ImportTypeContext. [Shreyas Atre]
+- [PySDK] Templating statistics. [Shreyas Atre]
+- [PySDK] Templating validator. [Shreyas Atre]
+- [PySDK] Templating loader. [Shreyas Atre]
+- [PySDK] Removing const T* get() const overload as it does not make
+  sense. [Shreyas Atre]
+- [PySDK] Templating Store, AST context. [Shreyas Atre]
+- [PySDK] Templating configure. [Shreyas Atre]
+- [PySDK] Templating TableInstance. [Shreyas Atre]
+- [PySDK] Templating TableType. [Shreyas Atre]
+- [PySDK] Template Memory. [Shreyas Atre]
+- [PySDK] Templating MemoryTypeCxt. [Shreyas Atre]
+- [PySDK] Templating Global. [Shreyas Atre]
+- [PySDK] inherit base class for GlobalTypeContext. [Shreyas Atre]
+- [PySDK] Templating the classes. [Shreyas Atre]
+
+  * Function and FunctionType
 - [PySDK] makefile: build parallel and build. [Shreyas Atre]
 - [PySDK] Stub files improvement. [Shreyas Atre]
 - [PySDK] Completion of Async. [Shreyas Atre]

@@ -188,9 +188,9 @@ impl TableType {
     ///
     /// # Arguments
     ///
-    /// - `elem_type` specifies the element type.
+    /// * `elem_type` - The element type.
     ///
-    /// - `limit` specifies a range of the table size. The upper bound for a `limit` is `u32::MAX`.
+    /// * `limit` - A range of the table size. The upper bound for a `limit` is `u32::MAX`.
     ///
     /// # Error
     ///

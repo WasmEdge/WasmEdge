@@ -65,6 +65,10 @@ impl Global {
     ///
     /// Notice that only the [Global] instance of [Mutability::Var](wasmedge_types::Mutability::Var) type can be set a new value. Setting a new value for a [Global] of [Mutability::Const](wasmedge_types::Mutability::Const) causes a failure.
     ///
+    /// # Argument
+    ///
+    /// * `val` - The new wasm value to be set.
+    ///
     /// # Errors
     ///
     /// If fail to set value, then an error is returned.
@@ -120,6 +124,12 @@ pub struct GlobalType {
 }
 impl GlobalType {
     /// Create a new [GlobalType] to be associated with the given [ValType](wasmedge_types::ValType) and [Mutability](wasmedge_types::Mutability).
+    ///
+    /// # Arguments
+    ///
+    /// * `val_type` - The value type of the global variable.
+    ///
+    /// * `mutability` - The mutability of the global variable.
     ///
     /// # Errors
     ///

@@ -116,7 +116,7 @@ impl WasmValue {
     ///
     /// # Argument
     ///
-    /// - `val` specifies the source `i32` value.
+    /// * `val` - The source `i32` value.
     pub fn from_i32(val: i32) -> Self {
         Self {
             ctx: unsafe { ffi::WasmEdge_ValueGenI32(val) },
@@ -133,7 +133,7 @@ impl WasmValue {
     ///
     /// # Argument
     ///
-    /// - `val` specifies the source `i64` value.
+    /// * `val` - The source `i64` value.
     pub fn from_i64(val: i64) -> Self {
         Self {
             ctx: unsafe { ffi::WasmEdge_ValueGenI64(val) },
@@ -150,7 +150,7 @@ impl WasmValue {
     ///
     /// # Argument
     ///
-    /// - `val` specifies the source `f32` value.
+    /// * `val` - The source `f32` value.
     pub fn from_f32(val: f32) -> Self {
         Self {
             ctx: unsafe { ffi::WasmEdge_ValueGenF32(val) },
@@ -167,7 +167,7 @@ impl WasmValue {
     ///
     /// # Argument
     ///
-    /// - `val` specifies the source `f64` value.
+    /// * `val` - The source `f64` value.
     pub fn from_f64(val: f64) -> Self {
         Self {
             ctx: unsafe { ffi::WasmEdge_ValueGenF64(val) },
@@ -184,7 +184,7 @@ impl WasmValue {
     ///
     /// # Argument
     ///
-    /// - `val` specifies the source `i128` value.
+    /// * `val` - The source `i128` value.
     pub fn from_v128(val: i128) -> Self {
         Self {
             ctx: unsafe { ffi::WasmEdge_ValueGenV128(val) },
@@ -201,7 +201,7 @@ impl WasmValue {
     ///
     /// # Argument
     ///
-    /// - `val` specifies the `[`RefType`] value.
+    /// * `val` - The `[`RefType`] value.
     pub fn from_null_ref(ref_ty: RefType) -> Self {
         Self {
             ctx: unsafe { ffi::WasmEdge_ValueGenNullRef(ref_ty.into()) },
@@ -255,7 +255,7 @@ impl WasmValue {
     ///
     /// # Argument
     ///
-    /// - `extern_obj` specifies the reference to an external object.
+    /// * `extern_obj` - The reference to an external object.
     pub fn from_extern_ref<T>(extern_obj: &mut T) -> Self {
         let ptr = extern_obj as *mut T as *mut c_void;
         Self {

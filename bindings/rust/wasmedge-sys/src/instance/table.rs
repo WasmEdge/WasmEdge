@@ -1,6 +1,6 @@
 //! Defines WasmEdge Table and TableType structs.
 //!
-//! A WasmEdge `Table` defines a table described by its `TableType`.
+//! A WasmEdge `Table` defines a WebAssembly table instance described by its `TableType`.
 //! `TableType` specifies the limits on the size of a table. The start of
 //! the limit range specifies the lower bound (inclusive) of the size, while
 //! the end resticts the upper bound (inclusive).
@@ -17,6 +17,8 @@ use wasmedge_types::RefType;
 /// Struct of WasmEdge Table.
 ///
 /// A WasmEdge [Table] defines a WebAssembly table instance described by its [type](crate::TableType). A table is an array-like structure and stores function references.
+///
+/// This [example](https://github.com/WasmEdge/WasmEdge/tree/master/bindings/rust/wasmedge-sys/examples/table_and_funcref.rs) shows how to use [Table] to store and retrieve function references.
 #[derive(Debug)]
 pub struct Table {
     pub(crate) inner: InnerTable,

@@ -439,3 +439,6 @@ impl Default for GlobalType {
         }
     }
 }
+
+/// Parses in-memory bytes as either the [WebAssembly Text format](http://webassembly.github.io/spec/core/text/index.html), or a binary WebAssembly module.
+pub use wat::parse_bytes as wat2wasm;

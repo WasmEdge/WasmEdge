@@ -327,7 +327,7 @@ mod tests {
         // create a host function
         let result = Function::create(&func_ty, Box::new(real_add), 0);
         assert!(result.is_ok());
-        let mut host_func = result.unwrap();
+        let host_func = result.unwrap();
 
         // create a TableType instance
         let result = TableType::create(RefType::FuncRef, 10..=20);
@@ -350,7 +350,7 @@ mod tests {
         assert_eq!(value.ty(), ValType::FuncRef);
 
         // set data
-        let result = table.set_data(WasmValue::from_func_ref(&mut host_func), 3);
+        let result = table.set_data(WasmValue::from_func_ref(host_func.as_ref()), 3);
         assert!(result.is_ok());
         // get data
         let result = table.get_data(3);

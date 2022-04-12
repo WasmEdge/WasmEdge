@@ -11,7 +11,7 @@ use wasmedge_types::{Mutability, ValType};
 
 /// Struct of WasmEdge Global.
 ///
-/// A WasmEdge [Global] defines a global variable, which stores a single value of the given [GlobalType].
+/// A WasmEdge [Global] defines a WebAssembly global variable, which stores a single value of the given [type](crate::GlobalType) and a flag indicating whether it is mutable or not.
 #[derive(Debug)]
 pub struct Global {
     pub(crate) inner: InnerGlobal,

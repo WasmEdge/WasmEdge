@@ -59,9 +59,8 @@ extern "C" fn wraper_fn(
 
 /// Struct of WasmEdge Function.
 ///
-/// A WasmEdge [Function] defines a host function described by its [FuncType]. A host function is a function defined outside WASM module and passed to it.
+/// A WasmEdge [Function] defines a WebAssembly host function described by its [type](crate::FuncType). A host function is a closure of the original function defined in either the host or the WebAssembly module.
 ///
-/// In WasmEdge, developers can create [host functions](crate::Function) and other WasmEdge instances, such as [Memory](crate::Memory), and add them into a WasmEdge [ImportObject](crate::ImportObject) for registering into a WasmEdge [Vm](crate::Vm) or [Store](crate::Store).
 #[derive(Debug)]
 pub struct Function {
     pub(crate) inner: InnerFunc,
@@ -69,15 +68,15 @@ pub struct Function {
 }
 impl Function {
     #[allow(clippy::type_complexity)]
-    /// Creates a [host function](crate::Function).
+    /// Creates a [host function](crate::Function) with the given function type.
     ///
     /// # Arguments
     ///
-    /// - `ty` specifies the types of the arguments and returns of the target function.
+    /// * `ty` - The types of the arguments and returns of the target function.
     ///
-    /// - `real_fn` specifies the pointer to the target function.
+    /// * `real_fn` - The pointer to the target function.
     ///
-    /// - `cost` specifies the function cost in the [Statistics](crate::Statistics).
+    /// * `cost` - The function cost in the [Statistics](crate::Statistics). Pass 0 if the calculation is not needed.
     ///
     /// # Error
     ///
@@ -192,6 +191,7 @@ impl Function {
         engine.run(&self, args)
     }
 
+    /// Returns a reference to this [Function] instance.
     pub fn as_ref(&self) -> FuncRef {
         FuncRef {
             inner: InnerFuncRef(self.inner.0 as *const _),
@@ -357,6 +357,8 @@ unsafe impl Send for InnerFuncType {}
 unsafe impl Sync for InnerFuncType {}
 
 /// Struct of WasmEdge FuncRef.
+///
+/// A [FuncRef] instance is a reference to a [Function] instance.
 #[derive(Debug)]
 pub struct FuncRef {
     pub(crate) inner: InnerFuncRef,

@@ -188,7 +188,7 @@ impl Function {
         engine: &mut E,
         args: impl IntoIterator<Item = WasmValue>,
     ) -> WasmEdgeResult<Vec<WasmValue>> {
-        engine.run(&self, args)
+        engine.run(self, args)
     }
 
     /// Returns a reference to this [Function] instance.

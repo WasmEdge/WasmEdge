@@ -126,7 +126,7 @@ pub use executor::Executor;
 pub use ast_module::{ExportType, ImportType, Module};
 #[doc(inline)]
 pub use instance::{
-    function::{FuncType, Function},
+    function::{FuncRef, FuncType, Function},
     global::{Global, GlobalType},
     memory::{MemType, Memory},
     module::{

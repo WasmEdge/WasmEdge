@@ -73,8 +73,6 @@ impl Instance {
             false => Ok(Function {
                 inner: InnerFunc(func_ctx),
                 registered: true,
-                name: Some(name.as_ref().to_string()),
-                mod_name: self.name(),
             }),
         }
     }

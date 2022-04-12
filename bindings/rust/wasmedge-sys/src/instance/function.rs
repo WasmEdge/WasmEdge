@@ -66,8 +66,6 @@ extern "C" fn wraper_fn(
 pub struct Function {
     pub(crate) inner: InnerFunc,
     pub(crate) registered: bool,
-    pub(crate) name: Option<String>,
-    pub(crate) mod_name: Option<String>,
 }
 impl Function {
     #[allow(clippy::type_complexity)]
@@ -154,29 +152,11 @@ impl Function {
             false => Ok(Self {
                 inner: InnerFunc(ctx),
                 registered: false,
-                name: None,
-                mod_name: None,
             }),
         }
     }
 
-    /// Returns the name of the host function.
-    pub fn name(&self) -> Option<&str> {
-        match &self.name {
-            Some(name) => Some(name.as_ref()),
-            None => None,
-        }
-    }
-
-    /// Returns the name of the [module instance](crate::Instance) which hosts the function.
-    pub fn mod_name(&self) -> Option<&str> {
-        match &self.mod_name {
-            Some(mod_name) => Some(mod_name.as_ref()),
-            None => None,
-        }
-    }
-
-    /// Returns the underlying wasm type of a [Function].
+    /// Returns the underlying wasm type of this [Function].
     ///
     /// # Errors
     ///
@@ -210,6 +190,12 @@ impl Function {
         args: impl IntoIterator<Item = WasmValue>,
     ) -> WasmEdgeResult<Vec<WasmValue>> {
         engine.run(&self, args)
+    }
+
+    pub fn as_ref(&self) -> FuncRef {
+        FuncRef {
+            inner: InnerFuncRef(self.inner.0 as *const _),
+        }
     }
 }
 impl Drop for Function {
@@ -369,6 +355,40 @@ impl From<FuncType> for wasmedge_types::FuncType {
 pub(crate) struct InnerFuncType(pub(crate) *mut ffi::WasmEdge_FunctionTypeContext);
 unsafe impl Send for InnerFuncType {}
 unsafe impl Sync for InnerFuncType {}
+
+/// Struct of WasmEdge FuncRef.
+#[derive(Debug)]
+pub struct FuncRef {
+    pub(crate) inner: InnerFuncRef,
+}
+impl Drop for FuncRef {
+    fn drop(&mut self) {
+        self.inner.0 = std::ptr::null();
+    }
+}
+impl FuncRef {
+    /// Returns the underlying wasm type of the host function this [FuncRef] points to.
+    ///
+    /// # Errors
+    ///
+    /// If fail to get the function type, then an error is returned.
+    ///
+    pub fn ty(&self) -> WasmEdgeResult<FuncType> {
+        let ty = unsafe { ffi::WasmEdge_FunctionInstanceGetFunctionType(self.inner.0 as *mut _) };
+        match ty.is_null() {
+            true => Err(WasmEdgeError::Func(FuncError::Type)),
+            false => Ok(FuncType {
+                inner: InnerFuncType(ty as *mut _),
+                registered: true,
+            }),
+        }
+    }
+}
+
+#[derive(Debug)]
+pub(crate) struct InnerFuncRef(pub(crate) *const ffi::WasmEdge_FunctionInstanceContext);
+unsafe impl Send for InnerFuncRef {}
+unsafe impl Sync for InnerFuncRef {}
 
 #[cfg(test)]
 mod tests {

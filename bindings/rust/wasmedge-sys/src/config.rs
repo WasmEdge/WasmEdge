@@ -149,7 +149,7 @@ impl Config {
 
     /// Creates a new [Config](crate::Config) from an existed one.
     ///
-    /// - `src` specifies the source [Config](crate::Config).
+    /// * `src` - The source [Config](crate::Config).
     ///
     /// # Error
     ///
@@ -212,7 +212,7 @@ impl Config {
     ///
     /// # Argument
     ///
-    /// - `enable` specifies if the option turns on or not.
+    /// * `enable` - Whether the option turns on or not.
     pub fn wasi(&mut self, enable: bool) {
         unsafe {
             if enable {
@@ -243,7 +243,7 @@ impl Config {
     ///
     /// # Argument
     ///
-    /// - `enable` specifies if the option turns on or not.
+    /// * `enable` - Whether the option turns on or not.
     pub fn wasmedge_process(&mut self, enable: bool) {
         unsafe {
             if enable {
@@ -274,7 +274,7 @@ impl Config {
     ///
     /// # Argument
     ///
-    /// - `count` specifies the page count (64KB per page).
+    /// * `count` - The page count (64KB per page).
     pub fn set_max_memory_pages(&mut self, count: u32) {
         unsafe { ffi::WasmEdge_ConfigureSetMaxMemoryPage(self.inner.0, count) }
     }
@@ -288,7 +288,7 @@ impl Config {
     ///
     /// # Argument
     ///
-    /// - `enable` specifies if the option turns on or not.
+    /// * `enable` - Whether the option turns on or not.
     pub fn mutable_globals(&mut self, enable: bool) {
         unsafe {
             if enable {
@@ -319,7 +319,7 @@ impl Config {
     ///
     /// # Argument
     ///
-    /// - `enable` specifies if the option turns on or not.
+    /// * `enable` - Whether the option turns on or not.
     pub fn non_trap_conversions(&mut self, enable: bool) {
         unsafe {
             if enable {
@@ -350,7 +350,7 @@ impl Config {
     ///
     /// # Argument
     ///
-    /// - `enable` specifies if the option turns on or not.
+    /// * `enable` - Whether the option turns on or not.
     pub fn sign_extension_operators(&mut self, enable: bool) {
         unsafe {
             if enable {
@@ -381,7 +381,7 @@ impl Config {
     ///
     /// # Argument
     ///
-    /// - `enable` specifies if the option turns on or not.
+    /// * `enable` - Whether the option turns on or not.
     pub fn multi_value(&mut self, enable: bool) {
         unsafe {
             if enable {
@@ -406,7 +406,7 @@ impl Config {
     ///
     /// # Argument
     ///
-    /// - `enable` specifies if the option turns on or not.
+    /// * `enable` - Whether the option turns on or not.
     pub fn bulk_memory_operations(&mut self, enable: bool) {
         unsafe {
             if enable {
@@ -437,7 +437,7 @@ impl Config {
     ///
     /// # Argument
     ///
-    /// - `enable` specifies if the option turns on or not.
+    /// * `enable` - Whether the option turns on or not.
     pub fn reference_types(&mut self, enable: bool) {
         unsafe {
             if enable {
@@ -465,7 +465,7 @@ impl Config {
     ///
     /// # Argument
     ///
-    /// - `enable` specifies if the option turns on or not.
+    /// * `enable` - Whether the option turns on or not.
     pub fn simd(&mut self, enable: bool) {
         unsafe {
             if enable {
@@ -485,7 +485,7 @@ impl Config {
     ///
     /// # Argument
     ///
-    /// - `enable` specifies if the option turns on or not.
+    /// * `enable` - Whether the option turns on or not.
     pub fn tail_call(&mut self, enable: bool) {
         unsafe {
             if enable {
@@ -505,7 +505,7 @@ impl Config {
     ///
     /// # Argument
     ///
-    /// - `enable` specifies if the option turns on or not.
+    /// * `enable` - Whether the option turns on or not.
     pub fn annotations(&mut self, enable: bool) {
         unsafe {
             if enable {
@@ -530,7 +530,7 @@ impl Config {
     ///
     /// # Argument
     ///
-    /// - `enable` specifies if the option turns on or not.
+    /// * `enable` - Whether the option turns on or not.
     pub fn memory64(&mut self, enable: bool) {
         unsafe {
             if enable {
@@ -550,7 +550,7 @@ impl Config {
     ///
     /// # Argument
     ///
-    /// - `enable` specifies if the option turns on or not.
+    /// * `enable` - Whether the option turns on or not.
     pub fn threads(&mut self, enable: bool) {
         unsafe {
             if enable {
@@ -570,7 +570,7 @@ impl Config {
     ///
     /// # Argument
     ///
-    /// - `enable` specifies if the option turns on or not.
+    /// * `enable` - Whether the option turns on or not.
     pub fn exception_handling(&mut self, enable: bool) {
         unsafe {
             if enable {
@@ -601,7 +601,7 @@ impl Config {
     ///
     /// # Argument
     ///
-    /// - `enable` specifies if the option turns on or not.
+    /// * `enable` - Whether the option turns on or not.
     pub fn function_references(&mut self, enable: bool) {
         unsafe {
             if enable {
@@ -634,7 +634,7 @@ impl Config {
     ///
     /// # Argument
     ///
-    /// - `opt_level` specifies the optimization level of AOT compiler.
+    /// * `opt_level` - The optimization level of AOT compiler.
     pub fn set_aot_optimization_level(&mut self, opt_level: CompilerOptimizationLevel) {
         unsafe {
             ffi::WasmEdge_ConfigureCompilerSetOptimizationLevel(self.inner.0, opt_level as u32)
@@ -651,7 +651,7 @@ impl Config {
     ///
     /// # Argument
     ///
-    /// - `format` specifies the format of the output binary.
+    /// * `format` - The format of the output binary.
     pub fn set_aot_compiler_output_format(&mut self, format: CompilerOutputFormat) {
         unsafe { ffi::WasmEdge_ConfigureCompilerSetOutputFormat(self.inner.0, format as u32) }
     }
@@ -666,7 +666,7 @@ impl Config {
     ///
     /// # Argument
     ///
-    /// - `flag` specifies if dump ir or not.
+    /// * `flag` - Whether dump ir or not.
     pub fn dump_ir(&mut self, flag: bool) {
         unsafe { ffi::WasmEdge_ConfigureCompilerSetDumpIR(self.inner.0, flag) }
     }
@@ -680,7 +680,7 @@ impl Config {
     ///
     /// # Argument
     ///
-    /// - `flag` specifies if generate the generic binary or not when perform AOT compilation.
+    /// * `flag` - Whether generate the generic binary or not when perform AOT compilation.
     pub fn generic_binary(&mut self, flag: bool) {
         unsafe { ffi::WasmEdge_ConfigureCompilerSetGenericBinary(self.inner.0, flag) }
     }
@@ -696,7 +696,7 @@ impl Config {
     ///
     /// # Argument
     ///
-    /// - `enable` specifies if turn on the `Interruptible` option.
+    /// * `enable` - Whether turn on the `Interruptible` option.
     pub fn interruptible(&mut self, enable: bool) {
         unsafe { ffi::WasmEdge_ConfigureCompilerSetInterruptible(self.inner.0, enable) }
     }
@@ -712,7 +712,7 @@ impl Config {
     ///
     /// # Argument
     ///
-    /// - `flag` specifies if support instruction counting or not when execution after AOT compilation.
+    /// * `flag` - Whether support instruction counting or not when execution after AOT compilation.
     pub fn count_instructions(&mut self, flag: bool) {
         unsafe { ffi::WasmEdge_ConfigureStatisticsSetInstructionCounting(self.inner.0, flag) }
     }
@@ -726,7 +726,7 @@ impl Config {
     ///
     /// # Argument
     ///
-    /// - `flag` specifies if support cost measuring or not when execution after AOT compilation.
+    /// * `flag` - Whether support cost measuring or not when execution after AOT compilation.
     pub fn measure_cost(&mut self, flag: bool) {
         unsafe { ffi::WasmEdge_ConfigureStatisticsSetCostMeasuring(self.inner.0, flag) }
     }
@@ -740,7 +740,7 @@ impl Config {
     ///
     /// # Argument
     ///
-    /// - `flag` specifies if support time measuring or not when execution after AOT compilation.
+    /// * `flag` - Whether support time measuring or not when execution after AOT compilation.
     pub fn measure_time(&mut self, flag: bool) {
         unsafe { ffi::WasmEdge_ConfigureStatisticsSetTimeMeasuring(self.inner.0, flag) }
     }

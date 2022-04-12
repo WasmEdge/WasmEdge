@@ -13,7 +13,7 @@ use std::ops::RangeInclusive;
 
 /// Struct of WasmEdge Memory.
 ///
-/// A WasmEdge [Memory] defines a linear memory as described by [MemType].
+/// A WasmEdge [Memory] defines a WebAssembly memory instance, which is a linear memory described by its [type](crate::MemType). Each memory instance consists of a vector of bytes and an optional maximum size, and its size is a multiple of the WebAssembly page size (*64KiB* of each page).
 #[derive(Debug)]
 pub struct Memory {
     pub(crate) inner: InnerMemory,

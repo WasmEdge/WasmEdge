@@ -16,7 +16,7 @@ use wasmedge_types::RefType;
 
 /// Struct of WasmEdge Table.
 ///
-/// A WasmEdge [Table] defines a table described by its [TableType].
+/// A WasmEdge [Table] defines a WebAssembly table instance described by its [type](crate::TableType). A table is an array-like structure and stores function references.
 #[derive(Debug)]
 pub struct Table {
     pub(crate) inner: InnerTable,
@@ -168,7 +168,7 @@ unsafe impl Sync for InnerTable {}
 
 /// Struct of WasmEdge TableType
 ///
-/// A WasmEdge [TableType] classify a [Table] over elements of element types within a size range.
+/// A WasmEdge [TableType] classifies a [Table] instance over elements of element types within a size range.
 #[derive(Debug)]
 pub struct TableType {
     pub(crate) inner: InnerTableType,
@@ -349,10 +349,10 @@ mod tests {
         assert!(value.is_null_ref());
         assert_eq!(value.ty(), ValType::FuncRef);
 
-        // set data
+        // call set_data to store a function reference at the given index of the table instance
         let result = table.set_data(WasmValue::from_func_ref(host_func.as_ref()), 3);
         assert!(result.is_ok());
-        // get data
+        // call get_data to recover the function reference from the value at the given index of the table instance
         let result = table.get_data(3);
         assert!(result.is_ok());
         let value = result.unwrap();
@@ -360,6 +360,7 @@ mod tests {
         assert!(result.is_some());
         let func_ref = result.unwrap();
 
+        // get the function type by func_ref
         let result = func_ref.ty();
         assert!(result.is_ok());
         let func_ty = result.unwrap();

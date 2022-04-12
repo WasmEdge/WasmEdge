@@ -24,7 +24,7 @@ impl Memory {
     ///
     /// # Arguments
     ///
-    /// - `ty` specifies the type of the new [Memory] instance.
+    /// * `ty` - The type of the new [Memory] instance.
     ///
     /// # Errors
     ///
@@ -75,9 +75,9 @@ impl Memory {
     ///
     /// # Arguments
     ///
-    /// - `offset` specifies the data start offset in the [Memory].
+    /// * `offset` - The data start offset in the [Memory].
     ///
-    /// - `len` specifies the requested data length.
+    /// * `len` - The requested data length.
     ///
     /// # Errors
     ///
@@ -102,9 +102,9 @@ impl Memory {
     ///
     /// # Arguments
     ///
-    /// - `data` specifies the data buffer to copy.
+    /// * `data` - The data buffer to copy.
     ///
-    /// - `offset` specifies the data start offset in the [Memory].
+    /// * `offset` - The data start offset in the [Memory].
     ///
     /// # Errors
     ///
@@ -164,9 +164,9 @@ impl Memory {
     ///
     /// # Arguments
     ///
-    /// - `offset` specifies the data start offset in the [Memory].
+    /// * `offset` - The data start offset in the [Memory].
     ///
-    /// - `len` specifies the requested data length. If the size of `offset` + `len` is larger
+    /// * `len` - The requested data length. If the size of `offset` + `len` is larger
     /// than the data size in the [Memory]
     ///   
     ///
@@ -192,10 +192,9 @@ impl Memory {
     ///
     /// # Arguments
     ///
-    /// - `offset` specifies the data start offset in the [Memory].
+    /// * `offset` - The data start offset in the [Memory].
     ///
-    /// - `len` specifies the requested data length. If the size of `offset` + `len` is larger
-    /// than the data size in the [Memory]
+    /// * `len` - The requested data length. If the size of `offset` + `len` is larger than the data size in the [Memory]
     ///
     /// # Errors
     ///
@@ -224,7 +223,7 @@ impl Memory {
     ///
     /// # Arguments
     ///
-    /// - `count` specifies the page counts to be extended to the [Memory].
+    /// * `count` - The page counts to be extended to the [Memory].
     ///
     /// # Errors
     ///
@@ -277,7 +276,7 @@ impl MemType {
     ///
     /// # Arguments
     ///
-    /// - `limit` specifies the linear memory size. The start value of the limit range specifies the min size (also, initial size) of the memory, while the end value specifies the max size allowed to grow. The maximum size is `u32::MAX`.
+    /// * `limit` - The linear memory size. The start value of the limit range specifies the min size (also, initial size) of the memory, while the end value specifies the max size allowed to grow. The maximum size is `u32::MAX`.
     ///
     /// # Errors
     ///

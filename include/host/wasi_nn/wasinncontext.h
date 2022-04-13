@@ -4,8 +4,8 @@
 #pragma once
 #include <cstdint>
 #include <map>
+#include <string>
 #include <vector>
-
 #ifdef WASMEDGE_WASINN_BUILD_OPENVINO
 #include <c_api/ie_c_api.h>
 #endif

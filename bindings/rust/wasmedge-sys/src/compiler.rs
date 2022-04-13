@@ -48,9 +48,9 @@ impl Compiler {
     ///
     /// # Arguments
     ///
-    /// - `in_path` specifies the input WASM file path.
+    /// * `in_path` - The input WASM file path.
     ///
-    /// - `out_path` specifies the output WASM file path.
+    /// * `out_path` - The output WASM file path.
     ///
     /// # Error
     ///

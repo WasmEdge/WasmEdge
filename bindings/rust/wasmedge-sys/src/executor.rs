@@ -23,9 +23,9 @@ impl Executor {
     ///
     /// # Arguments
     ///
-    /// - `config` specifies the configuration of the new [executor](crate::Executor).
+    /// * `config` - The configuration of the new [executor](crate::Executor).
     ///
-    /// - `stat` specifies the [statistics](crate::Statistics) needed by the new [executor](crate::Executor).
+    /// * `stat` - The [statistics](crate::Statistics) needed by the new [executor](crate::Executor).
     ///
     /// # Error
     ///
@@ -69,9 +69,9 @@ impl Executor {
     ///
     /// # Arguments
     ///
-    /// - `store` specifies the target [store](crate::Store), into which the given [import object](crate::ImportObject) is registered.
+    /// * `store` - The target [store](crate::Store), into which the given [import object](crate::ImportObject) is registered.
     ///
-    /// - `import` specifies the WasmEdge [import object](crate::ImportObject) to be registered.
+    /// * `import` - The WasmEdge [import object](crate::ImportObject) to be registered.
     ///
     /// # Error
     ///
@@ -120,11 +120,11 @@ impl Executor {
     ///
     /// # Arguments
     ///
-    /// - `store` - The target [store](crate::Store), into which the given [module](crate::Module) is registered.
+    /// * `store` - The target [store](crate::Store), into which the given [module](crate::Module) is registered.
     ///
-    /// - `module` - A validated [module](crate::Module) to be registered.
+    /// * `module` - A validated [module](crate::Module) to be registered.
     ///
-    /// - `name` - The exported name of the registered [module](crate::Module).
+    /// * `name` - The exported name of the registered [module](crate::Module).
     ///
     /// # Error
     ///
@@ -160,10 +160,10 @@ impl Executor {
     ///
     /// # Arguments
     ///
-    /// - `store` specifies the [store](crate::Store), in which the [module](crate::Module) to be instantiated
+    /// * `store` - The [store](crate::Store), in which the [module](crate::Module) to be instantiated
     /// is stored.
     ///
-    /// - `ast_mod` specifies the target [module](crate::Module) to be instantiated.
+    /// * `ast_mod` - The target [module](crate::Module) to be instantiated.
     ///
     /// # Error
     ///
@@ -192,9 +192,9 @@ impl Executor {
     ///
     /// # Arguments
     ///
-    /// - `func` - The name of the target function.
+    /// * `func` - The name of the target function.
     ///
-    /// - `params` specifies the argument values for the target function.
+    /// * `params` - The argument values for the target function.
     ///
     /// # Error
     ///

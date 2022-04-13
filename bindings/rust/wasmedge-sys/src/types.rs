@@ -34,6 +34,7 @@ impl From<ffi::WasmEdge_Limit> for std::ops::RangeInclusive<u32> {
     }
 }
 
+/// Struct of WasmEdge String.
 #[derive(Debug)]
 pub(crate) struct WasmEdgeString {
     inner: InnerWasmEdgeString,

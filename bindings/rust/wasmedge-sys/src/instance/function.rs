@@ -61,6 +61,17 @@ extern "C" fn wraper_fn(
 ///
 /// A WasmEdge [Function] defines a WebAssembly host function described by its [type](crate::FuncType). A host function is a closure of the original function defined in either the host or the WebAssembly module.
 ///
+/// # Usage
+///
+/// To invoke a host function, `wasmedge-sys` provides two different ways:
+///
+/// * [Vm](crate::Vm) provides the [run_function](crate::Vm::run_function) and [run_registered_function](crate::Vm::run_registered_function) APIs to call a host function (registered into Vm) by given the name of the target host function.
+///
+/// * If the target host function instance and an [Executor](crate::Executor) instance are available, then there are two APIs available:
+///     * Use the [run_function](crate::Executor::run_function) API of [Executor](crate::Executor).
+///
+///     * Use the [call](crate::Function::call) API of [Function](crate::Function).
+///
 #[derive(Debug)]
 pub struct Function {
     pub(crate) inner: InnerFunc,
@@ -183,6 +194,62 @@ impl Function {
     /// # Error
     ///
     /// If fail to run the host function, then an error is returned.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use wasmedge_sys::{FuncType, Function, WasmValue, Executor};
+    /// use wasmedge_types::ValType;
+    ///
+    /// fn real_add(input: Vec<WasmValue>) -> Result<Vec<WasmValue>, u8> {
+    ///     println!("Rust: Entering Rust function real_add");
+    ///
+    ///     if input.len() != 2 {
+    ///         return Err(1);
+    ///     }
+    ///
+    ///     let a = if input[0].ty() == ValType::I32 {
+    ///         input[0].to_i32()
+    ///     } else {
+    ///         return Err(2);
+    ///     };
+    ///
+    ///     let b = if input[1].ty() == ValType::I32 {
+    ///         input[1].to_i32()
+    ///     } else {
+    ///         return Err(3);
+    ///     };
+    ///
+    ///     let c = a + b;
+    ///     println!("Rust: calcuating in real_add c: {:?}", c);
+    ///
+    ///     println!("Rust: Leaving Rust function real_add");
+    ///     Ok(vec![WasmValue::from_i32(c)])
+    /// }
+    ///
+    /// // create a FuncType
+    /// let result = FuncType::create(vec![ValType::I32; 2], vec![ValType::I32]);
+    /// assert!(result.is_ok());
+    /// let func_ty = result.unwrap();
+    /// // create a host function
+    /// let result = Function::create(&func_ty, Box::new(real_add), 0);
+    /// assert!(result.is_ok());
+    /// let host_func = result.unwrap();
+    ///
+    /// // create an Executor instance
+    /// let result = Executor::create(None, None);
+    /// assert!(result.is_ok());
+    /// let mut executor = result.unwrap();
+    ///
+    /// // run this function
+    /// let result = host_func.call(
+    ///     &mut executor,
+    ///     vec![WasmValue::from_i32(1), WasmValue::from_i32(2)],
+    /// );
+    /// assert!(result.is_ok());
+    /// let returns = result.unwrap();
+    /// assert_eq!(returns[0].to_i32(), 3);
+    /// ```
     pub fn call<E: Engine>(
         &self,
         engine: &mut E,
@@ -460,7 +527,7 @@ mod tests {
     }
 
     #[test]
-    fn test_func() {
+    fn test_func_basic() {
         // create a FuncType
         let result = FuncType::create(vec![ValType::I32; 2], vec![ValType::I32]);
         assert!(result.is_ok());

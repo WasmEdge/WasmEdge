@@ -1043,7 +1043,7 @@ mod tests {
             let mut vm = result.unwrap();
 
             // get the ImportObject module from vm
-            let result = vm.wasi_import_module_mut();
+            let result = vm.wasi_module_mut();
             assert!(result.is_ok());
             let mut import_wasi = result.unwrap();
 
@@ -1086,7 +1086,7 @@ mod tests {
             assert!(result.is_ok());
             let mut vm = result.unwrap();
 
-            let result = vm.wasmedge_process_import_module_mut();
+            let result = vm.wasmedge_process_module_mut();
             assert!(result.is_ok());
             let mut import_wasmedge_process = result.unwrap();
             import_wasmedge_process.init_wasmedge_process(Some(vec!["arg1", "arg2"]), false);

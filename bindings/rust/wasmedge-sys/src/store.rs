@@ -67,7 +67,7 @@ impl Store {
     ///
     /// # Argument
     ///
-    /// - `name` - The name of the module instance to get.
+    /// * `name` - The name of the module instance to get.
     ///
     /// # Error
     ///
@@ -86,12 +86,11 @@ impl Store {
         }
     }
 
-    /// Checks if the [Store] contains a module of which the name matches the given
-    /// name.
+    /// Checks if the [Store] contains a module of which the name matches the given name.
     ///
     /// # Argument
     ///
-    /// - `name` - The name of the module to search.
+    /// * `name` - The name of the module to search.
     ///
     /// # Error
     ///

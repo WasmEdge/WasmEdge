@@ -17,7 +17,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let mut vm = Vm::create(Some(config), None)?;
 
         // get the Wasi module
-        let result = vm.wasi_import_module_mut();
+        let result = vm.wasi_module_mut();
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
@@ -61,7 +61,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         vm.register_wasm_from_import(ImportObject::Wasi(import_wasi))?;
 
         // get the Wasi module
-        let result = vm.wasi_import_module_mut();
+        let result = vm.wasi_module_mut();
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
@@ -92,7 +92,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let mut vm = Vm::create(Some(config), None)?;
 
         // get the Wasi module
-        let _wasi_instance = vm.wasi_import_module_mut()?;
+        let wasi_instance = vm.wasi_module_mut()?;
+        assert_eq!(wasi_instance.name(), "wasi_snapshot_preview1");
 
         // *** try to add another Wasi module, that causes error.
 

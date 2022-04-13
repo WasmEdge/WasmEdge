@@ -607,8 +607,10 @@ impl Vm {
         })
     }
 
-    /// Returns the mutable Wasi [ImportObject](crate::ImportObject)
-    pub fn wasi_import_module_mut(&mut self) -> WasmEdgeResult<WasiModule> {
+    /// Returns the mutable [Wasi module instance](crate::WasiModule).
+    ///
+    /// Notice that this function is only available when a [config](crate::Config) with the enabled [wasi](crate::Config::wasi) option is used in the creation of this [Vm].
+    pub fn wasi_module_mut(&mut self) -> WasmEdgeResult<WasiModule> {
         let io_ctx = unsafe {
             ffi::WasmEdge_VMGetImportModuleContext(self.inner.0, WasmEdge_HostRegistration_Wasi)
         };
@@ -621,8 +623,10 @@ impl Vm {
         }
     }
 
-    /// Returns the mutable WasmEdgeProcess [ImportObject](crate::ImportObject).
-    pub fn wasmedge_process_import_module_mut(&mut self) -> WasmEdgeResult<WasmEdgeProcessModule> {
+    /// Returns the mutable [WasmEdgeProcess module instance](crate::WasmEdgeProcessModule).
+    ///
+    /// Notice that this function is only available when a [config](crate::Config) with the enabled [wasmedge_process](crate::Config::wasmedge_process) option is used in the creation of this [Vm].
+    pub fn wasmedge_process_module_mut(&mut self) -> WasmEdgeResult<WasmEdgeProcessModule> {
         let io_ctx = unsafe {
             ffi::WasmEdge_VMGetImportModuleContext(
                 self.inner.0,
@@ -1274,9 +1278,9 @@ mod tests {
         vm.reset();
 
         // get ImportObj module
-        let result = vm.wasi_import_module_mut();
+        let result = vm.wasi_module_mut();
         assert!(result.is_ok());
-        let result = vm.wasmedge_process_import_module_mut();
+        let result = vm.wasmedge_process_module_mut();
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
@@ -1587,7 +1591,7 @@ mod tests {
             let mut vm = result.unwrap();
 
             // get the Wasi module
-            let result = vm.wasi_import_module_mut();
+            let result = vm.wasi_module_mut();
             assert!(result.is_ok());
 
             // *** try to add another Wasi module, that causes error.
@@ -1632,7 +1636,7 @@ mod tests {
             let mut vm = result.unwrap();
 
             // get the Wasi module
-            let result = vm.wasi_import_module_mut();
+            let result = vm.wasi_module_mut();
             assert!(result.is_err());
             assert_eq!(
                 result.unwrap_err(),
@@ -1659,7 +1663,7 @@ mod tests {
             assert!(result.is_ok());
 
             // get the Wasi module
-            let result = vm.wasi_import_module_mut();
+            let result = vm.wasi_module_mut();
             assert!(result.is_err());
             assert_eq!(
                 result.unwrap_err(),
@@ -1706,7 +1710,7 @@ mod tests {
             let mut vm = result.unwrap();
 
             // get the WasmEdgeProcess module
-            let result = vm.wasmedge_process_import_module_mut();
+            let result = vm.wasmedge_process_module_mut();
             assert!(result.is_ok());
 
             // *** try to add another WasmEdgeProcess module, that causes error.
@@ -1752,7 +1756,7 @@ mod tests {
             let mut vm = result.unwrap();
 
             // get the WasmEdgeProcess module
-            let result = vm.wasmedge_process_import_module_mut();
+            let result = vm.wasmedge_process_module_mut();
             assert!(result.is_err());
 
             // *** try to add a WasmEdgeProcess module.
@@ -1776,7 +1780,7 @@ mod tests {
             assert!(result.is_ok());
 
             // get the WasmEdgeProcess module
-            let result = vm.wasmedge_process_import_module_mut();
+            let result = vm.wasmedge_process_module_mut();
             assert!(result.is_err());
             assert_eq!(
                 result.unwrap_err(),

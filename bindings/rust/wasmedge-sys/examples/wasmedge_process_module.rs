@@ -11,14 +11,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         // create a Config context
         let mut config = Config::create()?;
         config.bulk_memory_operations(true);
+        assert!(config.bulk_memory_operations_enabled());
         config.wasmedge_process(true);
+        assert!(config.wasmedge_process_enabled());
 
         // create a Vm context with the given Config and Store
         let mut vm = Vm::create(Some(config), None)?;
 
         // get the default WasmEdgeProcess module instance
-        let default_wasmedge_process_instance = vm.wasmedge_process_import_module_mut()?;
-        assert_eq!(default_wasmedge_process_instance.name(), "wasmedge_process");
+        let wasmedge_process_instance = vm.wasmedge_process_module_mut()?;
+        assert_eq!(wasmedge_process_instance.name(), "wasmedge_process");
 
         // *** try to add another WasmEdgeProcess module, that causes error.
 
@@ -45,7 +47,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let mut vm = Vm::create(Some(config), None)?;
 
         // get the WasmEdgeProcess module
-        let result = vm.wasmedge_process_import_module_mut();
+        let result = vm.wasmedge_process_module_mut();
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
@@ -89,7 +91,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         vm.register_wasm_from_import(ImportObject::WasmEdgeProcess(import_process))?;
 
         // get the WasmEdgeProcess module
-        let result = vm.wasmedge_process_import_module_mut();
+        let result = vm.wasmedge_process_module_mut();
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),

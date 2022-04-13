@@ -131,10 +131,9 @@ Expect<void> Executor::runCallIndirectOp(Runtime::StoreManager &StoreMgr,
                                            {ValTypeFromType<uint32_t>()}));
     return Unexpect(ErrCode::UninitializedElement);
   }
-  uint32_t FuncAddr = retrieveFuncIdx(Ref);
 
   // Check function type.
-  const auto *FuncInst = *StoreMgr.getFunction(FuncAddr);
+  const auto *FuncInst = retrieveFuncRef(Ref);
   const auto &FuncType = FuncInst->getFuncType();
   if (*TargetFuncType != FuncType) {
     spdlog::error(ErrCode::IndirectCallTypeMismatch);

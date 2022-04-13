@@ -7,7 +7,7 @@ use std::{
     sync::{Arc, Mutex},
     thread,
 };
-use wasmedge_sys::{Config, Store, Value, Vm, WasmEdgeError};
+use wasmedge_sys::{error::WasmEdgeError, Config, Store, Vm, WasmValue};
 
 fn main() -> Result<(), WasmEdgeError> {
     // create a Config context
@@ -15,10 +15,10 @@ fn main() -> Result<(), WasmEdgeError> {
     config.bulk_memory_operations(true);
 
     // create a Store context
-    let store = Store::create()?;
+    let mut store = Store::create()?;
 
     // create a Vm context with the given Config and Store
-    let mut vm = Vm::create(Some(config), Some(store))?;
+    let mut vm = Vm::create(Some(config), Some(&mut store))?;
 
     // register a wasm module from a wasm file
     let file = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
@@ -32,7 +32,7 @@ fn main() -> Result<(), WasmEdgeError> {
     let handle_a = thread::spawn(move || {
         let vm_child_thread = vm_cloned.lock().expect("fail to lock vm");
         let returns = vm_child_thread
-            .run_registered_function("extern", "fib", [Value::from_i32(4)])
+            .run_registered_function("extern", "fib", [WasmValue::from_i32(4)])
             .expect("fail to compute fib(4)");
 
         let fib4 = returns[0].to_i32();
@@ -46,7 +46,7 @@ fn main() -> Result<(), WasmEdgeError> {
     let handle_b = thread::spawn(move || {
         let vm_child_thread = vm_cloned.lock().expect("fail to lock vm");
         let returns = vm_child_thread
-            .run_registered_function("extern", "fib", [Value::from_i32(5)])
+            .run_registered_function("extern", "fib", [WasmValue::from_i32(5)])
             .expect("fail to compute fib(5)");
 
         let fib5 = returns[0].to_i32();

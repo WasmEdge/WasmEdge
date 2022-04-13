@@ -9,6 +9,7 @@ on:
     branches:
       - master
     paths-ignore:
+      - '.github/workflows/rust*.yml'
       - 'docs/**'
       - 'bindings/**'
       - 'rpm/**'
@@ -18,6 +19,7 @@ on:
       - master
       - 'proposal/**'
     paths-ignore:
+      - '.github/workflows/rust*.yml'
       - 'docs/**'
       - 'bindings/**'
       - 'rpm/**'

@@ -139,9 +139,9 @@ Expect<void> Executor::execute(Runtime::StoreManager &StoreMgr,
       return {};
     }
     case OpCode::Ref__func: {
-      const auto *ModInst = StackMgr.getModule();
-      const auto *FuncInst = *ModInst->getFunc(Instr.getTargetIndex());
-      StackMgr.push<FuncRef>(FuncRef(FuncInst->getAddr()));
+      auto *ModInst = StackMgr.getModule();
+      auto *FuncInst = *ModInst->getFunc(Instr.getTargetIndex());
+      StackMgr.push<FuncRef>(FuncRef(FuncInst));
       return {};
     }
 
@@ -1614,8 +1614,8 @@ Expect<void> Executor::execute(Runtime::StoreManager &StoreMgr,
   };
 
   while (PC != PCEnd) {
-    OpCode Code = PC->getOpCode();
     if (Stat) {
+      OpCode Code = PC->getOpCode();
       if (Conf.getStatisticsConfigure().isInstructionCounting()) {
         Stat->incInstrCount();
       }

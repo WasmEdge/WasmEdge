@@ -86,8 +86,15 @@ using TypeNN =
 class Executor {
 public:
   Executor(const Configure &Conf, Statistics::Statistics *S = nullptr) noexcept
-      : Conf(Conf), Stat(S) {
+      : Conf(Conf) {
     assuming(This == nullptr);
+    if (Conf.getStatisticsConfigure().isInstructionCounting() ||
+        Conf.getStatisticsConfigure().isCostMeasuring() ||
+        Conf.getStatisticsConfigure().isTimeMeasuring()) {
+      Stat = S;
+    } else {
+      Stat = nullptr;
+    }
     newThread();
     if (Stat) {
       Stat->setCostLimit(Conf.getStatisticsConfigure().getCostLimit());

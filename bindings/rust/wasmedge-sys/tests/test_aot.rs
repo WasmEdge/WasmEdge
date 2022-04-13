@@ -1,7 +1,7 @@
 #[cfg(feature = "aot")]
 use wasmedge_sys::{
     Compiler, CompilerOptimizationLevel, CompilerOutputFormat, Config, FuncType, Function,
-    ImportObject, Value, Vm,
+    ImportObject, Vm, WasmValue,
 };
 
 #[cfg(feature = "aot")]
@@ -31,8 +31,9 @@ fn test_aot() {
     let result = Config::create();
     assert!(result.is_ok());
     let mut config = result.unwrap();
-    config.set_optimization_level(CompilerOptimizationLevel::O0);
-    config.set_compiler_output_format(CompilerOutputFormat::Native);
+    config.set_aot_optimization_level(CompilerOptimizationLevel::O0);
+    config.set_aot_compiler_output_format(CompilerOutputFormat::Native);
+    config.interruptible(true);
     let result = Compiler::create(Some(config));
     assert!(result.is_ok());
     let compiler = result.unwrap();
@@ -54,7 +55,7 @@ fn test_aot() {
         let result = vm.contains_reg_func_name("extern", "fib");
         assert!(result.is_ok());
 
-        let result = vm.run_registered_function("extern", "fib", [Value::from_i32(5)]);
+        let result = vm.run_registered_function("extern", "fib", [WasmValue::from_i32(5)]);
         assert!(result.is_ok());
         let returns = result.unwrap();
         assert_eq!(returns[0].to_i32(), 8);
@@ -70,7 +71,7 @@ fn test_aot() {
         let result = vm.instantiate();
         assert!(result.is_ok());
 
-        let result = vm.run_function("fib", [Value::from_i32(5)]);
+        let result = vm.run_function("fib", [WasmValue::from_i32(5)]);
         assert!(result.is_ok());
         let returns = result.unwrap();
         assert_eq!(returns[0].to_i32(), 8);
@@ -90,7 +91,7 @@ fn create_spec_test_module() -> ImportObject {
     let result = FuncType::create([], []);
     assert!(result.is_ok());
     let func_ty = result.unwrap();
-    let result = Function::create(func_ty, Box::new(spec_test_print), 0);
+    let result = Function::create(&func_ty, Box::new(spec_test_print), 0);
     assert!(result.is_ok());
     let host_func = result.unwrap();
     // add host function "print"
@@ -98,6 +99,6 @@ fn create_spec_test_module() -> ImportObject {
     import_obj
 }
 
-fn spec_test_print(_inputs: Vec<Value>) -> Result<Vec<Value>, u8> {
+fn spec_test_print(_inputs: Vec<WasmValue>) -> Result<Vec<WasmValue>, u8> {
     Ok(vec![])
 }

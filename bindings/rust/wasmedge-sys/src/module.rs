@@ -1,8 +1,8 @@
 //! Defines WasmEdge AST Module, Export, and Import structs.
 
-use super::wasmedge;
+use super::ffi;
 use crate::{
-    error::{ExportError, ImportError, WasmEdgeError, WasmEdgeResult},
+    error::{ExportError, ImportError, WasmEdgeError},
     instance::{
         function::{FuncType, InnerFuncType},
         global::{GlobalType, InnerGlobalType},
@@ -10,13 +10,14 @@ use crate::{
         table::{InnerTableType, TableType},
     },
     types::ExternalType,
+    WasmEdgeResult,
 };
-use std::{borrow::Cow, ffi::CStr, marker::PhantomData};
+use std::{borrow::Cow, ffi::CStr};
 
-/// Struct of WasmEdge AST (short for abstract syntax tree) Module.
+/// Struct of WasmEdge Module.
 ///
-/// [`Module`] is also called `AST Module` in WasmEdge terminology. An `AST Module` is a compiled in-memory
-/// representation of an input WebAssembly binary. In the instantiation process, a [`Module`] is used to create a
+/// [Module] is also called *AST Module* in WasmEdge terminology. A [Module] is a compiled in-memory
+/// representation of an input WebAssembly binary. In the instantiation process, a [Module] is used to create a
 /// [module stance](crate::instance), from which the exported [functions](crate::Function), [tables](crate::Table),
 /// [memories](crate::Memory), and [globals](crate::Global) can be fetched.
 #[derive(Debug)]
@@ -26,64 +27,70 @@ pub struct Module {
 impl Drop for Module {
     fn drop(&mut self) {
         if !self.inner.0.is_null() {
-            unsafe { wasmedge::WasmEdge_ASTModuleDelete(self.inner.0) };
+            unsafe { ffi::WasmEdge_ASTModuleDelete(self.inner.0) };
         }
     }
 }
 impl Module {
-    /// Returns the number of the imports of the [`Module`].
+    /// Returns the number of the imports of the [Module].
     pub fn count_of_imports(&self) -> u32 {
-        unsafe { wasmedge::WasmEdge_ASTModuleListImportsLength(self.inner.0) }
+        unsafe { ffi::WasmEdge_ASTModuleListImportsLength(self.inner.0) }
     }
 
-    /// Returns the imports of the [`Module`].
-    pub fn imports_iter(&self) -> impl Iterator<Item = Import<'_>> {
+    /// Returns the imports of the [Module].
+    pub fn imports(&self) -> Vec<Import<'_>> {
         let size = self.count_of_imports();
         let mut returns = Vec::with_capacity(size as usize);
         unsafe {
-            wasmedge::WasmEdge_ASTModuleListImports(self.inner.0, returns.as_mut_ptr(), size);
+            ffi::WasmEdge_ASTModuleListImports(self.inner.0, returns.as_mut_ptr(), size);
             returns.set_len(size as usize);
         }
 
-        returns.into_iter().map(|ctx| Import {
-            inner: InnerImport(ctx),
-            _marker: PhantomData,
-        })
+        returns
+            .into_iter()
+            .map(|ctx| Import {
+                inner: InnerImport(ctx),
+                module: self,
+            })
+            .collect()
     }
 
-    /// Returns the count of the exports of the [`Module`].
+    /// Returns the count of the exports of the [Module].
     pub fn count_of_exports(&self) -> u32 {
-        unsafe { wasmedge::WasmEdge_ASTModuleListExportsLength(self.inner.0) }
+        unsafe { ffi::WasmEdge_ASTModuleListExportsLength(self.inner.0) }
     }
 
-    /// Returns the exports of the [`Module`].
-    pub fn exports_iter(&self) -> impl Iterator<Item = Export<'_>> {
+    /// Returns the exports of the [Module].
+    pub fn exports(&self) -> Vec<Export<'_>> {
         let size = self.count_of_exports();
         let mut returns = Vec::with_capacity(size as usize);
         unsafe {
-            wasmedge::WasmEdge_ASTModuleListExports(self.inner.0, returns.as_mut_ptr(), size);
+            ffi::WasmEdge_ASTModuleListExports(self.inner.0, returns.as_mut_ptr(), size);
             returns.set_len(size as usize);
         }
 
-        returns.into_iter().map(|ctx| Export {
-            inner: InnerExport(ctx),
-            _marker: PhantomData,
-        })
+        returns
+            .into_iter()
+            .map(|ctx| Export {
+                inner: InnerExport(ctx),
+                module: self,
+            })
+            .collect()
     }
 }
 
 #[derive(Debug)]
-pub(crate) struct InnerModule(pub(crate) *mut wasmedge::WasmEdge_ASTModuleContext);
+pub(crate) struct InnerModule(pub(crate) *mut ffi::WasmEdge_ASTModuleContext);
 unsafe impl Send for InnerModule {}
 unsafe impl Sync for InnerModule {}
 
 /// Struct of WasmEdge Import.
 ///
-/// The [`Import`] is used for getting the information of the imports from a WasmEdge AST [`Module`].
+/// The [Import] is used for getting the information of the imports from a WasmEdge [Module].
 #[derive(Debug)]
 pub struct Import<'module> {
     pub(crate) inner: InnerImport,
-    pub(crate) _marker: PhantomData<&'module Module>,
+    pub(crate) module: &'module Module,
 }
 impl<'module> Drop for Import<'module> {
     fn drop(&mut self) {
@@ -93,40 +100,36 @@ impl<'module> Drop for Import<'module> {
     }
 }
 impl<'module> Import<'module> {
-    /// Returns the external type of the [`Import`].
+    /// Returns the external type of the [Import].
     pub fn ty(&self) -> ExternalType {
-        let ty = unsafe { wasmedge::WasmEdge_ImportTypeGetExternalType(self.inner.0) };
+        let ty = unsafe { ffi::WasmEdge_ImportTypeGetExternalType(self.inner.0) };
         ty.into()
     }
 
-    /// Returns the external name of the [`Import`].
+    /// Returns the external name of the [Import].
     pub fn name(&self) -> Cow<'_, str> {
         let c_name = unsafe {
-            let raw_name = wasmedge::WasmEdge_ImportTypeGetExternalName(self.inner.0);
+            let raw_name = ffi::WasmEdge_ImportTypeGetExternalName(self.inner.0);
             CStr::from_ptr(raw_name.Buf)
         };
         c_name.to_string_lossy()
     }
 
-    /// Returns the module name from the [`Import`].
+    /// Returns the module name from the [Import].
     pub fn module_name(&self) -> Cow<'_, str> {
         let c_name = unsafe {
-            let raw_name = wasmedge::WasmEdge_ImportTypeGetModuleName(self.inner.0);
+            let raw_name = ffi::WasmEdge_ImportTypeGetModuleName(self.inner.0);
             CStr::from_ptr(raw_name.Buf)
         };
         c_name.to_string_lossy()
     }
 
-    /// Returns the [function type](crate::FuncType).
-    ///
-    /// # Argument
-    ///
-    /// - `module` specifies the target WasmEdge AST [`Module`].
+    /// Returns the [type](crate::FuncType) of the imported [function](crate::Function).
     ///
     /// # Error
     ///
     /// If fail to get the function type, then an error is returned.
-    pub fn function_type(&self, module: &Module) -> WasmEdgeResult<FuncType> {
+    pub fn function_type(&self) -> WasmEdgeResult<FuncType> {
         let external_ty = self.ty();
         if external_ty != ExternalType::Function {
             return Err(WasmEdgeError::Import(ImportError::Type {
@@ -134,8 +137,12 @@ impl<'module> Import<'module> {
                 actual: external_ty,
             }));
         }
-        let ctx_func_ty =
-            unsafe { wasmedge::WasmEdge_ImportTypeGetFunctionType(module.inner.0, self.inner.0) };
+        let ctx_func_ty = unsafe {
+            ffi::WasmEdge_ImportTypeGetFunctionType(
+                self.module.inner.0 as *const _,
+                self.inner.0 as *const _,
+            )
+        };
         match ctx_func_ty.is_null() {
             true => Err(WasmEdgeError::Import(ImportError::FuncType(
                 "Fail to get the function type".into(),
@@ -149,14 +156,8 @@ impl<'module> Import<'module> {
 
     /// Returns the [table type](crate::TableType).
     ///
-    /// # Argument
-    ///
-    /// - `module` specifies the target WasmEdge AST [`Module`].
-    ///
-    /// # Error
-    ///
     /// If fail to get the table type, then an error is returned.
-    pub fn table_type(&self, module: &Module) -> WasmEdgeResult<TableType> {
+    pub fn table_type(&self) -> WasmEdgeResult<TableType> {
         let external_ty = self.ty();
         if external_ty != ExternalType::Table {
             return Err(WasmEdgeError::Import(ImportError::Type {
@@ -165,7 +166,7 @@ impl<'module> Import<'module> {
             }));
         }
         let ctx_tab_ty =
-            unsafe { wasmedge::WasmEdge_ImportTypeGetTableType(module.inner.0, self.inner.0) };
+            unsafe { ffi::WasmEdge_ImportTypeGetTableType(self.module.inner.0, self.inner.0) };
         match ctx_tab_ty.is_null() {
             true => Err(WasmEdgeError::Import(ImportError::TableType(
                 "Fail to get the table type".into(),
@@ -179,14 +180,8 @@ impl<'module> Import<'module> {
 
     /// Returns the [memory type](crate::MemType).
     ///
-    /// # Argument
-    ///
-    /// - `module` specifies the target WasmEdge AST [`Module`].
-    ///
-    /// # Error
-    ///
     /// If fail to get the memory type, then an error is returned.
-    pub fn memory_type(&self, module: &Module) -> WasmEdgeResult<MemType> {
+    pub fn memory_type(&self) -> WasmEdgeResult<MemType> {
         let external_ty = self.ty();
         if external_ty != ExternalType::Memory {
             return Err(WasmEdgeError::Import(ImportError::Type {
@@ -195,7 +190,7 @@ impl<'module> Import<'module> {
             }));
         }
         let ctx_mem_ty =
-            unsafe { wasmedge::WasmEdge_ImportTypeGetMemoryType(module.inner.0, self.inner.0) };
+            unsafe { ffi::WasmEdge_ImportTypeGetMemoryType(self.module.inner.0, self.inner.0) };
         match ctx_mem_ty.is_null() {
             true => Err(WasmEdgeError::Import(ImportError::MemType(
                 "Fail to get the memory type".into(),
@@ -209,14 +204,8 @@ impl<'module> Import<'module> {
 
     /// Returns the [global type](crate::GlobalType).
     ///
-    /// # Argument
-    ///
-    /// - `module` specifies the target WasmEdge AST [`Module`].
-    ///
-    /// # Error
-    ///
     /// If fail to get the global type, then an error is returned.
-    pub fn global_type(&self, module: &Module) -> WasmEdgeResult<GlobalType> {
+    pub fn global_type(&self) -> WasmEdgeResult<GlobalType> {
         let external_ty = self.ty();
         if external_ty != ExternalType::Global {
             return Err(WasmEdgeError::Import(ImportError::Type {
@@ -225,7 +214,7 @@ impl<'module> Import<'module> {
             }));
         }
         let ctx_global_ty =
-            unsafe { wasmedge::WasmEdge_ImportTypeGetGlobalType(module.inner.0, self.inner.0) };
+            unsafe { ffi::WasmEdge_ImportTypeGetGlobalType(self.module.inner.0, self.inner.0) };
         match ctx_global_ty.is_null() {
             true => Err(WasmEdgeError::Import(ImportError::MemType(
                 "Fail to get the global type".into(),
@@ -239,17 +228,18 @@ impl<'module> Import<'module> {
 }
 
 #[derive(Debug)]
-pub(crate) struct InnerImport(pub(crate) *const wasmedge::WasmEdge_ImportTypeContext);
+pub(crate) struct InnerImport(pub(crate) *const ffi::WasmEdge_ImportTypeContext);
 unsafe impl Send for InnerImport {}
 unsafe impl Sync for InnerImport {}
 
 /// Struct of WasmEdge Export.
 ///
-/// The [`Export`] is used for getting the information of the exports from a WasmEdge AST [`Module`].
+/// The [Export](crate::Export) is used for getting the information of the exports from a WasmEdge [module](crate::Module).
 #[derive(Debug)]
 pub struct Export<'module> {
     pub(crate) inner: InnerExport,
-    pub(crate) _marker: PhantomData<&'module Module>,
+    // pub(crate) _marker: PhantomData<&'module Module>,
+    pub(crate) module: &'module Module,
 }
 impl<'module> Drop for Export<'module> {
     fn drop(&mut self) {
@@ -259,16 +249,16 @@ impl<'module> Drop for Export<'module> {
     }
 }
 impl<'module> Export<'module> {
-    /// Returns the external type of the [`Export`].
+    /// Returns the external type of the [Export].
     pub fn ty(&self) -> ExternalType {
-        let ty = unsafe { wasmedge::WasmEdge_ExportTypeGetExternalType(self.inner.0) };
+        let ty = unsafe { ffi::WasmEdge_ExportTypeGetExternalType(self.inner.0) };
         ty.into()
     }
 
-    /// Returns the external name of the [`Export`].
+    /// Returns the external name of the [Export].
     pub fn name(&self) -> Cow<'_, str> {
         let c_name = unsafe {
-            let raw_name = wasmedge::WasmEdge_ExportTypeGetExternalName(self.inner.0);
+            let raw_name = ffi::WasmEdge_ExportTypeGetExternalName(self.inner.0);
             CStr::from_ptr(raw_name.Buf)
         };
         c_name.to_string_lossy()
@@ -276,14 +266,8 @@ impl<'module> Export<'module> {
 
     /// Returns the [function type](crate::FuncType).
     ///
-    /// # Argument
-    ///
-    /// - `module` specifies the target WasmEdge AST [`Module`].
-    ///
-    /// # Error
-    ///
     /// If fail to get the function type, then an error is returned.
-    pub fn function_type(&self, module: &Module) -> WasmEdgeResult<FuncType> {
+    pub fn function_type(&self) -> WasmEdgeResult<FuncType> {
         let external_ty = self.ty();
         if external_ty != ExternalType::Function {
             return Err(WasmEdgeError::Export(ExportError::Type {
@@ -292,7 +276,7 @@ impl<'module> Export<'module> {
             }));
         }
         let ctx_func_ty =
-            unsafe { wasmedge::WasmEdge_ExportTypeGetFunctionType(module.inner.0, self.inner.0) };
+            unsafe { ffi::WasmEdge_ExportTypeGetFunctionType(self.module.inner.0, self.inner.0) };
         match ctx_func_ty.is_null() {
             true => Err(WasmEdgeError::Export(ExportError::FuncType(
                 "Fail to get the function type".into(),
@@ -306,14 +290,8 @@ impl<'module> Export<'module> {
 
     /// Returns the [table type](crate::TableType).
     ///
-    /// # Argument
-    ///
-    /// - `module` specifies the target WasmEdge AST [`Module`].
-    ///
-    /// # Error
-    ///
     /// If fail to get the table type, then an error is returned.
-    pub fn table_type(&self, module: &Module) -> WasmEdgeResult<TableType> {
+    pub fn table_type(&self) -> WasmEdgeResult<TableType> {
         let external_ty = self.ty();
         if external_ty != ExternalType::Table {
             return Err(WasmEdgeError::Export(ExportError::Type {
@@ -322,7 +300,7 @@ impl<'module> Export<'module> {
             }));
         }
         let ctx_tab_ty =
-            unsafe { wasmedge::WasmEdge_ExportTypeGetTableType(module.inner.0, self.inner.0) };
+            unsafe { ffi::WasmEdge_ExportTypeGetTableType(self.module.inner.0, self.inner.0) };
         match ctx_tab_ty.is_null() {
             true => Err(WasmEdgeError::Export(ExportError::TableType(
                 "Fail to get the function type".into(),
@@ -336,14 +314,8 @@ impl<'module> Export<'module> {
 
     /// Returns the [memory type](crate::MemType).
     ///
-    /// # Argument
-    ///
-    /// - `module` specifies the target WasmEdge AST [`Module`].
-    ///
-    /// # Error
-    ///
     /// If fail to get the memory type, then an error is returned.
-    pub fn memory_type(&self, module: &Module) -> WasmEdgeResult<MemType> {
+    pub fn memory_type(&self) -> WasmEdgeResult<MemType> {
         let external_ty = self.ty();
         if external_ty != ExternalType::Memory {
             return Err(WasmEdgeError::Export(ExportError::Type {
@@ -352,7 +324,7 @@ impl<'module> Export<'module> {
             }));
         }
         let ctx_mem_ty =
-            unsafe { wasmedge::WasmEdge_ExportTypeGetMemoryType(module.inner.0, self.inner.0) };
+            unsafe { ffi::WasmEdge_ExportTypeGetMemoryType(self.module.inner.0, self.inner.0) };
         match ctx_mem_ty.is_null() {
             true => Err(WasmEdgeError::Export(ExportError::MemType(
                 "Fail to get the function type".into(),
@@ -366,14 +338,8 @@ impl<'module> Export<'module> {
 
     /// Returns the [global type](crate::GlobalType).
     ///
-    /// # Argument
-    ///
-    /// - `module` specifies the target WasmEdge AST [`Module`].
-    ///
-    /// # Error
-    ///
     /// If fail to get the global type, then an error is returned.
-    pub fn global_type(&self, module: &Module) -> WasmEdgeResult<GlobalType> {
+    pub fn global_type(&self) -> WasmEdgeResult<GlobalType> {
         let external_ty = self.ty();
         if external_ty != ExternalType::Global {
             return Err(WasmEdgeError::Export(ExportError::Type {
@@ -382,7 +348,7 @@ impl<'module> Export<'module> {
             }));
         }
         let ctx_global_ty =
-            unsafe { wasmedge::WasmEdge_ExportTypeGetGlobalType(module.inner.0, self.inner.0) };
+            unsafe { ffi::WasmEdge_ExportTypeGetGlobalType(self.module.inner.0, self.inner.0) };
         match ctx_global_ty.is_null() {
             true => Err(WasmEdgeError::Export(ExportError::GlobalType(
                 "Fail to get the function type".into(),
@@ -396,15 +362,15 @@ impl<'module> Export<'module> {
 }
 
 #[derive(Debug)]
-pub(crate) struct InnerExport(pub(crate) *const wasmedge::WasmEdge_ExportTypeContext);
+pub(crate) struct InnerExport(pub(crate) *const ffi::WasmEdge_ExportTypeContext);
 unsafe impl Send for InnerExport {}
 unsafe impl Sync for InnerExport {}
 
 #[cfg(test)]
 mod tests {
     use crate::{
-        Config, ExportError, ExternalType, ImportError, Loader, Mutability, RefType, ValType,
-        WasmEdgeError,
+        error::{ExportError, ImportError, WasmEdgeError},
+        Config, ExternalType, Loader, Mutability, RefType, ValType,
     };
     use std::{
         sync::{Arc, Mutex},
@@ -434,7 +400,7 @@ mod tests {
         // check imports
 
         assert_eq!(module.count_of_imports(), 14);
-        let imports = module.imports_iter().collect::<Vec<_>>();
+        let imports = module.imports();
 
         // check the ty, name, and module_name functions
         assert_eq!(imports[0].ty(), ExternalType::Function);
@@ -494,7 +460,7 @@ mod tests {
         assert_eq!(imports[13].module_name(), "dummy");
 
         // check the function_type function
-        let result = imports[8].function_type(&module);
+        let result = imports[8].function_type();
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
@@ -503,13 +469,13 @@ mod tests {
                 actual: ExternalType::Global,
             })
         );
-        let result = imports[4].function_type(&module);
+        let result = imports[4].function_type();
         assert!(result.is_ok());
         let func_ty = result.unwrap();
         assert_eq!(func_ty.returns_len(), 1);
 
         // check the table_type function
-        let result = imports[0].table_type(&module);
+        let result = imports[0].table_type();
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
@@ -518,14 +484,14 @@ mod tests {
                 actual: ExternalType::Function,
             })
         );
-        let result = imports[11].table_type(&module);
+        let result = imports[11].table_type();
         assert!(result.is_ok());
         let table_ty = result.unwrap();
         assert_eq!(table_ty.elem_ty(), RefType::ExternRef);
         assert_eq!(table_ty.limit(), 10..=30);
 
         // check the memory_type function
-        let result = imports[0].memory_type(&module);
+        let result = imports[0].memory_type();
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
@@ -534,13 +500,13 @@ mod tests {
                 actual: ExternalType::Function,
             })
         );
-        let result = imports[13].memory_type(&module);
+        let result = imports[13].memory_type();
         assert!(result.is_ok());
         let mem_ty = result.unwrap();
         assert_eq!(mem_ty.limit(), 2..=2);
 
         // check the global_type function
-        let result = imports[0].global_type(&module);
+        let result = imports[0].global_type();
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
@@ -549,7 +515,7 @@ mod tests {
                 actual: ExternalType::Function,
             })
         );
-        let result = imports[7].global_type(&module);
+        let result = imports[7].global_type();
         assert!(result.is_ok());
         let global_ty = result.unwrap();
         assert_eq!(global_ty.value_type(), ValType::I64);
@@ -579,7 +545,7 @@ mod tests {
         // check exports
 
         assert_eq!(module.count_of_exports(), 16);
-        let exports = module.exports_iter().collect::<Vec<_>>();
+        let exports = module.exports();
 
         // check the ty and name functions
         assert_eq!(exports[0].ty(), ExternalType::Function);
@@ -633,7 +599,7 @@ mod tests {
         assert_eq!(exports[15].name(), "glob-const-f32");
 
         // check the function_type function
-        let result = exports[15].function_type(&module);
+        let result = exports[15].function_type();
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
@@ -642,14 +608,14 @@ mod tests {
                 actual: ExternalType::Global,
             })
         );
-        let result = exports[4].function_type(&module);
+        let result = exports[4].function_type();
         assert!(result.is_ok());
         let func_ty = result.unwrap();
         assert_eq!(func_ty.params_len(), 2);
         assert_eq!(func_ty.returns_len(), 1);
 
         // check the table_type function
-        let result = exports[0].table_type(&module);
+        let result = exports[0].table_type();
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
@@ -658,14 +624,14 @@ mod tests {
                 actual: ExternalType::Function,
             })
         );
-        let result = exports[12].table_type(&module);
+        let result = exports[12].table_type();
         assert!(result.is_ok());
         let table_ty = result.unwrap();
         assert_eq!(table_ty.elem_ty(), RefType::ExternRef);
         assert_eq!(table_ty.limit(), 10..=10);
 
         // check the memory_type function
-        let result = exports[0].memory_type(&module);
+        let result = exports[0].memory_type();
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
@@ -674,13 +640,13 @@ mod tests {
                 actual: ExternalType::Function,
             })
         );
-        let result = exports[13].memory_type(&module);
+        let result = exports[13].memory_type();
         assert!(result.is_ok());
         let mem_ty = result.unwrap();
         assert_eq!(mem_ty.limit(), 1..=3);
 
         // check the global_type function
-        let result = exports[0].global_type(&module);
+        let result = exports[0].global_type();
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
@@ -689,7 +655,7 @@ mod tests {
                 actual: ExternalType::Function,
             })
         );
-        let result = exports[15].global_type(&module);
+        let result = exports[15].global_type();
         assert!(result.is_ok());
         let global_ty = result.unwrap();
         assert_eq!(global_ty.value_type(), ValType::F32);
@@ -720,7 +686,7 @@ mod tests {
             // check exports
 
             assert_eq!(module.count_of_exports(), 16);
-            let exports = module.exports_iter().collect::<Vec<_>>();
+            let exports = module.exports();
 
             // check the ty and name functions
             assert_eq!(exports[0].ty(), ExternalType::Function);
@@ -774,7 +740,7 @@ mod tests {
             assert_eq!(exports[15].name(), "glob-const-f32");
 
             // check the function_type function
-            let result = exports[15].function_type(&module);
+            let result = exports[15].function_type();
             assert!(result.is_err());
             assert_eq!(
                 result.unwrap_err(),
@@ -783,14 +749,14 @@ mod tests {
                     actual: ExternalType::Global,
                 })
             );
-            let result = exports[4].function_type(&module);
+            let result = exports[4].function_type();
             assert!(result.is_ok());
             let func_ty = result.unwrap();
             assert_eq!(func_ty.params_len(), 2);
             assert_eq!(func_ty.returns_len(), 1);
 
             // check the table_type function
-            let result = exports[0].table_type(&module);
+            let result = exports[0].table_type();
             assert!(result.is_err());
             assert_eq!(
                 result.unwrap_err(),
@@ -799,14 +765,14 @@ mod tests {
                     actual: ExternalType::Function,
                 })
             );
-            let result = exports[12].table_type(&module);
+            let result = exports[12].table_type();
             assert!(result.is_ok());
             let table_ty = result.unwrap();
             assert_eq!(table_ty.elem_ty(), RefType::ExternRef);
             assert_eq!(table_ty.limit(), 10..=10);
 
             // check the memory_type function
-            let result = exports[0].memory_type(&module);
+            let result = exports[0].memory_type();
             assert!(result.is_err());
             assert_eq!(
                 result.unwrap_err(),
@@ -815,13 +781,13 @@ mod tests {
                     actual: ExternalType::Function,
                 })
             );
-            let result = exports[13].memory_type(&module);
+            let result = exports[13].memory_type();
             assert!(result.is_ok());
             let mem_ty = result.unwrap();
             assert_eq!(mem_ty.limit(), 1..=3);
 
             // check the global_type function
-            let result = exports[0].global_type(&module);
+            let result = exports[0].global_type();
             assert!(result.is_err());
             assert_eq!(
                 result.unwrap_err(),
@@ -830,7 +796,7 @@ mod tests {
                     actual: ExternalType::Function,
                 })
             );
-            let result = exports[15].global_type(&module);
+            let result = exports[15].global_type();
             assert!(result.is_ok());
             let global_ty = result.unwrap();
             assert_eq!(global_ty.value_type(), ValType::F32);
@@ -868,7 +834,7 @@ mod tests {
             // check exports
 
             assert_eq!(module.count_of_exports(), 16);
-            let exports = module.exports_iter().collect::<Vec<_>>();
+            let exports = module.exports();
 
             // check the ty and name functions
             assert_eq!(exports[0].ty(), ExternalType::Function);
@@ -922,7 +888,7 @@ mod tests {
             assert_eq!(exports[15].name(), "glob-const-f32");
 
             // check the function_type function
-            let result = exports[15].function_type(&module);
+            let result = exports[15].function_type();
             assert!(result.is_err());
             assert_eq!(
                 result.unwrap_err(),
@@ -931,14 +897,14 @@ mod tests {
                     actual: ExternalType::Global,
                 })
             );
-            let result = exports[4].function_type(&module);
+            let result = exports[4].function_type();
             assert!(result.is_ok());
             let func_ty = result.unwrap();
             assert_eq!(func_ty.params_len(), 2);
             assert_eq!(func_ty.returns_len(), 1);
 
             // check the table_type function
-            let result = exports[0].table_type(&module);
+            let result = exports[0].table_type();
             assert!(result.is_err());
             assert_eq!(
                 result.unwrap_err(),
@@ -947,14 +913,14 @@ mod tests {
                     actual: ExternalType::Function,
                 })
             );
-            let result = exports[12].table_type(&module);
+            let result = exports[12].table_type();
             assert!(result.is_ok());
             let table_ty = result.unwrap();
             assert_eq!(table_ty.elem_ty(), RefType::ExternRef);
             assert_eq!(table_ty.limit(), 10..=10);
 
             // check the memory_type function
-            let result = exports[0].memory_type(&module);
+            let result = exports[0].memory_type();
             assert!(result.is_err());
             assert_eq!(
                 result.unwrap_err(),
@@ -963,13 +929,13 @@ mod tests {
                     actual: ExternalType::Function,
                 })
             );
-            let result = exports[13].memory_type(&module);
+            let result = exports[13].memory_type();
             assert!(result.is_ok());
             let mem_ty = result.unwrap();
             assert_eq!(mem_ty.limit(), 1..=3);
 
             // check the global_type function
-            let result = exports[0].global_type(&module);
+            let result = exports[0].global_type();
             assert!(result.is_err());
             assert_eq!(
                 result.unwrap_err(),
@@ -978,7 +944,7 @@ mod tests {
                     actual: ExternalType::Function,
                 })
             );
-            let result = exports[15].global_type(&module);
+            let result = exports[15].global_type();
             assert!(result.is_ok());
             let global_ty = result.unwrap();
             assert_eq!(global_ty.value_type(), ValType::F32);

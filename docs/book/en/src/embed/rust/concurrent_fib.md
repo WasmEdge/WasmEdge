@@ -13,10 +13,10 @@ In the following code, we creates two child threads, `thread_a` and `thread_b`, 
     config.bulk_memory_operations(true);
 
     // create a Store context
-    let store = Store::create()?;
+    let mut store = Store::create()?;
 
     // create a Vm context with the given Config and Store
-    let mut vm = Vm::create(Some(config), Some(store))?;
+    let mut vm = Vm::create(Some(config), Some(&mut store))?;
 
     // register a wasm module from a wasm file
     let file = std::path::PathBuf::from(env!("WASMEDGE_DIR"))

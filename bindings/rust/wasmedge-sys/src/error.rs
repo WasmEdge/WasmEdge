@@ -1,10 +1,10 @@
+//! Defines the error types.
+
 use crate::{
-    wasmedge::{WasmEdge_Result, WasmEdge_ResultGetCode, WasmEdge_ResultOK},
-    ExternalType,
+    ffi::{WasmEdge_Result, WasmEdge_ResultGetCode, WasmEdge_ResultOK},
+    ExternalType, WasmEdgeResult,
 };
 use thiserror::Error;
-
-pub type WasmEdgeResult<T> = Result<T, WasmEdgeError>;
 
 /// Defines the errors raised by the wasmedge-sys crate.
 #[derive(Error, Clone, Debug, PartialEq)]
@@ -213,8 +213,21 @@ pub enum VmError {
     NotFoundStore,
     #[error("Fail to get Statistics context")]
     NotFoundStatistics,
+    #[error("Fail to get the target ImportObject (name: {0})")]
+    NotFoundImportObject(String),
+    #[error(
+        "Fail to register import object. Another import object with the name has already existed."
+    )]
+    DuplicateImportObject,
+    #[error("Fail to get Loader context")]
+    NotFoundLoader,
+    #[error("Fail to get Validator context")]
+    NotFoundValidator,
+    #[error("Fail to get Executor context")]
+    NotFoundExecutor,
 }
 
+/// Defines the errors raised from WasmEdge Core.
 #[derive(Error, Clone, Debug, PartialEq)]
 pub enum CoreError {
     #[error("{0}")]

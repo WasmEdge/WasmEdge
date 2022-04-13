@@ -28,12 +28,12 @@ impl Drop for Module {
     }
 }
 impl Module {
-    /// Returns the number of the imports of the [Module].
+    /// Returns the number of wasm imports in the [Module].
     pub fn count_of_imports(&self) -> u32 {
         unsafe { ffi::WasmEdge_ASTModuleListImportsLength(self.inner.0) }
     }
 
-    /// Returns the imports of the [Module].
+    /// Returns the types of wasm imports in the [Module].
     pub fn imports(&self) -> Vec<ImportType<'_>> {
         let size = self.count_of_imports();
         let mut returns = Vec::with_capacity(size as usize);
@@ -51,12 +51,12 @@ impl Module {
             .collect()
     }
 
-    /// Returns the count of the exports of the [Module].
+    /// Returns the count of wasm exports in the [Module].
     pub fn count_of_exports(&self) -> u32 {
         unsafe { ffi::WasmEdge_ASTModuleListExportsLength(self.inner.0) }
     }
 
-    /// Returns the exports of the [Module].
+    /// Returns the types of wasm exports in the [Module].
     pub fn exports(&self) -> Vec<ExportType<'_>> {
         let size = self.count_of_exports();
         let mut returns = Vec::with_capacity(size as usize);
@@ -82,7 +82,7 @@ unsafe impl Sync for InnerModule {}
 
 /// Struct of WasmEdge ImportType.
 ///
-/// The [ImportType] describes the type info of an imported value into a wasm module.
+/// [ImportType] describes the type of imported wasm value.
 #[derive(Debug)]
 pub struct ImportType<'module> {
     pub(crate) inner: InnerImportType,
@@ -96,7 +96,7 @@ impl<'module> Drop for ImportType<'module> {
     }
 }
 impl<'module> ImportType<'module> {
-    /// Returns the expected type of this import.
+    /// Returns the type of this import.
     pub fn ty(&self) -> WasmEdgeResult<ExternalInstanceType> {
         let ty = unsafe { ffi::WasmEdge_ImportTypeGetExternalType(self.inner.0) };
         let ty: ExternalInstanceType = ty.into();
@@ -246,11 +246,10 @@ unsafe impl Sync for InnerImportType {}
 
 /// Struct of WasmEdge ExportType.
 ///
-/// The [ExportType] is used to describe the type info of an exported wasm value.
+/// [ExportType] describes the type of exported wasm value.
 #[derive(Debug)]
 pub struct ExportType<'module> {
     pub(crate) inner: InnerExportType,
-    // pub(crate) _marker: PhantomData<&'module Module>,
     pub(crate) module: &'module Module,
 }
 impl<'module> Drop for ExportType<'module> {

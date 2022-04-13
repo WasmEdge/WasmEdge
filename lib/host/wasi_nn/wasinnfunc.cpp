@@ -259,6 +259,7 @@ WasiNNSetInput::body(Runtime::Instance::MemoryInstance *MemInst,
     Status = ie_network_get_input_name(Network, Index, &InputName);
     if (Status != IEStatusCode::OK) {
       Logger->error("Unable to find input name correctly with Index:{}", Index);
+      ie_network_name_free(&InputName);
       return -1;
     }
     /* Mark input as resizable by setting of a resize algorithm.
@@ -269,6 +270,7 @@ WasiNNSetInput::body(Runtime::Instance::MemoryInstance *MemInst,
                                                    RESIZE_BILINEAR);
     if (Status != IEStatusCode::OK) {
       Logger->error("Unable to set input resize correctly");
+      ie_network_name_free(&InputName);
       return -1;
     }
     Status = ie_network_set_input_layout(
@@ -276,6 +278,7 @@ WasiNNSetInput::body(Runtime::Instance::MemoryInstance *MemInst,
         layout_e::NHWC); // more layouts should be supported
     if (Status != IEStatusCode::OK) {
       Logger->error("Unable to set input layout correctly");
+      ie_network_name_free(&InputName);
       return -1;
     }
     Status = ie_network_set_input_precision(
@@ -283,6 +286,7 @@ WasiNNSetInput::body(Runtime::Instance::MemoryInstance *MemInst,
         precision_e::FP32); // more types should be supported
     if (Status != IEStatusCode::OK) {
       Logger->error("Unable to set input precision correctly");
+      ie_network_name_free(&InputName);
       return -1;
     }
 
@@ -408,8 +412,8 @@ Expect<uint32_t> WasiNNGetOuput::body(
       OutBufferPtr[I] = CastedOutputData[I];
     }
     *BytesWritten = BytesToWrite;
-    Ctx.OpenVINOOutputs.push_back(OutputBlob);
     ie_network_name_free(&OutputName);
+    ie_blob_free(&OutputBlob);
 
     return 0;
 #else

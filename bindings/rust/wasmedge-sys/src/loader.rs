@@ -20,7 +20,7 @@ impl Loader {
     ///
     /// # Arguements
     ///
-    /// - `config` specifies a global configuration.
+    /// * `config` - A global configuration.
     ///
     /// # Error
     ///
@@ -48,7 +48,7 @@ impl Loader {
     ///
     /// # Arguments
     ///
-    /// - `file` specifies the path to the target WASM file.
+    /// * `file` - The path to the target WASM file.
     ///
     /// # Error
     ///
@@ -83,7 +83,7 @@ impl Loader {
     ///
     /// # Arguments
     ///
-    /// - `buffer` specifies a WASM buffer.
+    /// * `buffer` - A WASM buffer.
     ///
     /// # Error
     ///

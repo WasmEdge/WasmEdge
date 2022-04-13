@@ -30,11 +30,11 @@ const std::string mapTargetToString(uint32_t Target) {
 #endif
 
 Expect<uint32_t> WasiNNLoad::body(Runtime::Instance::MemoryInstance *MemInst,
-                                  uint32_t BuilderPtr,
+                                  uint32_t BuilderPtr [[maybe_unused]],
                                   uint32_t BuilderLen [[maybe_unused]],
                                   uint32_t Encoding,
                                   uint32_t Target [[maybe_unused]],
-                                  uint32_t GraphPtr) {
+                                  uint32_t GraphPtr [[maybe_unused]]) {
   // GraphBuilders' Layout: |builder-0|builder-0 len|builder-1|builder-1 len|...
   // Check memory instance from module.
   if (MemInst == nullptr) {
@@ -342,10 +342,12 @@ WasiNNSetInput::body(Runtime::Instance::MemoryInstance *MemInst,
   return -1;
 }
 
-Expect<uint32_t> WasiNNGetOuput::body(
-    Runtime::Instance::MemoryInstance *MemInst, uint32_t Context,
-    uint32_t Index [[maybe_unused]], uint32_t OutBuffer,
-    uint32_t OutBufferMaxSize [[maybe_unused]], uint32_t BytesWrittenPtr) {
+Expect<uint32_t>
+WasiNNGetOuput::body(Runtime::Instance::MemoryInstance *MemInst,
+                     uint32_t Context, uint32_t Index [[maybe_unused]],
+                     uint32_t OutBuffer [[maybe_unused]],
+                     uint32_t OutBufferMaxSize [[maybe_unused]],
+                     uint32_t BytesWrittenPtr [[maybe_unused]]) {
   if (MemInst == nullptr) {
     return Unexpect(ErrCode::ExecutionFailed);
   }

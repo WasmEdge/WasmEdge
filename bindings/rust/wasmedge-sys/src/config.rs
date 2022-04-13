@@ -632,9 +632,12 @@ impl Config {
 
     /// Sets the optimization level of AOT compiler.
     ///
+    /// Notice that this function is only available when the `aot` feature is enabled.
+    ///
     /// # Argument
     ///
     /// * `opt_level` - The optimization level of AOT compiler.
+    #[cfg(feature = "aot")]
     pub fn set_aot_optimization_level(&mut self, opt_level: CompilerOptimizationLevel) {
         unsafe {
             ffi::WasmEdge_ConfigureCompilerSetOptimizationLevel(self.inner.0, opt_level as u32)
@@ -642,6 +645,9 @@ impl Config {
     }
 
     /// Returns the optimization level of AOT compiler.
+    ///
+    /// Notice that this function is only available when the `aot` feature is enabled.
+    #[cfg(feature = "aot")]
     pub fn get_aot_optimization_level(&self) -> CompilerOptimizationLevel {
         let level = unsafe { ffi::WasmEdge_ConfigureCompilerGetOptimizationLevel(self.inner.0) };
         level.into()
@@ -649,14 +655,20 @@ impl Config {
 
     /// Sets the output binary format of AOT compiler.
     ///
+    /// Notice that this function is only available when the `aot` feature is enabled.
+    ///
     /// # Argument
     ///
     /// * `format` - The format of the output binary.
+    #[cfg(feature = "aot")]
     pub fn set_aot_compiler_output_format(&mut self, format: CompilerOutputFormat) {
         unsafe { ffi::WasmEdge_ConfigureCompilerSetOutputFormat(self.inner.0, format as u32) }
     }
 
     /// Returns the output binary format of AOT compiler.
+    ///
+    /// Notice that this function is only available when the `aot` feature is enabled.
+    #[cfg(feature = "aot")]
     pub fn get_aot_compiler_output_format(&self) -> CompilerOutputFormat {
         let value = unsafe { ffi::WasmEdge_ConfigureCompilerGetOutputFormat(self.inner.0) };
         value.into()
@@ -664,44 +676,60 @@ impl Config {
 
     /// Sets the dump IR option of AOT compiler.
     ///
+    /// Notice that this function is only available when the `aot` feature is enabled.
+    ///
     /// # Argument
     ///
     /// * `flag` - Whether dump ir or not.
+    #[cfg(feature = "aot")]
     pub fn dump_ir(&mut self, flag: bool) {
         unsafe { ffi::WasmEdge_ConfigureCompilerSetDumpIR(self.inner.0, flag) }
     }
 
     /// Checks if the dump IR option turns on or not.
+    ///
+    /// Notice that this function is only available when the `aot` feature is enabled.
+    #[cfg(feature = "aot")]
     pub fn dump_ir_enabled(&self) -> bool {
         unsafe { ffi::WasmEdge_ConfigureCompilerIsDumpIR(self.inner.0) }
     }
 
     /// Sets the generic binary option of AOT compiler.
     ///
+    /// Notice that this function is only available when the `aot` feature is enabled.
+    ///
     /// # Argument
     ///
     /// * `flag` - Whether generate the generic binary or not when perform AOT compilation.
+    #[cfg(feature = "aot")]
     pub fn generic_binary(&mut self, flag: bool) {
         unsafe { ffi::WasmEdge_ConfigureCompilerSetGenericBinary(self.inner.0, flag) }
     }
 
     /// Checks if the generic binary option of AOT compiler turns on or not.
+    ///
+    /// Notice that this function is only available when the `aot` feature is enabled.
+    #[cfg(feature = "aot")]
     pub fn generic_binary_enabled(&self) -> bool {
         unsafe { ffi::WasmEdge_ConfigureCompilerIsGenericBinary(self.inner.0) }
     }
 
-    /// Enables or Disables the `Interruptible` option of AOT compiler.
+    /// Enables or Disables the `Interruptible` option of AOT compiler. This option determines to generate interruptible binary or not when compilation in AOT compiler.
     ///
-    /// This option determines to generate interruptible binary or not when compilation in AOT compiler.
+    /// Notice that this function is only available when the `aot` feature is enabled.
     ///
     /// # Argument
     ///
     /// * `enable` - Whether turn on the `Interruptible` option.
+    #[cfg(feature = "aot")]
     pub fn interruptible(&mut self, enable: bool) {
         unsafe { ffi::WasmEdge_ConfigureCompilerSetInterruptible(self.inner.0, enable) }
     }
 
     /// Checks if the `Interruptible` option of AOT Compiler turns on or not.
+    ///
+    /// Notice that this function is only available when the `aot` feature is enabled.
+    #[cfg(feature = "aot")]
     pub fn interruptible_enabled(&self) -> bool {
         unsafe { ffi::WasmEdge_ConfigureCompilerIsInterruptible(self.inner.0) }
     }

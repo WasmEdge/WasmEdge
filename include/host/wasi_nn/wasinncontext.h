@@ -27,9 +27,14 @@ enum class TensorType {
 #ifdef WASMEDGE_WASINN_BUILD_OPENVINO
 class OpenVINOSession {
 public:
-  ie_network_t *network = nullptr;
-  ie_executable_network_t *exe_network = nullptr;
-  ie_infer_request_t *infer_request = nullptr;
+  ~OpenVINOSession() {
+    if (InferRequest != nullptr) {
+      ie_infer_request_free(&(InferRequest));
+    }
+  }
+  ie_network_t *Network = nullptr;
+  ie_executable_network_t *ExeNetwork = nullptr;
+  ie_infer_request_t *InferRequest = nullptr;
 };
 #endif
 
@@ -38,14 +43,17 @@ public:
   WasiNNContext() : ModelsNum(-1), ExecutionsNum(-1) {}
   ~WasiNNContext() {
 #ifdef WASMEDGE_WASINN_BUILD_OPENVINO
-    if (OpenVINOCore == nullptr)
+    if (OpenVINOCore != nullptr)
       ie_core_free(&OpenVINOCore);
-    for (auto &I : OpenVINONetworks)
+    for (auto &I : OpenVINONetworks) {
       ie_network_free(&I);
-    for (auto &I : OpenVINOExecutions)
+    }
+    for (auto &I : OpenVINOExecutions) {
       ie_exec_network_free(&I);
-    for (auto &I : OpenVINOInfers)
-      ie_infer_request_free(&(I->infer_request));
+    }
+    for (auto &I : OpenVINOInfers) {
+      delete I;
+    }
     for (auto &I : OpenVINOOutputs) {
       if (I != nullptr)
         ie_blob_free(&I);

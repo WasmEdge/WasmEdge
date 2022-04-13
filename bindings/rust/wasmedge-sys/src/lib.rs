@@ -166,7 +166,7 @@ lazy_static! {
 
 /// The object that is used to perform a [host function](crate::Function) is required to implement this trait.
 pub trait Engine {
-    /// Runs a host function instance and returns a result.
+    /// Runs a host function instance and returns the results.
     ///
     /// # Arguments
     ///

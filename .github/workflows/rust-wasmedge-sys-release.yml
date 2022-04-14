@@ -1,7 +1,7 @@
-name: Rust Crate Release
+name: wasmedge-sys crate release
 
 concurrency:
-  group: rust-crate-release-${{ github.head_ref }}
+  group: wasmedge-sys-crate-release-${{ github.head_ref }}
   cancel-in-progress: true
 
 on:

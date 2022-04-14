@@ -1,8 +1,10 @@
 //! Defines Module, ImportType, and ExportType.
 
-use crate::{config::Config, error::Result, sys, wasmedge_types::ExternalInstanceType};
+use crate::{config::Config, error::Result};
 use std::marker::PhantomData;
 use std::{borrow::Cow, path::Path};
+use wasmedge_sys as sys;
+use wasmedge_types::ExternalInstanceType;
 
 /// Struct of WasmEdge Module.
 ///
@@ -61,7 +63,7 @@ impl Module {
         };
         let inner_loader = sys::Loader::create(inner_config)?;
         // load a module from a wasm buffer
-        let inner = inner_loader.from_buffer(bytes.as_ref())?;
+        let inner = inner_loader.from_bytes(bytes.as_ref())?;
 
         let inner_config = match config {
             Some(config) => Some(Config::copy_from(config)?.inner),
@@ -135,7 +137,7 @@ impl Module {
 /// [ImportType] is used for getting the type information of the imported WasmEdge instances.
 #[derive(Debug)]
 pub struct ImportType<'module> {
-    inner: sys::Import<'module>,
+    inner: sys::ImportType<'module>,
     _marker: PhantomData<&'module Module>,
 }
 impl<'module> ImportType<'module> {
@@ -161,7 +163,7 @@ impl<'module> ImportType<'module> {
 /// [ExportType] is used for getting the type information of the exported WasmEdge instances.
 #[derive(Debug)]
 pub struct ExportType<'module> {
-    inner: sys::Export<'module>,
+    inner: sys::ExportType<'module>,
     _marker: PhantomData<&'module Module>,
 }
 impl<'module> ExportType<'module> {

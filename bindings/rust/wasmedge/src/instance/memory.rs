@@ -1,4 +1,5 @@
-use crate::{error::Result, sys};
+use crate::error::Result;
+use wasmedge_sys as sys;
 use wasmedge_types::MemoryType;
 
 /// Struct of WasmEdge Memory.

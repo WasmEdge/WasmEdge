@@ -1,5 +1,6 @@
 //! Defines Func, SignatureBuilder, and Signature structs.
-use crate::{error::Result, sys, HostFunc, Instance};
+use crate::{error::Result, HostFunc};
+use wasmedge_sys as sys;
 use wasmedge_types::{FuncType, ValType};
 
 /// Struct of WasmEdge Func.
@@ -95,29 +96,10 @@ use wasmedge_types::{FuncType, ValType};
 ///
 /// ```
 #[derive(Debug)]
-pub struct Func<'instance> {
+pub struct Func {
     pub(crate) inner: sys::Function,
-    pub(crate) _marker: std::marker::PhantomData<&'instance Instance<'instance>>,
 }
-impl<'instance> Func<'instance> {
-    /// Returns the name of the host function.
-    pub fn name(&self) -> Option<&str> {
-        self.inner.name()
-    }
-
-    /// Returns the name of the module instance which hosts the host function.
-    pub fn mod_name(&self) -> Option<&str> {
-        self.inner.mod_name()
-    }
-
-    /// Returns the type of the host function.
-    ///
-    /// If fail to get the signature, then an error is returned.
-    pub fn ty(&self) -> Result<FuncType> {
-        let func_ty = self.inner.ty()?;
-        Ok(func_ty.into())
-    }
-
+impl Func {
     /// Creates a new host function with the given [FuncType](wasmedge_types::FuncType).
     ///
     /// Notice that if intend to add a host function as an import object, then use the `with_func` function of [ImportModuleBuilder](crate::ImportModuleBuilder) instead. This function is only used to create a host function which is not an import object, for example, generate a funcref and store it in a table.
@@ -133,10 +115,20 @@ impl<'instance> Func<'instance> {
     /// If fail to create the host function, then an error is returned.
     pub fn new(ty: FuncType, real_func: HostFunc) -> Result<Self> {
         let inner = sys::Function::create(&ty.into(), real_func, 0)?;
-        Ok(Self {
-            inner,
-            _marker: std::marker::PhantomData,
-        })
+        Ok(Self { inner })
+    }
+
+    /// Returns the type of the host function.
+    ///
+    /// If fail to get the signature, then an error is returned.
+    pub fn ty(&self) -> Result<FuncType> {
+        let func_ty = self.inner.ty()?;
+        Ok(func_ty.into())
+    }
+
+    pub fn as_ref(&self) -> FuncRef {
+        let inner = self.inner.as_ref();
+        FuncRef { inner }
     }
 }
 
@@ -202,6 +194,24 @@ impl FuncTypeBuilder {
     /// Returns a function type.
     pub fn build(self) -> FuncType {
         FuncType::new(self.args, self.returns)
+    }
+}
+
+/// Struct of WasmEdge FuncRef.
+#[derive(Debug, Clone)]
+pub struct FuncRef {
+    pub(crate) inner: sys::FuncRef,
+}
+impl FuncRef {
+    /// Returns the underlying wasm type of the host function this [FuncRef] points to.
+    ///
+    /// # Errors
+    ///
+    /// If fail to get the function type, then an error is returned.
+    ///
+    pub fn ty(&self) -> Result<FuncType> {
+        let ty = self.inner.ty()?;
+        Ok(ty.into())
     }
 }
 

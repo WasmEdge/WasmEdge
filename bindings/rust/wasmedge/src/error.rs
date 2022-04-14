@@ -1,5 +1,5 @@
-use crate::sys;
 use thiserror::Error;
+use wasmedge_sys as sys;
 
 pub type Result<T> = std::result::Result<T, WasmEdgeError>;
 

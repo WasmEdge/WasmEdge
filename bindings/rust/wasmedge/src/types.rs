@@ -1,11 +1,11 @@
 //! Defines the general types.
 
-use crate::{sys::WasmValue, Func};
-use std::marker::PhantomData;
+use crate::FuncRef;
+use wasmedge_sys::WasmValue;
 use wasmedge_types::{self, RefType};
 
 /// Defines runtime values that a WebAssembly module can either consume or produce.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub enum Val {
     /// 32-bit integer.
     ///
@@ -43,7 +43,7 @@ impl From<Val> for WasmValue {
             Val::F32(i) => WasmValue::from_f32(i),
             Val::F64(i) => WasmValue::from_f64(i),
             Val::V128(i) => WasmValue::from_v128(i),
-            Val::FuncRef(Some(func_ref)) => func_ref.inner,
+            Val::FuncRef(Some(func_ref)) => WasmValue::from_func_ref(func_ref.inner),
             Val::FuncRef(None) => WasmValue::from_null_ref(RefType::FuncRef),
             Val::ExternRef(Some(extern_ref)) => extern_ref.inner,
             Val::ExternRef(None) => WasmValue::from_null_ref(RefType::ExternRef),
@@ -62,7 +62,10 @@ impl From<WasmValue> for Val {
                 if value.is_null_ref() {
                     Val::FuncRef(None)
                 } else {
-                    Val::FuncRef(Some(FuncRef { inner: value }))
+                    let inner = value
+                        .func_ref()
+                        .expect("[wasmedge] Failed to convert a WasmValue to a FuncRef.");
+                    Val::FuncRef(Some(FuncRef { inner }))
                 }
             }
             wasmedge_types::ValType::ExternRef => {
@@ -74,35 +77,6 @@ impl From<WasmValue> for Val {
             }
             _ => panic!("unsupported value type"),
         }
-    }
-}
-
-/// Struct of WasmEdge FuncRef.
-#[derive(Debug, Clone, Copy)]
-pub struct FuncRef {
-    pub(crate) inner: WasmValue,
-}
-impl FuncRef {
-    /// Creates a new instance of [FuncRef] from the given [host function](crate::Func).
-    ///
-    /// # Argument
-    ///
-    /// - `func` - The [host function](crate::Func) to create the [FuncRef] from.
-    pub fn new(func_ref: &mut Func) -> Self {
-        let inner = WasmValue::from_func_ref(&mut func_ref.inner);
-        Self { inner }
-    }
-
-    /// Generates a [host function](crate::Func) from this [FuncRef].
-    pub fn as_func(&self) -> Option<Func> {
-        let result = self.inner.func_ref();
-        if let Some(inner) = result {
-            return Some(Func {
-                inner,
-                _marker: PhantomData,
-            });
-        }
-        None
     }
 }
 

@@ -1,4 +1,5 @@
-use crate::{error::Result, sys, types::Val};
+use crate::{error::Result, types::Val};
+use wasmedge_sys as sys;
 use wasmedge_types::TableType;
 
 /// Struct of WasmEdge Table.
@@ -60,7 +61,7 @@ impl<'instance> Table<'instance> {
         // initialize the new elements
         if let Some(init) = init {
             for idx in original_size..original_size + delta {
-                self.inner.set_data(init.into(), idx)?;
+                self.inner.set_data(init.clone().into(), idx)?;
             }
         }
         Ok(original_size)

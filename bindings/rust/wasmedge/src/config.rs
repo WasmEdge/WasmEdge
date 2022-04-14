@@ -1,6 +1,7 @@
 //! Defines the structs used to construct configurations.
 
-use crate::{error::Result, sys};
+use crate::error::Result;
+use wasmedge_sys as sys;
 use wasmedge_types::{CompilerOptimizationLevel, CompilerOutputFormat};
 
 /// Struct of WasmEdge ConfigBuilder.
@@ -98,9 +99,9 @@ impl ConfigBuilder {
         if let Some(compiler_config) = self.compiler_config {
             inner.set_aot_compiler_output_format(compiler_config.out_format);
             inner.set_aot_optimization_level(compiler_config.opt_level);
-            inner.aot_dump_ir(compiler_config.dump_ir);
-            inner.aot_generic_binary(compiler_config.generic_binary);
-            inner.aot_interruptible(compiler_config.interruptible);
+            inner.dump_ir(compiler_config.dump_ir);
+            inner.generic_binary(compiler_config.generic_binary);
+            inner.interruptible(compiler_config.interruptible);
         }
         if let Some(runtim_config) = self.runtim_config {
             inner.set_max_memory_pages(runtim_config.max_memory_pages);
@@ -243,19 +244,19 @@ impl Config {
     /// Checks if the dump IR option turns on or not.
     #[cfg(feature = "aot")]
     pub fn dump_ir_enabled(&self) -> bool {
-        self.inner.is_aot_dump_ir()
+        self.inner.dump_ir_enabled()
     }
 
     /// Checks if the generic binary option of AOT compiler turns on or not.
     #[cfg(feature = "aot")]
     pub fn generic_binary_enabled(&self) -> bool {
-        self.inner.is_aot_generic_binary()
+        self.inner.generic_binary_enabled()
     }
 
     /// Checks if the `Interruptible` option of AOT Compiler turns on or not.
     #[cfg(feature = "aot")]
     pub fn interruptible_enabled(&self) -> bool {
-        self.inner.aot_interruptible_enabled()
+        self.inner.interruptible_enabled()
     }
 
     /// Checks if the instruction counting option turns on or not.

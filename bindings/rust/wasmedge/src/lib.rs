@@ -8,9 +8,6 @@
 //! * [WasmEdge Runtime](https://wasmedge.org/)
 //! * [WasmEdge C API Documentation](https://github.com/WasmEdge/WasmEdge/blob/master/docs/c_api.md)
 
-use wasmedge_sys as sys;
-use wasmedge_types;
-
 #[doc(hidden)]
 #[cfg(feature = "aot")]
 pub mod compiler;
@@ -25,11 +22,11 @@ pub mod instance;
 pub mod module;
 #[doc(hidden)]
 pub mod statistics;
-#[doc(hidden)]
-pub mod store;
+// #[doc(hidden)]
+// pub mod store;
 pub mod types;
-#[doc(hidden)]
-pub mod vm;
+// #[doc(hidden)]
+// pub mod vm;
 
 #[doc(inline)]
 #[cfg(feature = "aot")]
@@ -37,29 +34,27 @@ pub use compiler::Compiler;
 #[doc(inline)]
 pub use executor::Executor;
 #[doc(inline)]
-pub use instance::{
-    Func, FuncTypeBuilder, Global, ImportModule, ImportModuleBuilder, Instance, Memory, Table,
-};
+pub use instance::{Func, FuncRef, FuncTypeBuilder, Global, Instance, Memory, Table};
 #[doc(inline)]
 pub use module::{ExportType, ImportType, Module};
 #[doc(inline)]
 pub use statistics::Statistics;
-#[doc(inline)]
-pub use store::Store;
-#[doc(hidden)]
-pub use vm::Vm;
+// #[doc(inline)]
+// pub use store::Store;
+// #[doc(hidden)]
+// pub use vm::Vm;
 #[doc(hidden)]
 pub use wasmedge_sys::types::*;
 
-#[doc(hidden)]
-pub trait Engine {
-    fn register_wasm_from_module(&mut self);
-    fn register_wasm_from_import(&mut self, import: &mut ImportModule);
-    fn run_func(&self);
-}
+// #[doc(hidden)]
+// pub trait Engine {
+//     fn register_wasm_from_module(&mut self);
+//     fn register_wasm_from_import(&mut self, import: &mut ImportModule);
+//     fn run_func(&self);
+// }
 
 /// Alias type for host function
-pub type HostFunc = sys::HostFunc;
+pub type HostFunc = wasmedge_sys::HostFunc;
 
 /// Parses in-memory bytes as either the [WebAssembly Text format](http://webassembly.github.io/spec/core/text/index.html), or a binary WebAssembly module.
-pub use wat::parse_bytes as wat2wasm;
+pub use wasmedge_types::wat2wasm;

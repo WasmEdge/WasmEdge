@@ -140,6 +140,7 @@ impl<'vm> Store<'vm> {
                     inner,
                     name: Some(name.clone()),
                     mod_name: None,
+                    _marker: PhantomData,
                 };
                 tables.push(table);
             }
@@ -157,6 +158,7 @@ impl<'vm> Store<'vm> {
                             inner,
                             name: Some(name.clone()),
                             mod_name: None,
+                            _marker: PhantomData,
                         };
                         tables.push(table);
                     }
@@ -167,13 +169,41 @@ impl<'vm> Store<'vm> {
         Ok(tables)
     }
 
-    pub fn table(&self, name: impl AsRef<str>) -> WasmEdgeResult<Vec<Table>> {
-        let tables = self
-            .tables()?
-            .into_iter()
-            .filter(|x| x.name().is_some() && (x.name().unwrap() == name.as_ref()));
+    pub fn tables_by_module(&self, mod_name: impl AsRef<str>) -> WasmEdgeResult<Vec<Table>> {
+        unimplemented!()
+    }
 
-        Ok(tables.collect())
+    pub fn tables_by_name(&self, table_name: impl AsRef<str>) -> WasmEdgeResult<Vec<Table>> {
+        unimplemented!()
+    }
+
+    pub fn table(
+        &self,
+        table_name: impl AsRef<str>,
+        mod_name: Option<&str>,
+    ) -> WasmEdgeResult<Table> {
+        match mod_name {
+            Some(mod_name) => {
+                let inner = self
+                    .inner
+                    .find_table_registered(mod_name, table_name.as_ref())?;
+                Ok(Table {
+                    inner,
+                    name: Some(table_name.as_ref().into()),
+                    mod_name: Some(mod_name.into()),
+                    _marker: PhantomData,
+                })
+            }
+            None => {
+                let inner = self.inner.find_table(table_name.as_ref())?;
+                Ok(Table {
+                    inner,
+                    name: Some(table_name.as_ref().into()),
+                    mod_name: None,
+                    _marker: PhantomData,
+                })
+            }
+        }
     }
 
     pub fn memories(&self) -> WasmEdgeResult<Vec<Memory>> {
@@ -188,6 +218,7 @@ impl<'vm> Store<'vm> {
                     inner,
                     name: Some(name.clone()),
                     mod_name: None,
+                    _marker: PhantomData,
                 };
                 memories.push(memory);
             }
@@ -205,6 +236,7 @@ impl<'vm> Store<'vm> {
                             inner,
                             name: Some(name.clone()),
                             mod_name: None,
+                            _marker: PhantomData,
                         };
                         memories.push(memory);
                     }
@@ -215,13 +247,41 @@ impl<'vm> Store<'vm> {
         Ok(memories)
     }
 
-    pub fn memory(&self, name: impl AsRef<str>) -> WasmEdgeResult<Vec<Memory>> {
-        let memories = self
-            .memories()?
-            .into_iter()
-            .filter(|x| x.name().is_some() && (x.name().unwrap() == name.as_ref()));
+    pub fn memories_by_module(&self, mod_name: impl AsRef<str>) -> WasmEdgeResult<Vec<Memory>> {
+        unimplemented!()
+    }
 
-        Ok(memories.collect())
+    pub fn memories_by_name(&self, mem_name: impl AsRef<str>) -> WasmEdgeResult<Vec<Memory>> {
+        unimplemented!()
+    }
+
+    pub fn memory(
+        &self,
+        mem_name: impl AsRef<str>,
+        mod_name: Option<&str>,
+    ) -> WasmEdgeResult<Memory> {
+        match mod_name {
+            Some(mod_name) => {
+                let inner = self
+                    .inner
+                    .find_memory_registered(mod_name, mem_name.as_ref())?;
+                Ok(Memory {
+                    inner,
+                    name: Some(mem_name.as_ref().into()),
+                    mod_name: Some(mod_name.into()),
+                    _marker: PhantomData,
+                })
+            }
+            None => {
+                let inner = self.inner.find_memory(mem_name.as_ref())?;
+                Ok(Memory {
+                    inner,
+                    name: Some(mem_name.as_ref().into()),
+                    mod_name: None,
+                    _marker: PhantomData,
+                })
+            }
+        }
     }
 
     pub fn globals(&self) -> WasmEdgeResult<Vec<Global>> {
@@ -236,6 +296,7 @@ impl<'vm> Store<'vm> {
                     inner,
                     name: Some(name),
                     mod_name: None,
+                    _marker: PhantomData,
                 };
                 globals.push(global);
             }
@@ -253,6 +314,7 @@ impl<'vm> Store<'vm> {
                             inner,
                             name: Some(name),
                             mod_name: Some(mod_name.clone()),
+                            _marker: PhantomData,
                         };
                         globals.push(global);
                     }
@@ -263,13 +325,41 @@ impl<'vm> Store<'vm> {
         Ok(globals)
     }
 
-    pub fn global(&self, name: impl AsRef<str>) -> WasmEdgeResult<Vec<Global>> {
-        let globals = self
-            .globals()?
-            .into_iter()
-            .filter(|x| x.name().is_some() && (x.name().unwrap() == name.as_ref()));
+    pub fn globals_by_module(&self, mod_name: impl AsRef<str>) -> WasmEdgeResult<Vec<Global>> {
+        unimplemented!()
+    }
 
-        Ok(globals.collect())
+    pub fn globals_by_name(&self, global_name: impl AsRef<str>) -> WasmEdgeResult<Vec<Global>> {
+        unimplemented!()
+    }
+
+    pub fn global(
+        &self,
+        global_name: impl AsRef<str>,
+        mod_name: Option<&str>,
+    ) -> WasmEdgeResult<Global> {
+        match mod_name {
+            Some(mod_name) => {
+                let inner = self
+                    .inner
+                    .find_global_registered(mod_name, global_name.as_ref())?;
+                Ok(Global {
+                    inner,
+                    name: Some(global_name.as_ref().into()),
+                    mod_name: Some(mod_name.into()),
+                    _marker: PhantomData,
+                })
+            }
+            None => {
+                let inner = self.inner.find_global(global_name.as_ref())?;
+                Ok(Global {
+                    inner,
+                    name: Some(global_name.as_ref().into()),
+                    mod_name: None,
+                    _marker: PhantomData,
+                })
+            }
+        }
     }
 }
 

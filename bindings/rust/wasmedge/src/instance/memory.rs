@@ -1,30 +1,14 @@
-use crate::{error::WasmEdgeResult, wasmedge, ImportObject};
+use crate::{error::WasmEdgeResult, wasmedge, ImportObject, Store};
+use std::marker::PhantomData;
 
 #[derive(Debug)]
-pub struct Memory {
+pub struct Memory<'store> {
     pub(crate) inner: wasmedge::Memory,
     pub(crate) name: Option<String>,
     pub(crate) mod_name: Option<String>,
+    pub(crate) _marker: PhantomData<&'store ()>,
 }
-impl Memory {
-    pub fn new_and_join(
-        import: &mut ImportObject,
-        name: impl AsRef<str>,
-        ty: MemoryType,
-    ) -> WasmEdgeResult<()> {
-        let min = ty.minimum();
-        let max = match ty.maximum() {
-            Some(max) => max,
-            None => u32::MAX,
-        };
-        let mut ty = wasmedge::MemType::create(min..=max)?;
-        let mut inner = wasmedge::Memory::create(&mut ty)?;
-
-        import.inner.add_memory(name.as_ref(), &mut inner);
-
-        Ok(())
-    }
-
+impl<'store> Memory<'store> {
     pub fn name(&self) -> Option<&str> {
         match &self.name {
             Some(name) => Some(name.as_ref()),
@@ -93,6 +77,16 @@ impl MemoryType {
 
     pub fn maximum(&self) -> Option<u32> {
         self.max
+    }
+
+    pub fn to_raw(self) -> WasmEdgeResult<wasmedge::MemType> {
+        let min = self.minimum();
+        let max = match self.maximum() {
+            Some(max) => max,
+            None => u32::MAX,
+        };
+        let raw = wasmedge::MemType::create(min..=max)?;
+        Ok(raw)
     }
 }
 impl From<wasmedge::MemType> for MemoryType {

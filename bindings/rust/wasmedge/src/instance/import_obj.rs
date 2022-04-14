@@ -1,4 +1,4 @@
-use crate::{error::WasmEdgeResult, wasmedge, Func, Global, Memory, Table, Vm};
+use crate::{error::WasmEdgeResult, wasmedge, Func, GlobalType, MemoryType, TableType, Value, Vm};
 use std::marker::PhantomData;
 
 #[derive(Debug)]
@@ -32,16 +32,30 @@ impl ImportObject {
         self.inner.add_func(name.as_ref(), &mut func.inner)
     }
 
-    fn add_global(&mut self, name: impl AsRef<str>, global: &mut Global) {
-        self.inner.add_global(name.as_ref(), &mut global.inner)
+    fn add_global(
+        &mut self,
+        name: impl AsRef<str>,
+        global_ty: GlobalType,
+        value: Value,
+    ) -> WasmEdgeResult<()> {
+        let mut ty = global_ty.to_raw()?;
+        let mut global = wasmedge::Global::create(&mut ty, value)?;
+        self.inner.add_global(name.as_ref(), &mut global);
+        Ok(())
     }
 
-    fn add_memory(&mut self, name: impl AsRef<str>, memory: &mut Memory) {
-        self.inner.add_memory(name.as_ref(), &mut memory.inner)
+    fn add_memory(&mut self, name: impl AsRef<str>, memory_ty: MemoryType) -> WasmEdgeResult<()> {
+        let mut ty = memory_ty.to_raw()?;
+        let mut memory = wasmedge::Memory::create(&mut ty)?;
+        self.inner.add_memory(name.as_ref(), &mut memory);
+        Ok(())
     }
 
-    fn add_table(&mut self, name: impl AsRef<str>, table: &mut Table) {
-        self.inner.add_table(name.as_ref(), &mut table.inner)
+    fn add_table(&mut self, name: impl AsRef<str>, table_ty: TableType) -> WasmEdgeResult<()> {
+        let mut ty = table_ty.to_raw()?;
+        let mut table = wasmedge::Table::create(&mut ty)?;
+        self.inner.add_table(name.as_ref(), &mut table);
+        Ok(())
     }
 }
 
@@ -80,11 +94,12 @@ impl<'vm> ImportObjectWasmEdgeProcess<'vm> {
 mod tests {
     use super::*;
     use crate::{
-        error::WasmEdgeError, wasmedge, ConfigBuilder, SignatureBuilder, ValType, Value, VmBuilder,
+        error::WasmEdgeError, wasmedge, ConfigBuilder, Mutability, RefType, SignatureBuilder,
+        ValType, Value, VmBuilder,
     };
 
     #[test]
-    fn test_import_wasmedgeprocess() {
+    fn test_import_new_wasmedgeprocess() {
         {
             // create a Config
             let result = ConfigBuilder::new();
@@ -117,9 +132,9 @@ mod tests {
             // create a WasmEdgeProcess module
             let result = ImportObject::new_as_wasmedge_process(None, false);
             assert!(result.is_ok());
-            let mut import_process = result.unwrap();
+            let import_process = result.unwrap();
 
-            let result = vm.register_wasm_from_import(&mut import_process);
+            let result = vm.register_wasm_from_import(import_process);
             assert!(result.is_err());
             assert_eq!(
                 result.unwrap_err(),
@@ -170,7 +185,7 @@ mod tests {
             let mut host_func = result.unwrap();
             import_process.add_func("add", &mut host_func);
 
-            let result = vm.register_wasm_from_import(&mut import_process);
+            let result = vm.register_wasm_from_import(import_process);
             assert!(result.is_ok());
             let mut vm = result.unwrap();
 
@@ -205,7 +220,7 @@ mod tests {
     }
 
     #[test]
-    fn test_import_wasi() {
+    fn test_import_new_wasi() {
         {
             // create a Config
             let result = ConfigBuilder::new();
@@ -238,9 +253,9 @@ mod tests {
             // create a Wasi module
             let result = ImportObject::new_as_wasi(None, None, None);
             assert!(result.is_ok());
-            let mut import_wasi = result.unwrap();
+            let import_wasi = result.unwrap();
 
-            let result = vm.register_wasm_from_import(&mut import_wasi);
+            let result = vm.register_wasm_from_import(import_wasi);
             assert!(result.is_err());
             assert_eq!(
                 result.unwrap_err(),
@@ -291,7 +306,7 @@ mod tests {
             let mut host_func = result.unwrap();
             import_wasi.add_func("add", &mut host_func);
 
-            let result = vm.register_wasm_from_import(&mut import_wasi);
+            let result = vm.register_wasm_from_import(import_wasi);
             assert!(result.is_ok());
             let mut vm = result.unwrap();
 
@@ -323,6 +338,190 @@ mod tests {
             assert_eq!(host_func.name().unwrap(), "add");
             assert_eq!(host_func.mod_name().unwrap(), "wasi_snapshot_preview1");
         }
+    }
+
+    #[test]
+    fn test_import_add_memory() {
+        // create an ImportObject module
+        let result = ImportObject::new("extern");
+        assert!(result.is_ok());
+        let mut import = result.unwrap();
+
+        // add a memory
+        let result = import.add_memory("memory", MemoryType::new(10, Some(20)));
+        assert!(result.is_ok());
+
+        // create a Vm context
+        let result = VmBuilder::new().build();
+        assert!(result.is_ok());
+        let vm = result.unwrap();
+
+        // register the ImportObject module into vm
+        let result = vm.register_wasm_from_import(import);
+        assert!(result.is_ok());
+        let vm = result.unwrap();
+
+        // get the memory from vm
+        let result = vm.store_mut();
+        assert!(result.is_ok());
+        let store = result.unwrap();
+        let result = store.memory("memory", Some("extern"));
+        assert!(result.is_ok());
+        let mut memory = result.unwrap();
+
+        // check memory
+        assert!(memory.name().is_some());
+        assert_eq!(memory.name().unwrap(), "memory");
+        assert_eq!(memory.mod_name(), Some("extern"));
+        assert_eq!(memory.size(), 10);
+        let result = memory.ty();
+        assert!(result.is_ok());
+        let ty = result.unwrap();
+        assert_eq!(ty.minimum(), 10);
+        assert!(ty.maximum().is_some());
+        assert_eq!(ty.maximum().unwrap(), 20);
+
+        // grow memory
+        let result = memory.grow(5);
+        assert!(result.is_ok());
+        assert_eq!(memory.size(), 15);
+
+        // get memory from store agains
+        let result = store.memory("memory", Some("extern"));
+        assert!(result.is_ok());
+        let memory = result.unwrap();
+        assert_eq!(memory.size(), 15);
+    }
+
+    #[test]
+    fn test_import_add_global() {
+        // create an ImportObject module
+        let result = ImportObject::new("extern");
+        assert!(result.is_ok());
+        let mut import = result.unwrap();
+
+        // add a global
+        let result = import.add_global(
+            "global",
+            GlobalType::new(ValType::I32, Mutability::Const),
+            Value::from_i32(1314),
+        );
+        assert!(result.is_ok());
+
+        // create a Vm context
+        let result = VmBuilder::new().build();
+        assert!(result.is_ok());
+        let vm = result.unwrap();
+
+        // register the ImportObject module into vm
+        let result = vm.register_wasm_from_import(import);
+        assert!(result.is_ok());
+        let vm = result.unwrap();
+
+        // get the global from vm
+        let result = vm.store_mut();
+        assert!(result.is_ok());
+        let store = result.unwrap();
+        let result = store.global("global", Some("extern"));
+        assert!(result.is_ok());
+        let mut global = result.unwrap();
+
+        // check global
+        assert!(global.name().is_some());
+        assert_eq!(global.name().unwrap(), "global");
+        assert!(global.mod_name().is_some());
+        assert_eq!(global.mod_name().unwrap(), "extern");
+        let result = global.ty();
+        assert!(result.is_ok());
+        let ty = result.unwrap();
+        assert_eq!(ty.value_ty(), ValType::I32);
+        assert_eq!(ty.mutability(), Mutability::Const);
+
+        // get value of global
+        assert_eq!(global.get_value().to_i32(), 1314);
+        // set a new value
+        let result = global.set_value(Value::from_i32(314));
+        assert!(result.is_err());
+        assert_eq!(
+            result.unwrap_err(),
+            WasmEdgeError::Operation(wasmedge::WasmEdgeError::Global(
+                wasmedge::GlobalError::ModifyConst
+            ))
+        );
+    }
+
+    #[test]
+    fn test_import_add_table() {
+        // create an ImportObject module
+        let result = ImportObject::new("extern");
+        assert!(result.is_ok());
+        let mut import = result.unwrap();
+
+        // add a table
+        let result = import.add_table("table", TableType::new(RefType::FuncRef, 10, Some(20)));
+        assert!(result.is_ok());
+
+        // create a Vm context
+        let result = VmBuilder::new().build();
+        assert!(result.is_ok());
+        let vm = result.unwrap();
+
+        // register the ImportObject module into vm
+        let result = vm.register_wasm_from_import(import);
+        assert!(result.is_ok());
+        let vm = result.unwrap();
+
+        // get the table from vm
+        let result = vm.store_mut();
+        assert!(result.is_ok());
+        let store = result.unwrap();
+        let result = store.table("table", Some("extern"));
+        assert!(result.is_ok());
+        let mut table = result.unwrap();
+
+        // check table
+        assert!(table.name().is_some());
+        assert_eq!(table.name().unwrap(), "table");
+        assert!(table.mod_name().is_some());
+        assert_eq!(table.mod_name().unwrap(), "extern");
+        assert_eq!(table.len(), 10);
+        let result = table.ty();
+        assert!(result.is_ok());
+        let ty = result.unwrap();
+        assert_eq!(ty.elem_ty(), RefType::FuncRef);
+        assert_eq!(ty.minimum(), 10);
+        assert_eq!(ty.maximum(), Some(20));
+
+        // get value from table[0]
+        let result = table.get_data(0);
+        assert!(result.is_ok());
+        let value = result.unwrap();
+        assert!(value.func_idx().is_none());
+
+        // set value to table[0]
+        let result = table.set_data(Value::from_func_ref(5), 0);
+        assert!(result.is_ok());
+        // get the value in table[0]
+        let result = table.get_data(0);
+        assert!(result.is_ok());
+        let value = result.unwrap();
+        assert!(value.func_idx().is_some());
+        assert_eq!(value.func_idx().unwrap(), 5);
+
+        // get the table from vm
+        let result = vm.store_mut();
+        assert!(result.is_ok());
+        let store = result.unwrap();
+        let result = store.table("table", Some("extern"));
+        assert!(result.is_ok());
+        let table = result.unwrap();
+
+        // get the value in table[0]
+        let result = table.get_data(0);
+        assert!(result.is_ok());
+        let value = result.unwrap();
+        assert!(value.func_idx().is_some());
+        assert_eq!(value.func_idx().unwrap(), 5);
     }
 
     fn real_add(inputs: Vec<Value>) -> Result<Vec<Value>, u8> {

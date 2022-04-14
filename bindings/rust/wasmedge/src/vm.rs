@@ -83,12 +83,8 @@ impl Vm {
     }
 
     // validate + instantiate + register
-    pub fn register_wasm_from_import(
-        mut self,
-        import_obj: &mut ImportObject,
-    ) -> WasmEdgeResult<Self> {
-        self.inner
-            .register_wasm_from_import(&mut import_obj.inner)?;
+    pub fn register_wasm_from_import(mut self, import: ImportObject) -> WasmEdgeResult<Self> {
+        self.inner.register_wasm_from_import(import.inner)?;
         Ok(self)
     }
 

@@ -5,6 +5,7 @@
 #include "host/wasi_crypto/utils/error.h"
 #include "host/wasi_crypto/utils/evp_wrapper.h"
 #include "wasi_crypto/api.hpp"
+#include "openssl/rsa.h"
 
 namespace WasmEdge {
 namespace Host {
@@ -47,12 +48,6 @@ Rsa<PadMode, KeyBits, ShaNid>::PublicKey::checkValid(EvpPkeyPtr Ctx) noexcept {
   RSA *RsaKey = EVP_PKEY_get0_RSA(Ctx.get());
   ensureOrReturn(RsaKey, __WASI_CRYPTO_ERRNO_INVALID_KEY);
   ensureOrReturn(RSA_bits(RsaKey) == KeyBits, __WASI_CRYPTO_ERRNO_INVALID_KEY);
-  EvpPkeyCtxPtr PkeyCtx{EVP_PKEY_CTX_new(Ctx.get(), nullptr)};
-  int InnerPadMode;
-  ensureOrReturn(EVP_PKEY_CTX_get_rsa_padding(
-                     PkeyCtx.get(), static_cast<void *>(&InnerPadMode)),
-                 __WASI_CRYPTO_ERRNO_INVALID_KEY);
-  ensureOrReturn(InnerPadMode == PadMode, __WASI_CRYPTO_ERRNO_INVALID_KEY);
   return {std::move(Ctx)};
 }
 
@@ -97,7 +92,8 @@ Rsa<PadMode, KeyBits, ShaNid>::PublicKey::openVerificationState()
   EvpMdCtxPtr SignCtx{EVP_MD_CTX_create()};
   opensslCheck(EVP_DigestVerifyInit(
       SignCtx.get(), nullptr, EVP_get_digestbynid(ShaNid), nullptr, Ctx.get()));
-
+  opensslCheck(EVP_PKEY_CTX_set_rsa_padding(EVP_MD_CTX_pkey_ctx(SignCtx.get()),
+                                            PadMode));
   return SignCtx;
 }
 
@@ -137,12 +133,6 @@ Rsa<PadMode, KeyBits, ShaNid>::SecretKey::checkValid(EvpPkeyPtr Ctx) noexcept {
   RSA *RsaKey = EVP_PKEY_get0_RSA(Ctx.get());
   ensureOrReturn(RsaKey, __WASI_CRYPTO_ERRNO_INVALID_KEY);
   ensureOrReturn(RSA_bits(RsaKey) == KeyBits, __WASI_CRYPTO_ERRNO_INVALID_KEY);
-  EvpPkeyCtxPtr PkeyCtx{EVP_PKEY_CTX_new(Ctx.get(), nullptr)};
-  int InnerPadMode;
-  ensureOrReturn(EVP_PKEY_CTX_get_rsa_padding(
-                     PkeyCtx.get(), static_cast<void *>(&InnerPadMode)),
-                 __WASI_CRYPTO_ERRNO_INVALID_KEY);
-  ensureOrReturn(InnerPadMode == PadMode, __WASI_CRYPTO_ERRNO_INVALID_KEY);
   return {std::move(Ctx)};
 }
 
@@ -227,12 +217,6 @@ Rsa<PadMode, KeyBits, ShaNid>::KeyPair::checkValid(EvpPkeyPtr Ctx) noexcept {
   RSA *RsaKey = EVP_PKEY_get0_RSA(Ctx.get());
   ensureOrReturn(RsaKey, __WASI_CRYPTO_ERRNO_INVALID_KEY);
   ensureOrReturn(RSA_bits(RsaKey) == KeyBits, __WASI_CRYPTO_ERRNO_INVALID_KEY);
-  EvpPkeyCtxPtr PkeyCtx{EVP_PKEY_CTX_new(Ctx.get(), nullptr)};
-  int InnerPadMode;
-  ensureOrReturn(EVP_PKEY_CTX_get_rsa_padding(
-                     PkeyCtx.get(), static_cast<void *>(&InnerPadMode)),
-                 __WASI_CRYPTO_ERRNO_INVALID_KEY);
-  ensureOrReturn(InnerPadMode == PadMode, __WASI_CRYPTO_ERRNO_INVALID_KEY);
   return {std::move(Ctx)};
 }
 
@@ -242,7 +226,8 @@ Rsa<PadMode, KeyBits, ShaNid>::KeyPair::openSignState() const noexcept {
   EvpMdCtxPtr SignCtx{EVP_MD_CTX_create()};
   opensslCheck(EVP_DigestSignInit(
       SignCtx.get(), nullptr, EVP_get_digestbynid(ShaNid), nullptr, Ctx.get()));
-
+  opensslCheck(EVP_PKEY_CTX_set_rsa_padding(EVP_MD_CTX_pkey_ctx(SignCtx.get()),
+                                            PadMode));
   return SignCtx;
 }
 

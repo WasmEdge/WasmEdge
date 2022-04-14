@@ -426,7 +426,7 @@ unsafe impl Sync for InnerFuncType {}
 /// Struct of WasmEdge FuncRef.
 ///
 /// A [FuncRef] instance is a reference to a [Function] instance.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct FuncRef {
     pub(crate) inner: InnerFuncRef,
 }
@@ -454,7 +454,7 @@ impl FuncRef {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub(crate) struct InnerFuncRef(pub(crate) *const ffi::WasmEdge_FunctionInstanceContext);
 unsafe impl Send for InnerFuncRef {}
 unsafe impl Sync for InnerFuncRef {}

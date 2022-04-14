@@ -43,8 +43,9 @@ public:
   WasiNNContext() : ModelsNum(-1), ExecutionsNum(-1) {}
   ~WasiNNContext() {
 #ifdef WASMEDGE_WASINN_BUILD_OPENVINO
-    if (OpenVINOCore != nullptr)
+    if (OpenVINOCore != nullptr) {
       ie_core_free(&OpenVINOCore);
+    }
     for (auto &I : OpenVINONetworks) {
       ie_network_free(&I);
     }
@@ -54,13 +55,10 @@ public:
     for (auto &I : OpenVINOInfers) {
       delete I;
     }
-    for (auto &I : OpenVINOInputs) {
-      if (I != nullptr)
-        ie_blob_free(&I);
-    }
     for (auto &I : OpenVINOModelWeights) {
-      if (I != nullptr)
+      if (I != nullptr) {
         ie_blob_free(&I);
+      }
     }
 #endif
   }
@@ -75,7 +73,6 @@ public:
   ie_core_t *OpenVINOCore = nullptr;
   std::vector<ie_network_t *> OpenVINONetworks;
   std::vector<ie_executable_network_t *> OpenVINOExecutions;
-  std::vector<ie_blob_t *> OpenVINOInputs;
   std::vector<ie_blob_t *> OpenVINOModelWeights;
   std::vector<OpenVINOSession *> OpenVINOInfers;
 #endif

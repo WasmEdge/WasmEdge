@@ -303,6 +303,8 @@ WasiNNSetInput::body(Runtime::Instance::MemoryInstance *MemInst,
     Status = ie_blob_make_memory(&TensorDesc, &InputBlob);
     if (Status != IEStatusCode::OK) {
       Logger->error("Unable to allocated input tensor correctly");
+      ie_blob_free(&InputBlob);
+      ie_network_name_free(&InputName);
       return -1;
     }
     Status = ie_blob_size(InputBlob, &BlobSize);
@@ -311,6 +313,8 @@ WasiNNSetInput::body(Runtime::Instance::MemoryInstance *MemInst,
     Status = ie_blob_get_cbuffer(InputBlob, &BlobCBuffer);
     if (Status != IEStatusCode::OK) {
       Logger->error("Unable to find input tensor buffer");
+      ie_blob_free(&InputBlob);
+      ie_network_name_free(&InputName);
       return -1;
     }
 
@@ -325,9 +329,11 @@ WasiNNSetInput::body(Runtime::Instance::MemoryInstance *MemInst,
       Logger->error(
           "Unable to set input tensor to model correctly: erro code {}",
           Status);
+      ie_blob_free(&InputBlob);
+      ie_network_name_free(&InputName);
       return -1;
     }
-    Ctx.OpenVINOInputs.push_back(InputBlob);
+    ie_blob_free(&InputBlob);
     ie_network_name_free(&InputName);
 
     return 0;
@@ -395,19 +401,23 @@ WasiNNGetOuput::body(Runtime::Instance::MemoryInstance *MemInst,
     if (Status != IEStatusCode::OK || OutputBlob == nullptr) {
       Logger->error("Unable to retrieve output tensor correctly", Index);
       ie_network_name_free(&OutputName);
+      ie_blob_free(&OutputBlob);
       return -1;
     }
     Status = ie_blob_size(OutputBlob, &BlobSize);
     Status = ie_blob_get_cbuffer(OutputBlob, &BlobCBuffer);
     if (Status != IEStatusCode::OK) {
       Logger->error("Unable to retrieve output tensor correctly", Index);
+      ie_network_name_free(&OutputName);
+      ie_blob_free(&OutputBlob);
       return -1;
     }
     float *BlobData =
         const_cast<float *>(static_cast<float const *>(BlobCBuffer.cbuffer));
     size_t BytesToWrite = BlobSize * 4;
-    if (BytesToWrite > OutBufferMaxSize)
+    if (BytesToWrite > OutBufferMaxSize) {
       BytesToWrite = OutBufferMaxSize;
+    }
     uint8_t *CastedOutputData = reinterpret_cast<uint8_t *>(BlobData);
 
     for (size_t I = 0; I < BytesToWrite; I++) {

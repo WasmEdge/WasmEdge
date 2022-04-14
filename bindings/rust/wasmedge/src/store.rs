@@ -366,19 +366,22 @@ mod tests {
 
         // create a Vm context
         let result = VmBuilder::new()
-            .with_config(&config)
-            .with_store(&store)
+            .with_config(config)
+            .with_store(store)
             .build();
         assert!(result.is_ok());
         let vm = result.unwrap();
 
         // register a wasm module from a file
+        let result = Config::new();
+        assert!(result.is_ok());
+        let config = result.unwrap();
         let file = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
             .join("tools/wasmedge/examples/fibonacci.wasm");
-        let result = Module::from_file(Some(&config), file);
+        let result = Module::from_file(Some(config), file);
         assert!(result.is_ok());
-        let mut module = result.unwrap();
-        let result = vm.register_wasm_from_module("fib-module", &mut module);
+        let module = result.unwrap();
+        let result = vm.register_wasm_from_module("fib-module", module);
         assert!(result.is_ok());
         let vm = result.unwrap();
 

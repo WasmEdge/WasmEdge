@@ -6,8 +6,8 @@ use std::{marker::PhantomData, path::Path};
 
 #[derive(Debug)]
 pub struct VmBuilder<'a> {
-    config: Option<&'a Config>,
-    store: Option<&'a Store<'a>>,
+    config: Option<Config>,
+    store: Option<Store<'a>>,
     vm: Option<wasmedge::Vm>,
 }
 
@@ -20,7 +20,7 @@ impl<'a> VmBuilder<'a> {
         }
     }
 
-    pub fn with_config(self, config: &'a Config) -> Self {
+    pub fn with_config(self, config: Config) -> Self {
         Self {
             config: Some(config),
             vm: self.vm,
@@ -28,7 +28,7 @@ impl<'a> VmBuilder<'a> {
         }
     }
 
-    pub fn with_store(self, store: &'a Store) -> Self {
+    pub fn with_store(self, store: Store<'a>) -> Self {
         Self {
             config: self.config,
             store: Some(store),
@@ -39,13 +39,13 @@ impl<'a> VmBuilder<'a> {
     pub fn build(self) -> Result<Vm> {
         let inner = if self.config.is_some() && self.store.is_some() {
             wasmedge::Vm::create(
-                Some(&self.config.unwrap().inner),
-                Some(&self.store.unwrap().inner),
+                Some(self.config.unwrap().inner),
+                Some(self.store.unwrap().inner),
             )?
         } else if self.config.is_some() {
-            wasmedge::Vm::create(Some(&self.config.unwrap().inner), None)?
+            wasmedge::Vm::create(Some(self.config.unwrap().inner), None)?
         } else if self.store.is_some() {
-            wasmedge::Vm::create(None, Some(&self.store.unwrap().inner))?
+            wasmedge::Vm::create(None, Some(self.store.unwrap().inner))?
         } else {
             wasmedge::Vm::create(None, None)?
         };
@@ -63,10 +63,10 @@ impl Vm {
     pub fn register_wasm_from_module(
         mut self,
         mod_name: impl AsRef<str>,
-        module: &mut Module,
+        module: Module,
     ) -> Result<Self> {
         self.inner
-            .register_wasm_from_module(mod_name.as_ref(), &mut module.inner)?;
+            .register_wasm_from_module(mod_name.as_ref(), module.inner)?;
         Ok(self)
     }
 
@@ -77,7 +77,7 @@ impl Vm {
     }
 
     pub fn run_wasm_from_file(
-        &self,
+        &mut self,
         file: impl AsRef<Path>,
         func_name: impl AsRef<str>,
         args: impl IntoIterator<Item = Value>,
@@ -89,7 +89,7 @@ impl Vm {
     }
 
     pub fn run_wasm_from_buffer(
-        &self,
+        &mut self,
         buffer: &[u8],
         func_name: impl AsRef<str>,
         args: impl IntoIterator<Item = Value>,
@@ -101,14 +101,14 @@ impl Vm {
     }
 
     pub fn run_wasm_from_module(
-        &self,
-        module: &mut Module,
+        &mut self,
+        module: Module,
         func_name: impl AsRef<str>,
         args: impl IntoIterator<Item = Value>,
     ) -> Result<Vec<Value>> {
-        let returns =
-            self.inner
-                .run_wasm_from_module(&mut module.inner, func_name.as_ref(), args)?;
+        let returns = self
+            .inner
+            .run_wasm_from_module(module.inner, func_name.as_ref(), args)?;
         Ok(returns)
     }
 
@@ -163,9 +163,7 @@ impl Vm {
     }
 
     pub fn wasmedge_process_module(&mut self) -> Result<WasmEdgeProcessImportMod> {
-        let inner = self
-            .inner
-            .import_obj_mut(wasmedge::types::HostRegistration::WasmEdgeProcess)?;
+        let inner = self.inner.wasmedge_process_import_module_mut()?;
         Ok(WasmEdgeProcessImportMod {
             inner,
             _marker: PhantomData,
@@ -173,9 +171,7 @@ impl Vm {
     }
 
     pub fn wasi_module(&mut self) -> Result<WasiImportMod> {
-        let inner = self
-            .inner
-            .import_obj_mut(wasmedge::types::HostRegistration::Wasi)?;
+        let inner = self.inner.wasi_import_module_mut()?;
         Ok(WasiImportMod {
             inner,
             _marker: PhantomData,
@@ -222,7 +218,7 @@ mod tests {
             let config = result.unwrap();
 
             // create a Vm context
-            let result = VmBuilder::new().with_config(&config).build();
+            let result = VmBuilder::new().with_config(config).build();
             assert!(result.is_ok());
             let vm = result.unwrap();
 
@@ -237,7 +233,7 @@ mod tests {
             let store = result.unwrap();
 
             // create a Vm context
-            let result = VmBuilder::new().with_store(&store).build();
+            let result = VmBuilder::new().with_store(store).build();
             assert!(result.is_ok());
             let vm = result.unwrap();
 
@@ -258,8 +254,8 @@ mod tests {
 
             // create a Vm context
             let result = VmBuilder::new()
-                .with_config(&config)
-                .with_store(&store)
+                .with_config(config)
+                .with_store(store)
                 .build();
             assert!(result.is_ok());
             let vm = result.unwrap();

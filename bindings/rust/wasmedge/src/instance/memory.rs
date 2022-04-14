@@ -39,7 +39,7 @@ impl<'store> Memory<'store> {
 
     /// Returns the size, in WebAssembly pages, of this wasm memory.
     pub fn size(&self) -> u32 {
-        self.inner.page_count()
+        self.inner.size()
     }
 
     /// Safely reads memory contents at the given offset into a buffer.

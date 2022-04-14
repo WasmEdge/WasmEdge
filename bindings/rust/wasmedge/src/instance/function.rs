@@ -1,5 +1,7 @@
 use crate::{error::Result, wasmedge, ValType, Value, Vm};
 
+pub type HostFunc = dyn Fn(Vec<Value>) -> std::result::Result<Vec<Value>, u8>;
+
 #[derive(Debug)]
 pub struct Func {
     pub(crate) inner: wasmedge::Function,
@@ -7,11 +9,7 @@ pub struct Func {
     pub(crate) mod_name: Option<String>,
 }
 impl Func {
-    pub fn new(
-        sig: Signature,
-        real_fn: Box<dyn Fn(Vec<Value>) -> std::result::Result<Vec<Value>, u8>>,
-        cost: u64,
-    ) -> Result<Self> {
+    pub fn new(sig: Signature, real_fn: Box<HostFunc>, cost: u64) -> Result<Self> {
         let inner = wasmedge::Function::create(sig.into(), real_fn, cost)?;
         Ok(Self {
             inner,
@@ -49,7 +47,7 @@ impl Func {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct SignatureBuilder {
     args: Option<Vec<ValType>>,
     returns: Option<Vec<ValType>>,
@@ -107,13 +105,13 @@ impl Signature {
 impl From<wasmedge::FuncType> for Signature {
     fn from(ty: wasmedge::FuncType) -> Self {
         let args = if ty.params_len() > 0 {
-            Some(ty.params_type_iter().map(|x| x.into()).collect::<Vec<_>>())
+            Some(ty.params_type_iter().collect::<Vec<_>>())
         } else {
             None
         };
 
         let returns = if ty.returns_len() > 0 {
-            Some(ty.returns_type_iter().map(|x| x.into()).collect::<Vec<_>>())
+            Some(ty.returns_type_iter().collect::<Vec<_>>())
         } else {
             None
         };

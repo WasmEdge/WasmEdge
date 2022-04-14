@@ -20,10 +20,7 @@ impl ImportMod {
         Ok(Self { inner })
     }
 
-    pub fn new_wasmedge_process<'a>(
-        allowed_cmds: Option<Vec<&'a str>>,
-        allowed: bool,
-    ) -> Result<Self> {
+    pub fn new_wasmedge_process(allowed_cmds: Option<Vec<&str>>, allowed: bool) -> Result<Self> {
         let inner = wasmedge::ImportObject::create_wasmedge_process(allowed_cmds, allowed)?;
         Ok(Self { inner })
     }

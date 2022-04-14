@@ -517,24 +517,21 @@ mod tests {
             // get all Table instances in the store
             let result = store.tables();
             assert!(result.is_ok());
-            let tables = result.unwrap();
-            dbg!(tables);
+            let _tables = result.unwrap();
         }
 
         {
             // get all Memory instances in the store
             let result = store.memories();
             assert!(result.is_ok());
-            let memories = result.unwrap();
-            dbg!(memories);
+            let _memories = result.unwrap();
         }
 
         {
             // get all Global instances in the store
             let result = store.globals();
             assert!(result.is_ok());
-            let globals = result.unwrap();
-            dbg!(globals);
+            let _globals = result.unwrap();
         }
     }
 

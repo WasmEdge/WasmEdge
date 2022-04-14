@@ -2725,9 +2725,9 @@ public:
       case OpCode::Memory__atomic__notify:
         return compileAtomicNotify();
       case OpCode::Memory__atomic__wait32:
-        return compileAtomicWait(Instr.getTargetIndex(), Context.Int32Ty);
+        return compileAtomicWait(Instr.getTargetIndex(), 32);
       case OpCode::Memory__atomic__wait64:
-        return compileAtomicWait(Instr.getTargetIndex(), Context.Int64Ty);
+        return compileAtomicWait(Instr.getTargetIndex(), 64);
 
       case OpCode::I32__atomic__load:
         return compileAtomicLoad(Instr.getTargetIndex(), Context.Int32Ty,
@@ -3159,26 +3159,31 @@ public:
   }
 
   void compileMemoryFence() {
-    Builder.CreateFence(llvm::AtomicOrdering::Monotonic);
+    Builder.CreateFence(llvm::AtomicOrdering::SequentiallyConsistent);
   }
-  void compileAtomicNotify() {}
-  void compileAtomicWait(unsigned MemoryIndex, llvm::IntegerType *IntType) {
-    auto *Offset = Builder.CreateZExt(Stack.back(), Context.Int64Ty);
-    compileAtomicCheckOffsetAlignment(Offset, IntType);
-    auto *ExpectedValue = Builder.CreateSExtOrTrunc(stackPop(), IntType);
+  void compileAtomicNotify() {
+    Builder.CreateCall(Context.getIntrinsic(
+                           Builder,
+                           AST::Module::Intrinsics::kMemoryAtomicNotify,
+                           llvm::FunctionType::get(Context.VoidTy, {}, false)),
+                       {});
+  }
+  void compileAtomicWait(unsigned MemIdx, unsigned BitWidth) {
+    auto *Offset = Builder.CreateSExtOrTrunc(stackPop(), Context.Int32Ty);
+    auto *ExpectedValue =
+        Builder.CreateSExtOrTrunc(stackPop(), Context.Int64Ty);
+    auto *Timeout = Builder.CreateSExtOrTrunc(stackPop(), Context.Int64Ty);
 
-    [[maybe_unused]] auto *Timeout =
-        Builder.CreateSExtOrTrunc(Stack.back(), IntType);
-
-    auto *VPtr = Builder.CreateInBoundsGEP(
-        Context.Int8Ty, Context.getMemory(Builder, ExecCtx, MemoryIndex),
-        Offset);
-    auto *Ptr = Builder.CreateBitCast(VPtr, IntType->getPointerTo());
-    auto *Load = Builder.CreateLoad(IntType, Ptr, OptNone);
-    // Load->setAtomic(llvm::AtomicOrdering::Monotonic);
-
-    auto *NE = Builder.CreateICmpNE(Load, ExpectedValue);
-    Stack.back() = Builder.CreateZExt(NE, Context.Int32Ty);
+    stackPush(Builder.CreateCall(
+        Context.getIntrinsic(
+            Builder, AST::Module::Intrinsics::kMemoryAtomicWait,
+            llvm::FunctionType::get(Context.Int32Ty,
+                                    {Context.Int32Ty, Context.Int32Ty,
+                                     Context.Int64Ty, Context.Int64Ty,
+                                     Context.Int32Ty},
+                                    false)),
+        {Builder.getInt32(MemIdx), Offset, ExpectedValue, Timeout,
+         Builder.getInt32(BitWidth)}));
   }
   void compileAtomicLoad(unsigned MemoryIndex, llvm::IntegerType *IntType,
                          llvm::IntegerType *TargetType, bool Signed = false) {
@@ -3191,7 +3196,8 @@ public:
 
     auto *Ptr = Builder.CreateBitCast(VPtr, TargetType->getPointerTo());
     auto *Load = Builder.CreateLoad(TargetType, Ptr, OptNone);
-    // Load->setAtomic(llvm::AtomicOrdering::Monotonic);
+    Load->setAlignment(Align(8));
+    Load->setAtomic(llvm::AtomicOrdering::SequentiallyConsistent);
 
     if (Signed) {
       Stack.back() = Builder.CreateSExt(Load, IntType);
@@ -3216,8 +3222,9 @@ public:
         Context.Int8Ty, Context.getMemory(Builder, ExecCtx, MemoryIndex),
         Offset);
     auto *Ptr = Builder.CreateBitCast(VPtr, TargetType->getPointerTo());
-    [[maybe_unused]] auto *Store = Builder.CreateStore(V, Ptr, OptNone);
-    // Store->setAtomic(llvm::AtomicOrdering::Monotonic);
+    auto *Store = Builder.CreateStore(V, Ptr, OptNone);
+    Store->setAlignment(Align(8));
+    Store->setAtomic(llvm::AtomicOrdering::SequentiallyConsistent);
   }
 
   void compileAtomicRMWOp(unsigned MemoryIndex,
@@ -3229,14 +3236,15 @@ public:
     compileAtomicCheckOffsetAlignment(Offset, TargetType);
     auto *VPtr = Builder.CreateInBoundsGEP(
         Context.Int8Ty, Context.getMemory(Builder, ExecCtx, MemoryIndex),
-        Offset); // Int8PtrTy
+        Offset);
     auto *Ptr = Builder.CreateBitCast(VPtr, TargetType->getPointerTo());
 
-    Stack.back() = Builder.CreateAtomicRMW(BinOp, Ptr, Value,
+    Stack.back() =
+        Builder.CreateAtomicRMW(BinOp, Ptr, Value,
 #if LLVM_VERSION_MAJOR >= 13
-                                           llvm::MaybeAlign(8),
+                                llvm::MaybeAlign(8),
 #endif
-                                           llvm::AtomicOrdering::Monotonic);
+                                llvm::AtomicOrdering::SequentiallyConsistent);
 
     if (Signed) {
       Stack.back() = Builder.CreateSExt(Stack.back(), IntType);
@@ -3255,18 +3263,18 @@ public:
     compileAtomicCheckOffsetAlignment(Offset, TargetType);
     auto *VPtr = Builder.CreateInBoundsGEP(
         Context.Int8Ty, Context.getMemory(Builder, ExecCtx, MemoryIndex),
-        Offset); // Int8PtrTy
+        Offset);
     auto *Ptr = Builder.CreateBitCast(VPtr, TargetType->getPointerTo());
 
-    auto *Ret = Builder.CreateAtomicCmpXchg(Ptr, Expected, Replacement,
+    auto *Ret = Builder.CreateAtomicCmpXchg(
+        Ptr, Expected, Replacement,
 #if LLVM_VERSION_MAJOR >= 13
-                                            llvm::MaybeAlign(8),
+        llvm::MaybeAlign(8),
 #endif
-                                            llvm::AtomicOrdering::Monotonic,
-                                            llvm::AtomicOrdering::Monotonic);
+        llvm::AtomicOrdering::SequentiallyConsistent,
+        llvm::AtomicOrdering::SequentiallyConsistent);
 
     auto *OldVal = Builder.CreateExtractValue(Ret, 0);
-    // auto *Succ = Builder.CreateExtractValue(Ret, 1);
     Stack.back() = OldVal;
     if (Signed) {
       Stack.back() = Builder.CreateSExt(Stack.back(), IntType);
@@ -4588,9 +4596,18 @@ Expect<void> outputNativeLibrary(const std::filesystem::path &OutputPath,
       },
 #elif WASMEDGE_OS_LINUX
   lld::elf::link(
-      std::initializer_list<const char *>{"ld.lld", "--shared", "--gc-sections",
-                                          "--discard-all", ObjectName.c_str(),
-                                          "-o", OutputPath.u8string().c_str()},
+      std::initializer_list<const char *> {
+        "ld.lld", "--shared", "--gc-sections",
+#if defined(__x86_64__)
+            "-L/usr/lib/gcc/x86_64-linux-gnu/9", "-latomic",
+#elif defined(__aarch64__)
+            "-L/usr/lib/gcc/aarch64-linux-gnu/9", "-latomic",
+#else
+#error Unsupported platform!
+#endif
+            "--discard-all", ObjectName.c_str(), "-o",
+            OutputPath.u8string().c_str()
+      },
 #elif WASMEDGE_OS_WINDOWS
   lld::coff::link(
       std::initializer_list<const char *>{

@@ -1,16 +1,17 @@
 //! Defines WasmEdge Instance.
 
-use crate::{sys, Func, Global, Memory, Table};
+use crate::{Func, Global, Memory, Table};
 use std::marker::PhantomData;
+use wasmedge_sys as sys;
 
 /// Struct of WasmEdge Instance.
 ///
 /// An [Instance] represents an instantiated module. In the instantiation process, A [module instance](crate::Instance) is created based on a [compiled module](crate::Module). From a [module instance] the exported [host function](crate::Func), [table](crate::Table), [memory](crate::Memory), and [global](crate::Global) instances can be fetched.
 #[derive(Debug)]
-pub struct Instance<'store> {
-    pub(crate) inner: sys::Instance<'store>,
+pub struct Instance {
+    pub(crate) inner: sys::Instance,
 }
-impl<'store> Instance<'store> {
+impl Instance {
     /// Returns the name of this exported [module instance](crate::Instance).
     ///
     /// If this [module instance](crate::Instance) is an active [instance](crate::Instance), return None.
@@ -34,12 +35,9 @@ impl<'store> Instance<'store> {
     ///
     /// * `name` - the name of the target exported [function instance](crate::Func).
     pub fn func(&self, name: impl AsRef<str>) -> Option<Func> {
-        let inner_func = self.inner.find_func(name.as_ref()).ok();
+        let inner_func = self.inner.get_func(name.as_ref()).ok();
         if let Some(inner_func) = inner_func {
-            return Some(Func {
-                inner: inner_func,
-                _marker: PhantomData,
-            });
+            return Some(Func { inner: inner_func });
         }
 
         None
@@ -61,7 +59,7 @@ impl<'store> Instance<'store> {
     ///
     /// * `name` - the name of the target exported [global instance](crate::Global).
     pub fn global(&self, name: impl AsRef<str>) -> Option<Global> {
-        let inner_global = self.inner.find_global(name.as_ref()).ok();
+        let inner_global = self.inner.get_global(name.as_ref()).ok();
         if let Some(inner_global) = inner_global {
             return Some(Global {
                 inner: inner_global,
@@ -90,7 +88,7 @@ impl<'store> Instance<'store> {
     ///
     /// * `name` - the name of the target exported [memory instance](crate::Memory).
     pub fn memory(&self, name: impl AsRef<str>) -> Option<Memory> {
-        let inner_memory = self.inner.find_memory(name.as_ref()).ok();
+        let inner_memory = self.inner.get_memory(name.as_ref()).ok();
         if let Some(inner_memory) = inner_memory {
             return Some(Memory {
                 inner: inner_memory,
@@ -119,7 +117,7 @@ impl<'store> Instance<'store> {
     ///
     /// * `name` - the name of the target exported [table instance](crate::Table).
     pub fn table(&self, name: impl AsRef<str>) -> Option<Table> {
-        let inner_table = self.inner.find_table(name.as_ref()).ok();
+        let inner_table = self.inner.get_table(name.as_ref()).ok();
         if let Some(inner_table) = inner_table {
             return Some(Table {
                 inner: inner_table,

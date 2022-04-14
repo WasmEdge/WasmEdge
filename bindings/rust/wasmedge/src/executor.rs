@@ -1,6 +1,7 @@
 //! Defines Executor struct.
 
-use crate::{config::Config, error::Result, sys, Statistics, Store, WasmValue};
+use crate::{config::Config, error::Result, Func, Statistics, WasmValue};
+use wasmedge_sys as sys;
 
 /// Struct of WasmEdge Executor.
 ///
@@ -37,45 +38,23 @@ impl Executor {
         })
     }
 
-    /// Invokes a host function by specifying the function name and the name of the host [module instance](crate::Instance), and returns the results.
+    /// Invokes a WASM function and returns the results.
     ///
     /// # Arguments
     ///
-    /// - `store` specifies the target [store](crate::Store) which owns the [module instance](crate::Instance) specified by `mod_name` and the target [host function](crate::Func) specified by `func_name`.
+    /// * `func` - The name of the target function.
     ///
-    /// - `mod_name` specifies the name of the host [module instance](crate::Instance).
-    ///
-    /// - `func_name` specifies the name of the target [host function](crate::Func).
-    ///
-    /// - `args` specifies the argument values for the target host function.
+    /// * `params` - The argument values for the target function.
     ///
     /// # Error
     ///
-    /// If fail to invoke the function specified by `func_name`, then an error is returned.
+    /// If fail to invoke the function, then an error is returned.
     pub fn run_func(
         &mut self,
-        store: &mut Store,
-        mod_name: Option<&str>,
-        func_name: impl AsRef<str>,
-        args: impl IntoIterator<Item = WasmValue>,
+        func: &Func,
+        params: impl IntoIterator<Item = WasmValue>,
     ) -> Result<Vec<WasmValue>> {
-        let returns = match mod_name {
-            Some(mod_name) => {
-                // run a function in the registered module
-                self.inner.run_func_registered(
-                    &mut store.inner,
-                    mod_name,
-                    func_name.as_ref(),
-                    args,
-                )?
-            }
-            None => {
-                // run a function in the active module
-                self.inner
-                    .run_func(&mut store.inner, func_name.as_ref(), args)?
-            }
-        };
-
+        let returns = self.inner.run_function(&func.inner, params)?;
         Ok(returns)
     }
 }

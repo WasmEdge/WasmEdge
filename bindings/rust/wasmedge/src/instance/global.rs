@@ -1,6 +1,7 @@
 //! Defines Global and GlobalType.
 
-use crate::{error::Result, sys, types::Val};
+use crate::{error::Result, types::Val};
+use wasmedge_sys as sys;
 use wasmedge_types::GlobalType;
 
 /// Struct of WasmEdge Global.

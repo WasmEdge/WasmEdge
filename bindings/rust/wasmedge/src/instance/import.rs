@@ -1,4 +1,5 @@
-use crate::{error::Result, sys, types::Val, HostFunc};
+use crate::{error::Result, types::Val, HostFunc};
+use wasmedge_sys::{self as sys, ImportInstance};
 use wasmedge_types::{FuncType, GlobalType, MemoryType, TableType};
 
 /// Struct of WasmEdge ImportModuleBuilder
@@ -108,8 +109,8 @@ impl ImportModuleBuilder {
     /// # Error
     ///
     /// If fail to create the [ImportModule], then an error is returned.
-    pub fn build(self, name: impl AsRef<str>) -> Result<ImportModule> {
-        let mut inner = sys::ImportObject::create(name.as_ref())?;
+    pub fn build(self, name: impl AsRef<str>) -> Result<ImportObject> {
+        let mut inner = sys::ImportModule::create(name.as_ref())?;
 
         // add func
         for (name, func) in self.funcs.into_iter() {
@@ -131,7 +132,7 @@ impl ImportModuleBuilder {
             inner.add_table(name, table);
         }
 
-        Ok(ImportModule { inner })
+        Ok(ImportObject::Import(inner))
     }
 
     /// Creates a new [wasi import module](crate::ImportModule).
@@ -152,8 +153,8 @@ impl ImportModuleBuilder {
         args: Option<Vec<&'a str>>,
         envs: Option<Vec<&'a str>>,
         preopens: Option<Vec<&'a str>>,
-    ) -> Result<ImportModule> {
-        let mut inner = sys::ImportObject::create_wasi(args, envs, preopens)?;
+    ) -> Result<ImportObject> {
+        let mut inner = sys::WasiModule::create(args, envs, preopens)?;
 
         // add func
         for (name, func) in self.funcs.into_iter() {
@@ -175,7 +176,7 @@ impl ImportModuleBuilder {
             inner.add_table(name, table);
         }
 
-        Ok(ImportModule { inner })
+        Ok(ImportObject::Wasi(inner))
     }
 
     /// Creates a new [wasmedge process import module](crate::ImportModule).
@@ -193,8 +194,8 @@ impl ImportModuleBuilder {
         self,
         allowed_cmds: Option<Vec<&str>>,
         allowed: bool,
-    ) -> Result<ImportModule> {
-        let mut inner = sys::ImportObject::create_wasmedge_process(allowed_cmds, allowed)?;
+    ) -> Result<ImportObject> {
+        let mut inner = sys::WasmEdgeProcessModule::create(allowed_cmds, allowed)?;
 
         // add func
         for (name, func) in self.funcs.into_iter() {
@@ -216,21 +217,44 @@ impl ImportModuleBuilder {
             inner.add_table(name, table);
         }
 
-        Ok(ImportModule { inner })
+        Ok(ImportObject::WasmEdgeProcess(inner))
     }
 }
 
-/// Struct of WasmEdge ImportModule.
+// /// Struct of WasmEdge ImportModule.
+// ///
+// /// An [import module](crate::ImportModule) represents a host module with a name. A host module consists of one or more host [functions](crate::Func), [tables](crate::Table), [memories](crate::Memory), and [globals](crate::Global),  which are defined outside WASM modules and fed into WASM modules as imports.
+// #[derive(Debug)]
+// pub struct ImportModule {
+//     pub(crate) inner: sys::ImportObject,
+// }
+// impl ImportModule {
+//     /// Returns the name of this [import module](crate::ImportModule).
+//     pub fn name(&self) -> String {
+//         self.inner.name()
+//     }
+// }
+
+/// Enum of WasmEdge ImportObject.
 ///
-/// An [import module](crate::ImportModule) represents a host module with a name. A host module consists of one or more host [functions](crate::Func), [tables](crate::Table), [memories](crate::Memory), and [globals](crate::Global),  which are defined outside WASM modules and fed into WASM modules as imports.
+/// [ImportObject] defines three types of module instances that can be imported into a WasmEdge [Store](crate::Store) instance.
 #[derive(Debug)]
-pub struct ImportModule {
-    pub(crate) inner: sys::ImportObject,
+pub enum ImportObject {
+    /// Defines the import module instance is of ImportModule type.
+    Import(sys::ImportModule),
+    /// Defines the import module instance is of WasiModule type.
+    Wasi(sys::WasiModule),
+    /// Defines the import module instance is of WasmEdgeProcessModule type.
+    WasmEdgeProcess(sys::WasmEdgeProcessModule),
 }
-impl ImportModule {
-    /// Returns the name of this [import module](crate::ImportModule).
+impl ImportObject {
+    /// Returns the name of the import object.
     pub fn name(&self) -> String {
-        self.inner.name()
+        match self {
+            ImportObject::Import(import) => import.name(),
+            ImportObject::Wasi(wasi) => wasi.name(),
+            ImportObject::WasmEdgeProcess(wasmedge_process) => wasmedge_process.name(),
+        }
     }
 }
 

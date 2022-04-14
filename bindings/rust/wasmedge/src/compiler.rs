@@ -1,7 +1,8 @@
 //! Defines WasmEdge ahead-of-time compiler.
 
-use crate::{config::Config, error::Result, sys};
+use crate::{config::Config, error::Result};
 use std::path::Path;
+use wasmedge_sys as sys;
 
 /// Struct of WasmEdge ahead-of-time(AOT) compiler.
 #[derive(Debug)]

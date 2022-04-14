@@ -47,12 +47,12 @@
 
 ### Download And Install
 
-**This is for the installation of the stable `0.9.1` version. For the C APIs in this document, please [build WasmEdge from source with the `master` branch](../../extend/build.md).**
+**This is for the installation of the pre-release `0.10.0-alpha.1` version. For the latest stable release, please use the `0.9.1` version.**
 
 The easiest way to install WasmEdge is to run the following command. Your system should have `git` and `wget` as prerequisites.
 
 ```bash
-curl -sSf https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh | bash -s -- -v 0.9.1
+curl -sSf https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh | bash -s -- -v 0.10.0-alpha.1
 ```
 
 For more details, please refer to the [Installation Guide](/start/install.md) for the WasmEdge installation.
@@ -82,7 +82,7 @@ After the installation of WasmEdge, the following guide can help you to test for
 
     ```bash
     $ ./a.out
-    WasmEdge version: 0.9.1
+    WasmEdge version: 0.10.0-alpha.1
     ```
 
 ## WasmEdge Basics

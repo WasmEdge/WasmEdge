@@ -1,3 +1,114 @@
+### 0.10.0-alpha.1 (2022-04-??)
+
+Breaking changes:
+
+* WasmEdge C API changes.
+  * Merged the `WasmEdge_ImportObjectContext` into the `WasmEdge_ModuleInstanceContext`.
+    * `WasmEdge_ImportObjectCreate()` is changed to `WasmEdge_ModuleInstanceCreate()`.
+    * `WasmEdge_ImportObjectDelete()` is changed to `WasmEdge_ModuleInstanceDelete()`.
+    * `WasmEdge_ImportObjectAddFunction()` is changed to `WasmEdge_ModuleInstanceAddFunction()`.
+    * `WasmEdge_ImportObjectAddTable()` is changed to `WasmEdge_ModuleInstanceAddTable()`.
+    * `WasmEdge_ImportObjectAddMemory()` is changed to `WasmEdge_ModuleInstanceAddMemory()`.
+    * `WasmEdge_ImportObjectAddGlobal()` is changed to `WasmEdge_ModuleInstanceAddGlobal()`.
+    * `WasmEdge_ImportObjectCreateWASI()` is changed to `WasmEdge_ModuleInstanceCreateWASI()`.
+    * `WasmEdge_ImportObjectCreateWasmEdgeProcess()` is changed to `WasmEdge_ModuleInstanceCreateWasmEdgeProcess()`.
+    * `WasmEdge_ImportObjectInitWASI()` is changed to `WasmEdge_ModuleInstanceInitWASI()`.
+    * `WasmEdge_ImportObjectInitWasmEdgeProcess()` is changed to `WasmEdge_ModuleInstanceInitWasmEdgeProcess()`.
+  * Used the pointer to `WasmEdge_FunctionInstanceContext` instead of the index in the `FuncRef` value type.
+    * `WasmEdge_ValueGenFuncRef()` is changed to use the `const WasmEdge_FunctionInstanceContext *` as it's argument.
+    * `WasmEdge_ValueGetFuncRef()` is changed to return the `const WasmEdge_FunctionInstanceContext *`.
+  * Moved the functions of `WasmEdge_StoreContext` to the `WasmEdge_ModuleInstanceContext`.
+    * `WasmEdge_StoreListFunctionLength()` and `WasmEdge_StoreListFunctionRegisteredLength()` is replaced by `WasmEdge_ModuleInstanceListFunctionLength()`.
+    * `WasmEdge_StoreListTableLength()` and `WasmEdge_StoreListTableRegisteredLength()` is replaced by `WasmEdge_ModuleInstanceListTableLength()`.
+    * `WasmEdge_StoreListMemoryLength()` and `WasmEdge_StoreListMemoryRegisteredLength()` is replaced by `WasmEdge_ModuleInstanceListMemoryLength()`.
+    * `WasmEdge_StoreListGlobalLength()` and `WasmEdge_StoreListGlobalRegisteredLength()` is replaced by `WasmEdge_ModuleInstanceListGlobalLength()`.
+    * `WasmEdge_StoreListFunction()` and `WasmEdge_StoreListFunctionRegistered()` is replaced by `WasmEdge_ModuleInstanceListFunction()`.
+    * `WasmEdge_StoreListTable()` and `WasmEdge_StoreListTableRegistered()` is replaced by `WasmEdge_ModuleInstanceListTable()`.
+    * `WasmEdge_StoreListMemory()` and `WasmEdge_StoreListMemoryRegistered()` is replaced by `WasmEdge_ModuleInstanceListMemory()`.
+    * `WasmEdge_StoreListGlobal()` and `WasmEdge_StoreListGlobalRegistered()` is replaced by `WasmEdge_ModuleInstanceListGlobal()`.
+    * `WasmEdge_StoreFindFunction()` and `WasmEdge_StoreFindFunctionRegistered()` is replaced by `WasmEdge_ModuleInstanceFindFunction()`.
+    * `WasmEdge_StoreFindTable()` and `WasmEdge_StoreFindTableRegistered()` is replaced by `WasmEdge_ModuleInstanceFindTable()`.
+    * `WasmEdge_StoreFindMemory()` and `WasmEdge_StoreFindMemoryRegistered()` is replaced by `WasmEdge_ModuleInstanceFindMemory()`.
+    * `WasmEdge_StoreFindGlobal()` and `WasmEdge_StoreFindGlobalRegistered()` is replaced by `WasmEdge_ModuleInstanceFindGlobal()`.
+  * Updated the `WasmEdge_VMContext` APIs.
+    * Added the `WasmEdge_VMGetActiveModule()`.
+    * `WasmEdge_VMGetImportModuleContext()` is changed to return the `WasmEdge_FunctionInstanceContext *`.
+    * `WasmEdge_VMRegisterModuleFromImport()` is changed to use the `const WasmEdge_ModuleInstanceContext *` as it's argument.
+  * For upgrading from `0.9.1` to `0.10.0`, please refer to [the document](https://wasmedge.org/book/en/embed/c/0.9.1/upgrade_to_0.10.0.html).
+
+Features:
+
+* Supported the WASM `tail-call` proposal.
+  * Added the `WasmEdge_Proposal_TailCall` for the configuration in WasmEdge C API.
+  * Users can use the `--enable-tail-call` to enable the proposal in `wasmedge` and `wasmedgec` tools.
+* Supported thread-safe in `WasmEdge_VMContext`, `WasmEdge_ConfigureContext`, `WasmEdge_ModuleInstanceContext`, and `WasmEdge_StoreContext` APIs.
+* Supported the gas limit in AOT mode.
+* New supporting of the wasi-socket proposal.
+  * Supported `send_to`.
+  * Supported `resv_from`.
+
+Fixed issues:
+
+* Fixed wasi-socket proposal issues.
+  * Fixed error when calling `poll_oneoff` with the same `fd` twice.
+  * Fixed error when calling `fd_close` on socket.
+  * Forged zero-terminated string for `::getaddrinfo`.
+  * Checked the socket options enumeration for valid value.
+* Fixed the statistics enable/disable routine.
+
+Refactor:
+
+* Supported multi-thread execution.
+  * Changed the `StackManager` in `Executor` as thread local to support the multi-thread.
+  * Used atomic operations for cost measuring.
+  * Supported multi-thread timer.
+* Refactored the enumerations.
+  * Replaced the `std::unordered_map` of the enumeration strings with `DenseMap` and `SpareMap`.
+  * Merged the both C and C++ enumeration definitions into the `enum.inc` file.
+  * Updated the `ErrCode` enumeration for the newest spec tests.
+* Refactored the code architecture for supporting `tail-call` proposal.
+  * Split the `call_indirect` execution routine in compiler into AOT and interpreter path.
+  * Updated the pop frame mechanism in the `StackManager`.
+  * Updated the enter function mechanism.
+* Refined the file manager in `Loader`.
+  * Supported the offset seeking in file and buffer.
+  * Skipped the instructions parsing in AOT mode for better loading performance.
+* Refined the branch mechanism in the `StackManager` for better performance in the interpreter mode.
+  * Pre-calculated the stack offset for branch in the validation phase.
+  * Removed the label stack in the `StackManager` and used the pre-calculated data for branch.
+  * Removed the dummy frame mechanism in the `StackManager`.
+* Supplied the pointer-based retrieving mechanism in the `StoreManager` and `ModuleInstance`.
+  * Removed the address mechanism for instances in the `StoreManager`.
+  * Added the unsafe getter functions for the instances.
+* Refactored the `StoreManager`, `ModuleInstance`, and `Executor`.
+  * Used the `ModuleInstance`-based resource management instead of `StoreManager`-based.
+  * Moved the ownership of instances from the `StoreManager` into the `ModuleInstance`.
+  * Merged the `ImportObject` into the `ModuleInstance`.
+  * Invoking functions by `FunctionInstance` rather than the function name in `Executor`.
+
+Documentations:
+
+* Updated the [WasmEdge C API documentation](https://wasmedge.org/book/en/embed/c/ref.html) for the breaking change.
+  * For upgrading from `0.9.1` to `0.10.0`, please refer to [the document](https://wasmedge.org/book/en/embed/c/0.9.1/upgrade_to_0.10.0.html).
+  * For the old API of `0.9.1`, please refer to [the document](https://wasmedge.org/book/en/embed/c/0.9.1/ref.html).
+* Updated the [WasmEdge GO documentation](https://wasmedge.org/book/en/embed/go/ref.html) for the breaking change.
+  * For upgrading from `v0.9.2` to `v0.10.0`, please refer to [the document](https://wasmedge.org/book/en/embed/go/0.9.1/upgrade_to_0.10.0.html).
+  * For the old API of `v0.9.2`, please refer to [the document](https://wasmedge.org/book/en/embed/go/0.9.1/ref.html).
+
+Tests:
+
+* Updated the spec tests to the date `20220223`.
+* Added the spec tests for the `tail-call` proposal.
+* Added the mixed invocation tests between interpreter mode and AOT mode WASM functions.
+* Added the thread-safe and multi-thread execution tests.
+* Added wasi-socket tests for `poll_oneoff`, `send_to`, and `recv_from`.
+
+Thank all the contributors that made this release possible!
+
+朱亚光, Abhinandan Udupa, Ang Lee, Binbin Zhang, DarumaDocker, Elon Cheng, FlyingOnion, Herschel Wang, JIAN ZHONG, JcJinChen, Jeremy, JessesChou, JieDing, Kodalien, Kunshuai Zhu, LaingKe, Michael Yuan, Nicholas Zhan, 华德禹, O3Ol, Rui Li, Shen-Ta Hsieh, Shreyas Atre, Sylveon, TheLightRunner, Vaniot, Vinson, 罗泽轩, Xin Liu, YiYing He, YoungLH, abhinandanudupa, border1px, eat4toast, hydai, jerbmarx, luckyJ-nj, meoww-bot, mydreamer4134, situ2001, tpmccallum, treeplus, wangyuan249, 王琦
+
+If you want to build from source, please use WasmEdge-0.10.0-alpha.1-src.tar.gz instead of the zip or tarball provided by GitHub directly.
+
 ### 0.9.1 (2022-02-10)
 
 Features:

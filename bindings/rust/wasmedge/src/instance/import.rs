@@ -221,20 +221,6 @@ impl ImportModuleBuilder {
     }
 }
 
-// /// Struct of WasmEdge ImportModule.
-// ///
-// /// An [import module](crate::ImportModule) represents a host module with a name. A host module consists of one or more host [functions](crate::Func), [tables](crate::Table), [memories](crate::Memory), and [globals](crate::Global),  which are defined outside WASM modules and fed into WASM modules as imports.
-// #[derive(Debug)]
-// pub struct ImportModule {
-//     pub(crate) inner: sys::ImportObject,
-// }
-// impl ImportModule {
-//     /// Returns the name of this [import module](crate::ImportModule).
-//     pub fn name(&self) -> String {
-//         self.inner.name()
-//     }
-// }
-
 /// Enum of WasmEdge ImportObject.
 ///
 /// [ImportObject] defines three types of module instances that can be imported into a WasmEdge [Store](crate::Store) instance.
@@ -257,43 +243,6 @@ impl ImportObject {
         }
     }
 }
-
-// #[derive(Debug)]
-// pub struct WasiImportModule<'vm> {
-//     pub(crate) inner: &'vm mut sys::ImportObject,
-// }
-// impl<'vm> WasiImportModule<'vm> {
-//     pub fn name(&self) -> String {
-//         self.inner.name()
-//     }
-
-//     pub fn init(
-//         &mut self,
-//         args: Option<Vec<&str>>,
-//         envs: Option<Vec<&str>>,
-//         preopens: Option<Vec<&str>>,
-//     ) {
-//         self.inner.init_wasi(args, envs, preopens)
-//     }
-
-//     pub fn exit_code(&self) -> u32 {
-//         self.inner.exit_code()
-//     }
-// }
-
-// #[derive(Debug)]
-// pub struct WasmEdgeProcessImportModule<'vm> {
-//     pub(crate) inner: &'vm mut sys::ImportObject,
-// }
-// impl<'vm> WasmEdgeProcessImportModule<'vm> {
-//     pub fn name(&self) -> String {
-//         self.inner.name()
-//     }
-
-//     pub fn init(&mut self, allowed_cmds: Option<Vec<&str>>, allowed: bool) {
-//         self.inner.init_wasmedge_process(allowed_cmds, allowed)
-//     }
-// }
 
 #[cfg(test)]
 mod tests {

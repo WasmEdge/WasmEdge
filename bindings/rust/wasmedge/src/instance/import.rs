@@ -3,11 +3,11 @@ use std::marker::PhantomData;
 
 #[derive(Debug)]
 pub struct ImportMod {
-    pub(crate) inner: wasmedge::ImportObj,
+    pub(crate) inner: wasmedge::ImportObject,
 }
 impl ImportMod {
     pub fn new(name: impl AsRef<str>) -> Result<Self> {
-        let inner = wasmedge::ImportObj::create(name.as_ref())?;
+        let inner = wasmedge::ImportObject::create(name.as_ref())?;
         Ok(Self { inner })
     }
 
@@ -16,7 +16,7 @@ impl ImportMod {
         envs: Option<Vec<&'a str>>,
         preopens: Option<Vec<&'a str>>,
     ) -> Result<Self> {
-        let inner = wasmedge::ImportObj::create_wasi(args, envs, preopens)?;
+        let inner = wasmedge::ImportObject::create_wasi(args, envs, preopens)?;
         Ok(Self { inner })
     }
 
@@ -24,12 +24,12 @@ impl ImportMod {
         allowed_cmds: Option<Vec<&'a str>>,
         allowed: bool,
     ) -> Result<Self> {
-        let inner = wasmedge::ImportObj::create_wasmedge_process(allowed_cmds, allowed)?;
+        let inner = wasmedge::ImportObject::create_wasmedge_process(allowed_cmds, allowed)?;
         Ok(Self { inner })
     }
 
-    pub fn add_func(&mut self, name: impl AsRef<str>, func: &mut Func) {
-        self.inner.add_func(name.as_ref(), &mut func.inner)
+    pub fn add_func(&mut self, name: impl AsRef<str>, func: Func) {
+        self.inner.add_func(name.as_ref(), func.inner)
     }
 
     /// Given the type and the value, creates a new [Global](crate::Global) instance and adds it to this import module.
@@ -39,32 +39,32 @@ impl ImportMod {
         global_ty: GlobalType,
         value: Value,
     ) -> Result<()> {
-        let mut ty = global_ty.to_raw()?;
-        let mut global = wasmedge::Global::create(&mut ty, value)?;
-        self.inner.add_global(name.as_ref(), &mut global);
+        let ty = global_ty.to_raw()?;
+        let global = wasmedge::Global::create(ty, value)?;
+        self.inner.add_global(name.as_ref(), global);
         Ok(())
     }
 
     /// Given the type and the value, creates a new [Memory](crate::Memory) instance and adds it to this import module.
     pub fn add_memory(&mut self, name: impl AsRef<str>, memory_ty: MemoryType) -> Result<()> {
-        let mut ty = memory_ty.to_raw()?;
-        let mut memory = wasmedge::Memory::create(&mut ty)?;
-        self.inner.add_memory(name.as_ref(), &mut memory);
+        let ty = memory_ty.to_raw()?;
+        let memory = wasmedge::Memory::create(ty)?;
+        self.inner.add_memory(name.as_ref(), memory);
         Ok(())
     }
 
     /// Given the type and the value, creates a new [Table](crate::Table) instance and adds it to this import module.
     pub fn add_table(&mut self, name: impl AsRef<str>, table_ty: TableType) -> Result<()> {
-        let mut ty = table_ty.to_raw()?;
-        let mut table = wasmedge::Table::create(&mut ty)?;
-        self.inner.add_table(name.as_ref(), &mut table);
+        let ty = table_ty.to_raw()?;
+        let table = wasmedge::Table::create(ty)?;
+        self.inner.add_table(name.as_ref(), table);
         Ok(())
     }
 }
 
 #[derive(Debug)]
 pub struct WasiImportMod<'vm> {
-    pub(crate) inner: wasmedge::ImportObj,
+    pub(crate) inner: wasmedge::ImportObject,
     pub(crate) _marker: PhantomData<&'vm Vm>,
 }
 impl<'vm> WasiImportMod<'vm> {
@@ -84,7 +84,7 @@ impl<'vm> WasiImportMod<'vm> {
 
 #[derive(Debug)]
 pub struct WasmEdgeProcessImportMod<'vm> {
-    pub(crate) inner: wasmedge::ImportObj,
+    pub(crate) inner: wasmedge::ImportObject,
     pub(crate) _marker: PhantomData<&'vm Vm>,
 }
 impl<'vm> WasmEdgeProcessImportMod<'vm> {
@@ -109,7 +109,7 @@ mod tests {
             let config = result.unwrap().wasmedge_process(true);
 
             // create a Vm context
-            let result = VmBuilder::new().with_config(&config).build();
+            let result = VmBuilder::new().with_config(config).build();
             assert!(result.is_ok());
             let mut vm = result.unwrap();
 
@@ -153,7 +153,7 @@ mod tests {
             let config = result.unwrap();
 
             // create a Vm context
-            let result = VmBuilder::new().with_config(&config).build();
+            let result = VmBuilder::new().with_config(config).build();
             assert!(result.is_ok());
             let mut vm = result.unwrap();
 
@@ -181,8 +181,8 @@ mod tests {
                 .build();
             let result = Func::new(signature, Box::new(real_add), 0);
             assert!(result.is_ok());
-            let mut host_func = result.unwrap();
-            import_process.add_func("add", &mut host_func);
+            let host_func = result.unwrap();
+            import_process.add_func("add", host_func);
 
             let result = vm.register_wasm_from_import(import_process);
             assert!(result.is_ok());
@@ -227,7 +227,7 @@ mod tests {
             let config = result.unwrap().wasi(true);
 
             // create a Vm context
-            let result = VmBuilder::new().with_config(&config).build();
+            let result = VmBuilder::new().with_config(config).build();
             assert!(result.is_ok());
             let mut vm = result.unwrap();
 
@@ -271,7 +271,7 @@ mod tests {
             let config = result.unwrap();
 
             // create a Vm context
-            let result = VmBuilder::new().with_config(&config).build();
+            let result = VmBuilder::new().with_config(config).build();
             assert!(result.is_ok());
             let mut vm = result.unwrap();
 
@@ -299,8 +299,8 @@ mod tests {
                 .build();
             let result = Func::new(signature, Box::new(real_add), 0);
             assert!(result.is_ok());
-            let mut host_func = result.unwrap();
-            import_wasi.add_func("add", &mut host_func);
+            let host_func = result.unwrap();
+            import_wasi.add_func("add", host_func);
 
             let result = vm.register_wasm_from_import(import_wasi);
             assert!(result.is_ok());

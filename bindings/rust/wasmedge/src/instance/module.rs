@@ -9,9 +9,9 @@ impl Module {
     /// Loads a wasm module from a file.
     ///
     /// This function does not validate the loaded module.
-    pub fn from_file(config: Option<&Config>, file: impl AsRef<Path>) -> Result<Self> {
+    pub fn from_file(config: Option<Config>, file: impl AsRef<Path>) -> Result<Self> {
         let config = match config {
-            Some(config) => Some(&config.inner),
+            Some(config) => Some(config.inner),
             None => None,
         };
 
@@ -27,9 +27,9 @@ impl Module {
     /// Loads a wasm module from a buffer.
     ///
     /// This function does not validate the loaded module.
-    pub fn from_buffer(config: Option<&Config>, buffer: impl AsRef<[u8]>) -> Result<Self> {
+    pub fn from_buffer(config: Option<Config>, buffer: impl AsRef<[u8]>) -> Result<Self> {
         let config = match config {
-            Some(config) => Some(&config.inner),
+            Some(config) => Some(config.inner),
             None => None,
         };
 
@@ -84,7 +84,7 @@ impl Module {
 
 #[derive(Debug)]
 pub struct ImportType<'module> {
-    inner: wasmedge::Import,
+    inner: wasmedge::Import<'module>,
     module: &'module Module,
 }
 impl<'module> ImportType<'module> {
@@ -120,7 +120,7 @@ impl<'module> ImportType<'module> {
 
 #[derive(Debug)]
 pub struct ExportType<'module> {
-    inner: wasmedge::Export,
+    inner: wasmedge::Export<'module>,
     module: &'module Module,
 }
 impl<'module> ExportType<'module> {

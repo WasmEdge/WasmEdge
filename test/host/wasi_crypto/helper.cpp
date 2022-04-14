@@ -82,7 +82,7 @@ WasiCryptoExpect<__wasi_size_t>
 WasiCryptoTest::arrayOutputLen(__wasi_array_output_t ArrayOutputHandle) {
   writeDummyMemoryContent();
 
-  static Common::ArrayOutputLen Func{Ctx};
+  Common::ArrayOutputLen Func{Ctx};
 
   EXPECT_TRUE(Func.run(
       &MemInst,
@@ -98,7 +98,7 @@ WasiCryptoTest::arrayOutputPull(__wasi_array_output_t ArrayOutputHandle,
                                 Span<uint8_t> Buf) {
   writeDummyMemoryContent();
 
-  static Common::ArrayOutputPull Func{Ctx};
+  Common::ArrayOutputPull Func{Ctx};
 
   writeSpan(Buf, 0);
   uint32_t BufSize = static_cast<uint32_t>(Buf.size());
@@ -117,7 +117,7 @@ WasiCryptoExpect<__wasi_options_t>
 WasiCryptoTest::optionsOpen(__wasi_algorithm_type_e_t AlgorithmType) {
   writeDummyMemoryContent();
 
-  static Common::OptionsOpen Func{Ctx};
+  Common::OptionsOpen Func{Ctx};
   EXPECT_TRUE(Func.run(&MemInst,
                        std::initializer_list<WasmEdge::ValVariant>{
                            static_cast<uint32_t>(AlgorithmType), 0},
@@ -131,7 +131,7 @@ WasiCryptoExpect<void>
 WasiCryptoTest::optionsClose(__wasi_options_t OptionsHandle) {
   writeDummyMemoryContent();
 
-  static Common::OptionsClose Func{Ctx};
+  Common::OptionsClose Func{Ctx};
   EXPECT_TRUE(Func.run(
       &MemInst, std::initializer_list<WasmEdge::ValVariant>{OptionsHandle},
       Errno));
@@ -145,7 +145,7 @@ WasiCryptoTest::optionsSet(__wasi_options_t OptionsHandle,
                            std::string_view Name, Span<const uint8_t> Value) {
   writeDummyMemoryContent();
 
-  static Common::OptionsSet Func{Ctx};
+  Common::OptionsSet Func{Ctx};
 
   writeString(Name, 0);
   uint32_t NameSize = static_cast<uint32_t>(Name.size());
@@ -165,7 +165,7 @@ WasiCryptoTest::optionsSetU64(__wasi_options_t OptionsHandle,
                               std::string_view Name, uint64_t Value) {
   writeDummyMemoryContent();
 
-  static Common::OptionsSetU64 Func{Ctx};
+  Common::OptionsSetU64 Func{Ctx};
 
   writeString(Name, 0);
   uint32_t NameSize = static_cast<uint32_t>(Name.size());
@@ -182,7 +182,7 @@ WasiCryptoExpect<__wasi_secrets_manager_t> WasiCryptoTest::secretsManagerOpen(
     std::optional<__wasi_options_t> OptOptionsHandle) {
   writeDummyMemoryContent();
 
-  static Common::SecretsManagerOpen Func{Ctx};
+  Common::SecretsManagerOpen Func{Ctx};
 
   writeOptOptions(OptOptionsHandle, 0);
   EXPECT_TRUE(Func.run(
@@ -196,7 +196,7 @@ WasiCryptoExpect<void> WasiCryptoTest::secretsManagerClose(
     __wasi_secrets_manager_t SecretsManagerHandle) {
   writeDummyMemoryContent();
 
-  static Common::SecretsManagerClose Func{Ctx};
+  Common::SecretsManagerClose Func{Ctx};
 
   EXPECT_TRUE(Func.run(
       &MemInst,
@@ -212,7 +212,7 @@ WasiCryptoExpect<void> WasiCryptoTest::secretsManagerInvalidate(
     __wasi_version_t Version) {
   writeDummyMemoryContent();
 
-  static Common::SecretsManagerInvalidate Func{Ctx};
+  Common::SecretsManagerInvalidate Func{Ctx};
 
   writeSpan(KeyId, 0);
   uint32_t KeyIdSize = static_cast<uint32_t>(KeyId.size());
@@ -230,7 +230,7 @@ WasiCryptoExpect<__wasi_symmetric_key_t> WasiCryptoTest::symmetricKeyGenerate(
     std::string_view Alg, std::optional<__wasi_options_t> OptOptionsHandle) {
   writeDummyMemoryContent();
 
-  static Symmetric::KeyGenerate Func{Ctx};
+  Symmetric::KeyGenerate Func{Ctx};
 
   writeString(Alg, 0);
   uint32_t AlgSize = static_cast<uint32_t>(Alg.size());
@@ -249,7 +249,7 @@ WasiCryptoTest::symmetricKeyImport(std::string_view Alg,
                                    Span<const uint8_t> Raw) {
   writeDummyMemoryContent();
 
-  static Symmetric::KeyImport Func{Ctx};
+  Symmetric::KeyImport Func{Ctx};
 
   writeString(Alg, 0);
   uint32_t AlgSize = static_cast<uint32_t>(Alg.size());
@@ -269,7 +269,7 @@ WasiCryptoExpect<__wasi_array_output_t>
 WasiCryptoTest::symmetricKeyExport(__wasi_symmetric_key_t KeyHandle) {
   writeDummyMemoryContent();
 
-  static Symmetric::KeyExport Func{Ctx};
+  Symmetric::KeyExport Func{Ctx};
 
   EXPECT_TRUE(Func.run(
       &MemInst, std::initializer_list<WasmEdge::ValVariant>{KeyHandle, 0},
@@ -283,7 +283,7 @@ WasiCryptoExpect<void>
 WasiCryptoTest::symmetricKeyClose(__wasi_symmetric_key_t KeyHandle) {
   writeDummyMemoryContent();
 
-  static Symmetric::KeyClose Func{Ctx};
+  Symmetric::KeyClose Func{Ctx};
 
   EXPECT_TRUE(Func.run(
       &MemInst, std::initializer_list<WasmEdge::ValVariant>{KeyHandle}, Errno));
@@ -298,7 +298,7 @@ WasiCryptoTest::symmetricKeyGenerateManaged(
     std::optional<__wasi_options_t> OptOptionsHandle) {
   writeDummyMemoryContent();
 
-  static Symmetric::KeyGenerateManaged Func{Ctx};
+  Symmetric::KeyGenerateManaged Func{Ctx};
 
   writeString(Alg, 0);
   uint32_t AlgSize = static_cast<uint32_t>(Alg.size());
@@ -319,7 +319,7 @@ WasiCryptoExpect<void> WasiCryptoTest::symmetricKeyStoreManaged(
     __wasi_symmetric_key_t KeyHandle, Span<uint8_t> KeyId) {
   writeDummyMemoryContent();
 
-  static Symmetric::KeyStoreManaged Func{Ctx};
+  Symmetric::KeyStoreManaged Func{Ctx};
 
   writeSpan(KeyId, 0);
   uint32_t KpIdSize = static_cast<uint32_t>(KeyId.size());
@@ -341,7 +341,7 @@ WasiCryptoExpect<__wasi_version_t> WasiCryptoTest::symmetricKeyReplaceManaged(
     __wasi_symmetric_key_t OldKeyHandle, __wasi_symmetric_key_t NewKeyHandle) {
   writeDummyMemoryContent();
 
-  static Symmetric::KeyReplaceManaged Func{Ctx};
+  Symmetric::KeyReplaceManaged Func{Ctx};
 
   EXPECT_TRUE(Func.run(&MemInst,
                        std::initializer_list<WasmEdge::ValVariant>{
@@ -357,7 +357,7 @@ WasiCryptoTest::symmetricKeyId(__wasi_symmetric_key_t KeyHandle,
                                Span<uint8_t> KeyId) {
   writeDummyMemoryContent();
 
-  static Symmetric::KeyId Func{Ctx};
+  Symmetric::KeyId Func{Ctx};
 
   writeSpan(KeyId, 0);
   uint32_t KeyIdSize = static_cast<uint32_t>(KeyId.size());
@@ -381,7 +381,7 @@ WasiCryptoExpect<__wasi_symmetric_key_t> WasiCryptoTest::symmetricKeyFromId(
     __wasi_version_t KeyVersion) {
   writeDummyMemoryContent();
 
-  static Symmetric::KeyFromId Func{Ctx};
+  Symmetric::KeyFromId Func{Ctx};
 
   writeSpan(KeyId, 0);
   uint32_t KeyIdSize = static_cast<uint32_t>(KeyId.size());
@@ -401,7 +401,7 @@ WasiCryptoExpect<__wasi_symmetric_state_t> WasiCryptoTest::symmetricStateOpen(
     std::optional<__wasi_options_t> OptOptionsHandle) {
   writeDummyMemoryContent();
 
-  static Symmetric::StateOpen Func{Ctx};
+  Symmetric::StateOpen Func{Ctx};
 
   writeString(Alg, 0);
   uint32_t AlgSize = static_cast<uint32_t>(Alg.size());
@@ -423,7 +423,7 @@ WasiCryptoTest::symmetricStateOptionsGet(__wasi_symmetric_state_t StateHandle,
                                          Span<uint8_t> Value) {
   writeDummyMemoryContent();
 
-  static Symmetric::StateOptionsGet Func{Ctx};
+  Symmetric::StateOptionsGet Func{Ctx};
 
   writeString(Name, 0);
   uint32_t NameSize = static_cast<uint32_t>(Name.size());
@@ -447,7 +447,7 @@ WasiCryptoExpect<uint64_t> WasiCryptoTest::symmetricStateOptionsGetU64(
     __wasi_symmetric_state_t StateHandle, std::string_view Name) {
   writeDummyMemoryContent();
 
-  static Symmetric::StateOptionsGetU64 Func{Ctx};
+  Symmetric::StateOptionsGetU64 Func{Ctx};
 
   writeString(Name, 0);
   uint32_t NameSize = static_cast<uint32_t>(Name.size());
@@ -465,7 +465,7 @@ WasiCryptoExpect<void>
 WasiCryptoTest::symmetricStateClose(__wasi_symmetric_state_t StateHandle) {
   writeDummyMemoryContent();
 
-  static Symmetric::StateClose Func{Ctx};
+  Symmetric::StateClose Func{Ctx};
 
   EXPECT_TRUE(Func.run(&MemInst,
                        std::initializer_list<WasmEdge::ValVariant>{StateHandle},
@@ -480,7 +480,7 @@ WasiCryptoTest::symmetricStateAbsorb(__wasi_symmetric_state_t StateHandle,
                                      Span<const uint8_t> Data) {
   writeDummyMemoryContent();
 
-  static Symmetric::StateAbsorb Func{Ctx};
+  Symmetric::StateAbsorb Func{Ctx};
 
   writeSpan(Data, 0);
   uint32_t DataSize = static_cast<uint32_t>(Data.size());
@@ -499,7 +499,7 @@ WasiCryptoTest::symmetricStateSqueeze(__wasi_symmetric_state_t StateHandle,
                                       Span<uint8_t> Out) {
   writeDummyMemoryContent();
 
-  static Symmetric::StateSqueeze Func{Ctx};
+  Symmetric::StateSqueeze Func{Ctx};
 
   writeSpan(Out, 0);
   uint32_t OutSize = static_cast<uint32_t>(Out.size());
@@ -520,7 +520,7 @@ WasiCryptoExpect<__wasi_symmetric_tag_t>
 WasiCryptoTest::symmetricStateSqueezeTag(__wasi_symmetric_state_t StateHandle) {
   writeDummyMemoryContent();
 
-  static Symmetric::StateSqueezeTag Func{Ctx};
+  Symmetric::StateSqueezeTag Func{Ctx};
 
   EXPECT_TRUE(Func.run(
       &MemInst, std::initializer_list<WasmEdge::ValVariant>{StateHandle, 0},
@@ -535,7 +535,7 @@ WasiCryptoTest::symmetricStateSqueezeKey(__wasi_symmetric_state_t StateHandle,
                                          std::string_view Alg) {
   writeDummyMemoryContent();
 
-  static Symmetric::StateSqueezeKey Func{Ctx};
+  Symmetric::StateSqueezeKey Func{Ctx};
 
   writeString(Alg, 0);
   uint32_t AlgSize = static_cast<uint32_t>(Alg.size());
@@ -553,7 +553,7 @@ WasiCryptoExpect<__wasi_size_t>
 WasiCryptoTest::symmetricStateMaxTagLen(__wasi_symmetric_state_t StateHandle) {
   writeDummyMemoryContent();
 
-  static Symmetric::StateMaxTagLen Func{Ctx};
+  Symmetric::StateMaxTagLen Func{Ctx};
 
   EXPECT_TRUE(Func.run(
       &MemInst, std::initializer_list<WasmEdge::ValVariant>{StateHandle, 0},
@@ -569,7 +569,7 @@ WasiCryptoTest::symmetricStateEncrypt(__wasi_symmetric_state_t StateHandle,
                                       Span<const uint8_t> Data) {
   writeDummyMemoryContent();
 
-  static Symmetric::StateEncrypt Func{Ctx};
+  Symmetric::StateEncrypt Func{Ctx};
 
   writeSpan(Out, 0);
   uint32_t OutSize = static_cast<uint32_t>(Out.size());
@@ -595,7 +595,7 @@ WasiCryptoTest::symmetricStateEncryptDetached(
     Span<const uint8_t> Data) {
   writeDummyMemoryContent();
 
-  static Symmetric::StateEncryptDetached Func{Ctx};
+  Symmetric::StateEncryptDetached Func{Ctx};
 
   writeSpan(Out, 0);
   uint32_t OutSize = static_cast<uint32_t>(Out.size());
@@ -621,7 +621,7 @@ WasiCryptoTest::symmetricStateDecrypt(__wasi_symmetric_state_t StateHandle,
                                       Span<const uint8_t> Data) {
   writeDummyMemoryContent();
 
-  static Symmetric::StateDecrypt Func{Ctx};
+  Symmetric::StateDecrypt Func{Ctx};
 
   writeSpan(Out, 0);
   uint32_t OutSize = static_cast<uint32_t>(Out.size());
@@ -646,7 +646,7 @@ WasiCryptoExpect<__wasi_size_t> WasiCryptoTest::symmetricStateDecryptDetached(
     Span<const uint8_t> Data, Span<uint8_t> RawTag) {
   writeDummyMemoryContent();
 
-  static Symmetric::StateDecryptDetached Func{Ctx};
+  Symmetric::StateDecryptDetached Func{Ctx};
 
   writeSpan(Out, 0);
   uint32_t OutSize = static_cast<uint32_t>(Out.size());
@@ -676,7 +676,7 @@ WasiCryptoExpect<void>
 WasiCryptoTest::symmetricStateRatchet(__wasi_symmetric_state_t StateHandle) {
   writeDummyMemoryContent();
 
-  static Symmetric::StateRatchet Func{Ctx};
+  Symmetric::StateRatchet Func{Ctx};
   EXPECT_TRUE(Func.run(&MemInst,
                        std::initializer_list<WasmEdge::ValVariant>{StateHandle},
                        Errno));
@@ -689,7 +689,7 @@ WasiCryptoExpect<__wasi_size_t>
 WasiCryptoTest::symmetricMaxTagLen(__wasi_symmetric_tag_t TagHandle) {
   writeDummyMemoryContent();
 
-  static Symmetric::StateMaxTagLen Func{Ctx};
+  Symmetric::StateMaxTagLen Func{Ctx};
 
   EXPECT_TRUE(Func.run(
       &MemInst, std::initializer_list<WasmEdge::ValVariant>{TagHandle, 0},
@@ -704,7 +704,7 @@ WasiCryptoTest::symmetricTagPull(__wasi_symmetric_tag_t TagHandle,
                                  Span<uint8_t> Buf) {
   writeDummyMemoryContent();
 
-  static Symmetric::TagPull Func{Ctx};
+  Symmetric::TagPull Func{Ctx};
 
   writeSpan(Buf, 0);
   uint32_t BufSize = static_cast<uint32_t>(Buf.size());
@@ -726,7 +726,7 @@ WasiCryptoTest::symmetricTagVerify(__wasi_symmetric_tag_t TagHandle,
                                    Span<const uint8_t> RawTag) {
   writeDummyMemoryContent();
 
-  static Symmetric::TagVerify Func{Ctx};
+  Symmetric::TagVerify Func{Ctx};
 
   writeSpan(RawTag, 0);
   uint32_t RawTagSize = static_cast<uint32_t>(RawTag.size());
@@ -744,7 +744,7 @@ WasiCryptoExpect<void>
 WasiCryptoTest::symmetricTagClose(__wasi_symmetric_tag_t TagHandle) {
   writeDummyMemoryContent();
 
-  static Symmetric::TagClose Func{Ctx};
+  Symmetric::TagClose Func{Ctx};
 
   EXPECT_TRUE(Func.run(
       &MemInst, std::initializer_list<WasmEdge::ValVariant>{TagHandle}, Errno));
@@ -758,7 +758,7 @@ WasiCryptoExpect<__wasi_keypair_t> WasiCryptoTest::keypairGenerate(
     std::optional<__wasi_options_t> OptOptionsHandle) {
   writeDummyMemoryContent();
 
-  static AsymmetricCommon::KeypairGenerate Func{Ctx};
+  AsymmetricCommon::KeypairGenerate Func{Ctx};
 
   writeString(Alg, 0);
   uint32_t AlgSize = static_cast<uint32_t>(Alg.size());
@@ -780,7 +780,7 @@ WasiCryptoTest::keypairImport(__wasi_algorithm_type_e_t AlgType,
                               __wasi_keypair_encoding_e_t Encoding) {
   writeDummyMemoryContent();
 
-  static AsymmetricCommon::KeypairImport Func{Ctx};
+  AsymmetricCommon::KeypairImport Func{Ctx};
 
   writeString(Alg, 0);
   uint32_t AlgSize = static_cast<uint32_t>(Alg.size());
@@ -804,7 +804,7 @@ WasiCryptoExpect<__wasi_keypair_t> WasiCryptoTest::keypairGenerateManaged(
     std::optional<__wasi_options_t> OptOptionsHandle) {
   writeDummyMemoryContent();
 
-  static AsymmetricCommon::KeypairGenerateManaged Func{Ctx};
+  AsymmetricCommon::KeypairGenerateManaged Func{Ctx};
 
   writeString(Alg, 0);
   uint32_t AlgSize = static_cast<uint32_t>(Alg.size());
@@ -825,7 +825,7 @@ WasiCryptoExpect<void> WasiCryptoTest::keypairStoreManaged(
     Span<uint8_t> KpId) {
   writeDummyMemoryContent();
 
-  static AsymmetricCommon::KeypairStoreManaged Func{Ctx};
+  AsymmetricCommon::KeypairStoreManaged Func{Ctx};
 
   writeSpan(KpId, 0);
   uint32_t KpIdSize = static_cast<uint32_t>(KpId.size());
@@ -847,7 +847,7 @@ WasiCryptoExpect<__wasi_version_t> WasiCryptoTest::keypairReplaceManaged(
     __wasi_keypair_t NewKpHandle) {
   writeDummyMemoryContent();
 
-  static AsymmetricCommon::KeypairReplaceManaged Func{Ctx};
+  AsymmetricCommon::KeypairReplaceManaged Func{Ctx};
 
   EXPECT_TRUE(Func.run(&MemInst,
                        std::initializer_list<WasmEdge::ValVariant>{
@@ -862,7 +862,7 @@ WasiCryptoExpect<std::tuple<size_t, __wasi_version_t>>
 WasiCryptoTest::keypairId(__wasi_keypair_t KpHandle, Span<uint8_t> KpId) {
   writeDummyMemoryContent();
 
-  static AsymmetricCommon::KeypairId Func{Ctx};
+  AsymmetricCommon::KeypairId Func{Ctx};
 
   writeSpan(KpId, 0);
   uint32_t KpIdSize = static_cast<uint32_t>(KpId.size());
@@ -886,7 +886,7 @@ WasiCryptoTest::keypairFromId(__wasi_secrets_manager_t SecretsManagerHandle,
                               __wasi_version_t KpIdVersion) {
   writeDummyMemoryContent();
 
-  static AsymmetricCommon::KeypairFromId Func{Ctx};
+  AsymmetricCommon::KeypairFromId Func{Ctx};
 
   writeSpan(KpId, 0);
   uint32_t KpIdSize = static_cast<uint32_t>(KpId.size());
@@ -906,7 +906,7 @@ WasiCryptoTest::keypairFromPkAndSk(__wasi_publickey_t PkHandle,
                                    __wasi_secretkey_t SkHandle) {
   writeDummyMemoryContent();
 
-  static AsymmetricCommon::KeypairFromPkAndSk Func{Ctx};
+  AsymmetricCommon::KeypairFromPkAndSk Func{Ctx};
 
   EXPECT_TRUE(Func.run(
       &MemInst,
@@ -922,7 +922,7 @@ WasiCryptoTest::keypairExport(__wasi_keypair_t KpHandle,
                               __wasi_keypair_encoding_e_t Encoding) {
   writeDummyMemoryContent();
 
-  static AsymmetricCommon::KeypairExport Func{Ctx};
+  AsymmetricCommon::KeypairExport Func{Ctx};
 
   EXPECT_TRUE(Func.run(&MemInst,
                        std::initializer_list<WasmEdge::ValVariant>{
@@ -937,7 +937,7 @@ WasiCryptoExpect<__wasi_publickey_t>
 WasiCryptoTest::keypairPublickey(__wasi_keypair_t KpHandle) {
   writeDummyMemoryContent();
 
-  static AsymmetricCommon::KeypairPublickey Func{Ctx};
+  AsymmetricCommon::KeypairPublickey Func{Ctx};
 
   EXPECT_TRUE(Func.run(&MemInst,
                        std::initializer_list<WasmEdge::ValVariant>{KpHandle, 0},
@@ -951,7 +951,7 @@ WasiCryptoExpect<__wasi_secretkey_t>
 WasiCryptoTest::keypairSecretkey(__wasi_keypair_t KpHandle) {
   writeDummyMemoryContent();
 
-  static AsymmetricCommon::KeypairSecretkey Func{Ctx};
+  AsymmetricCommon::KeypairSecretkey Func{Ctx};
 
   EXPECT_TRUE(Func.run(&MemInst,
                        std::initializer_list<WasmEdge::ValVariant>{KpHandle, 0},
@@ -964,7 +964,7 @@ WasiCryptoTest::keypairSecretkey(__wasi_keypair_t KpHandle) {
 WasiCryptoExpect<void> WasiCryptoTest::keypairClose(__wasi_keypair_t KpHandle) {
   writeDummyMemoryContent();
 
-  static AsymmetricCommon::KeypairClose Func{Ctx};
+  AsymmetricCommon::KeypairClose Func{Ctx};
 
   EXPECT_TRUE(Func.run(
       &MemInst, std::initializer_list<WasmEdge::ValVariant>{KpHandle}, Errno));
@@ -978,7 +978,7 @@ WasiCryptoExpect<__wasi_publickey_t> WasiCryptoTest::publickeyImport(
     Span<const uint8_t> Encoded, __wasi_publickey_encoding_e_t Encoding) {
   writeDummyMemoryContent();
 
-  static AsymmetricCommon::PublickeyImport Func{Ctx};
+  AsymmetricCommon::PublickeyImport Func{Ctx};
 
   writeString(Alg, 0);
   uint32_t AlgSize = static_cast<uint32_t>(Alg.size());
@@ -1001,7 +1001,7 @@ WasiCryptoTest::publickeyExport(__wasi_publickey_t PkHandle,
                                 __wasi_publickey_encoding_e_t Encoding) {
   writeDummyMemoryContent();
 
-  static AsymmetricCommon::PublickeyExport Func{Ctx};
+  AsymmetricCommon::PublickeyExport Func{Ctx};
 
   EXPECT_TRUE(Func.run(&MemInst,
                        std::initializer_list<WasmEdge::ValVariant>{
@@ -1016,7 +1016,7 @@ WasiCryptoExpect<void>
 WasiCryptoTest::publickeyVerify(__wasi_publickey_t PkHandle) {
   writeDummyMemoryContent();
 
-  static AsymmetricCommon::PublickeyVerify Func{Ctx};
+  AsymmetricCommon::PublickeyVerify Func{Ctx};
 
   EXPECT_TRUE(Func.run(
       &MemInst, std::initializer_list<WasmEdge::ValVariant>{PkHandle}, Errno));
@@ -1029,7 +1029,7 @@ WasiCryptoExpect<__wasi_publickey_t>
 WasiCryptoTest::publickeyFromSecretkey(__wasi_secretkey_t SkHandle) {
   writeDummyMemoryContent();
 
-  static AsymmetricCommon::PublickeyFromSecretkey Func{Ctx};
+  AsymmetricCommon::PublickeyFromSecretkey Func{Ctx};
 
   EXPECT_TRUE(Func.run(&MemInst,
                        std::initializer_list<WasmEdge::ValVariant>{SkHandle, 0},
@@ -1043,7 +1043,7 @@ WasiCryptoExpect<void>
 WasiCryptoTest::publickeyClose(__wasi_publickey_t PkHandle) {
   writeDummyMemoryContent();
 
-  static AsymmetricCommon::PublickeyClose Func{Ctx};
+  AsymmetricCommon::PublickeyClose Func{Ctx};
 
   EXPECT_TRUE(Func.run(
       &MemInst, std::initializer_list<WasmEdge::ValVariant>{PkHandle}, Errno));
@@ -1057,7 +1057,7 @@ WasiCryptoExpect<__wasi_secretkey_t> WasiCryptoTest::secretkeyImport(
     Span<const uint8_t> Encoded, __wasi_secretkey_encoding_e_t Encoding) {
   writeDummyMemoryContent();
 
-  static AsymmetricCommon::SecretkeyImport Func{Ctx};
+  AsymmetricCommon::SecretkeyImport Func{Ctx};
 
   writeString(Alg, 0);
   uint32_t AlgSize = static_cast<uint32_t>(Alg.size());
@@ -1080,7 +1080,7 @@ WasiCryptoTest::secretkeyExport(__wasi_secretkey_t SkHandle,
                                 __wasi_secretkey_encoding_e_t Encoding) {
   writeDummyMemoryContent();
 
-  static AsymmetricCommon::SecretkeyExport Func{Ctx};
+  AsymmetricCommon::SecretkeyExport Func{Ctx};
 
   EXPECT_TRUE(Func.run(&MemInst,
                        std::initializer_list<WasmEdge::ValVariant>{
@@ -1095,7 +1095,7 @@ WasiCryptoExpect<void>
 WasiCryptoTest::secretkeyClose(__wasi_secretkey_t SkHandle) {
   writeDummyMemoryContent();
 
-  static AsymmetricCommon::SecretkeyClose Func{Ctx};
+  AsymmetricCommon::SecretkeyClose Func{Ctx};
 
   EXPECT_TRUE(Func.run(
       &MemInst, std::initializer_list<WasmEdge::ValVariant>{SkHandle}, Errno));
@@ -1109,7 +1109,7 @@ WasiCryptoTest::kxDh(__wasi_kx_publickey_t PkHandle,
                      __wasi_kx_secretkey_t SkHandle) {
   writeDummyMemoryContent();
 
-  static Kx::Dh Func{Ctx};
+  Kx::Dh Func{Ctx};
 
   EXPECT_TRUE(Func.run(
       &MemInst,
@@ -1124,7 +1124,7 @@ WasiCryptoExpect<std::tuple<__wasi_array_output_t, __wasi_array_output_t>>
 WasiCryptoTest::kxEncapsulate(__wasi_kx_publickey_t PkHandle) {
   writeDummyMemoryContent();
 
-  static Kx::Encapsulate Func{Ctx};
+  Kx::Encapsulate Func{Ctx};
 
   EXPECT_TRUE(Func.run(
       &MemInst, std::initializer_list<WasmEdge::ValVariant>{PkHandle, 0, 1},
@@ -1140,7 +1140,7 @@ WasiCryptoTest::kxDecapsulate(__wasi_kx_secretkey_t SkHandle,
                               Span<const uint8_t> EncapsulatedSecret) {
   writeDummyMemoryContent();
 
-  static Kx::Decapsulate Func{Ctx};
+  Kx::Decapsulate Func{Ctx};
 
   writeSpan(EncapsulatedSecret, 0);
   uint32_t EncapsulatedSecretSize =
@@ -1161,7 +1161,7 @@ WasiCryptoTest::signatureExport(__wasi_signature_t SigHandle,
                                 __wasi_signature_encoding_e_t Encoding) {
   writeDummyMemoryContent();
 
-  static Signatures::Export Func{Ctx};
+  Signatures::Export Func{Ctx};
 
   EXPECT_TRUE(Func.run(&MemInst,
                        std::initializer_list<WasmEdge::ValVariant>{
@@ -1178,7 +1178,7 @@ WasiCryptoTest::signatureImport(std::string_view Alg,
                                 __wasi_signature_encoding_e_t Encoding) {
   writeDummyMemoryContent();
 
-  static Signatures::Import Func{Ctx};
+  Signatures::Import Func{Ctx};
 
   writeString(Alg, 0);
   uint32_t AlgSize = static_cast<uint32_t>(Alg.size());
@@ -1200,7 +1200,7 @@ WasiCryptoExpect<void>
 WasiCryptoTest::signatureClose(__wasi_signature_t SigHandle) {
   writeDummyMemoryContent();
 
-  static Signatures::Close Func{Ctx};
+  Signatures::Close Func{Ctx};
 
   EXPECT_TRUE(Func.run(
       &MemInst, std::initializer_list<WasmEdge::ValVariant>{SigHandle}, Errno));
@@ -1213,7 +1213,7 @@ WasiCryptoExpect<__wasi_signature_state_t>
 WasiCryptoTest::signatureStateOpen(__wasi_signature_keypair_t KpHandle) {
   writeDummyMemoryContent();
 
-  static Signatures::StateOpen Func{Ctx};
+  Signatures::StateOpen Func{Ctx};
 
   EXPECT_TRUE(Func.run(&MemInst,
                        std::initializer_list<WasmEdge::ValVariant>{KpHandle, 0},
@@ -1228,7 +1228,7 @@ WasiCryptoTest::signatureStateUpdate(__wasi_signature_state_t StateHandle,
                                      Span<const uint8_t> Input) {
   writeDummyMemoryContent();
 
-  static Signatures::StateUpdate Func{Ctx};
+  Signatures::StateUpdate Func{Ctx};
 
   writeSpan(Input, 0);
   uint32_t InputSize = static_cast<uint32_t>(Input.size());
@@ -1246,7 +1246,7 @@ WasiCryptoExpect<__wasi_signature_t>
 WasiCryptoTest::signatureStateSign(__wasi_signature_state_t StateHandle) {
   writeDummyMemoryContent();
 
-  static Signatures::StateSign Func{Ctx};
+  Signatures::StateSign Func{Ctx};
 
   EXPECT_TRUE(Func.run(
       &MemInst, std::initializer_list<WasmEdge::ValVariant>{StateHandle, 0},
@@ -1260,7 +1260,7 @@ WasiCryptoExpect<void>
 WasiCryptoTest::signatureStateClose(__wasi_signature_state_t StateHandle) {
   writeDummyMemoryContent();
 
-  static Signatures::StateClose Func{Ctx};
+  Signatures::StateClose Func{Ctx};
 
   EXPECT_TRUE(Func.run(&MemInst,
                        std::initializer_list<WasmEdge::ValVariant>{StateHandle},
@@ -1275,7 +1275,7 @@ WasiCryptoTest::signatureVerificationStateOpen(
     __wasi_signature_publickey_t PkHandle) {
   writeDummyMemoryContent();
 
-  static Signatures::VerificationStateOpen Func{Ctx};
+  Signatures::VerificationStateOpen Func{Ctx};
 
   EXPECT_TRUE(Func.run(&MemInst,
                        std::initializer_list<WasmEdge::ValVariant>{PkHandle, 0},
@@ -1290,7 +1290,7 @@ WasiCryptoExpect<void> WasiCryptoTest::signatureVerificationStateUpdate(
     Span<const uint8_t> Input) {
   writeDummyMemoryContent();
 
-  static Signatures::VerificationStateUpdate Func{Ctx};
+  Signatures::VerificationStateUpdate Func{Ctx};
 
   writeSpan(Input, 0);
   uint32_t InputSize = static_cast<uint32_t>(Input.size());
@@ -1309,7 +1309,7 @@ WasiCryptoExpect<void> WasiCryptoTest::signatureVerificationStateVerify(
     __wasi_signature_t SigHandle) {
   writeDummyMemoryContent();
 
-  static Signatures::VerificationStateVerify Func{Ctx};
+  Signatures::VerificationStateVerify Func{Ctx};
 
   EXPECT_TRUE(Func.run(
       &MemInst,
@@ -1324,7 +1324,7 @@ WasiCryptoExpect<void> WasiCryptoTest::signatureVerificationStateClose(
     __wasi_signature_verification_state_t StateHandle) {
   writeDummyMemoryContent();
 
-  static Signatures::VerificationStateClose Func{Ctx};
+  Signatures::VerificationStateClose Func{Ctx};
 
   EXPECT_TRUE(Func.run(&MemInst,
                        std::initializer_list<WasmEdge::ValVariant>{StateHandle},

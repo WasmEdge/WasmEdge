@@ -354,6 +354,7 @@ mod tests {
 
     #[test]
     fn test_memory_type() {
+        // case 1
         let result = MemType::create(0..=u32::MAX);
         assert!(result.is_ok());
         let ty = result.unwrap();
@@ -363,6 +364,7 @@ mod tests {
         let limit = ty.limit();
         assert_eq!(limit, 0..=u32::MAX);
 
+        // case 2
         let result = MemType::create(10..=101);
         assert!(result.is_ok());
         let ty = result.unwrap();

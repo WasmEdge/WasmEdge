@@ -85,14 +85,15 @@ impl<'instance> Table<'instance> {
     ///
     /// # Arguments
     ///
+    /// * `index` - the index of the table element to store.
+    ///
     /// * `data` - the data to store at the `index` of this table.
     ///
-    /// * `index` - the index of the table element to store.
     ///
     /// # Error
     ///
     /// If fail to store the data, then an error is returned.
-    pub fn set(&mut self, data: Val, index: u32) -> Result<()> {
+    pub fn set(&mut self, index: u32, data: Val) -> Result<()> {
         self.inner.set_data(data.into(), index)?;
         Ok(())
     }
@@ -203,7 +204,7 @@ mod tests {
 
         // set value to table[0]
         let func_ref = host_func.as_ref();
-        let result = table.set(Val::FuncRef(Some(func_ref)), 0);
+        let result = table.set(0, Val::FuncRef(Some(func_ref)));
         assert!(result.is_ok());
         // get the value in table[0]
         let result = table.get(0);

@@ -731,7 +731,7 @@ mod tests {
 
         // set value to table[0]
         let func_ref = host_func.as_ref();
-        let result = table.set(Val::FuncRef(Some(func_ref)), 0);
+        let result = table.set(0, Val::FuncRef(Some(func_ref)));
         assert!(result.is_ok());
         // get the value in table[0]
         let result = table.get(0);

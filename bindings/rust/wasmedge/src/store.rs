@@ -1,11 +1,6 @@
 //! Defines WasmEdge Store struct.
 
-use crate::{
-    error::Result,
-    error::{StoreError, WasmEdgeError},
-    Executor, ImportObject, Instance, Module,
-};
-use std::collections::HashMap;
+use crate::{error::Result, Executor, ImportObject, Instance, Module};
 use wasmedge_sys as sys;
 
 /// Struct of Wasmedge Store.
@@ -14,7 +9,6 @@ use wasmedge_sys as sys;
 #[derive(Debug)]
 pub struct Store {
     pub(crate) inner: sys::Store,
-    pub(crate) imports: HashMap<String, sys::ImportObject>,
 }
 impl Store {
     /// Creates a new [Store].
@@ -24,10 +18,7 @@ impl Store {
     /// If fail to create a new [Store], then an error is returned.
     pub fn new() -> Result<Self> {
         let inner = sys::Store::create()?;
-        Ok(Self {
-            inner,
-            imports: HashMap::new(),
-        })
+        Ok(Self { inner })
     }
 
     /// Registers and instantiates a WasmEdge [import module](crate::ImportModule) into this [store](crate::Store), and returns the module instance.
@@ -44,25 +35,13 @@ impl Store {
     pub fn register_import_module(
         &mut self,
         executor: &mut Executor,
-        import: ImportObject,
-    ) -> Result<Instance> {
-        let name = import.name();
-        let inner_import: sys::ImportObject = import.into();
-
-        // TODO refactor the following code when `try_insert` API is stable.
-        if self.imports.contains_key(&name) {
-            return Err(WasmEdgeError::Store(StoreError::DuplicateImport(name)));
-        }
-        self.imports.insert(name.clone(), inner_import);
-        let inner_import = self.imports.get(&name).unwrap();
-
+        import: &ImportObject,
+    ) -> Result<()> {
         executor
             .inner
-            .register_import_object(&mut self.inner, inner_import)?;
+            .register_import_object(&mut self.inner, import.inner_ref())?;
 
-        let inner = self.inner.module(&name)?;
-
-        Ok(Instance { inner })
+        Ok(())
     }
 
     /// Registers and instantiates a WasmEdge [compiled module](crate::Module) into this [store](crate::Store) as a named [module instance](crate::Instance), and returns the module instance.
@@ -221,7 +200,7 @@ mod tests {
         let mut store = result.unwrap();
 
         // register an import module into store
-        let result = store.register_import_module(&mut executor, import);
+        let result = store.register_import_module(&mut executor, &import);
         assert!(result.is_ok());
 
         assert_eq!(store.named_instance_count(), 1);
@@ -321,9 +300,6 @@ mod tests {
         assert!(active_instance.name().is_none());
         let result = active_instance.func("fib");
         assert!(result.is_some());
-        let func = result.unwrap();
-        assert_eq!(func.name().unwrap(), "fib");
-        assert!(func.mod_name().is_none());
 
         assert_eq!(store.named_instance_count(), 0);
         assert!(store.instance_names().is_none());

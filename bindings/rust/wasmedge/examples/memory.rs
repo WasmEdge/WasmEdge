@@ -54,8 +54,12 @@ fn main() -> anyhow::Result<()> {
     assert_eq!(memory.data_size(), 3 * 65536);
 
     // get the exported functions: "set_at" and "get_at"
-    let set_at = extern_instance.func("set_at")?;
-    let get_at = extern_instance.func("get_at")?;
+    let set_at = extern_instance.func("set_at").ok_or(anyhow::Error::msg(
+        "Not found exported function named 'set_at'.",
+    ))?;
+    let get_at = extern_instance.func("get_at").ok_or(anyhow::Error::msg(
+        "Not found exported function named 'get_at`.",
+    ))?;
 
     // call the exported function named "set_at"
     let mem_addr = 0x2220;

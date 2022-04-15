@@ -1,7 +1,4 @@
-use wasmedge::{
-    types::{FuncRef, Val},
-    wat2wasm, Executor, Func, FuncTypeBuilder, Module, Store, WasmValue,
-};
+use wasmedge::{types::Val, wat2wasm, Executor, Func, FuncTypeBuilder, Module, Store, WasmValue};
 use wasmedge_types::{RefType, TableType, ValType};
 
 fn main() -> anyhow::Result<()> {
@@ -58,7 +55,11 @@ fn main() -> anyhow::Result<()> {
     let extern_instance = store.register_named_module(&mut executor, "extern", &module)?;
 
     // get the exported function "call_callback"
-    let callback = extern_instance.func("call_callback")?;
+    let callback = extern_instance
+        .func("call_callback")
+        .ok_or(anyhow::Error::msg(
+            "Not found exported function named `call_callback`.",
+        ))?;
 
     // call the exported function named "call_callback"
     let returns = executor.run_func(
@@ -109,7 +110,7 @@ fn main() -> anyhow::Result<()> {
     }
 
     // create a host function over host_callback
-    let mut func = Func::new(
+    let func = Func::new(
         FuncTypeBuilder::new()
             .with_args([ValType::I32; 2])
             .with_return(ValType::I32)
@@ -118,15 +119,13 @@ fn main() -> anyhow::Result<()> {
     )?;
 
     // set elements in the table instance
-    let previous_size = table.grow(3, Some(Val::FuncRef(Some(FuncRef::new(&mut func)))))?;
+    let previous_size = table.grow(3, Some(Val::FuncRef(Some(func.as_ref()))))?;
     assert_eq!(previous_size, 3);
     assert_eq!(table.size(), 6);
 
     for idx in 3..6 {
-        if let Val::FuncRef(Some(func_ref)) = table.get(idx)? {
-            let _func = func_ref
-                .as_func()
-                .ok_or(anyhow::anyhow!("failed to get func"))?;
+        if let Val::FuncRef(Some(_func_ref)) = table.get(idx)? {
+            todo!()
 
             // TODO now no way to call func. New WasmEdge C-API will provide a solution to the issue.
         } else {

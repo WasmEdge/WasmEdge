@@ -65,7 +65,7 @@ mod tests {
     use crate::{
         config::{CommonConfigOptions, ConfigBuilder},
         error::WasmEdgeError,
-        sys, Executor, ImportModuleBuilder, Statistics, Store,
+        Executor, ImportModuleBuilder, Statistics, Store,
     };
     use wasmedge_types::{Mutability, ValType};
 

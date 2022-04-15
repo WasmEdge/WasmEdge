@@ -76,7 +76,7 @@ use wasmedge_types::{FuncType, ValType};
 /// assert!(result.is_ok());
 ///
 /// // get the instance of the ImportObject module
-/// let result = store.named_instance("extern");
+/// let result = store.module_instance("extern");
 /// assert!(result.is_some());
 /// let instance = result.unwrap();
 ///

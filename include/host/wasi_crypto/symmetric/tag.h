@@ -31,11 +31,12 @@ namespace Symmetric {
 /// https://github.com/WebAssembly/wasi-crypto/blob/main/docs/wasi-crypto.md#authentication-tags
 class Tag {
 public:
+  Tag(Tag &&Data) noexcept = default;
+  Tag &operator=(Tag &&Data) noexcept = default;
+  Tag(const Tag &Data) noexcept = delete;
+  Tag &operator=(const Tag &Data) noexcept = delete;
+
   Tag(SecretVec &&Data) noexcept : Data(std::move(Data)) {}
-  Tag(Tag &&Data) = default;
-  Tag &operator=(Tag &&Data) = default;
-  Tag(const Tag &Data) = delete;
-  Tag &operator=(const Tag &Data) = delete;
 
   size_t len() const noexcept { return Data.size(); }
 

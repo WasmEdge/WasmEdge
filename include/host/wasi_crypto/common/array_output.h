@@ -36,6 +36,11 @@ namespace Common {
 /// https://github.com/WebAssembly/wasi-crypto/blob/main/docs/wasi-crypto.md#array-outputs
 class ArrayOutput {
 public:
+  ArrayOutput(const ArrayOutput &) noexcept = delete;
+  ArrayOutput &operator=(const ArrayOutput &) noexcept = delete;
+  ArrayOutput &operator=(ArrayOutput &&) noexcept = delete;
+  ArrayOutput(ArrayOutput &&) noexcept = delete;
+
   ArrayOutput(std::vector<uint8_t> &&Data) noexcept : Data(std::move(Data)) {}
 
   ArrayOutput(SecretVec &&Data) noexcept : Data(std::move(Data)) {}

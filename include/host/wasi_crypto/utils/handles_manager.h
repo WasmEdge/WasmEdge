@@ -43,10 +43,10 @@ namespace detail {
 /// https://github.com/WebAssembly/wasi-crypto/blob/main/implementations/hostcalls/rust/src/handles.rs
 template <typename HandleType, typename ManagerType> class BaseHandlesManager {
 public:
-  BaseHandlesManager(const BaseHandlesManager &) = delete;
-  BaseHandlesManager &operator=(const BaseHandlesManager &) = delete;
-  BaseHandlesManager(BaseHandlesManager &&) = default;
-  BaseHandlesManager &operator=(BaseHandlesManager &&) = default;
+  BaseHandlesManager(const BaseHandlesManager &) noexcept = delete;
+  BaseHandlesManager &operator=(const BaseHandlesManager &) noexcept = delete;
+  BaseHandlesManager(BaseHandlesManager &&) noexcept = delete;
+  BaseHandlesManager &operator=(BaseHandlesManager &&) noexcept = delete;
 
   /// @param TypeID A unique number
   BaseHandlesManager(uint8_t TypeID) noexcept : LastHandle{TypeID, 0} {}

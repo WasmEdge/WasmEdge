@@ -189,7 +189,7 @@ mod tests {
         assert!(result.is_ok());
         let import = result.unwrap();
 
-        let result = store.register_import_module(&mut executor, &import);
+        let result = store.register_import_module(&mut executor, import);
         assert!(result.is_ok());
 
         // add a wasm module from a file

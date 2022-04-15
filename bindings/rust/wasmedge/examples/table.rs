@@ -55,13 +55,14 @@ fn main() -> anyhow::Result<()> {
     let mut store = Store::new()?;
 
     // register the module into the store
-    store.register_named_module(&mut executor, "extern", &module)?;
+    let extern_instance = store.register_named_module(&mut executor, "extern", &module)?;
+
+    // get the exported function "call_callback"
+    let callback = extern_instance.func("call_callback")?;
 
     // call the exported function named "call_callback"
     let returns = executor.run_func(
-        &mut store,
-        Some("extern"),
-        "call_callback",
+        &callback,
         [
             WasmValue::from_i32(1),
             WasmValue::from_i32(2),

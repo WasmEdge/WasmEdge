@@ -30,30 +30,7 @@ impl Store {
         })
     }
 
-    // /// Registers and instantiates a WasmEdge [import module](crate::ImportModule) into this [store](crate::Store).
-    // ///
-    // /// # Arguments
-    // ///
-    // /// * `executor` - The [executor](crate::Executor) that runs the host functions in this [store](crate::Store).
-    // ///
-    // /// * `import` - The WasmEdge [import module](crate::ImportModule) to be registered.
-    // ///
-    // /// # Error
-    // ///
-    // /// If fail to register the given [import module](crate::ImportModule), then an error is returned.
-    // pub fn register_import_module(
-    //     &mut self,
-    //     executor: &mut Executor,
-    //     import: &ImportModule,
-    // ) -> Result<()> {
-    //     executor
-    //         .inner
-    //         .register_import_object(&mut self.inner, &import.inner)?;
-
-    //     Ok(())
-    // }
-
-    /// Registers and instantiates a WasmEdge [import module](crate::ImportModule) into this [store](crate::Store).
+    /// Registers and instantiates a WasmEdge [import module](crate::ImportModule) into this [store](crate::Store), and returns the module instance.
     ///
     /// # Arguments
     ///
@@ -68,7 +45,7 @@ impl Store {
         &mut self,
         executor: &mut Executor,
         import: ImportObject,
-    ) -> Result<()> {
+    ) -> Result<Instance> {
         let name = import.name();
         let inner_import: sys::ImportObject = import.into();
 
@@ -83,10 +60,12 @@ impl Store {
             .inner
             .register_import_object(&mut self.inner, inner_import)?;
 
-        Ok(())
+        let inner = self.inner.module(&name)?;
+
+        Ok(Instance { inner })
     }
 
-    /// Registers and instantiates a WasmEdge [compiled module](crate::Module) into this [store](crate::Store) as a named [module instance](crate::Instance).
+    /// Registers and instantiates a WasmEdge [compiled module](crate::Module) into this [store](crate::Store) as a named [module instance](crate::Instance), and returns the module instance.
     ///
     /// Instantiates the given WasmEdge [compiled module](crate::Module), including the [functions](crate::Func), [memories](crate::Memory), [tables](crate::Table), and [globals](crate::Global) it hosts; and then, registers the [module instance](crate::Instance) into the [store](crate::Store) with the given name.
     ///
@@ -106,15 +85,17 @@ impl Store {
         executor: &mut Executor,
         mod_name: impl AsRef<str>,
         module: &Module,
-    ) -> Result<()> {
-        executor
-            .inner
-            .register_named_module(&mut self.inner, &module.inner, mod_name.as_ref())?;
+    ) -> Result<Instance> {
+        let inner = executor.inner.register_named_module(
+            &mut self.inner,
+            &module.inner,
+            mod_name.as_ref(),
+        )?;
 
-        Ok(())
+        Ok(Instance { inner })
     }
 
-    /// Registers and instantiates a WasmEdge [compiled module](crate::Module) into this [store](crate::Store) as an anonymous active [module instance](crate::Instance).
+    /// Registers and instantiates a WasmEdge [compiled module](crate::Module) into this [store](crate::Store) as an anonymous active [module instance](crate::Instance), and returns the module instance.
     ///
     /// # Arguments
     ///
@@ -129,12 +110,12 @@ impl Store {
         &mut self,
         executor: &mut Executor,
         module: &Module,
-    ) -> Result<()> {
-        executor
+    ) -> Result<Instance> {
+        let inner = executor
             .inner
             .register_active_module(&mut self.inner, &module.inner)?;
 
-        Ok(())
+        Ok(Instance { inner })
     }
 
     /// Returns the number of the named [module instances](crate::Instance) in this [store](crate::Store).
@@ -240,7 +221,7 @@ mod tests {
         let mut store = result.unwrap();
 
         // register an import module into store
-        let result = store.register_import_module(&mut executor, &import);
+        let result = store.register_import_module(&mut executor, import);
         assert!(result.is_ok());
 
         assert_eq!(store.named_instance_count(), 1);
@@ -336,20 +317,16 @@ mod tests {
         // register a module into store as active module
         let result = store.register_active_module(&mut executor, &module);
         assert!(result.is_ok());
-
-        assert_eq!(store.named_instance_count(), 0);
-        assert!(store.instance_names().is_none());
-
-        let result = store.active_instance();
-        assert!(result.is_some());
         let active_instance = result.unwrap();
         assert!(active_instance.name().is_none());
-
         let result = active_instance.func("fib");
         assert!(result.is_some());
         let func = result.unwrap();
         assert_eq!(func.name().unwrap(), "fib");
         assert!(func.mod_name().is_none());
+
+        assert_eq!(store.named_instance_count(), 0);
+        assert!(store.instance_names().is_none());
     }
 
     #[test]

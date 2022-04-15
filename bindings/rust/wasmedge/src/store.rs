@@ -21,17 +21,17 @@ impl Store {
         Ok(Self { inner })
     }
 
-    /// Registers and instantiates a WasmEdge [import module](crate::ImportModule) into this [store](crate::Store), and returns the module instance.
+    /// Registers and instantiates a WasmEdge [import object](crate::ImportObject) into this [store](crate::Store), and returns the module instance.
     ///
     /// # Arguments
     ///
     /// * `executor` - The [executor](crate::Executor) that runs the host functions in this [store](crate::Store).
     ///
-    /// * `import` - The WasmEdge [import module](crate::ImportModule) to be registered.
+    /// * `import` - The WasmEdge [import object](crate::ImportObject) to be registered.
     ///
     /// # Error
     ///
-    /// If fail to register the given [import module](crate::ImportModule), then an error is returned.
+    /// If fail to register the given [import object](crate::ImportObject), then an error is returned.
     pub fn register_import_module(
         &mut self,
         executor: &mut Executor,

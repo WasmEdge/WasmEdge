@@ -64,7 +64,7 @@ pub type HostFunc = wasmedge_sys::HostFunc;
 /// Parses in-memory bytes as either the [WebAssembly Text format](http://webassembly.github.io/spec/core/text/index.html), or a binary WebAssembly module.
 pub use wasmedge_types::wat2wasm;
 
-/// The object that is used to perform a [host function](crate::Function) is required to implement this trait.
+/// The object that is used to perform a [host function](crate::Func) is required to implement this trait.
 pub trait Engine {
     /// Runs a host function instance and returns the results.
     ///

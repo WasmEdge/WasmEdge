@@ -134,7 +134,7 @@ mod tests {
     use crate::{
         instance::{Function, Global, GlobalType, MemType, Memory, Table, TableType},
         types::WasmValue,
-        Config, Executor, FuncType, ImportInstance, ImportModule, ImportObject, Vm,
+        Config, Engine, Executor, FuncType, ImportInstance, ImportModule, ImportObject, Vm,
     };
     use std::{
         sync::{Arc, Mutex},
@@ -282,7 +282,7 @@ mod tests {
 
             // run the function
             let result =
-                executor.run_function(&add, vec![WasmValue::from_i32(12), WasmValue::from_i32(21)]);
+                executor.run_func(&add, vec![WasmValue::from_i32(12), WasmValue::from_i32(21)]);
             assert!(result.is_ok());
             let returns = result.unwrap();
             assert_eq!(returns[0].to_i32(), 33);

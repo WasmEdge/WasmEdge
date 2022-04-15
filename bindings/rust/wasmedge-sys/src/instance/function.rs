@@ -68,7 +68,7 @@ extern "C" fn wraper_fn(
 /// * [Vm](crate::Vm) provides the [run_function](crate::Vm::run_function) and [run_registered_function](crate::Vm::run_registered_function) APIs to call a host function (registered into Vm) by given the name of the target host function.
 ///
 /// * If the target host function instance and an [Executor](crate::Executor) instance are available, then there are two APIs available:
-///     * Use the [run_function](crate::Executor::run_function) API of [Executor](crate::Executor).
+///     * Use the [run_func](crate::Engine::run_func) API defined in [Engine](crate::Engine) trait. [Executor](crate::Executor) implements the trait.
 ///
 ///     * Use the [call](crate::Function::call) API of [Function](crate::Function).
 ///
@@ -255,7 +255,7 @@ impl Function {
         engine: &mut E,
         args: impl IntoIterator<Item = WasmValue>,
     ) -> WasmEdgeResult<Vec<WasmValue>> {
-        engine.run(self, args)
+        engine.run_func(self, args)
     }
 
     /// Returns a reference to this [Function] instance.
@@ -451,6 +451,26 @@ impl FuncRef {
                 registered: true,
             }),
         }
+    }
+
+    /// Runs this host function the reference refers to.
+    ///
+    /// # Arguments
+    ///
+    /// * `engine` - The object implements Engine trait.
+    ///
+    /// * `args` - The arguments passed to the host function.
+    ///
+    /// # Error
+    ///
+    /// If fail to run the host function, then an error is returned.
+    ///
+    pub fn call<E: Engine>(
+        &self,
+        engine: &mut E,
+        args: impl IntoIterator<Item = WasmValue>,
+    ) -> WasmEdgeResult<Vec<WasmValue>> {
+        engine.run_func_ref(self, args)
     }
 }
 

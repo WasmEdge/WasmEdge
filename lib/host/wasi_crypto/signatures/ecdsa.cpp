@@ -232,7 +232,7 @@ Ecdsa<CurveNid>::SecretKey::toKeyPair(const PublicKey &) const noexcept {
 }
 
 template <int CurveNid>
-WasiCryptoExpect<std::vector<uint8_t>> Ecdsa<CurveNid>::SecretKey::exportData(
+WasiCryptoExpect<SecretVec> Ecdsa<CurveNid>::SecretKey::exportData(
     __wasi_secretkey_encoding_e_t Encoding) const noexcept {
   switch (Encoding) {
   case __WASI_SECRETKEY_ENCODING_RAW:
@@ -247,23 +247,23 @@ WasiCryptoExpect<std::vector<uint8_t>> Ecdsa<CurveNid>::SecretKey::exportData(
 }
 
 template <int CurveNid>
-WasiCryptoExpect<std::vector<uint8_t>>
+WasiCryptoExpect<SecretVec>
 Ecdsa<CurveNid>::SecretKey::exportPkcs8() const noexcept {
   return i2dPrivateKey(Ctx.get());
 }
 
 template <int CurveNid>
-WasiCryptoExpect<std::vector<uint8_t>>
+WasiCryptoExpect<SecretVec>
 Ecdsa<CurveNid>::SecretKey::exportPem() const noexcept {
   return pemWritePrivateKey(Ctx.get());
 }
 
 template <int CurveNid>
-WasiCryptoExpect<std::vector<uint8_t>>
+WasiCryptoExpect<SecretVec>
 Ecdsa<CurveNid>::SecretKey::exportRaw() const noexcept {
   // must equal to SkSize, not check.
   const BIGNUM *Sk = EC_KEY_get0_private_key(EVP_PKEY_get0_EC_KEY(Ctx.get()));
-  std::vector<uint8_t> Res(SkSize);
+  SecretVec Res(SkSize);
   opensslCheck(BN_bn2bin(Sk, Res.data()));
 
   return Res;
@@ -334,7 +334,7 @@ Ecdsa<CurveNid>::KeyPair::import(
 }
 
 template <int CurveNid>
-WasiCryptoExpect<std::vector<uint8_t>> Ecdsa<CurveNid>::KeyPair::exportData(
+WasiCryptoExpect<SecretVec> Ecdsa<CurveNid>::KeyPair::exportData(
     __wasi_keypair_encoding_e_t Encoding) const noexcept {
   switch (Encoding) {
   case __WASI_KEYPAIR_ENCODING_RAW:
@@ -420,22 +420,22 @@ Ecdsa<CurveNid>::KeyPair::importRaw(Span<const uint8_t> Encoded) noexcept {
 }
 
 template <int CurveNid>
-WasiCryptoExpect<std::vector<uint8_t>>
+WasiCryptoExpect<SecretVec>
 Ecdsa<CurveNid>::KeyPair::exportPkcs8() const noexcept {
   return i2dPrivateKey(Ctx.get());
 }
 
 template <int CurveNid>
-WasiCryptoExpect<std::vector<uint8_t>>
+WasiCryptoExpect<SecretVec>
 Ecdsa<CurveNid>::KeyPair::exportPem() const noexcept {
   return pemWritePrivateKey(Ctx.get());
 }
 
 template <int CurveNid>
-WasiCryptoExpect<std::vector<uint8_t>>
+WasiCryptoExpect<SecretVec>
 Ecdsa<CurveNid>::KeyPair::exportRaw() const noexcept {
   const BIGNUM *Sk = EC_KEY_get0_private_key(EVP_PKEY_get0_EC_KEY(Ctx.get()));
-  std::vector<uint8_t> Res(SkSize);
+  SecretVec Res(SkSize);
   opensslCheck(BN_bn2bin(Sk, Res.data()));
 
   return Res;

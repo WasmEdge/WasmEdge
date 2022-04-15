@@ -32,7 +32,7 @@ generateKey(Algorithm Alg, OptionalRef<const Options> OptOptions) noexcept {
       Alg);
 }
 
-std::vector<uint8_t> keyExportData(const KeyVariant &KeyVariant) noexcept {
+SecretVec keyExportData(const KeyVariant &KeyVariant) noexcept {
   return std::visit([](const auto &Key) noexcept { return Key.exportData(); },
                     KeyVariant);
 }

@@ -102,7 +102,7 @@ Hkdf<ShaNid>::Extract::State::squeezeKey() noexcept {
 
   size_t ActualOutSize;
   opensslCheck(
-      EVP_PKEY_derive(Ctx->RawCtx.get(), Data->raw().data(), &ActualOutSize));
+      EVP_PKEY_derive(Ctx->RawCtx.get(), Data->data(), &ActualOutSize));
   ensureOrReturn(ActualOutSize == getKeySize(),
                  __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
 
@@ -111,8 +111,7 @@ Hkdf<ShaNid>::Extract::State::squeezeKey() noexcept {
 
 template <int ShaNid>
 WasiCryptoExpect<EvpPkeyCtxPtr>
-Hkdf<ShaNid>::openStateImpl(const std::vector<uint8_t> &Key,
-                            int Mode) noexcept {
+Hkdf<ShaNid>::openStateImpl(Span<const uint8_t> Key, int Mode) noexcept {
   EvpPkeyCtxPtr Ctx{EVP_PKEY_CTX_new_id(EVP_PKEY_HKDF, nullptr)};
   opensslCheck(EVP_PKEY_derive_init(Ctx.get()));
   opensslCheck(EVP_PKEY_CTX_set_hkdf_md(Ctx.get(), getShaCtx()));

@@ -113,7 +113,7 @@ template <int CipherNid>
 WasiCryptoExpect<Tag>
 Cipher<CipherNid>::State::encryptDetached(Span<uint8_t> Out,
                                           Span<const uint8_t> Data) noexcept {
-  std::vector<uint8_t> Tag(getTagSize());
+  SecretVec Tag(getTagSize());
   if (auto Res = encryptImpl(Out, Tag, Data); !Res) {
     return WasiCryptoUnexpect(Res);
   }

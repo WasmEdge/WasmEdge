@@ -65,9 +65,9 @@ public:
     static WasiCryptoExpect<Key>
     generate(OptionalRef<const Options> Options) noexcept;
 
-    std::vector<uint8_t> exportData() const noexcept { return Data->raw(); }
+    SecretVec exportData() const noexcept { return *Data; }
 
-    const std::vector<uint8_t> &ref() const noexcept { return Data->raw(); }
+    const SecretVec &ref() const noexcept { return *Data; }
 
   private:
     std::shared_ptr<SecretVec> Data;

@@ -18,6 +18,7 @@
 #include "host/wasi_crypto/utils/error.h"
 #include "host/wasi_crypto/utils/evp_wrapper.h"
 #include "host/wasi_crypto/utils/optional.h"
+#include "host/wasi_crypto/utils/secret_vec.h"
 
 namespace WasmEdge {
 namespace Host {
@@ -118,7 +119,7 @@ public:
     import(Span<const uint8_t> Encoded,
            __wasi_secretkey_encoding_e_t Encoding) noexcept;
 
-    WasiCryptoExpect<std::vector<uint8_t>>
+    WasiCryptoExpect<SecretVec>
     exportData(__wasi_secretkey_encoding_e_t Encoding) const noexcept;
 
     WasiCryptoExpect<PublicKey> publicKey() const noexcept;
@@ -137,11 +138,11 @@ public:
 
     static WasiCryptoExpect<EvpPkeyPtr> checkValid(EvpPkeyPtr Ctx) noexcept;
 
-    WasiCryptoExpect<std::vector<uint8_t>> exportPkcs8() const noexcept;
+    WasiCryptoExpect<SecretVec> exportPkcs8() const noexcept;
 
-    WasiCryptoExpect<std::vector<uint8_t>> exportPem() const noexcept;
+    WasiCryptoExpect<SecretVec> exportPem() const noexcept;
 
-    WasiCryptoExpect<std::vector<uint8_t>> exportRaw() const noexcept;
+    WasiCryptoExpect<SecretVec> exportRaw() const noexcept;
 
     std::shared_ptr<EVP_PKEY> Ctx;
   };
@@ -160,7 +161,7 @@ public:
     static WasiCryptoExpect<EvpPkeyPtr> checkValid(EvpPkeyPtr Ctx,
                                                    bool Compressed) noexcept;
 
-    WasiCryptoExpect<std::vector<uint8_t>>
+    WasiCryptoExpect<SecretVec>
     exportData(__wasi_keypair_encoding_e_t Encoding) const noexcept;
 
     WasiCryptoExpect<PublicKey> publicKey() const noexcept;
@@ -181,11 +182,11 @@ public:
 
     static WasiCryptoExpect<EvpPkeyPtr> checkValid(EvpPkeyPtr Ctx) noexcept;
 
-    WasiCryptoExpect<std::vector<uint8_t>> exportPkcs8() const noexcept;
+    WasiCryptoExpect<SecretVec> exportPkcs8() const noexcept;
 
-    WasiCryptoExpect<std::vector<uint8_t>> exportPem() const noexcept;
+    WasiCryptoExpect<SecretVec> exportPem() const noexcept;
 
-    WasiCryptoExpect<std::vector<uint8_t>> exportRaw() const noexcept;
+    WasiCryptoExpect<SecretVec> exportRaw() const noexcept;
 
     std::shared_ptr<EVP_PKEY> Ctx;
   };

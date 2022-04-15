@@ -53,14 +53,14 @@ EVP_PKEY *pemReadPrivateKey(Span<const uint8_t> Encoded) {
   return PEM_read_bio_PrivateKey(Bio.get(), nullptr, nullptr, nullptr);
 }
 
-WasiCryptoExpect<std::vector<uint8_t>> pemWritePrivateKey(EVP_PKEY *Key) {
+WasiCryptoExpect<SecretVec> pemWritePrivateKey(EVP_PKEY *Key) {
   BioPtr Bio{BIO_new(BIO_s_mem())};
   opensslCheck(PEM_write_bio_PrivateKey(Bio.get(), Key, nullptr, nullptr, 0,
                                         nullptr, nullptr));
 
   BUF_MEM *Mem = nullptr;
   opensslCheck(BIO_get_mem_ptr(Bio.get(), &Mem));
-  std::vector<uint8_t> Ret(Mem->length);
+  SecretVec Ret(Mem->length);
 
   if (size_t Size; BIO_read_ex(Bio.get(), Ret.data(), Ret.size(), &Size)) {
     ensureOrReturn(Size == Ret.size(), __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
@@ -118,13 +118,13 @@ EVP_PKEY *d2iPrivateKey(Span<const uint8_t> Encoded) {
   return d2i_PrivateKey_bio(Bio.get(), nullptr);
 }
 
-WasiCryptoExpect<std::vector<uint8_t>> i2dPrivateKey(EVP_PKEY *Key) {
+WasiCryptoExpect<SecretVec> i2dPrivateKey(EVP_PKEY *Key) {
   BioPtr Bio{BIO_new(BIO_s_mem())};
   opensslCheck(i2d_PrivateKey_bio(Bio.get(), Key));
 
   BUF_MEM *Mem = nullptr;
   opensslCheck(BIO_get_mem_ptr(Bio.get(), &Mem));
-  std::vector<uint8_t> Ret(Mem->length);
+  SecretVec Ret(Mem->length);
 
   if (size_t Size; BIO_read_ex(Bio.get(), Ret.data(), Ret.size(), &Size)) {
     ensureOrReturn(Size == Ret.size(), __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);

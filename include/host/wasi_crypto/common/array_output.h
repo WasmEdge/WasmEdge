@@ -15,6 +15,7 @@
 
 #include "common/span.h"
 #include "host/wasi_crypto/utils/error.h"
+#include "host/wasi_crypto/utils/secret_vec.h"
 
 #include <atomic>
 #include <memory>
@@ -37,6 +38,8 @@ class ArrayOutput {
 public:
   ArrayOutput(std::vector<uint8_t> &&Data) noexcept : Data(std::move(Data)) {}
 
+  ArrayOutput(SecretVec &&Data) noexcept : Data(std::move(Data)) {}
+
   /// Copy the content to the @param Buf buffer.
   /// Multiple calls are possible, the total number of bytes to be read is
   /// guaranteed to always match data size
@@ -48,7 +51,7 @@ public:
   size_t len() const noexcept { return Data.size(); }
 
 private:
-  const std::vector<uint8_t> Data;
+  const SecretVec Data;
   size_t Pos = 0;
   std::mutex Mutex;
 };

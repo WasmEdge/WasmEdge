@@ -10,23 +10,22 @@ namespace WasiCrypto {
 namespace Symmetric {
 
 WasiCryptoExpect<void> Tag::verify(Span<const uint8_t> RawTag) const noexcept {
-  ensureOrReturn(
-      !CRYPTO_memcmp(RawTag.data(), Data.raw().data(), RawTag.size()),
-      __WASI_CRYPTO_ERRNO_INVALID_TAG);
+  ensureOrReturn(!CRYPTO_memcmp(RawTag.data(), Data.data(), RawTag.size()),
+                 __WASI_CRYPTO_ERRNO_INVALID_TAG);
 
   return {};
 }
 
 WasiCryptoExpect<size_t> Tag::pull(Span<uint8_t> Raw) const noexcept {
-  if (Raw.size() > Data.raw().size()) {
+  if (Raw.size() > Data.size()) {
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_LENGTH);
   }
-  if (Raw.size() < Data.raw().size()) {
+  if (Raw.size() < Data.size()) {
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_OVERFLOW);
   }
 
-  std::copy(Data.raw().begin(), Data.raw().end(), Raw.begin());
-  return Data.raw().size();
+  std::copy(Data.begin(), Data.end(), Raw.begin());
+  return Data.size();
 }
 
 } // namespace Symmetric

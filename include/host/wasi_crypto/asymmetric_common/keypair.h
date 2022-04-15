@@ -39,7 +39,7 @@ WasiCryptoExpect<KpVariant>
 generateKp(AsymmetricCommon::Algorithm Alg,
            OptionalRef<const Common::Options> OptOptions) noexcept;
 
-WasiCryptoExpect<std::vector<uint8_t>>
+WasiCryptoExpect<SecretVec>
 kpExportData(const KpVariant &KpVariant,
              __wasi_keypair_encoding_e_t Encoding) noexcept;
 

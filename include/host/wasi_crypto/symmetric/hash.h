@@ -38,7 +38,7 @@ public:
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_KEY_NOT_SUPPORTED);
   }
 
-  std::vector<uint8_t> exportData() const noexcept { assumingUnreachable(); }
+  SecretVec exportData() const noexcept { assumingUnreachable(); }
 };
 
 /// Hash invalid operation, every hash state should inherent from this class

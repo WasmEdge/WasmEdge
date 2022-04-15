@@ -19,7 +19,7 @@ importSk(AsymmetricCommon::Algorithm Alg, Span<const uint8_t> Encoded,
       Alg);
 }
 
-WasiCryptoExpect<std::vector<uint8_t>>
+WasiCryptoExpect<SecretVec>
 skExportData(const SkVariant &SkVariant,
              __wasi_secretkey_encoding_e_t Encoding) noexcept {
   return std::visit(

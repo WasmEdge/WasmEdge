@@ -77,9 +77,26 @@ pub trait Engine {
     /// # Erros
     ///
     /// If fail to run the host function, then an error is returned.
-    fn run(
+    fn run_func(
         &mut self,
         func: &Func,
+        params: impl IntoIterator<Item = WasmValue>,
+    ) -> Result<Vec<WasmValue>>;
+
+    /// Runs a host function instance by calling its reference and returns the results.
+    ///
+    /// # Arguments
+    ///
+    /// * `func_ref` - A reference to the target host function instance.
+    ///
+    /// * `params` - The arguments to pass to the function.
+    ///
+    /// # Erros
+    ///
+    /// If fail to run the host function, then an error is returned.
+    fn run_func_ref(
+        &mut self,
+        func_ref: &FuncRef,
         params: impl IntoIterator<Item = WasmValue>,
     ) -> Result<Vec<WasmValue>>;
 }

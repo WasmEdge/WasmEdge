@@ -447,11 +447,17 @@ Ecdsa<CurveNid>::Signature::import(
     Span<const uint8_t> Encoded,
     __wasi_signature_encoding_e_t Encoding) noexcept {
   switch (Encoding) {
-  case __WASI_SIGNATURE_ENCODING_RAW:
+  case __WASI_SIGNATURE_ENCODING_RAW: {
+    ensureOrReturn(Encoded.size() == getRawSigSize(),
+                   __WASI_CRYPTO_ERRNO_INVALID_SIGNATURE);
+    EcdsaSigPtr Sig{o2iEcdsaSig(Encoded)};
+    ensureOrReturn(Sig, __WASI_CRYPTO_ERRNO_INVALID_SIGNATURE);
+    return i2dEcdsaSigShared(Sig.get());
+  }
+  case __WASI_SIGNATURE_ENCODING_DER: {
     return std::make_shared<std::vector<uint8_t>>(Encoded.begin(),
                                                   Encoded.end());
-  case __WASI_SIGNATURE_ENCODING_DER:
-    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
+  }
   default:
     assumingUnreachable();
   }
@@ -461,12 +467,26 @@ template <int CurveNid>
 WasiCryptoExpect<std::vector<uint8_t>> Ecdsa<CurveNid>::Signature::exportData(
     __wasi_signature_encoding_e_t Encoding) const noexcept {
   switch (Encoding) {
-  case __WASI_SIGNATURE_ENCODING_RAW:
+  case __WASI_SIGNATURE_ENCODING_RAW: {
+    EcdsaSigPtr Sig{o2iEcdsaSig(*Data)};
+    ensureOrReturn(Sig, __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
+    return i2oEcdsaSig(Sig.get());
+  }
+  case __WASI_SIGNATURE_ENCODING_DER: {
     return *Data;
-  case __WASI_SIGNATURE_ENCODING_DER:
-    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
+  }
   default:
     assumingUnreachable();
+  }
+}
+
+template <int CurveNid>
+constexpr size_t Ecdsa<CurveNid>::Signature::getRawSigSize() noexcept {
+  if constexpr (CurveNid == NID_X9_62_prime256v1) {
+    return 64;
+  }
+  if constexpr (CurveNid == NID_secp256k1) {
+    return 96;
   }
 }
 

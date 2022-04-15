@@ -163,7 +163,7 @@ mod tests {
         assert!(result.is_ok());
 
         // get the module instance by name
-        let result = store.named_instance("extern");
+        let result = store.module_instance("extern");
         assert!(result.is_some());
         let instance = result.unwrap();
 
@@ -226,7 +226,7 @@ mod tests {
             assert!(false);
         }
 
-        let result = store.named_instance("extern");
+        let result = store.module_instance("extern");
         assert!(result.is_some());
         let instance = result.unwrap();
 

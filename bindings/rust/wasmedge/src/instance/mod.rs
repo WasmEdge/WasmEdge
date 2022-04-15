@@ -7,7 +7,7 @@ mod table;
 
 pub use function::{Func, FuncRef, FuncTypeBuilder};
 pub use global::Global;
-// pub use import::{ImportModule, ImportModuleBuilder};
+pub use import::{ImportModuleBuilder, ImportObject};
 pub use memory::Memory;
 pub use module::Instance;
 pub use table::Table;

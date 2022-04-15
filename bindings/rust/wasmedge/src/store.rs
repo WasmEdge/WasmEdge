@@ -1,6 +1,12 @@
 //! Defines WasmEdge Store struct.
 
-use crate::{error::Result, sys, Executor, ImportModule, Instance, Module};
+use crate::{
+    error::Result,
+    error::{StoreError, WasmEdgeError},
+    Executor, ImportObject, Instance, Module,
+};
+use std::collections::HashMap;
+use wasmedge_sys as sys;
 
 /// Struct of Wasmedge Store.
 ///
@@ -8,6 +14,7 @@ use crate::{error::Result, sys, Executor, ImportModule, Instance, Module};
 #[derive(Debug)]
 pub struct Store {
     pub(crate) inner: sys::Store,
+    pub(crate) imports: HashMap<String, sys::ImportObject>,
 }
 impl Store {
     /// Creates a new [Store].
@@ -17,8 +24,34 @@ impl Store {
     /// If fail to create a new [Store], then an error is returned.
     pub fn new() -> Result<Self> {
         let inner = sys::Store::create()?;
-        Ok(Self { inner })
+        Ok(Self {
+            inner,
+            imports: HashMap::new(),
+        })
     }
+
+    // /// Registers and instantiates a WasmEdge [import module](crate::ImportModule) into this [store](crate::Store).
+    // ///
+    // /// # Arguments
+    // ///
+    // /// * `executor` - The [executor](crate::Executor) that runs the host functions in this [store](crate::Store).
+    // ///
+    // /// * `import` - The WasmEdge [import module](crate::ImportModule) to be registered.
+    // ///
+    // /// # Error
+    // ///
+    // /// If fail to register the given [import module](crate::ImportModule), then an error is returned.
+    // pub fn register_import_module(
+    //     &mut self,
+    //     executor: &mut Executor,
+    //     import: &ImportModule,
+    // ) -> Result<()> {
+    //     executor
+    //         .inner
+    //         .register_import_object(&mut self.inner, &import.inner)?;
+
+    //     Ok(())
+    // }
 
     /// Registers and instantiates a WasmEdge [import module](crate::ImportModule) into this [store](crate::Store).
     ///
@@ -34,11 +67,21 @@ impl Store {
     pub fn register_import_module(
         &mut self,
         executor: &mut Executor,
-        import: &ImportModule,
+        import: ImportObject,
     ) -> Result<()> {
+        let name = import.name();
+        let inner_import: sys::ImportObject = import.into();
+
+        // TODO refactor the following code when `try_insert` API is stable.
+        if self.imports.contains_key(&name) {
+            return Err(WasmEdgeError::Store(StoreError::DuplicateImport(name)));
+        }
+        self.imports.insert(name.clone(), inner_import);
+        let inner_import = self.imports.get(&name).unwrap();
+
         executor
             .inner
-            .register_import_object(&mut self.inner, &import.inner)?;
+            .register_import_object(&mut self.inner, inner_import)?;
 
         Ok(())
     }
@@ -96,12 +139,12 @@ impl Store {
 
     /// Returns the number of the named [module instances](crate::Instance) in this [store](crate::Store).
     pub fn named_instance_count(&self) -> u32 {
-        self.inner.reg_module_len()
+        self.inner.module_len()
     }
 
     /// Returns the names of all registered named [module instances](crate::Instance).
     pub fn instance_names(&self) -> Option<Vec<String>> {
-        self.inner.reg_module_names()
+        self.inner.module_names()
     }
 
     /// Returns the named [module instance](crate::Instance) with the given name.
@@ -109,20 +152,8 @@ impl Store {
     /// # Argument
     ///
     /// * `name` - The name of the target [module instance](crate::Instance) to be returned.
-    pub fn named_instance(&mut self, name: impl AsRef<str>) -> Option<Instance> {
-        let inner_instance = self.inner.named_module(name.as_ref()).ok();
-        if let Some(inner_instance) = inner_instance {
-            return Some(Instance {
-                inner: inner_instance,
-            });
-        }
-
-        None
-    }
-
-    /// Returns the active [module instance](crate::Instance).
-    pub fn active_instance(&mut self) -> Option<Instance> {
-        let inner_instance = self.inner.active_module().ok();
+    pub fn module_instance(&mut self, name: impl AsRef<str>) -> Option<Instance> {
+        let inner_instance = self.inner.module(name.as_ref()).ok();
         if let Some(inner_instance) = inner_instance {
             return Some(Instance {
                 inner: inner_instance,
@@ -217,7 +248,7 @@ mod tests {
         assert_eq!(store.instance_names().unwrap(), ["extern-module"]);
 
         // get active module instance
-        let result = store.named_instance("extern-module");
+        let result = store.module_instance("extern-module");
         assert!(result.is_some());
         let instance = result.unwrap();
         assert!(instance.name().is_some());
@@ -267,7 +298,7 @@ mod tests {
         assert_eq!(store.instance_names().unwrap(), ["extern-module"]);
 
         // get active module instance
-        let result = store.named_instance("extern-module");
+        let result = store.module_instance("extern-module");
         assert!(result.is_some());
         let instance = result.unwrap();
         assert!(instance.name().is_some());
@@ -388,14 +419,14 @@ mod tests {
         assert_eq!(mod_names[1], "fib-module");
 
         assert_eq!(mod_names[0], "extern-module");
-        let result = store.named_instance(mod_names[0].as_str());
+        let result = store.module_instance(mod_names[0].as_str());
         assert!(result.is_some());
         let instance = result.unwrap();
         assert!(instance.name().is_some());
         assert_eq!(instance.name().unwrap(), mod_names[0]);
 
         assert_eq!(mod_names[1], "fib-module");
-        let result = store.named_instance(mod_names[1].as_str());
+        let result = store.module_instance(mod_names[1].as_str());
         assert!(result.is_some());
         let instance = result.unwrap();
         assert!(instance.name().is_some());

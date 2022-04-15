@@ -243,6 +243,15 @@ impl ImportObject {
         }
     }
 }
+impl From<ImportObject> for sys::ImportObject {
+    fn from(import_object: ImportObject) -> Self {
+        match import_object {
+            ImportObject::Import(inner) => sys::ImportObject::Import(inner),
+            ImportObject::Wasi(inner) => sys::ImportObject::Wasi(inner),
+            ImportObject::WasmEdgeProcess(inner) => sys::ImportObject::WasmEdgeProcess(inner),
+        }
+    }
+}
 
 #[cfg(test)]
 mod tests {
@@ -324,7 +333,7 @@ mod tests {
         let result = store.instance_names();
         assert!(result.is_some());
         assert_eq!(result.unwrap(), ["wasmedge_process"]);
-        let result = store.named_instance("wasmedge_process");
+        let result = store.module_instance("wasmedge_process");
         assert!(result.is_some());
         let instance = result.unwrap();
 
@@ -458,7 +467,7 @@ mod tests {
         assert!(result.is_ok());
 
         // get the instance of the ImportObject module
-        let result = store.named_instance("extern");
+        let result = store.module_instance("extern");
         assert!(result.is_some());
         let instance = result.unwrap();
 
@@ -505,13 +514,13 @@ mod tests {
         assert!(result.is_ok());
         let mut store = result.unwrap();
 
-        let result = store.named_instance("extern");
+        let result = store.module_instance("extern");
         assert!(result.is_none());
 
         let result = store.register_import_module(&mut executor, &import);
         assert!(result.is_ok());
 
-        let result = store.named_instance("extern");
+        let result = store.module_instance("extern");
         assert!(result.is_some());
         let instance = result.unwrap();
 
@@ -584,7 +593,7 @@ mod tests {
         let result = store.register_import_module(&mut executor, &import);
         assert!(result.is_ok());
 
-        let result = store.named_instance("extern");
+        let result = store.module_instance("extern");
         assert!(result.is_some());
         let instance = result.unwrap();
 
@@ -622,7 +631,7 @@ mod tests {
         );
 
         // get the Var global from the store of vm
-        let result = store.named_instance("extern");
+        let result = store.module_instance("extern");
         assert!(result.is_some());
         let instance = result.unwrap();
 
@@ -704,7 +713,7 @@ mod tests {
         let result = store.register_import_module(&mut executor, &import);
         assert!(result.is_ok());
 
-        let result = store.named_instance("extern");
+        let result = store.module_instance("extern");
         assert!(result.is_some());
         let instance = result.unwrap();
 
@@ -765,7 +774,7 @@ mod tests {
             assert!(false)
         }
 
-        let result = store.named_instance("extern");
+        let result = store.module_instance("extern");
         assert!(result.is_some());
         let instance = result.unwrap();
 
@@ -846,7 +855,7 @@ mod tests {
             assert!(result.is_ok());
 
             // get active module instance
-            let result = store.named_instance("extern-module");
+            let result = store.module_instance("extern-module");
             assert!(result.is_some());
             let instance = result.unwrap();
             assert!(instance.name().is_some());
@@ -968,7 +977,7 @@ mod tests {
             assert!(result.is_ok());
 
             // get active module instance
-            let result = store.named_instance("extern-module");
+            let result = store.module_instance("extern-module");
             assert!(result.is_some());
             let instance = result.unwrap();
             assert!(instance.name().is_some());

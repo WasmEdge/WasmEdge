@@ -40,7 +40,7 @@ fn main() -> anyhow::Result<()> {
     store.register_named_module(&mut executor, "extern", &module)?;
 
     // get module instance
-    let instance = store.named_instance("extern").ok_or(anyhow::anyhow!(
+    let instance = store.module_instance("extern").ok_or(anyhow::anyhow!(
         "failed to get module instance named 'extern'"
     ))?;
 

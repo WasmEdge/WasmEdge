@@ -22,8 +22,8 @@ pub mod instance;
 pub mod module;
 #[doc(hidden)]
 pub mod statistics;
-// #[doc(hidden)]
-// pub mod store;
+#[doc(hidden)]
+pub mod store;
 pub mod types;
 // #[doc(hidden)]
 // pub mod vm;
@@ -34,13 +34,16 @@ pub use compiler::Compiler;
 #[doc(inline)]
 pub use executor::Executor;
 #[doc(inline)]
-pub use instance::{Func, FuncRef, FuncTypeBuilder, Global, Instance, Memory, Table};
+pub use instance::{
+    Func, FuncRef, FuncTypeBuilder, Global, ImportModuleBuilder, ImportObject, Instance, Memory,
+    Table,
+};
 #[doc(inline)]
 pub use module::{ExportType, ImportType, Module};
 #[doc(inline)]
 pub use statistics::Statistics;
-// #[doc(inline)]
-// pub use store::Store;
+#[doc(inline)]
+pub use store::Store;
 // #[doc(hidden)]
 // pub use vm::Vm;
 #[doc(hidden)]

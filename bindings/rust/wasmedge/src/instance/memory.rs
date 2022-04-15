@@ -139,13 +139,13 @@ mod tests {
         assert!(result.is_ok());
         let mut store = result.unwrap();
 
-        let result = store.named_instance("extern");
+        let result = store.module_instance("extern");
         assert!(result.is_none());
 
         let result = store.register_import_module(&mut executor, &import);
         assert!(result.is_ok());
 
-        let result = store.named_instance("extern");
+        let result = store.module_instance("extern");
         assert!(result.is_some());
         let instance = result.unwrap();
 

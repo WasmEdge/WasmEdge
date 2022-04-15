@@ -71,7 +71,7 @@ fn main() -> anyhow::Result<()> {
     assert_eq!(returns[0].to_i32(), 18);
 
     // get module instance
-    let instance = store.named_instance("extern").ok_or(anyhow::anyhow!(
+    let instance = store.module_instance("extern").ok_or(anyhow::anyhow!(
         "failed to get module instance named 'extern'"
     ))?;
 

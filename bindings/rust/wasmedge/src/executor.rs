@@ -1,7 +1,7 @@
 //! Defines Executor struct.
 
-use crate::{config::Config, error::Result, Engine, Func, Statistics, WasmValue};
-use wasmedge_sys as sys;
+use crate::{config::Config, error::Result, Engine, Func, FuncRef, Statistics, WasmValue};
+use wasmedge_sys::{self as sys, Engine as SysEngine};
 
 /// Struct of WasmEdge Executor.
 ///
@@ -39,12 +39,21 @@ impl Executor {
     }
 }
 impl Engine for Executor {
-    fn run(
+    fn run_func(
         &mut self,
         func: &Func,
         params: impl IntoIterator<Item = WasmValue>,
     ) -> Result<Vec<WasmValue>> {
-        let returns = self.inner.run_function(&func.inner, params)?;
+        let returns = self.inner.run_func(&func.inner, params)?;
+        Ok(returns)
+    }
+
+    fn run_func_ref(
+        &mut self,
+        func_ref: &FuncRef,
+        params: impl IntoIterator<Item = WasmValue>,
+    ) -> Result<Vec<WasmValue>> {
+        let returns = self.inner.run_func_ref(&func_ref.inner, params)?;
         Ok(returns)
     }
 }
@@ -142,7 +151,7 @@ mod tests {
         let fib = result.unwrap();
 
         // run the exported host function
-        let result = executor.run(&fib, [WasmValue::from_i32(5)]);
+        let result = executor.run_func(&fib, [WasmValue::from_i32(5)]);
         assert!(result.is_ok());
         let returns = result.unwrap();
         assert_eq!(returns.len(), 1);

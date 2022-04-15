@@ -204,7 +204,7 @@ impl Func {
         engine: &mut E,
         args: impl IntoIterator<Item = WasmValue>,
     ) -> Result<Vec<WasmValue>> {
-        engine.run(self, args)
+        engine.run_func(self, args)
     }
 }
 
@@ -288,6 +288,26 @@ impl FuncRef {
     pub fn ty(&self) -> Result<FuncType> {
         let ty = self.inner.ty()?;
         Ok(ty.into())
+    }
+
+    /// Runs this host function the reference refers to.
+    ///
+    /// # Arguments
+    ///
+    /// * `engine` - The object implements Engine trait.
+    ///
+    /// * `args` - The arguments passed to the host function.
+    ///
+    /// # Error
+    ///
+    /// If fail to run the host function, then an error is returned.
+    ///
+    pub fn call<E: Engine>(
+        &self,
+        engine: &mut E,
+        args: impl IntoIterator<Item = WasmValue>,
+    ) -> Result<Vec<WasmValue>> {
+        engine.run_func_ref(self, args)
     }
 }
 

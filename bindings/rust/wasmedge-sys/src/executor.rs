@@ -5,8 +5,8 @@ use crate::{
     error::{check, WasmEdgeError},
     instance::module::InnerInstance,
     types::WasmEdgeString,
-    Config, Engine, Function, ImportObject, Instance, Module, Statistics, Store, WasmEdgeResult,
-    WasmValue,
+    Config, Engine, FuncRef, Function, ImportObject, Instance, Module, Statistics, Store,
+    WasmEdgeResult, WasmValue,
 };
 
 /// Struct of WasmEdge Executor.
@@ -187,19 +187,16 @@ impl Executor {
             registered: false,
         })
     }
-
-    /// Invokes a WASM function and returns the results.
-    ///
-    /// # Arguments
-    ///
-    /// * `func` - The name of the target function.
-    ///
-    /// * `params` - The argument values for the target function.
-    ///
-    /// # Error
-    ///
-    /// If fail to invoke the function, then an error is returned.
-    pub fn run_function(
+}
+impl Drop for Executor {
+    fn drop(&mut self) {
+        if !self.registered && !self.inner.0.is_null() {
+            unsafe { ffi::WasmEdge_ExecutorDelete(self.inner.0) }
+        }
+    }
+}
+impl Engine for Executor {
+    fn run_func(
         &mut self,
         func: &Function,
         params: impl IntoIterator<Item = WasmValue>,
@@ -225,21 +222,32 @@ impl Executor {
 
         Ok(returns.into_iter().map(Into::into).collect::<Vec<_>>())
     }
-}
-impl Drop for Executor {
-    fn drop(&mut self) {
-        if !self.registered && !self.inner.0.is_null() {
-            unsafe { ffi::WasmEdge_ExecutorDelete(self.inner.0) }
-        }
-    }
-}
-impl Engine for Executor {
-    fn run(
+
+    fn run_func_ref(
         &mut self,
-        func: &Function,
+        func_ref: &FuncRef,
         params: impl IntoIterator<Item = WasmValue>,
     ) -> WasmEdgeResult<Vec<WasmValue>> {
-        self.run_function(func, params)
+        let raw_params = params.into_iter().map(|x| x.as_raw()).collect::<Vec<_>>();
+
+        // get the length of the function's returns
+        let func_ty = func_ref.ty()?;
+        let returns_len = func_ty.returns_len();
+        let mut returns = Vec::with_capacity(returns_len as usize);
+
+        unsafe {
+            check(ffi::WasmEdge_ExecutorInvoke(
+                self.inner.0,
+                func_ref.inner.0 as *const _,
+                raw_params.as_ptr(),
+                raw_params.len() as u32,
+                returns.as_mut_ptr(),
+                returns_len,
+            ))?;
+            returns.set_len(returns_len as usize);
+        }
+
+        Ok(returns.into_iter().map(Into::into).collect::<Vec<_>>())
     }
 }
 

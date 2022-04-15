@@ -1,6 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2019-2022 Second State INC
 #include "host/wasi_crypto/utils/evp_wrapper.h"
+#include "host/wasi_crypto/utils/error.h"
+#include "openssl/bn.h"
+#include "openssl/ec.h"
+
+#include <limits>
 
 namespace WasmEdge {
 namespace Host {
@@ -133,6 +138,65 @@ WasiCryptoExpect<SecretVec> i2dPrivateKey(EVP_PKEY *Key) {
   }
 
   return Ret;
+}
+
+ECDSA_SIG *d2iEcdsaSig(Span<const uint8_t> Encoded) {
+  if (Encoded.size() > static_cast<size_t>(std::numeric_limits<long>::max())) {
+    return nullptr;
+  }
+  auto *Data = Encoded.data();
+  return d2i_ECDSA_SIG(nullptr, &Data, static_cast<long>(Encoded.size()));
+}
+
+WasiCryptoExpect<std::vector<uint8_t>> i2dEcdsaSig(ECDSA_SIG *Sig) {
+  int SigSize = i2d_ECDSA_SIG(Sig, nullptr);
+  ensureOrReturn(SigSize >= 0, __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
+
+  std::vector<uint8_t> Res(static_cast<size_t>(SigSize));
+
+  auto *Data = Res.data();
+  auto NewSize = i2d_ECDSA_SIG(Sig, &Data);
+  ensureOrReturn(NewSize == SigSize, __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
+
+  return Res;
+}
+
+WasiCryptoExpect<std::shared_ptr<std::vector<uint8_t>>>
+i2dEcdsaSigShared(ECDSA_SIG *Sig) {
+  int SigSize = i2d_ECDSA_SIG(Sig, nullptr);
+  ensureOrReturn(SigSize >= 0, __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
+
+  auto Res =
+      std::make_shared<std::vector<uint8_t>>(static_cast<size_t>(SigSize));
+
+  auto *Data = Res->data();
+  auto NewSize = i2d_ECDSA_SIG(Sig, &Data);
+  ensureOrReturn(NewSize == SigSize, __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
+
+  return Res;
+}
+
+EcdsaSigPtr o2iEcdsaSig(Span<const uint8_t> Encoded) {
+  BnPtr R{BN_bin2bn(Encoded.data(), Encoded.size() / 2, nullptr)};
+  BnPtr S{BN_bin2bn(Encoded.data() + Encoded.size() / 2, Encoded.size() / 2,
+                    nullptr)};
+
+  EcdsaSigPtr Sig{ECDSA_SIG_new()};
+  opensslCheck(ECDSA_SIG_set0(Sig.get(), R.get(), S.get()));
+
+  return Sig;
+}
+
+WasiCryptoExpect<std::vector<uint8_t>> i2oEcdsaSig(ECDSA_SIG *Sig) {
+  auto *R = ECDSA_SIG_get0_r(Sig);
+  auto *S = ECDSA_SIG_get0_s(Sig);
+  auto RSize = static_cast<size_t>(BN_num_bytes(R));
+  auto SSize = static_cast<size_t>(BN_num_bytes(S));
+  std::vector<uint8_t> Res(RSize + SSize);
+  opensslCheck(BN_bn2bin(R, Res.data()));
+  opensslCheck(BN_bn2bin(S, Res.data() + RSize));
+
+  return Res;
 }
 
 } // namespace WasiCrypto

@@ -47,6 +47,7 @@ using BioPtr = OpenSSLUniquePtr<BIO, BIO_free>;
 using EcKeyPtr = OpenSSLUniquePtr<EC_KEY, EC_KEY_free>;
 using BnPtr = OpenSSLUniquePtr<BIGNUM, BN_free>;
 using EcPointPtr = OpenSSLUniquePtr<EC_POINT, EC_POINT_free>;
+using EcdsaSigPtr = OpenSSLUniquePtr<ECDSA_SIG, ECDSA_SIG_free>;
 
 /// openssl function always return 1 for success and 0/NULL for failure. This
 /// used to reduce repeat check
@@ -94,7 +95,20 @@ WasiCryptoExpect<std::vector<uint8_t>> i2dPUBKEY(EVP_PKEY *Key);
 EVP_PKEY *d2iPrivateKey(Span<const uint8_t> Encoded);
 
 WasiCryptoExpect<SecretVec> i2dPrivateKey(EVP_PKEY *Key);
+
+ECDSA_SIG *d2iEcdsaSig(Span<const uint8_t> Encoded);
+
+WasiCryptoExpect<std::vector<uint8_t>> i2dEcdsaSig(ECDSA_SIG *Sig);
+
+WasiCryptoExpect<std::shared_ptr<std::vector<uint8_t>>>
+i2dEcdsaSigShared(ECDSA_SIG *Sig);
 // -------------------------------------------------------------------------  //
+
+// transform raw represent ecdsa ( r | s) to ECDSA_SIG, need check `nullptr`
+EcdsaSigPtr o2iEcdsaSig(Span<const uint8_t> Encoded);
+
+// transform ECDSA_SIG to raw represent ( r | s)
+WasiCryptoExpect<std::vector<uint8_t>> i2oEcdsaSig(ECDSA_SIG *Sig);
 
 } // namespace WasiCrypto
 } // namespace Host

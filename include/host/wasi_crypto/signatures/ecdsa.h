@@ -42,6 +42,8 @@ public:
     const std::vector<uint8_t> &ref() const { return *Data; }
 
   private:
+    static constexpr size_t getRawSigSize() noexcept;
+
     std::shared_ptr<std::vector<uint8_t>> Data;
   };
 

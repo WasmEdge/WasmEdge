@@ -213,7 +213,7 @@ mod tests {
         // check the module instance named "extern-module"
         {
             assert_eq!(mod_names[0], "extern-module");
-            let result = store.named_instance(mod_names[0].as_str());
+            let result = store.module_instance(mod_names[0].as_str());
             assert!(result.is_some());
             let instance = result.unwrap();
             assert!(instance.name().is_some());
@@ -276,7 +276,7 @@ mod tests {
         // check the module instance named "fib-module"
         {
             assert_eq!(mod_names[1], "fib-module");
-            let result = store.named_instance(mod_names[1].as_str());
+            let result = store.module_instance(mod_names[1].as_str());
             assert!(result.is_some());
             let instance = result.unwrap();
             assert!(instance.name().is_some());

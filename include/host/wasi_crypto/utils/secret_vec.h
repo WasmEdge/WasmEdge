@@ -30,7 +30,10 @@ namespace WasiCrypto {
 /// A vector wrapper, but swipe secret key info on destory
 class SecretVec {
 public:
-  SecretVec(std::vector<uint8_t> Data) noexcept : Data(std::move(Data)) {}
+  SecretVec(const SecretVec &) = default;
+  SecretVec &operator=(const SecretVec &) = default;
+  SecretVec &operator=(SecretVec &&) noexcept = default;
+  SecretVec(SecretVec &&) noexcept = default;
 
   SecretVec(Span<const uint8_t> Data) noexcept
       : Data(Data.begin(), Data.end()) {}
@@ -39,9 +42,18 @@ public:
 
   ~SecretVec() noexcept { OPENSSL_cleanse(Data.data(), Data.size()); }
 
-  std::vector<uint8_t> &raw() noexcept { return Data; }
+  auto begin() noexcept { return Data.begin(); }
+  auto begin() const noexcept { return Data.begin(); }
 
-  const std::vector<uint8_t> &raw() const noexcept { return Data; }
+  auto end() noexcept { return Data.end(); }
+  auto end() const noexcept { return Data.end(); }
+
+  auto size() const noexcept { return Data.size(); }
+
+  auto data() noexcept { return Data.data(); }
+  auto data() const noexcept { return Data.data(); }
+
+  using difference_type = std::vector<uint8_t>::difference_type;
 
   /// Generate random size vector. Notice Size shouldn't beyond
   /// std::numeric_limits<int>::max() because of the limitations of openssl
@@ -52,7 +64,7 @@ public:
         "Random key size shouldn't beyond std::numeric_limits<int>::max()");
 
     auto Res = std::make_shared<SecretVec>(Size);
-    ensureOrReturn(RAND_bytes(Res->raw().data(), static_cast<int>(Size)),
+    ensureOrReturn(RAND_bytes(Res->data(), static_cast<int>(Size)),
                    __WASI_CRYPTO_ERRNO_RNG_ERROR);
     return Res;
   }

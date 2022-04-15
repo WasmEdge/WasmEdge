@@ -88,7 +88,7 @@ WasiCryptoExpect<KpVariant> kpFromPkAndSk(const PkVariant &PkVariant,
       PkVariant, SkVariant);
 }
 
-WasiCryptoExpect<std::vector<uint8_t>>
+WasiCryptoExpect<SecretVec>
 kpExportData(const KpVariant &KpVariant,
              __wasi_keypair_encoding_e_t Encoding) noexcept {
   return std::visit(

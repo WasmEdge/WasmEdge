@@ -98,12 +98,12 @@ Eddsa::SecretKey::toKeyPair(const PublicKey &) const noexcept {
   return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
 }
 
-WasiCryptoExpect<std::vector<uint8_t>> Eddsa::SecretKey::exportData(
+WasiCryptoExpect<SecretVec> Eddsa::SecretKey::exportData(
     __wasi_secretkey_encoding_e_t Encoding) const noexcept {
   switch (Encoding) {
   case __WASI_SECRETKEY_ENCODING_RAW: {
     size_t Size = SkSize;
-    std::vector<uint8_t> Res(SkSize);
+    SecretVec Res(SkSize);
     opensslCheck(EVP_PKEY_get_raw_private_key(Ctx.get(), Res.data(), &Size));
     ensureOrReturn(Size == SkSize, __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
     return Res;
@@ -145,11 +145,11 @@ Eddsa::KeyPair::import(Span<const uint8_t> Encoded,
   }
 }
 
-WasiCryptoExpect<std::vector<uint8_t>> Eddsa::KeyPair::exportData(
+WasiCryptoExpect<SecretVec> Eddsa::KeyPair::exportData(
     __wasi_keypair_encoding_e_t Encoding) const noexcept {
   switch (Encoding) {
   case __WASI_KEYPAIR_ENCODING_RAW: {
-    std::vector<uint8_t> Res(KpSize);
+    SecretVec Res(KpSize);
     size_t Size = SkSize;
     opensslCheck(EVP_PKEY_get_raw_private_key(Ctx.get(), Res.data(), &Size));
     ensureOrReturn(Size == SkSize, __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);

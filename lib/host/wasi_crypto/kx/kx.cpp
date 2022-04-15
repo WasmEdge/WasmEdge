@@ -10,8 +10,8 @@ namespace Host {
 namespace WasiCrypto {
 namespace Kx {
 
-WasiCryptoExpect<std::vector<uint8_t>> dh(PkVariant &PkVariant,
-                                          SkVariant &SkVariant) noexcept {
+WasiCryptoExpect<SecretVec> dh(PkVariant &PkVariant,
+                               SkVariant &SkVariant) noexcept {
   return std::visit([](auto &&Pk, auto &&Sk) { return Sk.dh(Pk); }, PkVariant,
                     SkVariant);
 }

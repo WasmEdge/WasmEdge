@@ -16,6 +16,7 @@
 #include "common/log.h"
 #include "common/span.h"
 #include "host/wasi_crypto/utils/error.h"
+#include "host/wasi_crypto/utils/secret_vec.h"
 #include "openssl/bio.h"
 #include "openssl/ec.h"
 #include "openssl/err.h"
@@ -84,7 +85,7 @@ WasiCryptoExpect<std::vector<uint8_t>> pemWritePUBKEY(EVP_PKEY *Key);
 
 EVP_PKEY *pemReadPrivateKey(Span<const uint8_t> Encoded);
 
-WasiCryptoExpect<std::vector<uint8_t>> pemWritePrivateKey(EVP_PKEY *Key);
+WasiCryptoExpect<SecretVec> pemWritePrivateKey(EVP_PKEY *Key);
 
 EVP_PKEY *d2iPUBKEY(Span<const uint8_t> Encoded);
 
@@ -92,7 +93,7 @@ WasiCryptoExpect<std::vector<uint8_t>> i2dPUBKEY(EVP_PKEY *Key);
 
 EVP_PKEY *d2iPrivateKey(Span<const uint8_t> Encoded);
 
-WasiCryptoExpect<std::vector<uint8_t>> i2dPrivateKey(EVP_PKEY *Key);
+WasiCryptoExpect<SecretVec> i2dPrivateKey(EVP_PKEY *Key);
 // -------------------------------------------------------------------------  //
 
 } // namespace WasiCrypto

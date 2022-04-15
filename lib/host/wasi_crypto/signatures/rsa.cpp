@@ -144,7 +144,7 @@ Rsa<PadMode, KeyBits, ShaNid>::SecretKey::toKeyPair(
 }
 
 template <int PadMode, int KeyBits, int ShaNid>
-WasiCryptoExpect<std::vector<uint8_t>>
+WasiCryptoExpect<SecretVec>
 Rsa<PadMode, KeyBits, ShaNid>::SecretKey::exportData(
     __wasi_secretkey_encoding_e_t Encoding) const noexcept {
   switch (Encoding) {
@@ -170,13 +170,13 @@ Rsa<PadMode, KeyBits, ShaNid>::SecretKey::publicKey() const noexcept {
 }
 
 template <int PadMode, int KeyBits, int ShaNid>
-WasiCryptoExpect<std::vector<uint8_t>>
+WasiCryptoExpect<SecretVec>
 Rsa<PadMode, KeyBits, ShaNid>::SecretKey::exportPem() const noexcept {
   return pemWritePrivateKey(Ctx.get());
 }
 
 template <int PadMode, int KeyBits, int ShaNid>
-WasiCryptoExpect<std::vector<uint8_t>>
+WasiCryptoExpect<SecretVec>
 Rsa<PadMode, KeyBits, ShaNid>::SecretKey::exportPkcs8() const noexcept {
   return i2dPrivateKey(Ctx.get());
 }
@@ -247,8 +247,7 @@ Rsa<PadMode, KeyBits, ShaNid>::KeyPair::generate(
 }
 
 template <int PadMode, int KeyBits, int ShaNid>
-WasiCryptoExpect<std::vector<uint8_t>>
-Rsa<PadMode, KeyBits, ShaNid>::KeyPair::exportData(
+WasiCryptoExpect<SecretVec> Rsa<PadMode, KeyBits, ShaNid>::KeyPair::exportData(
     __wasi_keypair_encoding_e_t Encoding) const noexcept {
   switch (Encoding) {
   case __WASI_KEYPAIR_ENCODING_PKCS8:
@@ -261,13 +260,13 @@ Rsa<PadMode, KeyBits, ShaNid>::KeyPair::exportData(
 }
 
 template <int PadMode, int KeyBits, int ShaNid>
-WasiCryptoExpect<std::vector<uint8_t>>
+WasiCryptoExpect<SecretVec>
 Rsa<PadMode, KeyBits, ShaNid>::KeyPair::exportPem() const noexcept {
   return pemWritePrivateKey(Ctx.get());
 }
 
 template <int PadMode, int KeyBits, int ShaNid>
-WasiCryptoExpect<std::vector<uint8_t>>
+WasiCryptoExpect<SecretVec>
 Rsa<PadMode, KeyBits, ShaNid>::KeyPair::exportPkcs8() const noexcept {
   return i2dPrivateKey(Ctx.get());
 }

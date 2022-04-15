@@ -37,11 +37,11 @@ WasiCryptoExpect<void> X25519::PublicKey::verify() const noexcept {
   return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
 }
 
-WasiCryptoExpect<std::vector<uint8_t>> X25519::SecretKey::exportData(
+WasiCryptoExpect<SecretVec> X25519::SecretKey::exportData(
     __wasi_secretkey_encoding_e_t Encoding) const noexcept {
   switch (Encoding) {
   case __WASI_SECRETKEY_ENCODING_RAW: {
-    std::vector<uint8_t> Res(SkSize);
+    SecretVec Res(SkSize);
 
     size_t Size = SkSize;
     opensslCheck(EVP_PKEY_get_raw_private_key(Ctx.get(), Res.data(), &Size));
@@ -67,8 +67,7 @@ X25519::SecretKey::publicKey() const noexcept {
   return Pk;
 }
 
-WasiCryptoExpect<std::vector<uint8_t>>
-X25519::SecretKey::dh(PublicKey &Pk) noexcept {
+WasiCryptoExpect<SecretVec> X25519::SecretKey::dh(PublicKey &Pk) noexcept {
   EvpPkeyCtxPtr SkCtx{EVP_PKEY_CTX_new(Ctx.get(), nullptr)};
   opensslCheck(EVP_PKEY_derive_init(SkCtx.get()));
 
@@ -76,7 +75,7 @@ X25519::SecretKey::dh(PublicKey &Pk) noexcept {
   opensslCheck(EVP_PKEY_derive_set_peer(SkCtx.get(), Pk.raw().get()));
 
   // generate shared secret
-  std::vector<uint8_t> Res(SharedSecretSize);
+  SecretVec Res(SharedSecretSize);
   size_t Size = SharedSecretSize;
   ensureOrReturn(EVP_PKEY_derive(SkCtx.get(), Res.data(), &Size),
                  __WASI_CRYPTO_ERRNO_INVALID_KEY);
@@ -117,11 +116,11 @@ X25519::KeyPair::secretKey() const noexcept {
   return Sk;
 }
 
-WasiCryptoExpect<std::vector<uint8_t>> X25519::KeyPair::exportData(
+WasiCryptoExpect<SecretVec> X25519::KeyPair::exportData(
     __wasi_keypair_encoding_e_t Encoding) const noexcept {
   switch (Encoding) {
   case __WASI_KEYPAIR_ENCODING_RAW: {
-    std::vector<uint8_t> Res(KpSize);
+    SecretVec Res(KpSize);
 
     size_t Size = PkSize;
     opensslCheck(EVP_PKEY_get_raw_public_key(Ctx.get(), Res.data(), &Size));

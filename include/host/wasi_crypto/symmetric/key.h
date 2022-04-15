@@ -33,7 +33,7 @@ WasiCryptoExpect<KeyVariant>
 generateKey(Algorithm Alg, OptionalRef<const Options> OptOptions) noexcept;
 
 /// get inner represent
-std::vector<uint8_t> keyExportData(const KeyVariant &Key) noexcept;
+SecretVec keyExportData(const KeyVariant &Key) noexcept;
 
 } // namespace Symmetric
 } // namespace WasiCrypto

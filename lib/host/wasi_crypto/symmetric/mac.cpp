@@ -55,7 +55,7 @@ Hmac<ShaNid>::State::absorb(Span<const uint8_t> Data) noexcept {
 
 template <int ShaNid>
 WasiCryptoExpect<Tag> Hmac<ShaNid>::State::squeezeTag() noexcept {
-  std::vector<uint8_t> Res(getKeySize());
+  SecretVec Res(getKeySize());
 
   size_t ActualOutSize;
   opensslCheck(EVP_DigestSignFinal(Ctx.get(), Res.data(), &ActualOutSize));

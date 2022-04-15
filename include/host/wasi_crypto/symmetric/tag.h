@@ -31,13 +31,13 @@ namespace Symmetric {
 /// https://github.com/WebAssembly/wasi-crypto/blob/main/docs/wasi-crypto.md#authentication-tags
 class Tag {
 public:
-  Tag(std::vector<uint8_t> &&Data) noexcept : Data(std::move(Data)) {}
+  Tag(SecretVec &&Data) noexcept : Data(std::move(Data)) {}
   Tag(Tag &&Data) = default;
   Tag &operator=(Tag &&Data) = default;
   Tag(const Tag &Data) = delete;
   Tag &operator=(const Tag &Data) = delete;
 
-  size_t len() const noexcept { return Data.raw().size(); }
+  size_t len() const noexcept { return Data.size(); }
 
   /// The function MUST return `__WASI_CRYPTO_ERRNO_INVALID_TAG` if the
   /// tags don't match.

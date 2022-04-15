@@ -47,7 +47,7 @@ Expect<uint32_t> Import::body(Runtime::Instance::MemoryInstance *MemInst,
   checkExist(Alg);
 
   Algorithm WasiAlg;
-  if (auto Res = tryFrom<Algorithm>(Alg); unlikely(!Res)) {
+  if (auto Res = tryFrom<Algorithm>({Alg, AlgLen}); unlikely(!Res)) {
     return Res.error();
   } else {
     WasiAlg = *Res;

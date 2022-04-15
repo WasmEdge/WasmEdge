@@ -132,7 +132,7 @@ impl ImportModuleBuilder {
             inner.add_table(name, table);
         }
 
-        Ok(ImportObject::Import(inner))
+        Ok(ImportObject(sys::ImportObject::Import(inner)))
     }
 
     /// Creates a new [wasi import module](crate::ImportModule).
@@ -176,7 +176,7 @@ impl ImportModuleBuilder {
             inner.add_table(name, table);
         }
 
-        Ok(ImportObject::Wasi(inner))
+        Ok(ImportObject(sys::ImportObject::Wasi(inner)))
     }
 
     /// Creates a new [wasmedge process import module](crate::ImportModule).
@@ -217,41 +217,66 @@ impl ImportModuleBuilder {
             inner.add_table(name, table);
         }
 
-        Ok(ImportObject::WasmEdgeProcess(inner))
+        Ok(ImportObject(sys::ImportObject::WasmEdgeProcess(inner)))
     }
 }
 
-/// Enum of WasmEdge ImportObject.
-///
-/// [ImportObject] defines three types of module instances that can be imported into a WasmEdge [Store](crate::Store) instance.
 #[derive(Debug)]
-pub enum ImportObject {
-    /// Defines the import module instance is of ImportModule type.
-    Import(sys::ImportModule),
-    /// Defines the import module instance is of WasiModule type.
-    Wasi(sys::WasiModule),
-    /// Defines the import module instance is of WasmEdgeProcessModule type.
-    WasmEdgeProcess(sys::WasmEdgeProcessModule),
-}
+pub struct ImportObject(pub(crate) sys::ImportObject);
 impl ImportObject {
     /// Returns the name of the import object.
     pub fn name(&self) -> String {
-        match self {
-            ImportObject::Import(import) => import.name(),
-            ImportObject::Wasi(wasi) => wasi.name(),
-            ImportObject::WasmEdgeProcess(wasmedge_process) => wasmedge_process.name(),
+        match &self.0 {
+            sys::ImportObject::Import(import) => import.name(),
+            sys::ImportObject::Wasi(wasi) => wasi.name(),
+            sys::ImportObject::WasmEdgeProcess(wasmedge_process) => wasmedge_process.name(),
         }
     }
-}
-impl From<ImportObject> for sys::ImportObject {
-    fn from(import_object: ImportObject) -> Self {
-        match import_object {
-            ImportObject::Import(inner) => sys::ImportObject::Import(inner),
-            ImportObject::Wasi(inner) => sys::ImportObject::Wasi(inner),
-            ImportObject::WasmEdgeProcess(inner) => sys::ImportObject::WasmEdgeProcess(inner),
-        }
+
+    pub(crate) fn inner_ref(&self) -> &sys::ImportObject {
+        &self.0
     }
 }
+
+// /// Enum of WasmEdge ImportObject.
+// ///
+// /// [ImportObject] defines three types of module instances that can be imported into a WasmEdge [Store](crate::Store) instance.
+// #[derive(Debug)]
+// pub enum ImportObject {
+//     /// Defines the import module instance is of ImportModule type.
+//     Import(sys::ImportModule),
+//     /// Defines the import module instance is of WasiModule type.
+//     Wasi(sys::WasiModule),
+//     /// Defines the import module instance is of WasmEdgeProcessModule type.
+//     WasmEdgeProcess(sys::WasmEdgeProcessModule),
+// }
+// impl ImportObject {
+//     /// Returns the name of the import object.
+//     pub fn name(&self) -> String {
+//         match self {
+//             ImportObject::Import(import) => import.name(),
+//             ImportObject::Wasi(wasi) => wasi.name(),
+//             ImportObject::WasmEdgeProcess(wasmedge_process) => wasmedge_process.name(),
+//         }
+//     }
+
+//     pub(crate) fn inner_ref(&self) -> &sys::ImportObject {
+//         match self {
+//             ImportObject::Import(import) => import,
+//             ImportObject::Wasi(wasi) => wasi,
+//             ImportObject::WasmEdgeProcess(wasmedge_process) => wasmedge_process,
+//         }
+//     }
+// }
+// impl From<ImportObject> for sys::ImportObject {
+//     fn from(import_object: ImportObject) -> Self {
+//         match import_object {
+//             ImportObject::Import(inner) => sys::ImportObject::Import(inner),
+//             ImportObject::Wasi(inner) => sys::ImportObject::Wasi(inner),
+//             ImportObject::WasmEdgeProcess(inner) => sys::ImportObject::WasmEdgeProcess(inner),
+//         }
+//     }
+// }
 
 #[cfg(test)]
 mod tests {
@@ -259,8 +284,7 @@ mod tests {
     use crate::{
         config::{CommonConfigOptions, ConfigBuilder},
         error::WasmEdgeError,
-        sys,
-        types::{FuncRef, Val},
+        types::Val,
         Executor, FuncTypeBuilder, Statistics, Store, WasmValue,
     };
     use std::{
@@ -340,11 +364,6 @@ mod tests {
         // find "add" host function
         let result = instance.func("add");
         assert!(result.is_some());
-        let host_func = result.unwrap();
-        assert!(host_func.name().is_some());
-        assert_eq!(host_func.name().unwrap(), "add");
-        assert!(host_func.mod_name().is_some());
-        assert_eq!(host_func.mod_name().unwrap(), "wasmedge_process");
 
         // * try to add another WasmEdgeProcess module, that causes error
 
@@ -720,7 +739,7 @@ mod tests {
         // get the exported host function
         let result = instance.func("add");
         assert!(result.is_some());
-        let mut host_func = result.unwrap();
+        let host_func = result.unwrap();
 
         // get the exported table
         let result = instance.table("table");
@@ -750,7 +769,7 @@ mod tests {
         }
 
         // set value to table[0]
-        let func_ref = FuncRef::new(&mut host_func);
+        let func_ref = host_func.as_ref();
         let result = table.set(Val::FuncRef(Some(func_ref)), 0);
         assert!(result.is_ok());
         // get the value in table[0]
@@ -759,11 +778,8 @@ mod tests {
         if let Val::FuncRef(func_ref) = result.unwrap() {
             assert!(func_ref.is_some());
             let func_ref = func_ref.unwrap();
-            let result = func_ref.as_func();
-            assert!(result.is_some());
-            let host_func = result.unwrap();
             // check the signature of the host function
-            let result = host_func.ty();
+            let result = func_ref.ty();
             assert!(result.is_ok());
             let func_ty = result.unwrap();
             assert!(func_ty.args().is_some());
@@ -788,11 +804,8 @@ mod tests {
         if let Val::FuncRef(func_ref) = result.unwrap() {
             assert!(func_ref.is_some());
             let func_ref = func_ref.unwrap();
-            let result = func_ref.as_func();
-            assert!(result.is_some());
-            let host_func = result.unwrap();
             // check the signature of the host function
-            let result = host_func.ty();
+            let result = func_ref.ty();
             assert!(result.is_ok());
             let func_ty = result.unwrap();
             assert!(func_ty.args().is_some());
@@ -946,7 +959,8 @@ mod tests {
             .expect("failed to add table")
             .build("extern-module");
         assert!(result.is_ok());
-        let import = Arc::new(Mutex::new(result.unwrap()));
+        let import = result.unwrap();
+        let import = Arc::new(Mutex::new(import));
 
         let import_cloned = Arc::clone(&import);
         let handle = thread::spawn(move || {
@@ -973,7 +987,7 @@ mod tests {
             let mut store = result.unwrap();
 
             // register an import module into store
-            let result = store.register_import_module(&mut executor, import);
+            let result = store.register_import_module(&mut executor, &import);
             assert!(result.is_ok());
 
             // get active module instance

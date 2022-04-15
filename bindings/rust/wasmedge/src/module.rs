@@ -182,7 +182,7 @@ impl<'module> ExportType<'module> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{error::WasmEdgeError, sys};
+    use crate::error::WasmEdgeError;
 
     #[test]
     fn test_module_from_file() {

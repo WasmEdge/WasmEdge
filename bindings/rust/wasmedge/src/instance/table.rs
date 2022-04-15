@@ -103,7 +103,7 @@ mod tests {
     use super::*;
     use crate::{
         config::{CommonConfigOptions, ConfigBuilder},
-        types::{FuncRef, Val},
+        types::Val,
         Executor, FuncTypeBuilder, ImportModuleBuilder, Statistics, Store, WasmValue,
     };
     use wasmedge_types::{RefType, ValType};
@@ -170,7 +170,7 @@ mod tests {
         // get the exported host function
         let result = instance.func("add");
         assert!(result.is_some());
-        let mut host_func = result.unwrap();
+        let host_func = result.unwrap();
 
         // get the exported table by name
         let result = instance.table("table");
@@ -202,7 +202,7 @@ mod tests {
         }
 
         // set value to table[0]
-        let func_ref = FuncRef::new(&mut host_func);
+        let func_ref = host_func.as_ref();
         let result = table.set(Val::FuncRef(Some(func_ref)), 0);
         assert!(result.is_ok());
         // get the value in table[0]
@@ -211,11 +211,8 @@ mod tests {
         if let Val::FuncRef(func_ref) = result.unwrap() {
             assert!(func_ref.is_some());
             let func_ref = func_ref.unwrap();
-            let result = func_ref.as_func();
-            assert!(result.is_some());
-            let host_func = result.unwrap();
             // check the signature of the host function
-            let result = host_func.ty();
+            let result = func_ref.ty();
             assert!(result.is_ok());
             let func_ty = result.unwrap();
             assert!(func_ty.args().is_some());
@@ -240,11 +237,7 @@ mod tests {
         if let Val::FuncRef(func_ref) = result.unwrap() {
             assert!(func_ref.is_some());
             let func_ref = func_ref.unwrap();
-            let result = func_ref.as_func();
-            assert!(result.is_some());
-            let host_func = result.unwrap();
-            // check the signature of the host function
-            let result = host_func.ty();
+            let result = func_ref.ty();
             assert!(result.is_ok());
             let func_ty = result.unwrap();
             assert!(func_ty.args().is_some());

@@ -189,7 +189,7 @@ mod tests {
         assert!(result.is_ok());
         let import = result.unwrap();
 
-        let result = store.register_import_module(&mut executor, import);
+        let result = store.register_import_module(&mut executor, &import);
         assert!(result.is_ok());
 
         // add a wasm module from a file
@@ -228,11 +228,6 @@ mod tests {
             let result = instance.func("add");
             assert!(result.is_some());
             let host_func = result.unwrap();
-
-            let func_name = host_func.name();
-            assert!(func_name.is_some());
-            assert_eq!(func_name.unwrap(), "add");
-            assert_eq!(host_func.mod_name().unwrap(), "extern-module");
             assert_eq!(
                 host_func.ty().unwrap(),
                 FuncTypeBuilder::new()
@@ -291,11 +286,6 @@ mod tests {
             let result = instance.func("fib");
             assert!(result.is_some());
             let host_func = result.unwrap();
-
-            let func_name = host_func.name();
-            assert!(func_name.is_some());
-            assert_eq!(func_name.unwrap(), "fib");
-            assert_eq!(host_func.mod_name().unwrap(), "fib-module");
             assert_eq!(
                 host_func.ty().unwrap(),
                 FuncTypeBuilder::new()

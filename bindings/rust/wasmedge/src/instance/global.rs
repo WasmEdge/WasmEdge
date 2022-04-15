@@ -65,7 +65,7 @@ mod tests {
     use crate::{
         config::{CommonConfigOptions, ConfigBuilder},
         error::WasmEdgeError,
-        Executor, ImportModuleBuilder, Statistics, Store,
+        Executor, ImportObjectBuilder, Statistics, Store,
     };
     use wasmedge_types::{Mutability, ValType};
 
@@ -83,7 +83,7 @@ mod tests {
     #[test]
     fn test_global_basic() {
         // create an ImportModule
-        let result = ImportModuleBuilder::new()
+        let result = ImportObjectBuilder::new()
             .with_global(
                 "const-global",
                 GlobalType::new(ValType::I32, Mutability::Const),

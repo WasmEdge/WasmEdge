@@ -136,7 +136,7 @@ mod tests {
     use crate::{
         config::{CommonConfigOptions, ConfigBuilder},
         types::Val,
-        Executor, FuncTypeBuilder, ImportModuleBuilder, Module, Statistics, Store, WasmValue,
+        Executor, FuncTypeBuilder, ImportObjectBuilder, Module, Statistics, Store, WasmValue,
     };
     use wasmedge_types::{GlobalType, MemoryType, Mutability, RefType, TableType, ValType};
 
@@ -165,7 +165,7 @@ mod tests {
         assert!(store.instance_names().is_none());
 
         // create an ImportModule instance
-        let result = ImportModuleBuilder::new()
+        let result = ImportObjectBuilder::new()
             .with_func(
                 "add",
                 FuncTypeBuilder::new()

@@ -130,7 +130,7 @@ mod tests {
     use crate::{
         config::{CommonConfigOptions, ConfigBuilder},
         types::Val,
-        Executor, FuncTypeBuilder, ImportModuleBuilder, Module, Statistics, WasmValue,
+        Executor, FuncTypeBuilder, ImportObjectBuilder, Module, Statistics, WasmValue,
     };
     use wasmedge_types::{GlobalType, MemoryType, Mutability, RefType, TableType, ValType};
 
@@ -157,7 +157,7 @@ mod tests {
     #[test]
     fn test_store_register_import_module() {
         // create an ImportModule instance
-        let result = ImportModuleBuilder::new()
+        let result = ImportObjectBuilder::new()
             .with_func(
                 "add",
                 FuncTypeBuilder::new()
@@ -326,7 +326,7 @@ mod tests {
         let mut store = result.unwrap();
 
         // create an ImportModule instance
-        let result = ImportModuleBuilder::new()
+        let result = ImportObjectBuilder::new()
             .with_func(
                 "add",
                 FuncTypeBuilder::new()

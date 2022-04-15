@@ -1,4 +1,4 @@
-use wasmedge::{wat2wasm, Executor, FuncTypeBuilder, ImportModuleBuilder, Module, Store};
+use wasmedge::{wat2wasm, Executor, FuncTypeBuilder, ImportObjectBuilder, Module, Store};
 use wasmedge_sys::WasmValue;
 
 fn main() -> anyhow::Result<()> {
@@ -29,7 +29,7 @@ fn main() -> anyhow::Result<()> {
     }
 
     // create an import module
-    let import = ImportModuleBuilder::new()
+    let import = ImportObjectBuilder::new()
         .with_func(
             "say_hello",
             FuncTypeBuilder::default().build(),

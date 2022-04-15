@@ -104,7 +104,7 @@ mod tests {
     use crate::{
         config::{CommonConfigOptions, ConfigBuilder},
         types::Val,
-        Executor, FuncTypeBuilder, ImportModuleBuilder, Statistics, Store, WasmValue,
+        Executor, FuncTypeBuilder, ImportObjectBuilder, Statistics, Store, WasmValue,
     };
     use wasmedge_types::{RefType, ValType};
 
@@ -124,7 +124,7 @@ mod tests {
     #[test]
     fn test_table_basic() {
         // create an ImportModule
-        let result = ImportModuleBuilder::new()
+        let result = ImportObjectBuilder::new()
             .with_func(
                 "add",
                 FuncTypeBuilder::new()

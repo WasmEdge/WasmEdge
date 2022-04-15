@@ -48,10 +48,13 @@ fn main() -> anyhow::Result<()> {
 
     // register the module into the store
     store.register_import_module(&mut executor, &import)?;
-    store.register_named_module(&mut executor, "extern", &module)?;
+    let extern_instance = store.register_named_module(&mut executor, "extern", &module)?;
+
+    // get the exported function "run"
+    let run = extern_instance.func("run")?;
 
     // run host function
-    executor.run_func(&mut store, Some("extern"), "run", [])?;
+    executor.run_func(&run, [])?;
 
     Ok(())
 }

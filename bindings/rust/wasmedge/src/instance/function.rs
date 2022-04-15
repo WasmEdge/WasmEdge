@@ -220,9 +220,9 @@ mod tests {
     use super::*;
     use crate::{
         config::{CommonConfigOptions, ConfigBuilder},
-        sys::WasmValue,
         Executor, ImportModuleBuilder, Statistics, Store,
     };
+    use wasmedge_sys::WasmValue;
 
     #[test]
     fn test_func_signature() {
@@ -333,12 +333,8 @@ mod tests {
         assert!(func_ty.returns().is_some());
         assert_eq!(func_ty.returns().unwrap(), [ValType::I32]);
 
-        let result = executor.run_func(
-            &mut store,
-            Some("extern"),
-            "add",
-            [WasmValue::from_i32(2), WasmValue::from_i32(3)],
-        );
+        let result =
+            executor.run_func(&host_func, [WasmValue::from_i32(2), WasmValue::from_i32(3)]);
         assert!(result.is_ok());
         let returns = result.unwrap();
         assert_eq!(returns.len(), 1);

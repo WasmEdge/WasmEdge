@@ -64,7 +64,7 @@ mod tests {
     use super::*;
     use crate::{
         config::{CommonConfigOptions, ConfigBuilder},
-        Module, Statistics,
+        Module, Statistics, Store,
     };
 
     #[test]
@@ -144,9 +144,15 @@ mod tests {
         // register a module into store as active module
         let result = store.register_named_module(&mut executor, "extern", &module);
         assert!(result.is_ok());
+        let extern_instance = result.unwrap();
+
+        // get the exported function "fib"
+        let result = extern_instance.func("fib");
+        assert!(result.is_some());
+        let fib = result.unwrap();
 
         // run the exported host function
-        let result = executor.run_func(&mut store, Some("extern"), "fib", [WasmValue::from_i32(5)]);
+        let result = executor.run_func(&fib, [WasmValue::from_i32(5)]);
         assert!(result.is_ok());
         let returns = result.unwrap();
         assert_eq!(returns.len(), 1);

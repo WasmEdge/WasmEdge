@@ -973,7 +973,7 @@ mod tests {
             let mut store = result.unwrap();
 
             // register an import module into store
-            let result = store.register_import_module(&mut executor, &import);
+            let result = store.register_import_module(&mut executor, import);
             assert!(result.is_ok());
 
             // get active module instance
@@ -1040,12 +1040,8 @@ mod tests {
             assert_eq!(func_ty.returns().unwrap(), [ValType::I32]);
 
             // run host func
-            let result = executor.run_func(
-                &mut store,
-                Some("extern-module"),
-                "add",
-                [WasmValue::from_i32(2), WasmValue::from_i32(3)],
-            );
+            let result =
+                executor.run_func(&host_func, [WasmValue::from_i32(2), WasmValue::from_i32(3)]);
             assert!(result.is_ok());
             let returns = result.unwrap();
             assert_eq!(returns[0].to_i32(), 5);

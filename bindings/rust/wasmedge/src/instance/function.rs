@@ -102,7 +102,7 @@ pub struct Func {
 impl Func {
     /// Creates a new host function with the given [FuncType](wasmedge_types::FuncType).
     ///
-    /// Notice that if intend to add a host function as an import object, then use the `with_func` function of [ImportModuleBuilder](crate::ImportModuleBuilder) instead. This function is only used to create a host function which is not an import object, for example, generate a funcref and store it in a table.
+    /// Notice that if intend to add a host function as an import object, then use the `with_func` function of [ImportObjectBuilder](crate::ImportObjectBuilder) instead. This function is only used to create a host function which is not an import object, for example, generate a funcref and store it in a table.
     ///
     /// # Arguments
     ///
@@ -126,7 +126,7 @@ impl Func {
         Ok(func_ty.into())
     }
 
-    /// Returns a reference to this [Function] instance.
+    /// Returns a reference to this function instance.
     pub fn as_ref(&self) -> FuncRef {
         let inner = self.inner.as_ref();
         FuncRef { inner }

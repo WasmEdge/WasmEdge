@@ -2,9 +2,9 @@ use crate::{error::Result, types::Val, HostFunc};
 use wasmedge_sys::{self as sys, ImportInstance};
 use wasmedge_types::{FuncType, GlobalType, MemoryType, TableType};
 
-/// Struct of WasmEdge ImportModuleBuilder
+/// Struct of WasmEdge ImportObjectBuilder
 ///
-/// [ImportModuleBuilder] is used to create a normal, wasi, or wasmedge process [import module](crate::ImportModule).
+/// [ImportObjectBuilder] is used to create a normal, wasi, or wasmedge process [import object](crate::ImportObject).
 #[derive(Debug, Default)]
 pub struct ImportObjectBuilder {
     funcs: Vec<(String, sys::Function)>,
@@ -13,7 +13,7 @@ pub struct ImportObjectBuilder {
     tables: Vec<(String, sys::Table)>,
 }
 impl ImportObjectBuilder {
-    /// Creates a new [ImportModuleBuilder].
+    /// Creates a new [ImportObjectBuilder].
     pub fn new() -> Self {
         Self {
             funcs: Vec::new(),
@@ -23,7 +23,7 @@ impl ImportObjectBuilder {
         }
     }
 
-    /// Adds a [host function](crate::Func) to the [ImportModule] to create.
+    /// Adds a [host function](crate::Func) to the [ImportObject] to create.
     ///
     /// # Arguments
     ///
@@ -47,7 +47,7 @@ impl ImportObjectBuilder {
         Ok(self)
     }
 
-    /// Adds a [global](crate::Global) to the [ImportModule] to create.
+    /// Adds a [global](crate::Global) to the [ImportObject] to create.
     ///
     /// # Arguments
     ///
@@ -66,7 +66,7 @@ impl ImportObjectBuilder {
         Ok(self)
     }
 
-    /// Adds a [memory](crate::Memory) to the [ImportModule] to create.
+    /// Adds a [memory](crate::Memory) to the [ImportObject] to create.
     ///
     /// # Arguments
     ///
@@ -83,7 +83,7 @@ impl ImportObjectBuilder {
         Ok(self)
     }
 
-    /// Adds a [table](crate::Table) to the [ImportModule] to create.
+    /// Adds a [table](crate::Table) to the [ImportObject] to create.
     ///
     /// # Arguments
     ///
@@ -100,15 +100,15 @@ impl ImportObjectBuilder {
         Ok(self)
     }
 
-    /// Creates a new [ImportModule].
+    /// Creates a new [ImportObject].
     ///
     /// # Argument
     ///
-    /// * `name` - The name of the [ImportModule] to create.
+    /// * `name` - The name of the [ImportObject] to create.
     ///
     /// # Error
     ///
-    /// If fail to create the [ImportModule], then an error is returned.
+    /// If fail to create the [ImportObject], then an error is returned.
     pub fn build(self, name: impl AsRef<str>) -> Result<ImportObject> {
         let mut inner = sys::ImportModule::create(name.as_ref())?;
 
@@ -135,7 +135,7 @@ impl ImportObjectBuilder {
         Ok(ImportObject(sys::ImportObject::Import(inner)))
     }
 
-    /// Creates a new [wasi import module](crate::ImportModule).
+    /// Creates a new [wasi import object](crate::ImportObject).
     ///
     /// # Arguments
     ///
@@ -179,7 +179,7 @@ impl ImportObjectBuilder {
         Ok(ImportObject(sys::ImportObject::Wasi(inner)))
     }
 
-    /// Creates a new [wasmedge process import module](crate::ImportModule).
+    /// Creates a new [wasmedge process import object](crate::ImportObject).
     ///
     /// # Arguments
     ///

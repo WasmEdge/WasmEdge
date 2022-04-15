@@ -1,6 +1,9 @@
+//! Defines the error types.
+
 use thiserror::Error;
 use wasmedge_sys as sys;
 
+/// Defines the result type.
 pub type Result<T> = std::result::Result<T, WasmEdgeError>;
 
 #[derive(Error, Clone, Debug, PartialEq)]

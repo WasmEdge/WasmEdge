@@ -118,6 +118,55 @@ jobs:
         name: WasmEdge-${{ needs.get_version_v2.outputs.version }}-fedora35.tar.gz
         path: build/WasmEdge-${{ needs.get_version_v2.outputs.version }}-Linux.tar.gz
 
+  build_ubuntu_wasi_nn:
+    strategy:
+      matrix:
+        include:
+          - name: openvino g++ release
+            compiler: g++
+            docker_tag: ubuntu-build-gcc
+            build_type: Release
+            openvino: true
+            coverage: false
+          - name: openvino clang++ release
+            compiler: clang++
+            docker_tag: ubuntu-build-clang
+            build_type: Release
+            openvino: true
+            coverage: false
+    name: WASI-NN Ubuntu 20.04 with ${{ matrix.name }}
+    runs-on: ubuntu-latest
+    container:
+      image: wasmedge/wasmedge:${{ matrix.docker_tag }}
+
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
+
+    - if: ${{ matrix.openvino }}
+      name: Build WASI-NN OpenVINO backend using ${{ matrix.compiler }} with ${{ matrix.build_type }} mode
+      env:
+        CMAKE_BUILD_TYPE: ${{ matrix.build_type }}
+        OPENVINO_VERSION: "2021.4.582"
+        OPENVINO_YEAR: "2021"
+      run: |
+        curl -sSL https://apt.repos.intel.com/openvino/$OPENVINO_YEAR/GPG-PUB-KEY-INTEL-OPENVINO-$OPENVINO_YEAR > ./GPG-PUB-KEY-INTEL-OPENVINO-$OPENVINO_YEAR
+        apt-key add ./GPG-PUB-KEY-INTEL-OPENVINO-$OPENVINO_YEAR
+        echo "deb https://apt.repos.intel.com/openvino/$OPENVINO_YEAR all main" | tee /etc/apt/sources.list.d/intel-openvino-$OPENVINO_YEAR.list
+        apt update
+        apt install -y intel-openvino-runtime-ubuntu20-$OPENVINO_VERSION
+        source /opt/intel/openvino_2021/bin/setupvars.sh
+        cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=$CMAKE_BUILD_TYPE -DWASMEDGE_BUILD_TESTS=ON -DWASMEDGE_WASINN_BUILD_OPENVINO=ON .
+        cmake --build build
+    - name: Test WasmEdge
+      if: ${{ ! matrix.coverage }}
+      run: |
+        export LD_LIBRARY_PATH="$(pwd)/build/lib/api:$LD_LIBRARY_PATH"
+        cd build
+        ctest
+        cd -
+
   build_ubuntu:
     strategy:
       matrix:

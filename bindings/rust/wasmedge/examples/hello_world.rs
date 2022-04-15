@@ -56,7 +56,7 @@ fn main() -> anyhow::Result<()> {
     ))?;
 
     // run host function
-    executor.run_func(&run, [])?;
+    run.call(&mut executor, [])?;
 
     Ok(())
 }

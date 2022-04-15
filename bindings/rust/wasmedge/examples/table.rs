@@ -62,8 +62,8 @@ fn main() -> anyhow::Result<()> {
         ))?;
 
     // call the exported function named "call_callback"
-    let returns = executor.run_func(
-        &callback,
+    let returns = callback.call(
+        &mut executor,
         [
             WasmValue::from_i32(1),
             WasmValue::from_i32(2),

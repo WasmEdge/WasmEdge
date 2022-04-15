@@ -1,6 +1,6 @@
 //! Defines Func, SignatureBuilder, and Signature structs.
-use crate::{error::Result, HostFunc};
-use wasmedge_sys as sys;
+use crate::{error::Result, Engine, HostFunc};
+use wasmedge_sys::{self as sys, WasmValue};
 use wasmedge_types::{FuncType, ValType};
 
 /// Struct of WasmEdge Func.
@@ -126,9 +126,85 @@ impl Func {
         Ok(func_ty.into())
     }
 
+    /// Returns a reference to this [Function] instance.
     pub fn as_ref(&self) -> FuncRef {
         let inner = self.inner.as_ref();
         FuncRef { inner }
+    }
+
+    /// Runs this host function and returns the result.
+    ///
+    /// # Arguments
+    ///
+    /// * `engine` - The object implements Engine trait.
+    ///
+    /// * `args` - The arguments passed to the host function.
+    ///
+    /// # Error
+    ///
+    /// If fail to run the host function, then an error is returned.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use wasmedge_sys::{FuncType, Function, WasmValue, Executor};
+    /// use wasmedge_types::ValType;
+    ///
+    /// fn real_add(input: Vec<WasmValue>) -> Result<Vec<WasmValue>, u8> {
+    ///     println!("Rust: Entering Rust function real_add");
+    ///
+    ///     if input.len() != 2 {
+    ///         return Err(1);
+    ///     }
+    ///
+    ///     let a = if input[0].ty() == ValType::I32 {
+    ///         input[0].to_i32()
+    ///     } else {
+    ///         return Err(2);
+    ///     };
+    ///
+    ///     let b = if input[1].ty() == ValType::I32 {
+    ///         input[1].to_i32()
+    ///     } else {
+    ///         return Err(3);
+    ///     };
+    ///
+    ///     let c = a + b;
+    ///     println!("Rust: calcuating in real_add c: {:?}", c);
+    ///
+    ///     println!("Rust: Leaving Rust function real_add");
+    ///     Ok(vec![WasmValue::from_i32(c)])
+    /// }
+    ///
+    /// // create a FuncType
+    /// let result = FuncType::create(vec![ValType::I32; 2], vec![ValType::I32]);
+    /// assert!(result.is_ok());
+    /// let func_ty = result.unwrap();
+    /// // create a host function
+    /// let result = Function::create(&func_ty, Box::new(real_add), 0);
+    /// assert!(result.is_ok());
+    /// let host_func = result.unwrap();
+    ///
+    /// // create an Executor instance
+    /// let result = Executor::create(None, None);
+    /// assert!(result.is_ok());
+    /// let mut executor = result.unwrap();
+    ///
+    /// // run this function
+    /// let result = host_func.call(
+    ///     &mut executor,
+    ///     vec![WasmValue::from_i32(1), WasmValue::from_i32(2)],
+    /// );
+    /// assert!(result.is_ok());
+    /// let returns = result.unwrap();
+    /// assert_eq!(returns[0].to_i32(), 3);
+    /// ```
+    pub fn call<E: Engine>(
+        &self,
+        engine: &mut E,
+        args: impl IntoIterator<Item = WasmValue>,
+    ) -> Result<Vec<WasmValue>> {
+        engine.run(self, args)
     }
 }
 
@@ -277,7 +353,7 @@ mod tests {
     }
 
     #[test]
-    fn test_func() {
+    fn test_func_basic() {
         // create an ImportModule
         let result = ImportModuleBuilder::new()
             .with_func(
@@ -333,8 +409,11 @@ mod tests {
         assert!(func_ty.returns().is_some());
         assert_eq!(func_ty.returns().unwrap(), [ValType::I32]);
 
-        let result =
-            executor.run_func(&host_func, [WasmValue::from_i32(2), WasmValue::from_i32(3)]);
+        // run the host function
+        let result = host_func.call(
+            &mut executor,
+            [WasmValue::from_i32(2), WasmValue::from_i32(3)],
+        );
         assert!(result.is_ok());
         let returns = result.unwrap();
         assert_eq!(returns.len(), 1);

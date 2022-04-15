@@ -97,7 +97,7 @@ mod tests {
     use super::*;
     use crate::{
         config::{CommonConfigOptions, ConfigBuilder},
-        Executor, ImportModuleBuilder, Statistics, Store,
+        Executor, ImportObjectBuilder, Statistics, Store,
     };
 
     #[test]
@@ -114,7 +114,7 @@ mod tests {
     #[test]
     fn test_memory() {
         // create an ImportModule
-        let result = ImportModuleBuilder::new()
+        let result = ImportObjectBuilder::new()
             .with_memory("memory", MemoryType::new(10, Some(20)))
             .expect("failed to add memory")
             .build("extern");

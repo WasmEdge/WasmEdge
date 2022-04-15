@@ -6,13 +6,13 @@ use wasmedge_types::{FuncType, GlobalType, MemoryType, TableType};
 ///
 /// [ImportModuleBuilder] is used to create a normal, wasi, or wasmedge process [import module](crate::ImportModule).
 #[derive(Debug, Default)]
-pub struct ImportModuleBuilder {
+pub struct ImportObjectBuilder {
     funcs: Vec<(String, sys::Function)>,
     globals: Vec<(String, sys::Global)>,
     memories: Vec<(String, sys::Memory)>,
     tables: Vec<(String, sys::Table)>,
 }
-impl ImportModuleBuilder {
+impl ImportObjectBuilder {
     /// Creates a new [ImportModuleBuilder].
     pub fn new() -> Self {
         Self {
@@ -221,6 +221,7 @@ impl ImportModuleBuilder {
     }
 }
 
+/// Struct of WasmEdge ImportObject.
 #[derive(Debug)]
 pub struct ImportObject(pub(crate) sys::ImportObject);
 impl ImportObject {
@@ -237,46 +238,6 @@ impl ImportObject {
         &self.0
     }
 }
-
-// /// Enum of WasmEdge ImportObject.
-// ///
-// /// [ImportObject] defines three types of module instances that can be imported into a WasmEdge [Store](crate::Store) instance.
-// #[derive(Debug)]
-// pub enum ImportObject {
-//     /// Defines the import module instance is of ImportModule type.
-//     Import(sys::ImportModule),
-//     /// Defines the import module instance is of WasiModule type.
-//     Wasi(sys::WasiModule),
-//     /// Defines the import module instance is of WasmEdgeProcessModule type.
-//     WasmEdgeProcess(sys::WasmEdgeProcessModule),
-// }
-// impl ImportObject {
-//     /// Returns the name of the import object.
-//     pub fn name(&self) -> String {
-//         match self {
-//             ImportObject::Import(import) => import.name(),
-//             ImportObject::Wasi(wasi) => wasi.name(),
-//             ImportObject::WasmEdgeProcess(wasmedge_process) => wasmedge_process.name(),
-//         }
-//     }
-
-//     pub(crate) fn inner_ref(&self) -> &sys::ImportObject {
-//         match self {
-//             ImportObject::Import(import) => import,
-//             ImportObject::Wasi(wasi) => wasi,
-//             ImportObject::WasmEdgeProcess(wasmedge_process) => wasmedge_process,
-//         }
-//     }
-// }
-// impl From<ImportObject> for sys::ImportObject {
-//     fn from(import_object: ImportObject) -> Self {
-//         match import_object {
-//             ImportObject::Import(inner) => sys::ImportObject::Import(inner),
-//             ImportObject::Wasi(inner) => sys::ImportObject::Wasi(inner),
-//             ImportObject::WasmEdgeProcess(inner) => sys::ImportObject::WasmEdgeProcess(inner),
-//         }
-//     }
-// }
 
 #[cfg(test)]
 mod tests {
@@ -296,19 +257,19 @@ mod tests {
     #[test]
     fn test_import_new() {
         {
-            let result = ImportModuleBuilder::default().build("extern");
+            let result = ImportObjectBuilder::default().build("extern");
             assert!(result.is_ok());
             let import = result.unwrap();
             assert_eq!(import.name(), "extern");
         }
         {
-            let result = ImportModuleBuilder::default().build_as_wasi(None, None, None);
+            let result = ImportObjectBuilder::default().build_as_wasi(None, None, None);
             assert!(result.is_ok());
             let import = result.unwrap();
             assert_eq!(import.name(), "wasi_snapshot_preview1");
         }
         {
-            let result = ImportModuleBuilder::default().build_as_wasmedge_process(None, false);
+            let result = ImportObjectBuilder::default().build_as_wasmedge_process(None, false);
             assert!(result.is_ok());
             let import = result.unwrap();
             assert_eq!(import.name(), "wasmedge_process");
@@ -317,7 +278,7 @@ mod tests {
 
     #[test]
     fn test_import_new_wasmedgeprocess() {
-        let result = ImportModuleBuilder::new()
+        let result = ImportObjectBuilder::new()
             .with_func(
                 "add",
                 FuncTypeBuilder::new()
@@ -368,7 +329,7 @@ mod tests {
         // * try to add another WasmEdgeProcess module, that causes error
 
         // create a WasmEdgeProcess module
-        let result = ImportModuleBuilder::default().build_as_wasmedge_process(None, false);
+        let result = ImportObjectBuilder::default().build_as_wasmedge_process(None, false);
         assert!(result.is_ok());
         let import_process = result.unwrap();
 
@@ -387,7 +348,7 @@ mod tests {
     #[test]
     fn test_import_new_wasi() {
         // create a wasi module
-        let result = ImportModuleBuilder::new()
+        let result = ImportObjectBuilder::new()
             .with_func(
                 "add",
                 FuncTypeBuilder::new()
@@ -431,7 +392,7 @@ mod tests {
         // * try to add another Wasi module, that causes error
 
         // create a Wasi module
-        let result = ImportModuleBuilder::default().build_as_wasi(None, None, None);
+        let result = ImportObjectBuilder::default().build_as_wasi(None, None, None);
         assert!(result.is_ok());
         let wasi_import = result.unwrap();
 
@@ -450,7 +411,7 @@ mod tests {
     #[test]
     fn test_import_add_func() {
         // create an ImportModule
-        let result = ImportModuleBuilder::new()
+        let result = ImportObjectBuilder::new()
             .with_func(
                 "add",
                 FuncTypeBuilder::new()
@@ -508,7 +469,7 @@ mod tests {
     #[test]
     fn test_import_add_memory() {
         // create an ImportModule
-        let result = ImportModuleBuilder::new()
+        let result = ImportObjectBuilder::new()
             .with_memory("memory", MemoryType::new(10, Some(20)))
             .expect("failed to add memory")
             .build("extern");
@@ -574,7 +535,7 @@ mod tests {
     #[test]
     fn test_import_add_global() {
         // create an ImportModule
-        let result = ImportModuleBuilder::new()
+        let result = ImportObjectBuilder::new()
             .with_global(
                 "const-global",
                 GlobalType::new(ValType::I32, Mutability::Const),
@@ -695,7 +656,7 @@ mod tests {
     #[test]
     fn test_import_add_table() {
         // create an ImportModule
-        let result = ImportModuleBuilder::new()
+        let result = ImportObjectBuilder::new()
             .with_func(
                 "add",
                 FuncTypeBuilder::new()
@@ -820,7 +781,7 @@ mod tests {
     #[test]
     fn test_import_send() {
         // create an ImportModule instance
-        let result = ImportModuleBuilder::new()
+        let result = ImportObjectBuilder::new()
             .with_func(
                 "add",
                 FuncTypeBuilder::new()
@@ -937,7 +898,7 @@ mod tests {
     #[test]
     fn test_import_sync() {
         // create an ImportModule instance
-        let result = ImportModuleBuilder::new()
+        let result = ImportObjectBuilder::new()
             .with_func(
                 "add",
                 FuncTypeBuilder::new()

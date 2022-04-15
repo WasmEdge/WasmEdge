@@ -35,7 +35,7 @@ pub use compiler::Compiler;
 pub use executor::Executor;
 #[doc(inline)]
 pub use instance::{
-    Func, FuncRef, FuncTypeBuilder, Global, ImportModuleBuilder, ImportObject, Instance, Memory,
+    Func, FuncRef, FuncTypeBuilder, Global, ImportObject, ImportObjectBuilder, Instance, Memory,
     Table,
 };
 #[doc(inline)]

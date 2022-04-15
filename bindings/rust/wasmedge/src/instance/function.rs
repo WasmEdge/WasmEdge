@@ -12,7 +12,7 @@ use wasmedge_types::{FuncType, ValType};
 /// The following example shows how to create a host function, access it by its name and its type info.
 ///
 /// ```rust
-/// use wasmedge::{ImportModuleBuilder, config::{ConfigBuilder, CommonConfigOptions}, Statistics, Executor, Store, WasmValue, FuncTypeBuilder};
+/// use wasmedge::{ImportObjectBuilder, config::{ConfigBuilder, CommonConfigOptions}, Statistics, Executor, Store, WasmValue, FuncTypeBuilder};
 /// use wasmedge_types::ValType;
 ///
 /// // a function to be exported as host function
@@ -39,7 +39,7 @@ use wasmedge_types::{FuncType, ValType};
 /// }
 ///
 /// // create an ImportModule which has a host function with an exported name "add"
-/// let result = ImportModuleBuilder::new()
+/// let result = ImportObjectBuilder::new()
 /// .with_func(
 ///     "add",
 ///     FuncTypeBuilder::new()
@@ -296,7 +296,7 @@ mod tests {
     use super::*;
     use crate::{
         config::{CommonConfigOptions, ConfigBuilder},
-        Executor, ImportModuleBuilder, Statistics, Store,
+        Executor, ImportObjectBuilder, Statistics, Store,
     };
     use wasmedge_sys::WasmValue;
 
@@ -355,7 +355,7 @@ mod tests {
     #[test]
     fn test_func_basic() {
         // create an ImportModule
-        let result = ImportModuleBuilder::new()
+        let result = ImportObjectBuilder::new()
             .with_func(
                 "add",
                 FuncTypeBuilder::new()

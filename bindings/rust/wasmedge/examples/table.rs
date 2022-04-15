@@ -1,6 +1,7 @@
-use wasmedge::{types::Val, wat2wasm, Executor, Func, FuncTypeBuilder, Module, Store, WasmValue};
-use wasmedge_types::{RefType, TableType, ValType};
+use wasmedge::{types::Val, Executor, Func, FuncTypeBuilder, Module, Store, WasmValue};
+use wasmedge_types::{wat2wasm, RefType, TableType, ValType};
 
+#[cfg_attr(test, test)]
 fn main() -> anyhow::Result<()> {
     let wasm_bytes = wat2wasm(
         r#"
@@ -55,14 +56,15 @@ fn main() -> anyhow::Result<()> {
     let extern_instance = store.register_named_module(&mut executor, "extern", &module)?;
 
     // get the exported function "call_callback"
-    let callback = extern_instance
+    let call_via_table = extern_instance
         .func("call_callback")
         .ok_or(anyhow::Error::msg(
             "Not found exported function named `call_callback`.",
         ))?;
 
     // call the exported function named "call_callback"
-    let returns = callback.call(
+    // the first argument is the table index, while the other two arguments are passed to the function found in the table.
+    let returns = call_via_table.call(
         &mut executor,
         [
             WasmValue::from_i32(1),
@@ -78,13 +80,18 @@ fn main() -> anyhow::Result<()> {
     ))?;
 
     // get the exported table instance named "__indirect_function_table"
-    let mut table = instance
+    let mut guest_table = instance
         .table("__indirect_function_table")
         .ok_or(anyhow::anyhow!(
             "failed to get table instance named '__indirect_function_table'"
         ))?;
-    assert_eq!(table.size(), 3);
-    assert_eq!(table.ty()?, TableType::new(RefType::FuncRef, 3, Some(6)));
+    assert_eq!(guest_table.size(), 3);
+    assert_eq!(
+        guest_table.ty()?,
+        TableType::new(RefType::FuncRef, 3, Some(6))
+    );
+
+    // * setting elements in a table
 
     /// A function we'll call through a table.
     fn host_callback(inputs: Vec<WasmValue>) -> std::result::Result<Vec<WasmValue>, u8> {
@@ -118,19 +125,103 @@ fn main() -> anyhow::Result<()> {
         Box::new(host_callback),
     )?;
 
-    // set elements in the table instance
-    let previous_size = table.grow(3, Some(Val::FuncRef(Some(func.as_ref()))))?;
+    // set the function at index 1 in the table
+    guest_table.set(1, Val::FuncRef(Some(func.as_ref())))?;
+
+    // We then repeat the call from before but this time it will find the host function
+    // that we put at table index 1.
+    let returns = call_via_table.call(
+        &mut executor,
+        [
+            WasmValue::from_i32(1),
+            WasmValue::from_i32(2),
+            WasmValue::from_i32(7),
+        ],
+    )?;
+    assert_eq!(returns[0].to_i32(), 9);
+
+    // * growing a table
+
+    // We again construct a `Function` over our host_callback.
+    let func = Func::new(
+        FuncTypeBuilder::new()
+            .with_args([ValType::I32; 2])
+            .with_return(ValType::I32)
+            .build(),
+        Box::new(host_callback),
+    )?;
+
+    // And grow the table by 3 elements, filling in our host_callback in all the
+    // new elements of the table.
+    let previous_size = guest_table.grow(3, Some(Val::FuncRef(Some(func.as_ref()))))?;
     assert_eq!(previous_size, 3);
-    assert_eq!(table.size(), 6);
+    assert_eq!(guest_table.size(), 6);
 
+    // Now demonstrate that the function we grew the table with is actually in the table.
     for idx in 3..6 {
-        if let Val::FuncRef(Some(_func_ref)) = table.get(idx)? {
-            todo!()
-
-            // TODO now no way to call func. New WasmEdge C-API will provide a solution to the issue.
+        if let Val::FuncRef(Some(func_ref)) = guest_table.get(idx)? {
+            let returns = func_ref.call(
+                &mut executor,
+                [WasmValue::from_i32(1), WasmValue::from_i32(9)],
+            )?;
+            assert_eq!(returns[0].to_i32(), 10);
         } else {
             panic!("expected to find funcref in table!");
         }
+    }
+
+    // Call function at index 0 to show that it's still the same.
+    let returns = call_via_table.call(
+        &mut executor,
+        [
+            WasmValue::from_i32(0),
+            WasmValue::from_i32(2),
+            WasmValue::from_i32(7),
+        ],
+    )?;
+    assert_eq!(returns[0].to_i32(), 18);
+
+    // Now overwrite index 0 with our host_callback.
+    let func = Func::new(
+        FuncTypeBuilder::new()
+            .with_args([ValType::I32; 2])
+            .with_return(ValType::I32)
+            .build(),
+        Box::new(host_callback),
+    )?;
+    guest_table.set(0, Val::FuncRef(Some(func.as_ref())))?;
+    // And verify that it does what we expect.
+    let returns = call_via_table.call(
+        &mut executor,
+        [
+            WasmValue::from_i32(0),
+            WasmValue::from_i32(2),
+            WasmValue::from_i32(7),
+        ],
+    )?;
+    assert_eq!(returns[0].to_i32(), 9);
+
+    // Now demonstrate that the host and guest see the same table and that both
+    // get the same result.
+    for idx in 3..6 {
+        if let Val::FuncRef(Some(func_ref)) = guest_table.get(idx)? {
+            let returns = func_ref.call(
+                &mut executor,
+                [WasmValue::from_i32(1), WasmValue::from_i32(9)],
+            )?;
+            assert_eq!(returns[0].to_i32(), 10);
+        } else {
+            panic!("expected to find funcref in table!");
+        }
+        let returns = call_via_table.call(
+            &mut executor,
+            [
+                WasmValue::from_i32(idx as i32),
+                WasmValue::from_i32(1),
+                WasmValue::from_i32(9),
+            ],
+        )?;
+        assert_eq!(returns[0].to_i32(), 10);
     }
 
     Ok(())

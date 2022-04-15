@@ -1,5 +1,7 @@
-use wasmedge::{wat2wasm, Executor, Module, Store, WasmValue};
+use wasmedge::{Executor, Module, Store, WasmValue};
+use wasmedge_types::wat2wasm;
 
+#[cfg_attr(test, test)]
 fn main() -> anyhow::Result<()> {
     let wasm_bytes = wat2wasm(
         r#"

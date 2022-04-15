@@ -46,6 +46,8 @@ pub use statistics::Statistics;
 pub use store::Store;
 // #[doc(hidden)]
 // pub use vm::Vm;
+#[doc(inline)]
+pub use error::Result;
 #[doc(hidden)]
 pub use wasmedge_sys::types::*;
 
@@ -61,3 +63,23 @@ pub type HostFunc = wasmedge_sys::HostFunc;
 
 /// Parses in-memory bytes as either the [WebAssembly Text format](http://webassembly.github.io/spec/core/text/index.html), or a binary WebAssembly module.
 pub use wasmedge_types::wat2wasm;
+
+/// The object that is used to perform a [host function](crate::Function) is required to implement this trait.
+pub trait Engine {
+    /// Runs a host function instance and returns the results.
+    ///
+    /// # Arguments
+    ///
+    /// * `func` - The function instance to run.
+    ///
+    /// * `params` - The arguments to pass to the function.
+    ///
+    /// # Erros
+    ///
+    /// If fail to run the host function, then an error is returned.
+    fn run(
+        &mut self,
+        func: &Func,
+        params: impl IntoIterator<Item = WasmValue>,
+    ) -> Result<Vec<WasmValue>>;
+}

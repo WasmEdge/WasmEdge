@@ -1054,8 +1054,10 @@ mod tests {
             assert_eq!(func_ty.returns().unwrap(), [ValType::I32]);
 
             // run host func
-            let result =
-                executor.run_func(&host_func, [WasmValue::from_i32(2), WasmValue::from_i32(3)]);
+            let result = host_func.call(
+                &mut executor,
+                [WasmValue::from_i32(2), WasmValue::from_i32(3)],
+            );
             assert!(result.is_ok());
             let returns = result.unwrap();
             assert_eq!(returns[0].to_i32(), 5);

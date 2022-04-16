@@ -1,6 +1,6 @@
 //! Defines Executor struct.
 
-use crate::{config::Config, error::Result, Engine, Func, FuncRef, Statistics, WasmValue};
+use crate::{config::Config, Engine, Func, FuncRef, Statistics, WasmEdgeResult, WasmValue};
 use wasmedge_sys::{self as sys, Engine as SysEngine};
 
 /// Struct of WasmEdge Executor.
@@ -22,7 +22,7 @@ impl Executor {
     /// # Error
     ///
     /// If fail to create a [executor](crate::Executor), then an error is returned.
-    pub fn new(config: Option<&Config>, stat: Option<&mut Statistics>) -> Result<Self> {
+    pub fn new(config: Option<&Config>, stat: Option<&mut Statistics>) -> WasmEdgeResult<Self> {
         let inner_config = match config {
             Some(config) => Some(Config::copy_from(config)?.inner),
             None => None,
@@ -43,7 +43,7 @@ impl Engine for Executor {
         &mut self,
         func: &Func,
         params: impl IntoIterator<Item = WasmValue>,
-    ) -> Result<Vec<WasmValue>> {
+    ) -> WasmEdgeResult<Vec<WasmValue>> {
         let returns = self.inner.run_func(&func.inner, params)?;
         Ok(returns)
     }
@@ -52,7 +52,7 @@ impl Engine for Executor {
         &mut self,
         func_ref: &FuncRef,
         params: impl IntoIterator<Item = WasmValue>,
-    ) -> Result<Vec<WasmValue>> {
+    ) -> WasmEdgeResult<Vec<WasmValue>> {
         let returns = self.inner.run_func_ref(&func_ref.inner, params)?;
         Ok(returns)
     }

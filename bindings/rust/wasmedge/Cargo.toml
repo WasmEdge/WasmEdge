@@ -12,8 +12,8 @@ exclude = ["examples/"]
 
 [dependencies]
 wasmedge-sys = { path = "../wasmedge-sys", version="0.7" }
+wasmedge-types = {path = "../wasmedge-types", version="0.1.2"}
 thiserror = "1.0.30"
-wasmedge-types = "0.1.1"
 wat = "1.0"
 anyhow = "1.0"
 

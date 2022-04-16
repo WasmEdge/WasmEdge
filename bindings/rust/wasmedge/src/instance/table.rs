@@ -1,4 +1,4 @@
-use crate::{error::Result, types::Val};
+use crate::{types::Val, WasmEdgeResult};
 use wasmedge_sys as sys;
 use wasmedge_types::TableType;
 
@@ -34,7 +34,7 @@ impl<'instance> Table<'instance> {
     /// # Error
     ///
     /// If fail to get the type of this table, then an error is returned.
-    pub fn ty(&self) -> Result<TableType> {
+    pub fn ty(&self) -> WasmEdgeResult<TableType> {
         let ty = self.inner.ty()?;
         Ok(ty.into())
     }
@@ -53,7 +53,7 @@ impl<'instance> Table<'instance> {
     /// # Error
     ///
     /// If fail to grow the table, then an error is returned.
-    pub fn grow(&mut self, delta: u32, init: Option<Val>) -> Result<u32> {
+    pub fn grow(&mut self, delta: u32, init: Option<Val>) -> WasmEdgeResult<u32> {
         // get the current size
         let original_size = self.size();
         // grow the table by delta
@@ -76,7 +76,7 @@ impl<'instance> Table<'instance> {
     /// # Error
     ///
     /// If fail to get the table element, then an error is returned.
-    pub fn get(&self, index: u32) -> Result<Val> {
+    pub fn get(&self, index: u32) -> WasmEdgeResult<Val> {
         let value = self.inner.get_data(index)?;
         Ok(value.into())
     }
@@ -93,7 +93,7 @@ impl<'instance> Table<'instance> {
     /// # Error
     ///
     /// If fail to store the data, then an error is returned.
-    pub fn set(&mut self, index: u32, data: Val) -> Result<()> {
+    pub fn set(&mut self, index: u32, data: Val) -> WasmEdgeResult<()> {
         self.inner.set_data(data.into(), index)?;
         Ok(())
     }
@@ -198,8 +198,6 @@ mod tests {
         assert!(result.is_ok());
         if let Val::FuncRef(func_ref) = result.unwrap() {
             assert!(func_ref.is_none());
-        } else {
-            assert!(false);
         }
 
         // set value to table[0]
@@ -220,8 +218,6 @@ mod tests {
             assert_eq!(func_ty.args().unwrap(), [ValType::I32; 2]);
             assert!(func_ty.returns().is_some());
             assert_eq!(func_ty.returns().unwrap(), [ValType::I32]);
-        } else {
-            assert!(false);
         }
 
         let result = store.module_instance("extern");
@@ -245,8 +241,6 @@ mod tests {
             assert_eq!(func_ty.args().unwrap(), [ValType::I32; 2]);
             assert!(func_ty.returns().is_some());
             assert_eq!(func_ty.returns().unwrap(), [ValType::I32]);
-        } else {
-            assert!(false);
         }
     }
 

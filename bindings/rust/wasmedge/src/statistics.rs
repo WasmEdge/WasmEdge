@@ -1,6 +1,6 @@
 //! Defines WasmEdge Statistics struct.
 
-use crate::error::Result;
+use crate::WasmEdgeResult;
 use wasmedge_sys as sys;
 
 /// Struct of WasmEdge Statistics.
@@ -14,7 +14,7 @@ impl Statistics {
     /// # Error
     ///
     /// If fail to create a [Statistics], then an error is returned.
-    pub fn new() -> Result<Self> {
+    pub fn new() -> WasmEdgeResult<Self> {
         let inner = sys::Statistics::create()?;
         Ok(Self { inner })
     }

@@ -1,6 +1,6 @@
 //! Defines the structs used to construct configurations.
 
-use crate::error::Result;
+use crate::WasmEdgeResult;
 use wasmedge_sys as sys;
 use wasmedge_types::{CompilerOptimizationLevel, CompilerOutputFormat};
 
@@ -81,7 +81,7 @@ impl ConfigBuilder {
     /// # Errors
     ///
     /// If fail to create a [Config], then an error is returned.
-    pub fn build(self) -> Result<Config> {
+    pub fn build(self) -> WasmEdgeResult<Config> {
         let mut inner = sys::Config::create()?;
         inner.mutable_globals(self.common_config.mutable_globals);
         inner.non_trap_conversions(self.common_config.non_trap_conversions);
@@ -174,7 +174,7 @@ impl Config {
     /// # Error
     ///
     /// If fail to create, then an error is returned.
-    pub fn copy_from(src: &Config) -> Result<Self> {
+    pub fn copy_from(src: &Config) -> WasmEdgeResult<Self> {
         let inner = sys::Config::copy_from(&src.inner)?;
         Ok(Self { inner })
     }

@@ -1,6 +1,6 @@
 //! Defines Module, ImportType, and ExportType.
 
-use crate::{config::Config, error::Result};
+use crate::{config::Config, WasmEdgeResult};
 use std::marker::PhantomData;
 use std::{borrow::Cow, path::Path};
 use wasmedge_sys as sys;
@@ -25,7 +25,7 @@ impl Module {
     /// # Error
     ///
     /// If fail to load and valiate a module from a file, returns an error.
-    pub fn from_file(config: Option<&Config>, file: impl AsRef<Path>) -> Result<Self> {
+    pub fn from_file(config: Option<&Config>, file: impl AsRef<Path>) -> WasmEdgeResult<Self> {
         let inner_config = match config {
             Some(config) => Some(Config::copy_from(config)?.inner),
             None => None,
@@ -56,7 +56,7 @@ impl Module {
     /// # Error
     ///
     /// If fail to load and valiate the WebAssembly module from the given in-memory bytes, returns an error.
-    pub fn from_bytes(config: Option<&Config>, bytes: impl AsRef<[u8]>) -> Result<Self> {
+    pub fn from_bytes(config: Option<&Config>, bytes: impl AsRef<[u8]>) -> WasmEdgeResult<Self> {
         let inner_config = match config {
             Some(config) => Some(Config::copy_from(config)?.inner),
             None => None,
@@ -152,7 +152,7 @@ impl<'module> ImportType<'module> {
     }
 
     /// Returns the type of the imported WasmEdge instance, which is one of the types defined in [ExternalInstanceType](wasmedge_types::ExternalInstanceType).
-    pub fn ty(&self) -> Result<ExternalInstanceType> {
+    pub fn ty(&self) -> WasmEdgeResult<ExternalInstanceType> {
         let ty = self.inner.ty()?;
         Ok(ty)
     }
@@ -173,7 +173,7 @@ impl<'module> ExportType<'module> {
     }
 
     /// Returns the type of the exported WasmEdge instance, which is one of the types defined in [ExternalInstanceType](wasmedge_types::ExternalInstanceType).
-    pub fn ty(&self) -> Result<ExternalInstanceType> {
+    pub fn ty(&self) -> WasmEdgeResult<ExternalInstanceType> {
         let ty = self.inner.ty()?;
         Ok(ty)
     }
@@ -182,7 +182,7 @@ impl<'module> ExportType<'module> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::error::WasmEdgeError;
+    use wasmedge_types::error::{CoreError, CoreLoadError, WasmEdgeError};
 
     #[test]
     fn test_module_from_file() {
@@ -198,9 +198,7 @@ mod tests {
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
-            WasmEdgeError::Operation(sys::error::WasmEdgeError::Core(
-                sys::error::CoreError::Load(sys::error::CoreLoadError::IllegalPath)
-            ))
+            WasmEdgeError::Core(CoreError::Load(CoreLoadError::IllegalPath))
         );
     }
 
@@ -219,9 +217,7 @@ mod tests {
         let result = Module::from_bytes(None, &[]);
         assert_eq!(
             result.unwrap_err(),
-            WasmEdgeError::Operation(sys::error::WasmEdgeError::Core(
-                sys::error::CoreError::Load(sys::error::CoreLoadError::UnexpectedEnd)
-            ))
+            WasmEdgeError::Core(CoreError::Load(CoreLoadError::UnexpectedEnd)),
         );
     }
 }

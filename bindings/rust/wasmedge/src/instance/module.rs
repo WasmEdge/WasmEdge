@@ -263,8 +263,6 @@ mod tests {
             let val = global.get_value();
             if let Val::F32(val) = val {
                 assert_eq!(val, 3.5);
-            } else {
-                assert!(false);
             }
         }
 

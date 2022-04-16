@@ -1,6 +1,6 @@
 //! Defines Global and GlobalType.
 
-use crate::{error::Result, types::Val};
+use crate::{types::Val, WasmEdgeResult};
 use wasmedge_sys as sys;
 use wasmedge_types::GlobalType;
 
@@ -32,7 +32,7 @@ impl<'instance> Global<'instance> {
     }
 
     /// Returns the type of this [Global].
-    pub fn ty(&self) -> Result<GlobalType> {
+    pub fn ty(&self) -> WasmEdgeResult<GlobalType> {
         let gt = self.inner.ty()?;
         Ok(gt.into())
     }
@@ -53,7 +53,7 @@ impl<'instance> Global<'instance> {
     /// # Error
     ///
     /// If fail to update the value of the global variable, then an error is returned.
-    pub fn set_value(&mut self, val: Val) -> Result<()> {
+    pub fn set_value(&mut self, val: Val) -> WasmEdgeResult<()> {
         self.inner.set_value(val.into())?;
         Ok(())
     }
@@ -64,10 +64,12 @@ mod tests {
     use super::*;
     use crate::{
         config::{CommonConfigOptions, ConfigBuilder},
-        error::WasmEdgeError,
         Executor, ImportObjectBuilder, Statistics, Store,
     };
-    use wasmedge_types::{Mutability, ValType};
+    use wasmedge_types::{
+        error::{GlobalError, WasmEdgeError},
+        Mutability, ValType,
+    };
 
     #[test]
     fn test_global_type() {
@@ -144,8 +146,6 @@ mod tests {
         // get value of global
         if let Val::I32(value) = const_global.get_value() {
             assert_eq!(value, 1314);
-        } else {
-            assert!(false);
         }
 
         // set a new value
@@ -153,9 +153,7 @@ mod tests {
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
-            WasmEdgeError::Operation(sys::error::WasmEdgeError::Global(
-                sys::error::GlobalError::ModifyConst
-            ))
+            WasmEdgeError::Global(GlobalError::ModifyConst)
         );
 
         // get the Var global from the store of vm
@@ -182,8 +180,6 @@ mod tests {
         // get the value of var_global
         if let Val::F32(value) = var_global.get_value() {
             assert_eq!(value, 13.14);
-        } else {
-            assert!(false);
         }
 
         // set a new value
@@ -196,8 +192,6 @@ mod tests {
         let var_global = result.unwrap();
         if let Val::F32(value) = var_global.get_value() {
             assert_eq!(value, 1.314);
-        } else {
-            assert!(false);
         }
     }
 }

@@ -83,11 +83,12 @@
 //! * [wasmedge-types: WasmEdge Types](https://crates.io/crates/wasmedge-types)
 //!
 
+use wasmedge_types::WasmEdgeResult;
+
 #[doc(hidden)]
 #[cfg(feature = "aot")]
 pub mod compiler;
 pub mod config;
-pub mod error;
 #[doc(hidden)]
 pub mod executor;
 #[doc(hidden)]
@@ -103,8 +104,6 @@ pub mod types;
 #[doc(inline)]
 #[cfg(feature = "aot")]
 pub use compiler::Compiler;
-#[doc(inline)]
-pub use error::Result;
 #[doc(inline)]
 pub use executor::Executor;
 #[doc(inline)]
@@ -141,7 +140,7 @@ pub trait Engine {
         &mut self,
         func: &Func,
         params: impl IntoIterator<Item = WasmValue>,
-    ) -> Result<Vec<WasmValue>>;
+    ) -> WasmEdgeResult<Vec<WasmValue>>;
 
     /// Runs a host function instance by calling its reference and returns the results.
     ///
@@ -158,5 +157,5 @@ pub trait Engine {
         &mut self,
         func_ref: &FuncRef,
         params: impl IntoIterator<Item = WasmValue>,
-    ) -> Result<Vec<WasmValue>>;
+    ) -> WasmEdgeResult<Vec<WasmValue>>;
 }

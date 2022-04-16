@@ -1,4 +1,4 @@
-use crate::error::Result;
+use crate::WasmEdgeResult;
 use wasmedge_sys as sys;
 use wasmedge_types::MemoryType;
 
@@ -30,7 +30,7 @@ impl<'instance> Memory<'instance> {
     }
 
     /// Returns the type of this memory.
-    pub fn ty(&self) -> Result<MemoryType> {
+    pub fn ty(&self) -> WasmEdgeResult<MemoryType> {
         let ty = self.inner.ty()?;
         Ok(ty.into())
     }
@@ -42,7 +42,7 @@ impl<'instance> Memory<'instance> {
 
     /// Returns the size, in bytes, of this memory.
     pub fn data_size(&self) -> u64 {
-        self.size() as u64 * 65536 as u64
+        self.size() as u64 * 65536_u64
     }
 
     /// Safely reads memory contents at the given offset into a buffer.
@@ -56,7 +56,7 @@ impl<'instance> Memory<'instance> {
     /// # Error
     ///
     /// If fail to read the memory, then an error is returned.
-    pub fn read(&self, offset: u32, len: u32) -> Result<Vec<u8>> {
+    pub fn read(&self, offset: u32, len: u32) -> WasmEdgeResult<Vec<u8>> {
         let data = self.inner.get_data(offset, len)?;
         Ok(data)
     }
@@ -72,7 +72,7 @@ impl<'instance> Memory<'instance> {
     /// # Error
     ///
     /// If fail to write to the memory, then an error is returned.
-    pub fn write(&mut self, data: impl IntoIterator<Item = u8>, offset: u32) -> Result<()> {
+    pub fn write(&mut self, data: impl IntoIterator<Item = u8>, offset: u32) -> WasmEdgeResult<()> {
         self.inner.set_data(data, offset)?;
         Ok(())
     }
@@ -86,7 +86,7 @@ impl<'instance> Memory<'instance> {
     /// # Error
     ///
     /// If fail to grow the memory, then an error is returned.
-    pub fn grow(&mut self, count: u32) -> Result<()> {
+    pub fn grow(&mut self, count: u32) -> WasmEdgeResult<()> {
         self.inner.grow(count)?;
         Ok(())
     }

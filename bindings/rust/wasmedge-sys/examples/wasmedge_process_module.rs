@@ -1,8 +1,10 @@
 use wasmedge_sys::{
-    error::{CoreError, CoreInstantiationError, VmError, WasmEdgeError},
     Config, FuncType, Function, ImportInstance, ImportObject, Vm, WasmEdgeProcessModule, WasmValue,
 };
-use wasmedge_types::ValType;
+use wasmedge_types::{
+    error::{CoreError, CoreInstantiationError, VmError, WasmEdgeError},
+    ValType,
+};
 
 #[cfg_attr(test, test)]
 fn main() -> Result<(), Box<dyn std::error::Error>> {

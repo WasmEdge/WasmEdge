@@ -1,9 +1,6 @@
 //! Defines WasmEdge ahead-of-time compiler.
 
-use crate::{
-    error::{check, WasmEdgeError},
-    ffi, utils, Config, WasmEdgeResult,
-};
+use crate::{error::WasmEdgeError, ffi, utils, utils::check, Config, WasmEdgeResult};
 use std::path::Path;
 
 #[cfg(feature = "aot")]

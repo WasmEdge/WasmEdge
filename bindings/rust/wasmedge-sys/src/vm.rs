@@ -1,7 +1,7 @@
 //! Defines WasmEdge Vm struct.
 
 use crate::{
-    error::{check, VmError, WasmEdgeError},
+    error::{VmError, WasmEdgeError},
     ffi::{self, WasmEdge_HostRegistration_Wasi, WasmEdge_HostRegistration_WasmEdge_Process},
     instance::{
         function::{FuncType, InnerFuncType},
@@ -10,8 +10,10 @@ use crate::{
     statistics::{InnerStat, Statistics},
     store::{InnerStore, Store},
     types::WasmEdgeString,
-    utils, Config, ImportObject, Instance, Module, WasiModule, WasmEdgeProcessModule,
-    WasmEdgeResult, WasmValue,
+    utils,
+    utils::check,
+    Config, ImportObject, Instance, Module, WasiModule, WasmEdgeProcessModule, WasmEdgeResult,
+    WasmValue,
 };
 use std::{collections::HashMap, path::Path};
 

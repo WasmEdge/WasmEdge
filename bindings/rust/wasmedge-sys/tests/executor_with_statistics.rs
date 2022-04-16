@@ -1,7 +1,9 @@
 mod common;
 use wasmedge_sys::{
-    error::{CoreError, CoreExecutionError, InstanceError, StoreError, WasmEdgeError},
     Config, Engine, Executor, ImportObject, Loader, Statistics, Store, Validator, WasmValue,
+};
+use wasmedge_types::error::{
+    CoreError, CoreExecutionError, InstanceError, StoreError, WasmEdgeError,
 };
 
 #[warn(unused_assignments)]

@@ -2,9 +2,7 @@
 
 use super::ffi;
 use crate::{
-    error::{check, WasmEdgeError},
-    instance::module::InnerInstance,
-    types::WasmEdgeString,
+    error::WasmEdgeError, instance::module::InnerInstance, types::WasmEdgeString, utils::check,
     Config, Engine, FuncRef, Function, ImportObject, Instance, Module, Statistics, Store,
     WasmEdgeResult, WasmValue,
 };

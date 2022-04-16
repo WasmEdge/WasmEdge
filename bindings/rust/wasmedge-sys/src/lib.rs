@@ -94,7 +94,6 @@ pub mod ast_module;
 pub mod compiler;
 #[doc(hidden)]
 pub mod config;
-pub mod error;
 #[doc(hidden)]
 pub mod executor;
 pub mod instance;
@@ -114,16 +113,14 @@ pub mod validator;
 pub mod vm;
 
 #[doc(inline)]
+pub use ast_module::{ExportType, ImportType, Module};
+#[doc(inline)]
 #[cfg(feature = "aot")]
 pub use compiler::Compiler;
 #[doc(inline)]
 pub use config::Config;
 #[doc(inline)]
 pub use executor::Executor;
-// #[doc(inline)]
-// pub use import_obj::ImportObject;
-#[doc(inline)]
-pub use ast_module::{ExportType, ImportType, Module};
 #[doc(inline)]
 pub use instance::{
     function::{FuncRef, FuncType, Function},
@@ -147,8 +144,7 @@ pub use validator::Validator;
 #[doc(inline)]
 pub use vm::Vm;
 
-/// The WasmEdge result type.
-pub type WasmEdgeResult<T> = Result<T, error::WasmEdgeError>;
+use wasmedge_types::{error, WasmEdgeResult};
 
 /// Type alias for a host function.
 pub type HostFunc = Box<dyn Fn(Vec<WasmValue>) -> Result<Vec<WasmValue>, u8> + Send + Sync>;

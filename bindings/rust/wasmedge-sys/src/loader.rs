@@ -2,8 +2,10 @@
 
 use crate::{
     ast_module::{InnerModule, Module},
-    error::{check, WasmEdgeError},
-    ffi, utils, Config, WasmEdgeResult,
+    error::WasmEdgeError,
+    ffi, utils,
+    utils::check,
+    Config, WasmEdgeResult,
 };
 use std::path::Path;
 

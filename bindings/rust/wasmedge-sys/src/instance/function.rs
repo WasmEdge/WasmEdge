@@ -99,8 +99,8 @@ impl Function {
     /// the `create_binding` method.
     ///
     /// ```rust
-    /// use wasmedge_sys::{FuncType, Function, WasmValue, WasmEdgeResult};
-    /// use wasmedge_types::ValType;
+    /// use wasmedge_sys::{FuncType, Function, WasmValue};
+    /// use wasmedge_types::{ValType, WasmEdgeResult};
     ///
     /// fn real_add(inputs: Vec<WasmValue>) -> Result<Vec<WasmValue>, u8> {
     ///     if inputs.len() != 2 {

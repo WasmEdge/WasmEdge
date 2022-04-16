@@ -58,9 +58,7 @@ fn main() -> anyhow::Result<()> {
     // get the exported function "call_callback"
     let call_via_table = extern_instance
         .func("call_callback")
-        .ok_or(anyhow::Error::msg(
-            "Not found exported function named `call_callback`.",
-        ))?;
+        .ok_or_else(|| anyhow::Error::msg("Not found exported function named `call_callback`."))?;
 
     // call the exported function named "call_callback"
     // the first argument is the table index, while the other two arguments are passed to the function found in the table.
@@ -75,16 +73,14 @@ fn main() -> anyhow::Result<()> {
     assert_eq!(returns[0].to_i32(), 18);
 
     // get module instance
-    let instance = store.module_instance("extern").ok_or(anyhow::anyhow!(
-        "failed to get module instance named 'extern'"
-    ))?;
+    let instance = store
+        .module_instance("extern")
+        .ok_or_else(|| anyhow::anyhow!("failed to get module instance named 'extern'"))?;
 
     // get the exported table instance named "__indirect_function_table"
-    let mut guest_table = instance
-        .table("__indirect_function_table")
-        .ok_or(anyhow::anyhow!(
-            "failed to get table instance named '__indirect_function_table'"
-        ))?;
+    let mut guest_table = instance.table("__indirect_function_table").ok_or_else(|| {
+        anyhow::anyhow!("failed to get table instance named '__indirect_function_table'")
+    })?;
     assert_eq!(guest_table.size(), 3);
     assert_eq!(
         guest_table.ty()?,

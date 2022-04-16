@@ -42,9 +42,9 @@ fn main() -> anyhow::Result<()> {
     let extern_instance = store.register_named_module(&mut executor, "extern", &module)?;
 
     // get the exported memory instance
-    let mut memory = extern_instance.memory("memory").ok_or(anyhow::anyhow!(
-        "failed to get memory instance named 'memory'"
-    ))?;
+    let mut memory = extern_instance
+        .memory("memory")
+        .ok_or_else(|| anyhow::anyhow!("failed to get memory instance named 'memory'"))?;
 
     // check memory size
     assert_eq!(memory.size(), 1);
@@ -56,12 +56,12 @@ fn main() -> anyhow::Result<()> {
     assert_eq!(memory.data_size(), 3 * 65536);
 
     // get the exported functions: "set_at" and "get_at"
-    let set_at = extern_instance.func("set_at").ok_or(anyhow::Error::msg(
-        "Not found exported function named 'set_at'.",
-    ))?;
-    let get_at = extern_instance.func("get_at").ok_or(anyhow::Error::msg(
-        "Not found exported function named 'get_at`.",
-    ))?;
+    let set_at = extern_instance
+        .func("set_at")
+        .ok_or_else(|| anyhow::Error::msg("Not found exported function named 'set_at'."))?;
+    let get_at = extern_instance
+        .func("get_at")
+        .ok_or_else(|| anyhow::Error::msg("Not found exported function named 'get_at`."))?;
 
     // call the exported function named "set_at"
     let mem_addr = 0x2220;

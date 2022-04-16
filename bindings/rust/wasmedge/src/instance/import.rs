@@ -1,4 +1,4 @@
-use crate::{error::Result, types::Val, HostFunc};
+use crate::{types::Val, HostFunc, WasmEdgeResult};
 use wasmedge_sys::{self as sys, ImportInstance};
 use wasmedge_types::{FuncType, GlobalType, MemoryType, TableType};
 
@@ -41,7 +41,7 @@ impl ImportObjectBuilder {
         name: impl AsRef<str>,
         ty: FuncType,
         real_func: HostFunc,
-    ) -> Result<Self> {
+    ) -> WasmEdgeResult<Self> {
         let inner_func = sys::Function::create(&ty.into(), real_func, 0)?;
         self.funcs.push((name.as_ref().to_owned(), inner_func));
         Ok(self)
@@ -60,7 +60,12 @@ impl ImportObjectBuilder {
     /// # Error
     ///
     /// If fail to create or add the [global](crate::Global), then an error is returned.
-    pub fn with_global(mut self, name: impl AsRef<str>, ty: GlobalType, init: Val) -> Result<Self> {
+    pub fn with_global(
+        mut self,
+        name: impl AsRef<str>,
+        ty: GlobalType,
+        init: Val,
+    ) -> WasmEdgeResult<Self> {
         let inner_global = sys::Global::create(&ty.into(), init.into())?;
         self.globals.push((name.as_ref().to_owned(), inner_global));
         Ok(self)
@@ -77,7 +82,7 @@ impl ImportObjectBuilder {
     /// # Error
     ///
     /// If fail to create or add the [memory](crate::Memory), then an error is returned.
-    pub fn with_memory(mut self, name: impl AsRef<str>, ty: MemoryType) -> Result<Self> {
+    pub fn with_memory(mut self, name: impl AsRef<str>, ty: MemoryType) -> WasmEdgeResult<Self> {
         let inner_memory = sys::Memory::create(&ty.into())?;
         self.memories.push((name.as_ref().to_owned(), inner_memory));
         Ok(self)
@@ -94,7 +99,7 @@ impl ImportObjectBuilder {
     /// # Error
     ///
     /// If fail to create or add the [table](crate::Table), then an error is returned.
-    pub fn with_table(mut self, name: impl AsRef<str>, ty: TableType) -> Result<Self> {
+    pub fn with_table(mut self, name: impl AsRef<str>, ty: TableType) -> WasmEdgeResult<Self> {
         let inner_table = sys::Table::create(&ty.into())?;
         self.tables.push((name.as_ref().to_owned(), inner_table));
         Ok(self)
@@ -109,7 +114,7 @@ impl ImportObjectBuilder {
     /// # Error
     ///
     /// If fail to create the [ImportObject], then an error is returned.
-    pub fn build(self, name: impl AsRef<str>) -> Result<ImportObject> {
+    pub fn build(self, name: impl AsRef<str>) -> WasmEdgeResult<ImportObject> {
         let mut inner = sys::ImportModule::create(name.as_ref())?;
 
         // add func
@@ -153,7 +158,7 @@ impl ImportObjectBuilder {
         args: Option<Vec<&'a str>>,
         envs: Option<Vec<&'a str>>,
         preopens: Option<Vec<&'a str>>,
-    ) -> Result<ImportObject> {
+    ) -> WasmEdgeResult<ImportObject> {
         let mut inner = sys::WasiModule::create(args, envs, preopens)?;
 
         // add func
@@ -194,7 +199,7 @@ impl ImportObjectBuilder {
         self,
         allowed_cmds: Option<Vec<&str>>,
         allowed: bool,
-    ) -> Result<ImportObject> {
+    ) -> WasmEdgeResult<ImportObject> {
         let mut inner = sys::WasmEdgeProcessModule::create(allowed_cmds, allowed)?;
 
         // add func
@@ -244,7 +249,6 @@ mod tests {
     use super::*;
     use crate::{
         config::{CommonConfigOptions, ConfigBuilder},
-        error::WasmEdgeError,
         types::Val,
         Executor, FuncTypeBuilder, Statistics, Store, WasmValue,
     };
@@ -252,7 +256,10 @@ mod tests {
         sync::{Arc, Mutex},
         thread,
     };
-    use wasmedge_types::{Mutability, RefType, ValType};
+    use wasmedge_types::{
+        error::{CoreError, CoreInstantiationError, GlobalError, WasmEdgeError},
+        Mutability, RefType, ValType,
+    };
 
     #[test]
     fn test_import_new() {
@@ -337,10 +344,8 @@ mod tests {
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
-            WasmEdgeError::Operation(sys::error::WasmEdgeError::Core(
-                sys::error::CoreError::Instantiation(
-                    sys::error::CoreInstantiationError::ModuleNameConflict
-                )
+            WasmEdgeError::Core(CoreError::Instantiation(
+                CoreInstantiationError::ModuleNameConflict
             ))
         );
     }
@@ -400,10 +405,8 @@ mod tests {
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
-            WasmEdgeError::Operation(sys::error::WasmEdgeError::Core(
-                sys::error::CoreError::Instantiation(
-                    sys::error::CoreInstantiationError::ModuleNameConflict
-                )
+            WasmEdgeError::Core(CoreError::Instantiation(
+                CoreInstantiationError::ModuleNameConflict
             ))
         );
     }
@@ -596,8 +599,6 @@ mod tests {
         // get value of global
         if let Val::I32(value) = const_global.get_value() {
             assert_eq!(value, 1314);
-        } else {
-            assert!(false);
         }
 
         // set a new value
@@ -605,9 +606,7 @@ mod tests {
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
-            WasmEdgeError::Operation(sys::error::WasmEdgeError::Global(
-                sys::error::GlobalError::ModifyConst
-            ))
+            WasmEdgeError::Global(GlobalError::ModifyConst)
         );
 
         // get the Var global from the store of vm
@@ -634,8 +633,6 @@ mod tests {
         // get the value of var_global
         if let Val::F32(value) = var_global.get_value() {
             assert_eq!(value, 13.14);
-        } else {
-            assert!(false);
         }
 
         // set a new value
@@ -648,8 +645,6 @@ mod tests {
         let var_global = result.unwrap();
         if let Val::F32(value) = var_global.get_value() {
             assert_eq!(value, 1.314);
-        } else {
-            assert!(false);
         }
     }
 
@@ -725,8 +720,6 @@ mod tests {
         assert!(result.is_ok());
         if let Val::FuncRef(func_ref) = result.unwrap() {
             assert!(func_ref.is_none());
-        } else {
-            assert!(false);
         }
 
         // set value to table[0]
@@ -747,8 +740,6 @@ mod tests {
             assert_eq!(func_ty.args().unwrap(), [ValType::I32; 2]);
             assert!(func_ty.returns().is_some());
             assert_eq!(func_ty.returns().unwrap(), [ValType::I32]);
-        } else {
-            assert!(false)
         }
 
         let result = store.module_instance("extern");
@@ -773,8 +764,6 @@ mod tests {
             assert_eq!(func_ty.args().unwrap(), [ValType::I32; 2]);
             assert!(func_ty.returns().is_some());
             assert_eq!(func_ty.returns().unwrap(), [ValType::I32]);
-        } else {
-            assert!(false);
         }
     }
 
@@ -843,8 +832,6 @@ mod tests {
             assert!(result.is_ok());
             if let Val::F32(value) = global.get_value() {
                 assert_eq!(value, 3.5);
-            } else {
-                assert!(false);
             }
 
             // get the exported memory
@@ -966,8 +953,6 @@ mod tests {
             assert!(result.is_ok());
             if let Val::F32(v) = global.get_value() {
                 assert_eq!(v, 3.5);
-            } else {
-                assert!(false);
             }
 
             // get the exported memory

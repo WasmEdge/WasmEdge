@@ -1,6 +1,6 @@
 //! Defines WasmEdge ahead-of-time compiler.
 
-use crate::{config::Config, error::Result};
+use crate::{config::Config, WasmEdgeResult};
 use std::path::Path;
 use wasmedge_sys as sys;
 
@@ -16,7 +16,7 @@ impl Compiler {
     /// # Error
     ///
     /// If fail to create a AOT [compiler](crate::Compiler), then an error is returned.
-    pub fn new(config: Option<&Config>) -> Result<Self> {
+    pub fn new(config: Option<&Config>) -> WasmEdgeResult<Self> {
         let inner_config = match config {
             Some(config) => Some(Config::copy_from(config)?.inner),
             None => None,
@@ -37,7 +37,11 @@ impl Compiler {
     /// # Error
     ///
     /// If fail to compile, then an error is returned.
-    pub fn compile(&self, in_path: impl AsRef<Path>, out_path: impl AsRef<Path>) -> Result<()> {
+    pub fn compile(
+        &self,
+        in_path: impl AsRef<Path>,
+        out_path: impl AsRef<Path>,
+    ) -> WasmEdgeResult<()> {
         self.inner.compile(in_path, out_path)?;
 
         Ok(())

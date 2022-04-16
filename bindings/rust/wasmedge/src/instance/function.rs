@@ -1,5 +1,5 @@
 //! Defines Func, SignatureBuilder, and Signature structs.
-use crate::{error::Result, Engine, HostFunc};
+use crate::{Engine, HostFunc, WasmEdgeResult};
 use wasmedge_sys::{self as sys, WasmValue};
 use wasmedge_types::{FuncType, ValType};
 
@@ -113,7 +113,7 @@ impl Func {
     /// # Error
     ///
     /// If fail to create the host function, then an error is returned.
-    pub fn new(ty: FuncType, real_func: HostFunc) -> Result<Self> {
+    pub fn new(ty: FuncType, real_func: HostFunc) -> WasmEdgeResult<Self> {
         let inner = sys::Function::create(&ty.into(), real_func, 0)?;
         Ok(Self { inner })
     }
@@ -121,7 +121,7 @@ impl Func {
     /// Returns the type of the host function.
     ///
     /// If fail to get the signature, then an error is returned.
-    pub fn ty(&self) -> Result<FuncType> {
+    pub fn ty(&self) -> WasmEdgeResult<FuncType> {
         let func_ty = self.inner.ty()?;
         Ok(func_ty.into())
     }
@@ -203,7 +203,7 @@ impl Func {
         &self,
         engine: &mut E,
         args: impl IntoIterator<Item = WasmValue>,
-    ) -> Result<Vec<WasmValue>> {
+    ) -> WasmEdgeResult<Vec<WasmValue>> {
         engine.run_func(self, args)
     }
 }
@@ -285,7 +285,7 @@ impl FuncRef {
     ///
     /// If fail to get the function type, then an error is returned.
     ///
-    pub fn ty(&self) -> Result<FuncType> {
+    pub fn ty(&self) -> WasmEdgeResult<FuncType> {
         let ty = self.inner.ty()?;
         Ok(ty.into())
     }
@@ -306,7 +306,7 @@ impl FuncRef {
         &self,
         engine: &mut E,
         args: impl IntoIterator<Item = WasmValue>,
-    ) -> Result<Vec<WasmValue>> {
+    ) -> WasmEdgeResult<Vec<WasmValue>> {
         engine.run_func_ref(self, args)
     }
 }

@@ -1,6 +1,6 @@
 //! Defines WasmEdge Store struct.
 
-use crate::{error::Result, Executor, ImportObject, Instance, Module};
+use crate::{Executor, ImportObject, Instance, Module, WasmEdgeResult};
 use wasmedge_sys as sys;
 
 /// Struct of Wasmedge Store.
@@ -16,7 +16,7 @@ impl Store {
     /// # Error
     ///
     /// If fail to create a new [Store], then an error is returned.
-    pub fn new() -> Result<Self> {
+    pub fn new() -> WasmEdgeResult<Self> {
         let inner = sys::Store::create()?;
         Ok(Self { inner })
     }
@@ -36,7 +36,7 @@ impl Store {
         &mut self,
         executor: &mut Executor,
         import: &ImportObject,
-    ) -> Result<()> {
+    ) -> WasmEdgeResult<()> {
         executor
             .inner
             .register_import_object(&mut self.inner, import.inner_ref())?;
@@ -64,7 +64,7 @@ impl Store {
         executor: &mut Executor,
         mod_name: impl AsRef<str>,
         module: &Module,
-    ) -> Result<Instance> {
+    ) -> WasmEdgeResult<Instance> {
         let inner = executor.inner.register_named_module(
             &mut self.inner,
             &module.inner,
@@ -89,7 +89,7 @@ impl Store {
         &mut self,
         executor: &mut Executor,
         module: &Module,
-    ) -> Result<Instance> {
+    ) -> WasmEdgeResult<Instance> {
         let inner = executor
             .inner
             .register_active_module(&mut self.inner, &module.inner)?;

@@ -1,14 +1,15 @@
+//! Defines WasmEdge error types.
+
 use crate::ExternalInstanceType;
 use thiserror::Error;
 
-/// Defines the errors raised by the wasmedge-sys and wasmedge crates.
+/// The error types used by both wasmedge-sys and wasmedge crates.
 #[derive(Error, Clone, Debug, PartialEq)]
 pub enum WasmEdgeError {
-    // c-api
+    /// Errors raised by WasmEdge Core.
     #[error("{0}")]
     Core(CoreError),
 
-    // context
     #[error("Fail to create ImportObj module")]
     ImportObjCreate,
     #[error("Fail to create Executor context")]
@@ -63,7 +64,7 @@ pub enum WasmEdgeError {
     Utf8(#[from] std::str::Utf8Error),
 }
 
-/// Defines the errors raised from function instance.
+/// The error types for WasmEdge Function.
 #[derive(Error, Clone, Debug, PartialEq)]
 pub enum FuncError {
     #[error("Fail to create Function instance")]
@@ -74,7 +75,7 @@ pub enum FuncError {
     Type,
 }
 
-/// Defines the errors raised from memory instance.
+/// The error types for WasmEdge Memory.
 #[derive(Error, Clone, Debug, PartialEq)]
 pub enum MemError {
     #[error("Fail to create Memory instance")]
@@ -89,7 +90,7 @@ pub enum MemError {
     Ptr2Ref,
 }
 
-/// Defines the errors raised from global instance.
+/// The error types for WasmEdge Global.
 #[derive(Error, Clone, Debug, PartialEq)]
 pub enum GlobalError {
     #[error("Fail to create Global instance")]
@@ -102,7 +103,7 @@ pub enum GlobalError {
     UnmatchedValType,
 }
 
-/// Defines the errors raised from table instance.
+/// The error types for WasmEdge Table.
 #[derive(Error, Clone, Debug, PartialEq)]
 pub enum TableError {
     #[error("Fail to create Table instance")]
@@ -111,7 +112,7 @@ pub enum TableError {
     Type,
 }
 
-/// Defines the errors raised from WasmEdge ImportType.
+/// The error types for WasmEdge ImportType.
 #[derive(Error, Clone, Debug, PartialEq)]
 pub enum ImportError {
     #[error("The expected Import type is {expected:?}, but found {actual:?}")]
@@ -129,7 +130,7 @@ pub enum ImportError {
     GlobalType(String),
 }
 
-/// Defines the errors raised from WasmEdge ExportType.
+/// The error types for WasmEdge ExportType.
 #[derive(Error, Clone, Debug, PartialEq)]
 pub enum ExportError {
     #[error("The expected Export type is {expected:?}, but found {actual:?}")]
@@ -147,7 +148,7 @@ pub enum ExportError {
     GlobalType(String),
 }
 
-/// Defines the errors raised from WasmEdge Instance.
+/// The error types for WasmEdge Instance.
 #[derive(Error, Clone, Debug, PartialEq)]
 pub enum InstanceError {
     #[error("Fail to create Instance context")]
@@ -168,7 +169,7 @@ pub enum InstanceError {
     NotFoundGlobal(String),
 }
 
-/// Defines the errors raised from WasmEdge Store.
+/// The error types for WasmEdge Store.
 #[derive(Error, Clone, Debug, PartialEq)]
 pub enum StoreError {
     #[error("Fail to create Store context")]
@@ -201,7 +202,7 @@ pub enum StoreError {
     NotFoundActiveModule,
 }
 
-/// Defines the errors raised from WasmEdge Vm.
+/// The error types for WasmEdge Vm.
 #[derive(Error, Clone, Debug, PartialEq)]
 pub enum VmError {
     #[error("Fail to create Vm context")]
@@ -234,7 +235,7 @@ pub enum VmError {
     NotFoundActiveModule,
 }
 
-/// Defines the errors raised from WasmEdge Core.
+/// The error types raised by WasmEdge Core.
 #[derive(Error, Clone, Debug, PartialEq)]
 pub enum CoreError {
     #[error("{0}")]
@@ -249,7 +250,7 @@ pub enum CoreError {
     Execution(CoreExecutionError),
 }
 
-/// Defines the common errors.
+/// The error type for the common errors from WasmEdge Core.
 #[derive(Error, Clone, Debug, PartialEq)]
 pub enum CoreCommonError {
     #[error("generic runtime error")]
@@ -266,7 +267,7 @@ pub enum CoreCommonError {
     Interrupted,
 }
 
-/// Defines the errors raised in the load phase.
+/// The error type for the load phase from WasmEdge Core.
 #[derive(Error, Clone, Debug, PartialEq)]
 pub enum CoreLoadError {
     #[error("Invalid file path")]
@@ -321,7 +322,7 @@ pub enum CoreLoadError {
     IllegalGrammar,
 }
 
-/// Defines the errors raised in the validation phase.
+/// The error type for the validation phase from WasmEdge Core.
 #[derive(Error, Clone, Debug, PartialEq)]
 pub enum CoreValidationError {
     #[error("alignment must not be larger than natural")]
@@ -370,7 +371,7 @@ pub enum CoreValidationError {
     InvalidLaneIdx,
 }
 
-/// Defines the errors raised in the instantiation phase.
+/// The error type for the instantiation phase from WasmEdge Core.
 #[derive(Error, Clone, Debug, PartialEq)]
 pub enum CoreInstantiationError {
     #[error("module name conflict")]
@@ -385,7 +386,7 @@ pub enum CoreInstantiationError {
     ElemSegDoesNotFit,
 }
 
-/// Defines the errors raised in the execution phase.
+/// The error type for the execution phase from WasmEdge Core.
 #[derive(Error, Clone, Debug, PartialEq)]
 pub enum CoreExecutionError {
     #[error("wrong instance address")]

@@ -4,8 +4,8 @@
 #include "host/wasi_crypto/signatures/rsa.h"
 #include "host/wasi_crypto/utils/error.h"
 #include "host/wasi_crypto/utils/evp_wrapper.h"
-#include "wasi_crypto/api.hpp"
 #include "openssl/rsa.h"
+#include "wasi_crypto/api.hpp"
 
 namespace WasmEdge {
 namespace Host {

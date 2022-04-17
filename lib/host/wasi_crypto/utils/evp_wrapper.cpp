@@ -176,15 +176,16 @@ i2dEcdsaSigShared(ECDSA_SIG *Sig) {
   return Res;
 }
 
-EcdsaSigPtr o2iEcdsaSig(Span<const uint8_t> Encoded) {
+ECDSA_SIG *o2iEcdsaSig(Span<const uint8_t> Encoded) {
   BnPtr R{BN_bin2bn(Encoded.data(), Encoded.size() / 2, nullptr)};
   BnPtr S{BN_bin2bn(Encoded.data() + Encoded.size() / 2, Encoded.size() / 2,
                     nullptr)};
-
   EcdsaSigPtr Sig{ECDSA_SIG_new()};
-  opensslCheck(ECDSA_SIG_set0(Sig.get(), R.get(), S.get()));
+  if (!ECDSA_SIG_set0(Sig.get(), R.release(), S.release())) {
+    return nullptr;
+  }
 
-  return Sig;
+  return Sig.release();
 }
 
 WasiCryptoExpect<std::vector<uint8_t>> i2oEcdsaSig(ECDSA_SIG *Sig) {

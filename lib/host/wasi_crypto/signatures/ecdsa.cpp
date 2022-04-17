@@ -21,6 +21,7 @@ constexpr size_t getRawPkSize(bool Compressed) {
 }
 
 inline const size_t SkSize = 32;
+inline const size_t RawSigSize = 64;
 
 constexpr point_conversion_form_t getForm(bool Compressed) noexcept {
   return Compressed ? POINT_CONVERSION_COMPRESSED
@@ -448,7 +449,7 @@ Ecdsa<CurveNid>::Signature::import(
     __wasi_signature_encoding_e_t Encoding) noexcept {
   switch (Encoding) {
   case __WASI_SIGNATURE_ENCODING_RAW: {
-    ensureOrReturn(Encoded.size() == getRawSigSize(),
+    ensureOrReturn(Encoded.size() == RawSigSize,
                    __WASI_CRYPTO_ERRNO_INVALID_SIGNATURE);
     EcdsaSigPtr Sig{o2iEcdsaSig(Encoded)};
     ensureOrReturn(Sig, __WASI_CRYPTO_ERRNO_INVALID_SIGNATURE);
@@ -468,7 +469,7 @@ WasiCryptoExpect<std::vector<uint8_t>> Ecdsa<CurveNid>::Signature::exportData(
     __wasi_signature_encoding_e_t Encoding) const noexcept {
   switch (Encoding) {
   case __WASI_SIGNATURE_ENCODING_RAW: {
-    EcdsaSigPtr Sig{o2iEcdsaSig(*Data)};
+    EcdsaSigPtr Sig{d2iEcdsaSig(*Data)};
     ensureOrReturn(Sig, __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
     return i2oEcdsaSig(Sig.get());
   }
@@ -477,16 +478,6 @@ WasiCryptoExpect<std::vector<uint8_t>> Ecdsa<CurveNid>::Signature::exportData(
   }
   default:
     assumingUnreachable();
-  }
-}
-
-template <int CurveNid>
-constexpr size_t Ecdsa<CurveNid>::Signature::getRawSigSize() noexcept {
-  if constexpr (CurveNid == NID_X9_62_prime256v1) {
-    return 64;
-  }
-  if constexpr (CurveNid == NID_secp256k1) {
-    return 96;
   }
 }
 

@@ -40,7 +40,7 @@ The followings are the guides to working with the WasmEdge-Go SDK.
 
 ## Getting Started
 
-The WasmEdge-go requires golang version >= 1.15. Please check your golang version before installation. Developers can [download golang here](https://golang.org/dl/).
+The WasmEdge-go requires golang version >= 1.16. Please check your golang version before installation. Developers can [download golang here](https://golang.org/dl/).
 
 ```bash
 $ go version
@@ -52,13 +52,13 @@ go version go1.16.5 linux/amd64
 Developers must [install the WasmEdge shared library](start/install.md) with the same `WasmEdge-go` release or pre-release version.
 
 ```bash
-curl -sSf https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh | bash -s -- -v 0.9.1
+curl -sSf https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh | bash -s -- -v 0.10.0-alpha.1
 ```
 
 For the developers need the `TensorFlow` or `Image` extension for `WasmEdge-go`, please install the `WasmEdge` with extensions:
 
 ```bash
-curl -sSf https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh | bash -s -- -e tf,image -v 0.9.1
+curl -sSf https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh | bash -s -- -e tf,image -v 0.10.0-alpha.1
 ```
 
 Noticed that the `TensorFlow` and `Image` extensions are only for the `Linux` platforms.
@@ -69,7 +69,7 @@ After installation, developers can use the `source` command to update the includ
 After the WasmEdge installation, developers can get the `WasmEdge-go` package and build it in your Go project directory.
 
 ```bash
-go get github.com/second-state/WasmEdge-go/wasmedge@v0.9.1
+go get github.com/second-state/WasmEdge-go/wasmedge@v0.10.0-alpha.1
 go build
 ```
 
@@ -212,7 +212,7 @@ func main() {
   var vm = wasmedge.NewVMWithConfig(conf)
 
   // Init WASI
-  var wasi = vm.GetImportObject(wasmedge.WASI)
+  var wasi = vm.GetImportModule(wasmedge.WASI)
   wasi.InitWasi(
     os.Args[1:],     // The args
     os.Environ(),    // The envs
@@ -283,7 +283,7 @@ func main() {
 Next, build the Golang application with the WasmEdge Golang SDK.
 
 ```bash
-go get github.com/second-state/WasmEdge-go/wasmedge@v0.9.1
+go get github.com/second-state/WasmEdge-go/wasmedge@v0.10.0-alpha.1
 go get github.com/second-state/wasmedge-bindgen@v0.1.12
 go build
 ```
@@ -394,7 +394,7 @@ func main() {
   var conf = wasmedge.NewConfigure(wasmedge.REFERENCE_TYPES)
   conf.AddConfig(wasmedge.WASI)
   var vm = wasmedge.NewVMWithConfig(conf)
-  var wasi = vm.GetImportObject(wasmedge.WASI)
+  var wasi = vm.GetImportModule(wasmedge.WASI)
   wasi.InitWasi(
     os.Args[1:],     // The args
     os.Environ(),    // The envs
@@ -412,7 +412,7 @@ func main() {
 Next, build the Golang application with the WasmEdge Golang SDK.
 
 ```bash
-go get github.com/second-state/WasmEdge-go/wasmedge@v0.9.1
+go get github.com/second-state/WasmEdge-go/wasmedge@v0.10.0-alpha.1
 go build
 ```
 
@@ -486,8 +486,9 @@ In WasmEdge-go, the APIs will automatically do the conversion for the built-in t
 3. Reference types: `FuncRef` and `ExternRef` for the `Reference-Types` proposal
 
     ```go
-    funcref := wasmedge.NewFuncRef(10)
-    // Create a `FuncRef` with function index 10.
+    var funccxt *wasmedge.Function = ... // Create or get function object.
+    funcref := wasmedge.NewFuncRef(funccxt)
+    // Create a `FuncRef` with the function object.
 
     num := 1234
     // `num` is a `int`.
@@ -721,6 +722,10 @@ Developers can adjust the settings about the proposals, VM host pre-registration
     // * BULK_MEMORY_OPERATIONS
     // * REFERENCE_TYPES
     // * SIMD
+    // For the current WasmEdge version, the following proposals are supported:
+    // * TAIL_CALL
+    // * MULTI_MEMORIES
+    // * THREADS
     conf := wasmedge.NewConfigure()
     // Developers can also pass the proposals as parameters:
     // conf := wasmedge.NewConfigure(wasmedge.SIMD, wasmedge.BULK_MEMORY_OPERATIONS)
@@ -844,19 +849,19 @@ This example uses the [fibonacci.wasm](https://raw.githubusercontent.com/WasmEdg
 
 ```wasm
 (module
- (export "fib" (func $fib))
- (func $fib (param $n i32) (result i32)
-  (if
-   (i32.lt_s (get_local $n)(i32.const 2))
-   (return (i32.const 1))
+  (export "fib" (func $fib))
+  (func $fib (param $n i32) (result i32)
+    (if
+      (i32.lt_s (get_local $n)(i32.const 2))
+      (return (i32.const 1))
+    )
+    (return
+      (i32.add
+        (call $fib (i32.sub (get_local $n)(i32.const 2)))
+        (call $fib (i32.sub (get_local $n)(i32.const 1)))
+      )
+    )
   )
-  (return
-   (i32.add
-    (call $fib (i32.sub (get_local $n)(i32.const 2)))
-    (call $fib (i32.sub (get_local $n)(i32.const 1)))
-   )
-  )
- )
 )
 ```
 
@@ -905,7 +910,7 @@ This example uses the [fibonacci.wasm](https://raw.githubusercontent.com/WasmEdg
     Then you can build and run the Golang application with the WasmEdge Golang SDK: (the 21 Fibonacci number is 17711 in 0-based index)
 
     ```bash
-    $ go get github.com/second-state/WasmEdge-go/wasmedge@v0.9.1
+    $ go get github.com/second-state/WasmEdge-go/wasmedge@v0.10.0-alpha.1
     $ go build
     $ ./wasmedge_test
     Get fibonacci[21]: 17711
@@ -1066,7 +1071,7 @@ WasmEdge provides the following built-in pre-registrations.
 
     // The following API can retrieve the pre-registration import objects from the VM object.
     // This API will return `nil` if the corresponding pre-registration is not set into the configuration.
-    wasiconf := conf.GetImportObject(wasmedge.WASI)
+    wasiconf := conf.GetImportModule(wasmedge.WASI)
     // Initialize the WASI.
     wasiconf.InitWasi(/* ... ignored */)
 
@@ -1087,7 +1092,7 @@ WasmEdge provides the following built-in pre-registrations.
     
     // The following API can retrieve the pre-registration import objects from the VM object.
     // This API will return `nil` if the corresponding pre-registration is not set into the configuration.
-    procconf := conf.GetImportObject(wasmedge.WasmEdge_PROCESS)
+    procconf := conf.GetImportModule(wasmedge.WasmEdge_PROCESS)
     // Initialize the WasmEdge_Process.
     procconf.InitWasmEdgeProcess(/* ... ignored */)
 
@@ -1099,16 +1104,16 @@ WasmEdge provides the following built-in pre-registrations.
 ### Host Module Registrations
 
 [Host functions](https://webassembly.github.io/spec/core/exec/runtime.html#syntax-hostfunc) are functions outside WebAssembly and passed to WASM modules as imports.
-In WasmEdge-go, the host functions are composed into host modules as `ImportObject` objects with module names.
+In WasmEdge-go, the host functions are composed into host modules as `Module` objects with module names.
 Please refer to the [Host Functions in WasmEdge Runtime](#Host-Functions) for the details.
 In this chapter, we show the example for registering the host modules into a `VM` object.
 
 ```go
 vm := wasmedge.NewVM()
 // You can also create and register the WASI host modules by this API.
-wasiobj := wasmedge.NewWasiImportObject(/* ... ignored ... */)
+wasiobj := wasmedge.NewWasiModule(/* ... ignored ... */)
 
-res := vm.RegisterImport(wasiobj)
+res := vm.RegisterModule(wasiobj)
 // The result status should be checked.
 
 vm.Release()
@@ -1207,7 +1212,7 @@ WasmEdge VM provides APIs for developers to register and export any WASM modules
     Then you can build and run: (the 25th Fibonacci number is 121393 in 0-based index)
 
     ```bash
-    $ go get github.com/second-state/WasmEdge-go/wasmedge@v0.9.1
+    $ go get github.com/second-state/WasmEdge-go/wasmedge@v0.10.0-alpha.1
     $ go build
     $ ./wasmedge_test
     Get fibonacci[25]: 121393
@@ -1309,7 +1314,7 @@ The `VM` object supplies the APIs to retrieve the instances.
     Then you can build and run: (the only exported function in `fibonacci.wasm` is `fib`)
 
     ```bash
-    $ go get github.com/second-state/WasmEdge-go/wasmedge@v0.9.1
+    $ go get github.com/second-state/WasmEdge-go/wasmedge@v0.10.0-alpha.1
     $ go build
     $ ./wasmedge_test
     Exported function name: fib
@@ -1329,6 +1334,20 @@ The `VM` object supplies the APIs to retrieve the instances.
     // `(*VM).GetFunctionTypeRegistered` API with the functon name and the module name.
     // If the function is not found, these APIs will return `nil`.
     // Developers should __NOT__ call the `(*FunctionType).Release` function of the returned object.
+    ```
+
+4. Get the active module
+
+    After the WASM module instantiation, an anonymous module is instantiated and owned by the `VM` object.
+    Developers may need to retrieve it to get the instances beyond the module.
+    Then developers can use the `(*VM).GetActiveModule()` API to get that anonymous module instance.
+    Please refer to the [Module instance](#instances) for the details about the module instance APIs.
+
+    ```go
+    // Assume that a WASM module is instantiated in `vm` which is a `wasmedge.VM` object.
+    mod := vm.GetActiveModule()
+    // If there's no WASM module instantiated, this API will return `nil`.
+    // Developers should __NOT__ call the `(*Module).Release` function of the returned module instance.
     ```
 
 ## WasmEdge Runtime
@@ -1373,6 +1392,7 @@ func main() {
   var err error
   var res []interface{}
   var ast *wasmedge.AST
+  var mod *wasmedge.Module
 
   // Create the loader object.
   // For loader creation with default configuration, you can use `wasmedge.NewLoader()` instead.
@@ -1396,25 +1416,30 @@ func main() {
     fmt.Println("Validation FAILED:", err.Error())
     return
   }
-  // Instantiate the WASM module into the Store object.
-  err = executor.Instantiate(store, ast)
+  // Instantiate the WASM module and get the output module instance.
+  mod, err = executor.Instantiate(store, ast)
   if err != nil {
     fmt.Println("Instantiation FAILED:", err.Error())
     return
   }
 
   // Try to list the exported functions of the instantiated WASM module.
-  funcnames := store.ListFunction()
+  funcnames := mod.ListFunction()
   for _, fname := range funcnames {
     fmt.Println("Exported function name:", fname)
   }
 
   // Invoke the WASM function.
-  res, err = executor.Invoke(store, "fib", int32(30))
+  funcinst := mod.FindFunction("fib")
+  if funcinst == nil {
+    fmt.Println("Run FAILED: Function name `fib` not found")
+    return
+  }
+  res, err = executor.Invoke(store, funcinst, int32(30))
   if err == nil {
     fmt.Println("Get fibonacci[30]:", res[0].(int32))
   } else {
-    fmt.Println("Run failed:", err.Error())
+    fmt.Println("Run FAILED:", err.Error())
   }
 
   // Resources deallocations.
@@ -1425,13 +1450,14 @@ func main() {
   validator.Release()
   executor.Release()
   store.Release()
+  mod.Release()
 }
 ```
 
 Then you can build and run: (the 18th Fibonacci number is 1346269 in 30-based index)
 
 ```bash
-$ go get github.com/second-state/WasmEdge-go/wasmedge@v0.9.1
+$ go get github.com/second-state/WasmEdge-go/wasmedge@v0.10.0-alpha.1
 $ go build
 $ ./wasmedge_test
 Exported function name: fib
@@ -1511,10 +1537,11 @@ validator.Release()
 The `Executor` object is the executor for both WASM and compiled-WASM.
 This object should work base on the `Store` object. For the details of the `Store` object, please refer to the [next chapter](#Store).
 
-1. Register modules
+1. Instantiate and register an `AST` object as a named `Module` instance
 
-    As the same of [registering host modules](#Host-Module-Registrations) or [importing WASM modules](#WASM-Registrations-And-Executions) in `VM` objects, developers can register `ImportObject` or `AST` objects into the `Store` object by the `Executor` APIs.
-    For the details of import objects, please refer to the [Host Functions](#Host-Functions).
+    As the same of [registering host modules](#host-module-registrations) or [importing WASM modules](#wasm-registrations-and-executions) in `VM` objects, developers can instantiate and register an `AST` objects into the `Store` context as a named `Module` instance by the `Executor` APIs.
+    After the registration, the result `Module` instance is exported with the given module name and can be linked when instantiating another module.
+    For the details about the `Module` instances APIs, please refer to the [Instances](#instances).
 
     ```go
     // ...
@@ -1533,31 +1560,70 @@ This object should work base on the `Store` object. For the details of the `Stor
     store := wasmedge.NewStore()
 
     // Register the loaded WASM `ast` into store with the export module name "mod".
-    res := executor.RegisterModule(store, ast, "mod")
+    mod, res := executor.Register(store, ast, "mod")
     if err != nil {
       fmt.Println("WASM registration FAILED:", err.Error())
       return
     }
 
-    // Assume that the `impobj` is the `*wasmedge.ImportObject` for host functions.
-    impobj := ...
-    err = executor.RegisterImport(store, impobj)
-    if err != nil {
-      fmt.Println("Import object registration FAILED:", err.Error())
-      return
-    }
+    // ...
 
+    // Resources deallocations.
     executor.Release()
     stat.Release()
     store.Release()
-    impobj.Release()
+    mod.Release()
     ```
 
-2. Instantiate modules
+2. Register an existing `Module` instance and export the module name
+
+    Besides instantiating and registering an `AST` object, developers can register an existing `Module` instance into the store with exporting the module name (which is in the `Module` instance already).
+    This case occurs when developers create a `Module` instance for the host functions and want to register it for linking.
+    For the details about the construction of host functions in `Module` instances, please refer to the [Host Functions](#host-functions).
+
+    ```go
+    // ...
+    // Assume that the `ast` is the output `*wasmedge.AST` object from the loader
+    // and has passed the validation.
+    // Assume that the `conf` is the `*wasmedge.Configure` object.
+
+    // Create the statistics object. This step is not necessary if the statistics
+    // is not needed.
+    stat := wasmedge.NewStatistics()
+    // Create the executor object.
+    // For executor creation with default configuration and without statistics,
+    // you can use `wasmedge.NewExecutor()` instead.
+    executor := wasmedge.NewExecutorWithConfigAndStatistics(conf, stat)
+    // Create the store object. The store is the WASM runtime structure core.
+    store := wasmedge.NewStore()
+
+    // Create a module instance for host functions.
+    mod := wasmedge.NewModule("mod")
+    // ...
+    // Create and add the host functions, tables, memories, and globals into the module instance.
+    // ...
+
+    // Register the module instance into store with the exported module name.
+    // The export module name is in the module instance already.
+    res := executor.RegisterImport(store, mod)
+    if err != nil {
+      fmt.Println("WASM registration FAILED:", err.Error())
+      return
+    }
+
+    // ...
+
+    // Resources deallocations.
+    executor.Release()
+    stat.Release()
+    store.Release()
+    mod.Release()
+    ```
+
+3. Instantiate an `AST` object to an anonymous `Module` instance
 
     WASM or compiled-WASM modules should be instantiated before the function invocation.
-    Note that developers can only instantiate one module into the `Store` object, and in that case, the old instantiated module will be cleaned.
-    Before instantiating a WASM module, please check the [import section](https://webassembly.github.io/spec/core/syntax/modules.html#syntax-import) for ensuring the imports are registered into the `Store` object.
+    Before instantiating a WASM module, please check the [import section](https://webassembly.github.io/spec/core/syntax/modules.html#syntax-import) for ensuring the imports are registered into the `Store` object for linking.
 
     ```go
     // ...
@@ -1576,7 +1642,7 @@ This object should work base on the `Store` object. For the details of the `Stor
     store := wasmedge.NewStore()
 
     // Instantiate the WASM module.
-    err := executor.Instantiate(stpre, ast)
+    mod, err := executor.Instantiate(stpre, ast)
     if err != nil {
       fmt.Println("WASM instantiation FAILED:", err.Error())
       return
@@ -1585,13 +1651,14 @@ This object should work base on the `Store` object. For the details of the `Stor
     executor.Release()
     stat.Release()
     store.Release()
+    mod.Release()
     ```
 
-3. Invoke functions
+4. Invoke functions
 
-    As the same as function invocation via the `VM` object, developers can invoke the functions of the instantiated or registered modules.
-    The APIs, `(*Executor).Invoke` and `(*Executor).InvokeRegistered`, are similar as the APIs of the `VM` object.
-    Please refer to the [VM context workflows](#WASM-Execution-Example-With-VM-Object) for details.
+    After registering or instantiating and get the result `Module` instance, developers can retrieve the exported `Function` instances from the `Module` instance for invocation.
+    For the details about the `Module` instances APIs, please refer to the [Instances](#instances).
+    Please refer to the [example above](#wasm-execution-example-step-by-step) for the `Function` instance invocation with the `(*Executor).Invoke` API.
 
 ### AST Module
 
@@ -1619,89 +1686,74 @@ ast.Release()
 
 ### Store
 
-[Store](https://webassembly.github.io/spec/core/exec/runtime.html#store) is the runtime structure for the representation of all instances of `Function`s, `Table`s, `Memory`s, and `Global`s that have been allocated during the lifetime of the abstract machine.
-The `Store` object in WasmEdge-go provides APIs to list the exported instances with their names or find the instances by exported names. For adding instances into `Store` objects, please instantiate or register WASM modules or `ImportObject` objects via the `Executor` APIs.
+[Store](https://webassembly.github.io/spec/core/exec/runtime.html#store) is the runtime structure for the representation of all global state that can be manipulated by WebAssembly programs.
+The `Store` object in WasmEdge is an object to provide the instance exporting and importing when instantiating WASM modules.
+Developers can retrieve the named modules from the `Store` context.
 
-1. List instances
+```go
+store := wasmedge.NewStore()
 
-    ```go
-    store := wasmedge.NewStore()
-    // ...
-    // Instantiate a WASM module via the `*wasmedge.Executor` object.
-    // ...
+// ...
+// Register a WASM module via the executor object.
+// ...
 
-    // Try to list the exported functions of the instantiated WASM module.
-    // Take the function instances for example here.
-    funcnames := store.ListFunction()
-    for _, name := range funcnames {
-      fmt.Println("Exported function name:", name)
-    }
+// Try to list the registered WASM modules.
+modnames := store.ListModule()
+// ...
 
-    store.Release()
-    ```
+// Find named module by name.
+mod := store.FindModule("module")
+// If the module with name not found, the `mod` will be `nil`.
 
-    Developers can list the function instance exported names of the registered modules via the `(*Store).ListFunctionRegistered()` API with the module name.
-
-2. Find instances
-
-    ```go
-    store := wasmedge.NewStore()
-    // ...
-    // Instantiate a WASM module via the `*wasmedge.Executor` object.
-    // ...
-
-    // Try to find the exported functions of the instantiated WASM module.
-    // Take the function instances for example here.
-    funcobj := store.FindFunction("fib")
-    // `funcobj` will be `nil` if the function not found.
-
-    store.Release()
-    ```
-
-    Developers can retrieve the exported function instances of the registered modules via the `(*Store).FindFunctionRegistered` API with the module name.
-
-3. List registered modules
-
-    With the module names, developers can list the exported instances of the registered modules with their names.
-
-    ```go
-    store := wasmedge.NewStore()
-    // ...
-    // Instantiate a WASM module via the `*wasmedge.Executor` object.
-    // ...
-
-    // Try to list the registered WASM modules.
-    modnames := store.ListModule()
-    for _, name := range modnames {
-      fmt.Println("Registered module names:", name)
-    }
-
-    store.Release()
-    ```
+store.Release()
+```
 
 ### Instances
 
-The instances are the runtime structures of WASM. Developers can retrieve the instances from the `Store` objects.
-The `Store` objects will allocate instances when a WASM module or an `ImportObject` is registered or instantiated through the `Executor`.
-A single instance can be allocated by its creation function. Developers can construct instances into an `ImportObject` for registration. Please refer to the [Host Functions](#Host-Functions) for details.
-The instances created by their creation functions should be destroyed, EXCEPT they are added into an `ImportObject` object.
+The instances are the runtime structures of WASM. Developers can retrieve the `Module` instances from the `Store` contexts, and retrieve the other instances from the `Module` instances.
+A single instance can be allocated by its creation function. Developers can construct instances into an `Module` instance for registration. Please refer to the [Host Functions](#host-functions) for details.
+The instances created by their creation functions should be destroyed by developers, EXCEPT they are added into an `Module` instance.
 
-1. Function instance
+1. Module instance
 
-    [Host functions](https://webassembly.github.io/spec/core/exec/runtime.html#syntax-hostfunc) are functions outside WebAssembly and passed to WASM modules as imports.
-    In WasmEdge, developers can create the `Function` objects for host functions and add them into an `ImportObject` object for registering into a `VM` or a `Store`.
-    For both host functions and the functions get from `Store`, developers can retrieve the `FunctionType` from the `Function` objects.
-    For the details of the `Host Function` guide, please refer to the [next chapter](#Host-Functions).
+    After instantiating or registering an `AST` object, developers will get a `Module` instance as the result, and have the responsibility to release it when not in use.
+    A `Module` instance can also be created for the host module. Please refer to the [host function](#host-functions) for the details.
+    `Module` instance provides APIs to list and find the exported instances in the module.
 
     ```go
-    funcinst := ...
-    // `funcobj` is the `*wasmedge.Function` retrieved from the store object.
-    functype := funcobj.GetFunctionType()
-    // The `funcobj` retrieved from the store object should __NOT__ be released.
-    // The `functype` retrieved from the `funcobj` should __NOT__ be released.
+    // ...
+    // Instantiate a WASM module via the executor object and get the `mod` as the output module instance.
+    // ...
+
+    // List the exported instance of the instantiated WASM module.
+    // Take the function instances for example here.
+    funcnames := mod.ListFunction()
+
+    // Try to find the exported instance of the instantiated WASM module.
+    // Take the function instances for example here.
+    funcinst := mod.FindFunction("fib")
+    // `funcinst` will be `nil` if the function not found.
+    // The returned instance is owned by the module instance and should __NOT__ be released.
     ```
 
-2. Table instance
+2. Function instance
+
+    [Host functions](https://webassembly.github.io/spec/core/exec/runtime.html#syntax-hostfunc) are functions outside WebAssembly and passed to WASM modules as imports.
+    In WasmEdge, developers can create the `Function` objects for host functions and add them into an `Module` instance for registering into a `VM` or a `Store`.
+    Developers can retrieve the `Function Type` from the `Function` objects through the API.
+    For the details of the `Host Function` guide, please refer to the [next chapter](#host-functions).
+
+    ```go
+    funcobj := ...
+    // `funcobj` is the `*wasmedge.Function` retrieved from the module instance.
+    functype := funcobj.GetFunctionType()
+    // The `funcobj` retrieved from the module instance should __NOT__ be released.
+    // The `functype` retrieved from the `funcobj` should __NOT__ be released.
+
+    // For the function object creation, please refer to the `Host Function` guide.
+    ```
+
+3. Table instance
 
     In WasmEdge, developers can create the `Table` objects and add them into an `ImportObject` object for registering into a `VM` or a `Store`.
     The `Table` objects supply APIs to control the data in table instances.
@@ -1749,7 +1801,7 @@ The instances created by their creation functions should be destroyed, EXCEPT th
     tabinst.Release()
     ```
 
-3. Memory instance
+4. Memory instance
 
     In WasmEdge, developers can create the `Memory` objects and add them into an `ImportObject` object for registering into a `VM` or a `Store`.
     The `Memory` objects supply APIs to control the data in memory instances.
@@ -1790,7 +1842,7 @@ The instances created by their creation functions should be destroyed, EXCEPT th
     meminst.Release()
     ```
 
-4. Global instance
+5. Global instance
 
     In WasmEdge, developers can create the `Global` objects and add them into an `ImportObject` object for registering into a `VM` or a `Store`.
     The `Global` objects supply APIs to control the value in global instances.
@@ -1868,14 +1920,14 @@ In WasmEdge-go, developers can create the `Function`, `Memory`, `Table`, and `Gl
     // The last parameter can be 0 if developers do not need the cost measuring.
     func_add := wasmedge.NewFunction(functype, host_add, nil, 0)
 
-    // If the function object is not added into an import object object, it should be released.
+    // If the function object is not added into an module instance object, it should be released.
     func_add.Release()
     functype.Release()
     ```
 
-2. Import object object
+2. Construct a module instance with host instances
 
-    The `ImportObject` object holds an exporting module name and the instances. Developers can add the `Function`, `Memory`, `Table`, and `Global` instances with their exporting names.
+    Besides creating a `Module` instance by registering or instantiating a WASM module, developers can create a `Module` instance with a module name and add the `Function`, `Memory`, `Table`, and `Global` instances into it with their exporting names.
 
     ```go
     // Host function body definition.
@@ -1891,54 +1943,54 @@ In WasmEdge-go, developers can create the `Function`, `Memory`, `Table`, and `Gl
       return returns, wasmedge.Result_Success
     }
 
-    // Create the import object with the module name "module".
-    impobj := wasmedge.NewImportObject("module")
+    // Create a module instance with the module name "module".
+    mod := wasmedge.NewModule("module")
 
-    // Create and add a function instance into the import object with export name "add".
+    // Create and add a function instance into the module instance with export name "add".
     functype := wasmedge.NewFunctionType(
       []wasmedge.ValType{wasmedge.ValType_I32, wasmedge.ValType_I32},
       []wasmedge.ValType{wasmedge.ValType_I32},
     )
     hostfunc := wasmedge.NewFunction(functype, host_add, nil, 0)
     functype.Release()
-    impobj.AddFunction("add", hostfunc)
+    mod.AddFunction("add", hostfunc)
 
-    // Create and add a table instance into the import object with export name "table".
+    // Create and add a table instance into the module instance with export name "table".
     tabtype := wasmedge.NewTableType(wasmedge.RefType_FuncRef ,wasmedge.NewLimitWithMax(10, 20))
     hosttab := wasmedge.NewTable(tabtype)
     tabtype.Release()
-    impobj.AddTable("table", hosttab)
+    mod.AddTable("table", hosttab)
 
-    // Create and add a memory instance into the import object with export name "memory".
+    // Create and add a memory instance into the module instance with export name "memory".
     memtype := wasmedge.NewMemoryType(wasmedge.NewLimitWithMax(1, 2))
     hostmem := wasmedge.NewMemory(memtype)
     memtype.Release()
-    impobj.AddMemory("memory", hostmem)
+    mod.AddMemory("memory", hostmem)
 
-    // Create and add a global instance into the import object with export name "global".
+    // Create and add a global instance into the module instance with export name "global".
     globtype := wasmedge.NewGlobalType(wasmedge.ValType_I32, wasmedge.ValMut_Var)
     hostglob := wasmedge.NewGlobal(globtype, uint32(666))
     globtype.Release()
-    impobj.AddGlobal("global", hostglob)
+    mod.AddGlobal("global", hostglob)
 
-    // The import objects should be released.
-    // Developers should __NOT__ release the instances added into the import object objects.
-    impobj.Release()
+    // The module instances should be released.
+    // Developers should __NOT__ release the instances added into the module instance objects.
+    mod.Release()
     ```
 
-3. Specified import object
+3. Specified module instance
 
-    `wasmedge.NewWasiImportObject()` API can create and initialize the `WASI` import object.
-    `wasmedge.NewWasmEdgeProcessImportObject()` API can create and initialize the `wasmedge_process` import object.
-    Developers can create these import object objects and register them into the `Store` or `VM` objects rather than adjust the settings in the `Configure` objects.
+    `wasmedge.NewWasiModule()` API can create and initialize the `WASI` module instance.
+    `wasmedge.NewWasmEdgeProcessModule()` API can create and initialize the `wasmedge_process` module instance.
+    Developers can create these module instance objects and register them into the `Store` or `VM` objects rather than adjust the settings in the `Configure` objects.
 
     ```go
-    wasiobj := wasmedge.NewWasiImportObject(
+    wasiobj := wasmedge.NewWasiModule(
       os.Args[1:],     // The args
       os.Environ(),    // The envs
       []string{".:."}, // The mapping preopens
     )
-    procobj := wasmedge.NewWasmEdgeProcessImportObject(
+    procobj := wasmedge.NewWasmEdgeProcessModule(
       []string{"ls", "echo"}, // The allowed commands
       false,                  // Not to allow all commands
     )
@@ -2041,20 +2093,20 @@ In WasmEdge-go, developers can create the `Function`, `Memory`, `Table`, and `Gl
         0x08, 0x00, 0x20, 0x00, 0x20, 0x01, 0x10, 0x00, 0x0B,
       }
 
-      // Create the import object with the module name "extern".
-      impobj := wasmedge.NewImportObject("extern")
+      // Create the module instance with the module name "extern".
+      impmod := wasmedge.NewModule("extern")
 
-      // Create and add a function instance into the import object with export name "func-add".
+      // Create and add a function instance into the module instance with export name "func-add".
       functype := wasmedge.NewFunctionType(
         []wasmedge.ValType{wasmedge.ValType_I32, wasmedge.ValType_I32},
         []wasmedge.ValType{wasmedge.ValType_I32},
       )
       hostfunc := wasmedge.NewFunction(functype, host_add, nil, 0)
       functype.Release()
-      impobj.AddFunction("func-add", hostfunc)
+      impmod.AddFunction("func-add", hostfunc)
 
-      // Register the import object into VM.
-      vm.RegisterImport(impobj)
+      // Register the module instance into VM.
+      vm.RegisterImport(impmod)
 
       res, err := vm.RunWasmBuffer(wasmbuf, "addTwo", uint32(1234), uint32(5678))
       if err == nil {
@@ -2063,7 +2115,7 @@ In WasmEdge-go, developers can create the `Function`, `Memory`, `Table`, and `Gl
         fmt.Println("Error message:", err.Error())
       }
 
-      impobj.Release()
+      impmod.Release()
       vm.Release()
     }
     ```
@@ -2071,7 +2123,7 @@ In WasmEdge-go, developers can create the `Function`, `Memory`, `Table`, and `Gl
     Then you can build and run the Golang application with the WasmEdge Golang SDK:
 
     ```bash
-    $ go get github.com/second-state/WasmEdge-go/wasmedge@v0.9.1
+    $ go get github.com/second-state/WasmEdge-go/wasmedge@v0.10.0-alpha.1
     $ go build
     $ ./wasmedge_test
     Get the result: 6912
@@ -2079,7 +2131,7 @@ In WasmEdge-go, developers can create the `Function`, `Memory`, `Table`, and `Gl
 
 5. Host Data Example
 
-    Developers can set a external data object to the function object, and access to the object in the function body.
+    Developers can set a external data object to the `Function` object, and access to the object in the function body.
     Assume that edit the Go file `main.go` above:
 
     ```go
@@ -2144,20 +2196,20 @@ In WasmEdge-go, developers can create the `Function`, `Memory`, `Table`, and `Gl
       // The additional data to set into the host function.
       var data int32 = 0
 
-      // Create the import object with the module name "extern".
-      impobj := wasmedge.NewImportObject("extern")
+      // Create the module instance with the module name "extern".
+      impmod := wasmedge.NewImportObject("extern")
 
-      // Create and add a function instance into the import object with export name "func-add".
+      // Create and add a function instance into the module instance with export name "func-add".
       functype := wasmedge.NewFunctionType(
         []wasmedge.ValType{wasmedge.ValType_I32, wasmedge.ValType_I32},
         []wasmedge.ValType{wasmedge.ValType_I32},
       )
       hostfunc := wasmedge.NewFunction(functype, host_add, &data, 0)
       functype.Release()
-      impobj.AddFunction("func-add", hostfunc)
+      impmod.AddFunction("func-add", hostfunc)
 
-      // Register the import object into VM.
-      vm.RegisterImport(impobj)
+      // Register the module instance into VM.
+      vm.RegisterImport(impmod)
 
       res, err := vm.RunWasmBuffer(wasmbuf, "addTwo", uint32(1234), uint32(5678))
       if err == nil {
@@ -2167,7 +2219,7 @@ In WasmEdge-go, developers can create the `Function`, `Memory`, `Table`, and `Gl
       }
       fmt.Println("Data value:", data)
 
-      impobj.Release()
+      impmod.Release()
       vm.Release()
     }
     ```
@@ -2175,7 +2227,7 @@ In WasmEdge-go, developers can create the `Function`, `Memory`, `Table`, and `Gl
     Then you can build and run the Golang application with the WasmEdge Golang SDK:
 
     ```bash
-    $ go get github.com/second-state/WasmEdge-go/wasmedge@v0.9.1
+    $ go get github.com/second-state/WasmEdge-go/wasmedge@v0.10.0-alpha.1
     $ go build
     $ ./wasmedge_test
     Get the result: 6912

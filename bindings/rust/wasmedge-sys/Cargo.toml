@@ -18,7 +18,7 @@ rand = "0.8.4"
 libc = "0.2.94"
 thiserror = "1.0.30"
 lazy_static = "1.4.0"
-wasmedge-types = {path = "../wasmedge-types", version="0.1.2"}
+wasmedge-types = "0.1.2"
 
 [build-dependencies]
 bindgen = { version = "0.59.1", default-features = false, features = ["runtime"] }

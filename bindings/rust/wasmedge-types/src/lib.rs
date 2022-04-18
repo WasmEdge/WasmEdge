@@ -4,6 +4,8 @@
 //!
 //! * [WasmEdge Runtime](https://wasmedge.org/)
 
+pub mod error;
+
 /// Defines WasmEdge reference types.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum RefType {
@@ -442,3 +444,6 @@ impl Default for GlobalType {
 
 /// Parses in-memory bytes as either the [WebAssembly Text format](http://webassembly.github.io/spec/core/text/index.html), or a binary WebAssembly module.
 pub use wat::parse_bytes as wat2wasm;
+
+/// The WasmEdge result type.
+pub type WasmEdgeResult<T> = Result<T, error::WasmEdgeError>;

@@ -5,6 +5,72 @@ use wasmedge_types::{FuncType, GlobalType, MemoryType, TableType};
 /// Struct of WasmEdge ImportObjectBuilder
 ///
 /// [ImportObjectBuilder] is used to create a normal, wasi, or wasmedge process [import object](crate::ImportObject).
+///
+/// # Example
+///
+/// This example shows how to create a normal import object that contains a host function, a global variable, a memory and a table. The import object is named "extern".
+///
+/// ```rust
+/// use wasmedge::{ImportObjectBuilder, FuncTypeBuilder, types::Val, WasmValue};
+/// use wasmedge_types::{Mutability, RefType, ValType, GlobalType, MemoryType, TableType,};
+///
+/// // a native function
+/// fn real_add(inputs: Vec<WasmValue>) -> std::result::Result<Vec<WasmValue>, u8> {
+///     if inputs.len() != 2 {
+///         return Err(1);
+///     }
+///
+///     let a = if inputs[0].ty() == ValType::I32 {
+///         inputs[0].to_i32()
+///     } else {
+///         return Err(2);
+///     };
+///
+///     let b = if inputs[1].ty() == ValType::I32 {
+///         inputs[1].to_i32()
+///     } else {
+///         return Err(3);
+///     };
+///
+///     let c = a + b;
+///
+///     Ok(vec![WasmValue::from_i32(c)])
+/// }
+///
+/// let module_name = "extern";
+///
+/// // create an import object
+/// let result = ImportObjectBuilder::new()
+/// // add a function
+/// .with_func(
+///     "add",
+///     FuncTypeBuilder::new()
+///         .with_args(vec![ValType::I32; 2])
+///         .with_returns(vec![ValType::I32])
+///         .build(),
+///     Box::new(real_add),
+/// )
+/// .expect("failed to add host function")
+/// // add a global
+/// .with_global(
+///     "global",
+///     GlobalType::new(ValType::F32, Mutability::Const),
+///     Val::F32(3.5),
+/// )
+/// .expect("failed to add const global")
+/// // add a memory
+/// .with_memory("memory", MemoryType::new(10, Some(20)))
+/// .expect("failed to add memory")
+/// // add a table
+/// .with_table("table", TableType::new(RefType::FuncRef, 10, Some(20)))
+/// .expect("failed to add table")
+/// .build(module_name);
+///
+/// assert!(result.is_ok());
+/// let import = result.unwrap();
+///
+/// ```
+///
 #[derive(Debug, Default)]
 pub struct ImportObjectBuilder {
     funcs: Vec<(String, sys::Function)>,

@@ -4,9 +4,7 @@ use crate::WasmEdgeResult;
 use wasmedge_sys as sys;
 use wasmedge_types::{CompilerOptimizationLevel, CompilerOutputFormat};
 
-/// Struct of WasmEdge ConfigBuilder.
-///
-/// [ConfigBuilder] is used to construct a [Config].
+/// Defines a builder for creating a [Config].
 #[derive(Debug)]
 pub struct ConfigBuilder {
     common_config: CommonConfigOptions,
@@ -115,8 +113,7 @@ impl ConfigBuilder {
     }
 }
 
-/// Struct of WasmEdge Config.
-///
+/// Defines [Config] struct used to check/set the configuration options.
 ///
 /// # Example
 ///
@@ -275,7 +272,7 @@ impl Config {
     }
 }
 
-/// Struct of WasmEdge CommonConfigOptions.
+/// Defines the common configuration options.
 ///
 /// [CommonConfigOptions] is used to set the common configuration options, which are
 ///     
@@ -420,7 +417,7 @@ impl Default for CommonConfigOptions {
     }
 }
 
-/// Struct of WasmEdge CompilerConfigOptions.
+/// Defines a group of configuration options for AOT compiler.
 ///
 /// [CompilerConfigOptions] is used to set the AOT compiler related configuration options, which are
 ///
@@ -532,7 +529,7 @@ impl Default for CompilerConfigOptions {
     }
 }
 
-/// Struct of WasmEdge RuntimeConfigOptions.
+/// Defines a group of runtime configuration options.
 ///
 /// [RuntimeConfigOptions] is used to set the runtime configuration options, which are
 ///
@@ -567,7 +564,7 @@ impl Default for RuntimeConfigOptions {
     }
 }
 
-/// Struct of WasmEdge StatisticsConfigOptions.
+/// Defines a group of the statistics configuration options.
 ///
 /// [StatisticsConfigOptions] is used to set the statistics configuration options, which are
 ///
@@ -625,7 +622,7 @@ impl StatisticsConfigOptions {
     }
 }
 
-/// Struct of WasmEdge HostRegistrationConfigOptions.
+/// Defines the host registration configuration options.
 ///
 /// [HostRegistrationConfigOptions] is used to set the host registration configuration options, which are
 ///

@@ -29,7 +29,7 @@ pub enum Val {
     /// `FuncRef(None)` is the null function reference, created by `ref.null
     /// func` in Wasm.
     FuncRef(Option<FuncRef>),
-    /// An `ExternRef` value which can hold opaque data to the Wasm instance itself.
+    /// A reference to opaque data in the wasm instance.
     ///
     /// `ExternRef(None)` is the null external reference, created by `ref.null
     /// extern` in Wasm.
@@ -80,7 +80,7 @@ impl From<WasmValue> for Val {
     }
 }
 
-/// Struct of WasmEdge ExternRef.
+/// A reference to opaque data in the wasm instance.
 #[derive(Debug, Clone, Copy)]
 pub struct ExternRef {
     pub(crate) inner: WasmValue,

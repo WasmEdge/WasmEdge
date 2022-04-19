@@ -4,7 +4,7 @@ use crate::{config::Config, WasmEdgeResult};
 use std::path::Path;
 use wasmedge_sys as sys;
 
-/// Struct of WasmEdge ahead-of-time(AOT) compiler.
+/// Defines WasmEdge ahead-of-time(AOT) compiler and the relevant APIs.
 #[derive(Debug)]
 #[cfg(feature = "aot")]
 pub struct Compiler {

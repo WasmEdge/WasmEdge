@@ -2,9 +2,7 @@ use crate::WasmEdgeResult;
 use wasmedge_sys as sys;
 use wasmedge_types::MemoryType;
 
-/// Struct of WasmEdge Memory.
-///
-/// A WasmEdge [Memory] defines a linear memory.
+/// Defines a linear memory.
 #[derive(Debug)]
 pub struct Memory<'instance> {
     pub(crate) inner: sys::Memory,

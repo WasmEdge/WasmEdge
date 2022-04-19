@@ -3,9 +3,7 @@
 use crate::{Executor, ImportObject, Instance, Module, WasmEdgeResult};
 use wasmedge_sys as sys;
 
-/// Struct of Wasmedge Store.
-///
-/// The [Store] represents all global state that can be manipulated by WebAssembly programs. It consists of the runtime representation of all instances of [functions](crate::Func), [tables](crate::Table), [memories](crate::Memory), and [globals](crate::Global).
+/// Represents all global state that can be manipulated by WebAssembly programs. A [store](crate::Store) consists of the runtime representation of all instances of [functions](crate::Func), [tables](crate::Table), [memories](crate::Memory), and [globals](crate::Global).
 #[derive(Debug)]
 pub struct Store {
     pub(crate) inner: sys::Store,

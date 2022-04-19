@@ -3,7 +3,7 @@ use crate::{Engine, HostFunc, WasmEdgeResult};
 use wasmedge_sys::{self as sys, WasmValue};
 use wasmedge_types::{FuncType, ValType};
 
-/// Struct of WasmEdge Func.
+/// Defines a host function.
 ///
 /// A WasmEdge [Func] represents a host function. A host function is a function defined outside WASM module and passed to it.
 ///
@@ -208,9 +208,7 @@ impl Func {
     }
 }
 
-/// Struct of WasmEdge FuncTypeBuilder.
-///
-/// [FuncTypeBuilder] is used to build a [FuncType](wasmedge_types::FuncType).
+/// Defines a type builder for creating a [FuncType](wasmedge_types::FuncType).
 #[derive(Debug, Default)]
 pub struct FuncTypeBuilder {
     args: Option<Vec<ValType>>,
@@ -273,7 +271,7 @@ impl FuncTypeBuilder {
     }
 }
 
-/// Struct of WasmEdge FuncRef.
+/// Defines a reference to a [host function](crate::Func).
 #[derive(Debug, Clone)]
 pub struct FuncRef {
     pub(crate) inner: sys::FuncRef,

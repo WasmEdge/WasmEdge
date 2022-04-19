@@ -3,9 +3,7 @@
 use crate::{config::Config, Engine, Func, FuncRef, Statistics, WasmEdgeResult, WasmValue};
 use wasmedge_sys::{self as sys, Engine as SysEngine};
 
-/// Struct of WasmEdge Executor.
-///
-/// [Executor](crate::Executor) defines an execution environment for both pure WASM and compiled WASM . It works with a [Store](crate::Store).
+/// Defines an execution environment for both pure WASM and compiled WASM.
 #[derive(Debug)]
 pub struct Executor {
     pub(crate) inner: sys::Executor,

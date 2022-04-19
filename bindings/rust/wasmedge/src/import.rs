@@ -290,7 +290,7 @@ impl ImportObjectBuilder {
     }
 }
 
-/// Struct of WasmEdge ImportObject.
+/// Defines an import object that contains the required import data used when instantiating a [module](crate::Module).
 #[derive(Debug)]
 pub struct ImportObject(pub(crate) sys::ImportObject);
 impl ImportObject {

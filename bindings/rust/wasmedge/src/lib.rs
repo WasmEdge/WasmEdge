@@ -91,33 +91,30 @@
 use wasmedge_types::WasmEdgeResult;
 
 #[doc(hidden)]
-pub mod ast_module;
-#[doc(hidden)]
 #[cfg(feature = "aot")]
-pub mod compiler;
+mod compiler;
 pub mod config;
-#[doc(hidden)]
-pub mod executor;
-#[doc(hidden)]
-pub mod instance;
-#[doc(hidden)]
-pub mod statistics;
-#[doc(hidden)]
-pub mod store;
+mod executor;
+mod externals;
+mod import;
+mod instance;
+mod module;
+mod statistics;
+mod store;
 pub mod types;
 
-#[doc(inline)]
-pub use ast_module::{ExportType, ImportType, Module};
 #[doc(inline)]
 #[cfg(feature = "aot")]
 pub use compiler::Compiler;
 #[doc(inline)]
 pub use executor::Executor;
 #[doc(inline)]
-pub use instance::{
-    Func, FuncRef, FuncTypeBuilder, Global, ImportObject, ImportObjectBuilder, Instance, Memory,
-    Table,
-};
+pub use externals::{Func, FuncRef, FuncTypeBuilder, Global, Memory, Table};
+#[doc(inline)]
+pub use import::{ImportObject, ImportObjectBuilder};
+pub use instance::Instance;
+#[doc(inline)]
+pub use module::{ExportType, ImportType, Module};
 #[doc(inline)]
 pub use statistics::Statistics;
 #[doc(inline)]

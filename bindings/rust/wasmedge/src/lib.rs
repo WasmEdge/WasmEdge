@@ -1,3 +1,8 @@
+#![doc(
+    html_logo_url = "https://github.com/wasmedge.png",
+    html_favicon_url = "https://wasmedge.org/img/wasmedge-horizontal-white.svg"
+)]
+
 //! # Overview
 //!
 //! The [wasmedge](https://crates.io/crates/wasmedge) crate defines a group of high-level Rust APIs, which are used to build up business applications.

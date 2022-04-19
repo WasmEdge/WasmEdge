@@ -2,9 +2,7 @@ use crate::{types::Val, HostFunc, WasmEdgeResult};
 use wasmedge_sys::{self as sys, ImportInstance};
 use wasmedge_types::{FuncType, GlobalType, MemoryType, TableType};
 
-/// Struct of WasmEdge ImportObjectBuilder
-///
-/// [ImportObjectBuilder] is used to create a normal, wasi, or wasmedge process [import object](crate::ImportObject).
+/// Creates a normal, wasi, or wasmedge process [import object](crate::ImportObject).
 ///
 /// # Example
 ///

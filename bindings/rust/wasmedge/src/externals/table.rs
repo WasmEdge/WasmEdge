@@ -2,9 +2,7 @@ use crate::{types::Val, WasmEdgeResult};
 use wasmedge_sys as sys;
 use wasmedge_types::TableType;
 
-/// Struct of WasmEdge Table.
-///
-/// A WasmEdge [Table] defines a table that is used to store the references to host functions or external objects.
+/// Defines a table storing the references to host functions or external objects.
 #[derive(Debug)]
 pub struct Table<'instance> {
     pub(crate) inner: sys::Table,

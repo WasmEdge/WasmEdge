@@ -4,7 +4,7 @@ use crate::{Func, Global, Memory, Table};
 use std::marker::PhantomData;
 use wasmedge_sys as sys;
 
-/// Struct of WasmEdge Instance.
+/// Represents an instantiated module.
 ///
 /// An [Instance] represents an instantiated module. In the instantiation process, A [module instance](crate::Instance) is created based on a [compiled module](crate::Module). From a [module instance] the exported [host function](crate::Func), [table](crate::Table), [memory](crate::Memory), and [global](crate::Global) instances can be fetched.
 #[derive(Debug)]

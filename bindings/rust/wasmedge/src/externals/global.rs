@@ -4,9 +4,7 @@ use crate::{types::Val, WasmEdgeResult};
 use wasmedge_sys as sys;
 use wasmedge_types::GlobalType;
 
-/// Struct of WasmEdge Global.
-///
-/// A WasmEdge [Global] defines a global variable, which stores a single value of the given [GlobalType](wasmedge_types::GlobalType).
+/// Defines a global variable storing a single value of the given [GlobalType](wasmedge_types::GlobalType).
 #[derive(Debug)]
 pub struct Global<'instance> {
     pub(crate) inner: sys::Global,

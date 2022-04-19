@@ -1,4 +1,4 @@
-//! Defines Module, ImportType, and ExportType.
+//! Defines WasmEdge AST Module, ImportType, and ExportType.
 
 use crate::{config::Config, WasmEdgeResult};
 use std::marker::PhantomData;
@@ -6,7 +6,7 @@ use std::{borrow::Cow, path::Path};
 use wasmedge_sys as sys;
 use wasmedge_types::ExternalInstanceType;
 
-/// Struct of WasmEdge Module.
+/// Defines compiled in-memory representation of an input WASM binary.
 ///
 /// A [Module] is a compiled in-memory representation of an input WebAssembly binary. In the instantiation process, a [Module] is instatiated to a module [instance](crate::Instance), from which the exported [function](crate::Func), [table](crate::Table), [memory](crate::Memory), and [global](crate::Global) instances can be fetched.
 #[derive(Debug)]
@@ -132,9 +132,7 @@ impl Module {
     }
 }
 
-/// Struct of WasmEdge ImportType.
-///
-/// [ImportType] is used for getting the type information of the imported WasmEdge instances.
+/// Defines the types of the imported instances.
 #[derive(Debug)]
 pub struct ImportType<'module> {
     inner: sys::ImportType<'module>,
@@ -158,9 +156,7 @@ impl<'module> ImportType<'module> {
     }
 }
 
-/// Struct of WasmEdge ExportType.
-///
-/// [ExportType] is used for getting the type information of the exported WasmEdge instances.
+/// Defines the types of the exported instances.
 #[derive(Debug)]
 pub struct ExportType<'module> {
     inner: sys::ExportType<'module>,

@@ -1,3 +1,8 @@
+#![doc(
+    html_logo_url = "https://github.com/wasmedge.png",
+    html_favicon_url = "https://wasmedge.org/img/wasmedge-horizontal-white.svg"
+)]
+
 //! # Rust WasmEdge bindings
 //! This library contains safe Rust bindings for WasmEdge, a lightweight, high-performance, and extensible WebAssembly runtime for cloud native, edge, and decentralized applications.
 //!

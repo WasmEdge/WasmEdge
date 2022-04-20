@@ -50,6 +50,7 @@
     - [嵌入 WASM 函数](embed/go/function.md)
     - [传递复杂参数](embed/go/memory.md)
     - [Tensorflow 调用](embed/go/tensorflow.md)
+    - [编写 Host Function](embed/go/host_function.md)
     - [使用 wasm-bindgen](embed/go/bindgen.md)
     - [API 参考文档](embed/go/ref.md)
   - [Node.js SDK](embed/node.md)

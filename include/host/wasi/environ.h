@@ -925,6 +925,31 @@ public:
     }
   }
 
+  /// Receive a message from a socket.
+  ///
+  /// Note: This is similar to `recv` in POSIX, though it also supports reading
+  /// the data into multiple buffers in the manner of `readv`.
+  ///
+  /// @param[in] RiData List of scatter/gather vectors to which to store data.
+  /// @param[in] RiFlags Message flags.
+  /// @param[in] Address Address of the target.
+  /// @param[in] AddressLength The buffer size of Address.
+  /// @param[out] NRead Return the number of bytes stored in RiData.
+  /// @param[out] RoFlags Return message flags.
+  /// @return Nothing or WASI error.
+  WasiExpect<void> sockRecvFrom(__wasi_fd_t Fd, Span<Span<uint8_t>> RiData,
+                                __wasi_riflags_t RiFlags, uint8_t *Address,
+                                uint8_t AddressLength, __wasi_size_t &NRead,
+                                __wasi_roflags_t &RoFlags) const noexcept {
+    auto Node = getNodeOrNull(Fd);
+    if (unlikely(!Node)) {
+      return WasiUnexpect(__WASI_ERRNO_BADF);
+    } else {
+      return Node->sockRecvFrom(RiData, RiFlags, Address, AddressLength, NRead,
+                                RoFlags);
+    }
+  }
+
   /// Send a message on a socket.
   ///
   /// Note: This is similar to `send` in POSIX, though it also supports writing
@@ -943,6 +968,31 @@ public:
       return WasiUnexpect(__WASI_ERRNO_BADF);
     } else {
       return Node->sockSend(SiData, SiFlags, NWritten);
+    }
+  }
+
+  /// Send a message on a socket.
+  ///
+  /// Note: This is similar to `sendto` in POSIX, though it also supports
+  /// writing the data from multiple buffers in the manner of `writev`.
+  ///
+  /// @param[in] SiData List of scatter/gather vectors to which to retrieve
+  /// data.
+  /// @param[in] SiFlags Message flags.
+  /// @param[in] Address Address of the target.
+  /// @param[in] AddressLength The buffer size of Address.
+  /// @param[out] NWritten The number of bytes transmitted.
+  /// @return Nothing or WASI error
+  WasiExpect<void> sockSendTo(__wasi_fd_t Fd, Span<Span<const uint8_t>> SiData,
+                              __wasi_siflags_t SiFlags, uint8_t *Address,
+                              uint8_t AddressLength, int32_t Port,
+                              __wasi_size_t &NWritten) const noexcept {
+    auto Node = getNodeOrNull(Fd);
+    if (unlikely(!Node)) {
+      return WasiUnexpect(__WASI_ERRNO_BADF);
+    } else {
+      return Node->sockSendTo(SiData, SiFlags, Address, AddressLength, Port,
+                              NWritten);
     }
   }
 

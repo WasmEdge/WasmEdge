@@ -11,11 +11,17 @@
 
 #![deny(rust_2018_idioms, unreachable_pub)]
 
-use std::{cell::RefCell, collections::HashMap, env::var};
+#[macro_use]
+extern crate lazy_static;
+
+use std::{
+    collections::HashMap,
+    sync::{Arc, Mutex},
+};
 
 #[doc(hidden)]
 #[allow(warnings)]
-pub mod wasmedge {
+pub mod ffi {
     include!(concat!(env!("OUT_DIR"), "/wasmedge.rs"));
 }
 #[doc(hidden)]
@@ -23,7 +29,6 @@ pub mod wasmedge {
 pub mod compiler;
 #[doc(hidden)]
 pub mod config;
-#[doc(hidden)]
 pub mod error;
 #[doc(hidden)]
 pub mod executor;
@@ -52,11 +57,6 @@ pub use compiler::Compiler;
 #[doc(inline)]
 pub use config::Config;
 #[doc(inline)]
-pub use error::{
-    ExportError, FuncError, GlobalError, ImportError, StoreError, TableError, VmError,
-    WasmEdgeError, WasmEdgeResult,
-};
-#[doc(inline)]
 pub use executor::Executor;
 #[doc(inline)]
 pub use import_obj::ImportObject;
@@ -65,6 +65,7 @@ pub use instance::{
     function::{FuncType, Function},
     global::{Global, GlobalType},
     memory::{MemType, Memory},
+    module::Instance,
     table::{Table, TableType},
 };
 #[doc(inline)]
@@ -78,17 +79,26 @@ pub use store::Store;
 #[doc(inline)]
 pub use types::{
     CompilerOptimizationLevel, CompilerOutputFormat, ExternalType, Mutability, RefType, ValType,
-    Value,
+    WasmValue,
 };
 #[doc(inline)]
 pub use validator::Validator;
 #[doc(inline)]
 pub use vm::Vm;
 
-thread_local! {
-    // TODO: allow modify capacity before running
-    #[allow(clippy::type_complexity)]
-    static HOST_FUNCS:
-      RefCell<
-        HashMap<usize, Box<dyn Fn(Vec<types::Value>) -> Result<Vec<types::Value>, u8>>>> = RefCell::new(HashMap::with_capacity(var("MAX_HOST_FUNC_LENGTH").map(|s| s.parse::<usize>().expect("MAX_HOST_FUNC_LENGTH should be a number")).unwrap_or(500)));
+/// The WasmEdge result type.
+pub type WasmEdgeResult<T> = Result<T, error::WasmEdgeError>;
+
+/// Type alias for a host function.
+pub type HostFunc = Box<dyn Fn(Vec<WasmValue>) -> Result<Vec<WasmValue>, u8> + Send + Sync>;
+
+lazy_static! {
+    static ref HOST_FUNCS: Arc<Mutex<HashMap<usize, HostFunc>>> =
+        Arc::new(Mutex::new(HashMap::with_capacity(
+            std::env::var("MAX_HOST_FUNC_LENGTH")
+                .map(|s| s
+                    .parse::<usize>()
+                    .expect("MAX_HOST_FUNC_LENGTH should be a positive integer."))
+                .unwrap_or(500)
+        )));
 }

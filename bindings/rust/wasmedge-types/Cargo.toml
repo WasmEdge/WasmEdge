@@ -1,0 +1,14 @@
+[package]
+name = "wasmedge-types"
+version = "0.1.2"
+edition = "2021"
+description = "The common data structures for WasmEdge Rust bindings."
+license = "Apache-2.0"
+readme = "README.md"
+documentation = "https://wasmedge.github.io/WasmEdge/wasmedge_types/"
+repository = "https://github.com/WasmEdge/WasmEdge/tree/master/bindings/rust/wasmedge-types"
+categories = ["data-structures"]
+
+[dependencies]
+wat = "1.0"
+thiserror = "1.0.30"

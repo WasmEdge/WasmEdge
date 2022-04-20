@@ -15,23 +15,23 @@ use std::{
     fs::{self, File},
     io::Read,
 };
-use wasmedge_sys::{Config, FuncType, Function, ImportObject, Loader, ValType, Value, Vm};
+use wasmedge_sys::{Config, FuncType, Function, ImportObject, Loader, ValType, Vm, WasmValue};
 
-fn real_add(input: Vec<Value>) -> Result<Vec<Value>, u8> {
+fn real_add(input: Vec<WasmValue>) -> Result<Vec<WasmValue>, u8> {
     println!("Rust: Entering Rust function real_add");
 
-    if input.len() != 2 {
+    if input.len() != 3 {
         return Err(1);
     }
 
-    let a = if input[0].ty() == ValType::I32 {
-        input[0].to_i32()
+    let a = if input[1].ty() == ValType::I32 {
+        input[1].to_i32()
     } else {
         return Err(2);
     };
 
-    let b = if input[1].ty() == ValType::I32 {
-        input[0].to_i32()
+    let b = if input[2].ty() == ValType::I32 {
+        input[2].to_i32()
     } else {
         return Err(3);
     };
@@ -40,7 +40,7 @@ fn real_add(input: Vec<Value>) -> Result<Vec<Value>, u8> {
     println!("Rust: calcuating in real_add c: {:?}", c);
 
     println!("Rust: Leaving Rust function real_add");
-    Ok(vec![Value::from_i32(c)])
+    Ok(vec![WasmValue::from_i32(c)])
 }
 
 fn load_file_as_byte_vec(filename: &str) -> Vec<u8> {
@@ -71,7 +71,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     );
     assert!(result.is_ok());
     let func_ty = result.unwrap();
-    let result = Function::create(func_ty, Box::new(real_add), 0);
+    let result = Function::create(&func_ty, Box::new(real_add), 0);
     assert!(result.is_ok());
     let host_func = result.unwrap();
     import_obj.add_func("add", host_func);
@@ -85,14 +85,22 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut vm = Vm::create(Some(config), None)?;
     vm.register_wasm_from_import(import_obj)?;
 
-    let add_ref = Value::from_extern_ref(&mut real_add);
+    let add_ref = WasmValue::from_extern_ref(&mut real_add);
     match vm.run_wasm_from_module(
         module,
         "call_add",
-        [add_ref, Value::from_i32(1234), Value::from_i32(5678)],
+        [
+            add_ref,
+            WasmValue::from_i32(1234),
+            WasmValue::from_i32(5678),
+        ],
     ) {
-        Ok(v) => println!("result from call_add: {:?}", v),
-        Err(r) => println!("error from call_add{:?}", r),
+        Ok(returns) => {
+            let ret = returns[0].to_i32();
+            assert_eq!(ret, 1234 + 5678);
+            println!("result from call_add: {}", ret)
+        }
+        Err(e) => println!("error from call_add{:?}", e),
     };
     Ok(())
 }

@@ -37,7 +37,7 @@ Expect<void> Executor::instantiate(Runtime::StoreManager &StoreMgr,
       if (!Conf.hasProposal(Proposal::ReferenceTypes) &&
           !Conf.hasProposal(Proposal::BulkMemoryOperations)) {
         // Memory index should be 0. Checked in validation phase.
-        auto *MemInst = getMemInstByIdx(StoreMgr, StackMgr, DataSeg.getIdx());
+        auto *MemInst = getMemInstByIdx(StackMgr, DataSeg.getIdx());
         // Check data fits.
         assuming(MemInst);
         if (!MemInst->checkAccessBound(
@@ -50,22 +50,19 @@ Expect<void> Executor::instantiate(Runtime::StoreManager &StoreMgr,
     }
 
     // Insert data instance to store manager.
-    uint32_t NewDataInstAddr;
+    Runtime::Instance::DataInstance *DataInst = nullptr;
     if (InsMode == InstantiateMode::Instantiate) {
-      NewDataInstAddr = StoreMgr.pushData(Offset, DataSeg.getData());
+      DataInst = StoreMgr.pushData(Offset, DataSeg.getData());
     } else {
-      NewDataInstAddr = StoreMgr.importData(Offset, DataSeg.getData());
+      DataInst = StoreMgr.importData(Offset, DataSeg.getData());
     }
-    ModInst.addDataAddr(NewDataInstAddr);
+    ModInst.addData(DataInst);
   }
   return {};
 }
 
-// Initialize memory with Data Instances. See
-// "include/executor/executor.h".
-Expect<void> Executor::initMemory(Runtime::StoreManager &StoreMgr,
-                                  Runtime::StackManager &StackMgr,
-                                  Runtime::Instance::ModuleInstance &,
+// Initialize memory with Data section. See "include/executor/executor.h".
+Expect<void> Executor::initMemory(Runtime::StackManager &StackMgr,
                                   const AST::DataSection &DataSec) {
   // initialize memory.
   uint32_t Idx = 0;
@@ -73,10 +70,10 @@ Expect<void> Executor::initMemory(Runtime::StoreManager &StoreMgr,
     // Initialize memory if data mode is active.
     if (DataSeg.getMode() == AST::DataSegment::DataMode::Active) {
       // Memory index should be 0. Checked in validation phase.
-      auto *MemInst = getMemInstByIdx(StoreMgr, StackMgr, DataSeg.getIdx());
+      auto *MemInst = getMemInstByIdx(StackMgr, DataSeg.getIdx());
       assuming(MemInst);
 
-      auto *DataInst = getDataInstByIdx(StoreMgr, StackMgr, Idx);
+      auto *DataInst = getDataInstByIdx(StackMgr, Idx);
       assuming(DataInst);
       const uint32_t Off = DataInst->getOffset();
 

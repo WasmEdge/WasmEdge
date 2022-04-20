@@ -1,10 +1,10 @@
+//! Defines the error types.
+
 use crate::{
-    wasmedge::{WasmEdge_Result, WasmEdge_ResultGetCode, WasmEdge_ResultOK},
-    ExternalType,
+    ffi::{WasmEdge_Result, WasmEdge_ResultGetCode, WasmEdge_ResultOK},
+    ExternalType, WasmEdgeResult,
 };
 use thiserror::Error;
-
-pub type WasmEdgeResult<T> = Result<T, WasmEdgeError>;
 
 /// Defines the errors raised by the wasmedge-sys crate.
 #[derive(Error, Clone, Debug, PartialEq)]
@@ -56,6 +56,8 @@ pub enum WasmEdgeError {
     Import(ImportError),
     #[error("{0}")]
     Export(ExportError),
+    #[error("{0}")]
+    Instance(InstanceError),
 
     // std
     #[error("Found an interior nul byte")]
@@ -150,6 +152,19 @@ pub enum ExportError {
     GlobalType(String),
 }
 
+/// Defines the errors raised from [Instance](crate::Instance).
+#[derive(Error, Clone, Debug, PartialEq)]
+pub enum InstanceError {
+    #[error("Fail to find the target function ({0})")]
+    NotFoundFunc(String),
+    #[error("Fail to find the target table ({0})")]
+    NotFoundTable(String),
+    #[error("Fail to find the target memory ({0})")]
+    NotFoundMem(String),
+    #[error("Fail to find the target global ({0})")]
+    NotFoundGlobal(String),
+}
+
 /// Defines the errors raised from [Store](crate::Store).
 #[derive(Error, Clone, Debug, PartialEq)]
 pub enum StoreError {
@@ -179,6 +194,8 @@ pub enum StoreError {
     },
     #[error("Not found the target module ({0})")]
     NotFoundModule(String),
+    #[error("Not found the active module")]
+    NotFoundActiveModule,
 }
 
 /// Defines the errors raised from [Vm](crate::Vm).
@@ -196,8 +213,21 @@ pub enum VmError {
     NotFoundStore,
     #[error("Fail to get Statistics context")]
     NotFoundStatistics,
+    #[error("Fail to get the target ImportObject (name: {0})")]
+    NotFoundImportObject(String),
+    #[error(
+        "Fail to register import object. Another import object with the name has already existed."
+    )]
+    DuplicateImportObject,
+    #[error("Fail to get Loader context")]
+    NotFoundLoader,
+    #[error("Fail to get Validator context")]
+    NotFoundValidator,
+    #[error("Fail to get Executor context")]
+    NotFoundExecutor,
 }
 
+/// Defines the errors raised from WasmEdge Core.
 #[derive(Error, Clone, Debug, PartialEq)]
 pub enum CoreError {
     #[error("{0}")]

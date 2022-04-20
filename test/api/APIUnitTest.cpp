@@ -302,8 +302,8 @@ TEST(APICoreTest, Value) {
 #endif
   Val = WasmEdge_ValueGenNullRef(WasmEdge_RefType_FuncRef);
   EXPECT_TRUE(WasmEdge_ValueIsNullRef(Val));
-  Val = WasmEdge_ValueGenFuncRef(123U);
-  EXPECT_EQ(WasmEdge_ValueGetFuncIdx(Val), 123U);
+  Val = WasmEdge_ValueGenFuncRef(nullptr);
+  EXPECT_EQ(WasmEdge_ValueGetFuncRef(Val), nullptr);
   Val = WasmEdge_ValueGenExternRef(&Vec);
   EXPECT_EQ(
       static_cast<std::vector<uint32_t> *>(WasmEdge_ValueGetExternRef(Val))
@@ -890,8 +890,8 @@ TEST(APICoreTest, Compiler) {
   EXPECT_TRUE(WasmEdge_ResultOK(
       WasmEdge_CompilerCompile(Compiler, TPath, "test_aot.wasm")));
   EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_CompilerCompile(
-      Compiler, "../spec/testSuites/core/binary/binary.160.wasm",
-      "binary_160_aot.wasm")));
+      Compiler, "../spec/testSuites/core/binary/binary.159.wasm",
+      "binary_159_aot.wasm")));
   // File not found
   EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_IllegalPath,
                          WasmEdge_CompilerCompile(Compiler, "not_exist.wasm",
@@ -908,7 +908,7 @@ TEST(APICoreTest, Compiler) {
   EXPECT_TRUE(OutFile.read(reinterpret_cast<char *>(Buf), 4));
   OutFile.close();
   EXPECT_TRUE(std::equal(WASMMagic, WASMMagic + 4, Buf));
-  OutFile.open("binary_160_aot.wasm", std::ios::binary);
+  OutFile.open("binary_159_aot.wasm", std::ios::binary);
   EXPECT_TRUE(OutFile.read(reinterpret_cast<char *>(Buf), 4));
   OutFile.close();
   EXPECT_TRUE(std::equal(WASMMagic, WASMMagic + 4, Buf));
@@ -920,14 +920,14 @@ TEST(APICoreTest, Compiler) {
   EXPECT_TRUE(WasmEdge_ResultOK(
       WasmEdge_CompilerCompile(Compiler, TPath, "test_aot.so")));
   EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_CompilerCompile(
-      Compiler, "../spec/testSuites/core/binary/binary.160.wasm",
-      "binary_160_aot.so")));
+      Compiler, "../spec/testSuites/core/binary/binary.159.wasm",
+      "binary_159_aot.so")));
   // Check the header of the output files.
   OutFile.open("test_aot.so", std::ios::binary);
   EXPECT_TRUE(OutFile.read(reinterpret_cast<char *>(Buf), 4));
   OutFile.close();
   EXPECT_FALSE(std::equal(WASMMagic, WASMMagic + 4, Buf));
-  OutFile.open("binary_160_aot.so", std::ios::binary);
+  OutFile.open("binary_159_aot.so", std::ios::binary);
   EXPECT_TRUE(OutFile.read(reinterpret_cast<char *>(Buf), 4));
   OutFile.close();
   EXPECT_FALSE(std::equal(WASMMagic, WASMMagic + 4, Buf));
@@ -1140,6 +1140,12 @@ TEST(APICoreTest, ExecutorWithStatistics) {
   EXPECT_TRUE(isErrMatch(
       WasmEdge_ErrCode_ModuleNameConflict,
       WasmEdge_ExecutorRegisterModule(ExecCxt, Store, Mod, ModName2)));
+  // Hasn't validated yet
+  WasmEdge_ASTModuleContext *ModNotValid = loadModule(Conf, TPath);
+  EXPECT_TRUE(isErrMatch(
+      WasmEdge_ErrCode_NotValidated,
+      WasmEdge_ExecutorRegisterModule(ExecCxt, Store, ModNotValid, ModName)));
+  WasmEdge_ASTModuleDelete(ModNotValid);
   EXPECT_TRUE(WasmEdge_ResultOK(
       WasmEdge_ExecutorRegisterModule(ExecCxt, Store, Mod, ModName)));
   WasmEdge_StringDelete(ModName);
@@ -1853,7 +1859,7 @@ TEST(APICoreTest, Instance) {
 
   // Table instance set data
   Val = WasmEdge_ValueGenExternRef(&TabCxt);
-  TmpVal = WasmEdge_ValueGenFuncRef(2);
+  TmpVal = WasmEdge_ValueGenFuncRef(nullptr);
   EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_TableInstanceSetData(TabCxt, Val, 5)));
   EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_RefTypeMismatch,
                          WasmEdge_TableInstanceSetData(TabCxt, TmpVal, 6)));
@@ -2107,6 +2113,9 @@ TEST(APICoreTest, ImportObject) {
   ImpObj = WasmEdge_ImportObjectCreate(HostName);
   WasmEdge_StringDelete(HostName);
   EXPECT_NE(ImpObj, nullptr);
+  WasmEdge_String ExpectedHostName = WasmEdge_StringCreateByCString("extern");
+  WasmEdge_String ActualHostName = WasmEdge_ImportObjectGetModuleName(ImpObj);
+  EXPECT_TRUE(WasmEdge_StringIsEqual(ExpectedHostName, ActualHostName));
 
   // Add host function "func-add": {externref, i32} -> {i32}
   Param[0] = WasmEdge_ValType_ExternRef;

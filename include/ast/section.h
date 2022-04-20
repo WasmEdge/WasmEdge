@@ -26,12 +26,19 @@ namespace AST {
 class Section {
 public:
   /// Getter and setter of content size.
-  uint32_t getContentSize() const noexcept { return ContentSize; }
-  void setContentSize(uint32_t Size) noexcept { ContentSize = Size; }
+  uint64_t getContentSize() const noexcept { return ContentSize; }
+  void setContentSize(uint64_t Size) noexcept { ContentSize = Size; }
+
+  /// Getter and setter of start offset in source.
+  uint64_t getStartOffset() const noexcept { return StartOffset; }
+  void setStartOffset(uint64_t Off) noexcept { StartOffset = Off; }
 
 protected:
   /// Content size of this section.
-  uint32_t ContentSize = 0;
+  uint64_t ContentSize = 0;
+
+  /// Start offset in source of this section.
+  uint64_t StartOffset = 0;
 };
 
 /// AST CustomSection node.

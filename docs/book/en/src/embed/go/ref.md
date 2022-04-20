@@ -191,92 +191,92 @@ The [Golang source code](https://github.com/second-state/WasmEdge-go-examples/bl
 package main
 
 import (
-	"fmt"
-	"os"
+  "fmt"
+  "os"
 
-	"github.com/second-state/WasmEdge-go/wasmedge"
-	bindgen "github.com/second-state/wasmedge-bindgen/host/go"
+  "github.com/second-state/WasmEdge-go/wasmedge"
+  bindgen "github.com/second-state/wasmedge-bindgen/host/go"
 )
 
 func main() {
-	// Expected Args[0]: program name (./bindgen_funcs)
-	// Expected Args[1]: wasm file (rust_bindgen_funcs_lib.wasm))
-	
-	// Set not to print debug info
-	wasmedge.SetLogErrorLevel()
+  // Expected Args[0]: program name (./bindgen_funcs)
+  // Expected Args[1]: wasm file (rust_bindgen_funcs_lib.wasm))
+  
+  // Set not to print debug info
+  wasmedge.SetLogErrorLevel()
 
-	// Create configure
-	var conf = wasmedge.NewConfigure(wasmedge.WASI)
+  // Create configure
+  var conf = wasmedge.NewConfigure(wasmedge.WASI)
 
-	// Create VM with configure
-	var vm = wasmedge.NewVMWithConfig(conf)
+  // Create VM with configure
+  var vm = wasmedge.NewVMWithConfig(conf)
 
-	// Init WASI
-	var wasi = vm.GetImportObject(wasmedge.WASI)
-	wasi.InitWasi(
-		os.Args[1:],     // The args
-		os.Environ(),    // The envs
-		[]string{".:."}, // The mapping preopens
-	)
+  // Init WASI
+  var wasi = vm.GetImportObject(wasmedge.WASI)
+  wasi.InitWasi(
+    os.Args[1:],     // The args
+    os.Environ(),    // The envs
+    []string{".:."}, // The mapping preopens
+  )
 
-	// Load and validate the wasm
-	vm.LoadWasmFile(os.Args[1])
-	vm.Validate()
+  // Load and validate the wasm
+  vm.LoadWasmFile(os.Args[1])
+  vm.Validate()
 
-	// Instantiate the bindgen and vm
-	bg := bindgen.Instantiate(vm)
+  // Instantiate the bindgen and vm
+  bg := bindgen.Instantiate(vm)
 
-	// create_line: string, string, string -> string (inputs are JSON stringified)	
-	res, err := bg.Execute("create_line", "{\"x\":2.5,\"y\":7.8}", "{\"x\":2.5,\"y\":5.8}", "A thin red line")
-	if err == nil {
-		fmt.Println("Run bindgen -- create_line:", res[0].(string))
-	} else {
-		fmt.Println("Run bindgen -- create_line FAILED", err)
-	}
+  // create_line: string, string, string -> string (inputs are JSON stringified)  
+  res, err := bg.Execute("create_line", "{\"x\":2.5,\"y\":7.8}", "{\"x\":2.5,\"y\":5.8}", "A thin red line")
+  if err == nil {
+    fmt.Println("Run bindgen -- create_line:", res[0].(string))
+  } else {
+    fmt.Println("Run bindgen -- create_line FAILED", err)
+  }
 
-	// say: string -> string
-	res, err = bg.Execute("say", "bindgen funcs test")
-	if err == nil {
-		fmt.Println("Run bindgen -- say:", res[0].(string))
-	} else {
-		fmt.Println("Run bindgen -- say FAILED")
-	}
+  // say: string -> string
+  res, err = bg.Execute("say", "bindgen funcs test")
+  if err == nil {
+    fmt.Println("Run bindgen -- say:", res[0].(string))
+  } else {
+    fmt.Println("Run bindgen -- say FAILED")
+  }
 
-	// obfusticate: string -> string
-	res, err = bg.Execute("obfusticate", "A quick brown fox jumps over the lazy dog")
-	if err == nil {
-		fmt.Println("Run bindgen -- obfusticate:", res[0].(string))
-	} else {
-		fmt.Println("Run bindgen -- obfusticate FAILED")
-	}
+  // obfusticate: string -> string
+  res, err = bg.Execute("obfusticate", "A quick brown fox jumps over the lazy dog")
+  if err == nil {
+    fmt.Println("Run bindgen -- obfusticate:", res[0].(string))
+  } else {
+    fmt.Println("Run bindgen -- obfusticate FAILED")
+  }
 
-	// lowest_common_multiple: i32, i32 -> i32
-	res, err = bg.Execute("lowest_common_multiple", int32(123), int32(2))
-	if err == nil {
-		fmt.Println("Run bindgen -- lowest_common_multiple:", res[0].(int32))
-	} else {
-		fmt.Println("Run bindgen -- lowest_common_multiple FAILED")
-	}
+  // lowest_common_multiple: i32, i32 -> i32
+  res, err = bg.Execute("lowest_common_multiple", int32(123), int32(2))
+  if err == nil {
+    fmt.Println("Run bindgen -- lowest_common_multiple:", res[0].(int32))
+  } else {
+    fmt.Println("Run bindgen -- lowest_common_multiple FAILED")
+  }
 
-	// sha3_digest: array -> array
-	res, err = bg.Execute("sha3_digest", []byte("This is an important message"))
-	if err == nil {
-		fmt.Println("Run bindgen -- sha3_digest:", res[0].([]byte))
-	} else {
-		fmt.Println("Run bindgen -- sha3_digest FAILED")
-	}
+  // sha3_digest: array -> array
+  res, err = bg.Execute("sha3_digest", []byte("This is an important message"))
+  if err == nil {
+    fmt.Println("Run bindgen -- sha3_digest:", res[0].([]byte))
+  } else {
+    fmt.Println("Run bindgen -- sha3_digest FAILED")
+  }
 
-	// keccak_digest: array -> array
-	res, err = bg.Execute("keccak_digest", []byte("This is an important message"))
-	if err == nil {
-		fmt.Println("Run bindgen -- keccak_digest:", res[0].([]byte))
-	} else {
-		fmt.Println("Run bindgen -- keccak_digest FAILED")
-	}
+  // keccak_digest: array -> array
+  res, err = bg.Execute("keccak_digest", []byte("This is an important message"))
+  if err == nil {
+    fmt.Println("Run bindgen -- keccak_digest:", res[0].([]byte))
+  } else {
+    fmt.Println("Run bindgen -- keccak_digest FAILED")
+  }
 
-	bg.Release()
-	vm.Release()
-	conf.Release()
+  bg.Release()
+  vm.Release()
+  conf.Release()
 }
 ```
 
@@ -314,48 +314,48 @@ use std::fs::File;
 use std::io::{self, BufRead};
 
 fn main() {
-    // Get the argv.
-    let args: Vec<String> = env::args().collect();
-    if args.len() <= 1 {
-        println!("Rust: ERROR - No input file name.");
-        return;
-    }
+  // Get the argv.
+  let args: Vec<String> = env::args().collect();
+  if args.len() <= 1 {
+    println!("Rust: ERROR - No input file name.");
+    return;
+  }
 
-    // Open the file.
-    println!("Rust: Opening input file \"{}\"...", args[1]);
-    let file = match File::open(&args[1]) {
-        Err(why) => {
-            println!("Rust: ERROR - Open file \"{}\" failed: {}", args[1], why);
-            return;
-        },
-        Ok(file) => file,
-    };
+  // Open the file.
+  println!("Rust: Opening input file \"{}\"...", args[1]);
+  let file = match File::open(&args[1]) {
+    Err(why) => {
+      println!("Rust: ERROR - Open file \"{}\" failed: {}", args[1], why);
+      return;
+    },
+    Ok(file) => file,
+  };
 
-    // Read lines.
-    let reader = io::BufReader::new(file);
-    let mut texts:Vec<String> = Vec::new();
-    for line in reader.lines() {
-        if let Ok(text) = line {
-            texts.push(text);
-        }
+  // Read lines.
+  let reader = io::BufReader::new(file);
+  let mut texts:Vec<String> = Vec::new();
+  for line in reader.lines() {
+    if let Ok(text) = line {
+      texts.push(text);
     }
-    println!("Rust: Read input file \"{}\" succeeded.", args[1]);
+  }
+  println!("Rust: Read input file \"{}\" succeeded.", args[1]);
 
-    // Get stdin to print lines.
-    println!("Rust: Please input the line number to print the line of file.");
-    let stdin = io::stdin();
-    for line in stdin.lock().lines() {
-        let input = line.unwrap();
-        match input.parse::<usize>() {
-            Ok(n) => if n > 0 && n <= texts.len() {
-                println!("{}", texts[n - 1]);
-            } else {
-                println!("Rust: ERROR - Line \"{}\" is out of range.", n);
-            },
-            Err(e) => println!("Rust: ERROR - Input \"{}\" is not an integer: {}", input, e),
-        }
+  // Get stdin to print lines.
+  println!("Rust: Please input the line number to print the line of file.");
+  let stdin = io::stdin();
+  for line in stdin.lock().lines() {
+    let input = line.unwrap();
+    match input.parse::<usize>() {
+      Ok(n) => if n > 0 && n <= texts.len() {
+        println!("{}", texts[n - 1]);
+      } else {
+        println!("Rust: ERROR - Line \"{}\" is out of range.", n);
+      },
+      Err(e) => println!("Rust: ERROR - Input \"{}\" is not an integer: {}", input, e),
     }
-    println!("Rust: Process end.");
+  }
+  println!("Rust: Process end.");
 }
 ```
 
@@ -383,29 +383,29 @@ The Golang source code to run the WebAssembly function in WasmEdge is as follows
 package main
 
 import (
-    "os"
+  "os"
 
-    "github.com/second-state/WasmEdge-go/wasmedge"
+  "github.com/second-state/WasmEdge-go/wasmedge"
 )
 
 func main() {
-    wasmedge.SetLogErrorLevel()
+  wasmedge.SetLogErrorLevel()
 
-    var conf = wasmedge.NewConfigure(wasmedge.REFERENCE_TYPES)
-    conf.AddConfig(wasmedge.WASI)
-    var vm = wasmedge.NewVMWithConfig(conf)
-    var wasi = vm.GetImportObject(wasmedge.WASI)
-    wasi.InitWasi(
-        os.Args[1:],     // The args
-        os.Environ(),    // The envs
-        []string{".:."}, // The mapping directories
-    )
+  var conf = wasmedge.NewConfigure(wasmedge.REFERENCE_TYPES)
+  conf.AddConfig(wasmedge.WASI)
+  var vm = wasmedge.NewVMWithConfig(conf)
+  var wasi = vm.GetImportObject(wasmedge.WASI)
+  wasi.InitWasi(
+    os.Args[1:],     // The args
+    os.Environ(),    // The envs
+    []string{".:."}, // The mapping directories
+  )
 
-    // Instantiate and run WASM "_start" function, which refers to the main() function
-    vm.RunWasmFile(os.Args[1], "_start")
+  // Instantiate and run WASM "_start" function, which refers to the main() function
+  vm.RunWasmFile(os.Args[1], "_start")
 
-    vm.Release()
-    conf.Release()
+  vm.Release()
+  conf.Release()
 }
 ```
 
@@ -512,7 +512,7 @@ The `Result` object specifies the execution status. Developers can use the `Erro
 res, err = vm.Execute(...) // Ignore the detail of parameters.
 // Assume that `res, err` are the return values for executing a function with `vm`.
 if err != nil {
-    fmt.Println("Error message:", err.Error())
+  fmt.Println("Error message:", err.Error())
 }
 ```
 
@@ -563,14 +563,14 @@ The details of instances creation will be introduced in the [Instances](#Instanc
 
     ```go
     functype := wasmedge.NewFunctionType(
-        []wasmedge.ValType{
-            wasmedge.ValType_ExternRef,
-            wasmedge.ValType_I32,
-            wasmedge.ValType_I64,
-        }, []wasmedge.ValType{
-            wasmedge.ValType_F32,
-            wasmedge.ValType_F64,
-        })
+      []wasmedge.ValType{
+        wasmedge.ValType_ExternRef,
+        wasmedge.ValType_I32,
+        wasmedge.ValType_I64,
+      }, []wasmedge.ValType{
+        wasmedge.ValType_F32,
+        wasmedge.ValType_F64,
+      })
 
     plen := functype.GetParametersLength()
     // `plen` will be 3.
@@ -642,17 +642,17 @@ The details of instances creation will be introduced in the [Instances](#Instanc
     // Assume that `imptypelist` is an array listed from the `ast` for the imports.
 
     for i, imptype := range imptypelist {
-        exttype := imptype.GetExternalType()
-        // The `exttype` must be one of `wasmedge.ExternType_Function`, `wasmedge.ExternType_Table`,
-        // wasmedge.ExternType_Memory`, or `wasmedge.ExternType_Global`.
+      exttype := imptype.GetExternalType()
+      // The `exttype` must be one of `wasmedge.ExternType_Function`, `wasmedge.ExternType_Table`,
+      // wasmedge.ExternType_Memory`, or `wasmedge.ExternType_Global`.
 
-        modname := imptype.GetModuleName()
-        extname := imptype.GetExternalName()
-        // Get the module name and external name of the imports.
+      modname := imptype.GetModuleName()
+      extname := imptype.GetExternalName()
+      // Get the module name and external name of the imports.
 
-        extval := imptype.GetExternalValue()
-        // The `extval` is the type of `interface{}` which indicates one of `*wasmedge.FunctionType`,
-        // `*wasmedge.TableType`, `*wasmedge.MemoryType`, or `*wasmedge.GlobalType`.
+      extval := imptype.GetExternalValue()
+      // The `extval` is the type of `interface{}` which indicates one of `*wasmedge.FunctionType`,
+      // `*wasmedge.TableType`, `*wasmedge.MemoryType`, or `*wasmedge.GlobalType`.
     }
     ```
 
@@ -669,16 +669,16 @@ The details of instances creation will be introduced in the [Instances](#Instanc
     // Assume that `exptypelist` is an array listed from the `ast` for the exports.
 
     for i, exptype := range exptypelist {
-        exttype := exptype.GetExternalType()
-        // The `exttype` must be one of `wasmedge.ExternType_Function`, `wasmedge.ExternType_Table`,
-        // wasmedge.ExternType_Memory`, or `wasmedge.ExternType_Global`.
+      exttype := exptype.GetExternalType()
+      // The `exttype` must be one of `wasmedge.ExternType_Function`, `wasmedge.ExternType_Table`,
+      // wasmedge.ExternType_Memory`, or `wasmedge.ExternType_Global`.
 
-        extname := exptype.GetExternalName()
-        // Get the external name of the exports.
+      extname := exptype.GetExternalName()
+      // Get the external name of the exports.
 
-        extval := exptype.GetExternalValue()
-        // The `extval` is the type of `interface{}` which indicates one of `*wasmedge.FunctionType`,
-        // `*wasmedge.TableType`, `*wasmedge.MemoryType`, or `*wasmedge.GlobalType`.
+      extval := exptype.GetExternalValue()
+      // The `extval` is the type of `interface{}` which indicates one of `*wasmedge.FunctionType`,
+      // `*wasmedge.TableType`, `*wasmedge.MemoryType`, or `*wasmedge.GlobalType`.
     }
     ```
 
@@ -694,19 +694,19 @@ Developers can adjust the settings about the proposals, VM host pre-registration
 
     ```go
     const (
-        IMPORT_EXPORT_MUT_GLOBALS         = Proposal(C.WasmEdge_Proposal_ImportExportMutGlobals)
-        NON_TRAP_FLOAT_TO_INT_CONVERSIONS = Proposal(C.WasmEdge_Proposal_NonTrapFloatToIntConversions)
-        SIGN_EXTENSION_OPERATORS          = Proposal(C.WasmEdge_Proposal_SignExtensionOperators)
-        MULTI_VALUE                       = Proposal(C.WasmEdge_Proposal_MultiValue)
-        BULK_MEMORY_OPERATIONS            = Proposal(C.WasmEdge_Proposal_BulkMemoryOperations)
-        REFERENCE_TYPES                   = Proposal(C.WasmEdge_Proposal_ReferenceTypes)
-        SIMD                              = Proposal(C.WasmEdge_Proposal_SIMD)
-        TAIL_CALL                         = Proposal(C.WasmEdge_Proposal_TailCall)
-        ANNOTATIONS                       = Proposal(C.WasmEdge_Proposal_Annotations)
-        MEMORY64                          = Proposal(C.WasmEdge_Proposal_Memory64)
-        THREADS                           = Proposal(C.WasmEdge_Proposal_Threads)
-        EXCEPTION_HANDLING                = Proposal(C.WasmEdge_Proposal_ExceptionHandling)
-        FUNCTION_REFERENCES               = Proposal(C.WasmEdge_Proposal_FunctionReferences)
+      IMPORT_EXPORT_MUT_GLOBALS         = Proposal(C.WasmEdge_Proposal_ImportExportMutGlobals)
+      NON_TRAP_FLOAT_TO_INT_CONVERSIONS = Proposal(C.WasmEdge_Proposal_NonTrapFloatToIntConversions)
+      SIGN_EXTENSION_OPERATORS          = Proposal(C.WasmEdge_Proposal_SignExtensionOperators)
+      MULTI_VALUE                       = Proposal(C.WasmEdge_Proposal_MultiValue)
+      BULK_MEMORY_OPERATIONS            = Proposal(C.WasmEdge_Proposal_BulkMemoryOperations)
+      REFERENCE_TYPES                   = Proposal(C.WasmEdge_Proposal_ReferenceTypes)
+      SIMD                              = Proposal(C.WasmEdge_Proposal_SIMD)
+      TAIL_CALL                         = Proposal(C.WasmEdge_Proposal_TailCall)
+      ANNOTATIONS                       = Proposal(C.WasmEdge_Proposal_Annotations)
+      MEMORY64                          = Proposal(C.WasmEdge_Proposal_Memory64)
+      THREADS                           = Proposal(C.WasmEdge_Proposal_Threads)
+      EXCEPTION_HANDLING                = Proposal(C.WasmEdge_Proposal_ExceptionHandling)
+      FUNCTION_REFERENCES               = Proposal(C.WasmEdge_Proposal_FunctionReferences)
     )
     ```
 
@@ -737,8 +737,8 @@ Developers can adjust the settings about the proposals, VM host pre-registration
 
     ```go
     const (
-        WASI             = HostRegistration(C.WasmEdge_HostRegistration_Wasi)
-        WasmEdge_PROCESS = HostRegistration(C.WasmEdge_HostRegistration_WasmEdge_Process)
+      WASI             = HostRegistration(C.WasmEdge_HostRegistration_Wasi)
+      WasmEdge_PROCESS = HostRegistration(C.WasmEdge_HostRegistration_WasmEdge_Process)
     )
     ```
 
@@ -776,25 +776,25 @@ Developers can adjust the settings about the proposals, VM host pre-registration
 
     ```go
     const (
-        // Disable as many optimizations as possible.
-        CompilerOptLevel_O0 = CompilerOptimizationLevel(C.WasmEdge_CompilerOptimizationLevel_O0)
-        // Optimize quickly without destroying debuggability.
-        CompilerOptLevel_O1 = CompilerOptimizationLevel(C.WasmEdge_CompilerOptimizationLevel_O1)
-        // Optimize for fast execution as much as possible without triggering significant incremental compile time or code size growth.
-        CompilerOptLevel_O2 = CompilerOptimizationLevel(C.WasmEdge_CompilerOptimizationLevel_O2)
-        // Optimize for fast execution as much as possible.
-        CompilerOptLevel_O3 = CompilerOptimizationLevel(C.WasmEdge_CompilerOptimizationLevel_O3)
-        // Optimize for small code size as much as possible without triggering significant incremental compile time or execution time slowdowns.
-        CompilerOptLevel_Os = CompilerOptimizationLevel(C.WasmEdge_CompilerOptimizationLevel_Os)
-        // Optimize for small code size as much as possible.
-        CompilerOptLevel_Oz = CompilerOptimizationLevel(C.WasmEdge_CompilerOptimizationLevel_Oz)
+      // Disable as many optimizations as possible.
+      CompilerOptLevel_O0 = CompilerOptimizationLevel(C.WasmEdge_CompilerOptimizationLevel_O0)
+      // Optimize quickly without destroying debuggability.
+      CompilerOptLevel_O1 = CompilerOptimizationLevel(C.WasmEdge_CompilerOptimizationLevel_O1)
+      // Optimize for fast execution as much as possible without triggering significant incremental compile time or code size growth.
+      CompilerOptLevel_O2 = CompilerOptimizationLevel(C.WasmEdge_CompilerOptimizationLevel_O2)
+      // Optimize for fast execution as much as possible.
+      CompilerOptLevel_O3 = CompilerOptimizationLevel(C.WasmEdge_CompilerOptimizationLevel_O3)
+      // Optimize for small code size as much as possible without triggering significant incremental compile time or execution time slowdowns.
+      CompilerOptLevel_Os = CompilerOptimizationLevel(C.WasmEdge_CompilerOptimizationLevel_Os)
+      // Optimize for small code size as much as possible.
+      CompilerOptLevel_Oz = CompilerOptimizationLevel(C.WasmEdge_CompilerOptimizationLevel_Oz)
     )
 
     const (
-        // Native dynamic library format.
-        CompilerOutputFormat_Native = CompilerOutputFormat(C.WasmEdge_CompilerOutputFormat_Native)
-        // WebAssembly with AOT compiled codes in custom section.
-        CompilerOutputFormat_Wasm = CompilerOutputFormat(C.WasmEdge_CompilerOutputFormat_Wasm)
+      // Native dynamic library format.
+      CompilerOutputFormat_Native = CompilerOutputFormat(C.WasmEdge_CompilerOutputFormat_Native)
+      // WebAssembly with AOT compiled codes in custom section.
+      CompilerOutputFormat_Wasm = CompilerOutputFormat(C.WasmEdge_CompilerOutputFormat_Wasm)
     )
     ```
 
@@ -875,30 +875,30 @@ This example uses the [fibonacci.wasm](../tools/wasmedge/examples/fibonacci.wasm
     package main
 
     import (
-        "fmt"
+      "fmt"
 
-        "github.com/second-state/WasmEdge-go/wasmedge"
+      "github.com/second-state/WasmEdge-go/wasmedge"
     )
 
     func main() {
-        // Set the logging level.
-        wasmedge.SetLogErrorLevel()
+      // Set the logging level.
+      wasmedge.SetLogErrorLevel()
 
-        // Create the configure context and add the WASI support.
-        // This step is not necessary unless you need WASI support.
-        conf := wasmedge.NewConfigure(wasmedge.WASI)
-        // Create VM with the configure.
-        vm := wasmedge.NewVMWithConfig(conf)
+      // Create the configure context and add the WASI support.
+      // This step is not necessary unless you need WASI support.
+      conf := wasmedge.NewConfigure(wasmedge.WASI)
+      // Create VM with the configure.
+      vm := wasmedge.NewVMWithConfig(conf)
 
-        res, err := vm.RunWasmFile("fibonacci.wasm", "fib", uint32(21))
-        if err == nil {
-            fmt.Println("Get fibonacci[21]:", res[0].(int32))
-        } else {
-            fmt.Println("Run failed:", err.Error())
-        }
+      res, err := vm.RunWasmFile("fibonacci.wasm", "fib", uint32(21))
+      if err == nil {
+        fmt.Println("Get fibonacci[21]:", res[0].(int32))
+      } else {
+        fmt.Println("Run failed:", err.Error())
+      }
 
-        vm.Release()
-        conf.Release()
+      vm.Release()
+      conf.Release()
     }
     ```
 
@@ -919,54 +919,54 @@ This example uses the [fibonacci.wasm](../tools/wasmedge/examples/fibonacci.wasm
     package main
 
     import (
-        "fmt"
+      "fmt"
 
-        "github.com/second-state/WasmEdge-go/wasmedge"
+      "github.com/second-state/WasmEdge-go/wasmedge"
     )
 
     func main() {
-        // Set the logging level.
-        wasmedge.SetLogErrorLevel()
+      // Set the logging level.
+      wasmedge.SetLogErrorLevel()
 
-        // Create VM.
-        vm := wasmedge.NewVM()
-        var err error
-        var res []interface{}
+      // Create VM.
+      vm := wasmedge.NewVM()
+      var err error
+      var res []interface{}
 
-        // Step 1: Load WASM file.
-        err = vm.LoadWasmFile("fibonacci.wasm")
-        if err != nil {
-            fmt.Println("Load WASM from file FAILED:", err.Error())
-            return
-        }
+      // Step 1: Load WASM file.
+      err = vm.LoadWasmFile("fibonacci.wasm")
+      if err != nil {
+        fmt.Println("Load WASM from file FAILED:", err.Error())
+        return
+      }
 
-        // Step 2: Validate the WASM module.
-        err = vm.Validate()
-        if err != nil {
-            fmt.Println("Validation FAILED:", err.Error())
-            return
-        }
+      // Step 2: Validate the WASM module.
+      err = vm.Validate()
+      if err != nil {
+        fmt.Println("Validation FAILED:", err.Error())
+        return
+      }
 
-        // Step 3: Instantiate the WASM module.
-        err = vm.Instantiate()
-        // Developers can load, validate, and instantiate another WASM module
-        // to replace the instantiated one. In this case, the old module will
-        // be cleared, but the registered modules are still kept.
-        if err != nil {
-            fmt.Println("Instantiation FAILED:", err.Error())
-            return
-        }
+      // Step 3: Instantiate the WASM module.
+      err = vm.Instantiate()
+      // Developers can load, validate, and instantiate another WASM module
+      // to replace the instantiated one. In this case, the old module will
+      // be cleared, but the registered modules are still kept.
+      if err != nil {
+        fmt.Println("Instantiation FAILED:", err.Error())
+        return
+      }
 
-        // Step 4: Execute WASM functions. Parameters: (funcname, args...)
-        res, err = vm.Execute("fib", uint32(25))
-        // Developers can execute functions repeatedly after instantiation.
-        if err == nil {
-            fmt.Println("Get fibonacci[25]:", res[0].(int32))
-        } else {
-            fmt.Println("Run failed:", err.Error())
-        }
+      // Step 4: Execute WASM functions. Parameters: (funcname, args...)
+      res, err = vm.Execute("fib", uint32(25))
+      // Developers can execute functions repeatedly after instantiation.
+      if err == nil {
+        fmt.Println("Get fibonacci[25]:", res[0].(int32))
+      } else {
+        fmt.Println("Run failed:", err.Error())
+      }
 
-        vm.Release()
+      vm.Release()
     }
     ```
 
@@ -1141,18 +1141,18 @@ WasmEdge VM provides APIs for developers to register and export any WASM modules
     import "github.com/second-state/WasmEdge-go/wasmedge"
 
     func main() {
-        // Create VM.
-        vm := wasmedge.NewVM()
+      // Create VM.
+      vm := wasmedge.NewVM()
 
-        var err error
-        err = vm.RegisterWasmFile("module_name", "fibonacci.wasm")
-        // Developers can register the WASM module from `[]byte` with the
-        // `(*VM).RegisterWasmBuffer` function, or from `AST` object with
-        // the `(*VM).RegisterAST` function.
-        // The result status should be checked. The error will occur if the
-        // WASM module instantiation failed or the module name conflicts.
+      var err error
+      err = vm.RegisterWasmFile("module_name", "fibonacci.wasm")
+      // Developers can register the WASM module from `[]byte` with the
+      // `(*VM).RegisterWasmBuffer` function, or from `AST` object with
+      // the `(*VM).RegisterAST` function.
+      // The result status should be checked. The error will occur if the
+      // WASM module instantiation failed or the module name conflicts.
 
-        vm.Release()
+      vm.Release()
     }
     ```
 
@@ -1164,43 +1164,43 @@ WasmEdge VM provides APIs for developers to register and export any WASM modules
     package main
 
     import (
-        "fmt"
+      "fmt"
 
-        "github.com/second-state/WasmEdge-go/wasmedge"
+      "github.com/second-state/WasmEdge-go/wasmedge"
     )
 
     func main() {
-        // Create VM.
-        vm := wasmedge.NewVM()
+      // Create VM.
+      vm := wasmedge.NewVM()
 
-        var res []interface{}
-        var err error
-        // Register the WASM module from file into VM with the module name "mod".
-        err = vm.RegisterWasmFile("mod", "fibonacci.wasm")
-        // Developers can register the WASM module from `[]byte` with the
-        // `(*VM).RegisterWasmBuffer` function, or from `AST` object with
-        // the `(*VM).RegisterAST` function.
-        if err != nil {
-            fmt.Println("WASM registration failed:", err.Error())
-            return
-        }
-        // The function "fib" in the "fibonacci.wasm" was exported with the module
-        // name "mod". As the same as host functions, other modules can import the
-        // function `"mod" "fib"`.
+      var res []interface{}
+      var err error
+      // Register the WASM module from file into VM with the module name "mod".
+      err = vm.RegisterWasmFile("mod", "fibonacci.wasm")
+      // Developers can register the WASM module from `[]byte` with the
+      // `(*VM).RegisterWasmBuffer` function, or from `AST` object with
+      // the `(*VM).RegisterAST` function.
+      if err != nil {
+        fmt.Println("WASM registration failed:", err.Error())
+        return
+      }
+      // The function "fib" in the "fibonacci.wasm" was exported with the module
+      // name "mod". As the same as host functions, other modules can import the
+      // function `"mod" "fib"`.
 
-        // Execute WASM functions in registered modules.
-        // Unlike the execution of functions, the registered functions can be
-        // invoked without `(*VM).Instantiate` because the WASM module was
-        // instantiated when registering.
-        // Developers can also invoke the host functions directly with this API.
-        res, err = vm.ExecuteRegistered("mod", "fib", int32(25))
-        if err == nil {
-            fmt.Println("Get fibonacci[25]:", res[0].(int32))
-        } else {
-            fmt.Println("Run failed:", err.Error())
-        }
+      // Execute WASM functions in registered modules.
+      // Unlike the execution of functions, the registered functions can be
+      // invoked without `(*VM).Instantiate` because the WASM module was
+      // instantiated when registering.
+      // Developers can also invoke the host functions directly with this API.
+      res, err = vm.ExecuteRegistered("mod", "fib", int32(25))
+      if err == nil {
+        fmt.Println("Get fibonacci[25]:", res[0].(int32))
+      } else {
+        fmt.Println("Run failed:", err.Error())
+      }
 
-        vm.Release()
+      vm.Release()
     }
     ```
 
@@ -1262,47 +1262,47 @@ The `VM` object supplies the APIs to retrieve the instances.
     package main
 
     import (
-        "fmt"
+      "fmt"
 
-        "github.com/second-state/WasmEdge-go/wasmedge"
+      "github.com/second-state/WasmEdge-go/wasmedge"
     )
 
     func main() {
-        // Create VM.
-        vm := wasmedge.NewVM()
+      // Create VM.
+      vm := wasmedge.NewVM()
 
-        // Step 1: Load WASM file.
-        err := vm.LoadWasmFile("fibonacci.wasm")
-        if err != nil {
-            fmt.Println("Load WASM from file FAILED:", err.Error())
-            return
-        }
+      // Step 1: Load WASM file.
+      err := vm.LoadWasmFile("fibonacci.wasm")
+      if err != nil {
+        fmt.Println("Load WASM from file FAILED:", err.Error())
+        return
+      }
 
-        // Step 2: Validate the WASM module.
-        err = vm.Validate()
-        if err != nil {
-            fmt.Println("Validation FAILED:", err.Error())
-            return
-        }
+      // Step 2: Validate the WASM module.
+      err = vm.Validate()
+      if err != nil {
+        fmt.Println("Validation FAILED:", err.Error())
+        return
+      }
 
-        // Step 3: Instantiate the WASM module.
-        err = vm.Instantiate()
-        if err != nil {
-            fmt.Println("Instantiation FAILED:", err.Error())
-            return
-        }
+      // Step 3: Instantiate the WASM module.
+      err = vm.Instantiate()
+      if err != nil {
+        fmt.Println("Instantiation FAILED:", err.Error())
+        return
+      }
 
-        // List the exported functions for the names and function types.
-        funcnames, functypes := vm.GetFunctionList()
-        for _, fname := range funcnames {
-            fmt.Println("Exported function name:", fname)
-        }
-        for _, ftype := range functypes {
-            // `ftype` is the `FunctionType` object of the same index in the `funcnames` array.
-            // Developers should __NOT__ call the `ftype.Release()`.
-        }
+      // List the exported functions for the names and function types.
+      funcnames, functypes := vm.GetFunctionList()
+      for _, fname := range funcnames {
+        fmt.Println("Exported function name:", fname)
+      }
+      for _, ftype := range functypes {
+        // `ftype` is the `FunctionType` object of the same index in the `funcnames` array.
+        // Developers should __NOT__ call the `ftype.Release()`.
+      }
 
-        vm.Release()
+      vm.Release()
     }
     ```
 
@@ -1352,79 +1352,79 @@ Then assume that the WASM file [`fibonacci.wasm`](../tools/wasmedge/examples/fib
 package main
 
 import (
-    "fmt"
+  "fmt"
 
-    "github.com/second-state/WasmEdge-go/wasmedge"
+  "github.com/second-state/WasmEdge-go/wasmedge"
 )
 
 func main() {
-    // Set the logging level to debug to print the statistics info.
-    wasmedge.SetLogDebugLevel()
-    // Create the configure object. This is not necessary if developers use the default configuration.
-    conf := wasmedge.NewConfigure()
-    // Turn on the runtime instruction counting and time measuring.
-    conf.SetStatisticsInstructionCounting(true)
-    conf.SetStatisticsTimeMeasuring(true)
-    // Create the statistics object. This is not necessary if the statistics in runtime is not needed.
-    stat := wasmedge.NewStatistics()
-    // Create the store object. The store object is the WASM runtime structure core.
-    store := wasmedge.NewStore()
+  // Set the logging level to debug to print the statistics info.
+  wasmedge.SetLogDebugLevel()
+  // Create the configure object. This is not necessary if developers use the default configuration.
+  conf := wasmedge.NewConfigure()
+  // Turn on the runtime instruction counting and time measuring.
+  conf.SetStatisticsInstructionCounting(true)
+  conf.SetStatisticsTimeMeasuring(true)
+  // Create the statistics object. This is not necessary if the statistics in runtime is not needed.
+  stat := wasmedge.NewStatistics()
+  // Create the store object. The store object is the WASM runtime structure core.
+  store := wasmedge.NewStore()
 
-    var err error
-    var res []interface{}
-    var ast *wasmedge.AST
+  var err error
+  var res []interface{}
+  var ast *wasmedge.AST
 
-    // Create the loader object.
-    // For loader creation with default configuration, you can use `wasmedge.NewLoader()` instead.
-    loader := wasmedge.NewLoaderWithConfig(conf)
-    // Create the validator object.
-    // For validator creation with default configuration, you can use `wasmedge.NewValidator()` instead.
-    validator := wasmedge.NewValidatorWithConfig(conf)
-    // Create the executor object.
-    // For executor creation with default configuration and without statistics, you can use `wasmedge.NewExecutor()` instead.
-    executor := wasmedge.NewExecutorWithConfigAndStatistics(conf, stat)
+  // Create the loader object.
+  // For loader creation with default configuration, you can use `wasmedge.NewLoader()` instead.
+  loader := wasmedge.NewLoaderWithConfig(conf)
+  // Create the validator object.
+  // For validator creation with default configuration, you can use `wasmedge.NewValidator()` instead.
+  validator := wasmedge.NewValidatorWithConfig(conf)
+  // Create the executor object.
+  // For executor creation with default configuration and without statistics, you can use `wasmedge.NewExecutor()` instead.
+  executor := wasmedge.NewExecutorWithConfigAndStatistics(conf, stat)
 
-    // Load the WASM file or the compiled-WASM file and convert into the AST module object.
-    ast, err = loader.LoadFile("fibonacci.wasm")
-    if err != nil {
-        fmt.Println("Load WASM from file FAILED:", err.Error())
-        return
-    }
-    // Validate the WASM module.
-    err = validator.Validate(ast)
-    if err != nil {
-        fmt.Println("Validation FAILED:", err.Error())
-        return
-    }
-    // Instantiate the WASM module into the Store object.
-    err = executor.Instantiate(store, ast)
-    if err != nil {
-        fmt.Println("Instantiation FAILED:", err.Error())
-        return
-    }
+  // Load the WASM file or the compiled-WASM file and convert into the AST module object.
+  ast, err = loader.LoadFile("fibonacci.wasm")
+  if err != nil {
+    fmt.Println("Load WASM from file FAILED:", err.Error())
+    return
+  }
+  // Validate the WASM module.
+  err = validator.Validate(ast)
+  if err != nil {
+    fmt.Println("Validation FAILED:", err.Error())
+    return
+  }
+  // Instantiate the WASM module into the Store object.
+  err = executor.Instantiate(store, ast)
+  if err != nil {
+    fmt.Println("Instantiation FAILED:", err.Error())
+    return
+  }
 
-    // Try to list the exported functions of the instantiated WASM module.
-    funcnames := store.ListFunction()
-    for _, fname := range funcnames {
-        fmt.Println("Exported function name:", fname)
-    }
+  // Try to list the exported functions of the instantiated WASM module.
+  funcnames := store.ListFunction()
+  for _, fname := range funcnames {
+    fmt.Println("Exported function name:", fname)
+  }
 
-    // Invoke the WASM function.
-    res, err = executor.Invoke(store, "fib", int32(30))
-    if err == nil {
-        fmt.Println("Get fibonacci[30]:", res[0].(int32))
-    } else {
-        fmt.Println("Run failed:", err.Error())
-    }
+  // Invoke the WASM function.
+  res, err = executor.Invoke(store, "fib", int32(30))
+  if err == nil {
+    fmt.Println("Get fibonacci[30]:", res[0].(int32))
+  } else {
+    fmt.Println("Run failed:", err.Error())
+  }
 
-    // Resources deallocations.
-    conf.Release()
-    stat.Release()
-    ast.Release()
-    loader.Release()
-    validator.Release()
-    executor.Release()
-    store.Release()
+  // Resources deallocations.
+  conf.Release()
+  stat.Release()
+  ast.Release()
+  loader.Release()
+  validator.Release()
+  executor.Release()
+  store.Release()
 }
 ```
 
@@ -1466,19 +1466,19 @@ conf.Release()
 // Load WASM or compiled-WASM from the file.
 ast, err := loader.LoadFile("fibonacci.wasm")
 if err != nil {
-    fmt.Println("Load WASM from file FAILED:", err.Error())
+  fmt.Println("Load WASM from file FAILED:", err.Error())
 } else {
-    // The output AST object should be released.
-    ast.Release()
+  // The output AST object should be released.
+  ast.Release()
 }
 
 // Load WASM or compiled-WASM from the buffer
 ast, err = loader.LoadBuffer(buf)
 if err != nil {
-    fmt.Println("Load WASM from buffer FAILED:", err.Error())
+  fmt.Println("Load WASM from buffer FAILED:", err.Error())
 } else {
-    // The output AST object should be released.
-    ast.Release()   
+  // The output AST object should be released.
+  ast.Release()   
 }
 
 loader.Release()
@@ -1500,7 +1500,7 @@ validator := wasmedge.NewValidatorWithConfig(conf)
 
 err := validator.Validate(ast)
 if err != nil {
-    fmt.Println("Validation FAILED:", err.Error())
+  fmt.Println("Validation FAILED:", err.Error())
 }
 
 validator.Release()
@@ -1535,16 +1535,16 @@ This object should work base on the `Store` object. For the details of the `Stor
     // Register the loaded WASM `ast` into store with the export module name "mod".
     res := executor.RegisterModule(store, ast, "mod")
     if err != nil {
-        fmt.Println("WASM registration FAILED:", err.Error())
-        return
+      fmt.Println("WASM registration FAILED:", err.Error())
+      return
     }
 
     // Assume that the `impobj` is the `*wasmedge.ImportObject` for host functions.
     impobj := ...
     err = executor.RegisterImport(store, impobj)
     if err != nil {
-        fmt.Println("Import object registration FAILED:", err.Error())
-        return
+      fmt.Println("Import object registration FAILED:", err.Error())
+      return
     }
 
     executor.Release()
@@ -1578,8 +1578,8 @@ This object should work base on the `Store` object. For the details of the `Stor
     // Instantiate the WASM module.
     err := executor.Instantiate(stpre, ast)
     if err != nil {
-        fmt.Println("WASM instantiation FAILED:", err.Error())
-        return
+      fmt.Println("WASM instantiation FAILED:", err.Error())
+      return
     }
 
     executor.Release()
@@ -1605,13 +1605,13 @@ ast := ...
 // List the imports.
 imports := ast.ListImports()
 for _, import := range imports {
-    fmt.Println("Import:", import.GetModuleName(), import.GetExternalName())
+  fmt.Println("Import:", import.GetModuleName(), import.GetExternalName())
 }
 
 // List the exports.
 exports := ast.ListExports()
 for _, export := range exports {
-    fmt.Println("Export:", export.GetExternalName())
+  fmt.Println("Export:", export.GetExternalName())
 }
 
 ast.Release()
@@ -1634,7 +1634,7 @@ The `Store` object in WasmEdge-go provides APIs to list the exported instances w
     // Take the function instances for example here.
     funcnames := store.ListFunction()
     for _, name := range funcnames {
-        fmt.Println("Exported function name:", name)
+      fmt.Println("Exported function name:", name)
     }
 
     store.Release()
@@ -1673,7 +1673,7 @@ The `Store` object in WasmEdge-go provides APIs to list the exported instances w
     // Try to list the registered WASM modules.
     modnames := store.ListModule()
     for _, name := range modnames {
-        fmt.Println("Registered module names:", name)
+      fmt.Println("Registered module names:", name)
     }
 
     store.Release()
@@ -1838,17 +1838,17 @@ In WasmEdge-go, developers can create the `Function`, `Memory`, `Table`, and `Gl
 
     The example of an `add` host function to add 2 `i32` values:
 
-    ```c
+    ```go
     func host_add(data interface{}, mem *wasmedge.Memory, params []interface{}) ([]interface{}, wasmedge.Result) {
-        // add: i32, i32 -> i32
-        res := params[0].(int32) + params[1].(int32)
+      // add: i32, i32 -> i32
+      res := params[0].(int32) + params[1].(int32)
 
-        // Set the returns
-        returns := make([]interface{}, 1)
-        returns[0] = res
+      // Set the returns
+      returns := make([]interface{}, 1)
+      returns[0] = res
 
-        // Return
-        return returns, wasmedge.Result_Success
+      // Return
+      return returns, wasmedge.Result_Success
     }
     ```
 
@@ -1857,8 +1857,8 @@ In WasmEdge-go, developers can create the `Function`, `Memory`, `Table`, and `Gl
     ```go
     // Create a function type: {i32, i32} -> {i32}.
     functype := wasmedge.NewFunctionType(
-        []wasmedge.ValType{wasmedge.ValType_I32, wasmedge.ValType_I32},
-        []wasmedge.ValType{wasmedge.ValType_I32},
+      []wasmedge.ValType{wasmedge.ValType_I32, wasmedge.ValType_I32},
+      []wasmedge.ValType{wasmedge.ValType_I32},
     )
 
     // Create a function context with the function type and host function body.
@@ -1880,15 +1880,15 @@ In WasmEdge-go, developers can create the `Function`, `Memory`, `Table`, and `Gl
     ```go
     // Host function body definition.
     func host_add(data interface{}, mem *wasmedge.Memory, params []interface{}) ([]interface{}, wasmedge.Result) {
-        // add: i32, i32 -> i32
-        res := params[0].(int32) + params[1].(int32)
+      // add: i32, i32 -> i32
+      res := params[0].(int32) + params[1].(int32)
 
-        // Set the returns
-        returns := make([]interface{}, 1)
-        returns[0] = res
+      // Set the returns
+      returns := make([]interface{}, 1)
+      returns[0] = res
 
-        // Return
-        return returns, wasmedge.Result_Success
+      // Return
+      return returns, wasmedge.Result_Success
     }
 
     // Create the import object with the module name "module".
@@ -1896,8 +1896,8 @@ In WasmEdge-go, developers can create the `Function`, `Memory`, `Table`, and `Gl
 
     // Create and add a function instance into the import object with export name "add".
     functype := wasmedge.NewFunctionType(
-        []wasmedge.ValType{wasmedge.ValType_I32, wasmedge.ValType_I32},
-        []wasmedge.ValType{wasmedge.ValType_I32},
+      []wasmedge.ValType{wasmedge.ValType_I32, wasmedge.ValType_I32},
+      []wasmedge.ValType{wasmedge.ValType_I32},
     )
     hostfunc := wasmedge.NewFunction(functype, host_add, nil, 0)
     functype.Release()
@@ -1934,13 +1934,13 @@ In WasmEdge-go, developers can create the `Function`, `Memory`, `Table`, and `Gl
 
     ```go
     wasiobj := wasmedge.NewWasiImportObject(
-        os.Args[1:],     // The args
-        os.Environ(),    // The envs
-        []string{".:."}, // The mapping preopens
+      os.Args[1:],     // The args
+      os.Environ(),    // The envs
+      []string{".:."}, // The mapping preopens
     )
     procobj := wasmedge.NewWasmEdgeProcessImportObject(
-        []string{"ls", "echo"}, // The allowed commands
-        false,                  // Not to allow all commands
+      []string{"ls", "echo"}, // The allowed commands
+      false,                  // Not to allow all commands
     )
 
     // Register the WASI and WasmEdge_Process into the VM object.
@@ -1989,82 +1989,82 @@ In WasmEdge-go, developers can create the `Function`, `Memory`, `Table`, and `Gl
     package main
 
     import (
-        "fmt"
+      "fmt"
 
-        "github.com/second-state/WasmEdge-go/wasmedge"
+      "github.com/second-state/WasmEdge-go/wasmedge"
     )
 
     // Host function body definition.
     func host_add(data interface{}, mem *wasmedge.Memory, params []interface{}) ([]interface{}, wasmedge.Result) {
-        // add: i32, i32 -> i32
-        res := params[0].(int32) + params[1].(int32)
+      // add: i32, i32 -> i32
+      res := params[0].(int32) + params[1].(int32)
 
-        // Set the returns
-        returns := make([]interface{}, 1)
-        returns[0] = res
+      // Set the returns
+      returns := make([]interface{}, 1)
+      returns[0] = res
 
-        // Return
-        return returns, wasmedge.Result_Success
+      // Return
+      return returns, wasmedge.Result_Success
     }
 
     func main() {
-        // Create the VM object.
-        vm := wasmedge.NewVM()
+      // Create the VM object.
+      vm := wasmedge.NewVM()
 
-        // The WASM module buffer.
-        wasmbuf := []byte{
-            /* WASM header */
-            0x00, 0x61, 0x73, 0x6D, 0x01, 0x00, 0x00, 0x00,
-            /* Type section */
-            0x01, 0x07, 0x01,
-            /* function type {i32, i32} -> {i32} */
-            0x60, 0x02, 0x7F, 0x7F, 0x01, 0x7F,
-            /* Import section */
-            0x02, 0x13, 0x01,
-            /* module name: "extern" */
-            0x06, 0x65, 0x78, 0x74, 0x65, 0x72, 0x6E,
-            /* extern name: "func-add" */
-            0x08, 0x66, 0x75, 0x6E, 0x63, 0x2D, 0x61, 0x64, 0x64,
-            /* import desc: func 0 */
-            0x00, 0x00,
-            /* Function section */
-            0x03, 0x02, 0x01, 0x00,
-            /* Export section */
-            0x07, 0x0A, 0x01,
-            /* export name: "addTwo" */
-            0x06, 0x61, 0x64, 0x64, 0x54, 0x77, 0x6F,
-            /* export desc: func 0 */
-            0x00, 0x01,
-            /* Code section */
-            0x0A, 0x0A, 0x01,
-            /* code body */
-            0x08, 0x00, 0x20, 0x00, 0x20, 0x01, 0x10, 0x00, 0x0B,
-        }
+      // The WASM module buffer.
+      wasmbuf := []byte{
+        /* WASM header */
+        0x00, 0x61, 0x73, 0x6D, 0x01, 0x00, 0x00, 0x00,
+        /* Type section */
+        0x01, 0x07, 0x01,
+        /* function type {i32, i32} -> {i32} */
+        0x60, 0x02, 0x7F, 0x7F, 0x01, 0x7F,
+        /* Import section */
+        0x02, 0x13, 0x01,
+        /* module name: "extern" */
+        0x06, 0x65, 0x78, 0x74, 0x65, 0x72, 0x6E,
+        /* extern name: "func-add" */
+        0x08, 0x66, 0x75, 0x6E, 0x63, 0x2D, 0x61, 0x64, 0x64,
+        /* import desc: func 0 */
+        0x00, 0x00,
+        /* Function section */
+        0x03, 0x02, 0x01, 0x00,
+        /* Export section */
+        0x07, 0x0A, 0x01,
+        /* export name: "addTwo" */
+        0x06, 0x61, 0x64, 0x64, 0x54, 0x77, 0x6F,
+        /* export desc: func 0 */
+        0x00, 0x01,
+        /* Code section */
+        0x0A, 0x0A, 0x01,
+        /* code body */
+        0x08, 0x00, 0x20, 0x00, 0x20, 0x01, 0x10, 0x00, 0x0B,
+      }
 
-        // Create the import object with the module name "extern".
-        impobj := wasmedge.NewImportObject("extern")
+      // Create the import object with the module name "extern".
+      impobj := wasmedge.NewImportObject("extern")
 
-        // Create and add a function instance into the import object with export name "func-add".
-        functype := wasmedge.NewFunctionType(
-            []wasmedge.ValType{wasmedge.ValType_I32, wasmedge.ValType_I32},
-            []wasmedge.ValType{wasmedge.ValType_I32},
-        )
-        hostfunc := wasmedge.NewFunction(functype, host_add, nil, 0)
-        functype.Release()
-        impobj.AddFunction("func-add", hostfunc)
+      // Create and add a function instance into the import object with export name "func-add".
+      functype := wasmedge.NewFunctionType(
+        []wasmedge.ValType{wasmedge.ValType_I32, wasmedge.ValType_I32},
+        []wasmedge.ValType{wasmedge.ValType_I32},
+      )
+      hostfunc := wasmedge.NewFunction(functype, host_add, nil, 0)
+      functype.Release()
+      impobj.AddFunction("func-add", hostfunc)
 
-        // Register the import object into VM.
-        vm.RegisterImport(impobj)
+      // Register the import object into VM.
+      vm.RegisterImport(impobj)
 
-        res, err := vm.RunWasmBuffer(wasmbuf, "addTwo", uint32(1234), uint32(5678))
-        if err == nil {
-            fmt.Println("Get the result:", res[0].(int32))
-        } else {
-            fmt.Println("Error message:", err.Error())
-        }
+      res, err := vm.RunWasmBuffer(wasmbuf, "addTwo", uint32(1234), uint32(5678))
+      if err == nil {
+        fmt.Println("Get the result:", res[0].(int32))
+      } else {
+        fmt.Println("Error message:", err.Error())
+      }
 
-        impobj.Release()
-        vm.Release()
+      impobj.Release()
+      vm.Release()
     }
     ```
 
@@ -2086,89 +2086,89 @@ In WasmEdge-go, developers can create the `Function`, `Memory`, `Table`, and `Gl
     package main
 
     import (
-        "fmt"
+      "fmt"
 
-        "github.com/second-state/WasmEdge-go/wasmedge"
+      "github.com/second-state/WasmEdge-go/wasmedge"
     )
 
     // Host function body definition.
     func host_add(data interface{}, mem *wasmedge.Memory, params []interface{}) ([]interface{}, wasmedge.Result) {
-        // add: i32, i32 -> i32
-        res := params[0].(int32) + params[1].(int32)
+      // add: i32, i32 -> i32
+      res := params[0].(int32) + params[1].(int32)
 
-        // Set the returns
-        returns := make([]interface{}, 1)
-        returns[0] = res
+      // Set the returns
+      returns := make([]interface{}, 1)
+      returns[0] = res
 
-        // Also set the result to the data.
-        *data.(*int32) = res
+      // Also set the result to the data.
+      *data.(*int32) = res
 
-        // Return
-        return returns, wasmedge.Result_Success
+      // Return
+      return returns, wasmedge.Result_Success
     }
 
     func main() {
-        // Create the VM object.
-        vm := wasmedge.NewVM()
+      // Create the VM object.
+      vm := wasmedge.NewVM()
 
-        // The WASM module buffer.
-        wasmbuf := []byte{
-            /* WASM header */
-            0x00, 0x61, 0x73, 0x6D, 0x01, 0x00, 0x00, 0x00,
-            /* Type section */
-            0x01, 0x07, 0x01,
-            /* function type {i32, i32} -> {i32} */
-            0x60, 0x02, 0x7F, 0x7F, 0x01, 0x7F,
-            /* Import section */
-            0x02, 0x13, 0x01,
-            /* module name: "extern" */
-            0x06, 0x65, 0x78, 0x74, 0x65, 0x72, 0x6E,
-            /* extern name: "func-add" */
-            0x08, 0x66, 0x75, 0x6E, 0x63, 0x2D, 0x61, 0x64, 0x64,
-            /* import desc: func 0 */
-            0x00, 0x00,
-            /* Function section */
-            0x03, 0x02, 0x01, 0x00,
-            /* Export section */
-            0x07, 0x0A, 0x01,
-            /* export name: "addTwo" */
-            0x06, 0x61, 0x64, 0x64, 0x54, 0x77, 0x6F,
-            /* export desc: func 0 */
-            0x00, 0x01,
-            /* Code section */
-            0x0A, 0x0A, 0x01,
-            /* code body */
-            0x08, 0x00, 0x20, 0x00, 0x20, 0x01, 0x10, 0x00, 0x0B,
-        }
+      // The WASM module buffer.
+      wasmbuf := []byte{
+        /* WASM header */
+        0x00, 0x61, 0x73, 0x6D, 0x01, 0x00, 0x00, 0x00,
+        /* Type section */
+        0x01, 0x07, 0x01,
+        /* function type {i32, i32} -> {i32} */
+        0x60, 0x02, 0x7F, 0x7F, 0x01, 0x7F,
+        /* Import section */
+        0x02, 0x13, 0x01,
+        /* module name: "extern" */
+        0x06, 0x65, 0x78, 0x74, 0x65, 0x72, 0x6E,
+        /* extern name: "func-add" */
+        0x08, 0x66, 0x75, 0x6E, 0x63, 0x2D, 0x61, 0x64, 0x64,
+        /* import desc: func 0 */
+        0x00, 0x00,
+        /* Function section */
+        0x03, 0x02, 0x01, 0x00,
+        /* Export section */
+        0x07, 0x0A, 0x01,
+        /* export name: "addTwo" */
+        0x06, 0x61, 0x64, 0x64, 0x54, 0x77, 0x6F,
+        /* export desc: func 0 */
+        0x00, 0x01,
+        /* Code section */
+        0x0A, 0x0A, 0x01,
+        /* code body */
+        0x08, 0x00, 0x20, 0x00, 0x20, 0x01, 0x10, 0x00, 0x0B,
+      }
 
-        // The additional data to set into the host function.
-        var data int32 = 0
+      // The additional data to set into the host function.
+      var data int32 = 0
 
-        // Create the import object with the module name "extern".
-        impobj := wasmedge.NewImportObject("extern")
+      // Create the import object with the module name "extern".
+      impobj := wasmedge.NewImportObject("extern")
 
-        // Create and add a function instance into the import object with export name "func-add".
-        functype := wasmedge.NewFunctionType(
-            []wasmedge.ValType{wasmedge.ValType_I32, wasmedge.ValType_I32},
-            []wasmedge.ValType{wasmedge.ValType_I32},
-        )
-        hostfunc := wasmedge.NewFunction(functype, host_add, &data, 0)
-        functype.Release()
-        impobj.AddFunction("func-add", hostfunc)
+      // Create and add a function instance into the import object with export name "func-add".
+      functype := wasmedge.NewFunctionType(
+        []wasmedge.ValType{wasmedge.ValType_I32, wasmedge.ValType_I32},
+        []wasmedge.ValType{wasmedge.ValType_I32},
+      )
+      hostfunc := wasmedge.NewFunction(functype, host_add, &data, 0)
+      functype.Release()
+      impobj.AddFunction("func-add", hostfunc)
 
-        // Register the import object into VM.
-        vm.RegisterImport(impobj)
+      // Register the import object into VM.
+      vm.RegisterImport(impobj)
 
-        res, err := vm.RunWasmBuffer(wasmbuf, "addTwo", uint32(1234), uint32(5678))
-        if err == nil {
-            fmt.Println("Get the result:", res[0].(int32))
-        } else {
-            fmt.Println("Error message:", err.Error())
-        }
-        fmt.Println("Data value:", data)
+      res, err := vm.RunWasmBuffer(wasmbuf, "addTwo", uint32(1234), uint32(5678))
+      if err == nil {
+        fmt.Println("Get the result:", res[0].(int32))
+      } else {
+        fmt.Println("Error message:", err.Error())
+      }
+      fmt.Println("Data value:", data)
 
-        impobj.Release()
-        vm.Release()
+      impobj.Release()
+      vm.Release()
     }
     ```
 
@@ -2198,25 +2198,25 @@ Developers can set options for AOT compilers such as optimization level and outp
 
 ```go
 const (
-    // Disable as many optimizations as possible.
-    CompilerOptLevel_O0 = CompilerOptimizationLevel(C.WasmEdge_CompilerOptimizationLevel_O0)
-    // Optimize quickly without destroying debuggability.
-    CompilerOptLevel_O1 = CompilerOptimizationLevel(C.WasmEdge_CompilerOptimizationLevel_O1)
-    // Optimize for fast execution as much as possible without triggering significant incremental compile time or code size growth.
-    CompilerOptLevel_O2 = CompilerOptimizationLevel(C.WasmEdge_CompilerOptimizationLevel_O2)
-    // Optimize for fast execution as much as possible.
-    CompilerOptLevel_O3 = CompilerOptimizationLevel(C.WasmEdge_CompilerOptimizationLevel_O3)
-    // Optimize for small code size as much as possible without triggering significant incremental compile time or execution time slowdowns.
-    CompilerOptLevel_Os = CompilerOptimizationLevel(C.WasmEdge_CompilerOptimizationLevel_Os)
-    // Optimize for small code size as much as possible.
-    CompilerOptLevel_Oz = CompilerOptimizationLevel(C.WasmEdge_CompilerOptimizationLevel_Oz)
+  // Disable as many optimizations as possible.
+  CompilerOptLevel_O0 = CompilerOptimizationLevel(C.WasmEdge_CompilerOptimizationLevel_O0)
+  // Optimize quickly without destroying debuggability.
+  CompilerOptLevel_O1 = CompilerOptimizationLevel(C.WasmEdge_CompilerOptimizationLevel_O1)
+  // Optimize for fast execution as much as possible without triggering significant incremental compile time or code size growth.
+  CompilerOptLevel_O2 = CompilerOptimizationLevel(C.WasmEdge_CompilerOptimizationLevel_O2)
+  // Optimize for fast execution as much as possible.
+  CompilerOptLevel_O3 = CompilerOptimizationLevel(C.WasmEdge_CompilerOptimizationLevel_O3)
+  // Optimize for small code size as much as possible without triggering significant incremental compile time or execution time slowdowns.
+  CompilerOptLevel_Os = CompilerOptimizationLevel(C.WasmEdge_CompilerOptimizationLevel_Os)
+  // Optimize for small code size as much as possible.
+  CompilerOptLevel_Oz = CompilerOptimizationLevel(C.WasmEdge_CompilerOptimizationLevel_Oz)
 )
 
 const (
-    // Native dynamic library format.
-    CompilerOutputFormat_Native = CompilerOutputFormat(C.WasmEdge_CompilerOutputFormat_Native)
-    // WebAssembly with AOT compiled codes in custom section.
-    CompilerOutputFormat_Wasm = CompilerOutputFormat(C.WasmEdge_CompilerOutputFormat_Wasm)
+  // Native dynamic library format.
+  CompilerOutputFormat_Native = CompilerOutputFormat(C.WasmEdge_CompilerOutputFormat_Native)
+  // WebAssembly with AOT compiled codes in custom section.
+  CompilerOutputFormat_Wasm = CompilerOutputFormat(C.WasmEdge_CompilerOutputFormat_Wasm)
 )
 ```
 

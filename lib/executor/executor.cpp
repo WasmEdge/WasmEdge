@@ -35,27 +35,26 @@ Expect<void> Executor::registerModule(Runtime::StoreManager &StoreMgr,
     spdlog::error(ErrInfo::InfoRegistering(Obj.getModuleName()));
     return Unexpect(ErrCode::ModuleNameConflict);
   }
-  auto ModInstAddr = StoreMgr.importModule(Obj.getModuleName());
-  auto *ModInst = *StoreMgr.getModule(ModInstAddr);
+  auto *ModInst = StoreMgr.importModule(Obj.getModuleName());
 
   for (auto &Func : Obj.getFuncs()) {
-    uint32_t Addr = StoreMgr.importHostFunction(*Func.second.get());
-    ModInst->addFuncAddr(Addr);
+    auto *Inst = StoreMgr.importHostFunction(*Func.second.get());
+    ModInst->addFunc(Inst);
     ModInst->exportFunction(Func.first, ModInst->getFuncNum() - 1);
   }
   for (auto &Tab : Obj.getTables()) {
-    uint32_t Addr = StoreMgr.importHostTable(*Tab.second.get());
-    ModInst->addTableAddr(Addr);
+    auto *Inst = StoreMgr.importHostTable(*Tab.second.get());
+    ModInst->addTable(Inst);
     ModInst->exportTable(Tab.first, ModInst->getTableNum() - 1);
   }
   for (auto &Mem : Obj.getMems()) {
-    uint32_t Addr = StoreMgr.importHostMemory(*Mem.second.get());
-    ModInst->addMemAddr(Addr);
+    auto *Inst = StoreMgr.importHostMemory(*Mem.second.get());
+    ModInst->addMemory(Inst);
     ModInst->exportMemory(Mem.first, ModInst->getMemNum() - 1);
   }
   for (auto &Glob : Obj.getGlobals()) {
-    uint32_t Addr = StoreMgr.importHostGlobal(*Glob.second.get());
-    ModInst->addGlobalAddr(Addr);
+    auto *Inst = StoreMgr.importHostGlobal(*Glob.second.get());
+    ModInst->addGlobal(Inst);
     ModInst->exportGlobal(Glob.first, ModInst->getGlobalNum() - 1);
   }
   return {};
@@ -81,19 +80,12 @@ Expect<void> Executor::registerModule(Runtime::StoreManager &StoreMgr,
 
 // Invoke function. See "include/executor/executor.h".
 Expect<std::vector<std::pair<ValVariant, ValType>>>
-Executor::invoke(Runtime::StoreManager &StoreMgr, const uint32_t FuncAddr,
+Executor::invoke(Runtime::StoreManager &StoreMgr,
+                 const Runtime::Instance::FunctionInstance &FuncInst,
                  Span<const ValVariant> Params,
                  Span<const ValType> ParamTypes) {
-  // Check and get function address from store manager.
-  Runtime::Instance::FunctionInstance *FuncInst;
-  if (auto Res = StoreMgr.getFunction(FuncAddr)) {
-    FuncInst = *Res;
-  } else {
-    return Unexpect(Res);
-  }
-
   // Check parameter and function type.
-  const auto &FuncType = FuncInst->getFuncType();
+  const auto &FuncType = FuncInst.getFuncType();
   const auto &PTypes = FuncType.getParamTypes();
   const auto &RTypes = FuncType.getReturnTypes();
   std::vector<ValType> GotParamTypes(ParamTypes.begin(), ParamTypes.end());
@@ -107,7 +99,7 @@ Executor::invoke(Runtime::StoreManager &StoreMgr, const uint32_t FuncAddr,
   Runtime::StackManager StackMgr;
 
   // Call runFunction.
-  if (auto Res = runFunction(StoreMgr, StackMgr, *FuncInst, Params); !Res) {
+  if (auto Res = runFunction(StoreMgr, StackMgr, FuncInst, Params); !Res) {
     return Unexpect(Res);
   }
 
@@ -117,6 +109,9 @@ Executor::invoke(Runtime::StoreManager &StoreMgr, const uint32_t FuncAddr,
     Returns[RTypes.size() - I - 1] =
         std::make_pair(StackMgr.pop(), RTypes[RTypes.size() - I - 1]);
   }
+
+  // After execution, the value stack size should be 0.
+  assuming(StackMgr.size() == 0);
   return Returns;
 }
 

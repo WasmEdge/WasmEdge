@@ -211,8 +211,20 @@ WasiExpect<void> INode::sockRecv(Span<Span<uint8_t>>, __wasi_riflags_t,
   return WasiUnexpect(__WASI_ERRNO_NOSYS);
 }
 
+WasiExpect<void> INode::sockRecvFrom(Span<Span<uint8_t>>, __wasi_riflags_t,
+                                     uint8_t *, uint8_t, __wasi_size_t &,
+                                     __wasi_roflags_t &) const noexcept {
+  return WasiUnexpect(__WASI_ERRNO_NOSYS);
+}
+
 WasiExpect<void> INode::sockSend(Span<Span<const uint8_t>>, __wasi_siflags_t,
                                  __wasi_size_t &) const noexcept {
+  return WasiUnexpect(__WASI_ERRNO_NOSYS);
+}
+
+WasiExpect<void> INode::sockSendTo(Span<Span<const uint8_t>>, __wasi_siflags_t,
+                                   uint8_t *, uint8_t, int32_t,
+                                   __wasi_size_t &) const noexcept {
   return WasiUnexpect(__WASI_ERRNO_NOSYS);
 }
 

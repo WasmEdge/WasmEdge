@@ -16,8 +16,7 @@ Expect<OpCode> Loader::loadOpCode() {
   if (auto B1 = FMgr.readByte()) {
     Payload = (*B1);
   } else {
-    return logLoadError(B1.error(), FMgr.getLastOffset(),
-                        ASTNodeAttr::Instruction);
+    return Unexpect(B1);
   }
 
   if (Payload == 0xFCU || Payload == 0xFDU) {
@@ -26,15 +25,14 @@ Expect<OpCode> Loader::loadOpCode() {
       Payload <<= 8;
       Payload += (*B2);
     } else {
-      return logLoadError(B2.error(), FMgr.getLastOffset(),
-                          ASTNodeAttr::Instruction);
+      return Unexpect(B2);
     }
   }
   return static_cast<OpCode>(Payload);
 }
 
 // Load instruction sequence. See "include/loader/loader.h".
-Expect<AST::InstrVec> Loader::loadInstrSeq() {
+Expect<AST::InstrVec> Loader::loadInstrSeq(std::optional<uint64_t> SizeBound) {
   OpCode Code;
   AST::InstrVec Instrs;
   std::vector<std::pair<OpCode, uint32_t>> BlockStack;
@@ -47,7 +45,8 @@ Expect<AST::InstrVec> Loader::loadInstrSeq() {
     if (auto Res = loadOpCode()) {
       Code = *Res;
     } else {
-      return Unexpect(Res);
+      return logLoadError(Res.error(), FMgr.getLastOffset(),
+                          ASTNodeAttr::Instruction);
     }
 
     // Check with proposals.
@@ -61,24 +60,38 @@ Expect<AST::InstrVec> Loader::loadInstrSeq() {
     } else if (Code == OpCode::Else) {
       if (BlockStack.size() == 0 || BlockStack.back().first != OpCode::If) {
         // An Else instruction appeared outside the If-block.
-        return logLoadError(ErrCode::IllegalOpCode, Offset,
-                            ASTNodeAttr::Instruction);
+        if (SizeBound.has_value() && FMgr.getOffset() > SizeBound.value()) {
+          return logLoadError(ErrCode::ENDCodeExpected, Offset,
+                              ASTNodeAttr::Instruction);
+        } else {
+          return logLoadError(ErrCode::IllegalOpCode, Offset,
+                              ASTNodeAttr::Instruction);
+        }
       }
       uint32_t Pos = BlockStack.back().second;
       if (Instrs[Pos].getJumpElse() > 0) {
         // An Else instruction appeared before in this If-block.
-        return logLoadError(ErrCode::IllegalOpCode, Offset,
-                            ASTNodeAttr::Instruction);
+        if (SizeBound.has_value() && FMgr.getOffset() > SizeBound.value()) {
+          return logLoadError(ErrCode::ENDCodeExpected, Offset,
+                              ASTNodeAttr::Instruction);
+        } else {
+          return logLoadError(ErrCode::IllegalOpCode, Offset,
+                              ASTNodeAttr::Instruction);
+        }
       }
       Instrs[Pos].setJumpElse(Cnt - Pos);
     } else if (Code == OpCode::End) {
       if (BlockStack.size() > 0) {
         uint32_t Pos = BlockStack.back().second;
         Instrs[Pos].setJumpEnd(Cnt - Pos);
-        if (BlockStack.back().first == OpCode::If &&
-            Instrs[Pos].getJumpElse() == 0) {
-          // If block without else. Set the else jump the same as end jump.
-          Instrs[Pos].setJumpElse(Cnt - Pos);
+        if (BlockStack.back().first == OpCode::If) {
+          if (Instrs[Pos].getJumpElse() == 0) {
+            // If block without else. Set the else jump the same as end jump.
+            Instrs[Pos].setJumpElse(Cnt - Pos);
+          } else {
+            const uint32_t ElsePos = Pos + Instrs[Pos].getJumpElse();
+            Instrs[ElsePos].setJumpEnd(Cnt - ElsePos);
+          }
         }
         BlockStack.pop_back();
       } else {
@@ -90,6 +103,13 @@ Expect<AST::InstrVec> Loader::loadInstrSeq() {
     Instrs.emplace_back(Code, Offset);
     if (auto Res = loadInstruction(Instrs.back()); !Res) {
       return Unexpect(Res);
+    }
+    if (Code == OpCode::End) {
+      if (IsReachEnd) {
+        Instrs.back().setLast(true);
+      } else {
+        Instrs.back().setLast(false);
+      }
     }
     Cnt++;
   } while (!IsReachEnd);
@@ -190,7 +210,7 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
 
   case OpCode::Br:
   case OpCode::Br_if:
-    return readU32(Instr.getTargetIndex());
+    return readU32(Instr.getJump().TargetIndex);
 
   case OpCode::Br_table: {
     uint32_t VecCnt = 0;
@@ -198,23 +218,28 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
     if (auto Res = readU32(VecCnt); unlikely(!Res)) {
       return Unexpect(Res);
     }
-    Instr.setLabelListSize(VecCnt);
+    if (VecCnt == std::numeric_limits<uint32_t>::max()) {
+      // Too many label for Br_table.
+      return logLoadError(ErrCode::IntegerTooLong, FMgr.getLastOffset(),
+                          ASTNodeAttr::Instruction);
+    }
+    Instr.setLabelListSize(VecCnt + 1);
     for (uint32_t I = 0; I < VecCnt; ++I) {
-      uint32_t Label = 0;
-      if (auto Res = readU32(Label); unlikely(!Res)) {
+      if (auto Res = readU32(Instr.getLabelList()[I].TargetIndex);
+          unlikely(!Res)) {
         return Unexpect(Res);
-      } else {
-        Instr.getLabelList()[I] = Label;
       }
     }
     // Read default label.
-    return readU32(Instr.getTargetIndex());
+    return readU32(Instr.getLabelList()[VecCnt].TargetIndex);
   }
 
   case OpCode::Call:
+  case OpCode::Return_call:
     return readU32(Instr.getTargetIndex());
 
-  case OpCode::Call_indirect: {
+  case OpCode::Call_indirect:
+  case OpCode::Return_call_indirect: {
     // Read the type index.
     if (auto Res = readU32(Instr.getTargetIndex()); !Res) {
       return Unexpect(Res);
@@ -873,6 +898,13 @@ Expect<void> Loader::checkInstrProposals(OpCode Code, uint64_t Offset) {
     // These instructions are for SIMD proposal.
     if (!Conf.hasProposal(Proposal::SIMD)) {
       return logNeedProposal(ErrCode::IllegalOpCode, Proposal::SIMD, Offset,
+                             ASTNodeAttr::Instruction);
+    }
+  } else if (Code == OpCode::Return_call ||
+             Code == OpCode::Return_call_indirect) {
+    // These instructions are for TailCall proposal.
+    if (!Conf.hasProposal(Proposal::TailCall)) {
+      return logNeedProposal(ErrCode::IllegalOpCode, Proposal::TailCall, Offset,
                              ASTNodeAttr::Instruction);
     }
   }

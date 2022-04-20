@@ -427,9 +427,9 @@ Expect<uint32_t> Executor::memoryAtomicWait(
     uint64_t Load = AtomicObj->load();
 
     if (Load == Expected) {
-      return {0};
+      return {static_cast<uint32_t>(0)};
     } else {
-      return {1};
+      return {static_cast<uint32_t>(1)};
     }
   } else {
     uint32_t *RawPointer = MemInst->getPointer<uint32_t *>(Off);
@@ -443,9 +443,9 @@ Expect<uint32_t> Executor::memoryAtomicWait(
     auto Load = AtomicObj->load();
 
     if (Load == Expected) {
-      return {0};
+      return {static_cast<uint32_t>(0)};
     } else {
-      return {1};
+      return {static_cast<uint32_t>(1)};
     }
   }
 }

@@ -18,7 +18,7 @@ fn real_add(input: Vec<WasmValue>) -> Result<Vec<WasmValue>, u8> {
     };
 
     let b = if input[1].ty() == ValType::I32 {
-        input[0].to_i32()
+        input[1].to_i32()
     } else {
         return Err(3);
     };

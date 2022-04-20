@@ -119,8 +119,8 @@ pub use module::{ExportType, ImportType, Module};
 pub use statistics::Statistics;
 #[doc(inline)]
 pub use store::Store;
-#[doc(hidden)]
-pub use wasmedge_sys::types::*;
+
+use wasmedge_sys::types::WasmValue;
 
 /// Alias type for host function
 pub type HostFunc = wasmedge_sys::HostFunc;

@@ -12,7 +12,8 @@ use wasmedge_types::{FuncType, ValType};
 /// The following example shows how to create a host function, access it by its name and its type info.
 ///
 /// ```rust
-/// use wasmedge::{ImportObjectBuilder, config::{ConfigBuilder, CommonConfigOptions}, Statistics, Executor, Store, WasmValue, FuncTypeBuilder};
+/// use wasmedge::{ImportObjectBuilder, config::{ConfigBuilder, CommonConfigOptions}, Statistics, Executor, Store, FuncTypeBuilder};
+/// use wasmedge_sys::types::WasmValue;
 /// use wasmedge_types::ValType;
 ///
 /// // a function to be exported as host function

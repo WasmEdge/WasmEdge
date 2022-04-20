@@ -9,7 +9,8 @@ use wasmedge_types::{FuncType, GlobalType, MemoryType, TableType};
 /// This example shows how to create a normal import object that contains a host function, a global variable, a memory and a table. The import object is named "extern".
 ///
 /// ```rust
-/// use wasmedge::{ImportObjectBuilder, FuncTypeBuilder, types::Val, WasmValue};
+/// use wasmedge::{ImportObjectBuilder, FuncTypeBuilder, types::Val};
+/// use wasmedge_sys::types::WasmValue;
 /// use wasmedge_types::{Mutability, RefType, ValType, GlobalType, MemoryType, TableType,};
 ///
 /// // a native function

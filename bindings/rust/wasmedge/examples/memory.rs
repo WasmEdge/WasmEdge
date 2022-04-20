@@ -1,4 +1,5 @@
-use wasmedge::{Executor, Module, Store, WasmValue};
+use wasmedge::{Executor, Module, Store};
+use wasmedge_sys::types::WasmValue;
 use wasmedge_types::wat2wasm;
 
 #[cfg_attr(test, test)]

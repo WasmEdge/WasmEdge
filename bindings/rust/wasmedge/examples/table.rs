@@ -1,4 +1,5 @@
-use wasmedge::{types::Val, Executor, Func, FuncTypeBuilder, Module, Store, WasmValue};
+use wasmedge::{types::Val, Executor, Func, FuncTypeBuilder, Module, Store};
+use wasmedge_sys::types::WasmValue;
 use wasmedge_types::{wat2wasm, RefType, TableType, ValType};
 
 #[cfg_attr(test, test)]

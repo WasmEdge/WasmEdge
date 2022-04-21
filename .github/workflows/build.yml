@@ -155,11 +155,7 @@ jobs:
     - name: Test WasmEdge
       if: ${{ ! matrix.coverage }}
       run: |
-        export LD_LIBRARY_PATH="$(pwd)/build/lib/api:$LD_LIBRARY_PATH"
-        cd build
-        ctest
-        cd -
-        cat build/Testing/Temporary/LastTest.log
+        bash utils/docker/test-wasinn-ubuntu-openvino.sh
 
   build_ubuntu:
     strategy:

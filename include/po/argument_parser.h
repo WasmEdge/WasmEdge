@@ -35,8 +35,8 @@ private:
     template <typename T>
     ArgumentDescriptor(T &Opt) noexcept
         : Desc(Opt.description()), Meta(Opt.meta()), MinNArgs(Opt.min_narg()),
-          MaxNArgs(Opt.max_narg()), Argument([&Opt](std::string Argument) {
-            return Opt.argument(std::move(Argument));
+          MaxNArgs(Opt.max_narg()), Argument([&Opt](std::string Arg) {
+            return Opt.argument(std::move(Arg));
           }),
           DefaultValue([&Opt]() { Opt.default_argument(); }),
           Hidden(Opt.hidden()), Store(&Opt.value()) {}
@@ -50,11 +50,11 @@ private:
     auto &hidden() const noexcept { return Hidden; }
     auto &min_nargs() const noexcept { return MinNArgs; }
     auto &max_nargs() const noexcept { return MaxNArgs; }
-    cxx20::expected<void, Error> argument(std::string String) const noexcept {
-      return Argument(std::move(String));
+    cxx20::expected<void, Error> argument(std::string Arg) const noexcept {
+      return Argument(std::move(Arg));
     }
     void default_value() const noexcept { DefaultValue(); }
-    template <typename T> void rawValue(T Value) const noexcept {
+    template <typename T> void raw_value(T Value) const noexcept {
       *static_cast<T *>(Store) = Value;
     }
 
@@ -115,6 +115,37 @@ private:
       } else {
         PositionalList.emplace_back(Iter->second);
       }
+    }
+
+    bool set_raw_value(std::string_view Option) const noexcept {
+      auto Iter = ArgumentMap.find(Option);
+      if (Iter == ArgumentMap.end()) {
+        return false;
+      }
+      const ArgumentDescriptor &CurrentDesc = ArgumentDescriptors[Iter->second];
+      if (CurrentDesc.max_nargs() != 0) {
+        return false;
+      }
+
+      CurrentDesc.default_value();
+      return true;
+    }
+
+    template <typename T>
+    bool set_raw_value(std::string_view Option, T Value) const noexcept {
+      auto Iter = ArgumentMap.find(Option);
+      if (Iter == ArgumentMap.end()) {
+        return false;
+      }
+      const ArgumentDescriptor &CurrentDesc = ArgumentDescriptors[Iter->second];
+      if (CurrentDesc.max_nargs() == 0) {
+        return false;
+        CurrentDesc.default_value();
+        return true;
+      }
+
+      CurrentDesc.raw_value(Value);
+      return true;
     }
 
     cxx20::expected<bool, Error> parse(Span<const char *> ProgramNamePrefix,
@@ -185,6 +216,16 @@ public:
   template <typename T> ArgumentParser &add_option(T &Opt) noexcept {
     SubCommandDescriptors[CurrentSubCommandId].add_option(Opt);
     return *this;
+  }
+
+  bool set_raw_value(std::string_view Option) const noexcept {
+    return SubCommandDescriptors[CurrentSubCommandId].set_raw_value(Option);
+  }
+
+  template <typename T>
+  bool set_raw_value(std::string_view Option, T Value) const noexcept {
+    return SubCommandDescriptors[CurrentSubCommandId].set_raw_value(Option,
+                                                                    Value);
   }
 
   template <typename... ArgsT>

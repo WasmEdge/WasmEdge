@@ -122,13 +122,13 @@ jobs:
     strategy:
       matrix:
         include:
-          - name: openvino g++ release
+          - name: OpenVINO g++ release
             compiler: g++
             docker_tag: ubuntu-build-gcc
             build_type: Release
             openvino: true
             coverage: false
-          - name: openvino clang++ release
+          - name: OpenVINO clang++ release
             compiler: clang++
             docker_tag: ubuntu-build-clang
             build_type: Release
@@ -159,6 +159,10 @@ jobs:
         cd build
         ctest
         cd -
+    - name: Output Testing Log
+      if: ${{ ! matrix.coverage }}
+      run: |
+        cat build/Testing/Temporary/LastTest.log
 
   build_ubuntu:
     strategy:

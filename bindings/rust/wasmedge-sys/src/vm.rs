@@ -1207,7 +1207,7 @@ mod tests {
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
-            WasmEdgeError::Store(StoreError::NotFoundModule("non-existent-module".into())) // WasmEdgeError::Vm(VmError::NotFoundFuncType("fib".into()))
+            WasmEdgeError::Store(StoreError::NotFoundModule("non-existent-module".into()))
         );
 
         // run a registered function with empty parameters

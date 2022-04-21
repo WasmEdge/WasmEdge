@@ -84,7 +84,7 @@ impl Statistics {
         unsafe { ffi::WasmEdge_StatisticsSetCostLimit(self.inner.0, limit) }
     }
 
-    /// Clears all data in this store.
+    /// Clears the data in this statistics.
     pub fn clear(&mut self) {
         unsafe { ffi::WasmEdge_StatisticsClear(self.inner.0) }
     }

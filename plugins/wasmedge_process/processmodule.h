@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include "host/wasmedge_process/processenv.h"
+#include "processenv.h"
 #include "runtime/instance/module.h"
 
 namespace WasmEdge {

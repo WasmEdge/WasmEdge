@@ -15,8 +15,6 @@ use crate::{
 use std::ops::RangeInclusive;
 use wasmedge_types::RefType;
 
-/// Struct of WasmEdge Table.
-///
 /// A WasmEdge [Table] defines a WebAssembly table instance described by its [type](crate::TableType). A table is an array-like structure and stores function references.
 ///
 /// This [example](https://github.com/WasmEdge/WasmEdge/tree/master/bindings/rust/wasmedge-sys/examples/table_and_funcref.rs) shows how to use [Table] to store and retrieve function references.
@@ -169,8 +167,6 @@ pub(crate) struct InnerTable(pub(crate) *mut ffi::WasmEdge_TableInstanceContext)
 unsafe impl Send for InnerTable {}
 unsafe impl Sync for InnerTable {}
 
-/// Struct of WasmEdge TableType
-///
 /// A WasmEdge [TableType] classifies a [Table] instance over elements of element types within a size range.
 #[derive(Debug)]
 pub struct TableType {

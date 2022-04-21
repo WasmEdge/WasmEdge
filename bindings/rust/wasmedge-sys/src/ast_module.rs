@@ -10,7 +10,7 @@ use wasmedge_types::{
     ExternalInstanceType, FuncType, GlobalType, MemoryType, Mutability, RefType, TableType, ValType,
 };
 
-/// Struct of WasmEdge Module.
+/// Defines compiled in-memory representation of an input WASM binary.
 ///
 /// [Module] is also called *AST Module* in WasmEdge terminology. A [Module] is a compiled in-memory
 /// representation of an input WebAssembly binary. In the instantiation process, a [Module] is used to create a
@@ -80,9 +80,7 @@ pub(crate) struct InnerModule(pub(crate) *mut ffi::WasmEdge_ASTModuleContext);
 unsafe impl Send for InnerModule {}
 unsafe impl Sync for InnerModule {}
 
-/// Struct of WasmEdge ImportType.
-///
-/// [ImportType] describes the type of imported wasm value.
+/// Defines the types of the imported wasm value.
 #[derive(Debug)]
 pub struct ImportType<'module> {
     pub(crate) inner: InnerImportType,
@@ -244,9 +242,7 @@ pub(crate) struct InnerImportType(pub(crate) *const ffi::WasmEdge_ImportTypeCont
 unsafe impl Send for InnerImportType {}
 unsafe impl Sync for InnerImportType {}
 
-/// Struct of WasmEdge ExportType.
-///
-/// [ExportType] describes the type of exported wasm value.
+/// Defines the types of the exported wasm values.
 #[derive(Debug)]
 pub struct ExportType<'module> {
     pub(crate) inner: InnerExportType,

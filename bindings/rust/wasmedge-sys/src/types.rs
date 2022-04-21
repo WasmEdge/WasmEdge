@@ -96,7 +96,7 @@ pub(crate) struct InnerWasmEdgeString(pub(crate) ffi::WasmEdge_String);
 unsafe impl Send for InnerWasmEdgeString {}
 unsafe impl Sync for InnerWasmEdgeString {}
 
-/// Struct of WasmEdge Value.
+/// Defines a WebAssembly value.
 #[derive(Debug, Clone, Copy)]
 pub struct WasmValue {
     ctx: ffi::WasmEdge_Value,

@@ -9,8 +9,6 @@ use crate::{
     Function, Global, Memory, Table, WasmEdgeResult,
 };
 
-/// Struct of WasmEdge Instance.
-///
 /// An [Instance] represents an instantiated module. In the instantiation process, An [Instance] is created from al[Module](crate::Module). From an [Instance] the exported [functions](crate::Function), [tables](crate::Table), [memories](crate::Memory), and [globals](crate::Global) can be fetched.
 ///
 /// A module instance is usually returned via one of the following APIs:
@@ -278,8 +276,6 @@ pub(crate) struct InnerInstance(pub(crate) *mut ffi::WasmEdge_ModuleInstanceCont
 unsafe impl Send for InnerInstance {}
 unsafe impl Sync for InnerInstance {}
 
-/// Struct of WasmEdge ImportModule.
-///
 /// An [ImportModule] represents a host module with a name. A host module consists of one or more host [function](crate::Function), [table](crate::Table), [memory](crate::Memory), and [global](crate::Global) instances,  which are defined outside wasm modules and fed into wasm modules as imports.
 ///
 /// # Example
@@ -433,8 +429,6 @@ impl ImportInstance for ImportModule {
     }
 }
 
-/// Struct of WasmEdge WasiModule.
-///
 /// A [WasiModule] is a module instance for the WASI specification.
 ///
 /// # Usage
@@ -617,8 +611,6 @@ impl ImportInstance for WasiModule {
     }
 }
 
-/// Struct of WasmEdge WasmEdgeProcessModule.
-///
 /// A [WasmEdgeProcessModule] is a module instance for the WasmEdge_Process specification.
 ///
 /// # Usage
@@ -785,9 +777,7 @@ pub trait ImportInstance {
     fn add_global(&mut self, name: impl AsRef<str>, global: Global);
 }
 
-/// Enum of WasmEdge ImportObject.
-///
-/// [ImportObject] defines three types of module instances that can be imported into a WasmEdge [Store](crate::Store) instance.
+/// Defines three types of module instances that can be imported into a WasmEdge [Store](crate::Store) instance.
 #[derive(Debug)]
 pub enum ImportObject {
     /// Defines the import module instance is of ImportModule type.

@@ -8,9 +8,7 @@ use crate::{
     WasmEdgeResult,
 };
 
-/// Struct of Wasmedge Store.
-///
-/// The [Store] represents all global state that can be manipulated by WebAssembly programs. It consists of the runtime representation of all instances of [functions](crate::Function), [tables](crate::Table), [memories](crate::Memory), and [globals](crate::Global) that have been allocated during the life time of the [Vm](crate::Vm).
+/// A [Store] represents all global state that can be manipulated by WebAssembly programs. It consists of the runtime representation of all instances of [functions](crate::Function), [tables](crate::Table), [memories](crate::Memory), and [globals](crate::Global) that have been allocated during the life time of the [Vm](crate::Vm).
 #[derive(Debug)]
 pub struct Store {
     pub(crate) inner: InnerStore,

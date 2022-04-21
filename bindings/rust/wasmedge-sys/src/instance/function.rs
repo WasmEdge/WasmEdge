@@ -57,7 +57,7 @@ extern "C" fn wraper_fn(
     }
 }
 
-/// Struct of WasmEdge Function.
+/// Defines a host function.
 ///
 /// A WasmEdge [Function] defines a WebAssembly host function described by its [type](crate::FuncType). A host function is a closure of the original function defined in either the host or the WebAssembly module.
 ///
@@ -278,7 +278,7 @@ pub(crate) struct InnerFunc(pub(crate) *mut ffi::WasmEdge_FunctionInstanceContex
 unsafe impl Send for InnerFunc {}
 unsafe impl Sync for InnerFunc {}
 
-/// Struct of WasmEdge FuncType.
+/// Defines the type of a [host function](crate::Function).
 ///
 /// A WasmEdge [FuncType] classifies the signature of a [Function], including the type information of both the arguments and the returns.
 #[derive(Debug)]
@@ -423,9 +423,7 @@ pub(crate) struct InnerFuncType(pub(crate) *mut ffi::WasmEdge_FunctionTypeContex
 unsafe impl Send for InnerFuncType {}
 unsafe impl Sync for InnerFuncType {}
 
-/// Struct of WasmEdge FuncRef.
-///
-/// A [FuncRef] instance is a reference to a [Function] instance.
+/// Defines a reference to a [host function](crate::Function).
 #[derive(Debug, Clone)]
 pub struct FuncRef {
     pub(crate) inner: InnerFuncRef,

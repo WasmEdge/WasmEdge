@@ -13,9 +13,7 @@ use crate::{
 };
 use std::ops::RangeInclusive;
 
-/// Struct of WasmEdge Memory.
-///
-/// A WasmEdge [Memory] defines a WebAssembly memory instance, which is a linear memory described by its [type](crate::MemType). Each memory instance consists of a vector of bytes and an optional maximum size, and its size is a multiple of the WebAssembly page size (*64KiB* of each page).
+/// Defines a WebAssembly memory instance, which is a linear memory described by its [type](crate::MemType). Each memory instance consists of a vector of bytes and an optional maximum size, and its size is a multiple of the WebAssembly page size (*64KiB* of each page).
 #[derive(Debug)]
 pub struct Memory {
     pub(crate) inner: InnerMemory,
@@ -266,9 +264,7 @@ pub(crate) struct InnerMemory(pub(crate) *mut ffi::WasmEdge_MemoryInstanceContex
 unsafe impl Send for InnerMemory {}
 unsafe impl Sync for InnerMemory {}
 
-/// Struct of WasmEdge MemType.
-///
-/// A [MemType] classifies a [Memory] and its size range.
+/// Defines the type of a wasm memory instance
 #[derive(Debug)]
 pub struct MemType {
     pub(crate) inner: InnerMemType,

@@ -6,7 +6,6 @@
 #include "common/types.h"
 #include "common/version.h"
 #include "host/wasi/wasimodule.h"
-#include "host/wasmedge_process/processenv.h"
 #include "plugin/plugin.h"
 #include "po/argument_parser.h"
 #include "vm/vm.h"
@@ -26,6 +25,10 @@ int main(int Argc, const char *Argv[]) {
 
   std::ios::sync_with_stdio(false);
   WasmEdge::Log::setInfoLoggingLevel();
+
+  for (const auto &Path : WasmEdge::Plugin::Plugin::getDefaultPluginPaths()) {
+    WasmEdge::Plugin::Plugin::load(Path);
+  }
 
   PO::Option<std::string> SoName(PO::Description("Wasm or so file"sv),
                                  PO::MetaVar("WASM_OR_SO"sv));

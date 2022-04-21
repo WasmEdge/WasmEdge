@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2019-2022 Second State INC
 
-#include "host/wasmedge_process/processmodule.h"
-#include "host/wasmedge_process/processfunc.h"
+#include "processmodule.h"
+#include "processfunc.h"
 
 #include <memory>
 

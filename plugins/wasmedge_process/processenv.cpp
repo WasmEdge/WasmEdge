@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2019-2022 Second State INC
 
-#include "host/wasmedge_process/processenv.h"
-#include "host/wasmedge_process/processmodule.h"
+#include "processenv.h"
 #include "po/helper.h"
+#include "processmodule.h"
 #include <string_view>
 
 namespace WasmEdge {
@@ -31,7 +31,7 @@ void addOptions(PO::ArgumentParser &Parser) noexcept {
                   WasmEdgeProcessEnvironment::AllowCmdAll);
 }
 
-Runtime::ImportObject *create(void) noexcept {
+Runtime::Instance::ModuleInstance *create(void) noexcept {
   return new WasmEdgeProcessModule;
 }
 

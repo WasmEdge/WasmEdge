@@ -4,8 +4,7 @@
 #pragma once
 
 #include "common/defines.h"
-#include "host/wasmedge_process/processbase.h"
-
+#include "processbase.h"
 #include <cstdint>
 
 namespace WasmEdge {

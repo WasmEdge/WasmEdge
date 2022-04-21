@@ -5,7 +5,7 @@
 
 #include "aot/compiler.h"
 #include "host/wasi/wasimodule.h"
-#include "host/wasmedge_process/processmodule.h"
+#include "plugin/plugin.h"
 #include "vm/vm.h"
 
 #include <algorithm>
@@ -1652,31 +1652,32 @@ WASMEDGE_CAPI_EXPORT WasmEdge_ModuleInstanceContext *
 WasmEdge_ModuleInstanceCreateWasmEdgeProcess(const char *const *AllowedCmds,
                                              const uint32_t CmdsLen,
                                              const bool AllowAll) {
-  auto *ProcMod = new WasmEdge::Host::WasmEdgeProcessModule();
-  WasmEdge_ModuleInstanceInitWasmEdgeProcess(toModCxt(ProcMod), AllowedCmds,
-                                             CmdsLen, AllowAll);
-  return toModCxt(ProcMod);
+  using namespace std::literals::string_view_literals;
+  if (const auto *Plugin =
+          WasmEdge::Plugin::Plugin::find("wasmedge_process"sv)) {
+    if (const auto *Module = Plugin->findModule("wasmedge_process"sv)) {
+      WasmEdge_ModuleInstanceInitWasmEdgeProcess(AllowedCmds, CmdsLen,
+                                                 AllowAll);
+      auto *ProcMod = toModCxt(Module->create().release());
+      return ProcMod;
+    }
+  }
+  return nullptr;
 }
 
-WASMEDGE_CAPI_EXPORT void WasmEdge_ModuleInstanceInitWasmEdgeProcess(
-    WasmEdge_ModuleInstanceContext *Cxt, const char *const *AllowedCmds,
-    const uint32_t CmdsLen, const bool AllowAll) {
-  if (!Cxt) {
-    return;
-  }
-  auto *ProcMod =
-      dynamic_cast<WasmEdge::Host::WasmEdgeProcessModule *>(fromModCxt(Cxt));
-  if (!ProcMod) {
-    return;
-  }
-  auto &ProcEnv = ProcMod->getEnv();
-  ProcEnv.AllowedAll = AllowAll;
-  if (AllowAll) {
-    ProcEnv.AllowedCmd.clear();
-  } else {
-    for (uint32_t I = 0; I < CmdsLen; I++) {
-      ProcEnv.AllowedCmd.insert(AllowedCmds[I]);
-    }
+WASMEDGE_CAPI_EXPORT void
+WasmEdge_ModuleInstanceInitWasmEdgeProcess(const char *const *AllowedCmds,
+                                           const uint32_t CmdsLen,
+                                           const bool AllowAll) {
+  using namespace std::literals::string_view_literals;
+  if (const auto *Plugin =
+          WasmEdge::Plugin::Plugin::find("wasmedge_process"sv)) {
+    PO::ArgumentParser Parser;
+    Plugin->registerOptions(Parser);
+    Parser.set_raw_value<std::vector<std::string>>(
+        "allow-command"sv,
+        std::vector<std::string>(AllowedCmds, AllowedCmds + CmdsLen));
+    Parser.set_raw_value<bool>("allow-command-all"sv, AllowAll);
   }
 }
 
@@ -2505,6 +2506,16 @@ WASMEDGE_CAPI_EXPORT void WasmEdge_VMDelete(WasmEdge_VMContext *Cxt) {
 }
 
 // <<<<<<<< WasmEdge VM functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+// >>>>>>>> WasmEdge Plugin functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+WASMEDGE_CAPI_EXPORT void WasmEdge_Plugin_loadWithDefaultPluginPaths(void) {
+  for (const auto &Path : WasmEdge::Plugin::Plugin::getDefaultPluginPaths()) {
+    WasmEdge::Plugin::Plugin::load(Path);
+  }
+}
+
+// <<<<<<<< WasmEdge Pluginfunctions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 #ifdef __cplusplus
 } // extern "C"

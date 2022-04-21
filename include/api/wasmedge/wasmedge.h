@@ -1688,17 +1688,16 @@ WasmEdge_ModuleInstanceCreateWasmEdgeProcess(const char *const *AllowedCmds,
 /// This function will initialize the wasmedge_process host module with the
 /// parameters.
 ///
-/// \param Cxt the WasmEdge_ModuleInstanceContext of wasmedge_process import
-/// object.
 /// \param AllowedCmds the allowed commands white list. NULL if the
 /// length is 0.
 /// \param CmdsLen the length of the allowed commands white list.
 /// \param AllowAll the boolean value to allow all commands. `false` is
 /// suggested. If this value is `true`, the allowed commands white list will not
 /// be recorded and all commands can be executed by wasmedge_process.
-WASMEDGE_CAPI_EXPORT extern void WasmEdge_ModuleInstanceInitWasmEdgeProcess(
-    WasmEdge_ModuleInstanceContext *Cxt, const char *const *AllowedCmds,
-    const uint32_t CmdsLen, const bool AllowAll);
+WASMEDGE_CAPI_EXPORT extern void
+WasmEdge_ModuleInstanceInitWasmEdgeProcess(const char *const *AllowedCmds,
+                                           const uint32_t CmdsLen,
+                                           const bool AllowAll);
 
 /// Get the export module name of a module instance.
 ///
@@ -3083,6 +3082,14 @@ WasmEdge_VMGetStatisticsContext(WasmEdge_VMContext *Cxt);
 WASMEDGE_CAPI_EXPORT extern void WasmEdge_VMDelete(WasmEdge_VMContext *Cxt);
 
 // <<<<<<<< WasmEdge VM functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+// >>>>>>>> WasmEdge Plugin functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+/// Load plugins with default search path.
+WASMEDGE_CAPI_EXPORT extern void
+WasmEdge_Plugin_loadWithDefaultPluginPaths(void);
+
+// <<<<<<<< WasmEdge Pluginfunctions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 #ifdef __cplusplus
 } /// extern "C"

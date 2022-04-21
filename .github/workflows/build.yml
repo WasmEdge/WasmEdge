@@ -159,9 +159,6 @@ jobs:
         cd build
         ctest
         cd -
-    - name: Output Testing Log
-      if: ${{ ! matrix.coverage }}
-      run: |
         cat build/Testing/Temporary/LastTest.log
 
   build_ubuntu:

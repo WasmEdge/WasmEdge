@@ -70,7 +70,7 @@ pub fn log_error_info() {
     unsafe { ffi::WasmEdge_LogSetErrorLevel() }
 }
 
-/// Converts WasmEdge_Result to WasmEdgeResult
+// Checks the result of a `FFI` function.
 pub(crate) fn check(result: WasmEdge_Result) -> WasmEdgeResult<()> {
     let code = unsafe {
         if !WasmEdge_ResultOK(result) {

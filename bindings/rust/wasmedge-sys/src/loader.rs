@@ -83,7 +83,7 @@ impl Loader {
     ///
     /// # Arguments
     ///
-    /// * `buffer` - A WASM buffer.
+    /// * `bytes` - A in-memory WASM bytes.
     ///
     /// # Error
     ///
@@ -92,27 +92,27 @@ impl Loader {
     /// # Example
     ///
     /// ```ignore
-    /// let buffer = b"\0asm\x01\0\0\0";
-    /// let module = loader.from_buffer(&buffer)?;
+    /// let bytes = b"\0asm\x01\0\0\0";
+    /// let module = loader.from_bytes(&bytes)?;
     /// ```
     ///
     /// Note that the text format is not accepted:
     ///
     /// ```ignore
-    /// assert!(loader.from_buffer(b"(module)").is_err());
+    /// assert!(loader.from_bytes(b"(module)").is_err());
     /// ```
-    pub fn from_bytes(&self, buffer: impl AsRef<[u8]>) -> WasmEdgeResult<Module> {
+    pub fn from_bytes(&self, bytes: impl AsRef<[u8]>) -> WasmEdgeResult<Module> {
         let mut mod_ctx: *mut ffi::WasmEdge_ASTModuleContext = std::ptr::null_mut();
 
         unsafe {
-            let ptr = libc::malloc(buffer.as_ref().len());
+            let ptr = libc::malloc(bytes.as_ref().len());
             let dst = ::core::slice::from_raw_parts_mut(
                 ptr.cast::<std::mem::MaybeUninit<u8>>(),
-                buffer.as_ref().len(),
+                bytes.as_ref().len(),
             );
             let src = ::core::slice::from_raw_parts(
-                buffer.as_ref().as_ptr().cast::<std::mem::MaybeUninit<u8>>(),
-                buffer.as_ref().len(),
+                bytes.as_ref().as_ptr().cast::<std::mem::MaybeUninit<u8>>(),
+                bytes.as_ref().len(),
             );
             dst.copy_from_slice(src);
 
@@ -120,7 +120,7 @@ impl Loader {
                 self.inner.0,
                 &mut mod_ctx,
                 ptr as *const u8,
-                buffer.as_ref().len() as u32,
+                bytes.as_ref().len() as u32,
             ))?;
 
             libc::free(ptr as *mut libc::c_void);

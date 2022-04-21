@@ -4,3 +4,5 @@ coverage:
       default:
         target: 70%
         threshold: 1%
+  ignore:
+    - "build"

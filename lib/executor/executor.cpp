@@ -14,7 +14,7 @@ Expect<std::unique_ptr<Runtime::Instance::ModuleInstance>>
 Executor::instantiateModule(Runtime::StoreManager &StoreMgr,
                             const AST::Module &Mod) {
   if (auto Res = instantiate(StoreMgr, Mod)) {
-    return std::move(*Res);
+    return Res;
   } else {
     // If Statistics is enabled, then dump it here.
     // When there is an error happened, the following execution will not
@@ -31,7 +31,7 @@ Expect<std::unique_ptr<Runtime::Instance::ModuleInstance>>
 Executor::registerModule(Runtime::StoreManager &StoreMgr,
                          const AST::Module &Mod, std::string_view Name) {
   if (auto Res = instantiate(StoreMgr, Mod, Name)) {
-    return std::move(*Res);
+    return Res;
   } else {
     // If Statistics is enabled, then dump it here.
     // When there is an error happened, the following execution will not

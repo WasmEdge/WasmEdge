@@ -9,9 +9,7 @@ use crate::{
 };
 use wasmedge_types::{Mutability, ValType};
 
-/// Struct of WasmEdge Global.
-///
-/// A WasmEdge [Global] defines a WebAssembly global variable, which stores a single value of the given [type](crate::GlobalType) and a flag indicating whether it is mutable or not.
+/// Defines a WebAssembly global variable, which stores a single value of the given [type](crate::GlobalType) and a flag indicating whether it is mutable or not.
 #[derive(Debug)]
 pub struct Global {
     pub(crate) inner: InnerGlobal,
@@ -114,7 +112,7 @@ pub(crate) struct InnerGlobal(pub(crate) *mut ffi::WasmEdge_GlobalInstanceContex
 unsafe impl Send for InnerGlobal {}
 unsafe impl Sync for InnerGlobal {}
 
-/// Struct of WasmEdge GlobalType.
+/// Defines the type of a wasm global variable.
 ///
 /// A [GlobalType] classifies a global variable that hold a value and can either be mutable or immutable.
 #[derive(Debug)]

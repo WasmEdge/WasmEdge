@@ -9,8 +9,6 @@ use crate::{
 };
 use std::path::Path;
 
-/// Struct of WasmEdge Loader.
-///
 /// [Loader](crate::Loader) is used to load WASM modules from the given WASM files or buffers.
 #[derive(Debug)]
 pub struct Loader {

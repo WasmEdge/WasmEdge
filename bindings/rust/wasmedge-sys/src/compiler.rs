@@ -3,8 +3,8 @@
 use crate::{error::WasmEdgeError, ffi, utils, utils::check, Config, WasmEdgeResult};
 use std::path::Path;
 
+/// Defines WasmEdge ahead-of-time(AOT) compiler and the relevant APIs.
 #[cfg(feature = "aot")]
-/// Struct of WasmEdge ahead-of-time(AOT) compiler.
 #[derive(Debug)]
 pub struct Compiler {
     pub(crate) inner: InnerCompiler,

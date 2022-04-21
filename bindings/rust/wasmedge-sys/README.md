@@ -2,9 +2,13 @@
 
 The [wasmedge-sys](https://crates.io/crates/wasmedge-sys) crate defines a group of low-level Rust APIs for WasmEdge, a light-weight, high-performance, and extensible WebAssembly runtime for cloud-native, edge, and decentralized applications.
 
-For developers, it is recommended that the APIs in `wasmedge-sys` are used to construct high-level libraries, but not to build up applications.
+For developers, it is recommended that the APIs in `wasmedge-sys` are used to construct high-level libraries, while `wasmedge-sdk` (coming soon) is for building up business applications.
 
 ## Usage
+
+To use or build the `wasmedge-sys` crate, the `wasmedge-core` is required. The [*Build wasmedge-sys crate*](https://wasmedge.org/book/en/embed/rust.html#build-wasmedge-sys-crate) section of [WasmEdge mdbook](https://wasmedge.org/book/en/) gives the tips.  
+
+## Example
 
 A quick-start example below is using `wasmedge-sys` to run a WebAssembly module written with its WAT format (textual format):
 

@@ -3,14 +3,18 @@
     html_favicon_url = "https://wasmedge.org/img/wasmedge-horizontal-white.svg"
 )]
 
-//! # Rust WasmEdge bindings
-//! This library contains safe Rust bindings for WasmEdge, a lightweight, high-performance, and extensible WebAssembly runtime for cloud native, edge, and decentralized applications.
+//! # Overview
+//! The [wasmedge-sys](https://crates.io/crates/wasmedge-sys) crate defines a group of low-level Rust APIs for WasmEdge, a light-weight, high-performance, and extensible WebAssembly runtime for cloud-native, edge, and decentralized applications.
 //!
-//! Most of this documentation is generated from the C API. Until all parts of the documentation have been reviewed there will be incongruities with the actual Rust API.
+//! For developers, it is strongly recommended that the APIs in `wasmedge-sys` are used to construct high-level libraries, while `wasmedge-sdk` (coming soon) is for building up business applications.
 //!
 //! ## Usage
 //!
-//! A quick-start example below is using `wasmedge-sys` to run a WebAssembly module written with its WAT format (textual format):
+//! To use or build the `wasmedge-sys` crate, the `wasmedge-core` is required. The [*Build wasmedge-sys crate*](https://wasmedge.org/book/en/embed/rust.html#build-wasmedge-sys-crate) section of [WasmEdge Docs](https://wasmedge.org/book/en/) gives the tips.
+//!
+//! ## A quick-start example
+//!
+//! The following code presents how to use the APIs in `wasmedge-sys` to run a WebAssembly module written with its WAT format (textual format):
 //!
 //! ```rust
 //! use wasmedge_sys::{Vm, WasmValue};
@@ -74,7 +78,8 @@
 //!
 //! ## See also
 //!
-//! - [WasmEdge Runtime](https://wasmedge.org/)
+//! - [WasmEdge Runtime Official Website](https://wasmedge.org/)
+//! - [WasmEdge Docs](https://wasmedge.org/book/en/)
 //! - [WasmEdge C API Documentation](https://github.com/WasmEdge/WasmEdge/blob/master/docs/c_api.md)
 //!
 
@@ -93,6 +98,7 @@ use std::{
 pub mod ffi {
     include!(concat!(env!("OUT_DIR"), "/wasmedge.rs"));
 }
+#[doc(hidden)]
 pub mod ast_module;
 #[doc(hidden)]
 #[cfg(feature = "aot")]
@@ -101,6 +107,7 @@ pub mod compiler;
 pub mod config;
 #[doc(hidden)]
 pub mod executor;
+#[doc(hidden)]
 pub mod instance;
 #[doc(hidden)]
 pub mod io;

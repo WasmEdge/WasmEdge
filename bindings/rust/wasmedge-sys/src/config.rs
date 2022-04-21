@@ -3,7 +3,7 @@
 use crate::{error::WasmEdgeError, ffi, WasmEdgeResult};
 use wasmedge_types::{CompilerOptimizationLevel, CompilerOutputFormat};
 
-/// Struct of WasmEdge Config.
+/// Defines Config struct used to check/set the configuration options.
 ///
 /// [Config](crate::Config) manages the configuration options, which are used to initiate WasmEdge [Vm](crate::Vm), [Loader](crate::Loader), [Validator](crate::Validator), [Executor](crate::Executor), and [Compiler](crate::Compiler).
 ///

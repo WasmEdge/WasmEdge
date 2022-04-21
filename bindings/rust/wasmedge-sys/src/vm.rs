@@ -17,8 +17,6 @@ use crate::{
 };
 use std::{collections::HashMap, path::Path};
 
-/// Struct of WasmEdge Vm.
-///
 /// A [Vm] defines a virtual environment for managing WebAssembly programs.
 #[derive(Debug)]
 pub struct Vm {

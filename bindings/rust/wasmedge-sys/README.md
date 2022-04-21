@@ -6,7 +6,7 @@ For developers, it is recommended that the APIs in `wasmedge-sys` are used to co
 
 ## Usage
 
-To use or build the `wasmedge-sys` crate, the `wasmedge-core` is required. The [*Build wasmedge-sys crate*](https://wasmedge.org/book/en/embed/rust.html#build-wasmedge-sys-crate) section of [WasmEdge mdbook](https://wasmedge.org/book/en/) gives the tips.  
+To use or build the `wasmedge-sys` crate, the `wasmedge-core` is required. The [*Build wasmedge-sys crate*](https://wasmedge.org/book/en/embed/rust.html#build-wasmedge-sys-crate) section of [WasmEdge Docs](https://wasmedge.org/book/en/) gives the tips.  
 
 ## Example
 
@@ -74,5 +74,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 ## See also
 
-* [WasmEdge Runtime](https://wasmedge.org/)
+* [WasmEdge Runtime Official Website](https://wasmedge.org/)
+* [WasmEdge Docs](https://wasmedge.org/book/en/)
 * [WasmEdge C API Documentation](https://github.com/WasmEdge/WasmEdge/blob/master/docs/c_api.md)

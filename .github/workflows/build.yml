@@ -151,10 +151,12 @@ jobs:
         OPENVINO_VERSION: "2021.4.582"
         OPENVINO_YEAR: "2021"
       run: |
+        chmod +x utils/docker/build-wasinn-ubuntu-openvino.sh
         bash utils/docker/build-wasinn-ubuntu-openvino.sh
     - name: Test WasmEdge
       if: ${{ ! matrix.coverage }}
       run: |
+        chmod +x utils/docker/test-wasinn-ubuntu-openvino.sh
         bash utils/docker/test-wasinn-ubuntu-openvino.sh
 
   build_ubuntu:

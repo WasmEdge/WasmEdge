@@ -98,6 +98,7 @@ mod executor;
 mod externals;
 mod import;
 mod instance;
+pub mod io;
 mod module;
 mod statistics;
 mod store;

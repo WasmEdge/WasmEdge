@@ -1,5 +1,5 @@
 //! Defines Func, SignatureBuilder, and Signature structs.
-use crate::{Engine, HostFunc, WasmEdgeResult};
+use crate::{io::ValTypeList, Engine, HostFunc, WasmEdgeResult};
 use wasmedge_sys::{self as sys, WasmValue};
 use wasmedge_types::{FuncType, ValType};
 
@@ -115,6 +115,14 @@ impl Func {
     ///
     /// If fail to create the host function, then an error is returned.
     pub fn new(ty: FuncType, real_func: HostFunc) -> WasmEdgeResult<Self> {
+        let inner = sys::Function::create(&ty.into(), real_func, 0)?;
+        Ok(Self { inner })
+    }
+
+    pub fn wrap<Args: ValTypeList, Rets: ValTypeList>(real_func: HostFunc) -> WasmEdgeResult<Self> {
+        let args = Args::parameters();
+        let returns = Rets::parameters();
+        let ty = FuncType::new(Some(args), Some(returns));
         let inner = sys::Function::create(&ty.into(), real_func, 0)?;
         Ok(Self { inner })
     }
@@ -315,7 +323,7 @@ mod tests {
     use super::*;
     use crate::{
         config::{CommonConfigOptions, ConfigBuilder},
-        Executor, ImportObjectBuilder, Statistics, Store,
+        io, Executor, ImportObjectBuilder, Statistics, Store,
     };
     use wasmedge_sys::WasmValue;
 
@@ -436,6 +444,22 @@ mod tests {
         assert!(result.is_ok());
         let returns = result.unwrap();
         assert_eq!(returns.len(), 1);
+        assert_eq!(returns[0].to_i32(), 5);
+    }
+
+    #[test]
+    fn test_func_wrap() {
+        let result = Func::wrap::<io::I2<i32, i32>, io::I1<i32>>(Box::new(real_add));
+        assert!(result.is_ok());
+        let func = result.unwrap();
+
+        let mut executor = crate::Executor::new(None, None).unwrap();
+        let result = func.call(
+            &mut executor,
+            [WasmValue::from_i32(2), WasmValue::from_i32(3)],
+        );
+        assert!(result.is_ok());
+        let returns = result.unwrap();
         assert_eq!(returns[0].to_i32(), 5);
     }
 

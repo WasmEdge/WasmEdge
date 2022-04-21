@@ -3,13 +3,11 @@
 
 #include "host/wasi_nn/wasinnmodule.h"
 #include "host/wasi_nn/wasinnfunc.h"
-#include "spdlog/sinks/stdout_color_sinks.h"
 
 namespace WasmEdge {
 namespace Host {
 
 WasiNNModule::WasiNNModule() : ImportObject("wasi_ephemeral_nn") {
-  spdlog::stdout_color_mt("wasi-nn");
   Ctx.BackendsMapping.emplace("OpenVINO", static_cast<GraphEncoding>(0));
 
   addHostFunc("load", std::make_unique<WasiNNLoad>(Ctx));

@@ -7,6 +7,8 @@
 //!
 //! The [wasmedge](https://crates.io/crates/wasmedge) crate defines a group of high-level Rust APIs, which are used to build up business applications.
 //!
+//! Notice that `wasmedge` requires the nightly version of Rust.
+//!
 //! ## Usage
 //!
 //! A quick-start example below is using `wasmedge` to run a WebAssembly module written with its WAT format (textual format):
@@ -87,6 +89,8 @@
 //! * [wasmedge-sys: WasmEdge Low-level Rust APIs](https://crates.io/crates/wasmedge-sys)
 //! * [wasmedge-types: WasmEdge Types](https://crates.io/crates/wasmedge-types)
 //!
+
+#![feature(explicit_generic_args_with_impl_trait)]
 
 use wasmedge_types::WasmEdgeResult;
 

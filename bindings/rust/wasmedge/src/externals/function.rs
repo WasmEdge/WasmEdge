@@ -119,6 +119,7 @@ impl Func {
         Ok(Self { inner })
     }
 
+    /// Creates a host function with the given [FuncType](wasmedge_types::FuncType).
     pub fn wrap<Args: ValTypeList, Rets: ValTypeList>(real_func: HostFunc) -> WasmEdgeResult<Self> {
         let args = Args::parameters();
         let returns = Rets::parameters();

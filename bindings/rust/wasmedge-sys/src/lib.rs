@@ -158,11 +158,11 @@ pub use vm::Vm;
 
 use wasmedge_types::{error, WasmEdgeResult};
 
-/// Type alias for a host function.
-pub type HostFunc = Box<dyn Fn(Vec<WasmValue>) -> Result<Vec<WasmValue>, u8> + Send + Sync>;
+/// Type alias for a boxed native function.
+pub type BoxedFn = Box<dyn Fn(Vec<WasmValue>) -> Result<Vec<WasmValue>, u8> + Send + Sync>;
 
 lazy_static! {
-    static ref HOST_FUNCS: Arc<Mutex<HashMap<usize, HostFunc>>> =
+    static ref HOST_FUNCS: Arc<Mutex<HashMap<usize, BoxedFn>>> =
         Arc::new(Mutex::new(HashMap::with_capacity(
             std::env::var("MAX_HOST_FUNC_LENGTH")
                 .map(|s| s

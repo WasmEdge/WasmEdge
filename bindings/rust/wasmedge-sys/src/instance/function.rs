@@ -2,7 +2,7 @@
 
 use crate::{
     error::{FuncError, WasmEdgeError},
-    ffi, Engine, HostFunc, WasmEdgeResult, WasmValue, HOST_FUNCS,
+    ffi, BoxedFn, Engine, WasmEdgeResult, WasmValue, HOST_FUNCS,
 };
 use core::ffi::c_void;
 use rand::Rng;
@@ -130,7 +130,7 @@ impl Function {
     /// // create a Function instance
     /// let func = Function::create(&func_ty, Box::new(real_add), 0).expect("fail to create a Function instance");
     /// ```
-    pub fn create(ty: &FuncType, real_fn: HostFunc, cost: u64) -> WasmEdgeResult<Self> {
+    pub fn create(ty: &FuncType, real_fn: BoxedFn, cost: u64) -> WasmEdgeResult<Self> {
         let mut host_functions = HOST_FUNCS.lock().expect("[wasmedge-sys] try lock failed.");
         if host_functions.len() >= host_functions.capacity() {
             return Err(WasmEdgeError::Func(FuncError::CreateBinding(format!(

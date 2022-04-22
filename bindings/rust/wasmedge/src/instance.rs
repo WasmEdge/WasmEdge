@@ -1,7 +1,6 @@
 //! Defines WasmEdge Instance.
 
 use crate::{Func, Global, Memory, Table};
-use std::marker::PhantomData;
 use wasmedge_sys as sys;
 
 /// Represents an instantiated module.
@@ -37,7 +36,11 @@ impl Instance {
     pub fn func(&self, name: impl AsRef<str>) -> Option<Func> {
         let inner_func = self.inner.get_func(name.as_ref()).ok();
         if let Some(inner_func) = inner_func {
-            return Some(Func { inner: inner_func });
+            return Some(Func {
+                inner: inner_func,
+                name: Some(name.as_ref().into()),
+                mod_name: self.inner.name(),
+            });
         }
 
         None
@@ -65,7 +68,6 @@ impl Instance {
                 inner: inner_global,
                 name: Some(name.as_ref().into()),
                 mod_name: self.inner.name(),
-                _marker: PhantomData,
             });
         }
 
@@ -94,7 +96,6 @@ impl Instance {
                 inner: inner_memory,
                 name: Some(name.as_ref().into()),
                 mod_name: self.inner.name(),
-                _marker: PhantomData,
             });
         }
 
@@ -123,7 +124,6 @@ impl Instance {
                 inner: inner_table,
                 name: Some(name.as_ref().into()),
                 mod_name: self.inner.name(),
-                _marker: PhantomData,
             });
         }
 
@@ -135,8 +135,10 @@ impl Instance {
 mod tests {
     use crate::{
         config::{CommonConfigOptions, ConfigBuilder},
+        io::{I1, I2},
         types::Val,
-        Executor, FuncTypeBuilder, ImportObjectBuilder, Module, Statistics, Store, WasmValue,
+        Executor, FuncTypeBuilder, Global, ImportObjectBuilder, Memory, Module, Statistics, Store,
+        Table, WasmValue,
     };
     use wasmedge_types::{GlobalType, MemoryType, Mutability, RefType, TableType, ValType};
 
@@ -164,26 +166,33 @@ mod tests {
         assert_eq!(store.named_instance_count(), 0);
         assert!(store.instance_names().is_none());
 
+        // create a Const global instance
+        let result = Global::new(
+            GlobalType::new(ValType::F32, Mutability::Const),
+            Val::F32(3.5),
+        );
+        assert!(result.is_ok());
+        let global_const = result.unwrap();
+
+        // create a memory instance
+        let result = Memory::new(MemoryType::new(10, None));
+        assert!(result.is_ok());
+        let memory = result.unwrap();
+
+        // create a table instance
+        let result = Table::new(TableType::new(RefType::FuncRef, 5, None));
+        assert!(result.is_ok());
+        let table = result.unwrap();
+
         // create an ImportModule instance
         let result = ImportObjectBuilder::new()
-            .with_func(
-                "add",
-                FuncTypeBuilder::new()
-                    .with_args(vec![ValType::I32; 2])
-                    .with_returns(vec![ValType::I32])
-                    .build(),
-                Box::new(real_add),
-            )
+            .with_func::<I2<i32, i32>, I1<i32>>("add", Box::new(real_add))
             .expect("failed to add host function")
-            .with_global(
-                "global",
-                GlobalType::new(ValType::F32, Mutability::Const),
-                Val::F32(3.5),
-            )
+            .with_global("global", global_const)
             .expect("failed to add const global")
-            .with_memory("mem", MemoryType::new(10, None))
+            .with_memory("mem", memory)
             .expect("failed to add memory")
-            .with_table("table", TableType::new(RefType::FuncRef, 5, None))
+            .with_table("table", table)
             .expect("failed to add table")
             .build("extern-module");
         assert!(result.is_ok());

@@ -12,7 +12,9 @@ use wasmedge_types::{FuncType, ValType};
 /// The following example shows how to create a host function, access it by its name and its type info.
 ///
 /// ```rust
-/// use wasmedge::{ImportObjectBuilder, config::{ConfigBuilder, CommonConfigOptions}, Statistics, Executor, Store, FuncTypeBuilder};
+/// #![feature(explicit_generic_args_with_impl_trait)]
+///
+/// use wasmedge::{ImportObjectBuilder, config::{ConfigBuilder, CommonConfigOptions}, Statistics, Executor, Store, FuncTypeBuilder, io::{I1, I2}};
 /// use wasmedge_sys::types::WasmValue;
 /// use wasmedge_types::ValType;
 ///
@@ -41,12 +43,8 @@ use wasmedge_types::{FuncType, ValType};
 ///
 /// // create an ImportModule which has a host function with an exported name "add"
 /// let result = ImportObjectBuilder::new()
-/// .with_func(
+/// .with_func::<I2<i32, i32>, I1<i32>>(
 ///     "add",
-///     FuncTypeBuilder::new()
-///         .with_args(vec![ValType::I32; 2])
-///         .with_returns(vec![ValType::I32])
-///         .build(),
 ///     Box::new(real_add),
 /// )
 /// .expect("failed to add host func")
@@ -99,33 +97,49 @@ use wasmedge_types::{FuncType, ValType};
 #[derive(Debug)]
 pub struct Func {
     pub(crate) inner: sys::Function,
+    pub(crate) name: Option<String>,
+    pub(crate) mod_name: Option<String>,
 }
 impl Func {
-    /// Creates a new host function with the given [FuncType](wasmedge_types::FuncType).
-    ///
-    /// Notice that if intend to add a host function as an import object, then use the `with_func` function of [ImportObjectBuilder](crate::ImportObjectBuilder) instead. This function is only used to create a host function which is not an import object, for example, generate a funcref and store it in a table.
+    /// Creates a host function by wrapping a native function.
     ///
     /// # Arguments
     ///
-    /// * `ty` - The type of the arguments and returns of the [host function](crate::Func).
-    ///
-    /// * `real_func` - The host function.
+    /// * `real_func` - The native function to be wrapped.
     ///
     /// # Error
     ///
     /// If fail to create the host function, then an error is returned.
-    pub fn new(ty: FuncType, real_func: HostFunc) -> WasmEdgeResult<Self> {
-        let inner = sys::Function::create(&ty.into(), real_func, 0)?;
-        Ok(Self { inner })
-    }
-
-    /// Creates a host function with the given [FuncType](wasmedge_types::FuncType).
     pub fn wrap<Args: ValTypeList, Rets: ValTypeList>(real_func: HostFunc) -> WasmEdgeResult<Self> {
         let args = Args::parameters();
         let returns = Rets::parameters();
         let ty = FuncType::new(Some(args), Some(returns));
         let inner = sys::Function::create(&ty.into(), real_func, 0)?;
-        Ok(Self { inner })
+        Ok(Self {
+            inner,
+            name: None,
+            mod_name: None,
+        })
+    }
+
+    /// Returns the exported name of this function.
+    ///
+    /// Notice that this field is meaningful only if this host function is used as an exported instance.
+    pub fn name(&self) -> Option<&str> {
+        match &self.name {
+            Some(name) => Some(name.as_ref()),
+            None => None,
+        }
+    }
+
+    /// Returns the name of the [module instance](crate::Instance) from which this function exports.
+    ///
+    /// Notice that this field is meaningful only if this host function is used as an exported instance.
+    pub fn mod_name(&self) -> Option<&str> {
+        match &self.mod_name {
+            Some(mod_name) => Some(mod_name.as_ref()),
+            None => None,
+        }
     }
 
     /// Returns the type of the host function.
@@ -324,7 +338,8 @@ mod tests {
     use super::*;
     use crate::{
         config::{CommonConfigOptions, ConfigBuilder},
-        io, Executor, ImportObjectBuilder, Statistics, Store,
+        io::{I1, I2},
+        Executor, ImportObjectBuilder, Statistics, Store,
     };
     use wasmedge_sys::WasmValue;
 
@@ -384,14 +399,7 @@ mod tests {
     fn test_func_basic() {
         // create an ImportModule
         let result = ImportObjectBuilder::new()
-            .with_func(
-                "add",
-                FuncTypeBuilder::new()
-                    .with_args(vec![ValType::I32; 2])
-                    .with_returns(vec![ValType::I32])
-                    .build(),
-                Box::new(real_add),
-            )
+            .with_func::<I2<i32, i32>, I1<i32>>("add", Box::new(real_add))
             .expect("failed to add host func")
             .build("extern");
         assert!(result.is_ok());
@@ -450,7 +458,7 @@ mod tests {
 
     #[test]
     fn test_func_wrap() {
-        let result = Func::wrap::<io::I2<i32, i32>, io::I1<i32>>(Box::new(real_add));
+        let result = Func::wrap::<I2<i32, i32>, I1<i32>>(Box::new(real_add));
         assert!(result.is_ok());
         let func = result.unwrap();
 

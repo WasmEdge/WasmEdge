@@ -127,8 +127,9 @@ mod tests {
     use super::*;
     use crate::{
         config::{CommonConfigOptions, ConfigBuilder},
+        io::{I1, I2},
         types::Val,
-        Executor, FuncTypeBuilder, ImportObjectBuilder, Module, Statistics, WasmValue,
+        Executor, Global, ImportObjectBuilder, Memory, Module, Statistics, Table, WasmValue,
     };
     use wasmedge_types::{GlobalType, MemoryType, Mutability, RefType, TableType, ValType};
 
@@ -154,26 +155,33 @@ mod tests {
 
     #[test]
     fn test_store_register_import_module() {
+        // create a Const global instance
+        let result = Global::new(
+            GlobalType::new(ValType::F32, Mutability::Const),
+            Val::F32(3.5),
+        );
+        assert!(result.is_ok());
+        let global_const = result.unwrap();
+
+        // create a memory instance
+        let result = Memory::new(MemoryType::new(10, None));
+        assert!(result.is_ok());
+        let memory = result.unwrap();
+
+        // create a table instance
+        let result = Table::new(TableType::new(RefType::FuncRef, 5, None));
+        assert!(result.is_ok());
+        let table = result.unwrap();
+
         // create an ImportModule instance
         let result = ImportObjectBuilder::new()
-            .with_func(
-                "add",
-                FuncTypeBuilder::new()
-                    .with_args(vec![ValType::I32; 2])
-                    .with_returns(vec![ValType::I32])
-                    .build(),
-                Box::new(real_add),
-            )
+            .with_func::<I2<i32, i32>, I1<i32>>("add", Box::new(real_add))
             .expect("failed to add host function")
-            .with_global(
-                "global",
-                GlobalType::new(ValType::F32, Mutability::Const),
-                Val::F32(3.5),
-            )
+            .with_global("global", global_const)
             .expect("failed to add const global")
-            .with_memory("mem", MemoryType::new(10, None))
+            .with_memory("mem", memory)
             .expect("failed to add memory")
-            .with_table("table", TableType::new(RefType::FuncRef, 5, None))
+            .with_table("table", table)
             .expect("failed to add table")
             .build("extern-module");
         assert!(result.is_ok());
@@ -323,26 +331,33 @@ mod tests {
         assert!(result.is_ok());
         let mut store = result.unwrap();
 
+        // create a Const global instance
+        let result = Global::new(
+            GlobalType::new(ValType::F32, Mutability::Const),
+            Val::F32(3.5),
+        );
+        assert!(result.is_ok());
+        let global_const = result.unwrap();
+
+        // create a memory instance
+        let result = Memory::new(MemoryType::new(10, None));
+        assert!(result.is_ok());
+        let memory = result.unwrap();
+
+        // create a table instance
+        let result = Table::new(TableType::new(RefType::FuncRef, 5, None));
+        assert!(result.is_ok());
+        let table = result.unwrap();
+
         // create an ImportModule instance
         let result = ImportObjectBuilder::new()
-            .with_func(
-                "add",
-                FuncTypeBuilder::new()
-                    .with_args(vec![ValType::I32; 2])
-                    .with_returns(vec![ValType::I32])
-                    .build(),
-                Box::new(real_add),
-            )
+            .with_func::<I2<i32, i32>, I1<i32>>("add", Box::new(real_add))
             .expect("failed to add host function")
-            .with_global(
-                "global",
-                GlobalType::new(ValType::F32, Mutability::Const),
-                Val::F32(3.5),
-            )
+            .with_global("global", global_const)
             .expect("failed to add const global")
-            .with_memory("mem", MemoryType::new(10, None))
+            .with_memory("mem", memory)
             .expect("failed to add memory")
-            .with_table("table", TableType::new(RefType::FuncRef, 5, None))
+            .with_table("table", table)
             .expect("failed to add table")
             .build("extern-module");
         assert!(result.is_ok());

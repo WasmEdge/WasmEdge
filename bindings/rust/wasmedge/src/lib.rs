@@ -14,7 +14,9 @@
 //! A quick-start example below is using `wasmedge` to run a WebAssembly module written with its WAT format (textual format):
 //!
 //!  ```rust
-//!  use wasmedge::{Executor, FuncTypeBuilder, ImportObjectBuilder, Module, Store};
+//!  #![feature(explicit_generic_args_with_impl_trait)]
+//!
+//!  use wasmedge::{io::I0, Executor, FuncTypeBuilder, ImportObjectBuilder, Module, Store};
 //!  use wasmedge_sys::WasmValue;
 //!  use wasmedge_types::wat2wasm;
 //!  
@@ -48,11 +50,7 @@
 //!  
 //!      // create an import module
 //!      let import = ImportObjectBuilder::new()
-//!          .with_func(
-//!              "say_hello",
-//!              FuncTypeBuilder::default().build(),
-//!              Box::new(say_hello_world),
-//!          )?
+//!          .with_func::<I0, I0>("say_hello", Box::new(say_hello_world))?
 //!          .build("env")?;
 //!  
 //!      // loads a wasm module from the given in-memory bytes

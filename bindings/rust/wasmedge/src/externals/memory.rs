@@ -4,14 +4,24 @@ use wasmedge_types::MemoryType;
 
 /// Defines a linear memory.
 #[derive(Debug)]
-pub struct Memory<'instance> {
+pub struct Memory {
     pub(crate) inner: sys::Memory,
     pub(crate) name: Option<String>,
     pub(crate) mod_name: Option<String>,
-    pub(crate) _marker: std::marker::PhantomData<&'instance ()>,
 }
-impl<'instance> Memory<'instance> {
+impl Memory {
+    pub fn new(ty: MemoryType) -> WasmEdgeResult<Self> {
+        let inner = sys::Memory::create(&ty.into())?;
+        Ok(Self {
+            inner,
+            name: None,
+            mod_name: None,
+        })
+    }
+
     /// Returns the exported name of this [Memory].
+    ///
+    /// Notice that this field is meaningful only if this memory is used as an exported instance.
     pub fn name(&self) -> Option<&str> {
         match &self.name {
             Some(name) => Some(name.as_ref()),
@@ -20,6 +30,8 @@ impl<'instance> Memory<'instance> {
     }
 
     /// Returns the name of the [module instance](crate::Instance) from which this [Memory] exports.
+    ///
+    /// Notice that this field is meaningful only if this memory is used as an exported instance.
     pub fn mod_name(&self) -> Option<&str> {
         match &self.mod_name {
             Some(mod_name) => Some(mod_name.as_ref()),
@@ -111,9 +123,14 @@ mod tests {
 
     #[test]
     fn test_memory() {
-        // create an ImportModule
+        // create a memory instance
+        let result = Memory::new(MemoryType::new(10, Some(20)));
+        assert!(result.is_ok());
+        let memory = result.unwrap();
+
+        // create an import object
         let result = ImportObjectBuilder::new()
-            .with_memory("memory", MemoryType::new(10, Some(20)))
+            .with_memory("memory", memory)
             .expect("failed to add memory")
             .build("extern");
         assert!(result.is_ok());

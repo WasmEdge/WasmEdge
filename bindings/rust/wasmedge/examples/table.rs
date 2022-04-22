@@ -1,4 +1,8 @@
-use wasmedge::{types::Val, Executor, Func, FuncTypeBuilder, Module, Store};
+use wasmedge::{
+    io::{I1, I2},
+    types::Val,
+    Executor, Func, Module, Store,
+};
 use wasmedge_sys::types::WasmValue;
 use wasmedge_types::{wat2wasm, RefType, TableType, ValType};
 
@@ -114,13 +118,7 @@ fn main() -> anyhow::Result<()> {
     }
 
     // create a host function over host_callback
-    let func = Func::new(
-        FuncTypeBuilder::new()
-            .with_args([ValType::I32; 2])
-            .with_return(ValType::I32)
-            .build(),
-        Box::new(host_callback),
-    )?;
+    let func = Func::wrap::<I2<i32, i32>, I1<i32>>(Box::new(host_callback))?;
 
     // set the function at index 1 in the table
     guest_table.set(1, Val::FuncRef(Some(func.as_ref())))?;
@@ -140,13 +138,7 @@ fn main() -> anyhow::Result<()> {
     // * growing a table
 
     // We again construct a `Function` over our host_callback.
-    let func = Func::new(
-        FuncTypeBuilder::new()
-            .with_args([ValType::I32; 2])
-            .with_return(ValType::I32)
-            .build(),
-        Box::new(host_callback),
-    )?;
+    let func = Func::wrap::<I2<i32, i32>, I1<i32>>(Box::new(host_callback))?;
 
     // And grow the table by 3 elements, filling in our host_callback in all the
     // new elements of the table.
@@ -179,13 +171,7 @@ fn main() -> anyhow::Result<()> {
     assert_eq!(returns[0].to_i32(), 18);
 
     // Now overwrite index 0 with our host_callback.
-    let func = Func::new(
-        FuncTypeBuilder::new()
-            .with_args([ValType::I32; 2])
-            .with_return(ValType::I32)
-            .build(),
-        Box::new(host_callback),
-    )?;
+    let func = Func::wrap::<I2<i32, i32>, I1<i32>>(Box::new(host_callback))?;
     guest_table.set(0, Val::FuncRef(Some(func.as_ref())))?;
     // And verify that it does what we expect.
     let returns = call_via_table.call(

@@ -4,14 +4,24 @@ use wasmedge_types::TableType;
 
 /// Defines a table storing the references to host functions or external objects.
 #[derive(Debug)]
-pub struct Table<'instance> {
+pub struct Table {
     pub(crate) inner: sys::Table,
     pub(crate) name: Option<String>,
     pub(crate) mod_name: Option<String>,
-    pub(crate) _marker: std::marker::PhantomData<&'instance ()>,
 }
-impl<'instance> Table<'instance> {
+impl Table {
+    pub fn new(ty: TableType) -> WasmEdgeResult<Self> {
+        let inner = sys::Table::create(&ty.into())?;
+        Ok(Self {
+            inner,
+            name: None,
+            mod_name: None,
+        })
+    }
+
     /// Returns the exported name of this [Table].
+    ///
+    /// Notice that this field is meaningful only if this table is used as an exported instance.
     pub fn name(&self) -> Option<&str> {
         match &self.name {
             Some(name) => Some(name.as_ref()),
@@ -20,6 +30,8 @@ impl<'instance> Table<'instance> {
     }
 
     /// Returns the name of the [module instance](crate::Instance) from which this [Table] exports.
+    ///
+    /// Notice that this field is meaningful only if this table is used as an exported instance.
     pub fn mod_name(&self) -> Option<&str> {
         match &self.mod_name {
             Some(mod_name) => Some(mod_name.as_ref()),
@@ -102,8 +114,9 @@ mod tests {
     use super::*;
     use crate::{
         config::{CommonConfigOptions, ConfigBuilder},
+        io::{I1, I2},
         types::Val,
-        Executor, FuncTypeBuilder, ImportObjectBuilder, Statistics, Store, WasmValue,
+        Executor, ImportObjectBuilder, Statistics, Store, WasmValue,
     };
     use wasmedge_types::{RefType, ValType};
 
@@ -122,18 +135,16 @@ mod tests {
 
     #[test]
     fn test_table_basic() {
-        // create an ImportModule
+        // create a table instance
+        let result = Table::new(TableType::new(RefType::FuncRef, 10, Some(20)));
+        assert!(result.is_ok());
+        let table = result.unwrap();
+
+        // create an import object
         let result = ImportObjectBuilder::new()
-            .with_func(
-                "add",
-                FuncTypeBuilder::new()
-                    .with_args(vec![ValType::I32; 2])
-                    .with_returns(vec![ValType::I32])
-                    .build(),
-                Box::new(real_add),
-            )
+            .with_func::<I2<i32, i32>, I1<i32>>("add", Box::new(real_add))
             .expect("failed to add host func")
-            .with_table("table", TableType::new(RefType::FuncRef, 10, Some(20)))
+            .with_table("table", table)
             .expect("failed to add table")
             .build("extern");
         assert!(result.is_ok());

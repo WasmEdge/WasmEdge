@@ -1,7 +1,8 @@
 use wasmedge::{
     config::{CommonConfigOptions, ConfigBuilder},
+    io::{I1, I2},
     types::Val,
-    Executor, Func, FuncTypeBuilder, ImportObjectBuilder, Store,
+    Executor, Func, ImportObjectBuilder, Store, Table,
 };
 use wasmedge_sys::WasmValue;
 use wasmedge_types::{RefType, TableType, ValType};
@@ -41,9 +42,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // create a store
     let mut store = Store::new()?;
 
+    // create a table instance
+    let result = Table::new(TableType::new(RefType::FuncRef, 10, Some(20)));
+    assert!(result.is_ok());
+    let table = result.unwrap();
+
     // create an import object
     let import = ImportObjectBuilder::new()
-        .with_table("my-table", TableType::new(RefType::FuncRef, 10, Some(20)))?
+        .with_table("my-table", table)?
         .build("extern")?;
 
     // register the import object into the store
@@ -60,13 +66,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .expect("Not found table instance named 'my-table'");
 
     // create a host function
-    let host_func = Func::new(
-        FuncTypeBuilder::new()
-            .with_args([ValType::I32; 2])
-            .with_returns([ValType::I32])
-            .build(),
-        Box::new(real_add),
-    )?;
+    let host_func = Func::wrap::<I2<i32, i32>, I1<i32>>(Box::new(real_add))?;
 
     // store the reference to host_func at the given index of the table instance
     table.set(3, Val::FuncRef(Some(host_func.as_ref())))?;

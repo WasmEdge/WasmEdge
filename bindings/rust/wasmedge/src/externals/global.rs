@@ -6,14 +6,24 @@ use wasmedge_types::GlobalType;
 
 /// Defines a global variable storing a single value of the given [GlobalType](wasmedge_types::GlobalType).
 #[derive(Debug)]
-pub struct Global<'instance> {
+pub struct Global {
     pub(crate) inner: sys::Global,
     pub(crate) name: Option<String>,
     pub(crate) mod_name: Option<String>,
-    pub(crate) _marker: std::marker::PhantomData<&'instance ()>,
 }
-impl<'instance> Global<'instance> {
+impl Global {
+    pub fn new(ty: GlobalType, init: Val) -> WasmEdgeResult<Self> {
+        let inner = sys::Global::create(&ty.into(), init.into())?;
+        Ok(Self {
+            inner,
+            name: None,
+            mod_name: None,
+        })
+    }
+
     /// Returns the exported name of this [Global].
+    ///
+    /// Notice that this field is meaningful only if this global variable is used as an exported instance.
     pub fn name(&self) -> Option<&str> {
         match &self.name {
             Some(name) => Some(name.as_ref()),
@@ -22,6 +32,8 @@ impl<'instance> Global<'instance> {
     }
 
     /// Returns the name of the [module instance](crate::Instance) from which this [Global] exports.
+    ///
+    /// Notice that this field is meaningful only if this global variable is used as an exported instance.
     pub fn mod_name(&self) -> Option<&str> {
         match &self.mod_name {
             Some(mod_name) => Some(mod_name.as_ref()),
@@ -82,19 +94,27 @@ mod tests {
 
     #[test]
     fn test_global_basic() {
-        // create an ImportModule
+        // create a Const global instance
+        let result = Global::new(
+            GlobalType::new(ValType::I32, Mutability::Const),
+            Val::I32(1314),
+        );
+        assert!(result.is_ok());
+        let global_const = result.unwrap();
+
+        // create a Var global instance
+        let result = Global::new(
+            GlobalType::new(ValType::F32, Mutability::Var),
+            Val::F32(13.14),
+        );
+        assert!(result.is_ok());
+        let global_var = result.unwrap();
+
+        // create an import object
         let result = ImportObjectBuilder::new()
-            .with_global(
-                "const-global",
-                GlobalType::new(ValType::I32, Mutability::Const),
-                Val::I32(1314),
-            )
+            .with_global("const-global", global_const)
             .expect("failed to add const-global")
-            .with_global(
-                "var-global",
-                GlobalType::new(ValType::F32, Mutability::Var),
-                Val::F32(13.14),
-            )
+            .with_global("var-global", global_var)
             .expect("failed to add var-global")
             .build("extern");
         assert!(result.is_ok());

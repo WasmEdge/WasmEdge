@@ -1,6 +1,6 @@
-use crate::{io::ValTypeList, types::Val, HostFunc, WasmEdgeResult};
+use crate::{io::ValTypeList, Global, HostFunc, Memory, Table, WasmEdgeResult};
 use wasmedge_sys::{self as sys, ImportInstance};
-use wasmedge_types::{FuncType, GlobalType, MemoryType, TableType};
+use wasmedge_types::FuncType;
 
 /// Creates a normal, wasi, or wasmedge process [import object](crate::ImportObject).
 ///
@@ -9,7 +9,9 @@ use wasmedge_types::{FuncType, GlobalType, MemoryType, TableType};
 /// This example shows how to create a normal import object that contains a host function, a global variable, a memory and a table. The import object is named "extern".
 ///
 /// ```rust
-/// use wasmedge::{ImportObjectBuilder, FuncTypeBuilder, types::Val};
+/// #![feature(explicit_generic_args_with_impl_trait)]
+///
+/// use wasmedge::{io::{I1, I2}, ImportObjectBuilder, FuncTypeBuilder, types::Val, Global, Memory, Table};
 /// use wasmedge_sys::types::WasmValue;
 /// use wasmedge_types::{Mutability, RefType, ValType, GlobalType, MemoryType, TableType,};
 ///
@@ -36,32 +38,40 @@ use wasmedge_types::{FuncType, GlobalType, MemoryType, TableType};
 ///     Ok(vec![WasmValue::from_i32(c)])
 /// }
 ///
+/// // create a Const global instance
+/// let global_const = Global::new(GlobalType::new(ValType::F32, Mutability::Const), Val::F32(3.5)).expect("Failed to create Const global instance.");
+///
+/// // create a memory instance
+/// let result = Memory::new(MemoryType::new(10, Some(20)));
+/// assert!(result.is_ok());
+/// let memory = result.unwrap();
+///
+/// // create a table instance
+/// let result = Table::new(TableType::new(RefType::FuncRef, 10, Some(20)));
+/// assert!(result.is_ok());
+/// let table = result.unwrap();
+///
 /// let module_name = "extern";
 ///
 /// // create an import object
 /// let result = ImportObjectBuilder::new()
 /// // add a function
-/// .with_func(
+/// .with_func::<I2<i32, i32>, I1<i32>>(
 ///     "add",
-///     FuncTypeBuilder::new()
-///         .with_args(vec![ValType::I32; 2])
-///         .with_returns(vec![ValType::I32])
-///         .build(),
 ///     Box::new(real_add),
 /// )
 /// .expect("failed to add host function")
 /// // add a global
 /// .with_global(
 ///     "global",
-///     GlobalType::new(ValType::F32, Mutability::Const),
-///     Val::F32(3.5),
+///     global_const,
 /// )
 /// .expect("failed to add const global")
 /// // add a memory
-/// .with_memory("memory", MemoryType::new(10, Some(20)))
+/// .with_memory("memory", memory)
 /// .expect("failed to add memory")
 /// // add a table
-/// .with_table("table", TableType::new(RefType::FuncRef, 10, Some(20)))
+/// .with_table("table", table)
 /// .expect("failed to add table")
 /// .build(module_name);
 ///
@@ -94,25 +104,12 @@ impl ImportObjectBuilder {
     ///
     /// * `name` - The exported name of the [host function](crate::Func) to add.
     ///
-    /// * `ty` - The type of the arguments and returns of the [host function](crate::Func).
-    ///
-    /// * `real_func` - The host function.
+    /// * `real_func` - The boxed native function function.
     ///
     /// # error
     ///
     /// If fail to create or add the [host function](crate::Func), then an error is returned.
-    pub fn with_func(
-        mut self,
-        name: impl AsRef<str>,
-        ty: FuncType,
-        real_func: HostFunc,
-    ) -> WasmEdgeResult<Self> {
-        let inner_func = sys::Function::create(&ty.into(), real_func, 0)?;
-        self.funcs.push((name.as_ref().to_owned(), inner_func));
-        Ok(self)
-    }
-
-    pub fn with_func_new<Args: ValTypeList, Rets: ValTypeList>(
+    pub fn with_func<Args: ValTypeList, Rets: ValTypeList>(
         mut self,
         name: impl AsRef<str>,
         real_func: HostFunc,
@@ -131,21 +128,13 @@ impl ImportObjectBuilder {
     ///
     /// * `name` - The exported name of the [global](crate::Global) to add.
     ///
-    /// * `ty` - The type of the [global](crate::Global) to add.
-    ///
-    /// * `init` - The initial value of the [global](crate::Global) to add.
+    /// * `global` - The wasm [global instance](crate::Global) to add.
     ///
     /// # Error
     ///
     /// If fail to create or add the [global](crate::Global), then an error is returned.
-    pub fn with_global(
-        mut self,
-        name: impl AsRef<str>,
-        ty: GlobalType,
-        init: Val,
-    ) -> WasmEdgeResult<Self> {
-        let inner_global = sys::Global::create(&ty.into(), init.into())?;
-        self.globals.push((name.as_ref().to_owned(), inner_global));
+    pub fn with_global(mut self, name: impl AsRef<str>, global: Global) -> WasmEdgeResult<Self> {
+        self.globals.push((name.as_ref().to_owned(), global.inner));
         Ok(self)
     }
 
@@ -155,14 +144,14 @@ impl ImportObjectBuilder {
     ///
     /// * `name` - The exported name of the [memory](crate::Memory) to add.
     ///
-    /// * `ty` - The type of the [memory](crate::Memory) to add.
+    /// * `memory` - The wasm [memory instance](crate::Memory) to add.
     ///
     /// # Error
     ///
     /// If fail to create or add the [memory](crate::Memory), then an error is returned.
-    pub fn with_memory(mut self, name: impl AsRef<str>, ty: MemoryType) -> WasmEdgeResult<Self> {
-        let inner_memory = sys::Memory::create(&ty.into())?;
-        self.memories.push((name.as_ref().to_owned(), inner_memory));
+    pub fn with_memory(mut self, name: impl AsRef<str>, memory: Memory) -> WasmEdgeResult<Self> {
+        // let inner_memory = sys::Memory::create(&ty.into())?;
+        self.memories.push((name.as_ref().to_owned(), memory.inner));
         Ok(self)
     }
 
@@ -172,14 +161,14 @@ impl ImportObjectBuilder {
     ///
     /// * `name` - The exported name of the [table](crate::Table) to add.
     ///
-    /// * `ty` - The type of the [table](crate::Table) to add.
+    /// * `table` - The wasm [table instance](crate::Table) to add.
     ///
     /// # Error
     ///
     /// If fail to create or add the [table](crate::Table), then an error is returned.
-    pub fn with_table(mut self, name: impl AsRef<str>, ty: TableType) -> WasmEdgeResult<Self> {
-        let inner_table = sys::Table::create(&ty.into())?;
-        self.tables.push((name.as_ref().to_owned(), inner_table));
+    pub fn with_table(mut self, name: impl AsRef<str>, table: Table) -> WasmEdgeResult<Self> {
+        // let inner_table = sys::Table::create(&ty.into())?;
+        self.tables.push((name.as_ref().to_owned(), table.inner));
         Ok(self)
     }
 
@@ -329,7 +318,7 @@ mod tests {
         config::{CommonConfigOptions, ConfigBuilder},
         io::{I1, I2},
         types::Val,
-        Executor, FuncTypeBuilder, Statistics, Store, WasmValue,
+        Executor, Global, Memory, Statistics, Store, Table, WasmValue,
     };
     use std::{
         sync::{Arc, Mutex},
@@ -337,7 +326,7 @@ mod tests {
     };
     use wasmedge_types::{
         error::{CoreError, CoreInstantiationError, GlobalError, WasmEdgeError},
-        Mutability, RefType, ValType,
+        GlobalType, MemoryType, Mutability, RefType, TableType, ValType,
     };
 
     #[test]
@@ -365,14 +354,7 @@ mod tests {
     #[test]
     fn test_import_new_wasmedgeprocess() {
         let result = ImportObjectBuilder::new()
-            .with_func(
-                "add",
-                FuncTypeBuilder::new()
-                    .with_args(vec![ValType::I32; 2])
-                    .with_returns(vec![ValType::I32])
-                    .build(),
-                Box::new(real_add),
-            )
+            .with_func::<I2<i32, i32>, I1<i32>>("add", Box::new(real_add))
             .expect("failed to add host func")
             .build_as_wasmedge_process(None, false);
         assert!(result.is_ok());
@@ -433,14 +415,7 @@ mod tests {
     fn test_import_new_wasi() {
         // create a wasi module
         let result = ImportObjectBuilder::new()
-            .with_func(
-                "add",
-                FuncTypeBuilder::new()
-                    .with_args(vec![ValType::I32; 2])
-                    .with_returns(vec![ValType::I32])
-                    .build(),
-                Box::new(real_add),
-            )
+            .with_func::<I2<i32, i32>, I1<i32>>("add", Box::new(real_add))
             .expect("failed to add host func")
             .build_as_wasi(None, None, None);
         assert!(result.is_ok());
@@ -492,24 +467,9 @@ mod tests {
 
     #[test]
     fn test_import_add_func() {
-        // // create an ImportModule
-        // let result = ImportObjectBuilder::new()
-        //     .with_func(
-        //         "add",
-        //         FuncTypeBuilder::new()
-        //             .with_args(vec![ValType::I32; 2])
-        //             .with_returns(vec![ValType::I32])
-        //             .build(),
-        //         Box::new(real_add),
-        //     )
-        //     .expect("failed to add host func")
-        //     .build("extern");
-        // assert!(result.is_ok());
-        // let import = result.unwrap();
-
-        // create an ImportModule
+        // create an import object
         let result = ImportObjectBuilder::new()
-            .with_func_new::<I2<i32, i32>, I1<i32>>("add", Box::new(real_add))
+            .with_func::<I2<i32, i32>, I1<i32>>("add", Box::new(real_add))
             .expect("failed to add host func")
             .build("extern");
         assert!(result.is_ok());
@@ -558,9 +518,14 @@ mod tests {
 
     #[test]
     fn test_import_add_memory() {
-        // create an ImportModule
+        // create a memory
+        let result = Memory::new(MemoryType::new(10, Some(20)));
+        assert!(result.is_ok());
+        let memory = result.unwrap();
+
+        // create an import object
         let result = ImportObjectBuilder::new()
-            .with_memory("memory", MemoryType::new(10, Some(20)))
+            .with_memory("memory", memory)
             .expect("failed to add memory")
             .build("extern");
         assert!(result.is_ok());
@@ -624,19 +589,27 @@ mod tests {
 
     #[test]
     fn test_import_add_global() {
-        // create an ImportModule
+        // create a Const global variable
+        let result = Global::new(
+            GlobalType::new(ValType::I32, Mutability::Const),
+            Val::I32(1314),
+        );
+        assert!(result.is_ok());
+        let global_const = result.unwrap();
+
+        // create a Var global variable
+        let result = Global::new(
+            GlobalType::new(ValType::F32, Mutability::Var),
+            Val::F32(13.14),
+        );
+        assert!(result.is_ok());
+        let global_var = result.unwrap();
+
+        // create an import object
         let result = ImportObjectBuilder::new()
-            .with_global(
-                "const-global",
-                GlobalType::new(ValType::I32, Mutability::Const),
-                Val::I32(1314),
-            )
+            .with_global("const-global", global_const)
             .expect("failed to add const-global")
-            .with_global(
-                "var-global",
-                GlobalType::new(ValType::F32, Mutability::Var),
-                Val::F32(13.14),
-            )
+            .with_global("var-global", global_var)
             .expect("failed to add var-global")
             .build("extern");
         assert!(result.is_ok());
@@ -737,18 +710,16 @@ mod tests {
 
     #[test]
     fn test_import_add_table() {
-        // create an ImportModule
+        // create a wasm table instance
+        let result = Table::new(TableType::new(RefType::FuncRef, 10, Some(20)));
+        assert!(result.is_ok());
+        let table = result.unwrap();
+
+        // create an import object
         let result = ImportObjectBuilder::new()
-            .with_func(
-                "add",
-                FuncTypeBuilder::new()
-                    .with_args(vec![ValType::I32; 2])
-                    .with_returns(vec![ValType::I32])
-                    .build(),
-                Box::new(real_add),
-            )
+            .with_func::<I2<i32, i32>, I1<i32>>("add", Box::new(real_add))
             .expect("failed to add host func")
-            .with_table("table", TableType::new(RefType::FuncRef, 10, Some(20)))
+            .with_table("table", table)
             .expect("failed to add table")
             .build("extern");
         assert!(result.is_ok());
@@ -856,26 +827,33 @@ mod tests {
 
     #[test]
     fn test_import_send() {
+        // create a Const global instance
+        let result = Global::new(
+            GlobalType::new(ValType::F32, Mutability::Const),
+            Val::F32(3.5),
+        );
+        assert!(result.is_ok());
+        let global_const = result.unwrap();
+
+        // create a memory instance
+        let result = Memory::new(MemoryType::new(10, Some(20)));
+        assert!(result.is_ok());
+        let memory = result.unwrap();
+
+        // create a table instance
+        let result = Table::new(TableType::new(RefType::FuncRef, 10, Some(20)));
+        assert!(result.is_ok());
+        let table = result.unwrap();
+
         // create an ImportModule instance
         let result = ImportObjectBuilder::new()
-            .with_func(
-                "add",
-                FuncTypeBuilder::new()
-                    .with_args(vec![ValType::I32; 2])
-                    .with_returns(vec![ValType::I32])
-                    .build(),
-                Box::new(real_add),
-            )
+            .with_func::<I2<i32, i32>, I1<i32>>("add", Box::new(real_add))
             .expect("failed to add host function")
-            .with_global(
-                "global",
-                GlobalType::new(ValType::F32, Mutability::Const),
-                Val::F32(3.5),
-            )
+            .with_global("global", global_const)
             .expect("failed to add const global")
-            .with_memory("memory", MemoryType::new(10, Some(20)))
+            .with_memory("memory", memory)
             .expect("failed to add memory")
-            .with_table("table", TableType::new(RefType::FuncRef, 10, Some(20)))
+            .with_table("table", table)
             .expect("failed to add table")
             .build("extern-module");
         assert!(result.is_ok());
@@ -971,26 +949,33 @@ mod tests {
 
     #[test]
     fn test_import_sync() {
-        // create an ImportModule instance
+        // create a Const global instance
+        let result = Global::new(
+            GlobalType::new(ValType::F32, Mutability::Const),
+            Val::F32(3.5),
+        );
+        assert!(result.is_ok());
+        let global_const = result.unwrap();
+
+        // create a memory instance
+        let result = Memory::new(MemoryType::new(10, Some(20)));
+        assert!(result.is_ok());
+        let memory = result.unwrap();
+
+        // create a table instance
+        let result = Table::new(TableType::new(RefType::FuncRef, 10, Some(20)));
+        assert!(result.is_ok());
+        let table = result.unwrap();
+
+        // create an import object
         let result = ImportObjectBuilder::new()
-            .with_func(
-                "add",
-                FuncTypeBuilder::new()
-                    .with_args(vec![ValType::I32; 2])
-                    .with_returns(vec![ValType::I32])
-                    .build(),
-                Box::new(real_add),
-            )
+            .with_func::<I2<i32, i32>, I1<i32>>("add", Box::new(real_add))
             .expect("failed to add host function")
-            .with_global(
-                "global",
-                GlobalType::new(ValType::F32, Mutability::Const),
-                Val::F32(3.5),
-            )
+            .with_global("global", global_const)
             .expect("failed to add const global")
-            .with_memory("memory", MemoryType::new(10, Some(20)))
+            .with_memory("memory", memory)
             .expect("failed to add memory")
-            .with_table("table", TableType::new(RefType::FuncRef, 10, Some(20)))
+            .with_table("table", table)
             .expect("failed to add table")
             .build("extern-module");
         assert!(result.is_ok());

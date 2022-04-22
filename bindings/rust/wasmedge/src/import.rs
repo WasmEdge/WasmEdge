@@ -1,4 +1,4 @@
-use crate::{types::Val, HostFunc, WasmEdgeResult};
+use crate::{io::ValTypeList, types::Val, HostFunc, WasmEdgeResult};
 use wasmedge_sys::{self as sys, ImportInstance};
 use wasmedge_types::{FuncType, GlobalType, MemoryType, TableType};
 
@@ -107,6 +107,19 @@ impl ImportObjectBuilder {
         ty: FuncType,
         real_func: HostFunc,
     ) -> WasmEdgeResult<Self> {
+        let inner_func = sys::Function::create(&ty.into(), real_func, 0)?;
+        self.funcs.push((name.as_ref().to_owned(), inner_func));
+        Ok(self)
+    }
+
+    pub fn with_func_new<Args: ValTypeList, Rets: ValTypeList>(
+        mut self,
+        name: impl AsRef<str>,
+        real_func: HostFunc,
+    ) -> WasmEdgeResult<Self> {
+        let args = Args::parameters();
+        let returns = Rets::parameters();
+        let ty = FuncType::new(Some(args), Some(returns));
         let inner_func = sys::Function::create(&ty.into(), real_func, 0)?;
         self.funcs.push((name.as_ref().to_owned(), inner_func));
         Ok(self)
@@ -314,6 +327,7 @@ mod tests {
     use super::*;
     use crate::{
         config::{CommonConfigOptions, ConfigBuilder},
+        io::{I1, I2},
         types::Val,
         Executor, FuncTypeBuilder, Statistics, Store, WasmValue,
     };
@@ -478,16 +492,24 @@ mod tests {
 
     #[test]
     fn test_import_add_func() {
+        // // create an ImportModule
+        // let result = ImportObjectBuilder::new()
+        //     .with_func(
+        //         "add",
+        //         FuncTypeBuilder::new()
+        //             .with_args(vec![ValType::I32; 2])
+        //             .with_returns(vec![ValType::I32])
+        //             .build(),
+        //         Box::new(real_add),
+        //     )
+        //     .expect("failed to add host func")
+        //     .build("extern");
+        // assert!(result.is_ok());
+        // let import = result.unwrap();
+
         // create an ImportModule
         let result = ImportObjectBuilder::new()
-            .with_func(
-                "add",
-                FuncTypeBuilder::new()
-                    .with_args(vec![ValType::I32; 2])
-                    .with_returns(vec![ValType::I32])
-                    .build(),
-                Box::new(real_add),
-            )
+            .with_func_new::<I2<i32, i32>, I1<i32>>("add", Box::new(real_add))
             .expect("failed to add host func")
             .build("extern");
         assert!(result.is_ok());

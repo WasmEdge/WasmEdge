@@ -34,11 +34,76 @@ impl_native_val_type!(u128, ValType::V128);
 impl_native_val_type!(FuncRef, ValType::FuncRef);
 impl_native_val_type!(ExternRef, ValType::ExternRef);
 
-pub trait ValTypeList {
-    fn parameters() -> Vec<ValType>
-    where
-        Self: Sized,
-    {
+#[cfg(test)]
+mod test_native_val_type {
+    use super::*;
+
+    #[test]
+    fn test_i8() {
+        assert_eq!(i8::WASM_TYPE, ValType::I32);
+    }
+
+    #[test]
+    fn test_u8() {
+        assert_eq!(u8::WASM_TYPE, ValType::I32);
+    }
+
+    #[test]
+    fn test_i16() {
+        assert_eq!(i16::WASM_TYPE, ValType::I32);
+    }
+
+    #[test]
+    fn test_u16() {
+        assert_eq!(u16::WASM_TYPE, ValType::I32);
+    }
+
+    #[test]
+    fn test_i32() {
+        assert_eq!(i32::WASM_TYPE, ValType::I32);
+    }
+
+    #[test]
+    fn test_u32() {
+        assert_eq!(u32::WASM_TYPE, ValType::I64);
+    }
+
+    #[test]
+    fn test_i64() {
+        assert_eq!(i64::WASM_TYPE, ValType::I64);
+    }
+
+    #[test]
+    fn test_f32() {
+        assert_eq!(f32::WASM_TYPE, ValType::F32);
+    }
+
+    #[test]
+    fn test_f64() {
+        assert_eq!(f64::WASM_TYPE, ValType::F64);
+    }
+
+    #[test]
+    fn test_u128() {
+        assert_eq!(u128::WASM_TYPE, ValType::V128);
+    }
+
+    #[test]
+    fn test_func_ref() {
+        assert_eq!(FuncRef::WASM_TYPE, ValType::FuncRef);
+    }
+
+    #[test]
+    fn test_extern_ref() {
+        assert_eq!(ExternRef::WASM_TYPE, ValType::ExternRef);
+    }
+}
+
+pub trait ValTypeList
+where
+    Self: Sized,
+{
+    fn parameters() -> Vec<ValType> {
         Vec::new()
     }
 }
@@ -200,3 +265,30 @@ impl_val_type_list!(
         O21, O22, O23, O24, O25, O26, O27, O28, O29, O30, O31, O32
     )
 );
+
+#[cfg(test)]
+mod test_val_type_list {
+    use super::*;
+
+    #[test]
+    fn test_val_type_list() {
+        assert_eq!(I0::parameters(), vec![]);
+        assert_eq!(I1::<i8>::parameters(), vec![ValType::I32]);
+        assert_eq!(I2::<i8, u8>::parameters(), vec![ValType::I32, ValType::I32]);
+        assert_eq!(
+            I4::<i16, u16, i32, u32>::parameters(),
+            vec![ValType::I32, ValType::I32, ValType::I32, ValType::I64]
+        );
+        assert_eq!(
+            I6::<i64, f32, f64, u128, FuncRef, ExternRef>::parameters(),
+            vec![
+                ValType::I64,
+                ValType::F32,
+                ValType::F64,
+                ValType::V128,
+                ValType::FuncRef,
+                ValType::ExternRef
+            ]
+        );
+    }
+}

@@ -31,7 +31,7 @@ KeypairGenerate::body(Runtime::Instance::MemoryInstance *MemInst,
       unlikely(!Res)) {
     return Res.error();
   } else {
-    WasiAlg = Res.value();
+    WasiAlg = *Res;
   }
 
   auto *const OptOptionsHandle =
@@ -70,7 +70,7 @@ Expect<uint32_t> KeypairImport::body(Runtime::Instance::MemoryInstance *MemInst,
       unlikely(!Res)) {
     return Res.error();
   } else {
-    WasiAlg = Res.value();
+    WasiAlg = *Res;
   }
 
   const __wasi_size_t WasiEncodedLen = EncodedLen;
@@ -113,7 +113,7 @@ Expect<uint32_t> KeypairGenerateManaged::body(
       unlikely(!Res)) {
     return Res.error();
   } else {
-    WasiAlg = Res.value();
+    WasiAlg = *Res;
   }
 
   auto *const OptOptionsHandle =
@@ -340,7 +340,7 @@ PublickeyImport::body(Runtime::Instance::MemoryInstance *MemInst,
       unlikely(!Res)) {
     return Res.error();
   } else {
-    WasiAlg = Res.value();
+    WasiAlg = *Res;
   }
 
   const __wasi_size_t WasiEncodedLen = EncodedLen;
@@ -352,7 +352,7 @@ PublickeyImport::body(Runtime::Instance::MemoryInstance *MemInst,
   if (auto Res = cast<__wasi_publickey_encoding_e_t>(Encoding); !Res) {
     return Res.error();
   } else {
-    WasiPkEncoding = Res.value();
+    WasiPkEncoding = *Res;
   }
 
   auto *const PkHandle = MemInst->getPointer<__wasi_publickey_t *>(PkHandlePtr);
@@ -379,7 +379,7 @@ PublickeyExport::body(Runtime::Instance::MemoryInstance *MemInst,
   if (auto Res = cast<__wasi_publickey_encoding_e_t>(PkEncoding); !Res) {
     return Res.error();
   } else {
-    WasiPkEncoding = Res.value();
+    WasiPkEncoding = *Res;
   }
 
   auto *const ArrayOutputHandle =
@@ -450,7 +450,7 @@ SecretkeyImport::body(Runtime::Instance::MemoryInstance *MemInst,
       unlikely(!Res)) {
     return Res.error();
   } else {
-    WasiAlg = Res.value();
+    WasiAlg = *Res;
   }
 
   const __wasi_size_t WasiEncodedLen = EncodedLen;
@@ -487,7 +487,7 @@ SecretkeyExport::body(Runtime::Instance::MemoryInstance *MemInst,
   if (auto Res = cast<__wasi_secretkey_encoding_e_t>(SkEncoding); !Res) {
     return Res.error();
   } else {
-    WasiSkEncoding = Res.value();
+    WasiSkEncoding = *Res;
   }
 
   auto *const ArrayOutputHandle =

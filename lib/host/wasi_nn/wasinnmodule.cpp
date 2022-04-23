@@ -8,7 +8,8 @@ namespace WasmEdge {
 namespace Host {
 
 WasiNNModule::WasiNNModule() : ImportObject("wasi_ephemeral_nn") {
-  Ctx.BackendsMapping.emplace("OpenVINO", static_cast<GraphEncoding>(0));
+  Ctx.BackendsMapping.emplace("OpenVINO",
+                              static_cast<WASINN::GraphEncoding>(0));
 
   addHostFunc("load", std::make_unique<WasiNNLoad>(Ctx));
   addHostFunc("init_execution_context",

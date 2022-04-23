@@ -23,7 +23,7 @@ Expect<uint32_t> KeyGenerate::body(Runtime::Instance::MemoryInstance *MemInst,
   if (auto Res = tryFrom<Algorithm>({Alg, WasiAlgLen}); !Res) {
     return Res.error();
   } else {
-    WasiAlg = Res.value();
+    WasiAlg = *Res;
   }
 
   auto *const OptOptions =
@@ -58,7 +58,7 @@ Expect<uint32_t> KeyImport::body(Runtime::Instance::MemoryInstance *MemInst,
   if (auto Res = tryFrom<Algorithm>({Alg, WasiAlgLen}); !Res) {
     return Res.error();
   } else {
-    WasiAlg = Res.value();
+    WasiAlg = *Res;
   }
 
   auto *const Key = MemInst->getPointer<__wasi_symmetric_key_t *>(KeyPtr);
@@ -119,7 +119,7 @@ KeyGenerateManaged::body(Runtime::Instance::MemoryInstance *MemInst,
   if (auto Res = tryFrom<Algorithm>({Alg, WasiAlgLen}); !Res) {
     return Res.error();
   } else {
-    WasiAlg = Res.value();
+    WasiAlg = *Res;
   }
 
   auto *const OptOptions =
@@ -258,7 +258,7 @@ Expect<uint32_t> StateOpen::body(Runtime::Instance::MemoryInstance *MemInst,
   if (auto Res = tryFrom<Algorithm>({Alg, WasiAlgLen}); !Res) {
     return Res.error();
   } else {
-    WasiAlg = Res.value();
+    WasiAlg = *Res;
   }
 
   auto *const OptKeyHandle =
@@ -412,7 +412,7 @@ StateSqueezeKey::body(Runtime::Instance::MemoryInstance *MemInst,
   if (auto Res = tryFrom<Algorithm>({Alg, WasiAlgLen}); !Res) {
     return Res.error();
   } else {
-    WasiAlg = Res.value();
+    WasiAlg = *Res;
   }
 
   auto *const KeyHandle =

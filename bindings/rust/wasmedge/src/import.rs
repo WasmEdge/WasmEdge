@@ -9,76 +9,71 @@ use wasmedge_types::FuncType;
 /// This example shows how to create a normal import object that contains a host function, a global variable, a memory and a table. The import object is named "extern".
 ///
 /// ```rust
+///
 /// #![feature(explicit_generic_args_with_impl_trait)]
 ///
-/// use wasmedge::{io::{I1, I2}, ImportObjectBuilder, FuncTypeBuilder, types::Val, Global, Memory, Table};
+/// use wasmedge::{
+///     io::{I1, I2},
+///     types::Val,
+///     Global, ImportObjectBuilder, Memory, Table,
+/// };
 /// use wasmedge_sys::types::WasmValue;
-/// use wasmedge_types::{Mutability, RefType, ValType, GlobalType, MemoryType, TableType,};
+/// use wasmedge_types::{GlobalType, MemoryType, Mutability, RefType, TableType, ValType};
 ///
-/// // a native function
-/// fn real_add(inputs: Vec<WasmValue>) -> std::result::Result<Vec<WasmValue>, u8> {
-///     if inputs.len() != 2 {
-///         return Err(1);
+/// fn main() -> Result<(), Box<dyn std::error::Error>> {
+///     // a native function to be imported as host function
+///     fn real_add(inputs: Vec<WasmValue>) -> std::result::Result<Vec<WasmValue>, u8> {
+///         if inputs.len() != 2 {
+///             return Err(1);
+///         }
+///
+///         let a = if inputs[0].ty() == ValType::I32 {
+///             inputs[0].to_i32()
+///         } else {
+///             return Err(2);
+///         };
+///
+///         let b = if inputs[1].ty() == ValType::I32 {
+///             inputs[1].to_i32()
+///         } else {
+///             return Err(3);
+///         };
+///
+///         let c = a + b;
+///
+///         Ok(vec![WasmValue::from_i32(c)])
 ///     }
 ///
-///     let a = if inputs[0].ty() == ValType::I32 {
-///         inputs[0].to_i32()
-///     } else {
-///         return Err(2);
-///     };
+///     // create a Const global instance to be imported
+///     let global_const = Global::new(
+///         GlobalType::new(ValType::F32, Mutability::Const),
+///         Val::F32(3.5),
+///     )?;
 ///
-///     let b = if inputs[1].ty() == ValType::I32 {
-///         inputs[1].to_i32()
-///     } else {
-///         return Err(3);
-///     };
+///     // create a memory instance to be imported
+///     let memory = Memory::new(MemoryType::new(10, Some(20)))?;
 ///
-///     let c = a + b;
+///     // create a table instance to be imported
+///     let table = Table::new(TableType::new(RefType::FuncRef, 10, Some(20)))?;
 ///
-///     Ok(vec![WasmValue::from_i32(c)])
+///     // create an import object
+///     let module_name = "extern";
+///     let _import = ImportObjectBuilder::new()
+///         // add a function
+///         .with_func::<I2<i32, i32>, I1<i32>>("add", Box::new(real_add))?
+///         // add a global
+///         .with_global("global", global_const)?
+///         // add a memory
+///         .with_memory("memory", memory)?
+///         // add a table
+///         .with_table("table", table)?
+///         .build(module_name)?;
+///
+///     Ok(())
 /// }
 ///
-/// // create a Const global instance
-/// let global_const = Global::new(GlobalType::new(ValType::F32, Mutability::Const), Val::F32(3.5)).expect("Failed to create Const global instance.");
-///
-/// // create a memory instance
-/// let result = Memory::new(MemoryType::new(10, Some(20)));
-/// assert!(result.is_ok());
-/// let memory = result.unwrap();
-///
-/// // create a table instance
-/// let result = Table::new(TableType::new(RefType::FuncRef, 10, Some(20)));
-/// assert!(result.is_ok());
-/// let table = result.unwrap();
-///
-/// let module_name = "extern";
-///
-/// // create an import object
-/// let result = ImportObjectBuilder::new()
-/// // add a function
-/// .with_func::<I2<i32, i32>, I1<i32>>(
-///     "add",
-///     Box::new(real_add),
-/// )
-/// .expect("failed to add host function")
-/// // add a global
-/// .with_global(
-///     "global",
-///     global_const,
-/// )
-/// .expect("failed to add const global")
-/// // add a memory
-/// .with_memory("memory", memory)
-/// .expect("failed to add memory")
-/// // add a table
-/// .with_table("table", table)
-/// .expect("failed to add table")
-/// .build(module_name);
-///
-/// assert!(result.is_ok());
-/// let import = result.unwrap();
-///
 /// ```
+/// [[Click for more examples]](https://github.com/WasmEdge/WasmEdge/tree/master/bindings/rust/wasmedge/examples)
 ///
 #[derive(Debug, Default)]
 pub struct ImportObjectBuilder {

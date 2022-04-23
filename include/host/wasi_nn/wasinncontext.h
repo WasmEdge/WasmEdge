@@ -11,18 +11,22 @@
 #endif
 namespace WasmEdge {
 namespace Host {
+namespace WASINN {
+using NNErrNo = uint32_t;
+
+// No error occurred.
+const NNErrNo NN_SUCCESS = 0;
+// Caller module passed an invalid argument.
+const NNErrNo NN_ERRNO_INVALID_ARGUMENT = 1;
+// Caller module is missing a memory export.
+const NNErrNo NN_ERRNO_MISSING_MEMORY = 2;
+// Device or resource busy.
+const NNErrNo NN_ERRNO_BUSY = 3;
 
 using Graph = uint32_t;
 using GraphEncoding = uint8_t;
 using ExecutionTarget = uint8_t;
 using GraphExecutionContext = uint32_t;
-
-enum class TensorType {
-  TENSOR_TYPE_F16,
-  TENSOR_TYPE_F32,
-  TENSOR_TYPE_U8,
-  TENSOR_TYPE_I32
-};
 
 #ifdef WASMEDGE_WASINN_BUILD_OPENVINO
 class OpenVINOSession {
@@ -78,5 +82,6 @@ public:
 #endif
 };
 
+} // namespace WASINN
 } // namespace Host
 } // namespace WasmEdge

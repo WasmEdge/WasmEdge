@@ -9,6 +9,7 @@
 #include <cstdint>
 #include <gtest/gtest.h>
 #include <optional>
+#include <string_view>
 
 namespace WasmEdge {
 namespace Host {
@@ -94,6 +95,17 @@ TEST_F(WasiCryptoTest, Signatures) {
       "Ed25519"sv,
       {{__WASI_SIGNATURE_ENCODING_RAW,
         "d4fbdb52bfa726b44d1786a8c0d171c3e62ca83c9e5bbe63de0bb2483f8fd6cc1429ab72cafc41ab56af02ff8fcc43b99bfe4c7ae940f60f38ebaa9d311c4007"_u8v}});
+  SigEncodingTest(
+      "RSA_PSS_2048_SHA256"sv,
+      {{__WASI_SIGNATURE_ENCODING_RAW,
+        "4f01e0c12b08625ecac89a69231906edf826380f37c959a96690d046316d68ff"
+        "ce9d5c471694fcebfc6b45534864689256e4fc81c78e583f675d0c94b4496474"
+        "51e81beff01a11a516d5e5ce3f1a910437cb8a3a5096b19fb15f4524a35b23d8"
+        "9cdba12cf5b71aac1047b28c562df7c5542c34ce23a182cf7e0e231934b17294"
+        "799d44877a1d68ef1b8f073619b7618e6b7c22db20030d98cf591ffc3d4da5f5"
+        "8613ecd5ecfc3b40a1d02f40891ca43695cd4c088b05a8054c89c595a47e2748"
+        "16f35384226f74459ee63e25a1bfc03c360490552ec38343f8ace502f065303b"
+        "00bc0ec320711b211fde92e57feb9013c3609342495ec0d7cabdec21e54acc38"_u8v}});
 }
 
 } // namespace WasiCrypto

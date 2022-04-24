@@ -90,6 +90,10 @@ TEST_F(WasiCryptoTest, Signatures) {
         "304502210080d5d4769ae4f3998dd6b8b01177de855204122a361f2189"
         "f9567c806de2673e02202fbfd3ff018338875b1d144f583eb6e8dc16cf"
         "6eeb2bb5c19a3202464abb58bd"_u8v}});
+  SigEncodingTest(
+      "Ed25519"sv,
+      {{__WASI_SIGNATURE_ENCODING_RAW,
+        "d4fbdb52bfa726b44d1786a8c0d171c3e62ca83c9e5bbe63de0bb2483f8fd6cc1429ab72cafc41ab56af02ff8fcc43b99bfe4c7ae940f60f38ebaa9d311c4007"_u8v}});
 }
 
 } // namespace WasiCrypto

@@ -3,6 +3,7 @@
 
 #include "host/wasi_nn/wasinnfunc.h"
 #include "common/errcode.h"
+#include "common/log.h"
 #include "runtime/hostfunc.h"
 #include "runtime/instance/memory.h"
 

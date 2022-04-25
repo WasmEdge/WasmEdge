@@ -1,5 +1,5 @@
 //! Defines Func, SignatureBuilder, and Signature structs.
-use crate::{io::ValTypeList, Engine, HostFunc, WasmEdgeResult};
+use crate::{io::WasmValTypeList, Engine, HostFunc, WasmEdgeResult};
 use wasmedge_sys::{self as sys, WasmValue};
 use wasmedge_types::{FuncType, ValType};
 
@@ -14,7 +14,7 @@ use wasmedge_types::{FuncType, ValType};
 /// ```rust
 /// #![feature(explicit_generic_args_with_impl_trait)]
 ///
-/// use wasmedge::{ImportObjectBuilder, config::{ConfigBuilder, CommonConfigOptions}, Statistics, Executor, Store, FuncTypeBuilder, io::{I1, I2}};
+/// use wasmedge::{ImportObjectBuilder, config::{ConfigBuilder, CommonConfigOptions}, Statistics, Executor, Store, FuncTypeBuilder};
 /// use wasmedge_sys::types::WasmValue;
 /// use wasmedge_types::ValType;
 ///
@@ -43,7 +43,7 @@ use wasmedge_types::{FuncType, ValType};
 ///
 /// // create an ImportModule which has a host function with an exported name "add"
 /// let result = ImportObjectBuilder::new()
-/// .with_func::<I2<i32, i32>, I1<i32>>(
+/// .with_func::<(i32, i32), i32>(
 ///     "add",
 ///     Box::new(real_add),
 /// )
@@ -110,10 +110,28 @@ impl Func {
     /// # Error
     ///
     /// If fail to create the host function, then an error is returned.
-    pub fn wrap<Args: ValTypeList, Rets: ValTypeList>(real_func: HostFunc) -> WasmEdgeResult<Self> {
-        let args = Args::parameters();
-        let returns = Rets::parameters();
-        let ty = FuncType::new(Some(args), Some(returns));
+    // pub fn wrap<Args: ValTypeList, Rets: ValTypeList>(real_func: HostFunc) -> WasmEdgeResult<Self> {
+    //     let args = Args::parameters();
+    //     let returns = Rets::parameters();
+    //     let ty = FuncType::new(Some(args), Some(returns));
+    //     let inner = sys::Function::create(&ty.into(), real_func, 0)?;
+    //     Ok(Self {
+    //         inner,
+    //         name: None,
+    //         mod_name: None,
+    //     })
+    // }
+
+    pub fn wrap<Args: WasmValTypeList, Rets: WasmValTypeList>(
+        real_func: HostFunc,
+    ) -> WasmEdgeResult<Self>
+    where
+        Args: WasmValTypeList,
+        Rets: WasmValTypeList,
+    {
+        let args = Args::wasm_types();
+        let returns = Rets::wasm_types();
+        let ty = FuncType::new(Some(args.to_vec()), Some(returns.to_vec()));
         let inner = sys::Function::create(&ty.into(), real_func, 0)?;
         Ok(Self {
             inner,
@@ -338,7 +356,6 @@ mod tests {
     use super::*;
     use crate::{
         config::{CommonConfigOptions, ConfigBuilder},
-        io::{I1, I2},
         Executor, ImportObjectBuilder, Statistics, Store,
     };
     use wasmedge_sys::WasmValue;
@@ -399,7 +416,7 @@ mod tests {
     fn test_func_basic() {
         // create an ImportModule
         let result = ImportObjectBuilder::new()
-            .with_func::<I2<i32, i32>, I1<i32>>("add", Box::new(real_add))
+            .with_func::<(i32, i32), i32>("add", Box::new(real_add))
             .expect("failed to add host func")
             .build("extern");
         assert!(result.is_ok());
@@ -457,8 +474,8 @@ mod tests {
     }
 
     #[test]
-    fn test_func_wrap() {
-        let result = Func::wrap::<I2<i32, i32>, I1<i32>>(Box::new(real_add));
+    fn test_func_wrap_new() {
+        let result = Func::wrap::<(i32, i32), i32>(Box::new(real_add));
         assert!(result.is_ok());
         let func = result.unwrap();
 

@@ -135,7 +135,6 @@ impl Instance {
 mod tests {
     use crate::{
         config::{CommonConfigOptions, ConfigBuilder},
-        io::{I1, I2},
         types::Val,
         Executor, FuncTypeBuilder, Global, ImportObjectBuilder, Memory, Module, Statistics, Store,
         Table, WasmValue,
@@ -186,7 +185,7 @@ mod tests {
 
         // create an ImportModule instance
         let result = ImportObjectBuilder::new()
-            .with_func::<I2<i32, i32>, I1<i32>>("add", Box::new(real_add))
+            .with_func::<(i32, i32), i32>("add", Box::new(real_add))
             .expect("failed to add host function")
             .with_global("global", global_const)
             .expect("failed to add const global")

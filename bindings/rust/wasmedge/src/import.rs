@@ -1,4 +1,4 @@
-use crate::{io::ValTypeList, Global, HostFunc, Memory, Table, WasmEdgeResult};
+use crate::{io::WasmValTypeList, Global, HostFunc, Memory, Table, WasmEdgeResult};
 use wasmedge_sys::{self as sys, ImportInstance};
 use wasmedge_types::FuncType;
 
@@ -13,7 +13,6 @@ use wasmedge_types::FuncType;
 /// #![feature(explicit_generic_args_with_impl_trait)]
 ///
 /// use wasmedge::{
-///     io::{I1, I2},
 ///     types::Val,
 ///     Global, ImportObjectBuilder, Memory, Table,
 /// };
@@ -60,7 +59,7 @@ use wasmedge_types::FuncType;
 ///     let module_name = "extern";
 ///     let _import = ImportObjectBuilder::new()
 ///         // add a function
-///         .with_func::<I2<i32, i32>, I1<i32>>("add", Box::new(real_add))?
+///         .with_func::<(i32, i32), i32>("add", Box::new(real_add))?
 ///         // add a global
 ///         .with_global("global", global_const)?
 ///         // add a memory
@@ -104,14 +103,18 @@ impl ImportObjectBuilder {
     /// # error
     ///
     /// If fail to create or add the [host function](crate::Func), then an error is returned.
-    pub fn with_func<Args: ValTypeList, Rets: ValTypeList>(
+    pub fn with_func<Args, Rets>(
         mut self,
         name: impl AsRef<str>,
         real_func: HostFunc,
-    ) -> WasmEdgeResult<Self> {
-        let args = Args::parameters();
-        let returns = Rets::parameters();
-        let ty = FuncType::new(Some(args), Some(returns));
+    ) -> WasmEdgeResult<Self>
+    where
+        Args: WasmValTypeList,
+        Rets: WasmValTypeList,
+    {
+        let args = Args::wasm_types();
+        let returns = Rets::wasm_types();
+        let ty = FuncType::new(Some(args.to_vec()), Some(returns.to_vec()));
         let inner_func = sys::Function::create(&ty.into(), real_func, 0)?;
         self.funcs.push((name.as_ref().to_owned(), inner_func));
         Ok(self)
@@ -311,7 +314,6 @@ mod tests {
     use super::*;
     use crate::{
         config::{CommonConfigOptions, ConfigBuilder},
-        io::{I1, I2},
         types::Val,
         Executor, Global, Memory, Statistics, Store, Table, WasmValue,
     };
@@ -349,7 +351,7 @@ mod tests {
     #[test]
     fn test_import_new_wasmedgeprocess() {
         let result = ImportObjectBuilder::new()
-            .with_func::<I2<i32, i32>, I1<i32>>("add", Box::new(real_add))
+            .with_func::<(i32, i32), i32>("add", Box::new(real_add))
             .expect("failed to add host func")
             .build_as_wasmedge_process(None, false);
         assert!(result.is_ok());
@@ -410,7 +412,7 @@ mod tests {
     fn test_import_new_wasi() {
         // create a wasi module
         let result = ImportObjectBuilder::new()
-            .with_func::<I2<i32, i32>, I1<i32>>("add", Box::new(real_add))
+            .with_func::<(i32, i32), i32>("add", Box::new(real_add))
             .expect("failed to add host func")
             .build_as_wasi(None, None, None);
         assert!(result.is_ok());
@@ -464,7 +466,7 @@ mod tests {
     fn test_import_add_func() {
         // create an import object
         let result = ImportObjectBuilder::new()
-            .with_func::<I2<i32, i32>, I1<i32>>("add", Box::new(real_add))
+            .with_func::<(i32, i32), i32>("add", Box::new(real_add))
             .expect("failed to add host func")
             .build("extern");
         assert!(result.is_ok());
@@ -712,7 +714,7 @@ mod tests {
 
         // create an import object
         let result = ImportObjectBuilder::new()
-            .with_func::<I2<i32, i32>, I1<i32>>("add", Box::new(real_add))
+            .with_func::<(i32, i32), i32>("add", Box::new(real_add))
             .expect("failed to add host func")
             .with_table("table", table)
             .expect("failed to add table")
@@ -842,7 +844,7 @@ mod tests {
 
         // create an ImportModule instance
         let result = ImportObjectBuilder::new()
-            .with_func::<I2<i32, i32>, I1<i32>>("add", Box::new(real_add))
+            .with_func::<(i32, i32), i32>("add", Box::new(real_add))
             .expect("failed to add host function")
             .with_global("global", global_const)
             .expect("failed to add const global")
@@ -964,7 +966,7 @@ mod tests {
 
         // create an import object
         let result = ImportObjectBuilder::new()
-            .with_func::<I2<i32, i32>, I1<i32>>("add", Box::new(real_add))
+            .with_func::<(i32, i32), i32>("add", Box::new(real_add))
             .expect("failed to add host function")
             .with_global("global", global_const)
             .expect("failed to add const global")

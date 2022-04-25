@@ -110,9 +110,7 @@ impl Func {
     /// # Error
     ///
     /// If fail to create the host function, then an error is returned.
-    pub fn wrap<Args: WasmValTypeList, Rets: WasmValTypeList>(
-        real_func: HostFunc,
-    ) -> WasmEdgeResult<Self>
+    pub fn wrap<Args, Rets>(real_func: HostFunc) -> WasmEdgeResult<Self>
     where
         Args: WasmValTypeList,
         Rets: WasmValTypeList,

@@ -110,18 +110,6 @@ impl Func {
     /// # Error
     ///
     /// If fail to create the host function, then an error is returned.
-    // pub fn wrap<Args: ValTypeList, Rets: ValTypeList>(real_func: HostFunc) -> WasmEdgeResult<Self> {
-    //     let args = Args::parameters();
-    //     let returns = Rets::parameters();
-    //     let ty = FuncType::new(Some(args), Some(returns));
-    //     let inner = sys::Function::create(&ty.into(), real_func, 0)?;
-    //     Ok(Self {
-    //         inner,
-    //         name: None,
-    //         mod_name: None,
-    //     })
-    // }
-
     pub fn wrap<Args: WasmValTypeList, Rets: WasmValTypeList>(
         real_func: HostFunc,
     ) -> WasmEdgeResult<Self>
@@ -474,7 +462,7 @@ mod tests {
     }
 
     #[test]
-    fn test_func_wrap_new() {
+    fn test_func_wrap() {
         let result = Func::wrap::<(i32, i32), i32>(Box::new(real_add));
         assert!(result.is_ok());
         let func = result.unwrap();

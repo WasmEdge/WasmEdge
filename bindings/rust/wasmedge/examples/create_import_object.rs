@@ -2,11 +2,7 @@
 
 #![feature(explicit_generic_args_with_impl_trait)]
 
-use wasmedge::{
-    io::{I1, I2},
-    types::Val,
-    Global, ImportObjectBuilder, Memory, Table,
-};
+use wasmedge::{types::Val, Global, ImportObjectBuilder, Memory, Table};
 use wasmedge_sys::types::WasmValue;
 use wasmedge_types::{GlobalType, MemoryType, Mutability, RefType, TableType, ValType};
 
@@ -51,7 +47,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let module_name = "extern";
     let _import = ImportObjectBuilder::new()
         // add a function
-        .with_func::<I2<i32, i32>, I1<i32>>("add", Box::new(real_add))?
+        .with_func::<(i32, i32), i32>("add", Box::new(real_add))?
         // add a global
         .with_global("global", global_const)?
         // add a memory

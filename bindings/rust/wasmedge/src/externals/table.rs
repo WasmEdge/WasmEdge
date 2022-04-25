@@ -114,7 +114,6 @@ mod tests {
     use super::*;
     use crate::{
         config::{CommonConfigOptions, ConfigBuilder},
-        io::{I1, I2},
         types::Val,
         Executor, ImportObjectBuilder, Statistics, Store, WasmValue,
     };
@@ -142,7 +141,7 @@ mod tests {
 
         // create an import object
         let result = ImportObjectBuilder::new()
-            .with_func::<I2<i32, i32>, I1<i32>>("add", Box::new(real_add))
+            .with_func::<(i32, i32), i32>("add", Box::new(real_add))
             .expect("failed to add host func")
             .with_table("table", table)
             .expect("failed to add table")

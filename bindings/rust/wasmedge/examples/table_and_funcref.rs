@@ -1,6 +1,5 @@
 use wasmedge::{
     config::{CommonConfigOptions, ConfigBuilder},
-    io::{I1, I2},
     types::Val,
     Executor, Func, ImportObjectBuilder, Store, Table,
 };
@@ -66,7 +65,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .expect("Not found table instance named 'my-table'");
 
     // create a host function
-    let host_func = Func::wrap::<I2<i32, i32>, I1<i32>>(Box::new(real_add))?;
+    let host_func = Func::wrap::<(i32, i32), i32>(Box::new(real_add))?;
 
     // store the reference to host_func at the given index of the table instance
     table.set(3, Val::FuncRef(Some(host_func.as_ref())))?;

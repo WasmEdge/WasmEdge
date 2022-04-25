@@ -94,7 +94,7 @@ macro_rules! impl_wasm_val_type_list {
         where
             $( $o: WasmValType ),*
         {
-            type Array = [i128; count_idents_new!( $( $o ),* )];
+            type Array = [i128; count_idents!( $( $o ),* )];
 
             fn wasm_types() -> &'static [ValType] {
                 &[
@@ -108,7 +108,7 @@ macro_rules! impl_wasm_val_type_list {
 }
 
 // Count the number of identifiers at compile-time.
-macro_rules! count_idents_new {
+macro_rules! count_idents {
     ( $($idents:ident),* ) => {
         {
             #[allow(dead_code, non_camel_case_types)]
@@ -224,3 +224,161 @@ mod test_wasm_val_type_list {
         );
     }
 }
+
+// ====================
+
+/// The `IntoResult` trait turns a `WasmTypeList` into a
+/// `Result<WasmTypeList, Self::Error>`.
+///
+/// It is mostly used to turn result values of a Wasm function
+/// call into a `Result`.
+pub trait IntoResult<T>
+where
+    T: WasmValTypeList,
+{
+    /// The error type for this trait.
+    type Error: std::error::Error + Sync + Send + 'static;
+
+    /// Transforms `Self` into a `Result`.
+    fn into_result(self) -> Result<T, Self::Error>;
+}
+
+impl<T> IntoResult<T> for T
+where
+    T: WasmValTypeList,
+{
+    // `T` is not a `Result`, it's already a value, so no error
+    // can be built.
+    type Error = core::convert::Infallible;
+
+    fn into_result(self) -> Result<Self, core::convert::Infallible> {
+        Ok(self)
+    }
+}
+
+impl<T, E> IntoResult<T> for Result<T, E>
+where
+    T: WasmValTypeList,
+    E: std::error::Error + Sync + Send + 'static,
+{
+    type Error = E;
+
+    fn into_result(self) -> Self {
+        self
+    }
+}
+
+// #[cfg(test)]
+// mod test_into_result {
+//     use super::*;
+//     use std::convert::Infallible;
+
+//     #[test]
+//     fn test_into_result_over_t() {
+//         let x: i32 = 42;
+//         let result_of_x: Result<i32, std::convert::Infallible> = x.into_result();
+
+//         assert_eq!(result_of_x.unwrap(), x);
+//     }
+
+//     #[test]
+//     fn test_into_result_over_result() {
+//         {
+//             let x: Result<i32, Infallible> = Ok(42);
+//             let result_of_x: Result<i32, Infallible> = x.into_result();
+
+//             assert_eq!(result_of_x, x);
+//         }
+
+//         {
+//             use std::{error, fmt};
+
+//             #[derive(Debug, PartialEq)]
+//             struct E;
+
+//             impl fmt::Display for E {
+//                 fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+//                     write!(formatter, "E")
+//                 }
+//             }
+
+//             impl error::Error for E {}
+
+//             let x: Result<Infallible, E> = Err(E);
+//             let result_of_x: Result<Infallible, E> = x.into_result();
+
+//             assert_eq!(result_of_x.unwrap_err(), E);
+//         }
+//     }
+// }
+
+// /// The `HostFunction` trait represents the set of functions that
+// /// can be used as host function. To uphold this statement, it is
+// /// necessary for a function to be transformed into a pointer to
+// /// `VMFunctionBody`.
+// pub trait HostFunction<Args, Rets>
+// where
+//     Args: WasmValTypeList,
+//     Rets: WasmValTypeList,
+//     Self: Sized,
+// {
+//     // /// Get the pointer to the function body.
+//     // fn function_body_ptr(self) -> *const VMFunctionBody;
+// }
+
+// macro_rules! impl_host_function {
+//     ( [$c_struct_representation:ident]
+//        $c_struct_name:ident,
+//        $( $x:ident ),* ) => {
+
+//         /// A structure with a C-compatible representation that can hold a set of Wasm values.
+//         /// This type is used by `WasmTypeList::CStruct`.
+//         #[repr($c_struct_representation)]
+//         pub struct $c_struct_name< $( $x ),* > ( $( <$x as FromToNativeWasmType>::Native ),* )
+//         where
+//             $( $x: FromToNativeWasmType ),*;
+
+//         // Implement `HostFunction` for a function that has the same arity than the tuple.
+//         // This specific function has no environment.
+//         #[allow(unused_parens)]
+//         impl< $( $x, )* Rets, RetsAsResult, Func>
+//             HostFunction<( $( $x ),* ), Rets>
+//         for
+//             Func
+//         where
+//             $( $x: WasmValType, )*
+//             Rets: WasmTypeList,
+//             RetsAsResult: IntoResult<Rets>,
+//             Func: Fn($( $x , )*) -> RetsAsResult + 'static + Send,
+//         {
+//             // #[allow(non_snake_case)]
+//             // fn function_body_ptr(self) -> *const VMFunctionBody {
+//             //     /// This is a function that wraps the real host
+//             //     /// function. Its address will be used inside the
+//             //     /// runtime.
+//             //     extern fn func_wrapper<$( $x, )* Rets, RetsAsResult, Func>( _: usize, $( $x: $x::Native, )* ) -> Rets::CStruct
+//             //     where
+//             //         $( $x: FromToNativeWasmType, )*
+//             //         Rets: WasmTypeList,
+//             //         RetsAsResult: IntoResult<Rets>,
+//             //         Func: Fn( $( $x ),* ) -> RetsAsResult + 'static
+//             //     {
+//             //         let func: &Func = unsafe { &*(&() as *const () as *const Func) };
+//             //         let result = on_host_stack(|| {
+//             //             panic::catch_unwind(AssertUnwindSafe(|| {
+//             //                 func( $( FromToNativeWasmType::from_native($x) ),* ).into_result()
+//             //             }))
+//             //         });
+
+//             //         match result {
+//             //             Ok(Ok(result)) => return result.into_c_struct(),
+//             //             Ok(Err(trap)) => unsafe { raise_user_trap(Box::new(trap)) },
+//             //             Err(panic) => unsafe { resume_panic(panic) },
+//             //         }
+//             //     }
+
+//             //     func_wrapper::< $( $x, )* Rets, RetsAsResult, Self > as *const VMFunctionBody
+//             // }
+//         }
+//     };
+// }

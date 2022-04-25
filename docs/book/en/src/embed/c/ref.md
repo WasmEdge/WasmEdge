@@ -1533,7 +1533,7 @@ This object should work base on the `Store` context. For the details of the `Sto
      * Create and add the host functions, tables, memories, and globals into the module instance.
      */
 
-    /* Register the module instance into store with the export module. */
+    /* Register the module instance into store with the exported module name. */
     /* The export module name is in the module instance already. */
     Res = WasmEdge_ExecutorRegisterImport(ExecCxt, StoreCxt, HostModCxt);
     if (!WasmEdge_ResultOK(Res)) {
@@ -1702,20 +1702,22 @@ The instances created by their creation functions should be destroyed by develop
 2. Function instance
 
     [Host functions](https://webassembly.github.io/spec/core/exec/runtime.html#syntax-hostfunc) are functions outside WebAssembly and passed to WASM modules as imports.
-    In WasmEdge, developers can create the `Function` contexts for host functions and add them into an `Import Object` context for registering into a `VM` or a `Store`.
-    For both host functions and the functions get from `Store`, developers can retrieve the `Function Type` from the `Function` contexts.
+    In WasmEdge, developers can create the `Function` contexts for host functions and add them into an `Module` instance context for registering into a `VM` or a `Store`.
+    Developers can retrieve the `Function Type` from the `Function` contexts through the API.
     For the details of the `Host Function` guide, please refer to the [next chapter](#host-functions).
 
     ```c
-    /* Retrieve the function instance from the store context. */
+    /* Retrieve the function instance from the module instance context. */
     WasmEdge_FunctionInstanceContext *FuncCxt = ...;
     WasmEdge_FunctionTypeContext *FuncTypeCxt = WasmEdge_FunctionInstanceGetFunctionType(FuncCxt);
     /* The `FuncTypeCxt` is owned by the `FuncCxt` and should __NOT__ be destroyed. */
+
+    /* For the function instance creation, please refer to the `Host Function` guide. */
     ```
 
 3. Table instance
 
-    In WasmEdge, developers can create the `Table` contexts and add them into an `Import Object` context for registering into a `VM` or a `Store`.
+    In WasmEdge, developers can create the `Table` contexts and add them into an `Module` instance context for registering into a `VM` or a `Store`.
     The `Table` contexts supply APIs to control the data in table instances.
 
     ```c
@@ -1764,7 +1766,7 @@ The instances created by their creation functions should be destroyed by develop
 
 4. Memory instance
 
-    In WasmEdge, developers can create the `Memory` contexts and add them into an `Import Object` context for registering into a `VM` or a `Store`.
+    In WasmEdge, developers can create the `Memory` contexts and add them into an `Module` instance context for registering into a `VM` or a `Store`.
     The `Memory` contexts supply APIs to control the data in memory instances.
 
     ```c
@@ -1814,7 +1816,7 @@ The instances created by their creation functions should be destroyed by develop
 
 5. Global instance
 
-    In WasmEdge, developers can create the `Global` contexts and add them into an `Import Object` context for registering into a `VM` or a `Store`.
+    In WasmEdge, developers can create the `Global` contexts and add them into an `Module` instance context for registering into a `VM` or a `Store`.
     The `Global` contexts supply APIs to control the value in global instances.
 
     ```c

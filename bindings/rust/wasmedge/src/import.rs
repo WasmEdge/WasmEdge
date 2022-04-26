@@ -9,7 +9,6 @@ use wasmedge_types::FuncType;
 /// This example shows how to create a normal import object that contains a host function, a global variable, a memory and a table. The import object is named "extern".
 ///
 /// ```rust
-///
 /// #![feature(explicit_generic_args_with_impl_trait)]
 ///
 /// use wasmedge::{
@@ -70,7 +69,6 @@ use wasmedge_types::FuncType;
 ///
 ///     Ok(())
 /// }
-///
 /// ```
 /// [[Click for more examples]](https://github.com/WasmEdge/WasmEdge/tree/master/bindings/rust/wasmedge/examples)
 ///
@@ -292,6 +290,8 @@ impl ImportObjectBuilder {
 }
 
 /// Defines an import object that contains the required import data used when instantiating a [module](crate::Module).
+///
+/// An [ImportObject] instance is created with [ImportObjectBuilder](crate::ImportObjectBuilder).
 #[derive(Debug)]
 pub struct ImportObject(pub(crate) sys::ImportObject);
 impl ImportObject {
@@ -314,8 +314,9 @@ mod tests {
     use super::*;
     use crate::{
         config::{CommonConfigOptions, ConfigBuilder},
+        params,
         types::Val,
-        Executor, Global, Memory, Statistics, Store, Table, WasmValue,
+        Executor, Global, Memory, Statistics, Store, Table, WasmVal, WasmValue,
     };
     use std::{
         sync::{Arc, Mutex},
@@ -1069,10 +1070,7 @@ mod tests {
             assert_eq!(func_ty.returns().unwrap(), [ValType::I32]);
 
             // run host func
-            let result = host_func.call(
-                &mut executor,
-                [WasmValue::from_i32(2), WasmValue::from_i32(3)],
-            );
+            let result = host_func.call(&mut executor, params!(2, 3));
             assert!(result.is_ok());
             let returns = result.unwrap();
             assert_eq!(returns[0].to_i32(), 5);

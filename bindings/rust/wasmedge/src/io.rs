@@ -1,4 +1,5 @@
 use crate::{types::ExternRef, FuncRef};
+use wasmedge_sys::WasmValue;
 use wasmedge_types::ValType;
 
 /// Describes the mapping of Rust type to Wasm type.
@@ -38,7 +39,7 @@ impl_wasm_val_type!(u32, ValType::I64);
 impl_wasm_val_type!(i64, ValType::I64);
 impl_wasm_val_type!(f32, ValType::F32);
 impl_wasm_val_type!(f64, ValType::F64);
-impl_wasm_val_type!(u128, ValType::V128);
+impl_wasm_val_type!(i128, ValType::V128);
 impl_wasm_val_type!(FuncRef, ValType::FuncRef);
 impl_wasm_val_type!(ExternRef, ValType::ExternRef);
 
@@ -57,7 +58,7 @@ mod test_wasm_val_type {
         assert_eq!(i64::WASM_TYPE, ValType::I64);
         assert_eq!(f32::WASM_TYPE, ValType::F32);
         assert_eq!(f64::WASM_TYPE, ValType::F64);
-        assert_eq!(u128::WASM_TYPE, ValType::V128);
+        assert_eq!(i128::WASM_TYPE, ValType::V128);
         assert_eq!(FuncRef::WASM_TYPE, ValType::FuncRef);
         assert_eq!(ExternRef::WASM_TYPE, ValType::ExternRef);
     }
@@ -223,4 +224,84 @@ mod test_wasm_val_type_list {
             [ValType::FuncRef, ValType::ExternRef]
         );
     }
+}
+
+/// Defines the function converting a value of Rust type to the one of Wasm type.
+pub trait WasmVal {
+    fn to_wasm_value(self) -> WasmValue;
+}
+impl WasmVal for i8 {
+    fn to_wasm_value(self) -> WasmValue {
+        WasmValue::from_i32(self as i32)
+    }
+}
+impl WasmVal for u8 {
+    fn to_wasm_value(self) -> WasmValue {
+        WasmValue::from_i32(self as i32)
+    }
+}
+impl WasmVal for i16 {
+    fn to_wasm_value(self) -> WasmValue {
+        WasmValue::from_i32(self as i32)
+    }
+}
+impl WasmVal for u16 {
+    fn to_wasm_value(self) -> WasmValue {
+        WasmValue::from_i32(self as i32)
+    }
+}
+impl WasmVal for i32 {
+    fn to_wasm_value(self) -> WasmValue {
+        WasmValue::from_i32(self)
+    }
+}
+impl WasmVal for u32 {
+    fn to_wasm_value(self) -> WasmValue {
+        WasmValue::from_i64(self as i64)
+    }
+}
+impl WasmVal for i64 {
+    fn to_wasm_value(self) -> WasmValue {
+        WasmValue::from_i64(self)
+    }
+}
+impl WasmVal for f32 {
+    fn to_wasm_value(self) -> WasmValue {
+        WasmValue::from_f32(self)
+    }
+}
+impl WasmVal for f64 {
+    fn to_wasm_value(self) -> WasmValue {
+        WasmValue::from_f64(self)
+    }
+}
+impl WasmVal for i128 {
+    fn to_wasm_value(self) -> WasmValue {
+        WasmValue::from_v128(self)
+    }
+}
+impl WasmVal for FuncRef {
+    fn to_wasm_value(self) -> WasmValue {
+        WasmValue::from_func_ref(self.inner)
+    }
+}
+impl WasmVal for ExternRef {
+    fn to_wasm_value(self) -> WasmValue {
+        self.inner
+    }
+}
+
+/// Used to pass arguments to [Func::call](crate::Func::call), [FuncRef::call](crate::FuncRef::call), [Engine::run_func](crate::Engine::run_func), or [Engine::run_func_ref](crate::Engine::run_func_ref).
+#[macro_export]
+macro_rules! params {
+    ( $( $x:expr ),* ) => {
+        {
+            let mut temp_vec = Vec::new();
+            $(
+                temp_vec.push($x.to_wasm_value());
+
+            )*
+            temp_vec
+        }
+    };
 }

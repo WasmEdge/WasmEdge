@@ -101,10 +101,6 @@ Ecdsa<CurveNid>::PublicKey::checkValid(EvpPkeyPtr Ctx, bool) noexcept {
   ensureOrReturn(Group, __WASI_CRYPTO_ERRNO_INVALID_KEY);
   ensureOrReturn(EC_GROUP_get_curve_name(Group) == CurveNid,
                  __WASI_CRYPTO_ERRNO_INVALID_KEY);
-  // don't check: only get POINT_CONVERSION_UNCOMPRESSED even compressed
-  // ensureOrReturn(getForm(Compressed) ==
-  //                    EC_GROUP_get_point_conversion_form(Group),
-  //                __WASI_CRYPTO_ERRNO_INVALID_KEY);
   return {std::move(Ctx)};
 }
 

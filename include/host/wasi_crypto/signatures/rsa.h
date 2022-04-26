@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2019-2022 Second State INC
 
-//===-- wasi_crypto/signatures/x25519.h - Rsa algorithm implement ---------===//
+//===-- wasi_crypto/signatures/rsa.h - Rsa algorithm implement ------------===//
 //
 // Part of the WasmEdge Project.
 //

@@ -14,10 +14,12 @@ Context::signatureExport(__wasi_signature_t SigHandle,
                          __wasi_signature_encoding_e_t Encoding) noexcept {
   return SignatureManager.get(SigHandle)
       .and_then([Encoding](auto &&SigVariant) noexcept {
-        return Signatures::sigExportData(SigVariant, Encoding);
+        return Signatures::sigExportData(
+            std::forward<decltype(SigVariant)>(SigVariant), Encoding);
       })
       .and_then([this](auto &&Data) noexcept {
-        return ArrayOutputManager.registerManager(std::move(Data));
+        return ArrayOutputManager.registerManager(
+            std::forward<decltype(Data)>(Data));
       });
 }
 
@@ -31,7 +33,8 @@ Context::signatureImport(Signatures::Algorithm Alg, Span<const uint8_t> Encoded,
                          __wasi_signature_encoding_e_t Encoding) noexcept {
   return Signatures::sigImport(Alg, Encoded, Encoding)
       .and_then([this](auto &&Sig) noexcept {
-        return SignatureManager.registerManager(std::move(Sig));
+        return SignatureManager.registerManager(
+            std::forward<decltype(Sig)>(Sig));
       });
 }
 
@@ -39,10 +42,12 @@ WasiCryptoExpect<__wasi_signature_state_t>
 Context::signatureStateOpen(__wasi_signature_keypair_t KpHandle) noexcept {
   return KeyPairManager.getAs<Signatures::KpVariant>(KpHandle)
       .and_then([](auto &&KpVariant) noexcept {
-        return Signatures::sigStateOpen(KpVariant);
+        return Signatures::sigStateOpen(
+            std::forward<decltype(KpVariant)>(KpVariant));
       })
       .and_then([this](auto &&SignStateVariant) noexcept {
-        return SignStateManager.registerManager(std::move(SignStateVariant));
+        return SignStateManager.registerManager(
+            std::forward<decltype(SignStateVariant)>(SignStateVariant));
       });
 }
 
@@ -62,7 +67,8 @@ Context::signatureStateSign(__wasi_signature_state_t StateHandle) noexcept {
         return Signatures::sigStateSign(SignStateVariant);
       })
       .and_then([this](auto &&Signature) noexcept {
-        return SignatureManager.registerManager(std::move(Signature));
+        return SignatureManager.registerManager(
+            std::forward<decltype(Signature)>(Signature));
       });
 }
 
@@ -76,11 +82,13 @@ Context::signatureVerificationStateOpen(
     __wasi_signature_publickey_t PkHandle) noexcept {
   return PublicKeyManager.getAs<Signatures::PkVariant>(PkHandle)
       .and_then([](auto &&PkVariant) noexcept {
-        return Signatures::verificationStateOpen(PkVariant);
+        return Signatures::verificationStateOpen(
+            std::forward<decltype(PkVariant)>(PkVariant));
       })
       .and_then([this](auto &&VerificationStateVariant) noexcept {
         return VerificationStateManager.registerManager(
-            std::move(VerificationStateVariant));
+            std::forward<decltype(VerificationStateVariant)>(
+                VerificationStateVariant));
       });
 }
 

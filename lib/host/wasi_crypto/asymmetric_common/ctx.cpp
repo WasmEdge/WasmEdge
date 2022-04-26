@@ -12,10 +12,12 @@ Context::publickeyExport(__wasi_publickey_t PkHandle,
                          __wasi_publickey_encoding_e_t Encoding) noexcept {
   return PublicKeyManager.get(PkHandle)
       .and_then([Encoding](auto &&Pk) {
-        return AsymmetricCommon::pkExportData(Pk, Encoding);
+        return AsymmetricCommon::pkExportData(std::forward<decltype(Pk)>(Pk),
+                                              Encoding);
       })
       .and_then([this](auto &&Data) {
-        return ArrayOutputManager.registerManager(std::move(Data));
+        return ArrayOutputManager.registerManager(
+            std::forward<decltype(Data)>(Data));
       });
 }
 
@@ -34,10 +36,12 @@ Context::secretkeyExport(__wasi_secretkey_t SkHandle,
                          __wasi_secretkey_encoding_e_t Encoding) noexcept {
   return SecretKeyManager.get(SkHandle)
       .and_then([Encoding](auto &&Sk) {
-        return AsymmetricCommon::skExportData(Sk, Encoding);
+        return AsymmetricCommon::skExportData(std::forward<decltype(Sk)>(Sk),
+                                              Encoding);
       })
       .and_then([this](auto &&Data) noexcept {
-        return ArrayOutputManager.registerManager(std::move(Data));
+        return ArrayOutputManager.registerManager(
+            std::forward<decltype(Data)>(Data));
       });
 }
 
@@ -51,7 +55,7 @@ Context::publickeyFromSecretkey(__wasi_secretkey_t SkHandle) noexcept {
   return SecretKeyManager.get(SkHandle)
       .and_then(AsymmetricCommon::skPublicKey)
       .and_then([this](auto &&Pk) noexcept {
-        return PublicKeyManager.registerManager(std::move(Pk));
+        return PublicKeyManager.registerManager(std::forward<decltype(Pk)>(Pk));
       });
 }
 
@@ -60,10 +64,12 @@ Context::keypairExport(__wasi_keypair_t KpHandle,
                        __wasi_keypair_encoding_e_t Encoding) noexcept {
   return KeyPairManager.get(KpHandle)
       .and_then([Encoding](auto &&Kp) noexcept {
-        return AsymmetricCommon::kpExportData(Kp, Encoding);
+        return AsymmetricCommon::kpExportData(std::forward<decltype(Kp)>(Kp),
+                                              Encoding);
       })
       .and_then([this](auto &&Data) noexcept {
-        return ArrayOutputManager.registerManager(std::move(Data));
+        return ArrayOutputManager.registerManager(
+            std::forward<decltype(Data)>(Data));
       });
 }
 
@@ -72,7 +78,7 @@ Context::keypairPublickey(__wasi_keypair_t KpHandle) noexcept {
   return KeyPairManager.get(KpHandle)
       .and_then(AsymmetricCommon::kpPublicKey)
       .and_then([this](auto &&Pk) noexcept {
-        return PublicKeyManager.registerManager(std::move(Pk));
+        return PublicKeyManager.registerManager(std::forward<decltype(Pk)>(Pk));
       });
 }
 
@@ -80,8 +86,8 @@ WasiCryptoExpect<__wasi_secretkey_t>
 Context::keypairSecretkey(__wasi_keypair_t KpHandle) noexcept {
   return KeyPairManager.get(KpHandle)
       .and_then(AsymmetricCommon::kpSecretKey)
-      .and_then([this](auto &&Pk) noexcept {
-        return SecretKeyManager.registerManager(std::move(Pk));
+      .and_then([this](auto &&Sk) noexcept {
+        return SecretKeyManager.registerManager(std::forward<decltype(Sk)>(Sk));
       });
 }
 
@@ -105,7 +111,7 @@ Context::keypairFromPkAndSk(__wasi_publickey_t PkHandle,
 
   return AsymmetricCommon::kpFromPkAndSk(*Pk, *Sk).and_then(
       [this](auto &&Kp) noexcept {
-        return KeyPairManager.registerManager(std::move(Kp));
+        return KeyPairManager.registerManager(std::forward<decltype(Kp)>(Kp));
       });
 }
 
@@ -118,10 +124,11 @@ Context::keypairGenerate(AsymmetricCommon::Algorithm Alg,
                return OptionsManager.get(OptionsHandle);
              })
       .and_then([Alg](auto &&OptOptions) noexcept {
-        return AsymmetricCommon::generateKp(Alg, asOptionalRef(OptOptions));
+        return AsymmetricCommon::generateKp(
+            Alg, asOptionalRef(std::forward<decltype(OptOptions)>(OptOptions)));
       })
-      .and_then([this](auto &&Keypair) noexcept {
-        return KeyPairManager.registerManager(std::move(Keypair));
+      .and_then([this](auto &&Kp) noexcept {
+        return KeyPairManager.registerManager(std::forward<decltype(Kp)>(Kp));
       });
 }
 
@@ -131,7 +138,7 @@ Context::keypairImport(AsymmetricCommon::Algorithm Alg,
                        __wasi_keypair_encoding_e_t Encoding) noexcept {
   return AsymmetricCommon::importKp(Alg, Encoded, Encoding)
       .and_then([this](auto &&Kp) noexcept {
-        return KeyPairManager.registerManager(std::move(Kp));
+        return KeyPairManager.registerManager(std::forward<decltype(Kp)>(Kp));
       });
 }
 
@@ -141,7 +148,7 @@ Context::publickeyImport(AsymmetricCommon::Algorithm Alg,
                          __wasi_publickey_encoding_e_t Encoding) noexcept {
   return AsymmetricCommon::importPk(Alg, Encoded, Encoding)
       .and_then([this](auto &&Pk) noexcept {
-        return PublicKeyManager.registerManager(std::move(Pk));
+        return PublicKeyManager.registerManager(std::forward<decltype(Pk)>(Pk));
       });
 }
 
@@ -151,7 +158,7 @@ Context::secretkeyImport(AsymmetricCommon::Algorithm Alg,
                          __wasi_secretkey_encoding_e_t Encoding) noexcept {
   return AsymmetricCommon::importSk(Alg, Encoded, Encoding)
       .and_then([this](auto &&Sk) noexcept {
-        return SecretKeyManager.registerManager(std::move(Sk));
+        return SecretKeyManager.registerManager(std::forward<decltype(Sk)>(Sk));
       });
 }
 

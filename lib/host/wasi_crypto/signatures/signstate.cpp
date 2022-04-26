@@ -10,7 +10,7 @@ sigStateOpen(const KpVariant &KpVariant) noexcept {
   return std::visit(
       [](const auto &Kp) noexcept {
         return Kp.openSignState().map([](auto &&SignState) noexcept {
-          return SignStateVariant{std::move(SignState)};
+          return SignStateVariant{std::forward<decltype(SignState)>(SignState)};
         });
       },
       KpVariant);
@@ -27,8 +27,9 @@ WasiCryptoExpect<SigVariant>
 sigStateSign(SignStateVariant &SignStateVariant) noexcept {
   return std::visit(
       [](auto &SignState) noexcept {
-        return SignState.sign().map(
-            [](auto &&Sig) noexcept { return SigVariant{std::move(Sig)}; });
+        return SignState.sign().map([](auto &&Sig) noexcept {
+          return SigVariant{std::forward<decltype(Sig)>(Sig)};
+        });
       },
       SignStateVariant);
 }

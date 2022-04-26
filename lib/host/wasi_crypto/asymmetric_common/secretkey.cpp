@@ -13,8 +13,7 @@ importSk(AsymmetricCommon::Algorithm Alg, Span<const uint8_t> Encoded,
          __wasi_secretkey_encoding_e_t Encoding) noexcept {
   return std::visit(
       [=](auto Factory) noexcept -> WasiCryptoExpect<SkVariant> {
-        using FactoryType = std::decay_t<decltype(Factory)>;
-        return FactoryType::SecretKey::import(Encoded, Encoding);
+        return decltype(Factory)::SecretKey::import(Encoded, Encoding);
       },
       Alg);
 }
@@ -30,8 +29,9 @@ skExportData(const SkVariant &SkVariant,
 WasiCryptoExpect<PkVariant> skPublicKey(const SkVariant &SkVariant) noexcept {
   return std::visit(
       [](const auto &Sk) noexcept {
-        return Sk.publicKey().map(
-            [](auto &&Pk) { return PkVariant{std::move(Pk)}; });
+        return Sk.publicKey().map([](auto &&Pk) noexcept {
+          return PkVariant{std::forward<decltype(Pk)>(Pk)};
+        });
       },
       SkVariant);
 }

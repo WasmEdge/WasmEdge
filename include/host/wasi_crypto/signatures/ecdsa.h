@@ -29,7 +29,7 @@ template <int CurveNid> class Ecdsa {
 public:
   class Signature {
   public:
-    Signature(std::shared_ptr<std::vector<uint8_t>> &&Data) noexcept
+    Signature(std::shared_ptr<std::vector<uint8_t>> Data) noexcept
         : Data(std::move(Data)) {}
 
     static WasiCryptoExpect<Signature>

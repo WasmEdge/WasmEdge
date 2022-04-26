@@ -10,6 +10,15 @@ pub struct Table {
     pub(crate) mod_name: Option<String>,
 }
 impl Table {
+    /// Creates a new wasm table instance with the given type.
+    ///
+    /// # Argument
+    ///
+    /// * `ty` - The type of the table instance to be created.
+    ///
+    /// # Error
+    ///
+    /// If fail to create the table instance, then an error is returned.
     pub fn new(ty: TableType) -> WasmEdgeResult<Self> {
         let inner = sys::Table::create(&ty.into())?;
         Ok(Self {

@@ -1,8 +1,7 @@
 use wasmedge::{
     config::{CommonConfigOptions, ConfigBuilder},
-    Executor, Module, Store,
+    params, Executor, Module, Store, WasmVal,
 };
-use wasmedge_sys::WasmValue;
 use wasmedge_types::wat2wasm;
 
 #[cfg_attr(test, test)]
@@ -62,7 +61,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .expect("Not found the wasm function named 'fib'.");
 
     // call the wasm function
-    let returns = fib.call(&mut executor, [WasmValue::from_i32(5)])?;
+    let returns = fib.call(&mut executor, params!(5))?;
     assert_eq!(returns.len(), 1);
     assert_eq!(returns[0].to_i32(), 8);
 

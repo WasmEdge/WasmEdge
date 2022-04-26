@@ -9,9 +9,8 @@ use std::{
 };
 use wasmedge::{
     config::{CommonConfigOptions, ConfigBuilder},
-    Engine, Executor, Module, Statistics, Store,
+    params, Engine, Executor, Module, Statistics, Store, WasmVal,
 };
-use wasmedge_sys::WasmValue;
 use wasmedge_types::wat2wasm;
 
 #[cfg_attr(test, test)]
@@ -81,7 +80,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         // compute fib(4)
         let returns = executor
-            .run_func(&fib, [WasmValue::from_i32(4)])
+            .run_func(&fib, params!(4))
             .expect("fail to compute fib(4)");
 
         let fib4 = returns[0].to_i32();
@@ -104,7 +103,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         // compute fib(5)
         let returns = executor
-            .run_func(&fib, [WasmValue::from_i32(5)])
+            .run_func(&fib, params!(5))
             .expect("fail to compute fib(5)");
 
         let fib5 = returns[0].to_i32();

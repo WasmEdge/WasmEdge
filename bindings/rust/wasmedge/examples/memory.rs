@@ -1,5 +1,4 @@
-use wasmedge::{Executor, Module, Store};
-use wasmedge_sys::types::WasmValue;
+use wasmedge::{params, Executor, Module, Store, WasmVal};
 use wasmedge_types::wat2wasm;
 
 #[cfg_attr(test, test)]
@@ -67,26 +66,20 @@ fn main() -> anyhow::Result<()> {
     // call the exported function named "set_at"
     let mem_addr = 0x2220;
     let val = 0xFEFEFFE;
-    set_at.call(
-        &mut executor,
-        [WasmValue::from_i32(mem_addr), WasmValue::from_i32(val)],
-    )?;
+    set_at.call(&mut executor, params!(mem_addr, val))?;
 
     // call the exported function named "get_at"
-    let returns = get_at.call(&mut executor, [WasmValue::from_i32(mem_addr)])?;
+    let returns = get_at.call(&mut executor, params!(mem_addr))?;
     assert_eq!(returns[0].to_i32(), val);
 
     // call the exported function named "set_at"
     let page_size = 0x1_0000;
     let mem_addr = (page_size * 2) - std::mem::size_of_val(&val) as i32;
     let val = 0xFEA09;
-    set_at.call(
-        &mut executor,
-        [WasmValue::from_i32(mem_addr), WasmValue::from_i32(val)],
-    )?;
+    set_at.call(&mut executor, params!(mem_addr, val))?;
 
     // call the exported function named "get_at"
-    let returns = get_at.call(&mut executor, [WasmValue::from_i32(mem_addr)])?;
+    let returns = get_at.call(&mut executor, params!(mem_addr))?;
     assert_eq!(returns[0].to_i32(), val);
 
     Ok(())

@@ -1,6 +1,6 @@
 #![feature(explicit_generic_args_with_impl_trait)]
 
-use wasmedge::{Executor, ImportObjectBuilder, Module, Store};
+use wasmedge::{params, Executor, ImportObjectBuilder, Module, Store};
 use wasmedge_sys::WasmValue;
 use wasmedge_types::wat2wasm;
 
@@ -56,7 +56,7 @@ fn main() -> anyhow::Result<()> {
         .ok_or_else(|| anyhow::Error::msg("Not found exported function named 'run'."))?;
 
     // run host function
-    run.call(&mut executor, [])?;
+    run.call(&mut executor, params!())?;
 
     Ok(())
 }

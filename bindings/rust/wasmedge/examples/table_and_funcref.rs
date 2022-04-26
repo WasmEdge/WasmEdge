@@ -1,7 +1,8 @@
 use wasmedge::{
     config::{CommonConfigOptions, ConfigBuilder},
+    params,
     types::Val,
-    Executor, Func, ImportObjectBuilder, Store, Table,
+    Executor, Func, ImportObjectBuilder, Store, Table, WasmVal,
 };
 use wasmedge_sys::WasmValue;
 use wasmedge_types::{RefType, TableType, ValType};
@@ -87,10 +88,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         assert_eq!(return_tys, [ValType::I32]);
 
         // call the function by func_ref
-        let returns = func_ref.call(
-            &mut executor,
-            [WasmValue::from_i32(1), WasmValue::from_i32(2)],
-        )?;
+        let returns = func_ref.call(&mut executor, params!(1, 2))?;
         assert_eq!(returns.len(), 1);
         assert_eq!(returns[0].to_i32(), 3);
     }

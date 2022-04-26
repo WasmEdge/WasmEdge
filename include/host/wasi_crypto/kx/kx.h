@@ -32,7 +32,8 @@ using SkVariant = RegistedAlg::SkVariant;
 ///
 /// More detailed:
 /// https://github.com/WebAssembly/wasi-crypto/blob/main/docs/wasi-crypto.md#diffie-hellman-based-key-agreement
-WasiCryptoExpect<SecretVec> dh(PkVariant &Pk, SkVariant &Sk) noexcept;
+WasiCryptoExpect<SecretVec> dh(const PkVariant &PkVariant,
+                               const SkVariant &SkVariant) noexcept;
 
 /// Key encapsulation mechanisms
 ///

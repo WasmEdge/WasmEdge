@@ -11,6 +11,7 @@ namespace WasiCrypto {
 namespace Symmetric {
 
 template <int ShaNid> constexpr size_t Hmac<ShaNid>::getKeySize() noexcept {
+  static_assert(ShaNid == NID_sha256 || ShaNid == NID_sha512);
   if constexpr (ShaNid == NID_sha256) {
     return 32;
   }

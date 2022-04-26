@@ -18,12 +18,15 @@ using namespace std::literals;
 
 template <int CipherNid>
 constexpr size_t Cipher<CipherNid>::getKeySize() noexcept {
-  switch (CipherNid) {
-  case NID_aes_128_gcm:
+  static_assert(CipherNid == NID_aes_128_gcm || CipherNid == NID_aes_256_gcm ||
+                CipherNid == NID_chacha20_poly1305);
+  if constexpr (CipherNid == NID_aes_128_gcm) {
     return 16;
-  case NID_aes_256_gcm:
+  }
+  if constexpr (CipherNid == NID_aes_256_gcm) {
     return 32;
-  case NID_chacha20_poly1305:
+  }
+  if constexpr (CipherNid == NID_chacha20_poly1305) {
     return 32;
   }
 }

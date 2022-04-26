@@ -52,14 +52,14 @@ WasiNNLoad::body(Runtime::Instance::MemoryInstance *MemInst,
     if (BuilderLen != 2) {
       spdlog::error("[WASI-NN] Wrong GraphBuilder Length {:d}, expecting 2",
                     BuilderLen);
-      return WASINN::NN_ERRNO_INVALID_ARGUMENT;
+      return WASINN::InvalidArgument;
     }
     IEStatusCode Status;
     if (Ctx.OpenVINOCore == nullptr) {
       Status = ie_core_create("", &Ctx.OpenVINOCore);
       if (Status != IEStatusCode::OK || Ctx.OpenVINOCore == nullptr) {
         spdlog::error("[WASI-NN] Error happened when init OpenVINO core.");
-        return WASINN::NN_ERRNO_MISSING_MEMORY;
+        return WASINN::MissingMemory;
       }
       spdlog::debug("[WASI-NN] Initialize OpenVINO Core");
     }
@@ -67,7 +67,7 @@ WasiNNLoad::body(Runtime::Instance::MemoryInstance *MemInst,
     std::string DeviceName = mapTargetToString(Target);
     if (DeviceName.length() == 0) {
       spdlog::error("[WASI-NN] Device target {:d} not support!", Target);
-      return WASINN::NN_ERRNO_INVALID_ARGUMENT;
+      return WASINN::InvalidArgument;
     } else {
       spdlog::debug("[WASI-NN] Using device: {:s}", DeviceName);
     }
@@ -91,14 +91,14 @@ WasiNNLoad::body(Runtime::Instance::MemoryInstance *MemInst,
       spdlog::error(
           "[WASI-NN] Unable to create model's weight blob, error code: {}",
           Status);
-      return WASINN::NN_ERRNO_BUSY;
+      return WASINN::Busy;
     }
     Status = ie_blob_get_cbuffer(WeightsBlob, &BlobCBuffer);
     if (Status != IEStatusCode::OK) {
       spdlog::error(
           "[WASI-NN] Unable to find weight blob's buffer, error code: {}",
           Status);
-      return WASINN::NN_ERRNO_MISSING_MEMORY;
+      return WASINN::MissingMemory;
     }
     uint8_t *BlobData = const_cast<uint8_t *>(
         static_cast<uint8_t const *>(BlobCBuffer.cbuffer));
@@ -113,7 +113,7 @@ WasiNNLoad::body(Runtime::Instance::MemoryInstance *MemInst,
         &Network);
     if (Status != IEStatusCode::OK || Network == nullptr) {
       spdlog::error("[WASI-NN] Unable to create Network");
-      return WASINN::NN_ERRNO_BUSY;
+      return WASINN::Busy;
     }
 
     size_t NetworkInputSize;
@@ -131,7 +131,7 @@ WasiNNLoad::body(Runtime::Instance::MemoryInstance *MemInst,
       if (Status != IEStatusCode::OK) {
         spdlog::error("[WASI-NN] Unable to set input name, error code {}",
                       Status);
-        return WASINN::NN_ERRNO_MISSING_MEMORY;
+        return WASINN::MissingMemory;
       }
       ie_network_name_free(&InputName);
     }
@@ -141,7 +141,7 @@ WasiNNLoad::body(Runtime::Instance::MemoryInstance *MemInst,
                                   &Config, &ExeNetwork);
     if (Status != IEStatusCode::OK || ExeNetwork == nullptr) {
       spdlog::error("[WASI-NN] Unable to create executable Network");
-      return WASINN::NN_ERRNO_BUSY;
+      return WASINN::Busy;
     }
 
     Ctx.ModelsNum = Ctx.OpenVINONetworks.size();
@@ -151,7 +151,7 @@ WasiNNLoad::body(Runtime::Instance::MemoryInstance *MemInst,
     Ctx.GraphBackends.push_back(Encoding);
     *GraphId = Ctx.ModelsNum;
 
-    return WASINN::NN_SUCCESS;
+    return WASINN::Success;
 #else
     spdlog::error("[WASI-NN] OpenVINO backend is not built. use "
                   "-DWASMEDGE_WASINN_BUILD_OPENVINO=ON"
@@ -160,7 +160,7 @@ WasiNNLoad::body(Runtime::Instance::MemoryInstance *MemInst,
   } else {
     spdlog::error("[WASI-NN] Current backend is not supported.");
   }
-  return WASINN::NN_ERRNO_INVALID_ARGUMENT;
+  return WASINN::InvalidArgument;
 }
 
 Expect<WASINN::NNErrNo>
@@ -174,7 +174,7 @@ WasiNNInitExecCtx::body(Runtime::Instance::MemoryInstance *MemInst,
 
   if (Ctx.GraphBackends.size() <= GraphId) {
     spdlog::error("[WASI-NN] init_execution_context: Graph Id does not exist");
-    return WASINN::NN_ERRNO_INVALID_ARGUMENT;
+    return WASINN::InvalidArgument;
   }
 
   if (Ctx.GraphBackends[GraphId] == Ctx.BackendsMapping.at("OpenVINO")) {
@@ -186,14 +186,14 @@ WasiNNInitExecCtx::body(Runtime::Instance::MemoryInstance *MemInst,
     if (Session->ExeNetwork == nullptr || Session->Network == nullptr) {
       spdlog::error("[WASI-NN] Model for Graph:{} is empty!", GraphId);
       delete Session;
-      return WASINN::NN_ERRNO_MISSING_MEMORY;
+      return WASINN::MissingMemory;
     }
     Status = ie_exec_network_create_infer_request(Session->ExeNetwork,
                                                   &(Session->InferRequest));
 
     if (Status != IEStatusCode::OK || Session->InferRequest == nullptr) {
       spdlog::error("[WASI-NN] Unable to create openvino session");
-      return WASINN::NN_ERRNO_BUSY;
+      return WASINN::Busy;
     }
 
     Ctx.ExecutionsNum = Ctx.OpenVINOInfers.size();
@@ -201,7 +201,7 @@ WasiNNInitExecCtx::body(Runtime::Instance::MemoryInstance *MemInst,
     Ctx.GraphContextBackends.push_back(GraphId);
     *Context = Ctx.ExecutionsNum;
 
-    return WASINN::NN_SUCCESS;
+    return WASINN::Success;
 #else
     spdlog::error("[WASI-NN] OpenVINO backend is not built. define "
                   "-DWASMEDGE_WASINN_BUILD_OPENVINO "
@@ -210,7 +210,7 @@ WasiNNInitExecCtx::body(Runtime::Instance::MemoryInstance *MemInst,
   } else {
     spdlog::error("[WASI-NN] Current backend is not supported.");
   }
-  return WASINN::NN_ERRNO_INVALID_ARGUMENT;
+  return WASINN::InvalidArgument;
 }
 
 Expect<WASINN::NNErrNo>
@@ -223,7 +223,7 @@ WasiNNSetInput::body(Runtime::Instance::MemoryInstance *MemInst,
 
   if (Ctx.GraphContextBackends.size() <= Context) {
     spdlog::error("[WASI-NN] set_input: Execution Context does not exist");
-    return WASINN::NN_ERRNO_INVALID_ARGUMENT;
+    return WASINN::InvalidArgument;
   }
   if (Ctx.GraphContextBackends[Context] == Ctx.BackendsMapping.at("OpenVINO")) {
 #ifdef WASMEDGE_WASINN_BUILD_OPENVINO
@@ -239,7 +239,7 @@ WasiNNSetInput::body(Runtime::Instance::MemoryInstance *MemInst,
     if (Network == nullptr || InferRequest == nullptr) {
       spdlog::error("[WASI-NN] The founded openvino session is empty");
       delete Session;
-      return WASINN::NN_ERRNO_MISSING_MEMORY;
+      return WASINN::MissingMemory;
     }
 
     uint32_t *Tensor = MemInst->getPointer<uint32_t *>(TensorPtr, 5);
@@ -251,14 +251,14 @@ WasiNNSetInput::body(Runtime::Instance::MemoryInstance *MemInst,
     if (RType != 1) {
       spdlog::error(
           "[WASI-NN] Only F32 inputs and outputs are supported for now");
-      return WASINN::NN_ERRNO_INVALID_ARGUMENT;
+      return WASINN::InvalidArgument;
     }
     if (DimensionLen > 8) {
       spdlog::error(
           "[WASI-NN] Tensor dimension is out of range, expect it under 8-dim, "
           "but got {}-dim",
           DimensionLen);
-      return WASINN::NN_ERRNO_INVALID_ARGUMENT;
+      return WASINN::InvalidArgument;
     }
 
     Status = ie_network_get_input_name(Network, Index, &InputName);
@@ -266,7 +266,7 @@ WasiNNSetInput::body(Runtime::Instance::MemoryInstance *MemInst,
       spdlog::error(
           "[WASI-NN] Unable to find input name correctly with Index:{}", Index);
       ie_network_name_free(&InputName);
-      return WASINN::NN_ERRNO_INVALID_ARGUMENT;
+      return WASINN::InvalidArgument;
     }
     /* Mark input as resizable by setting of a resize algorithm.
      * In this case we will be able to set an input blob of any shape to an
@@ -277,7 +277,7 @@ WasiNNSetInput::body(Runtime::Instance::MemoryInstance *MemInst,
     if (Status != IEStatusCode::OK) {
       spdlog::error("[WASI-NN] Unable to set input resize correctly");
       ie_network_name_free(&InputName);
-      return WASINN::NN_ERRNO_INVALID_ARGUMENT;
+      return WASINN::InvalidArgument;
     }
     Status = ie_network_set_input_layout(
         Network, InputName,
@@ -285,7 +285,7 @@ WasiNNSetInput::body(Runtime::Instance::MemoryInstance *MemInst,
     if (Status != IEStatusCode::OK) {
       spdlog::error("[WASI-NN] Unable to set input layout correctly");
       ie_network_name_free(&InputName);
-      return WASINN::NN_ERRNO_INVALID_ARGUMENT;
+      return WASINN::InvalidArgument;
     }
     Status = ie_network_set_input_precision(
         Network, InputName,
@@ -293,7 +293,7 @@ WasiNNSetInput::body(Runtime::Instance::MemoryInstance *MemInst,
     if (Status != IEStatusCode::OK) {
       spdlog::error("[WASI-NN] Unable to set input precision correctly");
       ie_network_name_free(&InputName);
-      return WASINN::NN_ERRNO_INVALID_ARGUMENT;
+      return WASINN::InvalidArgument;
     }
 
     dimensions_t Dimens;
@@ -311,7 +311,7 @@ WasiNNSetInput::body(Runtime::Instance::MemoryInstance *MemInst,
       spdlog::error("[WASI-NN] Unable to allocated input tensor correctly");
       ie_blob_free(&InputBlob);
       ie_network_name_free(&InputName);
-      return WASINN::NN_ERRNO_BUSY;
+      return WASINN::Busy;
     }
     Status = ie_blob_size(InputBlob, &BlobSize);
     spdlog::debug("[WASI-NN] Blob size {}, with Tensor size {}", BlobSize,
@@ -321,7 +321,7 @@ WasiNNSetInput::body(Runtime::Instance::MemoryInstance *MemInst,
       spdlog::error("[WASI-NN] Unable to find input tensor buffer");
       ie_blob_free(&InputBlob);
       ie_network_name_free(&InputName);
-      return WASINN::NN_ERRNO_MISSING_MEMORY;
+      return WASINN::MissingMemory;
     }
 
     float *BlobData =
@@ -337,12 +337,12 @@ WasiNNSetInput::body(Runtime::Instance::MemoryInstance *MemInst,
                     Status);
       ie_blob_free(&InputBlob);
       ie_network_name_free(&InputName);
-      return WASINN::NN_ERRNO_BUSY;
+      return WASINN::Busy;
     }
     ie_blob_free(&InputBlob);
     ie_network_name_free(&InputName);
 
-    return WASINN::NN_SUCCESS;
+    return WASINN::Success;
 #else
     spdlog::error("[WASI-NN] OpenVINO backend is not built, use "
                   "-DWASMEDGE_WASINN_BUILD_OPENVINO=ON"
@@ -351,7 +351,7 @@ WasiNNSetInput::body(Runtime::Instance::MemoryInstance *MemInst,
   } else {
     spdlog::error("[WASI-NN] Current backend is not supported.");
   }
-  return WASINN::NN_ERRNO_INVALID_ARGUMENT;
+  return WASINN::InvalidArgument;
 }
 
 Expect<WASINN::NNErrNo>
@@ -366,7 +366,7 @@ WasiNNGetOuput::body(Runtime::Instance::MemoryInstance *MemInst,
 
   if (Ctx.GraphContextBackends.size() <= Context) {
     spdlog::error("[WASI-NN] get_output: Execution Context does not exist");
-    return WASINN::NN_ERRNO_INVALID_ARGUMENT;
+    return WASINN::InvalidArgument;
   }
 
   if (Ctx.GraphContextBackends[Context] == Ctx.BackendsMapping.at("OpenVINO")) {
@@ -391,7 +391,7 @@ WasiNNGetOuput::body(Runtime::Instance::MemoryInstance *MemInst,
           "[WASI-NN] Unable to find output name correctly with Index:{}",
           Index);
       ie_network_name_free(&OutputName);
-      return WASINN::NN_ERRNO_INVALID_ARGUMENT;
+      return WASINN::InvalidArgument;
     }
     Status =
         ie_network_set_output_precision(Network, OutputName, precision_e::FP32);
@@ -400,7 +400,7 @@ WasiNNGetOuput::body(Runtime::Instance::MemoryInstance *MemInst,
           "[WASI-NN] Unable to set output precision correctly with Index:{}",
           Index);
       ie_network_name_free(&OutputName);
-      return WASINN::NN_ERRNO_INVALID_ARGUMENT;
+      return WASINN::InvalidArgument;
     }
 
     Status = ie_infer_request_get_blob(InferRequest, OutputName, &OutputBlob);
@@ -409,7 +409,7 @@ WasiNNGetOuput::body(Runtime::Instance::MemoryInstance *MemInst,
                     Index);
       ie_network_name_free(&OutputName);
       ie_blob_free(&OutputBlob);
-      return WASINN::NN_ERRNO_INVALID_ARGUMENT;
+      return WASINN::InvalidArgument;
     }
     Status = ie_blob_size(OutputBlob, &BlobSize);
     Status = ie_blob_get_cbuffer(OutputBlob, &BlobCBuffer);
@@ -418,7 +418,7 @@ WasiNNGetOuput::body(Runtime::Instance::MemoryInstance *MemInst,
                     Index);
       ie_network_name_free(&OutputName);
       ie_blob_free(&OutputBlob);
-      return WASINN::NN_ERRNO_MISSING_MEMORY;
+      return WASINN::MissingMemory;
     }
     float *BlobData =
         const_cast<float *>(static_cast<float const *>(BlobCBuffer.cbuffer));
@@ -435,7 +435,7 @@ WasiNNGetOuput::body(Runtime::Instance::MemoryInstance *MemInst,
     ie_network_name_free(&OutputName);
     ie_blob_free(&OutputBlob);
 
-    return WASINN::NN_SUCCESS;
+    return WASINN::Success;
 #else
     spdlog::error("[WASI-NN] OpenVINO backend is not built. use "
                   "-DWASMEDGE_WASINN_BUILD_OPENVINO=ON"
@@ -444,7 +444,7 @@ WasiNNGetOuput::body(Runtime::Instance::MemoryInstance *MemInst,
   } else {
     spdlog::error("[WASI-NN] Current backend is not supported.");
   }
-  return WASINN::NN_ERRNO_INVALID_ARGUMENT;
+  return WASINN::InvalidArgument;
 }
 
 Expect<WASINN::NNErrNo>
@@ -456,7 +456,7 @@ WasiNNCompute::body(Runtime::Instance::MemoryInstance *MemInst,
   }
   if (Ctx.GraphContextBackends.size() <= Context) {
     spdlog::error("[WASI-NN] compute: Execution Context does not exist");
-    return WASINN::NN_ERRNO_INVALID_ARGUMENT;
+    return WASINN::InvalidArgument;
   }
 
   if (Ctx.GraphContextBackends[Context] == Ctx.BackendsMapping.at("OpenVINO")) {
@@ -466,9 +466,9 @@ WasiNNCompute::body(Runtime::Instance::MemoryInstance *MemInst,
     Status = ie_infer_request_infer(Session->InferRequest);
     if (Status != IEStatusCode::OK) {
       spdlog::error("[WASI-NN] Unable to perform computation correctly");
-      return WASINN::NN_ERRNO_BUSY;
+      return WASINN::Busy;
     }
-    return WASINN::NN_SUCCESS;
+    return WASINN::Success;
 #else
     spdlog::error("[WASI-NN] OpenVINO backend is not built. use "
                   "-DWASMEDGE_WASINN_BUILD_OPENVINO=ON"
@@ -478,7 +478,7 @@ WasiNNCompute::body(Runtime::Instance::MemoryInstance *MemInst,
     spdlog::error("[WASI-NN] Current backend is not supported.");
   }
 
-  return WASINN::NN_ERRNO_INVALID_ARGUMENT;
+  return WASINN::InvalidArgument;
 }
 
 } // namespace Host

@@ -15,13 +15,13 @@ namespace WASINN {
 using NNErrNo = uint32_t;
 
 // No error occurred.
-const NNErrNo NN_SUCCESS = 0;
+const NNErrNo Success = 0;
 // Caller module passed an invalid argument.
-const NNErrNo NN_ERRNO_INVALID_ARGUMENT = 1;
+const NNErrNo InvalidArgument = 1;
 // Caller module is missing a memory export.
-const NNErrNo NN_ERRNO_MISSING_MEMORY = 2;
+const NNErrNo MissingMemory = 2;
 // Device or resource busy.
-const NNErrNo NN_ERRNO_BUSY = 3;
+const NNErrNo Busy = 3;
 
 using Graph = uint32_t;
 using GraphEncoding = uint8_t;

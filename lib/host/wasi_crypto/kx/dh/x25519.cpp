@@ -67,7 +67,8 @@ X25519::SecretKey::publicKey() const noexcept {
   return Pk;
 }
 
-WasiCryptoExpect<SecretVec> X25519::SecretKey::dh(PublicKey &Pk) noexcept {
+WasiCryptoExpect<SecretVec>
+X25519::SecretKey::dh(const PublicKey &Pk) const noexcept {
   EvpPkeyCtxPtr SkCtx{EVP_PKEY_CTX_new(Ctx.get(), nullptr)};
   opensslCheck(EVP_PKEY_derive_init(SkCtx.get()));
 

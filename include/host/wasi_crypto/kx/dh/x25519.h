@@ -43,7 +43,7 @@ public:
 
     WasiCryptoExpect<void> verify() const noexcept;
 
-    auto &raw() { return Ctx; }
+    const auto &raw() const { return Ctx; }
 
   private:
     std::shared_ptr<EVP_PKEY> Ctx;
@@ -64,7 +64,7 @@ public:
 
     WasiCryptoExpect<PublicKey> publicKey() const noexcept;
 
-    WasiCryptoExpect<SecretVec> dh(PublicKey &Pk) noexcept;
+    WasiCryptoExpect<SecretVec> dh(const PublicKey &Pk) const noexcept;
 
     WasiCryptoExpect<KeyPair> toKeyPair(const PublicKey &Pk) const noexcept;
 

@@ -61,7 +61,7 @@ mod tests {
     use super::*;
     use crate::{
         config::{CommonConfigOptions, ConfigBuilder},
-        Module, Statistics, Store,
+        params, Module, Statistics, Store, WasmVal,
     };
 
     #[test]
@@ -149,7 +149,7 @@ mod tests {
         let fib = result.unwrap();
 
         // run the exported host function
-        let result = executor.run_func(&fib, [WasmValue::from_i32(5)]);
+        let result = executor.run_func(&fib, params!(5));
         assert!(result.is_ok());
         let returns = result.unwrap();
         assert_eq!(returns.len(), 1);

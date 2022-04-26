@@ -118,7 +118,7 @@ pub use externals::{Func, FuncRef, FuncTypeBuilder, Global, Memory, Table};
 pub use import::{ImportObject, ImportObjectBuilder};
 pub use instance::Instance;
 #[doc(inline)]
-pub use io::{WasmValType, WasmValTypeList};
+pub use io::{WasmVal, WasmValType, WasmValTypeList};
 #[doc(inline)]
 pub use module::{ExportType, ImportType, Module};
 #[doc(inline)]

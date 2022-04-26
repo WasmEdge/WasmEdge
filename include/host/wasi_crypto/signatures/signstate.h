@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2019-2022 Second State INC
 
-//===-- wasi_crypto/signatures/registed.h - SignState implement -----------===//
+//===-- wasi_crypto/signatures/signstate.h - SignState implement ----------===//
 //
 // Part of the WasmEdge Project.
 //

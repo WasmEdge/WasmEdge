@@ -50,7 +50,7 @@ openState(Algorithm Alg, OptionalRef<const KeyVariant> OptKeyVariant,
         // need key
         if constexpr (StateOpen::NeedKey) {
           using RequiredKeyType = typename StateOpen::Key;
-          ///  not have key
+          // not have key
           if (unlikely(!OptKeyVariant)) {
             return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_KEY_REQUIRED);
           }

@@ -55,7 +55,7 @@ Expect<uint32_t> Import::body(Runtime::Instance::MemoryInstance *MemInst,
 
   const __wasi_size_t WasiEncodedLen = EncodedLen;
   auto *const Encoded =
-      MemInst->getPointer<uint8_t *>(EncodedPtr, WasiEncodedLen);
+      MemInst->getPointer<const uint8_t *>(EncodedPtr, WasiEncodedLen);
   checkExist(Encoded);
 
   __wasi_signature_encoding_e_t WasiEncoding;

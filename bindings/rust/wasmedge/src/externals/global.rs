@@ -12,6 +12,17 @@ pub struct Global {
     pub(crate) mod_name: Option<String>,
 }
 impl Global {
+    /// Creates a new wasm global variable with the given type and initial value.
+    ///
+    /// # Arguments
+    ///
+    /// * `ty` - The type of the global variable to be created.
+    ///
+    /// * `init` - The initial value of the global variable.
+    ///
+    /// # Error
+    ///
+    /// If fail to create the global variable, then an error is returned.
     pub fn new(ty: GlobalType, init: Val) -> WasmEdgeResult<Self> {
         let inner = sys::Global::create(&ty.into(), init.into())?;
         Ok(Self {

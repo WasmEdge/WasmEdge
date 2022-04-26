@@ -9,91 +9,51 @@ use wasmedge_types::{FuncType, ValType};
 ///
 /// # Example
 ///
-/// The following example shows how to create a host function, access it by its name and its type info.
+/// The following example shows how to create a host function, and invoke it with a given executor.
 ///
 /// ```rust
-/// #![feature(explicit_generic_args_with_impl_trait)]
-///
-/// use wasmedge::{ImportObjectBuilder, config::{ConfigBuilder, CommonConfigOptions}, Statistics, Executor, Store, FuncTypeBuilder};
-/// use wasmedge_sys::types::WasmValue;
+/// use wasmedge::{Func, Executor, params, WasmVal};
+/// use wasmedge_sys::WasmValue;
 /// use wasmedge_types::ValType;
 ///
-/// // a function to be exported as host function
-/// fn real_add(inputs: Vec<WasmValue>) -> std::result::Result<Vec<WasmValue>, u8> {
-///     if inputs.len() != 2 {
+/// // A native function to be wrapped as a host function
+/// fn real_add(input: Vec<WasmValue>) -> Result<Vec<WasmValue>, u8> {
+///     if input.len() != 2 {
 ///         return Err(1);
 ///     }
 ///
-///     let a = if inputs[0].ty() == ValType::I32 {
-///         inputs[0].to_i32()
+///     let a = if input[0].ty() == ValType::I32 {
+///         input[0].to_i32()
 ///     } else {
 ///         return Err(2);
 ///     };
 ///
-///     let b = if inputs[1].ty() == ValType::I32 {
-///         inputs[1].to_i32()
+///     let b = if input[1].ty() == ValType::I32 {
+///         input[1].to_i32()
 ///     } else {
 ///         return Err(3);
 ///     };
 ///
 ///     let c = a + b;
-///
 ///     Ok(vec![WasmValue::from_i32(c)])
 /// }
 ///
-/// // create an ImportModule which has a host function with an exported name "add"
-/// let result = ImportObjectBuilder::new()
-/// .with_func::<(i32, i32), i32>(
-///     "add",
-///     Box::new(real_add),
-/// )
-/// .expect("failed to add host func")
-/// .build("extern");
+/// // create a host function
+/// let result = Func::wrap::<(i32, i32), i32>(Box::new(real_add));
 /// assert!(result.is_ok());
-/// let import = result.unwrap();
+/// let func = result.unwrap();
 ///
 /// // create an executor
-/// let result = ConfigBuilder::new(CommonConfigOptions::default()).build();
+/// let mut executor = Executor::new(None, None).unwrap();
+///
+/// // call the host function
+/// let result = func.call(&mut executor, params!(2, 3));
 /// assert!(result.is_ok());
-/// let config = result.unwrap();
-///
-/// let result = Statistics::new();
-/// assert!(result.is_ok());
-/// let mut stat = result.unwrap();
-///
-/// let result = Executor::new(Some(&config), Some(&mut stat));
-/// assert!(result.is_ok());
-/// let mut executor = result.unwrap();
-///
-/// // create a store
-/// let result = Store::new();
-/// assert!(result.is_ok());
-/// let mut store = result.unwrap();
-///
-/// // register the import module into the store
-/// let result = store.register_import_module(&mut executor, &import);
-/// assert!(result.is_ok());
-///
-/// // get the instance of the ImportObject module
-/// let result = store.module_instance("extern");
-/// assert!(result.is_some());
-/// let instance = result.unwrap();
-///
-/// // get the exported host function
-/// let result = instance.func("add");
-/// assert!(result.is_some());
-/// let host_func = result.unwrap();
-///
-/// // check the signature of the host function
-/// let result = host_func.ty();
-/// assert!(result.is_ok());
-/// let signature = result.unwrap();
-/// assert!(signature.args().is_some());
-/// assert_eq!(signature.args().unwrap(), [ValType::I32; 2]);
-/// assert!(signature.returns().is_some());
-/// assert_eq!(signature.returns().unwrap(), [ValType::I32]);
-///
+/// let returns = result.unwrap();
+/// assert_eq!(returns[0].to_i32(), 5);
 /// ```
+/// [[Click for more examples]](https://github.com/WasmEdge/WasmEdge/tree/master/bindings/rust/wasmedge/examples)
+///
 #[derive(Debug)]
 pub struct Func {
     pub(crate) inner: sys::Function,
@@ -172,61 +132,6 @@ impl Func {
     ///
     /// If fail to run the host function, then an error is returned.
     ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use wasmedge_sys::{FuncType, Function, WasmValue, Executor};
-    /// use wasmedge_types::ValType;
-    ///
-    /// fn real_add(input: Vec<WasmValue>) -> Result<Vec<WasmValue>, u8> {
-    ///     println!("Rust: Entering Rust function real_add");
-    ///
-    ///     if input.len() != 2 {
-    ///         return Err(1);
-    ///     }
-    ///
-    ///     let a = if input[0].ty() == ValType::I32 {
-    ///         input[0].to_i32()
-    ///     } else {
-    ///         return Err(2);
-    ///     };
-    ///
-    ///     let b = if input[1].ty() == ValType::I32 {
-    ///         input[1].to_i32()
-    ///     } else {
-    ///         return Err(3);
-    ///     };
-    ///
-    ///     let c = a + b;
-    ///     println!("Rust: calcuating in real_add c: {:?}", c);
-    ///
-    ///     println!("Rust: Leaving Rust function real_add");
-    ///     Ok(vec![WasmValue::from_i32(c)])
-    /// }
-    ///
-    /// // create a FuncType
-    /// let result = FuncType::create(vec![ValType::I32; 2], vec![ValType::I32]);
-    /// assert!(result.is_ok());
-    /// let func_ty = result.unwrap();
-    /// // create a host function
-    /// let result = Function::create(&func_ty, Box::new(real_add), 0);
-    /// assert!(result.is_ok());
-    /// let host_func = result.unwrap();
-    ///
-    /// // create an Executor instance
-    /// let result = Executor::create(None, None);
-    /// assert!(result.is_ok());
-    /// let mut executor = result.unwrap();
-    ///
-    /// // run this function
-    /// let result = host_func.call(
-    ///     &mut executor,
-    ///     vec![WasmValue::from_i32(1), WasmValue::from_i32(2)],
-    /// );
-    /// assert!(result.is_ok());
-    /// let returns = result.unwrap();
-    /// assert_eq!(returns[0].to_i32(), 3);
-    /// ```
     pub fn call<E: Engine>(
         &self,
         engine: &mut E,
@@ -300,6 +205,8 @@ impl FuncTypeBuilder {
 }
 
 /// Defines a reference to a [host function](crate::Func).
+///
+/// The [table_and_funcref](https://github.com/WasmEdge/WasmEdge/tree/master/bindings/rust/wasmedge/examples/table_and_funcref.rs) example presents how to obtain and use [FuncRef].
 #[derive(Debug, Clone)]
 pub struct FuncRef {
     pub(crate) inner: sys::FuncRef,
@@ -342,7 +249,7 @@ mod tests {
     use super::*;
     use crate::{
         config::{CommonConfigOptions, ConfigBuilder},
-        Executor, ImportObjectBuilder, Statistics, Store,
+        params, Executor, ImportObjectBuilder, Statistics, Store, WasmVal,
     };
     use wasmedge_sys::WasmValue;
 
@@ -449,10 +356,7 @@ mod tests {
         assert_eq!(func_ty.returns().unwrap(), [ValType::I32]);
 
         // run the host function
-        let result = host_func.call(
-            &mut executor,
-            [WasmValue::from_i32(2), WasmValue::from_i32(3)],
-        );
+        let result = host_func.call(&mut executor, params!(2, 3));
         assert!(result.is_ok());
         let returns = result.unwrap();
         assert_eq!(returns.len(), 1);
@@ -461,15 +365,16 @@ mod tests {
 
     #[test]
     fn test_func_wrap() {
+        // create a host function
         let result = Func::wrap::<(i32, i32), i32>(Box::new(real_add));
         assert!(result.is_ok());
         let func = result.unwrap();
 
-        let mut executor = crate::Executor::new(None, None).unwrap();
-        let result = func.call(
-            &mut executor,
-            [WasmValue::from_i32(2), WasmValue::from_i32(3)],
-        );
+        // create an executor
+        let mut executor = Executor::new(None, None).unwrap();
+
+        // call the host function
+        let result = func.call(&mut executor, params!(2, 3));
         assert!(result.is_ok());
         let returns = result.unwrap();
         assert_eq!(returns[0].to_i32(), 5);

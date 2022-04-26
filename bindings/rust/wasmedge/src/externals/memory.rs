@@ -10,6 +10,15 @@ pub struct Memory {
     pub(crate) mod_name: Option<String>,
 }
 impl Memory {
+    /// Creates a new wasm memory instance with the given type.
+    ///
+    /// # Argument
+    ///
+    /// * `ty` - The type of the memory instance to be created.
+    ///
+    /// # Error
+    ///
+    /// If fail to create the memory instance, then an error is returned.
     pub fn new(ty: MemoryType) -> WasmEdgeResult<Self> {
         let inner = sys::Memory::create(&ty.into())?;
         Ok(Self {

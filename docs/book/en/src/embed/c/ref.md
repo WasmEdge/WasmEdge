@@ -141,10 +141,12 @@ In WasmEdge, developers should convert the values to `WasmEdge_Value` objects th
     Ptr = WasmEdge_ValueGetExternRef(Val);
     /* The `Ptr` will be `NULL`. */
 
-    /* Genreate a funcref with function index 20. */
-    Val = WasmEdge_ValueGenFuncRef(20);
-    uint32_t FuncIdx = WasmEdge_ValueGetFuncIdx(Val);
-    /* The `FuncIdx` will be 20. */
+    /* Get the function instance by creation or from module instance. */
+    const WasmEdge_FunctionInstanceContext *FuncCxt = ...;
+    /* Genreate a funcref with the given function instance context. */
+    Val = WasmEdge_ValueGenFuncRef(FuncCxt);
+    const WasmEdge_FunctionInstanceContext *GotFuncCxt = WasmEdge_ValueGetFuncRef(Val);
+    /* The `GotFuncCxt` will be the same as `FuncCxt`. */
 
     /* Genreate a externref to `Num`. */
     Val = WasmEdge_ValueGenExternRef(&Num);
@@ -1402,7 +1404,7 @@ The `Loader` context loads the WASM binary from files or buffers.
 Both the WASM and the compiled-WASM from the [WasmEdge AOT Compiler](#wasmedge-aot-compiler) are supported.
 
 ```c
-uint32_t Buf[4096];
+uint8_t Buf[4096];
 /* ... Read the WASM code to the buffer. */
 uint32_t FileSize = ...;
 /* The `FileSize` is the length of the WASM code. */

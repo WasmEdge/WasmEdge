@@ -43,7 +43,7 @@ struct EncapsulatedSecret {
   std::vector<uint8_t> Secret;
 };
 
-WasiCryptoExpect<EncapsulatedSecret> encapsulate(PkVariant &Pk) noexcept;
+WasiCryptoExpect<EncapsulatedSecret> encapsulate(PkVariant &PkVariant) noexcept;
 
 WasiCryptoExpect<std::vector<uint8_t>>
 decapsulate(SkVariant &SkVariant,

@@ -9,6 +9,8 @@ namespace WasiCrypto {
 namespace Symmetric {
 
 template <int ShaNid> constexpr size_t Sha2<ShaNid>::getDigestSize() noexcept {
+  static_assert(ShaNid == NID_sha256 || ShaNid == NID_sha512 ||
+                ShaNid == NID_sha512_256);
   if constexpr (ShaNid == NID_sha256)
     return 32;
   if constexpr (ShaNid == NID_sha512)

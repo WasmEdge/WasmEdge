@@ -167,7 +167,7 @@ Context::symmetricStateDecrypt(__wasi_symmetric_state_t StateHandle,
 
 WasiCryptoExpect<size_t> Context::symmetricStateDecryptDetached(
     __wasi_symmetric_state_t StateHandle, Span<uint8_t> Out,
-    Span<const uint8_t> Data, Span<uint8_t> RawTag) noexcept {
+    Span<const uint8_t> Data, Span<const uint8_t> RawTag) noexcept {
   return SymmetricStateManager.get(StateHandle)
       .and_then([=](auto &&State) noexcept {
         return Symmetric::stateDecryptDetached(State, Out, Data, RawTag);

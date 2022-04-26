@@ -77,10 +77,10 @@ WasiCryptoExpect<size_t> stateDecrypt(StateVariant &StateVariant,
 
 /// verify an authentication tag and decrypt the corresponding ciphertext if
 /// verification passes
-WasiCryptoExpect<size_t> stateDecryptDetached(StateVariant &StateVariant,
-                                              Span<uint8_t> Out,
-                                              Span<const uint8_t> Data,
-                                              Span<uint8_t> RawTag) noexcept;
+WasiCryptoExpect<size_t>
+stateDecryptDetached(StateVariant &StateVariant, Span<uint8_t> Out,
+                     Span<const uint8_t> Data,
+                     Span<const uint8_t> RawTag) noexcept;
 
 ///  returns the length required to encode the authentication tag and optional
 ///  padding bytes

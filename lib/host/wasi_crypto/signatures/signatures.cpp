@@ -13,10 +13,10 @@ sigImport(Algorithm Alg, Span<const uint8_t> Encoded,
           __wasi_signature_encoding_e_t Encoding) noexcept {
   return std::visit(
       [=](auto Factory) noexcept {
-        using FactoryType = std::decay_t<decltype(Factory)>;
-        return FactoryType::Signature::import(Encoded, Encoding)
-            .map(
-                [](auto &&Sig) noexcept { return SigVariant{std::move(Sig)}; });
+        return decltype(Factory)::Signature::import(Encoded, Encoding)
+            .map([](auto &&Sig) noexcept {
+              return SigVariant{std::forward<decltype(Sig)>(Sig)};
+            });
       },
       Alg);
 }

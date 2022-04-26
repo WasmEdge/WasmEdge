@@ -9,6 +9,7 @@
 #include "host/wasi_crypto/utils/error.h"
 #include "host/wasi_crypto/utils/optional.h"
 #include "wasi_crypto/api.hpp"
+#include <utility>
 
 namespace WasmEdge {
 namespace Host {
@@ -45,7 +46,8 @@ Context::symmetricKeyExport(__wasi_symmetric_key_t KeyHandle) noexcept {
   return SymmetricKeyManager.get(KeyHandle)
       .map(Symmetric::keyExportData)
       .and_then([this](auto &&Data) noexcept {
-        return ArrayOutputManager.registerManager(std::move(Data));
+        return ArrayOutputManager.registerManager(
+            std::forward<decltype(Data)>(Data));
       });
 }
 
@@ -60,7 +62,8 @@ Context::symmetricStateOptionsGet(__wasi_symmetric_state_t StateHandle,
                                   Span<uint8_t> Value) noexcept {
   return SymmetricStateManager.get(StateHandle)
       .and_then([=](auto &&State) noexcept {
-        return Symmetric::stateOptionsGet(State, Name, Value);
+        return Symmetric::stateOptionsGet(std::forward<decltype(State)>(State),
+                                          Name, Value);
       });
 }
 
@@ -69,7 +72,8 @@ Context::symmetricStateOptionsGetU64(__wasi_symmetric_state_t StateHandle,
                                      std::string_view Name) noexcept {
   return SymmetricStateManager.get(StateHandle)
       .and_then([Name](auto &&State) noexcept {
-        return Symmetric::stateOptionsGetU64(State, Name);
+        return Symmetric::stateOptionsGetU64(
+            std::forward<decltype(State)>(State), Name);
       });
 }
 
@@ -103,7 +107,8 @@ WasiCryptoExpect<__wasi_symmetric_tag_t> Context::symmetricStateSqueezeTag(
         return Symmetric::stateSqueezeTag(State);
       })
       .and_then([this](auto &&Tag) {
-        return SymmetricTagManager.registerManager(std::move(Tag));
+        return SymmetricTagManager.registerManager(
+            std::forward<decltype(Tag)>(Tag));
       });
 }
 
@@ -115,7 +120,8 @@ Context::symmetricStateSqueezeKey(__wasi_symmetric_state_t StateHandle,
         return Symmetric::stateSqueezeKey(State, Alg);
       })
       .and_then([this](auto &&Key) {
-        return SymmetricKeyManager.registerManager(std::move(Key));
+        return SymmetricKeyManager.registerManager(
+            std::forward<decltype(Key)>(Key));
       });
 }
 
@@ -144,7 +150,8 @@ Context::symmetricStateEncryptDetached(__wasi_symmetric_state_t StateHandle,
         return Symmetric::stateEncryptDetached(State, Out, Data);
       })
       .and_then([this](auto &&Tag) noexcept {
-        return SymmetricTagManager.registerManager(std::move(Tag));
+        return SymmetricTagManager.registerManager(
+            std::forward<decltype(Tag)>(Tag));
       });
 }
 
@@ -178,7 +185,8 @@ WasiCryptoExpect<__wasi_symmetric_key_t>
 Context::symmetricKeyImport(Symmetric::Algorithm Alg,
                             Span<const uint8_t> Raw) noexcept {
   return Symmetric::importKey(Alg, Raw).and_then([this](auto &&Key) noexcept {
-    return SymmetricKeyManager.registerManager(std::move(Key));
+    return SymmetricKeyManager.registerManager(
+        std::forward<decltype(Key)>(Key));
   });
 }
 
@@ -210,7 +218,8 @@ Context::symmetricKeyGenerate(Symmetric::Algorithm Alg,
 
   return Symmetric::generateKey(Alg, *OptSymmetricOptionsResult)
       .and_then([this](auto &&Key) noexcept {
-        return SymmetricKeyManager.registerManager(std::move(Key));
+        return SymmetricKeyManager.registerManager(
+            std::forward<decltype(Key)>(Key));
       });
 }
 
@@ -256,7 +265,8 @@ Context::symmetricStateOpen(Symmetric::Algorithm Alg,
   return Symmetric::openState(Alg, asOptionalRef(*OptKeyResult),
                               *OptSymmetricOptionsResult)
       .and_then([this](auto &&State) noexcept {
-        return SymmetricStateManager.registerManager(std::move(State));
+        return SymmetricStateManager.registerManager(
+            std::forward<decltype(State)>(State));
       });
 }
 

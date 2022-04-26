@@ -18,22 +18,27 @@ WasiCryptoExpect<size_t> checkedAdd(size_t A, size_t B) {
   return Res;
 }
 
-template <typename P> struct StateOpenTraits;
+/// correspond signatures:
+template <typename P> struct StateOpenTrait;
+
+/// WasiCryptoExpect<StateType> open(const KeyType &, OptionalRef<const
+/// OptionsType>);
 template <typename StateType, typename KeyType, typename OptionsType>
-struct StateOpenTraits<WasiCryptoExpect<StateType> (*)(
+struct StateOpenTrait<WasiCryptoExpect<StateType> (*)(
     const KeyType &, OptionalRef<const OptionsType>) noexcept> {
   static inline constexpr bool NeedKey = true;
+  using Key = KeyType;
 };
 
+/// WasiCryptoExpect<StateType> open(OptionalRef<const OptionsType>);
 template <typename StateType, typename OptionsType>
-struct StateOpenTraits<WasiCryptoExpect<StateType> (*)(
+struct StateOpenTrait<WasiCryptoExpect<StateType> (*)(
     OptionalRef<const OptionsType>) noexcept> {
   static inline constexpr bool NeedKey = false;
 };
 
 template <typename T>
-inline constexpr bool NeedKey =
-    StateOpenTraits<decltype(&T::State::open)>::NeedKey;
+using GetStateOpenTrait = StateOpenTrait<decltype(&T::State::open)>;
 } // namespace
 
 WasiCryptoExpect<StateVariant>
@@ -41,12 +46,10 @@ openState(Algorithm Alg, OptionalRef<const KeyVariant> OptKeyVariant,
           OptionalRef<const Options> OptOptions) noexcept {
   return std::visit(
       [=](auto Factory) noexcept -> WasiCryptoExpect<StateVariant> {
-        using FactoryType = std::decay_t<decltype(Factory)>;
-        using KeyType = typename FactoryType::Key;
-        using StateType = typename FactoryType::State;
+        using StateOpen = GetStateOpenTrait<decltype(Factory)>;
         // need key
-        if constexpr (NeedKey<FactoryType>) {
-
+        if constexpr (StateOpen::NeedKey) {
+          using RequiredKeyType = typename StateOpen::Key;
           ///  not have key
           if (unlikely(!OptKeyVariant)) {
             return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_KEY_REQUIRED);
@@ -55,15 +58,17 @@ openState(Algorithm Alg, OptionalRef<const KeyVariant> OptKeyVariant,
           // have key
           return std::visit(
               [OptOptions](const auto &Key) -> WasiCryptoExpect<StateVariant> {
+                using InKeyType = std::decay_t<decltype(Key)>;
                 // key type not same
-                if constexpr (!std::is_same_v<std::decay_t<decltype(Key)>,
-                                              KeyType>) {
+
+                if constexpr (!std::is_same_v<InKeyType, RequiredKeyType>) {
                   return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_KEY);
                 } else {
                   // key type same
-                  return StateType::open(Key, OptOptions)
+                  return decltype(Factory)::State::open(Key, OptOptions)
                       .map([](auto &&State) noexcept {
-                        return StateVariant{std::move(State)};
+                        return StateVariant{
+                            std::forward<decltype(State)>(State)};
                       });
                 }
               },
@@ -78,9 +83,10 @@ openState(Algorithm Alg, OptionalRef<const KeyVariant> OptKeyVariant,
           }
 
           // not have key
-          return StateType::open(OptOptions).map([](auto &&State) noexcept {
-            return StateVariant{std::move(State)};
-          });
+          return decltype(Factory)::State::open(OptOptions)
+              .map([](auto &&State) noexcept {
+                return StateVariant{std::forward<decltype(State)>(State)};
+              });
         }
       },
       Alg);
@@ -138,8 +144,9 @@ WasiCryptoExpect<KeyVariant> stateSqueezeKey(StateVariant &StateVariant,
         if constexpr (std::is_same_v<
                           GetSqueezeKeyType<std::decay_t<decltype(State)>>,
                           typename decltype(Alg)::Key>) {
-          return State.squeezeKey().map(
-              [](auto &&Key) { return KeyVariant{std::move(Key)}; });
+          return State.squeezeKey().map([](auto &&Key) {
+            return KeyVariant{std::forward<decltype(Key)>(Key)};
+          });
         } else {
           return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_UNSUPPORTED_ALGORITHM);
         }

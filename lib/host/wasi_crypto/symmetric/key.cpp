@@ -14,8 +14,9 @@ WasiCryptoExpect<KeyVariant> importKey(Algorithm Alg,
   return std::visit(
       [Data](auto Factory) noexcept {
         using KeyType = typename std::decay_t<decltype(Factory)>::Key;
-        return KeyType::import(Data).map(
-            [](auto &&Key) noexcept { return KeyVariant{std::move(Key)}; });
+        return KeyType::import(Data).map([](auto &&Key) noexcept {
+          return KeyVariant{std::forward<decltype(Key)>(Key)};
+        });
       },
       Alg);
 }
@@ -26,7 +27,7 @@ generateKey(Algorithm Alg, OptionalRef<const Options> OptOptions) noexcept {
       [OptOptions](auto Factory) mutable noexcept {
         using KeyType = typename std::decay_t<decltype(Factory)>::Key;
         return KeyType::generate(OptOptions).map([](auto &&Key) noexcept {
-          return KeyVariant{std::move(Key)};
+          return KeyVariant{std::forward<decltype(Key)>(Key)};
         });
       },
       Alg);

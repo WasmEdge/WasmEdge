@@ -70,7 +70,7 @@ public:
   }
 
   WasiCryptoExpect<size_t> decryptDetached(Span<uint8_t>, Span<const uint8_t>,
-                                           Span<uint8_t>) noexcept {
+                                           Span<const uint8_t>) noexcept {
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_OPERATION);
   }
 

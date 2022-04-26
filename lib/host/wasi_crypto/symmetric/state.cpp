@@ -208,10 +208,10 @@ WasiCryptoExpect<size_t> stateDecrypt(StateVariant &StateVariant,
       StateVariant);
 }
 
-WasiCryptoExpect<size_t> stateDecryptDetached(StateVariant &StateVariant,
-                                              Span<uint8_t> Out,
-                                              Span<const uint8_t> Data,
-                                              Span<uint8_t> RawTag) noexcept {
+WasiCryptoExpect<size_t>
+stateDecryptDetached(StateVariant &StateVariant, Span<uint8_t> Out,
+                     Span<const uint8_t> Data,
+                     Span<const uint8_t> RawTag) noexcept {
   ensureOrReturn(Data.size() == Out.size(), __WASI_CRYPTO_ERRNO_INVALID_LENGTH);
   return std::visit(
       [=](auto &State) noexcept {

@@ -166,7 +166,7 @@ public:
   WasiCryptoExpect<size_t>
   symmetricStateDecryptDetached(__wasi_symmetric_state_t StateHandle,
                                 Span<uint8_t> Out, Span<const uint8_t> Data,
-                                Span<uint8_t> RawTag) noexcept;
+                                Span<const uint8_t> RawTag) noexcept;
 
   WasiCryptoExpect<void>
   symmetricStateRatchet(__wasi_symmetric_state_t StateHandle) noexcept;

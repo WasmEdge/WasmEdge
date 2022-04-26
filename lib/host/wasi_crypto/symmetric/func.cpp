@@ -554,7 +554,7 @@ Expect<uint32_t> StateDecryptDetached::body(
   checkExist(Data);
 
   const __wasi_size_t WasiRawTagLen = RawTagLen;
-  auto *RawTag = MemInst->getPointer<uint8_t *>(RawTagPtr, WasiRawTagLen);
+  auto *RawTag = MemInst->getPointer<const uint8_t *>(RawTagPtr, WasiRawTagLen);
   checkExist(RawTag);
 
   auto *Size = MemInst->getPointer<__wasi_size_t *>(SizePtr);

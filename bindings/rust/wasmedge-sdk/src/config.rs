@@ -120,7 +120,7 @@ impl ConfigBuilder {
 /// The following code shows how to create a [Config] with [ConfigBuilder].
 ///
 /// ```rust
-/// use wasmedge::{config::{Config, ConfigBuilder, CommonConfigOptions, StatisticsConfigOptions, CompilerConfigOptions, RuntimeConfigOptions, HostRegistrationConfigOptions}};
+/// use wasmedge_sdk::{config::{Config, ConfigBuilder, CommonConfigOptions, StatisticsConfigOptions, CompilerConfigOptions, RuntimeConfigOptions, HostRegistrationConfigOptions}};
 /// use wasmedge_types::{CompilerOutputFormat, CompilerOptimizationLevel};
 ///
 /// let common_options = CommonConfigOptions::default()

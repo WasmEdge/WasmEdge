@@ -1,4 +1,4 @@
-use wasmedge::{
+use wasmedge_sdk::{
     config::{CommonConfigOptions, ConfigBuilder},
     params, Executor, Module, Store, WasmVal,
 };
@@ -52,15 +52,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // create a Store context
     let mut store = Store::new()?;
 
-    // register a wasm module as an active module into store.
-    let active_instance = store.register_active_module(&mut executor, &module)?;
+    // register a wasm module into the store context
+    let module_name = "extern";
+    let instance = store.register_named_module(&mut executor, module_name, &module)?;
 
-    // get the wasm function "fib"
-    let fib = active_instance
+    // get the wasm function named "fib"
+    let fib = instance
         .func("fib")
         .expect("Not found the wasm function named 'fib'.");
 
-    // call the wasm function
+    // call the host function
     let returns = fib.call(&mut executor, params!(5))?;
     assert_eq!(returns.len(), 1);
     assert_eq!(returns[0].to_i32(), 8);

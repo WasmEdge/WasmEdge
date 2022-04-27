@@ -1,6 +1,6 @@
 #![feature(explicit_generic_args_with_impl_trait)]
 
-use wasmedge::{params, Executor, ImportObjectBuilder, Module, Store};
+use wasmedge_sdk::{params, Executor, ImportObjectBuilder, Module, Store};
 use wasmedge_sys::WasmValue;
 use wasmedge_types::wat2wasm;
 

@@ -37,7 +37,7 @@ impl Statistics {
     /// for example,
     ///
     /// ```
-    /// use wasmedge::Statistics;
+    /// use wasmedge_sdk::Statistics;
     ///
     /// // create a Statistics instance
     /// let stat = Statistics::new().expect("fail to create a Statistics");

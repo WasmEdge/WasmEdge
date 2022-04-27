@@ -12,7 +12,7 @@ use wasmedge_types::{FuncType, ValType};
 /// The following example shows how to create a host function, and invoke it with a given executor.
 ///
 /// ```rust
-/// use wasmedge::{Func, Executor, params, WasmVal};
+/// use wasmedge_sdk::{Func, Executor, params, WasmVal};
 /// use wasmedge_sys::WasmValue;
 /// use wasmedge_types::ValType;
 ///
@@ -52,7 +52,7 @@ use wasmedge_types::{FuncType, ValType};
 /// let returns = result.unwrap();
 /// assert_eq!(returns[0].to_i32(), 5);
 /// ```
-/// [[Click for more examples]](https://github.com/WasmEdge/WasmEdge/tree/master/bindings/rust/wasmedge/examples)
+/// [[Click for more examples]](https://github.com/WasmEdge/WasmEdge/tree/master/bindings/rust/wasmedge-sdk/examples)
 ///
 #[derive(Debug)]
 pub struct Func {
@@ -206,7 +206,7 @@ impl FuncTypeBuilder {
 
 /// Defines a reference to a [host function](crate::Func).
 ///
-/// The [table_and_funcref](https://github.com/WasmEdge/WasmEdge/tree/master/bindings/rust/wasmedge/examples/table_and_funcref.rs) example presents how to obtain and use [FuncRef].
+/// The [table_and_funcref](https://github.com/WasmEdge/WasmEdge/tree/master/bindings/rust/wasmedge-sdk/examples/table_and_funcref.rs) example presents how to obtain and use [FuncRef].
 #[derive(Debug, Clone)]
 pub struct FuncRef {
     pub(crate) inner: sys::FuncRef,

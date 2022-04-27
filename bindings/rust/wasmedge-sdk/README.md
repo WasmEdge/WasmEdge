@@ -1,13 +1,15 @@
 # Overview
 
-The [wasmedge](https://crates.io/crates/wasmedge) crate defines a group of high-level Rust APIs, which are used to build up business applications.
+The [wasmedge-sdk](https://crates.io/crates/wasmedge-sdk) crate defines a group of high-level Rust APIs, which are used to build up business applications.
 
 ## Usage
 
-A quick-start example below is using `wasmedge` to run a WebAssembly module written with its WAT format (textual format):
+A quick-start example below is using `wasmedge-sdk` to run a WebAssembly module written with its WAT format (textual format):
 
   ```rust
-  use wasmedge::{Executor, FuncTypeBuilder, ImportObjectBuilder, Module, Store};
+  #![feature(explicit_generic_args_with_impl_trait)]
+
+  use wasmedge_sdk::{Executor, FuncTypeBuilder, ImportObjectBuilder, Module, Store};
   use wasmedge_sys::WasmValue;
   use wasmedge_types::wat2wasm;
   
@@ -41,11 +43,7 @@ A quick-start example below is using `wasmedge` to run a WebAssembly module writ
   
       // create an import module
       let import = ImportObjectBuilder::new()
-          .with_func(
-              "say_hello",
-              FuncTypeBuilder::default().build(),
-              Box::new(say_hello_world),
-          )?
+          .with_func::<(), ()>("say_hello", Box::new(say_hello_world))?
           .build("env")?;
   
       // loads a wasm module from the given in-memory bytes
@@ -74,7 +72,7 @@ A quick-start example below is using `wasmedge` to run a WebAssembly module writ
 
    ```
 
-   [[Click for more examples]](https://github.com/WasmEdge/WasmEdge/tree/master/bindings/rust/wasmedge/examples)
+   [[Click for more examples]](https://github.com/WasmEdge/WasmEdge/tree/master/bindings/rust/wasmedge-sdk/examples)
 
 ## See also
 

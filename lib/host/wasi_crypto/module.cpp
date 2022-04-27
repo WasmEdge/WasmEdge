@@ -11,7 +11,7 @@
 namespace WasmEdge {
 namespace Host {
 
-WasiCryptoModule::WasiCryptoModule() : ImportObject("wasi_ephemeral_crypto") {
+WasiCryptoModule::WasiCryptoModule() : ModuleInstance("wasi_ephemeral_crypto") {
   using namespace WasiCrypto;
   // common
   addHostFunc("array_output_len",

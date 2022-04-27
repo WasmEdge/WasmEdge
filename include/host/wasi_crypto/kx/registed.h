@@ -13,6 +13,7 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
+#include "host/wasi_crypto/kx/dh/ecdsa.h"
 #include "host/wasi_crypto/kx/dh/x25519.h"
 #include "host/wasi_crypto/utils/error.h"
 
@@ -30,7 +31,7 @@ template <typename... T> struct Registed {
   using Variant = std::variant<T...>;
 };
 
-using RegistedAlg = Registed<X25519>;
+using RegistedAlg = Registed<X25519, Ecdsa>;
 
 using Algorithm = RegistedAlg::Variant;
 

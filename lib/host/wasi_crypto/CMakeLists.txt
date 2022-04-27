@@ -14,6 +14,7 @@ wasmedge_add_library(wasmedgeHostModuleWasiCrypto
   common/func.cpp
   common/options.cpp
   kx/ctx.cpp
+  kx/dh/ecdsa.cpp
   kx/dh/x25519.cpp
   kx/func.cpp
   kx/kx.cpp

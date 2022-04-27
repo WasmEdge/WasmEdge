@@ -7,7 +7,7 @@ use std::{
     sync::{Arc, Mutex},
     thread,
 };
-use wasmedge::{
+use wasmedge_sdk::{
     config::{CommonConfigOptions, ConfigBuilder},
     params, Engine, Executor, Module, Statistics, Store, WasmVal,
 };

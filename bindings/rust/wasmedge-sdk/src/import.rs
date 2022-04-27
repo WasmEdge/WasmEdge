@@ -11,7 +11,7 @@ use wasmedge_types::FuncType;
 /// ```rust
 /// #![feature(explicit_generic_args_with_impl_trait)]
 ///
-/// use wasmedge::{
+/// use wasmedge_sdk::{
 ///     types::Val,
 ///     Global, ImportObjectBuilder, Memory, Table,
 /// };

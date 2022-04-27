@@ -1,4 +1,4 @@
-use wasmedge::{
+use wasmedge_sdk::{
     config::{CommonConfigOptions, ConfigBuilder},
     params,
     types::Val,

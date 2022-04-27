@@ -2,7 +2,7 @@
 
 #![feature(explicit_generic_args_with_impl_trait)]
 
-use wasmedge::{types::Val, Global, ImportObjectBuilder, Memory, Table};
+use wasmedge_sdk::{types::Val, Global, ImportObjectBuilder, Memory, Table};
 use wasmedge_sys::types::WasmValue;
 use wasmedge_types::{GlobalType, MemoryType, Mutability, RefType, TableType, ValType};
 

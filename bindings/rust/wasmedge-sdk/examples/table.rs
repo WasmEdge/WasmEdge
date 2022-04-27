@@ -1,4 +1,4 @@
-use wasmedge::{params, types::Val, Executor, Func, Module, Store, WasmVal};
+use wasmedge_sdk::{params, types::Val, Executor, Func, Module, Store, WasmVal};
 use wasmedge_sys::types::WasmValue;
 use wasmedge_types::{wat2wasm, RefType, TableType, ValType};
 

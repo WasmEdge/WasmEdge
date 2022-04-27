@@ -31,7 +31,6 @@ calculateAddrinfoLinkedListSize(struct addrinfo *const Addrinfo) {
   return Length;
 };
 
-// TODO: move isSocket to innode.h
 static bool isSocket(LPVOID H) {
   if (likely(::GetFileType(H) != FILE_TYPE_PIPE)) {
     return false;
@@ -596,16 +595,16 @@ WasiExpect<void> INode::sockGetOpt(__wasi_sock_opt_level_t SockOptLevel,
     int *WasiErrorPtr = static_cast<int *>(FlagPtr);
     if (auto Res = ::getsockopt(toSocket(Handle), SysSockOptLevel,
                                 SysSockOptName, &ErrorCode, UnsafeFlagSizePtr);
-        unlikely(Res < 0)) {
-      return WasiUnexpect(fromErrNo(errno));
+        unlikely(Res == SOCKET_ERROR)) {
+      return WasiUnexpect(fromWSALastError(WSAGetLastError()));
     }
     *WasiErrorPtr = fromErrNo(ErrorCode);
   } else {
     char *CFlagPtr = static_cast<char *>(FlagPtr);
     if (auto Res = ::getsockopt(toSocket(Handle), SysSockOptLevel,
                                 SysSockOptName, CFlagPtr, UnsafeFlagSizePtr);
-        unlikely(Res < 0)) {
-      return WasiUnexpect(fromErrNo(errno));
+        unlikely(Res == SOCKET_ERROR)) {
+      return WasiUnexpect(fromWSALastError(WSAGetLastError()));
     }
   }
 
@@ -623,8 +622,8 @@ WasiExpect<void> INode::sockSetOpt(__wasi_sock_opt_level_t SockOptLevel,
 
   if (auto Res = ::setsockopt(toSocket(Handle), SysSockOptLevel, SysSockOptName,
                               CFlagPtr, UnsafeFlagSize);
-      unlikely(Res < 0)) {
-    return WasiUnexpect(fromErrNo(errno));
+      unlikely(Res == SOCKET_ERROR)) {
+    return WasiUnexpect(fromWSALastError(WSAGetLastError()));
   }
 
   return {};

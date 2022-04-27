@@ -262,6 +262,121 @@ TEST(WasiTest, SocketUDP) {
   }
 }
 
+TEST(WasiTest, SockOpt) {
+  WasmEdge::Host::WASI::Environ Env;
+  WasmEdge::Runtime::Instance::MemoryInstance MemInst(
+      WasmEdge::AST::MemoryType(1));
+
+  WasmEdge::Host::WasiSockOpen WasiSockOpen(Env);
+  WasmEdge::Host::WasiSockGetOpt WasiSockGetOpt(Env);
+  WasmEdge::Host::WasiSockSetOpt WasiSockSetOpt(Env);
+  WasmEdge::Host::WasiFdClose WasiFdClose(Env);
+
+  std::array<WasmEdge::ValVariant, 1> Errno;
+
+  {
+    uint32_t AddressFamily = __WASI_ADDRESS_FAMILY_INET4;
+    uint32_t SockType = __WASI_SOCK_TYPE_SOCK_DGRAM;
+    uint32_t FdPtr = 0;
+    uint32_t ResBufSzPtr = 12;
+    uint32_t ResBufPtr = 24;
+    uint32_t ResMaxLen = 16;
+
+    writeDummyMemoryContent(MemInst);
+    WasiSockOpen.run(
+        &MemInst,
+        std::array<WasmEdge::ValVariant, 3>{AddressFamily, SockType, FdPtr},
+        Errno);
+    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
+    EXPECT_NE(*MemInst.getPointer<const uint32_t *>(FdPtr), UINT32_C(-1));
+
+    int32_t Fd = *MemInst.getPointer<const int32_t *>(FdPtr);
+
+    uint32_t OptLevel =
+        __wasi_sock_opt_level_t::__WASI_SOCK_OPT_LEVEL_SOL_SOCKET;
+    uint32_t OptName = __wasi_sock_opt_so_t::__WASI_SOCK_OPT_SO_TYPE;
+
+    auto ResBuf = MemInst.getPointer<uint8_t *>(ResBufPtr, ResMaxLen);
+    auto ResBufSz = MemInst.getPointer<uint32_t *>(ResBufSzPtr, 1);
+    *ResBufSz = ResMaxLen;
+    ::memset(ResBuf, 0x00, ResMaxLen);
+
+    WasiSockGetOpt.run(&MemInst,
+                       std::array<WasmEdge::ValVariant, 5>{
+                           Fd, OptLevel, OptName, ResBufPtr, ResBufSzPtr},
+                       Errno);
+
+    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
+    // XXX: WasiSockGetOpt return a native value (SOCK_DGRAM, 2), not the
+    // definition of the wasmedge (__WASI_SOCK_TYPE_SOCK_DGRAM, 0)
+    EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(ResBufPtr), SOCK_DGRAM);
+
+    WasiFdClose.run(&MemInst, std::array<WasmEdge::ValVariant, 1>{Fd}, Errno);
+    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
+    Env.fini();
+  }
+  {
+    uint32_t AddressFamily = __WASI_ADDRESS_FAMILY_INET4;
+    uint32_t SockType = __WASI_SOCK_TYPE_SOCK_DGRAM;
+    uint32_t FdPtr = 0;
+    uint32_t ResBufSzPtr = 12;
+    uint32_t ResBufPtr = 24;
+#if WASMEDGE_OS_WINDOWS
+    bool Opt = true;
+#else
+    int32_t Opt = 1;
+#endif
+    uint32_t ResMaxLen = sizeof(Opt);
+
+    writeDummyMemoryContent(MemInst);
+    WasiSockOpen.run(
+        &MemInst,
+        std::array<WasmEdge::ValVariant, 3>{AddressFamily, SockType, FdPtr},
+        Errno);
+    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
+    EXPECT_NE(*MemInst.getPointer<const uint32_t *>(FdPtr), UINT32_C(-1));
+
+    int32_t Fd = *MemInst.getPointer<const int32_t *>(FdPtr);
+
+    uint32_t OptLevel =
+        __wasi_sock_opt_level_t::__WASI_SOCK_OPT_LEVEL_SOL_SOCKET;
+    uint32_t OptName = __wasi_sock_opt_so_t::__WASI_SOCK_OPT_SO_BROADCAST;
+
+    auto ResBuf = MemInst.getPointer<decltype(&Opt)>(ResBufPtr, ResMaxLen);
+    auto ResBufSz = MemInst.getPointer<uint32_t *>(ResBufSzPtr, 1);
+    *ResBufSz = ResMaxLen;
+    ::memset(ResBuf, 0x00, ResMaxLen);
+
+    WasiSockGetOpt.run(&MemInst,
+                       std::array<WasmEdge::ValVariant, 5>{
+                           Fd, OptLevel, OptName, ResBufPtr, ResBufSzPtr},
+                       Errno);
+
+    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
+    EXPECT_EQ(*MemInst.getPointer<decltype(&Opt)>(ResBufPtr), false);
+
+    ResBuf[0] = true;
+    WasiSockSetOpt.run(&MemInst,
+                       std::array<WasmEdge::ValVariant, 5>{
+                           Fd, OptLevel, OptName, ResBufPtr, ResMaxLen},
+                       Errno);
+    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
+
+    ::memset(ResBuf, 0x00, ResMaxLen);
+    WasiSockGetOpt.run(&MemInst,
+                       std::array<WasmEdge::ValVariant, 5>{
+                           Fd, OptLevel, OptName, ResBufPtr, ResBufSzPtr},
+                       Errno);
+
+    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
+    EXPECT_EQ(*MemInst.getPointer<const bool *>(ResBufPtr), true);
+
+    WasiFdClose.run(&MemInst, std::array<WasmEdge::ValVariant, 1>{Fd}, Errno);
+    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
+    Env.fini();
+  }
+}
+
 TEST(WasiTest, GetAddrinfo) {
   WasmEdge::Host::WASI::Environ Env;
   WasmEdge::Runtime::Instance::MemoryInstance MemInst(

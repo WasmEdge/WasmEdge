@@ -48,6 +48,7 @@ using EcKeyPtr = OpenSSLUniquePtr<EC_KEY, EC_KEY_free>;
 using BnPtr = OpenSSLUniquePtr<BIGNUM, BN_free>;
 using EcPointPtr = OpenSSLUniquePtr<EC_POINT, EC_POINT_free>;
 using EcdsaSigPtr = OpenSSLUniquePtr<ECDSA_SIG, ECDSA_SIG_free>;
+using RsaPtr = OpenSSLUniquePtr<RSA, RSA_free>;
 
 /// openssl function always return 1 for success and 0/NULL for failure. This
 /// used to reduce repeat check

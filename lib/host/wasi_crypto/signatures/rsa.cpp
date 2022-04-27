@@ -6,6 +6,7 @@
 #include "host/wasi_crypto/utils/evp_wrapper.h"
 #include "openssl/rsa.h"
 #include "wasi_crypto/api.hpp"
+#include <openssl/evp.h>
 
 namespace WasmEdge {
 namespace Host {
@@ -160,13 +161,10 @@ Rsa<PadMode, KeyBits, ShaNid>::SecretKey::exportData(
 template <int PadMode, int KeyBits, int ShaNid>
 WasiCryptoExpect<typename Rsa<PadMode, KeyBits, ShaNid>::PublicKey>
 Rsa<PadMode, KeyBits, ShaNid>::SecretKey::publicKey() const noexcept {
-  BioPtr B{BIO_new(BIO_s_mem())};
-  opensslCheck(i2d_PUBKEY_bio(B.get(), Ctx.get()));
-
-  EVP_PKEY *Res = nullptr;
-  opensslCheck(d2i_PUBKEY_bio(B.get(), &Res));
-
-  return EvpPkeyPtr{Res};
+  RsaPtr RsaPubKey{RSAPublicKey_dup(EVP_PKEY_get0_RSA(Ctx.get()))};
+  EvpPkeyPtr Ret{EVP_PKEY_new()};
+  EVP_PKEY_set1_RSA(Ret.get(), RsaPubKey.get());
+  return Ret;
 }
 
 template <int PadMode, int KeyBits, int ShaNid>
@@ -274,26 +272,19 @@ Rsa<PadMode, KeyBits, ShaNid>::KeyPair::exportPkcs8() const noexcept {
 template <int PadMode, int KeyBits, int ShaNid>
 WasiCryptoExpect<typename Rsa<PadMode, KeyBits, ShaNid>::PublicKey>
 Rsa<PadMode, KeyBits, ShaNid>::KeyPair::publicKey() const noexcept {
-  BioPtr B{BIO_new(BIO_s_mem())};
-  opensslCheck(i2d_PUBKEY_bio(B.get(), Ctx.get()));
-
-  EVP_PKEY *Res = nullptr;
-  opensslCheck(d2i_PUBKEY_bio(B.get(), &Res));
-  ensureOrReturn(Res, __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
-
-  return EvpPkeyPtr{Res};
+  RsaPtr RsaPubKey{RSAPublicKey_dup(EVP_PKEY_get0_RSA(Ctx.get()))};
+  EvpPkeyPtr Ret{EVP_PKEY_new()};
+  EVP_PKEY_set1_RSA(Ret.get(), RsaPubKey.get());
+  return Ret;
 }
 
 template <int PadMode, int KeyBits, int ShaNid>
 WasiCryptoExpect<typename Rsa<PadMode, KeyBits, ShaNid>::SecretKey>
 Rsa<PadMode, KeyBits, ShaNid>::KeyPair::secretKey() const noexcept {
-  BioPtr B{BIO_new(BIO_s_mem())};
-  opensslCheck(i2d_PrivateKey_bio(B.get(), Ctx.get()));
-
-  EVP_PKEY *Res = nullptr;
-  opensslCheck(d2i_PrivateKey_bio(B.get(), &Res));
-
-  return EvpPkeyPtr{Res};
+  RsaPtr RsaPubKey{RSAPrivateKey_dup(EVP_PKEY_get0_RSA(Ctx.get()))};
+  EvpPkeyPtr Ret{EVP_PKEY_new()};
+  EVP_PKEY_set1_RSA(Ret.get(), RsaPubKey.get());
+  return Ret;
 }
 
 template <int PadMode, int KeyBits, int ShaNid>

@@ -14,12 +14,12 @@
 #pragma once
 
 #include "host/wasi_crypto/ctx.h"
-#include "runtime/importobj.h"
+#include "runtime/instance/module.h"
 
 namespace WasmEdge {
 namespace Host {
 
-class WasiCryptoModule : public Runtime::ImportObject {
+class WasiCryptoModule : public Runtime::Instance::ModuleInstance {
 public:
   WasiCryptoModule();
 

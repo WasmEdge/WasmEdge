@@ -67,7 +67,7 @@ void VM::unsafeInitVM() {
   }
 #ifdef WASMEDGE_BUILD_WASI_CRYPTO
   if (Conf.hasHostRegistration(HostRegistration::Wasi_Crypto)) {
-    std::unique_ptr<Runtime::ImportObject> WasiCryptoMod =
+    std::unique_ptr<Runtime::Instance::ModuleInstance> WasiCryptoMod =
         std::make_unique<Host::WasiCryptoModule>();
     ExecutorEngine.registerModule(StoreRef, *WasiCryptoMod.get());
     ImpObjs.insert({HostRegistration::Wasi_Crypto, std::move(WasiCryptoMod)});

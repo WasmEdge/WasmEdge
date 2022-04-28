@@ -101,8 +101,6 @@ ECDSA_SIG *d2iEcdsaSig(Span<const uint8_t> Encoded);
 
 WasiCryptoExpect<std::vector<uint8_t>> i2dEcdsaSig(ECDSA_SIG *Sig);
 
-WasiCryptoExpect<std::shared_ptr<std::vector<uint8_t>>>
-i2dEcdsaSigShared(ECDSA_SIG *Sig);
 // -------------------------------------------------------------------------  //
 
 // transform raw represent ecdsa ( r | s) to ECDSA_SIG, need check `nullptr`

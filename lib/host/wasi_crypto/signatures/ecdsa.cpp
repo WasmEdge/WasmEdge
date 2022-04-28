@@ -449,11 +449,10 @@ Ecdsa<CurveNid>::Signature::import(
                    __WASI_CRYPTO_ERRNO_INVALID_SIGNATURE);
     EcdsaSigPtr Sig{o2iEcdsaSig(Encoded)};
     ensureOrReturn(Sig, __WASI_CRYPTO_ERRNO_INVALID_SIGNATURE);
-    return i2dEcdsaSigShared(Sig.get());
+    return i2dEcdsaSig(Sig.get());
   }
   case __WASI_SIGNATURE_ENCODING_DER: {
-    return std::make_shared<std::vector<uint8_t>>(Encoded.begin(),
-                                                  Encoded.end());
+    return std::vector<uint8_t>(Encoded.begin(), Encoded.end());
   }
   default:
     assumingUnreachable();
@@ -465,12 +464,12 @@ WasiCryptoExpect<std::vector<uint8_t>> Ecdsa<CurveNid>::Signature::exportData(
     __wasi_signature_encoding_e_t Encoding) const noexcept {
   switch (Encoding) {
   case __WASI_SIGNATURE_ENCODING_RAW: {
-    EcdsaSigPtr Sig{d2iEcdsaSig(*Data)};
+    EcdsaSigPtr Sig{d2iEcdsaSig(Data)};
     ensureOrReturn(Sig, __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
     return i2oEcdsaSig(Sig.get());
   }
   case __WASI_SIGNATURE_ENCODING_DER: {
-    return *Data;
+    return Data;
   }
   default:
     assumingUnreachable();
@@ -490,8 +489,8 @@ Ecdsa<CurveNid>::SignState::sign() noexcept {
   size_t Size;
   opensslCheck(EVP_DigestSignFinal(Ctx.get(), nullptr, &Size));
 
-  auto Res = std::make_shared<std::vector<uint8_t>>(Size);
-  opensslCheck(EVP_DigestSignFinal(Ctx.get(), Res->data(), &Size));
+  auto Res = std::vector<uint8_t>(Size);
+  opensslCheck(EVP_DigestSignFinal(Ctx.get(), Res.data(), &Size));
 
   return Res;
 }

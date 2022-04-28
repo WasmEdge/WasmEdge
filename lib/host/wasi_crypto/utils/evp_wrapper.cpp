@@ -161,21 +161,6 @@ WasiCryptoExpect<std::vector<uint8_t>> i2dEcdsaSig(ECDSA_SIG *Sig) {
   return Res;
 }
 
-WasiCryptoExpect<std::shared_ptr<std::vector<uint8_t>>>
-i2dEcdsaSigShared(ECDSA_SIG *Sig) {
-  int SigSize = i2d_ECDSA_SIG(Sig, nullptr);
-  ensureOrReturn(SigSize >= 0, __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
-
-  auto Res =
-      std::make_shared<std::vector<uint8_t>>(static_cast<size_t>(SigSize));
-
-  auto *Data = Res->data();
-  auto NewSize = i2d_ECDSA_SIG(Sig, &Data);
-  ensureOrReturn(NewSize == SigSize, __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
-
-  return Res;
-}
-
 ECDSA_SIG *o2iEcdsaSig(Span<const uint8_t> Encoded) {
   BnPtr R{BN_bin2bn(Encoded.data(), Encoded.size() / 2, nullptr)};
   BnPtr S{BN_bin2bn(Encoded.data() + Encoded.size() / 2, Encoded.size() / 2,

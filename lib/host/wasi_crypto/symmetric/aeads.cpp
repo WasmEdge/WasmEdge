@@ -50,7 +50,7 @@ Cipher<CipherNid>::Key::generate(OptionalRef<const Options>) noexcept {
 template <int CipherNid>
 WasiCryptoExpect<typename Cipher<CipherNid>::Key>
 Cipher<CipherNid>::Key::import(Span<const uint8_t> Raw) noexcept {
-  return std::make_shared<SecretVec>(Raw);
+  return SecretVec{Raw};
 }
 
 template <int CipherNid>

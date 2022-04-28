@@ -57,14 +57,13 @@ public:
 
   /// Generate random size vector. Notice Size shouldn't beyond
   /// std::numeric_limits<int>::max() because of the limitations of openssl
-  template <size_t Size>
-  static WasiCryptoExpect<std::shared_ptr<SecretVec>> random() noexcept {
+  template <size_t Size> static WasiCryptoExpect<SecretVec> random() noexcept {
     static_assert(
         Size <= std::numeric_limits<int>::max(),
         "Random key size shouldn't beyond std::numeric_limits<int>::max()");
 
-    auto Res = std::make_shared<SecretVec>(Size);
-    ensureOrReturn(RAND_bytes(Res->data(), static_cast<int>(Size)),
+    SecretVec Res{Size};
+    ensureOrReturn(RAND_bytes(Res.data(), static_cast<int>(Size)),
                    __WASI_CRYPTO_ERRNO_RNG_ERROR);
     return Res;
   }

@@ -29,7 +29,7 @@ Hmac<ShaNid>::Key::generate(OptionalRef<const Options>) noexcept {
 template <int ShaNid>
 WasiCryptoExpect<typename Hmac<ShaNid>::Key>
 Hmac<ShaNid>::Key::import(Span<const uint8_t> Raw) noexcept {
-  return std::make_shared<SecretVec>(Raw);
+  return SecretVec{Raw};
 }
 
 template <int ShaNid>

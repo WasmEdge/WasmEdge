@@ -36,7 +36,7 @@ template <int ShaNid>
 WasiCryptoExpect<typename Hkdf<ShaNid>::Expand::Key>
 Hkdf<ShaNid>::Expand::Key::import(Span<const uint8_t> Raw) noexcept {
   ensureOrReturn(Raw.size() == getKeySize(), __WASI_CRYPTO_ERRNO_INVALID_KEY);
-  return std::make_shared<SecretVec>(Raw);
+  return SecretVec{Raw};
 }
 
 template <int ShaNid>
@@ -73,7 +73,7 @@ Hkdf<ShaNid>::Extract::Key::generate(OptionalRef<const Options>) noexcept {
 template <int ShaNid>
 WasiCryptoExpect<typename Hkdf<ShaNid>::Extract::Key>
 Hkdf<ShaNid>::Extract::Key::import(Span<const uint8_t> Raw) noexcept {
-  return std::make_shared<SecretVec>(Raw);
+  return SecretVec{Raw};
 }
 
 template <int ShaNid>
@@ -100,11 +100,10 @@ Hkdf<ShaNid>::Extract::State::squeezeKey() noexcept {
   opensslCheck(EVP_PKEY_CTX_set1_hkdf_salt(Ctx->RawCtx.get(), Ctx->Salt.data(),
                                            Ctx->Salt.size()));
 
-  auto Data = std::make_shared<SecretVec>(getKeySize());
+  SecretVec Data{getKeySize()};
 
   size_t ActualOutSize;
-  opensslCheck(
-      EVP_PKEY_derive(Ctx->RawCtx.get(), Data->data(), &ActualOutSize));
+  opensslCheck(EVP_PKEY_derive(Ctx->RawCtx.get(), Data.data(), &ActualOutSize));
   ensureOrReturn(ActualOutSize == getKeySize(),
                  __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
 

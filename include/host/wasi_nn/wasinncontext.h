@@ -12,16 +12,13 @@
 namespace WasmEdge {
 namespace Host {
 namespace WASINN {
-using NNErrNo = uint32_t;
 
-// No error occurred.
-const NNErrNo Success = 0;
-// Caller module passed an invalid argument.
-const NNErrNo InvalidArgument = 1;
-// Caller module is missing a memory export.
-const NNErrNo MissingMemory = 2;
-// Device or resource busy.
-const NNErrNo Busy = 3;
+enum ErrNo {
+  Success = 0,         // No error occurred.
+  InvalidArgument = 1, // Caller module passed an invalid argument.
+  MissingMemory = 2,   // Caller module is missing a memory export.
+  Busy = 3             // Device or resource busy.
+};
 
 using Graph = uint32_t;
 using GraphEncoding = uint8_t;
@@ -57,7 +54,9 @@ public:
       ie_exec_network_free(&I);
     }
     for (auto &I : OpenVINOInfers) {
-      delete I;
+      if (I != nullptr) {
+        delete I;
+      }
     }
     for (auto &I : OpenVINOModelWeights) {
       if (I != nullptr) {

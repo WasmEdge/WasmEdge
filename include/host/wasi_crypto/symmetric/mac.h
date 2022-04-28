@@ -87,19 +87,19 @@ template <int ShaNid> class Hmac {
 public:
   class Key {
   public:
-    Key(std::shared_ptr<SecretVec> Data) noexcept : Data(std::move(Data)) {}
+    Key(SecretVec Data) noexcept : Data(std::move(Data)) {}
 
     static WasiCryptoExpect<Key> import(Span<const uint8_t> Data) noexcept;
 
     static WasiCryptoExpect<Key>
     generate(OptionalRef<const Options> Options) noexcept;
 
-    SecretVec exportData() const noexcept { return *Data; }
+    SecretVec exportData() const noexcept { return Data; }
 
-    const SecretVec &ref() const noexcept { return *Data; }
+    const SecretVec &ref() const noexcept { return Data; }
 
   private:
-    std::shared_ptr<SecretVec> Data;
+    SecretVec Data;
   };
 
   class State : public MacState<Key> {

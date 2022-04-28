@@ -29,7 +29,7 @@ template <int CurveNid> class Ecdsa {
 public:
   class Signature {
   public:
-    Signature(std::shared_ptr<std::vector<uint8_t>> Data) noexcept
+    Signature(std::vector<uint8_t> Data) noexcept
         : Data(std::move(Data)) {}
 
     static WasiCryptoExpect<Signature>
@@ -39,11 +39,11 @@ public:
     WasiCryptoExpect<std::vector<uint8_t>>
     exportData(__wasi_signature_encoding_e_t Encoding) const noexcept;
 
-    const std::vector<uint8_t> &ref() const { return *Data; }
+    const std::vector<uint8_t> &ref() const { return Data; }
 
   private:
     // Inner represent as der.
-    std::shared_ptr<std::vector<uint8_t>> Data;
+    std::vector<uint8_t> Data;
   };
 
   class SignState {

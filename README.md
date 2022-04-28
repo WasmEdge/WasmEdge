@@ -73,7 +73,7 @@ If you have any questions, feel free to open a GitHub issue on a related project
 
 We host a monthly community meeting to showcase new features, demo new use cases, and a Q&A part. Everyone is welcome!
 
-Time: The first Thuesday of each month at 11PM Hong Kong Time/ 7AM PST.
+Time: The first Tuesday of each month at 11PM Hong Kong Time/ 7AM PST.
 
 [Public meeting agenda/notes](https://docs.google.com/document/d/1iFlVl7R97Lze4RDykzElJGDjjWYDlkI8Rhf8g4dQ5Rk/edit#) | [Zoom link](https://us06web.zoom.us/j/88282362606?pwd=UFhOdzlVKyswdW43c21BKy9DdkdyUT09)
 

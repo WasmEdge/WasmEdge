@@ -162,9 +162,13 @@ WasiCryptoExpect<std::vector<uint8_t>> i2dEcdsaSig(ECDSA_SIG *Sig) {
 }
 
 ECDSA_SIG *o2iEcdsaSig(Span<const uint8_t> Encoded) {
-  BnPtr R{BN_bin2bn(Encoded.data(), Encoded.size() / 2, nullptr)};
-  BnPtr S{BN_bin2bn(Encoded.data() + Encoded.size() / 2, Encoded.size() / 2,
-                    nullptr)};
+  if (Encoded.size() > std::numeric_limits<int>::max()) {
+    return nullptr;
+  }
+  int EncodedSize = static_cast<int>(Encoded.size());
+  BnPtr R{BN_bin2bn(Encoded.data(), EncodedSize / 2, nullptr)};
+  BnPtr S{
+      BN_bin2bn(Encoded.data() + EncodedSize / 2, EncodedSize / 2, nullptr)};
   EcdsaSigPtr Sig{ECDSA_SIG_new()};
   if (!ECDSA_SIG_set0(Sig.get(), R.release(), S.release())) {
     return nullptr;

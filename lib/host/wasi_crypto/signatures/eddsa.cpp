@@ -202,8 +202,7 @@ Eddsa::Signature::import(Span<const uint8_t> Encoded,
   case __WASI_SIGNATURE_ENCODING_RAW:
     ensureOrReturn(Encoded.size() == SigSize,
                    __WASI_CRYPTO_ERRNO_INVALID_SIGNATURE);
-    return std::vector<uint8_t>(Encoded.begin(),
-                                                  Encoded.end());
+    return std::vector<uint8_t>(Encoded.begin(), Encoded.end());
   default:
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_UNSUPPORTED_ENCODING);
   }

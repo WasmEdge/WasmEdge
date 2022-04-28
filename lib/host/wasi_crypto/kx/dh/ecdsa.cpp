@@ -394,7 +394,6 @@ WasiCryptoExpect<SecretVec> Ecdsa::KeyPair::exportRaw() const noexcept {
   return Res;
 }
 
-
 } // namespace Kx
 } // namespace WasiCrypto
 } // namespace Host

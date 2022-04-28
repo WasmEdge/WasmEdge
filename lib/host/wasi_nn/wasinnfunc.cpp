@@ -163,7 +163,8 @@ Expect<uint32_t> WasiNNLoad::body(Runtime::Instance::MemoryInstance *MemInst,
 
 Expect<uint32_t>
 WasiNNInitExecCtx::body(Runtime::Instance::MemoryInstance *MemInst,
-                        uint32_t GraphId, uint32_t ContextPtr) {
+                        uint32_t GraphId,
+                        uint32_t ContextPtr [[maybe_unused]]) {
   if (MemInst == nullptr) {
     return Unexpect(ErrCode::ExecutionFailed);
   }

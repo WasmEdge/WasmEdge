@@ -13,7 +13,7 @@ namespace WasmEdge {
 namespace Host {
 namespace WASINN {
 
-enum ErrNo {
+enum class ErrNo : uint32_t {
   Success = 0,         // No error occurred.
   InvalidArgument = 1, // Caller module passed an invalid argument.
   MissingMemory = 2,   // Caller module is missing a memory export.

@@ -14,6 +14,7 @@
 #pragma once
 
 #include "common/span.h"
+#include "host/wasi_crypto/asymmetric_common/ecdsa.h"
 #include "host/wasi_crypto/signatures/options.h"
 #include "host/wasi_crypto/utils/error.h"
 #include "host/wasi_crypto/utils/evp_wrapper.h"
@@ -27,6 +28,11 @@ namespace Signatures {
 
 template <int CurveNid> class Ecdsa {
 public:
+  class PublicKey;
+  class KeyPair;
+  class SecretKey;
+  using Base =
+      AsymmetricCommon::Ecdsa<CurveNid, PublicKey, SecretKey, KeyPair, Options>;
   class Signature {
   public:
     Signature(std::vector<uint8_t> Data) noexcept : Data(std::move(Data)) {}
@@ -69,126 +75,23 @@ public:
     std::shared_ptr<EVP_MD_CTX> Ctx;
   };
 
-  class PublicKey {
+  class PublicKey : public Base::PublicKeyBase {
   public:
-    PublicKey(EvpPkeyPtr Ctx) noexcept : Ctx(std::move(Ctx)) {}
-
-    static WasiCryptoExpect<PublicKey>
-    import(Span<const uint8_t> Encoded,
-           __wasi_publickey_encoding_e_t Encoding) noexcept;
-
-    WasiCryptoExpect<std::vector<uint8_t>>
-    exportData(__wasi_publickey_encoding_e_t Encoding) const noexcept;
-
-    WasiCryptoExpect<void> verify() const noexcept;
+    using Base::PublicKeyBase::PublicKeyBase;
 
     WasiCryptoExpect<VerificationState> openVerificationState() const noexcept;
-
-  private:
-    static WasiCryptoExpect<PublicKey> importPkcs8(Span<const uint8_t> EncodeSd,
-                                                   bool Compressed) noexcept;
-
-    static WasiCryptoExpect<PublicKey> importPem(Span<const uint8_t> Encoded,
-                                                 bool Compressed) noexcept;
-
-    static WasiCryptoExpect<PublicKey> importSec(Span<const uint8_t> Encoded,
-                                                 bool Compressed) noexcept;
-
-    static WasiCryptoExpect<EvpPkeyPtr> checkValid(EvpPkeyPtr Ctx,
-                                                   bool Compressed) noexcept;
-
-    WasiCryptoExpect<std::vector<uint8_t>>
-    exportSec(bool Compressed) const noexcept;
-
-    WasiCryptoExpect<std::vector<uint8_t>>
-    exportPem(bool Compressed) const noexcept;
-
-    WasiCryptoExpect<std::vector<uint8_t>>
-    exportPkcs8(bool Compressed) const noexcept;
-
-    std::shared_ptr<EVP_PKEY> Ctx;
   };
 
-  class KeyPair;
-
-  class SecretKey {
+  class SecretKey : public Base::SecretKeyBase {
   public:
-    SecretKey(EvpPkeyPtr Ctx) noexcept : Ctx(std::move(Ctx)) {}
-
-    static WasiCryptoExpect<SecretKey>
-    import(Span<const uint8_t> Encoded,
-           __wasi_secretkey_encoding_e_t Encoding) noexcept;
-
-    WasiCryptoExpect<SecretVec>
-    exportData(__wasi_secretkey_encoding_e_t Encoding) const noexcept;
-
-    WasiCryptoExpect<PublicKey> publicKey() const noexcept;
-
-    WasiCryptoExpect<KeyPair> toKeyPair(const PublicKey &Pk) const noexcept;
-
-  private:
-    static WasiCryptoExpect<SecretKey>
-    importPkcs8(Span<const uint8_t> Encoded) noexcept;
-
-    static WasiCryptoExpect<SecretKey>
-    importPem(Span<const uint8_t> Encoded) noexcept;
-
-    static WasiCryptoExpect<SecretKey>
-    importRaw(Span<const uint8_t> Encoded) noexcept;
-
-    static WasiCryptoExpect<EvpPkeyPtr> checkValid(EvpPkeyPtr Ctx) noexcept;
-
-    WasiCryptoExpect<SecretVec> exportPkcs8() const noexcept;
-
-    WasiCryptoExpect<SecretVec> exportPem() const noexcept;
-
-    WasiCryptoExpect<SecretVec> exportRaw() const noexcept;
-
-    std::shared_ptr<EVP_PKEY> Ctx;
+    using Base::SecretKeyBase::SecretKeyBase;
   };
 
-  class KeyPair {
+  class KeyPair : public Base::KeyPairBase {
   public:
-    KeyPair(EvpPkeyPtr Ctx) noexcept : Ctx(std::move(Ctx)) {}
-
-    static WasiCryptoExpect<KeyPair>
-    generate(OptionalRef<const Options> Options) noexcept;
-
-    static WasiCryptoExpect<KeyPair>
-    import(Span<const uint8_t> Encoded,
-           __wasi_keypair_encoding_e_t Encoding) noexcept;
-
-    static WasiCryptoExpect<EvpPkeyPtr> checkValid(EvpPkeyPtr Ctx,
-                                                   bool Compressed) noexcept;
-
-    WasiCryptoExpect<SecretVec>
-    exportData(__wasi_keypair_encoding_e_t Encoding) const noexcept;
-
-    WasiCryptoExpect<PublicKey> publicKey() const noexcept;
-
-    WasiCryptoExpect<SecretKey> secretKey() const noexcept;
+    using Base::KeyPairBase::KeyPairBase;
 
     WasiCryptoExpect<SignState> openSignState() const noexcept;
-
-  private:
-    static WasiCryptoExpect<KeyPair> importPkcs8(Span<const uint8_t> Encoded,
-                                                 bool Compressed) noexcept;
-
-    static WasiCryptoExpect<KeyPair> importPem(Span<const uint8_t> Encoded,
-                                               bool Compressed) noexcept;
-
-    static WasiCryptoExpect<KeyPair>
-    importRaw(Span<const uint8_t> Encoded) noexcept;
-
-    static WasiCryptoExpect<EvpPkeyPtr> checkValid(EvpPkeyPtr Ctx) noexcept;
-
-    WasiCryptoExpect<SecretVec> exportPkcs8() const noexcept;
-
-    WasiCryptoExpect<SecretVec> exportPem() const noexcept;
-
-    WasiCryptoExpect<SecretVec> exportRaw() const noexcept;
-
-    std::shared_ptr<EVP_PKEY> Ctx;
   };
 };
 

@@ -41,7 +41,7 @@ public:
   public:
     using Base::PublicKeyBase::PublicKeyBase;
 
-    const auto &raw() const { return Ctx; };
+    const auto &raw() const { return Ctx; }
   };
 
   class SecretKey : public Base::SecretKeyBase {

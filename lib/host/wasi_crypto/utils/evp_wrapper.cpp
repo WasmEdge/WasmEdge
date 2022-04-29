@@ -162,7 +162,7 @@ WasiCryptoExpect<std::vector<uint8_t>> i2dEcdsaSig(ECDSA_SIG *Sig) {
 }
 
 ECDSA_SIG *o2iEcdsaSig(Span<const uint8_t> Encoded) {
-  if (Encoded.size() > std::numeric_limits<int>::max()) {
+  if (Encoded.size() > static_cast<size_t>(std::numeric_limits<int>::max())) {
     return nullptr;
   }
   int EncodedSize = static_cast<int>(Encoded.size());

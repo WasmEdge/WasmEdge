@@ -5,7 +5,7 @@ use wasmedge_types::{FuncType, ValType};
 
 /// Defines a wasm function instance.
 ///
-/// A WasmEdge [Func] is a wasm function instance, which is a closure of the original function (defined in either the host or the WebAssembly module) over the runtime [module instance](crate::Instance) of its originating [module](crate::Module).
+/// A WasmEdge [Func] is a wasm function instance, which is a "wrapper" of the original function (defined in either the host or the WebAssembly module) over the runtime [module instance](crate::Instance) of its originating [module](crate::Module).
 ///
 /// # Example
 ///

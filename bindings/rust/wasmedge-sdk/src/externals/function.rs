@@ -3,9 +3,9 @@ use crate::{io::WasmValTypeList, Engine, HostFunc, WasmEdgeResult};
 use wasmedge_sys::{self as sys, WasmValue};
 use wasmedge_types::{FuncType, ValType};
 
-/// Defines a host function.
+/// Defines a wasm function instance.
 ///
-/// A WasmEdge [Func] represents a host function. A host function is a function defined outside WASM module and passed to it.
+/// A WasmEdge [Func] is a wasm function instance, which is a closure of the original function (defined in either the host or the WebAssembly module) over the runtime [module instance](crate::Instance) of its originating [module](crate::Module).
 ///
 /// # Example
 ///

@@ -44,14 +44,15 @@ Expect<uint32_t> WasiNNLoad::body(Runtime::Instance::MemoryInstance *MemInst,
 
   if (Encoding == Ctx.BackendsMapping.at("OpenVINO")) {
 #ifdef WASMEDGE_WASINN_BUILD_OPENVINO
-    uint32_t *GraphBuilders = MemInst->getPointer<uint32_t *>(BuilderPtr, 1);
-    uint32_t *GraphId = MemInst->getPointer<uint32_t *>(GraphPtr, 1);
-
     if (BuilderLen != 2) {
       spdlog::error("[WASI-NN] Wrong GraphBuilder Length {:d}, expecting 2",
                     BuilderLen);
       return static_cast<uint32_t>(WASINN::ErrNo::InvalidArgument);
     }
+    uint32_t *GraphBuilders =
+        MemInst->getPointer<uint32_t *>(BuilderPtr, BuilderLen * 2);
+    uint32_t *GraphId = MemInst->getPointer<uint32_t *>(GraphPtr, 1);
+
     IEStatusCode Status;
     if (Ctx.OpenVINOCore == nullptr) {
       Status = ie_core_create("", &Ctx.OpenVINOCore);
@@ -72,15 +73,12 @@ Expect<uint32_t> WasiNNLoad::body(Runtime::Instance::MemoryInstance *MemInst,
 
     uint32_t XMLStringLen = GraphBuilders[1];
     uint32_t WeightBinsLen = GraphBuilders[3];
-    uint8_t *XMLPtr = MemInst->getPointer<uint8_t *>(GraphBuilders[0], 1);
-    uint8_t *BinPtr = MemInst->getPointer<uint8_t *>(GraphBuilders[2], 1);
-    std::vector<uint8_t> XMLStrings(XMLPtr, XMLPtr + XMLStringLen);
-    std::vector<uint8_t> WeightBins(BinPtr, BinPtr + WeightBinsLen);
-    spdlog::debug("[WASI-NN] read xml length {:d}", XMLStrings.size());
-    spdlog::debug("[WASI-NN] read bin length {:d}", WeightBins.size());
-
+    uint8_t *XMLPtr =
+        MemInst->getPointer<uint8_t *>(GraphBuilders[0], XMLStringLen);
+    uint8_t *BinPtr =
+        MemInst->getPointer<uint8_t *>(GraphBuilders[2], WeightBinsLen);
     tensor_desc_t WeightsDesc{
-        layout_e::ANY, {1, {WeightBins.size()}}, precision_e::U8};
+        layout_e::ANY, {1, {WeightBinsLen}}, precision_e::U8};
     ie_blob_t *WeightsBlob = nullptr;
     ie_blob_buffer_t BlobCBuffer;
 
@@ -98,17 +96,15 @@ Expect<uint32_t> WasiNNLoad::body(Runtime::Instance::MemoryInstance *MemInst,
           Status);
       return static_cast<uint32_t>(WASINN::ErrNo::MissingMemory);
     }
-    uint8_t *BlobData = const_cast<uint8_t *>(
-        static_cast<uint8_t const *>(BlobCBuffer.cbuffer));
-    for (size_t I = 0; I < WeightBins.size(); I++) {
-      BlobData[I] = WeightBins[I];
+    uint8_t *BlobData = static_cast<uint8_t *>(BlobCBuffer.buffer);
+    for (size_t I = 0; I < WeightBinsLen; I++) {
+      BlobData[I] = BinPtr[I];
     }
 
     ie_network_t *Network = nullptr;
     ie_executable_network_t *ExeNetwork = nullptr;
     Status = ie_core_read_network_from_memory(
-        Ctx.OpenVINOCore, XMLStrings.data(), XMLStrings.size(), WeightsBlob,
-        &Network);
+        Ctx.OpenVINOCore, XMLPtr, XMLStringLen, WeightsBlob, &Network);
     if (Status != IEStatusCode::OK || Network == nullptr) {
       spdlog::error("[WASI-NN] Unable to create Network");
       return static_cast<uint32_t>(WASINN::ErrNo::Busy);
@@ -116,7 +112,7 @@ Expect<uint32_t> WasiNNLoad::body(Runtime::Instance::MemoryInstance *MemInst,
 
     size_t NetworkInputSize;
     Status = ie_network_get_inputs_number(Network, &NetworkInputSize);
-    // TODO this is a temporary workaround. We need a more eligant way to
+    // FIXME: this is a temporary workaround. We need a more eligant way to
     // specify the layout in the long run. However, without this newer versions
     // of OpenVINO will fail due to parameter mismatch.
     for (size_t I = 0; I < NetworkInputSize; I++) {
@@ -134,7 +130,7 @@ Expect<uint32_t> WasiNNLoad::body(Runtime::Instance::MemoryInstance *MemInst,
       }
     }
 
-    ie_config_t Config = {NULL, NULL, NULL};
+    ie_config_t Config = {nullptr, nullptr, nullptr};
     Status = ie_core_load_network(Ctx.OpenVINOCore, Network, DeviceName.c_str(),
                                   &Config, &ExeNetwork);
     if (Status != IEStatusCode::OK || ExeNetwork == nullptr) {
@@ -240,11 +236,13 @@ WasiNNSetInput::body(Runtime::Instance::MemoryInstance *MemInst,
     }
 
     uint32_t *Tensor = MemInst->getPointer<uint32_t *>(TensorPtr, 5);
-    uint32_t *DimensionBuf = MemInst->getPointer<uint32_t *>(Tensor[0]);
     uint32_t DimensionLen = Tensor[1];
+    uint32_t *DimensionBuf =
+        MemInst->getPointer<uint32_t *>(Tensor[0], DimensionLen);
     uint32_t RType = Tensor[2];
-    uint8_t *TensorDataBuf = MemInst->getPointer<uint8_t *>(Tensor[3]);
     uint32_t TensorDataLen = Tensor[4];
+    uint8_t *TensorDataBuf =
+        MemInst->getPointer<uint8_t *>(Tensor[3], TensorDataLen);
     if (RType != 1) {
       spdlog::error(
           "[WASI-NN] Only F32 inputs and outputs are supported for now");
@@ -321,8 +319,7 @@ WasiNNSetInput::body(Runtime::Instance::MemoryInstance *MemInst,
       return static_cast<uint32_t>(WASINN::ErrNo::MissingMemory);
     }
 
-    float *BlobData =
-        const_cast<float *>(static_cast<float const *>(BlobCBuffer.cbuffer));
+    float *BlobData = static_cast<float *>(BlobCBuffer.buffer);
     float *CastedTensorDataBuf = reinterpret_cast<float *>(TensorDataBuf);
     for (size_t I = 0; I < (TensorDataLen / 4); I++) {
       BlobData[I] = CastedTensorDataBuf[I];
@@ -370,8 +367,6 @@ WasiNNGetOuput::body(Runtime::Instance::MemoryInstance *MemInst,
 #ifdef WASMEDGE_WASINN_BUILD_OPENVINO
     uint8_t *OutBufferPtr;
     uint32_t *BytesWritten;
-    OutBufferPtr = MemInst->getPointer<uint8_t *>(OutBuffer, 1);
-    BytesWritten = MemInst->getPointer<uint32_t *>(BytesWrittenPtr, 1);
 
     IEStatusCode Status;
     WASINN::OpenVINOSession *Session = Ctx.OpenVINOInfers[Context];
@@ -417,17 +412,18 @@ WasiNNGetOuput::body(Runtime::Instance::MemoryInstance *MemInst,
       ie_blob_free(&OutputBlob);
       return static_cast<uint32_t>(WASINN::ErrNo::MissingMemory);
     }
-    float *BlobData =
-        const_cast<float *>(static_cast<float const *>(BlobCBuffer.cbuffer));
+    float *BlobData = static_cast<float *>(BlobCBuffer.buffer);
     size_t BytesToWrite = BlobSize * 4;
     if (BytesToWrite > OutBufferMaxSize) {
       BytesToWrite = OutBufferMaxSize;
     }
     uint8_t *CastedOutputData = reinterpret_cast<uint8_t *>(BlobData);
 
+    OutBufferPtr = MemInst->getPointer<uint8_t *>(OutBuffer, BytesToWrite);
     for (size_t I = 0; I < BytesToWrite; I++) {
       OutBufferPtr[I] = CastedOutputData[I];
     }
+    BytesWritten = MemInst->getPointer<uint32_t *>(BytesWrittenPtr, 1);
     *BytesWritten = BytesToWrite;
     ie_network_name_free(&OutputName);
     ie_blob_free(&OutputBlob);

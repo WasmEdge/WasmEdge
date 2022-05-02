@@ -1109,7 +1109,6 @@ TEST(APICoreTest, ExecutorWithStatistics) {
   EXPECT_NE(ExecCxt, nullptr);
   WasmEdge_ExecutorDelete(nullptr);
   EXPECT_TRUE(true);
-  WasmEdge_ConfigureDelete(Conf);
 
   // Register import object
   WasmEdge_ModuleInstanceContext *HostMod = createExternModule("extern");
@@ -1382,6 +1381,7 @@ TEST(APICoreTest, ExecutorWithStatistics) {
   WasmEdge_StatisticsClear(nullptr);
   EXPECT_TRUE(true);
 
+  WasmEdge_ConfigureDelete(Conf);
   WasmEdge_ExecutorDelete(ExecCxt);
   WasmEdge_StoreDelete(Store);
   WasmEdge_StatisticsDelete(Stat);

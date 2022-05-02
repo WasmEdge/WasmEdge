@@ -11,8 +11,10 @@
 #include <c_api/ie_c_api.h>
 #include <string>
 #endif
+
 namespace WasmEdge {
 namespace Host {
+
 #ifdef WASMEDGE_WASINN_BUILD_OPENVINO
 namespace {
 const std::string mapTargetToString(uint32_t Target) {

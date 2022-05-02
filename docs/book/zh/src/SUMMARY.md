@@ -57,6 +57,8 @@
     - [API 参考文档](embed/go/ref.md)
   - [Node.js SDK](embed/node.md)
   - [Rust SDK](embed/rust.md)
+    - [使用 WasmEdge 底层 Rust API 运行 WebAssembly 函数](embed/rust/sys_run_host_func.md)
+    - [并行计算斐波那契数](embed/rust/concurrent_fib.md)
   - [Python SDK](embed/python.md)
 
 - [用 Kubernetes 管理 WasmEdge 应用](kubernetes.md)

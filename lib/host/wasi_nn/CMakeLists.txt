@@ -18,6 +18,6 @@ endif()
 
 target_link_libraries(wasmedgeHostModuleWasiNN
   PUBLIC
-  "wasmedgeCommon"
-  "wasmedgeSystem"
+  wasmedgeCommon
+  wasmedgeSystem
 )

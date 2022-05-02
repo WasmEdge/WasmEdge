@@ -7,7 +7,7 @@
 namespace WasmEdge {
 namespace Host {
 
-WasiNNModule::WasiNNModule() : ImportObject("wasi_ephemeral_nn") {
+WasiNNModule::WasiNNModule() : ModuleInstance("wasi_ephemeral_nn") {
   Ctx.BackendsMapping.emplace("OpenVINO",
                               static_cast<WASINN::GraphEncoding>(0));
 

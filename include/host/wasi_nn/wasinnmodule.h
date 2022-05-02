@@ -4,12 +4,12 @@
 #pragma once
 
 #include "host/wasi_nn/wasinncontext.h"
-#include "runtime/importobj.h"
+#include "runtime/instance/module.h"
 
 namespace WasmEdge {
 namespace Host {
 
-class WasiNNModule : public Runtime::ImportObject {
+class WasiNNModule : public Runtime::Instance::ModuleInstance {
 public:
   WasiNNModule();
 

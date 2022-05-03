@@ -50,14 +50,18 @@ void VM::unsafeInitVM() {
   }
   uint8_t Index = static_cast<uint8_t>(HostRegistration::Max);
   for (const auto &Plugin : Plugin::Plugin::plugins()) {
+    if (Conf.isForbiddenPlugins(Plugin.name())) {
+      continue;
+    }
     // skip WasmEdge_Process
     if (Plugin.name() == "wasmedge_process"sv) {
       continue;
     }
     for (const auto &Module : Plugin.modules()) {
-      auto Mod = Module.create();
-      ExecutorEngine.registerModule(StoreRef, *Mod);
-      ImpObjs.emplace(static_cast<HostRegistration>(Index++), std::move(Mod));
+      auto ModObj = Module.create();
+      ExecutorEngine.registerModule(StoreRef, *ModObj);
+      ImpObjs.emplace(static_cast<HostRegistration>(Index++),
+                      std::move(ModObj));
     }
   }
 }

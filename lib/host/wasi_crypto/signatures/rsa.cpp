@@ -328,13 +328,12 @@ WasiCryptoExpect<void> Rsa<PadMode, KeyBits, ShaNid>::SignState::update(
 template <int PadMode, int KeyBits, int ShaNid>
 WasiCryptoExpect<typename Rsa<PadMode, KeyBits, ShaNid>::Signature>
 Rsa<PadMode, KeyBits, ShaNid>::SignState::sign() noexcept {
-  size_t Size;
-  opensslCheck(EVP_DigestSignFinal(Ctx.get(), nullptr, &Size));
-
-  auto Res = std::vector<uint8_t>(Size);
+  size_t Size = getSigSize();
+  std::vector<uint8_t> Res(Size);
 
   opensslCheck(EVP_DigestSignFinal(Ctx.get(), Res.data(), &Size));
-
+  ensureOrReturn(Size == getSigSize(), __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
+  
   return Res;
 }
 

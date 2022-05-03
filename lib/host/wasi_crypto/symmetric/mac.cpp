@@ -4,6 +4,8 @@
 #include "host/wasi_crypto/symmetric/mac.h"
 #include "host/wasi_crypto/utils/secret_vec.h"
 #include "openssl/rand.h"
+#include <mutex>
+#include <shared_mutex>
 
 namespace WasmEdge {
 namespace Host {
@@ -50,7 +52,10 @@ Hmac<ShaNid>::State::open(const Key &Key, OptionalRef<const Options>) noexcept {
 template <int ShaNid>
 WasiCryptoExpect<void>
 Hmac<ShaNid>::State::absorb(Span<const uint8_t> Data) noexcept {
-  opensslCheck(EVP_DigestSignUpdate(Ctx.get(), Data.data(), Data.size()));
+  std::scoped_lock Lock{Ctx->Mutex};
+
+  opensslCheck(
+      EVP_DigestSignUpdate(Ctx->RawCtx.get(), Data.data(), Data.size()));
   return {};
 }
 
@@ -59,7 +64,12 @@ WasiCryptoExpect<Tag> Hmac<ShaNid>::State::squeezeTag() noexcept {
   SecretVec Res(getKeySize());
 
   size_t ActualOutSize;
-  opensslCheck(EVP_DigestSignFinal(Ctx.get(), Res.data(), &ActualOutSize));
+  {
+    std::scoped_lock Lock{Ctx->Mutex};
+    opensslCheck(
+        EVP_DigestSignFinal(Ctx->RawCtx.get(), Res.data(), &ActualOutSize));
+  }
+
   ensureOrReturn(ActualOutSize == getKeySize(),
                  __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
   return Res;

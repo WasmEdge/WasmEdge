@@ -76,7 +76,9 @@ WasiCryptoExpect<std::vector<uint8_t>> Ecdsa<CurveNid>::Signature::exportData(
 template <int CurveNid>
 WasiCryptoExpect<void>
 Ecdsa<CurveNid>::SignState::update(Span<const uint8_t> Data) noexcept {
-  opensslCheck(EVP_DigestSignUpdate(Ctx.get(), Data.data(), Data.size()));
+  std::scoped_lock Lock{Ctx->Mutex};
+  opensslCheck(
+      EVP_DigestSignUpdate(Ctx->RawCtx.get(), Data.data(), Data.size()));
   return {};
 }
 
@@ -85,14 +87,15 @@ WasiCryptoExpect<typename Ecdsa<CurveNid>::Signature>
 Ecdsa<CurveNid>::SignState::sign() noexcept {
   size_t Size;
   // for ecdsa, openssl produce a der format signatures which mean size is not
-  // fixed 
+  // fixed
   // here is an answer talk about it
   // https://bitcoin.stackexchange.com/questions/77191/what-is-the-maximum-size-of-a-der-encoded-ecdsa-signature
   // so instead of fixed size, just read
-  opensslCheck(EVP_DigestSignFinal(Ctx.get(), nullptr, &Size));
+  std::scoped_lock Lock{Ctx->Mutex};
+  opensslCheck(EVP_DigestSignFinal(Ctx->RawCtx.get(), nullptr, &Size));
 
   std::vector<uint8_t> Res(Size);
-  opensslCheck(EVP_DigestSignFinal(Ctx.get(), Res.data(), &Size));
+  opensslCheck(EVP_DigestSignFinal(Ctx->RawCtx.get(), Res.data(), &Size));
 
   return Res;
 }
@@ -100,15 +103,17 @@ Ecdsa<CurveNid>::SignState::sign() noexcept {
 template <int CurveNid>
 WasiCryptoExpect<void>
 Ecdsa<CurveNid>::VerificationState::update(Span<const uint8_t> Data) noexcept {
-  opensslCheck(EVP_DigestVerifyUpdate(Ctx.get(), Data.data(), Data.size()));
+  std::scoped_lock Lock{Ctx->Mutex};
+  opensslCheck(EVP_DigestVerifyUpdate(Ctx->RawCtx.get(), Data.data(), Data.size()));
   return {};
 }
 
 template <int CurveNid>
 WasiCryptoExpect<void>
 Ecdsa<CurveNid>::VerificationState::verify(const Signature &Sig) noexcept {
+  std::scoped_lock Lock{Ctx->Mutex};
   ensureOrReturn(
-      EVP_DigestVerifyFinal(Ctx.get(), Sig.ref().data(), Sig.ref().size()),
+      EVP_DigestVerifyFinal(Ctx->RawCtx.get(), Sig.ref().data(), Sig.ref().size()),
       __WASI_CRYPTO_ERRNO_VERIFICATION_FAILED);
   return {};
 }

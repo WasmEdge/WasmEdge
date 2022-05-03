@@ -59,7 +59,7 @@ public:
   private:
     struct Inner {
       Inner(EvpMdCtxPtr Ctx) noexcept : RawCtx(std::move(Ctx)) {}
-      std::shared_mutex Mutex;
+      std::mutex Mutex;
       std::vector<uint8_t> Data;
       EvpMdCtxPtr RawCtx;
     };
@@ -78,7 +78,7 @@ public:
   private:
     struct Inner {
       Inner(EvpMdCtxPtr Ctx) noexcept : RawCtx(std::move(Ctx)) {}
-      std::shared_mutex Mutex;
+      std::mutex Mutex;
       std::vector<uint8_t> Data;
       EvpMdCtxPtr RawCtx;
     };

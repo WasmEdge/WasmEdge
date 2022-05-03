@@ -7,6 +7,7 @@
 #include "openssl/kdf.h"
 #include "openssl/rand.h"
 #include "wasi_crypto/api.hpp"
+#include <mutex>
 
 namespace WasmEdge {
 namespace Host {
@@ -49,8 +50,9 @@ Hkdf<ShaNid>::Expand::State::open(const Key &Key,
 template <int ShaNid>
 WasiCryptoExpect<void>
 Hkdf<ShaNid>::Expand::State::absorb(Span<const uint8_t> Data) noexcept {
+  std::scoped_lock Lock{Ctx->Mutex};
   opensslCheck(
-      EVP_PKEY_CTX_add1_hkdf_info(Ctx.get(), Data.data(), Data.size()));
+      EVP_PKEY_CTX_add1_hkdf_info(Ctx->RawCtx.get(), Data.data(), Data.size()));
   return {};
 }
 
@@ -58,8 +60,13 @@ template <int ShaNid>
 WasiCryptoExpect<void>
 Hkdf<ShaNid>::Expand::State::squeeze(Span<uint8_t> Out) noexcept {
   size_t KeyLen = Out.size();
-  ensureOrReturn(EVP_PKEY_derive(Ctx.get(), Out.data(), &KeyLen),
-                 __WASI_CRYPTO_ERRNO_INVALID_KEY);
+
+  {
+    std::scoped_lock Lock{Ctx->Mutex};
+    ensureOrReturn(EVP_PKEY_derive(Ctx->RawCtx.get(), Out.data(), &KeyLen),
+                   __WASI_CRYPTO_ERRNO_INVALID_KEY);
+  }
+
   ensureOrReturn(KeyLen == getKeySize(), __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
   return {};
 }
@@ -86,7 +93,7 @@ Hkdf<ShaNid>::Extract::State::open(const Key &Key,
 template <int ShaNid>
 WasiCryptoExpect<void>
 Hkdf<ShaNid>::Extract::State::absorb(Span<const uint8_t> Data) noexcept {
-  std::unique_lock<std::shared_mutex> Lock{Ctx->Mutex};
+  std::scoped_lock Lock{Ctx->Mutex};
 
   Ctx->Salt.insert(Ctx->Salt.end(), Data.begin(), Data.end());
   return {};
@@ -95,12 +102,12 @@ Hkdf<ShaNid>::Extract::State::absorb(Span<const uint8_t> Data) noexcept {
 template <int ShaNid>
 WasiCryptoExpect<typename Hkdf<ShaNid>::Expand::Key>
 Hkdf<ShaNid>::Extract::State::squeezeKey() noexcept {
-  std::shared_lock<std::shared_mutex> Lock{Ctx->Mutex};
+  std::scoped_lock Lock{Ctx->Mutex};
 
   opensslCheck(EVP_PKEY_CTX_set1_hkdf_salt(Ctx->RawCtx.get(), Ctx->Salt.data(),
                                            Ctx->Salt.size()));
 
-  SecretVec Data{getKeySize()};
+  SecretVec Data(getKeySize());
 
   size_t ActualOutSize;
   opensslCheck(EVP_PKEY_derive(Ctx->RawCtx.get(), Data.data(), &ActualOutSize));

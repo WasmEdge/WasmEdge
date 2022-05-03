@@ -222,7 +222,7 @@ WasiCryptoExpect<void>
 Eddsa::SignState::update(Span<const uint8_t> Input) noexcept {
   // Notice: Ecdsa is oneshot in OpenSSL, we need a cache for update instead of
   // call `EVP_DigestSignUpdate`
-  std::unique_lock Lock{Ctx->Mutex};
+  std::scoped_lock Lock{Ctx->Mutex};
 
   Ctx->Data.insert(Ctx->Data.end(), Input.begin(), Input.end());
   return {};
@@ -232,7 +232,7 @@ WasiCryptoExpect<Eddsa::Signature> Eddsa::SignState::sign() noexcept {
   size_t Size = SigSize;
   std::vector<uint8_t> Res(Size);
 
-  std::shared_lock Lock{Ctx->Mutex};
+  std::scoped_lock Lock{Ctx->Mutex};
   opensslCheck(EVP_DigestSign(Ctx->RawCtx.get(), Res.data(), &Size,
                               Ctx->Data.data(), Ctx->Data.size()));
   ensureOrReturn(Size == SigSize, __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
@@ -242,7 +242,7 @@ WasiCryptoExpect<Eddsa::Signature> Eddsa::SignState::sign() noexcept {
 WasiCryptoExpect<void>
 Eddsa::VerificationState::update(Span<const uint8_t> Input) noexcept {
   // also oneshot
-  std::unique_lock Lock{Ctx->Mutex};
+  std::scoped_lock Lock{Ctx->Mutex};
 
   Ctx->Data.insert(Ctx->Data.end(), Input.begin(), Input.end());
   return {};
@@ -250,7 +250,7 @@ Eddsa::VerificationState::update(Span<const uint8_t> Input) noexcept {
 
 WasiCryptoExpect<void>
 Eddsa::VerificationState::verify(const Signature &Sig) noexcept {
-  std::shared_lock Lock{Ctx->Mutex};
+  std::scoped_lock Lock{Ctx->Mutex};
   // The call to EVP_DigestVerifyFinal() internally finalizes a copy of the
   // digest context. This means that EVP_VerifyUpdate() and EVP_VerifyFinal()
   // can be called later to digest and verify additional data.

@@ -9,6 +9,7 @@
 
 #include <cstdint>
 #include <limits>
+#include <mutex>
 
 namespace WasmEdge {
 namespace Host {
@@ -83,6 +84,8 @@ Cipher<CipherNid>::State::optionsGet(std::string_view Name,
                                      Span<uint8_t> Value) const noexcept {
   ensureOrReturn(Name == "nonce"sv, __WASI_CRYPTO_ERRNO_UNSUPPORTED_OPTION);
   ensureOrReturn(NonceSize <= Value.size(), __WASI_CRYPTO_ERRNO_OVERFLOW);
+
+  std::scoped_lock Lock{Ctx->Mutex};
   std::copy(Ctx->Nonce.begin(), Ctx->Nonce.end(), Value.begin());
   return NonceSize;
 }
@@ -97,8 +100,11 @@ Cipher<CipherNid>::State::absorb(Span<const uint8_t> Data) noexcept {
   int DataSize = static_cast<int>(Data.size());
 
   int ActualAbsorbSize;
-  opensslCheck(EVP_CipherUpdate(Ctx->RawCtx.get(), nullptr, &ActualAbsorbSize,
-                                Data.data(), DataSize));
+  {
+    std::scoped_lock Lock{Ctx->Mutex};
+    opensslCheck(EVP_CipherUpdate(Ctx->RawCtx.get(), nullptr, &ActualAbsorbSize,
+                                  Data.data(), DataSize));
+  }
   ensureOrReturn(ActualAbsorbSize == DataSize,
                  __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
 
@@ -132,6 +138,7 @@ Cipher<CipherNid>::State::encryptImpl(Span<uint8_t> Out, Span<uint8_t> Tag,
                  __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
   int DataSize = static_cast<int>(Data.size());
 
+  std::scoped_lock Lock{Ctx->Mutex};
   opensslCheck(EVP_CipherInit_ex(Ctx->RawCtx.get(), nullptr, nullptr, nullptr,
                                  nullptr, Mode::Encrypt));
 
@@ -179,6 +186,7 @@ Cipher<CipherNid>::State::decryptImpl(Span<uint8_t> Out,
                  __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
   int DataSize = static_cast<int>(Data.size());
 
+  std::scoped_lock Lock{Ctx->Mutex};
   opensslCheck(EVP_CipherInit_ex(Ctx->RawCtx.get(), nullptr, nullptr, nullptr,
                                  nullptr, Mode::Decrypt));
   int ActualUpdateSize;

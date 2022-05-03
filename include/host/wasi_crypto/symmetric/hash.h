@@ -18,6 +18,8 @@
 #include "host/wasi_crypto/utils/evp_wrapper.h"
 #include "host/wasi_crypto/utils/optional.h"
 
+#include <shared_mutex>
+
 namespace WasmEdge {
 namespace Host {
 namespace WasiCrypto {
@@ -100,7 +102,8 @@ public:
 
   class State : public HashState<Key> {
   public:
-    State(EvpMdCtxPtr Ctx) noexcept : Ctx(std::move(Ctx)) {}
+    State(EvpMdCtxPtr Ctx) noexcept
+        : Ctx(std::make_shared<Inner>(std::move(Ctx))) {}
 
     static WasiCryptoExpect<State>
     open(OptionalRef<const Options> OptOption) noexcept;
@@ -110,7 +113,12 @@ public:
     WasiCryptoExpect<void> squeeze(Span<uint8_t> Out) noexcept;
 
   private:
-    std::shared_ptr<EVP_MD_CTX> Ctx;
+    struct Inner {
+      Inner(EvpMdCtxPtr Ctx) noexcept : RawCtx(std::move(Ctx)) {}
+      EvpMdCtxPtr RawCtx;
+      std::shared_mutex Mutex;
+    };
+    std::shared_ptr<Inner> Ctx;
   };
 
 private:

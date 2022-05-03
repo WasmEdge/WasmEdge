@@ -30,7 +30,8 @@ Sha2<ShaNid>::State::open(OptionalRef<const Options>) noexcept {
 template <int ShaNid>
 WasiCryptoExpect<void>
 Sha2<ShaNid>::State::absorb(Span<const uint8_t> Data) noexcept {
-  opensslCheck(EVP_DigestUpdate(Ctx.get(), Data.data(), Data.size()));
+  std::unique_lock Lock{Ctx->Mutex};
+  opensslCheck(EVP_DigestUpdate(Ctx->RawCtx.get(), Data.data(), Data.size()));
   return {};
 }
 
@@ -41,7 +42,11 @@ Sha2<ShaNid>::State::squeeze(Span<uint8_t> Out) noexcept {
                  __WASI_CRYPTO_ERRNO_INVALID_LENGTH);
 
   EvpMdCtxPtr CopyCtx{EVP_MD_CTX_new()};
-  opensslCheck(EVP_MD_CTX_copy_ex(CopyCtx.get(), Ctx.get()));
+
+  {
+    std::shared_lock Lock{Ctx->Mutex};
+    opensslCheck(EVP_MD_CTX_copy_ex(CopyCtx.get(), Ctx->RawCtx.get()));
+  }
 
   if (getDigestSize() == Out.size()) {
     unsigned int Size;

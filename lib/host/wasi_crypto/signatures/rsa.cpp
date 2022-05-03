@@ -294,7 +294,7 @@ Rsa<PadMode, KeyBits, ShaNid>::Signature::import(
     __wasi_signature_encoding_e_t Encoding) noexcept {
   switch (Encoding) {
   case __WASI_SIGNATURE_ENCODING_RAW:
-    ensureOrReturn(Encoded.size() == getKeySize(),
+    ensureOrReturn(Encoded.size() == getSigSize(),
                    __WASI_CRYPTO_ERRNO_INVALID_SIGNATURE);
     return std::vector<uint8_t>(Encoded.begin(), Encoded.end());
   case __WASI_SIGNATURE_ENCODING_DER:

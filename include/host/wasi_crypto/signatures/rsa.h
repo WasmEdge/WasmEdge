@@ -170,7 +170,7 @@ public:
   };
 
 private:
-  static constexpr size_t getKeySize() { return KeyBits / 8; }
+  static constexpr size_t getSigSize() { return KeyBits / 8; }
 
   static void *getShaCtx() {
     return static_cast<void *>(

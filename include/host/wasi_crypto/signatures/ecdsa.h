@@ -47,7 +47,7 @@ public:
     const std::vector<uint8_t> &ref() const { return Data; }
 
   private:
-    // Inner represent as der.
+    // Inner represent as der because openssl use der format for evp interface.
     std::vector<uint8_t> Data;
   };
 

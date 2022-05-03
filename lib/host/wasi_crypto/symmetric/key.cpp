@@ -13,10 +13,10 @@ WasiCryptoExpect<KeyVariant> importKey(Algorithm Alg,
                                        Span<const uint8_t> Data) noexcept {
   return std::visit(
       [Data](auto Factory) noexcept {
-        using KeyType = typename std::decay_t<decltype(Factory)>::Key;
-        return KeyType::import(Data).map([](auto &&Key) noexcept {
-          return KeyVariant{std::forward<decltype(Key)>(Key)};
-        });
+        return decltype(Factory)::Key::import(Data).map(
+            [](auto &&Key) noexcept {
+              return KeyVariant{std::forward<decltype(Key)>(Key)};
+            });
       },
       Alg);
 }
@@ -24,11 +24,11 @@ WasiCryptoExpect<KeyVariant> importKey(Algorithm Alg,
 WasiCryptoExpect<KeyVariant>
 generateKey(Algorithm Alg, OptionalRef<const Options> OptOptions) noexcept {
   return std::visit(
-      [OptOptions](auto Factory) mutable noexcept {
-        using KeyType = typename std::decay_t<decltype(Factory)>::Key;
-        return KeyType::generate(OptOptions).map([](auto &&Key) noexcept {
-          return KeyVariant{std::forward<decltype(Key)>(Key)};
-        });
+      [OptOptions](auto Factory) noexcept {
+        return decltype(Factory)::Key::generate(OptOptions)
+            .map([](auto &&Key) noexcept {
+              return KeyVariant{std::forward<decltype(Key)>(Key)};
+            });
       },
       Alg);
 }

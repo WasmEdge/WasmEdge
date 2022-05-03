@@ -1,6 +1,7 @@
 # Crypto relative binding
 
 While optimizing compilers could allow efficient implementation of cryptographic features in WebAssembly, there are several occasions as below where a host implementation is more desirable. [WASI-crypto](https://github.com/WebAssembly/wasi-crypto/blob/main/docs/HighLevelGoals.md) aims to fill those gaps by defining a standard interface as a set of APIs.
+Current not support android.  
 
 ## Getting started with wasi-crypto
 

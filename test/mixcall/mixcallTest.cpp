@@ -5,7 +5,7 @@
 #include "common/configure.h"
 #include "common/errinfo.h"
 #include "loader/loader.h"
-#include "runtime/importobj.h"
+#include "runtime/instance/module.h"
 #include "validator/validator.h"
 #include "vm/vm.h"
 
@@ -33,9 +33,9 @@ public:
   }
 };
 
-class HostModule : public WasmEdge::Runtime::ImportObject {
+class HostModule : public WasmEdge::Runtime::Instance::ModuleInstance {
 public:
-  HostModule() : ImportObject("host") {
+  HostModule() : ModuleInstance("host") {
     addHostFunc("host_printI32", std::make_unique<HostPrintI32>());
     addHostFunc("host_printF64", std::make_unique<HostPrintF64>());
   }

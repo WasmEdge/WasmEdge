@@ -9,11 +9,13 @@
 namespace WasmEdge {
 namespace Executor {
 
-// Instantiate Wasm Module. See "include/executor/executor.h".
-Expect<void> Executor::instantiateModule(Runtime::StoreManager &StoreMgr,
-                                         const AST::Module &Mod) {
-  InsMode = InstantiateMode::Instantiate;
-  if (auto Res = instantiate(StoreMgr, Mod, ""); !Res) {
+/// Instantiate a WASM Module. See "include/executor/executor.h".
+Expect<std::unique_ptr<Runtime::Instance::ModuleInstance>>
+Executor::instantiateModule(Runtime::StoreManager &StoreMgr,
+                            const AST::Module &Mod) {
+  if (auto Res = instantiate(StoreMgr, Mod)) {
+    return Res;
+  } else {
     // If Statistics is enabled, then dump it here.
     // When there is an error happened, the following execution will not
     // execute.
@@ -22,66 +24,40 @@ Expect<void> Executor::instantiateModule(Runtime::StoreManager &StoreMgr,
     }
     return Unexpect(Res);
   }
-  return {};
 }
 
-// Register host module. See "include/executor/executor.h".
-Expect<void> Executor::registerModule(Runtime::StoreManager &StoreMgr,
-                                      const Runtime::ImportObject &Obj) {
-  StoreMgr.reset();
-  // Check is module name duplicated.
-  if (auto Res = StoreMgr.findModule(Obj.getModuleName())) {
+/// Register a named WASM module. See "include/executor/executor.h".
+Expect<std::unique_ptr<Runtime::Instance::ModuleInstance>>
+Executor::registerModule(Runtime::StoreManager &StoreMgr,
+                         const AST::Module &Mod, std::string_view Name) {
+  if (auto Res = instantiate(StoreMgr, Mod, Name)) {
+    return Res;
+  } else {
+    // If Statistics is enabled, then dump it here.
+    // When there is an error happened, the following execution will not
+    // execute.
+    if (Stat) {
+      Stat->dumpToLog(Conf);
+    }
+    return Unexpect(Res);
+  }
+}
+
+/// Register an instantiated module. See "include/executor/executor.h".
+Expect<void>
+Executor::registerModule(Runtime::StoreManager &StoreMgr,
+                         const Runtime::Instance::ModuleInstance &ModInst) {
+  if (auto Res = StoreMgr.registerModule(&ModInst); !Res) {
     spdlog::error(ErrCode::ModuleNameConflict);
-    spdlog::error(ErrInfo::InfoRegistering(Obj.getModuleName()));
+    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Module));
     return Unexpect(ErrCode::ModuleNameConflict);
-  }
-  auto *ModInst = StoreMgr.importModule(Obj.getModuleName());
-
-  for (auto &Func : Obj.getFuncs()) {
-    auto *Inst = StoreMgr.importHostFunction(*Func.second.get());
-    ModInst->addFunc(Inst);
-    ModInst->exportFunction(Func.first, ModInst->getFuncNum() - 1);
-  }
-  for (auto &Tab : Obj.getTables()) {
-    auto *Inst = StoreMgr.importHostTable(*Tab.second.get());
-    ModInst->addTable(Inst);
-    ModInst->exportTable(Tab.first, ModInst->getTableNum() - 1);
-  }
-  for (auto &Mem : Obj.getMems()) {
-    auto *Inst = StoreMgr.importHostMemory(*Mem.second.get());
-    ModInst->addMemory(Inst);
-    ModInst->exportMemory(Mem.first, ModInst->getMemNum() - 1);
-  }
-  for (auto &Glob : Obj.getGlobals()) {
-    auto *Inst = StoreMgr.importHostGlobal(*Glob.second.get());
-    ModInst->addGlobal(Inst);
-    ModInst->exportGlobal(Glob.first, ModInst->getGlobalNum() - 1);
-  }
-  return {};
-}
-
-// Register Wasm module. See "include/executor/executor.h".
-Expect<void> Executor::registerModule(Runtime::StoreManager &StoreMgr,
-                                      const AST::Module &Mod,
-                                      std::string_view Name) {
-  InsMode = InstantiateMode::ImportWasm;
-  if (auto Res = instantiate(StoreMgr, Mod, Name); !Res) {
-    spdlog::error(ErrInfo::InfoRegistering(Name));
-    // If Statistics is enabled, then dump it here.
-    // When there is an error happened, the following execution will not
-    // execute.
-    if (Stat) {
-      Stat->dumpToLog(Conf);
-    }
-    return Unexpect(Res);
   }
   return {};
 }
 
 // Invoke function. See "include/executor/executor.h".
 Expect<std::vector<std::pair<ValVariant, ValType>>>
-Executor::invoke(Runtime::StoreManager &StoreMgr,
-                 const Runtime::Instance::FunctionInstance &FuncInst,
+Executor::invoke(const Runtime::Instance::FunctionInstance &FuncInst,
                  Span<const ValVariant> Params,
                  Span<const ValType> ParamTypes) {
   // Check parameter and function type.
@@ -99,7 +75,7 @@ Executor::invoke(Runtime::StoreManager &StoreMgr,
   Runtime::StackManager StackMgr;
 
   // Call runFunction.
-  if (auto Res = runFunction(StoreMgr, StackMgr, FuncInst, Params); !Res) {
+  if (auto Res = runFunction(StackMgr, FuncInst, Params); !Res) {
     return Unexpect(Res);
   }
 

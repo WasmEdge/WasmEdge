@@ -23,18 +23,17 @@ class GlobalInstance {
 public:
   GlobalInstance() = delete;
   GlobalInstance(const AST::GlobalType &GType,
-                 const ValVariant Val = uint32_t(0)) noexcept
+                 ValVariant Val = uint32_t(0)) noexcept
       : GlobType(GType), Value(Val) {}
-  virtual ~GlobalInstance() = default;
 
   /// Getter of global type.
-  const AST::GlobalType &getGlobalType() const { return GlobType; }
+  const AST::GlobalType &getGlobalType() const noexcept { return GlobType; }
 
   /// Getter of value.
-  const ValVariant &getValue() const { return Value; }
+  const ValVariant &getValue() const noexcept { return Value; }
 
   /// Getter of value.
-  ValVariant &getValue() { return Value; }
+  ValVariant &getValue() noexcept { return Value; }
 
 private:
   /// \name Data of global instance.

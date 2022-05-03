@@ -80,17 +80,14 @@ Expect<void> Executor::runReturnOp(Runtime::StackManager &StackMgr,
   return {};
 }
 
-Expect<void> Executor::runCallOp(Runtime::StoreManager &StoreMgr,
-                                 Runtime::StackManager &StackMgr,
+Expect<void> Executor::runCallOp(Runtime::StackManager &StackMgr,
                                  const AST::Instruction &Instr,
                                  AST::InstrView::iterator &PC,
                                  bool IsTailCall) noexcept {
   // Get Function address.
   const auto *ModInst = StackMgr.getModule();
   const auto *FuncInst = *ModInst->getFunc(Instr.getTargetIndex());
-  if (auto Res =
-          enterFunction(StoreMgr, StackMgr, *FuncInst, PC + 1, IsTailCall);
-      !Res) {
+  if (auto Res = enterFunction(StackMgr, *FuncInst, PC + 1, IsTailCall); !Res) {
     return Unexpect(Res);
   } else {
     PC = (*Res) - 1;
@@ -98,8 +95,7 @@ Expect<void> Executor::runCallOp(Runtime::StoreManager &StoreMgr,
   return {};
 }
 
-Expect<void> Executor::runCallIndirectOp(Runtime::StoreManager &StoreMgr,
-                                         Runtime::StackManager &StackMgr,
+Expect<void> Executor::runCallIndirectOp(Runtime::StackManager &StackMgr,
                                          const AST::Instruction &Instr,
                                          AST::InstrView::iterator &PC,
                                          bool IsTailCall) noexcept {
@@ -147,9 +143,7 @@ Expect<void> Executor::runCallIndirectOp(Runtime::StoreManager &StoreMgr,
   }
 
   // Enter the function.
-  if (auto Res =
-          enterFunction(StoreMgr, StackMgr, *FuncInst, PC + 1, IsTailCall);
-      !Res) {
+  if (auto Res = enterFunction(StackMgr, *FuncInst, PC + 1, IsTailCall); !Res) {
     return Unexpect(Res);
   } else {
     PC = (*Res) - 1;

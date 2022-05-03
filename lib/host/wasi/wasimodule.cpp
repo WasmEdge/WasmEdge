@@ -3,12 +3,13 @@
 
 #include "host/wasi/wasimodule.h"
 #include "host/wasi/wasifunc.h"
+
 #include <memory>
 
 namespace WasmEdge {
 namespace Host {
 
-WasiModule::WasiModule() : ImportObject("wasi_snapshot_preview1") {
+WasiModule::WasiModule() : ModuleInstance("wasi_snapshot_preview1") {
   addHostFunc("args_get", std::make_unique<WasiArgsGet>(Env));
   addHostFunc("args_sizes_get", std::make_unique<WasiArgsSizesGet>(Env));
   addHostFunc("environ_get", std::make_unique<WasiEnvironGet>(Env));

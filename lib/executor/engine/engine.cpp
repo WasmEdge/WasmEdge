@@ -10,15 +10,13 @@
 namespace WasmEdge {
 namespace Executor {
 
-Expect<void> Executor::runExpression(Runtime::StoreManager &StoreMgr,
-                                     Runtime::StackManager &StackMgr,
+Expect<void> Executor::runExpression(Runtime::StackManager &StackMgr,
                                      AST::InstrView Instrs) {
-  return execute(StoreMgr, StackMgr, Instrs.begin(), Instrs.end());
+  return execute(StackMgr, Instrs.begin(), Instrs.end());
 }
 
 Expect<void>
-Executor::runFunction(Runtime::StoreManager &StoreMgr,
-                      Runtime::StackManager &StackMgr,
+Executor::runFunction(Runtime::StackManager &StackMgr,
                       const Runtime::Instance::FunctionInstance &Func,
                       Span<const ValVariant> Params) {
   // Set start time.
@@ -36,13 +34,12 @@ Executor::runFunction(Runtime::StoreManager &StoreMgr,
 
   // Enter and execute function.
   AST::InstrView::iterator StartIt;
-  if (auto Res =
-          enterFunction(StoreMgr, StackMgr, Func, Func.getInstrs().end())) {
+  if (auto Res = enterFunction(StackMgr, Func, Func.getInstrs().end())) {
     StartIt = *Res;
   } else {
     return Unexpect(Res);
   }
-  auto Res = execute(StoreMgr, StackMgr, StartIt, Func.getInstrs().end());
+  auto Res = execute(StackMgr, StartIt, Func.getInstrs().end());
 
   if (Res) {
     spdlog::debug(" Execution succeeded.");
@@ -65,14 +62,13 @@ Executor::runFunction(Runtime::StoreManager &StoreMgr,
   return Unexpect(Res);
 }
 
-Expect<void> Executor::execute(Runtime::StoreManager &StoreMgr,
-                               Runtime::StackManager &StackMgr,
+Expect<void> Executor::execute(Runtime::StackManager &StackMgr,
                                const AST::InstrView::iterator Start,
                                const AST::InstrView::iterator End) {
   AST::InstrView::iterator PC = Start;
   AST::InstrView::iterator PCEnd = End;
 
-  auto Dispatch = [this, &PC, &StoreMgr, &StackMgr]() -> Expect<void> {
+  auto Dispatch = [this, &PC, &StackMgr]() -> Expect<void> {
     const AST::Instruction &Instr = *PC;
     switch (Instr.getOpCode()) {
     // Control instructions.
@@ -117,13 +113,13 @@ Expect<void> Executor::execute(Runtime::StoreManager &StoreMgr,
     case OpCode::Return:
       return runReturnOp(StackMgr, PC);
     case OpCode::Call:
-      return runCallOp(StoreMgr, StackMgr, Instr, PC);
+      return runCallOp(StackMgr, Instr, PC);
     case OpCode::Call_indirect:
-      return runCallIndirectOp(StoreMgr, StackMgr, Instr, PC);
+      return runCallIndirectOp(StackMgr, Instr, PC);
     case OpCode::Return_call:
-      return runCallOp(StoreMgr, StackMgr, Instr, PC, true);
+      return runCallOp(StackMgr, Instr, PC, true);
     case OpCode::Return_call_indirect:
-      return runCallIndirectOp(StoreMgr, StackMgr, Instr, PC, true);
+      return runCallIndirectOp(StackMgr, Instr, PC, true);
 
     // Reference Instructions
     case OpCode::Ref__null:
@@ -139,8 +135,8 @@ Expect<void> Executor::execute(Runtime::StoreManager &StoreMgr,
       return {};
     }
     case OpCode::Ref__func: {
-      auto *ModInst = StackMgr.getModule();
-      auto *FuncInst = *ModInst->getFunc(Instr.getTargetIndex());
+      const auto *ModInst = StackMgr.getModule();
+      const auto *FuncInst = *ModInst->getFunc(Instr.getTargetIndex());
       StackMgr.push<FuncRef>(FuncRef(FuncInst));
       return {};
     }
@@ -1614,8 +1610,8 @@ Expect<void> Executor::execute(Runtime::StoreManager &StoreMgr,
   };
 
   while (PC != PCEnd) {
-    OpCode Code = PC->getOpCode();
     if (Stat) {
+      OpCode Code = PC->getOpCode();
       if (Conf.getStatisticsConfigure().isInstructionCounting()) {
         Stat->incInstrCount();
       }

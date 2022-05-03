@@ -8,7 +8,7 @@
   
 ![WasmEdge Logo](/docs/wasmedge-runtime-logo.png)
 
-WasmEdge is a lightweight, high-performance, and extensible WebAssembly runtime. It is [the fastest Wasm VM](https://ieeexplore.ieee.org/document/9214403) today. WasmEdge is an official sandbox project hosted by the [CNCF](https://www.cncf.io/). Its [use cases](https://wasmedge.org/book/en/intro/use.html) include modern web infra (isomorphic Jamstack apps), microservices on the edge cloud, serrverless SaaS APIs, embedded functions, smart contracts, and smart devices.
+WasmEdge is a lightweight, high-performance, and extensible WebAssembly runtime. It is [the fastest Wasm VM](https://ieeexplore.ieee.org/document/9214403) today. WasmEdge is an official sandbox project hosted by the [CNCF](https://www.cncf.io/). Its [use cases](https://wasmedge.org/book/en/intro/use.html) include modern web application architectures (Isomorphic & Jamstack applications), microservices on the edge cloud, serverless SaaS APIs, embedded functions, smart contracts, and smart devices.
 
 ![build](https://github.com/WasmEdge/WasmEdge/workflows/build/badge.svg)
 [![codecov](https://codecov.io/gh/WasmEdge/WasmEdge/branch/master/graph/badge.svg)](https://codecov.io/gh/WasmEdge/WasmEdge)
@@ -73,7 +73,7 @@ If you have any questions, feel free to open a GitHub issue on a related project
 
 We host a monthly community meeting to showcase new features, demo new use cases, and a Q&A part. Everyone is welcome!
 
-Time: The first Thuesday of each month at 11PM Hong Kong Time/ 7AM PST.
+Time: The first Tuesday of each month at 11PM Hong Kong Time/ 7AM PST.
 
 [Public meeting agenda/notes](https://docs.google.com/document/d/1iFlVl7R97Lze4RDykzElJGDjjWYDlkI8Rhf8g4dQ5Rk/edit#) | [Zoom link](https://us06web.zoom.us/j/88282362606?pwd=UFhOdzlVKyswdW43c21BKy9DdkdyUT09)
 

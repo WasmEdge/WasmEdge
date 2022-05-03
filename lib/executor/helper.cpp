@@ -14,8 +14,7 @@ namespace WasmEdge {
 namespace Executor {
 
 Expect<AST::InstrView::iterator>
-Executor::enterFunction(Runtime::StoreManager &StoreMgr,
-                        Runtime::StackManager &StackMgr,
+Executor::enterFunction(Runtime::StackManager &StackMgr,
                         const Runtime::Instance::FunctionInstance &Func,
                         const AST::InstrView::iterator RetIt, bool IsTailCall) {
   // RetIt: the return position when the entered function returns.
@@ -113,18 +112,20 @@ Executor::enterFunction(Runtime::StoreManager &StoreMgr,
 
     {
       // Prepare the execution context.
-      CurrentStore = &StoreMgr;
       CurrentStack = &StackMgr;
-      auto &ModInst = *Func.getModule();
-      for (uint32_t I = 0; I < ModInst.getMemNum(); ++I) {
-        auto MemoryPtr =
-            reinterpret_cast<std::atomic<uint8_t *> *>(&ModInst.MemoryPtrs[I]);
-        uint8_t *const DataPtr = (*ModInst.getMemory(I))->getDataPtr();
+      auto *ModInst =
+          const_cast<Runtime::Instance::ModuleInstance *>(Func.getModule());
+      for (uint32_t I = 0; I < ModInst->getMemoryNum(); ++I) {
+        // Update the memory pointers to prevent from the address change due to
+        // the page growing.
+        auto MemoryPtr = reinterpret_cast<std::atomic<uint8_t *> *>(
+            &(ModInst->MemoryPtrs[I]));
+        uint8_t *const DataPtr = (*(ModInst->getMemory(I)))->getDataPtr();
         std::atomic_store_explicit(MemoryPtr, DataPtr,
                                    std::memory_order_relaxed);
       }
-      ExecutionContext.Memories = ModInst.MemoryPtrs.data();
-      ExecutionContext.Globals = ModInst.GlobalPtrs.data();
+      ExecutionContext.Memories = ModInst->MemoryPtrs.data();
+      ExecutionContext.Globals = ModInst->GlobalPtrs.data();
     }
 
     {

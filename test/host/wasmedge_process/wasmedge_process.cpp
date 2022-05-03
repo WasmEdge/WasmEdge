@@ -261,20 +261,19 @@ TEST(WasmEdgeProcessTest, GetStdErr) {
 TEST(WasmEdgeProcessTest, Module) {
   WasmEdge::Host::WasmEdgeProcessModule Mod =
       WasmEdge::Host::WasmEdgeProcessModule();
-  const auto &FuncMap = Mod.getFuncs();
   EXPECT_EQ(Mod.getEnv().ExitCode, 0U);
-  EXPECT_EQ(FuncMap.size(), 11U);
-  EXPECT_NE(FuncMap.find("wasmedge_process_set_prog_name"), FuncMap.end());
-  EXPECT_NE(FuncMap.find("wasmedge_process_add_arg"), FuncMap.end());
-  EXPECT_NE(FuncMap.find("wasmedge_process_add_env"), FuncMap.end());
-  EXPECT_NE(FuncMap.find("wasmedge_process_add_stdin"), FuncMap.end());
-  EXPECT_NE(FuncMap.find("wasmedge_process_set_timeout"), FuncMap.end());
-  EXPECT_NE(FuncMap.find("wasmedge_process_run"), FuncMap.end());
-  EXPECT_NE(FuncMap.find("wasmedge_process_get_exit_code"), FuncMap.end());
-  EXPECT_NE(FuncMap.find("wasmedge_process_get_stdout_len"), FuncMap.end());
-  EXPECT_NE(FuncMap.find("wasmedge_process_get_stdout"), FuncMap.end());
-  EXPECT_NE(FuncMap.find("wasmedge_process_get_stderr_len"), FuncMap.end());
-  EXPECT_NE(FuncMap.find("wasmedge_process_get_stderr"), FuncMap.end());
+  EXPECT_EQ(Mod.getFuncExportNum(), 11U);
+  EXPECT_NE(Mod.findFuncExports("wasmedge_process_set_prog_name"), nullptr);
+  EXPECT_NE(Mod.findFuncExports("wasmedge_process_add_arg"), nullptr);
+  EXPECT_NE(Mod.findFuncExports("wasmedge_process_add_env"), nullptr);
+  EXPECT_NE(Mod.findFuncExports("wasmedge_process_add_stdin"), nullptr);
+  EXPECT_NE(Mod.findFuncExports("wasmedge_process_set_timeout"), nullptr);
+  EXPECT_NE(Mod.findFuncExports("wasmedge_process_run"), nullptr);
+  EXPECT_NE(Mod.findFuncExports("wasmedge_process_get_exit_code"), nullptr);
+  EXPECT_NE(Mod.findFuncExports("wasmedge_process_get_stdout_len"), nullptr);
+  EXPECT_NE(Mod.findFuncExports("wasmedge_process_get_stdout"), nullptr);
+  EXPECT_NE(Mod.findFuncExports("wasmedge_process_get_stderr_len"), nullptr);
+  EXPECT_NE(Mod.findFuncExports("wasmedge_process_get_stderr"), nullptr);
 }
 
 GTEST_API_ int main(int argc, char **argv) {

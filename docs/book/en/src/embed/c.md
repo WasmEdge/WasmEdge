@@ -50,8 +50,6 @@ $ ./test_wasmedge fibonacci.wasm
 Get result: 3524578
 ```
 
-For the details of APIs, please refer to the [API header file](https://github.com/WasmEdge/WasmEdge/blob/master/include/api/wasmedge/wasmedge.h).
-
 ## Quick Start Guide for the WasmEdge AOT compiler
 
 Assume that the WASM file [fibonacci.wasm](https://github.com/WasmEdge/WasmEdge/raw/master/tools/wasmedge/examples/fibonacci.wasm) is copied into the current directory, and the C file `test_wasmedge_compiler.c` is as following:
@@ -111,5 +109,3 @@ real 0m0.036s
 user 0m0.022s
 sys 0m0.011s
 ```
-
-For the details of APIs, please refer to the [API header file](https://github.com/WasmEdge/WasmEdge/blob/master/include/api/wasmedge/wasmedge.h).

@@ -1,6 +1,6 @@
 # React SSR
 
-[React](https://reactjs.org/) is very popular JavaScript web UI framework. A React application is "compiled" into an HTML and JavaScript static web site. The web UI is rendered through the generated JavaScript code. However, it is often too slow and resource consuming to execute the complex generated JavaScript entirely in the browser to build the interactive HTML DOM objects. [React Server Side Rendering (SSR)](https://medium.com/jspoint/a-beginners-guide-to-react-server-side-rendering-ssr-bf3853841d55) delegates the JavaScript UI rendering to a server, and have the server stream rendered HTML DOM objects to the browser. The WasmEdge JavaScript runtime provides a lightweight and high performance container to run React SSR functions on edge servers. 
+[React](https://reactjs.org/) is very popular JavaScript web UI framework. A React application is "compiled" into an HTML and JavaScript static web site. The web UI is rendered through the generated JavaScript code. However, it is often too slow and resource consuming to execute the complex generated JavaScript entirely in the browser to build the interactive HTML DOM objects. [React Server Side Rendering (SSR)](https://medium.com/jspoint/a-beginners-guide-to-react-server-side-rendering-ssr-bf3853841d55) delegates the JavaScript UI rendering to a server, and have the server stream rendered HTML DOM objects to the browser. The WasmEdge JavaScript runtime provides a lightweight and high performance container to run React SSR functions on edge servers.
 
 > Server-side rendering (SSR) is a popular technique for rendering a client-side single page application (SPA) on the server and then sending a fully rendered page to the client. This allows for dynamic components to be served as static HTML markup. This approach can be useful for search engine optimization (SEO) when indexing does not handle JavaScript properly. It may also be beneficial in situations where downloading a large JavaScript bundle is impaired by a slow network. -- [from Digital Ocean](https://www.digitalocean.com/community/tutorials/react-server-side-rendering).
 
@@ -84,92 +84,92 @@ import * as net from 'wasi_net';
 import App from '../src/App.js';
 
 async function handle_client(cs) {
-	print('open:', cs.peer());
-	let buffer = new http.Buffer();
+  print('open:', cs.peer());
+  let buffer = new http.Buffer();
 
-	while (true) {
-		try {
-			let d = await cs.read();
-			if (d == undefined || d.byteLength <= 0) {
-				return;
-			}
-			buffer.append(d);
-			let req = buffer.parseRequest();
-			if (req instanceof http.WasiRequest) {
-				handle_req(cs, req);
-				break;
-			}
-		} catch (e) {
-			print(e);
-		}
-	}
-	print('end:', cs.peer());
+  while (true) {
+    try {
+      let d = await cs.read();
+      if (d == undefined || d.byteLength <= 0) {
+        return;
+      }
+      buffer.append(d);
+      let req = buffer.parseRequest();
+      if (req instanceof http.WasiRequest) {
+        handle_req(cs, req);
+        break;
+      }
+    } catch (e) {
+      print(e);
+    }
+  }
+  print('end:', cs.peer());
 }
 
 function enlargeArray(oldArr, newLength) {
-	let newArr = new Uint8Array(newLength);
-	oldArr && newArr.set(oldArr, 0);
-	return newArr;
+  let newArr = new Uint8Array(newLength);
+  oldArr && newArr.set(oldArr, 0);
+  return newArr;
 }
 
 async function handle_req(s, req) {
-	print('uri:', req.uri)
+  print('uri:', req.uri)
 
-	let resp = new http.WasiResponse();
-	let content = '';
-	if (req.uri == '/') {
-		const app = ReactDOMServer.renderToString(<App />);
-		content = std.loadFile('./build/index.html');
-		content = content.replace('<div id="root"></div>', `<div id="root">${app}</div>`);
-	} else {
-		let chunk = 1000; // Chunk size of each reading
-		let length = 0; // The whole length of the file
-		let byteArray = null; // File content as Uint8Array
-		
-		// Read file into byteArray by chunk
-		let file = std.open('./build' + req.uri, 'r');
-		while (true) {
-			byteArray = enlargeArray(byteArray, length + chunk);
-			let readLen = file.read(byteArray.buffer, length, chunk);
-			length += readLen;
-			if (readLen < chunk) {
-				break;
-			}
-		}
-		content = byteArray.slice(0, length).buffer;
-		file.close();
-	}
-	let contentType = 'text/html; charset=utf-8';
-	if (req.uri.endsWith('.css')) {
-		contentType = 'text/css; charset=utf-8';
-	} else if (req.uri.endsWith('.js')) {
-		contentType = 'text/javascript; charset=utf-8';
-	} else if (req.uri.endsWith('.json')) {
-		contentType = 'text/json; charset=utf-8';
-	} else if (req.uri.endsWith('.ico')) {
-		contentType = 'image/vnd.microsoft.icon';
-	} else if (req.uri.endsWith('.png')) {
-		contentType = 'image/png';
-	}
-	resp.headers = {
-		'Content-Type': contentType
-	};
+  let resp = new http.WasiResponse();
+  let content = '';
+  if (req.uri == '/') {
+    const app = ReactDOMServer.renderToString(<App />);
+    content = std.loadFile('./build/index.html');
+    content = content.replace('<div id="root"></div>', `<div id="root">${app}</div>`);
+  } else {
+    let chunk = 1000; // Chunk size of each reading
+    let length = 0; // The whole length of the file
+    let byteArray = null; // File content as Uint8Array
+    
+    // Read file into byteArray by chunk
+    let file = std.open('./build' + req.uri, 'r');
+    while (true) {
+      byteArray = enlargeArray(byteArray, length + chunk);
+      let readLen = file.read(byteArray.buffer, length, chunk);
+      length += readLen;
+      if (readLen < chunk) {
+        break;
+      }
+    }
+    content = byteArray.slice(0, length).buffer;
+    file.close();
+  }
+  let contentType = 'text/html; charset=utf-8';
+  if (req.uri.endsWith('.css')) {
+    contentType = 'text/css; charset=utf-8';
+  } else if (req.uri.endsWith('.js')) {
+    contentType = 'text/javascript; charset=utf-8';
+  } else if (req.uri.endsWith('.json')) {
+    contentType = 'text/json; charset=utf-8';
+  } else if (req.uri.endsWith('.ico')) {
+    contentType = 'image/vnd.microsoft.icon';
+  } else if (req.uri.endsWith('.png')) {
+    contentType = 'image/png';
+  }
+  resp.headers = {
+    'Content-Type': contentType
+  };
 
-	let r = resp.encode(content);
-	s.write(r);
+  let r = resp.encode(content);
+  s.write(r);
 }
 
 async function server_start() {
-	print('listen 8002...');
-	try {
-		let s = new net.WasiTcpServer(8002);
-		for (var i = 0; ; i++) {
-			let cs = await s.accept();
-			handle_client(cs);
-		}
-	} catch (e) {
-		print(e);
-	}
+  print('listen 8002...');
+  try {
+    let s = new net.WasiTcpServer(8002);
+    for (var i = 0; ; i++) {
+      let cs = await s.accept();
+      handle_client(cs);
+    }
+  } catch (e) {
+    print(e);
+  }
 }
 
 server_start();
@@ -177,10 +177,9 @@ server_start();
 
 The server renders the `<App>` component, and then sends the rendered HTML string back to the browser. Three important things are taking place here.
 
-- ReactDOMServer's `renderToString` is used to render the `<App/>` to an HTML string.
-- The `index.html` file from the app's `build` output directory is loaded as a template. The app's content is injected into the `<div>` element with an id of `"root"`. It is then sent back as HTTP response.
-- Other files from the `build` directory are read and served as needed at the requests of the browser.
-
+* ReactDOMServer's `renderToString` is used to render the `<App/>` to an HTML string.
+* The `index.html` file from the app's `build` output directory is loaded as a template. The app's content is injected into the `<div>` element with an id of `"root"`. It is then sent back as HTTP response.
+* Other files from the `build` directory are read and served as needed at the requests of the browser.
 
 ### Step 3 — Build and deploy
 
@@ -202,39 +201,39 @@ Create a webpack config for the server that uses Babel Loader to transpile the c
 ```js
 const path = require('path');
 module.exports = {
-	entry: './server/index.js',
-	externals: [
-		{"wasi_http": "wasi_http"},
-		{"wasi_net": "wasi_net"},
-		{"std": "std"}
-	],
-	output: {
-		path: path.resolve('server-build'),
-		filename: 'index.js',
-		chunkFormat: "module",
-		library: {
-			type: "module"
-		},
-	},
-	experiments: {
-		outputModule: true
-	},
-	module: {
-		rules: [
-			{
-				test: /\.js$/,
-				use: 'babel-loader'
-			},
-			{
-				test: /\.css$/,
-				use: ["css-loader"]
-			},
-			{
-				test: /\.svg$/,
-				use: ["svg-url-loader"]
-			}
-		]
-	}
+  entry: './server/index.js',
+  externals: [
+    {"wasi_http": "wasi_http"},
+    {"wasi_net": "wasi_net"},
+    {"std": "std"}
+  ],
+  output: {
+    path: path.resolve('server-build'),
+    filename: 'index.js',
+    chunkFormat: "module",
+    library: {
+      type: "module"
+    },
+  },
+  experiments: {
+    outputModule: true
+  },
+  module: {
+    rules: [
+      {
+        test: /\.js$/,
+        use: 'babel-loader'
+      },
+      {
+        test: /\.css$/,
+        use: ["css-loader"]
+      },
+      {
+        test: /\.svg$/,
+        use: ["svg-url-loader"]
+      }
+    ]
+  }
 };
 ```
 
@@ -269,7 +268,7 @@ npm run dev:build-server
 npm run dev:start-server
 ```
 
-Open http://localhost:8002/ in your web browser and observe your server-side rendered app.
+Open `http://localhost:8002/` in your web browser and observe your server-side rendered app.
 
 Previously, the HTML source in the browser is simply the template with SSR placeholders.
 
@@ -304,37 +303,37 @@ const css = require("rollup-plugin-import-css");
 const svg = require('rollup-plugin-svg');
 
 const babelOptions = {
-	babelrc: false,
-	presets: [
-		'@babel/preset-react'
-	],
-	babelHelpers: 'bundled'
+  babelrc: false,
+  presets: [
+    '@babel/preset-react'
+  ],
+  babelHelpers: 'bundled'
 };
 
 module.exports = [
-	{
-		input: './server/index.js',
-		output: {
-			file: 'server-build/index.js',
-			format: 'esm',
-		},
-		external: [ 'std', 'wasi_net','wasi_http'],
-		plugins: [
-			plugin_async(),
-			babel(babelOptions),
-			nodeResolve({preferBuiltins: true}),
-			commonjs({ignoreDynamicRequires: false}),
-			css(),
-			svg({base64: true}),
-			globals(),
-			builtins(),
-			replace({
-				preventAssignment: true,	
-				'process.env.NODE_ENV': JSON.stringify('production'),
-				'process.env.NODE_DEBUG': JSON.stringify(''),
-			}),
-		],
-	},
+  {
+    input: './server/index.js',
+    output: {
+      file: 'server-build/index.js',
+      format: 'esm',
+    },
+    external: [ 'std', 'wasi_net','wasi_http'],
+    plugins: [
+      plugin_async(),
+      babel(babelOptions),
+      nodeResolve({preferBuiltins: true}),
+      commonjs({ignoreDynamicRequires: false}),
+      css(),
+      svg({base64: true}),
+      globals(),
+      builtins(),
+      replace({
+        preventAssignment: true,  
+        'process.env.NODE_ENV': JSON.stringify('production'),
+        'process.env.NODE_DEBUG': JSON.stringify(''),
+      }),
+    ],
+  },
 ];
 ```
 
@@ -385,7 +384,7 @@ npm run dev:build-server
 npm run dev:start-server
 ```
 
-Open http://localhost:8002/ in your web browser and observe your server-side rendered app.
+Open `http://localhost:8002/` in your web browser and observe your server-side rendered app.
 
 Previously, the HTML source in the browser is simply the template with SSR placeholders.
 
@@ -402,7 +401,6 @@ Output
 ```
 
 In the next two sections, we will dive deeper into the source code for two ready-made sample applications for static and streaming rendering of SSR.
-
 
 ## Static rendering
 

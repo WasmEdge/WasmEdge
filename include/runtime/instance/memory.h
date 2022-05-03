@@ -43,7 +43,7 @@ public:
     Inst.DataPtr = nullptr;
   }
   MemoryInstance(const AST::MemoryType &MType,
-                 const uint32_t PageLim = UINT32_C(65536)) noexcept
+                 uint32_t PageLim = UINT32_C(65536)) noexcept
       : MemType(MType), PageLimit(PageLim) {
     if (MemType.getLimit().getMin() > PageLimit) {
       spdlog::error(
@@ -68,7 +68,7 @@ public:
   }
 
   /// Getter of memory type.
-  const AST::MemoryType &getMemoryType() const { return MemType; }
+  const AST::MemoryType &getMemoryType() const noexcept { return MemType; }
 
   /// Check access size is valid.
   bool checkAccessBound(uint32_t Offset, uint32_t Length) const noexcept {
@@ -115,8 +115,7 @@ public:
   }
 
   /// Get slice of Data[Offset : Offset + Length - 1]
-  Expect<Span<Byte>> getBytes(const uint32_t Offset,
-                              const uint32_t Length) const noexcept {
+  Expect<Span<Byte>> getBytes(uint32_t Offset, uint32_t Length) const noexcept {
     // Check the memory boundary.
     if (unlikely(!checkAccessBound(Offset, Length))) {
       spdlog::error(ErrCode::MemoryOutOfBounds);
@@ -127,8 +126,8 @@ public:
   }
 
   /// Replace the bytes of Data[Offset :] by Slice[Start : Start + Legnth - 1]
-  Expect<void> setBytes(Span<const Byte> Slice, const uint32_t Offset,
-                        const uint32_t Start, const uint32_t Length) {
+  Expect<void> setBytes(Span<const Byte> Slice, uint32_t Offset, uint32_t Start,
+                        uint32_t Length) noexcept {
     // Check the memory boundary.
     if (unlikely(!checkAccessBound(Offset, Length))) {
       spdlog::error(ErrCode::MemoryOutOfBounds);
@@ -152,8 +151,8 @@ public:
   }
 
   /// Fill the bytes of Data[Offset : Offset + Length - 1] by Val.
-  Expect<void> fillBytes(const uint8_t Val, const uint32_t Offset,
-                         const uint32_t Length) {
+  Expect<void> fillBytes(uint8_t Val, uint32_t Offset,
+                         uint32_t Length) noexcept {
     // Check the memory boundary.
     if (unlikely(!checkAccessBound(Offset, Length))) {
       spdlog::error(ErrCode::MemoryOutOfBounds);
@@ -169,9 +168,8 @@ public:
   }
 
   /// Get an uint8 array from Data[Offset : Offset + Length - 1]
-  Expect<void> getArray(uint8_t *Arr, const uint32_t Offset,
-                        const uint32_t Length,
-                        const bool IsReverse = false) const noexcept {
+  Expect<void> getArray(uint8_t *Arr, uint32_t Offset, uint32_t Length,
+                        bool IsReverse = false) const noexcept {
     // Check the memory boundary.
     if (unlikely(!checkAccessBound(Offset, Length))) {
       spdlog::error(ErrCode::MemoryOutOfBounds);
@@ -190,8 +188,8 @@ public:
   }
 
   /// Replace Data[Offset : Offset + Length - 1] to an uint8 array
-  Expect<void> setArray(const uint8_t *Arr, const uint32_t Offset,
-                        const uint32_t Length, const bool IsReverse = false) {
+  Expect<void> setArray(const uint8_t *Arr, uint32_t Offset, uint32_t Length,
+                        bool IsReverse = false) noexcept {
     // Check the memory boundary.
     if (unlikely(!checkAccessBound(Offset, Length))) {
       spdlog::error(ErrCode::MemoryOutOfBounds);
@@ -212,7 +210,7 @@ public:
   /// Get pointer to specific offset of memory or null.
   template <typename T>
   typename std::enable_if_t<std::is_pointer_v<T>, T>
-  getPointerOrNull(const uint32_t Offset) const {
+  getPointerOrNull(uint32_t Offset) const noexcept {
     if (Offset == 0 ||
         unlikely(!checkAccessBound(Offset, sizeof(std::remove_pointer_t<T>)))) {
       return nullptr;
@@ -223,7 +221,7 @@ public:
   /// Get pointer to specific offset of memory.
   template <typename T>
   typename std::enable_if_t<std::is_pointer_v<T>, T>
-  getPointer(const uint32_t Offset, const uint32_t Size = 1) const {
+  getPointer(uint32_t Offset, uint32_t Size = 1) const noexcept {
     using Type = std::remove_pointer_t<T>;
     uint32_t ByteSize = static_cast<uint32_t>(sizeof(Type)) * Size;
     if (unlikely(!checkAccessBound(Offset, ByteSize))) {
@@ -245,8 +243,7 @@ public:
   /// \returns void when success, ErrCode when failed.
   template <typename T>
   typename std::enable_if_t<IsWasmNumV<T>, Expect<void>>
-  loadValue(T &Value, const uint32_t Offset,
-            const uint32_t Length) const noexcept {
+  loadValue(T &Value, uint32_t Offset, uint32_t Length) const noexcept {
     // Check the data boundary.
     if (unlikely(Length > sizeof(T))) {
       spdlog::error(ErrCode::MemoryOutOfBounds);
@@ -299,7 +296,7 @@ public:
   /// \returns void when success, ErrCode when failed.
   template <typename T>
   typename std::enable_if_t<IsWasmNativeNumV<T>, Expect<void>>
-  storeValue(const T &Value, const uint32_t Offset, const uint32_t Length) {
+  storeValue(const T &Value, uint32_t Offset, uint32_t Length) noexcept {
     // Check the data boundary.
     if (unlikely(Length > sizeof(T))) {
       spdlog::error(ErrCode::MemoryOutOfBounds);

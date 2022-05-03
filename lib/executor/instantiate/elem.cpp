@@ -12,18 +12,17 @@ namespace WasmEdge {
 namespace Executor {
 
 // Instantiate element instance. See "include/executor/executor.h".
-Expect<void> Executor::instantiate(Runtime::StoreManager &StoreMgr,
-                                   Runtime::StackManager &StackMgr,
+Expect<void> Executor::instantiate(Runtime::StackManager &StackMgr,
                                    Runtime::Instance::ModuleInstance &ModInst,
                                    const AST::ElementSection &ElemSec) {
-  // A frame with temp. module is pushed into stack outside.
-  // Instantiate and initialize elements.
+  // A frame with the current module has been pushed into the stack outside.
+
+  // Iterate through the element segments to instantiate element instances.
   for (const auto &ElemSeg : ElemSec.getContent()) {
     std::vector<RefVariant> InitVals;
     for (const auto &Expr : ElemSeg.getInitExprs()) {
       // Run init expr of every elements and get the result reference.
-      if (auto Res = runExpression(StoreMgr, StackMgr, Expr.getInstrs());
-          !Res) {
+      if (auto Res = runExpression(StackMgr, Expr.getInstrs()); !Res) {
         spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Expression));
         spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Seg_Element));
         return Unexpect(Res);
@@ -35,8 +34,7 @@ Expect<void> Executor::instantiate(Runtime::StoreManager &StoreMgr,
     uint32_t Offset = 0;
     if (ElemSeg.getMode() == AST::ElementSegment::ElemMode::Active) {
       // Run initialize expression.
-      if (auto Res =
-              runExpression(StoreMgr, StackMgr, ElemSeg.getExpr().getInstrs());
+      if (auto Res = runExpression(StackMgr, ElemSeg.getExpr().getInstrs());
           !Res) {
         spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Expression));
         spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Seg_Element));
@@ -61,14 +59,8 @@ Expect<void> Executor::instantiate(Runtime::StoreManager &StoreMgr,
       }
     }
 
-    // Insert element instance to store manager.
-    Runtime::Instance::ElementInstance *ElemInst = nullptr;
-    if (InsMode == InstantiateMode::Instantiate) {
-      ElemInst = StoreMgr.pushElement(Offset, ElemSeg.getRefType(), InitVals);
-    } else {
-      ElemInst = StoreMgr.importElement(Offset, ElemSeg.getRefType(), InitVals);
-    }
-    ModInst.addElem(ElemInst);
+    // Create and add the element instance into the module instance.
+    ModInst.addElem(Offset, ElemSeg.getRefType(), InitVals);
   }
   return {};
 }

@@ -12,19 +12,18 @@ namespace WasmEdge {
 namespace Executor {
 
 // Instantiate data instance. See "include/executor/executor.h".
-Expect<void> Executor::instantiate(Runtime::StoreManager &StoreMgr,
-                                   Runtime::StackManager &StackMgr,
+Expect<void> Executor::instantiate(Runtime::StackManager &StackMgr,
                                    Runtime::Instance::ModuleInstance &ModInst,
                                    const AST::DataSection &DataSec) {
-  // A frame with module is pushed into stack outside.
-  // Instantiate data instances.
+  // A frame with the current module has been pushed into the stack outside.
+
+  // Iterate through the data segments to instantiate data instances.
   for (const auto &DataSeg : DataSec.getContent()) {
     uint32_t Offset = 0;
-    // Initialize memory if data mode is active.
+    // Initialize memory if the data mode is active.
     if (DataSeg.getMode() == AST::DataSegment::DataMode::Active) {
       // Run initialize expression.
-      if (auto Res =
-              runExpression(StoreMgr, StackMgr, DataSeg.getExpr().getInstrs());
+      if (auto Res = runExpression(StackMgr, DataSeg.getExpr().getInstrs());
           unlikely(!Res)) {
         spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Expression));
         spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Seg_Data));
@@ -49,14 +48,8 @@ Expect<void> Executor::instantiate(Runtime::StoreManager &StoreMgr,
       }
     }
 
-    // Insert data instance to store manager.
-    Runtime::Instance::DataInstance *DataInst = nullptr;
-    if (InsMode == InstantiateMode::Instantiate) {
-      DataInst = StoreMgr.pushData(Offset, DataSeg.getData());
-    } else {
-      DataInst = StoreMgr.importData(Offset, DataSeg.getData());
-    }
-    ModInst.addData(DataInst);
+    // Create and add the data instance into the module instance.
+    ModInst.addData(Offset, DataSeg.getData());
   }
   return {};
 }

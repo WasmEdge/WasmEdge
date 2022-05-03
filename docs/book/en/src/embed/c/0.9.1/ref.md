@@ -1,10 +1,8 @@
-# WasmEdge C 0.10.0 (unreleased) API Documentation
+# WasmEdge 0.9.1 C API Documentation
 
-[WasmEdge C API](https://github.com/WasmEdge/WasmEdge/blob/master/include/api/wasmedge/wasmedge.h) denotes an interface to access the WasmEdge runtime. The followings are the guides to working with the C APIs of WasmEdge.
+[WasmEdge C API](https://github.com/WasmEdge/WasmEdge/blob/0.9.1/include/api/wasmedge/wasmedge.h) denotes an interface to access the WasmEdge runtime at version `0.9.1`. The followings are the guides to working with the C APIs of WasmEdge.
 
-**This document is for the `master` branch. For the stable `0.9.1` version, please refer to the [document here](0.9.1/ref.md).**
-
-**Developers can refer [here to upgrade to 0.10.0](0.9.1/upgrade_to_0.10.0.md).**
+**Developers can refer [here to upgrade to 0.10.0](upgrade_to_0.10.0.md).**
 
 ## Table of Contents
 
@@ -46,8 +44,6 @@
 ## WasmEdge Installation
 
 ### Download And Install
-
-**This is for the installation of the stable `0.9.1` version. For the C APIs in this document, please [build WasmEdge from source with the `master` branch](../../extend/build.md).**
 
 The easiest way to install WasmEdge is to run the following command. Your system should have `git` and `wget` as prerequisites.
 
@@ -487,11 +483,6 @@ Developers can adjust the settings about the proposals, VM host pre-registration
      * * Bulk memory operations
      * * Reference types
      * * Fixed-width SIMD
-     *
-     * For the current WasmEdge version, the following proposals are supported
-     * (turned of by default) additionally:
-     * * Tail-call
-     * * Multiple memories
      */
     WasmEdge_ConfigureContext *ConfCxt = WasmEdge_ConfigureCreate();
     WasmEdge_ConfigureAddProposal(ConfCxt, WasmEdge_Proposal_MultiMemories);
@@ -547,26 +538,26 @@ Developers can adjust the settings about the proposals, VM host pre-registration
 
     ```c
     enum WasmEdge_CompilerOptimizationLevel {
-      // Disable as many optimizations as possible.
+      /// Disable as many optimizations as possible.
       WasmEdge_CompilerOptimizationLevel_O0 = 0,
-      // Optimize quickly without destroying debuggability.
+      /// Optimize quickly without destroying debuggability.
       WasmEdge_CompilerOptimizationLevel_O1,
-      // Optimize for fast execution as much as possible without triggering
-      // significant incremental compile time or code size growth.
+      /// Optimize for fast execution as much as possible without triggering
+      /// significant incremental compile time or code size growth.
       WasmEdge_CompilerOptimizationLevel_O2,
-      // Optimize for fast execution as much as possible.
+      /// Optimize for fast execution as much as possible.
       WasmEdge_CompilerOptimizationLevel_O3,
-      // Optimize for small code size as much as possible without triggering
-      // significant incremental compile time or execution time slowdowns.
+      /// Optimize for small code size as much as possible without triggering
+      /// significant incremental compile time or execution time slowdowns.
       WasmEdge_CompilerOptimizationLevel_Os,
-      // Optimize for small code size as much as possible.
+      /// Optimize for small code size as much as possible.
       WasmEdge_CompilerOptimizationLevel_Oz
     };
 
     enum WasmEdge_CompilerOutputFormat {
-      // Native dynamic library format.
+      /// Native dynamic library format.
       WasmEdge_CompilerOutputFormat_Native = 0,
-      // WebAssembly with AOT compiled codes in custom section.
+      /// WebAssembly with AOT compiled codes in custom section.
       WasmEdge_CompilerOutputFormat_Wasm
     };
     ```
@@ -619,8 +610,7 @@ Before using statistics, the statistics configuration must be set. Otherwise, th
 
     ```c
     WasmEdge_StatisticsContext *StatCxt = WasmEdge_StatisticsCreate();
-    /*
-     * ...
+    /* ....
      * After running the WASM functions with the `Statistics` context
      */
     uint32_t Count = WasmEdge_StatisticsGetInstrCount(StatCxt);
@@ -651,8 +641,7 @@ Before using statistics, the statistics configuration must be set. Otherwise, th
     /* Developers can set the costs of each instruction. The value not covered will be 0. */
     WasmEdge_StatisticsSetCostTable(StatCxt, CostTable, 16);
     WasmEdge_StatisticsSetCostLimit(StatCxt, 5000000);
-    /*
-     * ...
+    /* ....
      * After running the WASM functions with the `Statistics` context
      */
     uint64_t Cost = WasmEdge_StatisticsGetTotalCost(StatCxt);
@@ -670,19 +659,19 @@ This example uses the [fibonacci.wasm](https://raw.githubusercontent.com/WasmEdg
 
 ```wasm
 (module
-  (export "fib" (func $fib))
-  (func $fib (param $n i32) (result i32)
-    (if
-      (i32.lt_s (get_local $n)(i32.const 2))
-      (return (i32.const 1))
-    )
-    (return
-      (i32.add
-        (call $fib (i32.sub (get_local $n)(i32.const 2)))
-        (call $fib (i32.sub (get_local $n)(i32.const 1)))
-      )
-    )
+ (export "fib" (func $fib))
+ (func $fib (param $n i32) (result i32)
+  (if
+   (i32.lt_s (get_local $n)(i32.const 2))
+   (return (i32.const 1))
   )
+  (return
+   (i32.add
+    (call $fib (i32.sub (get_local $n)(i32.const 2)))
+    (call $fib (i32.sub (get_local $n)(i32.const 1)))
+   )
+  )
+ )
 )
 ```
 
@@ -846,7 +835,7 @@ This example uses the [fibonacci.wasm](https://raw.githubusercontent.com/WasmEdg
     After loading WASM successfully, the status will be `Loaded`.
     After validating WASM successfully, the status will be `Validated`.
     After instantiating WASM successfully, the status will be `Instantiated`, and developers can invoke functions.
-    Developers can register WASM or module instances in any status, but they should instantiate WASM again.
+    Developers can register WASM or import objects in any status, but they should instantiate WASM again.
     Developers can also load WASM in any status, and they should validate and instantiate the WASM module before function invocation.
     When in the `Instantiated` status, developers can instantiate the WASM module again to reset the old WASM runtime structures.
 
@@ -884,17 +873,17 @@ WasmEdge provides the following built-in pre-registrations.
     WasmEdge_ConfigureContext *ConfCxt = WasmEdge_ConfigureCreate();
     WasmEdge_ConfigureAddHostRegistration(ConfCxt, WasmEdge_HostRegistration_Wasi);
     WasmEdge_VMContext *VMCxt = WasmEdge_VMCreate(ConfCxt, NULL);
-    /* The following API can retrieve the pre-registration module instances from the VM context. */
+    /* The following API can retrieve the pre-registration import objects from the VM context. */
     /* This API will return `NULL` if the corresponding pre-registration is not set into the configuration. */
-    WasmEdge_ModuleInstanceContext *WasiModule =
+    WasmEdge_ImportObjectContext *WasiObject =
       WasmEdge_VMGetImportModuleContext(VMCxt, WasmEdge_HostRegistration_Wasi);
     /* Initialize the WASI. */
-    WasmEdge_ModuleInstanceInitWASI(WasiModule, /* ... ignored */ );
+    WasmEdge_ImportObjectInitWASI(WasiObject, /* ... ignored */ );
     WasmEdge_VMDelete(VMCxt);
     WasmEdge_ConfigureDelete(ConfCxt);
     ```
 
-    And also can create the WASI module instance from API. The details will be introduced in the [Host Functions](#host-functions) and the [Host Module Registrations](#host-module-registrations).
+    And also can create the WASI import object from API. The details will be introduced in the [Host Functions](#host-functions) and the [Host Module Registrations](#host-module-registrations).
 
 2. [WasmEdge_Process](https://crates.io/crates/wasmedge_process_interface)
 
@@ -905,37 +894,34 @@ WasmEdge provides the following built-in pre-registrations.
     WasmEdge_ConfigureContext *ConfCxt = WasmEdge_ConfigureCreate();
     WasmEdge_ConfigureAddHostRegistration(ConfCxt, WasmEdge_HostRegistration_WasmEdge_Process);
     WasmEdge_VMContext *VMCxt = WasmEdge_VMCreate(ConfCxt, NULL);
-    /* The following API can retrieve the pre-registration module instances from the VM context. */
+    /* The following API can retrieve the pre-registration import objects from the VM context. */
     /* This API will return `NULL` if the corresponding pre-registration is not set into the configuration. */
-    WasmEdge_ModuleInstanceContext *ProcModule =
+    WasmEdge_ImportObjectContext *ProcObject =
       WasmEdge_VMGetImportModuleContext(VMCxt, WasmEdge_HostRegistration_WasmEdge_Process);
     /* Initialize the WasmEdge_Process. */
-    WasmEdge_ModuleInstanceInitWasmEdgeProcess(ProcModule, /* ... ignored */ );
+    WasmEdge_ImportObjectInitWasmEdgeProcess(ProcObject, /* ... ignored */ );
     WasmEdge_VMDelete(VMCxt);
     WasmEdge_ConfigureDelete(ConfCxt);
     ```
 
-    And also can create the WasmEdge_Process module instance from API. The details will be introduced in the [Host Functions](#host-functions) and the [Host Module Registrations](#host-module-registrations).
+    And also can create the WasmEdge_Process import object from API. The details will be introduced in the [Host Functions](#host-functions) and the [Host Module Registrations](#host-module-registrations).
 
 ### Host Module Registrations
 
 [Host functions](https://webassembly.github.io/spec/core/exec/runtime.html#syntax-hostfunc) are functions outside WebAssembly and passed to WASM modules as imports.
-In WasmEdge, the host functions are composed into host modules as `WasmEdge_ModuleInstanceContext` objects with module names.
+In WasmEdge, the host functions are composed into host modules as `WasmEdge_ImportObjectContext` objects with module names.
 Please refer to the [Host Functions in WasmEdge Runtime](#host-functions) for the details.
 In this chapter, we show the example for registering the host modules into a `VM` context.
 
 ```c
 WasmEdge_VMContext *VMCxt = WasmEdge_VMCreate(NULL, NULL);
-WasmEdge_ModuleInstanceContext *WasiModule =
-  WasmEdge_ModuleInstanceCreateWASI( /* ... ignored ... */ );
+WasmEdge_ImportObjectContext *WasiObject =
+  WasmEdge_ImportObjectCreateWASI( /* ... ignored ... */ );
 /* You can also create and register the WASI host modules by this API. */
-WasmEdge_Result Res = WasmEdge_VMRegisterModuleFromImport(VMCxt, WasiModule);
+WasmEdge_Result Res = WasmEdge_VMRegisterModuleFromImport(VMCxt, WasiObject);
 /* The result status should be checked. */
-
-/* ... */
-
-WasmEdge_ModuleInstanceDelete(WasiModule);
-/* The created module instances should be deleted by the developers when the VM deallocation. */
+WasmEdge_ImportObjectDelete(WasiObject);
+/* The created import objects should be deleted. */
 WasmEdge_VMDelete(VMCxt);
 ```
 
@@ -946,7 +932,7 @@ WasmEdge VM provides APIs for developers to register and export any WASM modules
 
 1. Register the WASM modules with exported module names
 
-    Unless the module instances have already contained the module names, every WASM module should be named uniquely when registering.
+    Unless the import objects have already contained the module names, every WASM module should be named uniquely when registering.
     Assume that the WASM file [`fibonacci.wasm`](https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/tools/wasmedge/examples/fibonacci.wasm) is copied into the current directory.
 
     ```c
@@ -1271,25 +1257,6 @@ The `VM` context supplies the APIs to retrieve the instances.
     WasmEdge_StringDelete(FuncName);
     ```
 
-4. Get the active module
-
-    After the WASM module instantiation, an anonymous module is instantiated and owned by the `VM` context.
-    Developers may need to retrieve it to get the instances beyond the module.
-    Then developers can use the `WasmEdge_VMGetActiveModule()` API to get that anonymous module instance.
-    Please refer to the [Module instance](#instances) for the details about the module instance APIs.
-
-    ```c
-    /* 
-     * ...
-     * Assume that a WASM module is instantiated in `VMCxt`.
-     */
-    const WasmEdge_ModuleInstanceContext *ModCxt = WasmEdge_VMGetActiveModule(VMCxt);
-    /* 
-     * If there's no WASM module instantiated, this API will return `NULL`.
-     * The returned module instance context should __NOT__ be destroyed.
-     */
-    ```
-
 ## WasmEdge Runtime
 
 In this partition, we will introduce the objects of WasmEdge runtime manually.
@@ -1307,7 +1274,7 @@ int main() {
   WasmEdge_ConfigureContext *ConfCxt = WasmEdge_ConfigureCreate();
   /* Create the statistics context. This step is not necessary if the statistics in runtime is not needed. */
   WasmEdge_StatisticsContext *StatCxt = WasmEdge_StatisticsCreate();
-  /* Create the store context. The store context is the object to link the modules for imports and exports. */
+  /* Create the store context. The store context is the WASM runtime structure core. */
   WasmEdge_StoreContext *StoreCxt = WasmEdge_StoreCreate();
   /* Result. */
   WasmEdge_Result Res;
@@ -1333,20 +1300,19 @@ int main() {
     return 1;
   }
   /* Instantiate the WASM module into store context. */
-  WasmEdge_ModuleInstanceContext *ModCxt = NULL;
-  Res = WasmEdge_ExecutorInstantiate(ExecCxt, &ModCxt, StoreCxt, ASTCxt);
+  Res = WasmEdge_ExecutorInstantiate(ExecCxt, StoreCxt, ASTCxt);
   if (!WasmEdge_ResultOK(Res)) {
     printf("Instantiation phase failed: %s\n", WasmEdge_ResultGetMessage(Res));
     return 1;
   }
 
   /* Try to list the exported functions of the instantiated WASM module. */
-  uint32_t FuncNum = WasmEdge_ModuleInstanceListFunctionLength(ModCxt);
+  uint32_t FuncNum = WasmEdge_StoreListFunctionLength(StoreCxt);
   /* Create the name buffers. */
   const uint32_t BUF_LEN = 256;
   WasmEdge_String FuncNames[BUF_LEN];
   /* If the list length is larger than the buffer length, the overflowed data will be discarded. */
-  uint32_t RealFuncNum = WasmEdge_ModuleInstanceListFunction(ModCxt, FuncNames, BUF_LEN);
+  uint32_t RealFuncNum = WasmEdge_StoreListFunction(StoreCxt, FuncNames, BUF_LEN);
   for (uint32_t I = 0; I < RealFuncNum && I < BUF_LEN; I++) {
     char Buf[BUF_LEN];
     uint32_t Size = WasmEdge_StringCopy(FuncNames[I], Buf, sizeof(Buf));
@@ -1359,14 +1325,8 @@ int main() {
   WasmEdge_Value Returns[1];
   /* Function name. */
   WasmEdge_String FuncName = WasmEdge_StringCreateByCString("fib");
-  /* Find the exported function by function name. */
-  WasmEdge_FunctionInstanceContext *FuncCxt = WasmEdge_ModuleInstanceFindFunction(ModCxt, FuncName);
-  if (FuncCxt == NULL) {
-    printf("Function `fib` not found.\n");
-    return 1;
-  }
   /* Invoke the WASM fnction. */
-  Res = WasmEdge_ExecutorInvoke(ExecCxt, FuncCxt, Params, 1, Returns, 1);
+  Res = WasmEdge_ExecutorInvoke(ExecCxt, StoreCxt, FuncName, Params, 1, Returns, 1);
   if (WasmEdge_ResultOK(Res)) {
     printf("Get the result: %d\n", WasmEdge_ValueGetI32(Returns[0]));
   } else {
@@ -1376,7 +1336,6 @@ int main() {
   /* Resources deallocations. */
   WasmEdge_StringDelete(FuncName);
   WasmEdge_ASTModuleDelete(ASTCxt);
-  WasmEdge_ModuleInstanceDelete(ModCxt);
   WasmEdge_LoaderDelete(LoadCxt);
   WasmEdge_ValidatorDelete(ValidCxt);
   WasmEdge_ExecutorDelete(ExecCxt);
@@ -1460,11 +1419,10 @@ WasmEdge_ValidatorDelete(ValidCxt);
 The `Executor` context is the executor for both WASM and compiled-WASM.
 This object should work base on the `Store` context. For the details of the `Store` context, please refer to the [next chapter](#store).
 
-1. Instantiate and register an `AST module` as a named `Module` instance
+1. Register modules
 
-    As the same of [registering host modules](#host-module-registrations) or [importing WASM modules](#wasm-registrations-and-executions) in `VM` contexts, developers can instantiate and register an `AST module` contexts into the `Store` context as a named `Module` instance by the `Executor` APIs.
-    After the registration, the result `Module` instance is exported with the given module name and can be linked when instantiating another module.
-    For the details about the `Module` instances APIs, please refer to the [Instances](#instances).
+    As the same of [registering host modules](#host-module-registrations) or [importing WASM modules](#wasm-registrations-and-executions) in `VM` context, developers can register `Import Object` or `AST module` contexts into the `Store` context by the `Executor` APIs.
+    For the details of import objects, please refer to the [Host Functions](#host-functions).
 
     ```c
     /* 
@@ -1477,83 +1435,40 @@ This object should work base on the `Store` context. For the details of the `Sto
     WasmEdge_StatisticsContext *StatCxt = WasmEdge_StatisticsCreate();
     /* Create the executor context. The configure and the statistics contexts can be NULL. */
     WasmEdge_ExecutorContext *ExecCxt = WasmEdge_ExecutorCreate(ConfCxt, StatCxt);
-    /* Create the store context. The store context is the object to link the modules for imports and exports. */
+    /* Create the store context. The store context is the WASM runtime structure core. */
     WasmEdge_StoreContext *StoreCxt = WasmEdge_StoreCreate();
     /* Result. */
     WasmEdge_Result Res;
 
+    /* Register the WASM module into store with the export module name "mod". */
     WasmEdge_String ModName = WasmEdge_StringCreateByCString("mod");
-    /* The output module instance. */
-    WasmEdge_ModuleInstanceContext *ModCxt = NULL;
-    /* Register the WASM module into the store with the export module name "mod". */
-    Res = WasmEdge_ExecutorRegister(ExecCxt, &ModCxt, StoreCxt, ASTCxt, ModName);
+    Res = WasmEdge_ExecutorRegisterModule(ExecCxt, StoreCxt, ASTCxt, ModName);
     if (!WasmEdge_ResultOK(Res)) {
       printf("WASM registration failed: %s\n", WasmEdge_ResultGetMessage(Res));
-      return -1;
     }
     WasmEdge_StringDelete(ModName);
 
-    /* ... */
-
-    /* After the execution, the resources should be released. */
-    WasmEdge_ExecutorDelete(ExecCxt);
-    WasmEdge_StatisticsDelete(StatCxt);
-    WasmEdge_StoreDelete(StoreCxt);
-    WasmEdge_ModuleInstanceDelete(ModCxt);
-    ```
-
-2. Register an existing `Module` instance and export the module name
-
-    Besides instantiating and registering an `AST module` contexts, developers can register an existing `Module` instance into the store with exporting the module name (which is in the `Module` instance already).
-    This case occurs when developers create a `Module` instance for the host functions and want to register it for linking.
-    For the details about the construction of host functions in `Module` instances, please refer to the [Host Functions](#host-functions).
-
-    ```c
     /* 
-    * ...
-    * Assume that the `ASTCxt` is the output AST module context from the loader context
-    * and has passed the validation.
-    * Assume that the `ConfCxt` is the configure context.
-    */
-    /* Create the statistics context. This step is not necessary. */
-    WasmEdge_StatisticsContext *StatCxt = WasmEdge_StatisticsCreate();
-    /* Create the executor context. The configure and the statistics contexts can be NULL. */
-    WasmEdge_ExecutorContext *ExecCxt = WasmEdge_ExecutorCreate(ConfCxt, StatCxt);
-    /* Create the store context. The store context is the object to link the modules for imports and exports. */
-    WasmEdge_StoreContext *StoreCxt = WasmEdge_StoreCreate();
-    /* Result. */
-    WasmEdge_Result Res;
-
-    /* Create a module instance for host functions. */
-    WasmEdge_String ModName = WasmEdge_StringCreateByCString("host-module");
-    WasmEdge_ModuleInstanceContext *HostModCxt = WasmEdge_ModuleInstanceCreate(ModName);
-    WasmEdge_StringDelete(ModName);
-    /*
-     * ...
-     * Create and add the host functions, tables, memories, and globals into the module instance.
+     * Assume that the `ImpCxt` is the import object context for host functions.
      */
-
-    /* Register the module instance into store with the exported module name. */
-    /* The export module name is in the module instance already. */
-    Res = WasmEdge_ExecutorRegisterImport(ExecCxt, StoreCxt, HostModCxt);
+    WasmEdge_ImportObjectContext *ImpCxt = ...;
+    /* The import module context has already contained the export module name. */
+    Res = WasmEdge_ExecutorRegisterImport(ExecCxt, StoreCxt, ImpCxt);
     if (!WasmEdge_ResultOK(Res)) {
-      printf("WASM registration failed: %s\n", WasmEdge_ResultGetMessage(Res));
-      return -1;
+      printf("Import object registration failed: %s\n", WasmEdge_ResultGetMessage(Res));
     }
 
-    /* ... */
-
-    /* After the execution, the resources should be released. */
+    WasmEdge_ImportObjectDelete(ImpCxt);
     WasmEdge_ExecutorDelete(ExecCxt);
     WasmEdge_StatisticsDelete(StatCxt);
     WasmEdge_StoreDelete(StoreCxt);
-    WasmEdge_ModuleInstanceDelete(ModCxt);
     ```
 
-3. Instantiate an `AST module` to an anonymous `Module` instance
+2. Instantiate modules
 
     WASM or compiled-WASM modules should be instantiated before the function invocation.
-    Before instantiating a WASM module, please check the [import section](https://webassembly.github.io/spec/core/syntax/modules.html#syntax-import) for ensuring the imports are registered into the `Store` context for linking.
+    Note that developers can only instantiate one module into the `Store` context, and in that case, the old instantiated module will be cleaned.
+    Before instantiating a WASM module, please check the [import section](https://webassembly.github.io/spec/core/syntax/modules.html#syntax-import) for ensuring the imports are registered into the `Store` context.
 
     ```c
     /* 
@@ -1566,32 +1481,25 @@ This object should work base on the `Store` context. For the details of the `Sto
     WasmEdge_StatisticsContext *StatCxt = WasmEdge_StatisticsCreate();
     /* Create the executor context. The configure and the statistics contexts can be NULL. */
     WasmEdge_ExecutorContext *ExecCxt = WasmEdge_ExecutorCreate(ConfCxt, StatCxt);
-    /* Create the store context. The store context is the object to link the modules for imports and exports. */
+    /* Create the store context. The store context is the WASM runtime structure core. */
     WasmEdge_StoreContext *StoreCxt = WasmEdge_StoreCreate();
 
-    /* The output module instance. */
-    WasmEdge_ModuleInstanceContext *ModCxt = NULL;
     /* Instantiate the WASM module. */
-    WasmEdge_Result Res = WasmEdge_ExecutorInstantiate(ExecCxt, &ModCxt, StoreCxt, ASTCxt);
+    WasmEdge_Result Res = WasmEdge_ExecutorInstantiate(ExecCxt, StoreCxt, ASTCxt);
     if (!WasmEdge_ResultOK(Res)) {
       printf("WASM instantiation failed: %s\n", WasmEdge_ResultGetMessage(Res));
-      return -1;
     }
 
-    /* ... */
-
-    /* After the execution, the resources should be released. */
     WasmEdge_ExecutorDelete(ExecCxt);
     WasmEdge_StatisticsDelete(StatCxt);
     WasmEdge_StoreDelete(StoreCxt);
-    WasmEdge_ModuleInstanceDelete(ModCxt);
     ```
 
-4. Invoke functions
+3. Invoke functions
 
-    After registering or instantiating and get the result `Module` instance, developers can retrieve the exported `Function` instances from the `Module` instance for invocation.
-    For the details about the `Module` instances APIs, please refer to the [Instances](#instances).
-    Please refer to the [example above](#wasm-execution-example-step-by-step) for the `Function` instance invocation with the `WasmEdge_ExecutorInvoke()` API.
+    As the same as function invocation via the `VM` context, developers can invoke the functions of the instantiated or registered modules.
+    The APIs, `WasmEdge_ExecutorInvoke()` and `WasmEdge_ExecutorInvokeRegistered()`, are similar as the APIs of the `VM` context.
+    Please refer to the [VM context workflows](#wasm-execution-example-with-vm-context) for details.
 
 ### AST Module
 
@@ -1627,97 +1535,97 @@ WasmEdge_ASTModuleDelete(ASTCxt);
 
 ### Store
 
-[Store](https://webassembly.github.io/spec/core/exec/runtime.html#store) is the runtime structure for the representation of all global state that can be manipulated by WebAssembly programs.
-The `Store` context in WasmEdge is an object to provide the instance exporting and importing when instantiating WASM modules.
-Developers can retrieve the named modules from the `Store` context.
+[Store](https://webassembly.github.io/spec/core/exec/runtime.html#store) is the runtime structure for the representation of all instances of `Function`s, `Table`s, `Memory`s, and `Global`s that have been allocated during the lifetime of the abstract machine.
+The `Store` context in WasmEdge provides APIs to list the exported instances with their names or find the instances by exported names. For adding instances into `Store` contexts, please instantiate or register WASM modules or `Import Object` contexts via the `Executor` context.
 
-```c
-WasmEdge_StoreContext *StoreCxt = WasmEdge_StoreCreate();
-
-/*
- * ...
- * Register a WASM module via the executor context.
- */
-
-/* Try to list the registered WASM modules. */
-uint32_t ModNum = WasmEdge_StoreListModuleLength(StoreCxt);
-/* Create the name buffers. */
-const uint32_t BUF_LEN = 256;
-WasmEdge_String ModNames[BUF_LEN];
-/* If the list length is larger than the buffer length, the overflowed data will be discarded. */
-uint32_t RealModNum = WasmEdge_StoreListModule(StoreCxt, ModNames, BUF_LEN);
-for (uint32_t I = 0; I < RealModNum && I < BUF_LEN; I++) {
-  /* Working with the module name `ModNames[I]` ... */
-  /* The module names should __NOT__ be destroyed. */
-}
-
-/* Find named module by name. */
-WasmEdge_String ModName = WasmEdge_StringCreateByCString("module");
-const WasmEdge_ModuleInstanceContext *ModCxt = WasmEdge_StoreFindModule(StoreCxt, ModName);
-/* If the module with name not found, the `ModCxt` will be NULL. */
-WasmEdge_StringDelete(ModName);
-```
-
-### Instances
-
-The instances are the runtime structures of WASM. Developers can retrieve the `Module` instances from the `Store` contexts, and retrieve the other instances from the `Module` instances.
-A single instance can be allocated by its creation function. Developers can construct instances into an `Module` instance for registration. Please refer to the [Host Functions](#host-functions) for details.
-The instances created by their creation functions should be destroyed by developers, EXCEPT they are added into an `Module` instance.
-
-1. Module instance
-
-    After instantiating or registering an `AST module` context, developers will get a `Module` instance as the result, and have the responsibility to destroy it when not in use.
-    A `Module` instance can also be created for the host module. Please refer to the [host function](#host-functions) for the details.
-    `Module` instance provides APIs to list and find the exported instances in the module.
+1. List instances
 
     ```c
-    /*
-    * ...
-    * Instantiate a WASM module via the executor context and get the `ModCxt` as the output module instance.
-    */
+    WasmEdge_StoreContext *StoreCxt = WasmEdge_StoreCreate();
+    /* ... Instantiate a WASM module via the executor context. */
+    ...
 
-    /* Try to list the exported instance of the instantiated WASM module. */
+    /* Try to list the exported functions of the instantiated WASM module. */
     /* Take the function instances for example here. */
-    uint32_t FuncNum = WasmEdge_ModuleInstanceListFunctionLength(ModCxt);
+    uint32_t FuncNum = WasmEdge_StoreListFunctionLength(StoreCxt);
     /* Create the name buffers. */
     const uint32_t BUF_LEN = 256;
     WasmEdge_String FuncNames[BUF_LEN];
     /* If the list length is larger than the buffer length, the overflowed data will be discarded. */
-    uint32_t RealFuncNum = WasmEdge_ModuleInstanceListFunction(ModCxt, FuncNames, BUF_LEN);
+    uint32_t RealFuncNum = WasmEdge_StoreListFunction(StoreCxt, FuncNames, BUF_LEN);
     for (uint32_t I = 0; I < RealFuncNum && I < BUF_LEN; I++) {
       /* Working with the function name `FuncNames[I]` ... */
       /* The function names should __NOT__ be destroyed. */
     }
+    ```
+
+    Developers can list the function instance exported names of the registered modules via the `WasmEdge_StoreListFunctionRegisteredLength()` and the `WasmEdge_StoreListFunctionRegistered()` APIs with the module name.
+
+2. Find instances
+
+    ```c
+    WasmEdge_StoreContext *StoreCxt = WasmEdge_StoreCreate();
+    /* ... Instantiate a WASM module via the executor context. */
+    ...
 
     /* Try to find the exported instance of the instantiated WASM module. */
     /* Take the function instances for example here. */
     /* Function name. */
     WasmEdge_String FuncName = WasmEdge_StringCreateByCString("fib");
-    WasmEdge_FunctionInstanceContext *FuncCxt = WasmEdge_ModuleInstanceFindFunction(ModCxt, FuncName);
+    WasmEdge_FunctionInstanceContext *FuncCxt = WasmEdge_StoreFindFunction(StoreCxt, FuncName);
     /* `FuncCxt` will be `NULL` if the function not found. */
-    /* The returned instance is owned by the module instance context and should __NOT__ be destroyed. */
+    /* The returned instance is owned by the store context and should __NOT__ be destroyed. */
     WasmEdge_StringDelete(FuncName);
     ```
 
-2. Function instance
+    Developers can retrieve the exported function instances of the registered modules via the `WasmEdge_StoreFindFunctionRegistered()` API with the module name.
+
+3. List registered modules
+
+    With the module names, developers can list the exported instances of the registered modules with their names.
+
+    ```c
+    WasmEdge_StoreContext *StoreCxt = WasmEdge_StoreCreate();
+    /* ... Register a WASM module via the executor context. */
+    ...
+
+    /* Try to list the registered WASM modules. */
+    uint32_t ModNum = WasmEdge_StoreListModuleLength(StoreCxt);
+    /* Create the name buffers. */
+    const uint32_t BUF_LEN = 256;
+    WasmEdge_String ModNames[BUF_LEN];
+    /* If the list length is larger than the buffer length, the overflowed data will be discarded. */
+    uint32_t RealModNum = WasmEdge_StoreListModule(StoreCxt, ModNames, BUF_LEN);
+    for (uint32_t I = 0; I < RealModNum && I < BUF_LEN; I++) {
+      /* Working with the module name `ModNames[I]` ... */
+      /* The module names should __NOT__ be destroyed. */
+    }
+    ```
+
+### Instances
+
+The instances are the runtime structures of WASM. Developers can retrieve the instances from the `Store` contexts.
+The `Store` contexts will allocate instances when a WASM module or `Import Object` is registered or instantiated through the `Executor`.
+A single instance can be allocated by its creation function. Developers can construct instances into an `Import Object` for registration. Please refer to the [Host Functions](#host-functions) for details.
+The instances created by their creation functions should be destroyed, EXCEPT they are added into an `Import Object` context.
+
+1. Function instance
 
     [Host functions](https://webassembly.github.io/spec/core/exec/runtime.html#syntax-hostfunc) are functions outside WebAssembly and passed to WASM modules as imports.
-    In WasmEdge, developers can create the `Function` contexts for host functions and add them into an `Module` instance context for registering into a `VM` or a `Store`.
-    Developers can retrieve the `Function Type` from the `Function` contexts through the API.
+    In WasmEdge, developers can create the `Function` contexts for host functions and add them into an `Import Object` context for registering into a `VM` or a `Store`.
+    For both host functions and the functions get from `Store`, developers can retrieve the `Function Type` from the `Function` contexts.
     For the details of the `Host Function` guide, please refer to the [next chapter](#host-functions).
 
     ```c
-    /* Retrieve the function instance from the module instance context. */
+    /* Retrieve the function instance from the store context. */
     WasmEdge_FunctionInstanceContext *FuncCxt = ...;
     WasmEdge_FunctionTypeContext *FuncTypeCxt = WasmEdge_FunctionInstanceGetFunctionType(FuncCxt);
     /* The `FuncTypeCxt` is owned by the `FuncCxt` and should __NOT__ be destroyed. */
-
-    /* For the function instance creation, please refer to the `Host Function` guide. */
     ```
 
-3. Table instance
+2. Table instance
 
-    In WasmEdge, developers can create the `Table` contexts and add them into an `Module` instance context for registering into a `VM` or a `Store`.
+    In WasmEdge, developers can create the `Table` contexts and add them into an `Import Object` context for registering into a `VM` or a `Store`.
     The `Table` contexts supply APIs to control the data in table instances.
 
     ```c
@@ -1764,9 +1672,9 @@ The instances created by their creation functions should be destroyed by develop
     WasmEdge_TableInstanceDelete(HostTable);
     ```
 
-4. Memory instance
+3. Memory instance
 
-    In WasmEdge, developers can create the `Memory` contexts and add them into an `Module` instance context for registering into a `VM` or a `Store`.
+    In WasmEdge, developers can create the `Memory` contexts and add them into an `Import Object` context for registering into a `VM` or a `Store`.
     The `Memory` contexts supply APIs to control the data in memory instances.
 
     ```c
@@ -1814,9 +1722,9 @@ The instances created by their creation functions should be destroyed by develop
     WasmEdge_MemoryInstanceDelete(HostMemory);
     ```
 
-5. Global instance
+4. Global instance
 
-    In WasmEdge, developers can create the `Global` contexts and add them into an `Module` instance context for registering into a `VM` or a `Store`.
+    In WasmEdge, developers can create the `Global` contexts and add them into an `Import Object` context for registering into a `VM` or a `Store`.
     The `Global` contexts supply APIs to control the value in global instances.
 
     ```c
@@ -1851,7 +1759,7 @@ The instances created by their creation functions should be destroyed by develop
 ### Host Functions
 
 [Host functions](https://webassembly.github.io/spec/core/exec/runtime.html#syntax-hostfunc) are functions outside WebAssembly and passed to WASM modules as imports.
-In WasmEdge, developers can create the `Function`, `Memory`, `Table`, and `Global` contexts and add them into an `Module` instance context for registering into a `VM` or a `Store`.
+In WasmEdge, developers can create the `Function`, `Memory`, `Table`, and `Global` contexts and add them into an `Import Object` context for registering into a `VM` or a `Store`.
 
 1. Host function allocation
 
@@ -1886,7 +1794,7 @@ In WasmEdge, developers can create the `Function`, `Memory`, `Table`, and `Globa
     }
     ```
 
-    Then developers can create `Function` context with the host function body and the function type:
+    Then developers can create `Function` context with the host function body and function type:
 
     ```c
     enum WasmEdge_ValType ParamList[2] = { WasmEdge_ValType_I32, WasmEdge_ValType_I32 };
@@ -1904,13 +1812,13 @@ In WasmEdge, developers can create the `Function`, `Memory`, `Table`, and `Globa
      * `NULL` if the external data is not needed.
      */
 
-    /* If the function instance is not added into a module instance context, it should be deleted. */
+    /* If the function instance is not added into an import object context, it should be deleted. */
     WasmEdge_FunctionInstanceDelete(HostFunc);
     ```
 
-2. Construct a module instance with host instances
+2. Import object context
 
-    Besides creating a `Module` instance by registering or instantiating a WASM module, developers can create a `Module` instance with a module name and add the `Function`, `Memory`, `Table`, and `Global` instances into it with their exporting names.
+    The `Import Object` context holds an exporting module name and the instances. Developers can add the `Function`, `Memory`, `Table`, and `Global` instances with their exporting names.
 
     ```c
     /* Host function body definition. */
@@ -1922,12 +1830,12 @@ In WasmEdge, developers can create the `Function`, `Memory`, `Table`, and `Globa
       return WasmEdge_Result_Success;
     }
 
-    /* Create a module instance. */
+    /* Create the import object. */
     WasmEdge_String ExportName = WasmEdge_StringCreateByCString("module");
-    WasmEdge_ModuleInstanceContext *HostModCxt = WasmEdge_ModuleInstanceCreate(ExportName);
+    WasmEdge_ImportObjectContext *ImpObj = WasmEdge_ImportObjectCreate(ExportName);
     WasmEdge_StringDelete(ExportName);
 
-    /* Create and add a function instance into the module instance. */
+    /* Create and add a function instance into the import object. */
     enum WasmEdge_ValType ParamList[2] = { WasmEdge_ValType_I32, WasmEdge_ValType_I32 };
     enum WasmEdge_ValType ReturnList[1] = { WasmEdge_ValType_I32 };
     WasmEdge_FunctionTypeContext *HostFType = 
@@ -1941,68 +1849,68 @@ In WasmEdge, developers can create the `Function`, `Memory`, `Table`, and `Globa
      */
     WasmEdge_FunctionTypeDelete(HostFType);
     WasmEdge_String FuncName = WasmEdge_StringCreateByCString("add");
-    WasmEdge_ModuleInstanceAddFunction(HostModCxt, FuncName, HostFunc);
+    WasmEdge_ImportObjectAddFunction(ImpObj, FuncName, HostFunc);
     WasmEdge_StringDelete(FuncName);
 
-    /* Create and add a table instance into the module instance. */
+    /* Create and add a table instance into the import object. */
     WasmEdge_Limit TableLimit = {.HasMax = true, .Min = 10, .Max = 20};
     WasmEdge_TableTypeContext *HostTType = 
       WasmEdge_TableTypeCreate(WasmEdge_RefType_FuncRef, TableLimit);
     WasmEdge_TableInstanceContext *HostTable = WasmEdge_TableInstanceCreate(HostTType);
     WasmEdge_TableTypeDelete(HostTType);
     WasmEdge_String TableName = WasmEdge_StringCreateByCString("table");
-    WasmEdge_ModuleInstanceAddTable(HostModCxt, TableName, HostTable);
+    WasmEdge_ImportObjectAddTable(ImpObj, TableName, HostTable);
     WasmEdge_StringDelete(TableName);
 
-    /* Create and add a memory instance into the module instance. */
+    /* Create and add a memory instance into the import object. */
     WasmEdge_Limit MemoryLimit = {.HasMax = true, .Min = 1, .Max = 2};
     WasmEdge_MemoryTypeContext *HostMType = WasmEdge_MemoryTypeCreate(MemoryLimit);
     WasmEdge_MemoryInstanceContext *HostMemory = WasmEdge_MemoryInstanceCreate(HostMType);
     WasmEdge_MemoryTypeDelete(HostMType);
     WasmEdge_String MemoryName = WasmEdge_StringCreateByCString("memory");
-    WasmEdge_ModuleInstanceAddMemory(HostModCxt, MemoryName, HostMemory);
+    WasmEdge_ImportObjectAddMemory(ImpObj, MemoryName, HostMemory);
     WasmEdge_StringDelete(MemoryName);
 
-    /* Create and add a global instance into the module instance. */
+    /* Create and add a global instance into the import object. */
     WasmEdge_GlobalTypeContext *HostGType =
       WasmEdge_GlobalTypeCreate(WasmEdge_ValType_I32, WasmEdge_Mutability_Var);
     WasmEdge_GlobalInstanceContext *HostGlobal =
       WasmEdge_GlobalInstanceCreate(HostGType, WasmEdge_ValueGenI32(666));
     WasmEdge_GlobalTypeDelete(HostGType);
     WasmEdge_String GlobalName = WasmEdge_StringCreateByCString("global");
-    WasmEdge_ModuleInstanceAddGlobal(HostModCxt, GlobalName, HostGlobal);
+    WasmEdge_ImportObjectAddGlobal(ImpObj, GlobalName, HostGlobal);
     WasmEdge_StringDelete(GlobalName);
 
     /*
-     * The module instance should be deleted.
-     * Developers should __NOT__ destroy the instances added into the module instance contexts.
+     * The import objects should be deleted.
+     * Developers should __NOT__ destroy the instances added into the import object contexts.
      */
-    WasmEdge_ModuleInstanceDelete(HostModCxt);
+    WasmEdge_ImportObjectDelete(ImpObj);
     ```
 
-3. Specified module instance
+3. Specified import object
 
-    `WasmEdge_ModuleInstanceCreateWASI()` API can create and initialize the `WASI` module instance.
-    `WasmEdge_ModuleInstanceCreateWasmEdgeProcess()` API can create and initialize the `wasmedge_process` module instance.
-    Developers can create these module instance contexts and register them into the `Store` or `VM` contexts rather than adjust the settings in the `Configure` contexts.
+    `WasmEdge_ImportObjectCreateWASI()` API can create and initialize the `WASI` import object.
+    `WasmEdge_ImportObjectCreateWasmEdgeProcess()` API can create and initialize the `wasmedge_process` import object.
+    Developers can create these import object contexts and register them into the `Store` or `VM` contexts rather than adjust the settings in the `Configure` contexts.
 
     ```c
-    WasmEdge_ModuleInstanceContext *WasiModCxt = WasmEdge_ModuleInstanceCreateWASI( /* ... ignored */ );
-    WasmEdge_ModuleInstanceContext *ProcModCxt = WasmEdge_ModuleInstanceCreateWasmEdgeProcess( /* ... ignored */ );
+    WasmEdge_ImportObjectContext *WasiObj = WasmEdge_ImportObjectCreateWASI( /* ... ignored */ );
+    WasmEdge_ImportObjectContext *ProcObj = WasmEdge_ImportObjectCreateWasmEdgeProcess( /* ... ignored */ );
     WasmEdge_VMContext *VMCxt = WasmEdge_VMCreate(NULL, NULL);
     /* Register the WASI and WasmEdge_Process into the VM context. */
-    WasmEdge_VMRegisterModuleFromImport(VMCxt, WasiModCxt);
-    WasmEdge_VMRegisterModuleFromImport(VMCxt, ProcModCxt);
+    WasmEdge_VMRegisterModuleFromImport(VMCxt, WasiObj);
+    WasmEdge_VMRegisterModuleFromImport(VMCxt, ProcObj);
     /* Get the WASI exit code. */
-    uint32_t ExitCode = WasmEdge_ModuleInstanceWASIGetExitCode(WasiModCxt);
+    uint32_t ExitCode = WasmEdge_ImportObjectWASIGetExitCode(WasiObj);
     /*
      * The `ExitCode` will be EXIT_SUCCESS if the execution has no error.
      * Otherwise, it will return with the related exit code.
      */
     WasmEdge_VMDelete(VMCxt);
-    /* The module instances should be deleted. */
-    WasmEdge_ModuleInstanceDelete(WasiModCxt);
-    WasmEdge_ModuleInstanceDelete(ProcModCxt);
+    /* The import objects should be deleted. */
+    WasmEdge_ImportObjectDelete(WasiObj);
+    WasmEdge_ImportObjectDelete(ProcObj);
     ```
 
 4. Example
@@ -2070,19 +1978,19 @@ In WasmEdge, developers can create the `Function`, `Memory`, `Table`, and `Globa
         0x08, 0x00, 0x20, 0x00, 0x20, 0x01, 0x10, 0x00, 0x0B
       };
 
-      /* Create the module instance. */
+      /* Create the import object. */
       WasmEdge_String ExportName = WasmEdge_StringCreateByCString("extern");
-      WasmEdge_ModuleInstanceContext *HostModCxt = WasmEdge_ModuleInstanceCreate(ExportName);
+      WasmEdge_ImportObjectContext *ImpObj = WasmEdge_ImportObjectCreate(ExportName);
       enum WasmEdge_ValType ParamList[2] = { WasmEdge_ValType_I32, WasmEdge_ValType_I32 };
       enum WasmEdge_ValType ReturnList[1] = { WasmEdge_ValType_I32 };
       WasmEdge_FunctionTypeContext *HostFType = WasmEdge_FunctionTypeCreate(ParamList, 2, ReturnList, 1);
       WasmEdge_FunctionInstanceContext *HostFunc = WasmEdge_FunctionInstanceCreate(HostFType, Add, NULL, 0);
       WasmEdge_FunctionTypeDelete(HostFType);
       WasmEdge_String HostFuncName = WasmEdge_StringCreateByCString("func-add");
-      WasmEdge_ModuleInstanceAddFunction(HostModCxt, HostFuncName, HostFunc);
+      WasmEdge_ImportObjectAddFunction(ImpObj, HostFuncName, HostFunc);
       WasmEdge_StringDelete(HostFuncName);
 
-      WasmEdge_VMRegisterModuleFromImport(VMCxt, HostModCxt);
+      WasmEdge_VMRegisterModuleFromImport(VMCxt, ImpObj);
 
       /* The parameters and returns arrays. */
       WasmEdge_Value Params[2] = { WasmEdge_ValueGenI32(1234), WasmEdge_ValueGenI32(5678) };
@@ -2102,7 +2010,7 @@ In WasmEdge, developers can create the `Function`, `Memory`, `Table`, and `Globa
       /* Resources deallocations. */
       WasmEdge_VMDelete(VMCxt);
       WasmEdge_StringDelete(FuncName);
-      WasmEdge_ModuleInstanceDelete(HostModCxt);
+      WasmEdge_ImportObjectDelete(ImpObj);
       return 0;
     }
     ```
@@ -2118,7 +2026,7 @@ In WasmEdge, developers can create the `Function`, `Memory`, `Table`, and `Globa
 
 5. Host Data Example
 
-    Developers can set a external data object to the `Function` context, and access to the object in the function body.
+    Developers can set a external data object to the function context, and access to the object in the function body.
     Assume that a simple WASM from the WAT as following:
 
     ```wasm
@@ -2188,19 +2096,19 @@ In WasmEdge, developers can create the `Function`, `Memory`, `Table`, and `Globa
       /* The external data object: an integer. */
       int32_t Data;
 
-      /* Create the module instance. */
+      /* Create the import object. */
       WasmEdge_String ExportName = WasmEdge_StringCreateByCString("extern");
-      WasmEdge_ModuleInstanceContext *HostModCxt = WasmEdge_ModuleInstanceCreate(ExportName);
+      WasmEdge_ImportObjectContext *ImpObj = WasmEdge_ImportObjectCreate(ExportName);
       enum WasmEdge_ValType ParamList[2] = { WasmEdge_ValType_I32, WasmEdge_ValType_I32 };
       enum WasmEdge_ValType ReturnList[1] = { WasmEdge_ValType_I32 };
       WasmEdge_FunctionTypeContext *HostFType = WasmEdge_FunctionTypeCreate(ParamList, 2, ReturnList, 1);
       WasmEdge_FunctionInstanceContext *HostFunc = WasmEdge_FunctionInstanceCreate(HostFType, Add, &Data, 0);
       WasmEdge_FunctionTypeDelete(HostFType);
       WasmEdge_String HostFuncName = WasmEdge_StringCreateByCString("func-add");
-      WasmEdge_ModuleInstanceAddFunction(HostModCxt, HostFuncName, HostFunc);
+      WasmEdge_ImportObjectAddFunction(ImpObj, HostFuncName, HostFunc);
       WasmEdge_StringDelete(HostFuncName);
 
-      WasmEdge_VMRegisterModuleFromImport(VMCxt, HostModCxt);
+      WasmEdge_VMRegisterModuleFromImport(VMCxt, ImpObj);
 
       /* The parameters and returns arrays. */
       WasmEdge_Value Params[2] = { WasmEdge_ValueGenI32(1234), WasmEdge_ValueGenI32(5678) };
@@ -2221,7 +2129,7 @@ In WasmEdge, developers can create the `Function`, `Memory`, `Table`, and `Globa
       /* Resources deallocations. */
       WasmEdge_VMDelete(VMCxt);
       WasmEdge_StringDelete(FuncName);
-      WasmEdge_ModuleInstanceDelete(HostModCxt);
+      WasmEdge_ImportObjectDelete(ImpObj);
       return 0;
     }
     ```

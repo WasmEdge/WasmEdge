@@ -6,6 +6,7 @@
 #include "common/log.h"
 #include "host/wasi/environ.h"
 #include "runtime/instance/memory.h"
+
 #include <algorithm>
 #include <array>
 #include <limits>

@@ -230,7 +230,7 @@ Eddsa::SignState::update(Span<const uint8_t> Input) noexcept {
 
 WasiCryptoExpect<Eddsa::Signature> Eddsa::SignState::sign() noexcept {
   size_t Size = SigSize;
-  auto Res = std::vector<uint8_t>(Size);
+  std::vector<uint8_t> Res(Size);
 
   std::shared_lock Lock{Ctx->Mutex};
   opensslCheck(EVP_DigestSign(Ctx->RawCtx.get(), Res.data(), &Size,

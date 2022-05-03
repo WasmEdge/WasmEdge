@@ -94,6 +94,9 @@ int main(int Argc, const char *Argv[]) {
           "Limitation of pages(as size of 64 KiB) in every memory instance. Upper bound can be specified as --memory-page-limit `PAGE_COUNT`."sv),
       PO::MetaVar("PAGE_COUNT"sv));
 
+  PO::List<std::string> ForbiddenPlugins(
+      PO::Description("List of plugins to ignore."sv), PO::MetaVar("NAMES"sv));
+
   auto Parser = PO::ArgumentParser();
   Parser.add_option(SoName)
       .add_option(Args)
@@ -116,7 +119,8 @@ int main(int Argc, const char *Argv[]) {
       .add_option("enable-all"sv, PropAll)
       .add_option("time-limit"sv, TimeLim)
       .add_option("gas-limit"sv, GasLim)
-      .add_option("memory-page-limit"sv, MemLim);
+      .add_option("memory-page-limit"sv, MemLim)
+      .add_option("forbidden-plugin"sv, ForbiddenPlugins);
 
   WasmEdge::Plugin::Plugin::addPluginOptions(Parser);
 
@@ -189,6 +193,10 @@ int main(int Argc, const char *Argv[]) {
     if (ConfEnableTimeMeasuring.value()) {
       Conf.getStatisticsConfigure().setTimeMeasuring(true);
     }
+  }
+
+  for (const auto &Name : ForbiddenPlugins.value()) {
+    Conf.addForbiddenPlugins(Name);
   }
 
   Conf.addHostRegistration(WasmEdge::HostRegistration::Wasi);

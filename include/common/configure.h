@@ -22,6 +22,7 @@
 #include <initializer_list>
 #include <mutex>
 #include <shared_mutex>
+#include <unordered_set>
 
 namespace WasmEdge {
 
@@ -186,8 +187,8 @@ public:
   }
   Configure(const Configure &RHS) noexcept
       : Proposals(RHS.Proposals), Hosts(RHS.Hosts),
-        CompilerConf(RHS.CompilerConf), RuntimeConf(RHS.RuntimeConf),
-        StatisticsConf(RHS.StatisticsConf) {}
+        ForbiddenPlugins(RHS.ForbiddenPlugins), CompilerConf(RHS.CompilerConf),
+        RuntimeConf(RHS.RuntimeConf), StatisticsConf(RHS.StatisticsConf) {}
 
   void addProposal(const Proposal Type) noexcept {
     std::unique_lock Lock(Mutex);
@@ -212,6 +213,16 @@ public:
   void removeHostRegistration(const HostRegistration Host) noexcept {
     std::unique_lock Lock(Mutex);
     Hosts.reset(static_cast<uint8_t>(Host));
+  }
+
+  void addForbiddenPlugins(std::string PluginName) noexcept {
+    std::unique_lock Lock(Mutex);
+    ForbiddenPlugins.emplace(std::move(PluginName));
+  }
+
+  bool isForbiddenPlugins(std::string PluginName) const noexcept {
+    std::shared_lock Lock(Mutex);
+    return ForbiddenPlugins.find(PluginName) != ForbiddenPlugins.end();
   }
 
   bool hasHostRegistration(const HostRegistration Host) const noexcept {
@@ -253,6 +264,7 @@ private:
   mutable std::shared_mutex Mutex;
   std::bitset<static_cast<uint8_t>(Proposal::Max)> Proposals;
   std::bitset<static_cast<uint8_t>(HostRegistration::Max)> Hosts;
+  std::unordered_set<std::string> ForbiddenPlugins;
 
   CompilerConfigure CompilerConf;
   RuntimeConfigure RuntimeConf;

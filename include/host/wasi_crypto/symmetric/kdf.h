@@ -20,6 +20,8 @@
 #include "host/wasi_crypto/utils/optional.h"
 #include "host/wasi_crypto/utils/secret_vec.h"
 
+#include <mutex>
+
 namespace WasmEdge {
 namespace Host {
 namespace WasiCrypto {
@@ -157,7 +159,8 @@ public:
       static WasiCryptoExpect<State>
       open(const Key &Key, OptionalRef<const Options> OptOption) noexcept;
 
-      State(EvpPkeyCtxPtr Ctx) noexcept : Ctx(std::move(Ctx)) {}
+      State(EvpPkeyCtxPtr Ctx) noexcept
+          : Ctx(std::make_shared<Inner>(std::move(Ctx))) {}
 
       /// absorb info information.
       WasiCryptoExpect<void> absorb(Span<const uint8_t> Data) noexcept;
@@ -166,7 +169,12 @@ public:
       WasiCryptoExpect<void> squeeze(Span<uint8_t> Out) noexcept;
 
     private:
-      std::shared_ptr<EVP_PKEY_CTX> Ctx;
+      struct Inner {
+        Inner(EvpPkeyCtxPtr RawCtx) : RawCtx(std::move(RawCtx)) {}
+        EvpPkeyCtxPtr RawCtx;
+        std::mutex Mutex;
+      };
+      std::shared_ptr<Inner> Ctx;
     };
   };
 
@@ -207,7 +215,7 @@ public:
     private:
       struct Inner {
         Inner(EvpPkeyCtxPtr RawCtx) : RawCtx(std::move(RawCtx)) {}
-        std::shared_mutex Mutex;
+        std::mutex Mutex;
         std::vector<uint8_t> Salt;
         EvpPkeyCtxPtr RawCtx;
       };

@@ -21,6 +21,7 @@
 
 #include <cstdint>
 #include <optional>
+#include <shared_mutex>
 #include <string_view>
 #include <vector>
 
@@ -104,7 +105,8 @@ public:
 
   class State : public MacState<Key> {
   public:
-    State(EvpMdCtxPtr Ctx) : Ctx(std::move(Ctx)) {}
+    State(EvpMdCtxPtr Ctx) noexcept
+        : Ctx(std::make_shared<Inner>(std::move(Ctx))) {}
 
     static WasiCryptoExpect<State>
     open(const Key &Key, OptionalRef<const Options> OptOption) noexcept;
@@ -124,7 +126,12 @@ public:
     WasiCryptoExpect<Tag> squeezeTag() noexcept;
 
   private:
-    std::shared_ptr<EVP_MD_CTX> Ctx;
+    struct Inner {
+      Inner(EvpMdCtxPtr RawCtx) noexcept : RawCtx(std::move(RawCtx)) {}
+      EvpMdCtxPtr RawCtx;
+      std::mutex Mutex;
+    };
+    std::shared_ptr<Inner> Ctx;
   };
 
 private:

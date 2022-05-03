@@ -159,6 +159,7 @@ public:
           : RawCtx(std::move(RawCtx)), Nonce(Nonce) {}
       EvpCipherCtxPtr RawCtx;
       std::array<uint8_t, NonceSize> Nonce;
+      std::mutex Mutex;
     };
     std::shared_ptr<Inner> Ctx;
   };

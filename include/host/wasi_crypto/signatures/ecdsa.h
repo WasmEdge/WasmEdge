@@ -53,26 +53,38 @@ public:
 
   class SignState {
   public:
-    SignState(EvpMdCtxPtr Ctx) noexcept : Ctx(std::move(Ctx)) {}
+    SignState(EvpMdCtxPtr Ctx) noexcept
+        : Ctx(std::make_shared<Inner>(std::move(Ctx))) {}
 
     WasiCryptoExpect<void> update(Span<const uint8_t> Input) noexcept;
 
     WasiCryptoExpect<Signature> sign() noexcept;
 
   private:
-    std::shared_ptr<EVP_MD_CTX> Ctx;
+    struct Inner {
+      Inner(EvpMdCtxPtr RawCtx) noexcept : RawCtx(std::move(RawCtx)) {}
+      std::mutex Mutex;
+      EvpMdCtxPtr RawCtx;
+    };
+    std::shared_ptr<Inner> Ctx;
   };
 
   class VerificationState {
   public:
-    VerificationState(EvpMdCtxPtr Ctx) noexcept : Ctx(std::move(Ctx)) {}
+    VerificationState(EvpMdCtxPtr Ctx) noexcept
+        : Ctx(std::make_shared<Inner>(std::move(Ctx))) {}
 
     WasiCryptoExpect<void> update(Span<const uint8_t> Input) noexcept;
 
     WasiCryptoExpect<void> verify(const Signature &Sig) noexcept;
 
   private:
-    std::shared_ptr<EVP_MD_CTX> Ctx;
+    struct Inner {
+      Inner(EvpMdCtxPtr RawCtx) noexcept : RawCtx(std::move(RawCtx)) {}
+      std::mutex Mutex;
+      EvpMdCtxPtr RawCtx;
+    };
+    std::shared_ptr<Inner> Ctx;
   };
 
   class PublicKey : public Base::PublicKeyBase {

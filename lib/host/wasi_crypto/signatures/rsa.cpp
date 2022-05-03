@@ -6,6 +6,7 @@
 #include "host/wasi_crypto/utils/evp_wrapper.h"
 #include "openssl/rsa.h"
 #include "wasi_crypto/api.hpp"
+#include <mutex>
 #include <openssl/evp.h>
 
 namespace WasmEdge {
@@ -321,7 +322,8 @@ Rsa<PadMode, KeyBits, ShaNid>::Signature::exportData(
 template <int PadMode, int KeyBits, int ShaNid>
 WasiCryptoExpect<void> Rsa<PadMode, KeyBits, ShaNid>::SignState::update(
     Span<const uint8_t> Data) noexcept {
-  opensslCheck(EVP_DigestSignUpdate(Ctx.get(), Data.data(), Data.size()));
+  std::scoped_lock Lock{Ctx->Mutex};
+  opensslCheck(EVP_DigestSignUpdate(Ctx->RawCtx.get(), Data.data(), Data.size()));
   return {};
 }
 
@@ -331,25 +333,29 @@ Rsa<PadMode, KeyBits, ShaNid>::SignState::sign() noexcept {
   size_t Size = getSigSize();
   std::vector<uint8_t> Res(Size);
 
-  opensslCheck(EVP_DigestSignFinal(Ctx.get(), Res.data(), &Size));
+  std::scoped_lock Lock{Ctx->Mutex};
+  opensslCheck(EVP_DigestSignFinal(Ctx->RawCtx.get(), Res.data(), &Size));
   ensureOrReturn(Size == getSigSize(), __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
-  
+
   return Res;
 }
 
 template <int PadMode, int KeyBits, int ShaNid>
 WasiCryptoExpect<void> Rsa<PadMode, KeyBits, ShaNid>::VerificationState::update(
     Span<const uint8_t> Data) noexcept {
-  opensslCheck(EVP_DigestVerifyUpdate(Ctx.get(), Data.data(), Data.size()));
+  std::scoped_lock Lock{Ctx->Mutex};
+  opensslCheck(
+      EVP_DigestVerifyUpdate(Ctx->RawCtx.get(), Data.data(), Data.size()));
   return {};
 }
 
 template <int PadMode, int KeyBits, int ShaNid>
 WasiCryptoExpect<void> Rsa<PadMode, KeyBits, ShaNid>::VerificationState::verify(
     const Signature &Sig) noexcept {
-  ensureOrReturn(
-      EVP_DigestVerifyFinal(Ctx.get(), Sig.ref().data(), Sig.ref().size()),
-      __WASI_CRYPTO_ERRNO_VERIFICATION_FAILED);
+  std::scoped_lock Lock{Ctx->Mutex};
+  ensureOrReturn(EVP_DigestVerifyFinal(Ctx->RawCtx.get(), Sig.ref().data(),
+                                       Sig.ref().size()),
+                 __WASI_CRYPTO_ERRNO_VERIFICATION_FAILED);
 
   return {};
 }

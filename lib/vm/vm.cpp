@@ -26,6 +26,7 @@ VM::VM(const Configure &Conf, Runtime::StoreManager &S)
 }
 
 void VM::unsafeInitVM() {
+  using namespace std::literals::string_view_literals;
   // Create import modules from configuration.
   if (Conf.hasHostRegistration(HostRegistration::Wasi)) {
     std::unique_ptr<Runtime::Instance::ModuleInstance> WasiMod =
@@ -34,19 +35,29 @@ void VM::unsafeInitVM() {
     ImpObjs.insert({HostRegistration::Wasi, std::move(WasiMod)});
   }
   if (Conf.hasHostRegistration(HostRegistration::WasmEdge_Process)) {
-    using namespace std::literals::string_view_literals;
     bool Founded = false;
     if (const auto *Plugin = Plugin::Plugin::find("wasmedge_process"sv)) {
       if (const auto *Module = Plugin->findModule("wasmedge_process"sv)) {
         auto ProcMod = Module->create();
         ExecutorEngine.registerModule(StoreRef, *ProcMod);
-        ImpObjs.insert(
-            {HostRegistration::WasmEdge_Process, std::move(ProcMod)});
+        ImpObjs.emplace(HostRegistration::WasmEdge_Process, std::move(ProcMod));
         Founded = true;
       }
     }
     if (!Founded) {
       spdlog::error("wasmedge_process module not founded."sv);
+    }
+  }
+  uint8_t Index = static_cast<uint8_t>(HostRegistration::Max);
+  for (const auto &Plugin : Plugin::Plugin::plugins()) {
+    // skip WasmEdge_Process
+    if (Plugin.name() == "wasmedge_process"sv) {
+      continue;
+    }
+    for (const auto &Module : Plugin.modules()) {
+      auto Mod = Module.create();
+      ExecutorEngine.registerModule(StoreRef, *Mod);
+      ImpObjs.emplace(static_cast<HostRegistration>(Index++), std::move(Mod));
     }
   }
 }

@@ -150,6 +150,8 @@ const Plugin *Plugin::find(std::string_view Name) noexcept {
   return nullptr;
 }
 
+Span<const Plugin> Plugin::plugins() noexcept { return PluginRegistory; }
+
 [[gnu::visibility("default")]] void
 Plugin::registerPlugin(const PluginDescriptor *Desc) noexcept {
   assuming(NiftyCounter != 0);

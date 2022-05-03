@@ -86,6 +86,7 @@ public:
   static bool load(const std::filesystem::path &Path) noexcept;
   static void addPluginOptions(PO::ArgumentParser &Parser) noexcept;
   static const Plugin *find(std::string_view Name) noexcept;
+  static Span<const Plugin> plugins() noexcept;
 
   Plugin(const Plugin &) = delete;
   Plugin &operator=(const Plugin &) = delete;

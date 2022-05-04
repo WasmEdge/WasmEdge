@@ -5,10 +5,10 @@
 
 #include "aot/compiler.h"
 #include "host/wasi/wasimodule.h"
-#include "plugin/plugin.h"
 #ifdef WASMEDGE_BUILD_WASI_CRYPTO
 #include "host/wasi_crypto/module.h"
 #endif
+#include "plugin/plugin.h"
 #include "vm/vm.h"
 
 #include <algorithm>

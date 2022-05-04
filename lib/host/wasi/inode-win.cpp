@@ -255,10 +255,10 @@ WasiExpect<void> INode::getAddrinfo(std::string_view Node,
   const auto [ServiceCStr, ServiceBuf] = createNullTerminatedString(Service);
 
   struct addrinfo SysHint;
-  SysHint.ai_flags = Hint.ai_flags;
-  SysHint.ai_family = Hint.ai_family;
-  SysHint.ai_socktype = Hint.ai_socktype;
-  SysHint.ai_protocol = Hint.ai_protocol;
+  SysHint.ai_flags = toAIFlags(Hint.ai_flags);
+  SysHint.ai_family = toAddressFamily(Hint.ai_family);
+  SysHint.ai_socktype = toSockType(Hint.ai_socktype);
+  SysHint.ai_protocol = toProtocal(Hint.ai_protocol);
   SysHint.ai_addrlen = Hint.ai_addrlen;
   SysHint.ai_addr = nullptr;
   SysHint.ai_canonname = nullptr;
@@ -280,13 +280,10 @@ WasiExpect<void> INode::getAddrinfo(std::string_view Node,
   struct addrinfo *SysResItem = SysResPtr;
   for (uint32_t Idx = 0; Idx < ResLength; Idx++) {
     auto &CurAddrinfo = WasiAddrinfoArray[Idx];
-    CurAddrinfo->ai_flags = static_cast<__wasi_aiflags_t>(SysResItem->ai_flags);
-    CurAddrinfo->ai_socktype =
-        static_cast<__wasi_sock_type_t>(SysResItem->ai_socktype);
-    CurAddrinfo->ai_protocol =
-        static_cast<__wasi_protocol_t>(SysResItem->ai_protocol);
-    CurAddrinfo->ai_family =
-        static_cast<__wasi_address_family_t>(SysResItem->ai_family);
+    CurAddrinfo->ai_flags = fromAIFlags(SysResItem->ai_flags);
+    CurAddrinfo->ai_socktype = fromSockType(SysResItem->ai_socktype);
+    CurAddrinfo->ai_protocol = fromProtocal(SysResItem->ai_protocol);
+    CurAddrinfo->ai_family = fromAddressFamily(SysResItem->ai_family);
     CurAddrinfo->ai_addrlen = static_cast<uint32_t>(SysResItem->ai_addrlen);
 
     // process ai_canonname in addrinfo
@@ -303,14 +300,8 @@ WasiExpect<void> INode::getAddrinfo(std::string_view Node,
     // process socket address
     if (SysResItem->ai_addrlen > 0) {
       auto &CurSockaddr = WasiSockaddrArray[Idx];
-      switch (SysResItem->ai_addr->sa_family) {
-      case AF_INET:
-        CurSockaddr->sa_family = __WASI_ADDRESS_FAMILY_INET4;
-        break;
-      case AF_INET6:
-        CurSockaddr->sa_family = __WASI_ADDRESS_FAMILY_INET6;
-        break;
-      }
+      CurSockaddr->sa_family =
+          fromAddressFamily(SysResItem->ai_addr->sa_family);
 
       // process sa_data in socket address
       std::memcpy(AiAddrSaDataArray[Idx], SysResItem->ai_addr->sa_data,

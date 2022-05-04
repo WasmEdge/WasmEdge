@@ -58,7 +58,7 @@ bool TrySetUpIPV6Socket() {
   } while (false);
 
 #if WASMEDGE_OS_WINDOWS
-  shutdown(Fd, SD_BOTH);
+  closesocket(Fd);
   WSACleanup();
 #else
   close(Fd);

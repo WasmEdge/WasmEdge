@@ -7,7 +7,9 @@
 #include "common/version.h"
 #include "host/wasi/wasimodule.h"
 #include "plugin/plugin.h"
+#ifdef WASMEDGE_BUILD_WASI_CRYPTO
 #include "host/wasi_crypto/module.h"
+#endif
 #include "po/argument_parser.h"
 #include "vm/vm.h"
 

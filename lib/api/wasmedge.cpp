@@ -6,7 +6,9 @@
 #include "aot/compiler.h"
 #include "host/wasi/wasimodule.h"
 #include "plugin/plugin.h"
+#ifdef WASMEDGE_BUILD_WASI_CRYPTO
 #include "host/wasi_crypto/module.h"
+#endif
 #include "vm/vm.h"
 
 #include <algorithm>
@@ -1705,11 +1707,13 @@ WasmEdge_ModuleInstanceInitWasiCrypto(WasmEdge_ModuleInstanceContext *Cxt) {
   if (!Cxt) {
     return;
   }
+#ifdef WASMEDGE_BUILD_WASI_CRYPTO
   auto *WASICryptoMod =
       dynamic_cast<WasmEdge::Host::WasiCryptoModule *>(fromModCxt(Cxt));
   if (!WASICryptoMod) {
     return;
   }
+#endif
 }
 
 WASMEDGE_CAPI_EXPORT WasmEdge_String WasmEdge_ModuleInstanceGetModuleName(

@@ -104,7 +104,8 @@ template <int CurveNid>
 WasiCryptoExpect<void>
 Ecdsa<CurveNid>::VerificationState::update(Span<const uint8_t> Data) noexcept {
   std::scoped_lock Lock{Ctx->Mutex};
-  opensslCheck(EVP_DigestVerifyUpdate(Ctx->RawCtx.get(), Data.data(), Data.size()));
+  opensslCheck(
+      EVP_DigestVerifyUpdate(Ctx->RawCtx.get(), Data.data(), Data.size()));
   return {};
 }
 
@@ -112,9 +113,9 @@ template <int CurveNid>
 WasiCryptoExpect<void>
 Ecdsa<CurveNid>::VerificationState::verify(const Signature &Sig) noexcept {
   std::scoped_lock Lock{Ctx->Mutex};
-  ensureOrReturn(
-      EVP_DigestVerifyFinal(Ctx->RawCtx.get(), Sig.ref().data(), Sig.ref().size()),
-      __WASI_CRYPTO_ERRNO_VERIFICATION_FAILED);
+  ensureOrReturn(EVP_DigestVerifyFinal(Ctx->RawCtx.get(), Sig.ref().data(),
+                                       Sig.ref().size()),
+                 __WASI_CRYPTO_ERRNO_VERIFICATION_FAILED);
   return {};
 }
 

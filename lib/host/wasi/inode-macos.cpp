@@ -5,6 +5,7 @@
 #if WASMEDGE_OS_MACOS
 
 #include "common/errcode.h"
+#include "common/log.h"
 #include "host/wasi/environ.h"
 #include "host/wasi/inode.h"
 #include "host/wasi/vfs.h"
@@ -750,7 +751,7 @@ WasiExpect<Poller> INode::pollOneoff(__wasi_size_t NSubscriptions) noexcept {
 WasiExpect<INode> INode::sockOpen(__wasi_address_family_t AddressFamily,
                                   __wasi_sock_type_t SockType) noexcept {
 
-  int SysProtocol = IPPROTO_TCP;
+  int SysProtocol = IPPROTO_IP;
 
   int SysDomain = 0;
   int SysType = 0;
@@ -998,16 +999,46 @@ WasiExpect<void> INode::sockShutdown(__wasi_sdflags_t SdFlags) const noexcept {
   return {};
 }
 
-WasiExpect<void> INode::sockGetOpt(__wasi_sock_opt_level_t,
-                                   __wasi_sock_opt_so_t, void *,
-                                   uint32_t *) const noexcept {
-  return WasiUnexpect(__WASI_ERRNO_NOSYS);
+WasiExpect<void> INode::sockGetOpt(__wasi_sock_opt_level_t SockOptLevel,
+                                   __wasi_sock_opt_so_t SockOptName,
+                                   void *FlagPtr,
+                                   uint32_t *FlagSizePtr) const noexcept {
+  auto SysSockOptLevel = toSockOptLevel(SockOptLevel);
+  auto SysSockOptName = toSockOptSoName(SockOptName);
+  if (SockOptName == __WASI_SOCK_OPT_SO_ERROR) {
+    int ErrorCode = 0;
+    int *WasiErrorPtr = static_cast<int *>(FlagPtr);
+    if (auto Res = ::getsockopt(Fd, SysSockOptLevel, SysSockOptName, &ErrorCode,
+                                FlagSizePtr);
+        unlikely(Res < 0)) {
+      return WasiUnexpect(fromErrNo(errno));
+    }
+    *WasiErrorPtr = fromErrNo(ErrorCode);
+  } else {
+    if (auto Res = ::getsockopt(Fd, SysSockOptLevel, SysSockOptName, FlagPtr,
+                                FlagSizePtr);
+        unlikely(Res < 0)) {
+      return WasiUnexpect(fromErrNo(errno));
+    }
+  }
+
+  return {};
 }
 
-WasiExpect<void> INode::sockSetOpt(__wasi_sock_opt_level_t,
-                                   __wasi_sock_opt_so_t, void *,
-                                   uint32_t) const noexcept {
-  return WasiUnexpect(__WASI_ERRNO_NOSYS);
+WasiExpect<void> INode::sockSetOpt(__wasi_sock_opt_level_t SockOptLevel,
+                                   __wasi_sock_opt_so_t SockOptName,
+                                   void *FlagPtr,
+                                   uint32_t FlagSizePtr) const noexcept {
+  auto SysSockOptLevel = toSockOptLevel(SockOptLevel);
+  auto SysSockOptName = toSockOptSoName(SockOptName);
+
+  if (auto Res = ::setsockopt(Fd, SysSockOptLevel, SysSockOptName, FlagPtr,
+                              FlagSizePtr);
+      unlikely(Res < 0)) {
+    return WasiUnexpect(fromErrNo(errno));
+  }
+
+  return {};
 }
 
 WasiExpect<void> INode::sockGetLoaclAddr(uint8_t *, uint32_t *,
@@ -1221,18 +1252,20 @@ WasiExpect<void> INode::getAddrinfo(std::string_view Node,
   const auto [ServiceCStr, ServiceBuf] = createNullTerminatedString(Service);
 
   struct addrinfo SysHint;
-  SysHint.ai_flags = Hint.ai_flags;
-  SysHint.ai_family = Hint.ai_family;
-  SysHint.ai_socktype = Hint.ai_socktype;
-  SysHint.ai_protocol = Hint.ai_protocol;
-  SysHint.ai_addrlen = Hint.ai_addrlen;
+  SysHint.ai_flags = toAIFlags(Hint.ai_flags);
+  SysHint.ai_family = toAddressFamily(Hint.ai_family);
+  SysHint.ai_socktype = toSockType(Hint.ai_socktype);
+  SysHint.ai_protocol = toProtocal(Hint.ai_protocol);
+  SysHint.ai_addrlen = 0;
   SysHint.ai_addr = nullptr;
   SysHint.ai_canonname = nullptr;
   SysHint.ai_next = nullptr;
 
   struct addrinfo *SysResPtr = nullptr;
   if (auto Res = ::getaddrinfo(NodeCStr, ServiceCStr, &SysHint, &SysResPtr);
-      unlikely(Res < 0)) {
+      unlikely(Res != 0)) {
+    using namespace std::literals::string_view_literals;
+    spdlog::error("getaddrinfo:{}"sv, gai_strerror(Res));
     return WasiUnexpect(fromEAIErrNo(Res));
   }
   // calculate ResLength
@@ -1244,17 +1277,14 @@ WasiExpect<void> INode::getAddrinfo(std::string_view Node,
   struct addrinfo *SysResItem = SysResPtr;
   for (uint32_t Idx = 0; Idx < ResLength; Idx++) {
     auto &CurAddrinfo = WasiAddrinfoArray[Idx];
-    CurAddrinfo->ai_flags = static_cast<__wasi_aiflags_t>(SysResItem->ai_flags);
-    CurAddrinfo->ai_socktype =
-        static_cast<__wasi_sock_type_t>(SysResItem->ai_socktype);
-    CurAddrinfo->ai_protocol =
-        static_cast<__wasi_protocol_t>(SysResItem->ai_protocol);
-    CurAddrinfo->ai_family =
-        static_cast<__wasi_address_family_t>(SysResItem->ai_family);
+    CurAddrinfo->ai_flags = fromAIFlags(SysResItem->ai_flags);
+    CurAddrinfo->ai_socktype = fromSockType(SysResItem->ai_socktype);
+    CurAddrinfo->ai_protocol = fromProtocal(SysResItem->ai_protocol);
+    CurAddrinfo->ai_family = fromAddressFamily(SysResItem->ai_family);
     CurAddrinfo->ai_addrlen = SysResItem->ai_addrlen;
 
     // process ai_canonname in addrinfo
-    if (SysResItem->ai_canonname != NULL) {
+    if (SysResItem->ai_canonname != nullptr) {
       CurAddrinfo->ai_canonname_len = std::strlen(SysResItem->ai_canonname);
       auto &CurAiCanonname = AiCanonnameArray[Idx];
       std::memcpy(CurAiCanonname, SysResItem->ai_canonname,
@@ -1266,22 +1296,13 @@ WasiExpect<void> INode::getAddrinfo(std::string_view Node,
     // process socket address
     if (SysResItem->ai_addrlen > 0) {
       auto &CurSockaddr = WasiSockaddrArray[Idx];
-      switch (SysResItem->ai_addr->sa_family) {
-      case AF_INET:
-        CurSockaddr->sa_family = __WASI_ADDRESS_FAMILY_INET4;
-        break;
-      case AF_INET6:
-        CurSockaddr->sa_family = __WASI_ADDRESS_FAMILY_INET6;
-        break;
-      }
-      CurSockaddr->sa_data_len = 0;
+      CurSockaddr->sa_family =
+          fromAddressFamily(SysResItem->ai_addr->sa_family);
 
       // process sa_data in socket address
-      if (SysResItem->ai_addr->sa_data[0] != '\0') {
-        std::memcpy(AiAddrSaDataArray[Idx], SysResItem->ai_addr->sa_data,
-                    WASI::kSaDataLen);
-        CurSockaddr->sa_data_len = WASI::kSaDataLen;
-      }
+      std::memcpy(AiAddrSaDataArray[Idx], SysResItem->ai_addr->sa_data,
+                  WASI::kSaDataLen);
+      CurSockaddr->sa_data_len = WASI::kSaDataLen;
     }
     // process ai_next in addrinfo
     SysResItem = SysResItem->ai_next;

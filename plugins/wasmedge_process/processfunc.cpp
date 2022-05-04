@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2019-2022 Second State INC
 
-#include "host/wasmedge_process/processfunc.h"
+#include "processfunc.h"
 
 #if WASMEDGE_OS_LINUX || WASMEDGE_OS_MACOS
 #include <errno.h>

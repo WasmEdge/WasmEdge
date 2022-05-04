@@ -713,6 +713,7 @@
 ;;; Socket address family
 (typename $address_family
   (enum (@witx tag u8)
+    $unspec
     $inet4
     $inet6
   )
@@ -729,6 +730,7 @@
 ;;; Socket type
 (typename $sock_type
   (enum (@witx tag u8)
+    $sock_any
     $sock_dgram
     $sock_stream
   )

@@ -3,6 +3,10 @@
 
 #pragma once
 
+#include "plugin/plugin.h"
+#include "po/argument_parser.h"
+#include "po/list.h"
+#include "po/option.h"
 #include <cstdint>
 #include <string>
 #include <unordered_map>
@@ -14,6 +18,8 @@ namespace Host {
 
 class WasmEdgeProcessEnvironment {
 public:
+  WasmEdgeProcessEnvironment() noexcept;
+
   /// Default timeout in milliseconds.
   static inline const uint32_t DEFAULT_TIMEOUT = 10000;
   /// Default polling time in milliseconds.
@@ -32,10 +38,14 @@ public:
   /// Configurations
   uint32_t TimeOut = DEFAULT_TIMEOUT;         /// Timeout in milliseconds.
   std::unordered_set<std::string> AllowedCmd; /// Programs in white list.
-  bool AllowedAll = false;                    /// Flag to allow all programs.
+  bool AllowedAll;                            /// Flag to allow all programs.
 
   /// Results
   uint32_t ExitCode = 0;
+
+  static PO::List<std::string> AllowCmd;
+  static PO::Option<PO::Toggle> AllowCmdAll;
+  static Plugin::PluginRegister Register;
 };
 
 } // namespace Host

@@ -30,17 +30,17 @@
 +    $sock_send_to
    )
  )
- 
+
  ;;; A file descriptor handle.
  (typename $fd (handle))
- 
+
 +;;; A socket descriptor is currently an alias type of a typical file descriptor.
 +(typename $sock_d $fd)
 +
  ;;; A region of memory for scatter/gather reads.
  (typename $iovec
    (record
-@@ -688,6 +707,30 @@
+@@ -688,6 +707,32 @@
      ;;; Bad system call.
      ;;; Action: Terminates the process.
      $sys
@@ -50,6 +50,7 @@
 +;;; Socket address family
 +(typename $address_family
 +  (enum (@witx tag u8)
++    $unspec
 +    $inet4
 +    $inet6
 +  )
@@ -66,8 +67,9 @@
 +;;; Socket type
 +(typename $sock_type
 +  (enum (@witx tag u8)
++    $sock_any
 +    $sock_dgram
 +    $sock_stream
    )
  )
- 
+

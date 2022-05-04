@@ -56,7 +56,11 @@ Executor::runFunction(Runtime::StackManager &StackMgr,
     Stat->dumpToLog(Conf);
   }
 
-  if (Res || Res.error() == ErrCode::Terminated) {
+  if (Res) {
+    return {};
+  }
+  if (Res.error() == ErrCode::Terminated) {
+    StackMgr.reset();
     return {};
   }
   return Unexpect(Res);

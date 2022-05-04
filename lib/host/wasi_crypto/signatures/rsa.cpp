@@ -162,10 +162,8 @@ Rsa<PadMode, KeyBits, ShaNid>::SecretKey::exportData(
 template <int PadMode, int KeyBits, int ShaNid>
 WasiCryptoExpect<typename Rsa<PadMode, KeyBits, ShaNid>::PublicKey>
 Rsa<PadMode, KeyBits, ShaNid>::SecretKey::publicKey() const noexcept {
-  RsaPtr RsaPubKey{RSAPublicKey_dup(EVP_PKEY_get0_RSA(Ctx.get()))};
-  EvpPkeyPtr Ret{EVP_PKEY_new()};
-  EVP_PKEY_set1_RSA(Ret.get(), RsaPubKey.get());
-  return Ret;
+  // since inner is always `const`, we just up ref count.
+  return Ctx;
 }
 
 template <int PadMode, int KeyBits, int ShaNid>
@@ -273,19 +271,15 @@ Rsa<PadMode, KeyBits, ShaNid>::KeyPair::exportPkcs8() const noexcept {
 template <int PadMode, int KeyBits, int ShaNid>
 WasiCryptoExpect<typename Rsa<PadMode, KeyBits, ShaNid>::PublicKey>
 Rsa<PadMode, KeyBits, ShaNid>::KeyPair::publicKey() const noexcept {
-  RsaPtr RsaPubKey{RSAPublicKey_dup(EVP_PKEY_get0_RSA(Ctx.get()))};
-  EvpPkeyPtr Ret{EVP_PKEY_new()};
-  EVP_PKEY_set1_RSA(Ret.get(), RsaPubKey.get());
-  return Ret;
+  // since inner is always `const`, we just up ref count.
+  return Ctx;
 }
 
 template <int PadMode, int KeyBits, int ShaNid>
 WasiCryptoExpect<typename Rsa<PadMode, KeyBits, ShaNid>::SecretKey>
 Rsa<PadMode, KeyBits, ShaNid>::KeyPair::secretKey() const noexcept {
-  RsaPtr RsaPubKey{RSAPrivateKey_dup(EVP_PKEY_get0_RSA(Ctx.get()))};
-  EvpPkeyPtr Ret{EVP_PKEY_new()};
-  EVP_PKEY_set1_RSA(Ret.get(), RsaPubKey.get());
-  return Ret;
+  // since inner is always `const`, we just up ref count.
+  return Ctx;
 }
 
 template <int PadMode, int KeyBits, int ShaNid>

@@ -84,13 +84,8 @@ Eddsa::SecretKey::import(Span<const uint8_t> Encoded,
 
 WasiCryptoExpect<Eddsa::PublicKey>
 Eddsa::SecretKey::publicKey() const noexcept {
-  BioPtr B{BIO_new(BIO_s_mem())};
-  opensslCheck(i2d_PUBKEY_bio(B.get(), Ctx.get()));
-
-  EVP_PKEY *Res = nullptr;
-  opensslCheck(d2i_PUBKEY_bio(B.get(), &Res));
-
-  return EvpPkeyPtr{Res};
+  // since inner is always `const`, we just up ref count.
+  return Ctx;
 }
 
 WasiCryptoExpect<Eddsa::KeyPair>
@@ -165,23 +160,13 @@ WasiCryptoExpect<SecretVec> Eddsa::KeyPair::exportData(
 }
 
 WasiCryptoExpect<Eddsa::PublicKey> Eddsa::KeyPair::publicKey() const noexcept {
-  BioPtr Bio{BIO_new(BIO_s_mem())};
-  opensslCheck(i2d_PUBKEY_bio(Bio.get(), Ctx.get()));
-
-  EVP_PKEY *Res = nullptr;
-  opensslCheck(d2i_PUBKEY_bio(Bio.get(), &Res));
-
-  return EvpPkeyPtr{Res};
+  // since inner is always `const`, we just up ref count.
+  return Ctx;
 }
 
 WasiCryptoExpect<Eddsa::SecretKey> Eddsa::KeyPair::secretKey() const noexcept {
-  BioPtr Bio{BIO_new(BIO_s_mem())};
-  opensslCheck(i2d_PrivateKey_bio(Bio.get(), Ctx.get()));
-
-  EVP_PKEY *Res = nullptr;
-  opensslCheck(d2i_PrivateKey_bio(Bio.get(), &Res));
-
-  return EvpPkeyPtr{Res};
+  // since inner is always `const`, we just up ref count.
+  return Ctx;
 }
 
 WasiCryptoExpect<Eddsa::SignState>

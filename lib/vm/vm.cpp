@@ -6,7 +6,9 @@
 
 #include "host/wasi/wasimodule.h"
 #include "plugin/plugin.h"
+#ifdef WASMEDGE_BUILD_WASI_CRYPTO
 #include "host/wasi_crypto/module.h"
+#endif
 
 namespace WasmEdge {
 namespace VM {

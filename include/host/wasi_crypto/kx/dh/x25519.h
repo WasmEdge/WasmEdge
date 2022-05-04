@@ -20,6 +20,7 @@
 #include "host/wasi_crypto/utils/optional.h"
 #include "host/wasi_crypto/utils/secret_vec.h"
 
+#include <memory>
 #include <optional>
 #include <vector>
 
@@ -33,6 +34,8 @@ public:
   class PublicKey {
   public:
     PublicKey(EvpPkeyPtr Ctx) noexcept : Ctx(std::move(Ctx)) {}
+
+    PublicKey(std::shared_ptr<EVP_PKEY> Ctx) noexcept : Ctx(std::move(Ctx)) {}
 
     static WasiCryptoExpect<PublicKey>
     import(Span<const uint8_t> Encoded,
@@ -55,6 +58,8 @@ public:
   public:
     SecretKey(EvpPkeyPtr Ctx) noexcept : Ctx(std::move(Ctx)) {}
 
+    SecretKey(std::shared_ptr<EVP_PKEY> Ctx) noexcept : Ctx(std::move(Ctx)) {}
+
     static WasiCryptoExpect<SecretKey>
     import(Span<const uint8_t> Encoded,
            __wasi_secretkey_encoding_e_t Encoding) noexcept;
@@ -74,14 +79,16 @@ public:
 
   class KeyPair {
   public:
+    KeyPair(EvpPkeyPtr Ctx) noexcept : Ctx(std::move(Ctx)) {}
+
+    KeyPair(std::shared_ptr<EVP_PKEY> Ctx) noexcept : Ctx(std::move(Ctx)) {}
+
     static WasiCryptoExpect<KeyPair>
     generate(OptionalRef<const Options> Options) noexcept;
 
     static WasiCryptoExpect<KeyPair>
     import(Span<const uint8_t> Raw,
            __wasi_keypair_encoding_e_t Encoding) noexcept;
-
-    KeyPair(EvpPkeyPtr Ctx) noexcept : Ctx(std::move(Ctx)) {}
 
     WasiCryptoExpect<PublicKey> publicKey() const noexcept;
 

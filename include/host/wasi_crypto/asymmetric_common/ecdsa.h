@@ -20,6 +20,7 @@
 #include "host/wasi_crypto/utils/optional.h"
 #include "host/wasi_crypto/utils/secret_vec.h"
 
+#include <memory>
 #include <optional>
 #include <vector>
 
@@ -48,6 +49,9 @@ public:
   class PublicKeyBase {
   public:
     PublicKeyBase(EvpPkeyPtr Ctx) noexcept : Ctx(std::move(Ctx)) {}
+
+    PublicKeyBase(std::shared_ptr<EVP_PKEY> Ctx) noexcept
+        : Ctx(std::move(Ctx)) {}
 
     static WasiCryptoExpect<PublicKey>
     import(Span<const uint8_t> Encoded,
@@ -167,6 +171,9 @@ public:
   public:
     SecretKeyBase(EvpPkeyPtr Ctx) noexcept : Ctx(std::move(Ctx)) {}
 
+    SecretKeyBase(std::shared_ptr<EVP_PKEY> Ctx) noexcept
+        : Ctx(std::move(Ctx)) {}
+
     static WasiCryptoExpect<SecretKey>
     import(Span<const uint8_t> Encoded,
            __wasi_secretkey_encoding_e_t Encoding) noexcept {
@@ -197,13 +204,8 @@ public:
     }
 
     WasiCryptoExpect<PublicKey> publicKey() const noexcept {
-      BioPtr B{BIO_new(BIO_s_mem())};
-      opensslCheck(i2d_PUBKEY_bio(B.get(), Ctx.get()));
-
-      EVP_PKEY *Res = nullptr;
-      opensslCheck(d2i_PUBKEY_bio(B.get(), &Res));
-
-      return EvpPkeyPtr{Res};
+      // since inner is always `const`, we just up ref count.
+      return Ctx;
     }
 
     WasiCryptoExpect<KeyPair> toKeyPair(const PublicKey &) const noexcept {
@@ -272,6 +274,10 @@ public:
 
   class KeyPairBase {
   public:
+    KeyPairBase(EvpPkeyPtr Ctx) noexcept : Ctx(std::move(Ctx)) {}
+
+    KeyPairBase(std::shared_ptr<EVP_PKEY> Ctx) noexcept : Ctx(std::move(Ctx)) {}
+
     static WasiCryptoExpect<KeyPair>
     generate(OptionalRef<const OptionsType>) noexcept {
       EvpPkeyCtxPtr ParamCtx{EVP_PKEY_CTX_new_id(EVP_PKEY_EC, nullptr)};
@@ -303,26 +309,14 @@ public:
       }
     }
 
-    KeyPairBase(EvpPkeyPtr Ctx) noexcept : Ctx(std::move(Ctx)) {}
-
     WasiCryptoExpect<PublicKey> publicKey() const noexcept {
-      BioPtr B{BIO_new(BIO_s_mem())};
-      opensslCheck(i2d_PUBKEY_bio(B.get(), Ctx.get()));
-
-      EVP_PKEY *Res = nullptr;
-      opensslCheck(d2i_PUBKEY_bio(B.get(), &Res));
-
-      return EvpPkeyPtr{Res};
+      // since inner is always `const`, we just up ref count.
+      return Ctx;
     }
 
     WasiCryptoExpect<SecretKey> secretKey() const noexcept {
-      BioPtr B{BIO_new(BIO_s_mem())};
-      opensslCheck(i2d_PrivateKey_bio(B.get(), Ctx.get()));
-
-      EVP_PKEY *Res = nullptr;
-      opensslCheck(d2i_PrivateKey_bio(B.get(), &Res));
-
-      return EvpPkeyPtr{Res};
+      // since inner is always `const`, we just up ref count.
+      return Ctx;
     }
 
     WasiCryptoExpect<SecretVec>

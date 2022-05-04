@@ -56,15 +56,8 @@ WasiCryptoExpect<SecretVec> X25519::SecretKey::exportData(
 
 WasiCryptoExpect<X25519::PublicKey>
 X25519::SecretKey::publicKey() const noexcept {
-  std::array<uint8_t, SkSize> Res;
-
-  size_t Size = SkSize;
-  opensslCheck(EVP_PKEY_get_raw_public_key(Ctx.get(), Res.data(), &Size));
-  ensureOrReturn(Size == SkSize, __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
-
-  EvpPkeyPtr Pk{EVP_PKEY_new_raw_public_key(EVP_PKEY_X25519, nullptr,
-                                            Res.data(), Res.size())};
-  return Pk;
+  // since inner is always `const`, we just up ref count.
+  return Ctx;
 }
 
 WasiCryptoExpect<SecretVec>
@@ -93,28 +86,14 @@ X25519::SecretKey::toKeyPair(const PublicKey &) const noexcept {
 
 WasiCryptoExpect<X25519::PublicKey>
 X25519::KeyPair::publicKey() const noexcept {
-  std::array<uint8_t, PkSize> Res;
-
-  size_t Size = PkSize;
-  opensslCheck(EVP_PKEY_get_raw_public_key(Ctx.get(), Res.data(), &Size));
-  ensureOrReturn(Size == PkSize, __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
-
-  EvpPkeyPtr Pk{EVP_PKEY_new_raw_public_key(EVP_PKEY_X25519, nullptr,
-                                            Res.data(), Res.size())};
-  return Pk;
+  // since inner is always `const`, we just up ref count.
+  return Ctx;
 }
 
 WasiCryptoExpect<X25519::SecretKey>
 X25519::KeyPair::secretKey() const noexcept {
-  std::array<uint8_t, SkSize> Res;
-
-  size_t Size = SkSize;
-  opensslCheck(EVP_PKEY_get_raw_private_key(Ctx.get(), Res.data(), &Size));
-  ensureOrReturn(Size == SkSize, __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
-
-  EvpPkeyPtr Sk{EVP_PKEY_new_raw_private_key(EVP_PKEY_X25519, nullptr,
-                                             Res.data(), Res.size())};
-  return Sk;
+  // since inner is always `const`, we just up ref count.
+  return Ctx;
 }
 
 WasiCryptoExpect<SecretVec> X25519::KeyPair::exportData(

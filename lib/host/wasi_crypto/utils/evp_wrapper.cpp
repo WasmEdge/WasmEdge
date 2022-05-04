@@ -189,6 +189,28 @@ WasiCryptoExpect<std::vector<uint8_t>> i2oEcdsaSig(ECDSA_SIG *Sig) {
   return Res;
 }
 
+SharedEvpPkey::~SharedEvpPkey() noexcept {
+  if (Pkey != nullptr) {
+    EVP_PKEY_free(Pkey);
+    Pkey = nullptr;
+  }
+}
+
+SharedEvpPkey::SharedEvpPkey(const SharedEvpPkey &Rhs) noexcept
+    : Pkey(Rhs.Pkey) {
+  if (Rhs.Pkey != nullptr) {
+    EVP_PKEY_up_ref(Pkey);
+  }
+}
+
+SharedEvpPkey::SharedEvpPkey(SharedEvpPkey &&Rhs) noexcept : Pkey(Rhs.Pkey) {
+  Rhs.Pkey = nullptr;
+}
+
+EVP_PKEY *SharedEvpPkey::get() const noexcept { return Pkey; }
+
+SharedEvpPkey::operator bool() const noexcept { return Pkey != nullptr; }
+
 } // namespace WasiCrypto
 } // namespace Host
 } // namespace WasmEdge

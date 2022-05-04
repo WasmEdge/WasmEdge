@@ -4,7 +4,7 @@
 #pragma once
 
 #include "common/errcode.h"
-#include "host/wasmedge_process/processenv.h"
+#include "processenv.h"
 #include "runtime/hostfunc.h"
 
 namespace WasmEdge {

@@ -2004,6 +2004,17 @@ TEST(APICoreTest, ModuleInstance) {
   EXPECT_EQ(WasmEdge_ModuleInstanceWASIGetExitCode(nullptr), EXIT_FAILURE);
   WasmEdge_VMDelete(VM);
 
+  // Setup extra plugin path
+#if defined(_WIN32) || defined(_WIN64) || defined(__WIN32__) ||                \
+    defined(__TOS_WIN__) || defined(__WINDOWS__)
+  ::_putenv_s("WASMEDGE_PLUGIN_PATH", "../../plugins/wasmedge_process");
+#else
+  ::setenv("WASMEDGE_PLUGIN_PATH", "../../plugins/wasmedge_process", 0);
+#endif
+
+  // Load plugins
+  WasmEdge_Plugin_loadWithDefaultPluginPaths();
+
   // Create wasmedge_process.
   HostMod = WasmEdge_ModuleInstanceCreateWasmEdgeProcess(Args, 2, false);
   EXPECT_NE(HostMod, nullptr);
@@ -2027,10 +2038,7 @@ TEST(APICoreTest, ModuleInstance) {
   HostMod = WasmEdge_VMGetImportModuleContext(
       VM, WasmEdge_HostRegistration_WasmEdge_Process);
   EXPECT_NE(HostMod, nullptr);
-  WasmEdge_ModuleInstanceInitWasmEdgeProcess(nullptr, Args, 2, false);
-  EXPECT_TRUE(true);
-  WasmEdge_ModuleInstanceInitWasmEdgeProcess(HostMod, Args, 2, false);
-  EXPECT_TRUE(true);
+  WasmEdge_ModuleInstanceInitWasmEdgeProcess(Args, 2, false);
   WasmEdge_VMDelete(VM);
 }
 

@@ -12,6 +12,7 @@ add_test(poTests poTests)
 
 target_link_libraries(poTests
   PRIVATE
+  wasmedgePO
   ${GTEST_BOTH_LIBRARIES}
 )
 

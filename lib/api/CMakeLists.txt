@@ -72,8 +72,14 @@ if(WASMEDGE_BUILD_SHARED_LIB)
   )
 
   target_link_libraries(wasmedge_c_shared
-    PUBLIC
+    PRIVATE
     wasmedgeCAPI
+  )
+
+  target_include_directories(wasmedge_c_shared
+    PUBLIC
+    ${PROJECT_BINARY_DIR}/include/api
+    ${PROJECT_SOURCE_DIR}/include/api
   )
 
   set_target_properties(wasmedge_c_shared PROPERTIES OUTPUT_NAME wasmedge_c)
@@ -95,7 +101,6 @@ if(WASMEDGE_BUILD_STATIC_LIB)
   wasmedge_add_static_lib_component_command(wasmedgeValidator)
   wasmedge_add_static_lib_component_command(wasmedgeExecutor)
   wasmedge_add_static_lib_component_command(wasmedgeHostModuleWasi)
-  wasmedge_add_static_lib_component_command(wasmedgeHostModuleWasmEdgeProcess)
   wasmedge_add_static_lib_component_command(wasmedgeVM)
 
   if (WASMEDGE_BUILD_AOT_RUNTIME)

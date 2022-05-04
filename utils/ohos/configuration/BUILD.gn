@@ -181,20 +181,6 @@ ohos_static_library("wasmedgeHostModuleWasi") {
     subsystem_name = "wasmedge"
 }
 
-ohos_static_library("wasmedgeHostModuleWasmEdgeProcess") {
-    output_name = "wasmedgeHostModuleWasmEdgeProcess"
-    sources = [
-        "$WASMEDGE_ROOT_DIR/lib/host/wasmedge_process/processfunc.cpp",
-        "$WASMEDGE_ROOT_DIR/lib/host/wasmedge_process/processmodule.cpp",
-    ]
-    deps = [
-        ":wasmedgeCommon",
-        ":wasmedgeSystem",
-    ]
-    part_name = "wasmedge"
-    subsystem_name = "wasmedge"
-}
-
 ohos_static_library("wasmedgeVM") {
     output_name = "wasmedgeVM"
     sources = [
@@ -207,7 +193,6 @@ ohos_static_library("wasmedgeVM") {
         ":wasmedgeValidator",
         ":wasmedgeExecutor",
         ":wasmedgeHostModuleWasi",
-        ":wasmedgeHostModuleWasmEdgeProcess",
     ]
     part_name = "wasmedge"
     subsystem_name = "wasmedge"

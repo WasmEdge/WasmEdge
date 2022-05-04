@@ -24,4 +24,9 @@ static inline std::string_view kVersionString [[maybe_unused]] =
     CPACK_PACKAGE_VERSION;
 #undef CPACK_PACKAGE_VERSION
 
+#cmakedefine CMAKE_INSTALL_FULL_LIBDIR "@CMAKE_INSTALL_FULL_LIBDIR@"
+static inline std::string_view kGlobalPluginDir [[maybe_unused]] =
+    CMAKE_INSTALL_FULL_LIBDIR "/wasmedge"sv;
+#undef CMAKE_INSTALL_FULL_LIBDIR
+
 } // namespace WasmEdge

@@ -109,6 +109,29 @@ ECDSA_SIG *o2iEcdsaSig(Span<const uint8_t> Encoded);
 // transform ECDSA_SIG to raw represent ( r | s)
 WasiCryptoExpect<std::vector<uint8_t>> i2oEcdsaSig(ECDSA_SIG *Sig);
 
+// this is a wrapper for EVP_PKEY, since EVP_PKEY inner use lock to guarantee
+// thread-safe `EVP_PKEY_up_ref` (you will find them in crypto/evp/p_lib.c in
+// openssl v1.1.1), use shared_ptr for `EVP_PKEY` is wasted.
+// It only provide limits function to correct use.
+class SharedEvpPkey {
+public:
+  SharedEvpPkey(EvpPkeyPtr Pkey) noexcept : Pkey(Pkey.release()) {}
+  ~SharedEvpPkey() noexcept;
+
+  SharedEvpPkey(const SharedEvpPkey &Rhs) noexcept;
+  SharedEvpPkey(SharedEvpPkey &&Rhs) noexcept;
+  // assign to exist SharedEvpPkey not thread-safe, delete them.
+  SharedEvpPkey &operator=(const SharedEvpPkey &Rhs) noexcept = delete;
+  SharedEvpPkey &operator=(SharedEvpPkey &&Rhs) noexcept = delete;
+
+  EVP_PKEY *get() const noexcept;
+
+  explicit operator bool() const noexcept;
+
+private:
+  EVP_PKEY *Pkey;
+};
+
 } // namespace WasiCrypto
 } // namespace Host
 } // namespace WasmEdge

@@ -50,7 +50,7 @@ public:
   public:
     PublicKeyBase(EvpPkeyPtr Ctx) noexcept : Ctx(std::move(Ctx)) {}
 
-    PublicKeyBase(std::shared_ptr<EVP_PKEY> Ctx) noexcept
+    PublicKeyBase(SharedEvpPkey Ctx) noexcept
         : Ctx(std::move(Ctx)) {}
 
     static WasiCryptoExpect<PublicKey>
@@ -164,14 +164,14 @@ public:
       return i2dPUBKEY(Ctx.get());
     }
 
-    std::shared_ptr<EVP_PKEY> Ctx;
+    SharedEvpPkey Ctx;
   };
 
   class SecretKeyBase {
   public:
     SecretKeyBase(EvpPkeyPtr Ctx) noexcept : Ctx(std::move(Ctx)) {}
 
-    SecretKeyBase(std::shared_ptr<EVP_PKEY> Ctx) noexcept
+    SecretKeyBase(SharedEvpPkey Ctx) noexcept
         : Ctx(std::move(Ctx)) {}
 
     static WasiCryptoExpect<SecretKey>
@@ -269,14 +269,14 @@ public:
       return Res;
     }
 
-    std::shared_ptr<EVP_PKEY> Ctx;
+    SharedEvpPkey Ctx;
   };
 
   class KeyPairBase {
   public:
     KeyPairBase(EvpPkeyPtr Ctx) noexcept : Ctx(std::move(Ctx)) {}
 
-    KeyPairBase(std::shared_ptr<EVP_PKEY> Ctx) noexcept : Ctx(std::move(Ctx)) {}
+    KeyPairBase(SharedEvpPkey Ctx) noexcept : Ctx(std::move(Ctx)) {}
 
     static WasiCryptoExpect<KeyPair>
     generate(OptionalRef<const OptionsType>) noexcept {
@@ -400,7 +400,7 @@ public:
       return Res;
     }
 
-    std::shared_ptr<EVP_PKEY> Ctx;
+    SharedEvpPkey Ctx;
   };
 };
 

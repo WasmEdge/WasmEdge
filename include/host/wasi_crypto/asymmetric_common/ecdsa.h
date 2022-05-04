@@ -50,8 +50,7 @@ public:
   public:
     PublicKeyBase(EvpPkeyPtr Ctx) noexcept : Ctx(std::move(Ctx)) {}
 
-    PublicKeyBase(SharedEvpPkey Ctx) noexcept
-        : Ctx(std::move(Ctx)) {}
+    PublicKeyBase(SharedEvpPkey Ctx) noexcept : Ctx(std::move(Ctx)) {}
 
     static WasiCryptoExpect<PublicKey>
     import(Span<const uint8_t> Encoded,
@@ -171,8 +170,7 @@ public:
   public:
     SecretKeyBase(EvpPkeyPtr Ctx) noexcept : Ctx(std::move(Ctx)) {}
 
-    SecretKeyBase(SharedEvpPkey Ctx) noexcept
-        : Ctx(std::move(Ctx)) {}
+    SecretKeyBase(SharedEvpPkey Ctx) noexcept : Ctx(std::move(Ctx)) {}
 
     static WasiCryptoExpect<SecretKey>
     import(Span<const uint8_t> Encoded,

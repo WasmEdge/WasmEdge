@@ -323,7 +323,8 @@ template <int PadMode, int KeyBits, int ShaNid>
 WasiCryptoExpect<void> Rsa<PadMode, KeyBits, ShaNid>::SignState::update(
     Span<const uint8_t> Data) noexcept {
   std::scoped_lock Lock{Ctx->Mutex};
-  opensslCheck(EVP_DigestSignUpdate(Ctx->RawCtx.get(), Data.data(), Data.size()));
+  opensslCheck(
+      EVP_DigestSignUpdate(Ctx->RawCtx.get(), Data.data(), Data.size()));
   return {};
 }
 

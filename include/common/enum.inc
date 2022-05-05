@@ -70,11 +70,18 @@ O(Call, 0x10, "call")
 O(Call_indirect, 0x11, "call_indirect")
 O(Return_call, 0x12, "return_call")
 O(Return_call_indirect, 0x13, "return_call_indirect")
+O(Call_ref, 0x14, "call_ref")
+O(Return_call_ref, 0x15, "return_call_ref")
+O(Func__bind, 0x16, "func.bind")
+O(Let, 0x17, "let")
 
 // Reference Instructions
 O(Ref__null, 0xD0, "ref.null")
 O(Ref__is_null, 0xD1, "ref.is_null")
 O(Ref__func, 0xD2, "ref.func")
+O(Ref__as_non_null, 0xD3, "ref.as_non_null")
+O(Br_on_null, 0xD4, "br_on_null")
+O(Br_on_non_null, 0xD6, "br_on_non_null")
 
 // Parametric Instructions
 O(Drop, 0x1A, "drop")
@@ -818,6 +825,8 @@ V(F64, 0x7C, "f64")
 V(V128, 0x7B, "v128")
 V(FuncRef, 0x70, "funcref")
 V(ExternRef, 0x6F, "externref")
+V(RefNull, 0x6C, "refnull")
+V(Ref, 0x6B, "ref")
 
 #undef V
 #endif // UseValType
@@ -837,8 +846,10 @@ N(V128, 0x7B)
 #ifdef UseRefType
 #define R Line
 
-R(FuncRef, 0x70)
-R(ExternRef, 0x6F)
+R(FuncRef, 0x70)     // := (refnull func)
+R(ExternRef, 0x6F)   // := (refnull extern)
+R(RefNull, 0x6C)
+R(Ref, 0x6B)
 
 #undef R
 #endif // UseRefType

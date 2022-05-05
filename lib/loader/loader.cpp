@@ -178,6 +178,14 @@ Expect<ValType> Loader::checkValTypeProposals(ValType VType, uint64_t Off,
     return logNeedProposal(ErrCode::MalformedElemType, Proposal::ReferenceTypes,
                            Off, Node);
   }
+  if ((VType == ValType::RefNull &&
+       !Conf.hasProposal(Proposal::FunctionReferences)) ||
+      (VType == ValType::Ref &&
+       !Conf.hasProposal(Proposal::FunctionReferences))) {
+    return logNeedProposal(ErrCode::MalformedElemType,
+                           Proposal::FunctionReferences, Off, Node);
+  }
+
   switch (VType) {
   case ValType::None:
   case ValType::I32:
@@ -187,6 +195,8 @@ Expect<ValType> Loader::checkValTypeProposals(ValType VType, uint64_t Off,
   case ValType::V128:
   case ValType::ExternRef:
   case ValType::FuncRef:
+  case ValType::RefNull:
+  case ValType::Ref:
     return VType;
   default:
     return logLoadError(ErrCode::MalformedValType, Off, Node);

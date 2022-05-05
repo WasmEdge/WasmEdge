@@ -4,6 +4,7 @@
 #include "loader/loader.h"
 
 #include <cstdint>
+#include <iostream>
 
 namespace WasmEdge {
 namespace Loader {
@@ -52,6 +53,7 @@ Expect<void> Loader::loadLimit(AST::Limit &Lim) {
   return {};
 }
 
+
 // Load binary to construct FunctionType node. See "include/loader/loader.h".
 Expect<void> Loader::loadType(AST::FunctionType &FuncType) {
   uint32_t VecCnt = 0;
@@ -84,6 +86,10 @@ Expect<void> Loader::loadType(AST::FunctionType &FuncType) {
           !Check) {
         return Unexpect(Check);
       }
+      if(Type == ValType::RefNull || Type == ValType::Ref){
+        
+        return {};
+      }
       FuncType.getParamTypes().push_back(Type);
     } else {
       return logLoadError(Res.error(), FMgr.getLastOffset(),
@@ -112,6 +118,10 @@ Expect<void> Loader::loadType(AST::FunctionType &FuncType) {
           !Check) {
         return Unexpect(Check);
       }
+      if(Type == ValType::RefNull || Type == ValType::Ref){
+        std::cerr << "We are here!\n";
+        return {};
+      }
       FuncType.getReturnTypes().push_back(Type);
     } else {
       return logLoadError(Res.error(), FMgr.getLastOffset(),
@@ -135,12 +145,17 @@ Expect<void> Loader::loadType(AST::MemoryType &MemType) {
 Expect<void> Loader::loadType(AST::TableType &TabType) {
   // Read reference type.
   if (auto Res = FMgr.readByte()) {
-    TabType.setRefType(static_cast<RefType>(*Res));
+    RefType Type = static_cast<RefType>(*Res);
+    TabType.setRefType(Type);
     if (auto Check =
             checkRefTypeProposals(TabType.getRefType(), FMgr.getLastOffset(),
                                   ASTNodeAttr::Type_Table);
         !Check) {
       return Unexpect(Check);
+    }
+    if(Type == RefType::RefNull || Type == RefType::Ref){
+      std::cerr << "We are here!\n";
+      return {};
     }
   } else {
     return logLoadError(Res.error(), FMgr.getLastOffset(),

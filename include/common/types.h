@@ -79,8 +79,30 @@ struct ExternRef {
   template <typename T> ExternRef(T *P) : Ptr(reinterpret_cast<void *>(P)) {}
 };
 
+/// RefNull definition.
+struct RefNull {
+#if __INTPTR_WIDTH__ == 32
+  const uint32_t Padding = -1;
+#endif
+  void *Ptr = nullptr;
+  RefNull() = default;
+  template <typename T> RefNull(T *P) : Ptr(reinterpret_cast<void *>(P)) {}
+};
+
+/// Ref definition.
+struct Ref {
+#if __INTPTR_WIDTH__ == 32
+  const uint32_t Padding = -1;
+#endif
+  void *Ptr = nullptr;
+  Ref() = default;
+  template <typename T> Ref(T *P) : Ptr(reinterpret_cast<void *>(P)) {}
+};
+
 /// NumType and RefType variant definitions.
 using RefVariant = Variant<UnknownRef, FuncRef, ExternRef>;
+
+using HeapVariant = Variant<UnknownRef, FuncRef, ExternRef>;
 using ValVariant =
     Variant<uint32_t, int32_t, uint64_t, int64_t, float, double, uint128_t,
             int128_t, uint64x2_t, int64x2_t, uint32x4_t, int32x4_t, uint16x8_t,

@@ -27,21 +27,33 @@ namespace AST {
 class Limit {
 public:
   /// Limit type enumeration class.
-  enum class LimitType : uint8_t { HasMin = 0x00, HasMinMax = 0x01 };
+  enum class LimitType : uint8_t {
+    HasMin = 0x00,
+    HasMinMax = 0x01,
+    SharedNoMax = 0x02,
+    Shared = 0x03
+  };
 
   /// Constructors.
   Limit() noexcept : Type(LimitType::HasMin), Min(0U), Max(0U) {}
   Limit(uint32_t MinVal) noexcept
       : Type(LimitType::HasMin), Min(MinVal), Max(MinVal) {}
-  Limit(uint32_t MinVal, uint32_t MaxVal) noexcept
-      : Type(LimitType::HasMinMax), Min(MinVal), Max(MaxVal) {}
+  Limit(uint32_t MinVal, uint32_t MaxVal, bool Shared = false) noexcept
+      : Min(MinVal), Max(MaxVal) {
+    if (Shared) {
+      Type = LimitType::Shared;
+    } else {
+      Type = LimitType::HasMinMax;
+    }
+  }
   Limit(const Limit &L) noexcept : Type(L.Type), Min(L.Min), Max(L.Max) {}
 
   /// Getter and setter of limit mode.
-  bool hasMax() const noexcept { return Type == LimitType::HasMinMax; }
-  void setHasMax(bool HasMax) noexcept {
-    Type = HasMax ? LimitType::HasMinMax : LimitType::HasMin;
+  bool hasMax() const noexcept {
+    return Type == LimitType::HasMinMax || Type == LimitType::Shared;
   }
+  bool isShared() const noexcept { return Type == LimitType::Shared; }
+  void setType(LimitType TargetType) noexcept { Type = TargetType; }
 
   /// Getter and setter of min value.
   uint32_t getMin() const noexcept { return Min; }
@@ -59,6 +71,56 @@ private:
   uint32_t Max;
   /// @}
 };
+
+/// AST ValueType node.
+class ValType {
+public:
+  /// Function type wrapper for symbols.
+  using Wrapper = void(void *ExecCtx, void *Function, const ValVariant *Args,
+                       ValVariant *Rets);
+
+  /// Constructors.
+  FunctionType() = default;
+  FunctionType(Span<const ValType> P, Span<const ValType> R)
+      : ParamTypes(P.begin(), P.end()), ReturnTypes(R.begin(), R.end()) {}
+  FunctionType(Span<const ValType> P, Span<const ValType> R, Symbol<Wrapper> S)
+      : ParamTypes(P.begin(), P.end()), ReturnTypes(R.begin(), R.end()),
+        WrapSymbol(std::move(S)) {}
+
+  /// `==` and `!=` operator overloadings.
+  friend bool operator==(const FunctionType &LHS,
+                         const FunctionType &RHS) noexcept {
+    return LHS.ParamTypes == RHS.ParamTypes &&
+           LHS.ReturnTypes == RHS.ReturnTypes;
+  }
+
+  friend bool operator!=(const FunctionType &LHS,
+                         const FunctionType &RHS) noexcept {
+    return !(LHS == RHS);
+  }
+
+  /// Getter of param types.
+  const std::vector<ValType> &getParamTypes() const noexcept {
+    return ParamTypes;
+  }
+  std::vector<ValType> &getParamTypes() noexcept { return ParamTypes; }
+
+  /// Getter of return types.
+  const std::vector<ValType> &getReturnTypes() const noexcept {
+    return ReturnTypes;
+  }
+  std::vector<ValType> &getReturnTypes() noexcept { return ReturnTypes; }
+
+  /// Getter and setter of symbol.
+  const auto &getSymbol() const noexcept { return WrapSymbol; }
+  void setSymbol(Symbol<Wrapper> S) noexcept { WrapSymbol = std::move(S); }
+
+private:
+  /// \name Data of FunctionType.
+  /// @{
+  ValTypeCode ParamTypes;
+  /// @}
+}
 
 /// AST FunctionType node.
 class FunctionType {
@@ -118,7 +180,8 @@ public:
   /// Constructors.
   MemoryType() noexcept = default;
   MemoryType(uint32_t MinVal) noexcept : Lim(MinVal) {}
-  MemoryType(uint32_t MinVal, uint32_t MaxVal) noexcept : Lim(MinVal, MaxVal) {}
+  MemoryType(uint32_t MinVal, uint32_t MaxVal, bool Shared = false) noexcept
+      : Lim(MinVal, MaxVal, Shared) {}
   MemoryType(const Limit &L) noexcept : Lim(L) {}
 
   /// Getter of limit.

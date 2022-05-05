@@ -75,6 +75,19 @@ WasiCryptoExpect<Tag> Hmac<ShaNid>::State::squeezeTag() noexcept {
   return Res;
 }
 
+template <int ShaNid>
+WasiCryptoExpect<typename Hmac<ShaNid>::State>
+Hmac<ShaNid>::State::clone() const noexcept {
+  EvpMdCtxPtr CloneCtx{EVP_MD_CTX_new()};
+
+  {
+    std::scoped_lock Lock{Ctx->Mutex};
+    opensslCheck(EVP_MD_CTX_copy_ex(CloneCtx.get(), Ctx->RawCtx.get()));
+  }
+
+  return CloneCtx;
+}
+
 template class Hmac<NID_sha256>;
 template class Hmac<NID_sha512>;
 

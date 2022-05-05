@@ -112,6 +112,8 @@ public:
 
     WasiCryptoExpect<void> squeeze(Span<uint8_t> Out) noexcept;
 
+    WasiCryptoExpect<State> clone() const noexcept;
+
   private:
     struct Inner {
       Inner(EvpMdCtxPtr Ctx) noexcept : RawCtx(std::move(Ctx)) {}

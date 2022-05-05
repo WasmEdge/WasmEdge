@@ -51,6 +51,8 @@ WasiCryptoModule::WasiCryptoModule() : ModuleInstance("wasi_ephemeral_crypto") {
               std::make_unique<Symmetric::KeyFromId>(Ctx));
   addHostFunc("symmetric_state_open",
               std::make_unique<Symmetric::StateOpen>(Ctx));
+  addHostFunc("symmetric_state_clone",
+              std::make_unique<Symmetric::StateClone>(Ctx));
   addHostFunc("symmetric_state_options_get",
               std::make_unique<Symmetric::StateOptionsGet>(Ctx));
   addHostFunc("symmetric_state_options_getU64",

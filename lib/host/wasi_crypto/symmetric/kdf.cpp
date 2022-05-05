@@ -72,6 +72,13 @@ Hkdf<ShaNid>::Expand::State::squeeze(Span<uint8_t> Out) noexcept {
 }
 
 template <int ShaNid>
+WasiCryptoExpect<typename Hkdf<ShaNid>::Expand::State>
+Hkdf<ShaNid>::Expand::State::clone() const noexcept {
+  // not supported for a keygen operation.
+  return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
+}
+
+template <int ShaNid>
 WasiCryptoExpect<typename Hkdf<ShaNid>::Extract::Key>
 Hkdf<ShaNid>::Extract::Key::generate(OptionalRef<const Options>) noexcept {
   return SecretVec::random<getKeySize()>();
@@ -115,6 +122,13 @@ Hkdf<ShaNid>::Extract::State::squeezeKey() noexcept {
                  __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
 
   return Data;
+}
+
+template <int ShaNid>
+WasiCryptoExpect<typename Hkdf<ShaNid>::Extract::State>
+Hkdf<ShaNid>::Extract::State::clone() const noexcept {
+  // not supported for a keygen operation.
+  return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
 }
 
 template <int ShaNid>

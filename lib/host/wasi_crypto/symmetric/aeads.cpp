@@ -10,6 +10,7 @@
 #include <cstdint>
 #include <limits>
 #include <mutex>
+#include <openssl/evp.h>
 
 namespace WasmEdge {
 namespace Host {
@@ -85,7 +86,6 @@ Cipher<CipherNid>::State::optionsGet(std::string_view Name,
   ensureOrReturn(Name == "nonce"sv, __WASI_CRYPTO_ERRNO_UNSUPPORTED_OPTION);
   ensureOrReturn(NonceSize <= Value.size(), __WASI_CRYPTO_ERRNO_OVERFLOW);
 
-  std::scoped_lock Lock{Ctx->Mutex};
   std::copy(Ctx->Nonce.begin(), Ctx->Nonce.end(), Value.begin());
   return NonceSize;
 }
@@ -206,6 +206,19 @@ Cipher<CipherNid>::State::decryptImpl(Span<uint8_t> Out,
                  __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
 
   return Out.size();
+}
+
+template <int CipherNid>
+WasiCryptoExpect<typename Cipher<CipherNid>::State>
+Cipher<CipherNid>::State::clone() const noexcept {
+  EvpCipherCtxPtr CloneCtx{EVP_CIPHER_CTX_new()};
+
+  {
+    std::scoped_lock Lock{Ctx->Mutex};
+    opensslCheck(EVP_CIPHER_CTX_copy(CloneCtx.get(), Ctx->RawCtx.get()));
+  }
+
+  return State{std::move(CloneCtx), Ctx->Nonce};
 }
 
 template class Cipher<NID_aes_128_gcm>;

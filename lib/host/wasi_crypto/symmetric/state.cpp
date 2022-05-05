@@ -225,6 +225,18 @@ WasiCryptoExpect<void> stateRatchet(StateVariant &StateVariant) noexcept {
                     StateVariant);
 }
 
+/// clone state
+WasiCryptoExpect<StateVariant>
+stateClone(const StateVariant &ClonedStateVariant) noexcept {
+  return std::visit(
+      [](const auto &ClonedState) noexcept -> WasiCryptoExpect<StateVariant> {
+        return ClonedState.clone().map([](auto &&NewState) noexcept {
+          return StateVariant{std::forward<decltype(NewState)>(NewState)};
+        });
+      },
+      ClonedStateVariant);
+}
+
 } // namespace Symmetric
 } // namespace WasiCrypto
 } // namespace Host

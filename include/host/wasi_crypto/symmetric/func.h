@@ -116,6 +116,14 @@ public:
                         uint32_t /* Out */ StatePtr);
 };
 
+class StateClone : public HostFunction<StateClone> {
+public:
+  using HostFunction::HostFunction;
+
+  Expect<uint32_t> body(Runtime::Instance::MemoryInstance *MemInst,
+                        int32_t StateHandle, uint32_t /* Out */ StatePtr);
+};
+
 class StateOptionsGet : public HostFunction<StateOptionsGet> {
 public:
   using HostFunction::HostFunction;

@@ -270,6 +270,16 @@ Context::symmetricStateOpen(Symmetric::Algorithm Alg,
       });
 }
 
+WasiCryptoExpect<__wasi_symmetric_state_t>
+Context::symmetricStateClone(__wasi_symmetric_state_t StateHandle) noexcept {
+  return SymmetricStateManager.get(StateHandle)
+      .and_then(&Symmetric::stateClone)
+      .and_then([this](auto &&State) noexcept {
+        return SymmetricStateManager.registerManager(
+            std::forward<decltype(State)>(State));
+      });
+}
+
 WasiCryptoExpect<__wasi_symmetric_key_t>
 Context::symmetricKeyGenerateManaged(__wasi_secrets_manager_t,
                                      Symmetric::Algorithm,

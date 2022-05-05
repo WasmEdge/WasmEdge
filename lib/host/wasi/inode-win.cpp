@@ -579,6 +579,7 @@ WasiExpect<void> INode::sockGetOpt(__wasi_sock_opt_level_t SockOptLevel,
                                    __wasi_sock_opt_so_t SockOptName,
                                    void *FlagPtr,
                                    uint32_t *FlagSizePtr) const noexcept {
+  EnsureWSAStartup();
   auto SysSockOptLevel = toSockOptLevel(SockOptLevel);
   auto SysSockOptName = toSockOptSoName(SockOptName);
   auto UnsafeFlagSizePtr = reinterpret_cast<int *>(FlagSizePtr);
@@ -607,6 +608,7 @@ WasiExpect<void> INode::sockSetOpt(__wasi_sock_opt_level_t SockOptLevel,
                                    __wasi_sock_opt_so_t SockOptName,
                                    void *FlagPtr,
                                    uint32_t FlagSize) const noexcept {
+  EnsureWSAStartup();
   auto SysSockOptLevel = toSockOptLevel(SockOptLevel);
   auto SysSockOptName = toSockOptSoName(SockOptName);
   char *CFlagPtr = static_cast<char *>(FlagPtr);
@@ -624,6 +626,7 @@ WasiExpect<void> INode::sockSetOpt(__wasi_sock_opt_level_t SockOptLevel,
 WasiExpect<void> INode::sockGetLoaclAddr(uint8_t *AddressPtr,
                                          uint32_t *AddrTypePtr,
                                          uint32_t *PortPtr) const noexcept {
+  EnsureWSAStartup();
   struct sockaddr_storage SocketAddr;
   socklen_t Slen = sizeof(SocketAddr);
   std::memset(&SocketAddr, 0, sizeof(SocketAddr));
@@ -658,6 +661,7 @@ WasiExpect<void> INode::sockGetLoaclAddr(uint8_t *AddressPtr,
 
 WasiExpect<void> INode::sockGetPeerAddr(uint8_t *, uint32_t *,
                                         uint32_t *) const noexcept {
+  EnsureWSAStartup();
   return WasiUnexpect(__WASI_ERRNO_NOSYS);
 }
 

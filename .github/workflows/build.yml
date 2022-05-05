@@ -27,7 +27,7 @@ on:
 
 jobs:
   get_version_v1:
-    name: Retrieve version information
+    name: Retrieve version information (v1)
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.prep.outputs.version }}
@@ -40,9 +40,10 @@ jobs:
       run: |
         # Retrieve annotated tags. Details: https://github.com/actions/checkout/issues/290
         git fetch --tags --force
+        echo "Set version: $(git describe --match "[0-9].[0-9]*" --tag)"
         echo ::set-output name=version::$(git describe --match "[0-9].[0-9]*" --tag)
   get_version_v2:
-    name: Retrieve version information
+    name: Retrieve version information (v2)
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.prep.outputs.version }}
@@ -55,6 +56,7 @@ jobs:
       run: |
         # Retrieve annotated tags. Details: https://github.com/actions/checkout/issues/290
         git fetch --tags --force
+        echo "Set version: $(git describe --match "[0-9].[0-9]*" --tag)"
         echo ::set-output name=version::$(git describe --match "[0-9].[0-9]*" --tag)
 
   create_source_tarball:
@@ -72,6 +74,7 @@ jobs:
         VERSION: ${{ needs.get_version_v2.outputs.version }}
     - name: Create source tarball
       run: |
+        echo "Get version: $VERSION"
         TEMPDIR=$(mktemp -d)
         SRCDIR="$TEMPDIR/wasmedge/"
         mkdir -p "$SRCDIR"
@@ -79,12 +82,12 @@ jobs:
         cp -v VERSION $SRCDIR
         tar --owner 0 --group 0 -czf "$GITHUB_WORKSPACE/WasmEdge-$VERSION.tar.gz" -C "$TEMPDIR" "wasmedge"
       env:
-        VERSION: ${{ steps.prep.outputs.version }}
+        VERSION: ${{ needs.get_version_v2.outputs.version }}
     - name: Upload artifact
       uses: actions/upload-artifact@v2
       with:
         name: WasmEdge-${{ needs.get_version_v2.outputs.version }}-src.tar.gz
-        path: wasmedge_${{ needs.get_version_v2.outputs.version }}.tar.gz
+        path: WasmEdge-${{ needs.get_version_v2.outputs.version }}.tar.gz
 
   build_fedora:
     name: Fedora 35
@@ -231,14 +234,14 @@ jobs:
       run: |
         bash utils/docker/build-manylinux.sh
 
-    - name: Upload artifact
+    - name: Upload artifact (v1)
       uses: actions/upload-artifact@v1
       if: ${{ matrix.checkout_version == 'v1' }}
       with:
         name: WasmEdge-${{ needs.get_version_v1.outputs.version }}-${{ matrix.docker_tag }}.tar.gz
         path: build/WasmEdge-${{ needs.get_version_v1.outputs.version }}-Linux.tar.gz
 
-    - name: Upload artifact
+    - name: Upload artifact (v2)
       uses: actions/upload-artifact@v2
       if: ${{ matrix.checkout_version == 'v2' }}
       with:
@@ -333,7 +336,7 @@ jobs:
       run: |
         Get-ChildItem -Path "$pwd\\build"
 
-    - name: Upload artifact
+    - name: Upload artifact (v2)
       uses: actions/upload-artifact@v2
       with:
         name: WasmEdge-${{ needs.get_version_v2.outputs.version }}-windows.zip
@@ -377,12 +380,13 @@ jobs:
 
     - name: Build WasmEdge for Android
       run: |
+        git config --global --add safe.directory $(pwd)
         export ANDROID_NDK_HOME=$(pwd)/android-ndk-r23b/
         cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_BUILD_PACKAGE="TGZ" -DWASMEDGE_BUILD_AOT_RUNTIME=OFF -DCMAKE_SYSTEM_NAME=Android -DCMAKE_SYSTEM_VERSION=23 -DCMAKE_ANDROID_ARCH_ABI=arm64-v8a -DCMAKE_ANDROID_NDK=$ANDROID_NDK_HOME -DCMAKE_ANDROID_STL_TYPE=c++_static
         cmake --build build
         cmake --build build --target package
 
-    - name: Upload artifact
+    - name: Upload artifact (v2)
       uses: actions/upload-artifact@v2
       with:
         name: WasmEdge-${{ needs.get_version_v2.outputs.version }}-android_aarch64.tar.gz

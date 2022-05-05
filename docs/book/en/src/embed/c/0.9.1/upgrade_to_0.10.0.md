@@ -125,7 +125,7 @@ WasmEdge_StringDelete(GlobName);
 
 ## WasmEdge Executor changes
 
-`Executor` helps to instantiate a WASM module, register a WASM module into `Store` with module name, register the host modules with host functios, or invoke functions.
+`Executor` helps to instantiate a WASM module, register a WASM module into `Store` with module name, register the host modules with host functions, or invoke functions.
 
 1. WASM module instantiation
 
@@ -242,12 +242,12 @@ WasmEdge_StringDelete(GlobName);
     WasmEdge_StringDelete(ModName);
     /*
      * ...
-     * Add the host functions, tables, memories, and globals into the import object.
+     * Add the host functions, tables, memories, and globals into the module instance.
      */
     /* The module instance context has already contained the export module name. */
     Res = WasmEdge_ExecutorRegisterImport(ExecCxt, StoreCxt, ModCxt);
     if (!WasmEdge_ResultOK(Res)) {
-      printf("Import object registration failed: %s\n", WasmEdge_ResultGetMessage(Res));
+      printf("Module instance registration failed: %s\n", WasmEdge_ResultGetMessage(Res));
     }
     ```
 
@@ -302,7 +302,6 @@ WasmEdge_StringDelete(GlobName);
       return -1;
     }
 
-    WasmEdge_ModuleInstanceDelete(ModCxt);
     WasmEdge_ASTModuleDelete(ASTCxt);
     WasmEdge_LoaderDelete(LoadCxt);
     WasmEdge_ValidatorDelete(ValidCxt);
@@ -379,15 +378,15 @@ if (!WasmEdge_ResultOK(Res)) {
   printf("Validation phase failed: %s\n", WasmEdge_ResultGetMessage(Res));
   return -1;
 }
-/* Instantiate the WASM module into the store context. */
-Res = WasmEdge_ExecutorInstantiate(ExecCxt, StoreCxt, ASTCxt);
+/* Example: register and instantiate the WASM module with the module name "module_fib". */
+WasmEdge_String ModName = WasmEdge_StringCreateByCString("module_fib");
+Res = WasmEdge_ExecutorRegisterModule(ExecCxt, StoreCxt, ASTCxt, ModName);
 if (!WasmEdge_ResultOK(Res)) {
   printf("Instantiation phase failed: %s\n", WasmEdge_ResultGetMessage(Res));
   return -1;
 }
-/* Example: register and instantiate the WASM module with the module name "module_fib". */
-WasmEdge_String ModName = WasmEdge_StringCreateByCString("module_fib");
-Res = WasmEdge_ExecutorRegisterModule(ExecCxt, StoreCxt, ASTCxt, ModName);
+/* Example: Instantiate the WASM module into the store context. */
+Res = WasmEdge_ExecutorInstantiate(ExecCxt, StoreCxt, ASTCxt);
 if (!WasmEdge_ResultOK(Res)) {
   printf("Instantiation phase failed: %s\n", WasmEdge_ResultGetMessage(Res));
   return -1;
@@ -441,17 +440,17 @@ if (!WasmEdge_ResultOK(Res)) {
   printf("Validation phase failed: %s\n", WasmEdge_ResultGetMessage(Res));
   return -1;
 }
-/* Instantiate the WASM module into the store context. */
-WasmEdge_ModuleInstanceContext *ModCxt = NULL;
-Res = WasmEdge_ExecutorInstantiate(ExecCxt, &ModCxt, StoreCxt, ASTCxt);
-if (!WasmEdge_ResultOK(Res)) {
-  printf("Instantiation phase failed: %s\n", WasmEdge_ResultGetMessage(Res));
-  return -1;
-}
 /* Example: register and instantiate the WASM module with the module name "module_fib". */
 WasmEdge_ModuleInstanceContext *NamedModCxt = NULL;
 WasmEdge_String ModName = WasmEdge_StringCreateByCString("module_fib");
 Res = WasmEdge_ExecutorRegister(ExecCxt, &NamedModCxt, StoreCxt, ASTCxt, ModName);
+if (!WasmEdge_ResultOK(Res)) {
+  printf("Instantiation phase failed: %s\n", WasmEdge_ResultGetMessage(Res));
+  return -1;
+}
+/* Example: Instantiate the WASM module and get the output module instance. */
+WasmEdge_ModuleInstanceContext *ModCxt = NULL;
+Res = WasmEdge_ExecutorInstantiate(ExecCxt, &ModCxt, StoreCxt, ASTCxt);
 if (!WasmEdge_ResultOK(Res)) {
   printf("Instantiation phase failed: %s\n", WasmEdge_ResultGetMessage(Res));
   return -1;

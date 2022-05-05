@@ -61,7 +61,7 @@ extern "C" fn wraper_fn(
 /// A WasmEdge [Function] defines a host function described by its [FuncType]. A host function is a function defined outside WASM module and passed to it.
 ///
 /// In WasmEdge, developers can create [host functions](crate::Function) and other WasmEdge instances, such as [Memory](crate::Memory), and add them into a WasmEdge [ImportObject](crate::ImportObject) for registering into a WasmEdge [Vm](crate::Vm) or [Store](crate::Store).
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Function {
     pub(crate) inner: InnerFunc,
     pub(crate) registered: bool,
@@ -199,7 +199,7 @@ impl Drop for Function {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub(crate) struct InnerFunc(pub(crate) *mut ffi::WasmEdge_FunctionInstanceContext);
 unsafe impl Send for InnerFunc {}
 unsafe impl Sync for InnerFunc {}

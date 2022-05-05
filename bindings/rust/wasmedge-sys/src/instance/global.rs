@@ -65,7 +65,7 @@ impl Drop for GlobalType {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub(crate) struct InnerGlobal(pub(crate) *mut ffi::WasmEdge_GlobalInstanceContext);
 unsafe impl Send for InnerGlobal {}
 unsafe impl Sync for InnerGlobal {}
@@ -73,7 +73,7 @@ unsafe impl Sync for InnerGlobal {}
 /// Struct of WasmEdge Global.
 ///
 /// A WasmEdge [Global] defines a global variable, which stores a single value of the given [GlobalType].
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Global {
     pub(crate) inner: InnerGlobal,
     pub(crate) registered: bool,

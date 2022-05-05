@@ -284,6 +284,25 @@ Expect<uint32_t> StateOpen::body(Runtime::Instance::MemoryInstance *MemInst,
   return __WASI_CRYPTO_ERRNO_SUCCESS;
 }
 
+Expect<uint32_t> StateClone::body(Runtime::Instance::MemoryInstance *MemInst,
+                                  int32_t StateHandle,
+                                  uint32_t /* Out */ StatePtr) {
+  checkExist(MemInst);
+
+  auto *const State = MemInst->getPointer<__wasi_symmetric_state_t *>(StatePtr);
+  if (unlikely(State == nullptr)) {
+    return __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE;
+  }
+
+  if (auto Res = Ctx.symmetricStateClone(StateHandle); unlikely(!Res)) {
+    return Res.error();
+  } else {
+    *State = *Res;
+  }
+
+  return __WASI_CRYPTO_ERRNO_SUCCESS;
+}
+
 Expect<uint32_t>
 StateOptionsGet::body(Runtime::Instance::MemoryInstance *MemInst,
                       int32_t StateHandle, uint32_t NamePtr, uint32_t NameLen,

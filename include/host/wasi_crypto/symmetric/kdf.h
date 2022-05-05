@@ -16,6 +16,7 @@
 
 #include "host/wasi_crypto/symmetric/options.h"
 #include "host/wasi_crypto/symmetric/tag.h"
+#include "host/wasi_crypto/utils/error.h"
 #include "host/wasi_crypto/utils/evp_wrapper.h"
 #include "host/wasi_crypto/utils/optional.h"
 #include "host/wasi_crypto/utils/secret_vec.h"
@@ -168,6 +169,8 @@ public:
       /// derivation
       WasiCryptoExpect<void> squeeze(Span<uint8_t> Out) noexcept;
 
+      WasiCryptoExpect<State> clone() const noexcept;
+
     private:
       struct Inner {
         Inner(EvpPkeyCtxPtr RawCtx) : RawCtx(std::move(RawCtx)) {}
@@ -211,6 +214,8 @@ public:
       /// returns the PRK, whose algorithm type is set to the EXPAND counterpart
       /// of the EXTRACT operation
       WasiCryptoExpect<typename Expand::Key> squeezeKey() noexcept;
+
+      WasiCryptoExpect<State> clone() const noexcept;
 
     private:
       struct Inner {

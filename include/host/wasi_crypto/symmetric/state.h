@@ -90,6 +90,10 @@ stateMaxTagLen(const StateVariant &StateVariant) noexcept;
 /// make state impossible to recover the previous state
 WasiCryptoExpect<void> stateRatchet(StateVariant &StateVariant) noexcept;
 
+/// clone state
+WasiCryptoExpect<StateVariant>
+stateClone(const StateVariant &ClonedStateVariant) noexcept;
+
 } // namespace Symmetric
 } // namespace WasiCrypto
 } // namespace Host

@@ -121,6 +121,9 @@ public:
                      __wasi_opt_symmetric_key_t OptKeyHandle,
                      __wasi_opt_options_t OptOptionsHandle) noexcept;
 
+  WasiCryptoExpect<__wasi_symmetric_state_t>
+  symmetricStateClone(__wasi_symmetric_state_t StateHandle) noexcept;
+
   WasiCryptoExpect<size_t>
   symmetricStateOptionsGet(__wasi_symmetric_state_t StateHandle,
                            std::string_view Name, Span<uint8_t> Value) noexcept;

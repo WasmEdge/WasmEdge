@@ -2,6 +2,8 @@
 // SPDX-FileCopyrightText: 2019-2022 Second State INC
 
 #include "host/wasi_crypto/symmetric/hash.h"
+#include "host/wasi_crypto/utils/evp_wrapper.h"
+#include <openssl/evp.h>
 
 namespace WasmEdge {
 namespace Host {
@@ -66,6 +68,19 @@ Sha2<ShaNid>::State::squeeze(Span<uint8_t> Out) noexcept {
   }
 
   return {};
+}
+
+template <int ShaNid>
+WasiCryptoExpect<typename Sha2<ShaNid>::State>
+Sha2<ShaNid>::State::clone() const noexcept {
+  EvpMdCtxPtr CloneCtx{EVP_MD_CTX_new()};
+
+  {
+    std::shared_lock Lock{Ctx->Mutex};
+    opensslCheck(EVP_MD_CTX_copy_ex(CloneCtx.get(), Ctx->RawCtx.get()));
+  }
+
+  return CloneCtx;
 }
 
 template class Sha2<NID_sha256>;

@@ -125,6 +125,8 @@ public:
     /// @return Nothing or WasiCrypto error
     WasiCryptoExpect<Tag> squeezeTag() noexcept;
 
+    WasiCryptoExpect<State> clone() const noexcept;
+
   private:
     struct Inner {
       Inner(EvpMdCtxPtr RawCtx) noexcept : RawCtx(std::move(RawCtx)) {}

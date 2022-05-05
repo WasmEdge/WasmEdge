@@ -15,6 +15,7 @@
 
 #include "host/wasi_crypto/symmetric/options.h"
 #include "host/wasi_crypto/symmetric/tag.h"
+#include "host/wasi_crypto/utils/error.h"
 #include "host/wasi_crypto/utils/evp_wrapper.h"
 #include "host/wasi_crypto/utils/optional.h"
 #include "host/wasi_crypto/utils/secret_vec.h"
@@ -146,6 +147,8 @@ public:
     decryptDetached(Span<uint8_t> Out, Span<const uint8_t> Data,
                     Span<const uint8_t> RawTag) noexcept;
 
+    WasiCryptoExpect<State> clone() const noexcept;
+
   private:
     WasiCryptoExpect<size_t> encryptImpl(Span<uint8_t> Out, Span<uint8_t> Tag,
                                          Span<const uint8_t> Data) noexcept;
@@ -158,7 +161,7 @@ public:
             std::array<uint8_t, NonceSize> Nonce) noexcept
           : RawCtx(std::move(RawCtx)), Nonce(Nonce) {}
       EvpCipherCtxPtr RawCtx;
-      std::array<uint8_t, NonceSize> Nonce;
+      const std::array<uint8_t, NonceSize> Nonce;
       std::mutex Mutex;
     };
     std::shared_ptr<Inner> Ctx;

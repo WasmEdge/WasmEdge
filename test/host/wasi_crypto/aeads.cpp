@@ -94,6 +94,15 @@ TEST_F(WasiCryptoTest, Aeads) {
       WASI_CRYPTO_EXPECT_FAILURE(symmetricStateRatchet(State4Handle),
                                  __WASI_CRYPTO_ERRNO_INVALID_OPERATION);
     }
+
+    {
+      // clone check
+      WASI_CRYPTO_EXPECT_SUCCESS(NewStateHandle,
+                                 symmetricStateClone(State4Handle));
+      EXPECT_NE(State4Handle, NewStateHandle);
+      WASI_CRYPTO_EXPECT_TRUE(symmetricStateClose(NewStateHandle));
+    }
+
     WASI_CRYPTO_EXPECT_TRUE(symmetricStateClose(State4Handle));
   };
 

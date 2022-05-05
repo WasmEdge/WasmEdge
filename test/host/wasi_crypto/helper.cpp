@@ -494,6 +494,20 @@ WasiCryptoTest::symmetricStateAbsorb(__wasi_symmetric_state_t StateHandle,
   return {};
 }
 
+WasiCryptoExpect<__wasi_symmetric_state_t>
+WasiCryptoTest::symmetricStateClone(__wasi_symmetric_state_t StateHandle) {
+  writeDummyMemoryContent();
+
+  Symmetric::StateClone Func{Ctx};
+
+  EXPECT_TRUE(Func.run(
+      &MemInst, std::initializer_list<WasmEdge::ValVariant>{StateHandle, 0},
+      Errno));
+  ensureOrReturnOnTest(Errno[0].get<int32_t>());
+
+  return *MemInst.getPointer<__wasi_symmetric_state_t *>(0);
+}
+
 WasiCryptoExpect<void>
 WasiCryptoTest::symmetricStateSqueeze(__wasi_symmetric_state_t StateHandle,
                                       Span<uint8_t> Out) {

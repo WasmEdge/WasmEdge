@@ -5,6 +5,7 @@
 #include "host/wasi_crypto/symmetric/func.h"
 #include "host/wasi_crypto/utils/error.h"
 #include "wasi_crypto/api.hpp"
+#include <gtest/gtest.h>
 
 namespace WasmEdge {
 namespace Host {
@@ -54,6 +55,14 @@ TEST_F(WasiCryptoTest, Hash) {
       WASI_CRYPTO_EXPECT_FAILURE(
           symmetricStateSqueeze(StateHandle, SqueezeContent),
           __WASI_CRYPTO_ERRNO_INVALID_LENGTH);
+    }
+
+    {
+      // clone check
+      WASI_CRYPTO_EXPECT_SUCCESS(NewStateHandle,
+                                 symmetricStateClone(StateHandle));
+      EXPECT_NE(StateHandle, NewStateHandle);
+      WASI_CRYPTO_EXPECT_TRUE(symmetricStateClose(NewStateHandle));
     }
 
     {

@@ -152,6 +152,9 @@ protected:
   symmetricStateAbsorb(__wasi_symmetric_state_t StateHandle,
                        Span<const uint8_t> Data);
 
+  WasiCryptoExpect<__wasi_symmetric_state_t>
+  symmetricStateClone(__wasi_symmetric_state_t StateHandle);
+
   WasiCryptoExpect<void>
   symmetricStateSqueeze(__wasi_symmetric_state_t StateHandle,
                         Span<uint8_t> Out);

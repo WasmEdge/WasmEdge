@@ -59,6 +59,10 @@ TEST_F(WasiCryptoTest, Kdf) {
           __WASI_CRYPTO_ERRNO_INVALID_OPERATION);
       WASI_CRYPTO_EXPECT_FAILURE(symmetricStateRatchet(StateHandle),
                                  __WASI_CRYPTO_ERRNO_INVALID_OPERATION);
+
+      // clone check
+      WASI_CRYPTO_EXPECT_FAILURE(symmetricStateClone(StateHandle),
+                                 __WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
     };
     BothInvalid(ExpandAlg, ExtractStateHandle);
     BothInvalid(ExtractAlg, ExpandStateHandle);

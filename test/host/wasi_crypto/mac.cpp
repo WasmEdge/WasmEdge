@@ -74,6 +74,12 @@ TEST_F(WasiCryptoTest, Mac) {
       WASI_CRYPTO_EXPECT_FAILURE(symmetricStateRatchet(StateHandle),
                                  __WASI_CRYPTO_ERRNO_INVALID_OPERATION);
 
+      // clone check
+      WASI_CRYPTO_EXPECT_SUCCESS(NewStateHandle,
+                                 symmetricStateClone(StateHandle));
+      EXPECT_NE(StateHandle, NewStateHandle);
+      WASI_CRYPTO_EXPECT_TRUE(symmetricStateClose(NewStateHandle));
+
       WASI_CRYPTO_EXPECT_TRUE(symmetricStateClose(StateHandle));
     }
 

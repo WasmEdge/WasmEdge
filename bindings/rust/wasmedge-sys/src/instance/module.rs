@@ -613,6 +613,20 @@ impl ImportInstance for WasiModule {
 
 /// A [WasmEdgeProcessModule] is a module instance for the WasmEdge_Process specification.
 ///
+/// Notice that before creating or initiating a [WasmEdgeProcessModule], it MUST be guaranteed that the `wasmedge_process` plugins are loaded. If not, use the [load_plugin_from_default_paths](crate::utils::load_plugin_from_default_paths) function to load the relevant plugins from the default paths, shown as the code below.
+///
+/// ```rust
+/// use wasmedge_sys::{utils, WasmEdgeProcessModule};
+///
+/// // load plugins from default paths
+/// utils::load_plugin_from_default_paths();
+///
+/// // create wasmedge_process
+/// let result = WasmEdgeProcessModule::create(Some(vec!["arg1", "arg2"]), true);
+/// assert!(result.is_ok());
+/// ```
+///
+///
 /// # Usage
 ///
 /// * [WasmEdgeProcessModule] implements [ImportInstance](crate::ImportInstance) trait, therefore it can be used to register function, table, memory and global instances.
@@ -691,12 +705,7 @@ impl WasmEdgeProcessModule {
         let cmds_len = cmds.len();
 
         unsafe {
-            ffi::WasmEdge_ModuleInstanceInitWasmEdgeProcess(
-                self.inner.0,
-                cmds.as_ptr(),
-                cmds_len as u32,
-                allowed,
-            )
+            ffi::WasmEdge_ModuleInstanceInitWasmEdgeProcess(cmds.as_ptr(), cmds_len as u32, allowed)
         }
     }
 }
@@ -802,7 +811,7 @@ impl ImportObject {
 mod tests {
     use super::*;
     use crate::{
-        Config, Executor, FuncType, GlobalType, ImportModule, MemType, Store, TableType, Vm,
+        utils, Config, Executor, FuncType, GlobalType, ImportModule, MemType, Store, TableType, Vm,
         WasmValue,
     };
     use std::{
@@ -1054,6 +1063,9 @@ mod tests {
 
     #[test]
     fn test_instance_wasmedge_process() {
+        // load plugins
+        utils::load_plugin_from_default_paths();
+
         // create wasmedge_process
         {
             let result = WasmEdgeProcessModule::create(Some(vec!["arg1", "arg2"]), true);
@@ -1072,6 +1084,7 @@ mod tests {
             assert!(result.is_ok());
             let mut config = result.unwrap();
             config.wasmedge_process(true);
+            assert!(config.wasmedge_process_enabled());
             let result = Vm::create(Some(config), None);
             assert!(result.is_ok());
             let mut vm = result.unwrap();

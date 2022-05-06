@@ -1,10 +1,13 @@
 use wasmedge_sys::{
-    Config, Executor, FuncType, Function, Global, GlobalType, ImportInstance, ImportModule,
+    utils, Config, Executor, FuncType, Function, Global, GlobalType, ImportInstance, ImportModule,
     ImportObject, Loader, MemType, Memory, Store, Table, TableType, Validator, Vm, WasmValue,
 };
 use wasmedge_types::{wat2wasm, Mutability, RefType, ValType};
 
 fn vm_apis() -> Result<(), Box<dyn std::error::Error>> {
+    // load wasmedge_process plugins
+    utils::load_plugin_from_default_paths();
+
     // create a Config context
     let mut config = Config::create()?;
     config.bulk_memory_operations(true);
@@ -94,37 +97,37 @@ fn vm_apis() -> Result<(), Box<dyn std::error::Error>> {
         // read the wasm bytes
         let wasm_bytes = wat2wasm(
             br#"
-        (module
-            (export "fib" (func $fib))
-            (func $fib (param $n i32) (result i32)
-             (if
-              (i32.lt_s
-               (get_local $n)
-               (i32.const 2)
-              )
-              (return
-               (i32.const 1)
-              )
-             )
-             (return
-              (i32.add
-               (call $fib
-                (i32.sub
-                 (get_local $n)
-                 (i32.const 2)
+            (module
+                (export "fib" (func $fib))
+                (func $fib (param $n i32) (result i32)
+                 (if
+                  (i32.lt_s
+                   (get_local $n)
+                   (i32.const 2)
+                  )
+                  (return
+                   (i32.const 1)
+                  )
+                 )
+                 (return
+                  (i32.add
+                   (call $fib
+                    (i32.sub
+                     (get_local $n)
+                     (i32.const 2)
+                    )
+                   )
+                   (call $fib
+                    (i32.sub
+                     (get_local $n)
+                     (i32.const 1)
+                    )
+                   )
+                  )
+                 )
                 )
                )
-               (call $fib
-                (i32.sub
-                 (get_local $n)
-                 (i32.const 1)
-                )
-               )
-              )
-             )
-            )
-           )
-"#,
+    "#,
         )?;
 
         // load a wasm module from a in-memory bytes, and the loaded wasm module works as an anoymous

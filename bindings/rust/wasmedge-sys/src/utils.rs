@@ -315,3 +315,16 @@ pub(crate) fn check(result: WasmEdge_Result) -> WasmEdgeResult<()> {
         _ => panic!("unknown error code: {}", code),
     }
 }
+
+/// Loads plugins from default paths.
+///
+/// The default paths include:
+///
+/// * The path specified by the `WASMEDGE_PLUGIN_PATH` environment variable.
+///
+/// * For Linux and MacOS, `$HOME/.wasmedge/plugins/wasmedge_process`.
+///
+/// * For Windows, `%USERPROFILE%\.wasmedge\plugins\wasmedge_process`.
+pub fn load_plugin_from_default_paths() {
+    unsafe { ffi::WasmEdge_Plugin_loadWithDefaultPluginPaths() }
+}

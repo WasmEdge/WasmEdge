@@ -241,9 +241,29 @@ impl Config {
 
     /// Enables or disables host registration WasmEdge process.
     ///
+    /// Notice that to enable the `wasmege_process` option in [Vm](crate::Vm), it MUST be guaranteed that the `wasmedge_process` plugins are loaded first. If not, use the [load_plugin_from_default_paths](crate::utils::load_plugin_from_default_paths) function to load the relevant plugins from the default paths
+    ///
     /// # Argument
     ///
     /// * `enable` - Whether the option turns on or not.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use wasmedge_sys::{utils, Config, Vm};
+    ///
+    /// // load wasmedge_process plugins
+    /// utils::load_plugin_from_default_paths();
+    ///
+    /// // create a Config context
+    /// let mut config = Config::create().expect("failed to create config");
+    /// config.wasmedge_process(true);
+    /// assert!(config.wasmedge_process_enabled());
+    ///
+    /// // create a Vm context with the given Config and Store
+    /// let _vm = Vm::create(Some(config), None).expect("failed to create vm");
+    /// ```
+
     pub fn wasmedge_process(&mut self, enable: bool) {
         unsafe {
             if enable {

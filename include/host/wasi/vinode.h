@@ -549,7 +549,7 @@ public:
     return Node.sockBind(Address, AddressLength, Port);
   }
 
-  WasiExpect<void> sockListen(uint32_t Backlog) noexcept {
+  WasiExpect<void> sockListen(int32_t Backlog) noexcept {
     return Node.sockListen(Backlog);
   }
 

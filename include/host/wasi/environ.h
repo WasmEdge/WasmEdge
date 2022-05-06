@@ -872,7 +872,7 @@ public:
     }
   }
 
-  WasiExpect<void> sockListen(__wasi_fd_t Fd, uint32_t Backlog) noexcept {
+  WasiExpect<void> sockListen(__wasi_fd_t Fd, int32_t Backlog) noexcept {
     auto Node = getNodeOrNull(Fd);
     if (unlikely(!Node)) {
       return WasiUnexpect(__WASI_ERRNO_BADF);

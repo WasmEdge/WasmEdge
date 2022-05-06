@@ -904,8 +904,8 @@ TEST(APICoreTest, Compiler) {
   EXPECT_TRUE(WasmEdge_ResultOK(
       WasmEdge_CompilerCompile(Compiler, TPath, "test_aot.wasm")));
   EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_CompilerCompile(
-      Compiler, "../spec/testSuites/core/binary/binary.159.wasm",
-      "binary_159_aot.wasm")));
+      Compiler, "../spec/testSuites/core/binary/binary.164.wasm",
+      "binary_164_aot.wasm")));
   // File not found
   EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_IllegalPath,
                          WasmEdge_CompilerCompile(Compiler, "not_exist.wasm",
@@ -922,7 +922,7 @@ TEST(APICoreTest, Compiler) {
   EXPECT_TRUE(OutFile.read(reinterpret_cast<char *>(Buf), 4));
   OutFile.close();
   EXPECT_TRUE(std::equal(WASMMagic, WASMMagic + 4, Buf));
-  OutFile.open("binary_159_aot.wasm", std::ios::binary);
+  OutFile.open("binary_164_aot.wasm", std::ios::binary);
   EXPECT_TRUE(OutFile.read(reinterpret_cast<char *>(Buf), 4));
   OutFile.close();
   EXPECT_TRUE(std::equal(WASMMagic, WASMMagic + 4, Buf));
@@ -934,14 +934,14 @@ TEST(APICoreTest, Compiler) {
   EXPECT_TRUE(WasmEdge_ResultOK(
       WasmEdge_CompilerCompile(Compiler, TPath, "test_aot.so")));
   EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_CompilerCompile(
-      Compiler, "../spec/testSuites/core/binary/binary.159.wasm",
-      "binary_159_aot.so")));
+      Compiler, "../spec/testSuites/core/binary/binary.164.wasm",
+      "binary_164_aot.so")));
   // Check the header of the output files.
   OutFile.open("test_aot.so", std::ios::binary);
   EXPECT_TRUE(OutFile.read(reinterpret_cast<char *>(Buf), 4));
   OutFile.close();
   EXPECT_FALSE(std::equal(WASMMagic, WASMMagic + 4, Buf));
-  OutFile.open("binary_159_aot.so", std::ios::binary);
+  OutFile.open("binary_164_aot.so", std::ios::binary);
   EXPECT_TRUE(OutFile.read(reinterpret_cast<char *>(Buf), 4));
   OutFile.close();
   EXPECT_FALSE(std::equal(WASMMagic, WASMMagic + 4, Buf));

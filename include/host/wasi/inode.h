@@ -151,6 +151,7 @@ struct HandleHolder {
     reset();
     Handle = NewHandle;
   }
+  // TODO: move isSocket here
   boost::winapi::HANDLE_ Handle = nullptr;
 };
 #endif
@@ -505,7 +506,7 @@ public:
   WasiExpect<void> sockBind(uint8_t *Address, uint8_t AddressLength,
                             uint16_t Port) noexcept;
 
-  WasiExpect<void> sockListen(uint32_t Backlog) noexcept;
+  WasiExpect<void> sockListen(int32_t Backlog) noexcept;
 
   WasiExpect<INode> sockAccept() noexcept;
 

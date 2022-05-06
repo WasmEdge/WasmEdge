@@ -1669,7 +1669,7 @@ Expect<uint32_t> WasiSockBind::body(Runtime::Instance::MemoryInstance *MemInst,
 
 Expect<uint32_t> WasiSockListen::body(
     [[maybe_unused]] Runtime::Instance::MemoryInstance *MemInst, int32_t Fd,
-    uint32_t Backlog) {
+    int32_t Backlog) {
   const __wasi_fd_t WasiFd = Fd;
   if (auto Res = Env.sockListen(WasiFd, Backlog); unlikely(!Res)) {
     return Res.error();

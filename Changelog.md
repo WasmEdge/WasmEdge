@@ -46,6 +46,9 @@ Features:
 * New supporting of the wasi-socket proposal.
   * Supported `send_to`.
   * Supported `resv_from`.
+* Plugin support
+  * Add loadable plugin support.
+  * Move `wasmedge_process` to a loadable plugin.
 
 Fixed issues:
 

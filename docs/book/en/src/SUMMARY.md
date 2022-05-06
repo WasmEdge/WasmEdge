@@ -45,7 +45,9 @@
 
 - [Embed WasmEdge functions](embed.md)
   - [C SDK](embed/c.md)
-    - [API references](embed/c/ref.md)
+    - [0.10.0 API references](embed/c/ref.md)
+    - [0.9.1 API references](embed/c/0.9.1/ref.md)
+      - [Upgrade to 0.10.0](embed/c/0.9.1/upgrade_to_0.10.0.md)
   - [Go SDK](embed/go.md)
     - [Embed WASM apps](embed/go/app.md)
     - [Embed WASM funcs](embed/go/function.md)

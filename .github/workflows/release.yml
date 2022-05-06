@@ -31,6 +31,7 @@ jobs:
         id: prep
         run: |
           # Retrieve annotated tags. Details: https://github.com/actions/checkout/issues/290
+          git config --global --add safe.directory /__w/WasmEdge/WasmEdge
           git fetch --tags --force
           echo ::set-output name=version::$(git describe --match "[0-9].[0-9]*" --tag)
       - name: Create Release

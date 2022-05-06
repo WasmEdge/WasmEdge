@@ -1,8 +1,8 @@
-# WasmEdge C 0.10.0 (unreleased) API Documentation
+# WasmEdge C 0.10.0 API Documentation
 
 [WasmEdge C API](https://github.com/WasmEdge/WasmEdge/blob/master/include/api/wasmedge/wasmedge.h) denotes an interface to access the WasmEdge runtime. The followings are the guides to working with the C APIs of WasmEdge.
 
-**This document is for the `master` branch. For the stable `0.9.1` version, please refer to the [document here](0.9.1/ref.md).**
+**This document is for the pre-release `0.10.0-alpha.1` version. For the stable `0.9.1` version, please refer to the [document here](0.9.1/ref.md).**
 
 **Developers can refer [here to upgrade to 0.10.0](0.9.1/upgrade_to_0.10.0.md).**
 

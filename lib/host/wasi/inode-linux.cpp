@@ -912,7 +912,7 @@ WasiExpect<void> INode::sockBind(uint8_t *Address, uint8_t AddressLength,
     }
   } else if (AddressLength == 16) {
     struct sockaddr_in6 ServerAddr;
-    memset(&ServerAddr, 0x00, sizeof(ServerAddr));
+    std::memset(&ServerAddr, 0x00, sizeof(ServerAddr));
 
     ServerAddr.sin6_family = AF_INET6;
     ServerAddr.sin6_port = htons(Port);
@@ -966,7 +966,7 @@ WasiExpect<void> INode::sockConnect(uint8_t *Address, uint8_t AddressLength,
     }
   } else if (AddressLength == 16) {
     struct sockaddr_in6 ClientSocketAddr;
-    memset(&ClientSocketAddr, 0x00, sizeof(ClientSocketAddr));
+    std::memset(&ClientSocketAddr, 0x00, sizeof(ClientSocketAddr));
 
     ClientSocketAddr.sin6_family = AF_INET6;
     ClientSocketAddr.sin6_port = htons(Port);
@@ -1058,7 +1058,7 @@ WasiExpect<void> INode::sockSendTo(Span<Span<const uint8_t>> SiData,
       MsgName = &ClientSocketAddr;
       MsgNameLen = sizeof(ClientSocketAddr);
     } else if (AddressLength == 16) {
-      memset(&ClientSocketAddr6, 0x00, sizeof(ClientSocketAddr6));
+      std::memset(&ClientSocketAddr6, 0x00, sizeof(ClientSocketAddr6));
       ClientSocketAddr6.sin6_family = AF_INET6;
       ClientSocketAddr6.sin6_port = htons(Port);
       ::memcpy(&ClientSocketAddr6.sin6_addr.s6_addr, Address, AddressLength);

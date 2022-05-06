@@ -81,9 +81,9 @@ _extractor() {
                         echo "#$IPATH/lib/$_f4_" >>"$IPATH/env"
 
                         # special case: libpng16.so.16.37.0 ---> libpng.so
-                        if [[ "$filtered" =~ "libpng16.so.16.37.0" ]]; then
-                            ln -sf "$IPATH/lib/$filtered" "$IPATH/lib/libpng.so"
-                            echo "#$IPATH/lib/libpng.so" >>"$IPATH/env"
+                        if [[ "$filtered" =~ "libpng16$LIB_EXT.16.37.0" ]]; then
+                            ln -sf "$IPATH/lib/$filtered" "$IPATH/lib/libpng$LIB_EXT"
+                            echo "#$IPATH/lib/libpng$LIB_EXT" >>"$IPATH/env"
                         fi
                     fi
                 elif [[ "$2" =~ "bin" ]] && [[ ! "$IPATH/$filtered" =~ "/bin/" ]]; then
@@ -151,6 +151,7 @@ detect_os_arch() {
     IM_EXT_COMPAT=1
     TF_EXT_COMPAT=1
     IPKG="WasmEdge-$VERSION-Linux"
+    LIB_EXT=".so"
 
     case $OS in
     'Linux')
@@ -166,10 +167,18 @@ detect_os_arch() {
         ;;
     'Darwin')
         case $ARCH in
-        'x86_64') ;;
-        'arm64') ;;
+        'x86_64')
+            IM_EXT_COMPAT=1
+            TF_EXT_COMPAT=1
+            ;;
+        'arm64')
+            IM_EXT_COMPAT=0
+            TF_EXT_COMPAT=0
+            ;;
         'arm')
             ARCH="arm64"
+            IM_EXT_COMPAT=0
+            TF_EXT_COMPAT=0
             ;;
         *)
             echo "${RED}Detected $OS-$ARCH${NC} - currently unsupported${NC}"
@@ -179,8 +188,8 @@ detect_os_arch() {
         _LD_LIBRARY_PATH_="DYLD_LIBRARY_PATH"
         IPKG="WasmEdge-$VERSION-Darwin"
         RELEASE_PKG="darwin_$ARCH.tar.gz"
-        IM_EXT_COMPAT=0
-        TF_EXT_COMPAT=0
+
+        LIB_EXT=".dylib"
 
         if ! command -v brew &>/dev/null; then
             echo "${RED}Brew is required${NC}"

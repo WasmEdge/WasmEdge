@@ -816,7 +816,7 @@ WasiExpect<void> INode::sockBind(uint8_t *Address, uint8_t AddressLength,
   return {};
 }
 
-WasiExpect<void> INode::sockListen(uint32_t Backlog) noexcept {
+WasiExpect<void> INode::sockListen(int32_t Backlog) noexcept {
   if (auto Res = ::listen(Fd, Backlog); unlikely(Res < 0)) {
     return WasiUnexpect(fromErrNo(errno));
   }

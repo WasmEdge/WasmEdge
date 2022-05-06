@@ -21,6 +21,7 @@
 #include <io.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <winsock2.h>
 
 #if !defined(BOOST_USE_WINDOWS_H)
 extern "C" {
@@ -487,6 +488,31 @@ fromLastError(boost::winapi::DWORD_ LastError) noexcept {
   }
 }
 
+inline constexpr __wasi_errno_t fromWSALastError(int WSALastError) noexcept {
+  return fromLastError(static_cast<boost::winapi::DWORD_>(WSALastError));
+}
+
+inline constexpr __wasi_errno_t fromWSAToEAIError(int WSALastError) noexcept {
+  switch (WSALastError) {
+  case boost::winapi::WSATRY_AGAIN_:
+    return __WASI_ERRNO_AIAGAIN;
+  case boost::winapi::WSAEINVAL_:
+    return __WASI_ERRNO_AIBADFLAG;
+  case boost::winapi::WSANO_RECOVERY_:
+    return __WASI_ERRNO_AIFAIL;
+  case boost::winapi::ERROR_NOT_ENOUGH_MEMORY_:
+    return __WASI_ERRNO_AIMEMORY;
+  case boost::winapi::WSAHOST_NOT_FOUND_:
+    return __WASI_ERRNO_AINONAME;
+  case boost::winapi::WSATYPE_NOT_FOUND_:
+    return __WASI_ERRNO_AISERVICE;
+  case boost::winapi::WSAESOCKTNOSUPPORT_:
+    return __WASI_ERRNO_AISOCKTYPE;
+  default:
+    return fromWSALastError(WSALastError);
+  }
+}
+
 using Days = std::chrono::duration<uint64_t, std::ratio<86400>>;
 using NS = std::chrono::nanoseconds;
 using HundredNS = std::chrono::duration<uint64_t, std::ratio<1, 10000000>>;
@@ -512,6 +538,186 @@ inline constexpr int toWhence(__wasi_whence_t Whence) noexcept {
     return SEEK_END;
   case __WASI_WHENCE_SET:
     return SEEK_SET;
+  default:
+    assumingUnreachable();
+  }
+}
+
+inline constexpr int toSockOptLevel(__wasi_sock_opt_level_t Level) noexcept {
+  switch (Level) {
+  case __WASI_SOCK_OPT_LEVEL_SOL_SOCKET:
+    return SOL_SOCKET;
+  default:
+    assumingUnreachable();
+  }
+}
+
+inline constexpr int toSockOptSoName(__wasi_sock_opt_so_t SoName) noexcept {
+  switch (SoName) {
+  case __WASI_SOCK_OPT_SO_REUSEADDR:
+    return SO_REUSEADDR;
+  case __WASI_SOCK_OPT_SO_TYPE:
+    return SO_TYPE;
+  case __WASI_SOCK_OPT_SO_ERROR:
+    return SO_REUSEADDR;
+  case __WASI_SOCK_OPT_SO_DONTROUTE:
+    return SO_TYPE;
+  case __WASI_SOCK_OPT_SO_BROADCAST:
+    return SO_REUSEADDR;
+  case __WASI_SOCK_OPT_SO_SNDBUF:
+    return SO_TYPE;
+  case __WASI_SOCK_OPT_SO_RCVBUF:
+    return SO_REUSEADDR;
+  case __WASI_SOCK_OPT_SO_KEEPALIVE:
+    return SO_TYPE;
+  case __WASI_SOCK_OPT_SO_OOBINLINE:
+    return SO_REUSEADDR;
+  case __WASI_SOCK_OPT_SO_LINGER:
+    return SO_TYPE;
+  case __WASI_SOCK_OPT_SO_RCVLOWAT:
+    return SO_REUSEADDR;
+  case __WASI_SOCK_OPT_SO_RCVTIMEO:
+    return SO_TYPE;
+  case __WASI_SOCK_OPT_SO_SNDTIMEO:
+    return SO_REUSEADDR;
+  case __WASI_SOCK_OPT_SO_ACCEPTCONN:
+    return SO_TYPE;
+
+  default:
+    assumingUnreachable();
+  }
+}
+inline constexpr __wasi_aiflags_t fromAIFlags(int AIFlags) noexcept {
+  __wasi_aiflags_t Result = static_cast<__wasi_aiflags_t>(0);
+
+  if (AIFlags & AI_PASSIVE) {
+    Result |= __WASI_AIFLAGS_AI_PASSIVE;
+  }
+  if (AIFlags & AI_CANONNAME) {
+    Result |= __WASI_AIFLAGS_AI_CANONNAME;
+  }
+  if (AIFlags & AI_NUMERICHOST) {
+    Result |= __WASI_AIFLAGS_AI_NUMERICHOST;
+  }
+  if (AIFlags & AI_NUMERICSERV) {
+    Result |= __WASI_AIFLAGS_AI_NUMERICSERV;
+  }
+  if (AIFlags & AI_V4MAPPED) {
+    Result |= __WASI_AIFLAGS_AI_V4MAPPED;
+  }
+  if (AIFlags & AI_ALL) {
+    Result |= __WASI_AIFLAGS_AI_ALL;
+  }
+  if (AIFlags & AI_ADDRCONFIG) {
+    Result |= __WASI_AIFLAGS_AI_ADDRCONFIG;
+  }
+
+  return Result;
+}
+
+inline constexpr int toAIFlags(__wasi_aiflags_t AIFlags) noexcept {
+  int Result = 0;
+
+  if (AIFlags & __WASI_AIFLAGS_AI_PASSIVE) {
+    Result |= AI_PASSIVE;
+  }
+  if (AIFlags & __WASI_AIFLAGS_AI_CANONNAME) {
+    Result |= AI_CANONNAME;
+  }
+  if (AIFlags & __WASI_AIFLAGS_AI_NUMERICHOST) {
+    Result |= AI_NUMERICHOST;
+  }
+  if (AIFlags & __WASI_AIFLAGS_AI_NUMERICSERV) {
+    Result |= AI_NUMERICSERV;
+  }
+  if (AIFlags & __WASI_AIFLAGS_AI_V4MAPPED) {
+    Result |= AI_V4MAPPED;
+  }
+  if (AIFlags & __WASI_AIFLAGS_AI_ALL) {
+    Result |= AI_ALL;
+  }
+  if (AIFlags & __WASI_AIFLAGS_AI_ADDRCONFIG) {
+    Result |= AI_ADDRCONFIG;
+  }
+
+  return Result;
+}
+
+inline constexpr __wasi_sock_type_t fromSockType(int SockType) noexcept {
+  switch (SockType) {
+  case 0:
+    return __WASI_SOCK_TYPE_SOCK_ANY;
+  case SOCK_DGRAM:
+    return __WASI_SOCK_TYPE_SOCK_DGRAM;
+  case SOCK_STREAM:
+    return __WASI_SOCK_TYPE_SOCK_STREAM;
+  default:
+    assumingUnreachable();
+  }
+}
+
+inline constexpr int toSockType(__wasi_sock_type_t SockType) noexcept {
+  switch (SockType) {
+  case __WASI_SOCK_TYPE_SOCK_ANY:
+    return 0;
+  case __WASI_SOCK_TYPE_SOCK_DGRAM:
+    return SOCK_DGRAM;
+  case __WASI_SOCK_TYPE_SOCK_STREAM:
+    return SOCK_STREAM;
+  default:
+    assumingUnreachable();
+  }
+}
+
+inline constexpr __wasi_protocol_t fromProtocal(int Protocal) noexcept {
+  switch (Protocal) {
+  case IPPROTO_IP:
+    return __WASI_PROTOCOL_IPPROTO_IP;
+  case IPPROTO_TCP:
+    return __WASI_PROTOCOL_IPPROTO_TCP;
+  case IPPROTO_UDP:
+    return __WASI_PROTOCOL_IPPROTO_UDP;
+  default:
+    assumingUnreachable();
+  }
+}
+
+inline constexpr int toProtocal(__wasi_protocol_t Protocal) noexcept {
+  switch (Protocal) {
+  case __WASI_PROTOCOL_IPPROTO_IP:
+    return IPPROTO_IP;
+  case __WASI_PROTOCOL_IPPROTO_TCP:
+    return IPPROTO_TCP;
+  case __WASI_PROTOCOL_IPPROTO_UDP:
+    return IPPROTO_UDP;
+  default:
+    assumingUnreachable();
+  }
+}
+
+inline constexpr __wasi_address_family_t
+fromAddressFamily(int AddressFamily) noexcept {
+  switch (AddressFamily) {
+  case PF_UNSPEC:
+    return __WASI_ADDRESS_FAMILY_UNSPEC;
+  case PF_INET:
+    return __WASI_ADDRESS_FAMILY_INET4;
+  case PF_INET6:
+    return __WASI_ADDRESS_FAMILY_INET6;
+  default:
+    assumingUnreachable();
+  }
+}
+
+inline constexpr int
+toAddressFamily(__wasi_address_family_t AddressFamily) noexcept {
+  switch (AddressFamily) {
+  case __WASI_ADDRESS_FAMILY_UNSPEC:
+    return PF_UNSPEC;
+  case __WASI_ADDRESS_FAMILY_INET4:
+    return PF_INET;
+  case __WASI_ADDRESS_FAMILY_INET6:
+    return PF_INET6;
   default:
     assumingUnreachable();
   }

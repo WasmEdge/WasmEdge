@@ -60,19 +60,21 @@ _extractor() {
                 if [[ "$2" =~ "lib" ]] && [[ ! "$IPATH/$filtered" =~ "/lib/" ]]; then
                     echo "#$IPATH/lib/$filtered" >>"$IPATH/env"
                     local _re_
-                    _re_='.[0-9]{1,2}.[0-9]{1,2}.[0-9]{1,2}'
-                    if [[ "$filtered" =~ $_re_$ ]]; then
+                    [[ "$OS" == "Linux" ]] && _re_='.[0-9]{1,2}.[0-9]{1,2}.[0-9]{1,2}$'
+                    [[ "$OS" == "Darwin" ]] && _re_='[0-9]{1,2}.[0-9]{1,2}.[0-9]{1,2}.'
+                    if [[ "$filtered" =~ $_re_ ]]; then
                         local _f_ _f2_ _f3_ _f4_
                         _f_=${filtered//$_re_/}
                         _f2_=${filtered#$_f_}
                         _f2_=${BASH_REMATCH[*]}
 
-                        IFS=. read -r var1 var2 <<<"$(if [[ "$filtered" =~ $_re_$ ]]; then
+                        IFS=. read -r var1 var2 <<<"$(if [[ "$filtered" =~ $_re_ ]]; then
                             echo "${BASH_REMATCH[*]#.}"
                         fi)"
 
-                        _f3_=${filtered//${_f2_}/} # libsome.so.xx.yy.zz --> libsome.so
-                        _f4_="$_f3_.$var1"         # libsome.so.xx.yy.zz --> libsome.so.xx
+                        _f3_=${filtered//${_f2_}/}                                                # libsome.so.xx.yy.zz --> libsome.so
+                        [[ "$OS" == "Linux" ]] && _f4_="$_f3_.$var1"                              # libsome.so.xx.yy.zz --> libsome.so.xx
+                        [[ "$OS" == "Darwin" ]] && _f4_="${filtered//.${_f2_}dylib/}"".$var1.dylib" # libsome.xx.yy.zz.dylib --> libsome.xx.dylib
 
                         ln -sf "$IPATH/lib/$filtered" "$IPATH/lib/$_f3_"
                         echo "#$IPATH/lib/$_f3_" >>"$IPATH/env"

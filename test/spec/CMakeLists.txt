@@ -5,7 +5,7 @@ include(FetchContent)
 FetchContent_Declare(
   wasmedge_unit_test
   GIT_REPOSITORY https://github.com/second-state/WasmEdge-unittest
-  GIT_TAG        wasm-dev
+  GIT_TAG        wasm-dev-0.10.0
 )
 FetchContent_MakeAvailable(wasmedge_unit_test)
 

@@ -35,3 +35,11 @@ if(NOT APPLE AND NOT WIN32 AND NOT ANDROID)
     rt
   )
 endif()
+
+if(WIN32)
+  target_link_libraries(wasmedgeHostModuleWasi
+  PRIVATE
+  wsock32
+  ws2_32
+)
+endif()

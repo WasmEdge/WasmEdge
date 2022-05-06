@@ -13,6 +13,14 @@ target_link_libraries(wasiSocketTests
   wasmedgeHostModuleWasi
 )
 
+if(WIN32)
+  target_link_libraries(wasiSocketTests
+  PRIVATE
+  wsock32
+  ws2_32
+)
+endif()
+
 if(WASMEDGE_BUILD_COVERAGE)
   add_test(
     NAME wasi-test

@@ -114,5 +114,6 @@
     - [Build for Windows](extend/build_on_windows.md)
     - [Build for Android](extend/build_for_android.md)
   - [WasmEdge plug-in API](extend/plugin.md)
+    - [Plug-in System](extend/plugin/loadable.md)
     - [Host functions](extend/plugin/hostfunction.md)
     - [External references](extend/plugin/externref.md)

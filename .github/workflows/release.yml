@@ -348,10 +348,10 @@ jobs:
         $vsPath = (vswhere -latest -property installationPath)
         Import-Module (Join-Path $vsPath "Common7\Tools\Microsoft.VisualStudio.DevShell.dll")
         Enter-VsDevShell -VsInstallPath $vsPath -SkipAutomaticLocation -DevCmdArguments "-arch=x64 -host_arch=x64 -winsdk=10.0.19041.0"
-        $llvm = "LLVM-13.0.0-win64.zip"
-        curl -sLO https://github.com/WasmEdge/llvm-windows/releases/download/llvmorg-13.0.0/LLVM-13.0.0-win64.zip -o $llvm
+        $llvm = "LLVM-13.0.1-win64.zip"
+        curl -sLO https://github.com/WasmEdge/llvm-windows/releases/download/llvmorg-13.0.1/LLVM-13.0.1-win64.zip -o $llvm
         Expand-Archive -Path $llvm
-        $llvm_dir = "$pwd\\LLVM-13.0.0-win64\\LLVM-13.0.0-win64\\lib\\cmake\\llvm"
+        $llvm_dir = "$pwd\\LLVM-13.0.1-win64\\LLVM-13.0.1-win64\\lib\\cmake\\llvm"
         $Env:CC = "clang-cl"
         $Env:CXX = "clang-cl"
         cmake -Bbuild -GNinja -DCMAKE_SYSTEM_VERSION=10.0.19041.0 -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreadedDLL "-DLLVM_DIR=$llvm_dir" -DWASMEDGE_BUILD_PACKAGE="ZIP" .
@@ -415,6 +415,7 @@ jobs:
 
     - name: Build WasmEdge for Android
       run: |
+        git config --global --add safe.directory /__w/WasmEdge/WasmEdge
         export ANDROID_NDK_HOME=$(pwd)/android-ndk-r23b/
         cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_BUILD_PACKAGE="TGZ" -DWASMEDGE_BUILD_AOT_RUNTIME=OFF -DCMAKE_SYSTEM_NAME=Android -DCMAKE_SYSTEM_VERSION=23 -DCMAKE_ANDROID_ARCH_ABI=arm64-v8a -DCMAKE_ANDROID_NDK=$ANDROID_NDK_HOME -DCMAKE_ANDROID_STL_TYPE=c++_static
         cmake --build build

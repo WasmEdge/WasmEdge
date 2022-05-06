@@ -30,17 +30,18 @@ Expect<void> Loader::loadSegment(AST::GlobalSegment &GlobSeg) {
 Expect<void> Loader::loadSegment(AST::ElementSegment &ElemSeg) {
   // Element segment binary format:
   // ---------------------------------------------------------------------------
-  //  byte | TableIdx | OffExpr | ElemKind | RefType | vec(FuncIdx) | vec(expr)
+  //  Mode | TableIdx | OffExpr | ElemKind | RefType | vec(FuncIdx) | vec(expr)
   // ------|----------|---------|----------|---------|--------------|-----------
-  //  0x00 |          |    v    |          |         |       v      |
-  //  0x01 |          |         |    v     |         |       v      |
-  //  0x02 |    v     |    v    |    v     |         |       v      |
-  //  0x03 |          |         |    v     |         |       v      |
-  //  0x04 |          |    v    |          |         |              |     v
-  //  0x05 |          |         |          |    v    |              |     v
-  //  0x06 |    v     |    v    |          |    v    |              |     v
-  //  0x07 |          |         |          |    v    |              |     v
+  //    0  |          |    v    |          |         |       v      |
+  //    1  |          |         |    v     |         |       v      |
+  //    2  |    v     |    v    |    v     |         |       v      |
+  //    3  |          |         |    v     |         |       v      |
+  //    4  |          |    v    |          |         |              |     v
+  //    5  |          |         |          |    v    |              |     v
+  //    6  |    v     |    v    |          |    v    |              |     v
+  //    7  |          |         |          |    v    |              |     v
   // ---------------------------------------------------------------------------
+  // Mode: element initial integer, u32
   // TableIdx: target table index, u32
   // OffExpr: init offset expression, expr
   // ElemKind: byte 0x00, RefType::FuncRef
@@ -287,12 +288,13 @@ Expect<void> Loader::loadSegment(AST::DataSegment &DataSeg) {
 
   // Data segment binary format:
   // ----------------------------------------
-  //  byte | MemoryIdx | OffExpr | vec(byte)
+  //  Mode | MemoryIdx | OffExpr | vec(byte)
   // ------|-----------|---------|-----------
-  //  0x00 |           |    v    |     v
-  //  0x01 |           |         |     v
-  //  0x02 |     v     |    v    |     v
+  //    0  |           |    v    |     v
+  //    1  |           |         |     v
+  //    2  |     v     |    v    |     v
   // ----------------------------------------
+  // Mode: data initial integer, u32
   // MemoryIdx: target memory index, u32
   // OffExpr: init offset expression, expr
   // vec(byte): init data, vec(u8)

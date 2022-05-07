@@ -320,11 +320,13 @@ fn build_macos(wasmedge_dir: impl AsRef<Path>) -> Paths {
     );
 
     // Path to plugins
-    std::env::set_var("WASMEDGE_PLUGIN_PATH", lib_dir.as_os_str());
+    let plugin_dir = lib_dir.join("wasmedge");
+    assert!(plugin_dir.exists());
+    std::env::set_var("WASMEDGE_PLUGIN_PATH", plugin_dir.as_os_str());
     assert!(env_path!("WASMEDGE_PLUGIN_PATH").is_some());
     println!(
         "cargo:warning=[wasmedge-sys] WASMEDGE_PLUGIN_PATH: {}",
-        lib_dir.to_str().unwrap()
+        plugin_dir.to_str().unwrap()
     );
 
     Paths {
@@ -382,11 +384,16 @@ fn build_linux(wasmedge_dir: impl AsRef<Path>) -> Paths {
     );
 
     // Path to plugins
-    std::env::set_var("WASMEDGE_PLUGIN_PATH", lib_dir.as_os_str());
+    let plugin_dir = lib_dir.join("wasmedge");
+    assert!(plugin_dir.exists());
+    assert!(plugin_dir
+        .join("libwasmedgePluginWasmEdgeProcess.so")
+        .exists());
+    std::env::set_var("WASMEDGE_PLUGIN_PATH", plugin_dir.as_os_str());
     assert!(env_path!("WASMEDGE_PLUGIN_PATH").is_some());
     println!(
         "cargo:warning=[wasmedge-sys] WASMEDGE_PLUGIN_PATH: {}",
-        lib_dir.to_str().unwrap()
+        plugin_dir.to_str().unwrap()
     );
 
     Paths {
@@ -473,11 +480,13 @@ fn build_windows(wasmedge_dir: impl AsRef<Path>) -> Paths {
     );
 
     // Path to plugins
-    std::env::set_var("WASMEDGE_PLUGIN_PATH", lib_dir.as_os_str());
+    let plugin_dir = lib_dir.join("wasmedge");
+    assert!(plugin_dir.exists());
+    std::env::set_var("WASMEDGE_PLUGIN_PATH", plugin_dir.as_os_str());
     assert!(env_path!("WASMEDGE_PLUGIN_PATH").is_some());
     println!(
         "cargo:warning=[wasmedge-sys] WASMEDGE_PLUGIN_PATH: {}",
-        lib_dir.to_str().unwrap()
+        plugin_dir.to_str().unwrap()
     );
 
     Paths {

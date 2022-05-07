@@ -1,5 +1,6 @@
 use wasmedge_sys::{
-    Config, FuncType, Function, ImportInstance, ImportObject, Vm, WasmEdgeProcessModule, WasmValue,
+    utils, Config, FuncType, Function, ImportInstance, ImportObject, Vm, WasmEdgeProcessModule,
+    WasmValue,
 };
 use wasmedge_types::{
     error::{CoreError, CoreInstantiationError, VmError, WasmEdgeError},
@@ -8,6 +9,9 @@ use wasmedge_types::{
 
 #[cfg_attr(test, test)]
 fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // load wasmedge_process plugins
+    utils::load_plugin_from_default_paths();
+
     // A WasmEdgeProcessModule can be created implicitly inside a Vm by passing the Vm a config argument in which the wasmedge_process option is enabled.
     {
         // create a Config context

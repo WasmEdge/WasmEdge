@@ -319,16 +319,12 @@ fn build_macos(wasmedge_dir: impl AsRef<Path>) -> Paths {
         header.to_str().unwrap()
     );
 
-    // WASMEDGE_PLUGIN_PATH
-    let plugin_dir = build_dir.join("plugins");
-    assert!(plugin_dir.exists());
-    let plugin_dir = plugin_dir.join("wasmedge_process");
-    assert!(plugin_dir.exists());
-    std::env::set_var("WASMEDGE_PLUGIN_PATH", plugin_dir.as_os_str());
+    // Path to plugins
+    std::env::set_var("WASMEDGE_PLUGIN_PATH", lib_dir.as_os_str());
     assert!(env_path!("WASMEDGE_PLUGIN_PATH").is_some());
     println!(
         "cargo:warning=[wasmedge-sys] WASMEDGE_PLUGIN_PATH: {}",
-        plugin_dir.to_str().unwrap()
+        lib_dir.to_str().unwrap()
     );
 
     Paths {
@@ -385,16 +381,12 @@ fn build_linux(wasmedge_dir: impl AsRef<Path>) -> Paths {
         header.to_str().unwrap()
     );
 
-    // WASMEDGE_PLUGIN_PATH
-    let plugin_dir = out_dir.join("plugins");
-    assert!(plugin_dir.exists());
-    let plugin_dir = plugin_dir.join("wasmedge_process");
-    assert!(plugin_dir.exists());
-    std::env::set_var("WASMEDGE_PLUGIN_PATH", plugin_dir.as_os_str());
+    // Path to plugins
+    std::env::set_var("WASMEDGE_PLUGIN_PATH", lib_dir.as_os_str());
     assert!(env_path!("WASMEDGE_PLUGIN_PATH").is_some());
     println!(
         "cargo:warning=[wasmedge-sys] WASMEDGE_PLUGIN_PATH: {}",
-        plugin_dir.to_str().unwrap()
+        lib_dir.to_str().unwrap()
     );
 
     Paths {
@@ -480,16 +472,12 @@ fn build_windows(wasmedge_dir: impl AsRef<Path>) -> Paths {
         header.to_str().unwrap()
     );
 
-    // WASMEDGE_PLUGIN_PATH
-    let plugin_dir = out_dir.join("plugins");
-    assert!(plugin_dir.exists());
-    let plugin_dir = plugin_dir.join("wasmedge_process");
-    assert!(plugin_dir.exists());
-    std::env::set_var("WASMEDGE_PLUGIN_PATH", plugin_dir.as_os_str());
+    // Path to plugins
+    std::env::set_var("WASMEDGE_PLUGIN_PATH", lib_dir.as_os_str());
     assert!(env_path!("WASMEDGE_PLUGIN_PATH").is_some());
     println!(
         "cargo:warning=[wasmedge-sys] WASMEDGE_PLUGIN_PATH: {}",
-        plugin_dir.to_str().unwrap()
+        lib_dir.to_str().unwrap()
     );
 
     Paths {

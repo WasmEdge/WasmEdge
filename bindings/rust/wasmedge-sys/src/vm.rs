@@ -10,8 +10,7 @@ use crate::{
     statistics::{InnerStat, Statistics},
     store::{InnerStore, Store},
     types::WasmEdgeString,
-    utils,
-    utils::check,
+    utils::{self, check},
     Config, ImportObject, Instance, Module, WasiModule, WasmEdgeProcessModule, WasmEdgeResult,
     WasmValue,
 };
@@ -715,8 +714,8 @@ mod tests {
             CoreCommonError, CoreError, CoreExecutionError, CoreInstantiationError, CoreLoadError,
             InstanceError, StoreError, VmError, WasmEdgeError,
         },
-        Config, FuncType, Function, ImportInstance, ImportModule, ImportObject, Loader, Module,
-        Store, WasiModule, WasmEdgeProcessModule, WasmValue,
+        utils, Config, FuncType, Function, ImportInstance, ImportModule, ImportObject, Loader,
+        Module, Store, WasiModule, WasmEdgeProcessModule, WasmValue,
     };
     use std::{
         sync::{Arc, Mutex},
@@ -1694,6 +1693,9 @@ mod tests {
 
     #[test]
     fn test_vm_get_wasmedge_process_module() {
+        // load wasmedge_process plugins
+        utils::load_plugin_from_default_paths();
+
         {
             // create a Config context
             let result = Config::create();

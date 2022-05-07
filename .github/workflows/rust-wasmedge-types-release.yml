@@ -26,11 +26,6 @@ jobs:
         with:
           toolchain: stable
 
-      - name: Build WasmEdge using clang
-        run: |
-          cmake -Bbuild -GNinja -DWASMEDGE_BUILD_SHARED_LIB=ON  -DCMAKE_INSTALL_PREFIX:PATH=/usr .
-          cmake --build build --target install
-
       - name: Publish wasmedge-types crate
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}

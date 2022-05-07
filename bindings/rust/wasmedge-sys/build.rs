@@ -300,10 +300,6 @@ fn build_macos(wasmedge_dir: impl AsRef<Path>) -> Paths {
     } else {
         build_dir.join("lib")
     };
-
-    let plugin_dir = lib_dir.join("wasmedge");
-    assert!(plugin_dir.exists());
-
     if lib_dir.join("api").exists() {
         lib_dir = lib_dir.join("api");
     }
@@ -324,11 +320,20 @@ fn build_macos(wasmedge_dir: impl AsRef<Path>) -> Paths {
     );
 
     // Path to plugins
-    std::env::set_var("WASMEDGE_PLUGIN_PATH", plugin_dir.as_os_str());
-    assert!(env_path!("WASMEDGE_PLUGIN_PATH").is_some());
+    let plugin_dir = build_dir.join("plugins");
+    assert!(plugin_dir.exists());
+    let wasmedge_process_plugin_dir = plugin_dir.join("wasmedge_process");
+    assert!(wasmedge_process_plugin_dir.exists());
+    assert!(wasmedge_process_plugin_dir
+        .join("libwasmedgePluginWasmEdgeProcess.dylib")
+        .exists());
+    println!(
+        "cargo:rustc-env=WASMEDGE_PLUGIN_PATH={}",
+        wasmedge_process_plugin_dir.to_str().unwrap()
+    );
     println!(
         "cargo:warning=[wasmedge-sys] WASMEDGE_PLUGIN_PATH: {}",
-        plugin_dir.to_str().unwrap()
+        wasmedge_process_plugin_dir.to_str().unwrap()
     );
 
     Paths {

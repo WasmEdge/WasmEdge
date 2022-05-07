@@ -300,6 +300,10 @@ fn build_macos(wasmedge_dir: impl AsRef<Path>) -> Paths {
     } else {
         build_dir.join("lib")
     };
+
+    let plugin_dir = lib_dir.join("wasmedge");
+    assert!(plugin_dir.exists());
+
     if lib_dir.join("api").exists() {
         lib_dir = lib_dir.join("api");
     }
@@ -320,8 +324,6 @@ fn build_macos(wasmedge_dir: impl AsRef<Path>) -> Paths {
     );
 
     // Path to plugins
-    let plugin_dir = lib_dir.join("wasmedge");
-    assert!(plugin_dir.exists());
     std::env::set_var("WASMEDGE_PLUGIN_PATH", plugin_dir.as_os_str());
     assert!(env_path!("WASMEDGE_PLUGIN_PATH").is_some());
     println!(

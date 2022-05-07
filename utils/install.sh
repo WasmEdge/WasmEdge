@@ -72,8 +72,8 @@ _extractor() {
                             echo "${BASH_REMATCH[*]#.}"
                         fi)"
 
-                        _f3_=${filtered//${_f2_}/}                                                # libsome.so.xx.yy.zz --> libsome.so
-                        [[ "$OS" == "Linux" ]] && _f4_="$_f3_.$var1"                              # libsome.so.xx.yy.zz --> libsome.so.xx
+                        _f3_=${filtered//${_f2_}/}                                                  # libsome.so.xx.yy.zz --> libsome.so
+                        [[ "$OS" == "Linux" ]] && _f4_="$_f3_.$var1"                                # libsome.so.xx.yy.zz --> libsome.so.xx
                         [[ "$OS" == "Darwin" ]] && _f4_="${filtered//.${_f2_}dylib/}"".$var1.dylib" # libsome.xx.yy.zz.dylib --> libsome.xx.dylib
 
                         ln -sf "$IPATH/lib/$filtered" "$IPATH/lib/$_f3_"
@@ -455,21 +455,25 @@ install_wasmedge_tensorflow() {
 }
 
 install_image_extensions() {
+    [ "$EXT_V_SET_WASMEDGE_IM" -eq 0 ] && VERSION_IM=$VERSION &&
+        remote_version_availabilty second-state/WasmEdge-image "$VERSION_IM"
+
+    [ "$EXT_V_SET_WASMEDGE_IM_DEPS" -eq 0 ] && VERSION_IM_DEPS=$VERSION
+
     [[ "$RELEASE_PKG" =~ "aarch64" ]] &&
         [ "$(printf %s\\n%s\\n "0.9.1-beta.1" "$VERSION_IM_DEPS")" != "$(printf %s\\n%s "0.9.1-beta.1" "$VERSION_IM_DEPS" | sort --version-sort)" ] &&
         IM_EXT_COMPAT=0
 
+    [[ "$OS" == "Darwin" ]] &&
+        [ "$(printf %s\\n%s\\n "0.10.0-alpha.1" "$VERSION_IM_DEPS")" != "$(printf %s\\n%s "0.10.0-alpha.1" "$VERSION_IM_DEPS" | sort --version-sort)" ] &&
+        IM_EXT_COMPAT=0
+
     if [ $IM_EXT_COMPAT == 1 ]; then
-
-        [ "$EXT_V_SET_WASMEDGE_IM" -eq 0 ] && VERSION_IM=$VERSION &&
-            remote_version_availabilty second-state/WasmEdge-image "$VERSION_IM"
-
-        [ "$EXT_V_SET_WASMEDGE_IM_DEPS" -eq 0 ] && VERSION_IM_DEPS=$VERSION
 
         [ "$(printf %s\\n%s\\n "$VERSION_IM_DEPS" "0.8.2")" == "$(printf %s\\n%s "$VERSION_IM_DEPS" "0.8.2" | sort --version-sort)" ] &&
             remote_version_availabilty second-state/WasmEdge-image "$VERSION_IM_DEPS" &&
             get_wasmedge_image_deps
-
+        
         install_wasmedge_image
     else
         echo "${YELLOW}Image Extensions not supported${NC}"
@@ -477,20 +481,24 @@ install_image_extensions() {
 }
 
 install_tf_extensions() {
+    [ "$EXT_V_SET_WASMEDGE_TF" -eq 0 ] && VERSION_TF=$VERSION &&
+        remote_version_availabilty second-state/WasmEdge-tensorflow "$VERSION_TF"
+
+    [ "$EXT_V_SET_WASMEDGE_TF_DEPS" -eq 0 ] && VERSION_TF_DEPS=$VERSION &&
+        remote_version_availabilty second-state/WasmEdge-tensorflow-deps "$VERSION_TF_DEPS"
+
+    [ "$EXT_V_SET_WASMEDGE_TF_TOOLS" -eq 0 ] && VERSION_TF_TOOLS=$VERSION &&
+        remote_version_availabilty second-state/WasmEdge-tensorflow-tools "$VERSION_TF_TOOLS"
+
     [[ "$RELEASE_PKG" =~ "aarch64" ]] &&
         [ "$(printf %s\\n%s\\n "0.9.1-beta.1" "$VERSION_TF_DEPS")" != "$(printf %s\\n%s "0.9.1-beta.1" "$VERSION_TF_DEPS" | sort --version-sort)" ] &&
         TF_EXT_COMPAT=0
 
+    [[ "$OS" == "Darwin" ]] &&
+        [ "$(printf %s\\n%s\\n "0.10.0-alpha.1" "$VERSION_TF")" != "$(printf %s\\n%s "0.10.0-alpha.1" "$VERSION_TF" | sort --version-sort)" ] &&
+        TF_EXT_COMPAT=0
+
     if [ $TF_EXT_COMPAT == 1 ]; then
-
-        [ "$EXT_V_SET_WASMEDGE_TF" -eq 0 ] && VERSION_TF=$VERSION &&
-            remote_version_availabilty second-state/WasmEdge-tensorflow "$VERSION_TF"
-
-        [ "$EXT_V_SET_WASMEDGE_TF_DEPS" -eq 0 ] && VERSION_TF_DEPS=$VERSION &&
-            remote_version_availabilty second-state/WasmEdge-tensorflow-deps "$VERSION_TF_DEPS"
-
-        [ "$EXT_V_SET_WASMEDGE_TF_TOOLS" -eq 0 ] && VERSION_TF_TOOLS=$VERSION &&
-            remote_version_availabilty second-state/WasmEdge-tensorflow-tools "$VERSION_TF_TOOLS"
 
         get_wasmedge_tensorflow_deps
         install_wasmedge_tensorflow

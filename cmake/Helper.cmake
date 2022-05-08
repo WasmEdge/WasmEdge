@@ -55,8 +55,16 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   else()
     list(APPEND WASMEDGE_CFLAGS
       -Wno-error=shadow-field
-      -Wno-reserved-identifier
     )
+    if (CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang")
+      list(APPEND WASMEDGE_CFLAGS
+        -Wno-reserved-id-macro
+      )
+    else()
+      list(APPEND WASMEDGE_CFLAGS
+        -Wno-reserved-identifier
+      )
+    endif()
   endif()
 endif()
 

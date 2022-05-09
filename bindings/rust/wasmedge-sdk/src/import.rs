@@ -263,6 +263,9 @@ impl ImportObjectBuilder {
         allowed_cmds: Option<Vec<&str>>,
         allowed: bool,
     ) -> WasmEdgeResult<ImportObject> {
+        // load plugins from the default paths
+        sys::utils::load_plugin_from_default_paths();
+
         let mut inner = sys::WasmEdgeProcessModule::create(allowed_cmds, allowed)?;
 
         // add func

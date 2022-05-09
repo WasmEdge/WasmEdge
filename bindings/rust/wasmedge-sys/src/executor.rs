@@ -99,13 +99,7 @@ impl Executor {
                 ))?;
             },
         }
-        // unsafe {
-        //     check(ffi::WasmEdge_ExecutorRegisterImport(
-        //         self.inner.0,
-        //         store.inner.0,
-        //         import.inner.0 as *const _,
-        //     ))?;
-        // }
+
         Ok(())
     }
 

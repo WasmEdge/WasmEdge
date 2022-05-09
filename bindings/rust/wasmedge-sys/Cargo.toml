@@ -27,3 +27,8 @@ cmake = "0.1"
 default = ["aot"]
 standalone = []
 aot = []
+
+[dev-dependencies]
+tokio = { version = "1", features = ["full"] }
+serde = { version = "1.0", features = ["derive"] }
+poem = "1.2"

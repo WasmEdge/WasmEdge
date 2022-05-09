@@ -2,6 +2,8 @@
     html_logo_url = "https://github.com/cncf/artwork/blob/master/projects/wasm-edge-runtime/icon/color/wasm-edge-runtime-icon-color.png?raw=true",
     html_favicon_url = "https://raw.githubusercontent.com/cncf/artwork/49169bdbc88a7ce3c4a722c641cc2d548bd5c340/projects/wasm-edge-runtime/icon/color/wasm-edge-runtime-icon-color.svg"
 )]
+#![feature(explicit_generic_args_with_impl_trait)]
+#![allow(clippy::vec_init_then_push)]
 
 //! # Overview
 //!
@@ -88,8 +90,6 @@
 //! * [wasmedge-types: WasmEdge Types](https://crates.io/crates/wasmedge-types)
 //!
 
-#![feature(explicit_generic_args_with_impl_trait)]
-
 use wasmedge_types::WasmEdgeResult;
 
 #[doc(hidden)]
@@ -129,7 +129,7 @@ pub use store::Store;
 use wasmedge_sys::types::WasmValue;
 
 /// Alias type for host function
-pub type HostFunc = wasmedge_sys::HostFunc;
+pub type HostFunc = wasmedge_sys::BoxedFn;
 
 /// The object that is used to perform a [host function](crate::Func) is required to implement this trait.
 pub trait Engine {

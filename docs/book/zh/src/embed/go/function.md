@@ -107,7 +107,7 @@ func main() {
   wasmedge.SetLogErrorLevel()
   var conf = wasmedge.NewConfigure(wasmedge.WASI)
   var vm = wasmedge.NewVMWithConfig(conf)
-  var wasi = vm.GetImportObject(wasmedge.WASI)
+  var wasi = vm.GetImportModule(wasmedge.WASI)
   wasi.InitWasi(
     os.Args[1:],     // The args
     os.Environ(),    // The envs

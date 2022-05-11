@@ -397,13 +397,12 @@ Expect<RefVariant> Executor::refFunc(Runtime::StackManager &StackMgr,
   return FuncRef(*FuncInst);
 }
 
-Expect<void> Executor::memoryAtomicNotify(Runtime::StoreManager &,
-                                          Runtime::StackManager &) noexcept {
+Expect<void> Executor::memoryAtomicNotify(Runtime::StackManager &) noexcept {
   return {};
 }
 
 Expect<uint32_t> Executor::memoryAtomicWait(
-    Runtime::StoreManager &, Runtime::StackManager &StackMgr,
+    Runtime::StackManager &StackMgr,
     const uint32_t MemIdx, const uint32_t Off, const uint64_t Expected,
     const uint64_t, const uint32_t BitWidth) noexcept {
 

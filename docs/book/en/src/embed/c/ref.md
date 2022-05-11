@@ -472,6 +472,7 @@ Developers can adjust the settings about the proposals, VM host pre-registration
       WasmEdge_Proposal_Annotations,
       WasmEdge_Proposal_Memory64,
       WasmEdge_Proposal_ExceptionHandling,
+      WasmEdge_Proposal_ExtendedConst,
       WasmEdge_Proposal_Threads,
       WasmEdge_Proposal_FunctionReferences
     };
@@ -494,6 +495,7 @@ Developers can adjust the settings about the proposals, VM host pre-registration
      * (turned of by default) additionally:
      * * Tail-call
      * * Multiple memories
+     * * Extended-const
      */
     WasmEdge_ConfigureContext *ConfCxt = WasmEdge_ConfigureCreate();
     WasmEdge_ConfigureAddProposal(ConfCxt, WasmEdge_Proposal_MultiMemories);

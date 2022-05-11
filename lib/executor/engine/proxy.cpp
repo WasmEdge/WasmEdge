@@ -402,9 +402,8 @@ Expect<void> Executor::memoryAtomicNotify(Runtime::StackManager &) noexcept {
 }
 
 Expect<uint32_t> Executor::memoryAtomicWait(
-    Runtime::StackManager &StackMgr,
-    const uint32_t MemIdx, const uint32_t Off, const uint64_t Expected,
-    const uint64_t, const uint32_t BitWidth) noexcept {
+    Runtime::StackManager &StackMgr, const uint32_t MemIdx, const uint32_t Off,
+    const uint64_t Expected, const uint64_t, const uint32_t BitWidth) noexcept {
 
   if ((Off & 3) != 0) {
     spdlog::error(ErrCode::UnalignedAtomicAccess);

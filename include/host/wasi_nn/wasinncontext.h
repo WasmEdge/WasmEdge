@@ -44,7 +44,9 @@ public:
 
 class WasiNNContext {
 public:
-  WasiNNContext() : ModelsNum(-1), ExecutionsNum(-1) {}
+  WasiNNContext() : ModelsNum(-1), ExecutionsNum(-1) {
+    BackendsMapping.emplace("OpenVINO", static_cast<WASINN::GraphEncoding>(0));
+  }
   ~WasiNNContext() {
 #ifdef WASMEDGE_WASINN_BUILD_OPENVINO
     if (OpenVINOCore != nullptr) {

@@ -556,6 +556,7 @@ P(MultiMemories, "Multiple memories")
 P(Annotations, "Custom Annotation Syntax in the Text Format")
 P(Memory64, "Memory64")
 P(ExceptionHandling, "Exception handling")
+P(ExtendedConst, "Extended const")
 P(Threads, "Threads")
 P(FunctionReferences, "Typed Function References")
 #undef P

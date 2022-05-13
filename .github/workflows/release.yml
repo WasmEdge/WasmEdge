@@ -31,7 +31,7 @@ jobs:
         id: prep
         run: |
           # Retrieve annotated tags. Details: https://github.com/actions/checkout/issues/290
-          git config --global --add safe.directory $(pwd)
+          git config --global --add safe.directory /__w/WasmEdge/WasmEdge
           git fetch --tags --force
           echo ::set-output name=version::$(git describe --match "[0-9].[0-9]*" --tag)
       - name: Create Release
@@ -415,7 +415,7 @@ jobs:
 
     - name: Build WasmEdge for Android
       run: |
-        git config --global --add safe.directory $(pwd)
+        git config --global --add safe.directory /__w/WasmEdge/WasmEdge
         export ANDROID_NDK_HOME=$(pwd)/android-ndk-r23b/
         cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_BUILD_PACKAGE="TGZ" -DWASMEDGE_BUILD_AOT_RUNTIME=OFF -DCMAKE_SYSTEM_NAME=Android -DCMAKE_SYSTEM_VERSION=23 -DCMAKE_ANDROID_ARCH_ABI=arm64-v8a -DCMAKE_ANDROID_NDK=$ANDROID_NDK_HOME -DCMAKE_ANDROID_STL_TYPE=c++_static
         cmake --build build

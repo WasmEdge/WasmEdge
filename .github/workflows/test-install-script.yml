@@ -151,6 +151,9 @@ jobs:
       with:
         fetch-depth: 0
 
+    - name: Install git
+      run: |
+        brew install git
     - name: Install WasmEdge latest release
       run: |
         bash utils/install.sh -V

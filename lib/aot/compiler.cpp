@@ -1219,7 +1219,8 @@ public:
           llvm::Value *Ret = llvm::UndefValue::get(VectorTy);
           Ret = Builder.CreateInsertElement(Ret, Value, kZero);
 #if LLVM_VERSION_MAJOR >= 13
-          Ret = Builder.CreateUnaryIntrinsic(llvm::Intrinsic::roundeven, Ret);
+          Ret = Builder.CreateUnaryIntrinsic(
+              llvm::Intrinsic::aarch64_sve_frintn, Ret);
 #else
           Ret = Builder.CreateUnaryIntrinsic(
               llvm::Intrinsic::aarch64_neon_frintn, Ret);
@@ -3787,7 +3788,8 @@ private:
 #if defined(__aarch64__)
       if (Context.SupportNEON) {
 #if LLVM_VERSION_MAJOR >= 13
-        return Builder.CreateUnaryIntrinsic(llvm::Intrinsic::roundeven, V);
+        return Builder.CreateUnaryIntrinsic(llvm::Intrinsic::aarch64_sve_frintn,
+                                            V);
 #else
         return Builder.CreateUnaryIntrinsic(
             llvm::Intrinsic::aarch64_neon_frintn, V);

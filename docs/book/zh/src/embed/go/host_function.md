@@ -1,7 +1,5 @@
 # 如何用 Go 编写 Host Function
 
-**This file is needed to update to 0.10.0 and translate into English.**
-
 ## 什么是 Host Function
 
 顾名思义, Host Function 就是定义在 Host 程序中的函数. 对于 Wasm 来说, Host Function 可以做为导入段 `import` 被注册到一个模块 `module` 中, 之后便可以在 Wasm 运行时被调用.

@@ -106,6 +106,7 @@ jobs:
         fetch-depth: 0
     - name: Build WasmEdge with Release mode
       run: |
+        git config --global --add safe.directory $(pwd)
         cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_BUILD_TESTS=ON -DWASMEDGE_BUILD_PACKAGE="TGZ;DEB;RPM" .
         cmake --build build
     - name: Test WasmEdge
@@ -167,6 +168,7 @@ jobs:
       env:
         CMAKE_BUILD_TYPE: ${{ matrix.build_type }}
       run: |
+        git config --global --add safe.directory $(pwd)
         cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=$CMAKE_BUILD_TYPE -DWASMEDGE_BUILD_TESTS=ON .
         cmake --build build
     - name: Test WasmEdge
@@ -183,6 +185,7 @@ jobs:
         apt update
         apt install -y gcovr
         curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --target wasm32-wasi
+        git config --global --add safe.directory $(pwd)
         cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Debug -DWASMEDGE_BUILD_TESTS=ON -DWASMEDGE_BUILD_COVERAGE=ON .
         cmake --build build
         LD_LIBRARY_PATH=$(pwd)/build/lib/api cmake --build build --target codecov

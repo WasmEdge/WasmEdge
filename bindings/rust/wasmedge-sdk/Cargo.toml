@@ -13,7 +13,7 @@ version = "0.1.0"
 [dependencies]
 anyhow = "1.0"
 thiserror = "1.0.30"
-wasmedge-sys = {path = "../wasmedge-sys", version = "0.7", features = ["standalone"]}
+wasmedge-sys = {path = "../wasmedge-sys", version = "0.7"}
 wasmedge-types = "0.1.2"
 wat = "1.0"
 

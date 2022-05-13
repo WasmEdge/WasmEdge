@@ -1,9 +1,8 @@
-#include <chrono>
-#include <iostream>
-#include <cstdio>
-#include <wasmedge/wasmedge.h>
 #include "script/fibonacci.h"
-
+#include <chrono>
+#include <cstdio>
+#include <iostream>
+#include <wasmedge/wasmedge.h>
 
 void run_fib_wasm() {
   /* Create the configure context and add the WASI support. */
@@ -36,21 +35,21 @@ void run_fib_wasm() {
 }
 
 void run_fib_native() {
-  int32_t ret = fib(32);
-  printf("Get result: %d\n", ret);
+  int32_t Ret = fib(32);
+  printf("Get result: %d\n", Ret);
 }
 
 int main(int Argc, const char *Argv[]) {
-  auto start = std::chrono::system_clock::now();
+  auto Start = std::chrono::system_clock::now();
 
   run_fib_native();
-  auto step = std::chrono::system_clock::now();
-  std::chrono::duration<double> diff_native = step - start;
-  std::cout << "run native fib(32), ints : " << diff_native.count() << " s\n";
+  auto Step = std::chrono::system_clock::now();
+  std::chrono::duration<double> DiffNative = Step - Start;
+  std::cout << "run native fib(32), ints : " << DiffNative.count() << " s\n";
 
   run_fib_wasm();
-  auto end = std::chrono::system_clock::now();
-  std::chrono::duration<double> diff_wasm = end - step;
-  std::cout << "run wasm fib(32), ints : " << diff_wasm.count() << " s\n";
+  auto End = std::chrono::system_clock::now();
+  std::chrono::duration<double> DiffWasm = End - Step;
+  std::cout << "run wasm fib(32), ints : " << DiffWasm.count() << " s\n";
   return 0;
 }

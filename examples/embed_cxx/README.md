@@ -1,4 +1,4 @@
-This is a example for embedding WasmEdge Sdk in C++, and how to build WebAssembly form C++ sources.
+This is an example of embedding WasmEdge SDK in C++, and how to build WebAssembly from C++ sources.
 
 First, download and extract [wasi-sdk](https://github.com/WebAssembly/wasi-sdk/releases), setup environment variable `WASI_SDK_HOME=path/to/wasi-sdk` .
 

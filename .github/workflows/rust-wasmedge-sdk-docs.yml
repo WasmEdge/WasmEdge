@@ -9,7 +9,7 @@ on:
     branches:
       - feat_sdk_0.1.0
     tags:
-      - "rust/[0-9]+.[0-9]+.[0-9]+*"
+      - "rust-sdk/[0-9]+.[0-9]+.[0-9]+*"
 
 jobs:
   rustdoc:

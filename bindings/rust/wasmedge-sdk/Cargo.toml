@@ -1,7 +1,7 @@
 [package]
 categories = ["api-bindings", "wasm"]
 description = "WasmEdge Runtime is a high-performance, extensible, and hardware optimized WebAssembly Virtual Machine for automotive, cloud, AI, and blockchain applications."
-documentation = "https://docs.rs/crate/wasmedge-sdk"
+documentation = "https://wasmedge.github.io/WasmEdge/wasmedge_sdk/"
 edition = "2021"
 exclude = ["examples/"]
 license = "Apache-2.0"

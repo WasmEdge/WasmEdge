@@ -861,7 +861,7 @@ WasiExpect<void> INode::sockConnect(uint8_t *Address, uint8_t AddressLength,
     ClientSocketAddr.sin6_port = htons(Port);
     std::memcpy(ClientSocketAddr.sin6_addr.s6_addr, Address, AddressLength);
     if (auto Res =
-            ::bind(Fd, reinterpret_cast<struct sockaddr *>(&ClientSocketAddr),
+            ::connect(Fd, reinterpret_cast<struct sockaddr *>(&ClientSocketAddr),
                    sizeof(ClientSocketAddr));
         unlikely(Res < 0)) {
       return WasiUnexpect(fromErrNo(errno));

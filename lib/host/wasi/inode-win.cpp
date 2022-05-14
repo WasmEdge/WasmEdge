@@ -9,7 +9,7 @@
 #include "host/wasi/inode.h"
 #include "host/wasi/vfs.h"
 #include "win.h"
-
+#include <iostream>
 #include <winsock2.h>
 #include <ws2tcpip.h>
 
@@ -439,9 +439,9 @@ WasiExpect<void> INode::sockConnect(uint8_t *Address, uint8_t AddressLength,
     ClientSocketAddr.sin6_port = htons(Port);
     std::memcpy(ClientSocketAddr.sin6_addr.s6_addr, Address, AddressLength);
     if (auto Res =
-            ::bind(toSocket(Handle),
-                   reinterpret_cast<struct sockaddr *>(&ClientSocketAddr),
-                   sizeof(ClientSocketAddr));
+            ::connect(toSocket(Handle),
+                      reinterpret_cast<struct sockaddr *>(&ClientSocketAddr),
+                      sizeof(ClientSocketAddr));
         unlikely(Res == SOCKET_ERROR)) {
       return WasiUnexpect(fromWSALastError(WSAGetLastError()));
     }
@@ -476,16 +476,33 @@ WasiExpect<void> INode::sockRecvFrom(Span<Span<uint8_t>> RiData,
   }
 
   std::vector<uint8_t> TmpBuf(TmpBufSize, 0);
-  int AddrLen = AddressLength;
 
-  if (auto Res =
-          ::recvfrom(toSocket(Handle), reinterpret_cast<char *>(TmpBuf.data()),
-                     static_cast<int>(TmpBufSize), SysRiFlags,
-                     reinterpret_cast<sockaddr *>(Address), &AddrLen);
+  sockaddr_storage SockAddrStorage;
+  int MaxAllowLength = 0;
+  if (AddressLength == 4) {
+    MaxAllowLength = sizeof(sockaddr_in);
+  } else if (AddressLength == 16) {
+    MaxAllowLength = sizeof(sockaddr_in6);
+  }
+
+  if (auto Res = ::recvfrom(
+          toSocket(Handle), reinterpret_cast<char *>(TmpBuf.data()),
+          static_cast<int>(TmpBufSize), SysRiFlags,
+          reinterpret_cast<sockaddr *>(&SockAddrStorage), &MaxAllowLength);
       unlikely(Res == SOCKET_ERROR)) {
     return WasiUnexpect(fromWSALastError(WSAGetLastError()));
   } else {
     NRead = static_cast<__wasi_size_t>(Res);
+  }
+
+  if (AddressLength == 4) {
+    memcpy(Address,
+           &reinterpret_cast<sockaddr_in *>(&SockAddrStorage)->sin_addr,
+           AddressLength);
+  } else if (AddressLength == 16) {
+    memcpy(Address,
+           &reinterpret_cast<sockaddr_in6 *>(&SockAddrStorage)->sin6_addr,
+           AddressLength);
   }
 
   RoFlags = static_cast<__wasi_roflags_t>(0);
@@ -534,6 +551,7 @@ WasiExpect<void> INode::sockSendTo(Span<Span<const uint8_t>> SiData,
       Addr = &ClientSocketAddr;
       AddrLen = sizeof(ClientSocketAddr);
     } else if (AddressLength == 16) {
+      ::memset(&ClientSocketAddr6, 0x00, sizeof(ClientSocketAddr6));
       ClientSocketAddr6.sin6_family = AF_INET6;
       ClientSocketAddr6.sin6_port = htons(static_cast<u_short>(Port));
       ::memcpy(&ClientSocketAddr6.sin6_addr.s6_addr, Address, AddressLength);

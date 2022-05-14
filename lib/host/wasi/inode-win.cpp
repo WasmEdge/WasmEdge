@@ -373,7 +373,7 @@ WasiExpect<void> INode::sockBind(uint8_t *Address, uint8_t AddressLength,
     }
   } else if (AddressLength == 16) {
     struct sockaddr_in6 ServerAddr;
-    memset(&ServerAddr, 0, sizeof(ServerAddr));
+    std::memset(&ServerAddr, 0, sizeof(ServerAddr));
 
     ServerAddr.sin6_family = AF_INET6;
     ServerAddr.sin6_port = htons(Port);
@@ -495,13 +495,13 @@ WasiExpect<void> INode::sockRecvFrom(Span<Span<uint8_t>> RiData,
   }
 
   if (AddressLength == 4) {
-    memcpy(Address,
-           &reinterpret_cast<sockaddr_in *>(&SockAddrStorage)->sin_addr,
-           AddressLength);
+    std::memcpy(Address,
+                &reinterpret_cast<sockaddr_in *>(&SockAddrStorage)->sin_addr,
+                AddressLength);
   } else if (AddressLength == 16) {
-    memcpy(Address,
-           &reinterpret_cast<sockaddr_in6 *>(&SockAddrStorage)->sin6_addr,
-           AddressLength);
+    std::memcpy(Address,
+                &reinterpret_cast<sockaddr_in6 *>(&SockAddrStorage)->sin6_addr,
+                AddressLength);
   }
 
   RoFlags = static_cast<__wasi_roflags_t>(0);
@@ -545,15 +545,15 @@ WasiExpect<void> INode::sockSendTo(Span<Span<const uint8_t>> SiData,
     if (AddressLength == 4) {
       ClientSocketAddr.sin_family = AF_INET;
       ClientSocketAddr.sin_port = htons(static_cast<u_short>(Port));
-      ::memcpy(&ClientSocketAddr.sin_addr.s_addr, Address, AddressLength);
+      std::memcpy(&ClientSocketAddr.sin_addr.s_addr, Address, AddressLength);
 
       Addr = &ClientSocketAddr;
       AddrLen = sizeof(ClientSocketAddr);
     } else if (AddressLength == 16) {
-      ::memset(&ClientSocketAddr6, 0x00, sizeof(ClientSocketAddr6));
+      std::memset(&ClientSocketAddr6, 0x00, sizeof(ClientSocketAddr6));
       ClientSocketAddr6.sin6_family = AF_INET6;
       ClientSocketAddr6.sin6_port = htons(static_cast<u_short>(Port));
-      ::memcpy(&ClientSocketAddr6.sin6_addr.s6_addr, Address, AddressLength);
+      std::memcpy(&ClientSocketAddr6.sin6_addr.s6_addr, Address, AddressLength);
 
       Addr = &ClientSocketAddr6;
       AddrLen = sizeof(ClientSocketAddr6);

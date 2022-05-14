@@ -9,7 +9,6 @@
 #include "host/wasi/inode.h"
 #include "host/wasi/vfs.h"
 #include "win.h"
-#include <iostream>
 #include <winsock2.h>
 #include <ws2tcpip.h>
 

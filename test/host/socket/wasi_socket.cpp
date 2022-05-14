@@ -228,7 +228,7 @@ TEST(WasiTest, SocketUDP_4) {
     MsgOutPack->buf = MsgOutPtr;
     MsgOutPack->buf_len = MaxMsgBufLen;
 
-    Addr->buf_len = sizeof(sockaddr);
+    Addr->buf_len = 4;
 
     WasiSockRecvFrom.run(&MemInst,
                          std::array<WasmEdge::ValVariant, 7>{

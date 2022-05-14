@@ -860,9 +860,9 @@ WasiExpect<void> INode::sockConnect(uint8_t *Address, uint8_t AddressLength,
     ClientSocketAddr.sin6_family = AF_INET6;
     ClientSocketAddr.sin6_port = htons(Port);
     std::memcpy(ClientSocketAddr.sin6_addr.s6_addr, Address, AddressLength);
-    if (auto Res =
-            ::connect(Fd, reinterpret_cast<struct sockaddr *>(&ClientSocketAddr),
-                   sizeof(ClientSocketAddr));
+    if (auto Res = ::connect(
+            Fd, reinterpret_cast<struct sockaddr *>(&ClientSocketAddr),
+            sizeof(ClientSocketAddr));
         unlikely(Res < 0)) {
       return WasiUnexpect(fromErrNo(errno));
     }
@@ -922,13 +922,13 @@ WasiExpect<void> INode::sockRecvFrom(Span<Span<uint8_t>> RiData,
   }
 
   if (AddressLength == 4) {
-    memcpy(Address,
-           &reinterpret_cast<sockaddr_in *>(&SockAddrStorage)->sin_addr,
-           AddressLength);
+    std::memcpy(Address,
+                &reinterpret_cast<sockaddr_in *>(&SockAddrStorage)->sin_addr,
+                AddressLength);
   } else if (AddressLength == 16) {
-    memcpy(Address,
-           &reinterpret_cast<sockaddr_in6 *>(&SockAddrStorage)->sin6_addr,
-           AddressLength);
+    std::memcpy(Address,
+                &reinterpret_cast<sockaddr_in6 *>(&SockAddrStorage)->sin6_addr,
+                AddressLength);
   }
 
   RoFlags = static_cast<__wasi_roflags_t>(0);
@@ -960,14 +960,14 @@ WasiExpect<void> INode::sockSendTo(Span<Span<const uint8_t>> SiData,
     if (AddressLength == 4) {
       ClientSocketAddr.sin_family = AF_INET;
       ClientSocketAddr.sin_port = htons(Port);
-      ::memcpy(&ClientSocketAddr.sin_addr.s_addr, Address, AddressLength);
+      std::memcpy(&ClientSocketAddr.sin_addr.s_addr, Address, AddressLength);
 
       MsgName = &ClientSocketAddr;
       MsgNameLen = sizeof(ClientSocketAddr);
     } else if (AddressLength == 16) {
       ClientSocketAddr6.sin6_family = AF_INET6;
       ClientSocketAddr6.sin6_port = htons(Port);
-      ::memcpy(&ClientSocketAddr6.sin6_addr.s6_addr, Address, AddressLength);
+      std::memcpy(&ClientSocketAddr6.sin6_addr.s6_addr, Address, AddressLength);
 
       MsgName = &ClientSocketAddr6;
       MsgNameLen = sizeof(ClientSocketAddr6);

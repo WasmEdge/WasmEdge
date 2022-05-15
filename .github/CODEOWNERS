@@ -22,3 +22,5 @@ test/span/                      @ibmibmibm
 thirdparty/                     @ibmibmibm
 tools/                          @hydai @ibmibmibm @q82419
 utils/                          @hydai @ibmibmibm @q82419
+utils/install.sh                @SAtacker
+utils/uninstall.sh              @SAtacker

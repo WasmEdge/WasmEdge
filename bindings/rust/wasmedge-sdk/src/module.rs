@@ -1,8 +1,7 @@
 //! Defines WasmEdge AST Module, ImportType, and ExportType.
 
 use crate::{config::Config, WasmEdgeResult};
-use std::marker::PhantomData;
-use std::{borrow::Cow, path::Path};
+use std::{borrow::Cow, marker::PhantomData, path::Path};
 use wasmedge_sys as sys;
 use wasmedge_types::ExternalInstanceType;
 

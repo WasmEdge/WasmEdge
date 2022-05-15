@@ -54,8 +54,8 @@ jobs:
         run: |
           cd bindings/rust/
           export WASMEDGE_DIR="$(pwd)/../../"
-          cargo test --lib --examples
-          cargo test --doc
+          cargo +nightly test --lib --examples
+          cargo +nightly test --doc
 
       - name: Clean up
         run: |
@@ -77,7 +77,7 @@ jobs:
           export WASMEDGE_DIR="$(pwd)/../../"
           export WASMEDGE_BUILD_DIR="$(pwd)/../../build"
           export WASMEDGE_PLUGIN_PATH="$(pwd)/../../build/plugins/wasmedge_process"
-          cargo clippy --profile test --lib --examples -- -D warnings -D clippy::dbg_macro
+          cargo +nightly clippy --profile test --lib --examples -- -D warnings -D clippy::dbg_macro
 
       - name: Test
         run: |
@@ -86,8 +86,8 @@ jobs:
           export WASMEDGE_BUILD_DIR="$(pwd)/../../build"
           export WASMEDGE_PLUGIN_PATH="$(pwd)/../../build/plugins/wasmedge_process"
           export LD_LIBRARY_PATH="$(pwd)/../../build/lib/api"
-          cargo test --lib --examples --locked
-          cargo test --doc --locked
+          cargo +nightly test --lib --examples --locked
+          cargo +nightly test --doc --locked
 
   build_macos:
     name: MacOS
@@ -129,8 +129,8 @@ jobs:
           export CXX=clang++
           cd bindings/rust/
           export WASMEDGE_DIR="$(pwd)/../../"
-          cargo test --lib --examples
-          cargo test --doc
+          cargo +nightly test --lib --examples
+          cargo +nightly test --doc
 
       - name: Clean up
         run: |
@@ -155,7 +155,7 @@ jobs:
           export WASMEDGE_DIR="$(pwd)/../../"
           export WASMEDGE_BUILD_DIR="$(pwd)/../../build"
           export WASMEDGE_PLUGIN_PATH="$(pwd)/../../build/plugins/wasmedge_process"
-          cargo clippy --profile test --lib --examples -- -D warnings -D clippy::dbg_macro
+          cargo +nightly clippy --profile test --lib --examples -- -D warnings -D clippy::dbg_macro
 
       - name: Test
         run: |
@@ -164,5 +164,5 @@ jobs:
           export WASMEDGE_BUILD_DIR="$(pwd)/../../build"
           export WASMEDGE_PLUGIN_PATH="$(pwd)/../../build/plugins/wasmedge_process"
           export LD_LIBRARY_PATH="$(pwd)/../../build/lib/api"
-          cargo test --lib --examples --locked
-          cargo test --doc --locked
+          cargo +nightly test --lib --examples --locked
+          cargo +nightly test --doc --locked

@@ -50,12 +50,12 @@ jobs:
           cd bindings/rust/
           cargo +nightly fmt --all -- --check
 
-      - name: Test on standalone crate
+      - name: Test wasmedge-sys in standalone mode
         run: |
           cd bindings/rust/
           export WASMEDGE_DIR="$(pwd)/../../"
-          cargo +nightly test --lib --examples
-          cargo +nightly test --doc
+          cargo +nightly test -p wasmedge-sys --lib --examples
+          cargo +nightly test -p wasmedge-sys --doc
 
       - name: Clean up
         run: |
@@ -119,7 +119,7 @@ jobs:
           cd bindings/rust/
           cargo +nightly fmt --all -- --check
 
-      - name: Test on standalone crate
+      - name: Test wasmedge-sys in standalone mode
         run: |
           brew install llvm ninja boost cmake
           export PATH="/usr/local/opt/llvm/bin:$PATH"
@@ -129,8 +129,8 @@ jobs:
           export CXX=clang++
           cd bindings/rust/
           export WASMEDGE_DIR="$(pwd)/../../"
-          cargo +nightly test --lib --examples
-          cargo +nightly test --doc
+          cargo +nightly test -p wasmedge-sys --lib --examples
+          cargo +nightly test -p wasmedge-sys --doc
 
       - name: Clean up
         run: |

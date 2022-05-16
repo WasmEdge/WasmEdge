@@ -175,7 +175,7 @@ WasmEdge_ModuleInstanceContext *createSpecTestModule(void) {
   HostMemory = WasmEdge_MemoryInstanceCreate(HostMType);
   WasmEdge_MemoryTypeDelete(HostMType);
   HostName = WasmEdge_StringCreateByCString("shared_memory");
-  WasmEdge_ImportObjectAddMemory(ImpObj, HostName, HostMemory);
+  WasmEdge_ModuleInstanceAddMemory(HostMod, HostName, HostMemory);
   WasmEdge_StringDelete(HostName);
 
   // Add host global "global_i32": const 666

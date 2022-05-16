@@ -618,6 +618,12 @@ public:
   Expect<void *> ptrFunc(Runtime::StackManager &StackMgr,
                          const uint32_t TableIdx, const uint32_t FuncTypeIdx,
                          const uint32_t FuncIdx) noexcept;
+  Expect<void> memoryAtomicNotify(Runtime::StackManager &StackMgr) noexcept;
+  Expect<uint32_t> memoryAtomicWait(Runtime::StackManager &StackMgr,
+                                    const uint32_t MemIdx, const uint32_t Off,
+                                    const uint64_t Expected,
+                                    const uint64_t Timeout,
+                                    const uint32_t BitWidth) noexcept;
 
   template <typename FuncPtr> struct ProxyHelper;
 

@@ -95,7 +95,6 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: fedora:latest
-
     steps:
     - name: Install requirment
       run: |
@@ -157,12 +156,10 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: wasmedge/wasmedge:${{ matrix.docker_tag }}
-
     steps:
     - uses: actions/checkout@v2
       with:
         fetch-depth: 0
-
     - name: Build WasmEdge using ${{ matrix.compiler }} with ${{ matrix.build_type }} mode
       if: ${{ ! matrix.coverage }}
       env:
@@ -178,7 +175,6 @@ jobs:
         cd build
         ctest
         cd -
-
     - name: Build WasmEdge using ${{ matrix.compiler }} with Coverage mode
       if: ${{ matrix.coverage }}
       run: |
@@ -227,23 +223,19 @@ jobs:
     steps:
     - uses: actions/checkout@v1
       if: ${{ matrix.checkout_version == 'v1' }}
-
     - uses: actions/checkout@v2
       if: ${{ matrix.checkout_version == 'v2' }}
       with:
         fetch-depth: 0
-
     - name: Build ${{ matrix.name }} package
       run: |
         bash utils/docker/build-manylinux.sh
-
     - name: Upload artifact (v1)
       uses: actions/upload-artifact@v1
       if: ${{ matrix.checkout_version == 'v1' }}
       with:
         name: WasmEdge-${{ needs.get_version_v1.outputs.version }}-${{ matrix.docker_tag }}.tar.gz
         path: build/WasmEdge-${{ needs.get_version_v1.outputs.version }}-Linux.tar.gz
-
     - name: Upload artifact (v2)
       uses: actions/upload-artifact@v2
       if: ${{ matrix.checkout_version == 'v2' }}
@@ -252,10 +244,21 @@ jobs:
         path: build/WasmEdge-${{ needs.get_version_v2.outputs.version }}-Linux.tar.gz
 
   build_macos:
-    name: macOS
-    runs-on: macos-latest
+    strategy:
+      matrix:
+        include:
+          - name: MacOS 10.15
+            host_runner: macos-10.15
+            darwin_version: darwin_19
+          - name: MacOS 11
+            host_runner: macos-11
+            darwin_version: darwin_20
+          - name: MacOS 12
+            host_runner: macos-12
+            darwin_version: darwin_21
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.host_runner }}
     needs: get_version_v2
-
     steps:
     - uses: actions/checkout@v2
       with:
@@ -284,7 +287,7 @@ jobs:
     - name: Upload artifact
       uses: actions/upload-artifact@v2
       with:
-        name: WasmEdge-${{ needs.get_version_v2.outputs.version }}-darwin_x86_64.tar.gz
+        name: WasmEdge-${{ needs.get_version_v2.outputs.version }}-${{ matrix.darwin_version }}_x86_64.tar.gz
         path: build/WasmEdge-${{ needs.get_version_v2.outputs.version }}-Darwin.tar.gz
 
   build_windows:
@@ -295,16 +298,13 @@ jobs:
     - uses: actions/checkout@v2
       with:
         fetch-depth: 0
-
     - name: Install dependency
       uses: crazy-max/ghaction-chocolatey@v1
       with:
         args: install cmake ninja vswhere
-
     - uses: GuillaumeFalourd/setup-windows10-sdk-action@v1
       with:
         sdk-version: 19041
-
     - name: Build WasmEdge
       run: |
         $vsPath = (vswhere -latest -property installationPath)
@@ -318,7 +318,6 @@ jobs:
         $Env:CXX = "clang-cl"
         cmake -Bbuild -GNinja -DCMAKE_SYSTEM_VERSION=10.0.19041.0 -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreadedDLL "-DLLVM_DIR=$llvm_dir" -DWASMEDGE_BUILD_TESTS=ON -DWASMEDGE_BUILD_PACKAGE="ZIP" .
         cmake --build build
-
     - name: Test WasmEdge
       continue-on-error: true
       run: |
@@ -338,20 +337,17 @@ jobs:
     - name: Check artifact
       run: |
         Get-ChildItem -Path "$pwd\\build"
-
     - name: Upload artifact (v2)
       uses: actions/upload-artifact@v2
       with:
         name: WasmEdge-${{ needs.get_version_v2.outputs.version }}-windows.zip
         path: build\\WasmEdge-${{ needs.get_version_v2.outputs.version }}-Windows.zip
-
     - name: Package Windows Installer
       run: |
         $Env:product_version = ("${{ needs.get_version_v2.outputs.version }}").split("-")[0]
         . "$Env:WIX\bin\candle.exe" -arch x64 -o build\wasmedge.wixobj .github\scripts\wasmedge.wxs
         . "$Env:WIX\bin\light.exe" -out build\WasmEdge-$Env:product_version-windows.msi build\wasmedge.wixobj
         echo "product_version=$Env:product_version" | Out-File -FilePath $Env:GITHUB_ENV -Encoding utf8 -Append
-
     - name: Upload Windows Installer
       uses: actions/upload-artifact@v2
       with:
@@ -364,12 +360,10 @@ jobs:
     needs: get_version_v2
     container:
       image: wasmedge/wasmedge:latest
-
     steps:
     - uses: actions/checkout@v2
       with:
         fetch-depth: 0
-
     - name: Install dependency
       run: |
         apt update && apt install -y unzip
@@ -380,7 +374,6 @@ jobs:
         cp -r cmake-3.22.2-linux-x86_64/share /usr/local
         curl -sLO https://dl.google.com/android/repository/android-ndk-r23b-linux.zip
         unzip -q android-ndk-r23b-linux.zip
-
     - name: Build WasmEdge for Android
       run: |
         git config --global --add safe.directory $(pwd)
@@ -388,7 +381,6 @@ jobs:
         cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_BUILD_PACKAGE="TGZ" -DWASMEDGE_BUILD_AOT_RUNTIME=OFF -DCMAKE_SYSTEM_NAME=Android -DCMAKE_SYSTEM_VERSION=23 -DCMAKE_ANDROID_ARCH_ABI=arm64-v8a -DCMAKE_ANDROID_NDK=$ANDROID_NDK_HOME -DCMAKE_ANDROID_STL_TYPE=c++_static
         cmake --build build
         cmake --build build --target package
-
     - name: Upload artifact (v2)
       uses: actions/upload-artifact@v2
       with:

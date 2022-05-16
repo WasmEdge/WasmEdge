@@ -73,7 +73,12 @@ TEST_P(NativeCoreTest, TestSuites) {
     Path.replace_extension(std::filesystem::u8path(EXTENSION));
     const auto SOPath = Path.u8string();
     auto Data = *Loader.loadFile(Filename);
-    auto Module = *Loader.parseModule(Data);
+    std::unique_ptr<WasmEdge::AST::Module> Module;
+    if (auto Res = Loader.parseModule(Data)) {
+      Module = std::move(*Res);
+    } else {
+      return Unexpect(Res);
+    }
     if (auto Res = ValidatorEngine.validate(*Module); !Res) {
       return Unexpect(Res);
     }
@@ -174,7 +179,12 @@ TEST_P(CustomWasmCoreTest, TestSuites) {
     Path.replace_extension(std::filesystem::u8path(".aot.wasm"));
     const auto SOPath = Path.u8string();
     auto Data = *Loader.loadFile(Filename);
-    auto Module = *Loader.parseModule(Data);
+    std::unique_ptr<WasmEdge::AST::Module> Module;
+    if (auto Res = Loader.parseModule(Data)) {
+      Module = std::move(*Res);
+    } else {
+      return Unexpect(Res);
+    }
     if (auto Res = ValidatorEngine.validate(*Module); !Res) {
       return Unexpect(Res);
     }

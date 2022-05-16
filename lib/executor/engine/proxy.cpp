@@ -66,6 +66,8 @@ const AST::Module::IntrinsicsTable Executor::Intrinsics = {
     ENTRY(kElemDrop, elemDrop),
     ENTRY(kRefFunc, refFunc),
     ENTRY(kPtrFunc, ptrFunc),
+    ENTRY(kMemoryAtomicNotify, memoryAtomicNotify),
+    ENTRY(kMemoryAtomicWait, memoryAtomicWait),
 #undef ENTRY
 };
 
@@ -393,6 +395,57 @@ Expect<RefVariant> Executor::refFunc(Runtime::StackManager &StackMgr,
   const auto FuncInst = ModInst->getFunc(FuncIdx);
   assuming(FuncInst && *FuncInst);
   return FuncRef(*FuncInst);
+}
+
+Expect<void> Executor::memoryAtomicNotify(Runtime::StackManager &) noexcept {
+  return {};
+}
+
+Expect<uint32_t> Executor::memoryAtomicWait(
+    Runtime::StackManager &StackMgr, const uint32_t MemIdx, const uint32_t Off,
+    const uint64_t Expected, const uint64_t, const uint32_t BitWidth) noexcept {
+
+  if ((Off & 3) != 0) {
+    spdlog::error(ErrCode::UnalignedAtomicAccess);
+    return Unexpect(ErrCode::UnalignedAtomicAccess);
+  }
+
+  auto *MemInst = getMemInstByIdx(StackMgr, MemIdx);
+  assuming(MemInst);
+
+  if (BitWidth == 64) {
+    uint64_t *RawPointer = MemInst->getPointer<uint64_t *>(Off);
+    if (!RawPointer) {
+      spdlog::error(ErrCode::MemoryOutOfBounds);
+      return Unexpect(ErrCode::MemoryOutOfBounds);
+    }
+    auto *AtomicObj = static_cast<std::atomic<uint64_t> *>(
+        reinterpret_cast<void *>(RawPointer));
+
+    uint64_t Load = AtomicObj->load();
+
+    if (Load == Expected) {
+      return {static_cast<uint32_t>(0)};
+    } else {
+      return {static_cast<uint32_t>(1)};
+    }
+  } else {
+    uint32_t *RawPointer = MemInst->getPointer<uint32_t *>(Off);
+    if (!RawPointer) {
+      spdlog::error(ErrCode::MemoryOutOfBounds);
+      return Unexpect(ErrCode::MemoryOutOfBounds);
+    }
+    auto *AtomicObj = static_cast<std::atomic<uint32_t> *>(
+        reinterpret_cast<void *>(RawPointer));
+
+    auto Load = AtomicObj->load();
+
+    if (Load == Expected) {
+      return {static_cast<uint32_t>(0)};
+    } else {
+      return {static_cast<uint32_t>(1)};
+    }
+  }
 }
 
 } // namespace Executor

@@ -45,7 +45,7 @@ void VM::unsafeInitVM() {
       }
     }
     if (!Founded) {
-      spdlog::error("wasmedge_process module not founded."sv);
+      spdlog::debug("wasmedge_process module not founded."sv);
     }
   }
   uint8_t Index = static_cast<uint8_t>(HostRegistration::Max);

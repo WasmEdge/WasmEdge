@@ -518,7 +518,7 @@ Expect<void> Validator::validate(const AST::ExportSection &ExportSec) {
 Expect<void> Validator::validateConstExpr(AST::InstrView Instrs,
                                           Span<const ValType> Returns) {
   for (auto &Instr : Instrs) {
-    // Only these 5 instructions are constant.
+    // Only these instructions are accepted.
     switch (Instr.getOpCode()) {
     case OpCode::Global__get: {
       // For initialization case, global indices must be imported globals.
@@ -564,6 +564,23 @@ Expect<void> Validator::validateConstExpr(AST::InstrView Instrs,
     case OpCode::V128__const:
     case OpCode::End:
       break;
+
+    // For the Extended-const proposal, these instructions are accepted.
+    case OpCode::I32__add:
+    case OpCode::I32__sub:
+    case OpCode::I32__mul:
+    case OpCode::I64__add:
+    case OpCode::I64__sub:
+    case OpCode::I64__mul:
+      if (Conf.hasProposal(Proposal::ExtendedConst)) {
+        break;
+      }
+      spdlog::error(ErrCode::ConstExprRequired);
+      spdlog::error(ErrInfo::InfoProposal(Proposal::ExtendedConst));
+      spdlog::error(
+          ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
+      return Unexpect(ErrCode::ConstExprRequired);
+
     default:
       spdlog::error(ErrCode::ConstExprRequired);
       spdlog::error(

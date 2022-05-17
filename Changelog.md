@@ -1,4 +1,4 @@
-### 0.10.0-alpha.1 (2022-05-06)
+### 0.10.0-alpha.2 (2022-05-20)
 
 Breaking changes:
 
@@ -41,6 +41,9 @@ Features:
 * Supported the WASM `tail-call` proposal.
   * Added the `WasmEdge_Proposal_TailCall` for the configuration in WasmEdge C API.
   * Users can use the `--enable-tail-call` to enable the proposal in `wasmedge` and `wasmedgec` tools.
+* Supported the WASM `extended-const` proposal.
+  * Added the `WasmEdge_Proposal_ExtendedConst` for the configuration in WasmEdge C API.
+  * Users can use the `--enable-extended-const` to enable the proposal in `wasmedge` and `wasmedgec` tools.
 * Supported thread-safe in `WasmEdge_VMContext`, `WasmEdge_ConfigureContext`, `WasmEdge_ModuleInstanceContext`, and `WasmEdge_StoreContext` APIs.
 * Supported the gas limit in AOT mode.
 * New supporting of the wasi-socket proposal.
@@ -59,6 +62,14 @@ Fixed issues:
   * Forged zero-terminated string for `::getaddrinfo`.
   * Checked the socket options enumeration for valid value.
 * Fixed the statistics enable/disable routine.
+* Fixed the output format by the file extension name detection on multiple platforms.
+
+Known issues:
+
+* Universal WASM format failed on MacOS platforms.
+  * In current status, the universal WASM format output of the AOT compiler on MacOS platforms will cause bus error when execution.
+  * We are trying to fix this issue. For working around, please use the shared library format output of the AOT mode.
+  * Developers can specify the extension name as `.dylib` on MacOS, `.so` on Linux, and `.dll` on Windows for the shared library format output of the AOT compiler.
 
 Refactor:
 
@@ -109,7 +120,7 @@ Tests:
 
 Thank all the contributors that made this release possible!
 
-朱亚光, Abhinandan Udupa, Ang Lee, Binbin Zhang, DarumaDocker, Elon Cheng, FlyingOnion, Herschel Wang, JIAN ZHONG, JcJinChen, Jeremy, JessesChou, JieDing, Kodalien, Kunshuai Zhu, LFsWang, LaingKe, Michael Yuan, Nicholas Zhan, 华德禹, O3Ol, Rui Li, Shen-Ta Hsieh, Shreyas Atre, Sylveon, TheLightRunner, Vaniot, Vinson, 罗泽轩, Xin Liu, YiYing He, YoungLH, abhinandanudupa, border1px, eat4toast, hydai, jerbmarx, luckyJ-nj, meoww-bot, mydreamer4134, situ2001, tpmccallum, treeplus, wangyuan249, 王琦
+朱亚光, Abhinandan Udupa, Ang Lee, Binbin Zhang, Chin Zhi Wei, DarumaDocker, Elon Cheng, FlyingOnion, Hanged Fish, Herschel Wang, JIAN ZHONG, JcJinChen, Jeremy, JessesChou, JieDing, Kodalien, Kunshuai Zhu, LFsWang, LaingKe, Michael Yuan, Nicholas Zhan, 华德禹, O3Ol, Rui Li, Shen-Ta Hsieh, Shreyas Atre, Sylveon, TheLightRunner, Vaniot, Vinson, 罗泽轩, Xin Liu, Yi Huang, YiYing He, YoungLH, abhinandanudupa, border1px, eat4toast, hydai, jerbmarx, luckyJ-nj, meoww-bot, mydreamer4134, situ2001, tpmccallum, treeplus, wangyuan249, 王琦
 
 If you want to build from source, please use WasmEdge-0.10.0-alpha.1-src.tar.gz instead of the zip or tarball provided by GitHub directly.
 

@@ -14,11 +14,12 @@
 ///
 //===----------------------------------------------------------------------===//
 
+#include "common/defines.h"
+#include "helper.h"
+#include "hostfunc_c.h"
 #include "wasmedge/wasmedge.h"
 
 #include "../spec/spectest.h"
-#include "helper.h"
-#include "hostfunc_c.h"
 
 #include <cstdint>
 #include <functional>
@@ -29,14 +30,11 @@
 #include <utility>
 #include <vector>
 
-#if defined(linux) || defined(__linux) || defined(__linux__) ||                \
-    defined(__gnu_linux__)
+#if WASMEDGE_OS_LINUX
 #define EXTENSION ".so"sv
-#elif defined(macintosh) || defined(Macintosh) ||                              \
-    (defined(__APPLE__) && defined(__MACH__))
+#elif WASMEDGE_OS_MACOS
 #define EXTENSION ".dylib"sv
-#elif defined(_WIN32) || defined(_WIN64) || defined(__WIN32__) ||              \
-    defined(__TOS_WIN__) || defined(__WINDOWS__)
+#elif WASMEDGE_OS_WINDOWS
 #define EXTENSION ".dll"sv
 #endif
 

@@ -3,6 +3,7 @@
 
 #include "aot/compiler.h"
 #include "common/configure.h"
+#include "common/defines.h"
 #include "common/filesystem.h"
 #include "common/version.h"
 #include "loader/loader.h"
@@ -16,6 +17,14 @@
 #include <string_view>
 #include <utility>
 #include <vector>
+
+#if WASMEDGE_OS_LINUX
+#define EXTENSION ".so"sv
+#elif WASMEDGE_OS_MACOS
+#define EXTENSION ".dylib"sv
+#elif WASMEDGE_OS_WINDOWS
+#define EXTENSION ".dll"sv
+#endif
 
 int main(int Argc, const char *Argv[]) {
   namespace PO = WasmEdge::PO;
@@ -191,7 +200,7 @@ int main(int Argc, const char *Argv[]) {
     if (ConfGenericBinary.value()) {
       Conf.getCompilerConfigure().setGenericBinary(true);
     }
-    if (OutputPath.extension().u8string() == ".so"sv) {
+    if (OutputPath.extension().u8string() == EXTENSION) {
       Conf.getCompilerConfigure().setOutputFormat(
           WasmEdge::CompilerConfigure::OutputFormat::Native);
     }

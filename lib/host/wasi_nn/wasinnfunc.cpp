@@ -194,7 +194,7 @@ WasiNNInitExecCtx::body(Runtime::Instance::MemoryInstance *MemInst,
 
     Ctx.ExecutionsNum = Ctx.OpenVINOInfers.size();
     Ctx.OpenVINOInfers.push_back(Session);
-    Ctx.GraphContextBackends.push_back(GraphId);
+    Ctx.GraphContextBackends.push_back(Ctx.GraphBackends[GraphId]);
     *Context = Ctx.ExecutionsNum;
 
     return static_cast<uint32_t>(WASINN::ErrNo::Success);

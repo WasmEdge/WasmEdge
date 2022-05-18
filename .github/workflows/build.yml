@@ -291,8 +291,8 @@ jobs:
         path: build/WasmEdge-${{ needs.get_version_v2.outputs.version }}-Darwin.tar.gz
 
   build_windows:
-    name: Windows 10
-    runs-on: windows-latest
+    name: Windows Server 2022
+    runs-on: windows-2022
     needs: get_version_v2
     steps:
     - uses: actions/checkout@v2
@@ -316,7 +316,8 @@ jobs:
         $llvm_dir = "$pwd\\LLVM-13.0.1-win64\\LLVM-13.0.1-win64\\lib\\cmake\\llvm"
         $Env:CC = "clang-cl"
         $Env:CXX = "clang-cl"
-        cmake -Bbuild -GNinja -DCMAKE_SYSTEM_VERSION=10.0.19041.0 -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreadedDLL "-DLLVM_DIR=$llvm_dir" -DWASMEDGE_BUILD_TESTS=ON -DWASMEDGE_BUILD_PACKAGE="ZIP" .
+        $cmake_sys_version = "10.0.19041.0"
+        cmake -Bbuild -GNinja "-DCMAKE_SYSTEM_VERSION=$cmake_sys_version" -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreadedDLL "-DLLVM_DIR=$llvm_dir" -DWASMEDGE_BUILD_TESTS=ON -DWASMEDGE_BUILD_PACKAGE="ZIP" .
         cmake --build build
     - name: Test WasmEdge
       continue-on-error: true

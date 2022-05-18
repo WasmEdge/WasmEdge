@@ -270,8 +270,8 @@ jobs:
           asset_content_type: application/x-xz
 
   build_windows:
-    name: Windows 10
-    runs-on: windows-latest
+    name: Windows server 2022
+    runs-on: windows-2022
     needs: create_release
     steps:
     - uses: actions/checkout@v2

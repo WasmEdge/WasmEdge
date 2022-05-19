@@ -25,7 +25,6 @@
 #include <llvm/Passes/PassBuilder.h>
 #include <llvm/Support/FileSystem.h>
 #include <llvm/Support/Host.h>
-#include <llvm/Support/TargetRegistry.h>
 #include <llvm/Support/TargetSelect.h>
 #include <llvm/Target/TargetMachine.h>
 #include <llvm/Transforms/IPO/AlwaysInliner.h>
@@ -39,6 +38,12 @@
 
 #if WASMEDGE_OS_WINDOWS
 #include <llvm/Object/COFF.h>
+#endif
+
+#if LLVM_VERSION_MAJOR >= 14
+#include <llvm/MC/TargetRegistry.h>
+#else
+#include <llvm/Support/TargetRegistry.h>
 #endif
 
 #if LLVM_VERSION_MAJOR >= 12
@@ -137,23 +142,29 @@ static inline constexpr const bool kForceDivCheck = true;
 // Size of a ValVariant
 static inline constexpr const uint32_t kValSize = sizeof(WasmEdge::ValVariant);
 
+#if LLVM_VERSION_MAJOR >= 14
+using LLVMOptimizationLevel = llvm::OptimizationLevel;
+#else
+using LLVMOptimizationLevel = llvm::PassBuilder::OptimizationLevel;
+#endif
+
 // Translate Compiler::OptimizationLevel to llvm::PassBuilder version
-static inline llvm::PassBuilder::OptimizationLevel
+static inline LLVMOptimizationLevel
 toLLVMLevel(WasmEdge::CompilerConfigure::OptimizationLevel Level) {
   using OL = WasmEdge::CompilerConfigure::OptimizationLevel;
   switch (Level) {
   case OL::O0:
-    return llvm::PassBuilder::OptimizationLevel::O0;
+    return LLVMOptimizationLevel::O0;
   case OL::O1:
-    return llvm::PassBuilder::OptimizationLevel::O1;
+    return LLVMOptimizationLevel::O1;
   case OL::O2:
-    return llvm::PassBuilder::OptimizationLevel::O2;
+    return LLVMOptimizationLevel::O2;
   case OL::O3:
-    return llvm::PassBuilder::OptimizationLevel::O3;
+    return LLVMOptimizationLevel::O3;
   case OL::Os:
-    return llvm::PassBuilder::OptimizationLevel::Os;
+    return LLVMOptimizationLevel::Os;
   case OL::Oz:
-    return llvm::PassBuilder::OptimizationLevel::Oz;
+    return LLVMOptimizationLevel::Oz;
   default:
     assumingUnreachable();
   }
@@ -4199,8 +4210,9 @@ Expect<void> outputNativeLibrary(const std::filesystem::path &OutputPath,
   }
 
   // link
+  bool LinkResult = false;
 #if WASMEDGE_OS_MACOS
-  lld::mach_o::link(
+  LinkResult = lld::mach_o::link(
       std::initializer_list<const char *> {
         "lld", "-arch",
 #if defined(__x86_64__)
@@ -4216,35 +4228,46 @@ Expect<void> outputNativeLibrary(const std::filesystem::path &OutputPath,
             ObjectName.c_str(), "-o", OutputPath.u8string().c_str(), "-lSystem"
       },
 #elif WASMEDGE_OS_LINUX
-  lld::elf::link(
+  LinkResult = lld::elf::link(
       std::initializer_list<const char *>{"ld.lld", "--shared", "--gc-sections",
                                           "--discard-all", ObjectName.c_str(),
                                           "-o", OutputPath.u8string().c_str()},
 #elif WASMEDGE_OS_WINDOWS
-  lld::coff::link(
+  LinkResult = lld::coff::link(
       std::initializer_list<const char *>{
           "lld-link", "-dll", "-defaultlib:libcmt", "-base:0", "-nologo",
           ObjectName.c_str(), ("-out:" + OutputPath.u8string()).c_str()},
 #endif
-      false,
-#if LLVM_VERSION_MAJOR >= 10
-      llvm::outs(), llvm::errs()
+
+#if LLVM_VERSION_MAJOR >= 14
+      llvm::outs(), llvm::errs(), false, false
+#elif LLVM_VERSION_MAJOR >= 10
+      false, llvm::outs(), llvm::errs()
 #else
-      llvm::errs()
+      false, llvm::errs()
 #endif
   );
 
-  llvm::sys::fs::remove(ObjectName);
-#if WASMEDGE_OS_WINDOWS
-  std::filesystem::path LibPath(OutputPath);
-  LibPath.replace_extension(".lib"sv);
-  llvm::sys::fs::remove(LibPath.u8string());
+#if LLVM_VERSION_MAJOR >= 14
+  lld::CommonLinkerContext::destroy();
 #endif
-  spdlog::info("compile done");
+
+  if (LinkResult) {
+    llvm::sys::fs::remove(ObjectName);
+#if WASMEDGE_OS_WINDOWS
+    std::filesystem::path LibPath(OutputPath);
+    LibPath.replace_extension(".lib"sv);
+    llvm::sys::fs::remove(LibPath.u8string());
+#endif
+
+    spdlog::info("compile done");
+  } else {
+    spdlog::error("link error");
+  }
 
 #if WASMEDGE_OS_MACOS
   // codesign
-  {
+  if (LinkResult) {
     pid_t PID = ::fork();
     if (PID == -1) {
       spdlog::error("codesign error on fork:{}", std::strerror(errno));

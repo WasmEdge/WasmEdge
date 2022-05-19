@@ -106,6 +106,7 @@ mod module;
 mod statistics;
 mod store;
 pub mod types;
+pub mod vm;
 
 #[doc(inline)]
 #[cfg(feature = "aot")]

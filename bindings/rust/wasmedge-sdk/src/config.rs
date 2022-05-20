@@ -10,7 +10,7 @@ pub struct ConfigBuilder {
     common_config: CommonConfigOptions,
     stat_config: Option<StatisticsConfigOptions>,
     compiler_config: Option<CompilerConfigOptions>,
-    runtim_config: Option<RuntimeConfigOptions>,
+    runtime_config: Option<RuntimeConfigOptions>,
     host_config: Option<HostRegistrationConfigOptions>,
 }
 impl ConfigBuilder {
@@ -20,7 +20,7 @@ impl ConfigBuilder {
             common_config: options,
             stat_config: None,
             compiler_config: None,
-            runtim_config: None,
+            runtime_config: None,
             host_config: None,
         }
     }
@@ -44,7 +44,7 @@ impl ConfigBuilder {
     /// - `options` specifies the [RuntimeConfigOptions] settings to set.
     pub fn with_runtime_config(self, options: RuntimeConfigOptions) -> Self {
         Self {
-            runtim_config: Some(options),
+            runtime_config: Some(options),
             ..self
         }
     }
@@ -101,7 +101,7 @@ impl ConfigBuilder {
             inner.generic_binary(compiler_config.generic_binary);
             inner.interruptible(compiler_config.interruptible);
         }
-        if let Some(runtim_config) = self.runtim_config {
+        if let Some(runtim_config) = self.runtime_config {
             inner.set_max_memory_pages(runtim_config.max_memory_pages);
         }
         if let Some(host_config) = self.host_config {

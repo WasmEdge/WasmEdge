@@ -86,7 +86,6 @@ impl Module {
         for inner_import in self.inner.imports() {
             let import = ImportType {
                 inner: inner_import,
-                // module: &self,
                 _marker: PhantomData,
             };
             imports.push(import);
@@ -105,7 +104,6 @@ impl Module {
         for inner_export in self.inner.exports() {
             let export = ExportType {
                 inner: inner_export,
-                // module: &self,
                 _marker: PhantomData,
             };
             exports.push(export);

@@ -13,46 +13,47 @@ namespace Host {
 
 template <typename T> class WasiNN : public Runtime::HostFunction<T> {
 public:
-  WasiNN(WASINN::WasiNNContext &HostCtx)
-      : Runtime::HostFunction<T>(0), Ctx(HostCtx) {}
+  WasiNN(WASINN::WasiNNEnvironment &HostEnv)
+      : Runtime::HostFunction<T>(0), Env(HostEnv) {}
 
 protected:
-  WASINN::WasiNNContext &Ctx;
+  WASINN::WasiNNEnvironment &Env;
 };
 
 class WasiNNLoad : public WasiNN<WasiNNLoad> {
 public:
-  WasiNNLoad(WASINN::WasiNNContext &HostCtx) : WasiNN(HostCtx) {}
+  WasiNNLoad(WASINN::WasiNNEnvironment &HostEnv) : WasiNN(HostEnv) {}
   Expect<uint32_t> body(Runtime::Instance::MemoryInstance *,
                         uint32_t BuilderPtr, uint32_t BuilderLen,
-                        uint32_t Encoding, uint32_t Target, uint32_t GraphPtr);
+                        uint32_t Encoding, uint32_t Target,
+                        uint32_t GraphIdPtr);
 };
 
 class WasiNNInitExecCtx : public WasiNN<WasiNNInitExecCtx> {
 public:
-  WasiNNInitExecCtx(WASINN::WasiNNContext &HostCtx) : WasiNN(HostCtx) {}
+  WasiNNInitExecCtx(WASINN::WasiNNEnvironment &HostEnv) : WasiNN(HostEnv) {}
   Expect<uint32_t> body(Runtime::Instance::MemoryInstance *, uint32_t GraphId,
                         uint32_t ContextPtr);
 };
 
 class WasiNNSetInput : public WasiNN<WasiNNSetInput> {
 public:
-  WasiNNSetInput(WASINN::WasiNNContext &HostCtx) : WasiNN(HostCtx) {}
+  WasiNNSetInput(WASINN::WasiNNEnvironment &HostEnv) : WasiNN(HostEnv) {}
   Expect<uint32_t> body(Runtime::Instance::MemoryInstance *, uint32_t Context,
                         uint32_t Index, uint32_t TensorPtr);
 };
 
 class WasiNNGetOuput : public WasiNN<WasiNNGetOuput> {
 public:
-  WasiNNGetOuput(WASINN::WasiNNContext &HostCtx) : WasiNN(HostCtx) {}
+  WasiNNGetOuput(WASINN::WasiNNEnvironment &HostEnv) : WasiNN(HostEnv) {}
   Expect<uint32_t> body(Runtime::Instance::MemoryInstance *, uint32_t Context,
-                        uint32_t Index, uint32_t OutBuffer,
+                        uint32_t Index, uint32_t OutBufferPtr,
                         uint32_t OutBufferMaxSize, uint32_t BytesWrittenPtr);
 };
 
 class WasiNNCompute : public WasiNN<WasiNNCompute> {
 public:
-  WasiNNCompute(WASINN::WasiNNContext &HostCtx) : WasiNN(HostCtx) {}
+  WasiNNCompute(WASINN::WasiNNEnvironment &HostEnv) : WasiNN(HostEnv) {}
   Expect<uint32_t> body(Runtime::Instance::MemoryInstance *, uint32_t Context);
 };
 

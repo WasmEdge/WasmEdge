@@ -118,7 +118,6 @@ remove_parsed() {
         fi
     else
         echo "${RED}env file not found${NC}"
-        exit 1
     fi
 }
 

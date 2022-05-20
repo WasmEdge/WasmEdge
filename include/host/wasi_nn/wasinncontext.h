@@ -9,6 +9,7 @@
 #include <vector>
 
 #ifdef WASMEDGE_WASINN_BUILD_OPENVINO
+#include "common/log.h"
 #include <c_api/ie_c_api.h>
 #endif
 
@@ -23,66 +24,99 @@ enum class ErrNo : uint32_t {
   Busy = 3             // Device or resource busy.
 };
 
-using Graph = uint32_t;
-using GraphEncoding = uint8_t;
-using ExecutionTarget = uint8_t;
-using GraphExecutionContext = uint32_t;
+enum class Backend : uint8_t {
+  OpenVINO = 0,
+};
 
-#ifdef WASMEDGE_WASINN_BUILD_OPENVINO
-class OpenVINOSession {
+class Graph {
 public:
-  ~OpenVINOSession() {
-    if (InferRequest != nullptr) {
-      ie_infer_request_free(&(InferRequest));
+#ifdef WASMEDGE_WASINN_BUILD_OPENVINO
+  Graph() = delete;
+  Graph(Backend BE) noexcept
+      : GraphBackend(BE), OpenVINONetwork(nullptr),
+        OpenVINOExecNetwork(nullptr), OpenVINOWeightBlob(nullptr) {}
+  ~Graph() noexcept {
+    if (OpenVINONetwork) {
+      ie_network_free(&OpenVINONetwork);
+    }
+    if (OpenVINOExecNetwork) {
+      ie_exec_network_free(&OpenVINOExecNetwork);
+    }
+    if (OpenVINOWeightBlob) {
+      ie_blob_free(&OpenVINOWeightBlob);
+    }
+    for (auto &I : OpenVINOInputNames) {
+      if (I) {
+        ie_network_name_free(&I);
+      }
+    }
+    for (auto &I : OpenVINOOutputNames) {
+      if (I) {
+        ie_network_name_free(&I);
+      }
     }
   }
-  ie_network_t *Network = nullptr;
-  ie_executable_network_t *ExeNetwork = nullptr;
-  ie_infer_request_t *InferRequest = nullptr;
-};
+#else
+  Graph() noexcept = default;
 #endif
 
-class WasiNNContext {
-public:
-  WasiNNContext() : ModelsNum(-1), ExecutionsNum(-1) {
-    BackendsMapping.emplace("OpenVINO", static_cast<WASINN::GraphEncoding>(0));
-  }
-  ~WasiNNContext() {
+  Backend GraphBackend;
 #ifdef WASMEDGE_WASINN_BUILD_OPENVINO
-    if (OpenVINOCore != nullptr) {
+  ie_network_t *OpenVINONetwork;
+  ie_executable_network_t *OpenVINOExecNetwork;
+  ie_blob_t *OpenVINOWeightBlob;
+  std::vector<char *> OpenVINOInputNames;
+  std::vector<char *> OpenVINOOutputNames;
+#endif
+};
+
+class Context {
+public:
+  Context() = delete;
+#ifdef WASMEDGE_WASINN_BUILD_OPENVINO
+  Context(Graph &G, ie_infer_request_t *InferReq) noexcept
+      : GraphRef(G), OpenVINOInferRequest(InferReq) {}
+  ~Context() noexcept {
+    if (OpenVINOInferRequest) {
+      ie_infer_request_free(&OpenVINOInferRequest);
+    }
+  }
+#else
+  Context(Graph &G) noexcept : GraphRef(G) {}
+#endif
+
+  Graph &GraphRef;
+#ifdef WASMEDGE_WASINN_BUILD_OPENVINO
+  ie_infer_request_t *OpenVINOInferRequest;
+#endif
+};
+
+class WasiNNEnvironment {
+public:
+  WasiNNEnvironment() noexcept {
+#ifdef WASMEDGE_WASINN_BUILD_OPENVINO
+    if (ie_core_create("", &OpenVINOCore) != IEStatusCode::OK) {
+      spdlog::error(
+          "[WASI-NN] Error happened when initializing OpenVINO core.");
+    }
+#endif
+    NNGraph.reserve(16U);
+    NNContext.reserve(16U);
+  }
+  ~WasiNNEnvironment() noexcept {
+    NNContext.clear();
+    NNGraph.clear();
+#ifdef WASMEDGE_WASINN_BUILD_OPENVINO
+    if (OpenVINOCore) {
       ie_core_free(&OpenVINOCore);
     }
-    for (auto &I : OpenVINONetworks) {
-      ie_network_free(&I);
-    }
-    for (auto &I : OpenVINOExecutions) {
-      ie_exec_network_free(&I);
-    }
-    for (auto &I : OpenVINOInfers) {
-      if (I != nullptr) {
-        delete I;
-      }
-    }
-    for (auto &I : OpenVINOModelWeights) {
-      if (I != nullptr) {
-        ie_blob_free(&I);
-      }
-    }
 #endif
   }
 
-  // context for implementing WASI-NN
-  int ModelsNum;
-  int ExecutionsNum;
-  std::vector<GraphEncoding> GraphBackends;
-  std::vector<GraphEncoding> GraphContextBackends;
-  std::map<std::string, GraphEncoding> BackendsMapping;
+  std::vector<Graph> NNGraph;
+  std::vector<Context> NNContext;
 #ifdef WASMEDGE_WASINN_BUILD_OPENVINO
   ie_core_t *OpenVINOCore = nullptr;
-  std::vector<ie_network_t *> OpenVINONetworks;
-  std::vector<ie_executable_network_t *> OpenVINOExecutions;
-  std::vector<ie_blob_t *> OpenVINOModelWeights;
-  std::vector<OpenVINOSession *> OpenVINOInfers;
 #endif
 };
 

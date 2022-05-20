@@ -117,7 +117,7 @@ pub use executor::Executor;
 pub use externals::{Func, FuncRef, FuncTypeBuilder, Global, Memory, Table};
 #[doc(inline)]
 pub use import::{ImportObject, ImportObjectBuilder};
-pub use instance::Instance;
+pub use instance::{Instance, WasiInstance, WasmEdgeProcessInstance};
 #[doc(inline)]
 pub use io::{WasmVal, WasmValType, WasmValTypeList};
 #[doc(inline)]

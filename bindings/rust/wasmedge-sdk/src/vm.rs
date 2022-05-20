@@ -1,4 +1,5 @@
 use crate::{config::Config, ImportObject, Instance, Module, WasmEdgeResult};
+use std::path::Path;
 use wasmedge_sys as sys;
 
 #[derive(Debug)]
@@ -59,6 +60,50 @@ impl Vm {
     //             inner: &mut import.inner,
     //         })
     // }
+
+    /// Registers a WASM module into the [vm](crate::Vm) from a wasm file, and instantiates it.
+    ///
+    /// # Arguments
+    ///
+    /// * `mod_name` - The name for the WASM module to be registered.
+    ///
+    /// * `file` - The target WASM file.
+    ///
+    /// # Error
+    ///
+    /// If fail to register the target WASM, then an error is returned.
+    pub fn register_module_from_file(
+        mut self,
+        mod_name: impl AsRef<str>,
+        file: impl AsRef<Path>,
+    ) -> WasmEdgeResult<Self> {
+        self.inner
+            .register_wasm_from_file(mod_name, file.as_ref())?;
+
+        Ok(self)
+    }
+
+    /// Registers a WASM module from then given in-memory wasm bytes into the [Vm], and instantiates it.
+    ///
+    /// # Arguments
+    ///
+    /// * `mod_name` - The name of the WASM module to be registered.
+    ///
+    /// * `bytes` - The in-memory wasm bytes.
+    ///
+    /// # Error
+    ///
+    /// If fail to register the WASM module, then an error is returned.
+    pub fn register_module_from_bytes(
+        mut self,
+        mod_name: impl AsRef<str>,
+        bytes: impl AsRef<[u8]>,
+    ) -> WasmEdgeResult<Self> {
+        self.inner
+            .register_wasm_from_bytes(mod_name, bytes.as_ref())?;
+
+        Ok(self)
+    }
 
     /// Registers and instantiates a WasmEdge [import object](crate::ImportObject) into this [vm](crate::Vm).
     ///
@@ -264,11 +309,6 @@ impl Vm {
         })
     }
 }
-impl Default for Vm {
-    fn default() -> Self {
-        Self::new(None).unwrap()
-    }
-}
 
 #[cfg(test)]
 mod tests {
@@ -323,6 +363,78 @@ mod tests {
 
         // get the statistics
         // let _stat = vm.statistics_mut();
+    }
+
+    #[test]
+    fn test_vm_register_module_from_file() {
+        // create a Vm context
+        let result = Vm::new(None);
+        assert!(result.is_ok());
+        let vm = result.unwrap();
+
+        // register a wasm module from a specified wasm file
+        let file = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
+            .join("bindings/rust/wasmedge-sys/tests/data/fibonacci.wasm");
+        let result = vm.register_module_from_file("extern", file);
+        assert!(result.is_ok());
+        let vm = result.unwrap();
+
+        assert_eq!(vm.named_instance_count().unwrap(), 1);
+        assert!(vm.instance_names().is_ok());
+        assert_eq!(vm.instance_names().unwrap(), ["extern"]);
+    }
+
+    #[test]
+    fn test_vm_register_module_from_bytes() {
+        // create a Vm context
+        let result = Vm::new(None);
+        assert!(result.is_ok());
+        let vm = result.unwrap();
+
+        // register a wasm module from the given in-memory wasm bytes
+        // load wasm module
+        let result = wat2wasm(
+            br#"(module
+            (export "fib" (func $fib))
+            (func $fib (param $n i32) (result i32)
+             (if
+              (i32.lt_s
+               (get_local $n)
+               (i32.const 2)
+              )
+              (return
+               (i32.const 1)
+              )
+             )
+             (return
+              (i32.add
+               (call $fib
+                (i32.sub
+                 (get_local $n)
+                 (i32.const 2)
+                )
+               )
+               (call $fib
+                (i32.sub
+                 (get_local $n)
+                 (i32.const 1)
+                )
+               )
+              )
+             )
+            )
+           )
+        "#,
+        );
+        assert!(result.is_ok());
+        let wasm_bytes = result.unwrap();
+        let result = vm.register_module_from_bytes("extern", wasm_bytes);
+        assert!(result.is_ok());
+        let vm = result.unwrap();
+
+        assert_eq!(vm.named_instance_count().unwrap(), 1);
+        assert!(vm.instance_names().is_ok());
+        assert_eq!(vm.instance_names().unwrap(), ["extern"]);
     }
 
     #[test]

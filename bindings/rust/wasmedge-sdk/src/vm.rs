@@ -33,34 +33,6 @@ impl Vm {
         })
     }
 
-    // pub fn store_mut(&mut self) -> Store {
-    //     Store {
-    //         inner: &mut self.inner_store,
-    //     }
-    // }
-
-    // pub fn statistics_mut(&mut self) -> Statistics {
-    //     Statistics {
-    //         inner: self.inner_statistics,
-    //     }
-    // }
-
-    // pub fn wasmedge_process_module(&mut self) -> Option<WasmEdgeProcessImportMod> {
-    //     self.imports
-    //         .get_mut(&wasmedge::types::HostRegistration::WasmEdgeProcess)
-    //         .map(|import| WasmEdgeProcessImportMod {
-    //             inner: &mut import.inner,
-    //         })
-    // }
-
-    // pub fn wasi_module(&mut self) -> Option<WasiImportMod> {
-    //     self.imports
-    //         .get_mut(&wasmedge::types::HostRegistration::Wasi)
-    //         .map(|import| WasiImportMod {
-    //             inner: &mut import.inner,
-    //         })
-    // }
-
     /// Registers a WASM module into the [vm](crate::Vm) from a wasm file, and instantiates it.
     ///
     /// # Arguments
@@ -308,13 +280,56 @@ impl Vm {
             inner: inner_instance,
         })
     }
+
+    // pub fn store_mut(&mut self) -> Store {
+    //     Store {
+    //         inner: &mut self.inner_store,
+    //     }
+    // }
+
+    // pub fn statistics_mut(&mut self) -> Statistics {
+    //     Statistics {
+    //         inner: self.inner_statistics,
+    //     }
+    // }
+
+    /// Returns the [Wasi module instance](crate::WasiModule).
+    ///
+    /// Notice that this function is only available when a [config](crate::config::Config) with the enabled [wasi](crate::HostRegistrationConfigOptions::wasi) option is used in the creation of this [Vm].
+    ///
+    /// # Error
+    ///
+    /// If fail to get the [Wasi module instance](crate::WasiModule), then an error is returned.
+    pub fn wasi_module(&mut self) -> WasmEdgeResult<ImportObject> {
+        let inner_wasi_module = self.inner.wasi_module_mut()?;
+
+        Ok(ImportObject(sys::ImportObject::Wasi(inner_wasi_module)))
+    }
+
+    /// Returns the mutable [WasmEdgeProcess module instance](crate::WasmEdgeProcessModule).
+    ///
+    /// Notice that this function is only available when a [config](crate::config::Config) with the enabled [wasmedge_process](crate::HostRegistrationConfigOptions::wasmedge_process) option is used in the creation of this [Vm].
+    ///
+    /// # Error
+    ///
+    /// If fail to get the [WasmEdgeProcess module instance](crate::WasmEdgeProcessModule), then an error is returned.
+    pub fn wasmedge_process_module(&mut self) -> WasmEdgeResult<ImportObject> {
+        let inner_process_module = self.inner.wasmedge_process_module_mut()?;
+
+        Ok(ImportObject(sys::ImportObject::WasmEdgeProcess(
+            inner_process_module,
+        )))
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::{
-        config::{CommonConfigOptions, ConfigBuilder, StatisticsConfigOptions},
+        config::{
+            CommonConfigOptions, ConfigBuilder, HostRegistrationConfigOptions,
+            StatisticsConfigOptions,
+        },
         types::Val,
         Global, ImportObjectBuilder, Memory, Table,
     };
@@ -340,6 +355,26 @@ mod tests {
             let result = Vm::new(Some(config));
             assert!(result.is_ok());
         }
+    }
+
+    #[test]
+    fn test_vm_wasi_module() {
+        let host_reg_options = HostRegistrationConfigOptions::new().wasi(true);
+        let result = ConfigBuilder::new(CommonConfigOptions::default())
+            .with_host_registration_config(host_reg_options)
+            .build();
+        assert!(result.is_ok());
+        let config = result.unwrap();
+
+        // create a vm with the config settings
+        let result = Vm::new(Some(config));
+        assert!(result.is_ok());
+        let mut vm = result.unwrap();
+
+        // get the wasi module
+        let result = vm.wasi_module();
+        assert!(result.is_ok());
+        let wasi_module = result.unwrap();
     }
 
     #[test]

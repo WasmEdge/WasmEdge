@@ -14,7 +14,7 @@ public:
   WasiNNModule();
 
 private:
-  WASINN::WasiNNContext Ctx;
+  WASINN::WasiNNEnvironment Env;
 };
 
 } // namespace Host

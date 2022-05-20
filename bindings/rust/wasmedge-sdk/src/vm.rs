@@ -1,4 +1,7 @@
-use crate::{config::Config, ImportObject, Instance, Module, WasmEdgeResult};
+use crate::{
+    config::Config, ImportObject, Instance, Module, WasiInstance, WasmEdgeProcessInstance,
+    WasmEdgeResult,
+};
 use std::path::Path;
 use wasmedge_sys as sys;
 
@@ -25,6 +28,9 @@ impl Vm {
     ///
     /// If fail to create, then an error is returned.
     pub fn new(config: Option<Config>) -> WasmEdgeResult<Self> {
+        // load wasmedge_process plugins
+        sys::utils::load_plugin_from_default_paths();
+
         let inner_config = config.map(|c| c.inner);
         let inner = sys::Vm::create(inner_config, None)?;
         Ok(Self {
@@ -300,10 +306,12 @@ impl Vm {
     /// # Error
     ///
     /// If fail to get the [Wasi module instance](crate::WasiModule), then an error is returned.
-    pub fn wasi_module(&mut self) -> WasmEdgeResult<ImportObject> {
+    pub fn wasi_module(&mut self) -> WasmEdgeResult<WasiInstance> {
         let inner_wasi_module = self.inner.wasi_module_mut()?;
 
-        Ok(ImportObject(sys::ImportObject::Wasi(inner_wasi_module)))
+        Ok(WasiInstance {
+            inner: inner_wasi_module,
+        })
     }
 
     /// Returns the mutable [WasmEdgeProcess module instance](crate::WasmEdgeProcessModule).
@@ -313,12 +321,12 @@ impl Vm {
     /// # Error
     ///
     /// If fail to get the [WasmEdgeProcess module instance](crate::WasmEdgeProcessModule), then an error is returned.
-    pub fn wasmedge_process_module(&mut self) -> WasmEdgeResult<ImportObject> {
+    pub fn wasmedge_process_module(&mut self) -> WasmEdgeResult<WasmEdgeProcessInstance> {
         let inner_process_module = self.inner.wasmedge_process_module_mut()?;
 
-        Ok(ImportObject(sys::ImportObject::WasmEdgeProcess(
-            inner_process_module,
-        )))
+        Ok(WasmEdgeProcessInstance {
+            inner: inner_process_module,
+        })
     }
 }
 
@@ -374,7 +382,31 @@ mod tests {
         // get the wasi module
         let result = vm.wasi_module();
         assert!(result.is_ok());
-        let wasi_module = result.unwrap();
+        let wasi_instance = result.unwrap();
+
+        assert_eq!(wasi_instance.name(), "wasi_snapshot_preview1");
+    }
+
+    #[test]
+    fn test_vm_wasmedge_process_module() {
+        let host_reg_options = HostRegistrationConfigOptions::new().wasmedge_process(true);
+        let result = ConfigBuilder::new(CommonConfigOptions::default())
+            .with_host_registration_config(host_reg_options)
+            .build();
+        assert!(result.is_ok());
+        let config = result.unwrap();
+
+        // create a vm with the config settings
+        let result = Vm::new(Some(config));
+        assert!(result.is_ok());
+        let mut vm = result.unwrap();
+
+        // get the wasmedge_process module
+        let result = vm.wasmedge_process_module();
+        assert!(result.is_ok());
+        let wasmedge_process_instance = result.unwrap();
+
+        assert_eq!(wasmedge_process_instance.name(), "wasmedge_process");
     }
 
     #[test]

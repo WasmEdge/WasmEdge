@@ -19,7 +19,7 @@ impl Store {
         Ok(Self { inner })
     }
 
-    /// Registers and instantiates a WasmEdge [import object](crate::ImportObject) into this [store](crate::Store), and returns the module instance.
+    /// Registers and instantiates a WasmEdge [import object](crate::ImportObject) into this [store](crate::Store).
     ///
     /// # Arguments
     ///

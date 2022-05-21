@@ -1,13 +1,13 @@
 # 服务器端渲染
 
-前端框架让开发者可以使用高级语言和组件模型来创建 Web 应用程序。 Web 应用程序需要被构建成静态网页，才能在浏览器中渲染。 尽管很多前端框架是基于 JavaScript 的，比如 React 和 Vue，但是随着 Rust 吸引了更多的开发者，基于 Rust 的框架也在不断涌现。 这些前端框架使用由 Rust 编译而成的 WebAssembly 来渲染 HTML DOM UI。 他们使用 [wasm-bindgen](https://github.com/rustwasm/wasm-bindgen) 来绑定 Rust 与 HTML DOM。 这些框架都把 `.wasm` 文件发送到浏览器，在客户端渲染 UI，但其中的一些框架提供了对 [服务端渲染](https://en.wikipedia.org/wiki/Server-side_scripting) 的支持。 这意味着在服务器上运行 WebAssembly 代码，并构建 HTML DOM UI，然后将 HTML 内容发送到浏览器，以此在较慢的设备和网络环境下获得更好的性能以及更快的启动速度。       
+前端框架让开发者可以使用高级语言和组件模型来创建 Web 应用程序。Web 应用程序需要被构建成静态网页，才能在浏览器中渲染。尽管很多前端框架是基于 JavaScript 的，比如 React 和 Vue，但是随着 Rust 吸引了更多的开发者，基于 Rust 的框架也在不断涌现。这些前端框架使用由 Rust 编译而成的 WebAssembly 来渲染 HTML DOM UI。他们使用 [wasm-bindgen](https://github.com/rustwasm/wasm-bindgen) 来绑定 Rust 与 HTML DOM。这些框架都把 `.wasm` 文件发送到浏览器，在客户端渲染 UI，但其中的一些框架提供了对[服务端渲染](https://en.wikipedia.org/wiki/Server-side_scripting)的支持。这意味着我们在服务器上运行 WebAssembly 代码，并构建 HTML DOM UI，然后将 HTML 内容发送到浏览器，以此在较慢的设备和网络环境下获得更好的性能以及更快的启动速度。    
 
 > 如果你对 JavaScript 技术栈以及服务端渲染框架感兴趣，比如 React，请查看我们关于 [JavaScript 服务端渲染的章节](../js/ssr.md)。
 
-本文将探索如果在服务器上使用 WasmEdge 来渲染 Web UI。
-我们选择使用 [Percy](https://github.com/chinedufn/percy)，因为它在服务端渲染以及 [混合开发](https://en.wikipedia.org/wiki/Hydration_(web_development)) 领域较为成熟。 Percy 同样提供了一个服务端渲染的 [示例](https://github.com/chinedufn/percy/tree/master/examples/isomorphic)。 我们强烈建议你先去阅读这个示例，弄清楚它是如何工作的。 Percy 默认的服务端渲染设置使用了一个原生的 Rust Web 服务器。 对于服务器来说，Rust 代码被编译为原生机器码。 然后，为了在服务器上运行用户的应用程序，我们需要一个沙箱。 尽管我们可以在一个 Linux 容器（Docker）中运行原生代码，一个更高效且更快的方法是使用服务器上的 WebAssembly 虚拟机来运行编译好的代码，尤其是考虑到我们渲染的代码已经被编译成了 WebAssembly。
+本文将探索如何在服务器上使用 WasmEdge 来渲染 Web UI。
+我们选择使用 [Percy](https://github.com/chinedufn/percy)，因为它在服务端渲染以及[混合开发](https://en.wikipedia.org/wiki/Hydration_(web_development))领域较为成熟。Percy 同样提供了一个服务端渲染的[示例](https://github.com/chinedufn/percy/tree/master/examples/isomorphic)。我们强烈建议你先去阅读这个示例，弄清楚它是如何工作的。Percy 默认的服务端渲染设置使用了一个原生的 Rust Web 服务器。对于服务器来说，Rust 代码被编译为原生机器码。然后，为了在服务器上运行用户的应用程序，我们需要一个沙箱。尽管我们可以在一个 Linux 容器（Docker）中运行原生代码，一个更高效且更快的方法是使用服务器上的 WebAssembly 虚拟机来运行编译好的代码，尤其是考虑到我们渲染的代码已经被编译成了 WebAssembly。
 
-现在，让我们看一下在一个 WasmEdge 服务器上运行一个 Percy 服务端渲染的服务。
+现在，让我们看一下在一个 WasmEdge 服务器上运行一个 Percy 服务端渲染的服务的步骤。
 
 假设我们在 `examples/isomorphic` 文件夹中，创建一个新的包，和已有的 `server` 在同一个文件夹中。
 
@@ -28,7 +28,7 @@ cargo new server-wasmedge
 wasm-bindgen = { git = "https://github.com/KernelErr/wasm-bindgen.git", branch = "wasi-compat" }
 ```
 
-> 为什么我们需要 `wasm-bindgen` 的一个复刻？ 这是因为 `wasm-bindgen` 是将 Rust 和 浏览器中的 HTML 连接起来必须的胶水。 然而在服务器上，我们需要将 Rust 代码编译为针对 `wasm32-wasi` 目标的代码，这与 `wasm-bindgen` 是不兼容的。 我们复刻版本的 `wasm-bindgen` 有一些条件配置，可以为 `wasm32-wasi` 目标去除生成的 `.wasm` 文件中服务器特定的代码。
+> 为什么我们需要一个 fork 的 `wasm-bindgen`？这是因为在浏览器中， `wasm-bindgen` 是将 Rust 和 HTML 连接起来必须的胶水。然而在服务器上，我们需要将 Rust 代码编译为针对 `wasm32-wasi` 目标的代码，这与 `wasm-bindgen` 是不兼容的。我们 fork 版本的 `wasm-bindgen` 有一些条件配置，可以为 `wasm32-wasi` 目标移除其生成的 .wasm 文件中的浏览器特定代码。
 
 然后使用如下内容覆盖我们刚创建包的 `Cargo.toml`。
 
@@ -49,13 +49,13 @@ serde = { version = "1.0", features = ["derive"] }
 isomorphic-app = { path = "../app" } 
 ```
 
-`wasmedge_wasi_socket` 包是 WasmEdge 的套接字接口。 这个工程还在开发中。 下一步将 `index.html` 文件复制到包的根目录。
+`wasmedge_wasi_socket` 包是 WasmEdge 的 Socket 接口。这个工程还在开发中。下一步将 `index.html` 文件复制到包的根目录。
 
 ```bash
 cp server/src/index.html server-wasmedge/src/
 ```
 
-让我们在 WasmEdge 中创建一个 Web 服务！ `main.rs` 中的代码监听到来的请求，并通过流发送响应。
+让我们用 Rust 代码在 WasmEdge 中创建一个 Web 服务！ `main.rs` 程序监听到来的请求，并通过流发送响应。
 
 ```rust
 use std::io::Write;
@@ -152,7 +152,7 @@ pub fn handle_req(stream: &mut TcpStream, addr: SocketAddr) -> Result<(Response,
 ```
 
 `response.rs` 中的代码将静态资源和服务器渲染的内容打包成响应对象。
-对后者来说，你可以看到服务端渲染发生于 `app.render().to_string()`，产生的字符串替换掉了 HTML 中的占位符。 
+对后者来说，你可以看到服务端渲染发生于 `app.render().to_string()`，产生的字符串替换掉了 HTML 中的占位符。
 
 ```rust
 use crate::mime::MimeType;
@@ -285,7 +285,7 @@ impl MimeType {
 }
 ```
 
-就这么多！ 现在让我们来构建并运行 Web 应用程序。 如果你对原来的示例进行了测试，那你可能已经编译好了客户端的 WebAssembly。
+就这么多！ 现在让我们来构建并运行 Web 应用程序。如果你对原来的示例进行了测试，那你可能已经编译好了客户端的 WebAssembly。
 
 ```bash
 cd client
@@ -330,4 +330,4 @@ runner = "wasmedge --dir /static:../client/build"
 
 在这之后，只需要运行一个命令 `./start-wasmedge.sh` 就可以执行所有任务，构建并运行我们的 Web 应用程序！
 
-我们也复刻了 Percy 仓库，为你创建了一个可以直接构建的 [示例](https://github.com/second-state/percy/tree/master/examples/isomorphic/server-wasmedge)。 尽情享受编程的乐趣吧！
+我们也 fork 了 Percy 仓库，为你创建了一个可以直接构建的[示例](https://github.com/second-state/percy/tree/master/examples/isomorphic/server-wasmedge)。尽情享受编程的乐趣吧！

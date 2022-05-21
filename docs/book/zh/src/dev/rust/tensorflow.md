@@ -1,10 +1,10 @@
 # Tensorflow
 
-AI 推理是一个计算密集任务，可以从 Rust 和 WebAssembly 的速度中受益颇多。 然而，标准的 WebAssembly 沙箱只提供了对原生操作系统和硬件非常有限的访问权限，比如多核 CPU、GPU 和专用的 AI 推理芯片。 对 AI 的负载来说，它也不理想。
+AI 推理是一个计算密集任务，可以从 Rust 和 WebAssembly 的速度中受益颇多。然而，标准的 WebAssembly 沙箱只提供了对原生操作系统和硬件非常有限的访问权限，比如多核 CPU、GPU 和专用的 AI 推理芯片。对 AI 的负载来说，它也不理想。
 
-著名的 WebAssembly 系统接口（WASI）提供了一种设计模式，可以让沙箱中的 WebAssembly 程序安全地访问原生宿主函数。 WasmEdge 运行时拓展了 WASI 的模型，支持在 WebAssembly 程序中直接访问原生 Tensorflow 的库。 [WasmEdge Tensorflow Rust SDK](https://github.com/second-state/wasmedge_tensorflow_interface) 提供了安全、便携、易用、高速的方式来使用 Tensorflow。
+WebAssembly 系统接口（WASI）提供了一种设计模式，可以让沙箱中的 WebAssembly 程序安全地访问原生宿主函数。WasmEdge Runtime 拓展了 WASI 的模型，支持在 WebAssembly 程序中直接访问原生 Tensorflow 的库。[WasmEdge Tensorflow Rust SDK](https://github.com/second-state/wasmedge_tensorflow_interface) 提供了安全、便携、易用的方式，以本地速度来运行 Tensorflow。
 
-> 如果你对 Rust 不熟悉，可以尝试我们的 [实验性的 AI 推理示例](https://github.com/second-state/wasm-learning/tree/master/cli/classify_yml) 和 [JavaScript 示例](../js/tensorflow.md).
+> 如果你对 Rust 不熟悉，可以尝试我们的[实验性的 DSL AI 推理示例](https://github.com/second-state/wasm-learning/tree/master/cli/classify_yml)和 [JavaScript 示例](../js/tensorflow.md)。
 
 ## 目录
 
@@ -54,9 +54,9 @@ It is very likely a <a href='https://www.google.com/search?q=military uniform'>m
 
 ### 浏览代码
 
-使用 WasmEdge Tensorflow API 是很直观的。 你可以在 [`main.rs`](https://github.com/second-state/wasm-learning/blob/master/cli/tflite/src/main.rs) 中阅读完整的源代码。
+使用 WasmEdge Tensorflow API 是很直观的。你可以在 [`main.rs`](https://github.com/second-state/wasm-learning/blob/master/cli/tflite/src/main.rs) 中阅读完整的源代码。
 
-首先，它加载了在 ImageNet 上训练好的 TFLite 模型文件，以及对应的标签文件。 标签文件中存储了模型输出的数值与待分类对象的英文名字的映射。
+首先，它加载了在 ImageNet 上训练好的 TFLite 模型文件，以及对应的标签文件。标签文件中存储了模型输出的数值与待分类对象的英文名字的映射。
 
 ```rust
   let model_data: &[u8] = include_bytes!("models/mobilenet_v1_1.0_224/mobilenet_v1_1.0_224_quant.tflite");
@@ -72,7 +72,7 @@ It is very likely a <a href='https://www.google.com/search?q=military uniform'>m
   let flat_img = wasmedge_tensorflow_interface::load_jpg_image_to_rgb8(&buf, 224, 224);
 ```
 
-然后，程序运行了 TFLite 模型，输入模型所需的张量（这里指图像），接收模型的输出（这里指一个包含了数字的数组）。每一个数字都对应了位于标签文件中的一个对象的概率。
+然后，程序运行了 TFLite 模型，输入模型所需的张量（这里指图像），接收模型的输出（这里指一个包含了数字的数组）。每一个数字都对应了标签文件中的一个对象的概率。
 
 ```rust
   let mut session = wasmedge_tensorflow_interface::Session::new(&model_data, wasmedge_tensorflow_interface::ModelType::TensorFlowLite);
@@ -115,11 +115,11 @@ It is very likely a <a href='https://www.google.com/search?q=military uniform'>m
 
 ## 部署选项
 
-以下的所有教程都使用了 [Tensorflow 的 WasmEdge Rust API](https://github.com/second-state/wasmedge_tensorflow_interface) 来创建 AI 推理函数。 这些 Rust 函数被编译成 WebAssembly 然后随着 WasmEdge 一起被部署在云上。
+以下的所有教程都使用了 [Tensorflow 的 WasmEdge Rust API](https://github.com/second-state/wasmedge_tensorflow_interface) 来创建 AI 推理函数。这些 Rust 函数被编译成 WebAssembly 然后随着 WasmEdge 一起被部署在云上。
 
 ### Serverless 函数
 
-以下的教程展示了如果在公共的 Serverless 平台上部署使用 Rust 编写的 WebAssembly 程序。 WasmEdge 运行时在这些平台上的 Docker 容器中运行。 每一个 Serverless 平台都提供了让 WasmEdge 运行时通过 `STDIN` 和 `STDOUT` 获取并输出数据的接口。
+以下的教程展示了如何在公有云的 Serverless 平台上部署使用 Rust 编写的 WebAssembly 程序。WasmEdge Runtime 在这些平台上的 Docker 容器中运行。每一个 Serverless 平台都提供了让 WasmEdge Runtime 通过 `STDIN` 和 `STDOUT` 获取并输出数据的接口。
 
 * [Vercel Serverless 函数](https://www.secondstate.io/articles/vercel-wasmedge-webassembly-rust/)
 * [Netlify 函数](https://www.secondstate.io/articles/netlify-wasmedge-webassembly-rust-serverless/)
@@ -128,19 +128,19 @@ It is very likely a <a href='https://www.google.com/search?q=military uniform'>m
 
 ### Second Sate FaaS 和 Node.js
 
-以下的教程展示了如何在 Second State FaaS 平台上部署使用 Rust 编写的 WebAssembly 程序。 由于 FaaS 服务在 Node.js 上运行，你可以按照这些教程在你自己的 Node.js 服务器上运行这些函数。
+以下的教程展示了如何在 Second State FaaS 平台上部署使用 Rust 编写的 WebAssembly 程序。由于 FaaS 服务在 Node.js 上运行，你可以按照这些教程在你自己的 Node.js 服务器上运行这些函数。
 
 * [Tensorflow：使用 MobileNet 来进行图像分类](https://www.secondstate.io/articles/faas-image-classification/) | [在线演示](https://second-state.github.io/wasm-learning/faas/mobilenet/html/index.html)
 * [Tensorflow：使用 MTCNN 模型来进行人脸识别](https://www.secondstate.io/articles/faas-face-detection/) | [在线演示](https://second-state.github.io/wasm-learning/faas/mtcnn/html/index.html)
 
 ### 服务网格
 
-以下的教程展示了如何将使用 Rust 编写的 WebAssembly 函数和程序部署为边车微服务。
+以下的教程展示了如何将使用 Rust 编写的 WebAssembly 函数和程序部署为 sidecar 微服务。
 
-* [Dapr 模板](https://github.com/second-state/dapr-wasm) 展示了如何使用 Go 和 Rust 来构建、部署 Dapr 边车应用。 然后这些边车应用使用 WasmEdge SDK 来启动处理微服务负载的 WebAssembly 程序。
+* [Dapr 模板](https://github.com/second-state/dapr-wasm)展示了如何使用 Go 和 Rust 来构建、部署 Dapr  sidecar 应用。然后这些 sidecar 应用使用 WasmEdge SDK 来启动处理微服务负载的 WebAssembly 程序。
 
 ### 数据流框架
 
-以下的教程展示了如何将使用 Rust 编写的 WebAssembly 函数和程序部署为嵌入在为AIoT建立的数据流框架中的处理函数。
+以下的教程展示了如何将使用 Rust 编写的 WebAssembly 函数和程序部署为嵌入在为 AIoT 建立的数据流框架中的处理函数。
 
-* [YoMo 模板](https://www.secondstate.io/articles/yomo-wasmedge-real-time-data-streams/) 启动了 WasmEdge 运行时来处理来自一个智能工厂的摄像头数据流中的图像数据。
+* [YoMo 模板](https://www.secondstate.io/articles/yomo-wasmedge-real-time-data-streams/)启动了 WasmEdge Runtime 来处理来自一个智能工厂的摄像头数据流中的图像数据。

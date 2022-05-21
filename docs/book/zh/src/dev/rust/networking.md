@@ -1,12 +1,12 @@
 # 简单网络通信
 
-[wasmedge_wasi_socket](https://github.com/second-state/wasmedge_wasi_socket) 让 Rust 开发者可以创建简单的网络通信应用程序，然后将它编译为在 WasmEdge 运行时中运行的 WebAssembly。 WasmEdge 的一项关键特性便是对非阻塞套接字的支持，可以让一个单线程的 WASM 应用程序处理并发的网络请求。比如，当程序在等待一个连接传输的数据时，它可以开始或处理另一个连接。
+[wasmedge_wasi_socket](https://github.com/second-state/wasmedge_wasi_socket) 让 Rust 开发者可以创建简单的网络通信应用程序，然后将它编译为在 WasmEdge Runtime 中运行的 WebAssembly。WasmEdge 的一项关键特性便是对非阻塞套接字的支持，可以让一个单线程的 WASM 应用程序处理并发的网络请求。比如，当程序在等待一个连接传输的数据时，它可以开始或处理另一个连接。
 
-在本章节中，我们将从一个简单的 HTTP 客户端以及服务器示例开始。 然后在下个章节中，我们会介绍更为复杂的非阻塞示例。
+在本章节中，我们将从一个简单的 HTTP 客户端以及服务器示例开始。然后在下个章节中，我们会介绍更为复杂的非阻塞示例。
 
 ## HTTP 客户端示例
 
-HTTP 客户端的 [源代码](https://github.com/second-state/wasmedge_wasi_socket/tree/main/examples/http_client) 如下。
+HTTP 客户端的[源代码](https://github.com/second-state/wasmedge_wasi_socket/tree/main/examples/http_client) 如下。
 
 ```rust
 use wasmedge_http_req::request;
@@ -47,7 +47,7 @@ wasmedge target/wasm32-wasi/release/http_client.wasm
 
 ## HTTP 服务器示例
 
-HTTP 服务器的 [源代码](https://github.com/second-state/wasmedge_wasi_socket/tree/main/examples/http_server) 如下。
+HTTP 服务器的[源代码](https://github.com/second-state/wasmedge_wasi_socket/tree/main/examples/http_server) 如下。
 
 ```rust
 use bytecodec::DecodeExt;

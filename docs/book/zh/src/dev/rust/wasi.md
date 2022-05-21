@@ -2,11 +2,11 @@
 
 WASI（WebAssembly 系统接口）标准被设计来让 WebAssembly 应用程序可以访问操作系统服务。
 Rust 编译器中的 `wasm32-wasi` 目标支持 WASI。
-在这一部分中，我们将使用 [一个示例工程](https://github.com/second-state/wasm-learning/tree/master/cli/wasi) 来展示如何使用 Rust 的标准库来访问操作系统服务。
+在这一部分中，我们将使用[一个示例工程](https://github.com/second-state/wasm-learning/tree/master/cli/wasi)来展示如何使用 Rust 的标准库来访问操作系统服务。
 
 ## 随机数
 
-WebAssembly 虚拟机是一个纯软件实现，它不具有生成随机数必须的硬件资源。 这就是 WASI 为 WebAssembly 定义了一个从宿主操作系统获取一个随机种子的函数的原因。 作为一个 Rust 开发者，你需要做的只是使用受欢迎的 `rand` 或者 `getrandom` 包。 得益于 `wasm32-wasi` 编译器后端，这些包将在 WebAssembly 字节码中生成正确的 WASI 调用。 如下是 `Cargo.toml` 中的依赖部分。
+WebAssembly 虚拟机是一个纯软件实现，它不具有生成随机数必须的硬件资源。这就是 WASI 为 WebAssembly 定义了一个从宿主操作系统获取一个随机种子的函数的原因。作为一个 Rust 开发者，你需要做的只是使用受欢迎的 `rand` 或者 `getrandom` 包。得益于 `wasm32-wasi` 编译器后端，这些包将在 WebAssembly 字节码中生成正确的 WASI 调用。如下是 `Cargo.toml` 中的依赖部分。
 
 ```toml
 [dependencies]
@@ -34,7 +34,7 @@ pub fn get_random_bytes() -> Vec<u8> {
 
 ## 从 Rust 中输出和调试
 
-Rust 中的 `println!` 宏同样可以用在 WASI 中。 下面的语句向运行 WasmEdge 的进程的 `STDOUT` 输出。
+Rust 中的 `println!` 宏同样可以用在 WASI 中。下面的语句向运行 WasmEdge 的进程的 `STDOUT` 输出。
 
 ```rust
 pub fn echo(content: &str) -> String {
@@ -66,8 +66,8 @@ pub fn print_env() {
 
 ## 读写文件
 
-WASI 让你可以通过标准的 Rust `std::fs` 接口来访问宿主的文件系统。 
-在 Rust 程序中，你通过相对路径来操作文件，相对路径的根目录可以在启动 WasmEdge 运行时的时候被指定。
+WASI 让你可以通过标准的 Rust `std::fs` 接口来访问宿主的文件系统。
+在 Rust 程序中，你通过相对路径来操作文件，相对路径的根目录可以在启动 WasmEdge Runtime 的时候被指定。
 
 ```rust
 use std::fs;
@@ -115,7 +115,7 @@ fn main() {
 cargo build --target wasm32-wasi
 ```
 
-使用如下命令在 `wasmedge` 中运行它。 `--dir` 选项将命令行当前的目录映射为 ＷebAssembly 程序中文件系统的当前目录。
+使用如下命令在 `wasmedge` 中运行它。`--dir` 选项将命令行当前的目录映射为 ＷebAssembly 程序中文件系统的当前目录。
 
 ```bash
 $ wasmedge --dir .:. target/wasm32-wasi/debug/wasi.wasm hello
@@ -132,9 +132,8 @@ File content is This is in a file
 
 ## 函数
 
-正如我们之前看到的，你可以在 Rust `lib.rs` 中创建 WebAssembly 函数。 在这些函数中，你同样可以使用 WASI 函数。  
-然而，需要注意的是，没有 `main()` 函数的情况下，你将会需要显式地调用一个辅助函数来初始化环境，以此让 WASI 函数正常工作。 
-在 Rust 程序中，添加一个辅助包，这样的话 WASI 初始化代码将会应用在你被导出的公开库函数上。
+正如[我们之前看到的](../rust.md#一个简单的函数)，你可以在 Rust `lib.rs` 中创建 WebAssembly 函数。在这些函数中，你同样可以使用 WASI 函数。然而，需要注意的是，没有 `main()` 函数的情况下，你将会需要显式地调用一个辅助函数来初始化环境，以此让 WASI 函数正常工作。
+在 Cargo.toml 中添加一个辅助包，这样的话 WASI 初始化代码将会应用在你导出的的公开库函数上。
 
 ```toml
 [dependencies]
@@ -142,7 +141,7 @@ File content is This is in a file
 wasmedge-wasi-helper = "=0.2.0"
 ```
 
-在 Rust 函数中，我们需要在访问任何参数和环境变量，或者操作任何文件之前调用 `_initialize()` 函数。
+在访问任何参数和环境变量或者操作任何文件之前，我们需要调用 _initialize() 函数。
 
 ```rust
 pub fn print_env() -> i32 {

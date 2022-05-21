@@ -1,11 +1,22 @@
 
 # 并行计算斐波那契数
 
+## 前置条件
+
+这个示例使用了如下的包：
+
+* wasmedge-sys v0.7.0
+* wasmedge-types v0.1.1
+
+## 概述
+
 在这个例子中，我们将演示如何使用 `wasmedge-sys` 中定义的对象和 API 来并行地计算斐波那契数。
 
-在下面的代码中，我们创建了两个子线程，`thread_a` 和 `thread_b`，它们分别负责通过调用宿主函数 `fib` 来计算 `Fib(4)` 和 `Fib(5)`。 之后，主线程通过将 `thread_a` 和 `thread_b` 返回的数字相加来计算 `Fib(6)`。
+## 示例
 
-* 第一步：创建一个 Vm 上下文并注册 WebAssembly 模块。
+在下面的代码中，我们创建了两个子线程，`thread_a` 和 `thread_b`，它们分别负责通过调用宿主函数 `fib` 来计算 `Fib(4)` 和 `Fib(5)`。之后，主线程通过将 `thread_a` 和 `thread_b` 返回的数字相加来计算 `Fib(6)`。
+
+### 第一步：创建一个 Vm 上下文并注册 WebAssembly 模块。
 
     ```rust
     // create a Config context
@@ -24,7 +35,7 @@
     vm.register_wasm_from_file("extern", file)?;
     ```
 
-* 第二步：创建两个子线程，分别计算 `Fib(4)` 和 `Fib(5)`。
+### 第二步：创建两个子线程，分别计算 `Fib(4)` 和 `Fib(5)`。
 
     ```rust
     let vm = Arc::new(Mutex::new(vm));
@@ -59,7 +70,7 @@
 
     ```
 
-* 第三步：从两个子线程中获取返回值，计算 `Fib(6)`。
+### 第三步：从两个子线程中获取返回值，计算 `Fib(6)`。
 
     ```Rust
     let fib4 = handle_a.join().unwrap();

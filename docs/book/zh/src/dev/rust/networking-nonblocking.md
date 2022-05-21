@@ -1,10 +1,10 @@
 # 非阻塞的网络通信
 
-尽管上一章节中的 HTTP 连接实现起来很容易，但他们并不适合在生产环境使用。 如果程序一次只允许一个连接开启（阻塞），CPU 将不得不等待缓慢的网络。 非阻塞 I/O 意味着程序可以同时保持多个连接开启，并处理这些连接传输的数据。 程序可以轮询这些开启的连接，或是等待输入的数据触发异步函数。 这将让 I/O 密集的程序在单线程环境中运行得非常快。 在这一章中，我们将介绍轮询和异步编程模型。
+尽管上一章节中的 HTTP 连接实现起来很容易，但他们并不适合在生产环境使用。如果程序一次只允许一个连接开启（阻塞），CPU 将不得不等待缓慢的网络。非阻塞 I/O 意味着程序可以同时保持多个连接开启，并处理这些连接传输的数据。程序可以轮询这些开启的连接，或是等待输入的数据触发异步函数。这将让 I/O 密集的程序在单线程环境中运行得非常快。在这一章中，我们将介绍轮询和异步编程模型。
 
 ## 非阻塞 HTTP 客户端示例
 
-非阻塞的 HTTP 客户端程序的 [源代码在这里](https://github.com/second-state/wasmedge_wasi_socket/tree/main/examples/nonblock_http_client)。 下面的 `main()` 函数开启了两个 HTTP 连接。 它同时保持两个连接开启，并轮流查看是否有数据传输进来。 换句话说，这两个连接并不会相互阻塞。 他们的数据在传输进来的时候被同时（或者轮流）处理。
+非阻塞的 HTTP 客户端程序的[源代码在这里](https://github.com/second-state/wasmedge_wasi_socket/tree/main/examples/nonblock_http_client)。下面的 `main()` 函数开启了两个 HTTP 连接。它同时保持两个连接开启，并轮流查看是否有数据传输进来。换句话说，这两个连接并不会相互阻塞。他们的数据在传输进来的时候被同时（或者轮流）处理。
 
 ```rust
 use httparse::{Response, EMPTY_HEADER};
@@ -88,7 +88,7 @@ wasmedge target/wasm32-wasi/release/nonblock_http_client.wasm
 ## 非阻塞 HTTP 服务器示例
 
 
-非阻塞的 HTTP 服务器程序的 [源代码在这里](https://github.com/second-state/wasmedge_wasi_socket/tree/main/examples/poll_http_server)。 下面的 `main()` 函数开启了一个 HTTP 服务器。 它同时从多个开启的连接中接收事件，并通过调用注册在每个连接的异步处理函数来处理这些事件。 服务器可以同时从多个开启的连接中处理事件。
+非阻塞的 HTTP 服务器程序的 [源代码在这里](https://github.com/second-state/wasmedge_wasi_socket/tree/main/examples/poll_http_server)。下面的 `main()` 函数开启了一个 HTTP 服务器。它同时从多个开启的连接中接收事件，并通过调用注册在每个连接的异步处理函数来处理这些事件。服务器可以同时从多个开启的连接中处理事件。
 
 ```rust
 fn main() -> std::io::Result<()> {
@@ -148,7 +148,7 @@ fn main() -> std::io::Result<()> {
 }
 ```
 
-`handle_connection()` 函数处理来自于开启的连接的数据。 当前它只是将请求的内容写回响应中。 这同样是以异步的形式完成的，意味着 `handle_connection()` 函数为响应创建了一个事件，然后将事件放入了一个队列中。 主程序循环处理这些事件，并在等待来自其他连接的数据时发送这些响应。
+`handle_connection()` 函数处理来自于开启的连接的数据。当前它只是将请求的内容写回响应中。这同样是以异步的形式完成的，意味着 `handle_connection()` 函数为响应创建了一个事件，然后将事件放入了一个队列中。主程序循环处理这些事件，并在等待来自其他连接的数据时发送这些响应。
 
 ```rust
 fn handle_connection(

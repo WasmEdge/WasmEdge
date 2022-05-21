@@ -36,7 +36,7 @@ wasmedgec ./target/wasm32-wasi/release/rustpython.wasm ./target/wasm32-wasi/rele
 wasmedge ./target/wasm32-wasi/release/rustpython.wasm
 ```
 
-然后你可以在 WebAssembly 中得到一个 Python脚本！
+然后你可以在 WebAssembly 中得到一个Python shell交互解释器！
 
 ## 授予文件系统访问权限
 

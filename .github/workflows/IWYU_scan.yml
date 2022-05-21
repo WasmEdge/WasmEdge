@@ -52,10 +52,10 @@ jobs:
       run: |
         dnf update -y
         dnf install -y cmake ninja-build boost llvm llvm-devel lld-devel clang git file rpm-build dpkg-dev clang-devel
-        curl -L -O https://github.com/include-what-you-use/include-what-you-use/archive/refs/tags/0.17.zip
-        unzip  0.17.zip
+        curl -L -O https://github.com/include-what-you-use/include-what-you-use/archive/refs/tags/0.18.zip
+        unzip  0.18.zip
         mkdir build && cd build
-        cmake -G "Unix Makefiles" ../include-what-you-use-0.17
+        cmake -G "Unix Makefiles" ../include-what-you-use-0.18
         make -j
         make install
         cd ..

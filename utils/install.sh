@@ -58,6 +58,10 @@ _extractor() {
                 continue
             fi
             if [ ! -d "$IPATH/$filtered" ] && [[ ! "$filtered" =~ "download_dependencies" ]]; then
+                if [[ "$filtered" =~ "Plugin" ]] || [[ "$filtered" =~ "plugin" ]]; then
+                    # Plugins installation is handled in install function
+                    continue
+                fi
                 if [[ "$2" =~ "lib" ]] && [[ ! "$IPATH/$filtered" =~ "/lib/" ]]; then
                     echo "#$IPATH/lib/$filtered" >>"$IPATH/env"
                     local _re_
@@ -370,6 +374,18 @@ install() {
             else
                 cp -rf "$TMP_DIR/$dir"/lib/* "$IPATH/$var"
             fi
+            for _file_ in "$IPATH/$var/wasmedge/"*; do
+                if [[ "$_file_" =~ "Plugin" ]] || [[ "$_file_" =~ "plugin" ]]; then
+                    local _plugin_name_=${_file_##*/}
+                    if [[ "$IPATH" =~ ^"/usr/" ]]; then
+                        echo "#$_file_" >>"$IPATH/env"
+                    else
+                        mv "$_file_" "$IPATH/plugin/$_plugin_name_"
+                        echo "#$IPATH/plugin/$_plugin_name_" >>"$IPATH/env"
+                        rmdir "${_file_/$_plugin_name_/}"
+                    fi
+                fi
+            done
         else
             cp -rf "$TMP_DIR/$dir/$var"/* "$IPATH/$var"
         fi
@@ -616,6 +632,7 @@ main() {
     set_ENV "$IPATH"
     mkdir -p "$IPATH"
     mkdir -p "$TMP_DIR"
+    [[ "$IPATH" =~ ^"/usr/" ]] || mkdir -p "$IPATH/plugin"
 
     echo "$ENV" >"$IPATH/env"
     echo "# Please do not edit comments below this for uninstallation purpose" >>"$IPATH/env"

@@ -18,7 +18,7 @@ cd RustPython
 cargo build --release --target wasm32-wasi --features="freeze-stdlib"
 ```
 
-为了能够在二进制文件中包含 Python 标准库，需要启用`freeze-stdlib`特性。输出文件可以在 `target/wasm32-wasi/release/rustpython.wasm`找到。
+为了能够在二进制文件中包含 Python 标准库，需要启用 `freeze-stdlib` 特性。输出文件可以在 `target/wasm32-wasi/release/rustpython.wasm` 找到。
 
 ## AOT 编译
 
@@ -28,7 +28,7 @@ WasmEdge 支持将 WebAssembly 字节码程序编译为机器码以获得更好�
 wasmedgec ./target/wasm32-wasi/release/rustpython.wasm ./target/wasm32-wasi/release/rustpython.wasm
 ```
 
-从0.9.0开始，WasmEdge引入了 [通用 Wasm 二进制格式](https://wasmedge.org/book/en/start/universal.html)。所以你可以使用 `.wasm` 扩展来生成跨运行时兼容的格式，或者使用 `.so` 来生成 Linux 共享库格式。
+从 0.9.0 开始，WasmEdge引入了[通用 Wasm 二进制格式](https://wasmedge.org/book/en/start/universal.html)。所以你可以使用 `.wasm` 扩展来生成跨运行时兼容的格式，或者使用 `.so` 来生成 Linux 共享库格式。
 
 ## 运行
 
@@ -36,11 +36,11 @@ wasmedgec ./target/wasm32-wasi/release/rustpython.wasm ./target/wasm32-wasi/rele
 wasmedge ./target/wasm32-wasi/release/rustpython.wasm
 ```
 
-然后你可以在 WebAssembly 中得到一个Python shell交互解释器！
+然后你可以在 WebAssembly 中得到一个 Python shell 交互解释器！
 
 ## 授予文件系统访问权限
 
-可以预先打开目录，让WASI程序有权限读写真机上存储的文件。以下命令将当前工作目录挂载到 WASI 虚拟文件系统。
+可以预先打开目录，让 WASI 程序有权限读写真机上存储的文件。以下命令将当前工作目录挂载到 WASI 虚拟文件系统。
 
 ```bash
 wasmedge --dir .:. ./target/wasm32-wasi/release/rustpython.wasm

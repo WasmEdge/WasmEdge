@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include "host/wasi_nn/wasinncontext.h"
+#include "host/wasi_nn/wasinnenv.h"
 #include "runtime/instance/module.h"
 
 namespace WasmEdge {

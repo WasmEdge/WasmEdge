@@ -152,6 +152,7 @@ fn aot_call_interpreter() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 #[cfg_attr(test, test)]
+#[cfg(not(target_os = "macos"))]
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // The function in interpreter mode calls the functions in AOT mode
     interpreter_call_aot()?;

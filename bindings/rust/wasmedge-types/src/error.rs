@@ -209,6 +209,8 @@ pub enum VmError {
     Create,
     #[error("Fail to get the type of the target function ({0})")]
     NotFoundFuncType(String),
+    #[error("Fail to get module instance ({0})")]
+    NotFoundModule(String),
     #[error("Fail to get Wasi module instance")]
     NotFoundWasiModule,
     #[error("Fail to get WasmEdge_Process module instance")]

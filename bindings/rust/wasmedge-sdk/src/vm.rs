@@ -4,6 +4,7 @@ use crate::{
 };
 use std::path::Path;
 use wasmedge_sys as sys;
+use wasmedge_types::FuncType;
 
 #[derive(Debug)]
 pub struct Vm {
@@ -137,102 +138,139 @@ impl Vm {
         Ok(self)
     }
 
-    // pub fn run_func(
-    //     &mut self,
-    //     mod_name: Option<&str>,
-    //     func_name: impl AsRef<str>,
-    //     args: impl IntoIterator<Item = Value>,
-    // ) -> Result<Vec<Value>> {
-    //     let returns = match mod_name {
-    //         Some(mod_name) => {
-    //             // run a function in the registered module
-    //             self.inner_executor.run_func_registered(
-    //                 &mut self.inner_store,
-    //                 mod_name,
-    //                 func_name.as_ref(),
-    //                 args,
-    //             )?
-    //         }
-    //         None => {
-    //             // run a function in the active module
-    //             self.inner_executor
-    //                 .run_func(&mut self.inner_store, func_name.as_ref(), args)?
-    //         }
-    //     };
+    /// Resets the [Vm].
+    pub fn reset(&mut self) {
+        self.inner.reset()
+    }
 
-    //     Ok(returns)
-    // }
+    /// Runs an exported WASM function registered in a named or active module.
+    ///
+    /// # Arguments
+    ///
+    /// * `mod_name` - The name of the module instance, which holds the target exported function. If `None`, then the active module is used.
+    ///
+    /// * `func_name` - The name of the exported WASM function to run.
+    ///
+    /// * `params` - The parameter values passed to the exported WASM function.
+    ///
+    /// # Error
+    ///
+    /// If fail to run the WASM function, then an error is returned.
+    pub fn run_func(
+        &mut self,
+        mod_name: Option<&str>,
+        func_name: impl AsRef<str>,
+        args: impl IntoIterator<Item = sys::WasmValue>,
+    ) -> WasmEdgeResult<Vec<sys::WasmValue>> {
+        let returns = match mod_name {
+            Some(mod_name) => {
+                // run a function in the registered module
+                self.inner
+                    .run_registered_function(mod_name, func_name.as_ref(), args)?
+            }
+            None => {
+                // run a function in the active module
+                self.inner.run_function(func_name.as_ref(), args)?
+            }
+        };
 
-    // pub fn reset(&mut self) {
-    //     self.inner.reset()
-    // }
+        Ok(returns)
+    }
 
-    // pub fn run_hostfunc_from_file(
-    //     &mut self,
-    //     file: impl AsRef<Path>,
-    //     func_name: impl AsRef<str>,
-    //     args: impl IntoIterator<Item = Value>,
-    // ) -> Result<Vec<Value>> {
-    //     // load module from file
-    //     let module = self.inner_loader.from_file(file)?;
+    /// Returns the type of a WASM function.
+    ///
+    /// # Arguments
+    ///
+    /// * `mod_name` - The name of the module [instance](crate::Instance), which holds the target function. if `None`, then the active module is used.
+    ///
+    /// * `func_name` - The name of the target function.
+    ///
+    /// # Error
+    ///
+    /// If fail to get the function type, then an error is returned.
+    pub fn func_ty(
+        &mut self,
+        mod_name: Option<&str>,
+        func_name: impl AsRef<str>,
+    ) -> WasmEdgeResult<FuncType> {
+        let func_ty = match mod_name {
+            Some(mod_name) => self
+                .inner
+                .get_registered_function_type(mod_name, func_name.as_ref())?,
+            None => self.inner.get_function_type(func_name.as_ref())?,
+        };
 
-    //     // validate module
-    //     self.inner_validator.validate(&module)?;
+        Ok(func_ty.into())
+    }
 
-    //     // instantiate the module
-    //     self.inner_executor
-    //         .register_active_module(&mut self.inner_store, &module)?;
+    /// Invokes an exported function from the given wasm file.
+    ///
+    /// # Arguments
+    ///
+    /// * `file` - The WASM file.
+    ///
+    /// * `func_name` - The name of the target exported function to run.
+    ///
+    /// * `args` - The arguments passed to the target exported function.
+    ///
+    /// # Error
+    ///
+    /// If fail to run, then an error is returned.
+    pub fn run_func_from_file(
+        &mut self,
+        file: impl AsRef<Path>,
+        func_name: impl AsRef<str>,
+        args: impl IntoIterator<Item = sys::WasmValue>,
+    ) -> WasmEdgeResult<Vec<sys::WasmValue>> {
+        self.inner
+            .run_wasm_from_file(file.as_ref(), func_name.as_ref(), args)
+    }
 
-    //     // run function
-    //     let returns = self
-    //         .inner_executor
-    //         .run_func(&mut self.inner_store, func_name, args)?;
+    /// Invokes an exported function from the given in-memory wasm bytes.
+    ///
+    /// # Arguments
+    ///
+    /// * `bytes` - The in-memory wasm bytes.
+    ///
+    /// * `func_name` - The name of the target exported function to run.
+    ///
+    /// * `args` - The arguments passed to the target exported function.
+    ///
+    /// # Error
+    ///
+    /// If fail to run, then an error is returned.
+    pub fn run_func_from_bytes(
+        mut self,
+        bytes: &[u8],
+        func_name: impl AsRef<str>,
+        args: impl IntoIterator<Item = sys::WasmValue>,
+    ) -> WasmEdgeResult<Vec<sys::WasmValue>> {
+        self.inner
+            .run_wasm_from_bytes(bytes, func_name.as_ref(), args)
+    }
 
-    //     Ok(returns)
-    // }
-
-    // pub fn run_hostfunc_from_buffer(
-    //     mut self,
-    //     buffer: &[u8],
-    //     func_name: impl AsRef<str>,
-    //     args: impl IntoIterator<Item = Value>,
-    // ) -> Result<Vec<Value>> {
-    //     // load module from buffer
-    //     let module = self.inner_loader.from_buffer(buffer)?;
-
-    //     // validate module
-    //     self.inner_validator.validate(&module)?;
-
-    //     // instantiate the module
-    //     self.inner_executor
-    //         .register_active_module(&mut self.inner_store, &module)?;
-
-    //     // run function
-    //     let returns = self
-    //         .inner_executor
-    //         .run_func(&mut self.inner_store, func_name, args)?;
-
-    //     Ok(returns)
-    // }
-
-    // // run a function in the given module. The module must be validated.
-    // pub fn run_hostfunc_from_module(
-    //     mut self,
-    //     module: Module,
-    //     func_name: impl AsRef<str>,
-    //     args: impl IntoIterator<Item = Value>,
-    // ) -> Result<Vec<Value>> {
-    //     // instantiate the module
-    //     self.inner_executor
-    //         .register_active_module(&mut self.inner_store, &module.inner)?;
-
-    //     // run function
-    //     let returns = self
-    //         .inner_executor
-    //         .run_func(&mut self.inner_store, func_name, args)?;
-
-    //     Ok(returns)
-    // }
+    /// Invokes an exported function from the given [compiled module](crate::Module).
+    ///
+    /// # Arguments
+    ///
+    /// * `module` - A [compiled module](crate::Module).
+    ///
+    /// * `func_name` - The name of the target exported function to run.
+    ///
+    /// * `args` - The arguments passed to the target exported function.
+    ///
+    /// # Error
+    ///
+    /// If fail to run, then an error is returned.
+    pub fn run_func_from_module(
+        mut self,
+        module: Module,
+        func_name: impl AsRef<str>,
+        args: impl IntoIterator<Item = sys::WasmValue>,
+    ) -> WasmEdgeResult<Vec<sys::WasmValue>> {
+        self.inner
+            .run_wasm_from_module(module.inner, func_name.as_ref(), args)
+    }
 
     /// Returns the count of the named [module instances](crate::Instance) in this [store](crate::Store).
     ///
@@ -338,6 +376,8 @@ mod tests {
             CommonConfigOptions, ConfigBuilder, HostRegistrationConfigOptions,
             StatisticsConfigOptions,
         },
+        io::WasmVal,
+        params,
         types::Val,
         Global, ImportObjectBuilder, Memory, Table,
     };
@@ -345,6 +385,279 @@ mod tests {
     use wasmedge_types::{
         wat2wasm, GlobalType, MemoryType, Mutability, RefType, TableType, ValType,
     };
+
+    #[test]
+    fn test_vm_run_func_from_file() {
+        // create a Vm context
+        let result = Vm::new(None);
+        assert!(result.is_ok());
+        let mut vm = result.unwrap();
+
+        // register a wasm module from a specified wasm file
+        let file = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
+            .join("bindings/rust/wasmedge-sys/tests/data/fibonacci.wasm");
+
+        // run `fib` function from the wasm file
+        let result = vm.run_func_from_file(file, "fib", params!(10));
+        assert!(result.is_ok());
+        let returns = result.unwrap();
+        assert_eq!(returns.len(), 1);
+        assert_eq!(returns[0].to_i32(), 89);
+    }
+
+    #[test]
+    fn test_vm_run_func_from_bytes() {
+        // create a Vm context
+        let result = Vm::new(None);
+        assert!(result.is_ok());
+        let vm = result.unwrap();
+
+        // register a wasm module from the given in-memory wasm bytes
+        // load wasm module
+        let result = wat2wasm(
+            br#"(module
+            (export "fib" (func $fib))
+            (func $fib (param $n i32) (result i32)
+             (if
+              (i32.lt_s
+               (get_local $n)
+               (i32.const 2)
+              )
+              (return
+               (i32.const 1)
+              )
+             )
+             (return
+              (i32.add
+               (call $fib
+                (i32.sub
+                 (get_local $n)
+                 (i32.const 2)
+                )
+               )
+               (call $fib
+                (i32.sub
+                 (get_local $n)
+                 (i32.const 1)
+                )
+               )
+              )
+             )
+            )
+           )
+        "#,
+        );
+        assert!(result.is_ok());
+        let wasm_bytes = result.unwrap();
+
+        // run `fib` function from the wasm bytes
+        let result = vm.run_func_from_bytes(&wasm_bytes, "fib", params!(10));
+        assert!(result.is_ok());
+        let returns = result.unwrap();
+        assert_eq!(returns.len(), 1);
+        assert_eq!(returns[0].to_i32(), 89);
+    }
+
+    #[test]
+    fn test_vm_run_func_from_module() {
+        // create a Vm context
+        let result = Vm::new(None);
+        assert!(result.is_ok());
+        let vm = result.unwrap();
+
+        // load wasm module
+        let result = wat2wasm(
+            br#"(module
+            (export "fib" (func $fib))
+            (func $fib (param $n i32) (result i32)
+             (if
+              (i32.lt_s
+               (get_local $n)
+               (i32.const 2)
+              )
+              (return
+               (i32.const 1)
+              )
+             )
+             (return
+              (i32.add
+               (call $fib
+                (i32.sub
+                 (get_local $n)
+                 (i32.const 2)
+                )
+               )
+               (call $fib
+                (i32.sub
+                 (get_local $n)
+                 (i32.const 1)
+                )
+               )
+              )
+             )
+            )
+           )
+        "#,
+        );
+        assert!(result.is_ok());
+        let wasm_bytes = result.unwrap();
+        let result = Module::from_bytes(None, wasm_bytes);
+        assert!(result.is_ok());
+        let module = result.unwrap();
+
+        // run `fib` function from the compiled module
+        let result = vm.run_func_from_module(module, "fib", params!(10));
+        assert!(result.is_ok());
+        let returns = result.unwrap();
+        assert_eq!(returns.len(), 1);
+        assert_eq!(returns[0].to_i32(), 89);
+    }
+
+    #[test]
+    fn test_vm_run_func_in_named_module_instance() {
+        // create a Vm context
+        let result = Vm::new(None);
+        assert!(result.is_ok());
+        let vm = result.unwrap();
+
+        // register a wasm module from the given in-memory wasm bytes
+        // load wasm module
+        let result = wat2wasm(
+            br#"(module
+            (export "fib" (func $fib))
+            (func $fib (param $n i32) (result i32)
+             (if
+              (i32.lt_s
+               (get_local $n)
+               (i32.const 2)
+              )
+              (return
+               (i32.const 1)
+              )
+             )
+             (return
+              (i32.add
+               (call $fib
+                (i32.sub
+                 (get_local $n)
+                 (i32.const 2)
+                )
+               )
+               (call $fib
+                (i32.sub
+                 (get_local $n)
+                 (i32.const 1)
+                )
+               )
+              )
+             )
+            )
+           )
+        "#,
+        );
+        assert!(result.is_ok());
+        let wasm_bytes = result.unwrap();
+        let result = vm.register_module_from_bytes("extern", wasm_bytes);
+        assert!(result.is_ok());
+        let mut vm = result.unwrap();
+
+        // get func type of `fib`
+        let result = vm.func_ty(Some("extern"), "fib");
+        assert!(result.is_ok());
+        let func_ty = result.unwrap();
+        assert_eq!(func_ty.args_len(), 1);
+        let args = func_ty.args();
+        assert!(args.is_some());
+        let args = args.unwrap();
+        assert_eq!(args, [ValType::I32]);
+        assert_eq!(func_ty.returns_len(), 1);
+        let returns = func_ty.returns();
+        assert!(returns.is_some());
+        let returns = returns.unwrap();
+        assert_eq!(returns, [ValType::I32]);
+
+        // run `fib` function in the named module instance
+        let result = vm.run_func(Some("extern"), "fib", params!(10));
+        assert!(result.is_ok());
+        let returns = result.unwrap();
+        assert_eq!(returns.len(), 1);
+        assert_eq!(returns[0].to_i32(), 89);
+    }
+
+    #[test]
+    fn test_vm_run_func_in_active_module_instance() {
+        // create a Vm context
+        let result = Vm::new(None);
+        assert!(result.is_ok());
+        let vm = result.unwrap();
+
+        // load wasm module
+        let result = wat2wasm(
+            br#"(module
+            (export "fib" (func $fib))
+            (func $fib (param $n i32) (result i32)
+             (if
+              (i32.lt_s
+               (get_local $n)
+               (i32.const 2)
+              )
+              (return
+               (i32.const 1)
+              )
+             )
+             (return
+              (i32.add
+               (call $fib
+                (i32.sub
+                 (get_local $n)
+                 (i32.const 2)
+                )
+               )
+               (call $fib
+                (i32.sub
+                 (get_local $n)
+                 (i32.const 1)
+                )
+               )
+              )
+             )
+            )
+           )
+        "#,
+        );
+        assert!(result.is_ok());
+        let wasm_bytes = result.unwrap();
+        let result = Module::from_bytes(None, wasm_bytes);
+        assert!(result.is_ok());
+        let module = result.unwrap();
+
+        // register the wasm module into vm
+        let result = vm.register_module(None, module);
+        assert!(result.is_ok());
+        let mut vm = result.unwrap();
+
+        // get func type of `fib`
+        let result = vm.func_ty(None, "fib");
+        assert!(result.is_ok());
+        let func_ty = result.unwrap();
+        assert_eq!(func_ty.args_len(), 1);
+        let args = func_ty.args();
+        assert!(args.is_some());
+        let args = args.unwrap();
+        assert_eq!(args, [ValType::I32]);
+        assert_eq!(func_ty.returns_len(), 1);
+        let returns = func_ty.returns();
+        assert!(returns.is_some());
+        let returns = returns.unwrap();
+        assert_eq!(returns, [ValType::I32]);
+
+        // run `fib` function in the active module instance
+        let result = vm.run_func(None, "fib", params!(10));
+        assert!(result.is_ok());
+        let returns = result.unwrap();
+        assert_eq!(returns.len(), 1);
+        assert_eq!(returns[0].to_i32(), 89);
+    }
 
     #[test]
     fn test_vm_create() {
@@ -426,7 +739,7 @@ mod tests {
         // create a Vm context
         let result = Vm::new(Some(config));
         assert!(result.is_ok());
-        let mut vm = result.unwrap();
+        let _vm = result.unwrap();
 
         // get the statistics
         // let _stat = vm.statistics_mut();

@@ -413,7 +413,7 @@ mod tests {
 
         // create an ImportModule instance
         let result = ImportObjectBuilder::new()
-            .with_func::<(i32, i32), i32>("add", Box::new(real_add))
+            .with_func::<(i32, i32), i32>("add", real_add)
             .expect("failed to add host function")
             .with_global("global", global_const)
             .expect("failed to add const global")

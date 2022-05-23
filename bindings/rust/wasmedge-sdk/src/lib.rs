@@ -131,9 +131,6 @@ pub use vm::Vm;
 
 use wasmedge_sys::types::WasmValue;
 
-/// Alias type for host function
-pub type HostFunc = wasmedge_sys::BoxedFn;
-
 /// The object that is used to perform a [host function](crate::Func) is required to implement this trait.
 pub trait Engine {
     /// Runs a host function instance and returns the results.

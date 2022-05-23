@@ -47,7 +47,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let module_name = "extern";
     let _import = ImportObjectBuilder::new()
         // add a function
-        .with_func::<(i32, i32), i32>("add", Box::new(real_add))?
+        .with_func::<(i32, i32), i32>("add", real_add)?
         // add a global
         .with_global("global", global_const)?
         // add a memory

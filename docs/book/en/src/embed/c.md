@@ -7,7 +7,7 @@ The WasmEdge C API also the fundamental API for other languages' SDK.
 ## Quick Start Guide for the WasmEdge runner
 
 The following is an example for running a WASM file.
-Assume that the WASM file [fibonacci.wasm](https://github.com/WasmEdge/WasmEdge/raw/master/tools/wasmedge/examples/fibonacci.wasm) is copied into the current directory, and the C file `test_wasmedge.c` is as following:
+Assume that the WASM file [fibonacci.wasm](https://github.com/WasmEdge/WasmEdge/raw/master/examples/wasm/fibonacci.wasm) is copied into the current directory, and the C file `test_wasmedge.c` is as following:
 
 ```c
 #include <wasmedge/wasmedge.h>
@@ -52,7 +52,7 @@ Get result: 3524578
 
 ## Quick Start Guide for the WasmEdge AOT compiler
 
-Assume that the WASM file [fibonacci.wasm](https://github.com/WasmEdge/WasmEdge/raw/master/tools/wasmedge/examples/fibonacci.wasm) is copied into the current directory, and the C file `test_wasmedge_compiler.c` is as following:
+Assume that the WASM file [fibonacci.wasm](https://github.com/WasmEdge/WasmEdge/raw/master/examples/wasm/fibonacci.wasm) is copied into the current directory, and the C file `test_wasmedge_compiler.c` is as following:
 
 ```c
 #include <wasmedge/wasmedge.h>

@@ -47,7 +47,7 @@ $ docker run --rm -v $(pwd):/app -it wasmedge/appdev_x86_64:0.9.0
 
 ### Hello world
 
-[hello.wasm](https://github.com/WasmEdge/WasmEdge/raw/master/tools/wasmedge/examples/hello.wasm) 这个 WebAssembly 程序中包含一个 `main()` 函数。
+[hello.wasm](https://github.com/WasmEdge/WasmEdge/raw/master/examples/wasm/hello.wasm) 这个 WebAssembly 程序中包含一个 `main()` 函数。
 [查看该程序的 Rust 源码项目。](https://github.com/second-state/wasm-learning/tree/master/cli/hello)
 它将打印 `hello`，以及所有的命令行参数。
 
@@ -60,7 +60,7 @@ state
 
 ### 调用一个 Rust 函数
 
-[add.wasm](https://github.com/WasmEdge/WasmEdge/raw/master/tools/wasmedge/examples/add.wasm) 这个 WebAssembly 程序包含一个 `add()` 函数。
+[add.wasm](https://github.com/WasmEdge/WasmEdge/raw/master/examples/wasm/add.wasm) 这个 WebAssembly 程序包含一个 `add()` 函数。
 [查看该程序的 Rust 源码项目。](https://github.com/second-state/wasm-learning/tree/master/cli/add)
 我们在反应器模式下使用 WasmEdge 来调用 `add()`，并给它 2 个整数作为输入参数。
 
@@ -71,7 +71,7 @@ $ wasmedge --reactor add.wasm add 2 2
 
 ### 调用一个 WAT 函数
 
-我们手动创建了 [fibonacci.wat](https://github.com/WasmEdge/WasmEdge/raw/master/tools/wasmedge/examples/fibonacci.wat) 程序，并使用了 [wat2wasm](https://github.com/WebAssembly/wabt) 编译器来构建 [fibonacci.wasm](https://github.com/WasmEdge/WasmEdge/raw/master/tools/wasmedge/examples/fibonacci.wasm) 这个 WebAssembly 程序。
+我们手动创建了 [fibonacci.wat](https://github.com/WasmEdge/WasmEdge/raw/master/examples/wasm/fibonacci.wat) 程序，并使用了 [wat2wasm](https://github.com/WebAssembly/wabt) 编译器来构建 [fibonacci.wasm](https://github.com/WasmEdge/WasmEdge/raw/master/examples/wasm/fibonacci.wasm) 这个 WebAssembly 程序。
 它包含了一个 `fib()` 函数，这个函数以一个整数作为输入参数。我们在反应器模式下使用 WasmEdge 来调用这个导出函数。
 
 ```bash
@@ -104,7 +104,7 @@ CLI工具支持 `--gas-limit` 标志，用于控制执行的成本。
 
 ```bash
 # cd <path/to/WasmEdge>
-$ cd tools/wasmedge/examples
+$ cd examples/wasm
 # gas 足够时
 $ wasmedge --enable-all-statistics --gas-limit 20425 hello.wasm second state
 hello
@@ -139,16 +139,16 @@ $ wasmedge --enable-all-statistics --gas-limit 20 hello.wasm second state
 
 WasmEdge 也可以作为一个高性能、安全、可扩展、易于部署且[遵循 Kubernetes](https://github.com/second-state/wasmedge-containers-examples) 的 JavaScript 运行时。
 
-[qjs.wasm](https://github.com/WasmEdge/WasmEdge/raw/master/tools/wasmedge/examples/js/qjs.wasm) 是一个被编译为 WebAssembly 的 JavaScript 解释器。
-[hello.js](https://github.com/WasmEdge/WasmEdge/raw/master/tools/wasmedge/examples/js/hello.js) 是一个非常简单的 JavaScript 程序。
+[qjs.wasm](https://github.com/WasmEdge/WasmEdge/raw/master/examples/js/qjs.wasm) 是一个被编译为 WebAssembly 的 JavaScript 解释器。
+[hello.js](https://github.com/WasmEdge/WasmEdge/raw/master/examples/js/hello.js) 是一个非常简单的 JavaScript 程序。
 
 ```bash
 $ wasmedge --dir .:. qjs.wasm hello.js 1 2 3
 Hello 1 2 3
 ```
 
-[qjs_tf.wasm](https://github.com/WasmEdge/WasmEdge/raw/master/tools/wasmedge/examples/js/qjs_tf.wasm) 则是一个 WebAssembly 版本的 JavaScript 解释器（带有 [Tensorflow 扩展](https://www.secondstate.io/articles/wasi-tensorflow/)）。
-要想运行 [qjs_tf.wasm](https://github.com/WasmEdge/WasmEdge/raw/master/tools/wasmedge/examples/js/qjs_tf.wasm)，你必须使用 `wasmedge-tensorflow-lite` 这个命令行工具；这个工具里内置了包含 Tensorflow 扩展的 WasmEdge 构建版本。
+[qjs_tf.wasm](https://github.com/WasmEdge/WasmEdge/raw/master/examples/js/qjs_tf.wasm) 则是一个 WebAssembly 版本的 JavaScript 解释器（带有 [Tensorflow 扩展](https://www.secondstate.io/articles/wasi-tensorflow/)）。
+要想运行 [qjs_tf.wasm](https://github.com/WasmEdge/WasmEdge/raw/master/examples/js/qjs_tf.wasm)，你必须使用 `wasmedge-tensorflow-lite` 这个命令行工具；这个工具里内置了包含 Tensorflow 扩展的 WasmEdge 构建版本。
 你可以下载一个[基于 Tensorflow 的完整 JavaScript 示例](https://github.com/second-state/wasmedge-quickjs/tree/main/example_js/tensorflow_lite_demo)来对图像进行分类。
 
 ```bash

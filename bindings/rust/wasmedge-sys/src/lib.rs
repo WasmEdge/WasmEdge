@@ -139,7 +139,8 @@ pub use instance::{
     global::{Global, GlobalType},
     memory::{MemType, Memory},
     module::{
-        ImportInstance, ImportModule, ImportObject, Instance, WasiModule, WasmEdgeProcessModule,
+        AsInstance, ImportInstance, ImportModule, ImportObject, Instance, WasiModule,
+        WasmEdgeProcessModule,
     },
     table::{Table, TableType},
 };

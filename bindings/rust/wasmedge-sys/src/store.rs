@@ -90,27 +90,15 @@ impl Store {
     ///
     /// * `name` - The name of the module to search.
     ///
-    /// # Error
-    ///
-    /// If fail to find, then an error is returned.
-    pub fn contains(&self, name: impl AsRef<str>) -> WasmEdgeResult<()> {
+    pub fn contains(&self, name: impl AsRef<str>) -> bool {
         if self.module_len() == 0 {
-            return Err(WasmEdgeError::Store(StoreError::NotFoundModule(
-                name.as_ref().into(),
-            )));
+            return false;
         }
 
-        let result = self
-            .module_names()
-            .ok_or_else(|| WasmEdgeError::Store(StoreError::NotFoundModule(name.as_ref().into())));
-
-        let names = result.unwrap();
-        if names.iter().all(|x| x != name.as_ref()) {
-            return Err(WasmEdgeError::Store(StoreError::NotFoundModule(
-                name.as_ref().into(),
-            )));
+        match self.module_names() {
+            Some(names) => names.iter().any(|x| x == name.as_ref()),
+            None => false,
         }
-        Ok(())
     }
 }
 impl Drop for Store {

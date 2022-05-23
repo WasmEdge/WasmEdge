@@ -1,21 +1,14 @@
 use crate::{
-    config::Config, ImportObject, Instance, Module, WasiInstance, WasmEdgeProcessInstance,
-    WasmEdgeResult,
+    config::Config, ImportObject, Instance, Module, Statistics, WasiInstance,
+    WasmEdgeProcessInstance, WasmEdgeResult,
 };
-use std::path::Path;
+use std::{marker::PhantomData, path::Path};
 use wasmedge_sys as sys;
 use wasmedge_types::FuncType;
 
 #[derive(Debug)]
 pub struct Vm {
     pub(crate) inner: sys::Vm,
-    // _inner_config: wasmedge::Config,
-    // inner_store: wasmedge::Store,
-    // pub(crate) inner_loader: wasmedge::Loader,
-    // pub(crate) inner_validator: wasmedge::Validator,
-    // inner_executor: wasmedge::Executor,
-    // inner_statistics: wasmedge::Statistics,
-    // imports: HashMap<wasmedge::types::HostRegistration, ImportMod>,
     active_module: Option<Module>,
 }
 impl Vm {
@@ -325,17 +318,15 @@ impl Vm {
         })
     }
 
-    // pub fn store_mut(&mut self) -> Store {
-    //     Store {
-    //         inner: &mut self.inner_store,
-    //     }
-    // }
+    /// Returns the internal [statistics instance](crate::Statistics) from the [Vm].
+    pub fn statistics(&self) -> WasmEdgeResult<Statistics> {
+        let inner_stat = self.inner.statistics_mut()?;
 
-    // pub fn statistics_mut(&mut self) -> Statistics {
-    //     Statistics {
-    //         inner: self.inner_statistics,
-    //     }
-    // }
+        Ok(Statistics {
+            inner: inner_stat,
+            _marker: PhantomData,
+        })
+    }
 
     /// Returns the [Wasi module instance](crate::WasiModule).
     ///
@@ -674,6 +665,11 @@ mod tests {
 
             // create a Vm context
             let result = Vm::new(Some(config));
+            assert!(result.is_ok());
+            let vm = result.unwrap();
+
+            // get statistics
+            let result = vm.statistics();
             assert!(result.is_ok());
         }
     }

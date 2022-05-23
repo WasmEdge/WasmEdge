@@ -15,9 +15,9 @@ RUN npm install wasmedge-core
 
 RUN mkdir -p /root/examples
 WORKDIR /root/examples
-RUN wget https://github.com/WasmEdge/WasmEdge/raw/master/tools/wasmedge/examples/hello.wasm &&\
-    wget https://github.com/WasmEdge/WasmEdge/raw/master/tools/wasmedge/examples/js/qjs.wasm &&\
-    wget https://github.com/WasmEdge/WasmEdge/raw/master/tools/wasmedge/examples/js/hello.js &&\
-    wget https://github.com/WasmEdge/WasmEdge/raw/master/tools/wasmedge/examples/js/repl.js
+RUN wget https://github.com/WasmEdge/WasmEdge/raw/master/examples/wasm/hello.wasm &&\
+    wget https://github.com/WasmEdge/WasmEdge/raw/master/examples/js/qjs.wasm &&\
+    wget https://github.com/WasmEdge/WasmEdge/raw/master/examples/js/hello.js &&\
+    wget https://github.com/WasmEdge/WasmEdge/raw/master/examples/js/repl.js
 
 ENTRYPOINT ["/bin/bash", "-l"]

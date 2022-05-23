@@ -15,11 +15,11 @@ RUN npm install wasmedge-extensions
 
 RUN mkdir -p /root/examples
 WORKDIR /root/examples
-RUN wget https://github.com/WasmEdge/WasmEdge/raw/master/tools/wasmedge/examples/hello.wasm &&\
-    wget https://github.com/WasmEdge/WasmEdge/raw/master/tools/wasmedge/examples/js/qjs.wasm &&\
-    wget https://github.com/WasmEdge/WasmEdge/raw/master/tools/wasmedge/examples/js/hello.js &&\
-    wget https://github.com/WasmEdge/WasmEdge/raw/master/tools/wasmedge/examples/js/repl.js &&\
-    wget https://github.com/WasmEdge/WasmEdge/raw/master/tools/wasmedge/examples/js/qjs_tf.wasm &&\
+RUN wget https://github.com/WasmEdge/WasmEdge/raw/master/examples/wasm/hello.wasm &&\
+    wget https://github.com/WasmEdge/WasmEdge/raw/master/examples/js/qjs.wasm &&\
+    wget https://github.com/WasmEdge/WasmEdge/raw/master/examples/js/hello.js &&\
+    wget https://github.com/WasmEdge/WasmEdge/raw/master/examples/js/repl.js &&\
+    wget https://github.com/WasmEdge/WasmEdge/raw/master/examples/js/qjs_tf.wasm &&\
     wget -O tf_image_classify.js https://raw.githubusercontent.com/second-state/wasmedge-quickjs/main/example_js/tensorflow_lite_demo/main.js &&\
     wget https://github.com/second-state/wasmedge-quickjs/raw/main/example_js/tensorflow_lite_demo/lite-model_aiy_vision_classifier_food_V1_1.tflite &&\
     wget https://github.com/second-state/wasmedge-quickjs/raw/main/example_js/tensorflow_lite_demo/food.jpg &&\

@@ -11,7 +11,7 @@ WasmEdge can act as a cloud-native JavaScript runtime by embedding a JS executio
   * [Embed JavaScript in Rust](https://www.secondstate.io/articles/embed-javascript-in-rust/)
   * [Create JavaScript API using Rust functions](https://www.secondstate.io/articles/embed-rust-in-javascript/)
   * [Call C native shared library functions from JavaScript](https://www.secondstate.io/articles/call-native-functions-from-javascript/)
-* [Examples](https://github.com/WasmEdge/WasmEdge/blob/master/tools/wasmedge/examples/js/README.md)
+* [Examples](https://github.com/WasmEdge/WasmEdge/blob/master/examples/js/README.md)
 * [WasmEdge’s embedded QuickJS engine](https://github.com/second-state/wasmedge-quickjs)
 
 ## DSL for image classification

@@ -11,7 +11,7 @@ WasmEdge 可以透過嵌入 JS 執行引擎或直譯器來作為雲端原生 Jav
   * [在 Rust 中嵌入 JavaScript](https://www.secondstate.io/articles/embed-javascript-in-rust/)
   * [用 Rust 函式建立 JavaScript API](https://www.secondstate.io/articles/embed-rust-in-javascript/)
   * [從 JavaScript 呼叫共享函式庫中的 C 原生函數](https://www.secondstate.io/articles/call-native-functions-from-javascript/)
-* [範例](https://github.com/WasmEdge/WasmEdge/blob/master/tools/wasmedge/examples/js/README.md)
+* [範例](https://github.com/WasmEdge/WasmEdge/blob/master/examples/js/README.md)
 * [WasmEdge 的内嵌 QuickJS 引擎](https://github.com/second-state/wasmedge-quickjs)
 
 ## 用於影像辨識的 DSL

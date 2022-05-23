@@ -199,7 +199,7 @@ ohos_static_library("wasmedgeVM") {
 }
 
 ohos_prebuilt_etc("wasmedge_hello") {
-  source = "$WASMEDGE_ROOT_DIR/tools/wasmedge/examples/hello.wasm"
+  source = "$WASMEDGE_ROOT_DIR/examples/wasm/hello.wasm"
   
   module_install_dir = "usr/wasmedge_example/"
   part_name = "wasmedge"
@@ -207,7 +207,7 @@ ohos_prebuilt_etc("wasmedge_hello") {
 }
 
 ohos_prebuilt_etc("wasmedge_add") {
-  source = "$WASMEDGE_ROOT_DIR/tools/wasmedge/examples/add.wasm"
+  source = "$WASMEDGE_ROOT_DIR/examples/wasm/add.wasm"
   
   module_install_dir = "usr/wasmedge_example/"
   part_name = "wasmedge"
@@ -215,7 +215,7 @@ ohos_prebuilt_etc("wasmedge_add") {
 }
 
 ohos_prebuilt_etc("wasmedge_fibonacci") {
-  source = "$WASMEDGE_ROOT_DIR/tools/wasmedge/examples/fibonacci.wasm"
+  source = "$WASMEDGE_ROOT_DIR/examples/wasm/fibonacci.wasm"
   
   module_install_dir = "usr/wasmedge_example/"
   part_name = "wasmedge"
@@ -223,7 +223,7 @@ ohos_prebuilt_etc("wasmedge_fibonacci") {
 }
 
 ohos_prebuilt_etc("wasmedge_factorial") {
-  source = "$WASMEDGE_ROOT_DIR/tools/wasmedge/examples/factorial.wasm"
+  source = "$WASMEDGE_ROOT_DIR/examples/wasm/factorial.wasm"
   
   module_install_dir = "usr/wasmedge_example/"
   part_name = "wasmedge"
@@ -231,7 +231,7 @@ ohos_prebuilt_etc("wasmedge_factorial") {
 }
 
 ohos_prebuilt_etc("wasmedge_js_hello") {
-  source = "$WASMEDGE_ROOT_DIR/tools/wasmedge/examples/js/hello.js"
+  source = "$WASMEDGE_ROOT_DIR/examples/js/hello.js"
   
   module_install_dir = "usr/wasmedge_example/js/"
   part_name = "wasmedge"
@@ -239,7 +239,7 @@ ohos_prebuilt_etc("wasmedge_js_hello") {
 }
 
 ohos_prebuilt_etc("wasmedge_js_qjs") {
-  source = "$WASMEDGE_ROOT_DIR/tools/wasmedge/examples/js/qjs.wasm"
+  source = "$WASMEDGE_ROOT_DIR/examples/js/qjs.wasm"
   
   module_install_dir = "usr/wasmedge_example/js/"
   part_name = "wasmedge"

@@ -126,6 +126,8 @@ pub use module::{ExportType, ImportType, Module};
 pub use statistics::Statistics;
 #[doc(inline)]
 pub use store::Store;
+#[doc(inline)]
+pub use vm::Vm;
 
 use wasmedge_sys::types::WasmValue;
 

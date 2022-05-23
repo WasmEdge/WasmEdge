@@ -1,3 +1,5 @@
+//! Defines WasmEdge Vm struct.
+
 use crate::{
     config::Config, ImportObject, Instance, Module, Statistics, WasiInstance,
     WasmEdgeProcessInstance, WasmEdgeResult,
@@ -6,13 +8,14 @@ use std::{marker::PhantomData, path::Path};
 use wasmedge_sys as sys;
 use wasmedge_types::FuncType;
 
+/// A [Vm] defines a virtual environment for managing WebAssembly programs.
 #[derive(Debug)]
 pub struct Vm {
     pub(crate) inner: sys::Vm,
     active_module: Option<Module>,
 }
 impl Vm {
-    /// Creates a new [Vm] to be associated with the given [configuration](crate::Config).
+    /// Creates a new [Vm] to be associated with the given [configuration](crate::config::Config).
     ///
     /// # Arguments
     ///
@@ -328,13 +331,13 @@ impl Vm {
         })
     }
 
-    /// Returns the [Wasi module instance](crate::WasiModule).
+    /// Returns the [Wasi module instance](crate::WasiInstance).
     ///
-    /// Notice that this function is only available when a [config](crate::config::Config) with the enabled [wasi](crate::HostRegistrationConfigOptions::wasi) option is used in the creation of this [Vm].
+    /// Notice that this function is only available when a [config](crate::config::Config) with the enabled [wasi](crate::config::HostRegistrationConfigOptions::wasi) option is used in the creation of this [Vm].
     ///
     /// # Error
     ///
-    /// If fail to get the [Wasi module instance](crate::WasiModule), then an error is returned.
+    /// If fail to get the [Wasi module instance](crate::WasiInstance), then an error is returned.
     pub fn wasi_module(&mut self) -> WasmEdgeResult<WasiInstance> {
         let inner_wasi_module = self.inner.wasi_module_mut()?;
 
@@ -343,13 +346,13 @@ impl Vm {
         })
     }
 
-    /// Returns the mutable [WasmEdgeProcess module instance](crate::WasmEdgeProcessModule).
+    /// Returns the mutable [WasmEdgeProcess module instance](crate::WasmEdgeProcessInstance).
     ///
-    /// Notice that this function is only available when a [config](crate::config::Config) with the enabled [wasmedge_process](crate::HostRegistrationConfigOptions::wasmedge_process) option is used in the creation of this [Vm].
+    /// Notice that this function is only available when a [config](crate::config::Config) with the enabled [wasmedge_process](crate::config::HostRegistrationConfigOptions::wasmedge_process) option is used in the creation of this [Vm].
     ///
     /// # Error
     ///
-    /// If fail to get the [WasmEdgeProcess module instance](crate::WasmEdgeProcessModule), then an error is returned.
+    /// If fail to get the [WasmEdgeProcess module instance](crate::WasmEdgeProcessInstance), then an error is returned.
     pub fn wasmedge_process_module(&mut self) -> WasmEdgeResult<WasmEdgeProcessInstance> {
         let inner_process_module = self.inner.wasmedge_process_module_mut()?;
 

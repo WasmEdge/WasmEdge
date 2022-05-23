@@ -131,6 +131,7 @@ impl Instance {
     }
 }
 
+/// Represents a wasi module instance.
 #[derive(Debug)]
 pub struct WasiInstance {
     pub(crate) inner: sys::WasiModule,
@@ -244,6 +245,7 @@ impl WasiInstance {
     }
 }
 
+/// Represents a wasmedge_process module instance.
 #[derive(Debug)]
 pub struct WasmEdgeProcessInstance {
     pub(crate) inner: sys::WasmEdgeProcessModule,

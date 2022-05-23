@@ -255,7 +255,7 @@ WasmEdge_StringDelete(GlobName);
 
 4. WASM function invokation
 
-    This example uses the [fibonacci.wasm](https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/tools/wasmedge/examples/fibonacci.wasm), and the corresponding WAT file is at [fibonacci.wat](https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/tools/wasmedge/examples/fibonacci.wat).
+    This example uses the [fibonacci.wasm](https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/examples/wasm/fibonacci.wasm), and the corresponding WAT file is at [fibonacci.wat](https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/examples/wasm/fibonacci.wat).
     In WasmEdge `0.9.1` version, developers can invoke a WASM function with the export function name:
 
     ```c
@@ -348,7 +348,7 @@ WasmEdge_StringDelete(GlobName);
 
 ## Instances retrievement
 
-This example uses the [fibonacci.wasm](https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/tools/wasmedge/examples/fibonacci.wasm), and the corresponding WAT file is at [fibonacci.wat](https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/tools/wasmedge/examples/fibonacci.wat).
+This example uses the [fibonacci.wasm](https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/examples/wasm/fibonacci.wasm), and the corresponding WAT file is at [fibonacci.wat](https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/examples/wasm/fibonacci.wat).
 
 Before the WasmEdge `0.9.1` versions, developers can retrieve all exported instances of named or anonymous modules from `Store`:
 

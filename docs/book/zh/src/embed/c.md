@@ -5,7 +5,7 @@
 ## WasmEdge 运行时快速指南
 
 以下是运行一个 WASM 文件的示例。
-假设 WASM 文件[`fibonacci.wasm`](https://github.com/WasmEdge/WasmEdge/raw/master/tools/wasmedge/examples/fibonacci.wasm)已经被拷贝到当前目录，并且 C 文件 `test_wasmedge.c` 的源代码如下所示：
+假设 WASM 文件[`fibonacci.wasm`](https://github.com/WasmEdge/WasmEdge/raw/master/examples/wasm/fibonacci.wasm)已经被拷贝到当前目录，并且 C 文件 `test_wasmedge.c` 的源代码如下所示：
 
 ```c
 #include <wasmedge/wasmedge.h>
@@ -52,7 +52,7 @@ Get result: 3524578
 
 ## WasmEdge AOT 编译器快速指南
 
-假设 WASM 文件 [`fibonacci.wasm`](https://github.com/WasmEdge/WasmEdge/raw/master/tools/wasmedge/examples/fibonacci.wasm) 已经被拷贝到当前目录，并且 C 文件 `test_wasmedge_compiler.c` 的代码如下所示：
+假设 WASM 文件 [`fibonacci.wasm`](https://github.com/WasmEdge/WasmEdge/raw/master/examples/wasm/fibonacci.wasm) 已经被拷贝到当前目录，并且 C 文件 `test_wasmedge_compiler.c` 的代码如下所示：
 
 ```c
 #include <wasmedge/wasmedge.h>

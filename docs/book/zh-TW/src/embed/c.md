@@ -5,7 +5,7 @@ WasmEdge C API 提供了應用程式接口將 WasmEdge 嵌入至 C 程式中。�
 ## WasmEdge 執行 Wasm 快速指南
 
 以下是執行一個 WASM 檔案的範例。
-假設 WASM 檔案 [`fibonacci.wasm`](https://github.com/WasmEdge/WasmEdge/raw/master/tools/wasmedge/examples/fibonacci.wasm) 已經被複製到當前資料夾，並且 C 檔案 `test_wasmedge.c` 的原始碼如下：
+假設 WASM 檔案 [`fibonacci.wasm`](https://github.com/WasmEdge/WasmEdge/raw/master/examples/wasm/fibonacci.wasm) 已經被複製到當前資料夾，並且 C 檔案 `test_wasmedge.c` 的原始碼如下：
 
 ```c
 #include <wasmedge/wasmedge.h>
@@ -52,7 +52,7 @@ Get result: 3524578
 
 ## WasmEdge AOT 編譯器快速指南
 
-假設 WASM 檔案 [`fibonacci.wasm`](https://github.com/WasmEdge/WasmEdge/raw/master/tools/wasmedge/examples/fibonacci.wasm) 已經被複製到當前資料夾，並且 C 檔案 `test_wasmedge_compiler.c` 的原始碼如下：
+假設 WASM 檔案 [`fibonacci.wasm`](https://github.com/WasmEdge/WasmEdge/raw/master/examples/wasm/fibonacci.wasm) 已經被複製到當前資料夾，並且 C 檔案 `test_wasmedge_compiler.c` 的原始碼如下：
 
 ```c
 #include <wasmedge/wasmedge.h>

@@ -1,12 +1,10 @@
 //! Defines WasmEdge ahead-of-time compiler.
 
-use crate::{
-    error::{check, WasmEdgeError},
-    ffi, utils, Config, WasmEdgeResult,
-};
+use crate::{error::WasmEdgeError, ffi, utils, utils::check, Config, WasmEdgeResult};
 use std::path::Path;
 
-/// Struct of WasmEdge ahead-of-time(AOT) compiler.
+/// Defines WasmEdge ahead-of-time(AOT) compiler and the relevant APIs.
+#[cfg(feature = "aot")]
 #[derive(Debug)]
 pub struct Compiler {
     pub(crate) inner: InnerCompiler,
@@ -24,6 +22,7 @@ impl Compiler {
     /// # Error
     ///
     /// If fail to create a AOT [compiler](crate::Compiler), then an error is returned.
+    #[cfg(feature = "aot")]
     pub fn create(config: Option<Config>) -> WasmEdgeResult<Self> {
         let ctx = match config {
             Some(mut config) => {
@@ -46,13 +45,14 @@ impl Compiler {
     ///
     /// # Arguments
     ///
-    /// - `in_path` specifies the input WASM file path.
+    /// * `in_path` - The input WASM file path.
     ///
-    /// - `out_path` specifies the output WASM file path.
+    /// * `out_path` - The output WASM file path.
     ///
     /// # Error
     ///
     /// If fail to compile, then an error is returned.
+    #[cfg(feature = "aot")]
     pub fn compile(
         &self,
         in_path: impl AsRef<Path>,
@@ -70,6 +70,7 @@ impl Compiler {
     }
 }
 
+#[cfg(feature = "aot")]
 #[derive(Debug)]
 pub(crate) struct InnerCompiler(pub(crate) *mut ffi::WasmEdge_CompilerContext);
 unsafe impl Send for InnerCompiler {}
@@ -81,13 +82,14 @@ mod tests {
     use super::*;
     use crate::{
         error::{CoreError, CoreLoadError},
-        CompilerOutputFormat, Config,
+        Config,
     };
     use std::{
         io::Read,
         sync::{Arc, Mutex},
         thread,
     };
+    use wasmedge_types::CompilerOutputFormat;
 
     #[test]
     fn test_compiler() {

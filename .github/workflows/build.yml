@@ -27,7 +27,7 @@ on:
 
 jobs:
   get_version_v1:
-    name: Retrieve version information
+    name: Retrieve version information (v1)
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.prep.outputs.version }}
@@ -40,9 +40,10 @@ jobs:
       run: |
         # Retrieve annotated tags. Details: https://github.com/actions/checkout/issues/290
         git fetch --tags --force
+        echo "Set version: $(git describe --match "[0-9].[0-9]*" --tag)"
         echo ::set-output name=version::$(git describe --match "[0-9].[0-9]*" --tag)
   get_version_v2:
-    name: Retrieve version information
+    name: Retrieve version information (v2)
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.prep.outputs.version }}
@@ -55,6 +56,7 @@ jobs:
       run: |
         # Retrieve annotated tags. Details: https://github.com/actions/checkout/issues/290
         git fetch --tags --force
+        echo "Set version: $(git describe --match "[0-9].[0-9]*" --tag)"
         echo ::set-output name=version::$(git describe --match "[0-9].[0-9]*" --tag)
 
   create_source_tarball:
@@ -72,6 +74,7 @@ jobs:
         VERSION: ${{ needs.get_version_v2.outputs.version }}
     - name: Create source tarball
       run: |
+        echo "Get version: $VERSION"
         TEMPDIR=$(mktemp -d)
         SRCDIR="$TEMPDIR/wasmedge/"
         mkdir -p "$SRCDIR"
@@ -79,12 +82,12 @@ jobs:
         cp -v VERSION $SRCDIR
         tar --owner 0 --group 0 -czf "$GITHUB_WORKSPACE/WasmEdge-$VERSION.tar.gz" -C "$TEMPDIR" "wasmedge"
       env:
-        VERSION: ${{ steps.prep.outputs.version }}
+        VERSION: ${{ needs.get_version_v2.outputs.version }}
     - name: Upload artifact
       uses: actions/upload-artifact@v2
       with:
         name: WasmEdge-${{ needs.get_version_v2.outputs.version }}-src.tar.gz
-        path: wasmedge_${{ needs.get_version_v2.outputs.version }}.tar.gz
+        path: WasmEdge-${{ needs.get_version_v2.outputs.version }}.tar.gz
 
   build_fedora:
     name: Fedora 35
@@ -92,7 +95,6 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: fedora:latest
-
     steps:
     - name: Install requirment
       run: |
@@ -103,6 +105,7 @@ jobs:
         fetch-depth: 0
     - name: Build WasmEdge with Release mode
       run: |
+        git config --global --add safe.directory $(pwd)
         cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_BUILD_TESTS=ON -DWASMEDGE_BUILD_PACKAGE="TGZ;DEB;RPM" .
         cmake --build build
     - name: Test WasmEdge
@@ -153,17 +156,16 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: wasmedge/wasmedge:${{ matrix.docker_tag }}
-
     steps:
     - uses: actions/checkout@v2
       with:
         fetch-depth: 0
-
     - name: Build WasmEdge using ${{ matrix.compiler }} with ${{ matrix.build_type }} mode
       if: ${{ ! matrix.coverage }}
       env:
         CMAKE_BUILD_TYPE: ${{ matrix.build_type }}
       run: |
+        git config --global --add safe.directory $(pwd)
         cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=$CMAKE_BUILD_TYPE -DWASMEDGE_BUILD_TESTS=ON .
         cmake --build build
     - name: Test WasmEdge
@@ -173,13 +175,13 @@ jobs:
         cd build
         ctest
         cd -
-
     - name: Build WasmEdge using ${{ matrix.compiler }} with Coverage mode
       if: ${{ matrix.coverage }}
       run: |
         apt update
         apt install -y gcovr
         curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --target wasm32-wasi
+        git config --global --add safe.directory $(pwd)
         cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Debug -DWASMEDGE_BUILD_TESTS=ON -DWASMEDGE_BUILD_COVERAGE=ON .
         cmake --build build
         LD_LIBRARY_PATH=$(pwd)/build/lib/api cmake --build build --target codecov
@@ -221,24 +223,20 @@ jobs:
     steps:
     - uses: actions/checkout@v1
       if: ${{ matrix.checkout_version == 'v1' }}
-
     - uses: actions/checkout@v2
       if: ${{ matrix.checkout_version == 'v2' }}
       with:
         fetch-depth: 0
-
     - name: Build ${{ matrix.name }} package
       run: |
         bash utils/docker/build-manylinux.sh
-
-    - name: Upload artifact
+    - name: Upload artifact (v1)
       uses: actions/upload-artifact@v1
       if: ${{ matrix.checkout_version == 'v1' }}
       with:
         name: WasmEdge-${{ needs.get_version_v1.outputs.version }}-${{ matrix.docker_tag }}.tar.gz
         path: build/WasmEdge-${{ needs.get_version_v1.outputs.version }}-Linux.tar.gz
-
-    - name: Upload artifact
+    - name: Upload artifact (v2)
       uses: actions/upload-artifact@v2
       if: ${{ matrix.checkout_version == 'v2' }}
       with:
@@ -246,10 +244,21 @@ jobs:
         path: build/WasmEdge-${{ needs.get_version_v2.outputs.version }}-Linux.tar.gz
 
   build_macos:
-    name: macOS
-    runs-on: macos-latest
+    strategy:
+      matrix:
+        include:
+          - name: MacOS 10.15
+            host_runner: macos-10.15
+            darwin_version: darwin_19
+          - name: MacOS 11
+            host_runner: macos-11
+            darwin_version: darwin_20
+          - name: MacOS 12
+            host_runner: macos-12
+            darwin_version: darwin_21
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.host_runner }}
     needs: get_version_v2
-
     steps:
     - uses: actions/checkout@v2
       with:
@@ -278,27 +287,24 @@ jobs:
     - name: Upload artifact
       uses: actions/upload-artifact@v2
       with:
-        name: WasmEdge-${{ needs.get_version_v2.outputs.version }}-darwin_x86_64.tar.gz
+        name: WasmEdge-${{ needs.get_version_v2.outputs.version }}-${{ matrix.darwin_version }}_x86_64.tar.gz
         path: build/WasmEdge-${{ needs.get_version_v2.outputs.version }}-Darwin.tar.gz
 
   build_windows:
-    name: Windows 10
-    runs-on: windows-latest
+    name: Windows Server 2022
+    runs-on: windows-2022
     needs: get_version_v2
     steps:
     - uses: actions/checkout@v2
       with:
         fetch-depth: 0
-
     - name: Install dependency
       uses: crazy-max/ghaction-chocolatey@v1
       with:
         args: install cmake ninja vswhere
-
     - uses: GuillaumeFalourd/setup-windows10-sdk-action@v1
       with:
         sdk-version: 19041
-
     - name: Build WasmEdge
       run: |
         $vsPath = (vswhere -latest -property installationPath)
@@ -310,9 +316,9 @@ jobs:
         $llvm_dir = "$pwd\\LLVM-13.0.1-win64\\LLVM-13.0.1-win64\\lib\\cmake\\llvm"
         $Env:CC = "clang-cl"
         $Env:CXX = "clang-cl"
-        cmake -Bbuild -GNinja -DCMAKE_SYSTEM_VERSION=10.0.19041.0 -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreadedDLL "-DLLVM_DIR=$llvm_dir" -DWASMEDGE_BUILD_TESTS=ON -DWASMEDGE_BUILD_PACKAGE="ZIP" .
+        $cmake_sys_version = "10.0.19041.0"
+        cmake -Bbuild -GNinja "-DCMAKE_SYSTEM_VERSION=$cmake_sys_version" -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreadedDLL "-DLLVM_DIR=$llvm_dir" -DWASMEDGE_BUILD_TESTS=ON -DWASMEDGE_BUILD_PACKAGE="ZIP" .
         cmake --build build
-
     - name: Test WasmEdge
       continue-on-error: true
       run: |
@@ -332,20 +338,17 @@ jobs:
     - name: Check artifact
       run: |
         Get-ChildItem -Path "$pwd\\build"
-
-    - name: Upload artifact
+    - name: Upload artifact (v2)
       uses: actions/upload-artifact@v2
       with:
         name: WasmEdge-${{ needs.get_version_v2.outputs.version }}-windows.zip
         path: build\\WasmEdge-${{ needs.get_version_v2.outputs.version }}-Windows.zip
-
     - name: Package Windows Installer
       run: |
         $Env:product_version = ("${{ needs.get_version_v2.outputs.version }}").split("-")[0]
         . "$Env:WIX\bin\candle.exe" -arch x64 -o build\wasmedge.wixobj .github\scripts\wasmedge.wxs
         . "$Env:WIX\bin\light.exe" -out build\WasmEdge-$Env:product_version-windows.msi build\wasmedge.wixobj
         echo "product_version=$Env:product_version" | Out-File -FilePath $Env:GITHUB_ENV -Encoding utf8 -Append
-
     - name: Upload Windows Installer
       uses: actions/upload-artifact@v2
       with:
@@ -358,12 +361,10 @@ jobs:
     needs: get_version_v2
     container:
       image: wasmedge/wasmedge:latest
-
     steps:
     - uses: actions/checkout@v2
       with:
         fetch-depth: 0
-
     - name: Install dependency
       run: |
         apt update && apt install -y unzip
@@ -374,15 +375,14 @@ jobs:
         cp -r cmake-3.22.2-linux-x86_64/share /usr/local
         curl -sLO https://dl.google.com/android/repository/android-ndk-r23b-linux.zip
         unzip -q android-ndk-r23b-linux.zip
-
     - name: Build WasmEdge for Android
       run: |
+        git config --global --add safe.directory $(pwd)
         export ANDROID_NDK_HOME=$(pwd)/android-ndk-r23b/
         cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_BUILD_PACKAGE="TGZ" -DWASMEDGE_BUILD_AOT_RUNTIME=OFF -DCMAKE_SYSTEM_NAME=Android -DCMAKE_SYSTEM_VERSION=23 -DCMAKE_ANDROID_ARCH_ABI=arm64-v8a -DCMAKE_ANDROID_NDK=$ANDROID_NDK_HOME -DCMAKE_ANDROID_STL_TYPE=c++_static
         cmake --build build
         cmake --build build --target package
-
-    - name: Upload artifact
+    - name: Upload artifact (v2)
       uses: actions/upload-artifact@v2
       with:
         name: WasmEdge-${{ needs.get_version_v2.outputs.version }}-android_aarch64.tar.gz

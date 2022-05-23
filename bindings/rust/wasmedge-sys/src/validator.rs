@@ -1,9 +1,6 @@
 //! Defines WasmEdge Validator struct.
 
-use crate::{
-    error::{check, WasmEdgeError},
-    ffi, Config, Module, WasmEdgeResult,
-};
+use crate::{error::WasmEdgeError, ffi, utils::check, Config, Module, WasmEdgeResult};
 
 /// Struct of WasmEdge Validator.
 #[derive(Debug)]
@@ -16,7 +13,7 @@ impl Validator {
     ///
     /// # Arguments
     ///
-    /// - `config` specifies the global environment configuration.
+    /// * `config` - The global environment configuration.
     ///
     /// # Error
     ///
@@ -39,14 +36,13 @@ impl Validator {
         }
     }
 
-    /// Validates a given WasmEdge [Module].
+    /// Validates a given WasmEdge [Module](crate::Module).
     ///
-    /// [Module]s are valid when all components they contain are valid. Furthermore, most
-    /// definitions are themselves classified with a suitable type.
+    /// [Module](crate::Module)s are valid when all components they contain are valid. Furthermore, most definitions are themselves classified with a suitable type.
     ///
     /// # Arguments
     ///
-    /// - `module` specifies the [Module] to be validated.
+    /// * `module` - The [Module](crate::Module) to be validated.
     ///
     /// # Error
     ///

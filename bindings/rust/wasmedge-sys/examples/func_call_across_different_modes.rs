@@ -1,0 +1,163 @@
+//! This example demonstrates that the function in interpreter mode calls the functions in AOT mode, and vise versa.
+use wasmedge_sys::{
+    Compiler, Config, FuncType, Function, ImportInstance, ImportModule, ImportObject, Vm, WasmValue,
+};
+use wasmedge_types::ValType;
+
+fn host_print_i32(val: Vec<WasmValue>) -> Result<Vec<WasmValue>, u8> {
+    println!("-- Host Function: print I32: {}", val[0].to_i32());
+
+    Ok(vec![])
+}
+
+fn host_print_f64(val: Vec<WasmValue>) -> Result<Vec<WasmValue>, u8> {
+    println!("-- Host Function: print F64: {}", val[0].to_f64());
+
+    Ok(vec![])
+}
+
+/// The function in interpreter mode (defined in module1) calls the functions in AOT mode (defined in module2)
+fn interpreter_call_aot() -> Result<(), Box<dyn std::error::Error>> {
+    // create a Vm instance
+    let mut vm = Vm::create(Some(Config::create()?), None)?;
+
+    // create an import module
+    let mut import = ImportModule::create("host")?;
+
+    // import host_print_i32 as a host function
+    let func_ty = FuncType::create([ValType::I32], [])?;
+    let host_func_print_i32 = Function::create(&func_ty, Box::new(host_print_i32), 0)?;
+    import.add_func("host_printI32", host_func_print_i32);
+
+    // import host_print_f64 as a host function
+    let func_ty = FuncType::create([ValType::F64], [])?;
+    let host_func_print_f64 = Function::create(&func_ty, Box::new(host_print_f64), 0)?;
+    import.add_func("host_printF64", host_func_print_f64);
+
+    // register the import module
+    vm.register_wasm_from_import(ImportObject::Import(import))?;
+
+    // compile the "module2" into AOT mode
+    let in_path = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
+        .join("bindings/rust/wasmedge-sys/examples/data/module2.wasm");
+    let out_path = std::path::PathBuf::from("module2-uni.wasm");
+    let compiler = Compiler::create(Some(Config::create()?))?;
+    compiler.compile(in_path, &out_path)?;
+
+    // register a named module from "module2-uni.wasm"
+    vm.register_wasm_from_file("module", &out_path)?;
+
+    // register an active module from "module1.wasm"
+    let wasm_file = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
+        .join("bindings/rust/wasmedge-sys/examples/data/module1.wasm");
+    vm.load_wasm_from_file(wasm_file)?;
+    vm.validate()?;
+    vm.instantiate()?;
+
+    // run "printAdd" function exported from "module1.wasm"
+    let returns = vm.run_function(
+        "printAdd",
+        [WasmValue::from_i32(1234), WasmValue::from_i32(5678)],
+    )?;
+    assert_eq!(returns.len(), 0);
+
+    // run "printDiv" function exported from "module1.wasm"
+    let returns = vm.run_function(
+        "printDiv",
+        [WasmValue::from_f64(9876.0), WasmValue::from_f64(4321.0)],
+    )?;
+    assert_eq!(returns.len(), 0);
+
+    // run "printI32" function exported from "module1.wasm"
+    let returns = vm.run_function("printI32", [WasmValue::from_i32(87654321)])?;
+    assert_eq!(returns.len(), 0);
+
+    // run "printF64" function exported from "module1.wasm"
+    let returns = vm.run_function("printF64", [WasmValue::from_f64(5566.1122)])?;
+    assert_eq!(returns.len(), 0);
+
+    // clean up the generated file at runtime
+    if out_path.exists() {
+        assert!(std::fs::remove_file(out_path).is_ok());
+    }
+
+    Ok(())
+}
+
+fn aot_call_interpreter() -> Result<(), Box<dyn std::error::Error>> {
+    // create a Vm instance
+    let mut vm = Vm::create(Some(Config::create()?), None)?;
+
+    // create an import module
+    let mut import = ImportModule::create("host")?;
+
+    // import host_print_i32 as a host function
+    let func_ty = FuncType::create([ValType::I32], [])?;
+    let host_func_print_i32 = Function::create(&func_ty, Box::new(host_print_i32), 0)?;
+    import.add_func("host_printI32", host_func_print_i32);
+
+    // import host_print_f64 as a host function
+    let func_ty = FuncType::create([ValType::F64], [])?;
+    let host_func_print_f64 = Function::create(&func_ty, Box::new(host_print_f64), 0)?;
+    import.add_func("host_printF64", host_func_print_f64);
+
+    // register the import module
+    vm.register_wasm_from_import(ImportObject::Import(import))?;
+
+    // register a named module from "module2.wasm"
+    let wasm_file = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
+        .join("bindings/rust/wasmedge-sys/examples/data/module2.wasm");
+    vm.register_wasm_from_file("module", wasm_file)?;
+
+    // compile the "module1" into AOT mode
+    let in_path = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
+        .join("bindings/rust/wasmedge-sys/examples/data/module1.wasm");
+    let out_path = std::path::PathBuf::from("module1-uni.wasm");
+    let compiler = Compiler::create(Some(Config::create()?))?;
+    compiler.compile(in_path, &out_path)?;
+
+    // register an active module from "module1.wasm"
+    vm.load_wasm_from_file(&out_path)?;
+    vm.validate()?;
+    vm.instantiate()?;
+
+    // run "printAdd" function exported from "module1.wasm"
+    let returns = vm.run_function(
+        "printAdd",
+        [WasmValue::from_i32(1234), WasmValue::from_i32(5678)],
+    )?;
+    assert_eq!(returns.len(), 0);
+
+    // run "printDiv" function exported from "module1.wasm"
+    let returns = vm.run_function(
+        "printDiv",
+        [WasmValue::from_f64(9876.0), WasmValue::from_f64(4321.0)],
+    )?;
+    assert_eq!(returns.len(), 0);
+
+    // run "printI32" function exported from "module1.wasm"
+    let returns = vm.run_function("printI32", [WasmValue::from_i32(87654321)])?;
+    assert_eq!(returns.len(), 0);
+
+    // run "printF64" function exported from "module1.wasm"
+    let returns = vm.run_function("printF64", [WasmValue::from_f64(5566.1122)])?;
+    assert_eq!(returns.len(), 0);
+
+    // clean up the generated file at runtime
+    if out_path.exists() {
+        assert!(std::fs::remove_file(out_path).is_ok());
+    }
+
+    Ok(())
+}
+
+#[cfg_attr(test, test)]
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // The function in interpreter mode calls the functions in AOT mode
+    interpreter_call_aot()?;
+
+    // The function in AOT mode calls the functions in interpreter mode
+    aot_call_interpreter()?;
+
+    Ok(())
+}

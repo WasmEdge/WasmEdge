@@ -1,15 +1,14 @@
 //! Defines WasmEdge Loader struct.
 
 use crate::{
-    error::{check, WasmEdgeError},
-    ffi,
-    module::{InnerModule, Module},
-    utils, Config, WasmEdgeResult,
+    ast_module::{InnerModule, Module},
+    error::WasmEdgeError,
+    ffi, utils,
+    utils::check,
+    Config, WasmEdgeResult,
 };
 use std::path::Path;
 
-/// Struct of WasmEdge Loader.
-///
 /// [Loader](crate::Loader) is used to load WASM modules from the given WASM files or buffers.
 #[derive(Debug)]
 pub struct Loader {
@@ -21,7 +20,7 @@ impl Loader {
     ///
     /// # Arguements
     ///
-    /// - `config` specifies a global configuration.
+    /// * `config` - A global configuration.
     ///
     /// # Error
     ///
@@ -49,7 +48,7 @@ impl Loader {
     ///
     /// # Arguments
     ///
-    /// - `file` specifies the path to the target WASM file.
+    /// * `file` - The path to the target WASM file.
     ///
     /// # Error
     ///
@@ -80,11 +79,11 @@ impl Loader {
         }
     }
 
-    /// Loads a WASM module from a buffer.
+    /// Loads a WASM module from a in-memory bytes.
     ///
     /// # Arguments
     ///
-    /// - `buffer` specifies a WASM buffer.
+    /// * `bytes` - A in-memory WASM bytes.
     ///
     /// # Error
     ///
@@ -93,27 +92,27 @@ impl Loader {
     /// # Example
     ///
     /// ```ignore
-    /// let buffer = b"\0asm\x01\0\0\0";
-    /// let module = loader.from_buffer(&buffer)?;
+    /// let bytes = b"\0asm\x01\0\0\0";
+    /// let module = loader.from_bytes(&bytes)?;
     /// ```
     ///
     /// Note that the text format is not accepted:
     ///
     /// ```ignore
-    /// assert!(loader.from_buffer(b"(module)").is_err());
+    /// assert!(loader.from_bytes(b"(module)").is_err());
     /// ```
-    pub fn from_buffer(&self, buffer: impl AsRef<[u8]>) -> WasmEdgeResult<Module> {
+    pub fn from_bytes(&self, bytes: impl AsRef<[u8]>) -> WasmEdgeResult<Module> {
         let mut mod_ctx: *mut ffi::WasmEdge_ASTModuleContext = std::ptr::null_mut();
 
         unsafe {
-            let ptr = libc::malloc(buffer.as_ref().len());
+            let ptr = libc::malloc(bytes.as_ref().len());
             let dst = ::core::slice::from_raw_parts_mut(
                 ptr.cast::<std::mem::MaybeUninit<u8>>(),
-                buffer.as_ref().len(),
+                bytes.as_ref().len(),
             );
             let src = ::core::slice::from_raw_parts(
-                buffer.as_ref().as_ptr().cast::<std::mem::MaybeUninit<u8>>(),
-                buffer.as_ref().len(),
+                bytes.as_ref().as_ptr().cast::<std::mem::MaybeUninit<u8>>(),
+                bytes.as_ref().len(),
             );
             dst.copy_from_slice(src);
 
@@ -121,7 +120,7 @@ impl Loader {
                 self.inner.0,
                 &mut mod_ctx,
                 ptr as *const u8,
-                buffer.as_ref().len() as u32,
+                bytes.as_ref().len() as u32,
             ))?;
 
             libc::free(ptr as *mut libc::c_void);
@@ -206,13 +205,13 @@ mod tests {
         // load from buffer
         {
             let buffer = b"\0asm\x01\0\0\0";
-            let result = loader.from_buffer(&buffer);
+            let result = loader.from_bytes(&buffer);
             assert!(result.is_ok());
             let module = result.unwrap();
             assert!(!module.inner.0.is_null());
 
             // the text format is not accepted
-            let result = loader.from_buffer(b"(module)");
+            let result = loader.from_bytes(b"(module)");
             assert!(result.is_err());
             assert_eq!(
                 result.unwrap_err(),
@@ -220,7 +219,7 @@ mod tests {
             );
 
             // empty is not accepted
-            let result = loader.from_buffer(&[]);
+            let result = loader.from_bytes(&[]);
             assert!(result.is_err());
             assert_eq!(
                 result.unwrap_err(),

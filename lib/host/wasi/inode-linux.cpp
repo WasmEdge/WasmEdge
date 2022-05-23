@@ -799,10 +799,10 @@ WasiExpect<void> INode::getAddrinfo(std::string_view Node,
   const auto [ServiceCStr, ServiceBuf] = createNullTerminatedString(Service);
 
   struct addrinfo SysHint;
-  SysHint.ai_flags = Hint.ai_flags;
-  SysHint.ai_family = Hint.ai_family;
-  SysHint.ai_socktype = Hint.ai_socktype;
-  SysHint.ai_protocol = Hint.ai_protocol;
+  SysHint.ai_flags = toAIFlags(Hint.ai_flags);
+  SysHint.ai_family = toAddressFamily(Hint.ai_family);
+  SysHint.ai_socktype = toSockType(Hint.ai_socktype);
+  SysHint.ai_protocol = toProtocal(Hint.ai_protocol);
   SysHint.ai_addrlen = Hint.ai_addrlen;
   SysHint.ai_addr = nullptr;
   SysHint.ai_canonname = nullptr;
@@ -822,13 +822,10 @@ WasiExpect<void> INode::getAddrinfo(std::string_view Node,
   struct addrinfo *SysResItem = SysResPtr;
   for (uint32_t Idx = 0; Idx < ResLength; Idx++) {
     auto &CurAddrinfo = WasiAddrinfoArray[Idx];
-    CurAddrinfo->ai_flags = static_cast<__wasi_aiflags_t>(SysResItem->ai_flags);
-    CurAddrinfo->ai_socktype =
-        static_cast<__wasi_sock_type_t>(SysResItem->ai_socktype);
-    CurAddrinfo->ai_protocol =
-        static_cast<__wasi_protocol_t>(SysResItem->ai_protocol);
-    CurAddrinfo->ai_family =
-        static_cast<__wasi_address_family_t>(SysResItem->ai_family);
+    CurAddrinfo->ai_flags = fromAIFlags(SysResItem->ai_flags);
+    CurAddrinfo->ai_socktype = fromSockType(SysResItem->ai_socktype);
+    CurAddrinfo->ai_protocol = fromProtocal(SysResItem->ai_protocol);
+    CurAddrinfo->ai_family = fromAddressFamily(SysResItem->ai_family);
     CurAddrinfo->ai_addrlen = SysResItem->ai_addrlen;
 
     // process ai_canonname in addrinfo
@@ -844,14 +841,8 @@ WasiExpect<void> INode::getAddrinfo(std::string_view Node,
     // process socket address
     if (SysResItem->ai_addrlen > 0) {
       auto &CurSockaddr = WasiSockaddrArray[Idx];
-      switch (SysResItem->ai_addr->sa_family) {
-      case AF_INET:
-        CurSockaddr->sa_family = __WASI_ADDRESS_FAMILY_INET4;
-        break;
-      case AF_INET6:
-        CurSockaddr->sa_family = __WASI_ADDRESS_FAMILY_INET6;
-        break;
-      }
+      CurSockaddr->sa_family =
+          fromAddressFamily(SysResItem->ai_addr->sa_family);
 
       // process sa_data in socket address
       std::memcpy(AiAddrSaDataArray[Idx], SysResItem->ai_addr->sa_data,
@@ -921,6 +912,7 @@ WasiExpect<void> INode::sockBind(uint8_t *Address, uint8_t AddressLength,
     }
   } else if (AddressLength == 16) {
     struct sockaddr_in6 ServerAddr;
+    std::memset(&ServerAddr, 0x00, sizeof(ServerAddr));
 
     ServerAddr.sin6_family = AF_INET6;
     ServerAddr.sin6_port = htons(Port);
@@ -934,7 +926,7 @@ WasiExpect<void> INode::sockBind(uint8_t *Address, uint8_t AddressLength,
   return {};
 }
 
-WasiExpect<void> INode::sockListen(uint32_t Backlog) noexcept {
+WasiExpect<void> INode::sockListen(int32_t Backlog) noexcept {
   if (auto Res = ::listen(Fd, Backlog); unlikely(Res < 0)) {
     return WasiUnexpect(fromErrNo(errno));
   }
@@ -974,6 +966,7 @@ WasiExpect<void> INode::sockConnect(uint8_t *Address, uint8_t AddressLength,
     }
   } else if (AddressLength == 16) {
     struct sockaddr_in6 ClientSocketAddr;
+    std::memset(&ClientSocketAddr, 0x00, sizeof(ClientSocketAddr));
 
     ClientSocketAddr.sin6_family = AF_INET6;
     ClientSocketAddr.sin6_port = htons(Port);
@@ -1065,6 +1058,7 @@ WasiExpect<void> INode::sockSendTo(Span<Span<const uint8_t>> SiData,
       MsgName = &ClientSocketAddr;
       MsgNameLen = sizeof(ClientSocketAddr);
     } else if (AddressLength == 16) {
+      std::memset(&ClientSocketAddr6, 0x00, sizeof(ClientSocketAddr6));
       ClientSocketAddr6.sin6_family = AF_INET6;
       ClientSocketAddr6.sin6_port = htons(Port);
       ::memcpy(&ClientSocketAddr6.sin6_addr.s6_addr, Address, AddressLength);
@@ -1162,11 +1156,13 @@ WasiExpect<void> INode::sockSetOpt(__wasi_sock_opt_level_t SockOptLevel,
 WasiExpect<void> INode::sockGetLoaclAddr(uint8_t *AddressPtr,
                                          uint32_t *AddrTypePtr,
                                          uint32_t *PortPtr) const noexcept {
-  struct sockaddr SocketAddr;
-  socklen_t Slen;
+  struct sockaddr_storage SocketAddr;
+  socklen_t Slen = sizeof(SocketAddr);
   std::memset(&SocketAddr, 0, sizeof(SocketAddr));
 
-  if (auto Res = ::getsockname(Fd, &SocketAddr, &Slen); unlikely(Res < 0)) {
+  if (auto Res =
+          ::getsockname(Fd, reinterpret_cast<sockaddr *>(&SocketAddr), &Slen);
+      unlikely(Res < 0)) {
     return WasiUnexpect(fromErrNo(errno));
   }
 
@@ -1175,12 +1171,12 @@ WasiExpect<void> INode::sockGetLoaclAddr(uint8_t *AddressPtr,
     AddrLen = 16;
   }
 
-  if (SocketAddr.sa_family == AF_INET) {
+  if (SocketAddr.ss_family == AF_INET) {
     *AddrTypePtr = 4;
     auto SocketAddrv4 = reinterpret_cast<struct sockaddr_in *>(&SocketAddr);
     *PortPtr = ntohs(SocketAddrv4->sin_port);
     std::memcpy(AddressPtr, &(SocketAddrv4->sin_addr.s_addr), AddrLen);
-  } else if (SocketAddr.sa_family == AF_INET6) {
+  } else if (SocketAddr.ss_family == AF_INET6) {
     *AddrTypePtr = 6;
     auto SocketAddrv6 = reinterpret_cast<struct sockaddr_in6 *>(&SocketAddr);
     *PortPtr = ntohs(SocketAddrv6->sin6_port);
@@ -1195,11 +1191,13 @@ WasiExpect<void> INode::sockGetLoaclAddr(uint8_t *AddressPtr,
 WasiExpect<void> INode::sockGetPeerAddr(uint8_t *AddressPtr,
                                         uint32_t *AddrTypePtr,
                                         uint32_t *PortPtr) const noexcept {
-  struct sockaddr SocketAddr;
+  struct sockaddr_storage SocketAddr;
   socklen_t Slen = sizeof(SocketAddr);
   std::memset(&SocketAddr, 0, sizeof(SocketAddr));
 
-  if (auto Res = ::getpeername(Fd, &SocketAddr, &Slen); unlikely(Res < 0)) {
+  if (auto Res =
+          ::getpeername(Fd, reinterpret_cast<sockaddr *>(&SocketAddr), &Slen);
+      unlikely(Res < 0)) {
     return WasiUnexpect(fromErrNo(errno));
   }
 
@@ -1208,12 +1206,12 @@ WasiExpect<void> INode::sockGetPeerAddr(uint8_t *AddressPtr,
     AddrLen = 16;
   }
 
-  if (SocketAddr.sa_family == AF_INET) {
+  if (SocketAddr.ss_family == AF_INET) {
     *AddrTypePtr = 4;
     auto SocketAddrv4 = reinterpret_cast<struct sockaddr_in *>(&SocketAddr);
     *PortPtr = ntohs(SocketAddrv4->sin_port);
     std::memcpy(AddressPtr, &(SocketAddrv4->sin_addr.s_addr), AddrLen);
-  } else if (SocketAddr.sa_family == AF_INET6) {
+  } else if (SocketAddr.ss_family == AF_INET6) {
     *AddrTypePtr = 6;
     auto SocketAddrv6 = reinterpret_cast<struct sockaddr_in6 *>(&SocketAddr);
     *PortPtr = ntohs(SocketAddrv6->sin6_port);

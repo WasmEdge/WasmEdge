@@ -57,7 +57,8 @@ static inline constexpr const uint64_t k12G = UINT64_C(0x300000000);
 
 } // namespace
 
-uint8_t *Allocator::allocate(uint32_t PageCount) noexcept {
+[[gnu::visibility("default")]] uint8_t *
+Allocator::allocate(uint32_t PageCount) noexcept {
 #if defined(HAVE_MMAP) && defined(__x86_64__) || defined(__aarch64__)
   auto Reserved = reinterpret_cast<uint8_t *>(
       mmap(nullptr, k12G, PROT_NONE,
@@ -98,8 +99,9 @@ uint8_t *Allocator::allocate(uint32_t PageCount) noexcept {
 #endif
 }
 
-uint8_t *Allocator::resize(uint8_t *Pointer, uint32_t OldPageCount,
-                           uint32_t NewPageCount) noexcept {
+[[gnu::visibility("default")]] uint8_t *
+Allocator::resize(uint8_t *Pointer, uint32_t OldPageCount,
+                  uint32_t NewPageCount) noexcept {
   assuming(NewPageCount > OldPageCount);
 #if defined(HAVE_MMAP) && defined(__x86_64__) || defined(__aarch64__)
   if (mmap(Pointer + OldPageCount * kPageSize,
@@ -128,7 +130,8 @@ uint8_t *Allocator::resize(uint8_t *Pointer, uint32_t OldPageCount,
 #endif
 }
 
-void Allocator::release(uint8_t *Pointer, uint32_t) noexcept {
+[[gnu::visibility("default")]] void Allocator::release(uint8_t *Pointer,
+                                                       uint32_t) noexcept {
 #if defined(HAVE_MMAP) && defined(__x86_64__) || defined(__aarch64__)
   if (Pointer == nullptr) {
     return;

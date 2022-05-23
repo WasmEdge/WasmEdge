@@ -1,14 +1,16 @@
-# Rust SDK
+# Rust Bindings
 
 You can also embed WasmEdge into your Rust application via the WasmEdge Rust SDK.
 
-The definitions of WasmEdge Rust SDK involve two Rust crates, [wasmedge-sys](https://crates.io/crates/wasmedge-sys) and [wasmedge-rs](https://crates.io/crates/wasmedge-sdk). They are designed based on different principles and for different purposes. The wasmedge-sys crate defines a group of low-level Rust APIs, which simply wrap WasmEdge C APIs and provide the safe counterpart, while the wasmedge-rs crate provides more elegant and ergonomic APIs, which are more suitable for application development.
+The definitions of WasmEdge Rust SDK involve two Rust crates, [wasmedge-sys](https://crates.io/crates/wasmedge-sys) and [wasmedge-sdk](https://crates.io/crates/wasmedge-sdk). They are designed based on different principles and for different purposes. The `wasmedge-sys` crate defines a group of low-level Rust APIs, which simply wrap WasmEdge C APIs and provide the safe counterpart, while the `wasmedge-sdk` crate provides more elegant and ergonomic APIs, which are more suitable for application development.
 
 * The [wasmedge-sys](https://crates.io/crates/wasmedge-sys) crate defines a group of low-level Rust APIs, which simply wrap WasmEdge C APIs and provide the safe counterparts. The APIs in [wasmedge-sys](https://crates.io/crates/wasmedge-sys) should be used to construct high-level libraries. For the details of the APIs, please visit [wasmedge-sys API documentation](https://wasmedge.github.io/WasmEdge/wasmedge_sys/).
 
-* The [wasmedge-rs](https://crates.io/crates/wasmedge-sdk) crate is based on the wasmedge-sys crate and provides a more elegant and idiomatic Rust APIs. These APIs are more suitable for business-oriented design and development. The wasmedge-rs crate is still under active development and coming soon.
+* The [wasmedge-sdk](https://crates.io/crates/wasmedge-sdk) crate is based on the wasmedge-sys crate and provides a more elegant and idiomatic Rust APIs. These APIs are more suitable for business-oriented design and development. The wasmedge-sdk crate is still under active development and coming soon.
 
-## Build `wasmedge-sys` crate
+## The `wasmedge-sys` crate
+
+### Build
 
 `wasmedge-sys` depends on the dynamic library and the header files of `WasmEdge`. To `cargo build` `wasmedge-sys` there are several choices to specify the dependencies:
 
@@ -75,8 +77,10 @@ The definitions of WasmEdge Rust SDK involve two Rust crates, [wasmedge-sys](htt
 
   If you choose WasmEdge docker image to build your own container for development, the pre-built WasmEdge binary package is located in `$HOME/.wasmedge` directory by default. The build script (`build.rs`) of `wasmedge-sys` crate can detect the package and build the crate automatically.
 
-## Examples
+### Examples
 
 * [[wasmedge-sys] Run a WebAssembly function with WasmEdge low-level APIs](rust/sys_run_host_func.md)
 
 * [[wasmedge-sys] Compute Fibonacci numbers concurrently](rust/concurrent_fib.md)
+
+* [[wasmedge-sys] The usage of WasmEdge module instances](rust/how_to_use_module_instance.md)

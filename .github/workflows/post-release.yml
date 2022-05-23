@@ -1,0 +1,23 @@
+name: post-release
+
+# https://docs.github.com/en/actions/using-workflows/events-that-trigger-workflows
+on:
+  workflow_run:
+    workflows: [ release ]
+    types:
+      - completed
+
+jobs:
+  post_ubuntu_release:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    steps:
+      - name: Install WasmEdge
+        run: |
+          curl -sSf https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh | bash -s -- -p ${{ github.workspace }}/wasmedge-latest
+      # TODO: check if latest version match ref
+      - name: Run libsodium tests
+        uses: second-state/wasmedge-actions-libsodium-tests@v0.0.1
+        with:
+          path: wasmedge-latest/bin
+          wasi-runtime: wasmedge

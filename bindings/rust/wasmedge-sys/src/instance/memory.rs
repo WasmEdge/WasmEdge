@@ -6,14 +6,14 @@
 //! restricts the size to which the memory can grow later.
 
 use crate::{
-    error::{check, MemError, WasmEdgeError},
-    ffi, WasmEdgeResult,
+    error::{MemError, WasmEdgeError},
+    ffi,
+    utils::check,
+    WasmEdgeResult,
 };
 use std::ops::RangeInclusive;
 
-/// Struct of WasmEdge Memory.
-///
-/// A WasmEdge [Memory] defines a linear memory as described by [MemType].
+/// Defines a WebAssembly memory instance, which is a linear memory described by its [type](crate::MemType). Each memory instance consists of a vector of bytes and an optional maximum size, and its size is a multiple of the WebAssembly page size (*64KiB* of each page).
 #[derive(Debug)]
 pub struct Memory {
     pub(crate) inner: InnerMemory,
@@ -24,7 +24,7 @@ impl Memory {
     ///
     /// # Arguments
     ///
-    /// - `ty` specifies the type of the new [Memory] instance.
+    /// * `ty` - The type of the new [Memory] instance.
     ///
     /// # Errors
     ///
@@ -75,9 +75,9 @@ impl Memory {
     ///
     /// # Arguments
     ///
-    /// - `offset` specifies the data start offset in the [Memory].
+    /// * `offset` - The data start offset in the [Memory].
     ///
-    /// - `len` specifies the requested data length.
+    /// * `len` - The requested data length.
     ///
     /// # Errors
     ///
@@ -102,9 +102,9 @@ impl Memory {
     ///
     /// # Arguments
     ///
-    /// - `data` specifies the data buffer to copy.
+    /// * `data` - The data buffer to copy.
     ///
-    /// - `offset` specifies the data start offset in the [Memory].
+    /// * `offset` - The data start offset in the [Memory].
     ///
     /// # Errors
     ///
@@ -112,7 +112,8 @@ impl Memory {
     /// then an error is returned.
     ///
     /// ```
-    /// use wasmedge_sys::{error::{CoreError, CoreExecutionError, WasmEdgeError}, Memory, MemType};
+    /// use wasmedge_sys::{Memory, MemType};
+    /// use wasmedge_types::error::{CoreError, CoreExecutionError, WasmEdgeError};
     ///
     /// // create a Memory: the min size 1 and the max size 2
     /// let ty = MemType::create(1..=2).expect("fail to create a memory type");
@@ -164,9 +165,9 @@ impl Memory {
     ///
     /// # Arguments
     ///
-    /// - `offset` specifies the data start offset in the [Memory].
+    /// * `offset` - The data start offset in the [Memory].
     ///
-    /// - `len` specifies the requested data length. If the size of `offset` + `len` is larger
+    /// * `len` - The requested data length. If the size of `offset` + `len` is larger
     /// than the data size in the [Memory]
     ///   
     ///
@@ -192,10 +193,9 @@ impl Memory {
     ///
     /// # Arguments
     ///
-    /// - `offset` specifies the data start offset in the [Memory].
+    /// * `offset` - The data start offset in the [Memory].
     ///
-    /// - `len` specifies the requested data length. If the size of `offset` + `len` is larger
-    /// than the data size in the [Memory]
+    /// * `len` - The requested data length. If the size of `offset` + `len` is larger than the data size in the [Memory]
     ///
     /// # Errors
     ///
@@ -224,7 +224,7 @@ impl Memory {
     ///
     /// # Arguments
     ///
-    /// - `count` specifies the page counts to be extended to the [Memory].
+    /// * `count` - The page counts to be extended to the [Memory].
     ///
     /// # Errors
     ///
@@ -264,9 +264,7 @@ pub(crate) struct InnerMemory(pub(crate) *mut ffi::WasmEdge_MemoryInstanceContex
 unsafe impl Send for InnerMemory {}
 unsafe impl Sync for InnerMemory {}
 
-/// Struct of WasmEdge MemType.
-///
-/// A [MemType] classifies a [Memory] and its size range.
+/// Defines the type of a wasm memory instance
 #[derive(Debug)]
 pub struct MemType {
     pub(crate) inner: InnerMemType,
@@ -277,7 +275,7 @@ impl MemType {
     ///
     /// # Arguments
     ///
-    /// - `limit` specifies the linear memory size. The start value of the limit range specifies the min size (also, initial size) of the memory, while the end value specifies the max size allowed to grow. The maximum size is `u32::MAX`.
+    /// * `limit` - The linear memory size. The start value of the limit range specifies the min size (also, initial size) of the memory, while the end value specifies the max size allowed to grow. The maximum size is `u32::MAX`.
     ///
     /// # Errors
     ///
@@ -323,6 +321,21 @@ impl Drop for MemType {
         }
     }
 }
+impl From<wasmedge_types::MemoryType> for MemType {
+    fn from(ty: wasmedge_types::MemoryType) -> Self {
+        MemType::create(ty.minimum()..=ty.maximum()).expect(
+            "[wasmedge] Failed to convert wasmedge_types::MemoryType into wasmedge_sys::MemType.",
+        )
+    }
+}
+impl From<MemType> for wasmedge_types::MemoryType {
+    fn from(ty: MemType) -> Self {
+        wasmedge_types::MemoryType::new(
+            ty.limit().start().to_owned(),
+            Some(ty.limit().end().to_owned()),
+        )
+    }
+}
 
 #[derive(Debug)]
 pub(crate) struct InnerMemType(pub(crate) *mut ffi::WasmEdge_MemoryTypeContext);
@@ -340,6 +353,7 @@ mod tests {
 
     #[test]
     fn test_memory_type() {
+        // case 1
         let result = MemType::create(0..=u32::MAX);
         assert!(result.is_ok());
         let ty = result.unwrap();
@@ -349,6 +363,7 @@ mod tests {
         let limit = ty.limit();
         assert_eq!(limit, 0..=u32::MAX);
 
+        // case 2
         let result = MemType::create(10..=101);
         assert!(result.is_ok());
         let ty = result.unwrap();

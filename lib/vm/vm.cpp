@@ -5,7 +5,7 @@
 #include "vm/async.h"
 
 #include "host/wasi/wasimodule.h"
-#include "host/wasmedge_process/processmodule.h"
+#include "plugin/plugin.h"
 
 namespace WasmEdge {
 namespace VM {
@@ -26,6 +26,7 @@ VM::VM(const Configure &Conf, Runtime::StoreManager &S)
 }
 
 void VM::unsafeInitVM() {
+  using namespace std::literals::string_view_literals;
   // Create import modules from configuration.
   if (Conf.hasHostRegistration(HostRegistration::Wasi)) {
     std::unique_ptr<Runtime::Instance::ModuleInstance> WasiMod =
@@ -34,10 +35,34 @@ void VM::unsafeInitVM() {
     ImpObjs.insert({HostRegistration::Wasi, std::move(WasiMod)});
   }
   if (Conf.hasHostRegistration(HostRegistration::WasmEdge_Process)) {
-    std::unique_ptr<Runtime::Instance::ModuleInstance> ProcMod =
-        std::make_unique<Host::WasmEdgeProcessModule>();
-    ExecutorEngine.registerModule(StoreRef, *ProcMod.get());
-    ImpObjs.insert({HostRegistration::WasmEdge_Process, std::move(ProcMod)});
+    bool Founded = false;
+    if (const auto *Plugin = Plugin::Plugin::find("wasmedge_process"sv)) {
+      if (const auto *Module = Plugin->findModule("wasmedge_process"sv)) {
+        auto ProcMod = Module->create();
+        ExecutorEngine.registerModule(StoreRef, *ProcMod);
+        ImpObjs.emplace(HostRegistration::WasmEdge_Process, std::move(ProcMod));
+        Founded = true;
+      }
+    }
+    if (!Founded) {
+      spdlog::debug("wasmedge_process module not founded."sv);
+    }
+  }
+  uint8_t Index = static_cast<uint8_t>(HostRegistration::Max);
+  for (const auto &Plugin : Plugin::Plugin::plugins()) {
+    if (Conf.isForbiddenPlugins(Plugin.name())) {
+      continue;
+    }
+    // skip WasmEdge_Process
+    if (Plugin.name() == "wasmedge_process"sv) {
+      continue;
+    }
+    for (const auto &Module : Plugin.modules()) {
+      auto ModObj = Module.create();
+      ExecutorEngine.registerModule(StoreRef, *ModObj);
+      ImpObjs.emplace(static_cast<HostRegistration>(Index++),
+                      std::move(ModObj));
+    }
   }
 }
 

@@ -1361,7 +1361,7 @@ The `Loader` context loads the WASM binary from files or buffers.
 Both the WASM and the compiled-WASM from the [WasmEdge AOT Compiler](#wasmedge-aot-compiler) are supported.
 
 ```c
-uint32_t Buf[4096];
+uint8_t Buf[4096];
 /* ... Read the WASM code to the buffer. */
 uint32_t FileSize = ...;
 /* The `FileSize` is the length of the WASM code. */

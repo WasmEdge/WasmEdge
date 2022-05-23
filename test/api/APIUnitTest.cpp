@@ -904,8 +904,8 @@ TEST(APICoreTest, Compiler) {
   EXPECT_TRUE(WasmEdge_ResultOK(
       WasmEdge_CompilerCompile(Compiler, TPath, "test_aot.wasm")));
   EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_CompilerCompile(
-      Compiler, "../spec/testSuites/core/binary/binary.159.wasm",
-      "binary_159_aot.wasm")));
+      Compiler, "../spec/testSuites/core/binary/binary.164.wasm",
+      "binary_164_aot.wasm")));
   // File not found
   EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_IllegalPath,
                          WasmEdge_CompilerCompile(Compiler, "not_exist.wasm",
@@ -922,7 +922,7 @@ TEST(APICoreTest, Compiler) {
   EXPECT_TRUE(OutFile.read(reinterpret_cast<char *>(Buf), 4));
   OutFile.close();
   EXPECT_TRUE(std::equal(WASMMagic, WASMMagic + 4, Buf));
-  OutFile.open("binary_159_aot.wasm", std::ios::binary);
+  OutFile.open("binary_164_aot.wasm", std::ios::binary);
   EXPECT_TRUE(OutFile.read(reinterpret_cast<char *>(Buf), 4));
   OutFile.close();
   EXPECT_TRUE(std::equal(WASMMagic, WASMMagic + 4, Buf));
@@ -934,14 +934,14 @@ TEST(APICoreTest, Compiler) {
   EXPECT_TRUE(WasmEdge_ResultOK(
       WasmEdge_CompilerCompile(Compiler, TPath, "test_aot.so")));
   EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_CompilerCompile(
-      Compiler, "../spec/testSuites/core/binary/binary.159.wasm",
-      "binary_159_aot.so")));
+      Compiler, "../spec/testSuites/core/binary/binary.164.wasm",
+      "binary_164_aot.so")));
   // Check the header of the output files.
   OutFile.open("test_aot.so", std::ios::binary);
   EXPECT_TRUE(OutFile.read(reinterpret_cast<char *>(Buf), 4));
   OutFile.close();
   EXPECT_FALSE(std::equal(WASMMagic, WASMMagic + 4, Buf));
-  OutFile.open("binary_159_aot.so", std::ios::binary);
+  OutFile.open("binary_164_aot.so", std::ios::binary);
   EXPECT_TRUE(OutFile.read(reinterpret_cast<char *>(Buf), 4));
   OutFile.close();
   EXPECT_FALSE(std::equal(WASMMagic, WASMMagic + 4, Buf));
@@ -1109,7 +1109,6 @@ TEST(APICoreTest, ExecutorWithStatistics) {
   EXPECT_NE(ExecCxt, nullptr);
   WasmEdge_ExecutorDelete(nullptr);
   EXPECT_TRUE(true);
-  WasmEdge_ConfigureDelete(Conf);
 
   // Register import object
   WasmEdge_ModuleInstanceContext *HostMod = createExternModule("extern");
@@ -1382,6 +1381,7 @@ TEST(APICoreTest, ExecutorWithStatistics) {
   WasmEdge_StatisticsClear(nullptr);
   EXPECT_TRUE(true);
 
+  WasmEdge_ConfigureDelete(Conf);
   WasmEdge_ExecutorDelete(ExecCxt);
   WasmEdge_StoreDelete(Store);
   WasmEdge_StatisticsDelete(Stat);
@@ -2004,6 +2004,17 @@ TEST(APICoreTest, ModuleInstance) {
   EXPECT_EQ(WasmEdge_ModuleInstanceWASIGetExitCode(nullptr), EXIT_FAILURE);
   WasmEdge_VMDelete(VM);
 
+  // Setup extra plugin path
+#if defined(_WIN32) || defined(_WIN64) || defined(__WIN32__) ||                \
+    defined(__TOS_WIN__) || defined(__WINDOWS__)
+  ::_putenv_s("WASMEDGE_PLUGIN_PATH", "../../plugins/wasmedge_process");
+#else
+  ::setenv("WASMEDGE_PLUGIN_PATH", "../../plugins/wasmedge_process", 0);
+#endif
+
+  // Load plugins
+  WasmEdge_Plugin_loadWithDefaultPluginPaths();
+
   // Create wasmedge_process.
   HostMod = WasmEdge_ModuleInstanceCreateWasmEdgeProcess(Args, 2, false);
   EXPECT_NE(HostMod, nullptr);
@@ -2027,10 +2038,7 @@ TEST(APICoreTest, ModuleInstance) {
   HostMod = WasmEdge_VMGetImportModuleContext(
       VM, WasmEdge_HostRegistration_WasmEdge_Process);
   EXPECT_NE(HostMod, nullptr);
-  WasmEdge_ModuleInstanceInitWasmEdgeProcess(nullptr, Args, 2, false);
-  EXPECT_TRUE(true);
-  WasmEdge_ModuleInstanceInitWasmEdgeProcess(HostMod, Args, 2, false);
-  EXPECT_TRUE(true);
+  WasmEdge_ModuleInstanceInitWasmEdgeProcess(Args, 2, false);
   WasmEdge_VMDelete(VM);
 }
 

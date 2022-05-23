@@ -1,39 +1,9 @@
 //! Defines the WebAssembly primitive types.
 
-use crate::{ffi, instance::function::InnerFunc, Function};
+use crate::{ffi, instance::function::InnerFuncRef, FuncRef};
 use core::ffi::c_void;
-use std::{ffi::CString, fmt, str::FromStr};
-
-/// Defines reference types.
-///
-/// `RefType` classifies first-class references to objects in the runtime [store](crate::Store).
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
-pub enum RefType {
-    /// `FuncRef` denotes the infinite union of all references to [functions](crate::Function), regardless of their
-    /// [function types](crate::FuncType).
-    FuncRef,
-
-    /// `ExternRef` denotes the infinite union of all references to objects owned by the [Vm](crate::Vm) and that can be
-    /// passed into WebAssembly under this type.
-    ExternRef,
-}
-impl From<u32> for RefType {
-    fn from(value: u32) -> Self {
-        match value {
-            0x70u32 => RefType::FuncRef,
-            0x6Fu32 => RefType::ExternRef,
-            _ => panic!("fail to convert u32 to WasmEdgeRefType: {:#X}", value),
-        }
-    }
-}
-impl From<RefType> for ffi::WasmEdge_RefType {
-    fn from(ty: RefType) -> Self {
-        match ty {
-            RefType::FuncRef => ffi::WasmEdge_RefType_FuncRef,
-            RefType::ExternRef => ffi::WasmEdge_RefType_ExternRef,
-        }
-    }
-}
+use std::{ffi::CString, str::FromStr};
+use wasmedge_types::{RefType, ValType};
 
 impl From<std::ops::RangeInclusive<u32>> for ffi::WasmEdge_Limit {
     fn from(range: std::ops::RangeInclusive<u32>) -> Self {
@@ -64,210 +34,7 @@ impl From<ffi::WasmEdge_Limit> for std::ops::RangeInclusive<u32> {
     }
 }
 
-/// Defines value types.
-///
-/// `ValType` classifies the individual values that WebAssembly code can compute with and the values that a variable
-/// accepts.
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
-pub enum ValType {
-    /// 32-bit integer.
-    ///
-    /// Integers are not inherently signed or unsigned, their interpretation is determined by individual operations.
-    I32,
-    /// 64-bit integer.
-    ///
-    /// Integers are not inherently signed or unsigned, their interpretation is determined by individual operations.
-    I64,
-    /// 32-bit floating-point data as defined by the [IEEE 754-2019](https://ieeexplore.ieee.org/document/8766229).
-    F32,
-    /// 64-bit floating-point data as defined by the [IEEE 754-2019](https://ieeexplore.ieee.org/document/8766229).
-    F64,
-    /// 128-bit vector of packed integer or floating-point data.
-    ///
-    /// The packed data can be interpreted as signed or unsigned integers, single or double precision floating-point
-    /// values, or a single 128 bit type. The interpretation is determined by individual operations.
-    V128,
-    /// A reference to [functions](crate::Function).
-    FuncRef,
-    /// A reference to object owned by the [Vm](crate::Vm).
-    ExternRef,
-    /// Unknown.
-    None,
-}
-impl From<ValType> for ffi::WasmEdge_ValType {
-    fn from(ty: ValType) -> Self {
-        match ty {
-            ValType::I32 => ffi::WasmEdge_ValType_I32,
-            ValType::I64 => ffi::WasmEdge_ValType_I64,
-            ValType::F32 => ffi::WasmEdge_ValType_F32,
-            ValType::F64 => ffi::WasmEdge_ValType_F64,
-            ValType::V128 => ffi::WasmEdge_ValType_V128,
-            ValType::FuncRef => ffi::WasmEdge_ValType_FuncRef,
-            ValType::ExternRef => ffi::WasmEdge_ValType_ExternRef,
-            ValType::None => ffi::WasmEdge_ValType_None,
-        }
-    }
-}
-impl From<ffi::WasmEdge_ValType> for ValType {
-    fn from(ty: ffi::WasmEdge_ValType) -> Self {
-        match ty {
-            ffi::WasmEdge_ValType_I32 => ValType::I32,
-            ffi::WasmEdge_ValType_I64 => ValType::I64,
-            ffi::WasmEdge_ValType_F32 => ValType::F32,
-            ffi::WasmEdge_ValType_F64 => ValType::F64,
-            ffi::WasmEdge_ValType_V128 => ValType::V128,
-            ffi::WasmEdge_ValType_FuncRef => ValType::FuncRef,
-            ffi::WasmEdge_ValType_ExternRef => ValType::ExternRef,
-            ffi::WasmEdge_ValType_None => ValType::None,
-            _ => panic!("unknown WasmEdge_ValType `{:#X}`", ty),
-        }
-    }
-}
-
-/// Defines WasmEdge mutability values.
-///
-/// `Mutability` determines a [global](crate::Global) variable is either mutable or immutable.
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
-pub enum Mutability {
-    /// Identifies an immutable global variable
-    Const,
-    /// Identifies a mutable global variable
-    Var,
-}
-impl From<Mutability> for ffi::WasmEdge_Mutability {
-    fn from(mutable: Mutability) -> Self {
-        match mutable {
-            Mutability::Const => ffi::WasmEdge_Mutability_Const,
-            Mutability::Var => ffi::WasmEdge_Mutability_Var,
-        }
-    }
-}
-impl From<ffi::WasmEdge_Mutability> for Mutability {
-    fn from(mutable: ffi::WasmEdge_Mutability) -> Self {
-        match mutable {
-            ffi::WasmEdge_Mutability_Const => Mutability::Const,
-            ffi::WasmEdge_Mutability_Var => Mutability::Var,
-            _ => panic!("unknown Mutability value `{}`", mutable),
-        }
-    }
-}
-
-/// Defines WasmEdge AOT compiler optimization level.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-#[repr(u32)]
-pub enum CompilerOptimizationLevel {
-    /// Disable as many optimizations as possible.
-    O0 = ffi::WasmEdge_CompilerOptimizationLevel_O0,
-
-    /// Optimize quickly without destroying debuggability.
-    O1 = ffi::WasmEdge_CompilerOptimizationLevel_O1,
-
-    /// Optimize for fast execution as much as possible without triggering
-    /// significant incremental compile time or code size growth.
-    O2 = ffi::WasmEdge_CompilerOptimizationLevel_O2,
-
-    ///  Optimize for fast execution as much as possible.
-    O3 = ffi::WasmEdge_CompilerOptimizationLevel_O3,
-
-    ///  Optimize for small code size as much as possible without triggering
-    ///  significant incremental compile time or execution time slowdowns.
-    Os = ffi::WasmEdge_CompilerOptimizationLevel_Os,
-
-    /// Optimize for small code size as much as possible.
-    Oz = ffi::WasmEdge_CompilerOptimizationLevel_Oz,
-}
-impl From<u32> for CompilerOptimizationLevel {
-    fn from(val: u32) -> CompilerOptimizationLevel {
-        match val {
-            0 => CompilerOptimizationLevel::O0,
-            1 => CompilerOptimizationLevel::O1,
-            2 => CompilerOptimizationLevel::O2,
-            3 => CompilerOptimizationLevel::O3,
-            4 => CompilerOptimizationLevel::Os,
-            5 => CompilerOptimizationLevel::Oz,
-            _ => panic!("Unknown CompilerOptimizationLevel value: {}", val),
-        }
-    }
-}
-
-/// Defines WasmEdge AOT compiler output binary format.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-#[repr(u32)]
-pub enum CompilerOutputFormat {
-    /// Native dynamic library format.
-    Native = ffi::WasmEdge_CompilerOutputFormat_Native,
-
-    /// WebAssembly with AOT compiled codes in custom sections.
-    Wasm = ffi::WasmEdge_CompilerOutputFormat_Wasm,
-}
-impl From<u32> for CompilerOutputFormat {
-    fn from(val: u32) -> CompilerOutputFormat {
-        match val {
-            0 => CompilerOutputFormat::Native,
-            1 => CompilerOutputFormat::Wasm,
-            _ => panic!("Unknown CompilerOutputFormat value: {}", val),
-        }
-    }
-}
-
-/// Defines WasmEdge host module registration enum.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum HostRegistration {
-    Wasi,
-    WasmEdgeProcess,
-}
-impl From<u32> for HostRegistration {
-    fn from(val: u32) -> Self {
-        match val {
-            0 => HostRegistration::Wasi,
-            1 => HostRegistration::WasmEdgeProcess,
-            _ => panic!("Unknown WasmEdge_HostRegistration value: {}", val),
-        }
-    }
-}
-impl From<HostRegistration> for ffi::WasmEdge_HostRegistration {
-    fn from(val: HostRegistration) -> Self {
-        match val {
-            HostRegistration::Wasi => ffi::WasmEdge_HostRegistration_Wasi,
-            HostRegistration::WasmEdgeProcess => ffi::WasmEdge_HostRegistration_WasmEdge_Process,
-        }
-    }
-}
-
-/// Defines WasmEdge ExternType values.
-///
-/// `ExternType` classifies [imports](crate::Import) and external values with their respective types.
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
-#[repr(u32)]
-pub enum ExternalType {
-    Function = ffi::WasmEdge_ExternalType_Function,
-    Table = ffi::WasmEdge_ExternalType_Table,
-    Memory = ffi::WasmEdge_ExternalType_Memory,
-    Global = ffi::WasmEdge_ExternalType_Global,
-}
-impl From<u32> for ExternalType {
-    fn from(val: u32) -> Self {
-        match val {
-            0x00u32 => ExternalType::Function,
-            0x01u32 => ExternalType::Table,
-            0x02u32 => ExternalType::Memory,
-            0x03u32 => ExternalType::Global,
-            _ => panic!("Unknown ExternalType value: {}", val),
-        }
-    }
-}
-impl fmt::Display for ExternalType {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let message = match self {
-            ExternalType::Function => "function",
-            ExternalType::Table => "table",
-            ExternalType::Memory => "memory",
-            ExternalType::Global => "global",
-        };
-        write!(f, "{}", message)
-    }
-}
-
+/// Struct of WasmEdge String.
 #[derive(Debug)]
 pub(crate) struct WasmEdgeString {
     inner: InnerWasmEdgeString,
@@ -329,7 +96,7 @@ pub(crate) struct InnerWasmEdgeString(pub(crate) ffi::WasmEdge_String);
 unsafe impl Send for InnerWasmEdgeString {}
 unsafe impl Sync for InnerWasmEdgeString {}
 
-/// Struct of WasmEdge Value.
+/// Defines a WebAssembly value.
 #[derive(Debug, Clone, Copy)]
 pub struct WasmValue {
     ctx: ffi::WasmEdge_Value,
@@ -350,7 +117,7 @@ impl WasmValue {
     ///
     /// # Argument
     ///
-    /// - `val` specifies the source `i32` value.
+    /// * `val` - The source `i32` value.
     pub fn from_i32(val: i32) -> Self {
         Self {
             ctx: unsafe { ffi::WasmEdge_ValueGenI32(val) },
@@ -367,7 +134,7 @@ impl WasmValue {
     ///
     /// # Argument
     ///
-    /// - `val` specifies the source `i64` value.
+    /// * `val` - The source `i64` value.
     pub fn from_i64(val: i64) -> Self {
         Self {
             ctx: unsafe { ffi::WasmEdge_ValueGenI64(val) },
@@ -384,7 +151,7 @@ impl WasmValue {
     ///
     /// # Argument
     ///
-    /// - `val` specifies the source `f32` value.
+    /// * `val` - The source `f32` value.
     pub fn from_f32(val: f32) -> Self {
         Self {
             ctx: unsafe { ffi::WasmEdge_ValueGenF32(val) },
@@ -401,7 +168,7 @@ impl WasmValue {
     ///
     /// # Argument
     ///
-    /// - `val` specifies the source `f64` value.
+    /// * `val` - The source `f64` value.
     pub fn from_f64(val: f64) -> Self {
         Self {
             ctx: unsafe { ffi::WasmEdge_ValueGenF64(val) },
@@ -418,7 +185,7 @@ impl WasmValue {
     ///
     /// # Argument
     ///
-    /// - `val` specifies the source `i128` value.
+    /// * `val` - The source `i128` value.
     pub fn from_v128(val: i128) -> Self {
         Self {
             ctx: unsafe { ffi::WasmEdge_ValueGenV128(val) },
@@ -431,11 +198,11 @@ impl WasmValue {
         unsafe { ffi::WasmEdge_ValueGetV128(self.ctx) }
     }
 
-    /// Creates a [WasmValue] from a [RefType](crate::RefType) value.
+    /// Creates a [WasmValue] from a [RefType](wasmedge_types::RefType) value.
     ///
     /// # Argument
     ///
-    /// - `val` specifies the `[`RefType`] value.
+    /// * `val` - The `[`RefType`] value.
     pub fn from_null_ref(ref_ty: RefType) -> Self {
         Self {
             ctx: unsafe { ffi::WasmEdge_ValueGenNullRef(ref_ty.into()) },
@@ -451,35 +218,31 @@ impl WasmValue {
         unsafe { ffi::WasmEdge_ValueIsNullRef(self.ctx) }
     }
 
-    /// Creates a [WasmValue] from a the function reference.
+    /// Creates a [WasmValue] from a [FuncRef](crate::FuncRef).
     ///
-    /// The [WasmValue]s generated by this function are only meaningful when the `bulk_memory_operations` option or the
-    /// `reference_types` option is enabled in the [Config](crate::Config).
+    /// Notice that the [WasmValue]s generated from [FuncRef](crate::FuncRef)s are only meaningful when the `bulk_memory_operations` or `reference_types` option is enabled in the [Config](crate::Config).
     ///
     /// # Argument
     ///
-    /// - `idx` specifies the function index.
-    pub fn from_func_ref(func: &mut Function) -> Self {
+    /// * `func_ref` - A [FuncRef] instance.
+    pub fn from_func_ref(func_ref: FuncRef) -> Self {
         Self {
-            ctx: unsafe { ffi::WasmEdge_ValueGenFuncRef(func.inner.0) },
+            ctx: unsafe { ffi::WasmEdge_ValueGenFuncRef(func_ref.inner.0) },
             ty: ValType::FuncRef,
         }
     }
 
-    /// Returns the function index.
+    /// Returns the FuncRef(crate::FuncRef).
     ///
     /// If the [WasmValue] is a `NullRef`, then `None` is returned.
-    pub fn func_ref(&self) -> Option<Function> {
+    pub fn func_ref(&self) -> Option<FuncRef> {
         unsafe {
             match ffi::WasmEdge_ValueIsNullRef(self.ctx) {
                 true => None,
                 false => {
                     let ctx = ffi::WasmEdge_ValueGetFuncRef(self.ctx);
-                    Some(Function {
-                        inner: InnerFunc(ctx),
-                        registered: true,
-                        name: None,
-                        mod_name: None,
+                    Some(FuncRef {
+                        inner: InnerFuncRef(ctx),
                     })
                 }
             }
@@ -493,7 +256,7 @@ impl WasmValue {
     ///
     /// # Argument
     ///
-    /// - `extern_obj` specifies the reference to an external object.
+    /// * `extern_obj` - The reference to an external object.
     pub fn from_extern_ref<T>(extern_obj: &mut T) -> Self {
         let ptr = extern_obj as *mut T as *mut c_void;
         Self {
@@ -561,11 +324,12 @@ impl From<ffi::WasmEdge_Value> for WasmValue {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{RefType, Table, TableType};
+    use crate::{Table, TableType};
     use std::{
         sync::{Arc, Mutex},
         thread,
     };
+    use wasmedge_types::RefType;
 
     #[test]
     fn test_types_value() {

@@ -1,8 +1,8 @@
-# WasmEdge C 0.10.0 (unreleased) API Documentation
+# WasmEdge C 0.10.0 API Documentation
 
 [WasmEdge C API](https://github.com/WasmEdge/WasmEdge/blob/master/include/api/wasmedge/wasmedge.h) denotes an interface to access the WasmEdge runtime. The followings are the guides to working with the C APIs of WasmEdge.
 
-**This document is for the `master` branch. For the stable `0.9.1` version, please refer to the [document here](0.9.1/ref.md).**
+**This document is for the pre-release `0.10.0-alpha.1` version. For the stable `0.9.1` version, please refer to the [document here](0.9.1/ref.md).**
 
 **Developers can refer [here to upgrade to 0.10.0](0.9.1/upgrade_to_0.10.0.md).**
 
@@ -47,12 +47,12 @@
 
 ### Download And Install
 
-**This is for the installation of the stable `0.9.1` version. For the C APIs in this document, please [build WasmEdge from source with the `master` branch](../../extend/build.md).**
+**This is for the installation of the pre-release `0.10.0-alpha.1` version. For the latest stable release, please use the `0.9.1` version.**
 
 The easiest way to install WasmEdge is to run the following command. Your system should have `git` and `wget` as prerequisites.
 
 ```bash
-curl -sSf https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh | bash -s -- -v 0.9.1
+curl -sSf https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh | bash -s -- -v 0.10.0-alpha.1
 ```
 
 For more details, please refer to the [Installation Guide](/start/install.md) for the WasmEdge installation.
@@ -82,7 +82,7 @@ After the installation of WasmEdge, the following guide can help you to test for
 
     ```bash
     $ ./a.out
-    WasmEdge version: 0.9.1
+    WasmEdge version: 0.10.0-alpha.1
     ```
 
 ## WasmEdge Basics
@@ -141,10 +141,12 @@ In WasmEdge, developers should convert the values to `WasmEdge_Value` objects th
     Ptr = WasmEdge_ValueGetExternRef(Val);
     /* The `Ptr` will be `NULL`. */
 
-    /* Genreate a funcref with function index 20. */
-    Val = WasmEdge_ValueGenFuncRef(20);
-    uint32_t FuncIdx = WasmEdge_ValueGetFuncIdx(Val);
-    /* The `FuncIdx` will be 20. */
+    /* Get the function instance by creation or from module instance. */
+    const WasmEdge_FunctionInstanceContext *FuncCxt = ...;
+    /* Genreate a funcref with the given function instance context. */
+    Val = WasmEdge_ValueGenFuncRef(FuncCxt);
+    const WasmEdge_FunctionInstanceContext *GotFuncCxt = WasmEdge_ValueGetFuncRef(Val);
+    /* The `GotFuncCxt` will be the same as `FuncCxt`. */
 
     /* Genreate a externref to `Num`. */
     Val = WasmEdge_ValueGenExternRef(&Num);
@@ -470,6 +472,7 @@ Developers can adjust the settings about the proposals, VM host pre-registration
       WasmEdge_Proposal_Annotations,
       WasmEdge_Proposal_Memory64,
       WasmEdge_Proposal_ExceptionHandling,
+      WasmEdge_Proposal_ExtendedConst,
       WasmEdge_Proposal_Threads,
       WasmEdge_Proposal_FunctionReferences
     };
@@ -492,6 +495,7 @@ Developers can adjust the settings about the proposals, VM host pre-registration
      * (turned of by default) additionally:
      * * Tail-call
      * * Multiple memories
+     * * Extended-const
      */
     WasmEdge_ConfigureContext *ConfCxt = WasmEdge_ConfigureCreate();
     WasmEdge_ConfigureAddProposal(ConfCxt, WasmEdge_Proposal_MultiMemories);
@@ -1402,7 +1406,7 @@ The `Loader` context loads the WASM binary from files or buffers.
 Both the WASM and the compiled-WASM from the [WasmEdge AOT Compiler](#wasmedge-aot-compiler) are supported.
 
 ```c
-uint32_t Buf[4096];
+uint8_t Buf[4096];
 /* ... Read the WASM code to the buffer. */
 uint32_t FileSize = ...;
 /* The `FileSize` is the length of the WASM code. */

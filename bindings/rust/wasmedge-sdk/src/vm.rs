@@ -357,6 +357,16 @@ impl Vm {
             inner: inner_process_module,
         })
     }
+
+    /// Checks if the [vm](crate::Vm) contains a named module instance.
+    ///
+    /// # Argument
+    ///
+    /// * `mod_name` - The registered module's name to check.
+    ///
+    pub fn contains_module(&self, mod_name: impl AsRef<str>) -> bool {
+        self.inner.contains_module(mod_name.as_ref())
+    }
 }
 
 #[cfg(test)]

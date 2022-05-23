@@ -120,6 +120,16 @@ impl Store {
 
         None
     }
+
+    /// Checks if the [store](crate::Store) contains a named module instance.
+    ///
+    /// # Argument
+    ///
+    /// * `name` - The name of the named module.
+    ///
+    pub fn contains(&self, name: impl AsRef<str>) -> bool {
+        self.inner.contains(name.as_ref())
+    }
 }
 
 #[cfg(test)]

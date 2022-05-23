@@ -17,17 +17,7 @@ WasmEdge_StatisticsContext *getStatisticsContext(JNIEnv * env, jobject jStatCxt)
 jobject CreateJavaStatisticsContext(JNIEnv *env, WasmEdge_StatisticsContext * statisticsContext) {
     jclass statClass = findJavaClass(env, "org/wasmedge/StatisticsContext");
 
-    if(statClass == NULL) {
-        printf("invalid stat class\n");
-        return NULL;
-    }
-
     jmethodID constructor = (*env)->GetMethodID(env, statClass, "<init>", "(J)V");
-
-    if(constructor == NULL) {
-        printf("invalid constructor\n");
-        return NULL;
-    }
 
     jobject jStatContext = (*env)->NewObject(env, statClass, constructor, (long)statisticsContext);
     checkAndHandleException(env, "error creating stat context");
@@ -58,17 +48,16 @@ JNIEXPORT jdouble JNICALL Java_org_wasmedge_StatisticsContext_getInstrPerSecond
 
 JNIEXPORT void JNICALL Java_org_wasmedge_StatisticsContext_setCostTable
         (JNIEnv * env, jobject thisObject, jlongArray jCostTable) {
-    printf("get stat cxt \n");
+
     WasmEdge_StatisticsContext* statCxt = getStatisticsContext(env, thisObject);
-    printf("get array length cxt \n");
+
     int len = (*env)->GetArrayLength(env, jCostTable);
-    printf("get array elements \n");
+
     long* data = (*env)->GetLongArrayElements(env, jCostTable, NULL);
     uint64_t* CostTable = malloc(sizeof (uint64_t) * len);
 
-    printf("set cost table\n");
     WasmEdge_StatisticsSetCostTable(statCxt, data, len);
-    printf("release array\n");
+
     (*env)->ReleaseLongArrayElements(env, jCostTable, data, len);
 }
 

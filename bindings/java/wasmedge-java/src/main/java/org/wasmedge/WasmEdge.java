@@ -6,11 +6,6 @@ public class WasmEdge {
         System.loadLibrary("wasmedge_jni");
     }
 
-    public enum LogLevel {
-        DEBUG,
-        ERROR;
-    }
-
     /**
      * Get version string of underlying C API.
      *
@@ -59,5 +54,10 @@ public class WasmEdge {
     private native void setErrorLevel();
 
     private native void setDebugLevel();
+
+    public enum LogLevel {
+        DEBUG,
+        ERROR
+    }
 
 }

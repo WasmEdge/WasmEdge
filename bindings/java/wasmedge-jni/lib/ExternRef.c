@@ -4,6 +4,7 @@
 
 #include "../jni/org_wasmedge_WasmEdgeExternRef.h"
 #include "common.h"
+#include <string.h>
 
 
 JNIEXPORT void JNICALL Java_org_wasmedge_WasmEdgeExternRef_nativeInit
@@ -12,8 +13,6 @@ JNIEXPORT void JNICALL Java_org_wasmedge_WasmEdgeExternRef_nativeInit
     char *ptr = (char*)malloc(sizeof(char ) * len);
 
     const char* val = (*env)->GetStringUTFChars(env, jVal, NULL);
-
-    printf("intput key: [%s]\n", val);
 
     memcpy(ptr, val, len);
 

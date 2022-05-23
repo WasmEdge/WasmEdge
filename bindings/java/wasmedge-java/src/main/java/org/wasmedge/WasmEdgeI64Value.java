@@ -4,6 +4,7 @@ import org.wasmedge.enums.ValueType;
 
 public final class WasmEdgeI64Value implements WasmEdgeValue {
     private long value;
+
     public WasmEdgeI64Value(long value) {
         this.value = value;
     }
@@ -16,9 +17,9 @@ public final class WasmEdgeI64Value implements WasmEdgeValue {
     public ValueType getType() {
         return ValueType.i64;
     }
-    
+
     public long getValue() {
-       return this.value;
+        return this.value;
     }
 
     public void setValue(long value) {

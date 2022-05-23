@@ -36,7 +36,7 @@ public class LoaderContextTest extends BaseTest {
     public void testParseFromBuffer() throws Exception {
         byte[] buffer = new byte[1024];
 
-        try(FileInputStream fin = new FileInputStream(getResourcePath(TEST_WASM_PATH))) {
+        try (FileInputStream fin = new FileInputStream(getResourcePath(TEST_WASM_PATH))) {
             int len = fin.read(buffer, 0, 1024);
             ASTModuleContext moduleContext = loaderContext.parseFromBuffer(buffer, len);
             moduleContext.delete();

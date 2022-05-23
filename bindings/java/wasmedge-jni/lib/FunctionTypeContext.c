@@ -180,7 +180,6 @@ jobject ConvertToJavaFunctionType(JNIEnv* env, const WasmEdge_FunctionTypeContex
     jobject jReturnList = ConvertToValueTypeList(env,  list, actualLen);
 
     if(jReturnList == NULL) {
-        printf("invalid return\n");
         return NULL;
     }
 
@@ -194,7 +193,6 @@ jobject ConvertToJavaFunctionType(JNIEnv* env, const WasmEdge_FunctionTypeContex
     jobject jParamList = ConvertToValueTypeList(env,  paramList, actualParamLen);
 
     if(jParamList == NULL) {
-        printf("invalid param");
         return NULL;
     }
 
@@ -202,33 +200,26 @@ jobject ConvertToJavaFunctionType(JNIEnv* env, const WasmEdge_FunctionTypeContex
 
     jclass functionTypeClass = findJavaClass(env, "org/wasmedge/FunctionTypeContext");
     if(functionTypeClass == NULL) {
-       printf("invalid class");
        return NULL;
     }
 
 
     jmethodID constructor  = findJavaMethod(env, functionTypeClass, "<init>", "(Ljava/util/List;Ljava/util/List;)V");
 
-    printf("create jfun\n");
     jobject jFunc = (*env)->NewObject(env, functionTypeClass, constructor, jParamList, jReturnList);
 
     if(checkAndHandleException(env, "Error when creating function type context.\n")) {
         return NULL;
     }
 
-    printf("get setter\n");
     jmethodID nameSetter = (*env)->GetMethodID(env, functionTypeClass, "setName", "(Ljava/lang/String;)V");
 
     uint32_t  len = 256;
     char BUF[len];
-    printf("name from buffer:%d\n", name.Length);
     WasmEdge_StringCopy(name, BUF, len);
-    printf("name from buffer:%s\n", BUF);
     jstring jstr = (*env)->NewStringUTF(env, BUF);
 
-    printf("set name %s\n", BUF);
     (*env)->CallVoidMethod(env, jFunc, nameSetter, jstr);
-
 
     if(checkAndHandleException(env, "Error when setting function type context name.\n")) {
         return NULL;

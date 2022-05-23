@@ -13,6 +13,7 @@ public class VMContext {
     }
 
     private native void initNative(ConfigureContext context, StoreContext storeContext);
+
     private native void cleanUp();
 
 }

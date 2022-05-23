@@ -107,7 +107,7 @@ public class ExecutorContextTest extends BaseTest {
         StoreContext storeContext = new StoreContext();
         executorContext.instantiate(storeContext, moduleContext);
         executorContext.invoke(storeContext, FUNC_NAME, params, returns);
-        Assert.assertEquals(3, ((WasmEdgeI32Value)returns.get(0)).getValue());
+        Assert.assertEquals(3, ((WasmEdgeI32Value) returns.get(0)).getValue());
     }
 
     @Test(expected = Exception.class)
@@ -187,8 +187,7 @@ public class ExecutorContextTest extends BaseTest {
         List<WasmEdgeValue> returns = new ArrayList<>();
         exeCxt.invoke(storeCxt, "func-host-add", param, returns);
 
-        Assert.assertEquals(778, ((WasmEdgeI32Value)returns.get(0)).getValue());
-
+        Assert.assertEquals(778, ((WasmEdgeI32Value) returns.get(0)).getValue());
 
 
     }

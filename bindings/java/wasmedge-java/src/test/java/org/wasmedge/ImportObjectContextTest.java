@@ -10,7 +10,7 @@ import org.wasmedge.enums.WasmEdgeMutability;
 import java.util.List;
 
 public class ImportObjectContextTest extends BaseTest {
-    String[] args= new String[] {"arg1", "arg2"} ;
+    String[] args = new String[] {"arg1", "arg2"};
     String[] envs = new String[] {"ENV1=VAL1", "ENV2=VAL2", "ENV3=VAL3"};
     String[] preopens = new String[] {"apiTestData", "Makefile", "CMakefiles", "ssvmAPICoreTests", ".:."};
 
@@ -29,7 +29,7 @@ public class ImportObjectContextTest extends BaseTest {
                 return new Result();
             }
         };
-        FunctionTypeContext addType = new FunctionTypeContext(new ValueType[]{ValueType.i32, ValueType.i32}, new ValueType[]{ValueType.i32});
+        FunctionTypeContext addType = new FunctionTypeContext(new ValueType[] {ValueType.i32, ValueType.i32}, new ValueType[] {ValueType.i32});
 
         FunctionInstanceContext add = new FunctionInstanceContext(addType, addHostFunc, null, 0);
 
@@ -76,7 +76,7 @@ public class ImportObjectContextTest extends BaseTest {
         config.addHostRegistration(HostRegistration.WasmEdge_HostRegistration_Wasi);
         WasmEdgeVM vm = new WasmEdgeVM(config, null);
         ImportObjectContext importObjectContext = vm.getImportModuleContext(HostRegistration.WasmEdge_HostRegistration_Wasi);
-        importObjectContext.initWASI(args, envs , preopens);
+        importObjectContext.initWASI(args, envs, preopens);
     }
 
     @Test

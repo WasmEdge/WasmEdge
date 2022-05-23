@@ -39,15 +39,9 @@ jobject createJMemoryTypeContext(JNIEnv* env, const WasmEdge_MemoryTypeContext *
 
     jclass clazz = (*env)->FindClass(env, "org/wasmedge/MemoryTypeContext");
 
-    if(clazz == NULL) {
-        printf("memory type not found \n");
-    }
 
     jmethodID constructorId = (*env)->GetMethodID(env, clazz, "<init>", "(J)V");
 
-    if(constructorId == NULL) {
-        printf("memory type constructor not found\n");
-    }
     return (*env)->NewObject(env, clazz, constructorId, (long) memTypeContext);
 }
 

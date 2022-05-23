@@ -17,7 +17,6 @@
 
 void setJavaIntValue(JNIEnv *env, WasmEdge_Value val, jobject jobj) {
     int int_val = WasmEdge_ValueGetI32(val);
-    printf("wasm value:%d\n", int_val);
     jclass val_clazz = (*env)->GetObjectClass(env, jobj);
     jmethodID val_setter = (*env)->GetMethodID(env, val_clazz, "setValue", "(I)V");
     (*env)->CallIntMethod(env, jobj, val_setter, int_val);
@@ -531,12 +530,9 @@ JNIEXPORT jobject JNICALL Java_org_wasmedge_WasmEdgeVM_getStoreContext
 
 JNIEXPORT jobject JNICALL Java_org_wasmedge_WasmEdgeVM_getStatisticsContext
         (JNIEnv * env, jobject thisObject) {
-    printf("get vm context\n;");
 
     WasmEdge_VMContext * vmContext = getVmContext(env, thisObject);
-    printf("get stat context\n;");
     WasmEdge_StatisticsContext *statCxt = WasmEdge_VMGetStatisticsContext(vmContext);
-    printf("get java context\n;");
     return CreateJavaStatisticsContext(env, statCxt);
 }
 

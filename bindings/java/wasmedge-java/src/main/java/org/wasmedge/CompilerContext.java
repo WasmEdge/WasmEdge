@@ -6,6 +6,7 @@ public class CompilerContext {
     public CompilerContext(ConfigureContext configureContext) {
         nativeInit(configureContext);
     }
+
     private native void nativeInit(ConfigureContext configureContext);
 
     public native void compile(String inputPath, String outputPath);

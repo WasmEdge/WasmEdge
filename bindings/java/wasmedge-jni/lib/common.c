@@ -131,7 +131,6 @@ int getIntVal(JNIEnv *env, jobject val) {
     jmethodID methodId = findJavaMethod(env, clazz, "getValue", "()I");
 
     jint value = (*env)->CallIntMethod(env, val, methodId);
-    printf("int value:%d\n", value);
     checkAndHandleException(env, "Error get int value");
     return value;
 }
@@ -161,19 +160,9 @@ double getDoubleVal(JNIEnv *env, jobject val) {
 char* getStringVal(JNIEnv *env, jobject val) {
     jclass clazz = (*env)->GetObjectClass(env, val);
 
-    if(clazz == NULL) {
-        printf("class not found\n");
-    }
-
     jmethodID methodId = findJavaMethod(env, clazz, "getValue", "()Ljava/lang/String;");
 
-    if(methodId == NULL) {
-        printf("method not found \n");
-    }
     jstring value = (jstring)(*env)->CallObjectMethod(env, val, methodId);
-    if(value == NULL)  {
-        printf("value not found\n");
-    }
 
     const char* c_str = (*env)->GetStringUTFChars(env, value, NULL);
     size_t len = (*env)->GetStringUTFLength(env, value);
@@ -297,7 +286,6 @@ jstring WasmEdgeStringToJString(JNIEnv* env, WasmEdge_String wStr) {
      char buf[MAX_BUF_LEN];
      memset(buf, 0, MAX_BUF_LEN);
      WasmEdge_StringCopy(wStr, buf, MAX_BUF_LEN);
-     printf("converting %s\n", buf);
 
     jobject jStr = (*env)->NewStringUTF(env, buf);
 
@@ -342,29 +330,18 @@ bool AddElementToJavaList(JNIEnv* env, jobject jList, jobject ele) {
 }
 
 jobject GetListElement(JNIEnv* env, jobject jList, jint idx) {
-    printf("get value from list\n");
     jclass listClass = (*env)->GetObjectClass(env, jList);
-    if(listClass == NULL) {
-        printf("list class is null\n");
-    }
     jmethodID getMethod = findJavaMethod(env, listClass, "get", "(I)Ljava/lang/Object;");
-    if(getMethod == NULL) {
-        printf("get method is null\n");
-    }
 
     return (*env)->CallObjectMethod(env, jList, getMethod, idx);
 }
 
 jint GetListSize(JNIEnv* env, jobject jList) {
+
     jclass listClass = (*env)->GetObjectClass(env, jList);
-    if(listClass == NULL) {
-        printf("list class is null\n");
-    }
     jmethodID sizeMethod = (*env)->GetMethodID(env, listClass, "size", "()I");
-    if(sizeMethod == NULL) {
-        printf("size meethod is null\n");
-    }
     jint size = (*env)->CallIntMethod(env, jList, sizeMethod);
+
     return size;
 }
 
@@ -405,13 +382,10 @@ void ReleaseCString(JNIEnv* env, jarray jStrArray, const char** ptr) {
 jobject WasmEdgeStringArrayToJavaList(JNIEnv* env, WasmEdge_String* wStrList, int32_t len) {
     jobject strList = CreateJavaArrayList(env, len);
 
-    printf("total len %d\n", len);
     for (int i = 0; i < len; ++i) {
-        printf("adding %d\n", i);
 
         jstring jstr = WasmEdgeStringToJString(env, wStrList[i]);
         AddElementToJavaList(env, strList, jstr);
-        printf("added %d\n", i);
     }
     return strList;
 }

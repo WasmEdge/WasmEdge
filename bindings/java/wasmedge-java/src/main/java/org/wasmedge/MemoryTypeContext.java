@@ -7,6 +7,7 @@ public class MemoryTypeContext {
     private MemoryTypeContext(long pointer) {
         this.pointer = pointer;
     }
+
     public MemoryTypeContext(WasmEdgeLimit limit) {
         this.limit = limit;
         nativeInit(limit.isHasMax(), limit.getMin(), limit.getMax());

@@ -4,9 +4,11 @@ import org.wasmedge.enums.ValueType;
 
 public class WasmEdgeFuncRef implements WasmEdgeValue {
     private long value;
+
     public WasmEdgeFuncRef() {
 
     }
+
     public WasmEdgeFuncRef(long index) {
         this.value = index;
     }
@@ -20,11 +22,11 @@ public class WasmEdgeFuncRef implements WasmEdgeValue {
         return this.value;
     }
 
-    public long getIndex() {
-        return value;
-    }
-
     public void setValue(long value) {
         this.value = value;
+    }
+
+    public long getIndex() {
+        return value;
     }
 }

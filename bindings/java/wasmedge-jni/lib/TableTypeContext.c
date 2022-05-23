@@ -66,20 +66,11 @@ JNIEXPORT void JNICALL Java_org_wasmedge_TableTypeContext_delete
 jobject createJTableTypeContext(JNIEnv* env, const WasmEdge_TableTypeContext * tableTypeContext) {
 
     jclass clazz = (*env)->FindClass(env, "org/wasmedge/TableTypeContext");
-    if(clazz == NULL) {
-        printf("table type not found\n\n");
-    }
 
     jmethodID constructorId = (*env)->GetMethodID(env, clazz, "<init>", "(J)V");
 
-    if(constructorId == NULL) {
-        printf("constructor not foudn \n \n");
-    }
     jobject table = (*env)->NewObject(env, clazz, constructorId, (long) tableTypeContext);
 
-    if(table == NULL) {
-        printf("table not constructed \n\n");
-    }
     return table;
 }
 

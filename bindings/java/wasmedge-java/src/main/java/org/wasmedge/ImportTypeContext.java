@@ -3,9 +3,9 @@ package org.wasmedge;
 import org.wasmedge.enums.ExternalType;
 
 public class ImportTypeContext {
-    private ASTModuleContext astCtx;
+    private final ASTModuleContext astCtx;
 
-    private long pointer;
+    private final long pointer;
 
     private ImportTypeContext(long pointer, ASTModuleContext astCtx) {
         this.pointer = pointer;
@@ -13,6 +13,7 @@ public class ImportTypeContext {
     }
 
     public native String getModuleName();
+
     public native String getExternalName();
 
     public ExternalType getExternalType() {
@@ -24,6 +25,7 @@ public class ImportTypeContext {
     public FunctionTypeContext getFunctionType() {
         return nativeGetFunctionType(astCtx);
     }
+
     private native FunctionTypeContext nativeGetFunctionType(ASTModuleContext astCtx);
 
     public TableTypeContext getTableType() {

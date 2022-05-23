@@ -27,7 +27,7 @@ public class ImportTypeContextTest extends BaseTest {
 
         Assert.assertEquals(impTypes.size(), 14);
 
-        String[][] imports= {
+        String[][] imports = {
                 {"func-add", "extern"}, {"func-sub", "extern"}, {"func-mul", "extern"},
                 {"func-div", "extern"}, {"func-term", "extern"},
                 {"func-fail", "extern"}, {"glob-i32", "dummy"}, {"glob-i64", "dummy"},
@@ -39,7 +39,7 @@ public class ImportTypeContextTest extends BaseTest {
                 ExternalType.FUNCTION, ExternalType.FUNCTION,
                 ExternalType.FUNCTION, ExternalType.GLOBAL, ExternalType.GLOBAL, ExternalType.GLOBAL,
                 ExternalType.GLOBAL, ExternalType.TABLE,
-                ExternalType.TABLE, ExternalType.MEMORY,ExternalType.MEMORY
+                ExternalType.TABLE, ExternalType.MEMORY, ExternalType.MEMORY
 
         };
 
@@ -51,6 +51,7 @@ public class ImportTypeContextTest extends BaseTest {
         loaderContext.delete();
         mod.delete();
     }
+
     @Test
     public void testGetFunctionType() {
         LoaderContext loaderContext = new LoaderContext(null);

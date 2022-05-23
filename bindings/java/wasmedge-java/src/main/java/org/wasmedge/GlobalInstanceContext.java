@@ -8,6 +8,7 @@ public class GlobalInstanceContext {
     private GlobalInstanceContext(long pointer) {
         this.pointer = pointer;
     }
+
     public GlobalInstanceContext(GlobalTypeContext typeCxt,
                                  WasmEdgeValue value) {
         this.globalTypeContext = typeCxt;
@@ -21,15 +22,15 @@ public class GlobalInstanceContext {
         return globalTypeContext;
     }
 
-    public void setValue(WasmEdgeValue value) {
-        this.value = value;
-        nativeSetValue(value);
-    }
-
     private native void nativeSetValue(WasmEdgeValue value);
 
     public WasmEdgeValue getValue() {
         return this.value;
+    }
+
+    public void setValue(WasmEdgeValue value) {
+        this.value = value;
+        nativeSetValue(value);
     }
 
     public native void delete();

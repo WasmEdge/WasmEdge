@@ -20,9 +20,9 @@ public class ExportTypeContextTest extends BaseTest {
 
         String[] externalNames = {
                 "func-1", "func-2", "func-3", "func-4", "func-add",
-                 "func-mul-2", "func-call-indirect", "func-host-add",
+                "func-mul-2", "func-call-indirect", "func-host-add",
                 "func-host-sub", "func-host-mul", "func-host-div", "tab-func",
-                "tab-ext", "mem", "glob-mut-i32", "glob-const-f32" };
+                "tab-ext", "mem", "glob-mut-i32", "glob-const-f32"};
         ExternalType[] exportTypes = {
                 ExternalType.FUNCTION, ExternalType.FUNCTION, ExternalType.FUNCTION, ExternalType.FUNCTION,
                 ExternalType.FUNCTION, ExternalType.FUNCTION, ExternalType.FUNCTION, ExternalType.FUNCTION,

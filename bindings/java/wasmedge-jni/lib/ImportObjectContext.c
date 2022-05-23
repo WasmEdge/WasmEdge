@@ -117,13 +117,11 @@ JNIEXPORT void JNICALL Java_org_wasmedge_ImportObjectContext_delete
 
 JNIEXPORT jobject JNICALL Java_org_wasmedge_ImportObjectContext_CreateWASI
         (JNIEnv *env , jclass thisClass, jobjectArray jArgs, jobjectArray jEnvs, jobjectArray jPreopens) {
-    printf("enter create WASI\n");
 
     const char** args = JStringArrayToPtr(env, jArgs);
     const char** envs = JStringArrayToPtr(env, jEnvs);
     const char** preopens = JStringArrayToPtr(env, jPreopens);
 
-    printf("calling create wasi\n");
     WasmEdge_ImportObjectContext * importObjectContext = WasmEdge_ImportObjectCreateWASI(args, (*env)->GetArrayLength(env, jArgs),
                                     envs, (*env)->GetArrayLength(env,jEnvs),
                                     preopens, (*env)->GetArrayLength(env,jPreopens));
@@ -132,7 +130,6 @@ JNIEXPORT jobject JNICALL Java_org_wasmedge_ImportObjectContext_CreateWASI
     ReleaseCString(env, jEnvs, envs);
     ReleaseCString(env, jPreopens, preopens);
 
-    printf("calling create import context\n");
     return createJImportObject(env, importObjectContext);
 }
 
@@ -141,14 +138,7 @@ jobject createJImportObject(JNIEnv* env, const WasmEdge_ImportObjectContext * im
 
     jclass clazz = (*env)->FindClass(env, "org/wasmedge/ImportObjectContext");
 
-    if(clazz == NULL) {
-        printf("object type not found \n");
-    }
-
     jmethodID constructorId = (*env)->GetMethodID(env, clazz, "<init>", "(J)V");
 
-    if(constructorId == NULL) {
-        printf("type constructor not found\n");
-    }
     return (*env)->NewObject(env, clazz, constructorId, (long) impObj);
 }

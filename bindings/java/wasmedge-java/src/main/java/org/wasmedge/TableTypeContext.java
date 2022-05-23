@@ -21,9 +21,10 @@ public class TableTypeContext {
     public RefType getRefType() {
         return RefType.getType(nativeGetRefType());
     }
-    private native int nativeGetRefType();
-    public native void delete();
 
+    private native int nativeGetRefType();
+
+    public native void delete();
 
 
 }

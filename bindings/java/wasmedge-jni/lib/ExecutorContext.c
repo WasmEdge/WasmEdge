@@ -64,8 +64,6 @@ JNIEXPORT void JNICALL Java_org_wasmedge_ExecutorContext_invoke
     uint32_t returnLen = GetReturnLen(WasmEdge_StoreFindFunction(storeCxt, wFuncName));
     WasmEdge_Value *returns = malloc(sizeof(WasmEdge_Value) * returnLen);
 
-    //
-    printf("call function\n");
     WasmEdge_Result result = WasmEdge_ExecutorInvoke(exeCxt, storeCxt, wFuncName, wasm_params, paramLen, returns, returnLen);
 
     //release resource
@@ -75,14 +73,11 @@ JNIEXPORT void JNICALL Java_org_wasmedge_ExecutorContext_invoke
     handleWasmEdgeResult(env, & result);
 
 
-    printf("list size before: %d, %d\n", returnLen, GetListSize(env, jReturns));
     if (WasmEdge_ResultOK(result)) {
         for (int i = 0; i < returnLen; ++i) {
             AddElementToJavaList(env, jReturns, WasmEdgeValueToJavaValue(env, returns[i]));
         }
     }
-
-    printf("list size after: %d, %d\n", returnLen, GetListSize(env, jReturns));
 
 }
 

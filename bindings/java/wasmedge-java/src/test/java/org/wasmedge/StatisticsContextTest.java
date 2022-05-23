@@ -23,12 +23,12 @@ public class StatisticsContextTest extends BaseTest {
 
         Assert.assertNotNull(statisticsContext);
         long[] costTable = {
-                0,0,
+                0, 0,
                 10,
                 11,
                 12,
                 12,
-                0,0,0,0,0,0,
+                0, 0, 0, 0, 0, 0,
                 20,
                 21,
                 22,

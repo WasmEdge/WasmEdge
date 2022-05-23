@@ -1,7 +1,6 @@
 package org.wasmedge;
 
 import org.junit.Assert;
-import org.junit.Ignore;
 import org.junit.Test;
 import org.wasmedge.enums.HostRegistration;
 import org.wasmedge.enums.ValueType;
@@ -29,7 +28,7 @@ public class WasmEdgeVMTest extends BaseTest {
     }
 
     @Test
-    public void testRunStepByStep(){
+    public void testRunStepByStep() {
         ConfigureContext configureContext = new ConfigureContext();
         configureContext.addHostRegistration(HostRegistration.WasmEdge_HostRegistration_Wasi);
         WasmEdgeVM vm = new WasmEdgeVM(new ConfigureContext(), null);
@@ -48,7 +47,7 @@ public class WasmEdgeVMTest extends BaseTest {
     }
 
     @Test(expected = Exception.class)
-    public void testInvalidPath () {
+    public void testInvalidPath() {
         WasmEdgeVM vm = new WasmEdgeVM(new ConfigureContext(), new StoreContext());
         vm.loadWasmFromFile("/root/invalid_path.wasm");
     }
@@ -119,7 +118,7 @@ public class WasmEdgeVMTest extends BaseTest {
 
     @Test
     public void testRegisterModuleFromImport() {
-        WasmEdgeVM vm = new WasmEdgeVM(new ConfigureContext(),null);
+        WasmEdgeVM vm = new WasmEdgeVM(new ConfigureContext(), null);
         ImportObjectContext importObjectContext = new ImportObjectContext("extern");
         vm.registerModuleFromImport(importObjectContext);
     }
@@ -148,7 +147,6 @@ public class WasmEdgeVMTest extends BaseTest {
         Assert.assertEquals(3, ((WasmEdgeI32Value) returns.get(0)).getValue());
         vm.destroy();
     }
-
 
 
     @Test

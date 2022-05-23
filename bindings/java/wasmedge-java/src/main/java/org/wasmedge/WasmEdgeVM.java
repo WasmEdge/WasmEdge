@@ -9,11 +9,11 @@ import java.util.Map;
 import java.util.UUID;
 
 public class WasmEdgeVM {
-    private static final Map<String, Object> externRefMap = new HashMap<>();
     public static final Map<String, HostFunction> funcMap = new HashMap<>();
+    private static final Map<String, Object> externRefMap = new HashMap<>();
+    private final ConfigureContext configureContext;
+    private final StoreContext storeContext;
     private long pointer;
-    private ConfigureContext configureContext;
-    private StoreContext storeContext;
 
 
     public WasmEdgeVM(ConfigureContext configureContext, StoreContext storeContext) {
@@ -21,6 +21,7 @@ public class WasmEdgeVM {
         this.storeContext = storeContext;
         nativeInit(this.configureContext, this.storeContext);
     }
+
     protected static void addExternRef(String key, Object val) {
         externRefMap.put(key, val);
     }
@@ -136,19 +137,19 @@ public class WasmEdgeVM {
     }
 
     public native void execute(String funcName, WasmEdgeValue[] params,
-                         int paramSize,
-                         int[] paramTypes,
-                         WasmEdgeValue[] returns,
-                         int returnSize,
-                         int[] returnTypes);
+                               int paramSize,
+                               int[] paramTypes,
+                               WasmEdgeValue[] returns,
+                               int returnSize,
+                               int[] returnTypes);
 
 
     public void destroy() {
-        if(configureContext != null) {
+        if (configureContext != null) {
             configureContext.destroy();
         }
 
-        if(storeContext != null) {
+        if (storeContext != null) {
             storeContext.destroy();
         }
         delete();
@@ -164,7 +165,7 @@ public class WasmEdgeVM {
     public native void registerModuleFromASTModule(String moduleName, ASTModuleContext astModuleContext);
 
     public void executeRegistered(String modName, String funcName, List<WasmEdgeValue> params,
-                                         List<WasmEdgeValue> returns) {
+                                  List<WasmEdgeValue> returns) {
         WasmEdgeValue[] paramsArray = valueListToArray(params);
         int[] paramTypes = getValueTypeArray(params);
 
@@ -174,12 +175,12 @@ public class WasmEdgeVM {
     }
 
     private native void executeRegistered(String modName, String funcName, WasmEdgeValue[] params,
-                                         int[] paramTypes, WasmEdgeValue[] returns, int[] returnTypes);
+                                          int[] paramTypes, WasmEdgeValue[] returns, int[] returnTypes);
 
     private native void getFunctionList(List<FunctionTypeContext> functionList);
 
     public List<FunctionTypeContext> getFunctionList() {
-        List<FunctionTypeContext>  funcList = new ArrayList<>();
+        List<FunctionTypeContext> funcList = new ArrayList<>();
         getFunctionList(funcList);
         return funcList;
     }
@@ -194,10 +195,13 @@ public class WasmEdgeVM {
 
 
     public native StoreContext getStoreContext();
+
     public native StatisticsContext getStatisticsContext();
+
     public native FunctionTypeContext getFunctionTypeRegistered(String moduleName,
-                                                  String funcName);
+                                                                String funcName);
 
     public native void cleanUp();
+
     private native void delete();
 }

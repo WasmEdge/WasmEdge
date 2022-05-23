@@ -16,11 +16,50 @@ public class BaseTest {
     protected static final String IMPORT_WASM_PATH = "apiTestData/import.wasm";
     protected static final String INVALID_WASM_PATH = "apiTestData/invalid_path.wasm";
     protected static final String FUNC_NAME = "fib";
-    byte[] WASM_MAGIC = {0x00, 0x61, 0x73, 0x6D};
+    public static HostFunction extAdd = new HostFunction() {
+        @Override
+        public Result apply(MemoryInstanceContext mem, List<WasmEdgeValue> params, List<WasmEdgeValue> returns) {
+            WasmEdgeI32Value value = (WasmEdgeI32Value) params.get(1);
+            returns.add(new WasmEdgeI32Value(value.getValue() + 1));
+            return new Result();
+        }
+    };
+    public static HostFunction extSub = new HostFunction() {
+        @Override
+        public Result apply(MemoryInstanceContext mem, List<WasmEdgeValue> params, List<WasmEdgeValue> returns) {
+            return new Result();
+        }
+    };
+    public static HostFunction extMul = new HostFunction() {
+        @Override
+        public Result apply(MemoryInstanceContext mem, List<WasmEdgeValue> params, List<WasmEdgeValue> returns) {
+            return new Result();
+        }
+    };
+    public static HostFunction extDiv = new HostFunction() {
+        @Override
+        public Result apply(MemoryInstanceContext mem, List<WasmEdgeValue> params, List<WasmEdgeValue> returns) {
+            return new Result();
+        }
+    };
+    public static HostFunction extTerm = new HostFunction() {
+        @Override
+        public Result apply(MemoryInstanceContext mem, List<WasmEdgeValue> params, List<WasmEdgeValue> returns) {
+            return new Result();
+        }
+    };
+    public static HostFunction extFail = new HostFunction() {
+        @Override
+        public Result apply(MemoryInstanceContext mem, List<WasmEdgeValue> params, List<WasmEdgeValue> returns) {
+            return new Result();
+        }
+    };
 
-    static  {
+    static {
         WasmEdge.init();
     }
+
+    byte[] WASM_MAGIC = {0x00, 0x61, 0x73, 0x6D};
 
     public static ASTModuleContext loadMode(ConfigureContext configureContext, String path) {
         LoaderContext loaderContext = new LoaderContext(configureContext);
@@ -38,63 +77,20 @@ public class BaseTest {
             throw new RuntimeException(e);
         }
     }
+
     public static String getCwd() {
         return getResourcePath("./");
     }
 
     public byte[] loadFile(String filePath) {
 
-        try(FileInputStream in = new FileInputStream(new File(filePath))) {
+        try (FileInputStream in = new FileInputStream(new File(filePath))) {
             return in.readAllBytes();
         } catch (IOException ex) {
             throw new RuntimeException(ex);
         }
 
     }
-
-    public static HostFunction extAdd = new HostFunction() {
-        @Override
-        public Result apply(MemoryInstanceContext mem, List<WasmEdgeValue> params, List<WasmEdgeValue> returns) {
-            WasmEdgeI32Value value = (WasmEdgeI32Value)params.get(1);
-            returns.add(new WasmEdgeI32Value(value.getValue() + 1));
-            return new Result();
-        }
-    };
-
-    public static HostFunction extSub = new HostFunction() {
-        @Override
-        public Result apply(MemoryInstanceContext mem, List<WasmEdgeValue> params, List<WasmEdgeValue> returns) {
-            return new Result();
-        }
-    };
-
-    public static HostFunction extMul = new HostFunction() {
-        @Override
-        public Result apply(MemoryInstanceContext mem, List<WasmEdgeValue> params, List<WasmEdgeValue> returns) {
-            return new Result();
-        }
-    };
-
-    public static HostFunction extDiv = new HostFunction() {
-        @Override
-        public Result apply(MemoryInstanceContext mem, List<WasmEdgeValue> params, List<WasmEdgeValue> returns) {
-            return new Result();
-        }
-    };
-
-    public static HostFunction extTerm = new HostFunction() {
-        @Override
-        public Result apply(MemoryInstanceContext mem, List<WasmEdgeValue> params, List<WasmEdgeValue> returns) {
-            return new Result();
-        }
-    };
-
-    public static HostFunction extFail = new HostFunction() {
-        @Override
-        public Result apply(MemoryInstanceContext mem, List<WasmEdgeValue> params, List<WasmEdgeValue> returns) {
-            return new Result();
-        }
-    };
 
     ImportObjectContext createExternModule(String name) {
         ImportObjectContext importObjectContext = new ImportObjectContext(name);
@@ -113,7 +109,7 @@ public class BaseTest {
         importObjectContext.addFunction("func-sub", hostFunc);
 
         hostFunc = new FunctionInstanceContext(functionTypeContext,
-                extMul, null, 0) ;
+                extMul, null, 0);
         importObjectContext.addFunction("func-mul", hostFunc);
 
         hostFunc = new FunctionInstanceContext(functionTypeContext,

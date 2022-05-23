@@ -1,11 +1,11 @@
 package org.wasmedge;
 
 import org.junit.Assert;
-import org.junit.Ignore;
 import org.junit.Test;
 
 import java.util.List;
 import java.util.UUID;
+
 public class StoreContextTest extends BaseTest {
     String[] FUNC_NAMES = {"func-1", "func-2", "func-3", "func-4",
             "func-add", "func-call-indirect", "func-host-add",
@@ -147,6 +147,7 @@ public class StoreContextTest extends BaseTest {
         Assert.assertNull(store.findMemoryRegistered("module", UUID.randomUUID().toString()));
 
     }
+
     @Test
     public void testFindGlobal() {
         StoreContext store = initStore();
@@ -189,7 +190,7 @@ public class StoreContextTest extends BaseTest {
         List<String> modList = store.listModule();
         Assert.assertEquals(2, modList.size());
         Assert.assertEquals("extern", modList.get(0));
-        Assert.assertEquals("module", modList.get(1));;
+        Assert.assertEquals("module", modList.get(1));
 
     }
 

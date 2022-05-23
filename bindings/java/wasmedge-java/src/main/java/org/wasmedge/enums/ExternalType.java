@@ -8,9 +8,9 @@ public enum ExternalType {
     MEMORY(0x02),
     GLOBAL(0x03);
 
-    private int val;
+    private final int val;
 
-    private ExternalType(int val) {
+    ExternalType(int val) {
         this.val = val;
     }
 

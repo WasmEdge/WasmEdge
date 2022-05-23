@@ -11,7 +11,6 @@
 
 WasmEdge_Result HostFuncWrap(void *This, void* Data, WasmEdge_MemoryInstanceContext * Mem,
                          const WasmEdge_Value *In, const uint32_t InLen, WasmEdge_Value *Out, const uint32_t OutLen) {
-    printf("host function wrap called\n");
 
     HostFuncParam * param = (HostFuncParam*)This;
     JNIEnv * env = param->env;
@@ -19,22 +18,14 @@ WasmEdge_Result HostFuncWrap(void *This, void* Data, WasmEdge_MemoryInstanceCont
 
     jstring jFuncKey = (*env)->NewStringUTF(env, funcKey);
 
-    printf("param parsed: %s\n", funcKey);
     jclass clazz = (*env)->FindClass(env, "org/wasmedge/WasmEdgeVM");
     jmethodID funcGetter = (*env)->GetStaticMethodID(env, clazz, "getHostFunc", "(Ljava/lang/String;)Lorg/wasmedge/HostFunction;");
-
-    printf("parse host func\n");
 
     jobject jFunc = (*env)->CallStaticObjectMethod(env, clazz, funcGetter, jFuncKey);
 
     jclass jFuncClass = (*env)->GetObjectClass(env, jFunc);
 
     jmethodID funcMethod = (*env)->GetMethodID(env, jFuncClass, "apply", "(Lorg/wasmedge/MemoryInstanceContext;Ljava/util/List;Ljava/util/List;)Lorg/wasmedge/Result;");
-
-    printf("call host func from java\n");
-    if(jFunc == NULL || jFuncClass == NULL || funcMethod == NULL) {
-        printf("invalid input\n");
-    }
 
     jobject jMem = createJMemoryInstanceContext(env, Mem);
 
@@ -48,12 +39,9 @@ WasmEdge_Result HostFuncWrap(void *This, void* Data, WasmEdge_MemoryInstanceCont
 
     (*env)->CallObjectMethod(env, jFunc, funcMethod, jMem, jParams, jReturns);
 
-//    Out = malloc(sizeof(WasmEdge_Value) * OutLen);
     for (int i = 0; i < OutLen; ++i) {
        Out[i] = JavaValueToWasmEdgeValue(env, GetListElement(env, jReturns, i));
     }
-
-    printf("return result\n");
 
     return WasmEdge_Result_Success;
 

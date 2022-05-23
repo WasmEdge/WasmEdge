@@ -65,17 +65,13 @@ jobject WasmEdgeValueToJavaValue(JNIEnv * env, WasmEdge_Value value) {
             valClassName = "org/wasmedge/WasmEdgeFuncRef";
             break;
     }
-    printf("find val class : %s\n", valClassName);
     jclass valClass = (*env)->FindClass(env, valClassName);
 
 
     jmethodID constructor = (*env)->GetMethodID(env, valClass, "<init>", "()V");
 
-
-    printf("constructor is null ? %s\n", constructor == NULL ? "true" : "false");
-
     jobject jVal = (*env)->NewObject(env, valClass, constructor);
-    printf("new object is null ? %s\n", jVal == NULL ? "true" : "false");
+
     setJavaValueObject(env, value, jVal);
     return jVal;
 }

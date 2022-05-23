@@ -11,13 +11,15 @@ public class ImportObjectContext {
         this.pointer = pointer;
     }
 
+    public native static ImportObjectContext createWasmEdgeProcess(String[] allowedCmds, boolean allowAll);
+
+    public native static ImportObjectContext CreateWASI(String[] args, String[] envs, String[] preopens);
+
     private native void nativeInit(String moduleName);
 
     public native void initWASI(String[] args, String[] envs, String[] preopens);
 
     public native int getWASIExitCode();
-
-    public native static ImportObjectContext createWasmEdgeProcess(String[] allowedCmds, boolean allowAll);
 
     public native void initWasmEdgeProcess(String[] allowedCmds, boolean allowAll);
 
@@ -30,6 +32,4 @@ public class ImportObjectContext {
     public native void addGlobal(String name, GlobalInstanceContext globalInstanceContext);
 
     public native void delete();
-
-    public native static ImportObjectContext CreateWASI(String[] args, String[] envs, String[] preopens);
 }

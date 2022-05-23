@@ -7,6 +7,7 @@ import java.util.UUID;
 public class WasmEdgeExternRef<T> implements WasmEdgeValue {
     private long pointer;
     private String value;
+
     public WasmEdgeExternRef(T val) {
         final String key = UUID.randomUUID().toString();
         this.value = key;
@@ -25,14 +26,14 @@ public class WasmEdgeExternRef<T> implements WasmEdgeValue {
     public String getValue() {
         return value;
     }
-    public T getExtValue() {
-        return (T)WasmEdgeVM.getExternRef(value);
-    }
 
     public void setValue(String value) {
         this.value = value;
     }
 
+    public T getExtValue() {
+        return (T) WasmEdgeVM.getExternRef(value);
+    }
 
     @Override
     public ValueType getType() {

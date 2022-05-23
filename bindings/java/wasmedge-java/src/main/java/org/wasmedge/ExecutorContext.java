@@ -1,7 +1,6 @@
 package org.wasmedge;
 
 import java.util.List;
-import java.util.Objects;
 
 public class ExecutorContext {
     private long pointer;
@@ -16,7 +15,7 @@ public class ExecutorContext {
     public native void instantiate(StoreContext storeContext, ASTModuleContext astModuleContext);
 
     public native void invoke(StoreContext storeContext, String funcName,
-                               List<WasmEdgeValue> params, List<WasmEdgeValue> returns);
+                              List<WasmEdgeValue> params, List<WasmEdgeValue> returns);
 
 
     private int[] getValueTypeArray(List<WasmEdgeValue> values) {
@@ -37,7 +36,7 @@ public class ExecutorContext {
 
     public native void invokeRegistered(StoreContext storeContext,
                                         String modeName, String funcName,
-                              List<WasmEdgeValue> params, List<WasmEdgeValue> returns);
+                                        List<WasmEdgeValue> params, List<WasmEdgeValue> returns);
 
     public native void registerModule(StoreContext storeCxt,
                                       ASTModuleContext astCxt,

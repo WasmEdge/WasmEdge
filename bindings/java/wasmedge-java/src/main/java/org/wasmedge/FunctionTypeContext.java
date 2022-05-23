@@ -17,8 +17,8 @@ public class FunctionTypeContext {
     }
 
     public FunctionTypeContext(ValueType[] paramTypes, ValueType[] returnTypes) {
-        nativeInit(paramTypes == null? null : getTypeValues(Arrays.asList(paramTypes)),
-                returnTypes == null? null : getTypeValues(Arrays.asList(returnTypes)));
+        nativeInit(paramTypes == null ? null : getTypeValues(Arrays.asList(paramTypes)),
+                returnTypes == null ? null : getTypeValues(Arrays.asList(returnTypes)));
     }
 
     private FunctionTypeContext(long pointer) {

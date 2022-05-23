@@ -30,7 +30,7 @@ public class FunctionTypeContextTest extends BaseTest {
         List<ValueType> actualReturns = functionTypeContext.getReturns();
 
         Assert.assertEquals(expectedParams.size(), actualParams.size());
-        for (int i= 0 ;i < expectedParams.size(); i++) {
+        for (int i = 0; i < expectedParams.size(); i++) {
             Assert.assertEquals(expectedParams.get(i), actualParams.get(i));
         }
 

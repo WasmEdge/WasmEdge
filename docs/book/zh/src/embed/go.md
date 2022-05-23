@@ -66,7 +66,7 @@ go build -tags image,tensorflow
 
 ### Go 中的 WasmEdge AOT 编译器
 
-[go_WasmAOT 示例](https://github.com/second-state/WasmEdge-go-examples/tree/master/go_WasmAOT) 演示了如何通过一个 Go 应用程序将一个 WASM 文件编译成本机二进制文件文件（AOT 编译）。
+[go_WasmAOT 示例](https://github.com/second-state/WasmEdge-go-examples/tree/master/go_WasmAOT) 演示了如何通过一个 Go 应用程序将一个 WASM 文件编译成本机二进制文件（AOT 编译）。
 
 ## 相关示例
 

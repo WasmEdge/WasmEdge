@@ -2,7 +2,7 @@
 
 #![feature(explicit_generic_args_with_impl_trait)]
 
-use wasmedge_sdk::{params, Vm};
+use wasmedge_sdk::{params, Vm, WasmVal};
 use wasmedge_types::{wat2wasm, ValType};
 
 #[cfg_attr(test, test)]

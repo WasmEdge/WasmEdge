@@ -4,7 +4,7 @@ use crate::{types::Val, WasmEdgeResult};
 use wasmedge_sys as sys;
 use wasmedge_types::GlobalType;
 
-/// Defines a global variable storing a single value of the given [GlobalType](wasmedge_types::GlobalType).
+/// Defines a WebAssembly global variable, which stores a single value of the given [GlobalType](https://wasmedge.github.io/WasmEdge/wasmedge_types/struct.GlobalType.html) and a flag indicating whether it is mutable or not.
 #[derive(Debug)]
 pub struct Global {
     pub(crate) inner: sys::Global,

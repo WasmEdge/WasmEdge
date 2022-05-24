@@ -29,7 +29,7 @@ It installs the following components.
 
 ## Examples
 
-Hello World. [See more simple examples](https://github.com/WasmEdge/WasmEdge/tree/master/tools/wasmedge/examples)
+Hello World. [See more simple examples](https://github.com/WasmEdge/WasmEdge/tree/master/examples/wasm)
 
 ```bash
 $ wasmedge hello.wasm world
@@ -46,7 +46,7 @@ hello
 world
 ```
 
-Here are some JavaScript examples. [See more](https://github.com/WasmEdge/WasmEdge/tree/master/tools/wasmedge/examples/js)
+Here are some JavaScript examples. [See more](https://github.com/WasmEdge/WasmEdge/tree/master/examples/js)
 
 ```bash
 $ wasmedge --dir .:. qjs.wasm hello.js 1 2 3

@@ -1,5 +1,5 @@
-use crate::{io::WasmValTypeList, Global, HostFunc, Memory, Table, WasmEdgeResult};
-use wasmedge_sys::{self as sys, ImportInstance};
+use crate::{io::WasmValTypeList, Global, Memory, Table, WasmEdgeResult};
+use wasmedge_sys::{self as sys, ImportInstance, WasmValue};
 use wasmedge_types::FuncType;
 
 /// Creates a normal, wasi, or wasmedge process [import object](crate::ImportObject).
@@ -58,7 +58,7 @@ use wasmedge_types::FuncType;
 ///     let module_name = "extern";
 ///     let _import = ImportObjectBuilder::new()
 ///         // add a function
-///         .with_func::<(i32, i32), i32>("add", Box::new(real_add))?
+///         .with_func::<(i32, i32), i32>("add", real_add)?
 ///         // add a global
 ///         .with_global("global", global_const)?
 ///         // add a memory
@@ -96,7 +96,7 @@ impl ImportObjectBuilder {
     ///
     /// * `name` - The exported name of the [host function](crate::Func) to add.
     ///
-    /// * `real_func` - The boxed native function function.
+    /// * `real_func` - The native function.
     ///
     /// # error
     ///
@@ -104,16 +104,17 @@ impl ImportObjectBuilder {
     pub fn with_func<Args, Rets>(
         mut self,
         name: impl AsRef<str>,
-        real_func: HostFunc,
+        real_func: impl Fn(Vec<WasmValue>) -> Result<Vec<WasmValue>, u8> + Send + Sync + 'static,
     ) -> WasmEdgeResult<Self>
     where
         Args: WasmValTypeList,
         Rets: WasmValTypeList,
     {
+        let boxed_func = Box::new(real_func);
         let args = Args::wasm_types();
         let returns = Rets::wasm_types();
         let ty = FuncType::new(Some(args.to_vec()), Some(returns.to_vec()));
-        let inner_func = sys::Function::create(&ty.into(), real_func, 0)?;
+        let inner_func = sys::Function::create(&ty.into(), boxed_func, 0)?;
         self.funcs.push((name.as_ref().to_owned(), inner_func));
         Ok(self)
     }
@@ -355,7 +356,7 @@ mod tests {
     #[test]
     fn test_import_new_wasmedgeprocess() {
         let result = ImportObjectBuilder::new()
-            .with_func::<(i32, i32), i32>("add", Box::new(real_add))
+            .with_func::<(i32, i32), i32>("add", real_add)
             .expect("failed to add host func")
             .build_as_wasmedge_process(None, false);
         assert!(result.is_ok());
@@ -416,7 +417,7 @@ mod tests {
     fn test_import_new_wasi() {
         // create a wasi module
         let result = ImportObjectBuilder::new()
-            .with_func::<(i32, i32), i32>("add", Box::new(real_add))
+            .with_func::<(i32, i32), i32>("add", real_add)
             .expect("failed to add host func")
             .build_as_wasi(None, None, None);
         assert!(result.is_ok());
@@ -470,7 +471,7 @@ mod tests {
     fn test_import_add_func() {
         // create an import object
         let result = ImportObjectBuilder::new()
-            .with_func::<(i32, i32), i32>("add", Box::new(real_add))
+            .with_func::<(i32, i32), i32>("add", real_add)
             .expect("failed to add host func")
             .build("extern");
         assert!(result.is_ok());
@@ -718,7 +719,7 @@ mod tests {
 
         // create an import object
         let result = ImportObjectBuilder::new()
-            .with_func::<(i32, i32), i32>("add", Box::new(real_add))
+            .with_func::<(i32, i32), i32>("add", real_add)
             .expect("failed to add host func")
             .with_table("table", table)
             .expect("failed to add table")
@@ -848,7 +849,7 @@ mod tests {
 
         // create an ImportModule instance
         let result = ImportObjectBuilder::new()
-            .with_func::<(i32, i32), i32>("add", Box::new(real_add))
+            .with_func::<(i32, i32), i32>("add", real_add)
             .expect("failed to add host function")
             .with_global("global", global_const)
             .expect("failed to add const global")
@@ -970,7 +971,7 @@ mod tests {
 
         // create an import object
         let result = ImportObjectBuilder::new()
-            .with_func::<(i32, i32), i32>("add", Box::new(real_add))
+            .with_func::<(i32, i32), i32>("add", real_add)
             .expect("failed to add host function")
             .with_global("global", global_const)
             .expect("failed to add const global")

@@ -1,3 +1,5 @@
+#![feature(explicit_generic_args_with_impl_trait)]
+
 use wasmedge_sdk::{
     config::{CommonConfigOptions, ConfigBuilder},
     params,

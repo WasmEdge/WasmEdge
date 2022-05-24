@@ -120,6 +120,16 @@ impl Store {
 
         None
     }
+
+    /// Checks if the [store](crate::Store) contains a named module instance.
+    ///
+    /// # Argument
+    ///
+    /// * `name` - The name of the named module.
+    ///
+    pub fn contains(&self, name: impl AsRef<str>) -> bool {
+        self.inner.contains(name.as_ref())
+    }
 }
 
 #[cfg(test)]
@@ -174,7 +184,7 @@ mod tests {
 
         // create an ImportModule instance
         let result = ImportObjectBuilder::new()
-            .with_func::<(i32, i32), i32>("add", Box::new(real_add))
+            .with_func::<(i32, i32), i32>("add", real_add)
             .expect("failed to add host function")
             .with_global("global", global_const)
             .expect("failed to add const global")
@@ -350,7 +360,7 @@ mod tests {
 
         // create an ImportModule instance
         let result = ImportObjectBuilder::new()
-            .with_func::<(i32, i32), i32>("add", Box::new(real_add))
+            .with_func::<(i32, i32), i32>("add", real_add)
             .expect("failed to add host function")
             .with_global("global", global_const)
             .expect("failed to add const global")
@@ -367,8 +377,8 @@ mod tests {
         assert!(result.is_ok());
 
         // add a wasm module from a file
-        let file = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
-            .join("tools/wasmedge/examples/fibonacci.wasm");
+        let file =
+            std::path::PathBuf::from(env!("WASMEDGE_DIR")).join("examples/wasm/fibonacci.wasm");
         let result = Module::from_file(Some(&config), file);
         assert!(result.is_ok());
         let module = result.unwrap();

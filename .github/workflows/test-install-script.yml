@@ -135,6 +135,14 @@ jobs:
         grep -qE *.wasmedge/env* ~/.bashrc && echo "Failed: Source Lines found" || echo "Pass: Source Lines Removed"
         grep -qE *.wasmedge/env* ~/.bash_profile && echo "Failed: Source Lines found" || echo "Pass: Source Lines Removed"
         grep -qE *.wasmedge/env* ~/.profile && echo "Failed: Source Lines found" || echo "Pass: Source Lines Removed"
+    - name: Plugins Install check
+      run: |
+        bash utils/install.sh -v 0.10.0-alpha.1
+        ls ~/.wasmedge/plugin/ | grep .so && echo "Pass: Plugins found" || (echo "Fail: Plugins not found" && exit 1)
+        bash utils/install.sh -v 0.10.0-alpha.1 -p ~/new_wasmedge
+        ls ~/new_wasmedge/plugin/ | grep .so && echo "Pass: Plugins found" || (echo "Fail: Plugins not found" && exit 1)
+        bash utils/install.sh -v 0.10.0-alpha.1 -p /usr
+        ls /usr/lib/wasmedge/ | grep libwasmedgePluginWasmEdgeProcess.so && echo "Pass: Plugins found" || (echo "Fail: Plugins not found" && exit 1)
 
   macos:
     strategy:
@@ -175,3 +183,11 @@ jobs:
     - name: Uninstall WasmEdge with all extensions
       run: |
         bash utils/uninstall.sh -q -V
+    - name: Plugins Install check
+      run: |
+        bash utils/install.sh -v 0.10.0-alpha.1
+        ls ~/.wasmedge/plugin/ | grep .so && echo "Pass: Plugins found" || (echo "Fail: Plugins not found" && exit 1)
+        bash utils/install.sh -v 0.10.0-alpha.1 -p ~/new_wasmedge
+        ls ~/new_wasmedge/plugin/ | grep .so && echo "Pass: Plugins found" || (echo "Fail: Plugins not found" && exit 1)
+        bash utils/install.sh -v 0.10.0-alpha.1 -p /usr
+        ls /usr/lib/wasmedge/ | grep libwasmedgePluginWasmEdgeProcess.so && echo "Pass: Plugins found" || (echo "Fail: Plugins not found" && exit 1)

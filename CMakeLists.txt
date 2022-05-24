@@ -113,7 +113,7 @@ if(WASMEDGE_BUILD_TOOLS)
   add_subdirectory(tools)
 endif()
 if(WASMEDGE_BUILD_EXAMPLE)
-  add_subdirectory(example/get-string)
+  add_subdirectory(examples/plugin/get-string)
 endif()
 
 include(CPack)

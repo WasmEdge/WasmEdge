@@ -120,6 +120,16 @@ impl Store {
 
         None
     }
+
+    /// Checks if the [store](crate::Store) contains a named module instance.
+    ///
+    /// # Argument
+    ///
+    /// * `name` - The name of the named module.
+    ///
+    pub fn contains(&self, name: impl AsRef<str>) -> bool {
+        self.inner.contains(name.as_ref())
+    }
 }
 
 #[cfg(test)]
@@ -174,7 +184,7 @@ mod tests {
 
         // create an ImportModule instance
         let result = ImportObjectBuilder::new()
-            .with_func::<(i32, i32), i32>("add", Box::new(real_add))
+            .with_func::<(i32, i32), i32>("add", real_add)
             .expect("failed to add host function")
             .with_global("global", global_const)
             .expect("failed to add const global")
@@ -350,7 +360,7 @@ mod tests {
 
         // create an ImportModule instance
         let result = ImportObjectBuilder::new()
-            .with_func::<(i32, i32), i32>("add", Box::new(real_add))
+            .with_func::<(i32, i32), i32>("add", real_add)
             .expect("failed to add host function")
             .with_global("global", global_const)
             .expect("failed to add const global")

@@ -13,7 +13,32 @@
 //!
 //! ## Usage
 //!
-//! A quick-start example below is using `wasmedge-sdk` to run a WebAssembly module written with its WAT format (textual format):
+//! To use or build the `wasmedge-sdk` crate, the `wasmedge-core` is required. The required header files, library and plugins should be placed in `$HOME/.wasmedge/` directory. The directory structure on macOS looks like below:
+//!
+//! ```bash
+//! // $HOME/.wasmedge/
+//! .
+//! ├── include
+//! │   └── wasmedge
+//! │       ├── dense_enum_map.h
+//! │       ├── enum.inc
+//! │       ├── enum_configure.h
+//! │       ├── enum_errcode.h
+//! │       ├── enum_types.h
+//! │       ├── int128.h
+//! │       ├── spare_enum_map.h
+//! │       ├── version.h
+//! │       └── wasmedge.h
+//! ├── lib
+//! │   └── libwasmedge_c.dylib
+//! └── plugin
+//!     └── libwasmedgePluginWasmEdgeProcess.dylib
+//!
+//! ```
+//!
+//! ## A quick-start example
+//!
+//! The example below is using `wasmedge-sdk` to run a WebAssembly module written with its WAT format (textual format):
 //!
 //!  ```rust
 //!  #![feature(explicit_generic_args_with_impl_trait)]
@@ -106,6 +131,7 @@ mod module;
 mod statistics;
 mod store;
 pub mod types;
+#[doc(hidden)]
 pub mod vm;
 
 #[doc(inline)]

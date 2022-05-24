@@ -291,7 +291,7 @@ impl WasmVal for ExternRef {
     }
 }
 
-/// Used to pass arguments to [Func::call](crate::Func::call), [FuncRef::call](crate::FuncRef::call), [Engine::run_func](crate::Engine::run_func), or [Engine::run_func_ref](crate::Engine::run_func_ref).
+/// Used to pass arguments to [Func::call](crate::Func::call), [FuncRef::call](crate::FuncRef::call), [Engine::run_func](crate::Engine::run_func), or [Engine::run_func_ref](crate::Engine::run_func_ref). Notice that to use the macro, it is required to place `#![feature(explicit_generic_args_with_impl_trait)]` on the root of the program.
 #[macro_export]
 macro_rules! params {
     ( $( $x:expr ),* ) => {

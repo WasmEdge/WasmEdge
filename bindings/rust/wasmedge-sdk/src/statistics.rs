@@ -4,7 +4,7 @@ use crate::WasmEdgeResult;
 use std::marker::PhantomData;
 use wasmedge_sys as sys;
 
-/// Struct of WasmEdge Statistics.
+/// Used to collect statistics of the WasmEdge runtime, such as the count of instructions in execution.
 #[derive(Debug)]
 pub struct Statistics<'a> {
     pub(crate) inner: sys::Statistics,

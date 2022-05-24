@@ -3,7 +3,7 @@ use crate::{io::WasmValTypeList, Engine, WasmEdgeResult};
 use wasmedge_sys::{self as sys, WasmValue};
 use wasmedge_types::{FuncType, ValType};
 
-/// Defines a wasm function instance.
+/// Defines a host function instance.
 ///
 /// A WasmEdge [Func] is a wasm function instance, which is a "wrapper" of the original function (defined in either the host or the WebAssembly module) over the runtime [module instance](crate::Instance) of its originating [module](crate::Module).
 ///
@@ -146,7 +146,7 @@ impl Func {
     }
 }
 
-/// Defines a type builder for creating a [FuncType](wasmedge_types::FuncType).
+/// Defines a type builder for creating a [FuncType](https://wasmedge.github.io/WasmEdge/wasmedge_types/struct.FuncType.html) instance.
 #[derive(Debug, Default)]
 pub struct FuncTypeBuilder {
     args: Option<Vec<ValType>>,

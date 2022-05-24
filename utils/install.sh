@@ -377,7 +377,7 @@ install() {
             for _file_ in "$IPATH/$var/wasmedge/"*; do
                 if [[ "$_file_" =~ "Plugin" ]] || [[ "$_file_" =~ "plugin" ]]; then
                     local _plugin_name_=${_file_##*/}
-                    if [[ "$IPATH" =~ ^"/usr/" ]]; then
+                    if [[ "$IPATH" =~ ^"/usr" ]]; then
                         echo "#$_file_" >>"$IPATH/env"
                     else
                         mv "$_file_" "$IPATH/plugin/$_plugin_name_"
@@ -632,7 +632,7 @@ main() {
     set_ENV "$IPATH"
     mkdir -p "$IPATH"
     mkdir -p "$TMP_DIR"
-    [[ "$IPATH" =~ ^"/usr/" ]] || mkdir -p "$IPATH/plugin"
+    [[ "$IPATH" =~ ^"/usr" ]] || mkdir -p "$IPATH/plugin"
 
     echo "$ENV" >"$IPATH/env"
     echo "# Please do not edit comments below this for uninstallation purpose" >>"$IPATH/env"

@@ -1,9 +1,9 @@
 //! Defines Func, SignatureBuilder, and Signature structs.
-use crate::{io::WasmValTypeList, Engine, HostFunc, WasmEdgeResult};
+use crate::{io::WasmValTypeList, Engine, WasmEdgeResult};
 use wasmedge_sys::{self as sys, WasmValue};
 use wasmedge_types::{FuncType, ValType};
 
-/// Defines a wasm function instance.
+/// Defines a host function instance.
 ///
 /// A WasmEdge [Func] is a wasm function instance, which is a "wrapper" of the original function (defined in either the host or the WebAssembly module) over the runtime [module instance](crate::Instance) of its originating [module](crate::Module).
 ///
@@ -12,6 +12,8 @@ use wasmedge_types::{FuncType, ValType};
 /// The following example shows how to create a host function, and invoke it with a given executor.
 ///
 /// ```rust
+/// #![feature(explicit_generic_args_with_impl_trait)]
+///
 /// use wasmedge_sdk::{Func, Executor, params, WasmVal};
 /// use wasmedge_sys::WasmValue;
 /// use wasmedge_types::ValType;
@@ -39,7 +41,7 @@ use wasmedge_types::{FuncType, ValType};
 /// }
 ///
 /// // create a host function
-/// let result = Func::wrap::<(i32, i32), i32>(Box::new(real_add));
+/// let result = Func::wrap::<(i32, i32), i32>(real_add);
 /// assert!(result.is_ok());
 /// let func = result.unwrap();
 ///
@@ -70,15 +72,18 @@ impl Func {
     /// # Error
     ///
     /// If fail to create the host function, then an error is returned.
-    pub fn wrap<Args, Rets>(real_func: HostFunc) -> WasmEdgeResult<Self>
+    pub fn wrap<Args, Rets>(
+        real_func: impl Fn(Vec<WasmValue>) -> Result<Vec<WasmValue>, u8> + Send + Sync + 'static,
+    ) -> WasmEdgeResult<Self>
     where
         Args: WasmValTypeList,
         Rets: WasmValTypeList,
     {
+        let boxed_func = Box::new(real_func);
         let args = Args::wasm_types();
         let returns = Rets::wasm_types();
         let ty = FuncType::new(Some(args.to_vec()), Some(returns.to_vec()));
-        let inner = sys::Function::create(&ty.into(), real_func, 0)?;
+        let inner = sys::Function::create(&ty.into(), boxed_func, 0)?;
         Ok(Self {
             inner,
             name: None,
@@ -141,7 +146,7 @@ impl Func {
     }
 }
 
-/// Defines a type builder for creating a [FuncType](wasmedge_types::FuncType).
+/// Defines a type builder for creating a [FuncType](https://wasmedge.github.io/WasmEdge/wasmedge_types/struct.FuncType.html) instance.
 #[derive(Debug, Default)]
 pub struct FuncTypeBuilder {
     args: Option<Vec<ValType>>,
@@ -309,7 +314,7 @@ mod tests {
     fn test_func_basic() {
         // create an ImportModule
         let result = ImportObjectBuilder::new()
-            .with_func::<(i32, i32), i32>("add", Box::new(real_add))
+            .with_func::<(i32, i32), i32>("add", real_add)
             .expect("failed to add host func")
             .build("extern");
         assert!(result.is_ok());
@@ -366,7 +371,7 @@ mod tests {
     #[test]
     fn test_func_wrap() {
         // create a host function
-        let result = Func::wrap::<(i32, i32), i32>(Box::new(real_add));
+        let result = Func::wrap::<(i32, i32), i32>(real_add);
         assert!(result.is_ok());
         let func = result.unwrap();
 

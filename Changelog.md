@@ -1,4 +1,4 @@
-### 0.10.0-alpha.2 (2022-05-20)
+### 0.10.0-rc.1 (2022-05-24)
 
 Breaking changes:
 
@@ -38,6 +38,7 @@ Breaking changes:
 
 Features:
 
+* Supported LLVM 14.
 * Supported the WASM `tail-call` proposal.
   * Added the `WasmEdge_Proposal_TailCall` for the configuration in WasmEdge C API.
   * Users can use the `--enable-tail-call` to enable the proposal in `wasmedge` and `wasmedgec` tools.
@@ -114,15 +115,16 @@ Tests:
 
 * Updated the spec tests to the date `20220504`.
 * Added the spec tests for the `tail-call` proposal.
+* Added the spec tests for the `extended-const` proposal.
 * Added the mixed invocation tests between interpreter mode and AOT mode WASM functions.
 * Added the thread-safe and multi-thread execution tests.
 * Added wasi-socket tests for `poll_oneoff`, `send_to`, and `recv_from`.
 
 Thank all the contributors that made this release possible!
 
-朱亚光, Abhinandan Udupa, Ang Lee, Binbin Zhang, Chin Zhi Wei, DarumaDocker, Elon Cheng, FlyingOnion, Hanged Fish, Herschel Wang, JIAN ZHONG, JcJinChen, Jeremy, JessesChou, JieDing, Kodalien, Kunshuai Zhu, LFsWang, LaingKe, Michael Yuan, Nicholas Zhan, 华德禹, O3Ol, Rui Li, Shen-Ta Hsieh, Shreyas Atre, Sylveon, TheLightRunner, Vaniot, Vinson, 罗泽轩, Xin Liu, Yi Huang, YiYing He, YoungLH, abhinandanudupa, border1px, eat4toast, hydai, jerbmarx, luckyJ-nj, meoww-bot, mydreamer4134, situ2001, tpmccallum, treeplus, wangyuan249, 王琦
+朱亚光, Abhinandan Udupa, Ang Lee, Binbin Zhang, Chin Zhi Wei, DarumaDocker, Elon Cheng, FlyingOnion, Hanged Fish, Herschel Wang, JIAN ZHONG, JcJinChen, Jeremy, JessesChou, JieDing, Kodalien, Kunshuai Zhu, LFsWang, LaingKe, Michael Yuan, Nicholas Zhan, 华德禹, O3Ol, Rui Li, Shen-Ta Hsieh, Shreyas Atre, Sylveon, TheLightRunner, Vaniot, Vinson, 罗泽轩, Xin Liu, Yi Huang, YiYing He, YoungLH, abhinandanudupa, border1px, eat4toast, hydai, jerbmarx, luckyJ-nj, meoww-bot, mydreamer4134, situ2001, tpmccallum, treeplus, wangyuan249, yale, 王琦
 
-If you want to build from source, please use WasmEdge-0.10.0-alpha.1-src.tar.gz instead of the zip or tarball provided by GitHub directly.
+If you want to build from source, please use WasmEdge-0.10.0-rc.1-src.tar.gz instead of the zip or tarball provided by GitHub directly.
 
 ### 0.9.1 (2022-02-10)
 

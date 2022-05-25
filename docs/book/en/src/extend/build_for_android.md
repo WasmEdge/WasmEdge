@@ -50,8 +50,9 @@ Run the build script in WasmEdge source code. This script will automatically bui
 2. Use the `adb push` command to push the entire `build/tools/wasmedge` folder into the `/data/local/tmp` folder on your Android device.
 
     ```bash
+    cp -r examples build/tools/wasmedge/examples
     cd build
-    adb push ./tools/wasmedge /data/local/tmp  
+    adb push ./tools/wasmedge /data/local/tmp
     ```
 
 ### Run WasmEdge CLI on Android platforms
@@ -61,7 +62,7 @@ Run the build script in WasmEdge source code. This script will automatically bui
 
 ```bash
 $ cd /data/local/tmp/wasmedge/examples
-$ ../wasmedge hello.wasm 1 2 3                                                           
+$ ../wasmedge hello.wasm 1 2 3
 hello
 1
 2

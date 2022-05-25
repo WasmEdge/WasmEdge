@@ -34,7 +34,7 @@ fn main() -> anyhow::Result<()> {
 
     // create an import module
     let import = ImportObjectBuilder::new()
-        .with_func::<(), ()>("say_hello", Box::new(say_hello_world))?
+        .with_func::<(), ()>("say_hello", say_hello_world)?
         .build("env")?;
 
     // loads a wasm module from the given in-memory bytes

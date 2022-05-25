@@ -13,7 +13,32 @@
 //!
 //! ## Usage
 //!
-//! A quick-start example below is using `wasmedge-sdk` to run a WebAssembly module written with its WAT format (textual format):
+//! To use or build the `wasmedge-sdk` crate, the `wasmedge-core` is required. The required header files, library and plugins should be placed in `$HOME/.wasmedge/` directory. The directory structure on macOS looks like below:
+//!
+//! ```bash
+//! // $HOME/.wasmedge/
+//! .
+//! ├── include
+//! │   └── wasmedge
+//! │       ├── dense_enum_map.h
+//! │       ├── enum.inc
+//! │       ├── enum_configure.h
+//! │       ├── enum_errcode.h
+//! │       ├── enum_types.h
+//! │       ├── int128.h
+//! │       ├── spare_enum_map.h
+//! │       ├── version.h
+//! │       └── wasmedge.h
+//! ├── lib
+//! │   └── libwasmedge_c.dylib
+//! └── plugin
+//!     └── libwasmedgePluginWasmEdgeProcess.dylib
+//!
+//! ```
+//!
+//! ## A quick-start example
+//!
+//! The example below is using `wasmedge-sdk` to run a WebAssembly module written with its WAT format (textual format):
 //!
 //!  ```rust
 //!  #![feature(explicit_generic_args_with_impl_trait)]
@@ -106,6 +131,8 @@ mod module;
 mod statistics;
 mod store;
 pub mod types;
+#[doc(hidden)]
+pub mod vm;
 
 #[doc(inline)]
 #[cfg(feature = "aot")]
@@ -116,7 +143,7 @@ pub use executor::Executor;
 pub use externals::{Func, FuncRef, FuncTypeBuilder, Global, Memory, Table};
 #[doc(inline)]
 pub use import::{ImportObject, ImportObjectBuilder};
-pub use instance::Instance;
+pub use instance::{Instance, WasiInstance, WasmEdgeProcessInstance};
 #[doc(inline)]
 pub use io::{WasmVal, WasmValType, WasmValTypeList};
 #[doc(inline)]
@@ -125,11 +152,10 @@ pub use module::{ExportType, ImportType, Module};
 pub use statistics::Statistics;
 #[doc(inline)]
 pub use store::Store;
+#[doc(inline)]
+pub use vm::Vm;
 
 use wasmedge_sys::types::WasmValue;
-
-/// Alias type for host function
-pub type HostFunc = wasmedge_sys::BoxedFn;
 
 /// The object that is used to perform a [host function](crate::Func) is required to implement this trait.
 pub trait Engine {

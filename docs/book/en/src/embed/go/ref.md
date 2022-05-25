@@ -849,7 +849,7 @@ In this partition, we will introduce the functions of `wasmedge.VM` object and s
 ### WASM Execution Example With VM Object
 
 The following shows the example of running the WASM for getting the Fibonacci.
-This example uses the [fibonacci.wasm](https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/tools/wasmedge/examples/fibonacci.wasm), and the corresponding WAT file is at [fibonacci.wat](https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/tools/wasmedge/examples/fibonacci.wat).
+This example uses the [fibonacci.wasm](https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/examples/wasm/fibonacci.wasm), and the corresponding WAT file is at [fibonacci.wat](https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/examples/wasm/fibonacci.wat).
 
 ```wasm
 (module
@@ -878,7 +878,7 @@ This example uses the [fibonacci.wasm](https://raw.githubusercontent.com/WasmEdg
     go mod init wasmedge_test
     ```
 
-    Assume that the WASM file [`fibonacci.wasm`](https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/tools/wasmedge/examples/fibonacci.wasm) is copied into the current `wasmedge_test` directory, and create and edit the Go file `main.go` as following:
+    Assume that the WASM file [`fibonacci.wasm`](https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/examples/wasm/fibonacci.wasm) is copied into the current `wasmedge_test` directory, and create and edit the Go file `main.go` as following:
 
     ```go
     package main
@@ -1141,7 +1141,7 @@ WasmEdge VM provides APIs for developers to register and export any WASM modules
     go mod init wasmedge_test
     ```
 
-    Assume that the WASM file [`fibonacci.wasm`](https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/tools/wasmedge/examples/fibonacci.wasm) is copied into the current directory.
+    Assume that the WASM file [`fibonacci.wasm`](https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/examples/wasm/fibonacci.wasm) is copied into the current directory.
     Then create and edit the Go file `main.go` as following:
 
     ```go
@@ -1265,7 +1265,7 @@ The `VM` object supplies the APIs to retrieve the instances.
     go mod init wasmedge_test
     ```
 
-    Then assume that the WASM file [`fibonacci.wasm`](https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/tools/wasmedge/examples/fibonacci.wasm) is copied into the current directory, and create and edit a Go file `main.go`:
+    Then assume that the WASM file [`fibonacci.wasm`](https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/examples/wasm/fibonacci.wasm) is copied into the current directory, and create and edit a Go file `main.go`:
 
     ```go
     package main
@@ -1369,7 +1369,7 @@ mkdir wasmedge_test && cd wasmedge_test
 go mod init wasmedge_test
 ```
 
-Then assume that the WASM file [`fibonacci.wasm`](https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/tools/wasmedge/examples/fibonacci.wasm) is copied into the current directory, and create and edit a Go file `main.go`:
+Then assume that the WASM file [`fibonacci.wasm`](https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/examples/wasm/fibonacci.wasm) is copied into the current directory, and create and edit a Go file `main.go`:
 
 ```go
 package main

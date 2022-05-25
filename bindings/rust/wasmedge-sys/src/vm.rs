@@ -559,11 +559,16 @@ impl Vm {
         mod_name: impl AsRef<str>,
         func_name: impl AsRef<str>,
     ) -> WasmEdgeResult<FuncType> {
-        let mut store = self.store_mut()?;
-        store.contains(mod_name.as_ref())?;
-        let instance = store.module(mod_name.as_ref())?;
-        let func = instance.get_func(func_name.as_ref())?;
-        func.ty()
+        if !self.contains_module(mod_name.as_ref()) {
+            return Err(WasmEdgeError::Vm(VmError::NotFoundModule(
+                mod_name.as_ref().into(),
+            )));
+        }
+
+        self.store_mut()?
+            .module(mod_name.as_ref())?
+            .get_func(func_name.as_ref())?
+            .ty()
     }
 
     /// Resets the [`Vm`].
@@ -682,12 +687,11 @@ impl Vm {
     ///
     /// * `mod_name` - The registered module's name to check.
     ///
-    /// # Error
-    ///
-    /// If fail to find the name in the [store](crate::Store), then an error is returned.
-    pub fn contains_mod_name(&self, mod_name: impl AsRef<str>) -> WasmEdgeResult<()> {
-        let store = self.store_mut()?;
-        store.contains(mod_name.as_ref())
+    pub fn contains_module(&self, mod_name: impl AsRef<str>) -> bool {
+        match self.store_mut() {
+            Ok(store) => store.contains(mod_name),
+            Err(_) => false,
+        }
     }
 }
 impl Drop for Vm {
@@ -712,7 +716,7 @@ mod tests {
     use crate::{
         error::{
             CoreCommonError, CoreError, CoreExecutionError, CoreInstantiationError, CoreLoadError,
-            InstanceError, StoreError, VmError, WasmEdgeError,
+            InstanceError, VmError, WasmEdgeError,
         },
         utils, Config, FuncType, Function, ImportInstance, ImportModule, ImportObject, Loader,
         Module, Store, WasiModule, WasmEdgeProcessModule, WasmValue,
@@ -1206,7 +1210,7 @@ mod tests {
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
-            WasmEdgeError::Store(StoreError::NotFoundModule("non-existent-module".into()))
+            WasmEdgeError::Vm(VmError::NotFoundModule("non-existent-module".into()))
         );
 
         // run a registered function with empty parameters

@@ -1,6 +1,6 @@
-# Upgrade to WasmEdge-Go v0.10.0 (Unreleased)
+# Upgrade to WasmEdge-Go v0.10.0
 
-Due to the WasmEdge-Go API breaking changes, this document shows the guideline of programming with WasmEdge-Go API to upgrade from `v0.9.2` to the future `v0.10.0` version.
+Due to the WasmEdge-Go API breaking changes, this document shows the guideline of programming with WasmEdge-Go API to upgrade from the `v0.9.2` to the `v0.10.0` version.
 
 **Due to the `v0.9.1` is retracted, we use the version `v0.9.2` here.**
 

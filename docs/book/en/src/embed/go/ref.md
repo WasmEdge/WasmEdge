@@ -12,6 +12,7 @@ The followings are the guides to working with the WasmEdge-Go SDK.
   * [WasmEdge Installation](#wasmedge-installation)
   * [Get WasmEdge-go](#get-wasmedge-go)
   * [WasmEdge-go Extensions](#wasmedge-go-extensions)
+  * [Example repository](#example-repository)
   * [Example of Embedding A Function with wasmedge-bindgen](#example-of-embedding-a-function-with-wasmedge-bindgen)
   * [Example of Embedding A Full WASI Program](#example-of-embedding-a-full-wasi-program)
 * [WasmEdge-go Basics](#wasmedge-go-basics)
@@ -106,6 +107,10 @@ Users can also turn on the multiple extensions when building:
 ```bash
 go build -tags image,tensorflow
 ```
+
+### Example Repository
+
+Developers can refer to [the example repository](https://github.com/second-state/WasmEdge-go-examples/) for the WasmEdge-Go examples.
 
 ### Example of Embedding A Function with wasmedge-bindgen
 

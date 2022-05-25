@@ -1,6 +1,6 @@
-# Upgrade to WasmEdge 0.10.0 (Unreleased)
+# Upgrade to WasmEdge 0.10.0
 
-Due to the WasmEdge C API breaking changes, this document shows the guideline of programming with WasmEdge C API to upgrade from `0.9.1` to the future `0.10.0` version.
+Due to the WasmEdge C API breaking changes, this document shows the guideline of programming with WasmEdge C API to upgrade from the `0.9.1` to the `0.10.0` version.
 
 ## Concepts
 

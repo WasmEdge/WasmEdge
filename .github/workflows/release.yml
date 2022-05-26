@@ -69,6 +69,11 @@ jobs:
         tar --owner 0 --group 0 -czf "$GITHUB_WORKSPACE/WasmEdge-$VERSION.tar.gz" -C "$TEMPDIR" "wasmedge"
       env:
         VERSION: ${{ needs.create_release.outputs.version }}
+    - name: Upload artifact
+      uses: actions/upload-artifact@v2
+      with:
+        name: WasmEdge-${{ needs.create_release.outputs.version }}-src.tar.gz
+        path: WasmEdge-${{ needs.create_release.outputs.version }}.tar.gz
     - name: Upload source tarball
       uses: actions/upload-release-asset@v1
       env:
@@ -363,3 +368,49 @@ jobs:
         asset_path: build/WasmEdge-${{ needs.create_release.outputs.version }}-Android.tar.gz
         asset_name: WasmEdge-${{ needs.create_release.outputs.version }}-android_aarch64.tar.gz
         asset_content_type: application/x-gzip
+
+  build_fedora_srpm:
+    name: Build and upload WasmEdge Fedora SRPM
+    needs: [create_release, create_source_tarball]
+    runs-on: ubuntu-latest
+    container:
+      image: fedora:rawhide
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+    - name: Install requirment
+      run: |
+        dnf update -y
+        dnf install -y git gcc-c++ cmake ninja-build boost-devel spdlog-devel llvm-devel lld-devel rpm-build
+    - name: Prepare source tarball for SRPM
+      uses: actions/download-artifact@v3
+      with:
+        name: WasmEdge-${{ needs.create_release.outputs.version }}-src.tar.gz
+        path: /github/home/rpmbuild/SOURCES
+    - name: Rename source tarball
+      working-directory: /github/home/rpmbuild/SOURCES
+      run: |
+        mv WasmEdge-${{ needs.create_release.outputs.version }}.tar.gz WasmEdge-${{ needs.create_release.outputs.version }}-src.tar.gz
+    - name: Prepare SRPM version
+      run: |
+        VERSION=${{ needs.create_release.outputs.version }}
+        SRPM_VERSION=$(echo $VERSION | tr '-' '~')
+        echo "srpm_version=$SRPM_VERSION" >> $GITHUB_ENV
+    - name: Build WasmEdge SRPM
+      run: |
+        git config --global --add safe.directory $(pwd)
+        mkdir -p build
+        cd build
+        cmake ..
+        rpmbuild -ba rpm/wasmedge.spec
+      env:
+        VERSION: ${{ needs.create_release.outputs.version }}
+    - name: Upload Fedora SRPM
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ needs.create_release.outputs.upload_url }}
+        asset_path: /github/home/rpmbuild/SRPMS/wasmedge-${{ env.srpm_version }}-1.fc37.src.rpm
+        asset_name: WasmEdge-${{ env.srpm_version }}-1.fc37.src.rpm
+        asset_content_type: application/x-rpm

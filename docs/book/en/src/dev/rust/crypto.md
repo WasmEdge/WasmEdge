@@ -10,7 +10,7 @@ Current not support android.
 
 ```toml
 [dependencies]
-wasi-crypto-guest = { git ="https://github.com/WebAssembly/wasi-crypto", version = "0.1.0" }
+wasi-crypto-guest = { git ="https://github.com/sonder-joker/wasi-crypto", version = "0.1.0" }
 ```
 
 ## High level operation

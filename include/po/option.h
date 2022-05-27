@@ -12,7 +12,6 @@
 #include "po/parser.h"
 
 #include <cstdint>
-#include <iostream>
 #include <optional>
 #include <string>
 #include <type_traits>
@@ -66,13 +65,18 @@ public:
   const T &value() const noexcept { return Store; }
   T &value() noexcept { return Store; }
 
-  void default_argument() noexcept(std::is_nothrow_move_constructible_v<T>) {
+  void default_argument() noexcept {
     Store = std::move(*Default);
     Default.reset();
   }
 
-  void argument(std::string Argument) {
-    Store = ParserT::parse(std::move(Argument));
+  cxx20::expected<void, Error> argument(std::string Argument) noexcept {
+    if (auto Res = ParserT::parse(std::move(Argument)); !Res) {
+      return cxx20::unexpected(Res.error());
+    } else {
+      Store = *Res;
+    }
+    return {};
   }
 
 private:
@@ -114,8 +118,13 @@ public:
 
   void default_argument() noexcept { Store = true; }
 
-  void argument(std::string Argument) {
-    Store = Parser<bool>::parse(std::move(Argument));
+  cxx20::expected<void, Error> argument(std::string Argument) noexcept {
+    if (auto Res = Parser<bool>::parse(std::move(Argument)); !Res) {
+      return cxx20::unexpected(Res.error());
+    } else {
+      Store = *Res;
+    }
+    return {};
   }
 
 private:

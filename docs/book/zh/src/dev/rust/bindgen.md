@@ -1,64 +1,24 @@
-# Bindgen 和 rustwasmc
 
-[rustwasmc](https://github.com/second-state/rustwasmc) 工具的灵感来源于 wasm-pack 工程，并针对边缘计算和设备应用程序进行优化。具体地说，它支持了 [WasmEdge](https://github.com/WasmEdge/WasmEdge) WebAssembly 运行时。
+# 调用 Rust 函数
 
-相较于标准 `wasm32-wasi` 编译器目标，`rustwasmc` 的关键特性之一是使用 `wasm-bindgen` 工具处理编译的 Rust 函数。默认情况下，WebAssembly 函数只支持一些简单数据类型作为输入调用参数。而像 `wasm-bindgen` 这样的工具将 WebAssembly 函数参数转换为内存指针，并允许主机程序传递复杂参数给 WebAssembly 函数，例如字符串和数组。WasmEdge 的 [Node.js SDK](../../embed/node.md) 和 [Go SDK](../../embed/go.md) 都支持 `wasm-bindgen`，允许 JavaScript 和 Go 程序用复杂参数调用 WebAssembly 函数。
+如果你的 Rust 程序包含 `main()` 函数，你可以将它编译成 WASM 字节码，然后像运行一个独立应用程序一样使用 `wasmedge` 命令行工具来运行它。然而，更常见的使用场景是将一个 Rust 函数编译成 WASM 字节码，然后在其他宿主程序中调用它。这被称为嵌入的 WASM 函数。宿主应用程序使用 WasmEdge 语言 SDK （比如，[Go](../../embed/go.md)、 [Rust](../../embed/rust.md)、 [C](../../embed/c.md)、 [Python](../../embed/go.md) 以及 [Node.js](../../embed/node.md)）来运行由 Rust 源代码编译而来的 WASM 函数。
 
-> 目前我们使用 1.50 或更低版本的 Rust 编译器才能将 WebAssembly 函数与 `wasm-bindgen` 和 `rustwasmc` 一起使用。只要接口类型规范最终确定并的到支持，我们将立刻赶上最新版本的 Rust 编译器。
+所有的 WasmEdge 语言 SDK 都支持简单的函数调用。但是，WASM 规范只支持一些基础的数据类型作为参数和返回值。当 Rust 函数被编译成 WASM 时，`wasmedge-bindgen` 会把 Rust 函数的调用参数和返回值都转换为简单的整型。比如，字符串将被自动转换为两个整型，它的内存地址和它的长度，这些类型可以被标准的 WASM 规范接受。在 Rust 中这很容易完成，只需要给你的函数添加 `#[wasmedge-bindgen]` 宏就可以。你可以使用标准的 Rust 编译工具链（比如，最新的 `Cargo`）来编译添加宏之后的 Rust 代码。
 
+```rust
+use wasmedge_bindgen::*;
+use wasmedge_bindgen_macro::*;
 
-## 前置条件
-
-`rustwasmc` 需要依靠 Rust cargo 工具链去编译 Rust 源代码为 WebAssembly。所以，你需要安装在你的机器上安装 [Rust](https://www.rust-lang.org/tools/install) 。
-
-```src
-$ curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
-$ source $HOME/.cargo/env
-$ rustup override set 1.50.0
+#[wasmedge_bindgen]
+pub fn say(s: String) -> Result<Vec<u8>, String> {
+  let r = String::from("hello ");
+  return Ok((r + s.as_str()).as_bytes().to_vec());
+}
 ```
 
+当然，一旦上述 Rust 代码被编译为 WASM，`say()` 函数将不再接受 `String` 作为参数，也不会再返回 `Vec<u8>`。因此，调用者（也就是宿主应用程序）必须在调用前将调用参数解构为内存指针，并在调用之后使用内存指针组装返回值。这些操作可以由 WasmEdge 语言 SDK 自动完成。如果需要一个包含 Rust WASM 函数以及 Go 宿主程序的完整的示例，请参照我们在 Go SDK 文档中的教程。
 
-## 安装 
+**[一个完整的 wasmedge-bindgen 示例，使用 Rust (WASM) 和 Go (宿主)](../../embed/go/function.md)**
 
-安装 [rustwasmc](https://github.com/second-state/rustwasmc) 最简洁的方式是使用它提供的安装程序。
+当然，开发者可以选择自己实现 `wasmdege-bindgen` 的工作，直接传递内存指针。如果你对使用这种方式来调用 Rust 编译成的 WASM 函数感兴趣，请参照我们在 [Go SDK 中的示例](../../embed/go/memory.md)。
 
-```src
-$ curl https://raw.githubusercontent.com/second-state/rustwasmc/master/installer/init.sh -sSf | sh
-```
-
-当然，你也可以使用 [NPM](https://github.com/second-state/rustwasmc#install) 去安装。
-
-
-## 用法
-
-使用下面的命令来构建 [Rust functions for Node.js](../../embed/node.md) 应用程序。请看一下 [模板程序](https://github.com/second-state/wasmedge-nodejs-starter) 。
-
-```src
-$ rustwasmc build
-```
-
-使用 `--enable-ext` 标志着编译使用 WASI 扩展的 Rust 程序，例如 WasmEdge 存储 API 和  [Tensorflow](tensorflow.md) API。在这种情况下，`rustwasmc` 将为 `wasmedge-extensions` Node.js 模块而不是 `wasmedge-core` 模块生成已编译的 WebAssembly 字节码程序。
-
-```src
-$ rustwasmc build --enable-ext
-```
-
-## 支持 AOT
-
-WasmEdge 运行时的一个关键特性是对提前编译(AOT)编译器的支持。当你在 Node.js `wasmedge-core` 和 `wasmedge-extensions` 插件中运行 WebAssembly 程序时，你通常不需要担心它，因为插件会透明地处理 AOT 编译。然而，在一些情况下，你只希望使用 `rustwasmc` 编译程序并生成本地代码。
-
-那么就需要使用以下命令是你的操作系统和开发者工具保持同步。此处命令在 Ubuntu 20.04 上测试。
-
-```src
-$ sudo apt-get update
-$ sudo apt-get -y upgrade
-$ sudo apt install build-essential curl wget git vim libboost-all-dev llvm-dev liblld-10-dev
-```
-
-现在，你可以按下面的命令为 AOT 本地目标构建 `.so` 文件了。
-
-```src
-$ rustwasmc build --enable-aot
-```
-
-享受编程吧！

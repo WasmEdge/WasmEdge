@@ -12,19 +12,18 @@ namespace WasmEdge {
 namespace Executor {
 
 // Instantiate data instance. See "include/executor/executor.h".
-Expect<void> Executor::instantiate(Runtime::StoreManager &StoreMgr,
-                                   Runtime::StackManager &StackMgr,
+Expect<void> Executor::instantiate(Runtime::StackManager &StackMgr,
                                    Runtime::Instance::ModuleInstance &ModInst,
                                    const AST::DataSection &DataSec) {
-  // A frame with module is pushed into stack outside.
-  // Instantiate data instances.
+  // A frame with the current module has been pushed into the stack outside.
+
+  // Iterate through the data segments to instantiate data instances.
   for (const auto &DataSeg : DataSec.getContent()) {
     uint32_t Offset = 0;
-    // Initialize memory if data mode is active.
+    // Initialize memory if the data mode is active.
     if (DataSeg.getMode() == AST::DataSegment::DataMode::Active) {
       // Run initialize expression.
-      if (auto Res =
-              runExpression(StoreMgr, StackMgr, DataSeg.getExpr().getInstrs());
+      if (auto Res = runExpression(StackMgr, DataSeg.getExpr().getInstrs());
           unlikely(!Res)) {
         spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Expression));
         spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Seg_Data));
@@ -37,7 +36,7 @@ Expect<void> Executor::instantiate(Runtime::StoreManager &StoreMgr,
       if (!Conf.hasProposal(Proposal::ReferenceTypes) &&
           !Conf.hasProposal(Proposal::BulkMemoryOperations)) {
         // Memory index should be 0. Checked in validation phase.
-        auto *MemInst = getMemInstByIdx(StoreMgr, StackMgr, DataSeg.getIdx());
+        auto *MemInst = getMemInstByIdx(StackMgr, DataSeg.getIdx());
         // Check data fits.
         assuming(MemInst);
         if (!MemInst->checkAccessBound(
@@ -49,23 +48,14 @@ Expect<void> Executor::instantiate(Runtime::StoreManager &StoreMgr,
       }
     }
 
-    // Insert data instance to store manager.
-    uint32_t NewDataInstAddr;
-    if (InsMode == InstantiateMode::Instantiate) {
-      NewDataInstAddr = StoreMgr.pushData(Offset, DataSeg.getData());
-    } else {
-      NewDataInstAddr = StoreMgr.importData(Offset, DataSeg.getData());
-    }
-    ModInst.addDataAddr(NewDataInstAddr);
+    // Create and add the data instance into the module instance.
+    ModInst.addData(Offset, DataSeg.getData());
   }
   return {};
 }
 
-// Initialize memory with Data Instances. See
-// "include/executor/executor.h".
-Expect<void> Executor::initMemory(Runtime::StoreManager &StoreMgr,
-                                  Runtime::StackManager &StackMgr,
-                                  Runtime::Instance::ModuleInstance &,
+// Initialize memory with Data section. See "include/executor/executor.h".
+Expect<void> Executor::initMemory(Runtime::StackManager &StackMgr,
                                   const AST::DataSection &DataSec) {
   // initialize memory.
   uint32_t Idx = 0;
@@ -73,10 +63,10 @@ Expect<void> Executor::initMemory(Runtime::StoreManager &StoreMgr,
     // Initialize memory if data mode is active.
     if (DataSeg.getMode() == AST::DataSegment::DataMode::Active) {
       // Memory index should be 0. Checked in validation phase.
-      auto *MemInst = getMemInstByIdx(StoreMgr, StackMgr, DataSeg.getIdx());
+      auto *MemInst = getMemInstByIdx(StackMgr, DataSeg.getIdx());
       assuming(MemInst);
 
-      auto *DataInst = getDataInstByIdx(StoreMgr, StackMgr, Idx);
+      auto *DataInst = getDataInstByIdx(StackMgr, Idx);
       assuming(DataInst);
       const uint32_t Off = DataInst->getOffset();
 

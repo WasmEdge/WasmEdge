@@ -178,11 +178,10 @@ TEST(AsyncExecute, ThreadTest) {
     for (uint64_t Index = 0; Index < Answers.size(); ++Index) {
       AsyncResults[Index] = VM.asyncExecute(
           "mt19937",
-          std::array<const WasmEdge::ValVariant, 3>{
+          std::initializer_list<WasmEdge::ValVariant>{
               UINT32_C(2504) * Index, UINT64_C(5489), UINT64_C(100000) + Index},
-          std::array<const WasmEdge::ValType, 3>{WasmEdge::ValType::I32,
-                                                 WasmEdge::ValType::I64,
-                                                 WasmEdge::ValType::I64});
+          {WasmEdge::ValType::I32, WasmEdge::ValType::I64,
+           WasmEdge::ValType::I64});
     }
     for (uint64_t Index = 0; Index < Answers.size(); ++Index) {
       auto Result = AsyncResults[Index].get();
@@ -210,11 +209,10 @@ TEST(AsyncExecute, GasThreadTest) {
     for (uint64_t Index = 0; Index < Answers.size(); ++Index) {
       AsyncResults[Index] = VM.asyncExecute(
           "mt19937",
-          std::array<const WasmEdge::ValVariant, 3>{
+          std::initializer_list<WasmEdge::ValVariant>{
               UINT32_C(2504) * Index, UINT64_C(5489), UINT64_C(100000) + Index},
-          std::array<const WasmEdge::ValType, 3>{WasmEdge::ValType::I32,
-                                                 WasmEdge::ValType::I64,
-                                                 WasmEdge::ValType::I64});
+          {WasmEdge::ValType::I32, WasmEdge::ValType::I64,
+           WasmEdge::ValType::I64});
     }
     for (uint64_t Index = 0; Index < Answers.size(); ++Index) {
       auto Result = AsyncResults[Index].get();
@@ -263,11 +261,10 @@ TEST(AOTAsyncExecute, ThreadTest) {
     for (uint64_t Index = 0; Index < Answers.size(); ++Index) {
       AsyncResults[Index] = VM.asyncExecute(
           "mt19937",
-          std::array<const WasmEdge::ValVariant, 3>{
+          std::initializer_list<WasmEdge::ValVariant>{
               UINT32_C(2504) * Index, UINT64_C(5489), UINT64_C(100000) + Index},
-          std::array<const WasmEdge::ValType, 3>{WasmEdge::ValType::I32,
-                                                 WasmEdge::ValType::I64,
-                                                 WasmEdge::ValType::I64});
+          {WasmEdge::ValType::I32, WasmEdge::ValType::I64,
+           WasmEdge::ValType::I64});
     }
     for (uint64_t Index = 0; Index < Answers.size(); ++Index) {
       auto Result = AsyncResults[Index].get();
@@ -311,11 +308,10 @@ TEST(AOTAsyncExecute, GasThreadTest) {
     for (uint64_t Index = 0; Index < Answers.size(); ++Index) {
       AsyncResults[Index] = VM.asyncExecute(
           "mt19937",
-          std::array<const WasmEdge::ValVariant, 3>{
+          std::initializer_list<WasmEdge::ValVariant>{
               UINT32_C(2504) * Index, UINT64_C(5489), UINT64_C(100000) + Index},
-          std::array<const WasmEdge::ValType, 3>{WasmEdge::ValType::I32,
-                                                 WasmEdge::ValType::I64,
-                                                 WasmEdge::ValType::I64});
+          {WasmEdge::ValType::I32, WasmEdge::ValType::I64,
+           WasmEdge::ValType::I64});
     }
     for (uint64_t Index = 0; Index < Answers.size(); ++Index) {
       auto Result = AsyncResults[Index].get();

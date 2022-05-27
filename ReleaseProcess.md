@@ -1,5 +1,10 @@
 # How to create a release
 
+## Create the releasing process issue of the new version
+
+- [ ] Keep adding the new features, issues, documents, and builds check list into the issue.
+- [ ] Add the GitHub project of the new version.
+
 ## Write Changelog
 
 - [ ] Make sure every change is written in the changelog.
@@ -10,6 +15,7 @@
 ## Create the Alpha Pre-Release
 
 - [ ] In this step, the main features are completed. No more major feature will be merged after the first Alpha pre-release.
+- [ ] Make sure that the features in the releasing process issue are completed.
 - [ ] Use git tag to create a new release tag ``major.minor.patch-alpha.version``. And push this tag to GitHub.
 - [ ] Wait for the CI builds and pushes the release binaries and release notes to the GitHub release page.
 - [ ] Check the ``Pre-release`` checkbox and publish the pre-release.
@@ -17,6 +23,7 @@
 ## Create the Beta Pre-Release
 
 - [ ] This step is for the issue fixing. No more feature will be accepted.
+- [ ] Make sure that all the features in the releasing process issue are completed.
 - [ ] Use git tag to create a new release tag ``major.minor.patch-beta.version``. And push this tag to GitHub.
 - [ ] Wait for the CI builds and pushes the release binaries and release notes to the GitHub release page.
 - [ ] Check the ``Pre-release`` checkbox and publish the pre-release.
@@ -24,6 +31,7 @@
 ## Create the RC Pre-Release
 
 - [ ] In this step, the issue fixing is finished. The `RC` pre-releases are for the installation, bindings, and packages testing.
+- [ ] Make sure that all the issues in the releasing process issue are completed.
 - [ ] Use git tag to create a new release tag ``major.minor.patch-rc.version``. And push this tag to GitHub.
 - [ ] Wait for the CI builds and pushes the release binaries and release notes to the GitHub release page.
 - [ ] Check the ``Pre-release`` checkbox and publish the pre-release.
@@ -32,8 +40,9 @@
 
 - [ ] Make sure the ``Changelog.md`` and ``.CurrentChangelog.md`` have the correct version number and the release date.
 - [ ] Use git tag to create a new release tag ``major.minor.patch``. And push this tag to GitHub.
-- [ ] Wait for the CI builds and pushes the release binaries and release notes to the GitHub release page.
+- [ ] Wait for the CI builds and push the release binaries and release notes to the GitHub release page.
 - [ ] Publish the release.
+- [ ] Close the releasing process issue and the GitHub project.
 
 ## Update the Extensions
 

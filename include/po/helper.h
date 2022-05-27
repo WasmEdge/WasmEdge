@@ -25,8 +25,7 @@ struct MetaVar {
 };
 
 template <typename T> struct DefaultValue {
-  DefaultValue(T Value) noexcept(std::is_nothrow_move_constructible_v<T>)
-      : Value(std::move(Value)) {}
+  DefaultValue(T Value) noexcept : Value(std::move(Value)) {}
   T Value;
 };
 

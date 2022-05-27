@@ -57,11 +57,16 @@ struct UnknownRef {
 };
 
 /// FuncRef definition.
+namespace Runtime::Instance {
+class FunctionInstance;
+}
 struct FuncRef {
-  uint32_t NotNull = 0;
-  uint32_t Idx = 0;
+#if __INTPTR_WIDTH__ == 32
+  const uint32_t Padding = -1;
+#endif
+  const Runtime::Instance::FunctionInstance *Ptr = nullptr;
   FuncRef() = default;
-  FuncRef(uint32_t I) : NotNull(1), Idx(I) {}
+  FuncRef(const Runtime::Instance::FunctionInstance *P) : Ptr(P) {}
 };
 
 /// ExternRef definition.
@@ -280,15 +285,22 @@ inline constexpr bool isNullRef(const ValVariant &Val) {
 inline constexpr bool isNullRef(const RefVariant &Val) {
   return Val.get<UnknownRef>().Value == 0;
 }
-inline constexpr uint32_t retrieveFuncIdx(const ValVariant &Val) {
-  return Val.get<FuncRef>().Idx;
+
+inline const Runtime::Instance::FunctionInstance *
+retrieveFuncRef(const ValVariant &Val) {
+  return reinterpret_cast<const Runtime::Instance::FunctionInstance *>(
+      Val.get<FuncRef>().Ptr);
 }
-inline constexpr uint32_t retrieveFuncIdx(const RefVariant &Val) {
-  return Val.get<FuncRef>().Idx;
+inline const Runtime::Instance::FunctionInstance *
+retrieveFuncRef(const RefVariant &Val) {
+  return reinterpret_cast<const Runtime::Instance::FunctionInstance *>(
+      Val.get<FuncRef>().Ptr);
 }
-inline constexpr uint32_t retrieveFuncIdx(const FuncRef &Val) {
-  return Val.Idx;
+inline const Runtime::Instance::FunctionInstance *
+retrieveFuncRef(const FuncRef &Val) {
+  return reinterpret_cast<const Runtime::Instance::FunctionInstance *>(Val.Ptr);
 }
+
 template <typename T> inline T &retrieveExternRef(const ValVariant &Val) {
   return *reinterpret_cast<T *>(Val.get<ExternRef>().Ptr);
 }

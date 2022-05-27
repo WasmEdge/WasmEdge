@@ -29,9 +29,8 @@ namespace Instance {
 class TableInstance {
 public:
   TableInstance() = delete;
-  TableInstance(const AST::TableType &TType)
+  TableInstance(const AST::TableType &TType) noexcept
       : TabType(TType), Refs(TType.getLimit().getMin(), UnknownRef()) {}
-  virtual ~TableInstance() = default;
 
   /// Get size of table.refs
   uint32_t getSize() const noexcept {
@@ -40,7 +39,7 @@ public:
   }
 
   /// Getter of table type.
-  const AST::TableType &getTableType() const { return TabType; }
+  const AST::TableType &getTableType() const noexcept { return TabType; }
 
   /// Check is out of bound.
   bool checkAccessBound(uint32_t Offset, uint32_t Length) const noexcept {
@@ -56,7 +55,7 @@ public:
   }
 
   /// Grow table with initialization value.
-  bool growTable(const uint32_t Count, const RefVariant Val) {
+  bool growTable(uint32_t Count, RefVariant Val) noexcept {
     uint32_t MaxSizeCaped = std::numeric_limits<uint32_t>::max();
     uint32_t Min = TabType.getLimit().getMin();
     uint32_t Max = TabType.getLimit().getMax();
@@ -71,13 +70,13 @@ public:
     TabType.getLimit().setMin(Min + Count);
     return true;
   }
-  bool growTable(const uint32_t Count) {
+  bool growTable(uint32_t Count) noexcept {
     return growTable(Count, UnknownRef());
   }
 
   /// Get slice of Refs[Offset : Offset + Length - 1]
-  Expect<Span<const RefVariant>> getRefs(const uint32_t Offset,
-                                         const uint32_t Length) const noexcept {
+  Expect<Span<const RefVariant>> getRefs(uint32_t Offset,
+                                         uint32_t Length) const noexcept {
     // Check the accessing boundary.
     if (!checkAccessBound(Offset, Length)) {
       spdlog::error(ErrCode::TableOutOfBounds);
@@ -88,8 +87,8 @@ public:
   }
 
   /// Replace the Refs[Offset :] by Slice[Start : Start + Legnth - 1]
-  Expect<void> setRefs(Span<const RefVariant> Slice, const uint32_t Offset,
-                       const uint32_t Start, const uint32_t Length) {
+  Expect<void> setRefs(Span<const RefVariant> Slice, uint32_t Offset,
+                       uint32_t Start, uint32_t Length) noexcept {
     // Check the accessing boundary.
     if (!checkAccessBound(Offset, Length)) {
       spdlog::error(ErrCode::TableOutOfBounds);
@@ -113,8 +112,8 @@ public:
   }
 
   /// Fill the Refs[Offset : Offset + Length - 1] by Val.
-  Expect<void> fillRefs(const RefVariant Val, const uint32_t Offset,
-                        const uint32_t Length) {
+  Expect<void> fillRefs(const RefVariant Val, uint32_t Offset,
+                        uint32_t Length) noexcept {
     // Check the accessing boundary.
     if (!checkAccessBound(Offset, Length)) {
       spdlog::error(ErrCode::TableOutOfBounds);
@@ -128,7 +127,7 @@ public:
   }
 
   /// Get the elem address.
-  Expect<RefVariant> getRefAddr(const uint32_t Idx) const noexcept {
+  Expect<RefVariant> getRefAddr(uint32_t Idx) const noexcept {
     if (Idx >= Refs.size()) {
       spdlog::error(ErrCode::TableOutOfBounds);
       spdlog::error(ErrInfo::InfoBoundary(Idx, 1, getBoundIdx()));
@@ -138,7 +137,7 @@ public:
   }
 
   /// Set the elem address.
-  Expect<void> setRefAddr(const uint32_t Idx, const RefVariant Val) {
+  Expect<void> setRefAddr(uint32_t Idx, RefVariant Val) {
     if (Idx >= Refs.size()) {
       spdlog::error(ErrCode::TableOutOfBounds);
       spdlog::error(ErrInfo::InfoBoundary(Idx, 1, getBoundIdx()));

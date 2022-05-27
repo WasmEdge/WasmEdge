@@ -25,10 +25,10 @@
 #include <llvm/Passes/PassBuilder.h>
 #include <llvm/Support/FileSystem.h>
 #include <llvm/Support/Host.h>
-#include <llvm/Support/TargetRegistry.h>
 #include <llvm/Support/TargetSelect.h>
 #include <llvm/Target/TargetMachine.h>
 #include <llvm/Transforms/IPO/AlwaysInliner.h>
+#include <llvm/Transforms/Scalar/TailRecursionElimination.h>
 #include <llvm/Transforms/Utils/BasicBlockUtils.h>
 #include <memory>
 #include <numeric>
@@ -38,6 +38,12 @@
 
 #if WASMEDGE_OS_WINDOWS
 #include <llvm/Object/COFF.h>
+#endif
+
+#if LLVM_VERSION_MAJOR >= 14
+#include <llvm/MC/TargetRegistry.h>
+#else
+#include <llvm/Support/TargetRegistry.h>
 #endif
 
 #if LLVM_VERSION_MAJOR >= 12
@@ -136,23 +142,29 @@ static inline constexpr const bool kForceDivCheck = true;
 // Size of a ValVariant
 static inline constexpr const uint32_t kValSize = sizeof(WasmEdge::ValVariant);
 
+#if LLVM_VERSION_MAJOR >= 14
+using LLVMOptimizationLevel = llvm::OptimizationLevel;
+#else
+using LLVMOptimizationLevel = llvm::PassBuilder::OptimizationLevel;
+#endif
+
 // Translate Compiler::OptimizationLevel to llvm::PassBuilder version
-static inline llvm::PassBuilder::OptimizationLevel
+static inline LLVMOptimizationLevel
 toLLVMLevel(WasmEdge::CompilerConfigure::OptimizationLevel Level) {
   using OL = WasmEdge::CompilerConfigure::OptimizationLevel;
   switch (Level) {
   case OL::O0:
-    return llvm::PassBuilder::OptimizationLevel::O0;
+    return LLVMOptimizationLevel::O0;
   case OL::O1:
-    return llvm::PassBuilder::OptimizationLevel::O1;
+    return LLVMOptimizationLevel::O1;
   case OL::O2:
-    return llvm::PassBuilder::OptimizationLevel::O2;
+    return LLVMOptimizationLevel::O2;
   case OL::O3:
-    return llvm::PassBuilder::OptimizationLevel::O3;
+    return LLVMOptimizationLevel::O3;
   case OL::Os:
-    return llvm::PassBuilder::OptimizationLevel::Os;
+    return LLVMOptimizationLevel::Os;
   case OL::Oz:
-    return llvm::PassBuilder::OptimizationLevel::Oz;
+    return LLVMOptimizationLevel::Oz;
   default:
     assumingUnreachable();
   }
@@ -306,6 +318,8 @@ struct WasmEdge::AOT::Compiler::CompileContext {
             llvm::ArrayType::get(Int64Ty, UINT16_MAX + 1)->getPointerTo(),
             // Gas
             Int64PtrTy,
+            // GasLimit
+            Int64Ty,
             // StopToken
             llvm::Type::getInt32PtrTy(LLContext))),
         ExecCtxPtrTy(ExecCtxTy->getPointerTo()),
@@ -397,9 +411,13 @@ struct WasmEdge::AOT::Compiler::CompileContext {
   llvm::Value *getGas(llvm::IRBuilder<> &Builder, llvm::LoadInst *ExecCtx) {
     return Builder.CreateExtractValue(ExecCtx, {4});
   }
+  llvm::Value *getGasLimit(llvm::IRBuilder<> &Builder,
+                           llvm::LoadInst *ExecCtx) {
+    return Builder.CreateExtractValue(ExecCtx, {5});
+  }
   llvm::Value *getStopToken(llvm::IRBuilder<> &Builder,
                             llvm::LoadInst *ExecCtx) {
-    return Builder.CreateExtractValue(ExecCtx, {5});
+    return Builder.CreateExtractValue(ExecCtx, {6});
   }
   llvm::FunctionCallee getIntrinsic(llvm::IRBuilder<> &Builder,
                                     AST::Module::Intrinsics Index,
@@ -593,7 +611,7 @@ public:
     for (auto &[Error, BB] : TrapBB) {
       Builder.SetInsertPoint(BB);
       updateInstrCount();
-      updateGas();
+      updateGasAtTrap();
       auto *CallTrap = Builder.CreateCall(
           Context.Trap, {Builder.getInt8(static_cast<uint8_t>(Error))});
       CallTrap->setDoesNotReturn();
@@ -735,7 +753,7 @@ public:
             llvm::BasicBlock::Create(LLContext, "ret.end", F));
         break;
       case OpCode::Br: {
-        const auto Label = Instr.getTargetIndex();
+        const auto Label = Instr.getJump().TargetIndex;
         setLableJumpPHI(Label);
         Builder.CreateBr(getLabel(Label));
         setUnreachable();
@@ -744,7 +762,7 @@ public:
         break;
       }
       case OpCode::Br_if: {
-        const auto Label = Instr.getTargetIndex();
+        const auto Label = Instr.getJump().TargetIndex;
         auto *Cond = Builder.CreateICmpNE(stackPop(), Builder.getInt32(0));
         setLableJumpPHI(Label);
         auto *Next = llvm::BasicBlock::Create(LLContext, "br_if.end", F);
@@ -755,15 +773,17 @@ public:
       case OpCode::Br_table: {
         auto LabelTable = Instr.getLabelList();
         assuming(LabelTable.size() <= std::numeric_limits<uint32_t>::max());
-        const uint32_t LabelTableSize =
-            static_cast<uint32_t>(LabelTable.size());
+        const auto LabelTableSize =
+            static_cast<uint32_t>(LabelTable.size() - 1);
         auto *Value = stackPop();
-        setLableJumpPHI(Instr.getTargetIndex());
+        setLableJumpPHI(LabelTable[LabelTableSize].TargetIndex);
         auto *Switch = Builder.CreateSwitch(
-            Value, getLabel(Instr.getTargetIndex()), LabelTableSize);
+            Value, getLabel(LabelTable[LabelTableSize].TargetIndex),
+            LabelTableSize);
         for (uint32_t I = 0; I < LabelTableSize; ++I) {
-          setLableJumpPHI(LabelTable[I]);
-          Switch->addCase(Builder.getInt32(I), getLabel(LabelTable[I]));
+          setLableJumpPHI(LabelTable[I].TargetIndex);
+          Switch->addCase(Builder.getInt32(I),
+                          getLabel(LabelTable[I].TargetIndex));
         }
         setUnreachable();
         Builder.SetInsertPoint(
@@ -779,6 +799,23 @@ public:
         updateInstrCount();
         updateGas();
         compileIndirectCallOp(Instr.getSourceIndex(), Instr.getTargetIndex());
+        break;
+      case OpCode::Return_call:
+        updateInstrCount();
+        updateGas();
+        compileReturnCallOp(Instr.getTargetIndex());
+        setUnreachable();
+        Builder.SetInsertPoint(
+            llvm::BasicBlock::Create(LLContext, "ret_call.end", F));
+        break;
+      case OpCode::Return_call_indirect:
+        updateInstrCount();
+        updateGas();
+        compileReturnIndirectCallOp(Instr.getSourceIndex(),
+                                    Instr.getTargetIndex());
+        setUnreachable();
+        Builder.SetInsertPoint(
+            llvm::BasicBlock::Create(LLContext, "ret_call_indir.end", F));
         break;
       case OpCode::Ref__null:
         stackPush(Builder.getInt64(0));
@@ -1193,8 +1230,7 @@ public:
           llvm::Value *Ret = llvm::UndefValue::get(VectorTy);
           Ret = Builder.CreateInsertElement(Ret, Value, kZero);
 #if LLVM_VERSION_MAJOR >= 13
-          Ret = Builder.CreateUnaryIntrinsic(
-              llvm::Intrinsic::aarch64_sve_frintn, Ret);
+          Ret = Builder.CreateUnaryIntrinsic(llvm::Intrinsic::roundeven, Ret);
 #else
           Ret = Builder.CreateUnaryIntrinsic(
               llvm::Intrinsic::aarch64_neon_frintn, Ret);
@@ -2514,9 +2550,9 @@ public:
             Builder.CreateBitCast(stackPop(), Context.Int16x8Ty), ExtendTy);
         auto *M = Builder.CreateMul(LHS, RHS);
         auto *L = Builder.CreateShuffleVector(
-            M, Undef, std::array<ShuffleElement, 4>{0, 2, 4, 6});
+            M, Undef, std::initializer_list<ShuffleElement>{0, 2, 4, 6});
         auto *R = Builder.CreateShuffleVector(
-            M, Undef, std::array<ShuffleElement, 4>{1, 3, 5, 7});
+            M, Undef, std::initializer_list<ShuffleElement>{1, 3, 5, 7});
         auto *V = Builder.CreateAdd(L, R);
         stackPush(Builder.CreateBitCast(V, Context.Int64x2Ty));
         break;
@@ -2914,6 +2950,50 @@ public:
 
   void updateGas() {
     if (LocalGas) {
+      auto *CurrBB = Builder.GetInsertBlock();
+      auto *CheckBB = llvm::BasicBlock::Create(LLContext, "gas_check", F);
+      auto *OkBB = llvm::BasicBlock::Create(LLContext, "gas_ok", F);
+      auto *EndBB = llvm::BasicBlock::Create(LLContext, "gas_end", F);
+
+      auto *Cost = Builder.CreateLoad(Context.Int64Ty, LocalGas);
+      Cost->setAlignment(Align(8));
+      auto *GasPtr = Context.getGas(Builder, ExecCtx);
+      auto *GasLimit = Context.getGasLimit(Builder, ExecCtx);
+      auto *Gas = Builder.CreateLoad(Context.Int64Ty, GasPtr);
+      Gas->setAlignment(Align(8));
+      Gas->setAtomic(llvm::AtomicOrdering::Monotonic);
+      Builder.CreateBr(CheckBB);
+      Builder.SetInsertPoint(CheckBB);
+
+      auto *PHIOldGas = Builder.CreatePHI(Context.Int64Ty, 2);
+      auto *NewGas = Builder.CreateAdd(PHIOldGas, Cost);
+      auto *IsGasRemain =
+          createLikely(Builder, Builder.CreateICmpULE(NewGas, GasLimit));
+      Builder.CreateCondBr(IsGasRemain, OkBB,
+                           getTrapBB(ErrCode::CostLimitExceeded));
+      Builder.SetInsertPoint(OkBB);
+
+      auto *RGasAndSucceed = Builder.CreateAtomicCmpXchg(
+          GasPtr, PHIOldGas, NewGas,
+#if LLVM_VERSION_MAJOR >= 13
+          llvm::MaybeAlign(8),
+#endif
+          llvm::AtomicOrdering::Monotonic, llvm::AtomicOrdering::Monotonic);
+      RGasAndSucceed->setWeak(true);
+      auto *RGas = Builder.CreateExtractValue(RGasAndSucceed, {0});
+      auto *Succeed = Builder.CreateExtractValue(RGasAndSucceed, {1});
+      Builder.CreateCondBr(createLikely(Builder, Succeed), EndBB, CheckBB);
+      Builder.SetInsertPoint(EndBB);
+
+      Builder.CreateStore(Builder.getInt64(0), LocalGas);
+
+      PHIOldGas->addIncoming(Gas, CurrBB);
+      PHIOldGas->addIncoming(RGas, OkBB);
+    }
+  }
+
+  void updateGasAtTrap() {
+    if (LocalGas) {
       Builder.CreateAtomicRMW(llvm::AtomicRMWInst::BinOp::Add,
                               Context.getGas(Builder, ExecCtx),
                               Builder.CreateLoad(Context.Int64Ty, LocalGas),
@@ -2953,6 +3033,10 @@ private:
 
   void compileIndirectCallOp(const uint32_t TableIndex,
                              const uint32_t FuncTypeIndex) {
+    auto *NotNullBB = llvm::BasicBlock::Create(LLContext, "c_i.not_null", F);
+    auto *IsNullBB = llvm::BasicBlock::Create(LLContext, "c_i.is_null", F);
+    auto *EndBB = llvm::BasicBlock::Create(LLContext, "c_i.end", F);
+
     llvm::Value *FuncIndex = stackPop();
     const auto &FuncType = *Context.FunctionTypes[FuncTypeIndex];
     auto *FTy = toLLVMType(Context.ExecCtxPtrTy, FuncType);
@@ -2961,60 +3045,238 @@ private:
     const size_t ArgSize = FuncType.getParamTypes().size();
     const size_t RetSize =
         RTy->isVoidTy() ? 0 : FuncType.getReturnTypes().size();
-
-    llvm::Value *Args;
-    if (ArgSize == 0) {
-      Args = llvm::ConstantPointerNull::get(Builder.getInt8PtrTy());
-    } else {
-      auto *Alloca = Builder.CreateAlloca(Builder.getInt8Ty(),
-                                          Builder.getInt64(ArgSize * kValSize));
-      Alloca->setAlignment(Align(kValSize));
-      Args = Alloca;
-    }
-
-    llvm::Value *Rets;
-    if (RetSize == 0) {
-      Rets = llvm::ConstantPointerNull::get(Builder.getInt8PtrTy());
-    } else {
-      auto *Alloca = Builder.CreateAlloca(Builder.getInt8Ty(),
-                                          Builder.getInt64(RetSize * kValSize));
-      Alloca->setAlignment(Align(kValSize));
-      Rets = Alloca;
-    }
-
+    std::vector<llvm::Value *> ArgsVec(ArgSize + 1, nullptr);
+    ArgsVec[0] = F->arg_begin();
     for (size_t I = 0; I < ArgSize; ++I) {
-      const size_t J = ArgSize - 1 - I;
-      auto *Arg = stackPop();
-      auto *Ptr = Builder.CreateConstInBoundsGEP1_64(Context.Int8Ty, Args,
-                                                     J * kValSize);
-      Builder.CreateStore(
-          Arg, Builder.CreateBitCast(Ptr, Arg->getType()->getPointerTo()));
+      const size_t J = ArgSize - I;
+      ArgsVec[J] = stackPop();
     }
 
-    Builder.CreateCall(
-        Context.getIntrinsic(
-            Builder, AST::Module::Intrinsics::kCallIndirect,
-            llvm::FunctionType::get(Context.VoidTy,
-                                    {Context.Int32Ty, Context.Int32Ty,
-                                     Context.Int32Ty, Context.Int8PtrTy,
-                                     Context.Int8PtrTy},
-                                    false)),
-        {Builder.getInt32(TableIndex), Builder.getInt32(FuncTypeIndex),
-         FuncIndex, Args, Rets});
+    std::vector<llvm::Value *> FPtrRetsVec;
+    FPtrRetsVec.reserve(RetSize);
+    {
+      auto *FPtr = Builder.CreateCall(
+          Context.getIntrinsic(
+              Builder, AST::Module::Intrinsics::kPtrFunc,
+              llvm::FunctionType::get(
+                  FTy->getPointerTo(),
+                  {Context.Int32Ty, Context.Int32Ty, Context.Int32Ty}, false)),
+          {Builder.getInt32(TableIndex), Builder.getInt32(FuncTypeIndex),
+           FuncIndex});
+      Builder.CreateCondBr(
+          createLikely(Builder, Builder.CreateNot(Builder.CreateIsNull(FPtr))),
+          NotNullBB, IsNullBB);
+      Builder.SetInsertPoint(NotNullBB);
 
-    if (RetSize == 0) {
-      // nothing to do
-    } else if (RetSize == 1) {
-      auto *VPtr = Builder.CreateConstInBoundsGEP1_64(Context.Int8Ty, Rets, 0);
-      auto *Ptr = Builder.CreateBitCast(VPtr, RTy->getPointerTo());
-      stackPush(Builder.CreateLoad(RTy, Ptr));
+      auto *FPtrRet =
+          Builder.CreateCall(llvm::FunctionCallee(FTy, FPtr), ArgsVec);
+      if (RetSize == 0) {
+        // nothing to do
+      } else if (RetSize == 1) {
+        FPtrRetsVec.push_back(FPtrRet);
+      } else {
+        for (auto *Val : unpackStruct(Builder, FPtrRet)) {
+          FPtrRetsVec.push_back(Val);
+        }
+      }
+    }
+
+    Builder.CreateBr(EndBB);
+    Builder.SetInsertPoint(IsNullBB);
+
+    std::vector<llvm::Value *> RetsVec(RetSize);
+    {
+      llvm::Value *Args;
+      if (ArgSize == 0) {
+        Args = llvm::ConstantPointerNull::get(Builder.getInt8PtrTy());
+      } else {
+        auto *Alloca = Builder.CreateAlloca(
+            Builder.getInt8Ty(), Builder.getInt64(ArgSize * kValSize));
+        Alloca->setAlignment(Align(kValSize));
+        Args = Alloca;
+      }
+
+      llvm::Value *Rets;
+      if (RetSize == 0) {
+        Rets = llvm::ConstantPointerNull::get(Builder.getInt8PtrTy());
+      } else {
+        auto *Alloca = Builder.CreateAlloca(
+            Builder.getInt8Ty(), Builder.getInt64(RetSize * kValSize));
+        Alloca->setAlignment(Align(kValSize));
+        Rets = Alloca;
+      }
+
+      for (size_t I = 0; I < ArgSize; ++I) {
+        auto *Ptr = Builder.CreateConstInBoundsGEP1_64(Context.Int8Ty, Args,
+                                                       I * kValSize);
+        auto *Arg = ArgsVec[I + 1];
+        Builder.CreateStore(
+            Arg, Builder.CreateBitCast(Ptr, Arg->getType()->getPointerTo()));
+      }
+
+      Builder.CreateCall(
+          Context.getIntrinsic(
+              Builder, AST::Module::Intrinsics::kCallIndirect,
+              llvm::FunctionType::get(Context.VoidTy,
+                                      {Context.Int32Ty, Context.Int32Ty,
+                                       Context.Int32Ty, Context.Int8PtrTy,
+                                       Context.Int8PtrTy},
+                                      false)),
+          {Builder.getInt32(TableIndex), Builder.getInt32(FuncTypeIndex),
+           FuncIndex, Args, Rets});
+
+      if (RetSize == 0) {
+        // nothing to do
+      } else if (RetSize == 1) {
+        auto *VPtr =
+            Builder.CreateConstInBoundsGEP1_64(Context.Int8Ty, Rets, 0);
+        auto *Ptr = Builder.CreateBitCast(VPtr, RTy->getPointerTo());
+        RetsVec[0] = Builder.CreateLoad(RTy, Ptr);
+      } else {
+        for (unsigned I = 0; I < RetSize; ++I) {
+          auto *VPtr = Builder.CreateConstInBoundsGEP1_64(Context.Int8Ty, Rets,
+                                                          I * kValSize);
+          auto *Ptr = Builder.CreateBitCast(
+              VPtr, RTy->getStructElementType(I)->getPointerTo());
+          RetsVec[I] = Builder.CreateLoad(RTy->getStructElementType(I), Ptr);
+        }
+      }
+      Builder.CreateBr(EndBB);
+      Builder.SetInsertPoint(EndBB);
+    }
+
+    for (unsigned I = 0; I < RetSize; ++I) {
+      auto *PHIRet = Builder.CreatePHI(FPtrRetsVec[I]->getType(), 2);
+      PHIRet->addIncoming(FPtrRetsVec[I], NotNullBB);
+      PHIRet->addIncoming(RetsVec[I], IsNullBB);
+      stackPush(PHIRet);
+    }
+  }
+
+  void compileReturnCallOp(const unsigned int FuncIndex) {
+    const auto &FuncType =
+        *Context.FunctionTypes[std::get<0>(Context.Functions[FuncIndex])];
+    const auto &Function = std::get<1>(Context.Functions[FuncIndex]);
+    const auto &ParamTypes = FuncType.getParamTypes();
+
+    std::vector<llvm::Value *> Args(ParamTypes.size() + 1);
+    Args[0] = F->arg_begin();
+    for (size_t I = 0; I < ParamTypes.size(); ++I) {
+      const size_t J = ParamTypes.size() - 1 - I;
+      Args[J + 1] = stackPop();
+    }
+
+    auto *Ret = Builder.CreateCall(Function, Args);
+    auto *Ty = Ret->getType();
+    if (Ty->isVoidTy()) {
+      Builder.CreateRetVoid();
     } else {
-      for (unsigned I = 0; I < RetSize; ++I) {
-        auto *VPtr = Builder.CreateConstInBoundsGEP1_64(Context.Int8Ty, Rets,
-                                                        I * kValSize);
-        auto *Ptr = Builder.CreateBitCast(
-            VPtr, RTy->getStructElementType(I)->getPointerTo());
-        stackPush(Builder.CreateLoad(RTy->getStructElementType(I), Ptr));
+      Builder.CreateRet(Ret);
+    }
+  }
+
+  void compileReturnIndirectCallOp(const uint32_t TableIndex,
+                                   const uint32_t FuncTypeIndex) {
+    auto *NotNullBB = llvm::BasicBlock::Create(LLContext, "c_i.not_null", F);
+    auto *IsNullBB = llvm::BasicBlock::Create(LLContext, "c_i.is_null", F);
+
+    llvm::Value *FuncIndex = stackPop();
+    const auto &FuncType = *Context.FunctionTypes[FuncTypeIndex];
+    auto *FTy = toLLVMType(Context.ExecCtxPtrTy, FuncType);
+    auto *RTy = FTy->getReturnType();
+
+    const size_t ArgSize = FuncType.getParamTypes().size();
+    const size_t RetSize =
+        RTy->isVoidTy() ? 0 : FuncType.getReturnTypes().size();
+    std::vector<llvm::Value *> ArgsVec(ArgSize + 1, nullptr);
+    ArgsVec[0] = F->arg_begin();
+    for (size_t I = 0; I < ArgSize; ++I) {
+      const size_t J = ArgSize - I;
+      ArgsVec[J] = stackPop();
+    }
+
+    {
+      auto *FPtr = Builder.CreateCall(
+          Context.getIntrinsic(
+              Builder, AST::Module::Intrinsics::kPtrFunc,
+              llvm::FunctionType::get(
+                  FTy->getPointerTo(),
+                  {Context.Int32Ty, Context.Int32Ty, Context.Int32Ty}, false)),
+          {Builder.getInt32(TableIndex), Builder.getInt32(FuncTypeIndex),
+           FuncIndex});
+      Builder.CreateCondBr(
+          createLikely(Builder, Builder.CreateNot(Builder.CreateIsNull(FPtr))),
+          NotNullBB, IsNullBB);
+      Builder.SetInsertPoint(NotNullBB);
+
+      auto *FPtrRet =
+          Builder.CreateCall(llvm::FunctionCallee(FTy, FPtr), ArgsVec);
+      if (RetSize == 0) {
+        Builder.CreateRetVoid();
+      } else {
+        Builder.CreateRet(FPtrRet);
+      }
+    }
+
+    Builder.SetInsertPoint(IsNullBB);
+
+    {
+      llvm::Value *Args;
+      if (ArgSize == 0) {
+        Args = llvm::ConstantPointerNull::get(Builder.getInt8PtrTy());
+      } else {
+        auto *Alloca = Builder.CreateAlloca(
+            Builder.getInt8Ty(), Builder.getInt64(ArgSize * kValSize));
+        Alloca->setAlignment(Align(kValSize));
+        Args = Alloca;
+      }
+
+      llvm::Value *Rets;
+      if (RetSize == 0) {
+        Rets = llvm::ConstantPointerNull::get(Builder.getInt8PtrTy());
+      } else {
+        auto *Alloca = Builder.CreateAlloca(
+            Builder.getInt8Ty(), Builder.getInt64(RetSize * kValSize));
+        Alloca->setAlignment(Align(kValSize));
+        Rets = Alloca;
+      }
+
+      for (size_t I = 0; I < ArgSize; ++I) {
+        auto *Ptr = Builder.CreateConstInBoundsGEP1_64(Context.Int8Ty, Args,
+                                                       I * kValSize);
+        auto *Arg = ArgsVec[I + 1];
+        Builder.CreateStore(
+            Arg, Builder.CreateBitCast(Ptr, Arg->getType()->getPointerTo()));
+      }
+
+      Builder.CreateCall(
+          Context.getIntrinsic(
+              Builder, AST::Module::Intrinsics::kCallIndirect,
+              llvm::FunctionType::get(Context.VoidTy,
+                                      {Context.Int32Ty, Context.Int32Ty,
+                                       Context.Int32Ty, Context.Int8PtrTy,
+                                       Context.Int8PtrTy},
+                                      false)),
+          {Builder.getInt32(TableIndex), Builder.getInt32(FuncTypeIndex),
+           FuncIndex, Args, Rets});
+
+      if (RetSize == 0) {
+        Builder.CreateRetVoid();
+      } else if (RetSize == 1) {
+        auto *VPtr =
+            Builder.CreateConstInBoundsGEP1_64(Context.Int8Ty, Rets, 0);
+        auto *Ptr = Builder.CreateBitCast(VPtr, RTy->getPointerTo());
+        Builder.CreateRet(Builder.CreateLoad(RTy, Ptr));
+      } else {
+        std::vector<llvm::Value *> Ret(RetSize);
+        for (unsigned I = 0; I < RetSize; ++I) {
+          auto *VPtr = Builder.CreateConstInBoundsGEP1_64(Context.Int8Ty, Rets,
+                                                          I * kValSize);
+          auto *Ptr = Builder.CreateBitCast(
+              VPtr, RTy->getStructElementType(I)->getPointerTo());
+          Ret[I] = Builder.CreateLoad(RTy->getStructElementType(I), Ptr);
+        }
+        Builder.CreateAggregateRet(Ret.data(), static_cast<uint32_t>(RetSize));
       }
     }
   }
@@ -3536,8 +3798,7 @@ private:
 #if defined(__aarch64__)
       if (Context.SupportNEON) {
 #if LLVM_VERSION_MAJOR >= 13
-        return Builder.CreateUnaryIntrinsic(llvm::Intrinsic::aarch64_sve_frintn,
-                                            V);
+        return Builder.CreateUnaryIntrinsic(llvm::Intrinsic::roundeven, V);
 #else
         return Builder.CreateUnaryIntrinsic(
             llvm::Intrinsic::aarch64_neon_frintn, V);
@@ -3706,14 +3967,14 @@ private:
           V, llvm::VectorType::get(Context.FloatTy, 2, false));
       auto *ZeroV = llvm::ConstantAggregateZero::get(Demoted->getType());
       return Builder.CreateShuffleVector(
-          Demoted, ZeroV, std::array<ShuffleElement, 4>{0, 1, 2, 3});
+          Demoted, ZeroV, std::initializer_list<ShuffleElement>{0, 1, 2, 3});
     });
   }
   void compileVectorPromote() {
     compileVectorOp(Context.Floatx4Ty, [this](auto *V) {
       auto *UndefV = llvm::UndefValue::get(V->getType());
       auto *Low = Builder.CreateShuffleVector(
-          V, UndefV, std::array<ShuffleElement, 2>{0, 1});
+          V, UndefV, std::initializer_list<ShuffleElement>{0, 1});
       return Builder.CreateFPExt(
           Low, llvm::VectorType::get(Context.DoubleTy, 2, false));
     });
@@ -3949,9 +4210,10 @@ Expect<void> outputNativeLibrary(const std::filesystem::path &OutputPath,
   }
 
   // link
+  bool LinkResult = false;
 #if WASMEDGE_OS_MACOS
-  lld::mach_o::link(
-      std::array {
+  LinkResult = lld::mach_o::link(
+      std::initializer_list<const char *> {
         "lld", "-arch",
 #if defined(__x86_64__)
             "x86_64",
@@ -3966,33 +4228,46 @@ Expect<void> outputNativeLibrary(const std::filesystem::path &OutputPath,
             ObjectName.c_str(), "-o", OutputPath.u8string().c_str(), "-lSystem"
       },
 #elif WASMEDGE_OS_LINUX
-  lld::elf::link(
-      std::array{"ld.lld", "--shared", "--gc-sections", "--discard-all",
-                 ObjectName.c_str(), "-o", OutputPath.u8string().c_str()},
+  LinkResult = lld::elf::link(
+      std::initializer_list<const char *>{"ld.lld", "--shared", "--gc-sections",
+                                          "--discard-all", ObjectName.c_str(),
+                                          "-o", OutputPath.u8string().c_str()},
 #elif WASMEDGE_OS_WINDOWS
-  lld::coff::link(
-      std::array{"lld-link", "-dll", "-defaultlib:libcmt", "-base:0", "-nologo",
-                 ObjectName.c_str(), ("-out:" + OutputPath.u8string()).c_str()},
+  LinkResult = lld::coff::link(
+      std::initializer_list<const char *>{
+          "lld-link", "-dll", "-defaultlib:libcmt", "-base:0", "-nologo",
+          ObjectName.c_str(), ("-out:" + OutputPath.u8string()).c_str()},
 #endif
-      false,
-#if LLVM_VERSION_MAJOR >= 10
-      llvm::outs(), llvm::errs()
+
+#if LLVM_VERSION_MAJOR >= 14
+      llvm::outs(), llvm::errs(), false, false
+#elif LLVM_VERSION_MAJOR >= 10
+      false, llvm::outs(), llvm::errs()
 #else
-      llvm::errs()
+      false, llvm::errs()
 #endif
   );
 
-  llvm::sys::fs::remove(ObjectName);
-#if WASMEDGE_OS_WINDOWS
-  std::filesystem::path LibPath(OutputPath);
-  LibPath.replace_extension(".lib"sv);
-  llvm::sys::fs::remove(LibPath.u8string());
+#if LLVM_VERSION_MAJOR >= 14
+  lld::CommonLinkerContext::destroy();
 #endif
-  spdlog::info("compile done");
+
+  if (LinkResult) {
+    llvm::sys::fs::remove(ObjectName);
+#if WASMEDGE_OS_WINDOWS
+    std::filesystem::path LibPath(OutputPath);
+    LibPath.replace_extension(".lib"sv);
+    llvm::sys::fs::remove(LibPath.u8string());
+#endif
+
+    spdlog::info("compile done");
+  } else {
+    spdlog::error("link error");
+  }
 
 #if WASMEDGE_OS_MACOS
   // codesign
-  {
+  if (LinkResult) {
     pid_t PID = ::fork();
     if (PID == -1) {
       spdlog::error("codesign error on fork:{}", std::strerror(errno));
@@ -4224,6 +4499,12 @@ namespace AOT {
 
 Expect<void> Compiler::compile(Span<const Byte> Data, const AST::Module &Module,
                                std::filesystem::path OutputPath) {
+  // Check the module is validated.
+  if (unlikely(!Module.getIsValidated())) {
+    spdlog::error(ErrCode::NotValidated);
+    return Unexpect(ErrCode::NotValidated);
+  }
+
   using namespace std::literals;
 
   std::unique_lock Lock(Mutex);
@@ -4366,6 +4647,8 @@ Expect<void> Compiler::compile(Span<const Byte> Data, const AST::Module &Module,
       llvm::ModulePassManager MPM;
       if (Conf.getCompilerConfigure().getOptimizationLevel() ==
           CompilerConfigure::OptimizationLevel::O0) {
+        MPM.addPass(
+            llvm::createModuleToFunctionPassAdaptor(llvm::TailCallElimPass()));
         MPM.addPass(llvm::AlwaysInlinerPass(false));
       } else {
         MPM.addPass(PB.buildPerModuleDefaultPipeline(

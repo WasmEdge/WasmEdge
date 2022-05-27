@@ -4,7 +4,7 @@ The followings are the guides to working with the WasmEdge Go API. You can embed
 
 ## Getting Started
 
-The WasmEdge-go requires golang version >= 1.15. Please check your golang version before installation. You can [download golang here](https://golang.org/dl/).
+The WasmEdge-go requires golang version >= 1.16. Please check your golang version before installation. You can [download golang here](https://golang.org/dl/).
 
 ```bash
 $ go version
@@ -14,13 +14,13 @@ go version go1.16.5 linux/amd64
 Meantime, please make sure you have installed [the WasmEdge shared library](../start/install.md) with the same `WasmEdge-go` release version.
 
 ```bash
-wget -qO- https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh | bash -s -- -v 0.9.1
+curl -sSf https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh | bash -s -- -v 0.10.0
 ```
 
 If you need the `TensorFlow` or `Image` extension for `WasmEdge-go`, please install the `WasmEdge` with extensions:
 
 ```bash
-wget -qO- https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh | bash -s -- -v 0.9.1 -e tensorflow,image
+curl -sSf https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh | bash -s -- -v 0.10.0 -e tensorflow,image
 ```
 
 Noticed that the `TensorFlow` and `Image` extensions are only for the `Linux` platforms.
@@ -28,7 +28,7 @@ Noticed that the `TensorFlow` and `Image` extensions are only for the `Linux` pl
 Install the `WasmEdge-go` package and build in your Go project directory:
 
 ```bash
-go get github.com/second-state/WasmEdge-go/wasmedge@v0.9.1
+go get github.com/second-state/WasmEdge-go/wasmedge@v0.10.0
 go build
 ```
 

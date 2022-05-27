@@ -1688,9 +1688,11 @@ static_assert(alignof(__wasi_signal_t) == 1, "witx calculated align");
  * Socket address family
  */
 enum __wasi_address_family_t : uint8_t {
-  __WASI_ADDRESS_FAMILY_INET4 = 0,
+  __WASI_ADDRESS_FAMILY_UNSPEC = 0,
 
-  __WASI_ADDRESS_FAMILY_INET6 = 1,
+  __WASI_ADDRESS_FAMILY_INET4 = 1,
+
+  __WASI_ADDRESS_FAMILY_INET6 = 2,
 
 };
 static_assert(sizeof(__wasi_address_family_t) == 1, "witx calculated size");
@@ -1803,9 +1805,11 @@ static_assert(alignof(__wasi_aiflags_t) == 2, "witx calculated align");
  * Socket type
  */
 enum __wasi_sock_type_t : uint8_t {
-  __WASI_SOCK_TYPE_SOCK_DGRAM = 0,
+  __WASI_SOCK_TYPE_SOCK_ANY = 0,
 
-  __WASI_SOCK_TYPE_SOCK_STREAM = 1,
+  __WASI_SOCK_TYPE_SOCK_DGRAM = 1,
+
+  __WASI_SOCK_TYPE_SOCK_STREAM = 2,
 
 };
 static_assert(sizeof(__wasi_sock_type_t) == 1, "witx calculated size");
@@ -1815,9 +1819,11 @@ static_assert(alignof(__wasi_sock_type_t) == 1, "witx calculated align");
  * Protocol
  */
 enum __wasi_protocol_t : uint8_t {
-  __WASI_PROTOCOL_IPPROTO_TCP = 0,
+  __WASI_PROTOCOL_IPPROTO_IP = 0,
 
-  __WASI_PROTOCOL_IPPROTO_UDP = 1,
+  __WASI_PROTOCOL_IPPROTO_TCP = 1,
+
+  __WASI_PROTOCOL_IPPROTO_UDP = 2,
 
 };
 static_assert(sizeof(__wasi_protocol_t) == 1, "witx calculated size");

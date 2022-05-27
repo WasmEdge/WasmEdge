@@ -6,18 +6,20 @@ list(APPEND CMAKE_MODULE_PATH ${LLVM_DIR})
 include(LLVMConfig)
 include(AddLLVM)
 
-find_library(LLD_COMMON lldCommon PATHS "${LLVM_LIBRARY_DIR}")
-find_library(LLD_CORE lldCore PATHS "${LLVM_LIBRARY_DIR}")
-find_library(LLD_DRIVER lldDriver PATHS "${LLVM_LIBRARY_DIR}")
-find_library(LLD_READERWRITER lldReaderWriter PATHS "${LLVM_LIBRARY_DIR}")
-find_library(LLD_YAML lldYAML PATHS "${LLVM_LIBRARY_DIR}")
+find_package(LLD REQUIRED HINTS "${LLVM_LIBRARY_DIR}/cmake/lld")
+
 if(APPLE)
-  find_library(LLD_SYSTEM lldMachO PATHS "${LLVM_LIBRARY_DIR}")
+  list(APPEND LLD_LIBS lldMachO)
 elseif(WIN32)
-  find_library(LLD_SYSTEM lldCOFF PATHS "${LLVM_LIBRARY_DIR}")
+  list(APPEND LLD_LIBS lldCOFF)
   set(EXTRA_COMPONENTS DebugInfoPDB LibDriver WindowsManifest)
 else()
-  find_library(LLD_SYSTEM lldELF PATHS "${LLVM_LIBRARY_DIR}")
+  list(APPEND LLD_LIBS lldELF)
+endif()
+
+list(APPEND LLD_LIBS lldCommon)
+if(LLVM_VERSION_MAJOR LESS_EQUAL 13)
+  list(APPEND LLD_LIBS lldDriver)
 endif()
 
 llvm_add_library(wasmedgeAOT
@@ -28,12 +30,7 @@ llvm_add_library(wasmedgeAOT
   wasmedgeCommon
   wasmedgeSystem
   utilBlake3
-  ${LLD_SYSTEM}
-  ${LLD_COMMON}
-  ${LLD_CORE}
-  ${LLD_DRIVER}
-  ${LLD_READERWRITER}
-  ${LLD_YAML}
+  ${LLD_LIBS}
   std::filesystem
   ${CMAKE_THREAD_LIBS_INIT}
   LINK_COMPONENTS

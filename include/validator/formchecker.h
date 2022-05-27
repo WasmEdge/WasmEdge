@@ -88,16 +88,19 @@ public:
     CtrlFrame() = default;
     CtrlFrame(struct CtrlFrame &&F)
         : StartTypes(std::move(F.StartTypes)), EndTypes(std::move(F.EndTypes)),
-          Height(F.Height), IsUnreachable(F.IsUnreachable), Code(F.Code) {}
+          Jump(F.Jump), Height(F.Height), IsUnreachable(F.IsUnreachable),
+          Code(F.Code) {}
     CtrlFrame(const struct CtrlFrame &F)
-        : StartTypes(F.StartTypes), EndTypes(F.EndTypes), Height(F.Height),
-          IsUnreachable(F.IsUnreachable), Code(F.Code) {}
-    CtrlFrame(Span<const VType> In, Span<const VType> Out, size_t H,
+        : StartTypes(F.StartTypes), EndTypes(F.EndTypes), Jump(F.Jump),
+          Height(F.Height), IsUnreachable(F.IsUnreachable), Code(F.Code) {}
+    CtrlFrame(Span<const VType> In, Span<const VType> Out,
+              const AST::Instruction *J, size_t H,
               OpCode Op = OpCode::Unreachable)
         : StartTypes(In.begin(), In.end()), EndTypes(Out.begin(), Out.end()),
-          Height(H), IsUnreachable(false), Code(Op) {}
+          Jump(J), Height(H), IsUnreachable(false), Code(Op) {}
     std::vector<VType> StartTypes;
     std::vector<VType> EndTypes;
+    const AST::Instruction *Jump;
     size_t Height;
     bool IsUnreachable;
     OpCode Code;
@@ -120,6 +123,7 @@ private:
   Expect<VType> popType(VType E);
   Expect<void> popTypes(Span<const VType> Input);
   void pushCtrl(Span<const VType> In, Span<const VType> Out,
+                const AST::Instruction *Jump,
                 OpCode Code = OpCode::Unreachable);
   Expect<CtrlFrame> popCtrl();
   Span<const VType> getLabelTypes(const CtrlFrame &F);

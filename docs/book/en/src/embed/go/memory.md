@@ -79,7 +79,7 @@ func main() {
   store := wasmedge.NewStore()
   vm := wasmedge.NewVMWithConfigAndStore(conf, store)
 
-  wasi := vm.GetImportObject(wasmedge.WASI)
+  wasi := vm.GetImportModule(wasmedge.WASI)
   wasi.InitWasi(
     os.Args[1:],
     os.Environ(),
@@ -145,7 +145,7 @@ func main() {
 To build the Go SDK example, run the following commands.
 
 ```bash
-go get github.com/second-state/WasmEdge-go/wasmedge@v0.9.1
+go get github.com/second-state/WasmEdge-go/wasmedge@v0.10.0
 go build greet_memory.go
 ```
 
@@ -223,7 +223,7 @@ func main() {
   store := wasmedge.NewStore()
   vm := wasmedge.NewVMWithConfigAndStore(conf, store)
 
-  wasi := vm.GetImportObject(wasmedge.WASI)
+  wasi := vm.GetImportModule(wasmedge.WASI)
   wasi.InitWasi(
     os.Args[1:],
     os.Environ(),
@@ -287,7 +287,7 @@ func main() {
 To build the Go SDK example, run the following commands.
 
 ```bash
-go get github.com/second-state/WasmEdge-go/wasmedge@v0.9.1
+go get github.com/second-state/WasmEdge-go/wasmedge@v0.10.0
 go build greet_memory.go
 ```
 
@@ -391,7 +391,7 @@ func main() {
   store := wasmedge.NewStore()
   vm := wasmedge.NewVMWithConfigAndStore(conf, store)
 
-  wasi := vm.GetImportObject(wasmedge.WASI)
+  wasi := vm.GetImportModule(wasmedge.WASI)
   wasi.InitWasi(
     os.Args[1:],
     os.Environ(),
@@ -463,7 +463,7 @@ func main() {
 To build the Go SDK example, run the following commands.
 
 ```bash
-go get github.com/second-state/WasmEdge-go/wasmedge@v0.9.1
+go get github.com/second-state/WasmEdge-go/wasmedge@v0.10.0
 go build run.go
 ```
 
@@ -560,7 +560,7 @@ func main() {
   store := wasmedge.NewStore()
   vm := wasmedge.NewVMWithConfigAndStore(conf, store)
 
-  wasi := vm.GetImportObject(wasmedge.WASI)
+  wasi := vm.GetImportModule(wasmedge.WASI)
   wasi.InitWasi(
     os.Args[1:],
     os.Environ(),
@@ -631,7 +631,7 @@ func main() {
 To build the Go SDK example, run the following commands.
 
 ```bash
-go get github.com/second-state/WasmEdge-go/wasmedge@v0.9.1
+go get github.com/second-state/WasmEdge-go/wasmedge@v0.10.0
 go build run.go
 ```
 

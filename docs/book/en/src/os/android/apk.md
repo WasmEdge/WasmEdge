@@ -120,7 +120,7 @@ Java_org_wasmedge_native_1lib_NativeLib_nativeWasmFibonacci(
 
 ### The WebAssembly function
 
-The `factorial.wat` is a [handwritten WebAssembly script](https://github.com/WasmEdge/WasmEdge/blob/master/tools/wasmedge/examples/fibonacci.wat) to compute factorial numbers. It is compiled into WebAssembly using the [WABT tool](https://github.com/WebAssembly/wabt).
+The `factorial.wat` is a [handwritten WebAssembly script](https://github.com/WasmEdge/WasmEdge/blob/master/examples/wasm/fibonacci.wat) to compute factorial numbers. It is compiled into WebAssembly using the [WABT tool](https://github.com/WebAssembly/wabt).
 
 ### Build dependencies
 

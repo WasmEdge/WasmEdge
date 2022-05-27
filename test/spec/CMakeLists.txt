@@ -5,7 +5,7 @@ include(FetchContent)
 FetchContent_Declare(
   wasmedge_unit_test
   GIT_REPOSITORY https://github.com/second-state/WasmEdge-unittest
-  GIT_TAG wasm-dev-0.9.1
+  GIT_TAG        wasm-dev-0.10.0
 )
 FetchContent_MakeAvailable(wasmedge_unit_test)
 
@@ -44,12 +44,17 @@ file(COPY
   ${CMAKE_CURRENT_BINARY_DIR}/testSuites
 )
 file(COPY
-  ${wasmedge_unit_test_SOURCE_DIR}/simd
+  ${wasmedge_unit_test_SOURCE_DIR}/multi-memory
   DESTINATION
   ${CMAKE_CURRENT_BINARY_DIR}/testSuites
 )
 file(COPY
-  ${wasmedge_unit_test_SOURCE_DIR}/multi-memory
+  ${wasmedge_unit_test_SOURCE_DIR}/tail-call
+  DESTINATION
+  ${CMAKE_CURRENT_BINARY_DIR}/testSuites
+)
+file(COPY
+  ${wasmedge_unit_test_SOURCE_DIR}/extended-const
   DESTINATION
   ${CMAKE_CURRENT_BINARY_DIR}/testSuites
 )

@@ -78,14 +78,6 @@ sudo apt install -y clang
 | `manylinux2014`                         | CentOS 7.9  | GLIBC <= 2.17</br>CXXABI <= 1.3.7</br>GLIBCXX <= 3.4.19</br>GCC <= 4.8.0 | wasmedge/wasmedge:manylinux2014\_x86\_64 |
 | `manylinux2014`                         | CentOS 7.9  | GLIBC <= 2.17</br>CXXABI <= 1.3.7</br>GLIBCXX <= 3.4.19</br>GCC <= 4.8.0 | wasmedge/wasmedge:manylinux2014\_aarch64 |
 
-### 如果你不需要预编译运行时/编译器
-
-如果用户不需要预编译运行时和编译器特性的话，可以将 CMAKE 配置项 `WASMEDGE_BUILD_AOT_RUNTIME` 设置成 `OFF`。
-
-```bash
-cmake -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_BUILD_AOT_RUNTIME=OFF ..
-```
-
 ## 构建 WasmEdge
 
 WasmEdge 提供了丰富的工具来支撑更好的性能以及更多样的运行时环境，
@@ -113,6 +105,14 @@ docker run -it --rm \
 cd /root/wasmedge
 mkdir -p build && cd build
 cmake -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_BUILD_TESTS=ON .. && make -j
+```
+
+### 如果你不需要预编译运行时/编译器
+
+如果用户不需要预编译运行时和编译器特性的话，可以将 CMAKE 配置项 `WASMEDGE_BUILD_AOT_RUNTIME` 设置成 `OFF`。
+
+```bash
+cmake -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_BUILD_AOT_RUNTIME=OFF ..
 ```
 
 ## 执行内置的测试

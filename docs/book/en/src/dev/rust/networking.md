@@ -1,8 +1,10 @@
-# Networking sockets
+# Simple networking sockets
 
-The [wasmedge_wasi_socket](https://github.com/second-state/wasmedge_wasi_socket) crate enables Rust developers to create networking applications and compile them into WebAssembly for WasmEdge Runtime.
+The [wasmedge_wasi_socket](https://github.com/second-state/wasmedge_wasi_socket) crate enables Rust developers to create networking applications and compile them into WebAssembly for WasmEdge Runtime. One of the key features of WasmEdge is that it supports non-blocking sockets. That allows even a single threaded WASM application to handle concurrent network requests. For example, while the program is waiting for data to stream in from one connection, it can start or handle another connection.
 
-## The HTTP client example
+In this chapter, we will start with simple HTTP client and server examples. Then [in the next chapter](networking-nonblocking.md), we will cover the more complex non-blocking examples.
+
+## An HTTP client example
 
 The [source code](https://github.com/second-state/wasmedge_wasi_socket/tree/main/examples/http_client) for the HTTP client is available as follows.
 
@@ -31,13 +33,6 @@ fn main() {
 }
 ```
 
-To compile this source code, you must have the following in your `Cargo.toml`.
-
-```toml
-[dependencies]
-wasmedge_http_req  = "0.8.1"
-```
-
 The following command compiles the Rust program.
 
 ```bash
@@ -50,7 +45,7 @@ The following command runs the application in WasmEdge.
 wasmedge target/wasm32-wasi/release/http_client.wasm
 ```
 
-## The HTTP server example
+## An HTTP server example
 
 The [source code](https://github.com/second-state/wasmedge_wasi_socket/tree/main/examples/http_server) for the HTTP server application is available as follows.
 
@@ -119,13 +114,6 @@ fn main() -> std::io::Result<()> {
     let _ = handle_client(listener.accept()?.0);
   }
 }
-```
-
-To compile this source code, you must have the following in your `Cargo.toml`.
-
-```toml
-[dependencies]
-wasmedge_http_req  = "0.8.1"
 ```
 
 The following command compiles the Rust program.

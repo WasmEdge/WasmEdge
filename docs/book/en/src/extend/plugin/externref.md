@@ -9,7 +9,7 @@ The following tutorial is the summary of the `externref` example in WasmEdge.
 ### Prepare Your Wasm File
 
 The Wasm file should contain importing host functions that would take the `externref`.
-Take [the test WASM file](../test/externref/externrefTestData/funcs.wasm) ([this WAT](../test/externref/externrefTestData/funcs.wat) is the corresponding text format) as an example:
+Take [the test WASM file](https://github.com/WasmEdge/WasmEdge/blob/master/test/externref/externrefTestData/funcs.wasm) ([this WAT](https://github.com/WasmEdge/WasmEdge/blob/master/test/externref/externrefTestData/funcs.wat) is the corresponding text format) as an example:
 
 ```wasm
 (module
@@ -88,15 +88,15 @@ WasmEdge_Result ExternMul(void *Data, WasmEdge_MemoryInstanceContext *MemCxt,
   return WasmEdge_Result_Success;
 }
 
-// Helper function to create the "extern_module" import object.
-WasmEdge_ImportObjectContext *CreateExternModule() {
+// Helper function to create the "extern_module" module instance.
+WasmEdge_ModuleInstanceContext *CreateExternModule() {
   WasmEdge_String HostName;
   WasmEdge_FunctionTypeContext *HostFType = NULL;
   WasmEdge_FunctionInstanceContext *HostFunc = NULL;
   enum WasmEdge_ValType P[3], R[1];
 
   HostName = WasmEdge_StringCreateByCString("extern_module");
-  WasmEdge_ImportObjectContext *ImpObj = WasmEdge_ImportObjectCreate(HostName);
+  WasmEdge_ModuleInstanceContext *HostMod = WasmEdge_ModuleInstanceCreate(HostName);
   WasmEdge_StringDelete(HostName);
 
   // Add host function "functor_square": {externref, i32} -> {i32}
@@ -107,7 +107,7 @@ WasmEdge_ImportObjectContext *CreateExternModule() {
   HostFunc = WasmEdge_FunctionInstanceCreate(HostFType, ExternSquare, NULL, 0);
   WasmEdge_FunctionTypeDelete(HostFType);
   HostName = WasmEdge_StringCreateByCString("functor_square");
-  WasmEdge_ImportObjectAddFunction(ImpObj, HostName, HostFunc);
+  WasmEdge_ModuleInstanceAddFunction(HostMod, HostName, HostFunc);
   WasmEdge_StringDelete(HostName);
 
   // Add host function "class_add": {externref, i32, i32} -> {i32}
@@ -116,7 +116,7 @@ WasmEdge_ImportObjectContext *CreateExternModule() {
   HostFunc = WasmEdge_FunctionInstanceCreate(HostFType, ExternAdd, NULL, 0);
   WasmEdge_FunctionTypeDelete(HostFType);
   HostName = WasmEdge_StringCreateByCString("class_add");
-  WasmEdge_ImportObjectAddFunction(ImpObj, HostName, HostFunc);
+  WasmEdge_ModuleInstanceAddFunction(HostMod, HostName, HostFunc);
   WasmEdge_StringDelete(HostName);
 
   // Add host function "func_mul": {externref, i32, i32} -> {i32}
@@ -124,22 +124,22 @@ WasmEdge_ImportObjectContext *CreateExternModule() {
   HostFunc = WasmEdge_FunctionInstanceCreate(HostFType, ExternMul, NULL, 0);
   WasmEdge_FunctionTypeDelete(HostFType);
   HostName = WasmEdge_StringCreateByCString("func_mul");
-  WasmEdge_ImportObjectAddFunction(ImpObj, HostName, HostFunc);
+  WasmEdge_ModuleInstanceAddFunction(HostMod, HostName, HostFunc);
   WasmEdge_StringDelete(HostName);
 
-  return ImpObj;
+  return HostMod;
 }
 
 int main() {
   WasmEdge_VMContext *VMCxt = WasmEdge_VMCreate(NULL, NULL);
-  WasmEdge_ImportObjectContext *ImpObj = CreateExternModule();
+  WasmEdge_ModuleInstanceContext *HostMod = CreateExternModule();
   WasmEdge_Value P[3], R[1];
   WasmEdge_String FuncName;
   WasmEdge_Result Res;
 
-  Res = WasmEdge_VMRegisterModuleFromImport(VMCxt, ImpObj);
+  Res = WasmEdge_VMRegisterModuleFromImport(VMCxt, HostMod);
   if (!WasmEdge_ResultOK(Res)) {
-    printf("Import object registration failed\n");
+    printf("Host module instance registration failed\n");
     return EXIT_FAILURE;
   }
   Res = WasmEdge_VMLoadWasmFromFile(VMCxt, "funcs.wasm");
@@ -255,7 +255,7 @@ The following examples are how to use `externref` in Wasm with WasmEdge C API.
 ### Wasm Code
 
 The Wasm code must pass the `externref` to host functions that want to access it.
-Take the following `wat` for example, which is a part of [the test WASM file](../test/externref/externrefTestData/funcs.wat):
+Take the following `wat` for example, which is a part of [the test WASM file](https://github.com/WasmEdge/WasmEdge/blob/master/test/externref/externrefTestData/funcs.wat):
 
 ```wasm
 (module
@@ -297,15 +297,15 @@ WasmEdge_Result ExternMul(void *, WasmEdge_MemoryInstanceContext *,
 
 "`MulFunc`" is a function that will be passed into Wasm as `externref`. In the "`func_mul`" host function, users can use "`WasmEdge_ValueGetExternRef`" API to get the pointer from the `WasmEdge_Value` which contains a `externref`.
 
-Developers can add the host functions with names into an import object.
+Developers can add the host functions with names into a module instance.
 
 ```c
-/* Create an import object. */
+/* Create a module instance. */
 WasmEdge_String HostName = WasmEdge_StringCreateByCString("extern_module");
-WasmEdge_ImportObjectContext *ImpObj = WasmEdge_ImportObjectCreate(HostName);
+WasmEdge_ModuleInstanceContext *HostMod = WasmEdge_ModuleInstanceCreate(HostName);
 WasmEdge_StringDelete(HostName);
 
-/* Create a function instance and add into an import object. */
+/* Create a function instance and add into the module instance. */
 enum WasmEdge_ValType P[3], R[1];
 P[0] = WasmEdge_ValType_ExternRef;
 P[1] = WasmEdge_ValType_I32;
@@ -315,7 +315,7 @@ WasmEdge_FunctionTypeContext *HostFType = WasmEdge_FunctionTypeCreate(P, 3, R, 1
 WasmEdge_FunctionInstanceContext *HostFunc = WasmEdge_FunctionInstanceCreate(HostFType, ExternFuncMul, NULL, 0);
 WasmEdge_FunctionTypeDelete(HostFType);
 HostName = WasmEdge_StringCreateByCString("func_mul");
-WasmEdge_ImportObjectAddFunction(ImpObj, HostName, HostFunc);
+WasmEdge_ModuleInstanceAddFunction(HostMod, HostName, HostFunc);
 WasmEdge_StringDelete(HostName);
 
 ...
@@ -323,22 +323,22 @@ WasmEdge_StringDelete(HostName);
 
 ### Execution
 
-Take [the test WASM file](../test/externref/externrefTestData/funcs.wasm) ([this WAT](../test/externref/externrefTestData/funcs.wat) is the corresponding text format) for example.
+Take [the test WASM file](https://github.com/WasmEdge/WasmEdge/blob/master/test/externref/externrefTestData/funcs.wasm) ([this WAT](https://github.com/WasmEdge/WasmEdge/blob/master/test/externref/externrefTestData/funcs.wat) is the corresponding text format) for example.
 Assume that the `funcs.wasm` is copied into current directory.
 The following is the example to execute WASM with `externref` through the WasmEdge C API.
 
 ```c
 /* Create the VM context. */
 WasmEdge_VMContext *VMCxt = WasmEdge_VMCreate(NULL, NULL);
-/* Create the import object context that contains the host functions. */
-WasmEdge_ImportObjectContext *ImpObj = /* Ignored ... */;
-/* Assume that the host functions are added into the import object above. */
+/* Create the module instance context that contains the host functions. */
+WasmEdge_ModuleInstanceContext *HostMod = /* Ignored ... */;
+/* Assume that the host functions are added into the module instance above. */
 WasmEdge_Value P[3], R[1];
 WasmEdge_String FuncName;
 WasmEdge_Result Res;
 
-/* Register the import object into VM. */
-Res = WasmEdge_VMRegisterModuleFromImport(VMCxt, ImpObj);
+/* Register the module instance into VM. */
+Res = WasmEdge_VMRegisterModuleFromImport(VMCxt, HostMod);
 if (!WasmEdge_ResultOK(Res)) {
   printf("Import object registration failed\n");
   return EXIT_FAILURE;
@@ -476,7 +476,7 @@ WasmEdge_Result ExternSquare(void *, WasmEdge_MemoryInstanceContext *,
 
 ### Passing STL Objects
 
-The [example Wasm binary](../test/externref/externrefTestData/stl.wasm) ([this WAT](../test/externref/externrefTestData/stl.wat) is the corresponding text format) provides functions to interact with host functions which can access C++ STL objects.
+The [example Wasm binary](https://github.com/WasmEdge/WasmEdge/blob/master/test/externref/externrefTestData/stl.wasm) ([this WAT](https://github.com/WasmEdge/WasmEdge/blob/master/test/externref/externrefTestData/stl.wat) is the corresponding text format) provides functions to interact with host functions which can access C++ STL objects.
 Assume that the WASM file `stl.wasm` is copied into the current directory.
 
 Take the `std::ostream` and `std::string` objects for example. Assume that there's a host function accesses to a `std::ostream` and a `std::string` through `externref`s:
@@ -496,7 +496,7 @@ WasmEdge_Result ExternSTLOStreamStr(void *, WasmEdge_MemoryInstanceContext *,
 }
 ```
 
-Assume that the above host function is added into an import object `ImpObj`, and the `ImpObj` is register into a VM context `VMCxt`.
+Assume that the above host function is added into the module instance `HostMod`, and the `HostMod` is registered into a VM context `VMCxt`.
 Then users can instantiate the Wasm module:
 
 ```cpp

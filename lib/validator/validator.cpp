@@ -111,6 +111,9 @@ Expect<void> Validator::validate(const AST::Module &Mod) {
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Module));
     return Unexpect(ErrCode::MultiMemories);
   }
+
+  // Set the validated flag.
+  const_cast<AST::Module &>(Mod).setIsValidated();
   return {};
 }
 
@@ -152,9 +155,8 @@ Expect<void> Validator::validate(const AST::MemoryType &Mem) {
 // Validate Global segment. See "include/validator/validator.h".
 Expect<void> Validator::validate(const AST::GlobalSegment &GlobSeg) {
   // Check global initialization is a const expression.
-  if (auto Res =
-          validateConstExpr(GlobSeg.getExpr().getInstrs(),
-                            std::array{GlobSeg.getGlobalType().getValType()});
+  if (auto Res = validateConstExpr(GlobSeg.getExpr().getInstrs(),
+                                   {GlobSeg.getGlobalType().getValType()});
       !Res) {
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Expression));
     return Unexpect(Res);
@@ -166,8 +168,8 @@ Expect<void> Validator::validate(const AST::GlobalSegment &GlobSeg) {
 Expect<void> Validator::validate(const AST::ElementSegment &ElemSeg) {
   // Check initialization expressions are const expressions.
   for (auto &Expr : ElemSeg.getInitExprs()) {
-    if (auto Res = validateConstExpr(
-            Expr.getInstrs(), std::array{ToValType(ElemSeg.getRefType())});
+    if (auto Res = validateConstExpr(Expr.getInstrs(),
+                                     {ToValType(ElemSeg.getRefType())});
         !Res) {
       spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Expression));
       return Unexpect(Res);
@@ -191,8 +193,8 @@ Expect<void> Validator::validate(const AST::ElementSegment &ElemSeg) {
       return Unexpect(ErrCode::InvalidTableIdx);
     }
     // Check table initialization is a const expression.
-    if (auto Res = validateConstExpr(ElemSeg.getExpr().getInstrs(),
-                                     std::array{ValType::I32});
+    if (auto Res =
+            validateConstExpr(ElemSeg.getExpr().getInstrs(), {ValType::I32});
         !Res) {
       spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Expression));
       return Unexpect(Res);
@@ -238,8 +240,8 @@ Expect<void> Validator::validate(const AST::DataSegment &DataSeg) {
       return Unexpect(ErrCode::InvalidMemoryIdx);
     }
     // Check memory initialization is a const expression.
-    if (auto Res = validateConstExpr(DataSeg.getExpr().getInstrs(),
-                                     std::array{ValType::I32});
+    if (auto Res =
+            validateConstExpr(DataSeg.getExpr().getInstrs(), {ValType::I32});
         !Res) {
       spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Expression));
       return Unexpect(Res);
@@ -516,7 +518,7 @@ Expect<void> Validator::validate(const AST::ExportSection &ExportSec) {
 Expect<void> Validator::validateConstExpr(AST::InstrView Instrs,
                                           Span<const ValType> Returns) {
   for (auto &Instr : Instrs) {
-    // Only these 5 instructions are constant.
+    // Only these instructions are accepted.
     switch (Instr.getOpCode()) {
     case OpCode::Global__get: {
       // For initialization case, global indices must be imported globals.
@@ -562,6 +564,23 @@ Expect<void> Validator::validateConstExpr(AST::InstrView Instrs,
     case OpCode::V128__const:
     case OpCode::End:
       break;
+
+    // For the Extended-const proposal, these instructions are accepted.
+    case OpCode::I32__add:
+    case OpCode::I32__sub:
+    case OpCode::I32__mul:
+    case OpCode::I64__add:
+    case OpCode::I64__sub:
+    case OpCode::I64__mul:
+      if (Conf.hasProposal(Proposal::ExtendedConst)) {
+        break;
+      }
+      spdlog::error(ErrCode::ConstExprRequired);
+      spdlog::error(ErrInfo::InfoProposal(Proposal::ExtendedConst));
+      spdlog::error(
+          ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
+      return Unexpect(ErrCode::ConstExprRequired);
+
     default:
       spdlog::error(ErrCode::ConstExprRequired);
       spdlog::error(

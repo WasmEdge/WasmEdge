@@ -6,8 +6,8 @@ Summary: High performance WebAssembly Virtual Machine
 License: ASL 2.0
 URL:     https://github.com/WasmEdge/WasmEdge
 Source0: https://github.com/WasmEdge/WasmEdge/releases/download/%{gittag}/WasmEdge-%{version}-src.tar.gz
-BuildRequires: gcc-c++,cmake,ninja-build,boost-devel,spdlog-devel,llvm12-devel,lld-devel
-Requires:      llvm12
+BuildRequires: gcc-c++,cmake,ninja-build,boost-devel,spdlog-devel,llvm13-devel,lld13-devel
+Requires:      llvm13
 ExclusiveArch: x86_64 aarch64
 
 %description
@@ -24,22 +24,25 @@ This package contains necessary header files for WasmEdge development.
 %package lib
 #Requires:
 Summary: WasmEdge library
-Requires: llvm12
+Requires: llvm13
 Provides: wasmedge-lib
 
 %description lib
 This package contains necessary library files for WasmEdge development.
 
 %prep
-%autosetup -n WasmEdge-%{gittag}
+%autosetup -n wasmedge
 sed -i -e 's@0.0.0-unreleased@%{gittag}@' CMakeLists.txt include/CMakeLists.txt
 
 %build
-cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=RelWithDebInfo -DWASMEDGE_BUILD_TESTS=OFF -DLLVM_DIR=%{_libdir}/llvm12/lib/cmake/llvm -DCMAKE_INSTALL_PREFIX=%{_prefix} .
-cmake --build build
+mkdir build
+cd build
+cmake -GNinja -DCMAKE_BUILD_TYPE=RelWithDebInfo -DWASMEDGE_BUILD_TESTS=OFF -DLLVM_DIR=%{_libdir}/llvm13/lib/cmake/llvm -DCMAKE_INSTALL_PREFIX=%{_prefix} ..
+cmake --build .
 
 %install
-DESTDIR=%{buildroot} cmake --build build --target install
+cd build
+DESTDIR=%{buildroot} cmake --build . --target install
 
 %files
 %{_bindir}/*

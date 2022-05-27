@@ -9,25 +9,16 @@ namespace WasmEdge {
 namespace Executor {
 
 // Instantiate memory instance. See "include/executor/executor.h".
-Expect<void> Executor::instantiate(Runtime::StoreManager &StoreMgr,
-                                   Runtime::StackManager &,
-                                   Runtime::Instance::ModuleInstance &ModInst,
+Expect<void> Executor::instantiate(Runtime::Instance::ModuleInstance &ModInst,
                                    const AST::MemorySection &MemSec) {
   // Prepare pointers vector for compiled functions.
-  ModInst.MemoryPtrs.resize(ModInst.getMemNum() + MemSec.getContent().size());
+  ModInst.MemoryPtrs.resize(ModInst.getMemoryNum() +
+                            MemSec.getContent().size());
 
-  // Iterate and istantiate memory types.
+  // Iterate through the memory types to instantiate memory instances.
   for (const auto &MemType : MemSec.getContent()) {
-    // Insert memory instance to store manager.
-    uint32_t NewMemInstAddr;
-    if (InsMode == InstantiateMode::Instantiate) {
-      NewMemInstAddr = StoreMgr.pushMemory(
-          MemType, Conf.getRuntimeConfigure().getMaxMemoryPage());
-    } else {
-      NewMemInstAddr = StoreMgr.importMemory(
-          MemType, Conf.getRuntimeConfigure().getMaxMemoryPage());
-    }
-    ModInst.addMemAddr(NewMemInstAddr);
+    // Create and add the memory instance into the module instance.
+    ModInst.addMemory(MemType, Conf.getRuntimeConfigure().getMaxMemoryPage());
   }
   return {};
 }

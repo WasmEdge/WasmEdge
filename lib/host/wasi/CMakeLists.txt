@@ -2,28 +2,19 @@
 # SPDX-FileCopyrightText: 2019-2022 Second State INC
 
 if(APPLE)
-  set(MACOS_MM macos.mm)
+  set(WASMEDGE_WASI_SRCS clock-macos.cpp environ-macos.cpp inode-macos.cpp macos.mm)
+elseif(WIN32)
+  set(WASMEDGE_WASI_SRCS clock-win.cpp environ-win.cpp inode-win.cpp win.cpp)
 else()
-  set(MACOS_MM)
+  set(WASMEDGE_WASI_SRCS clock-linux.cpp environ-linux.cpp inode-linux.cpp)
 endif()
 
 wasmedge_add_library(wasmedgeHostModuleWasi
-  clock-linux.cpp
-  clock-macos.cpp
-  clock-win.cpp
-  environ-linux.cpp
-  environ-macos.cpp
-  environ-win.cpp
   environ.cpp
-  inode-linux.cpp
-  inode-macos.cpp
-  inode-win.cpp
-  vfs.cpp
   vinode.cpp
   wasifunc.cpp
   wasimodule.cpp
-  win.cpp
-  ${MACOS_MM}
+  ${WASMEDGE_WASI_SRCS}
 )
 
 target_include_directories(wasmedgeHostModuleWasi
@@ -43,4 +34,12 @@ if(NOT APPLE AND NOT WIN32 AND NOT ANDROID)
     PUBLIC
     rt
   )
+endif()
+
+if(WIN32)
+  target_link_libraries(wasmedgeHostModuleWasi
+  PRIVATE
+  wsock32
+  ws2_32
+)
 endif()

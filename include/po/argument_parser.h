@@ -8,27 +8,21 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
+#include "common/defines.h"
 #include "common/errcode.h"
 #include "common/span.h"
+#include "po/error.h"
 #include "po/list.h"
 #include "po/option.h"
 #include "po/subcommand.h"
 
 #include <functional>
-#include <iostream>
 #include <memory>
 #include <string>
 #include <string_view>
-#include <tuple>
 #include <unordered_map>
 #include <utility>
 #include <vector>
-
-// For enabling Windows PowerShell color support.
-#if defined(_WIN32) || defined(_WIN64) || defined(__WIN32__) ||                \
-    defined(__TOS_WIN__) || defined(__WINDOWS__)
-#include <windows.h>
-#endif
 
 namespace WasmEdge {
 namespace PO {
@@ -39,13 +33,13 @@ private:
   class ArgumentDescriptor {
   public:
     template <typename T>
-    ArgumentDescriptor(T &Opt)
+    ArgumentDescriptor(T &Opt) noexcept
         : Desc(Opt.description()), Meta(Opt.meta()), MinNArgs(Opt.min_narg()),
-          MaxNArgs(Opt.max_narg()), Value([&Opt](std::string Argument) {
-            Opt.argument(std::move(Argument));
+          MaxNArgs(Opt.max_narg()), Argument([&Opt](std::string Arg) {
+            return Opt.argument(std::move(Arg));
           }),
           DefaultValue([&Opt]() { Opt.default_argument(); }),
-          Hidden(Opt.hidden()) {}
+          Hidden(Opt.hidden()), Store(&Opt.value()) {}
     auto &nargs() noexcept { return NArgs; }
     auto &nargs() const noexcept { return NArgs; }
     auto &options() noexcept { return Options; }
@@ -56,8 +50,13 @@ private:
     auto &hidden() const noexcept { return Hidden; }
     auto &min_nargs() const noexcept { return MinNArgs; }
     auto &max_nargs() const noexcept { return MaxNArgs; }
-    void value(std::string String) const noexcept { Value(std::move(String)); }
+    cxx20::expected<void, Error> argument(std::string Arg) const noexcept {
+      return Argument(std::move(Arg));
+    }
     void default_value() const noexcept { DefaultValue(); }
+    template <typename T> void raw_value(T Value) const noexcept {
+      *static_cast<T *>(Store) = Value;
+    }
 
   private:
     std::string_view Desc;
@@ -66,32 +65,34 @@ private:
     std::size_t MinNArgs;
     std::size_t MaxNArgs;
     std::vector<std::string_view> Options;
-    std::function<void(std::string)> Value;
+    std::function<cxx20::expected<void, Error>(std::string)> Argument;
     std::function<void()> DefaultValue;
     bool Hidden;
+    void *Store;
   };
 
   class SubCommandDescriptor {
   public:
-    SubCommandDescriptor()
+    SubCommandDescriptor() noexcept
         : HelpOpt(std::make_unique<Option<Toggle>>(
               Description("Show this help messages"sv))) {
       add_option("h"sv, *HelpOpt);
       add_option("help"sv, *HelpOpt);
     }
-    SubCommandDescriptor(SubCommand &SC) : SubCommandDescriptor() {
+    SubCommandDescriptor(SubCommand &SC) noexcept : SubCommandDescriptor() {
       this->SC = &SC;
     }
 
     template <typename... ArgsT>
-    void add_child(SubCommandDescriptor &Child, ArgsT &&...Args) {
+    void add_child(SubCommandDescriptor &Child, ArgsT &&...Args) noexcept {
       const size_t Offset = static_cast<size_t>(&Child - this);
       SubCommandList.push_back(Offset);
       (Child.SubCommandNames.push_back(Args), ...);
       (SubCommandMap.emplace(std::forward<ArgsT>(Args), Offset), ...);
     }
 
-    template <typename T> void add_option(std::string_view Argument, T &Opt) {
+    template <typename T>
+    void add_option(std::string_view Argument, T &Opt) noexcept {
       if (auto Iter = OptionMap.find(std::addressof(Opt));
           Iter == OptionMap.end()) {
         OptionMap.emplace(std::addressof(Opt), ArgumentDescriptors.size());
@@ -105,7 +106,7 @@ private:
       }
     }
 
-    template <typename T> void add_option(T &Opt) {
+    template <typename T> void add_option(T &Opt) noexcept {
       if (auto Iter = OptionMap.find(std::addressof(Opt));
           Iter == OptionMap.end()) {
         OptionMap.emplace(std::addressof(Opt), ArgumentDescriptors.size());
@@ -116,294 +117,65 @@ private:
       }
     }
 
-    bool parse(Span<const char *> ProgramNamePrefix, int Argc,
-               const char *Argv[], int ArgP, const bool &VersionOpt) noexcept {
-      try {
-        ProgramNames.reserve(ProgramNamePrefix.size() + 1);
-        ProgramNames.assign(ProgramNamePrefix.begin(), ProgramNamePrefix.end());
-        ProgramNames.push_back(Argv[ArgP]);
-        ArgumentDescriptor *CurrentDesc = nullptr;
-        bool FirstNonOption = true;
-        bool Escaped = false;
-        auto PositionalIter = PositionalList.cbegin();
-        for (int ArgI = ArgP + 1; ArgI < Argc; ++ArgI) {
-          std::string_view Arg = Argv[ArgI];
-          if (!Escaped && Arg.size() >= 2 && Arg[0] == '-') {
-            if (Arg[1] == '-') {
-              if (Arg.size() == 2) {
-                Escaped = true;
-              } else {
-                // long option
-                if (CurrentDesc && CurrentDesc->nargs() == 0) {
-                  CurrentDesc->default_value();
-                }
-                CurrentDesc = consume_long_option_with_argument(Arg);
-              }
-            } else {
-              // short options
-              if (CurrentDesc && CurrentDesc->nargs() == 0) {
-                CurrentDesc->default_value();
-              }
-              CurrentDesc = consume_short_options(Arg);
-            }
-          } else if (!Escaped && CurrentDesc) {
-            consume_argument(*CurrentDesc, Arg);
-            CurrentDesc = nullptr;
-          } else {
-            // no more options
-            if (FirstNonOption) {
-              FirstNonOption = false;
-              if (!SubCommandMap.empty()) {
-                if (auto Iter = SubCommandMap.find(Arg);
-                    Iter != SubCommandMap.end()) {
-                  auto &Child = this[Iter->second];
-                  Child.SC->select();
-                  return Child.parse(ProgramNames, Argc, Argv, ArgI,
-                                     VersionOpt);
-                }
-              }
-            }
-            Escaped = true;
-            if (CurrentDesc) {
-              CurrentDesc = consume_argument(*CurrentDesc, Arg);
-            } else {
-              if (PositionalIter == PositionalList.cend()) {
-                throw std::invalid_argument(
-                    "positional argument exceeds maxinum consuming."s);
-              }
-              CurrentDesc =
-                  consume_argument(ArgumentDescriptors[*PositionalIter], Arg);
-              ++PositionalIter;
-            }
-          }
-        }
-        if (CurrentDesc && CurrentDesc->nargs() == 0) {
-          CurrentDesc->default_value();
-        }
-
-        if (VersionOpt) {
-          return true;
-        }
-        if (!HelpOpt->value()) {
-          for (const auto &Desc : ArgumentDescriptors) {
-            if (Desc.nargs() < Desc.min_nargs()) {
-              HelpOpt->value() = true;
-            }
-          }
-        }
-        if (HelpOpt->value()) {
-          help();
-          return false;
-        }
-        return true;
-      } catch (std::exception &err) {
-        std::cerr << err.what() << '\n';
+    bool set_raw_value(std::string_view Option) const noexcept {
+      auto Iter = ArgumentMap.find(Option);
+      if (Iter == ArgumentMap.end()) {
         return false;
       }
+      const ArgumentDescriptor &CurrentDesc = ArgumentDescriptors[Iter->second];
+      if (CurrentDesc.max_nargs() != 0) {
+        return false;
+      }
+
+      CurrentDesc.default_value();
+      return true;
     }
 
-    void usage() const noexcept {
-      using std::cout;
-      cout << YELLOW_COLOR << "USAGE"sv << RESET_COLOR << '\n';
-      for (const char *Part : ProgramNames) {
-        cout << '\t' << Part;
+    template <typename T>
+    bool set_raw_value(std::string_view Option, T Value) const noexcept {
+      auto Iter = ArgumentMap.find(Option);
+      if (Iter == ArgumentMap.end()) {
+        return false;
+      }
+      const ArgumentDescriptor &CurrentDesc = ArgumentDescriptors[Iter->second];
+      if (CurrentDesc.max_nargs() == 0) {
+        return false;
+        CurrentDesc.default_value();
+        return true;
       }
 
-      if (NonpositionalList.size() != 0) {
-        cout << " [OPTIONS]"sv;
-      }
-      bool First = true;
-      for (const auto &Index : PositionalList) {
-        const auto &Desc = ArgumentDescriptors[Index];
-        if (Desc.hidden()) {
-          continue;
-        }
-
-        if (First) {
-          cout << " [--]"sv;
-          First = false;
-        }
-
-        const bool Optional = (Desc.min_nargs() == 0);
-        cout << ' ';
-        if (Optional) {
-          cout << '[';
-        }
-        switch (ArgumentDescriptors[Index].max_nargs()) {
-        case 0:
-          break;
-        case 1:
-          cout << Desc.meta();
-          break;
-        default:
-          cout << Desc.meta() << " ..."sv;
-          break;
-        }
-        if (Optional) {
-          cout << ']';
-        }
-      }
-      cout << '\n';
+      CurrentDesc.raw_value(Value);
+      return true;
     }
 
-    void help() const noexcept {
-// For enabling Windows PowerShell color support.
-#if defined(_WIN32) || defined(_WIN64) || defined(__WIN32__) ||                \
-    defined(__TOS_WIN__) || defined(__WINDOWS__)
-      HANDLE OutputHandler = GetStdHandle(STD_OUTPUT_HANDLE);
-      if (OutputHandler != INVALID_HANDLE_VALUE) {
-        DWORD ConsoleMode = 0;
-        if (GetConsoleMode(OutputHandler, &ConsoleMode)) {
-          ConsoleMode |= ENABLE_VIRTUAL_TERMINAL_PROCESSING;
-          SetConsoleMode(OutputHandler, ConsoleMode);
-        }
-      }
-#endif
+    cxx20::expected<bool, Error> parse(Span<const char *> ProgramNamePrefix,
+                                       int Argc, const char *Argv[], int ArgP,
+                                       const bool &VersionOpt) noexcept;
 
-      usage();
-      using std::cout;
-      const constexpr std::string_view kIndent = "\t"sv;
+    void usage() const noexcept;
 
-      cout << '\n';
-      if (!SubCommandList.empty()) {
-        cout << YELLOW_COLOR << "SubCommands"sv << RESET_COLOR << '\n';
-        for (const auto Offset : SubCommandList) {
-          cout << kIndent;
-          cout << GREEN_COLOR;
-          bool First = true;
-          for (const auto &Name : this[Offset].SubCommandNames) {
-            if (!First) {
-              cout << '|';
-            }
-            cout << Name;
-            First = false;
-          }
-          cout << RESET_COLOR << '\n';
-          indent_output(kIndent, 2, 80, this[Offset].SC->description());
-          cout << '\n';
-        }
-        cout << '\n';
-      }
-
-      cout << YELLOW_COLOR << "OPTIONS"sv << RESET_COLOR << '\n';
-      for (const auto &Index : NonpositionalList) {
-        const auto &Desc = ArgumentDescriptors[Index];
-        if (Desc.hidden()) {
-          continue;
-        }
-
-        cout << kIndent;
-        cout << GREEN_COLOR;
-        bool First = true;
-        for (const auto &Option : Desc.options()) {
-          if (!First) {
-            cout << '|';
-          }
-          if (Option.size() == 1) {
-            cout << '-' << Option;
-          } else {
-            cout << '-' << '-' << Option;
-          }
-          First = false;
-        }
-        cout << RESET_COLOR << '\n';
-        indent_output(kIndent, 2, 80, Desc.description());
-        cout << '\n';
-      }
-    }
+    void help() const noexcept;
 
     void indent_output(const std::string_view kIndent, std::size_t IndentCount,
                        std::size_t ScreenWidth,
-                       std::string_view Desc) const noexcept {
-      using std::cout;
-      const std::size_t Width = ScreenWidth - kIndent.size() * IndentCount;
-      while (Desc.size() > Width) {
-        const std::size_t SpacePos = Desc.find_last_of(' ', Width);
-        if (SpacePos != std::string_view::npos) {
-          for (std::size_t I = 0; I < IndentCount; ++I) {
-            cout << kIndent;
-          }
-          cout << Desc.substr(0, SpacePos) << '\n';
-          const std::size_t WordPos = Desc.find_first_not_of(' ', SpacePos);
-          if (WordPos != std::string_view::npos) {
-            Desc = Desc.substr(WordPos);
-          } else {
-            Desc = {};
-          }
-        }
-      }
-      if (!Desc.empty()) {
-        for (std::size_t I = 0; I < IndentCount; ++I) {
-          cout << kIndent;
-        }
-        cout << Desc;
-      }
-    }
+                       std::string_view Desc) const noexcept;
 
   private:
-    ArgumentDescriptor *consume_short_options(std::string_view Arg) {
-      ArgumentDescriptor *CurrentDesc = nullptr;
-      for (std::size_t I = 1; I < Arg.size(); ++I) {
-        if (CurrentDesc && CurrentDesc->nargs() == 0) {
-          CurrentDesc->default_value();
-        }
-        std::string_view Option = Arg.substr(I, 1);
-        CurrentDesc = consume_short_option(Option);
-      }
-      return CurrentDesc;
-    }
-    ArgumentDescriptor *
-    consume_long_option_with_argument(std::string_view Arg) {
-      if (auto Pos = Arg.find('=', 2); Pos != std::string_view::npos) {
-        // long option with argument
-        std::string_view Option = Arg.substr(2, Pos - 2);
-        std::string_view Argument = Arg.substr(Pos + 1);
-        ArgumentDescriptor *CurrentDesc = consume_long_option(Option);
-        if (CurrentDesc) {
-          consume_argument(*CurrentDesc, Argument);
-        } else {
-          throw std::invalid_argument("option "s + std::string(Option) +
-                                      "doesn't need arguments."s);
-        }
-        return nullptr;
-      } else {
-        // long option without argument
-        std::string_view Option = Arg.substr(2);
-        return consume_long_option(Option);
-      }
-    }
-    ArgumentDescriptor *consume_short_option(std::string_view Option) {
-      auto Iter = ArgumentMap.find(Option);
-      if (Iter == ArgumentMap.end()) {
-        throw std::invalid_argument("unknown option: "s + std::string(Option));
-      }
-      ArgumentDescriptor &CurrentDesc = ArgumentDescriptors[Iter->second];
-      if (CurrentDesc.max_nargs() == 0) {
-        CurrentDesc.default_value();
-        return nullptr;
-      }
-      return &CurrentDesc;
-    }
-    ArgumentDescriptor *consume_long_option(std::string_view Option) {
-      auto Iter = ArgumentMap.find(Option);
-      if (Iter == ArgumentMap.end()) {
-        throw std::invalid_argument("unknown option: "s + std::string(Option));
-      }
-      ArgumentDescriptor &CurrentDesc = ArgumentDescriptors[Iter->second];
-      if (CurrentDesc.max_nargs() == 0) {
-        CurrentDesc.default_value();
-        return nullptr;
-      }
-      return &CurrentDesc;
-    }
-    ArgumentDescriptor *consume_argument(ArgumentDescriptor &CurrentDesc,
-                                         std::string_view Argument) {
-      CurrentDesc.value(std::string(Argument));
-      if (++CurrentDesc.nargs() >= CurrentDesc.max_nargs()) {
-        return nullptr;
-      }
-      return &CurrentDesc;
-    }
+    cxx20::expected<ArgumentDescriptor *, Error>
+    consume_short_options(std::string_view Arg) noexcept;
+
+    cxx20::expected<ArgumentDescriptor *, Error>
+    consume_long_option_with_argument(std::string_view Arg) noexcept;
+
+    cxx20::expected<ArgumentDescriptor *, Error>
+    consume_short_option(std::string_view Option) noexcept;
+
+    cxx20::expected<ArgumentDescriptor *, Error>
+    consume_long_option(std::string_view Option) noexcept;
+
+    cxx20::expected<ArgumentDescriptor *, Error>
+    consume_argument(ArgumentDescriptor &CurrentDesc,
+                     std::string_view Argument) noexcept;
 
     SubCommand *SC = nullptr;
     std::vector<std::string_view> SubCommandNames;
@@ -417,19 +189,18 @@ private:
     std::vector<std::size_t> PositionalList;
     std::unique_ptr<Option<Toggle>> HelpOpt;
 
-#if defined(_WIN32) || defined(_WIN64) || defined(__WIN32__) ||                \
-    defined(__TOS_WIN__) || defined(__WINDOWS__)
+#if WASMEDGE_OS_WINDOWS
     // Native PowerShell failed to display yellow, so we use bright yellow.
-    static constexpr char YELLOW_COLOR[] = "\u001b[93m";
+    static inline constexpr std::string_view YELLOW_COLOR = "\x1b[93m"sv;
 #else
-    static constexpr char YELLOW_COLOR[] = "\u001b[33m";
+    static inline constexpr std::string_view YELLOW_COLOR = "\x1b[33m"sv;
 #endif
-    static constexpr char GREEN_COLOR[] = "\u001b[32m";
-    static constexpr char RESET_COLOR[] = "\u001b[0m";
+    static inline constexpr std::string_view GREEN_COLOR = "\x1b[32m";
+    static inline constexpr std::string_view RESET_COLOR = "\x1b[0m";
   };
 
 public:
-  ArgumentParser()
+  ArgumentParser() noexcept
       : SubCommandDescriptors(1), CurrentSubCommandId(0),
         VerOpt(Description("Show version infomation"sv)) {
     SubCommandDescriptors.front().add_option("v"sv, VerOpt);
@@ -437,18 +208,28 @@ public:
   }
 
   template <typename T>
-  ArgumentParser &add_option(std::string_view Argument, T &Opt) {
+  ArgumentParser &add_option(std::string_view Argument, T &Opt) noexcept {
     SubCommandDescriptors[CurrentSubCommandId].add_option(Argument, Opt);
     return *this;
   }
 
-  template <typename T> ArgumentParser &add_option(T &Opt) {
+  template <typename T> ArgumentParser &add_option(T &Opt) noexcept {
     SubCommandDescriptors[CurrentSubCommandId].add_option(Opt);
     return *this;
   }
 
+  bool set_raw_value(std::string_view Option) const noexcept {
+    return SubCommandDescriptors[CurrentSubCommandId].set_raw_value(Option);
+  }
+
+  template <typename T>
+  bool set_raw_value(std::string_view Option, T Value) const noexcept {
+    return SubCommandDescriptors[CurrentSubCommandId].set_raw_value(Option,
+                                                                    Value);
+  }
+
   template <typename... ArgsT>
-  ArgumentParser &begin_subcommand(SubCommand &SC, ArgsT &&...Args) {
+  ArgumentParser &begin_subcommand(SubCommand &SC, ArgsT &&...Args) noexcept {
     SubCommandStack.push_back(CurrentSubCommandId);
     const auto ParentSubCommandId =
         std::exchange(CurrentSubCommandId, SubCommandDescriptors.size());
@@ -459,17 +240,14 @@ public:
     return *this;
   }
 
-  ArgumentParser &end_subcommand() {
+  ArgumentParser &end_subcommand() noexcept {
     CurrentSubCommandId = SubCommandStack.back();
     SubCommandStack.pop_back();
     return *this;
   }
 
-  bool parse(int Argc, const char *Argv[]) noexcept {
-    return SubCommandDescriptors.front().parse({}, Argc, Argv, 0,
-                                               VerOpt.value()) ||
-           VerOpt.value();
-  }
+  bool parse(int Argc, const char *Argv[]) noexcept;
+
   void usage() const noexcept { SubCommandDescriptors.front().usage(); }
   void help() const noexcept { SubCommandDescriptors.front().help(); }
   bool isVersion() const noexcept { return VerOpt.value(); }

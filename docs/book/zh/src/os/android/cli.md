@@ -32,8 +32,8 @@ sirius:/ $
 在 Ubuntu 宿主机上使用以下指令来获取 WasmEdge-TensorFlow-Tools 的 pre-release 版本软件包。
 
 ```bash
-$ wget https://github.com/second-state/WasmEdge-tensorflow-tools/releases/download/0.9.1-beta.2/WasmEdge-tensorflow-tools-0.9.1-beta.2-android_aarch64.tar.gz
-$ mkdir WasmEdge-tensorflow-tools && tar zxvf WasmEdge-tensorflow-tools-0.9.1-beta.2-android_aarch64.tar.gz -C WasmEdge-tensorflow-tools
+$ wget https://github.com/second-state/WasmEdge-tensorflow-tools/releases/download/0.10.0/WasmEdge-tensorflow-tools-0.10.0-android_aarch64.tar.gz
+$ mkdir WasmEdge-tensorflow-tools && tar zxvf WasmEdge-tensorflow-tools-0.10.0-android_aarch64.tar.gz -C WasmEdge-tensorflow-tools
 show-tflite-tensor
 wasmedge-tensorflow-lite
 ```
@@ -43,8 +43,8 @@ wasmedge-tensorflow-lite
 在 WasmEdge-TensorFlow-deps 中已经为用户提供了 Android 版本的 TensorFlow-Lite 动态链接库，用户可以直接下载并使用。
 
 ```bash
-$ wget https://github.com/second-state/WasmEdge-tensorflow-deps/releases/download/0.9.1-beta.2/WasmEdge-tensorflow-deps-TFLite-0.9.1-beta.2-android_aarch64.tar.gz
-$ tar zxvf WasmEdge-tensorflow-deps-TFLite-0.9.1-beta.2-android_aarch64.tar.gz -C WasmEdge-tensorflow-tools
+$ wget https://github.com/second-state/WasmEdge-tensorflow-deps/releases/download/0.10.0/WasmEdge-tensorflow-deps-TFLite-0.10.0-android_aarch64.tar.gz
+$ tar zxvf WasmEdge-tensorflow-deps-TFLite-0.10.0-android_aarch64.tar.gz -C WasmEdge-tensorflow-tools
 libtensorflowlite_c.so
 ```
 

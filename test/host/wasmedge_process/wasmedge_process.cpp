@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2019-2022 Second State INC
 
-#include "host/wasmedge_process/processfunc.h"
-#include "host/wasmedge_process/processmodule.h"
+#include "processfunc.h"
+#include "processmodule.h"
 
 #include <algorithm>
 #include <array>
@@ -28,11 +28,13 @@ TEST(WasmEdgeProcessTest, SetProgName) {
   std::copy_n(std::string("echo").c_str(), 4, Buf);
 
   EXPECT_TRUE(WasmEdgeProcessSetProgName.run(
-      &MemInst, std::array<WasmEdge::ValVariant, 2>{UINT32_C(0), UINT32_C(4)},
+      &MemInst,
+      std::initializer_list<WasmEdge::ValVariant>{UINT32_C(0), UINT32_C(4)},
       {}));
   EXPECT_EQ(Env.Name, "echo");
   EXPECT_FALSE(WasmEdgeProcessSetProgName.run(
-      nullptr, std::array<WasmEdge::ValVariant, 2>{UINT32_C(0), UINT32_C(4)},
+      nullptr,
+      std::initializer_list<WasmEdge::ValVariant>{UINT32_C(0), UINT32_C(4)},
       {}));
 }
 
@@ -50,22 +52,26 @@ TEST(WasmEdgeProcessTest, AddArg) {
   std::copy_n(std::string("--final-arg").c_str(), 11, Arg3);
 
   EXPECT_TRUE(WasmEdgeProcessAddArg.run(
-      &MemInst, std::array<WasmEdge::ValVariant, 2>{UINT32_C(0), UINT32_C(4)},
+      &MemInst,
+      std::initializer_list<WasmEdge::ValVariant>{UINT32_C(0), UINT32_C(4)},
       {}));
   EXPECT_EQ(Env.Args.size(), 1U);
   EXPECT_EQ(Env.Args[0], "arg1");
   EXPECT_TRUE(WasmEdgeProcessAddArg.run(
-      &MemInst, std::array<WasmEdge::ValVariant, 2>{UINT32_C(4), UINT32_C(4)},
+      &MemInst,
+      std::initializer_list<WasmEdge::ValVariant>{UINT32_C(4), UINT32_C(4)},
       {}));
   EXPECT_EQ(Env.Args.size(), 2U);
   EXPECT_EQ(Env.Args[1], "arg2");
   EXPECT_TRUE(WasmEdgeProcessAddArg.run(
-      &MemInst, std::array<WasmEdge::ValVariant, 2>{UINT32_C(30), UINT32_C(11)},
+      &MemInst,
+      std::initializer_list<WasmEdge::ValVariant>{UINT32_C(30), UINT32_C(11)},
       {}));
   EXPECT_EQ(Env.Args.size(), 3U);
   EXPECT_EQ(Env.Args[2], "--final-arg");
   EXPECT_FALSE(WasmEdgeProcessAddArg.run(
-      nullptr, std::array<WasmEdge::ValVariant, 2>{UINT32_C(0), UINT32_C(4)},
+      nullptr,
+      std::initializer_list<WasmEdge::ValVariant>{UINT32_C(0), UINT32_C(4)},
       {}));
 }
 
@@ -86,22 +92,22 @@ TEST(WasmEdgeProcessTest, AddEnv) {
 
   EXPECT_TRUE(WasmEdgeProcessAddEnv.run(
       &MemInst,
-      std::array<WasmEdge::ValVariant, 4>{UINT32_C(0), UINT32_C(4), UINT32_C(4),
-                                          UINT32_C(6)},
+      std::initializer_list<WasmEdge::ValVariant>{UINT32_C(0), UINT32_C(4),
+                                                  UINT32_C(4), UINT32_C(6)},
       {}));
   EXPECT_EQ(Env.Envs.size(), 1U);
   EXPECT_EQ(Env.Envs["ENV1"], "VALUE1");
   EXPECT_TRUE(WasmEdgeProcessAddEnv.run(
       &MemInst,
-      std::array<WasmEdge::ValVariant, 4>{UINT32_C(30), UINT32_C(15),
-                                          UINT32_C(50), UINT32_C(14)},
+      std::initializer_list<WasmEdge::ValVariant>{UINT32_C(30), UINT32_C(15),
+                                                  UINT32_C(50), UINT32_C(14)},
       {}));
   EXPECT_EQ(Env.Envs.size(), 2U);
   EXPECT_EQ(Env.Envs["LD_LIBRARY_PATH"], "/usr/local/lib");
   EXPECT_FALSE(WasmEdgeProcessAddEnv.run(
       nullptr,
-      std::array<WasmEdge::ValVariant, 4>{UINT32_C(0), UINT32_C(4), UINT32_C(4),
-                                          UINT32_C(6)},
+      std::initializer_list<WasmEdge::ValVariant>{UINT32_C(0), UINT32_C(4),
+                                                  UINT32_C(4), UINT32_C(6)},
       {}));
 }
 
@@ -120,19 +126,22 @@ TEST(WasmEdgeProcessTest, AddStdIn) {
               11, Buf2);
 
   EXPECT_TRUE(WasmEdgeProcessAddStdIn.run(
-      &MemInst, std::array<WasmEdge::ValVariant, 2>{UINT32_C(0), UINT32_C(4)},
+      &MemInst,
+      std::initializer_list<WasmEdge::ValVariant>{UINT32_C(0), UINT32_C(4)},
       {}));
   EXPECT_EQ(Env.StdIn.size(), 4U);
   EXPECT_EQ(Env.StdIn, std::vector<uint8_t>({0x01, 0x02, 0x03, 0x04}));
   EXPECT_TRUE(WasmEdgeProcessAddStdIn.run(
-      &MemInst, std::array<WasmEdge::ValVariant, 2>{UINT32_C(30), UINT32_C(11)},
+      &MemInst,
+      std::initializer_list<WasmEdge::ValVariant>{UINT32_C(30), UINT32_C(11)},
       {}));
   EXPECT_EQ(Env.StdIn.size(), 15U);
   EXPECT_EQ(Env.StdIn,
             std::vector<uint8_t>({0x01, 0x02, 0x03, 0x04, 'h', 'e', 'l', 'l',
                                   'o', ' ', 's', 's', 'v', 'm', '\n'}));
   EXPECT_FALSE(WasmEdgeProcessAddStdIn.run(
-      nullptr, std::array<WasmEdge::ValVariant, 2>{UINT32_C(0), UINT32_C(4)},
+      nullptr,
+      std::initializer_list<WasmEdge::ValVariant>{UINT32_C(0), UINT32_C(4)},
       {}));
 }
 
@@ -141,7 +150,7 @@ TEST(WasmEdgeProcessTest, SetTimeOut) {
   WasmEdge::Host::WasmEdgeProcessSetTimeOut WasmEdgeProcessSetTimeOut(Env);
 
   EXPECT_TRUE(WasmEdgeProcessSetTimeOut.run(
-      nullptr, std::array<WasmEdge::ValVariant, 1>{UINT32_C(100)}, {}));
+      nullptr, std::initializer_list<WasmEdge::ValVariant>{UINT32_C(100)}, {}));
   EXPECT_EQ(Env.TimeOut, 100U);
 }
 
@@ -217,9 +226,9 @@ TEST(WasmEdgeProcessTest, GetStdOut) {
   uint32_t Len = RetVal[0].get<uint32_t>();
   EXPECT_TRUE(Len > 0U);
   EXPECT_FALSE(WasmEdgeProcessGetStdOut.run(
-      nullptr, std::array<WasmEdge::ValVariant, 1>{UINT32_C(0)}, {}));
+      nullptr, std::initializer_list<WasmEdge::ValVariant>{UINT32_C(0)}, {}));
   EXPECT_TRUE(WasmEdgeProcessGetStdOut.run(
-      &MemInst, std::array<WasmEdge::ValVariant, 1>{UINT32_C(0)}, {}));
+      &MemInst, std::initializer_list<WasmEdge::ValVariant>{UINT32_C(0)}, {}));
   uint8_t *Buf = MemInst.getPointer<uint8_t *>(0);
   EXPECT_TRUE(std::equal(Env.StdOut.begin(), Env.StdOut.end(), Buf));
 }
@@ -242,9 +251,9 @@ TEST(WasmEdgeProcessTest, GetStdErr) {
   uint32_t Len = RetVal[0].get<uint32_t>();
   EXPECT_TRUE(Len > 0);
   EXPECT_FALSE(WasmEdgeProcessGetStdErr.run(
-      nullptr, std::array<WasmEdge::ValVariant, 1>{UINT32_C(0)}, {}));
+      nullptr, std::initializer_list<WasmEdge::ValVariant>{UINT32_C(0)}, {}));
   EXPECT_TRUE(WasmEdgeProcessGetStdErr.run(
-      &MemInst, std::array<WasmEdge::ValVariant, 1>{UINT32_C(0)}, {}));
+      &MemInst, std::initializer_list<WasmEdge::ValVariant>{UINT32_C(0)}, {}));
   uint8_t *Buf = MemInst.getPointer<uint8_t *>(0);
   EXPECT_TRUE(std::equal(Env.StdErr.begin(), Env.StdErr.end(), Buf));
 }
@@ -252,20 +261,19 @@ TEST(WasmEdgeProcessTest, GetStdErr) {
 TEST(WasmEdgeProcessTest, Module) {
   WasmEdge::Host::WasmEdgeProcessModule Mod =
       WasmEdge::Host::WasmEdgeProcessModule();
-  const auto &FuncMap = Mod.getFuncs();
   EXPECT_EQ(Mod.getEnv().ExitCode, 0U);
-  EXPECT_EQ(FuncMap.size(), 11U);
-  EXPECT_NE(FuncMap.find("wasmedge_process_set_prog_name"), FuncMap.end());
-  EXPECT_NE(FuncMap.find("wasmedge_process_add_arg"), FuncMap.end());
-  EXPECT_NE(FuncMap.find("wasmedge_process_add_env"), FuncMap.end());
-  EXPECT_NE(FuncMap.find("wasmedge_process_add_stdin"), FuncMap.end());
-  EXPECT_NE(FuncMap.find("wasmedge_process_set_timeout"), FuncMap.end());
-  EXPECT_NE(FuncMap.find("wasmedge_process_run"), FuncMap.end());
-  EXPECT_NE(FuncMap.find("wasmedge_process_get_exit_code"), FuncMap.end());
-  EXPECT_NE(FuncMap.find("wasmedge_process_get_stdout_len"), FuncMap.end());
-  EXPECT_NE(FuncMap.find("wasmedge_process_get_stdout"), FuncMap.end());
-  EXPECT_NE(FuncMap.find("wasmedge_process_get_stderr_len"), FuncMap.end());
-  EXPECT_NE(FuncMap.find("wasmedge_process_get_stderr"), FuncMap.end());
+  EXPECT_EQ(Mod.getFuncExportNum(), 11U);
+  EXPECT_NE(Mod.findFuncExports("wasmedge_process_set_prog_name"), nullptr);
+  EXPECT_NE(Mod.findFuncExports("wasmedge_process_add_arg"), nullptr);
+  EXPECT_NE(Mod.findFuncExports("wasmedge_process_add_env"), nullptr);
+  EXPECT_NE(Mod.findFuncExports("wasmedge_process_add_stdin"), nullptr);
+  EXPECT_NE(Mod.findFuncExports("wasmedge_process_set_timeout"), nullptr);
+  EXPECT_NE(Mod.findFuncExports("wasmedge_process_run"), nullptr);
+  EXPECT_NE(Mod.findFuncExports("wasmedge_process_get_exit_code"), nullptr);
+  EXPECT_NE(Mod.findFuncExports("wasmedge_process_get_stdout_len"), nullptr);
+  EXPECT_NE(Mod.findFuncExports("wasmedge_process_get_stdout"), nullptr);
+  EXPECT_NE(Mod.findFuncExports("wasmedge_process_get_stderr_len"), nullptr);
+  EXPECT_NE(Mod.findFuncExports("wasmedge_process_get_stderr"), nullptr);
 }
 
 GTEST_API_ int main(int argc, char **argv) {

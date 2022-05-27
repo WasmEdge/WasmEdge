@@ -79,7 +79,7 @@ func main() {
   var conf = wasmedge.NewConfigure(wasmedge.REFERENCE_TYPES)
   conf.AddConfig(wasmedge.WASI)
   var vm = wasmedge.NewVMWithConfig(conf)
-  var wasi = vm.GetImportObject(wasmedge.WASI)
+  var wasi = vm.GetImportModule(wasmedge.WASI)
   wasi.InitWasi(
     os.Args[1:],     // 参数
     os.Environ(),    // 环境变量
@@ -97,7 +97,7 @@ func main() {
 接下来，让我们用 WasmEdge Go SDK 构建 Go 应用程序。
 
 ```bash
-go get github.com/second-state/WasmEdge-go/wasmedge@v0.9.1
+go get github.com/second-state/WasmEdge-go/wasmedge@v0.10.0
 go build
 ```
 

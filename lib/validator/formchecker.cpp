@@ -186,7 +186,7 @@ ValType FormChecker::VTypeToAST(const VType &V) {
 
 Expect<void> FormChecker::checkExpr(AST::InstrView Instrs) {
   // Push ctrl frame ([] -> [Returns])
-  pushCtrl({}, Returns);
+  pushCtrl({}, Returns, &*Instrs.rbegin());
   return checkInstrs(Instrs);
 }
 
@@ -338,7 +338,10 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
       return Unexpect(Res);
     }
     // Push ctrl frame ([t1*], [t2*])
-    pushCtrl(T1, T2, Instr.getOpCode());
+    const AST::Instruction *From = Instr.getOpCode() == OpCode::Loop
+                                       ? &Instr
+                                       : &Instr + Instr.getJumpEnd();
+    pushCtrl(T1, T2, From, Instr.getOpCode());
     if (Instr.getOpCode() == OpCode::If &&
         Instr.getJumpElse() == Instr.getJumpEnd()) {
       // No else case in if-else statement.
@@ -351,7 +354,8 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
 
   case OpCode::Else:
     if (auto Res = popCtrl()) {
-      pushCtrl((*Res).StartTypes, (*Res).EndTypes, Instr.getOpCode());
+      pushCtrl((*Res).StartTypes, (*Res).EndTypes, Res->Jump,
+               Instr.getOpCode());
     } else {
       return Unexpect(Res);
     }
@@ -365,42 +369,59 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
     return {};
 
   case OpCode::Br:
-    if (auto D = checkCtrlStackDepth(Instr.getTargetIndex())) {
+    if (auto D = checkCtrlStackDepth(Instr.getTargetIndex()); !D) {
+      return Unexpect(D);
+    } else {
       // D is the last D element of control stack.
-      if (auto Res = popTypes(getLabelTypes(CtrlStack[*D]))) {
-        return unreachable();
-      } else {
+      const auto NTypes = getLabelTypes(CtrlStack[*D]);
+      if (auto Res = popTypes(NTypes); !Res) {
         return Unexpect(Res);
       }
-    } else {
-      return Unexpect(D);
+      const uint32_t Remain =
+          static_cast<uint32_t>(ValStack.size() - CtrlStack[*D].Height);
+      const uint32_t Arity = static_cast<uint32_t>(NTypes.size());
+      auto &Jump = const_cast<AST::Instruction &>(Instr).getJump();
+      Jump.StackEraseBegin = Remain + Arity;
+      Jump.StackEraseEnd = Arity;
+      Jump.PCOffset = static_cast<int32_t>(CtrlStack[*D].Jump - &Instr);
+      return unreachable();
     }
   case OpCode::Br_if:
-    if (auto D = checkCtrlStackDepth(Instr.getTargetIndex())) {
+    if (auto D = checkCtrlStackDepth(Instr.getTargetIndex()); !D) {
+      return Unexpect(D);
+    } else {
       // D is the last D element of control stack.
       if (auto Res = popType(VType::I32); !Res) {
         return Unexpect(Res);
       }
-      if (auto Res = popTypes(getLabelTypes(CtrlStack[*D]))) {
-        pushTypes(getLabelTypes(CtrlStack[*D]));
-        return {};
-      } else {
+      const auto NTypes = getLabelTypes(CtrlStack[*D]);
+      if (auto Res = popTypes(NTypes); !Res) {
         return Unexpect(Res);
       }
-    } else {
-      return Unexpect(D);
+      const uint32_t Remain =
+          static_cast<uint32_t>(ValStack.size() - CtrlStack[*D].Height);
+      const uint32_t Arity = static_cast<uint32_t>(NTypes.size());
+      auto &Jump = const_cast<AST::Instruction &>(Instr).getJump();
+      Jump.StackEraseBegin = Remain + Arity;
+      Jump.StackEraseEnd = Arity;
+      Jump.PCOffset = static_cast<int32_t>(CtrlStack[*D].Jump - &Instr);
+      pushTypes(NTypes);
+      return {};
     }
-  case OpCode::Br_table:
+  case OpCode::Br_table: {
     if (auto Res = popType(VType::I32); !Res) {
       return Unexpect(Res);
     }
-    if (auto M = checkCtrlStackDepth(Instr.getTargetIndex())) {
+    auto LabelTable = const_cast<AST::Instruction &>(Instr).getLabelList();
+    const auto LabelTableSize = static_cast<uint32_t>(LabelTable.size() - 1);
+    if (auto M = checkCtrlStackDepth(LabelTable[LabelTableSize].TargetIndex)) {
       // M is the last M element of control stack.
       auto MTypes = getLabelTypes(CtrlStack[*M]);
-      for (const uint32_t &L : Instr.getLabelList()) {
+      for (uint32_t LabelIdx = 0; LabelIdx < LabelTableSize; ++LabelIdx) {
+        const uint32_t L = LabelTable[LabelIdx].TargetIndex;
         if (auto N = checkCtrlStackDepth(L)) {
           // N is the last N element of control stack.
-          auto NTypes = getLabelTypes(CtrlStack[*N]);
+          const auto NTypes = getLabelTypes(CtrlStack[*N]);
           if (MTypes.size() != NTypes.size()) {
             return checkTypesMatching(MTypes, NTypes);
           }
@@ -423,18 +444,34 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
               return Unexpect(Res);
             }
           }
+          const uint32_t Remain =
+              static_cast<uint32_t>(ValStack.size() - CtrlStack[*N].Height);
+          const uint32_t Arity = static_cast<uint32_t>(NTypes.size());
+          LabelTable[LabelIdx].StackEraseBegin = Remain + Arity;
+          LabelTable[LabelIdx].StackEraseEnd = Arity;
+          LabelTable[LabelIdx].PCOffset =
+              static_cast<int32_t>(CtrlStack[*N].Jump - &Instr);
           pushTypes(TypeBuf);
         } else {
           return Unexpect(N);
         }
       }
-      if (auto Res = popTypes(getLabelTypes(CtrlStack[*M])); !Res) {
+      const auto NTypes = getLabelTypes(CtrlStack[*M]);
+      if (auto Res = popTypes(NTypes); !Res) {
         return Unexpect(Res);
       }
+      const uint32_t Remain =
+          static_cast<uint32_t>(ValStack.size() - CtrlStack[*M].Height);
+      const uint32_t Arity = static_cast<uint32_t>(NTypes.size());
+      LabelTable[LabelTableSize].StackEraseBegin = Remain + Arity;
+      LabelTable[LabelTableSize].StackEraseEnd = Arity;
+      LabelTable[LabelTableSize].PCOffset =
+          static_cast<int32_t>(CtrlStack[*M].Jump - &Instr);
       return unreachable();
     } else {
       return Unexpect(M);
     }
+  }
 
   case OpCode::Return:
     if (auto Res = popTypes(Returns); !Res) {
@@ -475,10 +512,66 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
     }
     return StackTrans(Types[N].first, Types[N].second);
   }
+  case OpCode::Return_call: {
+    auto N = Instr.getTargetIndex();
+    if (Funcs.size() <= N) {
+      // Call function index out of range
+      spdlog::error(ErrCode::InvalidFuncIdx);
+      spdlog::error(
+          ErrInfo::InfoForbidIndex(ErrInfo::IndexCategory::Function, N,
+                                   static_cast<uint32_t>(Funcs.size())));
+      return Unexpect(ErrCode::InvalidFuncIdx);
+    }
+    if (Types[Funcs[N]].second != Returns) {
+      spdlog::error(ErrCode::TypeCheckFailed);
+      // TODO: Print the error info of types.
+      return Unexpect(ErrCode::TypeCheckFailed);
+    }
+    if (auto Res = popTypes(Types[Funcs[N]].first); !Res) {
+      return Unexpect(Res);
+    }
+    return unreachable();
+  }
+  case OpCode::Return_call_indirect: {
+    auto N = Instr.getTargetIndex();
+    auto T = Instr.getSourceIndex();
+    // Check source table index.
+    if (Tables.size() <= T) {
+      spdlog::error(ErrCode::InvalidTableIdx);
+      spdlog::error(
+          ErrInfo::InfoForbidIndex(ErrInfo::IndexCategory::Table, T,
+                                   static_cast<uint32_t>(Tables.size())));
+      return Unexpect(ErrCode::InvalidTableIdx);
+    }
+    if (Tables[T] != RefType::FuncRef) {
+      spdlog::error(ErrCode::InvalidTableIdx);
+      return Unexpect(ErrCode::InvalidTableIdx);
+    }
+    // Check target function type index.
+    if (Types.size() <= N) {
+      spdlog::error(ErrCode::InvalidFuncTypeIdx);
+      spdlog::error(
+          ErrInfo::InfoForbidIndex(ErrInfo::IndexCategory::FunctionType, N,
+                                   static_cast<uint32_t>(Types.size())));
+      return Unexpect(ErrCode::InvalidFuncTypeIdx);
+    }
+    if (Types[N].second != Returns) {
+      spdlog::error(ErrCode::TypeCheckFailed);
+      // TODO: Print the error info of types.
+      return Unexpect(ErrCode::TypeCheckFailed);
+    }
+    if (auto Res = popType(VType::I32); !Res) {
+      return Unexpect(Res);
+    }
+    if (auto Res = popTypes(Types[N].first); !Res) {
+      return Unexpect(Res);
+    }
+    return unreachable();
+  }
 
   // Reference Instructions.
   case OpCode::Ref__null:
-    return StackTrans({}, std::array{ASTToVType(Instr.getRefType())});
+    return StackTrans({}, {ASTToVType(Instr.getRefType())});
   case OpCode::Ref__is_null:
     if (auto Res = popType()) {
       if (!isRefType(*Res)) {
@@ -490,18 +583,18 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
     } else {
       return Unexpect(Res);
     }
-    return StackTrans({}, std::array{VType::I32});
+    return StackTrans({}, {VType::I32});
   case OpCode::Ref__func:
     if (Refs.find(Instr.getTargetIndex()) == Refs.cend()) {
       // Undeclared function reference.
       spdlog::error(ErrCode::InvalidRefIdx);
       return Unexpect(ErrCode::InvalidRefIdx);
     }
-    return StackTrans({}, std::array{VType::FuncRef});
+    return StackTrans({}, {VType::FuncRef});
 
   // Parametric Instructions.
   case OpCode::Drop:
-    return StackTrans(std::array{VType::Unknown}, {});
+    return StackTrans({VType::Unknown}, {});
   case OpCode::Select: {
     // Pop I32.
     if (auto Res = popType(VType::I32); !Res) {
@@ -551,7 +644,7 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
       return Unexpect(ErrCode::InvalidResultArity);
     }
     VType ExpT = ASTToVType(Instr.getValTypeList()[0]);
-    if (auto Res = popTypes(std::array{ExpT, ExpT, VType::I32}); !Res) {
+    if (auto Res = popTypes({ExpT, ExpT, VType::I32}); !Res) {
       return Unexpect(Res);
     }
     pushType(ExpT);
@@ -568,12 +661,15 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
           Instr.getTargetIndex(), static_cast<uint32_t>(Locals.size()));
     }
     VType TExpect = Locals[Instr.getTargetIndex()];
+    const_cast<AST::Instruction &>(Instr).getStackOffset() =
+        static_cast<uint32_t>(ValStack.size() +
+                              (Locals.size() - Instr.getTargetIndex()));
     if (Instr.getOpCode() == OpCode::Local__get) {
-      return StackTrans({}, std::array{TExpect});
+      return StackTrans({}, {TExpect});
     } else if (Instr.getOpCode() == OpCode::Local__set) {
-      return StackTrans(std::array{TExpect}, {});
+      return StackTrans({TExpect}, {});
     } else {
-      return StackTrans(std::array{TExpect}, std::array{TExpect});
+      return StackTrans({TExpect}, {TExpect});
     }
   }
   case OpCode::Global__set:
@@ -593,9 +689,9 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
     }
     VType ExpT = Globals[Instr.getTargetIndex()].first;
     if (Instr.getOpCode() == OpCode::Global__set) {
-      return StackTrans(std::array{ExpT}, {});
+      return StackTrans({ExpT}, {});
     } else {
-      return StackTrans({}, std::array{ExpT});
+      return StackTrans({}, {ExpT});
     }
   }
 
@@ -615,15 +711,15 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
     }
     VType ExpT = ASTToVType(Tables[Instr.getTargetIndex()]);
     if (Instr.getOpCode() == OpCode::Table__get) {
-      return StackTrans(std::array{VType::I32}, std::array{ExpT});
+      return StackTrans({VType::I32}, {ExpT});
     } else if (Instr.getOpCode() == OpCode::Table__set) {
-      return StackTrans(std::array{VType::I32, ExpT}, {});
+      return StackTrans({VType::I32, ExpT}, {});
     } else if (Instr.getOpCode() == OpCode::Table__grow) {
-      return StackTrans(std::array{ExpT, VType::I32}, std::array{VType::I32});
+      return StackTrans({ExpT, VType::I32}, {VType::I32});
     } else if (Instr.getOpCode() == OpCode::Table__size) {
-      return StackTrans({}, std::array{VType::I32});
+      return StackTrans({}, {VType::I32});
     } else if (Instr.getOpCode() == OpCode::Table__fill) {
-      return StackTrans(std::array{VType::I32, ExpT, VType::I32}, {});
+      return StackTrans({VType::I32, ExpT, VType::I32}, {});
     } else if (Instr.getOpCode() == OpCode::Table__init) {
       // Check source element index for initialization.
       if (Instr.getSourceIndex() >= Elems.size()) {
@@ -639,7 +735,7 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
                                   ToValType(Elems[Instr.getSourceIndex()])));
         return Unexpect(ErrCode::TypeCheckFailed);
       }
-      return StackTrans(std::array{VType::I32, VType::I32, VType::I32}, {});
+      return StackTrans({VType::I32, VType::I32, VType::I32}, {});
     } else {
       // Check source table index for copying.
       if (Instr.getSourceIndex() >= Tables.size()) {
@@ -655,7 +751,7 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
                                   ToValType(Tables[Instr.getSourceIndex()])));
         return Unexpect(ErrCode::TypeCheckFailed);
       }
-      return StackTrans(std::array{VType::I32, VType::I32, VType::I32}, {});
+      return StackTrans({VType::I32, VType::I32, VType::I32}, {});
     }
   }
   case OpCode::Elem__drop:
@@ -669,59 +765,50 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
 
   // Memory Instructions.
   case OpCode::I32__load:
-    return checkAlignAndTrans(32, std::array{VType::I32},
-                              std::array{VType::I32});
+    return checkAlignAndTrans(32, {VType::I32}, {VType::I32});
   case OpCode::I64__load:
-    return checkAlignAndTrans(64, std::array{VType::I32},
-                              std::array{VType::I64});
+    return checkAlignAndTrans(64, {VType::I32}, {VType::I64});
   case OpCode::F32__load:
-    return checkAlignAndTrans(32, std::array{VType::I32},
-                              std::array{VType::F32});
+    return checkAlignAndTrans(32, {VType::I32}, {VType::F32});
   case OpCode::F64__load:
-    return checkAlignAndTrans(64, std::array{VType::I32},
-                              std::array{VType::F64});
+    return checkAlignAndTrans(64, {VType::I32}, {VType::F64});
   case OpCode::I32__load8_s:
   case OpCode::I32__load8_u:
-    return checkAlignAndTrans(8, std::array{VType::I32},
-                              std::array{VType::I32});
+    return checkAlignAndTrans(8, {VType::I32}, {VType::I32});
   case OpCode::I32__load16_s:
   case OpCode::I32__load16_u:
-    return checkAlignAndTrans(16, std::array{VType::I32},
-                              std::array{VType::I32});
+    return checkAlignAndTrans(16, {VType::I32}, {VType::I32});
   case OpCode::I64__load8_s:
   case OpCode::I64__load8_u:
-    return checkAlignAndTrans(8, std::array{VType::I32},
-                              std::array{VType::I64});
+    return checkAlignAndTrans(8, {VType::I32}, {VType::I64});
   case OpCode::I64__load16_s:
   case OpCode::I64__load16_u:
-    return checkAlignAndTrans(16, std::array{VType::I32},
-                              std::array{VType::I64});
+    return checkAlignAndTrans(16, {VType::I32}, {VType::I64});
   case OpCode::I64__load32_s:
   case OpCode::I64__load32_u:
-    return checkAlignAndTrans(32, std::array{VType::I32},
-                              std::array{VType::I64});
+    return checkAlignAndTrans(32, {VType::I32}, {VType::I64});
   case OpCode::I32__store:
-    return checkAlignAndTrans(32, std::array{VType::I32, VType::I32}, {});
+    return checkAlignAndTrans(32, {VType::I32, VType::I32}, {});
   case OpCode::I64__store:
-    return checkAlignAndTrans(64, std::array{VType::I32, VType::I64}, {});
+    return checkAlignAndTrans(64, {VType::I32, VType::I64}, {});
   case OpCode::F32__store:
-    return checkAlignAndTrans(32, std::array{VType::I32, VType::F32}, {});
+    return checkAlignAndTrans(32, {VType::I32, VType::F32}, {});
   case OpCode::F64__store:
-    return checkAlignAndTrans(64, std::array{VType::I32, VType::F64}, {});
+    return checkAlignAndTrans(64, {VType::I32, VType::F64}, {});
   case OpCode::I32__store8:
-    return checkAlignAndTrans(8, std::array{VType::I32, VType::I32}, {});
+    return checkAlignAndTrans(8, {VType::I32, VType::I32}, {});
   case OpCode::I32__store16:
-    return checkAlignAndTrans(16, std::array{VType::I32, VType::I32}, {});
+    return checkAlignAndTrans(16, {VType::I32, VType::I32}, {});
   case OpCode::I64__store8:
-    return checkAlignAndTrans(8, std::array{VType::I32, VType::I64}, {});
+    return checkAlignAndTrans(8, {VType::I32, VType::I64}, {});
   case OpCode::I64__store16:
-    return checkAlignAndTrans(16, std::array{VType::I32, VType::I64}, {});
+    return checkAlignAndTrans(16, {VType::I32, VType::I64}, {});
   case OpCode::I64__store32:
-    return checkAlignAndTrans(32, std::array{VType::I32, VType::I64}, {});
+    return checkAlignAndTrans(32, {VType::I32, VType::I64}, {});
   case OpCode::Memory__size:
-    return checkMemAndTrans({}, std::array{VType::I32});
+    return checkMemAndTrans({}, {VType::I32});
   case OpCode::Memory__grow:
-    return checkMemAndTrans(std::array{VType::I32}, std::array{VType::I32});
+    return checkMemAndTrans({VType::I32}, {VType::I32});
   case OpCode::Memory__init:
     // Check the target memory index. Memory index should be checked first.
     if (Instr.getTargetIndex() >= Mems) {
@@ -735,7 +822,7 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
                            ErrInfo::IndexCategory::Data, Instr.getSourceIndex(),
                            static_cast<uint32_t>(Datas.size()));
     }
-    return StackTrans(std::array{VType::I32, VType::I32, VType::I32}, {});
+    return StackTrans({VType::I32, VType::I32, VType::I32}, {});
   case OpCode::Memory__copy:
     /// Check the source memory index.
     if (Instr.getSourceIndex() >= Mems) {
@@ -745,7 +832,7 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
     }
     [[fallthrough]];
   case OpCode::Memory__fill:
-    return checkMemAndTrans(std::array{VType::I32, VType::I32, VType::I32}, {});
+    return checkMemAndTrans({VType::I32, VType::I32, VType::I32}, {});
   case OpCode::Data__drop:
     // Check the target data index.
     if (Instr.getTargetIndex() >= Datas.size()) {
@@ -757,27 +844,27 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
 
   // Const Instructions.
   case OpCode::I32__const:
-    return StackTrans({}, std::array{VType::I32});
+    return StackTrans({}, {VType::I32});
   case OpCode::I64__const:
-    return StackTrans({}, std::array{VType::I64});
+    return StackTrans({}, {VType::I64});
   case OpCode::F32__const:
-    return StackTrans({}, std::array{VType::F32});
+    return StackTrans({}, {VType::F32});
   case OpCode::F64__const:
-    return StackTrans({}, std::array{VType::F64});
+    return StackTrans({}, {VType::F64});
 
   // Unary Numeric Instructions.
   case OpCode::I32__eqz:
-    return StackTrans(std::array{VType::I32}, std::array{VType::I32});
+    return StackTrans({VType::I32}, {VType::I32});
   case OpCode::I64__eqz:
-    return StackTrans(std::array{VType::I64}, std::array{VType::I32});
+    return StackTrans({VType::I64}, {VType::I32});
   case OpCode::I32__clz:
   case OpCode::I32__ctz:
   case OpCode::I32__popcnt:
-    return StackTrans(std::array{VType::I32}, std::array{VType::I32});
+    return StackTrans({VType::I32}, {VType::I32});
   case OpCode::I64__clz:
   case OpCode::I64__ctz:
   case OpCode::I64__popcnt:
-    return StackTrans(std::array{VType::I64}, std::array{VType::I64});
+    return StackTrans({VType::I64}, {VType::I64});
   case OpCode::F32__abs:
   case OpCode::F32__neg:
   case OpCode::F32__ceil:
@@ -785,7 +872,7 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
   case OpCode::F32__trunc:
   case OpCode::F32__nearest:
   case OpCode::F32__sqrt:
-    return StackTrans(std::array{VType::F32}, std::array{VType::F32});
+    return StackTrans({VType::F32}, {VType::F32});
   case OpCode::F64__abs:
   case OpCode::F64__neg:
   case OpCode::F64__ceil:
@@ -793,67 +880,67 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
   case OpCode::F64__trunc:
   case OpCode::F64__nearest:
   case OpCode::F64__sqrt:
-    return StackTrans(std::array{VType::F64}, std::array{VType::F64});
+    return StackTrans({VType::F64}, {VType::F64});
   case OpCode::I32__wrap_i64:
-    return StackTrans(std::array{VType::I64}, std::array{VType::I32});
+    return StackTrans({VType::I64}, {VType::I32});
   case OpCode::I32__trunc_f32_s:
   case OpCode::I32__trunc_f32_u:
-    return StackTrans(std::array{VType::F32}, std::array{VType::I32});
+    return StackTrans({VType::F32}, {VType::I32});
   case OpCode::I32__trunc_f64_s:
   case OpCode::I32__trunc_f64_u:
-    return StackTrans(std::array{VType::F64}, std::array{VType::I32});
+    return StackTrans({VType::F64}, {VType::I32});
   case OpCode::I64__extend_i32_s:
   case OpCode::I64__extend_i32_u:
-    return StackTrans(std::array{VType::I32}, std::array{VType::I64});
+    return StackTrans({VType::I32}, {VType::I64});
   case OpCode::I64__trunc_f32_s:
   case OpCode::I64__trunc_f32_u:
-    return StackTrans(std::array{VType::F32}, std::array{VType::I64});
+    return StackTrans({VType::F32}, {VType::I64});
   case OpCode::I64__trunc_f64_s:
   case OpCode::I64__trunc_f64_u:
-    return StackTrans(std::array{VType::F64}, std::array{VType::I64});
+    return StackTrans({VType::F64}, {VType::I64});
   case OpCode::F32__convert_i32_s:
   case OpCode::F32__convert_i32_u:
-    return StackTrans(std::array{VType::I32}, std::array{VType::F32});
+    return StackTrans({VType::I32}, {VType::F32});
   case OpCode::F32__convert_i64_s:
   case OpCode::F32__convert_i64_u:
-    return StackTrans(std::array{VType::I64}, std::array{VType::F32});
+    return StackTrans({VType::I64}, {VType::F32});
   case OpCode::F32__demote_f64:
-    return StackTrans(std::array{VType::F64}, std::array{VType::F32});
+    return StackTrans({VType::F64}, {VType::F32});
   case OpCode::F64__convert_i32_s:
   case OpCode::F64__convert_i32_u:
-    return StackTrans(std::array{VType::I32}, std::array{VType::F64});
+    return StackTrans({VType::I32}, {VType::F64});
   case OpCode::F64__convert_i64_s:
   case OpCode::F64__convert_i64_u:
-    return StackTrans(std::array{VType::I64}, std::array{VType::F64});
+    return StackTrans({VType::I64}, {VType::F64});
   case OpCode::F64__promote_f32:
-    return StackTrans(std::array{VType::F32}, std::array{VType::F64});
+    return StackTrans({VType::F32}, {VType::F64});
   case OpCode::I32__reinterpret_f32:
-    return StackTrans(std::array{VType::F32}, std::array{VType::I32});
+    return StackTrans({VType::F32}, {VType::I32});
   case OpCode::I64__reinterpret_f64:
-    return StackTrans(std::array{VType::F64}, std::array{VType::I64});
+    return StackTrans({VType::F64}, {VType::I64});
   case OpCode::F32__reinterpret_i32:
-    return StackTrans(std::array{VType::I32}, std::array{VType::F32});
+    return StackTrans({VType::I32}, {VType::F32});
   case OpCode::F64__reinterpret_i64:
-    return StackTrans(std::array{VType::I64}, std::array{VType::F64});
+    return StackTrans({VType::I64}, {VType::F64});
   case OpCode::I32__extend8_s:
   case OpCode::I32__extend16_s:
-    return StackTrans(std::array{VType::I32}, std::array{VType::I32});
+    return StackTrans({VType::I32}, {VType::I32});
   case OpCode::I64__extend8_s:
   case OpCode::I64__extend16_s:
   case OpCode::I64__extend32_s:
-    return StackTrans(std::array{VType::I64}, std::array{VType::I64});
+    return StackTrans({VType::I64}, {VType::I64});
   case OpCode::I32__trunc_sat_f32_s:
   case OpCode::I32__trunc_sat_f32_u:
-    return StackTrans(std::array{VType::F32}, std::array{VType::I32});
+    return StackTrans({VType::F32}, {VType::I32});
   case OpCode::I32__trunc_sat_f64_s:
   case OpCode::I32__trunc_sat_f64_u:
-    return StackTrans(std::array{VType::F64}, std::array{VType::I32});
+    return StackTrans({VType::F64}, {VType::I32});
   case OpCode::I64__trunc_sat_f32_s:
   case OpCode::I64__trunc_sat_f32_u:
-    return StackTrans(std::array{VType::F32}, std::array{VType::I64});
+    return StackTrans({VType::F32}, {VType::I64});
   case OpCode::I64__trunc_sat_f64_s:
   case OpCode::I64__trunc_sat_f64_u:
-    return StackTrans(std::array{VType::F64}, std::array{VType::I64});
+    return StackTrans({VType::F64}, {VType::I64});
 
   // Binary Numeric Instructions.
   case OpCode::I32__eq:
@@ -866,8 +953,7 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
   case OpCode::I32__le_u:
   case OpCode::I32__ge_s:
   case OpCode::I32__ge_u:
-    return StackTrans(std::array{VType::I32, VType::I32},
-                      std::array{VType::I32});
+    return StackTrans({VType::I32, VType::I32}, {VType::I32});
   case OpCode::I64__eq:
   case OpCode::I64__ne:
   case OpCode::I64__lt_s:
@@ -878,24 +964,21 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
   case OpCode::I64__le_u:
   case OpCode::I64__ge_s:
   case OpCode::I64__ge_u:
-    return StackTrans(std::array{VType::I64, VType::I64},
-                      std::array{VType::I32});
+    return StackTrans({VType::I64, VType::I64}, {VType::I32});
   case OpCode::F32__eq:
   case OpCode::F32__ne:
   case OpCode::F32__lt:
   case OpCode::F32__gt:
   case OpCode::F32__le:
   case OpCode::F32__ge:
-    return StackTrans(std::array{VType::F32, VType::F32},
-                      std::array{VType::I32});
+    return StackTrans({VType::F32, VType::F32}, {VType::I32});
   case OpCode::F64__eq:
   case OpCode::F64__ne:
   case OpCode::F64__lt:
   case OpCode::F64__gt:
   case OpCode::F64__le:
   case OpCode::F64__ge:
-    return StackTrans(std::array{VType::F64, VType::F64},
-                      std::array{VType::I32});
+    return StackTrans({VType::F64, VType::F64}, {VType::I32});
   case OpCode::I32__add:
   case OpCode::I32__sub:
   case OpCode::I32__mul:
@@ -911,8 +994,7 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
   case OpCode::I32__shr_u:
   case OpCode::I32__rotl:
   case OpCode::I32__rotr:
-    return StackTrans(std::array{VType::I32, VType::I32},
-                      std::array{VType::I32});
+    return StackTrans({VType::I32, VType::I32}, {VType::I32});
   case OpCode::I64__add:
   case OpCode::I64__sub:
   case OpCode::I64__mul:
@@ -928,8 +1010,7 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
   case OpCode::I64__shr_u:
   case OpCode::I64__rotl:
   case OpCode::I64__rotr:
-    return StackTrans(std::array{VType::I64, VType::I64},
-                      std::array{VType::I64});
+    return StackTrans({VType::I64, VType::I64}, {VType::I64});
   case OpCode::F32__add:
   case OpCode::F32__sub:
   case OpCode::F32__mul:
@@ -937,8 +1018,7 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
   case OpCode::F32__min:
   case OpCode::F32__max:
   case OpCode::F32__copysign:
-    return StackTrans(std::array{VType::F32, VType::F32},
-                      std::array{VType::F32});
+    return StackTrans({VType::F32, VType::F32}, {VType::F32});
   case OpCode::F64__add:
   case OpCode::F64__sub:
   case OpCode::F64__mul:
@@ -946,13 +1026,11 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
   case OpCode::F64__min:
   case OpCode::F64__max:
   case OpCode::F64__copysign:
-    return StackTrans(std::array{VType::F64, VType::F64},
-                      std::array{VType::F64});
+    return StackTrans({VType::F64, VType::F64}, {VType::F64});
 
   // SIMD Memory Instruction.
   case OpCode::V128__load:
-    return checkAlignAndTrans(128, std::array{VType::I32},
-                              std::array{VType::V128});
+    return checkAlignAndTrans(128, {VType::I32}, {VType::V128});
   case OpCode::V128__load8x8_s:
   case OpCode::V128__load8x8_u:
   case OpCode::V128__load16x4_s:
@@ -961,47 +1039,40 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
   case OpCode::V128__load32x2_u:
   case OpCode::V128__load64_splat:
   case OpCode::V128__load64_zero:
-    return checkAlignAndTrans(64, std::array{VType::I32},
-                              std::array{VType::V128});
+    return checkAlignAndTrans(64, {VType::I32}, {VType::V128});
   case OpCode::V128__load8_splat:
-    return checkAlignAndTrans(8, std::array{VType::I32},
-                              std::array{VType::V128});
+    return checkAlignAndTrans(8, {VType::I32}, {VType::V128});
   case OpCode::V128__load16_splat:
-    return checkAlignAndTrans(16, std::array{VType::I32},
-                              std::array{VType::V128});
+    return checkAlignAndTrans(16, {VType::I32}, {VType::V128});
   case OpCode::V128__load32_splat:
   case OpCode::V128__load32_zero:
-    return checkAlignAndTrans(32, std::array{VType::I32},
-                              std::array{VType::V128});
+    return checkAlignAndTrans(32, {VType::I32}, {VType::V128});
   case OpCode::V128__store:
-    return checkAlignAndTrans(128, std::array{VType::I32, VType::V128}, {});
+    return checkAlignAndTrans(128, {VType::I32, VType::V128}, {});
   case OpCode::V128__load8_lane:
-    return checkAlignAndTrans(8, std::array{VType::I32, VType::V128},
-                              std::array{VType::V128}, true);
+    return checkAlignAndTrans(8, {VType::I32, VType::V128}, {VType::V128},
+                              true);
   case OpCode::V128__load16_lane:
-    return checkAlignAndTrans(16, std::array{VType::I32, VType::V128},
-                              std::array{VType::V128}, true);
+    return checkAlignAndTrans(16, {VType::I32, VType::V128}, {VType::V128},
+                              true);
   case OpCode::V128__load32_lane:
-    return checkAlignAndTrans(32, std::array{VType::I32, VType::V128},
-                              std::array{VType::V128}, true);
+    return checkAlignAndTrans(32, {VType::I32, VType::V128}, {VType::V128},
+                              true);
   case OpCode::V128__load64_lane:
-    return checkAlignAndTrans(64, std::array{VType::I32, VType::V128},
-                              std::array{VType::V128}, true);
+    return checkAlignAndTrans(64, {VType::I32, VType::V128}, {VType::V128},
+                              true);
   case OpCode::V128__store8_lane:
-    return checkAlignAndTrans(8, std::array{VType::I32, VType::V128}, {}, true);
+    return checkAlignAndTrans(8, {VType::I32, VType::V128}, {}, true);
   case OpCode::V128__store16_lane:
-    return checkAlignAndTrans(16, std::array{VType::I32, VType::V128}, {},
-                              true);
+    return checkAlignAndTrans(16, {VType::I32, VType::V128}, {}, true);
   case OpCode::V128__store32_lane:
-    return checkAlignAndTrans(32, std::array{VType::I32, VType::V128}, {},
-                              true);
+    return checkAlignAndTrans(32, {VType::I32, VType::V128}, {}, true);
   case OpCode::V128__store64_lane:
-    return checkAlignAndTrans(64, std::array{VType::I32, VType::V128}, {},
-                              true);
+    return checkAlignAndTrans(64, {VType::I32, VType::V128}, {}, true);
 
   // SIMD Const Instruction.
   case OpCode::V128__const:
-    return StackTrans({}, std::array{VType::V128});
+    return StackTrans({}, {VType::V128});
 
   // SIMD Shuffle Instruction.
   case OpCode::I8x16__shuffle: {
@@ -1013,61 +1084,48 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
       spdlog::error(ErrCode::InvalidLaneIdx);
       return Unexpect(ErrCode::InvalidLaneIdx);
     }
-    return StackTrans(std::array{VType::V128, VType::V128},
-                      std::array{VType::V128});
+    return StackTrans({VType::V128, VType::V128}, {VType::V128});
   }
 
   // SIMD Lane Instructions.
   case OpCode::I8x16__extract_lane_s:
   case OpCode::I8x16__extract_lane_u:
-    return checkLaneAndTrans(16, std::array{VType::V128},
-                             std::array{VType::I32});
+    return checkLaneAndTrans(16, {VType::V128}, {VType::I32});
   case OpCode::I8x16__replace_lane:
-    return checkLaneAndTrans(16, std::array{VType::V128, VType::I32},
-                             std::array{VType::V128});
+    return checkLaneAndTrans(16, {VType::V128, VType::I32}, {VType::V128});
   case OpCode::I16x8__extract_lane_s:
   case OpCode::I16x8__extract_lane_u:
-    return checkLaneAndTrans(8, std::array{VType::V128},
-                             std::array{VType::I32});
+    return checkLaneAndTrans(8, {VType::V128}, {VType::I32});
   case OpCode::I16x8__replace_lane:
-    return checkLaneAndTrans(8, std::array{VType::V128, VType::I32},
-                             std::array{VType::V128});
+    return checkLaneAndTrans(8, {VType::V128, VType::I32}, {VType::V128});
   case OpCode::I32x4__extract_lane:
-    return checkLaneAndTrans(4, std::array{VType::V128},
-                             std::array{VType::I32});
+    return checkLaneAndTrans(4, {VType::V128}, {VType::I32});
   case OpCode::I32x4__replace_lane:
-    return checkLaneAndTrans(4, std::array{VType::V128, VType::I32},
-                             std::array{VType::V128});
+    return checkLaneAndTrans(4, {VType::V128, VType::I32}, {VType::V128});
   case OpCode::I64x2__extract_lane:
-    return checkLaneAndTrans(2, std::array{VType::V128},
-                             std::array{VType::I64});
+    return checkLaneAndTrans(2, {VType::V128}, {VType::I64});
   case OpCode::I64x2__replace_lane:
-    return checkLaneAndTrans(2, std::array{VType::V128, VType::I64},
-                             std::array{VType::V128});
+    return checkLaneAndTrans(2, {VType::V128, VType::I64}, {VType::V128});
   case OpCode::F32x4__extract_lane:
-    return checkLaneAndTrans(4, std::array{VType::V128},
-                             std::array{VType::F32});
+    return checkLaneAndTrans(4, {VType::V128}, {VType::F32});
   case OpCode::F32x4__replace_lane:
-    return checkLaneAndTrans(4, std::array{VType::V128, VType::F32},
-                             std::array{VType::V128});
+    return checkLaneAndTrans(4, {VType::V128, VType::F32}, {VType::V128});
   case OpCode::F64x2__extract_lane:
-    return checkLaneAndTrans(2, std::array{VType::V128},
-                             std::array{VType::F64});
+    return checkLaneAndTrans(2, {VType::V128}, {VType::F64});
   case OpCode::F64x2__replace_lane:
-    return checkLaneAndTrans(2, std::array{VType::V128, VType::F64},
-                             std::array{VType::V128});
+    return checkLaneAndTrans(2, {VType::V128, VType::F64}, {VType::V128});
 
   // SIMD Numeric Instructions.
   case OpCode::I8x16__splat:
   case OpCode::I16x8__splat:
   case OpCode::I32x4__splat:
-    return StackTrans(std::array{VType::I32}, std::array{VType::V128});
+    return StackTrans({VType::I32}, {VType::V128});
   case OpCode::I64x2__splat:
-    return StackTrans(std::array{VType::I64}, std::array{VType::V128});
+    return StackTrans({VType::I64}, {VType::V128});
   case OpCode::F32x4__splat:
-    return StackTrans(std::array{VType::F32}, std::array{VType::V128});
+    return StackTrans({VType::F32}, {VType::V128});
   case OpCode::F64x2__splat:
-    return StackTrans(std::array{VType::F64}, std::array{VType::V128});
+    return StackTrans({VType::F64}, {VType::V128});
   case OpCode::V128__not:
   case OpCode::I8x16__abs:
   case OpCode::I8x16__neg:
@@ -1118,7 +1176,7 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
   case OpCode::F64x2__floor:
   case OpCode::F64x2__trunc:
   case OpCode::F64x2__nearest:
-    return StackTrans(std::array{VType::V128}, std::array{VType::V128});
+    return StackTrans({VType::V128}, {VType::V128});
   case OpCode::I8x16__swizzle:
   case OpCode::I8x16__eq:
   case OpCode::I8x16__ne:
@@ -1239,11 +1297,9 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
   case OpCode::F64x2__pmin:
   case OpCode::F64x2__pmax:
   case OpCode::I32x4__dot_i16x8_s:
-    return StackTrans(std::array{VType::V128, VType::V128},
-                      std::array{VType::V128});
+    return StackTrans({VType::V128, VType::V128}, {VType::V128});
   case OpCode::V128__bitselect:
-    return StackTrans(std::array{VType::V128, VType::V128, VType::V128},
-                      std::array{VType::V128});
+    return StackTrans({VType::V128, VType::V128, VType::V128}, {VType::V128});
   case OpCode::V128__any_true:
   case OpCode::I8x16__all_true:
   case OpCode::I8x16__bitmask:
@@ -1253,7 +1309,7 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
   case OpCode::I32x4__bitmask:
   case OpCode::I64x2__all_true:
   case OpCode::I64x2__bitmask:
-    return StackTrans(std::array{VType::V128}, std::array{VType::I32});
+    return StackTrans({VType::V128}, {VType::I32});
   case OpCode::I8x16__shl:
   case OpCode::I8x16__shr_s:
   case OpCode::I8x16__shr_u:
@@ -1266,8 +1322,7 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
   case OpCode::I64x2__shl:
   case OpCode::I64x2__shr_s:
   case OpCode::I64x2__shr_u:
-    return StackTrans(std::array{VType::V128, VType::I32},
-                      std::array{VType::V128});
+    return StackTrans({VType::V128, VType::I32}, {VType::V128});
 
   default:
     assumingUnreachable();
@@ -1327,8 +1382,8 @@ Expect<void> FormChecker::popTypes(Span<const VType> Input) {
 }
 
 void FormChecker::pushCtrl(Span<const VType> In, Span<const VType> Out,
-                           OpCode Code) {
-  CtrlStack.emplace_back(In, Out, ValStack.size(), Code);
+                           const AST::Instruction *Jump, OpCode Code) {
+  CtrlStack.emplace_back(In, Out, Jump, ValStack.size(), Code);
   pushTypes(In);
 }
 

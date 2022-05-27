@@ -124,7 +124,7 @@ get_latest_release() {
     local res
     res=$(git ls-remote --refs --tags "https://github.com/$1.git" |
         cut -d '/' -f 3 |
-        sed '/-/!{s/$/_/}' | sort --version-sort | sed 's/_$//' |
+        awk '{ if ($1 ~ /-/) print; else print $0"_" ; }' | sort --version-sort | sed 's/_$//' |
         grep -e '^[0-9]\+.[0-9]\+.[0-9]\+$' |
         tail -1)
     echo "$res"
@@ -134,7 +134,7 @@ remote_version_availabilty() {
     # $1 repo , $2 version
     res=$(git ls-remote --refs --tags "https://github.com/$1.git" |
         cut -d '/' -f 3 |
-        sed '/-/!{s/$/_/}' | sort --version-sort | sed 's/_$//')
+        awk '{ if ($1 ~ /-/) print; else print $0"_" ; }' | sort --version-sort | sed 's/_$//')
 
     if [[ ! "$res" == *"$2"* ]]; then
         echo "${RED}$2 for $1 does not exist${NC}"
@@ -480,16 +480,16 @@ install_image_extensions() {
     [ "$EXT_V_SET_WASMEDGE_IM_DEPS" -eq 0 ] && VERSION_IM_DEPS=$VERSION
 
     [[ "$RELEASE_PKG" =~ "aarch64" ]] &&
-        [ "$(printf %s\\n%s\\n "0.9.1-beta.1" "$VERSION_IM_DEPS")" != "$(printf %s\\n%s "0.9.1-beta.1" "$VERSION_IM_DEPS" | sed '/-/!{s/$/_/}' | sort --version-sort | sed 's/_$//')" ] &&
+        [ "$(printf %s\\n%s\\n "0.9.1-beta.1" "$VERSION_IM_DEPS")" != "$(printf %s\\n%s "0.9.1-beta.1" "$VERSION_IM_DEPS" | awk '{ if ($1 ~ /-/) print; else print $0"_" ; }' | sort --version-sort | sed 's/_$//')" ] &&
         IM_EXT_COMPAT=0
 
     [[ "$OS" == "Darwin" ]] &&
-        [ "$(printf %s\\n%s\\n "0.10.0-alpha.1" "$VERSION_IM_DEPS")" != "$(printf %s\\n%s "0.10.0-alpha.1" "$VERSION_IM_DEPS" | sed '/-/!{s/$/_/}' | sort --version-sort | sed 's/_$//')" ] &&
+        [ "$(printf %s\\n%s\\n "0.10.0-alpha.1" "$VERSION_IM_DEPS")" != "$(printf %s\\n%s "0.10.0-alpha.1" "$VERSION_IM_DEPS" | awk '{ if ($1 ~ /-/) print; else print $0"_" ; }' | sort --version-sort | sed 's/_$//')" ] &&
         IM_EXT_COMPAT=0
 
     if [ $IM_EXT_COMPAT == 1 ]; then
 
-        [ "$(printf %s\\n%s\\n "$VERSION_IM_DEPS" "0.8.2")" == "$(printf %s\\n%s "$VERSION_IM_DEPS" "0.8.2" | sed '/-/!{s/$/_/}' | sort --version-sort | sed 's/_$//')" ] &&
+        [ "$(printf %s\\n%s\\n "$VERSION_IM_DEPS" "0.8.2")" == "$(printf %s\\n%s "$VERSION_IM_DEPS" "0.8.2" | awk '{ if ($1 ~ /-/) print; else print $0"_" ; }' | sort --version-sort | sed 's/_$//')" ] &&
             remote_version_availabilty second-state/WasmEdge-image "$VERSION_IM_DEPS" &&
             get_wasmedge_image_deps
 
@@ -510,11 +510,11 @@ install_tf_extensions() {
         remote_version_availabilty second-state/WasmEdge-tensorflow-tools "$VERSION_TF_TOOLS"
 
     [[ "$RELEASE_PKG" =~ "aarch64" ]] &&
-        [ "$(printf %s\\n%s\\n "0.9.1-beta.1" "$VERSION_TF_DEPS")" != "$(printf %s\\n%s "0.9.1-beta.1" "$VERSION_TF_DEPS" | sed '/-/!{s/$/_/}' | sort --version-sort | sed 's/_$//')" ] &&
+        [ "$(printf %s\\n%s\\n "0.9.1-beta.1" "$VERSION_TF_DEPS")" != "$(printf %s\\n%s "0.9.1-beta.1" "$VERSION_TF_DEPS" | awk '{ if ($1 ~ /-/) print; else print $0"_" ; }' | sort --version-sort | sed 's/_$//')" ] &&
         TF_EXT_COMPAT=0
 
     [[ "$OS" == "Darwin" ]] &&
-        [ "$(printf %s\\n%s\\n "0.10.0-alpha.1" "$VERSION_TF")" != "$(printf %s\\n%s "0.10.0-alpha.1" "$VERSION_TF" | sed '/-/!{s/$/_/}' | sort --version-sort | sed 's/_$//')" ] &&
+        [ "$(printf %s\\n%s\\n "0.10.0-alpha.1" "$VERSION_TF")" != "$(printf %s\\n%s "0.10.0-alpha.1" "$VERSION_TF" | awk '{ if ($1 ~ /-/) print; else print $0"_" ; }' | sort --version-sort | sed 's/_$//')" ] &&
         TF_EXT_COMPAT=0
 
     if [ $TF_EXT_COMPAT == 1 ]; then

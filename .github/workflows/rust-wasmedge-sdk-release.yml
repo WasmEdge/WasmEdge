@@ -21,10 +21,10 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Install Stable Rust
+      - name: Install Nightly Rust
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: stable
+          toolchain: nightly
 
       - name: Build WasmEdge using clang
         run: |

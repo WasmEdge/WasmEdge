@@ -8,6 +8,7 @@ NC=$'\e[0m' # No Color
 PERM_ROOT=1
 TMP_DIR="/tmp/wasmedge.$$"
 _LD_LIBRARY_PATH_="LD_LIBRARY_PATH"
+_UNINSTALL_SCRIPT_TAG="master"
 
 if [[ $EUID -ne 0 ]]; then
     PERM_ROOT=0
@@ -57,6 +58,10 @@ _extractor() {
                 continue
             fi
             if [ ! -d "$IPATH/$filtered" ] && [[ ! "$filtered" =~ "download_dependencies" ]]; then
+                if [[ "$filtered" =~ "Plugin" ]] || [[ "$filtered" =~ "plugin" ]]; then
+                    # Plugins installation is handled in install function
+                    continue
+                fi
                 if [[ "$2" =~ "lib" ]] && [[ ! "$IPATH/$filtered" =~ "/lib/" ]]; then
                     echo "#$IPATH/lib/$filtered" >>"$IPATH/env"
                     local _re_
@@ -292,6 +297,8 @@ usage() {
     -r              --remove-old=[yes|no]       Run Uninstallation script by 
                                                 default. Specify \`no\` if you
                                                 wish not to. 
+    -u              --uninstall-script-tag=[master] Select tag for uninstall
+                                                script [Default is master].
 
     Example:
     ./$0 -p $IPATH -e all -v $VERSION --verbose
@@ -367,6 +374,18 @@ install() {
             else
                 cp -rf "$TMP_DIR/$dir"/lib/* "$IPATH/$var"
             fi
+            for _file_ in "$IPATH/$var/wasmedge/"*; do
+                if [[ "$_file_" =~ "Plugin" ]] || [[ "$_file_" =~ "plugin" ]]; then
+                    local _plugin_name_=${_file_##*/}
+                    if [[ "$IPATH" =~ ^"/usr" ]]; then
+                        echo "#$_file_" >>"$IPATH/env"
+                    else
+                        mv "$_file_" "$IPATH/plugin/$_plugin_name_"
+                        echo "#$IPATH/plugin/$_plugin_name_" >>"$IPATH/env"
+                        rmdir "${_file_/$_plugin_name_/}"
+                    fi
+                fi
+            done
         else
             cp -rf "$TMP_DIR/$dir/$var"/* "$IPATH/$var"
         fi
@@ -473,7 +492,7 @@ install_image_extensions() {
         [ "$(printf %s\\n%s\\n "$VERSION_IM_DEPS" "0.8.2")" == "$(printf %s\\n%s "$VERSION_IM_DEPS" "0.8.2" | sort --version-sort)" ] &&
             remote_version_availabilty second-state/WasmEdge-image "$VERSION_IM_DEPS" &&
             get_wasmedge_image_deps
-        
+
         install_wasmedge_image
     else
         echo "${YELLOW}Image Extensions not supported${NC}"
@@ -530,7 +549,7 @@ main() {
     REMOVE_OLD=1
 
     local OPTIND
-    while getopts "e:hp:v:r:V-:" OPT; do
+    while getopts "e:hp:v:r:u:V-:" OPT; do
         # support long options: https://stackoverflow.com/a/28466267/519360
         if [ "$OPT" = "-" ]; then   # long option: reformulate OPT and OPTARG
             OPT="${OPTARG%%=*}"     # extract long option name
@@ -559,6 +578,9 @@ main() {
             ;;
         r | remove-old)
             REMOVE_OLD="${OPTARG}"
+            ;;
+        u | uninstall-script-tag)
+            _UNINSTALL_SCRIPT_TAG="${OPTARG}"
             ;;
         tf-version)
             VERSION_TF="${OPTARG}"
@@ -601,14 +623,16 @@ main() {
     detect_os_arch
 
     if [ "$REMOVE_OLD" == "1" ] || [[ "$REMOVE_OLD" =~ ^([yY][eE][sS]|[yY])$ ]]; then
+        [ "${_UNINSTALL_SCRIPT_TAG}" != "master" ] && echo "WasmEdge Uninstall Script Tag:${_UNINSTALL_SCRIPT_TAG}"
         if [ -f "$IPATH/env" ]; then
-            bash <(curl -sSf https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/uninstall.sh) -p "$IPATH" -q
+            bash <(curl -sSf https://raw.githubusercontent.com/WasmEdge/WasmEdge/"${_UNINSTALL_SCRIPT_TAG}"/utils/uninstall.sh) -p "$IPATH" -q
         fi
     fi
 
     set_ENV "$IPATH"
     mkdir -p "$IPATH"
     mkdir -p "$TMP_DIR"
+    [[ "$IPATH" =~ ^"/usr" ]] || mkdir -p "$IPATH/plugin"
 
     echo "$ENV" >"$IPATH/env"
     echo "# Please do not edit comments below this for uninstallation purpose" >>"$IPATH/env"

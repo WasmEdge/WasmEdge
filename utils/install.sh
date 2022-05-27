@@ -125,7 +125,7 @@ get_latest_release() {
     res=$(git ls-remote --refs --tags "https://github.com/$1.git" |
         cut -d '/' -f 3 |
         sort --version-sort |
-        grep -e '^[0-9].[0-9].[0-9]$' |
+        grep -e '^[0-9]\+.[0-9]\+.[0-9]\+$' |
         tail -1)
     echo "$res"
 }

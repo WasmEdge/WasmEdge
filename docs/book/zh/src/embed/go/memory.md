@@ -140,7 +140,7 @@ func main() {
 要构建 Go SDK 示例，请运行以下命令：
 
 ```bash
-go get github.com/second-state/WasmEdge-go/wasmedge@v0.10.0-alpha.1
+go get github.com/second-state/WasmEdge-go/wasmedge@v0.10.0
 go build greet_memory.go
 ```
 
@@ -280,7 +280,7 @@ func main() {
 要构建 Go SDK 示例，请运行以下命令：
 
 ```bash
-go get github.com/second-state/WasmEdge-go/wasmedge@v0.10.0-alpha.1
+go get github.com/second-state/WasmEdge-go/wasmedge@v0.10.0
 go build greet_memory.go
 ```
 
@@ -453,7 +453,7 @@ func main() {
 为了构建 Go SDK 示例，请运行以下命令：
 
 ```bash
-go get github.com/second-state/WasmEdge-go/wasmedge@v0.10.0-alpha.1
+go get github.com/second-state/WasmEdge-go/wasmedge@v0.10.0
 go build run.go
 ```
 
@@ -616,7 +616,7 @@ func main() {
 要构建 Go SDK 示例，请运行以下命令：
 
 ```bash
-go get github.com/second-state/WasmEdge-go/wasmedge@v0.10.0-alpha.1
+go get github.com/second-state/WasmEdge-go/wasmedge@v0.10.0
 go build run.go
 ```
 

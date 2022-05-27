@@ -189,5 +189,6 @@ jobs:
         ls ~/.wasmedge/plugin/ | grep .dylib && echo "Pass: Plugins found" || (echo "Fail: Plugins not found" && exit 1)
         bash utils/install.sh -v 0.10.0-alpha.1 -p ~/new_wasmedge
         ls ~/new_wasmedge/plugin/ | grep .dylib && echo "Pass: Plugins found" || (echo "Fail: Plugins not found" && exit 1)
-        bash utils/install.sh -v 0.10.0-alpha.1 -p /usr
-        ls /usr/lib/wasmedge/ | grep libwasmedgePluginWasmEdgeProcess.dylib && echo "Pass: Plugins found" || (echo "Fail: Plugins not found" && exit 1)
+        # MacOS container does not have access for /usr directory
+        # bash utils/install.sh -v 0.10.0-alpha.1 -p /usr
+        # ls /usr/lib/wasmedge/ | grep libwasmedgePluginWasmEdgeProcess.dylib && echo "Pass: Plugins found" || (echo "Fail: Plugins not found" && exit 1)

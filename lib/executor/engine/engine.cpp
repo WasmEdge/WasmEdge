@@ -218,45 +218,35 @@ Expect<void> Executor::execute(Runtime::StackManager &StackMgr,
       return runLoadOp<double>(
           StackMgr, *getMemInstByIdx(StackMgr, Instr.getTargetIndex()), Instr);
     case OpCode::I32__load8_s:
-      return runLoadOp<int32_t>(
-          StackMgr, *getMemInstByIdx(StackMgr, Instr.getTargetIndex()), Instr,
-          8);
+      return runLoadOp<int32_t, 8>(
+          StackMgr, *getMemInstByIdx(StackMgr, Instr.getTargetIndex()), Instr);
     case OpCode::I32__load8_u:
-      return runLoadOp<uint32_t>(
-          StackMgr, *getMemInstByIdx(StackMgr, Instr.getTargetIndex()), Instr,
-          8);
+      return runLoadOp<uint32_t, 8>(
+          StackMgr, *getMemInstByIdx(StackMgr, Instr.getTargetIndex()), Instr);
     case OpCode::I32__load16_s:
-      return runLoadOp<int32_t>(
-          StackMgr, *getMemInstByIdx(StackMgr, Instr.getTargetIndex()), Instr,
-          16);
+      return runLoadOp<int32_t, 16>(
+          StackMgr, *getMemInstByIdx(StackMgr, Instr.getTargetIndex()), Instr);
     case OpCode::I32__load16_u:
-      return runLoadOp<uint32_t>(
-          StackMgr, *getMemInstByIdx(StackMgr, Instr.getTargetIndex()), Instr,
-          16);
+      return runLoadOp<uint32_t, 16>(
+          StackMgr, *getMemInstByIdx(StackMgr, Instr.getTargetIndex()), Instr);
     case OpCode::I64__load8_s:
-      return runLoadOp<int64_t>(
-          StackMgr, *getMemInstByIdx(StackMgr, Instr.getTargetIndex()), Instr,
-          8);
+      return runLoadOp<int64_t, 8>(
+          StackMgr, *getMemInstByIdx(StackMgr, Instr.getTargetIndex()), Instr);
     case OpCode::I64__load8_u:
-      return runLoadOp<uint64_t>(
-          StackMgr, *getMemInstByIdx(StackMgr, Instr.getTargetIndex()), Instr,
-          8);
+      return runLoadOp<uint64_t, 8>(
+          StackMgr, *getMemInstByIdx(StackMgr, Instr.getTargetIndex()), Instr);
     case OpCode::I64__load16_s:
-      return runLoadOp<int64_t>(
-          StackMgr, *getMemInstByIdx(StackMgr, Instr.getTargetIndex()), Instr,
-          16);
+      return runLoadOp<int64_t, 16>(
+          StackMgr, *getMemInstByIdx(StackMgr, Instr.getTargetIndex()), Instr);
     case OpCode::I64__load16_u:
-      return runLoadOp<uint64_t>(
-          StackMgr, *getMemInstByIdx(StackMgr, Instr.getTargetIndex()), Instr,
-          16);
+      return runLoadOp<uint64_t, 16>(
+          StackMgr, *getMemInstByIdx(StackMgr, Instr.getTargetIndex()), Instr);
     case OpCode::I64__load32_s:
-      return runLoadOp<int64_t>(
-          StackMgr, *getMemInstByIdx(StackMgr, Instr.getTargetIndex()), Instr,
-          32);
+      return runLoadOp<int64_t, 32>(
+          StackMgr, *getMemInstByIdx(StackMgr, Instr.getTargetIndex()), Instr);
     case OpCode::I64__load32_u:
-      return runLoadOp<uint64_t>(
-          StackMgr, *getMemInstByIdx(StackMgr, Instr.getTargetIndex()), Instr,
-          32);
+      return runLoadOp<uint64_t, 32>(
+          StackMgr, *getMemInstByIdx(StackMgr, Instr.getTargetIndex()), Instr);
     case OpCode::I32__store:
       return runStoreOp<uint32_t>(
           StackMgr, *getMemInstByIdx(StackMgr, Instr.getTargetIndex()), Instr);
@@ -780,13 +770,11 @@ Expect<void> Executor::execute(Runtime::StackManager &StackMgr,
       return runLoadSplatOp<uint64_t>(
           StackMgr, *getMemInstByIdx(StackMgr, Instr.getTargetIndex()), Instr);
     case OpCode::V128__load32_zero:
-      return runLoadOp<uint128_t>(
-          StackMgr, *getMemInstByIdx(StackMgr, Instr.getTargetIndex()), Instr,
-          32);
+      return runLoadOp<uint128_t, 32>(
+          StackMgr, *getMemInstByIdx(StackMgr, Instr.getTargetIndex()), Instr);
     case OpCode::V128__load64_zero:
-      return runLoadOp<uint128_t>(
-          StackMgr, *getMemInstByIdx(StackMgr, Instr.getTargetIndex()), Instr,
-          64);
+      return runLoadOp<uint128_t, 64>(
+          StackMgr, *getMemInstByIdx(StackMgr, Instr.getTargetIndex()), Instr);
     case OpCode::V128__store:
       return runStoreOp<uint128_t>(
           StackMgr, *getMemInstByIdx(StackMgr, Instr.getTargetIndex()), Instr);

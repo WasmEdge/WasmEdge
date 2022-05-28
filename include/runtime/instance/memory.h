@@ -270,7 +270,7 @@ public:
   /// \param Length the load length from data. Need to <= sizeof(T).
   ///
   /// \returns void when success, ErrCode when failed.
-  template <typename T, uint32_t const Length>
+  template <typename T, uint32_t const Length = sizeof(T)>
   typename std::enable_if_t<IsWasmNumV<T>, Expect<void>>
   loadValue(T &Value, uint32_t Offset) const noexcept {
     // Check the data boundary.
@@ -320,7 +320,7 @@ public:
   /// \param Length the store length to data. Need to <= sizeof(T).
   ///
   /// \returns void when success, ErrCode when failed.
-  template <typename T, uint32_t const Length>
+  template <typename T, uint32_t const Length = sizeof(T)>
   typename std::enable_if_t<IsWasmNativeNumV<T>, Expect<void>>
   storeValue(const T &Value, uint32_t Offset) noexcept {
     // Check the data boundary.

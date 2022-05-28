@@ -313,11 +313,10 @@ private:
   TypeT<T> runLoadOp(Runtime::StackManager &StackMgr,
                      Runtime::Instance::MemoryInstance &MemInst,
                      const AST::Instruction &Instr);
-  template <typename T>
+  template <typename T, uint32_t const BitWidth = sizeof(T) * 8>
   TypeN<T> runStoreOp(Runtime::StackManager &StackMgr,
                       Runtime::Instance::MemoryInstance &MemInst,
-                      const AST::Instruction &Instr,
-                      const uint32_t BitWidth = sizeof(T) * 8);
+                      const AST::Instruction &Instr);
   Expect<void> runMemorySizeOp(Runtime::StackManager &StackMgr,
                                Runtime::Instance::MemoryInstance &MemInst);
   Expect<void> runMemoryGrowOp(Runtime::StackManager &StackMgr,

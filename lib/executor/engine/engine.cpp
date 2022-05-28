@@ -260,25 +260,20 @@ Expect<void> Executor::execute(Runtime::StackManager &StackMgr,
       return runStoreOp<double>(
           StackMgr, *getMemInstByIdx(StackMgr, Instr.getTargetIndex()), Instr);
     case OpCode::I32__store8:
-      return runStoreOp<uint32_t>(
-          StackMgr, *getMemInstByIdx(StackMgr, Instr.getTargetIndex()), Instr,
-          8);
+      return runStoreOp<uint32_t, 8>(
+          StackMgr, *getMemInstByIdx(StackMgr, Instr.getTargetIndex()), Instr);
     case OpCode::I32__store16:
-      return runStoreOp<uint32_t>(
-          StackMgr, *getMemInstByIdx(StackMgr, Instr.getTargetIndex()), Instr,
-          16);
+      return runStoreOp<uint32_t, 16>(
+          StackMgr, *getMemInstByIdx(StackMgr, Instr.getTargetIndex()), Instr);
     case OpCode::I64__store8:
-      return runStoreOp<uint64_t>(
-          StackMgr, *getMemInstByIdx(StackMgr, Instr.getTargetIndex()), Instr,
-          8);
+      return runStoreOp<uint64_t, 8>(
+          StackMgr, *getMemInstByIdx(StackMgr, Instr.getTargetIndex()), Instr);
     case OpCode::I64__store16:
-      return runStoreOp<uint64_t>(
-          StackMgr, *getMemInstByIdx(StackMgr, Instr.getTargetIndex()), Instr,
-          16);
+      return runStoreOp<uint64_t, 16>(
+          StackMgr, *getMemInstByIdx(StackMgr, Instr.getTargetIndex()), Instr);
     case OpCode::I64__store32:
-      return runStoreOp<uint64_t>(
-          StackMgr, *getMemInstByIdx(StackMgr, Instr.getTargetIndex()), Instr,
-          32);
+      return runStoreOp<uint64_t, 32>(
+          StackMgr, *getMemInstByIdx(StackMgr, Instr.getTargetIndex()), Instr);
     case OpCode::Memory__grow:
       return runMemoryGrowOp(
           StackMgr, *getMemInstByIdx(StackMgr, Instr.getTargetIndex()));

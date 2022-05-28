@@ -320,16 +320,11 @@ public:
   /// \param Length the store length to data. Need to <= sizeof(T).
   ///
   /// \returns void when success, ErrCode when failed.
-  template <typename T>
+  template <typename T, uint32_t const Length>
   typename std::enable_if_t<IsWasmNativeNumV<T>, Expect<void>>
-  storeValue(const T &Value, uint32_t Offset, uint32_t Length) noexcept {
+  storeValue(const T &Value, uint32_t Offset) noexcept {
     // Check the data boundary.
-    if (unlikely(Length > sizeof(T))) {
-      spdlog::error(ErrCode::MemoryOutOfBounds);
-      spdlog::error(
-          ErrInfo::InfoBoundary(Offset, Length, Offset + sizeof(T) - 1));
-      return Unexpect(ErrCode::MemoryOutOfBounds);
-    }
+    static_assert(Length <= sizeof(T));
     // Check the memory boundary.
     if (unlikely(!checkAccessBound(Offset, Length))) {
       spdlog::error(ErrCode::MemoryOutOfBounds);
@@ -338,7 +333,7 @@ public:
     }
     // Copy the stored data to the value.
     if (likely(Length > 0)) {
-      std::memcpy(&DataPtr[Offset], &Value, Length);
+      effective_memcpy<Length>(&DataPtr[Offset], &Value);
     }
     return {};
   }

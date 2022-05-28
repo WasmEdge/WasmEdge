@@ -37,11 +37,10 @@ TypeT<T> Executor::runLoadOp(Runtime::StackManager &StackMgr,
   return {};
 }
 
-template <typename T>
+template <typename T, uint32_t const BitWidth>
 TypeN<T> Executor::runStoreOp(Runtime::StackManager &StackMgr,
                               Runtime::Instance::MemoryInstance &MemInst,
-                              const AST::Instruction &Instr,
-                              const uint32_t BitWidth) {
+                              const AST::Instruction &Instr) {
   // Pop the value t.const c from the Stack
   T C = StackMgr.pop().get<T>();
 
@@ -59,7 +58,7 @@ TypeN<T> Executor::runStoreOp(Runtime::StackManager &StackMgr,
   uint32_t EA = I + Instr.getMemoryOffset();
 
   // Store value to bytes.
-  if (auto Res = MemInst.storeValue(C, EA, BitWidth / 8); !Res) {
+  if (auto Res = MemInst.storeValue<T, BitWidth / 8>(C, EA); !Res) {
     spdlog::error(
         ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
     return Unexpect(Res);
@@ -213,7 +212,7 @@ Executor::runStoreLaneOp(Runtime::StackManager &StackMgr,
   uint32_t EA = I + Instr.getMemoryOffset();
 
   // Store value to bytes.
-  if (auto Res = MemInst.storeValue(C, EA, sizeof(T)); !Res) {
+  if (auto Res = MemInst.storeValue<decltype(C), sizeof(T)>(C, EA); !Res) {
     spdlog::error(
         ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
     return Unexpect(Res);

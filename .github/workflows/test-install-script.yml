@@ -148,63 +148,64 @@ jobs:
         VERSION_IM_DEPS=0.9.1
         # arch64
         [ "$(printf %s\\n%s\\n "0.9.1-beta.1" "$VERSION_IM_DEPS")" != "$(printf %s\\n%s "0.9.1-beta.1" "$VERSION_IM_DEPS" | awk '{ if ($1 ~ /-/) print; else print $0"_" ; }' | sort --version-sort | sed 's/_$//')" ] &&
-          echo "Fail: Sort failed" && exit 1 || echo "Pass: Extensions Compatible"
+          (echo "Fail: Sort failed" && exit 1) || echo "Pass: Extensions Compatible"
         
         VERSION_IM_DEPS=0.9.1-rc.1
         # arch64
         [ "$(printf %s\\n%s\\n "0.9.1-beta.1" "$VERSION_IM_DEPS")" != "$(printf %s\\n%s "0.9.1-beta.1" "$VERSION_IM_DEPS" | awk '{ if ($1 ~ /-/) print; else print $0"_" ; }' | sort --version-sort | sed 's/_$//')" ] &&
-          echo "Fail: Sort failed" && exit 1 || echo "Pass: Extensions Compatible"
+          (echo "Fail: Sort failed" && exit 1) || echo "Pass: Extensions Compatible"
         
         VERSION_IM_DEPS=0.9.1-beta.2
         # arch64
         [ "$(printf %s\\n%s\\n "0.9.1-beta.1" "$VERSION_IM_DEPS")" != "$(printf %s\\n%s "0.9.1-beta.1" "$VERSION_IM_DEPS" | awk '{ if ($1 ~ /-/) print; else print $0"_" ; }' | sort --version-sort | sed 's/_$//')" ] &&
-          echo "Fail: Sort failed" && exit 1 || echo "Pass: Extensions Compatible"
+          (echo "Fail: Sort failed" && exit 1) || echo "Pass: Extensions Compatible"
         
         VERSION_IM_DEPS=0.9.1-alpha.1
         # arch64
         [ "$(printf %s\\n%s\\n "0.9.1-beta.1" "$VERSION_IM_DEPS")" != "$(printf %s\\n%s "0.9.1-beta.1" "$VERSION_IM_DEPS" | awk '{ if ($1 ~ /-/) print; else print $0"_" ; }' | sort --version-sort | sed 's/_$//')" ] &&
-          echo "Pass: Extensions incompatible" || echo "Fail: Extensions Compatible" && exit 1
+          echo "Pass: Extensions incompatible" || (echo "Fail: Extensions Compatible" && exit 1)
 
         VERSION_IM_DEPS=0.8.1
         # Normal Test
-        [ "$(printf %s\\n%s\\n "$VERSION_IM_DEPS" "0.8.2")" == "$(printf %s\\n%s "$VERSION_IM_DEPS" "0.8.2" | awk '{ if ($1 ~ /-/) print; else print $0"_" ; }' | sort --version-sort | sed 's/_$//')" ] &&
-          echo "Pass: Extensions incompatible" || echo "Fail: Extensions Compatible"  && exit 1
+        [ "$(printf %s\\n%s\\n "$VERSION_IM_DEPS" "0.8.2")" = "$(printf %s\\n%s "$VERSION_IM_DEPS" "0.8.2" | awk '{ if ($1 ~ /-/) print; else print $0"_" ; }' | sort --version-sort | sed 's/_$//')" ] &&
+          echo "Pass: Image deps needed" || (echo "Fail: Image deps needed" && exit 1)
         
         VERSION_IM_DEPS=0.8.3
         # Normal Test
-        [ "$(printf %s\\n%s\\n "$VERSION_IM_DEPS" "0.8.2")" == "$(printf %s\\n%s "$VERSION_IM_DEPS" "0.8.2" | awk '{ if ($1 ~ /-/) print; else print $0"_" ; }' | sort --version-sort | sed 's/_$//')" ] &&
-          echo "Fail: Extensions incompatible" && exit 1 || echo "Pass: Extensions Compatible"
+        [ "$(printf %s\\n%s\\n "$VERSION_IM_DEPS" "0.8.2")" = "$(printf %s\\n%s "$VERSION_IM_DEPS" "0.8.2" | awk '{ if ($1 ~ /-/) print; else print $0"_" ; }' | sort --version-sort | sed 's/_$//')" ] &&
+          (echo "Fail: Image deps not needed" && exit 1) || echo "Pass: Image deps not needed"
 
         VERSION_IM_DEPS=0.8.2
         # Normal Test
-        [ "$(printf %s\\n%s\\n "$VERSION_IM_DEPS" "0.8.2")" == "$(printf %s\\n%s "$VERSION_IM_DEPS" "0.8.2" | awk '{ if ($1 ~ /-/) print; else print $0"_" ; }' | sort --version-sort | sed 's/_$//')" ] &&
-          echo "Fail: Extensions incompatible" && exit 1 || echo "Pass: Extensions Compatible"
+        [ "$(printf %s\\n%s\\n "$VERSION_IM_DEPS" "0.8.2")" = "$(printf %s\\n%s "$VERSION_IM_DEPS" "0.8.2" | awk '{ if ($1 ~ /-/) print; else print $0"_" ; }' | sort --version-sort | sed 's/_$//')" ] &&
+          echo "Pass: Image Needed" || (echo "Fail: Image deps needed" && exit 1)
     - name: Tensorflow Extensions - Version Based Conditions check
       run: |
         VERSION_TF_DEPS=0.9.1
         # arch64
         [ "$(printf %s\\n%s\\n "0.9.1-beta.1" "$VERSION_TF_DEPS")" != "$(printf %s\\n%s "0.9.1-beta.1" "$VERSION_TF_DEPS" | awk '{ if ($1 ~ /-/) print; else print $0"_" ; }' | sort --version-sort | sed 's/_$//')" ] &&
-          echo "Fail: Sort failed" && exit 1 || echo "Pass: Extensions Compatible"
+          (echo "Fail: Sort failed" && exit 1) || echo "Pass: Extensions Compatible"
         
         VERSION_TF_DEPS=0.9.1-rc.1
         # arch64
         [ "$(printf %s\\n%s\\n "0.9.1-beta.1" "$VERSION_TF_DEPS")" != "$(printf %s\\n%s "0.9.1-beta.1" "$VERSION_TF_DEPS" | awk '{ if ($1 ~ /-/) print; else print $0"_" ; }' | sort --version-sort | sed 's/_$//')" ] &&
-          echo "Fail: Sort failed" && exit 1 || echo "Pass: Extensions Compatible"
+          (echo "Fail: Sort failed" && exit 1) || echo "Pass: Extensions Compatible"
         
         VERSION_TF_DEPS=0.9.1-beta.2
         # arch64
         [ "$(printf %s\\n%s\\n "0.9.1-beta.1" "$VERSION_TF_DEPS")" != "$(printf %s\\n%s "0.9.1-beta.1" "$VERSION_TF_DEPS" | awk '{ if ($1 ~ /-/) print; else print $0"_" ; }' | sort --version-sort | sed 's/_$//')" ] &&
-          echo "Fail: Sort failed" && exit 1 || echo "Pass: Extensions Compatible"
+          (echo "Fail: Sort failed" && exit 1) || echo "Pass: Extensions Compatible"
         
         VERSION_TF_DEPS=0.9.1-alpha.1
         # arch64
         [ "$(printf %s\\n%s\\n "0.9.1-beta.1" "$VERSION_TF_DEPS")" != "$(printf %s\\n%s "0.9.1-beta.1" "$VERSION_TF_DEPS" | awk '{ if ($1 ~ /-/) print; else print $0"_" ; }' | sort --version-sort | sed 's/_$//')" ] &&
-          echo "Pass: Extensions incompatible" || echo "Fail: Sort failed" && exit 1
+          echo "Pass: Extensions incompatible" || (echo "Fail: Sort failed" && exit 1)
     - name: Latest Release Check
       run: |
-        res=$(git ls-remote --refs --tags "https://github.com/WasmEdge/WasmEdge.git" | cut -d '/' -f 3 | awk '{ if ($1 ~ /-/) print; else print $0"_" ; }' | sort --version-sort | sed 's/_$//' | grep -e '^[0-9]\+.[0-9]\+.[0-9]\+$' | tail -1)
-        [ "$res" == "${GITHUB_REF#refs/*/}" ] && echo "Pass: Fetched version equals release" ||
-        echo "Fail: Fetched version does not equal GitHub Ref" && exit 1
+        _res_git_=$(git ls-remote --refs --tags "https://github.com/WasmEdge/WasmEdge.git" | cut -d '/' -f 3 | awk '{ if ($1 ~ /-/) print; else print $0"_" ; }' | sort --version-sort | sed 's/_$//' | grep -e '^[0-9]\+.[0-9]\+.[0-9]\+$' | tail -1)
+        _res_curl_=$(curl --silent "https://api.github.com/repos/WasmEdge/WasmEdge/releases/latest" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/' )
+        [ "$_res_git_" = "$_res_curl_" ] && echo "Pass: Fetched version equals release" ||
+        (echo "Fail: Fetched version does not equal GitHub Ref\nFetched:$_res_git_\nCI:$_res_curl_" && exit 1)
         
 
   macos:
@@ -260,45 +261,46 @@ jobs:
         VERSION_IM_DEPS=0.10.0
         # Darwin test
         [ "$(printf %s\\n%s\\n "0.10.0-alpha.1" "$VERSION_IM_DEPS")" != "$(printf %s\\n%s "0.10.0-alpha.1" "$VERSION_IM_DEPS" | awk '{ if ($1 ~ /-/) print; else print $0"_" ; }' | sort --version-sort | sed 's/_$//')" ] &&
-          echo "Fail: Sort failed" && exit 1 || echo "Pass: Extensions Compatible"
+          (echo "Fail: Sort failed" && exit 1) || echo "Pass: Extensions Compatible"
         
         VERSION_IM_DEPS=0.10.0-alpha.2
         # Darwin test
         [ "$(printf %s\\n%s\\n "0.10.0-alpha.1" "$VERSION_IM_DEPS")" != "$(printf %s\\n%s "0.10.0-alpha.1" "$VERSION_IM_DEPS" | awk '{ if ($1 ~ /-/) print; else print $0"_" ; }' | sort --version-sort | sed 's/_$//')" ] &&
-          echo "Fail: Sort failed" && exit 1 || echo "Pass: Extensions Compatible"
+          (echo "Fail: Sort failed" && exit 1) || echo "Pass: Extensions Compatible"
         
         VERSION_IM_DEPS=0.9.1
         # Darwin test
         [ "$(printf %s\\n%s\\n "0.10.0-alpha.1" "$VERSION_IM_DEPS")" != "$(printf %s\\n%s "0.10.0-alpha.1" "$VERSION_IM_DEPS" | awk '{ if ($1 ~ /-/) print; else print $0"_" ; }' | sort --version-sort | sed 's/_$//')" ] &&
-          echo "Pass: Extensions incompatible" || echo "Fail: Extensions Compatible"  && exit 1
+          echo "Pass: Extensions incompatible" || (echo "Fail: Extensions Compatible"  && exit 1)
     - name: Tensorflow Extensions - Version Based Conditions check
       run: |
         VERSION_TF=0.10.0-alpha.1
         # Darwin
         [ "$(printf %s\\n%s\\n "0.10.0-alpha.1" "$VERSION_TF")" != "$(printf %s\\n%s "0.10.0-alpha.1" "$VERSION_TF" | awk '{ if ($1 ~ /-/) print; else print $0"_" ; }' | sort --version-sort | sed 's/_$//')" ] &&
-        echo "Fail: Extensions incompatible" && exit 1 || echo "Pass: Extensions compatible"
+        (echo "Fail: Extensions incompatible" && exit 1) || echo "Pass: Extensions compatible"
 
         VERSION_TF=0.10.0-alpha.2
         # Darwin
         [ "$(printf %s\\n%s\\n "0.10.0-alpha.1" "$VERSION_TF")" != "$(printf %s\\n%s "0.10.0-alpha.1" "$VERSION_TF" | awk '{ if ($1 ~ /-/) print; else print $0"_" ; }' | sort --version-sort | sed 's/_$//')" ] &&
-        echo "Fail: Extensions incompatible" && exit 1 || echo "Pass: Extensions compatible"
+        (echo "Fail: Extensions incompatible" && exit 1) || echo "Pass: Extensions compatible"
 
         VERSION_TF=0.10.0-rc.1
         # Darwin
         [ "$(printf %s\\n%s\\n "0.10.0-alpha.1" "$VERSION_TF")" != "$(printf %s\\n%s "0.10.0-alpha.1" "$VERSION_TF" | awk '{ if ($1 ~ /-/) print; else print $0"_" ; }' | sort --version-sort | sed 's/_$//')" ] &&
-        echo "Fail: Extensions incompatible" && exit 1 || echo "Pass: Extensions compatible"
+        (echo "Fail: Extensions incompatible" && exit 1) || echo "Pass: Extensions compatible"
 
         VERSION_TF=0.10.0
         # Darwin
         [ "$(printf %s\\n%s\\n "0.10.0-alpha.1" "$VERSION_TF")" != "$(printf %s\\n%s "0.10.0-alpha.1" "$VERSION_TF" | awk '{ if ($1 ~ /-/) print; else print $0"_" ; }' | sort --version-sort | sed 's/_$//')" ] &&
-        echo "Fail: Extensions incompatible" && exit 1 || echo "Pass: Extensions compatible"
+        (echo "Fail: Extensions incompatible" && exit 1) || echo "Pass: Extensions compatible"
 
         VERSION_TF=0.9.1
         # Darwin
         [ "$(printf %s\\n%s\\n "0.10.0-alpha.1" "$VERSION_TF")" != "$(printf %s\\n%s "0.10.0-alpha.1" "$VERSION_TF" | awk '{ if ($1 ~ /-/) print; else print $0"_" ; }' | sort --version-sort | sed 's/_$//')" ] &&
-        echo "Pass: Extensions incompatible" || echo "Fail: Extensions Compatible" && exit 1
+        echo "Pass: Extensions incompatible" || (echo "Fail: Extensions Compatible" && exit 1)
     - name: Latest Release Check
       run: |
-        res=$(git ls-remote --refs --tags "https://github.com/WasmEdge/WasmEdge.git" | cut -d '/' -f 3 | awk '{ if ($1 ~ /-/) print; else print $0"_" ; }' | sort --version-sort | sed 's/_$//' | grep -e '^[0-9]\+.[0-9]\+.[0-9]\+$' | tail -1)
-        [ "$res" == "${GITHUB_REF#refs/*/}" ] && echo "Pass: Fetched version equals release" ||
-        echo "Fail: Fetched version does not equal GitHub Ref" && exit 1
+        _res_git_=$(git ls-remote --refs --tags "https://github.com/WasmEdge/WasmEdge.git" | cut -d '/' -f 3 | awk '{ if ($1 ~ /-/) print; else print $0"_" ; }' | sort --version-sort | sed 's/_$//' | grep -e '^[0-9]\+.[0-9]\+.[0-9]\+$' | tail -1)
+        _res_curl_=$(curl --silent "https://api.github.com/repos/WasmEdge/WasmEdge/releases/latest" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/' )
+        [ "$_res_git_" = "$_res_curl_" ] && echo "Pass: Fetched version equals release" ||
+        (echo "Fail: Fetched version does not equal GitHub Ref\nFetched:$_res_git_\nCI:$_res_curl_" && exit 1)

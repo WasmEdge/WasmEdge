@@ -12,15 +12,17 @@
 #include "host/wasi/vinode.h"
 #include "wasi/api.hpp"
 
-#include <csignal>
+#include <algorithm>
+#include <array>
 #include <cstdint>
-#include <cstring>
+#include <memory>
 #include <mutex>
 #include <random>
 #include <shared_mutex>
 #include <string>
-#include <thread>
+#include <string_view>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 
 namespace WasmEdge {
@@ -42,7 +44,7 @@ public:
 
   void fini() noexcept;
 
-  WasiExpect<void> getAddrInfo(const char *Node, const char *Service,
+  WasiExpect<void> getAddrInfo(std::string_view Node, std::string_view Service,
                                const __wasi_addrinfo_t &Hint,
                                uint32_t MaxResLength,
                                Span<__wasi_addrinfo_t *> WasiAddrinfoArray,
@@ -226,7 +228,7 @@ public:
   ///
   /// @return Nothing or WASI error
   WasiExpect<void> fdClose(__wasi_fd_t Fd) noexcept {
-    std::unique_lock<std::shared_mutex> lock(FdMutex);
+    std::unique_lock Lock(FdMutex);
     if (auto It = FdMap.find(Fd); It == FdMap.end()) {
       return WasiUnexpect(__WASI_ERRNO_BADF);
     } else if (It->second->isPreopened()) {
@@ -499,7 +501,7 @@ public:
   /// @param[in] To The file descriptor to overwrite.
   /// @return Nothing or WASI error
   WasiExpect<void> fdRenumber(__wasi_fd_t Fd, __wasi_fd_t To) noexcept {
-    std::unique_lock<std::shared_mutex> lock(FdMutex);
+    std::unique_lock Lock(FdMutex);
     if (auto It = FdMap.find(Fd); It == FdMap.end()) {
       return WasiUnexpect(__WASI_ERRNO_BADF);
     } else if (auto It2 = FdMap.find(To); It2 == FdMap.end()) {
@@ -870,7 +872,7 @@ public:
     }
   }
 
-  WasiExpect<void> sockListen(__wasi_fd_t Fd, uint32_t Backlog) noexcept {
+  WasiExpect<void> sockListen(__wasi_fd_t Fd, int32_t Backlog) noexcept {
     auto Node = getNodeOrNull(Fd);
     if (unlikely(!Node)) {
       return WasiUnexpect(__WASI_ERRNO_BADF);
@@ -923,6 +925,31 @@ public:
     }
   }
 
+  /// Receive a message from a socket.
+  ///
+  /// Note: This is similar to `recv` in POSIX, though it also supports reading
+  /// the data into multiple buffers in the manner of `readv`.
+  ///
+  /// @param[in] RiData List of scatter/gather vectors to which to store data.
+  /// @param[in] RiFlags Message flags.
+  /// @param[in] Address Address of the target.
+  /// @param[in] AddressLength The buffer size of Address.
+  /// @param[out] NRead Return the number of bytes stored in RiData.
+  /// @param[out] RoFlags Return message flags.
+  /// @return Nothing or WASI error.
+  WasiExpect<void> sockRecvFrom(__wasi_fd_t Fd, Span<Span<uint8_t>> RiData,
+                                __wasi_riflags_t RiFlags, uint8_t *Address,
+                                uint8_t AddressLength, __wasi_size_t &NRead,
+                                __wasi_roflags_t &RoFlags) const noexcept {
+    auto Node = getNodeOrNull(Fd);
+    if (unlikely(!Node)) {
+      return WasiUnexpect(__WASI_ERRNO_BADF);
+    } else {
+      return Node->sockRecvFrom(RiData, RiFlags, Address, AddressLength, NRead,
+                                RoFlags);
+    }
+  }
+
   /// Send a message on a socket.
   ///
   /// Note: This is similar to `send` in POSIX, though it also supports writing
@@ -944,6 +971,31 @@ public:
     }
   }
 
+  /// Send a message on a socket.
+  ///
+  /// Note: This is similar to `sendto` in POSIX, though it also supports
+  /// writing the data from multiple buffers in the manner of `writev`.
+  ///
+  /// @param[in] SiData List of scatter/gather vectors to which to retrieve
+  /// data.
+  /// @param[in] SiFlags Message flags.
+  /// @param[in] Address Address of the target.
+  /// @param[in] AddressLength The buffer size of Address.
+  /// @param[out] NWritten The number of bytes transmitted.
+  /// @return Nothing or WASI error
+  WasiExpect<void> sockSendTo(__wasi_fd_t Fd, Span<Span<const uint8_t>> SiData,
+                              __wasi_siflags_t SiFlags, uint8_t *Address,
+                              uint8_t AddressLength, int32_t Port,
+                              __wasi_size_t &NWritten) const noexcept {
+    auto Node = getNodeOrNull(Fd);
+    if (unlikely(!Node)) {
+      return WasiUnexpect(__WASI_ERRNO_BADF);
+    } else {
+      return Node->sockSendTo(SiData, SiFlags, Address, AddressLength, Port,
+                              NWritten);
+    }
+  }
+
   /// Shut down socket send and receive channels.
   ///
   /// Note: This is similar to `shutdown` in POSIX.
@@ -960,25 +1012,27 @@ public:
     }
   }
 
-  WasiExpect<void> sockGetOpt(__wasi_fd_t Fd, int32_t Level, int32_t Name,
-                              void *FlagPtr,
+  WasiExpect<void> sockGetOpt(__wasi_fd_t Fd,
+                              __wasi_sock_opt_level_t SockOptLevel,
+                              __wasi_sock_opt_so_t SockOptName, void *FlagPtr,
                               uint32_t *FlagSizePtr) const noexcept {
     auto Node = getNodeOrNull(Fd);
     if (unlikely(!Node)) {
       return WasiUnexpect(__WASI_ERRNO_BADF);
     } else {
-      return Node->sockGetOpt(Level, Name, FlagPtr, FlagSizePtr);
+      return Node->sockGetOpt(SockOptLevel, SockOptName, FlagPtr, FlagSizePtr);
     }
   }
 
-  WasiExpect<void> sockSetOpt(__wasi_fd_t Fd, int32_t Level, int32_t Name,
-                              void *FlagPtr,
+  WasiExpect<void> sockSetOpt(__wasi_fd_t Fd,
+                              __wasi_sock_opt_level_t SockOptLevel,
+                              __wasi_sock_opt_so_t SockOptName, void *FlagPtr,
                               uint32_t FlagSizePtr) const noexcept {
     auto Node = getNodeOrNull(Fd);
     if (unlikely(!Node)) {
       return WasiUnexpect(__WASI_ERRNO_BADF);
     } else {
-      return Node->sockSetOpt(Level, Name, FlagPtr, FlagSizePtr);
+      return Node->sockSetOpt(SockOptLevel, SockOptName, FlagPtr, FlagSizePtr);
     }
   }
 
@@ -1032,7 +1086,7 @@ private:
   friend class EVPoller;
 
   std::shared_ptr<VINode> getNodeOrNull(__wasi_fd_t Fd) const {
-    std::shared_lock<std::shared_mutex> lock(FdMutex);
+    std::shared_lock Lock(FdMutex);
     if (auto It = FdMap.find(Fd); It != FdMap.end()) {
       return It->second;
     }
@@ -1047,7 +1101,7 @@ private:
     __wasi_fd_t NewFd;
     while (!Success) {
       NewFd = Distribution(Engine);
-      std::unique_lock<std::shared_mutex> lock(FdMutex);
+      std::unique_lock Lock(FdMutex);
       Success = FdMap.emplace(NewFd, Node).second;
     }
     return NewFd;

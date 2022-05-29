@@ -21,11 +21,11 @@
 #include "common/filesystem.h"
 #include "common/types.h"
 
-#include <iomanip>
-#include <iostream>
+#include <cstdint>
+#include <iosfwd>
+#include <limits>
 #include <string>
 #include <string_view>
-#include <unordered_map>
 #include <vector>
 
 namespace WasmEdge {

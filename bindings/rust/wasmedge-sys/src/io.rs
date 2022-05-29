@@ -1,24 +1,23 @@
+use crate::WasmValue;
 use std::marker::PhantomData;
 
-use crate::Value;
-
-fn match_value(s: &str) -> Value {
+fn match_value(s: &str) -> WasmValue {
     match s {
-        "i8" => Value::from_i32(0),
-        "u8" => Value::from_i32(0),
-        "i16" => Value::from_i32(0),
-        "u16" => Value::from_i32(0),
-        "i32" => Value::from_i32(0),
-        "u32" => Value::from_i64(0),
-        "i64" => Value::from_i64(0),
-        "f32" => Value::from_f32(0.),
-        "f64" => Value::from_f64(0.),
-        "u128" => Value::from_v128(0),
+        "i8" => WasmValue::from_i32(0),
+        "u8" => WasmValue::from_i32(0),
+        "i16" => WasmValue::from_i32(0),
+        "u16" => WasmValue::from_i32(0),
+        "i32" => WasmValue::from_i32(0),
+        "u32" => WasmValue::from_i64(0),
+        "i64" => WasmValue::from_i64(0),
+        "f32" => WasmValue::from_f32(0.),
+        "f64" => WasmValue::from_f64(0.),
+        "u128" => WasmValue::from_v128(0),
         _ => panic!("unsupport type for WasmFnIO"),
     }
 }
 pub trait WasmFnIO {
-    fn parameters() -> Vec<Value>
+    fn parameters() -> Vec<WasmValue>
     where
         Self: Sized,
     {
@@ -34,7 +33,7 @@ macro_rules! factory_io {
         }
 
         impl<$($o),+> WasmFnIO for $i<$($o),+> {
-            fn parameters() -> Vec<Value> {
+            fn parameters() -> Vec<WasmValue> {
                 vec![$(match_value(std::any::type_name::<$o>())),+]
             }
         }

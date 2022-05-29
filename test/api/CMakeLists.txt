@@ -17,8 +17,9 @@ wasmedge_add_library(wasmedgeAPITestHelpers
 )
 
 target_link_libraries(wasmedgeAPITestHelpers
-  PUBLIC
+  PRIVATE
   wasmedge_c_shared
+  wasmedgeTestSpec
 )
 
 wasmedge_add_executable(wasmedgeAPIUnitTests

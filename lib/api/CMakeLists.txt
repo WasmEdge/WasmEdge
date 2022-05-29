@@ -28,10 +28,13 @@ endfunction()
 set(WASMEDGE_CAPI_HEADERS
   ${CMAKE_CURRENT_SOURCE_DIR}/../../include/api/wasmedge/wasmedge.h
   ${CMAKE_CURRENT_BINARY_DIR}/../../include/api/wasmedge/version.h
+  ${CMAKE_CURRENT_BINARY_DIR}/../../include/api/wasmedge/enum.inc
   ${CMAKE_CURRENT_BINARY_DIR}/../../include/api/wasmedge/enum_configure.h
   ${CMAKE_CURRENT_BINARY_DIR}/../../include/api/wasmedge/enum_errcode.h
   ${CMAKE_CURRENT_BINARY_DIR}/../../include/api/wasmedge/enum_types.h
   ${CMAKE_CURRENT_SOURCE_DIR}/../../include/api/wasmedge/int128.h
+  ${CMAKE_CURRENT_BINARY_DIR}/../../include/api/wasmedge/dense_enum_map.h
+  ${CMAKE_CURRENT_BINARY_DIR}/../../include/api/wasmedge/spare_enum_map.h
 )
 
 # Object library of the C API wrapper.
@@ -69,8 +72,14 @@ if(WASMEDGE_BUILD_SHARED_LIB)
   )
 
   target_link_libraries(wasmedge_c_shared
-    PUBLIC
+    PRIVATE
     wasmedgeCAPI
+  )
+
+  target_include_directories(wasmedge_c_shared
+    PUBLIC
+    ${PROJECT_BINARY_DIR}/include/api
+    ${PROJECT_SOURCE_DIR}/include/api
   )
 
   set_target_properties(wasmedge_c_shared PROPERTIES OUTPUT_NAME wasmedge_c)
@@ -92,7 +101,6 @@ if(WASMEDGE_BUILD_STATIC_LIB)
   wasmedge_add_static_lib_component_command(wasmedgeValidator)
   wasmedge_add_static_lib_component_command(wasmedgeExecutor)
   wasmedge_add_static_lib_component_command(wasmedgeHostModuleWasi)
-  wasmedge_add_static_lib_component_command(wasmedgeHostModuleWasmEdgeProcess)
   wasmedge_add_static_lib_component_command(wasmedgeVM)
 
   if (WASMEDGE_BUILD_AOT_RUNTIME)

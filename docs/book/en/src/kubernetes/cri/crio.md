@@ -20,20 +20,20 @@ In the sections below, we will explain the steps in the quick start scripts.
 Use the following commands to install CRI-O on your system.
 
 ```bash
-$ export OS="xUbuntu_20.04"
-$ export VERSION="1.21"
-$ apt update
-$ apt install -y libseccomp2 || sudo apt update -y libseccomp2
-$ echo "deb https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/$OS/ /" > /etc/apt/sources.list.d/devel:kubic:libcontainers:stable.list
-$ echo "deb https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable:/cri-o:/$VERSION/$OS/ /" > /etc/apt/sources.list.d/devel:kubic:libcontainers:stable:cri-o:$VERSION.list
+export OS="xUbuntu_20.04"
+export VERSION="1.21"
+apt update
+apt install -y libseccomp2 || sudo apt update -y libseccomp2
+echo "deb https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/$OS/ /" > /etc/apt/sources.list.d/devel:kubic:libcontainers:stable.list
+echo "deb https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable:/cri-o:/$VERSION/$OS/ /" > /etc/apt/sources.list.d/devel:kubic:libcontainers:stable:cri-o:$VERSION.list
 
-$ curl -L https://download.opensuse.org/repositories/devel:kubic:libcontainers:stable:cri-o:$VERSION/$OS/Release.key | apt-key add -
-$ curl -L https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/$OS/Release.key | apt-key add -
+curl -L https://download.opensuse.org/repositories/devel:kubic:libcontainers:stable:cri-o:$VERSION/$OS/Release.key | apt-key add -
+curl -L https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/$OS/Release.key | apt-key add -
 
-$ apt-get update
-$ apt-get install criu libyajl2
-$ apt-get install cri-o cri-o-runc cri-tools containernetworking-plugins
-$ systemctl start crio
+apt-get update
+apt-get install criu libyajl2
+apt-get install cri-o cri-o-runc cri-tools containernetworking-plugins
+systemctl start crio
 ```
 
 ## Configure CRI-O to use crun
@@ -69,7 +69,7 @@ runtime_root = "/run/crun"
 Next, restart CRI-O to apply the configuration changes.
 
 ```bash
-$ systemctl restart crio
+systemctl restart crio
 ```
 
 ## Run a simple WebAssembly app
@@ -81,7 +81,7 @@ In this section, we will start off pulling this WebAssembly-based container
 image from Docker hub using CRI-O tools.
 
 ```bash
-$ sudo crictl pull docker.io/hydai/wasm-wasi-example:with-wasm-annotation
+sudo crictl pull docker.io/hydai/wasm-wasi-example:with-wasm-annotation
 ```
 
 Next, we need to create two simple configuration files that specifies how
@@ -90,8 +90,8 @@ two files [container_wasi.json](https://github.com/second-state/wasmedge-contain
 You can just download them to your local directory as follows.
 
 ```bash
-$ wget https://raw.githubusercontent.com/second-state/wasmedge-containers-examples/main/crio/sandbox_config.json
-$ wget https://raw.githubusercontent.com/second-state/wasmedge-containers-examples/main/crio/container_wasi.json
+wget https://raw.githubusercontent.com/second-state/wasmedge-containers-examples/main/crio/sandbox_config.json
+wget https://raw.githubusercontent.com/second-state/wasmedge-containers-examples/main/crio/container_wasi.json
 ```
 
 Now you can use CRI-O to create a pod and a container using the specified configurations.
@@ -174,7 +174,7 @@ In this section, we will start off pulling this WebAssembly-based container
 image from Docker hub using CRI-O tools.
 
 ```bash
-$ sudo crictl pull docker.io/avengermojo/http_server:with-wasm-annotation
+sudo crictl pull docker.io/avengermojo/http_server:with-wasm-annotation
 ```
 
 Next, we need to create two simple configuration files that specifies how
@@ -185,8 +185,8 @@ You can just download them to your local directory as follows.
 > The `sandbox_config.json` file is the same for the simple WASI example and the HTTP server example. The other `container_*.json` file is application specific as it contains the application's Docker Hub URL.
 
 ```bash
-$ wget https://raw.githubusercontent.com/second-state/wasmedge-containers-examples/main/crio/sandbox_config.json
-$ wget https://raw.githubusercontent.com/second-state/wasmedge-containers-examples/main/crio/http_server/container_http_server.json
+wget https://raw.githubusercontent.com/second-state/wasmedge-containers-examples/main/crio/sandbox_config.json
+wget https://raw.githubusercontent.com/second-state/wasmedge-containers-examples/main/crio/http_server/container_http_server.json
 ```
 
 Now you can use CRI-O to create a pod and a container using the specified configurations.

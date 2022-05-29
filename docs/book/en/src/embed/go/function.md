@@ -1,23 +1,16 @@
 # Embed a Wasm function
 
-The WasmEdge Go SDK allows WebAssembly functions to be embedded into
-a Go host app. You can use the Go SDK API to pass call parameters
-to the embedded WebAssembly functions, and then capture the return values.
-However, the WebAssembly spec only supports a few simple data types out of the box. It [does not support](https://medium.com/wasm/strings-in-webassembly-wasm-57a05c1ea333) types such as string and array. In order to pass rich types in Go to WebAssembly,
-we could hand-code memory pointers ([see here](memory.md)), or use an
-automated tool to manage the data exchange.
+The WasmEdge Go SDK allows WebAssembly functions to be embedded into a Go host app. You can use the Go SDK API to pass call parameters to the embedded WebAssembly functions, and then capture the return values.
+However, the WebAssembly spec only supports a few simple data types out of the box. It [does not support](https://medium.com/wasm/strings-in-webassembly-wasm-57a05c1ea333) types such as string and array. In order to pass rich types in Go to WebAssembly, we could hand-code memory pointers ([see here](memory.md)), or use an automated tool to manage the data exchange.
 
-The [wasmedge-bindgen](https://github.com/second-state/wasmedge-bindgen) 
-project provides Rust macros for functions to accept and return complex data types, and then for Go functions to call such Rust functions running in WasmEdge.
+The [wasmedge-bindgen](https://github.com/second-state/wasmedge-bindgen) project provides Rust macros for functions to accept and return complex data types, and then for Go functions to call such Rust functions running in WasmEdge.
 The full source code for the demo in this chapter is [available here](https://github.com/second-state/WasmEdge-go-examples/tree/master/wasmedge-bindgen/go_BindgenFuncs).
 
 ## Rust function compiled into WebAssembly
 
 In the [Rust project](https://github.com/second-state/WasmEdge-go-examples/tree/master/wasmedge-bindgen/go_BindgenFuncs/rust_bindgen_funcs), all you need is to annotate [your functions](https://github.com/second-state/WasmEdge-go-examples/blob/master/wasmedge-bindgen/go_BindgenFuncs/rust_bindgen_funcs/src/lib.rs) with a `[wasmedge_bindgen]` macro.
-Those annotated functions will be automatically instrumented by the Rust compiler and turned into
-WebAssembly functions that can be called from the `wasmedge-bindgen` GO SDK.
-In the example below, we have several Rust functions that take complex call
-parameters and return complex values.
+Those annotated functions will be automatically instrumented by the Rust compiler and turned into WebAssembly functions that can be called from the `wasmedge-bindgen` GO SDK.
+In the example below, we have several Rust functions that take complex call parameters and return complex values.
 
 ```rust
 use wasmedge_bindgen::*;
@@ -91,108 +84,102 @@ pub fn keccak_digest(s: Vec<u8>) -> Result<Vec<u8>, String> {
 You can build the WebAssembly bytecode file using standard `Cargo` commands.
 
 ```bash
-$ cd rust_bindgen_funcs
-$ cargo build --target wasm32-wasi --release
-
+cd rust_bindgen_funcs
+cargo build --target wasm32-wasi --release
 # The output WASM will be target/wasm32-wasi/release/rust_bindgen_funcs_lib.wasm.
-
-$ cp target/wasm32-wasi/release/rust_bindgen_funcs_lib.wasm ../
-$ cd ../
+cp target/wasm32-wasi/release/rust_bindgen_funcs_lib.wasm ../
+cd ../
 ```
 
 ## Go host application
 
-In the [Go host application](https://github.com/second-state/WasmEdge-go-examples/blob/master/wasmedge-bindgen/go_BindgenFuncs/bindgen_funcs.go),
-you can create and set up the WasmEdge VM using the WasmEdge Go SDK.
-However, instead of calling `vm.Instantiate()`, you should now call
-`bindgen.Instantiate(vm)` to instantiate the VM and return a `bindgen`
-object.
+In the [Go host application](https://github.com/second-state/WasmEdge-go-examples/blob/master/wasmedge-bindgen/go_BindgenFuncs/bindgen_funcs.go), you can create and set up the WasmEdge VM using the WasmEdge Go SDK.
+However, instead of calling `vm.Instantiate()`, you should now call `bindgen.Instantiate(vm)` to instantiate the VM and return a `bindgen` object.
 
 ```go
 func main() {
-	/// Expected Args[0]: program name (./bindgen_funcs)
-	/// Expected Args[1]: wasm file (rust_bindgen_funcs_lib.wasm))
-	
-	wasmedge.SetLogErrorLevel()
-	var conf = wasmedge.NewConfigure(wasmedge.WASI)
-	var vm = wasmedge.NewVMWithConfig(conf)
-	var wasi = vm.GetImportObject(wasmedge.WASI)
-	wasi.InitWasi(
-		os.Args[1:],     /// The args
-		os.Environ(),    /// The envs
-		[]string{".:."}, /// The mapping preopens
-	)
-	vm.LoadWasmFile(os.Args[1])
-	vm.Validate()
+  // Expected Args[0]: program name (./bindgen_funcs)
+  // Expected Args[1]: wasm file (rust_bindgen_funcs_lib.wasm))
 
-	// Instantiate the bindgen and vm
-	bg := bindgen.Instantiate(vm)
+  wasmedge.SetLogErrorLevel()
+  var conf = wasmedge.NewConfigure(wasmedge.WASI)
+  var vm = wasmedge.NewVMWithConfig(conf)
+  var wasi = vm.GetImportModule(wasmedge.WASI)
+  wasi.InitWasi(
+    os.Args[1:],     // The args
+    os.Environ(),    // The envs
+    []string{".:."}, // The mapping preopens
+  )
+  vm.LoadWasmFile(os.Args[1])
+  vm.Validate()
+
+  // Instantiate the bindgen and vm
+  bg := bindgen.Instantiate(vm)
 ```
 
-Next, you can call any `[wasmedge_bindgen]` annotated functions in the VM
-via the `bindgen` object.
+Next, you can call any `[wasmedge_bindgen]` annotated functions in the VM via the `bindgen` object.
 
 ```go
-	/// create_line: string, string, string -> string (inputs are JSON stringified)	
-	res, err := bg.Execute("create_line", "{\"x\":2.5,\"y\":7.8}", "{\"x\":2.5,\"y\":5.8}", "A thin red line")
-	if err == nil {
-		fmt.Println("Run bindgen -- create_line:", string(res))
-	} else {
-		fmt.Println("Run bindgen -- create_line FAILED", err)
-	}
+  // create_line: string, string, string -> string (inputs are JSON stringified) 
+  res, err := bg.Execute("create_line", "{\"x\":2.5,\"y\":7.8}", "{\"x\":2.5,\"y\":5.8}", "A thin red line")
+  if err == nil {
+    fmt.Println("Run bindgen -- create_line:", string(res))
+  } else {
+    fmt.Println("Run bindgen -- create_line FAILED", err)
+  }
 
-	/// say: string -> string
-	res, err = bg.Execute("say", "bindgen funcs test")
-	if err == nil {
-		fmt.Println("Run bindgen -- say:", string(res))
-	} else {
-		fmt.Println("Run bindgen -- say FAILED")
-	}
+  // say: string -> string
+  res, err = bg.Execute("say", "bindgen funcs test")
+  if err == nil {
+    fmt.Println("Run bindgen -- say:", string(res))
+  } else {
+    fmt.Println("Run bindgen -- say FAILED")
+  }
 
-	/// obfusticate: string -> string
-	res, err = bg.Execute("obfusticate", "A quick brown fox jumps over the lazy dog")
-	if err == nil {
-		fmt.Println("Run bindgen -- obfusticate:", string(res))
-	} else {
-		fmt.Println("Run bindgen -- obfusticate FAILED")
-	}
+  // obfusticate: string -> string
+  res, err = bg.Execute("obfusticate", "A quick brown fox jumps over the lazy dog")
+  if err == nil {
+    fmt.Println("Run bindgen -- obfusticate:", string(res))
+  } else {
+    fmt.Println("Run bindgen -- obfusticate FAILED")
+  }
 
-	/// lowest_common_multiple: i32, i32 -> i32
-	res, err = bg.Execute("lowest_common_multiple", int32(123), int32(2))
-	if err == nil {
-		num, _ := strconv.ParseInt(string(res), 10, 32)
-		fmt.Println("Run bindgen -- lowest_common_multiple:", num)
-	} else {
-		fmt.Println("Run bindgen -- lowest_common_multiple FAILED")
-	}
+  // lowest_common_multiple: i32, i32 -> i32
+  res, err = bg.Execute("lowest_common_multiple", int32(123), int32(2))
+  if err == nil {
+    num, _ := strconv.ParseInt(string(res), 10, 32)
+    fmt.Println("Run bindgen -- lowest_common_multiple:", num)
+  } else {
+    fmt.Println("Run bindgen -- lowest_common_multiple FAILED")
+  }
 
-	/// sha3_digest: array -> array
-	res, err = bg.Execute("sha3_digest", []byte("This is an important message"))
-	if err == nil {
-		fmt.Println("Run bindgen -- sha3_digest:", res)
-	} else {
-		fmt.Println("Run bindgen -- sha3_digest FAILED")
-	}
+  // sha3_digest: array -> array
+  res, err = bg.Execute("sha3_digest", []byte("This is an important message"))
+  if err == nil {
+    fmt.Println("Run bindgen -- sha3_digest:", res)
+  } else {
+    fmt.Println("Run bindgen -- sha3_digest FAILED")
+  }
 
-	/// keccak_digest: array -> array
-	res, err = bg.Execute("keccak_digest", []byte("This is an important message"))
-	if err == nil {
-		fmt.Println("Run bindgen -- keccak_digest:", res)
-	} else {
-		fmt.Println("Run bindgen -- keccak_digest FAILED")
-	}
+  // keccak_digest: array -> array
+  res, err = bg.Execute("keccak_digest", []byte("This is an important message"))
+  if err == nil {
+    fmt.Println("Run bindgen -- keccak_digest:", res)
+  } else {
+    fmt.Println("Run bindgen -- keccak_digest FAILED")
+  }
 
-	bg.Release()
-	vm.Release()
-	conf.Release()
+  bg.Release()
+  vm.Release()
+  conf.Release()
 }
 ```
 
 Finally, you can build and run the Go host application.
 
 ```bash
-$ go build
-$ ./bindgen_funcs rust_bindgen_funcs_lib.wasm
+go build
+./bindgen_funcs rust_bindgen_funcs_lib.wasm
 ```
 
 The standard output of this example will be the following.

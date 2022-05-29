@@ -14,10 +14,11 @@
 
 #include "loader/filemgr.h"
 
-#include "gtest/gtest.h"
-
 #include <cmath>
-#include <limits>
+#include <cstdint>
+#include <gtest/gtest.h>
+#include <string>
+#include <vector>
 
 namespace {
 
@@ -693,17 +694,8 @@ TEST(FileManagerTest, Vector__ReadUnsigned32TooLarge) {
   EXPECT_EQ(WasmEdge::ErrCode::IntegerTooLarge, ReadNum.error());
 }
 
-TEST(FileManagerTest, Vector__ReadUnsigned32ExceedSection) {
-  // 30. Test unsigned 32bit integer decoding exceeds the section boundary.
-  WasmEdge::Expect<uint32_t> ReadNum;
-  ASSERT_TRUE(Mgr.setCode(std::vector<uint8_t>{0x80, 0x80, 0x80, 0x80, 0x00}));
-  Mgr.setSectionSize(3);
-  ASSERT_FALSE(ReadNum = Mgr.readU32());
-  EXPECT_EQ(WasmEdge::ErrCode::UnexpectedEnd, ReadNum.error());
-}
-
 TEST(FileManagerTest, Vector__ReadSigned32TooLong) {
-  // 31. Test signed 32bit integer decoding in too long case.
+  // 30. Test signed 32bit integer decoding in too long case.
   WasmEdge::Expect<int32_t> ReadNum;
   ASSERT_TRUE(
       Mgr.setCode(std::vector<uint8_t>{0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x7F}));
@@ -712,24 +704,15 @@ TEST(FileManagerTest, Vector__ReadSigned32TooLong) {
 }
 
 TEST(FileManagerTest, Vector__ReadSigned32TooLarge) {
-  // 32. Test signed 32bit integer decoding in too large case.
+  // 31. Test signed 32bit integer decoding in too large case.
   WasmEdge::Expect<int32_t> ReadNum;
   ASSERT_TRUE(Mgr.setCode(std::vector<uint8_t>{0xFF, 0xFF, 0xFF, 0xFF, 0x4F}));
   ASSERT_FALSE(ReadNum = Mgr.readS32());
   EXPECT_EQ(WasmEdge::ErrCode::IntegerTooLarge, ReadNum.error());
 }
 
-TEST(FileManagerTest, Vector__ReadSigned32ExceedSection) {
-  // 33. Test signed 32bit integer decoding exceeds the section boundary.
-  WasmEdge::Expect<int32_t> ReadNum;
-  ASSERT_TRUE(Mgr.setCode(std::vector<uint8_t>{0xFF, 0xFF, 0xFF, 0xFF, 0x7F}));
-  Mgr.setSectionSize(3);
-  ASSERT_FALSE(ReadNum = Mgr.readS32());
-  EXPECT_EQ(WasmEdge::ErrCode::UnexpectedEnd, ReadNum.error());
-}
-
 TEST(FileManagerTest, Vector__ReadUnsigned64TooLong) {
-  // 34. Test unsigned 64bit integer decoding in too long case.
+  // 32. Test unsigned 64bit integer decoding in too long case.
   WasmEdge::Expect<uint64_t> ReadNum;
   ASSERT_TRUE(Mgr.setCode(std::vector<uint8_t>{
       0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x00}));
@@ -738,7 +721,7 @@ TEST(FileManagerTest, Vector__ReadUnsigned64TooLong) {
 }
 
 TEST(FileManagerTest, Vector__ReadUnsigned64TooLarge) {
-  // 35. Test unsigned 64bit integer decoding in too large case.
+  // 33. Test unsigned 64bit integer decoding in too large case.
   WasmEdge::Expect<uint64_t> ReadNum;
   ASSERT_TRUE(Mgr.setCode(std::vector<uint8_t>{0x80, 0x80, 0x80, 0x80, 0x80,
                                                0x80, 0x80, 0x80, 0x80, 0x7E}));
@@ -746,18 +729,8 @@ TEST(FileManagerTest, Vector__ReadUnsigned64TooLarge) {
   EXPECT_EQ(WasmEdge::ErrCode::IntegerTooLarge, ReadNum.error());
 }
 
-TEST(FileManagerTest, Vector__ReadUnsigned64ExceedSection) {
-  // 36. Test unsigned 64bit integer decoding exceeds the section boundary.
-  WasmEdge::Expect<uint64_t> ReadNum;
-  ASSERT_TRUE(Mgr.setCode(std::vector<uint8_t>{0x80, 0x80, 0x80, 0x80, 0x80,
-                                               0x80, 0x80, 0x80, 0x80, 0x00}));
-  Mgr.setSectionSize(3);
-  ASSERT_FALSE(ReadNum = Mgr.readU64());
-  EXPECT_EQ(WasmEdge::ErrCode::UnexpectedEnd, ReadNum.error());
-}
-
 TEST(FileManagerTest, Vector__ReadSigned64TooLong) {
-  // 37. Test signed 64bit integer decoding in too long case.
+  // 34. Test signed 64bit integer decoding in too long case.
   WasmEdge::Expect<int64_t> ReadNum;
   ASSERT_TRUE(Mgr.setCode(std::vector<uint8_t>{
       0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x7F}));
@@ -766,34 +739,12 @@ TEST(FileManagerTest, Vector__ReadSigned64TooLong) {
 }
 
 TEST(FileManagerTest, Vector__ReadSigned64TooLarge) {
-  // 38. Test signed 64bit integer decoding in too large case.
+  // 35. Test signed 64bit integer decoding in too large case.
   WasmEdge::Expect<int64_t> ReadNum;
   ASSERT_TRUE(Mgr.setCode(std::vector<uint8_t>{0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
                                                0xFF, 0xFF, 0xFF, 0xFF, 0x41}));
   ASSERT_FALSE(ReadNum = Mgr.readS64());
   EXPECT_EQ(WasmEdge::ErrCode::IntegerTooLarge, ReadNum.error());
-}
-
-TEST(FileManagerTest, Vector__ReadSigned64ExceedSection) {
-  // 39. Test signed 64bit integer decoding exceeds the section boundary.
-  WasmEdge::Expect<int64_t> ReadNum;
-  ASSERT_TRUE(Mgr.setCode(std::vector<uint8_t>{0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
-                                               0xFF, 0xFF, 0xFF, 0xFF, 0x7F}));
-  Mgr.setSectionSize(3);
-  ASSERT_FALSE(ReadNum = Mgr.readS64());
-  EXPECT_EQ(WasmEdge::ErrCode::UnexpectedEnd, ReadNum.error());
-}
-
-TEST(FileManagerTest, SetSectionSize) {
-  // 40. Test set the section boundary.
-  WasmEdge::Expect<uint32_t> ReadNum;
-  ASSERT_TRUE(Mgr.setCode(std::vector<uint8_t>{0x83, 0x80, 0x00, 0xFF, 0xFF,
-                                               0xFF, 0xFF, 0xFF, 0xFF, 0x7F}));
-  ASSERT_TRUE(ReadNum = Mgr.readU32());
-  EXPECT_EQ(3U, Mgr.getOffset());
-  EXPECT_EQ(3U, *ReadNum);
-  Mgr.setSectionSize(200);
-  Mgr.setSectionSize(UINT64_MAX);
 }
 } // namespace
 

@@ -8,8 +8,8 @@
 ## 下載原始碼
 
 ```bash
-$ git clone https://github.com/WasmEdge/WasmEdge.git
-$ cd WasmEdge
+git clone https://github.com/WasmEdge/WasmEdge.git
+cd WasmEdge
 ```
 
 ## 檢查相依套件
@@ -29,7 +29,7 @@ Dockerhub 上的儲存庫 `wasmedge/wasmedge`
 您可以使用下列的指令獲取最新的 docker image ：
 
 ```bash
-$ docker pull wasmedge/wasmedge # 等同於 wasmedge/wasmedge:latest
+docker pull wasmedge/wasmedge # 等同於 wasmedge/wasmedge:latest
 ```
 
 #### 可用的標籤
@@ -50,22 +50,22 @@ $ docker pull wasmedge/wasmedge # 等同於 wasmedge/wasmedge:latest
 
 ```bash
 # 工具和函式庫
-$ sudo apt install -y \
-	software-properties-common \
-	cmake \
-	libboost-all-dev
+sudo apt install -y \
+    software-properties-common \
+    cmake \
+    libboost-all-dev
 
 # 需要 llvm 來支援 wasmedgec 工具
-$ sudo apt install -y \
-	llvm-12-dev \
-	liblld-12-dev
+sudo apt install -y \
+    llvm-12-dev \
+    liblld-12-dev
 
 # WasmEdge 同時支援 clang++ 和 g++ 編譯器
 # 您可以選擇其中一個來編譯這個專案
 # 如果您傾向使用 gcc
-$ sudo apt install -y gcc g++
+sudo apt install -y gcc g++
 # 或者您選擇使用 clang
-$ sudo apt install -y clang
+sudo apt install -y clang
 ```
 
 ### 對舊版作業系統的支援
@@ -77,18 +77,10 @@ $ sudo apt install -y clang
 
 | 可移植的 Linux 發行版標籤                  | 基礎 image   | 提供的環境需                                                           | Docker image                              |
 | ---                                     | ---         | ---                                                                   | ---                                      |
-| `manylinux1`                            | CentOS 5.11 | GLIBC <= 2.5<br>CXXABI <= 3.4.8<br>GLIBCXX <= 3.4.9<br>GCC <= 4.2.0   | wasmedge/wasmedge:manylinux1\_x86\_64    |
-| `manylinux2010`                         | CentOS 6.10 | GLIBC <= 2.12<br>CXXABI <= 1.3.3<br>GLIBCXX <= 3.4.13<br>GCC <= 4.5.0 | wasmedge/wasmedge:manylinux2010\_x86\_64 |
-| `manylinux2014`                         | CentOS 7.9  | GLIBC <= 2.17<br>CXXABI <= 1.3.7<br>GLIBCXX <= 3.4.19<br>GCC <= 4.8.0 | wasmedge/wasmedge:manylinux2014\_x86\_64 |
-| `manylinux2014`                         | CentOS 7.9  | GLIBC <= 2.17<br>CXXABI <= 1.3.7<br>GLIBCXX <= 3.4.19<br>GCC <= 4.8.0 | wasmedge/wasmedge:manylinux2014\_aarch64 |
-
-### 如果您不需要編譯 Ahead-of-time 編譯器
-
-如果使用者不需要 Ahead-of-time 編譯器支援，可以將 CMake 選項 `WASMEDGE_BUILD_AOT_RUNTIME` 設為 `OFF` 。
-
-```bash
-$ cmake -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_BUILD_AOT_RUNTIME=OFF ..
-```
+| `manylinux1`                            | CentOS 5.11 | GLIBC <= 2.5</br>CXXABI <= 3.4.8</br>GLIBCXX <= 3.4.9</br>GCC <= 4.2.0   | wasmedge/wasmedge:manylinux1\_x86\_64    |
+| `manylinux2010`                         | CentOS 6.10 | GLIBC <= 2.12</br>CXXABI <= 1.3.3</br>GLIBCXX <= 3.4.13</br>GCC <= 4.5.0 | wasmedge/wasmedge:manylinux2010\_x86\_64 |
+| `manylinux2014`                         | CentOS 7.9  | GLIBC <= 2.17</br>CXXABI <= 1.3.7</br>GLIBCXX <= 3.4.19</br>GCC <= 4.8.0 | wasmedge/wasmedge:manylinux2014\_x86\_64 |
+| `manylinux2014`                         | CentOS 7.9  | GLIBC <= 2.17</br>CXXABI <= 1.3.7</br>GLIBCXX <= 3.4.19</br>GCC <= 4.8.0 | wasmedge/wasmedge:manylinux2014\_aarch64 |
 
 ## 編譯 WasmEdge
 
@@ -96,18 +88,18 @@ WasmEdge 提供了各種工具來支援更好的性能以及更多樣的執行�
 編譯完成後，您可以找到以下幾個 WasmEdge 相關工具：
 
 1. `wasmedge` 是通用的 WASM runtime 。
-	* `wasmedge` 可以在直譯器模式下執行一個 `WASM` 檔案，也可以在 Ahead-of-time 模式下執行一個 `so` 檔案。
-	* 您可以透過將 CMake 選項 `WASMEDGE_BUILD_TOOLS` 設為 `OFF` 來禁止編譯所有工具。
+   - `wasmedge` 可以在直譯器模式下執行一個 `WASM` 檔案，也可以在 Ahead-of-time 模式下執行一個 `so` 檔案。
+   - 您可以透過將 CMake 選項 `WASMEDGE_BUILD_TOOLS` 設為 `OFF` 來禁止編譯所有工具。
 2. `wasmedgec` 是一個 WASM Ahead-of-time 編譯器。
-	* `wasmedgec` 可以將一個通用的 `WASM` 檔案編譯成 `so` 檔案。
-	* 您可以透過將 CMake 選項 `WASMEDGE_BUILD_AOT_RUNTIME` 設為 `OFF` 來禁止編譯 Ahead-of-time 編譯器。
+   - `wasmedgec` 可以將一個通用的 `WASM` 檔案編譯成 `so` 檔案。
+   - 您可以透過將 CMake 選項 `WASMEDGE_BUILD_AOT_RUNTIME` 設為 `OFF` 來禁止編譯 Ahead-of-time 編譯器。
 3. `libwasmedge_c.so` 是 WasmEdge C API 的共享函式庫。
-	* `libwasmedge_c.so` 提供了連接 WASM runtime 和 Ahead-of-time 編譯器的 C 語言 API。
-	* 如果 `WASMEDGE_BUILD_AOT_RUNTIME` 選項被設為 `OFF` ，與 Ahead-of-time 編譯器相關的 API 都將回傳錯誤。
-	* 您可以透過將 CMake 選項 `WASMEDGE_BUILD_SHARED_LIB` 設為 `OFF` 來禁止編譯 WasmEdge C API 的共享函式庫。
+   - `libwasmedge_c.so` 提供了連接 WASM runtime 和 Ahead-of-time 編譯器的 C 語言 API。
+   - 如果 `WASMEDGE_BUILD_AOT_RUNTIME` 選項被設為 `OFF` ，與 Ahead-of-time 編譯器相關的 API 都將回傳錯誤。
+   - 您可以透過將 CMake 選項 `WASMEDGE_BUILD_SHARED_LIB` 設為 `OFF` 來禁止編譯 WasmEdge C API 的共享函式庫。
 4. `ssvm-qitc` 與 AI 應用程式相關，是支援 ONNX 格式的 AI 模型的 ONNC runtime 。
-	* 若您想嘗試使用 `ssvm-qitc` ，請參考 [ONNC-Wasm](https://github.com/ONNC/onnc-wasm) 專案來設定工作環境與執行幾個範例。
-	* 這是我們的 [ONNC-Wasm Tutorial （ YouTube 影片 ）](https://www.youtube.com/watch?v=cbiPuHMS-iQ) 。
+   - 若您想嘗試使用 `ssvm-qitc` ，請參考 [ONNC-Wasm](https://github.com/ONNC/onnc-wasm) 專案來設定工作環境與執行幾個範例。
+   - 這是我們的 [ONNC-Wasm Tutorial （ YouTube 影片 ）](https://www.youtube.com/watch?v=cbiPuHMS-iQ) 。
 
 ```bash
 # 下載 WasmEdge docker image 後
@@ -119,6 +111,14 @@ $ docker run -it --rm \
 (docker)$ cmake -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_BUILD_TESTS=ON .. && make -j
 ```
 
+### 如果您不需要編譯 Ahead-of-time 編譯器
+
+如果使用者不需要 Ahead-of-time 編譯器支援，可以將 CMake 選項 `WASMEDGE_BUILD_AOT_RUNTIME` 設為 `OFF` 。
+
+```bash
+cmake -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_BUILD_AOT_RUNTIME=OFF ..
+```
+
 ## 執行內建測試
 
 內建的測試僅有編譯選項 `WASMEDGE_BUILD_TESTS` 設為 `ON` 的時候才會啟用。
@@ -126,8 +126,8 @@ $ docker run -it --rm \
 使用者可以使用這些測試來驗證 WasmEdge 執行檔與函式庫的正確性。
 
 ```bash
-$ cd <path/to/wasmedge/build_folder>
-$ LD_LIBRARY_PATH=$(pwd)/lib/api ctest
+cd <path/to/wasmedge/build_folder>
+LD_LIBRARY_PATH=$(pwd)/lib/api ctest
 ```
 
 ## 執行應用程式

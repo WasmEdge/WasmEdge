@@ -11,7 +11,7 @@ First you need to install [Go](https://golang.org/doc/install), [Rust](https://w
 Next, fork or clone the demo application from Github. You can use this repo as your own application template.
 
 ```bash
-$ git clone https://github.com/second-state/dapr-wasm
+git clone https://github.com/second-state/dapr-wasm
 ````
 
 The demo has 3 Dapr sidecar applications.
@@ -30,30 +30,30 @@ You can follow the instructions in the [README](https://github.com/second-state/
 
 ```bash
 # Build the classify and grayscale WebAssembly functions, and deploy them to the sidecar projects
-$ cd functions/grayscale
-$ ./build.sh
-$ cd ../../
-$ cd functions/classify
-$ ./build.sh
-$ cd ../../
+cd functions/grayscale
+./build.sh
+cd ../../
+cd functions/classify
+./build.sh
+cd ../../
 
 # Build and start the web service for the application UI
-$ cd web-port
-$ go build
-$ ./run_web.sh
-$ cd ../
+cd web-port
+go build
+./run_web.sh
+cd ../
 
 # Build and start the microservice for image processing (grayscale)
-$ cd image-api-rs
-$ cargo build
-$ ./run_api_rs.sh
-$ cd ../
+cd image-api-rs
+cargo build
+./run_api_rs.sh
+cd ../
 
 # Build and start the microservice for tensorflow-based image classification
-$ cd image-api-go
-$ go build --tags "tensorflow image"
-$ ./run_api_go.sh
-$ cd ../
+cd image-api-go
+go build --tags "tensorflow image"
+./run_api_go.sh
+cd ../
 ```
 
 Finally, you should be able to see the web UI in your browser.
@@ -76,23 +76,23 @@ use image::{ImageFormat, ImageOutputFormat};
 use std::io::{self, Read, Write};
 
 fn main() {
-   let mut buf = Vec::new();
-   io::stdin().read_to_end(&mut buf).unwrap();
+  let mut buf = Vec::new();
+  io::stdin().read_to_end(&mut buf).unwrap();
 
-   let image_format_detected: ImageFormat = image::guess_format(&buf).unwrap();
-   let img = image::load_from_memory(&buf).unwrap();
-   let filtered = img.grayscale();
-   let mut buf = vec![];
-   match image_format_detected {
-       ImageFormat::Gif => {
-           filtered.write_to(&mut buf, ImageOutputFormat::Gif).unwrap();
-       }
-       _ => {
-           filtered.write_to(&mut buf, ImageOutputFormat::Png).unwrap();
-       }
-   };
-   io::stdout().write_all(&buf).unwrap();
-   io::stdout().flush().unwrap();
+  let image_format_detected: ImageFormat = image::guess_format(&buf).unwrap();
+  let img = image::load_from_memory(&buf).unwrap();
+  let filtered = img.grayscale();
+  let mut buf = vec![];
+  match image_format_detected {
+    ImageFormat::Gif => {
+      filtered.write_to(&mut buf, ImageOutputFormat::Gif).unwrap();
+    }
+    _ => {
+      filtered.write_to(&mut buf, ImageOutputFormat::Png).unwrap();
+    }
+  };
+  io::stdout().write_all(&buf).unwrap();
+  io::stdout().flush().unwrap();
 }
 ```
 
@@ -100,10 +100,10 @@ We use [rustwasmc](https://www.secondstate.io/articles/rustwasmc/) to build it a
 [image-api-rs](https://github.com/second-state/dapr-wasm/tree/main/image-api-rs) sidecar.
 
 ```bash
-$ cd functions/grayscale
-$ rustup override set 1.50.0
-$ rustwasmc  build --enable-ext
-$ cp ./pkg/grayscale.wasm ../../image-api-rs/lib
+cd functions/grayscale
+rustup override set 1.50.0
+rustwasmc  build --enable-ext
+cp ./pkg/grayscale.wasm ../../image-api-rs/lib
 ```
 
 The [classify](https://github.com/second-state/dapr-wasm/tree/main/functions/classify) function
@@ -114,42 +114,41 @@ TensorFlow API](https://www.secondstate.io/articles/wasi-tensorflow/).
 use wasmedge_tensorflow_interface;
 
 pub fn infer_internal(image_data: &[u8]) -> String {
-   let model_data: &[u8] = include_bytes!("models/mobilenet_v1_1.0_224/mobilenet_v1_1.0_224_quant.tflite");
-   let labels = include_str!("models/mobilenet_v1_1.0_224/labels_mobilenet_quant_v1_224.txt");
+  let model_data: &[u8] = include_bytes!("models/mobilenet_v1_1.0_224/mobilenet_v1_1.0_224_quant.tflite");
+  let labels = include_str!("models/mobilenet_v1_1.0_224/labels_mobilenet_quant_v1_224.txt");
 
-   let flat_img = wasmedge_tensorflow_interface::load_jpg_image_to_rgb8(image_data, 224, 224);
+  let flat_img = wasmedge_tensorflow_interface::load_jpg_image_to_rgb8(image_data, 224, 224);
 
-   let mut session = wasmedge_tensorflow_interface::Session::new(
-       &model_data,
-       wasmedge_tensorflow_interface::ModelType::TensorFlowLite,
-   );
-   session
-       .add_input("input", &flat_img, &[1, 224, 224, 3])
-       .run();
-   let res_vec: Vec<u8> = session.get_output("MobilenetV1/Predictions/Reshape_1");
+  let mut session = wasmedge_tensorflow_interface::Session::new(
+    &model_data,
+    wasmedge_tensorflow_interface::ModelType::TensorFlowLite,
+  );
+  session.add_input("input", &flat_img, &[1, 224, 224, 3])
+         .run();
+  let res_vec: Vec<u8> = session.get_output("MobilenetV1/Predictions/Reshape_1");
 
-   // ... Map the probabilities in res_vec to text labels in the labels file ...
-  
-   if max_value > 50 {
-       format!(
-           "It {} a <a href='https://www.google.com/search?q={}'>{}</a> in the picture",
-           confidence.to_string(),
-           class_name,
-           class_name
-       )
-   } else {
-       format!("It does not appears to be any food item in the picture.")
-   }
+  // ... Map the probabilities in res_vec to text labels in the labels file ...
+
+  if max_value > 50 {
+    format!(
+      "It {} a <a href='https://www.google.com/search?q={}'>{}</a> in the picture",
+      confidence.to_string(),
+      class_name,
+      class_name
+    )
+  } else {
+    format!("It does not appears to be any food item in the picture.")
+  }
 }
 ```
 
 We use [rustwasmc](https://www.secondstate.io/articles/rustwasmc/) to build it and then copy it to the [image-api-go](https://github.com/second-state/dapr-wasm/tree/main/image-api-go) sidecar.
 
 ```bash
-$ cd functions/classify
-$ rustup override set 1.50.0
-$ rustwasmc  build --enable-ext
-$ cp ./pkg/classify_bg.wasm ../../image-api-go/lib/classify_bg.wasm
+cd functions/classify
+rustup override set 1.50.0
+rustwasmc  build --enable-ext
+cp ./pkg/classify_bg.wasm ../../image-api-go/lib/classify_bg.wasm
 ```
 
 In the next three sections, we will look into those three sidecar services.
@@ -163,26 +162,25 @@ The sidecar microservice runs a Tokio-based event loop that listens for incoming
 ```rust
 #[tokio::main]
 pub async fn run_server(port: u16) {
-   pretty_env_logger::init();
+  pretty_env_logger::init();
 
-   let home = warp::get().map(warp::reply);
+  let home = warp::get().map(warp::reply);
 
-   let image = warp::post()
-       .and(warp::path("api"))
-       .and(warp::path("image"))
-       .and(warp::body::bytes())
-       .map(|bytes: bytes::Bytes| {
-           let v: Vec<u8> = bytes.iter().map(|&x| x).collect();
-           let res = image_process(&v);
-           Ok(Box::new(res))
-       });
+  let image = warp::post().and(warp::path("api"))
+                          .and(warp::path("image"))
+                          .and(warp::body::bytes())
+                          .map(|bytes: bytes::Bytes| {
+    let v: Vec<u8> = bytes.iter().map(|&x| x).collect();
+    let res = image_process(&v);
+    Ok(Box::new(res))
+  });
 
-   let routes = home.or(image);
-   let routes = routes.with(warp::cors().allow_any_origin());
+  let routes = home.or(image);
+  let routes = routes.with(warp::cors().allow_any_origin());
 
-   let log = warp::log("dapr_wasm");
-   let routes = routes.with(log);
-   warp::serve(routes).run((Ipv4Addr::UNSPECIFIED, port)).await
+  let log = warp::log("dapr_wasm");
+  let routes = routes.with(log);
+  warp::serve(routes).run((Ipv4Addr::UNSPECIFIED, port)).await
 }
 ```
 
@@ -190,34 +188,34 @@ Once it receives an image file in the HTTP POST request, it invokes a WebAssembl
 
 ```rust
 pub fn image_process(buf: &Vec<u8>) -> Vec<u8> {
-   let mut child = Command::new("./lib/wasmedge-tensorflow-lite")
-       .arg("./lib/grayscale.wasm")
-       .stdin(Stdio::piped())
-       .stdout(Stdio::piped())
-       .spawn()
-       .expect("failed to execute child");
-   {
-       // limited borrow of stdin
-       let stdin = child.stdin.as_mut().expect("failed to get stdin");
-       stdin.write_all(buf).expect("failed to write to stdin");
-   }
-   let output = child.wait_with_output().expect("failed to wait on child");
-   output.stdout
+  let mut child = Command::new("./lib/wasmedge-tensorflow-lite")
+    .arg("./lib/grayscale.wasm")
+    .stdin(Stdio::piped())
+    .stdout(Stdio::piped())
+    .spawn()
+    .expect("failed to execute child");
+  {
+    // limited borrow of stdin
+    let stdin = child.stdin.as_mut().expect("failed to get stdin");
+    stdin.write_all(buf).expect("failed to write to stdin");
+  }
+  let output = child.wait_with_output().expect("failed to wait on child");
+  output.stdout
 }
 ```
 
 The following Dapr CLI command starts the microservice in the Dapr runtime environment.
 
 ```bash
-$ cd image-api-rs
-$ sudo dapr run --app-id image-api-rs \
-        --app-protocol http \
-        --app-port 9004 \
-        --dapr-http-port 3502 \
-        --components-path ../config \
-        --log-level debug \
-        ./target/debug/image-api-rs
-$ cd ../
+cd image-api-rs
+sudo dapr run --app-id image-api-rs \
+    --app-protocol http \
+    --app-port 9004 \
+    --dapr-http-port 3502 \
+    --components-path ../config \
+    --log-level debug \
+    ./target/debug/image-api-rs
+cd ../
 ```
 
 ## The Tensorflow sidecar
@@ -228,15 +226,15 @@ The sidecar microservice runs an event loop that listens for incoming HTTP reque
 
 ```go
 func main() {
-   s := daprd.NewService(":9003")
+  s := daprd.NewService(":9003")
 
-   if err := s.AddServiceInvocationHandler("/api/image", imageHandlerWASI); err != nil {
-       log.Fatalf("error adding invocation handler: %v", err)
-   }
+  if err := s.AddServiceInvocationHandler("/api/image", imageHandlerWASI); err != nil {
+    log.Fatalf("error adding invocation handler: %v", err)
+  }
 
-   if err := s.Start(); err != nil && err != http.ErrServerClosed {
-       log.Fatalf("error listenning: %v", err)
-   }
+  if err := s.Start(); err != nil && err != http.ErrServerClosed {
+    log.Fatalf("error listenning: %v", err)
+  }
 }
 ```
 
@@ -244,59 +242,59 @@ Once it receives an image file in the HTTP POST request, it invokes a WebAssembl
 
 ```go
 func imageHandlerWASI(_ context.Context, in *common.InvocationEvent) (out *common.Content, err error) {
-   image := in.Data
+  image := in.Data
 
-   var conf = wasmedge.NewConfigure(wasmedge.REFERENCE_TYPES)
-   conf.AddConfig(wasmedge.WASI)
-   var vm = wasmedge.NewVMWithConfig(conf)
+  var conf = wasmedge.NewConfigure(wasmedge.REFERENCE_TYPES)
+  conf.AddConfig(wasmedge.WASI)
+  var vm = wasmedge.NewVMWithConfig(conf)
 
-   var wasi = vm.GetImportObject(wasmedge.WASI)
-   wasi.InitWasi(
-       os.Args[1:],     /// The args
-       os.Environ(),    /// The envs
-       []string{".:."}, /// The mapping directories
-       []string{},      /// The preopens will be empty
-   )
+  var wasi = vm.GetImportObject(wasmedge.WASI)
+  wasi.InitWasi(
+    os.Args[1:],     // The args
+    os.Environ(),    // The envs
+    []string{".:."}, // The mapping directories
+    []string{},      // The preopens will be empty
+  )
 
-   /// Register WasmEdge-tensorflow and WasmEdge-image
-   var tfobj = wasmedge.NewTensorflowImportObject()
-   var tfliteobj = wasmedge.NewTensorflowLiteImportObject()
-   vm.RegisterImport(tfobj)
-   vm.RegisterImport(tfliteobj)
-   var imgobj = wasmedge.NewImageImportObject()
-   vm.RegisterImport(imgobj)
+  // Register WasmEdge-tensorflow and WasmEdge-image
+  var tfobj = wasmedge.NewTensorflowImportObject()
+  var tfliteobj = wasmedge.NewTensorflowLiteImportObject()
+  vm.RegisterImport(tfobj)
+  vm.RegisterImport(tfliteobj)
+  var imgobj = wasmedge.NewImageImportObject()
+  vm.RegisterImport(imgobj)
 
-   vm.LoadWasmFile("./lib/classify_bg.wasm")
-   vm.Validate()
-   vm.Instantiate()
+  vm.LoadWasmFile("./lib/classify_bg.wasm")
+  vm.Validate()
+  vm.Instantiate()
 
-   res, err := vm.ExecuteBindgen("infer", wasmedge.Bindgen_return_array, image)
-   ans := string(res.([]byte))
+  res, err := vm.ExecuteBindgen("infer", wasmedge.Bindgen_return_array, image)
+  ans := string(res.([]byte))
   
-   vm.Delete()
-   conf.Delete()
+  vm.Delete()
+  conf.Delete()
 
-   out = &common.Content{
-       Data:        []byte(ans),
-       ContentType: in.ContentType,
-       DataTypeURL: in.DataTypeURL,
-   }
-   return out, nil
+  out = &common.Content{
+    Data:    []byte(ans),
+    ContentType: in.ContentType,
+    DataTypeURL: in.DataTypeURL,
+  }
+  return out, nil
 }
 ```
 
 The following Dapr CLI command starts the microservice in the Dapr runtime environment.
 
 ```bash
-$ cd image-api-go
-$ sudo dapr run --app-id image-api-go \
-        --app-protocol http \
-        --app-port 9003 \
-        --dapr-http-port 3501 \
-        --log-level debug \
-        --components-path ../config \
-        ./image-api-go
-$ cd ../
+cd image-api-go
+sudo dapr run --app-id image-api-go \
+    --app-protocol http \
+    --app-port 9003 \
+    --dapr-http-port 3501 \
+    --log-level debug \
+    --components-path ../config \
+    ./image-api-go
+cd ../
 ```
 
 ## The web UI sidecar
@@ -305,38 +303,38 @@ The web UI service [web-port](https://github.com/second-state/dapr-wasm/tree/mai
 
 ```go
 func main() {
-   http.HandleFunc("/static/", staticHandler)
-   http.HandleFunc("/api/hello", imageHandler)
-   println("listen to 8080 ...")
-   log.Fatal(http.ListenAndServe(":8080", nil))
+  http.HandleFunc("/static/", staticHandler)
+  http.HandleFunc("/api/hello", imageHandler)
+  println("listen to 8080 ...")
+  log.Fatal(http.ListenAndServe(":8080", nil))
 }
 
 func staticHandler(w http.ResponseWriter, r *http.Request) {
-   // ... read and return the contents of HTML CSS and JS files ...
+  // ... read and return the contents of HTML CSS and JS files ...
 }
 
 func imageHandler(w http.ResponseWriter, r *http.Request) {
-   // ... ...
-   api := r.Header.Get("api")
-   if api == "go" {
-       daprClientSend(body, w)
-   } else {
-       httpClientSend(body, w)
-   }
+  // ... ...
+  api := r.Header.Get("api")
+  if api == "go" {
+    daprClientSend(body, w)
+  } else {
+    httpClientSend(body, w)
+  }
 }
 
 // Send to the image-api-go sidecar (classify) via the Dapr API
 func daprClientSend(image []byte, w http.ResponseWriter) {
-   // ... ...
-   resp, err := client.InvokeMethodWithContent(ctx, "image-api-go", "/api/image", "post", content)
-   // ... ...
+  // ... ...
+  resp, err := client.InvokeMethodWithContent(ctx, "image-api-go", "/api/image", "post", content)
+  // ... ...
 }
 
 // Send to the image-api-rs sidecar (grayscale) via the HTTP API
 func httpClientSend(image []byte, w http.ResponseWriter) {
-   // ... ...
-   req, err := http.NewRequest("POST", "http://localhost:3502/v1.0/invoke/image-api-rs/method/api/image", bytes.NewBuffer(image))
-   // ... ...
+  // ... ...
+  req, err := http.NewRequest("POST", "http://localhost:3502/v1.0/invoke/image-api-rs/method/api/image", bytes.NewBuffer(image))
+  // ... ...
 }
 ```
 
@@ -344,37 +342,37 @@ The JavaScript in [page.js](https://github.com/second-state/dapr-wasm/blob/main/
 
 ```javascript
 function runWasm(e) {
-   const reader = new FileReader();
-   reader.onload = function (e) {
-       setLoading(true);
-       var req = new XMLHttpRequest();
-       req.open("POST", '/api/hello', true);
-       req.setRequestHeader('api', getApi());
-       req.onload = function () {
-           // ...  display results ...
-       };
-       const blob = new Blob([e.target.result], {
-           type: 'application/octet-stream'
-       });
-       req.send(blob);
-   };
-   console.log(image.file)
-   reader.readAsArrayBuffer(image.file);
+  const reader = new FileReader();
+  reader.onload = function (e) {
+    setLoading(true);
+    var req = new XMLHttpRequest();
+    req.open("POST", '/api/hello', true);
+    req.setRequestHeader('api', getApi());
+    req.onload = function () {
+      // ...  display results ...
+    };
+    const blob = new Blob([e.target.result], {
+      type: 'application/octet-stream'
+    });
+    req.send(blob);
+  };
+  console.log(image.file)
+  reader.readAsArrayBuffer(image.file);
 }
 ```
 
 The following Dapr CLI command starts the web service for the static UI files.
 
 ```bash
-$ cd web-port
-$ sudo dapr run --app-id go-web-port \
-        --app-protocol http \
-        --app-port 8080 \
-        --dapr-http-port 3500 \
-        --components-path ../config \
-        --log-level debug \
-        ./web-port
-$ cd ../
+cd web-port
+sudo dapr run --app-id go-web-port \
+    --app-protocol http \
+    --app-port 8080 \
+    --dapr-http-port 3500 \
+    --components-path ../config \
+    --log-level debug \
+    ./web-port
+cd ../
 ```
 
 That's it. You now have a three part distributed application written in two languages!

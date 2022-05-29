@@ -57,15 +57,41 @@
 # - Remove Python detection, since version mismatches will break gcovr
 # - Minor cleanup (lowercase function names, update examples...)
 #
+# 2019-12-19, FeRD (Frank Dana)
+# - Rename Lcov outputs, make filtered file canonical, fix cleanup for targets
+#
+# 2020-01-19, Bob Apthorpe
+# - Added gfortran support
+#
+# 2020-02-17, FeRD (Frank Dana)
+# - Make all add_custom_target()s VERBATIM to auto-escape wildcard characters
+#   in EXCLUDEs, and remove manual escaping from gcovr targets
+#
+# 2021-01-19, Robin Mueller
+# - Add CODE_COVERAGE_VERBOSE option which will allow to print out commands which are run
+# - Added the option for users to set the GCOVR_ADDITIONAL_ARGS variable to supply additional
+#   flags to the gcovr command
+#
+# 2020-05-04, Mihchael Davis
+#     - Add -fprofile-abs-path to make gcno files contain absolute paths
+#     - Fix BASE_DIRECTORY not working when defined
+#     - Change BYPRODUCT from folder to index.html to stop ninja from complaining about double defines
+#
+# 2021-05-10, Martin Stump
+#     - Check if the generator is multi-config before warning about non-Debug builds
+#
 # USAGE:
 #
 # 1. Copy this file into your cmake modules path.
 #
-# 2. Add the following line to your CMakeLists.txt:
+# 2. Add the following line to your CMakeLists.txt (best inside an if-condition
+#    using a CMake option() to enable it just optionally):
 #      include(CodeCoverage)
 #
-# 3. Append necessary compiler flags:
+# 3. Append necessary compiler flags for all supported source files:
 #      append_coverage_compiler_flags()
+#    Or for specific target:
+#      append_coverage_compiler_flags_to_target(YOUR_TARGET_NAME)
 #
 # 3.a (OPTIONAL) Set appropriate optimization flags, e.g. -O0, -O1 or -Og
 #
@@ -104,28 +130,51 @@
 
 include(CMakeParseArguments)
 
+option(CODE_COVERAGE_VERBOSE "Verbose information" FALSE)
+
 # Check prereqs
 find_program( GCOV_PATH gcov )
 find_program( LCOV_PATH  NAMES lcov lcov.bat lcov.exe lcov.perl)
+find_program( FASTCOV_PATH NAMES fastcov fastcov.py )
 find_program( GENHTML_PATH NAMES genhtml genhtml.perl genhtml.bat )
-find_program( GCOVR_PATH gcovr PATHS ${CMAKE_CURRENT_SOURCE_DIR}/scripts/test)
+find_program( GCOVR_PATH gcovr PATHS ${CMAKE_SOURCE_DIR}/scripts/test)
 find_program( CPPFILT_PATH NAMES c++filt )
 
 if(NOT GCOV_PATH)
     message(FATAL_ERROR "gcov not found! Aborting...")
 endif() # NOT GCOV_PATH
 
-if("${CMAKE_CXX_COMPILER_ID}" MATCHES "(Apple)?[Cc]lang")
-    if("${CMAKE_CXX_COMPILER_VERSION}" VERSION_LESS 3)
+get_property(LANGUAGES GLOBAL PROPERTY ENABLED_LANGUAGES)
+list(GET LANGUAGES 0 LANG)
+
+if("${CMAKE_${LANG}_COMPILER_ID}" MATCHES "(Apple)?[Cc]lang")
+    if("${CMAKE_${LANG}_COMPILER_VERSION}" VERSION_LESS 3)
         message(FATAL_ERROR "Clang version must be 3.0.0 or greater! Aborting...")
     endif()
 elseif(NOT CMAKE_COMPILER_IS_GNUCXX)
-    message(FATAL_ERROR "Compiler is not GNU gcc! Aborting...")
+    if("${CMAKE_Fortran_COMPILER_ID}" MATCHES "[Ff]lang")
+        # Do nothing; exit conditional without error if true
+    elseif("${CMAKE_Fortran_COMPILER_ID}" MATCHES "GNU")
+        # Do nothing; exit conditional without error if true
+    else()
+        message(FATAL_ERROR "Compiler is not GNU gcc! Aborting...")
+    endif()
 endif()
 
 set(COVERAGE_COMPILER_FLAGS "-g -fprofile-arcs -ftest-coverage"
     CACHE INTERNAL "")
+if(CMAKE_CXX_COMPILER_ID MATCHES "(GNU|Clang)")
+    include(CheckCXXCompilerFlag)
+    check_cxx_compiler_flag(-fprofile-abs-path HAVE_fprofile_abs_path)
+    if(HAVE_fprofile_abs_path)
+        set(COVERAGE_COMPILER_FLAGS "${COVERAGE_COMPILER_FLAGS} -fprofile-abs-path")
+    endif()
+endif()
 
+set(CMAKE_Fortran_FLAGS_COVERAGE
+    ${COVERAGE_COMPILER_FLAGS}
+    CACHE STRING "Flags used by the Fortran compiler during coverage builds."
+    FORCE )
 set(CMAKE_CXX_FLAGS_COVERAGE
     ${COVERAGE_COMPILER_FLAGS}
     CACHE STRING "Flags used by the C++ compiler during coverage builds."
@@ -143,16 +192,18 @@ set(CMAKE_SHARED_LINKER_FLAGS_COVERAGE
     CACHE STRING "Flags used by the shared libraries linker during coverage builds."
     FORCE )
 mark_as_advanced(
+    CMAKE_Fortran_FLAGS_COVERAGE
     CMAKE_CXX_FLAGS_COVERAGE
     CMAKE_C_FLAGS_COVERAGE
     CMAKE_EXE_LINKER_FLAGS_COVERAGE
     CMAKE_SHARED_LINKER_FLAGS_COVERAGE )
 
-if(NOT CMAKE_BUILD_TYPE STREQUAL "Debug")
+get_property(GENERATOR_IS_MULTI_CONFIG GLOBAL PROPERTY GENERATOR_IS_MULTI_CONFIG)
+if(NOT (CMAKE_BUILD_TYPE STREQUAL "Debug" OR GENERATOR_IS_MULTI_CONFIG))
     message(WARNING "Code coverage results with an optimised (non-Debug) build may be misleading")
-endif() # NOT CMAKE_BUILD_TYPE STREQUAL "Debug"
+endif() # NOT (CMAKE_BUILD_TYPE STREQUAL "Debug" OR GENERATOR_IS_MULTI_CONFIG)
 
-if(CMAKE_C_COMPILER_ID STREQUAL "GNU")
+if(CMAKE_C_COMPILER_ID STREQUAL "GNU" OR CMAKE_Fortran_COMPILER_ID STREQUAL "GNU")
     link_libraries(gcov)
 endif()
 
@@ -188,7 +239,7 @@ function(setup_target_for_coverage_lcov)
     endif() # NOT GENHTML_PATH
 
     # Set base directory (as absolute path), or default to PROJECT_SOURCE_DIR
-    if(${Coverage_BASE_DIRECTORY})
+    if(DEFINED Coverage_BASE_DIRECTORY)
         get_filename_component(BASEDIR ${Coverage_BASE_DIRECTORY} ABSOLUTE)
     else()
         set(BASEDIR ${PROJECT_SOURCE_DIR})
@@ -209,31 +260,94 @@ function(setup_target_for_coverage_lcov)
       set(GENHTML_EXTRA_ARGS "--demangle-cpp")
     endif()
 
+    # Setting up commands which will be run to generate coverage data.
+    # Cleanup lcov
+    set(LCOV_CLEAN_CMD
+        ${LCOV_PATH} ${Coverage_LCOV_ARGS} --gcov-tool ${GCOV_PATH} -directory .
+        -b ${BASEDIR} --zerocounters
+    )
+    # Create baseline to make sure untouched files show up in the report
+    set(LCOV_BASELINE_CMD
+        ${LCOV_PATH} ${Coverage_LCOV_ARGS} --gcov-tool ${GCOV_PATH} -c -i -d . -b
+        ${BASEDIR} -o ${Coverage_NAME}.base
+    )
+    # Run tests
+    set(LCOV_EXEC_TESTS_CMD
+        ${Coverage_EXECUTABLE} ${Coverage_EXECUTABLE_ARGS}
+    )
+    # Capturing lcov counters and generating report
+    set(LCOV_CAPTURE_CMD
+        ${LCOV_PATH} ${Coverage_LCOV_ARGS} --gcov-tool ${GCOV_PATH} --directory . -b
+        ${BASEDIR} --capture --output-file ${Coverage_NAME}.capture
+    )
+    # add baseline counters
+    set(LCOV_BASELINE_COUNT_CMD
+        ${LCOV_PATH} ${Coverage_LCOV_ARGS} --gcov-tool ${GCOV_PATH} -a ${Coverage_NAME}.base
+        -a ${Coverage_NAME}.capture --output-file ${Coverage_NAME}.total
+    )
+    # filter collected data to final coverage report
+    set(LCOV_FILTER_CMD
+        ${LCOV_PATH} ${Coverage_LCOV_ARGS} --gcov-tool ${GCOV_PATH} --remove
+        ${Coverage_NAME}.total ${LCOV_EXCLUDES} --output-file ${Coverage_NAME}.info
+    )
+    # Generate HTML output
+    set(LCOV_GEN_HTML_CMD
+        ${GENHTML_PATH} ${GENHTML_EXTRA_ARGS} ${Coverage_GENHTML_ARGS} -o
+        ${Coverage_NAME} ${Coverage_NAME}.info
+    )
+
+
+    if(CODE_COVERAGE_VERBOSE)
+        message(STATUS "Executed command report")
+        message(STATUS "Command to clean up lcov: ")
+        string(REPLACE ";" " " LCOV_CLEAN_CMD_SPACED "${LCOV_CLEAN_CMD}")
+        message(STATUS "${LCOV_CLEAN_CMD_SPACED}")
+
+        message(STATUS "Command to create baseline: ")
+        string(REPLACE ";" " " LCOV_BASELINE_CMD_SPACED "${LCOV_BASELINE_CMD}")
+        message(STATUS "${LCOV_BASELINE_CMD_SPACED}")
+
+        message(STATUS "Command to run the tests: ")
+        string(REPLACE ";" " " LCOV_EXEC_TESTS_CMD_SPACED "${LCOV_EXEC_TESTS_CMD}")
+        message(STATUS "${LCOV_EXEC_TESTS_CMD_SPACED}")
+
+        message(STATUS "Command to capture counters and generate report: ")
+        string(REPLACE ";" " " LCOV_CAPTURE_CMD_SPACED "${LCOV_CAPTURE_CMD}")
+        message(STATUS "${LCOV_CAPTURE_CMD_SPACED}")
+
+        message(STATUS "Command to add baseline counters: ")
+        string(REPLACE ";" " " LCOV_BASELINE_COUNT_CMD_SPACED "${LCOV_BASELINE_COUNT_CMD}")
+        message(STATUS "${LCOV_BASELINE_COUNT_CMD_SPACED}")
+
+        message(STATUS "Command to filter collected data: ")
+        string(REPLACE ";" " " LCOV_FILTER_CMD_SPACED "${LCOV_FILTER_CMD}")
+        message(STATUS "${LCOV_FILTER_CMD_SPACED}")
+
+        message(STATUS "Command to generate lcov HTML output: ")
+        string(REPLACE ";" " " LCOV_GEN_HTML_CMD_SPACED "${LCOV_GEN_HTML_CMD}")
+        message(STATUS "${LCOV_GEN_HTML_CMD_SPACED}")
+    endif()
+
     # Setup target
     add_custom_target(${Coverage_NAME}
+        COMMAND ${LCOV_CLEAN_CMD}
+        COMMAND ${LCOV_BASELINE_CMD}
+        COMMAND ${LCOV_EXEC_TESTS_CMD}
+        COMMAND ${LCOV_CAPTURE_CMD}
+        COMMAND ${LCOV_BASELINE_COUNT_CMD}
+        COMMAND ${LCOV_FILTER_CMD}
+        COMMAND ${LCOV_GEN_HTML_CMD}
 
-        # Cleanup lcov
-        COMMAND ${LCOV_PATH} ${Coverage_LCOV_ARGS} --gcov-tool ${GCOV_PATH} -directory . -b ${BASEDIR} --zerocounters
-        # Create baseline to make sure untouched files show up in the report
-        COMMAND ${LCOV_PATH} ${Coverage_LCOV_ARGS} --gcov-tool ${GCOV_PATH} -c -i -d . -b ${BASEDIR} -o ${Coverage_NAME}.base
-
-        # Run tests
-        COMMAND ${Coverage_EXECUTABLE} ${Coverage_EXECUTABLE_ARGS}
-
-        # Capturing lcov counters and generating report
-        COMMAND ${LCOV_PATH} ${Coverage_LCOV_ARGS} --gcov-tool ${GCOV_PATH} --directory . -b ${BASEDIR} --capture --output-file ${Coverage_NAME}.info
-        # add baseline counters
-        COMMAND ${LCOV_PATH} ${Coverage_LCOV_ARGS} --gcov-tool ${GCOV_PATH} -a ${Coverage_NAME}.base -a ${Coverage_NAME}.info --output-file ${Coverage_NAME}.total
-        COMMAND ${LCOV_PATH} ${Coverage_LCOV_ARGS} --gcov-tool ${GCOV_PATH} --remove ${Coverage_NAME}.total ${LCOV_EXCLUDES} --output-file ${PROJECT_BINARY_DIR}/${Coverage_NAME}.info.cleaned
-
-        # Generate HTML output
-        COMMAND ${GENHTML_PATH} ${GENHTML_EXTRA_ARGS} ${Coverage_GENHTML_ARGS} -o ${Coverage_NAME} ${PROJECT_BINARY_DIR}/${Coverage_NAME}.info.cleaned
-
-        COMMAND ${CMAKE_COMMAND} -E remove ${Coverage_NAME}.base ${Coverage_NAME}.total ${PROJECT_BINARY_DIR}/${Coverage_NAME}.info.cleaned
-        BYPRODUCTS ${Coverage_NAME}.info
-
+        # Set output files as GENERATED (will be removed on 'make clean')
+        BYPRODUCTS
+            ${Coverage_NAME}.base
+            ${Coverage_NAME}.capture
+            ${Coverage_NAME}.total
+            ${Coverage_NAME}.info
+            ${Coverage_NAME}/index.html
         WORKING_DIRECTORY ${PROJECT_BINARY_DIR}
         DEPENDS ${Coverage_DEPENDENCIES}
+        VERBATIM # Protect arguments to commands
         COMMENT "Resetting code coverage counters to zero.\nProcessing code coverage counters and generating report."
     )
 
@@ -248,11 +362,6 @@ function(setup_target_for_coverage_lcov)
         COMMAND ;
         COMMENT "Open ./${Coverage_NAME}/index.html in your browser to view the coverage report."
     )
-
-    # Clean up output on 'make clean'
-    set_property(DIRECTORY APPEND PROPERTY
-        ADDITIONAL_MAKE_CLEAN_FILES
-        ${Coverage_NAME})
 
 endfunction() # setup_target_for_coverage_lcov
 
@@ -270,6 +379,8 @@ endfunction() # setup_target_for_coverage_lcov
 #     EXCLUDE "src/dir1/*" "src/dir2/*"      # Patterns to exclude (can be relative
 #                                            #  to BASE_DIRECTORY, with CMake 3.4+)
 # )
+# The user can set the variable GCOVR_ADDITIONAL_ARGS to supply additional flags to the
+# GCVOR command.
 function(setup_target_for_coverage_gcovr_xml)
 
     set(options NONE)
@@ -282,7 +393,7 @@ function(setup_target_for_coverage_gcovr_xml)
     endif() # NOT GCOVR_PATH
 
     # Set base directory (as absolute path), or default to PROJECT_SOURCE_DIR
-    if(${Coverage_BASE_DIRECTORY})
+    if(DEFINED Coverage_BASE_DIRECTORY)
         get_filename_component(BASEDIR ${Coverage_BASE_DIRECTORY} ABSOLUTE)
     else()
         set(BASEDIR ${PROJECT_SOURCE_DIR})
@@ -301,23 +412,41 @@ function(setup_target_for_coverage_gcovr_xml)
     # Combine excludes to several -e arguments
     set(GCOVR_EXCLUDE_ARGS "")
     foreach(EXCLUDE ${GCOVR_EXCLUDES})
-        string(REPLACE "*" "\\*" EXCLUDE_REPLACED ${EXCLUDE})
         list(APPEND GCOVR_EXCLUDE_ARGS "-e")
-        list(APPEND GCOVR_EXCLUDE_ARGS "${EXCLUDE_REPLACED}")
+        list(APPEND GCOVR_EXCLUDE_ARGS "${EXCLUDE}")
     endforeach()
 
-    add_custom_target(${Coverage_NAME}
-        # Run tests
+    # Set up commands which will be run to generate coverage data
+    # Run tests
+    set(GCOVR_XML_EXEC_TESTS_CMD
         ${Coverage_EXECUTABLE} ${Coverage_EXECUTABLE_ARGS}
+    )
+    # Running gcovr
+    set(GCOVR_XML_CMD
+        ${GCOVR_PATH} --xml -r ${BASEDIR} ${GCOVR_ADDITIONAL_ARGS} ${GCOVR_EXCLUDE_ARGS}
+        --object-directory=${PROJECT_BINARY_DIR} -o ${Coverage_NAME}.xml
+    )
 
-        # Running gcovr
-        COMMAND ${GCOVR_PATH} --xml
-            -r ${BASEDIR} ${GCOVR_EXCLUDE_ARGS}
-            --object-directory=${PROJECT_BINARY_DIR}
-            -o ${Coverage_NAME}.xml
-            --print-summary
+    if(CODE_COVERAGE_VERBOSE)
+        message(STATUS "Executed command report")
+
+        message(STATUS "Command to run tests: ")
+        string(REPLACE ";" " " GCOVR_XML_EXEC_TESTS_CMD_SPACED "${GCOVR_XML_EXEC_TESTS_CMD}")
+        message(STATUS "${GCOVR_XML_EXEC_TESTS_CMD_SPACED}")
+
+        message(STATUS "Command to generate gcovr XML coverage data: ")
+        string(REPLACE ";" " " GCOVR_XML_CMD_SPACED "${GCOVR_XML_CMD}")
+        message(STATUS "${GCOVR_XML_CMD_SPACED}")
+    endif()
+
+    add_custom_target(${Coverage_NAME}
+        COMMAND ${GCOVR_XML_EXEC_TESTS_CMD}
+        COMMAND ${GCOVR_XML_CMD}
+
+        BYPRODUCTS ${Coverage_NAME}.xml
         WORKING_DIRECTORY ${PROJECT_BINARY_DIR}
         DEPENDS ${Coverage_DEPENDENCIES}
+        VERBATIM # Protect arguments to commands
         COMMENT "Running gcovr to produce Cobertura code coverage report."
     )
 
@@ -326,12 +455,6 @@ function(setup_target_for_coverage_gcovr_xml)
         COMMAND ;
         COMMENT "Cobertura code coverage report saved in ${Coverage_NAME}.xml."
     )
-
-    # Clean up output on 'make clean'
-    set_property(DIRECTORY APPEND PROPERTY
-        ADDITIONAL_MAKE_CLEAN_FILES
-        ${Coverage_NAME})
-
 endfunction() # setup_target_for_coverage_gcovr_xml
 
 # Defines a target for running and collection code coverage information
@@ -348,6 +471,8 @@ endfunction() # setup_target_for_coverage_gcovr_xml
 #     EXCLUDE "src/dir1/*" "src/dir2/*"      # Patterns to exclude (can be relative
 #                                            #  to BASE_DIRECTORY, with CMake 3.4+)
 # )
+# The user can set the variable GCOVR_ADDITIONAL_ARGS to supply additional flags to the
+# GCVOR command.
 function(setup_target_for_coverage_gcovr_html)
 
     set(options NONE)
@@ -360,7 +485,7 @@ function(setup_target_for_coverage_gcovr_html)
     endif() # NOT GCOVR_PATH
 
     # Set base directory (as absolute path), or default to PROJECT_SOURCE_DIR
-    if(${Coverage_BASE_DIRECTORY})
+    if(DEFINED Coverage_BASE_DIRECTORY)
         get_filename_component(BASEDIR ${Coverage_BASE_DIRECTORY} ABSOLUTE)
     else()
         set(BASEDIR ${PROJECT_SOURCE_DIR})
@@ -379,26 +504,51 @@ function(setup_target_for_coverage_gcovr_html)
     # Combine excludes to several -e arguments
     set(GCOVR_EXCLUDE_ARGS "")
     foreach(EXCLUDE ${GCOVR_EXCLUDES})
-        string(REPLACE "*" "\\*" EXCLUDE_REPLACED ${EXCLUDE})
         list(APPEND GCOVR_EXCLUDE_ARGS "-e")
-        list(APPEND GCOVR_EXCLUDE_ARGS "${EXCLUDE_REPLACED}")
+        list(APPEND GCOVR_EXCLUDE_ARGS "${EXCLUDE}")
     endforeach()
 
-    add_custom_target(${Coverage_NAME}
-        # Run tests
+    # Set up commands which will be run to generate coverage data
+    # Run tests
+    set(GCOVR_HTML_EXEC_TESTS_CMD
         ${Coverage_EXECUTABLE} ${Coverage_EXECUTABLE_ARGS}
+    )
+    # Create folder
+    set(GCOVR_HTML_FOLDER_CMD
+        ${CMAKE_COMMAND} -E make_directory ${PROJECT_BINARY_DIR}/${Coverage_NAME}
+    )
+    # Running gcovr
+    set(GCOVR_HTML_CMD
+        ${GCOVR_PATH} --html --html-details -r ${BASEDIR} ${GCOVR_ADDITIONAL_ARGS}
+        ${GCOVR_EXCLUDE_ARGS} --object-directory=${PROJECT_BINARY_DIR}
+        -o ${Coverage_NAME}/index.html
+    )
 
-        # Create folder
-        COMMAND ${CMAKE_COMMAND} -E make_directory ${PROJECT_BINARY_DIR}/${Coverage_NAME}
+    if(CODE_COVERAGE_VERBOSE)
+        message(STATUS "Executed command report")
 
-        # Running gcovr
-        COMMAND ${GCOVR_PATH} --html --html-details
-            -r ${BASEDIR} ${GCOVR_EXCLUDE_ARGS}
-            --object-directory=${PROJECT_BINARY_DIR}
-            -o ${Coverage_NAME}/index.html
-            --print-summary
+        message(STATUS "Command to run tests: ")
+        string(REPLACE ";" " " GCOVR_HTML_EXEC_TESTS_CMD_SPACED "${GCOVR_HTML_EXEC_TESTS_CMD}")
+        message(STATUS "${GCOVR_HTML_EXEC_TESTS_CMD_SPACED}")
+
+        message(STATUS "Command to create a folder: ")
+        string(REPLACE ";" " " GCOVR_HTML_FOLDER_CMD_SPACED "${GCOVR_HTML_FOLDER_CMD}")
+        message(STATUS "${GCOVR_HTML_FOLDER_CMD_SPACED}")
+
+        message(STATUS "Command to generate gcovr HTML coverage data: ")
+        string(REPLACE ";" " " GCOVR_HTML_CMD_SPACED "${GCOVR_HTML_CMD}")
+        message(STATUS "${GCOVR_HTML_CMD_SPACED}")
+    endif()
+
+    add_custom_target(${Coverage_NAME}
+        COMMAND ${GCOVR_HTML_EXEC_TESTS_CMD}
+        COMMAND ${GCOVR_HTML_FOLDER_CMD}
+        COMMAND ${GCOVR_HTML_CMD}
+
+        BYPRODUCTS ${PROJECT_BINARY_DIR}/${Coverage_NAME}/index.html  # report directory
         WORKING_DIRECTORY ${PROJECT_BINARY_DIR}
         DEPENDS ${Coverage_DEPENDENCIES}
+        VERBATIM # Protect arguments to commands
         COMMENT "Running gcovr to produce HTML code coverage report."
     )
 
@@ -408,15 +558,160 @@ function(setup_target_for_coverage_gcovr_html)
         COMMENT "Open ./${Coverage_NAME}/index.html in your browser to view the coverage report."
     )
 
-    # Clean up output on 'make clean'
-    set_property(DIRECTORY APPEND PROPERTY
-        ADDITIONAL_MAKE_CLEAN_FILES
-        ${Coverage_NAME})
-
 endfunction() # setup_target_for_coverage_gcovr_html
+
+# Defines a target for running and collection code coverage information
+# Builds dependencies, runs the given executable and outputs reports.
+# NOTE! The executable should always have a ZERO as exit code otherwise
+# the coverage generation will not complete.
+#
+# setup_target_for_coverage_fastcov(
+#     NAME testrunner_coverage                    # New target name
+#     EXECUTABLE testrunner -j ${PROCESSOR_COUNT} # Executable in PROJECT_BINARY_DIR
+#     DEPENDENCIES testrunner                     # Dependencies to build first
+#     BASE_DIRECTORY "../"                        # Base directory for report
+#                                                 #  (defaults to PROJECT_SOURCE_DIR)
+#     EXCLUDE "src/dir1/" "src/dir2/"             # Patterns to exclude.
+#     NO_DEMANGLE                                 # Don't demangle C++ symbols
+#                                                 #  even if c++filt is found
+#     SKIP_HTML                                   # Don't create html report
+#     POST_CMD perl -i -pe s!${PROJECT_SOURCE_DIR}/!!g ctest_coverage.json  # E.g. for stripping source dir from file paths
+# )
+function(setup_target_for_coverage_fastcov)
+
+    set(options NO_DEMANGLE SKIP_HTML)
+    set(oneValueArgs BASE_DIRECTORY NAME)
+    set(multiValueArgs EXCLUDE EXECUTABLE EXECUTABLE_ARGS DEPENDENCIES FASTCOV_ARGS GENHTML_ARGS POST_CMD)
+    cmake_parse_arguments(Coverage "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
+
+    if(NOT FASTCOV_PATH)
+        message(FATAL_ERROR "fastcov not found! Aborting...")
+    endif()
+
+    if(NOT Coverage_SKIP_HTML AND NOT GENHTML_PATH)
+        message(FATAL_ERROR "genhtml not found! Aborting...")
+    endif()
+
+    # Set base directory (as absolute path), or default to PROJECT_SOURCE_DIR
+    if(Coverage_BASE_DIRECTORY)
+        get_filename_component(BASEDIR ${Coverage_BASE_DIRECTORY} ABSOLUTE)
+    else()
+        set(BASEDIR ${PROJECT_SOURCE_DIR})
+    endif()
+
+    # Collect excludes (Patterns, not paths, for fastcov)
+    set(FASTCOV_EXCLUDES "")
+    foreach(EXCLUDE ${Coverage_EXCLUDE} ${COVERAGE_EXCLUDES} ${COVERAGE_FASTCOV_EXCLUDES})
+        list(APPEND FASTCOV_EXCLUDES "${EXCLUDE}")
+    endforeach()
+    list(REMOVE_DUPLICATES FASTCOV_EXCLUDES)
+
+    # Conditional arguments
+    if(CPPFILT_PATH AND NOT ${Coverage_NO_DEMANGLE})
+        set(GENHTML_EXTRA_ARGS "--demangle-cpp")
+    endif()
+
+    # Set up commands which will be run to generate coverage data
+    set(FASTCOV_EXEC_TESTS_CMD ${Coverage_EXECUTABLE} ${Coverage_EXECUTABLE_ARGS})
+
+    set(FASTCOV_CAPTURE_CMD ${FASTCOV_PATH} ${Coverage_FASTCOV_ARGS} --gcov ${GCOV_PATH}
+        --search-directory ${BASEDIR}
+        --process-gcno
+        --output ${Coverage_NAME}.json
+        --exclude ${FASTCOV_EXCLUDES}
+        --exclude ${FASTCOV_EXCLUDES}
+    )
+
+    set(FASTCOV_CONVERT_CMD ${FASTCOV_PATH}
+        -C ${Coverage_NAME}.json --lcov --output ${Coverage_NAME}.info
+    )
+
+    if(Coverage_SKIP_HTML)
+        set(FASTCOV_HTML_CMD ";")
+    else()
+        set(FASTCOV_HTML_CMD ${GENHTML_PATH} ${GENHTML_EXTRA_ARGS} ${Coverage_GENHTML_ARGS}
+            -o ${Coverage_NAME} ${Coverage_NAME}.info
+        )
+    endif()
+
+    set(FASTCOV_POST_CMD ";")
+    if(Coverage_POST_CMD)
+        set(FASTCOV_POST_CMD ${Coverage_POST_CMD})
+    endif()
+
+    if(CODE_COVERAGE_VERBOSE)
+        message(STATUS "Code coverage commands for target ${Coverage_NAME} (fastcov):")
+
+        message("   Running tests:")
+        string(REPLACE ";" " " FASTCOV_EXEC_TESTS_CMD_SPACED "${FASTCOV_EXEC_TESTS_CMD}")
+        message("     ${FASTCOV_EXEC_TESTS_CMD_SPACED}")
+
+        message("   Capturing fastcov counters and generating report:")
+        string(REPLACE ";" " " FASTCOV_CAPTURE_CMD_SPACED "${FASTCOV_CAPTURE_CMD}")
+        message("     ${FASTCOV_CAPTURE_CMD_SPACED}")
+
+        message("   Converting fastcov .json to lcov .info:")
+        string(REPLACE ";" " " FASTCOV_CONVERT_CMD_SPACED "${FASTCOV_CONVERT_CMD}")
+        message("     ${FASTCOV_CONVERT_CMD_SPACED}")
+
+        if(NOT Coverage_SKIP_HTML)
+            message("   Generating HTML report: ")
+            string(REPLACE ";" " " FASTCOV_HTML_CMD_SPACED "${FASTCOV_HTML_CMD}")
+            message("     ${FASTCOV_HTML_CMD_SPACED}")
+        endif()
+        if(Coverage_POST_CMD)
+            message("   Running post command: ")
+            string(REPLACE ";" " " FASTCOV_POST_CMD_SPACED "${FASTCOV_POST_CMD}")
+            message("     ${FASTCOV_POST_CMD_SPACED}")
+        endif()
+    endif()
+
+    # Setup target
+    add_custom_target(${Coverage_NAME}
+
+        # Cleanup fastcov
+        COMMAND ${FASTCOV_PATH} ${Coverage_FASTCOV_ARGS} --gcov ${GCOV_PATH}
+            --search-directory ${BASEDIR}
+            --zerocounters
+
+        COMMAND ${FASTCOV_EXEC_TESTS_CMD}
+        COMMAND ${FASTCOV_CAPTURE_CMD}
+        COMMAND ${FASTCOV_CONVERT_CMD}
+        COMMAND ${FASTCOV_HTML_CMD}
+        COMMAND ${FASTCOV_POST_CMD}
+
+        # Set output files as GENERATED (will be removed on 'make clean')
+        BYPRODUCTS
+             ${Coverage_NAME}.info
+             ${Coverage_NAME}.json
+             ${Coverage_NAME}/index.html  # report directory
+
+        WORKING_DIRECTORY ${PROJECT_BINARY_DIR}
+        DEPENDS ${Coverage_DEPENDENCIES}
+        VERBATIM # Protect arguments to commands
+        COMMENT "Resetting code coverage counters to zero. Processing code coverage counters and generating report."
+    )
+
+    set(INFO_MSG "fastcov code coverage info report saved in ${Coverage_NAME}.info and ${Coverage_NAME}.json.")
+    if(NOT Coverage_SKIP_HTML)
+        string(APPEND INFO_MSG " Open ${PROJECT_BINARY_DIR}/${Coverage_NAME}/index.html in your browser to view the coverage report.")
+    endif()
+    # Show where to find the fastcov info report
+    add_custom_command(TARGET ${Coverage_NAME} POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E echo ${INFO_MSG}
+    )
+
+endfunction() # setup_target_for_coverage_fastcov
 
 function(append_coverage_compiler_flags)
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${COVERAGE_COMPILER_FLAGS}" PARENT_SCOPE)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${COVERAGE_COMPILER_FLAGS}" PARENT_SCOPE)
+    set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} ${COVERAGE_COMPILER_FLAGS}" PARENT_SCOPE)
     message(STATUS "Appending code coverage compiler flags: ${COVERAGE_COMPILER_FLAGS}")
 endfunction() # append_coverage_compiler_flags
+
+# Setup coverage for specific library
+function(append_coverage_compiler_flags_to_target name)
+    target_compile_options(${name}
+        PRIVATE ${COVERAGE_COMPILER_FLAGS})
+endfunction()

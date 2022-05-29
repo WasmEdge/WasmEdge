@@ -9,9 +9,9 @@ As a sandbox project hosted by CNCF, the WasmEdge Runtime follows the [CNCF Code
 * Triage GitHub issues and perform pull request reviews for other maintainers and the community. The areas of specialization listed in OWNERS.md can be used to help with routing an issue/question to the right person.
 * Triage build issues - file issues for known flaky builds or bugs, and either fix or find someone to fix any main build breakages.
 * During GitHub issue triage, apply all applicable [labels](https://github.com/WasmEdge/WasmEdge/labels) to each new issue. Labels are extremely useful for future issue to follow-up. Which labels to apply is somewhat subjective so just use your best judgment. A few of the most important labels that are not self-explanatory are:
-    * good first issue: Mark any issue that can reasonably be accomplished by a new contributor with this label.
-    * help wanted: Unless it is immediately obvious that someone is going to work on an issue (and if so assign it), mark it help wanted.
-    * question: If it's unclear if an issue is immediately actionable, mark it with the question label. Questions are easy to search for and close out at a later time. Questions can be promoted to other issue types once it's clear they are actionable (at which point the question label should be removed).
+  * good first issue: Mark any issue that can reasonably be accomplished by a new contributor with this label.
+  * help wanted: Unless it is immediately obvious that someone is going to work on an issue (and if so assign it), mark it help wanted.
+  * question: If it's unclear if an issue is immediately actionable, mark it with the question label. Questions are easy to search for and close out at a later time. Questions can be promoted to other issue types once it's clear they are actionable (at which point the question label should be removed).
 * Make sure that ongoing PRs are moving forward at the right pace or closing them.
 * Participate when called upon in the security release process. Note that although this should be a rare occurrence, if a serious vulnerability is found, the process may take up to several full days of work to implement. This reality should be taken into account when discussing time commitment obligations with employers.
 
@@ -41,11 +41,11 @@ If a candidate is approved, they will be invited to add their own LGTM or approv
 
 If a maintainer is no longer interested or cannot perform the maintainer duties listed above, they should volunteer to be moved to emeritus status. In extreme cases this can also occur by a vote of the maintainers per the voting process below.
 
-# Conflict resolution and voting
+## Conflict resolution and voting
 
 In general, we prefer that technical issues and maintainer membership are amicably worked out between the persons involved. If a dispute cannot be decided independently, the maintainers can be called in to decide an issue. If the maintainers themselves cannot decide an issue, the issue will be resolved by voting. The voting process is a simple majority in which each maintainer receives one vote.
 
-# Adding new projects to the WasmRuntime GitHub organization
+## Adding new projects to the WasmRuntime GitHub organization
 
 New projects will be added to the WasmEdge organization via GitHub issue discussion in one of the existing projects in the organization. Once sufficient discussion has taken place (~3-5 business days but depending on the volume of conversation), the maintainers of *the project where the issue was opened* (since different projects in the organization may have different maintainers) will decide whether the new project should be added. See the section above on voting if the maintainers cannot easily decide.
 

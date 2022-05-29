@@ -1,6 +1,6 @@
 # 公有云中的 Serverless 函数即服务
 
-WasmEdge 与现有的 Serverless 或 Jamstack 平台配合使用，为函数提供高性能、可移植和安全的 runtime。即在这些平台上的 Docker 或 microVM 中运行，也能提供显着的好处。
+WasmEdge 与现有的 Serverless 或 Jamstack 平台配合使用，为函数提供高性能、可移植和安全的 runtime。即使在这些平台上的 Docker 或 microVM 中运行，也能提供显著的好处。
 
 ## AWS Lambda
 

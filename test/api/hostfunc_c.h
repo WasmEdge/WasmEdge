@@ -55,7 +55,7 @@ WasmEdge_Result SpecTestPrintF64F64(void *Data,
                                     const WasmEdge_Value *In,
                                     WasmEdge_Value *Out);
 
-WasmEdge_ImportObjectContext *createSpecTestModule(void);
+WasmEdge_ModuleInstanceContext *createSpecTestModule(void);
 
 #ifdef __cplusplus
 } // extern "C"

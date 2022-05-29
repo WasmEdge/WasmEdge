@@ -5,7 +5,7 @@ WasmEdge C API 提供了應用程式接口將 WasmEdge 嵌入至 C 程式中。�
 ## WasmEdge 執行 Wasm 快速指南
 
 以下是執行一個 WASM 檔案的範例。
-假設 WASM 檔案 [`fibonacci.wasm`](https://github.com/WasmEdge/WasmEdge/raw/master/tools/wasmedge/examples/fibonacci.wasm) 已經被複製到當前資料夾，並且 C 檔案 `test_wasmedge.c` 的原始碼如下：
+假設 WASM 檔案 [`fibonacci.wasm`](https://github.com/WasmEdge/WasmEdge/raw/master/examples/wasm/fibonacci.wasm) 已經被複製到當前資料夾，並且 C 檔案 `test_wasmedge.c` 的原始碼如下：
 
 ```c
 #include <wasmedge/wasmedge.h>
@@ -52,7 +52,7 @@ Get result: 3524578
 
 ## WasmEdge AOT 編譯器快速指南
 
-假設 WASM 檔案 [`fibonacci.wasm`](https://github.com/WasmEdge/WasmEdge/raw/master/tools/wasmedge/examples/fibonacci.wasm) 已經被複製到當前資料夾，並且 C 檔案 `test_wasmedge_compiler.c` 的原始碼如下：
+假設 WASM 檔案 [`fibonacci.wasm`](https://github.com/WasmEdge/WasmEdge/raw/master/examples/wasm/fibonacci.wasm) 已經被複製到當前資料夾，並且 C 檔案 `test_wasmedge_compiler.c` 的原始碼如下：
 
 ```c
 #include <wasmedge/wasmedge.h>
@@ -69,8 +69,8 @@ int main(int Argc, const char* Argv[]) {
   /* 根據命令列參數來指定輸入輸出檔案位置。 */
   Res = WasmEdge_CompilerCompile(CompilerCxt, Argv[1], Argv[2]);
   if (!WasmEdge_ResultOK(Res)) {
-      printf("Compilation failed: %s\n", WasmEdge_ResultGetMessage(Res));
-      return 1;
+    printf("Compilation failed: %s\n", WasmEdge_ResultGetMessage(Res));
+    return 1;
   }
 
   WasmEdge_CompilerDelete(CompilerCxt);
@@ -98,16 +98,16 @@ $ ./test_wasmedge_compiler fibonacci.wasm fibonacci.wasm.so
 $ time ./test_wasmedge fibonacci.wasm
 Get result: 5702887
 
-real	0m2.715s
-user	0m2.700s
-sys	0m0.008s
+real 0m2.715s
+user 0m2.700s
+sys 0m0.008s
 
 $ time ./test_wasmedge fibonacci.wasm.so
 Get result: 5702887
 
-real	0m0.036s
-user	0m0.022s
-sys	0m0.011s
+real 0m0.036s
+user 0m0.022s
+sys 0m0.011s
 ```
 
 如果要了解 API 的細節，請參考 [API 標頭檔](https://github.com/WasmEdge/WasmEdge/blob/master/include/api/wasmedge/wasmedge.h)。

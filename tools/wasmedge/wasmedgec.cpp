@@ -3,12 +3,28 @@
 
 #include "aot/compiler.h"
 #include "common/configure.h"
+#include "common/defines.h"
 #include "common/filesystem.h"
 #include "common/version.h"
 #include "loader/loader.h"
 #include "po/argument_parser.h"
 #include "validator/validator.h"
+#include <cstdint>
+#include <cstdlib>
 #include <iostream>
+#include <memory>
+#include <string>
+#include <string_view>
+#include <utility>
+#include <vector>
+
+#if WASMEDGE_OS_LINUX
+#define EXTENSION ".so"sv
+#elif WASMEDGE_OS_MACOS
+#define EXTENSION ".dylib"sv
+#elif WASMEDGE_OS_WINDOWS
+#define EXTENSION ".dll"sv
+#endif
 
 int main(int Argc, const char *Argv[]) {
   namespace PO = WasmEdge::PO;
@@ -55,6 +71,10 @@ int main(int Argc, const char *Argv[]) {
   PO::Option<PO::Toggle> PropSIMD(PO::Description("Disable SIMD proposal"sv));
   PO::Option<PO::Toggle> PropMultiMem(
       PO::Description("Enable Multiple memories proposal"sv));
+  PO::Option<PO::Toggle> PropTailCall(
+      PO::Description("Enable Tail-call proposal"sv));
+  PO::Option<PO::Toggle> PropExtendConst(
+      PO::Description("Enable Extended-const proposal"sv));
   PO::Option<PO::Toggle> PropAll(PO::Description("Enable all features"sv));
 
   auto Parser = PO::ArgumentParser();
@@ -76,6 +96,8 @@ int main(int Argc, const char *Argv[]) {
            .add_option("disable-reference-types"sv, PropRefTypes)
            .add_option("disable-simd"sv, PropSIMD)
            .add_option("enable-multi-memory"sv, PropMultiMem)
+           .add_option("enable-tail-call"sv, PropTailCall)
+           .add_option("enable-extended-const"sv, PropExtendConst)
            .add_option("enable-all"sv, PropAll)
            .parse(Argc, Argv)) {
     return EXIT_FAILURE;
@@ -110,8 +132,16 @@ int main(int Argc, const char *Argv[]) {
   if (PropMultiMem.value()) {
     Conf.addProposal(WasmEdge::Proposal::MultiMemories);
   }
+  if (PropTailCall.value()) {
+    Conf.addProposal(WasmEdge::Proposal::TailCall);
+  }
+  if (PropExtendConst.value()) {
+    Conf.addProposal(WasmEdge::Proposal::ExtendedConst);
+  }
   if (PropAll.value()) {
     Conf.addProposal(WasmEdge::Proposal::MultiMemories);
+    Conf.addProposal(WasmEdge::Proposal::TailCall);
+    Conf.addProposal(WasmEdge::Proposal::ExtendedConst);
   }
 
   std::filesystem::path InputPath = std::filesystem::absolute(WasmName.value());
@@ -170,7 +200,7 @@ int main(int Argc, const char *Argv[]) {
     if (ConfGenericBinary.value()) {
       Conf.getCompilerConfigure().setGenericBinary(true);
     }
-    if (OutputPath.extension().u8string() == ".so"sv) {
+    if (OutputPath.extension().u8string() == EXTENSION) {
       Conf.getCompilerConfigure().setOutputFormat(
           WasmEdge::CompilerConfigure::OutputFormat::Native);
     }

@@ -9,7 +9,7 @@ You need to install [Rust](https://www.rust-lang.org/tools/install) and [WasmEdg
 You should also install the `wasm32-wasi` target to the Rust toolchain.
 
 ```bash
-$ rustup target add wasm32-wasi
+rustup target add wasm32-wasi
 ```
 
 ## Hello world
@@ -31,13 +31,13 @@ fn main() {
 }
 ```
 
-### Build the WASM bytecode
+### Hello world: Build the WASM bytecode
 
 ```bash
-$ cargo build --target wasm32-wasi
+cargo build --target wasm32-wasi
 ```
 
-### Run the application from command line
+### Hello world: Run the application from command line
 
 We will use the `wasmedge` command to run the program.
 
@@ -63,13 +63,13 @@ pub fn add(a: i32, b: i32) -> i32 {
 }
 ```
 
-### Build the WASM bytecode
+### A simple function: Build the WASM bytecode
 
 ```bash
-$ cargo build --target wasm32-wasi
+cargo build --target wasm32-wasi
 ```
 
-### Run the application from command line
+### A simple function: Run the application from command line
 
 We will use `wasmedge` in reactor mode to run the program. We pass the function name and its input parameters as command line arguments.
 
@@ -78,16 +78,15 @@ $ wasmedge --reactor target/wasm32-wasi/debug/add.wasm add 2 2
 4
 ```
 
-### Pass complex call parameters
+## Pass complex call parameters
 
 Of course, in most cases, you will not call functions using CLI arguments.
 Instead, you will probably need to use a [language SDK from WasmEdge](../../embed.md)
 to call the function, pass call parameters, and receive return values.
 Below are some SDK examples for complex call parameters and return values.
 
-* [Use wasm-bindgen in a Node.js host app](../embed/node.md#more-examples)
-* [Use wasm-bindgen in a Go host app](../embed/go/bindgen.md)
-* [Use direct memory passing in a Go host app]()
+* [Use wasmedge-bindgen in a Go host app](../embed/go/function.md)
+* [Use direct memory passing in a Go host app](../embed/go/memory.md)
 
 ## Improve performance
 
@@ -117,6 +116,7 @@ $ wasmedge --reactor add.wasm add 2 2
 
 * [Access OS services via WASI](rust/wasi.md) shows how the WebAssembly program can access the underlying OS services, such as file system and environment variables.
 * [Tensorflow](rust/tensorflow.md) shows how to create Tensorflow-based AI inference applications for WebAssembly using the WasmEdge TensorFlow Rust SDK.
-* [Networking socket](rust/networking.md) shows how to create networking applications for WebAssembly using the WasmEdge networking socket Rust SDK.
+* [Simple networking socket](rust/networking.md) shows how to create simple HTTP client and server applications using the WasmEdge networking socket Rust SDK.
+* [Non-blocking networking socket](rust/networking-nonblocking.md) shows how to create a high-performance non-blocking networking applications with concurrent open connections using the WasmEdge networking socket Rust SDK.
+* [Server-side rendering](rust/ssr.md) shows how to build an interactive web app with Rust, and then render the HTML DOM UI on the server using WasmEdge. The Rust source code is compiled to WebAssembly to render the HTML DOM in the browser or on the server.
 * [Command interface](rust/command.md) shows how to create native command applications for WebAssembly using the Wasmedge command interface Rust SDK.
-* [Bindgen and rustwasmc](rust/bindgen.md) shows how to use the `rustwasmc` toolchain to compile Rust functions into WebAssembly, and then pass complex call parameters to the function from an external host application.

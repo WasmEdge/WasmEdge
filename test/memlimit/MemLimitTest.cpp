@@ -4,7 +4,7 @@
 #include "common/configure.h"
 #include "runtime/instance/memory.h"
 
-#include "gtest/gtest.h"
+#include <gtest/gtest.h>
 
 namespace {
 

@@ -8,6 +8,7 @@ NC=$'\e[0m' # No Color
 PERM_ROOT=1
 TMP_DIR="/tmp/wasmedge.$$"
 _LD_LIBRARY_PATH_="LD_LIBRARY_PATH"
+_UNINSTALL_SCRIPT_TAG="master"
 
 if [[ $EUID -ne 0 ]]; then
     PERM_ROOT=0
@@ -57,22 +58,28 @@ _extractor() {
                 continue
             fi
             if [ ! -d "$IPATH/$filtered" ] && [[ ! "$filtered" =~ "download_dependencies" ]]; then
+                if [[ "$filtered" =~ "Plugin" ]] || [[ "$filtered" =~ "plugin" ]]; then
+                    # Plugins installation is handled in install function
+                    continue
+                fi
                 if [[ "$2" =~ "lib" ]] && [[ ! "$IPATH/$filtered" =~ "/lib/" ]]; then
                     echo "#$IPATH/lib/$filtered" >>"$IPATH/env"
                     local _re_
-                    _re_='.[0-9]{1,2}.[0-9]{1,2}.[0-9]{1,2}'
-                    if [[ "$filtered" =~ $_re_$ ]]; then
+                    [[ "$OS" == "Linux" ]] && _re_='.[0-9]{1,2}.[0-9]{1,2}.[0-9]{1,2}$'
+                    [[ "$OS" == "Darwin" ]] && _re_='[0-9]{1,2}.[0-9]{1,2}.[0-9]{1,2}.'
+                    if [[ "$filtered" =~ $_re_ ]]; then
                         local _f_ _f2_ _f3_ _f4_
                         _f_=${filtered//$_re_/}
                         _f2_=${filtered#$_f_}
                         _f2_=${BASH_REMATCH[*]}
 
-                        IFS=. read -r var1 var2 <<<"$(if [[ "$filtered" =~ $_re_$ ]]; then
+                        IFS=. read -r var1 var2 <<<"$(if [[ "$filtered" =~ $_re_ ]]; then
                             echo "${BASH_REMATCH[*]#.}"
                         fi)"
 
-                        _f3_=${filtered//${_f2_}/} # libsome.so.xx.yy.zz --> libsome.so
-                        _f4_="$_f3_.$var1"         # libsome.so.xx.yy.zz --> libsome.so.xx
+                        _f3_=${filtered//${_f2_}/}                                                  # libsome.so.xx.yy.zz --> libsome.so
+                        [[ "$OS" == "Linux" ]] && _f4_="$_f3_.$var1"                                # libsome.so.xx.yy.zz --> libsome.so.xx
+                        [[ "$OS" == "Darwin" ]] && _f4_="${filtered//.${_f2_}dylib/}"".$var1.dylib" # libsome.xx.yy.zz.dylib --> libsome.xx.dylib
 
                         ln -sf "$IPATH/lib/$filtered" "$IPATH/lib/$_f3_"
                         echo "#$IPATH/lib/$_f3_" >>"$IPATH/env"
@@ -81,9 +88,9 @@ _extractor() {
                         echo "#$IPATH/lib/$_f4_" >>"$IPATH/env"
 
                         # special case: libpng16.so.16.37.0 ---> libpng.so
-                        if [[ "$filtered" =~ "libpng16.so.16.37.0" ]]; then
-                            ln -sf "$IPATH/lib/$filtered" "$IPATH/lib/libpng.so"
-                            echo "#$IPATH/lib/libpng.so" >>"$IPATH/env"
+                        if [[ "$filtered" =~ "libpng16$LIB_EXT.16.37.0" ]]; then
+                            ln -sf "$IPATH/lib/$filtered" "$IPATH/lib/libpng$LIB_EXT"
+                            echo "#$IPATH/lib/libpng$LIB_EXT" >>"$IPATH/env"
                         fi
                     fi
                 elif [[ "$2" =~ "bin" ]] && [[ ! "$IPATH/$filtered" =~ "/bin/" ]]; then
@@ -117,8 +124,8 @@ get_latest_release() {
     local res
     res=$(git ls-remote --refs --tags "https://github.com/$1.git" |
         cut -d '/' -f 3 |
-        sort --version-sort |
-        grep -e '^[0-9].[0-9].[0-9]$' |
+        awk '{ if ($1 ~ /-/) print; else print $0"_" ; }' | sort --version-sort | sed 's/_$//' |
+        grep -e '^[0-9]\+.[0-9]\+.[0-9]\+$' |
         tail -1)
     echo "$res"
 }
@@ -127,7 +134,7 @@ remote_version_availabilty() {
     # $1 repo , $2 version
     res=$(git ls-remote --refs --tags "https://github.com/$1.git" |
         cut -d '/' -f 3 |
-        sort --version-sort)
+        awk '{ if ($1 ~ /-/) print; else print $0"_" ; }' | sort --version-sort | sed 's/_$//')
 
     if [[ ! "$res" == *"$2"* ]]; then
         echo "${RED}$2 for $1 does not exist${NC}"
@@ -151,6 +158,7 @@ detect_os_arch() {
     IM_EXT_COMPAT=1
     TF_EXT_COMPAT=1
     IPKG="WasmEdge-$VERSION-Linux"
+    LIB_EXT=".so"
 
     case $OS in
     'Linux')
@@ -166,10 +174,18 @@ detect_os_arch() {
         ;;
     'Darwin')
         case $ARCH in
-        'x86_64') ;;
-        'arm64') ;;
+        'x86_64')
+            IM_EXT_COMPAT=1
+            TF_EXT_COMPAT=1
+            ;;
+        'arm64')
+            IM_EXT_COMPAT=0
+            TF_EXT_COMPAT=0
+            ;;
         'arm')
             ARCH="arm64"
+            IM_EXT_COMPAT=0
+            TF_EXT_COMPAT=0
             ;;
         *)
             echo "${RED}Detected $OS-$ARCH${NC} - currently unsupported${NC}"
@@ -179,8 +195,8 @@ detect_os_arch() {
         _LD_LIBRARY_PATH_="DYLD_LIBRARY_PATH"
         IPKG="WasmEdge-$VERSION-Darwin"
         RELEASE_PKG="darwin_$ARCH.tar.gz"
-        IM_EXT_COMPAT=0
-        TF_EXT_COMPAT=0
+
+        LIB_EXT=".dylib"
 
         if ! command -v brew &>/dev/null; then
             echo "${RED}Brew is required${NC}"
@@ -281,6 +297,8 @@ usage() {
     -r              --remove-old=[yes|no]       Run Uninstallation script by 
                                                 default. Specify \`no\` if you
                                                 wish not to. 
+    -u              --uninstall-script-tag=[master] Select tag for uninstall
+                                                script [Default is master].
 
     Example:
     ./$0 -p $IPATH -e all -v $VERSION --verbose
@@ -356,6 +374,18 @@ install() {
             else
                 cp -rf "$TMP_DIR/$dir"/lib/* "$IPATH/$var"
             fi
+            for _file_ in "$IPATH/$var/wasmedge/"*; do
+                if [[ "$_file_" =~ "Plugin" ]] || [[ "$_file_" =~ "plugin" ]]; then
+                    local _plugin_name_=${_file_##*/}
+                    if [[ "$IPATH" =~ ^"/usr" ]]; then
+                        echo "#$_file_" >>"$IPATH/env"
+                    else
+                        mv "$_file_" "$IPATH/plugin/$_plugin_name_"
+                        echo "#$IPATH/plugin/$_plugin_name_" >>"$IPATH/env"
+                        rmdir "${_file_/$_plugin_name_/}"
+                    fi
+                fi
+            done
         else
             cp -rf "$TMP_DIR/$dir/$var"/* "$IPATH/$var"
         fi
@@ -444,18 +474,22 @@ install_wasmedge_tensorflow() {
 }
 
 install_image_extensions() {
+    [ "$EXT_V_SET_WASMEDGE_IM" -eq 0 ] && VERSION_IM=$VERSION &&
+        remote_version_availabilty second-state/WasmEdge-image "$VERSION_IM"
+
+    [ "$EXT_V_SET_WASMEDGE_IM_DEPS" -eq 0 ] && VERSION_IM_DEPS=$VERSION
+
     [[ "$RELEASE_PKG" =~ "aarch64" ]] &&
-        [ "$(printf %s\\n%s\\n "0.9.1-beta.1" "$VERSION_IM_DEPS")" != "$(printf %s\\n%s "0.9.1-beta.1" "$VERSION_IM_DEPS" | sort --version-sort)" ] &&
+        [ "$(printf %s\\n%s\\n "0.9.1-beta.1" "$VERSION_IM_DEPS")" != "$(printf %s\\n%s "0.9.1-beta.1" "$VERSION_IM_DEPS" | awk '{ if ($1 ~ /-/) print; else print $0"_" ; }' | sort --version-sort | sed 's/_$//')" ] &&
+        IM_EXT_COMPAT=0
+
+    [[ "$OS" == "Darwin" ]] &&
+        [ "$(printf %s\\n%s\\n "0.10.0-alpha.1" "$VERSION_IM_DEPS")" != "$(printf %s\\n%s "0.10.0-alpha.1" "$VERSION_IM_DEPS" | awk '{ if ($1 ~ /-/) print; else print $0"_" ; }' | sort --version-sort | sed 's/_$//')" ] &&
         IM_EXT_COMPAT=0
 
     if [ $IM_EXT_COMPAT == 1 ]; then
 
-        [ "$EXT_V_SET_WASMEDGE_IM" -eq 0 ] && VERSION_IM=$VERSION &&
-            remote_version_availabilty second-state/WasmEdge-image "$VERSION_IM"
-
-        [ "$EXT_V_SET_WASMEDGE_IM_DEPS" -eq 0 ] && VERSION_IM_DEPS=$VERSION
-
-        [ "$(printf %s\\n%s\\n "$VERSION_IM_DEPS" "0.8.2")" == "$(printf %s\\n%s "$VERSION_IM_DEPS" "0.8.2" | sort --version-sort)" ] &&
+        [ "$(printf %s\\n%s\\n "$VERSION_IM_DEPS" "0.8.2")" == "$(printf %s\\n%s "$VERSION_IM_DEPS" "0.8.2" | awk '{ if ($1 ~ /-/) print; else print $0"_" ; }' | sort --version-sort | sed 's/_$//')" ] &&
             remote_version_availabilty second-state/WasmEdge-image "$VERSION_IM_DEPS" &&
             get_wasmedge_image_deps
 
@@ -466,20 +500,24 @@ install_image_extensions() {
 }
 
 install_tf_extensions() {
+    [ "$EXT_V_SET_WASMEDGE_TF" -eq 0 ] && VERSION_TF=$VERSION &&
+        remote_version_availabilty second-state/WasmEdge-tensorflow "$VERSION_TF"
+
+    [ "$EXT_V_SET_WASMEDGE_TF_DEPS" -eq 0 ] && VERSION_TF_DEPS=$VERSION &&
+        remote_version_availabilty second-state/WasmEdge-tensorflow-deps "$VERSION_TF_DEPS"
+
+    [ "$EXT_V_SET_WASMEDGE_TF_TOOLS" -eq 0 ] && VERSION_TF_TOOLS=$VERSION &&
+        remote_version_availabilty second-state/WasmEdge-tensorflow-tools "$VERSION_TF_TOOLS"
+
     [[ "$RELEASE_PKG" =~ "aarch64" ]] &&
-        [ "$(printf %s\\n%s\\n "0.9.1-beta.1" "$VERSION_TF_DEPS")" != "$(printf %s\\n%s "0.9.1-beta.1" "$VERSION_TF_DEPS" | sort --version-sort)" ] &&
+        [ "$(printf %s\\n%s\\n "0.9.1-beta.1" "$VERSION_TF_DEPS")" != "$(printf %s\\n%s "0.9.1-beta.1" "$VERSION_TF_DEPS" | awk '{ if ($1 ~ /-/) print; else print $0"_" ; }' | sort --version-sort | sed 's/_$//')" ] &&
+        TF_EXT_COMPAT=0
+
+    [[ "$OS" == "Darwin" ]] &&
+        [ "$(printf %s\\n%s\\n "0.10.0-alpha.1" "$VERSION_TF")" != "$(printf %s\\n%s "0.10.0-alpha.1" "$VERSION_TF" | awk '{ if ($1 ~ /-/) print; else print $0"_" ; }' | sort --version-sort | sed 's/_$//')" ] &&
         TF_EXT_COMPAT=0
 
     if [ $TF_EXT_COMPAT == 1 ]; then
-
-        [ "$EXT_V_SET_WASMEDGE_TF" -eq 0 ] && VERSION_TF=$VERSION &&
-            remote_version_availabilty second-state/WasmEdge-tensorflow "$VERSION_TF"
-
-        [ "$EXT_V_SET_WASMEDGE_TF_DEPS" -eq 0 ] && VERSION_TF_DEPS=$VERSION &&
-            remote_version_availabilty second-state/WasmEdge-tensorflow-deps "$VERSION_TF_DEPS"
-
-        [ "$EXT_V_SET_WASMEDGE_TF_TOOLS" -eq 0 ] && VERSION_TF_TOOLS=$VERSION &&
-            remote_version_availabilty second-state/WasmEdge-tensorflow-tools "$VERSION_TF_TOOLS"
 
         get_wasmedge_tensorflow_deps
         install_wasmedge_tensorflow
@@ -511,7 +549,7 @@ main() {
     REMOVE_OLD=1
 
     local OPTIND
-    while getopts "e:hp:v:r:V-:" OPT; do
+    while getopts "e:hp:v:r:u:V-:" OPT; do
         # support long options: https://stackoverflow.com/a/28466267/519360
         if [ "$OPT" = "-" ]; then   # long option: reformulate OPT and OPTARG
             OPT="${OPTARG%%=*}"     # extract long option name
@@ -540,6 +578,9 @@ main() {
             ;;
         r | remove-old)
             REMOVE_OLD="${OPTARG}"
+            ;;
+        u | uninstall-script-tag)
+            _UNINSTALL_SCRIPT_TAG="${OPTARG}"
             ;;
         tf-version)
             VERSION_TF="${OPTARG}"
@@ -582,14 +623,16 @@ main() {
     detect_os_arch
 
     if [ "$REMOVE_OLD" == "1" ] || [[ "$REMOVE_OLD" =~ ^([yY][eE][sS]|[yY])$ ]]; then
+        [ "${_UNINSTALL_SCRIPT_TAG}" != "master" ] && echo "WasmEdge Uninstall Script Tag:${_UNINSTALL_SCRIPT_TAG}"
         if [ -f "$IPATH/env" ]; then
-            bash <(curl -sSf https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/uninstall.sh) -p "$IPATH" -q
+            bash <(curl -sSf https://raw.githubusercontent.com/WasmEdge/WasmEdge/"${_UNINSTALL_SCRIPT_TAG}"/utils/uninstall.sh) -p "$IPATH" -q
         fi
     fi
 
     set_ENV "$IPATH"
     mkdir -p "$IPATH"
     mkdir -p "$TMP_DIR"
+    [[ "$IPATH" =~ ^"/usr" ]] || mkdir -p "$IPATH/plugin"
 
     echo "$ENV" >"$IPATH/env"
     echo "# Please do not edit comments below this for uninstallation purpose" >>"$IPATH/env"
@@ -597,10 +640,7 @@ main() {
     local _source=". \"$IPATH/env\""
     local _grep=$(cat "$__HOME__/.profile" 2>/dev/null | grep "$IPATH/env")
     if [ "$_grep" = "" ]; then
-        if [ ! -f "$__HOME__/.profile" ]; then
-            echo "Generating $__HOME__/.profile"
-        fi
-        echo "$_source" >>"$__HOME__/.profile"
+        [ -f "$__HOME__/.profile" ] && echo "$_source" >>"$__HOME__/.profile"
     fi
 
     local _shell_ _shell_rc
@@ -610,26 +650,18 @@ main() {
     if [[ "$_shell_" =~ "zsh" ]]; then
         local _grep=$(cat "$__HOME__/.zprofile" 2>/dev/null | grep "$IPATH/env")
         if [ "$_grep" = "" ]; then
-            echo "$_source" >>"$__HOME__/.zprofile"
+            [ -f "$__HOME__/.zprofile" ] && echo "$_source" >>"$__HOME__/.zprofile"
         fi
     elif [[ "$_shell_" =~ "bash" ]]; then
-        if [ ! -f "$__HOME__/.bashrc" ]; then
-            local _grep=$(cat "$__HOME__/.bash_profile" 2>/dev/null | grep "$IPATH/env")
-            if [ "$_grep" = "" ]; then
-                if [ ! -f "$__HOME__/.bash_profile" ]; then
-                    echo "Generating $__HOME__/.bash_profile"
-                fi
-                echo "$_source" >>"$__HOME__/.bash_profile"
-            fi
+        local _grep=$(cat "$__HOME__/.bash_profile" 2>/dev/null | grep "$IPATH/env")
+        if [ "$_grep" = "" ]; then
+            [ -f "$__HOME__/.bash_profile" ] && echo "$_source" >>"$__HOME__/.bash_profile"
         fi
     fi
 
     local _grep=$(cat "$__HOME__/$_shell_rc" | grep "$IPATH/env")
     if [ "$_grep" = "" ]; then
-        if [ ! -f "$__HOME__/$_shell_rc" ]; then
-            echo "Generating $__HOME__/$_shell_rc"
-        fi
-        echo "$_source" >>"$__HOME__/$_shell_rc"
+        [ -f "$__HOME__/$_shell_rc" ] && echo "$_source" >>"$__HOME__/$_shell_rc"
     fi
 
     if [ ! $default == 1 ]; then

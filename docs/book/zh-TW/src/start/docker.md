@@ -2,7 +2,7 @@
 
 我們提供一系列 `appdev` 的 Docker 映像檔，他們提供了完整的 WasmEdge 應用程式開發環境。請參考以下文件來使用。
 
-### 使用 x86_64 環境
+## 使用 x86_64 環境
 
 ```bash
 $ docker pull wasmedge/appdev_x86_64:0.9.0
@@ -12,7 +12,7 @@ $ docker run --rm -v $(pwd):/app -it wasmedge/appdev_x86_64:0.9.0
 
 請參考 [Dockerfile](https://github.com/WasmEdge/WasmEdge/blob/master/utils/docker/Dockerfile.appdev_x86_64) 和 [Docker Hub image](https://hub.docker.com/repository/docker/wasmedge/appdev_x86_64).
 
-### 使用 arm64 環境
+## 使用 arm64 環境
 
 ```bash
 $ docker pull wasmedge/appdev_aarch64:0.9.0
@@ -33,7 +33,7 @@ $ docker run --rm -v $(pwd):/app -it wasmedge/appdev_aarch64:0.9.0
 
 ## 範例
 
-Hello World. [請在此參考更多範例](https://github.com/WasmEdge/WasmEdge/tree/master/tools/wasmedge/examples) 。
+Hello World. [請在此參考更多範例](https://github.com/WasmEdge/WasmEdge/tree/master/examples/wasm) 。
 
 ```bash
 $ wasmedge hello.wasm world
@@ -50,7 +50,7 @@ hello
 world
 ```
 
-這裡也有一些 [JavaScript 範例](https://github.com/WasmEdge/WasmEdge/tree/master/tools/wasmedge/examples/js)。
+這裡也有一些 [JavaScript 範例](https://github.com/WasmEdge/WasmEdge/tree/master/examples/js)。
 
 ```bash
 $ wasmedge --dir .:. qjs.wasm hello.js 1 2 3

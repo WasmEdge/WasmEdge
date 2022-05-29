@@ -2,13 +2,14 @@
 // SPDX-FileCopyrightText: 2019-2022 Second State INC
 
 #include "wasmedge/wasmedge.h"
-#include "gtest/gtest.h"
 
+#include <cstdint>
+#include <gtest/gtest.h>
 #include <iostream>
 #include <map>
 #include <set>
-#include <sstream>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace {
@@ -168,15 +169,16 @@ WasmEdge_Result ExternSTLVectorSum(void *, WasmEdge_MemoryInstanceContext *,
   return WasmEdge_Result_Success;
 }
 
-// Helper function to create the "extern_module" import object.
-WasmEdge_ImportObjectContext *createExternModule() {
+// Helper function to create the "extern_module" module instance.
+WasmEdge_ModuleInstanceContext *createExternModule() {
   WasmEdge_String HostName;
   WasmEdge_FunctionTypeContext *HostFType = nullptr;
   WasmEdge_FunctionInstanceContext *HostFunc = nullptr;
   enum WasmEdge_ValType P[3], R[1];
 
   HostName = WasmEdge_StringCreateByCString("extern_module");
-  WasmEdge_ImportObjectContext *ImpObj = WasmEdge_ImportObjectCreate(HostName);
+  WasmEdge_ModuleInstanceContext *HostMod =
+      WasmEdge_ModuleInstanceCreate(HostName);
   WasmEdge_StringDelete(HostName);
 
   // Add host function "functor_square": {externref, i32} -> {i32}
@@ -188,7 +190,7 @@ WasmEdge_ImportObjectContext *createExternModule() {
                                              nullptr, 0);
   WasmEdge_FunctionTypeDelete(HostFType);
   HostName = WasmEdge_StringCreateByCString("functor_square");
-  WasmEdge_ImportObjectAddFunction(ImpObj, HostName, HostFunc);
+  WasmEdge_ModuleInstanceAddFunction(HostMod, HostName, HostFunc);
   WasmEdge_StringDelete(HostName);
 
   // Add host function "class_add": {externref, i32, i32} -> {i32}
@@ -198,7 +200,7 @@ WasmEdge_ImportObjectContext *createExternModule() {
       WasmEdge_FunctionInstanceCreate(HostFType, ExternClassAdd, nullptr, 0);
   WasmEdge_FunctionTypeDelete(HostFType);
   HostName = WasmEdge_StringCreateByCString("class_add");
-  WasmEdge_ImportObjectAddFunction(ImpObj, HostName, HostFunc);
+  WasmEdge_ModuleInstanceAddFunction(HostMod, HostName, HostFunc);
   WasmEdge_StringDelete(HostName);
 
   // Add host function "func_mul": {externref, i32, i32} -> {i32}
@@ -207,7 +209,7 @@ WasmEdge_ImportObjectContext *createExternModule() {
       WasmEdge_FunctionInstanceCreate(HostFType, ExternFuncMul, nullptr, 0);
   WasmEdge_FunctionTypeDelete(HostFType);
   HostName = WasmEdge_StringCreateByCString("func_mul");
-  WasmEdge_ImportObjectAddFunction(ImpObj, HostName, HostFunc);
+  WasmEdge_ModuleInstanceAddFunction(HostMod, HostName, HostFunc);
   WasmEdge_StringDelete(HostName);
 
   // Add host function "stl_ostream_str": {externref, externref} -> {}
@@ -217,7 +219,7 @@ WasmEdge_ImportObjectContext *createExternModule() {
                                              nullptr, 0);
   WasmEdge_FunctionTypeDelete(HostFType);
   HostName = WasmEdge_StringCreateByCString("stl_ostream_str");
-  WasmEdge_ImportObjectAddFunction(ImpObj, HostName, HostFunc);
+  WasmEdge_ModuleInstanceAddFunction(HostMod, HostName, HostFunc);
   WasmEdge_StringDelete(HostName);
 
   // Add host function "stl_ostream_u32": {externref, i32} -> {}
@@ -227,7 +229,7 @@ WasmEdge_ImportObjectContext *createExternModule() {
                                              nullptr, 0);
   WasmEdge_FunctionTypeDelete(HostFType);
   HostName = WasmEdge_StringCreateByCString("stl_ostream_u32");
-  WasmEdge_ImportObjectAddFunction(ImpObj, HostName, HostFunc);
+  WasmEdge_ModuleInstanceAddFunction(HostMod, HostName, HostFunc);
   WasmEdge_StringDelete(HostName);
 
   // Add host function "stl_map_insert": {externref, externref, externref}->{}
@@ -238,7 +240,7 @@ WasmEdge_ImportObjectContext *createExternModule() {
                                              nullptr, 0);
   WasmEdge_FunctionTypeDelete(HostFType);
   HostName = WasmEdge_StringCreateByCString("stl_map_insert");
-  WasmEdge_ImportObjectAddFunction(ImpObj, HostName, HostFunc);
+  WasmEdge_ModuleInstanceAddFunction(HostMod, HostName, HostFunc);
   WasmEdge_StringDelete(HostName);
 
   // Add host function "stl_map_erase": {externref, externref}->{}
@@ -247,7 +249,7 @@ WasmEdge_ImportObjectContext *createExternModule() {
       WasmEdge_FunctionInstanceCreate(HostFType, ExternSTLMapErase, nullptr, 0);
   WasmEdge_FunctionTypeDelete(HostFType);
   HostName = WasmEdge_StringCreateByCString("stl_map_erase");
-  WasmEdge_ImportObjectAddFunction(ImpObj, HostName, HostFunc);
+  WasmEdge_ModuleInstanceAddFunction(HostMod, HostName, HostFunc);
   WasmEdge_StringDelete(HostName);
 
   // Add host function "stl_set_insert": {externref, i32}->{}
@@ -257,7 +259,7 @@ WasmEdge_ImportObjectContext *createExternModule() {
                                              nullptr, 0);
   WasmEdge_FunctionTypeDelete(HostFType);
   HostName = WasmEdge_StringCreateByCString("stl_set_insert");
-  WasmEdge_ImportObjectAddFunction(ImpObj, HostName, HostFunc);
+  WasmEdge_ModuleInstanceAddFunction(HostMod, HostName, HostFunc);
   WasmEdge_StringDelete(HostName);
 
   // Add host function "stl_set_erase": {externref, i32}->{}
@@ -266,7 +268,7 @@ WasmEdge_ImportObjectContext *createExternModule() {
       WasmEdge_FunctionInstanceCreate(HostFType, ExternSTLSetErase, nullptr, 0);
   WasmEdge_FunctionTypeDelete(HostFType);
   HostName = WasmEdge_StringCreateByCString("stl_set_erase");
-  WasmEdge_ImportObjectAddFunction(ImpObj, HostName, HostFunc);
+  WasmEdge_ModuleInstanceAddFunction(HostMod, HostName, HostFunc);
   WasmEdge_StringDelete(HostName);
 
   // Add host function "stl_vector_push": {externref, i32}->{}
@@ -275,7 +277,7 @@ WasmEdge_ImportObjectContext *createExternModule() {
                                              nullptr, 0);
   WasmEdge_FunctionTypeDelete(HostFType);
   HostName = WasmEdge_StringCreateByCString("stl_vector_push");
-  WasmEdge_ImportObjectAddFunction(ImpObj, HostName, HostFunc);
+  WasmEdge_ModuleInstanceAddFunction(HostMod, HostName, HostFunc);
   WasmEdge_StringDelete(HostName);
 
   // Add host function "stl_vector_sum": {externref, externref} -> {i32}
@@ -285,20 +287,20 @@ WasmEdge_ImportObjectContext *createExternModule() {
                                              nullptr, 0);
   WasmEdge_FunctionTypeDelete(HostFType);
   HostName = WasmEdge_StringCreateByCString("stl_vector_sum");
-  WasmEdge_ImportObjectAddFunction(ImpObj, HostName, HostFunc);
+  WasmEdge_ModuleInstanceAddFunction(HostMod, HostName, HostFunc);
   WasmEdge_StringDelete(HostName);
 
-  return ImpObj;
+  return HostMod;
 }
 
 TEST(ExternRefTest, Ref__Functions) {
   WasmEdge_VMContext *VMCxt = WasmEdge_VMCreate(nullptr, nullptr);
-  WasmEdge_ImportObjectContext *ImpObj = createExternModule();
+  WasmEdge_ModuleInstanceContext *HostMod = createExternModule();
   WasmEdge_Value P[4], R[1];
   WasmEdge_String FuncName;
 
   EXPECT_TRUE(
-      WasmEdge_ResultOK(WasmEdge_VMRegisterModuleFromImport(VMCxt, ImpObj)));
+      WasmEdge_ResultOK(WasmEdge_VMRegisterModuleFromImport(VMCxt, HostMod)));
   EXPECT_TRUE(WasmEdge_ResultOK(
       WasmEdge_VMLoadWasmFromFile(VMCxt, "externrefTestData/funcs.wasm")));
   EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_VMValidate(VMCxt)));
@@ -354,17 +356,17 @@ TEST(ExternRefTest, Ref__Functions) {
   EXPECT_EQ(WasmEdge_ValueGetI32(R[0]), 746496);
 
   WasmEdge_VMDelete(VMCxt);
-  WasmEdge_ImportObjectDelete(ImpObj);
+  WasmEdge_ModuleInstanceDelete(HostMod);
 }
 
 TEST(ExternRefTest, Ref__STL) {
   WasmEdge_VMContext *VMCxt = WasmEdge_VMCreate(nullptr, nullptr);
-  WasmEdge_ImportObjectContext *ImpObj = createExternModule();
+  WasmEdge_ModuleInstanceContext *HostMod = createExternModule();
   WasmEdge_Value P[3], R[1];
   WasmEdge_String FuncName;
 
   EXPECT_TRUE(
-      WasmEdge_ResultOK(WasmEdge_VMRegisterModuleFromImport(VMCxt, ImpObj)));
+      WasmEdge_ResultOK(WasmEdge_VMRegisterModuleFromImport(VMCxt, HostMod)));
   EXPECT_TRUE(WasmEdge_ResultOK(
       WasmEdge_VMLoadWasmFromFile(VMCxt, "externrefTestData/stl.wasm")));
   EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_VMValidate(VMCxt)));
@@ -463,7 +465,7 @@ TEST(ExternRefTest, Ref__STL) {
   EXPECT_EQ(WasmEdge_ValueGetI32(R[0]), 40 + 50 + 60 + 70 + 80);
 
   WasmEdge_VMDelete(VMCxt);
-  WasmEdge_ImportObjectDelete(ImpObj);
+  WasmEdge_ModuleInstanceDelete(HostMod);
 }
 
 } // namespace

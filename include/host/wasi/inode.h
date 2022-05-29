@@ -7,9 +7,14 @@
 #include "common/span.h"
 #include "host/wasi/error.h"
 #include <functional>
+#include <limits>
 #include <optional>
 #include <string_view>
 #include <vector>
+
+#if WASMEDGE_OS_LINUX
+#include <unordered_map>
+#endif
 
 #if WASMEDGE_OS_LINUX || WASMEDGE_OS_MACOS
 #include <dirent.h>
@@ -26,7 +31,11 @@
 #if defined(__GLIBC_PREREQ)
 #define _LIBCPP_GLIBC_PREREQ(a, b) 0
 #else
+#if defined(_LIBCPP_GLIBC_PREREQ)
 #define __GLIBC_PREREQ(a, b) _LIBCPP_GLIBC_PREREQ(a, b)
+#else
+#define __GLIBC_PREREQ(a, b) 1
+#endif
 #endif
 #endif
 
@@ -142,6 +151,7 @@ struct HandleHolder {
     reset();
     Handle = NewHandle;
   }
+  // TODO: move isSocket here
   boost::winapi::HANDLE_ Handle = nullptr;
 };
 #endif
@@ -483,7 +493,7 @@ public:
   static WasiExpect<Poller> pollOneoff(__wasi_size_t NSubscriptions) noexcept;
 
   static WasiExpect<void>
-  getAddrinfo(const char *NodeStr, const char *ServiceStr,
+  getAddrinfo(std::string_view NodeStr, std::string_view ServiceStr,
               const __wasi_addrinfo_t &Hint, uint32_t MaxResLength,
               Span<__wasi_addrinfo_t *> WasiAddrinfoArray,
               Span<__wasi_sockaddr_t *> WasiSockaddrArray,
@@ -496,7 +506,7 @@ public:
   WasiExpect<void> sockBind(uint8_t *Address, uint8_t AddressLength,
                             uint16_t Port) noexcept;
 
-  WasiExpect<void> sockListen(uint32_t Backlog) noexcept;
+  WasiExpect<void> sockListen(int32_t Backlog) noexcept;
 
   WasiExpect<INode> sockAccept() noexcept;
 
@@ -517,6 +527,21 @@ public:
                             __wasi_riflags_t RiFlags, __wasi_size_t &NRead,
                             __wasi_roflags_t &RoFlags) const noexcept;
 
+  /// Receive a message from a socket.
+  ///
+  /// Note: This is similar to `recv` in POSIX, though it also supports reading
+  /// the data into multiple buffers in the manner of `readv`.
+  ///
+  /// @param[in] RiData List of scatter/gather vectors to which to store data.
+  /// @param[in] RiFlags Message flags.
+  /// @param[out] NRead Return the number of bytes stored in RiData.
+  /// @param[out] RoFlags Return message flags.
+  /// @return Nothing or WASI error.
+  WasiExpect<void> sockRecvFrom(Span<Span<uint8_t>> RiData,
+                                __wasi_riflags_t RiFlags, uint8_t *Address,
+                                uint8_t AddressLength, __wasi_size_t &NRead,
+                                __wasi_roflags_t &RoFlags) const noexcept;
+
   /// Send a message on a socket.
   ///
   /// Note: This is similar to `send` in POSIX, though it also supports writing
@@ -531,6 +556,24 @@ public:
                             __wasi_siflags_t SiFlags,
                             __wasi_size_t &NWritten) const noexcept;
 
+  /// Send a message on a socket.
+  ///
+  /// Note: This is similar to `sendto` in POSIX, though it also supports
+  /// writing the data from multiple buffers in the manner of `writev`.
+  ///
+  /// @param[in] SiData List of scatter/gather vectors to which to retrieve
+  /// data.
+  /// @param[in] SiFlags Message flags.
+  /// @param[in] Address Address of the target.
+  /// @param[in] AddressLength The buffer size of Address.
+  /// @param[in] Port Connected port.
+  /// @param[out] NWritten The number of bytes transmitted.
+  /// @return Nothing or WASI error
+  WasiExpect<void> sockSendTo(Span<Span<const uint8_t>> SiData,
+                              __wasi_siflags_t SiFlags, uint8_t *Address,
+                              uint8_t AddressLength, int32_t Port,
+                              __wasi_size_t &NWritten) const noexcept;
+
   /// Shut down socket send and receive channels.
   ///
   /// Note: This is similar to `shutdown` in POSIX.
@@ -539,9 +582,12 @@ public:
   /// @return Nothing or WASI error
   WasiExpect<void> sockShutdown(__wasi_sdflags_t SdFlags) const noexcept;
 
-  WasiExpect<void> sockGetOpt(int32_t Level, int32_t Name, void *FlagPtr,
+  WasiExpect<void> sockGetOpt(__wasi_sock_opt_level_t SockOptLevel,
+                              __wasi_sock_opt_so_t SockOptName, void *FlagPtr,
                               uint32_t *FlagSizePtr) const noexcept;
-  WasiExpect<void> sockSetOpt(int32_t Level, int32_t Name, void *FlagPtr,
+
+  WasiExpect<void> sockSetOpt(__wasi_sock_opt_level_t SockOptLevel,
+                              __wasi_sock_opt_so_t SockOptName, void *FlagPtr,
                               uint32_t FlagSizePtr) const noexcept;
 
   WasiExpect<void> sockGetLoaclAddr(uint8_t *Address, uint32_t *AddrTypePtr,
@@ -636,7 +682,15 @@ private:
 #endif
   };
 
+  struct FdData {
+    uint32_t Events = 0;
+    uint32_t ReadIndex = std::numeric_limits<uint32_t>::max();
+    uint32_t WriteIndex = std::numeric_limits<uint32_t>::max();
+    constexpr FdData(uint32_t E) noexcept : Events(E) {}
+  };
+
   std::vector<Timer> Timers;
+  std::unordered_map<int, FdData> FdDatas;
 #endif
 };
 

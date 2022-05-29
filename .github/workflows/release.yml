@@ -31,6 +31,7 @@ jobs:
         id: prep
         run: |
           # Retrieve annotated tags. Details: https://github.com/actions/checkout/issues/290
+          git config --global --add safe.directory $(pwd)
           git fetch --tags --force
           echo ::set-output name=version::$(git describe --match "[0-9].[0-9]*" --tag)
       - name: Create Release
@@ -44,6 +45,7 @@ jobs:
           body_path: .CurrentChangelog.md
           draft: true
           prerelease: true
+
   create_source_tarball:
     name: Create source tarball
     runs-on: ubuntu-latest
@@ -77,64 +79,6 @@ jobs:
         asset_path: WasmEdge-${{ needs.create_release.outputs.version }}.tar.gz
         asset_content_type: application/x-gzip
 
-  build_on_ubuntu:
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - name: ubuntu 20.04 x86_64
-            docker_tag: ubuntu2004_x86_64
-            os: ubuntu20.04
-    name: Build and upload WasmEdge on ${{ matrix.name }} platform
-    needs: create_release
-    runs-on: ubuntu-latest
-    container:
-      image: wasmedge/wasmedge:${{ matrix.docker_tag }}
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v2
-      - name: Build package
-        run: |
-          apt update
-          apt install -y rpm ninja-build
-          rm -rf build
-          cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_BUILD_PACKAGE="TGZ;DEB;RPM" .
-          cmake --build build
-          cmake --build build --target package
-      - name: Upload deb package
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ needs.create_release.outputs.upload_url }}
-          asset_path: build/wasmedge_${{ needs.create_release.outputs.version }}_amd64.deb
-          asset_name: WasmEdge-${{ needs.create_release.outputs.version }}-${{ matrix.os }}_amd64.deb
-          asset_content_type: application/vnd.debian.binary-package
-      - name: Sleep 5 second to avoid GitHub ECONNRESET error
-        run: |
-          sleep 5
-      - name: Upload rpm package
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ needs.create_release.outputs.upload_url }}
-          asset_path: build/WasmEdge-${{ needs.create_release.outputs.version }}-Linux.rpm
-          asset_name: WasmEdge-${{ needs.create_release.outputs.version }}-${{ matrix.os }}_amd64.rpm
-          asset_content_type: application/x-rpm
-      - name: Sleep 5 second to avoid GitHub ECONNRESET error
-        run: |
-          sleep 5
-      - name: Upload tar.gz package
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ needs.create_release.outputs.upload_url }}
-          asset_path: build/WasmEdge-${{ needs.create_release.outputs.version }}-Linux.tar.gz
-          asset_name: WasmEdge-${{ needs.create_release.outputs.version }}-${{ matrix.os }}_amd64.tar.gz
-          asset_content_type: application/x-gzip
-
   build_on_macos:
     strategy:
       fail-fast: false
@@ -144,7 +88,7 @@ jobs:
             os: darwin
     name: Build and upload WasmEdge on ${{ matrix.name }} platform
     needs: create_release
-    runs-on: macos-latest
+    runs-on: macos-10.15
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
@@ -205,6 +149,7 @@ jobs:
         with:
           name: WasmEdge-${{ needs.create_release.outputs.version }}-${{ matrix.name }}.tar.xz
           path: build/WasmEdge-${{ needs.create_release.outputs.version }}-Linux.tar.xz
+
   upload_manylinux_legacy:
     strategy:
       fail-fast: false
@@ -325,44 +270,39 @@ jobs:
           asset_content_type: application/x-xz
 
   build_windows:
-    name: Windows 10
-    runs-on: windows-latest
+    name: Windows server 2022
+    runs-on: windows-2022
     needs: create_release
     steps:
     - uses: actions/checkout@v2
       with:
         fetch-depth: 0
-
     - name: Install dependency
       uses: crazy-max/ghaction-chocolatey@v1
       with:
         args: install cmake ninja vswhere
-
     - uses: GuillaumeFalourd/setup-windows10-sdk-action@v1
       with:
         sdk-version: 19041
-
     - name: Build WasmEdge
       run: |
         $vsPath = (vswhere -latest -property installationPath)
         Import-Module (Join-Path $vsPath "Common7\Tools\Microsoft.VisualStudio.DevShell.dll")
         Enter-VsDevShell -VsInstallPath $vsPath -SkipAutomaticLocation -DevCmdArguments "-arch=x64 -host_arch=x64 -winsdk=10.0.19041.0"
-        $llvm = "LLVM-13.0.0-win64.zip"
-        curl -sLO https://github.com/WasmEdge/llvm-windows/releases/download/llvmorg-13.0.0/LLVM-13.0.0-win64.zip -o $llvm
+        $llvm = "LLVM-13.0.1-win64.zip"
+        curl -sLO https://github.com/WasmEdge/llvm-windows/releases/download/llvmorg-13.0.1/LLVM-13.0.1-win64.zip -o $llvm
         Expand-Archive -Path $llvm
-        $llvm_dir = "$pwd\\LLVM-13.0.0-win64\\LLVM-13.0.0-win64\\lib\\cmake\\llvm"
+        $llvm_dir = "$pwd\\LLVM-13.0.1-win64\\LLVM-13.0.1-win64\\lib\\cmake\\llvm"
         $Env:CC = "clang-cl"
         $Env:CXX = "clang-cl"
         cmake -Bbuild -GNinja -DCMAKE_SYSTEM_VERSION=10.0.19041.0 -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreadedDLL "-DLLVM_DIR=$llvm_dir" -DWASMEDGE_BUILD_PACKAGE="ZIP" .
         cmake --build build
-
     - name: Create WasmEdge Package
       run: |
         $vsPath = (vswhere -latest -property installationPath)
         Import-Module (Join-Path $vsPath "Common7\Tools\Microsoft.VisualStudio.DevShell.dll")
         Enter-VsDevShell -VsInstallPath $vsPath -SkipAutomaticLocation -DevCmdArguments "-arch=x64 -host_arch=x64 -winsdk=10.0.19041.0"
         cmake --build build --target package
-
     - name: Upload Windows 10 zip package
       uses: actions/upload-release-asset@v1
       env:
@@ -372,13 +312,11 @@ jobs:
         asset_path: build\\WasmEdge-${{ needs.create_release.outputs.version }}-Windows.zip
         asset_name: WasmEdge-${{ needs.create_release.outputs.version }}-windows.zip
         asset_content_type: application/zip
-
     - name: Package Windows Installer
       run: |
         $Env:product_version = ("${{ needs.create_release.outputs.version }}").split("-")[0]
         . "$Env:WIX\bin\candle.exe" -arch x64 -o build\wasmedge.wixobj .github\scripts\wasmedge.wxs
         . "$Env:WIX\bin\light.exe" -out build\WasmEdge-${{ needs.create_release.outputs.version }}-windows.msi build\wasmedge.wixobj
-
     - name: Upload Windows Installer
       uses: actions/upload-release-asset@v1
       env:
@@ -395,12 +333,10 @@ jobs:
     needs: create_release
     container:
       image: wasmedge/wasmedge:latest
-
     steps:
     - uses: actions/checkout@v2
       with:
         fetch-depth: 0
-
     - name: Install dependency
       run: |
         apt update && apt install -y unzip
@@ -411,14 +347,13 @@ jobs:
         cp -r cmake-3.22.2-linux-x86_64/share /usr/local
         curl -sLO https://dl.google.com/android/repository/android-ndk-r23b-linux.zip
         unzip -q android-ndk-r23b-linux.zip
-
     - name: Build WasmEdge for Android
       run: |
+        git config --global --add safe.directory $(pwd)
         export ANDROID_NDK_HOME=$(pwd)/android-ndk-r23b/
         cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_BUILD_PACKAGE="TGZ" -DWASMEDGE_BUILD_AOT_RUNTIME=OFF -DCMAKE_SYSTEM_NAME=Android -DCMAKE_SYSTEM_VERSION=23 -DCMAKE_ANDROID_ARCH_ABI=arm64-v8a -DCMAKE_ANDROID_NDK=$ANDROID_NDK_HOME -DCMAKE_ANDROID_STL_TYPE=c++_static
         cmake --build build
         cmake --build build --target package
-
     - name: Upload tar.gz package
       uses: actions/upload-release-asset@v1
       env:

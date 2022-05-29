@@ -4,71 +4,68 @@
 //! `GlobalType` specifies whether a global variable is immutable or mutable.
 
 use crate::{
-    types::{Mutability, ValType},
-    wasmedge, GlobalError, Value, WasmEdgeError, WasmEdgeResult,
+    error::{GlobalError, WasmEdgeError},
+    ffi, WasmEdgeResult, WasmValue,
 };
+use wasmedge_types::{Mutability, ValType};
 
-/// Struct of WasmEdge Global.
-///
-/// A WasmEdge `Global` defines a global variable, which stores a single value of the given `GlobalType`.
+/// Defines a WebAssembly global variable, which stores a single value of the given [type](crate::GlobalType) and a flag indicating whether it is mutable or not.
 #[derive(Debug)]
 pub struct Global {
-    pub(crate) ctx: *mut wasmedge::WasmEdge_GlobalInstanceContext,
+    pub(crate) inner: InnerGlobal,
     pub(crate) registered: bool,
 }
 impl Global {
-    /// Creates a new `Global` to be associated with the given `GlobalType` and `Value`.
+    /// Creates a new [Global] instance to be associated with the given [GlobalType] and [WasmValue](crate::WasmValue).
     ///
-    /// If the creation succeeds, then the given `GlobalType` is consumed. The type of the given `Value`
-    /// must be matched with `GlobalType`;otherwise, it causes a failure. For example, `Value::I32(520)` conflicts
-    /// with a `GlobalType` with a value type defined as `ValType::F32`.
+    /// The type of the given [WasmValue](crate::WasmValue) must be matched with [GlobalType]; otherwise, it causes a failure. For example, `WasmValue::I32(520)` conflicts with a [GlobalType] with a value type defined as `ValType::F32`.
     ///
     /// # Errors
     ///
-    /// If fail to create a `Global`, then an error is returned.
+    /// If fail to create a [Global] instance, then an error is returned.
     ///
-    pub fn create(ty: &mut GlobalType, val: Value) -> WasmEdgeResult<Self> {
-        let ctx = unsafe { wasmedge::WasmEdge_GlobalInstanceCreate(ty.ctx, val.as_raw()) };
+    pub fn create(ty: &GlobalType, val: WasmValue) -> WasmEdgeResult<Self> {
+        let ctx = unsafe { ffi::WasmEdge_GlobalInstanceCreate(ty.inner.0, val.as_raw()) };
+
         match ctx.is_null() {
             true => Err(WasmEdgeError::Global(GlobalError::Create)),
-            false => {
-                ty.ctx = std::ptr::null_mut();
-                ty.registered = true;
-                Ok(Self {
-                    ctx,
-                    registered: false,
-                })
-            }
+            false => Ok(Self {
+                inner: InnerGlobal(ctx),
+                registered: false,
+            }),
         }
     }
 
-    /// Returns the underlying wasm type of a `Global`.
+    /// Returns the underlying wasm type of a [Global] instance.
     ///
     /// # Errors
     ///
     /// If fail to get the type, then an error is returned.
     ///
     pub fn ty(&self) -> WasmEdgeResult<GlobalType> {
-        let ty_ctx = unsafe { wasmedge::WasmEdge_GlobalInstanceGetGlobalType(self.ctx) };
+        let ty_ctx = unsafe { ffi::WasmEdge_GlobalInstanceGetGlobalType(self.inner.0) };
         match ty_ctx.is_null() {
             true => Err(WasmEdgeError::Global(GlobalError::Type)),
             false => Ok(GlobalType {
-                ctx: ty_ctx as *mut _,
+                inner: InnerGlobalType(ty_ctx as *mut _),
                 registered: true,
             }),
         }
     }
 
-    /// Returns the value of a `Global`.
-    pub fn get_value(&self) -> Value {
-        let val = unsafe { wasmedge::WasmEdge_GlobalInstanceGetValue(self.ctx) };
+    /// Returns the value of the [Global] instance.
+    pub fn get_value(&self) -> WasmValue {
+        let val = unsafe { ffi::WasmEdge_GlobalInstanceGetValue(self.inner.0) };
         val.into()
     }
 
-    /// Sets the value of a `Global`.
+    /// Sets the value of the [Global] instance.
     ///
-    /// Notice that only a `Global` of Mutability::Var can be set a new value. Setting a new value for a
-    /// `Global` of `Mutability::Const` causes a failure.
+    /// Notice that only the [Global] instance of [Mutability::Var](wasmedge_types::Mutability::Var) type can be set a new value. Setting a new value for a [Global] of [Mutability::Const](wasmedge_types::Mutability::Const) causes a failure.
+    ///
+    /// # Argument
+    ///
+    /// * `val` - The new wasm value to be set.
     ///
     /// # Errors
     ///
@@ -77,19 +74,20 @@ impl Global {
     /// # Example
     ///
     /// ```
-    /// use wasmedge_sys::{Global, GlobalType, ValType, Mutability, Value};
+    /// use wasmedge_sys::{Global, GlobalType, WasmValue};
+    /// use wasmedge_types::{ValType, Mutability};
     ///
     /// // create a GlobalType instance
-    /// let mut ty = GlobalType::create(ValType::F32, Mutability::Var).expect("fail to create a GlobalType");
+    /// let ty = GlobalType::create(ValType::F32, Mutability::Var).expect("fail to create a GlobalType");
     /// // create a Global instance
-    /// let mut global = Global::create(&mut ty, Value::from_f32(3.1415)).expect("fail to create a Global");
+    /// let mut global = Global::create(&ty, WasmValue::from_f32(3.1415)).expect("fail to create a Global");
     ///
-    /// global.set_value(Value::from_f32(314.15)).expect("fail to set a new value for a Global");
+    /// global.set_value(WasmValue::from_f32(314.15)).expect("fail to set a new value for a Global");
     /// assert_eq!(global.get_value().to_f32(), 314.15);
     /// ```
     ///
     ///
-    pub fn set_value(&mut self, val: Value) -> WasmEdgeResult<()> {
+    pub fn set_value(&mut self, val: WasmValue) -> WasmEdgeResult<()> {
         let ty = self.ty()?;
         if ty.mutability() == Mutability::Const {
             return Err(WasmEdgeError::Global(GlobalError::ModifyConst));
@@ -97,72 +95,99 @@ impl Global {
         if ty.value_type() != val.ty() {
             return Err(WasmEdgeError::Global(GlobalError::UnmatchedValType));
         }
-        unsafe { wasmedge::WasmEdge_GlobalInstanceSetValue(self.ctx, val.as_raw()) }
+        unsafe { ffi::WasmEdge_GlobalInstanceSetValue(self.inner.0, val.as_raw()) }
         Ok(())
     }
 }
 impl Drop for Global {
     fn drop(&mut self) {
-        if !self.registered && !self.ctx.is_null() {
-            unsafe { wasmedge::WasmEdge_GlobalInstanceDelete(self.ctx) };
+        if !self.registered && !self.inner.0.is_null() {
+            unsafe { ffi::WasmEdge_GlobalInstanceDelete(self.inner.0) };
         }
     }
 }
 
-/// Struct of WasmEdge GlobalType.
+#[derive(Debug)]
+pub(crate) struct InnerGlobal(pub(crate) *mut ffi::WasmEdge_GlobalInstanceContext);
+unsafe impl Send for InnerGlobal {}
+unsafe impl Sync for InnerGlobal {}
+
+/// Defines the type of a wasm global variable.
 ///
-/// A [`GlobalType`] classifies a global variable that hold a value and can either be mutable or immutable.
+/// A [GlobalType] classifies a global variable that hold a value and can either be mutable or immutable.
 #[derive(Debug)]
 pub struct GlobalType {
-    pub(crate) ctx: *mut wasmedge::WasmEdge_GlobalTypeContext,
+    pub(crate) inner: InnerGlobalType,
     pub(crate) registered: bool,
 }
 impl GlobalType {
-    /// Create a new `GlobalType` to be associated with the given `ValType` and `Mutability`.
+    /// Create a new [GlobalType] to be associated with the given [ValType](wasmedge_types::ValType) and [Mutability](wasmedge_types::Mutability).
+    ///
+    /// # Arguments
+    ///
+    /// * `val_type` - The value type of the global variable.
+    ///
+    /// * `mutability` - The mutability of the global variable.
     ///
     /// # Errors
     ///
-    /// If fail to create a new `GlobalType`, then an error is returned.
+    /// If fail to create a new [GlobalType], then an error is returned.
     pub fn create(val_ty: ValType, mutable: Mutability) -> WasmEdgeResult<Self> {
-        let ctx = unsafe {
-            wasmedge::WasmEdge_GlobalTypeCreate(
-                wasmedge::WasmEdge_ValType::from(val_ty),
-                wasmedge::WasmEdge_Mutability::from(mutable),
-            )
-        };
+        let ctx = unsafe { ffi::WasmEdge_GlobalTypeCreate(val_ty.into(), mutable.into()) };
         match ctx.is_null() {
             true => Err(WasmEdgeError::GlobalTypeCreate),
             false => Ok(Self {
-                ctx,
+                inner: InnerGlobalType(ctx),
                 registered: false,
             }),
         }
     }
 
-    /// Returns the value type of a `GlobalType`.
+    /// Returns the value type of the [GlobalType].
     pub fn value_type(&self) -> ValType {
-        let val = unsafe { wasmedge::WasmEdge_GlobalTypeGetValType(self.ctx) };
+        let val = unsafe { ffi::WasmEdge_GlobalTypeGetValType(self.inner.0 as *const _) };
         val.into()
     }
 
-    /// Returns a `Mutability` value of a `GlobalType`.
+    /// Returns the [Mutability](wasmedge_types::Mutability) value of the [GlobalType].
     pub fn mutability(&self) -> Mutability {
-        let val = unsafe { wasmedge::WasmEdge_GlobalTypeGetMutability(self.ctx) };
+        let val = unsafe { ffi::WasmEdge_GlobalTypeGetMutability(self.inner.0) };
         val.into()
     }
 }
 impl Drop for GlobalType {
     fn drop(&mut self) {
-        if !self.registered && !self.ctx.is_null() {
-            unsafe { wasmedge::WasmEdge_GlobalTypeDelete(self.ctx) }
+        if !self.registered && !self.inner.0.is_null() {
+            unsafe { ffi::WasmEdge_GlobalTypeDelete(self.inner.0) };
         }
     }
 }
+impl From<wasmedge_types::GlobalType> for GlobalType {
+    fn from(ty: wasmedge_types::GlobalType) -> Self {
+        GlobalType::create(ty.value_ty(), ty.mutability()).expect(
+            "[wasmedge-sys] Failed to convert wasmedge_types::GlobalType into wasmedge_sys::GlobalType.",
+        )
+    }
+}
+impl From<GlobalType> for wasmedge_types::GlobalType {
+    fn from(ty: GlobalType) -> Self {
+        wasmedge_types::GlobalType::new(ty.value_type(), ty.mutability())
+    }
+}
+
+#[derive(Debug)]
+pub(crate) struct InnerGlobalType(pub(crate) *mut ffi::WasmEdge_GlobalTypeContext);
+unsafe impl Send for InnerGlobalType {}
+unsafe impl Sync for InnerGlobalType {}
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{Mutability, ValType};
+    use std::{
+        sync::{Arc, Mutex},
+        thread,
+    };
+    use wasmedge_types::{Mutability, ValType};
 
     #[test]
     fn test_global_type() {
@@ -170,7 +195,7 @@ mod tests {
         let result = GlobalType::create(ValType::I32, Mutability::Const);
         assert!(result.is_ok());
         let global_ty = result.unwrap();
-        assert!(!global_ty.ctx.is_null());
+        assert!(!global_ty.inner.0.is_null());
         assert!(!global_ty.registered);
 
         // value type
@@ -184,26 +209,24 @@ mod tests {
         // create a GlobalType instance
         let result = GlobalType::create(ValType::I32, Mutability::Const);
         assert!(result.is_ok());
-        let mut ty = result.unwrap();
-        assert!(!ty.ctx.is_null());
+        let ty = result.unwrap();
+        assert!(!ty.inner.0.is_null());
 
         // create a const Global instance
-        let result = Global::create(&mut ty, Value::from_i32(99));
+        let result = Global::create(&ty, WasmValue::from_i32(99));
         assert!(result.is_ok());
-        assert!(ty.ctx.is_null());
-        assert!(ty.registered);
         let mut global_const = result.unwrap();
 
         // access the value held by global_const
         assert_eq!(global_const.get_value().to_i32(), 99);
-        let result = global_const.set_value(Value::from_i32(0));
+        let result = global_const.set_value(WasmValue::from_i32(0));
         assert!(result.is_err());
 
         // access the global type
         let result = global_const.ty();
         assert!(result.is_ok());
         let ty = result.unwrap();
-        assert!(!ty.ctx.is_null());
+        assert!(!ty.inner.0.is_null());
         assert!(ty.registered);
         assert_eq!(ty.value_type(), ValType::I32);
         assert_eq!(ty.mutability(), Mutability::Const);
@@ -214,19 +237,17 @@ mod tests {
         // create a GlobalType instance
         let result = GlobalType::create(ValType::F32, Mutability::Var);
         assert!(result.is_ok());
-        let mut ty = result.unwrap();
-        assert!(!ty.ctx.is_null());
+        let ty = result.unwrap();
+        assert!(!ty.inner.0.is_null());
 
         // create a Var Global instance
-        let result = Global::create(&mut ty, Value::from_f32(13.14));
+        let result = Global::create(&ty, WasmValue::from_f32(13.14));
         assert!(result.is_ok());
-        assert!(ty.ctx.is_null());
-        assert!(ty.registered);
         let mut global_var = result.unwrap();
 
         // access the value held by global_var
         assert_eq!(global_var.get_value().to_f32(), 13.14);
-        let result = global_var.set_value(Value::from_f32(1.314));
+        let result = global_var.set_value(WasmValue::from_f32(1.314));
         assert!(result.is_ok());
         assert_eq!(global_var.get_value().to_f32(), 1.314);
 
@@ -234,7 +255,7 @@ mod tests {
         let result = global_var.ty();
         assert!(result.is_ok());
         let ty = result.unwrap();
-        assert!(!ty.ctx.is_null());
+        assert!(!ty.inner.0.is_null());
         assert!(ty.registered);
         assert_eq!(ty.value_type(), ValType::F32);
         assert_eq!(ty.mutability(), Mutability::Var);
@@ -242,33 +263,104 @@ mod tests {
 
     #[test]
     fn test_global_conflict() {
+        {
+            // create a GlobalType instance
+            let result = GlobalType::create(ValType::F32, Mutability::Var);
+            assert!(result.is_ok());
+            let ty = result.unwrap();
+            assert!(!ty.inner.0.is_null());
+
+            // create a Var Global instance with a value of mis-matched Value::I32 type
+            let result = Global::create(&ty, WasmValue::from_i32(520));
+            assert!(result.is_err());
+        }
+
+        {
+            // create a GlobalType instance
+            let result = GlobalType::create(ValType::F32, Mutability::Var);
+            assert!(result.is_ok());
+            let ty = result.unwrap();
+            assert!(!ty.inner.0.is_null());
+
+            // create a Var Global instance with a value of Value::F32 type
+            let result = Global::create(&ty, WasmValue::from_f32(13.14));
+            assert!(result.is_ok());
+            let mut global_var = result.unwrap();
+
+            // set a new value of mis-matched Value::I32 type
+            let result = global_var.set_value(WasmValue::from_i32(1314));
+            assert!(result.is_err());
+            assert_eq!(global_var.get_value().to_f32(), 13.14);
+
+            // set a new value of Value::F32 type
+            let result = global_var.set_value(WasmValue::from_f32(1.314));
+            assert!(result.is_ok());
+            assert_eq!(global_var.get_value().to_f32(), 1.314);
+        }
+    }
+
+    #[test]
+    fn test_global_send() {
+        {
+            // create a GlobalType instance
+            let result = GlobalType::create(ValType::I32, Mutability::Const);
+            assert!(result.is_ok());
+            let global_ty = result.unwrap();
+
+            let handle = thread::spawn(move || {
+                assert!(!global_ty.inner.0.is_null());
+                assert!(!global_ty.registered);
+
+                // value type
+                assert_eq!(global_ty.value_type(), ValType::I32);
+                // Mutability
+                assert_eq!(global_ty.mutability(), Mutability::Const);
+            });
+
+            handle.join().unwrap()
+        }
+
+        {
+            // create a GlobalType instance
+            let result = GlobalType::create(ValType::I32, Mutability::Const);
+            assert!(result.is_ok());
+            let global_ty = result.unwrap();
+
+            // create a Global instance
+            let result = Global::create(&global_ty, WasmValue::from_i32(5));
+            assert!(result.is_ok());
+            let global = result.unwrap();
+
+            let handle = thread::spawn(move || {
+                // access the value held by global
+                assert_eq!(global.get_value().to_i32(), 5);
+            });
+
+            handle.join().unwrap()
+        }
+    }
+
+    #[test]
+    fn test_global_sync() {
         // create a GlobalType instance
-        let result = GlobalType::create(ValType::F32, Mutability::Var);
+        let result = GlobalType::create(ValType::I32, Mutability::Const);
         assert!(result.is_ok());
-        let mut ty = result.unwrap();
-        assert!(!ty.ctx.is_null());
+        let global_ty = result.unwrap();
 
-        // create a Var Global instance with a value of mis-matched Value::I32 type
-        let result = Global::create(&mut ty, Value::from_i32(520));
-        assert!(result.is_err());
-        assert!(!ty.ctx.is_null());
-        assert!(!ty.registered);
-
-        // create a Var Global instance with a value of Value::F32 type
-        let result = Global::create(&mut ty, Value::from_f32(13.14));
+        // create a Global instance
+        let result = Global::create(&global_ty, WasmValue::from_i32(5));
         assert!(result.is_ok());
-        assert!(ty.ctx.is_null());
-        assert!(ty.registered);
-        let mut global_var = result.unwrap();
+        let global = Arc::new(Mutex::new(result.unwrap()));
 
-        // set a new value of mis-matched Value::I32 type
-        let result = global_var.set_value(Value::from_i32(1314));
-        assert!(result.is_err());
-        assert_eq!(global_var.get_value().to_f32(), 13.14);
+        let global_cloned = Arc::clone(&global);
+        let handle = thread::spawn(move || {
+            let result = global_cloned.lock();
+            assert!(result.is_ok());
+            let global = result.unwrap();
 
-        // set a new value of Value::F32 type
-        let result = global_var.set_value(Value::from_f32(1.314));
-        assert!(result.is_ok());
-        assert_eq!(global_var.get_value().to_f32(), 1.314);
+            assert_eq!(global.get_value().to_i32(), 5);
+        });
+
+        handle.join().unwrap()
     }
 }

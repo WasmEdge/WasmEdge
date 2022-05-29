@@ -6,6 +6,13 @@
 #include "common/log.h"
 #include "system/allocator.h"
 
+#include <algorithm>
+#include <cerrno>
+#include <cstdint>
+#include <cstring>
+#include <tuple>
+#include <utility>
+
 #if WASMEDGE_OS_WINDOWS
 #include <boost/winapi/dll.hpp>
 #include <boost/winapi/error_handling.hpp>

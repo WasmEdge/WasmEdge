@@ -51,16 +51,19 @@ endif()
 
 if (WASMEDGE_BUILD_AOT_RUNTIME)
   add_subdirectory(aot)
+  add_subdirectory(mixcall)
 endif()
 add_subdirectory(spec)
 add_subdirectory(loader)
 add_subdirectory(executor)
+add_subdirectory(thread)
 if (WASMEDGE_BUILD_SHARED_LIB)
   add_subdirectory(api)
+  add_subdirectory(externref)
 endif()
 add_subdirectory(host/wasmedge_process)
+add_subdirectory(host/socket)
 add_subdirectory(host/wasi)
-add_subdirectory(externref)
 add_subdirectory(expected)
 add_subdirectory(span)
 add_subdirectory(po)
@@ -81,7 +84,6 @@ if(WASMEDGE_BUILD_COVERAGE)
     NAME codecov
     EXECUTABLE ctest -j ${PROCESSOR_COUNT}
     DEPENDENCIES wasmedge
-    BASE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
     EXCLUDE
       "${PROJECT_SOURCE_DIR}/thirdparty/*"
       "${PROJECT_SOURCE_DIR}/test/*"

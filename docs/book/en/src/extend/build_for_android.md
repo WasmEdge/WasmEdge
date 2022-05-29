@@ -19,20 +19,20 @@ We recommand developers to [use our Docker images](build.md##prepare-the-environ
 Get the WasmEdge source code.
 
 ```bash
-$ git clone https://github.com/WasmEdge/WasmEdge.git
-$ cd WasmEdge
+git clone https://github.com/WasmEdge/WasmEdge.git
+cd WasmEdge
 ```
 
 Add the Android NDK path into the environment variable.
 
 ```bash
-$ export ANDROID_NDK_HOME=path/to/you/ndk/dir
+export ANDROID_NDK_HOME=path/to/you/ndk/dir
 ```
 
 Run the build script in WasmEdge source code. This script will automatically build the WasmEdge for Android, and the results are in the `build` folder.
 
 ```bash
-$ ./utils/android/standalone/build_for_android.sh
+./utils/android/standalone/build_for_android.sh
 ```
 
 ## Test the WasmEdge CLI on Android platforms
@@ -50,8 +50,9 @@ $ ./utils/android/standalone/build_for_android.sh
 2. Use the `adb push` command to push the entire `build/tools/wasmedge` folder into the `/data/local/tmp` folder on your Android device.
 
     ```bash
-    $ cd build
-    $ adb push ./tools/wasmedge /data/local/tmp  
+    cp -r examples build/tools/wasmedge/examples
+    cd build
+    adb push ./tools/wasmedge /data/local/tmp
     ```
 
 ### Run WasmEdge CLI on Android platforms
@@ -61,7 +62,7 @@ $ ./utils/android/standalone/build_for_android.sh
 
 ```bash
 $ cd /data/local/tmp/wasmedge/examples
-$ ../wasmedge hello.wasm 1 2 3                                                           
+$ ../wasmedge hello.wasm 1 2 3
 hello
 1
 2

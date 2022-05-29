@@ -28,7 +28,6 @@ WasmEdge (之前名为 SSVM) 是为边缘计算优化的轻量级、高性能、
 🔌 [嵌入一个 Wasm 函数](https://www.secondstate.io/articles/getting-started-with-rust-function/)在你的[Node.js](https://github.com/second-state/wasm-learning/tree/master/ssvm/file-example)， [Go语言](https://github.com/second-state/WasmEdge-go/tree/master/examples/go_mtcnn)或 Rust 应用里 \
 🛠 使用 [Docker 工具](https://www.secondstate.io/articles/manage-webassembly-apps-in-wasmedge-using-docker-tools/)、[数据流框架](https://www.secondstate.io/articles/yomo-wasmedge-real-time-data-streams/), 和 [区块链](https://medium.com/ethereum-on-steroids/running-ethereum-smart-contracts-in-a-substrate-blockchain-56fbc27fc95a) 管理和编排 Wasm runtimes
 
-
 # 介绍
 
 WasmEdge Runtime为其执行的 Wasm 字节码程序提供了一个有良好定义的执行沙箱。本 Runtime 为操作系统资源（例如，文件系统、sockets、环境变量、进程）和内存空间提供隔离和保护。 WasmEdge 最重要的用例是作为软件产品（例如，SaaS、软件定义的汽车、边缘节点，甚至区块链节点）中的插件安全地执行用户定义或社区贡献的代码。 它使第三方开发者、软件供应商和社区成员能够扩展和定制软件产品。
@@ -41,8 +40,8 @@ WasmEdge Runtime为其执行的 Wasm 字节码程序提供了一个有良好定�
 
 ## 性能
 
-* 论文：[高性能 Serverless 计算的轻量级设计](https://arxiv.org/abs/2010.07115)，发布于 IEEE Software, 2021年1月。 https://arxiv.org/abs/2010.07115
-* 文章：[Performance Analysis for Arm vs. x86 CPUs in the Cloud](https://www.infoq.com/articles/arm-vs-x86-cloud-performance/)，发布于 infoQ.com, 2021年1月。 https://www.infoq.com/articles/arm-vs-x86-cloud-performance/
+* 论文：[高性能 Serverless 计算的轻量级设计](https://arxiv.org/abs/2010.07115)，发布于 IEEE Software, 2021年1月。 [https://arxiv.org/abs/2010.07115](https://arxiv.org/abs/2010.07115)
+* 文章：[Performance Analysis for Arm vs. x86 CPUs in the Cloud](https://www.infoq.com/articles/arm-vs-x86-cloud-performance/)，发布于 infoQ.com, 2021年1月。 [https://www.infoq.com/articles/arm-vs-x86-cloud-performance/](https://www.infoq.com/articles/arm-vs-x86-cloud-performance/)
 
 ## 特性
 

@@ -7,7 +7,7 @@ The WasmEdge C API also the fundamental API for other languages' SDK.
 ## Quick Start Guide for the WasmEdge runner
 
 The following is an example for running a WASM file.
-Assume that the WASM file [fibonacci.wasm](https://github.com/WasmEdge/WasmEdge/raw/master/tools/wasmedge/examples/fibonacci.wasm) is copied into the current directory, and the C file `test_wasmedge.c` is as following:
+Assume that the WASM file [fibonacci.wasm](https://github.com/WasmEdge/WasmEdge/raw/master/examples/wasm/fibonacci.wasm) is copied into the current directory, and the C file `test_wasmedge.c` is as following:
 
 ```c
 #include <wasmedge/wasmedge.h>
@@ -50,11 +50,9 @@ $ ./test_wasmedge fibonacci.wasm
 Get result: 3524578
 ```
 
-For the details of APIs, please refer to the [API header file](https://github.com/WasmEdge/WasmEdge/blob/master/include/api/wasmedge/wasmedge.h).
-
 ## Quick Start Guide for the WasmEdge AOT compiler
 
-Assume that the WASM file [fibonacci.wasm](https://github.com/WasmEdge/WasmEdge/raw/master/tools/wasmedge/examples/fibonacci.wasm) is copied into the current directory, and the C file `test_wasmedge_compiler.c` is as following:
+Assume that the WASM file [fibonacci.wasm](https://github.com/WasmEdge/WasmEdge/raw/master/examples/wasm/fibonacci.wasm) is copied into the current directory, and the C file `test_wasmedge_compiler.c` is as following:
 
 ```c
 #include <wasmedge/wasmedge.h>
@@ -71,8 +69,8 @@ int main(int Argc, const char* Argv[]) {
   /* Compile the WASM file with input and output paths. */
   Res = WasmEdge_CompilerCompile(CompilerCxt, Argv[1], Argv[2]);
   if (!WasmEdge_ResultOK(Res)) {
-      printf("Compilation failed: %s\n", WasmEdge_ResultGetMessage(Res));
-      return 1;
+    printf("Compilation failed: %s\n", WasmEdge_ResultGetMessage(Res));
+    return 1;
   }
 
   WasmEdge_CompilerDelete(CompilerCxt);
@@ -100,16 +98,14 @@ The following is the comparison of the interpreter mode and the AOT mode:
 $ time ./test_wasmedge fibonacci.wasm
 Get result: 5702887
 
-real	0m2.715s
-user	0m2.700s
-sys	0m0.008s
+real 0m2.715s
+user 0m2.700s
+sys 0m0.008s
 
 $ time ./test_wasmedge fibonacci.wasm.so
 Get result: 5702887
 
-real	0m0.036s
-user	0m0.022s
-sys	0m0.011s
+real 0m0.036s
+user 0m0.022s
+sys 0m0.011s
 ```
-
-For the details of APIs, please refer to the [API header file](https://github.com/WasmEdge/WasmEdge/blob/master/include/api/wasmedge/wasmedge.h).

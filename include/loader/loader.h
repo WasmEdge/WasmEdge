@@ -21,7 +21,10 @@
 #include "loader/filemgr.h"
 #include "loader/ldmgr.h"
 
-#include <string>
+#include <cstdint>
+#include <memory>
+#include <mutex>
+#include <optional>
 #include <vector>
 
 namespace WasmEdge {
@@ -81,7 +84,8 @@ public:
   ~Loader() noexcept = default;
 
   /// Load data from file path.
-  Expect<std::vector<Byte>> loadFile(const std::filesystem::path &FilePath);
+  static Expect<std::vector<Byte>>
+  loadFile(const std::filesystem::path &FilePath);
 
   /// Parse module from file path.
   Expect<std::unique_ptr<AST::Module>>
@@ -125,14 +129,12 @@ private:
   Expect<uint32_t> loadSectionSize(ASTNodeAttr Node);
   template <typename T, typename L>
   Expect<void> loadSectionContent(T &Sec, L &&Func) {
+    Sec.setStartOffset(FMgr.getOffset());
     if (auto Res = loadSectionSize(NodeAttrFromAST<T>())) {
       // Set the section size.
       Sec.setContentSize(*Res);
       auto StartOffset = FMgr.getOffset();
-      // Bound the expected section size in file manager and load content.
-      FMgr.setSectionSize(*Res);
       auto ResContent = Func();
-      FMgr.unsetSectionSize();
       if (!ResContent) {
         return Unexpect(ResContent);
       }
@@ -196,9 +198,10 @@ private:
   Expect<void> loadType(AST::MemoryType &MemType);
   Expect<void> loadType(AST::TableType &TabType);
   Expect<void> loadType(AST::GlobalType &GlobType);
-  Expect<void> loadExpression(AST::Expression &Expr);
+  Expect<void> loadExpression(AST::Expression &Expr,
+                              std::optional<uint64_t> SizeBound = std::nullopt);
   Expect<OpCode> loadOpCode();
-  Expect<AST::InstrVec> loadInstrSeq();
+  Expect<AST::InstrVec> loadInstrSeq(std::optional<uint64_t> SizeBound);
   Expect<void> loadInstruction(AST::Instruction &Instr);
   /// @}
 
@@ -208,7 +211,10 @@ private:
   FileMgr FMgr;
   LDMgr LMgr;
   const AST::Module::IntrinsicsTable *IntrinsicsTable;
+  std::recursive_mutex Mutex;
   bool HasDataSection;
+  bool IsSharedLibraryWASM;
+  bool IsUniversalWASM;
   /// @}
 };
 

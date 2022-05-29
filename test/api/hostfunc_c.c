@@ -15,6 +15,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "hostfunc_c.h"
+#include <stddef.h>
 
 WasmEdge_Result SpecTestPrint(void *Data __attribute__((unused)),
                               WasmEdge_MemoryInstanceContext *MemCxt
@@ -71,7 +72,7 @@ WasmEdge_Result SpecTestPrintF64F64(void *Data __attribute__((unused)),
   return WasmEdge_Result_Success;
 }
 
-WasmEdge_ImportObjectContext *createSpecTestModule(void) {
+WasmEdge_ModuleInstanceContext *createSpecTestModule(void) {
   WasmEdge_String HostName;
   WasmEdge_FunctionTypeContext *HostFType = NULL;
   WasmEdge_TableTypeContext *HostTType = NULL;
@@ -84,7 +85,7 @@ WasmEdge_ImportObjectContext *createSpecTestModule(void) {
   enum WasmEdge_ValType Param[2];
 
   HostName = WasmEdge_StringCreateByCString("spectest");
-  WasmEdge_ImportObjectContext *ImpObj = WasmEdge_ImportObjectCreate(HostName);
+  WasmEdge_ModuleInstanceContext *HostMod = WasmEdge_ModuleInstanceCreate(HostName);
   WasmEdge_StringDelete(HostName);
 
   // Add host function "print": {} -> {}
@@ -92,7 +93,7 @@ WasmEdge_ImportObjectContext *createSpecTestModule(void) {
   HostFunc = WasmEdge_FunctionInstanceCreate(HostFType, SpecTestPrint, NULL, 0);
   WasmEdge_FunctionTypeDelete(HostFType);
   HostName = WasmEdge_StringCreateByCString("print");
-  WasmEdge_ImportObjectAddFunction(ImpObj, HostName, HostFunc);
+  WasmEdge_ModuleInstanceAddFunction(HostMod, HostName, HostFunc);
   WasmEdge_StringDelete(HostName);
 
   // Add host function "print_i32": {i32} -> {}
@@ -102,7 +103,7 @@ WasmEdge_ImportObjectContext *createSpecTestModule(void) {
       WasmEdge_FunctionInstanceCreate(HostFType, SpecTestPrintI32, NULL, 0);
   WasmEdge_FunctionTypeDelete(HostFType);
   HostName = WasmEdge_StringCreateByCString("print_i32");
-  WasmEdge_ImportObjectAddFunction(ImpObj, HostName, HostFunc);
+  WasmEdge_ModuleInstanceAddFunction(HostMod, HostName, HostFunc);
   WasmEdge_StringDelete(HostName);
 
   // Add host function "print_f32": {f32} -> {}
@@ -112,7 +113,7 @@ WasmEdge_ImportObjectContext *createSpecTestModule(void) {
       WasmEdge_FunctionInstanceCreate(HostFType, SpecTestPrintF32, NULL, 0);
   WasmEdge_FunctionTypeDelete(HostFType);
   HostName = WasmEdge_StringCreateByCString("print_f32");
-  WasmEdge_ImportObjectAddFunction(ImpObj, HostName, HostFunc);
+  WasmEdge_ModuleInstanceAddFunction(HostMod, HostName, HostFunc);
   WasmEdge_StringDelete(HostName);
 
   // Add host function "print_f64": {f64} -> {}
@@ -122,7 +123,7 @@ WasmEdge_ImportObjectContext *createSpecTestModule(void) {
       WasmEdge_FunctionInstanceCreate(HostFType, SpecTestPrintF64, NULL, 0);
   WasmEdge_FunctionTypeDelete(HostFType);
   HostName = WasmEdge_StringCreateByCString("print_f64");
-  WasmEdge_ImportObjectAddFunction(ImpObj, HostName, HostFunc);
+  WasmEdge_ModuleInstanceAddFunction(HostMod, HostName, HostFunc);
   WasmEdge_StringDelete(HostName);
 
   // Add host function "print_i32_f32": {i32, f32} -> {}
@@ -133,7 +134,7 @@ WasmEdge_ImportObjectContext *createSpecTestModule(void) {
       WasmEdge_FunctionInstanceCreate(HostFType, SpecTestPrintI32F32, NULL, 0);
   WasmEdge_FunctionTypeDelete(HostFType);
   HostName = WasmEdge_StringCreateByCString("print_i32_f32");
-  WasmEdge_ImportObjectAddFunction(ImpObj, HostName, HostFunc);
+  WasmEdge_ModuleInstanceAddFunction(HostMod, HostName, HostFunc);
   WasmEdge_StringDelete(HostName);
 
   // Add host function "print_f64_f64": {f64, f64} -> {}
@@ -144,7 +145,7 @@ WasmEdge_ImportObjectContext *createSpecTestModule(void) {
       WasmEdge_FunctionInstanceCreate(HostFType, SpecTestPrintF64F64, NULL, 0);
   WasmEdge_FunctionTypeDelete(HostFType);
   HostName = WasmEdge_StringCreateByCString("print_f64_f64");
-  WasmEdge_ImportObjectAddFunction(ImpObj, HostName, HostFunc);
+  WasmEdge_ModuleInstanceAddFunction(HostMod, HostName, HostFunc);
   WasmEdge_StringDelete(HostName);
 
   // Add host table "table"
@@ -153,7 +154,7 @@ WasmEdge_ImportObjectContext *createSpecTestModule(void) {
   HostTable = WasmEdge_TableInstanceCreate(HostTType);
   WasmEdge_TableTypeDelete(HostTType);
   HostName = WasmEdge_StringCreateByCString("table");
-  WasmEdge_ImportObjectAddTable(ImpObj, HostName, HostTable);
+  WasmEdge_ModuleInstanceAddTable(HostMod, HostName, HostTable);
   WasmEdge_StringDelete(HostName);
 
   // Add host memory "memory"
@@ -162,7 +163,7 @@ WasmEdge_ImportObjectContext *createSpecTestModule(void) {
   HostMemory = WasmEdge_MemoryInstanceCreate(HostMType);
   WasmEdge_MemoryTypeDelete(HostMType);
   HostName = WasmEdge_StringCreateByCString("memory");
-  WasmEdge_ImportObjectAddMemory(ImpObj, HostName, HostMemory);
+  WasmEdge_ModuleInstanceAddMemory(HostMod, HostName, HostMemory);
   WasmEdge_StringDelete(HostName);
 
   // Add host global "global_i32": const 666
@@ -172,7 +173,7 @@ WasmEdge_ImportObjectContext *createSpecTestModule(void) {
       WasmEdge_GlobalInstanceCreate(HostGType, WasmEdge_ValueGenI32(666));
   WasmEdge_GlobalTypeDelete(HostGType);
   HostName = WasmEdge_StringCreateByCString("global_i32");
-  WasmEdge_ImportObjectAddGlobal(ImpObj, HostName, HostGlobal);
+  WasmEdge_ModuleInstanceAddGlobal(HostMod, HostName, HostGlobal);
   WasmEdge_StringDelete(HostName);
 
   // Add host global "global_i64": const 666
@@ -182,7 +183,7 @@ WasmEdge_ImportObjectContext *createSpecTestModule(void) {
       WasmEdge_GlobalInstanceCreate(HostGType, WasmEdge_ValueGenI64(666));
   WasmEdge_GlobalTypeDelete(HostGType);
   HostName = WasmEdge_StringCreateByCString("global_i64");
-  WasmEdge_ImportObjectAddGlobal(ImpObj, HostName, HostGlobal);
+  WasmEdge_ModuleInstanceAddGlobal(HostMod, HostName, HostGlobal);
   WasmEdge_StringDelete(HostName);
 
   // Add host global "global_f32": const 666.0
@@ -192,7 +193,7 @@ WasmEdge_ImportObjectContext *createSpecTestModule(void) {
       WasmEdge_GlobalInstanceCreate(HostGType, WasmEdge_ValueGenF32(666.0));
   WasmEdge_GlobalTypeDelete(HostGType);
   HostName = WasmEdge_StringCreateByCString("global_f32");
-  WasmEdge_ImportObjectAddGlobal(ImpObj, HostName, HostGlobal);
+  WasmEdge_ModuleInstanceAddGlobal(HostMod, HostName, HostGlobal);
   WasmEdge_StringDelete(HostName);
 
   // Add host global "global_f64": const 666.0
@@ -202,8 +203,8 @@ WasmEdge_ImportObjectContext *createSpecTestModule(void) {
       WasmEdge_GlobalInstanceCreate(HostGType, WasmEdge_ValueGenF64(666.0));
   WasmEdge_GlobalTypeDelete(HostGType);
   HostName = WasmEdge_StringCreateByCString("global_f64");
-  WasmEdge_ImportObjectAddGlobal(ImpObj, HostName, HostGlobal);
+  WasmEdge_ModuleInstanceAddGlobal(HostMod, HostName, HostGlobal);
   WasmEdge_StringDelete(HostName);
 
-  return ImpObj;
+  return HostMod;
 }

@@ -6,7 +6,8 @@
 namespace WasmEdge {
 namespace Executor {
 
-Expect<void> Executor::runTableGetOp(Runtime::Instance::TableInstance &TabInst,
+Expect<void> Executor::runTableGetOp(Runtime::StackManager &StackMgr,
+                                     Runtime::Instance::TableInstance &TabInst,
                                      const AST::Instruction &Instr) {
   // Pop Idx from Stack.
   uint32_t Idx = StackMgr.pop().get<uint32_t>();
@@ -23,7 +24,8 @@ Expect<void> Executor::runTableGetOp(Runtime::Instance::TableInstance &TabInst,
   return {};
 }
 
-Expect<void> Executor::runTableSetOp(Runtime::Instance::TableInstance &TabInst,
+Expect<void> Executor::runTableSetOp(Runtime::StackManager &StackMgr,
+                                     Runtime::Instance::TableInstance &TabInst,
                                      const AST::Instruction &Instr) {
   // Pop Ref from Stack.
   RefVariant Ref = StackMgr.pop().get<UnknownRef>();
@@ -42,7 +44,8 @@ Expect<void> Executor::runTableSetOp(Runtime::Instance::TableInstance &TabInst,
 }
 
 Expect<void>
-Executor::runTableInitOp(Runtime::Instance::TableInstance &TabInst,
+Executor::runTableInitOp(Runtime::StackManager &StackMgr,
+                         Runtime::Instance::TableInstance &TabInst,
                          Runtime::Instance::ElementInstance &ElemInst,
                          const AST::Instruction &Instr) {
   // Pop the length, source, and destination from stack.
@@ -68,7 +71,8 @@ Executor::runElemDropOp(Runtime::Instance::ElementInstance &ElemInst) {
 }
 
 Expect<void>
-Executor::runTableCopyOp(Runtime::Instance::TableInstance &TabInstDst,
+Executor::runTableCopyOp(Runtime::StackManager &StackMgr,
+                         Runtime::Instance::TableInstance &TabInstDst,
                          Runtime::Instance::TableInstance &TabInstSrc,
                          const AST::Instruction &Instr) {
   // Pop the length, source, and destination from stack.
@@ -93,7 +97,8 @@ Executor::runTableCopyOp(Runtime::Instance::TableInstance &TabInstDst,
 }
 
 Expect<void>
-Executor::runTableGrowOp(Runtime::Instance::TableInstance &TabInst) {
+Executor::runTableGrowOp(Runtime::StackManager &StackMgr,
+                         Runtime::Instance::TableInstance &TabInst) {
   // Pop N for growing size, Val for init ref value.
   uint32_t N = StackMgr.pop().get<uint32_t>();
   ValVariant &Val = StackMgr.getTop();
@@ -110,13 +115,15 @@ Executor::runTableGrowOp(Runtime::Instance::TableInstance &TabInst) {
 }
 
 Expect<void>
-Executor::runTableSizeOp(Runtime::Instance::TableInstance &TabInst) {
+Executor::runTableSizeOp(Runtime::StackManager &StackMgr,
+                         Runtime::Instance::TableInstance &TabInst) {
   // Push SZ = size to stack.
   StackMgr.push(TabInst.getSize());
   return {};
 }
 
-Expect<void> Executor::runTableFillOp(Runtime::Instance::TableInstance &TabInst,
+Expect<void> Executor::runTableFillOp(Runtime::StackManager &StackMgr,
+                                      Runtime::Instance::TableInstance &TabInst,
                                       const AST::Instruction &Instr) {
   // Pop the length, ref_value, and offset from stack.
   uint32_t Len = StackMgr.pop().get<uint32_t>();

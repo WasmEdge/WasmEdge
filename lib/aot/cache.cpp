@@ -7,8 +7,11 @@
 #include "common/config.h"
 #include "common/defines.h"
 #include "common/hexstr.h"
-#include "common/log.h"
 #include "system/path.h"
+
+#include <array>
+#include <string>
+#include <system_error>
 
 namespace WasmEdge {
 namespace AOT {

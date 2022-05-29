@@ -7,21 +7,21 @@ First, let's build a WebAssembly-based JavaScript interpreter program for WasmEd
 Fork or clone [the wasmedge-quickjs Github repository](https://github.com/second-state/wasmedge-quickjs) to get started.
 
 ```bash
-$ git clone https://github.com/second-state/wasmedge-quickjs
+git clone https://github.com/second-state/wasmedge-quickjs
 ```
 
 Following the instructions from that repo, you will be able to build a JavaScript interpreter for WasmEdge.
 
 ```bash
 # Install GCC
-$ sudo apt update
-$ sudo apt install build-essential
+sudo apt update
+sudo apt install build-essential
 
 # Install wasm32-wasi target for Rust
-$ rustup target add wasm32-wasi
+rustup target add wasm32-wasi
 
 # Build the QuickJS JavaScript interpreter
-$ cargo build --target wasm32-wasi --release
+cargo build --target wasm32-wasi --release
 ```
 
 The WebAssembly-based JavaScript interpreter program is located in the build target directory. You can now try a simple "hello world" JavaScript program ([example_js/hello.js](https://github.com/second-state/wasmedge-quickjs/blob/main/example_js/hello.js)), which prints out the command line arguments to the console.
@@ -37,7 +37,7 @@ setTimeout(() => {
 }, 2000);
 ```
 
-Run the `hello.js` file in WasmEdge’s QuickJS runtime as follows. 
+Run the `hello.js` file in WasmEdge’s QuickJS runtime as follows.
 
 ```bash
 $ cd example_js
@@ -52,8 +52,8 @@ Hello WasmEdge Runtime
 WasmEdge provides a `wasmedgec` utility to compile and add a native machine code section to the `wasm` file. You can use `wasmedge` to run the natively instrumented `wasm` file to get much faster performance.
 
 ```bash
-$ wasmedgec ../../target/wasm32-wasi/release/wasmedge_quickjs.wasm wasmedge_quickjs.wasm
-$ wasmedge --dir .:. wasmedge_quickjs.wasm hello.js
+wasmedgec ../../target/wasm32-wasi/release/wasmedge_quickjs.wasm wasmedge_quickjs.wasm
+wasmedge --dir .:. wasmedge_quickjs.wasm hello.js
 ```
 
 Next, we will discuss more advanced use case for JavaScript in WasmEdge.

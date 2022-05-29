@@ -6,12 +6,18 @@
 #include "common/types.h"
 #include "common/version.h"
 #include "host/wasi/wasimodule.h"
-#include "host/wasmedge_process/processmodule.h"
+#include "plugin/plugin.h"
 #include "po/argument_parser.h"
 #include "vm/vm.h"
 
+#include <chrono>
+#include <cstdint>
 #include <cstdlib>
 #include <iostream>
+#include <optional>
+#include <string>
+#include <string_view>
+#include <vector>
 
 int main(int Argc, const char *Argv[]) {
   namespace PO = WasmEdge::PO;
@@ -19,6 +25,10 @@ int main(int Argc, const char *Argv[]) {
 
   std::ios::sync_with_stdio(false);
   WasmEdge::Log::setInfoLoggingLevel();
+
+  for (const auto &Path : WasmEdge::Plugin::Plugin::getDefaultPluginPaths()) {
+    WasmEdge::Plugin::Plugin::load(Path);
+  }
 
   PO::Option<std::string> SoName(PO::Description("Wasm or so file"sv),
                                  PO::MetaVar("WASM_OR_SO"sv));
@@ -56,6 +66,10 @@ int main(int Argc, const char *Argv[]) {
   PO::Option<PO::Toggle> PropSIMD(PO::Description("Disable SIMD proposal"sv));
   PO::Option<PO::Toggle> PropMultiMem(
       PO::Description("Enable Multiple memories proposal"sv));
+  PO::Option<PO::Toggle> PropTailCall(
+      PO::Description("Enable Tail-call proposal"sv));
+  PO::Option<PO::Toggle> PropExtendConst(
+      PO::Description("Enable Extended-const proposal"sv));
   PO::Option<PO::Toggle> PropAll(PO::Description("Enable all features"sv));
 
   PO::Option<PO::Toggle> ConfEnableInstructionCounting(PO::Description(
@@ -82,39 +96,38 @@ int main(int Argc, const char *Argv[]) {
           "Limitation of pages(as size of 64 KiB) in every memory instance. Upper bound can be specified as --memory-page-limit `PAGE_COUNT`."sv),
       PO::MetaVar("PAGE_COUNT"sv));
 
-  PO::List<std::string> AllowCmd(
-      PO::Description(
-          "Allow commands called from wasmedge_process host functions. Each command can be specified as --allow-command `COMMAND`."sv),
-      PO::MetaVar("COMMANDS"sv));
-  PO::Option<PO::Toggle> AllowCmdAll(PO::Description(
-      "Allow all commands called from wasmedge_process host functions."sv));
+  PO::List<std::string> ForbiddenPlugins(
+      PO::Description("List of plugins to ignore."sv), PO::MetaVar("NAMES"sv));
 
   auto Parser = PO::ArgumentParser();
-  if (!Parser.add_option(SoName)
-           .add_option(Args)
-           .add_option("reactor"sv, Reactor)
-           .add_option("dir"sv, Dir)
-           .add_option("env"sv, Env)
-           .add_option("enable-instruction-count"sv,
-                       ConfEnableInstructionCounting)
-           .add_option("enable-gas-measuring"sv, ConfEnableGasMeasuring)
-           .add_option("enable-time-measuring"sv, ConfEnableTimeMeasuring)
-           .add_option("enable-all-statistics"sv, ConfEnableAllStatistics)
-           .add_option("disable-import-export-mut-globals"sv, PropMutGlobals)
-           .add_option("disable-non-trap-float-to-int"sv, PropNonTrapF2IConvs)
-           .add_option("disable-sign-extension-operators"sv, PropSignExtendOps)
-           .add_option("disable-multi-value"sv, PropMultiValue)
-           .add_option("disable-bulk-memory"sv, PropBulkMemOps)
-           .add_option("disable-reference-types"sv, PropRefTypes)
-           .add_option("disable-simd"sv, PropSIMD)
-           .add_option("enable-multi-memory"sv, PropMultiMem)
-           .add_option("enable-all"sv, PropAll)
-           .add_option("time-limit"sv, TimeLim)
-           .add_option("gas-limit"sv, GasLim)
-           .add_option("memory-page-limit"sv, MemLim)
-           .add_option("allow-command"sv, AllowCmd)
-           .add_option("allow-command-all"sv, AllowCmdAll)
-           .parse(Argc, Argv)) {
+  Parser.add_option(SoName)
+      .add_option(Args)
+      .add_option("reactor"sv, Reactor)
+      .add_option("dir"sv, Dir)
+      .add_option("env"sv, Env)
+      .add_option("enable-instruction-count"sv, ConfEnableInstructionCounting)
+      .add_option("enable-gas-measuring"sv, ConfEnableGasMeasuring)
+      .add_option("enable-time-measuring"sv, ConfEnableTimeMeasuring)
+      .add_option("enable-all-statistics"sv, ConfEnableAllStatistics)
+      .add_option("disable-import-export-mut-globals"sv, PropMutGlobals)
+      .add_option("disable-non-trap-float-to-int"sv, PropNonTrapF2IConvs)
+      .add_option("disable-sign-extension-operators"sv, PropSignExtendOps)
+      .add_option("disable-multi-value"sv, PropMultiValue)
+      .add_option("disable-bulk-memory"sv, PropBulkMemOps)
+      .add_option("disable-reference-types"sv, PropRefTypes)
+      .add_option("disable-simd"sv, PropSIMD)
+      .add_option("enable-multi-memory"sv, PropMultiMem)
+      .add_option("enable-tail-call"sv, PropTailCall)
+      .add_option("enable-extended-const"sv, PropExtendConst)
+      .add_option("enable-all"sv, PropAll)
+      .add_option("time-limit"sv, TimeLim)
+      .add_option("gas-limit"sv, GasLim)
+      .add_option("memory-page-limit"sv, MemLim)
+      .add_option("forbidden-plugin"sv, ForbiddenPlugins);
+
+  WasmEdge::Plugin::Plugin::addPluginOptions(Parser);
+
+  if (!Parser.parse(Argc, Argv)) {
     return EXIT_FAILURE;
   }
   if (Parser.isVersion()) {
@@ -147,8 +160,16 @@ int main(int Argc, const char *Argv[]) {
   if (PropMultiMem.value()) {
     Conf.addProposal(WasmEdge::Proposal::MultiMemories);
   }
+  if (PropTailCall.value()) {
+    Conf.addProposal(WasmEdge::Proposal::TailCall);
+  }
+  if (PropExtendConst.value()) {
+    Conf.addProposal(WasmEdge::Proposal::ExtendedConst);
+  }
   if (PropAll.value()) {
     Conf.addProposal(WasmEdge::Proposal::MultiMemories);
+    Conf.addProposal(WasmEdge::Proposal::TailCall);
+    Conf.addProposal(WasmEdge::Proposal::ExtendedConst);
   }
 
   std::optional<std::chrono::system_clock::time_point> Timeout;
@@ -181,6 +202,10 @@ int main(int Argc, const char *Argv[]) {
     }
   }
 
+  for (const auto &Name : ForbiddenPlugins.value()) {
+    Conf.addForbiddenPlugins(Name);
+  }
+
   Conf.addHostRegistration(WasmEdge::HostRegistration::Wasi);
   Conf.addHostRegistration(WasmEdge::HostRegistration::WasmEdge_Process);
   const auto InputPath = std::filesystem::absolute(SoName.value());
@@ -189,16 +214,6 @@ int main(int Argc, const char *Argv[]) {
   WasmEdge::Host::WasiModule *WasiMod =
       dynamic_cast<WasmEdge::Host::WasiModule *>(
           VM.getImportModule(WasmEdge::HostRegistration::Wasi));
-  WasmEdge::Host::WasmEdgeProcessModule *ProcMod =
-      dynamic_cast<WasmEdge::Host::WasmEdgeProcessModule *>(
-          VM.getImportModule(WasmEdge::HostRegistration::WasmEdge_Process));
-
-  if (AllowCmdAll.value()) {
-    ProcMod->getEnv().AllowedAll = true;
-  }
-  for (auto &Str : AllowCmd.value()) {
-    ProcMod->getEnv().AllowedCmd.insert(Str);
-  }
 
   WasiMod->getEnv().init(
       Dir.value(),

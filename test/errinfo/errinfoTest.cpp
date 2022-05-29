@@ -3,8 +3,8 @@
 
 #include "common/errinfo.h"
 
-#include "gtest/gtest.h"
-
+#include <cstdint>
+#include <gtest/gtest.h>
 #include <iostream>
 #include <vector>
 
@@ -126,7 +126,11 @@ TEST(ErrInfoTest, Info__Mismatch) {
 }
 
 TEST(ErrInfoTest, Info__Instruction) {
-  std::vector<WasmEdge::ValVariant> Args = {0, 1000, WasmEdge::FuncRef(100)};
+  std::vector<WasmEdge::ValVariant> Args = {
+      0, 1000,
+      WasmEdge::FuncRef(
+          reinterpret_cast<WasmEdge::Runtime::Instance::FunctionInstance *>(
+              100))};
   WasmEdge::ErrInfo::InfoInstruction Info1(WasmEdge::OpCode::Block, 255, Args,
                                            {WasmEdge::ValType::None,
                                             WasmEdge::ValType::None,

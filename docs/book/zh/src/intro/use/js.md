@@ -11,7 +11,7 @@ WasmEdge 可以通过嵌入 JS 执行引擎或解释器来充当云原生 JavaSc
   * [在 Rust 中嵌入 JavaScript](https://www.secondstate.io/articles/embed-javascript-in-rust/)
   * [用 Rust 函数创建 JavaScript API](https://www.secondstate.io/articles/embed-rust-in-javascript/)
   * [从 JavaScript调用 C 原生共享库函数](https://www.secondstate.io/articles/call-native-functions-from-javascript/)
-* [例子](https://github.com/WasmEdge/WasmEdge/blob/master/tools/wasmedge/examples/js/README.md)
+* [例子](https://github.com/WasmEdge/WasmEdge/blob/master/examples/js/README.md)
 * [WasmEdge的内嵌 QuickJS 引擎](https://github.com/second-state/wasmedge-quickjs)
 
 ## 用于图片识别的 DSL

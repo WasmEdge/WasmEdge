@@ -170,7 +170,7 @@ emcc -g -Oz --llvm-lto 1 -s STANDALONE_WASM -s INITIAL_MEMORY=32MB -s MAXIMUM_ME
 #### Interpreter mode
 
 ```bash
-$ wasmedge mandelbrot-simd.wasm 15000
+wasmedge mandelbrot-simd.wasm 15000
 ```
 
 #### Ahead-of-Time mode
@@ -181,4 +181,3 @@ $ wasmedgec mandelbrot-simd.wasm mandelbrot-simd-out.wasm
 # Run the native binary with wasmedge
 $ wasmedge mandelbrot-simd-out.wasm 15000
 ```
-

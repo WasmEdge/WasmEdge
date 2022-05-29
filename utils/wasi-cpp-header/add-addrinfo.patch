@@ -28,11 +28,11 @@
 +    $aisystem
    )
  )
- 
+
 @@ -726,6 +748,26 @@
    )
  )
- 
+
 +;;; Flags provided to `getaddrinfo`.
 +(typename $aiflags
 +  (flags (@witx repr u16)
@@ -56,13 +56,14 @@
  ;;; Socket type
  (typename $sock_type
    (enum (@witx tag u8)
-@@ -734,6 +776,50 @@
+@@ -734,6 +776,51 @@
    )
  )
- 
+
 +;;; Protocol
 +(typename $protocol
 +  (enum (@witx tag u8)
++    $ipproto_ip
 +    $ipproto_tcp
 +    $ipproto_udp
 +  )

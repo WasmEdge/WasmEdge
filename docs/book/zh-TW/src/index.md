@@ -10,20 +10,20 @@
 您的環境必須已有安裝 `git` 和 `curl` 。
 
 ```bash
-$ curl -sSf https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh | bash
+curl -sSf https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh | bash
 ```
 
 若您想安裝附帶有 [Tensorflow 與 image 擴充](https://www.secondstate.io/articles/wasi-tensorflow/) 的 WasmEdge ，請執行以下指令。
 下列指令將嘗試在您的系統安裝 Tensorflow 與 image 相關的相依函式庫。
 
 ```bash
-$ curl -sSf https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh | bash -s -- -e all
+curl -sSf https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh | bash -s -- -e all
 ```
 
 執行以下指令可以讓已安裝的 WasmEdge 執行檔與函式庫在當前 session 加入 `PATH` 路徑中。
 
 ```bash
-$ source $HOME/.wasmedge/env
+source $HOME/.wasmedge/env
 ```
 
 ## 使用 Docker
@@ -42,7 +42,7 @@ $ docker run --rm -v $(pwd):/app -it wasmedge/appdev_x86_64:0.9.0
 
 ### Hello world
 
-[hello.wasm](https://github.com/WasmEdge/WasmEdge/raw/master/tools/wasmedge/examples/hello.wasm) 這個 WebAssembly 應用程式包含一個 `main()` 函式。
+[hello.wasm](https://github.com/WasmEdge/WasmEdge/raw/master/examples/wasm/hello.wasm) 這個 WebAssembly 應用程式包含一個 `main()` 函式。
 請參考它的 [Rust 原始碼](https://github.com/second-state/wasm-learning/tree/master/cli/hello)。
 它會在標準輸出印出 `hello` 與傳入的命令列參數。
 
@@ -55,7 +55,7 @@ state
 
 ### 呼叫一個使用 Rust 編寫的函式
 
-[add.wasm](https://github.com/WasmEdge/WasmEdge/raw/master/tools/wasmedge/examples/add.wasm) 這個 WebAssembly 應用程式包含一個 `add()` 函式。
+[add.wasm](https://github.com/WasmEdge/WasmEdge/raw/master/examples/wasm/add.wasm) 這個 WebAssembly 應用程式包含一個 `add()` 函式。
 請參考它的 [Rust 原始碼](https://github.com/second-state/wasm-learning/tree/master/cli/add)。
 我們使用 WasmEdge 的 reactor 模式來呼叫 `add()` ，並傳入兩個整數作為參數。
 
@@ -66,7 +66,7 @@ $ wasmedge --reactor add.wasm add 2 2
 
 ### 呼叫一個使用 WAT 編寫的函式
 
-我們編寫了一個 [fibonacci.wat](https://github.com/WasmEdge/WasmEdge/raw/master/tools/wasmedge/examples/fibonacci.wat) 程式，並使用 [wat2wasm](https://github.com/WebAssembly/wabt) 工具來組譯成 [fibonacci.wasm](https://github.com/WasmEdge/WasmEdge/raw/master/tools/wasmedge/examples/fibonacci.wasm) 這個 WebAssembly 檔案。
+我們編寫了一個 [fibonacci.wat](https://github.com/WasmEdge/WasmEdge/raw/master/examples/wasm/fibonacci.wat) 程式，並使用 [wat2wasm](https://github.com/WebAssembly/wabt) 工具來組譯成 [fibonacci.wasm](https://github.com/WasmEdge/WasmEdge/raw/master/examples/wasm/fibonacci.wasm) 這個 WebAssembly 檔案。
 它包含一個 `fib()` 函式，並以一個整數作為參數。我們使用 WasmEdge 的 reactor 模式來呼叫這個函式。
 
 ```bash
@@ -99,7 +99,7 @@ CLI 工具支援 `--gas-limit` 選項，可以限制執行的 gas 限制。
 
 ```bash
 # cd <path/to/WasmEdge>
-$ cd tools/wasmedge/examples
+$ cd examples/wasm
 # With enough gas
 $ wasmedge --enable-all-statistics --gas-limit 20425 hello.wasm second state
 hello
@@ -134,16 +134,16 @@ $ wasmedge --enable-all-statistics --gas-limit 20 hello.wasm second state
 
 WasmEdge 也可以作為一個高效能、安全、可擴充、容易部署、以及 [相容 Kubernetes](https://github.com/second-state/wasmedge-containers-examples) 的 JavaScript runtime 來使用。
 
-[qjs.wasm](https://github.com/WasmEdge/WasmEdge/raw/master/tools/wasmedge/examples/js/qjs.wasm) 是一個編譯成 WebAssembly 的 JavaScript 直譯器。
-[hello.js](https://github.com/WasmEdge/WasmEdge/raw/master/tools/wasmedge/examples/js/hello.js) 是一個簡單的 JavaScript 應用程式。
+[qjs.wasm](https://github.com/WasmEdge/WasmEdge/raw/master/examples/wasm/qjs.wasm) 是一個編譯成 WebAssembly 的 JavaScript 直譯器。
+[hello.js](https://github.com/WasmEdge/WasmEdge/raw/master/examples/wasm/hello.js) 是一個簡單的 JavaScript 應用程式。
 
 ```bash
 $ wasmedge --dir .:. qjs.wasm hello.js 1 2 3
 Hello 1 2 3
 ```
 
-[qjs_tf.wasm](https://github.com/WasmEdge/WasmEdge/raw/master/tools/wasmedge/examples/js/qjs_tf.wasm) 是一個附有 [WasmEdge Tensorflow 擴充](https://www.secondstate.io/articles/wasi-tensorflow/) 的 WebAssembly 版本的 JavaScript 直譯器。
-為了可以執行 [qjs_tf.wasm](https://github.com/WasmEdge/WasmEdge/raw/master/tools/wasmedge/examples/js/qjs_tf.wasm) ，您必須使用 `wasmedge-tensorflow-lite` 這個 CLI 工具，這個工具裡內建了 WasmEdge 的 Tensorflow 擴充。
+[qjs_tf.wasm](https://github.com/WasmEdge/WasmEdge/raw/master/examples/wasm/qjs_tf.wasm) 是一個附有 [WasmEdge Tensorflow 擴充](https://www.secondstate.io/articles/wasi-tensorflow/) 的 WebAssembly 版本的 JavaScript 直譯器。
+為了可以執行 [qjs_tf.wasm](https://github.com/WasmEdge/WasmEdge/raw/master/examples/wasm/qjs_tf.wasm) ，您必須使用 `wasmedge-tensorflow-lite` 這個 CLI 工具，這個工具裡內建了 WasmEdge 的 Tensorflow 擴充。
 您可以下載一個完整的 [基於 Tensorflow 的 JavaScript 範例](https://github.com/second-state/wasmedge-quickjs/tree/main/example_js/tensorflow_lite_demo) 來嘗試分辨圖片。
 
 ```bash

@@ -9,72 +9,160 @@ on:
     branches:
       - master
     paths-ignore:
-      - 'docs/**'
-      - '**.md'
+      - "docs/**"
+      - "**.md"
   pull_request:
     branches:
       - master
     paths-ignore:
-      - 'docs/**'
-      - '**.md'
+      - "docs/**"
+      - "**.md"
 
 jobs:
-  rust:
-    runs-on: ubuntu-latest
+  build_ubuntu:
+    name: Ubuntu 20.04
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-20.04]
     container:
       image: wasmedge/wasmedge:ubuntu-build-clang
 
     steps:
-    - uses: actions/checkout@v2
-      with:
-        fetch-depth: 0
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
 
-    - name: Install Stable Rust
-      uses: actions-rs/toolchain@v1
-      with:
-        toolchain: stable
-        components: rustfmt, clippy
+      - name: Install Stable Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          components: rustfmt, clippy
 
-    - name: Install Nightly Rust
-      uses: actions-rs/toolchain@v1
-      with:
-        toolchain: nightly
-        components: rustfmt, clippy
+      - name: Install Nightly Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: nightly
+          components: rustfmt, clippy
 
-    - name: Rustfmt
-      run: |
-        cd bindings/rust/
-        cargo +nightly fmt --all -- --check
+      - name: Rustfmt
+        run: |
+          cd bindings/rust/
+          cargo +nightly fmt --all -- --check
 
-    - name: Test on standalone crate
-      run: |
-        cd bindings/rust/
-        export WASMEDGE_DIR="$(pwd)/../../"
-        cargo test --lib --examples
-        cargo test --doc
+      - name: Test wasmedge-sys in standalone mode
+        run: |
+          cd bindings/rust/
+          export WASMEDGE_DIR="$(pwd)/../../"
+          cargo +nightly test -p wasmedge-sys --lib --examples
+          cargo +nightly test -p wasmedge-sys --doc
 
-    - name: Clean up
-      run: |
-        cd bindings/rust/
-        cargo clean
+      - name: Clean up
+        run: |
+          cd bindings/rust/
+          cargo clean
 
-    - name: Build WasmEdge using clang with Debug mode
-      run: |
-        cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Debug -DWASMEDGE_BUILD_SHARED_LIB=ON .
-        cmake --build build
+      - name: Build WasmEdge using clang with Debug mode
+        run: |
+          apt-get update
+          apt-get install -y make
+          mkdir -p build
+          cd build
+          cmake -DCMAKE_BUILD_TYPE=Debug -DWASMEDGE_BUILD_TESTS=ON ..
+          make -j
 
-    - name: Clippy
-      run: |
-        cd bindings/rust/
-        export WASMEDGE_DIR="$(pwd)/../../"
-        export WASMEDGE_BUILD_DIR="$(pwd)/../../build"
-        cargo clippy --profile test --lib --examples -- -D warnings -D clippy::dbg_macro
+      - name: Clippy
+        run: |
+          cd bindings/rust/
+          export WASMEDGE_DIR="$(pwd)/../../"
+          export WASMEDGE_BUILD_DIR="$(pwd)/../../build"
+          export WASMEDGE_PLUGIN_PATH="$(pwd)/../../build/plugins/wasmedge_process"
+          cargo +nightly clippy --profile test --lib --examples -- -D warnings -D clippy::dbg_macro
 
-    - name: Test
-      run: |
-        cd bindings/rust/
-        export WASMEDGE_DIR="$(pwd)/../../"
-        export WASMEDGE_BUILD_DIR="$(pwd)/../../build"
-        export LD_LIBRARY_PATH="$(pwd)/../../build/lib/api"
-        cargo test --lib --examples --locked
-        cargo test --doc --locked
+      - name: Test
+        run: |
+          cd bindings/rust/
+          export WASMEDGE_DIR="$(pwd)/../../"
+          export WASMEDGE_BUILD_DIR="$(pwd)/../../build"
+          export WASMEDGE_PLUGIN_PATH="$(pwd)/../../build/plugins/wasmedge_process"
+          export LD_LIBRARY_PATH="$(pwd)/../../build/lib/api"
+          cargo +nightly test --lib --examples --locked
+          cargo +nightly test --doc --locked
+
+  build_macos:
+    name: MacOS
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [macos-11]
+
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+
+      - name: Install stable toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          components: rustfmt, clippy
+
+      - name: Install nightly toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: nightly
+          components: rustfmt, clippy
+
+      - name: Run cargo fmt
+        run: |
+          cd bindings/rust/
+          cargo +nightly fmt --all -- --check
+
+      - name: Test wasmedge-sys in standalone mode
+        run: |
+          brew install llvm ninja boost cmake
+          export PATH="/usr/local/opt/llvm/bin:$PATH"
+          export LDFLAGS="-L/usr/local/opt/llvm/lib -Wl,-rpath,/usr/local/opt/llvm/lib"
+          export CPPFLAGS="-I/usr/local/opt/llvm/include"
+          export CC=clang
+          export CXX=clang++
+          cd bindings/rust/
+          export WASMEDGE_DIR="$(pwd)/../../"
+          cargo +nightly test -p wasmedge-sys --lib --examples
+          cargo +nightly test -p wasmedge-sys --doc
+
+      - name: Clean up
+        run: |
+          cd bindings/rust/
+          cargo clean
+
+      - name: Build WasmEdge
+        run: |
+          brew install llvm ninja boost cmake
+          export PATH="/usr/local/opt/llvm/bin:$PATH"
+          export LDFLAGS="-L/usr/local/opt/llvm/lib -Wl,-rpath,/usr/local/opt/llvm/lib"
+          export CPPFLAGS="-I/usr/local/opt/llvm/include"
+          export CC=clang
+          export CXX=clang++
+          cmake -Bbuild -GNinja -DWASMEDGE_BUILD_TESTS=ON .
+          cmake -Bbuild -GNinja -DWASMEDGE_BUILD_TESTS=ON -DWASMEDGE_BUILD_PACKAGE="TGZ" .
+          cmake --build build
+
+      - name: Clippy
+        run: |
+          cd bindings/rust/
+          export WASMEDGE_DIR="$(pwd)/../../"
+          export WASMEDGE_BUILD_DIR="$(pwd)/../../build"
+          export WASMEDGE_PLUGIN_PATH="$(pwd)/../../build/plugins/wasmedge_process"
+          cargo +nightly clippy --profile test --lib --examples -- -D warnings -D clippy::dbg_macro
+
+      - name: Test
+        run: |
+          cd bindings/rust/
+          export WASMEDGE_DIR="$(pwd)/../../"
+          export WASMEDGE_BUILD_DIR="$(pwd)/../../build"
+          export WASMEDGE_PLUGIN_PATH="$(pwd)/../../build/plugins/wasmedge_process"
+          export LD_LIBRARY_PATH="$(pwd)/../../build/lib/api"
+          cargo +nightly test --lib --examples --locked
+          cargo +nightly test --doc --locked

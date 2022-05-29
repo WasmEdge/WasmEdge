@@ -18,6 +18,9 @@
 #include "common/types.h"
 #include "system/mmap.h"
 
+#include <algorithm>
+#include <cstddef>
+#include <cstdint>
 #include <optional>
 #include <string>
 #include <vector>
@@ -90,17 +93,17 @@ public:
   /// Get remain size.
   uint64_t getRemainSize() const noexcept { return Size - Pos; }
 
-  /// Set limit read section size.
-  void setSectionSize(uint64_t SecSize) {
-    if (likely(UINT64_MAX - Pos >= SecSize)) {
-      SecPos = std::min(Pos + SecSize, Size);
-    } else {
-      SecPos = std::min(UINT64_MAX - Pos, Size);
+  /// Jump the content with size (size + content).
+  Expect<void> jumpContent();
+
+  /// Change the access position of the file.
+  void seek(uint64_t NewPos) {
+    if (Status != ErrCode::IllegalPath) {
+      Pos = std::min(NewPos, Size);
+      LastPos = Pos;
+      Status = ErrCode::Success;
     }
   }
-
-  /// Unset limit read section size.
-  void unsetSectionSize() { SecPos.reset(); }
 
   /// Reset status
   void reset() {
@@ -128,10 +131,6 @@ private:
   /// the u32, u64, s32, s64, f32, f64, name, or bytes start offset when read
   /// succeeded or syntax error.
   uint64_t LastPos;
-
-  /// Section limit offset. If a value is set, it will return an 'UnexpectedEnd'
-  /// if the read offset cross this value.
-  std::optional<uint64_t> SecPos;
 
   /// Current read offset.
   uint64_t Pos;

@@ -85,15 +85,20 @@ public:
     kTableInit,
     kElemDrop,
     kRefFunc,
+    kPtrFunc,
     kIntrinsicMax,
   };
   using IntrinsicsTable = void * [uint32_t(Intrinsics::kIntrinsicMax)];
 
-  /// Getter and sette of compiled symbol.
+  /// Getter and setter of compiled symbol.
   const auto &getSymbol() const noexcept { return IntrSymbol; }
   void setSymbol(Symbol<const IntrinsicsTable *> S) noexcept {
     IntrSymbol = std::move(S);
   }
+
+  /// Getter and setter of validated flag.
+  bool getIsValidated() const noexcept { return IsValidated; }
+  void setIsValidated(bool V = true) noexcept { IsValidated = V; }
 
 private:
   /// \name Data of Module node.
@@ -123,6 +128,11 @@ private:
   /// @{
   AOTSection AOTSec;
   Symbol<const IntrinsicsTable *> IntrSymbol;
+  /// @}
+
+  /// \name Validated flag.
+  /// @{
+  bool IsValidated = false;
   /// @}
 };
 

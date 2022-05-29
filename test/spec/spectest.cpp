@@ -24,14 +24,20 @@
 #endif
 
 #include "spectest.h"
-
 #include "common/log.h"
-#include "rapidjson/document.h"
-#include "rapidjson/istreamwrapper.h"
-#include "gtest/gtest.h"
 
+#include <algorithm>
 #include <cmath>
+#include <cstddef>
+#include <cstdint>
 #include <fstream>
+#include <gtest/gtest.h>
+#include <iterator>
+#include <map>
+#include <memory>
+#include <rapidjson/document.h>
+#include <rapidjson/istreamwrapper.h>
+#include <unordered_map>
 
 namespace {
 
@@ -119,7 +125,10 @@ parseValueList(const rapidjson::Value &Args) {
         if (Value == "null"sv) {
           Result.emplace_back(WasmEdge::UnknownRef());
         } else {
-          Result.emplace_back(WasmEdge::FuncRef(std::stoul(Value)));
+          // Add 0x1 uint32_t prefix in this funcref index case.
+          Result.emplace_back(WasmEdge::FuncRef(
+              reinterpret_cast<WasmEdge::Runtime::Instance::FunctionInstance *>(
+                  std::stoul(Value) + 0x100000000ULL)));
         }
         ResultTypes.emplace_back(WasmEdge::ValType::FuncRef);
       } else if (Type == "i32"sv) {
@@ -207,8 +216,9 @@ struct TestsuiteProposal {
 };
 static const TestsuiteProposal TestsuiteProposals[] = {
     {"core"sv, {}},
-    {"simd"sv, {}},
     {"multi-memory"sv, {Proposal::MultiMemories}},
+    {"tail-call"sv, {Proposal::TailCall}},
+    {"extended-const"sv, {Proposal::ExtendedConst}},
 };
 
 } // namespace
@@ -276,7 +286,8 @@ bool SpecTest::compare(const std::pair<std::string, std::string> &Expected,
       if (WasmEdge::isNullRef(Got.first)) {
         return false;
       }
-      return WasmEdge::retrieveFuncIdx(Got.first) ==
+      return static_cast<uint32_t>(reinterpret_cast<uintptr_t>(
+                 WasmEdge::retrieveFuncRef(Got.first))) ==
              static_cast<uint32_t>(std::stoul(ValStr));
     }
   } else if (TypeStr == "externref"sv) {
@@ -437,8 +448,8 @@ bool SpecTest::compares(
   return true;
 }
 
-bool SpecTest::stringContains(const std::string &Expected,
-                              const std::string &Got) const {
+bool SpecTest::stringContains(std::string_view Expected,
+                              std::string_view Got) const {
   if (Expected.rfind(Got, 0) != 0) {
     spdlog::error("   ##### expected text : {}", Expected);
     spdlog::error("   ######## error text : {}", Got);

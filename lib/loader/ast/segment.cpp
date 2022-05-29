@@ -3,6 +3,9 @@
 
 #include "loader/loader.h"
 
+#include <cstdint>
+#include <utility>
+
 namespace WasmEdge {
 namespace Loader {
 
@@ -27,17 +30,18 @@ Expect<void> Loader::loadSegment(AST::GlobalSegment &GlobSeg) {
 Expect<void> Loader::loadSegment(AST::ElementSegment &ElemSeg) {
   // Element segment binary format:
   // ---------------------------------------------------------------------------
-  //  byte | TableIdx | OffExpr | ElemKind | RefType | vec(FuncIdx) | vec(expr)
+  //  Mode | TableIdx | OffExpr | ElemKind | RefType | vec(FuncIdx) | vec(expr)
   // ------|----------|---------|----------|---------|--------------|-----------
-  //  0x00 |          |    v    |          |         |       v      |
-  //  0x01 |          |         |    v     |         |       v      |
-  //  0x02 |    v     |    v    |    v     |         |       v      |
-  //  0x03 |          |         |    v     |         |       v      |
-  //  0x04 |          |    v    |          |         |              |     v
-  //  0x05 |          |         |          |    v    |              |     v
-  //  0x06 |    v     |    v    |          |    v    |              |     v
-  //  0x07 |          |         |          |    v    |              |     v
+  //    0  |          |    v    |          |         |       v      |
+  //    1  |          |         |    v     |         |       v      |
+  //    2  |    v     |    v    |    v     |         |       v      |
+  //    3  |          |         |    v     |         |       v      |
+  //    4  |          |    v    |          |         |              |     v
+  //    5  |          |         |          |    v    |              |     v
+  //    6  |    v     |    v    |          |    v    |              |     v
+  //    7  |          |         |          |    v    |              |     v
   // ---------------------------------------------------------------------------
+  // Mode: element initial integer, u32
   // TableIdx: target table index, u32
   // OffExpr: init offset expression, expr
   // ElemKind: byte 0x00, RefType::FuncRef
@@ -190,6 +194,7 @@ Expect<void> Loader::loadSegment(AST::ElementSegment &ElemSeg) {
     } else {
       VecCnt = *Res;
     }
+    ElemSeg.getInitExprs().clear();
     ElemSeg.getInitExprs().reserve(VecCnt);
     for (uint32_t I = 0; I < VecCnt; ++I) {
       ElemSeg.getInitExprs().emplace_back();
@@ -218,11 +223,13 @@ Expect<void> Loader::loadSegment(AST::CodeSegment &CodeSeg) {
     return logLoadError(Res.error(), FMgr.getLastOffset(),
                         ASTNodeAttr::Seg_Code);
   }
+  auto ExprSizeBound = FMgr.getOffset() + CodeSeg.getSegSize();
 
   // Read the vector of local variable counts and types.
   uint32_t VecCnt = 0;
   if (auto Res = FMgr.readU32()) {
     VecCnt = *Res;
+    CodeSeg.getLocals().clear();
     CodeSeg.getLocals().reserve(VecCnt);
   } else {
     return logLoadError(Res.error(), FMgr.getLastOffset(),
@@ -259,10 +266,16 @@ Expect<void> Loader::loadSegment(AST::CodeSegment &CodeSeg) {
     CodeSeg.getLocals().push_back(std::make_pair(LocalCnt, LocalType));
   }
 
-  // Read function body.
-  if (auto Res = loadExpression(CodeSeg.getExpr()); unlikely(!Res)) {
-    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Seg_Code));
-    return Unexpect(Res);
+  if (IsUniversalWASM || IsSharedLibraryWASM) {
+    // For the AOT mode, skip the function body.
+    FMgr.seek(ExprSizeBound);
+  } else {
+    // Read function body with expected expression size.
+    if (auto Res = loadExpression(CodeSeg.getExpr(), ExprSizeBound);
+        unlikely(!Res)) {
+      spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Seg_Code));
+      return Unexpect(Res);
+    }
   }
 
   return {};
@@ -275,12 +288,13 @@ Expect<void> Loader::loadSegment(AST::DataSegment &DataSeg) {
 
   // Data segment binary format:
   // ----------------------------------------
-  //  byte | MemoryIdx | OffExpr | vec(byte)
+  //  Mode | MemoryIdx | OffExpr | vec(byte)
   // ------|-----------|---------|-----------
-  //  0x00 |           |    v    |     v
-  //  0x01 |           |         |     v
-  //  0x02 |     v     |    v    |     v
+  //    0  |           |    v    |     v
+  //    1  |           |         |     v
+  //    2  |     v     |    v    |     v
   // ----------------------------------------
+  // Mode: data initial integer, u32
   // MemoryIdx: target memory index, u32
   // OffExpr: init offset expression, expr
   // vec(byte): init data, vec(u8)

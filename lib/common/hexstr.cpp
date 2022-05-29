@@ -3,7 +3,7 @@
 
 #include "common/hexstr.h"
 
-#include <cinttypes>
+#include <algorithm>
 #include <spdlog/fmt/fmt.h>
 
 namespace WasmEdge {
@@ -24,6 +24,7 @@ uint8_t convertCharToHex(const char C) {
 void convertBytesToHexStr(Span<const uint8_t> Src, std::string &Dst,
                           const uint32_t Padding, const bool IsLittleEndian) {
   Dst.clear();
+  Dst.reserve(Src.size() * 2);
   if (IsLittleEndian) {
     for (auto It = Src.rbegin(); It != Src.rend(); It++) {
       Dst += fmt::format("{:02x}", *It);
@@ -49,7 +50,7 @@ void convertHexStrToBytes(std::string_view Src, std::vector<uint8_t> &Dst,
     Padding++;
   }
   Dst.clear();
-  if (Src.length() == 0) {
+  if (Src.size() == 0) {
     return;
   }
   std::string S(Src);
@@ -59,6 +60,7 @@ void convertHexStrToBytes(std::string_view Src, std::vector<uint8_t> &Dst,
   if (S.length() & 0x01U) {
     S = '0' + S;
   }
+  Dst.reserve(S.size() / 2);
   if (IsLittleEndian) {
     for (auto It = S.crbegin(); It != S.crend(); It += 2) {
       uint8_t CL = convertCharToHex(*It);

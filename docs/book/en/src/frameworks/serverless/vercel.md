@@ -9,7 +9,7 @@ In this article, we will show you two serverless functions in Rust and WasmEdge 
 Since our demo WebAssembly functions are written in Rust, you will need a [Rust compiler](https://www.rust-lang.org/tools/install). Make sure that you install the `wasm32-wasi` compiler target as follows, in order to generate WebAssembly bytecode.
 
 ```bash
-$ rustup target add wasm32-wasi
+rustup target add wasm32-wasi
 ```
 
 The demo application front end is written in [Next.js](https://nextjs.org/), and deployed on Vercel. We will assume that you already have the basic knowledge of how to work with Vercel.
@@ -37,10 +37,10 @@ fn main() {
   let mut buf = vec![];
   match image_format_detected {
     ImageFormat::Gif => {
-        filtered.write_to(&mut buf, ImageOutputFormat::Gif).unwrap();
+      filtered.write_to(&mut buf, ImageOutputFormat::Gif).unwrap();
     },
     _ => {
-        filtered.write_to(&mut buf, ImageOutputFormat::Png).unwrap();
+      filtered.write_to(&mut buf, ImageOutputFormat::Png).unwrap();
     },
   };
   io::stdout().write_all(&buf).unwrap();
@@ -51,14 +51,14 @@ fn main() {
 You can use Rust’s `cargo` tool to build the Rust program into WebAssembly bytecode or native code.
 
 ```bash
-$ cd api/functions/image-grayscale/
-$ cargo build --release --target wasm32-wasi 
+cd api/functions/image-grayscale/
+cargo build --release --target wasm32-wasi 
 ```
 
 Copy the build artifacts to the `api` folder.
 
 ```bash
-$ cp target/wasm32-wasi/release/grayscale.wasm ../../
+cp target/wasm32-wasi/release/grayscale.wasm ../../
 ```
 
 > Vercel runs [`api/pre.sh`](https://github.com/second-state/vercel-wasm-runtime/blob/main/api/pre.sh) upon setting up the serverless environment. It installs the WasmEdge runtime, and then compiles each WebAssembly bytecode program into a native `so` library for faster execution.
@@ -104,51 +104,51 @@ The backend serverless function for image classification is in the [`api/functio
 
 ```rust
 pub fn main() {
-    // Step 1: Load the TFLite model
-    let model_data: &[u8] = include_bytes!("models/mobilenet_v1_1.0_224/mobilenet_v1_1.0_224_quant.tflite");
-    let labels = include_str!("models/mobilenet_v1_1.0_224/labels_mobilenet_quant_v1_224.txt");
+  // Step 1: Load the TFLite model
+  let model_data: &[u8] = include_bytes!("models/mobilenet_v1_1.0_224/mobilenet_v1_1.0_224_quant.tflite");
+  let labels = include_str!("models/mobilenet_v1_1.0_224/labels_mobilenet_quant_v1_224.txt");
 
-    // Step 2: Read image from STDIN
-    let mut buf = Vec::new();
-    io::stdin().read_to_end(&mut buf).unwrap();
+  // Step 2: Read image from STDIN
+  let mut buf = Vec::new();
+  io::stdin().read_to_end(&mut buf).unwrap();
 
-    // Step 3: Resize the input image for the tensorflow model
-    let flat_img = wasmedge_tensorflow_interface::load_jpg_image_to_rgb8(&buf, 224, 224);
+  // Step 3: Resize the input image for the tensorflow model
+  let flat_img = wasmedge_tensorflow_interface::load_jpg_image_to_rgb8(&buf, 224, 224);
 
-    // Step 4: AI inference
-    let mut session = wasmedge_tensorflow_interface::Session::new(&model_data, wasmedge_tensorflow_interface::ModelType::TensorFlowLite);
-    session.add_input("input", &flat_img, &[1, 224, 224, 3])
-           .run();
-    let res_vec: Vec<u8> = session.get_output("MobilenetV1/Predictions/Reshape_1");
+  // Step 4: AI inference
+  let mut session = wasmedge_tensorflow_interface::Session::new(&model_data, wasmedge_tensorflow_interface::ModelType::TensorFlowLite);
+  session.add_input("input", &flat_img, &[1, 224, 224, 3])
+         .run();
+  let res_vec: Vec<u8> = session.get_output("MobilenetV1/Predictions/Reshape_1");
 
-    // Step 5: Find the food label that responds to the highest probability in res_vec
-    // ... ...
-    let mut label_lines = labels.lines();
-    for _i in 0..max_index {
-      label_lines.next();
-    }
+  // Step 5: Find the food label that responds to the highest probability in res_vec
+  // ... ...
+  let mut label_lines = labels.lines();
+  for _i in 0..max_index {
+    label_lines.next();
+  }
 
-    // Step 6: Generate the output text
-    let class_name = label_lines.next().unwrap().to_string();
-    if max_value > 50 {
-      println!("It {} a <a href='https://www.google.com/search?q={}'>{}</a> in the picture", confidence.to_string(), class_name, class_name);
-    } else {
-      println!("It does not appears to be any food item in the picture.");
-    }
+  // Step 6: Generate the output text
+  let class_name = label_lines.next().unwrap().to_string();
+  if max_value > 50 {
+    println!("It {} a <a href='https://www.google.com/search?q={}'>{}</a> in the picture", confidence.to_string(), class_name, class_name);
+  } else {
+    println!("It does not appears to be any food item in the picture.");
+  }
 }
 ```
 
-You can use the `cargo` tool to build the Rust program into WebAssembly bytecode or native code. 
+You can use the `cargo` tool to build the Rust program into WebAssembly bytecode or native code.
 
 ```bash
-$ cd api/functions/image-classification/
-$ cargo build --release --target wasm32-wasi
+cd api/functions/image-classification/
+cargo build --release --target wasm32-wasi
 ```
 
 Copy the build artifacts to the `api` folder.
 
 ```bash
-$ cp target/wasm32-wasi/release/classify.wasm ../../
+cp target/wasm32-wasi/release/classify.wasm ../../
 ```
 
 Again, the [`api/pre.sh`](https://github.com/second-state/vercel-wasm-runtime/blob/tensorflow/api/pre.sh) script installs WasmEdge runtime and its Tensorflow dependencies in this application. It also compiles the `classify.wasm` bytecode program to the `classify.so` native shared library at the time of deployment.

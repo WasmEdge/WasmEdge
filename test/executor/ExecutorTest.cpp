@@ -19,11 +19,18 @@
 
 #include "../spec/hostfunc.h"
 #include "../spec/spectest.h"
-#include "gtest/gtest.h"
 
-#include <fstream>
-#include <memory>
+#include <array>
+#include <chrono>
+#include <cstdint>
+#include <filesystem>
+#include <functional>
+#include <gtest/gtest.h>
+#include <map>
 #include <string>
+#include <string_view>
+#include <type_traits>
+#include <utility>
 #include <vector>
 
 namespace {
@@ -80,26 +87,22 @@ TEST_P(CoreTest, TestSuites) {
   T.onGet = [&VM](const std::string &ModName, const std::string &Field)
       -> Expect<std::pair<ValVariant, ValType>> {
     // Get module instance.
-    auto &Store = VM.getStoreManager();
-    WasmEdge::Runtime::Instance::ModuleInstance *ModInst = nullptr;
+    const WasmEdge::Runtime::Instance::ModuleInstance *ModInst = nullptr;
     if (ModName.empty()) {
-      ModInst = *Store.getActiveModule();
+      ModInst = VM.getActiveModule();
     } else {
-      if (auto Res = Store.findModule(ModName)) {
-        ModInst = *Res;
-      } else {
-        return Unexpect(Res);
-      }
+      ModInst = VM.getStoreManager().findModule(ModName);
+    }
+    if (ModInst == nullptr) {
+      return Unexpect(ErrCode::WrongInstanceAddress);
     }
 
     // Get global instance.
-    auto &Globs = ModInst->getGlobalExports();
-    if (Globs.find(Field) == Globs.cend()) {
-      return Unexpect(ErrCode::IncompatibleImportType);
+    WasmEdge::Runtime::Instance::GlobalInstance *GlobInst =
+        ModInst->findGlobalExports(Field);
+    if (unlikely(GlobInst == nullptr)) {
+      return Unexpect(ErrCode::WrongInstanceAddress);
     }
-    uint32_t GlobAddr = Globs.find(Field)->second;
-    auto *GlobInst = *Store.getGlobal(GlobAddr);
-
     return std::make_pair(GlobInst->getValue(),
                           GlobInst->getGlobalType().getValType());
   };

@@ -25,33 +25,38 @@ public:
   constexpr List() {}
 
   template <typename... ArgsT>
-  List(Description &&D, ArgsT &&...Args) : List(std::forward<ArgsT>(Args)...) {
+  List(Description &&D, ArgsT &&...Args) noexcept
+      : List(std::forward<ArgsT>(Args)...) {
     Desc = std::move(D.Value);
   }
 
   template <typename... ArgsT>
-  List(MetaVar &&M, ArgsT &&...Args) : List(std::forward<ArgsT>(Args)...) {
+  List(MetaVar &&M, ArgsT &&...Args) noexcept
+      : List(std::forward<ArgsT>(Args)...) {
     Meta = std::move(M.Value);
   }
 
   template <typename... ArgsT>
-  List(ZeroOrMore &&, ArgsT &&...Args) : List(std::forward<ArgsT>(Args)...) {
+  List(ZeroOrMore &&, ArgsT &&...Args) noexcept
+      : List(std::forward<ArgsT>(Args)...) {
     IsOneOrMore = false;
   }
 
   template <typename... ArgsT>
-  List(OneOrMore &&, ArgsT &&...Args) : List(std::forward<ArgsT>(Args)...) {
+  List(OneOrMore &&, ArgsT &&...Args) noexcept
+      : List(std::forward<ArgsT>(Args)...) {
     IsOneOrMore = true;
   }
 
   template <typename... ArgsT>
-  List(DefaultValue<T> &&V, ArgsT &&...Args)
+  List(DefaultValue<T> &&V, ArgsT &&...Args) noexcept
       : List(std::forward<ArgsT>(Args)...) {
     Default.push_back(std::move(V.Value));
   }
 
   template <typename... ArgsT>
-  List(Hidden &&, ArgsT &&...Args) : List(std::forward<ArgsT>(Args)...) {
+  List(Hidden &&, ArgsT &&...Args) noexcept
+      : List(std::forward<ArgsT>(Args)...) {
     Hidden = true;
   }
 
@@ -70,12 +75,15 @@ public:
   const std::vector<T> &value() const noexcept { return Store; }
   std::vector<T> &value() noexcept { return Store; }
 
-  void default_argument() noexcept(std::is_nothrow_move_constructible_v<T>) {
-    Store = std::move(Default);
-  }
+  void default_argument() noexcept { Store = std::move(Default); }
 
-  void argument(std::string Argument) {
-    Store.push_back(ParserT::parse(std::move(Argument)));
+  cxx20::expected<void, Error> argument(std::string Argument) noexcept {
+    if (auto Res = ParserT::parse(std::move(Argument)); !Res) {
+      return cxx20::unexpected(Res.error());
+    } else {
+      Store.push_back(*Res);
+    }
+    return {};
   }
 
 private:

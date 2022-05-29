@@ -1,15 +1,79 @@
-## `-sys` library design principles
+# Overview
 
-In general, the `-sys` library should keep only `unsafe` C interface bindings and should not have redundant security abstractions.
+The [wasmedge-sys](https://crates.io/crates/wasmedge-sys) crate defines a group of low-level Rust APIs for WasmEdge, a light-weight, high-performance, and extensible WebAssembly runtime for cloud-native, edge, and decentralized applications.
 
-However, for a pure Rust SDK like `wasmedge-rs` that we will eventually build, there should not be too many C binding interfaces. So,  the `wasmedge-sys` library uses a thin layer of Rust wrappers, exposing only the appropriate interfaces for the upper layer of `wasmedge-rs` to abstract a more usable pure Rust SDK.
+For developers, it is recommended that the APIs in `wasmedge-sys` are used to construct high-level libraries, while `wasmedge-sdk` (coming soon) is for building up business applications.
 
-The interfaces exposed by the `-sys` library are supposed to be stable. That is, when the C interface changes, only the `-sys` library needs to be changed, not the upper-layer SDK.
+## Usage
 
-## Library interface description
+To use or build the `wasmedge-sys` crate, the `wasmedge-core` is required. The [*Build wasmedge-sys crate*](https://wasmedge.org/book/en/embed/rust.html#build-wasmedge-sys-crate) section of [WasmEdge Docs](https://wasmedge.org/book/en/) gives the tips.  
 
-- Error handling: return `ErrReport` structures uniformly, and do further Rust-style error handling in the upper-level `-wasmedge-rs` SDK.
-- Incorporate basic types into the `-sys` library, e.g. Strings/Value etc., which the upper level SDK just needs to use.
-- Configuration/module loading/creating VMs/starting VMs to compute return results, these are put into the `-sys` library as the base interface for the SDK.
-- The base interface, which involves creation or initialization, uses basic "encapsulation" and is not open to downstream modifications to ensure the stability of the base interface.
-- The corresponding `C-API` header file and the corresponding Rust binding interface are recorded in the Dosc directory as documentation.
+## Example
+
+A quick-start example below is using `wasmedge-sys` to run a WebAssembly module written with its WAT format (textual format):
+
+```rust
+use wasmedge_sys::{Vm, WasmValue};
+use wasmedge_types::wat2wasm;
+
+#[cfg_attr(test, test)]
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // read the wasm bytes
+    let wasm_bytes = wat2wasm(
+        br#"
+        (module
+            (export "fib" (func $fib))
+            (func $fib (param $n i32) (result i32)
+             (if
+              (i32.lt_s
+               (get_local $n)
+               (i32.const 2)
+              )
+              (return
+               (i32.const 1)
+              )
+             )
+             (return
+              (i32.add
+               (call $fib
+                (i32.sub
+                 (get_local $n)
+                 (i32.const 2)
+                )
+               )
+               (call $fib
+                (i32.sub
+                 (get_local $n)
+                 (i32.const 1)
+                )
+               )
+              )
+             )
+            )
+           )
+"#,
+    )?;
+
+    // create a Vm instance
+    let mut vm = Vm::create(None, None)?;
+
+    // register the wasm bytes
+    let module_name = "extern-module";
+    vm.register_wasm_from_buffer(module_name, &wasm_bytes)?;
+
+    // run the exported function named "fib"
+    let func_name = "fib";
+    let result = vm.run_registered_function(module_name, func_name, [WasmValue::from_i32(5)])?;
+
+    assert_eq!(result.len(), 1);
+    assert_eq!(result[0].to_i32(), 8);
+
+    Ok(())
+}
+```
+
+## See also
+
+* [WasmEdge Runtime Official Website](https://wasmedge.org/)
+* [WasmEdge Docs](https://wasmedge.org/book/en/)
+* [WasmEdge C API Documentation](https://github.com/WasmEdge/WasmEdge/blob/master/docs/c_api.md)

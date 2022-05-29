@@ -9,9 +9,9 @@ The following tutorial is the summary of the `externref` example in WasmEdge.
 ### Prepare Your Wasm File
 
 The Wasm file should contain importing host functions that would take the `externref`.
-Take [the test WASM file](../test/externref/externrefTestData/funcs.wasm) ([this WAT](../test/externref/externrefTestData/funcs.wat) is the corresponding text format) as an example:
+Take [the test WASM file](https://github.com/WasmEdge/WasmEdge/blob/master/test/externref/externrefTestData/funcs.wasm) ([this WAT](https://github.com/WasmEdge/WasmEdge/blob/master/test/externref/externrefTestData/funcs.wat) is the corresponding text format) as an example:
 
-```
+```wasm
 (module
   (type $t0 (func (param externref i32) (result i32)))
   (type $t1 (func (param externref i32 i32) (result i32)))
@@ -58,48 +58,48 @@ uint32_t SquareFunc(uint32_t A) { return A * A; }
 uint32_t AddFunc(uint32_t A, uint32_t B) { return A + B; }
 uint32_t MulFunc(uint32_t A, uint32_t B) { return A * B; }
 
-/// Host function to call `SquareFunc` by external reference
+// Host function to call `SquareFunc` by external reference
 WasmEdge_Result ExternSquare(void *Data, WasmEdge_MemoryInstanceContext *MemCxt,
                              const WasmEdge_Value *In, WasmEdge_Value *Out) {
-  /// Function type: {externref, i32} -> {i32}
+  // Function type: {externref, i32} -> {i32}
   uint32_t (*Func)(uint32_t) = WasmEdge_ValueGetExternRef(In[0]);
   uint32_t C = Func(WasmEdge_ValueGetI32(In[1]));
   Out[0] = WasmEdge_ValueGenI32(C);
   return WasmEdge_Result_Success;
 }
 
-/// Host function to call `AddFunc` by external reference
+// Host function to call `AddFunc` by external reference
 WasmEdge_Result ExternAdd(void *Data, WasmEdge_MemoryInstanceContext *MemCxt,
                           const WasmEdge_Value *In, WasmEdge_Value *Out) {
-  /// Function type: {externref, i32, i32} -> {i32}
+  // Function type: {externref, i32, i32} -> {i32}
   uint32_t (*Func)(uint32_t, uint32_t) = WasmEdge_ValueGetExternRef(In[0]);
   uint32_t C = Func(WasmEdge_ValueGetI32(In[1]), WasmEdge_ValueGetI32(In[2]));
   Out[0] = WasmEdge_ValueGenI32(C);
   return WasmEdge_Result_Success;
 }
 
-/// Host function to call `ExternMul` by external reference
+// Host function to call `ExternMul` by external reference
 WasmEdge_Result ExternMul(void *Data, WasmEdge_MemoryInstanceContext *MemCxt,
                           const WasmEdge_Value *In, WasmEdge_Value *Out) {
-  /// Function type: {externref, i32, i32} -> {i32}
+  // Function type: {externref, i32, i32} -> {i32}
   uint32_t (*Func)(uint32_t, uint32_t) = WasmEdge_ValueGetExternRef(In[0]);
   uint32_t C = Func(WasmEdge_ValueGetI32(In[1]), WasmEdge_ValueGetI32(In[2]));
   Out[0] = WasmEdge_ValueGenI32(C);
   return WasmEdge_Result_Success;
 }
 
-/// Helper function to create the "extern_module" import object.
-WasmEdge_ImportObjectContext *CreateExternModule() {
+// Helper function to create the "extern_module" module instance.
+WasmEdge_ModuleInstanceContext *CreateExternModule() {
   WasmEdge_String HostName;
   WasmEdge_FunctionTypeContext *HostFType = NULL;
   WasmEdge_FunctionInstanceContext *HostFunc = NULL;
   enum WasmEdge_ValType P[3], R[1];
 
   HostName = WasmEdge_StringCreateByCString("extern_module");
-  WasmEdge_ImportObjectContext *ImpObj = WasmEdge_ImportObjectCreate(HostName);
+  WasmEdge_ModuleInstanceContext *HostMod = WasmEdge_ModuleInstanceCreate(HostName);
   WasmEdge_StringDelete(HostName);
 
-  /// Add host function "functor_square": {externref, i32} -> {i32}
+  // Add host function "functor_square": {externref, i32} -> {i32}
   P[0] = WasmEdge_ValType_ExternRef;
   P[1] = WasmEdge_ValType_I32;
   R[0] = WasmEdge_ValType_I32;
@@ -107,39 +107,39 @@ WasmEdge_ImportObjectContext *CreateExternModule() {
   HostFunc = WasmEdge_FunctionInstanceCreate(HostFType, ExternSquare, NULL, 0);
   WasmEdge_FunctionTypeDelete(HostFType);
   HostName = WasmEdge_StringCreateByCString("functor_square");
-  WasmEdge_ImportObjectAddFunction(ImpObj, HostName, HostFunc);
+  WasmEdge_ModuleInstanceAddFunction(HostMod, HostName, HostFunc);
   WasmEdge_StringDelete(HostName);
 
-  /// Add host function "class_add": {externref, i32, i32} -> {i32}
+  // Add host function "class_add": {externref, i32, i32} -> {i32}
   P[2] = WasmEdge_ValType_I32;
   HostFType = WasmEdge_FunctionTypeCreate(P, 3, R, 1);
   HostFunc = WasmEdge_FunctionInstanceCreate(HostFType, ExternAdd, NULL, 0);
   WasmEdge_FunctionTypeDelete(HostFType);
   HostName = WasmEdge_StringCreateByCString("class_add");
-  WasmEdge_ImportObjectAddFunction(ImpObj, HostName, HostFunc);
+  WasmEdge_ModuleInstanceAddFunction(HostMod, HostName, HostFunc);
   WasmEdge_StringDelete(HostName);
 
-  /// Add host function "func_mul": {externref, i32, i32} -> {i32}
+  // Add host function "func_mul": {externref, i32, i32} -> {i32}
   HostFType = WasmEdge_FunctionTypeCreate(P, 3, R, 1);
   HostFunc = WasmEdge_FunctionInstanceCreate(HostFType, ExternMul, NULL, 0);
   WasmEdge_FunctionTypeDelete(HostFType);
   HostName = WasmEdge_StringCreateByCString("func_mul");
-  WasmEdge_ImportObjectAddFunction(ImpObj, HostName, HostFunc);
+  WasmEdge_ModuleInstanceAddFunction(HostMod, HostName, HostFunc);
   WasmEdge_StringDelete(HostName);
 
-  return ImpObj;
+  return HostMod;
 }
 
 int main() {
   WasmEdge_VMContext *VMCxt = WasmEdge_VMCreate(NULL, NULL);
-  WasmEdge_ImportObjectContext *ImpObj = CreateExternModule();
+  WasmEdge_ModuleInstanceContext *HostMod = CreateExternModule();
   WasmEdge_Value P[3], R[1];
   WasmEdge_String FuncName;
   WasmEdge_Result Res;
 
-  Res = WasmEdge_VMRegisterModuleFromImport(VMCxt, ImpObj);
+  Res = WasmEdge_VMRegisterModuleFromImport(VMCxt, HostMod);
   if (!WasmEdge_ResultOK(Res)) {
-    printf("Import object registration failed\n");
+    printf("Host module instance registration failed\n");
     return EXIT_FAILURE;
   }
   Res = WasmEdge_VMLoadWasmFromFile(VMCxt, "funcs.wasm");
@@ -158,7 +158,7 @@ int main() {
     return EXIT_FAILURE;
   }
 
-  /// Test 1: call add -- 1234 + 5678
+  // Test 1: call add -- 1234 + 5678
   P[0] = WasmEdge_ValueGenExternRef(AddFunc);
   P[1] = WasmEdge_ValueGenI32(1234);
   P[2] = WasmEdge_ValueGenI32(5678);
@@ -173,7 +173,7 @@ int main() {
     return EXIT_FAILURE;
   }
 
-  /// Test 2: call mul -- 789 * 4321
+  // Test 2: call mul -- 789 * 4321
   P[0] = WasmEdge_ValueGenExternRef(MulFunc);
   P[1] = WasmEdge_ValueGenI32(789);
   P[2] = WasmEdge_ValueGenI32(4321);
@@ -188,7 +188,7 @@ int main() {
     return EXIT_FAILURE;
   }
 
-  /// Test 3: call square -- 8256^2
+  // Test 3: call square -- 8256^2
   P[0] = WasmEdge_ValueGenExternRef(SquareFunc);
   P[1] = WasmEdge_ValueGenI32(8256);
   FuncName = WasmEdge_StringCreateByCString("call_square");
@@ -216,7 +216,7 @@ int main() {
 3. Compile
 
     ```bash
-    $ gcc main.c -lwasmedge_c
+    gcc main.c -lwasmedge_c
     # Or you can use g++ for the C++ case, or use the clang.
     ```
 
@@ -233,7 +233,7 @@ int main() {
 
 Take the following `wat` for example:
 
-```
+```wasm
 (module
   (type $t0 (func (param externref i32) (result i32)))
   ;; Import a host function which type is {externref i32} -> {i32}
@@ -255,9 +255,9 @@ The following examples are how to use `externref` in Wasm with WasmEdge C API.
 ### Wasm Code
 
 The Wasm code must pass the `externref` to host functions that want to access it.
-Take the following `wat` for example, which is a part of [the test WASM file](../test/externref/externrefTestData/funcs.wat):
+Take the following `wat` for example, which is a part of [the test WASM file](https://github.com/WasmEdge/WasmEdge/blob/master/test/externref/externrefTestData/funcs.wat):
 
-```
+```wasm
 (module
   (type $t0 (func (param externref i32 i32) (result i32)))
   (import "extern_module" "func_mul" (func $func_mul (type $t0)))
@@ -297,15 +297,15 @@ WasmEdge_Result ExternMul(void *, WasmEdge_MemoryInstanceContext *,
 
 "`MulFunc`" is a function that will be passed into Wasm as `externref`. In the "`func_mul`" host function, users can use "`WasmEdge_ValueGetExternRef`" API to get the pointer from the `WasmEdge_Value` which contains a `externref`.
 
-Developers can add the host functions with names into an import object.
+Developers can add the host functions with names into a module instance.
 
 ```c
-/* Create an import object. */
+/* Create a module instance. */
 WasmEdge_String HostName = WasmEdge_StringCreateByCString("extern_module");
-WasmEdge_ImportObjectContext *ImpObj = WasmEdge_ImportObjectCreate(HostName);
+WasmEdge_ModuleInstanceContext *HostMod = WasmEdge_ModuleInstanceCreate(HostName);
 WasmEdge_StringDelete(HostName);
 
-/* Create a function instance and add into an import object. */
+/* Create a function instance and add into the module instance. */
 enum WasmEdge_ValType P[3], R[1];
 P[0] = WasmEdge_ValType_ExternRef;
 P[1] = WasmEdge_ValType_I32;
@@ -315,7 +315,7 @@ WasmEdge_FunctionTypeContext *HostFType = WasmEdge_FunctionTypeCreate(P, 3, R, 1
 WasmEdge_FunctionInstanceContext *HostFunc = WasmEdge_FunctionInstanceCreate(HostFType, ExternFuncMul, NULL, 0);
 WasmEdge_FunctionTypeDelete(HostFType);
 HostName = WasmEdge_StringCreateByCString("func_mul");
-WasmEdge_ImportObjectAddFunction(ImpObj, HostName, HostFunc);
+WasmEdge_ModuleInstanceAddFunction(HostMod, HostName, HostFunc);
 WasmEdge_StringDelete(HostName);
 
 ...
@@ -323,22 +323,22 @@ WasmEdge_StringDelete(HostName);
 
 ### Execution
 
-Take [the test WASM file](../test/externref/externrefTestData/funcs.wasm) ([this WAT](../test/externref/externrefTestData/funcs.wat) is the corresponding text format) for example.
+Take [the test WASM file](https://github.com/WasmEdge/WasmEdge/blob/master/test/externref/externrefTestData/funcs.wasm) ([this WAT](https://github.com/WasmEdge/WasmEdge/blob/master/test/externref/externrefTestData/funcs.wat) is the corresponding text format) for example.
 Assume that the `funcs.wasm` is copied into current directory.
 The following is the example to execute WASM with `externref` through the WasmEdge C API.
 
 ```c
 /* Create the VM context. */
 WasmEdge_VMContext *VMCxt = WasmEdge_VMCreate(NULL, NULL);
-/* Create the import object context that contains the host functions. */
-WasmEdge_ImportObjectContext *ImpObj = /* Ignored ... */;
-/* Assume that the host functions are added into the import object above. */
+/* Create the module instance context that contains the host functions. */
+WasmEdge_ModuleInstanceContext *HostMod = /* Ignored ... */;
+/* Assume that the host functions are added into the module instance above. */
 WasmEdge_Value P[3], R[1];
 WasmEdge_String FuncName;
 WasmEdge_Result Res;
 
-/* Register the import object into VM. */
-Res = WasmEdge_VMRegisterModuleFromImport(VMCxt, ImpObj);
+/* Register the module instance into VM. */
+Res = WasmEdge_VMRegisterModuleFromImport(VMCxt, HostMod);
 if (!WasmEdge_ResultOK(Res)) {
   printf("Import object registration failed\n");
   return EXIT_FAILURE;
@@ -408,7 +408,7 @@ WasmEdge_Result Res = WasmEdge_VMExecute(VMCxt, FuncName, P, 3, R, 1);
 WasmEdge_StringDelete(FuncName);
 if (WasmEdge_ResultOK(Res)) {
   std::cout << "Result : " << WasmEdge_ValueGetI32(R[0]) std::endl;
-  /// Will print `6912`.
+  // Will print `6912`.
 } else {
   return EXIT_FAILURE;
 }
@@ -417,10 +417,10 @@ if (WasmEdge_ResultOK(Res)) {
 In the host function which would access the object by reference, users can use the `WasmEdge_ValueGetExternRef()` API to retrieve the reference to the object.
 
 ```cpp
-/// Modify the `ExternAdd` in the above tutorial.
+// Modify the `ExternAdd` in the above tutorial.
 WasmEdge_Result ExternAdd(void *, WasmEdge_MemoryInstanceContext *,
                           const WasmEdge_Value *In, WasmEdge_Value *Out) {
-  /// Function type: {externref, i32, i32} -> {i32}
+  // Function type: {externref, i32, i32} -> {i32}
   void *Ptr = WasmEdge_ValueGetExternRef(In[0]);
   AddClass &Obj = *reinterpret_cast<AddClass *>(Ptr);
   uint32_t C =
@@ -453,7 +453,7 @@ WasmEdge_Result Res = WasmEdge_VMExecute(VMCxt, FuncName, P, 2, R, 1);
 WasmEdge_StringDelete(FuncName);
 if (WasmEdge_ResultOK(Res)) {
   std::cout << "Result : " << WasmEdge_ValueGetI32(R[0]) std::endl;
-  /// Will print `1048576`.
+  // Will print `1048576`.
 } else {
   return EXIT_FAILURE;
 }
@@ -462,10 +462,10 @@ if (WasmEdge_ResultOK(Res)) {
 In the host function which would access the object by reference, users can use the `WasmEdge_ValueGetExternRef` API to retrieve the reference to the object, and the reference is a functor.
 
 ```cpp
-/// Modify the `ExternSquare` in the above tutorial.
+// Modify the `ExternSquare` in the above tutorial.
 WasmEdge_Result ExternSquare(void *, WasmEdge_MemoryInstanceContext *,
                           const WasmEdge_Value *In, WasmEdge_Value *Out) {
-  /// Function type: {externref, i32, i32} -> {i32}
+  // Function type: {externref, i32, i32} -> {i32}
   void *Ptr = WasmEdge_ValueGetExternRef(In[0]);
   SquareStruct &Obj = *reinterpret_cast<SquareStruct *>(Ptr);
   uint32_t C = Obj(WasmEdge_ValueGetI32(In[1]));
@@ -476,17 +476,17 @@ WasmEdge_Result ExternSquare(void *, WasmEdge_MemoryInstanceContext *,
 
 ### Passing STL Objects
 
-The [example Wasm binary](../test/externref/externrefTestData/stl.wasm) ([this WAT](../test/externref/externrefTestData/stl.wat) is the corresponding text format) provides functions to interact with host functions which can access C++ STL objects.
+The [example Wasm binary](https://github.com/WasmEdge/WasmEdge/blob/master/test/externref/externrefTestData/stl.wasm) ([this WAT](https://github.com/WasmEdge/WasmEdge/blob/master/test/externref/externrefTestData/stl.wat) is the corresponding text format) provides functions to interact with host functions which can access C++ STL objects.
 Assume that the WASM file `stl.wasm` is copied into the current directory.
 
 Take the `std::ostream` and `std::string` objects for example. Assume that there's a host function accesses to a `std::ostream` and a `std::string` through `externref`s:
 
 ```cpp
-/// Host function to output std::string through std::ostream
+// Host function to output std::string through std::ostream
 WasmEdge_Result ExternSTLOStreamStr(void *, WasmEdge_MemoryInstanceContext *,
                                     const WasmEdge_Value *In,
                                     WasmEdge_Value *) {
-  /// Function type: {externref, externref} -> {}
+  // Function type: {externref, externref} -> {}
   void *Ptr0 = WasmEdge_ValueGetExternRef(In[0]);
   void *Ptr1 = WasmEdge_ValueGetExternRef(In[1]);
   std::ostream &RefOS = *reinterpret_cast<std::ostream *>(Ptr0);
@@ -496,7 +496,7 @@ WasmEdge_Result ExternSTLOStreamStr(void *, WasmEdge_MemoryInstanceContext *,
 }
 ```
 
-Assume that the above host function is added into an import object `ImpObj`, and the `ImpObj` is register into a VM context `VMCxt`.
+Assume that the above host function is added into the module instance `HostMod`, and the `HostMod` is registered into a VM context `VMCxt`.
 Then users can instantiate the Wasm module:
 
 ```cpp
@@ -526,7 +526,7 @@ P[0] = WasmEdge_ValueGenExternRef(&std::cout);
 P[1] = WasmEdge_ValueGenExternRef(&PrintStr);
 WasmEdge_String FuncName = WasmEdge_StringCreateByCString("call_ostream_str");
 WasmEdge_Result Res = WasmEdge_VMExecute(VMCxt, FuncName, P, 2, R, 1);
-/// Will print "Hello world!" to stdout.
+// Will print "Hello world!" to stdout.
 WasmEdge_StringDelete(FuncName);
 if (!WasmEdge_ResultOK(Res)) {
   return EXIT_FAILURE;

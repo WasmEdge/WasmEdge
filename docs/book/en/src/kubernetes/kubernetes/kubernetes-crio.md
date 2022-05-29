@@ -50,13 +50,13 @@ Finally, we can run WebAssembly programs in Kubernetes as containers in pods.
 In this section, we will start from **another terminal window** and start using the cluster.
 
 ```bash
-$ export KUBERNETES_PROVIDER=local
+export KUBERNETES_PROVIDER=local
 
-$ sudo cluster/kubectl.sh config set-cluster local --server=https://localhost:6443 --certificate-authority=/var/run/kubernetes/server-ca.crt
-$ sudo cluster/kubectl.sh config set-credentials myself --client-key=/var/run/kubernetes/client-admin.key --client-certificate=/var/run/kubernetes/client-admin.crt
-$ sudo cluster/kubectl.sh config set-context local --cluster=local --user=myself
-$ sudo cluster/kubectl.sh config use-context local
-$ sudo cluster/kubectl.sh
+sudo cluster/kubectl.sh config set-cluster local --server=https://localhost:6443 --certificate-authority=/var/run/kubernetes/server-ca.crt
+sudo cluster/kubectl.sh config set-credentials myself --client-key=/var/run/kubernetes/client-admin.key --client-certificate=/var/run/kubernetes/client-admin.crt
+sudo cluster/kubectl.sh config set-context local --cluster=local --user=myself
+sudo cluster/kubectl.sh config use-context local
+sudo cluster/kubectl.sh
 ```
 
 Let's check the status to make sure that the cluster is running.
@@ -81,7 +81,7 @@ To further debug and diagnose cluster problems, use 'kubectl cluster-info dump'.
 Run the WebAssembly-based image from Docker Hub in the Kubernetes cluster as follows.
 
 ```bash
-$ sudo cluster/kubectl.sh run -it --rm --restart=Never wasi-demo --image=hydai/wasm-wasi-example:with-wasm-annotation --annotations="module.wasm.image/variant=compat" /wasi_example_main.wasm 50000000
+sudo cluster/kubectl.sh run -it --rm --restart=Never wasi-demo --image=hydai/wasm-wasi-example:with-wasm-annotation --annotations="module.wasm.image/variant=compat" /wasi_example_main.wasm 50000000
 ```
 
 The output from the containerized application is printed into the console.
@@ -131,7 +131,7 @@ spec:
 Run the WebAssembly-based image from Docker Hub using the above `k8s-http_server.yaml` file in the Kubernetes cluster as follows.
 
 ```bash
-$ sudo ./kubernetes/cluster/kubectl.sh apply -f k8s-http_server.yaml
+sudo ./kubernetes/cluster/kubectl.sh apply -f k8s-http_server.yaml
 ```
 
 Use the following command to see the running container applications and their IP addresses.

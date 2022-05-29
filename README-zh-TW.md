@@ -40,8 +40,8 @@ WasmEdge 為其執行的 Wasm bytecode 程式提供了一個有良好定義的�
 
 ## 效能
 
-* 論文：[高效能 Serverless 計算的輕量級設計](https://arxiv.org/abs/2010.07115)，發表於 IEEE Software ，2021年1月。 https://arxiv.org/abs/2010.07115
-* 文章：[Performance Analysis for Arm vs. x86 CPUs in the Cloud](https://www.infoq.com/articles/arm-vs-x86-cloud-performance/)，發表於 infoQ.com ，2021年1月。 https://www.infoq.com/articles/arm-vs-x86-cloud-performance/
+* 論文：[高效能 Serverless 計算的輕量級設計](https://arxiv.org/abs/2010.07115)，發表於 IEEE Software ，2021年1月。 [https://arxiv.org/abs/2010.07115](https://arxiv.org/abs/2010.07115)
+* 文章：[Performance Analysis for Arm vs. x86 CPUs in the Cloud](https://www.infoq.com/articles/arm-vs-x86-cloud-performance/)，發表於 infoQ.com ，2021年1月。 [https://www.infoq.com/articles/arm-vs-x86-cloud-performance/](https://www.infoq.com/articles/arm-vs-x86-cloud-performance/)
 
 ## 特性
 
@@ -75,4 +75,5 @@ WasmEdge 及其執行的 Wasm 應用程式可以作為新應用程序或以現�
 * 推特：在 [Twitter](https://twitter.com/realwasmedge) 跟隨 @realwasmedge
 
 ## License
+
 [![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2FWasmEdge%2FWasmEdge.svg?type=large)](https://app.fossa.com/projects/git%2Bgithub.com%2FWasmEdge%2FWasmEdge?ref=badge_large)

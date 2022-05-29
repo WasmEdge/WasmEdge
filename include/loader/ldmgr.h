@@ -17,6 +17,7 @@
 #include "common/types.h"
 #include "loader/shared_library.h"
 
+#include <cstdint>
 #include <memory>
 #include <vector>
 

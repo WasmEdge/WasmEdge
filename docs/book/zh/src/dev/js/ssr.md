@@ -66,8 +66,8 @@ console.log(content);
 目录中的 [rollup.config.js](https://github.com/second-state/wasmedge-quickjs/blob/main/example_js/react_ssr/rollup.config.js) 文件和 [package.json](https://github.com/second-state/wasmedge-quickjs/blob/main/example_js/react_ssr/package.json) 文件用于把 React SSR 的所有依赖和组件打包成一个 WasmEdge 可用的 JavaScript 文件。你可以使用 `npm` 命令来进行构建，构建产物会输出到 `dist/main.js` 文件里。
 
 ```bash
-$ npm install
-$ npm run build
+npm install
+npm run build
 ```
 
 要运行这个例子，请在命令行中执行以下命令。你会看到，所有的模板成功合成了一个 HTML 字符串。
@@ -178,21 +178,21 @@ server_start();
 目录中的 [rollup.config.js](https://github.com/second-state/wasmedge-quickjs/blob/main/example_js/react_ssr_stream/rollup.config.js) 文件和 [package.json](https://github.com/second-state/wasmedge-quickjs/blob/main/example_js/react_ssr_stream/package.json) 文件用于把 React SSR 的所有依赖和组件打包成一个 WasmEdge 可用的 JavaScript 文件。你可以使用 `npm` 命令来进行构建，构建产物会输出到 `dist/main.js` 文件里。
 
 ```bash
-$ npm install
-$ npm run build
+npm install
+npm run build
 ```
 
 要运行这个例子，请在命令行上执行以下命令来启动服务器。
 
 ```bash
-$ cd example_js/react_ssr_stream
-$ nohup wasmedge --dir .:. ../../target/wasm32-wasi/release/wasmedge_quickjs.wasm dist/main.mjs &
+cd example_js/react_ssr_stream
+nohup wasmedge --dir .:. ../../target/wasm32-wasi/release/wasmedge_quickjs.wasm dist/main.mjs &
 ```
 
 然后通过 `curl` 或浏览器发送一个 HTTP 请求。
 
 ```bash
-$ curl http://localhost:8001
+curl http://localhost:8001
 ```
 
 结果如下所示。该服务首先返回一个 HTML 页面，里面包含一个空的内层部分（即 `loading` 部分）。然后在 2s 后返回内层部分的 HTML 内容，以及将它显示出来的 JavaScript 代码。

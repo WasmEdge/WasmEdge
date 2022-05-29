@@ -5,7 +5,7 @@
 ## WasmEdge 运行时快速指南
 
 以下是运行一个 WASM 文件的示例。
-假设 WASM 文件[`fibonacci.wasm`](https://github.com/WasmEdge/WasmEdge/raw/master/tools/wasmedge/examples/fibonacci.wasm)已经被拷贝到当前目录，并且 C 文件 `test_wasmedge.c` 的源代码如下所示：
+假设 WASM 文件[`fibonacci.wasm`](https://github.com/WasmEdge/WasmEdge/raw/master/examples/wasm/fibonacci.wasm)已经被拷贝到当前目录，并且 C 文件 `test_wasmedge.c` 的源代码如下所示：
 
 ```c
 #include <wasmedge/wasmedge.h>
@@ -52,7 +52,7 @@ Get result: 3524578
 
 ## WasmEdge AOT 编译器快速指南
 
-假设 WASM 文件 [`fibonacci.wasm`](https://github.com/WasmEdge/WasmEdge/raw/master/tools/wasmedge/examples/fibonacci.wasm) 已经被拷贝到当前目录，并且 C 文件 `test_wasmedge_compiler.c` 的代码如下所示：
+假设 WASM 文件 [`fibonacci.wasm`](https://github.com/WasmEdge/WasmEdge/raw/master/examples/wasm/fibonacci.wasm) 已经被拷贝到当前目录，并且 C 文件 `test_wasmedge_compiler.c` 的代码如下所示：
 
 ```c
 #include <wasmedge/wasmedge.h>
@@ -69,8 +69,8 @@ int main(int Argc, const char* Argv[]) {
   /* 根据指定的输入和输出路径来编译 WASM 文件。 */
   Res = WasmEdge_CompilerCompile(CompilerCxt, Argv[1], Argv[2]);
   if (!WasmEdge_ResultOK(Res)) {
-      printf("Compilation failed: %s\n", WasmEdge_ResultGetMessage(Res));
-      return 1;
+    printf("Compilation failed: %s\n", WasmEdge_ResultGetMessage(Res));
+    return 1;
   }
 
   WasmEdge_CompilerDelete(CompilerCxt);
@@ -98,16 +98,16 @@ $ ./test_wasmedge_compiler fibonacci.wasm fibonacci.wasm.so
 $ time ./test_wasmedge fibonacci.wasm
 Get result: 5702887
 
-real	0m2.715s
-user	0m2.700s
-sys	0m0.008s
+real 0m2.715s
+user 0m2.700s
+sys 0m0.008s
 
 $ time ./test_wasmedge fibonacci.wasm.so
 Get result: 5702887
 
-real	0m0.036s
-user	0m0.022s
-sys	0m0.011s
+real 0m0.036s
+user 0m0.022s
+sys 0m0.011s
 ```
 
-如果要了解这些 API 的细节，请参考[ API 头文件](https://github.com/WasmEdge/WasmEdge/blob/master/include/api/wasmedge/wasmedge.h)。
+如果要了解这些 API 的细节，请参考[API 头文件](https://github.com/WasmEdge/WasmEdge/blob/master/include/api/wasmedge/wasmedge.h)。

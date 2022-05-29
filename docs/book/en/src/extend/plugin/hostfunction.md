@@ -58,7 +58,7 @@ class TestHost1 : public TestCluster<TestHost1> {
 public:
   TestHost1(std::vector<uint8_t> &Vec) : TestCluster(Vec) {}
   Expect<uint32_t> body(Runtime::Instance::MemoryInstance *MemInst, uint32_t Param1, float Param2) {
-    /// Operations to `Data` ...
+    // Operations to `Data` ...
     return {};
   }
 };
@@ -67,7 +67,7 @@ class TestHost2 : public TestCluster<TestHost2> {
 public:
   TestHost2(std::vector<uint8_t> &Vec) : TestCluster(Vec) {}
   Expect<uint64_t> body(Runtime::Instance::MemoryInstance *MemInst, uint64_t Param1, double Param2) {
-    /// Operations to `Data` ...
+    // Operations to `Data` ...
     return {};
   }
 };
@@ -82,23 +82,22 @@ To create a `host table`, `memory`, and `global` instance, the only way is to cr
 
 ## Host Modules
 
-`Host module` is an object which can be registered into WasmEdge runtime. `Host module` contains `host functions`, `tables`, `memories`, `globals`, and other user-customized data. WasmEdge provides API to register `host modules`. After registering, these host instances in the `host module` can be imported by WASM modules.
+The host module is a module instance which can be registered into WasmEdge runtime. A module instance contains `host functions`, `tables`, `memories`, `globals`, and other user-customized data. WasmEdge provides API to register a module instance into a `VM` or `Store`. After registering, these host instances in the module instance can be imported by WASM modules.
 
 ### Declaration
 
-`Host module` supplies exported module name and can contain customized data. A module name is needed when constructing `host modules`.
+Module instance supplies exported module name and can contain customized data. A module name is needed when constructing module instances.
 
 ```cpp
 #include "common/errcode.h"
-#include "runtime/hostfunc.h"
-#include "runtime/importobj.h"
+#include "runtime/instance/module.h"
 
 namespace WasmEdge {
 namespace Host {
 
-class TestModule : public Runtime::ImportObject {
+class TestModule : public Runtime::Instance::ModuleInstance {
 public:
-  TestModule() : ImportObject("test");
+  TestModule() : ModuleInstance("test");
   virtual ~TestModule() = default;
 };
 
@@ -108,12 +107,12 @@ public:
 
 ### Add Instances
 
-`Host module` provides `addHostFunc()`, `addHostTable()`, `addHostMemory()`, and `addHostGlobal()` to insert instances with their unique names. Insertion can be done in constructor. The following example also shows how to create `host memories`, `tables`, and `globals`.
+Module instance provides `addHostFunc()`, `addHostTable()`, `addHostMemory()`, and `addHostGlobal()` to insert instances with their unique names. Insertion can be done in constructor. The following example also shows how to create `host memories`, `tables`, and `globals`.
 
 ```cpp
 #include "common/errcode.h"
 #include "runtime/hostfunc.h"
-#include "runtime/importobj.h"
+#include "runtime/instance/module.h"
 #include <memory>
 #include <vector>
 
@@ -132,7 +131,7 @@ class TestHost1 : public TestCluster<TestHost1> {
 public:
   TestHost1(std::vector<uint8_t> &Vec) : TestCluster(Vec) {}
   Expect<uint32_t> body(Runtime::Instance::MemoryInstance *MemInst, uint32_t Param1, float Param2) {
-    /// Operations to `Data` ...
+    // Operations to `Data` ...
     return {};
   }
 };
@@ -141,27 +140,28 @@ class TestHost2 : public TestCluster<TestHost2> {
 public:
   TestHost2(std::vector<uint8_t> &Vec) : TestCluster(Vec) {}
   Expect<uint64_t> body(Runtime::Instance::MemoryInstance *MemInst, uint64_t Param1, double Param2) {
-    /// Operations to `Data` ...
+    // Operations to `Data` ...
     return {};
   }
 };
 
-class TestModule : public Runtime::ImportObject {
+
+class TestModule : public Runtime::Instance::ModuleInstance {
 public:
-  TestModule(std::vector<uint8_t> &Vec) : ImportObject("test"), Data(Vec) {
-    /// Add function instances with exporting name
+  TestModule(std::vector<uint8_t> &Vec) : ModuleInstance("test"), Data(Vec) {
+    // Add function instances with exporting name
     addHostFunc("test_func1", std::make_unique<TestHost1>(Data));
     addHostFunc("test_func2", std::make_unique<TestHost2>(Data));
 
-    /// Add table instance with exporting name
+    // Add table instance with exporting name
     addHostTable("table", std::make_unique<Runtime::Instance::TableInstance>(
                               TableType(RefType::FuncRef, 10, 20)));
 
-    /// Add memory instance with exporting name
+    // Add memory instance with exporting name
     addHostMemory("memory", std::make_unique<Runtime::Instance::MemoryInstance>(
                                 MemoryType(1, 2)));
 
-    /// Add global instance with exporting name
+    // Add global instance with exporting name
     addHostGlobal("global_i32",
                   std::make_unique<Runtime::Instance::GlobalInstance>(
                       GlobalType(ValType::I32, ValMut::Const), uint32_t(666)));
@@ -185,7 +185,7 @@ private:
 } // namespace WasmEdge
 ```
 
-`Host module` supplies `getFuncs()`, `getTables()`, `getMems()`, and `getGlobals()` to search registered instances by unique exporting name. For more details, APIs can be found in `include/runtime/importobj.h`.
+Module instance supplies `getFuncs()`, `getTables()`, `getMems()`, and `getGlobals()` to search registered instances by unique exporting name. For more details, APIs can be found in `include/runtime/importobj.h`.
 
 ### Register Host Modules to WasmEdge
 
@@ -207,7 +207,7 @@ VM.registerModule(TestMod);
 
 For finding headers from WasmEdge include directories and linking static libraries, some settings are necessary for CMakeFile:
 
-```
+```cmake
 add_library(wasmedgeHostModuleTest  # Static library name of host modules
   test.cpp  # Path to host modules cpp files
 )

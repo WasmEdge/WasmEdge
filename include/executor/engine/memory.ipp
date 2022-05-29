@@ -10,7 +10,8 @@ namespace WasmEdge {
 namespace Executor {
 
 template <typename T>
-TypeT<T> Executor::runLoadOp(Runtime::Instance::MemoryInstance &MemInst,
+TypeT<T> Executor::runLoadOp(Runtime::StackManager &StackMgr,
+                             Runtime::Instance::MemoryInstance &MemInst,
                              const AST::Instruction &Instr,
                              const uint32_t BitWidth) {
   // Calculate EA
@@ -37,7 +38,8 @@ TypeT<T> Executor::runLoadOp(Runtime::Instance::MemoryInstance &MemInst,
 }
 
 template <typename T>
-TypeN<T> Executor::runStoreOp(Runtime::Instance::MemoryInstance &MemInst,
+TypeN<T> Executor::runStoreOp(Runtime::StackManager &StackMgr,
+                              Runtime::Instance::MemoryInstance &MemInst,
                               const AST::Instruction &Instr,
                               const uint32_t BitWidth) {
   // Pop the value t.const c from the Stack
@@ -67,7 +69,8 @@ TypeN<T> Executor::runStoreOp(Runtime::Instance::MemoryInstance &MemInst,
 
 template <typename TIn, typename TOut>
 Expect<void>
-Executor::runLoadExpandOp(Runtime::Instance::MemoryInstance &MemInst,
+Executor::runLoadExpandOp(Runtime::StackManager &StackMgr,
+                          Runtime::Instance::MemoryInstance &MemInst,
                           const AST::Instruction &Instr) {
   static_assert(sizeof(TOut) == sizeof(TIn) * 2);
   // Calculate EA
@@ -111,7 +114,8 @@ Executor::runLoadExpandOp(Runtime::Instance::MemoryInstance &MemInst,
 
 template <typename T>
 Expect<void>
-Executor::runLoadSplatOp(Runtime::Instance::MemoryInstance &MemInst,
+Executor::runLoadSplatOp(Runtime::StackManager &StackMgr,
+                         Runtime::Instance::MemoryInstance &MemInst,
                          const AST::Instruction &Instr) {
   // Calculate EA
   ValVariant &Val = StackMgr.getTop();
@@ -151,7 +155,8 @@ Executor::runLoadSplatOp(Runtime::Instance::MemoryInstance &MemInst,
 }
 
 template <typename T>
-Expect<void> Executor::runLoadLaneOp(Runtime::Instance::MemoryInstance &MemInst,
+Expect<void> Executor::runLoadLaneOp(Runtime::StackManager &StackMgr,
+                                     Runtime::Instance::MemoryInstance &MemInst,
                                      const AST::Instruction &Instr) {
   using VT [[gnu::vector_size(16)]] = T;
   VT Result = StackMgr.pop().get<VT>();
@@ -185,7 +190,8 @@ Expect<void> Executor::runLoadLaneOp(Runtime::Instance::MemoryInstance &MemInst,
 
 template <typename T>
 Expect<void>
-Executor::runStoreLaneOp(Runtime::Instance::MemoryInstance &MemInst,
+Executor::runStoreLaneOp(Runtime::StackManager &StackMgr,
+                         Runtime::Instance::MemoryInstance &MemInst,
                          const AST::Instruction &Instr) {
   using VT [[gnu::vector_size(16)]] = T;
   using TBuf = std::conditional_t<sizeof(T) < 4, uint32_t, T>;

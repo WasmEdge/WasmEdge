@@ -14,11 +14,12 @@
 
 #include "aot/cache.h"
 
-#include "common/config.h"
-#include "common/span.h"
-#include "gtest/gtest.h"
+#include "common/filesystem.h"
 
-#include <vector>
+#include <gtest/gtest.h>
+#include <string>
+#include <string_view>
+#include <system_error>
 
 namespace {
 

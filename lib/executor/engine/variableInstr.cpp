@@ -3,42 +3,41 @@
 
 #include "executor/executor.h"
 
-#include <memory>
-#include <vector>
+#include <cstdint>
 
 namespace WasmEdge {
 namespace Executor {
 
-Expect<void> Executor::runLocalGetOp(const uint32_t Idx) {
-  const uint32_t Offset = StackMgr.getOffset(Idx);
-  StackMgr.push(StackMgr.getBottomN(Offset));
+Expect<void> Executor::runLocalGetOp(Runtime::StackManager &StackMgr,
+                                     uint32_t StackOffset) const noexcept {
+  StackMgr.push(StackMgr.getTopN(StackOffset));
   return {};
 }
 
-Expect<void> Executor::runLocalSetOp(const uint32_t Idx) {
-  const uint32_t Offset = StackMgr.getOffset(Idx);
-  StackMgr.getBottomN(Offset) = StackMgr.pop();
+Expect<void> Executor::runLocalSetOp(Runtime::StackManager &StackMgr,
+                                     uint32_t StackOffset) const noexcept {
+  StackMgr.getTopN(StackOffset - 1) = StackMgr.pop();
   return {};
 }
 
-Expect<void> Executor::runLocalTeeOp(const uint32_t Idx) {
+Expect<void> Executor::runLocalTeeOp(Runtime::StackManager &StackMgr,
+                                     uint32_t StackOffset) const noexcept {
   const ValVariant &Val = StackMgr.getTop();
-  const uint32_t Offset = StackMgr.getOffset(Idx);
-  StackMgr.getBottomN(Offset) = Val;
+  StackMgr.getTopN(StackOffset) = Val;
   return {};
 }
 
-Expect<void> Executor::runGlobalGetOp(Runtime::StoreManager &StoreMgr,
-                                      const uint32_t Idx) {
-  auto *GlobInst = getGlobInstByIdx(StoreMgr, Idx);
+Expect<void> Executor::runGlobalGetOp(Runtime::StackManager &StackMgr,
+                                      uint32_t Idx) const noexcept {
+  auto *GlobInst = getGlobInstByIdx(StackMgr, Idx);
   assuming(GlobInst);
   StackMgr.push(GlobInst->getValue());
   return {};
 }
 
-Expect<void> Executor::runGlobalSetOp(Runtime::StoreManager &StoreMgr,
-                                      const uint32_t Idx) {
-  auto *GlobInst = getGlobInstByIdx(StoreMgr, Idx);
+Expect<void> Executor::runGlobalSetOp(Runtime::StackManager &StackMgr,
+                                      uint32_t Idx) const noexcept {
+  auto *GlobInst = getGlobInstByIdx(StackMgr, Idx);
   assuming(GlobInst);
   GlobInst->getValue() = StackMgr.pop();
   return {};

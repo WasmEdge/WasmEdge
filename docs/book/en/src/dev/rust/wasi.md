@@ -34,7 +34,7 @@ pub fn get_random_bytes() -> Vec<u8> {
 
 ## Printing and debugging from Rust
 
-The Rust `println!` marco just works in WASI. The statements print to the `STDOUT` of the process that runs the WasmEdge. 
+The Rust `println!` marco just works in WASI. The statements print to the `STDOUT` of the process that runs the WasmEdge.
 
 ```rust
 pub fn echo(content: &str) -> String {
@@ -96,7 +96,7 @@ pub fn del_file(path: &str) {
 
 ## A main() app
 
-With a `main()` function, the Rust program can be compiled into a 
+With a `main()` function, the Rust program can be compiled into a
 standalone WebAssembly program.
 
 ```rust
@@ -114,7 +114,7 @@ fn main() {
 Use the command below to compile [the Rust project](https://github.com/second-state/wasm-learning/tree/master/cli/wasi).
 
 ```bash
-$ cargo build --target wasm32-wasi
+cargo build --target wasm32-wasi
 ```
 
 To run it in `wasmedge`, do the following. The `--dir` option maps the current

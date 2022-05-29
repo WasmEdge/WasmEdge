@@ -3,13 +3,16 @@
 pub mod function;
 pub mod global;
 pub mod memory;
+pub mod module;
 pub mod table;
 
-#[doc(inline)]
+#[doc(hidden)]
 pub use function::{FuncType, Function};
-#[doc(inline)]
+#[doc(hidden)]
 pub use global::{Global, GlobalType};
-#[doc(inline)]
+#[doc(hidden)]
 pub use memory::{MemType, Memory};
-#[doc(inline)]
+#[doc(hidden)]
+pub use module::Instance;
+#[doc(hidden)]
 pub use table::{Table, TableType};

@@ -49,18 +49,18 @@
 
 ```bash
 # 这很慢
-$ wasmedge app.wasm
+wasmedge app.wasm
 
 # AOT 编译
-$ wasmedgec app.wasm app.wasm
+wasmedgec app.wasm app.wasm
 
 # 现在就快多了
-$ wasmedge app.wasm
+wasmedge app.wasm
 ```
 
 在 Linux 系统上，它将会生成一个 `so` 共享库文件，然后由 `wasmedge` 运行时执行。
 
 ```bash
-$ wasmedgec app.wasm app.so
-$ wasmedge app.so
+wasmedgec app.wasm app.so
+wasmedge app.so
 ```

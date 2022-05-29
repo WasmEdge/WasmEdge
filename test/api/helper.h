@@ -18,6 +18,8 @@
 #include "../spec/spectest.h"
 #include "common/int128.h"
 #include "wasmedge/wasmedge.h"
+#include <utility>
+#include <vector>
 
 namespace WasmEdge {
 

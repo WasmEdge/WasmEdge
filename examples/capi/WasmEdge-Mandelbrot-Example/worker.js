@@ -11,7 +11,7 @@ WebAssembly.instantiate(bytes, {
     memory,
   },
 }).then((Module) => {
-  Module.instance.exports.mandelbrot_thread(
+  Module.instance.exports.mandelbrotThread(
     config.iterations,
     num_threads,
     rank,

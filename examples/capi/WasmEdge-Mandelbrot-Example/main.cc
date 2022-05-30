@@ -10,8 +10,8 @@ using namespace std;
 template <class result_t = std::chrono::nanoseconds,
           class clock_t = std::chrono::steady_clock,
           class duration_t = std::chrono::nanoseconds>
-auto since(std::chrono::time_point<clock_t, duration_t> const &start) {
-  return std::chrono::duration_cast<result_t>(clock_t::now() - start);
+auto since(std::chrono::time_point<clock_t, duration_t> const &Start) {
+  return std::chrono::duration_cast<result_t>(clock_t::now() - Start);
 }
 
 const int WIDTH = 1200;
@@ -40,10 +40,10 @@ int main(int argc, char **argv) {
   WasmEdge_StringDelete(MemoryName);
   WasmEdge_VMRegisterModuleFromImport(VMCxt, HostModCxt);
 
-  double x = -0.743644786;
-  double y = 0.1318252536;
-  double d = 0.00029336;
-  int maxIterations = 10000;
+  const double X = -0.743644786;
+  const double Y = 0.1318252536;
+  const double D = 0.00029336;
+  int MaxIterations = 10000;
   WasmEdge_String ModName = WasmEdge_StringCreateByCString("mandelbrot");
   Res = WasmEdge_VMRegisterModuleFromFile(VMCxt, ModName, "./mandelbrot.so");
   if (!WasmEdge_ResultOK(Res)) {
@@ -53,29 +53,28 @@ int main(int argc, char **argv) {
 
   /* The parameters and returns arrays. */
 
-  WasmEdge_String FuncName =
-      WasmEdge_StringCreateByCString("mandelbrot_thread");
+  WasmEdge_String FuncName = WasmEdge_StringCreateByCString("mandelbrotThread");
 
-  auto start = std::chrono::steady_clock::now();
-  int num_threads;
+  auto Start = std::chrono::steady_clock::now();
+  int NumThreads;
   if (argc > 1) {
-    num_threads = atoi(argv[1]);
+    NumThreads = atoi(argv[1]);
   } else {
-    num_threads = 4;
+    NumThreads = 4;
   }
-  cout << "Number of threads: " << num_threads << "\n";
+  cout << "Number of Threads: " << NumThreads << "\n";
 
-  std::vector<std::thread> threads;
-  for (int i = 0; i < num_threads; ++i) {
-    threads.push_back(std::thread(
-        [&](int rank) {
+  std::vector<std::thread> Threads;
+  for (int Tid = 0; Tid < NumThreads; ++Tid) {
+    Threads.push_back(std::thread(
+        [&](int Rank) {
           WasmEdge_Value Params[6] = {
-              WasmEdge_ValueGenI32(maxIterations),
-              WasmEdge_ValueGenI32(num_threads),
-              WasmEdge_ValueGenI32(rank),
-              WasmEdge_ValueGenF64(x),
-              WasmEdge_ValueGenF64(y),
-              WasmEdge_ValueGenF64(d),
+              WasmEdge_ValueGenI32(MaxIterations),
+              WasmEdge_ValueGenI32(NumThreads),
+              WasmEdge_ValueGenI32(Rank),
+              WasmEdge_ValueGenF64(X),
+              WasmEdge_ValueGenF64(Y),
+              WasmEdge_ValueGenF64(D),
           };
           Res = WasmEdge_VMExecuteRegistered(VMCxt, ModName, FuncName, Params,
                                              6, NULL, 0);
@@ -85,22 +84,22 @@ int main(int argc, char **argv) {
             cout << "Error message: " << WasmEdge_ResultGetMessage(Res) << "\n";
           }
         },
-        i));
+        Tid));
   }
-  for (auto &thread : threads) {
-    thread.join();
+  for (auto &Thread : Threads) {
+    Thread.join();
   }
-  cout << "Elapsed Time: " << since(start).count() / 1e6 << std::endl;
+  cout << "Elapsed Time: " << since(Start).count() / 1e6 << "\n";
 
   FuncName = WasmEdge_StringCreateByCString("getImage");
   WasmEdge_Value Returns[1];
   Res = WasmEdge_VMExecuteRegistered(VMCxt, ModName, FuncName, NULL, 0, Returns,
                                      1);
-  int64_t offset = (int64_t)WasmEdge_ValueGetExternRef(Returns[0]);
-  cout << "Offset: " << offset << "\n";
+  int64_t Offset = (int64_t)WasmEdge_ValueGetExternRef(Returns[0]);
+  cout << "Offset: " << Offset << "\n";
 
-  unsigned char image[WIDTH * HEIGHT * 4];
-  Res = WasmEdge_MemoryInstanceGetData(HostMemory, image, offset,
+  unsigned char Image[WIDTH * HEIGHT * 4];
+  Res = WasmEdge_MemoryInstanceGetData(HostMemory, Image, Offset,
                                        WIDTH * HEIGHT * 4);
   if (WasmEdge_ResultOK(Res)) {
     cout << "Get memory: ok\n";
@@ -109,9 +108,9 @@ int main(int argc, char **argv) {
     return -1;
   }
 
-  FILE *pFile = fopen("output-wasmedge.bin", "wb");
-  fwrite(image, sizeof(char), sizeof(image), pFile);
-  fclose(pFile);
+  FILE *File = fopen("output-wasmedge.bin", "wb");
+  fwrite(Image, sizeof(char), sizeof(Image), File);
+  fclose(File);
 
   /* Resources deallocations. */
   WasmEdge_VMDelete(VMCxt);

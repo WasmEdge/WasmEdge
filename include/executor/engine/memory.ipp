@@ -9,7 +9,7 @@
 namespace WasmEdge {
 namespace Executor {
 
-template <typename T, uint32_t const BitWidth>
+template <typename T, uint32_t BitWidth>
 TypeT<T> Executor::runLoadOp(Runtime::StackManager &StackMgr,
                              Runtime::Instance::MemoryInstance &MemInst,
                              const AST::Instruction &Instr) {
@@ -37,7 +37,7 @@ TypeT<T> Executor::runLoadOp(Runtime::StackManager &StackMgr,
   return {};
 }
 
-template <typename T, uint32_t const BitWidth>
+template <typename T, uint32_t BitWidth>
 TypeN<T> Executor::runStoreOp(Runtime::StackManager &StackMgr,
                               Runtime::Instance::MemoryInstance &MemInst,
                               const AST::Instruction &Instr) {

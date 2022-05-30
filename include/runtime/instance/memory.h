@@ -31,28 +31,27 @@ namespace WasmEdge {
 namespace Runtime {
 namespace Instance {
 
-template <uint32_t const Length>
-void effective_memcpy(void *dest, const void *src) {
+template <uint32_t Length> void effective_memcpy(void *dest, const void *src) {
   switch (Length) {
   case 1:
-    *reinterpret_cast<uint8_t *>(dest) =
-        *reinterpret_cast<const uint8_t *>(src);
+    *reinterpret_cast<volatile uint8_t *>(dest) =
+        *reinterpret_cast<const volatile uint8_t *>(src);
     break;
   case 2:
-    *reinterpret_cast<uint16_t *>(dest) =
-        *reinterpret_cast<const uint16_t *>(src);
+    *reinterpret_cast<volatile uint16_t *>(dest) =
+        *reinterpret_cast<const volatile uint16_t *>(src);
     break;
   case 4:
-    *reinterpret_cast<uint32_t *>(dest) =
-        *reinterpret_cast<const uint32_t *>(src);
+    *reinterpret_cast<volatile uint32_t *>(dest) =
+        *reinterpret_cast<const volatile uint32_t *>(src);
     break;
   case 8:
-    *reinterpret_cast<uint64_t *>(dest) =
-        *reinterpret_cast<const uint64_t *>(src);
+    *reinterpret_cast<volatile uint64_t *>(dest) =
+        *reinterpret_cast<const volatile uint64_t *>(src);
     break;
   case 16:
-    *reinterpret_cast<uint128_t *>(dest) =
-        *reinterpret_cast<const uint128_t *>(src);
+    *reinterpret_cast<volatile uint128_t *>(dest) =
+        *reinterpret_cast<const volatile uint128_t *>(src);
     break;
   default:
     std::memcpy(dest, src, Length);
@@ -270,7 +269,7 @@ public:
   /// \param Length the load length from data. Need to <= sizeof(T).
   ///
   /// \returns void when success, ErrCode when failed.
-  template <typename T, uint32_t const Length = sizeof(T)>
+  template <typename T, uint32_t Length = sizeof(T)>
   typename std::enable_if_t<IsWasmNumV<T>, Expect<void>>
   loadValue(T &Value, uint32_t Offset) const noexcept {
     // Check the data boundary.
@@ -289,7 +288,7 @@ public:
             *(reinterpret_cast<const T *>(&DataPtr[Offset]));
       } else {
         if constexpr (sizeof(T) > 8) {
-          static_assert(sizeof(T) == 16);
+          assuming(sizeof(T) == 16);
           Value = 0;
 
           effective_memcpy<Length>(&Value, &DataPtr[Offset]);
@@ -320,7 +319,7 @@ public:
   /// \param Length the store length to data. Need to <= sizeof(T).
   ///
   /// \returns void when success, ErrCode when failed.
-  template <typename T, uint32_t const Length = sizeof(T)>
+  template <typename T, uint32_t Length = sizeof(T)>
   typename std::enable_if_t<IsWasmNativeNumV<T>, Expect<void>>
   storeValue(const T &Value, uint32_t Offset) noexcept {
     // Check the data boundary.

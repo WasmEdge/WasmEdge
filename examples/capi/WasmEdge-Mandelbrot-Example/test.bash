@@ -1,5 +1,3 @@
-export LD_LIBRARY_PATH=/root/WasmEdge/build/lib/api:$LD_LIBRARY_PATH
-
 WASMEDGE_EXECUTABLE='./main'
 NODE_EXECUTABLE='node --experimental-wasm-threads --experimental-wasm-bulk-memory main.js'
 

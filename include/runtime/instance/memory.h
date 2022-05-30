@@ -284,13 +284,12 @@ public:
     if (likely(Length > 0)) {
       if constexpr (std::is_floating_point_v<T>) {
         // Floating case. Do the memory copy.
-        *(reinterpret_cast<T *>(&Value)) =
-            *(reinterpret_cast<const T *>(&DataPtr[Offset]));
+        *(reinterpret_cast<volatile T *>(&Value)) =
+            *(reinterpret_cast<const volatile T *>(&DataPtr[Offset]));
       } else {
         if constexpr (sizeof(T) > 8) {
           assuming(sizeof(T) == 16);
           Value = 0;
-
           effective_memcpy<Length>(&Value, &DataPtr[Offset]);
         } else {
           uint64_t LoadVal = 0;

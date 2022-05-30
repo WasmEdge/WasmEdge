@@ -573,7 +573,7 @@ main() {
             VERBOSE=1
             ;;
         p | path)
-            IPATH="${OPTARG}"
+            IPATH="$(readlink  --canonicalize "${OPTARG}")"
             default=1
             ;;
         r | remove-old)

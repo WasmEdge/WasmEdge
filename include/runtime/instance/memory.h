@@ -33,26 +33,26 @@ namespace Instance {
 
 template <uint32_t Length> void effective_memcpy(void *dest, const void *src) {
   switch (Length) {
-  case 1:
-    *reinterpret_cast<volatile uint8_t *>(dest) =
-        *reinterpret_cast<const volatile uint8_t *>(src);
-    break;
-  case 2:
-    *reinterpret_cast<volatile uint16_t *>(dest) =
-        *reinterpret_cast<const volatile uint16_t *>(src);
-    break;
-  case 4:
-    *reinterpret_cast<volatile uint32_t *>(dest) =
-        *reinterpret_cast<const volatile uint32_t *>(src);
-    break;
-  case 8:
-    *reinterpret_cast<volatile uint64_t *>(dest) =
-        *reinterpret_cast<const volatile uint64_t *>(src);
-    break;
-  case 16:
-    *reinterpret_cast<volatile uint128_t *>(dest) =
-        *reinterpret_cast<const volatile uint128_t *>(src);
-    break;
+  // case 1:
+  //   *reinterpret_cast<volatile uint8_t *>(dest) =
+  //       *reinterpret_cast<const volatile uint8_t *>(src);
+  //   break;
+  // case 2:
+  //   *reinterpret_cast<volatile uint16_t *>(dest) =
+  //       *reinterpret_cast<const volatile uint16_t *>(src);
+  //   break;
+  // case 4:
+  //   *reinterpret_cast<volatile uint32_t *>(dest) =
+  //       *reinterpret_cast<const volatile uint32_t *>(src);
+  //   break;
+  // case 8:
+  //   *reinterpret_cast<volatile uint64_t *>(dest) =
+  //       *reinterpret_cast<const volatile uint64_t *>(src);
+  //   break;
+  // case 16:
+  //   *reinterpret_cast<volatile uint128_t *>(dest) =
+  //       *reinterpret_cast<const volatile uint128_t *>(src);
+  //   break;
   default:
     std::memcpy(dest, src, Length);
     break;

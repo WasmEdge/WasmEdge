@@ -64,17 +64,14 @@ TEST(WasiNNTest, OpenVINOBackend) {
   std::vector<uint8_t> XmlRead, WeightRead, TensorData;
   std::vector<uint32_t> TensorDim{1, 3, 224, 224};
   uint32_t BuilderPtr = UINT32_C(0);
-  uint32_t LoadEntryPtr;
-  uint32_t SetInputEntryPtr;
+  uint32_t LoadEntryPtr = UINT32_C(0);
+  uint32_t SetInputEntryPtr = UINT32_C(0);
+  uint32_t OutBoundPtr = UINT32_C(410 * 65536);
   uint32_t StorePtr = UINT32_C(65536);
 
   LoadEntryPtr = BuilderPtr;
   XmlRead = readBinariesFromDisk("./wasinn_openvino_fixtures/mobilenet.xml");
   WeightRead = readBinariesFromDisk("./wasinn_openvino_fixtures/mobilenet.bin");
-
-  writeFatPointer(MemInst, StorePtr, XmlRead.size(), BuilderPtr);
-  writeFatPointer(MemInst, StorePtr + XmlRead.size(), WeightRead.size(),
-                  BuilderPtr);
 
   // wasi-nn load test
   WasmEdge::Host::WasiNNLoad WasiNNLoad(Env);
@@ -87,11 +84,64 @@ TEST(WasiNNTest, OpenVINOBackend) {
         Errno));
     EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Busy));
   }
+  // graph id ptr out bound
+  {
+    EXPECT_TRUE(WasiNNLoad.run(
+        &MemInst,
+        std::initializer_list<WasmEdge::ValVariant>{
+            LoadEntryPtr, UINT32_C(2), UINT32_C(0), UINT32_C(0), OutBoundPtr},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(),
+              static_cast<uint32_t>(ErrNo::InvalidArgument));
+  }
+  // graph builder ptr out bound
+  {
+    EXPECT_TRUE(WasiNNLoad.run(
+        &MemInst,
+        std::initializer_list<WasmEdge::ValVariant>{
+            OutBoundPtr, UINT32_C(2), UINT32_C(0), UINT32_C(0), BuilderPtr},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(),
+              static_cast<uint32_t>(ErrNo::InvalidArgument));
+  }
+
+  // openvino model xml ptr out bound
+  BuilderPtr = LoadEntryPtr;
+  writeFatPointer(MemInst, OutBoundPtr, XmlRead.size(), BuilderPtr);
+  writeFatPointer(MemInst, StorePtr + XmlRead.size(), WeightRead.size(),
+                  BuilderPtr);
+  {
+    EXPECT_TRUE(WasiNNLoad.run(
+        &MemInst,
+        std::initializer_list<WasmEdge::ValVariant>{
+            LoadEntryPtr, UINT32_C(2), UINT32_C(0), UINT32_C(0), BuilderPtr},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(),
+              static_cast<uint32_t>(ErrNo::InvalidArgument));
+  }
+
+  // openvino model bin ptr out bound
+  BuilderPtr = LoadEntryPtr;
+  writeFatPointer(MemInst, StorePtr, XmlRead.size(), BuilderPtr);
+  writeFatPointer(MemInst, OutBoundPtr, WeightRead.size(), BuilderPtr);
+  {
+    EXPECT_TRUE(WasiNNLoad.run(
+        &MemInst,
+        std::initializer_list<WasmEdge::ValVariant>{
+            LoadEntryPtr, UINT32_C(2), UINT32_C(0), UINT32_C(0), BuilderPtr},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(),
+              static_cast<uint32_t>(ErrNo::InvalidArgument));
+  }
+
+  // wrong builders' length
+  BuilderPtr = LoadEntryPtr;
+  writeFatPointer(MemInst, StorePtr, XmlRead.size(), BuilderPtr);
+  writeFatPointer(MemInst, StorePtr + XmlRead.size(), WeightRead.size(),
+                  BuilderPtr);
   writeBinaries<uint8_t>(MemInst, XmlRead, StorePtr);
   writeBinaries<uint8_t>(MemInst, WeightRead, StorePtr + XmlRead.size());
   StorePtr += (XmlRead.size() + WeightRead.size());
-
-  // wrong builders' length
   {
     EXPECT_TRUE(WasiNNLoad.run(
         &MemInst,
@@ -136,7 +186,7 @@ TEST(WasiNNTest, OpenVINOBackend) {
 
   // wasi-nn init_exec_ctx test
   WasmEdge::Host::WasiNNInitExecCtx WasiNNInitExecCtx(Env);
-  // graph id exceeds
+  // graph id invalid
   {
     EXPECT_TRUE(WasiNNInitExecCtx.run(
         &MemInst,
@@ -277,18 +327,39 @@ TEST(WasiNNTest, OpenVINOBackend) {
     EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
   }
 
+  // get output test
   WasmEdge::Host::WasiNNGetOuput WasiNNGetOuput(Env);
-  // WasmEdge::Host::WasiNNGetOuput EmptyWasiNNGetOuput(EmptyEnv);
   // no compute ctx request
+  // FIXME should allow a request for output with no computation before?
   {
     EXPECT_TRUE(WasiNNGetOuput.run(
         &MemInst,
         std::initializer_list<WasmEdge::ValVariant>{
             UINT32_C(0), UINT32_C(0), StorePtr, 65532, BuilderPtr},
         Errno));
-    // FIXME should allow a request for output with no computation before?
     EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
     EXPECT_EQ(*MemInst.getPointer<uint32_t *>(BuilderPtr), UINT32_C(4004));
+  }
+  // output bytes ptr out of bound
+  {
+    EXPECT_TRUE(WasiNNGetOuput.run(
+        &MemInst,
+        std::initializer_list<WasmEdge::ValVariant>{
+            UINT32_C(0), UINT32_C(0), StorePtr, 65532, OutBoundPtr},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(),
+              static_cast<uint32_t>(ErrNo::InvalidArgument));
+  }
+
+  // output buffer ptr out of bound
+  {
+    EXPECT_TRUE(WasiNNGetOuput.run(
+        &MemInst,
+        std::initializer_list<WasmEdge::ValVariant>{
+            UINT32_C(0), UINT32_C(0), OutBoundPtr, 65532, BuilderPtr},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(),
+              static_cast<uint32_t>(ErrNo::InvalidArgument));
   }
   // output index exceed
   {

@@ -9,7 +9,7 @@ In WasmEdge, we implemented the [WASI-NN](https://github.com/WebAssembly/wasi-nn
 
 You can find more detail about the WASI-NN proposal in [Reference](#Reference).
 
-In this section, we will use [an Rust example project](https://github.com/gusye1234/Wasi-NN-Examples) ![badge](https://github.com/gusye1234/Wasi-NN-Examples/actions/workflows/main.yaml/badge.svg) to demonstrate how to use the WASI-NN api and run a image classification demo.
+In this section, we will use [an Rust example project](https://github.com/second-state/WasmEdge-WASINN-examples) ![badge](https://github.com/second-state/WasmEdge-WASINN-examples/actions/workflows/main.yaml/badge.svg) to demonstrate how to use the WASI-NN api and run a image classification demo.
 
 ## Prerequisite
 
@@ -55,13 +55,13 @@ rustup target add wasm32-wasi
 Download the demo with:
 
 ```bash
-git clone https://github.com/gusye1234/Wasi-NN-Examples.git
-cd Wasi-NN-Examples
+git clone https://github.com/second-state/WasmEdge-WASINN-examples
+cd WasmEdge-WASINN-examples
 ```
 
 ### Quick Start
 
-The demo will download the [fixtures](https://github.com/intel/openvino-rs/tree/main/crates/openvino/tests/fixtures/mobilenet) for the [Mobilenet](https://arxiv.org/abs/1704.04861), and run a image classification:
+The demo will download the [fixtures](https://github.com/intel/openvino-rs/raw/v0.3.3/crates/openvino/tests/fixtures/mobilenet/) for the [Mobilenet](https://arxiv.org/abs/1704.04861), and run a image classification:
 
 ```bash
 ./build_mobilenet_base.sh <WASMEDGE RUNTIME PATH>
@@ -97,7 +97,7 @@ cd ./rust/examples/mobilenet-base
 cargo build --release --target=wasm32-wasi
 ```
 
-The outputted `mobilenet-base-example.wasm` will be under `target/wasm32-wasi/release/`(or [here](https://github.com/gusye1234/Wasi-NN-Examples/blob/main/assets/mobilenet-base-example.wasm)), we can find that the WASM file imports the necessary WASI-NN functions by converting into WAT format with tools like [`wasm2wat`](https://webassembly.github.io/wabt/demo/wasm2wat/):
+The outputted `mobilenet-base-example.wasm` will be under `target/wasm32-wasi/release/`(or [here](https://github.com/second-state/WasmEdge-WASINN-examples/blob/master/wasms/mobilenet-base-example.wasm)), we can find that the WASM file imports the necessary WASI-NN functions by converting into WAT format with tools like [`wasm2wat`](https://webassembly.github.io/wabt/demo/wasm2wat/):
 
 ```wasm
  ...
@@ -130,7 +130,7 @@ cd $RUST_BUILD_DIR
 
 ## Code walkthrough
 
-The [main.rs](https://github.com/gusye1234/Wasi-NN-Examples/blob/main/rust/examples/classification-example/src/main.rs) will be started as the entry point. First, read the model description and weights into memory:
+The [main.rs](https://github.com/second-state/WasmEdge-WASINN-examples/blob/master/rust/mobilenet-base/src/main.rs) will be started as the entry point. First, read the model description and weights into memory:
 
 ```rust
 let args: Vec<String> = env::args().collect();

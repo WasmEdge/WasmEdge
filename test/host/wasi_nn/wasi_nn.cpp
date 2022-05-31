@@ -329,17 +329,6 @@ TEST(WasiNNTest, OpenVINOBackend) {
 
   // get output test
   WasmEdge::Host::WasiNNGetOuput WasiNNGetOuput(Env);
-  // no compute ctx request
-  // FIXME should allow a request for output with no computation before?
-  {
-    EXPECT_TRUE(WasiNNGetOuput.run(
-        &MemInst,
-        std::initializer_list<WasmEdge::ValVariant>{
-            UINT32_C(0), UINT32_C(0), StorePtr, 65532, BuilderPtr},
-        Errno));
-    EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
-    EXPECT_EQ(*MemInst.getPointer<uint32_t *>(BuilderPtr), UINT32_C(4004));
-  }
   // output bytes ptr out of bound
   {
     EXPECT_TRUE(WasiNNGetOuput.run(

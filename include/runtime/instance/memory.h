@@ -282,7 +282,6 @@ public:
   ///
   /// \param Value the constructed output value.
   /// \param Offset the start offset in data array.
-  /// \param Length the load length from data. Need to <= sizeof(T).
   ///
   /// \returns void when success, ErrCode when failed.
   template <typename T, uint32_t Length = sizeof(T)>
@@ -331,7 +330,6 @@ public:
   ///
   /// \param Value the value want to store into data array.
   /// \param Offset the start offset in data array.
-  /// \param Length the store length to data. Need to <= sizeof(T).
   ///
   /// \returns void when success, ErrCode when failed.
   template <typename T, uint32_t Length = sizeof(T)>

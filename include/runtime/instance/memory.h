@@ -32,27 +32,43 @@ namespace Runtime {
 namespace Instance {
 
 template <uint32_t Length> void effective_memcpy(void *dest, const void *src) {
+  if constexpr (Length == 0) {
+    return;
+  }
+  // If Length is not the power of 2, use memcpy
+  if constexpr (((Length) & (Length - 1)) != 0) {
+    std::memcpy(dest, src, Length);
+    return;
+  }
+  // Check alignment of dest and src to Length. If any of dest and src is not
+  // aligned, use memcpy
+  const uint32_t alignment_mask = Length - 1;
+  if ((reinterpret_cast<uintptr_t>(dest) & alignment_mask) ||
+      (reinterpret_cast<uintptr_t>(src) & alignment_mask)) {
+    std::memcpy(dest, src, Length);
+    return;
+  }
   switch (Length) {
-  // case 1:
-  //   *reinterpret_cast<volatile uint8_t *>(dest) =
-  //       *reinterpret_cast<const volatile uint8_t *>(src);
-  //   break;
-  // case 2:
-  //   *reinterpret_cast<volatile uint16_t *>(dest) =
-  //       *reinterpret_cast<const volatile uint16_t *>(src);
-  //   break;
-  // case 4:
-  //   *reinterpret_cast<volatile uint32_t *>(dest) =
-  //       *reinterpret_cast<const volatile uint32_t *>(src);
-  //   break;
-  // case 8:
-  //   *reinterpret_cast<volatile uint64_t *>(dest) =
-  //       *reinterpret_cast<const volatile uint64_t *>(src);
-  //   break;
-  // case 16:
-  //   *reinterpret_cast<volatile uint128_t *>(dest) =
-  //       *reinterpret_cast<const volatile uint128_t *>(src);
-  //   break;
+  case 1:
+    *reinterpret_cast<volatile uint8_t *>(dest) =
+        *reinterpret_cast<const volatile uint8_t *>(src);
+    break;
+  case 2:
+    *reinterpret_cast<volatile uint16_t *>(dest) =
+        *reinterpret_cast<const volatile uint16_t *>(src);
+    break;
+  case 4:
+    *reinterpret_cast<volatile uint32_t *>(dest) =
+        *reinterpret_cast<const volatile uint32_t *>(src);
+    break;
+  case 8:
+    *reinterpret_cast<volatile uint64_t *>(dest) =
+        *reinterpret_cast<const volatile uint64_t *>(src);
+    break;
+  case 16:
+    *reinterpret_cast<volatile uint128_t *>(dest) =
+        *reinterpret_cast<const volatile uint128_t *>(src);
+    break;
   default:
     std::memcpy(dest, src, Length);
     break;

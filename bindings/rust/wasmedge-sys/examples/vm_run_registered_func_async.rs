@@ -34,9 +34,7 @@ fn real_add(inputs: Vec<WasmValue>) -> Result<Vec<WasmValue>, u8> {
 #[cfg_attr(test, test)]
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // create a Config context
-    let result = Config::create();
-    assert!(result.is_ok());
-    let mut config = result.unwrap();
+    let mut config = Config::create()?;
     config.bulk_memory_operations(true);
     assert!(config.bulk_memory_operations_enabled());
     // enable Interruptible option
@@ -44,27 +42,18 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     assert!(config.interruptible_enabled());
 
     // create a Vm context with the given Config and Store
-    let result = Vm::create(Some(config), None);
-    assert!(result.is_ok());
-    let mut vm = result.unwrap();
+    let mut vm = Vm::create(Some(config), None)?;
 
     // create import module
-    let result = ImportModule::create("extern");
-    assert!(result.is_ok());
-    let mut import = result.unwrap();
+    let mut import = ImportModule::create("extern")?;
 
     // add host function
-    let result = FuncType::create(vec![ValType::I32; 2], vec![ValType::I32]);
-    assert!(result.is_ok());
-    let func_ty = result.unwrap();
-    let result = Function::create(&func_ty, Box::new(real_add), 0);
-    assert!(result.is_ok());
-    let host_func = result.unwrap();
+    let func_ty = FuncType::create(vec![ValType::I32; 2], vec![ValType::I32])?;
+    let host_func = Function::create(&func_ty, Box::new(real_add), 0)?;
     import.add_func("add", host_func);
 
     // register the import_obj module
-    let result = vm.register_wasm_from_import(ImportObject::Import(import));
-    assert!(result.is_ok());
+    vm.register_wasm_from_import(ImportObject::Import(import))?;
 
     // async run the host function
     let async_result = vm.run_registered_function_async(

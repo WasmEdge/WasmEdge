@@ -1,5 +1,5 @@
 
-# 并行计算斐波那契数
+# 斐波那契数列的同时计算
 
 ## 前置条件
 
@@ -10,11 +10,11 @@
 
 ## 概述
 
-在这个例子中，我们将演示如何使用 `wasmedge-sys` 中定义的对象和 API 来并行地计算斐波那契数。
+在这个例子中，我们将演示如何使用 `wasmedge-sys` 中定义的对象和 API 来同时计算斐波那契数。
 
 ## 示例
 
-在下面的代码中，我们创建了两个子线程，`thread_a` 和 `thread_b`，它们分别负责通过调用宿主函数 `fib` 来计算 `Fib(4)` 和 `Fib(5)`。之后，主线程通过将 `thread_a` 和 `thread_b` 返回的数字相加来计算 `Fib(6)`。
+在下面的代码中，我们创建了两个子线程，`thread_a` 和 `thread_b`，它们分别通过调用主机函数 `fib` 来响应计算`Fib(4)` 和 `Fib(5)`。之后，主线程通过将 `thread_a` 和 `thread_b` 返回的数字相加来计算 `Fib(6)`。
 
 ### 第一步：创建一个 Vm 上下文并注册 WebAssembly 模块。
 
@@ -35,7 +35,7 @@
     vm.register_wasm_from_file("extern", file)?;
     ```
 
-### 第二步：创建两个子线程，分别计算 `Fib(4)` 和 `Fib(5)`。
+### 第二步：创建两个子线程分别计算 `Fib(4)` 和 `Fib(5)`。
 
     ```rust
     let vm = Arc::new(Mutex::new(vm));
@@ -70,7 +70,7 @@
 
     ```
 
-### 第三步：从两个子线程中获取返回值，计算 `Fib(6)`。
+### 第三步：获取两个子线程的返回值，计算 `Fib(6)`。
 
     ```Rust
     let fib4 = handle_a.join().unwrap();
@@ -80,7 +80,7 @@
     println!("fib(6) = fib(5) + fib(1) = {}", fib5 + fib4);
     ```
 
-上述代码的最终结果将会像下面这样被打印在屏幕上。
+上面代码的最终结果应该像下面一样打印在屏幕上:
 
 ```bash
 fib(4) by child thread: 5
@@ -88,4 +88,4 @@ fib(5) by child thread: 8
 fib(6) = fib(5) + fib(1) = 13
 ```
 
-这个演示的完整源代码可以在 [WasmEdge Github](https://github.com/WasmEdge/WasmEdge/blob/master/bindings/rust/wasmedge-sys/examples/threads.rs) 找到。
+此演示中的完整代码可以在 [WasmEdge Github](https://github.com/WasmEdge/WasmEdge/blob/master/bindings/rust/wasmedge-sys/examples/threads.rs) 找到。

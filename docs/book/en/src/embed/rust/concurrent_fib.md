@@ -1,11 +1,11 @@
 
-# Compute Fibonacci numbers concurrently
+# 斐波那契数列的同时计算
 
-In this example, we will demonstrate how to use the objects and the APIs defined in `wasmedge-sys` to compute Fibonacci numbers concurrently.
+在这个例子中，我们将演示如何使用 `wasmedge-sys` 中定义的对象和 API 来同时计算斐波那契数。
 
-In the following code, we creates two child threads, `thread_a` and `thread_b`, which are responsbile for compute `Fib(4)` and `Fib(5)` by calling the host function `fib`, respectively. After that, the main thread computes `Fib(6)` by adding the numbers returned by `thread_a` and `thread_b`.
+在下面的代码中，我们创建了两个子线程 `thread_a` 和 `thread_b` ，它们分别通过调用主机函数 `fib` 来响应计算 `Fib(4)` 和 `Fib(5)`。之后，主线程通过将 `thread_a` 和 `thread_b` 返回的数字相加来计算 `Fib(6)`。
 
-* Step 1: create a Vm context and register the WebAssembly module.
+* 第一步：创建 Vm 上下文并注册 WebAssembly 模块。
 
     ```rust
     // create a Config context
@@ -24,7 +24,7 @@ In the following code, we creates two child threads, `thread_a` and `thread_b`, 
     vm.register_wasm_from_file("extern", file)?;
     ```
 
-* Step 2: create two child threads to compute `Fib(4)` and `Fib(5)` respectively.
+* 第二步：创建两个子线程分别计算 `Fib(4)` 和 `Fib(5)`。
 
     ```rust
     let vm = Arc::new(Mutex::new(vm));
@@ -59,7 +59,7 @@ In the following code, we creates two child threads, `thread_a` and `thread_b`, 
 
     ```
 
-* Step3: Get the returns from the two child threads, and compute `Fib(6)`.
+* 第三步：获取两个子线程的返回值，计算 `Fib(6)`。
 
     ```Rust
     let fib4 = handle_a.join().unwrap();
@@ -69,7 +69,7 @@ In the following code, we creates two child threads, `thread_a` and `thread_b`, 
     println!("fib(6) = fib(5) + fib(1) = {}", fib5 + fib4);
     ```
 
-The final result of the code above should be printed on the screen like below:
+上面代码的最终结果应该像下面一样打印在屏幕上:
 
 ```bash
 fib(4) by child thread: 5
@@ -77,4 +77,4 @@ fib(5) by child thread: 8
 fib(6) = fib(5) + fib(1) = 13
 ```
 
-The complete code in this demo can be found on [WasmEdge Github](https://github.com/WasmEdge/WasmEdge/blob/master/bindings/rust/wasmedge-sys/examples/threads.rs).
+此演示中的完整代码可以在 [WasmEdge Github](https://github.com/WasmEdge/WasmEdge/blob/master/bindings/rust/wasmedge-sys/examples/threads.rs).

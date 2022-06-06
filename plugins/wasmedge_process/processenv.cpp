@@ -27,13 +27,15 @@ WasmEdgeProcessEnvironment::WasmEdgeProcessEnvironment() noexcept
 
 namespace {
 
-void addOptions(PO::ArgumentParser &Parser) noexcept {
+void addOptions(const Plugin::Plugin::PluginDescriptor *,
+                PO::ArgumentParser &Parser) noexcept {
   Parser.add_option("allow-command"sv, WasmEdgeProcessEnvironment::AllowCmd)
       .add_option("allow-command-all"sv,
                   WasmEdgeProcessEnvironment::AllowCmdAll);
 }
 
-Runtime::Instance::ModuleInstance *create(void) noexcept {
+Runtime::Instance::ModuleInstance *
+create(const Plugin::PluginModule::ModuleDescriptor *) noexcept {
   return new WasmEdgeProcessModule;
 }
 

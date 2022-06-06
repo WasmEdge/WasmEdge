@@ -120,7 +120,7 @@ func main() {
 接下来，让我们用 WasmEdge Go SDK 来构建 Go 应用。
 
 ```bash
-go get github.com/second-state/WasmEdge-go/wasmedge@v0.10.0-alpha.1
+go get github.com/second-state/WasmEdge-go/wasmedge@v0.10.0
 go build
 ```
 

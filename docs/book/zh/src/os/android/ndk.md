@@ -88,14 +88,14 @@ int main(int argc, char *argv[]) {
 使用以下命令在您的 Ubuntu 开发环境上下载适用于 Android 的 WasmEdge。
 
 ```bash
-wget https://github.com/WasmEdge/WasmEdge/releases/download/0.10.0-alpha.1/WasmEdge-0.10.0-alpha.1-android_aarch64.tar.gz
-wget https://github.com/second-state/WasmEdge-image/releases/download/0.10.0-alpha.1/WasmEdge-image-0.10.0-alpha.1-android_aarch64.tar.gz
-wget https://github.com/second-state/WasmEdge-tensorflow/releases/download/0.10.0-alpha.1/WasmEdge-tensorflowlite-0.10.0-alpha.1-android_aarch64.tar.gz
-wget https://github.com/second-state/WasmEdge-tensorflow-deps/releases/download/0.10.0-alpha.1/WasmEdge-tensorflow-deps-TFLite-0.10.0-alpha.1-android_aarch64.tar.gz
-tar -zxf WasmEdge-0.10.0-alpha.1-android_aarch64.tar.gz
-tar -zxf WasmEdge-image-0.10.0-alpha.1-android_aarch64.tar.gz -C WasmEdge-0.10.0-alpha.1-Android/
-tar -zxf WasmEdge-tensorflowlite-0.10.0-alpha.1-android_aarch64.tar.gz -C WasmEdge-0.10.0-alpha.1-Android/
-tar -zxf WasmEdge-tensorflow-deps-TFLite-0.10.0-alpha.1-android_aarch64.tar.gz -C WasmEdge-0.10.0-alpha.1-Android/lib/
+wget https://github.com/WasmEdge/WasmEdge/releases/download/0.10.0/WasmEdge-0.10.0-android_aarch64.tar.gz
+wget https://github.com/second-state/WasmEdge-image/releases/download/0.10.0/WasmEdge-image-0.10.0-android_aarch64.tar.gz
+wget https://github.com/second-state/WasmEdge-tensorflow/releases/download/0.10.0/WasmEdge-tensorflowlite-0.10.0-android_aarch64.tar.gz
+wget https://github.com/second-state/WasmEdge-tensorflow-deps/releases/download/0.10.0/WasmEdge-tensorflow-deps-TFLite-0.10.0-android_aarch64.tar.gz
+tar -zxf WasmEdge-0.10.0-android_aarch64.tar.gz
+tar -zxf WasmEdge-image-0.10.0-android_aarch64.tar.gz -C WasmEdge-0.10.0-Android/
+tar -zxf WasmEdge-tensorflowlite-0.10.0-android_aarch64.tar.gz -C WasmEdge-0.10.0-Android/
+tar -zxf WasmEdge-tensorflow-deps-TFLite-0.10.0-android_aarch64.tar.gz -C WasmEdge-0.10.0-Android/lib/
 ```
 
 ### 编译
@@ -103,7 +103,7 @@ tar -zxf WasmEdge-tensorflow-deps-TFLite-0.10.0-alpha.1-android_aarch64.tar.gz -
 使用以下命令在 Ubunu 开发环境上将 C 源码编译为 Android 上可以运行的程序 `a.out`。
 
 ```bash
-(/path/to/ndk)/toolchains/llvm/prebuilt/(HostPlatform)/bin/aarch64-linux-(AndroidApiVersion)-clang test.c -I./WasmEdge-0.10.0-alpha.1-Android/include -L./WasmEdge-0.10.0-alpha.1-Android/lib -lwasmedge-image_c -lwasmedge-tensorflowlite_c -ltensorflowlite_c -lwasmedge_c
+(/path/to/ndk)/toolchains/llvm/prebuilt/(HostPlatform)/bin/aarch64-linux-(AndroidApiVersion)-clang test.c -I./WasmEdge-0.10.0-Android/include -L./WasmEdge-0.10.0-Android/lib -lwasmedge-image_c -lwasmedge-tensorflowlite_c -ltensorflowlite_c -lwasmedge_c
 ```
 
 ## 测试
@@ -117,7 +117,7 @@ adb push a.out /data/local/tmp
 adb push birds_v1.wasm /data/local/tmp
 adb push lite-model_aiy_vision_classifier_birds_V1_3.tflite /data/local/tmp
 adb push bird.jpg /data/local/tmp
-adb push ./WasmEdge-0.10.0-alpha.1-Android/lib /data/local/tmp
+adb push ./WasmEdge-0.10.0-Android/lib /data/local/tmp
 ```
 
 ### 运行示例

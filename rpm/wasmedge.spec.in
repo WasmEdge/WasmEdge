@@ -1,13 +1,15 @@
-%global gittag 0.9.1
+%global gittag @WASMEDGE_GIT_VERSION@
+%global srpm_version @WASMEDGE_SRPM_VERSION@
+
 Name:    wasmedge
-Version: 0.9.1
+Version: %{srpm_version}
 Release: 1%{?dist}
 Summary: High performance WebAssembly Virtual Machine
 License: ASL 2.0
 URL:     https://github.com/WasmEdge/WasmEdge
-Source0: https://github.com/WasmEdge/WasmEdge/releases/download/%{gittag}/WasmEdge-%{version}-src.tar.gz
-BuildRequires: gcc-c++,cmake,ninja-build,boost-devel,spdlog-devel,llvm13-devel,lld13-devel
-Requires:      llvm13
+Source0: https://github.com/WasmEdge/WasmEdge/releases/download/%{gittag}/WasmEdge-%{gittag}-src.tar.gz
+BuildRequires: gcc-c++,cmake,ninja-build,boost-devel,spdlog-devel,llvm-devel,lld-devel,git
+Requires:      llvm
 ExclusiveArch: x86_64 aarch64
 
 %description
@@ -24,7 +26,7 @@ This package contains necessary header files for WasmEdge development.
 %package lib
 #Requires:
 Summary: WasmEdge library
-Requires: llvm13
+Requires: llvm
 Provides: wasmedge-lib
 
 %description lib
@@ -32,12 +34,12 @@ This package contains necessary library files for WasmEdge development.
 
 %prep
 %autosetup -n wasmedge
-sed -i -e 's@0.0.0-unreleased@%{gittag}@' CMakeLists.txt include/CMakeLists.txt
+sed -i -e 's/0.0.0-unreleased/%{gittag}/' CMakeLists.txt include/CMakeLists.txt
 
 %build
-mkdir build
+mkdir -p build
 cd build
-cmake -GNinja -DCMAKE_BUILD_TYPE=RelWithDebInfo -DWASMEDGE_BUILD_TESTS=OFF -DLLVM_DIR=%{_libdir}/llvm13/lib/cmake/llvm -DCMAKE_INSTALL_PREFIX=%{_prefix} ..
+cmake -GNinja -DCMAKE_BUILD_TYPE=RelWithDebInfo -DWASMEDGE_BUILD_TESTS=OFF -DCMAKE_INSTALL_PREFIX=%{_prefix} ..
 cmake --build .
 
 %install

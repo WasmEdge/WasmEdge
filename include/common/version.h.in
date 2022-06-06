@@ -29,4 +29,7 @@ static inline std::string_view kGlobalPluginDir [[maybe_unused]] =
     CMAKE_INSTALL_FULL_LIBDIR "/wasmedge"sv;
 #undef CMAKE_INSTALL_FULL_LIBDIR
 
+static inline constexpr const uint32_t kPluginCurrentAPIVersion
+    [[maybe_unused]] = ${WASMEDGE_API_VERSION};
+
 } // namespace WasmEdge

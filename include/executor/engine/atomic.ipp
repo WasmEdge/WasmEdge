@@ -59,15 +59,13 @@ TypeT<T> Executor::runAtomicLoadOp(Runtime::StackManager &StackMgr,
   }
 
   // make sure the address no OOB with size I
-  I *RawPointer = MemInst.getPointer<I *>(Address);
-  if (!RawPointer) {
+  auto *AtomicObj = MemInst.getPointer<std::atomic<I> *>(Address);
+  if (!AtomicObj) {
     spdlog::error(ErrCode::MemoryOutOfBounds);
     spdlog::error(
         ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
     return Unexpect(ErrCode::MemoryOutOfBounds);
   }
-  auto *AtomicObj =
-      static_cast<std::atomic<I> *>(reinterpret_cast<void *>(RawPointer));
 
   I Return = AtomicObj->load();
   RawAddress.emplace<T>(static_cast<T>(Return));
@@ -104,15 +102,13 @@ TypeT<T> Executor::runAtomicStoreOp(Runtime::StackManager &StackMgr,
   }
 
   // make sure the address no OOB with size I
-  I *RawPointer = MemInst.getPointer<I *>(Address);
-  if (!RawPointer) {
+  auto *AtomicObj = MemInst.getPointer<std::atomic<I> *>(Address);
+  if (!AtomicObj) {
     spdlog::error(ErrCode::MemoryOutOfBounds);
     spdlog::error(
         ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
     return Unexpect(ErrCode::MemoryOutOfBounds);
   }
-  auto *AtomicObj =
-      static_cast<std::atomic<I> *>(reinterpret_cast<void *>(RawPointer));
   I Value = static_cast<I>(RawValue.get<T>());
 
   AtomicObj->store(Value);
@@ -148,15 +144,13 @@ TypeT<T> Executor::runAtomicAddOp(Runtime::StackManager &StackMgr,
   }
 
   // make sure the address no OOB with size I
-  I *RawPointer = MemInst.getPointer<I *>(Address);
-  if (!RawPointer) {
+  auto *AtomicObj = MemInst.getPointer<std::atomic<I> *>(Address);
+  if (!AtomicObj) {
     spdlog::error(ErrCode::MemoryOutOfBounds);
     spdlog::error(
         ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
     return Unexpect(ErrCode::MemoryOutOfBounds);
   }
-  auto *AtomicObj =
-      static_cast<std::atomic<I> *>(reinterpret_cast<void *>(RawPointer));
   I Value = static_cast<I>(RawValue.get<T>());
 
   I Return = AtomicObj->fetch_add(Value);
@@ -193,15 +187,13 @@ TypeT<T> Executor::runAtomicSubOp(Runtime::StackManager &StackMgr,
   }
 
   // make sure the address no OOB with size I
-  I *RawPointer = MemInst.getPointer<I *>(Address);
-  if (!RawPointer) {
+  auto *AtomicObj = MemInst.getPointer<std::atomic<I> *>(Address);
+  if (!AtomicObj) {
     spdlog::error(ErrCode::MemoryOutOfBounds);
     spdlog::error(
         ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
     return Unexpect(ErrCode::MemoryOutOfBounds);
   }
-  auto *AtomicObj =
-      static_cast<std::atomic<I> *>(reinterpret_cast<void *>(RawPointer));
   I Value = static_cast<I>(RawValue.get<T>());
 
   I Return = AtomicObj->fetch_sub(Value);
@@ -238,15 +230,13 @@ TypeT<T> Executor::runAtomicOrOp(Runtime::StackManager &StackMgr,
   }
 
   // make sure the address no OOB with size I
-  I *RawPointer = MemInst.getPointer<I *>(Address);
-  if (!RawPointer) {
+  auto *AtomicObj = MemInst.getPointer<std::atomic<I> *>(Address);
+  if (!AtomicObj) {
     spdlog::error(ErrCode::MemoryOutOfBounds);
     spdlog::error(
         ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
     return Unexpect(ErrCode::MemoryOutOfBounds);
   }
-  auto *AtomicObj =
-      static_cast<std::atomic<I> *>(reinterpret_cast<void *>(RawPointer));
   I Value = static_cast<I>(RawValue.get<T>());
 
   I Return = AtomicObj->fetch_or(Value);
@@ -283,15 +273,13 @@ TypeT<T> Executor::runAtomicAndOp(Runtime::StackManager &StackMgr,
   }
 
   // make sure the address no OOB with size I
-  I *RawPointer = MemInst.getPointer<I *>(Address);
-  if (!RawPointer) {
+  auto *AtomicObj = MemInst.getPointer<std::atomic<I> *>(Address);
+  if (!AtomicObj) {
     spdlog::error(ErrCode::MemoryOutOfBounds);
     spdlog::error(
         ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
     return Unexpect(ErrCode::MemoryOutOfBounds);
   }
-  auto *AtomicObj =
-      static_cast<std::atomic<I> *>(reinterpret_cast<void *>(RawPointer));
   I Value = static_cast<I>(RawValue.get<T>());
 
   I Return = AtomicObj->fetch_and(Value);
@@ -328,15 +316,13 @@ TypeT<T> Executor::runAtomicXorOp(Runtime::StackManager &StackMgr,
   }
 
   // make sure the address no OOB with size I
-  I *RawPointer = MemInst.getPointer<I *>(Address);
-  if (!RawPointer) {
+  auto *AtomicObj = MemInst.getPointer<std::atomic<I> *>(Address);
+  if (!AtomicObj) {
     spdlog::error(ErrCode::MemoryOutOfBounds);
     spdlog::error(
         ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
     return Unexpect(ErrCode::MemoryOutOfBounds);
   }
-  auto *AtomicObj =
-      static_cast<std::atomic<I> *>(reinterpret_cast<void *>(RawPointer));
   I Value = static_cast<I>(RawValue.get<T>());
 
   I Return = AtomicObj->fetch_xor(Value);
@@ -375,15 +361,13 @@ Executor::runAtomicExchangeOp(Runtime::StackManager &StackMgr,
   }
 
   // make sure the address no OOB with size I
-  I *RawPointer = MemInst.getPointer<I *>(Address);
-  if (!RawPointer) {
+  auto *AtomicObj = MemInst.getPointer<std::atomic<I> *>(Address);
+  if (!AtomicObj) {
     spdlog::error(ErrCode::MemoryOutOfBounds);
     spdlog::error(
         ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
     return Unexpect(ErrCode::MemoryOutOfBounds);
   }
-  auto *AtomicObj =
-      static_cast<std::atomic<I> *>(reinterpret_cast<void *>(RawPointer));
   I Value = static_cast<I>(RawValue.get<T>());
 
   I Return = AtomicObj->exchange(Value);
@@ -423,15 +407,13 @@ Executor::runAtomicCompareExchangeOp(Runtime::StackManager &StackMgr,
   }
 
   // make sure the address no OOB with size I
-  I *RawPointer = MemInst.getPointer<I *>(Address);
-  if (!RawPointer) {
+  auto *AtomicObj = MemInst.getPointer<std::atomic<I> *>(Address);
+  if (!AtomicObj) {
     spdlog::error(ErrCode::MemoryOutOfBounds);
     spdlog::error(
         ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
     return Unexpect(ErrCode::MemoryOutOfBounds);
   }
-  auto *AtomicObj =
-      static_cast<std::atomic<I> *>(reinterpret_cast<void *>(RawPointer));
   I Replacement = static_cast<I>(RawReplacement.get<T>());
   I Expected = static_cast<I>(RawExpected.get<T>());
 

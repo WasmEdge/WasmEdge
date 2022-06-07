@@ -31,50 +31,6 @@ namespace WasmEdge {
 namespace Runtime {
 namespace Instance {
 
-template <uint32_t Length> void effective_memcpy(void *dest, const void *src) {
-  if constexpr (Length == 0) {
-    return;
-  }
-  // If Length is not the power of 2, use memcpy
-  if constexpr (((Length) & (Length - 1)) != 0) {
-    std::memcpy(dest, src, Length);
-    return;
-  }
-  // Check alignment of dest and src to Length. If any of dest and src is not
-  // aligned, use memcpy
-  const uint32_t alignment_mask = Length - 1;
-  if ((reinterpret_cast<uintptr_t>(dest) & alignment_mask) ||
-      (reinterpret_cast<uintptr_t>(src) & alignment_mask)) {
-    std::memcpy(dest, src, Length);
-    return;
-  }
-  switch (Length) {
-  case 1:
-    *reinterpret_cast<volatile uint8_t *>(dest) =
-        *reinterpret_cast<const volatile uint8_t *>(src);
-    break;
-  case 2:
-    *reinterpret_cast<volatile uint16_t *>(dest) =
-        *reinterpret_cast<const volatile uint16_t *>(src);
-    break;
-  case 4:
-    *reinterpret_cast<volatile uint32_t *>(dest) =
-        *reinterpret_cast<const volatile uint32_t *>(src);
-    break;
-  case 8:
-    *reinterpret_cast<volatile uint64_t *>(dest) =
-        *reinterpret_cast<const volatile uint64_t *>(src);
-    break;
-  case 16:
-    *reinterpret_cast<volatile uint128_t *>(dest) =
-        *reinterpret_cast<const volatile uint128_t *>(src);
-    break;
-  default:
-    std::memcpy(dest, src, Length);
-    break;
-  }
-}
-
 class MemoryInstance {
 
 public:
@@ -299,16 +255,16 @@ public:
     if (likely(Length > 0)) {
       if constexpr (std::is_floating_point_v<T>) {
         // Floating case. Do the memory copy.
-        effective_memcpy<sizeof(T)>(&Value, &DataPtr[Offset]);
+        std::memcpy(&Value, &DataPtr[Offset], sizeof(T));
       } else {
         if constexpr (sizeof(T) > 8) {
           assuming(sizeof(T) == 16);
           Value = 0;
-          effective_memcpy<Length>(&Value, &DataPtr[Offset]);
+          std::memcpy(&Value, &DataPtr[Offset], Length);
         } else {
           uint64_t LoadVal = 0;
           // Integer case. Extends to the result type.
-          effective_memcpy<Length>(&LoadVal, &DataPtr[Offset]);
+          std::memcpy(&LoadVal, &DataPtr[Offset], Length);
           if (std::is_signed_v<T> && (LoadVal >> (Length * 8 - 1))) {
             // Signed extension.
             for (unsigned int I = Length; I < 8; I++) {
@@ -344,7 +300,7 @@ public:
     }
     // Copy the stored data to the value.
     if (likely(Length > 0)) {
-      effective_memcpy<Length>(&DataPtr[Offset], &Value);
+      std::memcpy(&DataPtr[Offset], &Value, Length);
     }
     return {};
   }

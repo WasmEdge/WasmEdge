@@ -176,6 +176,10 @@ WasiExpect<void> INode::fdWrite(Span<Span<const uint8_t>> IOVs,
   return {};
 }
 
+WasiExpect<uint64_t> INode::getNativeHandler() const noexcept {
+  return reinterpret_cast<uint64_t>(Handle);
+}
+
 WasiExpect<void> INode::pathCreateDirectory(std::string) const noexcept {
   return WasiUnexpect(__WASI_ERRNO_NOSYS);
 }

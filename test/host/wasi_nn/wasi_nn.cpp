@@ -1,18 +1,19 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2019-2022 Second State INC
-#include "common/defines.h"
-#include <gtest/gtest.h>
 
+#include "common/defines.h"
 #include "host/wasi_nn/wasinnenv.h"
 #include "host/wasi_nn/wasinnfunc.h"
+
 #include <algorithm>
 #include <cstdint>
 #include <fstream>
+#include <gtest/gtest.h>
 #include <numeric>
 #include <vector>
 
-#ifdef WASMEDGE_WASINN_BUILD_OPENVINO
 using WasmEdge::Host::WASINN::ErrNo;
+#ifdef WASMEDGE_WASINN_BUILD_OPENVINO
 namespace {
 
 inline std::vector<uint8_t> readBinariesFromDisk(const std::string file_path) {
@@ -69,7 +70,6 @@ TEST(WasiNNTest, OpenVINOBackend) {
   uint32_t OutBoundPtr = UINT32_C(410 * 65536);
   uint32_t StorePtr = UINT32_C(65536);
 
-  LoadEntryPtr = BuilderPtr;
   XmlRead = readBinariesFromDisk("./wasinn_openvino_fixtures/mobilenet.xml");
   WeightRead = readBinariesFromDisk("./wasinn_openvino_fixtures/mobilenet.bin");
 
@@ -230,7 +230,8 @@ TEST(WasiNNTest, OpenVINOBackend) {
 
   // wasi-nn setinput test
   SetInputEntryPtr = BuilderPtr;
-  TensorData = readBinariesFromDisk("./wasinn_openvino_fixtures/tensor.bgr");
+  TensorData = readBinariesFromDisk(
+      "./wasinn_openvino_fixtures/tensor-1x224x224x3-f32.bgr");
   writeFatPointer(MemInst, StorePtr, TensorDim.size(), BuilderPtr);
   writeUInt32(MemInst, UINT32_C(1), BuilderPtr);
   writeFatPointer(MemInst, StorePtr + TensorDim.size() * 4, TensorData.size(),

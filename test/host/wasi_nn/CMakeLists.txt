@@ -5,7 +5,6 @@ wasmedge_add_executable(wasiNNTests
   wasi_nn.cpp
 )
 
-
 if(WASMEDGE_WASINN_BUILD_OPENVINO)
   add_definitions(-DWASMEDGE_WASINN_BUILD_OPENVINO)
   message( STATUS "Download ML artifacts to ${CMAKE_CURRENT_BINARY_DIR}/wasinn_openvino_fixtures") 
@@ -15,7 +14,7 @@ if(WASMEDGE_WASINN_BUILD_OPENVINO)
     OUTPUT_STRIP_TRAILING_WHITESPACE)
   file(MD5 ${CMAKE_CURRENT_BINARY_DIR}/wasinn_openvino_fixtures/mobilenet.bin CHECKSUM_WEIGHT)
   file(MD5 ${CMAKE_CURRENT_BINARY_DIR}/wasinn_openvino_fixtures/mobilenet.xml CHECKSUM_DESCRIP)
-  file(MD5 ${CMAKE_CURRENT_BINARY_DIR}/wasinn_openvino_fixtures/tensor.bgr CHECKSUM_TENSOR)
+  file(MD5 ${CMAKE_CURRENT_BINARY_DIR}/wasinn_openvino_fixtures/tensor-1x224x224x3-f32.bgr CHECKSUM_TENSOR)
   if(NOT CHECKSUM_WEIGHT STREQUAL "ae096b1f735f1e8e54bac8b2a42303bd")
     message( STATUS "mobilenet.bin downloaded with wrong md5") 
   endif()
@@ -23,7 +22,7 @@ if(WASMEDGE_WASINN_BUILD_OPENVINO)
     message( STATUS "mobilenet.xml downloaded with wrong md5") 
   endif()
   if(NOT CHECKSUM_TENSOR STREQUAL "bfca546f4a3b5e6da49b7bd728e2799a")
-    message( STATUS "tensor.bgr downloaded with wrong md5") 
+    message( STATUS "tensor-1x224x224x3-f32.bgr downloaded with wrong md5") 
   endif()
 endif()
 
@@ -34,4 +33,3 @@ target_link_libraries(wasiNNTests
   ${GTEST_BOTH_LIBRARIES}
   wasmedgeHostModuleWasiNN
 )
-

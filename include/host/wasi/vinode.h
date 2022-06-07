@@ -342,6 +342,16 @@ public:
     return Node.fdWrite(IOVs, NWritten);
   }
 
+  /// Get the native handler.
+  ///
+  /// Note: Users should cast this native handler to corresponding types
+  /// on different operating systems. E.g. int on POSIX or void * on Windows
+  ///
+  /// @return The native handler in uint64_t.
+  WasiExpect<uint64_t> getNativeHandler() const noexcept {
+    return Node.getNativeHandler();
+  }
+
   /// Create a directory.
   ///
   /// Note: This is similar to `mkdirat` in POSIX.

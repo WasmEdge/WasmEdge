@@ -62,7 +62,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         [WasmValue::from_i32(2), WasmValue::from_i32(3)],
     )?;
 
-    // set the timeout 2 seconds
+    // set the timeout
     let ok = async_result.wait_for(900);
     assert!(!ok);
 

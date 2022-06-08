@@ -24,6 +24,10 @@ _ldconfig() {
     fi
 }
 
+_realpath() {
+    [[ $1 = /* ]] && echo "$1" || echo "$PWD/${1#./}"
+}
+
 _downloader() {
     local url=$1
     if ! command -v curl &>/dev/null; then
@@ -573,7 +577,7 @@ main() {
             VERBOSE=1
             ;;
         p | path)
-            IPATH="${OPTARG}"
+            IPATH="$(_realpath "${OPTARG}")"
             default=1
             ;;
         r | remove-old)

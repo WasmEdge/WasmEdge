@@ -1058,6 +1058,15 @@ public:
     }
   }
 
+  WasiExpect<uint64_t> getNativeHandler(__wasi_fd_t Fd) const noexcept {
+    auto Node = getNodeOrNull(Fd);
+    if (unlikely(!Node)) {
+      return WasiUnexpect(__WASI_ERRNO_BADF);
+    } else {
+      return Node->getNativeHandler();
+    }
+  }
+
   static std::string randomFilename() noexcept {
     using namespace std::literals;
     static constexpr const auto Charset =

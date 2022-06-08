@@ -23,7 +23,7 @@ android {
 
     sourceSets{
         main{
-            assets.srcDirs = ['../../../../tools/wasmedge/examples']
+            assets.srcDirs = ['../../../../examples/wasm']
         }
     }
 

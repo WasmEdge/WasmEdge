@@ -545,6 +545,10 @@ WasiExpect<void> INode::fdWrite(Span<Span<const uint8_t>> IOVs,
   return {};
 }
 
+WasiExpect<uint64_t> INode::getNativeHandler() const noexcept {
+  return static_cast<uint64_t>(Fd);
+}
+
 WasiExpect<void> INode::pathCreateDirectory(std::string Path) const noexcept {
   if (auto Res = ::mkdirat(Fd, Path.c_str(), 0755); unlikely(Res != 0)) {
     return WasiUnexpect(fromErrNo(errno));

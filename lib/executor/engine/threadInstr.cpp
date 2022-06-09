@@ -6,7 +6,7 @@
 namespace WasmEdge {
 namespace Executor {
 
-Expect<void> Executor::runAtomicNofityOp(
+Expect<void> Executor::runAtomicNotifyOp(
     Runtime::StackManager &StackMgr,
     [[maybe_unused]] Runtime::Instance::MemoryInstance &MemInst,
     [[maybe_unused]] const AST::Instruction &Instr) {

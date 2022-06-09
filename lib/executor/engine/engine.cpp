@@ -1613,7 +1613,7 @@ Expect<void> Executor::execute(Runtime::StackManager &StackMgr,
       return runMemoryFenceOp();
 
     case OpCode::Memory__atomic__notify:
-      return runAtomicNofityOp(
+      return runAtomicNotifyOp(
           StackMgr, *getMemInstByIdx(StackMgr, Instr.getTargetIndex()), Instr);
     case OpCode::Memory__atomic__wait32:
       return runAtomicWaitOp<int32_t>(

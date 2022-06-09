@@ -819,6 +819,8 @@ E(ExecutionFailed, 0x8D, "host function failed")
 E(RefTypeMismatch, 0x8E, "reference type mismatch")
 // Unaligned atomic memory access
 E(UnalignedAtomicAccess, 0x8F, "unaligned atomic")
+// wait32/wait64 on unshared memory
+E(WaitOnUnsharedMemory, 0x90, "wait on unshared memory")
 // @}
 
 #undef E

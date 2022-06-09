@@ -2734,7 +2734,7 @@ public:
       case OpCode::Atomic__fence:
         return compileMemoryFence();
       case OpCode::Memory__atomic__notify:
-        return compileAtomicNotify();
+        return compileAtomicNotify(Instr.getTargetIndex());
       case OpCode::Memory__atomic__wait32:
         return compileAtomicWait(Instr.getTargetIndex(), 32);
       case OpCode::Memory__atomic__wait64:
@@ -3235,18 +3235,22 @@ public:
   void compileMemoryFence() {
     Builder.CreateFence(llvm::AtomicOrdering::SequentiallyConsistent);
   }
-  void compileAtomicNotify() {
-    Builder.CreateCall(Context.getIntrinsic(
-                           Builder,
-                           AST::Module::Intrinsics::kMemoryAtomicNotify,
-                           llvm::FunctionType::get(Context.VoidTy, {}, false)),
-                       {});
+  void compileAtomicNotify(uint32_t MemIdx) {
+    auto *Count = stackPop();
+    auto *Offset = stackPop();
+    stackPush(Builder.CreateCall(
+        Context.getIntrinsic(
+            Builder, AST::Module::Intrinsics::kMemoryAtomicNotify,
+            llvm::FunctionType::get(
+                Context.Int32Ty,
+                {Context.Int32Ty, Context.Int32Ty, Context.Int32Ty}, false)),
+        {Builder.getInt32(MemIdx), Offset, Count}));
   }
-  void compileAtomicWait(unsigned MemIdx, unsigned BitWidth) {
-    auto *Offset = Builder.CreateSExtOrTrunc(stackPop(), Context.Int32Ty);
+  void compileAtomicWait(uint32_t MemIdx, uint32_t BitWidth) {
+    auto *Timeout = stackPop();
     auto *ExpectedValue =
-        Builder.CreateSExtOrTrunc(stackPop(), Context.Int64Ty);
-    auto *Timeout = Builder.CreateSExtOrTrunc(stackPop(), Context.Int64Ty);
+        Builder.CreateZExtOrTrunc(stackPop(), Context.Int64Ty);
+    auto *Offset = stackPop();
 
     stackPush(Builder.CreateCall(
         Context.getIntrinsic(

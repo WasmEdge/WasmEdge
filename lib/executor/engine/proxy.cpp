@@ -397,55 +397,33 @@ Expect<RefVariant> Executor::refFunc(Runtime::StackManager &StackMgr,
   return FuncRef(*FuncInst);
 }
 
-Expect<void> Executor::memoryAtomicNotify(Runtime::StackManager &) noexcept {
-  return {};
+Expect<uint32_t> Executor::memoryAtomicNotify(Runtime::StackManager &StackMgr,
+                                              const uint32_t MemIdx,
+                                              const uint32_t Offset,
+                                              const uint32_t Count) noexcept {
+  auto *MemInst = getMemInstByIdx(StackMgr, MemIdx);
+  assuming(MemInst);
+
+  return atomicNotify(*MemInst, Offset, Count);
 }
 
-Expect<uint32_t> Executor::memoryAtomicWait(
-    Runtime::StackManager &StackMgr, const uint32_t MemIdx, const uint32_t Off,
-    const uint64_t Expected, const uint64_t, const uint32_t BitWidth) noexcept {
-
-  if ((Off & 3) != 0) {
-    spdlog::error(ErrCode::UnalignedAtomicAccess);
-    return Unexpect(ErrCode::UnalignedAtomicAccess);
-  }
-
+Expect<uint32_t> Executor::memoryAtomicWait(Runtime::StackManager &StackMgr,
+                                            const uint32_t MemIdx,
+                                            const uint32_t Offset,
+                                            const uint64_t Expected,
+                                            const int64_t Timeout,
+                                            const uint32_t BitWidth) noexcept {
   auto *MemInst = getMemInstByIdx(StackMgr, MemIdx);
   assuming(MemInst);
 
   if (BitWidth == 64) {
-    uint64_t *RawPointer = MemInst->getPointer<uint64_t *>(Off);
-    if (!RawPointer) {
-      spdlog::error(ErrCode::MemoryOutOfBounds);
-      return Unexpect(ErrCode::MemoryOutOfBounds);
-    }
-    auto *AtomicObj = static_cast<std::atomic<uint64_t> *>(
-        reinterpret_cast<void *>(RawPointer));
-
-    uint64_t Load = AtomicObj->load();
-
-    if (Load == Expected) {
-      return {static_cast<uint32_t>(0)};
-    } else {
-      return {static_cast<uint32_t>(1)};
-    }
-  } else {
-    uint32_t *RawPointer = MemInst->getPointer<uint32_t *>(Off);
-    if (!RawPointer) {
-      spdlog::error(ErrCode::MemoryOutOfBounds);
-      return Unexpect(ErrCode::MemoryOutOfBounds);
-    }
-    auto *AtomicObj = static_cast<std::atomic<uint32_t> *>(
-        reinterpret_cast<void *>(RawPointer));
-
-    auto Load = AtomicObj->load();
-
-    if (Load == Expected) {
-      return {static_cast<uint32_t>(0)};
-    } else {
-      return {static_cast<uint32_t>(1)};
-    }
+    return atomicWait<uint64_t>(*MemInst, Offset, Expected, Timeout);
+  } else if (BitWidth == 32) {
+    return atomicWait<uint32_t>(*MemInst, Offset,
+                                static_cast<uint32_t>(Expected), Timeout);
   }
+
+  assumingUnreachable();
 }
 
 } // namespace Executor

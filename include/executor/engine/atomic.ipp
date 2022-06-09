@@ -3,6 +3,7 @@
 
 #include "executor/executor.h"
 #include "runtime/instance/memory.h"
+#include <experimental/scope.hpp>
 
 #include <cstdint>
 
@@ -13,23 +14,48 @@ template <typename T>
 TypeT<T> Executor::runAtomicWaitOp(Runtime::StackManager &StackMgr,
                                    Runtime::Instance::MemoryInstance &MemInst,
                                    const AST::Instruction &Instr) {
+  ValVariant RawAddress = StackMgr.pop();
+  ValVariant RawValue = StackMgr.pop();
+  ValVariant &RawTimeout = StackMgr.getTop();
 
-  const uint32_t BitWidth = sizeof(T) * 8;
-  ValVariant Address = StackMgr.pop();
-  ValVariant Val = StackMgr.pop();
-  [[maybe_unused]] ValVariant Timeout = StackMgr.pop();
-
-  StackMgr.push(Address);
-  runLoadOp<T>(StackMgr, MemInst, Instr, BitWidth);
-  ValVariant &Loaded = StackMgr.getTop();
-
-  if (Loaded.get<T>() == Val.get<T>()) {
-    Loaded.emplace<T>(static_cast<T>(0));
-  } else {
-    Loaded.emplace<T>(static_cast<T>(1));
+  uint32_t Address = RawAddress.get<uint32_t>();
+  if (Address >
+      std::numeric_limits<uint32_t>::max() - Instr.getMemoryOffset()) {
+    spdlog::error(ErrCode::MemoryOutOfBounds);
+    spdlog::error(ErrInfo::InfoBoundary(
+        Address + static_cast<uint64_t>(Instr.getMemoryOffset()), sizeof(T),
+        MemInst.getBoundIdx()));
+    spdlog::error(
+        ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
+    return Unexpect(ErrCode::MemoryOutOfBounds);
   }
-  // Wait will be supported in C++20
-  // TODO: Implement Timeout
+  Address += Instr.getMemoryOffset();
+
+  if (Address % sizeof(T) != 0) {
+    spdlog::error(ErrCode::UnalignedAtomicAccess);
+    spdlog::error(
+        ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
+    return Unexpect(ErrCode::UnalignedAtomicAccess);
+  }
+
+  if (auto *AtomicObj = MemInst.getPointer<std::atomic<T> *>(Address);
+      !AtomicObj) {
+    spdlog::error(ErrCode::MemoryOutOfBounds);
+    spdlog::error(
+        ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
+    return Unexpect(ErrCode::MemoryOutOfBounds);
+  }
+
+  int64_t Timeout = RawTimeout.get<int64_t>();
+
+  if (auto Res = atomicWait<T>(MemInst, Address, RawValue.get<T>(), Timeout);
+      unlikely(!Res)) {
+    spdlog::error(
+        ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
+    return Unexpect(Res);
+  } else {
+    RawTimeout.emplace<uint32_t>(*Res);
+  }
   return {};
 }
 
@@ -410,6 +436,61 @@ Executor::runAtomicCompareExchangeOp(Runtime::StackManager &StackMgr,
   AtomicObj->compare_exchange_strong(Expected, Replacement);
   RawAddress.emplace<T>(static_cast<T>(Expected));
   return {};
+}
+
+template <typename T>
+Expect<uint32_t>
+Executor::atomicWait(Runtime::Instance::MemoryInstance &MemInst,
+                     uint32_t Address, T Expected, int64_t Timeout) noexcept {
+  if (!MemInst.isShared()) {
+    spdlog::error(ErrCode::WaitOnUnsharedMemory);
+    return Unexpect(ErrCode::WaitOnUnsharedMemory);
+  }
+
+  std::optional<std::chrono::time_point<std::chrono::steady_clock>> Until;
+  if (Timeout >= 0) {
+    Until.emplace(std::chrono::steady_clock::now() +
+                  std::chrono::nanoseconds(Timeout));
+  }
+
+  auto *AtomicObj = MemInst.getPointer<std::atomic<T> *>(Address);
+  assuming(AtomicObj);
+
+  if (AtomicObj->load() != Expected) {
+    return UINT32_C(1); // NotEqual
+  }
+
+  decltype(WaiterMap)::iterator WaiterIterator;
+  {
+    std::unique_lock<decltype(WaiterMapMutex)> Locker(WaiterMapMutex);
+    WaiterIterator = WaiterMap.emplace(Address, &MemInst);
+  }
+
+  cxx20::scope_exit ScopeExitHolder([&]() noexcept {
+    std::unique_lock<decltype(WaiterMapMutex)> Locker(WaiterMapMutex);
+    WaiterMap.erase(WaiterIterator);
+  });
+
+  while (true) {
+    std::unique_lock<decltype(WaiterIterator->second.Mutex)> Locker(
+        WaiterIterator->second.Mutex);
+    std::cv_status WaitResult = std::cv_status::no_timeout;
+    if (!Until) {
+      WaiterIterator->second.Cond.wait(Locker);
+    } else {
+      WaitResult = WaiterIterator->second.Cond.wait_until(Locker, *Until);
+    }
+    if (unlikely(StopToken.load(std::memory_order_relaxed) != 0)) {
+      spdlog::error(ErrCode::Interrupted);
+      return Unexpect(ErrCode::Interrupted);
+    }
+    if (likely(AtomicObj->load() != Expected)) {
+      return UINT32_C(0); // ok
+    }
+    if (WaitResult == std::cv_status::timeout) {
+      return UINT32_C(2); // Timed-out
+    }
+  }
 }
 
 } // namespace Executor

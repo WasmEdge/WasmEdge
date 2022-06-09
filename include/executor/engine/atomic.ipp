@@ -37,8 +37,6 @@ template <typename T, typename I>
 TypeT<T> Executor::runAtomicLoadOp(Runtime::StackManager &StackMgr,
                                    Runtime::Instance::MemoryInstance &MemInst,
                                    const AST::Instruction &Instr) {
-
-  const uint32_t BitWidth = sizeof(I) * 8;
   ValVariant &RawAddress = StackMgr.getTop();
   uint32_t Address = RawAddress.get<uint32_t>();
 
@@ -46,7 +44,7 @@ TypeT<T> Executor::runAtomicLoadOp(Runtime::StackManager &StackMgr,
       std::numeric_limits<uint32_t>::max() - Instr.getMemoryOffset()) {
     spdlog::error(ErrCode::MemoryOutOfBounds);
     spdlog::error(ErrInfo::InfoBoundary(
-        Address + static_cast<uint64_t>(Instr.getMemoryOffset()), BitWidth / 8,
+        Address + static_cast<uint64_t>(Instr.getMemoryOffset()), sizeof(I),
         MemInst.getBoundIdx()));
     spdlog::error(
         ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
@@ -54,7 +52,7 @@ TypeT<T> Executor::runAtomicLoadOp(Runtime::StackManager &StackMgr,
   }
   Address += Instr.getMemoryOffset();
 
-  if ((Address & ((BitWidth >> 3U) - 1)) != 0) {
+  if (Address % sizeof(I) != 0) {
     spdlog::error(ErrCode::UnalignedAtomicAccess);
     spdlog::error(
         ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
@@ -79,8 +77,6 @@ template <typename T, typename I>
 TypeT<T> Executor::runAtomicStoreOp(Runtime::StackManager &StackMgr,
                                     Runtime::Instance::MemoryInstance &MemInst,
                                     const AST::Instruction &Instr) {
-
-  const uint32_t BitWidth = sizeof(I) * 8;
   ValVariant RawValue = StackMgr.pop();
   ValVariant RawAddress = StackMgr.pop();
   uint32_t Address = RawAddress.get<uint32_t>();
@@ -89,7 +85,7 @@ TypeT<T> Executor::runAtomicStoreOp(Runtime::StackManager &StackMgr,
       std::numeric_limits<uint32_t>::max() - Instr.getMemoryOffset()) {
     spdlog::error(ErrCode::MemoryOutOfBounds);
     spdlog::error(ErrInfo::InfoBoundary(
-        Address + static_cast<uint64_t>(Instr.getMemoryOffset()), BitWidth / 8,
+        Address + static_cast<uint64_t>(Instr.getMemoryOffset()), sizeof(I),
         MemInst.getBoundIdx()));
     spdlog::error(
         ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
@@ -97,7 +93,7 @@ TypeT<T> Executor::runAtomicStoreOp(Runtime::StackManager &StackMgr,
   }
   Address += Instr.getMemoryOffset();
 
-  if ((Address & ((BitWidth >> 3U) - 1)) != 0) {
+  if (Address % sizeof(I) != 0) {
     spdlog::error(ErrCode::UnalignedAtomicAccess);
     spdlog::error(
         ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
@@ -122,7 +118,6 @@ template <typename T, typename I>
 TypeT<T> Executor::runAtomicAddOp(Runtime::StackManager &StackMgr,
                                   Runtime::Instance::MemoryInstance &MemInst,
                                   const AST::Instruction &Instr) {
-  const uint32_t BitWidth = sizeof(I) * 8;
   ValVariant RawValue = StackMgr.pop();
   ValVariant &RawAddress = StackMgr.getTop();
   uint32_t Address = RawAddress.get<uint32_t>();
@@ -131,7 +126,7 @@ TypeT<T> Executor::runAtomicAddOp(Runtime::StackManager &StackMgr,
       std::numeric_limits<uint32_t>::max() - Instr.getMemoryOffset()) {
     spdlog::error(ErrCode::MemoryOutOfBounds);
     spdlog::error(ErrInfo::InfoBoundary(
-        Address + static_cast<uint64_t>(Instr.getMemoryOffset()), BitWidth / 8,
+        Address + static_cast<uint64_t>(Instr.getMemoryOffset()), sizeof(I),
         MemInst.getBoundIdx()));
     spdlog::error(
         ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
@@ -139,7 +134,7 @@ TypeT<T> Executor::runAtomicAddOp(Runtime::StackManager &StackMgr,
   }
   Address += Instr.getMemoryOffset();
 
-  if ((Address & ((BitWidth >> 3U) - 1)) != 0) {
+  if (Address % sizeof(I) != 0) {
     spdlog::error(ErrCode::UnalignedAtomicAccess);
     spdlog::error(
         ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
@@ -165,7 +160,6 @@ template <typename T, typename I>
 TypeT<T> Executor::runAtomicSubOp(Runtime::StackManager &StackMgr,
                                   Runtime::Instance::MemoryInstance &MemInst,
                                   const AST::Instruction &Instr) {
-  const uint32_t BitWidth = sizeof(I) * 8;
   ValVariant RawValue = StackMgr.pop();
   ValVariant &RawAddress = StackMgr.getTop();
   uint32_t Address = RawAddress.get<uint32_t>();
@@ -174,7 +168,7 @@ TypeT<T> Executor::runAtomicSubOp(Runtime::StackManager &StackMgr,
       std::numeric_limits<uint32_t>::max() - Instr.getMemoryOffset()) {
     spdlog::error(ErrCode::MemoryOutOfBounds);
     spdlog::error(ErrInfo::InfoBoundary(
-        Address + static_cast<uint64_t>(Instr.getMemoryOffset()), BitWidth / 8,
+        Address + static_cast<uint64_t>(Instr.getMemoryOffset()), sizeof(I),
         MemInst.getBoundIdx()));
     spdlog::error(
         ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
@@ -182,7 +176,7 @@ TypeT<T> Executor::runAtomicSubOp(Runtime::StackManager &StackMgr,
   }
   Address += Instr.getMemoryOffset();
 
-  if ((Address & ((BitWidth >> 3U) - 1)) != 0) {
+  if (Address % sizeof(I) != 0) {
     spdlog::error(ErrCode::UnalignedAtomicAccess);
     spdlog::error(
         ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
@@ -208,7 +202,6 @@ template <typename T, typename I>
 TypeT<T> Executor::runAtomicOrOp(Runtime::StackManager &StackMgr,
                                  Runtime::Instance::MemoryInstance &MemInst,
                                  const AST::Instruction &Instr) {
-  const uint32_t BitWidth = sizeof(I) * 8;
   ValVariant RawValue = StackMgr.pop();
   ValVariant &RawAddress = StackMgr.getTop();
   uint32_t Address = RawAddress.get<uint32_t>();
@@ -217,7 +210,7 @@ TypeT<T> Executor::runAtomicOrOp(Runtime::StackManager &StackMgr,
       std::numeric_limits<uint32_t>::max() - Instr.getMemoryOffset()) {
     spdlog::error(ErrCode::MemoryOutOfBounds);
     spdlog::error(ErrInfo::InfoBoundary(
-        Address + static_cast<uint64_t>(Instr.getMemoryOffset()), BitWidth / 8,
+        Address + static_cast<uint64_t>(Instr.getMemoryOffset()), sizeof(I),
         MemInst.getBoundIdx()));
     spdlog::error(
         ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
@@ -225,7 +218,7 @@ TypeT<T> Executor::runAtomicOrOp(Runtime::StackManager &StackMgr,
   }
   Address += Instr.getMemoryOffset();
 
-  if ((Address & ((BitWidth >> 3U) - 1)) != 0) {
+  if (Address % sizeof(I) != 0) {
     spdlog::error(ErrCode::UnalignedAtomicAccess);
     spdlog::error(
         ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
@@ -251,7 +244,6 @@ template <typename T, typename I>
 TypeT<T> Executor::runAtomicAndOp(Runtime::StackManager &StackMgr,
                                   Runtime::Instance::MemoryInstance &MemInst,
                                   const AST::Instruction &Instr) {
-  const uint32_t BitWidth = sizeof(I) * 8;
   ValVariant RawValue = StackMgr.pop();
   ValVariant &RawAddress = StackMgr.getTop();
   uint32_t Address = RawAddress.get<uint32_t>();
@@ -260,7 +252,7 @@ TypeT<T> Executor::runAtomicAndOp(Runtime::StackManager &StackMgr,
       std::numeric_limits<uint32_t>::max() - Instr.getMemoryOffset()) {
     spdlog::error(ErrCode::MemoryOutOfBounds);
     spdlog::error(ErrInfo::InfoBoundary(
-        Address + static_cast<uint64_t>(Instr.getMemoryOffset()), BitWidth / 8,
+        Address + static_cast<uint64_t>(Instr.getMemoryOffset()), sizeof(I),
         MemInst.getBoundIdx()));
     spdlog::error(
         ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
@@ -268,7 +260,7 @@ TypeT<T> Executor::runAtomicAndOp(Runtime::StackManager &StackMgr,
   }
   Address += Instr.getMemoryOffset();
 
-  if ((Address & ((BitWidth >> 3U) - 1)) != 0) {
+  if (Address % sizeof(I) != 0) {
     spdlog::error(ErrCode::UnalignedAtomicAccess);
     spdlog::error(
         ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
@@ -294,7 +286,6 @@ template <typename T, typename I>
 TypeT<T> Executor::runAtomicXorOp(Runtime::StackManager &StackMgr,
                                   Runtime::Instance::MemoryInstance &MemInst,
                                   const AST::Instruction &Instr) {
-  const uint32_t BitWidth = sizeof(I) * 8;
   ValVariant RawValue = StackMgr.pop();
   ValVariant &RawAddress = StackMgr.getTop();
   uint32_t Address = RawAddress.get<uint32_t>();
@@ -303,7 +294,7 @@ TypeT<T> Executor::runAtomicXorOp(Runtime::StackManager &StackMgr,
       std::numeric_limits<uint32_t>::max() - Instr.getMemoryOffset()) {
     spdlog::error(ErrCode::MemoryOutOfBounds);
     spdlog::error(ErrInfo::InfoBoundary(
-        Address + static_cast<uint64_t>(Instr.getMemoryOffset()), BitWidth / 8,
+        Address + static_cast<uint64_t>(Instr.getMemoryOffset()), sizeof(I),
         MemInst.getBoundIdx()));
     spdlog::error(
         ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
@@ -311,7 +302,7 @@ TypeT<T> Executor::runAtomicXorOp(Runtime::StackManager &StackMgr,
   }
   Address += Instr.getMemoryOffset();
 
-  if ((Address & ((BitWidth >> 3U) - 1)) != 0) {
+  if (Address % sizeof(I) != 0) {
     spdlog::error(ErrCode::UnalignedAtomicAccess);
     spdlog::error(
         ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
@@ -338,8 +329,6 @@ TypeT<T>
 Executor::runAtomicExchangeOp(Runtime::StackManager &StackMgr,
                               Runtime::Instance::MemoryInstance &MemInst,
                               const AST::Instruction &Instr) {
-
-  const uint32_t BitWidth = sizeof(I) * 8;
   ValVariant RawValue = StackMgr.pop();
   ValVariant &RawAddress = StackMgr.getTop();
   uint32_t Address = RawAddress.get<uint32_t>();
@@ -348,7 +337,7 @@ Executor::runAtomicExchangeOp(Runtime::StackManager &StackMgr,
       std::numeric_limits<uint32_t>::max() - Instr.getMemoryOffset()) {
     spdlog::error(ErrCode::MemoryOutOfBounds);
     spdlog::error(ErrInfo::InfoBoundary(
-        Address + static_cast<uint64_t>(Instr.getMemoryOffset()), BitWidth / 8,
+        Address + static_cast<uint64_t>(Instr.getMemoryOffset()), sizeof(I),
         MemInst.getBoundIdx()));
     spdlog::error(
         ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
@@ -356,7 +345,7 @@ Executor::runAtomicExchangeOp(Runtime::StackManager &StackMgr,
   }
   Address += Instr.getMemoryOffset();
 
-  if ((Address & ((BitWidth >> 3U) - 1)) != 0) {
+  if (Address % sizeof(I) != 0) {
     spdlog::error(ErrCode::UnalignedAtomicAccess);
     spdlog::error(
         ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
@@ -383,8 +372,6 @@ TypeT<T>
 Executor::runAtomicCompareExchangeOp(Runtime::StackManager &StackMgr,
                                      Runtime::Instance::MemoryInstance &MemInst,
                                      const AST::Instruction &Instr) {
-
-  const uint32_t BitWidth = sizeof(I) * 8;
   ValVariant RawReplacement = StackMgr.pop();
   ValVariant RawExpected = StackMgr.pop();
   ValVariant &RawAddress = StackMgr.getTop();
@@ -394,7 +381,7 @@ Executor::runAtomicCompareExchangeOp(Runtime::StackManager &StackMgr,
       std::numeric_limits<uint32_t>::max() - Instr.getMemoryOffset()) {
     spdlog::error(ErrCode::MemoryOutOfBounds);
     spdlog::error(ErrInfo::InfoBoundary(
-        Address + static_cast<uint64_t>(Instr.getMemoryOffset()), BitWidth / 8,
+        Address + static_cast<uint64_t>(Instr.getMemoryOffset()), sizeof(I),
         MemInst.getBoundIdx()));
     spdlog::error(
         ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
@@ -402,7 +389,7 @@ Executor::runAtomicCompareExchangeOp(Runtime::StackManager &StackMgr,
   }
   Address += Instr.getMemoryOffset();
 
-  if ((Address & ((BitWidth >> 3U) - 1)) != 0) {
+  if (Address % sizeof(I) != 0) {
     spdlog::error(ErrCode::UnalignedAtomicAccess);
     spdlog::error(
         ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));

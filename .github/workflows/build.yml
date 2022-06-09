@@ -174,45 +174,6 @@ jobs:
         name: WasmEdge-${{ env.srpm_version }}-1.fc37.src.rpm
         path: /github/home/rpmbuild/SRPMS/wasmedge-${{ env.srpm_version }}-1.fc37.src.rpm
 
-  build_ubuntu_wasi_nn:
-    strategy:
-      matrix:
-        include:
-          - name: OpenVINO g++ release
-            compiler: g++
-            docker_tag: ubuntu-build-gcc
-            build_type: Release
-            openvino: true
-            coverage: false
-          - name: OpenVINO clang++ release
-            compiler: clang++
-            docker_tag: ubuntu-build-clang
-            build_type: Release
-            openvino: true
-            coverage: false
-    name: WASI-NN Ubuntu 20.04 with ${{ matrix.name }}
-    runs-on: ubuntu-latest
-    container:
-      image: wasmedge/wasmedge:${{ matrix.docker_tag }}
-    steps:
-    - uses: actions/checkout@v2
-      with:
-        fetch-depth: 0
-    - if: ${{ matrix.openvino }}
-      name: Build WASI-NN OpenVINO backend using ${{ matrix.compiler }} with ${{ matrix.build_type }} mode
-      env:
-        CMAKE_BUILD_TYPE: ${{ matrix.build_type }}
-        OPENVINO_VERSION: "2021.4.582"
-        OPENVINO_YEAR: "2021"
-      run: |
-        chmod +x utils/docker/build-wasinn-ubuntu-openvino.sh
-        bash utils/docker/build-wasinn-ubuntu-openvino.sh
-    - name: Test WasmEdge
-      if: ${{ ! matrix.coverage }}
-      run: |
-        chmod +x utils/docker/test-wasinn-ubuntu-openvino.sh
-        bash utils/docker/test-wasinn-ubuntu-openvino.sh
-
   build_ubuntu:
     strategy:
       matrix:

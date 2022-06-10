@@ -12,7 +12,6 @@ on:
       - '.github/workflows/rust*.yml'
       - 'docs/**'
       - 'bindings/**'
-      - 'rpm/**'
       - '**/*.md'
   pull_request:
     branches:
@@ -22,7 +21,6 @@ on:
       - '.github/workflows/rust*.yml'
       - 'docs/**'
       - 'bindings/**'
-      - 'rpm/**'
       - '**/*.md'
 
 jobs:
@@ -122,6 +120,47 @@ jobs:
       with:
         name: WasmEdge-${{ needs.get_version_v2.outputs.version }}-fedora35.tar.gz
         path: build/WasmEdge-${{ needs.get_version_v2.outputs.version }}-Linux.tar.gz
+
+  build_fedora_srpm:
+    name: Fedora SRPM
+    needs: [get_version_v2, create_source_tarball]
+    runs-on: ubuntu-latest
+    container:
+      image: fedora:rawhide
+    steps:
+    - name: Install requirment
+      run: |
+        dnf update -y
+        dnf install -y git gcc-c++ cmake ninja-build boost-devel spdlog-devel llvm-devel lld-devel rpm-build
+    - uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
+    - name: Prepare source tarball for SRPM
+      uses: actions/download-artifact@v3
+      with:
+        name: WasmEdge-${{ needs.get_version_v2.outputs.version }}-src.tar.gz
+        path: /github/home/rpmbuild/SOURCES
+    - name: Rename source tarball
+      working-directory: /github/home/rpmbuild/SOURCES
+      run: |
+        mv WasmEdge-${{ needs.get_version_v2.outputs.version }}.tar.gz WasmEdge-${{ needs.get_version_v2.outputs.version }}-src.tar.gz
+    - name: Prepare SRPM version
+      run: |
+        GIT_TAG=${{ needs.get_version_v2.outputs.version }}
+        SRPM_VERSION=$(echo $GIT_TAG | tr '-' '~')
+        echo "srpm_version=$SRPM_VERSION" >> $GITHUB_ENV
+    - name: Build WasmEdge SRPM
+      run: |
+        git config --global --add safe.directory $(pwd)
+        mkdir -p build
+        cd build
+        cmake ..
+        rpmbuild -ba rpm/wasmedge.spec
+    - name: Upload artifact
+      uses: actions/upload-artifact@v2
+      with:
+        name: WasmEdge-${{ env.srpm_version }}-1.fc37.src.rpm
+        path: /github/home/rpmbuild/SRPMS/wasmedge-${{ env.srpm_version }}-1.fc37.src.rpm
 
   build_ubuntu:
     strategy:

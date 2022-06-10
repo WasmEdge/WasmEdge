@@ -1,4 +1,4 @@
-### 0.10.0-rc.1 (2022-05-24)
+### 0.10.0 (2022-05-26)
 
 Breaking changes:
 
@@ -122,9 +122,9 @@ Tests:
 
 Thank all the contributors that made this release possible!
 
-朱亚光, Abhinandan Udupa, Ang Lee, Binbin Zhang, Chin Zhi Wei, DarumaDocker, Elon Cheng, FlyingOnion, Hanged Fish, Herschel Wang, JIAN ZHONG, JcJinChen, Jeremy, JessesChou, JieDing, Kodalien, Kunshuai Zhu, LFsWang, LaingKe, Michael Yuan, Nicholas Zhan, 华德禹, O3Ol, Rui Li, Shen-Ta Hsieh, Shreyas Atre, Sylveon, TheLightRunner, Vaniot, Vinson, 罗泽轩, Xin Liu, Yi Huang, YiYing He, YoungLH, abhinandanudupa, border1px, eat4toast, hydai, jerbmarx, luckyJ-nj, meoww-bot, mydreamer4134, situ2001, tpmccallum, treeplus, wangyuan249, yale, 王琦
+朱亚光, Abhinandan Udupa, Ang Lee, Binbin Zhang, Chin Zhi Wei, DarumaDocker, Elon Cheng, FlyingOnion, Hanged Fish, Herschel Wang, JIAN ZHONG, JcJinChen, Jeremy, JessesChou, JieDing, Kodalien, Kunshuai Zhu, LFsWang, LaingKe, MediosZ, Michael Yuan, Nicholas Zhan, 华德禹, O3Ol, Rui Li, Shen-Ta Hsieh, Shreyas Atre, Sylveon, TheLightRunner, Vaniot, Vinson, 罗泽轩, Xin Liu, Yi Huang, YiYing He, YoungLH, abhinandanudupa, border1px, dm4, eat4toast, hydai, jerbmarx, luckyJ-nj, meoww-bot, mydreamer4134, situ2001, tpmccallum, treeplus, wangyuan249, yale, 王琦
 
-If you want to build from source, please use WasmEdge-0.10.0-rc.1-src.tar.gz instead of the zip or tarball provided by GitHub directly.
+If you want to build from source, please use WasmEdge-0.10.0-src.tar.gz instead of the zip or tarball provided by GitHub directly.
 
 ### 0.9.1 (2022-02-10)
 

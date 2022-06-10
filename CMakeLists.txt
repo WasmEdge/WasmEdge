@@ -115,6 +115,7 @@ endif()
 if(WASMEDGE_BUILD_EXAMPLE)
   add_subdirectory(examples/plugin/get-string)
 endif()
+add_subdirectory(rpm)
 
 include(CPack)
 include(CPackComponent)

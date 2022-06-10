@@ -2,7 +2,7 @@
 
 [WasmEdge C API](https://github.com/WasmEdge/WasmEdge/blob/master/include/api/wasmedge/wasmedge.h) denotes an interface to access the WasmEdge runtime. The followings are the guides to working with the C APIs of WasmEdge.
 
-**This document is for the pre-release `0.10.0-alpha.1` version. For the stable `0.9.1` version, please refer to the [document here](0.9.1/ref.md).**
+**This document is for the `0.10.0` version. For the older `0.9.1` version, please refer to the [document here](0.9.1/ref.md).**
 
 **Developers can refer [here to upgrade to 0.10.0](0.9.1/upgrade_to_0.10.0.md).**
 
@@ -47,12 +47,10 @@
 
 ### Download And Install
 
-**This is for the installation of the pre-release `0.10.0-alpha.1` version. For the latest stable release, please use the `0.9.1` version.**
-
 The easiest way to install WasmEdge is to run the following command. Your system should have `git` and `wget` as prerequisites.
 
 ```bash
-curl -sSf https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh | bash -s -- -v 0.10.0-alpha.1
+curl -sSf https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh | bash -s -- -v 0.10.0
 ```
 
 For more details, please refer to the [Installation Guide](/start/install.md) for the WasmEdge installation.
@@ -82,7 +80,7 @@ After the installation of WasmEdge, the following guide can help you to test for
 
     ```bash
     $ ./a.out
-    WasmEdge version: 0.10.0-alpha.1
+    WasmEdge version: 0.10.0
     ```
 
 ## WasmEdge Basics

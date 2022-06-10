@@ -16,7 +16,7 @@ WasmEdge supports the following [WebAssembly proposals](https://github.com/WebAs
 | [Tail call][]                             | `--enable-tail-call`                  | `WasmEdge_Proposal_TailCall`                     |   | ✓ | ✓ |
 | [Multiple memories][]                     | `--enable-multi-memory`               | `WasmEdge_Proposal_MultiMemories`                |   | ✓ | ✓ |
 | [Extended Constant Expressions][]         | `--enable-extended-const`             | `WasmEdge_Proposal_ExtendedConst`                |   | ✓ | ✓ |
-| [Threads][]                               |                                       | `WasmEdge_Proposal_Threads`                      |   |   |   |
+| [Threads][]                               | `--enable-threads`                    | `WasmEdge_Proposal_Threads`                      |   | ✓ | ✓ |
 
 [Import/Export of Mutable Globals]: https://github.com/WebAssembly/mutable-global
 [Non-trapping float-to-int conversions]: https://github.com/WebAssembly/nontrapping-float-to-int-conversions

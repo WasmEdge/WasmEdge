@@ -10,6 +10,8 @@ This example tests the performance of multi-threaded WasmEdge and NodeJS. The C 
     + NodeJS WebAssembly (V8)
     + Multi-threaded with JS Worker threads
 
+Please also read `tutorial.md` for more information.
+
 ## Installation && Test
 
 Please follows the [installation step](https://wasmedge.org/book/en/start/install.html) to install WasmEdge.

@@ -64,6 +64,7 @@
     - [Run a WebAssembly function with WasmEdge low-level APIs](embed/rust/sys_run_host_func.md)
     - [Compute Fibonacci numbers concurrently](embed/rust/concurrent_fib.md)
     - [Usage of WasmEdge module instances](embed/rust/how_to_use_module_instance.md)
+    - [Hello World!](embed/rust/say_hello.md)
   - [Python SDK](embed/python.md)
 
 - [WasmEdge in Kubernetes](kubernetes.md)

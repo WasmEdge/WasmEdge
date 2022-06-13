@@ -1,10 +1,6 @@
 
 # WasmEdge Rust SDK
 
-<!-- @import "[TOC]" {cmd="toc" depthFrom=1 depthTo=6 orderedList=false} -->
-
-<!-- code_chunk_output -->
-
 - [WasmEdge Rust SDK](#wasmedge-rust-sdk)
   - [Introduction](#introduction)
   - [`wasmedge-sdk` crate](#wasmedge-sdk-crate)
@@ -14,9 +10,9 @@
   - [`wasmedge-sys` crate](#wasmedge-sys-crate)
     - [Build in `non-standalone` mode](#build-in-non-standalone-mode)
   - [Docker image](#docker-image)
-    - [Examples](#examples)
-
-<!-- /code_chunk_output -->
+  - [Examples](#examples)
+    - [`wasmedge-sdk` Examples](#wasmedge-sdk-examples)
+    - [`wasmedge-sys` Examples](#wasmedge-sys-examples)
 
 ## Introduction
 
@@ -202,7 +198,13 @@ With the required `WasmEdge` library, you can then choose one of the following w
 
 For those who would like to dev in Docker environment, you can reference the [Use Docker](/src/start/docker.md) section of this book, which details how to use Docker for `WasmEdge` application development.
 
-### Examples
+## Examples
+
+### `wasmedge-sdk` Examples
+
+- [[wasmedge-sdk] Hello World!](rust/say_hello.md)
+
+### `wasmedge-sys` Examples
 
 - [[wasmedge-sys] Run a WebAssembly function with WasmEdge low-level APIs](rust/sys_run_host_func.md)
 

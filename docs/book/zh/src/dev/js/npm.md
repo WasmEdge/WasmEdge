@@ -94,4 +94,4 @@ md5(message)= 78e731027d8fd50ed642340b7c9a63b3
 sqrt(-4)= 2i
 ```
 
-您可以通过这种方式在 WasmEdge 中导入和运行任何纯 JS NPM 包。
+你可以通过这种方式在 WasmEdge 中导入和运行任何纯 JS NPM 包。

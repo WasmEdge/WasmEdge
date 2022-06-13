@@ -2,7 +2,8 @@
     html_logo_url = "https://github.com/cncf/artwork/blob/master/projects/wasm-edge-runtime/icon/color/wasm-edge-runtime-icon-color.png?raw=true",
     html_favicon_url = "https://raw.githubusercontent.com/cncf/artwork/49169bdbc88a7ce3c4a722c641cc2d548bd5c340/projects/wasm-edge-runtime/icon/color/wasm-edge-runtime-icon-color.svg"
 )]
-#![feature(explicit_generic_args_with_impl_trait)]
+// If the version of rust used is less than v1.63, please uncomment the follow attribute.
+// #![feature(explicit_generic_args_with_impl_trait)]
 #![allow(clippy::vec_init_then_push)]
 
 //! # Overview
@@ -41,7 +42,8 @@
 //! The example below is using `wasmedge-sdk` to run a WebAssembly module written with its WAT format (textual format):
 //!
 //!  ```rust
-//!  #![feature(explicit_generic_args_with_impl_trait)]
+//!  // If the version of rust used is less than v1.63, please uncomment the follow attribute.
+//!  // #![feature(explicit_generic_args_with_impl_trait)]
 //!
 //!  use wasmedge_sdk::{Executor, FuncTypeBuilder, ImportObjectBuilder, Module, Store};
 //!  use wasmedge_sys::WasmValue;

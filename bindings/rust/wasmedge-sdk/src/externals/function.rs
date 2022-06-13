@@ -12,7 +12,8 @@ use wasmedge_types::{FuncType, ValType};
 /// The following example shows how to create a host function, and invoke it with a given executor.
 ///
 /// ```rust
-/// #![feature(explicit_generic_args_with_impl_trait)]
+/// // If the version of rust used is less than v1.63,
+/// // #![feature(explicit_generic_args_with_impl_trait)]
 ///
 /// use wasmedge_sdk::{Func, Executor, params, WasmVal};
 /// use wasmedge_sys::WasmValue;

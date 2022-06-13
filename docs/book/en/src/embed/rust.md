@@ -8,8 +8,12 @@
 - [WasmEdge Rust SDK](#wasmedge-rust-sdk)
   - [Introduction](#introduction)
   - [`wasmedge-sdk` crate](#wasmedge-sdk-crate)
+    - [Usage](#usage)
+      - [Embedding](#embedding)
+      - [Build](#build)
   - [`wasmedge-sys` crate](#wasmedge-sys-crate)
-    - [Build](#build)
+    - [Build in `non-standalone` mode](#build-in-non-standalone-mode)
+  - [Docker image](#docker-image)
     - [Examples](#examples)
 
 <!-- /code_chunk_output -->
@@ -29,74 +33,174 @@
 
 ## `wasmedge-sdk` crate
 
+### Usage
+
+#### Embedding
+
+To use `wasmedge-sdk` in your Rust crate, simple add it to your `Cargo.toml`:
+
+```toml
+[dependencies]
+wasmedge-sdk = "0.1.0"
+```
+
+N.B. that since the `WasmEdge` library is a dependency of WasmEdge Rust SDK, it is required that `WasmEdge` is deployed first on your target system. The required header files, library and plugins should be placed in `$HOME/.wasmedge/` directory. The directory structure on Linux looks like below:
+
+```bash
+// $HOME/.wasmedge/
+.
+├── bin
+│   ├── wasmedge
+│   └── wasmedgec
+├── include
+│   └── wasmedge
+│       ├── dense_enum_map.h
+│       ├── enum.inc
+│       ├── enum_configure.h
+│       ├── enum_errcode.h
+│       ├── enum_types.h
+│       ├── int128.h
+│       ├── spare_enum_map.h
+│       ├── version.h
+│       └── wasmedge.h
+└── lib64
+    ├── libwasmedge_c.so
+    └── wasmedge
+        └── libwasmedgePluginWasmEdgeProcess.so
+
+5 directories, 13 files
+```
+
+In the future version, WasmEdge Rust SDK will support the `standalone` mode that supports automatic deployment of the `WasmEdge` library.
+
+#### Build
+
+For those who are interesting in building `wasmedge-sdk` from source, as mentioned before, the `WasmEdge` library should be deployed on your target system before you can build the `wasmedge-sdk` crate.
+
 ## `wasmedge-sys` crate
 
-### Build
+`wasmedge-sys` serves as a wraper layer of `WasmEdge` C-API, and provides a group of safe low-level Rust interfaces. For those who are interested in using `wasmedge-sys` in their projects, two modes are avaible: one is `standalone` mode, the other `non-standalone`. The `standalone` mode is recommended for most of the projects. To enable the `standalone` mode, simply put the following lines in your `Cargo.toml`:
 
-`wasmedge-sys` depends on the dynamic library and the header files of `WasmEdge`. To `cargo build` `wasmedge-sys` there are several choices to specify the dependencies:
+```toml
+[dependencies]
+wasmedge-sys = [version = "0.7.0", features = ["standalone"]]
+```
+
+For those who want to build `wasmedge-sys` from source in terminal, just go to the `wasmedge-sys` directory and type `cargo build --features standalone` command that will compile the `wasmedge-sys` crate in `standalone` mode.
+
+### Build in `non-standalone` mode
+
+For those who would like to use `wasmedge-sys` in the `non-standalone` mode, you should first guarantee that the `WasmEdge` binary is downloaded and deployed in your local environment. The directory structure on `Ubuntu-20.04` looks like below:
+
+```bash
+.
+├── bin
+│   ├── wasmedge
+│   └── wasmedgec
+├── include
+│   └── wasmedge
+│       ├── dense_enum_map.h
+│       ├── enum.inc
+│       ├── enum_configure.h
+│       ├── enum_errcode.h
+│       ├── enum_types.h
+│       ├── int128.h
+│       ├── spare_enum_map.h
+│       ├── version.h
+│       └── wasmedge.h
+└── lib64
+    ├── libwasmedge_c.so
+    └── wasmedge
+        └── libwasmedgePluginWasmEdgeProcess.so
+
+5 directories, 13 files
+```
+
+With the required `WasmEdge` library, you can then choose one of the following ways to build `wasmedge-sys`:
 
 - By specifying `WASMEDGE_INCLUDE_DIR` and `WASMEDGE_LIB_DIR`
 
-  - Suppose that you have already downloaded the `Wasmedge-0.9.1` binary package from [WasmEdge Releases](https://github.com/WasmEdge/WasmEdge/releases) and put it in the `~/workspace/me/` directory. The directory structure of the released package is shown below.
+  N.B. that it is strongly recommended to use this way if you'd like to use `wasmedge-sys` crate in your Rust project, but not want to enable the `standalone` feature.
+
+  - Suppose that you have already downloaded the `Wasmedge-0.10.0` binary package from [WasmEdge Releases](https://github.com/WasmEdge/WasmEdge/releases/tag/0.10.0) to a local directory, for example, `~/workspace/me/`. The directory structure of the released package should looks like below:
 
     ```bash
-    root@0a877562f39e:~/workspace/me/WasmEdge-0.9.1-Linux# pwd
-    /root/workspace/me/WasmEdge-0.9.1-Linux
-
-    root@0a877562f39e:~/workspace/me/WasmEdge-0.9.1-Linux# tree .
+    root@0a877562f39e:~/workspace/me/WasmEdge-0.10.0-Linux# tree .
     .
-    |-- bin
-    |   |-- wasmedge
-    |   `-- wasmedgec
-    |-- include
-    |   `-- wasmedge
-    |       |-- enum_configure.h
-    |       |-- enum_errcode.h
-    |       |-- enum_types.h
-    |       |-- int128.h
-    |       |-- version.h
-    |       `-- wasmedge.h
-    `-- lib64
-        `-- libwasmedge_c.so
+    ├── bin
+    │   ├── wasmedge
+    │   └── wasmedgec
+    ├── include
+    │   └── wasmedge
+    │       ├── dense_enum_map.h
+    │       ├── enum.inc
+    │       ├── enum_configure.h
+    │       ├── enum_errcode.h
+    │       ├── enum_types.h
+    │       ├── int128.h
+    │       ├── spare_enum_map.h
+    │       ├── version.h
+    │       └── wasmedge.h
+    └── lib64
+        ├── libwasmedge_c.so
+        └── wasmedge
+            └── libwasmedgePluginWasmEdgeProcess.so
 
-    4 directories, 9 files
+    5 directories, 13 files
     ```
 
-  - Set `WASMEDGE_INCLUDE_DIR` and `WASMEDGE_LIB_DIR` environment variables to specify the `include` and `lib` (or `lib64`) directories. After that, go to the `wasmedge-sys` directory and `cargo build` the crate.
+  - Use `WASMEDGE_INCLUDE_DIR` and `WASMEDGE_LIB_DIR` environment variables to specify the `include` and `lib` (or `lib64`) directories. After that, you can run `cargo build` command in terminal to build `wasmedge-sys`.
 
     ```bash
-    root@0a877562f39e:~/workspace/me/WasmEdge/bindings/rust/wasmedge-sys# export WASMEDGE_INCLUDE_DIR=/root/workspace/me/WasmEdge-0.9.1-Linux/include/wasmedge
+    root@0a877562f39e:~/workspace/me/WasmEdge/bindings/rust/wasmedge-sys# export WASMEDGE_INCLUDE_DIR=/root/workspace/me/WasmEdge-0.10.0-Linux/include/wasmedge
     
-    root@0a877562f39e:~/workspace/me/WasmEdge/bindings/rust/wasmedge-sys# export WASMEDGE_LIB_DIR=/root/workspace/me/WasmEdge-0.9.1-Linux/lib64
+    root@0a877562f39e:~/workspace/me/WasmEdge/bindings/rust/wasmedge-sys# export WASMEDGE_LIB_DIR=/root/workspace/me/WasmEdge-0.10.0-Linux/lib64
     ```
 
 - By specifying `WASMEDGE_BUILD_DIR`
 
-  - Suppose that you `git clone` WasmEdge repo in `~/workspace/me/WasmEdge`, and follow the [instructions](https://wasmedge.org/book/en/extend/build.html) to build WasmEdge native library. The generated `include` and `lib` directories should be in `~/workspace/me/WasmEdge/build`.
+  N.B. that it is strongly recommended to use this way if you'd like to build the `WasmEdge` binary from the master branch in person.
 
-  - Then, set `WASMEDGE_BUILD_DIR` environment variable to specify the `build` directory. After that, go to the `wasmedge-sys` directory and `cargo build` the crate.
+  - Suppose that you `git clone` WasmEdge repo in your local directory, for example, `~/workspace/me/WasmEdge`, and follow the [instructions](https://wasmedge.org/book/en/extend/build.html) to build WasmEdge native library. After that, you should find the generated `include` and `lib` directories in `~/workspace/me/WasmEdge/build`.
+
+  - Then, use `WASMEDGE_BUILD_DIR` environment variable to specify the `build` directory. After that, you can run `cargo build` command in terminal to build `wasmedge-sys`.
 
     ```bash
     root@0a877562f39e:~/workspace/me/WasmEdge# export WASMEDGE_BUILD_DIR=/root/workspace/me/WasmEdge/build
     ```
 
-- By the `standalone` mode
+- By default location
 
-  Besides the two methods mentioned above, the `standalone` mode enables building `WasmEdge` native library directly before building the crate itself.
+  For those who do not want to define environment variables, you can put the downloaded `WasmEdge` binary package in the default location `$HOME/.wasmedge/`. The directory structure of the default location should looks like below (for example, on `Ubuntu-20.04`):
 
-  - Suppose that you `git clone` WasmEdge repo in `~/workspace/me/WasmEdge`. Go to the `wasmedge-sys` directory, and follow the instructions shown below:
+  ```bash
+  // $HOME/.wasmedge/
+  .
+  ├── bin
+  │   ├── wasmedge
+  │   └── wasmedgec
+  ├── include
+  │   └── wasmedge
+  │       ├── dense_enum_map.h
+  │       ├── enum.inc
+  │       ├── enum_configure.h
+  │       ├── enum_errcode.h
+  │       ├── enum_types.h
+  │       ├── int128.h
+  │       ├── spare_enum_map.h
+  │       ├── version.h
+  │       └── wasmedge.h
+  └── lib64
+      ├── libwasmedge_c.so
+      └── wasmedge
+          └── libwasmedgePluginWasmEdgeProcess.so
 
-    ```bash
-    // set WASMEDGE_DIR
-    root@0a877562f39e:~/workspace/me/WasmEdge/bindings/rust/wasmedge-sys# export WASMEDGE_DIR=/root/workspace/me/WasmEdge
+  5 directories, 13 files
+  ```
+  
+## Docker image
 
-    // cargo build with standalone feature
-    root@0a877562f39e:~/workspace/me/WasmEdge/bindings/rust/wasmedge-sys# cargo build --features standalone
-    ```
-
-- By WasmEdge docker image
-
-  If you choose WasmEdge docker image to build your own container for development, the pre-built WasmEdge binary package is located in `$HOME/.wasmedge` directory by default. The build script (`build.rs`) of `wasmedge-sys` crate can detect the package and build the crate automatically.
+For those who would like to dev in Docker environment, you can reference the [Use Docker](/src/start/docker.md) section of this book, which details how to use Docker for `WasmEdge` application development.
 
 ### Examples
 

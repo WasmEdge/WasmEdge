@@ -9,11 +9,10 @@
 namespace WasmEdge {
 namespace Executor {
 
-template <typename T>
+template <typename T, uint32_t BitWidth>
 TypeT<T> Executor::runLoadOp(Runtime::StackManager &StackMgr,
                              Runtime::Instance::MemoryInstance &MemInst,
-                             const AST::Instruction &Instr,
-                             const uint32_t BitWidth) {
+                             const AST::Instruction &Instr) {
   // Calculate EA
   ValVariant &Val = StackMgr.getTop();
   if (Val.get<uint32_t>() >
@@ -29,7 +28,8 @@ TypeT<T> Executor::runLoadOp(Runtime::StackManager &StackMgr,
   uint32_t EA = Val.get<uint32_t>() + Instr.getMemoryOffset();
 
   // Value = Mem.Data[EA : N / 8]
-  if (auto Res = MemInst.loadValue(Val.emplace<T>(), EA, BitWidth / 8); !Res) {
+  if (auto Res = MemInst.loadValue<T, BitWidth / 8>(Val.emplace<T>(), EA);
+      !Res) {
     spdlog::error(
         ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
     return Unexpect(Res);
@@ -37,11 +37,10 @@ TypeT<T> Executor::runLoadOp(Runtime::StackManager &StackMgr,
   return {};
 }
 
-template <typename T>
+template <typename T, uint32_t BitWidth>
 TypeN<T> Executor::runStoreOp(Runtime::StackManager &StackMgr,
                               Runtime::Instance::MemoryInstance &MemInst,
-                              const AST::Instruction &Instr,
-                              const uint32_t BitWidth) {
+                              const AST::Instruction &Instr) {
   // Pop the value t.const c from the Stack
   T C = StackMgr.pop().get<T>();
 
@@ -59,7 +58,7 @@ TypeN<T> Executor::runStoreOp(Runtime::StackManager &StackMgr,
   uint32_t EA = I + Instr.getMemoryOffset();
 
   // Store value to bytes.
-  if (auto Res = MemInst.storeValue(C, EA, BitWidth / 8); !Res) {
+  if (auto Res = MemInst.storeValue<T, BitWidth / 8>(C, EA); !Res) {
     spdlog::error(
         ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
     return Unexpect(Res);
@@ -89,7 +88,7 @@ Executor::runLoadExpandOp(Runtime::StackManager &StackMgr,
 
   // Value = Mem.Data[EA : N / 8]
   uint64_t Buffer;
-  if (auto Res = MemInst.loadValue(Buffer, EA, 8); !Res) {
+  if (auto Res = MemInst.loadValue<decltype(Buffer), 8>(Buffer, EA); !Res) {
     spdlog::error(
         ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
     return Unexpect(Res);
@@ -134,7 +133,8 @@ Executor::runLoadSplatOp(Runtime::StackManager &StackMgr,
   // Value = Mem.Data[EA : N / 8]
   using VT [[gnu::vector_size(16)]] = T;
   uint64_t Buffer;
-  if (auto Res = MemInst.loadValue(Buffer, EA, sizeof(T)); !Res) {
+  if (auto Res = MemInst.loadValue<decltype(Buffer), sizeof(T)>(Buffer, EA);
+      !Res) {
     spdlog::error(
         ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
     return Unexpect(Res);
@@ -177,7 +177,8 @@ Expect<void> Executor::runLoadLaneOp(Runtime::StackManager &StackMgr,
 
   // Value = Mem.Data[EA : N / 8]
   uint64_t Buffer;
-  if (auto Res = MemInst.loadValue(Buffer, EA, sizeof(T)); !Res) {
+  if (auto Res = MemInst.loadValue<decltype(Buffer), sizeof(T)>(Buffer, EA);
+      !Res) {
     spdlog::error(
         ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
     return Unexpect(Res);
@@ -211,7 +212,7 @@ Executor::runStoreLaneOp(Runtime::StackManager &StackMgr,
   uint32_t EA = I + Instr.getMemoryOffset();
 
   // Store value to bytes.
-  if (auto Res = MemInst.storeValue(C, EA, sizeof(T)); !Res) {
+  if (auto Res = MemInst.storeValue<decltype(C), sizeof(T)>(C, EA); !Res) {
     spdlog::error(
         ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
     return Unexpect(Res);

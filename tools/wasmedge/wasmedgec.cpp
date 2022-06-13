@@ -18,14 +18,6 @@
 #include <utility>
 #include <vector>
 
-#if WASMEDGE_OS_LINUX
-#define EXTENSION ".so"sv
-#elif WASMEDGE_OS_MACOS
-#define EXTENSION ".dylib"sv
-#elif WASMEDGE_OS_WINDOWS
-#define EXTENSION ".dll"sv
-#endif
-
 int main(int Argc, const char *Argv[]) {
   namespace PO = WasmEdge::PO;
   using namespace std::literals;
@@ -200,7 +192,7 @@ int main(int Argc, const char *Argv[]) {
     if (ConfGenericBinary.value()) {
       Conf.getCompilerConfigure().setGenericBinary(true);
     }
-    if (OutputPath.extension().u8string() == EXTENSION) {
+    if (OutputPath.extension().u8string() == WASMEDGE_LIB_EXTENSION) {
       Conf.getCompilerConfigure().setOutputFormat(
           WasmEdge::CompilerConfigure::OutputFormat::Native);
     }

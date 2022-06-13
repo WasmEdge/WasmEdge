@@ -60,13 +60,10 @@
 #endif
 
 #if WASMEDGE_OS_LINUX
-#define EXTENSION ".so"sv
 #define SYMBOL(X) X
 #elif WASMEDGE_OS_MACOS
-#define EXTENSION ".dylib"sv
 #define SYMBOL(X) "_" X
 #elif WASMEDGE_OS_WINDOWS
-#define EXTENSION ".dll"sv
 #define SYMBOL(X) X
 #endif
 
@@ -4297,7 +4294,7 @@ Expect<void> outputWasmLibrary(const std::filesystem::path &OutputPath,
   {
     // tempfile
     std::filesystem::path SOPath(OutputPath);
-    SOPath.replace_extension("%%%%%%%%%%" EXTENSION);
+    SOPath.replace_extension("%%%%%%%%%%" WASMEDGE_LIB_EXTENSION);
     auto Object = llvm::sys::fs::TempFile::create(SOPath.u8string());
     if (!Object) {
       // TODO:return error

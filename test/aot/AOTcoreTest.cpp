@@ -35,14 +35,6 @@
 #include <utility>
 #include <vector>
 
-#if WASMEDGE_OS_LINUX
-#define EXTENSION ".so"sv
-#elif WASMEDGE_OS_MACOS
-#define EXTENSION ".dylib"sv
-#elif WASMEDGE_OS_WINDOWS
-#define EXTENSION ".dll"sv
-#endif
-
 namespace {
 
 using namespace std::literals;
@@ -70,7 +62,7 @@ TEST_P(NativeCoreTest, TestSuites) {
     CopyConf.getCompilerConfigure().setDumpIR(true);
     WasmEdge::AOT::Compiler Compiler(CopyConf);
     auto Path = std::filesystem::u8path(Filename);
-    Path.replace_extension(std::filesystem::u8path(EXTENSION));
+    Path.replace_extension(std::filesystem::u8path(WASMEDGE_LIB_EXTENSION));
     const auto SOPath = Path.u8string();
     auto Data = *Loader.loadFile(Filename);
     auto Module = *Loader.parseModule(Data);
@@ -279,7 +271,7 @@ TEST(AsyncRunWsmFile, NativeInterruptTest) {
   WasmEdge::Validator::Validator ValidatorEngine(Conf);
   WasmEdge::AOT::Compiler Compiler(Conf);
   auto Path = std::filesystem::temp_directory_path() /
-              std::filesystem::u8path("AOTcoreTest" EXTENSION);
+              std::filesystem::u8path("AOTcoreTest" WASMEDGE_LIB_EXTENSION);
   auto Module = *Loader.parseModule(Wasm);
   ASSERT_TRUE(ValidatorEngine.validate(*Module));
   ASSERT_TRUE(Compiler.compile(Wasm, *Module, Path));
@@ -321,7 +313,7 @@ TEST(AsyncExecute, NativeInterruptTest) {
   WasmEdge::Validator::Validator ValidatorEngine(Conf);
   WasmEdge::AOT::Compiler Compiler(Conf);
   auto Path = std::filesystem::temp_directory_path() /
-              std::filesystem::u8path("AOTcoreTest" EXTENSION);
+              std::filesystem::u8path("AOTcoreTest" WASMEDGE_LIB_EXTENSION);
   auto Module = *Loader.parseModule(Wasm);
   ASSERT_TRUE(ValidatorEngine.validate(*Module));
   ASSERT_TRUE(Compiler.compile(Wasm, *Module, Path));

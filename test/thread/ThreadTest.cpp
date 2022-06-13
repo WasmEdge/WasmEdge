@@ -225,21 +225,14 @@ TEST(AsyncExecute, GasThreadTest) {
 
 #ifdef WASMEDGE_BUILD_AOT_RUNTIME
 
-#if WASMEDGE_OS_LINUX
-#define EXTENSION ".so"sv
-#elif WASMEDGE_OS_MACOS
-#define EXTENSION ".dylib"sv
-#elif WASMEDGE_OS_WINDOWS
-#define EXTENSION ".dll"sv
-#endif
-
 TEST(AOTAsyncExecute, ThreadTest) {
   WasmEdge::Configure Conf;
   Conf.getCompilerConfigure().setInterruptible(true);
   Conf.getCompilerConfigure().setOutputFormat(
       WasmEdge::CompilerConfigure::OutputFormat::Native);
-  const auto Path = std::filesystem::temp_directory_path() /
-                    std::filesystem::u8path("ThreadTest" EXTENSION);
+  const auto Path =
+      std::filesystem::temp_directory_path() /
+      std::filesystem::u8path("ThreadTest" WASMEDGE_LIB_EXTENSION);
   {
     WasmEdge::Loader::Loader Loader(Conf);
     WasmEdge::Validator::Validator ValidatorEngine(Conf);
@@ -285,7 +278,7 @@ TEST(AOTAsyncExecute, GasThreadTest) {
   Conf.getCompilerConfigure().setOutputFormat(
       WasmEdge::CompilerConfigure::OutputFormat::Native);
   auto Path = std::filesystem::temp_directory_path() /
-              std::filesystem::u8path("AOTGasTest" EXTENSION);
+              std::filesystem::u8path("AOTGasTest" WASMEDGE_LIB_EXTENSION);
 
   {
     WasmEdge::Loader::Loader Loader(Conf);

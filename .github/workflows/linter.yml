@@ -8,20 +8,28 @@ on:
   push:
     branches:
       - master
-    paths-ignore:
-      - 'docs/**'
-      - 'bindings/**'
-      - 'rpm/**'
-      - '**/*.md'
+    paths:
+      - ".github/workflows/linter.yml"
+      - "include/**"
+      - "lib/**"
+      - "plugins/**"
+      - "examples/**"
+      - "test/**"
+      - "thirdparty/**"
+      - "tools/**"
   pull_request:
     branches:
       - master
       - 'proposal/**'
-    paths-ignore:
-      - 'docs/**'
-      - 'bindings/**'
-      - 'rpm/**'
-      - '**/*.md'
+    paths:
+      - ".github/workflows/linter.yml"
+      - "include/**"
+      - "lib/**"
+      - "plugins/**"
+      - "examples/**"
+      - "test/**"
+      - "thirdparty/**"
+      - "tools/**"
 
 jobs:
   lint:

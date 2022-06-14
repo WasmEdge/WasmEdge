@@ -8,15 +8,19 @@ on:
   push:
     branches:
       - master
-    paths-ignore:
-      - "docs/**"
-      - "**.md"
+    paths:
+      - ".github/workflows/bindings-rust.yml"
+      - "bindings/rust/**"
+      - "include/api/wasmedge/**"
+      - "lib/api/**"
   pull_request:
     branches:
       - master
-    paths-ignore:
-      - "docs/**"
-      - "**.md"
+    paths:
+      - ".github/workflows/bindings-rust.yml"
+      - "bindings/rust/**"
+      - "include/api/wasmedge/**"
+      - "lib/api/**"
 
 
 jobs:

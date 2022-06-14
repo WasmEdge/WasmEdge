@@ -11,12 +11,24 @@ namespace Loader {
 Expect<void> Loader::loadLimit(AST::Limit &Lim) {
   // Read limit.
   if (auto Res = FMgr.readByte()) {
+
     switch (static_cast<AST::Limit::LimitType>(*Res)) {
     case AST::Limit::LimitType::HasMin:
-      Lim.setHasMax(false);
+      Lim.setType(AST::Limit::LimitType::HasMin);
       break;
     case AST::Limit::LimitType::HasMinMax:
-      Lim.setHasMax(true);
+      Lim.setType(AST::Limit::LimitType::HasMinMax);
+      break;
+    case AST::Limit::LimitType::SharedNoMax:
+      if (Conf.hasProposal(Proposal::Threads)) {
+        return logLoadError(ErrCode::SharedMemoryNoMax, FMgr.getLastOffset(),
+                            ASTNodeAttr::Type_Limit);
+      } else {
+        return logLoadError(ErrCode::IntegerTooLarge, FMgr.getLastOffset(),
+                            ASTNodeAttr::Type_Limit);
+      }
+    case AST::Limit::LimitType::Shared:
+      Lim.setType(AST::Limit::LimitType::Shared);
       break;
     default:
       if (*Res == 0x80 || *Res == 0x81) {

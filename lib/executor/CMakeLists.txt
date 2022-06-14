@@ -14,6 +14,7 @@ wasmedge_add_library(wasmedgeExecutor
   engine/proxy.cpp
   engine/controlInstr.cpp
   engine/tableInstr.cpp
+  engine/threadInstr.cpp
   engine/memoryInstr.cpp
   engine/variableInstr.cpp
   engine/engine.cpp

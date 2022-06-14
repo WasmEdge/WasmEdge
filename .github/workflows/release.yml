@@ -98,6 +98,8 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v2
       - name: Build package
+        env:
+          OUTPUT_VERSION: ${{ needs.create_release.outputs.version }}
         run: |
           brew install llvm ninja boost cmake
           export PATH="/usr/local/opt/llvm/bin:$PATH"
@@ -109,6 +111,10 @@ jobs:
           cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_BUILD_PACKAGE="TGZ" .
           cmake --build build
           cmake --build build --target package
+          cd build
+          tar -zxf WasmEdge-$OUTPUT_VERSION-Darwin.tar.gz
+          rm -rf WasmEdge-$OUTPUT_VERSION-Darwin/lib/wasmedge/libwasmedgePluginWasmEdgeProcess.dylib
+          tar -zcvf WasmEdge-$OUTPUT_VERSION-Darwin.tar.gz WasmEdge-$OUTPUT_VERSION-Darwin
       - name: Upload tar.gz package
         uses: actions/upload-release-asset@v1
         env:

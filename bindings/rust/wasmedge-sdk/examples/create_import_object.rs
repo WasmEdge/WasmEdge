@@ -1,6 +1,7 @@
 //! This example presents how to create an import object and add function, global, memory and table instances in it.
 
-#![feature(explicit_generic_args_with_impl_trait)]
+// If the version of rust used is less than v1.63, please uncomment the follow attribute.
+// #![feature(explicit_generic_args_with_impl_trait)]
 
 use wasmedge_sdk::{types::Val, Global, ImportObjectBuilder, Memory, Table};
 use wasmedge_sys::types::WasmValue;

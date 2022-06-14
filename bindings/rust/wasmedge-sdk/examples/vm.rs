@@ -1,6 +1,7 @@
 //! This example presents how to register a module as named module in a Vm instance and run a target wasm function.
 
-#![feature(explicit_generic_args_with_impl_trait)]
+// If the version of rust used is less than v1.63, please uncomment the follow attribute.
+// #![feature(explicit_generic_args_with_impl_trait)]
 
 use wasmedge_sdk::{params, Vm, WasmVal};
 use wasmedge_types::{wat2wasm, ValType};

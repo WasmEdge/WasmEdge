@@ -9,7 +9,8 @@ use wasmedge_types::FuncType;
 /// This example shows how to create a normal import object that contains a host function, a global variable, a memory and a table. The import object is named "extern".
 ///
 /// ```rust
-/// #![feature(explicit_generic_args_with_impl_trait)]
+/// // If the version of rust used is less than v1.63, please uncomment the follow attribute.
+/// // #![feature(explicit_generic_args_with_impl_trait)]
 ///
 /// use wasmedge_sdk::{
 ///     types::Val,

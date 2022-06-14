@@ -1,4 +1,5 @@
-#![feature(explicit_generic_args_with_impl_trait)]
+// If the version of rust used is less than v1.63, please uncomment the follow attribute.
+// #![feature(explicit_generic_args_with_impl_trait)]
 
 use wasmedge_sdk::{params, Executor, ImportObjectBuilder, Module, Store};
 use wasmedge_sys::WasmValue;

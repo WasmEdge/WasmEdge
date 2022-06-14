@@ -2,22 +2,29 @@
     html_logo_url = "https://github.com/cncf/artwork/blob/master/projects/wasm-edge-runtime/icon/color/wasm-edge-runtime-icon-color.png?raw=true",
     html_favicon_url = "https://raw.githubusercontent.com/cncf/artwork/49169bdbc88a7ce3c4a722c641cc2d548bd5c340/projects/wasm-edge-runtime/icon/color/wasm-edge-runtime-icon-color.svg"
 )]
-#![feature(explicit_generic_args_with_impl_trait)]
+// If the version of rust used is less than v1.63, please uncomment the follow attribute.
+// #![feature(explicit_generic_args_with_impl_trait)]
 #![allow(clippy::vec_init_then_push)]
 
 //! # Overview
 //!
 //! The [wasmedge-sdk](https://crates.io/crates/wasmedge-sdk) crate defines a group of high-level Rust APIs, which are used to build up business applications.
 //!
-//! Notice that `wasmedge-sdk` requires the nightly version of Rust.
+//! Notice that
+//! - `WasmEdge Rust SDK` uses nightly version of Rust.
+//!
+//! - Due to [issue #1527](https://github.com/WasmEdge/WasmEdge/issues/1527), `WasmEdge Rust SDK` cannot build successfully on Windows platform. Please [use Docker](https://wasmedge.org/book/en/start/docker.html) to build `WasmEdge Rust SDK` on Windows.
 //!
 //! ## Usage
 //!
-//! To use or build the `wasmedge-sdk` crate, the `wasmedge-core` is required. The required header files, library and plugins should be placed in `$HOME/.wasmedge/` directory. The directory structure on macOS looks like below:
+//! To use or build the `wasmedge-sdk` crate, the `WasmEdge` library is required. The required header files, library and plugins should be placed in `$HOME/.wasmedge/` directory. The directory structure on `Ubuntu 20.04` looks like below:
 //!
 //! ```bash
 //! // $HOME/.wasmedge/
 //! .
+//! ├── bin
+//! │   ├── wasmedge
+//! │   └── wasmedgec
 //! ├── include
 //! │   └── wasmedge
 //! │       ├── dense_enum_map.h
@@ -29,10 +36,12 @@
 //! │       ├── spare_enum_map.h
 //! │       ├── version.h
 //! │       └── wasmedge.h
-//! ├── lib
-//! │   └── libwasmedge_c.dylib
-//! └── plugin
-//!     └── libwasmedgePluginWasmEdgeProcess.dylib
+//! └── lib64
+//!     ├── libwasmedge_c.so
+//!     └── wasmedge
+//!         └── libwasmedgePluginWasmEdgeProcess.so
+//!
+//! 5 directories, 13 files
 //!
 //! ```
 //!
@@ -41,7 +50,8 @@
 //! The example below is using `wasmedge-sdk` to run a WebAssembly module written with its WAT format (textual format):
 //!
 //!  ```rust
-//!  #![feature(explicit_generic_args_with_impl_trait)]
+//!  // If the version of rust used is less than v1.63, please uncomment the follow attribute.
+//!  // #![feature(explicit_generic_args_with_impl_trait)]
 //!
 //!  use wasmedge_sdk::{Executor, FuncTypeBuilder, ImportObjectBuilder, Module, Store};
 //!  use wasmedge_sys::WasmValue;

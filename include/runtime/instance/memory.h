@@ -240,19 +240,13 @@ public:
   ///
   /// \param Value the constructed output value.
   /// \param Offset the start offset in data array.
-  /// \param Length the load length from data. Need to <= sizeof(T).
   ///
   /// \returns void when success, ErrCode when failed.
-  template <typename T>
+  template <typename T, uint32_t Length = sizeof(T)>
   typename std::enable_if_t<IsWasmNumV<T>, Expect<void>>
-  loadValue(T &Value, uint32_t Offset, uint32_t Length) const noexcept {
+  loadValue(T &Value, uint32_t Offset) const noexcept {
     // Check the data boundary.
-    if (unlikely(Length > sizeof(T))) {
-      spdlog::error(ErrCode::MemoryOutOfBounds);
-      spdlog::error(
-          ErrInfo::InfoBoundary(Offset, Length, Offset + sizeof(T) - 1));
-      return Unexpect(ErrCode::MemoryOutOfBounds);
-    }
+    static_assert(Length <= sizeof(T));
     // Check the memory boundary.
     if (unlikely(!checkAccessBound(Offset, Length))) {
       spdlog::error(ErrCode::MemoryOutOfBounds);
@@ -293,19 +287,13 @@ public:
   ///
   /// \param Value the value want to store into data array.
   /// \param Offset the start offset in data array.
-  /// \param Length the store length to data. Need to <= sizeof(T).
   ///
   /// \returns void when success, ErrCode when failed.
-  template <typename T>
+  template <typename T, uint32_t Length = sizeof(T)>
   typename std::enable_if_t<IsWasmNativeNumV<T>, Expect<void>>
-  storeValue(const T &Value, uint32_t Offset, uint32_t Length) noexcept {
+  storeValue(const T &Value, uint32_t Offset) noexcept {
     // Check the data boundary.
-    if (unlikely(Length > sizeof(T))) {
-      spdlog::error(ErrCode::MemoryOutOfBounds);
-      spdlog::error(
-          ErrInfo::InfoBoundary(Offset, Length, Offset + sizeof(T) - 1));
-      return Unexpect(ErrCode::MemoryOutOfBounds);
-    }
+    static_assert(Length <= sizeof(T));
     // Check the memory boundary.
     if (unlikely(!checkAccessBound(Offset, Length))) {
       spdlog::error(ErrCode::MemoryOutOfBounds);

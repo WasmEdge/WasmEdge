@@ -14,22 +14,30 @@ on:
   push:
     branches:
       - master
-    paths-ignore:
-      - '.github/workflows/rust*.yml'
-      - 'docs/**'
-      - 'bindings/**'
-      - 'rpm/**'
-      - '**/*.md'
+    paths:
+      - ".github/workflows/static-code-analysis.yml"
+      - "include/**"
+      - "lib/**"
+      - "plugins/**"
+      - "examples/**"
+      - "test/**"
+      - "thirdparty/**"
+      - "tools/**"
+      - "CMakeLists.txt"
   pull_request:
     branches:
       - master
       - 'proposal/**'
-    paths-ignore:
-      - '.github/workflows/rust*.yml'
-      - 'docs/**'
-      - 'bindings/**'
-      - 'rpm/**'
-      - '**/*.md'
+    paths:
+      - ".github/workflows/static-code-analysis.yml"
+      - "include/**"
+      - "lib/**"
+      - "plugins/**"
+      - "examples/**"
+      - "test/**"
+      - "thirdparty/**"
+      - "tools/**"
+      - "CMakeLists.txt"
 
 jobs:
   static_analysis:

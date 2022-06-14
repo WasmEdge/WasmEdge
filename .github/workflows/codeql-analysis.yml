@@ -8,20 +8,30 @@ on:
   push:
     branches:
       - master
-    paths-ignore:
-      - 'docs/**'
-      - 'bindings/**'
-      - 'rpm/**'
-      - '**/*.md'
+    paths:
+      - ".github/workflows/codeql-analysis.yml"
+      - "include/**"
+      - "lib/**"
+      - "plugins/**"
+      - "examples/**"
+      - "test/**"
+      - "thirdparty/**"
+      - "tools/**"
+      - "CMakeLists.txt"
   pull_request:
     branches:
       - master
       - 'proposal/**'
-    paths-ignore:
-      - 'docs/**'
-      - 'bindings/**'
-      - 'rpm/**'
-      - '**/*.md'
+    paths:
+      - ".github/workflows/codeql-analysis.yml"
+      - "include/**"
+      - "lib/**"
+      - "plugins/**"
+      - "examples/**"
+      - "test/**"
+      - "thirdparty/**"
+      - "tools/**"
+      - "CMakeLists.txt"
   schedule:
     - cron: '15 18 * * 6'
 

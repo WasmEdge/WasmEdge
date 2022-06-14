@@ -10,15 +10,21 @@
 //!
 //! The [wasmedge-sdk](https://crates.io/crates/wasmedge-sdk) crate defines a group of high-level Rust APIs, which are used to build up business applications.
 //!
-//! Notice that `wasmedge-sdk` requires the nightly version of Rust.
+//! Notice that
+//! - `wasmedge-sdk` uses nightly version of Rust.
+//!
+//! - Due to [issue #1527](https://github.com/WasmEdge/WasmEdge/issues/1527), `wasmedge-sdk` cannot build successfully on Windows platform. Please [use Docker](https://wasmedge.org/book/en/start/docker.html) to build `wasmedge-sdk` on Windows.
 //!
 //! ## Usage
 //!
-//! To use or build the `wasmedge-sdk` crate, the `wasmedge-core` is required. The required header files, library and plugins should be placed in `$HOME/.wasmedge/` directory. The directory structure on macOS looks like below:
+//! To use or build the `wasmedge-sdk` crate, the `wasmedge-core` is required. The required header files, library and plugins should be placed in `$HOME/.wasmedge/` directory. The directory structure on `Ubuntu 20.04` looks like below:
 //!
 //! ```bash
 //! // $HOME/.wasmedge/
 //! .
+//! ├── bin
+//! │   ├── wasmedge
+//! │   └── wasmedgec
 //! ├── include
 //! │   └── wasmedge
 //! │       ├── dense_enum_map.h
@@ -30,10 +36,12 @@
 //! │       ├── spare_enum_map.h
 //! │       ├── version.h
 //! │       └── wasmedge.h
-//! ├── lib
-//! │   └── libwasmedge_c.dylib
-//! └── plugin
-//!     └── libwasmedgePluginWasmEdgeProcess.dylib
+//! └── lib64
+//!     ├── libwasmedge_c.so
+//!     └── wasmedge
+//!         └── libwasmedgePluginWasmEdgeProcess.so
+//!
+//! 5 directories, 13 files
 //!
 //! ```
 //!

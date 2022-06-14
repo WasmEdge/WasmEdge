@@ -8,20 +8,30 @@ on:
   push:
     branches:
       - master
-    paths-ignore:
-      - 'docs/**'
-      - 'bindings/**'
-      - 'rpm/**'
-      - '**/*.md'
+    paths:
+      - ".github/workflows/IWYU_scan.yml"
+      - "include/**"
+      - "lib/**"
+      - "plugins/**"
+      - "examples/**"
+      - "test/**"
+      - "thirdparty/**"
+      - "tools/**"
+      - "CMakeLists.txt"
   pull_request:
     branches:
       - master
       - 'proposal/**'
-    paths-ignore:
-      - 'docs/**'
-      - 'bindings/**'
-      - 'rpm/**'
-      - '**/*.md'
+    paths:
+      - ".github/workflows/IWYU_scan.yml"
+      - "include/**"
+      - "lib/**"
+      - "plugins/**"
+      - "examples/**"
+      - "test/**"
+      - "thirdparty/**"
+      - "tools/**"
+      - "CMakeLists.txt"
 
 jobs:
   get_version_v2:
@@ -59,16 +69,16 @@ jobs:
         make -j
         make install
         cd ..
-        
+
     - uses: actions/checkout@v2
       with:
         fetch-depth: 0
-    
+
     - name: Build and scan WasmEdge with IWYU
       run: |
         cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Debug -DWASMEDGE_BUILD_TESTS=ON -DCMAKE_CXX_INCLUDE_WHAT_YOU_USE=include-what-you-use .
         cmake --build build > iwyu_fedora.log
-    
+
     - uses: actions/upload-artifact@v3
       with:
         name: iwyu_fedora.log
@@ -84,17 +94,17 @@ jobs:
     - uses: actions/checkout@v2
       with:
         fetch-depth: 0
-    
+
     - name: Build and scan WasmEdge with IWYU
       run: |
-        brew install llvm ninja boost cmake 
-        
+        brew install llvm ninja boost cmake
+
         export PATH="/usr/local/opt/llvm/bin:$PATH"
         export LDFLAGS="-L/usr/local/opt/llvm/lib -Wl,-rpath,/usr/local/opt/llvm/lib"
         export CPPFLAGS="-I/usr/local/opt/llvm/include"
         export CC=clang
         export CXX=clang++
-        
+
         cd ../../
         curl -L -O https://github.com/include-what-you-use/include-what-you-use/archive/refs/tags/0.17.zip
         unzip  0.17.zip
@@ -102,11 +112,11 @@ jobs:
         cmake -G "Unix Makefiles" ../include-what-you-use-0.17
         make -j install
         cd ../WasmEdge/WasmEdge
-        
+
         cmake -Bbuild -GNinja -DWASMEDGE_BUILD_TESTS=ON -DCMAKE_CXX_INCLUDE_WHAT_YOU_USE=include-what-you-use .
         cmake -Bbuild -GNinja -DWASMEDGE_BUILD_TESTS=ON -DWASMEDGE_BUILD_PACKAGE="TGZ" .
         cmake --build build > iwyu_macos.log
-        
+
     - uses: actions/upload-artifact@v3
       with:
         name: iwyu_macOS.log

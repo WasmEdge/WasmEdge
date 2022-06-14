@@ -637,12 +637,12 @@ TEST(WasiTest, PollOneoffSocket) {
                 static_cast<uint32_t>(__WASI_SOCK_TYPE_SOCK_STREAM), FdPtr},
             Errno));
         EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
-        EXPECT_TRUE(MemInst.loadValue(ServerFd, FdPtr, sizeof(ServerFd)));
+        EXPECT_TRUE((MemInst.loadValue(ServerFd, FdPtr)));
 
         // set socket options
         const uint32_t SockOptionsPtr = 0;
         const uint32_t One = 1;
-        MemInst.storeValue(One, SockOptionsPtr, sizeof(One));
+        MemInst.storeValue(One, SockOptionsPtr);
         EXPECT_TRUE(WasiSockSetOpt.run(
             &MemInst,
             std::initializer_list<WasmEdge::ValVariant>{
@@ -679,8 +679,7 @@ TEST(WasiTest, PollOneoffSocket) {
             std::initializer_list<WasmEdge::ValVariant>{ServerFd, FdPtr},
             Errno));
         EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
-        EXPECT_TRUE(
-            MemInst.loadValue(ConnectionFd, FdPtr, sizeof(ConnectionFd)));
+        EXPECT_TRUE((MemInst.loadValue(ConnectionFd, FdPtr)));
 
         // close socket
         EXPECT_TRUE(WasiFdClose.run(
@@ -717,7 +716,7 @@ TEST(WasiTest, PollOneoffSocket) {
             Errno));
         EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
         __wasi_size_t NWritten;
-        EXPECT_TRUE(MemInst.loadValue(NWritten, NWrittenPtr, sizeof(NWritten)));
+        EXPECT_TRUE((MemInst.loadValue(NWritten, NWrittenPtr)));
         EXPECT_EQ(NWritten, Data.size());
 
         ActionDone.store(true);
@@ -786,7 +785,7 @@ TEST(WasiTest, PollOneoffSocket) {
         Errno));
     EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
     int32_t Fd;
-    EXPECT_TRUE(MemInst.loadValue(Fd, FdPtr, sizeof(Fd)));
+    EXPECT_TRUE((MemInst.loadValue(Fd, FdPtr)));
 
     {
       std::unique_lock<std::mutex> Lock(Mutex);
@@ -824,7 +823,7 @@ TEST(WasiTest, PollOneoffSocket) {
                              Errno));
       EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
       __wasi_size_t NEvents;
-      EXPECT_TRUE(MemInst.loadValue(NEvents, NEventsPtr, sizeof(NEvents)));
+      EXPECT_TRUE((MemInst.loadValue(NEvents, NEventsPtr)));
       EXPECT_EQ(NEvents, 1);
       auto Events = MemInst.getPointer<__wasi_event_t *>(OutPtr);
       EXPECT_EQ(Events[0].type, __WASI_EVENTTYPE_CLOCK);
@@ -853,7 +852,7 @@ TEST(WasiTest, PollOneoffSocket) {
                              Errno));
       EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
       __wasi_size_t NEvents;
-      EXPECT_TRUE(MemInst.loadValue(NEvents, NEventsPtr, sizeof(NEvents)));
+      EXPECT_TRUE((MemInst.loadValue(NEvents, NEventsPtr)));
       EXPECT_EQ(NEvents, 1);
       auto Events = MemInst.getPointer<__wasi_event_t *>(OutPtr);
       EXPECT_EQ(Events[0].type, __WASI_EVENTTYPE_FD_READ);
@@ -883,7 +882,7 @@ TEST(WasiTest, PollOneoffSocket) {
                              Errno));
       EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
       __wasi_size_t NEvents;
-      EXPECT_TRUE(MemInst.loadValue(NEvents, NEventsPtr, sizeof(NEvents)));
+      EXPECT_TRUE((MemInst.loadValue(NEvents, NEventsPtr)));
       EXPECT_EQ(NEvents, 1);
       auto Events = MemInst.getPointer<__wasi_event_t *>(OutPtr);
       EXPECT_EQ(Events[0].type, __WASI_EVENTTYPE_CLOCK);
@@ -912,7 +911,7 @@ TEST(WasiTest, PollOneoffSocket) {
                              Errno));
       EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
       __wasi_size_t NEvents;
-      EXPECT_TRUE(MemInst.loadValue(NEvents, NEventsPtr, sizeof(NEvents)));
+      EXPECT_TRUE(MemInst.loadValue(NEvents, NEventsPtr));
       EXPECT_EQ(NEvents, 1);
       auto Events = MemInst.getPointer<__wasi_event_t *>(OutPtr);
       EXPECT_EQ(Events[0].type, __WASI_EVENTTYPE_FD_WRITE);
@@ -944,7 +943,7 @@ TEST(WasiTest, PollOneoffSocket) {
                              Errno));
       EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
       __wasi_size_t NEvents;
-      EXPECT_TRUE(MemInst.loadValue(NEvents, NEventsPtr, sizeof(NEvents)));
+      EXPECT_TRUE(MemInst.loadValue(NEvents, NEventsPtr));
       EXPECT_EQ(NEvents, 1);
       auto Events = MemInst.getPointer<__wasi_event_t *>(OutPtr);
       EXPECT_EQ(Events[0].type, __WASI_EVENTTYPE_CLOCK);
@@ -976,7 +975,7 @@ TEST(WasiTest, PollOneoffSocket) {
                              Errno));
       EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
       __wasi_size_t NEvents;
-      EXPECT_TRUE(MemInst.loadValue(NEvents, NEventsPtr, sizeof(NEvents)));
+      EXPECT_TRUE(MemInst.loadValue(NEvents, NEventsPtr));
       EXPECT_EQ(NEvents, 1);
       auto Events = MemInst.getPointer<__wasi_event_t *>(OutPtr);
       EXPECT_EQ(Events[0].type, __WASI_EVENTTYPE_FD_WRITE);
@@ -1008,7 +1007,7 @@ TEST(WasiTest, PollOneoffSocket) {
                              Errno));
       EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
       __wasi_size_t NEvents;
-      EXPECT_TRUE(MemInst.loadValue(NEvents, NEventsPtr, sizeof(NEvents)));
+      EXPECT_TRUE(MemInst.loadValue(NEvents, NEventsPtr));
       EXPECT_EQ(NEvents, 2);
       auto Events = MemInst.getPointer<__wasi_event_t *>(OutPtr);
       EXPECT_EQ(Events[0].type, __WASI_EVENTTYPE_FD_READ);
@@ -1050,7 +1049,7 @@ TEST(WasiTest, PollOneoffSocket) {
           Errno));
       EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
       __wasi_size_t NRead;
-      EXPECT_TRUE(MemInst.loadValue(NRead, NReadPtr, sizeof(NRead)));
+      EXPECT_TRUE(MemInst.loadValue(NRead, NReadPtr));
       EXPECT_EQ(NRead, "server"sv.size());
     }
 

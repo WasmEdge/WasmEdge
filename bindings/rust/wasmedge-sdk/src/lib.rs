@@ -11,13 +11,13 @@
 //! The [wasmedge-sdk](https://crates.io/crates/wasmedge-sdk) crate defines a group of high-level Rust APIs, which are used to build up business applications.
 //!
 //! Notice that
-//! - `wasmedge-sdk` uses nightly version of Rust.
+//! - `WasmEdge Rust SDK` uses nightly version of Rust.
 //!
-//! - Due to [issue #1527](https://github.com/WasmEdge/WasmEdge/issues/1527), `wasmedge-sdk` cannot build successfully on Windows platform. Please [use Docker](https://wasmedge.org/book/en/start/docker.html) to build `wasmedge-sdk` on Windows.
+//! - Due to [issue #1527](https://github.com/WasmEdge/WasmEdge/issues/1527), `WasmEdge Rust SDK` cannot build successfully on Windows platform. Please [use Docker](https://wasmedge.org/book/en/start/docker.html) to build `WasmEdge Rust SDK` on Windows.
 //!
 //! ## Usage
 //!
-//! To use or build the `wasmedge-sdk` crate, the `wasmedge-core` is required. The required header files, library and plugins should be placed in `$HOME/.wasmedge/` directory. The directory structure on `Ubuntu 20.04` looks like below:
+//! To use or build the `wasmedge-sdk` crate, the `WasmEdge` library is required. The required header files, library and plugins should be placed in `$HOME/.wasmedge/` directory. The directory structure on `Ubuntu 20.04` looks like below:
 //!
 //! ```bash
 //! // $HOME/.wasmedge/

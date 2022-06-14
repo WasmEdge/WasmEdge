@@ -2,12 +2,48 @@
 
 The [wasmedge-sdk](https://crates.io/crates/wasmedge-sdk) crate defines a group of high-level Rust APIs, which are used to build up business applications.
 
+Notice that
+
+- `wasmedge-sdk` uses nightly version of Rust.
+
+- Due to [issue #1527](https://github.com/WasmEdge/WasmEdge/issues/1527), `wasmedge-sdk` cannot build successfully on Windows platform. Please [use Docker](https://wasmedge.org/book/en/start/docker.html) to build `WasmEdge Rust SDK` on Windows.
+
 ## Usage
+
+ To use or build the `wasmedge-sdk` crate, the `WasmEdge` library is required. The required header files, library and plugins should be placed in `$HOME/.wasmedge/` directory. The directory structure on `Ubuntu 20.04` looks like below:
+
+  ```bash
+  // $HOME/.wasmedge/
+  .
+  ├── bin
+  │   ├── wasmedge
+  │   └── wasmedgec
+  ├── include
+  │   └── wasmedge
+  │       ├── dense_enum_map.h
+  │       ├── enum.inc
+  │       ├── enum_configure.h
+  │       ├── enum_errcode.h
+  │       ├── enum_types.h
+  │       ├── int128.h
+  │       ├── spare_enum_map.h
+  │       ├── version.h
+  │       └── wasmedge.h
+  └── lib64
+      ├── libwasmedge_c.so
+      └── wasmedge
+          └── libwasmedgePluginWasmEdgeProcess.so
+
+  5 directories, 13 files
+  ```
+
+## A quick-start example
 
 A quick-start example below is using `wasmedge-sdk` to run a WebAssembly module written with its WAT format (textual format):
 
   ```rust
-  #![feature(explicit_generic_args_with_impl_trait)]
+  // If the version of rust used is less than v1.63, please uncomment the follow attribute.
+  // #![feature(explicit_generic_args_with_impl_trait)]
 
   use wasmedge_sdk::{Executor, FuncTypeBuilder, ImportObjectBuilder, Module, Store};
   use wasmedge_sys::WasmValue;
@@ -76,7 +112,7 @@ A quick-start example below is using `wasmedge-sdk` to run a WebAssembly module 
 
 ## See also
 
-* [WasmEdge Runtime](https://wasmedge.org/)
-* [WasmEdge C API Documentation](https://github.com/WasmEdge/WasmEdge/blob/master/docs/c_api.md)
-* [wasmedge-sys: WasmEdge Low-level Rust APIs](https://crates.io/crates/wasmedge-sys)
-* [wasmedge-types: WasmEdge Types](https://crates.io/crates/wasmedge-types)
+- [WasmEdge Runtime](https://wasmedge.org/)
+- [WasmEdge C API Documentation](https://github.com/WasmEdge/WasmEdge/blob/master/docs/c_api.md)
+- [wasmedge-sys: WasmEdge Low-level Rust APIs](https://crates.io/crates/wasmedge-sys)
+- [wasmedge-types: WasmEdge Types](https://crates.io/crates/wasmedge-types)

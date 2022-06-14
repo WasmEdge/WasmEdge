@@ -6,11 +6,16 @@
 //! # Overview
 //! The [wasmedge-sys](https://crates.io/crates/wasmedge-sys) crate defines a group of low-level Rust APIs for WasmEdge, a light-weight, high-performance, and extensible WebAssembly runtime for cloud-native, edge, and decentralized applications.
 //!
-//! For developers, it is strongly recommended that the APIs in `wasmedge-sys` are used to construct high-level libraries, while `wasmedge-sdk` (coming soon) is for building up business applications.
+//! For developers, it is strongly recommended that the APIs in `wasmedge-sys` are used to construct high-level libraries, while `wasmedge-sdk` is for building up business applications.
+//!
+//! Notice that
+//! - `WasmEdge Rust SDK` uses nightly version of Rust.
+//!
+//! - Due to [issue #1527](https://github.com/WasmEdge/WasmEdge/issues/1527), `WasmEdge Rust SDK` cannot build successfully on Windows platform. Please [use Docker](https://wasmedge.org/book/en/start/docker.html) to build `WasmEdge Rust SDK` on Windows.
 //!
 //! ## Usage
 //!
-//! To use or build the `wasmedge-sys` crate, the `wasmedge-core` is required. The [*Build wasmedge-sys crate*](https://wasmedge.org/book/en/embed/rust.html#build-wasmedge-sys-crate) section of [WasmEdge Docs](https://wasmedge.org/book/en/) gives the tips.
+//! To use or build the `wasmedge-sys` crate, the `WasmEdge` library is required. The [*Build wasmedge-sys crate*](https://wasmedge.org/book/en/embed/rust.html#build-wasmedge-sys-crate) section of [WasmEdge Docs](https://wasmedge.org/book/en/) gives the tips.
 //!
 //! ## A quick-start example
 //!

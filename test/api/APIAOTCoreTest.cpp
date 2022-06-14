@@ -30,14 +30,6 @@
 #include <utility>
 #include <vector>
 
-#if WASMEDGE_OS_LINUX
-#define EXTENSION ".so"sv
-#elif WASMEDGE_OS_MACOS
-#define EXTENSION ".dylib"sv
-#elif WASMEDGE_OS_WINDOWS
-#define EXTENSION ".dll"sv
-#endif
-
 namespace {
 using namespace std::literals;
 using namespace WasmEdge;
@@ -62,7 +54,7 @@ TEST_P(CoreTest, TestSuites) {
   auto Compile = [&, Conf = std::cref(Conf)](
                      const std::string &Filename) -> Expect<std::string> {
     auto Path = std::filesystem::u8path(Filename);
-    Path.replace_extension(std::filesystem::u8path(EXTENSION));
+    Path.replace_extension(std::filesystem::u8path(WASMEDGE_LIB_EXTENSION));
     const auto SOPath = Path.u8string();
     WasmEdge_Result Res =
         WasmEdge_CompilerCompile(CompilerCxt, Filename.c_str(), SOPath.c_str());

@@ -315,18 +315,20 @@ usage() {
     
     About:
 
-    - wasmedgec is the AOT compiler that compiles WebAssembly bytecode programs 
-      (wasm programs) into native code (so program) on your deployment machine.
-    
     - wasmedge is the runtime that executes the wasm program or the AOT compiled
-      so program.
+      shared library format or universal wasm format programs.
 
-    - wasmedgec-tensorflow is the AOT compiler that compiles WebAssembly 
-      bytecode programs (wasm programs) into native code (so program) on your 
-      deployment machine. It is aware of WamsEdge's Tensorflow extension API.
-    
+    - wasmedgec is the AOT compiler that compiles WebAssembly bytecode programs 
+      (wasm programs) into native code (shared library format or universam wasm
+      format program) on your deployment machine.
+
+    - wasmedge-tensorflow is the runtime that executes the wasm program or the
+      AOT compiled wasm program with the Image, TensorFlow, and TensorFlow-Lite
+      extensions.
+
     - wasmedge-tensorflow-lite is the runtime that executes the wasm program or 
-      the AOT compiled so program with the Tensorflow Lite library.
+      the AOT compiled wasm program with the Image and TensorFlow-Lite
+      extensions.
 
 EOF
 }

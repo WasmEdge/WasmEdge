@@ -85,13 +85,6 @@ std::vector<std::filesystem::path> Plugin::getDefaultPluginPaths() noexcept {
 }
 
 bool Plugin::load(const std::filesystem::path &Path) noexcept {
-#if WASMEDGE_OS_LINUX
-  const auto Extension = ".so"sv;
-#elif WASMEDGE_OS_MACOS
-  const auto Extension = ".dylib"sv;
-#elif WASMEDGE_OS_WINDOWS
-  const auto Extension = ".dll"sv;
-#endif
   std::error_code Error;
   auto Status = std::filesystem::status(Path, Error);
   if (likely(!Error)) {
@@ -103,13 +96,13 @@ bool Plugin::load(const std::filesystem::path &Path) noexcept {
                Error)) {
         const auto &EntryPath = Entry.path();
         if (Entry.is_regular_file(Error) &&
-            EntryPath.extension().u8string() == Extension) {
+            EntryPath.extension().u8string() == WASMEDGE_LIB_EXTENSION) {
           Result |= loadFile(EntryPath);
         }
       }
       return Result;
     } else if (std::filesystem::is_regular_file(Status) &&
-               Path.extension().u8string() == Extension) {
+               Path.extension().u8string() == WASMEDGE_LIB_EXTENSION) {
       return loadFile(Path);
     }
   }

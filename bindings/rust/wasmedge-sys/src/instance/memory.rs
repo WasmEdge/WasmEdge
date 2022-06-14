@@ -8,6 +8,7 @@
 use crate::{
     error::{MemError, WasmEdgeError},
     ffi,
+    types::WasmEdgeLimit,
     utils::check,
     WasmEdgeResult,
 };
@@ -35,7 +36,7 @@ impl Memory {
     /// ```
     /// use wasmedge_sys::{MemType, Memory};
     ///
-    /// let ty = MemType::create(10..=20).expect("fail to create memory type");
+    /// let ty = MemType::create(10..=20, false).expect("fail to create memory type");
     ///
     /// let memory = Memory::create(&ty);
     ///
@@ -116,7 +117,7 @@ impl Memory {
     /// use wasmedge_types::error::{CoreError, CoreExecutionError, WasmEdgeError};
     ///
     /// // create a Memory: the min size 1 and the max size 2
-    /// let ty = MemType::create(1..=2).expect("fail to create a memory type");
+    /// let ty = MemType::create(1..=2, false).expect("fail to create a memory type");
     /// let mut mem = Memory::create(&ty).expect("fail to create a Memory");
     ///
     /// // set data and the data length is larger than the data size in the memory
@@ -131,7 +132,7 @@ impl Memory {
     /// use wasmedge_sys::{MemType, Memory};
     ///
     /// // create a Memory: the min size 1 and the max size 2
-    /// let ty = MemType::create(1..=2).expect("fail to create a memory type");
+    /// let ty = MemType::create(1..=2, false).expect("fail to create a memory type");
     /// let mut mem = Memory::create(&ty).expect("fail to create a Memory");
     /// // page count
     /// let count = mem.size();
@@ -236,7 +237,7 @@ impl Memory {
     /// use wasmedge_sys::{MemType, Memory};
     ///
     /// // create a Memory with a limit range [10, 20]
-    /// let ty = MemType::create(10..=20).expect("fail to create a memory type");
+    /// let ty = MemType::create(10..=20, false).expect("fail to create a memory type");
     /// let mut mem = Memory::create(&ty).expect("fail to create a Memory");
     /// // check page count
     /// let count = mem.size();
@@ -277,6 +278,8 @@ impl MemType {
     ///
     /// * `limit` - The linear memory size. The start value of the limit range specifies the min size (also, initial size) of the memory, while the end value specifies the max size allowed to grow. The maximum size is `u32::MAX`.
     ///
+    /// * `shared` - Whether the memory is shared or not.
+    ///
     /// # Errors
     ///
     /// If fail to create a [MemType], then an error is returned.
@@ -287,8 +290,9 @@ impl MemType {
     /// let ty = MemType::create(0..=u32::MAX);
     /// ```
     ///
-    pub fn create(limit: RangeInclusive<u32>) -> WasmEdgeResult<Self> {
-        let ctx = unsafe { ffi::WasmEdge_MemoryTypeCreate(ffi::WasmEdge_Limit::from(limit)) };
+    pub fn create(limit: RangeInclusive<u32>, shared: bool) -> WasmEdgeResult<Self> {
+        let ctx =
+            unsafe { ffi::WasmEdge_MemoryTypeCreate(WasmEdgeLimit::new(limit, shared).into()) };
         match ctx.is_null() {
             true => Err(WasmEdgeError::MemTypeCreate),
             false => Ok(Self {
@@ -305,13 +309,21 @@ impl MemType {
     /// ```
     /// use wasmedge_sys::MemType;
     ///
-    /// let ty = MemType::create(0..=u32::MAX).expect("fail to create a MemType");
+    /// let ty = MemType::create(0..=u32::MAX, false).expect("fail to create a MemType");
     /// assert_eq!(ty.limit(), 0..=u32::MAX);
     /// ```
     ///
     pub fn limit(&self) -> RangeInclusive<u32> {
         let limit = unsafe { ffi::WasmEdge_MemoryTypeGetLimit(self.inner.0) };
-        RangeInclusive::from(limit)
+        let limit: WasmEdgeLimit = limit.into();
+        limit.limit()
+    }
+
+    /// Returns whether the memory is shared or not.
+    pub fn shared(&self) -> bool {
+        let limit = unsafe { ffi::WasmEdge_MemoryTypeGetLimit(self.inner.0) };
+        let limit: WasmEdgeLimit = limit.into();
+        limit.shared()
     }
 }
 impl Drop for MemType {
@@ -323,7 +335,7 @@ impl Drop for MemType {
 }
 impl From<wasmedge_types::MemoryType> for MemType {
     fn from(ty: wasmedge_types::MemoryType) -> Self {
-        MemType::create(ty.minimum()..=ty.maximum()).expect(
+        MemType::create(ty.minimum()..=ty.maximum(), ty.shared()).expect(
             "[wasmedge] Failed to convert wasmedge_types::MemoryType into wasmedge_sys::MemType.",
         )
     }
@@ -333,6 +345,7 @@ impl From<MemType> for wasmedge_types::MemoryType {
         wasmedge_types::MemoryType::new(
             ty.limit().start().to_owned(),
             Some(ty.limit().end().to_owned()),
+            ty.shared(),
         )
     }
 }
@@ -354,7 +367,7 @@ mod tests {
     #[test]
     fn test_memory_type() {
         // case 1
-        let result = MemType::create(0..=u32::MAX);
+        let result = MemType::create(0..=u32::MAX, false);
         assert!(result.is_ok());
         let ty = result.unwrap();
         assert!(!ty.inner.0.is_null());
@@ -364,7 +377,7 @@ mod tests {
         assert_eq!(limit, 0..=u32::MAX);
 
         // case 2
-        let result = MemType::create(10..=101);
+        let result = MemType::create(10..=101, false);
         assert!(result.is_ok());
         let ty = result.unwrap();
         assert!(!ty.inner.0.is_null());
@@ -377,7 +390,7 @@ mod tests {
     #[test]
     fn test_memory_grow() {
         // create a Memory with a limit range [10, 20]
-        let result = MemType::create(10..=20);
+        let result = MemType::create(10..=20, false);
         assert!(result.is_ok());
         let ty = result.unwrap();
         let result = Memory::create(&ty);
@@ -412,7 +425,7 @@ mod tests {
     #[test]
     fn test_memory_data() {
         // create a Memory: the min size 1 and the max size 2
-        let result = MemType::create(1..=2);
+        let result = MemType::create(1..=2, false);
         assert!(result.is_ok());
         let ty = result.unwrap();
         let result = Memory::create(&ty);
@@ -459,7 +472,7 @@ mod tests {
     #[test]
     fn test_memory_send() {
         {
-            let result = MemType::create(10..=101);
+            let result = MemType::create(10..=101, false);
             assert!(result.is_ok());
             let ty = result.unwrap();
             assert!(!ty.inner.0.is_null());
@@ -478,7 +491,7 @@ mod tests {
 
         {
             // create a Memory with a limit range [10, 20]
-            let result = MemType::create(10..=20);
+            let result = MemType::create(10..=20, false);
             assert!(result.is_ok());
             let ty = result.unwrap();
             let result = Memory::create(&ty);
@@ -509,7 +522,7 @@ mod tests {
     #[test]
     fn test_memory_sync() {
         // create a Memory with a limit range [10, 20]
-        let result = MemType::create(10..=20);
+        let result = MemType::create(10..=20, false);
         assert!(result.is_ok());
         let ty = result.unwrap();
         let result = Memory::create(&ty);

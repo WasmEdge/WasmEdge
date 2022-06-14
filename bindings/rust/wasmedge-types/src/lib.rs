@@ -367,6 +367,7 @@ impl Default for TableType {
 pub struct MemoryType {
     min: u32,
     max: u32,
+    shared: bool,
 }
 impl MemoryType {
     /// Creates a new [MemoryType] with the given size range.
@@ -376,12 +377,12 @@ impl MemoryType {
     /// * `min` - The minimum size of the memory to be created.
     ///
     /// * `max` - The maximum size of the memory to be created.
-    pub fn new(min: u32, max: Option<u32>) -> Self {
+    pub fn new(min: u32, max: Option<u32>, shared: bool) -> Self {
         let max = match max {
             Some(max) => max,
             None => u32::MAX,
         };
-        Self { min, max }
+        Self { min, max, shared }
     }
 
     /// Returns the minimum size defined in the [MemoryType].
@@ -393,12 +394,18 @@ impl MemoryType {
     pub fn maximum(&self) -> u32 {
         self.max
     }
+
+    /// Returns whether the memory is shared.
+    pub fn shared(&self) -> bool {
+        self.shared
+    }
 }
 impl Default for MemoryType {
     fn default() -> Self {
         Self {
             min: 0,
             max: u32::MAX,
+            shared: false,
         }
     }
 }

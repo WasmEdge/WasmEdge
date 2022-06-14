@@ -167,7 +167,7 @@ mod tests {
 
         // add memory
         let memory = {
-            let result = MemType::create(10..=20);
+            let result = MemType::create(10..=20, false);
             assert!(result.is_ok());
             let mem_ty = result.unwrap();
             let result = Memory::create(&mem_ty);

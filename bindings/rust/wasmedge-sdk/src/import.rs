@@ -50,7 +50,7 @@ use wasmedge_types::FuncType;
 ///     )?;
 ///
 ///     // create a memory instance to be imported
-///     let memory = Memory::new(MemoryType::new(10, Some(20)))?;
+///     let memory = Memory::new(MemoryType::new(10, Some(20), false))?;
 ///
 ///     // create a table instance to be imported
 ///     let table = Table::new(TableType::new(RefType::FuncRef, 10, Some(20)))?;
@@ -522,7 +522,7 @@ mod tests {
     #[test]
     fn test_import_add_memory() {
         // create a memory
-        let result = Memory::new(MemoryType::new(10, Some(20)));
+        let result = Memory::new(MemoryType::new(10, Some(20), false));
         assert!(result.is_ok());
         let memory = result.unwrap();
 
@@ -839,7 +839,7 @@ mod tests {
         let global_const = result.unwrap();
 
         // create a memory instance
-        let result = Memory::new(MemoryType::new(10, Some(20)));
+        let result = Memory::new(MemoryType::new(10, Some(20), false));
         assert!(result.is_ok());
         let memory = result.unwrap();
 
@@ -961,7 +961,7 @@ mod tests {
         let global_const = result.unwrap();
 
         // create a memory instance
-        let result = Memory::new(MemoryType::new(10, Some(20)));
+        let result = Memory::new(MemoryType::new(10, Some(20), false));
         assert!(result.is_ok());
         let memory = result.unwrap();
 

@@ -5,32 +5,45 @@ use core::ffi::c_void;
 use std::{ffi::CString, str::FromStr};
 use wasmedge_types::{RefType, ValType};
 
-impl From<std::ops::RangeInclusive<u32>> for ffi::WasmEdge_Limit {
-    fn from(range: std::ops::RangeInclusive<u32>) -> Self {
-        let (start, end) = range.into_inner();
-        if start == end {
-            Self {
-                Min: start,
-                Max: end,
-                HasMax: false,
-            }
-        } else {
-            Self {
-                Min: start,
-                Max: end,
-                HasMax: true,
-            }
+#[derive(Debug, Clone)]
+pub(crate) struct WasmEdgeLimit {
+    limit: std::ops::RangeInclusive<u32>,
+    shared: bool,
+}
+impl WasmEdgeLimit {
+    pub(crate) fn new(limit: std::ops::RangeInclusive<u32>, shared: bool) -> Self {
+        Self { limit, shared }
+    }
+
+    pub(crate) fn limit(&self) -> std::ops::RangeInclusive<u32> {
+        self.limit.clone()
+    }
+
+    pub(crate) fn shared(&self) -> bool {
+        self.shared
+    }
+}
+impl From<WasmEdgeLimit> for ffi::WasmEdge_Limit {
+    fn from(limit: WasmEdgeLimit) -> Self {
+        let (start, end) = limit.limit.into_inner();
+        let has_max = !(start == end);
+
+        Self {
+            Min: start,
+            Max: end,
+            HasMax: has_max,
+            Shared: limit.shared,
         }
     }
 }
-impl From<ffi::WasmEdge_Limit> for std::ops::RangeInclusive<u32> {
+impl From<ffi::WasmEdge_Limit> for WasmEdgeLimit {
     fn from(limit: ffi::WasmEdge_Limit) -> Self {
         let start = limit.Min;
         let end = match limit.HasMax {
             true => limit.Max,
             false => limit.Min,
         };
-        Self::new(start, end)
+        WasmEdgeLimit::new(start..=end, limit.Shared)
     }
 }
 

@@ -8,7 +8,7 @@
 use crate::{
     error::{TableError, WasmEdgeError},
     ffi,
-    types::WasmValue,
+    types::{WasmEdgeLimit, WasmValue},
     utils::check,
     WasmEdgeResult,
 };
@@ -202,7 +202,9 @@ impl TableType {
     /// ```
     ///
     pub fn create(elem_ty: RefType, limit: RangeInclusive<u32>) -> WasmEdgeResult<Self> {
-        let ctx = unsafe { ffi::WasmEdge_TableTypeCreate(elem_ty.into(), limit.into()) };
+        let ctx = unsafe {
+            ffi::WasmEdge_TableTypeCreate(elem_ty.into(), WasmEdgeLimit::new(limit, false).into())
+        };
         match ctx.is_null() {
             true => Err(WasmEdgeError::TableTypeCreate),
             false => Ok(Self {
@@ -234,7 +236,8 @@ impl TableType {
     /// ```
     pub fn limit(&self) -> RangeInclusive<u32> {
         let limit = unsafe { ffi::WasmEdge_TableTypeGetLimit(self.inner.0) };
-        limit.into()
+        let limit: WasmEdgeLimit = limit.into();
+        limit.limit()
     }
 }
 impl From<wasmedge_types::TableType> for TableType {

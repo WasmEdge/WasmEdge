@@ -71,7 +71,7 @@ fn vm_apis() -> Result<(), Box<dyn std::error::Error>> {
         import.add_table("table", table);
 
         // add memory
-        let mem_ty = MemType::create(0..=u32::MAX)?;
+        let mem_ty = MemType::create(0..=u32::MAX, false)?;
         let memory = Memory::create(&mem_ty)?;
         import.add_memory("mem", memory);
 

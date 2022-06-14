@@ -348,7 +348,7 @@ mod tests {
         import.add_table("table", host_table);
 
         // create a Memory instance
-        let result = MemType::create(1..=2);
+        let result = MemType::create(1..=2, false);
         assert!(result.is_ok());
         let mem_ty = result.unwrap();
         let result = Memory::create(&mem_ty);

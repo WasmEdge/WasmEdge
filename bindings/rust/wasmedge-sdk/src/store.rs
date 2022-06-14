@@ -173,7 +173,7 @@ mod tests {
         let global_const = result.unwrap();
 
         // create a memory instance
-        let result = Memory::new(MemoryType::new(10, None));
+        let result = Memory::new(MemoryType::new(10, None, false));
         assert!(result.is_ok());
         let memory = result.unwrap();
 
@@ -349,7 +349,7 @@ mod tests {
         let global_const = result.unwrap();
 
         // create a memory instance
-        let result = Memory::new(MemoryType::new(10, None));
+        let result = Memory::new(MemoryType::new(10, None, false));
         assert!(result.is_ok());
         let memory = result.unwrap();
 

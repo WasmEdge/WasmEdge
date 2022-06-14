@@ -121,11 +121,11 @@ mod tests {
 
     #[test]
     fn test_memory_type() {
-        let ty = MemoryType::new(0, None);
+        let ty = MemoryType::new(0, None, false);
         assert_eq!(ty.minimum(), 0);
         assert_eq!(ty.maximum(), u32::MAX);
 
-        let ty = MemoryType::new(10, Some(20));
+        let ty = MemoryType::new(10, Some(20), false);
         assert_eq!(ty.minimum(), 10);
         assert_eq!(ty.maximum(), 20);
     }
@@ -133,7 +133,7 @@ mod tests {
     #[test]
     fn test_memory() {
         // create a memory instance
-        let result = Memory::new(MemoryType::new(10, Some(20)));
+        let result = Memory::new(MemoryType::new(10, Some(20), false));
         assert!(result.is_ok());
         let memory = result.unwrap();
 

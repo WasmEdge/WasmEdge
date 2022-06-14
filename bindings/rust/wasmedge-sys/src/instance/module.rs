@@ -400,7 +400,7 @@ pub trait AsInstance {
 ///     import.add_table("table", table);
 ///
 ///     // add memory
-///     let mem_ty = MemType::create(0..=u32::MAX)?;
+///     let mem_ty = MemType::create(0..=u32::MAX, false)?;
 ///     let memory = Memory::create(&mem_ty)?;
 ///     import.add_memory("mem", memory);
 ///
@@ -1291,7 +1291,7 @@ mod tests {
         import.add_table("table", host_table);
 
         // create a memory
-        let result = MemType::create(1..=2);
+        let result = MemType::create(1..=2, false);
         assert!(result.is_ok());
         let mem_ty = result.unwrap();
         let result = Memory::create(&mem_ty);
@@ -1357,7 +1357,7 @@ mod tests {
 
         // add memory
         let memory = {
-            let result = MemType::create(10..=20);
+            let result = MemType::create(10..=20, false);
             assert!(result.is_ok());
             let mem_ty = result.unwrap();
             let result = Memory::create(&mem_ty);
@@ -1683,7 +1683,7 @@ mod tests {
 
         // add memory
         let memory = {
-            let result = MemType::create(10..=20);
+            let result = MemType::create(10..=20, false);
             assert!(result.is_ok());
             let mem_ty = result.unwrap();
             let result = Memory::create(&mem_ty);
@@ -1753,7 +1753,7 @@ mod tests {
         import.add_table("table", table);
 
         // add memory
-        let result = MemType::create(0..=u32::MAX);
+        let result = MemType::create(0..=u32::MAX, false);
         assert!(result.is_ok());
         let mem_ty = result.unwrap();
         let result = Memory::create(&mem_ty);

@@ -3,6 +3,7 @@
 use super::ffi;
 use crate::{
     error::{ExportError, ImportError, WasmEdgeError},
+    types::WasmEdgeLimit,
     WasmEdgeResult,
 };
 use std::{borrow::Cow, ffi::CStr};
@@ -181,11 +182,13 @@ impl<'module> ImportType<'module> {
                     ))),
                     false => {
                         let limit = unsafe { ffi::WasmEdge_MemoryTypeGetLimit(ctx_mem_ty) };
-                        let limit: std::ops::RangeInclusive<u32> = limit.into();
+                        let limit: WasmEdgeLimit = limit.into();
+                        let range = limit.limit();
 
                         Ok(ExternalInstanceType::Memory(MemoryType::new(
-                            limit.start().to_owned(),
-                            Some(limit.end().to_owned()),
+                            range.start().to_owned(),
+                            Some(range.end().to_owned()),
+                            limit.shared(),
                         )))
                     }
                 }
@@ -205,12 +208,13 @@ impl<'module> ImportType<'module> {
 
                         // get the limit
                         let limit = unsafe { ffi::WasmEdge_TableTypeGetLimit(ctx_tab_ty) };
-                        let limit: std::ops::RangeInclusive<u32> = limit.into();
+                        let limit: WasmEdgeLimit = limit.into();
+                        let range = limit.limit();
 
                         Ok(ExternalInstanceType::Table(TableType::new(
                             elem_ty,
-                            limit.start().to_owned(),
-                            Some(limit.end().to_owned()),
+                            range.start().to_owned(),
+                            Some(range.end().to_owned()),
                         )))
                     }
                 }
@@ -322,7 +326,8 @@ impl<'module> ExportType<'module> {
 
                         // get the limit
                         let limit = unsafe { ffi::WasmEdge_TableTypeGetLimit(ctx_tab_ty) };
-                        let limit: std::ops::RangeInclusive<u32> = limit.into();
+                        let limit: WasmEdgeLimit = limit.into();
+                        let limit = limit.limit();
 
                         Ok(ExternalInstanceType::Table(TableType::new(
                             elem_ty,
@@ -342,11 +347,13 @@ impl<'module> ExportType<'module> {
                     ))),
                     false => {
                         let limit = unsafe { ffi::WasmEdge_MemoryTypeGetLimit(ctx_mem_ty) };
-                        let limit: std::ops::RangeInclusive<u32> = limit.into();
+                        let limit: WasmEdgeLimit = limit.into();
+                        let range = limit.limit();
 
                         Ok(ExternalInstanceType::Memory(MemoryType::new(
-                            limit.start().to_owned(),
-                            Some(limit.end().to_owned()),
+                            range.start().to_owned(),
+                            Some(range.end().to_owned()),
+                            limit.shared(),
                         )))
                     }
                 }

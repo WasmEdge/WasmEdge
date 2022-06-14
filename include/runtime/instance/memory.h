@@ -61,6 +61,8 @@ public:
     Allocator::release(DataPtr, MemType.getLimit().getMin());
   }
 
+  bool isShared() const noexcept { return MemType.getLimit().isShared(); }
+
   /// Get page size of memory.data
   uint32_t getPageSize() const noexcept {
     // The memory page size is binded with the limit in memory type.

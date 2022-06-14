@@ -66,6 +66,8 @@ const AST::Module::IntrinsicsTable Executor::Intrinsics = {
     ENTRY(kElemDrop, elemDrop),
     ENTRY(kRefFunc, refFunc),
     ENTRY(kPtrFunc, ptrFunc),
+    ENTRY(kMemoryAtomicNotify, memoryAtomicNotify),
+    ENTRY(kMemoryAtomicWait, memoryAtomicWait),
 #undef ENTRY
 };
 
@@ -393,6 +395,35 @@ Expect<RefVariant> Executor::refFunc(Runtime::StackManager &StackMgr,
   const auto FuncInst = ModInst->getFunc(FuncIdx);
   assuming(FuncInst && *FuncInst);
   return FuncRef(*FuncInst);
+}
+
+Expect<uint32_t> Executor::memoryAtomicNotify(Runtime::StackManager &StackMgr,
+                                              const uint32_t MemIdx,
+                                              const uint32_t Offset,
+                                              const uint32_t Count) noexcept {
+  auto *MemInst = getMemInstByIdx(StackMgr, MemIdx);
+  assuming(MemInst);
+
+  return atomicNotify(*MemInst, Offset, Count);
+}
+
+Expect<uint32_t> Executor::memoryAtomicWait(Runtime::StackManager &StackMgr,
+                                            const uint32_t MemIdx,
+                                            const uint32_t Offset,
+                                            const uint64_t Expected,
+                                            const int64_t Timeout,
+                                            const uint32_t BitWidth) noexcept {
+  auto *MemInst = getMemInstByIdx(StackMgr, MemIdx);
+  assuming(MemInst);
+
+  if (BitWidth == 64) {
+    return atomicWait<uint64_t>(*MemInst, Offset, Expected, Timeout);
+  } else if (BitWidth == 32) {
+    return atomicWait<uint32_t>(*MemInst, Offset,
+                                static_cast<uint32_t>(Expected), Timeout);
+  }
+
+  assumingUnreachable();
 }
 
 } // namespace Executor

@@ -322,7 +322,6 @@ jobs:
         export CPPFLAGS="-I/usr/local/opt/llvm/include"
         export CC=clang
         export CXX=clang++
-        cmake -Bbuild -GNinja -DWASMEDGE_BUILD_TESTS=ON .
         cmake -Bbuild -GNinja -DWASMEDGE_BUILD_TESTS=ON -DWASMEDGE_BUILD_PACKAGE="TGZ" .
         cmake --build build
     - name: Test WasmEdge
@@ -333,8 +332,16 @@ jobs:
         ctest
         cd -
     - name: Test WasmEdge Package
+      env:
+        OUTPUT_VERSION: ${{ needs.get_version_v2.outputs.version }}
+      # Temporary remove the wasmedge_process in Darwin packages.
       run: |
         cmake --build build --target package
+        cd build
+        mkdir WasmEdge-$OUTPUT_VERSION-Darwin
+        tar -C WasmEdge-$OUTPUT_VERSION-Darwin -zxvf WasmEdge-$OUTPUT_VERSION-Darwin.tar.gz
+        rm -rf WasmEdge-$OUTPUT_VERSION-Darwin/lib/wasmedge/libwasmedgePluginWasmEdgeProcess.dylib
+        tar -zcvf WasmEdge-$OUTPUT_VERSION-Darwin.tar.gz WasmEdge-$OUTPUT_VERSION-Darwin
     - name: Upload artifact
       uses: actions/upload-artifact@v2
       with:

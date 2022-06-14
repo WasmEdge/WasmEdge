@@ -5,11 +5,13 @@ on:
     branches:
       - master
     paths:
+      - ".github/workflows/inventory.yml"
       - 'bindings/rust/wasmedge-sys/**'
   pull_request:
     branches:
       - master
     paths:
+      - ".github/workflows/inventory.yml"
       - 'bindings/rust/wasmedge-sys/**'
 
 jobs:

@@ -86,6 +86,8 @@ public:
     kElemDrop,
     kRefFunc,
     kPtrFunc,
+    kMemoryAtomicNotify,
+    kMemoryAtomicWait,
     kIntrinsicMax,
   };
   using IntrinsicsTable = void * [uint32_t(Intrinsics::kIntrinsicMax)];

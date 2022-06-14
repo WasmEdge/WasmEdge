@@ -24,9 +24,11 @@
 #include "runtime/storemgr.h"
 
 #include <atomic>
+#include <condition_variable>
 #include <csignal>
 #include <cstdint>
 #include <memory>
+#include <mutex>
 #include <optional>
 #include <string_view>
 #include <type_traits>
@@ -141,7 +143,10 @@ public:
   }
 
   /// Stop execution
-  void stop() noexcept { StopToken.store(1, std::memory_order_relaxed); }
+  void stop() noexcept {
+    StopToken.store(1, std::memory_order_relaxed);
+    atomicNotifyAll();
+  }
 
 private:
   /// Run Wasm bytecode expression for initialization.
@@ -509,6 +514,52 @@ private:
   template <typename T> Expect<void> runVectorFloorOp(ValVariant &Val) const;
   template <typename T> Expect<void> runVectorTruncOp(ValVariant &Val) const;
   template <typename T> Expect<void> runVectorNearestOp(ValVariant &Val) const;
+  /// ======= Atomic instructions =======
+  Expect<void> runAtomicNotifyOp(Runtime::StackManager &StackMgr,
+                                 Runtime::Instance::MemoryInstance &MemInst,
+                                 const AST::Instruction &Instr);
+  Expect<void> runMemoryFenceOp();
+  template <typename T>
+  TypeT<T> runAtomicWaitOp(Runtime::StackManager &StackMgr,
+                           Runtime::Instance::MemoryInstance &MemInst,
+                           const AST::Instruction &Instr);
+  template <typename T, typename I>
+  TypeT<T> runAtomicLoadOp(Runtime::StackManager &StackMgr,
+                           Runtime::Instance::MemoryInstance &MemInst,
+                           const AST::Instruction &Instr);
+  template <typename T, typename I>
+  TypeT<T> runAtomicStoreOp(Runtime::StackManager &StackMgr,
+                            Runtime::Instance::MemoryInstance &MemInst,
+                            const AST::Instruction &Instr);
+  template <typename T, typename I>
+  TypeT<T> runAtomicAddOp(Runtime::StackManager &StackMgr,
+                          Runtime::Instance::MemoryInstance &MemInst,
+                          const AST::Instruction &Instr);
+  template <typename T, typename I>
+  TypeT<T> runAtomicSubOp(Runtime::StackManager &StackMgr,
+                          Runtime::Instance::MemoryInstance &MemInst,
+                          const AST::Instruction &Instr);
+  template <typename T, typename I>
+  TypeT<T> runAtomicOrOp(Runtime::StackManager &StackMgr,
+                         Runtime::Instance::MemoryInstance &MemInst,
+                         const AST::Instruction &Instr);
+  template <typename T, typename I>
+  TypeT<T> runAtomicAndOp(Runtime::StackManager &StackMgr,
+                          Runtime::Instance::MemoryInstance &MemInst,
+                          const AST::Instruction &Instr);
+  template <typename T, typename I>
+  TypeT<T> runAtomicXorOp(Runtime::StackManager &StackMgr,
+                          Runtime::Instance::MemoryInstance &MemInst,
+                          const AST::Instruction &Instr);
+  template <typename T, typename I>
+  TypeT<T> runAtomicExchangeOp(Runtime::StackManager &StackMgr,
+                               Runtime::Instance::MemoryInstance &MemInst,
+                               const AST::Instruction &Instr);
+  template <typename T, typename I>
+  TypeT<T>
+  runAtomicCompareExchangeOp(Runtime::StackManager &StackMgr,
+                             Runtime::Instance::MemoryInstance &MemInst,
+                             const AST::Instruction &Instr);
   /// @}
 
   /// \name Run compiled functions
@@ -570,11 +621,37 @@ public:
   Expect<void *> ptrFunc(Runtime::StackManager &StackMgr,
                          const uint32_t TableIdx, const uint32_t FuncTypeIdx,
                          const uint32_t FuncIdx) noexcept;
+  Expect<uint32_t> memoryAtomicNotify(Runtime::StackManager &StackMgr,
+                                      const uint32_t MemIdx,
+                                      const uint32_t Offset,
+                                      const uint32_t Count) noexcept;
+  Expect<uint32_t>
+  memoryAtomicWait(Runtime::StackManager &StackMgr, const uint32_t MemIdx,
+                   const uint32_t Offset, const uint64_t Expected,
+                   const int64_t Timeout, const uint32_t BitWidth) noexcept;
 
   template <typename FuncPtr> struct ProxyHelper;
 
   /// Callbacks for compiled modules
   static const AST::Module::IntrinsicsTable Intrinsics;
+
+private:
+  Expect<uint32_t> atomicNotify(Runtime::Instance::MemoryInstance &MemInst,
+                                uint32_t Address, uint32_t Count) noexcept;
+  template <typename T>
+  Expect<uint32_t> atomicWait(Runtime::Instance::MemoryInstance &MemInst,
+                              uint32_t Address, T Expected,
+                              int64_t Timeout) noexcept;
+  void atomicNotifyAll() noexcept;
+
+  struct Waiter {
+    std::mutex Mutex;
+    std::condition_variable Cond;
+    Runtime::Instance::MemoryInstance *MemInst;
+    Waiter(Runtime::Instance::MemoryInstance *Inst) noexcept : MemInst(Inst) {}
+  };
+  std::mutex WaiterMapMutex;
+  std::unordered_multimap<uint32_t, Waiter> WaiterMap;
 
 private:
   /// Execution context for compiled functions
@@ -608,6 +685,7 @@ private:
 } // namespace Executor
 } // namespace WasmEdge
 
+#include "engine/atomic.ipp"
 #include "engine/binary_numeric.ipp"
 #include "engine/cast_numeric.ipp"
 #include "engine/memory.ipp"

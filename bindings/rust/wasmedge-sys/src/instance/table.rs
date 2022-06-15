@@ -240,7 +240,7 @@ impl TableType {
 }
 impl From<wasmedge_types::TableType> for TableType {
     fn from(ty: wasmedge_types::TableType) -> Self {
-        TableType::create(ty.elem_ty(), ty.minimum(), Some(ty.maximum())).expect(
+        TableType::create(ty.elem_ty(), ty.minimum(), ty.maximum()).expect(
             "[wasmedge] Failed to convert wasmedge_types::TableType into wasmedge_sys::TableType.",
         )
     }

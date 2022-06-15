@@ -336,14 +336,16 @@ impl Drop for MemType {
 }
 impl From<wasmedge_types::MemoryType> for MemType {
     fn from(ty: wasmedge_types::MemoryType) -> Self {
-        MemType::create(ty.minimum(), Some(ty.maximum()), ty.shared()).expect(
+        MemType::create(ty.minimum(), ty.maximum(), ty.shared()).expect(
             "[wasmedge-sys] Failed to convert wasmedge_types::MemoryType into wasmedge_sys::MemType.",
         )
     }
 }
 impl From<MemType> for wasmedge_types::MemoryType {
     fn from(ty: MemType) -> Self {
-        wasmedge_types::MemoryType::new(ty.min(), ty.max(), ty.shared())
+        wasmedge_types::MemoryType::new(ty.min(), ty.max(), ty.shared()).expect(
+            "[wasmedge-sys] Failed to convert wasmedge_sys::MemType into wasmedge_types::MemoryType."
+        )
     }
 }
 

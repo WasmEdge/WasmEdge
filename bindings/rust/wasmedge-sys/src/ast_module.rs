@@ -188,7 +188,7 @@ impl<'module> ImportType<'module> {
                             limit.min(),
                             limit.max(),
                             limit.shared(),
-                        )))
+                        )?))
                     }
                 }
             }
@@ -350,7 +350,7 @@ impl<'module> ExportType<'module> {
                             limit.min(),
                             limit.max(),
                             limit.shared(),
-                        )))
+                        )?))
                     }
                 }
             }
@@ -532,7 +532,7 @@ mod tests {
         if let ExternalInstanceType::Table(table_ty) = ty {
             assert_eq!(table_ty.elem_ty(), RefType::ExternRef);
             assert_eq!(table_ty.minimum(), 10);
-            assert_eq!(table_ty.maximum(), 30);
+            assert_eq!(table_ty.maximum(), Some(30));
         }
 
         // check the memory_type function
@@ -542,7 +542,7 @@ mod tests {
         matches!(ty, ExternalInstanceType::Memory(_));
         if let ExternalInstanceType::Memory(mem_ty) = ty {
             assert_eq!(mem_ty.minimum(), 2);
-            assert_eq!(mem_ty.maximum(), u32::MAX);
+            assert_eq!(mem_ty.maximum(), None);
         }
 
         // check the global_type function
@@ -682,7 +682,7 @@ mod tests {
         if let ExternalInstanceType::Table(table_ty) = ty {
             assert_eq!(table_ty.elem_ty(), RefType::ExternRef);
             assert_eq!(table_ty.minimum(), 10);
-            assert_eq!(table_ty.maximum(), u32::MAX);
+            assert_eq!(table_ty.maximum(), None);
         }
 
         // check the memory_type function
@@ -692,7 +692,7 @@ mod tests {
         matches!(ty, ExternalInstanceType::Memory(_));
         if let ExternalInstanceType::Memory(mem_ty) = ty {
             assert_eq!(mem_ty.minimum(), 1);
-            assert_eq!(mem_ty.maximum(), 3);
+            assert_eq!(mem_ty.maximum(), Some(3));
         }
 
         // check the global_type function
@@ -833,7 +833,7 @@ mod tests {
             if let ExternalInstanceType::Table(table_ty) = ty {
                 assert_eq!(table_ty.elem_ty(), RefType::ExternRef);
                 assert_eq!(table_ty.minimum(), 10);
-                assert_eq!(table_ty.maximum(), u32::MAX);
+                assert_eq!(table_ty.maximum(), None);
             }
 
             // check the memory_type function
@@ -843,7 +843,7 @@ mod tests {
             matches!(ty, ExternalInstanceType::Memory(_));
             if let ExternalInstanceType::Memory(mem_ty) = ty {
                 assert_eq!(mem_ty.minimum(), 1);
-                assert_eq!(mem_ty.maximum(), 3);
+                assert_eq!(mem_ty.maximum(), Some(3));
             }
 
             // check the global_type function
@@ -992,7 +992,7 @@ mod tests {
             if let ExternalInstanceType::Table(table_ty) = ty {
                 assert_eq!(table_ty.elem_ty(), RefType::ExternRef);
                 assert_eq!(table_ty.minimum(), 10);
-                assert_eq!(table_ty.maximum(), u32::MAX);
+                assert_eq!(table_ty.maximum(), None);
             }
 
             // check the memory_type function
@@ -1002,7 +1002,7 @@ mod tests {
             matches!(ty, ExternalInstanceType::Memory(_));
             if let ExternalInstanceType::Memory(mem_ty) = ty {
                 assert_eq!(mem_ty.minimum(), 1);
-                assert_eq!(mem_ty.maximum(), 3);
+                assert_eq!(mem_ty.maximum(), Some(3));
             }
 
             // check the global_type function

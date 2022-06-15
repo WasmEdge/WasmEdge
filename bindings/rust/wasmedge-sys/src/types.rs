@@ -32,7 +32,7 @@ impl From<WasmEdgeLimit> for ffi::WasmEdge_Limit {
     fn from(limit: WasmEdgeLimit) -> Self {
         let max = match limit.max() {
             Some(max) => max,
-            None => 0,
+            None => u32::MAX,
         };
 
         Self {

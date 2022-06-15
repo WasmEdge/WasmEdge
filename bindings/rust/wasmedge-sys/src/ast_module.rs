@@ -183,11 +183,10 @@ impl<'module> ImportType<'module> {
                     false => {
                         let limit = unsafe { ffi::WasmEdge_MemoryTypeGetLimit(ctx_mem_ty) };
                         let limit: WasmEdgeLimit = limit.into();
-                        let range = limit.limit();
 
                         Ok(ExternalInstanceType::Memory(MemoryType::new(
-                            range.start().to_owned(),
-                            Some(range.end().to_owned()),
+                            limit.min(),
+                            limit.max(),
                             limit.shared(),
                         )))
                     }
@@ -209,12 +208,11 @@ impl<'module> ImportType<'module> {
                         // get the limit
                         let limit = unsafe { ffi::WasmEdge_TableTypeGetLimit(ctx_tab_ty) };
                         let limit: WasmEdgeLimit = limit.into();
-                        let range = limit.limit();
 
                         Ok(ExternalInstanceType::Table(TableType::new(
                             elem_ty,
-                            range.start().to_owned(),
-                            Some(range.end().to_owned()),
+                            limit.min(),
+                            limit.max(),
                         )))
                     }
                 }
@@ -327,12 +325,11 @@ impl<'module> ExportType<'module> {
                         // get the limit
                         let limit = unsafe { ffi::WasmEdge_TableTypeGetLimit(ctx_tab_ty) };
                         let limit: WasmEdgeLimit = limit.into();
-                        let limit = limit.limit();
 
                         Ok(ExternalInstanceType::Table(TableType::new(
                             elem_ty,
-                            limit.start().to_owned(),
-                            Some(limit.end().to_owned()),
+                            limit.min(),
+                            limit.max(),
                         )))
                     }
                 }
@@ -348,11 +345,10 @@ impl<'module> ExportType<'module> {
                     false => {
                         let limit = unsafe { ffi::WasmEdge_MemoryTypeGetLimit(ctx_mem_ty) };
                         let limit: WasmEdgeLimit = limit.into();
-                        let range = limit.limit();
 
                         Ok(ExternalInstanceType::Memory(MemoryType::new(
-                            range.start().to_owned(),
-                            Some(range.end().to_owned()),
+                            limit.min(),
+                            limit.max(),
                             limit.shared(),
                         )))
                     }
@@ -546,7 +542,7 @@ mod tests {
         matches!(ty, ExternalInstanceType::Memory(_));
         if let ExternalInstanceType::Memory(mem_ty) = ty {
             assert_eq!(mem_ty.minimum(), 2);
-            assert_eq!(mem_ty.maximum(), 2);
+            assert_eq!(mem_ty.maximum(), u32::MAX);
         }
 
         // check the global_type function
@@ -686,7 +682,7 @@ mod tests {
         if let ExternalInstanceType::Table(table_ty) = ty {
             assert_eq!(table_ty.elem_ty(), RefType::ExternRef);
             assert_eq!(table_ty.minimum(), 10);
-            assert_eq!(table_ty.maximum(), 10);
+            assert_eq!(table_ty.maximum(), u32::MAX);
         }
 
         // check the memory_type function
@@ -837,7 +833,7 @@ mod tests {
             if let ExternalInstanceType::Table(table_ty) = ty {
                 assert_eq!(table_ty.elem_ty(), RefType::ExternRef);
                 assert_eq!(table_ty.minimum(), 10);
-                assert_eq!(table_ty.maximum(), 10);
+                assert_eq!(table_ty.maximum(), u32::MAX);
             }
 
             // check the memory_type function
@@ -996,7 +992,7 @@ mod tests {
             if let ExternalInstanceType::Table(table_ty) = ty {
                 assert_eq!(table_ty.elem_ty(), RefType::ExternRef);
                 assert_eq!(table_ty.minimum(), 10);
-                assert_eq!(table_ty.maximum(), 10);
+                assert_eq!(table_ty.maximum(), u32::MAX);
             }
 
             // check the memory_type function

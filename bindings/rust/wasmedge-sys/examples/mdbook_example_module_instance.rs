@@ -66,12 +66,12 @@ fn vm_apis() -> Result<(), Box<dyn std::error::Error>> {
         import.add_func("add", host_func);
 
         // add table
-        let table_ty = TableType::create(RefType::FuncRef, 0..=u32::MAX)?;
+        let table_ty = TableType::create(RefType::FuncRef, 0, Some(u32::MAX))?;
         let table = Table::create(&table_ty)?;
         import.add_table("table", table);
 
         // add memory
-        let mem_ty = MemType::create(0..=u32::MAX, false)?;
+        let mem_ty = MemType::create(0, Some(u32::MAX), false)?;
         let memory = Memory::create(&mem_ty)?;
         import.add_memory("mem", memory);
 

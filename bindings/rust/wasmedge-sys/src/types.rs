@@ -7,16 +7,21 @@ use wasmedge_types::{RefType, ValType};
 
 #[derive(Debug, Clone)]
 pub(crate) struct WasmEdgeLimit {
-    limit: std::ops::RangeInclusive<u32>,
+    min: u32,
+    max: Option<u32>,
     shared: bool,
 }
 impl WasmEdgeLimit {
-    pub(crate) fn new(limit: std::ops::RangeInclusive<u32>, shared: bool) -> Self {
-        Self { limit, shared }
+    pub(crate) fn new(min: u32, max: Option<u32>, shared: bool) -> Self {
+        Self { min, max, shared }
     }
 
-    pub(crate) fn limit(&self) -> std::ops::RangeInclusive<u32> {
-        self.limit.clone()
+    pub(crate) fn min(&self) -> u32 {
+        self.min
+    }
+
+    pub(crate) fn max(&self) -> Option<u32> {
+        self.max
     }
 
     pub(crate) fn shared(&self) -> bool {
@@ -25,25 +30,26 @@ impl WasmEdgeLimit {
 }
 impl From<WasmEdgeLimit> for ffi::WasmEdge_Limit {
     fn from(limit: WasmEdgeLimit) -> Self {
-        let (start, end) = limit.limit.into_inner();
-        let has_max = !(start == end);
+        let max = match limit.max() {
+            Some(max) => max,
+            None => 0,
+        };
 
         Self {
-            Min: start,
-            Max: end,
-            HasMax: has_max,
+            Min: limit.min(),
+            Max: max,
+            HasMax: limit.max().is_some(),
             Shared: limit.shared,
         }
     }
 }
 impl From<ffi::WasmEdge_Limit> for WasmEdgeLimit {
     fn from(limit: ffi::WasmEdge_Limit) -> Self {
-        let start = limit.Min;
-        let end = match limit.HasMax {
-            true => limit.Max,
-            false => limit.Min,
+        let max = match limit.HasMax {
+            true => Some(limit.Max),
+            false => None,
         };
-        WasmEdgeLimit::new(start..=end, limit.Shared)
+        WasmEdgeLimit::new(limit.Min, max, limit.Shared)
     }
 }
 
@@ -367,7 +373,7 @@ mod tests {
         assert_eq!(val.ty(), ValType::V128);
 
         // ExternRef
-        let result = TableType::create(RefType::FuncRef, 10..=20);
+        let result = TableType::create(RefType::FuncRef, 10, Some(20));
         assert!(result.is_ok());
         let ty = result.unwrap();
         let result = Table::create(&ty);
@@ -408,7 +414,7 @@ mod tests {
         let val_v128 = WasmValue::from_v128(1314);
 
         // ExternRef
-        let result = TableType::create(RefType::FuncRef, 10..=20);
+        let result = TableType::create(RefType::FuncRef, 10, Some(20));
         assert!(result.is_ok());
         let ty = result.unwrap();
         let result = Table::create(&ty);
@@ -479,7 +485,7 @@ mod tests {
         let val_v128_cloned = Arc::clone(&val_v128);
 
         // ExternRef
-        let result = TableType::create(RefType::FuncRef, 10..=20);
+        let result = TableType::create(RefType::FuncRef, 10, Some(20));
         assert!(result.is_ok());
         let ty = result.unwrap();
         let result = Table::create(&ty);

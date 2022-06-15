@@ -338,7 +338,7 @@ mod tests {
         import.add_func("func-add", host_func);
 
         // create a Table instance
-        let result = TableType::create(RefType::FuncRef, 10..=20);
+        let result = TableType::create(RefType::FuncRef, 10, Some(20));
         assert!(result.is_ok());
         let table_ty = result.unwrap();
         let result = Table::create(&table_ty);
@@ -348,7 +348,7 @@ mod tests {
         import.add_table("table", host_table);
 
         // create a Memory instance
-        let result = MemType::create(1..=2, false);
+        let result = MemType::create(1, Some(2), false);
         assert!(result.is_ok());
         let mem_ty = result.unwrap();
         let result = Memory::create(&mem_ty);

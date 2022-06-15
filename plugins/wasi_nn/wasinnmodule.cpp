@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2019-2022 Second State INC
 
-#include "host/wasi_nn/wasinnmodule.h"
-#include "host/wasi_nn/wasinnfunc.h"
+#include "wasinnmodule.h"
+#include "wasinnfunc.h"
 
 namespace WasmEdge {
 namespace Host {

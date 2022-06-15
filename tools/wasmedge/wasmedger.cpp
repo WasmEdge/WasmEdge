@@ -6,7 +6,6 @@
 #include "common/types.h"
 #include "common/version.h"
 #include "host/wasi/wasimodule.h"
-#include "host/wasi_nn/wasinnmodule.h"
 #include "plugin/plugin.h"
 #include "po/argument_parser.h"
 #include "vm/vm.h"

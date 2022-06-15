@@ -3,9 +3,9 @@
 
 #pragma once
 
+#include "plugin/plugin.h"
+
 #include <cstdint>
-#include <map>
-#include <string>
 #include <vector>
 
 #ifdef WASMEDGE_WASINN_BUILD_OPENVINO
@@ -118,6 +118,8 @@ public:
 #ifdef WASMEDGE_WASINN_BUILD_OPENVINO
   ie_core_t *OpenVINOCore = nullptr;
 #endif
+
+  static Plugin::PluginRegister Register;
 };
 
 } // namespace WASINN

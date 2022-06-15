@@ -315,7 +315,7 @@ impl FuncType {
 pub struct TableType {
     elem_ty: RefType,
     min: u32,
-    max: u32,
+    max: Option<u32>,
 }
 impl TableType {
     /// Creates a new [TableType] with the given element type and the size range.
@@ -328,10 +328,6 @@ impl TableType {
     ///
     /// * `max` - The maximum size of the table to be created.    
     pub fn new(elem_ty: RefType, min: u32, max: Option<u32>) -> Self {
-        let max = match max {
-            Some(val) => val,
-            None => u32::MAX,
-        };
         Self { elem_ty, min, max }
     }
 
@@ -346,7 +342,7 @@ impl TableType {
     }
 
     /// Returns the maximum size defined in the [TableType].
-    pub fn maximum(&self) -> u32 {
+    pub fn maximum(&self) -> Option<u32> {
         self.max
     }
 }
@@ -355,7 +351,7 @@ impl Default for TableType {
         Self {
             elem_ty: RefType::FuncRef,
             min: 0,
-            max: u32::MAX,
+            max: None,
         }
     }
 }
@@ -363,10 +359,10 @@ impl Default for TableType {
 /// Struct of WasmEdge MemoryType.
 ///
 /// A [MemoryType] is used to declare the size range of a WasmEdge Memory to be created.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct MemoryType {
     min: u32,
-    max: u32,
+    max: Option<u32>,
     shared: bool,
 }
 impl MemoryType {
@@ -377,12 +373,11 @@ impl MemoryType {
     /// * `min` - The minimum size of the memory to be created.
     ///
     /// * `max` - The maximum size of the memory to be created.
-    pub fn new(min: u32, max: Option<u32>, shared: bool) -> Self {
-        let max = match max {
-            Some(max) => max,
-            None => u32::MAX,
-        };
-        Self { min, max, shared }
+    pub fn new(min: u32, max: Option<u32>, shared: bool) -> WasmEdgeResult<Self> {
+        if shared && max.is_none() {
+            return Err(error::WasmEdgeError::Mem(error::MemError::CreateSharedType));
+        }
+        Ok(Self { min, max, shared })
     }
 
     /// Returns the minimum size defined in the [MemoryType].
@@ -391,22 +386,13 @@ impl MemoryType {
     }
 
     /// Returns the maximum size defined in the [MemoryType].
-    pub fn maximum(&self) -> u32 {
+    pub fn maximum(&self) -> Option<u32> {
         self.max
     }
 
     /// Returns whether the memory is shared.
     pub fn shared(&self) -> bool {
         self.shared
-    }
-}
-impl Default for MemoryType {
-    fn default() -> Self {
-        Self {
-            min: 0,
-            max: u32::MAX,
-            shared: false,
-        }
     }
 }
 

@@ -93,14 +93,17 @@ endif()
 
 if(WASMEDGE_BUILD_STATIC_LIB)
 
+  # FIXME: spdlog::spdlog will fail on Darwin.
   wasmedge_add_static_lib_component_command(spdlog::spdlog)
   wasmedge_add_static_lib_component_command(wasmedgeSystem)
   wasmedge_add_static_lib_component_command(wasmedgeCommon)
+  wasmedge_add_static_lib_component_command(wasmedgePO)
   wasmedge_add_static_lib_component_command(wasmedgeLoaderFileMgr)
   wasmedge_add_static_lib_component_command(wasmedgeLoader)
   wasmedge_add_static_lib_component_command(wasmedgeValidator)
   wasmedge_add_static_lib_component_command(wasmedgeExecutor)
   wasmedge_add_static_lib_component_command(wasmedgeHostModuleWasi)
+  wasmedge_add_static_lib_component_command(wasmedgePlugin)
   wasmedge_add_static_lib_component_command(wasmedgeVM)
 
   if (WASMEDGE_BUILD_AOT_RUNTIME)

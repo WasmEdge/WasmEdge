@@ -61,10 +61,11 @@
       - [Upgrade to 0.10.0](embed/go/0.9.1/upgrade_to_0.10.0.md)
   - [Node.js SDK](embed/node.md)
   - [Rust SDK](embed/rust.md)
+    - [Hello World!](embed/rust/say_hello.md)
+    - [Memory Manipulation](embed/rust/memory_manipulation.md)
     - [Run a WebAssembly function with WasmEdge low-level APIs](embed/rust/sys_run_host_func.md)
     - [Compute Fibonacci numbers concurrently](embed/rust/concurrent_fib.md)
     - [Usage of WasmEdge module instances](embed/rust/how_to_use_module_instance.md)
-    - [Hello World!](embed/rust/say_hello.md)
   - [Python SDK](embed/python.md)
 
 - [WasmEdge in Kubernetes](kubernetes.md)

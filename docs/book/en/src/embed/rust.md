@@ -204,6 +204,8 @@ For those who would like to dev in Docker environment, you can reference the [Us
 
 - [[wasmedge-sdk] Hello World!](rust/say_hello.md)
 
+- [[wasmedge-sdk] Memory manipulation](rust/memory_manipulation.md)
+
 ### `wasmedge-sys` Examples
 
 - [[wasmedge-sys] Run a WebAssembly function with WasmEdge low-level APIs](rust/sys_run_host_func.md)

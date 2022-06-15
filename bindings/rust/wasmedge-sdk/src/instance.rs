@@ -402,7 +402,10 @@ mod tests {
         let global_const = result.unwrap();
 
         // create a memory instance
-        let result = Memory::new(MemoryType::new(10, None, false));
+        let result = MemoryType::new(10, None, false);
+        assert!(result.is_ok());
+        let memory_type = result.unwrap();
+        let result = Memory::new(memory_type);
         assert!(result.is_ok());
         let memory = result.unwrap();
 

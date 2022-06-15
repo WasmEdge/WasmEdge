@@ -39,7 +39,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     )?;
 
     // create a memory instance to be imported
-    let memory = Memory::new(MemoryType::new(10, Some(20), false))?;
+    let memory = Memory::new(MemoryType::new(10, Some(20), false)?)?;
 
     // create a table instance to be imported
     let table = Table::new(TableType::new(RefType::FuncRef, 10, Some(20)))?;

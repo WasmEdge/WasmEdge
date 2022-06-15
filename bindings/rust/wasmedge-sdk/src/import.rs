@@ -50,7 +50,7 @@ use wasmedge_types::FuncType;
 ///     )?;
 ///
 ///     // create a memory instance to be imported
-///     let memory = Memory::new(MemoryType::new(10, Some(20), false))?;
+///     let memory = Memory::new(MemoryType::new(10, Some(20), false)?)?;
 ///
 ///     // create a table instance to be imported
 ///     let table = Table::new(TableType::new(RefType::FuncRef, 10, Some(20)))?;
@@ -522,7 +522,10 @@ mod tests {
     #[test]
     fn test_import_add_memory() {
         // create a memory
-        let result = Memory::new(MemoryType::new(10, Some(20), false));
+        let result = MemoryType::new(10, Some(20), false);
+        assert!(result.is_ok());
+        let memory_type = result.unwrap();
+        let result = Memory::new(memory_type);
         assert!(result.is_ok());
         let memory = result.unwrap();
 
@@ -576,7 +579,7 @@ mod tests {
         assert!(result.is_ok());
         let ty = result.unwrap();
         assert_eq!(ty.minimum(), 10);
-        assert_eq!(ty.maximum(), 20);
+        assert_eq!(ty.maximum(), Some(20));
 
         // grow memory
         let result = memory.grow(5);
@@ -774,7 +777,7 @@ mod tests {
         let ty = result.unwrap();
         assert_eq!(ty.elem_ty(), RefType::FuncRef);
         assert_eq!(ty.minimum(), 10);
-        assert_eq!(ty.maximum(), 20);
+        assert_eq!(ty.maximum(), Some(20));
 
         // get value from table[0]
         let result = table.get(0);
@@ -839,7 +842,10 @@ mod tests {
         let global_const = result.unwrap();
 
         // create a memory instance
-        let result = Memory::new(MemoryType::new(10, Some(20), false));
+        let result = MemoryType::new(10, Some(20), false);
+        assert!(result.is_ok());
+        let memory_type = result.unwrap();
+        let result = Memory::new(memory_type);
         assert!(result.is_ok());
         let memory = result.unwrap();
 
@@ -931,7 +937,7 @@ mod tests {
             let ty = result.unwrap();
             assert_eq!(ty.elem_ty(), RefType::FuncRef);
             assert_eq!(ty.minimum(), 10);
-            assert_eq!(ty.maximum(), 20);
+            assert_eq!(ty.maximum(), Some(20));
 
             // get the exported host function
             let result = instance.func("add");
@@ -961,7 +967,10 @@ mod tests {
         let global_const = result.unwrap();
 
         // create a memory instance
-        let result = Memory::new(MemoryType::new(10, Some(20), false));
+        let result = MemoryType::new(10, Some(20), false);
+        assert!(result.is_ok());
+        let memory_type = result.unwrap();
+        let result = Memory::new(memory_type);
         assert!(result.is_ok());
         let memory = result.unwrap();
 
@@ -1059,7 +1068,7 @@ mod tests {
             let ty = result.unwrap();
             assert_eq!(ty.elem_ty(), RefType::FuncRef);
             assert_eq!(ty.minimum(), 10);
-            assert_eq!(ty.maximum(), 20);
+            assert_eq!(ty.maximum(), Some(20));
 
             // get the exported host function
             let result = instance.func("add");

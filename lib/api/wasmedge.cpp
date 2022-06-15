@@ -5,7 +5,6 @@
 
 #include "aot/compiler.h"
 #include "host/wasi/wasimodule.h"
-#include "host/wasi_nn/wasinnmodule.h"
 #include "plugin/plugin.h"
 #include "vm/vm.h"
 
@@ -1654,6 +1653,18 @@ WASMEDGE_CAPI_EXPORT uint32_t WasmEdge_ModuleInstanceWASIGetExitCode(
     return EXIT_FAILURE;
   }
   return WasiMod->getEnv().getExitCode();
+}
+
+WASMEDGE_CAPI_EXPORT WasmEdge_ModuleInstanceContext *
+WasmEdge_ModuleInstanceCreateWasiNN(void) {
+  using namespace std::literals::string_view_literals;
+  if (const auto *Plugin = WasmEdge::Plugin::Plugin::find("wasi_nn"sv)) {
+    if (const auto *Module = Plugin->findModule("wasi_nn"sv)) {
+      auto *ProcMod = toModCxt(Module->create().release());
+      return ProcMod;
+    }
+  }
+  return nullptr;
 }
 
 WASMEDGE_CAPI_EXPORT WasmEdge_ModuleInstanceContext *

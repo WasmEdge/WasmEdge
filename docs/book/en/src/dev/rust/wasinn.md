@@ -29,7 +29,7 @@ apt install -y intel-openvino-runtime-ubuntu20-$OPENVINO_VERSION
 By default, we don't enable any WASI-NN backend in WasmEdge. To enable the OpenVINO™ backend, we need to [building the WasmEdge from source](../../extend/build.md) with the cmake option `-DWASMEDGE_WASINN_BUILD_OPENVINO=ON` to enable the OpenVINO™ backend:
 
 ```bash
-git clone https://github.com/WasmEdge/WasmEdge.git && cd WasmEdge
+git clone -b proposal/wasi_nn https://github.com/WasmEdge/WasmEdge.git && cd WasmEdge
 # If use docker
 docker pull wasmedge/wasmedge
 docker run -it --rm \
@@ -39,9 +39,11 @@ cd /root/wasmedge
 # If you don't use docker then you need to run only the following commands in the cloned repository root
 mkdir -p build && cd build
 cmake -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_WASINN_BUILD_OPENVINO=ON .. && make -j
+# For the WASI-NN plugin, you should install this project.
+cmake --install .
 ```
 
-(*Make sure you have configured the OpenVINO™ environment correctly with `source /opt/intel/openvino_2021/bin/setupvars.sh`* ). You should have an executable `wasmedge` runtime under `./build/tools/wasmedge/wasmedge`.
+(*Make sure you have configured the OpenVINO™ environment correctly with `source /opt/intel/openvino_2021/bin/setupvars.sh`* ). You should have an executable `wasmedge` runtime under `/usr/local/bin` after installation.
 
 For Rust, make sure to add `wasm32-wasi` target with the following command:
 
@@ -98,7 +100,8 @@ The outputted `wasmedge-wasinn-example-mobilenet.wasm` will be under `rust/targe
 Then you can use the OpenVINO-enabled WasmEdge which was compiled above to execute the WASM file:
 
 ```bash
-<WASMEDGE RUNTIME PATH> --dir .:. rust/target/wasm32-wasi/release/wasmedge-wasinn-example-mobilenet.wasm mobilenet.xml mobilenet.bin tensor-1x224x224x3-f32.bgr
+wasmedge --dir .:. rust/target/wasm32-wasi/release/wasmedge-wasinn-example-mobilenet.wasm mobilenet.xml mobilenet.bin tensor-1x224x224x3-f32.bgr
+# If you didn't install the project, you should give the `WASMEDGE_PLUGIN_PATH` environment variable for specifying the WASI-NN plugin path (the built plugin is at `build/plugins/wasi_nn`).
 ```
 
 If everything goes well, you should have the terminal output:

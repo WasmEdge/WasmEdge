@@ -138,7 +138,7 @@ mod tests {
         // check minimum
         assert_eq!(ty.minimum(), 10);
         // check maximum
-        assert_eq!(ty.maximum(), 20);
+        assert_eq!(ty.maximum(), Some(20));
     }
 
     #[test]
@@ -208,7 +208,7 @@ mod tests {
         let ty = result.unwrap();
         assert_eq!(ty.elem_ty(), RefType::FuncRef);
         assert_eq!(ty.minimum(), 10);
-        assert_eq!(ty.maximum(), 20);
+        assert_eq!(ty.maximum(), Some(20));
 
         // get value from table[0]
         let result = table.get(0);

@@ -121,19 +121,26 @@ mod tests {
 
     #[test]
     fn test_memory_type() {
-        let ty = MemoryType::new(0, None);
+        let result = MemoryType::new(0, None, false);
+        assert!(result.is_ok());
+        let ty = result.unwrap();
         assert_eq!(ty.minimum(), 0);
-        assert_eq!(ty.maximum(), u32::MAX);
+        assert_eq!(ty.maximum(), None);
 
-        let ty = MemoryType::new(10, Some(20));
+        let result = MemoryType::new(10, Some(20), false);
+        assert!(result.is_ok());
+        let ty = result.unwrap();
         assert_eq!(ty.minimum(), 10);
-        assert_eq!(ty.maximum(), 20);
+        assert_eq!(ty.maximum(), Some(20));
     }
 
     #[test]
     fn test_memory() {
         // create a memory instance
-        let result = Memory::new(MemoryType::new(10, Some(20)));
+        let result = MemoryType::new(10, Some(20), false);
+        assert!(result.is_ok());
+        let memory_type = result.unwrap();
+        let result = Memory::new(memory_type);
         assert!(result.is_ok());
         let memory = result.unwrap();
 
@@ -189,7 +196,7 @@ mod tests {
         assert!(result.is_ok());
         let ty = result.unwrap();
         assert_eq!(ty.minimum(), 10);
-        assert_eq!(ty.maximum(), 20);
+        assert_eq!(ty.maximum(), Some(20));
 
         // read data before write data
         let result = memory.read(0, 10);

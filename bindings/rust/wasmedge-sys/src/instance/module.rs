@@ -395,12 +395,12 @@ pub trait AsInstance {
 ///     import.add_func("add", host_func);
 ///
 ///     // add table
-///     let table_ty = TableType::create(RefType::FuncRef, 0..=u32::MAX)?;
+///     let table_ty = TableType::create(RefType::FuncRef, 0, Some(u32::MAX))?;
 ///     let table = Table::create(&table_ty)?;
 ///     import.add_table("table", table);
 ///
 ///     // add memory
-///     let mem_ty = MemType::create(0..=u32::MAX)?;
+///     let mem_ty = MemType::create(0, Some(u32::MAX), false)?;
 ///     let memory = Memory::create(&mem_ty)?;
 ///     import.add_memory("mem", memory);
 ///
@@ -1281,7 +1281,7 @@ mod tests {
         import.add_func("func-add", host_func);
 
         // create a table
-        let result = TableType::create(RefType::FuncRef, 10..=20);
+        let result = TableType::create(RefType::FuncRef, 10, Some(20));
         assert!(result.is_ok());
         let table_ty = result.unwrap();
         let result = Table::create(&table_ty);
@@ -1291,7 +1291,7 @@ mod tests {
         import.add_table("table", host_table);
 
         // create a memory
-        let result = MemType::create(1..=2);
+        let result = MemType::create(1, Some(2), false);
         assert!(result.is_ok());
         let mem_ty = result.unwrap();
         let result = Memory::create(&mem_ty);
@@ -1347,7 +1347,7 @@ mod tests {
         import.add_func("add", host_func);
 
         // add table
-        let result = TableType::create(RefType::FuncRef, 0..=u32::MAX);
+        let result = TableType::create(RefType::FuncRef, 0, Some(u32::MAX));
         assert!(result.is_ok());
         let ty = result.unwrap();
         let result = Table::create(&ty);
@@ -1357,7 +1357,7 @@ mod tests {
 
         // add memory
         let memory = {
-            let result = MemType::create(10..=20);
+            let result = MemType::create(10, Some(20), false);
             assert!(result.is_ok());
             let mem_ty = result.unwrap();
             let result = Memory::create(&mem_ty);
@@ -1426,7 +1426,8 @@ mod tests {
             let result = memory.ty();
             assert!(result.is_ok());
             let ty = result.unwrap();
-            assert_eq!(ty.limit(), 10..=20);
+            assert_eq!(ty.min(), 10);
+            assert_eq!(ty.max(), Some(20));
 
             // get the exported table by name
             let result = instance.get_table("table");
@@ -1581,7 +1582,8 @@ mod tests {
         assert!(result.is_ok());
         let ty = result.unwrap();
         assert_eq!(ty.elem_ty(), RefType::FuncRef);
-        assert_eq!(ty.limit(), 0..=u32::MAX);
+        assert_eq!(ty.min(), 0);
+        assert_eq!(ty.max(), Some(u32::MAX));
 
         // get the exported memory named "mem"
         let result = instance.get_memory("mem");
@@ -1592,7 +1594,8 @@ mod tests {
         let result = memory.ty();
         assert!(result.is_ok());
         let ty = result.unwrap();
-        assert_eq!(ty.limit(), 0..=u32::MAX);
+        assert_eq!(ty.min(), 0);
+        assert_eq!(ty.max(), Some(u32::MAX));
 
         // get the exported global named "global"
         let result = instance.get_global("global");
@@ -1673,7 +1676,7 @@ mod tests {
         import.add_func("add", host_func);
 
         // add table
-        let result = TableType::create(RefType::FuncRef, 0..=u32::MAX);
+        let result = TableType::create(RefType::FuncRef, 0, Some(u32::MAX));
         assert!(result.is_ok());
         let ty = result.unwrap();
         let result = Table::create(&ty);
@@ -1683,7 +1686,7 @@ mod tests {
 
         // add memory
         let memory = {
-            let result = MemType::create(10..=20);
+            let result = MemType::create(10, Some(20), false);
             assert!(result.is_ok());
             let mem_ty = result.unwrap();
             let result = Memory::create(&mem_ty);
@@ -1723,7 +1726,8 @@ mod tests {
         let result = memory.ty();
         assert!(result.is_ok());
         let ty = result.unwrap();
-        assert_eq!(ty.limit(), 10..=20);
+        assert_eq!(ty.min(), 10);
+        assert_eq!(ty.max(), Some(20));
     }
 
     fn create_vm() -> Vm {
@@ -1744,7 +1748,7 @@ mod tests {
         import.add_func("add", host_func);
 
         // add table
-        let result = TableType::create(RefType::FuncRef, 0..=u32::MAX);
+        let result = TableType::create(RefType::FuncRef, 0, Some(u32::MAX));
         assert!(result.is_ok());
         let ty = result.unwrap();
         let result = Table::create(&ty);
@@ -1753,7 +1757,7 @@ mod tests {
         import.add_table("table", table);
 
         // add memory
-        let result = MemType::create(0..=u32::MAX);
+        let result = MemType::create(0, Some(u32::MAX), false);
         assert!(result.is_ok());
         let mem_ty = result.unwrap();
         let result = Memory::create(&mem_ty);

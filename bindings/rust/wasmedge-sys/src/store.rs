@@ -157,7 +157,7 @@ mod tests {
         import.add_func("add", host_func);
 
         // add table
-        let result = TableType::create(RefType::FuncRef, 0..=u32::MAX);
+        let result = TableType::create(RefType::FuncRef, 0, Some(u32::MAX));
         assert!(result.is_ok());
         let ty = result.unwrap();
         let result = Table::create(&ty);
@@ -167,7 +167,7 @@ mod tests {
 
         // add memory
         let memory = {
-            let result = MemType::create(10..=20);
+            let result = MemType::create(10, Some(20), false);
             assert!(result.is_ok());
             let mem_ty = result.unwrap();
             let result = Memory::create(&mem_ty);

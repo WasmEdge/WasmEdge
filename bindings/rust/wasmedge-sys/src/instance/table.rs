@@ -8,11 +8,10 @@
 use crate::{
     error::{TableError, WasmEdgeError},
     ffi,
-    types::WasmValue,
+    types::{WasmEdgeLimit, WasmValue},
     utils::check,
     WasmEdgeResult,
 };
-use std::ops::RangeInclusive;
 use wasmedge_types::RefType;
 
 /// A WasmEdge [Table] defines a WebAssembly table instance described by its [type](crate::TableType). A table is an array-like structure and stores function references.
@@ -41,7 +40,7 @@ impl Table {
     /// use wasmedge_types::RefType;
     ///
     /// // create a TableType instance
-    /// let ty = TableType::create(RefType::FuncRef, 10..=20).expect("fail to create a TableType");
+    /// let ty = TableType::create(RefType::FuncRef, 10, Some(20)).expect("fail to create a TableType");
     ///
     /// // create a Table instance
     /// let table = Table::create(&ty).expect("fail to create a Table");
@@ -126,7 +125,7 @@ impl Table {
     /// use wasmedge_types::RefType;
     ///
     /// // create a TableType instance and a Table
-    /// let ty = TableType::create(RefType::FuncRef, 10..=20).expect("fail to create a TableType");
+    /// let ty = TableType::create(RefType::FuncRef, 10, Some(20)).expect("fail to create a TableType");
     /// let table = Table::create(&ty).expect("fail to create a Table");
     ///
     /// // check capacity
@@ -189,7 +188,9 @@ impl TableType {
     ///
     /// * `elem_type` - The element type.
     ///
-    /// * `limit` - A range of the table size. The upper bound for a `limit` is `u32::MAX`.
+    /// * `min` - The initial size of the table to be created.
+    ///
+    /// * `max` - The maximum size of the table to be created.
     ///
     /// # Error
     ///
@@ -198,11 +199,16 @@ impl TableType {
     /// # Example
     ///
     /// ```ignore
-    /// let ty = TableType::create(WasmRefType::FuncRef, 10..=20).expect("fail to create a TableType");
+    /// let ty = TableType::create(WasmRefType::FuncRef, 10, Some(20)).expect("fail to create a TableType");
     /// ```
     ///
-    pub fn create(elem_ty: RefType, limit: RangeInclusive<u32>) -> WasmEdgeResult<Self> {
-        let ctx = unsafe { ffi::WasmEdge_TableTypeCreate(elem_ty.into(), limit.into()) };
+    pub fn create(elem_ty: RefType, min: u32, max: Option<u32>) -> WasmEdgeResult<Self> {
+        let ctx = unsafe {
+            ffi::WasmEdge_TableTypeCreate(
+                elem_ty.into(),
+                WasmEdgeLimit::new(min, max, false).into(),
+            )
+        };
         match ctx.is_null() {
             true => Err(WasmEdgeError::TableTypeCreate),
             false => Ok(Self {
@@ -218,39 +224,30 @@ impl TableType {
         ty.into()
     }
 
-    /// Returns a range of the limit size of a [Table].
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// use wasmedge_sys::TableType;
-    /// use wasmedge_types::RefType;
-    ///
-    /// // create a TableType instance
-    /// let ty = TableType::create(RefType::FuncRef, 10..=20).expect("fail to create a TableType");
-    ///
-    /// // check limit
-    /// assert_eq!(ty.limit(), 10..=20);
-    /// ```
-    pub fn limit(&self) -> RangeInclusive<u32> {
+    /// Returns the initial size of the [Table].
+    pub fn min(&self) -> u32 {
         let limit = unsafe { ffi::WasmEdge_TableTypeGetLimit(self.inner.0) };
-        limit.into()
+        let limit: WasmEdgeLimit = limit.into();
+        limit.min()
+    }
+
+    /// Returns the maximum size of the [Table].
+    pub fn max(&self) -> Option<u32> {
+        let limit = unsafe { ffi::WasmEdge_TableTypeGetLimit(self.inner.0) };
+        let limit: WasmEdgeLimit = limit.into();
+        limit.max()
     }
 }
 impl From<wasmedge_types::TableType> for TableType {
     fn from(ty: wasmedge_types::TableType) -> Self {
-        TableType::create(ty.elem_ty(), ty.minimum()..=ty.maximum()).expect(
+        TableType::create(ty.elem_ty(), ty.minimum(), ty.maximum()).expect(
             "[wasmedge] Failed to convert wasmedge_types::TableType into wasmedge_sys::TableType.",
         )
     }
 }
 impl From<TableType> for wasmedge_types::TableType {
     fn from(ty: TableType) -> Self {
-        wasmedge_types::TableType::new(
-            ty.elem_ty(),
-            ty.limit().start().to_owned(),
-            Some(ty.limit().end().to_owned()),
-        )
+        wasmedge_types::TableType::new(ty.elem_ty(), ty.min(), ty.max())
     }
 }
 
@@ -272,7 +269,7 @@ mod tests {
     #[test]
     fn test_table_type() {
         // create a TableType instance
-        let result = TableType::create(RefType::FuncRef, 10..=20);
+        let result = TableType::create(RefType::FuncRef, 10, Some(20));
         assert!(result.is_ok());
         let ty = result.unwrap();
         assert!(!ty.inner.0.is_null());
@@ -281,13 +278,14 @@ mod tests {
         // check element type
         assert_eq!(ty.elem_ty(), RefType::FuncRef);
         // check limit
-        assert_eq!(ty.limit(), 10..=20);
+        assert_eq!(ty.min(), 10);
+        assert_eq!(ty.max(), Some(20));
     }
 
     #[test]
     fn test_table() {
         // create a TableType instance
-        let result = TableType::create(RefType::FuncRef, 10..=20);
+        let result = TableType::create(RefType::FuncRef, 10, Some(20));
         assert!(result.is_ok());
         let ty = result.unwrap();
 
@@ -307,7 +305,8 @@ mod tests {
         assert!(ty.registered);
 
         // check limit and element type
-        assert_eq!(ty.limit(), 10..=20);
+        assert_eq!(ty.min(), 10);
+        assert_eq!(ty.max(), Some(20));
         assert_eq!(ty.elem_ty(), RefType::FuncRef);
 
         // grow the capacity of table
@@ -329,7 +328,7 @@ mod tests {
         let host_func = result.unwrap();
 
         // create a TableType instance
-        let result = TableType::create(RefType::FuncRef, 10..=20);
+        let result = TableType::create(RefType::FuncRef, 10, Some(20));
         assert!(result.is_ok());
         let ty = result.unwrap();
 
@@ -374,7 +373,7 @@ mod tests {
     #[test]
     fn test_table_send() {
         // create a TableType instance
-        let result = TableType::create(RefType::FuncRef, 10..=20);
+        let result = TableType::create(RefType::FuncRef, 10, Some(20));
         assert!(result.is_ok());
         let ty = result.unwrap();
 
@@ -397,7 +396,8 @@ mod tests {
             assert!(ty.registered);
 
             // check limit and element type
-            assert_eq!(ty.limit(), 10..=20);
+            assert_eq!(ty.min(), 10);
+            assert_eq!(ty.max(), Some(20));
             assert_eq!(ty.elem_ty(), RefType::FuncRef);
         });
 
@@ -407,7 +407,7 @@ mod tests {
     #[test]
     fn test_table_sync() {
         // create a TableType instance
-        let result = TableType::create(RefType::FuncRef, 10..=20);
+        let result = TableType::create(RefType::FuncRef, 10, Some(20));
         assert!(result.is_ok());
         let ty = result.unwrap();
 
@@ -433,7 +433,8 @@ mod tests {
             assert!(ty.registered);
 
             // check limit and element type
-            assert_eq!(ty.limit(), 10..=20);
+            assert_eq!(ty.min(), 10);
+            assert_eq!(ty.max(), Some(20));
             assert_eq!(ty.elem_ty(), RefType::FuncRef);
         });
 

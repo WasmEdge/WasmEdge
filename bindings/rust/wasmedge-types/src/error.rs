@@ -80,6 +80,8 @@ pub enum FuncError {
 pub enum MemError {
     #[error("Fail to create Memory instance")]
     Create,
+    #[error("Fail to create shared memory type. The 'max' field must not be None.")]
+    CreateSharedType,
     #[error("Fail to get the memory type")]
     Type,
     #[error("Fail to get the const pointer to data")]

@@ -3,22 +3,13 @@
 
 #pragma once
 
-#include "common/errcode.h"
-#include "host/wasi_nn/wasinnenv.h"
-#include "runtime/hostfunc.h"
 #include "runtime/instance/memory.h"
+#include "wasinnbase.h"
+
+#include <cstdint>
 
 namespace WasmEdge {
 namespace Host {
-
-template <typename T> class WasiNN : public Runtime::HostFunction<T> {
-public:
-  WasiNN(WASINN::WasiNNEnvironment &HostEnv)
-      : Runtime::HostFunction<T>(0), Env(HostEnv) {}
-
-protected:
-  WASINN::WasiNNEnvironment &Env;
-};
 
 class WasiNNLoad : public WasiNN<WasiNNLoad> {
 public:

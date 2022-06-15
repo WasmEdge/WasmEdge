@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2019-2022 Second State INC
 
-#include "common/defines.h"
-#include "host/wasi_nn/wasinnenv.h"
-#include "host/wasi_nn/wasinnfunc.h"
+#include "wasinnenv.h"
+#include "wasinnfunc.h"
 
 #include <algorithm>
 #include <cstdint>

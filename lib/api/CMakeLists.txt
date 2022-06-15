@@ -118,7 +118,6 @@ if(WASMEDGE_BUILD_STATIC_LIB)
   wasmedge_add_static_lib_component_command(wasmedgeValidator)
   wasmedge_add_static_lib_component_command(wasmedgeExecutor)
   wasmedge_add_static_lib_component_command(wasmedgeHostModuleWasi)
-  wasmedge_add_static_lib_component_command(wasmedgeHostModuleWasiNN)
   wasmedge_add_static_lib_component_command(wasmedgePlugin)
   wasmedge_add_static_lib_component_command(wasmedgeVM)
 

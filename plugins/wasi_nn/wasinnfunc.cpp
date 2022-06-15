@@ -1,11 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2019-2022 Second State INC
 
-#include "host/wasi_nn/wasinnfunc.h"
-#include "common/errcode.h"
+#include "wasinnfunc.h"
 #include "common/log.h"
-#include "runtime/hostfunc.h"
-#include "runtime/instance/memory.h"
 
 #ifdef WASMEDGE_WASINN_BUILD_OPENVINO
 #include <algorithm>

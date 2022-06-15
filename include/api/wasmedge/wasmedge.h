@@ -1653,6 +1653,17 @@ WASMEDGE_CAPI_EXPORT extern void WasmEdge_ModuleInstanceInitWASI(
     const uint32_t ArgLen, const char *const *Envs, const uint32_t EnvLen,
     const char *const *Preopens, const uint32_t PreopenLen);
 
+/// Creation of the WasmEdge_ModuleInstanceContext for the wasi_nn
+/// specification.
+///
+/// This function will create a wasi_nn host module that contains the wasi_nn
+/// host functions and initialize it. The caller owns the object and should call
+/// `WasmEdge_ModuleInstanceDelete` to destroy it.
+///
+/// \returns pointer to context, NULL if failed.
+WASMEDGE_CAPI_EXPORT extern WasmEdge_ModuleInstanceContext *
+WasmEdge_ModuleInstanceCreateWasiNN();
+
 /// Get the WASI exit code.
 ///
 /// This function will return the exit code after running the "_start" function

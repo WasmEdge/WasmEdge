@@ -26,10 +26,10 @@ if(WASMEDGE_WASINN_BUILD_OPENVINO)
   endif()
 endif()
 
-add_test(wasiNNTests wasiNNTests)
-
 target_link_libraries(wasiNNTests
   PRIVATE
   ${GTEST_BOTH_LIBRARIES}
   wasmedgeHostModuleWasiNN
 )
+
+add_test(wasiNNTests wasiNNTests)

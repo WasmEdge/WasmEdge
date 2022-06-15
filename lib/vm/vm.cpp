@@ -5,7 +5,6 @@
 #include "vm/async.h"
 
 #include "host/wasi/wasimodule.h"
-#include "host/wasi_nn/wasinnmodule.h"
 #include "plugin/plugin.h"
 
 namespace WasmEdge {
@@ -49,13 +48,27 @@ void VM::unsafeInitVM() {
       spdlog::debug("wasmedge_process module not founded."sv);
     }
   }
+  if (Conf.hasHostRegistration(HostRegistration::WasiNN)) {
+    bool Founded = false;
+    if (const auto *Plugin = Plugin::Plugin::find("wasi_nn"sv)) {
+      if (const auto *Module = Plugin->findModule("wasi_nn"sv)) {
+        auto ProcMod = Module->create();
+        ExecutorEngine.registerModule(StoreRef, *ProcMod);
+        ImpObjs.emplace(HostRegistration::WasiNN, std::move(ProcMod));
+        Founded = true;
+      }
+    }
+    if (!Founded) {
+      spdlog::debug("wasi_nn module not founded."sv);
+    }
+  }
   uint8_t Index = static_cast<uint8_t>(HostRegistration::Max);
   for (const auto &Plugin : Plugin::Plugin::plugins()) {
     if (Conf.isForbiddenPlugins(Plugin.name())) {
       continue;
     }
     // skip WasmEdge_Process
-    if (Plugin.name() == "wasmedge_process"sv) {
+    if (Plugin.name() == "wasmedge_process"sv || Plugin.name() == "wasi_nn"sv) {
       continue;
     }
     for (const auto &Module : Plugin.modules()) {
@@ -64,12 +77,6 @@ void VM::unsafeInitVM() {
       ImpObjs.emplace(static_cast<HostRegistration>(Index++),
                       std::move(ModObj));
     }
-  }
-  if (Conf.hasHostRegistration(HostRegistration::WasiNN)) {
-    std::unique_ptr<Runtime::Instance::ModuleInstance> WasiNNMod =
-        std::make_unique<Host::WasiNNModule>();
-    ExecutorEngine.registerModule(StoreRef, *WasiNNMod.get());
-    ImpObjs.insert({HostRegistration::WasiNN, std::move(WasiNNMod)});
   }
 }
 

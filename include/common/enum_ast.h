@@ -23,6 +23,7 @@
 #include "spare_enum_map.h"
 #include <cstdint>
 #include <string>
+#include <tuple>
 #endif
 
 namespace WasmEdge {
@@ -72,6 +73,80 @@ static inline constexpr const auto OpCodeStr = []() constexpr {
   return SpareEnumMap(Array);
 }
 ();
+
+/// Component Model Interface Types 
+enum class InterfaceTypes{
+   Unit,
+    Bool,
+    S8,
+    U8,
+    S16,
+    U16,
+    S32,
+    U32,
+    S64,
+    U64,
+    Float32,
+    Float64,
+    Char,
+    String, 
+    Record,
+    Variant,
+    List,
+    Tuple,
+    Flags,
+    Enum, 
+    Union, 
+    Option, 
+    Expected,
+};
+
+
+// Implementation of "record" type in interface types
+struct typeRecord{
+  RecordField *field = new RecordField;
+};
+
+struct RecordField {
+  std::string name;
+  InterfaceTypes ty;
+};
+
+// Implementation of "variant" type in interface types 
+struct typeVariant {
+  VariantCase *cases = new VariantCase;
+};
+
+struct VariantCase {
+  std::string name;
+  InterfaceTypes ty;
+};
+
+// Implementation of "tuple" type in interface types 
+ struct typeTuple {
+ InterfaceTypes *tyTup = new InterfaceTypes;
+ };
+
+// Implementation of "flags" type in interface types 
+struct typeFlags {
+std::string *names = new std::string;
+};
+
+// Implementation of "enum" type in interface types 
+struct typeEnum {
+ std::string *names = new std::string;
+};
+
+//Implentation of "union" type in interface types 
+struct typeUnion {
+  InterfaceTypes *tyUn = new InterfaceTypes;
+}; 
+
+//Implementation of "expected" type in interface types 
+struct typeExpected {
+  InterfaceTypes tyEx;
+  InterfaceTypes err;
+};
 
 } // namespace WasmEdge
 

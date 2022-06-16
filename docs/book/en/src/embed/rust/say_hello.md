@@ -115,4 +115,4 @@ Any one of these two methods requires that you have to get a [function instance]
 
 In addition, [Vm](https://wasmedge.github.io/WasmEdge/wasmedge_sdk/struct.Vm.html#) defines a group of methods which can invoke host function in different ways. For details, please reference [Vm](https://wasmedge.github.io/WasmEdge/wasmedge_sdk/struct.Vm.html#).
 
-The complete code can be found [here](https://github.com/WasmEdge/WasmEdge/blob/master/bindings/rust/wasmedge-sdk/examples/hello_world.rs).
+The complete example can be found [here](https://github.com/WasmEdge/WasmEdge/blob/master/bindings/rust/wasmedge-sdk/examples/hello_world.rs).

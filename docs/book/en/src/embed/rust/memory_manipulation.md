@@ -35,7 +35,7 @@ Before talk about the code, let's first see the wasm module we use in this examp
 
 Next, we'll demonstrate how to manipulate the linear memory by calling the exported functions.
 
-## Load Module
+## Load and Register Module
 
 Let's start off by getting all imports right away so you can follow along
 
@@ -100,4 +100,56 @@ let mut store = Store::new()?;
 let extern_instance = store.register_named_module(&mut executor, "extern", &module)?;
 ```
 
-In the code above, we register the AST module into a `Store`, in which the module is instantiated, and as a result, a [module instance](https://wasmedge.github.io/WasmEdge/wasmedge_sdk/struct.Instance.html) is returned.
+In the code above, we register the AST module into a `Store`, in which the module is instantiated, and as a result, a [module instance](https://wasmedge.github.io/WasmEdge/wasmedge_sdk/struct.Instance.html) named `extern` is returned.
+
+## Memory
+
+In the previous section, we get an instance by registering a compiled module into the runtime environment. Now we retrieve the memory instance from the module instance, and make use of the APIs defined in [Memory](https://wasmedge.github.io/WasmEdge/wasmedge_sdk/struct.Memory.html) to manipulate the linear memory.
+
+```rust
+// get the exported memory instance
+let mut memory = extern_instance
+    .memory("memory")
+    .ok_or_else(|| anyhow::anyhow!("failed to get memory instance named 'memory'"))?;
+
+// check memory size
+assert_eq!(memory.size(), 1);
+assert_eq!(memory.data_size(), 65536);
+
+// grow memory size
+memory.grow(2)?;
+// check the size (in pages) and the data size (in bytes)
+assert_eq!(memory.size(), 3);
+assert_eq!(memory.data_size(), 3 * 65536);
+
+// get the exported functions: "set_at" and "get_at"
+let set_at = extern_instance
+    .func("set_at")
+    .ok_or_else(|| anyhow::Error::msg("Not found exported function named 'set_at'."))?;
+let get_at = extern_instance
+    .func("get_at")
+    .ok_or_else(|| anyhow::Error::msg("Not found exported function named 'get_at`."))?;
+
+// set val at mem_addr by calling "set_at"
+let mem_addr = 0x2220;
+let val = 0xFEFEFFE;
+set_at.call(&mut executor, params!(mem_addr, val))?;
+
+// get the value at mem_addr by calling "get_at"
+let returns = get_at.call(&mut executor, params!(mem_addr))?;
+assert_eq!(returns[0].to_i32(), val);
+
+// call the exported function named "set_at"
+let page_size = 0x1_0000;
+let mem_addr = (page_size * 2) - std::mem::size_of_val(&val) as i32;
+let val = 0xFEA09;
+set_at.call(&mut executor, params!(mem_addr, val))?;
+
+// call the exported function named "get_at"
+let returns = get_at.call(&mut executor, params!(mem_addr))?;
+assert_eq!(returns[0].to_i32(), val);
+```
+
+The comments in the code explain the meaning of the code sample above, so we don't describe more.
+
+The complete example can be found [here](https://github.com/WasmEdge/WasmEdge/blob/master/bindings/rust/wasmedge-sdk/examples/memory.rs).

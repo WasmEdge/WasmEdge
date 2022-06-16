@@ -8,20 +8,36 @@ endif()
 
 # Helper function to construct commands and dependencies.
 function(wasmedge_add_static_lib_component_command target)
-  list(APPEND CMDS
-    COMMAND ${CMAKE_COMMAND} -E make_directory objs/${target}
-    COMMAND ${CMAKE_AR} -x $<TARGET_FILE:${target}> --output=objs/${target}
-  )
+  if(APPLE) 
+    list(APPEND CMDS
+      COMMAND ${CMAKE_COMMAND} -E make_directory objs/${target}
+      COMMAND ${CMAKE_AR} -x $<TARGET_FILE:${target}>
+      COMMAND ${CMAKE_AR} -t $<TARGET_FILE:${target}> | xargs -I '{}' mv '{}' objs/${target}
+    )
+  else()
+    list(APPEND CMDS
+      COMMAND ${CMAKE_COMMAND} -E make_directory objs/${target}
+      COMMAND ${CMAKE_AR} -x $<TARGET_FILE:${target}> --output=objs/${target}
+    )
+  endif()
   set(WASMEDGE_STATIC_LIB_CMDS ${WASMEDGE_STATIC_LIB_CMDS} ${CMDS} PARENT_SCOPE)
   set(WASMEDGE_STATIC_LIB_DEPS ${WASMEDGE_STATIC_LIB_DEPS} ${target} PARENT_SCOPE)
 endfunction()
 
 # Helper function to construct commands about collecting libraries with paths.
 function(wasmedge_add_libs_component_command target target_path)
-  list(APPEND CMDS
-    COMMAND ${CMAKE_COMMAND} -E make_directory objs/${target}
-    COMMAND ${CMAKE_AR} -x ${target_path}/lib${target}.a --output=objs/${target}
-  )
+  if(APPLE) 
+    list(APPEND CMDS
+      COMMAND ${CMAKE_COMMAND} -E make_directory objs/${target}
+      COMMAND ${CMAKE_AR} -x ${target_path}/lib${target}.a
+      COMMAND ${CMAKE_AR} -t ${target_path}/lib${target}.a | xargs -I '{}' mv '{}' objs/${target}
+    )
+  else()
+    list(APPEND CMDS
+      COMMAND ${CMAKE_COMMAND} -E make_directory objs/${target}
+      COMMAND ${CMAKE_AR} -x ${target_path}/lib${target}.a --output=objs/${target}
+    )
+  endif()
   set(WASMEDGE_STATIC_LIB_CMDS ${WASMEDGE_STATIC_LIB_CMDS} ${CMDS} PARENT_SCOPE)
 endfunction()
 
@@ -93,7 +109,6 @@ endif()
 
 if(WASMEDGE_BUILD_STATIC_LIB)
 
-  # FIXME: spdlog::spdlog will fail on Darwin.
   wasmedge_add_static_lib_component_command(spdlog::spdlog)
   wasmedge_add_static_lib_component_command(wasmedgeSystem)
   wasmedge_add_static_lib_component_command(wasmedgeCommon)

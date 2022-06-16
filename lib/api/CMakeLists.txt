@@ -8,7 +8,7 @@ endif()
 
 # Helper function to construct commands and dependencies.
 function(wasmedge_add_static_lib_component_command target)
-  if(APPLE) 
+  if(APPLE)
     list(APPEND CMDS
       COMMAND ${CMAKE_COMMAND} -E make_directory objs/${target}
       COMMAND ${CMAKE_AR} -x $<TARGET_FILE:${target}>
@@ -26,7 +26,7 @@ endfunction()
 
 # Helper function to construct commands about collecting libraries with paths.
 function(wasmedge_add_libs_component_command target target_path)
-  if(APPLE) 
+  if(APPLE)
     list(APPEND CMDS
       COMMAND ${CMAKE_COMMAND} -E make_directory objs/${target}
       COMMAND ${CMAKE_AR} -x ${target_path}/lib${target}.a
@@ -143,12 +143,14 @@ if(WASMEDGE_BUILD_STATIC_LIB)
     wasmedge_add_libs_component_command("lldReaderWriter" ${LLVM_LIBRARY_DIR})
     wasmedge_add_libs_component_command("lldYAML" ${LLVM_LIBRARY_DIR})
 
-    # Pack the zlib.
-    get_filename_component(ZLIB_PATH "${ZLIB_LIBRARIES}" DIRECTORY)
-    wasmedge_add_libs_component_command("z" ${ZLIB_PATH})
+    if(NOT APPLE)
+      # Pack the zlib.
+      get_filename_component(ZLIB_PATH "${ZLIB_LIBRARIES}" DIRECTORY)
+      wasmedge_add_libs_component_command("z" ${ZLIB_PATH})
 
-    # Pack the tinfo.
-    wasmedge_add_libs_component_command("tinfo" ${ZLIB_PATH})
+      # Pack the tinfo.
+      wasmedge_add_libs_component_command("tinfo" ${ZLIB_PATH})
+    endif()
 
     wasmedge_add_static_lib_component_command(utilBlake3)
     wasmedge_add_static_lib_component_command(wasmedgeAOT)

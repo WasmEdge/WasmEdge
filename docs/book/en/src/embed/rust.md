@@ -206,6 +206,8 @@ For those who would like to dev in Docker environment, you can reference the [Us
 
 - [[wasmedge-sdk] Memory manipulation](rust/memory_manipulation.md)
 
+- [[wasmedge-sdk] Table and FuncRef](rust/table_and_funcref.md)
+
 ### `wasmedge-sys` Examples
 
 - [[wasmedge-sys] Run a WebAssembly function with WasmEdge low-level APIs](rust/sys_run_host_func.md)

@@ -152,4 +152,4 @@ assert_eq!(returns[0].to_i32(), val);
 
 The comments in the code explain the meaning of the code sample above, so we don't describe more.
 
-The complete example can be found [here](https://github.com/WasmEdge/WasmEdge/blob/master/bindings/rust/wasmedge-sdk/examples/memory.rs).
+The complete code of this example can be found [here](https://github.com/WasmEdge/WasmEdge/blob/master/bindings/rust/wasmedge-sdk/examples/memory.rs).

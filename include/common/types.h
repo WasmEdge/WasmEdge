@@ -94,23 +94,24 @@ struct ExternRef {
   template <typename T> ExternRef(T *P) : Ptr(reinterpret_cast<void *>(P)) {}
 };
 // Implementation of "record" type in interface types
-struct Record{
-  RecordField *field = new RecordField;
-};
-
 struct RecordField {
   std::string name;
   InterfaceType ty;
 };
 
-// Implementation of "variant" type in interface types 
-struct Variants{
-  VariantCase *cases = new VariantCase;
+struct Record{
+  RecordField *field = new RecordField;
 };
 
+
+// Implementation of "variant" type in interface types 
 struct VariantCase {
   std::string name;
   InterfaceType ty;
+};
+
+struct Variants{
+  VariantCase *cases = new VariantCase;
 };
 
 // Implementation of "tuple" type in interface types 
@@ -169,7 +170,7 @@ using ValVariant =
             int128_t, uint64x2_t, int64x2_t, uint32x4_t, int32x4_t, uint16x8_t,
             int16x8_t, uint8x16_t, int8x16_t, floatx4_t, doublex2_t, UnknownRef,
             FuncRef, ExternRef,Bool, S8, U8, S16, U16, S32, U32, S64, U64, Float32, Float64, 
-            Char, String, Record, Variants, Tuple, Flags, Enums, Union, Expecteds>;
+            Char, String, Record, Variants, Tuple, Flags,Union, Expecteds>;
 
 /// BlockType definition.
 struct BlockType {
@@ -442,19 +443,19 @@ inline constexpr ValVariant ValueFromType(ValType Type) noexcept {
   case ValType::Bool:
     return bool(1);
   case ValType::S8:
-    return int8_t(0S);
+    return int8_t(0);
   case ValType::U8:
     return uint8_t(0U);
   case ValType::S16:
-    return int16_t(0S);
+    return int16_t(0);
   case ValType::U16:
     return uint16_t(0U);
   case ValType::S32:
-    return int32_t(0S);
+    return int32_t(0);
   case ValType::U32:
     return uint32_t(0U);
   case ValType::S64:
-    return int64_t(0S);
+    return int64_t(0);
   case ValType::U64:
     return uint64_t(0U);
   case ValType::Float32:
@@ -464,7 +465,7 @@ inline constexpr ValVariant ValueFromType(ValType Type) noexcept {
   case ValType::Char:
     return char('0');
   case ValType::String:
-    return string("0");
+    return std::string("0");
 
 
   case ValType::FuncRef:

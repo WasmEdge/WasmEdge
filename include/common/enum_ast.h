@@ -74,11 +74,6 @@ static inline constexpr const auto OpCodeStr = []() constexpr {
 }
 ();
 
-using TypeRecordIndex = std::tuple<std::uint32_t> ;
-struct TypeRecordIdx {
-  static constexpr uint32_t idx=0;
-};
-
 /*
 /// Component Model Interface Types 
 enum class InterfaceTypes : uint32_t{

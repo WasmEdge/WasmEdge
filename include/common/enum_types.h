@@ -71,7 +71,7 @@ enum class InterfaceType : uint8_t {
 #define Line(NAME, VALUE) NAME = VALUE,
 #include "enum.inc"
 #undef Line
-#undef UseInterfaceType;
+#undef UseInterfaceType
 };
 
 } // namespace WasmEdge

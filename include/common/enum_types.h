@@ -64,6 +64,30 @@ enum WasmEdge_ValType {
 
 #if (defined(__cplusplus) && __cplusplus > 201402L) ||                         \
     (defined(_MSVC_LANG) && _MSVC_LANG > 201402L)
+namespace WasmEdge { 
+  /// WASM Interface type C++ enumeration class.
+enum class InterfaceType : uint8_t {
+#define UseInterfaceType
+#define Line(NAME, VALUE) NAME = VALUE,
+#include "enum.inc"
+#undef Line
+#undef UseInterfaceType;
+};
+
+} // namespace WasmEdge
+#endif 
+
+/// WASM Interface type C enumeration.
+enum WasmEdge_InterfaceType {
+  #define UseInterfaceType 
+  #define Line(Name, VALUE) WasmEdge_InterfaceType_##NAME = VALUE,
+  #include "enum.inc"
+  #undef Line 
+  #undef UseInterfaceType
+};
+
+#if (defined(__cplusplus) && __cplusplus > 201402L) ||                         \
+    (defined(_MSVC_LANG) && _MSVC_LANG > 201402L)
 namespace WasmEdge {
 
 /// WASM Number type C++ enumeration class.

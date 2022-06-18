@@ -819,6 +819,29 @@ V(F64, 0x7C, "f64")
 V(V128, 0x7B, "v128")
 V(FuncRef, 0x70, "funcref")
 V(ExternRef, 0x6F, "externref")
+V(Unit, 0x7f, "unit")
+V(Bool, 0x7e, "bool")
+V(S8, 0x7d, "s8")
+V(U8, 0x7c, "u8")
+V(S16, 0x7b, "s16")
+V(U16, 0x7a, "u16")
+V(S32, 0x79, "s32")
+V(U32, 0x78, "u32")
+V(S64, 0x77, "s64")
+V(U64, 0x76, "u64")
+V(Float32, 0x75, "float32")
+V(Float64, 0x74, "float64")
+V(Char, 0x73, "char")
+V(String, 0x72, "string")
+V(Record, 0x71, "record")
+V(Variants, 0x70, "variant")
+V(List, 0x6f, "list")
+V(Tuple, 0x6e, "tuple")
+V(Flags, 0x6d, "flags") 
+V(Enum, 0x6c, "enum")
+V(Union, 0x6b, "union")
+V(Option, 0x6a, "option")
+V(Expecteds, 0x69, "expected")
 
 #undef V
 #endif // UseValType
@@ -842,7 +865,37 @@ R(FuncRef, 0x70)
 R(ExternRef, 0x6F)
 
 #undef R
-#endif // UseRefType
+#endif // UseRefType 
+
+#ifdef UseInterfaceType
+#define IN Line 
+
+IN(Unit, 0x7f)
+IN(Bool, 0x7e)
+IN(S8, 0x7d)
+IN(U8, 0x7c)
+IN(S16, 0x7b)
+IN(U16, 0x7a)
+IN(S32, 0x79)
+IN(U32, 0x78)
+IN(S64, 0x77)
+IN(U64, 0x76)
+IN(Float32, 0x75)
+IN(Float64, 0x74)
+IN(Char, 0x73)
+IN(String, 0x72)
+IN(Record, 0x71)
+IN(Variants, 0x70)
+IN(List, 0x6f)
+IN(Tuple, 0x6e)
+IN(Flags, 0x6d) 
+IN(Enum, 0x6c)
+IN(Union, 0x6b)
+IN(Option, 0x6a)
+IN(Expecteds, 0x69)
+
+#undef IN 
+#endif //UseInterfaceType
 
 #ifdef UseValMut
 #define M Line

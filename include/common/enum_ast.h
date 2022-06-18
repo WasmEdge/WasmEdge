@@ -74,8 +74,14 @@ static inline constexpr const auto OpCodeStr = []() constexpr {
 }
 ();
 
+using TypeRecordIndex = std::tuple<std::uint32_t> ;
+struct TypeRecordIdx {
+  static constexpr uint32_t idx=0;
+};
+
+/*
 /// Component Model Interface Types 
-enum class InterfaceTypes{
+enum class InterfaceTypes : uint32_t{
    Unit,
     Bool,
     S8,
@@ -100,53 +106,7 @@ enum class InterfaceTypes{
     Option, 
     Expected,
 };
-
-
-// Implementation of "record" type in interface types
-struct typeRecord{
-  RecordField *field = new RecordField;
-};
-
-struct RecordField {
-  std::string name;
-  InterfaceTypes ty;
-};
-
-// Implementation of "variant" type in interface types 
-struct typeVariant {
-  VariantCase *cases = new VariantCase;
-};
-
-struct VariantCase {
-  std::string name;
-  InterfaceTypes ty;
-};
-
-// Implementation of "tuple" type in interface types 
- struct typeTuple {
- InterfaceTypes *tyTup = new InterfaceTypes;
- };
-
-// Implementation of "flags" type in interface types 
-struct typeFlags {
-std::string *names = new std::string;
-};
-
-// Implementation of "enum" type in interface types 
-struct typeEnum {
- std::string *names = new std::string;
-};
-
-//Implentation of "union" type in interface types 
-struct typeUnion {
-  InterfaceTypes *tyUn = new InterfaceTypes;
-}; 
-
-//Implementation of "expected" type in interface types 
-struct typeExpected {
-  InterfaceTypes tyEx;
-  InterfaceTypes err;
-};
+*/
 
 } // namespace WasmEdge
 

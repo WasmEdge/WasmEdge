@@ -23,6 +23,7 @@
 #include <type_traits>
 #include <variant>
 #include <vector>
+#include <string>
 
 namespace WasmEdge {
 
@@ -37,6 +38,20 @@ using RemoveCVRefT = std::remove_cv_t<std::remove_reference_t<T>>;
 // >>>>>>>> Type definitions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 using Byte = uint8_t;
+using S8 = int8_t;
+using U8 = uint8_t;
+using S16 = int16_t;
+using U16 = uint16_t;
+using S32 = int32_t;
+using U32 = uint32_t;
+using S64 = int64_t;
+using U64 = uint64_t;
+using Float32 = float ;
+using Float64 = double;
+using Char = char;
+using String = std::string;
+using Bool = bool;
+//using Unit = ;
 
 /// SIMD types definition.
 using int64x2_t [[gnu::vector_size(16)]] = int64_t;
@@ -78,14 +93,83 @@ struct ExternRef {
   ExternRef() = default;
   template <typename T> ExternRef(T *P) : Ptr(reinterpret_cast<void *>(P)) {}
 };
+// Implementation of "record" type in interface types
+struct Record{
+  RecordField *field = new RecordField;
+};
+
+struct RecordField {
+  std::string name;
+  InterfaceType ty;
+};
+
+// Implementation of "variant" type in interface types 
+struct Variants{
+  VariantCase *cases = new VariantCase;
+};
+
+struct VariantCase {
+  std::string name;
+  InterfaceType ty;
+};
+
+// Implementation of "tuple" type in interface types 
+ struct Tuple{
+ InterfaceType *tyTup = new InterfaceType;
+ };
+
+// Implementation of "flags" type in interface types 
+struct Flags{
+std::string *names = new std::string;
+};
+
+// Implementation of "enum" type in interface types 
+struct Enum{
+ std::string *names = new std::string;
+};
+
+//Implentation of "union" type in interface types 
+struct Union{
+  InterfaceType *tyUn = new InterfaceType;
+}; 
+
+//Implementation of "expected" type in interface types 
+struct Expecteds{
+  InterfaceType tyEx;
+  InterfaceType err;
+};
 
 /// NumType and RefType variant definitions.
 using RefVariant = Variant<UnknownRef, FuncRef, ExternRef>;
+using InterVariant = Variant<//Unit,
+    Bool,
+    S8,
+    U8,
+    S16,
+    U16,
+    S32,
+    U32,
+    S64,
+    U64,
+    Float32,
+    Float64,
+    Char,
+    String, 
+    Record,
+    Variants,
+    //List,
+    Tuple,
+    Flags,
+    Enum, 
+    Union, 
+    //Option, 
+    Expecteds>;
 using ValVariant =
     Variant<uint32_t, int32_t, uint64_t, int64_t, float, double, uint128_t,
             int128_t, uint64x2_t, int64x2_t, uint32x4_t, int32x4_t, uint16x8_t,
             int16x8_t, uint8x16_t, int8x16_t, floatx4_t, doublex2_t, UnknownRef,
-            FuncRef, ExternRef>;
+            FuncRef, ExternRef,Bool, S8, U8, S16, U16, S32, U32, S64, U64, Float32, Float64, 
+            Char, String, Record, Variants, Tuple, Flags, Enums, Union, Expecteds>;
 
 /// BlockType definition.
 struct BlockType {
@@ -107,11 +191,16 @@ struct BlockType {
   }
 };
 
+
+
 /// NumType and RefType conversions.
 inline constexpr ValType ToValType(const NumType Val) noexcept {
   return static_cast<ValType>(Val);
 }
 inline constexpr ValType ToValType(const RefType Val) noexcept {
+  return static_cast<ValType>(Val);
+}
+inline constexpr ValType ToValType(const InterfaceType Val) noexcept {
   return static_cast<ValType>(Val);
 }
 
@@ -162,6 +251,31 @@ struct IsWasmRef
                          std::is_same_v<RemoveCVRefT<T>, ExternRef>> {};
 template <typename T>
 inline constexpr const bool IsWasmRefV = IsWasmRef<T>::value;
+
+/// Return true if Wasm Interface type 
+template <typename T>
+struct IsWasmInter 
+    : std::bool_constant<std::is_same_v<RemoveCVRef<T>, Bool> ||
+                         std::is_same_v<RemoveCVRef<T>, S8> ||
+                         std::is_same_v<RemoveCVRef<T>, U8> ||
+                         std::is_same_v<RemoveCVRef<T>, S16> ||
+                         std::is_same_v<RemoveCVRef<T>, U16> ||
+                         std::is_same_v<RemoveCVRef<T>, S32> ||
+                         std::is_same_v<RemoveCVRef<T>, U32> ||
+                         std::is_same_v<RemoveCVRef<T>, S64> ||
+                         std::is_same_v<RemoveCVRef<T>, U64> ||
+                         std::is_same_v<RemoveCVRef<T>, Float32> ||
+                         std::is_same_v<RemoveCVRef<T>, Float64> ||
+                         std::is_same_v<RemoveCVRef<T>, Char> ||
+                         std::is_same_v<RemoveCVRef<T>, String> ||
+                         std::is_same_v<RemoveCVRef<T>, Record> ||
+                         std::is_same_v<RemoveCVRef<T>, Variants> ||
+                         std::is_same_v<RemoveCVRef<T>, Tuple> ||
+                         std::is_same_v<RemoveCVRef<T>, Flags> ||
+                         std::is_same_v<RemoveCVRef<T>, Enum> ||
+                         std::is_same_v<RemoveCVRef<T>, Union> ||
+                         std::is_same_v<RemoveCVRef<T>, Expecteds>> {};
+    
 
 /// Return true if Wasm int (int32_t, uint32_t, int64_t, uint64_t).
 template <typename T>
@@ -249,7 +363,66 @@ template <> inline ValType ValTypeFromType<FuncRef>() noexcept {
 template <> inline ValType ValTypeFromType<ExternRef>() noexcept {
   return ValType::ExternRef;
 }
-
+template <> inline ValType ValTypeFromType<Bool>() noexcept {
+  return ValType::Bool;
+}
+template <> inline ValType ValTypeFromType<S8>() noexcept {
+  return ValType::S8;
+}
+template <> inline ValType ValTypeFromType<U8>() noexcept {
+  return ValType::U8;
+}
+template <> inline ValType ValTypeFromType<S16>() noexcept {
+  return ValType::S16;
+}
+template <> inline ValType ValTypeFromType<U16>() noexcept {
+  return ValType::U16;
+}
+template <> inline ValType ValTypeFromType<S32>() noexcept {
+  return ValType::S32;
+}
+template <> inline ValType ValTypeFromType<U32>() noexcept {
+  return ValType::U32;
+}
+template <> inline ValType ValTypeFromType<S64>() noexcept {
+  return ValType::S64;
+}
+template <> inline ValType ValTypeFromType<U64>() noexcept {
+  return ValType::U64;
+}
+template <> inline ValType ValTypeFromType<Float32>() noexcept {
+  return ValType::Float32;
+}
+template <> inline ValType ValTypeFromType<Float64>() noexcept {
+  return ValType::Float64;
+}
+template <> inline ValType ValTypeFromType<Char>() noexcept {
+  return ValType::Char;
+}
+template <> inline ValType ValTypeFromType<String>() noexcept {
+  return ValType::String;
+}
+template <> inline ValType ValTypeFromType<Record>() noexcept {
+  return ValType::Record;
+}
+template <> inline ValType ValTypeFromType<Variants>() noexcept {
+  return ValType::Char;
+}
+template <> inline ValType ValTypeFromType<Tuple>() noexcept {
+  return ValType::Tuple;
+}
+template <> inline ValType ValTypeFromType<Flags>() noexcept {
+  return ValType::Flags;
+}
+template <> inline ValType ValTypeFromType<Enum>() noexcept {
+  return ValType::Enum;
+}
+template <> inline ValType ValTypeFromType<Union>() noexcept {
+  return ValType::Union;
+}
+template <> inline ValType ValTypeFromType<Expecteds>() noexcept {
+  return ValType::Expecteds;
+}
 // <<<<<<<< Template to get value type from type <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 // >>>>>>>> Const expression to generate value from value type >>>>>>>>>>>>>>>>>
@@ -266,6 +439,34 @@ inline constexpr ValVariant ValueFromType(ValType Type) noexcept {
     return double(0.0);
   case ValType::V128:
     return uint128_t(0U);
+  case ValType::Bool:
+    return bool(1);
+  case ValType::S8:
+    return int8_t(0S);
+  case ValType::U8:
+    return uint8_t(0U);
+  case ValType::S16:
+    return int16_t(0S);
+  case ValType::U16:
+    return uint16_t(0U);
+  case ValType::S32:
+    return int32_t(0S);
+  case ValType::U32:
+    return uint32_t(0U);
+  case ValType::S64:
+    return int64_t(0S);
+  case ValType::U64:
+    return uint64_t(0U);
+  case ValType::Float32:
+    return float(0.0F);
+  case ValType::Float64:
+    return double(0.0);
+  case ValType::Char:
+    return char('0');
+  case ValType::String:
+    return string("0");
+
+
   case ValType::FuncRef:
   case ValType::ExternRef:
     return UnknownRef();

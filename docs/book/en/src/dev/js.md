@@ -15,9 +15,11 @@ In this section, we will demonstrate how to run and enhance JavaScript in WasmEd
 * [Fetch](js/fetch.md) shows how to use the popular `fetch` API to fetch content across the network asynchronously.
 * [TensorFlow](js/tensorflow.md) shows how to use WasmEdge's TensorFlow extension from its JavaScript API.
 * [React SSR](js/ssr.md) shows example React SSR applications, including streaming SSR support.
-* [ES6 module](js/es6.md) shows how to incorporate ES6 modules in WasmEdge.
-* [NodeJS and NPM module](js/npm.md) shows how to incorporate NPM modules in WasmEdge.
+* [ES6 modules](js/es6.md) shows how to incorporate ES6 modules in WasmEdge.
+* [Node.js and NPM modules](js/npm.md) shows how to incorporate NPM modules in WasmEdge.
+* [Built-in modules](js/modules.md) shows how to add JavaScript functions into the WasmEdge runtime as built-in API functions.
 * [Use Rust to implement JS API](js/rust.md) discusses how to use Rust to implement and support a JavaScript API.
+* [Node.js compatibility](js/nodejs.md) demonstrates the ability to use Node.js APIs in WasmEdge QuickJS applications.
 
 ## A note on v8
 

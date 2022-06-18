@@ -304,3 +304,10 @@ jobs:
         _res_curl_=$(curl --silent "https://api.github.com/repos/WasmEdge/WasmEdge/releases/latest" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/' )
         [ "$_res_git_" = "$_res_curl_" ] && echo "Pass: Fetched version equals release" ||
         (echo "Fail: Fetched version does not equal GitHub Ref\nFetched:$_res_git_\nCI:$_res_curl_" && exit 1)
+
+    - name: Ignore brew option check
+      run: |
+        NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/uninstall.sh)"
+        echo $(bash utils/install.sh -V) | grep "Brew is required" && echo "Pass:It requires brew" ||
+          echo "Fail:It should exit with error"
+        bash utils/install.sh -V --ignore-brew

@@ -90,6 +90,7 @@
   - [Service mesh &amp; runtimes](frameworks/mesh.md)
     - [Dapr](frameworks/mesh/dapr.md)
     - [MOSN](frameworks/mesh/mosn.md)
+    - [Nginx](mesh/wasm-nginx-module.md)
     - [Apache EventMesh](frameworks/mesh/eventmesh.md)
   - [Application frameworks](frameworks/app.md)
     - [YoMo](frameworks/app/yomo.md)

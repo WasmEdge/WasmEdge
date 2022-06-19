@@ -1,39 +1,32 @@
 %global gittag @WASMEDGE_GIT_VERSION@
 %global srpm_version @WASMEDGE_SRPM_VERSION@
+%global reponame WasmEdge
 
 Name:    wasmedge
 Version: %{srpm_version}
 Release: %autorelease
 Summary: High performance WebAssembly Virtual Machine
-License: ASL 2.0
-URL:     https://github.com/WasmEdge/WasmEdge
-Source0: https://github.com/WasmEdge/WasmEdge/releases/download/%{gittag}/WasmEdge-%{gittag}-src.tar.gz
+License: ASL 2.0 and CC0
+URL:     https://github.com/%{reponame}/%{reponame}
+Source0: %{url}/releases/download/%{gittag}/%{reponame}-%{gittag}-src.tar.gz
 BuildRequires: gcc-c++,cmake,ninja-build,boost-devel,spdlog-devel,llvm-devel,lld-devel,git
 Requires:      llvm
+# Currently wasmedge could only be built on specific arches
 ExclusiveArch: x86_64 aarch64
+Provides: %{reponame} = %{version}-%{release}
 
 %description
 High performance WebAssembly Virtual Machine
 
 %package devel
-#Requires:
-Summary: WasmEdge development files
-Provides: wasmedge-devel
+Summary: %{reponame} development files
+Provides: %{reponame}-devel = %{version}-%{release}
 
 %description devel
-This package contains necessary header files for WasmEdge development.
-
-%package lib
-#Requires:
-Summary: WasmEdge library
-Requires: llvm
-Provides: wasmedge-lib
-
-%description lib
-This package contains necessary library files for WasmEdge development.
+This package contains necessary header files for %{reponame} development.
 
 %prep
-%autosetup -n wasmedge
+%autosetup -n %{name}
 sed -i -e 's/0.0.0-unreleased/%{gittag}/' CMakeLists.txt include/CMakeLists.txt
 
 %build
@@ -45,15 +38,26 @@ cmake --build .
 %install
 cd build
 DESTDIR=%{buildroot} cmake --build . --target install
+mv %{buildroot}%{_libdir}/lib%{name}_c.so %{buildroot}%{_libdir}/lib%{name}_c.so.%{gittag}
+mv %{buildroot}%{_libdir}/%{name}/lib%{name}Plugin%{reponame}Process.so %{buildroot}%{_libdir}/%{name}/lib%{name}Plugin%{reponame}Process.so.%{gittag}
+ln -s lib%{name}_c.so.%{gittag} %{buildroot}%{_libdir}/lib%{name}_c.so
+ln -s lib%{name}Plugin%{reponame}Process.so.%{gittag} %{buildroot}%{_libdir}/%{name}/lib%{name}Plugin%{reponame}Process.so
 
 %files
+%license LICENSE LICENSE.spdx
+%doc Changelog.md README.md SECURITY.md
 %{_bindir}/*
+%{_libdir}/lib%{name}_c.so.%{gittag}
+%dir %{_libdir}/%{name}
+%{_libdir}/%{name}/lib%{name}Plugin%{reponame}Process.so.%{gittag}
 
 %files devel
+%license LICENSE LICENSE.spdx
+%doc Changelog.md README.md SECURITY.md
 %{_includedir}/*
-
-%files lib
-%{_libdir}/*
+%{_libdir}/lib%{name}_c.so
+%dir %{_libdir}/%{name}
+%{_libdir}/%{name}/lib%{name}Plugin%{reponame}Process.so
 
 %changelog
 %autochangelog

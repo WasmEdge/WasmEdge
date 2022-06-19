@@ -38,7 +38,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let host_func = Function::create(&func_ty, Box::new(real_add), 0)?;
 
     // create a TableType instance
-    let ty = TableType::create(RefType::FuncRef, 10..=20)?;
+    let ty = TableType::create(RefType::FuncRef, 10, Some(20))?;
     // create a Table instance
     let mut table = Table::create(&ty)?;
     // call set_data to store a function reference at the given index of the table instance

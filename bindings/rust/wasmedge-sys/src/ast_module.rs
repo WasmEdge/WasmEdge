@@ -3,6 +3,7 @@
 use super::ffi;
 use crate::{
     error::{ExportError, ImportError, WasmEdgeError},
+    types::WasmEdgeLimit,
     WasmEdgeResult,
 };
 use std::{borrow::Cow, ffi::CStr};
@@ -181,12 +182,13 @@ impl<'module> ImportType<'module> {
                     ))),
                     false => {
                         let limit = unsafe { ffi::WasmEdge_MemoryTypeGetLimit(ctx_mem_ty) };
-                        let limit: std::ops::RangeInclusive<u32> = limit.into();
+                        let limit: WasmEdgeLimit = limit.into();
 
                         Ok(ExternalInstanceType::Memory(MemoryType::new(
-                            limit.start().to_owned(),
-                            Some(limit.end().to_owned()),
-                        )))
+                            limit.min(),
+                            limit.max(),
+                            limit.shared(),
+                        )?))
                     }
                 }
             }
@@ -205,12 +207,12 @@ impl<'module> ImportType<'module> {
 
                         // get the limit
                         let limit = unsafe { ffi::WasmEdge_TableTypeGetLimit(ctx_tab_ty) };
-                        let limit: std::ops::RangeInclusive<u32> = limit.into();
+                        let limit: WasmEdgeLimit = limit.into();
 
                         Ok(ExternalInstanceType::Table(TableType::new(
                             elem_ty,
-                            limit.start().to_owned(),
-                            Some(limit.end().to_owned()),
+                            limit.min(),
+                            limit.max(),
                         )))
                     }
                 }
@@ -322,12 +324,12 @@ impl<'module> ExportType<'module> {
 
                         // get the limit
                         let limit = unsafe { ffi::WasmEdge_TableTypeGetLimit(ctx_tab_ty) };
-                        let limit: std::ops::RangeInclusive<u32> = limit.into();
+                        let limit: WasmEdgeLimit = limit.into();
 
                         Ok(ExternalInstanceType::Table(TableType::new(
                             elem_ty,
-                            limit.start().to_owned(),
-                            Some(limit.end().to_owned()),
+                            limit.min(),
+                            limit.max(),
                         )))
                     }
                 }
@@ -342,12 +344,13 @@ impl<'module> ExportType<'module> {
                     ))),
                     false => {
                         let limit = unsafe { ffi::WasmEdge_MemoryTypeGetLimit(ctx_mem_ty) };
-                        let limit: std::ops::RangeInclusive<u32> = limit.into();
+                        let limit: WasmEdgeLimit = limit.into();
 
                         Ok(ExternalInstanceType::Memory(MemoryType::new(
-                            limit.start().to_owned(),
-                            Some(limit.end().to_owned()),
-                        )))
+                            limit.min(),
+                            limit.max(),
+                            limit.shared(),
+                        )?))
                     }
                 }
             }
@@ -529,7 +532,7 @@ mod tests {
         if let ExternalInstanceType::Table(table_ty) = ty {
             assert_eq!(table_ty.elem_ty(), RefType::ExternRef);
             assert_eq!(table_ty.minimum(), 10);
-            assert_eq!(table_ty.maximum(), 30);
+            assert_eq!(table_ty.maximum(), Some(30));
         }
 
         // check the memory_type function
@@ -539,7 +542,7 @@ mod tests {
         matches!(ty, ExternalInstanceType::Memory(_));
         if let ExternalInstanceType::Memory(mem_ty) = ty {
             assert_eq!(mem_ty.minimum(), 2);
-            assert_eq!(mem_ty.maximum(), 2);
+            assert_eq!(mem_ty.maximum(), None);
         }
 
         // check the global_type function
@@ -679,7 +682,7 @@ mod tests {
         if let ExternalInstanceType::Table(table_ty) = ty {
             assert_eq!(table_ty.elem_ty(), RefType::ExternRef);
             assert_eq!(table_ty.minimum(), 10);
-            assert_eq!(table_ty.maximum(), 10);
+            assert_eq!(table_ty.maximum(), None);
         }
 
         // check the memory_type function
@@ -689,7 +692,7 @@ mod tests {
         matches!(ty, ExternalInstanceType::Memory(_));
         if let ExternalInstanceType::Memory(mem_ty) = ty {
             assert_eq!(mem_ty.minimum(), 1);
-            assert_eq!(mem_ty.maximum(), 3);
+            assert_eq!(mem_ty.maximum(), Some(3));
         }
 
         // check the global_type function
@@ -830,7 +833,7 @@ mod tests {
             if let ExternalInstanceType::Table(table_ty) = ty {
                 assert_eq!(table_ty.elem_ty(), RefType::ExternRef);
                 assert_eq!(table_ty.minimum(), 10);
-                assert_eq!(table_ty.maximum(), 10);
+                assert_eq!(table_ty.maximum(), None);
             }
 
             // check the memory_type function
@@ -840,7 +843,7 @@ mod tests {
             matches!(ty, ExternalInstanceType::Memory(_));
             if let ExternalInstanceType::Memory(mem_ty) = ty {
                 assert_eq!(mem_ty.minimum(), 1);
-                assert_eq!(mem_ty.maximum(), 3);
+                assert_eq!(mem_ty.maximum(), Some(3));
             }
 
             // check the global_type function
@@ -989,7 +992,7 @@ mod tests {
             if let ExternalInstanceType::Table(table_ty) = ty {
                 assert_eq!(table_ty.elem_ty(), RefType::ExternRef);
                 assert_eq!(table_ty.minimum(), 10);
-                assert_eq!(table_ty.maximum(), 10);
+                assert_eq!(table_ty.maximum(), None);
             }
 
             // check the memory_type function
@@ -999,7 +1002,7 @@ mod tests {
             matches!(ty, ExternalInstanceType::Memory(_));
             if let ExternalInstanceType::Memory(mem_ty) = ty {
                 assert_eq!(mem_ty.minimum(), 1);
-                assert_eq!(mem_ty.maximum(), 3);
+                assert_eq!(mem_ty.maximum(), Some(3));
             }
 
             // check the global_type function

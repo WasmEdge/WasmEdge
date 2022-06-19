@@ -137,6 +137,31 @@ pub struct WasiInstance {
     pub(crate) inner: sys::WasiModule,
 }
 impl WasiInstance {
+    /// Initializes the WASI host module with the given parameters.
+    ///
+    /// # Arguments
+    ///
+    /// * `args` - The commandline arguments. The first argument is the program name.
+    ///
+    /// * `envs` - The environment variables in the format `ENV_VAR_NAME=VALUE`.
+    ///
+    /// * `preopens` - The directories to pre-open. The required format is `DIR1:DIR2`.
+    pub fn initialize(
+        &mut self,
+        args: Option<Vec<&str>>,
+        envs: Option<Vec<&str>>,
+        preopens: Option<Vec<&str>>,
+    ) {
+        self.inner.init_wasi(args, envs, preopens);
+    }
+
+    /// Returns the WASI exit code.
+    ///
+    /// The WASI exit code can be accessed after running the "_start" function of a `wasm32-wasi` program.
+    pub fn exit_code(&self) -> u32 {
+        self.inner.exit_code()
+    }
+
     /// Returns the name of this exported [module instance](crate::Instance).
     ///
     /// If this [module instance](crate::Instance) is an active [instance](crate::Instance), return None.
@@ -251,6 +276,17 @@ pub struct WasmEdgeProcessInstance {
     pub(crate) inner: sys::WasmEdgeProcessModule,
 }
 impl WasmEdgeProcessInstance {
+    /// Initializes the wasmedge_process host module with the parameters.
+    ///
+    /// # Arguments
+    ///
+    /// * `allowed_cmds` - A white list of commands.
+    ///
+    /// * `allowed` - Determines if wasmedge_process is allowed to execute all commands on the white list.
+    pub fn initialize(&mut self, allowed_cmds: Option<Vec<&str>>, allowed: bool) {
+        self.inner.init_wasmedge_process(allowed_cmds, allowed);
+    }
+
     /// Returns the name of this exported [module instance](crate::Instance).
     ///
     /// If this [module instance](crate::Instance) is an active [instance](crate::Instance), return None.
@@ -402,7 +438,10 @@ mod tests {
         let global_const = result.unwrap();
 
         // create a memory instance
-        let result = Memory::new(MemoryType::new(10, None));
+        let result = MemoryType::new(10, None, false);
+        assert!(result.is_ok());
+        let memory_type = result.unwrap();
+        let result = Memory::new(memory_type);
         assert!(result.is_ok());
         let memory = result.unwrap();
 

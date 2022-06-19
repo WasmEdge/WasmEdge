@@ -8,13 +8,13 @@ license = "Apache-2.0"
 name = "wasmedge-sdk"
 readme = "README.md"
 repository = "https://github.com/WasmEdge/WasmEdge/bindings/rust/wasmedge-sdk"
-version = "0.1.1"
+version = "0.2.0"
 
 [dependencies]
 anyhow = "1.0"
 thiserror = "1.0.30"
-wasmedge-sys = {path = "../wasmedge-sys", version = "0.7"}
-wasmedge-types = {path = "../wasmedge-types", version = "0.1"}
+wasmedge-sys = {path = "../wasmedge-sys", version = "0.8"}
+wasmedge-types = {path = "../wasmedge-types", version = "0.2"}
 wat = "1.0"
 
 [features]

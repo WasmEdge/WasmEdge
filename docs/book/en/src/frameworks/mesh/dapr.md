@@ -20,13 +20,9 @@ git clone https://github.com/second-state/dapr-wasm
 The demo has 4 Dapr sidecar applications.
 
 - The [web-port](https://github.com/second-state/dapr-wasm/tree/main/web-port) project provides a public web service for a static HTML page. This is the application’s UI. From the static HTML page, the user can select a microservice to turn an input image into grayscale. All 3 microsoervices below perform the same function. They are just implemented using different appraoches.
-  - Standalone WasmEdge approach: The [image-api-wasi-socket-rs](https://github.com/second-state/dapr-wasm/tree/main/image-api-wasi-socket-rs) project provides a standalone WasmEdge sidecar microservice that takes the input image and returns the grayscale image. The microservice is written in Rust and compiled into WebAssembly bytecode to run in WasmEdge.
-  - Embedded WasmEdge approach: The [image-api-rs](https://github.com/second-state/dapr-wasm/tree/main/image-api-rs) project provides a simple Rust-based microservice. It embeds a [WasmEdge function](https://github.com/second-state/dapr-wasm/tree/main/functions/grayscale) to turn an input image into a grayscale image.
-  - Embedded WasmEdge approach: The [image-api-go](https://github.com/second-state/dapr-wasm/tree/main/image-api-go) project provides a simple Go-based microservice. It embeds a [WasmEdge function](https://github.com/second-state/dapr-wasm/tree/main/functions/grayscale) to turn an input image into a grayscale image.
-
-![dapr-wasmedge](dapr-wasmedge.png)
-
-Dapr sidecar microservices in the demo application.
+  - **Standalone WasmEdge approach:** The [image-api-wasi-socket-rs](https://github.com/second-state/dapr-wasm/tree/main/image-api-wasi-socket-rs) project provides a standalone WasmEdge sidecar microservice that takes the input image and returns the grayscale image. The microservice is written in Rust and compiled into WebAssembly bytecode to run in WasmEdge.
+  - **Embedded WasmEdge approach:** The [image-api-rs](https://github.com/second-state/dapr-wasm/tree/main/image-api-rs) project provides a simple Rust-based microservice. It embeds a [WasmEdge function](https://github.com/second-state/dapr-wasm/tree/main/functions/grayscale) to turn an input image into a grayscale image.
+  - **Embedded WasmEdge approach:** The [image-api-go](https://github.com/second-state/dapr-wasm/tree/main/image-api-go) project provides a simple Go-based microservice. It embeds a [WasmEdge function](https://github.com/second-state/dapr-wasm/tree/main/functions/grayscale) to turn an input image into a grayscale image.
 
 You can follow the instructions in the [README](https://github.com/second-state/dapr-wasm/blob/main/README.md) to start the sidecar services. Here are commands to build the WebAssembly functions and start the sidecar services. The first set of commands deploy the static web page service and the standalone WasmEdge service written in Rust. It forms a complete application to turn an input image into grayscale.
 
@@ -71,11 +67,7 @@ cd ../
 
 Finally, you should be able to see the web UI in your browser.
 
-![dapr-wasmedge](dapr-wasmedge-in-action.png)
-
-The demo application in action.
-
-## The standalone WasmEdge microservice in Rust
+## Recommended: The standalone WasmEdge microservice in Rust
 
 The [standalone WasmEdge microservice](https://github.com/second-state/dapr-wasm/blob/main/image-api-wasi-socket-rs/src/main.rs) starts a non-blocking TCP server inside WasmEdge. The TCP server passes incoming requests to `handle_client()`, which passes HTTP requests to `handle_http()`, which calls `grayscale()` to process the image data in the request.
 
@@ -140,7 +132,7 @@ dapr run --app-id image-api-wasi-socket-rs \
          wasmedge ./target/wasm32-wasi/debug/image-api-wasi-socket-rs.wasm
 ```
 
-## The embedded WasmEdge microservices
+## Alternative: The embedded WasmEdge microservices
 
 The embedded WasmEdge approach requires us to create a WebAssembly function for the business logic (image processing) first, and then embed it into simple Dapr microservices.
 

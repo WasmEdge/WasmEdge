@@ -38,6 +38,7 @@ using RemoveCVRefT = std::remove_cv_t<std::remove_reference_t<T>>;
 // >>>>>>>> Type definitions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 using Byte = uint8_t;
+
 using S8 = int8_t;
 using U8 = uint8_t;
 using S16 = int16_t;
@@ -99,18 +100,17 @@ struct RecordField {
   InterfaceType ty;
 };
 
-struct Record{
+struct Record {
   RecordField *field = new RecordField;
 };
 
-
-// Implementation of "variant" type in interface types 
+// Implementation of "variant" type in interface types
 struct VariantCase {
   std::string name;
   InterfaceType ty;
 };
 
-struct Variants{
+struct Variants {
   VariantCase *cases = new VariantCase;
 };
 
@@ -142,35 +142,11 @@ struct Expecteds{
 
 /// NumType and RefType variant definitions.
 using RefVariant = Variant<UnknownRef, FuncRef, ExternRef>;
-using InterVariant = Variant<//Unit,
-    Bool,
-    S8,
-    U8,
-    S16,
-    U16,
-    S32,
-    U32,
-    S64,
-    U64,
-    Float32,
-    Float64,
-    Char,
-    String, 
-    Record,
-    Variants,
-    //List,
-    Tuple,
-    Flags,
-    Enum, 
-    Union, 
-    //Option, 
-    Expecteds>;
 using ValVariant =
-    Variant<uint32_t, int32_t, uint64_t, int64_t, float, double, uint128_t,
+    Variant<uint8_t, int8_t, uint16_t, int16_t, uint32_t, int32_t, uint64_t, int64_t, float, double, uint128_t,
             int128_t, uint64x2_t, int64x2_t, uint32x4_t, int32x4_t, uint16x8_t,
-            int16x8_t, uint8x16_t, int8x16_t, floatx4_t, doublex2_t, UnknownRef,
-            FuncRef, ExternRef,Bool, S8, U8, S16, U16, S32, U32, S64, U64, Float32, Float64, 
-            Char, String, Record, Variants, Tuple, Flags,Union, Expecteds>;
+            int16x8_t, uint8x16_t, int8x16_t, floatx4_t, doublex2_t, UnknownRef
+            /*FuncRef, ExternRef, Bool, Char, std::string, Record, Variants, Tuple, Flags, Enum, Union, Expecteds*/>;
 
 /// BlockType definition.
 struct BlockType {
@@ -253,30 +229,31 @@ struct IsWasmRef
 template <typename T>
 inline constexpr const bool IsWasmRefV = IsWasmRef<T>::value;
 
-/// Return true if Wasm Interface type 
+/// Return true if Wasm Interface type
 template <typename T>
-struct IsWasmInter 
-    : std::bool_constant<std::is_same_v<RemoveCVRef<T>, Bool> ||
-                         std::is_same_v<RemoveCVRef<T>, S8> ||
-                         std::is_same_v<RemoveCVRef<T>, U8> ||
-                         std::is_same_v<RemoveCVRef<T>, S16> ||
-                         std::is_same_v<RemoveCVRef<T>, U16> ||
-                         std::is_same_v<RemoveCVRef<T>, S32> ||
-                         std::is_same_v<RemoveCVRef<T>, U32> ||
-                         std::is_same_v<RemoveCVRef<T>, S64> ||
-                         std::is_same_v<RemoveCVRef<T>, U64> ||
-                         std::is_same_v<RemoveCVRef<T>, Float32> ||
-                         std::is_same_v<RemoveCVRef<T>, Float64> ||
-                         std::is_same_v<RemoveCVRef<T>, Char> ||
-                         std::is_same_v<RemoveCVRef<T>, String> ||
-                         std::is_same_v<RemoveCVRef<T>, Record> ||
-                         std::is_same_v<RemoveCVRef<T>, Variants> ||
-                         std::is_same_v<RemoveCVRef<T>, Tuple> ||
-                         std::is_same_v<RemoveCVRef<T>, Flags> ||
-                         std::is_same_v<RemoveCVRef<T>, Enum> ||
-                         std::is_same_v<RemoveCVRef<T>, Union> ||
-                         std::is_same_v<RemoveCVRef<T>, Expecteds>> {};
-    
+struct IsWasmInter
+    : std::bool_constant<std::is_same_v<RemoveCVRefT<T>, Bool> ||
+                         std::is_same_v<RemoveCVRefT<T>, S8> ||
+                         std::is_same_v<RemoveCVRefT<T>, U8> ||
+                         std::is_same_v<RemoveCVRefT<T>, S16> ||
+                         std::is_same_v<RemoveCVRefT<T>, U16> ||
+                         std::is_same_v<RemoveCVRefT<T>, S32> ||
+                         std::is_same_v<RemoveCVRefT<T>, U32> ||
+                         std::is_same_v<RemoveCVRefT<T>, S64> ||
+                         std::is_same_v<RemoveCVRefT<T>, U64> ||
+                         std::is_same_v<RemoveCVRefT<T>, Float32> ||
+                         std::is_same_v<RemoveCVRefT<T>, Float64> ||
+                         std::is_same_v<RemoveCVRefT<T>, Char> ||
+                         std::is_same_v<RemoveCVRefT<T>, String> ||
+                         std::is_same_v<RemoveCVRefT<T>, Record> ||
+                         std::is_same_v<RemoveCVRefT<T>, Variants> ||
+                         std::is_same_v<RemoveCVRefT<T>, Tuple> ||
+                         std::is_same_v<RemoveCVRefT<T>, Flags> ||
+                         std::is_same_v<RemoveCVRefT<T>, Enum> ||
+                         std::is_same_v<RemoveCVRefT<T>, Union> ||
+                         std::is_same_v<RemoveCVRefT<T>, Expecteds>> {};
+template <typename T>
+inline constexpr const bool IsWasmInterV = IsWasmInter<T>::value;
 
 /// Return true if Wasm int (int32_t, uint32_t, int64_t, uint64_t).
 template <typename T>
@@ -349,6 +326,7 @@ template <> inline ValType ValTypeFromType<int64_t>() noexcept {
 template <> inline ValType ValTypeFromType<uint128_t>() noexcept {
   return ValType::V128;
 }
+
 template <> inline ValType ValTypeFromType<int128_t>() noexcept {
   return ValType::V128;
 }
@@ -367,47 +345,47 @@ template <> inline ValType ValTypeFromType<ExternRef>() noexcept {
 template <> inline ValType ValTypeFromType<Bool>() noexcept {
   return ValType::Bool;
 }
-template <> inline ValType ValTypeFromType<S8>() noexcept {
+template <> inline ValType ValTypeFromType<int8_t>() noexcept {
   return ValType::S8;
 }
-template <> inline ValType ValTypeFromType<U8>() noexcept {
+template <> inline ValType ValTypeFromType<uint8_t>() noexcept {
   return ValType::U8;
 }
-template <> inline ValType ValTypeFromType<S16>() noexcept {
+template <> inline ValType ValTypeFromType<int16_t>() noexcept {
   return ValType::S16;
 }
-template <> inline ValType ValTypeFromType<U16>() noexcept {
+template <> inline ValType ValTypeFromType<uint16_t>() noexcept {
   return ValType::U16;
 }
-template <> inline ValType ValTypeFromType<S32>() noexcept {
+/*template <> inline ValType ValTypeFromType<int32_t>() noexcept {
   return ValType::S32;
 }
-template <> inline ValType ValTypeFromType<U32>() noexcept {
+template <> inline ValType ValTypeFromType<uint32_t>() noexcept {
   return ValType::U32;
 }
-template <> inline ValType ValTypeFromType<S64>() noexcept {
+template <> inline ValType ValTypeFromType<int64_t>() noexcept {
   return ValType::S64;
 }
-template <> inline ValType ValTypeFromType<U64>() noexcept {
+template <> inline ValType ValTypeFromType<uint64_t>() noexcept {
   return ValType::U64;
 }
-template <> inline ValType ValTypeFromType<Float32>() noexcept {
+template <> inline ValType ValTypeFromType<float>() noexcept {
   return ValType::Float32;
 }
-template <> inline ValType ValTypeFromType<Float64>() noexcept {
+template <> inline ValType ValTypeFromType<double>() noexcept {
   return ValType::Float64;
-}
-template <> inline ValType ValTypeFromType<Char>() noexcept {
+}*/
+template <> inline ValType ValTypeFromType<char>() noexcept {
   return ValType::Char;
 }
-template <> inline ValType ValTypeFromType<String>() noexcept {
+template <> inline ValType ValTypeFromType<std::string>() noexcept {
   return ValType::String;
 }
 template <> inline ValType ValTypeFromType<Record>() noexcept {
   return ValType::Record;
 }
 template <> inline ValType ValTypeFromType<Variants>() noexcept {
-  return ValType::Char;
+  return ValType::Variants;
 }
 template <> inline ValType ValTypeFromType<Tuple>() noexcept {
   return ValType::Tuple;
@@ -431,42 +409,40 @@ template <> inline ValType ValTypeFromType<Expecteds>() noexcept {
 inline constexpr ValVariant ValueFromType(ValType Type) noexcept {
   switch (Type) {
   case ValType::I32:
+  case ValType::U32:
     return uint32_t(0U);
   case ValType::I64:
+  case ValType::U64:
     return uint64_t(0U);
   case ValType::F32:
+  case ValType::Float32:
     return float(0.0F);
   case ValType::F64:
+  case ValType::Float64:
     return double(0.0);
   case ValType::V128:
     return uint128_t(0U);
-  case ValType::Bool:
-    return bool(1);
-  case ValType::S8:
-    return int8_t(0);
-  case ValType::U8:
-    return uint8_t(0U);
-  case ValType::S16:
-    return int16_t(0);
-  case ValType::U16:
-    return uint16_t(0U);
-  case ValType::S32:
-    return int32_t(0);
-  case ValType::U32:
-    return uint32_t(0U);
-  case ValType::S64:
-    return int64_t(0);
-  case ValType::U64:
-    return uint64_t(0U);
-  case ValType::Float32:
-    return float(0.0F);
-  case ValType::Float64:
-    return double(0.0);
-  case ValType::Char:
-    return char('0');
-  case ValType::String:
-    return std::string("0");
-
+    // case ValType::Bool:
+    // return bool(true);
+    // case ValType::S8:
+    // return int8_t(0);
+    // case ValType::U8:
+    // return uint8_t(0U);
+    // case ValType::S16:
+    // return int16_t(0);
+    // case ValType::U16:
+    // return uint16_t(0U);
+    /*case ValType::S32:
+      return int32_t(0);
+    case ValType::U32:
+      return uint32_t(0U);
+    case ValType::S64:
+      return int64_t(0);
+    case ValType::U64:
+      return uint64_t(0U);
+    case ValType::Float32:
+      return float(0.0F);
+  */
 
   case ValType::FuncRef:
   case ValType::ExternRef:

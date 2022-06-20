@@ -36,7 +36,29 @@ enum class VType : uint8_t {
   F64,
   V128,
   FuncRef,
-  ExternRef
+  ExternRef,
+  Bool,
+  S8,
+  U8,
+  S16,
+  U16,
+  S32,
+  U32,
+  S64,
+  U64,
+  Float32,
+  Float64,
+  Char,
+  String,
+  Record,
+  Variants,
+  // List,
+  Tuple,
+  Flags,
+  Enum,
+  Union,
+  // Option,
+  Expecteds
 };
 
 static inline constexpr bool isNumType(const VType V) {
@@ -46,6 +68,17 @@ static inline constexpr bool isNumType(const VType V) {
 
 static inline constexpr bool isRefType(const VType V) {
   return V == VType::FuncRef || V == VType::ExternRef || V == VType::Unknown;
+}
+
+static inline constexpr bool isInterfaceType(const VType V) {
+
+  return V == VType::Bool || V == VType::S8 || V == VType::U8 ||
+         V == VType::S16 || V == VType::U16 || V == VType::S32 ||
+         V == VType::U32 || V == VType::S64 || V == VType::U64 ||
+         V == VType::Float32 || V == VType::Float64 || V == VType::Char ||
+         V == VType::String || V == VType::Record || V == VType::Variants ||
+         V == VType::Tuple || V == VType::Flags || V == VType::Enum ||
+         V == VType::Union || V == VType::Expecteds;
 }
 
 class FormChecker {
@@ -82,6 +115,7 @@ public:
   VType ASTToVType(const ValType &V);
   VType ASTToVType(const NumType &V);
   VType ASTToVType(const RefType &V);
+  VType ASTToVType(const InterfaceType &V);
   ValType VTypeToAST(const VType &V);
 
   struct CtrlFrame {

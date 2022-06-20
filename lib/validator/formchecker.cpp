@@ -163,6 +163,51 @@ VType FormChecker::ASTToVType(const RefType &V) {
   }
 }
 
+VType FormChecker::ASTToVType(const InterfaceType &V) {
+  switch (V) {
+  case InterfaceType::Bool:
+    return VType::Bool;
+  case InterfaceType::S8:
+    return VType::S8;
+  case InterfaceType::U8:
+    return VType::U8;
+  case InterfaceType::S16:
+    return VType::S16;
+  case InterfaceType::U16:
+    return VType::U16;
+  case InterfaceType::S32:
+    return VType::S32;
+  case InterfaceType::U32:
+    return VType::U32;
+  case InterfaceType::S64:
+    return VType::S64;
+  case InterfaceType::U64:
+    return VType::U64;
+  case InterfaceType::Float32:
+    return VType::Float32;
+  case InterfaceType::Float64:
+    return VType::Float64;
+  case InterfaceType::Char:
+    return VType::Char;
+  case InterfaceType::String:
+    return VType::String;
+  case InterfaceType::Record:
+    return VType::Record;
+  case InterfaceType::Variants:
+    return VType::Variants;
+  case InterfaceType::Tuple:
+    return VType::Tuple;
+  case InterfaceType::Flags:
+    return VType::Flags;
+  case InterfaceType::Enum:
+    return VType::Enum;
+  case InterfaceType::Union:
+    return VType::Union;
+  case InterfaceType::Expecteds:
+    return VType::Expecteds;
+  }
+}
+
 ValType FormChecker::VTypeToAST(const VType &V) {
   switch (V) {
   case VType::I32:

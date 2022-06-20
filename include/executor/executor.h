@@ -54,6 +54,9 @@ using TypeT = typename std::enable_if_t<IsWasmNumV<T>, Expect<void>>;
 /// Accept Wasm built-in num types. (uint32_t, uint64_t, float, double)
 template <typename T>
 using TypeN = typename std::enable_if_t<IsWasmNativeNumV<T>, Expect<void>>;
+// Accept Interface types
+template <typename T>
+using TypeIT = typename std::enable_if_t<IsWasmInterV<T>, Expect<void>>;
 
 /// Accept (unsigned integer types, unsigned integer types).
 template <typename T1, typename T2>

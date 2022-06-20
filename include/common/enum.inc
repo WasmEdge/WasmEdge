@@ -868,33 +868,33 @@ R(ExternRef, 0x6F)
 #endif // UseRefType 
 
 #ifdef UseInterfaceType
-#define IN Line 
+#define In Line 
 
-IN(Unit, 0x7f)
-IN(Bool, 0x7e)
-IN(S8, 0x7d)
-IN(U8, 0x7c)
-IN(S16, 0x7b)
-IN(U16, 0x7a)
-IN(S32, 0x79)
-IN(U32, 0x78)
-IN(S64, 0x77)
-IN(U64, 0x76)
-IN(Float32, 0x75)
-IN(Float64, 0x74)
-IN(Char, 0x73)
-IN(String, 0x72)
-IN(Record, 0x71)
-IN(Variants, 0x70)
-IN(List, 0x6f)
-IN(Tuple, 0x6e)
-IN(Flags, 0x6d) 
-IN(Enum, 0x6c)
-IN(Union, 0x6b)
-IN(Option, 0x6a)
-IN(Expecteds, 0x69)
+In(Unit, 0x7f)
+In(Bool, 0x7e)
+In(S8, 0x7d)
+In(U8, 0x7c)
+In(S16, 0x7b)
+In(U16, 0x7a)
+In(S32, 0x79)
+In(U32, 0x78)
+In(S64, 0x77)
+In(U64, 0x76)
+In(Float32, 0x75)
+In(Float64, 0x74)
+In(Char, 0x73)
+In(String, 0x72)
+In(Record, 0x71)
+In(Variants, 0x70)
+In(List, 0x6f)
+In(Tuple, 0x6e)
+In(Flags, 0x6d) 
+In(Enum, 0x6c)
+In(Union, 0x6b)
+In(Option, 0x6a)
+In(Expecteds, 0x69)
 
-#undef IN 
+#undef In 
 #endif //UseInterfaceType
 
 #ifdef UseValMut

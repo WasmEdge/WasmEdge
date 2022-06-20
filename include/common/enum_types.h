@@ -79,11 +79,11 @@ enum class InterfaceType : uint8_t {
 
 /// WASM Interface type C enumeration.
 enum WasmEdge_InterfaceType {
-  #define UseInterfaceType 
-  #define Line(Name, VALUE) WasmEdge_InterfaceType_##NAME = VALUE,
-  #include "enum.inc"
-  #undef Line 
-  #undef UseInterfaceType
+#define UseInterfaceType
+#define Line(NAME, VALUE) WasmEdge_InterfaceType_##NAME = VALUE,
+#include "enum.inc"
+#undef Line
+#undef UseInterfaceType
 };
 
 #if (defined(__cplusplus) && __cplusplus > 201402L) ||                         \

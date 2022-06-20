@@ -37,6 +37,9 @@
 #include <sys/stat.h>
 
 #if defined(__GLIBC_PREREQ)
+#if defined(_LIBCPP_GLIBC_PREREQ)
+#undef _LIBCPP_GLIBC_PREREQ
+#endif
 #define _LIBCPP_GLIBC_PREREQ(a, b) 0
 #else
 #if defined(_LIBCPP_GLIBC_PREREQ)

@@ -1,16 +1,18 @@
 # wasm-nginx-module
 
-wasm-nginx-module is an Nginx module that is built upon OpenResty. By implementing the [Proxy Wasm ABI](https://github.com/proxy-wasm/spec), any Wasm program written with Proxy Wasm SDK can be run inside it. Hence, you can write Go or Rust code, compile them into Wasm, then load & execute it in the Nginx.
+The wasm-nginx-module is an Nginx module built upon OpenResty. By implementing the [Proxy Wasm ABI](https://github.com/proxy-wasm/spec), any Wasm program written with Proxy Wasm SDK can be run inside it. Hence, you can write Go or Rust code, compile them into Wasm, then load & execute it in Nginx.
 
-The wasm-nginx-module is already used in APISIX and allows it to [run Wasm plugin like Lua plugin](https://github.com/apache/apisix/blob/master/docs/en/latest/wasm.md).
+> The wasm-nginx-module is already used in APISIX and allows it to [run Wasm plugin like Lua plugin](https://github.com/apache/apisix/blob/master/docs/en/latest/wasm.md).
 
-Let me show you a real-world example - use Wasm to inject custom responses in Nginx.
+In order to follow along the tutorials in this chapter, you will need to first [build your Nginx with wasm-nginx-module included and WasmEdge shared library installed in the right path](https://github.com/api7/wasm-nginx-module#install-dependencies).
+
+Once you have Nginx installed, let me show you a real world example - using Wasm to inject custom responses in Nginx.
 
 ## Inject Custom Response via Go in Nginx, Step by Step
 
 ### Step 1: Write code based on proxy-wasm-go-sdk
 
-The implementation code (including go.mod and others) can be found at [here](https://github.com/apache/apisix/tree/master/t/wasm).
+The implementation code (including `go.mod` and others) can be found at [here](https://github.com/apache/apisix/tree/master/t/wasm).
 
 It should be explained that although the proxy-wasm-go-sdk project carries the Go name, it actually uses tinygo instead of native Go, which has some problems supporting WASI (which you can think of as a non-browser WASM runtime interface), see [here](https://github.com/tetratelabs/proxy-wasm-go-sdk/blob/main/doc/OVERVIEW.md#tinygo-vs-the-official-go-compiler) for more details.
 
@@ -24,9 +26,7 @@ tinygo build -o ./fault-injection/main.go.wasm -scheduler=none -target=wasi ./fa
 
 ### Step 3: Load and execute the Wasm file
 
-Build your Nginx with wasm-nginx-module included and WasmEdge shared library installed in the right path.
-
-Let's start Nginx with the configuration below:
+Then, start Nginx with the configuration below:
 
 ```
 worker_processes  1;
@@ -87,9 +87,7 @@ cargo build --target=wasm32-wasi
 
 ### Step 3: Load and execute the Wasm file
 
-Build your Nginx with wasm-nginx-module included and WasmEdge shared library installed in the right path.
-
-Let's start Nginx with the configuration below:
+Then, start Nginx with the configuration below:
 
 ```
 worker_processes  1;

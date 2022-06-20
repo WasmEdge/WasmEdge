@@ -53,7 +53,8 @@ ln -s lib%{name}Plugin%{reponame}Process.so.%{gittag} %{buildroot}%{_libdir}/%{n
 %files
 %license LICENSE LICENSE.spdx
 %doc Changelog.md README.md SECURITY.md
-%{_bindir}/*
+%{_bindir}/wasmedge
+%{_bindir}/wasmedgec
 %{_libdir}/lib%{name}_c.so.%{gittag}
 %dir %{_libdir}/%{name}
 %{_libdir}/%{name}/lib%{name}Plugin%{reponame}Process.so.%{gittag}
@@ -61,7 +62,16 @@ ln -s lib%{name}Plugin%{reponame}Process.so.%{gittag} %{buildroot}%{_libdir}/%{n
 %files devel
 %license LICENSE LICENSE.spdx
 %doc Changelog.md README.md SECURITY.md
-%{_includedir}/*
+%dir %{_includedir}/%{name}
+%{_includedir}/%{name}/dense_enum_map.h
+%{_includedir}/%{name}/enum.inc
+%{_includedir}/%{name}/enum_configure.h
+%{_includedir}/%{name}/enum_errcode.h
+%{_includedir}/%{name}/enum_types.h
+%{_includedir}/%{name}/int128.h
+%{_includedir}/%{name}/spare_enum_map.h
+%{_includedir}/%{name}/version.h
+%{_includedir}/%{name}/wasmedge.h
 %{_libdir}/lib%{name}_c.so
 %dir %{_libdir}/%{name}
 %{_libdir}/%{name}/lib%{name}Plugin%{reponame}Process.so

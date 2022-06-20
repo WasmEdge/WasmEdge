@@ -79,7 +79,7 @@ jobs:
         fetch-depth: 0
     - name: Propagate version information for tarball
       run: |
-        echo $VERSION | tee VERSION
+        echo -n $VERSION | tee VERSION
       env:
         VERSION: ${{ needs.get_version_v2.outputs.version }}
     - name: Create source tarball

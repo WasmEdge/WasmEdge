@@ -12,7 +12,7 @@ Some Node.js functions can be implemented in pure JavaScript using the [modules]
 
 * The [querystring](https://github.com/second-state/wasmedge-quickjs/blob/main/modules/querystring.js) functions just perform string manipulations.
 * The [buffer](https://github.com/second-state/wasmedge-quickjs/blob/main/modules/buffer.js) functions manage and encode arrays and memory structures.
-* The [encoding](https://github.com/second-state/wasmedge-quickjs/blob/main/modules/encoding.js) and [http](https://github.com/second-state/wasmedge-quickjs/blob/main/modules/http.js) functions provide a Node.js wrapper around JavaScript functions implemneted in Rust.
+* The [encoding](https://github.com/second-state/wasmedge-quickjs/blob/main/modules/encoding.js) and [http](https://github.com/second-state/wasmedge-quickjs/blob/main/modules/http.js) functions provide a Node.js `fetch()` API wrapper around JavaScript functions implemneted in Rust.
 
 ## The Rust internal modules
 
@@ -20,6 +20,6 @@ Other Node.js functions must be implemented in Rust using the [internal_module](
 
 * The [core](https://github.com/second-state/wasmedge-quickjs/blob/main/src/internal_module/core.rs) module provides OS level functions such as `timeout`.
 * The [encoding](https://github.com/second-state/wasmedge-quickjs/blob/main/src/internal_module/encoding.rs) module provide high-performance encoding and decoding functions, which is in turn [wrapped into Node.js encoding APIs](https://github.com/second-state/wasmedge-quickjs/blob/main/modules/encoding.js). 
-* The [wasi_net_module](https://github.com/second-state/wasmedge-quickjs/blob/main/src/internal_module/wasi_net_module.rs) wraps the Rust-based socket networking API into JavaScrript functions. It is then wrapped into [Node.js compliant HTTP APIs](https://github.com/second-state/wasmedge-quickjs/blob/main/modules/http.js).
+* The [wasi_net_module](https://github.com/second-state/wasmedge-quickjs/blob/main/src/internal_module/wasi_net_module.rs) wraps the Rust-based socket networking API into JavaScript functions. It is then wrapped into a [Node.js compliant HTTP fetch() function](https://github.com/second-state/wasmedge-quickjs/blob/main/modules/http.js).
 
 Node.js compatibility support in WasmEdge QuickJS is a work in progress. It is a great way for new developers to get familiar with WasmEdge QuickJS. Join us!

@@ -202,13 +202,15 @@ detect_os_arch() {
 
         LIB_EXT=".dylib"
 
-        if ! command -v brew &>/dev/null; then
-            echo "${RED}Brew is required${NC}"
-            exit 1
-        else
-            if [ "$(brew list | grep llvm)" = "" ]; then
-                echo "${YELLOW}Please run: brew install llvm${NC}"
+        if [ "$IGNORE_BREW" -ne "1" ]; then
+            if ! command -v brew &>/dev/null; then
+                echo "${RED}Brew is required${NC}"
                 exit 1
+            else
+                if [ "$(brew list | grep llvm)" = "" ]; then
+                    echo "${YELLOW}Please run: brew install llvm${NC}"
+                    exit 1
+                fi
             fi
         fi
 
@@ -303,6 +305,9 @@ usage() {
                                                 wish not to. 
     -u              --uninstall-script-tag=[master] Select tag for uninstall
                                                 script [Default is master].
+
+                    --ignore-brew               Ignore querying brew on macOS
+                                                for llvm
 
     Example:
     ./$0 -p $IPATH -e all -v $VERSION --verbose
@@ -552,6 +557,8 @@ main() {
     EXT_V_SET_WASMEDGE_TF_DEPS=0
     EXT_V_SET_WASMEDGE_TF_TOOLS=0
 
+    IGNORE_BREW=0
+
     REMOVE_OLD=1
 
     local OPTIND
@@ -607,6 +614,9 @@ main() {
         image-deps-version)
             VERSION_IM_DEPS="$OPTARG"
             EXT_V_SET_WASMEDGE_IM_DEPS=1
+            ;;
+        ignore-brew)
+            IGNORE_BREW=1
             ;;
         ?)
             exit 2

@@ -36,7 +36,7 @@
     - [ES6 modules](dev/js/es6.md)
     - [Node.js &amp; NPM modules](dev/js/npm.md)
     - [Built-in modules](dev/js/modules.md)
-    - [Use Rust to implement JS API](dev/js/rust.md)
+    - [Native JS API in Rust](dev/js/rust.md)
     - [Node.js compatibility](dev/js/nodejs.md)
   - [Go](dev/go.md)
   - [Swift](dev/swift.md)

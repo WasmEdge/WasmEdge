@@ -9,6 +9,8 @@ namespace Host {
 
 namespace {
 
+void addOptions(PO::ArgumentParser &) noexcept {}
+
 Runtime::Instance::ModuleInstance *create(void) noexcept {
   return new WasiNNModule;
 }
@@ -27,7 +29,7 @@ Plugin::Plugin::PluginDescriptor Descriptor{
                 .Create = create,
             },
         },
-    .AddOptions = nullptr,
+    .AddOptions = addOptions,
 };
 
 } // namespace

@@ -9,19 +9,19 @@ on:
     branches:
       - master
     paths-ignore:
-      - '.github/workflows/rust*.yml'
-      - 'docs/**'
-      - 'bindings/**'
-      - '**/*.md'
+      - ".github/workflows/rust*.yml"
+      - "docs/**"
+      - "bindings/**"
+      - "**/*.md"
   pull_request:
     branches:
       - master
-      - 'proposal/**'
+      - "proposal/**"
     paths-ignore:
-      - '.github/workflows/rust*.yml'
-      - 'docs/**'
-      - 'bindings/**'
-      - '**/*.md'
+      - ".github/workflows/rust*.yml"
+      - "docs/**"
+      - "bindings/**"
+      - "**/*.md"
 
 jobs:
   get_version_v2:
@@ -30,16 +30,16 @@ jobs:
     outputs:
       version: ${{ steps.prep.outputs.version }}
     steps:
-    - uses: actions/checkout@v2
-      with:
-        fetch-depth: 0
-    - name: Get version
-      id: prep
-      run: |
-        # Retrieve annotated tags. Details: https://github.com/actions/checkout/issues/290
-        git fetch --tags --force
-        echo "Set version: $(git describe --match "[0-9].[0-9]*" --tag)"
-        echo ::set-output name=version::$(git describe --match "[0-9].[0-9]*" --tag)
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - name: Get version
+        id: prep
+        run: |
+          # Retrieve annotated tags. Details: https://github.com/actions/checkout/issues/290
+          git fetch --tags --force
+          echo "Set version: $(git describe --match "[0-9].[0-9]*" --tag)"
+          echo ::set-output name=version::$(git describe --match "[0-9].[0-9]*" --tag)
 
   build_ubuntu:
     strategy:
@@ -62,18 +62,36 @@ jobs:
     container:
       image: wasmedge/wasmedge:${{ matrix.docker_tag }}
     steps:
-    - uses: actions/checkout@v2
-      with:
-        fetch-depth: 0
-    - name: Build WasmEdge with ${{ matrix.name }} using ${{ matrix.compiler }} with ${{ matrix.build_type }} mode
-      if: ${{ matrix.openvino }}
-      env:
-        CMAKE_BUILD_TYPE: ${{ matrix.build_type }}
-        OPENVINO_VERSION: "2021.4.582"
-        OPENVINO_YEAR: "2021"
-      run: |
-        bash utils/docker/build-wasinn-ubuntu-openvino.sh
-    - name: Test WasmEdge with ${{ matrix.name }} using ${{ matrix.compiler }} with ${{ matrix.build_type }} mode
-      if: ${{ matrix.openvino }}
-      run: |
-        bash utils/docker/test-wasinn-ubuntu-openvino.sh
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - name: Install OpenVINO
+        if: ${{ matrix.openvino }}
+        env:
+          OPENVINO_VERSION: "2021.4.582"
+          OPENVINO_YEAR: "2021"
+        run: |
+          bash utils/docker/wasi-nn/install-ubuntu-openvino.sh
+      - name: Build WasmEdge with ${{ matrix.name }} using ${{ matrix.compiler }} with ${{ matrix.build_type }} mode
+        if: ${{ matrix.openvino && ! matrix.coverage}}
+        env:
+          CMAKE_BUILD_TYPE: ${{ matrix.build_type }}
+        run: |
+          bash utils/docker/wasi-nn/build-ubuntu-openvino.sh
+      - name: Test WasmEdge with ${{ matrix.name }} using ${{ matrix.compiler }} with ${{ matrix.build_type }} mode
+        if: ${{ matrix.openvino && ! matrix.coverage}}
+        run: |
+          bash utils/docker/wasi-nn/test-ubuntu-openvino.sh
+      - name: Create coverage report to Codecov for OpenVINO
+        if: ${{ matrix.openvino && matrix.coverage}}
+        run: |
+          bash utils/docker/wasi-nn/cov-ubuntu-openvino.sh
+      - name: Upload coverage report to Codecov for OpenVINO
+        if: ${{ matrix.openvino && matrix.coverage}}
+        uses: codecov/codecov-action@v2
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./build/codecov.xml
+          name: codecov-wasmedge
+          fail_ci_if_error: true
+          path_to_write_report: ./build/codecov_report.gz

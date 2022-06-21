@@ -674,14 +674,14 @@ public:
     return Node.sockSetOpt(SockOptLevel, SockOptName, FlagPtr, FlagSizePtr);
   }
 
-  WasiExpect<void> sockGetLocalAddr(uint8_t *Address, uint32_t *AddrTypePtr,
+  WasiExpect<void> sockGetLoaclAddr(uint8_t *Address,
                                     uint32_t *PortPtr) const noexcept {
-    return Node.sockGetLocalAddr(Address, AddrTypePtr, PortPtr);
+    return Node.sockGetLoaclAddr(Address, PortPtr);
   }
 
-  WasiExpect<void> sockGetPeerAddr(uint8_t *Address, uint32_t *AddrTypePtr,
+  WasiExpect<void> sockGetPeerAddr(uint8_t *Address,
                                    uint32_t *PortPtr) const noexcept {
-    return Node.sockGetPeerAddr(Address, AddrTypePtr, PortPtr);
+    return Node.sockGetPeerAddr(Address, PortPtr);
   }
 
   __wasi_rights_t fsRightsBase() const noexcept { return FsRightsBase; }

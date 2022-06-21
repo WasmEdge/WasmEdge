@@ -537,7 +537,7 @@ public:
   static WasiExpect<INode> sockOpen(__wasi_address_family_t SysDomain,
                                     __wasi_sock_type_t SockType) noexcept;
 
-  WasiExpect<void> sockBind(uint8_t *Address, uint8_t AddressLength,
+  WasiExpect<void> sockBind(uint8_t *AddressBuf, uint8_t AddressLength,
                             uint16_t Port) noexcept;
 
   WasiExpect<void> sockListen(int32_t Backlog) noexcept;
@@ -624,10 +624,10 @@ public:
                               __wasi_sock_opt_so_t SockOptName, void *FlagPtr,
                               uint32_t FlagSizePtr) const noexcept;
 
-  WasiExpect<void> sockGetLocalAddr(uint8_t *Address, uint32_t *AddrTypePtr,
+  WasiExpect<void> sockGetLoaclAddr(uint8_t *Address,
                                     uint32_t *PortPtr) const noexcept;
 
-  WasiExpect<void> sockGetPeerAddr(uint8_t *Address, uint32_t *AddrTypePtr,
+  WasiExpect<void> sockGetPeerAddr(uint8_t *Address,
                                    uint32_t *PortPtr) const noexcept;
 
   /// File type.

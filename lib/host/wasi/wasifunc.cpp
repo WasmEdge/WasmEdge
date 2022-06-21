@@ -1793,7 +1793,7 @@ Expect<uint32_t> WasiSockBind::body(const Runtime::CallingFrame &Frame,
     return __WASI_ERRNO_FAULT;
   }
 
-  if (InnerAddress->buf_len != 4 && InnerAddress->buf_len != 16) {
+  if (InnerAddress->buf_len != 128) {
     return __WASI_ERRNO_INVAL;
   }
 
@@ -1859,7 +1859,7 @@ Expect<uint32_t> WasiSockConnect::body(const Runtime::CallingFrame &Frame,
     return __WASI_ERRNO_FAULT;
   }
 
-  if (InnerAddress->buf_len != 4 && InnerAddress->buf_len != 16) {
+  if (InnerAddress->buf_len != 128) {
     return __WASI_ERRNO_INVAL;
   }
 
@@ -1970,7 +1970,7 @@ Expect<uint32_t> WasiSockRecvFrom::body(const Runtime::CallingFrame &Frame,
     return __WASI_ERRNO_FAULT;
   }
 
-  if (InnerAddress->buf_len != 4 && InnerAddress->buf_len != 16) {
+  if (InnerAddress->buf_len != 128) {
     return __WASI_ERRNO_INVAL;
   }
 
@@ -2125,7 +2125,7 @@ Expect<uint32_t> WasiSockSendTo::body(const Runtime::CallingFrame &Frame,
     return __WASI_ERRNO_FAULT;
   }
 
-  if (InnerAddress->buf_len != 4 && InnerAddress->buf_len != 16) {
+  if (InnerAddress->buf_len != 128) {
     return __WASI_ERRNO_INVAL;
   }
 
@@ -2420,10 +2420,9 @@ Expect<uint32_t> WasiGetAddrinfo::body(const Runtime::CallingFrame &Frame,
   return __WASI_ERRNO_SUCCESS;
 }
 
-Expect<uint32_t> WasiSockGetLocalAddr::body(const Runtime::CallingFrame &Frame,
-                                            int32_t Fd, uint32_t AddressPtr,
-                                            uint32_t AddressTypePtr,
-                                            uint32_t PortPtr) {
+Expect<uint32_t>
+WasiSockGetLocalAddr::body(const Runtime::CallingFrame &Frame,
+                           int32_t Fd, uint32_t AddressPtr, uint32_t PortPtr) {
   auto *MemInst = Frame.getMemoryByIndex(0);
   if (MemInst == nullptr) {
     return __WASI_ERRNO_FAULT;
@@ -2434,19 +2433,13 @@ Expect<uint32_t> WasiSockGetLocalAddr::body(const Runtime::CallingFrame &Frame,
     return __WASI_ERRNO_FAULT;
   }
 
-  if (InnerAddress->buf_len != 16) {
+  if (InnerAddress->buf_len != 128) {
     return __WASI_ERRNO_INVAL;
   }
 
   uint8_t *AddressBuf =
       MemInst->getPointer<uint8_t *>(InnerAddress->buf, InnerAddress->buf_len);
   if (AddressBuf == nullptr) {
-    return __WASI_ERRNO_FAULT;
-  }
-
-  uint32_t *const RoAddressType =
-      MemInst->getPointer<uint32_t *>(AddressTypePtr);
-  if (RoAddressType == nullptr) {
     return __WASI_ERRNO_FAULT;
   }
 
@@ -2457,18 +2450,16 @@ Expect<uint32_t> WasiSockGetLocalAddr::body(const Runtime::CallingFrame &Frame,
 
   const __wasi_fd_t WasiFd = Fd;
 
-  if (auto Res =
-          Env.sockGetLocalAddr(WasiFd, AddressBuf, RoAddressType, RoPort);
+  if (auto Res = Env.sockGetLoaclAddr(WasiFd, AddressBuf, RoPort);
       unlikely(!Res)) {
     return Res.error();
   }
   return __WASI_ERRNO_SUCCESS;
 }
 
-Expect<uint32_t> WasiSockGetPeerAddr::body(const Runtime::CallingFrame &Frame,
-                                           int32_t Fd, uint32_t AddressPtr,
-                                           uint32_t AddressTypePtr,
-                                           uint32_t PortPtr) {
+Expect<uint32_t>
+WasiSockGetPeerAddr::body(const Runtime::CallingFrame &Frame,
+                          int32_t Fd, uint32_t AddressPtr, uint32_t PortPtr) {
   auto *MemInst = Frame.getMemoryByIndex(0);
   if (MemInst == nullptr) {
     return __WASI_ERRNO_FAULT;
@@ -2489,12 +2480,6 @@ Expect<uint32_t> WasiSockGetPeerAddr::body(const Runtime::CallingFrame &Frame,
     return __WASI_ERRNO_FAULT;
   }
 
-  uint32_t *const RoAddressType =
-      MemInst->getPointer<uint32_t *>(AddressTypePtr);
-  if (RoAddressType == nullptr) {
-    return __WASI_ERRNO_FAULT;
-  }
-
   uint32_t *const RoPort = MemInst->getPointer<uint32_t *>(PortPtr);
   if (RoPort == nullptr) {
     return __WASI_ERRNO_FAULT;
@@ -2502,7 +2487,7 @@ Expect<uint32_t> WasiSockGetPeerAddr::body(const Runtime::CallingFrame &Frame,
 
   const __wasi_fd_t WasiFd = Fd;
 
-  if (auto Res = Env.sockGetPeerAddr(WasiFd, AddressBuf, RoAddressType, RoPort);
+  if (auto Res = Env.sockGetPeerAddr(WasiFd, AddressBuf, RoPort);
       unlikely(!Res)) {
     return Res.error();
   }

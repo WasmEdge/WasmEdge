@@ -1046,25 +1046,23 @@ public:
     }
   }
 
-  WasiExpect<void> sockGetLocalAddr(__wasi_fd_t Fd, uint8_t *Address,
-                                    uint32_t *AddrTypePtr,
+  WasiExpect<void> sockGetLoaclAddr(__wasi_fd_t Fd, uint8_t *Address,
                                     uint32_t *PortPtr) const noexcept {
     auto Node = getNodeOrNull(Fd);
     if (unlikely(!Node)) {
       return WasiUnexpect(__WASI_ERRNO_BADF);
     } else {
-      return Node->sockGetLocalAddr(Address, AddrTypePtr, PortPtr);
+      return Node->sockGetLoaclAddr(Address, PortPtr);
     }
   }
 
   WasiExpect<void> sockGetPeerAddr(__wasi_fd_t Fd, uint8_t *Address,
-                                   uint32_t *AddrTypePtr,
                                    uint32_t *PortPtr) const noexcept {
     auto Node = getNodeOrNull(Fd);
     if (unlikely(!Node)) {
       return WasiUnexpect(__WASI_ERRNO_BADF);
     } else {
-      return Node->sockGetPeerAddr(Address, AddrTypePtr, PortPtr);
+      return Node->sockGetPeerAddr(Address, PortPtr);
     }
   }
 

@@ -37,14 +37,11 @@ This package contains necessary header files for %{reponame} development.
 [ -f VERSION ] || echo -n %{gittag} > VERSION
 
 %build
-mkdir -p build
-cd build
-cmake -GNinja -DCMAKE_BUILD_TYPE=RelWithDebInfo -DWASMEDGE_BUILD_TESTS=OFF -DCMAKE_INSTALL_PREFIX=%{_prefix} ..
-cmake --build .
+%cmake -GNinja -DCMAKE_BUILD_TYPE=RelWithDebInfo -DBUILD_SHARED_LIBS=OFF -DWASMEDGE_BUILD_TESTS=OFF
+%cmake_build
 
 %install
-cd build
-DESTDIR=%{buildroot} cmake --build . --target install
+%cmake_install
 mv %{buildroot}%{_libdir}/lib%{name}_c.so %{buildroot}%{_libdir}/lib%{name}_c.so.%{gittag}
 mv %{buildroot}%{_libdir}/%{name}/lib%{name}Plugin%{reponame}Process.so %{buildroot}%{_libdir}/%{name}/lib%{name}Plugin%{reponame}Process.so.%{gittag}
 ln -s lib%{name}_c.so.%{gittag} %{buildroot}%{_libdir}/lib%{name}_c.so

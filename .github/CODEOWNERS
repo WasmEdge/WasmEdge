@@ -13,7 +13,7 @@ lib/                            @q82419
 **/host/wasmedge_process/       @ibmibmibm
 **/system/                      @ibmibmibm
 **/api/                         @q82419
-rpm/                            @hydai
+rpm/                            @hydai @dm4
 test/                           @q82419
 test/aot/                       @ibmibmibm
 test/host/wasi/                 @ibmibmibm

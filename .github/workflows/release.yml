@@ -274,6 +274,35 @@ jobs:
           asset_name: WasmEdge-${{ needs.create_release.outputs.version }}-${{ matrix.name }}.tar.xz
           asset_content_type: application/x-xz
 
+  build_and_upload_wasi_nn_plugin:
+    name: Build and upload WasmEdge WASI-NN with OpenVINO plugin on Ubuntu 20.04
+    runs-on: ubuntu-latest
+    needs: create_release
+    container:
+      image: wasmedge/wasmedge:latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - name: Build WasmEdge with WASI-NN plugin
+        env:
+          CMAKE_BUILD_TYPE: Release
+          OPENVINO_VERSION: "2021.4.582"
+          OPENVINO_YEAR: "2021"
+        run: |
+          bash utils/docker/build-wasinn-ubuntu-openvino.sh
+          cd build
+          cp plugins/wasi_nn/libwasmedgePluginWasiNN.so libwasmedgePluginWasiNN.so
+          tar -zxcf wasinn_plugin.tar.gz libwasmedgePluginWasiNN.so
+      - name: Upload ${{ matrix.name }} tar.gz package
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.create_release.outputs.upload_url }}
+          asset_path: build/wasinn_plugin.tar.gz
+          asset_name: WasmEdge-plugin-wasi_nn-openvino-${{ needs.create_release.outputs.version }}-ubuntu20.04_x86_64.tar.gz
+          asset_content_type: application/x-gzip
+
   build_windows:
     name: Windows server 2022
     runs-on: windows-2022

@@ -20,10 +20,10 @@ For installing OpenVINO™ on Ubuntu20.04, we recommend the following commands:
 ```bash
 OPENVINO_VERSION="2021.4.582"
 OPENVINO_YEAR="2021"
-curl -sSL https://apt.repos.intel.com/openvino/$OPENVINO_YEAR/GPG-PUB-KEY-INTEL-OPENVINO-$OPENVINO_YEAR | gpg --dearmor > ./usr/share/keyrings/GPG-PUB-KEY-INTEL-OPENVINO-$OPENVINO_YEAR.gpg
-echo "deb [signed-by=/usr/share/keyrings/GPG-PUB-KEY-INTEL-OPENVINO-$OPENVINO_YEAR.gpg] https://apt.repos.intel.com/openvino/$OPENVINO_YEAR all main" | tee /etc/apt/sources.list.d/intel-openvino-$OPENVINO_YEAR.list
-apt update
-apt install -y intel-openvino-runtime-ubuntu20-$OPENVINO_VERSION
+curl -sSL https://apt.repos.intel.com/openvino/$OPENVINO_YEAR/GPG-PUB-KEY-INTEL-OPENVINO-$OPENVINO_YEAR | sudo gpg --dearmor > ./usr/share/keyrings/GPG-PUB-KEY-INTEL-OPENVINO-$OPENVINO_YEAR.gpg
+echo "deb [signed-by=/usr/share/keyrings/GPG-PUB-KEY-INTEL-OPENVINO-$OPENVINO_YEAR.gpg] https://apt.repos.intel.com/openvino/$OPENVINO_YEAR all main" | sudo tee /etc/apt/sources.list.d/intel-openvino-$OPENVINO_YEAR.list
+sudo apt update
+sudo apt install -y intel-openvino-runtime-ubuntu20-$OPENVINO_VERSION
 ```
 
 By default, we don't enable any WASI-NN backend in WasmEdge. To enable the OpenVINO™ backend, we need to [building the WasmEdge from source](../../extend/build.md) with the cmake option `-DWASMEDGE_WASINN_BUILD_OPENVINO=ON` to enable the OpenVINO™ backend:

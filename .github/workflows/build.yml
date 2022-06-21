@@ -79,7 +79,7 @@ jobs:
         fetch-depth: 0
     - name: Propagate version information for tarball
       run: |
-        echo $VERSION | tee VERSION
+        echo -n $VERSION | tee VERSION
       env:
         VERSION: ${{ needs.get_version_v2.outputs.version }}
     - name: Create source tarball
@@ -122,6 +122,7 @@ jobs:
       run: |
         export LD_LIBRARY_PATH="$(pwd)/build/lib/api:$LD_LIBRARY_PATH"
         cd build
+        ./tools/wasmedge/wasmedge -v
         ctest
         cd -
     - name: Test WasmEdge Package
@@ -224,6 +225,7 @@ jobs:
       run: |
         export LD_LIBRARY_PATH="$(pwd)/build/lib/api:$LD_LIBRARY_PATH"
         cd build
+        ./tools/wasmedge/wasmedge -v
         ctest
         cd -
     - name: Build WasmEdge using ${{ matrix.compiler }} with Coverage mode
@@ -281,6 +283,7 @@ jobs:
     - name: Build ${{ matrix.name }} package
       run: |
         bash utils/docker/build-manylinux.sh
+        ./build/tools/wasmedge/wasmedge -v
     - name: Upload artifact (v1)
       uses: actions/upload-artifact@v1
       if: ${{ matrix.checkout_version == 'v1' }}
@@ -329,6 +332,7 @@ jobs:
       run: |
         export DYLD_LIBRARY_PATH="$(pwd)/build/lib/api:$DYLD_LIBRARY_PATH"
         cd build
+        ./tools/wasmedge/wasmedge -v
         ctest
         cd -
     - name: Test WasmEdge Package
@@ -377,6 +381,7 @@ jobs:
         Enter-VsDevShell -VsInstallPath $vsPath -SkipAutomaticLocation -DevCmdArguments "-arch=x64 -host_arch=x64 -winsdk=10.0.19041.0"
         $Env:PATH += ";$pwd\\build\\lib\\api"
         cd build
+        tools\wasmedge\wasmedge -v
         ctest
         cd -
     - name: Test WasmEdge Package

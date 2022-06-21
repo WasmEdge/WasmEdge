@@ -27,7 +27,7 @@ This package contains necessary header files for %{reponame} development.
 
 %prep
 %autosetup -n %{name}
-sed -i -e 's/0.0.0-unreleased/%{gittag}/' CMakeLists.txt include/CMakeLists.txt
+[ -f VERSION ] || echo -n %{gittag} > VERSION
 
 %build
 mkdir -p build

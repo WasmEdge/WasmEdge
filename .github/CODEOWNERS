@@ -3,7 +3,7 @@
 .devcontainer/                  @hydai
 .github/                        @hydai
 bindings/                       @hydai
-bindings/rust/                  @yanganto
+bindings/rust/                  @hydai @yanganto
 cmake/                          @ibmibmibm
 docs/                           @hydai
 include/                        @q82419

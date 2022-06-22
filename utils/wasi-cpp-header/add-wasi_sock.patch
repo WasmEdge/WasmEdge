@@ -1,0 +1,75 @@
+--- a/typenames.witx
++++ b/typenames.witx
+@@ -1,6 +1,8 @@
+ ;; Type names used by low-level WASI interfaces.
+ ;;
+-;; Some content here is derived from [CloudABI](https://github.com/NuxiNL/cloudabi).
++;; Some content here is derived from [CloudABI](https://github.com/NuxiNL/cloudabi),
++;; [WASI ephemeral phases](https://github.com/WebAssembly/WASI/blob/snapshot-01/phases/ephemeral),
++;; and [WASI PR#312](https://github.com/WebAssembly/WASI/pull/312).
+ ;;
+ ;; This is a `witx` file. See [here](https://github.com/WebAssembly/WASI/tree/master/docs/witx.md)
+ ;; for an explanation of what that means.
+@@ -270,12 +272,29 @@
+     $poll_fd_readwrite
+     ;;; The right to invoke `sock_shutdown`.
+     $sock_shutdown
++    ;;; The right to invoke `sock_open`.
++    $sock_open
++    ;;; The right to invoke `sock_close`.
++    $sock_close
++    ;;; The right to invoke `sock_bind`.
++    $sock_bind
++    ;;; The right to invoke `sock_recv`.
++    $sock_recv
++    ;;; The right to invoke `sock_recv_from`.
++    $sock_recv_from
++    ;;; The right to invoke `sock_send`.
++    $sock_send
++    ;;; The right to invoke `sock_send_to`.
++    $sock_send_to
+   )
+ )
+
+ ;;; A file descriptor handle.
+ (typename $fd (handle))
+
++;;; A socket descriptor is currently an alias type of a typical file descriptor.
++(typename $sock_d $fd)
++
+ ;;; A region of memory for scatter/gather reads.
+ (typename $iovec
+   (record
+@@ -688,6 +707,32 @@
+     ;;; Bad system call.
+     ;;; Action: Terminates the process.
+     $sys
++    )
++)
++
++;;; Socket address family
++(typename $address_family
++  (enum (@witx tag u8)
++    $unspec
++    $inet4
++    $inet6
++  )
++)
++
++;;; Socket address
++(typename $address
++  (record
++    (field $buf (@witx pointer u8))
++    (field $buf_len $size)
++  )
++)
++
++;;; Socket type
++(typename $sock_type
++  (enum (@witx tag u8)
++    $sock_any
++    $sock_dgram
++    $sock_stream
+   )
+ )
+

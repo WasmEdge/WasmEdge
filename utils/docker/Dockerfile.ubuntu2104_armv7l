@@ -1,0 +1,44 @@
+# SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+# SPDX-FileCopyrightText: 2019-2022 Second State INC
+
+FROM arm32v7/ubuntu:hirsute
+
+MAINTAINER hydai hydai@secondstate.io
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN apt update && apt upgrade -y \
+	&& apt install -y \
+	build-essential \
+	cmake \
+	curl \
+	dpkg-dev \
+	gcc \
+	gcc-multilib \
+	g++ \
+	g++-multilib \
+	git \
+	llvm-12-dev \
+	libboost-all-dev \
+	liblld-12-dev \
+	libssl-dev \
+	ninja-build \
+	software-properties-common \
+	python3 \
+	rpm \
+	wget \
+	xz-utils
+
+# CMake build from source to avoid compiler_id_detection fails when using QEMU user-mode emulation
+# See: https://gitlab.kitware.com/cmake/cmake/-/issues/20568
+
+#RUN wget https://github.com/Kitware/CMake/releases/download/v3.21.1/cmake-3.21.1.tar.gz --no-check-certificate && \
+#	tar zxvf cmake-3.21.1.tar.gz && \
+#	cd cmake-3.21.1 && \
+#	./configure && \
+#	make install -j$(nproc) && \
+#	cd .. && rm -rf cmake-3.21.1
+
+RUN rm -rf /var/lib/apt/lists/*
+
+ENV CC=gcc
+ENV CXX=g++

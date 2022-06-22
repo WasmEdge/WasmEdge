@@ -1,0 +1,34 @@
+--- a/typenames.witx	2021-12-26 23:54:28.211448600 +0800
++++ b/typenames.witx	2021-12-27 21:29:35.422274600 +0800
+@@ -748,6 +748,31 @@
+   )
+ )
+ 
++(typename $sock_opt_level
++  (enum (@witx tag u32)
++    $sol_socket
++  )
++)
++
++(typename $sock_opt_so
++  (enum (@witx tag u32)
++    $reuseaddr
++    $type
++    $error
++    $dontroute
++    $broadcast
++    $sndbuf
++    $rcvbuf
++    $keepalive
++    $oobinline
++    $linger
++    $rcvlowat
++    $rcvtimeo
++    $sndtimeo
++    $acceptconn
++  )
++)
++
+ ;;; Flags provided to `getaddrinfo`.
+ (typename $aiflags
+   (flags (@witx repr u16)

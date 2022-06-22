@@ -1,0 +1,121 @@
+;; WASI Sockets.
+;;
+;; Some content here is derived from [CloudABI](https://github.com/NuxiNL/cloudabi),
+;; [WASI ephemeral phases](https://github.com/WebAssembly/WASI/blob/snapshot-01/phases/ephemeral),
+;; and [WASI PR#312](https://github.com/WebAssembly/WASI/pull/312).
+;;
+;; This is a `witx` file. See [here](https://github.com/WebAssembly/WASI/tree/master/docs/witx.md)
+;; for an explanation of what that means.
+
+(use "typenames.witx")
+
+(module $wasi_ephemeral_sock
+  ;;; Linear memory to be accessed by WASI functions that need it.
+  (import "memory" (memory))
+
+  ;;; Open a socket.
+  ;;; Note: This is similar to `socket` with `PF_INET` in POSIX.
+  (@interface func (export "open")
+    ;;; Some descriptor.
+    ;;; TODO: Describe more about the capability for the descriptor?
+    ;;; (param $capability $sock_d)
+    (param $af $address_family)
+    (param $socktype $sock_type)
+    (result $error (expected $sock_d (error $errno)))
+  )
+
+  ;;; Close a socket.
+  ;;; Note: This is currently an alias for `fd_close`.
+  ;;; Note: This is similar to `close` in POSIX.
+  (@interface func (export "close")
+    (param $fd $sock_d)
+    (result $error (expected (error $errno)))
+  )
+
+  ;;; Bind a name to a socket.
+  ;;; Note: This is similar to `bind` in POSIX.
+  (@interface func (export "bind")
+    (param $fd $sock_d)
+    ;;; The pointer to the address.
+    (param $addr (@witx pointer $address))
+    (result $error (expected (error $errno)))
+  )
+
+  ;;; Initiate connection to a socket
+  ;;; Note: This is similar to `connect` in POSIX.
+  (@interface func (export "connect")
+    (param $fd $sock_d)
+    (param $addr (@witx pointer $address))
+    (result $error (expected (error $errno)))
+  )
+
+  ;;; Receive a message from a socket.
+  ;;; Note: This is similar to `recv` in POSIX.
+  ;;; Note: This is identical to `recvfrom` with a null pointer passed as its
+  ;;; as its address in POSIX.
+  (@interface func (export "recv")
+    (param $fd $sock_d)
+    ;;; The pointer to and length of the buffer for data received.
+    (param $buf (@witx pointer u8))
+    (param $buf_len $size)
+    ;;; Message flags.
+    (param $flags $riflags)
+    ;;; Number of bytes used in the buffer.
+    (result $error (expected $size (error $errno)))
+  )
+
+  ;;; Receive a message from a socket.
+  ;;; Note: This is similar to `recvfrom` in POSIX.
+  (@interface func (export "recv_from")
+    (param $fd $sock_d)
+    ;;; The pointer to and length of the buffer for data received.
+    (param $buf (@witx pointer u8))
+    (param $buf_len $size)
+    ;;; The pointer to the source address.
+    (param $addr (@witx pointer $address))
+    ;;; Message flags.
+    (param $flags $riflags)
+    ;;; Number of bytes used in the buffer.
+    (result $error (expected $size (error $errno)))
+  )
+
+  ;;; Send a message from a socket.
+  ;;; Note: This is similar to `send` in POSIX.
+  ;;; Note: This may be used only when the socket is in a connected state.
+  (@interface func (export "send")
+    (param $fd $sock_d)
+    ;;; The pointer to and length of the buffer for data.
+    (param $buf (@witx pointer u8))
+    (param $buf_len $size)
+    ;;; Message flags.
+    (param $_flags $siflags)
+    ;;; Number of bytes transmitted.
+    (result $error (expected $size (error $errno)))
+  )
+
+  ;;; Send a message from a socket.
+  ;;; Note: This is similar to `sendto` in POSIX.
+  (@interface func (export "send_to")
+    (param $fd $sock_d)
+    ;;; The pointer to and length of the buffer for data.
+    (param $buf (@witx pointer u8))
+    (param $buf_len $size)
+    ;;; The pointer to the destination address.
+    (param $port $size)
+    ;;; The destination port.
+    (param $addr (@witx pointer $address))
+    ;;; Message flags.
+    (param $_flags $siflags)
+    ;;; Number of bytes transmitted.
+    (result $error (expected $size (error $errno)))
+  )
+
+  ;;; Shut down socket send and receive channels.
+  ;;; Note: This is similar to `shutdown` in POSIX.
+  (@interface func (export "shutdown")
+    (param $fd $sock_d)
+    ;;; Which channels on the socket to shut down.
+    (param $how $sdflags)
+    (result $error (expected (error $errno)))
+  )
+)

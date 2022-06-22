@@ -1,0 +1,83 @@
+# SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+# SPDX-FileCopyrightText: 2019-2022 Second State INC
+
+FROM quay.io/pypa/manylinux2014_aarch64
+
+MAINTAINER hydai hydai@secondstate.io
+
+ADD SHA256SUM /root/
+
+ENV PATH /toolchain/bin:$PATH
+ENV CC gcc
+ENV CXX g++
+ENV CPPFLAGS -I/toolchain/include
+ENV LDFLAGS -L/toolchain/lib64
+ENV PKG_CONFIG_PATH /toolchain/lib64/pkgconfig
+
+RUN cd && (yum check-update || true) && yum install -y xz openssl-devel rpm-build && \
+    export CPU=$(/opt/python/cp39-cp39/bin/python3 -c \
+        'import multiprocessing; print(multiprocessing.cpu_count())') && \
+    export CFGFLAGS="--prefix=/toolchain --disable-shared --libdir=/toolchain/lib64" && \
+    curl -s -L -O --remote-name-all \
+        https://ftp.gnu.org/gnu/gmp/gmp-6.2.1.tar.xz \
+        https://ftp.gnu.org/gnu/mpfr/mpfr-4.1.0.tar.xz \
+        https://ftp.gnu.org/gnu/mpc/mpc-1.2.1.tar.gz \
+        https://libisl.sourceforge.io/isl-0.24.tar.xz \
+        https://github.com/facebook/zstd/releases/download/v1.5.0/zstd-1.5.0.tar.gz \
+        https://ftp.gnu.org/gnu/gcc/gcc-11.1.0/gcc-11.1.0.tar.xz \
+        https://github.com/Kitware/CMake/releases/download/v3.20.2/cmake-3.20.2.tar.gz \
+        https://github.com/ninja-build/ninja/archive/v1.10.2.tar.gz \
+        https://github.com/llvm/llvm-project/releases/download/llvmorg-12.0.0/llvm-12.0.0.src.tar.xz \
+        https://github.com/llvm/llvm-project/releases/download/llvmorg-12.0.0/lld-12.0.0.src.tar.xz \
+        https://github.com/llvm/llvm-project/releases/download/llvmorg-12.0.0/libunwind-12.0.0.src.tar.xz && \
+    sha256sum -c SHA256SUM && \
+    xz -dc gmp-6.2.1.tar.xz | tar -xf - && \
+    xz -dc mpfr-4.1.0.tar.xz | tar -xf - && \
+    gzip -dc mpc-1.2.1.tar.gz | tar -xf - && \
+    xz -dc isl-0.24.tar.xz | tar -xf - && \
+    gzip -dc zstd-1.5.0.tar.gz | tar -xf - && \
+    xz -dc gcc-11.1.0.tar.xz | tar -xf - && \
+    gzip -dc cmake-3.20.2.tar.gz | tar -xf - && \
+    gzip -dc v1.10.2.tar.gz | tar -xf - && \
+    xz -dc llvm-12.0.0.src.tar.xz | tar -xf - && \
+    xz -dc lld-12.0.0.src.tar.xz | tar -xf - && \
+    xz -dc libunwind-12.0.0.src.tar.xz | tar -xf - && \
+    mkdir build && cd build && ../gmp-6.2.1/configure --build=aarch64-redhat-linux-gnu $CFGFLAGS && make -s -j $CPU && make -s install && cd - && rm -rf build && \
+    mkdir build && cd build && ../mpfr-4.1.0/configure $CFGFLAGS && make -s -j $CPU && make -s install && cd - && rm -rf build && \
+    mkdir build && cd build && ../mpc-1.2.1/configure $CFGFLAGS && make -s -j $CPU && make -s install && cd - && rm -rf build && \
+    mkdir build && cd build && ../isl-0.24/configure $CFGFLAGS && make -s -j $CPU && make -s install && cd - && rm -rf build && \
+    export ZSTDFLAGS="PREFIX=/toolchain LIBDIR=/toolchain/lib64 SED_ERE_OPT=--regexp-extended" && \
+    cd zstd-1.5.0 && make -s $ZSTDFLAGS -j $CPU && make -s $ZSTDFLAGS install && rm -f /toolchain/lib64/libzstd.so* && cd - && \
+    mkdir build && cd build && ../gcc-11.1.0/configure --prefix=/toolchain --libdir=/toolchain/lib64 \
+        --with-gmp=/toolchain --with-gmp-lib=/toolchain/lib64 \
+        --with-zstd=/toolchain --with-zstd-lib=/toolchain/lib64 \
+        --disable-libmpx --disable-libsanitizer --disable-libunwind-exceptions \
+        --disable-multilib --enable-__cxa_atexit --enable-gnu-indirect-function \
+        --enable-gnu-unique-object --enable-initfini-array --enable-languages="c,c++,lto" \
+        --enable-linker-build-id --enable-lto --enable-plugin --enable-threads=posix \
+        --with-default-libstdcxx-abi="gcc4-compatible" \
+        --with-gcc-major-version-only --with-linker-hash-style="gnu" \
+        --with-arch="armv8-a" && \
+    make -s -j $CPU && make -s install && cd - && rm -rf build && \
+    mv -v /toolchain/lib64/libstdc++.so.6.0.29 /toolchain/lib64/libstdc++.so.6.0.29.backup && \
+    echo -e "OUTPUT_FORMAT(elf64-aarch64)\nINPUT ( libstdc++.so.6.0.19 libstdc++.a )" \
+       > /toolchain/lib64/libstdc++.so.6.0.29 && \
+    export PATH="/toolchain/bin:$PATH" && \
+    mkdir build && cd build && /opt/python/cp39-cp39/bin/python \
+        ../ninja-1.10.2/configure.py --bootstrap \
+        --with-python=/opt/python/cp39-cp39/bin/python && \
+    cp -v ninja /toolchain/bin/ninja && cd - && rm -rf build && \
+    mkdir build && cd build && ../cmake-3.20.2/configure --prefix=/toolchain \
+        --parallel=$CPU && make -s -j $CPU && make -s install && cd - && rm -rf build && \
+    mv -v llvm-12.0.0.src llvm && \
+    mv -v lld-12.0.0.src lld && \
+    mv -v libunwind-12.0.0.src libunwind && \
+    cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_INSTALL_PREFIX=/toolchain \
+        -DPython3_ROOT_DIR=/opt/python/cp39-cp39 -DLLVM_LIBDIR_SUFFIX=64 \
+        -DLLVM_TARGETS_TO_BUILD="AArch64" -DLLVM_ENABLE_PROJECTS=lld \
+        -DLLVM_DEFAULT_TARGET_TRIPLE="aarch64-redhat-linux-gnu" llvm && \
+    cmake --build build --target install && \
+    rm -rf build && rm -rf *
+
+RUN yum clean all

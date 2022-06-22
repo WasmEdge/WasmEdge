@@ -1,0 +1,63 @@
+%global gittag @WASMEDGE_GIT_VERSION@
+%global srpm_version @WASMEDGE_SRPM_VERSION@
+%global reponame WasmEdge
+
+Name:    wasmedge
+Version: %{srpm_version}
+Release: %autorelease
+Summary: High performance WebAssembly Virtual Machine
+License: ASL 2.0 and CC0
+URL:     https://github.com/%{reponame}/%{reponame}
+Source0: %{url}/releases/download/%{gittag}/%{reponame}-%{gittag}-src.tar.gz
+BuildRequires: gcc-c++,cmake,ninja-build,boost-devel,spdlog-devel,llvm-devel,lld-devel,git
+Requires:      llvm
+# Currently wasmedge could only be built on specific arches
+ExclusiveArch: x86_64 aarch64
+Provides: %{reponame} = %{version}-%{release}
+
+%description
+High performance WebAssembly Virtual Machine
+
+%package devel
+Summary: %{reponame} development files
+Provides: %{reponame}-devel = %{version}-%{release}
+
+%description devel
+This package contains necessary header files for %{reponame} development.
+
+%prep
+%autosetup -n %{name}
+[ -f VERSION ] || echo -n %{gittag} > VERSION
+
+%build
+mkdir -p build
+cd build
+cmake -GNinja -DCMAKE_BUILD_TYPE=RelWithDebInfo -DWASMEDGE_BUILD_TESTS=OFF -DCMAKE_INSTALL_PREFIX=%{_prefix} ..
+cmake --build .
+
+%install
+cd build
+DESTDIR=%{buildroot} cmake --build . --target install
+mv %{buildroot}%{_libdir}/lib%{name}_c.so %{buildroot}%{_libdir}/lib%{name}_c.so.%{gittag}
+mv %{buildroot}%{_libdir}/%{name}/lib%{name}Plugin%{reponame}Process.so %{buildroot}%{_libdir}/%{name}/lib%{name}Plugin%{reponame}Process.so.%{gittag}
+ln -s lib%{name}_c.so.%{gittag} %{buildroot}%{_libdir}/lib%{name}_c.so
+ln -s lib%{name}Plugin%{reponame}Process.so.%{gittag} %{buildroot}%{_libdir}/%{name}/lib%{name}Plugin%{reponame}Process.so
+
+%files
+%license LICENSE LICENSE.spdx
+%doc Changelog.md README.md SECURITY.md
+%{_bindir}/*
+%{_libdir}/lib%{name}_c.so.%{gittag}
+%dir %{_libdir}/%{name}
+%{_libdir}/%{name}/lib%{name}Plugin%{reponame}Process.so.%{gittag}
+
+%files devel
+%license LICENSE LICENSE.spdx
+%doc Changelog.md README.md SECURITY.md
+%{_includedir}/*
+%{_libdir}/lib%{name}_c.so
+%dir %{_libdir}/%{name}
+%{_libdir}/%{name}/lib%{name}Plugin%{reponame}Process.so
+
+%changelog
+%autochangelog

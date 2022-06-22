@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+	<Product Id="*" Name="WasmEdge" Language="1033" Version="$(env.product_version)" Manufacturer="WasmEdge" UpgradeCode="754a67fe-5cfa-4327-8e91-be08d02f74a9">
+		<Package InstallerVersion="300" Compressed="yes" InstallScope="perMachine" />
+
+		<MajorUpgrade DowngradeErrorMessage="A newer version of [ProductName] is already installed." />
+		<Media Id="1" Cabinet="wasmedge.cab" EmbedCab="yes" />
+
+		<Directory Id="TARGETDIR" Name="SourceDir">
+			<Directory Id="ProgramFiles64Folder">
+				<Directory Id="INSTALLFOLDER" Name="WasmEdge">
+					<Directory Id="BINDIR" Name="bin"/>
+					<Directory Id="INCLUDEDIR" Name="include">
+						<Directory Id="INCLUDE_WASMEDGE_DIR" Name="wasmedge"/>
+					</Directory>
+					<Directory Id="LIBDIR" Name="lib"/>
+				</Directory>
+			</Directory>
+
+			<Component Id="PathEnv" Guid="0f55e571-c625-42c1-9e61-e8b98cd6eab8">
+				<Environment Id="MachinePath" Name="PATH" Value="[INSTALLFOLDER]bin" Permanent="no" Part="last" System="yes" Action="set"/>
+			</Component>
+		</Directory>
+
+		<DirectoryRef Id="BINDIR">
+			<Component Id="wasmedge.exe" Guid="*">
+				<File Id="wasmedge.exe" Source="build\tools\wasmedge\wasmedge.exe" KeyPath="yes" Checksum="yes"/>
+			</Component>
+			<Component Id="wasmedgec.exe" Guid="*">
+				<File Id="wasmedgec.exe" Source="build\tools\wasmedge\wasmedgec.exe" KeyPath="yes" Checksum="yes"/>
+			</Component>
+			<Component Id="wasmedge_c.dll" Guid="*">
+				<File Id="wasmedge_c.dll" Source="build\lib\api\wasmedge_c.dll" KeyPath="yes" Checksum="yes"/>
+			</Component>
+		</DirectoryRef>
+
+		<DirectoryRef Id="INCLUDE_WASMEDGE_DIR">
+			<Component Id="enum_configure.h" Guid="*">
+				<File Id="enum_configure.h" Source="build\include\api\wasmedge\enum_configure.h" KeyPath="yes" Checksum="yes"/>
+			</Component>
+			<Component Id="enum_errcode.h" Guid="*">
+				<File Id="enum_errcode.h" Source="build\include\api\wasmedge\enum_errcode.h" KeyPath="yes" Checksum="yes"/>
+			</Component>
+			<Component Id="enum_types.h" Guid="*">
+				<File Id="enum_types.h" Source="build\include\api\wasmedge\enum_types.h" KeyPath="yes" Checksum="yes"/>
+			</Component>
+			<Component Id="int128.h" Guid="*">
+				<File Id="int128.h" Source="build\include\api\wasmedge\int128.h" KeyPath="yes" Checksum="yes"/>
+			</Component>
+			<Component Id="version.h" Guid="*">
+				<File Id="version.h" Source="build\include\api\wasmedge\version.h" KeyPath="yes" Checksum="yes"/>
+			</Component>
+			<Component Id="wasmedge.h" Guid="*">
+				<File Id="wasmedge.h" Source="build\include\api\wasmedge\wasmedge.h" KeyPath="yes" Checksum="yes"/>
+			</Component>
+		</DirectoryRef>
+
+		<DirectoryRef Id="LIBDIR">
+			<Component Id="wasmedge_c.lib" Guid="*">
+				<File Id="wasmedge_c.lib" Source="build\lib\api\wasmedge_c.lib" KeyPath="yes" Checksum="yes"/>
+			</Component>
+		</DirectoryRef>
+
+		<Feature Id="InstallWasmEdge" Title="WasmEdge" Level="1">
+			<ComponentRef Id="wasmedge.exe" />
+			<ComponentRef Id="wasmedgec.exe" />
+			<ComponentRef Id="wasmedge_c.dll" />
+			<ComponentRef Id="enum_configure.h" />
+			<ComponentRef Id="enum_errcode.h" />
+			<ComponentRef Id="enum_types.h" />
+			<ComponentRef Id="int128.h" />
+			<ComponentRef Id="version.h" />
+			<ComponentRef Id="wasmedge.h" />
+			<ComponentRef Id="wasmedge_c.lib" />
+		</Feature>
+		<Feature Id="AddPath" Title="Add WasmEdge to PATH" Level="1">
+			<ComponentRef Id="PathEnv" />
+		</Feature>
+	</Product>
+</Wix>

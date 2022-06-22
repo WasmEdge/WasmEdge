@@ -1,0 +1,111 @@
+--- a/typenames.witx
++++ b/typenames.witx
+@@ -193,6 +193,28 @@
+     $xdev
+     ;;; Extension: Capabilities insufficient.
+     $notcapable
++    ;;; The specified network host does not have any network addresses in the requested address family.
++    $aiaddrfamily
++    ;;; Try again later.
++    $aiagain
++    ;;; Hints.ai_flags contains invalid flags
++    $aibadflag
++    ;;; The name server returned a permanent failure indication.
++    $aifail
++    ;;; The requested address family is not supported.
++    $aifamily
++    ;;; Addrinfo out of memory.
++    $aimemory
++    ;;; Network host exists, but does not have any network addresses defined.
++    $ainodata
++    ;;; Node or service is not known; or both node and service are NULL
++    $ainoname
++    ;;; Service is not available for the requested socket type.
++    $aiservice
++    ;;; The requested socket type is not supported.
++    $aisocktype
++    ;;; Other system error;
++    $aisystem
+   )
+ )
+
+@@ -726,6 +748,26 @@
+   )
+ )
+
++;;; Flags provided to `getaddrinfo`.
++(typename $aiflags
++  (flags (@witx repr u16)
++    ;;; Socket address is intended for bind()
++    $ai_passive
++    ;;; Request for canonical name.
++    $ai_canonname
++    ;;;Return numeric host address as name.
++    $ai_numerichost
++    ;;;Inhibit service name resolution.
++    $ai_numericserv
++    ;;;If no IPv6 addresses are found, query for IPv4 addresses and return them to the caller as IPv4-mapped IPv6 addresses.
++    $ai_v4mapped
++    ;;;Query for both IPv4 and IPv6 addresses.
++    $ai_all
++    ;;;Query for IPv4 addresses only when an IPv4 address is configured; query for IPv6 addresses only when an IPv6 address is configured.
++    $ai_addrconfig
++  )
++)
++
+ ;;; Socket type
+ (typename $sock_type
+   (enum (@witx tag u8)
+@@ -734,6 +776,51 @@
+   )
+ )
+
++;;; Protocol
++(typename $protocol
++  (enum (@witx tag u8)
++    $ipproto_ip
++    $ipproto_tcp
++    $ipproto_udp
++  )
++)
++
++;;; Socket address_in provided for getaddrinfo
++(typename $sockaddr_in
++    (record
++        (field $sin_family $address_family )
++        (field $sin_port u16)
++        (field $sin_addr $address)
++        (field $sin_zero_len $size)
++        (field $sin_zero (@witx pointer u8))
++    )
++)
++
++;;; Socket address provided for getaddrinfo
++(typename $sockaddr
++    (record
++        (field $sa_family $address_family)
++        (field $sa_data_len $size)
++        (field $sa_data (@witx pointer u8))
++    )
++)
++
++;;; Address information
++(typename $addrinfo
++    (record
++        (field $ai_flags $aiflags )
++        (field $ai_family $address_family )
++        (field $ai_socktype $sock_type )
++        (field $ai_protocol $protocol )
++        (field $ai_addrlen $size)
++        (field $ai_addr (@witx pointer u8))
++        (field $ai_canonname (@witx pointer u8))
++        (field $ai_canonname_len $size)
++        (field $ai_next (@witx pointer u8))
++    )
++)
++
++
+ ;;; Flags provided to `sock_recv`.
+ (typename $riflags
+   (flags (@witx repr u16)
+

@@ -1,0 +1,20 @@
+# SPDX-License-Identifier: Apache-2.0
+# SPDX-FileCopyrightText: 2019-2022 Second State INC
+
+[package]
+name = "wasi-cpp-header"
+version = "0.0.1"
+authors = ["Dan Gohman <sunfish@mozilla.com>", "Pat Hickey <phickey@fastly.com>", "Shen-Ta Hsieh <beststeve@secondstate.io>"]
+description = "Generate c++ header from wix file, fork from https://github.com/WebAssembly/wasi-libc/tree/master/tools/wasi-headers"
+license = "Apache-2.0"
+edition = "2018"
+publish = false
+
+[dependencies]
+heck = "0.3.1"
+witx = "0.9.0"
+anyhow = "1.0.22"
+clap = "2.23"
+
+[dev-dependencies]
+diff = "0.1.11"

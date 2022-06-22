@@ -1,0 +1,32 @@
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: 2019-2022 Second State INC
+
+//===-- wasmedge/common/version.h - Version information -------------------===//
+//
+// Part of the WasmEdge Project.
+//
+//===----------------------------------------------------------------------===//
+///
+/// \file
+/// This file contains version information that passed from configure stage.
+///
+//===----------------------------------------------------------------------===//
+#pragma once
+
+#include <string_view>
+
+namespace WasmEdge {
+
+using namespace std::literals::string_view_literals;
+
+#cmakedefine CPACK_PACKAGE_VERSION "@CPACK_PACKAGE_VERSION@"sv
+static inline std::string_view kVersionString [[maybe_unused]] =
+    CPACK_PACKAGE_VERSION;
+#undef CPACK_PACKAGE_VERSION
+
+#cmakedefine CMAKE_INSTALL_FULL_LIBDIR "@CMAKE_INSTALL_FULL_LIBDIR@"
+static inline std::string_view kGlobalPluginDir [[maybe_unused]] =
+    CMAKE_INSTALL_FULL_LIBDIR "/wasmedge"sv;
+#undef CMAKE_INSTALL_FULL_LIBDIR
+
+} // namespace WasmEdge

@@ -1,0 +1,74 @@
+name: Static Code Analysis
+
+concurrency:
+  group: static-code-analysis-${{ github.head_ref }}
+  cancel-in-progress: true
+
+on:
+  workflow_dispatch:
+    inputs:
+      logLevel:
+        description: 'Log level'
+        required: true
+        default: 'info'
+  push:
+    branches:
+      - master
+    paths:
+      - ".github/workflows/static-code-analysis.yml"
+      - "include/**"
+      - "lib/**"
+      - "plugins/**"
+      - "examples/**"
+      - "test/**"
+      - "thirdparty/**"
+      - "tools/**"
+      - "CMakeLists.txt"
+  pull_request:
+    branches:
+      - master
+      - 'proposal/**'
+    paths:
+      - ".github/workflows/static-code-analysis.yml"
+      - "include/**"
+      - "lib/**"
+      - "plugins/**"
+      - "examples/**"
+      - "test/**"
+      - "thirdparty/**"
+      - "tools/**"
+      - "CMakeLists.txt"
+
+jobs:
+  static_analysis:
+    name: Run Static Code Analysis using Infer
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Install Dependencies
+      run: |
+        lsb_release -a
+        sudo apt update
+        sudo apt upgrade -y
+        sudo apt install -y software-properties-common libboost-all-dev llvm-11-dev liblld-11-dev liblld-11 clang-11 tar
+        curl -sSL "https://github.com/facebook/infer/releases/download/v1.1.0/infer-linux64-v1.1.0.tar.xz" | sudo tar -C /opt -xJ && sudo ln -s "/opt/infer-linux64-v1.1.0/bin/infer" /usr/local/bin/infer
+
+    - name: Generate compilation database
+      run: |
+        mkdir build
+        cd build
+        infer compile -- cmake -DCMAKE_BUILD_TYPE=Debug -DLLVM_DIR=/usr/lib/llvm-11/lib/cmake/llvm ..
+
+    - name: Run Infer Static Code Analysis
+      run: |
+        cd build
+        infer run --keep-going -- make -j 4
+
+    - uses: actions/upload-artifact@v2
+      with:
+        name: report
+        path: |
+          build/infer-out/report.txt
+          build/infer-out/report.json

@@ -1,0 +1,22 @@
+{
+  "subsystem": "wasmedge",
+  "parts": {
+    "wasmedge": {
+      "module_list": [
+        "//third_party/WasmEdge:wasmedge",
+        "//third_party/WasmEdge:wasmedge_hello",
+        "//third_party/WasmEdge:wasmedge_add",
+        "//third_party/WasmEdge:wasmedge_fibonacci",
+        "//third_party/WasmEdge:wasmedge_factorial",
+        "//third_party/WasmEdge:wasmedge_js_hello",
+        "//third_party/WasmEdge:wasmedge_js_qjs"
+      ],
+      "inner_kits": [
+      ],
+      "system_kits": [
+      ],
+      "test_list": [
+      ]
+    }
+  }
+}

@@ -1,0 +1,38 @@
+## This file states the license of this package and possibly its subpackages
+## in machine and human readable format. The PackageName refers to the package
+## whose license is defined by PackageLicenseConcluded.
+## For more information about this file format visit the SPDX website at
+## https://spdx.org
+
+SPDXVersion: SPDX-2.1
+DataLicense: CC0-1.0
+SPDXID: SPDXRef-DOCUMENT
+DocumentNamespace: https://wasmedge.org/
+DocumentName: LICENSE.spdx
+
+Creator: Organization: Second State INC (contact@secondstate.io)
+
+## Package Information
+PackageName: wasmedge
+SPDXID: SPDXRef-wasmedge
+PackageOriginator: Organization: Second State INC (contact@secondstate.io)
+PackageLicenseDeclared: Apache-2.0
+FilesAnalyzed: false
+
+PackageName: blake3
+SPDXID: SPDXRef-blake3
+PackageFileName: ./thirdparty/blake3
+PackageHomePage: https://github.com/BLAKE3-team/BLAKE3
+PackageOriginator: Samuel Neves and Jack O'Connor
+PackageLicenseDeclared: Apache-2.0
+FilesAnalyzed: false
+
+PackageName: wasi-cpp-header
+SPDXID: SPDXRef-wasi-cpp-header
+PackageFileName: ./utils/wasi-cpp-header
+PackageOriginator: Organization: Second State INC (contact@secondstate.io)
+PackageLicenseDeclared: Apache-2.0
+
+## Relationships
+Relationship: SPDXRef-wasmedge CONTAINS SPDXRef-blake3
+Relationship: SPDXRef-wasmedge CONTAINS SPDXRef-wasi-cpp-header

@@ -1,0 +1,26 @@
+# Global rule:
+*                               @hydai
+.devcontainer/                  @hydai
+.github/                        @hydai
+bindings/                       @hydai
+bindings/rust/                  @hydai @yanganto
+cmake/                          @ibmibmibm
+docs/                           @hydai
+include/                        @q82419
+lib/                            @q82419
+**/aot/                         @ibmibmibm
+**/host/wasi/                   @ibmibmibm
+**/host/wasmedge_process/       @ibmibmibm
+**/system/                      @ibmibmibm
+**/api/                         @q82419
+rpm/                            @hydai @dm4
+test/                           @q82419
+test/aot/                       @ibmibmibm
+test/host/wasi/                 @ibmibmibm
+test/po/                        @ibmibmibm
+test/span/                      @ibmibmibm
+thirdparty/                     @ibmibmibm
+tools/                          @hydai @ibmibmibm @q82419
+utils/                          @hydai @ibmibmibm @q82419
+utils/install.sh                @SAtacker
+utils/uninstall.sh              @SAtacker

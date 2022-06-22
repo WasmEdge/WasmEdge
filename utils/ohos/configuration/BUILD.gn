@@ -1,0 +1,259 @@
+# SPDX-License-Identifier: Apache-2.0
+# SPDX-FileCopyrightText: 2019-2022 Second State INC
+
+import("//build/ohos.gni")
+
+WASMEDGE_ROOT_DIR = "//third_party/WasmEdge"
+
+config("WASMEDGE_CFLAGS"){
+    include_dirs = [
+        "$WASMEDGE_ROOT_DIR/include",
+        "$WASMEDGE_ROOT_DIR/build/include",
+        "$WASMEDGE_ROOT_DIR/build/_deps/spdlog-src/include",
+        "//third_party/boost",
+        "$WASMEDGE_ROOT_DIR/thirdparty"
+    ]
+    cflags = [
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-Wno-error=pedantic",
+        "-Wno-c++20-designator",
+        "-Wno-c99-extensions",
+        "-Wno-covered-switch-default",
+        "-Wno-documentation-unknown-command",
+        "-Wno-keyword-macro",
+        "-Wno-newline-eof",
+        "-Wno-return-std-move-in-c++11",
+        "-Wno-shadow-field-in-constructor",
+        "-Wno-signed-enum-bitfield",
+        "-Wno-switch-enum",
+        "-Wno-undefined-func-template",
+        "-Wno-unused-const-variable",
+        "-Wno-unused-parameter",
+    ]
+    cflags_cc = [
+        "-fexceptions",
+        "-frtti",
+    ]
+}
+
+ohos_copy("spdlog"){
+    sources = [
+        "$WASMEDGE_ROOT_DIR/build/_deps/spdlog-build/libspdlog.a",
+    ]
+    outputs = [
+        target_out_dir + "/lib/libspdlog.a"
+    ]
+    module_install_name = ""
+}
+
+ohos_static_library("wasmedgeCommon") {
+    output_name = "wasmedgeCommon"
+    sources = [
+        "$WASMEDGE_ROOT_DIR/lib/common/hexstr.cpp",
+        "$WASMEDGE_ROOT_DIR/lib/common/log.cpp",
+        "$WASMEDGE_ROOT_DIR/lib/common/errinfo.cpp",
+    ]
+    all_dependent_configs = [":WASMEDGE_CFLAGS"]
+    deps = [
+        ":spdlog",
+    ]
+    part_name = "wasmedge"
+    subsystem_name = "wasmedge"
+}
+
+ohos_static_library("wasmedgeSystem") {
+    output_name = "wasmedgeSystem"
+    sources = [
+        "$WASMEDGE_ROOT_DIR/lib/system/allocator.cpp",
+        "$WASMEDGE_ROOT_DIR/lib/system/fault.cpp",
+        "$WASMEDGE_ROOT_DIR/lib/system/mmap.cpp",
+        "$WASMEDGE_ROOT_DIR/lib/system/path.cpp",
+    ]
+    deps = [
+        ":wasmedgeCommon",
+    ]
+    part_name = "wasmedge"
+    subsystem_name = "wasmedge"
+}
+
+ohos_static_library("wasmedgeLoaderFileMgr") {
+    output_name = "wasmedgeLoaderFileMgr"
+    sources = [
+        "$WASMEDGE_ROOT_DIR/lib/loader/filemgr.cpp",
+        "$WASMEDGE_ROOT_DIR/lib/loader/ldmgr.cpp",
+        "$WASMEDGE_ROOT_DIR/lib/loader/shared_library.cpp",
+    ]
+    deps = [
+        ":wasmedgeCommon",
+        ":wasmedgeSystem",
+    ]
+    part_name = "wasmedge"
+    subsystem_name = "wasmedge"
+}
+
+ohos_static_library("wasmedgeLoader") {
+    output_name = "wasmedgeLoader"
+    sources = [
+        "$WASMEDGE_ROOT_DIR/lib/loader/ast/module.cpp",
+        "$WASMEDGE_ROOT_DIR/lib/loader/ast/section.cpp",
+        "$WASMEDGE_ROOT_DIR/lib/loader/ast/description.cpp",
+        "$WASMEDGE_ROOT_DIR/lib/loader/ast/segment.cpp",
+        "$WASMEDGE_ROOT_DIR/lib/loader/ast/type.cpp",
+        "$WASMEDGE_ROOT_DIR/lib/loader/ast/expression.cpp",
+        "$WASMEDGE_ROOT_DIR/lib/loader/ast/instruction.cpp",
+        "$WASMEDGE_ROOT_DIR/lib/loader/loader.cpp",
+    ]
+    deps = [
+        ":wasmedgeCommon",
+        ":wasmedgeLoaderFileMgr",
+    ]
+    part_name = "wasmedge"
+    subsystem_name = "wasmedge"
+}
+
+ohos_static_library("wasmedgeValidator") {
+    output_name = "wasmedgeValidator"
+    sources = [
+        "$WASMEDGE_ROOT_DIR/lib/validator/formchecker.cpp",
+        "$WASMEDGE_ROOT_DIR/lib/validator/validator.cpp",
+    ]
+    deps = [
+        ":wasmedgeCommon",
+    ]
+    part_name = "wasmedge"
+    subsystem_name = "wasmedge"
+}
+
+ohos_static_library("wasmedgeExecutor") {
+    output_name = "wasmedgeExecutor"
+    sources = [
+        "$WASMEDGE_ROOT_DIR/lib/executor/instantiate/import.cpp",
+        "$WASMEDGE_ROOT_DIR/lib/executor/instantiate/function.cpp",
+        "$WASMEDGE_ROOT_DIR/lib/executor/instantiate/global.cpp",
+        "$WASMEDGE_ROOT_DIR/lib/executor/instantiate/table.cpp",
+        "$WASMEDGE_ROOT_DIR/lib/executor/instantiate/memory.cpp",
+        "$WASMEDGE_ROOT_DIR/lib/executor/instantiate/elem.cpp",
+        "$WASMEDGE_ROOT_DIR/lib/executor/instantiate/data.cpp",
+        "$WASMEDGE_ROOT_DIR/lib/executor/instantiate/export.cpp",
+        "$WASMEDGE_ROOT_DIR/lib/executor/instantiate/module.cpp",
+        "$WASMEDGE_ROOT_DIR/lib/executor/engine/proxy.cpp",
+        "$WASMEDGE_ROOT_DIR/lib/executor/engine/controlInstr.cpp",
+        "$WASMEDGE_ROOT_DIR/lib/executor/engine/tableInstr.cpp",
+        "$WASMEDGE_ROOT_DIR/lib/executor/engine/memoryInstr.cpp",
+        "$WASMEDGE_ROOT_DIR/lib/executor/engine/variableInstr.cpp",
+        "$WASMEDGE_ROOT_DIR/lib/executor/engine/engine.cpp",
+        "$WASMEDGE_ROOT_DIR/lib/executor/helper.cpp",
+        "$WASMEDGE_ROOT_DIR/lib/executor/executor.cpp",
+    ]
+    deps = [
+        ":wasmedgeCommon",
+        ":wasmedgeSystem",
+    ]
+    part_name = "wasmedge"
+    subsystem_name = "wasmedge"
+}
+
+ohos_static_library("wasmedgeHostModuleWasi") {
+    output_name = "wasmedgeHostModuleWasi"
+    sources = [
+        "$WASMEDGE_ROOT_DIR/lib/host/wasi/clock-linux.cpp",
+        "$WASMEDGE_ROOT_DIR/lib/host/wasi/clock-macos.cpp",
+        "$WASMEDGE_ROOT_DIR/lib/host/wasi/clock-win.cpp",
+        "$WASMEDGE_ROOT_DIR/lib/host/wasi/environ-linux.cpp",
+        "$WASMEDGE_ROOT_DIR/lib/host/wasi/environ-macos.cpp",
+        "$WASMEDGE_ROOT_DIR/lib/host/wasi/environ-win.cpp",
+        "$WASMEDGE_ROOT_DIR/lib/host/wasi/environ.cpp",
+        "$WASMEDGE_ROOT_DIR/lib/host/wasi/inode-linux.cpp",
+        "$WASMEDGE_ROOT_DIR/lib/host/wasi/inode-macos.cpp",
+        "$WASMEDGE_ROOT_DIR/lib/host/wasi/inode-win.cpp",
+        "$WASMEDGE_ROOT_DIR/lib/host/wasi/vfs.cpp",
+        "$WASMEDGE_ROOT_DIR/lib/host/wasi/vinode.cpp",
+        "$WASMEDGE_ROOT_DIR/lib/host/wasi/wasifunc.cpp",
+        "$WASMEDGE_ROOT_DIR/lib/host/wasi/wasimodule.cpp",
+        "$WASMEDGE_ROOT_DIR/lib/host/wasi/win.cpp",
+    ]
+    deps = [
+        ":wasmedgeSystem",
+    ]
+    part_name = "wasmedge"
+    subsystem_name = "wasmedge"
+}
+
+ohos_static_library("wasmedgeVM") {
+    output_name = "wasmedgeVM"
+    sources = [
+        "$WASMEDGE_ROOT_DIR/lib/vm/vm.cpp",
+    ]
+    deps = [
+        ":wasmedgeCommon",
+        ":wasmedgeSystem",
+        ":wasmedgeLoader",
+        ":wasmedgeValidator",
+        ":wasmedgeExecutor",
+        ":wasmedgeHostModuleWasi",
+    ]
+    part_name = "wasmedge"
+    subsystem_name = "wasmedge"
+}
+
+ohos_prebuilt_etc("wasmedge_hello") {
+  source = "$WASMEDGE_ROOT_DIR/examples/wasm/hello.wasm"
+  
+  module_install_dir = "usr/wasmedge_example/"
+  part_name = "wasmedge"
+  subsystem_name = "wasmedge"
+}
+
+ohos_prebuilt_etc("wasmedge_add") {
+  source = "$WASMEDGE_ROOT_DIR/examples/wasm/add.wasm"
+  
+  module_install_dir = "usr/wasmedge_example/"
+  part_name = "wasmedge"
+  subsystem_name = "wasmedge"
+}
+
+ohos_prebuilt_etc("wasmedge_fibonacci") {
+  source = "$WASMEDGE_ROOT_DIR/examples/wasm/fibonacci.wasm"
+  
+  module_install_dir = "usr/wasmedge_example/"
+  part_name = "wasmedge"
+  subsystem_name = "wasmedge"
+}
+
+ohos_prebuilt_etc("wasmedge_factorial") {
+  source = "$WASMEDGE_ROOT_DIR/examples/wasm/factorial.wasm"
+  
+  module_install_dir = "usr/wasmedge_example/"
+  part_name = "wasmedge"
+  subsystem_name = "wasmedge"
+}
+
+ohos_prebuilt_etc("wasmedge_js_hello") {
+  source = "$WASMEDGE_ROOT_DIR/examples/js/hello.js"
+  
+  module_install_dir = "usr/wasmedge_example/js/"
+  part_name = "wasmedge"
+  subsystem_name = "wasmedge"
+}
+
+ohos_prebuilt_etc("wasmedge_js_qjs") {
+  source = "$WASMEDGE_ROOT_DIR/examples/js/qjs.wasm"
+  
+  module_install_dir = "usr/wasmedge_example/js/"
+  part_name = "wasmedge"
+  subsystem_name = "wasmedge"
+}
+
+ohos_executable("wasmedge"){
+    sources = [
+        "$WASMEDGE_ROOT_DIR/tools/wasmedge/wasmedger.cpp"
+    ]
+    libs = [target_out_dir + "/lib/libspdlog.a"]
+    deps = [
+        ":wasmedgeVM",
+    ]
+    part_name = "wasmedge"
+    subsystem_name = "wasmedge"
+}

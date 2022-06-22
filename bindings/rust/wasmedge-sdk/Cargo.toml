@@ -1,0 +1,22 @@
+[package]
+categories = ["api-bindings", "wasm"]
+description = "WasmEdge Runtime is a high-performance, extensible, and hardware optimized WebAssembly Virtual Machine for automotive, cloud, AI, and blockchain applications."
+documentation = "https://wasmedge.github.io/WasmEdge/wasmedge_sdk/"
+edition = "2021"
+exclude = ["examples/"]
+license = "Apache-2.0"
+name = "wasmedge-sdk"
+readme = "README.md"
+repository = "https://github.com/WasmEdge/WasmEdge/bindings/rust/wasmedge-sdk"
+version = "0.2.0"
+
+[dependencies]
+anyhow = "1.0"
+thiserror = "1.0.30"
+wasmedge-sys = {path = "../wasmedge-sys", version = "0.8"}
+wasmedge-types = {path = "../wasmedge-types", version = "0.2"}
+wat = "1.0"
+
+[features]
+aot = []
+default = ["aot"]

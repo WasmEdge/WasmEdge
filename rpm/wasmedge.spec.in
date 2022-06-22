@@ -27,6 +27,7 @@ High performance WebAssembly Virtual Machine
 
 %package devel
 Summary: %{reponame} development files
+Requires: %{name}%{?_isa} = %{version}-%{release}
 Provides: %{reponame}-devel = %{version}-%{release}
 
 %description devel
@@ -57,8 +58,6 @@ ln -s lib%{name}Plugin%{reponame}Process.so.%{gittag} %{buildroot}%{_libdir}/%{n
 %{_libdir}/%{name}/lib%{name}Plugin%{reponame}Process.so.%{gittag}
 
 %files devel
-%license LICENSE LICENSE.spdx
-%doc Changelog.md README.md SECURITY.md
 %dir %{_includedir}/%{name}
 %{_includedir}/%{name}/dense_enum_map.h
 %{_includedir}/%{name}/enum.inc

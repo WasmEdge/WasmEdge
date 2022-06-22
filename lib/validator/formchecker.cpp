@@ -197,7 +197,7 @@ VType FormChecker::ASTToVType(const InterfaceType &V) {
     return VType::Variants;
   case InterfaceType::Tuple:
     return VType::Tuple;
-  case InterfaceType::Flags:
+  case InterfaceType::Flag:
     return VType::Flags;
   case InterfaceType::Enum:
     return VType::Enum;
@@ -205,6 +205,8 @@ VType FormChecker::ASTToVType(const InterfaceType &V) {
     return VType::Union;
   case InterfaceType::Expecteds:
     return VType::Expecteds;
+  default:
+    return VType::Unknown;
   }
 }
 

@@ -68,11 +68,24 @@ namespace WasmEdge {
   /// WASM Interface type C++ enumeration class.
 enum class InterfaceType : uint8_t {
 #define UseInterfaceType
-#define Line(NAME, VALUE) NAME = VALUE,
+#define Line(NAME, VALUE, STRING) NAME = VALUE,
 #include "enum.inc"
 #undef Line
 #undef UseInterfaceType
 };
+
+static inline constexpr const auto InterTypeStr = []() constexpr {
+  using namespace std::literals::string_view_literals;
+  std::pair<InterfaceType, std::string_view> Array[] = {
+#define UseInterfaceType
+#define Line(NAME, VALUE, STRING) {InterfaceType::NAME, STRING},
+#include "enum.inc"
+#undef Line
+#undef UseInterfaceType
+  };
+  return SpareEnumMap(Array);
+}
+();
 
 } // namespace WasmEdge
 #endif 
@@ -80,7 +93,7 @@ enum class InterfaceType : uint8_t {
 /// WASM Interface type C enumeration.
 enum WasmEdge_InterfaceType {
 #define UseInterfaceType
-#define Line(NAME, VALUE) WasmEdge_InterfaceType_##NAME = VALUE,
+#define Line(NAME, VALUE, STRING) WasmEdge_InterfaceType_##NAME = VALUE,
 #include "enum.inc"
 #undef Line
 #undef UseInterfaceType

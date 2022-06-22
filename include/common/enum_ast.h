@@ -73,36 +73,6 @@ static inline constexpr const auto OpCodeStr = []() constexpr {
   return SpareEnumMap(Array);
 }
 ();
-
-/*
-/// Component Model Interface Types 
-enum class InterfaceTypes : uint32_t{
-   Unit,
-    Bool,
-    S8,
-    U8,
-    S16,
-    U16,
-    S32,
-    U32,
-    S64,
-    U64,
-    Float32,
-    Float64,
-    Char,
-    String, 
-    Record,
-    Variant,
-    List,
-    Tuple,
-    Flags,
-    Enum, 
-    Union, 
-    Option, 
-    Expected,
-};
-*/
-
 } // namespace WasmEdge
 
 #endif // WASMEDGE_C_API_ENUM_AST_H

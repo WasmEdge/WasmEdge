@@ -24,7 +24,6 @@
 #include <variant>
 #include <vector>
 #include <string>
-
 namespace WasmEdge {
 
 namespace {
@@ -39,6 +38,7 @@ using RemoveCVRefT = std::remove_cv_t<std::remove_reference_t<T>>;
 
 using Byte = uint8_t;
 
+namespace InterType {
 using S8 = int8_t;
 using U8 = uint8_t;
 using S16 = int16_t;
@@ -50,9 +50,62 @@ using U64 = uint64_t;
 using Float32 = float ;
 using Float64 = double;
 using Char = char;
-using String = std::string;
+using String = const char *;
 using Bool = bool;
-//using Unit = ;
+// Implementation of "record" type in interface types
+struct RecordField {
+  const char *name;
+  InterfaceType ty;
+};
+
+struct Record {
+  RecordField *field = new RecordField;
+};
+
+// Implementation of "variant" type in interface types
+struct VariantCase {
+  const char *name;
+  InterfaceType ty;
+};
+
+struct Variants {
+  VariantCase *cases = new VariantCase;
+};
+
+// Implementation of "tuple" type in interface types
+struct Tuple {
+  InterfaceType *tyTup = new InterfaceType;
+};
+
+// Implementation of "flags" type in interface types
+struct Flag {
+  char **names = new char *;
+};
+
+// Implementation of "enum" type in interface types
+struct Enum {
+  char **names = new char *;
+};
+
+// Implentation of "union" type in interface types
+struct Union {
+  InterfaceType *tyUn = new InterfaceType;
+};
+
+// Implementation of "expected" type in interface types
+struct Expecteds {
+  InterfaceType tyEx;
+  InterfaceType err;
+};
+
+/// UnknownInter definition
+struct UnknownInter {
+  uint64_t Value = 0;
+  UnknownInter() = default;
+};
+
+} // namespace InterType
+// using Unit = ;
 
 /// SIMD types definition.
 using int64x2_t [[gnu::vector_size(16)]] = int64_t;
@@ -94,59 +147,22 @@ struct ExternRef {
   ExternRef() = default;
   template <typename T> ExternRef(T *P) : Ptr(reinterpret_cast<void *>(P)) {}
 };
-// Implementation of "record" type in interface types
-struct RecordField {
-  std::string name;
-  InterfaceType ty;
-};
-
-struct Record {
-  RecordField *field = new RecordField;
-};
-
-// Implementation of "variant" type in interface types
-struct VariantCase {
-  std::string name;
-  InterfaceType ty;
-};
-
-struct Variants {
-  VariantCase *cases = new VariantCase;
-};
-
-// Implementation of "tuple" type in interface types 
- struct Tuple{
- InterfaceType *tyTup = new InterfaceType;
- };
-
-// Implementation of "flags" type in interface types 
-struct Flags{
-std::string *names = new std::string;
-};
-
-// Implementation of "enum" type in interface types 
-struct Enum{
- std::string *names = new std::string;
-};
-
-//Implentation of "union" type in interface types 
-struct Union{
-  InterfaceType *tyUn = new InterfaceType;
-}; 
-
-//Implementation of "expected" type in interface types 
-struct Expecteds{
-  InterfaceType tyEx;
-  InterfaceType err;
-};
 
 /// NumType and RefType variant definitions.
 using RefVariant = Variant<UnknownRef, FuncRef, ExternRef>;
 using ValVariant =
-    Variant<uint8_t, int8_t, uint16_t, int16_t, uint32_t, int32_t, uint64_t, int64_t, float, double, uint128_t,
-            int128_t, uint64x2_t, int64x2_t, uint32x4_t, int32x4_t, uint16x8_t,
-            int16x8_t, uint8x16_t, int8x16_t, floatx4_t, doublex2_t, UnknownRef
-            /*FuncRef, ExternRef, Bool, Char, std::string, Record, Variants, Tuple, Flags, Enum, Union, Expecteds*/>;
+    Variant<uint8_t, int8_t, uint16_t, int16_t, uint32_t, int32_t, uint64_t,
+            int64_t, float, double, uint128_t, int128_t, uint64x2_t, int64x2_t,
+            uint32x4_t, int32x4_t, uint16x8_t, int16x8_t, uint8x16_t, int8x16_t,
+            floatx4_t, doublex2_t, UnknownRef, FuncRef, ExternRef>;
+using InterVariant =
+    Variant<InterType::Bool, InterType::S8, InterType::U8, InterType::S16,
+            InterType::U16, InterType::S32, InterType::U32, InterType::S64,
+            InterType::U64, InterType::Char, InterType::Float32,
+            InterType::Float64, InterType::String, InterType::Record,
+            InterType::Variants, InterType::Tuple, InterType::Enum,
+            InterType::Union, InterType::Flag, InterType::Expecteds,
+            InterType::UnknownInter>;
 
 /// BlockType definition.
 struct BlockType {
@@ -167,8 +183,6 @@ struct BlockType {
     Data.Idx = Idx;
   }
 };
-
-
 
 /// NumType and RefType conversions.
 inline constexpr ValType ToValType(const NumType Val) noexcept {
@@ -232,26 +246,27 @@ inline constexpr const bool IsWasmRefV = IsWasmRef<T>::value;
 /// Return true if Wasm Interface type
 template <typename T>
 struct IsWasmInter
-    : std::bool_constant<std::is_same_v<RemoveCVRefT<T>, Bool> ||
-                         std::is_same_v<RemoveCVRefT<T>, S8> ||
-                         std::is_same_v<RemoveCVRefT<T>, U8> ||
-                         std::is_same_v<RemoveCVRefT<T>, S16> ||
-                         std::is_same_v<RemoveCVRefT<T>, U16> ||
-                         std::is_same_v<RemoveCVRefT<T>, S32> ||
-                         std::is_same_v<RemoveCVRefT<T>, U32> ||
-                         std::is_same_v<RemoveCVRefT<T>, S64> ||
-                         std::is_same_v<RemoveCVRefT<T>, U64> ||
-                         std::is_same_v<RemoveCVRefT<T>, Float32> ||
-                         std::is_same_v<RemoveCVRefT<T>, Float64> ||
-                         std::is_same_v<RemoveCVRefT<T>, Char> ||
-                         std::is_same_v<RemoveCVRefT<T>, String> ||
-                         std::is_same_v<RemoveCVRefT<T>, Record> ||
-                         std::is_same_v<RemoveCVRefT<T>, Variants> ||
-                         std::is_same_v<RemoveCVRefT<T>, Tuple> ||
-                         std::is_same_v<RemoveCVRefT<T>, Flags> ||
-                         std::is_same_v<RemoveCVRefT<T>, Enum> ||
-                         std::is_same_v<RemoveCVRefT<T>, Union> ||
-                         std::is_same_v<RemoveCVRefT<T>, Expecteds>> {};
+    : std::bool_constant<
+          std::is_same_v<RemoveCVRefT<T>, InterType::Bool> ||
+          std::is_same_v<RemoveCVRefT<T>, InterType::S8> ||
+          std::is_same_v<RemoveCVRefT<T>, InterType::U8> ||
+          std::is_same_v<RemoveCVRefT<T>, InterType::S16> ||
+          std::is_same_v<RemoveCVRefT<T>, InterType::U16> ||
+          std::is_same_v<RemoveCVRefT<T>, InterType::S32> ||
+          std::is_same_v<RemoveCVRefT<T>, InterType::U32> ||
+          std::is_same_v<RemoveCVRefT<T>, InterType::S64> ||
+          std::is_same_v<RemoveCVRefT<T>, InterType::U64> ||
+          std::is_same_v<RemoveCVRefT<T>, InterType::Float32> ||
+          std::is_same_v<RemoveCVRefT<T>, InterType::Float64> ||
+          std::is_same_v<RemoveCVRefT<T>, InterType::Char> ||
+          std::is_same_v<RemoveCVRefT<T>, InterType::String> ||
+          std::is_same_v<RemoveCVRefT<T>, InterType::Record> ||
+          std::is_same_v<RemoveCVRefT<T>, InterType::Variants> ||
+          std::is_same_v<RemoveCVRefT<T>, InterType::Tuple> ||
+          std::is_same_v<RemoveCVRefT<T>, InterType::Flag> ||
+          std::is_same_v<RemoveCVRefT<T>, InterType::Enum> ||
+          std::is_same_v<RemoveCVRefT<T>, InterType::Union> ||
+          std::is_same_v<RemoveCVRefT<T>, InterType::Expecteds>> {};
 template <typename T>
 inline constexpr const bool IsWasmInterV = IsWasmInter<T>::value;
 
@@ -326,7 +341,6 @@ template <> inline ValType ValTypeFromType<int64_t>() noexcept {
 template <> inline ValType ValTypeFromType<uint128_t>() noexcept {
   return ValType::V128;
 }
-
 template <> inline ValType ValTypeFromType<int128_t>() noexcept {
   return ValType::V128;
 }
@@ -342,65 +356,77 @@ template <> inline ValType ValTypeFromType<FuncRef>() noexcept {
 template <> inline ValType ValTypeFromType<ExternRef>() noexcept {
   return ValType::ExternRef;
 }
-template <> inline ValType ValTypeFromType<Bool>() noexcept {
-  return ValType::Bool;
+
+// >>>>>>>> Template to get Interface type from type
+// >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+template <typename T> inline InterfaceType InterfaceTypeFromType() noexcept;
+template <> inline InterfaceType InterfaceTypeFromType<bool>() noexcept {
+  return InterfaceType::Bool;
 }
-template <> inline ValType ValTypeFromType<int8_t>() noexcept {
-  return ValType::S8;
+template <> inline InterfaceType InterfaceTypeFromType<int8_t>() noexcept {
+  return InterfaceType::S8;
 }
-template <> inline ValType ValTypeFromType<uint8_t>() noexcept {
-  return ValType::U8;
+template <> inline InterfaceType InterfaceTypeFromType<uint8_t>() noexcept {
+  return InterfaceType::U8;
 }
-template <> inline ValType ValTypeFromType<int16_t>() noexcept {
-  return ValType::S16;
+template <> inline InterfaceType InterfaceTypeFromType<int16_t>() noexcept {
+  return InterfaceType::S16;
 }
-template <> inline ValType ValTypeFromType<uint16_t>() noexcept {
-  return ValType::U16;
+template <> inline InterfaceType InterfaceTypeFromType<uint16_t>() noexcept {
+  return InterfaceType::U16;
 }
-/*template <> inline ValType ValTypeFromType<int32_t>() noexcept {
-  return ValType::S32;
+template <> inline InterfaceType InterfaceTypeFromType<int32_t>() noexcept {
+  return InterfaceType::S32;
 }
-template <> inline ValType ValTypeFromType<uint32_t>() noexcept {
-  return ValType::U32;
+template <> inline InterfaceType InterfaceTypeFromType<uint32_t>() noexcept {
+  return InterfaceType::U32;
 }
-template <> inline ValType ValTypeFromType<int64_t>() noexcept {
-  return ValType::S64;
+template <> inline InterfaceType InterfaceTypeFromType<int64_t>() noexcept {
+  return InterfaceType::S64;
 }
-template <> inline ValType ValTypeFromType<uint64_t>() noexcept {
-  return ValType::U64;
+template <> inline InterfaceType InterfaceTypeFromType<uint64_t>() noexcept {
+  return InterfaceType::U64;
 }
-template <> inline ValType ValTypeFromType<float>() noexcept {
-  return ValType::Float32;
+template <> inline InterfaceType InterfaceTypeFromType<float>() noexcept {
+  return InterfaceType::Float32;
 }
-template <> inline ValType ValTypeFromType<double>() noexcept {
-  return ValType::Float64;
-}*/
-template <> inline ValType ValTypeFromType<char>() noexcept {
-  return ValType::Char;
+template <> inline InterfaceType InterfaceTypeFromType<double>() noexcept {
+  return InterfaceType::Float64;
 }
-template <> inline ValType ValTypeFromType<std::string>() noexcept {
-  return ValType::String;
+template <> inline InterfaceType InterfaceTypeFromType<char>() noexcept {
+  return InterfaceType::Char;
 }
-template <> inline ValType ValTypeFromType<Record>() noexcept {
-  return ValType::Record;
+template <> inline InterfaceType InterfaceTypeFromType<std::string>() noexcept {
+  return InterfaceType::String;
 }
-template <> inline ValType ValTypeFromType<Variants>() noexcept {
-  return ValType::Variants;
+template <>
+inline InterfaceType InterfaceTypeFromType<InterType::Record>() noexcept {
+  return InterfaceType::Record;
 }
-template <> inline ValType ValTypeFromType<Tuple>() noexcept {
-  return ValType::Tuple;
+template <>
+inline InterfaceType InterfaceTypeFromType<InterType::Variants>() noexcept {
+  return InterfaceType::Variants;
 }
-template <> inline ValType ValTypeFromType<Flags>() noexcept {
-  return ValType::Flags;
+template <>
+inline InterfaceType InterfaceTypeFromType<InterType::Tuple>() noexcept {
+  return InterfaceType::Tuple;
 }
-template <> inline ValType ValTypeFromType<Enum>() noexcept {
-  return ValType::Enum;
+template <>
+inline InterfaceType InterfaceTypeFromType<InterType::Flag>() noexcept {
+  return InterfaceType::Flag;
 }
-template <> inline ValType ValTypeFromType<Union>() noexcept {
-  return ValType::Union;
+template <>
+inline InterfaceType InterfaceTypeFromType<InterType::Enum>() noexcept {
+  return InterfaceType::Enum;
 }
-template <> inline ValType ValTypeFromType<Expecteds>() noexcept {
-  return ValType::Expecteds;
+template <>
+inline InterfaceType InterfaceTypeFromType<InterType::Union>() noexcept {
+  return InterfaceType::Union;
+}
+template <>
+inline InterfaceType InterfaceTypeFromType<InterType::Expecteds>() noexcept {
+  return InterfaceType::Expecteds;
 }
 // <<<<<<<< Template to get value type from type <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
@@ -409,45 +435,66 @@ template <> inline ValType ValTypeFromType<Expecteds>() noexcept {
 inline constexpr ValVariant ValueFromType(ValType Type) noexcept {
   switch (Type) {
   case ValType::I32:
-  case ValType::U32:
     return uint32_t(0U);
   case ValType::I64:
-  case ValType::U64:
     return uint64_t(0U);
   case ValType::F32:
-  case ValType::Float32:
     return float(0.0F);
   case ValType::F64:
-  case ValType::Float64:
     return double(0.0);
   case ValType::V128:
     return uint128_t(0U);
-    // case ValType::Bool:
-    // return bool(true);
-    // case ValType::S8:
-    // return int8_t(0);
-    // case ValType::U8:
-    // return uint8_t(0U);
-    // case ValType::S16:
-    // return int16_t(0);
-    // case ValType::U16:
-    // return uint16_t(0U);
-    /*case ValType::S32:
-      return int32_t(0);
-    case ValType::U32:
-      return uint32_t(0U);
-    case ValType::S64:
-      return int64_t(0);
-    case ValType::U64:
-      return uint64_t(0U);
-    case ValType::Float32:
-      return float(0.0F);
-  */
-
   case ValType::FuncRef:
   case ValType::ExternRef:
     return UnknownRef();
   case ValType::None:
+  default:
+    assumingUnreachable();
+  }
+}
+
+// >>>>>>>> Const expression to generate value from Interface type
+// >>>>>>>>>>>>>>>>>
+
+inline constexpr InterVariant
+InterfaceTypeFromType(InterfaceType Type) noexcept {
+  switch (Type) {
+  case InterfaceType::Bool:
+    return true;
+  case InterfaceType::S8:
+    return 0;
+  case InterfaceType::U8:
+    return uint8_t(0U);
+  case InterfaceType::S16:
+    return 0;
+  case InterfaceType::U16:
+    return uint16_t(0U);
+  case InterfaceType::S32:
+    return 0;
+  case InterfaceType::U32:
+    return uint32_t(0U);
+  case InterfaceType::S64:
+    return 0;
+  case InterfaceType::U64:
+    return uint64_t(0U);
+  case InterfaceType::Float32:
+    return float(0.0F);
+  case InterfaceType::Float64:
+    return double(0.0);
+  case InterfaceType::Char:
+    return char('c');
+  case InterfaceType::String: {
+    const char *s = "string";
+    return s;
+  }
+  case InterfaceType::Record:
+  case InterfaceType::Variants:
+  case InterfaceType::Tuple:
+  case InterfaceType::Flag:
+  case InterfaceType::Union:
+  case InterfaceType::Enum:
+  case InterfaceType::Expecteds:
+    return InterType::UnknownInter();
   default:
     assumingUnreachable();
   }

@@ -1,0 +1,80 @@
+name: Run FOSSA Scans
+
+concurrency:
+  group: fossa-${{ github.head_ref }}
+  cancel-in-progress: true
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - ".github/workflows/fossa.yml"
+      - "bindings/**"
+      - "include/**"
+      - "lib/**"
+      - "plugins/**"
+      - "examples/**"
+      - "rpm/**"
+      - "test/**"
+      - "thirdparty/**"
+      - "tools/**"
+      - "CMakeLists.txt"
+  pull_request:
+    branches:
+      - master
+      - 'proposal/**'
+    paths:
+      - ".github/workflows/fossa.yml"
+      - "bindings/**"
+      - "include/**"
+      - "lib/**"
+      - "plugins/**"
+      - "examples/**"
+      - "rpm/**"
+      - "test/**"
+      - "thirdparty/**"
+      - "tools/**"
+      - "CMakeLists.txt"
+
+jobs:
+  fossa-scan:
+    strategy:
+      matrix:
+        include:
+          - name: clang++ release
+            compiler: clang++
+            docker_tag: ubuntu-build-clang
+            build_type: Release
+    runs-on: ubuntu-latest
+    container:
+      image: wasmedge/wasmedge:${{ matrix.docker_tag }}
+    steps:
+      - name: "Checkout Code"
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - name: "Install FOSSA Scan"
+        run: |
+          curl https://raw.githubusercontent.com/fossas/fossa-cli/master/install.sh | bash
+          fossa init
+      - name: Build WasmEdge using ${{ matrix.compiler }} with ${{ matrix.build_type }} mode
+        env:
+          CMAKE_BUILD_TYPE: ${{ matrix.build_type }}
+        run: |
+          git config --global --add safe.directory $(pwd)
+          cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=$CMAKE_BUILD_TYPE -DWASMEDGE_BUILD_TESTS=ON .
+          cmake --build build
+      - name: "Run FOSSA Scan"
+        run: |
+          FOSSA_API_KEY=${{secrets.FOSSA_API_KEY_PUSH_ONLY}} fossa analyze
+      - name: Test WasmEdge
+        run: |
+          export LD_LIBRARY_PATH="$(pwd)/build/lib/api:$LD_LIBRARY_PATH"
+          cd build
+          ./tools/wasmedge/wasmedge -v
+          ctest
+          cd -
+      - name: "Run FOSSA Test"
+        run: |
+          FOSSA_API_KEY=${{secrets.FOSSA_API_KEY_PUSH_ONLY}} fossa test

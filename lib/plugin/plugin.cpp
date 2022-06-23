@@ -129,7 +129,9 @@ bool Plugin::loadFile(const std::filesystem::path &Path) noexcept {
 
 void Plugin::addPluginOptions(PO::ArgumentParser &Parser) noexcept {
   for (const auto &Plugin : PluginRegistory) {
-    Plugin.Desc->AddOptions(Parser);
+    if (Plugin.Desc->AddOptions) {
+      Plugin.Desc->AddOptions(Parser);
+    }
   }
 }
 

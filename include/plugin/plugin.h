@@ -112,7 +112,9 @@ public:
 
   void registerOptions(PO::ArgumentParser &Parser) const noexcept {
     assuming(Desc);
-    Desc->AddOptions(Parser);
+    if (Desc->AddOptions) {
+      Desc->AddOptions(Parser);
+    }
   }
 
   Span<const PluginModule> modules() const noexcept {

@@ -806,6 +806,8 @@ I(Lane, "lane")
 #undef I
 #endif // UseIndexCategory
 
+// enum_types.h 
+
 #ifdef UseValType
 #define V Line
 
@@ -845,8 +847,8 @@ R(ExternRef, 0x6F)
 #ifdef UseInterfaceType
 #define In Line 
 
-//In(Unit, 0x7f, "unit")
-In(Bool, 0x7e, "bool")
+In(UNIT, 0x7f, "unit")
+In(BOOL, 0x7e, "bool")
 In(S8, 0x7d, "s8")
 In(U8, 0x7c, "u8")
 In(S16, 0x7b, "s16")
@@ -855,19 +857,19 @@ In(S32, 0x79, "s32")
 In(U32, 0x78, "u32")
 In(S64, 0x77, "s64")
 In(U64, 0x76, "u64")
-In(Float32, 0x75, "float32")
-In(Float64, 0x74, "float64")
-In(Char, 0x73, "char")
-In(String, 0x72, "string")
-In(Record, 0x71, "record")
-In(Variants, 0x70, "variants")
-//In(List, 0x6f, "list")
-In(Tuple, 0x6e, "tuple")
-In(Flag, 0x6d, "flag") 
-In(Enum, 0x6c, "enum")
-In(Union, 0x6b, "union")
-//In(Option, 0x6a, "option")
-In(Expecteds, 0x69, "expecteds")
+In(FLOAT32, 0x75, "float32")
+In(FLOAT64, 0x74, "float64")
+In(CHAR, 0x73, "char")
+In(STRING, 0x72, "string")
+In(RECORD, 0x71, "record")
+In(VARIANT, 0x70, "variant")
+In(LIST, 0x6f, "list")
+In(TUPLE, 0x6e, "tuple")
+In(FLAGS, 0x6d, "flags") 
+In(ENUM, 0x6c, "enum")
+In(UNION, 0x6b, "union")
+In(OPTION, 0x6a, "option")  // Implementation of OPTION is left 
+In(EXPECTED, 0x69, "expected")
 
 #undef In
 #endif //UseInterfaceType

@@ -23,7 +23,6 @@
 #include "spare_enum_map.h"
 #include <cstdint>
 #include <string>
-#include <tuple>
 #endif
 
 namespace WasmEdge {

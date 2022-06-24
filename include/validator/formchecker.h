@@ -37,7 +37,7 @@ enum class VType : uint8_t {
   V128,
   FuncRef,
   ExternRef,
-  Bool,
+  BOOL,
   S8,
   U8,
   S16,
@@ -46,19 +46,19 @@ enum class VType : uint8_t {
   U32,
   S64,
   U64,
-  Float32,
-  Float64,
-  Char,
-  String,
-  Record,
-  Variants,
-  // List,
-  Tuple,
-  Flags,
-  Enum,
-  Union,
+  FLOAT32,
+  FLOAT64,
+  CHAR,
+  STRING,
+  RECORD,
+  VARIANT,
+  LIST,
+  TUPLE,
+  FLAGS,
+  ENUM,
+  UNION,
   // Option,
-  Expecteds
+  EXPECTED,
 };
 
 static inline constexpr bool isNumType(const VType V) {
@@ -72,13 +72,13 @@ static inline constexpr bool isRefType(const VType V) {
 
 static inline constexpr bool isInterfaceType(const VType V) {
 
-  return V == VType::Bool || V == VType::S8 || V == VType::U8 ||
+  return V == VType::BOOL || V == VType::S8 || V == VType::U8 ||
          V == VType::S16 || V == VType::U16 || V == VType::S32 ||
          V == VType::U32 || V == VType::S64 || V == VType::U64 ||
-         V == VType::Float32 || V == VType::Float64 || V == VType::Char ||
-         V == VType::String || V == VType::Record || V == VType::Variants ||
-         V == VType::Tuple || V == VType::Flags || V == VType::Enum ||
-         V == VType::Union || V == VType::Expecteds;
+         V == VType::FLOAT32 || V == VType::FLOAT64 || V == VType::CHAR ||
+         V == VType::STRING || V == VType::RECORD || V == VType::VARIANT ||
+         V == VType::TUPLE || V == VType::FLAGS || V == VType::ENUM ||
+         V == VType::UNION || V == VType::EXPECTED || V == VType::LIST;
 }
 
 class FormChecker {

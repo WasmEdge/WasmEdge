@@ -74,7 +74,7 @@ enum class InterfaceType : uint8_t {
 #undef UseInterfaceType
 };
 
-static inline constexpr const auto InterTypeStr = []() constexpr {
+static inline constexpr const auto InterfaceTypeStr = []() constexpr {
   using namespace std::literals::string_view_literals;
   std::pair<InterfaceType, std::string_view> Array[] = {
 #define UseInterfaceType

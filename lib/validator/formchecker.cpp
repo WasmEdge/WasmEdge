@@ -165,8 +165,8 @@ VType FormChecker::ASTToVType(const RefType &V) {
 
 VType FormChecker::ASTToVType(const InterfaceType &V) {
   switch (V) {
-  case InterfaceType::Bool:
-    return VType::Bool;
+  case InterfaceType::BOOL:
+    return VType::BOOL;
   case InterfaceType::S8:
     return VType::S8;
   case InterfaceType::U8:
@@ -183,28 +183,30 @@ VType FormChecker::ASTToVType(const InterfaceType &V) {
     return VType::S64;
   case InterfaceType::U64:
     return VType::U64;
-  case InterfaceType::Float32:
-    return VType::Float32;
-  case InterfaceType::Float64:
-    return VType::Float64;
-  case InterfaceType::Char:
-    return VType::Char;
-  case InterfaceType::String:
-    return VType::String;
-  case InterfaceType::Record:
-    return VType::Record;
-  case InterfaceType::Variants:
-    return VType::Variants;
-  case InterfaceType::Tuple:
-    return VType::Tuple;
-  case InterfaceType::Flag:
-    return VType::Flags;
-  case InterfaceType::Enum:
-    return VType::Enum;
-  case InterfaceType::Union:
-    return VType::Union;
-  case InterfaceType::Expecteds:
-    return VType::Expecteds;
+  case InterfaceType::FLOAT32:
+    return VType::FLOAT32;
+  case InterfaceType::FLOAT64:
+    return VType::FLOAT64;
+  case InterfaceType::CHAR:
+    return VType::CHAR;
+  case InterfaceType::STRING:
+    return VType::STRING;
+  case InterfaceType::RECORD:
+    return VType::RECORD;
+  case InterfaceType::VARIANT:
+    return VType::VARIANT;
+  case InterfaceType::TUPLE:
+    return VType::TUPLE;
+  case InterfaceType::FLAGS:
+    return VType::FLAGS;
+  case InterfaceType::ENUM:
+    return VType::ENUM;
+  case InterfaceType::UNION:
+    return VType::UNION;
+  case InterfaceType::EXPECTED:
+    return VType::EXPECTED;
+  case InterfaceType::LIST:
+    return VType::LIST;
   default:
     return VType::Unknown;
   }

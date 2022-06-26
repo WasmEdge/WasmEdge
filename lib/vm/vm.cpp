@@ -21,8 +21,7 @@ VM::VM(const Configure &Conf)
 VM::VM(const Configure &Conf, Runtime::StoreManager &S)
     : Conf(Conf), Stage(VMStage::Inited),
       LoaderEngine(Conf, &Executor::Executor::Intrinsics),
-      ValidatorEngine(Conf), ExecutorEngine(Conf, &Stat),
-      SignatureEngine(Signature::Signature()), StoreRef(S) {
+      ValidatorEngine(Conf), ExecutorEngine(Conf, &Stat), StoreRef(S) {
   unsafeInitVM();
 }
 
@@ -203,9 +202,6 @@ VM::unsafeRunWasmFile(const AST::Module &Module, std::string_view Func,
   }
 }
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
 Async<Expect<std::vector<std::pair<ValVariant, ValType>>>>
 VM::asyncRunWasmFile(const std::filesystem::path &Path, std::string_view Func,
                      Span<const ValVariant> Params,
@@ -253,107 +249,6 @@ VM::asyncRunWasmFile(const AST::Module &Module, std::string_view Func,
 
 Expect<void> VM::unsafeLoadWasm(const std::filesystem::path &Path) {
   // If not load successfully, the previous status will be reserved.
-=======
-Expect<std::vector<ValVariant>>
-VM::signWasmFile(const std::filesystem::path &Path) {
-=======
-Expect<void> VM::signWasmFile(const std::filesystem::path &Path) {
->>>>>>> [Wasm-Signature] Fix `ed25519` dependency and improve implementation
-  if (Stage == VMStage::Instantiated) {
-    /// When running another module, instantiated module in store will be reset.
-    /// Therefore the instantiation should restart.
-    Stage = VMStage::Validated;
-  }
-<<<<<<< HEAD
-  /// Load module.
-  LDMgr LMgr;
-  if (auto Res = LMgr.setPath(Path); !Res) {
-    spdlog::error(Res.error());
-    spdlog::error(ErrInfo::InfoFile(Path));
-    return Unexpect(Res);
-  }
-  if (auto Code = LMgr.getWasm()) {
-    // auto sig = SignatureEngine.keygen(*Code);
-    Span<Byte> sig;
-    if (auto Res = LoaderEngine.parseModule(*Code)) {
-      // Consider use another version of parserModule here
-      // Because we need to generate signature for Wasm byte code
-      // Here we use parseModule(Span<byte>)
-      return signWasmFile(*(*Res).get(), sig);
-    } else {
-      return Unexpect(Res);
-    }
-  } else
-    return {};
-}
-
-Expect<std::vector<ValVariant>> VM::signWasmFile(const AST::Module &Module,
-                                                 Span<Byte> signature) {
-  if (Stage == VMStage::Instantiated) {
-    /// When running another module, instantiated module in store will be reset.
-    /// Therefore the instantiation should restart.
-    Stage = VMStage::Validated;
-  }
-  if (auto Res = ValidatorEngine.validate(Module); !Res) {
-    return Unexpect(Res);
-  }
-  if (auto Res = SignatureEngine.sign(Module, signature); !Res) {
-    return Unexpect(Res);
-=======
-  if (auto Res = LoaderEngine.parseModule(Path)) {
-    LDMgr LMgr;
-    if (auto Res = LMgr.setPath(Path); !Res) {
-      spdlog::error(Res.error());
-      spdlog::error(ErrInfo::InfoFile(Path));
-      return Unexpect(Res);
-    }
-    if (auto Code = LMgr.getWasm()) {
-      auto Sig = SignatureEngine.keygen(*Code);
-      return SignatureEngine.sign(Path, *Sig);
-    } else
-      return Unexpect(Code);
->>>>>>> [Wasm-Signature] Fix `ed25519` dependency and improve implementation
-  } else {
-    return Unexpect(Res);
-  }
-}
-
-Expect<std::vector<ValVariant>>
-VM::verifyWasmFile(const std::filesystem::path &Path) {
-  if (Stage == VMStage::Instantiated) {
-    /// When running another module, instantiated module in store will be reset.
-    /// Therefore the instantiation should restart.
-    Stage = VMStage::Validated;
-  }
-  /// Load module.
-  if (auto Res = LoaderEngine.parseModule(Path)) {
-    return verifyWasmFile(*(*Res).get());
-  } else {
-    return Unexpect(Res);
-  }
-}
-
-Expect<std::vector<ValVariant>> VM::verifyWasmFile(const AST::Module &Module) {
-  if (Stage == VMStage::Instantiated) {
-    /// When running another module, instantiated module in store will be reset.
-    /// Therefore the instantiation should restart.
-    Stage = VMStage::Validated;
-  }
-  if (auto Res = ValidatorEngine.validate(Module); !Res) {
-    return Unexpect(Res);
-  }
-  if (auto Res = SignatureEngine.verify(Module); !Res) {
-    return Unexpect(Res);
-  } else {
-    return Unexpect(Res);
-  };
-}
-
-=======
->>>>>>> [Wasm-Signature] Move signature engine out of `vm` module and add basic `verify` implementations
-Expect<void> VM::loadWasm(const std::filesystem::path &Path) {
-  /// If not load successfully, the previous status will be reserved.
->>>>>>> [Wasm-Signature] Add function templates and extend command line subcommands
   if (auto Res = LoaderEngine.parseModule(Path)) {
     Mod = std::move(*Res);
     Stage = VMStage::Loaded;

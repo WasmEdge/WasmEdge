@@ -103,14 +103,6 @@ public:
   asyncRunWasmFile(const AST::Module &Module, std::string_view Func,
                    Span<const ValVariant> Params = {},
                    Span<const ValType> ParamTypes = {});
-  Expect<std::vector<ValVariant>>
-  signWasmFile(const std::filesystem::path &Path);
-  Expect<std::vector<ValVariant>> signWasmFile(const AST::Module &Module,
-                                               Span<Byte>);
-  Expect<void> signWasmFile(const std::filesystem::path &Path);
-  Expect<std::vector<ValVariant>>
-  verifyWasmFile(const std::filesystem::path &Path);
-  Expect<std::vector<ValVariant>> verifyWasmFile(const AST::Module &Module);
 
   /// Load given wasm file, wasm bytecode, or wasm module.
   Expect<void> loadWasm(const std::filesystem::path &Path) {

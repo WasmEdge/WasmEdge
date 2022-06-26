@@ -16,6 +16,8 @@
 #include "gtest/gtest.h"
 #include <filesystem>
 #include <ostream>
+#include <string>
+#include <string_view>
 
 namespace fs = std::filesystem;
 
@@ -65,7 +67,7 @@ TEST(SignatureTEST, VERIFY) {
 
   testing::internal::CaptureStdout();
   auto Result = SignatureEngine.verifyWasmFile(TargetFile, PubkeyFile);
-  std::string ErrStr = WasmEdge::ErrCodeStr[Result.error()];
+  std::string ErrStr = std::string(WasmEdge::ErrCodeStr[Result.error()]);
   RecordProperty("Result: ", ErrStr);
   std::string StdOut = testing::internal::GetCapturedStdout();
   RecordProperty("Stdout: ", StdOut);

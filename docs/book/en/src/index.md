@@ -139,16 +139,16 @@ $ wasmedge --enable-all-statistics --gas-limit 20 hello.wasm second state
 
 It is possible to use WasmEdge as a high-performance, secure, extensible, easy to deploy, and [Kubernetes-compliant](https://github.com/second-state/wasmedge-containers-examples) JavaScript runtime.
 
-The [qjs.wasm](https://github.com/WasmEdge/WasmEdge/raw/master/examples/wasm/js/qjs.wasm) program is a JavaScript interpreter compiled into WebAssembly.
-The [hello.js](https://github.com/WasmEdge/WasmEdge/raw/master/examples/wasm/js/hello.js) file is a very simple JavaScript program.
+The [qjs.wasm](https://github.com/WasmEdge/WasmEdge/raw/master/examples/js/qjs.wasm) program is a JavaScript interpreter compiled into WebAssembly.
+The [hello.js](https://github.com/WasmEdge/WasmEdge/raw/master/examples/js/hello.js) file is a very simple JavaScript program.
 
 ```bash
 $ wasmedge --dir .:. qjs.wasm hello.js 1 2 3
 Hello 1 2 3
 ```
 
-The [qjs_tf.wasm](https://github.com/WasmEdge/WasmEdge/raw/master/examples/wasm/js/qjs_tf.wasm) is a JavaScript interpreter with [WasmEdge Tensorflow extension](https://www.secondstate.io/articles/wasi-tensorflow/) compiled into WebAssembly.
-To run [qjs_tf.wasm](https://github.com/WasmEdge/WasmEdge/raw/master/examples/wasm/js/qjs_tf.wasm), you must use the `wasmedge-tensorflow-lite` CLI tool, which is a build of WasmEdge with Tensorflow extension built-in.
+The [qjs_tf.wasm](https://github.com/WasmEdge/WasmEdge/raw/master/examples/js/qjs_tf.wasm) is a JavaScript interpreter with [WasmEdge Tensorflow extension](https://www.secondstate.io/articles/wasi-tensorflow/) compiled into WebAssembly.
+To run [qjs_tf.wasm](https://github.com/WasmEdge/WasmEdge/raw/master/examples/js/qjs_tf.wasm), you must use the `wasmedge-tensorflow-lite` CLI tool, which is a build of WasmEdge with Tensorflow extension built-in.
 You can download a full [Tensorflow-based JavaScript example](https://github.com/second-state/wasmedge-quickjs/tree/main/example_js/tensorflow_lite_demo) to classify images.
 
 ```bash

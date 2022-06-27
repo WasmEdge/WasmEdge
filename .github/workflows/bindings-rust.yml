@@ -70,11 +70,21 @@ jobs:
       - name: Build WasmEdge with Release mode
         run: |
           apt-get update
-          apt-get install -y make
-          mkdir -p build
+          apt-get install -y ninja
+          # mkdir -p build
+          # cd build
+          # cmake -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_BUILD_TESTS=ON ..
+          # make -j
+          cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_BUILD_TESTS=ON .
+          cmake --build build
+
+      - name: Test WasmEdge
+        run: |
+          export LD_LIBRARY_PATH="$(pwd)/build/lib/api:$LD_LIBRARY_PATH"
           cd build
-          cmake -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_BUILD_TESTS=ON ..
-          make -j
+          ./tools/wasmedge/wasmedge -v
+          ctest
+          cd -
 
       - name: Clippy
         run: |
@@ -95,23 +105,27 @@ jobs:
           cargo +nightly test --doc --locked
 
   build_macos:
-    name: MacOS
-    runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [macos-11]
+        include:
+          - name: MacOS 10.15
+            host_runner: macos-10.15
+            darwin_version: darwin_19
+          - name: MacOS 11
+            host_runner: macos-11
+            darwin_version: darwin_20
+          - name: MacOS 12
+            host_runner: macos-12
+            darwin_version: darwin_21
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.host_runner }}
+    needs: get_version_v2
 
     steps:
       - name: Checkout sources
         uses: actions/checkout@v2
         with:
           fetch-depth: 0
-
-      - name: Install stable toolchain
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-          components: rustfmt, clippy
 
       - name: Install nightly toolchain
         uses: actions-rs/toolchain@v1
@@ -150,9 +164,17 @@ jobs:
           export CPPFLAGS="-I/usr/local/opt/llvm/include"
           export CC=clang
           export CXX=clang++
-          cmake -Bbuild -GNinja -DWASMEDGE_BUILD_TESTS=ON .
           cmake -Bbuild -GNinja -DWASMEDGE_BUILD_TESTS=ON -DWASMEDGE_BUILD_PACKAGE="TGZ" .
           cmake --build build
+
+      - name: Test WasmEdge
+        continue-on-error: true
+        run: |
+          export DYLD_LIBRARY_PATH="$(pwd)/build/lib/api:$DYLD_LIBRARY_PATH"
+          cd build
+          ./tools/wasmedge/wasmedge -v
+          ctest
+          cd -
 
       - name: Clippy
         run: |
@@ -282,6 +304,18 @@ jobs:
           $cmake_sys_version = "10.0.19041.0"
           cmake -Bbuild -GNinja "-DCMAKE_SYSTEM_VERSION=$cmake_sys_version" -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreadedDLL "-DLLVM_DIR=$llvm_dir" -DWASMEDGE_BUILD_TESTS=ON -DWASMEDGE_BUILD_PACKAGE="ZIP" .
           cmake --build build
+
+      - name: Test WasmEdge
+        continue-on-error: true
+        run: |
+          $vsPath = (vswhere -latest -property installationPath)
+          Import-Module (Join-Path $vsPath "Common7\Tools\Microsoft.VisualStudio.DevShell.dll")
+          Enter-VsDevShell -VsInstallPath $vsPath -SkipAutomaticLocation -DevCmdArguments "-arch=x64 -host_arch=x64 -winsdk=10.0.19041.0"
+          $Env:PATH += ";$pwd\\build\\lib\\api"
+          cd build
+          tools\wasmedge\wasmedge -v
+          ctest
+          cd -
 
       - name: Clippy
         run: |

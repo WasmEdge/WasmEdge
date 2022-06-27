@@ -53,7 +53,7 @@ jobs:
       - name: Build WasmEdge with Release mode
         run: |
           apt-get update
-          apt-get install -y ninja
+          apt-get install -y ninja-build
           cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_BUILD_TESTS=ON -DWASMEDGE_BUILD_COVERAGE=ON .
           cmake --build build
 

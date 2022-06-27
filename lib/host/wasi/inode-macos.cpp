@@ -953,6 +953,9 @@ WasiExpect<void> INode::sockSendTo(Span<Span<const uint8_t>> SiData,
                                    __wasi_siflags_t, uint8_t *Address,
                                    uint8_t AddressLength, int32_t Port,
                                    __wasi_size_t &NWritten) const noexcept {
+#ifndef MSG_NOSIGNAL
+#define MSG_NOSIGNAL 0
+#endif
   int SysSiFlags = MSG_NOSIGNAL;
 
   void *MsgName = nullptr;

@@ -38,12 +38,6 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Install Stable Rust
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-          components: rustfmt, clippy
-
       - name: Install Nightly Rust
         uses: actions-rs/toolchain@v1
         with:
@@ -54,27 +48,22 @@ jobs:
         run: |
           cd bindings/rust/
           cargo +nightly fmt --all -- --check
-
-      # - name: Test wasmedge-sys in standalone mode
-      #   run: |
-      #     cd bindings/rust/
-      #     export WASMEDGE_DIR="$(pwd)/../../"
-      #     cargo +nightly test -p wasmedge-sys --lib --examples
-      #     cargo +nightly test -p wasmedge-sys --doc
-
-      # - name: Clean up
-      #   run: |
-      #     cd bindings/rust/
-      #     cargo clean
+          cd -
 
       - name: Build WasmEdge with Release mode
         run: |
           apt-get update
-          apt-get install -y make
-          mkdir -p build
+          apt-get install -y ninja
+          cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_BUILD_TESTS=ON -DWASMEDGE_BUILD_COVERAGE=ON .
+          cmake --build build
+
+      - name: Test WasmEdge
+        run: |
+          export LD_LIBRARY_PATH="$(pwd)/build/lib/api:$LD_LIBRARY_PATH"
           cd build
-          cmake -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_BUILD_TESTS=ON ..
-          make -j
+          ./tools/wasmedge/wasmedge -v
+          ctest
+          cd -
 
       - name: Clippy
         run: |
@@ -83,6 +72,7 @@ jobs:
           export WASMEDGE_BUILD_DIR="$(pwd)/../../build"
           export WASMEDGE_PLUGIN_PATH="$(pwd)/../../build/plugins/wasmedge_process"
           cargo +nightly clippy --profile test --lib --examples -- -D warnings -D clippy::dbg_macro
+          cd -
 
       - name: Test
         run: |
@@ -93,13 +83,14 @@ jobs:
           export LD_LIBRARY_PATH="$(pwd)/../../build/lib/api"
           cargo +nightly test --lib --examples --locked
           cargo +nightly test --doc --locked
+          cd -
 
   build_macos:
     name: MacOS
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [macos-10.15, macos-11, macos-12]
+        os: [macos-11, macos-12]
 
     steps:
       - name: Checkout sources
@@ -143,6 +134,7 @@ jobs:
           export WASMEDGE_BUILD_DIR="$(pwd)/../../build"
           export WASMEDGE_PLUGIN_PATH="$(pwd)/../../build/plugins/wasmedge_process"
           cargo +nightly clippy --profile test --lib --examples -- -D warnings -D clippy::dbg_macro
+          cd -
 
       - name: Test
         run: |
@@ -153,6 +145,7 @@ jobs:
           export LD_LIBRARY_PATH="$(pwd)/../../build/lib/api"
           cargo +nightly test --lib --examples --locked
           cargo +nightly test --doc --locked
+          cd -
 
   # build_windows_standalone:
   #   name: Windows [In Standalone Mode]

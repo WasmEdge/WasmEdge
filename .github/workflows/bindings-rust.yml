@@ -55,18 +55,6 @@ jobs:
           cd bindings/rust/
           cargo +nightly fmt --all -- --check
 
-      # - name: Test wasmedge-sys in standalone mode
-      #   run: |
-      #     cd bindings/rust/
-      #     export WASMEDGE_DIR="$(pwd)/../../"
-      #     cargo +nightly test -p wasmedge-sys --lib --examples
-      #     cargo +nightly test -p wasmedge-sys --doc
-
-      # - name: Clean up
-      #   run: |
-      #     cd bindings/rust/
-      #     cargo clean
-
       - name: Build WasmEdge with Release mode
         run: |
           apt-get update
@@ -138,19 +126,6 @@ jobs:
           cd bindings/rust/
           cargo +nightly fmt --all -- --check
 
-      # - name: Test wasmedge-sys in standalone mode
-      #   run: |
-      #     brew install llvm ninja boost cmake
-      #     export PATH="/usr/local/opt/llvm/bin:$PATH"
-      #     export LDFLAGS="-L/usr/local/opt/llvm/lib -Wl,-rpath,/usr/local/opt/llvm/lib"
-      #     export CPPFLAGS="-I/usr/local/opt/llvm/include"
-      #     export CC=clang
-      #     export CXX=clang++
-      #     cd bindings/rust/
-      #     export WASMEDGE_DIR="$(pwd)/../../"
-      #     cargo +nightly test -p wasmedge-sys --lib --examples
-      #     cargo +nightly test -p wasmedge-sys --doc
-
       - name: Clean up
         run: |
           cd bindings/rust/
@@ -193,68 +168,6 @@ jobs:
           export LD_LIBRARY_PATH="$(pwd)/../../build/lib/api"
           cargo +nightly test --lib --examples --locked
           cargo +nightly test --doc --locked
-
-  # build_windows_standalone:
-  #   name: Windows [In Standalone Mode]
-  #   runs-on: windows-2022
-  #   steps:
-  #     - uses: actions/checkout@v2
-  #       with:
-  #         fetch-depth: 0
-
-  #     - name: Install dependency
-  #       uses: crazy-max/ghaction-chocolatey@v1
-  #       with:
-  #         args: install cmake ninja vswhere
-
-  #     - uses: GuillaumeFalourd/setup-windows10-sdk-action@v1
-  #       with:
-  #         sdk-version: 19041
-
-  #     - name: Install Stable Rust
-  #       uses: actions-rs/toolchain@v1
-  #       with:
-  #         toolchain: stable
-  #         components: rustfmt, clippy
-
-  #     - name: Install Nightly Rust
-  #       uses: actions-rs/toolchain@v1
-  #       with:
-  #         toolchain: nightly
-  #         components: rustfmt, clippy
-
-  #     - name: Rustfmt
-  #       run: |
-  #         cd bindings/rust/
-  #         cargo +nightly fmt --all -- --check
-
-  #     - name: Test wasmedge-sys in standalone mode
-  #       run: |
-  #         $vsPath = (vswhere -latest -property installationPath)
-  #         Import-Module (Join-Path $vsPath "Common7\Tools\Microsoft.VisualStudio.DevShell.dll")
-  #         Enter-VsDevShell -VsInstallPath $vsPath -SkipAutomaticLocation -DevCmdArguments "-arch=x64 -host_arch=x64 -winsdk=10.0.19041.0"
-  #         cd bindings/rust/
-  #         $WASMEDGE_DIR="$(pwd)/../../"
-  #         cargo +nightly test -p wasmedge-sys --lib --examples
-  #         cargo +nightly test -p wasmedge-sys --doc
-
-  #     - name: Clean up
-  #       run: |
-  #         cd bindings/rust/
-  #         cargo clean
-
-  #     - name: Test
-  #       run: |
-  #         $vsPath = (vswhere -latest -property installationPath)
-  #         Import-Module (Join-Path $vsPath "Common7\Tools\Microsoft.VisualStudio.DevShell.dll")
-  #         Enter-VsDevShell -VsInstallPath $vsPath -SkipAutomaticLocation -DevCmdArguments "-arch=x64 -host_arch=x64 -winsdk=10.0.19041.0"
-  #         cd bindings/rust/
-  #         $WASMEDGE_DIR="$(pwd)/../../"
-  #         $WASMEDGE_BUILD_DIR="$(pwd)/../../build"
-  #         $WASMEDGE_PLUGIN_PATH="$(pwd)/../../build/plugins/wasmedge_process"
-  #         $LD_LIBRARY_PATH="$(pwd)/../../build/lib/api"
-  #         cargo +nightly test --lib --examples --locked
-  #         cargo +nightly test --doc --locked
 
   build_windows_WASMEDGE_BUILD_DIR:
     name: Windows [By Specifying WASMEDGE_BUILD_DIR]

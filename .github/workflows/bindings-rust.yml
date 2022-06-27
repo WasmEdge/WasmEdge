@@ -95,11 +95,21 @@ jobs:
           cargo +nightly test --doc --locked
 
   build_macos:
-    name: MacOS
-    runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [macos-11]
+        include:
+          - name: MacOS 10.15
+            host_runner: macos-10.15
+            darwin_version: darwin_19
+          - name: MacOS 11
+            host_runner: macos-11
+            darwin_version: darwin_20
+          - name: MacOS 12
+            host_runner: macos-12
+            darwin_version: darwin_21
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.host_runner }}
+    needs: get_version_v2
 
     steps:
       - name: Checkout sources
@@ -123,24 +133,7 @@ jobs:
         run: |
           cd bindings/rust/
           cargo +nightly fmt --all -- --check
-
-      # - name: Test wasmedge-sys in standalone mode
-      #   run: |
-      #     brew install llvm ninja boost cmake
-      #     export PATH="/usr/local/opt/llvm/bin:$PATH"
-      #     export LDFLAGS="-L/usr/local/opt/llvm/lib -Wl,-rpath,/usr/local/opt/llvm/lib"
-      #     export CPPFLAGS="-I/usr/local/opt/llvm/include"
-      #     export CC=clang
-      #     export CXX=clang++
-      #     cd bindings/rust/
-      #     export WASMEDGE_DIR="$(pwd)/../../"
-      #     cargo +nightly test -p wasmedge-sys --lib --examples
-      #     cargo +nightly test -p wasmedge-sys --doc
-
-      - name: Clean up
-        run: |
-          cd bindings/rust/
-          cargo clean
+          cd -
 
       - name: Build WasmEdge
         run: |
@@ -150,7 +143,6 @@ jobs:
           export CPPFLAGS="-I/usr/local/opt/llvm/include"
           export CC=clang
           export CXX=clang++
-          cmake -Bbuild -GNinja -DWASMEDGE_BUILD_TESTS=ON .
           cmake -Bbuild -GNinja -DWASMEDGE_BUILD_TESTS=ON -DWASMEDGE_BUILD_PACKAGE="TGZ" .
           cmake --build build
 

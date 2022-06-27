@@ -12,7 +12,7 @@
 #include <vector>
 
 using WasmEdge::Host::WASINN::ErrNo;
-#ifdef WASMEDGE_WASINN_BUILD_OPENVINO
+#ifdef WASMEDGE_WASINN_BACKEND_OPENVINO
 namespace {
 
 inline std::vector<uint8_t> readBinariesFromDisk(const std::string file_path) {
@@ -380,4 +380,4 @@ TEST(WasiNNTest, OpenVINOBackend) {
     }
   }
 }
-#endif // WASMEDGE_WASINN_BUILD_OPENVINO
+#endif // WASMEDGE_WASINN_BACKEND_OPENVINO

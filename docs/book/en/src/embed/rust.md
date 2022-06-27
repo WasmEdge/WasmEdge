@@ -82,6 +82,8 @@ For those who are interesting in building `wasmedge-sdk` from source, as mention
 wasmedge-sys = [version = "0.7.0", features = ["standalone"]]
 ```
 
+*For Windows users, duo to [issue 1527](https://github.com/WasmEdge/WasmEdge/issues/1527), the current version of `wasmedge-sys` does not support `standalone` mode on Windows platform. Please choose to use our [docker image](#docker-image). We'll fix the issue as soon as possible.*
+
 For those who want to build `wasmedge-sys` from source in terminal, just go to the `wasmedge-sys` directory and type `cargo build --features standalone` command that will compile the `wasmedge-sys` crate in `standalone` mode.
 
 ### Build in `non-standalone` mode

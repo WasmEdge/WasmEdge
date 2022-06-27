@@ -113,7 +113,9 @@ int main(int argc, char **argv) {
   fclose(File);
 
   /* Resources deallocations. */
+  WasmEdge_ModuleInstanceDelete(HostModCxt);
   WasmEdge_VMDelete(VMCxt);
+  WasmEdge_StringDelete(ModName);
   WasmEdge_StringDelete(FuncName);
   WasmEdge_MemoryTypeDelete(MemTypeCxt);
   WasmEdge_ConfigureDelete(ConfCxt);

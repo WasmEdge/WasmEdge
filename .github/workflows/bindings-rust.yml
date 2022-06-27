@@ -99,7 +99,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [macos-11]
+        os: [macos-10.15, macos-11, macos-12]
 
     steps:
       - name: Checkout sources

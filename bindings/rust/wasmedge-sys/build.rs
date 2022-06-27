@@ -1,9 +1,3 @@
-// use std::{
-//     env,
-//     path::{Path, PathBuf},
-//     process::Command,
-// };
-// use walkdir::WalkDir;
 use std::path::PathBuf;
 
 const WASMEDGE_H: &str = "wasmedge.h";
@@ -106,72 +100,72 @@ fn find_wasmedge() -> Option<Paths> {
                         inc_dir,
                     });
                 }
-            } else {
-                println!(
-                    "cargo:warning=[wasmedge-sys] WASMEDGE_BUILD_DIR: {:?} does not exist",
-                    build_dir
-                );
             }
+
+            println!(
+                "cargo:warning=[wasmedge-sys] WASMEDGE_BUILD_DIR: {:?} does not exist",
+                build_dir
+            );
         } else {
-            // search in xdg
-            let xdg_dir = env_path!("HOME").map(|d| d.join(".local"));
-            if let Some(xdg_dir) = xdg_dir {
-                if xdg_dir.exists() {
-                    let inc_dir = xdg_dir.join("include");
-                    let header = inc_dir.join(WASMEDGE_H);
-                    let lib_dir = if xdg_dir.join("lib64").exists() {
-                        xdg_dir.join("lib64")
+            // search in the official docker container
+            let default_dir = env_path!("HOME").map(|d| d.join(".wasmedge"));
+            if let Some(default_dir) = default_dir {
+                if default_dir.exists() {
+                    // WASMEDGE_INCLUDE_DIR
+                    let inc_dir = default_dir.join("include");
+                    // header
+                    let header = inc_dir.join("wasmedge");
+                    let header = header.join(WASMEDGE_H);
+                    // WASMEDGE_LIB_DIR
+                    let lib_dir = if default_dir.join("lib64").exists() {
+                        default_dir.join("lib64")
                     } else {
-                        xdg_dir.join("lib")
+                        default_dir.join("lib")
                     };
+
                     if inc_dir.exists() && lib_dir.exists() && header.exists() {
-                        println!("cargo:warning=[wasmedge-sys] Use xdg path: {:?}", xdg_dir);
+                        println!(
+                            "cargo:warning=[wasmedge-sys] Use default dir: {:?}",
+                            default_dir
+                        );
                         return Some(Paths {
                             header,
                             lib_dir,
                             inc_dir,
                         });
                     }
-                } else {
-                    println!(
-                        "cargo:warning=[wasmedge-sys] xdg path: {:?} does not exist",
-                        xdg_dir
-                    );
                 }
-            } else {
-                // search in the official docker container
-                let docker_dir = env_path!("HOME").map(|d| d.join(".wasmedge"));
-                if let Some(docker_dir) = docker_dir {
-                    if docker_dir.exists() {
-                        // WASMEDGE_INCLUDE_DIR
-                        let inc_dir = docker_dir.join("include");
-                        // header
-                        let header = inc_dir.join("wasmedge");
-                        let header = header.join(WASMEDGE_H);
-                        // WASMEDGE_LIB_DIR
-                        let lib_dir = if docker_dir.join("lib64").exists() {
-                            docker_dir.join("lib64")
-                        } else {
-                            docker_dir.join("lib")
-                        };
 
+                println!(
+                    "cargo:warning=[wasmedge-sys] docker env path: {:?} does not exist",
+                    default_dir
+                );
+            } else {
+                // search in xdg
+                let xdg_dir = env_path!("HOME").map(|d| d.join(".local"));
+                if let Some(xdg_dir) = xdg_dir {
+                    if xdg_dir.exists() {
+                        let inc_dir = xdg_dir.join("include");
+                        let header = inc_dir.join(WASMEDGE_H);
+                        let lib_dir = if xdg_dir.join("lib64").exists() {
+                            xdg_dir.join("lib64")
+                        } else {
+                            xdg_dir.join("lib")
+                        };
                         if inc_dir.exists() && lib_dir.exists() && header.exists() {
-                            println!(
-                                "cargo:warning=[wasmedge-sys] Use docker env path: {:?}",
-                                docker_dir
-                            );
+                            println!("cargo:warning=[wasmedge-sys] Use xdg path: {:?}", xdg_dir);
                             return Some(Paths {
                                 header,
                                 lib_dir,
                                 inc_dir,
                             });
                         }
-                    } else {
-                        println!(
-                            "cargo:warning=[wasmedge-sys] docker env path: {:?} does not exist",
-                            docker_dir
-                        );
                     }
+
+                    println!(
+                        "cargo:warning=[wasmedge-sys] xdg path: {:?} does not exist",
+                        xdg_dir
+                    );
                 }
             }
         }

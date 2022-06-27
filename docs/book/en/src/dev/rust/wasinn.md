@@ -26,10 +26,10 @@ sudo apt update
 sudo apt install -y intel-openvino-runtime-ubuntu20-$OPENVINO_VERSION
 ```
 
-By default, we don't enable any WASI-NN backend in WasmEdge. To enable the OpenVINO™ backend, we need to [building the WasmEdge from source](../../extend/build.md) with the cmake option `-DWASMEDGE_WASINN_BUILD_OPENVINO=ON` to enable the OpenVINO™ backend:
+By default, we don't enable any WASI-NN backend in WasmEdge. To enable the OpenVINO™ backend, we need to [building the WasmEdge from source](../../extend/build.md) with the cmake option `-DWASMEDGE_WASINN_BACKEND="OpenVINO"` to enable the OpenVINO™ backend:
 
 ```bash
-git clone -b proposal/wasi_nn https://github.com/WasmEdge/WasmEdge.git && cd WasmEdge
+git clone -b master https://github.com/WasmEdge/WasmEdge.git && cd WasmEdge
 # If use docker
 docker pull wasmedge/wasmedge
 docker run -it --rm \
@@ -38,7 +38,7 @@ docker run -it --rm \
 cd /root/wasmedge
 # If you don't use docker then you need to run only the following commands in the cloned repository root
 mkdir -p build && cd build
-cmake -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_WASINN_BUILD_OPENVINO=ON .. && make -j
+cmake -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_WASINN_BACKEND="OpenVINO" .. && make -j
 # For the WASI-NN plugin, you should install this project.
 cmake --install .
 ```

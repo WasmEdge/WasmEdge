@@ -4,7 +4,7 @@
 #include "wasinnfunc.h"
 #include "common/log.h"
 
-#ifdef WASMEDGE_WASINN_BUILD_OPENVINO
+#ifdef WASMEDGE_WASINN_BACKEND_OPENVINO
 #include <algorithm>
 #include <string>
 
@@ -26,7 +26,7 @@ Expect<uint32_t> WasiNNLoad::body(Runtime::Instance::MemoryInstance *MemInst,
   }
 
   if (Encoding == static_cast<uint32_t>(WASINN::Backend::OpenVINO)) {
-#ifdef WASMEDGE_WASINN_BUILD_OPENVINO
+#ifdef WASMEDGE_WASINN_BACKEND_OPENVINO
     // The OpenVINO core must be initialized in constructor.
     if (unlikely(Env.OpenVINOCore == nullptr)) {
       spdlog::error("[WASI-NN] OpenVINO core not initialized.");
@@ -232,7 +232,7 @@ Expect<uint32_t> WasiNNLoad::body(Runtime::Instance::MemoryInstance *MemInst,
     return static_cast<uint32_t>(WASINN::ErrNo::Success);
 #else
     spdlog::error("[WASI-NN] OpenVINO backend is not built. use "
-                  "-DWASMEDGE_WASINN_BUILD_OPENVINO=ON"
+                  "-DWASMEDGE_WASINN_BACKEND_OPENVINO=ON"
                   "to build it.");
 #endif
   } else {
@@ -255,7 +255,7 @@ WasiNNInitExecCtx::body(Runtime::Instance::MemoryInstance *MemInst,
   }
 
   if (Env.NNGraph[GraphId].GraphBackend == WASINN::Backend::OpenVINO) {
-#ifdef WASMEDGE_WASINN_BUILD_OPENVINO
+#ifdef WASMEDGE_WASINN_BACKEND_OPENVINO
     // Check the return value: Context should be valid.
     uint32_t *Context = MemInst->getPointer<uint32_t *>(ContextPtr, 1);
     if (unlikely(Context == nullptr)) {
@@ -285,7 +285,7 @@ WasiNNInitExecCtx::body(Runtime::Instance::MemoryInstance *MemInst,
     return static_cast<uint32_t>(WASINN::ErrNo::Success);
 #else
     spdlog::error("[WASI-NN] OpenVINO backend is not built. define "
-                  "-DWASMEDGE_WASINN_BUILD_OPENVINO "
+                  "-DWASMEDGE_WASINN_BACKEND_OPENVINO "
                   "to build it.");
 #endif
   } else {
@@ -309,7 +309,7 @@ WasiNNSetInput::body(Runtime::Instance::MemoryInstance *MemInst,
 
   auto &CxtRef = Env.NNContext[Context];
   if (CxtRef.GraphRef.GraphBackend == WASINN::Backend::OpenVINO) {
-#ifdef WASMEDGE_WASINN_BUILD_OPENVINO
+#ifdef WASMEDGE_WASINN_BACKEND_OPENVINO
     // Check the infer request and the network.
     auto *Network = CxtRef.GraphRef.OpenVINONetwork;
     if (Network == nullptr || CxtRef.OpenVINOInferRequest == nullptr) {
@@ -457,7 +457,7 @@ WasiNNSetInput::body(Runtime::Instance::MemoryInstance *MemInst,
     return static_cast<uint32_t>(WASINN::ErrNo::Success);
 #else
     spdlog::error("[WASI-NN] OpenVINO backend is not built, use "
-                  "-DWASMEDGE_WASINN_BUILD_OPENVINO=ON"
+                  "-DWASMEDGE_WASINN_BACKEND_OPENVINO=ON"
                   "to build it.");
 #endif
   } else {
@@ -483,7 +483,7 @@ WasiNNGetOuput::body(Runtime::Instance::MemoryInstance *MemInst,
 
   auto &CxtRef = Env.NNContext[Context];
   if (CxtRef.GraphRef.GraphBackend == WASINN::Backend::OpenVINO) {
-#ifdef WASMEDGE_WASINN_BUILD_OPENVINO
+#ifdef WASMEDGE_WASINN_BACKEND_OPENVINO
     auto *Network = CxtRef.GraphRef.OpenVINONetwork;
 
     // Check the output index.
@@ -554,7 +554,7 @@ WasiNNGetOuput::body(Runtime::Instance::MemoryInstance *MemInst,
     return static_cast<uint32_t>(WASINN::ErrNo::Success);
 #else
     spdlog::error("[WASI-NN] OpenVINO backend is not built. use "
-                  "-DWASMEDGE_WASINN_BUILD_OPENVINO=ON"
+                  "-DWASMEDGE_WASINN_BACKEND_OPENVINO=ON"
                   "to build it.");
 #endif
   } else {
@@ -576,7 +576,7 @@ Expect<uint32_t> WasiNNCompute::body(Runtime::Instance::MemoryInstance *MemInst,
 
   auto &CxtRef = Env.NNContext[Context];
   if (CxtRef.GraphRef.GraphBackend == WASINN::Backend::OpenVINO) {
-#ifdef WASMEDGE_WASINN_BUILD_OPENVINO
+#ifdef WASMEDGE_WASINN_BACKEND_OPENVINO
     IEStatusCode Status = ie_infer_request_infer(CxtRef.OpenVINOInferRequest);
     if (Status != IEStatusCode::OK) {
       spdlog::error(
@@ -587,7 +587,7 @@ Expect<uint32_t> WasiNNCompute::body(Runtime::Instance::MemoryInstance *MemInst,
     return static_cast<uint32_t>(WASINN::ErrNo::Success);
 #else
     spdlog::error("[WASI-NN] OpenVINO backend is not built. use "
-                  "-DWASMEDGE_WASINN_BUILD_OPENVINO=ON"
+                  "-DWASMEDGE_WASINN_BACKEND_OPENVINO=ON"
                   "to build it.");
 #endif
   } else {

@@ -95,21 +95,11 @@ jobs:
           cargo +nightly test --doc --locked
 
   build_macos:
+    name: MacOS
+    runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        include:
-          - name: MacOS 10.15
-            host_runner: macos-10.15
-            darwin_version: darwin_19
-          - name: MacOS 11
-            host_runner: macos-11
-            darwin_version: darwin_20
-          - name: MacOS 12
-            host_runner: macos-12
-            darwin_version: darwin_21
-    name: ${{ matrix.name }}
-    runs-on: ${{ matrix.host_runner }}
-    needs: get_version_v2
+        os: [macos-10.15, macos-11, macos-12]
 
     steps:
       - name: Checkout sources

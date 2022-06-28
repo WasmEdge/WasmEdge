@@ -54,7 +54,7 @@ impl Memory {
         Ok(ty.into())
     }
 
-    /// Returns the size, in WebAssembly pages, of this memory.
+    /// Returns the size, in WebAssembly pages (64 KiB of each page), of this memory.
     pub fn size(&self) -> u32 {
         self.inner.size()
     }

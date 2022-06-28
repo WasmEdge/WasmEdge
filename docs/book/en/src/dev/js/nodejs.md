@@ -12,7 +12,7 @@ Some Node.js functions can be implemented in pure JavaScript using the [modules]
 
 * The [querystring](https://github.com/second-state/wasmedge-quickjs/blob/main/modules/querystring.js) functions just perform string manipulations.
 * The [buffer](https://github.com/second-state/wasmedge-quickjs/blob/main/modules/buffer.js) functions manage and encode arrays and memory structures.
-* The [encoding](https://github.com/second-state/wasmedge-quickjs/blob/main/modules/encoding.js) and [http](https://github.com/second-state/wasmedge-quickjs/blob/main/modules/http.js) functions provide a Node.js `fetch()` API wrapper around JavaScript functions implemneted in Rust.
+* The [encoding](https://github.com/second-state/wasmedge-quickjs/blob/main/modules/encoding.js) and [http](https://github.com/second-state/wasmedge-quickjs/blob/main/modules/http.js) functions provide a Node.js `fetch()` API wrapper around JavaScript functions implemented in Rust.
 
 ## The Rust internal modules
 

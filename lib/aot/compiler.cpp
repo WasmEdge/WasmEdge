@@ -4670,7 +4670,14 @@ Expect<void> outputNativeLibrary(const std::filesystem::path &OutputPath,
   // link
   bool LinkResult = false;
 #if WASMEDGE_OS_MACOS
+#if LLVM_VERSION_MAJOR >= 14
+  // LLVM 14 replaces the older mach_o lld implementation with the new one.
+  // So we need to change the namespace after LLVM 14.x released.
+  // Reference: https://reviews.llvm.org/D114842
+  LinkResult = lld::macho::link(
+#else
   LinkResult = lld::mach_o::link(
+#endif
       std::initializer_list<const char *> {
         "lld", "-arch",
 #if defined(__x86_64__)

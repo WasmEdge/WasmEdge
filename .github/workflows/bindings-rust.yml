@@ -8,7 +8,6 @@ on:
   push:
     branches:
       - master
-      - rust/ci-remove-standalone
     paths:
       - ".github/workflows/bindings-rust.yml"
       - "bindings/rust/**"

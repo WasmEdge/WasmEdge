@@ -11,7 +11,7 @@ Below is an example of JavaScript running an async HTTP client. You could find t
 ```javascript
 async function get_test() {
   try {
-    let ss = await net.connect('152.136.235.225:80');
+    let ss = await net.WasiTcpConn.connect('152.136.235.225:80');
     let req = new http.WasiRequest();
     req.headers = { 'Host': '152.136.235.225' };
     req.uri = '/get?a=123';

@@ -294,4 +294,8 @@ An error has been caught
 TypeError: cannot read property 'x' of undefined
 ```
 
+## Code reuse
+
+Using the Rust API, we could create JavaScript classes that inherit (or extend) from existing classes. That allows developers to create complex JavaScript APIs using Rust by building on existing solutions. You can see [an example here](https://github.com/second-state/wasmedge-quickjs/blob/main/examples/js_extend.rs).
+
 Next, you can see the Rust code in the [internal_module](https://github.com/second-state/wasmedge-quickjs/tree/main/src/internal_module) folder for more examples on how to implement common JavaScript build-in functions including [Node.js](nodejs.md) APIs.

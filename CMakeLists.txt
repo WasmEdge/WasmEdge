@@ -54,6 +54,21 @@ else()
   target_include_directories(Boost_boost INTERFACE ${boost_SOURCE_DIR})
 endif()
 
+find_package(orlp-ed25519 QUIET)
+if(${orlp-ed25519_FOUND})
+else()
+  FetchContent_Declare(
+    orlp-ed25519
+    GIT_REPOSITORY https://github.com/GlitchedPolygons/GlitchEd25519.git
+    GIT_TAG 8b91ec724eba045b7447912a34159c84c38c03e7
+  )
+  FetchContent_MakeAvailable(orlp-ed25519)
+  # add_library(orlp-ed25519 INTERFACE)
+  add_library(ED25519 ALIAS orlp-ed25519)
+  set_property(TARGET orlp-ed25519 PROPERTY POSITION_INDEPENDENT_CODE ON)
+  target_include_directories(orlp-ed25519 INTERFACE ${orlp-ed25519_SOURCE_DIR}/src)
+endif()
+
 include(Helper)
 
 # List of WasmEdge options

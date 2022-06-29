@@ -28,5 +28,6 @@ install(TARGETS wasmedge EXPORT wasmedge DESTINATION bin)
 target_link_libraries(wasmedge
   PRIVATE
   wasmedgePO
+  wasmedgeSignature
   wasmedgeVM
 )

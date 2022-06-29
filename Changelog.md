@@ -1,3 +1,45 @@
+### 0.10.1-alpha.1 (2022-06-22)
+
+Features:
+
+* Supported WASI-NN plug-in with OpenVINO backend on Ubuntu 20.04 x86_64.
+  * Users can refer to the [standard extension status](https://wasmedge.org/book/en/intro/standard.html) for the information.
+* Supported the WASM `threads` proposal.
+  * Added the `WasmEdge_Proposal_Threads` for the configuration in WasmEdge C API.
+  * Users can use the `--enable-threads` to enable the proposal in `wasmedge` and `wasmedgec` tools.
+
+Fixed issues:
+
+* Fixed the WasmEdge C API static library on MacOS with LLVM 14.
+  * The WasmEdge C API static library is in experimental and not guaranteed. The shared library is recommended.
+
+Known issues:
+
+* Universal WASM format failed on MacOS platforms.
+  * In current status, the universal WASM format output of the AOT compiler on MacOS platforms will cause bus error when execution.
+  * We are trying to fix this issue. For working around, please use the shared library format output of the AOT mode.
+  * Developers can specify the extension name as `.dylib` on MacOS, `.so` on Linux, and `.dll` on Windows for the shared library format output of the AOT compiler.
+* WasmEdge CLI failed on Windows 10 issue.
+  * Please refer to [here for the workaround](https://github.com/WasmEdge/WasmEdge/issues/1559) if the `msvcp140.dll is missing` occurs.
+* Plug-in linking on MacOS platforms.
+  * The plug-in on MacOS platforms will cause symbol not found when dynamic linking.
+  * We are trying to fix this issue. For working around, please implement the host modules instead of plug-ins.
+
+Documentations:
+
+* Added the [documentation for WASI-NN supporting on WasmEdge](https://wasmedge.org/book/en/dev/rust/wasinn.html).
+
+Tests:
+
+* Added the spec tests for the `threads` proposal.
+* Added the WASI-NN unit tests.
+
+Thank all the contributors that made this release possible!
+
+Abhinandan Udupa, Frank Lin, Jianbai Ye, LFsWang, Lokesh Mandvekar, Michael Yuan, Shen-Ta Hsieh, Shreyas Atre, Sylveon, Tricster, William Wen, 罗泽轩, Xin Liu, Yi Huang, Yi-Ying He, Yixing Jia, abhinandanudupa, alabulei1, dm4, eee4017, hydai, swartz-k, yale
+
+If you want to build from source, please use WasmEdge-0.10.1-alpha.1-src.tar.gz instead of the zip or tarball provided by GitHub directly.
+
 ### 0.10.0 (2022-05-26)
 
 Breaking changes:

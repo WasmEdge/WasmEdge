@@ -26,14 +26,16 @@ namespace winapi = boost::winapi;
 
 namespace {
 inline constexpr uint64_t roundDownPageBoundary(const uint64_t Value) {
-#if WASMEDGE_OS_MACOS
+// ARM64 Mac has a special page size
+#if WASMEDGE_OS_MACOS && defined(__aarch64__)
   return Value & ~UINT64_C(16383);
 #else
   return Value & ~UINT64_C(4095);
 #endif
 }
 inline constexpr uint64_t roundUpPageBoundary(const uint64_t Value) {
-#if WASMEDGE_OS_MACOS
+// ARM64 Mac has a special page size
+#if WASMEDGE_OS_MACOS && defined(__aarch64__)
   return roundDownPageBoundary(Value + UINT64_C(16383));
 #else
   return roundDownPageBoundary(Value + UINT64_C(4095));

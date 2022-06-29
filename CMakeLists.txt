@@ -21,7 +21,7 @@ endif()
 # Overwrite version information once there is a VERSION file
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/VERSION")
   file(READ "${CMAKE_CURRENT_SOURCE_DIR}/VERSION" LOCAL_VERSION)
-  set(CPACK_PACKAGE_VERSION LOCAL_VERSION)
+  set(CPACK_PACKAGE_VERSION ${LOCAL_VERSION})
   unset(LOCAL_VERSION)
 endif()
 
@@ -66,6 +66,7 @@ option(WASMEDGE_BUILD_TOOLS "Generate wasmedge and wasmedgec tools." ON)
 option(WASMEDGE_BUILD_PLUGINS "Generate plugins." ON)
 option(WASMEDGE_BUILD_EXAMPLE "Generate examples." OFF)
 option(WASMEDGE_FORCE_DISABLE_LTO "Forcibly disable link time optimization when linking even in Release/RelWithDeb build." OFF)
+option(WASMEDGE_WASINN_BUILD_OPENVINO "Enable WasmEdge Wasi-NN OpenVINO backend" OFF)
 set(WASMEDGE_BUILD_PACKAGE "DEB;RPM" CACHE STRING "Package generate types")
 set(CPACK_PROJECT_CONFIG_FILE ${CMAKE_CURRENT_SOURCE_DIR}/cmake/cpack_config.cmake)
 

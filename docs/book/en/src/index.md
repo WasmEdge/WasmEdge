@@ -139,8 +139,8 @@ $ wasmedge --enable-all-statistics --gas-limit 20 hello.wasm second state
 
 It is possible to use WasmEdge as a high-performance, secure, extensible, easy to deploy, and [Kubernetes-compliant](https://github.com/second-state/wasmedge-containers-examples) JavaScript runtime.
 
-The [qjs.wasm](https://github.com/WasmEdge/WasmEdge/raw/master/examples/wasm/js/qjs.wasm) program is a JavaScript interpreter compiled into WebAssembly.
-The [hello.js](https://github.com/WasmEdge/WasmEdge/raw/master/examples/wasm/js/hello.js) file is a very simple JavaScript program.
+The [qjs.wasm](https://github.com/WasmEdge/WasmEdge/raw/master/examples/js/qjs.wasm) program is a JavaScript interpreter compiled into WebAssembly.
+The [hello.js](https://github.com/WasmEdge/WasmEdge/raw/master/examples/js/hello.js) file is a very simple JavaScript program.
 
 ```bash
 $ wasmedge --dir .:. qjs.wasm hello.js 1 2 3

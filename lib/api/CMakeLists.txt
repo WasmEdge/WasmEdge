@@ -138,10 +138,19 @@ if(WASMEDGE_BUILD_STATIC_LIB)
     endforeach()
     wasmedge_add_libs_component_command("lldELF" ${LLVM_LIBRARY_DIR})
     wasmedge_add_libs_component_command("lldCommon" ${LLVM_LIBRARY_DIR})
-    wasmedge_add_libs_component_command("lldCore" ${LLVM_LIBRARY_DIR})
-    wasmedge_add_libs_component_command("lldDriver" ${LLVM_LIBRARY_DIR})
-    wasmedge_add_libs_component_command("lldReaderWriter" ${LLVM_LIBRARY_DIR})
-    wasmedge_add_libs_component_command("lldYAML" ${LLVM_LIBRARY_DIR})
+    if(LLVM_VERSION_MAJOR LESS_EQUAL 13)
+      # For LLVM <= 13
+      wasmedge_add_libs_component_command("lldCore" ${LLVM_LIBRARY_DIR})
+      wasmedge_add_libs_component_command("lldDriver" ${LLVM_LIBRARY_DIR})
+      wasmedge_add_libs_component_command("lldReaderWriter" ${LLVM_LIBRARY_DIR})
+      wasmedge_add_libs_component_command("lldYAML" ${LLVM_LIBRARY_DIR})
+    else()
+      # For LLVM 14
+      wasmedge_add_libs_component_command("lldMinGW" ${LLVM_LIBRARY_DIR})
+      wasmedge_add_libs_component_command("lldCOFF" ${LLVM_LIBRARY_DIR})
+      wasmedge_add_libs_component_command("lldMachO" ${LLVM_LIBRARY_DIR})
+      wasmedge_add_libs_component_command("lldWasm" ${LLVM_LIBRARY_DIR})
+    endif()
 
     if(NOT APPLE)
       # Pack the zlib.

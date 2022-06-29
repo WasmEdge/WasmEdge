@@ -1,0 +1,87 @@
+name: Build and Test WasmEdge with extensions on multiple platforms
+
+concurrency:
+  group: build-extensions-${{ github.head_ref }}
+  cancel-in-progress: true
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - ".github/workflows/build-extensions.yml"
+      - "plugins/**"
+      - "examples/**"
+      - "rpm/**"
+      - "test/**"
+      - "thirdparty/**"
+      - "tools/**"
+      - "CMakeLists.txt"
+  pull_request:
+    branches:
+      - master
+      - 'proposal/**'
+    paths:
+      - ".github/workflows/build-extensions.yml"
+      - "plugins/**"
+      - "examples/**"
+      - "rpm/**"
+      - "test/**"
+      - "thirdparty/**"
+      - "tools/**"
+      - "CMakeLists.txt"
+
+jobs:
+  get_version_v2:
+    name: Retrieve version information (v2)
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.prep.outputs.version }}
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
+    - name: Get version
+      id: prep
+      run: |
+        # Retrieve annotated tags. Details: https://github.com/actions/checkout/issues/290
+        git fetch --tags --force
+        echo "Set version: $(git describe --match "[0-9].[0-9]*" --tag)"
+        echo ::set-output name=version::$(git describe --match "[0-9].[0-9]*" --tag)
+
+  build_ubuntu:
+    strategy:
+      matrix:
+        include:
+          - name: WASI-NN OpenVINO
+            compiler: g++
+            docker_tag: ubuntu-build-gcc
+            build_type: Release
+            openvino: true
+            coverage: false
+          - name: WASI-NN OpenVINO
+            compiler: clang++
+            docker_tag: ubuntu-build-clang
+            build_type: Release
+            openvino: true
+            coverage: false
+    name: Ubuntu 20.04 with ${{ matrix.name }} ${{ matrix.compiler}} ${{ matrix.build_type}}
+    runs-on: ubuntu-latest
+    container:
+      image: wasmedge/wasmedge:${{ matrix.docker_tag }}
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
+    - name: Build WasmEdge with ${{ matrix.name }} using ${{ matrix.compiler }} with ${{ matrix.build_type }} mode
+      if: ${{ matrix.openvino }}
+      env:
+        CMAKE_BUILD_TYPE: ${{ matrix.build_type }}
+        OPENVINO_VERSION: "2021.4.582"
+        OPENVINO_YEAR: "2021"
+      run: |
+        bash utils/docker/build-wasinn-ubuntu-openvino.sh
+    - name: Test WasmEdge with ${{ matrix.name }} using ${{ matrix.compiler }} with ${{ matrix.build_type }} mode
+      if: ${{ matrix.openvino }}
+      run: |
+        bash utils/docker/test-wasinn-ubuntu-openvino.sh

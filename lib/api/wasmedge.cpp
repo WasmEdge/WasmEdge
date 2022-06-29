@@ -1656,6 +1656,18 @@ WASMEDGE_CAPI_EXPORT uint32_t WasmEdge_ModuleInstanceWASIGetExitCode(
 }
 
 WASMEDGE_CAPI_EXPORT WasmEdge_ModuleInstanceContext *
+WasmEdge_ModuleInstanceCreateWasiNN(void) {
+  using namespace std::literals::string_view_literals;
+  if (const auto *Plugin = WasmEdge::Plugin::Plugin::find("wasi_nn"sv)) {
+    if (const auto *Module = Plugin->findModule("wasi_nn"sv)) {
+      auto *ProcMod = toModCxt(Module->create().release());
+      return ProcMod;
+    }
+  }
+  return nullptr;
+}
+
+WASMEDGE_CAPI_EXPORT WasmEdge_ModuleInstanceContext *
 WasmEdge_ModuleInstanceCreateWasmEdgeProcess(const char *const *AllowedCmds,
                                              const uint32_t CmdsLen,
                                              const bool AllowAll) {

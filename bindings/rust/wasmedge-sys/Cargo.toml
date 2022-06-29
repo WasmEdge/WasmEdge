@@ -27,4 +27,3 @@ cmake = "0.1"
 [features]
 aot = []
 default = ["aot"]
-standalone = []

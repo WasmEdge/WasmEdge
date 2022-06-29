@@ -1,0 +1,10 @@
+[package]
+edition = "2021"
+name = "wasi_print_env"
+version = "0.1.0"
+
+[lib]
+crate-type = ["cdylib"]
+
+# This empty workspace is a workaround for workspace.exclude issue (https://github.com/rust-lang/cargo/issues/6745).
+[workspace]

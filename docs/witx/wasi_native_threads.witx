@@ -1,0 +1,45 @@
+(use "typenames.witx")
+
+(type $functype (func (param i32) (result i32)))
+
+(module $wasi_native_threads
+  ;;; Linear memory to be accessed by WASI functions that need it.
+  (import "memory" (memory))
+
+  ;;; Create a thread
+  ;;; Note: This is similar to `pthread_create` in POSIX.
+  (@interface func (export "pthread_create")
+    (param $thread (@witx pointer $pthread_t))
+    (param $functype $func)
+    (param $args (@witx pointer u8))
+    (result $error (expected $sock_d (error $errno)))
+  )
+
+  ;;; join a thread.
+  ;;; Note: This is similar to `pthread_join` in POSIX.
+  (@interface func (export "pthread_join")
+    (param $thread $pthread_t)
+    (param $retval (@witx pointer u8))
+    (result $error (expected (error $errno)))
+  )
+
+  ;;; detach a thread.
+  ;;; Note: This is similar to `pthread_detach` in POSIX.
+  (@interface func (export "pthread_detach")
+    (param $thread $pthread_t)
+    (result $error (expected (error $errno)))
+  )
+
+  ;;; cancel a thread.
+  ;;; Note: This is similar to `pthread_cancel` in POSIX.
+  (@interface func (export "pthread_cancel")
+    (param $thread $pthread_t)
+    (result $error (expected (error $errno)))
+  )
+
+  ;;; get pthread_t of this thread.
+  ;;; Note: This is similar to `pthread_self` in POSIX.
+  (@interface func (export "pthread_self")
+    (result $thread $pthread_t)
+  )
+)

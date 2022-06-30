@@ -13,7 +13,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // set the envs and args for the wasi module
     let args = vec!["arg1", "arg2"];
     let envs = vec!["ENV1=VAL1", "ENV2=VAL2", "ENV3=VAL3"];
-    // let envs = vec!["hello=world", "ENV2=VAL2"];
     let mut wasi_module = vm.wasi_module_mut()?;
     wasi_module.init_wasi(Some(args), Some(envs), None);
 

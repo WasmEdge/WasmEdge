@@ -30,36 +30,6 @@ pub(crate) fn path_to_cstring(path: &Path) -> WasmEdgeResult<CString> {
     }
 }
 
-pub(crate) fn string_to_c_char(arg: impl AsRef<str>) -> *const std::os::raw::c_char {
-    let s = CString::new(arg.as_ref()).unwrap();
-    s.as_ptr()
-}
-
-/// Full version.
-///
-/// ## Example
-///
-/// ```rust
-/// // in `wasmedge.rs`
-/// pub const WASMEDGE_VERSION: &'static [u8; 22usize] = b"0.8.2-rc.5-1-g809c746\0";
-/// pub const WASMEDGE_VERSION_MAJOR: u32 = 0;
-/// pub const WASMEDGE_VERSION_MINOR: u32 = 8;
-/// pub const WASMEDGE_VERSION_PATCH: u32 = 2;
-/// ```
-pub fn full_version() -> WasmEdgeResult<&'static str> {
-    Ok(CStr::from_bytes_with_nul(ffi::WASMEDGE_VERSION)?.to_str()?)
-}
-
-/// Semantic Version.
-pub fn semv_version() -> String {
-    format!(
-        "{}.{}.{}",
-        ffi::WASMEDGE_VERSION_MAJOR,
-        ffi::WASMEDGE_VERSION_MINOR,
-        ffi::WASMEDGE_VERSION_PATCH
-    )
-}
-
 /// Logs the debug information.
 pub fn log_debug_info() {
     unsafe { ffi::WasmEdge_LogSetDebugLevel() }
@@ -327,4 +297,28 @@ pub(crate) fn check(result: WasmEdge_Result) -> WasmEdgeResult<()> {
 /// * For Windows, `%USERPROFILE%\.wasmedge\plugins\wasmedge_process`.
 pub fn load_plugin_from_default_paths() {
     unsafe { ffi::WasmEdge_Plugin_loadWithDefaultPluginPaths() }
+}
+
+/// Returns the major version value.
+pub fn version_major_value() -> u32 {
+    unsafe { ffi::WasmEdge_VersionGetMajor() }
+}
+
+/// Returns the minor version value.
+pub fn version_minor_value() -> u32 {
+    unsafe { ffi::WasmEdge_VersionGetMinor() }
+}
+
+/// Returns the patch version value.
+pub fn version_patch_value() -> u32 {
+    unsafe { ffi::WasmEdge_VersionGetPatch() }
+}
+
+/// Returns the version string.
+pub fn version_string() -> String {
+    unsafe {
+        CStr::from_ptr(ffi::WasmEdge_VersionGet())
+            .to_string_lossy()
+            .into_owned()
+    }
 }

@@ -5,7 +5,6 @@ use crate::{
     ffi,
     instance::{function::InnerFunc, global::InnerGlobal, memory::InnerMemory, table::InnerTable},
     types::WasmEdgeString,
-    utils::string_to_c_char,
     Function, Global, Memory, Table, WasmEdgeResult,
 };
 
@@ -543,35 +542,50 @@ impl WasiModule {
         envs: Option<Vec<&str>>,
         preopens: Option<Vec<&str>>,
     ) -> WasmEdgeResult<Self> {
-        let args = match args {
-            Some(args) => args.into_iter().map(string_to_c_char).collect::<Vec<_>>(),
+        // parse args
+        let cstr_args: Vec<_> = match args {
+            Some(args) => args
+                .iter()
+                .map(|&x| std::ffi::CString::new(x).unwrap())
+                .collect(),
             None => vec![],
         };
-        let args_len = args.len();
+        let mut p_args: Vec<_> = cstr_args.iter().map(|x| x.as_ptr()).collect();
+        let p_args_len = p_args.len();
+        p_args.push(std::ptr::null());
 
-        let envs = match envs {
-            Some(envs) => envs.into_iter().map(string_to_c_char).collect::<Vec<_>>(),
+        // parse envs
+        let cstr_envs: Vec<_> = match envs {
+            Some(envs) => envs
+                .iter()
+                .map(|&x| std::ffi::CString::new(x).unwrap())
+                .collect(),
             None => vec![],
         };
-        let envs_len = envs.len();
+        let mut p_envs: Vec<_> = cstr_envs.iter().map(|x| x.as_ptr()).collect();
+        let p_envs_len = p_envs.len();
+        p_envs.push(std::ptr::null());
 
-        let preopens = match preopens {
+        // parse preopens
+        let cstr_preopens: Vec<_> = match preopens {
             Some(preopens) => preopens
-                .into_iter()
-                .map(string_to_c_char)
-                .collect::<Vec<_>>(),
+                .iter()
+                .map(|&x| std::ffi::CString::new(x).unwrap())
+                .collect(),
             None => vec![],
         };
-        let preopens_len = preopens.len();
+        let mut p_preopens: Vec<_> = cstr_preopens.iter().map(|x| x.as_ptr()).collect();
+        let p_preopens_len = p_preopens.len();
+        p_preopens.push(std::ptr::null());
 
         let ctx = unsafe {
             ffi::WasmEdge_ModuleInstanceCreateWASI(
-                args.as_ptr(),
-                args_len as u32,
-                envs.as_ptr(),
-                envs_len as u32,
-                preopens.as_ptr(),
-                preopens_len as u32,
+                p_args.as_ptr(),
+                p_args_len as u32,
+                p_envs.as_ptr(),
+                p_envs_len as u32,
+                p_preopens.as_ptr(),
+                p_preopens_len as u32,
             )
         };
         match ctx.is_null() {
@@ -603,36 +617,51 @@ impl WasiModule {
         envs: Option<Vec<&str>>,
         preopens: Option<Vec<&str>>,
     ) {
-        let args = match args {
-            Some(args) => args.into_iter().map(string_to_c_char).collect::<Vec<_>>(),
+        // parse args
+        let cstr_args: Vec<_> = match args {
+            Some(args) => args
+                .iter()
+                .map(|&x| std::ffi::CString::new(x).unwrap())
+                .collect(),
             None => vec![],
         };
-        let args_len = args.len();
+        let mut p_args: Vec<_> = cstr_args.iter().map(|x| x.as_ptr()).collect();
+        let p_args_len = p_args.len();
+        p_args.push(std::ptr::null());
 
-        let envs = match envs {
-            Some(envs) => envs.into_iter().map(string_to_c_char).collect::<Vec<_>>(),
+        // parse envs
+        let cstr_envs: Vec<_> = match envs {
+            Some(envs) => envs
+                .iter()
+                .map(|&x| std::ffi::CString::new(x).unwrap())
+                .collect(),
             None => vec![],
         };
-        let envs_len = envs.len();
+        let mut p_envs: Vec<_> = cstr_envs.iter().map(|x| x.as_ptr()).collect();
+        let p_envs_len = p_envs.len();
+        p_envs.push(std::ptr::null());
 
-        let preopens = match preopens {
+        // parse preopens
+        let cstr_preopens: Vec<_> = match preopens {
             Some(preopens) => preopens
-                .into_iter()
-                .map(string_to_c_char)
-                .collect::<Vec<_>>(),
+                .iter()
+                .map(|&x| std::ffi::CString::new(x).unwrap())
+                .collect(),
             None => vec![],
         };
-        let preopens_len = preopens.len();
+        let mut p_preopens: Vec<_> = cstr_preopens.iter().map(|x| x.as_ptr()).collect();
+        let p_preopens_len = p_preopens.len();
+        p_preopens.push(std::ptr::null());
 
         unsafe {
             ffi::WasmEdge_ModuleInstanceInitWASI(
                 self.inner.0,
-                args.as_ptr(),
-                args_len as u32,
-                envs.as_ptr(),
-                envs_len as u32,
-                preopens.as_ptr(),
-                preopens_len as u32,
+                p_args.as_ptr(),
+                p_args_len as u32,
+                p_envs.as_ptr(),
+                p_envs_len as u32,
+                p_preopens.as_ptr(),
+                p_preopens_len as u32,
             )
         };
     }
@@ -919,16 +948,22 @@ impl WasmEdgeProcessModule {
     ///
     /// If fail to create a wasmedge_process host module, then an error is returned.
     pub fn create(allowed_cmds: Option<Vec<&str>>, allowed: bool) -> WasmEdgeResult<Self> {
-        let cmds = match allowed_cmds {
-            Some(cmds) => cmds.iter().map(string_to_c_char).collect::<Vec<_>>(),
+        // parse cmds
+        let cstr_cmds: Vec<_> = match allowed_cmds {
+            Some(cmds) => cmds
+                .iter()
+                .map(|&x| std::ffi::CString::new(x).unwrap())
+                .collect(),
             None => vec![],
         };
-        let cmds_len = cmds.len();
+        let mut p_cmds: Vec<_> = cstr_cmds.iter().map(|x| x.as_ptr()).collect();
+        let p_cmds_len = p_cmds.len();
+        p_cmds.push(std::ptr::null());
 
         let ctx = unsafe {
             ffi::WasmEdge_ModuleInstanceCreateWasmEdgeProcess(
-                cmds.as_ptr(),
-                cmds_len as u32,
+                p_cmds.as_ptr(),
+                p_cmds_len as u32,
                 allowed,
             )
         };
@@ -954,14 +989,24 @@ impl WasmEdgeProcessModule {
     ///
     /// * `allowed` - Determines if wasmedge_process is allowed to execute all commands on the white list.
     pub fn init_wasmedge_process(&mut self, allowed_cmds: Option<Vec<&str>>, allowed: bool) {
-        let cmds = match allowed_cmds {
-            Some(cmds) => cmds.iter().map(string_to_c_char).collect::<Vec<_>>(),
+        // parse cmds
+        let cstr_cmds: Vec<_> = match allowed_cmds {
+            Some(cmds) => cmds
+                .iter()
+                .map(|&x| std::ffi::CString::new(x).unwrap())
+                .collect(),
             None => vec![],
         };
-        let cmds_len = cmds.len();
+        let mut p_cmds: Vec<_> = cstr_cmds.iter().map(|x| x.as_ptr()).collect();
+        let p_cmds_len = p_cmds.len();
+        p_cmds.push(std::ptr::null());
 
         unsafe {
-            ffi::WasmEdge_ModuleInstanceInitWasmEdgeProcess(cmds.as_ptr(), cmds_len as u32, allowed)
+            ffi::WasmEdge_ModuleInstanceInitWasmEdgeProcess(
+                p_cmds.as_ptr(),
+                p_cmds_len as u32,
+                allowed,
+            )
         }
     }
 }

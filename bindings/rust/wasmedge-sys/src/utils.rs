@@ -30,11 +30,6 @@ pub(crate) fn path_to_cstring(path: &Path) -> WasmEdgeResult<CString> {
     }
 }
 
-pub(crate) fn string_to_c_char(arg: impl AsRef<str>) -> *const std::os::raw::c_char {
-    let s = CString::new(arg.as_ref()).unwrap();
-    s.as_ptr()
-}
-
 /// Logs the debug information.
 pub fn log_debug_info() {
     unsafe { ffi::WasmEdge_LogSetDebugLevel() }

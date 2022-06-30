@@ -2,4 +2,6 @@
 # SPDX-FileCopyrightText: 2019-2022 Second State INC
 
 add_subdirectory(wasmedge_process)
-add_subdirectory(wasi_nn)
+if(WASMEDGE_WASINN_BACKEND)
+  add_subdirectory(wasi_nn)
+endif()

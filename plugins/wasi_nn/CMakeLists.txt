@@ -32,10 +32,7 @@ target_link_libraries(wasmedgePluginWasiNN
   wasmedgeSystem
 )
 
-# Only Linux systems support wasi-nn with openVINO now.
-if(CMAKE_SYSTEM_NAME MATCHES "Linux" AND WASMEDGE_WASINN_BUILD_OPENVINO)
-  install(TARGETS wasmedgePluginWasiNN DESTINATION ${CMAKE_INSTALL_LIBDIR}/wasmedge)
-endif()
+install(TARGETS wasmedgePluginWasiNN DESTINATION ${CMAKE_INSTALL_LIBDIR}/wasmedge)
 
 wasmedge_add_library(wasmedgeHostModuleWasiNN
   wasinnenv.cpp
@@ -67,17 +64,22 @@ elseif(CMAKE_SYSTEM_NAME MATCHES "Darwin")
   )
 endif()
 
-# add backends building flags
-if(WASMEDGE_WASINN_BUILD_OPENVINO)
-  message(STATUS "Build OpenVINO backend for WASI-NN")
-  add_definitions(-DWASMEDGE_WASINN_BUILD_OPENVINO)
-  find_package(InferenceEngine REQUIRED)
-  target_link_libraries(wasmedgeHostModuleWasiNN
-    PUBLIC
-    ${InferenceEngine_LIBRARIES}
-  )
-  target_link_libraries(wasmedgePluginWasiNN
-    PUBLIC
-    ${InferenceEngine_LIBRARIES}
-  )
-endif()
+# Add backends building flags.
+foreach(BACKEND ${WASMEDGE_WASINN_BACKEND})
+  if(BACKEND MATCHES "OpenVINO")
+    message(STATUS "Build ${BACKEND} backend for WASI-NN")
+    find_package(InferenceEngine REQUIRED)
+    add_definitions(-DWASMEDGE_WASINN_BACKEND_OPENVINO)
+    target_link_libraries(wasmedgePluginWasiNN
+      PUBLIC
+      ${InferenceEngine_LIBRARIES}
+    )
+    target_link_libraries(wasmedgeHostModuleWasiNN
+      PUBLIC
+      ${InferenceEngine_LIBRARIES}
+    )
+  else()
+    # Add the other backends here.
+    message(FATAL_ERROR "WASI-NN backend ${BACKEND} not found or unimplemented.")
+  endif()
+endforeach()

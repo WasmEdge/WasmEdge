@@ -34,7 +34,8 @@ endforeach()
 target_link_libraries(wasiNNTests
   PRIVATE
   ${GTEST_BOTH_LIBRARIES}
-  wasmedgeHostModuleWasiNN
+  wasmedgeVM
+  wasmedgePluginWasiNN
 )
 
 add_test(wasiNNTests wasiNNTests)

@@ -24,6 +24,7 @@ endif()
 target_include_directories(wasmedgePluginWasiNN
   PUBLIC
   $<TARGET_PROPERTY:wasmedgePlugin,INCLUDE_DIRECTORIES>
+  ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
 target_link_libraries(wasmedgePluginWasiNN
@@ -34,36 +35,6 @@ target_link_libraries(wasmedgePluginWasiNN
 
 install(TARGETS wasmedgePluginWasiNN DESTINATION ${CMAKE_INSTALL_LIBDIR}/wasmedge)
 
-wasmedge_add_library(wasmedgeHostModuleWasiNN
-  wasinnenv.cpp
-  wasinnfunc.cpp
-  wasinnmodule.cpp
-)
-
-target_include_directories(wasmedgeHostModuleWasiNN
-  PUBLIC
-  ${CMAKE_CURRENT_SOURCE_DIR}
-)
-
-target_link_libraries(wasmedgeHostModuleWasiNN
-  PUBLIC
-  wasmedgeCommon
-  wasmedgeSystem
-  wasmedgePlugin
-)
-
-if(CMAKE_SYSTEM_NAME MATCHES "Linux")
-  target_link_options(wasmedgeHostModuleWasiNN
-    PUBLIC
-    -u_ZN8WasmEdge4Host6WASINN17WasiNNEnvironment8RegisterE
-  )
-elseif(CMAKE_SYSTEM_NAME MATCHES "Darwin")
-  target_link_options(wasmedgeHostModuleWasiNN
-    PUBLIC
-    -u__ZN8WasmEdge4Host6WASINN17WasiNNEnvironment8RegisterE
-  )
-endif()
-
 # Add backends building flags.
 foreach(BACKEND ${WASMEDGE_WASINN_BACKEND})
   if(BACKEND MATCHES "OpenVINO")
@@ -71,10 +42,6 @@ foreach(BACKEND ${WASMEDGE_WASINN_BACKEND})
     find_package(InferenceEngine REQUIRED)
     add_definitions(-DWASMEDGE_WASINN_BACKEND_OPENVINO)
     target_link_libraries(wasmedgePluginWasiNN
-      PUBLIC
-      ${InferenceEngine_LIBRARIES}
-    )
-    target_link_libraries(wasmedgeHostModuleWasiNN
       PUBLIC
       ${InferenceEngine_LIBRARIES}
     )

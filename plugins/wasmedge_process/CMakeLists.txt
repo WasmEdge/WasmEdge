@@ -24,6 +24,7 @@ endif()
 target_include_directories(wasmedgePluginWasmEdgeProcess
   PUBLIC
   $<TARGET_PROPERTY:wasmedgePlugin,INCLUDE_DIRECTORIES>
+  ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
 target_link_libraries(wasmedgePluginWasmEdgeProcess
@@ -35,34 +36,4 @@ target_link_libraries(wasmedgePluginWasmEdgeProcess
 # Only Linux systems support wasmedge_process now.
 if(CMAKE_SYSTEM_NAME MATCHES "Linux")
   install(TARGETS wasmedgePluginWasmEdgeProcess DESTINATION ${CMAKE_INSTALL_LIBDIR}/wasmedge)
-endif()
-
-wasmedge_add_library(wasmedgeHostModuleWasmEdgeProcess
-  processenv.cpp
-  processfunc.cpp
-  processmodule.cpp
-)
-
-target_include_directories(wasmedgeHostModuleWasmEdgeProcess
-  PUBLIC
-  ${CMAKE_CURRENT_SOURCE_DIR}
-)
-
-target_link_libraries(wasmedgeHostModuleWasmEdgeProcess
-  PUBLIC
-  wasmedgeCommon
-  wasmedgeSystem
-  wasmedgePlugin
-)
-
-if(CMAKE_SYSTEM_NAME MATCHES "Linux")
-  target_link_options(wasmedgeHostModuleWasmEdgeProcess
-    PUBLIC
-    -u_ZN8WasmEdge4Host26WasmEdgeProcessEnvironment8RegisterE
-  )
-elseif(CMAKE_SYSTEM_NAME MATCHES "Darwin")
-  target_link_options(wasmedgeHostModuleWasmEdgeProcess
-    PUBLIC
-    -u__ZN8WasmEdge4Host26WasmEdgeProcessEnvironment8RegisterE
-  )
 endif()

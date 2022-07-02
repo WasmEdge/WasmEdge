@@ -29,35 +29,11 @@ Notes: Note the WasmEdge team builds lots of extensions of Server-side WebAssemb
 
 The WasmEdge is developed on Ubuntu 20.04 to take advantage of advanced LLVM features for the AOT compiler. The WasmEdge team also builds and releases statically linked WasmEdge binaries for older Linux distributions.
 
-Our development environment requires libLLVM-10 and >=GLIBCXX_3.4.26.
+Our development environment requires libLLVM-12 and >=GLIBCXX_3.4.26.
 
 If you are using an operating system older than Ubuntu 20.04, please use our special docker image to build WasmEdge. If you are looking for the pre-built binaries for the older operating system, we also provide several pre-built binaries based on manylinux* distribution.
 
-### Docker image
-
-```bash
-docker pull wasmedge/wasmedge
-```
-
-### Setup the environment manually
-
-```bash
-# Tools and libraries
-sudo apt install -y \
-    software-properties-common \
-    cmake \
-    libboost-all-dev
-
-# And you will need to install llvm for wasmedgec tool
-sudo apt install -y \
-    llvm-12-dev \
-    liblld-12-dev
-
-# WasmEdge supports both clang++ and g++ compilers
-# You can choose one of them for building this project
-sudo apt install -y gcc g++
-sudo apt install -y clang
-```
+Build WasmEdge please refer to: [Build WasmEdge from source](https://wasmedge.org/book/en/extend/build.html).
 
 ## Contribute Workflow
 

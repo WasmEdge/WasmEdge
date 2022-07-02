@@ -47,11 +47,14 @@ sudo apt install -y \
     software-properties-common \
     cmake \
     libboost-all-dev
+
 # And you will need to install llvm for wasmedgec tool
 sudo apt install -y \
-    llvm-dev \
-    liblld-10-dev
-# WasmEdge supports both clang++ and g++ compilers# You can choose one of them for building this project
+    llvm-12-dev \
+    liblld-12-dev
+
+# WasmEdge supports both clang++ and g++ compilers
+# You can choose one of them for building this project
 sudo apt install -y gcc g++
 sudo apt install -y clang
 ```
@@ -74,7 +77,14 @@ Changes should be made on your own fork in a new branch. The branch should be na
 
 ### Develop, Build and Test
 
-Write code on the new branch in your fork.
+Write code on the new branch in your fork, and build from source code:
+
+```bash
+cmake -Bbuild -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_BUILD_TESTS=ON
+cmake --build build
+```
+
+If you using Docker as development environment:
 
 ```bash
 # After pulling our wasmedge docker image

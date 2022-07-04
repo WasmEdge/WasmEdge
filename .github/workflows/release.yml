@@ -289,7 +289,7 @@ jobs:
           OPENVINO_VERSION: "2021.4.582"
           OPENVINO_YEAR: "2021"
         run: |
-          bash utils/docker/build-wasinn-ubuntu-openvino.sh
+          bash utils/wasi-nn/build-wasinn-ubuntu-openvino.sh
           cd build
           cp plugins/wasi_nn/libwasmedgePluginWasiNN.so libwasmedgePluginWasiNN.so
           tar -zcvf wasinn_plugin.tar.gz libwasmedgePluginWasiNN.so

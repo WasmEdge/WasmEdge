@@ -59,7 +59,7 @@ $ sudo apt install qemu
 $ qemu-img convert -f raw openwrt-x86-64-generic-squashfs-combined.img.gz -O vmdk Openwrt.vmdk
 ```
 
-之后，在 VMware 中创建虚拟机，安装 OpenWrt 系统。具体操作见[从源码在 OpenWrt 上构建和测试 WasmEdge]()
+之后，在 VMware 中创建虚拟机，安装 OpenWrt 系统。
 
 ### 上传测试文件
 

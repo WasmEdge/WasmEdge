@@ -33,7 +33,4 @@ target_link_libraries(wasmedgePluginWasmEdgeProcess
   wasmedgeSystem
 )
 
-# Only Linux systems support wasmedge_process now.
-if(CMAKE_SYSTEM_NAME MATCHES "Linux")
-  install(TARGETS wasmedgePluginWasmEdgeProcess DESTINATION ${CMAKE_INSTALL_LIBDIR}/wasmedge)
-endif()
+install(TARGETS wasmedgePluginWasmEdgeProcess DESTINATION ${CMAKE_INSTALL_LIBDIR}/wasmedge)

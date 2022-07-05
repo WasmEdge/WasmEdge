@@ -750,6 +750,14 @@ main() {
     fi
 
     if [ $PLUGINS_INSTALL -eq 1 ]; then
+        if [ "$(printf %s\\n%s\\n "0.10.1-alpha.1" "$VERSION")" != "$(printf %s\\n%s "0.10.1-alpha.1" "$VERSION" | awk '{ if ($1 ~ /-/) print; else print $0"_" ; }' | sort --version-sort | sed 's/_$//')" ]; then
+            echo "${RED}Plugins not compatible with this version:$VERSION${NC}"
+            echo "${RED}Minimum version:0.10.1-alpha.1${NC}"
+            trap - EXIT
+            cleanup
+            exit 1
+        fi
+
         for i in "${PLUGINS[@]}"; do
             local _plugin_url="$PLUGINS_URL_PREFIX$VERSION/WasmEdge-plugin-${i}-$VERSION$PLUGINS_URL_SUFFIX"
             echo "Downloading ${i}"

@@ -389,14 +389,18 @@ install() {
                 if [[ "$_file_" =~ "Plugin" ]] || [[ "$_file_" =~ "plugin" ]]; then
                     local _plugin_name_=${_file_##*/}
                     if [[ "$IPATH" =~ ^"/usr" ]]; then
-                        echo "#$_file_" >>"$IPATH/env"
+                        if [ "$(cat "$IPATH/env" 2>/dev/null | grep "#$_file_")" = "" ]; then
+                            echo "#$_file_" >>"$IPATH/env"
+                        fi
                     else
                         mv "$_file_" "$IPATH/plugin/$_plugin_name_"
-                        echo "#$IPATH/plugin/$_plugin_name_" >>"$IPATH/env"
-                        rmdir "${_file_/$_plugin_name_/}"
+                        if [ "$(cat "$IPATH/env" 2>/dev/null | grep "#$IPATH/plugin/$_plugin_name_")" = "" ]; then
+                            echo "#$IPATH/plugin/$_plugin_name_" >>"$IPATH/env"
+                        fi
                     fi
                 fi
             done
+            rmdir "$IPATH/$var/wasmedge/" 2>/dev/null || true
         else
             cp -rf "$TMP_DIR/$dir/$var"/* "$IPATH/$var"
         fi
@@ -556,6 +560,10 @@ main() {
     EXT_V_SET_WASMEDGE_TF=0
     EXT_V_SET_WASMEDGE_TF_DEPS=0
     EXT_V_SET_WASMEDGE_TF_TOOLS=0
+    PLUGINS_INSTALL=0
+    PLUGINS_AVAILABLE=("wasi_nn-openvino")
+    PLUGINS_URL_PREFIX="https://github.com/WasmEdge/WasmEdge/releases/download/"
+    PLUGINS_URL_SUFFIX="-ubuntu20.04_x86_64.tar.gz"
 
     IGNORE_BREW=0
 
@@ -617,6 +625,27 @@ main() {
             ;;
         ignore-brew)
             IGNORE_BREW=1
+            ;;
+        plugins)
+            local _old_ifs="$IFS"
+            local _os="$(uname)"
+            if [ "$_os" != "Linux" ]; then
+                echo "${RED}Plugins not supported: OS: $_os${NC}"
+                trap - EXIT
+                exit 1
+            fi
+            IFS=',' read -ra PLUGINS <<<"$OPTARG"
+            for i in "${PLUGINS[@]}"; do
+                if [[ ! " ${PLUGINS_AVAILABLE[*]} " =~ " ${i} " ]]; then
+                    echo "${RED}\"${i}\" is not a valid plugin name${NC}"
+                    trap - EXIT
+                    exit 1
+                else
+                    echo "${GREEN}\"${i}\" plugin found${NC}"
+                fi
+            done
+            PLUGINS_INSTALL=1
+            IFS="$_old_ifs"
             ;;
         ?)
             exit 2
@@ -718,6 +747,25 @@ main() {
     if [[ "$EXT" =~ "tf" ]] || [[ "$EXT" =~ "tensorflow" ]]; then
         echo "Tensorflow Extensions"
         install_tf_extensions
+    fi
+
+    if [ $PLUGINS_INSTALL -eq 1 ]; then
+        for i in "${PLUGINS[@]}"; do
+            local _plugin_url="$PLUGINS_URL_PREFIX$VERSION/WasmEdge-plugin-${i}-$VERSION$PLUGINS_URL_SUFFIX"
+            echo "Downloading ${i}"
+            _downloader "$_plugin_url"
+            echo "Installing ${i}"
+            if [ -d "$TMP_DIR/$IPKG/lib64/" ]; then
+                _extractor -C "$TMP_DIR/$IPKG/lib64/wasmedge" -vxzf "$TMP_DIR/WasmEdge-plugin-${i}-$VERSION$PLUGINS_URL_SUFFIX"
+            elif [ -d "$TMP_DIR/$IPKG/lib/" ]; then
+                _extractor -C "$TMP_DIR/$IPKG/lib/wasmedge" -vxzf "$TMP_DIR/WasmEdge-plugin-${i}-$VERSION$PLUGINS_URL_SUFFIX"
+            else
+                echo "${RED}lib not found in $TMP_DIR/$IPKG/ ${NC}"
+                exit 1
+            fi
+            rm -f "$TMP_DIR/WasmEdge-plugin-${i}-$VERSION$PLUGINS_URL_SUFFIX"
+        done
+        install "$IPKG" "lib"
     fi
 
     trap - EXIT

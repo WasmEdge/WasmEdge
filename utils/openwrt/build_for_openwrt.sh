@@ -3,7 +3,7 @@
 # SPDX-FileCopyrightText: 2019-2022 Second State INC
 
 OPENWRT_DIR_PATH=$1
-WASMEDGE_FATHER_PATH=$(dirname $(dirname $(dirname $(dirname $(pwd)))))
+WASMEDGE_FATHER_PATH=$(dirname $(dirname $(dirname $(pwd))))
 
 cd ${OPENWRT_DIR_PATH}/package/utils
 mkdir WasmEdge && cd WasmEdge
@@ -13,4 +13,4 @@ cd ${OPENWRT_DIR_PATH}
 
 make menuconfig
 
-make package/utils/WasmEdge/compile V=s
+make -j V=s

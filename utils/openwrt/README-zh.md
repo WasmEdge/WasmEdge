@@ -56,7 +56,8 @@ $ ./utils/openwrt/build_for_openwrt.sh ~/openwrt
 ```
 $ cd ~/openwrt/bin/targets/x86/64
 $ sudo apt install qemu
-$ qemu-img convert -f raw openwrt-x86-64-generic-squashfs-combined.img.gz -O vmdk Openwrt.vmdk
+$ gunzip openwrt-x86-64-generic-squashfs-combined.img.gz
+$ qemu-img convert -f raw -O vmdk openwrt-x86-64-generic-squashfs-combined.img Openwrt.vmdk
 ```
 
 之后，在 VMware 中创建虚拟机，安装 OpenWrt 系统。
@@ -65,10 +66,11 @@ $ qemu-img convert -f raw openwrt-x86-64-generic-squashfs-combined.img.gz -O vmd
 
 根据主机的网关来设置 OpenWrt 的 ip 地址后，使用 scp 传输主机上的 wasm 文件到 OpenWrt 系统上。
 
-例如，设置 OpenWrt 的 ip 地址为 192.168.0.110，则使用以下命令来上传 [hello.wasm](https://github.com/WasmEdge/WasmEdge/raw/master/examples/wasm/hello.wasm) 和 [add.wasm](https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/examples/wasm/add.wasm) 测试文件到 OpenWrt。
+例如，设置 OpenWrt 的 ip 地址为 192.168.0.111，则使用以下命令来上传 [hello.wasm](https://github.com/WasmEdge/WasmEdge/raw/master/examples/wasm/hello.wasm) 和 [add.wasm](https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/examples/wasm/add.wasm) 测试文件到 OpenWrt。
 
 ```
-$ scp hello.wasm root@192.168.0.110:/
+$ scp hello.wasm root@192.168.0.111:/
+$ scp add.wasm root@192.168.0.111:/
 ```
 
 ### 测试 wasmedge 程序

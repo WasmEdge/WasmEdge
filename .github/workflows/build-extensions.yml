@@ -56,17 +56,18 @@ jobs:
           - name: WASI-NN OpenVINO
             compiler: g++
             docker_tag: ubuntu-build-gcc
-            build_type: Release
+            build_type: Debug
             openvino: true
             coverage: false
           - name: WASI-NN OpenVINO
             compiler: clang++
             docker_tag: ubuntu-build-clang
-            build_type: Release
+            build_type: Debug
             openvino: true
             coverage: false
     name: Ubuntu 20.04 with ${{ matrix.name }} ${{ matrix.compiler}} ${{ matrix.build_type}}
     runs-on: ubuntu-latest
+    needs: [get_version_v2]
     container:
       image: wasmedge/wasmedge:${{ matrix.docker_tag }}
     steps:
@@ -81,7 +82,10 @@ jobs:
         OPENVINO_YEAR: "2021"
       run: |
         bash utils/wasi-nn/build-wasinn-ubuntu-openvino.sh
-    - name: Test WasmEdge with ${{ matrix.name }} using ${{ matrix.compiler }} with ${{ matrix.build_type }} mode
-      if: ${{ matrix.openvino }}
-      run: |
-        bash utils/wasi-nn/test-wasinn-ubuntu-openvino.sh
+        cp build/plugins/wasi_nn/libwasmedgePluginWasiNN.so .
+        tar -zcvf wasinn.tar.gz libwasmedgePluginWasiNN.so
+    - name: Upload artifact
+      uses: actions/upload-artifact@v2
+      with:
+        name: WasmEdge-WASINN-${{ needs.get_version_v2.outputs.version }}-${{ matrix.docker_tag }}.tar.gz
+        path: wasinn.tar.gz

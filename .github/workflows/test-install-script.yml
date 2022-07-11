@@ -147,9 +147,9 @@ jobs:
       run: |
         bash utils/install.sh -v 0.10.1-alpha.1 --plugins=wasi_nn-openvino
         ls ~/.wasmedge/plugin/ | grep libwasmedgePluginWasiNN.so && echo "Pass: Plugins found" || (echo "Fail: Plugins not found" && exit 1)
-        bash utils/install.sh -v 0.10.1-alpha.1 -p ~/new_wasmedge
+        bash utils/install.sh -v 0.10.1-alpha.1 -p ~/new_wasmedge --plugins=wasi_nn-openvino
         ls ~/new_wasmedge/plugin/ | grep libwasmedgePluginWasiNN.so && echo "Pass: Plugins found" || (echo "Fail: Plugins not found" && exit 1)
-        bash utils/install.sh -v 0.10.1-alpha.1 -p /usr
+        bash utils/install.sh -v 0.10.1-alpha.1 -p /usr --plugins=wasi_nn-openvino
         ls /usr/lib/wasmedge/ | grep libwasmedgePluginWasiNN.so && echo "Pass: Plugins found" || (echo "Fail: Plugins not found" && exit 1)
     - name: External Plugins Version check
       run: |

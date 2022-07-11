@@ -106,7 +106,7 @@ jobs:
     container:
       image: fedora:latest
     steps:
-    - name: Install requirment
+    - name: Install requirements
       run: |
         dnf update -y
         dnf install -y cmake ninja-build boost llvm llvm-devel lld-devel clang git file rpm-build dpkg-dev
@@ -141,7 +141,7 @@ jobs:
     container:
       image: fedora:rawhide
     steps:
-    - name: Install requirment
+    - name: Install requirements
       run: |
         dnf update -y
         dnf install -y git gcc-c++ cmake ninja-build boost-devel spdlog-devel llvm-devel lld-devel rpm-build

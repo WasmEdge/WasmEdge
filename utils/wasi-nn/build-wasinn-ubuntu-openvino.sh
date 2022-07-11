@@ -21,7 +21,7 @@ apt install -y intel-openvino-runtime-ubuntu20-$OPENVINO_VERSION
 source /opt/intel/openvino_2021/bin/setupvars.sh
 ldconfig
 git config --global --add safe.directory $(pwd)
-if ! cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=$CMAKE_BUILD_TYPE -DWASMEDGE_BUILD_TESTS=ON -DWASMEDGE_WASINN_BACKEND="OpenVINO" .; then
+if ! cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=$CMAKE_BUILD_TYPE -DWASMEDGE_BUILD_TESTS=ON -DWASMEDGE_PLUGIN_WASI_NN_BACKEND="OpenVINO" .; then
     echo === CMakeOutput.log ===
     cat build/CMakeFiles/CMakeOutput.log
     echo === CMakeError.log ===

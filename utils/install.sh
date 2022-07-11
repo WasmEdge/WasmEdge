@@ -426,7 +426,7 @@ wasmedge_checks() {
             if [ "$var" == "" ]; then
                 continue
             fi
-            local V=$("$IPATH/bin/$var" --version | sed 's/^.*[^0-9]\([0-9]*\.[0-9]*\.[0-9]*\).*$/\1/')
+            local V=$("$IPATH/bin/$var" --version | grep version | sed 's/^.*[^0-9]\([0-9]*\.[0-9]*\.[0-9]*\).*$/\1/')
             local V_=$(echo $version | sed 's/\([0-9]*\.[0-9]*\.[0-9]*\).*$/\1/')
             if [ "$V" = "$V_" ]; then
                 echo "${GREEN}Installation of $var-$version successfull${NC}"

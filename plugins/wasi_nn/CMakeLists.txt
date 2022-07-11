@@ -45,6 +45,15 @@ foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
       PUBLIC
       ${InferenceEngine_LIBRARIES}
     )
+  elseif(BACKEND MATCHES "PyTorch")
+    message(STATUS "Build ${BACKEND} backend for WASI-NN")
+    find_package(Torch REQUIRED)
+    add_definitions(-DWASMEDGE_WASINN_BACKEND_TORCH)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${TORCH_CXX_FLAGS}")
+    target_link_libraries(wasmedgePluginWasiNN
+      PUBLIC
+      ${TORCH_LIBRARIES}
+    )
   else()
     # Add the other backends here.
     message(FATAL_ERROR "WASI-NN backend ${BACKEND} not found or unimplemented.")

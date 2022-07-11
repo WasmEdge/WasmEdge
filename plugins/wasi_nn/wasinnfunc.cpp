@@ -11,6 +11,10 @@
 #include <c_api/ie_c_api.h>
 #endif
 
+#ifdef WASMEDGE_WASINN_BACKEND_TORCH
+#include <torch/torch.h>
+#endif
+
 namespace WasmEdge {
 namespace Host {
 
@@ -232,9 +236,18 @@ Expect<uint32_t> WasiNNLoad::body(Runtime::Instance::MemoryInstance *MemInst,
     return static_cast<uint32_t>(WASINN::ErrNo::Success);
 #else
     spdlog::error("[WASI-NN] OpenVINO backend is not built. use "
-                  "-DWASMEDGE_PLUGIN_WASI_NN_BACKEND_OPENVINO=ON"
+                  "-DWASMEDGE_WASINN_BACKEND=OpenVINO"
                   "to build it.");
 #endif
+  } else if (Encoding == static_cast<uint32_t>(WASINN::Backend::PyTorch)) {
+#ifdef WASMEDGE_WASINN_BACKEND_TORCH
+    spdlog::info("Hello from PyTorch");
+#else
+    spdlog::error("[WASI-NN] PyTorch backend is not built. use "
+                  "-DWASMEDGE_WASINN_BACKEND=PyTorch"
+                  "to build it.");
+#endif // WASMEDGE_WASINN_BACKEND_TORCH
+    return static_cast<uint32_t>(WASINN::ErrNo::InvalidArgument);
   } else {
     spdlog::error("[WASI-NN] Current backend is not supported.");
   }
@@ -270,18 +283,16 @@ WasiNNInitExecCtx::body(Runtime::Instance::MemoryInstance *MemInst,
       return static_cast<uint32_t>(WASINN::ErrNo::MissingMemory);
     }
 
-    // Create the infer request.
-    ie_infer_request_t *InferRequest = nullptr;
-    IEStatusCode Status = ie_exec_network_create_infer_request(
-        Env.NNGraph[GraphId].OpenVINOExecNetwork, &InferRequest);
-    if (Status != IEStatusCode::OK) {
-      spdlog::error("[WASI-NN] Unable to create openvino session");
+    // Create context.
+    Env.NNContext.emplace_back(Env.NNGraph[GraphId]);
+    auto &NewContext = Env.NNContext.back();
+    if (NewContext.OpenVINOInferRequest == nullptr) {
+      spdlog::error("[WASI-NN] Unable to create openvino context");
+      Env.NNContext.pop_back();
       return static_cast<uint32_t>(WASINN::ErrNo::Busy);
     }
 
-    *Context = Env.NNContext.size();
-    Env.NNContext.emplace_back(Env.NNGraph[GraphId], InferRequest);
-
+    *Context = Env.NNContext.size() - 1;
     return static_cast<uint32_t>(WASINN::ErrNo::Success);
 #else
     spdlog::error("[WASI-NN] OpenVINO backend is not built. define "

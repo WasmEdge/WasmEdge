@@ -10,7 +10,7 @@ foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
   if(BACKEND MATCHES "OpenVINO")
     message( STATUS "Download ML artifacts to ${CMAKE_CURRENT_BINARY_DIR}/wasinn_openvino_fixtures") 
     execute_process(
-      COMMAND bash ${CMAKE_SOURCE_DIR}/utils/wasi-nn/download_openvino_fixtures.sh ${CMAKE_CURRENT_BINARY_DIR}/wasinn_openvino_fixtures
+      COMMAND bash ${CMAKE_SOURCE_DIR}/utils/wasi-nn/download-openvino-fixtures.sh ${CMAKE_CURRENT_BINARY_DIR}/wasinn_openvino_fixtures
       RESULT_VARIABLE DOWNLOAD_ERROR
       OUTPUT_STRIP_TRAILING_WHITESPACE)
     file(MD5 ${CMAKE_CURRENT_BINARY_DIR}/wasinn_openvino_fixtures/mobilenet.bin CHECKSUM_WEIGHT)

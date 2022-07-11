@@ -80,6 +80,7 @@ jobs:
         OPENVINO_VERSION: "2021.4.582"
         OPENVINO_YEAR: "2021"
       run: |
+        bash utils/wasi-nn/install-openvino.sh
         bash utils/wasi-nn/build-wasinn-ubuntu-openvino.sh
     - name: Test WasmEdge with ${{ matrix.name }} using ${{ matrix.compiler }} with ${{ matrix.build_type }} mode
       if: ${{ matrix.openvino }}

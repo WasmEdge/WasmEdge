@@ -13,6 +13,8 @@ class WasiNNModule : public Runtime::Instance::ModuleInstance {
 public:
   WasiNNModule();
 
+  WASINN::WasiNNEnvironment &getEnv() { return Env; }
+
 private:
   WASINN::WasiNNEnvironment Env;
 };

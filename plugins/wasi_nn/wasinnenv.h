@@ -8,7 +8,7 @@
 #include <cstdint>
 #include <vector>
 
-#ifdef WASMEDGE_WASINN_BACKEND_OPENVINO
+#ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_OPENVINO
 #include "common/log.h"
 #include <c_api/ie_c_api.h>
 #endif
@@ -30,7 +30,7 @@ enum class Backend : uint8_t {
 
 class Graph {
 public:
-#ifdef WASMEDGE_WASINN_BACKEND_OPENVINO
+#ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_OPENVINO
   Graph() = delete;
   Graph(Backend BE) noexcept
       : GraphBackend(BE), OpenVINONetwork(nullptr),
@@ -61,7 +61,7 @@ public:
 #endif
 
   Backend GraphBackend;
-#ifdef WASMEDGE_WASINN_BACKEND_OPENVINO
+#ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_OPENVINO
   ie_network_t *OpenVINONetwork;
   ie_executable_network_t *OpenVINOExecNetwork;
   ie_blob_t *OpenVINOWeightBlob;
@@ -73,7 +73,7 @@ public:
 class Context {
 public:
   Context() = delete;
-#ifdef WASMEDGE_WASINN_BACKEND_OPENVINO
+#ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_OPENVINO
   Context(Graph &G, ie_infer_request_t *InferReq) noexcept
       : GraphRef(G), OpenVINOInferRequest(InferReq) {}
   ~Context() noexcept {
@@ -86,7 +86,7 @@ public:
 #endif
 
   Graph &GraphRef;
-#ifdef WASMEDGE_WASINN_BACKEND_OPENVINO
+#ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_OPENVINO
   ie_infer_request_t *OpenVINOInferRequest;
 #endif
 };
@@ -94,7 +94,7 @@ public:
 class WasiNNEnvironment {
 public:
   WasiNNEnvironment() noexcept {
-#ifdef WASMEDGE_WASINN_BACKEND_OPENVINO
+#ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_OPENVINO
     if (ie_core_create("", &OpenVINOCore) != IEStatusCode::OK) {
       spdlog::error(
           "[WASI-NN] Error happened when initializing OpenVINO core.");
@@ -106,7 +106,7 @@ public:
   ~WasiNNEnvironment() noexcept {
     NNContext.clear();
     NNGraph.clear();
-#ifdef WASMEDGE_WASINN_BACKEND_OPENVINO
+#ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_OPENVINO
     if (OpenVINOCore) {
       ie_core_free(&OpenVINOCore);
     }
@@ -115,7 +115,7 @@ public:
 
   std::vector<Graph> NNGraph;
   std::vector<Context> NNContext;
-#ifdef WASMEDGE_WASINN_BACKEND_OPENVINO
+#ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_OPENVINO
   ie_core_t *OpenVINOCore = nullptr;
 #endif
 

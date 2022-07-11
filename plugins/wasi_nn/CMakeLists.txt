@@ -36,11 +36,11 @@ target_link_libraries(wasmedgePluginWasiNN
 install(TARGETS wasmedgePluginWasiNN DESTINATION ${CMAKE_INSTALL_LIBDIR}/wasmedge)
 
 # Add backends building flags.
-foreach(BACKEND ${WASMEDGE_WASINN_BACKEND})
+foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
   if(BACKEND MATCHES "OpenVINO")
     message(STATUS "Build ${BACKEND} backend for WASI-NN")
     find_package(InferenceEngine REQUIRED)
-    add_definitions(-DWASMEDGE_WASINN_BACKEND_OPENVINO)
+    add_definitions(-DWASMEDGE_PLUGIN_WASI_NN_BACKEND_OPENVINO)
     target_link_libraries(wasmedgePluginWasiNN
       PUBLIC
       ${InferenceEngine_LIBRARIES}

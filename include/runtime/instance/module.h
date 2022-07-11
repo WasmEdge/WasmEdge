@@ -47,18 +47,18 @@ class StoreManager;
 namespace Instance {
 
 namespace {
-/// Return true if T is an entity which can be exported.
+/// Return true if T is an entity which can be exported or imported.
 template <typename T>
-inline constexpr const bool IsExportEntityV =
+inline constexpr const bool IsEntityV =
     std::is_same_v<T, Instance::FunctionInstance> ||
     std::is_same_v<T, Instance::TableInstance> ||
     std::is_same_v<T, Instance::MemoryInstance> ||
     std::is_same_v<T, Instance::GlobalInstance>;
 
-/// Return true if T is an entity.
+/// Return true if T is an instance.
 template <typename T>
-inline constexpr const bool IsEntityV =
-    IsExportEntityV<T> || std::is_same_v<T, Instance::ElementInstance> ||
+inline constexpr const bool IsInstanceV =
+    IsEntityV<T> || std::is_same_v<T, Instance::ElementInstance> ||
     std::is_same_v<T, Instance::DataInstance>;
 } // namespace
 
@@ -348,14 +348,14 @@ private:
 
   /// Add the instances under the module by pointers.
   template <typename T>
-  std::enable_if_t<IsExportEntityV<T>, void>
+  std::enable_if_t<IsEntityV<T>, void>
   unsafeImportInstance(std::vector<T *> &Vec, T *Ptr) {
     Vec.push_back(Ptr);
   }
 
   /// Unsafe create and add the instance into this module.
   template <typename T, typename... Args>
-  std::enable_if_t<IsEntityV<T>, void>
+  std::enable_if_t<IsInstanceV<T>, void>
   unsafeAddInstance(std::vector<std::unique_ptr<T>> &OwnedInstsVec,
                     std::vector<T *> &InstsVec, Args &&...Values) {
     OwnedInstsVec.push_back(std::make_unique<T>(std::forward<Args>(Values)...));
@@ -364,7 +364,7 @@ private:
 
   /// Unsafe add and export the existing instance into this module.
   template <typename T, typename... Args>
-  std::enable_if_t<IsExportEntityV<T>, void>
+  std::enable_if_t<IsEntityV<T>, void>
   unsafeAddHostInstance(std::string_view Name,
                         std::vector<std::unique_ptr<T>> &OwnedInstsVec,
                         std::vector<T *> &InstsVec,
@@ -377,7 +377,7 @@ private:
 
   /// Unsafe find and get the exported instance by name.
   template <typename T>
-  std::enable_if_t<IsExportEntityV<T>, T *>
+  std::enable_if_t<IsEntityV<T>, T *>
   unsafeFindExports(const std::map<std::string, T *, std::less<>> &Map,
                     std::string_view ExtName) const noexcept {
     auto Iter = Map.find(ExtName);

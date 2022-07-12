@@ -2064,6 +2064,29 @@ TEST(APICoreTest, ModuleInstance) {
   EXPECT_EQ(HostMod, nullptr);
 #endif
   WasmEdge_VMDelete(VM);
+
+#ifdef WASMEDGE_BUILD_WASI_CRYPTO
+  // Create WasiCrypto in VM.
+  HostMod = WasmEdge_ModuleInstanceCreateWasiCrypto();
+  EXPECT_NE(HostMod, nullptr);
+  WasmEdge_ModuleInstanceDelete(HostMod);
+
+  /// Initialize WasiCrypto in VM.
+  Conf = WasmEdge_ConfigureCreate();
+  WasmEdge_ConfigureAddHostRegistration(Conf,
+                                        WasmEdge_HostRegistration_Wasi_Crypto);
+  VM = WasmEdge_VMCreate(Conf, nullptr);
+  WasmEdge_ConfigureDelete(Conf);
+  HostMod = WasmEdge_VMGetImportModuleContext(
+      VM, WasmEdge_HostRegistration_Wasi_Crypto);
+  EXPECT_NE(HostMod, nullptr);
+  WasmEdge_ModuleInstanceInitWasiCrypto(nullptr);
+  EXPECT_TRUE(true);
+  WasmEdge_ModuleInstanceInitWasiCrypto(HostMod);
+  EXPECT_TRUE(true);
+
+  WasmEdge_VMDelete(VM);
+#endif
 }
 
 TEST(APICoreTest, Async) {

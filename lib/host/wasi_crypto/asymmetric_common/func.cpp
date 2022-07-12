@@ -1,0 +1,518 @@
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: 2019-2022 Second State INC
+
+#include "host/wasi_crypto/asymmetric_common/func.h"
+#include "host/wasi_crypto/utils/hostfunction.h"
+#include "wasi_crypto/api.hpp"
+
+#include <cstdint>
+
+namespace WasmEdge {
+namespace Host {
+namespace WasiCrypto {
+namespace AsymmetricCommon {
+
+Expect<uint32_t>
+KeypairGenerate::body(Runtime::Instance::MemoryInstance *MemInst,
+                      uint32_t AlgType, uint32_t AlgPtr, uint32_t AlgLen,
+                      uint32_t OptOptionsHandlePtr,
+                      uint32_t /* Out */ KpHandlePtr) {
+  checkExist(MemInst);
+
+  const __wasi_size_t WasiAlgLen = AlgLen;
+  auto *const Alg = MemInst->getPointer<const char *>(AlgPtr, WasiAlgLen);
+  checkExist(Alg);
+
+  AsymmetricCommon::Algorithm WasiAlg;
+  if (auto Res = cast<__wasi_algorithm_type_e_t>(AlgType).and_then(
+          [Alg, WasiAlgLen](auto WasiAlgType) {
+            return tryFrom(WasiAlgType, {Alg, WasiAlgLen});
+          });
+      unlikely(!Res)) {
+    return Res.error();
+  } else {
+    WasiAlg = *Res;
+  }
+
+  auto *const OptOptionsHandle =
+      MemInst->getPointer<const __wasi_opt_options_t *>(OptOptionsHandlePtr);
+  checkExist(OptOptionsHandle);
+
+  auto *const KpHandle = MemInst->getPointer<__wasi_keypair_t *>(KpHandlePtr);
+  checkExist(KpHandle);
+
+  if (auto Res = Ctx.keypairGenerate(WasiAlg, *OptOptionsHandle);
+      unlikely(!Res)) {
+    return Res.error();
+  } else {
+    *KpHandle = *Res;
+  }
+
+  return __WASI_CRYPTO_ERRNO_SUCCESS;
+}
+
+Expect<uint32_t> KeypairImport::body(Runtime::Instance::MemoryInstance *MemInst,
+                                     uint32_t AlgType, uint32_t AlgPtr,
+                                     uint32_t AlgLen, uint32_t EncodedPtr,
+                                     uint32_t EncodedLen, uint32_t Encoding,
+                                     uint32_t /* Out */ KpHandlePtr) {
+  checkExist(MemInst);
+
+  const __wasi_size_t WasiAlgLen = AlgLen;
+  auto *const Alg = MemInst->getPointer<const char *>(AlgPtr, WasiAlgLen);
+  checkExist(Alg);
+
+  AsymmetricCommon::Algorithm WasiAlg;
+  if (auto Res = cast<__wasi_algorithm_type_e_t>(AlgType).and_then(
+          [Alg, WasiAlgLen](auto WasiAlgType) {
+            return tryFrom(WasiAlgType, {Alg, WasiAlgLen});
+          });
+      unlikely(!Res)) {
+    return Res.error();
+  } else {
+    WasiAlg = *Res;
+  }
+
+  const __wasi_size_t WasiEncodedLen = EncodedLen;
+  auto *const Encoded =
+      MemInst->getPointer<const uint8_t *>(EncodedPtr, WasiEncodedLen);
+  checkExist(Encoded);
+
+  const auto WasiEncoding = cast<__wasi_keypair_encoding_e_t>(Encoding);
+  checkExist(WasiEncoding);
+
+  auto *const KpHandle = MemInst->getPointer<__wasi_keypair_t *>(KpHandlePtr);
+  checkExist(KpHandle);
+
+  if (auto Res =
+          Ctx.keypairImport(WasiAlg, {Encoded, WasiEncodedLen}, *WasiEncoding);
+      unlikely(!Res)) {
+    return Res.error();
+  } else {
+    *KpHandle = *Res;
+  }
+
+  return __WASI_CRYPTO_ERRNO_SUCCESS;
+}
+
+Expect<uint32_t> KeypairGenerateManaged::body(
+    Runtime::Instance::MemoryInstance *MemInst, int32_t SecretsManagerHandle,
+    uint32_t AlgType, uint32_t AlgPtr, uint32_t AlgLen,
+    uint32_t OptOptionsHandlePtr, uint32_t KpHandlePtr) {
+  checkExist(MemInst);
+
+  const __wasi_size_t WasiAlgLen = AlgLen;
+  auto *const Alg = MemInst->getPointer<const char *>(AlgPtr, WasiAlgLen);
+  checkExist(Alg);
+
+  AsymmetricCommon::Algorithm WasiAlg;
+  if (auto Res = cast<__wasi_algorithm_type_e_t>(AlgType).and_then(
+          [Alg, WasiAlgLen](auto WasiAlgType) {
+            return tryFrom(WasiAlgType, {Alg, WasiAlgLen});
+          });
+      unlikely(!Res)) {
+    return Res.error();
+  } else {
+    WasiAlg = *Res;
+  }
+
+  auto *const OptOptionsHandle =
+      MemInst->getPointer<const __wasi_opt_options_t *>(OptOptionsHandlePtr);
+  checkExist(OptOptionsHandle);
+
+  auto *const KpHandle = MemInst->getPointer<__wasi_keypair_t *>(KpHandlePtr);
+  checkExist(KpHandle);
+
+  if (auto Res = Ctx.keypairGenerateManaged(SecretsManagerHandle, WasiAlg,
+                                            *OptOptionsHandle);
+      unlikely(!Res)) {
+    return Res.error();
+  } else {
+    *KpHandle = *Res;
+  }
+
+  return __WASI_CRYPTO_ERRNO_SUCCESS;
+}
+
+Expect<uint32_t>
+KeypairStoreManaged::body(Runtime::Instance::MemoryInstance *MemInst,
+                          int32_t SecretsManagerHandle, int32_t KpHandle,
+                          uint32_t KpIdPtr, uint32_t KpIdMaxLen) {
+  checkExist(MemInst);
+
+  const __wasi_size_t WasiKpIdMaxLen = KpIdMaxLen;
+  auto *const KpId = MemInst->getPointer<uint8_t *>(KpIdPtr, WasiKpIdMaxLen);
+  checkExist(KpId);
+
+  if (auto Res = Ctx.keypairStoreManaged(SecretsManagerHandle, KpHandle,
+                                         {KpId, WasiKpIdMaxLen});
+      unlikely(!Res)) {
+    return Res.error();
+  }
+
+  return __WASI_CRYPTO_ERRNO_SUCCESS;
+}
+
+Expect<uint32_t> KeypairReplaceManaged::body(
+    Runtime::Instance::MemoryInstance *MemInst, int32_t SecretsManagerHandle,
+    int32_t OldKpHandle, int32_t NewKpHandle, uint32_t /* Out */ KpVersionPtr) {
+  checkExist(MemInst);
+
+  auto *const KpVersion = MemInst->getPointer<__wasi_version_t *>(KpVersionPtr);
+  checkExist(KpVersion);
+
+  if (auto Res = Ctx.keypairReplaceManaged(SecretsManagerHandle, OldKpHandle,
+                                           NewKpHandle);
+      unlikely(!Res)) {
+    return Res.error();
+  } else {
+    *KpVersion = *Res;
+  }
+
+  return __WASI_CRYPTO_ERRNO_SUCCESS;
+}
+
+Expect<uint32_t> KeypairId::body(Runtime::Instance::MemoryInstance *MemInst,
+                                 int32_t KpHandle, uint32_t KpIdPtr,
+                                 uint32_t KpIdMaxLen,
+                                 uint32_t /* Out */ SizePtr,
+                                 uint32_t /* Out */ KpVersionPtr) {
+  checkExist(MemInst);
+
+  const __wasi_size_t WasiKpIdMaxLen = KpIdMaxLen;
+  auto *const KpId = MemInst->getPointer<uint8_t *>(KpIdPtr, WasiKpIdMaxLen);
+  checkExist(KpId);
+
+  auto *const Size = MemInst->getPointer<__wasi_size_t *>(SizePtr);
+  checkExist(Size);
+
+  auto *const Version = MemInst->getPointer<__wasi_version_t *>(KpVersionPtr);
+  checkExist(Version);
+
+  if (auto Res = Ctx.keypairId(KpHandle, {KpId, WasiKpIdMaxLen});
+      unlikely(!Res)) {
+    return Res.error();
+  } else {
+    auto [ResSize, ResVersion] = *Res;
+
+    auto SafeResSize = toWasiSize(ResSize);
+    if (unlikely(!SafeResSize)) {
+      return SafeResSize.error();
+    }
+
+    *Size = *SafeResSize;
+
+    *Version = ResVersion;
+  }
+
+  return __WASI_CRYPTO_ERRNO_SUCCESS;
+}
+
+Expect<uint32_t> KeypairFromId::body(Runtime::Instance::MemoryInstance *MemInst,
+                                     int32_t SecretsManagerHandle,
+                                     uint32_t KpIdPtr, uint32_t KpIdLen,
+                                     uint64_t KpVersion,
+                                     uint32_t /* Out */ KpHandlePtr) {
+
+  checkExist(MemInst);
+
+  const __wasi_size_t WasiKpIdLen = KpIdLen;
+  auto *const KpId = MemInst->getPointer<const uint8_t *>(KpIdPtr, WasiKpIdLen);
+  checkExist(KpId);
+
+  auto *const KpHandle = MemInst->getPointer<__wasi_keypair_t *>(KpHandlePtr);
+  checkExist(KpHandle);
+
+  if (auto Res = Ctx.keypairFromId(SecretsManagerHandle, {KpId, WasiKpIdLen},
+                                   KpVersion);
+      unlikely(!Res)) {
+    return Res.error();
+  } else {
+    *KpHandle = *Res;
+  }
+
+  return __WASI_CRYPTO_ERRNO_SUCCESS;
+}
+
+Expect<uint32_t>
+KeypairFromPkAndSk::body(Runtime::Instance::MemoryInstance *MemInst,
+                         int32_t PkHandle, int32_t SkHandle,
+                         uint32_t /* Out */ KpHandlePtr) {
+  checkExist(MemInst);
+
+  auto *const KpHandle = MemInst->getPointer<__wasi_keypair_t *>(KpHandlePtr);
+  checkExist(KpHandle);
+
+  if (auto Res = Ctx.keypairFromPkAndSk(PkHandle, SkHandle); unlikely(!Res)) {
+    return Res.error();
+  } else {
+    *KpHandle = *Res;
+  }
+
+  return __WASI_CRYPTO_ERRNO_SUCCESS;
+}
+
+Expect<uint32_t> KeypairExport::body(Runtime::Instance::MemoryInstance *MemInst,
+                                     int32_t KpHandle, uint32_t KpEncoding,
+                                     uint32_t /* Out */ ArrayOutputHandlePtr) {
+  checkExist(MemInst);
+
+  __wasi_keypair_encoding_e_t WasiKpEncoding;
+  if (auto Res = cast<__wasi_keypair_encoding_e_t>(KpEncoding);
+      unlikely(!Res)) {
+    return Res.error();
+  } else {
+    WasiKpEncoding = *Res;
+  }
+
+  auto *const ArrayOutputHandle =
+      MemInst->getPointer<__wasi_array_output_t *>(ArrayOutputHandlePtr);
+  checkExist(ArrayOutputHandle);
+
+  if (auto Res = Ctx.keypairExport(KpHandle, WasiKpEncoding); unlikely(!Res)) {
+    return Res.error();
+  } else {
+    *ArrayOutputHandle = *Res;
+  }
+
+  return __WASI_CRYPTO_ERRNO_SUCCESS;
+}
+
+Expect<uint32_t>
+KeypairPublickey::body(Runtime::Instance::MemoryInstance *MemInst,
+                       int32_t KpHandle, uint32_t /* Out */ PkHandlePtr) {
+  checkExist(MemInst);
+
+  auto *const PkHandle = MemInst->getPointer<__wasi_keypair_t *>(PkHandlePtr);
+  checkExist(PkHandle);
+
+  if (auto Res = Ctx.keypairPublickey(KpHandle); unlikely(!Res)) {
+    return Res.error();
+  } else {
+    *PkHandle = *Res;
+  }
+
+  return __WASI_CRYPTO_ERRNO_SUCCESS;
+}
+
+Expect<uint32_t>
+KeypairSecretkey::body(Runtime::Instance::MemoryInstance *MemInst,
+                       int32_t KpHandle, uint32_t /* Out */ SkHandlePtr) {
+  checkExist(MemInst);
+
+  auto *const SkHandle = MemInst->getPointer<__wasi_keypair_t *>(SkHandlePtr);
+  checkExist(SkHandle);
+
+  if (auto Res = Ctx.keypairSecretkey(KpHandle); unlikely(!Res)) {
+    return Res.error();
+  } else {
+    *SkHandle = *Res;
+  }
+
+  return __WASI_CRYPTO_ERRNO_SUCCESS;
+}
+
+Expect<uint32_t> KeypairClose::body(Runtime::Instance::MemoryInstance *,
+                                    int32_t KpHandle) {
+  if (auto Res = Ctx.keypairClose(KpHandle); unlikely(!Res)) {
+    return __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE;
+  }
+
+  return __WASI_CRYPTO_ERRNO_SUCCESS;
+}
+
+Expect<uint32_t>
+PublickeyImport::body(Runtime::Instance::MemoryInstance *MemInst,
+                      uint32_t AlgType, uint32_t AlgPtr, uint32_t AlgLen,
+                      uint32_t EncodedPtr, uint32_t EncodedLen,
+                      uint32_t Encoding, uint32_t /* Out */ PkHandlePtr) {
+  checkExist(MemInst);
+
+  const __wasi_size_t WasiAlgLen = AlgLen;
+  auto *const Alg = MemInst->getPointer<const char *>(AlgPtr, WasiAlgLen);
+  checkExist(Alg);
+
+  AsymmetricCommon::Algorithm WasiAlg;
+  if (auto Res = cast<__wasi_algorithm_type_e_t>(AlgType).and_then(
+          [Alg, WasiAlgLen](auto WasiAlgType) {
+            return tryFrom(WasiAlgType, {Alg, WasiAlgLen});
+          });
+      unlikely(!Res)) {
+    return Res.error();
+  } else {
+    WasiAlg = *Res;
+  }
+
+  const __wasi_size_t WasiEncodedLen = EncodedLen;
+  auto *const Encoded =
+      MemInst->getPointer<const uint8_t *>(EncodedPtr, WasiEncodedLen);
+  checkExist(Encoded);
+
+  __wasi_publickey_encoding_e_t WasiPkEncoding;
+  if (auto Res = cast<__wasi_publickey_encoding_e_t>(Encoding); !Res) {
+    return Res.error();
+  } else {
+    WasiPkEncoding = *Res;
+  }
+
+  auto *const PkHandle = MemInst->getPointer<__wasi_publickey_t *>(PkHandlePtr);
+  checkExist(PkHandle);
+
+  if (auto Res = Ctx.publickeyImport(WasiAlg, {Encoded, WasiEncodedLen},
+                                     WasiPkEncoding);
+      unlikely(!Res)) {
+    return Res.error();
+  } else {
+    *PkHandle = *Res;
+  }
+
+  return __WASI_CRYPTO_ERRNO_SUCCESS;
+}
+
+Expect<uint32_t>
+PublickeyExport::body(Runtime::Instance::MemoryInstance *MemInst,
+                      int32_t PkHandle, uint32_t PkEncoding,
+                      uint32_t /* Out */ ArrayOutputHandlePtr) {
+  checkExist(MemInst);
+
+  __wasi_publickey_encoding_e_t WasiPkEncoding;
+  if (auto Res = cast<__wasi_publickey_encoding_e_t>(PkEncoding); !Res) {
+    return Res.error();
+  } else {
+    WasiPkEncoding = *Res;
+  }
+
+  auto *const ArrayOutputHandle =
+      MemInst->getPointer<__wasi_array_output_t *>(ArrayOutputHandlePtr);
+  checkExist(ArrayOutputHandle);
+
+  if (auto Res = Ctx.publickeyExport(PkHandle, WasiPkEncoding);
+      unlikely(!Res)) {
+    return Res.error();
+  } else {
+    *ArrayOutputHandle = *Res;
+  }
+
+  return __WASI_CRYPTO_ERRNO_SUCCESS;
+}
+
+Expect<uint32_t> PublickeyVerify::body(Runtime::Instance::MemoryInstance *,
+                                       int32_t PkHandle) {
+  if (auto Res = Ctx.publickeyVerify(PkHandle); unlikely(!Res)) {
+    return Res.error();
+  }
+
+  return __WASI_CRYPTO_ERRNO_SUCCESS;
+}
+
+Expect<uint32_t>
+PublickeyFromSecretkey::body(Runtime::Instance::MemoryInstance *MemInst,
+                             int32_t SkHandle, uint32_t /* Out */ PkHandlePtr) {
+  checkExist(MemInst);
+
+  auto *const PkHandle = MemInst->getPointer<__wasi_publickey_t *>(PkHandlePtr);
+  checkExist(PkHandle);
+
+  if (auto Res = Ctx.publickeyFromSecretkey(SkHandle); unlikely(!Res)) {
+    return Res.error();
+  } else {
+    *PkHandle = *Res;
+  }
+
+  return __WASI_CRYPTO_ERRNO_SUCCESS;
+}
+
+Expect<uint32_t> PublickeyClose::body(Runtime::Instance::MemoryInstance *,
+                                      int32_t PkHandle) {
+  if (auto Res = Ctx.publickeyClose(PkHandle); unlikely(!Res)) {
+    return Res.error();
+  }
+
+  return __WASI_CRYPTO_ERRNO_SUCCESS;
+}
+
+Expect<uint32_t>
+SecretkeyImport::body(Runtime::Instance::MemoryInstance *MemInst,
+                      uint32_t AlgType, uint32_t AlgPtr, uint32_t AlgLen,
+                      uint32_t EncodedPtr, uint32_t EncodedLen,
+                      uint32_t Encoding, uint32_t /* Out */ SkHandlePtr) {
+  checkExist(MemInst);
+
+  const __wasi_size_t WasiAlgLen = AlgLen;
+  auto *const Alg = MemInst->getPointer<const char *>(AlgPtr, WasiAlgLen);
+  checkExist(Alg);
+
+  AsymmetricCommon::Algorithm WasiAlg;
+  if (auto Res = cast<__wasi_algorithm_type_e_t>(AlgType).and_then(
+          [Alg, WasiAlgLen](auto WasiAlgType) {
+            return tryFrom(WasiAlgType, {Alg, WasiAlgLen});
+          });
+      unlikely(!Res)) {
+    return Res.error();
+  } else {
+    WasiAlg = *Res;
+  }
+
+  const __wasi_size_t WasiEncodedLen = EncodedLen;
+  auto *const Encoded =
+      MemInst->getPointer<const uint8_t *>(EncodedPtr, WasiEncodedLen);
+  checkExist(Encoded);
+
+  auto WasiEncoding = cast<__wasi_secretkey_encoding_e_t>(Encoding);
+  if (!WasiEncoding) {
+    return WasiEncoding.error();
+  }
+
+  auto *const SkHandle = MemInst->getPointer<__wasi_secretkey_t *>(SkHandlePtr);
+  checkExist(SkHandle);
+
+  if (auto Res = Ctx.secretkeyImport(WasiAlg, {Encoded, WasiEncodedLen},
+                                     *WasiEncoding);
+      unlikely(!Res)) {
+    return Res.error();
+  } else {
+    *SkHandle = *Res;
+  }
+
+  return __WASI_CRYPTO_ERRNO_SUCCESS;
+}
+
+Expect<uint32_t>
+SecretkeyExport::body(Runtime::Instance::MemoryInstance *MemInst,
+                      int32_t SkHandle, uint32_t SkEncoding,
+                      uint32_t /* Out */ ArrayOutputHandlePtr) {
+  checkExist(MemInst);
+
+  __wasi_secretkey_encoding_e_t WasiSkEncoding;
+  if (auto Res = cast<__wasi_secretkey_encoding_e_t>(SkEncoding); !Res) {
+    return Res.error();
+  } else {
+    WasiSkEncoding = *Res;
+  }
+
+  auto *const ArrayOutputHandle =
+      MemInst->getPointer<__wasi_array_output_t *>(ArrayOutputHandlePtr);
+  checkExist(ArrayOutputHandle);
+
+  if (auto Res = Ctx.secretkeyExport(SkHandle, WasiSkEncoding);
+      unlikely(!Res)) {
+    return Res.error();
+  } else {
+    *ArrayOutputHandle = *Res;
+  }
+
+  return __WASI_CRYPTO_ERRNO_SUCCESS;
+}
+
+Expect<uint32_t> SecretkeyClose::body(Runtime::Instance::MemoryInstance *,
+                                      int32_t Sk) {
+  if (auto Res = Ctx.secretkeyClose(Sk); unlikely(!Res)) {
+    return __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE;
+  }
+
+  return __WASI_CRYPTO_ERRNO_SUCCESS;
+}
+} // namespace AsymmetricCommon
+} // namespace WasiCrypto
+} // namespace Host
+} // namespace WasmEdge

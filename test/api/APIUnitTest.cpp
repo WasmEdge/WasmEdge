@@ -3033,6 +3033,18 @@ TEST(APICoreTest, VM) {
   EXPECT_EQ(WasmEdge_VMGetStoreContext(VM), Store);
   EXPECT_EQ(WasmEdge_VMGetStoreContext(nullptr), nullptr);
 
+  // VM get loader
+  EXPECT_NE(WasmEdge_VMGetLoaderContext(VM), nullptr);
+  EXPECT_EQ(WasmEdge_VMGetLoaderContext(nullptr), nullptr);
+
+  // VM get validator
+  EXPECT_NE(WasmEdge_VMGetValidatorContext(VM), nullptr);
+  EXPECT_EQ(WasmEdge_VMGetValidatorContext(nullptr), nullptr);
+
+  // VM get executor
+  EXPECT_NE(WasmEdge_VMGetExecutorContext(VM), nullptr);
+  EXPECT_EQ(WasmEdge_VMGetExecutorContext(nullptr), nullptr);
+
   // VM get statistics
   EXPECT_NE(WasmEdge_VMGetStatisticsContext(VM), nullptr);
   EXPECT_EQ(WasmEdge_VMGetStatisticsContext(nullptr), nullptr);

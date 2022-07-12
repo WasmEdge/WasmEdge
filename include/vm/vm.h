@@ -194,10 +194,19 @@ public:
   }
 
   /// Getter of store set in VM.
-  Runtime::StoreManager &getStoreManager() { return StoreRef; }
+  Runtime::StoreManager &getStoreManager() noexcept { return StoreRef; }
+
+  /// Getter of loader in VM.
+  Loader::Loader &getLoader() noexcept { return LoaderEngine; }
+
+  /// Getter of validator in VM.
+  Validator::Validator &getValidator() noexcept { return ValidatorEngine; }
+
+  /// Getter of executor in VM.
+  Executor::Executor &getExecutor() noexcept { return ExecutorEngine; }
 
   /// Getter of statistics.
-  Statistics::Statistics &getStatistics() { return Stat; }
+  Statistics::Statistics &getStatistics() noexcept { return Stat; }
 
 private:
   Expect<void> unsafeRegisterModule(std::string_view Name,

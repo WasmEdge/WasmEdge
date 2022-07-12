@@ -62,27 +62,13 @@ struct WasmEdge_CompilerContext {
 };
 
 // WasmEdge_LoaderContext implementation.
-struct WasmEdge_LoaderContext {
-  WasmEdge_LoaderContext(const WasmEdge::Configure &Conf) noexcept
-      : Load(Conf) {}
-  WasmEdge::Loader::Loader Load;
-};
+struct WasmEdge_LoaderContext {};
 
 // WasmEdge_ValidatorContext implementation.
-struct WasmEdge_ValidatorContext {
-  WasmEdge_ValidatorContext(const WasmEdge::Configure &Conf) noexcept
-      : Valid(Conf) {}
-  WasmEdge::Validator::Validator Valid;
-};
+struct WasmEdge_ValidatorContext {};
 
 // WasmEdge_ExecutorContext implementation.
-struct WasmEdge_ExecutorContext {
-  WasmEdge_ExecutorContext(
-      const WasmEdge::Configure &Conf,
-      WasmEdge::Statistics::Statistics *S = nullptr) noexcept
-      : Exec(Conf, S) {}
-  WasmEdge::Executor::Executor Exec;
-};
+struct WasmEdge_ExecutorContext {};
 
 // WasmEdge_StoreContext implementation.
 struct WasmEdge_StoreContext {};
@@ -363,6 +349,9 @@ CONVTO(GlobType, AST::GlobalType, GlobalType, const)
 CONVTO(ImpType, AST::ImportDesc, ImportType, const)
 CONVTO(ExpType, AST::ExportDesc, ExportType, const)
 CONVTO(Store, Runtime::StoreManager, Store, )
+CONVTO(Loader, Loader::Loader, Loader, )
+CONVTO(Validator, Validator::Validator, Validator, )
+CONVTO(Executor, Executor::Executor, Executor, )
 CONVTO(Mod, Runtime::Instance::ModuleInstance, ModuleInstance, )
 CONVTO(Mod, Runtime::Instance::ModuleInstance, ModuleInstance, const)
 CONVTO(Func, Runtime::Instance::FunctionInstance, FunctionInstance, )
@@ -393,6 +382,9 @@ CONVFROM(ImpType, AST::ImportDesc, ImportType, const)
 CONVFROM(ExpType, AST::ExportDesc, ExportType, const)
 CONVFROM(Store, Runtime::StoreManager, Store, )
 CONVFROM(Store, Runtime::StoreManager, Store, const)
+CONVFROM(Loader, Loader::Loader, Loader, )
+CONVFROM(Validator, Validator::Validator, Validator, )
+CONVFROM(Executor, Executor::Executor, Executor, )
 CONVFROM(Mod, Runtime::Instance::ModuleInstance, ModuleInstance, )
 CONVFROM(Mod, Runtime::Instance::ModuleInstance, ModuleInstance, const)
 CONVFROM(Func, Runtime::Instance::FunctionInstance, FunctionInstance, )
@@ -1411,9 +1403,9 @@ WasmEdge_CompilerDelete(WasmEdge_CompilerContext *Cxt) {
 WASMEDGE_CAPI_EXPORT WasmEdge_LoaderContext *
 WasmEdge_LoaderCreate(const WasmEdge_ConfigureContext *ConfCxt) {
   if (ConfCxt) {
-    return new WasmEdge_LoaderContext(ConfCxt->Conf);
+    return toLoaderCxt(new WasmEdge::Loader::Loader(ConfCxt->Conf));
   } else {
-    return new WasmEdge_LoaderContext(WasmEdge::Configure());
+    return toLoaderCxt(new WasmEdge::Loader::Loader(WasmEdge::Configure()));
   }
 }
 
@@ -1421,7 +1413,9 @@ WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_LoaderParseFromFile(
     WasmEdge_LoaderContext *Cxt, WasmEdge_ASTModuleContext **Module,
     const char *Path) {
   return wrap(
-      [&]() { return Cxt->Load.parseModule(std::filesystem::absolute(Path)); },
+      [&]() {
+        return fromLoaderCxt(Cxt)->parseModule(std::filesystem::absolute(Path));
+      },
       [&](auto &&Res) { *Module = toASTModCxt((*Res).release()); }, Cxt,
       Module);
 }
@@ -1429,13 +1423,14 @@ WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_LoaderParseFromFile(
 WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_LoaderParseFromBuffer(
     WasmEdge_LoaderContext *Cxt, WasmEdge_ASTModuleContext **Module,
     const uint8_t *Buf, const uint32_t BufLen) {
-  return wrap([&]() { return Cxt->Load.parseModule(genSpan(Buf, BufLen)); },
-              [&](auto &&Res) { *Module = toASTModCxt((*Res).release()); }, Cxt,
-              Module);
+  return wrap(
+      [&]() { return fromLoaderCxt(Cxt)->parseModule(genSpan(Buf, BufLen)); },
+      [&](auto &&Res) { *Module = toASTModCxt((*Res).release()); }, Cxt,
+      Module);
 }
 
 WASMEDGE_CAPI_EXPORT void WasmEdge_LoaderDelete(WasmEdge_LoaderContext *Cxt) {
-  delete Cxt;
+  delete fromLoaderCxt(Cxt);
 }
 
 // <<<<<<<< WasmEdge loader functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
@@ -1445,22 +1440,26 @@ WASMEDGE_CAPI_EXPORT void WasmEdge_LoaderDelete(WasmEdge_LoaderContext *Cxt) {
 WASMEDGE_CAPI_EXPORT WasmEdge_ValidatorContext *
 WasmEdge_ValidatorCreate(const WasmEdge_ConfigureContext *ConfCxt) {
   if (ConfCxt) {
-    return new WasmEdge_ValidatorContext(ConfCxt->Conf);
+    return toValidatorCxt(new WasmEdge::Validator::Validator(ConfCxt->Conf));
   } else {
-    return new WasmEdge_ValidatorContext(WasmEdge::Configure());
+    return toValidatorCxt(
+        new WasmEdge::Validator::Validator(WasmEdge::Configure()));
   }
 }
 
 WASMEDGE_CAPI_EXPORT WasmEdge_Result
 WasmEdge_ValidatorValidate(WasmEdge_ValidatorContext *Cxt,
                            const WasmEdge_ASTModuleContext *ModuleCxt) {
-  return wrap([&]() { return Cxt->Valid.validate(*fromASTModCxt(ModuleCxt)); },
-              EmptyThen, Cxt, ModuleCxt);
+  return wrap(
+      [&]() {
+        return fromValidatorCxt(Cxt)->validate(*fromASTModCxt(ModuleCxt));
+      },
+      EmptyThen, Cxt, ModuleCxt);
 }
 
 WASMEDGE_CAPI_EXPORT void
 WasmEdge_ValidatorDelete(WasmEdge_ValidatorContext *Cxt) {
-  delete Cxt;
+  delete fromValidatorCxt(Cxt);
 }
 
 // <<<<<<<< WasmEdge validator functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
@@ -1472,16 +1471,18 @@ WasmEdge_ExecutorCreate(const WasmEdge_ConfigureContext *ConfCxt,
                         WasmEdge_StatisticsContext *StatCxt) {
   if (ConfCxt) {
     if (StatCxt) {
-      return new WasmEdge_ExecutorContext(ConfCxt->Conf, fromStatCxt(StatCxt));
+      return toExecutorCxt(new WasmEdge::Executor::Executor(
+          ConfCxt->Conf, fromStatCxt(StatCxt)));
     } else {
-      return new WasmEdge_ExecutorContext(ConfCxt->Conf);
+      return toExecutorCxt(new WasmEdge::Executor::Executor(ConfCxt->Conf));
     }
   } else {
     if (StatCxt) {
-      return new WasmEdge_ExecutorContext(WasmEdge::Configure(),
-                                          fromStatCxt(StatCxt));
+      return toExecutorCxt(new WasmEdge::Executor::Executor(
+          WasmEdge::Configure(), fromStatCxt(StatCxt)));
     } else {
-      return new WasmEdge_ExecutorContext(WasmEdge::Configure());
+      return toExecutorCxt(
+          new WasmEdge::Executor::Executor(WasmEdge::Configure()));
     }
   }
 }
@@ -1491,8 +1492,8 @@ WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_ExecutorInstantiate(
     WasmEdge_StoreContext *StoreCxt, const WasmEdge_ASTModuleContext *ASTCxt) {
   return wrap(
       [&]() {
-        return Cxt->Exec.instantiateModule(*fromStoreCxt(StoreCxt),
-                                           *fromASTModCxt(ASTCxt));
+        return fromExecutorCxt(Cxt)->instantiateModule(*fromStoreCxt(StoreCxt),
+                                                       *fromASTModCxt(ASTCxt));
       },
       [&](auto &&Res) { *ModuleCxt = toModCxt((*Res).release()); }, Cxt,
       ModuleCxt, StoreCxt, ASTCxt);
@@ -1504,9 +1505,9 @@ WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_ExecutorRegister(
     const WasmEdge_String ModuleName) {
   return wrap(
       [&]() {
-        return Cxt->Exec.registerModule(*fromStoreCxt(StoreCxt),
-                                        *fromASTModCxt(ASTCxt),
-                                        genStrView(ModuleName));
+        return fromExecutorCxt(Cxt)->registerModule(*fromStoreCxt(StoreCxt),
+                                                    *fromASTModCxt(ASTCxt),
+                                                    genStrView(ModuleName));
       },
       [&](auto &&Res) { *ModuleCxt = toModCxt((*Res).release()); }, Cxt,
       ModuleCxt, StoreCxt, ASTCxt);
@@ -1517,8 +1518,8 @@ WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_ExecutorRegisterImport(
     const WasmEdge_ModuleInstanceContext *ImportCxt) {
   return wrap(
       [&]() {
-        return Cxt->Exec.registerModule(*fromStoreCxt(StoreCxt),
-                                        *fromModCxt(ImportCxt));
+        return fromExecutorCxt(Cxt)->registerModule(*fromStoreCxt(StoreCxt),
+                                                    *fromModCxt(ImportCxt));
       },
       EmptyThen, Cxt, StoreCxt, ImportCxt);
 }
@@ -1533,8 +1534,8 @@ WasmEdge_ExecutorInvoke(WasmEdge_ExecutorContext *Cxt,
       [&]()
           -> WasmEdge::Expect<
               std::vector<std::pair<WasmEdge::ValVariant, WasmEdge::ValType>>> {
-        return Cxt->Exec.invoke(*fromFuncCxt(FuncCxt), ParamPair.first,
-                                ParamPair.second);
+        return fromExecutorCxt(Cxt)->invoke(*fromFuncCxt(FuncCxt),
+                                            ParamPair.first, ParamPair.second);
       },
       [&](auto &&Res) { fillWasmEdge_ValueArr(*Res, Returns, ReturnLen); }, Cxt,
       FuncCxt);
@@ -1542,7 +1543,7 @@ WasmEdge_ExecutorInvoke(WasmEdge_ExecutorContext *Cxt,
 
 WASMEDGE_CAPI_EXPORT void
 WasmEdge_ExecutorDelete(WasmEdge_ExecutorContext *Cxt) {
-  delete Cxt;
+  delete fromExecutorCxt(Cxt);
 }
 
 // <<<<<<<< WasmEdge executor functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
@@ -2508,6 +2509,30 @@ WASMEDGE_CAPI_EXPORT WasmEdge_StoreContext *
 WasmEdge_VMGetStoreContext(WasmEdge_VMContext *Cxt) {
   if (Cxt) {
     return toStoreCxt(&Cxt->VM.getStoreManager());
+  }
+  return nullptr;
+}
+
+WASMEDGE_CAPI_EXPORT WasmEdge_LoaderContext *
+WasmEdge_VMGetLoaderContext(WasmEdge_VMContext *Cxt) {
+  if (Cxt) {
+    return toLoaderCxt(&Cxt->VM.getLoader());
+  }
+  return nullptr;
+}
+
+WASMEDGE_CAPI_EXPORT WasmEdge_ValidatorContext *
+WasmEdge_VMGetValidatorContext(WasmEdge_VMContext *Cxt) {
+  if (Cxt) {
+    return toValidatorCxt(&Cxt->VM.getValidator());
+  }
+  return nullptr;
+}
+
+WASMEDGE_CAPI_EXPORT WasmEdge_ExecutorContext *
+WasmEdge_VMGetExecutorContext(WasmEdge_VMContext *Cxt) {
+  if (Cxt) {
+    return toExecutorCxt(&Cxt->VM.getExecutor());
   }
   return nullptr;
 }

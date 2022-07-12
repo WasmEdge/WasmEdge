@@ -72,6 +72,7 @@ if(WIN32)
     -Wno-used-but-marked-unused
     -Wno-nonportable-system-include-path
     -Wno-float-equal
+    -Wno-declaration-after-statement
   )
 endif()
 

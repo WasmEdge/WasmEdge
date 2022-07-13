@@ -2074,11 +2074,11 @@ TEST(APICoreTest, ModuleInstance) {
   /// Initialize WasiCrypto in VM.
   Conf = WasmEdge_ConfigureCreate();
   WasmEdge_ConfigureAddHostRegistration(Conf,
-                                        WasmEdge_HostRegistration_Wasi_Crypto);
+                                        WasmEdge_HostRegistration_WasiCrypto);
   VM = WasmEdge_VMCreate(Conf, nullptr);
   WasmEdge_ConfigureDelete(Conf);
   HostMod = WasmEdge_VMGetImportModuleContext(
-      VM, WasmEdge_HostRegistration_Wasi_Crypto);
+      VM, WasmEdge_HostRegistration_WasiCrypto);
   EXPECT_NE(HostMod, nullptr);
   WasmEdge_ModuleInstanceInitWasiCrypto(nullptr);
   EXPECT_TRUE(true);

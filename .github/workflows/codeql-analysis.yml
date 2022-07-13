@@ -70,7 +70,9 @@ jobs:
 
     - name: Build
       run: |
-        cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Debug .
+        apt update 
+        apt install -y libssl-dev
+        cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Debug -DWASMEDGE_BUILD_WASI_CRYPTO=ON .
         cmake --build build
 
     - name: Perform CodeQL Analysis

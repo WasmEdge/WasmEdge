@@ -8,7 +8,7 @@ wasmedge_add_executable(wasmedgeProcessTests
 target_link_libraries(wasmedgeProcessTests
   PRIVATE
   ${GTEST_BOTH_LIBRARIES}
-  wasmedgeVM
+  wasmedgePlugin
   wasmedgePluginWasmEdgeProcess
 )
 

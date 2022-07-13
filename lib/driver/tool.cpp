@@ -213,6 +213,7 @@ int Tool(int Argc, const char *Argv[]) noexcept {
   Conf.addHostRegistration(HostRegistration::Wasi);
   Conf.addHostRegistration(HostRegistration::WasmEdge_Process);
   Conf.addHostRegistration(HostRegistration::WasiNN);
+  Conf.addHostRegistration(HostRegistration::WasiCrypto);
   const auto InputPath = std::filesystem::absolute(SoName.value());
   VM::VM VM(Conf);
 

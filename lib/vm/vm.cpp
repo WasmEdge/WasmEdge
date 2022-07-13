@@ -5,6 +5,9 @@
 #include "vm/async.h"
 
 #include "host/wasi/wasimodule.h"
+#ifdef WASMEDGE_BUILD_WASI_CRYPTO
+#include "host/wasi_crypto/module.h"
+#endif
 #include "plugin/plugin.h"
 
 namespace WasmEdge {
@@ -78,6 +81,14 @@ void VM::unsafeInitVM() {
                       std::move(ModObj));
     }
   }
+#ifdef WASMEDGE_BUILD_WASI_CRYPTO
+  if (Conf.hasHostRegistration(HostRegistration::Wasi_Crypto)) {
+    std::unique_ptr<Runtime::Instance::ModuleInstance> WasiCryptoMod =
+        std::make_unique<Host::WasiCryptoModule>();
+    ExecutorEngine.registerModule(StoreRef, *WasiCryptoMod.get());
+    ImpObjs.insert({HostRegistration::Wasi_Crypto, std::move(WasiCryptoMod)});
+  }
+#endif
 }
 
 Expect<void> VM::unsafeRegisterModule(std::string_view Name,

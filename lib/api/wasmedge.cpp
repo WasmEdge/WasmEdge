@@ -7,6 +7,9 @@
 #include "driver/compiler.h"
 #include "driver/tool.h"
 #include "host/wasi/wasimodule.h"
+#ifdef WASMEDGE_BUILD_WASI_CRYPTO
+#include "host/wasi_crypto/module.h"
+#endif
 #include "plugin/plugin.h"
 #include "vm/vm.h"
 
@@ -1701,6 +1704,31 @@ WasmEdge_ModuleInstanceInitWasmEdgeProcess(const char *const *AllowedCmds,
         std::vector<std::string>(AllowedCmds, AllowedCmds + CmdsLen));
     Parser.set_raw_value<bool>("allow-command-all"sv, AllowAll);
   }
+}
+
+WASMEDGE_CAPI_EXPORT WasmEdge_ModuleInstanceContext *
+WasmEdge_ModuleInstanceCreateWasiCrypto() {
+#ifdef WASMEDGE_BUILD_WASI_CRYPTO
+  auto *WASICryptoMod = new WasmEdge::Host::WasiCryptoModule();
+  WasmEdge_ModuleInstanceInitWasiCrypto(toModCxt(WASICryptoMod));
+  return toModCxt(WASICryptoMod);
+#else
+  return nullptr;
+#endif
+}
+
+WASMEDGE_CAPI_EXPORT void
+WasmEdge_ModuleInstanceInitWasiCrypto(WasmEdge_ModuleInstanceContext *Cxt) {
+  if (!Cxt) {
+    return;
+  }
+#ifdef WASMEDGE_BUILD_WASI_CRYPTO
+  auto *WASICryptoMod =
+      dynamic_cast<WasmEdge::Host::WasiCryptoModule *>(fromModCxt(Cxt));
+  if (!WASICryptoMod) {
+    return;
+  }
+#endif
 }
 
 WASMEDGE_CAPI_EXPORT WasmEdge_String WasmEdge_ModuleInstanceGetModuleName(

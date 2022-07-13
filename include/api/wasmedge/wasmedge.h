@@ -1712,6 +1712,28 @@ WasmEdge_ModuleInstanceInitWasmEdgeProcess(const char *const *AllowedCmds,
                                            const uint32_t CmdsLen,
                                            const bool AllowAll);
 
+/// Creation of the WasmEdge_ModuleInstanceContext for the WASICrypto
+/// specification.
+///
+/// This function will create a WASICrypto host module that contains the
+/// WASICrypto host functions and initialize it. The caller owns the
+/// object and should call `WasmEdge_ModuleInstanceDelete` to free it.
+///
+/// \returns pointer to context, NULL if failed.
+WASMEDGE_CAPI_EXPORT extern WasmEdge_ModuleInstanceContext *
+WasmEdge_ModuleInstanceCreateWasiCrypto(void);
+
+/// Initialize the WasmEdge_ModuleInstanceContext for the WASICrypto
+/// specification.
+///
+/// This function will initialize the WASICrypto host module with the
+/// parameters.
+///
+/// \param Cxt the WasmEdge_ModuleInstanceContext of WASICrypto import
+/// object.
+WASMEDGE_CAPI_EXPORT extern void
+WasmEdge_ModuleInstanceInitWasiCrypto(WasmEdge_ModuleInstanceContext *Cxt);
+
 /// Get the export module name of a module instance.
 ///
 /// The returned string object is linked to the module name of the module

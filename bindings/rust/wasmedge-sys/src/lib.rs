@@ -94,7 +94,9 @@
 extern crate lazy_static;
 
 use std::{
+    cell::RefCell,
     collections::HashMap,
+    env,
     sync::{Arc, Mutex},
 };
 
@@ -168,18 +170,32 @@ pub use vm::Vm;
 
 use wasmedge_types::{error, WasmEdgeResult};
 
-/// Type alias for a boxed native function.
+/// Type alias for a boxed native function. This type is used in thread-safe cases.
 pub type BoxedFn = Box<dyn Fn(Vec<WasmValue>) -> Result<Vec<WasmValue>, u8> + Send + Sync>;
 
 lazy_static! {
     static ref HOST_FUNCS: Arc<Mutex<HashMap<usize, BoxedFn>>> =
         Arc::new(Mutex::new(HashMap::with_capacity(
-            std::env::var("MAX_HOST_FUNC_LENGTH")
+            env::var("MAX_HOST_FUNC_LENGTH")
                 .map(|s| s
                     .parse::<usize>()
-                    .expect("MAX_HOST_FUNC_LENGTH should be a positive integer."))
+                    .expect("MAX_HOST_THREADED_FUNC_LENGTH should be a positive integer."))
                 .unwrap_or(500)
         )));
+}
+
+/// Type alias for a boxed native function. This type is used in non-thread-safe cases.
+pub type BoxedFnSingle = Box<dyn Fn(Vec<WasmValue>) -> Result<Vec<WasmValue>, u8>>;
+
+thread_local! {
+    static HOST_FUNCS_SINGLE: RefCell<HashMap<usize, BoxedFnSingle>> =
+        RefCell::new(HashMap::with_capacity(
+            env::var("MAX_HOST_FUNC_SINGLE_LENGTH")
+                .map(|s| s
+                    .parse::<usize>()
+                    .expect("MAX_HOST_FUNC_SINGLE_LENGTH should be a number"))
+                .unwrap_or(500)
+        ));
 }
 
 /// The object that is used to perform a [host function](crate::Function) is required to implement this trait.

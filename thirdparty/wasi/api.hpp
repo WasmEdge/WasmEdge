@@ -730,9 +730,39 @@ enum __wasi_rights_t : uint64_t {
   __WASI_RIGHTS_SOCK_SHUTDOWN = 1ULL << 28,
 
   /**
-   * The right to invoke `sock_accept`.
+   * The right to invoke `sock_open`.
    */
-  __WASI_RIGHTS_SOCK_ACCEPT = 1ULL << 29,
+  __WASI_RIGHTS_SOCK_OPEN = 1ULL << 29,
+
+  /**
+   * The right to invoke `sock_close`.
+   */
+  __WASI_RIGHTS_SOCK_CLOSE = 1ULL << 30,
+
+  /**
+   * The right to invoke `sock_bind`.
+   */
+  __WASI_RIGHTS_SOCK_BIND = 1ULL << 31,
+
+  /**
+   * The right to invoke `sock_recv`.
+   */
+  __WASI_RIGHTS_SOCK_RECV = 1ULL << 32,
+
+  /**
+   * The right to invoke `sock_recv_from`.
+   */
+  __WASI_RIGHTS_SOCK_RECV_FROM = 1ULL << 33,
+
+  /**
+   * The right to invoke `sock_send`.
+   */
+  __WASI_RIGHTS_SOCK_SEND = 1ULL << 34,
+
+  /**
+   * The right to invoke `sock_send_to`.
+   */
+  __WASI_RIGHTS_SOCK_SEND_TO = 1ULL << 35,
 
 };
 DEFINE_ENUM_OPERATORS(__wasi_rights_t)
@@ -747,6 +777,14 @@ using __wasi_fd_t = int32_t;
 
 static_assert(sizeof(__wasi_fd_t) == 4, "witx calculated size");
 static_assert(alignof(__wasi_fd_t) == 4, "witx calculated align");
+
+/**
+ * A socket descriptor is currently an alias type of a typical file descriptor.
+ */
+using __wasi_sock_d_t = __wasi_fd_t;
+
+static_assert(sizeof(__wasi_sock_d_t) == 4, "witx calculated size");
+static_assert(alignof(__wasi_sock_d_t) == 4, "witx calculated align");
 
 /**
  * A region of memory for scatter/gather reads.
@@ -1995,13 +2033,14 @@ static_assert(alignof(__wasi_prestat_t) == 4, "witx calculated align");
 static_assert(offsetof(__wasi_prestat_t, u) == 4,
               "witx calculated union offset");
 
+
 /**
  * similar to pthread_t in POSIX
  */
-using __wasi_thread_t = uint32_t;
+using __wasi_thread_t = uint64_t;
 
-static_assert(sizeof(__wasi_thread_t) == 4, "witx calculated size");
-static_assert(alignof(__wasi_thread_t) == 4, "witx calculated align");
+static_assert(sizeof(__wasi_thread_t) == 8, "witx calculated size");
+static_assert(alignof(__wasi_thread_t) == 8, "witx calculated align");
 
 /**
  * a function pointer of the thread

@@ -309,7 +309,7 @@ jobs:
         uses: actions/checkout@v2
       - name: Build ${{ matrix.name }} package
         run: |
-          bash utils/docker/build-manylinux.sh -enable-wasi-crypto
+          bash utils/docker/build-manylinux.sh -DWASMEDGE_PLUGIN_WASI_CRYPTO=On
       - name: Upload ${{ matrix.name }} rpm package
         uses: actions/upload-release-asset@v1
         env:

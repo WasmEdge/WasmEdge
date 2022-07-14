@@ -61,7 +61,7 @@ jobs:
       run: |
         mkdir build
         cd build
-        infer compile -- cmake -DCMAKE_BUILD_TYPE=Debug -DLLVM_DIR=/usr/lib/llvm-11/lib/cmake/llvm -DWASMEDGE_BUILD_WASI_CRYPTO=ON ..
+        infer compile -- cmake -DCMAKE_BUILD_TYPE=Debug -DLLVM_DIR=/usr/lib/llvm-11/lib/cmake/llvm -DWASMEDGE_PLUGIN_WASI_CRYPTO=ON ..
 
     - name: Run Infer Static Code Analysis
       run: |

@@ -5,7 +5,7 @@ Current not support android.
 
 ## Getting started with wasi-crypto
 
-1. Build wasi-crypto with `-DWASMEDGE_BUILD_WASI_CRYPTO=ON`.
+1. Build wasi-crypto with `-DWASMEDGE_PLUGIN_WASI_CRYPTO=ON`.
 2. Using [wasi-crypto binding](https://github.com/WebAssembly/wasi-crypto/tree/main/implementations/bindings/rust) in your cargo.toml
 
 ```toml

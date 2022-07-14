@@ -227,7 +227,7 @@ impl Vm {
     ///
     /// If fail to run the WASM function, then an error is returned.
     pub fn run_func(
-        &mut self,
+        &self,
         mod_name: Option<&str>,
         func_name: impl AsRef<str>,
         args: impl IntoIterator<Item = sys::WasmValue>,

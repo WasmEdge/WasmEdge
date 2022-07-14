@@ -66,6 +66,8 @@ pub struct Func {
 impl Func {
     /// Creates a host function by wrapping a native function.
     ///
+    /// N.B. that this function is used for thread-safe scenarios.
+    ///
     /// # Arguments
     ///
     /// * `real_func` - The native function to be wrapped.
@@ -85,6 +87,36 @@ impl Func {
         let returns = Rets::wasm_types();
         let ty = FuncType::new(Some(args.to_vec()), Some(returns.to_vec()));
         let inner = sys::Function::create(&ty.into(), boxed_func, 0)?;
+        Ok(Self {
+            inner,
+            name: None,
+            mod_name: None,
+        })
+    }
+
+    /// Creates a host function by wrapping a native function.
+    ///
+    /// N.B. that this function is used for single-threaded scenarios. If you would like to use hostfunc call chaining design, you should use this method to create a [Func] instance.
+    ///
+    /// # Arguments
+    ///
+    /// * `real_func` - The native function to be wrapped.
+    ///
+    /// # Error
+    ///
+    /// If fail to create the host function, then an error is returned.
+    pub fn wrap_single_thread<Args, Rets>(
+        real_func: impl Fn(Vec<WasmValue>) -> Result<Vec<WasmValue>, u8> + 'static,
+    ) -> WasmEdgeResult<Self>
+    where
+        Args: WasmValTypeList,
+        Rets: WasmValTypeList,
+    {
+        let boxed_func = Box::new(real_func);
+        let args = Args::wasm_types();
+        let returns = Rets::wasm_types();
+        let ty = FuncType::new(Some(args.to_vec()), Some(returns.to_vec()));
+        let inner = sys::Function::create_single_thread(&ty.into(), boxed_func, 0)?;
         Ok(Self {
             inner,
             name: None,

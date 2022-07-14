@@ -111,7 +111,7 @@ jobs:
     - name: Install requirements
       run: |
         dnf update -y
-        dnf install -y cmake ninja-build boost llvm llvm-devel lld-devel clang git file rpm-build dpkg-dev openssl-devel-1.1
+        dnf install -y cmake ninja-build boost llvm llvm-devel lld-devel clang git file rpm-build dpkg-dev openssl-devel
     - uses: actions/checkout@v2
       with:
         fetch-depth: 0
@@ -122,7 +122,7 @@ jobs:
         cmake --build build
     - name: Build WasmEdge with WasiCrypto
       run: |
-        cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_BUILD_TESTS=ON -DWASMEDGE_BUILD_PACKAGE="TGZ;DEB;RPM" -DWASMEDGE_BUILD_WASI_CRYPTO=ON .
+        cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_BUILD_TESTS=ON -DWASMEDGE_BUILD_PACKAGE="TGZ;DEB;RPM" -DWASMEDGE_PLUGIN_WASI_CRYPTO=ON .
         cmake --build build
     - name: Test WasmEdge
       run: |
@@ -233,7 +233,7 @@ jobs:
       run: |
         apt update
         apt install -y libssl-dev
-        cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=$CMAKE_BUILD_TYPE -DWASMEDGE_BUILD_TESTS=ON -DOPENSSL_ROOT_DIR=/usr/local -DWASMEDGE_BUILD_WASI_CRYPTO=ON .
+        cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=$CMAKE_BUILD_TYPE -DWASMEDGE_BUILD_TESTS=ON -DOPENSSL_ROOT_DIR=/usr/local -DWASMEDGE_PLUGIN_WASI_CRYPTO=ON .
         cmake --build build
     - name: Test WasmEdge
       if: ${{ ! matrix.coverage }}
@@ -250,7 +250,7 @@ jobs:
         apt install -y gcovr libssl-dev
         curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --target wasm32-wasi
         git config --global --add safe.directory $(pwd)
-        cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Debug -DWASMEDGE_BUILD_TESTS=ON -DWASMEDGE_BUILD_COVERAGE=ON -DWASMEDGE_BUILD_WASI_CRYPTO=ON -DWASMEDGE_BUILD_COVERAGE=ON .
+        cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Debug -DWASMEDGE_BUILD_TESTS=ON -DWASMEDGE_BUILD_COVERAGE=ON -DWASMEDGE_PLUGIN_WASI_CRYPTO=ON -DWASMEDGE_BUILD_COVERAGE=ON .
         cmake --build build
         LD_LIBRARY_PATH=$(pwd)/build/lib/api cmake --build build --target codecov
     - name: Create and upload coverage report to Codecov
@@ -301,7 +301,7 @@ jobs:
         ./build/tools/wasmedge/wasmedge -v
     - name: Build ${{ matrix.name }} package with wasi-crypto
       run: |
-        bash utils/docker/build-manylinux.sh -enable-wasi-crypto
+        bash utils/docker/build-manylinux.sh -DWASMEDGE_PLUGIN_WASI_CRYPTO=On
         ./build/tools/wasmedge/wasmedge -v
     - name: Upload artifact (v1)
       uses: actions/upload-artifact@v1
@@ -349,7 +349,7 @@ jobs:
     - name: Build WasmEdge with wasi-crypto
       run: |
         brew install openssl@1.1
-        cmake -Bbuild -GNinja -DWASMEDGE_BUILD_TESTS=ON -DWASMEDGE_BUILD_PACKAGE="TGZ" -DOPENSSL_ROOT_DIR=/usr/local/opt/openssl -DWASMEDGE_BUILD_WASI_CRYPTO=ON .
+        cmake -Bbuild -GNinja -DWASMEDGE_BUILD_TESTS=ON -DWASMEDGE_BUILD_PACKAGE="TGZ" -DOPENSSL_ROOT_DIR=/usr/local/opt/openssl -DWASMEDGE_PLUGIN_WASI_CRYPTO=ON .
         cmake --build build
     - name: Test WasmEdge
       continue-on-error: true
@@ -406,7 +406,7 @@ jobs:
         $Env:CC = "clang-cl"
         $Env:CXX = "clang-cl"
         $cmake_sys_version = "10.0.19041.0"
-        cmake -Bbuild -GNinja "-DCMAKE_SYSTEM_VERSION=$cmake_sys_version" -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreadedDLL "-DLLVM_DIR=$llvm_dir" -DWASMEDGE_BUILD_TESTS=ON -DWASMEDGE_BUILD_PACKAGE="ZIP" -DWASMEDGE_BUILD_WASI_CRYPTO=ON .
+        cmake -Bbuild -GNinja "-DCMAKE_SYSTEM_VERSION=$cmake_sys_version" -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreadedDLL "-DLLVM_DIR=$llvm_dir" -DWASMEDGE_BUILD_TESTS=ON -DWASMEDGE_BUILD_PACKAGE="ZIP" -DWASMEDGE_PLUGIN_WASI_CRYPTO=ON .
         cmake --build build
     - name: Test WasmEdge
       continue-on-error: true

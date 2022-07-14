@@ -13,7 +13,7 @@ git config --global --add safe.directory $(pwd)
 bzip2 -dc boost_1_79_0.tar.bz2 | tar -xf -
 
 CMAKE_BUILD_TYPE="Release"
-WASMEDGE_BUILD_WASI_CRYPTO="OFF"
+WASMEDGE_PLUGIN_WASI_CRYPTO="OFF"
 
 for i in "$@"; do
   case $i in
@@ -21,8 +21,8 @@ for i in "$@"; do
       CMAKE_BUILD_TYPE="${i#*=}"
       shift
       ;;
-    -DWASMEDGE_BUILD_WASI_CRYPTO=*)
-      WASMEDGE_BUILD_WASI_CRYPTO=$(echo ${i#*=} | tr '[:lower:]' '[:upper:]')
+    -DWASMEDGE_PLUGIN_WASI_CRYPTO=*)
+      WASMEDGE_PLUGIN_WASI_CRYPTO=$(echo ${i#*=} | tr '[:lower:]' '[:upper:]')
       shift
       ;;
     *)
@@ -31,7 +31,7 @@ for i in "$@"; do
 done
 
 CMAKE_OPTS="-DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}"
-if [ ${WASMEDGE_BUILD_WASI_CRYPTO} == "ON" ]; then
+if [ ${WASMEDGE_PLUGIN_WASI_CRYPTO} == "ON" ]; then
   echo "Building wasi-crypto..."
   # install openssl
   curl -s -L -O --remote-name-all https://www.openssl.org/source/openssl-1.1.1n.tar.gz
@@ -57,7 +57,7 @@ if [ ${WASMEDGE_BUILD_WASI_CRYPTO} == "ON" ]; then
   make test
   make install
   cd ..
-  CMAKE_OPTS="${CMAKE_OPTS} -DWASMEDGE_BUILD_WASI_CRYPTO=ON -DOPENSSL_ROOT_DIR=$(pwd)/openssl-1.1.1n/openssl"
+  CMAKE_OPTS="${CMAKE_OPTS} -DWASMEDGE_PLUGIN_WASI_CRYPTO=ON -DOPENSSL_ROOT_DIR=$(pwd)/openssl-1.1.1n/openssl"
 fi
 
 if ! cmake -Bbuild -GNinja ${CMAKE_OPTS} -DWASMEDGE_BUILD_PACKAGE="TGZ;TBZ2;TXZ;TZST;RPM;DEB" -DBoost_NO_SYSTEM_PATHS=TRUE -DBOOST_INCLUDEDIR=$(pwd)/boost_1_79_0/; then

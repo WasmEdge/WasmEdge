@@ -165,7 +165,7 @@ pub use store::Store;
 #[doc(inline)]
 pub use vm::Vm;
 
-use wasmedge_sys::types::WasmValue;
+pub type WasmValue = wasmedge_sys::types::WasmValue;
 
 /// The object that is used to perform a [host function](crate::Func) is required to implement this trait.
 pub trait Engine {

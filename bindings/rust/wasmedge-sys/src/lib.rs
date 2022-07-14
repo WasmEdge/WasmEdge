@@ -179,7 +179,7 @@ lazy_static! {
             env::var("MAX_HOST_FUNC_LENGTH")
                 .map(|s| s
                     .parse::<usize>()
-                    .expect("MAX_HOST_THREADED_FUNC_LENGTH should be a positive integer."))
+                    .expect("MAX_HOST_FUNC_LENGTH should be a positive integer."))
                 .unwrap_or(500)
         )));
 }

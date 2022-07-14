@@ -3061,8 +3061,9 @@ WasmEdge_VMGetActiveModule(const WasmEdge_VMContext *Cxt);
 
 /// Get the store context used in the WasmEdge_VMContext.
 ///
-/// The store context links to the store in the VM context and owned by the VM
-/// context. The caller should __NOT__ call the `WasmEdge_StoreDelete`.
+/// The returned store context links to the store in the VM context and owned by
+/// the VM context. This function will return NULL if error occurs. The caller
+/// should __NOT__ call the `WasmEdge_StoreDelete`.
 ///
 /// This function is thread-safe.
 ///
@@ -3071,6 +3072,48 @@ WasmEdge_VMGetActiveModule(const WasmEdge_VMContext *Cxt);
 /// \returns pointer to the store context.
 WASMEDGE_CAPI_EXPORT extern WasmEdge_StoreContext *
 WasmEdge_VMGetStoreContext(WasmEdge_VMContext *Cxt);
+
+/// Get the loader context used in the WasmEdge_VMContext.
+///
+/// The returned loader context links to the loader in the VM context and owned
+/// by the VM context. This function will return NULL if error occurs. The
+/// caller should __NOT__ call the `WasmEdge_LoaderDelete`.
+///
+/// This function is thread-safe.
+///
+/// \param Cxt the WasmEdge_VMContext.
+///
+/// \returns pointer to the loader context.
+WASMEDGE_CAPI_EXPORT extern WasmEdge_LoaderContext *
+WasmEdge_VMGetLoaderContext(WasmEdge_VMContext *Cxt);
+
+/// Get the validator context used in the WasmEdge_VMContext.
+///
+/// The returned validator context links to the validator in the VM context and
+/// owned by the VM context. This function will return NULL if error occurs. The
+/// caller should __NOT__ call the `WasmEdge_ValidatorDelete`.
+///
+/// This function is thread-safe.
+///
+/// \param Cxt the WasmEdge_VMContext.
+///
+/// \returns pointer to the validator context.
+WASMEDGE_CAPI_EXPORT extern WasmEdge_ValidatorContext *
+WasmEdge_VMGetValidatorContext(WasmEdge_VMContext *Cxt);
+
+/// Get the executor context used in the WasmEdge_VMContext.
+///
+/// The returned executor context links to the executor in the VM context and
+/// owned by the VM context. This function will return NULL if error occurs. The
+/// caller should __NOT__ call the `WasmEdge_ExecutorDelete`.
+///
+/// This function is thread-safe.
+///
+/// \param Cxt the WasmEdge_VMContext.
+///
+/// \returns pointer to the executor context.
+WASMEDGE_CAPI_EXPORT extern WasmEdge_ExecutorContext *
+WasmEdge_VMGetExecutorContext(WasmEdge_VMContext *Cxt);
 
 /// Get the statistics context used in the WasmEdge_VMContext.
 ///

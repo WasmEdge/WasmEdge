@@ -74,6 +74,7 @@ WasmEdge_Result SpecTestPrintF64F64(void *Data __attribute__((unused)),
 
 WasmEdge_ModuleInstanceContext *createSpecTestModule(void) {
   WasmEdge_String HostName;
+  WasmEdge_ModuleInstanceContext *HostMod = NULL;
   WasmEdge_FunctionTypeContext *HostFType = NULL;
   WasmEdge_TableTypeContext *HostTType = NULL;
   WasmEdge_MemoryTypeContext *HostMType = NULL;
@@ -82,10 +83,13 @@ WasmEdge_ModuleInstanceContext *createSpecTestModule(void) {
   WasmEdge_TableInstanceContext *HostTable = NULL;
   WasmEdge_MemoryInstanceContext *HostMemory = NULL;
   WasmEdge_GlobalInstanceContext *HostGlobal = NULL;
+  WasmEdge_Limit TabLimit;
+  WasmEdge_Limit MemLimit;
+  WasmEdge_Limit SharedMemLimit;
   enum WasmEdge_ValType Param[2];
 
   HostName = WasmEdge_StringCreateByCString("spectest");
-  WasmEdge_ModuleInstanceContext *HostMod = WasmEdge_ModuleInstanceCreate(HostName);
+  HostMod = WasmEdge_ModuleInstanceCreate(HostName);
   WasmEdge_StringDelete(HostName);
 
   // Add host function "print": {} -> {}
@@ -149,8 +153,10 @@ WasmEdge_ModuleInstanceContext *createSpecTestModule(void) {
   WasmEdge_StringDelete(HostName);
 
   // Add host table "table"
-  WasmEdge_Limit TabLimit = {
-      .HasMax = true, .Shared = false, .Min = 10, .Max = 20};
+  TabLimit.HasMax = true;
+  TabLimit.Shared = false;
+  TabLimit.Min = 10;
+  TabLimit.Max = 20;
   HostTType = WasmEdge_TableTypeCreate(WasmEdge_RefType_FuncRef, TabLimit);
   HostTable = WasmEdge_TableInstanceCreate(HostTType);
   WasmEdge_TableTypeDelete(HostTType);
@@ -159,8 +165,10 @@ WasmEdge_ModuleInstanceContext *createSpecTestModule(void) {
   WasmEdge_StringDelete(HostName);
 
   // Add host memory "memory"
-  WasmEdge_Limit MemLimit = {
-      .HasMax = true, .Shared = false, .Min = 1, .Max = 2};
+  MemLimit.HasMax = true;
+  MemLimit.Shared = false;
+  MemLimit.Min = 1;
+  MemLimit.Max = 2;
   HostMType = WasmEdge_MemoryTypeCreate(MemLimit);
   HostMemory = WasmEdge_MemoryInstanceCreate(HostMType);
   WasmEdge_MemoryTypeDelete(HostMType);
@@ -169,8 +177,10 @@ WasmEdge_ModuleInstanceContext *createSpecTestModule(void) {
   WasmEdge_StringDelete(HostName);
 
   // Add host memory "memory"
-  WasmEdge_Limit SharedMemLimit = {
-      .HasMax = true, .Shared = true, .Min = 1, .Max = 2};
+  SharedMemLimit.HasMax = true;
+  SharedMemLimit.Shared = true;
+  SharedMemLimit.Min = 1;
+  SharedMemLimit.Max = 2;
   HostMType = WasmEdge_MemoryTypeCreate(SharedMemLimit);
   HostMemory = WasmEdge_MemoryInstanceCreate(HostMType);
   WasmEdge_MemoryTypeDelete(HostMType);

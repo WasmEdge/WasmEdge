@@ -494,5 +494,24 @@ public:
                         uint32_t MaxResLength, uint32_t ResLengthPtr);
 };
 
+class WasiPthreadCreate : public Wasi<WasiPthreadCreate> {
+public:
+  WasiPthreadCreate(WASI::Environ &HostEnv) : Wasi(HostEnv) {}
+
+  Expect<uint32_t> body(Runtime::Instance::MemoryInstance *MemInst,
+                        uint32_t Thread, uint32_t Attr, uint32_t StartRoutine,
+                        uint32_t Arg);
+};
+
+
+class WasiPthreadJoin : public Wasi<WasiPthreadJoin> {
+public:
+  WasiPthreadJoin(WASI::Environ &HostEnv) : Wasi(HostEnv) {}
+
+  Expect<uint32_t> body(Runtime::Instance::MemoryInstance *MemInst,
+                        uint32_t Thread, uint32_t Retval);
+};
+
+
 } // namespace Host
 } // namespace WasmEdge

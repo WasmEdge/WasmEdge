@@ -19,10 +19,10 @@ namespace WasmEdge {
 
 using namespace std::literals::string_view_literals;
 
-#cmakedefine CPACK_PACKAGE_VERSION "@CPACK_PACKAGE_VERSION@"sv
+#cmakedefine PROJECT_VERSION "@PROJECT_VERSION@"sv
 static inline std::string_view kVersionString [[maybe_unused]] =
-    CPACK_PACKAGE_VERSION;
-#undef CPACK_PACKAGE_VERSION
+    PROJECT_VERSION;
+#undef PROJECT_VERSION
 
 #cmakedefine CMAKE_INSTALL_FULL_LIBDIR "@CMAKE_INSTALL_FULL_LIBDIR@"
 static inline std::string_view kGlobalPluginDir [[maybe_unused]] =

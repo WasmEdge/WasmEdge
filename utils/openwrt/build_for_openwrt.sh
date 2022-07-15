@@ -8,9 +8,9 @@ WASMEDGE_FATHER_PATH=$(dirname $(dirname $(dirname $(pwd))))
 cd ${OPENWRT_DIR_PATH}/package/utils
 mkdir WasmEdge && cd WasmEdge
 cp -r ${WASMEDGE_FATHER_PATH}/WasmEdge ${OPENWRT_DIR_PATH}/package/utils/WasmEdge/src
-cp ${OPENWRT_DIR_PATH}/package/utils/WasmEdge/src/utils/openwrt/configuration/Makefile ${OPENWRT_DIR_PATH}/package/utils/WasmEdge/
+cp ${WASMEDGE_FATHER_PATH}/WasmEdge/utils/openwrt/configuration/Makefile ${OPENWRT_DIR_PATH}/package/utils/WasmEdge/
 cd ${OPENWRT_DIR_PATH}
 
 make menuconfig
 
-make -j V=s
+make -j1 V=s

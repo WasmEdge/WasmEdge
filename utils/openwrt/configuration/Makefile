@@ -11,7 +11,7 @@ define Package/$(PKG_NAME)
     SECTION:=base
     CATEGORY:=Runtime
     TITLE:=$(PKG_NAME) -prints a $(PKG_NAME) message
-    DEPENDS:=+libpthread +libubox +libstdcpp +boost +libxml2
+    DEPENDS:=+libpthread +libstdcpp
 endef
 
 define Package/$(PKG_NAME)/description
@@ -33,11 +33,8 @@ define Package/$(PKG_NAME)/install
 	$(CP) $(PKG_INSTALL_DIR)/usr/lib/wasmedge/libwasmedgePluginWasmEdgeProcess.so $(1)/usr/lib/
 endef
 
-CMAKE_BINARY_DIR = $(PKG_BUILD_DIR)/build
 CMAKE_OPTIONS += \
         -DWASMEDGE_BUILD_AOT_RUNTIME=OFF \
-        -DOUTPUT_PATH="${CMAKE_CURRENT_SOURCE_DIR}/build" \
-
 
 $(eval $(call BuildPackage,$(PKG_NAME)))
 

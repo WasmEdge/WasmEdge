@@ -202,7 +202,7 @@ private:
 public:
   ArgumentParser() noexcept
       : SubCommandDescriptors(1), CurrentSubCommandId(0),
-        VerOpt(Description("Show version infomation"sv)) {
+        VerOpt(Description("Show version information"sv)) {
     SubCommandDescriptors.front().add_option("v"sv, VerOpt);
     SubCommandDescriptors.front().add_option("version"sv, VerOpt);
   }

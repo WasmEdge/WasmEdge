@@ -4877,7 +4877,7 @@ Expect<void> outputWasmLibrary(const std::filesystem::path &OutputPath,
       } else if (Name == SYMBOL("intrinsics"sv)) {
         IntrinsicsAddress = Address;
       } else if (startsWith(Name, SYMBOL("t"sv))) {
-        uint64_t Index;
+        uint64_t Index = 0;
         std::from_chars(Name.data() + SYMBOL("t"sv).size(),
                         Name.data() + Name.size(), Index);
         if (Types.size() < Index + 1) {
@@ -4885,7 +4885,7 @@ Expect<void> outputWasmLibrary(const std::filesystem::path &OutputPath,
         }
         Types[Index] = Address;
       } else if (startsWith(Name, SYMBOL("f"sv))) {
-        uint64_t Index;
+        uint64_t Index = 0;
         std::from_chars(Name.data() + SYMBOL("f"sv).size(),
                         Name.data() + Name.size(), Index);
         if (Codes.size() < Index + 1) {

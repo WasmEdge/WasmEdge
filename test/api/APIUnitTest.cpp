@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2019-2022 Second State INC
 
+#include "common/defines.h"
 #include "wasmedge/wasmedge.h"
 
 #include <algorithm>
@@ -933,17 +934,17 @@ TEST(APICoreTest, Compiler) {
   WasmEdge_ConfigureCompilerSetOutputFormat(
       Conf, WasmEdge_CompilerOutputFormat_Native);
   Compiler = WasmEdge_CompilerCreate(Conf);
-  EXPECT_TRUE(WasmEdge_ResultOK(
-      WasmEdge_CompilerCompile(Compiler, TPath, "test_aot.so")));
+  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_CompilerCompile(
+      Compiler, TPath, "test_aot" WASMEDGE_LIB_EXTENSION)));
   EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_CompilerCompile(
       Compiler, "../spec/testSuites/core/binary/binary.164.wasm",
-      "binary_164_aot.so")));
+      "binary_164_aot" WASMEDGE_LIB_EXTENSION)));
   // Check the header of the output files.
-  OutFile.open("test_aot.so", std::ios::binary);
+  OutFile.open("test_aot" WASMEDGE_LIB_EXTENSION, std::ios::binary);
   EXPECT_TRUE(OutFile.read(reinterpret_cast<char *>(Buf), 4));
   OutFile.close();
   EXPECT_FALSE(std::equal(WASMMagic, WASMMagic + 4, Buf));
-  OutFile.open("binary_164_aot.so", std::ios::binary);
+  OutFile.open("binary_164_aot" WASMEDGE_LIB_EXTENSION, std::ios::binary);
   EXPECT_TRUE(OutFile.read(reinterpret_cast<char *>(Buf), 4));
   OutFile.close();
   EXPECT_FALSE(std::equal(WASMMagic, WASMMagic + 4, Buf));
@@ -1008,7 +1009,7 @@ TEST(APICoreTest, Loader) {
                                      static_cast<uint32_t>(Buf.size()))));
 #ifdef WASMEDGE_BUILD_AOT_RUNTIME
   // Failed case to parse from buffer with AOT compiled WASM
-  EXPECT_TRUE(readToVector("test_aot.so", Buf));
+  EXPECT_TRUE(readToVector("test_aot" WASMEDGE_LIB_EXTENSION, Buf));
   Mod = nullptr;
   EXPECT_TRUE(isErrMatch(
       WasmEdge_ErrCode_MalformedMagic,
@@ -2009,29 +2010,45 @@ TEST(APICoreTest, ModuleInstance) {
   WasmEdge_VMDelete(VM);
 
   // Setup extra plugin path
-#if defined(_WIN32) || defined(_WIN64) || defined(__WIN32__) ||                \
-    defined(__TOS_WIN__) || defined(__WINDOWS__)
+#if WASMEDGE_OS_WINDOWS
   ::_putenv_s("WASMEDGE_PLUGIN_PATH", "../../plugins/wasmedge_process");
 #else
   ::setenv("WASMEDGE_PLUGIN_PATH", "../../plugins/wasmedge_process", 0);
 #endif
 
+  // wasmedge_process only works on Linux.
   // Load plugins
   WasmEdge_Plugin_loadWithDefaultPluginPaths();
 
   // Create wasmedge_process.
   HostMod = WasmEdge_ModuleInstanceCreateWasmEdgeProcess(Args, 2, false);
+#if WASMEDGE_OS_LINUX
   EXPECT_NE(HostMod, nullptr);
   WasmEdge_ModuleInstanceDelete(HostMod);
+#else
+  EXPECT_EQ(HostMod, nullptr);
+#endif
   HostMod = WasmEdge_ModuleInstanceCreateWasmEdgeProcess(nullptr, 0, false);
+#if WASMEDGE_OS_LINUX
   EXPECT_NE(HostMod, nullptr);
   WasmEdge_ModuleInstanceDelete(HostMod);
+#else
+  EXPECT_EQ(HostMod, nullptr);
+#endif
   HostMod = WasmEdge_ModuleInstanceCreateWasmEdgeProcess(Args, 2, true);
+#if WASMEDGE_OS_LINUX
   EXPECT_NE(HostMod, nullptr);
   WasmEdge_ModuleInstanceDelete(HostMod);
+#else
+  EXPECT_EQ(HostMod, nullptr);
+#endif
   HostMod = WasmEdge_ModuleInstanceCreateWasmEdgeProcess(nullptr, 0, true);
+#if WASMEDGE_OS_LINUX
   EXPECT_NE(HostMod, nullptr);
   WasmEdge_ModuleInstanceDelete(HostMod);
+#else
+  EXPECT_EQ(HostMod, nullptr);
+#endif
 
   // Initialize wasmedge_process in VM.
   Conf = WasmEdge_ConfigureCreate();
@@ -2041,8 +2058,11 @@ TEST(APICoreTest, ModuleInstance) {
   WasmEdge_ConfigureDelete(Conf);
   HostMod = WasmEdge_VMGetImportModuleContext(
       VM, WasmEdge_HostRegistration_WasmEdge_Process);
+#if WASMEDGE_OS_LINUX
   EXPECT_NE(HostMod, nullptr);
-  WasmEdge_ModuleInstanceInitWasmEdgeProcess(Args, 2, false);
+#else
+  EXPECT_EQ(HostMod, nullptr);
+#endif
   WasmEdge_VMDelete(VM);
 }
 
@@ -3012,6 +3032,18 @@ TEST(APICoreTest, VM) {
   // VM get store
   EXPECT_EQ(WasmEdge_VMGetStoreContext(VM), Store);
   EXPECT_EQ(WasmEdge_VMGetStoreContext(nullptr), nullptr);
+
+  // VM get loader
+  EXPECT_NE(WasmEdge_VMGetLoaderContext(VM), nullptr);
+  EXPECT_EQ(WasmEdge_VMGetLoaderContext(nullptr), nullptr);
+
+  // VM get validator
+  EXPECT_NE(WasmEdge_VMGetValidatorContext(VM), nullptr);
+  EXPECT_EQ(WasmEdge_VMGetValidatorContext(nullptr), nullptr);
+
+  // VM get executor
+  EXPECT_NE(WasmEdge_VMGetExecutorContext(VM), nullptr);
+  EXPECT_EQ(WasmEdge_VMGetExecutorContext(nullptr), nullptr);
 
   // VM get statistics
   EXPECT_NE(WasmEdge_VMGetStatisticsContext(VM), nullptr);

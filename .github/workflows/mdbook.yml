@@ -46,6 +46,12 @@ jobs:
           cd docs/book/zh
           mdbook build
           cp -r book ../target/zh
+          
+      - name: Build ZH-TW version
+        run: |
+          cd docs/book/zh-TW
+          mdbook build
+          cp -r book ../target/zh-TW
 
       - name: Publish EN version
         if: ${{ github.event_name == 'push' }}

@@ -36,6 +36,11 @@ target_link_libraries(wasmedgeAPIUnitTests
   wasmedge_c_shared
 )
 
+target_include_directories(wasmedgeAPIUnitTests
+  PRIVATE
+  ${CMAKE_SOURCE_DIR}/include
+)
+
 wasmedge_add_executable(wasmedgeAPIVMCoreTests
   APIVMCoreTest.cpp
 )

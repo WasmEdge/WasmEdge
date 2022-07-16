@@ -1,8 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2019-2022 Second State INC
 
-#include "wasinnenv.h"
+#include "common/types.h"
+#include "runtime/instance/module.h"
 #include "wasinnfunc.h"
+#include "wasinnmodule.h"
 
 #include <algorithm>
 #include <cstdint>
@@ -12,14 +14,36 @@
 #include <vector>
 
 using WasmEdge::Host::WASINN::ErrNo;
-#ifdef WASMEDGE_WASINN_BACKEND_OPENVINO
-namespace {
+#ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_OPENVINO
 
-inline std::vector<uint8_t> readBinariesFromDisk(const std::string file_path) {
-  std::ifstream instream(file_path, std::ios::in | std::ios::binary);
-  std::vector<uint8_t> data((std::istreambuf_iterator<char>(instream)),
-                            std::istreambuf_iterator<char>());
-  return data;
+namespace {
+WasmEdge::Runtime::Instance::ModuleInstance *createModule() {
+  using namespace std::literals::string_view_literals;
+  WasmEdge::Plugin::Plugin::load(std::filesystem::u8path(
+      "../../../plugins/wasi_nn/"
+      "libwasmedgePluginWasiNN" WASMEDGE_LIB_EXTENSION));
+  if (const auto *Plugin = WasmEdge::Plugin::Plugin::find("wasi_nn"sv)) {
+    if (const auto *Module = Plugin->findModule("wasi_nn"sv)) {
+      return Module->create().release();
+    }
+  }
+  return nullptr;
+}
+
+inline std::vector<uint8_t> readEntireFile(const std::string &Path) {
+  std::ifstream Fin(Path, std::ios::binary | std::ios::ate);
+  if (!Fin) {
+    return {};
+  }
+  Fin.seekg(0, std::ios::end);
+  std::vector<uint8_t> Buf(static_cast<uint32_t>(Fin.tellg()));
+  Fin.seekg(0, std::ios::beg);
+  if (!Fin.read(reinterpret_cast<char *>(Buf.data()),
+                static_cast<uint32_t>(Buf.size()))) {
+    return {};
+  }
+  Fin.close();
+  return Buf;
 }
 
 template <typename T>
@@ -29,9 +53,9 @@ void writeBinaries(WasmEdge::Runtime::Instance::MemoryInstance &MemInst,
 }
 
 void writeUInt32(WasmEdge::Runtime::Instance::MemoryInstance &MemInst,
-                 uint32_t value, uint32_t &Ptr) {
+                 uint32_t Value, uint32_t &Ptr) {
   uint32_t *BufPtr = MemInst.getPointer<uint32_t *>(Ptr);
-  *BufPtr = value;
+  *BufPtr = Value;
   Ptr += 4;
 }
 
@@ -42,26 +66,35 @@ void writeFatPointer(WasmEdge::Runtime::Instance::MemoryInstance &MemInst,
 }
 
 template <typename T>
-std::vector<size_t> classSort(const std::vector<T> &array) {
-  std::vector<size_t> indices(array.size());
-  std::iota(indices.begin(), indices.end(), 0);
-  std::sort(indices.begin(), indices.end(),
-            [&array](int left, int right) -> bool {
-              // sort indices according to corresponding array element
-              return array[left] >= array[right];
+std::vector<size_t> classSort(const std::vector<T> &Array) {
+  std::vector<size_t> Indices(Array.size());
+  std::iota(Indices.begin(), Indices.end(), 0);
+  std::sort(Indices.begin(), Indices.end(),
+            [&Array](int Left, int Right) -> bool {
+              // Sort indices according to corresponding array element.
+              return Array[Left] >= Array[Right];
             });
-
-  return indices;
+  return Indices;
 }
 } // namespace
 
 TEST(WasiNNTest, OpenVINOBackend) {
-  WasmEdge::Host::WASINN::WasiNNEnvironment Env;
+  // Create the wasmedge_process module instance.
+  auto *NNMod = dynamic_cast<WasmEdge::Host::WasiNNModule *>(createModule());
+  EXPECT_FALSE(NNMod == nullptr);
+
+  // Create the memory instance.
   WasmEdge::Runtime::Instance::MemoryInstance MemInst(
       WasmEdge::AST::MemoryType(400));
-  std::array<WasmEdge::ValVariant, 1> Errno = {UINT32_C(0)};
 
-  std::vector<uint8_t> XmlRead, WeightRead, TensorData;
+  // Load the files.
+  std::vector<uint8_t> TensorData =
+      readEntireFile("./wasinn_openvino_fixtures/tensor-1x224x224x3-f32.bgr");
+  std::vector<uint8_t> XmlRead =
+      readEntireFile("./wasinn_openvino_fixtures/mobilenet.xml");
+  std::vector<uint8_t> WeightRead =
+      readEntireFile("./wasinn_openvino_fixtures/mobilenet.bin");
+
   std::vector<uint32_t> TensorDim{1, 3, 224, 224};
   uint32_t BuilderPtr = UINT32_C(0);
   uint32_t LoadEntryPtr = UINT32_C(0);
@@ -69,23 +102,58 @@ TEST(WasiNNTest, OpenVINOBackend) {
   uint32_t OutBoundPtr = UINT32_C(410 * 65536);
   uint32_t StorePtr = UINT32_C(65536);
 
-  XmlRead = readBinariesFromDisk("./wasinn_openvino_fixtures/mobilenet.xml");
-  WeightRead = readBinariesFromDisk("./wasinn_openvino_fixtures/mobilenet.bin");
+  // Return value.
+  std::array<WasmEdge::ValVariant, 1> Errno = {UINT32_C(0)};
 
-  // wasi-nn load test
-  WasmEdge::Host::WasiNNLoad WasiNNLoad(Env);
-  // meaningless binaries
+  // Temp. values.
+  std::vector<WasmEdge::Host::WASINN::Graph> NNGraphTmp;
+  std::vector<WasmEdge::Host::WASINN::Context> NNContextTmp;
+
+  // Get the function "load".
+  auto *FuncInst = NNMod->findFuncExports("load");
+  EXPECT_NE(FuncInst, nullptr);
+  EXPECT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncLoad =
+      dynamic_cast<WasmEdge::Host::WasiNNLoad &>(FuncInst->getHostFunc());
+  // Get the function "init_execution_context".
+  FuncInst = NNMod->findFuncExports("init_execution_context");
+  EXPECT_NE(FuncInst, nullptr);
+  EXPECT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncInit = dynamic_cast<WasmEdge::Host::WasiNNInitExecCtx &>(
+      FuncInst->getHostFunc());
+  // Get the function "set_input".
+  FuncInst = NNMod->findFuncExports("set_input");
+  EXPECT_NE(FuncInst, nullptr);
+  EXPECT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncSetInput =
+      dynamic_cast<WasmEdge::Host::WasiNNSetInput &>(FuncInst->getHostFunc());
+  // Get the function "get_output".
+  FuncInst = NNMod->findFuncExports("get_output");
+  EXPECT_NE(FuncInst, nullptr);
+  EXPECT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncGetOutput =
+      dynamic_cast<WasmEdge::Host::WasiNNGetOuput &>(FuncInst->getHostFunc());
+  // Get the function "compute".
+  FuncInst = NNMod->findFuncExports("compute");
+  EXPECT_NE(FuncInst, nullptr);
+  EXPECT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncCompute =
+      dynamic_cast<WasmEdge::Host::WasiNNCompute &>(FuncInst->getHostFunc());
+
+  // OpenVINO WASI-NN load tests.
+  // Test: load -- meaningless binaries.
   {
-    EXPECT_TRUE(WasiNNLoad.run(
+    EXPECT_TRUE(HostFuncLoad.run(
         &MemInst,
         std::initializer_list<WasmEdge::ValVariant>{
             LoadEntryPtr, UINT32_C(2), UINT32_C(0), UINT32_C(0), BuilderPtr},
         Errno));
     EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Busy));
   }
-  // graph id ptr out bound
+
+  // Test: load -- graph id ptr out of bounds.
   {
-    EXPECT_TRUE(WasiNNLoad.run(
+    EXPECT_TRUE(HostFuncLoad.run(
         &MemInst,
         std::initializer_list<WasmEdge::ValVariant>{
             LoadEntryPtr, UINT32_C(2), UINT32_C(0), UINT32_C(0), OutBoundPtr},
@@ -93,9 +161,10 @@ TEST(WasiNNTest, OpenVINOBackend) {
     EXPECT_EQ(Errno[0].get<int32_t>(),
               static_cast<uint32_t>(ErrNo::InvalidArgument));
   }
-  // graph builder ptr out bound
+
+  // Test: load -- graph builder ptr out of bounds.
   {
-    EXPECT_TRUE(WasiNNLoad.run(
+    EXPECT_TRUE(HostFuncLoad.run(
         &MemInst,
         std::initializer_list<WasmEdge::ValVariant>{
             OutBoundPtr, UINT32_C(2), UINT32_C(0), UINT32_C(0), BuilderPtr},
@@ -104,13 +173,13 @@ TEST(WasiNNTest, OpenVINOBackend) {
               static_cast<uint32_t>(ErrNo::InvalidArgument));
   }
 
-  // openvino model xml ptr out bound
+  // Test: laod -- OpenVINO model xml ptr out of bounds.
   BuilderPtr = LoadEntryPtr;
   writeFatPointer(MemInst, OutBoundPtr, XmlRead.size(), BuilderPtr);
   writeFatPointer(MemInst, StorePtr + XmlRead.size(), WeightRead.size(),
                   BuilderPtr);
   {
-    EXPECT_TRUE(WasiNNLoad.run(
+    EXPECT_TRUE(HostFuncLoad.run(
         &MemInst,
         std::initializer_list<WasmEdge::ValVariant>{
             LoadEntryPtr, UINT32_C(2), UINT32_C(0), UINT32_C(0), BuilderPtr},
@@ -119,12 +188,12 @@ TEST(WasiNNTest, OpenVINOBackend) {
               static_cast<uint32_t>(ErrNo::InvalidArgument));
   }
 
-  // openvino model bin ptr out bound
+  // Test: load -- OpenVINO model bin ptr out of bounds.
   BuilderPtr = LoadEntryPtr;
   writeFatPointer(MemInst, StorePtr, XmlRead.size(), BuilderPtr);
   writeFatPointer(MemInst, OutBoundPtr, WeightRead.size(), BuilderPtr);
   {
-    EXPECT_TRUE(WasiNNLoad.run(
+    EXPECT_TRUE(HostFuncLoad.run(
         &MemInst,
         std::initializer_list<WasmEdge::ValVariant>{
             LoadEntryPtr, UINT32_C(2), UINT32_C(0), UINT32_C(0), BuilderPtr},
@@ -133,7 +202,7 @@ TEST(WasiNNTest, OpenVINOBackend) {
               static_cast<uint32_t>(ErrNo::InvalidArgument));
   }
 
-  // wrong builders' length
+  // Test: load -- wrong builders' length.
   BuilderPtr = LoadEntryPtr;
   writeFatPointer(MemInst, StorePtr, XmlRead.size(), BuilderPtr);
   writeFatPointer(MemInst, StorePtr + XmlRead.size(), WeightRead.size(),
@@ -142,7 +211,7 @@ TEST(WasiNNTest, OpenVINOBackend) {
   writeBinaries<uint8_t>(MemInst, WeightRead, StorePtr + XmlRead.size());
   StorePtr += (XmlRead.size() + WeightRead.size());
   {
-    EXPECT_TRUE(WasiNNLoad.run(
+    EXPECT_TRUE(HostFuncLoad.run(
         &MemInst,
         std::initializer_list<WasmEdge::ValVariant>{
             LoadEntryPtr, UINT32_C(4), UINT32_C(0), UINT32_C(0), BuilderPtr},
@@ -150,9 +219,10 @@ TEST(WasiNNTest, OpenVINOBackend) {
     EXPECT_EQ(Errno[0].get<int32_t>(),
               static_cast<uint32_t>(ErrNo::InvalidArgument));
   }
-  // unsupported device. CPU 0, GPU 1, TPU 2
+
+  // Test: load -- unsupported device. CPU 0, GPU 1, TPU 2
   {
-    EXPECT_TRUE(WasiNNLoad.run(
+    EXPECT_TRUE(HostFuncLoad.run(
         &MemInst,
         std::initializer_list<WasmEdge::ValVariant>{
             LoadEntryPtr, UINT32_C(2), UINT32_C(0), UINT32_C(3), BuilderPtr},
@@ -160,9 +230,10 @@ TEST(WasiNNTest, OpenVINOBackend) {
     EXPECT_EQ(Errno[0].get<int32_t>(),
               static_cast<uint32_t>(ErrNo::InvalidArgument));
   }
-  // successful load
+
+  // Test: load -- load successfully.
   {
-    EXPECT_TRUE(WasiNNLoad.run(
+    EXPECT_TRUE(HostFuncLoad.run(
         &MemInst,
         std::initializer_list<WasmEdge::ValVariant>{
             LoadEntryPtr, UINT32_C(2), UINT32_C(0), UINT32_C(0), BuilderPtr},
@@ -171,9 +242,10 @@ TEST(WasiNNTest, OpenVINOBackend) {
     EXPECT_EQ(*MemInst.getPointer<uint32_t *>(BuilderPtr), 0);
     BuilderPtr += 4;
   }
-  // second graph
+
+  // Test: load -- load second graph.
   {
-    EXPECT_TRUE(WasiNNLoad.run(
+    EXPECT_TRUE(HostFuncLoad.run(
         &MemInst,
         std::initializer_list<WasmEdge::ValVariant>{
             LoadEntryPtr, UINT32_C(2), UINT32_C(0), UINT32_C(0), BuilderPtr},
@@ -183,32 +255,37 @@ TEST(WasiNNTest, OpenVINOBackend) {
     BuilderPtr += 4;
   }
 
-  // wasi-nn init_exec_ctx test
-  WasmEdge::Host::WasiNNInitExecCtx WasiNNInitExecCtx(Env);
-  // graph id invalid
+  // OpenVINO WASI-NN init_execution_context tests.
+  // Test: init_execution_context -- graph id invalid.
   {
-    EXPECT_TRUE(WasiNNInitExecCtx.run(
+    EXPECT_TRUE(HostFuncInit.run(
         &MemInst,
         std::initializer_list<WasmEdge::ValVariant>{UINT32_C(2), BuilderPtr},
         Errno));
     EXPECT_EQ(Errno[0].get<int32_t>(),
               static_cast<uint32_t>(ErrNo::InvalidArgument));
   }
-  WasmEdge::Host::WASINN::WasiNNEnvironment EmptyEnv;
-  EmptyEnv.NNGraph.emplace_back(WasmEdge::Host::WASINN::Backend::OpenVINO);
-  WasmEdge::Host::WasiNNInitExecCtx EmptyWasiNNInitExecCtx(EmptyEnv);
-  // graph id exceeds
+
+  // Swap to the tmp. env.
+  NNGraphTmp.emplace_back(WasmEdge::Host::WASINN::Backend::OpenVINO);
+  NNGraphTmp.swap(NNMod->getEnv().NNGraph);
+  NNContextTmp.swap(NNMod->getEnv().NNContext);
+  // Test: init_execution_context -- graph id exceeds.
   {
-    EXPECT_TRUE(EmptyWasiNNInitExecCtx.run(
+    EXPECT_TRUE(HostFuncInit.run(
         &MemInst,
         std::initializer_list<WasmEdge::ValVariant>{UINT32_C(0), BuilderPtr},
         Errno));
     EXPECT_EQ(Errno[0].get<int32_t>(),
               static_cast<uint32_t>(ErrNo::MissingMemory));
   }
-  // successful init ctx
+  // Swap back.
+  NNGraphTmp.swap(NNMod->getEnv().NNGraph);
+  NNContextTmp.swap(NNMod->getEnv().NNContext);
+
+  // Test: init_execution_context -- init context successfully.
   {
-    EXPECT_TRUE(WasiNNInitExecCtx.run(
+    EXPECT_TRUE(HostFuncInit.run(
         &MemInst,
         std::initializer_list<WasmEdge::ValVariant>{UINT32_C(0), BuilderPtr},
         Errno));
@@ -216,9 +293,10 @@ TEST(WasiNNTest, OpenVINOBackend) {
     EXPECT_EQ(*MemInst.getPointer<uint32_t *>(BuilderPtr), 0);
     BuilderPtr += 4;
   }
-  // second ctx init
+
+  // Test: init_execution_context -- init second context.
   {
-    EXPECT_TRUE(WasiNNInitExecCtx.run(
+    EXPECT_TRUE(HostFuncInit.run(
         &MemInst,
         std::initializer_list<WasmEdge::ValVariant>{UINT32_C(1), BuilderPtr},
         Errno));
@@ -227,50 +305,56 @@ TEST(WasiNNTest, OpenVINOBackend) {
     BuilderPtr += 4;
   }
 
-  // wasi-nn setinput test
+  // OpenVINO WASI-NN set_input tests.
   SetInputEntryPtr = BuilderPtr;
-  TensorData = readBinariesFromDisk(
-      "./wasinn_openvino_fixtures/tensor-1x224x224x3-f32.bgr");
   writeFatPointer(MemInst, StorePtr, TensorDim.size(), BuilderPtr);
   writeUInt32(MemInst, UINT32_C(1), BuilderPtr);
   writeFatPointer(MemInst, StorePtr + TensorDim.size() * 4, TensorData.size(),
                   BuilderPtr);
   writeBinaries<uint32_t>(MemInst, TensorDim, StorePtr);
   writeBinaries<uint8_t>(MemInst, TensorData, StorePtr + TensorDim.size() * 4);
-  EmptyEnv.NNContext.emplace_back(EmptyEnv.NNGraph[0], nullptr);
-  WasmEdge::Host::WasiNNSetInput EmptyWasiNNSetInput(EmptyEnv);
-  // context id exceed
+
+  // Swap to the tmp. env.
+  NNContextTmp.emplace_back(NNGraphTmp[0], nullptr);
+  NNGraphTmp.swap(NNMod->getEnv().NNGraph);
+  NNContextTmp.swap(NNMod->getEnv().NNContext);
+  // Test: set_input -- context id exceeds.
   {
     EXPECT_TRUE(
-        EmptyWasiNNSetInput.run(&MemInst,
-                                std::initializer_list<WasmEdge::ValVariant>{
-                                    UINT32_C(3), UINT32_C(0), SetInputEntryPtr},
-                                Errno));
+        HostFuncSetInput.run(&MemInst,
+                             std::initializer_list<WasmEdge::ValVariant>{
+                                 UINT32_C(3), UINT32_C(0), SetInputEntryPtr},
+                             Errno));
     EXPECT_EQ(Errno[0].get<int32_t>(),
               static_cast<uint32_t>(ErrNo::InvalidArgument));
   }
-  // empty ctx
+
+  // Test: set_input -- empty context.
   {
     EXPECT_TRUE(
-        EmptyWasiNNSetInput.run(&MemInst,
-                                std::initializer_list<WasmEdge::ValVariant>{
-                                    UINT32_C(0), UINT32_C(0), SetInputEntryPtr},
-                                Errno));
+        HostFuncSetInput.run(&MemInst,
+                             std::initializer_list<WasmEdge::ValVariant>{
+                                 UINT32_C(0), UINT32_C(0), SetInputEntryPtr},
+                             Errno));
     EXPECT_EQ(Errno[0].get<int32_t>(),
               static_cast<uint32_t>(ErrNo::MissingMemory));
   }
-  WasmEdge::Host::WasiNNSetInput WasiNNSetInput(Env);
-  // input index exceed
+  // Swap back.
+  NNGraphTmp.swap(NNMod->getEnv().NNGraph);
+  NNContextTmp.swap(NNMod->getEnv().NNContext);
+
+  // Test: set_input -- input index exceeds.
   {
     EXPECT_TRUE(
-        WasiNNSetInput.run(&MemInst,
-                           std::initializer_list<WasmEdge::ValVariant>{
-                               UINT32_C(0), UINT32_C(10), SetInputEntryPtr},
-                           Errno));
+        HostFuncSetInput.run(&MemInst,
+                             std::initializer_list<WasmEdge::ValVariant>{
+                                 UINT32_C(0), UINT32_C(10), SetInputEntryPtr},
+                             Errno));
     EXPECT_EQ(Errno[0].get<int32_t>(),
               static_cast<uint32_t>(ErrNo::InvalidArgument));
   }
-  // tensor type not FP32
+
+  // Test: set_input -- tensor type not FP32.
   BuilderPtr = SetInputEntryPtr;
   writeFatPointer(MemInst, StorePtr, TensorDim.size(), BuilderPtr);
   writeUInt32(MemInst, UINT32_C(2), BuilderPtr);
@@ -278,14 +362,15 @@ TEST(WasiNNTest, OpenVINOBackend) {
                   BuilderPtr);
   {
     EXPECT_TRUE(
-        WasiNNSetInput.run(&MemInst,
-                           std::initializer_list<WasmEdge::ValVariant>{
-                               UINT32_C(0), UINT32_C(0), SetInputEntryPtr},
-                           Errno));
+        HostFuncSetInput.run(&MemInst,
+                             std::initializer_list<WasmEdge::ValVariant>{
+                                 UINT32_C(0), UINT32_C(0), SetInputEntryPtr},
+                             Errno));
     EXPECT_EQ(Errno[0].get<int32_t>(),
               static_cast<uint32_t>(ErrNo::InvalidArgument));
   }
-  // successful run
+
+  // Test: set_input -- set input successfully.
   BuilderPtr = SetInputEntryPtr;
   writeFatPointer(MemInst, StorePtr, TensorDim.size(), BuilderPtr);
   writeUInt32(MemInst, UINT32_C(1), BuilderPtr);
@@ -293,45 +378,50 @@ TEST(WasiNNTest, OpenVINOBackend) {
                   BuilderPtr);
   {
     EXPECT_TRUE(
-        WasiNNSetInput.run(&MemInst,
-                           std::initializer_list<WasmEdge::ValVariant>{
-                               UINT32_C(1), UINT32_C(0), SetInputEntryPtr},
-                           Errno));
+        HostFuncSetInput.run(&MemInst,
+                             std::initializer_list<WasmEdge::ValVariant>{
+                                 UINT32_C(1), UINT32_C(0), SetInputEntryPtr},
+                             Errno));
     EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
   }
   StorePtr += (TensorDim.size() * 4 + TensorData.size());
 
-  // compute test
-  WasmEdge::Host::WasiNNCompute WasiNNCompute(Env);
-  WasmEdge::Host::WasiNNCompute EmptyWasiNNCompute(EmptyEnv);
-  // context id exceed
+  // OpenVINO WASI-NN compute tests.
+  // Test: compute -- context id exceeds.
   {
-    EXPECT_TRUE(WasiNNCompute.run(
+    EXPECT_TRUE(HostFuncCompute.run(
         &MemInst, std::initializer_list<WasmEdge::ValVariant>{UINT32_C(3)},
         Errno));
     EXPECT_EQ(Errno[0].get<int32_t>(),
               static_cast<uint32_t>(ErrNo::InvalidArgument));
   }
-  // empty ctx compute
+
+  // Swap to the tmp. env.
+  NNGraphTmp.swap(NNMod->getEnv().NNGraph);
+  NNContextTmp.swap(NNMod->getEnv().NNContext);
+  // Test: compute -- empty context.
   {
-    EXPECT_TRUE(EmptyWasiNNCompute.run(
+    EXPECT_TRUE(HostFuncCompute.run(
         &MemInst, std::initializer_list<WasmEdge::ValVariant>{UINT32_C(0)},
         Errno));
     EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Busy));
   }
-  // successful run
+  // Swap back.
+  NNGraphTmp.swap(NNMod->getEnv().NNGraph);
+  NNContextTmp.swap(NNMod->getEnv().NNContext);
+
+  // Test: compute -- compute successfully.
   {
-    EXPECT_TRUE(WasiNNCompute.run(
+    EXPECT_TRUE(HostFuncCompute.run(
         &MemInst, std::initializer_list<WasmEdge::ValVariant>{UINT32_C(1)},
         Errno));
     EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
   }
 
-  // get output test
-  WasmEdge::Host::WasiNNGetOuput WasiNNGetOuput(Env);
-  // output bytes ptr out of bound
+  // OpenVINO WASI-NN get_output tests.
+  // Test: get_output -- output bytes ptr out of bounds.
   {
-    EXPECT_TRUE(WasiNNGetOuput.run(
+    EXPECT_TRUE(HostFuncGetOutput.run(
         &MemInst,
         std::initializer_list<WasmEdge::ValVariant>{
             UINT32_C(0), UINT32_C(0), StorePtr, 65532, OutBoundPtr},
@@ -340,9 +430,9 @@ TEST(WasiNNTest, OpenVINOBackend) {
               static_cast<uint32_t>(ErrNo::InvalidArgument));
   }
 
-  // output buffer ptr out of bound
+  // Test: get_output -- output buffer ptr out of bounds.
   {
-    EXPECT_TRUE(WasiNNGetOuput.run(
+    EXPECT_TRUE(HostFuncGetOutput.run(
         &MemInst,
         std::initializer_list<WasmEdge::ValVariant>{
             UINT32_C(0), UINT32_C(0), OutBoundPtr, 65532, BuilderPtr},
@@ -350,9 +440,10 @@ TEST(WasiNNTest, OpenVINOBackend) {
     EXPECT_EQ(Errno[0].get<int32_t>(),
               static_cast<uint32_t>(ErrNo::InvalidArgument));
   }
-  // output index exceed
+
+  // Test: get_output -- output index exceeds.
   {
-    EXPECT_TRUE(WasiNNGetOuput.run(
+    EXPECT_TRUE(HostFuncGetOutput.run(
         &MemInst,
         std::initializer_list<WasmEdge::ValVariant>{
             UINT32_C(0), UINT32_C(10), StorePtr, 65532, BuilderPtr},
@@ -360,9 +451,10 @@ TEST(WasiNNTest, OpenVINOBackend) {
     EXPECT_EQ(Errno[0].get<int32_t>(),
               static_cast<uint32_t>(ErrNo::InvalidArgument));
   }
-  // successful run
+
+  // Test: get_output -- get output successfully.
   {
-    EXPECT_TRUE(WasiNNGetOuput.run(
+    EXPECT_TRUE(HostFuncGetOutput.run(
         &MemInst,
         std::initializer_list<WasmEdge::ValVariant>{
             UINT32_C(1), UINT32_C(0), StorePtr, 65532, BuilderPtr},
@@ -374,10 +466,10 @@ TEST(WasiNNTest, OpenVINOBackend) {
         MemInst.getPointer<float *>(StorePtr, 1001) + 1001);
     std::vector<size_t> SortedIndex, CorrectClasses{963, 762, 909, 926, 567};
     SortedIndex = classSort<float>(OutputClassification);
-    // the probability of class i is placed at buffer[i]
+    // The probability of class i is placed at buffer[i].
     for (size_t I = 0; I < CorrectClasses.size(); I++) {
       EXPECT_EQ(SortedIndex[I], CorrectClasses[I]);
     }
   }
 }
-#endif // WASMEDGE_WASINN_BACKEND_OPENVINO
+#endif // WASMEDGE_PLUGIN_WASI_NN_BACKEND_OPENVINO

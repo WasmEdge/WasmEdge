@@ -465,6 +465,7 @@ jobs:
         sudo -E apt-get -y purge azure-cli ghc* zulu* hhvm llvm* firefox google* dotnet* powershell openjdk* adoptopenjdk* mysql* php* mongodb* dotnet* moby* snapd* || true
         sudo -E apt-get update
         sudo -E apt-get -y install build-essential asciidoc binutils bzip2 gawk gettext git libncurses5-dev libz-dev patch python3 unzip zlib1g-dev lib32gcc1 libc6-dev-i386 subversion flex uglifyjs gcc-multilib g++-multilib p7zip p7zip-full msmtp libssl-dev texinfo libglib2.0-dev xmlto qemu-utils upx libelf-dev autoconf automake libtool autopoint device-tree-compiler antlr3 gperf swig libtinfo5
+        df -h
     - name: Update feeds
       run: |
         cd ../openwrt
@@ -501,15 +502,31 @@ jobs:
         make download -j8 || make download -j1 V=s
         rm -rf $(find ./dl/ -size -1024c)
         make -j$(nproc) || make -j1 V=s
-    - name: Test WasmEdge
+    - name: Pack OpenWrt images and WasmEdge ipk
       run: |
-        mkdir -p ./artifact/openwrt
-        cp -rf $(find ../openwrt/bin/packages/ -type f -name "WasmEdge*.ipk") ./
-        mv ./WasmEdge*.ipk ./WasmEdge.ipk
         cp -rf $(find ../openwrt/bin/ -type f -name "openwrt-x86-64-generic-rootfs.tar.gz") ./
+    - name: Upload artifact (v2)
+      uses: actions/upload-artifact@v2
+      with:
+        name: openwrt-rootfs
+        path: ./openwrt-x86-64-generic-rootfs.tar.gz
+
+  build_openwrt_docker:
+    name: OpenWrt-docker
+    runs-on: ubuntu-latest
+    needs: build_openwrt
+    steps:
+    - name: Download image
+      uses: actions/download-artifact@v3
+      with:
+        name: openwrt-rootfs
+        path: ./
+    - name: make_openwrt_docker
+      run: |
         mkdir -p ./openwrt-docker
         cp openwrt-x86-64-generic-rootfs.tar.gz ./openwrt-docker/
         cd openwrt-docker
+        
         touch ./Dockerfile
         cat >> ./Dockerfile <<EOF
         FROM scratch
@@ -517,11 +534,9 @@ jobs:
         EXPOSE 22 80 443
         ENTRYPOINT ["/sbin/init"]
         EOF
+        
+        ls ./
         docker build -t openwrt .
         docker run --name openwrt -d --privileged openwrt:latest /sbin/init
         docker exec openwrt wasmedge -v
-    - name: Upload artifact (v2)
-      uses: actions/upload-artifact@v2
-      with:
-        name: WasmEdge-${{ needs.get_version_v2.outputs.version }}-openwrt_x86_64.tar
-        path: ./WasmEdge.ipk
+        

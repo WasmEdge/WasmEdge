@@ -48,7 +48,7 @@ foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
   elseif(BACKEND MATCHES "PyTorch")
     message(STATUS "Build ${BACKEND} backend for WASI-NN")
     find_package(Torch REQUIRED)
-    add_definitions(-DWASMEDGE_WASINN_BACKEND_TORCH)
+    add_definitions(-DWASMEDGE_PLUGIN_WASI_NN_BACKEND_TORCH)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${TORCH_CXX_FLAGS}")
     target_link_libraries(wasmedgePluginWasiNN
       PUBLIC

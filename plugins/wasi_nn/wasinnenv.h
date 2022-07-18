@@ -12,7 +12,7 @@
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_OPENVINO
 #include <c_api/ie_c_api.h>
 #endif
-#ifdef WASMEDGE_WASINN_BACKEND_TORCH
+#ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_TORCH
 #include <torch/script.h>
 #endif
 
@@ -74,8 +74,8 @@ public:
   std::vector<char *> OpenVINOInputNames;
   std::vector<char *> OpenVINOOutputNames;
 #endif
-#ifdef WASMEDGE_WASINN_BACKEND_TORCH
-  torch::jit::script::Module TorchModel;
+#ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_TORCH
+  torch::jit::Module TorchModel;
 #endif
 };
 
@@ -94,7 +94,7 @@ public:
       }
 #endif
     } else if (G.GraphBackend == Backend::PyTorch) {
-#ifdef WASMEDGE_WASINN_BACKEND_TORCH
+#ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_TORCH
       TorchModel = G.TorchModel;
 #endif
     }
@@ -106,7 +106,7 @@ public:
       ie_infer_request_free(&OpenVINOInferRequest);
     }
 #endif
-#ifdef WASMEDGE_WASINN_BACKEND_TORCH
+#ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_TORCH
     TorchInputs.clear();
 #endif
   }
@@ -115,10 +115,10 @@ public:
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_OPENVINO
   ie_infer_request_t *OpenVINOInferRequest = nullptr;
 #endif
-#ifdef WASMEDGE_WASINN_BACKEND_TORCH
+#ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_TORCH
   std::vector<torch::jit::IValue> TorchInputs;
-  torch::jit::script::Module TorchModel;
-  at::Tensor TorchOutputs;
+  torch::jit::Module TorchModel;
+  std::vector<at::Tensor> TorchOutputs;
 #endif
 };
 

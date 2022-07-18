@@ -61,6 +61,7 @@ wasmedge_add_library(wasmedgeCAPI OBJECT
 target_link_libraries(wasmedgeCAPI
   PUBLIC
   wasmedgeVM
+  wasmedgeDriver
 )
 
 if (WASMEDGE_BUILD_AOT_RUNTIME)
@@ -153,6 +154,7 @@ if(WASMEDGE_BUILD_STATIC_LIB)
     endif()
 
     if(NOT APPLE)
+      find_package(ZLIB REQUIRED)
       # Pack the zlib.
       get_filename_component(ZLIB_PATH "${ZLIB_LIBRARIES}" DIRECTORY)
       wasmedge_add_libs_component_command("z" ${ZLIB_PATH})
@@ -165,21 +167,26 @@ if(WASMEDGE_BUILD_STATIC_LIB)
     wasmedge_add_static_lib_component_command(wasmedgeAOT)
   endif()
 
-  add_custom_target(wasmedge_c_static ALL
-    ${WASMEDGE_STATIC_LIB_CMDS}
-    COMMAND ${CMAKE_AR} -qcs libwasmedge_c.a $<TARGET_OBJECTS:wasmedgeCAPI> objs/*/*.o
-    COMMAND ${CMAKE_COMMAND} -E rm -rf objs
-    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-    DEPENDS
-    ${WASMEDGE_STATIC_LIB_DEPS}
+  wasmedge_add_library(wasmedge_c_static STATIC
+    ../../include/api/wasmedge/wasmedge.h
+  )
+
+  target_link_libraries(wasmedge_c_static
+    PRIVATE
     wasmedgeCAPI
   )
 
-  install(FILES ${CMAKE_CURRENT_BINARY_DIR}/libwasmedge_c.a
-    DESTINATION ${CMAKE_INSTALL_LIBDIR}
+  target_include_directories(wasmedge_c_static
+    PUBLIC
+    ${PROJECT_BINARY_DIR}/include/api
+    ${PROJECT_SOURCE_DIR}/include/api
   )
-  install(FILES ${WASMEDGE_CAPI_HEADERS}
-    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/wasmedge
+
+  set_target_properties(wasmedge_c_static PROPERTIES OUTPUT_NAME wasmedge_c)
+
+  install(TARGETS wasmedge_c_static
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/wasmedge
   )
 
 endif()

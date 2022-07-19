@@ -32,6 +32,23 @@ impl From<RefType> for u32 {
         }
     }
 }
+impl From<i32> for RefType {
+    fn from(value: i32) -> Self {
+        match value {
+            112 => RefType::FuncRef,
+            111 => RefType::ExternRef,
+            _ => panic!("[wasmedge-types] Invalid WasmEdge_RefType: {:#X}", value),
+        }
+    }
+}
+impl From<RefType> for i32 {
+    fn from(value: RefType) -> Self {
+        match value {
+            RefType::FuncRef => 112,
+            RefType::ExternRef => 111,
+        }
+    }
+}
 
 /// Defines WasmEdge value types.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
@@ -139,6 +156,23 @@ impl From<u32> for Mutability {
     }
 }
 impl From<Mutability> for u32 {
+    fn from(value: Mutability) -> Self {
+        match value {
+            Mutability::Const => 0,
+            Mutability::Var => 1,
+        }
+    }
+}
+impl From<i32> for Mutability {
+    fn from(value: i32) -> Self {
+        match value {
+            0 => Mutability::Const,
+            1 => Mutability::Var,
+            _ => panic!("[wasmedge-types] Invalid WasmEdge_Mutability: {:#X}", value),
+        }
+    }
+}
+impl From<Mutability> for i32 {
     fn from(value: Mutability) -> Self {
         match value {
             Mutability::Const => 0,
@@ -260,6 +294,20 @@ pub enum ExternalInstanceType {
 }
 impl From<u32> for ExternalInstanceType {
     fn from(value: u32) -> Self {
+        match value {
+            0 => ExternalInstanceType::Func(FuncType::default()),
+            1 => ExternalInstanceType::Table(TableType::default()),
+            2 => ExternalInstanceType::Memory(MemoryType::default()),
+            3 => ExternalInstanceType::Global(GlobalType::default()),
+            _ => panic!(
+                "[wasmedge-types] Invalid WasmEdge_ExternalType: {:#X}",
+                value
+            ),
+        }
+    }
+}
+impl From<i32> for ExternalInstanceType {
+    fn from(value: i32) -> Self {
         match value {
             0 => ExternalInstanceType::Func(FuncType::default()),
             1 => ExternalInstanceType::Table(TableType::default()),

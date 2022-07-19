@@ -142,15 +142,15 @@ pub use compiler::Compiler;
 pub use config::Config;
 #[doc(inline)]
 pub use executor::Executor;
+#[cfg(target_os = "linux")]
+#[doc(inline)]
+pub use instance::module::WasmEdgeProcessModule;
 #[doc(inline)]
 pub use instance::{
     function::{FuncRef, FuncType, Function},
     global::{Global, GlobalType},
     memory::{MemType, Memory},
-    module::{
-        AsInstance, ImportInstance, ImportModule, ImportObject, Instance, WasiModule,
-        WasmEdgeProcessModule,
-    },
+    module::{AsInstance, ImportInstance, ImportModule, ImportObject, Instance, WasiModule},
     table::{Table, TableType},
 };
 #[doc(inline)]

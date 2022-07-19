@@ -921,10 +921,12 @@ impl ImportInstance for WasiModule {
 ///     * [Example](https://github.com/WasmEdge/WasmEdge/tree/master/bindings/rust/wasmedge-sys/examples/wasmedge_process_module.rs)
 ///
 #[derive(Debug)]
+#[cfg(target_os = "linux")]
 pub struct WasmEdgeProcessModule {
     pub(crate) inner: InnerInstance,
     pub(crate) registered: bool,
 }
+#[cfg(target_os = "linux")]
 impl Drop for WasmEdgeProcessModule {
     fn drop(&mut self) {
         if !self.registered && !self.inner.0.is_null() {
@@ -934,6 +936,7 @@ impl Drop for WasmEdgeProcessModule {
         }
     }
 }
+#[cfg(target_os = "linux")]
 impl WasmEdgeProcessModule {
     /// Creates a wasmedge_process host module that contains the wasmedge_process host functions and
     /// initialize it with the parameters.
@@ -1010,6 +1013,7 @@ impl WasmEdgeProcessModule {
         }
     }
 }
+#[cfg(target_os = "linux")]
 impl AsInstance for WasmEdgeProcessModule {
     fn get_func(&self, name: impl AsRef<str>) -> WasmEdgeResult<Function> {
         let func_name: WasmEdgeString = name.as_ref().into();
@@ -1195,6 +1199,7 @@ impl AsInstance for WasmEdgeProcessModule {
         }
     }
 }
+#[cfg(target_os = "linux")]
 impl ImportInstance for WasmEdgeProcessModule {
     fn add_func(&mut self, name: impl AsRef<str>, mut func: Function) {
         let func_name: WasmEdgeString = name.into();
@@ -1280,6 +1285,7 @@ pub enum ImportObject {
     /// Defines the import module instance is of WasiModule type.
     Wasi(WasiModule),
     /// Defines the import module instance is of WasmEdgeProcessModule type.
+    #[cfg(target_os = "linux")]
     WasmEdgeProcess(WasmEdgeProcessModule),
 }
 impl ImportObject {
@@ -1288,6 +1294,7 @@ impl ImportObject {
         match self {
             ImportObject::Import(import) => import.name(),
             ImportObject::Wasi(wasi) => wasi.name(),
+            #[cfg(target_os = "linux")]
             ImportObject::WasmEdgeProcess(wasmedge_process) => wasmedge_process.name(),
         }
     }
@@ -1297,7 +1304,7 @@ impl ImportObject {
 mod tests {
     use super::*;
     use crate::{
-        utils, Config, Executor, FuncType, GlobalType, ImportModule, MemType, Store, TableType, Vm,
+        Config, Executor, FuncType, GlobalType, ImportModule, MemType, Store, TableType, Vm,
         WasmValue,
     };
     use std::{
@@ -1549,6 +1556,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(target_os = "linux")]
     fn test_instance_wasmedge_process() {
         // load plugins
         utils::load_plugin_from_default_paths();

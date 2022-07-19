@@ -255,6 +255,23 @@ impl From<CompilerOutputFormat> for u32 {
         }
     }
 }
+impl From<i32> for CompilerOutputFormat {
+    fn from(val: i32) -> CompilerOutputFormat {
+        match val {
+            0 => CompilerOutputFormat::Native,
+            1 => CompilerOutputFormat::Wasm,
+            _ => panic!("Unknown CompilerOutputFormat value: {}", val),
+        }
+    }
+}
+impl From<CompilerOutputFormat> for i32 {
+    fn from(val: CompilerOutputFormat) -> i32 {
+        match val {
+            CompilerOutputFormat::Native => 0,
+            CompilerOutputFormat::Wasm => 1,
+        }
+    }
+}
 
 /// Defines WasmEdge host module registration enum.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

@@ -1303,6 +1303,8 @@ impl ImportObject {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[cfg(target_os = "linux")]
+    use crate::utils;
     use crate::{
         Config, Executor, FuncType, GlobalType, ImportModule, MemType, Store, TableType, Vm,
         WasmValue,

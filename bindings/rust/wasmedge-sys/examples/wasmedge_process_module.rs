@@ -1,8 +1,7 @@
 use wasmedge_sys::utils;
 #[cfg(target_os = "linux")]
 use wasmedge_sys::{
-    utils, Config, FuncType, Function, ImportInstance, ImportObject, Vm, WasmEdgeProcessModule,
-    WasmValue,
+    Config, FuncType, Function, ImportInstance, ImportObject, Vm, WasmEdgeProcessModule, WasmValue,
 };
 #[cfg(target_os = "linux")]
 use wasmedge_types::{
@@ -17,17 +16,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // A WasmEdgeProcessModule can be created implicitly inside a Vm by passing the Vm a config argument in which the wasmedge_process option is enabled.
     #[cfg(target_os = "linux")]
-    create_wasmedge_process_module_implicitly();
+    create_wasmedge_process_module_implicitly()?;
 
     // WasmEdgeProcessModule implements ImportInstance trait, therefore it can be used to register function, table, memory and global instances.
     #[cfg(target_os = "linux")]
-    create_wasmedge_process_module_explicitly();
+    create_wasmedge_process_module_explicitly()?;
 
     Ok(())
 }
 
 #[cfg(target_os = "linux")]
-fn create_wasmedge_process_module_implicitly() {
+fn create_wasmedge_process_module_implicitly() -> Result<(), Box<dyn std::error::Error>> {
     // create a Config context
     let mut config = Config::create()?;
     config.bulk_memory_operations(true);
@@ -55,10 +54,12 @@ fn create_wasmedge_process_module_implicitly() {
             CoreInstantiationError::ModuleNameConflict
         ))
     );
+
+    Ok(())
 }
 
 #[cfg(target_os = "linux")]
-fn create_wasmedge_process_module_explicitly() {
+fn create_wasmedge_process_module_explicitly() -> Result<(), Box<dyn std::error::Error>> {
     // create a Config context, not enable wasi and wasmedge_process options.
     let mut config = Config::create()?;
     config.bulk_memory_operations(true);
@@ -131,4 +132,6 @@ fn create_wasmedge_process_module_explicitly() {
     // get "add" function
     let result = wasmedge_process_instance.get_func("add");
     assert!(result.is_ok());
+
+    Ok(())
 }

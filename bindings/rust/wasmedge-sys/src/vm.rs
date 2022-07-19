@@ -899,7 +899,7 @@ mod tests {
         WasiModule, WasmValue,
     };
     #[cfg(target_os = "linux")]
-    use crate::{utils, WasmEdgeProcessModule};
+    use crate::{utils, ImportModule, WasmEdgeProcessModule};
     use std::{
         sync::{Arc, Mutex},
         thread,

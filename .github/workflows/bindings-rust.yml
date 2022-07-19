@@ -8,6 +8,7 @@ on:
   push:
     branches:
       - master
+      - fix-ci-windows
     paths:
       - ".github/workflows/bindings-rust.yml"
       - "bindings/rust/**"
@@ -175,7 +176,7 @@ jobs:
           Enter-VsDevShell -VsInstallPath $vsPath -SkipAutomaticLocation -DevCmdArguments "-arch=x64 -host_arch=x64 -winsdk=10.0.19041.0"
           $llvm = "LLVM-13.0.1-win64.zip"
           curl -sLO https://github.com/WasmEdge/llvm-windows/releases/download/llvmorg-13.0.1/LLVM-13.0.1-win64.zip -o $llvm
-          Expand-Archive -Path $llvm
+          Expand-Archive -Path $llvm -Force
           $llvm_dir = "$pwd\\LLVM-13.0.1-win64\\LLVM-13.0.1-win64\\lib\\cmake\\llvm"
           $Env:CC = "clang-cl"
           $Env:CXX = "clang-cl"

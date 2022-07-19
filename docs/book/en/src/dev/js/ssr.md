@@ -9,6 +9,10 @@ Compared with the Docker + Linux + nodejs + v8 approach, WasmEdge is safer (suit
 
 We will start from a complete tutorial to create and deploy a simple React Streaming SSR web application, and then move on to a full React 18 demo.
 
+* [Getting started with React streaming SSR](#getting-started)
+* [A full React 18 app](#a-full-react-18-app)
+* [Appendix: the create-react-app template](#appendix-the-create-react-app-template)
+
 ## Getting started
 
 The [example_js/react_ssr_stream](https://github.com/second-state/wasmedge-quickjs/tree/main/example_js/react_ssr_stream) folder in the GitHub repo contains the example's source code. It showcases how to streaming render an HTML string from templates in a JavaScript app running in WasmEdge.
@@ -101,10 +105,16 @@ npm install
 npm run build
 ```
 
+Copy over the system's `modules` to the working directory for Node.js API support as [noted here](nodejs.md#note-to-developers).
+
+```bash
+cp -r ../../modules .
+```
+
 To run the example, do the following on the CLI to start the server.
 
 ```bash
-nohup wasmedge --dir .:. target/wasm32-wasi/release/wasmedge_quickjs.wasm example_js/react_ssr_stream/dist/main.mjs &
+nohup wasmedge --dir .:. ../../target/wasm32-wasi/release/wasmedge_quickjs.wasm dist/main.mjs &
 ```
 
 Send the server a HTTP request via `curl` or the browser.
@@ -216,10 +226,16 @@ npm install
 npm run build
 ```
 
+Copy over the system's `modules` to the working directory for Node.js API support as [noted here](nodejs.md#note-to-developers).
+
+```bash
+cp -r ../../modules .
+```
+
 To run the example, do the following on the CLI to start the server.
 
 ```bash
-nohup wasmedge --dir .:. target/wasm32-wasi/release/wasmedge_quickjs.wasm example_js/react_ssr_stream/dist/main.mjs &
+nohup wasmedge --dir .:. ../../target/wasm32-wasi/release/wasmedge_quickjs.wasm dist/main.mjs &
 ```
 
 Send the server a HTTP request via `curl` or the browser.
@@ -245,7 +261,7 @@ The results are as follows. The service first returns an HTML page with an empty
 The streaming SSR examples make use of WasmEdge's unique asynchronous networking capabilities and ES6 module support (i.e., the rollup bundled JS file contains ES6 modules). You can learn more about [async networking](networking.md) and [ES6](es6.md) in this book.
 
 
-## Tutorial: the create-react-app template
+## Appendix the create-react-app template
 
 The `create-react-app` template is a popular starting point for many developers to create React apps. In this tutorial, we will provide a step-by-step guide on how to use it to create React streaming SSR applications that run on WasmEdge.
 

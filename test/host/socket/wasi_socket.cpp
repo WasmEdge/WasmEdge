@@ -579,7 +579,7 @@ TEST(WasiTest, SockOpt) {
                        Errno);
 
     EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
-    EXPECT_EQ(*MemInst.getPointer<const bool *>(ResBufPtr), true);
+    EXPECT_TRUE(*MemInst.getPointer<const bool *>(ResBufPtr));
 
     WasiFdClose.run(CallFrame, std::array<WasmEdge::ValVariant, 1>{Fd}, Errno);
     EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);

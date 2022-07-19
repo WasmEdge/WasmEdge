@@ -228,6 +228,31 @@ impl From<CompilerOptimizationLevel> for u32 {
         }
     }
 }
+impl From<i32> for CompilerOptimizationLevel {
+    fn from(val: i32) -> CompilerOptimizationLevel {
+        match val {
+            0 => CompilerOptimizationLevel::O0,
+            1 => CompilerOptimizationLevel::O1,
+            2 => CompilerOptimizationLevel::O2,
+            3 => CompilerOptimizationLevel::O3,
+            4 => CompilerOptimizationLevel::Os,
+            5 => CompilerOptimizationLevel::Oz,
+            _ => panic!("Unknown CompilerOptimizationLevel value: {}", val),
+        }
+    }
+}
+impl From<CompilerOptimizationLevel> for i32 {
+    fn from(val: CompilerOptimizationLevel) -> i32 {
+        match val {
+            CompilerOptimizationLevel::O0 => 0,
+            CompilerOptimizationLevel::O1 => 1,
+            CompilerOptimizationLevel::O2 => 2,
+            CompilerOptimizationLevel::O3 => 3,
+            CompilerOptimizationLevel::Os => 4,
+            CompilerOptimizationLevel::Oz => 5,
+        }
+    }
+}
 
 /// Defines WasmEdge AOT compiler output binary format.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

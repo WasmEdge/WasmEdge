@@ -89,6 +89,35 @@ impl From<ValType> for u32 {
         }
     }
 }
+impl From<i32> for ValType {
+    fn from(value: i32) -> Self {
+        match value {
+            127 => ValType::I32,
+            126 => ValType::I64,
+            125 => ValType::F32,
+            124 => ValType::F64,
+            123 => ValType::V128,
+            112 => ValType::FuncRef,
+            111 => ValType::ExternRef,
+            64 => ValType::None,
+            _ => panic!("[wasmedge-types] Invalid WasmEdge_ValType: {:#X}", value),
+        }
+    }
+}
+impl From<ValType> for i32 {
+    fn from(value: ValType) -> Self {
+        match value {
+            ValType::I32 => 127,
+            ValType::I64 => 126,
+            ValType::F32 => 125,
+            ValType::F64 => 124,
+            ValType::V128 => 123,
+            ValType::FuncRef => 112,
+            ValType::ExternRef => 111,
+            ValType::None => 64,
+        }
+    }
+}
 
 /// Defines the mutability property of WasmEdge Global variables.
 ///

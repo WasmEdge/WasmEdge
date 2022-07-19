@@ -37,7 +37,7 @@ WasmEdge implements the following [WASI proposals](https://github.com/WebAssembl
 | Proposal                       | Platforms                         |
 | ------------------------------ | --------------------------------- |
 | [Sockets][]                    |                                   |
-| [Crypto][]                     |                                   |
+| [Crypto][]                     | `x86_64 Linux`, `aarch64 Linux`   |
 | [Machine Learning (wasi-nn)][] | `x86_64 Linux (OpenVINO backend)` |
 | [proxy-wasm][]                 | `x86_64 Linux (Interpreter only)` |
 

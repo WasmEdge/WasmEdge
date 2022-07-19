@@ -1,19 +1,81 @@
-# Crypto relative binding
+# Crypto for WASI
 
 While optimizing compilers could allow efficient implementation of cryptographic features in WebAssembly, there are several occasions as below where a host implementation is more desirable. [WASI-crypto](https://github.com/WebAssembly/wasi-crypto/blob/main/docs/HighLevelGoals.md) aims to fill those gaps by defining a standard interface as a set of APIs.
-Current not support android.  
+Current not support android.
 
-## Getting started with wasi-crypto
+## Prerequisites
 
-1. Build wasi-crypto with `-DWASMEDGE_PLUGIN_WASI_CRYPTO=ON`.
-2. Using [wasi-crypto binding](https://github.com/WebAssembly/wasi-crypto/tree/main/implementations/bindings/rust) in your cargo.toml
+Currently, WasmEdge used OpenSSL 1.1 for the WASI-Crypto implementation. For this demo, you need to install [OpenSSL 1.1](https://www.openssl.org/source/).
+
+### OpenSSL Development Package Installation
+
+For installing OpenSSL 1.1 development package on Ubuntu20.04, we recommend the following commands:
+
+```bash
+sudo apt update
+sudo apt install -y libssl-dev
+```
+
+For legacy systems or if you want to build OpenSSL 1.1 from source, you can refer to the following commands:
+
+```bash
+# Download and extract the OpenSSL source to the current directory.
+curl -s -L -O --remote-name-all https://www.openssl.org/source/openssl-1.1.1n.tar.gz
+echo "40dceb51a4f6a5275bde0e6bf20ef4b91bfc32ed57c0552e2e8e15463372b17a openssl-1.1.1n.tar.gz" | sha256sum -c
+tar -xf openssl-1.1.1n.tar.gz
+cd ./openssl-1.1.1n
+# OpenSSL configure need newer perl.
+curl -s -L -O --remote-name-all https://www.cpan.org/src/5.0/perl-5.34.0.tar.gz
+tar -xf perl-5.34.0.tar.gz
+cd perl-5.34.0
+mkdir localperl
+./Configure -des -Dprefix=$(pwd)/localperl/
+make -j
+make install
+export PATH="$(pwd)/localperl/bin/:$PATH"
+cd ..
+# Configure by previous perl.
+mkdir openssl
+./perl-5.34.0/localperl/bin/perl ./config --prefix=$(pwd)/openssl --openssldir=$(pwd)/openssl
+make -j
+make test
+make install
+cd ..
+# The OpenSSL installation directory is at `$(pwd)/openssl-1.1.1n/openssl`.
+# Then you can use the `-DOPENSSL_ROOT_DIR=` option of cmake to assign the directory.
+```
+
+### WasmEdge Building and Installation
+
+To enable the WasmEdge WASI-Crypto, we need to [building the WasmEdge from source](../../extend/build.md) with the cmake option `-DWASMEDGE_PLUGIN_WASI_CRYPTO=ON` to enable the WASI-Crypto:
+
+```bash
+git clone https://github.com/WasmEdge/WasmEdge.git && cd WasmEdge
+# If use docker
+docker pull wasmedge/wasmedge
+docker run -it --rm \
+    -v <path/to/your/wasmedge/source/folder>:/root/wasmedge \
+    wasmedge/wasmedge:latest
+cd /root/wasmedge
+# If you don't use docker, you need to run only the following commands in the cloned repository root
+apt update
+apt install -y libssl-dev
+mkdir -p build && cd build
+cmake -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_PLUGIN_WASI_CRYPTO=On .. && make -j
+# For the WASI-Crypto plugin, you should install this project.
+cmake --install .
+```
+
+### Rust Crate
+
+For importing WASI-Crypto in rust, you should use the [wasi-crypto binding](https://github.com/WebAssembly/wasi-crypto/tree/main/implementations/bindings/rust) in your cargo.toml
 
 ```toml
 [dependencies]
 wasi-crypto-guest = { git ="https://github.com/sonder-joker/wasi-crypto", version = "0.1.0" }
 ```
 
-## High level operation
+## High Level Operations
 
 ### Hash Function
 

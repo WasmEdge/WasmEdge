@@ -13,59 +13,59 @@ git config --global --add safe.directory $(pwd)
 bzip2 -dc boost_1_79_0.tar.bz2 | tar -xf -
 
 CMAKE_BUILD_TYPE="Release"
-WASMEDGE_PLUGIN_WASI_CRYPTO="OFF"
+IS_BUILD_TARGET=true
+IS_NINJA=true
+CMAKE_OPTS=""
 
 for i in "$@"; do
   case $i in
-    -DCMAKE_BUILD_TYPE=*)
-      CMAKE_BUILD_TYPE="${i#*=}"
+    --release|--Release)
+      CMAKE_BUILD_TYPE="Release"
       shift
       ;;
-    -DWASMEDGE_PLUGIN_WASI_CRYPTO=*)
-      WASMEDGE_PLUGIN_WASI_CRYPTO=$(echo ${i#*=} | tr '[:lower:]' '[:upper:]')
+    --debug|--Debug)
+      CMAKE_BUILD_TYPE="Debug"
+      shift
+      ;;
+    --not-build)
+      IS_BUILD_TARGET=false
+      shift
+      ;;
+    --not-ninja)
+      IS_NINJA=false
       shift
       ;;
     *)
+      CMAKE_OPTS="${CMAKE_OPTS} $i"
+      shift
       ;;
   esac
 done
 
-CMAKE_OPTS="-DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}"
-if [ ${WASMEDGE_PLUGIN_WASI_CRYPTO} == "ON" ]; then
-  echo "Building wasi-crypto..."
-  # install openssl
-  curl -s -L -O --remote-name-all https://www.openssl.org/source/openssl-1.1.1n.tar.gz
-  echo "40dceb51a4f6a5275bde0e6bf20ef4b91bfc32ed57c0552e2e8e15463372b17a openssl-1.1.1n.tar.gz" | sha256sum -c
-  tar -xf openssl-1.1.1n.tar.gz
-  cd ./openssl-1.1.1n
-  # openssl configure need newer perl
-  curl -s -L -O --remote-name-all https://www.cpan.org/src/5.0/perl-5.34.0.tar.gz
-  tar -xf perl-5.34.0.tar.gz
-  cd perl-5.34.0
-  mkdir localperl
-  ./Configure -des -Dprefix=$(pwd)/localperl/
-  make -j
-  # too long!
-  # make test
-  make install
-  export PATH="$(pwd)/localperl/bin/:$PATH"
-  cd ..
-  # configure by previous perl
-  mkdir openssl
-  ./perl-5.34.0/localperl/bin/perl ./config --prefix=$(pwd)/openssl --openssldir=$(pwd)/openssl
-  make -j
-  make test
-  make install
-  cd ..
-  CMAKE_OPTS="${CMAKE_OPTS} -DWASMEDGE_PLUGIN_WASI_CRYPTO=ON -DOPENSSL_ROOT_DIR=$(pwd)/openssl-1.1.1n/openssl"
-fi
-
-if ! cmake -Bbuild -GNinja ${CMAKE_OPTS} -DWASMEDGE_BUILD_PACKAGE="TGZ;TBZ2;TXZ;TZST;RPM;DEB" -DBoost_NO_SYSTEM_PATHS=TRUE -DBOOST_INCLUDEDIR=$(pwd)/boost_1_79_0/; then
+if $IS_NINJA; then
+  if ! cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} -DWASMEDGE_BUILD_PACKAGE="TGZ;TBZ2;TXZ;TZST;RPM;DEB" -DBoost_NO_SYSTEM_PATHS=TRUE -DBOOST_INCLUDEDIR=$(pwd)/boost_1_79_0/ ${CMAKE_OPTS} .; then
     echo === CMakeOutput.log ===
     cat build/CMakeFiles/CMakeOutput.log
     echo === CMakeError.log ===
     cat build/CMakeFiles/CMakeError.log
     exit 1
+  fi
+else
+  rm -rf build
+  mkdir build
+  cd build
+  if ! cmake -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} -DWASMEDGE_BUILD_PACKAGE="TGZ;TBZ2;TXZ;TZST;RPM;DEB" -DBoost_NO_SYSTEM_PATHS=TRUE -DBOOST_INCLUDEDIR=$(pwd)/../boost_1_79_0/ ${CMAKE_OPTS} ..; then
+    cd ..
+    echo === CMakeOutput.log ===
+    cat build/CMakeFiles/CMakeOutput.log
+    echo === CMakeError.log ===
+    cat build/CMakeFiles/CMakeError.log
+    exit 1
+  fi
+  cd ..
 fi
-cmake --build build
-cmake --build build --target package
+
+if ${IS_BUILD_TARGET}; then
+  cmake --build build
+  cmake --build build --target package
+fi

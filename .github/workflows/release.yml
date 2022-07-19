@@ -258,48 +258,81 @@ jobs:
           asset_name: WasmEdge-${{ needs.create_release.outputs.version }}-${{ matrix.name }}.tar.xz
           asset_content_type: application/x-xz
 
-  build_and_upload_wasi_nn_plugin:
-    name: Build and upload WasmEdge WASI-NN with OpenVINO plugin on Ubuntu 20.04
-    runs-on: ubuntu-latest
+  build_and_upload_plugin_ubuntu:
+    strategy:
+      matrix:
+        include:
+          - name: WASI-NN OpenVINO
+            output_path: plugins/wasi_nn
+            output_bin: libwasmedgePluginWasiNN.so
+            tar_name: wasi_nn-openvino
+          - name: WASI-Crypto
+            output_path: plugins/wasi_crypto
+            output_bin: libwasmedgePluginWasiCrypto.so
+            tar_name: wasi_crypto
+    name: Build and upload WasmEdge ${{ matrix.name }} plugin on Ubuntu 20.04
     needs: create_release
+    runs-on: ubuntu-latest
     container:
       image: wasmedge/wasmedge:latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
-      - name: Build WasmEdge with WASI-NN plugin
+      - name: Build WasmEdge WASI-NN OpenVINO plugin
+        if: contains(matrix.name, 'OpenVINO')
         env:
-          CMAKE_BUILD_TYPE: Release
           OPENVINO_VERSION: "2021.4.582"
           OPENVINO_YEAR: "2021"
         run: |
           bash utils/wasi-nn/install-openvino.sh
-          bash utils/wasi-nn/build-wasinn-ubuntu-openvino.sh
+          bash -c "\
+          source /opt/intel/openvino_2021/bin/setupvars.sh;\
+          ldconfig;\
+          mkdir -p build;\
+          cd build;\
+          cmake -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_PLUGIN_WASI_NN_BACKEND="OpenVINO" ..;\
+          cd ${{ matrix.output_path }};\
+          make -j;"
+      - name: Build WasmEdge WASI-Crypto plugin
+        if: contains(matrix.name, 'WASI-Crypto')
+        run: |
+          apt update
+          apt install -y libssl-dev
+          mkdir -p build
           cd build
-          cp plugins/wasi_nn/libwasmedgePluginWasiNN.so libwasmedgePluginWasiNN.so
-          tar -zcvf wasinn_plugin.tar.gz libwasmedgePluginWasiNN.so
-      - name: Upload ${{ matrix.name }} tar.gz package
+          cmake -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_PLUGIN_WASI_CRYPTO=On ..
+          cd ${{ matrix.output_path }}
+          make -j
+          cd -
+          cp build/${{ matrix.output_path }}/${{ output_bin }} ${{ output_bin }}
+          tar -zcvf plugin.tar.gz ${{ output_bin }}
+      - name: Upload WasmEdge ${{ matrix.name }} plugin tar.gz package
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ needs.create_release.outputs.upload_url }}
-          asset_path: build/wasinn_plugin.tar.gz
-          asset_name: WasmEdge-plugin-wasi_nn-openvino-${{ needs.create_release.outputs.version }}-ubuntu20.04_x86_64.tar.gz
+          asset_path: plugin.tar.gz
+          asset_name: WasmEdge-plugin-${{ matrix.tar_name }}-${{ needs.create_release.outputs.version }}-ubuntu20.04_x86_64.tar.gz
           asset_content_type: application/x-gzip
 
-  build_and_upload_manylinux2014_with_wasi_crypto:
+  build_and_upload_plugin_manylinux:
     strategy:
-      fail-fast: false
       matrix:
         include:
-          - name: manylinux2014_x86_64_wasi_crypto
-            docker_tag: manylinux2014_x86_64_wasi_crypto
+          - name: WASI-Crypto
+            docker_tag: manylinux2014_x86_64
+            output_path: plugins/wasi_crypto
+            output_bin: libwasmedgePluginWasiCrypto.so
+            tar_name: wasi_crypto
             host_runner: ubuntu-latest
-          - name: manylinux2014_aarch64
-            docker_tag: manylinux2014_aarch64_wasi_crypto
+          - name: WASI-Crypto
+            docker_tag: manylinux2014_aarch64
+            output_path: plugins/wasi_crypto
+            output_bin: libwasmedgePluginWasiCrypto.so
+            tar_name: wasi_crypto
             host_runner: ARM64
-    name: Build and upload WasmEdge on ${{ matrix.name }} platform
+    name: Build and upload WasmEdge ${{ matrix.name }} plugin on ${{ matrix.docker_tag }}
     needs: create_release
     runs-on: ${{ matrix.host_runner }}
     container:
@@ -307,42 +340,28 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
-      - name: Build ${{ matrix.name }} package
+      - name: Build WASI-Crypto dependency
+        if: contains(matrix.name, 'WASI-Crypto')
         run: |
-          bash utils/docker/build-manylinux.sh -DWASMEDGE_PLUGIN_WASI_CRYPTO=On
-      - name: Upload ${{ matrix.name }} rpm package
+          bash utils/wasi-crypto/build-openssl.sh
+      - name: Build WasmEdge ${{ matrix.name }} plugin
+        run: |
+          bash utils/docker/build-manylinux.sh --${{ matrix.build_type }} --not-build --not-ninja -DWASMEDGE_PLUGIN_WASI_CRYPTO=ON -DOPENSSL_ROOT_DIR=$(pwd)/openssl-1.1.1n/openssl
+          cd build
+          cd ${{ matrix.output_path }}
+          make -j
+          cd -
+          cp build/${{ matrix.output_path }}/${{ output_bin }} ${{ output_bin }}
+          tar -zcvf plugin.tar.gz ${{ output_bin }}
+      - name: Upload WasmEdge ${{ matrix.name }} plugin tar.gz package
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ needs.create_release.outputs.upload_url }}
-          asset_path: build/WasmEdge-${{ needs.create_release.outputs.version }}-Linux.rpm
-          asset_name: WasmEdge-${{ needs.create_release.outputs.version }}-${{ matrix.name }}.rpm
-          asset_content_type: application/x-rpm
-      - name: Sleep 5 second to avoid GitHub ECONNRESET error
-        run: |
-          sleep 5
-      - name: Upload ${{ matrix.name }} tar.gz package
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ needs.create_release.outputs.upload_url }}
-          asset_path: build/WasmEdge-${{ needs.create_release.outputs.version }}-Linux.tar.gz
-          asset_name: WasmEdge-${{ needs.create_release.outputs.version }}-${{ matrix.name }}.tar.gz
+          asset_path: plugin.tar.gz
+          asset_name: WasmEdge-plugin-${{ matrix.tar_name }}-${{ needs.create_release.outputs.version }}-${{ matrix.docker_tag }}.tar.gz
           asset_content_type: application/x-gzip
-      - name: Sleep 5 second to avoid GitHub ECONNRESET error
-        run: |
-          sleep 5
-      - name: Upload ${{ matrix.name }} tar.xz package
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ needs.create_release.outputs.upload_url }}
-          asset_path: build/WasmEdge-${{ needs.create_release.outputs.version }}-Linux.tar.xz
-          asset_name: WasmEdge-${{ needs.create_release.outputs.version }}-${{ matrix.name }}.tar.xz
-          asset_content_type: application/x-xz
 
   build_windows:
     name: Windows server 2022

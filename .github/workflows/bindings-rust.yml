@@ -169,33 +169,6 @@ jobs:
         with:
           sdk-version: 19041
 
-      - name: Build WasmEdge
-        run: |
-          $vsPath = (vswhere -latest -property installationPath)
-          Import-Module (Join-Path $vsPath "Common7\Tools\Microsoft.VisualStudio.DevShell.dll")
-          Enter-VsDevShell -VsInstallPath $vsPath -SkipAutomaticLocation -DevCmdArguments "-arch=x64 -host_arch=x64 -winsdk=10.0.19041.0"
-          $llvm = "LLVM-13.0.1-win64.zip"
-          curl -sLO https://github.com/WasmEdge/llvm-windows/releases/download/llvmorg-13.0.1/LLVM-13.0.1-win64.zip -o $llvm
-          Expand-Archive -Path $llvm -Force
-          $llvm_dir = "$pwd\\LLVM-13.0.1-win64\\LLVM-13.0.1-win64\\lib\\cmake\\llvm"
-          $Env:CC = "clang-cl"
-          $Env:CXX = "clang-cl"
-          $cmake_sys_version = "10.0.19041.0"
-          cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Release "-DCMAKE_SYSTEM_VERSION=$cmake_sys_version" -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreadedDLL "-DLLVM_DIR=$llvm_dir" -DWASMEDGE_BUILD_TESTS=ON -DWASMEDGE_BUILD_PACKAGE="ZIP" .
-          cmake --build build
-
-      - name: Test WasmEdge
-        continue-on-error: true
-        run: |
-          $vsPath = (vswhere -latest -property installationPath)
-          Import-Module (Join-Path $vsPath "Common7\Tools\Microsoft.VisualStudio.DevShell.dll")
-          Enter-VsDevShell -VsInstallPath $vsPath -SkipAutomaticLocation -DevCmdArguments "-arch=x64 -host_arch=x64 -winsdk=10.0.19041.0"
-          $Env:PATH += ";$pwd\\build\\lib\\api"
-          cd build
-          tools\wasmedge\wasmedge -v
-          ctest
-          cd -
-
       - name: Install Nightly Rust
         uses: actions-rs/toolchain@v1
         with:

@@ -66,7 +66,7 @@ After that, create a virtual machine in VMware and install the OpenWrt system.
 
 After setting the IP address of OpenWrt according to the gateway of the host, use `scp` to transfer the wasm file on the host to the OpenWrt system.
 
-For example, we set the ip address of OpenWrt as 192.168.0.111, then we use the following commands to upload [hello.wasm](https://github.com/WasmEdge/WasmEdge/raw/master/examples/wasm/hello.wasm) 和 [add.wasm](https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/examples/wasm/add.wasm) these two test files to OpenWrt.
+For example, we set the ip address of OpenWrt as 192.168.0.111, then we use the following commands to upload [hello.wasm](https://github.com/WasmEdge/WasmEdge/raw/master/examples/wasm/hello.wasm) and [add.wasm](https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/examples/wasm/add.wasm) these two test files to OpenWrt.
 
 ```
 $ scp hello.wasm root@192.168.0.111:/

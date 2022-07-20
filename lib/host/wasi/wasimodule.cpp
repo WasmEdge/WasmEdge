@@ -79,5 +79,7 @@ WasiModule::WasiModule() : ModuleInstance("wasi_snapshot_preview1") {
   addHostFunc("pthread_join", std::make_unique<WasiPthreadJoin>(Env));
 }
 
+
+
 } // namespace Host
 } // namespace WasmEdge

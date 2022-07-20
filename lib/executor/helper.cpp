@@ -125,6 +125,7 @@ Executor::enterFunction(Runtime::StackManager &StackMgr,
       }
       ExecutionContext.Memories = ModInst->MemoryPtrs.data();
       ExecutionContext.Globals = ModInst->GlobalPtrs.data();
+      ExecutionContext.FuncInst = &Func;
     }
 
     {

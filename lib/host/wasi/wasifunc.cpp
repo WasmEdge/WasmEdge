@@ -2387,28 +2387,60 @@ Expect<uint32_t> WasiSockGetPeerAddr::body(const Runtime::CallingFrame &Frame,
   return __WASI_ERRNO_SUCCESS;
 }
 
-Expect<uint32_t> WasiPthreadCreate::body(
-    Runtime::Instance::MemoryInstance *MemInst,
-    [[maybe_unused]] uint32_t Thread, [[maybe_unused]] uint32_t Attr,
-    [[maybe_unused]] uint32_t StartRoutine, [[maybe_unused]] uint32_t Arg) {
+Expect<uint32_t>
+WasiPthreadCreate::body(Runtime::Instance::MemoryInstance *MemInst,
+                        uint32_t Thread, [[maybe_unused]] uint32_t Attr, uint32_t StartRoutine,
+                        [[maybe_unused]]  uint32_t Arg) {
   if (MemInst == nullptr) {
     return __WASI_ERRNO_FAULT;
   }
+  std::cerr << "WasiPthreadCreate " << StartRoutine << "\n";
 
-  std::cerr << "WasiPthreadCreate\n"; 
+  __wasi_thread_t *const WasiThreadPtr =
+      MemInst->getPointer<__wasi_thread_t *>(Thread);
+  if (WasiThreadPtr == nullptr) {
+    return __WASI_ERRNO_FAULT;
+  }
+
+  void *const WasiArg = nullptr;
+  //  = MemInst->getPointer<void *>(Arg);
+  // if (WasiArg == nullptr) {
+  //   return __WASI_ERRNO_FAULT;
+  // }
+
+  if (auto Res = Env.pthreadCreate(WasiThreadPtr, StartRoutine, WasiArg);
+      unlikely(!Res)) {
+    return Res.error();
+  }
 
   return __WASI_ERRNO_SUCCESS;
 }
 
 Expect<uint32_t>
 WasiPthreadJoin::body(Runtime::Instance::MemoryInstance *MemInst,
-                      [[maybe_unused]] uint32_t Thread,
-                      [[maybe_unused]] uint32_t Retval) {
+                      uint32_t Thread, uint32_t Retval) {
   if (MemInst == nullptr) {
     return __WASI_ERRNO_FAULT;
   }
 
-  std::cerr << "WasiPthreadJoin\n"; 
+  std::cerr << "WasiPthreadJoin\n";
+
+  // __wasi_thread_t WasiThread;
+  // if (auto Res = cast<__wasi_thread_t>(Thread); unlikely(!Res)) {
+  //   return Res.error();
+  // } else {
+  //   WasiThread = *Res;
+  // }
+
+  void **const WasiRetval = MemInst->getPointer<void **>(Retval);
+  if (WasiRetval == nullptr) {
+    return __WASI_ERRNO_FAULT;
+  }
+
+  if (auto Res = Env.pthreadJoin(Thread, WasiRetval);
+      unlikely(!Res)) {
+    return Res.error();
+  }
 
   return __WASI_ERRNO_SUCCESS;
 }

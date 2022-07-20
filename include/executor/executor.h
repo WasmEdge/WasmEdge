@@ -143,6 +143,8 @@ public:
     }
   }
 
+  Expect<void> createThreadWithFunctionAddress(uint32_t FuncAddress);
+
   /// Stop execution
   void stop() noexcept {
     StopToken.store(1, std::memory_order_relaxed);
@@ -664,7 +666,13 @@ private:
     std::atomic_uint64_t *Gas;
     uint64_t GasLimit;
     std::atomic_uint32_t *StopToken;
+    const Runtime::Instance::FunctionInstance *FuncInst;
   };
+
+  /// Execution context of Executor Engine
+  // struct EngineContext {
+  //   const Runtime::StackManager *StackMgr;
+  // };
 
   /// Pointer to current object.
   static thread_local Executor *This;
@@ -672,6 +680,8 @@ private:
   static thread_local Runtime::StackManager *CurrentStack;
   /// Execution context for compiled functions
   static thread_local ExecutionContextStruct ExecutionContext;
+  /// Engine context
+  // static thread_local EngineContext EngineContext;
   /// @}
 
 private:

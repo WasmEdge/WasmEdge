@@ -6,6 +6,8 @@
 #include "common/errinfo.h"
 #include "common/log.h"
 
+#include <iostream>
+
 namespace WasmEdge {
 namespace Executor {
 
@@ -89,6 +91,49 @@ Executor::invoke(const Runtime::Instance::FunctionInstance &FuncInst,
   // After execution, the value stack size should be 0.
   assuming(StackMgr.size() == 0);
   return Returns;
+}
+
+Expect<void> Executor::createThreadWithFunctionAddress(uint32_t FuncAddress) {
+  std::cerr << "createThreadWithFunctionAddress " << FuncAddress << "\n";
+
+  Runtime::StackManager &OriginalStackMgr = *CurrentStack;
+  const Runtime::Instance::FunctionInstance &OriginalFuncInst =
+      *(ExecutionContext.FuncInst);
+  const AST::Instruction &Instr = *OriginalFuncInst.getInstrs().begin();
+
+  // Get Table Instance
+  const auto *TabInst =
+      getTabInstByIdx(OriginalStackMgr, Instr.getSourceIndex());
+
+  // If idx not small than tab.elem, trap.
+  if (FuncAddress >= TabInst->getSize()) {
+    spdlog::error(ErrCode::UndefinedElement);
+    spdlog::error(ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset(),
+                                           {FuncAddress},
+                                           {ValTypeFromType<uint32_t>()}));
+    return Unexpect(ErrCode::UndefinedElement);
+  }
+
+  ValVariant Ref = TabInst->getRefAddr(FuncAddress)->get<UnknownRef>();
+  if (isNullRef(Ref)) {
+    spdlog::error(ErrCode::UninitializedElement);
+    spdlog::error(ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset(),
+                                           {FuncAddress},
+                                           {ValTypeFromType<uint32_t>()}));
+    return Unexpect(ErrCode::UninitializedElement);
+  }
+
+  // Check function type.
+  const auto *FuncInst = retrieveFuncRef(Ref);
+  Runtime::StackManager StackMgr;
+
+  Span<const ValVariant> Params;
+  // Call runFunction.
+  if (auto Res = runFunction(StackMgr, *FuncInst, Params); !Res) {
+    return Unexpect(Res);
+  }
+
+  return {};
 }
 
 } // namespace Executor

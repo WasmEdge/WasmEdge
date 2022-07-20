@@ -27,6 +27,7 @@ target_link_libraries(wasmedgeHostModuleWasi
   Threads::Threads
   Boost::boost
   wasmedgeSystem
+  wasmedgeVM
 )
 
 if(NOT APPLE AND NOT WIN32 AND NOT ANDROID)

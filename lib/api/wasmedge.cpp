@@ -4,6 +4,8 @@
 #include "wasmedge/wasmedge.h"
 
 #include "aot/compiler.h"
+#include "driver/compiler.h"
+#include "driver/tool.h"
 #include "host/wasi/wasimodule.h"
 #include "plugin/plugin.h"
 #include "vm/vm.h"
@@ -2551,6 +2553,19 @@ WASMEDGE_CAPI_EXPORT void WasmEdge_VMDelete(WasmEdge_VMContext *Cxt) {
 
 // <<<<<<<< WasmEdge VM functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
+// >>>>>>>> WasmEdge Driver functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+WASMEDGE_CAPI_EXPORT int WasmEdge_Driver_Compiler(int Argc,
+                                                  const char *Argv[]) {
+  return WasmEdge::Driver::Compiler(Argc, Argv);
+}
+
+WASMEDGE_CAPI_EXPORT int WasmEdge_Driver_Tool(int Argc, const char *Argv[]) {
+  return WasmEdge::Driver::Tool(Argc, Argv);
+}
+
+// <<<<<<<< WasmEdge Driver functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
 // >>>>>>>> WasmEdge Plugin functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 WASMEDGE_CAPI_EXPORT void WasmEdge_Plugin_loadWithDefaultPluginPaths(void) {
@@ -2559,7 +2574,7 @@ WASMEDGE_CAPI_EXPORT void WasmEdge_Plugin_loadWithDefaultPluginPaths(void) {
   }
 }
 
-// <<<<<<<< WasmEdge Pluginfunctions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+// <<<<<<<< WasmEdge Plugin functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 #ifdef __cplusplus
 } // extern "C"

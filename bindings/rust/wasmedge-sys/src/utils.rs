@@ -13,9 +13,20 @@ use std::{
     path::Path,
 };
 
+// #[cfg(unix)]
 pub(crate) fn path_to_cstring(path: &Path) -> WasmEdgeResult<CString> {
     use std::os::unix::ffi::OsStrExt;
     Ok(CString::new(path.as_os_str().as_bytes())?)
+}
+
+#[cfg(windows)]
+pub(crate) fn path_to_cstring(path: &Path) -> WasmEdgeResult<CString> {
+    match path.to_str() {
+        Some(s) => Ok(CString::new(s)?),
+        None => Err(WasmEdgeError::WindowsPathConversion(
+            path.to_string_lossy().to_string(),
+        )),
+    }
 }
 
 /// Logs the debug information.

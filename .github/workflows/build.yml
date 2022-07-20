@@ -442,3 +442,4 @@ jobs:
       with:
         name: WasmEdge-${{ needs.get_version_v2.outputs.version }}-android_aarch64.tar.gz
         path: build/WasmEdge-${{ needs.get_version_v2.outputs.version }}-Android.tar.gz
+        

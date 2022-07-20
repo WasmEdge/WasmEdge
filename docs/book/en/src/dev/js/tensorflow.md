@@ -9,12 +9,12 @@ import {Image} from 'image';
 import * as std from 'std';
 import {TensorflowLiteSession} from 'tensorflow_lite';
 
-let img = new Image('food.jpg');
+let img = new Image(__dirname + '/food.jpg');
 let img_rgb = img.to_rgb().resize(192, 192);
 let rgb_pix = img_rgb.pixels();
 
 let session = new TensorflowLiteSession(
-    'lite-model_aiy_vision_classifier_food_V1_1.tflite');
+    __dirname + '/lite-model_aiy_vision_classifier_food_V1_1.tflite');
 session.add_input('input', rgb_pix);
 session.run();
 let output = session.get_output('MobilenetV1/Predictions/Softmax');
@@ -28,7 +28,7 @@ for (var i in output_view) {
     max_idx = i;
   }
 }
-let label_file = std.open('aiy_food_V1_labelmap.txt', 'r');
+let label_file = std.open(__dirname + '/aiy_food_V1_labelmap.txt', 'r');
 let label = '';
 for (var i = 0; i <= max_idx; i++) {
   label = label_file.getline();
@@ -45,9 +45,7 @@ To run the JavaScript in the WasmEdge runtime, you can do the following on the C
 
 ```bash
 $ cargo build --target wasm32-wasi --release --features=tensorflow
-... ...
-$ cd example_js/tensorflow_lite_demo
-$ wasmedge-tensorflow-lite --dir .:. ../../target/wasm32-wasi/release/wasmedge_quickjs.wasm main.js
+$ wasmedge-tensorflow-lite --dir .:. target/wasm32-wasi/release/wasmedge_quickjs.wasm example_js/tensorflow_lite_demo/main.js
 label:
 Hot dog
 confidence:
@@ -70,9 +68,8 @@ The above Tensorflow inference example takes 1–2 seconds to run. It is accepta
 The following example uses the extended versions to `wasmedge` and `wasmedgec` to support the WasmEdge Tensorflow extension.
 
 ```bash
-$ cd example_js/tensorflow_lite_demo
-$ wasmedgec-tensorflow ../../target/wasm32-wasi/release/wasmedge_quickjs.wasm wasmedge_quickjs.wasm
-$ wasmedge-tensorflow-lite --dir .:. wasmedge_quickjs.wasm main.js
+$ wasmedgec-tensorflow target/wasm32-wasi/release/wasmedge_quickjs.wasm wasmedge_quickjs.wasm
+$ wasmedge-tensorflow-lite --dir .:. wasmedge_quickjs.wasm example_js/tensorflow_lite_demo/main.js
 label:
 Hot dog
 confidence:

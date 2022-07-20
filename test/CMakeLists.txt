@@ -90,5 +90,4 @@ if(WASMEDGE_BUILD_COVERAGE)
       "${PROJECT_SOURCE_DIR}/thirdparty/*"
       "${PROJECT_SOURCE_DIR}/test/*"
     )
-
 endif()

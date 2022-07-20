@@ -1,7 +1,7 @@
 name: Build and Test WasmEdge on OpenWrt
 
 concurrency:
-  group: build-${{ github.head_ref }}
+  group: build-openwrt-${{ github.head_ref }}
   cancel-in-progress: true
 
 on:

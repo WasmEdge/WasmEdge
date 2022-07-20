@@ -42,8 +42,7 @@ f();
 To run the example, you can do the following on the CLI.
 
 ```javascript
-$ cd example_js/es6_module_demo
-$ wasmedge --dir .:. ../../target/wasm32-wasi/release/wasmedge_quickjs.wasm demo.js
+$ wasmedge --dir .:. target/wasm32-wasi/release/wasmedge_quickjs.wasm example_js/es6_module_demo/demo.js
 hello from module_def.js
 hello from module_def_async.js
 ./module_def_async.js `something` is  async thing

@@ -273,6 +273,7 @@ jobs:
           OPENVINO_VERSION: "2021.4.582"
           OPENVINO_YEAR: "2021"
         run: |
+          bash utils/wasi-nn/install-openvino.sh
           bash utils/wasi-nn/build-wasinn-ubuntu-openvino.sh
           cd build
           cp plugins/wasi_nn/libwasmedgePluginWasiNN.so libwasmedgePluginWasiNN.so
@@ -391,7 +392,7 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v2
-    - name: Install requirment
+    - name: Install requirements
       run: |
         dnf update -y
         dnf install -y git gcc-c++ cmake ninja-build boost-devel spdlog-devel llvm-devel lld-devel rpm-build

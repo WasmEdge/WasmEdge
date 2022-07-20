@@ -58,7 +58,7 @@ jobs:
       image: fedora:latest
 
     steps:
-    - name: Install requirments
+    - name: Install requirements
       run: |
         dnf update -y
         dnf install -y cmake ninja-build boost llvm llvm-devel lld-devel clang git file rpm-build dpkg-dev clang-devel

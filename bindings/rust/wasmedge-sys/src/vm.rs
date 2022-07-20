@@ -631,7 +631,7 @@ impl Vm {
     ///
     /// If fail to run the WASM function, then an error is returned.
     pub fn run_registered_function(
-        &mut self,
+        &self,
         mod_name: impl AsRef<str>,
         func_name: impl AsRef<str>,
         params: impl IntoIterator<Item = WasmValue>,
@@ -680,7 +680,7 @@ impl Vm {
     ///
     /// If fail to run the WASM function, then an error is returned.
     pub fn run_registered_function_async(
-        &mut self,
+        &self,
         mod_name: impl AsRef<str>,
         func_name: impl AsRef<str>,
         params: impl IntoIterator<Item = WasmValue>,
@@ -729,7 +729,7 @@ impl Vm {
     ///
     /// * `func_name` - The name of the target WASM function.
     pub fn get_registered_function_type(
-        &mut self,
+        &self,
         mod_name: impl AsRef<str>,
         func_name: impl AsRef<str>,
     ) -> WasmEdgeResult<FuncType> {

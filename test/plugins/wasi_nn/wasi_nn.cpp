@@ -14,7 +14,7 @@
 #include <vector>
 
 using WasmEdge::Host::WASINN::ErrNo;
-#ifdef WASMEDGE_WASINN_BACKEND_OPENVINO
+#ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_OPENVINO
 
 namespace {
 WasmEdge::Runtime::Instance::ModuleInstance *createModule() {
@@ -472,4 +472,4 @@ TEST(WasiNNTest, OpenVINOBackend) {
     }
   }
 }
-#endif // WASMEDGE_WASINN_BACKEND_OPENVINO
+#endif // WASMEDGE_PLUGIN_WASI_NN_BACKEND_OPENVINO

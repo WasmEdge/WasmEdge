@@ -6,6 +6,6 @@ if(CMAKE_SYSTEM_NAME MATCHES "Linux")
   add_subdirectory(wasmedge_process)
 endif()
 
-if(WASMEDGE_WASINN_BACKEND)
+if(WASMEDGE_PLUGIN_WASI_NN_BACKEND)
   add_subdirectory(wasi_nn)
 endif()

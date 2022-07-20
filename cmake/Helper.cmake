@@ -72,6 +72,7 @@ if(WIN32)
     -Wno-used-but-marked-unused
     -Wno-nonportable-system-include-path
     -Wno-float-equal
+    -Wno-declaration-after-statement
   )
 endif()
 
@@ -83,7 +84,8 @@ function(wasmedge_setup_target target)
     ENABLE_EXPORTS ON
     POSITION_INDEPENDENT_CODE ON
     VISIBILITY_INLINES_HIDDEN ON
-    SKIP_RPATH ON
+    BUILD_RPATH_USE_ORIGIN ON
+    MACOSX_RPATH ON
     INTERPROCEDURAL_OPTIMIZATION ${WASMEDGE_INTERPROCEDURAL_OPTIMIZATION}
   )
   target_compile_options(${target}
@@ -100,4 +102,14 @@ endfunction()
 function(wasmedge_add_executable target)
   add_executable(${target} ${ARGN})
   wasmedge_setup_target(${target})
+  file(RELATIVE_PATH rel /${CMAKE_INSTALL_BINDIR} /${CMAKE_INSTALL_LIBDIR})
+  if(CMAKE_SYSTEM_NAME MATCHES "Linux")
+    set_target_properties(${target} PROPERTIES
+      INSTALL_RPATH "$ORIGIN/${rel}"
+    )
+  elseif(CMAKE_SYSTEM_NAME MATCHES "Darwin")
+    set_target_properties(${target} PROPERTIES
+      INSTALL_RPATH "@executable_path/${rel}"
+    )
+  endif()
 endfunction()

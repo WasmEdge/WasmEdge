@@ -216,7 +216,7 @@ jobs:
           Enter-VsDevShell -VsInstallPath $vsPath -SkipAutomaticLocation -DevCmdArguments "-arch=x64 -host_arch=x64 -winsdk=10.0.19041.0"
           rustc --print sysroot 
           # echo "C:\Users\runneradmin\.rustup\toolchains\%RUST_VERSION%-%TARGET%\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
-          # (type env:path) -split ';'
           $env:Path="$env:Path;C:\Users\runneradmin\.rustup\toolchains\stable-x86_64-pc-windows-msvc"
+          (type env:path) -split ';'
           cd bindings/rust/
           cargo +nightly test --lib --examples --locked

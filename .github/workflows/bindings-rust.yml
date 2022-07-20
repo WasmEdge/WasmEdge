@@ -215,6 +215,7 @@ jobs:
           Import-Module (Join-Path $vsPath "Common7\Tools\Microsoft.VisualStudio.DevShell.dll")
           Enter-VsDevShell -VsInstallPath $vsPath -SkipAutomaticLocation -DevCmdArguments "-arch=x64 -host_arch=x64 -winsdk=10.0.19041.0"
           rustc --print sysroot 
-          echo "C:\Users\runneradmin\.rustup\toolchains\%RUST_VERSION%-%TARGET%\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
-          cd bindings/rust/
-          cargo +nightly test --lib --examples --locked
+          # echo "C:\Users\runneradmin\.rustup\toolchains\%RUST_VERSION%-%TARGET%\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          (type env:path) -split ';'
+          # cd bindings/rust/
+          # cargo +nightly test --lib --examples --locked

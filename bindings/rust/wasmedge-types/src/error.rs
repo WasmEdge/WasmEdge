@@ -62,6 +62,9 @@ pub enum WasmEdgeError {
     NotFoundNulByte(#[from] std::ffi::FromBytesWithNulError),
     #[error("Fail to interpret a sequence of u8 as a string")]
     Utf8(#[from] std::str::Utf8Error),
+
+    #[error("Fail to convert path on Windows: {0}")]
+    WindowsPathConversion(String),
 }
 
 /// The error types for WasmEdge Function.

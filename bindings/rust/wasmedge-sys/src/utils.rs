@@ -13,7 +13,7 @@ use std::{
     path::Path,
 };
 
-// #[cfg(unix)]
+#[cfg(unix)]
 pub(crate) fn path_to_cstring(path: &Path) -> WasmEdgeResult<CString> {
     use std::os::unix::ffi::OsStrExt;
     Ok(CString::new(path.as_os_str().as_bytes())?)

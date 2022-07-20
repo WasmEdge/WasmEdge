@@ -10,7 +10,7 @@ remote-dependencies:
     metadata:
       homepage: "https://github.com/google/googletest"
   - name: "spdlog"
-    version: "1.9.1"
-    url: "https://github.com/gabime/spdlog/archive/refs/tags/v1.9.1.tar.gz"
+    version: "1.11.0"
+    url: "https://github.com/gabime/spdlog/archive/refs/tags/v1.11.0.tar.gz"
     metadata:
       homepage: "https://github.com/gabime/spdlog"

@@ -40,8 +40,7 @@ setTimeout(() => {
 Run the `hello.js` file in WasmEdge’s QuickJS runtime as follows.
 
 ```bash
-$ cd example_js
-$ wasmedge --dir .:. ../target/wasm32-wasi/release/wasmedge_quickjs.wasm hello.js WasmEdge Runtime
+$ wasmedge --dir .:. target/wasm32-wasi/release/wasmedge_quickjs.wasm example_js/hello.js WasmEdge Runtime
 Hello WasmEdge Runtime
 ```
 
@@ -52,8 +51,8 @@ Hello WasmEdge Runtime
 WasmEdge provides a `wasmedgec` utility to compile and add a native machine code section to the `wasm` file. You can use `wasmedge` to run the natively instrumented `wasm` file to get much faster performance.
 
 ```bash
-wasmedgec ../../target/wasm32-wasi/release/wasmedge_quickjs.wasm wasmedge_quickjs.wasm
-wasmedge --dir .:. wasmedge_quickjs.wasm hello.js
+wasmedgec target/wasm32-wasi/release/wasmedge_quickjs.wasm wasmedge_quickjs.wasm
+wasmedge --dir .:. wasmedge_quickjs.wasm example_js/hello.js
 ```
 
 Next, we will discuss more advanced use case for JavaScript in WasmEdge.

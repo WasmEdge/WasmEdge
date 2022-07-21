@@ -88,6 +88,10 @@ function(wasmedge_setup_target target)
     MACOSX_RPATH ON
     INTERPROCEDURAL_OPTIMIZATION ${WASMEDGE_INTERPROCEDURAL_OPTIMIZATION}
   )
+  target_compile_definitions(${target}
+    PUBLIC
+    FMT_DEPRECATED_OSTREAM
+  )
   target_compile_options(${target}
     PRIVATE
     ${WASMEDGE_CFLAGS}

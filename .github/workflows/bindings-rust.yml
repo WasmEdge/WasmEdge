@@ -219,7 +219,8 @@ jobs:
           Get-ChildItem -Path D:\a\WasmEdge-1\WasmEdge-1\build\include\api\wasmedge -Force
           Get-ChildItem -Path D:\a\WasmEdge-1\WasmEdge-1\build\lib\api -Force
           Get-ChildItem -Path D:\a\WasmEdge-1\WasmEdge-1\build\plugins -Force
-          Get-ChildItem -Path D:\a\WasmEdge-1\WasmEdge-1\build\tools -Force
+          Get-ChildItem -Path D:\a\WasmEdge-1\WasmEdge-1\build\tools\wasmedge -Force
+          Get-ChildItem -Path C:\Users\runneradmin\.rustup\toolchains -Force
           $env:Path="$env:Path;C:\Users\runneradmin\.rustup\toolchains\stable-x86_64-pc-windows-msvc\bin;D:\a\WasmEdge-1\WasmEdge-1\build\lib\api"
           (type env:path) -split ';'
           # dir env:

@@ -24,6 +24,7 @@ on:
       - "thirdparty/**"
       - "tools/**"
       - "CMakeLists.txt"
+      - "cmake/**"
   pull_request:
     branches:
       - master
@@ -38,6 +39,7 @@ on:
       - "thirdparty/**"
       - "tools/**"
       - "CMakeLists.txt"
+      - "cmake/**"
 
 jobs:
   static_analysis:

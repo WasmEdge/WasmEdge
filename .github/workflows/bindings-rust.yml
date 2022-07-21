@@ -157,7 +157,7 @@ jobs:
       - name: Install dependency
         uses: crazy-max/ghaction-chocolatey@v1
         with:
-          args: install cmake ninja vswhere
+          args: install cmake ninja vswhere --allow-unofficial
 
       - uses: GuillaumeFalourd/setup-windows10-sdk-action@v1
         with:

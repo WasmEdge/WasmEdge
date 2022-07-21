@@ -147,7 +147,7 @@ jobs:
     env:
       WASMEDGE_DIR: ${{ github.workspace }}
       WASMEDGE_BUILD_DIR: ${{ github.workspace }}\build
-      # WASMEDGE_PLUGIN_PATH: ${{ github.workspace }}\build\wasmedge\plugins\wasmedge_process
+      WASMEDGE_PLUGIN_PATH: ${{ github.workspace }}\build\wasmedge\plugins\wasmedge_process
       LD_LIBRARY_PATH: ${{ github.workspace }}\build\lib\api
     steps:
       - uses: actions/checkout@v2
@@ -157,7 +157,7 @@ jobs:
       - name: Install dependency
         uses: crazy-max/ghaction-chocolatey@v1
         with:
-          args: install cmake ninja vswhere --allow-unofficial
+          args: install cmake ninja vswhere
 
       - uses: GuillaumeFalourd/setup-windows10-sdk-action@v1
         with:

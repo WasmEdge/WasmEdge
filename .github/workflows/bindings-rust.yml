@@ -147,7 +147,7 @@ jobs:
     env:
       WASMEDGE_DIR: ${{ github.workspace }}
       WASMEDGE_BUILD_DIR: ${{ github.workspace }}\build
-      WASMEDGE_PLUGIN_PATH: ${{ github.workspace }}\build\wasmedge\plugins\wasmedge_process
+      # WASMEDGE_PLUGIN_PATH: ${{ github.workspace }}\build\wasmedge\plugins\wasmedge_process
       LD_LIBRARY_PATH: ${{ github.workspace }}\build\lib\api
     steps:
       - uses: actions/checkout@v2
@@ -216,9 +216,10 @@ jobs:
           Enter-VsDevShell -VsInstallPath $vsPath -SkipAutomaticLocation -DevCmdArguments "-arch=x64 -host_arch=x64 -winsdk=10.0.19041.0"
           # Get-Location
           Get-ChildItem -Path D:\a\WasmEdge-1\WasmEdge-1\build\bin -Force
-          Get-ChildItem -Path D:\a\WasmEdge-1\WasmEdge-1\build\include\api -Force
-          Get-ChildItem -Path D:\a\WasmEdge-1\WasmEdge-1\build\lib -Force
+          Get-ChildItem -Path D:\a\WasmEdge-1\WasmEdge-1\build\include\api\wasmedge -Force
+          Get-ChildItem -Path D:\a\WasmEdge-1\WasmEdge-1\build\lib\api -Force
           Get-ChildItem -Path D:\a\WasmEdge-1\WasmEdge-1\build\plugins -Force
+          Get-ChildItem -Path D:\a\WasmEdge-1\WasmEdge-1\build\tools -Force
           # $env:Path="$env:Path;C:\Users\runneradmin\.rustup\toolchains\stable-x86_64-pc-windows-msvc\bin"
           # (type env:path) -split ';'
           # dir env:

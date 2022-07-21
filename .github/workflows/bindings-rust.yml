@@ -215,13 +215,13 @@ jobs:
           Import-Module (Join-Path $vsPath "Common7\Tools\Microsoft.VisualStudio.DevShell.dll")
           Enter-VsDevShell -VsInstallPath $vsPath -SkipAutomaticLocation -DevCmdArguments "-arch=x64 -host_arch=x64 -winsdk=10.0.19041.0"
           # Get-Location
-          Get-ChildItem -Path D:\a\WasmEdge-1\WasmEdge-1\build\bin -Force
+          # Get-ChildItem -Path D:\a\WasmEdge-1\WasmEdge-1\build\bin -Force
           Get-ChildItem -Path D:\a\WasmEdge-1\WasmEdge-1\build\include\api\wasmedge -Force
           Get-ChildItem -Path D:\a\WasmEdge-1\WasmEdge-1\build\lib\api -Force
           Get-ChildItem -Path D:\a\WasmEdge-1\WasmEdge-1\build\plugins -Force
           Get-ChildItem -Path D:\a\WasmEdge-1\WasmEdge-1\build\tools -Force
-          # $env:Path="$env:Path;C:\Users\runneradmin\.rustup\toolchains\stable-x86_64-pc-windows-msvc\bin"
-          # (type env:path) -split ';'
+          $env:Path="$env:Path;C:\Users\runneradmin\.rustup\toolchains\stable-x86_64-pc-windows-msvc\bin;D:\a\WasmEdge-1\WasmEdge-1\build\lib\api"
+          (type env:path) -split ';'
           # dir env:
           # cd bindings\rust
           # cargo +nightly test --lib --examples --locked --verbose

@@ -351,6 +351,7 @@ mod tests {
     use wasmedge_types::RefType;
 
     #[test]
+    #[cfg(unix)]
     fn test_types_value() {
         // I32
         let val = WasmValue::from_i32(1314);
@@ -401,6 +402,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(unix)]
     fn test_types_value_send() {
         // I32
         let val_i32 = WasmValue::from_i32(1314);
@@ -463,6 +465,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(unix)]
     fn test_types_value_sync() {
         // I32
         let val_i32 = Arc::new(Mutex::new(WasmValue::from_i32(1314)));

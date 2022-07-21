@@ -19,6 +19,7 @@ on:
       - "thirdparty/**"
       - "tools/**"
       - "CMakeLists.txt"
+      - "cmake/**"
   pull_request:
     branches:
       - master
@@ -34,8 +35,9 @@ on:
       - "thirdparty/**"
       - "tools/**"
       - "CMakeLists.txt"
+      - "cmake/**"
 
-jobs:   
+jobs:
   build_openwrt:
     name: OpenWrt
     runs-on: ubuntu-latest
@@ -118,7 +120,7 @@ jobs:
         mkdir -p ./openwrt-docker
         cp openwrt-x86-64-generic-rootfs.tar.gz ./openwrt-docker/
         cd openwrt-docker
-        
+
         touch ./Dockerfile
         cat >> ./Dockerfile <<EOF
         FROM scratch
@@ -126,9 +128,9 @@ jobs:
         EXPOSE 22 80 443
         ENTRYPOINT ["/sbin/init"]
         EOF
-        
+
         ls ./
         docker build -t openwrt .
         docker run --name openwrt -d --privileged openwrt:latest /sbin/init
         docker exec openwrt wasmedge -v
-        
+

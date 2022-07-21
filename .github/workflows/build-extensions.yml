@@ -17,6 +17,7 @@ on:
       - "thirdparty/**"
       - "tools/**"
       - "CMakeLists.txt"
+      - "cmake/**"
   pull_request:
     branches:
       - master
@@ -30,6 +31,7 @@ on:
       - "thirdparty/**"
       - "tools/**"
       - "CMakeLists.txt"
+      - "cmake/**"
 
 jobs:
   get_version_v2:

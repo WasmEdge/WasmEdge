@@ -343,11 +343,13 @@ impl From<ffi::WasmEdge_Value> for WasmValue {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[cfg(unix)]
     use crate::{Table, TableType};
     use std::{
         sync::{Arc, Mutex},
         thread,
     };
+    #[cfg(unix)]
     use wasmedge_types::RefType;
 
     #[test]

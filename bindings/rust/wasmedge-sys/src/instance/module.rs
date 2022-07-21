@@ -1492,6 +1492,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(unix)]
     fn test_instance_wasi() {
         // create a wasi module instance
         {

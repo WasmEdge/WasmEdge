@@ -2046,6 +2046,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(unix)]
     fn test_vm_get_wasi_module() {
         {
             // create a Config context

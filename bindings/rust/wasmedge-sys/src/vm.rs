@@ -890,13 +890,16 @@ unsafe impl Sync for InnerVm {}
 #[cfg(test)]
 mod tests {
     use super::Vm;
+    #[cfg(unix)]
+    use crate::{
+        error::CoreInstantiationError, FuncType, Function, ImportInstance, ImportObject, WasiModule,
+    };
     use crate::{
         error::{
-            CoreCommonError, CoreError, CoreExecutionError, CoreInstantiationError, CoreLoadError,
-            InstanceError, VmError, WasmEdgeError,
+            CoreCommonError, CoreError, CoreExecutionError, CoreLoadError, InstanceError, VmError,
+            WasmEdgeError,
         },
-        Config, FuncType, Function, ImportInstance, ImportObject, Loader, Module, Store,
-        WasiModule, WasmValue,
+        Config, Loader, Module, Store, WasmValue,
     };
     #[cfg(target_os = "linux")]
     use crate::{utils, ImportModule, WasmEdgeProcessModule};

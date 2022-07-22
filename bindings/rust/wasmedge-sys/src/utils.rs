@@ -23,10 +23,9 @@ pub(crate) fn path_to_cstring(path: &Path) -> WasmEdgeResult<CString> {
 pub(crate) fn path_to_cstring(path: &Path) -> WasmEdgeResult<CString> {
     match path.to_str() {
         Some(s) => Ok(CString::new(s)?),
-        None => {
-            let message = format!("Couldn't convert path '{}' to UTF-8", path.display());
-            Err(message.into())
-        }
+        None => Err(WasmEdgeError::WindowsPathConversion(
+            path.to_string_lossy().to_string(),
+        )),
     }
 }
 

@@ -376,6 +376,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(unix)]
     fn test_import_builder_wasi() {
         let result = ImportObjectBuilder::default().build_as_wasi(None, None, None);
         assert!(result.is_ok());

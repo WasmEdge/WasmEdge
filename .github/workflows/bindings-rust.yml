@@ -73,7 +73,7 @@ jobs:
           cargo +nightly clippy --profile test --lib --examples -- -D warnings -D clippy::dbg_macro
           cd -
 
-      - name: Test
+      - name: Test Rust Bindings
         run: |
           cd bindings/rust/
           export WASMEDGE_DIR="$(pwd)/../../"
@@ -97,12 +97,6 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Install stable toolchain
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-          components: rustfmt, clippy
-
       - name: Install nightly toolchain
         uses: actions-rs/toolchain@v1
         with:
@@ -115,7 +109,7 @@ jobs:
           cargo +nightly fmt --all -- --check
           cd -
 
-      - name: Build WasmEdge
+      - name: Build WasmEdge with Release mode
         run: |
           brew install llvm ninja boost cmake
           export PATH="/usr/local/opt/llvm/bin:$PATH"
@@ -123,7 +117,7 @@ jobs:
           export CPPFLAGS="-I/usr/local/opt/llvm/include"
           export CC=clang
           export CXX=clang++
-          cmake -Bbuild -GNinja -DWASMEDGE_BUILD_TESTS=ON -DWASMEDGE_BUILD_PACKAGE="TGZ" .
+          cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_BUILD_TESTS=ON -DWASMEDGE_BUILD_PACKAGE="TGZ" .
           cmake --build build
 
       - name: Clippy
@@ -135,7 +129,7 @@ jobs:
           cargo +nightly clippy --profile test --lib --examples -- -D warnings -D clippy::dbg_macro
           cd -
 
-      - name: Test
+      - name: Test Rust Bindings
         run: |
           cd bindings/rust/
           export WASMEDGE_DIR="$(pwd)/../../"
@@ -168,33 +162,6 @@ jobs:
         with:
           sdk-version: 19041
 
-      - name: Build WasmEdge
-        run: |
-          $vsPath = (vswhere -latest -property installationPath)
-          Import-Module (Join-Path $vsPath "Common7\Tools\Microsoft.VisualStudio.DevShell.dll")
-          Enter-VsDevShell -VsInstallPath $vsPath -SkipAutomaticLocation -DevCmdArguments "-arch=x64 -host_arch=x64 -winsdk=10.0.19041.0"
-          $llvm = "LLVM-13.0.1-win64.zip"
-          curl -sLO https://github.com/WasmEdge/llvm-windows/releases/download/llvmorg-13.0.1/LLVM-13.0.1-win64.zip -o $llvm
-          Expand-Archive -Path $llvm
-          $llvm_dir = "$pwd\\LLVM-13.0.1-win64\\LLVM-13.0.1-win64\\lib\\cmake\\llvm"
-          $Env:CC = "clang-cl"
-          $Env:CXX = "clang-cl"
-          $cmake_sys_version = "10.0.19041.0"
-          cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Release "-DCMAKE_SYSTEM_VERSION=$cmake_sys_version" -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreadedDLL "-DLLVM_DIR=$llvm_dir" -DWASMEDGE_BUILD_TESTS=ON -DWASMEDGE_BUILD_PACKAGE="ZIP" .
-          cmake --build build
-
-      - name: Test WasmEdge
-        continue-on-error: true
-        run: |
-          $vsPath = (vswhere -latest -property installationPath)
-          Import-Module (Join-Path $vsPath "Common7\Tools\Microsoft.VisualStudio.DevShell.dll")
-          Enter-VsDevShell -VsInstallPath $vsPath -SkipAutomaticLocation -DevCmdArguments "-arch=x64 -host_arch=x64 -winsdk=10.0.19041.0"
-          $Env:PATH += ";$pwd\\build\\lib\\api"
-          cd build
-          tools\wasmedge\wasmedge -v
-          ctest
-          cd -
-
       - name: Install Nightly Rust
         uses: actions-rs/toolchain@v1
         with:
@@ -206,7 +173,7 @@ jobs:
           cd bindings/rust/
           cargo +nightly fmt --all -- --check
 
-      - name: Build WasmEdge
+      - name: Build WasmEdge with Release mode
         run: |
           $vsPath = (vswhere -latest -property installationPath)
           Import-Module (Join-Path $vsPath "Common7\Tools\Microsoft.VisualStudio.DevShell.dll")
@@ -241,11 +208,11 @@ jobs:
           cd bindings/rust/
           cargo +nightly clippy --verbose --profile test --lib --examples -- -D warnings -D clippy::dbg_macro
 
-      - name: Test
+      - name: Test Rust Bindings
         run: |
           $vsPath = (vswhere -latest -property installationPath)
           Import-Module (Join-Path $vsPath "Common7\Tools\Microsoft.VisualStudio.DevShell.dll")
           Enter-VsDevShell -VsInstallPath $vsPath -SkipAutomaticLocation -DevCmdArguments "-arch=x64 -host_arch=x64 -winsdk=10.0.19041.0"
-          cd bindings/rust/
-          cargo +nightly test --lib --examples --locked
-          cargo +nightly test --doc --locked
+          $env:Path="$env:Path;C:\Users\runneradmin\.rustup\toolchains\nightly-x86_64-pc-windows-msvc\bin;D:\a\WasmEdge\WasmEdge\build\lib\api"
+          cd bindings\rust
+          cargo +nightly test --lib --examples --locked --verbose

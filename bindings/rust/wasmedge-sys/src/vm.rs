@@ -890,13 +890,16 @@ unsafe impl Sync for InnerVm {}
 #[cfg(test)]
 mod tests {
     use super::Vm;
+    #[cfg(unix)]
+    use crate::{
+        error::CoreInstantiationError, FuncType, Function, ImportInstance, ImportObject, WasiModule,
+    };
     use crate::{
         error::{
-            CoreCommonError, CoreError, CoreExecutionError, CoreInstantiationError, CoreLoadError,
-            InstanceError, VmError, WasmEdgeError,
+            CoreCommonError, CoreError, CoreExecutionError, CoreLoadError, InstanceError, VmError,
+            WasmEdgeError,
         },
-        Config, FuncType, Function, ImportInstance, ImportObject, Loader, Module, Store,
-        WasiModule, WasmValue,
+        Config, Loader, Module, Store, WasmValue,
     };
     #[cfg(target_os = "linux")]
     use crate::{utils, ImportModule, WasmEdgeProcessModule};
@@ -2046,6 +2049,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(unix)]
     fn test_vm_get_wasi_module() {
         {
             // create a Config context
@@ -2297,6 +2301,7 @@ mod tests {
         result.unwrap()
     }
 
+    #[cfg(unix)]
     fn real_add(inputs: Vec<WasmValue>) -> Result<Vec<WasmValue>, u8> {
         if inputs.len() != 2 {
             return Err(1);

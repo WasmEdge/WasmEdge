@@ -8,10 +8,16 @@
 //!
 //! For developers, it is strongly recommended that the APIs in `wasmedge-sys` are used to construct high-level libraries, while `wasmedge-sdk` is for building up business applications.
 //!
-//! Notice that
-//! - `WasmEdge Rust SDK` uses nightly version of Rust.
+//! Notice that `WasmEdge Rust SDK` uses nightly version of Rust. It's strongly recommended to use the latest nightly version of Rust.
 //!
-//! - Due to [issue #1527](https://github.com/WasmEdge/WasmEdge/issues/1527), `WasmEdge Rust SDK` cannot build successfully on Windows platform. Please [use Docker](https://wasmedge.org/book/en/start/docker.html) to build `WasmEdge Rust SDK` on Windows.
+//! ## Versioning Table
+//!
+//! The following table provides the versioning information about each crate of WasmEdge Rust bindings.
+//!
+//! | wasmedge-sdk  | WasmEdge lib                                                       | wasmedge-sys  | wasmedge-types|
+//! | :-----------: | :----------------------------------------------------------------: | :-----------: | :-----------: |
+//! | 0.2.0         | [0.10.1](https://github.com/WasmEdge/WasmEdge/releases/tag/0.10.0) | 0.8           | 0.2           |
+//! | 0.1.0         | [0.10.0](https://github.com/WasmEdge/WasmEdge/releases/tag/0.10.0) | 0.7           | 0.1           |
 //!
 //! ## Usage
 //!

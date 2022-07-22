@@ -645,7 +645,10 @@ impl Config {
     #[cfg(feature = "aot")]
     pub fn set_aot_optimization_level(&mut self, opt_level: CompilerOptimizationLevel) {
         unsafe {
-            ffi::WasmEdge_ConfigureCompilerSetOptimizationLevel(self.inner.0, opt_level as u32)
+            ffi::WasmEdge_ConfigureCompilerSetOptimizationLevel(
+                self.inner.0,
+                opt_level as ffi::WasmEdge_CompilerOptimizationLevel,
+            )
         }
     }
 
@@ -667,7 +670,12 @@ impl Config {
     /// * `format` - The format of the output binary.
     #[cfg(feature = "aot")]
     pub fn set_aot_compiler_output_format(&mut self, format: CompilerOutputFormat) {
-        unsafe { ffi::WasmEdge_ConfigureCompilerSetOutputFormat(self.inner.0, format as u32) }
+        unsafe {
+            ffi::WasmEdge_ConfigureCompilerSetOutputFormat(
+                self.inner.0,
+                format as ffi::WasmEdge_CompilerOutputFormat,
+            )
+        }
     }
 
     /// Returns the output binary format of AOT compiler.

@@ -153,7 +153,10 @@ pub use executor::Executor;
 pub use externals::{Func, FuncRef, FuncTypeBuilder, Global, Memory, Table};
 #[doc(inline)]
 pub use import::{ImportObject, ImportObjectBuilder};
-pub use instance::{Instance, WasiInstance, WasmEdgeProcessInstance};
+#[cfg(target_os = "linux")]
+#[doc(inline)]
+pub use instance::WasmEdgeProcessInstance;
+pub use instance::{Instance, WasiInstance};
 #[doc(inline)]
 pub use io::{WasmVal, WasmValType, WasmValTypeList};
 #[doc(inline)]

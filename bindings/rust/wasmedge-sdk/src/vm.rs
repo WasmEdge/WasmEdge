@@ -1,8 +1,9 @@
 //! Defines WasmEdge Vm struct.
 
+#[cfg(target_os = "linux")]
+use crate::WasmEdgeProcessInstance;
 use crate::{
-    config::Config, ImportObject, Instance, Module, Statistics, WasiInstance,
-    WasmEdgeProcessInstance, WasmEdgeResult,
+    config::Config, ImportObject, Instance, Module, Statistics, WasiInstance, WasmEdgeResult,
 };
 use std::{marker::PhantomData, path::Path};
 use wasmedge_sys as sys;
@@ -427,6 +428,7 @@ impl Vm {
     /// # Error
     ///
     /// If fail to get the [WasmEdgeProcess module instance](crate::WasmEdgeProcessInstance), then an error is returned.
+    #[cfg(target_os = "linux")]
     pub fn wasmedge_process_module(&mut self) -> WasmEdgeResult<WasmEdgeProcessInstance> {
         let inner_process_module = self.inner.wasmedge_process_module_mut()?;
 
@@ -784,6 +786,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(target_os = "linux")]
     fn test_vm_wasmedge_process_module() {
         let host_reg_options = HostRegistrationConfigOptions::new().wasmedge_process(true);
         let result = ConfigBuilder::new(CommonConfigOptions::default())

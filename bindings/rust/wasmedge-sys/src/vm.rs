@@ -2301,6 +2301,7 @@ mod tests {
         result.unwrap()
     }
 
+    #[cfg(unix)]
     fn real_add(inputs: Vec<WasmValue>) -> Result<Vec<WasmValue>, u8> {
         if inputs.len() != 2 {
             return Err(1);

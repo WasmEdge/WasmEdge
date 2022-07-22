@@ -213,13 +213,6 @@ jobs:
           $vsPath = (vswhere -latest -property installationPath)
           Import-Module (Join-Path $vsPath "Common7\Tools\Microsoft.VisualStudio.DevShell.dll")
           Enter-VsDevShell -VsInstallPath $vsPath -SkipAutomaticLocation -DevCmdArguments "-arch=x64 -host_arch=x64 -winsdk=10.0.19041.0"
-          rustc --print sysroot
-          Get-Location
-          # Get-ChildItem -Path D:\a\WasmEdge-1\WasmEdge-1\build\include\api\wasmedge -Force
-          # Get-ChildItem -Path D:\a\WasmEdge-1\WasmEdge-1\build\lib\api -Force
-          # Get-ChildItem -Path D:\a\WasmEdge-1\WasmEdge-1\build\plugins -Force
-          # Get-ChildItem -Path D:\a\WasmEdge-1\WasmEdge-1\build\tools\wasmedge -Force
-          Get-ChildItem -Path C:\Users\runneradmin\.rustup\toolchains -Force
-          # $env:Path="$env:Path;C:\Users\runneradmin\.rustup\toolchains\nightly-x86_64-pc-windows-msvc\bin;D:\a\WasmEdge-1\WasmEdge-1\build\lib\api"
-          # cd bindings\rust
-          # cargo +nightly test --lib --examples --locked --verbose
+          $env:Path="$env:Path;C:\Users\runneradmin\.rustup\toolchains\nightly-x86_64-pc-windows-msvc\bin;D:\a\WasmEdge\WasmEdge\build\lib\api"
+          cd bindings\rust
+          cargo +nightly test --lib --examples --locked --verbose

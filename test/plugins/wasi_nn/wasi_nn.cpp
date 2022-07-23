@@ -315,7 +315,7 @@ TEST(WasiNNTest, OpenVINOBackend) {
   writeBinaries<uint8_t>(MemInst, TensorData, StorePtr + TensorDim.size() * 4);
 
   // Swap to the tmp. env.
-  NNContextTmp.emplace_back(NNGraphTmp[0], nullptr);
+  NNContextTmp.emplace_back(NNGraphTmp[0]);
   NNGraphTmp.swap(NNMod->getEnv().NNGraph);
   NNContextTmp.swap(NNMod->getEnv().NNContext);
   // Test: set_input -- context id exceeds.

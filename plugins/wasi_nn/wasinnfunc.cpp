@@ -59,23 +59,19 @@ Expect<uint32_t> WasiNNLoad::body(Runtime::Instance::MemoryInstance *MemInst,
     std::string DeviceName;
     switch (Target) {
     case 0:
-      DeviceName = "CPU";
+      // CPU
       break;
-    case 1:
-      DeviceName = "GPU";
-      break;
-    case 2:
-      DeviceName = "TPU";
-      break;
+    // case 1:
+    // GPU
+    //   break;
+    // case 2:
+    // TPU
+    //   break;
     default:
-      DeviceName = "";
-    }
-    if (DeviceName.length() == 0) {
-      spdlog::error("[WASI-NN] Device target {:d} not support!", Target);
+      spdlog::error("[WASI-NN] OpenVINO backend only support CPU target");
       return static_cast<uint32_t>(WASINN::ErrNo::InvalidArgument);
-    } else {
-      spdlog::debug("[WASI-NN] Using device: {:s}", DeviceName);
     }
+    spdlog::debug("[WASI-NN] Using device: {:s}", DeviceName);
 
     // Get the graph builders.
     // GraphBuilders' Layout:
@@ -249,6 +245,22 @@ Expect<uint32_t> WasiNNLoad::body(Runtime::Instance::MemoryInstance *MemInst,
     if (unlikely(GraphId == nullptr)) {
       spdlog::error(
           "[WASI-NN] Failed when accessing the return GraphID memory.");
+      return static_cast<uint32_t>(WASINN::ErrNo::InvalidArgument);
+    }
+
+    std::string DeviceName;
+    switch (Target) {
+    case 0:
+      DeviceName = "CPU";
+      break;
+    // case 1:
+    //   DeviceName = "GPU";
+    //   break;
+    // case 2:
+    //   DeviceName = "TPU";
+    //   break;
+    default:
+      spdlog::error("[WASI-NN] PyTorch backend only support CPU target");
       return static_cast<uint32_t>(WASINN::ErrNo::InvalidArgument);
     }
 

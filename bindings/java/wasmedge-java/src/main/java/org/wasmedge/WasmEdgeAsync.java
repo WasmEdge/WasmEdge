@@ -1,18 +1,23 @@
 package org.wasmedge;
 
 public class WasmEdgeAsync {
-    Async async;
-    static public native void WasmEdge_AsyncWait(WasmEdgeAsync Cxt);
+    private long pointer;
 
-    static public native boolean WasmEdge_AsyncWaitFor(WasmEdgeAsync Cxt,
+    Async async;
+
+    public native void WasmEdge_AsyncWait();
+
+    public native boolean WasmEdge_AsyncWaitFor(
                                long Milliseconds);
 
-    static public native void WasmEdge_AsyncCancel(WasmEdgeAsync Cxt);
+    public native void WasmEdge_AsyncCancel();
 
-    static public native int WasmEdge_AsyncGetReturnsLength(WasmEdgeAsync Cxt);
+    public native int WasmEdge_AsyncGetReturnsLength();
 
     public native Result WasmEdge_AsyncGet(
-            WasmEdgeAsync Cxt, WasmEdgeValue Returns, int ReturnLen);
+             WasmEdgeValue Returns, int ReturnLen);
+
+    public native void WasmEdge_AsyncDelete();
 
 }
 

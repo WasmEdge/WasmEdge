@@ -1,0 +1,39 @@
+apply plugin: 'java'
+apply plugin: 'application'
+apply plugin: 'checkstyle'
+
+repositories {
+    mavenCentral()
+}
+
+configurations {
+    checkstyleConfig
+}
+
+dependencies {
+    checkstyleConfig("com.puppycrawl.tools:checkstyle:8.29") { transitive = false }
+    testImplementation('junit:junit:4.13.2')
+}
+
+test {
+    systemProperty "java.library.path", "/usr/local/lib"
+    if (System.getProperty('DEBUG', 'false') == 'true') {
+        jvmArgs '-Xdebug',
+                '-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=*:5005'
+    }
+
+}
+
+apply plugin: 'checkstyle'
+checkstyle {
+    toolVersion '8.29'
+    config = resources.text.fromArchiveEntry(configurations.checkstyleConfig, 'google_checks.xml')
+}
+checkstyleMain {
+    source ='src/main/java'
+}
+checkstyleTest {
+    source ='src/test/java'
+}
+
+

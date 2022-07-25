@@ -1833,8 +1833,26 @@ WasiExpect<void> INode::sockBind(uint8_t *AddressBuf,
                                  uint16_t Port) noexcept {
   EnsureWSAStartup();
 
-  auto AddrFamily = toAddressFamily(*getAddressFamily(AddressBuf));
-  auto Address = getAddress(AddressBuf);
+  int AddrFamily;
+  uint8_t *Address;
+
+  if (AddressLength != 128) {
+    // Fallback
+    switch (AddressLength) {
+    case 4:
+      AddrFamily = AF_INET;
+      break;
+    case 16:
+      AddrFamily = AF_INET6;
+      break;
+    default:
+      return WasiUnexpect(__WASI_ERRNO_INVAL);
+    }
+    Address = AddressBuf;
+  } else {
+    AddrFamily = toAddressFamily(*getAddressFamily(AddressBuf));
+    Address = getAddress(AddressBuf);
+  }
 
   struct sockaddr_in ServerAddr4 = {};
   struct sockaddr_in6 ServerAddr6 = {};
@@ -1897,8 +1915,26 @@ WasiExpect<void> INode::sockConnect(uint8_t *AddressBuf,
                                     uint16_t Port) noexcept {
   EnsureWSAStartup();
 
-  auto AddrFamily = toAddressFamily(*getAddressFamily(AddressBuf));
-  auto Address = getAddress(AddressBuf);
+  int AddrFamily;
+  uint8_t *Address;
+
+  if (AddressLength != 128) {
+    // Fallback
+    switch (AddressLength) {
+    case 4:
+      AddrFamily = AF_INET;
+      break;
+    case 16:
+      AddrFamily = AF_INET6;
+      break;
+    default:
+      return WasiUnexpect(__WASI_ERRNO_INVAL);
+    }
+    Address = AddressBuf;
+  } else {
+    AddrFamily = toAddressFamily(*getAddressFamily(AddressBuf));
+    Address = getAddress(AddressBuf);
+  }
 
   struct sockaddr_in ClientAddr4 {};
   struct sockaddr_in6 ClientAddr6 {};
@@ -1946,10 +1982,17 @@ WasiExpect<void> INode::sockRecvFrom(Span<Span<uint8_t>> RiData,
 
   uint8_t *Address = nullptr;
   __wasi_address_family_t *AddrFamily = nullptr;
+  __wasi_address_family_t Dummy; // Write garbage on fallback mode.
 
   if (AddressBuf) {
-    AddrFamily = getAddressFamily(AddressBuf);
-    Address = getAddress(AddressBuf);
+    if (AddressLength != 128) {
+      // Fallback
+      AddrFamily = &Dummy;
+      Address = AddressBuf;
+    } else {
+      AddrFamily = getAddressFamily(AddressBuf);
+      Address = getAddress(AddressBuf);
+    }
   }
 
   int SysRiFlags = 0;
@@ -2026,8 +2069,23 @@ WasiExpect<void> INode::sockSendTo(Span<Span<const uint8_t>> SiData,
   int AddrFamily = 0;
 
   if (AddressBuf) {
-    AddrFamily = toAddressFamily(*getAddressFamily(AddressBuf));
-    Address = getAddress(AddressBuf);
+    if (AddressLength != 128) {
+      // Fallback
+      switch (AddressLength) {
+      case 4:
+        AddrFamily = AF_INET;
+        break;
+      case 16:
+        AddrFamily = AF_INET6;
+        break;
+      default:
+        return WasiUnexpect(__WASI_ERRNO_INVAL);
+      }
+      Address = AddressBuf;
+    } else {
+      AddrFamily = toAddressFamily(*getAddressFamily(AddressBuf));
+      Address = getAddress(AddressBuf);
+    }
   }
 
   std::vector<uint8_t> TmpBuf;

@@ -1793,7 +1793,8 @@ Expect<uint32_t> WasiSockBind::body(const Runtime::CallingFrame &Frame,
     return __WASI_ERRNO_FAULT;
   }
 
-  if (InnerAddress->buf_len != 128) {
+  if (InnerAddress->buf_len != 128 && InnerAddress->buf_len != 4 &&
+      InnerAddress->buf_len != 16) {
     return __WASI_ERRNO_INVAL;
   }
 
@@ -1859,7 +1860,8 @@ Expect<uint32_t> WasiSockConnect::body(const Runtime::CallingFrame &Frame,
     return __WASI_ERRNO_FAULT;
   }
 
-  if (InnerAddress->buf_len != 128) {
+  if (InnerAddress->buf_len != 128 && InnerAddress->buf_len != 4 &&
+      InnerAddress->buf_len != 16) {
     return __WASI_ERRNO_INVAL;
   }
 
@@ -1970,7 +1972,8 @@ Expect<uint32_t> WasiSockRecvFrom::body(const Runtime::CallingFrame &Frame,
     return __WASI_ERRNO_FAULT;
   }
 
-  if (InnerAddress->buf_len != 128) {
+  if (InnerAddress->buf_len != 128 && InnerAddress->buf_len != 4 &&
+      InnerAddress->buf_len != 16) {
     return __WASI_ERRNO_INVAL;
   }
 
@@ -2125,7 +2128,8 @@ Expect<uint32_t> WasiSockSendTo::body(const Runtime::CallingFrame &Frame,
     return __WASI_ERRNO_FAULT;
   }
 
-  if (InnerAddress->buf_len != 128) {
+  if (InnerAddress->buf_len != 128 && InnerAddress->buf_len != 4 &&
+      InnerAddress->buf_len != 16) {
     return __WASI_ERRNO_INVAL;
   }
 

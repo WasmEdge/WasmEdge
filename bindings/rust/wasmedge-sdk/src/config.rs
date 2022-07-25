@@ -106,6 +106,7 @@ impl ConfigBuilder {
         }
         if let Some(host_config) = self.host_config {
             inner.wasi(host_config.wasi);
+            #[cfg(target_os = "linux")]
             inner.wasmedge_process(host_config.wasmedge_process);
         }
 
@@ -147,8 +148,7 @@ impl ConfigBuilder {
 /// let runtime_options = RuntimeConfigOptions::default().max_memory_pages(1024);
 ///
 /// let host_options = HostRegistrationConfigOptions::default()
-///     .wasi(true)
-///     .wasmedge_process(true);
+///     .wasi(true);
 ///
 /// let result = ConfigBuilder::new(common_options)
 ///     .with_statistics_config(stat_options)
@@ -182,6 +182,7 @@ impl Config {
     }
 
     /// Checks if host registration wasmedge process turns on or not.
+    #[cfg(target_os = "linux")]
     pub fn wasmedge_process_enabled(&self) -> bool {
         self.inner.wasmedge_process_enabled()
     }
@@ -632,6 +633,7 @@ impl StatisticsConfigOptions {
 #[derive(Debug, Default)]
 pub struct HostRegistrationConfigOptions {
     wasi: bool,
+    #[cfg(target_os = "linux")]
     wasmedge_process: bool,
 }
 impl HostRegistrationConfigOptions {
@@ -639,6 +641,7 @@ impl HostRegistrationConfigOptions {
     pub fn new() -> Self {
         Self {
             wasi: false,
+            #[cfg(target_os = "linux")]
             wasmedge_process: false,
         }
     }
@@ -651,7 +654,8 @@ impl HostRegistrationConfigOptions {
     pub fn wasi(self, enable: bool) -> Self {
         Self {
             wasi: enable,
-            ..self
+            #[cfg(target_os = "linux")]
+            wasmedge_process: self.wasmedge_process,
         }
     }
 
@@ -660,6 +664,7 @@ impl HostRegistrationConfigOptions {
     /// # Argument
     ///
     /// - `enable` specifies if the option turns on or not.
+    #[cfg(target_os = "linux")]
     pub fn wasmedge_process(self, enable: bool) -> Self {
         Self {
             wasmedge_process: enable,
@@ -698,9 +703,7 @@ mod tests {
 
         let runtime_options = RuntimeConfigOptions::default().max_memory_pages(1024);
 
-        let host_options = HostRegistrationConfigOptions::default()
-            .wasi(true)
-            .wasmedge_process(true);
+        let host_options = HostRegistrationConfigOptions::default().wasi(true);
 
         let result = ConfigBuilder::new(common_options)
             .with_statistics_config(stat_options)
@@ -734,6 +737,8 @@ mod tests {
 
         // check runtime config options
         assert_eq!(config.max_memory_pages(), 1024);
+
+        assert!(config.wasi_enabled());
     }
 
     #[test]

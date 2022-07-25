@@ -32,6 +32,23 @@ impl From<RefType> for u32 {
         }
     }
 }
+impl From<i32> for RefType {
+    fn from(value: i32) -> Self {
+        match value {
+            112 => RefType::FuncRef,
+            111 => RefType::ExternRef,
+            _ => panic!("[wasmedge-types] Invalid WasmEdge_RefType: {:#X}", value),
+        }
+    }
+}
+impl From<RefType> for i32 {
+    fn from(value: RefType) -> Self {
+        match value {
+            RefType::FuncRef => 112,
+            RefType::ExternRef => 111,
+        }
+    }
+}
 
 /// Defines WasmEdge value types.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
@@ -89,6 +106,35 @@ impl From<ValType> for u32 {
         }
     }
 }
+impl From<i32> for ValType {
+    fn from(value: i32) -> Self {
+        match value {
+            127 => ValType::I32,
+            126 => ValType::I64,
+            125 => ValType::F32,
+            124 => ValType::F64,
+            123 => ValType::V128,
+            112 => ValType::FuncRef,
+            111 => ValType::ExternRef,
+            64 => ValType::None,
+            _ => panic!("[wasmedge-types] Invalid WasmEdge_ValType: {:#X}", value),
+        }
+    }
+}
+impl From<ValType> for i32 {
+    fn from(value: ValType) -> Self {
+        match value {
+            ValType::I32 => 127,
+            ValType::I64 => 126,
+            ValType::F32 => 125,
+            ValType::F64 => 124,
+            ValType::V128 => 123,
+            ValType::FuncRef => 112,
+            ValType::ExternRef => 111,
+            ValType::None => 64,
+        }
+    }
+}
 
 /// Defines the mutability property of WasmEdge Global variables.
 ///
@@ -110,6 +156,23 @@ impl From<u32> for Mutability {
     }
 }
 impl From<Mutability> for u32 {
+    fn from(value: Mutability) -> Self {
+        match value {
+            Mutability::Const => 0,
+            Mutability::Var => 1,
+        }
+    }
+}
+impl From<i32> for Mutability {
+    fn from(value: i32) -> Self {
+        match value {
+            0 => Mutability::Const,
+            1 => Mutability::Var,
+            _ => panic!("[wasmedge-types] Invalid WasmEdge_Mutability: {:#X}", value),
+        }
+    }
+}
+impl From<Mutability> for i32 {
     fn from(value: Mutability) -> Self {
         match value {
             Mutability::Const => 0,
@@ -165,6 +228,31 @@ impl From<CompilerOptimizationLevel> for u32 {
         }
     }
 }
+impl From<i32> for CompilerOptimizationLevel {
+    fn from(val: i32) -> CompilerOptimizationLevel {
+        match val {
+            0 => CompilerOptimizationLevel::O0,
+            1 => CompilerOptimizationLevel::O1,
+            2 => CompilerOptimizationLevel::O2,
+            3 => CompilerOptimizationLevel::O3,
+            4 => CompilerOptimizationLevel::Os,
+            5 => CompilerOptimizationLevel::Oz,
+            _ => panic!("Unknown CompilerOptimizationLevel value: {}", val),
+        }
+    }
+}
+impl From<CompilerOptimizationLevel> for i32 {
+    fn from(val: CompilerOptimizationLevel) -> i32 {
+        match val {
+            CompilerOptimizationLevel::O0 => 0,
+            CompilerOptimizationLevel::O1 => 1,
+            CompilerOptimizationLevel::O2 => 2,
+            CompilerOptimizationLevel::O3 => 3,
+            CompilerOptimizationLevel::Os => 4,
+            CompilerOptimizationLevel::Oz => 5,
+        }
+    }
+}
 
 /// Defines WasmEdge AOT compiler output binary format.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -186,6 +274,23 @@ impl From<u32> for CompilerOutputFormat {
 }
 impl From<CompilerOutputFormat> for u32 {
     fn from(val: CompilerOutputFormat) -> u32 {
+        match val {
+            CompilerOutputFormat::Native => 0,
+            CompilerOutputFormat::Wasm => 1,
+        }
+    }
+}
+impl From<i32> for CompilerOutputFormat {
+    fn from(val: i32) -> CompilerOutputFormat {
+        match val {
+            0 => CompilerOutputFormat::Native,
+            1 => CompilerOutputFormat::Wasm,
+            _ => panic!("Unknown CompilerOutputFormat value: {}", val),
+        }
+    }
+}
+impl From<CompilerOutputFormat> for i32 {
+    fn from(val: CompilerOutputFormat) -> i32 {
         match val {
             CompilerOutputFormat::Native => 0,
             CompilerOutputFormat::Wasm => 1,
@@ -231,6 +336,20 @@ pub enum ExternalInstanceType {
 }
 impl From<u32> for ExternalInstanceType {
     fn from(value: u32) -> Self {
+        match value {
+            0 => ExternalInstanceType::Func(FuncType::default()),
+            1 => ExternalInstanceType::Table(TableType::default()),
+            2 => ExternalInstanceType::Memory(MemoryType::default()),
+            3 => ExternalInstanceType::Global(GlobalType::default()),
+            _ => panic!(
+                "[wasmedge-types] Invalid WasmEdge_ExternalType: {:#X}",
+                value
+            ),
+        }
+    }
+}
+impl From<i32> for ExternalInstanceType {
+    fn from(value: i32) -> Self {
         match value {
             0 => ExternalInstanceType::Func(FuncType::default()),
             1 => ExternalInstanceType::Table(TableType::default()),

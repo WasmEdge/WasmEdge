@@ -272,9 +272,11 @@ impl WasiInstance {
 
 /// Represents a wasmedge_process module instance.
 #[derive(Debug)]
+#[cfg(target_os = "linux")]
 pub struct WasmEdgeProcessInstance {
     pub(crate) inner: sys::WasmEdgeProcessModule,
 }
+#[cfg(target_os = "linux")]
 impl WasmEdgeProcessInstance {
     /// Initializes the wasmedge_process host module with the parameters.
     ///
@@ -396,6 +398,7 @@ impl WasmEdgeProcessInstance {
 }
 
 #[cfg(test)]
+#[cfg(target_os = "linux")]
 mod tests {
     use crate::{
         config::{CommonConfigOptions, ConfigBuilder},

@@ -185,6 +185,7 @@ impl Config {
 
         config.wasi(src.wasi_enabled());
 
+        #[cfg(target_os = "linux")]
         config.wasmedge_process(src.wasmedge_process_enabled());
 
         config.measure_cost(src.is_cost_measuring());
@@ -246,24 +247,7 @@ impl Config {
     /// # Argument
     ///
     /// * `enable` - Whether the option turns on or not.
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use wasmedge_sys::{utils, Config, Vm};
-    ///
-    /// // load wasmedge_process plugins
-    /// utils::load_plugin_from_default_paths();
-    ///
-    /// // create a Config context
-    /// let mut config = Config::create().expect("failed to create config");
-    /// config.wasmedge_process(true);
-    /// assert!(config.wasmedge_process_enabled());
-    ///
-    /// // create a Vm context with the given Config and Store
-    /// let _vm = Vm::create(Some(config), None).expect("failed to create vm");
-    /// ```
-
+    #[cfg(target_os = "linux")]
     pub fn wasmedge_process(&mut self, enable: bool) {
         unsafe {
             if enable {
@@ -281,6 +265,7 @@ impl Config {
     }
 
     /// Checks if host registration wasmedge process turns on or not.
+    #[cfg(target_os = "linux")]
     pub fn wasmedge_process_enabled(&self) -> bool {
         unsafe {
             ffi::WasmEdge_ConfigureHasHostRegistration(
@@ -660,7 +645,10 @@ impl Config {
     #[cfg(feature = "aot")]
     pub fn set_aot_optimization_level(&mut self, opt_level: CompilerOptimizationLevel) {
         unsafe {
-            ffi::WasmEdge_ConfigureCompilerSetOptimizationLevel(self.inner.0, opt_level as u32)
+            ffi::WasmEdge_ConfigureCompilerSetOptimizationLevel(
+                self.inner.0,
+                opt_level as ffi::WasmEdge_CompilerOptimizationLevel,
+            )
         }
     }
 
@@ -682,7 +670,12 @@ impl Config {
     /// * `format` - The format of the output binary.
     #[cfg(feature = "aot")]
     pub fn set_aot_compiler_output_format(&mut self, format: CompilerOutputFormat) {
-        unsafe { ffi::WasmEdge_ConfigureCompilerSetOutputFormat(self.inner.0, format as u32) }
+        unsafe {
+            ffi::WasmEdge_ConfigureCompilerSetOutputFormat(
+                self.inner.0,
+                format as ffi::WasmEdge_CompilerOutputFormat,
+            )
+        }
     }
 
     /// Returns the output binary format of AOT compiler.
@@ -835,6 +828,7 @@ mod tests {
         assert!(!config.tail_call_enabled());
         assert!(!config.threads_enabled());
         assert!(!config.wasi_enabled());
+        #[cfg(target_os = "linux")]
         assert!(!config.wasmedge_process_enabled());
         assert!(!config.is_cost_measuring());
         assert!(!config.dump_ir_enabled());

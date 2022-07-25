@@ -72,7 +72,7 @@ For importing WASI-Crypto in rust, you should use the [wasi-crypto binding](http
 
 ```toml
 [dependencies]
-wasi-crypto-guest = { git ="https://github.com/sonder-joker/wasi-crypto", version = "0.1.0" }
+wasi-crypto = "0.1.5"
 ```
 
 ## High Level Operations

@@ -3,11 +3,13 @@
 
 #pragma once
 
-#include "asymmetric_common/func.h"
-#include "common/func.h"
+#include "asymmetric_common/module.h"
+#include "common/module.h"
 #include "ctx.h"
 #include "helper.h"
-#include "module.h"
+#include "kx/module.h"
+#include "signatures/module.h"
+#include "symmetric/module.h"
 #include "utils/error.h"
 
 #include "common/span.h"
@@ -58,16 +60,49 @@ public:
         "../../../plugins/wasi_crypto/"
         "libwasmedgePluginWasiCrypto" WASMEDGE_LIB_EXTENSION));
     if (const auto *Plugin = WasmEdge::Plugin::Plugin::find("wasi_crypto"sv)) {
-      if (const auto *Module = Plugin->findModule("wasi_crypto"sv)) {
-        WasiCryptoMod = dynamic_cast<WasmEdge::Host::WasiCryptoModule *>(
+      if (const auto *Module =
+              Plugin->findModule("wasi_crypto_asymmetric_common"sv)) {
+        WasiCryptoAsymCommonMod =
+            dynamic_cast<WasmEdge::Host::WasiCryptoAsymmetricCommonModule *>(
+                Module->create().release());
+      }
+      if (const auto *Module = Plugin->findModule("wasi_crypto_common"sv)) {
+        WasiCryptoCommonMod =
+            dynamic_cast<WasmEdge::Host::WasiCryptoCommonModule *>(
+                Module->create().release());
+      }
+      if (const auto *Module = Plugin->findModule("wasi_crypto_kx"sv)) {
+        WasiCryptoKxMod = dynamic_cast<WasmEdge::Host::WasiCryptoKxModule *>(
             Module->create().release());
+      }
+      if (const auto *Module = Plugin->findModule("wasi_crypto_signatures"sv)) {
+        WasiCryptoSignMod =
+            dynamic_cast<WasmEdge::Host::WasiCryptoSignaturesModule *>(
+                Module->create().release());
+      }
+      if (const auto *Module = Plugin->findModule("wasi_crypto_symmetric"sv)) {
+        WasiCryptoSymmMod =
+            dynamic_cast<WasmEdge::Host::WasiCryptoSymmetricModule *>(
+                Module->create().release());
       }
     }
   }
 
   ~WasiCryptoTest() override {
-    if (WasiCryptoMod) {
-      delete WasiCryptoMod;
+    if (WasiCryptoAsymCommonMod) {
+      delete WasiCryptoAsymCommonMod;
+    }
+    if (WasiCryptoCommonMod) {
+      delete WasiCryptoCommonMod;
+    }
+    if (WasiCryptoKxMod) {
+      delete WasiCryptoKxMod;
+    }
+    if (WasiCryptoSignMod) {
+      delete WasiCryptoSignMod;
+    }
+    if (WasiCryptoSymmMod) {
+      delete WasiCryptoSymmMod;
     }
   }
 
@@ -353,7 +388,11 @@ protected:
       WasmEdge::AST::MemoryType(1)};
   std::array<WasmEdge::ValVariant, 1> Errno;
 
-  Host::WasiCryptoModule *WasiCryptoMod = nullptr;
+  Host::WasiCryptoAsymmetricCommonModule *WasiCryptoAsymCommonMod = nullptr;
+  Host::WasiCryptoCommonModule *WasiCryptoCommonMod = nullptr;
+  Host::WasiCryptoKxModule *WasiCryptoKxMod = nullptr;
+  Host::WasiCryptoSignaturesModule *WasiCryptoSignMod = nullptr;
+  Host::WasiCryptoSymmetricModule *WasiCryptoSymmMod = nullptr;
 };
 
 } // namespace WasiCrypto

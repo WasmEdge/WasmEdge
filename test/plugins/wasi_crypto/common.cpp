@@ -5,8 +5,7 @@
 #include "helper.h"
 
 namespace {
-template <typename T>
-T *getHostFunc(WasmEdge::Host::WasiCryptoModule *Mod, const char *Name) {
+template <typename T, typename M> T *getHostFunc(M *Mod, const char *Name) {
   if (Mod) {
     auto *FuncInst = Mod->findFuncExports(Name);
     if (FuncInst && FuncInst->isHostFunction()) {
@@ -55,7 +54,7 @@ TEST_F(WasiCryptoTest, Options) {
     writeString("foo"sv, 0);
     uint32_t NameSize = 3;
     auto *Func = getHostFunc<Common::OptionsSetGuestBuffer>(
-        WasiCryptoMod, "options_set_guest_buffer");
+        WasiCryptoCommonMod, "options_set_guest_buffer");
     ASSERT_NE(Func, nullptr);
     EXPECT_TRUE(Func->run(&MemInst,
                           std::initializer_list<WasmEdge::ValVariant>{
@@ -83,7 +82,7 @@ TEST_F(WasiCryptoTest, Options) {
     writeString("foo"sv, 0);
     uint32_t NameSize = 3;
     auto *Func = getHostFunc<Common::OptionsSetGuestBuffer>(
-        WasiCryptoMod, "options_set_guest_buffer");
+        WasiCryptoCommonMod, "options_set_guest_buffer");
     ASSERT_NE(Func, nullptr);
     EXPECT_TRUE(Func->run(&MemInst,
                           std::initializer_list<WasmEdge::ValVariant>{
@@ -111,7 +110,7 @@ TEST_F(WasiCryptoTest, Options) {
     writeString("foo"sv, 0);
     uint32_t NameSize = 3;
     auto *Func = getHostFunc<Common::OptionsSetGuestBuffer>(
-        WasiCryptoMod, "options_set_guest_buffer");
+        WasiCryptoCommonMod, "options_set_guest_buffer");
     ASSERT_NE(Func, nullptr);
     EXPECT_TRUE(Func->run(&MemInst,
                           std::initializer_list<WasmEdge::ValVariant>{

@@ -6,27 +6,30 @@ find_package(OpenSSL REQUIRED)
 
 wasmedge_add_library(wasmedgePluginWasiCrypto
   SHARED
-  module.cpp
   ctx.cpp
   asymmetric_common/ctx.cpp
   asymmetric_common/func.cpp
   asymmetric_common/keypair.cpp
+  asymmetric_common/module.cpp
   asymmetric_common/publickey.cpp
   asymmetric_common/secretkey.cpp
   common/array_output.cpp
   common/ctx.cpp
   common/func.cpp
+  common/module.cpp
   common/options.cpp
   kx/ctx.cpp
   kx/dh/ecdsa.cpp
   kx/dh/x25519.cpp
   kx/func.cpp
   kx/kx.cpp
+  kx/module.cpp
   kx/options.cpp
   signatures/ctx.cpp
   signatures/ecdsa.cpp
   signatures/eddsa.cpp
   signatures/func.cpp
+  signatures/module.cpp
   signatures/options.cpp
   signatures/rsa.cpp
   signatures/signatures.cpp
@@ -39,6 +42,7 @@ wasmedge_add_library(wasmedgePluginWasiCrypto
   symmetric/kdf.cpp
   symmetric/key.cpp
   symmetric/mac.cpp
+  symmetric/module.cpp
   symmetric/options.cpp
   symmetric/state.cpp
   symmetric/tag.cpp

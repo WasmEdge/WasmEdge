@@ -2,15 +2,32 @@
 // SPDX-FileCopyrightText: 2019-2022 Second State INC
 
 #include "ctx.h"
-#include "module.h"
+#include "asymmetric_common/module.h"
+#include "common/module.h"
+#include "kx/module.h"
+#include "signatures/module.h"
+#include "symmetric/module.h"
 
 namespace WasmEdge {
 namespace Host {
 
 namespace {
 
-Runtime::Instance::ModuleInstance *create(void) noexcept {
-  return new WasiCryptoModule;
+Runtime::Instance::ModuleInstance *createAsymmetricCommon(void) noexcept {
+  return new WasiCryptoAsymmetricCommonModule(
+      WasiCrypto::Context::getInstance());
+}
+Runtime::Instance::ModuleInstance *createCommon(void) noexcept {
+  return new WasiCryptoCommonModule(WasiCrypto::Context::getInstance());
+}
+Runtime::Instance::ModuleInstance *createKx(void) noexcept {
+  return new WasiCryptoKxModule(WasiCrypto::Context::getInstance());
+}
+Runtime::Instance::ModuleInstance *createSignatures(void) noexcept {
+  return new WasiCryptoSignaturesModule(WasiCrypto::Context::getInstance());
+}
+Runtime::Instance::ModuleInstance *createSymmetric(void) noexcept {
+  return new WasiCryptoSymmetricModule(WasiCrypto::Context::getInstance());
 }
 
 Plugin::Plugin::PluginDescriptor Descriptor{
@@ -18,13 +35,33 @@ Plugin::Plugin::PluginDescriptor Descriptor{
     .Description = "",
     .APIVersion = Plugin::Plugin::CurrentAPIVersion,
     .Version = {0, 10, 1, 0},
-    .ModuleCount = 1,
+    .ModuleCount = 5,
     .ModuleDescriptions =
         (Plugin::PluginModule::ModuleDescriptor[]){
             {
-                .Name = "wasi_crypto",
+                .Name = "wasi_crypto_asymmetric_common",
                 .Description = "",
-                .Create = create,
+                .Create = createAsymmetricCommon,
+            },
+            {
+                .Name = "wasi_crypto_common",
+                .Description = "",
+                .Create = createCommon,
+            },
+            {
+                .Name = "wasi_crypto_kx",
+                .Description = "",
+                .Create = createKx,
+            },
+            {
+                .Name = "wasi_crypto_signatures",
+                .Description = "",
+                .Create = createSignatures,
+            },
+            {
+                .Name = "wasi_crypto_symmetric",
+                .Description = "",
+                .Create = createSymmetric,
             },
         },
     .AddOptions = nullptr,
@@ -33,6 +70,8 @@ Plugin::Plugin::PluginDescriptor Descriptor{
 } // namespace
 
 Plugin::PluginRegister WasiCrypto::Context::Register(&Descriptor);
+std::shared_mutex WasiCrypto::Context::Mutex;
+std::weak_ptr<WasiCrypto::Context> WasiCrypto::Context::Instance;
 
 } // namespace Host
 } // namespace WasmEdge

@@ -213,7 +213,11 @@ int Tool(int Argc, const char *Argv[]) noexcept {
   Conf.addHostRegistration(HostRegistration::Wasi);
   Conf.addHostRegistration(HostRegistration::WasmEdge_Process);
   Conf.addHostRegistration(HostRegistration::WasiNN);
-  Conf.addHostRegistration(HostRegistration::WasiCrypto);
+  Conf.addHostRegistration(HostRegistration::WasiCrypto_Common);
+  Conf.addHostRegistration(HostRegistration::WasiCrypto_AsymmetricCommon);
+  Conf.addHostRegistration(HostRegistration::WasiCrypto_Kx);
+  Conf.addHostRegistration(HostRegistration::WasiCrypto_Signatures);
+  Conf.addHostRegistration(HostRegistration::WasiCrypto_Symmetric);
   const auto InputPath = std::filesystem::absolute(SoName.value());
   VM::VM VM(Conf);
 

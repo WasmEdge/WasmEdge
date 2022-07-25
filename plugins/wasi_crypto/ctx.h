@@ -19,7 +19,6 @@
 #include "asymmetric_common/secretkey.h"
 #include "common/array_output.h"
 #include "common/options.h"
-#include "common/span.h"
 #include "kx/registed.h"
 #include "signatures/registed.h"
 #include "signatures/signatures.h"
@@ -32,7 +31,12 @@
 #include "utils/error.h"
 #include "utils/handles_manager.h"
 
+#include "common/span.h"
 #include "plugin/plugin.h"
+
+#include <memory>
+#include <mutex>
+#include <shared_mutex>
 
 namespace WasmEdge {
 namespace Host {
@@ -40,6 +44,20 @@ namespace WasiCrypto {
 
 class Context {
 public:
+  // Singleton
+  static std::shared_ptr<Context> getInstance() noexcept {
+    std::unique_lock Lock(Mutex);
+    std::shared_ptr<Context> CtxPtr = Instance.lock();
+    if (!CtxPtr) {
+      CtxPtr.reset(new Context());
+      Instance = CtxPtr;
+    }
+    return CtxPtr;
+  }
+
+  Context(const Context &) = delete;
+  void operator=(const Context &) = delete;
+
   // Common
 
   WasiCryptoExpect<size_t>
@@ -313,6 +331,8 @@ public:
       __wasi_signature_verification_state_t StateHandle) noexcept;
 
 private:
+  Context() noexcept {}
+
   RefHandlesManager<__wasi_array_output_t, Common::ArrayOutput>
       ArrayOutputManager{0x00};
   RcHandlesManager<__wasi_options_t, Common::Options> OptionsManager{0x01};
@@ -336,6 +356,8 @@ private:
                    Signatures::VerificationStateVariant>
       VerificationStateManager{0x02};
 
+  static std::shared_mutex Mutex;
+  static std::weak_ptr<Context> Instance;
   static Plugin::PluginRegister Register;
 };
 

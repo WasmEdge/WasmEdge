@@ -638,7 +638,11 @@ P(FunctionReferences, "Typed Function References")
 H(Wasi)
 H(WasmEdge_Process)
 H(WasiNN)
-H(WasiCrypto)
+H(WasiCrypto_Common)
+H(WasiCrypto_AsymmetricCommon)
+H(WasiCrypto_Kx)
+H(WasiCrypto_Signatures)
+H(WasiCrypto_Symmetric)
 #undef H
 #endif // UseHostRegistration
 

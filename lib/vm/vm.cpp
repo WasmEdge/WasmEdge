@@ -36,11 +36,12 @@ void VM::unsafeInitVM() {
   }
 
   // Load the plugins.
-  auto loadPlugin = [=](std::string_view Name, HostRegistration Host) {
+  auto loadPlugin = [=](std::string_view PName, HostRegistration Host,
+                        std::string_view MName) {
     if (Conf.hasHostRegistration(Host)) {
       bool Founded = false;
-      if (const auto *Plugin = Plugin::Plugin::find(Name)) {
-        if (const auto *Module = Plugin->findModule(Name)) {
+      if (const auto *Plugin = Plugin::Plugin::find(PName)) {
+        if (const auto *Module = Plugin->findModule(MName)) {
           auto ProcMod = Module->create();
           ExecutorEngine.registerModule(StoreRef, *ProcMod);
           ImpObjs.emplace(Host, std::move(ProcMod));
@@ -48,13 +49,24 @@ void VM::unsafeInitVM() {
         }
       }
       if (!Founded) {
-        spdlog::debug(Name, "module not founded."sv);
+        spdlog::debug("Plugin:"sv, PName, "module: "sv, MName,
+                      "not founded."sv);
       }
     }
   };
-  loadPlugin("wasmedge_process"sv, HostRegistration::WasmEdge_Process);
-  loadPlugin("wasi_nn"sv, HostRegistration::WasiNN);
-  loadPlugin("wasi_crypto"sv, HostRegistration::WasiCrypto);
+  loadPlugin("wasmedge_process"sv, HostRegistration::WasmEdge_Process,
+             "wasmedge_process"sv);
+  loadPlugin("wasi_nn"sv, HostRegistration::WasiNN, "wasi_nn"sv);
+  loadPlugin("wasi_crypto"sv, HostRegistration::WasiCrypto_Common,
+             "wasi_crypto_common"sv);
+  loadPlugin("wasi_crypto"sv, HostRegistration::WasiCrypto_AsymmetricCommon,
+             "wasi_crypto_asymmetric_common"sv);
+  loadPlugin("wasi_crypto"sv, HostRegistration::WasiCrypto_Kx,
+             "wasi_crypto_kx"sv);
+  loadPlugin("wasi_crypto"sv, HostRegistration::WasiCrypto_Signatures,
+             "wasi_crypto_signatures"sv);
+  loadPlugin("wasi_crypto"sv, HostRegistration::WasiCrypto_Symmetric,
+             "wasi_crypto_symmetric"sv);
 
   uint8_t Index = static_cast<uint8_t>(HostRegistration::Max);
   for (const auto &Plugin : Plugin::Plugin::plugins()) {

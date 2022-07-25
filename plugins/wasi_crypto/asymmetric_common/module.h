@@ -1,14 +1,15 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2019-2022 Second State INC
 
-//===-- wasmedge/plugins/wasi_crypto/module.h - Module class definition ---===//
+//===-- wasmedge/plugins/wasi_crypto/asymmetric_common/module.h - Asym ----===//
 //
 // Part of the WasmEdge Project.
 //
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// This file contains the declaration of the wasi-crypto module class.
+/// This file contains the declaration of the wasi-crypto asymmetric_common
+/// module class.
 ///
 //===----------------------------------------------------------------------===//
 
@@ -21,14 +22,15 @@
 namespace WasmEdge {
 namespace Host {
 
-class WasiCryptoModule : public Runtime::Instance::ModuleInstance {
+class WasiCryptoAsymmetricCommonModule
+    : public Runtime::Instance::ModuleInstance {
 public:
-  WasiCryptoModule();
+  WasiCryptoAsymmetricCommonModule(std::shared_ptr<WasiCrypto::Context>);
 
-  WasiCrypto::Context &getContext() { return Ctx; }
+  WasiCrypto::Context &getContext() { return *Ctx.get(); }
 
 private:
-  WasiCrypto::Context Ctx;
+  std::shared_ptr<WasiCrypto::Context> Ctx;
 };
 
 } // namespace Host

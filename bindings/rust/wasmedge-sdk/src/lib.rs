@@ -10,10 +10,16 @@
 //!
 //! The [wasmedge-sdk](https://crates.io/crates/wasmedge-sdk) crate defines a group of high-level Rust APIs, which are used to build up business applications.
 //!
-//! Notice that
-//! - `WasmEdge Rust SDK` uses nightly version of Rust.
+//! Notice that `WasmEdge Rust SDK` uses nightly version of Rust. It's strongly recommended to use the latest nightly version of Rust.
 //!
-//! - Due to [issue #1527](https://github.com/WasmEdge/WasmEdge/issues/1527), `WasmEdge Rust SDK` cannot build successfully on Windows platform. Please [use Docker](https://wasmedge.org/book/en/start/docker.html) to build `WasmEdge Rust SDK` on Windows.
+//! ## Versioning Table
+//!
+//! The following table provides the versioning information about each crate of WasmEdge Rust bindings.
+//!
+//! | wasmedge-sdk  | WasmEdge lib                                                       | wasmedge-sys  | wasmedge-types|
+//! | :-----------: | :----------------------------------------------------------------: | :-----------: | :-----------: |
+//! | 0.2.0         | [0.10.1](https://github.com/WasmEdge/WasmEdge/releases/tag/0.10.0) | 0.8           | 0.2           |
+//! | 0.1.0         | [0.10.0](https://github.com/WasmEdge/WasmEdge/releases/tag/0.10.0) | 0.7           | 0.1           |
 //!
 //! ## Usage
 //!
@@ -153,7 +159,10 @@ pub use executor::Executor;
 pub use externals::{Func, FuncRef, FuncTypeBuilder, Global, Memory, Table};
 #[doc(inline)]
 pub use import::{ImportObject, ImportObjectBuilder};
-pub use instance::{Instance, WasiInstance, WasmEdgeProcessInstance};
+#[cfg(target_os = "linux")]
+#[doc(inline)]
+pub use instance::WasmEdgeProcessInstance;
+pub use instance::{Instance, WasiInstance};
 #[doc(inline)]
 pub use io::{WasmVal, WasmValType, WasmValTypeList};
 #[doc(inline)]

@@ -91,6 +91,7 @@ impl Executor {
                     import.inner.0 as *const _,
                 ))?;
             },
+            #[cfg(target_os = "linux")]
             ImportObject::WasmEdgeProcess(import) => unsafe {
                 check(ffi::WasmEdge_ExecutorRegisterImport(
                     self.inner.0,

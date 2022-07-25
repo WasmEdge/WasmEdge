@@ -9,7 +9,7 @@
 
 namespace WasmEdge {
 namespace Host {
-  
+
 template <typename T> class HttpsReq : public Runtime::HostFunction<T> {
 public:
   HttpsReq(HttpsReqEnvironment &HostEnv)

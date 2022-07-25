@@ -69,6 +69,8 @@ option(WASMEDGE_FORCE_DISABLE_LTO "Forcibly disable link time optimization when 
 set(WASMEDGE_PLUGIN_WASI_NN_BACKEND "" CACHE STRING "Enable WasmEdge Wasi-NN plugin with backends.")
 # Currently supported WASI-NN backend: "OpenVINO" on Linux x86_64
 
+set(WASMEDGE_PLUGIN_HTTPSREQ false CACHE BOOL "Enable wasmedge plugin httpsreq")
+
 set(WASMEDGE_BUILD_PACKAGE "DEB;RPM" CACHE STRING "Package generate types")
 set(CPACK_PROJECT_CONFIG_FILE ${CMAKE_CURRENT_SOURCE_DIR}/cmake/cpack_config.cmake)
 

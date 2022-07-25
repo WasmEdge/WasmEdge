@@ -16,10 +16,6 @@ namespace Host {
 
 class HttpsReqEnvironment {
 public:
-  /// Define your environment variables and data structures
-
-  /// Const
-  /// Variables
   std::string Host;
   uint32_t Port;
   std::string BodyStr;

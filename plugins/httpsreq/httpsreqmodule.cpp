@@ -8,10 +8,8 @@ namespace WasmEdge {
 namespace Host {
 
 /// Register your functions in module.
-HttpsReqModule::HttpsReqModule()
-    : ModuleInstance("httpsreq") {
-  addHostFunc("send_data",
-              std::make_unique<SendData>(Env));
+HttpsReqModule::HttpsReqModule() : ModuleInstance("httpsreq") {
+  addHostFunc("send_data", std::make_unique<SendData>(Env));
 }
 
 } // namespace Host

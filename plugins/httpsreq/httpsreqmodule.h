@@ -3,8 +3,8 @@
 
 #pragma once
 
-#include "runtime/instance/module.h"
 #include "httpsreqenv.h"
+#include "runtime/instance/module.h"
 #include <cstdint>
 
 namespace WasmEdge {

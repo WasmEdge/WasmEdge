@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: 2019-2022 Second State INC
 
 #include "httpsreqenv.h"
-#include "httpsreqmodule.h"   
+#include "httpsreqmodule.h"
 
 namespace WasmEdge {
 namespace Host {

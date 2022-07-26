@@ -79,34 +79,10 @@ jobs:
         echo ::set-output name=version::$(git describe --match "[0-9].[0-9]*" --tag)
 
   create_source_tarball:
-    name: Create source tarball
-    runs-on: ubuntu-latest
-    needs: get_version_v2
-    steps:
-    - uses: actions/checkout@v2
-      with:
-        fetch-depth: 0
-    - name: Propagate version information for tarball
-      run: |
-        echo -n $VERSION | tee VERSION
-      env:
-        VERSION: ${{ needs.get_version_v2.outputs.version }}
-    - name: Create source tarball
-      run: |
-        echo "Get version: $VERSION"
-        TEMPDIR=$(mktemp -d)
-        SRCDIR="$TEMPDIR/wasmedge/"
-        mkdir -p "$SRCDIR"
-        git checkout-index -a --prefix="$SRCDIR"
-        cp -v VERSION $SRCDIR
-        tar --owner 0 --group 0 -czf "$GITHUB_WORKSPACE/WasmEdge-$VERSION.tar.gz" -C "$TEMPDIR" "wasmedge"
-      env:
-        VERSION: ${{ needs.get_version_v2.outputs.version }}
-    - name: Upload artifact
-      uses: actions/upload-artifact@v2
-      with:
-        name: WasmEdge-${{ needs.get_version_v2.outputs.version }}-src.tar.gz
-        path: WasmEdge-${{ needs.get_version_v2.outputs.version }}.tar.gz
+    needs: [get_version_v2, lint]
+    uses: ./.github/workflows/reusable-create-source-tarball.yml
+    with:
+      version: ${{ needs.get_version_v2.outputs.version }}
 
   build_fedora:
     name: Fedora 35

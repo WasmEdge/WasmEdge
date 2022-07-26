@@ -1,0 +1,56 @@
+(use "proposal_common.witx")
+
+;;; `$kx_keypair` is just an alias for `$keypair`
+;;;
+;;; However, bindings may want to define a specialized type `kx_keypair` as a super class of `keypair`.
+(typename $kx_keypair $keypair)
+
+;;; `$kx_publickey` is just an alias for `$publickey`
+;;;
+;;; However, bindings may want to define a specialized type `kx_publickey` as a super class of `publickey`, with additional methods such as `dh`.
+(typename $kx_publickey $publickey)
+
+;;; `$kx_secretkey` is just an alias for `$secretkey`
+;;;
+;;; However, bindings may want to define a specialized type `kx_secretkey` as a super class of `secretkeykey`, with additional methods such as `dh`.
+(typename $kx_secretkey $secretkey)
+
+;;; Key exchange operations.
+
+(module $wasi_ephemeral_crypto_kx
+  (import "memory" (memory))
+
+  ;;; Perform a simple Diffie-Hellman key exchange.
+  ;;;
+  ;;; Both keys must be of the same type, or else the `$crypto_errno.incompatible_keys` error is returned.
+  ;;; The algorithm also has to support this kind of key exchange. If this is not the case, the `$crypto_errno.invalid_operation` error is returned.
+  ;;;
+  ;;; Otherwide, a raw shared key is returned, and can be imported as a symmetric key.
+  ;;; ```
+  (@interface func (export "kx_dh")
+    (param $pk $publickey)
+    (param $sk $secretkey)
+    (result $error (expected $array_output (error $crypto_errno)))
+  )
+
+  ;;; Create a shared secret and encrypt it for the given public key.
+  ;;;
+  ;;; This operation is only compatible with specific algorithms.
+  ;;; If a selected algorithm doesn't support it, `$crypto_errno.invalid_operation` is returned.
+  ;;;
+  ;;; On success, both the shared secret and its encrypted version are returned.
+  (@interface func (export "kx_encapsulate")
+    (param $pk $publickey)
+    (result $error (expected (tuple $array_output $array_output) (error $crypto_errno)))
+  )
+
+  ;;; Decapsulate an encapsulated secret crated with `kx_encapsulate`
+  ;;;
+  ;;; Return the secret, or `$crypto_errno.verification_failed` on error.
+  (@interface func (export "kx_decapsulate")
+    (param $sk $secretkey)
+    (param $encapsulated_secret (@witx const_pointer u8))
+    (param $encapsulated_secret_len $size)
+    (result $error (expected $array_output (error $crypto_errno)))
+  )
+)

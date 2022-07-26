@@ -1671,6 +1671,18 @@ WasmEdge_ModuleInstanceCreateWasiNN(void) {
 }
 
 WASMEDGE_CAPI_EXPORT WasmEdge_ModuleInstanceContext *
+WasmEdge_ModuleInstanceCreateWasiCrypto(void) {
+  using namespace std::literals::string_view_literals;
+  if (const auto *Plugin = WasmEdge::Plugin::Plugin::find("wasi_crypto"sv)) {
+    if (const auto *Module = Plugin->findModule("wasi_crypto"sv)) {
+      auto *ProcMod = toModCxt(Module->create().release());
+      return ProcMod;
+    }
+  }
+  return nullptr;
+}
+
+WASMEDGE_CAPI_EXPORT WasmEdge_ModuleInstanceContext *
 WasmEdge_ModuleInstanceCreateWasmEdgeProcess(const char *const *AllowedCmds,
                                              const uint32_t CmdsLen,
                                              const bool AllowAll) {

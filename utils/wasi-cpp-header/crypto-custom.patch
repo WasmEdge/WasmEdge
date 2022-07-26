@@ -1,0 +1,29 @@
+--- a/api.hpp
++++ b/api.hpp
+@@ -435,7 +435,7 @@ static_assert(alignof(__wasi_version_t) == 8, "witx calculated align");
+ /**
+  * Size of a value.
+  */
+-using __wasi_size_t = size_t;
++using __wasi_size_t = uint32_t;
+ 
+ static_assert(sizeof(__wasi_size_t) == 4, "witx calculated size");
+ static_assert(alignof(__wasi_size_t) == 4, "witx calculated align");
+@@ -597,7 +597,7 @@ union __wasi_opt_options_u_t {
+   __wasi_options_t some;
+ };
+ struct __wasi_opt_options_t {
+-  uint8_t tag;
++  __wasi_opt_options_u_e_t tag;
+   __wasi_opt_options_u_t u;
+ };
+ 
+@@ -626,7 +626,7 @@ union __wasi_opt_symmetric_key_u_t {
+   __wasi_symmetric_key_t some;
+ };
+ struct __wasi_opt_symmetric_key_t {
+-  uint8_t tag;
++  __wasi_opt_symmetric_key_u_e_t tag;
+   __wasi_opt_symmetric_key_u_t u;
+ };
+ 

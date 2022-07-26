@@ -69,6 +69,7 @@ option(WASMEDGE_BUILD_EXAMPLE "Generate examples." OFF)
 option(WASMEDGE_FORCE_DISABLE_LTO "Forcibly disable link time optimization when linking even in Release/RelWithDeb build." OFF)
 set(WASMEDGE_PLUGIN_WASI_NN_BACKEND "" CACHE STRING "Enable WasmEdge Wasi-NN plugin with backends.")
 # Currently supported WASI-NN backend: "OpenVINO" on Linux x86_64
+option(WASMEDGE_PLUGIN_WASI_CRYPTO "Enable WasmEdge Wasi-crypto plugin." OFF)
 
 set(WASMEDGE_BUILD_PACKAGE "DEB;RPM" CACHE STRING "Package generate types")
 set(CPACK_PROJECT_CONFIG_FILE ${CMAKE_CURRENT_SOURCE_DIR}/cmake/cpack_config.cmake)

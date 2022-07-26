@@ -6,11 +6,15 @@ This document has not yet covered all workflows.
 ```mermaid
 flowchart LR
     %% _ is the starting point of everything
-    _(( ))-->lint
-    lint-->|pass|build
+    _(( ))-->lint(lint)
+    lint-->|pass|build(build)
     lint-->|fail|reject(unable to merge)
-    build-->source(create source tarball fa:fa-link)
-    click source "reusable-create-source-tarball.yml"
-    build-->macos(build on macOS fa:fa-link)
-    click macos "reusable-build-on-macos.yml"
+    build-.->source(create source tarball)
+    build-.->oss("<ul>
+      <li>build on macOS</li>
+      <li>build on manylinux</li>
+      <li>build on Windows</li>
+      <li>build on Android</li>
+      <li>build on Fedora</li>
+    </ul>")
 ```

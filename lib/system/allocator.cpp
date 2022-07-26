@@ -132,7 +132,7 @@ Allocator::resize(uint8_t *Pointer, uint32_t OldPageCount,
 
 [[gnu::visibility("default")]] void Allocator::release(uint8_t *Pointer,
                                                        uint32_t) noexcept {
-#if defined(HAVE_MMAP) && defined(__x86_64__) || defined(__aarch64__) || defined(__riscv)
+#if defined(HAVE_MMAP) && defined(__x86_64__) || defined(__aarch64__) || defined(__riscv) 
   if (Pointer == nullptr) {
     return;
   }

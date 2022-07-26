@@ -179,7 +179,7 @@ public:
 
   /// Getter and setter of the constant value.
   ValVariant getNum() const noexcept {
-#if defined(__x86_64__) || defined(__aarch64__) || defined(__riscv)
+#if defined(__x86_64__) || defined(__aarch64__) || defined(__riscv) 
     return ValVariant(Data.Num);
 #else
     uint128_t N(Data.Num.High, Data.Num.Low);

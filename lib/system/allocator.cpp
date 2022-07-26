@@ -8,7 +8,7 @@
 #include "common/errcode.h"
 
 #if defined(HAVE_MMAP) && defined(__x86_64__) || defined(__aarch64__) ||       \
-    defined(__arm__)
+    defined(__arm__) || defined(__riscv)
 #include <sys/mman.h>
 #elif WASMEDGE_OS_WINDOWS
 #include <boost/winapi/basic_types.hpp>
@@ -59,7 +59,7 @@ static inline constexpr const uint64_t k12G = UINT64_C(0x300000000);
 
 [[gnu::visibility("default")]] uint8_t *
 Allocator::allocate(uint32_t PageCount) noexcept {
-#if defined(HAVE_MMAP) && defined(__x86_64__) || defined(__aarch64__)
+#if defined(HAVE_MMAP) && defined(__x86_64__) || defined(__aarch64__) || defined(__riscv)
   auto Reserved = reinterpret_cast<uint8_t *>(
       mmap(nullptr, k12G, PROT_NONE,
            MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE, -1, 0));
@@ -103,7 +103,7 @@ Allocator::allocate(uint32_t PageCount) noexcept {
 Allocator::resize(uint8_t *Pointer, uint32_t OldPageCount,
                   uint32_t NewPageCount) noexcept {
   assuming(NewPageCount > OldPageCount);
-#if defined(HAVE_MMAP) && defined(__x86_64__) || defined(__aarch64__)
+#if defined(HAVE_MMAP) && defined(__x86_64__) || defined(__aarch64__) || defined(__riscv)
   if (mmap(Pointer + OldPageCount * kPageSize,
            (NewPageCount - OldPageCount) * kPageSize, PROT_READ | PROT_WRITE,
            MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, -1, 0) == MAP_FAILED) {
@@ -132,7 +132,7 @@ Allocator::resize(uint8_t *Pointer, uint32_t OldPageCount,
 
 [[gnu::visibility("default")]] void Allocator::release(uint8_t *Pointer,
                                                        uint32_t) noexcept {
-#if defined(HAVE_MMAP) && defined(__x86_64__) || defined(__aarch64__)
+#if defined(HAVE_MMAP) && defined(__x86_64__) || defined(__aarch64__) || defined(__riscv)
   if (Pointer == nullptr) {
     return;
   }

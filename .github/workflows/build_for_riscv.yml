@@ -1,0 +1,54 @@
+name: Build and Test WasmEdge on riscv64 arch
+
+concurrency:
+  group: build-riscv64-${{ github.head_ref }}
+  cancel-in-progress: true
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/riscv.yml"
+
+jobs:
+  build_riscv64:
+    name: riscv64
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
+    - name: Install riscv-gnu-toolchain
+      run: |
+        sudo apt install -y autoconf automake autotools-dev curl libmpc-dev libmpfr-dev libgmp-dev \
+                 gawk build-essential bison flex texinfo gperf libtool patchutils bc \
+                 zlib1g-dev libexpat-dev git \
+                 libglib2.0-dev libfdt-dev libpixman-1-dev \
+                 libncurses5-dev libncursesw5-dev
+        mkdir riscv64-linux
+        cd riscv64-linux
+        git clone https://gitee.com/mirrors/riscv-gnu-toolchain
+        cd riscv-gnu-toolchain
+        git rm qemu
+        git submodule update --init --recursive
+        ./configure --prefix=/opt/riscv64
+        sudo make linux -j $(nproc)
+        export PATH="$PATH:/opt/riscv64/bin"
+        riscv64-unknown-linux-gnu-gcc -v
+    - name: Build WasmEdge with riscv-gnu-toolchain
+      run: |
+        mkdir build && cd build
+        cmake -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_BUILD_AOT_RUNTIME=OFF \
+              -DCMAKE_CROSSCOMPILING=TRUE -DCMAKE_SYSTEM_NAME=Linux -DCMAKE_SYSROOT="/opt/riscv64/sysroot" \
+              -DCMAKE_C_COMPILER=/opt/riscv64/bin/riscv64-unknown-linux-gnu-gcc \
+              -DCMAKE_CXX_COMPILER=/opt/riscv64/bin/riscv64-unknown-linux-gnu-g++ \
+              -DCMAKE_FIND_ROOT_PATH=/opt/riscv64/riscv64-unknown-linux-gnu \
+              -DCMAKE_FIND_ROOT_PATH_MODE_PROGRAM=NEVER \
+              -DCMAKE_FIND_ROOT_PATH_MODE_LIBRARY=ONLY \
+              -DCMAKE_FIND_ROOT_PATH_MODE_INCLUDE=ONLY \
+              -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ONLY \
+              ..
+        make -j
+        cd tools/wasmedge
+        file wasmedge

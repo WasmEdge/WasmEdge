@@ -37,7 +37,7 @@ public:
   /// Constructor assigns the OpCode and the Offset.
   Instruction(OpCode Byte, uint32_t Off = 0) noexcept
       : Offset(Off), Code(Byte) {
-#if defined(__x86_64__) || defined(__aarch64__)
+#if defined(__x86_64__) || defined(__aarch64__) || defined(__riscv)
     Data.Num = static_cast<uint128_t>(0);
 #else
     Data.Num.Low = static_cast<uint64_t>(0);
@@ -179,7 +179,7 @@ public:
 
   /// Getter and setter of the constant value.
   ValVariant getNum() const noexcept {
-#if defined(__x86_64__) || defined(__aarch64__)
+#if defined(__x86_64__) || defined(__aarch64__) || defined(__riscv)
     return ValVariant(Data.Num);
 #else
     uint128_t N(Data.Num.High, Data.Num.Low);
@@ -187,7 +187,7 @@ public:
 #endif
   }
   void setNum(ValVariant N) noexcept {
-#if defined(__x86_64__) || defined(__aarch64__)
+#if defined(__x86_64__) || defined(__aarch64__) || defined(__riscv)
     Data.Num = N.get<uint128_t>();
 #else
     std::memcpy(&Data.Num, &N.get<uint128_t>(), sizeof(uint128_t));
@@ -253,7 +253,7 @@ private:
       uint8_t MemLane;
     } Memories;
     // Type 8: Num.
-#if defined(__x86_64__) || defined(__aarch64__)
+#if defined(__x86_64__) || defined(__aarch64__) || defined(__riscv)
     uint128_t Num;
 #else
     struct {

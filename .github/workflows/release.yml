@@ -303,7 +303,8 @@ jobs:
           cmake -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_PLUGIN_WASI_CRYPTO=On ..
           cd ${{ matrix.output_path }}
           make -j
-          cd -
+      - name: Prepare the WasmEdge ${{ matrix.name }} plugin tar.gz package
+        run: |
           cp build/${{ matrix.output_path }}/${{ matrix.output_bin }} ${{ matrix.output_bin }}
           tar -zcvf plugin.tar.gz ${{ matrix.output_bin }}
       - name: Upload WasmEdge ${{ matrix.name }} plugin tar.gz package

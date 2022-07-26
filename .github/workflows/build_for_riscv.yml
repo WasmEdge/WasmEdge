@@ -7,14 +7,60 @@ concurrency:
 on:
   push:
     branches:
-      - main
+      - master
     paths:
-      - ".github/workflows/riscv.yml"
+      - ".github/workflows/build_for_riscv.yml"
+      - "include/**"
+      - "lib/**"
+      - "plugins/**"
+      - "examples/**"
+      - "rpm/**"
+      - "test/**"
+      - "thirdparty/**"
+      - "tools/**"
+      - "CMakeLists.txt"
+      - "cmake/**"
+  pull_request:
+    branches:
+      - master
+      - 'proposal/**'
+    paths:
+      - ".github/workflows/build_for_riscv.yml"
+      - "include/**"
+      - "lib/**"
+      - "plugins/**"
+      - "examples/**"
+      - "rpm/**"
+      - "test/**"
+      - "thirdparty/**"
+      - "tools/**"
+      - "CMakeLists.txt"
+      - "cmake/**"
 
 jobs:
-  build_riscv64:
-    name: riscv64
+  get_version_v2:
+    name: Retrieve version information (v2)
     runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.prep.outputs.version }}
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
+    - name: Get version
+      id: prep
+      run: |
+        # Retrieve annotated tags. Details: https://github.com/actions/checkout/issues/290
+        git fetch --tags --force
+        echo "Set version: $(git describe --match "[0-9].[0-9]*" --tag)"
+        echo ::set-output name=version::$(git describe --match "[0-9].[0-9]*" --tag)
+
+  build_riscv64:
+    name: RISC-V64
+    runs-on: ubuntu-latest
+    needs: get_version_v2
+    container:
+      image: wasmedge/wasmedge:latest
     steps:
     - uses: actions/checkout@v2
       with:
@@ -34,21 +80,24 @@ jobs:
         git submodule update --init --recursive
         ./configure --prefix=/opt/riscv64
         sudo make linux -j $(nproc)
-        export PATH="$PATH:/opt/riscv64/bin"
-        riscv64-unknown-linux-gnu-gcc -v
     - name: Build WasmEdge with riscv-gnu-toolchain
       run: |
-        mkdir build && cd build
-        cmake -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_BUILD_AOT_RUNTIME=OFF \
-              -DCMAKE_CROSSCOMPILING=TRUE -DCMAKE_SYSTEM_NAME=Linux -DCMAKE_SYSROOT="/opt/riscv64/sysroot" \
-              -DCMAKE_C_COMPILER=/opt/riscv64/bin/riscv64-unknown-linux-gnu-gcc \
-              -DCMAKE_CXX_COMPILER=/opt/riscv64/bin/riscv64-unknown-linux-gnu-g++ \
+        export PATH="$PATH:/opt/riscv64/bin"
+        riscv64-unknown-linux-gnu-gcc -v
+        cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_BUILD_PACKAGE="TGZ" \
+              -DWASMEDGE_BUILD_AOT_RUNTIME=OFF -DCMAKE_CROSSCOMPILING=TRUE \
+              -DCMAKE_SYSTEM_NAME=Linux -DCMAKE_SYSROOT="/opt/riscv64/sysroot" \
+              -DCMAKE_C_COMPILER=riscv64-unknown-linux-gnu-gcc \
+              -DCMAKE_CXX_COMPILER=riscv64-unknown-linux-gnu-g++ \
               -DCMAKE_FIND_ROOT_PATH=/opt/riscv64/riscv64-unknown-linux-gnu \
               -DCMAKE_FIND_ROOT_PATH_MODE_PROGRAM=NEVER \
               -DCMAKE_FIND_ROOT_PATH_MODE_LIBRARY=ONLY \
               -DCMAKE_FIND_ROOT_PATH_MODE_INCLUDE=ONLY \
               -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ONLY \
-              ..
-        make -j
-        cd tools/wasmedge
-        file wasmedge
+        cmake --build build
+        cmake --build build --target package
+    - name: Upload artifact (v2)
+      uses: actions/upload-artifact@v2
+      with:
+        name: WasmEdge-${{ needs.get_version_v2.outputs.version }}-linux_RISC-V64.tar.gz
+        path: build/WasmEdge-${{ needs.get_version_v2.outputs.version }}-linux_RISC-V64.tar.gz

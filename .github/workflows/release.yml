@@ -304,8 +304,8 @@ jobs:
           cd ${{ matrix.output_path }}
           make -j
           cd -
-          cp build/${{ matrix.output_path }}/${{ output_bin }} ${{ output_bin }}
-          tar -zcvf plugin.tar.gz ${{ output_bin }}
+          cp build/${{ matrix.output_path }}/${{ matrix.output_bin }} ${{ matrix.output_bin }}
+          tar -zcvf plugin.tar.gz ${{ matrix.output_bin }}
       - name: Upload WasmEdge ${{ matrix.name }} plugin tar.gz package
         uses: actions/upload-release-asset@v1
         env:
@@ -351,8 +351,8 @@ jobs:
           cd ${{ matrix.output_path }}
           make -j
           cd -
-          cp build/${{ matrix.output_path }}/${{ output_bin }} ${{ output_bin }}
-          tar -zcvf plugin.tar.gz ${{ output_bin }}
+          cp build/${{ matrix.output_path }}/${{ matrix.output_bin }} ${{ matrix.output_bin }}
+          tar -zcvf plugin.tar.gz ${{ matrix.output_bin }}
       - name: Upload WasmEdge ${{ matrix.name }} plugin tar.gz package
         uses: actions/upload-release-asset@v1
         env:

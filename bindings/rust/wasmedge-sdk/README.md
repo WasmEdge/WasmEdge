@@ -15,41 +15,41 @@ The following table provides the versioning information about each crate of Wasm
 
 ## Build
 
- To use or build the `wasmedge-sdk` crate, the `WasmEdge` library is required.
+  To use or build the `wasmedge-sdk` crate, the `WasmEdge` library is required.
 
- - If you choose to use [install.sh](https://github.com/WasmEdge/WasmEdge/blob/master/utils/install.sh) to install WasmEdge Runtime on your local system. Please use `WASMEDGE_INCLUDE_DIR` and `WASMEDGE_LIB_DIR` to specify the paths to the `include` and `lib` directories, respectively. For example, use the following commands to specify the paths after using `bash install.sh --path=/root/wasmedge-install` to install WasmEdge Runtime on Ubuntu 20.04: 
+  - If you choose to use [install.sh](https://github.com/WasmEdge/WasmEdge/blob/master/utils/install.sh) to install WasmEdge Runtime on your local system. Please use `WASMEDGE_INCLUDE_DIR` and `WASMEDGE_LIB_DIR` to specify the paths to the `include` and `lib` directories, respectively. For example, use the following commands to specify the paths after using `bash install.sh --path=/root/wasmedge-install` to install WasmEdge Runtime on Ubuntu 20.04: 
 
-   ```bash
-   export WASMEDGE_INCLUDE_DIR=/root/wasmedge-install/include 
-   export WASMEDGE_LIB_DIR=/root/wasmedge-install/lib
-   ```
+    ```bash
+    export WASMEDGE_INCLUDE_DIR=/root/wasmedge-install/include 
+    export WASMEDGE_LIB_DIR=/root/wasmedge-install/lib
+    ```
 
- - If you choose to manually download WasmEdge Runtime binary from [WasmEdge Releases Page](https://github.com/WasmEdge/WasmEdge/releases), it is strongly recommended to place it in `$HOME/.wasmedge` directory. It looks like below on Ubuntu 20.04. `wasmedge-sdk` will search the directory automatically, you do not have to set any environment variables for it.
+  - If you choose to manually download WasmEdge Runtime binary from [WasmEdge Releases Page](https://github.com/WasmEdge/WasmEdge/releases), it is strongly recommended to place it in `$HOME/.wasmedge` directory. It looks like below on Ubuntu 20.04. `wasmedge-sdk` will search the directory automatically, you do not have to set any environment variables for it.
 
-   ```bash
-   // $HOME/.wasmedge/
-   .
-   |-- bin
-   |   |-- wasmedge
-   |   `-- wasmedgec
-   |-- include
-   |   `-- wasmedge
-   |       |-- dense_enum_map.h
-   |       |-- enum.inc
-   |       |-- enum_configure.h
-   |       |-- enum_errcode.h
-   |       |-- enum_types.h
-   |       |-- int128.h
-   |       |-- spare_enum_map.h
-   |       |-- version.h
-   |       `-- wasmedge.h
-   `-- lib64
-       |-- libwasmedge_c.so
-       `-- wasmedge
-           `-- libwasmedgePluginWasmEdgeProcess.so
-
-   5 directories, 13 files
-   ```
+    ```bash
+    // $HOME/.wasmedge/
+    .
+    |-- bin
+    |   |-- wasmedge
+    |   `-- wasmedgec
+    |-- include
+    |   `-- wasmedge
+    |       |-- dense_enum_map.h
+    |       |-- enum.inc
+    |       |-- enum_configure.h
+    |       |-- enum_errcode.h
+    |       |-- enum_types.h
+    |       |-- int128.h
+    |       |-- spare_enum_map.h
+    |       |-- version.h
+    |       `-- wasmedge.h
+    `-- lib64
+        |-- libwasmedge_c.so
+        `-- wasmedge
+            `-- libwasmedgePluginWasmEdgeProcess.so
+  
+    5 directories, 13 files
+    ```
 
 ## Example
 

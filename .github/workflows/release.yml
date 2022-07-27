@@ -347,11 +347,12 @@ jobs:
           bash utils/wasi-crypto/build-openssl.sh
       - name: Build WasmEdge ${{ matrix.name }} plugin
         run: |
-          bash utils/docker/build-manylinux.sh --${{ matrix.build_type }} --not-build --not-ninja -DWASMEDGE_PLUGIN_WASI_CRYPTO=ON -DOPENSSL_ROOT_DIR=$(pwd)/openssl-1.1.1n/openssl
+          bash utils/docker/build-manylinux.sh --not-build --not-ninja -DWASMEDGE_PLUGIN_WASI_CRYPTO=ON -DOPENSSL_ROOT_DIR=$(pwd)/openssl-1.1.1n/openssl
           cd build
           cd ${{ matrix.output_path }}
           make -j
-          cd -
+      - name: Prepare the WasmEdge ${{ matrix.name }} plugin tar.gz package
+        run: |
           cp build/${{ matrix.output_path }}/${{ matrix.output_bin }} ${{ matrix.output_bin }}
           tar -zcvf plugin.tar.gz ${{ matrix.output_bin }}
       - name: Upload WasmEdge ${{ matrix.name }} plugin tar.gz package

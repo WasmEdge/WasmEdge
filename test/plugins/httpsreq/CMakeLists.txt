@@ -1,0 +1,15 @@
+# SPDX-License-Identifier: Apache-2.0
+# SPDX-FileCopyrightText: 2019-2022 Second State INC
+
+wasmedge_add_executable(wasmedgeHttpsReqTests
+  httpsreq.cpp
+)
+
+target_link_libraries(wasmedgeHttpsReqTests
+  PRIVATE
+  ${GTEST_BOTH_LIBRARIES}
+  wasmedgePlugin
+  wasmedgePluginHttpsReq
+)
+
+add_test(wasmedgeHttpsReqTests wasmedgeHttpsReqTests)

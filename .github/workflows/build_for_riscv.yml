@@ -59,15 +59,13 @@ jobs:
     name: RISC-V64
     runs-on: ubuntu-latest
     needs: get_version_v2
-    container:
-      image: wasmedge/wasmedge:latest
     steps:
     - uses: actions/checkout@v2
       with:
         fetch-depth: 0
     - name: Install riscv-gnu-toolchain
       run: |
-        apt install -y autoconf automake autotools-dev curl libmpc-dev libmpfr-dev libgmp-dev \
+        sudo apt install -y autoconf automake autotools-dev curl libmpc-dev libmpfr-dev libgmp-dev \
                  gawk build-essential bison flex texinfo gperf libtool patchutils bc \
                  zlib1g-dev libexpat-dev git \
                  libglib2.0-dev libfdt-dev libpixman-1-dev \
@@ -79,7 +77,7 @@ jobs:
         git rm qemu
         git submodule update --init --recursive
         ./configure --prefix=/opt/riscv64
-        make linux -j $(nproc)
+        sudo make linux -j $(nproc)
     - name: Build WasmEdge with riscv-gnu-toolchain
       run: |
         export PATH="$PATH:/opt/riscv64/bin"

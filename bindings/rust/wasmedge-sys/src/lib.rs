@@ -14,16 +14,50 @@
 //!
 //! The following table provides the versioning information about each crate of WasmEdge Rust bindings.
 //!
-//! | wasmedge-sdk  | WasmEdge lib                                                       | wasmedge-sys  | wasmedge-types|
-//! | :-----------: | :----------------------------------------------------------------: | :-----------: | :-----------: |
-//! | 0.2.0         | [0.10.1](https://github.com/WasmEdge/WasmEdge/releases/tag/0.10.0) | 0.8           | 0.2           |
-//! | 0.1.0         | [0.10.0](https://github.com/WasmEdge/WasmEdge/releases/tag/0.10.0) | 0.7           | 0.1           |
+//! | wasmedge-sdk  | WasmEdge lib  | wasmedge-sys  | wasmedge-types|
+//! | :-----------: | :-----------: | :-----------: | :-----------: |
+//! | 0.2.0         | 0.10.1        | 0.8           | 0.2           |
+//! | 0.1.0         | 0.10.0        | 0.7           | 0.1           |
 //!
-//! ## Usage
+//! ## Build
 //!
-//! To use or build the `wasmedge-sys` crate, the `WasmEdge` library is required. The [*Build wasmedge-sys crate*](https://wasmedge.org/book/en/embed/rust.html#build-wasmedge-sys-crate) section of [WasmEdge Docs](https://wasmedge.org/book/en/) gives the tips.
+//! To use or build the `wasmedge-sys` crate, the `WasmEdge` library is required.
 //!
-//! ## A quick-start example
+//!  - If you choose to use [install.sh](https://github.com/WasmEdge/WasmEdge/blob/master/utils/install.sh) to install WasmEdge Runtime on your local system. Please use `WASMEDGE_INCLUDE_DIR` and `WASMEDGE_LIB_DIR` to specify the paths to the `include` and `lib` directories, respectively. For example, use the following commands to specify the paths after using `bash install.sh --path=/root/wasmedge-install` to install WasmEdge Runtime on Ubuntu 20.04:
+//!
+//!    ```bash
+//!    export WASMEDGE_INCLUDE_DIR=/root/wasmedge-install/include
+//!    export WASMEDGE_LIB_DIR=/root/wasmedge-install/lib
+//!    ```
+//!
+//!  - If you choose to manually download WasmEdge Runtime binary from [WasmEdge Releases Page](https://github.com/WasmEdge/WasmEdge/releases), it is strongly recommended to place it in `$HOME/.wasmedge` directory. It looks like below on Ubuntu 20.04. `wasmedge-sys` will search the directory automatically, you do not have to set any environment variables for it.
+//!
+//!    ```bash
+//!    // $HOME/.wasmedge/
+//!    .
+//!    |-- bin
+//!    |   |-- wasmedge
+//!    |   `-- wasmedgec
+//!    |-- include
+//!    |   `-- wasmedge
+//!    |       |-- dense_enum_map.h
+//!    |       |-- enum.inc
+//!    |       |-- enum_configure.h
+//!    |       |-- enum_errcode.h
+//!    |       |-- enum_types.h
+//!    |       |-- int128.h
+//!    |       |-- spare_enum_map.h
+//!    |       |-- version.h
+//!    |       `-- wasmedge.h
+//!    `-- lib64
+//!        |-- libwasmedge_c.so
+//!        `-- wasmedge
+//!            `-- libwasmedgePluginWasmEdgeProcess.so
+//!
+//!    5 directories, 13 files
+//!    ```
+//!
+//! ## Example
 //!
 //! The following code presents how to use the APIs in `wasmedge-sys` to run a WebAssembly module written with its WAT format (textual format):
 //!

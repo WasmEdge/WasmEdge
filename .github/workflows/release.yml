@@ -93,7 +93,7 @@ jobs:
             os: darwin
     name: Build and upload WasmEdge on ${{ matrix.name }} platform
     needs: create_release
-    runs-on: macos-10.15
+    runs-on: macos-11
     steps:
       - name: Checkout code
         uses: actions/checkout@v2

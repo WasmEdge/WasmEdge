@@ -303,9 +303,6 @@ jobs:
     strategy:
       matrix:
         include:
-          - name: MacOS 10.15
-            host_runner: macos-10.15
-            darwin_version: darwin_19
           - name: MacOS 11
             host_runner: macos-11
             darwin_version: darwin_20

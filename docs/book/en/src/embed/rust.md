@@ -102,11 +102,11 @@ To use `wasmedge-sdk` in your project, you should finish the followign two steps
 
   - By specifying `WASMEDGE_INCLUDE_DIR` and `WASMEDGE_LIB_DIR`.
 
-    If you choose to use [install.sh](https://github.com/WasmEdge/WasmEdge/blob/master/utils/install.sh) to install WasmEdge Runtime on your local system. Please use `WASMEDGE_INCLUDE_DIR` and `WASMEDGE_LIB_DIR` to specify the paths to the `include` and `lib` directories, respectively. For example, use the following commands to specify the paths after using `bash install.sh --path=/root/wasmedge-install` to install WasmEdge Runtime on Ubuntu 20.04:
+    If you choose to use [install.sh](https://github.com/WasmEdge/WasmEdge/blob/master/utils/install.sh) to install WasmEdge Runtime on your local system. Please use `WASMEDGE_INCLUDE_DIR` and `WASMEDGE_LIB_DIR` to specify the paths to the `include` and `lib` directories, respectively. For example, use the following commands to specify the paths after using `bash install.sh --path=$HOME/wasmedge-install` to install WasmEdge Runtime on Ubuntu 20.04:
 
     ```bash
-    export WASMEDGE_INCLUDE_DIR=/root/wasmedge-install/include 
-    export WASMEDGE_LIB_DIR=/root/wasmedge-install/lib
+    export WASMEDGE_INCLUDE_DIR=$HOME/wasmedge-install/include 
+    export WASMEDGE_LIB_DIR=$HOME/wasmedge-install/lib
     ```
 
   - By specifying `WASMEDGE_BUILD_DIR`

@@ -8,7 +8,7 @@
 - [WasmEdge Rust SDK](#wasmedge-rust-sdk)
   - [Introduction](#introduction)
   - [Versioning Table](#versioning-table)
-  - [`wasmedge-sdk` crate](#wasmedge-sdk-crate)
+  - [Build](#build)
   - [`wasmedge-sys` crate](#wasmedge-sys-crate)
   - [Docker image](#docker-image)
     - [Windows Users](#windows-users)
@@ -35,11 +35,12 @@
 
   The following table provides the versioning information about each release of `wasmedge-sdk` crate and its dependencies.
 
-  | wasmedge-sdk  | WasmEdge lib                                                       | wasmedge-sys  | wasmedge-types|
-  | :-----------: | :----------------------------------------------------------------: | :-----------: | :-----------: |
-  | 0.1.0         | [0.10.0](https://github.com/WasmEdge/WasmEdge/releases/tag/0.10.0) | 0.7           | 0.1           |
+| wasmedge-sdk  | WasmEdge lib  | wasmedge-sys  | wasmedge-types|
+| :-----------: | :-----------: | :-----------: | :-----------: |
+| 0.2.0         | 0.10.1        | 0.8           | 0.2           |
+| 0.1.0         | 0.10.0        | 0.7           | 0.1           |
 
-## `wasmedge-sdk` crate
+## Build
 
 To use `wasmedge-sdk` in your project, you should finish the followign two steps before building your project:
 
@@ -101,44 +102,12 @@ To use `wasmedge-sdk` in your project, you should finish the followign two steps
 
   - By specifying `WASMEDGE_INCLUDE_DIR` and `WASMEDGE_LIB_DIR`.
 
-    - `WASMEDGE_INCLUDE_DIR` is used to specify the directory in which the header files are.
+    If you choose to use [install.sh](https://github.com/WasmEdge/WasmEdge/blob/master/utils/install.sh) to install WasmEdge Runtime on your local system. Please use `WASMEDGE_INCLUDE_DIR` and `WASMEDGE_LIB_DIR` to specify the paths to the `include` and `lib` directories, respectively. For example, use the following commands to specify the paths after using `bash install.sh --path=$HOME/wasmedge-install` to install WasmEdge Runtime on Ubuntu 20.04:
 
-    - `WASMEDGE_LIB_DIR` is used to specify the directory in which the `wasmedge_c` library is.
-
-    - For example, suppose that you have already downloaded the `Wasmedge-0.10.0` binary package from [WasmEdge Releases](https://github.com/WasmEdge/WasmEdge/releases/tag/0.10.0) and placed it into a local directory, for example, `~/workspace/me/`. The directory structure of the released package should looks like below:
-
-      ```bash
-      root@0a877562f39e:~/workspace/me/WasmEdge-0.10.0-Linux# tree .
-      .
-      ├── bin
-      │   ├── wasmedge
-      │   └── wasmedgec
-      ├── include
-      │   └── wasmedge
-      │       ├── dense_enum_map.h
-      │       ├── enum.inc
-      │       ├── enum_configure.h
-      │       ├── enum_errcode.h
-      │       ├── enum_types.h
-      │       ├── int128.h
-      │       ├── spare_enum_map.h
-      │       ├── version.h
-      │       └── wasmedge.h
-      └── lib64
-          ├── libwasmedge_c.so
-          └── wasmedge
-              └── libwasmedgePluginWasmEdgeProcess.so
-
-      5 directories, 13 files
-      ```
-
-    Then set `WASMEDGE_INCLUDE_DIR` and `WASMEDGE_LIB_DIR` environment variables to specify the `include` and `lib` (here is `lib64`) directories.
-
-      ```bash
-      root@0a877562f39e:~/workspace/me/WasmEdge/bindings/rust/wasmedge-sys# export WASMEDGE_INCLUDE_DIR=/root/workspace/me/WasmEdge-0.10.0-Linux/include/wasmedge
-      
-      root@0a877562f39e:~/workspace/me/WasmEdge/bindings/rust/wasmedge-sys# export WASMEDGE_LIB_DIR=/root/workspace/me/WasmEdge-0.10.0-Linux/lib64
-      ```
+    ```bash
+    export WASMEDGE_INCLUDE_DIR=$HOME/wasmedge-install/include 
+    export WASMEDGE_LIB_DIR=$HOME/wasmedge-install/lib
+    ```
 
   - By specifying `WASMEDGE_BUILD_DIR`
 

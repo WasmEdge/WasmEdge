@@ -67,7 +67,7 @@ jobs:
         fetch-depth: 0
     - name: Install riscv-gnu-toolchain
       run: |
-        sudo apt install -y autoconf automake autotools-dev curl libmpc-dev libmpfr-dev libgmp-dev \
+        apt install -y autoconf automake autotools-dev curl libmpc-dev libmpfr-dev libgmp-dev \
                  gawk build-essential bison flex texinfo gperf libtool patchutils bc \
                  zlib1g-dev libexpat-dev git \
                  libglib2.0-dev libfdt-dev libpixman-1-dev \
@@ -79,7 +79,7 @@ jobs:
         git rm qemu
         git submodule update --init --recursive
         ./configure --prefix=/opt/riscv64
-        sudo make linux -j $(nproc)
+        make linux -j $(nproc)
     - name: Build WasmEdge with riscv-gnu-toolchain
       run: |
         export PATH="$PATH:/opt/riscv64/bin"

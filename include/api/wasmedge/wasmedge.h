@@ -3210,10 +3210,12 @@ WASMEDGE_CAPI_EXPORT extern void WasmEdge_VMDelete(WasmEdge_VMContext *Cxt);
 // >>>>>>>> WasmEdge Driver functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 /// Entrypoint for the compiler.
-WASMEDGE_CAPI_EXPORT int WasmEdge_Driver_Compiler(int Argc, const char *Argv[]);
+WASMEDGE_CAPI_EXPORT extern int WasmEdge_Driver_Compiler(int Argc,
+                                                         const char *Argv[]);
 
 /// Entrypoint for the general tool.
-WASMEDGE_CAPI_EXPORT int WasmEdge_Driver_Tool(int Argc, const char *Argv[]);
+WASMEDGE_CAPI_EXPORT extern int WasmEdge_Driver_Tool(int Argc,
+                                                     const char *Argv[]);
 
 // <<<<<<<< WasmEdge Driver functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 

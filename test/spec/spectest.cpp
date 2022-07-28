@@ -48,7 +48,7 @@ using namespace WasmEdge;
 void resolveRegister(std::map<std::string, std::string> &Alias,
                      rapidjson::Value &CmdArray,
                      rapidjson::Document::AllocatorType &Allocator) {
-  rapidjson::Value::ValueIterator ItMod;
+  rapidjson::Value::ValueIterator ItMod = CmdArray.Begin();
   for (rapidjson::Value::ValueIterator It = CmdArray.Begin();
        It != CmdArray.End(); ++It) {
     const auto CmdType = It->GetObject()["type"].Get<std::string>();

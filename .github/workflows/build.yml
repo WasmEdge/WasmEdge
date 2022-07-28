@@ -228,7 +228,7 @@ jobs:
         CMAKE_BUILD_TYPE: ${{ matrix.build_type }}
       run: |
         git config --global --add safe.directory $(pwd)
-        cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=$CMAKE_BUILD_TYPE -DWASMEDGE_BUILD_TESTS=ON -DWASMEDGE_BUILD_STATIC_LIB=ON -DWASMEDGE_BUILD_STATIC_TOOLS=ON .
+        cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=$CMAKE_BUILD_TYPE -DWASMEDGE_BUILD_TESTS=ON .
         cmake --build build
     - name: Test WasmEdge
       if: ${{ ! matrix.coverage }}
@@ -332,7 +332,7 @@ jobs:
         export CPPFLAGS="-I/usr/local/opt/llvm/include"
         export CC=clang
         export CXX=clang++
-        cmake -Bbuild -GNinja -DWASMEDGE_BUILD_TESTS=ON -DWASMEDGE_BUILD_PACKAGE="TGZ" .
+        cmake -Bbuild -GNinja -DWASMEDGE_BUILD_TESTS=ON -DWASMEDGE_BUILD_TOOLS_STATIC=ON -DWASMEDGE_BUILD_PACKAGE="TGZ" .
         cmake --build build
     - name: Test WasmEdge
       continue-on-error: true

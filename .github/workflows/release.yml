@@ -106,7 +106,7 @@ jobs:
           export CC=clang
           export CXX=clang++
           rm -rf build
-          cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_BUILD_PACKAGE="TGZ" .
+          cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_BUILD_TOOLS_STATIC=ON -DWASMEDGE_BUILD_PACKAGE="TGZ" .
           cmake --build build
           cmake --build build --target package
       - name: Upload tar.gz package

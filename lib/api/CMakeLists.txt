@@ -108,7 +108,7 @@ if(WASMEDGE_BUILD_SHARED_LIB)
 
 endif()
 
-if(WASMEDGE_BUILD_STATIC_LIB)
+if(WASMEDGE_BUILD_STATIC_LIB OR WASMEDGE_BUILD_TOOLS_STATIC)
 
   wasmedge_add_static_lib_component_command(spdlog::spdlog)
   wasmedge_add_static_lib_component_command(wasmedgeSystem)
@@ -121,6 +121,7 @@ if(WASMEDGE_BUILD_STATIC_LIB)
   wasmedge_add_static_lib_component_command(wasmedgeHostModuleWasi)
   wasmedge_add_static_lib_component_command(wasmedgePlugin)
   wasmedge_add_static_lib_component_command(wasmedgeVM)
+  wasmedge_add_static_lib_component_command(wasmedgeDriver)
 
   if (WASMEDGE_BUILD_AOT_RUNTIME)
     # Pack the LLVM and lld static libraries.
@@ -167,26 +168,28 @@ if(WASMEDGE_BUILD_STATIC_LIB)
     wasmedge_add_static_lib_component_command(wasmedgeAOT)
   endif()
 
-  wasmedge_add_library(wasmedge_c_static STATIC
-    ../../include/api/wasmedge/wasmedge.h
+  add_custom_command(OUTPUT "libwasmedge_c.a"
+    ${WASMEDGE_STATIC_LIB_CMDS}
+    COMMAND ${CMAKE_AR} -qcs libwasmedge_c.a $<TARGET_OBJECTS:wasmedgeCAPI> objs/*/*.o
+    COMMAND ${CMAKE_COMMAND} -E remove_directory objs
+    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+    DEPENDS ${WASMEDGE_STATIC_LIB_DEPS} wasmedgeCAPI
   )
 
-  target_link_libraries(wasmedge_c_static
-    PRIVATE
-    wasmedgeCAPI
+  add_custom_target(wasmedge_c_static_target DEPENDS "libwasmedge_c.a")
+  add_library(wasmedge_c_static STATIC IMPORTED GLOBAL)
+  add_dependencies(wasmedge_c_static wasmedge_c_static_target)
+
+  set_target_properties(wasmedge_c_static
+    PROPERTIES
+    IMPORTED_LOCATION "${CMAKE_CURRENT_BINARY_DIR}/libwasmedge_c.a"
+    INTERFACE_INCLUDE_DIRECTORIES ${PROJECT_BINARY_DIR}/include/api
   )
 
-  target_include_directories(wasmedge_c_static
-    PUBLIC
-    ${PROJECT_BINARY_DIR}/include/api
-    ${PROJECT_SOURCE_DIR}/include/api
-  )
-
-  set_target_properties(wasmedge_c_static PROPERTIES OUTPUT_NAME wasmedge_c)
-
-  install(TARGETS wasmedge_c_static
-    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-    PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/wasmedge
-  )
+  if(WASMEDGE_BUILD_STATIC_LIB)
+    install(FILES ${CMAKE_CURRENT_BINARY_DIR}/libwasmedge_c.a
+      DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    )
+  endif()
 
 endif()

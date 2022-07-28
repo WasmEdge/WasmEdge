@@ -88,6 +88,7 @@ impl ConfigBuilder {
         inner.bulk_memory_operations(self.common_config.bulk_memory_operations);
         inner.reference_types(self.common_config.reference_types);
         inner.simd(self.common_config.simd);
+        inner.multi_memories(self.common_config.multi_memories);
 
         if let Some(stat_config) = self.stat_config {
             inner.count_instructions(stat_config.count_instructions);
@@ -227,6 +228,11 @@ impl Config {
         self.inner.simd_enabled()
     }
 
+    /// Checks if the MultiMemories option turns on or not.
+    pub fn multi_memories_enabled(&self) -> bool {
+        self.inner.multi_memories_enabled()
+    }
+
     /// Returns the optimization level of AOT compiler.
     #[cfg(feature = "aot")]
     pub fn optimization_level(&self) -> CompilerOptimizationLevel {
@@ -313,6 +319,7 @@ pub struct CommonConfigOptions {
     bulk_memory_operations: bool,
     reference_types: bool,
     simd: bool,
+    multi_memories: bool,
 }
 impl CommonConfigOptions {
     /// Creates a new instance of [CommonConfigOptions].
@@ -325,6 +332,7 @@ impl CommonConfigOptions {
             bulk_memory_operations: true,
             reference_types: true,
             simd: true,
+            multi_memories: false,
         }
     }
 
@@ -408,6 +416,18 @@ impl CommonConfigOptions {
     pub fn simd(self, enable: bool) -> Self {
         Self {
             simd: enable,
+            ..self
+        }
+    }
+
+    /// Enables or disables the MultiMemories option.
+    ///
+    /// # Argument
+    ///
+    /// - `enable` specifies if the option turns on or not.
+    pub fn multi_memories(self, enable: bool) -> Self {
+        Self {
+            multi_memories: enable,
             ..self
         }
     }
@@ -687,7 +707,8 @@ mod tests {
             .non_trap_conversions(true)
             .reference_types(true)
             .sign_extension_operators(true)
-            .simd(true);
+            .simd(true)
+            .multi_memories(true);
 
         let compiler_options = CompilerConfigOptions::default()
             .dump_ir(true)
@@ -722,6 +743,7 @@ mod tests {
         assert!(config.reference_types_enabled());
         assert!(config.sign_extension_operators_enabled());
         assert!(config.simd_enabled());
+        assert!(config.multi_memories_enabled());
 
         // check compiler config options
         assert!(config.dump_ir_enabled());
@@ -743,7 +765,9 @@ mod tests {
 
     #[test]
     fn test_config_copy() {
-        let common_config = CommonConfigOptions::default().simd(false);
+        let common_config = CommonConfigOptions::default()
+            .simd(false)
+            .multi_memories(true);
         let compiler_config =
             CompilerConfigOptions::default().optimization_level(CompilerOptimizationLevel::O0);
         let stat_config = StatisticsConfigOptions::default().measure_time(false);
@@ -759,6 +783,7 @@ mod tests {
         assert!(result.is_ok());
         let config = result.unwrap();
         assert!(!config.simd_enabled());
+        assert!(config.multi_memories_enabled());
         assert_eq!(config.optimization_level(), CompilerOptimizationLevel::O0);
         assert!(!config.time_measuring_enabled());
         assert_eq!(config.max_memory_pages(), 1024);
@@ -769,6 +794,7 @@ mod tests {
         assert!(result.is_ok());
         let config_copied = result.unwrap();
         assert!(!config_copied.simd_enabled());
+        assert!(config_copied.multi_memories_enabled());
         assert_eq!(
             config_copied.optimization_level(),
             CompilerOptimizationLevel::O0

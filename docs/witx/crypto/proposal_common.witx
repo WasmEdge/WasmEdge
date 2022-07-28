@@ -1,0 +1,484 @@
+;;; Error codes.
+(typename $crypto_errno
+  (enum (@witx tag u16)
+    ;;; Operation succeeded.
+    $success
+
+    ;;; An error occurred when trying to during a conversion from a host type to a guest type.
+    ;;;
+    ;;; Only an internal bug can throw this error.
+    $guest_error
+
+    ;;; The requested operation is valid, but not implemented by the host.
+    $not_implemented
+
+    ;;; The requested feature is not supported by the chosen algorithm.
+    $unsupported_feature
+
+    ;;; The requested operation is valid, but was administratively prohibited.
+    $prohibited_operation
+
+    ;;; Unsupported encoding for an import or export operation.
+    $unsupported_encoding
+
+    ;;; The requested algorithm is not supported by the host.
+    $unsupported_algorithm
+
+    ;;; The requested option is not supported by the currently selected algorithm.
+    $unsupported_option
+
+    ;;; An invalid or incompatible key was supplied.
+    ;;;
+    ;;; The key may not be valid, or was generated for a different algorithm or parameters set.
+    $invalid_key
+
+    ;;; The currently selected algorithm doesn't support the requested output length.
+    ;;;
+    ;;; This error is thrown by non-extensible hash functions, when requesting an output size larger than they produce out of a single block.
+    $invalid_length
+
+    ;;; A signature or authentication tag verification failed.
+    $verification_failed
+
+    ;;; A secure random numbers generator is not available.
+    ;;;
+    ;;; The requested operation requires random numbers, but the host cannot securely generate them at the moment.
+    $rng_error
+
+    ;;; An error was returned by the underlying cryptography library.
+    ;;;
+    ;;; The host may be running out of memory, parameters may be incompatible with the chosen implementation of an algorithm or another unexpected error may have happened.
+    ;;;
+    ;;; Ideally, the specification should provide enough details and guidance to make this error impossible to ever be thrown.
+    ;;;
+    ;;; Realistically, the WASI crypto module cannot possibly cover all possible error types implementations can return, especially since some of these may be language-specific.
+    ;;; This error can thus be thrown when other error types are not suitable, and when the original error comes from the cryptographic primitives themselves and not from the WASI module.
+    $algorithm_failure
+
+    ;;; The supplied signature is invalid, or incompatible with the chosen algorithm.
+    $invalid_signature
+
+    ;;; An attempt was made to close a handle that was already closed.
+    $closed
+
+    ;;; A function was called with an unassigned handle, a closed handle, or handle of an unexpected type.
+    $invalid_handle
+
+    ;;; The host needs to copy data to a guest-allocated buffer, but that buffer is too small.
+    $overflow
+
+    ;;; An internal error occurred.
+    ;;;
+    ;;; This error is reserved to internal consistency checks, and must only be sent if the internal state of the host remains safe after an inconsistency was detected.
+    $internal_error
+
+    ;;; Too many handles are currently open, and a new one cannot be created.
+    ;;;
+    ;;; Implementations are free to represent handles as they want, and to enforce limits to limit resources usage.
+    $too_many_handles
+
+    ;;; A key was provided, but the chosen algorithm doesn't support keys.
+    ;;;
+    ;;; This is returned by symmetric operations.
+    ;;;
+    ;;; Many hash functions, in particular, do not support keys without being used in particular constructions.
+    ;;; Blindly ignoring a key provided by mistake while trying to open a context for such as function could cause serious security vulnerabilities.
+    ;;;
+    ;;; These functions must refuse to create the context and return this error instead.
+    $key_not_supported
+
+    ;;; A key is required for the chosen algorithm, but none was given.
+    $key_required
+
+    ;;; The provided authentication tag is invalid or incompatible with the current algorithm.
+    ;;;
+    ;;; This error is returned by decryption functions and tag verification functions.
+    ;;;
+    ;;; Unlike `verification_failed`, this error code is returned when the tag cannot possibly verify for any input.
+    $invalid_tag
+
+    ;;; The requested operation is incompatible with the current scheme.
+    ;;;
+    ;;; For example, the `symmetric_state_encrypt()` function cannot complete if the selected construction is a key derivation function.
+    ;;; This error code will be returned instead.
+    $invalid_operation
+
+    ;;; A nonce is required.
+    ;;;
+    ;;; Most encryption schemes require a nonce.
+    ;;;
+    ;;; In the absence of a nonce, the WASI cryptography module can automatically generate one, if that can be done safely. The nonce can be retrieved later with the `symmetric_state_option_get()` function using the `nonce` parameter.
+    ;;; If automatically generating a nonce cannot be done safely, the module never falls back to an insecure option and requests an explicit nonce by throwing that error.
+    $nonce_required
+
+    ;;; The provided nonce doesn't have a correct size for the given cipher.
+    $invalid_nonce
+
+    ;;; The named option was not set.
+    ;;;
+    ;;; The caller tried to read the value of an option that was not set.
+    ;;; This error is used to make the distinction between an empty option, and an option that was not set and left to its default value.
+    $option_not_set
+
+    ;;; A key or key pair matching the requested identifier cannot be found using the supplied information.
+    ;;;
+    ;;; This error is returned by a secrets manager via the `keypair_from_id()` function.
+    $not_found
+
+    ;;; The algorithm requires parameters that haven't been set.
+    ;;;
+    ;;; Non-generic options are required and must be given by building an `options` set and giving that object to functions instantiating that algorithm.
+    $parameters_missing
+
+    ;;; A requested computation is not done yet, and additional calls to the function are required.
+    ;;;
+    ;;; Some functions, such as functions generating key pairs and password stretching functions, can take a long time to complete.
+    ;;;
+    ;;; In order to avoid a host call to be blocked for too long, these functions can return prematurely, requiring additional calls with the same parameters until they complete.
+    $in_progress
+
+    ;;; Multiple keys have been provided, but they do not share the same type.
+    ;;;
+    ;;; This error is returned when trying to build a key pair from a public key and a secret key that were created for different and incompatible algorithms.
+    $incompatible_keys
+
+    ;;; A managed key or secret expired and cannot be used any more.
+    $expired
+  )
+)
+
+;;; Encoding to use for importing or exporting a key pair.
+(typename $keypair_encoding
+  (enum (@witx tag u16)
+    ;;; Raw bytes.
+    $raw
+
+    ;;; PCSK8/DER encoding.
+    $pkcs8
+
+    ;;; PEM encoding.
+    $pem
+    
+    ;;; PCSK8/DER encoding with compressed coordinates.
+    $compressed_pkcs8
+
+    ;;; PEM encoding with compressed coordinates.
+    $compressed_pem
+
+    ;;; Implementation-defined encoding.
+    $local
+  )
+)
+
+;;; Encoding to use for importing or exporting a public key.
+(typename $publickey_encoding
+  (enum (@witx tag u16)
+    ;;; Raw bytes.
+    $raw
+
+    ;;; PKCS8/DER encoding.
+    $pkcs8
+
+    ;;; PEM encoding.
+    $pem
+
+    ;;; SEC-1 encoding.
+    $sec
+
+    ;;; Compressed SEC-1 encoding.
+    $compressed_sec
+
+    ;;; PKCS8/DER encoding with compressed coordinates.
+    $compressed_pkcs8
+
+    ;;; PEM encoding with compressed coordinates.
+    $compressed_pem
+
+    ;;; Implementation-defined encoding.
+    $local
+  )
+)
+
+;;; Encoding to use for importing or exporting a secret key.
+(typename $secretkey_encoding
+  (enum (@witx tag u16)
+    ;;; Raw bytes.
+    $raw
+
+    ;;; PKCS8/DER encoding.
+    $pkcs8
+
+    ;;; PEM encoding.
+    $pem
+
+    ;;; SEC-1 encoding.
+    $sec
+
+    ;;; Compressed SEC encoding.
+    $compressed_sec
+
+    ;;; Implementation-defined encoding.
+    $local
+  )
+)
+
+;;; Encoding to use for importing or exporting a signature.
+(typename $signature_encoding
+  (enum (@witx tag u16)
+    ;;; Raw bytes.
+    $raw
+
+    ;;; DER encoding.
+    $der
+  )
+)
+
+;;; An algorithm category.
+(typename $algorithm_type
+  (enum (@witx tag u16)
+    $signatures
+    $symmetric
+    $key_exchange
+  )
+)
+
+;;; Version of a managed key.
+;;;
+;;; A version can be an arbitrary `u64` integer, with the expection of some reserved values.
+(typename $version u64)
+;;; Key doesn't support versioning.
+(@witx const $version $unspecified 0xff00000000000000)
+
+;;; Use the latest version of a key.
+(@witx const $version $latest 0xff00000000000001)
+
+;;; Perform an operation over all versions of a key.
+(@witx const $version $all 0xff00000000000002)
+
+;;; Size of a value.
+(typename $size (@witx usize))
+
+;;; A UNIX timestamp, in seconds since 01/01/1970.
+(typename $timestamp u64)
+
+;;; Handle for functions returning output whose size may be large or not known in advance.
+;;;
+;;; An `array_output` object contains a host-allocated byte array.
+;;;
+;;; A guest can get the size of that array after a function returns in order to then allocate a buffer of the correct size.
+;;; In addition, the content of such an object can be consumed by a guest in a streaming fashion.
+;;;
+;;; An `array_output` handle is automatically closed after its full content has been consumed.
+(typename $array_output (handle))
+
+;;; A set of options.
+;;;
+;;; This type is used to set non-default parameters.
+;;;
+;;; The exact set of allowed options depends on the algorithm being used.
+(typename $options (handle))
+
+;;; A handle to the optional secrets management facilities offered by a host.
+;;;
+;;; This is used to generate, retrieve and invalidate managed keys.
+(typename $secrets_manager (handle))
+
+;;; A key pair.
+(typename $keypair (handle))
+
+;;; A state to absorb data to be signed.
+;;;
+;;; After a signature has been computed or verified, the state remains valid for further operations.
+;;;
+;;; A subsequent signature would sign all the data accumulated since the creation of the state object.
+(typename $signature_state (handle))
+
+;;; A signature.
+(typename $signature (handle))
+
+;;; A public key, for key exchange and signature verification.
+(typename $publickey (handle))
+
+;;; A secret key, for key exchange mechanisms.
+(typename $secretkey (handle))
+
+;;; A state to absorb signed data to be verified.
+(typename $signature_verification_state (handle))
+
+;;; A state to perform symmetric operations.
+;;;
+;;; The state is not reset nor invalidated after an option has been performed.
+;;; Incremental updates and sessions are thus supported.
+(typename $symmetric_state (handle))
+
+;;; A symmetric key.
+;;;
+;;; The key can be imported from raw bytes, or can be a reference to a managed key.
+;;;
+;;; If it was imported, the host will wipe it from memory as soon as the handle is closed.
+(typename $symmetric_key (handle))
+
+;;; An authentication tag.
+;;;
+;;; This is an object returned by functions computing authentication tags.
+;;;
+;;; A tag can be compared against another tag (directly supplied as raw bytes) in constant time with the `symmetric_tag_verify()` function.
+;;;
+;;; This object type can't be directly created from raw bytes. They are only returned by functions computing MACs.
+;;;
+;;; The host is reponsible for securely wiping them from memory on close.
+(typename $symmetric_tag (handle))
+
+;;; Options index, only required by the Interface Types translation layer.
+(typename $opt_options_u (enum (@witx tag u8) $some $none))
+
+;;; An optional options set.
+;;;
+;;; This union simulates an `Option<Options>` type to make the `options` parameter of some functions optional.
+(typename $opt_options (variant (@witx tag $opt_options_u) (case $some $options) (case $none)))
+
+;;; Symmetric key index, only required by the Interface Types translation layer.
+(typename $opt_symmetric_key_u (enum (@witx tag u8) $some $none))
+
+;;; An optional symmetric key.
+;;;
+;;; This union simulates an `Option<SymmetricKey>` type to make the `symmetric_key` parameter of some functions optional.
+(typename $opt_symmetric_key (variant (@witx tag $opt_symmetric_key_u) (case $some $symmetric_key) (case $none)))
+
+(module $wasi_ephemeral_crypto_common
+  (import "memory" (memory))
+
+  ;;; Create a new object to set non-default options.
+  ;;;
+  ;;; Example usage:
+  ;;;
+  ;;; ```rust
+  ;;; let options_handle = options_open(AlgorithmType::Symmetric)?;
+  ;;; options_set(options_handle, "context", context)?;
+  ;;; options_set_u64(options_handle, "threads", 4)?;
+  ;;; let state = symmetric_state_open("BLAKE3", None, Some(options_handle))?;
+  ;;; options_close(options_handle)?;
+  ;;; ```
+  (@interface func (export "options_open")
+    (param $algorithm_type $algorithm_type)
+    (result $error (expected $options (error $crypto_errno)))
+  )
+
+  ;;; Destroy an options object.
+  ;;;
+  ;;; Objects are reference counted. It is safe to close an object immediately after the last function needing it is called.
+  (@interface func (export "options_close")
+    (param $handle $options)
+    (result $error (expected (error $crypto_errno)))
+  )
+
+  ;;; Set or update an option.
+  ;;;
+  ;;; This is used to set algorithm-specific parameters, but also to provide credentials for the secrets management facilities, if required.
+  ;;;
+  ;;; This function may return `unsupported_option` if an option that doesn't exist for any implemented algorithms is specified.
+  (@interface func (export "options_set")
+    (param $handle $options)
+    (param $name string)
+    (param $value (@witx const_pointer u8))
+    (param $value_len $size)
+    (result $error (expected (error $crypto_errno)))
+  )
+
+  ;;; Set or update an integer option.
+  ;;;
+  ;;; This is used to set algorithm-specific parameters.
+  ;;;
+  ;;; This function may return `unsupported_option` if an option that doesn't exist for any implemented algorithms is specified.
+  (@interface func (export "options_set_u64")
+    (param $handle $options)
+    (param $name string)
+    (param $value u64)
+    (result $error (expected (error $crypto_errno)))
+  )
+
+  ;;; Set or update a guest-allocated memory that the host can use or return data into.
+  ;;;
+  ;;; This is for example used to set the scratch buffer required by memory-hard functions.
+  ;;;
+  ;;; This function may return `unsupported_option` if an option that doesn't exist for any implemented algorithms is specified.
+  (@interface func (export "options_set_guest_buffer")
+    (param $handle $options)
+    (param $name string)
+    (param $buffer (@witx pointer u8))
+    (param $buffer_len $size)
+    (result $error (expected (error $crypto_errno)))
+  )
+
+  ;;; Return the length of an `array_output` object.
+  ;;;
+  ;;; This allows a guest to allocate a buffer of the correct size in order to copy the output of a function returning this object type.
+  (@interface func (export "array_output_len")
+    (param $array_output $array_output)
+    (result $error (expected $size (error $crypto_errno)))
+  )
+
+  ;;; Copy the content of an `array_output` object into an application-allocated buffer.
+  ;;;
+  ;;; Multiple calls to that function can be made in order to consume the data in a streaming fashion, if necessary.
+  ;;;
+  ;;; The function returns the number of bytes that were actually copied. `0` means that the end of the stream has been reached. The total size always matches the output of `array_output_len()`.
+  ;;;
+  ;;; The handle is automatically closed after all the data has been consumed.
+  ;;;
+  ;;; Example usage:
+  ;;;
+  ;;; ```rust
+  ;;; let len = array_output_len(output_handle)?;
+  ;;; let mut out = vec![0u8; len];
+  ;;; array_output_pull(output_handle, &mut out)?;
+  ;;; ```
+  (@interface func (export "array_output_pull")
+    (param $array_output $array_output)
+    (param $buf (@witx pointer u8))
+    (param $buf_len $size)
+    (result $error (expected $size (error $crypto_errno)))
+  )
+
+  ;;; __(optional)__
+  ;;; Create a context to use a secrets manager.
+  ;;;
+  ;;; The set of required and supported options is defined by the host.
+  ;;;
+  ;;; The function returns the `unsupported_feature` error code if secrets management facilities are not supported by the host.
+  ;;; This is also an optional import, meaning that the function may not even exist.
+  (@interface func (export "secrets_manager_open")
+    (param $options $opt_options)
+    (result $error (expected $secrets_manager (error $crypto_errno)))
+  )
+
+  ;;; __(optional)__
+  ;;; Destroy a secrets manager context.
+  ;;;
+  ;;; The function returns the `unsupported_feature` error code if secrets management facilities are not supported by the host.
+  ;;; This is also an optional import, meaning that the function may not even exist.
+  (@interface func (export "secrets_manager_close")
+    (param $secrets_manager $secrets_manager)
+    (result $error (expected (error $crypto_errno)))
+  )
+
+  ;;; __(optional)__
+  ;;; Invalidate a managed key or key pair given an identifier and a version.
+  ;;;
+  ;;; This asks the secrets manager to delete or revoke a stored key, a specific version of a key.
+  ;;;
+  ;;; `key_version` can be set to a version number, to `version.latest` to invalidate the current version, or to `version.all` to invalidate all versions of a key.
+  ;;;
+  ;;; The function returns `unsupported_feature` if this operation is not supported by the host, and `not_found` if the identifier and version don't match any existing key.
+  ;;;
+  ;;; This is an optional import, meaning that the function may not even exist.
+  (@interface func (export "secrets_manager_invalidate")
+    (param $secrets_manager $secrets_manager)
+    (param $key_id (@witx const_pointer u8))
+    (param $key_id_len $size)
+    (param $key_version $version)
+    (result $error (expected (error $crypto_errno)))
+  )
+)
+
+(typename $u64 u64)

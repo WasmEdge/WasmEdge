@@ -73,6 +73,8 @@ int Compiler([[maybe_unused]] int Argc,
       PO::Description("Enable Tail-call proposal"sv));
   PO::Option<PO::Toggle> PropExtendConst(
       PO::Description("Enable Extended-const proposal"sv));
+  PO::Option<PO::Toggle> PropThreads(
+      PO::Description("Enable Threads proposal"sv));
   PO::Option<PO::Toggle> PropAll(PO::Description("Enable all features"sv));
 
   auto Parser = PO::ArgumentParser();
@@ -96,6 +98,7 @@ int Compiler([[maybe_unused]] int Argc,
            .add_option("enable-multi-memory"sv, PropMultiMem)
            .add_option("enable-tail-call"sv, PropTailCall)
            .add_option("enable-extended-const"sv, PropExtendConst)
+           .add_option("enable-threads"sv, PropThreads)
            .add_option("enable-all"sv, PropAll)
            .parse(Argc, Argv)) {
     return EXIT_FAILURE;
@@ -136,10 +139,14 @@ int Compiler([[maybe_unused]] int Argc,
   if (PropExtendConst.value()) {
     Conf.addProposal(Proposal::ExtendedConst);
   }
+  if (PropThreads.value()) {
+    Conf.addProposal(Proposal::Threads);
+  }
   if (PropAll.value()) {
     Conf.addProposal(Proposal::MultiMemories);
     Conf.addProposal(Proposal::TailCall);
     Conf.addProposal(Proposal::ExtendedConst);
+    Conf.addProposal(Proposal::Threads);
   }
 
   std::filesystem::path InputPath = std::filesystem::absolute(WasmName.value());

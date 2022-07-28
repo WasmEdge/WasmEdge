@@ -24,6 +24,7 @@
     - [Access OS services](dev/rust/wasi.md)
     - [Tensorflow](dev/rust/tensorflow.md)
     - [Neural Network for WASI](dev/rust/wasinn.md)
+    - [Crypto for WASI](dev/rust/wasicrypto.md)
     - [Simple HTTP client & server](dev/rust/networking.md)
     - [Non-blocking network apps](dev/rust/networking-nonblocking.md)
     - [Server-side rendering](dev/rust/ssr.md)

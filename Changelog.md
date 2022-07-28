@@ -1,4 +1,4 @@
-### 0.10.1-rc.1 (2022-07-26)
+### 0.10.1 (2022-07-28)
 
 Features:
 
@@ -24,6 +24,7 @@ Features:
 * Supported LLVM 14 on MacOS.
   * Used the new `macho` in lld on LLVM-14 envronment.
   * Bumpped IWYU to 0.18 to be compatible with LLVM 14 on MacOS.
+* Bumpped the MacOS x86_64 build to MacOS 11.
 
 Fixed issues:
 

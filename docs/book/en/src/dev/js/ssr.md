@@ -5,16 +5,266 @@
 > Server-side rendering (SSR) is a popular technique for rendering a client-side single page application (SPA) on the server and then sending a fully rendered page to the client. This allows for dynamic components to be served as static HTML markup. This approach can be useful for search engine optimization (SEO) when indexing does not handle JavaScript properly. It may also be beneficial in situations where downloading a large JavaScript bundle is impaired by a slow network. -- [from Digital Ocean](https://www.digitalocean.com/community/tutorials/react-server-side-rendering).
 
 In this article, we will show you how to use the WasmEdge QuickJS runtime to implement a React SSR function.
-Compared with the Docker + Linux + nodejs + v8 approach, WasmEdge is much lighter (1% of the footprint) and safer, provides better resource isolation and management, and has similar non-JIT ([safe](https://www.zdnet.com/article/edge-super-duper-secure-mode-turns-off-the-javascript-jit-compiler-for-extra-security/)) performance.
+Compared with the Docker + Linux + nodejs + v8 approach, WasmEdge is safer (suitable for multi-tenancy environments) and much lighter (1% of the footprint) with similar performance.
 
-We will start from a complete tutorial to create and deploy a simple React SSR web application from the standard template. Then, we will discuss two modes of SSR: static and streaming rendering. Static rendering is easy to understand and implement. Streaming rendering, on the other hand, provides better user experience since the user can see partial results while waiting in front of the browser. We will walk through the key code snippets for both static and streaming rendering.
+We will start from a complete tutorial to create and deploy a simple React Streaming SSR web application, and then move on to a full React 18 demo.
 
-* [Getting started](#getting-started)
-* [Static rendering code example](#static-rendering) [[GitHub Action](https://github.com/second-state/wasmedge-quickjs/blob/main/.github/workflows/examples.yml#L86-L93) | [Log](https://github.com/second-state/wasmedge-quickjs/runs/5543260023?check_suite_focus=true#step:13:1)]
-* [Streaming rendering code example](#streaming-rendering) [[GitHub Action](https://github.com/second-state/wasmedge-quickjs/blob/main/.github/workflows/examples.yml#L95-L105) | [Log](https://github.com/second-state/wasmedge-quickjs/runs/5543260023?check_suite_focus=true#step:14:1)]
-* [A complete React 18 example](#react-18-ssr) [[GitHub Action](https://github.com/second-state/wasmedge-quickjs/blob/main/.github/workflows/examples.yml#L107-L117) | [Log](https://github.com/second-state/wasmedge-quickjs/runs/5543260023?check_suite_focus=true#step:15:1)]
+* [Getting started with React streaming SSR](#getting-started)
+* [A full React 18 app](#a-full-react-18-app)
+* [Appendix: the create-react-app template](#appendix-the-create-react-app-template)
 
 ## Getting started
+
+The [example_js/react_ssr_stream](https://github.com/second-state/wasmedge-quickjs/tree/main/example_js/react_ssr_stream) folder in the GitHub repo contains the example's source code. It showcases how to streaming render an HTML string from templates in a JavaScript app running in WasmEdge.
+
+The [component/LazyHome.jsx](https://github.com/second-state/wasmedge-quickjs/blob/main/example_js/react_ssr_stream/component/LazyHome.jsx) file is the main page template in React. It "lazy" loads the inner page template after a 2s delay once the outer HTML is rendered and returned to the user.
+
+```javascript
+import React, { Suspense } from 'react';
+import * as LazyPage from './LazyPage.jsx';
+
+async function sleep(ms) {
+  return new Promise((r, _) => {
+    setTimeout(() => r(), ms)
+  });
+}
+
+async function loadLazyPage() {
+  await sleep(2000);
+  return LazyPage
+}
+
+class LazyHome extends React.Component {
+  render() {
+    let LazyPage1 = React.lazy(() => loadLazyPage());
+    return (
+      <html lang="en">
+        <head>
+          <meta charSet="utf-8" />
+          <title>Title</title>
+        </head>
+        <body>
+          <div>
+            <div> This is LazyHome </div>
+            <Suspense fallback={<div> loading... </div>}>
+              <LazyPage1 />
+            </Suspense>
+          </div>
+        </body>
+      </html>
+    );
+  }
+}
+
+export default LazyHome;
+```
+
+The [LazyPage.jsx](https://github.com/second-state/wasmedge-quickjs/blob/main/example_js/react_ssr_stream/component/LazyPage.jsx) is the inner page template. It is rendered 2s after the outer page is already returned to the user.
+
+```javascript
+import React from 'react';
+
+class LazyPage extends React.Component {
+  render() {
+    return (
+      <div>
+        <div>
+          This is lazy page
+        </div>
+      </div>
+    );
+  }
+}
+
+export default LazyPage;
+```
+
+The [main.mjs](https://github.com/second-state/wasmedge-quickjs/blob/main/example_js/react_ssr_stream/main.mjs)
+file starts a non-blocking HTTP server using standard Node.js APIs, and then renders the HTML page in multiple chuncks to the response.
+
+```javascript
+import * as React from 'react';
+import { renderToPipeableStream } from 'react-dom/server';
+import { createServer } from 'http';
+
+import LazyHome from './component/LazyHome.jsx';
+
+createServer((req, res) => {
+  res.setHeader('Content-type', 'text/html; charset=utf-8');
+  renderToPipeableStream(<LazyHome />).pipe(res);
+}).listen(8001, () => {
+  print('listen 8001...');
+})
+```
+
+The [rollup.config.js](https://github.com/second-state/wasmedge-quickjs/blob/main/example_js/react_ssr_stream/rollup.config.js) and [package.json](https://github.com/second-state/wasmedge-quickjs/blob/main/example_js/react_ssr_stream/package.json) files are to build the React SSR dependencies and components into a bundled JavaScript file for WasmEdge. You should use the `npm` command to build it.
+The output is in the `dist/main.mjs` file.
+
+```bash
+npm install
+npm run build
+```
+
+Copy over the system's `modules` to the working directory for Node.js API support as [noted here](nodejs.md#note-to-developers).
+
+```bash
+cp -r ../../modules .
+```
+
+To run the example, do the following on the CLI to start the server.
+
+```bash
+nohup wasmedge --dir .:. ../../target/wasm32-wasi/release/wasmedge_quickjs.wasm dist/main.mjs &
+```
+
+Send the server a HTTP request via `curl` or the browser.
+
+```bash
+curl http://localhost:8001
+```
+
+The results are as follows. The service first returns an HTML page with an empty inner section (i.e., the `loading` section), and then 2s later, the HTML content for the inner section and the JavaScript to display it.
+
+```bash
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+
+  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0
+100   211    0   211    0     0   1029      0 --:--:-- --:--:-- --:--:--  1024
+100   275    0   275    0     0    221      0 --:--:--  0:00:01 --:--:--   220
+100   547    0   547    0     0    245      0 --:--:--  0:00:02 --:--:--   245
+100  1020    0  1020    0     0    413      0 --:--:--  0:00:02 --:--:--   413
+
+<!DOCTYPE html><html lang="en"><head><meta charSet="utf-8"/><title>Title</title></head><body><div><div> This is LazyHome </div><!--$?--><template id="B:0"></template><div> loading... </div><!--/$--></div></body></html><div hidden id="S:0"><template id="P:1"></template></div><div hidden id="S:1"><div><div>This is lazy page</div></div></div><script>function $RS(a,b){a=document.getElementById(a);b=document.getElementById(b);for(a.parentNode.removeChild(a);a.firstChild;)b.parentNode.insertBefore(a.firstChild,b);b.parentNode.removeChild(b)};$RS("S:1","P:1")</script><script>function $RC(a,b){a=document.getElementById(a);b=document.getElementById(b);b.parentNode.removeChild(b);if(a){a=a.previousSibling;var f=a.parentNode,c=a.nextSibling,e=0;do{if(c&&8===c.nodeType){var d=c.data;if("/$"===d)if(0===e)break;else e--;else"$"!==d&&"$?"!==d&&"$!"!==d||e++}d=c.nextSibling;f.removeChild(c);c=d}while(c);for(;b.firstChild;)f.insertBefore(b.firstChild,c);a.data="$";a._reactRetry&&a._reactRetry()}};$RC("B:0","S:0")</script>
+```
+
+## A full React 18 app
+
+In this section, we will demonstrate a complete React 18 SSR application. It renders the web UI through streaming SSR. The [example_js/react18_ssr](https://github.com/second-state/wasmedge-quickjs/tree/main/example_js/react18_ssr) folder in the GitHub repo contains the example's source code. The [component](https://github.com/second-state/wasmedge-quickjs/tree/main/example_js/react18_ssr/component) folder contains the entire React 18 application's source code, and the [public](https://github.com/second-state/wasmedge-quickjs/tree/main/example_js/react18_ssr/public) folder contains the public resources (CSS and images) for the web application. The application also demonstrates a data provider for the UI.
+
+The [main.mjs](https://github.com/second-state/wasmedge-quickjs/blob/main/example_js/react18_ssr/main.mjs)
+file starts a non-blocking HTTP server, fetches data from a data provider, maps the `main.css` and `main.js` files in the `public` folder to web URLs, and then renders the HTML page for each request in `renderToPipeableStream()`.
+
+```javascript
+import * as React from 'react';
+import { renderToPipeableStream } from 'react-dom/server';
+import { createServer } from 'http';
+import * as std from 'std';
+
+import App from './component/App.js';
+import { DataProvider } from './component/data.js'
+
+let assets = {
+  'main.js': '/main.js',
+  'main.css': '/main.css',
+};
+
+const css = std.loadFile('./public/main.css')
+
+function createServerData() {
+  let done = false;
+  let promise = null;
+  return {
+    read() {
+      if (done) {
+        return;
+      }
+      if (promise) {
+        throw promise;
+      }
+      promise = new Promise(resolve => {
+        setTimeout(() => {
+          done = true;
+          promise = null;
+          resolve();
+        }, 2000);
+      });
+      throw promise;
+    },
+  };
+}
+
+createServer((req, res) => {
+  print(req.url)
+  if (req.url == '/main.css') {
+    res.setHeader('Content-Type', 'text/css; charset=utf-8')
+    res.end(css)
+  } else if (req.url == '/favicon.ico') {
+    res.end()
+  } else {
+    res.setHeader('Content-type', 'text/html');
+
+    res.on('error', (e) => {
+      print('res error', e)
+    })
+    let data = createServerData()
+    print('createServerData')
+
+    const stream = renderToPipeableStream(
+      <DataProvider data={data}>
+        <App assets={assets} />
+      </DataProvider>, {
+      onShellReady: () => {
+        stream.pipe(res)
+      },
+      onShellError: (e) => {
+        print('onShellError:', e)
+      }
+    }
+    );
+  }
+}).listen(8002, () => {
+  print('listen 8002...')
+})
+```
+
+The [rollup.config.js](https://github.com/second-state/wasmedge-quickjs/blob/main/example_js/react18_ssr/rollup.config.js) and [package.json](https://github.com/second-state/wasmedge-quickjs/blob/main/example_js/react18_ssr/package.json) files are to build the React 18 SSR dependencies and components into a bundled JavaScript file for WasmEdge. You should use the `npm` command to build it.
+The output is in the `dist/main.mjs` file.
+
+```bash
+npm install
+npm run build
+```
+
+Copy over the system's `modules` to the working directory for Node.js API support as [noted here](nodejs.md#note-to-developers).
+
+```bash
+cp -r ../../modules .
+```
+
+To run the example, do the following on the CLI to start the server.
+
+```bash
+nohup wasmedge --dir .:. ../../target/wasm32-wasi/release/wasmedge_quickjs.wasm dist/main.mjs &
+```
+
+Send the server a HTTP request via `curl` or the browser.
+
+```bash
+curl http://localhost:8002
+```
+
+The results are as follows. The service first returns an HTML page with an empty inner section (i.e., the `loading` section), and then 2s later, the HTML content for the inner section and the JavaScript to display it.
+
+```bash
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+
+  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0
+100   439    0   439    0     0   1202      0 --:--:-- --:--:-- --:--:--  1199
+100  2556    0  2556    0     0   1150      0 --:--:--  0:00:02 --:--:--  1150
+100  2556    0  2556    0     0    926      0 --:--:--  0:00:02 --:--:--   926
+100  2806    0  2806    0     0    984      0 --:--:--  0:00:02 --:--:--   984
+<!DOCTYPE html><html lang="en"><head><meta charSet="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/><link rel="stylesheet" href="/main.css"/><title>Hello</title></head><body><noscript><b>Enable JavaScript to run this app.</b></noscript><!--$--><main><nav><a href="/">Home</a></nav><aside class="sidebar"><!--$?--><template id="B:0"></template><div class="spinner spinner--active" role="progressbar" aria-busy="true"></div><!--/$--></aside><article class="post"><!--$?--><template id="B:1"></template><div class="spinner spinner--active" role="progressbar" aria-busy="true"></div><!--/$--><section class="comments"><h2>Comments</h2><!--$?--><template id="B:2"></template><div class="spinner spinner--active" role="progressbar" aria-busy="true"></div><!--/$--></section><h2>Thanks for reading!</h2></article></main><!--/$--><script>assetManifest = {"main.js":"/main.js","main.css":"/main.css"};</script></body></html><div hidden id="S:0"><template id="P:3"></template></div><div hidden id="S:1"><template id="P:4"></template></div><div hidden id="S:2"><template id="P:5"></template></div><div hidden id="S:3"><h1>Archive</h1><ul><li>May 2021</li><li>April 2021</li><li>March 2021</li><li>February 2021</li><li>January 2021</li><li>December 2020</li><li>November 2020</li><li>October 2020</li><li>September 2020</li></ul></div><script>function $RS(a,b){a=document.getElementById(a);b=document.getElementById(b);for(a.parentNode.removeChild(a);a.firstChild;)b.parentNode.insertBefore(a.firstChild,b);b.parentNode.removeChild(b)};$RS("S:3","P:3")</script><script>function $RC(a,b){a=document.getElementById(a);b=document.getElementById(b);b.parentNode.removeChild(b);if(a){a=a.previousSibling;var f=a.parentNode,c=a.nextSibling,e=0;do{if(c&&8===c.nodeType){var d=c.data;if("/$"===d)if(0===e)break;else e--;else"$"!==d&&"$?"!==d&&"$!"!==d||e++}d=c.nextSibling;f.removeChild(c);c=d}while(c);for(;b.firstChild;)f.insertBefore(b.firstChild,c);a.data="$";a._reactRetry&&a._reactRetry()}};$RC("B:0","S:0")</script><div hidden id="S:4"><h1>Hello world</h1><p>This demo is <!-- --><b>artificially slowed down</b>. Open<!-- --> <!-- --><code>server/delays.js</code> to adjust how much different things are slowed down.<!-- --></p><p>Notice how HTML for comments &quot;streams in&quot; before the JS (or React) has loaded on the page.</p><p>Also notice that the JS for comments and sidebar has been code-split, but HTML for it is still included in the server output.</p></div><script>$RS("S:4","P:4")</script><script>$RC("B:1","S:1")</script><div hidden id="S:5"><p class="comment">Wait, it doesn&#x27;t wait for React to load?</p><p class="comment">How does this even work?</p><p class="comment">I like marshmallows</p></div><script>$RS("S:5","P:5")</script><script>$RC("B:2","S:2")</script>
+```
+
+The streaming SSR examples make use of WasmEdge's unique asynchronous networking capabilities and ES6 module support (i.e., the rollup bundled JS file contains ES6 modules). You can learn more about [async networking](networking.md) and [ES6](es6.md) in this book.
+
+
+## Appendix the create-react-app template
+
+The `create-react-app` template is a popular starting point for many developers to create React apps. In this tutorial, we will provide a step-by-step guide on how to use it to create React streaming SSR applications that run on WasmEdge.
+
 
 ### Step 1 — Create the React App
 
@@ -399,356 +649,3 @@ Now, with the SSR function running on the server, the HTML source in the browser
 Output
 <div id="root"><div class="App" data-reactroot="">...</div></div>
 ```
-
-In the next two sections, we will dive deeper into the source code for two ready-made sample applications for static and streaming rendering of SSR.
-
-## Static rendering
-
-The [example_js/react_ssr](https://github.com/second-state/wasmedge-quickjs/tree/main/example_js/react_ssr) folder in the GitHub repo contains the example's source code. It showcases how to compose HTML templates and render them into an HTML string in a JavaScript app running in WasmEdge.
-
-The [component/Home.jsx](https://github.com/second-state/wasmedge-quickjs/blob/main/example_js/react_ssr/component/Home.jsx) file is the main page template in React.
-
-```javascript
-import React from 'react';
-import Page from './Page.jsx';
-class Home extends React.Component {
-  render() {
-    const { dataList = [] } = this.props;
-    return (
-      <div>
-        <div>This is home</div>
-        <Page></Page>
-      </div>
-    );
-  }
-};
-
-export default Home;
-```
-
-The `Home.jpx` template includes a [Page.jpx](https://github.com/second-state/wasmedge-quickjs/blob/main/example_js/react_ssr/component/Page.jsx) template for part of the page.
-
-```javascript
-import React from 'react';
-
-class Page extends React.Component {
-  render() {
-    const { dataList = [] } = this.props;
-    return (
-      <div>
-        <div>This is page</div>
-      </div>
-    );
-  }
-};
-
-export default Page;
-```
-
-The [main.js](https://github.com/second-state/wasmedge-quickjs/blob/main/example_js/react_ssr/main.js) file calls React to render the templates into HTML.
-
-```javascript
-import React from 'react';
-import {renderToString} from 'react-dom/server';
-
-import Home from './component/Home.jsx';
-
-const content = renderToString(React.createElement(Home));
-console.log(content);
-```
-
-The [rollup.config.js](https://github.com/second-state/wasmedge-quickjs/blob/main/example_js/react_ssr/rollup.config.js) and [package.json](https://github.com/second-state/wasmedge-quickjs/blob/main/example_js/react_ssr/package.json) files are to build the React SSR dependencies and components into a bundled JavaScript file for WasmEdge. You should use the `npm` command to build it.
-The output is in the `dist/main.js` file.
-
-```bash
-npm install
-npm run build
-```
-
-To run the example, do the following on the CLI. You can see that the templates are successfully composed into an HTML string.
-
-```bash
-$ cd example_js/react_ssr
-$ wasmedge --dir .:. ../../target/wasm32-wasi/release/wasmedge_quickjs.wasm dist/main.js
-<div data-reactroot=""><div>This is home</div><div><div>This is page</div></div></div>
-```
-
-> Note: the `--dir .:.` on the command line is to give wasmedge permission to read the local directory in the file system for the `dist/main.js` file.
-
-## Streaming rendering
-
-The [example_js/react_ssr_stream](https://github.com/second-state/wasmedge-quickjs/tree/main/example_js/react_ssr_stream) folder in the GitHub repo contains the example's source code. It showcases how to streaming render an HTML string from templates in a JavaScript app running in WasmEdge.
-
-The [component/LazyHome.jsx](https://github.com/second-state/wasmedge-quickjs/blob/main/example_js/react_ssr_stream/component/LazyHome.jsx) file is the main page template in React. It "lazy" loads the inner page template after a 2s delay once the outer HTML is rendered and returned to the user.
-
-```javascript
-import React, { Suspense } from 'react';
-import * as LazyPage from './LazyPage.jsx';
-
-async function sleep(ms) {
-  return new Promise((r, _) => {
-    setTimeout(() => r(), ms)
-  });
-}
-
-async function loadLazyPage() {
-  await sleep(2000);
-  return LazyPage
-}
-
-class LazyHome extends React.Component {
-  render() {
-    let LazyPage1 = React.lazy(() => loadLazyPage());
-    return (
-      <html lang="en">
-        <head>
-          <meta charSet="utf-8" />
-          <title>Title</title>
-        </head>
-        <body>
-          <div>
-            <div> This is LazyHome </div>
-            <Suspense fallback={<div> loading... </div>}>
-              <LazyPage1 />
-            </Suspense>
-          </div>
-        </body>
-      </html>
-    );
-  }
-}
-
-export default LazyHome;
-```
-
-The [LazyPage.jsx](https://github.com/second-state/wasmedge-quickjs/blob/main/example_js/react_ssr_stream/component/LazyPage.jsx) is the inner page template. It is rendered 2s after the outer page is already returned to the user.
-
-```javascript
-import React from 'react';
-
-class LazyPage extends React.Component {
-  render() {
-    return (
-      <div>
-        <div>
-          This is lazy page
-        </div>
-      </div>
-    );
-  }
-}
-
-export default LazyPage;
-```
-
-The [main.mjs](https://github.com/second-state/wasmedge-quickjs/blob/main/example_js/react_ssr_stream/main.mjs)
-file starts a non-blocking HTTP server, and then renders the HTML page in multiple chuncks to the response. When a HTTP request comes in, the `handle_client()` function is called to render the HTML and to send back the results through the stream.
-
-```javascript
-import * as React from 'react';
-import { renderToPipeableStream } from 'react-dom/server';
-import * as http from 'wasi_http';
-import * as net from 'wasi_net';
-
-import LazyHome from './component/LazyHome.jsx';
-
-async function handle_client(s) {
-  let resp = new http.WasiResponse();
-  resp.headers = {
-    "Content-Type": "text/html; charset=utf-8"
-  }
-  renderToPipeableStream(<LazyHome />).pipe(resp.chunk(s));
-}
-
-async function server_start() {
-  print('listen 8001...');
-  let s = new net.WasiTcpServer(8001);
-  for (var i = 0; i < 100; i++) {
-    let cs = await s.accept();
-    handle_client(cs);
-  }
-}
-
-server_start();
-```
-
-The [rollup.config.js](https://github.com/second-state/wasmedge-quickjs/blob/main/example_js/react_ssr_stream/rollup.config.js) and [package.json](https://github.com/second-state/wasmedge-quickjs/blob/main/example_js/react_ssr_stream/package.json) files are to build the React SSR dependencies and components into a bundled JavaScript file for WasmEdge. You should use the `npm` command to build it.
-The output is in the `dist/main.mjs` file.
-
-```bash
-npm install
-npm run build
-```
-
-To run the example, do the following on the CLI to start the server.
-
-```bash
-cd example_js/react_ssr_stream
-nohup wasmedge --dir .:. ../../target/wasm32-wasi/release/wasmedge_quickjs.wasm dist/main.mjs &
-```
-
-Send the server a HTTP request via `curl` or the browser.
-
-```bash
-curl http://localhost:8001
-```
-
-The results are as follows. The service first returns an HTML page with an empty inner section (i.e., the `loading` section), and then 2s later, the HTML content for the inner section and the JavaScript to display it.
-
-```bash
-  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
-                                 Dload  Upload   Total   Spent    Left  Speed
-
-  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0
-100   211    0   211    0     0   1029      0 --:--:-- --:--:-- --:--:--  1024
-100   275    0   275    0     0    221      0 --:--:--  0:00:01 --:--:--   220
-100   547    0   547    0     0    245      0 --:--:--  0:00:02 --:--:--   245
-100  1020    0  1020    0     0    413      0 --:--:--  0:00:02 --:--:--   413
-
-<!DOCTYPE html><html lang="en"><head><meta charSet="utf-8"/><title>Title</title></head><body><div><div> This is LazyHome </div><!--$?--><template id="B:0"></template><div> loading... </div><!--/$--></div></body></html><div hidden id="S:0"><template id="P:1"></template></div><div hidden id="S:1"><div><div>This is lazy page</div></div></div><script>function $RS(a,b){a=document.getElementById(a);b=document.getElementById(b);for(a.parentNode.removeChild(a);a.firstChild;)b.parentNode.insertBefore(a.firstChild,b);b.parentNode.removeChild(b)};$RS("S:1","P:1")</script><script>function $RC(a,b){a=document.getElementById(a);b=document.getElementById(b);b.parentNode.removeChild(b);if(a){a=a.previousSibling;var f=a.parentNode,c=a.nextSibling,e=0;do{if(c&&8===c.nodeType){var d=c.data;if("/$"===d)if(0===e)break;else e--;else"$"!==d&&"$?"!==d&&"$!"!==d||e++}d=c.nextSibling;f.removeChild(c);c=d}while(c);for(;b.firstChild;)f.insertBefore(b.firstChild,c);a.data="$";a._reactRetry&&a._reactRetry()}};$RC("B:0","S:0")</script>
-```
-
-## React 18 SSR
-
-In this section, we will demonstrate a complete React 18 SSR application. It renders the web UI through streaming SSR. The [example_js/react18_ssr](https://github.com/second-state/wasmedge-quickjs/tree/main/example_js/react18_ssr) folder in the GitHub repo contains the example's source code. The [component](https://github.com/second-state/wasmedge-quickjs/tree/main/example_js/react18_ssr/component) folder contains the entire React 18 application's source code, and the [public](https://github.com/second-state/wasmedge-quickjs/tree/main/example_js/react18_ssr/public) folder contains the public resources (CSS and images) for the web application.
-
-The [main.mjs](https://github.com/second-state/wasmedge-quickjs/blob/main/example_js/react18_ssr/main.mjs)
-file starts a non-blocking HTTP server, maps the `main.css` and `main.js` files in the `public` folder to web URLs, and then renders the HTML page for each request in `renderToPipeableStream()`.
-
-```javascript
-import * as React from 'react';
-import { renderToPipeableStream } from 'react-dom/server';
-import * as http from 'wasi_http';
-import * as net from 'wasi_net';
-import * as std from 'std';
-
-import App from './component/App.js';
-import { DataProvider } from './component/data.js'
-
-let assets = {
-  'main.js': '/main.js',
-  'main.css': '/main.css',
-};
-
-const css = std.loadFile('./public/main.css')
-
-function createServerData() {
-  let done = false;
-  let promise = null;
-  return {
-    read() {
-      if (done) {
-        return;
-      }
-      if (promise) {
-        throw promise;
-      }
-      promise = new Promise(resolve => {
-        setTimeout(() => {
-          done = true;
-          promise = null;
-          resolve();
-        }, 2000);
-      });
-      throw promise;
-    },
-  };
-}
-
-async function handle_client(cs) {
-  print('open:', cs.peer());
-  let buffer = new http.Buffer();
-
-  while (true) {
-    try {
-      let d = await cs.read();
-      if (d == undefined || d.byteLength <= 0) {
-        return;
-      }
-      buffer.append(d);
-      let req = buffer.parseRequest();
-      if (req instanceof http.WasiRequest) {
-        handle_req(cs, req);
-        break;
-      }
-    } catch (e) {
-      print(e);
-    }
-  }
-  print('end:', cs.peer());
-}
-
-async function handle_req(s, req) {
-  print('uri:', req.uri)
-  let resp = new http.WasiResponse();
-  if (req.uri == '/main.css') {
-    resp.headers = {
-      "Content-Type": "text/css; charset=utf-8"
-    }
-    let r = resp.encode(css);
-    s.write(r);
-  } else {
-    resp.headers = {
-      "Content-Type": "text/html; charset=utf-8"
-    }
-    let data = createServerData()
-    renderToPipeableStream(
-      <DataProvider data={data}>
-        <App assets={assets} />
-      </DataProvider>
-    ).pipe(resp.chunk(s));
-  }
-}
-
-async function server_start() {
-  print('listen 8002...');
-  try {
-    let s = new net.WasiTcpServer(8002);
-    for (var i = 0; ; i++) {
-      let cs = await s.accept();
-      handle_client(cs);
-    }
-  } catch (e) {
-    print(e)
-  }
-}
-
-server_start();
-```
-
-The [rollup.config.js](https://github.com/second-state/wasmedge-quickjs/blob/main/example_js/react18_ssr/rollup.config.js) and [package.json](https://github.com/second-state/wasmedge-quickjs/blob/main/example_js/react18_ssr/package.json) files are to build the React 18 SSR dependencies and components into a bundled JavaScript file for WasmEdge. You should use the `npm` command to build it.
-The output is in the `dist/main.mjs` file.
-
-```bash
-npm install
-npm run build
-```
-
-To run the example, do the following on the CLI to start the server.
-
-```bash
-cd example_js/react_ssr_stream
-nohup wasmedge --dir .:. ../../target/wasm32-wasi/release/wasmedge_quickjs.wasm dist/main.mjs &
-```
-
-Send the server a HTTP request via `curl` or the browser.
-
-```bash
-curl http://localhost:8002
-```
-
-The results are as follows. The service first returns an HTML page with an empty inner section (i.e., the `loading` section), and then 2s later, the HTML content for the inner section and the JavaScript to display it.
-
-```bash
-  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
-                                 Dload  Upload   Total   Spent    Left  Speed
-
-  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0
-100   439    0   439    0     0   1202      0 --:--:-- --:--:-- --:--:--  1199
-100  2556    0  2556    0     0   1150      0 --:--:--  0:00:02 --:--:--  1150
-100  2556    0  2556    0     0    926      0 --:--:--  0:00:02 --:--:--   926
-100  2806    0  2806    0     0    984      0 --:--:--  0:00:02 --:--:--   984
-<!DOCTYPE html><html lang="en"><head><meta charSet="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/><link rel="stylesheet" href="/main.css"/><title>Hello</title></head><body><noscript><b>Enable JavaScript to run this app.</b></noscript><!--$--><main><nav><a href="/">Home</a></nav><aside class="sidebar"><!--$?--><template id="B:0"></template><div class="spinner spinner--active" role="progressbar" aria-busy="true"></div><!--/$--></aside><article class="post"><!--$?--><template id="B:1"></template><div class="spinner spinner--active" role="progressbar" aria-busy="true"></div><!--/$--><section class="comments"><h2>Comments</h2><!--$?--><template id="B:2"></template><div class="spinner spinner--active" role="progressbar" aria-busy="true"></div><!--/$--></section><h2>Thanks for reading!</h2></article></main><!--/$--><script>assetManifest = {"main.js":"/main.js","main.css":"/main.css"};</script></body></html><div hidden id="S:0"><template id="P:3"></template></div><div hidden id="S:1"><template id="P:4"></template></div><div hidden id="S:2"><template id="P:5"></template></div><div hidden id="S:3"><h1>Archive</h1><ul><li>May 2021</li><li>April 2021</li><li>March 2021</li><li>February 2021</li><li>January 2021</li><li>December 2020</li><li>November 2020</li><li>October 2020</li><li>September 2020</li></ul></div><script>function $RS(a,b){a=document.getElementById(a);b=document.getElementById(b);for(a.parentNode.removeChild(a);a.firstChild;)b.parentNode.insertBefore(a.firstChild,b);b.parentNode.removeChild(b)};$RS("S:3","P:3")</script><script>function $RC(a,b){a=document.getElementById(a);b=document.getElementById(b);b.parentNode.removeChild(b);if(a){a=a.previousSibling;var f=a.parentNode,c=a.nextSibling,e=0;do{if(c&&8===c.nodeType){var d=c.data;if("/$"===d)if(0===e)break;else e--;else"$"!==d&&"$?"!==d&&"$!"!==d||e++}d=c.nextSibling;f.removeChild(c);c=d}while(c);for(;b.firstChild;)f.insertBefore(b.firstChild,c);a.data="$";a._reactRetry&&a._reactRetry()}};$RC("B:0","S:0")</script><div hidden id="S:4"><h1>Hello world</h1><p>This demo is <!-- --><b>artificially slowed down</b>. Open<!-- --> <!-- --><code>server/delays.js</code> to adjust how much different things are slowed down.<!-- --></p><p>Notice how HTML for comments &quot;streams in&quot; before the JS (or React) has loaded on the page.</p><p>Also notice that the JS for comments and sidebar has been code-split, but HTML for it is still included in the server output.</p></div><script>$RS("S:4","P:4")</script><script>$RC("B:1","S:1")</script><div hidden id="S:5"><p class="comment">Wait, it doesn&#x27;t wait for React to load?</p><p class="comment">How does this even work?</p><p class="comment">I like marshmallows</p></div><script>$RS("S:5","P:5")</script><script>$RC("B:2","S:2")</script>
-```
-
-The streaming SSR examples make use of WasmEdge's unique asynchronous networking capabilities and ES6 module support (i.e., the rollup bundled JS file contains ES6 modules). You can learn more about [async networking](networking.md) and [ES6](es6.md) in this book.

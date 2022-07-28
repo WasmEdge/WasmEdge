@@ -2,8 +2,8 @@
 # SPDX-FileCopyrightText: 2019-2022 Second State INC
 
 wasmedge_add_library(wasmedgeDriver
-  compiler.cpp
-  tool.cpp
+  compilerTool.cpp
+  runtimeTool.cpp
 )
 
 if(WASMEDGE_BUILD_AOT_RUNTIME)

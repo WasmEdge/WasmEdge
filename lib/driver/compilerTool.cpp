@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2019-2022 Second State INC
 
-#include "driver/compiler.h"
 #include "aot/compiler.h"
 #include "common/configure.h"
 #include "common/defines.h"
 #include "common/filesystem.h"
 #include "common/version.h"
+#include "driver/compiler.h"
 #include "loader/loader.h"
 #include "po/argument_parser.h"
 #include "validator/validator.h"

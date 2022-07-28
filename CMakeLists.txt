@@ -54,24 +54,31 @@ else()
   target_include_directories(Boost_boost INTERFACE ${boost_SOURCE_DIR})
 endif()
 
-include(Helper)
-
 # List of WasmEdge options
 option(WASMEDGE_BUILD_TESTS "Generate build targets for the wasmedge unit tests." OFF)
 option(WASMEDGE_BUILD_COVERAGE "Generate coverage report. Require WASMEDGE_BUILD_TESTS." OFF)
 option(WASMEDGE_BUILD_AOT_RUNTIME "Enable WasmEdge LLVM-based ahead of time compilation runtime." ON)
 option(WASMEDGE_BUILD_SHARED_LIB "Generate the WasmEdge shared library." ON)
 option(WASMEDGE_BUILD_STATIC_LIB "Generate the WasmEdge static library." OFF)
-option(WASMEDGE_BUILD_TOOLS "Generate wasmedge and wasmedgec tools. Dependence on WasmEdge shared library" ON)
-option(WASMEDGE_BUILD_STATIC_TOOLS "Generate static wasmedge and wasmedgec tools. Dependence on WasmEdge static library" OFF)
+option(WASMEDGE_BUILD_TOOLS "Generate wasmedge and wasmedgec tools. Depend on and will build the WasmEdge shared library." ON)
+option(WASMEDGE_BUILD_TOOLS_STATIC "Make the wasmedge and wasmedgec tools statically. Depend on and will build the WasmEdge static library." OFF)
 option(WASMEDGE_BUILD_PLUGINS "Generate plugins." ON)
 option(WASMEDGE_BUILD_EXAMPLE "Generate examples." OFF)
 option(WASMEDGE_FORCE_DISABLE_LTO "Forcibly disable link time optimization when linking even in Release/RelWithDeb build." OFF)
 set(WASMEDGE_PLUGIN_WASI_NN_BACKEND "" CACHE STRING "Enable WasmEdge Wasi-NN plugin with backends.")
 # Currently supported WASI-NN backend: "OpenVINO" on Linux x86_64
 option(WASMEDGE_PLUGIN_WASI_CRYPTO "Enable WasmEdge Wasi-crypto plugin." OFF)
+option(WASMEDGE_PLUGIN_HTTPSREQ "Enable WasmEdge httpsreq plugin." OFF)
 
-set(WASMEDGE_PLUGIN_HTTPSREQ false CACHE BOOL "Enable wasmedge plugin httpsreq")
+if(WASMEDGE_BUILD_TOOLS)
+  if(WASMEDGE_BUILD_TOOLS_STATIC)
+    # Static tools will forcely turn of the LTO.
+    set(WASMEDGE_FORCE_DISABLE_LTO ON)
+  else()
+    # Tools will forcely turn on the shared library building.
+    set(WASMEDGE_BUILD_SHARED_LIB ON)
+  endif()
+endif()
 
 set(WASMEDGE_BUILD_PACKAGE "DEB;RPM" CACHE STRING "Package generate types")
 set(CPACK_PROJECT_CONFIG_FILE ${CMAKE_CURRENT_SOURCE_DIR}/cmake/cpack_config.cmake)
@@ -82,6 +89,7 @@ if(WASMEDGE_BUILD_COVERAGE)
   append_coverage_compiler_flags()
 endif()
 
+include(Helper)
 include(GNUInstallDirs)
 
 string(TOUPPER "${CMAKE_INSTALL_DEFAULT_COMPONENT_NAME}" CMAKE_INSTALL_DEFAULT_COMPONENT_NAME_UPCASE)
@@ -116,7 +124,7 @@ if(WASMEDGE_BUILD_PLUGINS)
   add_subdirectory(plugins)
 endif()
 add_subdirectory(thirdparty)
-if(WASMEDGE_BUILD_TOOLS OR WASMEDGE_BUILD_STATIC_TOOLS)
+if(WASMEDGE_BUILD_TOOLS)
   add_subdirectory(tools)
 endif()
 if(WASMEDGE_BUILD_EXAMPLE)

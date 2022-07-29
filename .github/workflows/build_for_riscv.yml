@@ -91,7 +91,7 @@ jobs:
               -DCMAKE_FIND_ROOT_PATH_MODE_PROGRAM=NEVER \
               -DCMAKE_FIND_ROOT_PATH_MODE_LIBRARY=ONLY \
               -DCMAKE_FIND_ROOT_PATH_MODE_INCLUDE=ONLY \
-              -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ONLY \
+              -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ONLY
         cmake --build build
         cmake --build build --target package
     - name: Upload artifact (v2)

@@ -105,7 +105,7 @@ npm install
 npm run build
 ```
 
-Copy over the system's `modules` to the working directory for Node.js API support as [noted here](nodejs.md#note-to-developers).
+Copy over the system's `modules` to the working directory for Node.js API support as [noted here](nodejs.md).
 
 ```bash
 cp -r ../../modules .
@@ -114,7 +114,7 @@ cp -r ../../modules .
 To run the example, do the following on the CLI to start the server.
 
 ```bash
-nohup wasmedge --dir .:. ../../target/wasm32-wasi/release/wasmedge_quickjs.wasm dist/main.mjs &
+nohup wasmedge --dir .:. /path/to/wasmedge_quickjs.wasm dist/main.mjs &
 ```
 
 Send the server a HTTP request via `curl` or the browser.
@@ -235,7 +235,7 @@ cp -r ../../modules .
 To run the example, do the following on the CLI to start the server.
 
 ```bash
-nohup wasmedge --dir .:. ../../target/wasm32-wasi/release/wasmedge_quickjs.wasm dist/main.mjs &
+nohup wasmedge --dir .:. /path/to/wasmedge_quickjs.wasm dist/main.mjs &
 ```
 
 Send the server a HTTP request via `curl` or the browser.

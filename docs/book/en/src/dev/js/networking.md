@@ -1,6 +1,6 @@
 # HTTP and networking apps
 
-The QuickJS WasmEdge Runtime supports Node.js's `http` and `fetch` APIs via the WasmEdge [networking socket extension](https://github.com/second-state/wasmedge_wasi_socket). That enables WasmEdge developers to create HTTP server and client, as well as TCP/IP server and client, applications in JavaScript. 
+The QuickJS WasmEdge Runtime supports Node.js's `http` and `fetch` APIs via the WasmEdge [networking socket extension](https://github.com/second-state/wasmedge_wasi_socket). That enables WasmEdge developers to create HTTP server and client, as well as TCP/IP server and client, applications in JavaScript.
 
 The networking API in WasmEdge is non-blocking and hence supports asynchronous I/O intensive applications. With this API, the JavaScript program can open multiple connections concurrently. It polls those connections, or registers async callback functions, to process data whenever data comes in, without waiting for any one connection to complete its data transfer. That allows the single-threaded application to handle multiple multiple concurrent requests.
 
@@ -18,12 +18,12 @@ The [example_js/wasi_http_fetch.js](https://github.com/second-state/wasmedge-qui
 
 ```javascript
 async function test_fetch() {
-    try {
-        let r = await fetch('http://httpbin.org/get?id=1')
-        print('test_fetch\n', await r.text())
-    } catch (e) {
-        print(e)
-    }
+  try {
+    let r = await fetch('http://httpbin.org/get?id=1')
+    print('test_fetch\n', await r.text())
+  } catch (e) {
+    print(e)
+  }
 }
 test_fetch()
 ```
@@ -32,12 +32,12 @@ The code snippet below shows how to do an sync HTTP POST to a remote server.
 
 ```javascript
 async function test_fetch_post() {
-    try {
-        let r = await fetch("http://httpbin.org/post", { method: 'post', 'body': 'post_body' })
-        print('test_fetch_post\n', await r.text())
-    } catch (e) {
-        print(e)
-    }
+  try {
+    let r = await fetch("http://httpbin.org/post", { method: 'post', 'body': 'post_body' })
+    print('test_fetch_post\n', await r.text())
+  } catch (e) {
+    print(e)
+  }
 }
 test_fetch_post()
 ```
@@ -46,17 +46,17 @@ An async HTTP PUT request is as follows.
 
 ```javascript
 async function test_fetch_put() {
-    try {
-        let r = await fetch("http://httpbin.org/put",
-            {
-                method: "put",
-                body: JSON.stringify({ a: 1 }),
-                headers: { 'Context-type': 'application/json' }
-            })
-        print('test_fetch_put\n', await r.text())
-    } catch (e) {
-        print(e)
-    }
+  try {
+    let r = await fetch("http://httpbin.org/put",
+      {
+        method: "put",
+        body: JSON.stringify({ a: 1 }),
+        headers: { 'Context-type': 'application/json' }
+      })
+    print('test_fetch_put\n', await r.text())
+  } catch (e) {
+    print(e)
+  }
 }
 test_fetch_put()
 ```

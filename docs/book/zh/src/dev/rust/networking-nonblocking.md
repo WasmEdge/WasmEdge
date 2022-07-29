@@ -87,7 +87,6 @@ wasmedge target/wasm32-wasi/release/nonblock_http_client.wasm
 
 ## 非阻塞 HTTP 服务器示例
 
-
 非阻塞的 HTTP 服务器程序的 [源代码在这里](https://github.com/second-state/wasmedge_wasi_socket/tree/main/examples/poll_http_server)。下面的 `main()` 函数开启了一个 HTTP 服务器。它同时从多个开启的连接中接收事件，并通过调用注册在每个连接的异步处理函数来处理这些事件。服务器可以同时从多个开启的连接中处理事件。
 
 ```rust

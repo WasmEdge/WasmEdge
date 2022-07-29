@@ -64,7 +64,7 @@ test_fetch_put()
 To run this example, use the following WasmEdge CLI command.
 
 ```bash
-wasmedge --dir .:. wasmedge_quickjs.wasm example_js/wasi_http_fetch.js
+wasmedge --dir .:. /path/to/wasmedge_quickjs.wasm example_js/wasi_http_fetch.js
 ```
 
 You can see the HTTP responses printed to the console.
@@ -120,7 +120,7 @@ async function test_fetch() {
 To run this example, use the following WasmEdge CLI command.
 
 ```bash
-wasmedge --dir .:. wasmedge_quickjs.wasm example_js/wasi_http_echo.js
+wasmedge --dir .:. /path/to/wasmedge_quickjs.wasm example_js/wasi_http_echo.js
 ```
 
 ## TCP server
@@ -195,7 +195,7 @@ connect_test();
 To run this example, use the following WasmEdge CLI command.
 
 ```bash
-wasmedge --dir .:. wasmedge_quickjs.wasm example_js/wasi_net_echo.js
+wasmedge --dir .:. /path/to/wasmedge_quickjs.wasm example_js/wasi_net_echo.js
 ```
 
 With async HTTP networking, developers can create I/O intensive applications, such as database-driven microservices, in JavaScript and run them safely and efficiently in WasmEdge.

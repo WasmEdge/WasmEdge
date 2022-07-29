@@ -28,6 +28,7 @@ jobs:
           toolchain: nightly
           profile: minimal
           override: true
+          components: clippy
 
       - name: Build WasmEdge with Release mode
         run: |

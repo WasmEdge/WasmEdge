@@ -226,7 +226,7 @@ npm install
 npm run build
 ```
 
-Copy over the system's `modules` to the working directory for Node.js API support as [noted here](nodejs.md#note-to-developers).
+Copy over the system's `modules` to the working directory for Node.js API support as [noted here](nodejs.md).
 
 ```bash
 cp -r ../../modules .

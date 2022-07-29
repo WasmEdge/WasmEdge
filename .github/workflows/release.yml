@@ -516,3 +516,78 @@ jobs:
         asset_path: /github/home/rpmbuild/SRPMS/wasmedge-${{ env.srpm_version }}-1.fc37.src.rpm
         asset_name: wasmedge-${{ env.srpm_version }}-1.fc37.src.rpm
         asset_content_type: application/x-rpm
+
+  build_manylinux2014_runtime_only:
+    name: Build runtime only on manylinux2014 platform
+    needs: create_release
+    runs-on: ubuntu-latest
+    container:
+      image: wasmedge/wasmedge:manylinux2014_x86_64
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - name: Build runtime only manylinux2014 package
+        run: |
+          bash utils/docker/build-manylinux.sh -DWASMEDGE_BUILD_AOT_RUNTIME=OFF
+      - name: Upload ${{ matrix.name }} tar.gz package to artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: build_manylinux2014_runtime_only
+          path: build/WasmEdge-${{ needs.create_release.outputs.version }}-Linux.tar.gz
+
+  build_docker_slim_images:
+    strategy:
+      matrix:
+        include:
+          - name: release-${{ needs.create_release.outputs.version }}
+            artifact_name: WasmEdge-${{ needs.create_release.outputs.version }}-manylinux2014_x86_64.tar.gz
+            include_bin: "--include-bin /usr/local/bin/wasmedge --include-bin /usr/local/bin/wasmedgec"
+          - name: release-${{ needs.create_release.outputs.version }}-runtime
+            artifact_name: build_manylinux2014_runtime_only
+            include_bin: "--include-bin /usr/local/bin/wasmedge"
+    name: Build DockerSlim Images
+    needs: [create_release, build_on_manylinux2014, build_manylinux2014_runtime_only]
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+    - name: Prepare tarball
+      uses: actions/download-artifact@v3
+      with:
+        name: ${{ matrix.artifact_name }}
+        path: utils/docker
+    - name: Install requirements
+      run: |
+        curl -sL https://raw.githubusercontent.com/docker-slim/docker-slim/master/scripts/install-dockerslim.sh | sudo -E bash -
+    - name: Prepare docker env
+      id: docker_env
+      run: |
+        echo ::set-output name=docker_image::wasmedge/wasmedge:${{ matrix.name }}
+        echo ::set-output name=created::$(date -u +'%Y-%m-%dT%H:%M:%SZ')
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v1
+    - name: Login to DockerHub
+      uses: docker/login-action@v1
+      with:
+        username: ${{ secrets.DOCKER_USERNAME }}
+        password: ${{ secrets.DOCKER_ACCESS_TOKEN }}
+    - name: Run docker-slim
+      run: |
+        docker-slim build \
+          --dockerfile Dockerfile.release \
+          --dockerfile-context utils/docker \
+          --tag ${{ steps.docker_env.outputs.docker_image }} \
+          --http-probe-off \
+          ${{ matrix.include_bin }} \
+          --cbo-build-arg VERSION="${{ needs.create_release.outputs.version }}" \
+          --cbo-label org.opencontainers.image.title="${{ github.event.repository.name }}" \
+          --cbo-label org.opencontainers.image.description="${{ github.event.repository.description }}" \
+          --cbo-label org.opencontainers.image.url="${{ github.event.repository.html_url }}" \
+          --cbo-label org.opencontainers.image.source="${{ github.event.repository.clone_url }}" \
+          --cbo-label org.opencontainers.image.version="${{ needs.create_release.outputs.version }}" \
+          --cbo-label org.opencontainers.image.created="${{ steps.docker_env.outputs.created }}" \
+          --cbo-label org.opencontainers.image.revision="${{ github.sha }}" \
+          --cbo-label org.opencontainers.image.licenses="${{ github.event.repository.license.spdx_id }}"
+    - name: Push to DockerHub
+      run: |
+        docker push ${{ steps.docker_env.outputs.docker_image }}

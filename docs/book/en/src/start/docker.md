@@ -83,6 +83,7 @@ docker image push wasmedge/appdev_aarch64:0.9.0
 
 The `wasmedge/wasmedge:release-{version}` Docker images provide a slim WasmEdge images built with [DockerSlim](https://dockersl.im) every releases.
 
+- Image `wasmedge/wasmedge:release-{version}-runtime` includes only WasmEdge runtime with `wasmedge` command.
 - Image `wasmedge/wasmedge:release-{version}` includes the following command line utilities:
   - `wasmedge`
   - `wasmedgec`

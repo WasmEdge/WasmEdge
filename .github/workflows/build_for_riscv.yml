@@ -82,6 +82,7 @@ jobs:
       run: |
         export PATH="$PATH:/opt/riscv64/bin"
         riscv64-unknown-linux-gnu-gcc -v
+        sudo apt-get install -y ninja-build
         cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_BUILD_PACKAGE="TGZ" \
               -DWASMEDGE_BUILD_AOT_RUNTIME=OFF -DCMAKE_CROSSCOMPILING=TRUE \
               -DCMAKE_SYSTEM_NAME=Linux -DCMAKE_SYSROOT="/opt/riscv64/sysroot" \

@@ -43,9 +43,9 @@ jobs:
         shell: bash
         run: |
           cd ./bindings/rust/wasmedge-sys
-          export WASMEDGE_DIR="$(pwd)/../../"
-          export WASMEDGE_BUILD_DIR="$(pwd)/../../build"
-          export WASMEDGE_PLUGIN_PATH="$(pwd)/../../build/plugins/wasmedge_process"
+          export WASMEDGE_DIR="$(pwd)/../../../"
+          export WASMEDGE_BUILD_DIR="$(WASMEDGE_DIR)/build"
+          export WASMEDGE_PLUGIN_PATH="$(WASMEDGE_DIR)/build/plugins/wasmedge_process"
           git config --global user.email "runner@gha.local"
           git config --global user.name "Github Action"
           cargo publish --dry-run
@@ -58,9 +58,9 @@ jobs:
         shell: bash
         run: |
           cd ./bindings/rust/wasmedge-sys
-          export WASMEDGE_DIR="$(pwd)/../../"
-          export WASMEDGE_BUILD_DIR="$(pwd)/../../build"
-          export WASMEDGE_PLUGIN_PATH="$(pwd)/../../build/plugins/wasmedge_process"
+          export WASMEDGE_DIR="$(pwd)/../../../"
+          export WASMEDGE_BUILD_DIR="$(WASMEDGE_DIR)/build"
+          export WASMEDGE_PLUGIN_PATH="$(WASMEDGE_DIR)/build/plugins/wasmedge_process"
           git config --global user.email "runner@gha.local"
           git config --global user.name "Github Action"
           cargo publish --dry-run

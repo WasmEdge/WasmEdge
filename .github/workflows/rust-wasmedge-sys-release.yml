@@ -48,8 +48,8 @@ jobs:
           export WASMEDGE_PLUGIN_PATH="$(pwd)/../../build/plugins/wasmedge_process"
           git config --global user.email "runner@gha.local"
           git config --global user.name "Github Action"
-          cargo publish --dry-run
-          cargo publish
+          cargo publish -p wasmedge-sys --dry-run
+          cargo publish -p wasmedge-sys
 
       - name: Dry run wasmedge-sys crate
         if: github.ref_type == 'branch'
@@ -63,5 +63,4 @@ jobs:
           export WASMEDGE_PLUGIN_PATH="$(pwd)/../../build/plugins/wasmedge_process"
           git config --global user.email "runner@gha.local"
           git config --global user.name "Github Action"
-          cargo publish --dry-run
-          cargo publish
+          cargo publish -p wasmedge-sys --dry-run

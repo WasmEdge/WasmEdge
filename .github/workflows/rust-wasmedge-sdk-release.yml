@@ -11,7 +11,6 @@ on:
 
 jobs:
   build-release-publish:
-    if: github.ref_type == 'tag'
     runs-on: ubuntu-latest
     container:
       image: wasmedge/wasmedge:ubuntu-build-clang
@@ -32,6 +31,7 @@ jobs:
           cmake --build build --target install
 
       - name: Publish wasmedge-sdk crate
+        if: github.ref_type == 'tag'
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
         shell: bash
@@ -42,28 +42,8 @@ jobs:
           cargo publish --dry-run
           cargo publish
 
-  build-release-test:
-    if: github.ref_type == "branch"
-    runs-on: ubuntu-latest
-    container:
-      image: wasmedge/wasmedge:ubuntu-build-clang
-
-    steps:
-      - uses: actions/checkout@v2
-        with:
-          fetch-depth: 0
-
-      - name: Install Nightly Rust
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: nightly
-
-      - name: Build WasmEdge using clang
-        run: |
-          cmake -Bbuild -GNinja -DWASMEDGE_BUILD_SHARED_LIB=ON  -DCMAKE_INSTALL_PREFIX:PATH=/usr .
-          cmake --build build --target install
-
-      - name: Publish wasmedge-sdk crate
+      - name: Dry run wasmedge-sdk crate
+        if: github.ref_type == 'branch'
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
         shell: bash

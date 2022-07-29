@@ -1,6 +1,6 @@
 # 服务器端渲染
 
-前端框架让开发者可以使用高级语言和组件模型来创建 Web 应用程序。Web 应用程序需要被构建成静态网页，才能在浏览器中渲染。尽管很多前端框架是基于 JavaScript 的，比如 React 和 Vue，但是随着 Rust 吸引了更多的开发者，基于 Rust 的框架也在不断涌现。这些前端框架使用由 Rust 编译而成的 WebAssembly 来渲染 HTML DOM UI。他们使用 [wasm-bindgen](https://github.com/rustwasm/wasm-bindgen) 来绑定 Rust 与 HTML DOM。这些框架都把 `.wasm` 文件发送到浏览器，在客户端渲染 UI，但其中的一些框架提供了对[服务端渲染](https://en.wikipedia.org/wiki/Server-side_scripting)的支持。这意味着我们在服务器上运行 WebAssembly 代码，并构建 HTML DOM UI，然后将 HTML 内容发送到浏览器，以此在较慢的设备和网络环境下获得更好的性能以及更快的启动速度。    
+前端框架让开发者可以使用高级语言和组件模型来创建 Web 应用程序。Web 应用程序需要被构建成静态网页，才能在浏览器中渲染。尽管很多前端框架是基于 JavaScript 的，比如 React 和 Vue，但是随着 Rust 吸引了更多的开发者，基于 Rust 的框架也在不断涌现。这些前端框架使用由 Rust 编译而成的 WebAssembly 来渲染 HTML DOM UI。他们使用 [wasm-bindgen](https://github.com/rustwasm/wasm-bindgen) 来绑定 Rust 与 HTML DOM。这些框架都把 `.wasm` 文件发送到浏览器，在客户端渲染 UI，但其中的一些框架提供了对[服务端渲染](https://en.wikipedia.org/wiki/Server-side_scripting)的支持。这意味着我们在服务器上运行 WebAssembly 代码，并构建 HTML DOM UI，然后将 HTML 内容发送到浏览器，以此在较慢的设备和网络环境下获得更好的性能以及更快的启动速度。
 
 > 如果你对 JavaScript 技术栈以及服务端渲染框架感兴趣，比如 React，请查看我们关于 [JavaScript 服务端渲染的章节](../js/ssr.md)。
 

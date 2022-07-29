@@ -90,7 +90,7 @@ cd ../../
 Run the result JS file in WasmEdge CLI as follows.
 
 ```bash
-$ wasmedge --dir .:. target/wasm32-wasi/release/wasmedge_quickjs.wasm example_js/simple_common_js_demo/dist/npm_main.mjs
+$ wasmedge --dir .:. /path/to/wasmedge_quickjs.wasm example_js/simple_common_js_demo/dist/npm_main.mjs
 md5(message)= 78e731027d8fd50ed642340b7c9a63b3
 sqrt(-4)= 2i
 ```

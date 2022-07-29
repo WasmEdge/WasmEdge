@@ -42,10 +42,8 @@ f();
 To run the example, you can do the following on the CLI.
 
 ```javascript
-$ wasmedge --dir .:. target/wasm32-wasi/release/wasmedge_quickjs.wasm example_js/es6_module_demo/demo.js
+$ wasmedge --dir .:. /path/to/wasmedge_quickjs.wasm example_js/es6_module_demo/demo.js
 hello from module_def.js
 hello from module_def_async.js
 ./module_def_async.js `something` is  async thing
 ```
-
-> Note: the `--dir .:.` on the command line is to give wasmedge permission to read the local directory in the file system for the `demo.js` file.

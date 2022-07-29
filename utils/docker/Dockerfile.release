@@ -1,10 +1,12 @@
 FROM ubuntu:20.04
 ARG VERSION
-ENV DEBIAN_FRONTEND=noninteractive
 
-RUN apt update && \
-    apt install -y curl git && \
-    curl -sSf https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh | bash -s -- -p /usr/local -e all -v $VERSION
+ADD WasmEdge-$VERSION-Linux.tar.gz /tmp/
+RUN cp -rf /tmp/WasmEdge-$VERSION-Linux/bin/* /usr/local/bin && \
+    cp -rf /tmp/WasmEdge-$VERSION-Linux/lib64/* /usr/local/lib && \
+    cp -rf /tmp/WasmEdge-$VERSION-Linux/include/* /usr/local/include && \
+    ldconfig /usr/local/lib
+RUN rm -rf /tmp/WasmEdge-$VERSION-Linux
 
 WORKDIR /app
 CMD ["/usr/local/bin/wasmedge"]

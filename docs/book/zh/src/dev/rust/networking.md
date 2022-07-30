@@ -2,7 +2,7 @@
 
 [wasmedge_wasi_socket](https://github.com/second-state/wasmedge_wasi_socket) 让 Rust 开发者可以创建简单的网络通信应用程序，然后将它编译为在 WasmEdge Runtime 中运行的 WebAssembly。WasmEdge 的一项关键特性便是对非阻塞套接字的支持，可以让一个单线程的 WASM 应用程序处理并发的网络请求。比如，当程序在等待一个连接传输的数据时，它可以开始或处理另一个连接。
 
-在本章节中，我们将从一个简单的 HTTP 客户端以及服务器示例开始。然后在下个章节中，我们会介绍更为复杂的非阻塞示例。也会介绍对于HTTPS请求的支持。
+在本章节中，我们将从一个简单的 HTTP 客户端以及服务器示例开始。然后在下个章节中，我们会介绍更为复杂的非阻塞示例。也会介绍对于 HTTPS 请求的支持。
 
 ## HTTP 客户端示例
 

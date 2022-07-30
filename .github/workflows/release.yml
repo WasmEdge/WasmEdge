@@ -56,39 +56,14 @@ jobs:
     secrets: inherit
 
   build_on_macos:
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - name: macos x86_64
-            os: darwin
-    name: Build and upload WasmEdge on ${{ matrix.name }} platform
     needs: create_release
-    runs-on: macos-11
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v2
-      - name: Build package
-        run: |
-          brew install llvm ninja boost cmake
-          export PATH="/usr/local/opt/llvm/bin:$PATH"
-          export LDFLAGS="-L/usr/local/opt/llvm/lib -Wl,-rpath,/usr/local/opt/llvm/lib"
-          export CPPFLAGS="-I/usr/local/opt/llvm/include"
-          export CC=clang
-          export CXX=clang++
-          rm -rf build
-          cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_LINK_TOOLS_STATIC=ON -DWASMEDGE_BUILD_PACKAGE="TGZ" .
-          cmake --build build
-          cmake --build build --target package
-      - name: Upload tar.gz package
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ needs.create_release.outputs.upload_url }}
-          asset_path: build/WasmEdge-${{ needs.create_release.outputs.version }}-Darwin.tar.gz
-          asset_name: WasmEdge-${{ needs.create_release.outputs.version }}-${{ matrix.os }}_x86_64.tar.gz
-          asset_content_type: application/x-gzip
+    uses: ./.github/workflows/reusable-build-on-macos.yml
+    with:
+      version: ${{ needs.create_release.outputs.version }}
+      matrix: "[{'name':'MacOS 11 (x86_64)','runner':'macos-11','darwin_version':20}]"
+      release: true
+      upload_asset_url: ${{ needs.create_release.outputs.upload_url }}
+    secrets: inherit
 
   build_on_manylinux_legacy:
     strategy:

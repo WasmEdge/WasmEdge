@@ -84,6 +84,13 @@ jobs:
     with:
       version: ${{ needs.get_version_v2.outputs.version }}
 
+  build_on_macos:
+    needs: [get_version_v2, lint]
+    uses: ./.github/workflows/reusable-build-on-macos.yml
+    with:
+      version: ${{ needs.get_version_v2.outputs.version }}
+      matrix: "[{'name':'MacOS 11 (x86_64)','runner':'macos-11','darwin_version':20},{'name':'MacOS 12 (x86_64)','runner':'macos-12','darwin_version':21}]"
+
   build_fedora:
     name: Fedora 35
     needs: get_version_v2
@@ -282,64 +289,6 @@ jobs:
       with:
         name: WasmEdge-${{ needs.get_version_v2.outputs.version }}-${{ matrix.docker_tag }}.tar.gz
         path: build/WasmEdge-${{ needs.get_version_v2.outputs.version }}-Linux.tar.gz
-
-  build_macos:
-    strategy:
-      matrix:
-        include:
-          - name: MacOS 11
-            host_runner: macos-11
-            darwin_version: darwin_20
-          - name: MacOS 12
-            host_runner: macos-12
-            darwin_version: darwin_21
-    name: ${{ matrix.name }}
-    runs-on: ${{ matrix.host_runner }}
-    needs: get_version_v2
-    steps:
-    - uses: actions/checkout@v2
-      with:
-        fetch-depth: 0
-    - name: Build WasmEdge
-      run: |
-        brew install llvm ninja boost cmake
-        export PATH="/usr/local/opt/llvm/bin:$PATH"
-        export LDFLAGS="-L/usr/local/opt/llvm/lib -Wl,-rpath,/usr/local/opt/llvm/lib"
-        export CPPFLAGS="-I/usr/local/opt/llvm/include"
-        export CC=clang
-        export CXX=clang++
-        cmake -Bbuild -GNinja -DWASMEDGE_BUILD_TESTS=ON -DWASMEDGE_LINK_TOOLS_STATIC=ON -DWASMEDGE_BUILD_PACKAGE="TGZ" .
-        cmake --build build
-    - name: Test WasmEdge
-      continue-on-error: true
-      run: |
-        export DYLD_LIBRARY_PATH="$(pwd)/build/lib/api:$DYLD_LIBRARY_PATH"
-        cd build
-        ./tools/wasmedge/wasmedge -v
-        ctest
-        cd -
-    - name: Test WasmEdge Package
-      run: |
-        cmake --build build --target package
-    - name: Test Standalone WasmEdge without LLVM
-      run: |
-        brew uninstall llvm
-        export DYLD_LIBRARY_PATH="$(pwd)/build/lib/api:$DYLD_LIBRARY_PATH"
-        echo "otool -L ./build/tools/wasmedge/wasmedge:"
-        otool -L ./build/tools/wasmedge/wasmedge
-        echo "otool -L ./build/tools/wasmedge/wasmedgec:"
-        otool -L ./build/tools/wasmedge/wasmedgec
-        echo "otool -L ./build/lib/api/libwasmedge_c.dylib:"
-        otool -L ./build/lib/api/libwasmedge_c.dylib
-        echo "./build/tools/wasmedge/wasmedgec examples/wasm/fibonacci.wasm fib.dylib"
-        ./build/tools/wasmedge/wasmedgec examples/wasm/fibonacci.wasm fib.dylib
-        echo "./build/tools/wasmedge/wasmedge --reactor fib.dylib fib 20"
-        ./build/tools/wasmedge/wasmedge --reactor fib.dylib fib 20
-    - name: Upload artifact
-      uses: actions/upload-artifact@v2
-      with:
-        name: WasmEdge-${{ needs.get_version_v2.outputs.version }}-${{ matrix.darwin_version }}_x86_64.tar.gz
-        path: build/WasmEdge-${{ needs.get_version_v2.outputs.version }}-Darwin.tar.gz
 
   build_windows:
     name: Windows Server 2022

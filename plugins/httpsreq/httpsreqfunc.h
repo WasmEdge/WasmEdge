@@ -19,5 +19,17 @@ public:
                     uint32_t BodyLen);
 };
 
+class HttpsReqGetRcv : public HttpsReq<HttpsReqGetRcv> {
+public:
+  HttpsReqGetRcv(HttpsReqEnvironment &HostEnv) : HttpsReq(HostEnv) {}
+  Expect<void> body(Runtime::Instance::MemoryInstance *, uint32_t BufPtr);
+};
+
+class HttpsReqGetRcvLen : public HttpsReq<HttpsReqGetRcvLen> {
+public:
+  HttpsReqGetRcvLen(HttpsReqEnvironment &HostEnv) : HttpsReq(HostEnv) {}
+  Expect<uint32_t> body(Runtime::Instance::MemoryInstance *);
+};
+
 } // namespace Host
 } // namespace WasmEdge

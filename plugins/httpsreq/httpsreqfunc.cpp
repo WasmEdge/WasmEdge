@@ -98,20 +98,19 @@ Expect<void> SendData::body(Runtime::Instance::MemoryInstance *MemInst,
     exit(EXIT_FAILURE);
   }
 
-  printf("Connected with %s encryption\n", SSL_get_cipher(Ssl));
-
   SSL_write(Ssl, BodyStr, strlen(Env.BodyStr.c_str()));
 
   // Receive
-  char Buffer[2048];
+  char Buffer[1024];
   int Nbytes = 0;
+  Env.Rcv = "";
   while (true) {
-    Nbytes = SSL_read(Ssl, Buffer, 2048);
+    Nbytes = SSL_read(Ssl, Buffer, 1024);
     if (Nbytes <= 0) {
       break;
     }
-    printf("SSL_Read,byte=%d\n", Nbytes);
-    printf("rcv:%s\n", Buffer);
+    std::string Buf(Buffer, Nbytes);
+    Env.Rcv = Env.Rcv + Buf;
   }
 
   SSL_free(Ssl);
@@ -119,6 +118,20 @@ Expect<void> SendData::body(Runtime::Instance::MemoryInstance *MemInst,
   SSL_CTX_free(Ctx);
 
   return {};
+}
+
+Expect<void> HttpsReqGetRcv::body(Runtime::Instance::MemoryInstance *MemInst,
+                                  uint32_t BufPtr) {
+  if (MemInst == nullptr) {
+    return Unexpect(ErrCode::ExecutionFailed);
+  }
+  char *Buf = MemInst->getPointer<char *>(BufPtr);
+  std::copy_n(Env.Rcv.begin(), Env.Rcv.size(), Buf);
+  return {};
+}
+
+Expect<uint32_t> HttpsReqGetRcvLen::body(Runtime::Instance::MemoryInstance *) {
+  return static_cast<uint32_t>(Env.Rcv.size());
 }
 
 } // namespace Host

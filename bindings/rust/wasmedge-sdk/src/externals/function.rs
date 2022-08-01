@@ -344,6 +344,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::assertions_on_result_states)]
     fn test_func_basic() {
         // create an ImportModule
         let result = ImportObjectBuilder::new()

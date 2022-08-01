@@ -79,6 +79,7 @@ mod tests {
     };
 
     #[test]
+    #[allow(clippy::assertions_on_result_states)]
     fn test_validator() {
         // create a Validator context without configuration
         let result = Validator::create(None);
@@ -112,6 +113,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::assertions_on_result_states)]
     fn test_validator_send() {
         // create a Validator
         let result = Validator::create(None);
@@ -140,6 +142,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::assertions_on_result_states)]
     fn test_validator_sync() {
         // create a Validator
         let result = Validator::create(None);

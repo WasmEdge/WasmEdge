@@ -190,6 +190,7 @@ mod tests {
     use wasmedge_types::{Mutability, ValType};
 
     #[test]
+    #[allow(clippy::assertions_on_result_states)]
     fn test_global_type() {
         // create a GlobalType instance
         let result = GlobalType::create(ValType::I32, Mutability::Const);
@@ -205,6 +206,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::assertions_on_result_states)]
     fn test_global_const_i32() {
         // create a GlobalType instance
         let result = GlobalType::create(ValType::I32, Mutability::Const);
@@ -233,6 +235,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::assertions_on_result_states)]
     fn test_global_var_f32() {
         // create a GlobalType instance
         let result = GlobalType::create(ValType::F32, Mutability::Var);
@@ -262,6 +265,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::assertions_on_result_states)]
     fn test_global_conflict() {
         {
             // create a GlobalType instance

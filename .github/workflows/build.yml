@@ -38,7 +38,13 @@ on:
       - "cmake/**"
 
 jobs:
+  # TODO: Refactor `lint` with `on.workflow_run`
+  # https://docs.github.com/en/actions/using-workflows/triggering-a-workflow
+  lint:
+    uses: ./.github/workflows/reusable-call-linter.yml
+
   get_version_v1:
+    needs: lint
     name: Retrieve version information (v1)
     runs-on: ubuntu-latest
     outputs:
@@ -55,6 +61,7 @@ jobs:
         echo "Set version: $(git describe --match "[0-9].[0-9]*" --tag)"
         echo ::set-output name=version::$(git describe --match "[0-9].[0-9]*" --tag)
   get_version_v2:
+    needs: lint
     name: Retrieve version information (v2)
     runs-on: ubuntu-latest
     outputs:
@@ -178,6 +185,7 @@ jobs:
         path: /github/home/rpmbuild/SRPMS/wasmedge-${{ env.srpm_version }}-1.fc37.src.rpm
 
   build_ubuntu:
+    needs: lint
     strategy:
       matrix:
         include:
@@ -303,9 +311,6 @@ jobs:
     strategy:
       matrix:
         include:
-          - name: MacOS 10.15
-            host_runner: macos-10.15
-            darwin_version: darwin_19
           - name: MacOS 11
             host_runner: macos-11
             darwin_version: darwin_20

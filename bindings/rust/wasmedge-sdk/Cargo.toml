@@ -8,7 +8,7 @@ license = "Apache-2.0"
 name = "wasmedge-sdk"
 readme = "README.md"
 repository = "https://github.com/WasmEdge/WasmEdge/bindings/rust/wasmedge-sdk"
-version = "0.2.0"
+version = "0.3.0"
 
 [dependencies]
 anyhow = "1.0"

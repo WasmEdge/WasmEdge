@@ -18,6 +18,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 #[cfg(target_os = "linux")]
+#[allow(clippy::assertions_on_result_states)]
 fn vm_apis() -> Result<(), Box<dyn std::error::Error>> {
     // load wasmedge_process plugins
     utils::load_plugin_from_default_paths();
@@ -163,6 +164,7 @@ fn vm_apis() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 #[cfg(target_os = "linux")]
+#[allow(clippy::assertions_on_result_states)]
 fn executor_apis() -> Result<(), Box<dyn std::error::Error>> {
     // create an Executor context
     let mut executor = Executor::create(None, None)?;

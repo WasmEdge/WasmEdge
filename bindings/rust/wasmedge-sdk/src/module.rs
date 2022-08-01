@@ -178,6 +178,7 @@ mod tests {
     use wasmedge_types::error::{CoreError, CoreLoadError, WasmEdgeError};
 
     #[test]
+    #[allow(clippy::assertions_on_result_states)]
     fn test_module_from_file() {
         // load wasm module from a specified wasm file
         let file = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
@@ -196,6 +197,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::assertions_on_result_states)]
     fn test_module_from_bytes() {
         let file = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
             .join("bindings/rust/wasmedge-sys/tests/data/fibonacci.wasm");

@@ -16,7 +16,7 @@
 //!
 //! | wasmedge-sdk  | WasmEdge lib  | wasmedge-sys  | wasmedge-types|
 //! | :-----------: | :-----------: | :-----------: | :-----------: |
-//! | 0.2.0         | 0.10.1        | 0.8           | 0.2           |
+//! | 0.3.0         | 0.10.1        | 0.8           | 0.2           |
 //! | 0.1.0         | 0.10.0        | 0.7           | 0.1           |
 //!
 //! ## Build
@@ -56,6 +56,14 @@
 //!
 //!    5 directories, 13 files
 //!    ```
+//!
+//! ### Enable WasmEdge Plugins
+//!
+//! If you'd like to enable WasmEdge Plugins (currently, only available on Linux platform), please use `WASMEDGE_PLUGIN_PATH` environment variable to specify the path to the directory containing the plugins. For example, use the following commands to specify the path on Ubuntu 20.04:
+//!
+//! ```bash
+//! export WASMEDGE_PLUGIN_PATH=$HOME/.wasmedge/lib/wasmedge
+//! ```
 //!
 //! ## Example
 //!

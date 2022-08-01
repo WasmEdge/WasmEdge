@@ -260,6 +260,7 @@ mod tests {
     use wasmedge_types::{Mutability, RefType, ValType};
 
     #[test]
+    #[allow(clippy::assertions_on_result_states)]
     fn test_executor_create() {
         {
             // create an Executor context without configuration and statistics
@@ -309,6 +310,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::assertions_on_result_states)]
     fn test_executor_register_import() {
         // create an Executor
         let result = Executor::create(None, None);
@@ -398,6 +400,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::assertions_on_result_states)]
     fn test_executor_send() {
         // create an Executor context with the given configuration and statistics.
         let result = Config::create();
@@ -422,6 +425,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::assertions_on_result_states)]
     fn test_executor_sync() {
         // create an Executor context with the given configuration and statistics.
         let result = Config::create();

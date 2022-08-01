@@ -57,6 +57,14 @@
 //!    5 directories, 13 files
 //!    ```
 //!
+//! ### Enable WasmEdge Plugins
+//!
+//! If you'd like to enable WasmEdge Plugins (currently, only available on Linux platform), please use `WASMEDGE_PLUGIN_PATH` environment variable to specify the path to the directory containing the plugins. For example, use the following commands to specify the path on Ubuntu 20.04:
+//!
+//! ```bash
+//! export WASMEDGE_PLUGIN_PATH=$HOME/.wasmedge/lib/wasmedge
+//! ```
+//!
 //! ## Example
 //!
 //! The following code presents how to use the APIs in `wasmedge-sys` to run a WebAssembly module written with its WAT format (textual format):

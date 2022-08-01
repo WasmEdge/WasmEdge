@@ -10,6 +10,7 @@
   - [Versioning Table](#versioning-table)
   - [Build](#build)
   - [`wasmedge-sys` crate](#wasmedge-sys-crate)
+  - [Enable WasmEdge Plugins](#enable-wasmedge-plugins)
   - [Docker image](#docker-image)
     - [Windows Users](#windows-users)
   - [Examples](#examples)
@@ -130,16 +131,20 @@ wasmedge-sdk = "0.1"
 
 ## `wasmedge-sys` crate
 
-`wasmedge-sys` serves as a wraper layer of `WasmEdge` C-API, and provides a group of safe low-level Rust interfaces. For those who are interested in using `wasmedge-sys` in their projects, you should also deploy the `WasmEdge` library on your local system as described in the [wasmedge-sdk crate](#wasmedge-sdk-crate) section. Then, copy/paste the following code in the `Cargo.toml` file of your project.
+`wasmedge-sys` serves as a wraper layer of `WasmEdge` C-API, and provides a group of safe low-level Rust interfaces. For those who are interested in using `wasmedge-sys` in their projects, you should also deploy the `WasmEdge` library on your local system as described in the [wasmedge-sdk crate](#wasmedge-sdk-crate) section. Then, copy/paste the following code in the `Cargo.toml` file of your project. For details, please reference [README](https://github.com/WasmEdge/WasmEdge/blob/master/bindings/rust/wasmedge-sys/README.md).
 
 ```toml
 [dependencies]
 wasmedge-sys = "0.7"
 ```
 
-*For Windows users, duo to [issue 1527](https://github.com/WasmEdge/WasmEdge/issues/1527), the current version of `wasmedge-sys` does not support `standalone` mode on Windows platform. Please choose to use our [docker image](#docker-image). We'll fix the issue as soon as possible.*
+## Enable WasmEdge Plugins
 
-For those who want to build `wasmedge-sys` from source in terminal, just go to the `wasmedge-sys` directory and type `cargo build --features standalone` command that will compile the `wasmedge-sys` crate in `standalone` mode.
+If you'd like to enable WasmEdge Plugins (currently, only available on Linux platform), please use `WASMEDGE_PLUGIN_PATH` environment variable to specify the path to the directory containing the plugins. For example, use the following commands to specify the path on Ubuntu 20.04:
+
+```bash
+export WASMEDGE_PLUGIN_PATH=$HOME/.wasmedge/lib/wasmedge
+```
 
 ## Docker image
 

@@ -1,16 +1,30 @@
-### 0.10.1-alpha.2 (2022-07-04)
+### 0.10.1 (2022-07-28)
 
 Features:
 
 * Supported WASI-NN plug-in with OpenVINO backend on Ubuntu 20.04 x86_64.
   * Users can refer to the [standard extension status](https://wasmedge.org/book/en/intro/standard.html) for the information.
-  * For building with enabling WASI-NN with OpenVINO backend, please add the `-DWASMEDGE_WASINN_BACKEND="OpenVINO"` in `cmake`.
+  * For building with enabling WASI-NN with OpenVINO backend, please add the `-DWASMEDGE_PLUGIN_WASI_NN_BACKEND="OpenVINO"` in `cmake`.
+* Supported WASI-crypto plug-in on Ubuntu 20.04 x86_64, manylinux2014 x86_64, and manylinux2014 aarch64.
+  * Users can refer to the [standard extension status](https://wasmedge.org/book/en/intro/standard.html) for the information.
+  * For building with enabling WASI-crypto with OpenSSL 1.1, please add the `-DWASMEDGE_PLUGIN_WASI_CRYPTO=ON` in `cmake`.
+* Added the static tool building option.
+  * By default, WasmEdge tools will depend on the WasmEdge shared library.
+  * Developers can add the `-DWASMEDGE_BUILD_STATIC_LIB=On` and `-DWASMEDGE_BUILD_STATIC_TOOLS=On` to build the stand-alone WasmEdge CLI tools.
+* Exported the components of `WasmEdge_VMContext` in WasmEdge C API.
+  * Added the `WasmEdge_VMGetLoaderContext` API for retrieving the `WasmEdge_LoaderContext` in VM.
+  * Added the `WasmEdge_VMGetValidatorContext` API for retrieving the `WasmEdge_ValidatorContext` in VM.
+  * Added the `WasmEdge_VMGetExecutorContext` API for retrieving the `WasmEdge_ExecutorContext` in VM.
+* Added the API for CLI tools.
+  * Developers can use the `WasmEdge_Driver_Compiler` API to trigger the WasmEdge AOT compiler tool.
+  * Developers can use the `WasmEdge_Driver_Tool` API to trigger the WasmEdge runtime tool.
 * Supported the WASM `threads` proposal.
   * Added the `WasmEdge_Proposal_Threads` for the configuration in WasmEdge C API.
   * Users can use the `--enable-threads` to enable the proposal in `wasmedge` and `wasmedgec` tools.
 * Supported LLVM 14 on MacOS.
   * Used the new `macho` in lld on LLVM-14 envronment.
   * Bumpped IWYU to 0.18 to be compatible with LLVM 14 on MacOS.
+* Bumpped the MacOS x86_64 build to MacOS 11.
 
 Fixed issues:
 
@@ -19,6 +33,11 @@ Fixed issues:
 * Fixed the WasmEdge C API static library on MacOS with LLVM 14.
   * The WasmEdge C API static library is in experimental and not guaranteed. The shared library is recommended.
 * Reduced the branch miss when instantiating AOT-compiled WASM.
+
+Refactor:
+
+* Moved the code of WasmEdge CLI tools into `WasmEdge::Driver`.
+* Moved the plugin tests into the `test/plugins` folder.
 
 Known issues:
 
@@ -39,7 +58,7 @@ Tests:
 
 Thank all the contributors that made this release possible!
 
-Abhinandan Udupa, Frank Lin, Jianbai Ye, Kevin O'Neal, LFsWang, Lokesh Mandvekar, Michael Yuan, Shen-Ta Hsieh, Shreyas Atre, Sylveon, Tricster, William Wen, 罗泽轩, Xin Liu, Yi Huang, Yi-Ying He, Yixing Jia, abhinandanudupa, alabulei1, dm4, eat4toast, eee4017, hydai, swartz-k, yale
+Abhinandan Udupa, Chris Ho, Faidon Liambotis, Frank Lin, Jianbai Ye, Kevin O'Neal, LFsWang, Lokesh Mandvekar, Michael Yuan, O3Ol, RichardAH, Shen-Ta Hsieh, Shreyas Atre, Sylveon, Tricster, William Wen, 罗泽轩, Xin Liu, Yi Huang, Yi-Ying He, Yixing Jia, Yukang, abhinandanudupa, alabulei1, dm4, eat4toast, eee4017, hydai, sonder-joker, spacewander, swartz-k, yale
 
 If you want to build from source, please use WasmEdge-0.10.1-alpha.2-src.tar.gz instead of the zip or tarball provided by GitHub directly.
 

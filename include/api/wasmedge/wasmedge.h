@@ -1653,17 +1653,6 @@ WASMEDGE_CAPI_EXPORT extern void WasmEdge_ModuleInstanceInitWASI(
     const uint32_t ArgLen, const char *const *Envs, const uint32_t EnvLen,
     const char *const *Preopens, const uint32_t PreopenLen);
 
-/// Creation of the WasmEdge_ModuleInstanceContext for the wasi_nn
-/// specification.
-///
-/// This function will create a wasi_nn host module that contains the wasi_nn
-/// host functions and initialize it. The caller owns the object and should call
-/// `WasmEdge_ModuleInstanceDelete` to destroy it.
-///
-/// \returns pointer to context, NULL if failed.
-WASMEDGE_CAPI_EXPORT extern WasmEdge_ModuleInstanceContext *
-WasmEdge_ModuleInstanceCreateWasiNN(void);
-
 /// Get the WASI exit code.
 ///
 /// This function will return the exit code after running the "_start" function
@@ -1675,6 +1664,85 @@ WasmEdge_ModuleInstanceCreateWasiNN(void);
 /// `EXIT_FAILURE` if the `Cxt` is NULL or not a WASI host module.
 WASMEDGE_CAPI_EXPORT extern uint32_t WasmEdge_ModuleInstanceWASIGetExitCode(
     const WasmEdge_ModuleInstanceContext *Cxt);
+
+/// Creation of the WasmEdge_ModuleInstanceContext for the wasi_nn
+/// specification.
+///
+/// This function will create a wasi_nn host module that contains the wasi_nn
+/// host functions and initialize it. If the wasi_nn plugin not found, this
+/// function will return NULL. The returned wasi_nn host functions will use the
+/// beckends depend on the plugin shared library. The caller owns the object and
+/// should call `WasmEdge_ModuleInstanceDelete` to destroy it.
+///
+/// \returns pointer to context, NULL if failed.
+WASMEDGE_CAPI_EXPORT extern WasmEdge_ModuleInstanceContext *
+WasmEdge_ModuleInstanceCreateWasiNN(void);
+
+/// Creation of the WasmEdge_ModuleInstanceContext for the wasi_crypto common
+/// specification.
+///
+/// This function will create a wasi_crypto common host module which module name
+/// is `wasi_ephemeral_crypto_common` that contains the wasi_crypto common host
+/// functions and initialize it. If the wasi_crypto plugin not found, this
+/// function will return NULL. The caller owns the object and should call
+/// `WasmEdge_ModuleInstanceDelete` to destroy it.
+///
+/// \returns pointer to context, NULL if failed.
+WASMEDGE_CAPI_EXPORT extern WasmEdge_ModuleInstanceContext *
+WasmEdge_ModuleInstanceCreateWasiCryptoCommon(void);
+
+/// Creation of the WasmEdge_ModuleInstanceContext for the wasi_crypto
+/// asymmetric_common specification.
+///
+/// This function will create a wasi_crypto asymmetric_common host module which
+/// module name is `wasi_ephemeral_crypto_asymmetric_common` that contains the
+/// wasi_crypto asymmetric_common host functions and initialize it. If the
+/// wasi_crypto plugin not found, this function will return NULL. The caller
+/// owns the object and should call `WasmEdge_ModuleInstanceDelete` to destroy
+/// it.
+///
+/// \returns pointer to context, NULL if failed.
+WASMEDGE_CAPI_EXPORT extern WasmEdge_ModuleInstanceContext *
+WasmEdge_ModuleInstanceCreateWasiCryptoAsymmetricCommon(void);
+
+/// Creation of the WasmEdge_ModuleInstanceContext for the wasi_crypto kx
+/// specification.
+///
+/// This function will create a wasi_crypto kx host module which module name is
+/// `wasi_ephemeral_crypto_kx` that contains the wasi_crypto kx host functions
+/// and initialize it. If the wasi_crypto plugin not found, this function will
+/// return NULL. The caller owns the object and should call
+/// `WasmEdge_ModuleInstanceDelete` to destroy it.
+///
+/// \returns pointer to context, NULL if failed.
+WASMEDGE_CAPI_EXPORT extern WasmEdge_ModuleInstanceContext *
+WasmEdge_ModuleInstanceCreateWasiCryptoKx(void);
+
+/// Creation of the WasmEdge_ModuleInstanceContext for the wasi_crypto
+/// signatures specification.
+///
+/// This function will create a wasi_crypto signatures host module which module
+/// name is `wasi_ephemeral_crypto_signatures` that contains the wasi_crypto
+/// signatures host functions and initialize it. If the wasi_crypto plugin not
+/// found, this function will return NULL. The caller owns the object and should
+/// call `WasmEdge_ModuleInstanceDelete` to destroy it.
+///
+/// \returns pointer to context, NULL if failed.
+WASMEDGE_CAPI_EXPORT extern WasmEdge_ModuleInstanceContext *
+WasmEdge_ModuleInstanceCreateWasiCryptoSignatures(void);
+
+/// Creation of the WasmEdge_ModuleInstanceContext for the wasi_crypto symmetric
+/// specification.
+///
+/// This function will create a wasi_crypto symmetric host module which module
+/// name is `wasi_ephemeral_crypto_symmetric` that contains the wasi_crypto
+/// symmetric host functions and initialize it. If the wasi_crypto plugin not
+/// found, this function will return NULL. The caller owns the object and should
+/// call `WasmEdge_ModuleInstanceDelete` to destroy it.
+///
+/// \returns pointer to context, NULL if failed.
+WASMEDGE_CAPI_EXPORT extern WasmEdge_ModuleInstanceContext *
+WasmEdge_ModuleInstanceCreateWasiCryptoSymmetric(void);
 
 /// Creation of the WasmEdge_ModuleInstanceContext for the wasmedge_process
 /// specification.
@@ -3138,6 +3206,16 @@ WasmEdge_VMGetStatisticsContext(WasmEdge_VMContext *Cxt);
 WASMEDGE_CAPI_EXPORT extern void WasmEdge_VMDelete(WasmEdge_VMContext *Cxt);
 
 // <<<<<<<< WasmEdge VM functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+// >>>>>>>> WasmEdge Driver functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+/// Entrypoint for the compiler.
+WASMEDGE_CAPI_EXPORT int WasmEdge_Driver_Compiler(int Argc, const char *Argv[]);
+
+/// Entrypoint for the general tool.
+WASMEDGE_CAPI_EXPORT int WasmEdge_Driver_Tool(int Argc, const char *Argv[]);
+
+// <<<<<<<< WasmEdge Driver functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 // >>>>>>>> WasmEdge Plugin functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 

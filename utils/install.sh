@@ -237,7 +237,11 @@ case ":\"\${PATH}\":" in
         ;;
     *)
         # Prepending path in case a system-installed wasmedge needs to be overridden
-        export PATH=\"$1/bin\":\$PATH
+        if [ -n \"\${PATH}\" ]; then
+            export PATH=\"$1/bin\":\$PATH
+        else
+            export PATH=\"$1/bin\"
+        fi
         ;;
 esac
 case ":\"\${"$_LD_LIBRARY_PATH_"}\":" in
@@ -245,28 +249,44 @@ case ":\"\${"$_LD_LIBRARY_PATH_"}\":" in
         ;;
     *)
         # Prepending path in case a system-installed wasmedge libs needs to be overridden
-        export $_LD_LIBRARY_PATH_=\"$1/lib\":\$$_LD_LIBRARY_PATH_
+        if [ -n \"\${"$_LD_LIBRARY_PATH_"}\" ]; then
+            export $_LD_LIBRARY_PATH_=\"$1/lib\":\$$_LD_LIBRARY_PATH_
+        else
+            export $_LD_LIBRARY_PATH_=\"$1/lib\"
+        fi
         ;;
 esac
 case ":\"\${"LIBRARY_PATH"}\":" in
     *:\"$1/lib\":*)
         ;;
     *)
-        export LIBRARY_PATH=\"$1/lib\":\$LIBRARY_PATH
+        if [ -n \"\${LIBRARY_PATH}\" ]; then
+            export LIBRARY_PATH=\"$1/lib\":\$LIBRARY_PATH
+        else
+            export LIBRARY_PATH=\"$1/lib\"
+        fi
         ;;
 esac
 case ":\"\${"C_INCLUDE_PATH"}\":" in
     *:\"$1/include\":*)
         ;;
     *)
-        export C_INCLUDE_PATH=\"$1/include\":\$C_INCLUDE_PATH
+        if [ -n \"\${C_INCLUDE_PATH}\" ]; then
+            export C_INCLUDE_PATH=\"$1/include\":\$C_INCLUDE_PATH
+        else
+            export C_INCLUDE_PATH=\"$1/include\"
+        fi
         ;;
 esac
 case ":\"\${"CPLUS_INCLUDE_PATH"}\":" in
     *:\"$1/include\":*)
         ;;
     *)
-        export CPLUS_INCLUDE_PATH=\"$1/include\":\$CPLUS_INCLUDE_PATH
+        if [ -n \"\${CPLUS_INCLUDE_PATH}\" ]; then
+            export CPLUS_INCLUDE_PATH=\"$1/include\":\$CPLUS_INCLUDE_PATH
+        else
+            export CPLUS_INCLUDE_PATH=\"$1/include\"
+        fi
         ;;
 esac"
 }

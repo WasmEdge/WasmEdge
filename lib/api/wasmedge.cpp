@@ -4,6 +4,8 @@
 #include "wasmedge/wasmedge.h"
 
 #include "aot/compiler.h"
+#include "driver/compiler.h"
+#include "driver/tool.h"
 #include "host/wasi/wasimodule.h"
 #include "plugin/plugin.h"
 #include "vm/vm.h"
@@ -1669,6 +1671,67 @@ WasmEdge_ModuleInstanceCreateWasiNN(void) {
 }
 
 WASMEDGE_CAPI_EXPORT WasmEdge_ModuleInstanceContext *
+WasmEdge_ModuleInstanceCreateWasiCryptoCommon(void) {
+  using namespace std::literals::string_view_literals;
+  if (const auto *Plugin = WasmEdge::Plugin::Plugin::find("wasi_crypto"sv)) {
+    if (const auto *Module = Plugin->findModule("wasi_crypto_common"sv)) {
+      auto *ProcMod = toModCxt(Module->create().release());
+      return ProcMod;
+    }
+  }
+  return nullptr;
+}
+
+WASMEDGE_CAPI_EXPORT WasmEdge_ModuleInstanceContext *
+WasmEdge_ModuleInstanceCreateWasiCryptoAsymmetricCommon(void) {
+  using namespace std::literals::string_view_literals;
+  if (const auto *Plugin = WasmEdge::Plugin::Plugin::find("wasi_crypto"sv)) {
+    if (const auto *Module =
+            Plugin->findModule("wasi_crypto_asymmetric_common"sv)) {
+      auto *ProcMod = toModCxt(Module->create().release());
+      return ProcMod;
+    }
+  }
+  return nullptr;
+}
+
+WASMEDGE_CAPI_EXPORT WasmEdge_ModuleInstanceContext *
+WasmEdge_ModuleInstanceCreateWasiCryptoKx(void) {
+  using namespace std::literals::string_view_literals;
+  if (const auto *Plugin = WasmEdge::Plugin::Plugin::find("wasi_crypto"sv)) {
+    if (const auto *Module = Plugin->findModule("wasi_crypto_kx"sv)) {
+      auto *ProcMod = toModCxt(Module->create().release());
+      return ProcMod;
+    }
+  }
+  return nullptr;
+}
+
+WASMEDGE_CAPI_EXPORT WasmEdge_ModuleInstanceContext *
+WasmEdge_ModuleInstanceCreateWasiCryptoSignatures(void) {
+  using namespace std::literals::string_view_literals;
+  if (const auto *Plugin = WasmEdge::Plugin::Plugin::find("wasi_crypto"sv)) {
+    if (const auto *Module = Plugin->findModule("wasi_crypto_signatures"sv)) {
+      auto *ProcMod = toModCxt(Module->create().release());
+      return ProcMod;
+    }
+  }
+  return nullptr;
+}
+
+WASMEDGE_CAPI_EXPORT WasmEdge_ModuleInstanceContext *
+WasmEdge_ModuleInstanceCreateWasiCryptoSymmetric(void) {
+  using namespace std::literals::string_view_literals;
+  if (const auto *Plugin = WasmEdge::Plugin::Plugin::find("wasi_crypto"sv)) {
+    if (const auto *Module = Plugin->findModule("wasi_crypto_symmetric"sv)) {
+      auto *ProcMod = toModCxt(Module->create().release());
+      return ProcMod;
+    }
+  }
+  return nullptr;
+}
+
+WASMEDGE_CAPI_EXPORT WasmEdge_ModuleInstanceContext *
 WasmEdge_ModuleInstanceCreateWasmEdgeProcess(const char *const *AllowedCmds,
                                              const uint32_t CmdsLen,
                                              const bool AllowAll) {
@@ -2551,6 +2614,19 @@ WASMEDGE_CAPI_EXPORT void WasmEdge_VMDelete(WasmEdge_VMContext *Cxt) {
 
 // <<<<<<<< WasmEdge VM functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
+// >>>>>>>> WasmEdge Driver functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+WASMEDGE_CAPI_EXPORT int WasmEdge_Driver_Compiler(int Argc,
+                                                  const char *Argv[]) {
+  return WasmEdge::Driver::Compiler(Argc, Argv);
+}
+
+WASMEDGE_CAPI_EXPORT int WasmEdge_Driver_Tool(int Argc, const char *Argv[]) {
+  return WasmEdge::Driver::Tool(Argc, Argv);
+}
+
+// <<<<<<<< WasmEdge Driver functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
 // >>>>>>>> WasmEdge Plugin functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 WASMEDGE_CAPI_EXPORT void WasmEdge_Plugin_loadWithDefaultPluginPaths(void) {
@@ -2559,7 +2635,7 @@ WASMEDGE_CAPI_EXPORT void WasmEdge_Plugin_loadWithDefaultPluginPaths(void) {
   }
 }
 
-// <<<<<<<< WasmEdge Pluginfunctions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+// <<<<<<<< WasmEdge Plugin functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 #ifdef __cplusplus
 } // extern "C"

@@ -2,7 +2,7 @@
 
 use crate::{
     error::{VmError, WasmEdgeError},
-    ffi::{self, WasmEdge_HostRegistration_Wasi, WasmEdge_HostRegistration_WasmEdge_Process},
+    ffi::{self, WasmEdge_HostRegistration_Wasi},
     instance::{
         function::{FuncType, InnerFuncType},
         module::InnerInstance,
@@ -12,9 +12,10 @@ use crate::{
     store::{InnerStore, Store},
     types::WasmEdgeString,
     utils::{self, check},
-    Config, ImportObject, Instance, Module, WasiModule, WasmEdgeProcessModule, WasmEdgeResult,
-    WasmValue,
+    Config, ImportObject, Instance, Module, WasiModule, WasmEdgeResult, WasmValue,
 };
+#[cfg(target_os = "linux")]
+use crate::{ffi::WasmEdge_HostRegistration_WasmEdge_Process, WasmEdgeProcessModule};
 use std::{collections::HashMap, path::Path};
 
 /// A [Vm] defines a virtual environment for managing WebAssembly programs.
@@ -145,6 +146,7 @@ impl Vm {
                     import.inner.0 as *const _,
                 ))?;
             },
+            #[cfg(target_os = "linux")]
             ImportObject::WasmEdgeProcess(import) => unsafe {
                 check(ffi::WasmEdge_VMRegisterModuleFromImport(
                     self.inner.0,
@@ -804,6 +806,7 @@ impl Vm {
     /// Returns the mutable [WasmEdgeProcess module instance](crate::WasmEdgeProcessModule).
     ///
     /// Notice that this function is only available when a [config](crate::Config) with the enabled [wasmedge_process](crate::Config::wasmedge_process) option is used in the creation of this [Vm].
+    #[cfg(target_os = "linux")]
     pub fn wasmedge_process_module_mut(&mut self) -> WasmEdgeResult<WasmEdgeProcessModule> {
         let io_ctx = unsafe {
             ffi::WasmEdge_VMGetImportModuleContext(
@@ -887,14 +890,19 @@ unsafe impl Sync for InnerVm {}
 #[cfg(test)]
 mod tests {
     use super::Vm;
+    #[cfg(unix)]
+    use crate::{
+        error::CoreInstantiationError, FuncType, Function, ImportInstance, ImportObject, WasiModule,
+    };
     use crate::{
         error::{
-            CoreCommonError, CoreError, CoreExecutionError, CoreInstantiationError, CoreLoadError,
-            InstanceError, VmError, WasmEdgeError,
+            CoreCommonError, CoreError, CoreExecutionError, CoreLoadError, InstanceError, VmError,
+            WasmEdgeError,
         },
-        utils, Config, FuncType, Function, ImportInstance, ImportModule, ImportObject, Loader,
-        Module, Store, WasiModule, WasmEdgeProcessModule, WasmValue,
+        Config, Loader, Module, Store, WasmValue,
     };
+    #[cfg(target_os = "linux")]
+    use crate::{utils, ImportModule, WasmEdgeProcessModule};
     use std::{
         sync::{Arc, Mutex},
         thread,
@@ -1414,6 +1422,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(target_os = "linux")]
     fn test_vm_register_wasm_from_import() {
         // create a Config context
         let result = Config::create();
@@ -2040,6 +2049,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(unix)]
     fn test_vm_get_wasi_module() {
         {
             // create a Config context
@@ -2159,6 +2169,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(target_os = "linux")]
     fn test_vm_get_wasmedge_process_module() {
         // load wasmedge_process plugins
         utils::load_plugin_from_default_paths();
@@ -2290,6 +2301,7 @@ mod tests {
         result.unwrap()
     }
 
+    #[cfg(unix)]
     fn real_add(inputs: Vec<WasmValue>) -> Result<Vec<WasmValue>, u8> {
         if inputs.len() != 2 {
             return Err(1);

@@ -11,15 +11,15 @@ In cloud-native use cases, developers often want to use JavaScript to write busi
 In this section, we will demonstrate how to run and enhance JavaScript in WasmEdge.
 
 * [Getting started](js/quickstart.md) demonstrates how to run simple JavaScript programs in WasmEdge.
-* [Networking sockets](js/networking.md) shows how to create non-blocking (async) HTTP client and server applications using the WasmEdge networking extension and its JavaScript API.
-* [Fetch](js/fetch.md) shows how to use the popular `fetch` API to fetch content across the network asynchronously.
-* [TensorFlow](js/tensorflow.md) shows how to use WasmEdge's TensorFlow extension from its JavaScript API.
+* [Node.js compatibility](js/nodejs.md) describes Node.js APIs support in WasmEdge QuickJS.
+* [Networking sockets](js/networking.md) shows how to create non-blocking (async) HTTP clients, including the `fetch` API, and server applications in JavaScript.
 * [React SSR](js/ssr.md) shows example React SSR applications, including streaming SSR support.
+* [TensorFlow](js/tensorflow.md) shows how to use WasmEdge's TensorFlow extension from its JavaScript API.
 * [ES6 modules](js/es6.md) shows how to incorporate ES6 modules in WasmEdge.
 * [Node.js and NPM modules](js/npm.md) shows how to incorporate NPM modules in WasmEdge.
 * [Built-in modules](js/modules.md) shows how to add JavaScript functions into the WasmEdge runtime as built-in API functions.
 * [Use Rust to implement JS API](js/rust.md) discusses how to use Rust to implement and support a JavaScript API.
-* [Node.js compatibility](js/nodejs.md) demonstrates the ability to use Node.js APIs in WasmEdge QuickJS applications.
+
 
 ## A note on v8
 

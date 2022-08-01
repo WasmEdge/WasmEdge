@@ -8,16 +8,56 @@
 //!
 //! For developers, it is strongly recommended that the APIs in `wasmedge-sys` are used to construct high-level libraries, while `wasmedge-sdk` is for building up business applications.
 //!
-//! Notice that
-//! - `WasmEdge Rust SDK` uses nightly version of Rust.
+//! Notice that `WasmEdge Rust SDK` uses nightly version of Rust. It's strongly recommended to use the latest nightly version of Rust.
 //!
-//! - Due to [issue #1527](https://github.com/WasmEdge/WasmEdge/issues/1527), `WasmEdge Rust SDK` cannot build successfully on Windows platform. Please [use Docker](https://wasmedge.org/book/en/start/docker.html) to build `WasmEdge Rust SDK` on Windows.
+//! ## Versioning Table
 //!
-//! ## Usage
+//! The following table provides the versioning information about each crate of WasmEdge Rust bindings.
 //!
-//! To use or build the `wasmedge-sys` crate, the `WasmEdge` library is required. The [*Build wasmedge-sys crate*](https://wasmedge.org/book/en/embed/rust.html#build-wasmedge-sys-crate) section of [WasmEdge Docs](https://wasmedge.org/book/en/) gives the tips.
+//! | wasmedge-sdk  | WasmEdge lib  | wasmedge-sys  | wasmedge-types|
+//! | :-----------: | :-----------: | :-----------: | :-----------: |
+//! | 0.2.0         | 0.10.1        | 0.8           | 0.2           |
+//! | 0.1.0         | 0.10.0        | 0.7           | 0.1           |
 //!
-//! ## A quick-start example
+//! ## Build
+//!
+//! To use or build the `wasmedge-sys` crate, the `WasmEdge` library is required.
+//!
+//!  - If you choose to use [install.sh](https://github.com/WasmEdge/WasmEdge/blob/master/utils/install.sh) to install WasmEdge Runtime on your local system. Please use `WASMEDGE_INCLUDE_DIR` and `WASMEDGE_LIB_DIR` to specify the paths to the `include` and `lib` directories, respectively. For example, use the following commands to specify the paths after using `bash install.sh --path=$HOME/wasmedge-install` to install WasmEdge Runtime on Ubuntu 20.04:
+//!
+//!    ```bash
+//!    export WASMEDGE_INCLUDE_DIR=$HOME/wasmedge-install/include
+//!    export WASMEDGE_LIB_DIR=$HOME/wasmedge-install/lib
+//!    ```
+//!
+//!  - If you choose to manually download WasmEdge Runtime binary from [WasmEdge Releases Page](https://github.com/WasmEdge/WasmEdge/releases), it is strongly recommended to place it in `$HOME/.wasmedge` directory. It looks like below on Ubuntu 20.04. `wasmedge-sys` will search the directory automatically, you do not have to set any environment variables for it.
+//!
+//!    ```bash
+//!    // $HOME/.wasmedge/
+//!    .
+//!    |-- bin
+//!    |   |-- wasmedge
+//!    |   `-- wasmedgec
+//!    |-- include
+//!    |   `-- wasmedge
+//!    |       |-- dense_enum_map.h
+//!    |       |-- enum.inc
+//!    |       |-- enum_configure.h
+//!    |       |-- enum_errcode.h
+//!    |       |-- enum_types.h
+//!    |       |-- int128.h
+//!    |       |-- spare_enum_map.h
+//!    |       |-- version.h
+//!    |       `-- wasmedge.h
+//!    `-- lib64
+//!        |-- libwasmedge_c.so
+//!        `-- wasmedge
+//!            `-- libwasmedgePluginWasmEdgeProcess.so
+//!
+//!    5 directories, 13 files
+//!    ```
+//!
+//! ## Example
 //!
 //! The following code presents how to use the APIs in `wasmedge-sys` to run a WebAssembly module written with its WAT format (textual format):
 //!
@@ -142,15 +182,15 @@ pub use compiler::Compiler;
 pub use config::Config;
 #[doc(inline)]
 pub use executor::Executor;
+#[cfg(target_os = "linux")]
+#[doc(inline)]
+pub use instance::module::WasmEdgeProcessModule;
 #[doc(inline)]
 pub use instance::{
     function::{FuncRef, FuncType, Function},
     global::{Global, GlobalType},
     memory::{MemType, Memory},
-    module::{
-        AsInstance, ImportInstance, ImportModule, ImportObject, Instance, WasiModule,
-        WasmEdgeProcessModule,
-    },
+    module::{AsInstance, ImportInstance, ImportModule, ImportObject, Instance, WasiModule},
     table::{Table, TableType},
 };
 #[doc(inline)]

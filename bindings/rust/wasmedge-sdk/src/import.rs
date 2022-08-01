@@ -293,6 +293,7 @@ impl ImportObjectBuilder {
     /// # Error
     ///
     /// If fail to create a wasmedge process import module, then an error is returned.
+    #[cfg(target_os = "linux")]
     pub fn build_as_wasmedge_process(
         self,
         allowed_cmds: Option<Vec<&str>>,
@@ -338,6 +339,7 @@ impl ImportObject {
         match &self.0 {
             sys::ImportObject::Import(import) => import.name(),
             sys::ImportObject::Wasi(wasi) => wasi.name(),
+            #[cfg(target_os = "linux")]
             sys::ImportObject::WasmEdgeProcess(wasmedge_process) => wasmedge_process.name(),
         }
     }
@@ -366,28 +368,33 @@ mod tests {
     };
 
     #[test]
-    fn test_import_new() {
-        {
-            let result = ImportObjectBuilder::default().build("extern");
-            assert!(result.is_ok());
-            let import = result.unwrap();
-            assert_eq!(import.name(), "extern");
-        }
-        {
-            let result = ImportObjectBuilder::default().build_as_wasi(None, None, None);
-            assert!(result.is_ok());
-            let import = result.unwrap();
-            assert_eq!(import.name(), "wasi_snapshot_preview1");
-        }
-        {
-            let result = ImportObjectBuilder::default().build_as_wasmedge_process(None, false);
-            assert!(result.is_ok());
-            let import = result.unwrap();
-            assert_eq!(import.name(), "wasmedge_process");
-        }
+    fn test_import_builder() {
+        let result = ImportObjectBuilder::default().build("extern");
+        assert!(result.is_ok());
+        let import = result.unwrap();
+        assert_eq!(import.name(), "extern");
     }
 
     #[test]
+    #[cfg(unix)]
+    fn test_import_builder_wasi() {
+        let result = ImportObjectBuilder::default().build_as_wasi(None, None, None);
+        assert!(result.is_ok());
+        let import = result.unwrap();
+        assert_eq!(import.name(), "wasi_snapshot_preview1");
+    }
+
+    #[test]
+    #[cfg(target_os = "linux")]
+    fn test_import_builder_wasmedge_process() {
+        let result = ImportObjectBuilder::default().build_as_wasmedge_process(None, false);
+        assert!(result.is_ok());
+        let import = result.unwrap();
+        assert_eq!(import.name(), "wasmedge_process");
+    }
+
+    #[test]
+    #[cfg(target_os = "linux")]
     fn test_import_new_wasmedgeprocess() {
         let result = ImportObjectBuilder::new()
             .with_func::<(i32, i32), i32>("add", real_add)

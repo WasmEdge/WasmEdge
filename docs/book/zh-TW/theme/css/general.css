@@ -88,9 +88,18 @@ h6:target::before {
     transition: margin-left 0.3s ease, transform 0.3s ease; /* Animation: slide away */
 }
 
+@media only screen and (max-width: 1080px) {
+    .content {
+        padding: 0 5px 50px 5px;
+    }
+}
+@media only screen and (min-width: 1080px) {
+    .content {
+        padding: 0 95px 50px 95px;
+    }
+}
 .content {
     overflow-y: auto;
-    padding: 0 95px 50px 95px;
 }
 .content main {
     margin-left: auto;

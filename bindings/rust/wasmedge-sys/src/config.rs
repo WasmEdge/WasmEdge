@@ -14,6 +14,10 @@ use wasmedge_types::{CompilerOptimizationLevel, CompilerOutputFormat};
 ///     This group of options are used to turn on/off the WebAssembly proposals. They are effective to any WasmEdge
 ///     context created with [Config](crate::Config).
 ///     
+///     - `MultiMemories` enables to use multiple memories within a single Wasm module.
+///
+///       Also see [Multiple Memories for Wasm](https://github.com/WebAssembly/multi-memory/blob/main/proposals/multi-memory/Overview.md)
+///     
 ///     - `ImportExportMutGlobals` supports mutable imported and exported globals.
 ///
 ///       Also see [Import/Export Mutable Globals Proposal](https://github.com/WebAssembly/mutable-global/blob/master/proposals/mutable-global/Overview.md#importexport-mutable-globals).
@@ -157,6 +161,8 @@ impl Config {
     pub fn copy_from(src: &Config) -> WasmEdgeResult<Self> {
         let mut config = Config::create()?;
 
+        config.multi_memories(src.multi_memories_enabled());
+
         config.annotations(src.annotations_enabled());
 
         config.bulk_memory_operations(src.bulk_memory_operations_enabled());
@@ -185,6 +191,7 @@ impl Config {
 
         config.wasi(src.wasi_enabled());
 
+        #[cfg(target_os = "linux")]
         config.wasmedge_process(src.wasmedge_process_enabled());
 
         config.measure_cost(src.is_cost_measuring());
@@ -246,24 +253,7 @@ impl Config {
     /// # Argument
     ///
     /// * `enable` - Whether the option turns on or not.
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use wasmedge_sys::{utils, Config, Vm};
-    ///
-    /// // load wasmedge_process plugins
-    /// utils::load_plugin_from_default_paths();
-    ///
-    /// // create a Config context
-    /// let mut config = Config::create().expect("failed to create config");
-    /// config.wasmedge_process(true);
-    /// assert!(config.wasmedge_process_enabled());
-    ///
-    /// // create a Vm context with the given Config and Store
-    /// let _vm = Vm::create(Some(config), None).expect("failed to create vm");
-    /// ```
-
+    #[cfg(target_os = "linux")]
     pub fn wasmedge_process(&mut self, enable: bool) {
         unsafe {
             if enable {
@@ -281,6 +271,7 @@ impl Config {
     }
 
     /// Checks if host registration wasmedge process turns on or not.
+    #[cfg(target_os = "linux")]
     pub fn wasmedge_process_enabled(&self) -> bool {
         unsafe {
             ffi::WasmEdge_ConfigureHasHostRegistration(
@@ -648,6 +639,34 @@ impl Config {
         }
     }
 
+    /// Enables or disables the MultiMemories option.
+    ///
+    /// # Argument
+    ///
+    /// * `enable` - Whether the option turns on or not.
+    pub fn multi_memories(&self, enable: bool) {
+        unsafe {
+            if enable {
+                ffi::WasmEdge_ConfigureAddProposal(
+                    self.inner.0,
+                    ffi::WasmEdge_Proposal_MultiMemories,
+                )
+            } else {
+                ffi::WasmEdge_ConfigureRemoveProposal(
+                    self.inner.0,
+                    ffi::WasmEdge_Proposal_MultiMemories,
+                )
+            }
+        }
+    }
+
+    /// Checks if the MultiMemories option turns on or not.
+    pub fn multi_memories_enabled(&self) -> bool {
+        unsafe {
+            ffi::WasmEdge_ConfigureHasProposal(self.inner.0, ffi::WasmEdge_Proposal_MultiMemories)
+        }
+    }
+
     // For AOT compiler
 
     /// Sets the optimization level of AOT compiler.
@@ -660,7 +679,10 @@ impl Config {
     #[cfg(feature = "aot")]
     pub fn set_aot_optimization_level(&mut self, opt_level: CompilerOptimizationLevel) {
         unsafe {
-            ffi::WasmEdge_ConfigureCompilerSetOptimizationLevel(self.inner.0, opt_level as u32)
+            ffi::WasmEdge_ConfigureCompilerSetOptimizationLevel(
+                self.inner.0,
+                opt_level as ffi::WasmEdge_CompilerOptimizationLevel,
+            )
         }
     }
 
@@ -682,7 +704,12 @@ impl Config {
     /// * `format` - The format of the output binary.
     #[cfg(feature = "aot")]
     pub fn set_aot_compiler_output_format(&mut self, format: CompilerOutputFormat) {
-        unsafe { ffi::WasmEdge_ConfigureCompilerSetOutputFormat(self.inner.0, format as u32) }
+        unsafe {
+            ffi::WasmEdge_ConfigureCompilerSetOutputFormat(
+                self.inner.0,
+                format as ffi::WasmEdge_CompilerOutputFormat,
+            )
+        }
     }
 
     /// Returns the output binary format of AOT compiler.
@@ -821,6 +848,7 @@ mod tests {
         let mut config = result.unwrap();
 
         // check default settings
+        assert!(!config.multi_memories_enabled());
         assert!(!config.annotations_enabled());
         assert!(config.bulk_memory_operations_enabled());
         assert!(!config.exception_handling_enabled());
@@ -835,6 +863,7 @@ mod tests {
         assert!(!config.tail_call_enabled());
         assert!(!config.threads_enabled());
         assert!(!config.wasi_enabled());
+        #[cfg(target_os = "linux")]
         assert!(!config.wasmedge_process_enabled());
         assert!(!config.is_cost_measuring());
         assert!(!config.dump_ir_enabled());
@@ -852,6 +881,7 @@ mod tests {
         );
 
         // set options
+        config.multi_memories(true);
         config.annotations(true);
         config.bulk_memory_operations(false);
         config.exception_handling(true);
@@ -872,6 +902,7 @@ mod tests {
         config.count_instructions(true);
 
         // check new settings
+        assert!(config.multi_memories_enabled());
         assert!(config.annotations_enabled());
         assert!(!config.bulk_memory_operations_enabled());
         assert!(config.exception_handling_enabled());
@@ -915,6 +946,7 @@ mod tests {
 
         let handle = thread::spawn(move || {
             // check default settings
+            assert!(!config.multi_memories_enabled());
             assert!(!config.annotations_enabled());
             assert!(config.bulk_memory_operations_enabled());
             assert!(!config.exception_handling_enabled());
@@ -940,6 +972,7 @@ mod tests {
             );
 
             // set options
+            config.multi_memories(true);
             config.annotations(true);
             config.bulk_memory_operations(false);
             config.exception_handling(true);
@@ -956,6 +989,7 @@ mod tests {
             config.count_instructions(true);
 
             // check new settings
+            assert!(config.multi_memories_enabled());
             assert!(config.annotations_enabled());
             assert!(!config.bulk_memory_operations_enabled());
             assert!(config.exception_handling_enabled());
@@ -989,6 +1023,7 @@ mod tests {
             let mut config = result.unwrap();
 
             // check default settings
+            assert!(!config.multi_memories_enabled());
             assert!(!config.annotations_enabled());
             assert!(config.bulk_memory_operations_enabled());
             assert!(!config.exception_handling_enabled());
@@ -1015,6 +1050,7 @@ mod tests {
 
             // set options
             let config_mut = config.borrow_mut();
+            config_mut.multi_memories(true);
             config_mut.annotations(true);
             config_mut.bulk_memory_operations(false);
             config_mut.exception_handling(true);
@@ -1031,6 +1067,7 @@ mod tests {
             config_mut.count_instructions(true);
 
             // check new settings
+            assert!(config.multi_memories_enabled());
             assert!(config.annotations_enabled());
             assert!(!config.bulk_memory_operations_enabled());
             assert!(config.exception_handling_enabled());
@@ -1057,10 +1094,12 @@ mod tests {
         assert!(result.is_ok());
         let mut config = result.unwrap();
         config.memory64(true);
+        config.multi_memories(true);
 
         let result = Config::copy_from(&config);
         assert!(result.is_ok());
         let config_cloned = result.unwrap();
         assert!(config_cloned.memory64_enabled());
+        assert!(config_cloned.multi_memories_enabled());
     }
 }

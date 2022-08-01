@@ -8,7 +8,7 @@
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// This file contains the enumerations of WasmEdge error infomation.
+/// This file contains the enumerations of WasmEdge error information.
 ///
 //===----------------------------------------------------------------------===//
 #pragma once

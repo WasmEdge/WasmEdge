@@ -134,7 +134,7 @@ fn print_alias(ret: &mut String, name: &Id, dest: &TypeRef) {
 
 fn print_enum(ret: &mut String, name: &Id, v: &Variant) {
     ret.push_str(&format!(
-        "enum __wasi_{}_t : {} {{\n",
+        "enum __wasi_{}_e_t : {} {{\n",
         ident_name(name),
         intrepr_name(v.tag_repr)
     ));
@@ -158,12 +158,12 @@ fn print_enum(ret: &mut String, name: &Id, v: &Variant) {
     ret.push_str("};\n");
 
     ret.push_str(&format!(
-        "static_assert(sizeof(__wasi_{}_t) == {}, \"witx calculated size\");\n",
+        "static_assert(sizeof(__wasi_{}_e_t) == {}, \"witx calculated size\");\n",
         ident_name(name),
         v.tag_repr.mem_size()
     ));
     ret.push_str(&format!(
-        "static_assert(alignof(__wasi_{}_t) == {}, \"witx calculated align\");\n",
+        "static_assert(alignof(__wasi_{}_e_t) == {}, \"witx calculated align\");\n",
         ident_name(name),
         v.tag_repr.mem_align()
     ));

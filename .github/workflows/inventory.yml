@@ -1,5 +1,9 @@
 name: Warning of Inventorying Rust
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
 on:
   push:
     branches:

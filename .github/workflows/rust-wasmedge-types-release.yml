@@ -1,7 +1,7 @@
 name: wasmedge-types crate release
 
 concurrency:
-  group: wasmedge-types-crate-release-${{ github.head_ref }}
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
   cancel-in-progress: true
 
 on:

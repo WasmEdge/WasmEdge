@@ -26,6 +26,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 #[cfg(target_os = "linux")]
+#[allow(clippy::assertions_on_result_states)]
 fn create_wasmedge_process_module_implicitly() -> Result<(), Box<dyn std::error::Error>> {
     // create a Config context
     let mut config = Config::create()?;
@@ -59,6 +60,7 @@ fn create_wasmedge_process_module_implicitly() -> Result<(), Box<dyn std::error:
 }
 
 #[cfg(target_os = "linux")]
+#[allow(clippy::assertions_on_result_states)]
 fn create_wasmedge_process_module_explicitly() -> Result<(), Box<dyn std::error::Error>> {
     // create a Config context, not enable wasi and wasmedge_process options.
     let mut config = Config::create()?;

@@ -104,6 +104,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::assertions_on_result_states)]
     fn test_global_basic() {
         // create a Const global instance
         let result = Global::new(

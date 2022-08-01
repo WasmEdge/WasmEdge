@@ -160,6 +160,7 @@ mod tests {
     };
 
     #[test]
+    #[allow(clippy::assertions_on_result_states)]
     fn test_loader() {
         // create a Loader instance without configuration
         let result = Loader::create(None);
@@ -229,6 +230,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::assertions_on_result_states)]
     fn test_loader_send() {
         // create a Loader instance without configuration
         let result = Loader::create(None);
@@ -252,6 +254,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::assertions_on_result_states)]
     fn test_loader_sync() {
         // create a Loader instance without configuration
         let result = Loader::create(None);

@@ -129,6 +129,7 @@ mod tests {
     use wasmedge_types::{RefType, ValType};
 
     #[test]
+    #[allow(clippy::assertions_on_result_states)]
     fn test_table_type() {
         // create a TableType instance
         let ty = TableType::new(RefType::FuncRef, 10, Some(20));
@@ -142,6 +143,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::assertions_on_result_states)]
     fn test_table_basic() {
         // create a table instance
         let result = Table::new(TableType::new(RefType::FuncRef, 10, Some(20)));

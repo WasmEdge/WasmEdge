@@ -409,6 +409,7 @@ mod tests {
     use wasmedge_types::{GlobalType, MemoryType, Mutability, RefType, TableType, ValType};
 
     #[test]
+    #[allow(clippy::assertions_on_result_states)]
     fn test_instance_basic() {
         // create an executor
         let result = ConfigBuilder::new(CommonConfigOptions::default()).build();

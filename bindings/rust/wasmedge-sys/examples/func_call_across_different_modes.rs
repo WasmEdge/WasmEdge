@@ -17,6 +17,7 @@ fn host_print_f64(val: Vec<WasmValue>) -> Result<Vec<WasmValue>, u8> {
 }
 
 /// The function in interpreter mode (defined in module1) calls the functions in AOT mode (defined in module2)
+#[allow(clippy::assertions_on_result_states)]
 fn interpreter_call_aot() -> Result<(), Box<dyn std::error::Error>> {
     // create a Vm instance
     let mut vm = Vm::create(Some(Config::create()?), None)?;
@@ -84,6 +85,7 @@ fn interpreter_call_aot() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
+#[allow(clippy::assertions_on_result_states)]
 fn aot_call_interpreter() -> Result<(), Box<dyn std::error::Error>> {
     // create a Vm instance
     let mut vm = Vm::create(Some(Config::create()?), None)?;

@@ -385,6 +385,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::assertions_on_result_states)]
     fn test_memory_grow() {
         // create a Memory with a limit range [10, 20]
         let result = MemType::create(10, Some(20), false);
@@ -421,6 +422,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::assertions_on_result_states)]
     fn test_memory_data() {
         // create a Memory: the min size 1 and the max size 2
         let result = MemType::create(1, Some(2), false);

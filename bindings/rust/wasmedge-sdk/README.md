@@ -10,21 +10,21 @@ The following table provides the versioning information about each crate of Wasm
 
 | wasmedge-sdk  | WasmEdge lib  | wasmedge-sys  | wasmedge-types|
 | :-----------: | :-----------: | :-----------: | :-----------: |
-| 0.2.0         | 0.10.1        | 0.8           | 0.2           |
+| 0.3.0         | 0.10.1        | 0.8           | 0.2           |
 | 0.1.0         | 0.10.0        | 0.7           | 0.1           |
 
 ## Build
 
-  To use or build the `wasmedge-sdk` crate, the `WasmEdge` library is required.
+To use or build the `wasmedge-sdk` crate, the `WasmEdge` library is required.
 
-  - If you choose to use [install.sh](https://github.com/WasmEdge/WasmEdge/blob/master/utils/install.sh) to install WasmEdge Runtime on your local system. Please use `WASMEDGE_INCLUDE_DIR` and `WASMEDGE_LIB_DIR` to specify the paths to the `include` and `lib` directories, respectively. For example, use the following commands to specify the paths after using `bash install.sh --path=$HOME/wasmedge-install` to install WasmEdge Runtime on Ubuntu 20.04:
+- If you choose to use [install.sh](https://github.com/WasmEdge/WasmEdge/blob/master/utils/install.sh) to install WasmEdge Runtime on your local system. Please use `WASMEDGE_INCLUDE_DIR` and `WASMEDGE_LIB_DIR` to specify the paths to the `include` and `lib` directories, respectively. For example, use the following commands to specify the paths after using `bash install.sh --path=$HOME/wasmedge-install` to install WasmEdge Runtime on Ubuntu 20.04:
 
     ```bash
     export WASMEDGE_INCLUDE_DIR=$HOME/wasmedge-install/include 
     export WASMEDGE_LIB_DIR=$HOME/wasmedge-install/lib
     ```
 
-  - If you choose to manually download WasmEdge Runtime binary from [WasmEdge Releases Page](https://github.com/WasmEdge/WasmEdge/releases), it is strongly recommended to place it in `$HOME/.wasmedge` directory. It looks like below on Ubuntu 20.04. `wasmedge-sdk` will search the directory automatically, you do not have to set any environment variables for it.
+- If you choose to manually download WasmEdge Runtime binary from [WasmEdge Releases Page](https://github.com/WasmEdge/WasmEdge/releases), it is strongly recommended to place it in `$HOME/.wasmedge` directory. It looks like below on Ubuntu 20.04. `wasmedge-sdk` will search the directory automatically, you do not have to set any environment variables for it.
 
     ```bash
     // $HOME/.wasmedge/
@@ -50,6 +50,14 @@ The following table provides the versioning information about each crate of Wasm
   
     5 directories, 13 files
     ```
+
+### Enable WasmEdge Plugins
+
+If you'd like to enable WasmEdge Plugins (currently, only available on Linux platform), please use `WASMEDGE_PLUGIN_PATH` environment variable to specify the path to the directory containing the plugins. For example, use the following commands to specify the path on Ubuntu 20.04:
+
+```bash
+export WASMEDGE_PLUGIN_PATH=$HOME/.wasmedge/lib/wasmedge
+```
 
 ## Example
 

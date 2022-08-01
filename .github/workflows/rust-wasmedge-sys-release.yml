@@ -6,11 +6,14 @@ concurrency:
 
 on:
   push:
+    branches:
+      - "master"
+      - "rust/*"
     tags:
       - "rust/[0-9]+.[0-9]+.[0-9]+*"
 
 jobs:
-  crate_release:
+  build-release-publish:
     name: Create Release
     runs-on: ubuntu-latest
     container:
@@ -21,23 +24,43 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Install Stable Rust
+      - name: Install Nightly Rust
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: stable
+          toolchain: nightly
 
-      - name: Build WasmEdge using clang
+      - name: Build WasmEdge with Release mode
         run: |
-          cmake -Bbuild -GNinja -DWASMEDGE_BUILD_SHARED_LIB=ON  -DCMAKE_INSTALL_PREFIX:PATH=/usr .
-          cmake --build build --target install
+          apt update
+          apt install -y software-properties-common libboost-all-dev llvm-12-dev liblld-12-dev ninja-build
+          cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_BUILD_TESTS=ON .
+          cmake --build build
 
       - name: Publish wasmedge-sys crate
+        if: github.ref_type == 'tag'
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
         shell: bash
         run: |
-          cd ./bindings/rust/wasmedge-sys
+          cd bindings/rust/
+          export WASMEDGE_DIR="$(pwd)/../../"
+          export WASMEDGE_BUILD_DIR="$(pwd)/../../build"
+          export WASMEDGE_PLUGIN_PATH="$(pwd)/../../build/plugins/wasmedge_process"
           git config --global user.email "runner@gha.local"
           git config --global user.name "Github Action"
-          cargo publish --dry-run
-          cargo publish
+          cargo publish -p wasmedge-sys --dry-run
+          cargo publish -p wasmedge-sys
+
+      - name: Dry run wasmedge-sys crate
+        if: github.ref_type == 'branch'
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        shell: bash
+        run: |
+          cd ./bindings/rust/
+          export WASMEDGE_DIR="$(pwd)/../../"
+          export WASMEDGE_BUILD_DIR="$(pwd)/../../build"
+          export WASMEDGE_PLUGIN_PATH="$(pwd)/../../build/plugins/wasmedge_process"
+          git config --global user.email "runner@gha.local"
+          git config --global user.name "Github Action"
+          cargo publish -p wasmedge-sys --dry-run

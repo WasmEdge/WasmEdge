@@ -1,7 +1,7 @@
 name: Build and Test WasmEdge with extensions on multiple platforms
 
 concurrency:
-  group: build-extensions-${{ github.head_ref }}
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
   cancel-in-progress: true
 
 on:

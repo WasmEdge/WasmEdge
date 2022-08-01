@@ -740,6 +740,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::assertions_on_result_states)]
     fn test_vm_create() {
         {
             let result = Vm::new(None);
@@ -832,6 +833,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::assertions_on_result_states)]
     fn test_vm_register_module_from_file() {
         // create a Vm context
         let result = Vm::new(None);
@@ -851,6 +853,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::assertions_on_result_states)]
     fn test_vm_register_module_from_bytes() {
         // create a Vm context
         let result = Vm::new(None);
@@ -904,6 +907,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::assertions_on_result_states)]
     fn test_vm_register_import_module() {
         // create a Const global instance
         let result = Global::new(

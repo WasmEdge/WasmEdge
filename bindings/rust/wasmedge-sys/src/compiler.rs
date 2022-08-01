@@ -92,6 +92,7 @@ mod tests {
     use wasmedge_types::CompilerOutputFormat;
 
     #[test]
+    #[allow(clippy::assertions_on_result_states)]
     fn test_compiler() {
         {
             let result = Config::create();
@@ -160,6 +161,7 @@ mod tests {
 
     #[test]
     #[ignore]
+    #[allow(clippy::assertions_on_result_states)]
     fn test_compiler_send() {
         let result = Config::create();
         assert!(result.is_ok());
@@ -191,6 +193,7 @@ mod tests {
 
     #[test]
     #[ignore]
+    #[allow(clippy::assertions_on_result_states)]
     fn test_compiler_sync() {
         let result = Config::create();
         assert!(result.is_ok());

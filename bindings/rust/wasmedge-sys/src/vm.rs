@@ -910,6 +910,7 @@ mod tests {
     use wasmedge_types::{wat2wasm, ValType};
 
     #[test]
+    #[allow(clippy::assertions_on_result_states)]
     fn test_vm_create() {
         {
             // create a Vm context without Config and Store
@@ -993,6 +994,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::assertions_on_result_states)]
     fn test_vm_load_wasm_from_file() {
         // create Config instance
         let result = Config::create();
@@ -1027,6 +1029,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::assertions_on_result_states)]
     fn test_vm_load_wasm_from_buffer() {
         // create Config instance
         let result = Config::create();
@@ -1065,6 +1068,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::assertions_on_result_states)]
     fn test_vm_load_wasm_from_module() {
         // create a Config context
         let result = Config::create();
@@ -1106,6 +1110,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::assertions_on_result_states)]
     fn test_vm_validate() {
         let result = Vm::create(None, None);
         assert!(result.is_ok());
@@ -1144,6 +1149,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::assertions_on_result_states)]
     fn test_vm_instantiate() {
         let result = Vm::create(None, None);
         assert!(result.is_ok());
@@ -1191,6 +1197,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::assertions_on_result_states)]
     fn test_vm_invoke_wasm_function_step_by_step() {
         let path = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
             .join("bindings/rust/wasmedge-sys/tests/data/fibonacci.wasm");
@@ -1292,6 +1299,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::assertions_on_result_states)]
     fn test_vm_register_wasm_from_file() {
         // create a Config context
         let result = Config::create();
@@ -1326,6 +1334,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::assertions_on_result_states)]
     fn test_vm_register_wasm_from_module() {
         // create a Config context
         let result = Config::create();
@@ -1483,6 +1492,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::assertions_on_result_states)]
     fn test_vm_register_wasm_from_buffer() {
         // create a Config context
         let result = Config::create();
@@ -2050,6 +2060,7 @@ mod tests {
 
     #[test]
     #[cfg(unix)]
+    #[allow(clippy::assertions_on_result_states)]
     fn test_vm_get_wasi_module() {
         {
             // create a Config context

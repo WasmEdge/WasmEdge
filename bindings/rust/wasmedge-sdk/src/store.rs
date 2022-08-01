@@ -143,6 +143,7 @@ mod tests {
     use wasmedge_types::{GlobalType, MemoryType, Mutability, RefType, TableType, ValType};
 
     #[test]
+    #[allow(clippy::assertions_on_result_states)]
     fn test_store_create() {
         let result = ConfigBuilder::new(CommonConfigOptions::default()).build();
         assert!(result.is_ok());
@@ -163,6 +164,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::assertions_on_result_states)]
     fn test_store_register_import_module() {
         // create a Const global instance
         let result = Global::new(
@@ -240,6 +242,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::assertions_on_result_states)]
     fn test_store_register_named_module() {
         // create an executor
         let result = ConfigBuilder::new(CommonConfigOptions::default()).build();
@@ -324,6 +327,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::assertions_on_result_states)]
     fn test_store_basic() {
         // create an executor
         let result = ConfigBuilder::new(CommonConfigOptions::default()).build();

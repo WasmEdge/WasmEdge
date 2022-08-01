@@ -2,6 +2,7 @@ use wasmedge_sys::Vm;
 use wasmedge_types::wat2wasm;
 
 #[cfg_attr(test, test)]
+#[allow(clippy::assertions_on_result_states)]
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // read the wasm bytes
     let wasm_bytes = wat2wasm(

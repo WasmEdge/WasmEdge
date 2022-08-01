@@ -1432,6 +1432,7 @@ mod tests {
 
     #[test]
     #[cfg(target_os = "linux")]
+    #[allow(clippy::assertions_on_result_states)]
     fn test_vm_register_wasm_from_import() {
         // create a Config context
         let result = Config::create();
@@ -2181,6 +2182,7 @@ mod tests {
 
     #[test]
     #[cfg(target_os = "linux")]
+    #[allow(clippy::assertions_on_result_states)]
     fn test_vm_get_wasmedge_process_module() {
         // load wasmedge_process plugins
         utils::load_plugin_from_default_paths();

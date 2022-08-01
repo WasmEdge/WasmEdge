@@ -46,7 +46,7 @@ Expect<void> SendData::body(Runtime::Instance::MemoryInstance *MemInst,
 
   SSL *Ssl = SSL_new(Ctx);
   if (Ssl == nullptr) {
-    fprintf(stderr, "SSL_new() failed\n");
+    fprintf(stderr, "[Httpsreq plugin] SSL_new() failed\n");
     exit(EXIT_FAILURE);
   }
 
@@ -63,7 +63,8 @@ Expect<void> SendData::body(Runtime::Instance::MemoryInstance *MemInst,
 
   Err = getaddrinfo(Env.Host.c_str(), PortStr, &Hints, &Addrs);
   if (Err != 0) {
-    fprintf(stderr, "%s: %s\n", Env.Host.c_str(), gai_strerror(Err));
+    fprintf(stderr, "[Httpsreq plugin] %s: %s\n", Env.Host.c_str(),
+            gai_strerror(Err));
     abort();
   }
 
@@ -84,7 +85,8 @@ Expect<void> SendData::body(Runtime::Instance::MemoryInstance *MemInst,
   freeaddrinfo(Addrs);
 
   if (Sfd == -1) {
-    fprintf(stderr, "%s: %s\n", Env.Host.c_str(), strerror(Err));
+    fprintf(stderr, "[Httpsreq plugin] %s: %s\n", Env.Host.c_str(),
+            strerror(Err));
     abort();
   }
 
@@ -94,7 +96,9 @@ Expect<void> SendData::body(Runtime::Instance::MemoryInstance *MemInst,
   if (Status != 1) {
     SSL_get_error(Ssl, Status);
     ERR_print_errors_fp(stderr);
-    fprintf(stderr, "SSL_connect failed with SSL_get_error code %d\n", Status);
+    fprintf(stderr,
+            "[Httpsreq plugin] SSL_connect failed with SSL_get_error code %d\n",
+            Status);
     exit(EXIT_FAILURE);
   }
 

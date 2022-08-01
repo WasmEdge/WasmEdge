@@ -12,7 +12,7 @@ The following table provides the versioning information about each crate of Wasm
 
 | wasmedge-sdk  | WasmEdge lib  | wasmedge-sys  | wasmedge-types|
 | :-----------: | :-----------: | :-----------: | :-----------: |
-| 0.2.0         | 0.10.1        | 0.8           | 0.2           |
+| 0.3.0         | 0.10.1        | 0.8           | 0.2           |
 | 0.1.0         | 0.10.0        | 0.7           | 0.1           |
 
 ## Build

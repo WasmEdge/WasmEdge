@@ -164,6 +164,8 @@ mod statistics;
 mod store;
 pub mod types;
 #[doc(hidden)]
+pub mod utils;
+#[doc(hidden)]
 pub mod vm;
 
 #[doc(inline)]
@@ -187,6 +189,8 @@ pub use module::{ExportType, ImportType, Module};
 pub use statistics::Statistics;
 #[doc(inline)]
 pub use store::Store;
+#[doc(inline)]
+pub use utils::Driver;
 #[doc(inline)]
 pub use vm::Vm;
 

@@ -400,7 +400,7 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
       return logLoadError(Res.error(), FMgr.getLastOffset(),
                           ASTNodeAttr::Instruction);
     } else {
-      Instr.setNum(static_cast<uint32_t>(*Res));
+      Instr.setNum(static_cast<uint128_t>(static_cast<uint32_t>(*Res)));
     }
     return {};
   case OpCode::I64__const:
@@ -408,7 +408,7 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
       return logLoadError(Res.error(), FMgr.getLastOffset(),
                           ASTNodeAttr::Instruction);
     } else {
-      Instr.setNum(static_cast<uint64_t>(*Res));
+      Instr.setNum(static_cast<uint128_t>(static_cast<uint64_t>(*Res)));
     }
     return {};
   case OpCode::F32__const:

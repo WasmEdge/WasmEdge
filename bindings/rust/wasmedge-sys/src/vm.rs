@@ -2,17 +2,20 @@
 
 use crate::{
     error::{VmError, WasmEdgeError},
+    executor::{Executor, InnerExecutor},
     ffi::{self, WasmEdge_HostRegistration_Wasi},
     instance::{
-        function::{FuncType, InnerFuncType},
+        function::{FuncRef, FuncType, Function, InnerFuncType},
         module::InnerInstance,
     },
+    loader::{InnerLoader, Loader},
     r#async::{AsyncResult, InnerAsyncResult},
     statistics::{InnerStat, Statistics},
     store::{InnerStore, Store},
     types::WasmEdgeString,
     utils::{self, check},
-    Config, ImportObject, Instance, Module, WasiModule, WasmEdgeResult, WasmValue,
+    validator::{InnerValidator, Validator},
+    Config, Engine, ImportObject, Instance, Module, WasiModule, WasmEdgeResult, WasmValue,
 };
 #[cfg(target_os = "linux")]
 use crate::{ffi::WasmEdge_HostRegistration_WasmEdge_Process, WasmEdgeProcessModule};
@@ -464,7 +467,7 @@ impl Vm {
         Ok(())
     }
 
-    /// Loads a WASM module from a in-memory WASM bytes.
+    /// Loads a WASM module from a in-memory WASM bytes. The loaded module is not validated.
     ///
     /// This is the first step to invoke a WASM function step by step.
     ///
@@ -474,7 +477,7 @@ impl Vm {
     ///
     /// # Error
     ///
-    /// If fail to load, then an error is returned.
+    /// If fail to load, then an error is returned.  The loaded module is not validated.
     pub fn load_wasm_from_bytes(&mut self, bytes: &[u8]) -> WasmEdgeResult<()> {
         unsafe {
             check(ffi::WasmEdge_VMLoadWasmFromBuffer(
@@ -496,7 +499,7 @@ impl Vm {
     ///
     /// # Error
     ///
-    /// If fail to load, then an error is returned.
+    /// If fail to load, then an error is returned.  The loaded module is not validated.
     pub fn load_wasm_from_file(&mut self, path: impl AsRef<Path>) -> WasmEdgeResult<()> {
         let path = utils::path_to_cstring(path.as_ref())?;
         unsafe {
@@ -752,12 +755,12 @@ impl Vm {
         unsafe { ffi::WasmEdge_VMCleanup(self.inner.0) }
     }
 
-    /// Returns the length of the exported function list.
+    /// Returns the number of the exported functions.
     pub fn function_list_len(&self) -> usize {
         unsafe { ffi::WasmEdge_VMGetFunctionListLength(self.inner.0) as usize }
     }
 
-    /// Returns an iterator of the exported functions.
+    /// Returns an iterator of pairs of the exported function's name and type.
     pub fn function_iter(&self) -> impl Iterator<Item = (Option<String>, Option<FuncType>)> {
         let len = self.function_list_len();
         let mut names = Vec::with_capacity(len);
@@ -823,7 +826,7 @@ impl Vm {
         }
     }
 
-    /// Returns the mutable [Store](crate::Store) from the [Vm].
+    /// Returns the internal [Store](crate::Store) from the [Vm].
     pub fn store_mut(&self) -> WasmEdgeResult<Store> {
         let store_ctx = unsafe { ffi::WasmEdge_VMGetStoreContext(self.inner.0) };
         match store_ctx.is_null() {
@@ -835,7 +838,7 @@ impl Vm {
         }
     }
 
-    /// Returns the mutable [Statistics](crate::Statistics) from the [Vm].
+    /// Returns the internal [Statistics](crate::Statistics) from the [Vm].
     pub fn statistics_mut(&self) -> WasmEdgeResult<Statistics> {
         let stat_ctx = unsafe { ffi::WasmEdge_VMGetStatisticsContext(self.inner.0) };
         match stat_ctx.is_null() {
@@ -847,6 +850,7 @@ impl Vm {
         }
     }
 
+    /// Returns the active (also called anonymous) module instance.
     pub fn active_module(&self) -> WasmEdgeResult<Instance> {
         let ctx = unsafe { ffi::WasmEdge_VMGetActiveModule(self.inner.0 as *const _) };
         match ctx.is_null() {
@@ -870,6 +874,42 @@ impl Vm {
             Err(_) => false,
         }
     }
+
+    /// Returns the internal [Loader](crate::Loader) from the [Vm].
+    pub fn loader(&self) -> WasmEdgeResult<Loader> {
+        let loader_ctx = unsafe { ffi::WasmEdge_VMGetLoaderContext(self.inner.0) };
+        match loader_ctx.is_null() {
+            true => Err(WasmEdgeError::Vm(VmError::NotFoundLoader)),
+            false => Ok(Loader {
+                inner: InnerLoader(loader_ctx),
+                registered: true,
+            }),
+        }
+    }
+
+    /// Returns the internal [Validator](crate::Validator) from the [Vm].
+    pub fn validator(&self) -> WasmEdgeResult<Validator> {
+        let validator_ctx = unsafe { ffi::WasmEdge_VMGetValidatorContext(self.inner.0) };
+        match validator_ctx.is_null() {
+            true => Err(WasmEdgeError::Vm(VmError::NotFoundValidator)),
+            false => Ok(Validator {
+                inner: InnerValidator(validator_ctx),
+                registered: true,
+            }),
+        }
+    }
+
+    /// Returns the internal [Executor](crate::Executor) from the [Vm].
+    pub fn executor_mut(&mut self) -> WasmEdgeResult<Executor> {
+        let executor_ctx = unsafe { ffi::WasmEdge_VMGetExecutorContext(self.inner.0) };
+        match executor_ctx.is_null() {
+            true => Err(WasmEdgeError::Vm(VmError::NotFoundExecutor)),
+            false => Ok(Executor {
+                inner: InnerExecutor(executor_ctx),
+                registered: true,
+            }),
+        }
+    }
 }
 impl Drop for Vm {
     fn drop(&mut self) {
@@ -879,6 +919,63 @@ impl Drop for Vm {
 
         // drop imports
         self.imports.drain();
+    }
+}
+impl Engine for Vm {
+    fn run_func(
+        &mut self,
+        func: &Function,
+        params: impl IntoIterator<Item = WasmValue>,
+    ) -> WasmEdgeResult<Vec<WasmValue>> {
+        let raw_params = params.into_iter().map(|x| x.as_raw()).collect::<Vec<_>>();
+
+        // get the length of the function's returns
+        let func_ty = func.ty()?;
+        let returns_len = func_ty.returns_len();
+        let mut returns = Vec::with_capacity(returns_len as usize);
+
+        let executor = self.executor_mut()?;
+        unsafe {
+            check(ffi::WasmEdge_ExecutorInvoke(
+                executor.inner.0,
+                func.inner.0 as *const _,
+                raw_params.as_ptr(),
+                raw_params.len() as u32,
+                returns.as_mut_ptr(),
+                returns_len,
+            ))?;
+            returns.set_len(returns_len as usize);
+        }
+
+        Ok(returns.into_iter().map(Into::into).collect::<Vec<_>>())
+    }
+
+    fn run_func_ref(
+        &mut self,
+        func_ref: &FuncRef,
+        params: impl IntoIterator<Item = WasmValue>,
+    ) -> WasmEdgeResult<Vec<WasmValue>> {
+        let raw_params = params.into_iter().map(|x| x.as_raw()).collect::<Vec<_>>();
+
+        // get the length of the function's returns
+        let func_ty = func_ref.ty()?;
+        let returns_len = func_ty.returns_len();
+        let mut returns = Vec::with_capacity(returns_len as usize);
+
+        let executor = self.executor_mut()?;
+        unsafe {
+            check(ffi::WasmEdge_ExecutorInvoke(
+                executor.inner.0,
+                func_ref.inner.0 as *const _,
+                raw_params.as_ptr(),
+                raw_params.len() as u32,
+                returns.as_mut_ptr(),
+                returns_len,
+            ))?;
+            returns.set_len(returns_len as usize);
+        }
+
+        Ok(returns.into_iter().map(Into::into).collect::<Vec<_>>())
     }
 }
 
@@ -2300,6 +2397,140 @@ mod tests {
             let result = instance.get_func("add");
             assert!(result.is_ok());
         }
+    }
+
+    #[test]
+    #[allow(clippy::assertions_on_result_states)]
+    fn test_vm_impl_engine() {
+        // read the wasm bytes of fibonacci.wasm
+        let result = wat2wasm(
+            br#"
+        (module
+            (export "fib" (func $fib))
+            (func $fib (param $n i32) (result i32)
+             (if
+              (i32.lt_s
+               (get_local $n)
+               (i32.const 2)
+              )
+              (return
+               (i32.const 1)
+              )
+             )
+             (return
+              (i32.add
+               (call $fib
+                (i32.sub
+                 (get_local $n)
+                 (i32.const 2)
+                )
+               )
+               (call $fib
+                (i32.sub
+                 (get_local $n)
+                 (i32.const 1)
+                )
+               )
+              )
+             )
+            )
+           )
+"#,
+        );
+        assert!(result.is_ok());
+        let wasm_bytes = result.unwrap();
+
+        // create Vm instance
+        let result = Config::create();
+        assert!(result.is_ok());
+        let mut config = result.unwrap();
+        config.bulk_memory_operations(true);
+        assert!(config.bulk_memory_operations_enabled());
+        let result = Vm::create(Some(config), None);
+        assert!(result.is_ok());
+        let mut vm = result.unwrap();
+
+        // load wasm from bytes
+        let result = vm.load_wasm_from_bytes(&wasm_bytes);
+        assert!(result.is_ok());
+
+        // validate vm instance
+        let result = vm.validate();
+        assert!(result.is_ok());
+
+        // instantiate
+        let result = vm.instantiate();
+        assert!(result.is_ok());
+
+        // get active module
+        let result = vm.active_module();
+        assert!(result.is_ok());
+        let active_module = result.unwrap();
+
+        // get the exported function "fib"
+        let result = active_module.get_func("fib");
+        assert!(result.is_ok());
+        let fib = result.unwrap();
+
+        let result = fib.call(&mut vm, vec![WasmValue::from_i32(5)]);
+        assert!(result.is_ok());
+        let returns = result.unwrap();
+        assert_eq!(returns[0].to_i32(), 8);
+
+        // // run function
+        // let result = vm.run_function("fib", [WasmValue::from_i32(5)]);
+        // assert!(result.is_ok());
+        // let values = result.unwrap();
+        // assert_eq!(values[0].to_i32(), 8);
+
+        // // run function with empty parameter
+        // let result = vm.run_function("fib", []);
+        // assert!(result.is_err());
+        // assert_eq!(
+        //     result.unwrap_err(),
+        //     WasmEdgeError::Core(CoreError::Execution(CoreExecutionError::FuncTypeMismatch))
+        // );
+
+        // // run a function with the parameters of wrong type
+        // let result = vm.run_function("fib", [WasmValue::from_i64(5)]);
+        // assert!(result.is_err());
+        // assert_eq!(
+        //     result.unwrap_err(),
+        //     WasmEdgeError::Core(CoreError::Execution(CoreExecutionError::FuncTypeMismatch))
+        // );
+
+        // // run a function: the specified function name is non-existant
+        // let result = vm.run_function("fib2", [WasmValue::from_i32(5)]);
+        // assert!(result.is_err());
+        // assert_eq!(
+        //     result.unwrap_err(),
+        //     WasmEdgeError::Instance(InstanceError::NotFoundFunc("fib2".into()))
+        // );
+
+        // // check function types
+        // let result = vm.get_function_type("fib");
+        // assert!(result.is_ok());
+        // let func_ty = result.unwrap();
+        // assert_eq!(func_ty.params_len(), 1);
+        // assert_eq!(
+        //     func_ty.params_type_iter().collect::<Vec<_>>(),
+        //     vec![ValType::I32]
+        // );
+        // assert_eq!(func_ty.returns_len(), 1);
+        // assert_eq!(
+        //     func_ty.returns_type_iter().collect::<Vec<_>>(),
+        //     vec![ValType::I32]
+        // );
+
+        // // check functions
+        // let functions = vm.function_iter().collect::<Vec<_>>();
+        // assert_eq!(functions.len(), 1);
+        // let pair = &functions[0];
+        // let func_name = pair.0.as_ref();
+        // assert!(func_name.is_some());
+        // assert_eq!(func_name.unwrap(), "fib");
+        // let func_ty = pair.1.as_ref();
+        // assert!(func_ty.is_some());
     }
 
     fn load_fib_module() -> Module {

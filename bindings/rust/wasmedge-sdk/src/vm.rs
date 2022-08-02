@@ -3,10 +3,11 @@
 #[cfg(target_os = "linux")]
 use crate::WasmEdgeProcessInstance;
 use crate::{
-    config::Config, ImportObject, Instance, Module, Statistics, WasiInstance, WasmEdgeResult,
+    config::Config, Engine, Func, FuncRef, ImportObject, Instance, Module, Statistics,
+    WasiInstance, WasmEdgeResult, WasmValue,
 };
 use std::{marker::PhantomData, path::Path};
-use wasmedge_sys as sys;
+use wasmedge_sys::{self as sys, Engine as sys_engine};
 use wasmedge_types::FuncType;
 
 /// A [Vm] defines a virtual environment for managing WebAssembly programs.
@@ -445,6 +446,27 @@ impl Vm {
     ///
     pub fn contains_module(&self, mod_name: impl AsRef<str>) -> bool {
         self.inner.contains_module(mod_name.as_ref())
+    }
+}
+impl Engine for Vm {
+    fn run_func(
+        &mut self,
+        func: &Func,
+        params: impl IntoIterator<Item = WasmValue>,
+    ) -> WasmEdgeResult<Vec<WasmValue>> {
+        let mut executor = self.inner.executor_mut()?;
+        let returns = executor.run_func(&func.inner, params)?;
+        Ok(returns)
+    }
+
+    fn run_func_ref(
+        &mut self,
+        func_ref: &FuncRef,
+        params: impl IntoIterator<Item = WasmValue>,
+    ) -> WasmEdgeResult<Vec<WasmValue>> {
+        let mut executor = self.inner.executor_mut()?;
+        let returns = executor.run_func_ref(&func_ref.inner, params)?;
+        Ok(returns)
     }
 }
 
@@ -1128,6 +1150,74 @@ mod tests {
         assert_eq!(signature.args().unwrap(), [ValType::I32]);
         assert!(signature.returns().is_some());
         assert_eq!(signature.returns().unwrap(), [ValType::I32]);
+    }
+
+    #[test]
+    fn test_vm_impl_engine_trait() {
+        // create a Config
+        let result = ConfigBuilder::new(CommonConfigOptions::default()).build();
+        assert!(result.is_ok());
+        let config = result.unwrap();
+
+        // create a Vm context
+        let result = Vm::new(Some(config));
+        assert!(result.is_ok());
+        let vm = result.unwrap();
+
+        // read the wasm bytes of fibonacci.wasm
+        let result = wat2wasm(
+            br#"
+        (module
+            (export "fib" (func $fib))
+            (func $fib (param $n i32) (result i32)
+             (if
+              (i32.lt_s
+               (get_local $n)
+               (i32.const 2)
+              )
+              (return
+               (i32.const 1)
+              )
+             )
+             (return
+              (i32.add
+               (call $fib
+                (i32.sub
+                 (get_local $n)
+                 (i32.const 2)
+                )
+               )
+               (call $fib
+                (i32.sub
+                 (get_local $n)
+                 (i32.const 1)
+                )
+               )
+              )
+             )
+            )
+           )
+"#,
+        );
+        assert!(result.is_ok());
+        let wasm_bytes = result.unwrap();
+
+        let result = vm.register_module_from_bytes("extern", &wasm_bytes);
+        assert!(result.is_ok());
+        let mut vm = result.unwrap();
+
+        let result = vm.named_module("extern");
+        assert!(result.is_ok());
+        let instance = result.unwrap();
+
+        let result = instance.func("fib");
+        assert!(result.is_some());
+        let fib = result.unwrap();
+
+        let result = fib.call(&mut vm, params!(5));
+        assert!(result.is_ok());
+        let returns = result.unwrap();
+        assert_eq!(returns[0].to_i32(), 8)
     }
 
     fn real_add(inputs: Vec<WasmValue>) -> std::result::Result<Vec<WasmValue>, u8> {

@@ -190,6 +190,10 @@ pub use store::Store;
 #[doc(inline)]
 pub use vm::Vm;
 
+/// Parses in-memory bytes as either the [WebAssembly Text format](http://webassembly.github.io/spec/core/text/index.html), or a binary WebAssembly module
+pub use wasmedge_types::wat2wasm;
+
+/// WebAssembly value type.
 pub type WasmValue = wasmedge_sys::types::WasmValue;
 
 /// The object that is used to perform a [host function](crate::Func) is required to implement this trait.

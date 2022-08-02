@@ -2401,7 +2401,7 @@ mod tests {
 
     #[test]
     #[allow(clippy::assertions_on_result_states)]
-    fn test_vm_impl_engine() {
+    fn test_vm_impl_engine_trait() {
         // read the wasm bytes of fibonacci.wasm
         let result = wat2wasm(
             br#"
@@ -2476,61 +2476,6 @@ mod tests {
         assert!(result.is_ok());
         let returns = result.unwrap();
         assert_eq!(returns[0].to_i32(), 8);
-
-        // // run function
-        // let result = vm.run_function("fib", [WasmValue::from_i32(5)]);
-        // assert!(result.is_ok());
-        // let values = result.unwrap();
-        // assert_eq!(values[0].to_i32(), 8);
-
-        // // run function with empty parameter
-        // let result = vm.run_function("fib", []);
-        // assert!(result.is_err());
-        // assert_eq!(
-        //     result.unwrap_err(),
-        //     WasmEdgeError::Core(CoreError::Execution(CoreExecutionError::FuncTypeMismatch))
-        // );
-
-        // // run a function with the parameters of wrong type
-        // let result = vm.run_function("fib", [WasmValue::from_i64(5)]);
-        // assert!(result.is_err());
-        // assert_eq!(
-        //     result.unwrap_err(),
-        //     WasmEdgeError::Core(CoreError::Execution(CoreExecutionError::FuncTypeMismatch))
-        // );
-
-        // // run a function: the specified function name is non-existant
-        // let result = vm.run_function("fib2", [WasmValue::from_i32(5)]);
-        // assert!(result.is_err());
-        // assert_eq!(
-        //     result.unwrap_err(),
-        //     WasmEdgeError::Instance(InstanceError::NotFoundFunc("fib2".into()))
-        // );
-
-        // // check function types
-        // let result = vm.get_function_type("fib");
-        // assert!(result.is_ok());
-        // let func_ty = result.unwrap();
-        // assert_eq!(func_ty.params_len(), 1);
-        // assert_eq!(
-        //     func_ty.params_type_iter().collect::<Vec<_>>(),
-        //     vec![ValType::I32]
-        // );
-        // assert_eq!(func_ty.returns_len(), 1);
-        // assert_eq!(
-        //     func_ty.returns_type_iter().collect::<Vec<_>>(),
-        //     vec![ValType::I32]
-        // );
-
-        // // check functions
-        // let functions = vm.function_iter().collect::<Vec<_>>();
-        // assert_eq!(functions.len(), 1);
-        // let pair = &functions[0];
-        // let func_name = pair.0.as_ref();
-        // assert!(func_name.is_some());
-        // assert_eq!(func_name.unwrap(), "fib");
-        // let func_ty = pair.1.as_ref();
-        // assert!(func_ty.is_some());
     }
 
     fn load_fib_module() -> Module {

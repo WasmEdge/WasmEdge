@@ -318,3 +318,51 @@ pub fn version_string() -> String {
             .into_owned()
     }
 }
+
+// #[derive(Debug)]
+// pub struct Driver {}
+// impl Driver {
+/// Triggers the WasmEdge AOT compiler tool
+pub fn driver_aot_compiler<I, V>(args: I) -> i32
+where
+    I: IntoIterator<Item = V>,
+    V: AsRef<str>,
+{
+    // create a vector of zero terminated strings
+    let args = args
+        .into_iter()
+        .map(|arg| CString::new(arg.as_ref()).unwrap())
+        .collect::<Vec<CString>>();
+
+    // convert the strings to raw pointers
+    let mut c_args = args
+        .iter()
+        .map(|arg| arg.as_ptr())
+        .collect::<Vec<*const std::os::raw::c_char>>();
+
+    unsafe {
+        ffi::WasmEdge_Driver_Compiler(c_args.len() as std::os::raw::c_int, c_args.as_mut_ptr())
+    }
+}
+
+/// Triggers the WasmEdge runtime tool
+pub fn driver_runtime_tool<I, V>(args: I) -> i32
+where
+    I: IntoIterator<Item = V>,
+    V: AsRef<str>,
+{
+    // create a vector of zero terminated strings
+    let args = args
+        .into_iter()
+        .map(|arg| CString::new(arg.as_ref()).unwrap())
+        .collect::<Vec<CString>>();
+
+    // convert the strings to raw pointers
+    let mut c_args = args
+        .iter()
+        .map(|arg| arg.as_ptr())
+        .collect::<Vec<*const std::os::raw::c_char>>();
+
+    unsafe { ffi::WasmEdge_Driver_Tool(c_args.len() as std::os::raw::c_int, c_args.as_mut_ptr()) }
+}
+// }

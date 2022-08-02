@@ -368,6 +368,7 @@ mod tests {
     };
 
     #[test]
+    #[allow(clippy::assertions_on_result_states)]
     fn test_import_builder() {
         let result = ImportObjectBuilder::default().build("extern");
         assert!(result.is_ok());
@@ -377,6 +378,7 @@ mod tests {
 
     #[test]
     #[cfg(unix)]
+    #[allow(clippy::assertions_on_result_states)]
     fn test_import_builder_wasi() {
         let result = ImportObjectBuilder::default().build_as_wasi(None, None, None);
         assert!(result.is_ok());
@@ -386,6 +388,7 @@ mod tests {
 
     #[test]
     #[cfg(target_os = "linux")]
+    #[allow(clippy::assertions_on_result_states)]
     fn test_import_builder_wasmedge_process() {
         let result = ImportObjectBuilder::default().build_as_wasmedge_process(None, false);
         assert!(result.is_ok());
@@ -395,6 +398,7 @@ mod tests {
 
     #[test]
     #[cfg(target_os = "linux")]
+    #[allow(clippy::assertions_on_result_states)]
     fn test_import_new_wasmedgeprocess() {
         let result = ImportObjectBuilder::new()
             .with_func::<(i32, i32), i32>("add", real_add)
@@ -455,6 +459,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::assertions_on_result_states)]
     fn test_import_new_wasi() {
         // create a wasi module
         let result = ImportObjectBuilder::new()
@@ -509,6 +514,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::assertions_on_result_states)]
     fn test_import_add_func() {
         // create an import object
         let result = ImportObjectBuilder::new()
@@ -560,6 +566,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::assertions_on_result_states)]
     fn test_import_add_memory() {
         // create a memory
         let result = MemoryType::new(10, Some(20), false);
@@ -634,6 +641,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::assertions_on_result_states)]
     fn test_import_add_global() {
         // create a Const global variable
         let result = Global::new(
@@ -755,6 +763,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::assertions_on_result_states)]
     fn test_import_add_table() {
         // create a wasm table instance
         let result = Table::new(TableType::new(RefType::FuncRef, 10, Some(20)));
@@ -872,6 +881,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::assertions_on_result_states)]
     fn test_import_send() {
         // create a Const global instance
         let result = Global::new(
@@ -997,6 +1007,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::assertions_on_result_states)]
     fn test_import_sync() {
         // create a Const global instance
         let result = Global::new(

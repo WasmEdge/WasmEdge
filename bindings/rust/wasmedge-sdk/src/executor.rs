@@ -65,6 +65,7 @@ mod tests {
     };
 
     #[test]
+    #[allow(clippy::assertions_on_result_states)]
     fn test_executor_create() {
         {
             let result = Executor::new(None, None);

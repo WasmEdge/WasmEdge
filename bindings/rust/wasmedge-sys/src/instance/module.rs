@@ -1316,6 +1316,7 @@ mod tests {
     use wasmedge_types::{Mutability, RefType, ValType};
 
     #[test]
+    #[allow(clippy::assertions_on_result_states)]
     fn test_instance_add_instance() {
         let host_name = "extern";
 
@@ -1366,6 +1367,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::assertions_on_result_states)]
     fn test_instance_import_module_send() {
         let host_name = "extern";
 
@@ -1383,6 +1385,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::assertions_on_result_states)]
     fn test_instance_import_module_sync() {
         let host_name = "extern";
 
@@ -1493,6 +1496,7 @@ mod tests {
 
     #[test]
     #[cfg(unix)]
+    #[allow(clippy::assertions_on_result_states)]
     fn test_instance_wasi() {
         // create a wasi module instance
         {
@@ -1559,6 +1563,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::assertions_on_result_states)]
     #[cfg(target_os = "linux")]
     fn test_instance_wasmedge_process() {
         // load plugins
@@ -1595,6 +1600,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::assertions_on_result_states)]
     fn test_instance_find_xxx() {
         let vm = create_vm();
         let result = vm.store_mut();
@@ -1667,6 +1673,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::assertions_on_result_states)]
     fn test_instance_find_names() {
         let vm = create_vm();
         let result = vm.store_mut();
@@ -1704,6 +1711,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::assertions_on_result_states)]
     fn test_instance_get() {
         let module_name = "extern_module";
 
@@ -1786,6 +1794,7 @@ mod tests {
         assert_eq!(ty.max(), Some(20));
     }
 
+    #[allow(clippy::assertions_on_result_states)]
     fn create_vm() -> Vm {
         let module_name = "extern_module";
 

@@ -120,6 +120,7 @@ mod tests {
     };
 
     #[test]
+    #[allow(clippy::assertions_on_result_states)]
     fn test_memory_type() {
         let result = MemoryType::new(0, None, false);
         assert!(result.is_ok());
@@ -135,6 +136,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::assertions_on_result_states)]
     fn test_memory() {
         // create a memory instance
         let result = MemoryType::new(10, Some(20), false);

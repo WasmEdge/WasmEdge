@@ -267,6 +267,7 @@ mod tests {
     use wasmedge_types::{RefType, ValType};
 
     #[test]
+    #[allow(clippy::assertions_on_result_states)]
     fn test_table_type() {
         // create a TableType instance
         let result = TableType::create(RefType::FuncRef, 10, Some(20));
@@ -283,6 +284,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::assertions_on_result_states)]
     fn test_table() {
         // create a TableType instance
         let result = TableType::create(RefType::FuncRef, 10, Some(20));
@@ -317,6 +319,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::assertions_on_result_states)]
     fn test_table_data() {
         // create a FuncType
         let result = FuncType::create(vec![ValType::I32; 2], vec![ValType::I32]);

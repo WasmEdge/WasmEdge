@@ -765,6 +765,10 @@ Expect<uint32_t> WasiNNCompute::body(Runtime::Instance::MemoryInstance *MemInst,
 #endif
   } else if (CxtRef.GraphRef.GraphBackend == WASINN::Backend::PyTorch) {
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_TORCH
+    if (CxtRef.TorchInputs.size() == 0) {
+      spdlog::error("[WASI-NN] Input is not set!");
+      return static_cast<uint32_t>(WASINN::ErrNo::InvalidArgument);
+    }
     for (size_t I = 0; I < CxtRef.TorchInputs.size(); I++) {
       torch::jit::IValue InTensor = CxtRef.TorchInputs[I];
       if (InTensor.isNone()) {

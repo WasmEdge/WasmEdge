@@ -79,7 +79,7 @@ To further debug and diagnose cluster problems, use 'kubectl cluster-info dump'.
 在 Kubernetes 集群中运行 Docker Hub 中基于 WebAssembly 的镜像，方法如下。
 
 ```bash
-sudo cluster/kubectl.sh run -it --rm --restart=Never wasi-demo --image=hydai/wasm-wasi-example:with-wasm-annotation --annotations="module.wasm.image/variant=compat" --overrides='{"kind":"Pod", "apiVersion":"v1", "spec": {"hostNetwork": true}}' /wasi_example_main.wasm 50000000
+sudo cluster/kubectl.sh run -it --rm --restart=Never wasi-demo --image=hydai/wasm-wasi-example:with-wasm-annotation --annotations="module.wasm.image/variant=compat-smart" --overrides='{"kind":"Pod", "apiVersion":"v1", "spec": {"hostNetwork": true}}' /wasi_example_main.wasm 50000000
 ```
 
 容器化应用程序的输出被打印到控制台。
@@ -103,7 +103,7 @@ pod "wasi-demo-2" deleted
 在 Kubernetes 集群中运行 Docker Hub 中基于 WebAssembly 的镜像，方法如下。
 
 ```bash
-sudo cluster/kubectl.sh run --restart=Never http-server --image=avengermojo/http_server:with-wasm-annotation --annotations="module.wasm.image/variant=compat" --overrides='{"kind":"Pod", "apiVersion":"v1", "spec": {"hostNetwork": true}}'
+sudo cluster/kubectl.sh run --restart=Never http-server --image=avengermojo/http_server:with-wasm-annotation --annotations="module.wasm.image/variant=compat-smart" --overrides='{"kind":"Pod", "apiVersion":"v1", "spec": {"hostNetwork": true}}'
 ```
 
 由于我们在 `kubectl run` 命令中使用了 `hostNetwork` ，HTTP 服务器镜像运行在本地网络上，IP 地址是 `127.0.0.1` 。

@@ -1676,21 +1676,30 @@ public:
       }
       case OpCode::I32__shl:
       case OpCode::I64__shl: {
-        llvm::Value *RHS = stackPop();
+        llvm::ConstantInt *Mask = Instr.getOpCode() == OpCode::I32__shl
+                                      ? Builder.getInt32(31)
+                                      : Builder.getInt64(63);
+        llvm::Value *RHS = Builder.CreateAnd(stackPop(), Mask);
         llvm::Value *LHS = stackPop();
         stackPush(Builder.CreateShl(LHS, RHS));
         break;
       }
       case OpCode::I32__shr_s:
       case OpCode::I64__shr_s: {
-        llvm::Value *RHS = stackPop();
+        llvm::ConstantInt *Mask = Instr.getOpCode() == OpCode::I32__shr_s
+                                      ? Builder.getInt32(31)
+                                      : Builder.getInt64(63);
+        llvm::Value *RHS = Builder.CreateAnd(stackPop(), Mask);
         llvm::Value *LHS = stackPop();
         stackPush(Builder.CreateAShr(LHS, RHS));
         break;
       }
       case OpCode::I32__shr_u:
       case OpCode::I64__shr_u: {
-        llvm::Value *RHS = stackPop();
+        llvm::ConstantInt *Mask = Instr.getOpCode() == OpCode::I32__shr_u
+                                      ? Builder.getInt32(31)
+                                      : Builder.getInt64(63);
+        llvm::Value *RHS = Builder.CreateAnd(stackPop(), Mask);
         llvm::Value *LHS = stackPop();
         stackPush(Builder.CreateLShr(LHS, RHS));
         break;

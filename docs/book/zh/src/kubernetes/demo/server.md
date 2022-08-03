@@ -68,9 +68,9 @@ CMD ["/http_server.wasm"]
 
 > 请注意，添加自定义注释仍然是 buildah 中的新功能。
 
-`crun` 容器运行时可以启动上述基于 WebAssembly 的容器镜像。但它需要容器镜像上的 `module.wasm.image/variant=compat` 注释来表明它是一个没有客人操作系统（安装在虚拟机上的系统）的 WebAssembly 应用程序。你可以在[官方 crun repo](https://github.com/containers/crun/blob/main/docs/wasm-wasi-example.md) 中找到详细信息。
+`crun` 容器运行时可以启动上述基于 WebAssembly 的容器镜像。但它需要容器镜像上的 `module.wasm.image/variant=compat-smart` 注释来表明它是一个没有客人操作系统（安装在虚拟机上的系统）的 WebAssembly 应用程序。你可以在[官方 crun repo](https://github.com/containers/crun/blob/main/docs/wasm-wasi-example.md) 中找到详细信息。
 
-要在容器镜像中添加 `module.wasm.image/variant=compat` 注释，你需要最新的 [buildah](https://buildah.io/)。 目前，Docker 不支持此功能。请按照 [buildah 的安装说明](https://github.com/containers/buildah/blob/main/install.md) 构建最新的 buildah 二进制文件。
+要在容器镜像中添加 `module.wasm.image/variant=compat-smart` 注释，你需要最新的 [buildah](https://buildah.io/)。 目前，Docker 不支持此功能。请按照 [buildah 的安装说明](https://github.com/containers/buildah/blob/main/install.md) 构建最新的 buildah 二进制文件。
 
 ### 在 Ubuntu 上编译并安装最新的 buildah
 
@@ -108,7 +108,7 @@ buildah --help
 在 `target/wasm32-wasi/release/` 文件夹下，执行下列指令。
 
 ```bash
-$ sudo buildah build --annotation "module.wasm.image/variant=compat" -t http_server .
+$ sudo buildah build --annotation "module.wasm.image/variant=compat-smart" -t http_server .
 
 #
 # make sure docker is install and running

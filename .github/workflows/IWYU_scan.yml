@@ -1,7 +1,7 @@
 name: Scan WasmEdge with IWYU on Linux and macOS
 
 concurrency:
-  group: IWYU-scan-${{ github.head_ref }}
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
   cancel-in-progress: true
 
 on:

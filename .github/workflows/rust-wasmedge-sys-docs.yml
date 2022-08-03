@@ -1,7 +1,7 @@
 name: wasmedge-sys-docs
 
 concurrency:
-  group: wasmedge-sys-docs-${{ github.head_ref }}
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
   cancel-in-progress: true
 
 on:

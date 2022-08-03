@@ -1,5 +1,9 @@
 name: post-release
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
 # https://docs.github.com/en/actions/using-workflows/events-that-trigger-workflows
 on:
   workflow_run:

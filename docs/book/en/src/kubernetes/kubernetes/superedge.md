@@ -115,7 +115,7 @@ apiVersion: v1
 kind: Pod
 metadata:
   annotations:
-    module.wasm.image/variant: compat
+    module.wasm.image/variant: compat-smart
   labels:
     run: wasi-demo
   name: wasi-demo

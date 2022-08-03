@@ -26,6 +26,23 @@ foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
       message(FATAL_ERROR "tensor-1x224x224x3-f32.bgr downloaded with wrong md5") 
     endif()
     add_definitions(-DWASMEDGE_PLUGIN_WASI_NN_BACKEND_OPENVINO)
+  elseif(BACKEND MATCHES "PyTorch")
+    message( STATUS "Download ML artifacts to ${CMAKE_CURRENT_BINARY_DIR}/wasinn_pytorch_fixtures") 
+    execute_process(
+      COMMAND bash ${CMAKE_SOURCE_DIR}/utils/wasi-nn/download-pytorch-fixtures.sh ${CMAKE_CURRENT_BINARY_DIR}/wasinn_pytorch_fixtures
+      RESULT_VARIABLE DOWNLOAD_ERROR
+      OUTPUT_STRIP_TRAILING_WHITESPACE)
+    file(MD5 ${CMAKE_CURRENT_BINARY_DIR}/wasinn_pytorch_fixtures/mobilenet.pt CHECKSUM_WEIGHT)
+    file(MD5 ${CMAKE_CURRENT_BINARY_DIR}/wasinn_pytorch_fixtures/image-1-3-244-244.rgb CHECKSUM_IMAGE)
+    if(NOT CHECKSUM_WEIGHT STREQUAL "4823fc625c9ab452c64ad614eb52f2f0")
+      message(FATAL_ERROR "mobilenet.pt downloaded with wrong md5") 
+    endif()
+    if(NOT CHECKSUM_IMAGE STREQUAL "551caa6f3b66c1d953655228462570a1")
+      message(FATAL_ERROR "image-1-3-244-244.rgb downloaded with wrong md5") 
+    endif()
+    add_definitions(-DWASMEDGE_PLUGIN_WASI_NN_BACKEND_TORCH)
+    find_package(Torch REQUIRED)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${TORCH_CXX_FLAGS}")
   else()
     # Add the other backend test files fetching here.
   endif()

@@ -97,14 +97,14 @@ Expect<void> Executor::createThreadWithFunctionAddress(uint32_t FuncAddress, uin
 
   // If idx not small than tab.elem, trap.
   if (FuncAddress >= TabInst->getSize()) {
-    spdlog::error(ErrCode::UndefinedElement);
-    return Unexpect(ErrCode::UndefinedElement);
+    spdlog::error(ErrCode::Value::UndefinedElement);
+    return Unexpect(ErrCode::Value::UndefinedElement);
   }
 
   ValVariant Ref = TabInst->getRefAddr(FuncAddress)->get<UnknownRef>();
   if (isNullRef(Ref)) {
-    spdlog::error(ErrCode::UninitializedElement);
-    return Unexpect(ErrCode::UninitializedElement);
+    spdlog::error(ErrCode::Value::UninitializedElement);
+    return Unexpect(ErrCode::Value::UninitializedElement);
   }
 
   // Check function type.

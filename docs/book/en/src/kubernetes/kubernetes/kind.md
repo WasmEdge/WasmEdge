@@ -12,7 +12,7 @@ If KinD is installed we can directly start with the example from [here](https://
 # Create a "WASM in KinD" Cluster
 kind create cluster --image ghcr.io/liquid-reply/kind-crun-wasm:v1.23.0
 # Run the example
-kubectl run -it --rm --restart=Never wasi-demo --image=hydai/wasm-wasi-example:with-wasm-annotation --annotations="module.wasm.image/variant=compat" /wasi_example_main.wasm 50000000
+kubectl run -it --rm --restart=Never wasi-demo --image=hydai/wasm-wasi-example:with-wasm-annotation --annotations="module.wasm.image/variant=compat-smart" /wasi_example_main.wasm 50000000
 ```
 
 In the rest of this section, we will explain how to create a KinD node image with wasmedge support.
@@ -79,5 +79,5 @@ Finally we can build a new `node-wasmedge` image. To test it, we create a kind c
 docker build -t node-wasmedge .
 kind create cluster --image node-wasmedge
 # Now you can run the example to validate your cluster
-kubectl run -it --rm --restart=Never wasi-demo --image=hydai/wasm-wasi-example:with-wasm-annotation --annotations="module.wasm.image/variant=compat" /wasi_example_main.wasm 50000000
+kubectl run -it --rm --restart=Never wasi-demo --image=hydai/wasm-wasi-example:with-wasm-annotation --annotations="module.wasm.image/variant=compat-smart" /wasi_example_main.wasm 50000000
 ```

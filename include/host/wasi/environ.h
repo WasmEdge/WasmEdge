@@ -10,8 +10,8 @@
 #include "host/wasi/error.h"
 #include "host/wasi/vfs.h"
 #include "host/wasi/vinode.h"
-#include "wasi/api.hpp"
 #include "vm/vm.h"
+#include "wasi/api.hpp"
 
 #include <algorithm>
 #include <array>
@@ -22,10 +22,10 @@
 #include <shared_mutex>
 #include <string>
 #include <string_view>
+#include <thread>
 #include <unordered_map>
 #include <utility>
 #include <vector>
-#include <thread>
 
 namespace WasmEdge {
 namespace Host {
@@ -76,18 +76,18 @@ public:
 
   constexpr __wasi_exitcode_t getExitCode() const noexcept { return ExitCode; }
 
-  WasiExpect<void> pthreadCreate([[maybe_unused]] __wasi_thread_t *WasiThreadPtr,
-                                 uint32_t WasiThreadFunc,
-                                 [[maybe_unused]] void *WasiArg) const noexcept {
-
+  WasiExpect<void>
+  pthreadCreate([[maybe_unused]] __wasi_thread_t *WasiThreadPtr,
+                uint32_t WasiThreadFunc, uint32_t Arg) const noexcept {
 
     if (unlikely(!VM)) {
       return WasiUnexpect(__WASI_ERRNO_BADF);
     } else {
-      auto ThreadTunc = [&](){
-        VM->createThreadWithFunctionAddress(WasiThreadFunc);
+      auto ThreadTunc = [&]() {
+        VM->createThreadWithFunctionAddress(WasiThreadFunc, Arg);
       };
-      [[maybe_unused]] pthread_t *ThreadPtr = static_cast<pthread_t *>(WasiThreadPtr);
+      [[maybe_unused]] pthread_t *ThreadPtr =
+          static_cast<pthread_t *>(WasiThreadPtr);
       std::thread T(ThreadTunc);
       T.join();
     }

@@ -4,7 +4,6 @@
 #include "executor/executor.h"
 
 #include <cstdint>
-#include <iostream>
 namespace WasmEdge {
 namespace Executor {
 
@@ -84,6 +83,10 @@ Expect<void> Executor::runCallOp(Runtime::StackManager &StackMgr,
                                  const AST::Instruction &Instr,
                                  AST::InstrView::iterator &PC,
                                  bool IsTailCall) noexcept {
+  // Run host function.
+  auto *TabInst = getTabInstByIdx(StackMgr, Instr.getSourceIndex());
+  HostFunctionContext.TableInst = TabInst;
+
   // Get Function address.
   const auto *ModInst = StackMgr.getModule();
   const auto *FuncInst = *ModInst->getFunc(Instr.getTargetIndex());
@@ -118,8 +121,6 @@ Expect<void> Executor::runCallIndirectOp(Runtime::StackManager &StackMgr,
                                            {ValTypeFromType<uint32_t>()}));
     return Unexpect(ErrCode::Value::UndefinedElement);
   }
-
-  std::cerr << "runCallIndirectOp " << Instr.getOffset() << " " << Idx << "\n";
 
   // Get function address.
   ValVariant Ref = TabInst->getRefAddr(Idx)->get<UnknownRef>();

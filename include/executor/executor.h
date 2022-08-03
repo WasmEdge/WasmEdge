@@ -143,7 +143,7 @@ public:
     }
   }
 
-  Expect<void> createThreadWithFunctionAddress(uint32_t FuncAddress);
+  Expect<void> createThreadWithFunctionAddress(uint32_t FuncAddress, uint32_t Arg);
 
   /// Stop execution
   void stop() noexcept {
@@ -668,12 +668,6 @@ private:
     std::atomic_uint32_t *StopToken;
     const Runtime::Instance::FunctionInstance *FuncInst;
   };
-
-  /// Execution context of Executor Engine
-  // struct EngineContext {
-  //   const Runtime::StackManager *StackMgr;
-  // };
-
   /// Pointer to current object.
   static thread_local Executor *This;
   /// Stack for passing into compiled functions
@@ -683,6 +677,12 @@ private:
   /// Engine context
   // static thread_local EngineContext EngineContext;
   /// @}
+
+  /// Execution Context for the Host Function Caller
+  struct HostFunctionPreservedContext {
+    Runtime::Instance::TableInstance * TableInst;
+  };
+  HostFunctionPreservedContext HostFunctionContext;
 
 private:
   /// WasmEdge configuration

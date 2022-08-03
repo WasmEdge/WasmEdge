@@ -2389,12 +2389,12 @@ Expect<uint32_t> WasiSockGetPeerAddr::body(const Runtime::CallingFrame &Frame,
 
 Expect<uint32_t>
 WasiPthreadCreate::body(Runtime::Instance::MemoryInstance *MemInst,
-                        uint32_t Thread, [[maybe_unused]] uint32_t Attr, uint32_t StartRoutine,
-                        [[maybe_unused]]  uint32_t Arg) {
+                        uint32_t Thread, [[maybe_unused]] uint32_t Attr,
+                        uint32_t StartRoutine, uint32_t Arg) {
   if (MemInst == nullptr) {
     return __WASI_ERRNO_FAULT;
   }
-  std::cerr << "WasiPthreadCreate " << StartRoutine << "\n";
+  std::cerr << "WasiPthreadCreate " << StartRoutine << " " << Arg << "\n";
 
   __wasi_thread_t *const WasiThreadPtr =
       MemInst->getPointer<__wasi_thread_t *>(Thread);
@@ -2402,13 +2402,7 @@ WasiPthreadCreate::body(Runtime::Instance::MemoryInstance *MemInst,
     return __WASI_ERRNO_FAULT;
   }
 
-  void *const WasiArg = nullptr;
-  //  = MemInst->getPointer<void *>(Arg);
-  // if (WasiArg == nullptr) {
-  //   return __WASI_ERRNO_FAULT;
-  // }
-
-  if (auto Res = Env.pthreadCreate(WasiThreadPtr, StartRoutine, WasiArg);
+  if (auto Res = Env.pthreadCreate(WasiThreadPtr, StartRoutine, Arg);
       unlikely(!Res)) {
     return Res.error();
   }
@@ -2437,8 +2431,7 @@ WasiPthreadJoin::body(Runtime::Instance::MemoryInstance *MemInst,
     return __WASI_ERRNO_FAULT;
   }
 
-  if (auto Res = Env.pthreadJoin(Thread, WasiRetval);
-      unlikely(!Res)) {
+  if (auto Res = Env.pthreadJoin(Thread, WasiRetval); unlikely(!Res)) {
     return Res.error();
   }
 

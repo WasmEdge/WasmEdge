@@ -13,7 +13,7 @@ extern {
   pub fn pthread_attr_setstack(attr: *mut pthread_attr_t, stackaddr: *mut c_void,
                                stacksize: size_t) -> i32;
   pub fn pthread_create(newthread: *mut pthread_t, attr: *const pthread_attr_t,
-                        start_routine: extern fn (arg1: *mut c_void) -> *mut c_void,
+                        start_routine: extern fn (data: *mut c_void) -> *mut c_void,
                         arg: *mut c_void) -> i32;
   pub fn pthread_exit(retval: *mut c_void);
   pub fn pthread_getspecific(key: pthread_key_t) -> *mut c_void;
@@ -30,6 +30,7 @@ pub extern "C" fn my_thread(data: *mut c_void) -> *mut c_void {
   println!("Hello from thread id: {}", data.tid);
   return null_mut();
 }
+
 
 fn main() {
   let mut threads: Vec<pthread_t> = Vec::new();

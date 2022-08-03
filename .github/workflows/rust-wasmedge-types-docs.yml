@@ -9,6 +9,9 @@ on:
     branches:
       - "master"
       - "rust/*"
+    paths:
+      - ".github/workflows/rust-wasmedge-types-docs.yml"
+      - "bindings/rust/wasmedge-types/**"
     tags:
       - "rust-types/[0-9]+.[0-9]+.[0-9]+*"
 

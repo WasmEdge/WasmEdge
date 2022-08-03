@@ -78,7 +78,7 @@ To further debug and diagnose cluster problems, use 'kubectl cluster-info dump'.
 [这篇文章](../demo/wasi.md) 描述了如何编译、打包一个简单的 WebAssembly WASI 程序，以及将它以容器镜像的形式发布到 Docker hub 的完整过程。
 
 ```bash
-sudo cluster/kubectl.sh run -it --rm --restart=Never wasi-demo --image=hydai/wasm-wasi-example:with-wasm-annotation --annotations="module.wasm.image/variant=compat" /wasi_example_main.wasm 50000000
+sudo cluster/kubectl.sh run -it --rm --restart=Never wasi-demo --image=hydai/wasm-wasi-example:with-wasm-annotation --annotations="module.wasm.image/variant=compat-smart" /wasi_example_main.wasm 50000000
 ```
 
 容器化后的应用程序的输出会被打印到控制台上。
@@ -107,7 +107,7 @@ metadata:
   name: http-server
   namespace: default
   annotations:
-    module.wasm.image/variant: compat
+    module.wasm.image/variant: compat-smart
 spec:
   hostNetwork: true
   containers:

@@ -29,6 +29,7 @@ wasmedge_add_library(wasmedgeLoader
   ast/type.cpp
   ast/expression.cpp
   ast/instruction.cpp
+  ast/component.cpp
   loader.cpp
 )
 

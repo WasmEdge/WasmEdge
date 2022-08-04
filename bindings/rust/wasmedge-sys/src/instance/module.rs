@@ -2513,13 +2513,13 @@ impl ImportInstance for WasiCryptoKx {
     }
 }
 
-/// A [WasiCryptoSignature] is a module instance for the WASI-Crypto specification, covering signatures interfaces.
+/// A [WasiCryptoSignatures] is a module instance for the WASI-Crypto specification, covering signatures interfaces.
 #[derive(Debug)]
-pub struct WasiCryptoSignature {
+pub struct WasiCryptoSignatures {
     pub(crate) inner: InnerInstance,
     pub(crate) registered: bool,
 }
-impl Drop for WasiCryptoSignature {
+impl Drop for WasiCryptoSignatures {
     fn drop(&mut self) {
         if !self.registered && !self.inner.0.is_null() {
             unsafe {
@@ -2528,14 +2528,14 @@ impl Drop for WasiCryptoSignature {
         }
     }
 }
-impl WasiCryptoSignature {
+impl WasiCryptoSignatures {
     /// Creates and initializes a wasi_crypto kx host module named `wasi_ephemeral_crypto_signatures`, which contains the wasi_crypto signature functions.
     ///
     /// # Error
     ///
     /// If the wasi_crypto plugin is not found, then an error is returned.
     pub fn create() -> WasmEdgeResult<Self> {
-        let ctx = unsafe { ffi::WasmEdge_ModuleInstanceCreateWasiCryptoKx() };
+        let ctx = unsafe { ffi::WasmEdge_ModuleInstanceCreateWasiCryptoSignatures() };
         match ctx.is_null() {
             true => Err(WasmEdgeError::ImportObjCreate),
             false => Ok(Self {
@@ -2545,7 +2545,7 @@ impl WasiCryptoSignature {
         }
     }
 }
-impl AsInstance for WasiCryptoSignature {
+impl AsInstance for WasiCryptoSignatures {
     fn get_func(&self, name: impl AsRef<str>) -> WasmEdgeResult<Function> {
         let func_name: WasmEdgeString = name.as_ref().into();
         let func_ctx = unsafe {
@@ -2730,7 +2730,7 @@ impl AsInstance for WasiCryptoSignature {
         }
     }
 }
-impl ImportInstance for WasiCryptoSignature {
+impl ImportInstance for WasiCryptoSignatures {
     fn add_func(&mut self, name: impl AsRef<str>, mut func: Function) {
         let func_name: WasmEdgeString = name.into();
         unsafe {

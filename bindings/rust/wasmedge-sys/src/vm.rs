@@ -123,7 +123,7 @@ impl Vm {
     ///
     /// If fail to register the WASM module, then an error is returned.
     pub fn register_wasm_from_import(&mut self, import: ImportObject) -> WasmEdgeResult<()> {
-        let io_name = import.name();
+        let io_name: String = import.name().into();
 
         if self.imports.contains_key(&io_name) {
             return Err(WasmEdgeError::Vm(VmError::DuplicateImportModule));

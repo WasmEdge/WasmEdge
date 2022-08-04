@@ -457,8 +457,8 @@ impl ImportModule {
     }
 
     /// Returns the name of this import module instance.
-    pub fn name(&self) -> String {
-        self.name.to_owned()
+    pub fn name(&self) -> &str {
+        self.name.as_str()
     }
 }
 impl ImportInstance for ImportModule {
@@ -598,7 +598,7 @@ impl WasiModule {
     }
 
     /// Returns the name of this wasi module instance.
-    pub fn name(&self) -> impl AsRef<str> {
+    pub fn name(&self) -> &str {
         "wasi_snapshot_preview1"
     }
 
@@ -1526,7 +1526,7 @@ impl WasiCryptoCommon {
     }
 
     /// Returns the name of this wasi_crypto common host module instance.
-    pub fn name(&self) -> impl AsRef<str> {
+    pub fn name(&self) -> &str {
         "wasi_ephemeral_crypto_common"
     }
 }
@@ -1786,7 +1786,7 @@ impl WasiCryptoAsymmetricCommon {
     }
 
     /// Returns the name of this wasi_crypto asymmetric_common host module instance.
-    pub fn name(&self) -> impl AsRef<str> {
+    pub fn name(&self) -> &str {
         "wasi_ephemeral_crypto_asymmetric_common"
     }
 }
@@ -2046,7 +2046,7 @@ impl WasiCryptoSymmetric {
     }
 
     /// Returns the name of this wasi_crypto symmetric host module instance.
-    pub fn name(&self) -> impl AsRef<str> {
+    pub fn name(&self) -> &str {
         "wasi_ephemeral_crypto_symmetric"
     }
 }
@@ -2306,7 +2306,7 @@ impl WasiCryptoKx {
     }
 
     /// Returns the name of this wasi_crypto kx host module instance.
-    pub fn name(&self) -> impl AsRef<str> {
+    pub fn name(&self) -> &str {
         "wasi_ephemeral_crypto_kx"
     }
 }
@@ -2566,7 +2566,7 @@ impl WasiCryptoSignatures {
     }
 
     /// Returns the name of this wasi_crypto signatures host module instance.
-    pub fn name(&self) -> impl AsRef<str> {
+    pub fn name(&self) -> &str {
         "wasi_ephemeral_crypto_signatures"
     }
 }
@@ -2845,7 +2845,7 @@ pub enum ImportObject {
 }
 impl ImportObject {
     /// Returns the name of the import object.
-    pub fn name(&self) -> String {
+    pub fn name(&self) -> &str {
         match self {
             ImportObject::Import(import) => import.name(),
             ImportObject::Wasi(wasi) => wasi.name(),

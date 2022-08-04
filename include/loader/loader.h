@@ -15,6 +15,7 @@
 #pragma once
 
 #include "ast/module.h"
+#include "ast/component.h"
 #include "common/configure.h"
 #include "common/errinfo.h"
 #include "common/log.h"
@@ -116,6 +117,11 @@ private:
   Expect<RefType> checkRefTypeProposals(RefType RType, uint64_t Off,
                                         ASTNodeAttr Node);
   Expect<void> checkInstrProposals(OpCode Code, uint64_t Offset);
+  /// @}
+
+  /// \name Load AST Component functions
+  /// @{
+  Expect<std::unique_ptr<AST::Component>> loadComponent();
   /// @}
 
   /// \name Load AST Module functions

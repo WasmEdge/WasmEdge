@@ -48,9 +48,9 @@ Expect<void>
 Executor::registerModule(Runtime::StoreManager &StoreMgr,
                          const Runtime::Instance::ModuleInstance &ModInst) {
   if (auto Res = StoreMgr.registerModule(&ModInst); !Res) {
-    spdlog::error(ErrCode::ModuleNameConflict);
+    spdlog::error(ErrCode::Value::ModuleNameConflict);
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Module));
-    return Unexpect(ErrCode::ModuleNameConflict);
+    return Unexpect(ErrCode::Value::ModuleNameConflict);
   }
   return {};
 }
@@ -67,9 +67,9 @@ Executor::invoke(const Runtime::Instance::FunctionInstance &FuncInst,
   std::vector<ValType> GotParamTypes(ParamTypes.begin(), ParamTypes.end());
   GotParamTypes.resize(Params.size(), ValType::I32);
   if (PTypes != GotParamTypes) {
-    spdlog::error(ErrCode::FuncSigMismatch);
+    spdlog::error(ErrCode::Value::FuncSigMismatch);
     spdlog::error(ErrInfo::InfoMismatch(PTypes, RTypes, GotParamTypes, RTypes));
-    return Unexpect(ErrCode::FuncSigMismatch);
+    return Unexpect(ErrCode::Value::FuncSigMismatch);
   }
 
   Runtime::StackManager StackMgr;

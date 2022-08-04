@@ -310,7 +310,7 @@ TEST(FileManagerTest, File__ReadUnsigned32TooLong) {
   WasmEdge::Expect<uint32_t> ReadNum;
   ASSERT_TRUE(Mgr.setPath("filemgrTestData/readU32TestTooLong.bin"));
   ASSERT_FALSE(ReadNum = Mgr.readU32());
-  EXPECT_EQ(WasmEdge::ErrCode::IntegerTooLong, ReadNum.error());
+  EXPECT_EQ(WasmEdge::ErrCode::Value::IntegerTooLong, ReadNum.error());
 }
 
 TEST(FileManagerTest, File__ReadUnsigned32TooLarge) {
@@ -318,7 +318,7 @@ TEST(FileManagerTest, File__ReadUnsigned32TooLarge) {
   WasmEdge::Expect<uint32_t> ReadNum;
   ASSERT_TRUE(Mgr.setPath("filemgrTestData/readU32TestTooLarge.bin"));
   ASSERT_FALSE(ReadNum = Mgr.readU32());
-  EXPECT_EQ(WasmEdge::ErrCode::IntegerTooLarge, ReadNum.error());
+  EXPECT_EQ(WasmEdge::ErrCode::Value::IntegerTooLarge, ReadNum.error());
 }
 
 TEST(FileManagerTest, File__ReadSigned32TooLong) {
@@ -326,7 +326,7 @@ TEST(FileManagerTest, File__ReadSigned32TooLong) {
   WasmEdge::Expect<int32_t> ReadNum;
   ASSERT_TRUE(Mgr.setPath("filemgrTestData/readS32TestTooLong.bin"));
   ASSERT_FALSE(ReadNum = Mgr.readS32());
-  EXPECT_EQ(WasmEdge::ErrCode::IntegerTooLong, ReadNum.error());
+  EXPECT_EQ(WasmEdge::ErrCode::Value::IntegerTooLong, ReadNum.error());
 }
 
 TEST(FileManagerTest, File__ReadSigned32TooLarge) {
@@ -334,7 +334,7 @@ TEST(FileManagerTest, File__ReadSigned32TooLarge) {
   WasmEdge::Expect<int32_t> ReadNum;
   ASSERT_TRUE(Mgr.setPath("filemgrTestData/readS32TestTooLarge.bin"));
   ASSERT_FALSE(ReadNum = Mgr.readS32());
-  EXPECT_EQ(WasmEdge::ErrCode::IntegerTooLarge, ReadNum.error());
+  EXPECT_EQ(WasmEdge::ErrCode::Value::IntegerTooLarge, ReadNum.error());
 }
 
 TEST(FileManagerTest, File__ReadUnsigned64TooLong) {
@@ -342,7 +342,7 @@ TEST(FileManagerTest, File__ReadUnsigned64TooLong) {
   WasmEdge::Expect<uint64_t> ReadNum;
   ASSERT_TRUE(Mgr.setPath("filemgrTestData/readU64TestTooLong.bin"));
   ASSERT_FALSE(ReadNum = Mgr.readU64());
-  EXPECT_EQ(WasmEdge::ErrCode::IntegerTooLong, ReadNum.error());
+  EXPECT_EQ(WasmEdge::ErrCode::Value::IntegerTooLong, ReadNum.error());
 }
 
 TEST(FileManagerTest, File__ReadUnsigned64TooLarge) {
@@ -350,7 +350,7 @@ TEST(FileManagerTest, File__ReadUnsigned64TooLarge) {
   WasmEdge::Expect<uint64_t> ReadNum;
   ASSERT_TRUE(Mgr.setPath("filemgrTestData/readU64TestTooLarge.bin"));
   ASSERT_FALSE(ReadNum = Mgr.readU64());
-  EXPECT_EQ(WasmEdge::ErrCode::IntegerTooLarge, ReadNum.error());
+  EXPECT_EQ(WasmEdge::ErrCode::Value::IntegerTooLarge, ReadNum.error());
 }
 
 TEST(FileManagerTest, File__ReadSigned64TooLong) {
@@ -358,7 +358,7 @@ TEST(FileManagerTest, File__ReadSigned64TooLong) {
   WasmEdge::Expect<int64_t> ReadNum;
   ASSERT_TRUE(Mgr.setPath("filemgrTestData/readS64TestTooLong.bin"));
   ASSERT_FALSE(ReadNum = Mgr.readS64());
-  EXPECT_EQ(WasmEdge::ErrCode::IntegerTooLong, ReadNum.error());
+  EXPECT_EQ(WasmEdge::ErrCode::Value::IntegerTooLong, ReadNum.error());
 }
 
 TEST(FileManagerTest, File__ReadSigned64TooLarge) {
@@ -366,7 +366,7 @@ TEST(FileManagerTest, File__ReadSigned64TooLarge) {
   WasmEdge::Expect<int64_t> ReadNum;
   ASSERT_TRUE(Mgr.setPath("filemgrTestData/readS64TestTooLarge.bin"));
   ASSERT_FALSE(ReadNum = Mgr.readS64());
-  EXPECT_EQ(WasmEdge::ErrCode::IntegerTooLarge, ReadNum.error());
+  EXPECT_EQ(WasmEdge::ErrCode::Value::IntegerTooLarge, ReadNum.error());
 }
 
 TEST(FileManagerTest, Vector__ReadByte) {
@@ -683,7 +683,7 @@ TEST(FileManagerTest, Vector__ReadUnsigned32TooLong) {
   ASSERT_TRUE(
       Mgr.setCode(std::vector<uint8_t>{0x80, 0x80, 0x80, 0x80, 0x80, 0x00}));
   ASSERT_FALSE(ReadNum = Mgr.readU32());
-  EXPECT_EQ(WasmEdge::ErrCode::IntegerTooLong, ReadNum.error());
+  EXPECT_EQ(WasmEdge::ErrCode::Value::IntegerTooLong, ReadNum.error());
 }
 
 TEST(FileManagerTest, Vector__ReadUnsigned32TooLarge) {
@@ -691,7 +691,7 @@ TEST(FileManagerTest, Vector__ReadUnsigned32TooLarge) {
   WasmEdge::Expect<uint32_t> ReadNum;
   ASSERT_TRUE(Mgr.setCode(std::vector<uint8_t>{0x80, 0x80, 0x80, 0x80, 0x1F}));
   ASSERT_FALSE(ReadNum = Mgr.readU32());
-  EXPECT_EQ(WasmEdge::ErrCode::IntegerTooLarge, ReadNum.error());
+  EXPECT_EQ(WasmEdge::ErrCode::Value::IntegerTooLarge, ReadNum.error());
 }
 
 TEST(FileManagerTest, Vector__ReadSigned32TooLong) {
@@ -700,7 +700,7 @@ TEST(FileManagerTest, Vector__ReadSigned32TooLong) {
   ASSERT_TRUE(
       Mgr.setCode(std::vector<uint8_t>{0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x7F}));
   ASSERT_FALSE(ReadNum = Mgr.readS32());
-  EXPECT_EQ(WasmEdge::ErrCode::IntegerTooLong, ReadNum.error());
+  EXPECT_EQ(WasmEdge::ErrCode::Value::IntegerTooLong, ReadNum.error());
 }
 
 TEST(FileManagerTest, Vector__ReadSigned32TooLarge) {
@@ -708,7 +708,7 @@ TEST(FileManagerTest, Vector__ReadSigned32TooLarge) {
   WasmEdge::Expect<int32_t> ReadNum;
   ASSERT_TRUE(Mgr.setCode(std::vector<uint8_t>{0xFF, 0xFF, 0xFF, 0xFF, 0x4F}));
   ASSERT_FALSE(ReadNum = Mgr.readS32());
-  EXPECT_EQ(WasmEdge::ErrCode::IntegerTooLarge, ReadNum.error());
+  EXPECT_EQ(WasmEdge::ErrCode::Value::IntegerTooLarge, ReadNum.error());
 }
 
 TEST(FileManagerTest, Vector__ReadUnsigned64TooLong) {
@@ -717,7 +717,7 @@ TEST(FileManagerTest, Vector__ReadUnsigned64TooLong) {
   ASSERT_TRUE(Mgr.setCode(std::vector<uint8_t>{
       0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x00}));
   ASSERT_FALSE(ReadNum = Mgr.readU64());
-  EXPECT_EQ(WasmEdge::ErrCode::IntegerTooLong, ReadNum.error());
+  EXPECT_EQ(WasmEdge::ErrCode::Value::IntegerTooLong, ReadNum.error());
 }
 
 TEST(FileManagerTest, Vector__ReadUnsigned64TooLarge) {
@@ -726,7 +726,7 @@ TEST(FileManagerTest, Vector__ReadUnsigned64TooLarge) {
   ASSERT_TRUE(Mgr.setCode(std::vector<uint8_t>{0x80, 0x80, 0x80, 0x80, 0x80,
                                                0x80, 0x80, 0x80, 0x80, 0x7E}));
   ASSERT_FALSE(ReadNum = Mgr.readU64());
-  EXPECT_EQ(WasmEdge::ErrCode::IntegerTooLarge, ReadNum.error());
+  EXPECT_EQ(WasmEdge::ErrCode::Value::IntegerTooLarge, ReadNum.error());
 }
 
 TEST(FileManagerTest, Vector__ReadSigned64TooLong) {
@@ -735,7 +735,7 @@ TEST(FileManagerTest, Vector__ReadSigned64TooLong) {
   ASSERT_TRUE(Mgr.setCode(std::vector<uint8_t>{
       0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x7F}));
   ASSERT_FALSE(ReadNum = Mgr.readS64());
-  EXPECT_EQ(WasmEdge::ErrCode::IntegerTooLong, ReadNum.error());
+  EXPECT_EQ(WasmEdge::ErrCode::Value::IntegerTooLong, ReadNum.error());
 }
 
 TEST(FileManagerTest, Vector__ReadSigned64TooLarge) {
@@ -744,7 +744,7 @@ TEST(FileManagerTest, Vector__ReadSigned64TooLarge) {
   ASSERT_TRUE(Mgr.setCode(std::vector<uint8_t>{0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
                                                0xFF, 0xFF, 0xFF, 0xFF, 0x41}));
   ASSERT_FALSE(ReadNum = Mgr.readS64());
-  EXPECT_EQ(WasmEdge::ErrCode::IntegerTooLarge, ReadNum.error());
+  EXPECT_EQ(WasmEdge::ErrCode::Value::IntegerTooLarge, ReadNum.error());
 }
 } // namespace
 

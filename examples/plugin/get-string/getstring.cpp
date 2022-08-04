@@ -29,19 +29,19 @@ public:
                     uint32_t BufLen, uint32_t WrittenPtr) {
     // Check memory instance from module.
     if (MemInst == nullptr) {
-      return Unexpect(ErrCode::ExecutionFailed);
+      return Unexpect(ErrCode::Value::HostFuncError);
     }
 
     // Validate range of the buffer.
     char *const Buf = MemInst->getPointer<char *>(BufPtr, BufLen);
     if (unlikely(Buf == nullptr)) {
-      return Unexpect(ErrCode::ExecutionFailed);
+      return Unexpect(ErrCode::Value::HostFuncError);
     }
 
     // Validate pointer to written count.
     uint32_t *const Written = MemInst->getPointer<uint32_t *>(WrittenPtr);
     if (unlikely(Written == nullptr)) {
-      return Unexpect(ErrCode::ExecutionFailed);
+      return Unexpect(ErrCode::Value::HostFuncError);
     }
 
     if (Upper) {

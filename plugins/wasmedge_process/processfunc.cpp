@@ -25,7 +25,7 @@ WasmEdgeProcessSetProgName::body(Runtime::Instance::MemoryInstance *MemInst,
                                  uint32_t NamePtr, uint32_t NameLen) {
   // Check memory instance from module.
   if (MemInst == nullptr) {
-    return Unexpect(ErrCode::ExecutionFailed);
+    return Unexpect(ErrCode::Value::HostFuncError);
   }
 
   char *Buf = MemInst->getPointer<char *>(NamePtr);
@@ -38,7 +38,7 @@ WasmEdgeProcessAddArg::body(Runtime::Instance::MemoryInstance *MemInst,
                             uint32_t ArgPtr, uint32_t ArgLen) {
   // Check memory instance from module.
   if (MemInst == nullptr) {
-    return Unexpect(ErrCode::ExecutionFailed);
+    return Unexpect(ErrCode::Value::HostFuncError);
   }
 
   char *Buf = MemInst->getPointer<char *>(ArgPtr);
@@ -54,7 +54,7 @@ WasmEdgeProcessAddEnv::body(Runtime::Instance::MemoryInstance *MemInst,
                             uint32_t EnvValPtr, uint32_t EnvValLen) {
   // Check memory instance from module.
   if (MemInst == nullptr) {
-    return Unexpect(ErrCode::ExecutionFailed);
+    return Unexpect(ErrCode::Value::HostFuncError);
   }
 
   char *EnvBuf = MemInst->getPointer<char *>(EnvNamePtr);
@@ -71,7 +71,7 @@ WasmEdgeProcessAddStdIn::body(Runtime::Instance::MemoryInstance *MemInst,
                               uint32_t BufPtr, uint32_t BufLen) {
   // Check memory instance from module.
   if (MemInst == nullptr) {
-    return Unexpect(ErrCode::ExecutionFailed);
+    return Unexpect(ErrCode::Value::HostFuncError);
   }
 
   uint8_t *Buf = MemInst->getPointer<uint8_t *>(BufPtr);
@@ -294,7 +294,7 @@ Expect<uint32_t> WasmEdgeProcessRun::body(Runtime::Instance::MemoryInstance *) {
   return Env.ExitCode;
 #elif WASMEDGE_OS_WINDOWS
   spdlog::error("wasmedge_process doesn't support windows now.");
-  return Unexpect(ErrCode::ExecutionFailed);
+  return Unexpect(ErrCode::Value::HostFuncError);
 #endif
 }
 
@@ -313,7 +313,7 @@ WasmEdgeProcessGetStdOut::body(Runtime::Instance::MemoryInstance *MemInst,
                                uint32_t BufPtr) {
   // Check memory instance from module.
   if (MemInst == nullptr) {
-    return Unexpect(ErrCode::ExecutionFailed);
+    return Unexpect(ErrCode::Value::HostFuncError);
   }
 
   char *Buf = MemInst->getPointer<char *>(BufPtr);
@@ -331,7 +331,7 @@ WasmEdgeProcessGetStdErr::body(Runtime::Instance::MemoryInstance *MemInst,
                                uint32_t BufPtr) {
   // Check memory instance from module.
   if (MemInst == nullptr) {
-    return Unexpect(ErrCode::ExecutionFailed);
+    return Unexpect(ErrCode::Value::HostFuncError);
   }
 
   char *Buf = MemInst->getPointer<char *>(BufPtr);

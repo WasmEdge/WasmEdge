@@ -17,13 +17,13 @@ TypeT<T> Executor::runLoadOp(Runtime::StackManager &StackMgr,
   ValVariant &Val = StackMgr.getTop();
   if (Val.get<uint32_t>() >
       std::numeric_limits<uint32_t>::max() - Instr.getMemoryOffset()) {
-    spdlog::error(ErrCode::MemoryOutOfBounds);
+    spdlog::error(ErrCode::Value::MemoryOutOfBounds);
     spdlog::error(ErrInfo::InfoBoundary(
         Val.get<uint32_t>() + static_cast<uint64_t>(Instr.getMemoryOffset()),
         BitWidth / 8, MemInst.getBoundIdx()));
     spdlog::error(
         ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
-    return Unexpect(ErrCode::MemoryOutOfBounds);
+    return Unexpect(ErrCode::Value::MemoryOutOfBounds);
   }
   uint32_t EA = Val.get<uint32_t>() + Instr.getMemoryOffset();
 
@@ -47,13 +47,13 @@ TypeN<T> Executor::runStoreOp(Runtime::StackManager &StackMgr,
   // Calculate EA = i + offset
   uint32_t I = StackMgr.pop().get<uint32_t>();
   if (I > std::numeric_limits<uint32_t>::max() - Instr.getMemoryOffset()) {
-    spdlog::error(ErrCode::MemoryOutOfBounds);
+    spdlog::error(ErrCode::Value::MemoryOutOfBounds);
     spdlog::error(ErrInfo::InfoBoundary(
         I + static_cast<uint64_t>(Instr.getMemoryOffset()), BitWidth / 8,
         MemInst.getBoundIdx()));
     spdlog::error(
         ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
-    return Unexpect(ErrCode::MemoryOutOfBounds);
+    return Unexpect(ErrCode::Value::MemoryOutOfBounds);
   }
   uint32_t EA = I + Instr.getMemoryOffset();
 
@@ -76,13 +76,13 @@ Executor::runLoadExpandOp(Runtime::StackManager &StackMgr,
   ValVariant &Val = StackMgr.getTop();
   if (Val.get<uint32_t>() >
       std::numeric_limits<uint32_t>::max() - Instr.getMemoryOffset()) {
-    spdlog::error(ErrCode::MemoryOutOfBounds);
+    spdlog::error(ErrCode::Value::MemoryOutOfBounds);
     spdlog::error(ErrInfo::InfoBoundary(
         Val.get<uint32_t>() + static_cast<uint64_t>(Instr.getMemoryOffset()), 8,
         MemInst.getBoundIdx()));
     spdlog::error(
         ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
-    return Unexpect(ErrCode::MemoryOutOfBounds);
+    return Unexpect(ErrCode::Value::MemoryOutOfBounds);
   }
   uint32_t EA = Val.get<uint32_t>() + Instr.getMemoryOffset();
 
@@ -120,13 +120,13 @@ Executor::runLoadSplatOp(Runtime::StackManager &StackMgr,
   ValVariant &Val = StackMgr.getTop();
   if (Val.get<uint32_t>() >
       std::numeric_limits<uint32_t>::max() - Instr.getMemoryOffset()) {
-    spdlog::error(ErrCode::MemoryOutOfBounds);
+    spdlog::error(ErrCode::Value::MemoryOutOfBounds);
     spdlog::error(ErrInfo::InfoBoundary(
         Val.get<uint32_t>() + static_cast<uint64_t>(Instr.getMemoryOffset()),
         sizeof(T), MemInst.getBoundIdx()));
     spdlog::error(
         ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
-    return Unexpect(ErrCode::MemoryOutOfBounds);
+    return Unexpect(ErrCode::Value::MemoryOutOfBounds);
   }
   uint32_t EA = Val.get<uint32_t>() + Instr.getMemoryOffset();
 
@@ -165,13 +165,13 @@ Expect<void> Executor::runLoadLaneOp(Runtime::StackManager &StackMgr,
   ValVariant &Val = StackMgr.getTop();
   const uint32_t Offset = Val.get<uint32_t>();
   if (Offset > std::numeric_limits<uint32_t>::max() - Instr.getMemoryOffset()) {
-    spdlog::error(ErrCode::MemoryOutOfBounds);
+    spdlog::error(ErrCode::Value::MemoryOutOfBounds);
     spdlog::error(ErrInfo::InfoBoundary(
         Offset + static_cast<uint64_t>(Instr.getMemoryOffset()), sizeof(T),
         MemInst.getBoundIdx()));
     spdlog::error(
         ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
-    return Unexpect(ErrCode::MemoryOutOfBounds);
+    return Unexpect(ErrCode::Value::MemoryOutOfBounds);
   }
   const uint32_t EA = Offset + Instr.getMemoryOffset();
 
@@ -201,13 +201,13 @@ Executor::runStoreLaneOp(Runtime::StackManager &StackMgr,
   // Calculate EA = i + offset
   uint32_t I = StackMgr.pop().get<uint32_t>();
   if (I > std::numeric_limits<uint32_t>::max() - Instr.getMemoryOffset()) {
-    spdlog::error(ErrCode::MemoryOutOfBounds);
+    spdlog::error(ErrCode::Value::MemoryOutOfBounds);
     spdlog::error(ErrInfo::InfoBoundary(
         I + static_cast<uint64_t>(Instr.getMemoryOffset()), sizeof(T),
         MemInst.getBoundIdx()));
     spdlog::error(
         ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
-    return Unexpect(ErrCode::MemoryOutOfBounds);
+    return Unexpect(ErrCode::Value::MemoryOutOfBounds);
   }
   uint32_t EA = I + Instr.getMemoryOffset();
 

@@ -247,7 +247,7 @@ private:
     std::shared_lock Lock(Mutex);
     if (unlikely(Idx >= FuncTypes.size())) {
       // Error logging need to be handled in caller.
-      return Unexpect(ErrCode::WrongInstanceIndex);
+      return Unexpect(ErrCode::Value::WrongInstanceIndex);
     }
     return &FuncTypes[Idx];
   }
@@ -257,7 +257,7 @@ private:
     std::shared_lock Lock(Mutex);
     if (Idx >= FuncInsts.size()) {
       // Error logging need to be handled in caller.
-      return Unexpect(ErrCode::WrongInstanceIndex);
+      return Unexpect(ErrCode::Value::WrongInstanceIndex);
     }
     return FuncInsts[Idx];
   }
@@ -265,7 +265,7 @@ private:
     std::shared_lock Lock(Mutex);
     if (Idx >= TabInsts.size()) {
       // Error logging need to be handled in caller.
-      return Unexpect(ErrCode::WrongInstanceIndex);
+      return Unexpect(ErrCode::Value::WrongInstanceIndex);
     }
     return unsafeGetTable(Idx);
   }
@@ -276,7 +276,7 @@ private:
     std::shared_lock Lock(Mutex);
     if (Idx >= MemInsts.size()) {
       // Error logging need to be handled in caller.
-      return Unexpect(ErrCode::WrongInstanceIndex);
+      return Unexpect(ErrCode::Value::WrongInstanceIndex);
     }
     return unsafeGetMemory(Idx);
   }
@@ -287,7 +287,7 @@ private:
     std::shared_lock Lock(Mutex);
     if (Idx >= GlobInsts.size()) {
       // Error logging need to be handled in caller.
-      return Unexpect(ErrCode::WrongInstanceIndex);
+      return Unexpect(ErrCode::Value::WrongInstanceIndex);
     }
     return unsafeGetGlobal(Idx);
   }
@@ -298,7 +298,7 @@ private:
     std::shared_lock Lock(Mutex);
     if (Idx >= ElemInsts.size()) {
       // Error logging need to be handled in caller.
-      return Unexpect(ErrCode::WrongInstanceIndex);
+      return Unexpect(ErrCode::Value::WrongInstanceIndex);
     }
     return unsafeGetElem(Idx);
   }
@@ -309,7 +309,7 @@ private:
     std::shared_lock Lock(Mutex);
     if (Idx >= DataInsts.size()) {
       // Error logging need to be handled in caller.
-      return Unexpect(ErrCode::WrongInstanceIndex);
+      return Unexpect(ErrCode::Value::WrongInstanceIndex);
     }
     return unsafeGetData(Idx);
   }

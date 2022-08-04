@@ -41,9 +41,9 @@ Expect<void> Executor::instantiate(Runtime::StackManager &StackMgr,
         assuming(MemInst);
         if (!MemInst->checkAccessBound(
                 Offset, static_cast<uint32_t>(DataSeg.getData().size()))) {
-          spdlog::error(ErrCode::DataSegDoesNotFit);
+          spdlog::error(ErrCode::Value::DataSegDoesNotFit);
           spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Seg_Data));
-          return Unexpect(ErrCode::DataSegDoesNotFit);
+          return Unexpect(ErrCode::Value::DataSegDoesNotFit);
         }
       }
     }

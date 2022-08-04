@@ -113,8 +113,13 @@ namespace {
 using namespace WasmEdge;
 
 // Helper function for returning a WasmEdge_Result by error code.
-inline constexpr WasmEdge_Result genWasmEdge_Result(ErrCode Code) noexcept {
-  return WasmEdge_Result{.Code = static_cast<uint8_t>(Code)};
+inline constexpr WasmEdge_Result
+genWasmEdge_Result(const ErrCode::Value &Code) noexcept {
+  return WasmEdge_Result{.Code = static_cast<uint32_t>(Code) & 0x00FFFFFFU};
+}
+inline constexpr WasmEdge_Result
+genWasmEdge_Result(const ErrCode &Code) noexcept {
+  return WasmEdge_Result{.Code = Code.operator uint32_t()};
 }
 
 // Helper function for returning a struct uint128_t / int128_t
@@ -248,12 +253,12 @@ inline WasmEdge_Result wrap(T &&Proc, U &&Then, CxtT *...Cxts) noexcept {
   if (isContext(Cxts...)) {
     if (auto Res = Proc()) {
       Then(Res);
-      return genWasmEdge_Result(ErrCode::Success);
+      return genWasmEdge_Result(ErrCode::Value::Success);
     } else {
       return genWasmEdge_Result(Res.error());
     }
   } else {
-    return genWasmEdge_Result(ErrCode::WrongVMWorkflow);
+    return genWasmEdge_Result(ErrCode::Value::WrongVMWorkflow);
   }
 }
 
@@ -318,10 +323,14 @@ public:
     for (uint32_t I = 0; I < Rets.size(); I++) {
       Rets[I] = to_WasmEdge_128_t<WasmEdge::uint128_t>(Returns[I].Value);
     }
-    if (!WasmEdge_ResultOK(Stat)) {
-      return Unexpect(ErrCode::ExecutionFailed);
-    } else if (Stat.Code == 0x01) {
-      return Unexpect(ErrCode::Terminated);
+    if (WasmEdge_ResultOK(Stat)) {
+      if (WasmEdge_ResultGetCode(Stat) == 0x01U) {
+        return Unexpect(ErrCode::Value::Terminated);
+      }
+    } else {
+      return Unexpect(
+          static_cast<ErrCategory>(WasmEdge_ResultGetCategory(Stat)),
+          WasmEdge_ResultGetCode(Stat));
     }
     return {};
   }
@@ -587,23 +596,41 @@ WASMEDGE_CAPI_EXPORT void WasmEdge_StringDelete(WasmEdge_String Str) {
 // >>>>>>>> WasmEdge result functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 WASMEDGE_CAPI_EXPORT bool WasmEdge_ResultOK(const WasmEdge_Result Res) {
-  if (static_cast<WasmEdge::ErrCode>(Res.Code) == WasmEdge::ErrCode::Success ||
-      static_cast<WasmEdge::ErrCode>(Res.Code) ==
-          WasmEdge::ErrCode::Terminated) {
+  if (WasmEdge_ResultGetCategory(Res) == WasmEdge_ErrCategory_WASM &&
+      (static_cast<WasmEdge::ErrCode::Value>(WasmEdge_ResultGetCode(Res)) ==
+           WasmEdge::ErrCode::Value::Success ||
+       static_cast<WasmEdge::ErrCode::Value>(WasmEdge_ResultGetCode(Res)) ==
+           WasmEdge::ErrCode::Value::Terminated)) {
     return true;
   } else {
     return false;
   }
 }
 
+WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_ResultGen(
+    const enum WasmEdge_ErrCategory Category, const uint32_t Code) {
+  return WasmEdge_Result{.Code = (static_cast<uint32_t>(Category) << 24) +
+                                 (Code & 0x00FFFFFFU)};
+}
+
 WASMEDGE_CAPI_EXPORT uint32_t
 WasmEdge_ResultGetCode(const WasmEdge_Result Res) {
-  return static_cast<uint32_t>(Res.Code);
+  return Res.Code & 0x00FFFFFFU;
+}
+
+WASMEDGE_CAPI_EXPORT WasmEdge_ErrCategory
+WasmEdge_ResultGetCategory(const WasmEdge_Result Res) {
+  return static_cast<WasmEdge_ErrCategory>(Res.Code >> 24);
 }
 
 WASMEDGE_CAPI_EXPORT const char *
 WasmEdge_ResultGetMessage(const WasmEdge_Result Res) {
-  return WasmEdge::ErrCodeStr[static_cast<WasmEdge::ErrCode>(Res.Code)].data();
+  if (WasmEdge_ResultGetCategory(Res) != WasmEdge_ErrCategory_WASM) {
+    return WasmEdge::ErrCodeStr[WasmEdge::ErrCode::Value::UserDefError].data();
+  }
+  return WasmEdge::ErrCodeStr[static_cast<WasmEdge::ErrCode::Value>(
+                                  WasmEdge_ResultGetCode(Res))]
+      .data();
 }
 
 // <<<<<<<< WasmEdge result functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
@@ -1388,8 +1415,7 @@ WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_CompilerCompile(
       },
       EmptyThen, Cxt);
 #else
-  return WasmEdge_Result{
-      .Code = static_cast<uint8_t>(WasmEdge::ErrCode::AOTDisabled)};
+  return genWasmEdge_Result(ErrCode::Value::AOTDisabled);
 #endif
 }
 
@@ -2021,11 +2047,11 @@ WasmEdge_TableInstanceSetData(WasmEdge_TableInstanceContext *Cxt,
         WasmEdge::RefType expType =
             fromTabCxt(Cxt)->getTableType().getRefType();
         if (expType != static_cast<WasmEdge::RefType>(Data.Type)) {
-          spdlog::error(WasmEdge::ErrCode::RefTypeMismatch);
+          spdlog::error(WasmEdge::ErrCode::Value::RefTypeMismatch);
           spdlog::error(WasmEdge::ErrInfo::InfoMismatch(
               static_cast<WasmEdge::ValType>(expType),
               static_cast<WasmEdge::ValType>(Data.Type)));
-          return Unexpect(WasmEdge::ErrCode::RefTypeMismatch);
+          return Unexpect(WasmEdge::ErrCode::Value::RefTypeMismatch);
         }
         return fromTabCxt(Cxt)->setRefAddr(
             Offset, WasmEdge::ValVariant(
@@ -2050,8 +2076,8 @@ WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_TableInstanceGrow(
         if (fromTabCxt(Cxt)->growTable(Size)) {
           return {};
         } else {
-          spdlog::error(WasmEdge::ErrCode::TableOutOfBounds);
-          return WasmEdge::Unexpect(WasmEdge::ErrCode::TableOutOfBounds);
+          spdlog::error(WasmEdge::ErrCode::Value::TableOutOfBounds);
+          return WasmEdge::Unexpect(WasmEdge::ErrCode::Value::TableOutOfBounds);
         }
       },
       EmptyThen, Cxt);
@@ -2137,8 +2163,9 @@ WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_MemoryInstanceGrowPage(
         if (fromMemCxt(Cxt)->growPage(Page)) {
           return {};
         } else {
-          spdlog::error(WasmEdge::ErrCode::MemoryOutOfBounds);
-          return WasmEdge::Unexpect(WasmEdge::ErrCode::MemoryOutOfBounds);
+          spdlog::error(WasmEdge::ErrCode::Value::MemoryOutOfBounds);
+          return WasmEdge::Unexpect(
+              WasmEdge::ErrCode::Value::MemoryOutOfBounds);
         }
       },
       EmptyThen, Cxt);

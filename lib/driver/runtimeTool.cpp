@@ -247,7 +247,7 @@ int Tool(int Argc, const char *Argv[]) noexcept {
       }
     }
     if (auto Result = AsyncResult.get();
-        Result || Result.error() == ErrCode::Terminated) {
+        Result || Result.error() == ErrCode::Value::Terminated) {
       return static_cast<int>(WasiMod->getEnv().getExitCode());
     } else {
       return EXIT_FAILURE;

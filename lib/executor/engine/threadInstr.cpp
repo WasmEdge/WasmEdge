@@ -17,13 +17,13 @@ Executor::runAtomicNotifyOp(Runtime::StackManager &StackMgr,
 
   if (Address >
       std::numeric_limits<uint32_t>::max() - Instr.getMemoryOffset()) {
-    spdlog::error(ErrCode::MemoryOutOfBounds);
+    spdlog::error(ErrCode::Value::MemoryOutOfBounds);
     spdlog::error(ErrInfo::InfoBoundary(
         Address + static_cast<uint64_t>(Instr.getMemoryOffset()),
         sizeof(uint32_t), MemInst.getBoundIdx()));
     spdlog::error(
         ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
-    return Unexpect(ErrCode::MemoryOutOfBounds);
+    return Unexpect(ErrCode::Value::MemoryOutOfBounds);
   }
   Address += Instr.getMemoryOffset();
 

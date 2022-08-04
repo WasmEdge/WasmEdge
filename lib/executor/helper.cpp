@@ -21,8 +21,8 @@ Executor::enterFunction(Runtime::StackManager &StackMgr,
 
   // Check if the interruption occurs.
   if (unlikely(StopToken.exchange(0, std::memory_order_relaxed))) {
-    spdlog::error(ErrCode::Interrupted);
-    return Unexpect(ErrCode::Interrupted);
+    spdlog::error(ErrCode::Value::Interrupted);
+    return Unexpect(ErrCode::Value::Interrupted);
   }
 
   // Get function type for the params and returns num.
@@ -58,8 +58,8 @@ Executor::enterFunction(Runtime::StackManager &StackMgr,
     if (Stat) {
       // Check host function cost.
       if (unlikely(!Stat->addCost(HostFunc.getCost()))) {
-        spdlog::error(ErrCode::CostLimitExceeded);
-        return Unexpect(ErrCode::CostLimitExceeded);
+        spdlog::error(ErrCode::Value::CostLimitExceeded);
+        return Unexpect(ErrCode::Value::CostLimitExceeded);
       }
       // Start recording time of running host function.
       Stat->stopRecordWasm();
@@ -80,7 +80,8 @@ Executor::enterFunction(Runtime::StackManager &StackMgr,
 
     // Check the host function execution status.
     if (!Ret) {
-      if (Ret.error() == ErrCode::ExecutionFailed) {
+      if (Ret.error() == ErrCode::Value::HostFuncError ||
+          Ret.error().getCategory() != ErrCategory::WASM) {
         spdlog::error(Ret.error());
       }
       return Unexpect(Ret);
@@ -131,9 +132,10 @@ Executor::enterFunction(Runtime::StackManager &StackMgr,
     {
       // Get symbol and execute the function.
       Fault FaultHandler;
-      if (auto Err = PREPARE_FAULT(FaultHandler);
-          unlikely(Err != ErrCode::Success)) {
-        if (Err != ErrCode::Terminated) {
+      uint32_t Code = PREPARE_FAULT(FaultHandler);
+      if (auto Err = ErrCode(static_cast<ErrCategory>(Code >> 24), Code);
+          unlikely(Err != ErrCode::Value::Success)) {
+        if (Err != ErrCode::Value::Terminated) {
           spdlog::error(Err);
         }
         return Unexpect(Err);
@@ -183,8 +185,8 @@ Expect<void> Executor::branchToLabel(Runtime::StackManager &StackMgr,
                                      AST::InstrView::iterator &PC) noexcept {
   // Check stop token
   if (unlikely(StopToken.exchange(0, std::memory_order_relaxed))) {
-    spdlog::error(ErrCode::Interrupted);
-    return Unexpect(ErrCode::Interrupted);
+    spdlog::error(ErrCode::Value::Interrupted);
+    return Unexpect(ErrCode::Value::Interrupted);
   }
 
   StackMgr.stackErase(EraseBegin, EraseEnd);

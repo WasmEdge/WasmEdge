@@ -1,7 +1,7 @@
 name: wasmedge-sys crate release
 
 concurrency:
-  group: wasmedge-sys-crate-release-${{ github.head_ref }}
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
   cancel-in-progress: true
 
 on:
@@ -9,6 +9,10 @@ on:
     branches:
       - "master"
       - "rust/*"
+    paths:
+      - "bindings/rust/**"
+      - "include/api/wasmedge/**"
+      - "lib/api/**"
     tags:
       - "rust/[0-9]+.[0-9]+.[0-9]+*"
 

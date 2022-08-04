@@ -260,11 +260,9 @@ The results are as follows. The service first returns an HTML page with an empty
 
 The streaming SSR examples make use of WasmEdge's unique asynchronous networking capabilities and ES6 module support (i.e., the rollup bundled JS file contains ES6 modules). You can learn more about [async networking](networking.md) and [ES6](es6.md) in this book.
 
-
 ## Appendix the create-react-app template
 
 The `create-react-app` template is a popular starting point for many developers to create React apps. In this tutorial, we will provide a step-by-step guide on how to use it to create React streaming SSR applications that run on WasmEdge.
-
 
 ### Step 1 — Create the React App
 

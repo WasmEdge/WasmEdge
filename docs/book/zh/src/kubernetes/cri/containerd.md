@@ -64,7 +64,7 @@ sudo ctr i pull docker.io/hydai/wasm-wasi-example:with-wasm-annotation
 现在，您可以使用 ctr（containerd cli 工具）运行此示例。
 
 ```bash
-sudo ctr run --rm --runc-binary crun --runtime io.containerd.runc.v2 --label module.wasm.image/variant=compat docker.io/hydai/wasm-wasi-example:with-wasm-annotation wasm-example /wasi_example_main.wasm 50000000
+sudo ctr run --rm --runc-binary crun --runtime io.containerd.runc.v2 --label module.wasm.image/variant=compat-smart docker.io/hydai/wasm-wasi-example:with-wasm-annotation wasm-example /wasi_example_main.wasm 50000000
 ```
 
 启动容器会执行 WebAssembly 程序， 您可以在控制台中看到输出。
@@ -97,7 +97,7 @@ sudo ctr i pull docker.io/avengermojo/http_server:with-wasm-annotation
 现在，您可以使用 ctr（containerd cli 工具）运行该示例。（请注意，我们需要加上 `--net-host` 参数来运行容器，以便可以从外部访问 WasmEdge 容器内的 HTTP server。）
 
 ```bash
-sudo ctr run --rm --net-host --runc-binary crun --runtime io.containerd.runc.v2 --label module.wasm.image/variant=compat docker.io/avengermojo/http_server:with-wasm-annotation http-server-example /http_server.wasm
+sudo ctr run --rm --net-host --runc-binary crun --runtime io.containerd.runc.v2 --label module.wasm.image/variant=compat-smart docker.io/avengermojo/http_server:with-wasm-annotation http-server-example /http_server.wasm
 ```
 
 启动容器会执行 WebAssembly 程序， 您可以在控制台中看到输出。

@@ -23,18 +23,18 @@ swig time xsltproc zlib1g-dev
 Then, obtain all the latest package definitions of OpenWrt and install the symlinks for all obtained packages.
 
 ```bash
-$ cd openwrt
-$ ./scripts/feeds update -a
-$ ./scripts/feeds install -a
+cd openwrt
+./scripts/feeds update -a
+./scripts/feeds install -a
 ```
 
-## Build WasmEdge 
+## Build WasmEdge
 
 ### Get WasmEdge source code
 
 ```bash
-$ git clone https://github.com/WasmEdge/WasmEdge.git
-$ cd WasmEdge
+git clone https://github.com/WasmEdge/WasmEdge.git
+cd WasmEdge
 ```
 
 ### Run the build script
@@ -42,7 +42,7 @@ $ cd WasmEdge
 Run the build script `build_for_openwrt.sh` in WasmEdge source code, and input the path of the OpenWrt source code as parameter. This script will automatically add the WasmEdge into the packages list which will be built of OpenWrt, and build the OpenWrt firmware. The generated OpenWrt images are in the `openwrt/bin/targets/x86/64` folder.
 
 ```bash
-$ ./utils/openwrt/build_for_openwrt.sh ~/openwrt
+./utils/openwrt/build_for_openwrt.sh ~/openwrt
 ```
 
 When running the build script, the OpenWrt configuration interface will appear. In this interface, we need to set `Target System` to x86, `Target Profile` to Generic x86/64, and find `WasmEdge` in the `Runtime` column and check it . Once set up, the script automatically builds WasmEdge and compiles the OpenWrt system.
@@ -53,11 +53,11 @@ When running the build script, the OpenWrt configuration interface will appear. 
 
 In order to verify the availability of WasmEdge, we use a VMware virtual machine to install the compiled OpenWrt image. Before creating a virtual machine, we need to use the `QEMU` command to convert the OpenWrt image to vmdk format.
 
-```
-$ cd ~/openwrt/bin/targets/x86/64
-$ sudo apt install qemu
-$ gunzip openwrt-x86-64-generic-squashfs-combined.img.gz
-$ qemu-img convert -f raw -O vmdk openwrt-x86-64-generic-squashfs-combined.img Openwrt.vmdk
+```bash
+cd ~/openwrt/bin/targets/x86/64
+sudo apt install qemu
+gunzip openwrt-x86-64-generic-squashfs-combined.img.gz
+qemu-img convert -f raw -O vmdk openwrt-x86-64-generic-squashfs-combined.img Openwrt.vmdk
 ```
 
 After that, create a virtual machine in VMware and install the OpenWrt system.
@@ -68,14 +68,14 @@ After setting the IP address of OpenWrt according to the gateway of the host, us
 
 For example, we set the ip address of OpenWrt as 192.168.0.111, then we use the following commands to upload [hello.wasm](https://github.com/WasmEdge/WasmEdge/raw/master/examples/wasm/hello.wasm) and [add.wasm](https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/examples/wasm/add.wasm) these two test files to OpenWrt.
 
-```
-$ scp hello.wasm root@192.168.0.111:/
-$ scp add.wasm root@192.168.0.111:/
+```bash
+scp hello.wasm root@192.168.0.111:/
+scp add.wasm root@192.168.0.111:/
 ```
 
 ### Test the wasmedge program
 
-```
+```bash
 $ wasmedge hello.wasm second state
 hello
 second
@@ -83,5 +83,3 @@ state
 $ wasmedge --reactor add.wasm add 2 2
 4
 ```
-
-

@@ -44,9 +44,9 @@ CMD ["/wasi_example_main.wasm"]
 
 > Please note that adding self-defined annotation is still a new feature in buildah.
 
-The `crun` container runtime can start the above WebAssembly-based container image. But it requires the `module.wasm.image/variant=compat` annotation on the container image to indicate that it is a WebAssembly application without a guest OS. You can find the details in [Official crun repo](https://github.com/containers/crun/blob/main/docs/wasm-wasi-example.md).
+The `crun` container runtime can start the above WebAssembly-based container image. But it requires the `module.wasm.image/variant=compat-smart` annotation on the container image to indicate that it is a WebAssembly application without a guest OS. You can find the details in [Official crun repo](https://github.com/containers/crun/blob/main/docs/wasm-wasi-example.md).
 
-To add `module.wasm.image/variant=compat` annotation in the container image, you will need the latest [buildah](https://buildah.io/). Currently, Docker does not support this feature. Please follow [the install instructions of buildah](https://github.com/containers/buildah/blob/main/install.md) to build the latest buildah binary.
+To add `module.wasm.image/variant=compat-smart` annotation in the container image, you will need the latest [buildah](https://buildah.io/). Currently, Docker does not support this feature. Please follow [the install instructions of buildah](https://github.com/containers/buildah/blob/main/install.md) to build the latest buildah binary.
 
 ### Build and install the latest buildah on Ubuntu
 
@@ -83,7 +83,7 @@ buildah --help
 In the `target/wasm32-wasi/release/` folder, do the following.
 
 ```bash
-$ sudo buildah build --annotation "module.wasm.image/variant=compat" -t wasm-wasi-example .
+$ sudo buildah build --annotation "module.wasm.image/variant=compat-smart" -t wasm-wasi-example .
 # make sure docker is install and running
 # systemctl status docker
 # to make sure regular user can use docker

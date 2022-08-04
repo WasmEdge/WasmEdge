@@ -200,7 +200,8 @@ pub use instance::{
     memory::{MemType, Memory},
     module::{
         AsInstance, ImportInstance, ImportModule, ImportObject, Instance,
-        WasiCryptoAsymmetricCommon, WasiCryptoCommon, WasiModule, WasiNnModule,
+        WasiCryptoAsymmetricCommon, WasiCryptoCommon, WasiCryptoSymmetric, WasiModule,
+        WasiNnModule,
     },
     table::{Table, TableType},
 };

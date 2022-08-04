@@ -20,6 +20,7 @@
 
 #ifdef UseASTNodeAttr
 #define A Line
+A(Component, "component")
 A(Module, "module")
 A(Sec_Custom, "custom section")
 A(Sec_Type, "type section")
@@ -630,6 +631,7 @@ P(ExceptionHandling, "Exception handling")
 P(ExtendedConst, "Extended const")
 P(Threads, "Threads")
 P(FunctionReferences, "Typed Function References")
+P(ComponentModel, "Component Model")
 #undef P
 #endif // UseProposal
 

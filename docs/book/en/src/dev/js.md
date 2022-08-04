@@ -20,7 +20,6 @@ In this section, we will demonstrate how to run and enhance JavaScript in WasmEd
 * [Built-in modules](js/modules.md) shows how to add JavaScript functions into the WasmEdge runtime as built-in API functions.
 * [Use Rust to implement JS API](js/rust.md) discusses how to use Rust to implement and support a JavaScript API.
 
-
 ## A note on v8
 
 Now, the choice of QuickJS as our JavaScript engine might raise the question of performance. Isn't QuickJS [a lot slower](https://bellard.org/quickjs/bench.html) than v8 due to a lack of JIT support? Yes, but ...

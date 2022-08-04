@@ -28,7 +28,6 @@ Hello WasmEdge Runtime
 
 > Note: the `--dir .:.` on the command line is to give `wasmedge` permission to read the local directory in the file system for the `hello.js` file.
 
-
 ## Build it yourself
 
 This section is optional. Read on if you are interested in [adding custom built-in JavaScript APIs](rust.md) to the runtime.
@@ -53,7 +52,7 @@ rustup target add wasm32-wasi
 cargo build --target wasm32-wasi --release
 ```
 
-The WebAssembly-based JavaScript interpreter program is located in the build `target` directory. 
+The WebAssembly-based JavaScript interpreter program is located in the build `target` directory.
 
 WasmEdge provides a `wasmedgec` utility to compile and add a native machine code section to the `wasm` file. You can use `wasmedge` to run the natively instrumented `wasm` file to get much faster performance.
 

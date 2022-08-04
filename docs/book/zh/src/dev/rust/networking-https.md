@@ -36,6 +36,7 @@ fn main() {
 ```
 
 使用如下命令来编译 Rust 程序。
+
 ```bash
 # build the wasmedge httpsreq plugin module
 sudo apt-get install libssl-dev
@@ -53,6 +54,7 @@ wasmedge target/wasm32-wasi/release/head_https.wasm
 ```
 
 ## 代码设计的解释
+
 可以观察到，请求首先被解析，然后被添加到将解析的请求发送到服务器的流中。代码保留了在原始 Rust 代码中解析 HTTPS 请求的第一步。并修改第二步，将其替换为一个名为 send_data 的函数，该函数由[Wasmedge host function](https://github.com/2019zhou/WasmEdge/tree/zhou/httpsreq/plugins/httpsreq))实现。我们也使用了原有的 Rust 代码来处理接收到的代码内容，其中涉及并实现了 get_rcv_len 和 get_rcv 两个函数。
 
 这种设计的好处是，因为保留了第一步，所以我们可以对 HTTP 和 HTTPS 请求使用相同的 API 。 此外，只要 wasmedge_http_req 原来提供这种请求的支持，任何类型的请求都只需要一个函数（即 httpsreq 插件中的 send_data ）。send_data 函数接收三个参数，即主机、端口和解析后的请求。 使用 send_data 函数的示例如下所示。
@@ -62,6 +64,7 @@ send_data("www.google.com", 443, "GET / HTTP/1.1\nHost: www.google.com\r\nConnec
 ```
 
 所以，对于原有的 Rust 代码仅做了几行的的修改。
+
 ```Rust
 if self.inner.uri.scheme() == "https" {
     let buf = &self.inner.parse_msg();
@@ -81,20 +84,22 @@ if self.inner.uri.scheme() == "https" {
 为了将 host function 添加到 Rust 代码可以使用的 crate ，使用 Rust 实现了[httpsreq module](https://github.com/2019zhou/wasmedge_http_req/blob/zhou/httpsreq/src/httpsreq.rs)
 
 ### HTTPS host function的具体实现
+
 httpsreq 主机有一个名为 send_data 的函数，它使用 openssl 将数据发送到服务器。
 send_data 函数接收三个输入，即主机、端口和解析后的请求
 
-```
-SendData::body( Runtime::Instance::MemoryInstance *MemInst,
+```cpp
+SendData::body(Runtime::Instance::MemoryInstance *MemInst,
                uint32_t HostPtr, uint32_t HostLen, uint32_t Port,
-               uint32_t BodyPtr, uint32_t BodyLen)
+               uint32_t BodyPtr, uint32_t BodyLen);
 ```
-   
-get_rcv 函数和 get_rcv_len 函数用来将接受到的内容传出 host function , 并且之后被 Rust sdk 原有逻辑处理。get_rcv 函数需要接受第一个指针，get_rcv_len 会返回接受内容的长度。
-```
-Expect<void> body(Runtime::Instance::MemoryInstance *, uint32_t BufPtr)
 
-Expect<uint32_t> body(Runtime::Instance::MemoryInstance *)
+get_rcv 函数和 get_rcv_len 函数用来将接受到的内容传出 host function , 并且之后被 Rust sdk 原有逻辑处理。get_rcv 函数需要接受第一个指针，get_rcv_len 会返回接受内容的长度。
+
+```cpp
+Expect<void> body(Runtime::Instance::MemoryInstance *, uint32_t BufPtr);
+
+Expect<uint32_t> body(Runtime::Instance::MemoryInstance *);
 ```
 
 之后，首先[打开连接](https://github.com/WasmEdge/WasmEdge/blob/14a38e13725965026cd1f404fe552f9c41ad09a3/plugins/httpsreq/httpsreqfunc.cpp#L54-L102) 使用 SSL_write 函数将已经解析的函数写入连接。最后使用SSL_read读取接受，将接受打印到控制台。

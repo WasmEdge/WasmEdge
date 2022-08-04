@@ -60,15 +60,15 @@ Expect<void> Loader::loadDesc(AST::ImportDesc &ImpDesc) {
     // Import the mutable globals are for ImportExportMutGlobals proposal.
     if (ImpDesc.getExternalGlobalType().getValMut() == ValMut::Var &&
         unlikely(!Conf.hasProposal(Proposal::ImportExportMutGlobals))) {
-      return logNeedProposal(ErrCode::InvalidMut,
+      return logNeedProposal(ErrCode::Value::InvalidMut,
                              Proposal::ImportExportMutGlobals,
                              FMgr.getLastOffset(), ASTNodeAttr::Desc_Import);
     }
     return {};
   }
   default:
-    return logLoadError(ErrCode::MalformedImportKind, FMgr.getLastOffset(),
-                        ASTNodeAttr::Desc_Import);
+    return logLoadError(ErrCode::Value::MalformedImportKind,
+                        FMgr.getLastOffset(), ASTNodeAttr::Desc_Import);
   }
   return {};
 }
@@ -97,8 +97,8 @@ Expect<void> Loader::loadDesc(AST::ExportDesc &ExpDesc) {
   case ExternalType::Global:
     break;
   default:
-    return logLoadError(ErrCode::MalformedExportKind, FMgr.getLastOffset(),
-                        ASTNodeAttr::Desc_Export);
+    return logLoadError(ErrCode::Value::MalformedExportKind,
+                        FMgr.getLastOffset(), ASTNodeAttr::Desc_Export);
   }
 
   // Read external index to export.

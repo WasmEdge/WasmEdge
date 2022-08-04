@@ -1551,7 +1551,7 @@ WasiPollOneoff::body(Runtime::Instance::MemoryInstance *MemInst, uint32_t InPtr,
 Expect<void> WasiProcExit::body(Runtime::Instance::MemoryInstance *,
                                 uint32_t ExitCode) {
   Env.procExit(ExitCode);
-  return Unexpect(ErrCode::Terminated);
+  return Unexpect(ErrCode::Value::Terminated);
 }
 
 Expect<uint32_t> WasiProcRaise::body(Runtime::Instance::MemoryInstance *,

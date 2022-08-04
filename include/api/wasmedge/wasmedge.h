@@ -51,9 +51,9 @@ typedef struct WasmEdge_String {
   const char *Buf;
 } WasmEdge_String;
 
-/// Opaque struct of WASM execution result.
+/// WasmEdge result struct.
 typedef struct WasmEdge_Result {
-  uint8_t Code;
+  uint32_t Code;
 } WasmEdge_Result;
 #define WasmEdge_Result_Success ((WasmEdge_Result){.Code = 0x00})
 #define WasmEdge_Result_Terminate ((WasmEdge_Result){.Code = 0x01})
@@ -406,17 +406,38 @@ WASMEDGE_CAPI_EXPORT extern void WasmEdge_StringDelete(WasmEdge_String Str);
 /// WasmEdge_Result_Terminate, false for others.
 WASMEDGE_CAPI_EXPORT extern bool WasmEdge_ResultOK(const WasmEdge_Result Res);
 
+/// Generate the result with code.
+///
+/// \param Category the WasmEdge_ErrCategory to specify the error category.
+/// \param Code the 24-bit length error code. The data exceeds 24 bits will be
+/// stripped.
+///
+/// \returns WasmEdge_Result struct with the given data.
+WASMEDGE_CAPI_EXPORT extern WasmEdge_Result
+WasmEdge_ResultGen(const enum WasmEdge_ErrCategory Category,
+                   const uint32_t Code);
+
 /// Get the result code.
 ///
 /// \param Res the WasmEdge_Result struct.
 ///
-/// \returns corresponding result code.
+/// \returns result code (24-bit size data) in the WasmEdge_Result struct.
 WASMEDGE_CAPI_EXPORT extern uint32_t
 WasmEdge_ResultGetCode(const WasmEdge_Result Res);
+
+/// Get the error category.
+///
+/// \param Res the WasmEdge_Result struct.
+///
+/// \returns error category in the WasmEdge_Result struct.
+WASMEDGE_CAPI_EXPORT extern enum WasmEdge_ErrCategory
+WasmEdge_ResultGetCategory(const WasmEdge_Result Res);
 
 /// Get the result message.
 ///
 /// The returned string must __NOT__ be destroyed.
+/// If the error category of the result is __NOT__ `WasmEdge_ErrCategory_WASM`,
+/// the message will always be "user defined error code".
 ///
 /// \param Res the WasmEdge_Result struct.
 ///
@@ -792,7 +813,7 @@ WasmEdge_StatisticsSetCostTable(WasmEdge_StatisticsContext *Cxt,
 /// Set the cost limit in execution.
 ///
 /// The WASM execution will be aborted if the instruction costs exceeded the
-/// limit and the ErrCode::CostLimitExceeded will be returned.
+/// limit and the ErrCode::Value::CostLimitExceeded will be returned.
 ///
 /// \param Cxt the WasmEdge_StatisticsContext to set the cost table.
 /// \param Limit the cost limit.

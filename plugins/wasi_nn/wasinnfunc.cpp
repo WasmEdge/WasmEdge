@@ -22,7 +22,7 @@ Expect<uint32_t> WasiNNLoad::body(Runtime::Instance::MemoryInstance *MemInst,
                                   uint32_t GraphIdPtr [[maybe_unused]]) {
   // Check memory instance from module.
   if (MemInst == nullptr) {
-    return Unexpect(ErrCode::ExecutionFailed);
+    return Unexpect(ErrCode::Value::HostFuncError);
   }
 
   if (Encoding == static_cast<uint32_t>(WASINN::Backend::OpenVINO)) {
@@ -246,7 +246,7 @@ WasiNNInitExecCtx::body(Runtime::Instance::MemoryInstance *MemInst,
                         uint32_t GraphId,
                         uint32_t ContextPtr [[maybe_unused]]) {
   if (MemInst == nullptr) {
-    return Unexpect(ErrCode::ExecutionFailed);
+    return Unexpect(ErrCode::Value::HostFuncError);
   }
 
   if (Env.NNGraph.size() <= GraphId) {
@@ -299,7 +299,7 @@ WasiNNSetInput::body(Runtime::Instance::MemoryInstance *MemInst,
                      uint32_t Context, uint32_t Index [[maybe_unused]],
                      uint32_t TensorPtr [[maybe_unused]]) {
   if (MemInst == nullptr) {
-    return Unexpect(ErrCode::ExecutionFailed);
+    return Unexpect(ErrCode::Value::HostFuncError);
   }
 
   if (Env.NNContext.size() <= Context) {
@@ -473,7 +473,7 @@ WasiNNGetOuput::body(Runtime::Instance::MemoryInstance *MemInst,
                      uint32_t OutBufferMaxSize [[maybe_unused]],
                      uint32_t BytesWrittenPtr [[maybe_unused]]) {
   if (MemInst == nullptr) {
-    return Unexpect(ErrCode::ExecutionFailed);
+    return Unexpect(ErrCode::Value::HostFuncError);
   }
 
   if (Env.NNContext.size() <= Context) {
@@ -566,7 +566,7 @@ WasiNNGetOuput::body(Runtime::Instance::MemoryInstance *MemInst,
 Expect<uint32_t> WasiNNCompute::body(Runtime::Instance::MemoryInstance *MemInst,
                                      uint32_t Context) {
   if (MemInst == nullptr) {
-    return Unexpect(ErrCode::ExecutionFailed);
+    return Unexpect(ErrCode::Value::HostFuncError);
   }
 
   if (Env.NNContext.size() <= Context) {

@@ -96,7 +96,7 @@ WasmEdge_Result ExternFail(void *, WasmEdge_MemoryInstanceContext *,
                            const WasmEdge_Value *, WasmEdge_Value *Out) {
   // {} -> {i32}
   Out[0] = WasmEdge_ValueGenI32(5678);
-  return WasmEdge_Result_Fail;
+  return WasmEdge_ResultGen(WasmEdge_ErrCategory_UserLevelError, 0x5678);
 }
 
 WasmEdge_Result ExternWrap(void *This, void *Data,
@@ -276,7 +276,12 @@ bool readToVector(const char *Path, std::vector<uint8_t> &Buf) {
 
 // Helper function to check error code.
 bool isErrMatch(WasmEdge_ErrCode Err, WasmEdge_Result Res) {
-  return static_cast<uint8_t>(Err) == Res.Code;
+  return static_cast<uint32_t>(Err) == WasmEdge_ResultGetCode(Res);
+}
+bool isErrMatch(WasmEdge_ErrCategory ErrCate, uint32_t Code,
+                WasmEdge_Result Res) {
+  return ErrCate == WasmEdge_ResultGetCategory(Res) &&
+         Code == WasmEdge_ResultGetCode(Res);
 }
 
 TEST(APICoreTest, Version) {
@@ -362,9 +367,9 @@ TEST(APICoreTest, String) {
 }
 
 TEST(APICoreTest, Result) {
-  WasmEdge_Result Res1 = {.Code = 0x00}; // Success
-  WasmEdge_Result Res2 = {.Code = 0x01}; // Terminated -> Success
-  WasmEdge_Result Res3 = {.Code = 0x02}; // Failed
+  WasmEdge_Result Res1 = WasmEdge_Result_Success;   // Success
+  WasmEdge_Result Res2 = WasmEdge_Result_Terminate; // Terminated -> Success
+  WasmEdge_Result Res3 = WasmEdge_Result_Fail;      // Failed
   EXPECT_TRUE(WasmEdge_ResultOK(Res1));
   EXPECT_TRUE(WasmEdge_ResultOK(Res2));
   EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_RuntimeError, Res3));
@@ -1337,7 +1342,7 @@ TEST(APICoreTest, ExecutorWithStatistics) {
   EXPECT_NE(FuncCxt, nullptr);
   WasmEdge_StringDelete(FuncName);
   EXPECT_TRUE(
-      isErrMatch(WasmEdge_ErrCode_ExecutionFailed,
+      isErrMatch(WasmEdge_ErrCategory_UserLevelError, 0x5678U,
                  WasmEdge_ExecutorInvoke(ExecCxt, FuncCxt, nullptr, 0, R, 1)));
 
   // Invoke host function with binding to functions
@@ -1363,7 +1368,7 @@ TEST(APICoreTest, ExecutorWithStatistics) {
   EXPECT_NE(FuncCxt, nullptr);
   WasmEdge_StringDelete(FuncName);
   EXPECT_TRUE(
-      isErrMatch(WasmEdge_ErrCode_ExecutionFailed,
+      isErrMatch(WasmEdge_ErrCategory_UserLevelError, 0x5678U,
                  WasmEdge_ExecutorInvoke(ExecCxt, FuncCxt, nullptr, 0, R, 1)));
 
   // Statistics get instruction count

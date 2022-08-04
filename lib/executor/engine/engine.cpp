@@ -38,7 +38,7 @@ Executor::runFunction(Runtime::StackManager &StackMgr,
   if (auto GetIt = enterFunction(StackMgr, Func, Func.getInstrs().end())) {
     StartIt = *GetIt;
   } else {
-    if (GetIt.error() == ErrCode::Terminated) {
+    if (GetIt.error() == ErrCode::Value::Terminated) {
       // Handle the terminated case in entering AOT or host functions.
       // For the terminated case, not return now to print the statistics.
       Res = Unexpect(GetIt.error());
@@ -55,7 +55,7 @@ Executor::runFunction(Runtime::StackManager &StackMgr,
 
   if (Res) {
     spdlog::debug(" Execution succeeded.");
-  } else if (Res.error() == ErrCode::Terminated) {
+  } else if (Res.error() == ErrCode::Value::Terminated) {
     spdlog::debug(" Terminated.");
   }
 
@@ -71,7 +71,7 @@ Executor::runFunction(Runtime::StackManager &StackMgr,
   if (Res) {
     return {};
   }
-  if (Res.error() == ErrCode::Terminated) {
+  if (Res.error() == ErrCode::Value::Terminated) {
     StackMgr.reset();
   }
   return Unexpect(Res);
@@ -88,10 +88,10 @@ Expect<void> Executor::execute(Runtime::StackManager &StackMgr,
     switch (Instr.getOpCode()) {
     // Control instructions.
     case OpCode::Unreachable:
-      spdlog::error(ErrCode::Unreachable);
+      spdlog::error(ErrCode::Value::Unreachable);
       spdlog::error(
           ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
-      return Unexpect(ErrCode::Unreachable);
+      return Unexpect(ErrCode::Value::Unreachable);
     case OpCode::Nop:
       return {};
     case OpCode::Block:
@@ -106,12 +106,12 @@ Expect<void> Executor::execute(Runtime::StackManager &StackMgr,
         if (unlikely(!Stat->subInstrCost(Instr.getOpCode()))) {
           spdlog::error(
               ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
-          return Unexpect(ErrCode::CostLimitExceeded);
+          return Unexpect(ErrCode::Value::CostLimitExceeded);
         }
         if (unlikely(!Stat->addInstrCost(OpCode::End))) {
           spdlog::error(
               ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
-          return Unexpect(ErrCode::CostLimitExceeded);
+          return Unexpect(ErrCode::Value::CostLimitExceeded);
         }
       }
       PC += PC->getJumpEnd();
@@ -1823,7 +1823,7 @@ Expect<void> Executor::execute(Runtime::StackManager &StackMgr,
           const AST::Instruction &Instr = *PC;
           spdlog::error(
               ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
-          return Unexpect(ErrCode::CostLimitExceeded);
+          return Unexpect(ErrCode::Value::CostLimitExceeded);
         }
       }
     }

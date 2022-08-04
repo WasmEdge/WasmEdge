@@ -42,16 +42,16 @@ TypeFI<TIn, TOut> Executor::runTruncateOp(const AST::Instruction &Instr,
   TIn Z = Val.get<TIn>();
   // If z is a NaN or an infinity, then the result is undefined.
   if (std::isnan(Z)) {
-    spdlog::error(ErrCode::InvalidConvToInt);
+    spdlog::error(ErrCode::Value::InvalidConvToInt);
     spdlog::error(ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset(),
                                            {Val}, {ValTypeFromType<TIn>()}));
-    return Unexpect(ErrCode::InvalidConvToInt);
+    return Unexpect(ErrCode::Value::InvalidConvToInt);
   }
   if (std::isinf(Z)) {
-    spdlog::error(ErrCode::IntegerOverflow);
+    spdlog::error(ErrCode::Value::IntegerOverflow);
     spdlog::error(ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset(),
                                            {Val}, {ValTypeFromType<TIn>()}));
-    return Unexpect(ErrCode::IntegerOverflow);
+    return Unexpect(ErrCode::Value::IntegerOverflow);
   }
   // If trunc(z) is out of range of target type, then the result is undefined.
   Z = std::trunc(Z);
@@ -60,20 +60,20 @@ TypeFI<TIn, TOut> Executor::runTruncateOp(const AST::Instruction &Instr,
   if (sizeof(TIn) > sizeof(TOut)) {
     // Floating precision is better than integer case.
     if (Z < ValTOutMin || Z > ValTOutMax) {
-      spdlog::error(ErrCode::IntegerOverflow);
+      spdlog::error(ErrCode::Value::IntegerOverflow);
       spdlog::error(ErrInfo::InfoInstruction(Instr.getOpCode(),
                                              Instr.getOffset(), {Val},
                                              {ValTypeFromType<TIn>()}));
-      return Unexpect(ErrCode::IntegerOverflow);
+      return Unexpect(ErrCode::Value::IntegerOverflow);
     }
   } else {
     // Floating precision is worse than integer case.
     if (Z < ValTOutMin || Z >= ValTOutMax) {
-      spdlog::error(ErrCode::IntegerOverflow);
+      spdlog::error(ErrCode::Value::IntegerOverflow);
       spdlog::error(ErrInfo::InfoInstruction(Instr.getOpCode(),
                                              Instr.getOffset(), {Val},
                                              {ValTypeFromType<TIn>()}));
-      return Unexpect(ErrCode::IntegerOverflow);
+      return Unexpect(ErrCode::Value::IntegerOverflow);
     }
   }
   // Else, return trunc(z). Signed case handled.

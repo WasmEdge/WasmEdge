@@ -60,7 +60,7 @@ Expect<void> Loader::loadSegment(AST::ElementSegment &ElemSeg) {
   // Check > 0 cases are for BulkMemoryOperations or ReferenceTypes proposal.
   if (Check > 0 && !Conf.hasProposal(Proposal::BulkMemoryOperations) &&
       !Conf.hasProposal(Proposal::ReferenceTypes)) {
-    return logNeedProposal(ErrCode::ExpectedZeroByte,
+    return logNeedProposal(ErrCode::Value::ExpectedZeroByte,
                            Proposal::BulkMemoryOperations, FMgr.getLastOffset(),
                            ASTNodeAttr::Seg_Element);
   }
@@ -86,7 +86,7 @@ Expect<void> Loader::loadSegment(AST::ElementSegment &ElemSeg) {
 
   default:
     // TODO: Correctness the error code once there's spec test.
-    return logLoadError(ErrCode::IllegalGrammar, FMgr.getLastOffset(),
+    return logLoadError(ErrCode::Value::IllegalGrammar, FMgr.getLastOffset(),
                         ASTNodeAttr::Seg_Element);
   }
 
@@ -131,8 +131,8 @@ Expect<void> Loader::loadSegment(AST::ElementSegment &ElemSeg) {
   case 0x03:
     if (auto Res = FMgr.readByte()) {
       if (*Res != 0x00U) {
-        return logLoadError(ErrCode::ExpectedZeroByte, FMgr.getLastOffset(),
-                            ASTNodeAttr::Seg_Element);
+        return logLoadError(ErrCode::Value::ExpectedZeroByte,
+                            FMgr.getLastOffset(), ASTNodeAttr::Seg_Element);
       }
     } else {
       return logLoadError(Res.error(), FMgr.getLastOffset(),
@@ -247,7 +247,7 @@ Expect<void> Loader::loadSegment(AST::CodeSegment &CodeSeg) {
     }
     // Total local variables should not more than 2^32.
     if (UINT32_MAX - TotalLocalCnt < LocalCnt) {
-      return logLoadError(ErrCode::TooManyLocals, FMgr.getLastOffset(),
+      return logLoadError(ErrCode::Value::TooManyLocals, FMgr.getLastOffset(),
                           ASTNodeAttr::Seg_Code);
     }
     TotalLocalCnt += LocalCnt;
@@ -310,7 +310,7 @@ Expect<void> Loader::loadSegment(AST::DataSegment &DataSeg) {
   // Check > 0 cases are for BulkMemoryOperations or ReferenceTypes proposal.
   if (Check > 0 && !Conf.hasProposal(Proposal::BulkMemoryOperations) &&
       !Conf.hasProposal(Proposal::ReferenceTypes)) {
-    return logNeedProposal(ErrCode::ExpectedZeroByte,
+    return logNeedProposal(ErrCode::Value::ExpectedZeroByte,
                            Proposal::BulkMemoryOperations, FMgr.getLastOffset(),
                            ASTNodeAttr::Seg_Data);
   }
@@ -355,7 +355,7 @@ Expect<void> Loader::loadSegment(AST::DataSegment &DataSeg) {
   }
   default:
     // TODO: Correctness the error code once there's spec test.
-    return logLoadError(ErrCode::IllegalGrammar, FMgr.getLastOffset(),
+    return logLoadError(ErrCode::Value::IllegalGrammar, FMgr.getLastOffset(),
                         ASTNodeAttr::Seg_Data);
   }
   return {};

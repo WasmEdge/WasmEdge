@@ -327,7 +327,7 @@ struct WasmEdge::AOT::Compiler::CompileContext {
             LLModule, IntrinsicsTablePtrTy->getPointerTo(), true,
             llvm::GlobalVariable::ExternalLinkage, nullptr, "intrinsics")),
         Trap(llvm::Function::Create(
-            llvm::FunctionType::get(VoidTy, {Int8Ty}, false),
+            llvm::FunctionType::get(VoidTy, {Int32Ty}, false),
             llvm::Function::PrivateLinkage, "trap", LLModule)) {
     Trap->addFnAttr(llvm::Attribute::StrictFP);
     Trap->addFnAttr(llvm::Attribute::NoReturn);
@@ -373,7 +373,7 @@ struct WasmEdge::AOT::Compiler::CompileContext {
           llvm::BasicBlock::Create(LLContext, "entry", Trap));
       auto *CallTrap = Builder.CreateCall(
           getIntrinsic(Builder, AST::Module::Intrinsics::kTrap,
-                       llvm::FunctionType::get(VoidTy, {Int8Ty}, false)),
+                       llvm::FunctionType::get(VoidTy, {Int32Ty}, false)),
           {Trap->arg_begin()});
       CallTrap->setDoesNotReturn();
       Builder.CreateUnreachable();
@@ -587,7 +587,7 @@ public:
     }
   }
 
-  llvm::BasicBlock *getTrapBB(ErrCode Error) {
+  llvm::BasicBlock *getTrapBB(ErrCode::Value Error) {
     if (auto Iter = TrapBB.find(Error); Iter != TrapBB.end()) {
       return Iter->second;
     }
@@ -610,7 +610,7 @@ public:
       updateInstrCount();
       updateGasAtTrap();
       auto *CallTrap = Builder.CreateCall(
-          Context.Trap, {Builder.getInt8(static_cast<uint8_t>(Error))});
+          Context.Trap, {Builder.getInt32(static_cast<uint32_t>(Error))});
       CallTrap->setDoesNotReturn();
       Builder.CreateUnreachable();
     }
@@ -736,7 +736,7 @@ public:
 
       switch (Instr.getOpCode()) {
       case OpCode::Unreachable:
-        Builder.CreateBr(getTrapBB(ErrCode::Unreachable));
+        Builder.CreateBr(getTrapBB(ErrCode::Value::Unreachable));
         setUnreachable();
         Builder.SetInsertPoint(
             llvm::BasicBlock::Create(LLContext, "unreachable.end", F));
@@ -1555,7 +1555,7 @@ public:
           auto *IsNotZero =
               createLikely(Builder, Builder.CreateICmpNE(RHS, IntZero));
           Builder.CreateCondBr(IsNotZero, NoZeroBB,
-                               getTrapBB(ErrCode::DivideByZero));
+                               getTrapBB(ErrCode::Value::DivideByZero));
 
           Builder.SetInsertPoint(NoZeroBB);
           auto *NotOverflow = createLikely(
@@ -1563,7 +1563,7 @@ public:
               Builder.CreateOr(Builder.CreateICmpNE(LHS, IntMin),
                                Builder.CreateICmpNE(RHS, IntMinusOne)));
           Builder.CreateCondBr(NotOverflow, OkBB,
-                               getTrapBB(ErrCode::IntegerOverflow));
+                               getTrapBB(ErrCode::Value::IntegerOverflow));
 
           Builder.SetInsertPoint(OkBB);
         }
@@ -1583,7 +1583,7 @@ public:
           auto *IsNotZero =
               createLikely(Builder, Builder.CreateICmpNE(RHS, IntZero));
           Builder.CreateCondBr(IsNotZero, OkBB,
-                               getTrapBB(ErrCode::DivideByZero));
+                               getTrapBB(ErrCode::Value::DivideByZero));
           Builder.SetInsertPoint(OkBB);
         }
         stackPush(Builder.CreateUDiv(LHS, RHS));
@@ -1616,7 +1616,7 @@ public:
           auto *IsNotZero =
               createLikely(Builder, Builder.CreateICmpNE(RHS, IntZero));
           Builder.CreateCondBr(IsNotZero, OkBB,
-                               getTrapBB(ErrCode::DivideByZero));
+                               getTrapBB(ErrCode::Value::DivideByZero));
           Builder.SetInsertPoint(OkBB);
         }
 
@@ -1652,7 +1652,7 @@ public:
           auto *IsNotZero =
               createLikely(Builder, Builder.CreateICmpNE(RHS, IntZero));
           Builder.CreateCondBr(IsNotZero, OkBB,
-                               getTrapBB(ErrCode::DivideByZero));
+                               getTrapBB(ErrCode::Value::DivideByZero));
           Builder.SetInsertPoint(OkBB);
         }
         stackPush(Builder.CreateURem(LHS, RHS));
@@ -3094,14 +3094,14 @@ public:
 
     auto *IsNotNan = createLikely(Builder, Builder.CreateFCmpORD(Value, Value));
     Builder.CreateCondBr(IsNotNan, NormBB,
-                         getTrapBB(ErrCode::InvalidConvToInt));
+                         getTrapBB(ErrCode::Value::InvalidConvToInt));
 
     Builder.SetInsertPoint(NormBB);
     auto *Trunc = Builder.CreateUnaryIntrinsic(llvm::Intrinsic::trunc, Value);
     auto *IsNotUnderflow =
         createLikely(Builder, Builder.CreateFCmpOGE(Trunc, MinFp));
     Builder.CreateCondBr(IsNotUnderflow, NotMinBB,
-                         getTrapBB(ErrCode::IntegerOverflow));
+                         getTrapBB(ErrCode::Value::IntegerOverflow));
 
     Builder.SetInsertPoint(NotMinBB);
     auto *IsNotOverflow = createLikely(
@@ -3110,7 +3110,7 @@ public:
                                    : llvm::CmpInst::Predicate::FCMP_OLT,
                            Trunc, MaxFp));
     Builder.CreateCondBr(IsNotOverflow, NotMaxBB,
-                         getTrapBB(ErrCode::IntegerOverflow));
+                         getTrapBB(ErrCode::Value::IntegerOverflow));
 
     Builder.SetInsertPoint(NotMaxBB);
     stackPush(Builder.CreateFPToSI(Trunc, IntType));
@@ -3173,14 +3173,14 @@ public:
 
     auto *IsNotNan = createLikely(Builder, Builder.CreateFCmpORD(Value, Value));
     Builder.CreateCondBr(IsNotNan, NormBB,
-                         getTrapBB(ErrCode::InvalidConvToInt));
+                         getTrapBB(ErrCode::Value::InvalidConvToInt));
 
     Builder.SetInsertPoint(NormBB);
     auto *Trunc = Builder.CreateUnaryIntrinsic(llvm::Intrinsic::trunc, Value);
     auto *IsNotUnderflow =
         createLikely(Builder, Builder.CreateFCmpOGE(Trunc, MinFp));
     Builder.CreateCondBr(IsNotUnderflow, NotMinBB,
-                         getTrapBB(ErrCode::IntegerOverflow));
+                         getTrapBB(ErrCode::Value::IntegerOverflow));
 
     Builder.SetInsertPoint(NotMinBB);
     auto *IsNotOverflow = createLikely(
@@ -3189,7 +3189,7 @@ public:
                                    : llvm::CmpInst::Predicate::FCMP_OLT,
                            Trunc, MaxFp));
     Builder.CreateCondBr(IsNotOverflow, NotMaxBB,
-                         getTrapBB(ErrCode::IntegerOverflow));
+                         getTrapBB(ErrCode::Value::IntegerOverflow));
 
     Builder.SetInsertPoint(NotMaxBB);
     stackPush(Builder.CreateFPToUI(Trunc, IntType));
@@ -3242,7 +3242,7 @@ public:
     auto *IsAddressAligned =
         createLikely(Builder, Builder.CreateICmpEQ(Value, Builder.getInt64(0)));
     Builder.CreateCondBr(IsAddressAligned, OkBB,
-                         getTrapBB(ErrCode::UnalignedAtomicAccess));
+                         getTrapBB(ErrCode::Value::UnalignedAtomicAccess));
 
     Builder.SetInsertPoint(OkBB);
   }
@@ -3446,7 +3446,7 @@ public:
       auto *IsGasRemain =
           createLikely(Builder, Builder.CreateICmpULE(NewGas, GasLimit));
       Builder.CreateCondBr(IsGasRemain, OkBB,
-                           getTrapBB(ErrCode::CostLimitExceeded));
+                           getTrapBB(ErrCode::Value::CostLimitExceeded));
       Builder.SetInsertPoint(OkBB);
 
       auto *RGasAndSucceed = Builder.CreateAtomicCmpXchg(
@@ -4527,7 +4527,8 @@ private:
         llvm::AtomicOrdering::Monotonic);
     auto *NotStop = createLikely(
         Builder, Builder.CreateICmpEQ(StopToken, Builder.getInt32(0)));
-    Builder.CreateCondBr(NotStop, NotStopBB, getTrapBB(ErrCode::Interrupted));
+    Builder.CreateCondBr(NotStop, NotStopBB,
+                         getTrapBB(ErrCode::Value::Interrupted));
 
     Builder.SetInsertPoint(NotStopBB);
   }
@@ -4619,7 +4620,7 @@ private:
   std::vector<llvm::Value *> Stack;
   llvm::Value *LocalInstrCount = nullptr;
   llvm::Value *LocalGas = nullptr;
-  std::unordered_map<ErrCode, llvm::BasicBlock *> TrapBB;
+  std::unordered_map<ErrCode::Value, llvm::BasicBlock *> TrapBB;
   bool IsUnreachable = false;
   bool Interruptible = false;
   bool OptNone = false;
@@ -4688,7 +4689,7 @@ Expect<void> outputNativeLibrary(const std::filesystem::path &OutputPath,
       // TODO:return error
       spdlog::error("so file creation failed:{}", OPath.u8string());
       llvm::consumeError(Object.takeError());
-      return WasmEdge::Unexpect(WasmEdge::ErrCode::IllegalPath);
+      return WasmEdge::Unexpect(WasmEdge::ErrCode::Value::IllegalPath);
     }
     llvm::raw_fd_ostream OS(Object->FD, false);
     OS.write(OSVec.data(), OSVec.size());
@@ -4808,7 +4809,7 @@ Expect<void> outputWasmLibrary(const std::filesystem::path &OutputPath,
       // TODO:return error
       spdlog::error("so file creation failed:{}", SOPath.u8string());
       llvm::consumeError(Object.takeError());
-      return WasmEdge::Unexpect(WasmEdge::ErrCode::IllegalPath);
+      return WasmEdge::Unexpect(WasmEdge::ErrCode::Value::IllegalPath);
     }
     llvm::raw_fd_ostream OS(Object->FD, false);
     OS.write(OSVec.data(), OSVec.size());
@@ -4830,7 +4831,7 @@ Expect<void> outputWasmLibrary(const std::filesystem::path &OutputPath,
   if (auto Res = llvm::MemoryBuffer::getFile(SharedObjectName);
       unlikely(!Res)) {
     spdlog::error("object file open error:{}", Res.getError().message());
-    return WasmEdge::Unexpect(WasmEdge::ErrCode::IllegalPath);
+    return WasmEdge::Unexpect(WasmEdge::ErrCode::Value::IllegalPath);
   } else {
     SOFile = std::move(*Res);
   }
@@ -4840,7 +4841,7 @@ Expect<void> outputWasmLibrary(const std::filesystem::path &OutputPath,
       unlikely(!Res)) {
     spdlog::error("object file parse error:{}",
                   llvm::toString(Res.takeError()));
-    return WasmEdge::Unexpect(WasmEdge::ErrCode::IllegalPath);
+    return WasmEdge::Unexpect(WasmEdge::ErrCode::Value::IllegalPath);
   } else {
     ObjFile = std::move(*Res);
   }
@@ -4990,7 +4991,7 @@ Expect<void> outputWasmLibrary(const std::filesystem::path &OutputPath,
   llvm::raw_fd_ostream OS(OutputPath.u8string(), EC);
   if (EC) {
     spdlog::error("output failed:{}", EC.message());
-    return Unexpect(ErrCode::IllegalPath);
+    return Unexpect(ErrCode::Value::IllegalPath);
   }
   OS.write(reinterpret_cast<const char *>(Data.data()), Data.size());
   // Custom section id
@@ -5010,8 +5011,8 @@ Expect<void> Compiler::compile(Span<const Byte> Data, const AST::Module &Module,
                                std::filesystem::path OutputPath) {
   // Check the module is validated.
   if (unlikely(!Module.getIsValidated())) {
-    spdlog::error(ErrCode::NotValidated);
-    return Unexpect(ErrCode::NotValidated);
+    spdlog::error(ErrCode::Value::NotValidated);
+    return Unexpect(ErrCode::Value::NotValidated);
   }
 
   using namespace std::literals;
@@ -5107,7 +5108,7 @@ Expect<void> Compiler::compile(Span<const Byte> Data, const AST::Module &Module,
     if (!TheTarget) {
       // TODO:return error
       spdlog::error("lookupTarget failed:{}", Error);
-      return Unexpect(ErrCode::IllegalPath);
+      return Unexpect(ErrCode::Value::IllegalPath);
     }
 
     llvm::TargetOptions Options;
@@ -5191,7 +5192,7 @@ Expect<void> Compiler::compile(Span<const Byte> Data, const AST::Module &Module,
                                 false)) {
       // TODO:return error
       spdlog::error("addPassesToEmitFile failed");
-      return Unexpect(ErrCode::IllegalPath);
+      return Unexpect(ErrCode::Value::IllegalPath);
     }
 
     if (Conf.getCompilerConfigure().isDumpIR()) {

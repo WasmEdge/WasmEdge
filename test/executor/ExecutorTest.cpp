@@ -94,14 +94,14 @@ TEST_P(CoreTest, TestSuites) {
       ModInst = VM.getStoreManager().findModule(ModName);
     }
     if (ModInst == nullptr) {
-      return Unexpect(ErrCode::WrongInstanceAddress);
+      return Unexpect(ErrCode::Value::WrongInstanceAddress);
     }
 
     // Get global instance.
     WasmEdge::Runtime::Instance::GlobalInstance *GlobInst =
         ModInst->findGlobalExports(Field);
     if (unlikely(GlobInst == nullptr)) {
-      return Unexpect(ErrCode::WrongInstanceAddress);
+      return Unexpect(ErrCode::Value::WrongInstanceAddress);
     }
     return std::make_pair(GlobInst->getValue(),
                           GlobInst->getGlobalType().getValType());
@@ -130,7 +130,7 @@ TEST(AsyncRunWsmFile, InterruptTest) {
     AsyncResult.cancel();
     auto Result = AsyncResult.get();
     EXPECT_FALSE(Result);
-    EXPECT_EQ(Result.error(), WasmEdge::ErrCode::Interrupted);
+    EXPECT_EQ(Result.error(), WasmEdge::ErrCode::Value::Interrupted);
   }
   {
     auto Timeout = std::chrono::milliseconds(1);
@@ -139,7 +139,7 @@ TEST(AsyncRunWsmFile, InterruptTest) {
     AsyncResult.cancel();
     auto Result = AsyncResult.get();
     EXPECT_FALSE(Result);
-    EXPECT_EQ(Result.error(), WasmEdge::ErrCode::Interrupted);
+    EXPECT_EQ(Result.error(), WasmEdge::ErrCode::Value::Interrupted);
   }
 }
 
@@ -163,7 +163,7 @@ TEST(AsyncExecute, InterruptTest) {
     AsyncResult.cancel();
     auto Result = AsyncResult.get();
     EXPECT_FALSE(Result);
-    EXPECT_EQ(Result.error(), WasmEdge::ErrCode::Interrupted);
+    EXPECT_EQ(Result.error(), WasmEdge::ErrCode::Value::Interrupted);
   }
   {
     auto Timeout = std::chrono::milliseconds(1);
@@ -172,7 +172,7 @@ TEST(AsyncExecute, InterruptTest) {
     AsyncResult.cancel();
     auto Result = AsyncResult.get();
     EXPECT_FALSE(Result);
-    EXPECT_EQ(Result.error(), WasmEdge::ErrCode::Interrupted);
+    EXPECT_EQ(Result.error(), WasmEdge::ErrCode::Value::Interrupted);
   }
 }
 

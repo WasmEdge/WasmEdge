@@ -21,7 +21,7 @@ Expect<void> SendData::body(Runtime::Instance::MemoryInstance *MemInst,
                             uint32_t HostPtr, uint32_t HostLen, uint32_t Port,
                             uint32_t BodyPtr, uint32_t BodyLen) {
   if (MemInst == nullptr) {
-    return Unexpect(ErrCode::ExecutionFailed);
+    return Unexpect(ErrCode::Value::HostFuncError);
   }
 
   char *Host = MemInst->getPointer<char *>(HostPtr);
@@ -127,7 +127,7 @@ Expect<void> SendData::body(Runtime::Instance::MemoryInstance *MemInst,
 Expect<void> HttpsReqGetRcv::body(Runtime::Instance::MemoryInstance *MemInst,
                                   uint32_t BufPtr) {
   if (MemInst == nullptr) {
-    return Unexpect(ErrCode::ExecutionFailed);
+    return Unexpect(ErrCode::Value::HostFuncError);
   }
   char *Buf = MemInst->getPointer<char *>(BufPtr);
   std::copy_n(Env.Rcv.begin(), Env.Rcv.size(), Buf);

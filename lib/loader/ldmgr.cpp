@@ -25,13 +25,13 @@ Expect<void> LDMgr::setPath(const std::filesystem::path &FilePath) {
 Expect<std::vector<Byte>> LDMgr::getWasm() {
   const auto Size = getSymbol<uint32_t>("wasm.size");
   if (unlikely(!Size)) {
-    spdlog::error(ErrCode::IllegalGrammar);
-    return Unexpect(ErrCode::IllegalGrammar);
+    spdlog::error(ErrCode::Value::IllegalGrammar);
+    return Unexpect(ErrCode::Value::IllegalGrammar);
   }
   const auto Code = getSymbol<uint8_t>("wasm.code");
   if (unlikely(!Code)) {
-    spdlog::error(ErrCode::IllegalGrammar);
-    return Unexpect(ErrCode::IllegalGrammar);
+    spdlog::error(ErrCode::Value::IllegalGrammar);
+    return Unexpect(ErrCode::Value::IllegalGrammar);
   }
 
   return std::vector<Byte>(Code.get(), Code.get() + *Size);
@@ -40,8 +40,8 @@ Expect<std::vector<Byte>> LDMgr::getWasm() {
 Expect<uint32_t> LDMgr::getVersion() {
   const auto Version = getSymbol<uint32_t>("version");
   if (unlikely(!Version)) {
-    spdlog::error(ErrCode::IllegalGrammar);
-    return Unexpect(ErrCode::IllegalGrammar);
+    spdlog::error(ErrCode::Value::IllegalGrammar);
+    return Unexpect(ErrCode::Value::IllegalGrammar);
   }
   return *Version;
 }

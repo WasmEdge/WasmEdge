@@ -20,6 +20,7 @@
 
 #ifdef UseASTNodeAttr
 #define A Line
+
 A(Module, "module")
 A(Sec_Custom, "custom section")
 A(Sec_Type, "type section")
@@ -48,6 +49,7 @@ A(Type_Global, "global type")
 A(Expression, "expression")
 A(Instruction, "instruction")
 A(Sec_AOT, "aot section")
+
 #undef A
 #endif // UseASTNodeAttr
 
@@ -648,6 +650,15 @@ H(WasiCrypto_Symmetric)
 
 // enum_errcode.h
 
+#ifdef UseErrCategory
+#define C Line
+
+C(WASM, 0x00)
+C(UserLevelError, 0x01)
+
+#undef C
+#endif // UseErrCategory
+
 #ifdef UseErrCode
 #define E Line
 
@@ -668,6 +679,8 @@ E(AOTDisabled, 0x06, "AOT runtime is disabled in this build")
 E(Interrupted, 0x07, "execution interrupted")
 // Not validated module
 E(NotValidated, 0x08, "wasm module hasn't passed validation yet")
+// User defined error
+E(UserDefError, 0x09, "user defined error code")
 
 // Load phase
 // @{
@@ -820,7 +833,7 @@ E(UndefinedElement, 0x8B, "undefined element")
 // Func type mismatch in call_indirect
 E(IndirectCallTypeMismatch, 0x8C, "indirect call type mismatch")
 // Host function execution failed
-E(ExecutionFailed, 0x8D, "host function failed")
+E(HostFuncError, 0x8D, "host function failed")
 // Reference type not match
 E(RefTypeMismatch, 0x8E, "reference type mismatch")
 // Unaligned atomic memory access
@@ -840,6 +853,7 @@ P(Loading, 0x01, "loading")
 P(Validation, 0x02, "validation")
 P(Instantiation, 0x03, "instantiation")
 P(Execution, 0x04, "execution")
+P(UserDefined, 0x05, "user defined")
 
 #undef P
 #endif // UseWasmPhase

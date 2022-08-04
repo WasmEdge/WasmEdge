@@ -23,7 +23,7 @@ Expect<void> Executor::runIfElseOp(Runtime::StackManager &StackMgr,
       if (Stat) {
         Stat->incInstrCount();
         if (unlikely(!Stat->addInstrCost(OpCode::Else))) {
-          return Unexpect(ErrCode::CostLimitExceeded);
+          return Unexpect(ErrCode::Value::CostLimitExceeded);
         }
       }
       // Have else-statement case. Jump to Else instruction to continue.
@@ -73,8 +73,8 @@ Expect<void> Executor::runReturnOp(Runtime::StackManager &StackMgr,
                                    AST::InstrView::iterator &PC) noexcept {
   // Check stop token
   if (unlikely(StopToken.exchange(0, std::memory_order_relaxed))) {
-    spdlog::error(ErrCode::Interrupted);
-    return Unexpect(ErrCode::Interrupted);
+    spdlog::error(ErrCode::Value::Interrupted);
+    return Unexpect(ErrCode::Value::Interrupted);
   }
   PC = StackMgr.popFrame();
   return {};
@@ -111,35 +111,35 @@ Expect<void> Executor::runCallIndirectOp(Runtime::StackManager &StackMgr,
 
   // If idx not small than tab.elem, trap.
   if (Idx >= TabInst->getSize()) {
-    spdlog::error(ErrCode::UndefinedElement);
+    spdlog::error(ErrCode::Value::UndefinedElement);
     spdlog::error(ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset(),
                                            {Idx},
                                            {ValTypeFromType<uint32_t>()}));
-    return Unexpect(ErrCode::UndefinedElement);
+    return Unexpect(ErrCode::Value::UndefinedElement);
   }
 
   // Get function address.
   ValVariant Ref = TabInst->getRefAddr(Idx)->get<UnknownRef>();
   if (isNullRef(Ref)) {
-    spdlog::error(ErrCode::UninitializedElement);
+    spdlog::error(ErrCode::Value::UninitializedElement);
     spdlog::error(ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset(),
                                            {Idx},
                                            {ValTypeFromType<uint32_t>()}));
-    return Unexpect(ErrCode::UninitializedElement);
+    return Unexpect(ErrCode::Value::UninitializedElement);
   }
 
   // Check function type.
   const auto *FuncInst = retrieveFuncRef(Ref);
   const auto &FuncType = FuncInst->getFuncType();
   if (*TargetFuncType != FuncType) {
-    spdlog::error(ErrCode::IndirectCallTypeMismatch);
+    spdlog::error(ErrCode::Value::IndirectCallTypeMismatch);
     spdlog::error(ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset(),
                                            {Idx},
                                            {ValTypeFromType<uint32_t>()}));
     spdlog::error(ErrInfo::InfoMismatch(
         TargetFuncType->getParamTypes(), TargetFuncType->getReturnTypes(),
         FuncType.getParamTypes(), FuncType.getReturnTypes()));
-    return Unexpect(ErrCode::IndirectCallTypeMismatch);
+    return Unexpect(ErrCode::Value::IndirectCallTypeMismatch);
   }
 
   // Enter the function.

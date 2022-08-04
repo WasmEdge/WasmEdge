@@ -57,30 +57,26 @@ static inline constexpr auto WasmPhaseStr = []() constexpr {
     (defined(_MSVC_LANG) && _MSVC_LANG > 201402L)
 namespace WasmEdge {
 
-/// Error code C++ enumeration class.
-enum class ErrCode : uint8_t {
-#define UseErrCode
-#define Line(NAME, VALUE, STRING) NAME = VALUE,
+/// Error category C++ enumeration class.
+enum class ErrCategory : uint8_t {
+#define UseErrCategory
+#define Line(NAME, VALUE) NAME = VALUE,
 #include "enum.inc"
 #undef Line
-#undef UseErrCode
+#undef UseErrCategory
 };
-
-static inline constexpr const auto ErrCodeStr = []() constexpr {
-  using namespace std::literals::string_view_literals;
-  std::pair<ErrCode, std::string_view> Array[] = {
-#define UseErrCode
-#define Line(NAME, VALUE, STRING) {ErrCode::NAME, STRING},
-#include "enum.inc"
-#undef Line
-#undef UseErrCode
-  };
-  return SpareEnumMap(Array);
-}
-();
 
 } // namespace WasmEdge
 #endif
+
+/// Error category C enumeration.
+enum WasmEdge_ErrCategory {
+#define UseErrCategory
+#define Line(NAME, VALUE) WasmEdge_ErrCategory_##NAME = VALUE,
+#include "enum.inc"
+#undef Line
+#undef UseErrCategory
+};
 
 /// Error code C enumeration.
 enum WasmEdge_ErrCode {

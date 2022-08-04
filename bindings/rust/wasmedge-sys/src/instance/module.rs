@@ -598,8 +598,8 @@ impl WasiModule {
     }
 
     /// Returns the name of this wasi module instance.
-    pub fn name(&self) -> String {
-        String::from("wasi_snapshot_preview1")
+    pub fn name(&self) -> impl AsRef<str> {
+        "wasi_snapshot_preview1"
     }
 
     /// Initializes the WASI host module with the given parameters.
@@ -980,8 +980,8 @@ impl WasmEdgeProcessModule {
     }
 
     /// Returns the name of this wasmedge_process module instance.
-    pub fn name(&self) -> String {
-        String::from("wasmedge_process")
+    pub fn name(&self) -> impl AsRef<str> {
+        "wasmedge_process"
     }
 
     /// Initializes the wasmedge_process host module with the parameters.
@@ -1524,6 +1524,11 @@ impl WasiCryptoCommon {
             }),
         }
     }
+
+    /// Returns the name of this wasi_crypto common host module instance.
+    pub fn name(&self) -> impl AsRef<str> {
+        "wasi_ephemeral_crypto_common"
+    }
 }
 impl AsInstance for WasiCryptoCommon {
     fn get_func(&self, name: impl AsRef<str>) -> WasmEdgeResult<Function> {
@@ -1778,6 +1783,11 @@ impl WasiCryptoAsymmetricCommon {
                 registered: false,
             }),
         }
+    }
+
+    /// Returns the name of this wasi_crypto asymmetric_common host module instance.
+    pub fn name(&self) -> impl AsRef<str> {
+        "wasi_ephemeral_crypto_asymmetric_common"
     }
 }
 impl AsInstance for WasiCryptoAsymmetricCommon {
@@ -2034,6 +2044,11 @@ impl WasiCryptoSymmetric {
             }),
         }
     }
+
+    /// Returns the name of this wasi_crypto symmetric host module instance.
+    pub fn name(&self) -> impl AsRef<str> {
+        "wasi_ephemeral_crypto_symmetric"
+    }
 }
 impl AsInstance for WasiCryptoSymmetric {
     fn get_func(&self, name: impl AsRef<str>) -> WasmEdgeResult<Function> {
@@ -2289,6 +2304,11 @@ impl WasiCryptoKx {
             }),
         }
     }
+
+    /// Returns the name of this wasi_crypto kx host module instance.
+    pub fn name(&self) -> impl AsRef<str> {
+        "wasi_ephemeral_crypto_kx"
+    }
 }
 impl AsInstance for WasiCryptoKx {
     fn get_func(&self, name: impl AsRef<str>) -> WasmEdgeResult<Function> {
@@ -2529,7 +2549,7 @@ impl Drop for WasiCryptoSignatures {
     }
 }
 impl WasiCryptoSignatures {
-    /// Creates and initializes a wasi_crypto kx host module named `wasi_ephemeral_crypto_signatures`, which contains the wasi_crypto signature functions.
+    /// Creates and initializes a wasi_crypto signatures host module named `wasi_ephemeral_crypto_signatures`, which contains the wasi_crypto signature functions.
     ///
     /// # Error
     ///
@@ -2543,6 +2563,11 @@ impl WasiCryptoSignatures {
                 registered: false,
             }),
         }
+    }
+
+    /// Returns the name of this wasi_crypto signatures host module instance.
+    pub fn name(&self) -> impl AsRef<str> {
+        "wasi_ephemeral_crypto_signatures"
     }
 }
 impl AsInstance for WasiCryptoSignatures {

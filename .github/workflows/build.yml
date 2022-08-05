@@ -91,6 +91,22 @@ jobs:
       version: ${{ needs.get_version_v2.outputs.version }}
       matrix: "[{'name':'MacOS 11 (x86_64)','runner':'macos-11','darwin_version':20},{'name':'MacOS 12 (x86_64)','runner':'macos-12','darwin_version':21}]"
 
+  build_on_manylinux_legacy:
+    needs: [get_version_v1, lint]
+    uses: ./.github/workflows/reusable-build-on-manylinux.yml
+    with:
+      version: ${{ needs.get_version_v1.outputs.version }}
+      legacy: true
+      matrix: "[{'runner':'ubuntu-latest','docker_tag':'manylinux2010_x86_64'},{'runner':'ubuntu-latest','docker_tag':'manylinux1_x86_64'}]"
+
+  build_on_manylinux_2014:
+    needs: [get_version_v2, lint]
+    uses: ./.github/workflows/reusable-build-on-manylinux.yml
+    with:
+      version: ${{ needs.get_version_v2.outputs.version }}
+      legacy: false
+      matrix: "[{'runner':'ubuntu-latest','docker_tag':'manylinux2014_x86_64'},{'runner':'ARM64','docker_tag':'manylinux2014_aarch64'}]"
+
   build_fedora:
     name: Fedora 35
     needs: get_version_v2
@@ -240,55 +256,6 @@ jobs:
         name: codecov-wasmedge
         fail_ci_if_error: true
         path_to_write_report: ./build/codecov_report.gz
-
-  build_manylinux:
-    strategy:
-      matrix:
-        include:
-          - name: manylinux2014 x86_64
-            host_runner: ubuntu-latest
-            docker_tag: manylinux2014_x86_64
-            checkout_version: v2
-          - name: manylinux2010 x86_64
-            host_runner: ubuntu-latest
-            docker_tag: manylinux2010_x86_64
-            checkout_version: v1
-          - name: manylinux1 x86_64
-            host_runner: ubuntu-latest
-            docker_tag: manylinux1_x86_64
-            checkout_version: v1
-          - name: manylinux2014 aarch64
-            host_runner: ARM64
-            docker_tag: manylinux2014_aarch64
-            checkout_version: v2
-    name: ${{ matrix.name }} platform
-    runs-on: ${{ matrix.host_runner }}
-    needs: [get_version_v1, get_version_v2]
-    container:
-      image: wasmedge/wasmedge:${{ matrix.docker_tag }}
-    steps:
-    - uses: actions/checkout@v1
-      if: ${{ matrix.checkout_version == 'v1' }}
-    - uses: actions/checkout@v2
-      if: ${{ matrix.checkout_version == 'v2' }}
-      with:
-        fetch-depth: 0
-    - name: Build ${{ matrix.name }} package
-      run: |
-        bash utils/docker/build-manylinux.sh
-        ./build/tools/wasmedge/wasmedge -v
-    - name: Upload artifact (v1)
-      uses: actions/upload-artifact@v1
-      if: ${{ matrix.checkout_version == 'v1' }}
-      with:
-        name: WasmEdge-${{ needs.get_version_v1.outputs.version }}-${{ matrix.docker_tag }}.tar.gz
-        path: build/WasmEdge-${{ needs.get_version_v1.outputs.version }}-Linux.tar.gz
-    - name: Upload artifact (v2)
-      uses: actions/upload-artifact@v2
-      if: ${{ matrix.checkout_version == 'v2' }}
-      with:
-        name: WasmEdge-${{ needs.get_version_v2.outputs.version }}-${{ matrix.docker_tag }}.tar.gz
-        path: build/WasmEdge-${{ needs.get_version_v2.outputs.version }}-Linux.tar.gz
 
   build_windows:
     name: Windows Server 2022

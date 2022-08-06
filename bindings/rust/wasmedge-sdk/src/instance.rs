@@ -1,7 +1,7 @@
 //! Defines WasmEdge Instance.
 
 use crate::{Func, Global, Memory, Table, WasmEdgeResult};
-use wasmedge_sys::{self as sys, AsInstance};
+use wasmedge_sys::{self as sys, AsImport, AsInstance};
 
 /// Represents an instantiated module.
 ///
@@ -166,7 +166,7 @@ impl WasiInstance {
     ///
     /// If this [module instance](crate::Instance) is an active [instance](crate::Instance), return None.
     pub fn name(&self) -> String {
-        self.inner.name()
+        self.inner.name().into()
     }
 
     /// Returns the count of the exported [function instances](crate::Func) in this [module instance](crate::Instance).

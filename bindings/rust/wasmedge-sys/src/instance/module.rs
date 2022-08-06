@@ -354,7 +354,7 @@ pub trait AsInstance {
 ///
 /// ```rust
 /// use wasmedge_sys::{
-///     ImportInstance, FuncType, Function, Global, GlobalType, ImportModule, ImportObject, MemType,
+///     AsImport, FuncType, Function, Global, GlobalType, ImportModule, ImportObject, MemType,
 ///     Memory, Table, TableType, Vm, WasmValue,
 /// };
 /// use wasmedge_types::{Mutability, RefType, ValType};
@@ -455,13 +455,12 @@ impl ImportModule {
             }),
         }
     }
-
-    /// Returns the name of this import module instance.
-    pub fn name(&self) -> &str {
+}
+impl AsImport for ImportModule {
+    fn name(&self) -> &str {
         self.name.as_str()
     }
-}
-impl ImportInstance for ImportModule {
+
     fn add_func(&mut self, name: impl AsRef<str>, mut func: Function) {
         let func_name: WasmEdgeString = name.into();
         unsafe {
@@ -595,11 +594,6 @@ impl WasiModule {
                 registered: false,
             }),
         }
-    }
-
-    /// Returns the name of this wasi module instance.
-    pub fn name(&self) -> &str {
-        "wasi_snapshot_preview1"
     }
 
     /// Initializes the WASI host module with the given parameters.
@@ -858,7 +852,11 @@ impl AsInstance for WasiModule {
         }
     }
 }
-impl ImportInstance for WasiModule {
+impl AsImport for WasiModule {
+    fn name(&self) -> &str {
+        "wasi_snapshot_preview1"
+    }
+
     fn add_func(&mut self, name: impl AsRef<str>, mut func: Function) {
         let func_name: WasmEdgeString = name.into();
         unsafe {
@@ -977,11 +975,6 @@ impl WasmEdgeProcessModule {
                 registered: false,
             }),
         }
-    }
-
-    /// Returns the name of this wasmedge_process module instance.
-    pub fn name(&self) -> impl AsRef<str> {
-        "wasmedge_process"
     }
 
     /// Initializes the wasmedge_process host module with the parameters.
@@ -1200,7 +1193,11 @@ impl AsInstance for WasmEdgeProcessModule {
     }
 }
 #[cfg(target_os = "linux")]
-impl ImportInstance for WasmEdgeProcessModule {
+impl AsImport for WasmEdgeProcessModule {
+    fn name(&self) -> &str {
+        "wasmedge_process"
+    }
+
     fn add_func(&mut self, name: impl AsRef<str>, mut func: Function) {
         let func_name: WasmEdgeString = name.into();
         unsafe {
@@ -1455,7 +1452,11 @@ impl AsInstance for WasiNnModule {
         }
     }
 }
-impl ImportInstance for WasiNnModule {
+impl AsImport for WasiNnModule {
+    fn name(&self) -> &str {
+        "wasi_ephemeral_nn"
+    }
+
     fn add_func(&mut self, name: impl AsRef<str>, mut func: Function) {
         let func_name: WasmEdgeString = name.into();
         unsafe {
@@ -1495,11 +1496,11 @@ impl ImportInstance for WasiNnModule {
 
 /// A [WasiCryptoCommon] is a module instance for the WASI-Crypto specification, covering common types and functions for symmetric operations.
 #[derive(Debug)]
-pub struct WasiCryptoCommon {
+pub struct WasiCryptoCommonModule {
     pub(crate) inner: InnerInstance,
     pub(crate) registered: bool,
 }
-impl Drop for WasiCryptoCommon {
+impl Drop for WasiCryptoCommonModule {
     fn drop(&mut self) {
         if !self.registered && !self.inner.0.is_null() {
             unsafe {
@@ -1508,7 +1509,7 @@ impl Drop for WasiCryptoCommon {
         }
     }
 }
-impl WasiCryptoCommon {
+impl WasiCryptoCommonModule {
     /// Creates and initializes a wasi_crypto common host module named `wasi_ephemeral_crypto_common`, which contains the wasi_crypto common host functions.
     ///
     /// # Error
@@ -1524,13 +1525,8 @@ impl WasiCryptoCommon {
             }),
         }
     }
-
-    /// Returns the name of this wasi_crypto common host module instance.
-    pub fn name(&self) -> &str {
-        "wasi_ephemeral_crypto_common"
-    }
 }
-impl AsInstance for WasiCryptoCommon {
+impl AsInstance for WasiCryptoCommonModule {
     fn get_func(&self, name: impl AsRef<str>) -> WasmEdgeResult<Function> {
         let func_name: WasmEdgeString = name.as_ref().into();
         let func_ctx = unsafe {
@@ -1715,7 +1711,11 @@ impl AsInstance for WasiCryptoCommon {
         }
     }
 }
-impl ImportInstance for WasiCryptoCommon {
+impl AsImport for WasiCryptoCommonModule {
+    fn name(&self) -> &str {
+        "wasi_ephemeral_crypto_common"
+    }
+
     fn add_func(&mut self, name: impl AsRef<str>, mut func: Function) {
         let func_name: WasmEdgeString = name.into();
         unsafe {
@@ -1759,11 +1759,11 @@ impl ImportInstance for WasiCryptoCommon {
 ///
 /// If the wasi_crypto plugin is not found, then an error is returned.
 #[derive(Debug)]
-pub struct WasiCryptoAsymmetricCommon {
+pub struct WasiCryptoAsymmetricCommonModule {
     pub(crate) inner: InnerInstance,
     pub(crate) registered: bool,
 }
-impl Drop for WasiCryptoAsymmetricCommon {
+impl Drop for WasiCryptoAsymmetricCommonModule {
     fn drop(&mut self) {
         if !self.registered && !self.inner.0.is_null() {
             unsafe {
@@ -1772,7 +1772,7 @@ impl Drop for WasiCryptoAsymmetricCommon {
         }
     }
 }
-impl WasiCryptoAsymmetricCommon {
+impl WasiCryptoAsymmetricCommonModule {
     /// Creates and initializes a wasi_crypto asymmetric_common host module named `wasi_ephemeral_crypto_asymmetric_common`, which contains the wasi_crypto common host functions.
     pub fn create() -> WasmEdgeResult<Self> {
         let ctx = unsafe { ffi::WasmEdge_ModuleInstanceCreateWasiCryptoAsymmetricCommon() };
@@ -1784,13 +1784,8 @@ impl WasiCryptoAsymmetricCommon {
             }),
         }
     }
-
-    /// Returns the name of this wasi_crypto asymmetric_common host module instance.
-    pub fn name(&self) -> &str {
-        "wasi_ephemeral_crypto_asymmetric_common"
-    }
 }
-impl AsInstance for WasiCryptoAsymmetricCommon {
+impl AsInstance for WasiCryptoAsymmetricCommonModule {
     fn get_func(&self, name: impl AsRef<str>) -> WasmEdgeResult<Function> {
         let func_name: WasmEdgeString = name.as_ref().into();
         let func_ctx = unsafe {
@@ -1975,7 +1970,11 @@ impl AsInstance for WasiCryptoAsymmetricCommon {
         }
     }
 }
-impl ImportInstance for WasiCryptoAsymmetricCommon {
+impl AsImport for WasiCryptoAsymmetricCommonModule {
+    fn name(&self) -> &str {
+        "wasi_ephemeral_crypto_asymmetric_common"
+    }
+
     fn add_func(&mut self, name: impl AsRef<str>, mut func: Function) {
         let func_name: WasmEdgeString = name.into();
         unsafe {
@@ -2015,11 +2014,11 @@ impl ImportInstance for WasiCryptoAsymmetricCommon {
 
 /// A [WasiCryptoSymmetric] is a module instance for the WASI-Crypto specification, covering symmetric operations.
 #[derive(Debug)]
-pub struct WasiCryptoSymmetric {
+pub struct WasiCryptoSymmetricModule {
     pub(crate) inner: InnerInstance,
     pub(crate) registered: bool,
 }
-impl Drop for WasiCryptoSymmetric {
+impl Drop for WasiCryptoSymmetricModule {
     fn drop(&mut self) {
         if !self.registered && !self.inner.0.is_null() {
             unsafe {
@@ -2028,7 +2027,7 @@ impl Drop for WasiCryptoSymmetric {
         }
     }
 }
-impl WasiCryptoSymmetric {
+impl WasiCryptoSymmetricModule {
     /// Creates and initializes a wasi_crypto symmetric host module named `wasi_ephemeral_crypto_symmetric`, which contains the wasi_crypto symmetric host functions.
     ///
     /// # Error
@@ -2044,13 +2043,8 @@ impl WasiCryptoSymmetric {
             }),
         }
     }
-
-    /// Returns the name of this wasi_crypto symmetric host module instance.
-    pub fn name(&self) -> &str {
-        "wasi_ephemeral_crypto_symmetric"
-    }
 }
-impl AsInstance for WasiCryptoSymmetric {
+impl AsInstance for WasiCryptoSymmetricModule {
     fn get_func(&self, name: impl AsRef<str>) -> WasmEdgeResult<Function> {
         let func_name: WasmEdgeString = name.as_ref().into();
         let func_ctx = unsafe {
@@ -2235,7 +2229,11 @@ impl AsInstance for WasiCryptoSymmetric {
         }
     }
 }
-impl ImportInstance for WasiCryptoSymmetric {
+impl AsImport for WasiCryptoSymmetricModule {
+    fn name(&self) -> &str {
+        "wasi_ephemeral_crypto_symmetric"
+    }
+
     fn add_func(&mut self, name: impl AsRef<str>, mut func: Function) {
         let func_name: WasmEdgeString = name.into();
         unsafe {
@@ -2275,11 +2273,11 @@ impl ImportInstance for WasiCryptoSymmetric {
 
 /// A [WasiCryptoKx] is a module instance for the WASI-Crypto specification, covering key exchange interfaces.
 #[derive(Debug)]
-pub struct WasiCryptoKx {
+pub struct WasiCryptoKxModule {
     pub(crate) inner: InnerInstance,
     pub(crate) registered: bool,
 }
-impl Drop for WasiCryptoKx {
+impl Drop for WasiCryptoKxModule {
     fn drop(&mut self) {
         if !self.registered && !self.inner.0.is_null() {
             unsafe {
@@ -2288,7 +2286,7 @@ impl Drop for WasiCryptoKx {
         }
     }
 }
-impl WasiCryptoKx {
+impl WasiCryptoKxModule {
     /// Creates and initializes a wasi_crypto kx host module named `wasi_ephemeral_crypto_kx`, which contains the wasi_crypto key exchange functions.
     ///
     /// # Error
@@ -2304,13 +2302,8 @@ impl WasiCryptoKx {
             }),
         }
     }
-
-    /// Returns the name of this wasi_crypto kx host module instance.
-    pub fn name(&self) -> &str {
-        "wasi_ephemeral_crypto_kx"
-    }
 }
-impl AsInstance for WasiCryptoKx {
+impl AsInstance for WasiCryptoKxModule {
     fn get_func(&self, name: impl AsRef<str>) -> WasmEdgeResult<Function> {
         let func_name: WasmEdgeString = name.as_ref().into();
         let func_ctx = unsafe {
@@ -2495,7 +2488,11 @@ impl AsInstance for WasiCryptoKx {
         }
     }
 }
-impl ImportInstance for WasiCryptoKx {
+impl AsImport for WasiCryptoKxModule {
+    fn name(&self) -> &str {
+        "wasi_ephemeral_crypto_kx"
+    }
+
     fn add_func(&mut self, name: impl AsRef<str>, mut func: Function) {
         let func_name: WasmEdgeString = name.into();
         unsafe {
@@ -2535,11 +2532,11 @@ impl ImportInstance for WasiCryptoKx {
 
 /// A [WasiCryptoSignatures] is a module instance for the WASI-Crypto specification, covering signatures interfaces.
 #[derive(Debug)]
-pub struct WasiCryptoSignatures {
+pub struct WasiCryptoSignaturesModule {
     pub(crate) inner: InnerInstance,
     pub(crate) registered: bool,
 }
-impl Drop for WasiCryptoSignatures {
+impl Drop for WasiCryptoSignaturesModule {
     fn drop(&mut self) {
         if !self.registered && !self.inner.0.is_null() {
             unsafe {
@@ -2548,7 +2545,7 @@ impl Drop for WasiCryptoSignatures {
         }
     }
 }
-impl WasiCryptoSignatures {
+impl WasiCryptoSignaturesModule {
     /// Creates and initializes a wasi_crypto signatures host module named `wasi_ephemeral_crypto_signatures`, which contains the wasi_crypto signature functions.
     ///
     /// # Error
@@ -2564,13 +2561,8 @@ impl WasiCryptoSignatures {
             }),
         }
     }
-
-    /// Returns the name of this wasi_crypto signatures host module instance.
-    pub fn name(&self) -> &str {
-        "wasi_ephemeral_crypto_signatures"
-    }
 }
-impl AsInstance for WasiCryptoSignatures {
+impl AsInstance for WasiCryptoSignaturesModule {
     fn get_func(&self, name: impl AsRef<str>) -> WasmEdgeResult<Function> {
         let func_name: WasmEdgeString = name.as_ref().into();
         let func_ctx = unsafe {
@@ -2755,7 +2747,11 @@ impl AsInstance for WasiCryptoSignatures {
         }
     }
 }
-impl ImportInstance for WasiCryptoSignatures {
+impl AsImport for WasiCryptoSignaturesModule {
+    fn name(&self) -> &str {
+        "wasi_ephemeral_crypto_signatures"
+    }
+
     fn add_func(&mut self, name: impl AsRef<str>, mut func: Function) {
         let func_name: WasmEdgeString = name.into();
         unsafe {
@@ -2794,7 +2790,10 @@ impl ImportInstance for WasiCryptoSignatures {
 }
 
 /// The object to be registered into a [Vm](crate::Vm) or an [Executor](crate::Executor) instance is required to implement this trait. The object that implements this trait can be registered via the [Vm::register_wasm_from_import](crate::Vm::register_wasm_from_import) function, or the [Executor::register_import_object](crate::Executor::register_import_object) function.
-pub trait ImportInstance {
+pub trait AsImport {
+    /// Returns the name of the module instance.
+    fn name(&self) -> &str;
+
     /// Imports a [host function instance](crate::Function).
     ///
     /// # Arguments
@@ -2835,13 +2834,17 @@ pub trait ImportInstance {
 /// Defines three types of module instances that can be imported into a WasmEdge [Store](crate::Store) instance.
 #[derive(Debug)]
 pub enum ImportObject {
-    /// Defines the import module instance is of ImportModule type.
+    /// Defines the import module instance of ImportModule type.
     Import(ImportModule),
-    /// Defines the import module instance is of WasiModule type.
+    /// Defines the import module instance of WasiModule type.
     Wasi(WasiModule),
-    /// Defines the import module instance is of WasmEdgeProcessModule type.
+    /// Defines the import module instance of WasmEdgeProcessModule type.
     #[cfg(target_os = "linux")]
     WasmEdgeProcess(WasmEdgeProcessModule),
+    /// Defines the import module instance of WasiNnModule type.
+    Nn(WasiNnModule),
+    /// Defines the import module instance of WasiCrypto type.
+    Crypto(WasiCrypto),
 }
 impl ImportObject {
     /// Returns the name of the import object.
@@ -2851,8 +2854,29 @@ impl ImportObject {
             ImportObject::Wasi(wasi) => wasi.name(),
             #[cfg(target_os = "linux")]
             ImportObject::WasmEdgeProcess(wasmedge_process) => wasmedge_process.name(),
+            ImportObject::Nn(module) => module.name(),
+            ImportObject::Crypto(WasiCrypto::Common(module)) => module.name(),
+            ImportObject::Crypto(WasiCrypto::AsymmetricCommon(module)) => module.name(),
+            ImportObject::Crypto(WasiCrypto::SymmetricOptionations(module)) => module.name(),
+            ImportObject::Crypto(WasiCrypto::KeyExchange(module)) => module.name(),
+            ImportObject::Crypto(WasiCrypto::Signatures(module)) => module.name(),
         }
     }
+}
+
+/// Defines the WasiCrypto type.
+#[derive(Debug)]
+pub enum WasiCrypto {
+    /// WasiCryptoCommonModule
+    Common(WasiCryptoCommonModule),
+    /// WasiCryptoAsymmetricCommonModule
+    AsymmetricCommon(WasiCryptoAsymmetricCommonModule),
+    /// WasiCryptoSymmetricModule
+    SymmetricOptionations(WasiCryptoSymmetricModule),
+    /// WasiCryptoKxModule
+    KeyExchange(WasiCryptoKxModule),
+    /// WasiCryptoSignaturesModule
+    Signatures(WasiCryptoSignaturesModule),
 }
 
 #[cfg(test)]

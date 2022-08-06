@@ -15,7 +15,8 @@ use crate::{
     types::WasmEdgeString,
     utils::{self, check},
     validator::{InnerValidator, Validator},
-    Config, Engine, ImportObject, Instance, Module, WasiModule, WasmEdgeResult, WasmValue,
+    Config, Engine, ImportObject, Instance, Module, WasiCrypto, WasiModule, WasmEdgeResult,
+    WasmValue,
 };
 #[cfg(target_os = "linux")]
 use crate::{ffi::WasmEdge_HostRegistration_WasmEdge_Process, WasmEdgeProcessModule};
@@ -151,6 +152,42 @@ impl Vm {
             },
             #[cfg(target_os = "linux")]
             ImportObject::WasmEdgeProcess(import) => unsafe {
+                check(ffi::WasmEdge_VMRegisterModuleFromImport(
+                    self.inner.0,
+                    import.inner.0 as *const _,
+                ))?;
+            },
+            ImportObject::Nn(import) => unsafe {
+                check(ffi::WasmEdge_VMRegisterModuleFromImport(
+                    self.inner.0,
+                    import.inner.0 as *const _,
+                ))?;
+            },
+            ImportObject::Crypto(WasiCrypto::Common(import)) => unsafe {
+                check(ffi::WasmEdge_VMRegisterModuleFromImport(
+                    self.inner.0,
+                    import.inner.0 as *const _,
+                ))?;
+            },
+            ImportObject::Crypto(WasiCrypto::AsymmetricCommon(import)) => unsafe {
+                check(ffi::WasmEdge_VMRegisterModuleFromImport(
+                    self.inner.0,
+                    import.inner.0 as *const _,
+                ))?;
+            },
+            ImportObject::Crypto(WasiCrypto::SymmetricOptionations(import)) => unsafe {
+                check(ffi::WasmEdge_VMRegisterModuleFromImport(
+                    self.inner.0,
+                    import.inner.0 as *const _,
+                ))?;
+            },
+            ImportObject::Crypto(WasiCrypto::KeyExchange(import)) => unsafe {
+                check(ffi::WasmEdge_VMRegisterModuleFromImport(
+                    self.inner.0,
+                    import.inner.0 as *const _,
+                ))?;
+            },
+            ImportObject::Crypto(WasiCrypto::Signatures(import)) => unsafe {
                 check(ffi::WasmEdge_VMRegisterModuleFromImport(
                     self.inner.0,
                     import.inner.0 as *const _,
@@ -989,7 +1026,7 @@ mod tests {
     use super::Vm;
     #[cfg(unix)]
     use crate::{
-        error::CoreInstantiationError, FuncType, Function, ImportInstance, ImportObject, WasiModule,
+        error::CoreInstantiationError, AsImport, FuncType, Function, ImportObject, WasiModule,
     };
     use crate::{
         error::{

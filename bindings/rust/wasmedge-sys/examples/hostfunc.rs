@@ -12,7 +12,7 @@
 //!
 
 use wasmedge_sys::{
-    Config, FuncType, Function, ImportInstance, ImportModule, ImportObject, Loader, Vm, WasmValue,
+    AsImport, Config, FuncType, Function, ImportModule, ImportObject, Loader, Vm, WasmValue,
 };
 use wasmedge_types::ValType;
 

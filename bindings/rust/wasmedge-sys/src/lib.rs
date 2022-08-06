@@ -199,9 +199,9 @@ pub use instance::{
     global::{Global, GlobalType},
     memory::{MemType, Memory},
     module::{
-        AsInstance, ImportInstance, ImportModule, ImportObject, Instance,
-        WasiCryptoAsymmetricCommon, WasiCryptoCommon, WasiCryptoKx, WasiCryptoSignatures,
-        WasiCryptoSymmetric, WasiModule, WasiNnModule,
+        AsImport, AsInstance, ImportModule, ImportObject, Instance, WasiCrypto,
+        WasiCryptoAsymmetricCommonModule, WasiCryptoCommonModule, WasiCryptoKxModule,
+        WasiCryptoSignaturesModule, WasiCryptoSymmetricModule, WasiModule, WasiNnModule,
     },
     table::{Table, TableType},
 };

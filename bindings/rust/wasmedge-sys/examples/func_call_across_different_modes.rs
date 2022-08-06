@@ -1,6 +1,6 @@
 //! This example demonstrates that the function in interpreter mode calls the functions in AOT mode, and vise versa.
 use wasmedge_sys::{
-    Compiler, Config, FuncType, Function, ImportInstance, ImportModule, ImportObject, Vm, WasmValue,
+    AsImport, Compiler, Config, FuncType, Function, ImportModule, ImportObject, Vm, WasmValue,
 };
 use wasmedge_types::ValType;
 

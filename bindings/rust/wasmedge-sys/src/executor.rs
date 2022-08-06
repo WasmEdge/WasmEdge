@@ -4,7 +4,7 @@ use super::ffi;
 use crate::{
     error::WasmEdgeError, instance::module::InnerInstance, types::WasmEdgeString, utils::check,
     Config, Engine, FuncRef, Function, ImportObject, Instance, Module, Statistics, Store,
-    WasmEdgeResult, WasmValue,
+    WasiCrypto, WasmEdgeResult, WasmValue,
 };
 
 /// Defines an execution environment for both pure WASM and compiled WASM.
@@ -93,6 +93,48 @@ impl Executor {
             },
             #[cfg(target_os = "linux")]
             ImportObject::WasmEdgeProcess(import) => unsafe {
+                check(ffi::WasmEdge_ExecutorRegisterImport(
+                    self.inner.0,
+                    store.inner.0,
+                    import.inner.0 as *const _,
+                ))?;
+            },
+            ImportObject::Nn(import) => unsafe {
+                check(ffi::WasmEdge_ExecutorRegisterImport(
+                    self.inner.0,
+                    store.inner.0,
+                    import.inner.0 as *const _,
+                ))?;
+            },
+            ImportObject::Crypto(WasiCrypto::Common(import)) => unsafe {
+                check(ffi::WasmEdge_ExecutorRegisterImport(
+                    self.inner.0,
+                    store.inner.0,
+                    import.inner.0 as *const _,
+                ))?;
+            },
+            ImportObject::Crypto(WasiCrypto::AsymmetricCommon(import)) => unsafe {
+                check(ffi::WasmEdge_ExecutorRegisterImport(
+                    self.inner.0,
+                    store.inner.0,
+                    import.inner.0 as *const _,
+                ))?;
+            },
+            ImportObject::Crypto(WasiCrypto::SymmetricOptionations(import)) => unsafe {
+                check(ffi::WasmEdge_ExecutorRegisterImport(
+                    self.inner.0,
+                    store.inner.0,
+                    import.inner.0 as *const _,
+                ))?;
+            },
+            ImportObject::Crypto(WasiCrypto::KeyExchange(import)) => unsafe {
+                check(ffi::WasmEdge_ExecutorRegisterImport(
+                    self.inner.0,
+                    store.inner.0,
+                    import.inner.0 as *const _,
+                ))?;
+            },
+            ImportObject::Crypto(WasiCrypto::Signatures(import)) => unsafe {
                 check(ffi::WasmEdge_ExecutorRegisterImport(
                     self.inner.0,
                     store.inner.0,
@@ -250,8 +292,8 @@ unsafe impl Sync for InnerExecutor {}
 mod tests {
     use super::*;
     use crate::{
-        Config, FuncType, Function, Global, GlobalType, ImportInstance, ImportModule, MemType,
-        Memory, Statistics, Table, TableType,
+        AsImport, Config, FuncType, Function, Global, GlobalType, ImportModule, MemType, Memory,
+        Statistics, Table, TableType,
     };
     use std::{
         sync::{Arc, Mutex},

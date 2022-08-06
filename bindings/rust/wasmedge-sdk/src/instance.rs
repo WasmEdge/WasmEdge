@@ -1,7 +1,7 @@
 //! Defines WasmEdge Instance.
 
 use crate::{Func, Global, Memory, Table, WasmEdgeResult};
-use wasmedge_sys::{self as sys, AsImport, AsInstance};
+use wasmedge_sys::{self as sys, AsImport, AsInstance as sys_as_instance_trait};
 
 /// Represents an instantiated module.
 ///
@@ -161,21 +161,22 @@ impl WasiInstance {
     pub fn exit_code(&self) -> u32 {
         self.inner.exit_code()
     }
-
+}
+impl AsInstance for WasiInstance {
     /// Returns the name of this exported [module instance](crate::Instance).
     ///
     /// If this [module instance](crate::Instance) is an active [instance](crate::Instance), return None.
-    pub fn name(&self) -> String {
-        self.inner.name().into()
+    fn name(&self) -> &str {
+        self.inner.name()
     }
 
     /// Returns the count of the exported [function instances](crate::Func) in this [module instance](crate::Instance).
-    pub fn func_count(&self) -> u32 {
-        self.inner.func_len()
+    fn func_count(&self) -> usize {
+        self.inner.func_len() as usize
     }
 
     /// Returns the names of the exported [function instances](crate::Func) in this [module instance](crate::Instance).
-    pub fn func_names(&self) -> Option<Vec<String>> {
+    fn func_names(&self) -> Option<Vec<String>> {
         self.inner.func_names()
     }
 
@@ -184,7 +185,7 @@ impl WasiInstance {
     /// # Argument
     ///
     /// * `name` - the name of the target exported [function instance](crate::Func).
-    pub fn func(&self, name: impl AsRef<str>) -> WasmEdgeResult<Func> {
+    fn func(&self, name: impl AsRef<str>) -> WasmEdgeResult<Func> {
         let inner_func = self.inner.get_func(name.as_ref())?;
 
         Ok(Func {
@@ -195,12 +196,12 @@ impl WasiInstance {
     }
 
     /// Returns the count of the exported [global instances](crate::Global) in this [module instance](crate::Instance).
-    pub fn global_count(&self) -> u32 {
-        self.inner.global_len()
+    fn global_count(&self) -> usize {
+        self.inner.global_len() as usize
     }
 
     /// Returns the names of the exported [global instances](crate::Global) in this [module instance](crate::Instance).
-    pub fn global_names(&self) -> Option<Vec<String>> {
+    fn global_names(&self) -> Option<Vec<String>> {
         self.inner.global_names()
     }
 
@@ -209,7 +210,7 @@ impl WasiInstance {
     /// # Argument
     ///
     /// * `name` - the name of the target exported [global instance](crate::Global).
-    pub fn global(&self, name: impl AsRef<str>) -> WasmEdgeResult<Global> {
+    fn global(&self, name: impl AsRef<str>) -> WasmEdgeResult<Global> {
         let inner_global = self.inner.get_global(name.as_ref())?;
 
         Ok(Global {
@@ -220,12 +221,12 @@ impl WasiInstance {
     }
 
     /// Returns the count of the exported [memory instances](crate::Memory) in this [module instance](crate::Instance).
-    pub fn memory_count(&self) -> u32 {
-        self.inner.mem_len()
+    fn memory_count(&self) -> usize {
+        self.inner.mem_len() as usize
     }
 
     /// Returns the names of the exported [memory instances](crate::Memory) in this [module instance](crate::Instance).
-    pub fn memory_names(&self) -> Option<Vec<String>> {
+    fn memory_names(&self) -> Option<Vec<String>> {
         self.inner.mem_names()
     }
 
@@ -234,7 +235,7 @@ impl WasiInstance {
     /// # Argument
     ///
     /// * `name` - the name of the target exported [memory instance](crate::Memory).
-    pub fn memory(&self, name: impl AsRef<str>) -> WasmEdgeResult<Memory> {
+    fn memory(&self, name: impl AsRef<str>) -> WasmEdgeResult<Memory> {
         let inner_memory = self.inner.get_memory(name.as_ref())?;
 
         Ok(Memory {
@@ -245,12 +246,12 @@ impl WasiInstance {
     }
 
     /// Returns the count of the exported [table instances](crate::Table) in this [module instance](crate::Instance).
-    pub fn table_count(&self) -> u32 {
-        self.inner.table_len()
+    fn table_count(&self) -> usize {
+        self.inner.table_len() as usize
     }
 
     /// Returns the names of the exported [table instances](crate::Table) in this [module instance](crate::Instance).
-    pub fn table_names(&self) -> Option<Vec<String>> {
+    fn table_names(&self) -> Option<Vec<String>> {
         self.inner.table_names()
     }
 
@@ -259,7 +260,7 @@ impl WasiInstance {
     /// # Argument
     ///
     /// * `name` - the name of the target exported [table instance](crate::Table).
-    pub fn table(&self, name: impl AsRef<str>) -> WasmEdgeResult<Table> {
+    fn table(&self, name: impl AsRef<str>) -> WasmEdgeResult<Table> {
         let inner_table = self.inner.get_table(name.as_ref())?;
 
         Ok(Table {
@@ -269,7 +270,6 @@ impl WasiInstance {
         })
     }
 }
-
 /// Represents a wasmedge_process module instance.
 #[derive(Debug)]
 #[cfg(target_os = "linux")]
@@ -397,6 +397,140 @@ impl WasmEdgeProcessInstance {
     }
 }
 
+#[derive(Debug)]
+pub struct WasiNnInstance {
+    pub(crate) inner: sys::WasiNnModule,
+}
+impl AsInstance for WasiNnInstance {
+    fn name(&self) -> &str {
+        self.inner.name()
+    }
+
+    fn func_count(&self) -> usize {
+        self.inner.func_len() as usize
+    }
+
+    fn func_names(&self) -> Option<Vec<String>> {
+        self.inner.func_names()
+    }
+
+    fn func(&self, name: impl AsRef<str>) -> WasmEdgeResult<Func> {
+        let inner_func = self.inner.get_func(name.as_ref())?;
+        Ok(Func {
+            inner: inner_func,
+            name: Some(name.as_ref().into()),
+            mod_name: Some(self.inner.name().into()),
+        })
+    }
+
+    fn global_count(&self) -> usize {
+        self.inner.global_len() as usize
+    }
+
+    fn global_names(&self) -> Option<Vec<String>> {
+        self.inner.global_names()
+    }
+
+    fn global(&self, name: impl AsRef<str>) -> WasmEdgeResult<Global> {
+        let inner_global = self.inner.get_global(name.as_ref())?;
+        Ok(Global {
+            inner: inner_global,
+            name: Some(name.as_ref().into()),
+            mod_name: Some(self.inner.name().into()),
+        })
+    }
+
+    fn memory_count(&self) -> usize {
+        self.inner.mem_len() as usize
+    }
+
+    fn memory_names(&self) -> Option<Vec<String>> {
+        self.inner.mem_names()
+    }
+
+    fn memory(&self, name: impl AsRef<str>) -> WasmEdgeResult<Memory> {
+        let inner_memory = self.inner.get_memory(name.as_ref())?;
+        Ok(Memory {
+            inner: inner_memory,
+            name: Some(name.as_ref().into()),
+            mod_name: Some(self.inner.name().into()),
+        })
+    }
+
+    fn table_count(&self) -> usize {
+        self.inner.table_len() as usize
+    }
+
+    fn table_names(&self) -> Option<Vec<String>> {
+        self.inner.table_names()
+    }
+
+    fn table(&self, name: impl AsRef<str>) -> WasmEdgeResult<Table> {
+        let inner_table = self.inner.get_table(name.as_ref())?;
+        Ok(Table {
+            inner: inner_table,
+            name: Some(name.as_ref().into()),
+            mod_name: Some(self.inner.name().into()),
+        })
+    }
+}
+
+pub trait AsInstance {
+    /// Returns the name of this exported module instance.
+    fn name(&self) -> &str;
+
+    /// Returns the count of the exported [function instances](crate::Func) in this module instance.
+    fn func_count(&self) -> usize;
+
+    /// Returns the names of the exported [function instances](crate::Func) in this module instance.
+    fn func_names(&self) -> Option<Vec<String>>;
+
+    /// Returns the exported [function instance](crate::Func) in this module instance.
+    ///
+    /// # Argument
+    ///
+    /// * `name` - the name of the target exported [function instance](crate::Func).
+    fn func(&self, name: impl AsRef<str>) -> WasmEdgeResult<Func>;
+
+    /// Returns the count of the exported global instances.
+    fn global_count(&self) -> usize;
+
+    /// Returns the names of the exported [global instances](crate::Global) in this module instance.
+    fn global_names(&self) -> Option<Vec<String>>;
+
+    /// Returns the exported [global instance](crate::Global) in this module instance.
+    ///
+    /// # Argument
+    ///
+    /// * `name` - the name of the target exported [global instance](crate::Global).
+    fn global(&self, name: impl AsRef<str>) -> WasmEdgeResult<Global>;
+
+    /// Returns the count of the exported [memory instances](crate::Memory) in this module instance.
+    fn memory_count(&self) -> usize;
+
+    /// Returns the names of the exported [memory instances](crate::Memory) in this module instance.
+    fn memory_names(&self) -> Option<Vec<String>>;
+
+    /// Returns the exported [memory instance](crate::Memory) in this module instance.
+    ///
+    /// # Argument
+    ///
+    /// * `name` - the name of the target exported [memory instance](crate::Memory).
+    fn memory(&self, name: impl AsRef<str>) -> WasmEdgeResult<Memory>;
+
+    /// Returns the count of the exported [table instances](crate::Table) in this module instance.
+    fn table_count(&self) -> usize;
+
+    /// Returns the names of the exported [table instances](crate::Table) in this module instance.
+    fn table_names(&self) -> Option<Vec<String>>;
+
+    /// Returns the exported [table instance](crate::Table) in this module instance by the given table name.
+    ///
+    /// # Argument
+    ///
+    /// * `name` - the name of the target exported [table instance](crate::Table).
+    fn table(&self, name: impl AsRef<str>) -> WasmEdgeResult<Table>;
+}
 #[cfg(test)]
 #[cfg(target_os = "linux")]
 mod tests {

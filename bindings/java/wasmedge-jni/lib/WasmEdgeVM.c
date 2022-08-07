@@ -14,6 +14,7 @@
 #include "StatisticsContext.h"
 #include "ImportObjectContext.h"
 #include "string.h"
+#include "WasmEdgeAsync.h"
 
 void setJavaIntValue(JNIEnv *env, WasmEdge_Value val, jobject jobj) {
     int int_val = WasmEdge_ValueGetI32(val);
@@ -619,7 +620,7 @@ JNIEXPORT jobject JNICALL Java_org_wasmedge_WasmEdgeVM_wasmEdgeVMAsyncRunWasmFro
     WasmEdge_Async* async = WasmEdge_VMAsyncRunWasmFromFile(VMCxt, c_file_path, FuncName, wasm_params, jParamLen);
 
     // Warning : need to cast type WasmEdge_Async* to jobject
-    return async;
+    return createJAsyncObject(env, async);
 }
 
 // Similar Warning as before
@@ -669,7 +670,7 @@ JNIEXPORT jobject JNICALL Java_org_wasmedge_WasmEdgeVM_wasmEdgeVMAsyncRunWasmFro
     //
     WasmEdge_Async* async = WasmEdge_VMAsyncRunWasmFromBuffer(vmContext, buff, size, wFuncName, wasm_params, paramLen);
 
-    return async;
+    return createJAsyncObject(env, async);
 }
 
 JNIEXPORT jobject JNICALL Java_org_wasmedge_WasmEdgeVM_wasmEdgeVMAsyncRunWasmFromASTModule(JNIEnv * env, jobject thisObject, jobject jAstMod, jstring jFuncName, jobjectArray jParams, jintArray jParamTypes) {
@@ -714,7 +715,7 @@ JNIEXPORT jobject JNICALL Java_org_wasmedge_WasmEdgeVM_wasmEdgeVMAsyncRunWasmFro
     //
     WasmEdge_Async* async = WasmEdge_VMAsyncRunWasmFromASTModule(vmContext, mod, wFuncName, wasm_params, paramLen);
 
-    return async;
+    return createJAsyncObject(env, async);
 
 }
 
@@ -765,7 +766,7 @@ JNIEXPORT jobject JNICALL Java_org_wasmedge_WasmEdgeVM_wasmEdgeVMAsyncExecute(JN
     WasmEdge_Async* async = WasmEdge_VMAsyncExecute(VMCxt,  FuncName, wasm_params, paramLen);
 
 
-    return async;
+    return createJAsyncObject(env, async);
 }
 
 JNIEXPORT jobject JNICALL Java_org_wasmedge_WasmEdgeVM_wasmEdgeVMAsyncExecuteRegistered(JNIEnv * env, jobject thisObject, jstring jModName, jstring jFuncName, jobjectArray jParams, jintArray jParamTypes) {
@@ -813,5 +814,5 @@ JNIEXPORT jobject JNICALL Java_org_wasmedge_WasmEdgeVM_wasmEdgeVMAsyncExecuteReg
     //
     WasmEdge_Async* async = WasmEdge_VMAsyncExecuteRegistered(vmContext, wModName, wFuncName, wasm_params, paramLen);
 
-    return async;
+    return createJAsyncObject(env, async);
 }

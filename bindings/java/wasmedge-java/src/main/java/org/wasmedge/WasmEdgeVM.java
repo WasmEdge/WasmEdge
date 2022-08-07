@@ -207,25 +207,25 @@ public class WasmEdgeVM {
 
     // Async API
     public native WasmEdgeAsync wasmEdgeVMAsyncRunWasmFromFile(
-            VMContext Cxt, String Path, String FuncName,
-            WasmEdgeValue Params, int ParamLen);
+            String path, String funcName,
+            WasmEdgeValue[] params, int[] paramTypes);
 
     public native WasmEdgeAsync wasmEdgeVMAsyncRunWasmFromBuffer(
-            VMContext Cxt, int Buf, int BufLen,
-            String FuncName, WasmEdgeValue Params,
-            int ParamLen);
+            byte[] buffer,
+            String funcName, WasmEdgeValue[] params,
+            int[] paramTypes);
 
     public native WasmEdgeAsync wasmEdgeVMAsyncRunWasmFromASTModule(
-            VMContext Cxt, ASTModuleContext ASTCxt,
-            String FuncName, WasmEdgeValue Params,
-            int ParamLen);
+            ASTModuleContext astCxt,
+            String funcName, WasmEdgeValue[] params,
+            int[] paramTypes);
 
     public native WasmEdgeAsync
-    wasmEdgeVMAsyncExecute(VMContext Cxt,  String FuncName,
-                            WasmEdgeValue Params, int ParamLen);
+    wasmEdgeVMAsyncExecute(String funcName,
+                            WasmEdgeValue[] params, int[] paramTypes);
 
     public native WasmEdgeAsync wasmEdgeVMAsyncExecuteRegistered(
-            VMContext Cxt, String ModuleName,
-            String FuncName, WasmEdgeValue Params,
-            int ParamLen);
+            String moduleName,
+            String funcName, WasmEdgeValue[] params,
+            int[] paramTypes);
 }

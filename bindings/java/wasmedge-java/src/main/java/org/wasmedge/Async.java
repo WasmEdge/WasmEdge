@@ -8,6 +8,7 @@ public class Async<T>{
     Async(T... args){
         nativeInit(args);
     }
+    @SafeVarargs
     private native void nativeInit(T... args);
     // Async() noexcept = default;
     /*
@@ -39,7 +40,7 @@ public class Async<T>{
     // T
     public native T get();
 
-    public native void Wait();
+    public native void asyncWait();
 
     // const std::chrono::duration<RT, PT> &Timeout
     public native Boolean waitFor(Object timeout);
@@ -47,7 +48,7 @@ public class Async<T>{
     //const std::chrono::time_point<CT, DT> &Timeout
     public native Boolean waitUntil(Object timeout);
 
-    public native void swap(Async LHS, Async RHS);
+    public native void swap(Async lhs, Async rhs);
 
     public native void cancel();
 

@@ -9,14 +9,6 @@ extern "C" {
 #endif
 /*
  * Class:     org_wasmedge_WasmEdgeAsync
- * Method:    nativeInit
- * Signature: ([Ljava/lang/Object;)V
- */
-JNIEXPORT void JNICALL Java_org_wasmedge_WasmEdgeAsync_nativeInit
-  (JNIEnv *, jobject, jobjectArray);
-
-/*
- * Class:     org_wasmedge_WasmEdgeAsync
  * Method:    wasmEdge_AsyncWait
  * Signature: ()V
  */

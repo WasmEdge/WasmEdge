@@ -1,14 +1,7 @@
 package org.wasmedge;
 
-public class WasmEdgeAsync<T> {
+public class WasmEdgeAsync {
     private long pointer;
-
-    //
-    @SafeVarargs
-    public WasmEdgeAsync(T... args){ nativeInit(args);}
-
-    @SafeVarargs
-    private native void nativeInit(T... args);
 
     public native void wasmEdge_AsyncWait();
 

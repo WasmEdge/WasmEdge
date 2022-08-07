@@ -481,7 +481,7 @@ mod tests {
         io::WasmVal,
         params,
         types::Val,
-        Global, ImportObjectBuilder, Memory, Table,
+        AsInstance, Global, ImportObjectBuilder, Memory, Table,
     };
     use wasmedge_sys::WasmValue;
     use wasmedge_types::{

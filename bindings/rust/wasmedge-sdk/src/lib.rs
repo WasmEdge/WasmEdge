@@ -180,7 +180,11 @@ pub use import::{ImportObject, ImportObjectBuilder};
 #[cfg(target_os = "linux")]
 #[doc(inline)]
 pub use instance::WasmEdgeProcessInstance;
-pub use instance::{AsInstance, Instance, WasiInstance, WasiNnInstance};
+pub use instance::{
+    AsInstance, Instance, WasiCryptoAsymmetricCommonInstance, WasiCryptoCommonInstance,
+    WasiCryptoKxInstance, WasiCryptoSignaturesInstance, WasiCryptoSymmetricInstance, WasiInstance,
+    WasiNnInstance,
+};
 #[doc(inline)]
 pub use io::{WasmVal, WasmValType, WasmValTypeList};
 #[doc(inline)]

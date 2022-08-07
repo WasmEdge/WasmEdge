@@ -475,6 +475,396 @@ impl AsInstance for WasiNnInstance {
     }
 }
 
+#[derive(Debug)]
+pub struct WasiCryptoCommonInstance {
+    pub(crate) inner: sys::WasiCryptoCommonModule,
+}
+impl AsInstance for WasiCryptoCommonInstance {
+    fn name(&self) -> &str {
+        self.inner.name()
+    }
+
+    fn func_count(&self) -> usize {
+        self.inner.func_len() as usize
+    }
+
+    fn func_names(&self) -> Option<Vec<String>> {
+        self.inner.func_names()
+    }
+
+    fn func(&self, name: impl AsRef<str>) -> WasmEdgeResult<Func> {
+        let inner_func = self.inner.get_func(name.as_ref())?;
+        Ok(Func {
+            inner: inner_func,
+            name: Some(name.as_ref().into()),
+            mod_name: Some(self.inner.name().into()),
+        })
+    }
+
+    fn global_count(&self) -> usize {
+        self.inner.global_len() as usize
+    }
+
+    fn global_names(&self) -> Option<Vec<String>> {
+        self.inner.global_names()
+    }
+
+    fn global(&self, name: impl AsRef<str>) -> WasmEdgeResult<Global> {
+        let inner_global = self.inner.get_global(name.as_ref())?;
+        Ok(Global {
+            inner: inner_global,
+            name: Some(name.as_ref().into()),
+            mod_name: Some(self.inner.name().into()),
+        })
+    }
+
+    fn memory_count(&self) -> usize {
+        self.inner.mem_len() as usize
+    }
+
+    fn memory_names(&self) -> Option<Vec<String>> {
+        self.inner.mem_names()
+    }
+
+    fn memory(&self, name: impl AsRef<str>) -> WasmEdgeResult<Memory> {
+        let inner_memory = self.inner.get_memory(name.as_ref())?;
+        Ok(Memory {
+            inner: inner_memory,
+            name: Some(name.as_ref().into()),
+            mod_name: Some(self.inner.name().into()),
+        })
+    }
+
+    fn table_count(&self) -> usize {
+        self.inner.table_len() as usize
+    }
+
+    fn table_names(&self) -> Option<Vec<String>> {
+        self.inner.table_names()
+    }
+
+    fn table(&self, name: impl AsRef<str>) -> WasmEdgeResult<Table> {
+        let inner_table = self.inner.get_table(name.as_ref())?;
+        Ok(Table {
+            inner: inner_table,
+            name: Some(name.as_ref().into()),
+            mod_name: Some(self.inner.name().into()),
+        })
+    }
+}
+
+#[derive(Debug)]
+pub struct WasiCryptoAsymmetricCommonInstance {
+    pub(crate) inner: sys::WasiCryptoAsymmetricCommonModule,
+}
+impl AsInstance for WasiCryptoAsymmetricCommonInstance {
+    fn name(&self) -> &str {
+        self.inner.name()
+    }
+
+    fn func_count(&self) -> usize {
+        self.inner.func_len() as usize
+    }
+
+    fn func_names(&self) -> Option<Vec<String>> {
+        self.inner.func_names()
+    }
+
+    fn func(&self, name: impl AsRef<str>) -> WasmEdgeResult<Func> {
+        let inner_func = self.inner.get_func(name.as_ref())?;
+        Ok(Func {
+            inner: inner_func,
+            name: Some(name.as_ref().into()),
+            mod_name: Some(self.inner.name().into()),
+        })
+    }
+
+    fn global_count(&self) -> usize {
+        self.inner.global_len() as usize
+    }
+
+    fn global_names(&self) -> Option<Vec<String>> {
+        self.inner.global_names()
+    }
+
+    fn global(&self, name: impl AsRef<str>) -> WasmEdgeResult<Global> {
+        let inner_global = self.inner.get_global(name.as_ref())?;
+        Ok(Global {
+            inner: inner_global,
+            name: Some(name.as_ref().into()),
+            mod_name: Some(self.inner.name().into()),
+        })
+    }
+
+    fn memory_count(&self) -> usize {
+        self.inner.mem_len() as usize
+    }
+
+    fn memory_names(&self) -> Option<Vec<String>> {
+        self.inner.mem_names()
+    }
+
+    fn memory(&self, name: impl AsRef<str>) -> WasmEdgeResult<Memory> {
+        let inner_memory = self.inner.get_memory(name.as_ref())?;
+        Ok(Memory {
+            inner: inner_memory,
+            name: Some(name.as_ref().into()),
+            mod_name: Some(self.inner.name().into()),
+        })
+    }
+
+    fn table_count(&self) -> usize {
+        self.inner.table_len() as usize
+    }
+
+    fn table_names(&self) -> Option<Vec<String>> {
+        self.inner.table_names()
+    }
+
+    fn table(&self, name: impl AsRef<str>) -> WasmEdgeResult<Table> {
+        let inner_table = self.inner.get_table(name.as_ref())?;
+        Ok(Table {
+            inner: inner_table,
+            name: Some(name.as_ref().into()),
+            mod_name: Some(self.inner.name().into()),
+        })
+    }
+}
+
+#[derive(Debug)]
+pub struct WasiCryptoSymmetricInstance {
+    pub(crate) inner: sys::WasiCryptoSymmetricModule,
+}
+impl AsInstance for WasiCryptoSymmetricInstance {
+    fn name(&self) -> &str {
+        self.inner.name()
+    }
+
+    fn func_count(&self) -> usize {
+        self.inner.func_len() as usize
+    }
+
+    fn func_names(&self) -> Option<Vec<String>> {
+        self.inner.func_names()
+    }
+
+    fn func(&self, name: impl AsRef<str>) -> WasmEdgeResult<Func> {
+        let inner_func = self.inner.get_func(name.as_ref())?;
+        Ok(Func {
+            inner: inner_func,
+            name: Some(name.as_ref().into()),
+            mod_name: Some(self.inner.name().into()),
+        })
+    }
+
+    fn global_count(&self) -> usize {
+        self.inner.global_len() as usize
+    }
+
+    fn global_names(&self) -> Option<Vec<String>> {
+        self.inner.global_names()
+    }
+
+    fn global(&self, name: impl AsRef<str>) -> WasmEdgeResult<Global> {
+        let inner_global = self.inner.get_global(name.as_ref())?;
+        Ok(Global {
+            inner: inner_global,
+            name: Some(name.as_ref().into()),
+            mod_name: Some(self.inner.name().into()),
+        })
+    }
+
+    fn memory_count(&self) -> usize {
+        self.inner.mem_len() as usize
+    }
+
+    fn memory_names(&self) -> Option<Vec<String>> {
+        self.inner.mem_names()
+    }
+
+    fn memory(&self, name: impl AsRef<str>) -> WasmEdgeResult<Memory> {
+        let inner_memory = self.inner.get_memory(name.as_ref())?;
+        Ok(Memory {
+            inner: inner_memory,
+            name: Some(name.as_ref().into()),
+            mod_name: Some(self.inner.name().into()),
+        })
+    }
+
+    fn table_count(&self) -> usize {
+        self.inner.table_len() as usize
+    }
+
+    fn table_names(&self) -> Option<Vec<String>> {
+        self.inner.table_names()
+    }
+
+    fn table(&self, name: impl AsRef<str>) -> WasmEdgeResult<Table> {
+        let inner_table = self.inner.get_table(name.as_ref())?;
+        Ok(Table {
+            inner: inner_table,
+            name: Some(name.as_ref().into()),
+            mod_name: Some(self.inner.name().into()),
+        })
+    }
+}
+
+#[derive(Debug)]
+pub struct WasiCryptoKxInstance {
+    pub(crate) inner: sys::WasiCryptoKxModule,
+}
+impl AsInstance for WasiCryptoKxInstance {
+    fn name(&self) -> &str {
+        self.inner.name()
+    }
+
+    fn func_count(&self) -> usize {
+        self.inner.func_len() as usize
+    }
+
+    fn func_names(&self) -> Option<Vec<String>> {
+        self.inner.func_names()
+    }
+
+    fn func(&self, name: impl AsRef<str>) -> WasmEdgeResult<Func> {
+        let inner_func = self.inner.get_func(name.as_ref())?;
+        Ok(Func {
+            inner: inner_func,
+            name: Some(name.as_ref().into()),
+            mod_name: Some(self.inner.name().into()),
+        })
+    }
+
+    fn global_count(&self) -> usize {
+        self.inner.global_len() as usize
+    }
+
+    fn global_names(&self) -> Option<Vec<String>> {
+        self.inner.global_names()
+    }
+
+    fn global(&self, name: impl AsRef<str>) -> WasmEdgeResult<Global> {
+        let inner_global = self.inner.get_global(name.as_ref())?;
+        Ok(Global {
+            inner: inner_global,
+            name: Some(name.as_ref().into()),
+            mod_name: Some(self.inner.name().into()),
+        })
+    }
+
+    fn memory_count(&self) -> usize {
+        self.inner.mem_len() as usize
+    }
+
+    fn memory_names(&self) -> Option<Vec<String>> {
+        self.inner.mem_names()
+    }
+
+    fn memory(&self, name: impl AsRef<str>) -> WasmEdgeResult<Memory> {
+        let inner_memory = self.inner.get_memory(name.as_ref())?;
+        Ok(Memory {
+            inner: inner_memory,
+            name: Some(name.as_ref().into()),
+            mod_name: Some(self.inner.name().into()),
+        })
+    }
+
+    fn table_count(&self) -> usize {
+        self.inner.table_len() as usize
+    }
+
+    fn table_names(&self) -> Option<Vec<String>> {
+        self.inner.table_names()
+    }
+
+    fn table(&self, name: impl AsRef<str>) -> WasmEdgeResult<Table> {
+        let inner_table = self.inner.get_table(name.as_ref())?;
+        Ok(Table {
+            inner: inner_table,
+            name: Some(name.as_ref().into()),
+            mod_name: Some(self.inner.name().into()),
+        })
+    }
+}
+
+#[derive(Debug)]
+pub struct WasiCryptoSignaturesInstance {
+    pub(crate) inner: sys::WasiCryptoSignaturesModule,
+}
+impl AsInstance for WasiCryptoSignaturesInstance {
+    fn name(&self) -> &str {
+        self.inner.name()
+    }
+
+    fn func_count(&self) -> usize {
+        self.inner.func_len() as usize
+    }
+
+    fn func_names(&self) -> Option<Vec<String>> {
+        self.inner.func_names()
+    }
+
+    fn func(&self, name: impl AsRef<str>) -> WasmEdgeResult<Func> {
+        let inner_func = self.inner.get_func(name.as_ref())?;
+        Ok(Func {
+            inner: inner_func,
+            name: Some(name.as_ref().into()),
+            mod_name: Some(self.inner.name().into()),
+        })
+    }
+
+    fn global_count(&self) -> usize {
+        self.inner.global_len() as usize
+    }
+
+    fn global_names(&self) -> Option<Vec<String>> {
+        self.inner.global_names()
+    }
+
+    fn global(&self, name: impl AsRef<str>) -> WasmEdgeResult<Global> {
+        let inner_global = self.inner.get_global(name.as_ref())?;
+        Ok(Global {
+            inner: inner_global,
+            name: Some(name.as_ref().into()),
+            mod_name: Some(self.inner.name().into()),
+        })
+    }
+
+    fn memory_count(&self) -> usize {
+        self.inner.mem_len() as usize
+    }
+
+    fn memory_names(&self) -> Option<Vec<String>> {
+        self.inner.mem_names()
+    }
+
+    fn memory(&self, name: impl AsRef<str>) -> WasmEdgeResult<Memory> {
+        let inner_memory = self.inner.get_memory(name.as_ref())?;
+        Ok(Memory {
+            inner: inner_memory,
+            name: Some(name.as_ref().into()),
+            mod_name: Some(self.inner.name().into()),
+        })
+    }
+
+    fn table_count(&self) -> usize {
+        self.inner.table_len() as usize
+    }
+
+    fn table_names(&self) -> Option<Vec<String>> {
+        self.inner.table_names()
+    }
+
+    fn table(&self, name: impl AsRef<str>) -> WasmEdgeResult<Table> {
+        let inner_table = self.inner.get_table(name.as_ref())?;
+        Ok(Table {
+            inner: inner_table,
+            name: Some(name.as_ref().into()),
+            mod_name: Some(self.inner.name().into()),
+        })
+    }
+}
+
 pub trait AsInstance {
     /// Returns the name of this exported module instance.
     fn name(&self) -> &str;
@@ -531,6 +921,7 @@ pub trait AsInstance {
     /// * `name` - the name of the target exported [table instance](crate::Table).
     fn table(&self, name: impl AsRef<str>) -> WasmEdgeResult<Table>;
 }
+
 #[cfg(test)]
 #[cfg(target_os = "linux")]
 mod tests {

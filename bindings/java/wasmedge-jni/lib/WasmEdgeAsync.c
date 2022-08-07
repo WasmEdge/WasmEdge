@@ -11,6 +11,8 @@
 #include "ExportTypeContext.h"
 #include "ImportTypeContext.h"
 
+// Warning, we need type cast in return.
+
 WasmEdge_Async * getAsync(JNIEnv* env, jobject thisObject){
     if(thisObject == NULL) {
         return NULL;
@@ -35,19 +37,19 @@ JNIEXPORT void JNICALL Java_org_wasmedge_WasmEdgeAsync_nativeInit
 JNIEXPORT void JNICALL Java_org_wasmedge_WasmEdgeAsync_wasmEdge_1AsyncWait
         (JNIEnv * env, jobject thisobject){
     WasmEdge_Async * ctx = getAsync(env, thisobject);
-    return WasmEdge_AsyncWait(ctx);
+    WasmEdge_AsyncWait(ctx);
 }
 
 JNIEXPORT jboolean JNICALL Java_org_wasmedge_WasmEdgeAsync_wasmEdge_1AsyncWaitFor
         (JNIEnv * env, jobject thisobject, jlong milliseconds){
     WasmEdge_Async * ctx = getAsync(env, thisobject);
-    return WasmEdge_AsyncWaitFor(ctx, (uint64_t)milliseconds);
+    return (jboolean)WasmEdge_AsyncWaitFor(ctx, (uint64_t)milliseconds);
 }
 
 JNIEXPORT void JNICALL Java_org_wasmedge_WasmEdgeAsync_wasmEdge_1AsyncCancel
         (JNIEnv * env, jobject thisobject){
     WasmEdge_Async * ctx = getAsync(env, thisobject);
-    return WasmEdge_AsyncCancel(ctx);
+    WasmEdge_AsyncCancel(ctx);
 }
 
 JNIEXPORT jint JNICALL Java_org_wasmedge_WasmEdgeAsync_wasmEdge_1AsyncGetReturnsLength
@@ -56,17 +58,25 @@ JNIEXPORT jint JNICALL Java_org_wasmedge_WasmEdgeAsync_wasmEdge_1AsyncGetReturns
     return (jint)WasmEdge_AsyncGetReturnsLength(ctx);
 }
 
-JNIEXPORT jobject JNICALL Java_org_wasmedge_WasmEdgeAsync_wasmEdge_1AsyncGet
+JNIEXPORT void JNICALL Java_org_wasmedge_WasmEdgeAsync_wasmEdge_1AsyncGet
         (JNIEnv * env, jobject thisobject, jobject jreturns, jint jreturnlen){
     WasmEdge_Async * ctx = getAsync(env, thisobject);
     WasmEdge_Value Returns = JavaValueToWasmEdgeValue(env, jreturns);
     const uint32_t ReturnLen = jreturnlen;
-    // mind here, we have some type problem to address
-    return (struct jobject)WasmEdge_AsyncGet(ctx, &Returns, ReturnLen);
+    // Warning: turn WasmEdge_Result to F
+    WasmEdge_Result result= WasmEdge_AsyncGet(ctx, &Returns, ReturnLen);
+    handleWasmEdgeResult(env, &result);
 }
 
 JNIEXPORT void JNICALL Java_org_wasmedge_WasmEdgeAsync_wasmEdge_1AsyncDelete
         (JNIEnv * env, jobject thisobject){
     WasmEdge_Async * ctx = getAsync(env, thisobject);
     WasmEdge_AsyncDelete(ctx);
+}
+
+jobject createJAsyncObject(JNIEnv* env, const WasmEdge_Async * asyncObj) {
+
+    jclass clazz = (*env)->FindClass(env, "org/wasmedge/WasmEdgeAsync");
+    jmethodID constructorId = (*env)->GetMethodID(env, clazz, "<init>", "(J)V");
+    return (*env)->NewObject(env, clazz, constructorId, (long)asyncObj);
 }

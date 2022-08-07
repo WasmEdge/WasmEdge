@@ -10,4 +10,5 @@
 
 WasmEdge_Async * getAsync(JNIEnv* env, jobject thisObject);
 
+jobject createJAsyncObject(JNIEnv* env, const WasmEdge_Async * asyncObj);
 #endif //WASMEDGE_JNI_WASMEDGEASYNC_H

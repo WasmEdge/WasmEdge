@@ -147,12 +147,11 @@ Expect<std::unique_ptr<AST::Component>> Loader::loadComponent() {
       // e*:section_12(vec(<export>))        => e*
       //
       // export definitions
-
-      //      if (auto Res = loadSection(Comp->getExportSection()); !Res) {
-      //        spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Component));
-      //        return Unexpect(Res);
-      //      }
-      //      Secs.set(NewSectionId);
+      if (auto Res = loadSection(Comp->getExportSection()); !Res) {
+        spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Component));
+        return Unexpect(Res);
+      }
+      Secs.set(NewSectionId);
       break;
     default:
       return logLoadError(ErrCode::MalformedSection, FMgr.getLastOffset(),

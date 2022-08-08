@@ -14,6 +14,8 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
+#include "ast/component_section.h"
+
 namespace WasmEdge {
 namespace AST {
 
@@ -31,12 +33,37 @@ public:
   const std::vector<Byte> &getLayer() const noexcept { return Layer; }
   std::vector<Byte> &getLayer() noexcept { return Layer; }
 
+  /// Getters of references to sections.
+  const ModuleSection &getModuleSection() const { return ModuleSec; }
+  ModuleSection &getModuleSection() { return ModuleSec; }
+
+  const ComponentImportSection &getImportSection() const { return ImportSec; }
+  ComponentImportSection &getImportSection() { return ImportSec; }
+
+  //  const ComponentExportSection &getExportSection() const { return ExportSec;
+  //  } ComponentExportSection &getExportSection() { return ExportSec; }
+
 private:
   /// \name Data of Component node.
   /// @{
   std::vector<Byte> Magic;
   std::vector<Byte> Version;
   std::vector<Byte> Layer;
+  /// @}
+
+  /// \name Section nodes of Module node.
+  /// @{
+  ModuleSection ModuleSec;
+  /// @}
+
+  /// \name Section nodes of Import node.
+  /// @{
+  ComponentImportSection ImportSec;
+  /// @}
+
+  /// \name Section nodes of Export node.
+  /// @{
+  //  ComponentExportSection ExportSec;
   /// @}
 };
 

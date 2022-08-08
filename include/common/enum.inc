@@ -21,7 +21,11 @@
 #ifdef UseASTNodeAttr
 #define A Line
 
+// component
 A(Component, "component")
+A(CompSec_Module, "component module section")
+A(CompSec_Import, "component import section")
+// core
 A(Module, "module")
 A(Sec_Custom, "custom section")
 A(Sec_Type, "type section")

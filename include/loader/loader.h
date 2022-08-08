@@ -14,8 +14,8 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
-#include "ast/module.h"
 #include "ast/component.h"
+#include "ast/module.h"
 #include "common/configure.h"
 #include "common/errinfo.h"
 #include "common/log.h"
@@ -73,6 +73,15 @@ template <> inline ASTNodeAttr NodeAttrFromAST<AST::DataSection>() noexcept {
 template <>
 inline ASTNodeAttr NodeAttrFromAST<AST::DataCountSection>() noexcept {
   return ASTNodeAttr::Sec_DataCount;
+}
+
+// component
+template <> inline ASTNodeAttr NodeAttrFromAST<AST::ModuleSection>() noexcept {
+  return ASTNodeAttr::CompSec_Module;
+}
+template <>
+inline ASTNodeAttr NodeAttrFromAST<AST::ComponentImportSection>() noexcept {
+  return ASTNodeAttr::CompSec_Import;
 }
 } // namespace
 
@@ -209,6 +218,12 @@ private:
   Expect<OpCode> loadOpCode();
   Expect<AST::InstrVec> loadInstrSeq(std::optional<uint64_t> SizeBound);
   Expect<void> loadInstruction(AST::Instruction &Instr);
+
+  // component part
+  Expect<void> loadSection(AST::ModuleSection &Sec);
+  Expect<void> loadModule(std::unique_ptr<AST::Module> &Mod);
+  Expect<void> loadSection(AST::ComponentImportSection &Sec);
+  Expect<void> loadImportDecl(AST::ImportDecl &Import);
   /// @}
 
   /// \name Loader members

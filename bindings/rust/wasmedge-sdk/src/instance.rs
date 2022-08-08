@@ -1,7 +1,7 @@
 //! Defines WasmEdge Instance.
 
 use crate::{Func, Global, Memory, Table, WasmEdgeResult};
-use wasmedge_sys as sys;
+use wasmedge_sys::{self as sys, AsImport, AsInstance as sys_as_instance_trait};
 
 /// Represents an instantiated module.
 ///

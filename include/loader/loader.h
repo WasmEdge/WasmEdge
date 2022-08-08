@@ -83,6 +83,10 @@ template <>
 inline ASTNodeAttr NodeAttrFromAST<AST::ComponentImportSection>() noexcept {
   return ASTNodeAttr::CompSec_Import;
 }
+template <>
+inline ASTNodeAttr NodeAttrFromAST<AST::ComponentExportSection>() noexcept {
+  return ASTNodeAttr::CompSec_Export;
+}
 } // namespace
 
 /// Loader flow control class.
@@ -224,6 +228,8 @@ private:
   Expect<void> loadModule(std::unique_ptr<AST::Module> &Mod);
   Expect<void> loadSection(AST::ComponentImportSection &Sec);
   Expect<void> loadImportDecl(AST::ImportDecl &Import);
+  Expect<void> loadSection(AST::ComponentExportSection &Sec);
+  Expect<void> loadExportDecl(AST::ExportDecl &Export);
   /// @}
 
   /// \name Loader members

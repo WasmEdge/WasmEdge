@@ -167,6 +167,7 @@ pub mod types;
 pub mod utils;
 #[doc(hidden)]
 pub mod vm;
+pub mod wasi;
 
 #[doc(inline)]
 #[cfg(feature = "aot")]
@@ -180,11 +181,7 @@ pub use import::{ImportObject, ImportObjectBuilder};
 #[cfg(target_os = "linux")]
 #[doc(inline)]
 pub use instance::WasmEdgeProcessInstance;
-pub use instance::{
-    AsInstance, Instance, WasiCryptoAsymmetricCommonInstance, WasiCryptoCommonInstance,
-    WasiCryptoKxInstance, WasiCryptoSignaturesInstance, WasiCryptoSymmetricInstance, WasiInstance,
-    WasiNnInstance,
-};
+pub use instance::{AsInstance, Instance};
 #[doc(inline)]
 pub use io::{WasmVal, WasmValType, WasmValTypeList};
 #[doc(inline)]

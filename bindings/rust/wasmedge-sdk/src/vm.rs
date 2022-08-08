@@ -3,8 +3,8 @@
 #[cfg(target_os = "linux")]
 use crate::WasmEdgeProcessInstance;
 use crate::{
-    config::Config, Engine, Func, FuncRef, ImportObject, Instance, Module, Statistics,
-    WasiInstance, WasmEdgeResult, WasmValue,
+    config::Config, wasi::WasiInstance, Engine, Func, FuncRef, ImportObject, Instance, Module,
+    Statistics, WasmEdgeResult, WasmValue,
 };
 use std::{marker::PhantomData, path::Path};
 use wasmedge_sys::{self as sys, Engine as sys_engine};
@@ -407,13 +407,13 @@ impl Vm {
         })
     }
 
-    /// Returns the [Wasi module instance](crate::WasiInstance).
+    /// Returns the [Wasi module instance](crate::wasi::WasiInstance).
     ///
     /// Notice that this function is only available when a [config](crate::config::Config) with the enabled [wasi](crate::config::HostRegistrationConfigOptions::wasi) option is used in the creation of this [Vm].
     ///
     /// # Error
     ///
-    /// If fail to get the [Wasi module instance](crate::WasiInstance), then an error is returned.
+    /// If fail to get the [Wasi module instance](crate::wasi::WasiInstance), then an error is returned.
     pub fn wasi_module(&mut self) -> WasmEdgeResult<WasiInstance> {
         let inner_wasi_module = self.inner.wasi_module_mut()?;
 

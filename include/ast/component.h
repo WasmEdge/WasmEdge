@@ -40,8 +40,8 @@ public:
   const ComponentImportSection &getImportSection() const { return ImportSec; }
   ComponentImportSection &getImportSection() { return ImportSec; }
 
-  //  const ComponentExportSection &getExportSection() const { return ExportSec;
-  //  } ComponentExportSection &getExportSection() { return ExportSec; }
+  const ComponentExportSection &getExportSection() const { return ExportSec; }
+  ComponentExportSection &getExportSection() { return ExportSec; }
 
 private:
   /// \name Data of Component node.
@@ -63,7 +63,7 @@ private:
 
   /// \name Section nodes of Export node.
   /// @{
-  //  ComponentExportSection ExportSec;
+  ComponentExportSection ExportSec;
   /// @}
 };
 

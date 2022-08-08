@@ -13,6 +13,7 @@
 //===------------------------------------------------------------------------------------------===//
 #pragma once
 
+#include "ast/component/export_section.h"
 #include "ast/component/import_section.h"
 #include "ast/module.h"
 
@@ -50,6 +51,20 @@ private:
   /// \name Data of ComponentImportSection.
   /// @{
   std::vector<ImportDecl> Content;
+  /// @}
+};
+
+/// AST ComponentExportSection node.
+class ComponentExportSection : public Section {
+public:
+  /// Getter of content.
+  Span<const ExportDecl> getContent() const noexcept { return Content; }
+  std::vector<ExportDecl> &getContent() noexcept { return Content; }
+
+private:
+  /// \name Data of ComponentExportSection.
+  /// @{
+  std::vector<ExportDecl> Content;
   /// @}
 };
 

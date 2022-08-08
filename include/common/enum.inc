@@ -24,6 +24,7 @@
 A(Component, "component")
 A(CompSec_Module, "component module section")
 A(CompSec_Import, "component import section")
+A(CompSec_Export, "component export section")
 // core
 A(Module, "module")
 A(Sec_Custom, "custom section")

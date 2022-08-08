@@ -1,0 +1,161 @@
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: 2019-2022 Second State INC
+
+#include "loader/loader.h"
+
+namespace WasmEdge {
+namespace Loader {
+
+Expect<void> Loader::loadModule(std::unique_ptr<AST::Module> &Mod) {
+  auto M = loadModule();
+  Mod = std::move(M.value());
+  return {};
+}
+
+Expect<void> Loader::loadSection(AST::ModuleSection &Sec) {
+  return loadSectionContent(Sec, [this, &Sec]() {
+    return loadSectionContentVec(
+        Sec,
+        [this](std::unique_ptr<AST::Module> &Mod) { return loadModule(Mod); });
+  });
+}
+
+Expect<void> Loader::loadSection(AST::ComponentImportSection &Sec) {
+  return loadSectionContent(Sec, [this, &Sec]() {
+    return loadSectionContentVec(Sec, [this](AST::ImportDecl &Import) {
+      return loadImportDecl(Import);
+    });
+  });
+}
+
+Expect<void> Loader::loadImportDecl(AST::ImportDecl &Import) {
+  if (auto Res = FMgr.readName(); Res.has_value()) {
+    Import.setName(*Res);
+  } else {
+    return logLoadError(Res.error(), FMgr.getLastOffset(),
+                        ASTNodeAttr::CompSec_Import);
+  }
+
+  Byte DescType;
+  if (auto Res = FMgr.readByte(); Res.has_value()) {
+    DescType = Res.value();
+  } else {
+    return logLoadError(Res.error(), FMgr.getLastOffset(),
+                        ASTNodeAttr::CompSec_Import);
+  }
+
+  switch (DescType) {
+  case 0x00:
+    // 0x00 0x11 i:<core:typeidx>           => (core module (type i))
+    {
+      if (auto Res = FMgr.readByte(); !Res.has_value() || Res.value() != 0x11) {
+        return logLoadError(Res.error(), FMgr.getLastOffset(),
+                            ASTNodeAttr::CompSec_Import);
+      }
+      auto TypeIdx = FMgr.readU32();
+      if (!TypeIdx.has_value()) {
+        return logLoadError(TypeIdx.error(), FMgr.getLastOffset(),
+                            ASTNodeAttr::CompSec_Import);
+      }
+      Import.setExtern(AST::CoreType(TypeIdx.value()));
+      break;
+    }
+  case 0x01:
+    // 0x01 i:<typeidx>                     => (func (type i))
+    {
+      auto TypeIdx = FMgr.readU32();
+      if (!TypeIdx.has_value()) {
+        return logLoadError(TypeIdx.error(), FMgr.getLastOffset(),
+                            ASTNodeAttr::CompSec_Import);
+      }
+      Import.setExtern(AST::FuncType(TypeIdx.value()));
+      break;
+    }
+  case 0x02:
+    // 0x02 t:<valtype>                     => (value t)
+    {
+      uint32_t TypeIdx;
+      if (auto Res = FMgr.readU32(); Res.has_value()) {
+        TypeIdx = Res.value();
+      } else {
+        return logLoadError(Res.error(), FMgr.getLastOffset(),
+                            ASTNodeAttr::CompSec_Import);
+      }
+      AST::ValueType Ty;
+      switch (TypeIdx) {
+      case 0x7f:
+        Ty = AST::ValueTypeBool();
+      case 0x7e:
+        Ty = AST::ValueTypeS8();
+      case 0x7d:
+        Ty = AST::ValueTypeU8();
+      case 0x7c:
+        Ty = AST::ValueTypeS16();
+      case 0x7b:
+        Ty = AST::ValueTypeU16();
+      case 0x7a:
+        Ty = AST::ValueTypeS32();
+      case 0x79:
+        Ty = AST::ValueTypeU32();
+      case 0x78:
+        Ty = AST::ValueTypeS64();
+      case 0x77:
+        Ty = AST::ValueTypeU64();
+      case 0x76:
+        Ty = AST::ValueTypeFloat32();
+      case 0x75:
+        Ty = AST::ValueTypeFloat64();
+      case 0x74:
+        Ty = AST::ValueTypeChar();
+      case 0x73:
+        Ty = AST::ValueTypeString();
+      default:
+        Ty = AST::ValueTypeIdx(TypeIdx);
+      }
+      Import.setExtern(Ty);
+      break;
+    }
+  case 0x03:
+    // 0x03 b:<typebound>                   => (type b)
+    {
+      if (auto Res = FMgr.readByte(); !Res.has_value() || Res.value() != 0x00) {
+        return logLoadError(Res.error(), FMgr.getLastOffset(),
+                            ASTNodeAttr::CompSec_Import);
+      }
+      auto TypeIdx = FMgr.readU32();
+      if (!TypeIdx.has_value()) {
+        return logLoadError(TypeIdx.error(), FMgr.getLastOffset(),
+                            ASTNodeAttr::CompSec_Import);
+      }
+      Import.setExtern(AST::TypeBound(TypeIdx.value()));
+      break;
+    }
+  case 0x04:
+    // 0x04 i:<typeidx>                     => (instance (type i))
+    {
+      auto TypeIdx = FMgr.readU32();
+      if (!TypeIdx.has_value()) {
+        return logLoadError(TypeIdx.error(), FMgr.getLastOffset(),
+                            ASTNodeAttr::CompSec_Import);
+      }
+      Import.setExtern(AST::InstanceType(TypeIdx.value()));
+      break;
+    }
+  case 0x05:
+    // 0x05 i:<typeidx>                     => (component (type i))
+    {
+      auto TypeIdx = FMgr.readU32();
+      if (!TypeIdx.has_value()) {
+        return logLoadError(TypeIdx.error(), FMgr.getLastOffset(),
+                            ASTNodeAttr::CompSec_Import);
+      }
+      Import.setExtern(AST::ComponentType(TypeIdx.value()));
+      break;
+    }
+  }
+
+  return {};
+}
+
+} // namespace Loader
+} // namespace WasmEdge

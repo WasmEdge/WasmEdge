@@ -8,7 +8,7 @@ on:
   push:
     branches:
       - "master"
-      - "release/rust/*"
+      - "release/rust-types/*"
     paths:
       - ".github/workflows/rust-wasmedge-types-docs.yml"
       - "bindings/rust/wasmedge-types/**"

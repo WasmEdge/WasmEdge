@@ -27,7 +27,6 @@ Expect<void> Loader::loadSection(AST::ComponentImportSection &Sec) {
     });
   });
 }
-
 Expect<void> Loader::loadImportDecl(AST::ImportDecl &Import) {
   if (auto Res = FMgr.readName(); Res.has_value()) {
     Import.setName(*Res);
@@ -152,6 +151,68 @@ Expect<void> Loader::loadImportDecl(AST::ImportDecl &Import) {
       Import.setExtern(AST::ComponentType(TypeIdx.value()));
       break;
     }
+  }
+
+  return {};
+}
+
+Expect<void> Loader::loadSection(AST::ComponentExportSection &Sec) {
+  return loadSectionContent(Sec, [this, &Sec]() {
+    return loadSectionContentVec(Sec, [this](AST::ExportDecl &Export) {
+      return loadExportDecl(Export);
+    });
+  });
+}
+Expect<void> Loader::loadExportDecl(AST::ExportDecl &Export) {
+  // export ::= n:<name> si:<sortidx>
+  // n:<name>
+  if (auto Res = FMgr.readName(); Res.has_value()) {
+    Export.setName(*Res);
+  } else {
+    return logLoadError(Res.error(), FMgr.getLastOffset(),
+                        ASTNodeAttr::CompSec_Export);
+  }
+  // sortidx             ::= sort:<sort> idx:<u32> => (sort idx)
+  // sort                ::= 0x00 cs:<core:sort> => core cs
+  //                       | 0x01 => func
+  //                       | 0x02 => value
+  //                       | 0x03 => type
+  //                       | 0x04 => component
+  //                       | 0x05 => instance
+  // si:<sortidx>
+  auto Sort = FMgr.readByte();
+  if (!Sort.has_value()) {
+    return logLoadError(Sort.error(), FMgr.getLastOffset(),
+                        ASTNodeAttr::CompSec_Export);
+  }
+
+  switch (Sort.value()) {
+  case 0x00:
+    // core:sort ::= 0x00 => func
+    //             | 0x01 => table
+    //             | 0x02 => memory
+    //             | 0x03 => global
+    //             | 0x10 => type
+    //             | 0x11 => module
+    //             | 0x12 => instance
+    {
+      AST::CoreSortIndex CoreSortIndex;
+      loadDesc(CoreSortIndex);
+      Export.setExtern(CoreSortIndex);
+      break;
+    }
+  case 0x01:
+  case 0x02:
+  case 0x03:
+  case 0x04:
+  case 0x05:
+    auto SortIdx = FMgr.readU32();
+    if (!SortIdx.has_value()) {
+      return logLoadError(SortIdx.error(), FMgr.getLastOffset(),
+                          ASTNodeAttr::CompSec_Export);
+    }
+    Export.setExtern(AST::ComponentSortIndex(Sort.value(), SortIdx.value()));
+    break;
   }
 
   return {};

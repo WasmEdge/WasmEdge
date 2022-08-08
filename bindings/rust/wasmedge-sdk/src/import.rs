@@ -1,6 +1,5 @@
-use crate::{io::WasmValTypeList, Global, Memory, Table, WasmEdgeResult};
+use crate::{io::WasmValTypeList, FuncType, Global, Memory, Table, WasmEdgeResult};
 use wasmedge_sys::{self as sys, AsImport, WasmValue};
-use wasmedge_types::FuncType;
 
 /// Creates a normal, wasi, or wasmedge process [import object](crate::ImportObject).
 ///
@@ -530,17 +529,15 @@ mod tests {
     use super::*;
     use crate::{
         config::{CommonConfigOptions, ConfigBuilder},
+        error::{CoreError, CoreInstantiationError, GlobalError, WasmEdgeError},
         params,
         types::Val,
-        Executor, Global, Memory, Statistics, Store, Table, WasmVal, WasmValue,
+        Executor, Global, GlobalType, Memory, MemoryType, Mutability, RefType, Statistics, Store,
+        Table, TableType, ValType, WasmVal, WasmValue,
     };
     use std::{
         sync::{Arc, Mutex},
         thread,
-    };
-    use wasmedge_types::{
-        error::{CoreError, CoreInstantiationError, GlobalError, WasmEdgeError},
-        GlobalType, MemoryType, Mutability, RefType, TableType, ValType,
     };
 
     #[test]

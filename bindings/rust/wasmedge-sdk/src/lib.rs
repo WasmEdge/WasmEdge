@@ -196,7 +196,10 @@ pub use utils::Driver;
 pub use vm::Vm;
 
 /// Parses in-memory bytes as either the [WebAssembly Text format](http://webassembly.github.io/spec/core/text/index.html), or a binary WebAssembly module
-pub use wasmedge_types::wat2wasm;
+pub use wasmedge_types::{
+    error, wat2wasm, CompilerOptimizationLevel, CompilerOutputFormat, ExternalInstanceType,
+    FuncType, GlobalType, MemoryType, Mutability, RefType, TableType, ValType,
+};
 
 /// WebAssembly value type.
 pub type WasmValue = wasmedge_sys::types::WasmValue;

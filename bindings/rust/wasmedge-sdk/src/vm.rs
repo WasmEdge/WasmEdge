@@ -3,12 +3,11 @@
 #[cfg(target_os = "linux")]
 use crate::WasmEdgeProcessInstance;
 use crate::{
-    config::Config, wasi::WasiInstance, Engine, Func, FuncRef, ImportObject, Instance, Module,
-    Statistics, WasmEdgeResult, WasmValue,
+    config::Config, wasi::WasiInstance, Engine, Func, FuncRef, FuncType, ImportObject, Instance,
+    Module, Statistics, WasmEdgeResult, WasmValue,
 };
 use std::{marker::PhantomData, path::Path};
 use wasmedge_sys::{self as sys, Engine as sys_engine};
-use wasmedge_types::FuncType;
 
 /// A [Vm] defines a virtual environment for managing WebAssembly programs.
 ///
@@ -481,12 +480,10 @@ mod tests {
         io::WasmVal,
         params,
         types::Val,
-        AsInstance, Global, ImportObjectBuilder, Memory, Table,
+        wat2wasm, AsInstance, Global, GlobalType, ImportObjectBuilder, Memory, MemoryType,
+        Mutability, RefType, Table, TableType, ValType,
     };
     use wasmedge_sys::WasmValue;
-    use wasmedge_types::{
-        wat2wasm, GlobalType, MemoryType, Mutability, RefType, TableType, ValType,
-    };
 
     #[test]
     fn test_vm_run_func_from_file() {

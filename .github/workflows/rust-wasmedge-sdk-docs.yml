@@ -15,6 +15,12 @@ on:
       - "bindings/rust/wasmedge-sdk/**"
     tags:
       - "rust-sdk/[0-9]+.[0-9]+.[0-9]+*"
+  pull_request:
+    branches:
+      - master
+    paths:
+      - ".github/workflows/rust-wasmedge-sdk-docs.yml"
+      - "bindings/rust/wasmedge-sdk/**"
 
 jobs:
   rustdoc:

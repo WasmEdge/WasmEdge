@@ -264,7 +264,7 @@ pub trait Engine {
     ///
     /// If fail to run the host function, then an error is returned.
     fn run_func(
-        &mut self,
+        &self,
         func: &Function,
         params: impl IntoIterator<Item = WasmValue>,
     ) -> WasmEdgeResult<Vec<WasmValue>>;
@@ -281,7 +281,7 @@ pub trait Engine {
     ///
     /// If fail to run the host function, then an error is returned.
     fn run_func_ref(
-        &mut self,
+        &self,
         func_ref: &FuncRef,
         params: impl IntoIterator<Item = WasmValue>,
     ) -> WasmEdgeResult<Vec<WasmValue>>;

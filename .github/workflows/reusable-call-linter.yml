@@ -1,4 +1,4 @@
-name: Call Linter
+name: Clang-Format
 
 on:
   workflow_call:

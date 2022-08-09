@@ -20,6 +20,94 @@ Expect<void> Loader::loadSection(AST::ModuleSection &Sec) {
   });
 }
 
+Expect<void> Loader::loadSection(AST::CoreInstanceSection &Sec) {
+  return loadSectionContent(Sec, [this, &Sec]() {
+    return loadSectionContentVec(Sec, [this](AST::CoreInstance &Instance) {
+      return loadCoreInstance(Instance);
+    });
+  });
+}
+Expect<void> Loader::loadCoreInstance(AST::CoreInstance &Instance) {
+  // core:instance ::= ie:<instance-expr> => (instance ie)
+  auto Res = FMgr.readByte();
+  if (!Res.has_value()) {
+    return logLoadError(Res.error(), FMgr.getLastOffset(),
+                        ASTNodeAttr::CompSec_CoreInstance);
+  }
+
+  // core:instanceexpr ::=
+  switch (Res.value()) {
+  case 0x00:
+    // 0x00 m:<moduleidx> arg*:vec(<core:instantiatearg>)
+    // => (instantiate m arg*)
+    if (auto ModIdx = FMgr.readU32(); ModIdx.has_value()) {
+      AST::CoreInstantiate Inst;
+      Instance = Inst;
+
+      Inst.setModuleIdx(ModIdx.value());
+      return loadVec(Inst.getInstantiateArgs(),
+                     [this](AST::InstantiateArg &InstArg) -> Expect<void> {
+                       auto Name = FMgr.readName();
+                       if (!Name.has_value()) {
+                         return logLoadError(Name.error(), FMgr.getLastOffset(),
+                                             ASTNodeAttr::CompSec_CoreInstance);
+                       }
+                       auto B = FMgr.readByte();
+                       if (!B.has_value()) {
+                         return logLoadError(B.error(), FMgr.getLastOffset(),
+                                             ASTNodeAttr::CompSec_CoreInstance);
+                       }
+                       auto Idx = FMgr.readU32();
+                       if (!Idx.has_value()) {
+                         return logLoadError(Idx.error(), FMgr.getLastOffset(),
+                                             ASTNodeAttr::CompSec_CoreInstance);
+                       }
+                       InstArg.setName(Name.value());
+                       InstArg.setIndex(Idx.value());
+
+                       return {};
+                     });
+    } else {
+      return logLoadError(Res.error(), FMgr.getLastOffset(),
+                          ASTNodeAttr::CompSec_CoreInstance);
+    }
+  case 0x01:
+    // 0x01 e*:vec(<core:export>) => e*
+    {
+      AST::CoreExportsInstance Inst;
+      Instance = Inst;
+
+      return loadVec(Inst.getExports(),
+                     [this](AST::ExportDecl &Export) -> Expect<void> {
+                       // core:export ::= n:<name> si:<core:sortidx>
+                       // => (export n si)
+                       if (auto Res = FMgr.readName(); Res.has_value()) {
+                         Export.setName(*Res);
+                       } else {
+                         return logLoadError(Res.error(), FMgr.getLastOffset(),
+                                             ASTNodeAttr::CompSec_Export);
+                       }
+                       // core:sortidx ::= sort:<core:sort> idx:<u32>
+                       //   => (sort idx)
+                       // core:sort ::= 0x00 => func
+                       //             | 0x01 => table
+                       //             | 0x02 => memory
+                       //             | 0x03 => global
+                       //             | 0x10 => type
+                       //             | 0x11 => module
+                       //             | 0x12 => instance
+                       AST::CoreSortIndex CoreSortIndex;
+                       loadDesc(CoreSortIndex);
+                       Export.setExtern(CoreSortIndex);
+                       return {};
+                     });
+    }
+  default:
+    return logLoadError(Res.error(), FMgr.getLastOffset(),
+                        ASTNodeAttr::CompSec_CoreInstance);
+  }
+}
+
 Expect<void> Loader::loadSection(AST::ComponentImportSection &Sec) {
   return loadSectionContent(Sec, [this, &Sec]() {
     return loadSectionContentVec(Sec, [this](AST::ImportDecl &Import) {

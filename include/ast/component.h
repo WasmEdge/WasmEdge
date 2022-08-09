@@ -37,6 +37,9 @@ public:
   const ModuleSection &getModuleSection() const { return ModuleSec; }
   ModuleSection &getModuleSection() { return ModuleSec; }
 
+  const CoreInstanceSection& getCoreInstanceSection() const {return CoreInstanceSec;}
+  CoreInstanceSection & getCoreInstanceSection() { return CoreInstanceSec;}
+
   const ComponentImportSection &getImportSection() const { return ImportSec; }
   ComponentImportSection &getImportSection() { return ImportSec; }
 
@@ -54,6 +57,11 @@ private:
   /// \name Section nodes of Module node.
   /// @{
   ModuleSection ModuleSec;
+  /// @}
+
+  /// \name Section nodes of Core Instance node.
+  /// @{
+  CoreInstanceSection CoreInstanceSec;
   /// @}
 
   /// \name Section nodes of Import node.

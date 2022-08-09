@@ -1,4 +1,4 @@
-# 快速开始
+# 快速開始
 
 使用 WasmEdge 最簡單的方式就是使用 WasmEdge 命令列工具（ CLI ）。
 開發者能使用 WasmEdge CLI 工具來執行我們的 WebAssembly 與 Javascript 範例程式。

@@ -1,6 +1,4 @@
-use wasmedge_sys::{
-    Config, FuncType, Function, ImportInstance, ImportObject, Vm, WasiModule, WasmValue,
-};
+use wasmedge_sys::{AsImport, Config, FuncType, Function, ImportObject, Vm, WasiModule, WasmValue};
 use wasmedge_types::{
     error::{CoreError, CoreInstantiationError, VmError, WasmEdgeError},
     ValType,

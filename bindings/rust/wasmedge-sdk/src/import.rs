@@ -1,6 +1,5 @@
-use crate::{io::WasmValTypeList, Global, Memory, Table, WasmEdgeResult};
-use wasmedge_sys::{self as sys, ImportInstance, WasmValue};
-use wasmedge_types::FuncType;
+use crate::{io::WasmValTypeList, FuncType, Global, Memory, Table, WasmEdgeResult};
+use wasmedge_sys::{self as sys, AsImport, WasmValue};
 
 /// Creates a normal, wasi, or wasmedge process [import object](crate::ImportObject).
 ///
@@ -326,6 +325,172 @@ impl ImportObjectBuilder {
 
         Ok(ImportObject(sys::ImportObject::WasmEdgeProcess(inner)))
     }
+
+    pub fn build_as_wasi_nn(self) -> WasmEdgeResult<ImportObject> {
+        let mut inner = sys::WasiNnModule::create()?;
+
+        // add func
+        for (name, func) in self.funcs.into_iter() {
+            inner.add_func(name, func);
+        }
+
+        // add global
+        for (name, global) in self.globals.into_iter() {
+            inner.add_global(name, global);
+        }
+
+        // add memory
+        for (name, memory) in self.memories.into_iter() {
+            inner.add_memory(name, memory);
+        }
+
+        // add table
+        for (name, table) in self.tables.into_iter() {
+            inner.add_table(name, table);
+        }
+
+        Ok(ImportObject(sys::ImportObject::Nn(inner)))
+    }
+
+    pub fn build_as_wasi_crypto_common(self) -> WasmEdgeResult<ImportObject> {
+        let mut inner = sys::WasiCryptoCommonModule::create()?;
+
+        // add func
+        for (name, func) in self.funcs.into_iter() {
+            inner.add_func(name, func);
+        }
+
+        // add global
+        for (name, global) in self.globals.into_iter() {
+            inner.add_global(name, global);
+        }
+
+        // add memory
+        for (name, memory) in self.memories.into_iter() {
+            inner.add_memory(name, memory);
+        }
+
+        // add table
+        for (name, table) in self.tables.into_iter() {
+            inner.add_table(name, table);
+        }
+
+        Ok(ImportObject(sys::ImportObject::Crypto(
+            sys::WasiCrypto::Common(inner),
+        )))
+    }
+
+    pub fn build_as_wasi_crypto_asymmetric_common(self) -> WasmEdgeResult<ImportObject> {
+        let mut inner = sys::WasiCryptoAsymmetricCommonModule::create()?;
+
+        // add func
+        for (name, func) in self.funcs.into_iter() {
+            inner.add_func(name, func);
+        }
+
+        // add global
+        for (name, global) in self.globals.into_iter() {
+            inner.add_global(name, global);
+        }
+
+        // add memory
+        for (name, memory) in self.memories.into_iter() {
+            inner.add_memory(name, memory);
+        }
+
+        // add table
+        for (name, table) in self.tables.into_iter() {
+            inner.add_table(name, table);
+        }
+
+        Ok(ImportObject(sys::ImportObject::Crypto(
+            sys::WasiCrypto::AsymmetricCommon(inner),
+        )))
+    }
+
+    pub fn build_as_wasi_crypto_symmetric(self) -> WasmEdgeResult<ImportObject> {
+        let mut inner = sys::WasiCryptoSymmetricModule::create()?;
+
+        // add func
+        for (name, func) in self.funcs.into_iter() {
+            inner.add_func(name, func);
+        }
+
+        // add global
+        for (name, global) in self.globals.into_iter() {
+            inner.add_global(name, global);
+        }
+
+        // add memory
+        for (name, memory) in self.memories.into_iter() {
+            inner.add_memory(name, memory);
+        }
+
+        // add table
+        for (name, table) in self.tables.into_iter() {
+            inner.add_table(name, table);
+        }
+
+        Ok(ImportObject(sys::ImportObject::Crypto(
+            sys::WasiCrypto::SymmetricOptionations(inner),
+        )))
+    }
+
+    pub fn build_as_wasi_crypto_kx(self) -> WasmEdgeResult<ImportObject> {
+        let mut inner = sys::WasiCryptoKxModule::create()?;
+
+        // add func
+        for (name, func) in self.funcs.into_iter() {
+            inner.add_func(name, func);
+        }
+
+        // add global
+        for (name, global) in self.globals.into_iter() {
+            inner.add_global(name, global);
+        }
+
+        // add memory
+        for (name, memory) in self.memories.into_iter() {
+            inner.add_memory(name, memory);
+        }
+
+        // add table
+        for (name, table) in self.tables.into_iter() {
+            inner.add_table(name, table);
+        }
+
+        Ok(ImportObject(sys::ImportObject::Crypto(
+            sys::WasiCrypto::KeyExchange(inner),
+        )))
+    }
+
+    pub fn build_as_wasi_crypto_signatures(self) -> WasmEdgeResult<ImportObject> {
+        let mut inner = sys::WasiCryptoSignaturesModule::create()?;
+
+        // add func
+        for (name, func) in self.funcs.into_iter() {
+            inner.add_func(name, func);
+        }
+
+        // add global
+        for (name, global) in self.globals.into_iter() {
+            inner.add_global(name, global);
+        }
+
+        // add memory
+        for (name, memory) in self.memories.into_iter() {
+            inner.add_memory(name, memory);
+        }
+
+        // add table
+        for (name, table) in self.tables.into_iter() {
+            inner.add_table(name, table);
+        }
+
+        Ok(ImportObject(sys::ImportObject::Crypto(
+            sys::WasiCrypto::Signatures(inner),
+        )))
+    }
 }
 
 /// Defines an import object that contains the required import data used when instantiating a [module](crate::Module).
@@ -337,10 +502,20 @@ impl ImportObject {
     /// Returns the name of the import object.
     pub fn name(&self) -> String {
         match &self.0 {
-            sys::ImportObject::Import(import) => import.name(),
-            sys::ImportObject::Wasi(wasi) => wasi.name(),
+            sys::ImportObject::Import(import) => import.name().into(),
+            sys::ImportObject::Wasi(wasi) => wasi.name().into(),
             #[cfg(target_os = "linux")]
-            sys::ImportObject::WasmEdgeProcess(wasmedge_process) => wasmedge_process.name(),
+            sys::ImportObject::WasmEdgeProcess(wasmedge_process) => wasmedge_process.name().into(),
+            sys::ImportObject::Nn(module) => module.name().into(),
+            sys::ImportObject::Crypto(sys::WasiCrypto::Common(module)) => module.name().into(),
+            sys::ImportObject::Crypto(sys::WasiCrypto::AsymmetricCommon(module)) => {
+                module.name().into()
+            }
+            sys::ImportObject::Crypto(sys::WasiCrypto::SymmetricOptionations(module)) => {
+                module.name().into()
+            }
+            sys::ImportObject::Crypto(sys::WasiCrypto::KeyExchange(module)) => module.name().into(),
+            sys::ImportObject::Crypto(sys::WasiCrypto::Signatures(module)) => module.name().into(),
         }
     }
 
@@ -354,17 +529,15 @@ mod tests {
     use super::*;
     use crate::{
         config::{CommonConfigOptions, ConfigBuilder},
+        error::{CoreError, CoreInstantiationError, GlobalError, WasmEdgeError},
         params,
         types::Val,
-        Executor, Global, Memory, Statistics, Store, Table, WasmVal, WasmValue,
+        Executor, Global, GlobalType, Memory, MemoryType, Mutability, RefType, Statistics, Store,
+        Table, TableType, ValType, WasmVal, WasmValue,
     };
     use std::{
         sync::{Arc, Mutex},
         thread,
-    };
-    use wasmedge_types::{
-        error::{CoreError, CoreInstantiationError, GlobalError, WasmEdgeError},
-        GlobalType, MemoryType, Mutability, RefType, TableType, ValType,
     };
 
     #[test]

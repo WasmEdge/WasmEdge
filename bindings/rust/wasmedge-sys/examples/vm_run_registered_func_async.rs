@@ -1,7 +1,7 @@
 //! This example presents a host function runs timeout, then cancel the task.
 
 use wasmedge_sys::{
-    Config, FuncType, Function, ImportInstance, ImportModule, ImportObject, Vm, WasmValue,
+    AsImport, Config, FuncType, Function, ImportModule, ImportObject, Vm, WasmValue,
 };
 use wasmedge_types::ValType;
 

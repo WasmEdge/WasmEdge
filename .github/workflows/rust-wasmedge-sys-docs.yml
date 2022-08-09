@@ -7,7 +7,7 @@ concurrency:
 on:
   push:
     branches:
-      - "rust/*"
+      - "release/rust/*"
     paths:
       - ".github/workflows/rust-wasmedge-sys-docs.yml"
       - "bindings/rust/wasmedge-sys/**"

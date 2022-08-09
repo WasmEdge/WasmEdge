@@ -1,5 +1,5 @@
 use wasmedge_sys::{
-    Config, FuncType, Function, ImportInstance, ImportModule, ImportObject, Table, TableType, Vm,
+    AsImport, Config, FuncType, Function, ImportModule, ImportObject, Table, TableType, Vm,
     WasmValue,
 };
 use wasmedge_types::{RefType, ValType};

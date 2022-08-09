@@ -45,6 +45,9 @@ public:
   const CoreAliasSection &getCoreAliasSection() const { return CoreAliasSec; }
   CoreAliasSection &getCoreAliasSection() { return CoreAliasSec; }
 
+  const ComponentStartSection &getStartSection() const { return StartSec; }
+  ComponentStartSection &getStartSection() { return StartSec; }
+
   const ComponentImportSection &getImportSection() const { return ImportSec; }
   ComponentImportSection &getImportSection() { return ImportSec; }
 
@@ -72,6 +75,11 @@ private:
   /// \name Section nodes of Core Alias node.
   /// @{
   CoreAliasSection CoreAliasSec;
+  /// @}
+
+  /// \name Section nodes of Start node.
+  /// @{
+  ComponentStartSection StartSec;
   /// @}
 
   /// \name Section nodes of Import node.

@@ -13,6 +13,7 @@
 //===------------------------------------------------------------------------------------------===//
 #pragma once
 
+#include "ast/component/coreinstance_section.h"
 #include "ast/component/export_section.h"
 #include "ast/component/import_section.h"
 #include "ast/module.h"
@@ -37,6 +38,20 @@ private:
   /// \name Data of ModuleSection.
   /// @{
   std::vector<std::unique_ptr<Module>> Content;
+  /// @}
+};
+
+/// AST CoreInstanceSection node.
+class CoreInstanceSection : public Section {
+public:
+  /// Getter of content module.
+  Span<const CoreInstance> getContent() const noexcept { return Content; }
+  std::vector<CoreInstance> &getContent() noexcept { return Content; }
+
+private:
+  /// \name Data of CoreInstanceSection.
+  /// @{
+  std::vector<CoreInstance> Content;
   /// @}
 };
 

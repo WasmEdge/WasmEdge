@@ -97,7 +97,6 @@ Expect<std::unique_ptr<AST::Component>> Loader::loadComponent() {
       break;
     case 0x01:
       // m*:section_1(<core:module>)         => [core-prefix(m)]
-
       if (auto Res = loadSection(Comp->getModuleSection()); Res.has_value()) {
         Secs.set(NewSectionId);
       } else {
@@ -107,6 +106,13 @@ Expect<std::unique_ptr<AST::Component>> Loader::loadComponent() {
       break;
     case 0x02:
       // i*:section_2(vec(<core:instance>))  => core-prefix(i)*
+      if (auto Res = loadSection(Comp->getCoreInstanceSection());
+          Res.has_value()) {
+        Secs.set(NewSectionId);
+      } else {
+        spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Component));
+        return Unexpect(Res);
+      }
       break;
     case 0x03:
       // a*:section_3(vec(<core:alias>))     => core-prefix(a)*

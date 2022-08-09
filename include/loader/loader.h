@@ -80,6 +80,16 @@ template <> inline ASTNodeAttr NodeAttrFromAST<AST::ModuleSection>() noexcept {
   return ASTNodeAttr::CompSec_Module;
 }
 template <>
+inline ASTNodeAttr NodeAttrFromAST<AST::CoreInstanceSection>() noexcept {
+  return ASTNodeAttr::CompSec_CoreInstance;
+}
+template <> inline ASTNodeAttr NodeAttrFromAST<AST::InstantiateArg>() noexcept {
+  return ASTNodeAttr::CompSec_CoreInstance;
+}
+template <> inline ASTNodeAttr NodeAttrFromAST<AST::ExportDecl>() noexcept {
+  return ASTNodeAttr::CompSec_CoreInstance;
+}
+template <>
 inline ASTNodeAttr NodeAttrFromAST<AST::ComponentImportSection>() noexcept {
   return ASTNodeAttr::CompSec_Import;
 }
@@ -190,6 +200,28 @@ private:
     return {};
   }
 
+  template <typename T, typename F>
+  Expect<void> loadVec(std::vector<T> &VecT, F &&Func) {
+    uint32_t VecCnt = 0;
+    // Read the vector size.
+    if (auto Res = FMgr.readU32()) {
+      VecCnt = *Res;
+      VecT.resize(VecCnt);
+    } else {
+      return logLoadError(Res.error(), FMgr.getLastOffset(),
+                          NodeAttrFromAST<T>());
+    }
+
+    // Sequentially create the AST node T and read data.
+    for (uint32_t I = 0; I < VecCnt; ++I) {
+      if (auto Res = Func(VecT[I]); !Res) {
+        spdlog::error(ErrInfo::InfoAST(NodeAttrFromAST<T>()));
+        return Unexpect(Res);
+      }
+    }
+    return {};
+  }
+
   /// \name Load AST nodes functions
   /// @{
   Expect<void> loadSection(AST::CustomSection &Sec);
@@ -226,6 +258,8 @@ private:
   // component part
   Expect<void> loadSection(AST::ModuleSection &Sec);
   Expect<void> loadModule(std::unique_ptr<AST::Module> &Mod);
+  Expect<void> loadSection(AST::CoreInstanceSection &Sec);
+  Expect<void> loadCoreInstance(AST::CoreInstance &Instance);
   Expect<void> loadSection(AST::ComponentImportSection &Sec);
   Expect<void> loadImportDecl(AST::ImportDecl &Import);
   Expect<void> loadSection(AST::ComponentExportSection &Sec);

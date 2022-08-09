@@ -174,6 +174,28 @@ Expect<void> Loader::loadCoreAlias(AST::CoreAlias &Alias) {
   return {};
 }
 
+Expect<void> Loader::loadSection(AST::ComponentStartSection &Sec) {
+  // start ::= f:<funcidx> arg*:vec(<valueidx>)
+  return loadSectionContent(Sec, [this, &Sec]() -> Expect<void> {
+    auto FuncIdx = FMgr.readU32();
+    if (!FuncIdx.has_value()) {
+      return logLoadError(FuncIdx.error(), FMgr.getLastOffset(),
+                          ASTNodeAttr::CompSec_Start);
+    }
+    Sec.setFuncIdx(FuncIdx.value());
+    return loadVec(Sec.getContent(),
+                   [this](AST::StartValueIdx &ValueIdx) -> Expect<void> {
+                     auto Idx = FMgr.readU32();
+                     if (!Idx.has_value()) {
+                       return logLoadError(Idx.error(), FMgr.getLastOffset(),
+                                           ASTNodeAttr::CompSec_Start);
+                     }
+                     ValueIdx.setValueIdx(Idx.value());
+                     return {};
+                   });
+  });
+}
+
 Expect<void> Loader::loadSection(AST::ComponentImportSection &Sec) {
   return loadSectionContent(Sec, [this, &Sec]() {
     return loadSectionContentVec(Sec, [this](AST::ImportDecl &Import) {

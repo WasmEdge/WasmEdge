@@ -144,6 +144,12 @@ Expect<std::unique_ptr<AST::Component>> Loader::loadComponent() {
       break;
     case 0x0A:
       // s: section_10(<start>)              => [s]
+      if (auto Res = loadSection(Comp->getStartSection()); Res.has_value()) {
+        Secs.set(NewSectionId);
+      } else {
+        spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Component));
+        return Unexpect(Res);
+      }
       break;
     case 0x0B:
       // i*:section_11(vec(<import>))        => i*

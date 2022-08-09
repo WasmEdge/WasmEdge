@@ -17,6 +17,7 @@
 #include "ast/component/coreinstance_section.h"
 #include "ast/component/export_section.h"
 #include "ast/component/import_section.h"
+#include "ast/component/start_section.h"
 #include "ast/module.h"
 
 #include <vector>
@@ -64,6 +65,25 @@ public:
 
 private:
   std::vector<CoreAlias> Content;
+};
+
+/// AST ComponentStartSection node.
+class ComponentStartSection : public Section {
+public:
+  /// Getter and setter of funcidx.
+  uint32_t getFuncIdx() const { return FuncIdx; }
+  void setFuncIdx(uint32_t Val) noexcept { FuncIdx = Val; }
+
+  /// Getter of content.
+  Span<const StartValueIdx> getContent() const noexcept { return Content; }
+  std::vector<StartValueIdx> &getContent() noexcept { return Content; }
+
+private:
+  /// \name Data of ComponentStartSection.
+  /// @{
+  uint32_t FuncIdx;
+  std::vector<StartValueIdx> Content;
+  /// @}
 };
 
 /// AST ComponentImportSection node.

@@ -87,6 +87,15 @@ jobs:
       upload_asset_url: ${{ needs.create_release.outputs.upload_url }}
     secrets: inherit
 
+  build_on_windows:
+    needs: create_release
+    uses: ./.github/workflows/reusable-build-on-windows.yml
+    with:
+      version: ${{ needs.create_release.outputs.version }}
+      release: true
+      upload_asset_url: ${{ needs.create_release.outputs.upload_url }}
+    secrets: inherit
+
   build_and_upload_plugin_ubuntu:
     strategy:
       matrix:
@@ -193,64 +202,6 @@ jobs:
           asset_path: plugin.tar.gz
           asset_name: WasmEdge-plugin-${{ matrix.tar_name }}-${{ needs.create_release.outputs.version }}-${{ matrix.docker_tag }}.tar.gz
           asset_content_type: application/x-gzip
-
-  build_windows:
-    name: Windows server 2022
-    runs-on: windows-2022
-    needs: create_release
-    steps:
-    - uses: actions/checkout@v2
-      with:
-        fetch-depth: 0
-    - name: Install dependency
-      uses: crazy-max/ghaction-chocolatey@v1
-      with:
-        args: install cmake ninja vswhere
-    - uses: GuillaumeFalourd/setup-windows10-sdk-action@v1
-      with:
-        sdk-version: 19041
-    - name: Build WasmEdge
-      run: |
-        $vsPath = (vswhere -latest -property installationPath)
-        Import-Module (Join-Path $vsPath "Common7\Tools\Microsoft.VisualStudio.DevShell.dll")
-        Enter-VsDevShell -VsInstallPath $vsPath -SkipAutomaticLocation -DevCmdArguments "-arch=x64 -host_arch=x64 -winsdk=10.0.19041.0"
-        $llvm = "LLVM-13.0.1-win64.zip"
-        curl -sLO https://github.com/WasmEdge/llvm-windows/releases/download/llvmorg-13.0.1/LLVM-13.0.1-win64.zip -o $llvm
-        Expand-Archive -Path $llvm
-        $llvm_dir = "$pwd\\LLVM-13.0.1-win64\\LLVM-13.0.1-win64\\lib\\cmake\\llvm"
-        $Env:CC = "clang-cl"
-        $Env:CXX = "clang-cl"
-        cmake -Bbuild -GNinja -DCMAKE_SYSTEM_VERSION=10.0.19041.0 -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreadedDLL "-DLLVM_DIR=$llvm_dir" -DWASMEDGE_BUILD_PACKAGE="ZIP" .
-        cmake --build build
-    - name: Create WasmEdge Package
-      run: |
-        $vsPath = (vswhere -latest -property installationPath)
-        Import-Module (Join-Path $vsPath "Common7\Tools\Microsoft.VisualStudio.DevShell.dll")
-        Enter-VsDevShell -VsInstallPath $vsPath -SkipAutomaticLocation -DevCmdArguments "-arch=x64 -host_arch=x64 -winsdk=10.0.19041.0"
-        cmake --build build --target package
-    - name: Upload Windows 10 zip package
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ needs.create_release.outputs.upload_url }}
-        asset_path: build\\WasmEdge-${{ needs.create_release.outputs.version }}-Windows.zip
-        asset_name: WasmEdge-${{ needs.create_release.outputs.version }}-windows.zip
-        asset_content_type: application/zip
-    - name: Package Windows Installer
-      run: |
-        $Env:product_version = ("${{ needs.create_release.outputs.version }}").split("-")[0]
-        . "$Env:WIX\bin\candle.exe" -arch x64 -o build\wasmedge.wixobj .github\scripts\wasmedge.wxs
-        . "$Env:WIX\bin\light.exe" -out build\WasmEdge-${{ needs.create_release.outputs.version }}-windows.msi build\wasmedge.wixobj
-    - name: Upload Windows Installer
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ needs.create_release.outputs.upload_url }}
-        asset_path: build\\WasmEdge-${{ needs.create_release.outputs.version }}-windows.msi
-        asset_name: WasmEdge-${{ needs.create_release.outputs.version }}-windows.msi
-        asset_content_type: application/octet-stream
 
   build_android:
     name: Android

@@ -1,6 +1,6 @@
 #[cfg(target_os = "linux")]
 use wasmedge_sys::{
-    utils, Config, Executor, FuncType, Function, Global, GlobalType, ImportInstance, ImportModule,
+    utils, AsImport, Config, Executor, FuncType, Function, Global, GlobalType, ImportModule,
     ImportObject, Loader, MemType, Memory, Store, Table, TableType, Validator, Vm, WasmValue,
 };
 #[cfg(target_os = "linux")]

@@ -138,9 +138,9 @@ mod tests {
     use crate::{
         config::{CommonConfigOptions, ConfigBuilder},
         types::Val,
-        Executor, Global, ImportObjectBuilder, Memory, Module, Statistics, Table, WasmValue,
+        Executor, Global, GlobalType, ImportObjectBuilder, Memory, MemoryType, Module, Mutability,
+        RefType, Statistics, Table, TableType, ValType, WasmValue,
     };
-    use wasmedge_types::{GlobalType, MemoryType, Mutability, RefType, TableType, ValType};
 
     #[test]
     #[allow(clippy::assertions_on_result_states)]

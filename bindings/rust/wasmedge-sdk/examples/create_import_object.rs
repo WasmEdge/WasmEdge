@@ -3,9 +3,11 @@
 // If the version of rust used is less than v1.63, please uncomment the follow attribute.
 // #![feature(explicit_generic_args_with_impl_trait)]
 
-use wasmedge_sdk::{types::Val, Global, ImportObjectBuilder, Memory, Table};
+use wasmedge_sdk::{
+    types::Val, Global, GlobalType, ImportObjectBuilder, Memory, MemoryType, Mutability, RefType,
+    Table, TableType, ValType,
+};
 use wasmedge_sys::types::WasmValue;
-use wasmedge_types::{GlobalType, MemoryType, Mutability, RefType, TableType, ValType};
 
 #[cfg_attr(test, test)]
 fn main() -> Result<(), Box<dyn std::error::Error>> {

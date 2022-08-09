@@ -198,7 +198,11 @@ pub use instance::{
     function::{FuncRef, FuncType, Function},
     global::{Global, GlobalType},
     memory::{MemType, Memory},
-    module::{AsInstance, ImportInstance, ImportModule, ImportObject, Instance, WasiModule},
+    module::{
+        AsImport, AsInstance, ImportModule, ImportObject, Instance, WasiCrypto,
+        WasiCryptoAsymmetricCommonModule, WasiCryptoCommonModule, WasiCryptoKxModule,
+        WasiCryptoSignaturesModule, WasiCryptoSymmetricModule, WasiModule, WasiNnModule,
+    },
     table::{Table, TableType},
 };
 #[doc(inline)]

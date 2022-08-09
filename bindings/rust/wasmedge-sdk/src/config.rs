@@ -1,8 +1,7 @@
 //! Defines the structs used to construct configurations.
 
-use crate::WasmEdgeResult;
+use crate::{CompilerOptimizationLevel, CompilerOutputFormat, WasmEdgeResult};
 use wasmedge_sys as sys;
-use wasmedge_types::{CompilerOptimizationLevel, CompilerOutputFormat};
 
 /// Defines a builder for creating a [Config].
 #[derive(Debug)]
@@ -696,7 +695,6 @@ impl HostRegistrationConfigOptions {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use wasmedge_types::{CompilerOptimizationLevel, CompilerOutputFormat};
 
     #[test]
     fn test_config_create() {

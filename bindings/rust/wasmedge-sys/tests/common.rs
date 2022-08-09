@@ -1,4 +1,4 @@
-use wasmedge_sys::{FuncType, Function, ImportInstance, ImportModule, WasmValue};
+use wasmedge_sys::{AsImport, FuncType, Function, ImportModule, WasmValue};
 use wasmedge_types::ValType;
 
 pub fn create_extern_module(name: impl AsRef<str>) -> ImportModule {

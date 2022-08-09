@@ -1,8 +1,7 @@
 //! Defines Global and GlobalType.
 
-use crate::{types::Val, WasmEdgeResult};
+use crate::{types::Val, GlobalType, WasmEdgeResult};
 use wasmedge_sys as sys;
-use wasmedge_types::GlobalType;
 
 /// Defines a WebAssembly global variable, which stores a single value of the given [GlobalType](https://wasmedge.github.io/WasmEdge/wasmedge_types/struct.GlobalType.html) and a flag indicating whether it is mutable or not.
 #[derive(Debug)]
@@ -85,11 +84,8 @@ mod tests {
     use super::*;
     use crate::{
         config::{CommonConfigOptions, ConfigBuilder},
-        Executor, ImportObjectBuilder, Statistics, Store,
-    };
-    use wasmedge_types::{
         error::{GlobalError, WasmEdgeError},
-        Mutability, ValType,
+        Executor, ImportObjectBuilder, Mutability, Statistics, Store, ValType,
     };
 
     #[test]

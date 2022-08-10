@@ -147,8 +147,6 @@
 //! * [wasmedge-types: WasmEdge Types](https://crates.io/crates/wasmedge-types)
 //!
 
-use wasmedge_types::WasmEdgeResult;
-
 #[doc(hidden)]
 #[cfg(feature = "aot")]
 mod compiler;
@@ -198,7 +196,7 @@ pub use vm::Vm;
 /// Parses in-memory bytes as either the [WebAssembly Text format](http://webassembly.github.io/spec/core/text/index.html), or a binary WebAssembly module
 pub use wasmedge_types::{
     error, wat2wasm, CompilerOptimizationLevel, CompilerOutputFormat, ExternalInstanceType,
-    FuncType, GlobalType, MemoryType, Mutability, RefType, TableType, ValType,
+    FuncType, GlobalType, MemoryType, Mutability, RefType, TableType, ValType, WasmEdgeResult,
 };
 
 /// WebAssembly value type.
@@ -218,7 +216,7 @@ pub trait Engine {
     ///
     /// If fail to run the host function, then an error is returned.
     fn run_func(
-        &mut self,
+        &self,
         func: &Func,
         params: impl IntoIterator<Item = WasmValue>,
     ) -> WasmEdgeResult<Vec<WasmValue>>;
@@ -235,7 +233,7 @@ pub trait Engine {
     ///
     /// If fail to run the host function, then an error is returned.
     fn run_func_ref(
-        &mut self,
+        &self,
         func_ref: &FuncRef,
         params: impl IntoIterator<Item = WasmValue>,
     ) -> WasmEdgeResult<Vec<WasmValue>>;

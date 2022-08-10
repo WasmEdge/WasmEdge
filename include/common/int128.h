@@ -13,7 +13,8 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
-#if defined(__x86_64__) || defined(__aarch64__) || defined(__riscv)
+#if defined(__x86_64__) || defined(__aarch64__) ||                             \
+    (defined(__riscv) && __riscv_xlen == 64)
 
 namespace WasmEdge {
 using int128_t = __int128;

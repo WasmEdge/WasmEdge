@@ -121,14 +121,16 @@ inline constexpr WasmEdge_Result genWasmEdge_Result(ErrCode Code) noexcept {
 // from class WasmEdge::uint128_t / WasmEdge::int128_t.
 template <typename C>
 inline constexpr ::uint128_t to_uint128_t(C Val) noexcept {
-#if defined(__x86_64__) || defined(__aarch64__) || defined(__riscv)
+#if defined(__x86_64__) || defined(__aarch64__) ||                             \
+    (defined(__riscv) && __riscv_xlen == 64)
   return Val;
 #else
   return {.Low = Val.low(), .High = static_cast<uint64_t>(Val.high())};
 #endif
 }
 template <typename C> inline constexpr ::int128_t to_int128_t(C Val) noexcept {
-#if defined(__x86_64__) || defined(__aarch64__) || defined(__riscv)
+#if defined(__x86_64__) || defined(__aarch64__) ||                             \
+    (defined(__riscv) && __riscv_xlen == 64)
   return Val;
 #else
   return {.Low = Val.low(), .High = Val.high()};
@@ -139,7 +141,8 @@ template <typename C> inline constexpr ::int128_t to_int128_t(C Val) noexcept {
 // WasmEdge::int128_t from struct uint128_t / int128_t.
 template <typename C, typename T>
 inline constexpr C to_WasmEdge_128_t(T Val) noexcept {
-#if defined(__x86_64__) || defined(__aarch64__) || defined(__riscv)
+#if defined(__x86_64__) || defined(__aarch64__) ||                             \
+    (defined(__riscv) && __riscv_xlen == 64)
   return Val;
 #else
   return C(Val.High, Val.Low);

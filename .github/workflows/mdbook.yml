@@ -14,24 +14,43 @@ on:
   push:
     branches: [ master ]
     paths:
-      - 'docs/book/**'
+      - 'docs/**'
   pull_request:
     branches: [ master ]
     paths:
-      - 'docs/book/**'
+      - 'docs/**'
 
 jobs:
-  build:
-
+  lint-markdown:
+    if: ${{ github.event_name != 'push' }}
     runs-on: ubuntu-20.04
-
     steps:
-      - uses: actions/checkout@v2
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Lint markdown format
+        uses: github/super-linter@v4
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DEFAULT_BRANCH: master
+          FILTER_REGEX_INCLUDE: .*docs/.*md$
+          VALIDATE_ALL_CODEBASE: false
+          VALIDATE_MARKDOWN: true
+
+  build-mdbook:
+    needs: lint-markdown
+    if: |
+      always() 
+      && (needs.lint-markdown.result == 'success' || needs.lint-markdown.result == 'skipped')
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v3
 
       - name: Setup mdBook
         uses: peaceiris/actions-mdbook@v1
         with:
-          # mdbook-version: '0.4.10'
           mdbook-version: 'latest'
           
       - name: Create work dir

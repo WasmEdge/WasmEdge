@@ -88,6 +88,9 @@ impl ConfigBuilder {
         inner.reference_types(self.common_config.reference_types);
         inner.simd(self.common_config.simd);
         inner.multi_memories(self.common_config.multi_memories);
+        inner.threads(self.common_config.threads);
+        inner.tail_call(self.common_config.tail_call);
+        inner.function_references(self.common_config.function_references);
 
         if let Some(stat_config) = self.stat_config {
             inner.count_instructions(stat_config.count_instructions);
@@ -232,6 +235,21 @@ impl Config {
         self.inner.multi_memories_enabled()
     }
 
+    /// Checks if the Threads option turns on or not.
+    pub fn threads_enabled(&self) -> bool {
+        self.inner.threads_enabled()
+    }
+
+    /// Checks if the TailCall option turns on or not.
+    pub fn tail_call_enabled(&self) -> bool {
+        self.inner.tail_call_enabled()
+    }
+
+    /// Checks if the FunctionReferences option turns on or not.
+    pub fn function_references_enabled(&self) -> bool {
+        self.inner.function_references_enabled()
+    }
+
     /// Returns the optimization level of AOT compiler.
     #[cfg(feature = "aot")]
     pub fn optimization_level(&self) -> CompilerOptimizationLevel {
@@ -319,6 +337,9 @@ pub struct CommonConfigOptions {
     reference_types: bool,
     simd: bool,
     multi_memories: bool,
+    threads: bool,
+    tail_call: bool,
+    function_references: bool,
 }
 impl CommonConfigOptions {
     /// Creates a new instance of [CommonConfigOptions].
@@ -332,6 +353,9 @@ impl CommonConfigOptions {
             reference_types: true,
             simd: true,
             multi_memories: false,
+            threads: false,
+            tail_call: false,
+            function_references: false,
         }
     }
 
@@ -427,6 +451,37 @@ impl CommonConfigOptions {
     pub fn multi_memories(self, enable: bool) -> Self {
         Self {
             multi_memories: enable,
+            ..self
+        }
+    }
+
+    /// Enables or disables the Threads option.
+    ///
+    /// # Argument
+    ///
+    /// - `enable` specifies if the option turns on or not.
+    pub fn threads(self, enable: bool) -> Self {
+        Self {
+            threads: enable,
+            ..self
+        }
+    }
+
+    /// Enables or disables the TailCall option.
+    ///
+    /// # Argument
+    ///
+    /// - `enable` specifies if the option turns on or not.
+    pub fn tail_call(self, enable: bool) -> Self {
+        Self {
+            tail_call: enable,
+            ..self
+        }
+    }
+
+    pub fn function_references(self, enable: bool) -> Self {
+        Self {
+            function_references: enable,
             ..self
         }
     }

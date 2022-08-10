@@ -491,7 +491,9 @@ impl MemoryType {
     ///
     /// * `min` - The minimum size of the memory to be created.
     ///
-    /// * `max` - The maximum size of the memory to be created.
+    /// * `max` - The maximum size of the memory to be created. If `shared` is set to true, `max` must be set.
+    ///
+    /// * `shared` - Enables shared memory if true.
     pub fn new(min: u32, max: Option<u32>, shared: bool) -> WasmEdgeResult<Self> {
         if shared && max.is_none() {
             return Err(error::WasmEdgeError::Mem(error::MemError::CreateSharedType));

@@ -449,21 +449,21 @@ impl Vm {
 }
 impl Engine for Vm {
     fn run_func(
-        &mut self,
+        &self,
         func: &Func,
         params: impl IntoIterator<Item = WasmValue>,
     ) -> WasmEdgeResult<Vec<WasmValue>> {
-        let mut executor = self.inner.executor_mut()?;
+        let executor = self.inner.executor()?;
         let returns = executor.run_func(&func.inner, params)?;
         Ok(returns)
     }
 
     fn run_func_ref(
-        &mut self,
+        &self,
         func_ref: &FuncRef,
         params: impl IntoIterator<Item = WasmValue>,
     ) -> WasmEdgeResult<Vec<WasmValue>> {
-        let mut executor = self.inner.executor_mut()?;
+        let executor = self.inner.executor()?;
         let returns = executor.run_func_ref(&func_ref.inner, params)?;
         Ok(returns)
     }

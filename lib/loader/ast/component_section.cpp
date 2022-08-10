@@ -108,6 +108,94 @@ Expect<void> Loader::loadCoreInstance(AST::CoreInstance &Instance) {
   }
 }
 
+Expect<void> Loader::loadSection(AST::CoreAliasSection &Sec) {
+  return loadSectionContent(Sec, [this, &Sec]() {
+    return loadSectionContentVec(
+        Sec, [this](AST::CoreAlias &Alias) { return loadCoreAlias(Alias); });
+  });
+}
+Expect<void> Loader::loadCoreAlias(AST::CoreAlias &Alias) {
+  // core:alias ::= sort:<core:sort> target:<core:aliastarget>
+  //                => (core alias target (sort))
+  if (auto Res = FMgr.readByte(); Res.has_value()) {
+    Alias.setSort(Res.value());
+  } else {
+    return logLoadError(Res.error(), FMgr.getLastOffset(),
+                        ASTNodeAttr::CompSec_CoreAlias);
+  }
+  // core:aliastarget ::=
+  //     0x00 i:<core:instanceidx> n:<name> => export i n
+  //   | 0x01 ct:<u32> idx:<u32>            => outer ct idx
+  auto Res = FMgr.readByte();
+  if (!Res) {
+    return logLoadError(Res.error(), FMgr.getLastOffset(),
+                        ASTNodeAttr::CompSec_CoreAlias);
+  }
+  switch (Res.value()) {
+  case 0x00: {
+    uint32_t Idx;
+    std::string_view Name;
+    if (auto IR = FMgr.readU32(); IR.has_value()) {
+      Idx = IR.value();
+    } else {
+      return logLoadError(IR.error(), FMgr.getLastOffset(),
+                          ASTNodeAttr::CompSec_CoreAlias);
+    }
+    if (auto NR = FMgr.readName(); NR.has_value()) {
+      Name = NR.value();
+    } else {
+      return logLoadError(NR.error(), FMgr.getLastOffset(),
+                          ASTNodeAttr::CompSec_CoreAlias);
+    }
+    Alias.setTarget(AST::CoreAliasTarget::Export(Idx, Name));
+    break;
+  }
+  case 0x01: {
+    uint32_t C, I;
+    if (auto CR = FMgr.readU32(); CR.has_value()) {
+      C = CR.value();
+    } else {
+      return logLoadError(CR.error(), FMgr.getLastOffset(),
+                          ASTNodeAttr::CompSec_CoreAlias);
+    }
+    if (auto IR = FMgr.readU32(); IR.has_value()) {
+      I = IR.value();
+    } else {
+      return logLoadError(IR.error(), FMgr.getLastOffset(),
+                          ASTNodeAttr::CompSec_CoreAlias);
+    }
+    Alias.setTarget(AST::CoreAliasTarget::Outer(C, I));
+    break;
+  }
+  default:
+    return logLoadError(Res.error(), FMgr.getLastOffset(),
+                        ASTNodeAttr::CompSec_CoreAlias);
+  }
+  return {};
+}
+
+Expect<void> Loader::loadSection(AST::ComponentStartSection &Sec) {
+  // start ::= f:<funcidx> arg*:vec(<valueidx>)
+  return loadSectionContent(Sec, [this, &Sec]() -> Expect<void> {
+    auto FuncIdx = FMgr.readU32();
+    if (!FuncIdx.has_value()) {
+      return logLoadError(FuncIdx.error(), FMgr.getLastOffset(),
+                          ASTNodeAttr::CompSec_Start);
+    }
+    Sec.setFuncIdx(FuncIdx.value());
+    return loadVec(Sec.getContent(),
+                   [this](AST::StartValueIdx &ValueIdx) -> Expect<void> {
+                     auto Idx = FMgr.readU32();
+                     if (!Idx.has_value()) {
+                       return logLoadError(Idx.error(), FMgr.getLastOffset(),
+                                           ASTNodeAttr::CompSec_Start);
+                     }
+                     ValueIdx.setValueIdx(Idx.value());
+                     return {};
+                   });
+  });
+}
+
 Expect<void> Loader::loadSection(AST::ComponentImportSection &Sec) {
   return loadSectionContent(Sec, [this, &Sec]() {
     return loadSectionContentVec(Sec, [this](AST::ImportDecl &Import) {

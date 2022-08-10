@@ -13,6 +13,7 @@
 //===------------------------------------------------------------------------------------------===//
 #pragma once
 
+#include "ast/component/corealias_section.h"
 #include "ast/component/coreinstance_section.h"
 #include "ast/component/export_section.h"
 #include "ast/component/import_section.h"
@@ -53,6 +54,16 @@ private:
   /// @{
   std::vector<CoreInstance> Content;
   /// @}
+};
+
+class CoreAliasSection : public Section {
+public:
+  /// Getter of content.
+  Span<const CoreAlias> getContent() const noexcept { return Content; }
+  std::vector<CoreAlias> &getContent() noexcept { return Content; }
+
+private:
+  std::vector<CoreAlias> Content;
 };
 
 /// AST ComponentImportSection node.

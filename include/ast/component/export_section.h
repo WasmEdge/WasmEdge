@@ -13,6 +13,7 @@
 //===------------------------------------------------------------------------------------------===//
 #pragma once
 
+#include "ast/component/sort.h"
 #include "ast/description.h"
 
 #include <cstdint>
@@ -25,12 +26,12 @@ class SortIndex {};
 class CoreSortIndex : public SortIndex, public ExportDesc {};
 class ComponentSortIndex : public SortIndex {
 public:
-  ComponentSortIndex(Byte Sort, uint32_t Index) : Sort{Sort}, Index{Index} {}
-  Byte getSort() const noexcept { return Sort; }
+  ComponentSortIndex(Sort Sort, uint32_t Index) : Sort{Sort}, Index{Index} {}
+  Sort getSort() const noexcept { return Sort; }
   uint32_t getIndex() const noexcept { return Index; }
 
 private:
-  Byte Sort;
+  Sort Sort;
   uint32_t Index;
 };
 

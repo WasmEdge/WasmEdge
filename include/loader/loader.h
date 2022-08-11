@@ -90,20 +90,10 @@ template <> inline ASTNodeAttr NodeAttrFromAST<AST::ExportDecl>() noexcept {
   return ASTNodeAttr::CompSec_CoreInstance;
 }
 template <>
-<<<<<<< HEAD
-=======
 inline ASTNodeAttr NodeAttrFromAST<AST::CoreAliasSection>() noexcept {
   return ASTNodeAttr::CompSec_CoreAlias;
 }
 template <>
-inline ASTNodeAttr NodeAttrFromAST<AST::ComponentStartSection>() noexcept {
-  return ASTNodeAttr::CompSec_Start;
-}
-template <> inline ASTNodeAttr NodeAttrFromAST<AST::StartValueIdx>() noexcept {
-  return ASTNodeAttr::CompSec_Start;
-}
-template <>
->>>>>>> 7f01f393 ([Proposal] load core:alias section)
 inline ASTNodeAttr NodeAttrFromAST<AST::ComponentImportSection>() noexcept {
   return ASTNodeAttr::CompSec_Import;
 }
@@ -273,7 +263,6 @@ private:
   Expect<void> loadSection(AST::ModuleSection &Sec);
   /* - */ Expect<void> loadModule(std::unique_ptr<AST::Module> &Mod);
   Expect<void> loadSection(AST::CoreInstanceSection &Sec);
-  Expect<void> loadCoreInstance(AST::CoreInstance &Instance);
   /* - */ Expect<void> loadCoreInstance(AST::CoreInstance &Instance);
   Expect<void> loadSection(AST::CoreAliasSection &Sec);
   /* - */ Expect<void> loadCoreAlias(AST::CoreAlias &Alias);

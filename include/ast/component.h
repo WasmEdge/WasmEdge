@@ -48,6 +48,9 @@ public:
   const CoreTypeSection &getCoreTypeSection() const { return CoreTypeSec; }
   CoreTypeSection &getCoreTypeSection() { return CoreTypeSec; }
 
+  const ComponentCanonSection &getCanonSection() const { return CanonSec; }
+  ComponentCanonSection &getCanonSection() { return CanonSec; }
+
   const ComponentStartSection &getStartSection() const { return StartSec; }
   ComponentStartSection &getStartSection() { return StartSec; }
 
@@ -83,6 +86,11 @@ private:
   /// \name Section nodes of Core Type node.
   /// @{
   CoreTypeSection CoreTypeSec;
+  /// @}
+
+  /// \name Section nodes of Canon node.
+  /// @{
+  ComponentCanonSection CanonSec;
   /// @}
 
   /// \name Section nodes of Start node.

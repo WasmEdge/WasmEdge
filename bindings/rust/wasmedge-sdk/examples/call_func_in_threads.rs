@@ -70,7 +70,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let executor_cloned = Arc::clone(&executor);
     let instance_cloned = Arc::clone(&instance);
     let handle_a = thread::spawn(move || {
-        let mut executor = executor_cloned.lock().unwrap();
+        let executor = executor_cloned.lock().unwrap();
         let instance = instance_cloned.lock().unwrap();
 
         // get the exported wasm function "fib"
@@ -93,7 +93,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let executor_cloned = Arc::clone(&executor);
     let instance_cloned = Arc::clone(&instance);
     let handle_b = thread::spawn(move || {
-        let mut executor = executor_cloned.lock().unwrap();
+        let executor = executor_cloned.lock().unwrap();
         let instance = instance_cloned.lock().unwrap();
 
         // get the exported wasm function "fib"

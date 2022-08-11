@@ -1,7 +1,7 @@
 use wasmedge_sys::utils;
 #[cfg(target_os = "linux")]
 use wasmedge_sys::{
-    Config, FuncType, Function, ImportInstance, ImportObject, Vm, WasmEdgeProcessModule, WasmValue,
+    AsImport, Config, FuncType, Function, ImportObject, Vm, WasmEdgeProcessModule, WasmValue,
 };
 #[cfg(target_os = "linux")]
 use wasmedge_types::{

@@ -147,8 +147,6 @@
 //! * [wasmedge-types: WasmEdge Types](https://crates.io/crates/wasmedge-types)
 //!
 
-use wasmedge_types::WasmEdgeResult;
-
 #[doc(hidden)]
 #[cfg(feature = "aot")]
 mod compiler;
@@ -164,7 +162,10 @@ mod statistics;
 mod store;
 pub mod types;
 #[doc(hidden)]
+pub mod utils;
+#[doc(hidden)]
 pub mod vm;
+pub mod wasi;
 
 #[doc(inline)]
 #[cfg(feature = "aot")]
@@ -178,7 +179,7 @@ pub use import::{ImportObject, ImportObjectBuilder};
 #[cfg(target_os = "linux")]
 #[doc(inline)]
 pub use instance::WasmEdgeProcessInstance;
-pub use instance::{Instance, WasiInstance};
+pub use instance::{AsInstance, Instance};
 #[doc(inline)]
 pub use io::{WasmVal, WasmValType, WasmValTypeList};
 #[doc(inline)]
@@ -188,8 +189,17 @@ pub use statistics::Statistics;
 #[doc(inline)]
 pub use store::Store;
 #[doc(inline)]
+pub use utils::Driver;
+#[doc(inline)]
 pub use vm::Vm;
 
+/// Parses in-memory bytes as either the [WebAssembly Text format](http://webassembly.github.io/spec/core/text/index.html), or a binary WebAssembly module
+pub use wasmedge_types::{
+    error, wat2wasm, CompilerOptimizationLevel, CompilerOutputFormat, ExternalInstanceType,
+    FuncType, GlobalType, MemoryType, Mutability, RefType, TableType, ValType, WasmEdgeResult,
+};
+
+/// WebAssembly value type.
 pub type WasmValue = wasmedge_sys::types::WasmValue;
 
 /// The object that is used to perform a [host function](crate::Func) is required to implement this trait.
@@ -206,7 +216,7 @@ pub trait Engine {
     ///
     /// If fail to run the host function, then an error is returned.
     fn run_func(
-        &mut self,
+        &self,
         func: &Func,
         params: impl IntoIterator<Item = WasmValue>,
     ) -> WasmEdgeResult<Vec<WasmValue>>;
@@ -223,7 +233,7 @@ pub trait Engine {
     ///
     /// If fail to run the host function, then an error is returned.
     fn run_func_ref(
-        &mut self,
+        &self,
         func_ref: &FuncRef,
         params: impl IntoIterator<Item = WasmValue>,
     ) -> WasmEdgeResult<Vec<WasmValue>>;

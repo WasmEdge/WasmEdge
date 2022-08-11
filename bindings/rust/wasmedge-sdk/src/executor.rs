@@ -38,7 +38,7 @@ impl Executor {
 }
 impl Engine for Executor {
     fn run_func(
-        &mut self,
+        &self,
         func: &Func,
         params: impl IntoIterator<Item = WasmValue>,
     ) -> WasmEdgeResult<Vec<WasmValue>> {
@@ -47,7 +47,7 @@ impl Engine for Executor {
     }
 
     fn run_func_ref(
-        &mut self,
+        &self,
         func_ref: &FuncRef,
         params: impl IntoIterator<Item = WasmValue>,
     ) -> WasmEdgeResult<Vec<WasmValue>> {
@@ -61,7 +61,7 @@ mod tests {
     use super::*;
     use crate::{
         config::{CommonConfigOptions, ConfigBuilder},
-        params, Module, Statistics, Store, WasmVal,
+        params, wat2wasm, Module, Statistics, Store, WasmVal,
     };
 
     #[test]
@@ -131,11 +131,44 @@ mod tests {
         assert!(result.is_ok());
         let mut store = result.unwrap();
 
-        // load wasm module
-        let file = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
-            .join("bindings/rust/wasmedge-sys/tests/data/fibonacci.wasm");
-
-        let result = Module::from_file(Some(&config), file);
+        // read the wasm bytes of fibonacci.wasm
+        let result = wat2wasm(
+            br#"
+        (module
+            (export "fib" (func $fib))
+            (func $fib (param $n i32) (result i32)
+             (if
+              (i32.lt_s
+               (get_local $n)
+               (i32.const 2)
+              )
+              (return
+               (i32.const 1)
+              )
+             )
+             (return
+              (i32.add
+               (call $fib
+                (i32.sub
+                 (get_local $n)
+                 (i32.const 2)
+                )
+               )
+               (call $fib
+                (i32.sub
+                 (get_local $n)
+                 (i32.const 1)
+                )
+               )
+              )
+             )
+            )
+           )
+"#,
+        );
+        assert!(result.is_ok());
+        let wasm_bytes = result.unwrap();
+        let result = Module::from_bytes(Some(&config), &wasm_bytes);
         assert!(result.is_ok());
         let module = result.unwrap();
 

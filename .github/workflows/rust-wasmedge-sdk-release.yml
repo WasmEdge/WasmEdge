@@ -8,7 +8,7 @@ on:
   push:
     branches:
       - "master"
-      - "rust/*"
+      - "release/rust/*"
     paths:
       - "bindings/rust/**"
       - "include/api/wasmedge/**"

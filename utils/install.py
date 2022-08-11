@@ -2,15 +2,28 @@
 # -*- coding: utf-8 -*-
 
 from __future__ import division, print_function, absolute_import, unicode_literals
+from posixpath import lexists
+import shutil
 import sys
 import argparse
-from os.path import expanduser, join, splitext, basename, dirname, abspath
-from os import remove
+from os.path import expanduser, join, dirname, abspath, exists, islink, lexists, isdir
+from os import (
+    getenv,
+    listdir,
+    makedirs,
+    mkdir,
+    readlink,
+    remove,
+    getpid,
+    symlink,
+)
+import tempfile
 import tarfile
 import zipfile
 import platform
 import subprocess
 import re
+import logging
 
 try:
     from future_builtins import ascii, filter, hex, map, oct, zip
@@ -29,7 +42,7 @@ if sys.version_info[0] == 3:
 
     def reraise(tp, value=None, tb=None):
         if value is None:
-            value = tp()
+            value = tp
         if value.__traceback__ is not tb:
             raise value.with_traceback(tb)
         raise value
@@ -62,7 +75,9 @@ def _is_zip(filename):
     return filename.endswith(".zip")
 
 
-def extract_archive(from_path, to_path=None, remove_finished=False, env_file_path=None):
+def extract_archive(
+    from_path, ipath, to_path=None, remove_finished=False, env_file_path=None
+):
     files_extracted = []
 
     if to_path is None:
@@ -87,17 +102,47 @@ def extract_archive(from_path, to_path=None, remove_finished=False, env_file_pat
     else:
         reraise(ValueError("Extraction of {} not supported".format(from_path)))
 
+    logging.debug("Writing installed files to %s file", env_file_path)
     with open(env_file_path, "a") as env_file:
         for filename in files_extracted:
-            env_file.write("#" + abspath(filename) + "\n")
+            fname = filename.replace(CONST_ipkg, ipath)
+            env_file.write("#" + fname + "\n")
+            logging.debug("Appending:%s", fname)
 
     if remove_finished:
         remove(from_path)
 
 
+# https://stackoverflow.com/questions/1868714/
+# how-do-i-copy-an-entire-directory-of-files-
+# into-an-existing-directory-using-pyth
+def copytree(src, dst, symlinks=False, ignore=None):
+    if not exists(dst):
+        makedirs(dst)
+        shutil.copystat(src, dst)
+    lst = listdir(src)
+    if ignore:
+        excl = ignore(src, lst)
+        lst = [x for x in lst if x not in excl]
+    for item in lst:
+        s = join(src, item)
+        d = join(dst, item)
+        if symlinks and islink(s):
+            if lexists(d):
+                remove(d)
+            symlink(readlink(s), d)
+        elif isdir(s):
+            copytree(s, d, symlinks, ignore)
+        else:
+            shutil.copy2(s, d)
+
+
 class VersionString:
     def __init__(self, version):
         self.version = version
+
+    def __str__(self):
+        return self.version
 
     def _preprocess(self, v, separator, ignorecase):
         if ignorecase:
@@ -115,13 +160,14 @@ class VersionString:
         # return -1 if self.version < version2
         # return False if not comparable
         if "rc" in self.version and not "rc" in version2:
-            a = self._preprocess(self.version.split(
-                "rc")[0].strip("-"), separator, ignorecase)
+            a = self._preprocess(
+                self.version.split("rc")[0].strip("-"), separator, ignorecase
+            )
             b = b = self._preprocess(version2, separator, ignorecase)
-            if ((a > b)-(a < b)) == 0:
+            if ((a > b) - (a < b)) == 0:
                 return -1
             else:
-                return ((a > b)-(a < b))
+                return (a > b) - (a < b)
         else:
             a = self._preprocess(self.version, separator, ignorecase)
             b = self._preprocess(version2, separator, ignorecase)
@@ -147,6 +193,8 @@ SUPPORTED_MIN_VERSION = {
     "Darwin" + "arm": VersionString("0.8.2"),
 }
 
+WASMEDGE = "WasmEdge"
+WASMEDGE_UNINSTALLER = "WasmEdge_Uninstaller"
 TENSORFLOW = "tensorflow"
 IMAGE = "image"
 EXTENSIONS = [TENSORFLOW, IMAGE]
@@ -183,6 +231,159 @@ SUPPORTED_EXTENSIONS_MIN_VERSION = {
 
 HOME = expanduser("~")
 PATH = join(HOME, ".wasmedge")
+SHELL = getenv("SHELL", "bash").split("/")[-1]
+TEMP_PATH = join(tempfile.gettempdir(), "wasmedge." + str(getpid()))
+CONST_shell_config = None
+CONST_shell_profile = None
+CONST_env = None
+CONST_urls = None
+CONST_release_pkg = None
+CONST_ipkg = None
+CONST_lib_ext = None
+CONST_env_path = None
+
+try:
+    mkdir(TEMP_PATH)
+except:
+    pass
+
+
+def set_env(args, compat):
+    global CONST_env, CONST_env_path
+
+    CONST_env = """#!/bin/sh
+# wasmedge shell setup
+# affix colons on either side of $PATH to simplify matching
+case :"${1}": in
+    *:"{0}/bin":*)
+        ;;
+    *)
+        # Prepending path in case a system-installed wasmedge needs to be overridden
+        if [ -n "${1}" ]; then
+            export PATH="{0}/bin":$PATH
+        else
+            export PATH="{0}/bin"
+        fi
+        ;;
+esac
+case :"${2}": in
+    *:"{0}/lib":*)
+        ;;
+    *)
+        # Prepending path in case a system-installed wasmedge libs needs to be overridden
+        if [ -n "${2}" ]; then
+            export {2}="{0}":${2}
+        else
+            export {2}="{0}"
+        fi
+        ;;
+esac
+case :"${3}": in
+    *:"{0}/lib":*)
+        ;;
+    *)
+        if [ -n "${3}" ]; then
+            export LIBRARY_PATH="{0}/lib":$LIBRARY_PATH
+        else
+            export LIBRARY_PATH="{0}/lib"
+        fi
+        ;;
+esac
+case :"${4}": in
+    *:"{0}/include":*)
+        ;;
+    *)
+        if [ -n "${4}" ]; then
+            export C_INCLUDE_PATH="{0}/include":$C_INCLUDE_PATH
+        else
+            export C_INCLUDE_PATH="{0}/include"
+        fi
+        ;;
+esac
+case :"${5}": in
+    *:"{0}/include":*)
+        ;;
+    *)
+        if [ -n "${5}" ]; then
+            export CPLUS_INCLUDE_PATH="{0}/include":$CPLUS_INCLUDE_PATH
+        else
+            export CPLUS_INCLUDE_PATH="{0}/include"
+        fi
+        ;;
+esac
+# Please do not edit comments below this for uninstallation purpose
+""".format(
+        args.path,
+        "PATH",
+        compat.ld_library_path,
+        "LIBRARY_PATH",
+        "C_INCLUDE_PATH",
+        "CPLUS_INCLUDE_PATH",
+    )
+
+    try:
+        mkdir(args.path)
+    except:
+        pass
+    CONST_env_path = join(args.path, "env")
+    mode = "w+" if not exists(CONST_env_path) else "w"
+    with open(CONST_env_path, mode) as env:
+        env.write(CONST_env)
+
+
+def shell_configure(args):
+
+    global CONST_shell_profile, CONST_shell_config
+
+    source_string = "\n. {0}\n".format(join(args.path, "env"))
+
+    if ("bash" in SHELL) or ("zsh" in SHELL):
+
+        CONST_shell_config = join(HOME, "." + SHELL + "rc")
+        CONST_shell_profile = join(HOME, "." + SHELL + "_profile")
+
+        if not exists(CONST_shell_config):
+            open(CONST_shell_config, "a").close()
+
+        write_shell = False
+        with open(CONST_shell_config, "r") as shell_config:
+            if source_string not in shell_config.read():
+                write_shell = True
+
+        if write_shell:
+            with open(CONST_shell_config, "a") as shell_config:
+                shell_config.write(source_string)
+            write_shell = False
+
+        if exists(CONST_shell_profile):
+            with open(CONST_shell_profile, "r") as shell_profile:
+                if source_string not in shell_profile.read():
+                    write_shell = True
+            if write_shell:
+                with open(CONST_shell_profile, "a") as shell_profile:
+                    shell_profile.write(source_string)
+                write_shell = False
+    else:
+        logging.error("Unknown shell found")
+        return -1
+
+    logging.info("shell configuration updated")
+    return 0
+
+
+def set_consts(args, compat):
+    global CONST_release_pkg, CONST_ipkg, CONST_lib_ext, CONST_urls
+    CONST_release_pkg = compat.release_package
+    CONST_ipkg = compat.install_package_name
+    CONST_lib_ext = compat.lib_extension
+    CONST_urls = {
+        WASMEDGE: "https://github.com/WasmEdge/WasmEdge/releases/download/{0}/WasmEdge-{0}-{1}".format(
+            args.version, CONST_release_pkg
+        ),
+        WASMEDGE_UNINSTALLER: "https://raw.githubusercontent.com/WasmEdge/WasmEdge/{0}/utils/uninstall.sh".format(
+            args.uninstall_script_tag
+        ),
+    }
 
 
 def run_shell_command(cmd):
@@ -190,8 +391,7 @@ def run_shell_command(cmd):
         output = subprocess.check_output([cmd], shell=True)
         return output.decode().strip()
     except subprocess.CalledProcessError as e:
-        print("Exception on process, rc=",
-              e.returncode, "output=", e.output, e.cmd)
+        print("Exception on process, rc=", e.returncode, "output=", e.output, e.cmd)
 
     return None
 
@@ -235,6 +435,31 @@ class Compat:
         self.machine = machine  # x86_64, arm
         self.version = VersionString(version)
         self.extensions = extensions
+        self.release_package = None
+        self.install_package_name = None
+        self.lib_extension = None
+        self.ld_library_path = None
+
+        if self.platform == "Linux":
+            self.install_package_name = "WasmEdge-{0}-Linux".format(self.version)
+            self.lib_extension = ".so"
+            self.ld_library_path = "LD_LIBRARY_PATH"
+            if self.machine in ["arm64", "armv8", "aarch64"]:
+                self.release_package = "manylinux2014_aarch64.tar.gz"
+            elif self.machine in ["x86_64", "amd64"]:
+                self.release_package = "manylinux2014_x86_64.tar.gz"
+            else:
+                reraise(Exception("Unsupported arch: {0}".format(self.machine)))
+        elif self.platform == "Darwin":
+            self.ld_library_path = "DYLD_LIBRARY_PATH"
+            self.install_package_name = "WasmEdge-{0}-Darwin".format(self.version)
+            self.release_package = "darwin_{0}.tar.gz".format(self.machine)
+            self.lib_extension = ".dylib"
+
+    def __str__(self):
+        return "Platform:{0}\nMachine:{1}\nVersion:{2}\nExtensions:{3}".format(
+            self.platform, self.machine, self.version, self.extensions
+        )
 
     if sys.version_info[0] == 2:
 
@@ -248,24 +473,31 @@ class Compat:
 
     def bool_overload(self):
         if self.platform not in SUPPORTED_PLATFORM_MACHINE:
-            reraise(
-                Exception("Unsupported platform: {0}".format(self.platform)))
+            reraise(Exception("Unsupported platform: {0}".format(self.platform)))
         elif self.machine not in SUPPORTED_PLATFORM_MACHINE[self.platform]:
             reraise(Exception("Unsupported machine: {0}".format(self.machine)))
-        elif self.extensions not in SUPPORTED_EXTENSIONS[self.platform + self.machine]:
-            reraise(
-                Exception(
-                    "Extensions not supported. Supported extensions: {0}".format(
-                        SUPPORTED_EXTENSIONS[self.platform + self.machine]
+        elif self.extensions is not None:
+            if (
+                self.extensions
+                not in SUPPORTED_EXTENSIONS[self.platform + self.machine]
+            ):
+                reraise(
+                    Exception(
+                        "Extensions not supported. Supported extensions: {0}".format(
+                            SUPPORTED_EXTENSIONS[self.platform + self.machine]
+                        )
                     )
                 )
+        elif (
+            self.version.compare(
+                version2=SUPPORTED_MIN_VERSION[self.platform + self.machine].version
             )
-        elif self.version.compare(version2=SUPPORTED_MIN_VERSION[self.platform+self.machine].version) < 0:
+            < 0
+        ):
             reraise(
                 Exception(
                     "Version not supported. Min Version: {0}".format(
-                        SUPPORTED_MIN_VERSION[self.platform +
-                                              self.machine].version
+                        SUPPORTED_MIN_VERSION[self.platform + self.machine].version
                     )
                 )
             )
@@ -273,11 +505,79 @@ class Compat:
 
 
 def main(args):
-    print(get_latest_github_release("WasmEdge/WasmEdge"))
-    print(get_remote_version_availability("WasmEdge/WasmEdge", "0.9.4"))
+    global CONST_env_path, CONST_release_pkg, CONST_ipkg, CONST_shell_config, CONST_shell_profile
+
     compat = Compat(version=args.version, extensions=args.extensions)
+
+    logging.debug("Compat object: %s", compat)
+    logging.debug("Temp path: %s", TEMP_PATH)
+
     if compat:
-        print("Compatible")
+        logging.info("Compatible with current configuration")
+
+        set_consts(args, compat)
+
+        # Run uninstaller
+        uninstaller_path = join(TEMP_PATH, "uninstall.sh")
+        download_url(CONST_urls[WASMEDGE_UNINSTALLER], uninstaller_path)
+        logging.debug(
+            run_shell_command("bash {0}  -p {1} -q".format(uninstaller_path, args.path))
+        )
+        remove(uninstaller_path)
+
+        # If args.path is default then remove it initially
+        if PATH in args.path and exists(args.path):
+            shutil.rmtree(args.path)
+
+        set_env(args, compat)
+
+        logging.debug("CONST_env_path: %s", CONST_env_path)
+        logging.debug("CONST_release_pkg: %s", CONST_release_pkg)
+        logging.debug("CONST_ipkg: %s", CONST_ipkg)
+        logging.debug("CONST_lib_ext: %s", CONST_lib_ext)
+        logging.debug("CONST_utls: %s", CONST_urls)
+
+        if getenv("SHELL") != SHELL:
+            logging.warning("SHELL variable not found. Using %s as SHELL", SHELL)
+
+        if shell_configure(args) != 0:
+            logging.error("Error in configuring shell")
+
+        logging.debug("CONST_shell_profile: %s", CONST_shell_profile)
+        logging.debug("CONST_shell_config: %s", CONST_shell_config)
+
+        # Download WasmEdge
+        download_url(CONST_urls[WASMEDGE], join(TEMP_PATH, CONST_release_pkg))
+
+        # Extract archieve
+        extract_archive(
+            join(TEMP_PATH, CONST_release_pkg),
+            args.path,
+            join(TEMP_PATH),
+            env_file_path=CONST_env_path,
+            remove_finished=True,
+        )
+
+        # Copy the tree
+        copytree(join(TEMP_PATH, CONST_ipkg), args.path)
+
+        # Check if wasmedge binary works
+        wasmedge_output = run_shell_command(
+            "{0}/bin/wasmedge --version".format(args.path)
+        )
+
+        if args.version in wasmedge_output:
+            logging.info("WasmEdge Successfully installed")
+            logging.info("Run:\nsource %s", CONST_shell_config)
+        else:
+            logging.critical(
+                "WasmEdge installation incorrect: {0}".format(wasmedge_output)
+            )
+
+        # Cleanup
+        shutil.rmtree(TEMP_PATH)
+    else:
+        reraise(Exception("Incompatible with your machine\n{0}".format(compat)))
 
     pass
 
@@ -305,10 +605,20 @@ if __name__ == "__main__":
     parser.add_argument(
         "-V",
         "--verbose",
-        dest="verbose",
+        dest="loglevel",
         required=False,
-        action="store_true",
-        help="Verbosity",
+        action="store_const",
+        const=logging.INFO,
+        help="Verbosity info",
+    )
+    parser.add_argument(
+        "-D",
+        "--debug",
+        dest="loglevel",
+        required=False,
+        action="store_const",
+        const=logging.DEBUG,
+        help="Verbosity debug",
     )
     parser.add_argument(
         "-p",
@@ -331,36 +641,42 @@ if __name__ == "__main__":
         "--uninstall-script-tag",
         dest="uninstall_script_tag",
         required=False,
+        default=get_latest_github_release("WasmEdge/WasmEdge"),
         help="GitHub tag for uninstall script",
     )
     parser.add_argument(
         "--tf-version",
         dest="tf_version",
         required=False,
+        default=get_latest_github_release("WasmEdge/WasmEdge"),
         help="Tensorflow and tensorflow lite version",
     )
     parser.add_argument(
         "--tf-deps-version",
         dest="tf_deps_version",
         required=False,
+        default=get_latest_github_release("WasmEdge/WasmEdge"),
         help="Tensorflow and tensorflow lite deps version",
     )
     parser.add_argument(
         "--tf-tools-version",
         dest="tf_tools_version",
         required=False,
+        default=get_latest_github_release("WasmEdge/WasmEdge"),
         help="Tensorflow and tensorflow lite tools version",
     )
     parser.add_argument(
         "--image-version",
         dest="image_version",
         required=False,
+        default=get_latest_github_release("WasmEdge/WasmEdge"),
         help="Image extension version",
     )
     parser.add_argument(
         "--image-deps-version",
         dest="image_deps_version",
         required=False,
+        default=get_latest_github_release("WasmEdge/WasmEdge"),
         help="Image Deps version",
     )
     parser.add_argument(
@@ -371,5 +687,9 @@ if __name__ == "__main__":
         help="Ignore brew on macOS",
     )
     args = parser.parse_args()
+
+    logging.basicConfig(format="%(levelname)-8s- %(message)s", level=args.loglevel)
+
+    args.path = abspath(args.path)
 
     main(args)

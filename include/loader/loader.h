@@ -104,6 +104,13 @@ template <> inline ASTNodeAttr NodeAttrFromAST<AST::ModuleDecl>() noexcept {
   return ASTNodeAttr::CompSec_CoreType;
 }
 template <>
+inline ASTNodeAttr NodeAttrFromAST<AST::ComponentCanonSection>() noexcept {
+  return ASTNodeAttr::CompSec_Canon;
+}
+template <> inline ASTNodeAttr NodeAttrFromAST<AST::CanonOpt>() noexcept {
+  return ASTNodeAttr::CompSec_Canon;
+}
+template <>
 inline ASTNodeAttr NodeAttrFromAST<AST::ComponentStartSection>() noexcept {
   return ASTNodeAttr::CompSec_Start;
 }
@@ -287,6 +294,9 @@ private:
   Expect<void> loadSection(AST::CoreTypeSection &Sec);
   /* - */ Expect<void> loadCoreType(AST::CoreType &Ty);
   /* - */ Expect<void> loadFieldType(AST::FieldType &Ty);
+  Expect<void> loadSection(AST::ComponentCanonSection &Sec);
+  /* - */ Expect<void> loadCanon(AST::Canon &Canon);
+  /* - */ Expect<void> loadCanonOpt(AST::CanonOpt &CanonOpt);
   Expect<void> loadSection(AST::ComponentStartSection &Sec);
   Expect<void> loadSection(AST::ComponentImportSection &Sec);
   /* - */ Expect<void> loadImportDecl(AST::ImportDecl &Import);

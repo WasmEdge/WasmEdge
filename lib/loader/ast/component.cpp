@@ -126,6 +126,12 @@ Expect<std::unique_ptr<AST::Component>> Loader::loadComponent() {
       break;
     case 0x04:
       // t*:section_4(vec(<core:type>))      => core-prefix(t)*
+      if (auto Res = loadSection(Comp->getCoreTypeSection()); Res.has_value()) {
+        Secs.set(NewSectionId);
+      } else {
+        spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Component));
+        return Unexpect(Res);
+      }
       break;
     case 0x05:
       // c: section_5(<component>)           => [c]

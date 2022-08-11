@@ -94,6 +94,16 @@ inline ASTNodeAttr NodeAttrFromAST<AST::CoreAliasSection>() noexcept {
   return ASTNodeAttr::CompSec_CoreAlias;
 }
 template <>
+inline ASTNodeAttr NodeAttrFromAST<AST::CoreTypeSection>() noexcept {
+  return ASTNodeAttr::CompSec_CoreType;
+}
+template <> inline ASTNodeAttr NodeAttrFromAST<AST::FieldType>() noexcept {
+  return ASTNodeAttr::CompSec_CoreType;
+}
+template <> inline ASTNodeAttr NodeAttrFromAST<AST::ModuleDecl>() noexcept {
+  return ASTNodeAttr::CompSec_CoreType;
+}
+template <>
 inline ASTNodeAttr NodeAttrFromAST<AST::ComponentStartSection>() noexcept {
   return ASTNodeAttr::CompSec_Start;
 }
@@ -256,6 +266,7 @@ private:
   Expect<void> loadDesc(AST::ImportDesc &ImpDesc);
   Expect<void> loadDesc(AST::ExportDesc &ExpDesc);
   Expect<void> loadLimit(AST::Limit &Lim);
+  Expect<void> noJudgeLoadType(AST::FunctionType &FuncType);
   Expect<void> loadType(AST::FunctionType &FuncType);
   Expect<void> loadType(AST::MemoryType &MemType);
   Expect<void> loadType(AST::TableType &TabType);
@@ -273,6 +284,9 @@ private:
   /* - */ Expect<void> loadCoreInstance(AST::CoreInstance &Instance);
   Expect<void> loadSection(AST::CoreAliasSection &Sec);
   /* - */ Expect<void> loadCoreAlias(AST::CoreAlias &Alias);
+  Expect<void> loadSection(AST::CoreTypeSection &Sec);
+  /* - */ Expect<void> loadCoreType(AST::CoreType &Ty);
+  /* - */ Expect<void> loadFieldType(AST::FieldType &Ty);
   Expect<void> loadSection(AST::ComponentStartSection &Sec);
   Expect<void> loadSection(AST::ComponentImportSection &Sec);
   /* - */ Expect<void> loadImportDecl(AST::ImportDecl &Import);

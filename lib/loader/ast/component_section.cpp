@@ -232,7 +232,7 @@ Expect<void> Loader::loadImportDecl(AST::ImportDecl &Import) {
         return logLoadError(TypeIdx.error(), FMgr.getLastOffset(),
                             ASTNodeAttr::CompSec_Import);
       }
-      Import.setExtern(AST::CoreType(TypeIdx.value()));
+      Import.setExtern(AST::ExternDesc::CoreType(TypeIdx.value()));
       break;
     }
   case 0x01:
@@ -243,7 +243,7 @@ Expect<void> Loader::loadImportDecl(AST::ImportDecl &Import) {
         return logLoadError(TypeIdx.error(), FMgr.getLastOffset(),
                             ASTNodeAttr::CompSec_Import);
       }
-      Import.setExtern(AST::FuncType(TypeIdx.value()));
+      Import.setExtern(AST::ExternDesc::FuncType(TypeIdx.value()));
       break;
     }
   case 0x02:
@@ -256,36 +256,36 @@ Expect<void> Loader::loadImportDecl(AST::ImportDecl &Import) {
         return logLoadError(Res.error(), FMgr.getLastOffset(),
                             ASTNodeAttr::CompSec_Import);
       }
-      AST::ValueType Ty;
+      AST::ExternDesc::ValueType Ty;
       switch (TypeIdx) {
       case 0x7f:
-        Ty = AST::ValueTypeBool();
+        Ty = AST::ExternDesc::ValueType::Bool();
       case 0x7e:
-        Ty = AST::ValueTypeS8();
+        Ty = AST::ExternDesc::ValueType::S8();
       case 0x7d:
-        Ty = AST::ValueTypeU8();
+        Ty = AST::ExternDesc::ValueType::U8();
       case 0x7c:
-        Ty = AST::ValueTypeS16();
+        Ty = AST::ExternDesc::ValueType::S16();
       case 0x7b:
-        Ty = AST::ValueTypeU16();
+        Ty = AST::ExternDesc::ValueType::U16();
       case 0x7a:
-        Ty = AST::ValueTypeS32();
+        Ty = AST::ExternDesc::ValueType::S32();
       case 0x79:
-        Ty = AST::ValueTypeU32();
+        Ty = AST::ExternDesc::ValueType::U32();
       case 0x78:
-        Ty = AST::ValueTypeS64();
+        Ty = AST::ExternDesc::ValueType::S64();
       case 0x77:
-        Ty = AST::ValueTypeU64();
+        Ty = AST::ExternDesc::ValueType::U64();
       case 0x76:
-        Ty = AST::ValueTypeFloat32();
+        Ty = AST::ExternDesc::ValueType::Float32();
       case 0x75:
-        Ty = AST::ValueTypeFloat64();
+        Ty = AST::ExternDesc::ValueType::Float64();
       case 0x74:
-        Ty = AST::ValueTypeChar();
+        Ty = AST::ExternDesc::ValueType::Char();
       case 0x73:
-        Ty = AST::ValueTypeString();
+        Ty = AST::ExternDesc::ValueType::String();
       default:
-        Ty = AST::ValueTypeIdx(TypeIdx);
+        Ty = AST::ExternDesc::ValueType::Idx(TypeIdx);
       }
       Import.setExtern(Ty);
       break;
@@ -302,7 +302,7 @@ Expect<void> Loader::loadImportDecl(AST::ImportDecl &Import) {
         return logLoadError(TypeIdx.error(), FMgr.getLastOffset(),
                             ASTNodeAttr::CompSec_Import);
       }
-      Import.setExtern(AST::TypeBound(TypeIdx.value()));
+      Import.setExtern(AST::ExternDesc::TypeBound(TypeIdx.value()));
       break;
     }
   case 0x04:
@@ -313,7 +313,7 @@ Expect<void> Loader::loadImportDecl(AST::ImportDecl &Import) {
         return logLoadError(TypeIdx.error(), FMgr.getLastOffset(),
                             ASTNodeAttr::CompSec_Import);
       }
-      Import.setExtern(AST::InstanceType(TypeIdx.value()));
+      Import.setExtern(AST::ExternDesc::InstanceType(TypeIdx.value()));
       break;
     }
   case 0x05:
@@ -324,7 +324,7 @@ Expect<void> Loader::loadImportDecl(AST::ImportDecl &Import) {
         return logLoadError(TypeIdx.error(), FMgr.getLastOffset(),
                             ASTNodeAttr::CompSec_Import);
       }
-      Import.setExtern(AST::ComponentType(TypeIdx.value()));
+      Import.setExtern(AST::ExternDesc::ComponentType(TypeIdx.value()));
       break;
     }
   }

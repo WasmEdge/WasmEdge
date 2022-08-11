@@ -19,9 +19,17 @@
 namespace WasmEdge {
 namespace AST {
 
-class ExternDesc {};
+class ExternDesc {
+public:
+  class CoreType;
+  class FuncType;
+  class ValueType;
+  class TypeBound;
+  class InstanceType;
+  class ComponentType;
+};
 
-class CoreType : public ExternDesc {
+class ExternDesc::CoreType : public ExternDesc {
 public:
   CoreType(uint32_t TypeIdx) : TypeIdx{TypeIdx} {}
   uint32_t getTypeIdx() const noexcept { return TypeIdx; }
@@ -30,7 +38,7 @@ private:
   uint32_t TypeIdx;
 };
 
-class FuncType : public ExternDesc {
+class ExternDesc::FuncType : public ExternDesc {
 public:
   FuncType(uint32_t TypeIdx) : TypeIdx{TypeIdx} {}
   uint32_t getTypeIdx() const noexcept { return TypeIdx; }
@@ -39,30 +47,46 @@ private:
   uint32_t TypeIdx;
 };
 
-class ValueType : public ExternDesc {};
-class ValueTypeBool : public ValueType {};
-class ValueTypeS8 : public ValueType {};
-class ValueTypeU8 : public ValueType {};
-class ValueTypeS16 : public ValueType {};
-class ValueTypeU16 : public ValueType {};
-class ValueTypeS32 : public ValueType {};
-class ValueTypeU32 : public ValueType {};
-class ValueTypeS64 : public ValueType {};
-class ValueTypeU64 : public ValueType {};
-class ValueTypeFloat32 : public ValueType {};
-class ValueTypeFloat64 : public ValueType {};
-class ValueTypeChar : public ValueType {};
-class ValueTypeString : public ValueType {};
-class ValueTypeIdx : public ValueType {
+class ExternDesc::ValueType : public ExternDesc {
 public:
-  ValueTypeIdx(uint32_t TypeIdx) : TypeIdx{TypeIdx} {}
+  class Bool;
+  class S8;
+  class U8;
+  class S16;
+  class U16;
+  class S32;
+  class U32;
+  class S64;
+  class U64;
+  class Float32;
+  class Float64;
+  class Char;
+  class String;
+  class Idx;
+};
+class ExternDesc::ValueType::Bool : public ExternDesc::ValueType {};
+class ExternDesc::ValueType::S8 : public ExternDesc::ValueType {};
+class ExternDesc::ValueType::U8 : public ExternDesc::ValueType {};
+class ExternDesc::ValueType::S16 : public ExternDesc::ValueType {};
+class ExternDesc::ValueType::U16 : public ExternDesc::ValueType {};
+class ExternDesc::ValueType::S32 : public ExternDesc::ValueType {};
+class ExternDesc::ValueType::U32 : public ExternDesc::ValueType {};
+class ExternDesc::ValueType::S64 : public ExternDesc::ValueType {};
+class ExternDesc::ValueType::U64 : public ExternDesc::ValueType {};
+class ExternDesc::ValueType::Float32 : public ExternDesc::ValueType {};
+class ExternDesc::ValueType::Float64 : public ExternDesc::ValueType {};
+class ExternDesc::ValueType::Char : public ExternDesc::ValueType {};
+class ExternDesc::ValueType::String : public ExternDesc::ValueType {};
+class ExternDesc::ValueType::Idx : public ExternDesc::ValueType {
+public:
+  Idx(uint32_t TypeIdx) : TypeIdx{TypeIdx} {}
   uint32_t getTypeIdx() const noexcept { return TypeIdx; }
 
 private:
   uint32_t TypeIdx;
 };
 
-class TypeBound : public ExternDesc {
+class ExternDesc::TypeBound : public ExternDesc {
 public:
   TypeBound(uint32_t TypeIdx) : TypeIdx{TypeIdx} {}
   uint32_t getTypeIdx() const noexcept { return TypeIdx; }
@@ -71,7 +95,7 @@ private:
   uint32_t TypeIdx;
 };
 
-class InstanceType : public ExternDesc {
+class ExternDesc::InstanceType : public ExternDesc {
 public:
   InstanceType(uint32_t TypeIdx) : TypeIdx{TypeIdx} {}
   uint32_t getTypeIdx() const noexcept { return TypeIdx; }
@@ -80,7 +104,7 @@ private:
   uint32_t TypeIdx;
 };
 
-class ComponentType : public ExternDesc {
+class ExternDesc::ComponentType : public ExternDesc {
 public:
   ComponentType(uint32_t TypeIdx) : TypeIdx{TypeIdx} {}
   uint32_t getTypeIdx() const noexcept { return TypeIdx; }

@@ -937,7 +937,7 @@ impl Vm {
     }
 
     /// Returns the internal [Executor](crate::Executor) from the [Vm].
-    pub fn executor_mut(&mut self) -> WasmEdgeResult<Executor> {
+    pub fn executor(&self) -> WasmEdgeResult<Executor> {
         let executor_ctx = unsafe { ffi::WasmEdge_VMGetExecutorContext(self.inner.0) };
         match executor_ctx.is_null() {
             true => Err(WasmEdgeError::Vm(VmError::NotFoundExecutor)),
@@ -960,7 +960,7 @@ impl Drop for Vm {
 }
 impl Engine for Vm {
     fn run_func(
-        &mut self,
+        &self,
         func: &Function,
         params: impl IntoIterator<Item = WasmValue>,
     ) -> WasmEdgeResult<Vec<WasmValue>> {
@@ -971,7 +971,7 @@ impl Engine for Vm {
         let returns_len = func_ty.returns_len();
         let mut returns = Vec::with_capacity(returns_len as usize);
 
-        let executor = self.executor_mut()?;
+        let executor = self.executor()?;
         unsafe {
             check(ffi::WasmEdge_ExecutorInvoke(
                 executor.inner.0,
@@ -988,7 +988,7 @@ impl Engine for Vm {
     }
 
     fn run_func_ref(
-        &mut self,
+        &self,
         func_ref: &FuncRef,
         params: impl IntoIterator<Item = WasmValue>,
     ) -> WasmEdgeResult<Vec<WasmValue>> {
@@ -999,7 +999,7 @@ impl Engine for Vm {
         let returns_len = func_ty.returns_len();
         let mut returns = Vec::with_capacity(returns_len as usize);
 
-        let executor = self.executor_mut()?;
+        let executor = self.executor()?;
         unsafe {
             check(ffi::WasmEdge_ExecutorInvoke(
                 executor.inner.0,

@@ -2,21 +2,15 @@
 
 This document has not yet covered all workflows.
 
+## build.yml
 ```mermaid
 flowchart LR
     %% _ is the starting point of everything
-    _(( ))-->lint(linter.yml)
-
-    subgraph PR
-        direction LR
-        lint-->|pass|build(build.yml)
-        build-.->|call|_build((list of files fa:fa-link))
-        click _build "#Reusable-YMLs"
-    end
-
+    _(( ))-->lint
+    lint-->|pass|build
     lint-->|fail|reject(unable to merge)
+    build-->source(create source tarball fa:fa-link)
+    click source "reusable-create-source-tarball.yml"
+    build-->macos(build on macOS fa:fa-link)
+    click macos "reusable-build-on-macos.yml"
 ```
-
-## Reusable YMLs
-- [reusable-create-source-tarball.yml](reusable-create-source-tarball.yml)
-- [reusable-build-on-macos.yml](reusable-build-on-macos.yml)

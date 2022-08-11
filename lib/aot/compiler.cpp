@@ -1199,7 +1199,8 @@ public:
       case OpCode::F32__nearest:
       case OpCode::F64__nearest: {
         const bool IsFloat = Instr.getOpCode() == OpCode::F32__nearest;
-        const uint32_t VectorSize = IsFloat ? 4 : 2;
+        // The VectorSize is only used when SSE4_1 or NEON is supported.
+        [[maybe_unused]] const uint32_t VectorSize = IsFloat ? 4 : 2;
         llvm::Value *Value = stackPop();
 
 #if defined(__x86_64__)
@@ -1238,6 +1239,10 @@ public:
         }
 #endif
 
+        // Fallback case.
+        // If the SSE4.1 is not supported on the x86_64 platform or
+        // the NEON is not supported on the aarch64 platform,
+        // then fallback to this.
         stackPush(
             Builder.CreateUnaryIntrinsic(llvm::Intrinsic::nearbyint, Value));
         break;
@@ -2032,6 +2037,10 @@ public:
         }
 #endif
 
+        // Fallback case.
+        // If the SSSE3 is not supported on the x86_64 platform or
+        // the NEON is not supported on the aarch64 platform,
+        // then fallback to this.
         auto *Mask = Builder.CreateVectorSplat(16, Builder.getInt8(15));
         auto *Zero = Builder.CreateVectorSplat(16, Builder.getInt8(0));
         auto *IsOver = Builder.CreateICmpUGT(Index, Mask);
@@ -4017,6 +4026,10 @@ private:
           }
 #endif
 
+          // Fallback case.
+          // If the SSSE3 is not supported on the x86_64 platform or
+          // the NEON is not supported on the aarch64 platform,
+          // then fallback to this.
           auto *ExtTy =
               llvm::VectorType::getExtendedElementVectorType(Context.Int16x8Ty);
           auto *Offset =
@@ -4083,6 +4096,10 @@ private:
           }
 #endif
 
+          // Fallback case.
+          // If the SSE2 is not supported on the x86_64 platform or
+          // the NEON is not supported on the aarch64 platform,
+          // then fallback to this.
           auto *EL = Builder.CreateZExt(LHS, ExtendTy);
           auto *ER = Builder.CreateZExt(RHS, ExtendTy);
           auto *One =
@@ -4209,6 +4226,10 @@ private:
           }
 #endif
 
+          // Fallback case.
+          // If the XOP, SSSE3, or SSE2 is not supported on the x86_64 platform
+          // or the NEON is not supported on the aarch64 platform,
+          // then fallback to this.
           const auto Width = VectorTy->getElementType()->getIntegerBitWidth();
           auto *EV = Builder.CreateBitCast(V, ExtTy);
           llvm::Value *L, *R;
@@ -4273,6 +4294,10 @@ private:
       }
 #endif
 
+      // Fallback case.
+      // If the SSE4.1 is not supported on the x86_64 platform or
+      // the NEON is not supported on the aarch64 platform,
+      // then fallback to this.
       return Builder.CreateUnaryIntrinsic(llvm::Intrinsic::nearbyint, V);
     });
   }
@@ -4694,7 +4719,7 @@ Expect<void> outputNativeLibrary(const std::filesystem::path &OutputPath,
 #elif defined(__aarch64__)
             "arm64",
 #else
-#error Unsupported platform!
+#error Unsupported architectur on the MacOS!
 #endif
 #if LLVM_VERSION_MAJOR >= 14
             // LLVM 14 replaces the older mach_o lld implementation with the new
@@ -4833,12 +4858,16 @@ Expect<void> outputWasmLibrary(const std::filesystem::path &OutputPath,
     WriteByte(OS, UINT8_C(2));
 #elif WASMEDGE_OS_WINDOWS
     WriteByte(OS, UINT8_C(3));
+#else
+#error Unsupported operating system!
 #endif
 
 #if defined(__x86_64__)
     WriteByte(OS, UINT8_C(1));
 #elif defined(__aarch64__)
     WriteByte(OS, UINT8_C(2));
+#else
+#error Unsupported hardware architecture!
 #endif
 
     std::vector<std::pair<std::string, uint64_t>> SymbolTable;

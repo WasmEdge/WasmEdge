@@ -13,6 +13,7 @@
 //===------------------------------------------------------------------------------------------===//
 #pragma once
 
+#include "ast/component/canon_section.h"
 #include "ast/component/corealias_section.h"
 #include "ast/component/coreinstance_section.h"
 #include "ast/component/coretype_section.h"
@@ -76,6 +77,20 @@ public:
 
 private:
   std::vector<CoreType> Content;
+};
+
+/// AST ComponentCanonSection node.
+class ComponentCanonSection : public Section {
+public:
+  /// Getter of content.
+  Span<const Canon> getContent() const noexcept { return Content; }
+  std::vector<Canon> &getContent() noexcept { return Content; }
+
+private:
+  /// \name Data of ComponentCanonSection.
+  /// @{
+  std::vector<Canon> Content;
+  /// @}
 };
 
 /// AST ComponentStartSection node.

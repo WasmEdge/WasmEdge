@@ -119,81 +119,17 @@ jobs:
     with:
       version: ${{ needs.get_version_v2.outputs.version }}
 
-  build_fedora:
-    name: Fedora 35
-    needs: get_version_v2
-    runs-on: ubuntu-latest
-    container:
-      image: fedora:latest
-    steps:
-    - name: Install requirements
-      run: |
-        dnf update -y
-        dnf install -y cmake ninja-build boost llvm llvm-devel lld-devel clang git file rpm-build dpkg-dev
-    - uses: actions/checkout@v2
-      with:
-        fetch-depth: 0
-    - name: Build WasmEdge with Release mode
-      run: |
-        git config --global --add safe.directory $(pwd)
-        cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_BUILD_TESTS=ON -DWASMEDGE_BUILD_PACKAGE="TGZ;DEB;RPM" .
-        cmake --build build
-    - name: Test WasmEdge
-      run: |
-        export LD_LIBRARY_PATH="$(pwd)/build/lib/api:$LD_LIBRARY_PATH"
-        cd build
-        ./tools/wasmedge/wasmedge -v
-        ctest
-        cd -
-    - name: Test WasmEdge Package
-      run: |
-        cmake --build build --target package
-    - name: Upload artifact
-      uses: actions/upload-artifact@v2
-      with:
-        name: WasmEdge-${{ needs.get_version_v2.outputs.version }}-fedora35.tar.gz
-        path: build/WasmEdge-${{ needs.get_version_v2.outputs.version }}-Linux.tar.gz
+  build_on_fedora:
+    needs: [get_version_v2, lint]
+    uses: ./.github/workflows/reusable-build-on-fedora.yml
+    with:
+      version: ${{ needs.get_version_v2.outputs.version }}
 
   build_fedora_srpm:
-    name: Fedora SRPM
-    needs: [get_version_v2, create_source_tarball]
-    runs-on: ubuntu-latest
-    container:
-      image: fedora:rawhide
-    steps:
-    - name: Install requirements
-      run: |
-        dnf update -y
-        dnf install -y git gcc-c++ cmake ninja-build boost-devel spdlog-devel llvm-devel lld-devel rpm-build
-    - uses: actions/checkout@v2
-      with:
-        fetch-depth: 0
-    - name: Prepare source tarball for SRPM
-      uses: actions/download-artifact@v3
-      with:
-        name: WasmEdge-${{ needs.get_version_v2.outputs.version }}-src.tar.gz
-        path: /github/home/rpmbuild/SOURCES
-    - name: Rename source tarball
-      working-directory: /github/home/rpmbuild/SOURCES
-      run: |
-        mv WasmEdge-${{ needs.get_version_v2.outputs.version }}.tar.gz WasmEdge-${{ needs.get_version_v2.outputs.version }}-src.tar.gz
-    - name: Prepare SRPM version
-      run: |
-        GIT_TAG=${{ needs.get_version_v2.outputs.version }}
-        SRPM_VERSION=$(echo $GIT_TAG | tr '-' '~')
-        echo "srpm_version=$SRPM_VERSION" >> $GITHUB_ENV
-    - name: Build WasmEdge SRPM
-      run: |
-        git config --global --add safe.directory $(pwd)
-        mkdir -p build
-        cd build
-        cmake ..
-        rpmbuild -ba rpm/wasmedge.spec
-    - name: Upload artifact
-      uses: actions/upload-artifact@v2
-      with:
-        name: WasmEdge-${{ env.srpm_version }}-1.fc37.src.rpm
-        path: /github/home/rpmbuild/SRPMS/wasmedge-${{ env.srpm_version }}-1.fc37.src.rpm
+    needs: [get_version_v2, create_source_tarball, lint]
+    uses: ./.github/workflows/reusable-build-srpm.yml
+    with:
+      version: ${{ needs.get_version_v2.outputs.version }}
 
   build_ubuntu:
     needs: lint

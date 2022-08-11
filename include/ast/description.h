@@ -14,6 +14,7 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
+#include "ast/component/module_decl.h"
 #include "ast/type.h"
 #include "common/enum_types.h"
 
@@ -44,7 +45,7 @@ protected:
 };
 
 /// Derived import description class.
-class ImportDesc : public Desc {
+class ImportDesc : public Desc, public ModuleDecl {
 public:
   /// Getter and setter of module name.
   std::string_view getModuleName() const noexcept { return ModName; }

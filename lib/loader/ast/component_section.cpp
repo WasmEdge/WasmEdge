@@ -174,6 +174,117 @@ Expect<void> Loader::loadCoreAlias(AST::CoreAlias &Alias) {
   return {};
 }
 
+Expect<void> Loader::loadSection(AST::CoreTypeSection &Sec) {
+  return loadSectionContent(Sec, [this, &Sec]() {
+    return loadSectionContentVec(
+        Sec, [this](AST::CoreType &Ty) { return loadCoreType(Ty); });
+  });
+}
+Expect<void> Loader::loadCoreType(AST::CoreType &Ty) {
+  // core:type ::= dt:<core:deftype> => (type dt) (GC proposal)
+  // core:deftype ::= ft:<core:functype>   => ft (WebAssembly 1.0)
+  //                | st:<core:structtype> => st (GC proposal)
+  //                | at:<core:arraytype>  => at (GC proposal)
+  //                | mt:<core:moduletype> => mt
+  auto Res = FMgr.readByte();
+  if (!Res.has_value()) {
+    return logLoadError(Res.error(), FMgr.getLastOffset(),
+                        ASTNodeAttr::CompSec_CoreType);
+  }
+
+  switch (Res.value()) {
+  case 0x60U: {
+    AST::CoreDefType::FuncType FT;
+    Ty = FT;
+    return noJudgeLoadType(FT);
+  }
+  case 0x21U: {
+    // core:structtype ::= 0x21 ft*:vec(fieldtype)
+    // field ::= t:storagetype mut:mutability
+    AST::CoreDefType::StructType ST;
+    Ty = ST;
+    return loadVec(ST.getFieldTypes(),
+                   [this](AST::FieldType &Ty) -> Expect<void> {
+                     return loadFieldType(Ty);
+                   });
+  }
+  case 0x22U: {
+    // core:arraytype ::= 0x22 ft:fieldtype
+    // field ::= t:storagetype mut:mutability
+    AST::FieldType FT;
+    Ty = AST::CoreDefType::ArrayType(FT);
+    return loadFieldType(FT);
+  }
+  case 0x50U: {
+    // core:moduletype ::= 0x50 md*:vec(<core:moduledecl>) => (module md*)
+    AST::CoreDefType::ModuleType MT;
+    Ty = MT;
+    return loadVec(
+        MT.getModuleDecls(), [this](AST::ModuleDecl &ModDecl) -> Expect<void> {
+          // core:moduledecl ::= 0x00 i:<core:import>     => i
+          //                   | 0x01 t:<core:type>       => t
+          //                   | 0x02 a:<core:alias>      => a
+          //                   | 0x03 e:<core:exportdecl> => e
+          // core:exportdecl ::= n:<name> d:<core:importdesc> => (export n d)
+          auto DeclType = FMgr.readByte();
+          if (!DeclType.has_value()) {
+            return logLoadError(DeclType.error(), FMgr.getLastOffset(),
+                                ASTNodeAttr::CompSec_CoreType);
+          }
+
+          switch (DeclType.value()) {
+          case 0x00: {
+            AST::ImportDesc Desc;
+            ModDecl = Desc;
+            return loadDesc(Desc);
+          }
+          case 0x01: {
+            // TODO:
+            break;
+          }
+          case 0x02: {
+            AST::CoreAlias Alias;
+            ModDecl = Alias;
+            return loadCoreAlias(Alias);
+          }
+          case 0x03: {
+            // TODO:
+            break;
+          }
+          default:
+            return logLoadError(DeclType.error(), FMgr.getLastOffset(),
+                                ASTNodeAttr::CompSec_CoreType);
+          }
+          return {};
+        });
+  }
+  default:
+    return logLoadError(Res.error(), FMgr.getLastOffset(),
+                        ASTNodeAttr::CompSec_CoreType);
+  }
+}
+Expect<void> Loader::loadFieldType(AST::FieldType &Ty) {
+  auto StorageTy = FMgr.readByte();
+  if (!StorageTy.has_value()) {
+    return logLoadError(StorageTy.error(), FMgr.getLastOffset(),
+                        ASTNodeAttr::CompSec_CoreType);
+  }
+  auto Mutability = FMgr.readByte();
+  if (!Mutability.has_value()) {
+    return logLoadError(Mutability.error(), FMgr.getLastOffset(),
+                        ASTNodeAttr::CompSec_CoreType);
+  }
+  switch (StorageTy.value()) {
+  case 0x06:
+    Ty = AST::FieldType::I8(Mutability.value());
+    break;
+  case 0x07:
+    Ty = AST::FieldType::I16(Mutability.value());
+    break;
+  }
+  return {};
+}
+
 Expect<void> Loader::loadSection(AST::ComponentStartSection &Sec) {
   // start ::= f:<funcidx> arg*:vec(<valueidx>)
   return loadSectionContent(Sec, [this, &Sec]() -> Expect<void> {

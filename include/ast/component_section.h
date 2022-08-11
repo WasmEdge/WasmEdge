@@ -15,6 +15,7 @@
 
 #include "ast/component/corealias_section.h"
 #include "ast/component/coreinstance_section.h"
+#include "ast/component/coretype_section.h"
 #include "ast/component/export_section.h"
 #include "ast/component/import_section.h"
 #include "ast/component/start_section.h"
@@ -65,6 +66,16 @@ public:
 
 private:
   std::vector<CoreAlias> Content;
+};
+
+class CoreTypeSection : public Section {
+public:
+  /// Getter of content.
+  Span<const CoreType> getContent() const noexcept { return Content; }
+  std::vector<CoreType> &getContent() noexcept { return Content; }
+
+private:
+  std::vector<CoreType> Content;
 };
 
 /// AST ComponentStartSection node.

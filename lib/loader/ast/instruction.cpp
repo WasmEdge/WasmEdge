@@ -146,13 +146,15 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
     if (auto Res = readU32(Instr.getMemoryAlign()); unlikely(!Res)) {
       return Unexpect(Res);
     }
-    if (auto Res = readU32(Instr.getMemoryOffset()); unlikely(!Res)) {
-      return Unexpect(Res);
-    }
     if (Conf.hasProposal(Proposal::MultiMemories) &&
         Instr.getMemoryAlign() >= 64) {
       Instr.getMemoryAlign() -= 64;
-      return readU32(Instr.getTargetIndex());
+      if (auto Res = readU32(Instr.getTargetIndex()); unlikely(!Res)) {
+        return Unexpect(Res);
+      }
+    }
+    if (auto Res = readU32(Instr.getMemoryOffset()); unlikely(!Res)) {
+      return Unexpect(Res);
     }
     return {};
   };

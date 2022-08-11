@@ -64,20 +64,8 @@ Expect<void> Loader::loadLimit(AST::Limit &Lim) {
   return {};
 }
 
-// Load binary to construct FunctionType node. See "include/loader/loader.h".
-Expect<void> Loader::loadType(AST::FunctionType &FuncType) {
+Expect<void> Loader::noJudgeLoadType(AST::FunctionType &FuncType) {
   uint32_t VecCnt = 0;
-
-  // Read function type (0x60).
-  if (auto Res = FMgr.readByte()) {
-    if (*Res != 0x60U) {
-      return logLoadError(ErrCode::IntegerTooLong, FMgr.getLastOffset(),
-                          ASTNodeAttr::Type_Function);
-    }
-  } else {
-    return logLoadError(Res.error(), FMgr.getLastOffset(),
-                        ASTNodeAttr::Type_Function);
-  }
 
   // Read vector of parameter types.
   if (auto Res = FMgr.readU32()) {
@@ -131,6 +119,22 @@ Expect<void> Loader::loadType(AST::FunctionType &FuncType) {
     }
   }
   return {};
+}
+
+// Load binary to construct FunctionType node. See "include/loader/loader.h".
+Expect<void> Loader::loadType(AST::FunctionType &FuncType) {
+  // Read function type (0x60).
+  if (auto Res = FMgr.readByte()) {
+    if (*Res != 0x60U) {
+      return logLoadError(ErrCode::IntegerTooLong, FMgr.getLastOffset(),
+                          ASTNodeAttr::Type_Function);
+    }
+  } else {
+    return logLoadError(Res.error(), FMgr.getLastOffset(),
+                        ASTNodeAttr::Type_Function);
+  }
+
+  return noJudgeLoadType(FuncType);
 }
 
 // Load binary to construct MemoryType node. See "include/loader/loader.h".

@@ -19,6 +19,22 @@
 namespace WasmEdge {
 namespace AST {
 
+class Component;
+
+class ComponentSection : public Section {
+public:
+  /// Getter of content.
+  Span<const std::unique_ptr<Component>> getContent() const noexcept {
+    return Content;
+  }
+  std::vector<std::unique_ptr<Component>> &getContent() noexcept {
+    return Content;
+  }
+
+private:
+  std::vector<std::unique_ptr<Component>> Content;
+};
+
 class Component {
 public:
   /// Getter of magic vector.
@@ -47,6 +63,9 @@ public:
 
   const CoreTypeSection &getCoreTypeSection() const { return CoreTypeSec; }
   CoreTypeSection &getCoreTypeSection() { return CoreTypeSec; }
+
+  const ComponentSection &getComponentSection() const { return ComponentSec; }
+  ComponentSection &getComponentSection() { return ComponentSec; }
 
   const ComponentCanonSection &getCanonSection() const { return CanonSec; }
   ComponentCanonSection &getCanonSection() { return CanonSec; }
@@ -86,6 +105,11 @@ private:
   /// \name Section nodes of Core Type node.
   /// @{
   CoreTypeSection CoreTypeSec;
+  /// @}
+
+  /// \name Section nodes of Component node.
+  /// @{
+  ComponentSection ComponentSec;
   /// @}
 
   /// \name Section nodes of Canon node.

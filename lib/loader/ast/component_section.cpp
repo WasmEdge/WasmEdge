@@ -291,6 +291,17 @@ Expect<void> Loader::loadFieldType(AST::FieldType &Ty) {
   return {};
 }
 
+Expect<void> Loader::loadSection(AST::ComponentSection &Sec) {
+  return loadSectionContent(Sec, [this, &Sec]() {
+    return loadSectionContentVec(
+        Sec, [this](std::unique_ptr<AST::Component> &Comp) -> Expect<void> {
+          auto C = loadComponent();
+          Comp = std::move(C.value());
+          return {};
+        });
+  });
+}
+
 Expect<void> Loader::loadSection(AST::ComponentCanonSection &Sec) {
   return loadSectionContent(Sec, [this, &Sec]() {
     return loadSectionContentVec(

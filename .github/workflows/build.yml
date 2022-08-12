@@ -131,7 +131,7 @@ jobs:
     with:
       version: ${{ needs.get_version_v2.outputs.version }}
 
-  build_ubuntu:
+  build_coverage_check:
     needs: lint
     strategy:
       matrix:
@@ -161,7 +161,7 @@ jobs:
             docker_tag: ubuntu-build-gcc
             build_type: Debug
             coverage: true
-    name: Ubuntu 20.04 with ${{ matrix.name }}
+    name: Build on Ubuntu with ${{ matrix.name }}
     runs-on: ubuntu-latest
     container:
       image: wasmedge/wasmedge:${{ matrix.docker_tag }}

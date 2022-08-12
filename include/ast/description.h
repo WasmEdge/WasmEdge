@@ -26,7 +26,7 @@ namespace WasmEdge {
 namespace AST {
 
 /// Base class of Desc node.
-class Desc {
+class Desc : public ModuleDecl {
 public:
   /// Getter and setter of external type.
   ExternalType getExternalType() const noexcept { return ExtType; }
@@ -45,7 +45,7 @@ protected:
 };
 
 /// Derived import description class.
-class ImportDesc : public Desc, public ModuleDecl {
+class ImportDesc : public Desc {
 public:
   /// Getter and setter of module name.
   std::string_view getModuleName() const noexcept { return ModName; }

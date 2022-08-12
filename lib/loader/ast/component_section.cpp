@@ -234,28 +234,34 @@ Expect<void> Loader::loadCoreType(AST::CoreType &Ty) {
 
           switch (DeclType.value()) {
           case 0x00: {
+            // 0x00 i:<core:import>     => i
             AST::ImportDesc Desc;
             ModDecl = Desc;
             return loadDesc(Desc);
           }
           case 0x01: {
-            // TODO:
-            break;
+            // 0x01 t:<core:type>       => t
+            AST::CoreType CT;
+            ModDecl = CT;
+            return loadCoreType(CT);
           }
           case 0x02: {
+            // 0x02 a:<core:alias>      => a
             AST::CoreAlias Alias;
             ModDecl = Alias;
             return loadCoreAlias(Alias);
           }
           case 0x03: {
-            // TODO:
-            break;
+            // 0x03 e:<core:exportdecl> => e
+            // core:exportdecl ::= n:<name> d:<core:importdesc> => (export n d)
+            AST::ExportDesc Desc;
+            ModDecl = Desc;
+            return loadDesc(Desc);
           }
           default:
             return logLoadError(DeclType.error(), FMgr.getLastOffset(),
                                 ASTNodeAttr::CompSec_CoreType);
           }
-          return {};
         });
   }
   default:
@@ -294,80 +300,73 @@ Expect<void> Loader::loadSection(AST::ComponentCanonSection &Sec) {
 Expect<void> Loader::loadCanon(AST::Canon &Canon) {
   if (auto DirectionByte = FMgr.readByte(); DirectionByte.has_value()) {
     switch (DirectionByte.value()) {
-    case 0x00:
+    case 0x00: {
       // 0x00 0x00 f:<core:funcidx> opts:<opts> ft:<typeidx>
       // => (canon lift f opts type-index-space[ft])
-      {
-        AST::Canon::Lift CanonLift;
-        Canon = CanonLift;
-        if (auto Res = FMgr.readByte();
-            !Res.has_value() || Res.value() != 0x00) {
-          return logLoadError(Res.error(), FMgr.getLastOffset(),
-                              ASTNodeAttr::CompSec_Canon);
-        }
-        // f:<core:funcidx>
-        auto CoreFuncIdx = FMgr.readU32();
-        if (!CoreFuncIdx.has_value()) {
-          return logLoadError(CoreFuncIdx.error(), FMgr.getLastOffset(),
-                              ASTNodeAttr::CompSec_Canon);
-        }
-        CanonLift.setCoreFuncIdx(CoreFuncIdx.value());
-
-        // opts ::= opt*:vec(<canonopt>) => opt*
-        auto Res = loadVec(CanonLift.getOpts(),
-                           [this](AST::CanonOpt &CanonOpt) -> Expect<void> {
-                             return loadCanonOpt(CanonOpt);
-                           });
-        if (!Res.has_value()) {
-          return Res;
-        }
-
-        // ft:<typeidx>
-        auto TypeIdx = FMgr.readByte();
-        if (!TypeIdx.has_value()) {
-          return logLoadError(TypeIdx.error(), FMgr.getLastOffset(),
-                              ASTNodeAttr::CompSec_Canon);
-        }
-        CanonLift.setTypeIdx(TypeIdx.value());
-
-        break;
+      AST::Canon::Lift CanonLift;
+      Canon = CanonLift;
+      if (auto Res = FMgr.readByte(); !Res.has_value() || Res.value() != 0x00) {
+        return logLoadError(Res.error(), FMgr.getLastOffset(),
+                            ASTNodeAttr::CompSec_Canon);
       }
-    case 0x01:
+      // f:<core:funcidx>
+      auto CoreFuncIdx = FMgr.readU32();
+      if (!CoreFuncIdx.has_value()) {
+        return logLoadError(CoreFuncIdx.error(), FMgr.getLastOffset(),
+                            ASTNodeAttr::CompSec_Canon);
+      }
+      CanonLift.setCoreFuncIdx(CoreFuncIdx.value());
+
+      // opts ::= opt*:vec(<canonopt>) => opt*
+      auto Res = loadVec(CanonLift.getOpts(),
+                         [this](AST::CanonOpt &CanonOpt) -> Expect<void> {
+                           return loadCanonOpt(CanonOpt);
+                         });
+      if (!Res.has_value()) {
+        return Res;
+      }
+
+      // ft:<typeidx>
+      auto TypeIdx = FMgr.readByte();
+      if (!TypeIdx.has_value()) {
+        return logLoadError(TypeIdx.error(), FMgr.getLastOffset(),
+                            ASTNodeAttr::CompSec_Canon);
+      }
+      CanonLift.setTypeIdx(TypeIdx.value());
+      break;
+    }
+    case 0x01: {
       // 0x01 0x00 f:<funcidx> opts:<opts>
       // => (canon lower f opts (core func))
-      {
-        AST::Canon::Lower CanonLower;
-        Canon = CanonLower;
-        if (auto Res = FMgr.readByte();
-            !Res.has_value() || Res.value() != 0x00) {
-          return logLoadError(Res.error(), FMgr.getLastOffset(),
-                              ASTNodeAttr::CompSec_Canon);
-        }
-        auto FuncIdx = FMgr.readU32();
-        if (!FuncIdx.has_value()) {
-          return logLoadError(FuncIdx.error(), FMgr.getLastOffset(),
-                              ASTNodeAttr::CompSec_Canon);
-        }
-        CanonLower.setFuncIdx(FuncIdx.value());
-
-        // opts ::= opt*:vec(<canonopt>) => opt*
-        return loadVec(CanonLower.getOpts(),
-                       [this](AST::CanonOpt &CanonOpt) -> Expect<void> {
-                         return loadCanonOpt(CanonOpt);
-                       });
-
-        break;
+      AST::Canon::Lower CanonLower;
+      Canon = CanonLower;
+      if (auto Res = FMgr.readByte(); !Res.has_value() || Res.value() != 0x00) {
+        return logLoadError(Res.error(), FMgr.getLastOffset(),
+                            ASTNodeAttr::CompSec_Canon);
       }
+      auto FuncIdx = FMgr.readU32();
+      if (!FuncIdx.has_value()) {
+        return logLoadError(FuncIdx.error(), FMgr.getLastOffset(),
+                            ASTNodeAttr::CompSec_Canon);
+      }
+      CanonLower.setFuncIdx(FuncIdx.value());
+
+      // opts ::= opt*:vec(<canonopt>) => opt*
+      return loadVec(CanonLower.getOpts(),
+                     [this](AST::CanonOpt &CanonOpt) -> Expect<void> {
+                       return loadCanonOpt(CanonOpt);
+                     });
+    }
     default:
       return logLoadError(DirectionByte.error(), FMgr.getLastOffset(),
                           ASTNodeAttr::CompSec_Canon);
     }
+
+    return {};
   } else {
     return logLoadError(DirectionByte.error(), FMgr.getLastOffset(),
                         ASTNodeAttr::CompSec_Canon);
   }
-
-  return {};
 }
 Expect<void> Loader::loadCanonOpt(AST::CanonOpt &CanonOpt) {
   auto CanonOptType = FMgr.readByte();
@@ -376,57 +375,51 @@ Expect<void> Loader::loadCanonOpt(AST::CanonOpt &CanonOpt) {
                         ASTNodeAttr::CompSec_Canon);
   }
   switch (CanonOptType.value()) {
-  case 0x00:
+  case 0x00: {
     // 0x00 => string-encoding=utf8
-    {
-      CanonOpt = AST::CanonOpt::StringEncodingUTF8();
-      break;
-    }
-  case 0x01:
+    CanonOpt = AST::CanonOpt::StringEncodingUTF8();
+    break;
+  }
+  case 0x01: {
     // 0x01 => string-encoding=utf16
-    {
-      CanonOpt = AST::CanonOpt::StringEncodingUTF16();
-      break;
-    }
-  case 0x02:
+    CanonOpt = AST::CanonOpt::StringEncodingUTF16();
+    break;
+  }
+  case 0x02: {
     // 0x02 => string-encoding=latin1+utf16
-    {
-      CanonOpt = AST::CanonOpt::StringEncodingLatin1UTF16();
-      break;
-    }
-  case 0x03:
+    CanonOpt = AST::CanonOpt::StringEncodingLatin1UTF16();
+    break;
+  }
+  case 0x03: {
     // 0x03 m:<core:memidx> => (memory m)
-    {
-      auto Res = FMgr.readU32();
-      if (!Res.has_value()) {
-        return logLoadError(Res.error(), FMgr.getLastOffset(),
-                            ASTNodeAttr::CompSec_Canon);
-      }
-      CanonOpt = AST::CanonOpt::MemoryIndex(Res.value());
-      break;
+    auto Res = FMgr.readU32();
+    if (!Res.has_value()) {
+      return logLoadError(Res.error(), FMgr.getLastOffset(),
+                          ASTNodeAttr::CompSec_Canon);
     }
-  case 0x04:
+    CanonOpt = AST::CanonOpt::MemoryIndex(Res.value());
+    break;
+  }
+  case 0x04: {
     // 0x04 f:<core:funcidx> => (realloc f)
-    {
-      auto Res = FMgr.readU32();
-      if (!Res.has_value()) {
-        return logLoadError(Res.error(), FMgr.getLastOffset(),
-                            ASTNodeAttr::CompSec_Canon);
-      }
-      CanonOpt = AST::CanonOpt::ReallocFunc(Res.value());
-      break;
+    auto Res = FMgr.readU32();
+    if (!Res.has_value()) {
+      return logLoadError(Res.error(), FMgr.getLastOffset(),
+                          ASTNodeAttr::CompSec_Canon);
     }
-  case 0x05:
+    CanonOpt = AST::CanonOpt::ReallocFunc(Res.value());
+    break;
+  }
+  case 0x05: {
     // 0x05 f:<core:funcidx> => (post-return f)
-    {
-      auto Res = FMgr.readU32();
-      if (!Res.has_value()) {
-        return logLoadError(Res.error(), FMgr.getLastOffset(),
-                            ASTNodeAttr::CompSec_Canon);
-      }
-      CanonOpt = AST::CanonOpt::PostReturnFunc(Res.value());
-      break;
+    auto Res = FMgr.readU32();
+    if (!Res.has_value()) {
+      return logLoadError(Res.error(), FMgr.getLastOffset(),
+                          ASTNodeAttr::CompSec_Canon);
     }
+    CanonOpt = AST::CanonOpt::PostReturnFunc(Res.value());
+    break;
+  }
   default:
     return logLoadError(CanonOptType.error(), FMgr.getLastOffset(),
                         ASTNodeAttr::CompSec_Canon);

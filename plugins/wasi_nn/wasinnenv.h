@@ -3,9 +3,8 @@
 
 #pragma once
 
-#include "plugin/plugin.h"
-
 #include "common/log.h"
+#include "plugin/plugin.h"
 #include <cstdint>
 #include <vector>
 

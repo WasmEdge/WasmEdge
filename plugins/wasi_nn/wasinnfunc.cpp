@@ -3,23 +3,42 @@
 
 #include "wasinnfunc.h"
 #include "common/log.h"
+#include <string>
 
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_OPENVINO
 #include <algorithm>
-#include <string>
 
 #include <c_api/ie_c_api.h>
 #endif
 
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_TORCH
 #include <iostream>
-#include <string>
 
 #include <torch/torch.h>
 #endif
 
 namespace WasmEdge {
 namespace Host {
+
+namespace {
+std::string FindDevice(const uint32_t Target) {
+  std::string DeviceName;
+  switch (Target) {
+  case 0:
+    DeviceName = "CPU";
+    break;
+  // case 1:
+  //   DeviceName = "GPU";
+  //   break;
+  // case 2:
+  //   DeviceName = "TPU";
+  //   break;
+  default:
+    DeviceName = "";
+  }
+  return DeviceName;
+}
+} // namespace
 
 Expect<uint32_t> WasiNNLoad::body(Runtime::Instance::MemoryInstance *MemInst,
                                   uint32_t BuilderPtr [[maybe_unused]],
@@ -31,21 +50,18 @@ Expect<uint32_t> WasiNNLoad::body(Runtime::Instance::MemoryInstance *MemInst,
   if (MemInst == nullptr) {
     return Unexpect(ErrCode::ExecutionFailed);
   }
-
+  // Check the return value: GraphIdPtr should be valid.
+  uint32_t *GraphId = MemInst->getPointer<uint32_t *>(GraphIdPtr, 1);
+  if (unlikely(GraphId == nullptr)) {
+    spdlog::error("[WASI-NN] Failed when accessing the return GraphID memory.");
+    return static_cast<uint32_t>(WASINN::ErrNo::InvalidArgument);
+  }
   if (Encoding == static_cast<uint32_t>(WASINN::Backend::OpenVINO)) {
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_OPENVINO
     // The OpenVINO core must be initialized in constructor.
     if (unlikely(Env.OpenVINOCore == nullptr)) {
       spdlog::error("[WASI-NN] OpenVINO core not initialized.");
       return static_cast<uint32_t>(WASINN::ErrNo::MissingMemory);
-    }
-
-    // Check the return value: GraphIdPtr should be valid.
-    uint32_t *GraphId = MemInst->getPointer<uint32_t *>(GraphIdPtr, 1);
-    if (unlikely(GraphId == nullptr)) {
-      spdlog::error(
-          "[WASI-NN] Failed when accessing the return GraphID memory.");
-      return static_cast<uint32_t>(WASINN::ErrNo::InvalidArgument);
     }
 
     // The graph builder length must be 2.
@@ -57,18 +73,9 @@ Expect<uint32_t> WasiNNLoad::body(Runtime::Instance::MemoryInstance *MemInst,
 
     // Get and check the device name string.
     std::string DeviceName;
-    switch (Target) {
-    case 0:
-      // CPU
-      break;
-    // case 1:
-    // GPU
-    //   break;
-    // case 2:
-    // TPU
-    //   break;
-    default:
-      spdlog::error("[WASI-NN] OpenVINO backend only support CPU target");
+    DeviceName = FindDevice(Target);
+    if (DeviceName.length() == 0) {
+      spdlog::error("[WASI-NN] PyTorch backend only support CPU target");
       return static_cast<uint32_t>(WASINN::ErrNo::InvalidArgument);
     }
     spdlog::debug("[WASI-NN] Using device: {:s}", DeviceName);
@@ -240,26 +247,9 @@ Expect<uint32_t> WasiNNLoad::body(Runtime::Instance::MemoryInstance *MemInst,
 #endif
   } else if (Encoding == static_cast<uint32_t>(WASINN::Backend::PyTorch)) {
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_TORCH
-    // Check the return value: GraphIdPtr should be valid.
-    uint32_t *GraphId = MemInst->getPointer<uint32_t *>(GraphIdPtr, 1);
-    if (unlikely(GraphId == nullptr)) {
-      spdlog::error(
-          "[WASI-NN] Failed when accessing the return GraphID memory.");
-      return static_cast<uint32_t>(WASINN::ErrNo::InvalidArgument);
-    }
-
     std::string DeviceName;
-    switch (Target) {
-    case 0:
-      DeviceName = "CPU";
-      break;
-    // case 1:
-    //   DeviceName = "GPU";
-    //   break;
-    // case 2:
-    //   DeviceName = "TPU";
-    //   break;
-    default:
+    DeviceName = FindDevice(Target);
+    if (DeviceName.length() == 0) {
       spdlog::error("[WASI-NN] PyTorch backend only support CPU target");
       return static_cast<uint32_t>(WASINN::ErrNo::InvalidArgument);
     }
@@ -310,7 +300,7 @@ Expect<uint32_t> WasiNNLoad::body(Runtime::Instance::MemoryInstance *MemInst,
     spdlog::error("[WASI-NN] Current backend is not supported.");
   }
   return static_cast<uint32_t>(WASINN::ErrNo::InvalidArgument);
-}
+} // namespace Host
 
 Expect<uint32_t>
 WasiNNInitExecCtx::body(Runtime::Instance::MemoryInstance *MemInst,
@@ -324,16 +314,14 @@ WasiNNInitExecCtx::body(Runtime::Instance::MemoryInstance *MemInst,
     spdlog::error("[WASI-NN] init_execution_context: Graph Id does not exist.");
     return static_cast<uint32_t>(WASINN::ErrNo::InvalidArgument);
   }
-
+  // Check the return value: Context should be valid.
+  uint32_t *Context = MemInst->getPointer<uint32_t *>(ContextPtr, 1);
+  if (unlikely(Context == nullptr)) {
+    spdlog::error("[WASI-NN] Failed when accessing the Context memory.");
+    return static_cast<uint32_t>(WASINN::ErrNo::InvalidArgument);
+  }
   if (Env.NNGraph[GraphId].GraphBackend == WASINN::Backend::OpenVINO) {
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_OPENVINO
-    // Check the return value: Context should be valid.
-    uint32_t *Context = MemInst->getPointer<uint32_t *>(ContextPtr, 1);
-    if (unlikely(Context == nullptr)) {
-      spdlog::error("[WASI-NN] Failed when accessing the Context memory.");
-      return static_cast<uint32_t>(WASINN::ErrNo::InvalidArgument);
-    }
-
     // Check the network and the execution network with the graph ID.
     if (Env.NNGraph[GraphId].OpenVINONetwork == nullptr ||
         Env.NNGraph[GraphId].OpenVINOExecNetwork == nullptr) {
@@ -359,12 +347,6 @@ WasiNNInitExecCtx::body(Runtime::Instance::MemoryInstance *MemInst,
 #endif
   } else if (Env.NNGraph[GraphId].GraphBackend == WASINN::Backend::PyTorch) {
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_TORCH
-    // Check the return value: Context should be valid.
-    uint32_t *Context = MemInst->getPointer<uint32_t *>(ContextPtr, 1);
-    if (unlikely(Context == nullptr)) {
-      spdlog::error("[WASI-NN] Failed when accessing the Context memory.");
-      return static_cast<uint32_t>(WASINN::ErrNo::InvalidArgument);
-    }
     Env.NNContext.emplace_back(Env.NNGraph[GraphId]);
 
     *Context = Env.NNContext.size() - 1;

@@ -55,6 +55,22 @@ else:
     download_url = urllib.urlretrieve
 
 
+def show_progress(block_num, block_size, total_size):
+    downloaded = block_num * block_size
+
+    print(
+        end=(
+            "\r|%-60s|" % ("=" * int(60 * downloaded / (total_size)))
+            + "%6.2f %%" % (downloaded / (total_size) * 100)
+        )
+    )
+
+    if downloaded < total_size:
+        pass
+    else:
+        print("Downloaded")
+
+
 def _is_tarxz(filename):
     return filename.endswith(".tar.xz")
 
@@ -367,7 +383,7 @@ def shell_configure(args):
         logging.error("Unknown shell found")
         return -1
 
-    logging.info("shell configuration updated")
+    print("shell configuration updated")
     return 0
 
 
@@ -513,13 +529,16 @@ def main(args):
     logging.debug("Temp path: %s", TEMP_PATH)
 
     if compat:
-        logging.info("Compatible with current configuration")
+        print("Compatible with current configuration")
 
         set_consts(args, compat)
 
         # Run uninstaller
         uninstaller_path = join(TEMP_PATH, "uninstall.sh")
         download_url(CONST_urls[WASMEDGE_UNINSTALLER], uninstaller_path)
+
+        print("Running Uninstaller")
+
         logging.debug(
             run_shell_command("bash {0}  -p {1} -q".format(uninstaller_path, args.path))
         )
@@ -546,8 +565,12 @@ def main(args):
         logging.debug("CONST_shell_profile: %s", CONST_shell_profile)
         logging.debug("CONST_shell_config: %s", CONST_shell_config)
 
+        print("Downloading WasmEdge")
+
         # Download WasmEdge
-        download_url(CONST_urls[WASMEDGE], join(TEMP_PATH, CONST_release_pkg))
+        download_url(
+            CONST_urls[WASMEDGE], join(TEMP_PATH, CONST_release_pkg), show_progress
+        )
 
         # Extract archieve
         extract_archive(
@@ -558,6 +581,7 @@ def main(args):
             remove_finished=True,
         )
 
+        print("Installing WasmEdge")
         # Copy the tree
         copytree(join(TEMP_PATH, CONST_ipkg), args.path)
 
@@ -567,8 +591,8 @@ def main(args):
         )
 
         if args.version in wasmedge_output:
-            logging.info("WasmEdge Successfully installed")
-            logging.info("Run:\nsource %s", CONST_shell_config)
+            print("WasmEdge Successfully installed")
+            print("Run:\nsource {0}".format(CONST_shell_config))
         else:
             logging.critical(
                 "WasmEdge installation incorrect: {0}".format(wasmedge_output)

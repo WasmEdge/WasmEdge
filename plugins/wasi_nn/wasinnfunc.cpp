@@ -759,7 +759,7 @@ Expect<uint32_t> WasiNNCompute::body(Runtime::Instance::MemoryInstance *MemInst,
       }
     }
     torch::jit::IValue RawOutput =
-        CxtRef.TorchModel.forward(CxtRef.TorchInputs);
+        CxtRef.GraphRef.TorchModel.forward(CxtRef.TorchInputs);
     // TODO: more output type should be supported here
     if (RawOutput.isTensorList()) {
       auto OutTensors = RawOutput.toTensorVector();

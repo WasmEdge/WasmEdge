@@ -94,7 +94,7 @@ public:
 #endif
     } else if (G.GraphBackend == Backend::PyTorch) {
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_TORCH
-      TorchModel = G.TorchModel;
+      // Do nothing
 #endif
     }
   }
@@ -116,7 +116,6 @@ public:
 #endif
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_TORCH
   std::vector<torch::jit::IValue> TorchInputs;
-  torch::jit::Module TorchModel;
   std::vector<at::Tensor> TorchOutputs;
 #endif
 };

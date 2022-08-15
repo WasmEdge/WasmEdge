@@ -40,8 +40,8 @@ public:
   std::string_view getName() const noexcept { return Name; }
   void setName(std::string_view N) { Name = N; }
 
-  SortIndex getExtern() const noexcept { return SortIdx; }
-  void setExtern(SortIndex E) noexcept { SortIdx = E; }
+  const SortIndex &getExtern() const noexcept { return SortIdx; }
+  SortIndex &getExtern() noexcept { return SortIdx; }
 
 private:
   std::string Name;

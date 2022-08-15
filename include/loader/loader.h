@@ -83,7 +83,8 @@ template <>
 inline ASTNodeAttr NodeAttrFromAST<AST::CoreInstanceSection>() noexcept {
   return ASTNodeAttr::CompSec_CoreInstance;
 }
-template <> inline ASTNodeAttr NodeAttrFromAST<AST::InstantiateArg>() noexcept {
+template <>
+inline ASTNodeAttr NodeAttrFromAST<AST::CoreInstantiateArg>() noexcept {
   return ASTNodeAttr::CompSec_CoreInstance;
 }
 template <> inline ASTNodeAttr NodeAttrFromAST<AST::ExportDecl>() noexcept {
@@ -106,6 +107,13 @@ template <> inline ASTNodeAttr NodeAttrFromAST<AST::ModuleDecl>() noexcept {
 template <>
 inline ASTNodeAttr NodeAttrFromAST<AST::ComponentSection>() noexcept {
   return ASTNodeAttr::CompSec_Component;
+}
+template <>
+inline ASTNodeAttr NodeAttrFromAST<AST::InstanceSection>() noexcept {
+  return ASTNodeAttr::CompSec_Instance;
+}
+template <> inline ASTNodeAttr NodeAttrFromAST<AST::InstantiateArg>() noexcept {
+  return ASTNodeAttr::CompSec_Instance;
 }
 template <>
 inline ASTNodeAttr NodeAttrFromAST<AST::ComponentCanonSection>() noexcept {
@@ -299,6 +307,8 @@ private:
   /* - */ Expect<void> loadCoreType(AST::CoreType &Ty);
   /* - */ Expect<void> loadFieldType(AST::FieldType &Ty);
   Expect<void> loadSection(AST::ComponentSection &Sec);
+  Expect<void> loadSection(AST::InstanceSection &Sec);
+  /* - */ Expect<void> loadInstance(AST::Instance &Inst);
   Expect<void> loadSection(AST::ComponentCanonSection &Sec);
   /* - */ Expect<void> loadCanon(AST::Canon &Canon);
   /* - */ Expect<void> loadCanonOpt(AST::CanonOpt &CanonOpt);
@@ -307,6 +317,7 @@ private:
   /* - */ Expect<void> loadImportDecl(AST::ImportDecl &Import);
   Expect<void> loadSection(AST::ComponentExportSection &Sec);
   /* - */ Expect<void> loadExportDecl(AST::ExportDecl &Export);
+  /* - */ Expect<void> loadSortIndex(AST::SortIndex &SortIdx);
   /// @}
 
   /// \name Loader members

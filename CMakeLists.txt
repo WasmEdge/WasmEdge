@@ -61,21 +61,30 @@ option(WASMEDGE_BUILD_AOT_RUNTIME "Enable WasmEdge LLVM-based ahead of time comp
 option(WASMEDGE_BUILD_SHARED_LIB "Generate the WasmEdge shared library." ON)
 option(WASMEDGE_BUILD_STATIC_LIB "Generate the WasmEdge static library." OFF)
 option(WASMEDGE_BUILD_TOOLS "Generate wasmedge and wasmedgec tools. Depend on and will build the WasmEdge shared library." ON)
-option(WASMEDGE_BUILD_TOOLS_STATIC "Make the wasmedge and wasmedgec tools statically. Depend on and will build the WasmEdge static library." OFF)
 option(WASMEDGE_BUILD_PLUGINS "Generate plugins." ON)
 option(WASMEDGE_BUILD_EXAMPLE "Generate examples." OFF)
-option(WASMEDGE_FORCE_DISABLE_LTO "Forcibly disable link time optimization when linking even in Release/RelWithDeb build." OFF)
+option(WASMEDGE_FORCE_DISABLE_LTO "Forcefully disable link time optimization when linking even in Release/RelWithDeb build." OFF)
+option(WASMEDGE_LINK_LLVM_STATIC "Statically link the LLVM library into the WasmEdge tools and libraries." OFF)
+option(WASMEDGE_LINK_TOOLS_STATIC "Statically link the wasmedge and wasmedgec tools. Will forcefully link the LLVM library statically." OFF)
 set(WASMEDGE_PLUGIN_WASI_NN_BACKEND "" CACHE STRING "Enable WasmEdge Wasi-NN plugin with backends.")
 # Currently supported WASI-NN backend: "OpenVINO" on Linux x86_64
 option(WASMEDGE_PLUGIN_WASI_CRYPTO "Enable WasmEdge Wasi-crypto plugin." OFF)
 option(WASMEDGE_PLUGIN_HTTPSREQ "Enable WasmEdge httpsreq plugin." OFF)
 
+if(WASMEDGE_BUILD_STATIC_LIB)
+  # Static library will forcefully turn of the LTO.
+  set(WASMEDGE_FORCE_DISABLE_LTO ON)
+endif()
 if(WASMEDGE_BUILD_TOOLS)
-  if(WASMEDGE_BUILD_TOOLS_STATIC)
-    # Static tools will forcely turn of the LTO.
-    set(WASMEDGE_FORCE_DISABLE_LTO ON)
+  if(WASMEDGE_BUILD_STATIC_LIB)
+    # If the WASMEDGE_BUILD_STATIC_LIB is turned on, the tools will link the static library.
+    set(WASMEDGE_LINK_TOOLS_STATIC ON)
+  endif()
+  if(WASMEDGE_LINK_TOOLS_STATIC)
+    # Static tools will link LLVM statically.
+    set(WASMEDGE_LINK_LLVM_STATIC ON)
   else()
-    # Tools will forcely turn on the shared library building.
+    # Tools will forcefully turn on the shared library building.
     set(WASMEDGE_BUILD_SHARED_LIB ON)
   endif()
 endif()

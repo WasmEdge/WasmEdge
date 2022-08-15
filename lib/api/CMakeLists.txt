@@ -24,21 +24,24 @@ function(wasmedge_add_static_lib_component_command target)
   set(WASMEDGE_STATIC_LIB_DEPS ${WASMEDGE_STATIC_LIB_DEPS} ${target} PARENT_SCOPE)
 endfunction()
 
-# Helper function to construct commands about collecting libraries with paths.
-function(wasmedge_add_libs_component_command target target_path)
+# Helper function to construct commands about packaging llvm and dependency libraries with paths.
+function(wasmedge_add_libs_component_command target_path)
+  get_filename_component(target_name ${target_path} NAME)
+  string(REGEX REPLACE "^lib" "" target_name ${target_name})
+  string(REGEX REPLACE "\.a$" "" target_name ${target_name})
   if(APPLE)
     list(APPEND CMDS
-      COMMAND ${CMAKE_COMMAND} -E make_directory objs/${target}
-      COMMAND ${CMAKE_AR} -x ${target_path}/lib${target}.a
-      COMMAND ${CMAKE_AR} -t ${target_path}/lib${target}.a | xargs -I '{}' mv '{}' objs/${target}
+      COMMAND ${CMAKE_COMMAND} -E make_directory objs/${target_name}
+      COMMAND ${CMAKE_AR} -x ${target_path}
+      COMMAND ${CMAKE_AR} -t ${target_path} | xargs -I '{}' mv '{}' objs/${target_name}
     )
   else()
     list(APPEND CMDS
-      COMMAND ${CMAKE_COMMAND} -E make_directory objs/${target}
-      COMMAND ${CMAKE_AR} -x ${target_path}/lib${target}.a --output=objs/${target}
+      COMMAND ${CMAKE_COMMAND} -E make_directory objs/${target_name}
+      COMMAND ${CMAKE_AR} -x ${target_path} --output=objs/${target_name}
     )
   endif()
-  set(WASMEDGE_STATIC_LIB_CMDS ${WASMEDGE_STATIC_LIB_CMDS} ${CMDS} PARENT_SCOPE)
+  set(WASMEDGE_STATIC_LLVM_LIB_CMDS ${WASMEDGE_STATIC_LLVM_LIB_CMDS} ${CMDS} PARENT_SCOPE)
 endfunction()
 
 set(WASMEDGE_CAPI_HEADERS
@@ -108,7 +111,7 @@ if(WASMEDGE_BUILD_SHARED_LIB)
 
 endif()
 
-if(WASMEDGE_BUILD_STATIC_LIB OR WASMEDGE_BUILD_TOOLS_STATIC)
+if(WASMEDGE_BUILD_STATIC_LIB)
 
   wasmedge_add_static_lib_component_command(spdlog::spdlog)
   wasmedge_add_static_lib_component_command(wasmedgeSystem)
@@ -123,60 +126,24 @@ if(WASMEDGE_BUILD_STATIC_LIB OR WASMEDGE_BUILD_TOOLS_STATIC)
   wasmedge_add_static_lib_component_command(wasmedgeVM)
   wasmedge_add_static_lib_component_command(wasmedgeDriver)
 
-  if (WASMEDGE_BUILD_AOT_RUNTIME)
-    # Pack the LLVM and lld static libraries.
-    find_package(LLVM REQUIRED HINTS "${LLVM_CMAKE_PATH}")
-    execute_process(
-      COMMAND ${LLVM_BINARY_DIR}/bin/llvm-config --libs --link-static
-      core lto native nativecodegen option passes support transformutils all-targets
-      OUTPUT_VARIABLE WASMEDGE_LLVM_LINK_LIBS
-    )
-    string(REPLACE "-l" "" WASMEDGE_LLVM_LINK_LIBS ${WASMEDGE_LLVM_LINK_LIBS})
-    string(REGEX REPLACE "[\r\n]" "" WASMEDGE_LLVM_LINK_LIBS ${WASMEDGE_LLVM_LINK_LIBS})
-    string(REPLACE " " "\;" WASMEDGE_LLVM_LINK_LIBS ${WASMEDGE_LLVM_LINK_LIBS})
-    set(WASMEDGE_LLVM_LINK_LIBS ${WASMEDGE_LLVM_LINK_LIBS})
-    foreach(LIB_NAME IN LISTS WASMEDGE_LLVM_LINK_LIBS)
-      wasmedge_add_libs_component_command(${LIB_NAME} ${LLVM_LIBRARY_DIR})
+  if(WASMEDGE_BUILD_AOT_RUNTIME)
+    foreach(LIB_NAME IN LISTS WASMEDGE_LLVM_LINK_STATIC_COMPONENTS)
+      wasmedge_add_libs_component_command(${LIB_NAME})
     endforeach()
-    wasmedge_add_libs_component_command("lldELF" ${LLVM_LIBRARY_DIR})
-    wasmedge_add_libs_component_command("lldCommon" ${LLVM_LIBRARY_DIR})
-    if(LLVM_VERSION_MAJOR LESS_EQUAL 13)
-      # For LLVM <= 13
-      wasmedge_add_libs_component_command("lldCore" ${LLVM_LIBRARY_DIR})
-      wasmedge_add_libs_component_command("lldDriver" ${LLVM_LIBRARY_DIR})
-      wasmedge_add_libs_component_command("lldReaderWriter" ${LLVM_LIBRARY_DIR})
-      wasmedge_add_libs_component_command("lldYAML" ${LLVM_LIBRARY_DIR})
-    else()
-      # For LLVM 14
-      wasmedge_add_libs_component_command("lldMinGW" ${LLVM_LIBRARY_DIR})
-      wasmedge_add_libs_component_command("lldCOFF" ${LLVM_LIBRARY_DIR})
-      wasmedge_add_libs_component_command("lldMachO" ${LLVM_LIBRARY_DIR})
-      wasmedge_add_libs_component_command("lldWasm" ${LLVM_LIBRARY_DIR})
-    endif()
-
-    if(NOT APPLE)
-      find_package(ZLIB REQUIRED)
-      # Pack the zlib.
-      get_filename_component(ZLIB_PATH "${ZLIB_LIBRARIES}" DIRECTORY)
-      wasmedge_add_libs_component_command("z" ${ZLIB_PATH})
-
-      # Pack the tinfo.
-      wasmedge_add_libs_component_command("tinfo" ${ZLIB_PATH})
-    endif()
-
     wasmedge_add_static_lib_component_command(utilBlake3)
     wasmedge_add_static_lib_component_command(wasmedgeAOT)
   endif()
 
   add_custom_command(OUTPUT "libwasmedge_c.a"
     ${WASMEDGE_STATIC_LIB_CMDS}
+    ${WASMEDGE_STATIC_LLVM_LIB_CMDS}
     COMMAND ${CMAKE_AR} -qcs libwasmedge_c.a $<TARGET_OBJECTS:wasmedgeCAPI> objs/*/*.o
     COMMAND ${CMAKE_COMMAND} -E remove_directory objs
     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
     DEPENDS ${WASMEDGE_STATIC_LIB_DEPS} wasmedgeCAPI
   )
 
-  add_custom_target(wasmedge_c_static_target DEPENDS "libwasmedge_c.a")
+  add_custom_target(wasmedge_c_static_target ALL DEPENDS "libwasmedge_c.a")
   add_library(wasmedge_c_static STATIC IMPORTED GLOBAL)
   add_dependencies(wasmedge_c_static wasmedge_c_static_target)
 
@@ -186,10 +153,8 @@ if(WASMEDGE_BUILD_STATIC_LIB OR WASMEDGE_BUILD_TOOLS_STATIC)
     INTERFACE_INCLUDE_DIRECTORIES ${PROJECT_BINARY_DIR}/include/api
   )
 
-  if(WASMEDGE_BUILD_STATIC_LIB)
-    install(FILES ${CMAKE_CURRENT_BINARY_DIR}/libwasmedge_c.a
-      DESTINATION ${CMAKE_INSTALL_LIBDIR}
-    )
-  endif()
+  install(FILES ${CMAKE_CURRENT_BINARY_DIR}/libwasmedge_c.a
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}
+  )
 
 endif()

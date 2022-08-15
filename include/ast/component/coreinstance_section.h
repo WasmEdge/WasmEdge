@@ -25,7 +25,7 @@
 namespace WasmEdge {
 namespace AST {
 
-class InstantiateArg {
+class CoreInstantiateArg {
 public:
   void setName(std::string_view s) noexcept { Name = s; }
   const std::string &getName() const noexcept { return Name; }
@@ -45,16 +45,16 @@ public:
   uint32_t getModuleIdx() const noexcept { return ModuleIdx; }
 
   /// Getter of instantiate arguments
-  Span<const InstantiateArg> getInstantiateArgs() const noexcept {
+  Span<const CoreInstantiateArg> getInstantiateArgs() const noexcept {
     return InstantiateArgs;
   }
-  std::vector<InstantiateArg> &getInstantiateArgs() noexcept {
+  std::vector<CoreInstantiateArg> &getInstantiateArgs() noexcept {
     return InstantiateArgs;
   }
 
 private:
   uint32_t ModuleIdx;
-  std::vector<InstantiateArg> InstantiateArgs;
+  std::vector<CoreInstantiateArg> InstantiateArgs;
 };
 class CoreExportsInstance : public CoreInstance {
 public:

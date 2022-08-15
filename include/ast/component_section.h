@@ -19,6 +19,7 @@
 #include "ast/component/coretype_section.h"
 #include "ast/component/export_section.h"
 #include "ast/component/import_section.h"
+#include "ast/component/instance_section.h"
 #include "ast/component/start_section.h"
 #include "ast/module.h"
 
@@ -77,6 +78,35 @@ public:
 
 private:
   std::vector<CoreType> Content;
+};
+
+class Component;
+
+class ComponentSection : public Section {
+public:
+  /// Getter of content.
+  Span<const std::unique_ptr<Component>> getContent() const noexcept {
+    return Content;
+  }
+  std::vector<std::unique_ptr<Component>> &getContent() noexcept {
+    return Content;
+  }
+
+private:
+  std::vector<std::unique_ptr<Component>> Content;
+};
+
+class InstanceSection : public Section {
+public:
+  /// Getter of content module.
+  Span<const Instance> getContent() const noexcept { return Content; }
+  std::vector<Instance> &getContent() noexcept { return Content; }
+
+private:
+  /// \name Data of InstanceSection.
+  /// @{
+  std::vector<Instance> Content;
+  /// @}
 };
 
 /// AST ComponentCanonSection node.

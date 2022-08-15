@@ -10,27 +10,11 @@ if(WASMEDGE_BUILD_AOT_RUNTIME)
     DESTINATION ${CMAKE_INSTALL_BINDIR}
   )
 
-  if(WASMEDGE_BUILD_TOOLS_STATIC)
+  if(WASMEDGE_LINK_TOOLS_STATIC)
     target_link_libraries(wasmedgec
       PRIVATE
-      wasmedge_c_static
-      PUBLIC
-      dl
-      pthread
+      wasmedgeCAPI
     )
-    if(APPLE)
-      target_link_libraries(wasmedgec
-        PUBLIC
-        ncurses
-        z
-        xar
-      )
-    elseif(UNIX)
-      target_link_libraries(wasmedgec
-        PUBLIC
-        rt
-      )
-    endif()
   else()
     target_link_libraries(wasmedgec
       PRIVATE
@@ -47,27 +31,11 @@ install(TARGETS wasmedge EXPORT wasmedge
   DESTINATION ${CMAKE_INSTALL_BINDIR}
 )
 
-if(WASMEDGE_BUILD_TOOLS_STATIC)
+if(WASMEDGE_LINK_TOOLS_STATIC)
   target_link_libraries(wasmedge
     PRIVATE
-    wasmedge_c_static
-    PUBLIC
-    dl
-    pthread
+    wasmedgeCAPI
   )
-  if(APPLE)
-    target_link_libraries(wasmedge
-      PUBLIC
-      ncurses
-      z
-      xar
-    )
-  elseif(UNIX)
-    target_link_libraries(wasmedge
-      PUBLIC
-      rt
-    )
-  endif()
 else()
   target_link_libraries(wasmedge
     PRIVATE

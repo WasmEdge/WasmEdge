@@ -87,19 +87,7 @@ Expect<void> Loader::loadCoreInstance(AST::CoreInstance &Instance) {
                          return logLoadError(Res.error(), FMgr.getLastOffset(),
                                              ASTNodeAttr::CompSec_Export);
                        }
-                       // core:sortidx ::= sort:<core:sort> idx:<u32>
-                       //   => (sort idx)
-                       // core:sort ::= 0x00 => func
-                       //             | 0x01 => table
-                       //             | 0x02 => memory
-                       //             | 0x03 => global
-                       //             | 0x10 => type
-                       //             | 0x11 => module
-                       //             | 0x12 => instance
-                       AST::CoreSortIndex CoreSortIndex;
-                       loadDesc(CoreSortIndex);
-                       Export.getExtern() = CoreSortIndex;
-                       return {};
+                       return loadCoreSortIndex(Export.getExtern());
                      });
     }
   default:
@@ -358,6 +346,62 @@ Expect<void> Loader::loadInstance(AST::Instance &Inst) {
     return logLoadError(Res.error(), FMgr.getLastOffset(),
                         ASTNodeAttr::CompSec_Instance);
   }
+}
+
+Expect<void> Loader::loadSection(AST::AliasSection &Sec) {
+  return loadSectionContent(Sec, [this, &Sec]() {
+    return loadSectionContentVec(
+        Sec,
+        [this](AST::Alias &Alias) -> Expect<void> { return loadAlias(Alias); });
+  });
+}
+Expect<void> Loader::loadAlias(AST::Alias &Alias) {
+  // alias       ::= sort:<sort> target:<aliastarget> => (alias target (sort))
+  loadSort(Alias.getSort());
+
+  // aliastarget ::= 0x00 i:<instanceidx> n:<name>    => export i n
+  //               | 0x01 ct:<u32> idx:<u32>          => outer ct idx
+  auto Res = FMgr.readByte();
+  if (!Res) {
+    return logLoadError(Res.error(), FMgr.getLastOffset(),
+                        ASTNodeAttr::CompSec_Alias);
+  }
+  switch (*Res) {
+  case 0x00: {
+    // 0x00 i:<instanceidx> n:<name>    => export i n
+    auto Idx = FMgr.readU32();
+    if (!Idx) {
+      return logLoadError(Idx.error(), FMgr.getLastOffset(),
+                          ASTNodeAttr::CompSec_Alias);
+    }
+    auto Name = FMgr.readName();
+    if (!Name) {
+      return logLoadError(Name.error(), FMgr.getLastOffset(),
+                          ASTNodeAttr::CompSec_Alias);
+    }
+    Alias.getTarget() = AST::AliasTarget::Export(*Idx, *Name);
+    break;
+  }
+  case 0x01: {
+    // 0x01 ct:<u32> idx:<u32>          => outer ct idx
+    auto Ct = FMgr.readU32();
+    if (!Ct) {
+      return logLoadError(Ct.error(), FMgr.getLastOffset(),
+                          ASTNodeAttr::CompSec_Alias);
+    }
+    auto Idx = FMgr.readU32();
+    if (!Idx) {
+      return logLoadError(Idx.error(), FMgr.getLastOffset(),
+                          ASTNodeAttr::CompSec_Alias);
+    }
+    Alias.getTarget() = AST::AliasTarget::Outer(*Ct, *Idx);
+    break;
+  }
+  default:
+    return logLoadError(Res.error(), FMgr.getLastOffset(),
+                        ASTNodeAttr::CompSec_Alias);
+  }
+  return {};
 }
 
 Expect<void> Loader::loadSection(AST::ComponentCanonSection &Sec) {
@@ -675,6 +719,35 @@ Expect<void> Loader::loadExportDecl(AST::ExportDecl &Export) {
 
 Expect<void> Loader::loadSortIndex(AST::SortIndex &SortIdx) {
   // sortidx             ::= sort:<sort> idx:<u32> => (sort idx)
+  if (auto R = loadSort(SortIdx.getSort()); !R) {
+    return logLoadError(R.error(), FMgr.getLastOffset(),
+                        ASTNodeAttr::CompSec_Export);
+  }
+  auto Idx = FMgr.readU32();
+  if (!Idx) {
+    return logLoadError(Idx.error(), FMgr.getLastOffset(),
+                        ASTNodeAttr::CompSec_Export);
+  }
+  SortIdx.setIndex(*Idx);
+  return {};
+}
+
+Expect<void> Loader::loadCoreSortIndex(AST::SortIndex &SortIdx) {
+  // core:sortidx ::= sort:<core:sort> idx:<u32> => (sort idx)
+  if (auto R = loadCoreSort(SortIdx.getSort()); !R) {
+    return logLoadError(R.error(), FMgr.getLastOffset(),
+                        ASTNodeAttr::CompSec_CoreInstance);
+  }
+  auto Idx = FMgr.readU32();
+  if (!Idx) {
+    return logLoadError(Idx.error(), FMgr.getLastOffset(),
+                        ASTNodeAttr::CompSec_CoreInstance);
+  }
+  SortIdx.setIndex(*Idx);
+  return {};
+}
+
+Expect<void> Loader::loadSort(AST::Sort &Sort) {
   // sort                ::= 0x00 cs:<core:sort> => core cs
   //                       | 0x01 => func
   //                       | 0x02 => value
@@ -682,41 +755,72 @@ Expect<void> Loader::loadSortIndex(AST::SortIndex &SortIdx) {
   //                       | 0x04 => component
   //                       | 0x05 => instance
   // si:<sortidx>
-  auto Sort = FMgr.readByte();
-  if (!Sort.has_value()) {
-    return logLoadError(Sort.error(), FMgr.getLastOffset(),
-                        ASTNodeAttr::CompSec_Export);
+  auto Res = FMgr.readByte();
+  if (!Res) {
+    return logLoadError(Res.error(), FMgr.getLastOffset(),
+                        ASTNodeAttr::CompSec_Alias);
   }
-
-  switch (Sort.value()) {
-  case 0x00: {
-    // core:sort ::= 0x00 => func
-    //             | 0x01 => table
-    //             | 0x02 => memory
-    //             | 0x03 => global
-    //             | 0x10 => type
-    //             | 0x11 => module
-    //             | 0x12 => instance
-    AST::CoreSortIndex CoreSortIndex;
-    SortIdx = CoreSortIndex;
-    return loadDesc(CoreSortIndex);
-  }
+  switch (*Res) {
+  case 0x00:
+    return loadCoreSort(Sort);
   case 0x01:
-  case 0x02:
-  case 0x03:
-  case 0x04:
-  case 0x05: {
-    auto Idx = FMgr.readU32();
-    if (!Idx) {
-      return logLoadError(Idx.error(), FMgr.getLastOffset(),
-                          ASTNodeAttr::CompSec_Export);
-    }
-    SortIdx = AST::ComponentSortIndex(Sort.value(), *Idx);
+    Sort = AST::Sort::Func;
     return {};
-  }
+  case 0x02:
+    Sort = AST::Sort::Value;
+    return {};
+  case 0x03:
+    Sort = AST::Sort::Type;
+    return {};
+  case 0x04:
+    Sort = AST::Sort::Component;
+    return {};
+  case 0x05:
+    Sort = AST::Sort::Instance;
+    return {};
   default:
-    return logLoadError(Sort.error(), FMgr.getLastOffset(),
-                        ASTNodeAttr::CompSec_Export);
+    return logLoadError(Res.error(), FMgr.getLastOffset(),
+                        ASTNodeAttr::CompSec_Alias);
+  }
+}
+Expect<void> Loader::loadCoreSort(AST::Sort &Sort) {
+  // core:sort ::= 0x00 => func
+  //             | 0x01 => table
+  //             | 0x02 => memory
+  //             | 0x03 => global
+  //             | 0x10 => type
+  //             | 0x11 => module
+  //             | 0x12 => instance
+  auto Res = FMgr.readByte();
+  if (!Res) {
+    return logLoadError(Res.error(), FMgr.getLastOffset(),
+                        ASTNodeAttr::CompSec_Alias);
+  }
+  switch (*Res) {
+  case 0x00:
+    Sort = AST::Sort::CoreFunc;
+    return {};
+  case 0x01:
+    Sort = AST::Sort::Table;
+    return {};
+  case 0x02:
+    Sort = AST::Sort::Memory;
+    return {};
+  case 0x03:
+    Sort = AST::Sort::Global;
+    return {};
+  case 0x10:
+    Sort = AST::Sort::CoreType;
+    return {};
+  case 0x11:
+    Sort = AST::Sort::Module;
+    return {};
+  case 0x12:
+    Sort = AST::Sort::CoreInstance;
+    return {};
+  default:
+    return logLoadError(Res.error(), FMgr.getLastOffset(),
+                        ASTNodeAttr::CompSec_Alias);
   }
 }
 

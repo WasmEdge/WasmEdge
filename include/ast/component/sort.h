@@ -13,13 +13,41 @@
 //===------------------------------------------------------------------------------------------===//
 #pragma once
 
+#include "ast/description.h"
 #include "common/types.h"
 
 namespace WasmEdge {
 namespace AST {
 
 using CoreSort = Byte;
-using Sort = Byte;
+
+enum class Sort {
+  CoreFunc,
+  Table,
+  Memory,
+  Global,
+  CoreType,
+  Module,
+  CoreInstance,
+  Func,
+  Value,
+  Type,
+  Component,
+  Instance
+};
+
+class SortIndex {
+public:
+  Sort &getSort() noexcept { return Sort; }
+  const Sort &getSort() const noexcept { return Sort; }
+
+  void setIndex(uint32_t V) noexcept { Index = V; }
+  uint32_t getIndex() const noexcept { return Index; }
+
+private:
+  Sort Sort;
+  uint32_t Index;
+};
 
 } // namespace AST
 } // namespace WasmEdge

@@ -13,6 +13,7 @@
 //===------------------------------------------------------------------------------------------===//
 #pragma once
 
+#include "ast/component/alias_section.h"
 #include "ast/component/canon_section.h"
 #include "ast/component/corealias_section.h"
 #include "ast/component/coreinstance_section.h"
@@ -106,6 +107,19 @@ private:
   /// \name Data of InstanceSection.
   /// @{
   std::vector<Instance> Content;
+  /// @}
+};
+
+class AliasSection : public Section {
+public:
+  /// Getter of content module.
+  Span<const Alias> getContent() const noexcept { return Content; }
+  std::vector<Alias> &getContent() noexcept { return Content; }
+
+private:
+  /// \name Data of AliasSection.
+  /// @{
+  std::vector<Alias> Content;
   /// @}
 };
 

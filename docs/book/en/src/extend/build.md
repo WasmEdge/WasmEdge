@@ -114,14 +114,34 @@ mkdir -p build && cd build
 cmake -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_BUILD_TESTS=ON .. && make -j
 ```
 
+### Building Options
 
-### If you don't want to build Ahead-of-Time runtime/compiler
+Developers can set the CMake options to customize the WasmEdge building.
 
-If you don't need Ahead-of-Time runtime/compiler support, you can set the CMake option `WASMEDGE_BUILD_AOT_RUNTIME` to `OFF`.
-
-```bash
-cmake -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_BUILD_AOT_RUNTIME=OFF ..
-```
+1. `WASMEDGE_BUILD_TESTS`: build the WasmEdge tests. Default is `OFF`.
+2. `WASMEDGE_BUILD_AOT_RUNTIME`: build with the Ahead-of-Time compiler supporting. Default is `ON`.
+3. `WASMEDGE_BUILD_SHARED_LIB`: build the WasmEdge shared library (`libwasmedge_c.so`, `libwasmedge_c.dylib`, or `wasmedge_c.dll`). Default is `ON`.
+    - By default, the WasmEdge shared library will link to the LLVM shared library.
+4. `WASMEDGE_BUILD_STATIC_LIB`: build the WasmEdge static library (`libwasmedge_c.a`, Linux and MacOS platforms, experimental). Default is `OFF`.
+    - If this option is set as `ON`, the option `WASMEDGE_FORCE_DISABLE_LTO` will forcefully be set as `ON`.
+    - If this option is set as `ON`, the `libz` and `libtinfo` on Linux platforms will be statically linked.
+5. `WASMEDGE_BUILD_TOOLS`: build the `wasmedge` and `wasmedgec` tools. Default is `ON`.
+    - The `wasmedge` and `wasmedgec` tools will link to the WasmEdge shared library by default.
+    - The option `WASMEDGE_BUILD_SHARED_LIB` will forcefully be set as `ON` if the `WASMEDGE_BUILD_STATIC_LIB` is `OFF` and the `WASMEDGE_LINK_TOOLS_STATIC` is `OFF`.
+    - If this option is set as `ON` and `WASMEDGE_BUILD_AOT_RUNTIME` is set as `OFF`, the `wasmedgec` tool for the AOT compiler will not be built.
+    - If this option and the option `WASMEDGE_BUILD_STATIC_LIB` are both set as `ON`, the `WASMEDGE_LINK_LLVM_STATIC` will be set as `ON` and the `wasmedge` and `wasmedgec` tools will link to the WasmEdge static library so that be the standalone tools accordingly.
+6. `WASMEDGE_BUILD_PLUGINS`: build the WasmEdge plugins. Default is `ON`.
+7. `WASMEDGE_BUILD_EXAMPLE`: build the WasmEdge examples. Default is `OFF`.
+8. `WASMEDGE_PLUGIN_WASI_NN_BACKEND`: build the WasmEdge WASI-NN plugin (Linux platforms only). Default is empty.
+    - This option is useless if the option `WASMEDGE_BUILD_PLUGINS` is set as `OFF`.
+    - To build the WASI-NN plugin with backend, please use `-DWASMEDGE_PLUGIN_WASI_NN_BACKEND=<backend_name>`.
+    - To build the WASI-NN plugin with multiple backends, please use `-DWASMEDGE_PLUGIN_WASI_NN_BACKEND=<backend_name1>,<backend_name2>`.
+9. `WASMEDGE_PLUGIN_WASI_CRYPTO`: build the WasmEdge WASI-Crypto plugin (Linux platforms only). Default is `OFF`.
+    - This option is useless if the option `WASMEDGE_BUILD_PLUGINS` is set as `OFF`.
+10. `WASMEDGE_FORCE_DISABLE_LTO`: forcefully turn off the link time optimization. Default is `OFF`.
+11. `WASMEDGE_LINK_LLVM_STATIC`: link the LLVM and lld libraries statically (Linux and MacOS platforms only, experimental). Default is `OFF`.
+12. `WASMEDGE_LINK_TOOLS_STATIC`: make the `wasmedge` and `wasmedgec` tools to link the WasmEdge library and LLVM libraries statically (Linux and MacOS platforms only, experimental). Default is `OFF`.
+    - If the option `WASMEDGE_BUILD_TOOLS` and this option are both set as `ON`, the `WASMEDGE_LINK_LLVM_STATIC` will be set as `ON`.
 
 ## Run built-in tests
 
@@ -138,4 +158,3 @@ LD_LIBRARY_PATH=$(pwd)/lib/api ctest
 ## Run applications
 
 Next, follow [this guide](../index.md) to run WebAssembly bytecode programs in `wasmedge`.
-

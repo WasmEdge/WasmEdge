@@ -14,26 +14,12 @@
 #pragma once
 
 #include "ast/component/sort.h"
-#include "ast/description.h"
 
 #include <cstdint>
 #include <string>
 
 namespace WasmEdge {
 namespace AST {
-
-class SortIndex {};
-class CoreSortIndex : public SortIndex, public ExportDesc {};
-class ComponentSortIndex : public SortIndex {
-public:
-  ComponentSortIndex(Sort Sort, uint32_t Index) : Sort{Sort}, Index{Index} {}
-  Sort getSort() const noexcept { return Sort; }
-  uint32_t getIndex() const noexcept { return Index; }
-
-private:
-  Sort Sort;
-  uint32_t Index;
-};
 
 class ExportDecl {
 public:

@@ -122,6 +122,8 @@ def extract_archive(
     with open(env_file_path, "a") as env_file:
         for filename in files_extracted:
             fname = filename.replace(CONST_ipkg, ipath)
+            if ipath not in fname:
+                fname = join(ipath, fname)
             env_file.write("#" + fname + "\n")
             logging.debug("Appending:%s", fname)
 
@@ -212,8 +214,21 @@ SUPPORTED_MIN_VERSION = {
 WASMEDGE = "WasmEdge"
 WASMEDGE_UNINSTALLER = "WasmEdge_Uninstaller"
 TENSORFLOW = "tensorflow"
+TENSORFLOW_DEPS = "tensorflow_deps"
+TENSORFLOW_TOOLS = "tensorflow_tools"
 IMAGE = "image"
+IMAGE_DEPS = "image_deps"
 EXTENSIONS = [TENSORFLOW, IMAGE]
+
+DEPENDENCIES = {
+    TENSORFLOW: [
+        TENSORFLOW_DEPS,
+        TENSORFLOW_TOOLS,
+    ],
+    IMAGE: [
+        IMAGE_DEPS,
+    ],
+}
 
 SUPPORTED_EXTENSIONS = {
     "Linux" + "x86_64": EXTENSIONS,
@@ -226,9 +241,10 @@ SUPPORTED_EXTENSIONS = {
     "Darwin" + "arm": [],
 }
 
-SUPPORTED_EXTENSIONS_MIN_VERSION = {
+SUPPORTED_EXTENSIONS_VERSION = {
     "Linux" + "x86_64" + TENSORFLOW: VersionString("0.8.1"),
     "Linux" + "x86_64" + IMAGE: VersionString("0.8.1"),
+    "Linux" + "x86_64" + IMAGE_DEPS: VersionString("0.8.2"),
     "Linux" + "amd64" + TENSORFLOW: VersionString("0.8.1"),
     "Linux" + "amd64" + IMAGE: VersionString("0.8.1"),
     "Linux" + "arm64" + TENSORFLOW: VersionString("0.8.1"),
@@ -236,13 +252,13 @@ SUPPORTED_EXTENSIONS_MIN_VERSION = {
     "Linux" + "armv8" + TENSORFLOW: VersionString("0.8.1"),
     "Linux" + "armv8" + IMAGE: VersionString("0.8.1"),
     "Linux" + "aarch64" + TENSORFLOW: VersionString("0.8.1"),
-    "Linux" + "aarch64" + IMAGE: VersionString("0.8.1"),
+    "Linux" + "aarch64" + IMAGE: VersionString("0.9.1-beta.1"),
     "Darwin" + "x86_64" + TENSORFLOW: VersionString("0.8.1"),
-    "Darwin" + "x86_64" + IMAGE: VersionString("0.8.1"),
+    "Darwin" + "x86_64" + IMAGE: VersionString("0.10.0-alpha.1"),
     "Darwin" + "arm64" + TENSORFLOW: VersionString("0.8.1"),
-    "Darwin" + "arm64" + IMAGE: VersionString("0.8.1"),
+    # "Darwin" + "arm64" + IMAGE: VersionString("0.8.1"),
     "Darwin" + "arm" + TENSORFLOW: VersionString("0.8.1"),
-    "Darwin" + "arm" + IMAGE: VersionString("0.8.1"),
+    # "Darwin" + "arm" + IMAGE: VersionString("0.8.1"),
 }
 
 HOME = expanduser("~")
@@ -356,7 +372,11 @@ def shell_configure(args):
     if ("bash" in SHELL) or ("zsh" in SHELL):
 
         CONST_shell_config = join(HOME, "." + SHELL + "rc")
-        CONST_shell_profile = join(HOME, "." + SHELL + "_profile")
+
+        if "zsh" in SHELL:
+            CONST_shell_profile = join(HOME, "." + "zprofile")
+        else:
+            CONST_shell_profile = join(HOME, "." + SHELL + "_profile")
 
         if not exists(CONST_shell_config):
             open(CONST_shell_config, "a").close()
@@ -387,6 +407,85 @@ def shell_configure(args):
     return 0
 
 
+def install_image_extension(args, compat):
+    global CONST_release_pkg
+
+    if not get_remote_version_availability(
+        "second-state/WasmEdge-image", args.image_version
+    ):
+        logging.error(
+            "Image extension version incorrect: {0}".format(args.image_version)
+        )
+        return -1
+    if compat.prefix() + IMAGE not in SUPPORTED_EXTENSIONS_VERSION:
+        logging.error("Image extensions not compatible: {0}".format(compat.prefix()))
+        return -1
+    elif (
+        SUPPORTED_EXTENSIONS_VERSION[compat.prefix() + IMAGE].compare(
+            args.image_version
+        )
+        > 0
+    ):
+        logging.error(
+            "Min image extensions version: {0}".format(
+                SUPPORTED_EXTENSIONS_VERSION[compat.prefix() + IMAGE],
+            )
+        )
+        return -1
+
+    print("Downloading image extension")
+
+    image_pkg = "WasmEdge-image-" + args.image_version + "-" + CONST_release_pkg
+
+    download_url(CONST_urls[IMAGE], join(TEMP_PATH, image_pkg), show_progress)
+
+    # Extract archieve
+    extract_archive(
+        join(TEMP_PATH, image_pkg),
+        args.path,
+        join(TEMP_PATH, "WasmEdge-image"),
+        env_file_path=CONST_env_path,
+        remove_finished=True,
+    )
+
+    copytree(join(TEMP_PATH, "WasmEdge-image"), args.path)
+
+    if compat.prefix() + IMAGE_DEPS in SUPPORTED_EXTENSIONS_VERSION:
+        if (
+            SUPPORTED_EXTENSIONS_VERSION[compat.prefix() + IMAGE_DEPS].compare(
+                args.image_deps_version
+            )
+            >= 0
+        ):
+            print("Installing image deps")
+            image_deps_pkg = (
+                "WasmEdge-image-deps-"
+                + args.image_deps_version
+                + "-"
+                + "manylinux1_x86_64.tar.gz"
+            )
+            download_url(
+                CONST_urls[IMAGE_DEPS], join(TEMP_PATH, image_deps_pkg), show_progress
+            )
+
+            # Extract archieve
+            extract_archive(
+                join(TEMP_PATH, image_deps_pkg),
+                join(args.path, "lib"),
+                join(TEMP_PATH, "WasmEdge-image-deps"),
+                env_file_path=CONST_env_path,
+                remove_finished=True,
+            )
+
+            copytree(join(TEMP_PATH, "WasmEdge-image-deps"), join(args.path, "lib"))
+        else:
+            logging.debug("Image deps not needed: {0}".format(args.image_deps_version))
+    else:
+        logging.debug("Image deps not needed: {0}".format(compat.prefix()))
+
+    return 0
+
+
 def set_consts(args, compat):
     global CONST_release_pkg, CONST_ipkg, CONST_lib_ext, CONST_urls
     CONST_release_pkg = compat.release_package
@@ -398,6 +497,12 @@ def set_consts(args, compat):
         ),
         WASMEDGE_UNINSTALLER: "https://raw.githubusercontent.com/WasmEdge/WasmEdge/{0}/utils/uninstall.sh".format(
             args.uninstall_script_tag
+        ),
+        IMAGE: "https://github.com/second-state/WasmEdge-image/releases/download/{0}/WasmEdge-image-{0}-{1}".format(
+            args.image_version, CONST_release_pkg
+        ),
+        IMAGE_DEPS: "https://github.com/second-state/WasmEdge-image/releases/download/{0}/WasmEdge-image-deps-{0}-{1}".format(
+            args.image_deps_version, "manylinux1_x86_64.tar.gz"
         ),
     }
 
@@ -519,6 +624,9 @@ class Compat:
             )
         return True
 
+    def prefix(self):
+        return self.platform + self.machine
+
 
 def main(args):
     global CONST_env_path, CONST_release_pkg, CONST_ipkg, CONST_shell_config, CONST_shell_profile
@@ -527,6 +635,8 @@ def main(args):
 
     logging.debug("Compat object: %s", compat)
     logging.debug("Temp path: %s", TEMP_PATH)
+    logging.debug("CLI Args:")
+    logging.debug(args)
 
     if compat:
         print("Compatible with current configuration")
@@ -598,6 +708,12 @@ def main(args):
                 "WasmEdge installation incorrect: {0}".format(wasmedge_output)
             )
 
+        if IMAGE in args.extensions:
+            if install_image_extension(args, compat) != 0:
+                logging.error("Error in installing image extensions")
+            else:
+                print("Image extension installed")
+
         # Cleanup
         shutil.rmtree(TEMP_PATH)
     else:
@@ -616,6 +732,7 @@ if __name__ == "__main__":
         dest="extensions",
         choices=EXTENSIONS.append("all"),
         required=False,
+        default=[],
         help="Supported Extensions - {0}".format(EXTENSIONS),
     )
     parser.add_argument(
@@ -693,14 +810,14 @@ if __name__ == "__main__":
         "--image-version",
         dest="image_version",
         required=False,
-        default=get_latest_github_release("WasmEdge/WasmEdge"),
+        default=get_latest_github_release("second-state/WasmEdge-image"),
         help="Image extension version",
     )
     parser.add_argument(
         "--image-deps-version",
         dest="image_deps_version",
         required=False,
-        default=get_latest_github_release("WasmEdge/WasmEdge"),
+        default=get_latest_github_release("second-state/WasmEdge-image"),
         help="Image Deps version",
     )
     parser.add_argument(

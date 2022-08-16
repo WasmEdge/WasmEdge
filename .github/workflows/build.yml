@@ -332,7 +332,7 @@ jobs:
         export CPPFLAGS="-I/usr/local/opt/llvm/include"
         export CC=clang
         export CXX=clang++
-        cmake -Bbuild -GNinja -DWASMEDGE_BUILD_TESTS=ON -DWASMEDGE_BUILD_TOOLS_STATIC=ON -DWASMEDGE_BUILD_PACKAGE="TGZ" .
+        cmake -Bbuild -GNinja -DWASMEDGE_BUILD_TESTS=ON -DWASMEDGE_LINK_TOOLS_STATIC=ON -DWASMEDGE_BUILD_PACKAGE="TGZ" .
         cmake --build build
     - name: Test WasmEdge
       continue-on-error: true
@@ -345,6 +345,20 @@ jobs:
     - name: Test WasmEdge Package
       run: |
         cmake --build build --target package
+    - name: Test Standalone WasmEdge without LLVM
+      run: |
+        brew uninstall llvm
+        export DYLD_LIBRARY_PATH="$(pwd)/build/lib/api:$DYLD_LIBRARY_PATH"
+        echo "otool -L ./build/tools/wasmedge/wasmedge:"
+        otool -L ./build/tools/wasmedge/wasmedge
+        echo "otool -L ./build/tools/wasmedge/wasmedgec:"
+        otool -L ./build/tools/wasmedge/wasmedgec
+        echo "otool -L ./build/lib/api/libwasmedge_c.dylib:"
+        otool -L ./build/lib/api/libwasmedge_c.dylib
+        echo "./build/tools/wasmedge/wasmedgec examples/wasm/fibonacci.wasm fib.dylib"
+        ./build/tools/wasmedge/wasmedgec examples/wasm/fibonacci.wasm fib.dylib
+        echo "./build/tools/wasmedge/wasmedge --reactor fib.dylib fib 20"
+        ./build/tools/wasmedge/wasmedge --reactor fib.dylib fib 20
     - name: Upload artifact
       uses: actions/upload-artifact@v2
       with:

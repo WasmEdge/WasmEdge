@@ -416,10 +416,6 @@ Expect<void> Loader::loadType(AST::Type &Ty) {
     return logLoadError(Res.error(), FMgr.getLastOffset(),
                         ASTNodeAttr::CompSec_Type);
   }
-
-  AST::DefinedValueType::Prim P;
-  Ty = P;
-
   switch (*Res) {
   case 0x40:
     // => (func (param p)* (result r)*)
@@ -431,49 +427,95 @@ Expect<void> Loader::loadType(AST::Type &Ty) {
   case 0x42:
     // instancetype  ::= 0x42 id*:vec(<instancedecl>) => (instance id*)
     break;
-  case static_cast<Byte>(AST::PrimitiveValueType::Bool):
-    P.setValue(AST::PrimitiveValueType::Bool);
+  case static_cast<Byte>(AST::PrimitiveValueType::String)... static_cast<Byte>(
+      AST::PrimitiveValueType::Bool): {
+    AST::DefinedValueType::Prim P;
+    Ty = P;
+    P.setValue(static_cast<AST::PrimitiveValueType>(*Res));
     return {};
-  case static_cast<Byte>(AST::PrimitiveValueType::S8):
-    P.setValue(AST::PrimitiveValueType::S8);
-    return {};
-  case static_cast<Byte>(AST::PrimitiveValueType::U8):
-    P.setValue(AST::PrimitiveValueType::U8);
-    return {};
-  case static_cast<Byte>(AST::PrimitiveValueType::S16):
-    P.setValue(AST::PrimitiveValueType::S16);
-    return {};
-  case static_cast<Byte>(AST::PrimitiveValueType::U16):
-    P.setValue(AST::PrimitiveValueType::U16);
-    return {};
-  case static_cast<Byte>(AST::PrimitiveValueType::S32):
-    P.setValue(AST::PrimitiveValueType::S32);
-    return {};
-  case static_cast<Byte>(AST::PrimitiveValueType::U32):
-    P.setValue(AST::PrimitiveValueType::U32);
-    return {};
-  case static_cast<Byte>(AST::PrimitiveValueType::Float32):
-    P.setValue(AST::PrimitiveValueType::Float32);
-    return {};
-  case static_cast<Byte>(AST::PrimitiveValueType::Float64):
-    P.setValue(AST::PrimitiveValueType::Float64);
-    return {};
-  case static_cast<Byte>(AST::PrimitiveValueType::Char):
-    P.setValue(AST::PrimitiveValueType::Char);
-    return {};
-  case static_cast<Byte>(AST::PrimitiveValueType::String):
-    P.setValue(AST::PrimitiveValueType::String);
-    return {};
+  }
   case 0x72:
+    // 0x72 nt*:vec(<namedvaltype>)         => (record (field nt)*)
   case 0x71:
-  case 0x70:
-  case 0x6f:
-  case 0x6e:
-  case 0x6d:
-  case 0x6c:
-  case 0x6b:
+    // 0x71 case*:vec(<case>)               => (variant case*)
+  case 0x70: {
+    // 0x70 t:<valtype>                     => (list t)
+    AST::DefinedValueType::List ListTy;
+    Ty = ListTy;
+    return loadValType(ListTy.getType());
+  }
+  case 0x6f: {
+    // 0x6f t*:vec(<valtype>)               => (tuple t*)
+    AST::DefinedValueType::Tuple TupleTy;
+    Ty = TupleTy;
+    return loadVec(TupleTy.getTypes(), [this](auto &Ty) -> Expect<void> {
+      return loadValType(Ty);
+    });
+  }
+  case 0x6e: {
+    // 0x6e n*:vec(<name>)                  => (flags n*)
+    AST::DefinedValueType::Flags F;
+    Ty = F;
+    return loadVec(F.getNames(), [this](auto &S) -> Expect<void> {
+      auto N = FMgr.readName();
+      if (!N) {
+        return logLoadError(N.error(), FMgr.getLastOffset(),
+                            ASTNodeAttr::CompSec_Type);
+      }
+      S = *N;
+      return {};
+    });
+  }
+  case 0x6d: {
+    // 0x6d n*:vec(<name>)                  => (enum n*)
+    AST::DefinedValueType::Enum E;
+    Ty = E;
+    return loadVec(E.getNames(), [this](auto &S) -> Expect<void> {
+      auto N = FMgr.readName();
+      if (!N) {
+        return logLoadError(N.error(), FMgr.getLastOffset(),
+                            ASTNodeAttr::CompSec_Type);
+      }
+      S = *N;
+      return {};
+    });
+  }
+  case 0x6c: {
+    // 0x6c t*:vec(<valtype>)               => (union t*)
+    AST::DefinedValueType::Union UnionTy;
+    Ty = UnionTy;
+    return loadVec(UnionTy.getTypes(), [this](auto &Ty) -> Expect<void> {
+      return loadValType(Ty);
+    });
+  }
+  case 0x6b: {
+    // 0x6b t:<valtype>                     => (option t)
+    AST::DefinedValueType::Option OptTy;
+    Ty = OptTy;
+    return loadValType(OptTy.getType());
+  }
   case 0x6a:
+    // 0x6a t?:<casetype> u?:<casetype>     => (result t? (error u)?)
   default:
+    return logLoadError(Res.error(), FMgr.getLastOffset(),
+                        ASTNodeAttr::CompSec_Type);
+  }
+  return {};
+}
+Expect<void> Loader::loadValType(AST::ValueType &Ty) {
+  auto Res = FMgr.readByte();
+  if (!Res) {
+    return logLoadError(Res.error(), FMgr.getLastOffset(),
+                        ASTNodeAttr::CompSec_Type);
+  }
+  switch (*Res) {
+  case static_cast<Byte>(AST::PrimitiveValueType::String)... static_cast<Byte>(
+      AST::PrimitiveValueType::Bool): {
+    Ty.PrimValTy = static_cast<AST::PrimitiveValueType>(*Res);
+    break;
+  }
+  default:
+    Ty.TypeIdx = *Res;
     break;
   }
   return {};

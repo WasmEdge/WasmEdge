@@ -404,6 +404,81 @@ Expect<void> Loader::loadAlias(AST::Alias &Alias) {
   return {};
 }
 
+Expect<void> Loader::loadSection(AST::ComponentTypeSection &Sec) {
+  return loadSectionContent(Sec, [this, &Sec]() {
+    return loadSectionContentVec(
+        Sec, [this](AST::Type &Ty) -> Expect<void> { return loadType(Ty); });
+  });
+}
+Expect<void> Loader::loadType(AST::Type &Ty) {
+  auto Res = FMgr.readByte();
+  if (!Res) {
+    return logLoadError(Res.error(), FMgr.getLastOffset(),
+                        ASTNodeAttr::CompSec_Type);
+  }
+
+  AST::DefinedValueType::Prim P;
+  Ty = P;
+
+  switch (*Res) {
+  case 0x40:
+    // => (func (param p)* (result r)*)
+    // functype ::= 0x40 p*:<funcvec> r*:<funcvec>
+    break;
+  case 0x41:
+    // componenttype ::= 0x41 cd*:vec(<componentdecl>) => (component cd*)
+    break;
+  case 0x42:
+    // instancetype  ::= 0x42 id*:vec(<instancedecl>) => (instance id*)
+    break;
+  case static_cast<Byte>(AST::PrimitiveValueType::Bool):
+    P.setValue(AST::PrimitiveValueType::Bool);
+    return {};
+  case static_cast<Byte>(AST::PrimitiveValueType::S8):
+    P.setValue(AST::PrimitiveValueType::S8);
+    return {};
+  case static_cast<Byte>(AST::PrimitiveValueType::U8):
+    P.setValue(AST::PrimitiveValueType::U8);
+    return {};
+  case static_cast<Byte>(AST::PrimitiveValueType::S16):
+    P.setValue(AST::PrimitiveValueType::S16);
+    return {};
+  case static_cast<Byte>(AST::PrimitiveValueType::U16):
+    P.setValue(AST::PrimitiveValueType::U16);
+    return {};
+  case static_cast<Byte>(AST::PrimitiveValueType::S32):
+    P.setValue(AST::PrimitiveValueType::S32);
+    return {};
+  case static_cast<Byte>(AST::PrimitiveValueType::U32):
+    P.setValue(AST::PrimitiveValueType::U32);
+    return {};
+  case static_cast<Byte>(AST::PrimitiveValueType::Float32):
+    P.setValue(AST::PrimitiveValueType::Float32);
+    return {};
+  case static_cast<Byte>(AST::PrimitiveValueType::Float64):
+    P.setValue(AST::PrimitiveValueType::Float64);
+    return {};
+  case static_cast<Byte>(AST::PrimitiveValueType::Char):
+    P.setValue(AST::PrimitiveValueType::Char);
+    return {};
+  case static_cast<Byte>(AST::PrimitiveValueType::String):
+    P.setValue(AST::PrimitiveValueType::String);
+    return {};
+  case 0x72:
+  case 0x71:
+  case 0x70:
+  case 0x6f:
+  case 0x6e:
+  case 0x6d:
+  case 0x6c:
+  case 0x6b:
+  case 0x6a:
+  default:
+    break;
+  }
+  return {};
+}
+
 Expect<void> Loader::loadSection(AST::ComponentCanonSection &Sec) {
   return loadSectionContent(Sec, [this, &Sec]() {
     return loadSectionContentVec(

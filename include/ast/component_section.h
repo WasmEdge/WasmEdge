@@ -22,6 +22,7 @@
 #include "ast/component/import_section.h"
 #include "ast/component/instance_section.h"
 #include "ast/component/start_section.h"
+#include "ast/component/type_section.h"
 #include "ast/module.h"
 
 #include <vector>
@@ -120,6 +121,19 @@ private:
   /// \name Data of AliasSection.
   /// @{
   std::vector<Alias> Content;
+  /// @}
+};
+
+class ComponentTypeSection : public Section {
+public:
+  /// Getter of content module.
+  Span<const Type> getContent() const noexcept { return Content; }
+  std::vector<Type> &getContent() noexcept { return Content; }
+
+private:
+  /// \name Data of ComponentTypeSection.
+  /// @{
+  std::vector<Type> Content;
   /// @}
 };
 

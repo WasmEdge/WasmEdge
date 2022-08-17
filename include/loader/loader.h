@@ -119,6 +119,10 @@ template <> inline ASTNodeAttr NodeAttrFromAST<AST::AliasSection>() noexcept {
   return ASTNodeAttr::CompSec_Alias;
 }
 template <>
+inline ASTNodeAttr NodeAttrFromAST<AST::ComponentTypeSection>() noexcept {
+  return ASTNodeAttr::CompSec_Type;
+}
+template <>
 inline ASTNodeAttr NodeAttrFromAST<AST::ComponentCanonSection>() noexcept {
   return ASTNodeAttr::CompSec_Canon;
 }
@@ -314,6 +318,8 @@ private:
   /* - */ Expect<void> loadInstance(AST::Instance &Inst);
   Expect<void> loadSection(AST::AliasSection &Sec);
   /* - */ Expect<void> loadAlias(AST::Alias &Alias);
+  Expect<void> loadSection(AST::ComponentTypeSection &Sec);
+  /* - */ Expect<void> loadType(AST::Type &Ty);
   Expect<void> loadSection(AST::ComponentCanonSection &Sec);
   /* - */ Expect<void> loadCanon(AST::Canon &Canon);
   /* - */ Expect<void> loadCanonOpt(AST::CanonOpt &CanonOpt);

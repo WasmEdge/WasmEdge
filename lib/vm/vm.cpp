@@ -356,7 +356,9 @@ VM::unsafeExecute(const Runtime::Instance::ModuleInstance *ModInst,
   // Execute function.
   if (auto Res = ExecutorEngine.invoke(*FuncInst, Params, ParamTypes);
       unlikely(!Res)) {
-    spdlog::error(ErrInfo::InfoExecuting(ModInst->getModuleName(), Func));
+    if (Res.error() != ErrCode::Terminated) {
+      spdlog::error(ErrInfo::InfoExecuting(ModInst->getModuleName(), Func));
+    }
     return Unexpect(Res);
   } else {
     return Res;

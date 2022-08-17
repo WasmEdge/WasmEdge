@@ -129,6 +129,9 @@ typedef struct WasmEdge_MemoryInstanceContext WasmEdge_MemoryInstanceContext;
 /// Opaque struct of WasmEdge global instance.
 typedef struct WasmEdge_GlobalInstanceContext WasmEdge_GlobalInstanceContext;
 
+/// Opaque struct of WasmEdge calling frame.
+typedef struct WasmEdge_CallingFrameContext WasmEdge_CallingFrameContext;
+
 /// Opaque struct of WasmEdge asynchronous result.
 typedef struct WasmEdge_Async WasmEdge_Async;
 
@@ -2070,7 +2073,7 @@ WasmEdge_ModuleInstanceDelete(WasmEdge_ModuleInstanceContext *Cxt);
 // >>>>>>>> WasmEdge function instance functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 typedef WasmEdge_Result (*WasmEdge_HostFunc_t)(
-    void *Data, WasmEdge_MemoryInstanceContext *MemCxt,
+    void *Data, const WasmEdge_CallingFrameContext *CallFrameCxt,
     const WasmEdge_Value *Params, WasmEdge_Value *Returns);
 /// Creation of the WasmEdge_FunctionInstanceContext for host functions.
 ///
@@ -2079,13 +2082,14 @@ typedef WasmEdge_Result (*WasmEdge_HostFunc_t)(
 /// `WasmEdge_ModuleInstanceContext`. The following is an example to create a
 /// host function context.
 /// ```c
-/// WasmEdge_Result FuncAdd(void *Data, WasmEdge_MemoryInstanceContext *MemCxt,
+/// WasmEdge_Result FuncAdd(void *Data,
+///                         const WasmEdge_CallingFrameContext *CallFrameCxt,
 ///                         const WasmEdge_Value *In, WasmEdge_Value *Out) {
-///   /// Function to return A + B.
+///   // Function to return A + B.
 ///   int32_t A = WasmEdge_ValueGetI32(In[0]);
 ///   int32_t B = WasmEdge_ValueGetI32(In[1]);
 ///   Out[0] = WasmEdge_ValueGenI32(A + B);
-///   /// Return execution status
+///   // Return execution status
 ///   return WasmEdge_Result_Success;
 /// }
 ///
@@ -2107,7 +2111,7 @@ typedef WasmEdge_Result (*WasmEdge_HostFunc_t)(
 /// ```c
 /// typedef WasmEdge_Result (*WasmEdge_HostFunc_t)(
 ///     void *Data,
-///     WasmEdge_MemoryInstanceContext *MemCxt,
+///     const WasmEdge_CallingFrameContext *CallFrameCxt,
 ///     const WasmEdge_Value *Params,
 ///     WasmEdge_Value *Returns);
 /// ```
@@ -2128,7 +2132,7 @@ WasmEdge_FunctionInstanceCreate(const WasmEdge_FunctionTypeContext *Type,
                                 const uint64_t Cost);
 
 typedef WasmEdge_Result (*WasmEdge_WrapFunc_t)(
-    void *This, void *Data, WasmEdge_MemoryInstanceContext *MemCxt,
+    void *This, void *Data, const WasmEdge_CallingFrameContext *CallFrameCxt,
     const WasmEdge_Value *Params, const uint32_t ParamLen,
     WasmEdge_Value *Returns, const uint32_t ReturnLen);
 /// Creation of the WasmEdge_FunctionInstanceContext for host functions.
@@ -2140,23 +2144,24 @@ typedef WasmEdge_Result (*WasmEdge_WrapFunc_t)(
 /// The following is an example to create a host function context for other
 /// languages.
 /// ```c
-/// /// `RealFunc` is the pointer to the function in other languages.
+/// // `RealFunc` is the pointer to the function in other languages.
 ///
-/// WasmEdge_Result FuncAddWrap(void *This, void *Data,
-///                             WasmEdge_MemoryInstanceContext *MemCxt,
-///                             const WasmEdge_Value *In, const uint32_t InLen,
-///                             WasmEdge_Value *Out, const uint32_t OutLen) {
-///   /// Wrapper function of host function to return A + B.
+/// WasmEdge_Result FuncAddWrap(
+///     void *This, void *Data,
+///     const WasmEdge_CallingFrameContext *CallFrameCxt,
+///     const WasmEdge_Value *In, const uint32_t InLen, WasmEdge_Value *Out,
+///     const uint32_t OutLen) {
+///   // Wrapper function of host function to return A + B.
 ///
-///   /// `This` is the same as `RealFunc`.
+///   // `This` is the same as `RealFunc`.
 ///   int32_t A = WasmEdge_ValueGetI32(In[0]);
 ///   int32_t B = WasmEdge_ValueGetI32(In[1]);
 ///
-///   /// Call the function of `This` in the host language ...
+///   // Call the function of `This` in the host language ...
 ///   int32_t Result = ...;
 ///
 ///   Out[0] = Result;
-///   /// Return the execution status
+///   // Return the execution status.
 ///   return WasmEdge_Result_Success;
 /// }
 ///
@@ -2180,7 +2185,7 @@ typedef WasmEdge_Result (*WasmEdge_WrapFunc_t)(
 /// typedef WasmEdge_Result (*WasmEdge_WrapFunc_t)(
 ///     void *This,
 ///     void *Data,
-///     WasmEdge_MemoryInstanceContext *MemCxt,
+///     WasmEdge_CallingFrameContext *FrameCxt,
 ///     const WasmEdge_Value *Params,
 ///     const uint32_t ParamLen,
 ///     WasmEdge_Value *Returns,
@@ -2484,6 +2489,54 @@ WASMEDGE_CAPI_EXPORT extern void
 WasmEdge_GlobalInstanceDelete(WasmEdge_GlobalInstanceContext *Cxt);
 
 // <<<<<<<< WasmEdge global instance functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+// >>>>>>>> WasmEdge calling frame functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+/// Get the executor context from the current calling frame.
+///
+/// \param Cxt the WasmEdge_CallingFrameContext.
+///
+/// \returns the executor context, NULL if the Cxt is NULL.
+WASMEDGE_CAPI_EXPORT extern WasmEdge_ExecutorContext *
+WasmEdge_CallingFrameGetExecutor(const WasmEdge_CallingFrameContext *Cxt);
+
+/// Get the module instance of the current calling frame.
+///
+/// When a WASM function is executing and start to call a host function, a frame
+/// with the module instance which the WASM function belongs to will be pushed
+/// onto the stack. And therefore the calling frame context will record that
+/// module instance.
+/// So in one case that the module instance will be `NULL`: developers execute
+/// the function instance which is a host function and not added into a module
+/// instance.
+///
+/// \param Cxt the WasmEdge_CallingFrameContext.
+///
+/// \returns the module instance of the current calling frame.
+WASMEDGE_CAPI_EXPORT extern const WasmEdge_ModuleInstanceContext *
+WasmEdge_CallingFrameGetModuleInstance(const WasmEdge_CallingFrameContext *Cxt);
+
+/// Get the memory instance by index from the module instance of the current
+/// calling frame.
+///
+/// By default, a WASM module only have one memory instance after instantiation.
+/// Therefore, developers can use:
+///   `WasmEdge_CallingFrameGetMemoryInstance(Cxt, 0)`
+/// to get the memory instance in host function body.
+/// This extension is for the WASM multiple memories proposal. After enabling
+/// the proposal, there may be greater than 1 memory instances in a WASM module.
+/// So developers can use this function to access the memory instances which are
+/// not in 0 index.
+///
+/// \param Cxt the WasmEdge_CallingFrameContext.
+/// \param Idx the index of memory instance in the module instance.
+///
+/// \returns the memory instance, NULL if not found.
+WASMEDGE_CAPI_EXPORT extern WasmEdge_MemoryInstanceContext *
+WasmEdge_CallingFrameGetMemoryInstance(const WasmEdge_CallingFrameContext *Cxt,
+                                       const uint32_t Idx);
+
+// <<<<<<<< WasmEdge calling frame functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 // >>>>>>>> WasmEdge Async functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 

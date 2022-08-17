@@ -48,9 +48,10 @@ public:
                    Symbol<CompiledFunction> S) noexcept
       : ModInst(Mod), FuncType(Type),
         Data(std::in_place_type_t<Symbol<CompiledFunction>>(), std::move(S)) {}
-  /// Constructor for host function. Module instance will not be used.
-  FunctionInstance(std::unique_ptr<HostFunctionBase> &&Func) noexcept
-      : ModInst(nullptr), FuncType(Func->getFuncType()),
+  /// Constructor for host function.
+  FunctionInstance(const ModuleInstance *Mod,
+                   std::unique_ptr<HostFunctionBase> &&Func) noexcept
+      : ModInst(Mod), FuncType(Func->getFuncType()),
         Data(std::in_place_type_t<std::unique_ptr<HostFunctionBase>>(),
              std::move(Func)) {}
 
@@ -122,6 +123,9 @@ private:
       Instrs.assign(Expr.begin(), Expr.end());
     }
   };
+
+  friend class ModuleInstance;
+  void setModule(const ModuleInstance *Mod) noexcept { ModInst = Mod; }
 
   /// \name Data of function instance.
   /// @{

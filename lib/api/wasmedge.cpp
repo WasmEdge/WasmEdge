@@ -90,6 +90,9 @@ struct WasmEdge_MemoryInstanceContext {};
 // WasmEdge_GlobalInstanceContext implementation.
 struct WasmEdge_GlobalInstanceContext {};
 
+// WasmEdge_CallingFrameContext implementation.
+struct WasmEdge_CallingFrameContext {};
+
 // WasmEdge_Async implementation.
 struct WasmEdge_Async {
   template <typename... Args>
@@ -281,67 +284,6 @@ inline uint32_t fillMap(const std::map<std::string, T *, std::less<>> &Map,
   return static_cast<uint32_t>(Map.size());
 }
 
-// C API Host function class
-class CAPIHostFunc : public Runtime::HostFunctionBase {
-public:
-  CAPIHostFunc(const AST::FunctionType *Type, WasmEdge_HostFunc_t FuncPtr,
-               void *ExtData, const uint64_t FuncCost = 0) noexcept
-      : Runtime::HostFunctionBase(FuncCost), Func(FuncPtr), Wrap(nullptr),
-        Binding(nullptr), Data(ExtData) {
-    FuncType = *Type;
-  }
-  CAPIHostFunc(const AST::FunctionType *Type, WasmEdge_WrapFunc_t WrapPtr,
-               void *BindingPtr, void *ExtData,
-               const uint64_t FuncCost = 0) noexcept
-      : Runtime::HostFunctionBase(FuncCost), Func(nullptr), Wrap(WrapPtr),
-        Binding(BindingPtr), Data(ExtData) {
-    FuncType = *Type;
-  }
-  ~CAPIHostFunc() noexcept override = default;
-
-  Expect<void> run(Runtime::Instance::MemoryInstance *MemInst,
-                   Span<const ValVariant> Args,
-                   Span<ValVariant> Rets) override {
-    std::vector<WasmEdge_Value> Params(FuncType.getParamTypes().size()),
-        Returns(FuncType.getReturnTypes().size());
-    for (uint32_t I = 0; I < Args.size(); I++) {
-      Params[I].Value = to_uint128_t(Args[I].get<WasmEdge::uint128_t>());
-      Params[I].Type =
-          static_cast<WasmEdge_ValType>(FuncType.getParamTypes()[I]);
-    }
-    WasmEdge_Value *PPtr = Params.size() ? (&Params[0]) : nullptr;
-    WasmEdge_Value *RPtr = Returns.size() ? (&Returns[0]) : nullptr;
-    auto *MemCxt = reinterpret_cast<WasmEdge_MemoryInstanceContext *>(MemInst);
-    WasmEdge_Result Stat;
-    if (Func) {
-      Stat = Func(Data, MemCxt, PPtr, RPtr);
-    } else {
-      Stat = Wrap(Binding, Data, MemCxt, PPtr,
-                  static_cast<uint32_t>(Params.size()), RPtr,
-                  static_cast<uint32_t>(Returns.size()));
-    }
-    for (uint32_t I = 0; I < Rets.size(); I++) {
-      Rets[I] = to_WasmEdge_128_t<WasmEdge::uint128_t>(Returns[I].Value);
-    }
-    if (WasmEdge_ResultOK(Stat)) {
-      if (WasmEdge_ResultGetCode(Stat) == 0x01U) {
-        return Unexpect(ErrCode::Value::Terminated);
-      }
-    } else {
-      return Unexpect(
-          static_cast<ErrCategory>(WasmEdge_ResultGetCategory(Stat)),
-          WasmEdge_ResultGetCode(Stat));
-    }
-    return {};
-  }
-
-private:
-  WasmEdge_HostFunc_t Func;
-  WasmEdge_WrapFunc_t Wrap;
-  void *Binding;
-  void *Data;
-};
-
 // Helper functions of context conversions.
 #define CONVTO(SIMP, INST, NAME, QUANT)                                        \
   inline QUANT auto *to##SIMP##Cxt(QUANT INST *Cxt) noexcept {                 \
@@ -370,6 +312,7 @@ CONVTO(Func, Runtime::Instance::FunctionInstance, FunctionInstance, const)
 CONVTO(Tab, Runtime::Instance::TableInstance, TableInstance, )
 CONVTO(Mem, Runtime::Instance::MemoryInstance, MemoryInstance, )
 CONVTO(Glob, Runtime::Instance::GlobalInstance, GlobalInstance, )
+CONVTO(CallFrame, Runtime::CallingFrame, CallingFrame, const)
 #undef CONVTO
 
 #define CONVFROM(SIMP, INST, NAME, QUANT)                                      \
@@ -406,7 +349,69 @@ CONVFROM(Mem, Runtime::Instance::MemoryInstance, MemoryInstance, )
 CONVFROM(Mem, Runtime::Instance::MemoryInstance, MemoryInstance, const)
 CONVFROM(Glob, Runtime::Instance::GlobalInstance, GlobalInstance, )
 CONVFROM(Glob, Runtime::Instance::GlobalInstance, GlobalInstance, const)
+CONVFROM(CallFrame, Runtime::CallingFrame, CallingFrame, const)
 #undef CONVFROM
+
+// C API Host function class
+class CAPIHostFunc : public Runtime::HostFunctionBase {
+public:
+  CAPIHostFunc(const AST::FunctionType *Type, WasmEdge_HostFunc_t FuncPtr,
+               void *ExtData, const uint64_t FuncCost = 0) noexcept
+      : Runtime::HostFunctionBase(FuncCost), Func(FuncPtr), Wrap(nullptr),
+        Binding(nullptr), Data(ExtData) {
+    FuncType = *Type;
+  }
+  CAPIHostFunc(const AST::FunctionType *Type, WasmEdge_WrapFunc_t WrapPtr,
+               void *BindingPtr, void *ExtData,
+               const uint64_t FuncCost = 0) noexcept
+      : Runtime::HostFunctionBase(FuncCost), Func(nullptr), Wrap(WrapPtr),
+        Binding(BindingPtr), Data(ExtData) {
+    FuncType = *Type;
+  }
+  ~CAPIHostFunc() noexcept override = default;
+
+  Expect<void> run(const Runtime::CallingFrame &CallFrame,
+                   Span<const ValVariant> Args,
+                   Span<ValVariant> Rets) override {
+    std::vector<WasmEdge_Value> Params(FuncType.getParamTypes().size()),
+        Returns(FuncType.getReturnTypes().size());
+    for (uint32_t I = 0; I < Args.size(); I++) {
+      Params[I].Value = to_uint128_t(Args[I].get<WasmEdge::uint128_t>());
+      Params[I].Type =
+          static_cast<WasmEdge_ValType>(FuncType.getParamTypes()[I]);
+    }
+    WasmEdge_Value *PPtr = Params.size() ? (&Params[0]) : nullptr;
+    WasmEdge_Value *RPtr = Returns.size() ? (&Returns[0]) : nullptr;
+    auto *CallFrameCxt = toCallFrameCxt(&CallFrame);
+    WasmEdge_Result Stat;
+    if (Func) {
+      Stat = Func(Data, CallFrameCxt, PPtr, RPtr);
+    } else {
+      Stat = Wrap(Binding, Data, CallFrameCxt, PPtr,
+                  static_cast<uint32_t>(Params.size()), RPtr,
+                  static_cast<uint32_t>(Returns.size()));
+    }
+    for (uint32_t I = 0; I < Rets.size(); I++) {
+      Rets[I] = to_WasmEdge_128_t<WasmEdge::uint128_t>(Returns[I].Value);
+    }
+    if (WasmEdge_ResultOK(Stat)) {
+      if (WasmEdge_ResultGetCode(Stat) == 0x01U) {
+        return Unexpect(ErrCode::Value::Terminated);
+      }
+    } else {
+      return Unexpect(
+          static_cast<ErrCategory>(WasmEdge_ResultGetCategory(Stat)),
+          WasmEdge_ResultGetCode(Stat));
+    }
+    return {};
+  }
+
+private:
+  WasmEdge_HostFunc_t Func;
+  WasmEdge_WrapFunc_t Wrap;
+  void *Binding;
+  void *Data;
+};
 
 } // namespace
 
@@ -1972,8 +1977,8 @@ WasmEdge_FunctionInstanceCreate(const WasmEdge_FunctionTypeContext *Type,
                                 const uint64_t Cost) {
   if (Type && HostFunc) {
     return toFuncCxt(new WasmEdge::Runtime::Instance::FunctionInstance(
-        std::make_unique<CAPIHostFunc>(fromFuncTypeCxt(Type), HostFunc, Data,
-                                       Cost)));
+        nullptr, std::make_unique<CAPIHostFunc>(fromFuncTypeCxt(Type), HostFunc,
+                                                Data, Cost)));
   }
   return nullptr;
 }
@@ -1985,8 +1990,8 @@ WasmEdge_FunctionInstanceCreateBinding(const WasmEdge_FunctionTypeContext *Type,
                                        const uint64_t Cost) {
   if (Type && WrapFunc) {
     return toFuncCxt(new WasmEdge::Runtime::Instance::FunctionInstance(
-        std::make_unique<CAPIHostFunc>(fromFuncTypeCxt(Type), WrapFunc, Binding,
-                                       Data, Cost)));
+        nullptr, std::make_unique<CAPIHostFunc>(fromFuncTypeCxt(Type), WrapFunc,
+                                                Binding, Data, Cost)));
   }
   return nullptr;
 }
@@ -2232,6 +2237,36 @@ WasmEdge_GlobalInstanceDelete(WasmEdge_GlobalInstanceContext *Cxt) {
 }
 
 // <<<<<<<< WasmEdge global instance functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+// >>>>>>>> WasmEdge calling frame functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+WASMEDGE_CAPI_EXPORT WasmEdge_ExecutorContext *
+WasmEdge_CallingFrameGetExecutor(const WasmEdge_CallingFrameContext *Cxt) {
+  if (Cxt) {
+    return toExecutorCxt(fromCallFrameCxt(Cxt)->getExecutor());
+  }
+  return nullptr;
+}
+
+WASMEDGE_CAPI_EXPORT const WasmEdge_ModuleInstanceContext *
+WasmEdge_CallingFrameGetModuleInstance(
+    const WasmEdge_CallingFrameContext *Cxt) {
+  if (Cxt) {
+    return toModCxt(fromCallFrameCxt(Cxt)->getModule());
+  }
+  return nullptr;
+}
+
+WASMEDGE_CAPI_EXPORT WasmEdge_MemoryInstanceContext *
+WasmEdge_CallingFrameGetMemoryInstance(const WasmEdge_CallingFrameContext *Cxt,
+                                       const uint32_t Idx) {
+  if (Cxt) {
+    return toMemCxt(fromCallFrameCxt(Cxt)->getMemoryByIndex(Idx));
+  }
+  return nullptr;
+}
+
+// <<<<<<<< WasmEdge calling frame functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 // >>>>>>>> WasmEdge Async functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 

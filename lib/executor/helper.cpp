@@ -35,23 +35,21 @@ Executor::enterFunction(Runtime::StackManager &StackMgr,
     // Host function case: Push args and call function.
     auto &HostFunc = Func.getHostFunc();
 
-    // Get memory instance from current frame.
-    // It'll be nullptr if current frame is dummy frame or no memory instance
-    // in current module.
+    // Generate CallingFrame from current frame.
+    // The module instance will be nullptr if current frame is a dummy frame.
+    // For this case, use the module instance of this host function.
     const auto *ModInst = StackMgr.getModule();
-    Runtime::Instance::MemoryInstance *MemoryInst = nullptr;
-    if (ModInst != nullptr) {
-      if (auto Res = ModInst->getMemory(0); Res) {
-        MemoryInst = *Res;
-      }
+    if (ModInst == nullptr) {
+      ModInst = Func.getModule();
     }
+    Runtime::CallingFrame CallFrame(this, ModInst);
 
     // Push frame.
-    StackMgr.pushFrame(nullptr,   // Host function instance don't have module
-                       RetIt,     // Return PC
-                       ArgsN,     // Only args, no locals in stack
-                       RetsN,     // Returns num
-                       IsTailCall // For tail-call
+    StackMgr.pushFrame(Func.getModule(), // Module instance
+                       RetIt,            // Return PC
+                       ArgsN,            // Only args, no locals in stack
+                       RetsN,            // Returns num
+                       IsTailCall        // For tail-call
     );
 
     // Do the statistics if the statistics turned on.
@@ -69,7 +67,7 @@ Executor::enterFunction(Runtime::StackManager &StackMgr,
     // Run host function.
     Span<ValVariant> Args = StackMgr.getTopSpan(ArgsN);
     std::vector<ValVariant> Rets(RetsN);
-    auto Ret = HostFunc.run(MemoryInst, std::move(Args), Rets);
+    auto Ret = HostFunc.run(CallFrame, std::move(Args), Rets);
 
     // Do the statistics if the statistics turned on.
     if (Stat) {
@@ -100,7 +98,7 @@ Executor::enterFunction(Runtime::StackManager &StackMgr,
     // continuation.
 
     // Push frame.
-    StackMgr.pushFrame(Func.getModule(), // Module address
+    StackMgr.pushFrame(Func.getModule(), // Module instance
                        RetIt,            // Return PC
                        ArgsN,            // Only args, no locals in stack
                        RetsN,            // Returns num
@@ -166,7 +164,7 @@ Executor::enterFunction(Runtime::StackManager &StackMgr,
     // Push frame.
     // The PC must -1 here because in the interpreter mode execution, the PC
     // will increase after the callee return.
-    StackMgr.pushFrame(Func.getModule(),           // Module address
+    StackMgr.pushFrame(Func.getModule(),           // Module instance
                        RetIt - 1,                  // Return PC
                        ArgsN + Func.getLocalNum(), // Arguments num + local num
                        RetsN,                      // Returns num

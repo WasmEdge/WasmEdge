@@ -34,12 +34,24 @@ Executor::runFunction(Runtime::StackManager &StackMgr,
 
   // Enter and execute function.
   AST::InstrView::iterator StartIt;
-  if (auto Res = enterFunction(StackMgr, Func, Func.getInstrs().end())) {
-    StartIt = *Res;
+  Expect<void> Res = {};
+  if (auto GetIt = enterFunction(StackMgr, Func, Func.getInstrs().end())) {
+    StartIt = *GetIt;
   } else {
-    return Unexpect(Res);
+    if (GetIt.error() == ErrCode::Terminated) {
+      // Handle the terminated case in entering AOT or host functions.
+      // For the terminated case, not return now to print the statistics.
+      Res = Unexpect(GetIt.error());
+    } else {
+      return Unexpect(GetIt);
+    }
   }
-  auto Res = execute(StackMgr, StartIt, Func.getInstrs().end());
+  if (Res) {
+    // If not terminated, execute the instructions in interpreter mode.
+    // For the entering AOT or host functions, the `StartIt` is equal to the end
+    // of instruction list, therefore the execution will return immediately.
+    Res = execute(StackMgr, StartIt, Func.getInstrs().end());
+  }
 
   if (Res) {
     spdlog::debug(" Execution succeeded.");
@@ -61,7 +73,6 @@ Executor::runFunction(Runtime::StackManager &StackMgr,
   }
   if (Res.error() == ErrCode::Terminated) {
     StackMgr.reset();
-    return {};
   }
   return Unexpect(Res);
 }

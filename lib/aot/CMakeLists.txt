@@ -2,11 +2,13 @@
 # SPDX-FileCopyrightText: 2019-2022 Second State INC
 
 find_package(LLVM REQUIRED HINTS "${LLVM_CMAKE_PATH}")
+get_filename_component(LLVM_DIR "${LLVM_DIR}" ABSOLUTE)
 list(APPEND CMAKE_MODULE_PATH ${LLVM_DIR})
 include(LLVMConfig)
 include(AddLLVM)
 
-find_package(LLD REQUIRED HINTS "${LLVM_LIBRARY_DIR}/cmake/lld")
+get_filename_component(LLD_DIR "${LLVM_LIBRARY_DIR}/cmake/lld" ABSOLUTE)
+find_package(LLD REQUIRED HINTS ${LLD_DIR})
 
 if(WASMEDGE_LINK_LLVM_STATIC)
   wasmedge_add_library(wasmedgeAOT
@@ -38,7 +40,7 @@ else()
   if(LLVM_VERSION_MAJOR LESS_EQUAL 13)
     list(APPEND LLD_LIBS lldDriver)
   endif()
-  
+
   llvm_add_library(wasmedgeAOT
     blake3.cpp
     cache.cpp
@@ -76,3 +78,17 @@ target_include_directories(wasmedgeAOT
   ${PROJECT_BINARY_DIR}/include
   ${PROJECT_SOURCE_DIR}/thirdparty/blake3
 )
+
+include(CheckCXXSourceCompiles)
+set(CMAKE_REQUIRED_LINK_OPTIONS "-Wl,-lc,--exclude-libs=libc.a")
+check_cxx_source_compiles("int main(){}" SUPPORT_EXCLUDE_LIBS)
+
+if(SUPPORT_EXCLUDE_LIBS)
+  file(GLOB LLD_ALL_LIBS ${LLVM_LIBRARY_DIR}/liblld*.a)
+  list(TRANSFORM LLD_ALL_LIBS REPLACE "^.*/" "")
+  string(JOIN : LLD_ALL_LIBS_COLON ${LLD_ALL_LIBS})
+  target_link_options(wasmedgeAOT
+    PUBLIC
+    "SHELL:-Wl,--exclude-libs=${LLD_ALL_LIBS_COLON}"
+  )
+endif()

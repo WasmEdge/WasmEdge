@@ -13,7 +13,7 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
-#include "common/enum_ast.h"
+#include "common/enum_ast.hpp"
 #include "common/span.h"
 #include "common/types.h"
 

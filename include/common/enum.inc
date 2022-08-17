@@ -16,7 +16,7 @@
 #error "this header file must not be included directly"
 #endif
 
-// enum_ast.h
+// enum_ast.hpp
 
 #ifdef UseASTNodeAttr
 #define A Line
@@ -858,7 +858,7 @@ P(UserDefined, 0x05, "user defined")
 #undef P
 #endif // UseWasmPhase
 
-// enum_errinfo.h
+// enum_errinfo.hpp
 
 #ifdef UsePtrType
 #define P Line

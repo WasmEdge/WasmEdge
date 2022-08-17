@@ -14,7 +14,7 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
-#include "common/enum_types.h"
+#include "common/enum_types.hpp"
 #include "common/errcode.h"
 #include "common/int128.h"
 #include "common/variant.h"

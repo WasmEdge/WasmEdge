@@ -53,8 +53,6 @@ set(WASMEDGE_CAPI_HEADERS
   ${CMAKE_CURRENT_BINARY_DIR}/../../include/api/wasmedge/enum_errcode.h
   ${CMAKE_CURRENT_BINARY_DIR}/../../include/api/wasmedge/enum_types.h
   ${CMAKE_CURRENT_SOURCE_DIR}/../../include/api/wasmedge/int128.h
-  ${CMAKE_CURRENT_BINARY_DIR}/../../include/api/wasmedge/dense_enum_map.h
-  ${CMAKE_CURRENT_BINARY_DIR}/../../include/api/wasmedge/spare_enum_map.h
 )
 
 # Object library of the C API wrapper.

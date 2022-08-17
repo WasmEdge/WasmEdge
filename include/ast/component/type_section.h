@@ -66,6 +66,14 @@ typedef union {
 } ValueType;
 
 class NamedValType {
+public:
+  void setName(std::string_view S) noexcept { Name = S; }
+  std::string_view getName() const noexcept { return Name; }
+
+  const ValueType &getType() const noexcept { return Ty; }
+  ValueType &getType() noexcept { return Ty; }
+
+private:
   std::string Name;
   ValueType Ty;
 };
@@ -95,27 +103,67 @@ private:
   PrimitiveValueType Value;
 };
 class DefinedValueType::Record : public DefinedValueType {
+public:
+  Span<const NamedValType> getFields() const noexcept { return Fields; }
+  std::vector<NamedValType> &getFields() noexcept { return Fields; }
+
+private:
   std::vector<NamedValType> Fields;
 };
 class DefinedValueType::Variant : public DefinedValueType {
+public:
+  Span<const Case> getCases() const noexcept { return Cases; }
+  std::vector<Case> &getCases() noexcept { return Cases; }
+
+private:
   std::vector<Case> Cases;
 };
 class DefinedValueType::List : public DefinedValueType {
+public:
+  const ValueType &getType() const noexcept { return Ty; }
+  ValueType &getType() noexcept { return Ty; }
+
+private:
   ValueType Ty;
 };
 class DefinedValueType::Tuple : public DefinedValueType {
+public:
+  Span<const ValueType> getTypes() const noexcept { return Types; }
+  std::vector<ValueType> &getTypes() noexcept { return Types; }
+
+private:
   std::vector<ValueType> Types;
 };
 class DefinedValueType::Flags : public DefinedValueType {
+public:
+  Span<const std::string> getNames() const noexcept { return Names; }
+  std::vector<std::string> &getNames() noexcept { return Names; }
+
+private:
   std::vector<std::string> Names;
 };
 class DefinedValueType::Enum : public DefinedValueType {
+public:
+  Span<const std::string> getNames() const noexcept { return Names; }
+  std::vector<std::string> &getNames() noexcept { return Names; }
+
+private:
   std::vector<std::string> Names;
 };
 class DefinedValueType::Union : public DefinedValueType {
+public:
+  Span<const ValueType> getTypes() const noexcept { return Types; }
+  std::vector<ValueType> &getTypes() noexcept { return Types; }
+
+private:
   std::vector<ValueType> Types;
 };
 class DefinedValueType::Option : public DefinedValueType {
+public:
+  const ValueType &getType() const noexcept { return Ty; }
+  ValueType &getType() noexcept { return Ty; }
+
+private:
   ValueType Ty;
 };
 class DefinedValueType::Result : public DefinedValueType {

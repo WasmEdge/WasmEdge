@@ -57,6 +57,9 @@ public:
   const AliasSection &getAliasSection() const { return AliasSec; }
   AliasSection &getAliasSection() { return AliasSec; }
 
+  const ComponentTypeSection &getTypeSection() const { return TypeSec; }
+  ComponentTypeSection &getTypeSection() { return TypeSec; }
+
   const ComponentCanonSection &getCanonSection() const { return CanonSec; }
   ComponentCanonSection &getCanonSection() { return CanonSec; }
 
@@ -110,6 +113,11 @@ private:
   /// \name Section nodes of Instance node.
   /// @{
   AliasSection AliasSec;
+  /// @}
+
+  /// \name Section nodes of Instance node.
+  /// @{
+  ComponentTypeSection TypeSec;
   /// @}
 
   /// \name Section nodes of Canon node.

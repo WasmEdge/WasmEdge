@@ -13,11 +13,11 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
-#include "common/enum_ast.h"
-#include "common/enum_configure.h"
-#include "common/enum_errcode.h"
-#include "common/enum_errinfo.h"
-#include "common/enum_types.h"
+#include "common/enum_ast.hpp"
+#include "common/enum_configure.hpp"
+#include "common/enum_errcode.hpp"
+#include "common/enum_errinfo.hpp"
+#include "common/enum_types.hpp"
 #include "common/filesystem.h"
 #include "common/types.h"
 

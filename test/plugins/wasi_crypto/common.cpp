@@ -56,7 +56,7 @@ TEST_F(WasiCryptoTest, Options) {
     auto *Func = getHostFunc<Common::OptionsSetGuestBuffer>(
         WasiCryptoCommonMod, "options_set_guest_buffer");
     ASSERT_NE(Func, nullptr);
-    EXPECT_TRUE(Func->run(&MemInst,
+    EXPECT_TRUE(Func->run(CallFrame,
                           std::initializer_list<WasmEdge::ValVariant>{
                               SymmetricOptionsHandle, 0, NameSize, 0, NameSize},
                           Errno));
@@ -84,7 +84,7 @@ TEST_F(WasiCryptoTest, Options) {
     auto *Func = getHostFunc<Common::OptionsSetGuestBuffer>(
         WasiCryptoCommonMod, "options_set_guest_buffer");
     ASSERT_NE(Func, nullptr);
-    EXPECT_TRUE(Func->run(&MemInst,
+    EXPECT_TRUE(Func->run(CallFrame,
                           std::initializer_list<WasmEdge::ValVariant>{
                               SigOptionsHandle, 0, NameSize, 0, NameSize},
                           Errno));
@@ -112,7 +112,7 @@ TEST_F(WasiCryptoTest, Options) {
     auto *Func = getHostFunc<Common::OptionsSetGuestBuffer>(
         WasiCryptoCommonMod, "options_set_guest_buffer");
     ASSERT_NE(Func, nullptr);
-    EXPECT_TRUE(Func->run(&MemInst,
+    EXPECT_TRUE(Func->run(CallFrame,
                           std::initializer_list<WasmEdge::ValVariant>{
                               KxOptionsHandle, 0, NameSize, 0, NameSize},
                           Errno));

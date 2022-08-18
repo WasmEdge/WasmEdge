@@ -49,7 +49,7 @@ char *Preopens[] = {&PreopensVec[0], &PreopensVec[12], &PreopensVec[21],
                     &PreopensVec[32], &PreopensVec[49]};
 char TPath[] = "apiTestData/test.wasm";
 
-WasmEdge_Result ExternAdd(void *, WasmEdge_MemoryInstanceContext *,
+WasmEdge_Result ExternAdd(void *, const WasmEdge_CallingFrameContext *,
                           const WasmEdge_Value *In, WasmEdge_Value *Out) {
   // {externref, i32} -> {i32}
   int32_t *Val1 = static_cast<int32_t *>(WasmEdge_ValueGetExternRef(In[0]));
@@ -58,7 +58,7 @@ WasmEdge_Result ExternAdd(void *, WasmEdge_MemoryInstanceContext *,
   return WasmEdge_Result_Success;
 }
 
-WasmEdge_Result ExternSub(void *, WasmEdge_MemoryInstanceContext *,
+WasmEdge_Result ExternSub(void *, const WasmEdge_CallingFrameContext *,
                           const WasmEdge_Value *In, WasmEdge_Value *Out) {
   // {externref, i32} -> {i32}
   int32_t *Val1 = static_cast<int32_t *>(WasmEdge_ValueGetExternRef(In[0]));
@@ -67,7 +67,7 @@ WasmEdge_Result ExternSub(void *, WasmEdge_MemoryInstanceContext *,
   return WasmEdge_Result_Success;
 }
 
-WasmEdge_Result ExternMul(void *, WasmEdge_MemoryInstanceContext *,
+WasmEdge_Result ExternMul(void *, const WasmEdge_CallingFrameContext *,
                           const WasmEdge_Value *In, WasmEdge_Value *Out) {
   // {externref, i32} -> {i32}
   int32_t *Val1 = static_cast<int32_t *>(WasmEdge_ValueGetExternRef(In[0]));
@@ -76,7 +76,7 @@ WasmEdge_Result ExternMul(void *, WasmEdge_MemoryInstanceContext *,
   return WasmEdge_Result_Success;
 }
 
-WasmEdge_Result ExternDiv(void *, WasmEdge_MemoryInstanceContext *,
+WasmEdge_Result ExternDiv(void *, const WasmEdge_CallingFrameContext *,
                           const WasmEdge_Value *In, WasmEdge_Value *Out) {
   // {externref, i32} -> {i32}
   int32_t *Val1 = static_cast<int32_t *>(WasmEdge_ValueGetExternRef(In[0]));
@@ -85,14 +85,14 @@ WasmEdge_Result ExternDiv(void *, WasmEdge_MemoryInstanceContext *,
   return WasmEdge_Result_Success;
 }
 
-WasmEdge_Result ExternTerm(void *, WasmEdge_MemoryInstanceContext *,
+WasmEdge_Result ExternTerm(void *, const WasmEdge_CallingFrameContext *,
                            const WasmEdge_Value *, WasmEdge_Value *Out) {
   // {} -> {i32}
   Out[0] = WasmEdge_ValueGenI32(1234);
   return WasmEdge_Result_Terminate;
 }
 
-WasmEdge_Result ExternFail(void *, WasmEdge_MemoryInstanceContext *,
+WasmEdge_Result ExternFail(void *, const WasmEdge_CallingFrameContext *,
                            const WasmEdge_Value *, WasmEdge_Value *Out) {
   // {} -> {i32}
   Out[0] = WasmEdge_ValueGenI32(5678);
@@ -100,11 +100,11 @@ WasmEdge_Result ExternFail(void *, WasmEdge_MemoryInstanceContext *,
 }
 
 WasmEdge_Result ExternWrap(void *This, void *Data,
-                           WasmEdge_MemoryInstanceContext *MemCxt,
+                           const WasmEdge_CallingFrameContext *MemCxt,
                            const WasmEdge_Value *In, const uint32_t,
                            WasmEdge_Value *Out, const uint32_t) {
   using HostFuncType =
-      WasmEdge_Result(void *, WasmEdge_MemoryInstanceContext *,
+      WasmEdge_Result(void *, const WasmEdge_CallingFrameContext *,
                       const WasmEdge_Value *, WasmEdge_Value *);
   HostFuncType *Func = reinterpret_cast<HostFuncType *>(This);
   return Func(Data, MemCxt, In, Out);

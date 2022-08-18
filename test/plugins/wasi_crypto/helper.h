@@ -14,7 +14,8 @@
 
 #include "common/span.h"
 #include "common/types.h"
-#include "runtime/instance/memory.h"
+#include "runtime/callingframe.h"
+#include "runtime/instance/module.h"
 #include "gtest/gtest.h"
 
 #include <algorithm>
@@ -54,7 +55,12 @@ std::vector<uint8_t> operator"" _u8v(const char *Str, std::size_t Len);
 /// Designed for testing.
 class WasiCryptoTest : public ::testing::Test {
 public:
-  WasiCryptoTest() {
+  WasiCryptoTest() : Mod(""), CallFrame(nullptr, &Mod) {
+    Mod.addHostMemory(
+        "memory", std::make_unique<WasmEdge::Runtime::Instance::MemoryInstance>(
+                      WasmEdge::AST::MemoryType(1)));
+    MemInst = Mod.findMemoryExports("memory");
+
     using namespace std::literals::string_view_literals;
     Plugin::Plugin::load(std::filesystem::u8path(
         "../../../plugins/wasi_crypto/"
@@ -384,8 +390,12 @@ protected:
       __wasi_signature_verification_state_t StateHandle);
 
   int32_t InvaildHandle = 9999;
-  WasmEdge::Runtime::Instance::MemoryInstance MemInst{
-      WasmEdge::AST::MemoryType(1)};
+
+  // Create the calling frame with memory instance.
+  WasmEdge::Runtime::Instance::ModuleInstance Mod;
+  WasmEdge::Runtime::Instance::MemoryInstance *MemInst;
+  WasmEdge::Runtime::CallingFrame CallFrame;
+
   std::array<WasmEdge::ValVariant, 1> Errno;
 
   Host::WasiCryptoAsymmetricCommonModule *WasiCryptoAsymCommonMod = nullptr;

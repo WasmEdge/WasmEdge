@@ -78,20 +78,31 @@ private:
   ValueType Ty;
 };
 
-typedef union {
-  ValueType ValTy;
-  std::vector<NamedValType> NamedValTypes;
-} FuncVec;
+using FuncVec = std::variant<ValueType, std::vector<NamedValType>>;
 
 class CaseType {
+public:
+  ValueType &getType() noexcept { return Ty.value(); }
+
+private:
   std::optional<ValueType> Ty{std::nullopt};
 };
 class Case {
+public:
+  void setName(std::string_view S) noexcept { Name = S; }
+  std::string_view getName() const noexcept { return Name; }
+
+  CaseType &getType() noexcept { return OptTy.value(); }
+
+  void setLabelIndex(uint32_t Idx) { LabelIdx = Idx; }
+  uint32_t getLabelIndex() { return LabelIdx.value(); }
+
+private:
   // (case n t?)
   std::string Name;
   std::optional<CaseType> OptTy{std::nullopt};
   // (case n t? (refines case-label[i]))
-  uint32_t LabelIdx;
+  std::optional<uint32_t> LabelIdx;
 };
 
 class DefinedValueType::Prim : public DefinedValueType {
@@ -167,13 +178,26 @@ private:
   ValueType Ty;
 };
 class DefinedValueType::Result : public DefinedValueType {
+public:
+  CaseType &getResult() noexcept { return ResultTy.value(); }
+  CaseType &getError() noexcept { return ErrorTy.value(); }
+
+private:
   std::optional<CaseType> ResultTy{std::nullopt};
   std::optional<CaseType> ErrorTy{std::nullopt};
 };
 
 class FuncType : public DefinedType {
-  std::vector<FuncVec> Parameters;
-  std::vector<FuncVec> Returns;
+public:
+  const FuncVec &getParameters() const noexcept { return Parameters; }
+  FuncVec &getParameters() noexcept { return Parameters; }
+
+  const FuncVec &getReturns() const noexcept { return Returns; }
+  FuncVec &getReturns() noexcept { return Returns; }
+
+private:
+  FuncVec Parameters;
+  FuncVec Returns;
 };
 
 typedef union {

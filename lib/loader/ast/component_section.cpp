@@ -430,11 +430,19 @@ Expect<void> Loader::loadType(AST::Type &Ty) {
   }
   case 0x41: {
     // componenttype ::= 0x41 cd*:vec(<componentdecl>) => (component cd*)
-    return {};
+    AST::ComponentType CompTy;
+    Ty = CompTy;
+    return loadVec(CompTy.getDecls(), [this](auto &D) -> Expect<void> {
+      return loadComponentDecl(D);
+    });
   }
   case 0x42: {
     // instancetype  ::= 0x42 id*:vec(<instancedecl>) => (instance id*)
-    return {};
+    AST::InstanceType InstTy;
+    Ty = InstTy;
+    return loadVec(InstTy.getDecls(), [this](auto &D) -> Expect<void> {
+      return loadInstanceDecl(D);
+    });
   }
   case static_cast<Byte>(AST::PrimitiveValueType::String)... static_cast<Byte>(
       AST::PrimitiveValueType::Bool): {
@@ -527,6 +535,52 @@ Expect<void> Loader::loadType(AST::Type &Ty) {
   default:
     return logLoadError(Res.error(), FMgr.getLastOffset(),
                         ASTNodeAttr::CompSec_Type);
+  }
+}
+Expect<void> Loader::loadInstanceDecl(AST::InstanceDecl &Decl, Expect<Byte> B) {
+  // instancedecl  ::= 0x00 t:<core:type>                   => t
+  //                 | 0x01 t:<type>                        => t
+  //                 | 0x02 a:<alias>                       => a
+  //                 | 0x04 ed:<exportdecl>                 => ed
+  switch (*B) {
+  case 0x00:
+    return loadCoreType(std::get<AST::CoreType>(Decl));
+  case 0x01:
+    return loadType(std::get<AST::Type>(Decl));
+  case 0x02:
+    return loadAlias(std::get<AST::Alias>(Decl));
+  case 0x04:
+    return loadExportDecl(std::get<AST::ExportDecl>(Decl));
+  default:
+    return logLoadError(B.error(), FMgr.getLastOffset(),
+                        ASTNodeAttr::CompSec_Type);
+  }
+}
+Expect<void> Loader::loadInstanceDecl(AST::InstanceDecl &Decl) {
+  // instancedecl  ::= 0x00 t:<core:type>                   => t
+  //                 | 0x01 t:<type>                        => t
+  //                 | 0x02 a:<alias>                       => a
+  //                 | 0x04 ed:<exportdecl>                 => ed
+  auto B = FMgr.readByte();
+  if (!B) {
+    return logLoadError(B.error(), FMgr.getLastOffset(),
+                        ASTNodeAttr::CompSec_Type);
+  }
+  return loadInstanceDecl(Decl, B);
+}
+Expect<void> Loader::loadComponentDecl(AST::ComponentDecl &Decl) {
+  // componentdecl ::= 0x03 id:<importdecl>                 => id
+  //                 | id:<instancedecl>                    => id
+  auto B = FMgr.readByte();
+  if (!B) {
+    return logLoadError(B.error(), FMgr.getLastOffset(),
+                        ASTNodeAttr::CompSec_Type);
+  }
+  switch (*B) {
+  case 0x03:
+    return loadImportDecl(std::get<AST::ImportDecl>(Decl));
+  default:
+    return loadInstanceDecl(std::get<AST::InstanceDecl>(Decl));
   }
 }
 Expect<void> Loader::loadFuncVec(AST::FuncVec &FuncV) {

@@ -200,11 +200,21 @@ private:
 
 using InstanceDecl = std::variant<CoreType, Type, Alias, ExportDecl>;
 class InstanceType : public DefinedType {
+public:
+  Span<const InstanceDecl> getDecls() const noexcept { return Decls; }
+  std::vector<InstanceDecl> &getDecls() noexcept { return Decls; }
+
+private:
   std::vector<InstanceDecl> Decls;
 };
 
 using ComponentDecl = std::variant<ImportDecl, InstanceDecl>;
 class ComponentType : public DefinedType {
+public:
+  Span<const ComponentDecl> getDecls() const noexcept { return Decls; }
+  std::vector<ComponentDecl> &getDecls() noexcept { return Decls; }
+
+private:
   std::vector<ComponentDecl> Decls;
 };
 

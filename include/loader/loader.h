@@ -137,6 +137,12 @@ template <> inline ASTNodeAttr NodeAttrFromAST<AST::NamedValType>() noexcept {
 template <> inline ASTNodeAttr NodeAttrFromAST<std::string>() noexcept {
   return ASTNodeAttr::CompSec_Type;
 }
+template <> inline ASTNodeAttr NodeAttrFromAST<AST::ComponentDecl>() noexcept {
+  return ASTNodeAttr::CompSec_Type;
+}
+template <> inline ASTNodeAttr NodeAttrFromAST<AST::InstanceDecl>() noexcept {
+  return ASTNodeAttr::CompSec_Type;
+}
 template <>
 inline ASTNodeAttr NodeAttrFromAST<AST::ComponentCanonSection>() noexcept {
   return ASTNodeAttr::CompSec_Canon;
@@ -335,6 +341,10 @@ private:
   /* - */ Expect<void> loadAlias(AST::Alias &Alias);
   Expect<void> loadSection(AST::ComponentTypeSection &Sec);
   /* - */ Expect<void> loadType(AST::Type &Ty);
+  /* - */ Expect<void> loadInstanceDecl(AST::InstanceDecl &Decl,
+                                        Expect<Byte> B);
+  /* - */ Expect<void> loadInstanceDecl(AST::InstanceDecl &Decl);
+  /* - */ Expect<void> loadComponentDecl(AST::ComponentDecl &Decl);
   /* - */ Expect<void> loadFuncVec(AST::FuncVec &FuncV);
   /* - */ Expect<void> loadCase(AST::Case &Case);
   /* - */ Expect<void> loadCaseType(AST::CaseType &Ty);

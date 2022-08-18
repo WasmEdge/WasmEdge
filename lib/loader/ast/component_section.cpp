@@ -616,11 +616,12 @@ Expect<void> Loader::loadValType(AST::ValueType &Ty) {
   switch (*Res) {
   case static_cast<Byte>(AST::PrimitiveValueType::String)... static_cast<Byte>(
       AST::PrimitiveValueType::Bool): {
-    Ty.PrimValTy = static_cast<AST::PrimitiveValueType>(*Res);
+    std::get<AST::PrimitiveValueType>(Ty) =
+        static_cast<AST::PrimitiveValueType>(*Res);
     break;
   }
   default:
-    Ty.TypeIdx = *Res;
+    std::get<uint32_t>(Ty) = *Res;
     break;
   }
   return {};

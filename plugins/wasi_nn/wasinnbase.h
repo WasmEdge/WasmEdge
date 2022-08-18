@@ -4,6 +4,7 @@
 #pragma once
 
 #include "common/errcode.h"
+#include "runtime/callingframe.h"
 #include "runtime/hostfunc.h"
 #include "wasinnenv.h"
 

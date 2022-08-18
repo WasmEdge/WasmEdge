@@ -15,15 +15,15 @@ class WasmEdgeProcessSetProgName
 public:
   WasmEdgeProcessSetProgName(WasmEdgeProcessEnvironment &HostEnv)
       : WasmEdgeProcess(HostEnv) {}
-  Expect<void> body(Runtime::Instance::MemoryInstance *MemInst,
-                    uint32_t NamePtr, uint32_t NameLen);
+  Expect<void> body(const Runtime::CallingFrame &Frame, uint32_t NamePtr,
+                    uint32_t NameLen);
 };
 
 class WasmEdgeProcessAddArg : public WasmEdgeProcess<WasmEdgeProcessAddArg> {
 public:
   WasmEdgeProcessAddArg(WasmEdgeProcessEnvironment &HostEnv)
       : WasmEdgeProcess(HostEnv) {}
-  Expect<void> body(Runtime::Instance::MemoryInstance *MemInst, uint32_t ArgPtr,
+  Expect<void> body(const Runtime::CallingFrame &Frame, uint32_t ArgPtr,
                     uint32_t ArgLen);
 };
 
@@ -31,9 +31,9 @@ class WasmEdgeProcessAddEnv : public WasmEdgeProcess<WasmEdgeProcessAddEnv> {
 public:
   WasmEdgeProcessAddEnv(WasmEdgeProcessEnvironment &HostEnv)
       : WasmEdgeProcess(HostEnv) {}
-  Expect<void> body(Runtime::Instance::MemoryInstance *MemInst,
-                    uint32_t EnvNamePtr, uint32_t EnvNameLen,
-                    uint32_t EnvValPtr, uint32_t EnvValLen);
+  Expect<void> body(const Runtime::CallingFrame &Frame, uint32_t EnvNamePtr,
+                    uint32_t EnvNameLen, uint32_t EnvValPtr,
+                    uint32_t EnvValLen);
 };
 
 class WasmEdgeProcessAddStdIn
@@ -41,7 +41,7 @@ class WasmEdgeProcessAddStdIn
 public:
   WasmEdgeProcessAddStdIn(WasmEdgeProcessEnvironment &HostEnv)
       : WasmEdgeProcess(HostEnv) {}
-  Expect<void> body(Runtime::Instance::MemoryInstance *MemInst, uint32_t BufPtr,
+  Expect<void> body(const Runtime::CallingFrame &Frame, uint32_t BufPtr,
                     uint32_t BufLen);
 };
 
@@ -50,14 +50,14 @@ class WasmEdgeProcessSetTimeOut
 public:
   WasmEdgeProcessSetTimeOut(WasmEdgeProcessEnvironment &HostEnv)
       : WasmEdgeProcess(HostEnv) {}
-  Expect<void> body(Runtime::Instance::MemoryInstance *MemInst, uint32_t Time);
+  Expect<void> body(const Runtime::CallingFrame &Frame, uint32_t Time);
 };
 
 class WasmEdgeProcessRun : public WasmEdgeProcess<WasmEdgeProcessRun> {
 public:
   WasmEdgeProcessRun(WasmEdgeProcessEnvironment &HostEnv)
       : WasmEdgeProcess(HostEnv) {}
-  Expect<uint32_t> body(Runtime::Instance::MemoryInstance *MemInst);
+  Expect<uint32_t> body(const Runtime::CallingFrame &Frame);
 };
 
 class WasmEdgeProcessGetExitCode
@@ -65,7 +65,7 @@ class WasmEdgeProcessGetExitCode
 public:
   WasmEdgeProcessGetExitCode(WasmEdgeProcessEnvironment &HostEnv)
       : WasmEdgeProcess(HostEnv) {}
-  Expect<uint32_t> body(Runtime::Instance::MemoryInstance *MemInst);
+  Expect<uint32_t> body(const Runtime::CallingFrame &Frame);
 };
 
 class WasmEdgeProcessGetStdOutLen
@@ -73,7 +73,7 @@ class WasmEdgeProcessGetStdOutLen
 public:
   WasmEdgeProcessGetStdOutLen(WasmEdgeProcessEnvironment &HostEnv)
       : WasmEdgeProcess(HostEnv) {}
-  Expect<uint32_t> body(Runtime::Instance::MemoryInstance *MemInst);
+  Expect<uint32_t> body(const Runtime::CallingFrame &Frame);
 };
 
 class WasmEdgeProcessGetStdOut
@@ -81,8 +81,7 @@ class WasmEdgeProcessGetStdOut
 public:
   WasmEdgeProcessGetStdOut(WasmEdgeProcessEnvironment &HostEnv)
       : WasmEdgeProcess(HostEnv) {}
-  Expect<void> body(Runtime::Instance::MemoryInstance *MemInst,
-                    uint32_t BufPtr);
+  Expect<void> body(const Runtime::CallingFrame &Frame, uint32_t BufPtr);
 };
 
 class WasmEdgeProcessGetStdErrLen
@@ -90,7 +89,7 @@ class WasmEdgeProcessGetStdErrLen
 public:
   WasmEdgeProcessGetStdErrLen(WasmEdgeProcessEnvironment &HostEnv)
       : WasmEdgeProcess(HostEnv) {}
-  Expect<uint32_t> body(Runtime::Instance::MemoryInstance *MemInst);
+  Expect<uint32_t> body(const Runtime::CallingFrame &Frame);
 };
 
 class WasmEdgeProcessGetStdErr
@@ -98,8 +97,7 @@ class WasmEdgeProcessGetStdErr
 public:
   WasmEdgeProcessGetStdErr(WasmEdgeProcessEnvironment &HostEnv)
       : WasmEdgeProcess(HostEnv) {}
-  Expect<void> body(Runtime::Instance::MemoryInstance *MemInst,
-                    uint32_t BufPtr);
+  Expect<void> body(const Runtime::CallingFrame &Frame, uint32_t BufPtr);
 };
 
 } // namespace Host

@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileCopyrightText: 2019-2022 Second State INC
 
+find_package(spdlog QUIET)
 add_definitions(-DWASMEDGE_COMPILE_LIBRARY)
 if(WASMEDGE_BUILD_AOT_RUNTIME)
   add_definitions(-DWASMEDGE_BUILD_AOT_RUNTIME)
@@ -94,6 +95,10 @@ if(WASMEDGE_BUILD_SHARED_LIB)
   target_link_libraries(wasmedge_c_shared
     PRIVATE
     wasmedgeCAPI
+  )
+  target_link_libraries(wasmedge_c_shared
+    PUBLIC
+    spdlog::spdlog
   )
 
   target_include_directories(wasmedge_c_shared

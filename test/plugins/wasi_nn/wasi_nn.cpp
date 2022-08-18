@@ -81,11 +81,17 @@ std::vector<size_t> classSort(const std::vector<T> &Array) {
 TEST(WasiNNTest, OpenVINOBackend) {
   // Create the wasmedge_process module instance.
   auto *NNMod = dynamic_cast<WasmEdge::Host::WasiNNModule *>(createModule());
-  EXPECT_FALSE(NNMod == nullptr);
+  ASSERT_TRUE(NNMod != nullptr);
 
-  // Create the memory instance.
-  WasmEdge::Runtime::Instance::MemoryInstance MemInst(
-      WasmEdge::AST::MemoryType(400));
+  // Create the calling frame with memory instance.
+  WasmEdge::Runtime::Instance::ModuleInstance Mod("");
+  Mod.addHostMemory(
+      "memory", std::make_unique<WasmEdge::Runtime::Instance::MemoryInstance>(
+                    WasmEdge::AST::MemoryType(400)));
+  auto *MemInstPtr = Mod.findMemoryExports("memory");
+  ASSERT_TRUE(MemInstPtr != nullptr);
+  auto &MemInst = *MemInstPtr;
+  WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);
 
   // Load the files.
   std::vector<uint8_t> TensorData =
@@ -144,7 +150,7 @@ TEST(WasiNNTest, OpenVINOBackend) {
   // Test: load -- meaningless binaries.
   {
     EXPECT_TRUE(HostFuncLoad.run(
-        &MemInst,
+        CallFrame,
         std::initializer_list<WasmEdge::ValVariant>{
             LoadEntryPtr, UINT32_C(2), UINT32_C(0), UINT32_C(0), BuilderPtr},
         Errno));
@@ -154,7 +160,7 @@ TEST(WasiNNTest, OpenVINOBackend) {
   // Test: load -- graph id ptr out of bounds.
   {
     EXPECT_TRUE(HostFuncLoad.run(
-        &MemInst,
+        CallFrame,
         std::initializer_list<WasmEdge::ValVariant>{
             LoadEntryPtr, UINT32_C(2), UINT32_C(0), UINT32_C(0), OutBoundPtr},
         Errno));
@@ -165,7 +171,7 @@ TEST(WasiNNTest, OpenVINOBackend) {
   // Test: load -- graph builder ptr out of bounds.
   {
     EXPECT_TRUE(HostFuncLoad.run(
-        &MemInst,
+        CallFrame,
         std::initializer_list<WasmEdge::ValVariant>{
             OutBoundPtr, UINT32_C(2), UINT32_C(0), UINT32_C(0), BuilderPtr},
         Errno));
@@ -180,7 +186,7 @@ TEST(WasiNNTest, OpenVINOBackend) {
                   BuilderPtr);
   {
     EXPECT_TRUE(HostFuncLoad.run(
-        &MemInst,
+        CallFrame,
         std::initializer_list<WasmEdge::ValVariant>{
             LoadEntryPtr, UINT32_C(2), UINT32_C(0), UINT32_C(0), BuilderPtr},
         Errno));
@@ -194,7 +200,7 @@ TEST(WasiNNTest, OpenVINOBackend) {
   writeFatPointer(MemInst, OutBoundPtr, WeightRead.size(), BuilderPtr);
   {
     EXPECT_TRUE(HostFuncLoad.run(
-        &MemInst,
+        CallFrame,
         std::initializer_list<WasmEdge::ValVariant>{
             LoadEntryPtr, UINT32_C(2), UINT32_C(0), UINT32_C(0), BuilderPtr},
         Errno));
@@ -212,7 +218,7 @@ TEST(WasiNNTest, OpenVINOBackend) {
   StorePtr += (XmlRead.size() + WeightRead.size());
   {
     EXPECT_TRUE(HostFuncLoad.run(
-        &MemInst,
+        CallFrame,
         std::initializer_list<WasmEdge::ValVariant>{
             LoadEntryPtr, UINT32_C(4), UINT32_C(0), UINT32_C(0), BuilderPtr},
         Errno));
@@ -223,7 +229,7 @@ TEST(WasiNNTest, OpenVINOBackend) {
   // Test: load -- unsupported device. CPU 0, GPU 1, TPU 2
   {
     EXPECT_TRUE(HostFuncLoad.run(
-        &MemInst,
+        CallFrame,
         std::initializer_list<WasmEdge::ValVariant>{
             LoadEntryPtr, UINT32_C(2), UINT32_C(0), UINT32_C(3), BuilderPtr},
         Errno));
@@ -234,7 +240,7 @@ TEST(WasiNNTest, OpenVINOBackend) {
   // Test: load -- load successfully.
   {
     EXPECT_TRUE(HostFuncLoad.run(
-        &MemInst,
+        CallFrame,
         std::initializer_list<WasmEdge::ValVariant>{
             LoadEntryPtr, UINT32_C(2), UINT32_C(0), UINT32_C(0), BuilderPtr},
         Errno));
@@ -246,7 +252,7 @@ TEST(WasiNNTest, OpenVINOBackend) {
   // Test: load -- load second graph.
   {
     EXPECT_TRUE(HostFuncLoad.run(
-        &MemInst,
+        CallFrame,
         std::initializer_list<WasmEdge::ValVariant>{
             LoadEntryPtr, UINT32_C(2), UINT32_C(0), UINT32_C(0), BuilderPtr},
         Errno));
@@ -259,7 +265,7 @@ TEST(WasiNNTest, OpenVINOBackend) {
   // Test: init_execution_context -- graph id invalid.
   {
     EXPECT_TRUE(HostFuncInit.run(
-        &MemInst,
+        CallFrame,
         std::initializer_list<WasmEdge::ValVariant>{UINT32_C(2), BuilderPtr},
         Errno));
     EXPECT_EQ(Errno[0].get<int32_t>(),
@@ -273,7 +279,7 @@ TEST(WasiNNTest, OpenVINOBackend) {
   // Test: init_execution_context -- graph id exceeds.
   {
     EXPECT_TRUE(HostFuncInit.run(
-        &MemInst,
+        CallFrame,
         std::initializer_list<WasmEdge::ValVariant>{UINT32_C(0), BuilderPtr},
         Errno));
     EXPECT_EQ(Errno[0].get<int32_t>(),
@@ -286,7 +292,7 @@ TEST(WasiNNTest, OpenVINOBackend) {
   // Test: init_execution_context -- init context successfully.
   {
     EXPECT_TRUE(HostFuncInit.run(
-        &MemInst,
+        CallFrame,
         std::initializer_list<WasmEdge::ValVariant>{UINT32_C(0), BuilderPtr},
         Errno));
     EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
@@ -297,7 +303,7 @@ TEST(WasiNNTest, OpenVINOBackend) {
   // Test: init_execution_context -- init second context.
   {
     EXPECT_TRUE(HostFuncInit.run(
-        &MemInst,
+        CallFrame,
         std::initializer_list<WasmEdge::ValVariant>{UINT32_C(1), BuilderPtr},
         Errno));
     EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
@@ -321,7 +327,7 @@ TEST(WasiNNTest, OpenVINOBackend) {
   // Test: set_input -- context id exceeds.
   {
     EXPECT_TRUE(
-        HostFuncSetInput.run(&MemInst,
+        HostFuncSetInput.run(CallFrame,
                              std::initializer_list<WasmEdge::ValVariant>{
                                  UINT32_C(3), UINT32_C(0), SetInputEntryPtr},
                              Errno));
@@ -332,7 +338,7 @@ TEST(WasiNNTest, OpenVINOBackend) {
   // Test: set_input -- empty context.
   {
     EXPECT_TRUE(
-        HostFuncSetInput.run(&MemInst,
+        HostFuncSetInput.run(CallFrame,
                              std::initializer_list<WasmEdge::ValVariant>{
                                  UINT32_C(0), UINT32_C(0), SetInputEntryPtr},
                              Errno));
@@ -346,7 +352,7 @@ TEST(WasiNNTest, OpenVINOBackend) {
   // Test: set_input -- input index exceeds.
   {
     EXPECT_TRUE(
-        HostFuncSetInput.run(&MemInst,
+        HostFuncSetInput.run(CallFrame,
                              std::initializer_list<WasmEdge::ValVariant>{
                                  UINT32_C(0), UINT32_C(10), SetInputEntryPtr},
                              Errno));
@@ -362,7 +368,7 @@ TEST(WasiNNTest, OpenVINOBackend) {
                   BuilderPtr);
   {
     EXPECT_TRUE(
-        HostFuncSetInput.run(&MemInst,
+        HostFuncSetInput.run(CallFrame,
                              std::initializer_list<WasmEdge::ValVariant>{
                                  UINT32_C(0), UINT32_C(0), SetInputEntryPtr},
                              Errno));
@@ -378,7 +384,7 @@ TEST(WasiNNTest, OpenVINOBackend) {
                   BuilderPtr);
   {
     EXPECT_TRUE(
-        HostFuncSetInput.run(&MemInst,
+        HostFuncSetInput.run(CallFrame,
                              std::initializer_list<WasmEdge::ValVariant>{
                                  UINT32_C(1), UINT32_C(0), SetInputEntryPtr},
                              Errno));
@@ -390,7 +396,7 @@ TEST(WasiNNTest, OpenVINOBackend) {
   // Test: compute -- context id exceeds.
   {
     EXPECT_TRUE(HostFuncCompute.run(
-        &MemInst, std::initializer_list<WasmEdge::ValVariant>{UINT32_C(3)},
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{UINT32_C(3)},
         Errno));
     EXPECT_EQ(Errno[0].get<int32_t>(),
               static_cast<uint32_t>(ErrNo::InvalidArgument));
@@ -402,7 +408,7 @@ TEST(WasiNNTest, OpenVINOBackend) {
   // Test: compute -- empty context.
   {
     EXPECT_TRUE(HostFuncCompute.run(
-        &MemInst, std::initializer_list<WasmEdge::ValVariant>{UINT32_C(0)},
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{UINT32_C(0)},
         Errno));
     EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Busy));
   }
@@ -413,7 +419,7 @@ TEST(WasiNNTest, OpenVINOBackend) {
   // Test: compute -- compute successfully.
   {
     EXPECT_TRUE(HostFuncCompute.run(
-        &MemInst, std::initializer_list<WasmEdge::ValVariant>{UINT32_C(1)},
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{UINT32_C(1)},
         Errno));
     EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
   }
@@ -422,7 +428,7 @@ TEST(WasiNNTest, OpenVINOBackend) {
   // Test: get_output -- output bytes ptr out of bounds.
   {
     EXPECT_TRUE(HostFuncGetOutput.run(
-        &MemInst,
+        CallFrame,
         std::initializer_list<WasmEdge::ValVariant>{
             UINT32_C(0), UINT32_C(0), StorePtr, 65532, OutBoundPtr},
         Errno));
@@ -433,7 +439,7 @@ TEST(WasiNNTest, OpenVINOBackend) {
   // Test: get_output -- output buffer ptr out of bounds.
   {
     EXPECT_TRUE(HostFuncGetOutput.run(
-        &MemInst,
+        CallFrame,
         std::initializer_list<WasmEdge::ValVariant>{
             UINT32_C(0), UINT32_C(0), OutBoundPtr, 65532, BuilderPtr},
         Errno));
@@ -444,7 +450,7 @@ TEST(WasiNNTest, OpenVINOBackend) {
   // Test: get_output -- output index exceeds.
   {
     EXPECT_TRUE(HostFuncGetOutput.run(
-        &MemInst,
+        CallFrame,
         std::initializer_list<WasmEdge::ValVariant>{
             UINT32_C(0), UINT32_C(10), StorePtr, 65532, BuilderPtr},
         Errno));
@@ -455,7 +461,7 @@ TEST(WasiNNTest, OpenVINOBackend) {
   // Test: get_output -- get output successfully.
   {
     EXPECT_TRUE(HostFuncGetOutput.run(
-        &MemInst,
+        CallFrame,
         std::initializer_list<WasmEdge::ValVariant>{
             UINT32_C(1), UINT32_C(0), StorePtr, 65532, BuilderPtr},
         Errno));

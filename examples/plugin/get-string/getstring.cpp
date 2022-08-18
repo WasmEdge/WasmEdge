@@ -3,6 +3,7 @@
 
 #include "plugin/plugin.h"
 #include "po/helper.h"
+#include "runtime/callingframe.h"
 #include "runtime/instance/module.h"
 #include <algorithm>
 
@@ -25,9 +26,10 @@ class GetString : public Runtime::HostFunction<GetString> {
 public:
   GetString(const std::string &String, bool Upper)
       : String(String), Upper(Upper) {}
-  Expect<void> body(Runtime::Instance::MemoryInstance *MemInst, uint32_t BufPtr,
+  Expect<void> body(const Runtime::CallingFrame &Frame, uint32_t BufPtr,
                     uint32_t BufLen, uint32_t WrittenPtr) {
     // Check memory instance from module.
+    auto *MemInst = Frame.getMemoryByIndex(0);
     if (MemInst == nullptr) {
       return Unexpect(ErrCode::Value::HostFuncError);
     }

@@ -18,7 +18,7 @@
 #include <stddef.h>
 
 WasmEdge_Result SpecTestPrint(void *Data __attribute__((unused)),
-                              WasmEdge_MemoryInstanceContext *MemCxt
+                              const WasmEdge_CallingFrameContext *CallFrameCxt
                               __attribute__((unused)),
                               const WasmEdge_Value *In __attribute__((unused)),
                               WasmEdge_Value *Out __attribute__((unused))) {
@@ -26,7 +26,7 @@ WasmEdge_Result SpecTestPrint(void *Data __attribute__((unused)),
 }
 
 WasmEdge_Result SpecTestPrintI32(void *Data __attribute__((unused)),
-                                 WasmEdge_MemoryInstanceContext *MemCxt
+                                 const WasmEdge_CallingFrameContext *CallFrameCxt
                                  __attribute__((unused)),
                                  const WasmEdge_Value *In
                                  __attribute__((unused)),
@@ -35,7 +35,7 @@ WasmEdge_Result SpecTestPrintI32(void *Data __attribute__((unused)),
 }
 
 WasmEdge_Result SpecTestPrintF32(void *Data __attribute__((unused)),
-                                 WasmEdge_MemoryInstanceContext *MemCxt
+                                 const WasmEdge_CallingFrameContext *CallFrameCxt
                                  __attribute__((unused)),
                                  const WasmEdge_Value *In
                                  __attribute__((unused)),
@@ -44,7 +44,7 @@ WasmEdge_Result SpecTestPrintF32(void *Data __attribute__((unused)),
 }
 
 WasmEdge_Result SpecTestPrintF64(void *Data __attribute__((unused)),
-                                 WasmEdge_MemoryInstanceContext *MemCxt
+                                 const WasmEdge_CallingFrameContext *CallFrameCxt
                                  __attribute__((unused)),
                                  const WasmEdge_Value *In
                                  __attribute__((unused)),
@@ -53,7 +53,7 @@ WasmEdge_Result SpecTestPrintF64(void *Data __attribute__((unused)),
 }
 
 WasmEdge_Result SpecTestPrintI32F32(void *Data __attribute__((unused)),
-                                    WasmEdge_MemoryInstanceContext *MemCxt
+                                    const WasmEdge_CallingFrameContext *CallFrameCxt
                                     __attribute__((unused)),
                                     const WasmEdge_Value *In
                                     __attribute__((unused)),
@@ -63,7 +63,7 @@ WasmEdge_Result SpecTestPrintI32F32(void *Data __attribute__((unused)),
 }
 
 WasmEdge_Result SpecTestPrintF64F64(void *Data __attribute__((unused)),
-                                    WasmEdge_MemoryInstanceContext *MemCxt
+                                    const WasmEdge_CallingFrameContext *CallFrameCxt
                                     __attribute__((unused)),
                                     const WasmEdge_Value *In
                                     __attribute__((unused)),

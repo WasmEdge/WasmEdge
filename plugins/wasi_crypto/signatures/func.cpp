@@ -8,9 +8,10 @@ namespace Host {
 namespace WasiCrypto {
 namespace Signatures {
 
-Expect<uint32_t> Export::body(Runtime::Instance::MemoryInstance *MemInst,
+Expect<uint32_t> Export::body(const Runtime::CallingFrame &Frame,
                               int32_t SigHandle, uint32_t Encoding,
                               uint32_t /* Out */ ArrayOutputHandlePtr) {
+  auto *MemInst = Frame.getMemoryByIndex(0);
   checkExist(MemInst);
 
   __wasi_signature_encoding_e_t WasiEncoding;
@@ -34,11 +35,12 @@ Expect<uint32_t> Export::body(Runtime::Instance::MemoryInstance *MemInst,
   return __WASI_CRYPTO_ERRNO_SUCCESS;
 }
 
-Expect<uint32_t> Import::body(Runtime::Instance::MemoryInstance *MemInst,
+Expect<uint32_t> Import::body(const Runtime::CallingFrame &Frame,
                               uint32_t AlgPtr, uint32_t AlgLen,
                               uint32_t EncodedPtr, uint32_t EncodedLen,
                               uint32_t Encoding,
                               uint32_t /* Out */ SigHandlePtr) {
+  auto *MemInst = Frame.getMemoryByIndex(0);
   checkExist(MemInst);
 
   const __wasi_size_t WasiAlgLen = AlgLen;
@@ -80,9 +82,10 @@ Expect<uint32_t> Import::body(Runtime::Instance::MemoryInstance *MemInst,
   return __WASI_CRYPTO_ERRNO_SUCCESS;
 }
 
-Expect<uint32_t> StateOpen::body(Runtime::Instance::MemoryInstance *MemInst,
+Expect<uint32_t> StateOpen::body(const Runtime::CallingFrame &Frame,
                                  int32_t KpHandle,
                                  uint32_t /* Out */ SigStatePtr) {
+  auto *MemInst = Frame.getMemoryByIndex(0);
   checkExist(MemInst);
 
   auto *const SigState =
@@ -98,9 +101,10 @@ Expect<uint32_t> StateOpen::body(Runtime::Instance::MemoryInstance *MemInst,
   return __WASI_CRYPTO_ERRNO_SUCCESS;
 }
 
-Expect<uint32_t> StateUpdate::body(Runtime::Instance::MemoryInstance *MemInst,
+Expect<uint32_t> StateUpdate::body(const Runtime::CallingFrame &Frame,
                                    int32_t SigStateHandle, uint32_t InputPtr,
                                    uint32_t InputSize) {
+  auto *MemInst = Frame.getMemoryByIndex(0);
   checkExist(MemInst);
 
   const __wasi_size_t WasiInputSize = InputSize;
@@ -117,9 +121,10 @@ Expect<uint32_t> StateUpdate::body(Runtime::Instance::MemoryInstance *MemInst,
   return __WASI_CRYPTO_ERRNO_SUCCESS;
 }
 
-Expect<uint32_t> StateSign::body(Runtime::Instance::MemoryInstance *MemInst,
+Expect<uint32_t> StateSign::body(const Runtime::CallingFrame &Frame,
                                  int32_t SigStateHandle,
                                  uint32_t /* Out */ ArrayOutputHandlePtr) {
+  auto *MemInst = Frame.getMemoryByIndex(0);
   checkExist(MemInst);
 
   auto *const ArrayOutputHandle =
@@ -135,8 +140,9 @@ Expect<uint32_t> StateSign::body(Runtime::Instance::MemoryInstance *MemInst,
   return __WASI_CRYPTO_ERRNO_SUCCESS;
 }
 
-Expect<uint32_t> StateClose::body(Runtime::Instance::MemoryInstance *MemInst,
+Expect<uint32_t> StateClose::body(const Runtime::CallingFrame &Frame,
                                   int32_t SigStateHandle) {
+  auto *MemInst = Frame.getMemoryByIndex(0);
   checkExist(MemInst);
 
   if (auto Res = Ctx.signatureStateClose(SigStateHandle); unlikely(!Res)) {
@@ -147,9 +153,10 @@ Expect<uint32_t> StateClose::body(Runtime::Instance::MemoryInstance *MemInst,
 }
 
 Expect<uint32_t>
-VerificationStateOpen::body(Runtime::Instance::MemoryInstance *MemInst,
+VerificationStateOpen::body(const Runtime::CallingFrame &Frame,
                             int32_t SigPkHandle,
                             uint32_t /* Out */ VerificationStateHandlePtr) {
+  auto *MemInst = Frame.getMemoryByIndex(0);
   checkExist(MemInst);
 
   auto *const VerificationStateHandle =
@@ -168,9 +175,10 @@ VerificationStateOpen::body(Runtime::Instance::MemoryInstance *MemInst,
 }
 
 Expect<uint32_t>
-VerificationStateUpdate::body(Runtime::Instance::MemoryInstance *MemInst,
+VerificationStateUpdate::body(const Runtime::CallingFrame &Frame,
                               int32_t SigStateHandle, uint32_t InputPtr,
                               uint32_t InputSize) {
+  auto *MemInst = Frame.getMemoryByIndex(0);
   checkExist(MemInst);
 
   const __wasi_size_t WasiInputSize = InputSize;
@@ -186,10 +194,9 @@ VerificationStateUpdate::body(Runtime::Instance::MemoryInstance *MemInst,
   return __WASI_CRYPTO_ERRNO_SUCCESS;
 }
 
-Expect<uint32_t>
-VerificationStateVerify::body(Runtime::Instance::MemoryInstance *,
-                              int32_t VerificationStateHandle,
-                              int32_t SigHandle) {
+Expect<uint32_t> VerificationStateVerify::body(const Runtime::CallingFrame &,
+                                               int32_t VerificationStateHandle,
+                                               int32_t SigHandle) {
   if (auto Res = Ctx.signatureVerificationStateVerify(VerificationStateHandle,
                                                       SigHandle);
       unlikely(!Res)) {
@@ -199,9 +206,8 @@ VerificationStateVerify::body(Runtime::Instance::MemoryInstance *,
   return __WASI_CRYPTO_ERRNO_SUCCESS;
 }
 
-Expect<uint32_t>
-VerificationStateClose::body(Runtime::Instance::MemoryInstance *,
-                             int32_t VerificationStateHandle) {
+Expect<uint32_t> VerificationStateClose::body(const Runtime::CallingFrame &,
+                                              int32_t VerificationStateHandle) {
   if (auto Res = Ctx.signatureVerificationStateClose(VerificationStateHandle);
       unlikely(!Res)) {
     return Res.error();
@@ -210,8 +216,7 @@ VerificationStateClose::body(Runtime::Instance::MemoryInstance *,
   return __WASI_CRYPTO_ERRNO_SUCCESS;
 }
 
-Expect<uint32_t> Close::body(Runtime::Instance::MemoryInstance *,
-                             int32_t SigHandle) {
+Expect<uint32_t> Close::body(const Runtime::CallingFrame &, int32_t SigHandle) {
   if (auto Res = Ctx.signatureClose(SigHandle); unlikely(!Res)) {
     return Res.error();
   }

@@ -5,6 +5,7 @@
 
 #include "common/errcode.h"
 #include "processenv.h"
+#include "runtime/callingframe.h"
 #include "runtime/hostfunc.h"
 
 namespace WasmEdge {

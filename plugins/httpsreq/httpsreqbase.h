@@ -5,6 +5,7 @@
 
 #include "common/errcode.h"
 #include "httpsreqenv.h"
+#include "runtime/callingframe.h"
 #include "runtime/hostfunc.h"
 
 namespace WasmEdge {

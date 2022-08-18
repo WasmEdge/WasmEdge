@@ -17,9 +17,10 @@
 namespace WasmEdge {
 namespace Host {
 
-Expect<void> SendData::body(Runtime::Instance::MemoryInstance *MemInst,
+Expect<void> SendData::body(const Runtime::CallingFrame &Frame,
                             uint32_t HostPtr, uint32_t HostLen, uint32_t Port,
                             uint32_t BodyPtr, uint32_t BodyLen) {
+  auto *MemInst = Frame.getMemoryByIndex(0);
   if (MemInst == nullptr) {
     return Unexpect(ErrCode::Value::HostFuncError);
   }
@@ -124,8 +125,9 @@ Expect<void> SendData::body(Runtime::Instance::MemoryInstance *MemInst,
   return {};
 }
 
-Expect<void> HttpsReqGetRcv::body(Runtime::Instance::MemoryInstance *MemInst,
+Expect<void> HttpsReqGetRcv::body(const Runtime::CallingFrame &Frame,
                                   uint32_t BufPtr) {
+  auto *MemInst = Frame.getMemoryByIndex(0);
   if (MemInst == nullptr) {
     return Unexpect(ErrCode::Value::HostFuncError);
   }
@@ -134,7 +136,7 @@ Expect<void> HttpsReqGetRcv::body(Runtime::Instance::MemoryInstance *MemInst,
   return {};
 }
 
-Expect<uint32_t> HttpsReqGetRcvLen::body(Runtime::Instance::MemoryInstance *) {
+Expect<uint32_t> HttpsReqGetRcvLen::body(const Runtime::CallingFrame &) {
   return static_cast<uint32_t>(Env.Rcv.size());
 }
 

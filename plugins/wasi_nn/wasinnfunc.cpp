@@ -14,13 +14,14 @@
 namespace WasmEdge {
 namespace Host {
 
-Expect<uint32_t> WasiNNLoad::body(Runtime::Instance::MemoryInstance *MemInst,
+Expect<uint32_t> WasiNNLoad::body(const Runtime::CallingFrame &Frame,
                                   uint32_t BuilderPtr [[maybe_unused]],
                                   uint32_t BuilderLen [[maybe_unused]],
                                   uint32_t Encoding,
                                   uint32_t Target [[maybe_unused]],
                                   uint32_t GraphIdPtr [[maybe_unused]]) {
   // Check memory instance from module.
+  auto *MemInst = Frame.getMemoryByIndex(0);
   if (MemInst == nullptr) {
     return Unexpect(ErrCode::Value::HostFuncError);
   }
@@ -241,10 +242,10 @@ Expect<uint32_t> WasiNNLoad::body(Runtime::Instance::MemoryInstance *MemInst,
   return static_cast<uint32_t>(WASINN::ErrNo::InvalidArgument);
 }
 
-Expect<uint32_t>
-WasiNNInitExecCtx::body(Runtime::Instance::MemoryInstance *MemInst,
-                        uint32_t GraphId,
-                        uint32_t ContextPtr [[maybe_unused]]) {
+Expect<uint32_t> WasiNNInitExecCtx::body(const Runtime::CallingFrame &Frame,
+                                         uint32_t GraphId,
+                                         uint32_t ContextPtr [[maybe_unused]]) {
+  auto *MemInst = Frame.getMemoryByIndex(0);
   if (MemInst == nullptr) {
     return Unexpect(ErrCode::Value::HostFuncError);
   }
@@ -294,10 +295,11 @@ WasiNNInitExecCtx::body(Runtime::Instance::MemoryInstance *MemInst,
   return static_cast<uint32_t>(WASINN::ErrNo::InvalidArgument);
 }
 
-Expect<uint32_t>
-WasiNNSetInput::body(Runtime::Instance::MemoryInstance *MemInst,
-                     uint32_t Context, uint32_t Index [[maybe_unused]],
-                     uint32_t TensorPtr [[maybe_unused]]) {
+Expect<uint32_t> WasiNNSetInput::body(const Runtime::CallingFrame &Frame,
+                                      uint32_t Context,
+                                      uint32_t Index [[maybe_unused]],
+                                      uint32_t TensorPtr [[maybe_unused]]) {
+  auto *MemInst = Frame.getMemoryByIndex(0);
   if (MemInst == nullptr) {
     return Unexpect(ErrCode::Value::HostFuncError);
   }
@@ -467,11 +469,12 @@ WasiNNSetInput::body(Runtime::Instance::MemoryInstance *MemInst,
 }
 
 Expect<uint32_t>
-WasiNNGetOuput::body(Runtime::Instance::MemoryInstance *MemInst,
-                     uint32_t Context, uint32_t Index [[maybe_unused]],
+WasiNNGetOuput::body(const Runtime::CallingFrame &Frame, uint32_t Context,
+                     uint32_t Index [[maybe_unused]],
                      uint32_t OutBufferPtr [[maybe_unused]],
                      uint32_t OutBufferMaxSize [[maybe_unused]],
                      uint32_t BytesWrittenPtr [[maybe_unused]]) {
+  auto *MemInst = Frame.getMemoryByIndex(0);
   if (MemInst == nullptr) {
     return Unexpect(ErrCode::Value::HostFuncError);
   }
@@ -563,8 +566,9 @@ WasiNNGetOuput::body(Runtime::Instance::MemoryInstance *MemInst,
   return static_cast<uint32_t>(WASINN::ErrNo::InvalidArgument);
 }
 
-Expect<uint32_t> WasiNNCompute::body(Runtime::Instance::MemoryInstance *MemInst,
+Expect<uint32_t> WasiNNCompute::body(const Runtime::CallingFrame &Frame,
                                      uint32_t Context) {
+  auto *MemInst = Frame.getMemoryByIndex(0);
   if (MemInst == nullptr) {
     return Unexpect(ErrCode::Value::HostFuncError);
   }

@@ -27,11 +27,17 @@ target_include_directories(wasmedgePluginWasiNN
   ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
-target_link_libraries(wasmedgePluginWasiNN
-  PUBLIC
-  wasmedgeCommon
-  wasmedgeSystem
-)
+if(WASMEDGE_LINK_PUGLINS_STATIC)
+  target_link_libraries(wasmedgePluginWasiNN
+    PRIVATE
+    wasmedgeCAPI
+  )
+else()
+  target_link_libraries(wasmedgePluginWasiNN
+    PRIVATE
+    wasmedge_c_shared
+  )
+endif()
 
 install(TARGETS wasmedgePluginWasiNN DESTINATION ${CMAKE_INSTALL_LIBDIR}/wasmedge)
 

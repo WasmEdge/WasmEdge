@@ -38,14 +38,14 @@ enum class Sort {
 
 class SortIndex {
 public:
-  Sort &getSort() noexcept { return Sort; }
-  const Sort &getSort() const noexcept { return Sort; }
+  Sort &getSort() noexcept { return S; }
+  const Sort &getSort() const noexcept { return S; }
 
   void setIndex(uint32_t V) noexcept { Index = V; }
   uint32_t getIndex() const noexcept { return Index; }
 
 private:
-  Sort Sort;
+  Sort S;
   uint32_t Index;
 };
 

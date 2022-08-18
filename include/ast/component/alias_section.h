@@ -53,14 +53,14 @@ private:
 
 class Alias {
 public:
-  Sort &getSort() noexcept { return Sort; }
-  const Sort &getSort() const noexcept { return Sort; }
+  Sort &getSort() noexcept { return S; }
+  const Sort &getSort() const noexcept { return S; }
 
   AliasTarget &getTarget() noexcept { return Target; }
   const AliasTarget &getTarget() const noexcept { return Target; }
 
 private:
-  Sort Sort;
+  Sort S;
   AliasTarget Target;
 };
 

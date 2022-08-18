@@ -20,6 +20,7 @@
 
 #include <optional>
 #include <string>
+#include <variant>
 #include <vector>
 
 namespace WasmEdge {
@@ -60,10 +61,7 @@ enum class PrimitiveValueType : Byte {
   Bool = 0x7f
 };
 
-typedef union {
-  uint32_t TypeIdx;
-  PrimitiveValueType PrimValTy;
-} ValueType;
+using ValueType = std::variant<uint32_t, PrimitiveValueType>;
 
 class NamedValType {
 public:
@@ -200,24 +198,12 @@ private:
   FuncVec Returns;
 };
 
-typedef union {
-  // 0x00 t:<core:type>                   => t
-  CoreType CoreTy;
-  // 0x01 t:<type>                        => t
-  Type Ty;
-  // 0x02 a:<alias>                       => a
-  Alias Alias;
-  // 0x04 ed:<exportdecl>                 => ed
-  ExportDecl Export;
-} InstanceDecl;
+using InstanceDecl = std::variant<CoreType, Type, Alias, ExportDecl>;
 class InstanceType : public DefinedType {
   std::vector<InstanceDecl> Decls;
 };
 
-typedef union {
-  ImportDecl Import;
-  InstanceDecl Instance;
-} ComponentDecl;
+using ComponentDecl = std::variant<ImportDecl, InstanceDecl>;
 class ComponentType : public DefinedType {
   std::vector<ComponentDecl> Decls;
 };

@@ -84,11 +84,24 @@ inline ASTNodeAttr NodeAttrFromAST<AST::CoreInstanceSection>() noexcept {
   return ASTNodeAttr::CompSec_CoreInstance;
 }
 template <>
+inline ASTNodeAttr NodeAttrFromAST<AST::CoreInstantiateArg>() noexcept {
+  return ASTNodeAttr::CompSec_CoreInstance;
+}
+template <> inline ASTNodeAttr NodeAttrFromAST<AST::ExportDecl>() noexcept {
+  return ASTNodeAttr::CompSec_CoreInstance;
+}
+template <>
 inline ASTNodeAttr NodeAttrFromAST<AST::CoreAliasSection>() noexcept {
   return ASTNodeAttr::CompSec_CoreAlias;
 }
 template <>
 inline ASTNodeAttr NodeAttrFromAST<AST::CoreTypeSection>() noexcept {
+  return ASTNodeAttr::CompSec_CoreType;
+}
+template <> inline ASTNodeAttr NodeAttrFromAST<AST::FieldType>() noexcept {
+  return ASTNodeAttr::CompSec_CoreType;
+}
+template <> inline ASTNodeAttr NodeAttrFromAST<AST::ModuleDecl>() noexcept {
   return ASTNodeAttr::CompSec_CoreType;
 }
 template <>
@@ -99,6 +112,9 @@ template <>
 inline ASTNodeAttr NodeAttrFromAST<AST::InstanceSection>() noexcept {
   return ASTNodeAttr::CompSec_Instance;
 }
+template <> inline ASTNodeAttr NodeAttrFromAST<AST::InstantiateArg>() noexcept {
+  return ASTNodeAttr::CompSec_Instance;
+}
 template <> inline ASTNodeAttr NodeAttrFromAST<AST::AliasSection>() noexcept {
   return ASTNodeAttr::CompSec_Alias;
 }
@@ -106,12 +122,33 @@ template <>
 inline ASTNodeAttr NodeAttrFromAST<AST::ComponentTypeSection>() noexcept {
   return ASTNodeAttr::CompSec_Type;
 }
+template <> inline ASTNodeAttr NodeAttrFromAST<AST::Case>() noexcept {
+  return ASTNodeAttr::CompSec_Type;
+}
+template <> inline ASTNodeAttr NodeAttrFromAST<AST::CaseType>() noexcept {
+  return ASTNodeAttr::CompSec_Type;
+}
+template <> inline ASTNodeAttr NodeAttrFromAST<AST::ValueType>() noexcept {
+  return ASTNodeAttr::CompSec_Type;
+}
+template <> inline ASTNodeAttr NodeAttrFromAST<AST::NamedValType>() noexcept {
+  return ASTNodeAttr::CompSec_Type;
+}
+template <> inline ASTNodeAttr NodeAttrFromAST<std::string>() noexcept {
+  return ASTNodeAttr::CompSec_Type;
+}
 template <>
 inline ASTNodeAttr NodeAttrFromAST<AST::ComponentCanonSection>() noexcept {
   return ASTNodeAttr::CompSec_Canon;
 }
+template <> inline ASTNodeAttr NodeAttrFromAST<AST::CanonOpt>() noexcept {
+  return ASTNodeAttr::CompSec_Canon;
+}
 template <>
 inline ASTNodeAttr NodeAttrFromAST<AST::ComponentStartSection>() noexcept {
+  return ASTNodeAttr::CompSec_Start;
+}
+template <> inline ASTNodeAttr NodeAttrFromAST<AST::StartValueIdx>() noexcept {
   return ASTNodeAttr::CompSec_Start;
 }
 template <>
@@ -240,6 +277,7 @@ private:
     // Sequentially create the AST node T and read data.
     for (uint32_t I = 0; I < VecCnt; ++I) {
       if (auto Res = Func(VecT[I]); !Res) {
+        spdlog::error(ErrInfo::InfoAST(NodeAttrFromAST<T>()));
         return Unexpect(Res);
       }
     }
@@ -297,6 +335,10 @@ private:
   /* - */ Expect<void> loadAlias(AST::Alias &Alias);
   Expect<void> loadSection(AST::ComponentTypeSection &Sec);
   /* - */ Expect<void> loadType(AST::Type &Ty);
+  /* - */ Expect<void> loadFuncVec(AST::FuncVec &FuncV);
+  /* - */ Expect<void> loadCase(AST::Case &Case);
+  /* - */ Expect<void> loadCaseType(AST::CaseType &Ty);
+  /* - */ Expect<void> loadNamedValType(AST::NamedValType &Ty);
   /* - */ Expect<void> loadValType(AST::ValueType &ValTyp);
   Expect<void> loadSection(AST::ComponentCanonSection &Sec);
   /* - */ Expect<void> loadCanon(AST::Canon &Canon);

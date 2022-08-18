@@ -417,16 +417,25 @@ Expect<void> Loader::loadType(AST::Type &Ty) {
                         ASTNodeAttr::CompSec_Type);
   }
   switch (*Res) {
-  case 0x40:
+  case 0x40: {
     // => (func (param p)* (result r)*)
     // functype ::= 0x40 p*:<funcvec> r*:<funcvec>
-    break;
-  case 0x41:
+    AST::FuncType FuncTy;
+    Ty = FuncTy;
+    auto R = loadFuncVec(FuncTy.getParameters());
+    if (!R) {
+      return R;
+    }
+    return loadFuncVec(FuncTy.getReturns());
+  }
+  case 0x41: {
     // componenttype ::= 0x41 cd*:vec(<componentdecl>) => (component cd*)
-    break;
-  case 0x42:
+    return {};
+  }
+  case 0x42: {
     // instancetype  ::= 0x42 id*:vec(<instancedecl>) => (instance id*)
-    break;
+    return {};
+  }
   case static_cast<Byte>(AST::PrimitiveValueType::String)... static_cast<Byte>(
       AST::PrimitiveValueType::Bool): {
     AST::DefinedValueType::Prim P;
@@ -434,10 +443,22 @@ Expect<void> Loader::loadType(AST::Type &Ty) {
     P.setValue(static_cast<AST::PrimitiveValueType>(*Res));
     return {};
   }
-  case 0x72:
+  case 0x72: {
     // 0x72 nt*:vec(<namedvaltype>)         => (record (field nt)*)
-  case 0x71:
+    AST::DefinedValueType::Record RecordTy;
+    Ty = RecordTy;
+    return loadVec(RecordTy.getFields(), [this](auto &Ty) -> Expect<void> {
+      return loadNamedValType(Ty);
+    });
+  }
+  case 0x71: {
     // 0x71 case*:vec(<case>)               => (variant case*)
+    AST::DefinedValueType::Variant VariantTy;
+    Ty = VariantTy;
+    return loadVec(VariantTy.getCases(), [this](auto &Case) -> Expect<void> {
+      return loadCase(Case);
+    });
+  }
   case 0x70: {
     // 0x70 t:<valtype>                     => (list t)
     AST::DefinedValueType::List ListTy;
@@ -494,13 +515,97 @@ Expect<void> Loader::loadType(AST::Type &Ty) {
     Ty = OptTy;
     return loadValType(OptTy.getType());
   }
-  case 0x6a:
+  case 0x6a: {
     // 0x6a t?:<casetype> u?:<casetype>     => (result t? (error u)?)
+    AST::DefinedValueType::Result ResultTy;
+    Ty = ResultTy;
+    if (auto E = loadCaseType(ResultTy.getResult()); !E) {
+      return E;
+    }
+    return loadCaseType(ResultTy.getError());
+  }
   default:
     return logLoadError(Res.error(), FMgr.getLastOffset(),
                         ASTNodeAttr::CompSec_Type);
   }
+}
+Expect<void> Loader::loadFuncVec(AST::FuncVec &FuncV) {
+  auto R = FMgr.readByte();
+  if (!R) {
+    return logLoadError(R.error(), FMgr.getLastOffset(),
+                        ASTNodeAttr::CompSec_Type);
+  }
+  switch (*R) {
+  case 0x00:
+    return loadValType(std::get<AST::ValueType>(FuncV));
+  case 0x01:
+    return loadVec(
+        std::get<std::vector<AST::NamedValType>>(FuncV),
+        [this](auto &T) -> Expect<void> { return loadNamedValType(T); });
+  default:
+    return logLoadError(R.error(), FMgr.getLastOffset(),
+                        ASTNodeAttr::CompSec_Type);
+  }
+}
+Expect<void> Loader::loadCase(AST::Case &Case) {
+  if (auto N = FMgr.readName(); N) {
+    Case.setName(*N);
+  } else {
+    return logLoadError(N.error(), FMgr.getLastOffset(),
+                        ASTNodeAttr::CompSec_Type);
+  }
+
+  if (auto E = loadCaseType(Case.getType()); !E) {
+    return E;
+  }
+
+  auto B = FMgr.readByte();
+  if (!B) {
+    return logLoadError(B.error(), FMgr.getLastOffset(),
+                        ASTNodeAttr::CompSec_Type);
+  }
+  switch (*B) {
+  case 0x00:
+    break;
+  case 0x01:
+    if (auto R = FMgr.readU32(); R) {
+      Case.setLabelIndex(*R);
+    } else {
+      return logLoadError(R.error(), FMgr.getLastOffset(),
+                          ASTNodeAttr::CompSec_Type);
+    }
+    break;
+  default:
+    return logLoadError(B.error(), FMgr.getLastOffset(),
+                        ASTNodeAttr::CompSec_Type);
+  }
   return {};
+}
+Expect<void> Loader::loadCaseType(AST::CaseType &Ty) {
+  auto R = FMgr.readByte();
+  if (!R) {
+    return logLoadError(R.error(), FMgr.getLastOffset(),
+                        ASTNodeAttr::CompSec_Type);
+  }
+  switch (*R) {
+  case 0x00:
+    // Do nothing, in this case, it's the parameter type of CaseType is nullopt
+    return {};
+  case 0x01:
+    return loadValType(Ty.getType());
+  default:
+    return logLoadError(R.error(), FMgr.getLastOffset(),
+                        ASTNodeAttr::CompSec_Type);
+  }
+}
+Expect<void> Loader::loadNamedValType(AST::NamedValType &Ty) {
+  if (auto Res = FMgr.readName(); Res) {
+    Ty.setName(*Res);
+  } else {
+    return logLoadError(Res.error(), FMgr.getLastOffset(),
+                        ASTNodeAttr::CompSec_Type);
+  }
+  return loadValType(Ty.getType());
 }
 Expect<void> Loader::loadValType(AST::ValueType &Ty) {
   auto Res = FMgr.readByte();

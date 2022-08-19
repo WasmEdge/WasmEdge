@@ -94,7 +94,6 @@ Expect<std::unique_ptr<AST::Component>> Loader::loadComponent() {
       // https://github.com/WebAssembly/component-model/commit/d334e4db4a1cef4902871555cf4283e4114fefa5
       return logLoadError(ErrCode::Value::MalformedSection,
                           FMgr.getLastOffset(), ASTNodeAttr::Component);
-      break;
     case 0x01:
       // m*:section_1(<core:module>)         => [core-prefix(m)]
       if (auto Res = loadSection(Comp->getModuleSection()); Res.has_value()) {

@@ -17,6 +17,7 @@
 #include "ast/component/coretype_section.h"
 #include "ast/component/export_section.h"
 #include "ast/component/import_section.h"
+#include "ast/component/value_type.h"
 
 #include <optional>
 #include <string>
@@ -44,24 +45,6 @@ public:
   class Option;
   class Result;
 };
-
-enum class PrimitiveValueType : Byte {
-  String = 0x73,
-  Char = 0x74,
-  Float64 = 0x75,
-  Float32 = 0x76,
-  U64 = 0x77,
-  S64 = 0x78,
-  U32 = 0x79,
-  S32 = 0x7a,
-  U16 = 0x7b,
-  S16 = 0x7c,
-  U8 = 0x7d,
-  S8 = 0x7e,
-  Bool = 0x7f
-};
-
-using ValueType = std::variant<uint32_t, PrimitiveValueType>;
 
 class NamedValType {
 public:

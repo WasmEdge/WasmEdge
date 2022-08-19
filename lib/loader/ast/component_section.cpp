@@ -854,125 +854,80 @@ Expect<void> Loader::loadImportDecl(AST::ImportDecl &Import) {
                         ASTNodeAttr::CompSec_Import);
   }
 
-  Byte DescType;
-  if (auto Res = FMgr.readByte(); Res.has_value()) {
-    DescType = Res.value();
-  } else {
-    return logLoadError(Res.error(), FMgr.getLastOffset(),
+  auto B = FMgr.readByte();
+  if (!B) {
+    return logLoadError(B.error(), FMgr.getLastOffset(),
                         ASTNodeAttr::CompSec_Import);
   }
-
-  switch (DescType) {
-  case 0x00:
+  switch (*B) {
+  case 0x00: {
     // 0x00 0x11 i:<core:typeidx>           => (core module (type i))
-    {
-      if (auto Res = FMgr.readByte(); !Res.has_value() || Res.value() != 0x11) {
-        return logLoadError(Res.error(), FMgr.getLastOffset(),
-                            ASTNodeAttr::CompSec_Import);
-      }
-      auto TypeIdx = FMgr.readU32();
-      if (!TypeIdx.has_value()) {
-        return logLoadError(TypeIdx.error(), FMgr.getLastOffset(),
-                            ASTNodeAttr::CompSec_Import);
-      }
-      Import.setExtern(AST::ExternDesc::CoreType(TypeIdx.value()));
-      break;
+    if (auto Res = FMgr.readByte(); !Res.has_value() || Res.value() != 0x11) {
+      return logLoadError(Res.error(), FMgr.getLastOffset(),
+                          ASTNodeAttr::CompSec_Import);
     }
-  case 0x01:
-    // 0x01 i:<typeidx>                     => (func (type i))
-    {
-      auto TypeIdx = FMgr.readU32();
-      if (!TypeIdx.has_value()) {
-        return logLoadError(TypeIdx.error(), FMgr.getLastOffset(),
-                            ASTNodeAttr::CompSec_Import);
-      }
-      Import.setExtern(AST::ExternDesc::FuncType(TypeIdx.value()));
-      break;
+    auto TypeIdx = FMgr.readU32();
+    if (!TypeIdx.has_value()) {
+      return logLoadError(TypeIdx.error(), FMgr.getLastOffset(),
+                          ASTNodeAttr::CompSec_Import);
     }
-  case 0x02:
-    // 0x02 t:<valtype>                     => (value t)
-    {
-      uint32_t TypeIdx;
-      if (auto Res = FMgr.readU32(); Res.has_value()) {
-        TypeIdx = Res.value();
-      } else {
-        return logLoadError(Res.error(), FMgr.getLastOffset(),
-                            ASTNodeAttr::CompSec_Import);
-      }
-      AST::ExternDesc::ValueType Ty;
-      switch (TypeIdx) {
-      case 0x7f:
-        Ty = AST::ExternDesc::ValueType::Bool();
-      case 0x7e:
-        Ty = AST::ExternDesc::ValueType::S8();
-      case 0x7d:
-        Ty = AST::ExternDesc::ValueType::U8();
-      case 0x7c:
-        Ty = AST::ExternDesc::ValueType::S16();
-      case 0x7b:
-        Ty = AST::ExternDesc::ValueType::U16();
-      case 0x7a:
-        Ty = AST::ExternDesc::ValueType::S32();
-      case 0x79:
-        Ty = AST::ExternDesc::ValueType::U32();
-      case 0x78:
-        Ty = AST::ExternDesc::ValueType::S64();
-      case 0x77:
-        Ty = AST::ExternDesc::ValueType::U64();
-      case 0x76:
-        Ty = AST::ExternDesc::ValueType::Float32();
-      case 0x75:
-        Ty = AST::ExternDesc::ValueType::Float64();
-      case 0x74:
-        Ty = AST::ExternDesc::ValueType::Char();
-      case 0x73:
-        Ty = AST::ExternDesc::ValueType::String();
-      default:
-        Ty = AST::ExternDesc::ValueType::Idx(TypeIdx);
-      }
-      Import.setExtern(Ty);
-      break;
-    }
-  case 0x03:
-    // 0x03 b:<typebound>                   => (type b)
-    {
-      if (auto Res = FMgr.readByte(); !Res.has_value() || Res.value() != 0x00) {
-        return logLoadError(Res.error(), FMgr.getLastOffset(),
-                            ASTNodeAttr::CompSec_Import);
-      }
-      auto TypeIdx = FMgr.readU32();
-      if (!TypeIdx.has_value()) {
-        return logLoadError(TypeIdx.error(), FMgr.getLastOffset(),
-                            ASTNodeAttr::CompSec_Import);
-      }
-      Import.setExtern(AST::ExternDesc::TypeBound(TypeIdx.value()));
-      break;
-    }
-  case 0x04:
-    // 0x04 i:<typeidx>                     => (instance (type i))
-    {
-      auto TypeIdx = FMgr.readU32();
-      if (!TypeIdx.has_value()) {
-        return logLoadError(TypeIdx.error(), FMgr.getLastOffset(),
-                            ASTNodeAttr::CompSec_Import);
-      }
-      Import.setExtern(AST::ExternDesc::InstanceType(TypeIdx.value()));
-      break;
-    }
-  case 0x05:
-    // 0x05 i:<typeidx>                     => (component (type i))
-    {
-      auto TypeIdx = FMgr.readU32();
-      if (!TypeIdx.has_value()) {
-        return logLoadError(TypeIdx.error(), FMgr.getLastOffset(),
-                            ASTNodeAttr::CompSec_Import);
-      }
-      Import.setExtern(AST::ExternDesc::ComponentType(TypeIdx.value()));
-      break;
-    }
+    Import.getExtern() = AST::ExternDesc::CoreType(TypeIdx.value());
+    return {};
   }
-
-  return {};
+  case 0x01: {
+    // 0x01 i:<typeidx>                     => (func (type i))
+    auto TypeIdx = FMgr.readU32();
+    if (!TypeIdx.has_value()) {
+      return logLoadError(TypeIdx.error(), FMgr.getLastOffset(),
+                          ASTNodeAttr::CompSec_Import);
+    }
+    Import.getExtern() = AST::ExternDesc::FuncType(TypeIdx.value());
+    return {};
+  }
+  case 0x02: {
+    // 0x02 t:<valtype>                     => (value t)
+    AST::ExternDesc::ValType Ty;
+    Import.getExtern() = Ty;
+    return loadValType(Ty);
+  }
+  case 0x03: {
+    // 0x03 b:<typebound>                   => (type b)
+    if (auto Res = FMgr.readByte(); !Res.has_value() || Res.value() != 0x00) {
+      return logLoadError(Res.error(), FMgr.getLastOffset(),
+                          ASTNodeAttr::CompSec_Import);
+    }
+    auto TypeIdx = FMgr.readU32();
+    if (!TypeIdx.has_value()) {
+      return logLoadError(TypeIdx.error(), FMgr.getLastOffset(),
+                          ASTNodeAttr::CompSec_Import);
+    }
+    Import.getExtern() = AST::ExternDesc::TypeBound(TypeIdx.value());
+    return {};
+  }
+  case 0x04: {
+    // 0x04 i:<typeidx>                     => (instance (type i))
+    auto TypeIdx = FMgr.readU32();
+    if (!TypeIdx.has_value()) {
+      return logLoadError(TypeIdx.error(), FMgr.getLastOffset(),
+                          ASTNodeAttr::CompSec_Import);
+    }
+    Import.getExtern() = AST::ExternDesc::InstanceType(TypeIdx.value());
+    return {};
+  }
+  case 0x05: {
+    // 0x05 i:<typeidx>                     => (component (type i))
+    auto TypeIdx = FMgr.readU32();
+    if (!TypeIdx.has_value()) {
+      return logLoadError(TypeIdx.error(), FMgr.getLastOffset(),
+                          ASTNodeAttr::CompSec_Import);
+    }
+    Import.getExtern() = AST::ExternDesc::ComponentType(TypeIdx.value());
+    return {};
+  }
+  default:
+    return logLoadError(B.error(), FMgr.getLastOffset(),
+                        ASTNodeAttr::CompSec_Import);
+  }
 }
 
 Expect<void> Loader::loadSection(AST::ComponentExportSection &Sec) {

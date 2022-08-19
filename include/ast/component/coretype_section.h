@@ -35,7 +35,7 @@ class FieldType::I8 : public FieldType {
 public:
   I8(Byte M) : Mutability{M} {}
 
-  Byte getMutability() const noexcept { return Mutability; }
+  Byte getMutability() const noexcept override { return Mutability; }
 
 private:
   Byte Mutability;
@@ -44,7 +44,7 @@ class FieldType::I16 : public FieldType {
 public:
   I16(Byte M) : Mutability{M} {}
 
-  Byte getMutability() const noexcept { return Mutability; }
+  Byte getMutability() const noexcept override { return Mutability; }
 
 private:
   Byte Mutability;

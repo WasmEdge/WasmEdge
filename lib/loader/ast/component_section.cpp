@@ -81,10 +81,10 @@ Expect<void> Loader::loadCoreInstance(AST::CoreInstance &Instance) {
                      [this](AST::ExportDecl &Export) -> Expect<void> {
                        // core:export ::= n:<name> si:<core:sortidx>
                        // => (export n si)
-                       if (auto Res = FMgr.readName(); Res.has_value()) {
-                         Export.setName(*Res);
+                       if (auto R = FMgr.readName(); R) {
+                         Export.setName(*R);
                        } else {
-                         return logLoadError(Res.error(), FMgr.getLastOffset(),
+                         return logLoadError(R.error(), FMgr.getLastOffset(),
                                              ASTNodeAttr::CompSec_Export);
                        }
                        return loadCoreSortIndex(Export.getExtern());
@@ -191,10 +191,9 @@ Expect<void> Loader::loadCoreType(AST::CoreType &Ty) {
     // field ::= t:storagetype mut:mutability
     AST::CoreDefType::StructType ST;
     Ty = ST;
-    return loadVec(ST.getFieldTypes(),
-                   [this](AST::FieldType &Ty) -> Expect<void> {
-                     return loadFieldType(Ty);
-                   });
+    return loadVec(ST.getFieldTypes(), [this](auto &FT) -> Expect<void> {
+      return loadFieldType(FT);
+    });
   }
   case 0x22U: {
     // core:arraytype ::= 0x22 ft:fieldtype
@@ -444,8 +443,19 @@ Expect<void> Loader::loadType(AST::Type &Ty) {
       return loadInstanceDecl(D);
     });
   }
-  case static_cast<Byte>(AST::PrimitiveValueType::String)... static_cast<Byte>(
-      AST::PrimitiveValueType::Bool): {
+  case static_cast<Byte>(AST::PrimitiveValueType::String):
+  case static_cast<Byte>(AST::PrimitiveValueType::Char):
+  case static_cast<Byte>(AST::PrimitiveValueType::Float64):
+  case static_cast<Byte>(AST::PrimitiveValueType::Float32):
+  case static_cast<Byte>(AST::PrimitiveValueType::U64):
+  case static_cast<Byte>(AST::PrimitiveValueType::S64):
+  case static_cast<Byte>(AST::PrimitiveValueType::U32):
+  case static_cast<Byte>(AST::PrimitiveValueType::S32):
+  case static_cast<Byte>(AST::PrimitiveValueType::U16):
+  case static_cast<Byte>(AST::PrimitiveValueType::S16):
+  case static_cast<Byte>(AST::PrimitiveValueType::U8):
+  case static_cast<Byte>(AST::PrimitiveValueType::S8):
+  case static_cast<Byte>(AST::PrimitiveValueType::Bool): {
     AST::DefinedValueType::Prim P;
     Ty = P;
     P.setValue(static_cast<AST::PrimitiveValueType>(*Res));
@@ -455,8 +465,8 @@ Expect<void> Loader::loadType(AST::Type &Ty) {
     // 0x72 nt*:vec(<namedvaltype>)         => (record (field nt)*)
     AST::DefinedValueType::Record RecordTy;
     Ty = RecordTy;
-    return loadVec(RecordTy.getFields(), [this](auto &Ty) -> Expect<void> {
-      return loadNamedValType(Ty);
+    return loadVec(RecordTy.getFields(), [this](auto &T) -> Expect<void> {
+      return loadNamedValType(T);
     });
   }
   case 0x71: {
@@ -477,9 +487,8 @@ Expect<void> Loader::loadType(AST::Type &Ty) {
     // 0x6f t*:vec(<valtype>)               => (tuple t*)
     AST::DefinedValueType::Tuple TupleTy;
     Ty = TupleTy;
-    return loadVec(TupleTy.getTypes(), [this](auto &Ty) -> Expect<void> {
-      return loadValType(Ty);
-    });
+    return loadVec(TupleTy.getTypes(),
+                   [this](auto &T) { return loadValType(T); });
   }
   case 0x6e: {
     // 0x6e n*:vec(<name>)                  => (flags n*)
@@ -513,9 +522,8 @@ Expect<void> Loader::loadType(AST::Type &Ty) {
     // 0x6c t*:vec(<valtype>)               => (union t*)
     AST::DefinedValueType::Union UnionTy;
     Ty = UnionTy;
-    return loadVec(UnionTy.getTypes(), [this](auto &Ty) -> Expect<void> {
-      return loadValType(Ty);
-    });
+    return loadVec(UnionTy.getTypes(),
+                   [this](auto &T) { return loadValType(T); });
   }
   case 0x6b: {
     // 0x6b t:<valtype>                     => (option t)
@@ -668,8 +676,19 @@ Expect<void> Loader::loadValType(AST::ValueType &Ty) {
                         ASTNodeAttr::CompSec_Type);
   }
   switch (*Res) {
-  case static_cast<Byte>(AST::PrimitiveValueType::String)... static_cast<Byte>(
-      AST::PrimitiveValueType::Bool): {
+  case static_cast<Byte>(AST::PrimitiveValueType::String):
+  case static_cast<Byte>(AST::PrimitiveValueType::Char):
+  case static_cast<Byte>(AST::PrimitiveValueType::Float64):
+  case static_cast<Byte>(AST::PrimitiveValueType::Float32):
+  case static_cast<Byte>(AST::PrimitiveValueType::U64):
+  case static_cast<Byte>(AST::PrimitiveValueType::S64):
+  case static_cast<Byte>(AST::PrimitiveValueType::U32):
+  case static_cast<Byte>(AST::PrimitiveValueType::S32):
+  case static_cast<Byte>(AST::PrimitiveValueType::U16):
+  case static_cast<Byte>(AST::PrimitiveValueType::S16):
+  case static_cast<Byte>(AST::PrimitiveValueType::U8):
+  case static_cast<Byte>(AST::PrimitiveValueType::S8):
+  case static_cast<Byte>(AST::PrimitiveValueType::Bool): {
     std::get<AST::PrimitiveValueType>(Ty) =
         static_cast<AST::PrimitiveValueType>(*Res);
     break;

@@ -4,8 +4,8 @@
 
 The [GitHub repo](https://github.com/second-state/wasmedge-containers-examples/) contains scripts and Github Actions for running our example apps on Kubernetes + CRI-O.
 
-* Simple WebAssembly example [Quick start](https://github.com/second-state/wasmedge-containers-examples/blob/main/kubernetes_crio/README.md) | [Github Actions](https://github.com/second-state/wasmedge-containers-examples/blob/main/.github/workflows/kubernetes-crio.yml) | [Successful run](https://github.com/second-state/wasmedge-containers-examples/runs/4328930134?check_suite_focus=true#step:6:3007)
-* WebAssembly-based HTTP service [Quick start](https://github.com/second-state/wasmedge-containers-examples/blob/main/kubernetes_crio/http_server/README.md) | [Github Actions](https://github.com/second-state/wasmedge-containers-examples/blob/main/.github/workflows/kubernetes-crio-server.yml) | [Successful run](https://github.com/second-state/wasmedge-containers-examples/runs/4577789182?check_suite_focus=true#step:6:3030)
+* Simple WebAssembly example [Quick start](https://github.com/second-state/wasmedge-containers-examples/blob/main/kubernetes_crio/README.md) | [Github Actions](https://github.com/second-state/wasmedge-containers-examples/blob/main/.github/workflows/kubernetes-crio.yml)
+* WebAssembly-based HTTP service [Quick start](https://github.com/second-state/wasmedge-containers-examples/blob/main/kubernetes_crio/http_server/README.md) | [Github Actions](https://github.com/second-state/wasmedge-containers-examples/blob/main/.github/workflows/kubernetes-crio-server.yml)
 
 In the rest of this section, we will explain the steps in detail.
 We will assume that you have already [installed and configured CRI-O](../cri/crio.md) to work with WasmEdge container images.
@@ -81,7 +81,7 @@ To further debug and diagnose cluster problems, use 'kubectl cluster-info dump'.
 Run the WebAssembly-based image from Docker Hub in the Kubernetes cluster as follows.
 
 ```bash
-sudo cluster/kubectl.sh run -it --rm --restart=Never wasi-demo --image=hydai/wasm-wasi-example:with-wasm-annotation --annotations="module.wasm.image/variant=compat-smart" /wasi_example_main.wasm 50000000
+sudo cluster/kubectl.sh run -it --rm --restart=Never wasi-demo --image=wasmedge/example-wasi:latest --annotations="module.wasm.image/variant=compat-smart" /wasi_example_main.wasm 50000000
 ```
 
 The output from the containerized application is printed into the console.
@@ -116,7 +116,7 @@ spec:
   hostNetwork: true
   containers:
   - name: http-server
-    image: avengermojo/http_server:with-wasm-annotation
+    image: wasmedge/example-wasi-http:latest
     command: [ "/http_server.wasm" ]
     ports:
     - containerPort: 1234

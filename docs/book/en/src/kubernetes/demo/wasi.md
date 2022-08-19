@@ -91,7 +91,7 @@ $ sudo buildah build --annotation "module.wasm.image/variant=compat-smart" -t wa
 # newgrp docker
 
 # You may need to use docker login to create the `~/.docker/config.json` for auth.
-$ sudo buildah push --authfile ~/.docker/config.json wasm-wasi-example docker://docker.io/hydai/wasm-wasi-example:with-wasm-annotation
+$ sudo buildah push --authfile ~/.docker/config.json wasm-wasi-example docker://docker.io/wasmedge/example-wasi:latest
 ```
 
 That's it! Now you can try to run it in [CRI-O](../cri/crio.md#run-a-simple-webassembly-app) or [Kubernetes](../kubernetes/kubernetes.md#run-a-simple-webassembly-app)!

@@ -13,6 +13,8 @@
 //===------------------------------------------------------------------------------------------===//
 #pragma once
 
+#include "ast/component/value_type.h"
+
 #include <cstdint>
 #include <string>
 
@@ -23,7 +25,7 @@ class ExternDesc {
 public:
   class CoreType;
   class FuncType;
-  class ValueType;
+  class ValType;
   class TypeBound;
   class InstanceType;
   class ComponentType;
@@ -47,44 +49,7 @@ private:
   uint32_t TypeIdx;
 };
 
-class ExternDesc::ValueType : public ExternDesc {
-public:
-  class Bool;
-  class S8;
-  class U8;
-  class S16;
-  class U16;
-  class S32;
-  class U32;
-  class S64;
-  class U64;
-  class Float32;
-  class Float64;
-  class Char;
-  class String;
-  class Idx;
-};
-class ExternDesc::ValueType::Bool : public ExternDesc::ValueType {};
-class ExternDesc::ValueType::S8 : public ExternDesc::ValueType {};
-class ExternDesc::ValueType::U8 : public ExternDesc::ValueType {};
-class ExternDesc::ValueType::S16 : public ExternDesc::ValueType {};
-class ExternDesc::ValueType::U16 : public ExternDesc::ValueType {};
-class ExternDesc::ValueType::S32 : public ExternDesc::ValueType {};
-class ExternDesc::ValueType::U32 : public ExternDesc::ValueType {};
-class ExternDesc::ValueType::S64 : public ExternDesc::ValueType {};
-class ExternDesc::ValueType::U64 : public ExternDesc::ValueType {};
-class ExternDesc::ValueType::Float32 : public ExternDesc::ValueType {};
-class ExternDesc::ValueType::Float64 : public ExternDesc::ValueType {};
-class ExternDesc::ValueType::Char : public ExternDesc::ValueType {};
-class ExternDesc::ValueType::String : public ExternDesc::ValueType {};
-class ExternDesc::ValueType::Idx : public ExternDesc::ValueType {
-public:
-  Idx(uint32_t TypeIdx) : TypeIdx{TypeIdx} {}
-  uint32_t getTypeIdx() const noexcept { return TypeIdx; }
-
-private:
-  uint32_t TypeIdx;
-};
+class ExternDesc::ValType : public ExternDesc, public ValueType {};
 
 class ExternDesc::TypeBound : public ExternDesc {
 public:
@@ -119,8 +84,8 @@ public:
   std::string_view getName() const noexcept { return Name; }
   void setName(std::string_view N) { Name = N; }
 
-  ExternDesc getExtern() const noexcept { return Extern; }
-  void setExtern(ExternDesc E) noexcept { Extern = E; }
+  const ExternDesc &getExtern() const noexcept { return Extern; }
+  ExternDesc &getExtern() noexcept { return Extern; }
 
 private:
   std::string Name;

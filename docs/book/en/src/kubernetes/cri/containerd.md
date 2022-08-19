@@ -5,8 +5,8 @@
 The [GitHub repo](https://github.com/second-state/wasmedge-containers-examples/) contains scripts and Github Actions for running our example
 apps on containerd.
 
-* Simple WebAssembly example [Quick start](https://github.com/second-state/wasmedge-containers-examples/blob/main/containerd/README.md) | [Github Actions](https://github.com/second-state/wasmedge-containers-examples/blob/main/.github/workflows/containerd.yml) | [Successful run](https://github.com/second-state/wasmedge-containers-examples/runs/4328930139?check_suite_focus=true#step:4:25)
-* HTTP service example [Quick start](https://github.com/second-state/wasmedge-containers-examples/blob/main/containerd/http_server/README.md) | [Github Actions](https://github.com/second-state/wasmedge-containers-examples/blob/main/.github/workflows/containerd-server.yml) | [Successful run](https://github.com/second-state/wasmedge-containers-examples/runs/4328930141?check_suite_focus=true#step:4:44)
+* Simple WebAssembly example [Quick start](https://github.com/second-state/wasmedge-containers-examples/blob/main/containerd/README.md) | [Github Actions](https://github.com/second-state/wasmedge-containers-examples/blob/main/.github/workflows/containerd.yml)
+* HTTP service example [Quick start](https://github.com/second-state/wasmedge-containers-examples/blob/main/containerd/http_server/README.md) | [Github Actions](https://github.com/second-state/wasmedge-containers-examples/blob/main/.github/workflows/containerd-server.yml)
 
 In the sections below, we will explain the steps in the quick start scripts.
 
@@ -61,13 +61,13 @@ In this section, we will start off pulling this WebAssembly-based container
 image from Docker hub using containerd tools.
 
 ```bash
-sudo ctr i pull docker.io/hydai/wasm-wasi-example:with-wasm-annotation
+sudo ctr i pull docker.io/wasmedge/example-wasi:latest
 ```
 
 Now, you can run the example in just one line with ctr (the containerd cli).
 
 ```bash
-sudo ctr run --rm --runc-binary crun --runtime io.containerd.runc.v2 --label module.wasm.image/variant=compat-smart docker.io/hydai/wasm-wasi-example:with-wasm-annotation wasm-example /wasi_example_main.wasm 50000000
+sudo ctr run --rm --runc-binary crun --runtime io.containerd.runc.v2 --label module.wasm.image/variant=compat-smart docker.io/wasmedge/example-wasi:latest wasm-example /wasi_example_main.wasm 50000000
 ```
 
 Starting the container would execute the WebAssembly program. You can see the output in the console.
@@ -96,13 +96,13 @@ In this section, we will start off pulling this WebAssembly-based container
 image from Docker hub using containerd tools.
 
 ```bash
-sudo ctr i pull docker.io/avengermojo/http_server:with-wasm-annotation
+sudo ctr i pull docker.io/wasmedge/example-wasi-http:latest
 ```
 
 Now, you can run the example in just one line with ctr (the containerd cli). Notice that we are running the container with `--net-host` so that the HTTP server inside the WasmEdge container is accessible from the outside shell.
 
 ```bash
-sudo ctr run --rm --net-host --runc-binary crun --runtime io.containerd.runc.v2 --label module.wasm.image/variant=compat-smart docker.io/avengermojo/http_server:with-wasm-annotation http-server-example /http_server.wasm
+sudo ctr run --rm --net-host --runc-binary crun --runtime io.containerd.runc.v2 --label module.wasm.image/variant=compat-smart docker.io/wasmedge/example-wasi-http:latest http-server-example /http_server.wasm
 ```
 
 Starting the container would execute the WebAssembly program. You can see the output in the console.

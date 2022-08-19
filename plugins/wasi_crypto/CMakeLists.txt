@@ -72,9 +72,19 @@ target_include_directories(wasmedgePluginWasiCrypto
 
 target_link_libraries(wasmedgePluginWasiCrypto
   PUBLIC
+  wasmedge_c_shared
   OpenSSL::Crypto
-  wasmedgeCommon
-  wasmedgeSystem
 )
+if(WASMEDGE_LINK_PUGLINS_STATIC)
+  target_link_libraries(wasmedgePluginWasiCrypto
+    PRIVATE
+    wasmedgeCAPI
+  )
+else()
+  target_link_libraries(wasmedgePluginWasiCrypto
+    PRIVATE
+    wasmedge_c_shared
+  )
+endif()
 
 install(TARGETS wasmedgePluginWasiCrypto DESTINATION ${CMAKE_INSTALL_LIBDIR}/wasmedge)

@@ -143,10 +143,8 @@ public:
 };
 
 struct PluginRegister {
-  WASMEDGE_PLUGIN_WEAK
   PluginRegister(const Plugin::PluginDescriptor *Desc) noexcept;
 
-  WASMEDGE_PLUGIN_WEAK
   ~PluginRegister() noexcept;
 };
 

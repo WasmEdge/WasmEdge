@@ -25,29 +25,20 @@ namespace AST {
 
 class FieldType {
 public:
-  class I8;
-  class I16;
+  enum Kind { I8, I16 };
 
-  virtual Byte getMutability() const noexcept;
-  virtual ~FieldType();
-};
-class FieldType::I8 : public FieldType {
-public:
-  I8(Byte M) : Mutability{M} {}
+  // default constructor for initialize
+  FieldType() {}
 
-  Byte getMutability() const noexcept override { return Mutability; }
+  // default used constructor
+  FieldType(Byte M, Kind K) : Mutability{M}, K{K} {}
 
-private:
-  Byte Mutability;
-};
-class FieldType::I16 : public FieldType {
-public:
-  I16(Byte M) : Mutability{M} {}
-
-  Byte getMutability() const noexcept override { return Mutability; }
+  Byte getMutability() const noexcept { return Mutability; }
+  Kind getKind() const noexcept { return K; }
 
 private:
   Byte Mutability;
+  Kind K;
 };
 
 class CoreType : public ModuleDecl {};
@@ -66,11 +57,12 @@ public:
   std::vector<FieldType> &getFieldTypes() noexcept { return TyList; }
 
 private:
-  std::vector<FieldType> TyList;
+  std::vector<FieldType> TyList{};
 };
 class CoreDefType::ArrayType : public CoreDefType {
 public:
-  ArrayType(FieldType &Ty) : Ty{Ty} {}
+  const FieldType &getField() const noexcept { return Ty; }
+  FieldType &getField() noexcept { return Ty; }
 
 private:
   FieldType Ty;

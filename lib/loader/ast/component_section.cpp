@@ -199,9 +199,9 @@ Expect<void> Loader::loadCoreType(AST::CoreType &Ty) {
   case 0x22U: {
     // core:arraytype ::= 0x22 ft:fieldtype
     // field ::= t:storagetype mut:mutability
-    AST::FieldType FT;
-    Ty = AST::CoreDefType::ArrayType(FT);
-    return loadFieldType(FT);
+    AST::CoreDefType::ArrayType AT;
+    Ty = AT;
+    return loadFieldType(AT.getField());
   }
   case 0x50U: {
     // core:moduletype ::= 0x50 md*:vec(<core:moduledecl>) => (module md*)
@@ -270,10 +270,10 @@ Expect<void> Loader::loadFieldType(AST::FieldType &Ty) {
   }
   switch (StorageTy.value()) {
   case 0x06:
-    Ty = AST::FieldType::I8(Mutability.value());
+    Ty = AST::FieldType(Mutability.value(), AST::FieldType::I8);
     break;
   case 0x07:
-    Ty = AST::FieldType::I16(Mutability.value());
+    Ty = AST::FieldType(Mutability.value(), AST::FieldType::I16);
     break;
   }
   return {};

@@ -14,7 +14,7 @@ However, this approach still requires starting up a Linux container. The perform
 
 We can run a simple WebAssembly program using Docker. The sample application is here. First, create a Docker file based on our release image. Include the application file in the new image, and run the `wasmedge` command at start up.
 
-```
+```shell
 FROM wasmedge/wasmedge:release-0.10.1
 ADD wasi_example_main.wasm /
 CMD ["wasmedge /wasi_example_main.wasm"]
@@ -22,7 +22,7 @@ CMD ["wasmedge /wasi_example_main.wasm"]
 
 Running the WebAssembly application in Docker CLI as follows.
 
-```
+```shell
 xxx
 ```
 
@@ -30,7 +30,7 @@ xxx
 
 We can run a simple WebAssembly-based HTTP micro-service using the Docker CLI. The sample application is here. First, create a Docker file based on our release image. Include the application file in the new image, and run the `wasmedge` command at start up.
 
-```
+```shell
 FROM wasmedge/wasmedge:release-0.10.1
 ADD http_server.wasm /
 CMD ["wasmedge /http_server.wasm"]
@@ -38,13 +38,13 @@ CMD ["wasmedge /http_server.wasm"]
 
 Running the WebAssembly server application in Docker CLI as follows. Notice that we map the server port from the container to the host.
 
-```
+```shell
 xxx
 ```
 
 You can now access the server from another terminal.
 
-```
+```shell
 xxx
 ```
 

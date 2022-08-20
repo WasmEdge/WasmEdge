@@ -44,6 +44,9 @@
 			<Component Id="enum_types.h" Guid="*">
 				<File Id="enum_types.h" Source="build\include\api\wasmedge\enum_types.h" KeyPath="yes" Checksum="yes"/>
 			</Component>
+			<Component Id="enum.inc" Guid="*">
+				<File Id="enum.inc" Source="build\include\api\wasmedge\enum.inc" KeyPath="yes" Checksum="yes"/>
+			</Component>
 			<Component Id="int128.h" Guid="*">
 				<File Id="int128.h" Source="build\include\api\wasmedge\int128.h" KeyPath="yes" Checksum="yes"/>
 			</Component>
@@ -65,6 +68,7 @@
 			<ComponentRef Id="wasmedge.exe" />
 			<ComponentRef Id="wasmedgec.exe" />
 			<ComponentRef Id="wasmedge_c.dll" />
+			<ComponentRef Id="enum.inc" />
 			<ComponentRef Id="enum_configure.h" />
 			<ComponentRef Id="enum_errcode.h" />
 			<ComponentRef Id="enum_types.h" />

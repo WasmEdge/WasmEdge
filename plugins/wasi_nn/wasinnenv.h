@@ -92,10 +92,6 @@ public:
         spdlog::error("[WASI-NN] Unable to create infer request for OpenVINO");
       }
 #endif
-    } else if (G.GraphBackend == Backend::PyTorch) {
-#ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_TORCH
-      // Do nothing
-#endif
     }
   }
 
@@ -104,9 +100,6 @@ public:
     if (OpenVINOInferRequest) {
       ie_infer_request_free(&OpenVINOInferRequest);
     }
-#endif
-#ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_TORCH
-    TorchInputs.clear();
 #endif
   }
 

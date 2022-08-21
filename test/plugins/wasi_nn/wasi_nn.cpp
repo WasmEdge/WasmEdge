@@ -716,19 +716,6 @@ TEST(WasiNNTest, PyTorchBackend) {
 
   NNContextTmp.emplace_back(NNGraphTmp[0]);
 
-  //   Abort this test, we can't know the inputs for a torch model
-  // Test: set_input -- input index exceeds.
-  //   {
-  //     EXPECT_TRUE(
-  //         HostFuncSetInput.run(&MemInst,
-  //                              std::initializer_list<WasmEdge::ValVariant>{
-  //                                  UINT32_C(0), UINT32_C(10),
-  //                                  SetInputEntryPtr},
-  //                              Errno));
-  //     EXPECT_EQ(Errno[0].get<int32_t>(),
-  //               static_cast<uint32_t>(ErrNo::InvalidArgument));
-  //   }
-
   // Test: set_input -- tensor type not FP32.
   BuilderPtr = SetInputEntryPtr;
   writeFatPointer(MemInst, StorePtr, TensorDim.size(), BuilderPtr);

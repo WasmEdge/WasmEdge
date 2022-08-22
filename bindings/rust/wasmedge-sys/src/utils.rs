@@ -304,7 +304,7 @@ pub(crate) fn check(result: WasmEdge_Result) -> WasmEdgeResult<()> {
 /// * The path specified by the `WASMEDGE_PLUGIN_PATH` environment variable.
 ///
 pub fn load_plugin_from_default_paths() {
-    unsafe { ffi::WasmEdge_Plugin_loadWithDefaultPluginPaths() }
+    unsafe { ffi::WasmEdge_PluginLoadWithDefaultPaths() }
 }
 
 /// Returns the major version value.

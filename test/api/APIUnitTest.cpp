@@ -2023,7 +2023,7 @@ TEST(APICoreTest, ModuleInstance) {
 
   // wasmedge_process only works on Linux.
   // Load plugins
-  WasmEdge_Plugin_loadWithDefaultPluginPaths();
+  WasmEdge_PluginLoadWithDefaultPaths();
 
   // Create wasmedge_process.
   HostMod = WasmEdge_ModuleInstanceCreateWasmEdgeProcess(Args, 2, false);

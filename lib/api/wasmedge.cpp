@@ -1588,7 +1588,7 @@ WASMEDGE_CAPI_EXPORT WasmEdge_StoreContext *WasmEdge_StoreCreate(void) {
 }
 
 WASMEDGE_CAPI_EXPORT const WasmEdge_ModuleInstanceContext *
-WasmEdge_StoreFindModule(WasmEdge_StoreContext *Cxt,
+WasmEdge_StoreFindModule(const WasmEdge_StoreContext *Cxt,
                          const WasmEdge_String Name) {
   if (Cxt) {
     return toModCxt(fromStoreCxt(Cxt)->findModule(genStrView(Name)));
@@ -2270,13 +2270,13 @@ WasmEdge_CallingFrameGetMemoryInstance(const WasmEdge_CallingFrameContext *Cxt,
 
 // >>>>>>>> WasmEdge Async functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
-WASMEDGE_CAPI_EXPORT void WasmEdge_AsyncWait(WasmEdge_Async *Cxt) {
+WASMEDGE_CAPI_EXPORT void WasmEdge_AsyncWait(const WasmEdge_Async *Cxt) {
   if (Cxt) {
     Cxt->Async.wait();
   }
 }
 
-WASMEDGE_CAPI_EXPORT bool WasmEdge_AsyncWaitFor(WasmEdge_Async *Cxt,
+WASMEDGE_CAPI_EXPORT bool WasmEdge_AsyncWaitFor(const WasmEdge_Async *Cxt,
                                                 uint64_t Milliseconds) {
   if (Cxt) {
     return Cxt->Async.waitFor(std::chrono::milliseconds(Milliseconds));
@@ -2291,7 +2291,7 @@ WASMEDGE_CAPI_EXPORT void WasmEdge_AsyncCancel(WasmEdge_Async *Cxt) {
 }
 
 WASMEDGE_CAPI_EXPORT uint32_t
-WasmEdge_AsyncGetReturnsLength(WasmEdge_Async *Cxt) {
+WasmEdge_AsyncGetReturnsLength(const WasmEdge_Async *Cxt) {
   if (Cxt) {
     if (auto Res = Cxt->Async.get()) {
       return static_cast<uint32_t>((*Res).size());
@@ -2300,8 +2300,9 @@ WasmEdge_AsyncGetReturnsLength(WasmEdge_Async *Cxt) {
   return 0;
 }
 
-WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_AsyncGet(
-    WasmEdge_Async *Cxt, WasmEdge_Value *Returns, const uint32_t ReturnLen) {
+WASMEDGE_CAPI_EXPORT WasmEdge_Result
+WasmEdge_AsyncGet(const WasmEdge_Async *Cxt, WasmEdge_Value *Returns,
+                  const uint32_t ReturnLen) {
   return wrap(
       [&]() { return Cxt->Async.get(); },
       [&](auto Res) { fillWasmEdge_ValueArr(*Res, Returns, ReturnLen); }, Cxt);
@@ -2538,7 +2539,7 @@ WASMEDGE_CAPI_EXPORT WasmEdge_Async *WasmEdge_VMAsyncExecuteRegistered(
 }
 
 WASMEDGE_CAPI_EXPORT const WasmEdge_FunctionTypeContext *
-WasmEdge_VMGetFunctionType(WasmEdge_VMContext *Cxt,
+WasmEdge_VMGetFunctionType(const WasmEdge_VMContext *Cxt,
                            const WasmEdge_String FuncName) {
   if (Cxt) {
     const auto FuncList = Cxt->VM.getFunctionList();
@@ -2552,7 +2553,7 @@ WasmEdge_VMGetFunctionType(WasmEdge_VMContext *Cxt,
 }
 
 WASMEDGE_CAPI_EXPORT const WasmEdge_FunctionTypeContext *
-WasmEdge_VMGetFunctionTypeRegistered(WasmEdge_VMContext *Cxt,
+WasmEdge_VMGetFunctionTypeRegistered(const WasmEdge_VMContext *Cxt,
                                      const WasmEdge_String ModuleName,
                                      const WasmEdge_String FuncName) {
   if (Cxt) {
@@ -2575,7 +2576,7 @@ WASMEDGE_CAPI_EXPORT void WasmEdge_VMCleanup(WasmEdge_VMContext *Cxt) {
 }
 
 WASMEDGE_CAPI_EXPORT uint32_t
-WasmEdge_VMGetFunctionListLength(WasmEdge_VMContext *Cxt) {
+WasmEdge_VMGetFunctionListLength(const WasmEdge_VMContext *Cxt) {
   if (Cxt) {
     return static_cast<uint32_t>(Cxt->VM.getFunctionList().size());
   }
@@ -2583,7 +2584,7 @@ WasmEdge_VMGetFunctionListLength(WasmEdge_VMContext *Cxt) {
 }
 
 WASMEDGE_CAPI_EXPORT uint32_t WasmEdge_VMGetFunctionList(
-    WasmEdge_VMContext *Cxt, WasmEdge_String *Names,
+    const WasmEdge_VMContext *Cxt, WasmEdge_String *Names,
     const WasmEdge_FunctionTypeContext **FuncTypes, const uint32_t Len) {
   if (Cxt) {
     // Not to use VM::getFunctionList() here because not to allocate the
@@ -2613,7 +2614,7 @@ WASMEDGE_CAPI_EXPORT uint32_t WasmEdge_VMGetFunctionList(
 }
 
 WASMEDGE_CAPI_EXPORT WasmEdge_ModuleInstanceContext *
-WasmEdge_VMGetImportModuleContext(WasmEdge_VMContext *Cxt,
+WasmEdge_VMGetImportModuleContext(const WasmEdge_VMContext *Cxt,
                                   const enum WasmEdge_HostRegistration Reg) {
   if (Cxt) {
     return toModCxt(
@@ -2691,7 +2692,7 @@ WASMEDGE_CAPI_EXPORT int WasmEdge_Driver_Tool(int Argc, const char *Argv[]) {
 
 // >>>>>>>> WasmEdge Plugin functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
-WASMEDGE_CAPI_EXPORT void WasmEdge_Plugin_loadWithDefaultPluginPaths(void) {
+WASMEDGE_CAPI_EXPORT void WasmEdge_PluginLoadWithDefaultPaths(void) {
   for (const auto &Path : WasmEdge::Plugin::Plugin::getDefaultPluginPaths()) {
     WasmEdge::Plugin::Plugin::load(Path);
   }

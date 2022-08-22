@@ -89,8 +89,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ inputs.upload_asset_url }}
-          asset_name: WasmEdge-${{ env.product_version }}-windows.zip
-          asset_path: build\\WasmEdge-${{ env.product_version }}-Windows.zip
+          asset_name: WasmEdge-${{ inputs.version }}-windows.zip
+          asset_path: build\\WasmEdge-${{ inputs.version }}-Windows.zip
           asset_content_type: application/zip
       - name: Upload Windows installer
         if: ${{ inputs.release }}

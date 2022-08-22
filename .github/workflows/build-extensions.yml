@@ -91,6 +91,24 @@ jobs:
             test_path: test/plugins/wasi_crypto
             test_bin: wasiCryptoTests
             build_type: Release
+          - name: HttpReq
+            tar_name: http_req
+            compiler: g++
+            docker_tag: ubuntu-build-gcc
+            output_path: plugins/httpsreq
+            output_bin: libwasmedgePluginHttpReq.so
+            test_path: test/plugins/httpreq
+            test_bin: wasmedgeHttpsReqTests
+            build_type: Release
+          - name: HttpReq
+            tar_name: http_req
+            compiler: clang++
+            docker_tag: ubuntu-build-clang
+            output_path: plugins/
+            output_bin: libwasmedgePluginHttpReq.so
+            test_path: test/plugins/httpreq
+            test_bin: wasmedgeHttpsReqTests
+            build_type: Release
     name: Ubuntu 20.04 WasmEdge ${{ matrix.name }} plugin with ${{ matrix.compiler}} ${{ matrix.build_type}}
     runs-on: ubuntu-latest
     needs: [get_version_v2]
@@ -123,6 +141,16 @@ jobs:
         mkdir -p build
         cd build
         cmake -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DWASMEDGE_PLUGIN_WASI_CRYPTO=On -DWASMEDGE_BUILD_TESTS=ON ..
+        cd ${{ matrix.test_path }}
+        make -j
+    - name: Build WasmEdge HttpReq plugin using ${{ matrix.compiler }} with ${{ matrix.build_type }} mode
+      if: contains(matrix.name, 'HttpReq')
+      run: |
+        apt update
+        apt install -y libssl-dev
+        mkdir -p build
+        cd build
+        cmake -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DWASMEDGE_PLUGIN_HTTPSREQ=true -DWASMEDGE_BUILD_TESTS=ON ..
         cd ${{ matrix.test_path }}
         make -j
     - name: Test WasmEdge ${{ matrix.name }} plugin using ${{ matrix.compiler }} with ${{ matrix.build_type }} mode
@@ -167,6 +195,22 @@ jobs:
             output_path: plugins/wasi_crypto
             output_bin: libwasmedgePluginWasiCrypto.so
             build_type: Release
+          - name: HttpReq
+            tar_name: http_req
+            system: manylinux2014 x86_64
+            host_runner: ubuntu-latest
+            docker_tag: manylinux2014_x86_64
+            output_path: plugins/httpreq
+            output_bin: libwasmedgePluginHttpReq.so
+            build_type: Release
+          - name: HttpReq
+            tar_name: http_req
+            system: manylinux2014 aarch64
+            host_runner: ARM64
+            docker_tag: manylinux2014_aarch64
+            output_path: plugins/httpreq
+            output_bin: libwasmedgePluginHttpReq.so
+            build_type: Release
     name: ${{ matrix.system }} WasmEdge ${{ matrix.name }} plugin with g++ ${{ matrix.build_type }}
     runs-on: ${{ matrix.host_runner }}
     needs: [get_version_v2]
@@ -180,6 +224,10 @@ jobs:
       if: contains(matrix.name, 'WASI-Crypto')
       run: |
         bash utils/wasi-crypto/build-openssl.sh
+    - name: Build HttpReq dependency
+      if: contains(matrix.name, 'HttpReq')
+      run: |
+        bash utils/httpreq/build-openssl.sh
     - name: Build WasmEdge ${{ matrix.name }} plugin with ${{ matrix.build_type }} mode
       run: |
         bash utils/docker/build-manylinux.sh --${{ matrix.build_type }} --not-build --not-ninja -DWASMEDGE_PLUGIN_WASI_CRYPTO=ON -DOPENSSL_ROOT_DIR=$(pwd)/openssl-1.1.1n/openssl

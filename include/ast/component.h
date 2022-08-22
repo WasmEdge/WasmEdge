@@ -34,43 +34,63 @@ public:
   std::vector<Byte> &getLayer() noexcept { return Layer; }
 
   /// Getters of references to sections.
-  const ModuleSection &getModuleSection() const { return ModuleSec; }
-  ModuleSection &getModuleSection() { return ModuleSec; }
+  const ModuleSection &getModuleSection() const noexcept { return ModuleSec; }
+  ModuleSection &getModuleSection() noexcept { return ModuleSec; }
 
-  const CoreInstanceSection &getCoreInstanceSection() const {
+  const CoreInstanceSection &getCoreInstanceSection() const noexcept {
     return CoreInstanceSec;
   }
-  CoreInstanceSection &getCoreInstanceSection() { return CoreInstanceSec; }
+  CoreInstanceSection &getCoreInstanceSection() noexcept {
+    return CoreInstanceSec;
+  }
 
-  const CoreAliasSection &getCoreAliasSection() const { return CoreAliasSec; }
-  CoreAliasSection &getCoreAliasSection() { return CoreAliasSec; }
+  const CoreAliasSection &getCoreAliasSection() const noexcept {
+    return CoreAliasSec;
+  }
+  CoreAliasSection &getCoreAliasSection() noexcept { return CoreAliasSec; }
 
-  const CoreTypeSection &getCoreTypeSection() const { return CoreTypeSec; }
-  CoreTypeSection &getCoreTypeSection() { return CoreTypeSec; }
+  const CoreTypeSection &getCoreTypeSection() const noexcept {
+    return CoreTypeSec;
+  }
+  CoreTypeSection &getCoreTypeSection() noexcept { return CoreTypeSec; }
 
-  const ComponentSection &getComponentSection() const { return ComponentSec; }
-  ComponentSection &getComponentSection() { return ComponentSec; }
+  const ComponentSection &getComponentSection() const noexcept {
+    return ComponentSec;
+  }
+  ComponentSection &getComponentSection() noexcept { return ComponentSec; }
 
-  const InstanceSection &getInstanceSection() const { return InstanceSec; }
-  InstanceSection &getInstanceSection() { return InstanceSec; }
+  const InstanceSection &getInstanceSection() const noexcept {
+    return InstanceSec;
+  }
+  InstanceSection &getInstanceSection() noexcept { return InstanceSec; }
 
-  const AliasSection &getAliasSection() const { return AliasSec; }
-  AliasSection &getAliasSection() { return AliasSec; }
+  const AliasSection &getAliasSection() const noexcept { return AliasSec; }
+  AliasSection &getAliasSection() noexcept { return AliasSec; }
 
-  const ComponentTypeSection &getTypeSection() const { return TypeSec; }
-  ComponentTypeSection &getTypeSection() { return TypeSec; }
+  const ComponentTypeSection &getTypeSection() const noexcept {
+    return TypeSec;
+  }
+  ComponentTypeSection &getTypeSection() noexcept { return TypeSec; }
 
-  const ComponentCanonSection &getCanonSection() const { return CanonSec; }
-  ComponentCanonSection &getCanonSection() { return CanonSec; }
+  const ComponentCanonSection &getCanonSection() const noexcept {
+    return CanonSec;
+  }
+  ComponentCanonSection &getCanonSection() noexcept { return CanonSec; }
 
-  const ComponentStartSection &getStartSection() const { return StartSec; }
-  ComponentStartSection &getStartSection() { return StartSec; }
+  const ComponentStartSection &getStartSection() const noexcept {
+    return StartSec;
+  }
+  ComponentStartSection &getStartSection() noexcept { return StartSec; }
 
-  const ComponentImportSection &getImportSection() const { return ImportSec; }
-  ComponentImportSection &getImportSection() { return ImportSec; }
+  const ComponentImportSection &getImportSection() const noexcept {
+    return ImportSec;
+  }
+  ComponentImportSection &getImportSection() noexcept { return ImportSec; }
 
-  const ComponentExportSection &getExportSection() const { return ExportSec; }
-  ComponentExportSection &getExportSection() { return ExportSec; }
+  const ComponentExportSection &getExportSection() const noexcept {
+    return ExportSec;
+  }
+  ComponentExportSection &getExportSection() noexcept { return ExportSec; }
 
 private:
   /// \name Data of Component node.

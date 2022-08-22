@@ -52,12 +52,12 @@ class CanonOpt::StringEncodingUTF16 : public CanonOpt {};
 class CanonOpt::StringEncodingLatin1UTF16 : public CanonOpt {};
 class CanonOpt::MemoryIndex : public CanonOpt {
 public:
-  MemoryIndex(uint32_t Idx) noexcept : CoreMeMIdx{Idx} {}
+  MemoryIndex(uint32_t Idx) noexcept : CoreMemIdx{Idx} {}
 
-  uint32_t getCoreMeMIdx() const noexcept { return CoreMeMIdx; }
+  uint32_t getCoreMemIdx() const noexcept { return CoreMemIdx; }
 
 private:
-  uint32_t CoreMeMIdx;
+  uint32_t CoreMemIdx;
 };
 class CanonOpt::ReallocFunc : public CanonOpt {
 public:

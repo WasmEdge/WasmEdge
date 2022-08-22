@@ -50,7 +50,7 @@ jobs:
           path: build/WasmEdge-${{ inputs.version }}-Linux.tar.gz
           name: WasmEdge-${{ inputs.version }}-${{ matrix.docker_tag }}.tar.gz
       - name: Upload rpm package
-        if: ${{ inputs.release }}
+        if: ${{ !inputs.legacy && inputs.release }}
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -59,8 +59,11 @@ jobs:
           asset_path: build/WasmEdge-${{ inputs.version }}-Linux.rpm
           asset_name: WasmEdge-${{ inputs.version }}-${{ matrix.docker_tag }}.rpm
           asset_content_type: application/x-rpm
+      - name: Sleep 5 second to avoid GitHub ECONNRESET error
+        run: |
+          sleep 5
       - name: Upload tar.gz package
-        if: ${{ inputs.release }}
+        if: ${{ !inputs.legacy && inputs.release }}
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -69,8 +72,11 @@ jobs:
           asset_path: build/WasmEdge-${{ inputs.version }}-Linux.tar.gz
           asset_name: WasmEdge-${{ inputs.version }}-${{ matrix.docker_tag }}.tar.gz
           asset_content_type: application/x-gzip
+      - name: Sleep 5 second to avoid GitHub ECONNRESET error
+        run: |
+          sleep 5
       - name: Upload tar.xz package
-        if: ${{ inputs.release }}
+        if: ${{ !inputs.legacy && inputs.release }}
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

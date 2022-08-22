@@ -7,7 +7,7 @@ The `hello.wasm` example is compiled from [Rust source code](https://github.com/
 ```bash
 # Run it in the interpreter mode
 $ wasmedge hello.wasm 1 2 3
-hello.wasm
+hello
 1
 2
 3
@@ -15,7 +15,7 @@ hello.wasm
 # Run it in the AOT mode
 $ wasmedgec hello.wasm hello.so
 $ wasmedge hello.so 1 2 3
-hello.wasm
+hello
 1
 2
 3

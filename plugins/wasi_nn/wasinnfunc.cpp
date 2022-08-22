@@ -4,15 +4,42 @@
 #include "wasinnfunc.h"
 #include "common/log.h"
 
+#include <string>
+
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_OPENVINO
 #include <algorithm>
-#include <string>
 
 #include <c_api/ie_c_api.h>
 #endif
 
+#ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_TORCH
+#include <iostream>
+
+#include <torch/torch.h>
+#endif
+
 namespace WasmEdge {
 namespace Host {
+
+namespace {
+std::string FindDevice(const uint32_t Target) {
+  std::string DeviceName;
+  switch (Target) {
+  case 0:
+    DeviceName = "CPU";
+    break;
+  // case 1:
+  //   DeviceName = "GPU";
+  //   break;
+  // case 2:
+  //   DeviceName = "TPU";
+  //   break;
+  default:
+    DeviceName = "";
+  }
+  return DeviceName;
+}
+} // namespace
 
 Expect<uint32_t> WasiNNLoad::body(const Runtime::CallingFrame &Frame,
                                   uint32_t BuilderPtr [[maybe_unused]],
@@ -25,21 +52,18 @@ Expect<uint32_t> WasiNNLoad::body(const Runtime::CallingFrame &Frame,
   if (MemInst == nullptr) {
     return Unexpect(ErrCode::Value::HostFuncError);
   }
-
+  // Check the return value: GraphIdPtr should be valid.
+  uint32_t *GraphId = MemInst->getPointer<uint32_t *>(GraphIdPtr, 1);
+  if (unlikely(GraphId == nullptr)) {
+    spdlog::error("[WASI-NN] Failed when accessing the return GraphID memory.");
+    return static_cast<uint32_t>(WASINN::ErrNo::InvalidArgument);
+  }
   if (Encoding == static_cast<uint32_t>(WASINN::Backend::OpenVINO)) {
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_OPENVINO
     // The OpenVINO core must be initialized in constructor.
     if (unlikely(Env.OpenVINOCore == nullptr)) {
       spdlog::error("[WASI-NN] OpenVINO core not initialized.");
       return static_cast<uint32_t>(WASINN::ErrNo::MissingMemory);
-    }
-
-    // Check the return value: GraphIdPtr should be valid.
-    uint32_t *GraphId = MemInst->getPointer<uint32_t *>(GraphIdPtr, 1);
-    if (unlikely(GraphId == nullptr)) {
-      spdlog::error(
-          "[WASI-NN] Failed when accessing the return GraphID memory.");
-      return static_cast<uint32_t>(WASINN::ErrNo::InvalidArgument);
     }
 
     // The graph builder length must be 2.
@@ -51,25 +75,12 @@ Expect<uint32_t> WasiNNLoad::body(const Runtime::CallingFrame &Frame,
 
     // Get and check the device name string.
     std::string DeviceName;
-    switch (Target) {
-    case 0:
-      DeviceName = "CPU";
-      break;
-    case 1:
-      DeviceName = "GPU";
-      break;
-    case 2:
-      DeviceName = "TPU";
-      break;
-    default:
-      DeviceName = "";
-    }
+    DeviceName = FindDevice(Target);
     if (DeviceName.length() == 0) {
-      spdlog::error("[WASI-NN] Device target {:d} not support!", Target);
+      spdlog::error("[WASI-NN] PyTorch backend only support CPU target");
       return static_cast<uint32_t>(WASINN::ErrNo::InvalidArgument);
-    } else {
-      spdlog::debug("[WASI-NN] Using device: {:s}", DeviceName);
     }
+    spdlog::debug("[WASI-NN] Using device: {:s}", DeviceName);
 
     // Get the graph builders.
     // GraphBuilders' Layout:
@@ -95,7 +106,7 @@ Expect<uint32_t> WasiNNLoad::body(const Runtime::CallingFrame &Frame,
       return static_cast<uint32_t>(WASINN::ErrNo::InvalidArgument);
     }
     if (unlikely(BinPtr == nullptr)) {
-      spdlog::error("[WASI-NN] Failed when accessing the Weignt memory.");
+      spdlog::error("[WASI-NN] Failed when accessing the Weight memory.");
       return static_cast<uint32_t>(WASINN::ErrNo::InvalidArgument);
     }
 
@@ -233,9 +244,58 @@ Expect<uint32_t> WasiNNLoad::body(const Runtime::CallingFrame &Frame,
     return static_cast<uint32_t>(WASINN::ErrNo::Success);
 #else
     spdlog::error("[WASI-NN] OpenVINO backend is not built. use "
-                  "-DWASMEDGE_PLUGIN_WASI_NN_BACKEND_OPENVINO=ON"
-                  "to build it.");
+                  "-WASMEDGE_PLUGIN_WASI_NN_BACKEND=\"OpenVINO\" to build it.");
 #endif
+  } else if (Encoding == static_cast<uint32_t>(WASINN::Backend::PyTorch)) {
+#ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_TORCH
+    std::string DeviceName;
+    DeviceName = FindDevice(Target);
+    if (DeviceName.length() == 0) {
+      spdlog::error("[WASI-NN] PyTorch backend only support CPU target");
+      return static_cast<uint32_t>(WASINN::ErrNo::InvalidArgument);
+    }
+
+    // The graph builder length must be 2.
+    if (BuilderLen != 1) {
+      spdlog::error("[WASI-NN] Wrong GraphBuilder Length {:d}, expect 1",
+                    BuilderLen);
+      return static_cast<uint32_t>(WASINN::ErrNo::InvalidArgument);
+    }
+    uint32_t *GraphBuilders =
+        MemInst->getPointer<uint32_t *>(BuilderPtr, BuilderLen * 2);
+    if (unlikely(GraphBuilders == nullptr)) {
+      spdlog::error("[WASI-NN] Failed when accessing the GraphBuilder memory.");
+      return static_cast<uint32_t>(WASINN::ErrNo::InvalidArgument);
+    }
+
+    uint32_t BinLen = GraphBuilders[1];
+    uint8_t *BinPtr = MemInst->getPointer<uint8_t *>(GraphBuilders[0], BinLen);
+    if (unlikely(BinPtr == nullptr)) {
+      spdlog::error("[WASI-NN] Failed when accessing the Weight memory.");
+      return static_cast<uint32_t>(WASINN::ErrNo::InvalidArgument);
+    }
+    // Add a new graph.
+    Env.NNGraph.emplace_back(static_cast<WASINN::Backend>(Encoding));
+    auto &Graph = Env.NNGraph.back();
+    std::string BinString((char *)BinPtr, BinLen);
+    std::stringstream BinRead;
+    BinRead.str(BinString);
+
+    try {
+      Graph.TorchModel = torch::jit::load(BinRead);
+    } catch (const c10::Error &e) {
+      spdlog::error("[WASI-NN] Failed when load the TorchScript model.");
+      Env.NNGraph.pop_back();
+      return static_cast<uint32_t>(WASINN::ErrNo::InvalidArgument);
+    }
+    // Store the loaded graph.
+    *GraphId = Env.NNGraph.size() - 1;
+    return static_cast<uint32_t>(WASINN::ErrNo::Success);
+
+#else
+    spdlog::error("[WASI-NN] PyTorch backend is not built. use "
+                  "-WASMEDGE_PLUGIN_WASI_NN_BACKEND=\"PyTorch\" to build it.");
+#endif // WASMEDGE_PLUGIN_WASI_NN_BACKEND_TORCH
   } else {
     spdlog::error("[WASI-NN] Current backend is not supported.");
   }
@@ -254,16 +314,14 @@ Expect<uint32_t> WasiNNInitExecCtx::body(const Runtime::CallingFrame &Frame,
     spdlog::error("[WASI-NN] init_execution_context: Graph Id does not exist.");
     return static_cast<uint32_t>(WASINN::ErrNo::InvalidArgument);
   }
-
+  // Check the return value: Context should be valid.
+  uint32_t *Context = MemInst->getPointer<uint32_t *>(ContextPtr, 1);
+  if (unlikely(Context == nullptr)) {
+    spdlog::error("[WASI-NN] Failed when accessing the Context memory.");
+    return static_cast<uint32_t>(WASINN::ErrNo::InvalidArgument);
+  }
   if (Env.NNGraph[GraphId].GraphBackend == WASINN::Backend::OpenVINO) {
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_OPENVINO
-    // Check the return value: Context should be valid.
-    uint32_t *Context = MemInst->getPointer<uint32_t *>(ContextPtr, 1);
-    if (unlikely(Context == nullptr)) {
-      spdlog::error("[WASI-NN] Failed when accessing the Context memory.");
-      return static_cast<uint32_t>(WASINN::ErrNo::InvalidArgument);
-    }
-
     // Check the network and the execution network with the graph ID.
     if (Env.NNGraph[GraphId].OpenVINONetwork == nullptr ||
         Env.NNGraph[GraphId].OpenVINOExecNetwork == nullptr) {
@@ -271,23 +329,31 @@ Expect<uint32_t> WasiNNInitExecCtx::body(const Runtime::CallingFrame &Frame,
       return static_cast<uint32_t>(WASINN::ErrNo::MissingMemory);
     }
 
-    // Create the infer request.
-    ie_infer_request_t *InferRequest = nullptr;
-    IEStatusCode Status = ie_exec_network_create_infer_request(
-        Env.NNGraph[GraphId].OpenVINOExecNetwork, &InferRequest);
-    if (Status != IEStatusCode::OK) {
-      spdlog::error("[WASI-NN] Unable to create openvino session");
+    // Create context.
+    Env.NNContext.emplace_back(Env.NNGraph[GraphId]);
+    auto &NewContext = Env.NNContext.back();
+    if (NewContext.OpenVINOInferRequest == nullptr) {
+      spdlog::error("[WASI-NN] Unable to create openvino context");
+      Env.NNContext.pop_back();
       return static_cast<uint32_t>(WASINN::ErrNo::Busy);
     }
 
-    *Context = Env.NNContext.size();
-    Env.NNContext.emplace_back(Env.NNGraph[GraphId], InferRequest);
-
+    *Context = Env.NNContext.size() - 1;
     return static_cast<uint32_t>(WASINN::ErrNo::Success);
 #else
-    spdlog::error("[WASI-NN] OpenVINO backend is not built. define "
-                  "-DWASMEDGE_PLUGIN_WASI_NN_BACKEND_OPENVINO "
-                  "to build it.");
+    spdlog::error("[WASI-NN] OpenVINO backend is not built. use "
+                  "-WASMEDGE_PLUGIN_WASI_NN_BACKEND=\"OpenVINO\" to build it.");
+#endif
+  } else if (Env.NNGraph[GraphId].GraphBackend == WASINN::Backend::PyTorch) {
+#ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_TORCH
+    Env.NNContext.emplace_back(Env.NNGraph[GraphId]);
+
+    *Context = Env.NNContext.size() - 1;
+    return static_cast<uint32_t>(WASINN::ErrNo::Success);
+
+#else
+    spdlog::error("[WASI-NN] PyTorch backend is not built. use "
+                  "-WASMEDGE_PLUGIN_WASI_NN_BACKEND=\"PyTorch\" to build it.");
 #endif
   } else {
     spdlog::error("[WASI-NN] Current backend is not supported.");
@@ -458,9 +524,53 @@ Expect<uint32_t> WasiNNSetInput::body(const Runtime::CallingFrame &Frame,
 
     return static_cast<uint32_t>(WASINN::ErrNo::Success);
 #else
-    spdlog::error("[WASI-NN] OpenVINO backend is not built, use "
-                  "-DWASMEDGE_PLUGIN_WASI_NN_BACKEND_OPENVINO=ON"
-                  "to build it.");
+    spdlog::error("[WASI-NN] OpenVINO backend is not built. use "
+                  "-WASMEDGE_PLUGIN_WASI_NN_BACKEND=\"OpenVINO\" to build it.");
+#endif
+  } else if (CxtRef.GraphRef.GraphBackend == WASINN::Backend::PyTorch) {
+#ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_TORCH
+    if (Index >= CxtRef.TorchInputs.size()) {
+      CxtRef.TorchInputs.resize(Index + 1);
+    }
+    uint32_t *Tensor = MemInst->getPointer<uint32_t *>(TensorPtr, 5);
+    if (unlikely(Tensor == nullptr)) {
+      spdlog::error("[WASI-NN] Failed when accessing the Tensor memory.");
+      return static_cast<uint32_t>(WASINN::ErrNo::InvalidArgument);
+    }
+    uint32_t DimensionLen = Tensor[1];
+    uint32_t *DimensionBuf =
+        MemInst->getPointer<uint32_t *>(Tensor[0], DimensionLen);
+    if (unlikely(DimensionBuf == nullptr)) {
+      spdlog::error("[WASI-NN] Failed when accessing the Dimension memory.");
+      return static_cast<uint32_t>(WASINN::ErrNo::InvalidArgument);
+    }
+    uint32_t TensorDataLen = Tensor[4];
+    uint8_t *TensorDataBuf =
+        MemInst->getPointer<uint8_t *>(Tensor[3], TensorDataLen);
+    if (unlikely(TensorDataBuf == nullptr)) {
+      spdlog::error("[WASI-NN] Failed when accessing the TensorData memory.");
+      return static_cast<uint32_t>(WASINN::ErrNo::InvalidArgument);
+    }
+    uint32_t RType = Tensor[2];
+    if (RType != 1) {
+      spdlog::error(
+          "[WASI-NN] Only F32 inputs and outputs are supported for now.");
+      return static_cast<uint32_t>(WASINN::ErrNo::InvalidArgument);
+    }
+    auto Options =
+        torch::TensorOptions().dtype(torch::kFloat32).requires_grad(false);
+    std::vector<int64_t> Dims;
+    for (size_t I = 0; I < DimensionLen; I++) {
+      Dims.push_back(static_cast<int64_t>(DimensionBuf[I]));
+    }
+    torch::Tensor InTensor = torch::from_blob(
+        reinterpret_cast<float *>(TensorDataBuf), Dims, Options);
+
+    CxtRef.TorchInputs[Index] = InTensor.clone();
+    return static_cast<uint32_t>(WASINN::ErrNo::Success);
+#else
+    spdlog::error("[WASI-NN] PyTorch backend is not built. use "
+                  "-WASMEDGE_PLUGIN_WASI_NN_BACKEND=\"PyTorch\" to build it.");
 #endif
   } else {
     spdlog::error("[WASI-NN] Current backend is not supported.");
@@ -557,8 +667,46 @@ WasiNNGetOuput::body(const Runtime::CallingFrame &Frame, uint32_t Context,
     return static_cast<uint32_t>(WASINN::ErrNo::Success);
 #else
     spdlog::error("[WASI-NN] OpenVINO backend is not built. use "
-                  "-DWASMEDGE_PLUGIN_WASI_NN_BACKEND_OPENVINO=ON"
-                  "to build it.");
+                  "-WASMEDGE_PLUGIN_WASI_NN_BACKEND=\"OpenVINO\" to build it.");
+#endif
+  } else if (CxtRef.GraphRef.GraphBackend == WASINN::Backend::PyTorch) {
+#ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_TORCH
+    if (CxtRef.TorchOutputs.size() <= Index) {
+      spdlog::error(
+          "[WASI-NN] The output index {} exceeds the outputs number {}.", Index,
+          CxtRef.TorchOutputs.size());
+      return static_cast<uint32_t>(WASINN::ErrNo::InvalidArgument);
+    }
+    torch::Tensor OutTensor =
+        CxtRef.TorchOutputs[Index].toType(torch::kFloat32);
+    float *TensorBuffer = OutTensor.data_ptr<float>();
+
+    size_t BlobSize = 1;
+    for (auto I : OutTensor.sizes()) {
+      BlobSize *= I;
+    }
+    uint32_t BytesToWrite =
+        std::min(static_cast<uint32_t>(BlobSize * 4), OutBufferMaxSize);
+    uint8_t *OutBuffer =
+        MemInst->getPointer<uint8_t *>(OutBufferPtr, BytesToWrite);
+    if (unlikely(OutBuffer == nullptr)) {
+      spdlog::error(
+          "[WASI-NN] Failed when accessing the Output Buffer memory.");
+      return static_cast<uint32_t>(WASINN::ErrNo::InvalidArgument);
+    }
+    std::copy_n(reinterpret_cast<const uint8_t *>(TensorBuffer), BytesToWrite,
+                OutBuffer);
+    uint32_t *BytesWritten =
+        MemInst->getPointer<uint32_t *>(BytesWrittenPtr, 1);
+    if (unlikely(BytesWritten == nullptr)) {
+      spdlog::error("[WASI-NN] Failed when accessing the BytesWritten memory.");
+      return static_cast<uint32_t>(WASINN::ErrNo::InvalidArgument);
+    }
+    *BytesWritten = BytesToWrite;
+    return static_cast<uint32_t>(WASINN::ErrNo::Success);
+#else
+    spdlog::error("[WASI-NN] PyTorch backend is not built. use "
+                  "-WASMEDGE_PLUGIN_WASI_NN_BACKEND=\"PyTorch\" to build it.");
 #endif
   } else {
     spdlog::error("[WASI-NN] Current backend is not supported.");
@@ -591,8 +739,41 @@ Expect<uint32_t> WasiNNCompute::body(const Runtime::CallingFrame &Frame,
     return static_cast<uint32_t>(WASINN::ErrNo::Success);
 #else
     spdlog::error("[WASI-NN] OpenVINO backend is not built. use "
-                  "-DWASMEDGE_PLUGIN_WASI_NN_BACKEND_OPENVINO=ON"
-                  "to build it.");
+                  "-WASMEDGE_PLUGIN_WASI_NN_BACKEND=\"OpenVINO\" to build it.");
+#endif
+  } else if (CxtRef.GraphRef.GraphBackend == WASINN::Backend::PyTorch) {
+#ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_TORCH
+    if (CxtRef.TorchInputs.size() == 0) {
+      spdlog::error("[WASI-NN] Input is not set!");
+      return static_cast<uint32_t>(WASINN::ErrNo::InvalidArgument);
+    }
+    for (size_t I = 0; I < CxtRef.TorchInputs.size(); I++) {
+      torch::jit::IValue InTensor = CxtRef.TorchInputs[I];
+      if (InTensor.isNone()) {
+        spdlog::error("[WASI-NN] Input [{}] is not set!", I);
+        return static_cast<uint32_t>(WASINN::ErrNo::InvalidArgument);
+      }
+    }
+    torch::jit::IValue RawOutput =
+        CxtRef.GraphRef.TorchModel.forward(CxtRef.TorchInputs);
+    // TODO: more output type should be supported here
+    if (RawOutput.isTensorList()) {
+      auto OutTensors = RawOutput.toTensorVector();
+      for (auto &OneOf : OutTensors) {
+        CxtRef.TorchOutputs.push_back(OneOf.clone());
+      }
+    } else if (RawOutput.isTensor()) {
+      auto OutTensor = RawOutput.toTensor();
+      CxtRef.TorchOutputs.push_back(OutTensor.clone());
+    } else {
+      spdlog::error("[WASI-NN] PyTorch backend only supports output a tensor "
+                    "or a list of tensor");
+      return static_cast<uint32_t>(WASINN::ErrNo::InvalidArgument);
+    }
+    return static_cast<uint32_t>(WASINN::ErrNo::Success);
+#else
+    spdlog::error("[WASI-NN] PyTorch backend is not built. use "
+                  "-WASMEDGE_PLUGIN_WASI_NN_BACKEND=\"PyTorch\" to build it.");
 #endif
   } else {
     spdlog::error("[WASI-NN] Current backend is not supported.");

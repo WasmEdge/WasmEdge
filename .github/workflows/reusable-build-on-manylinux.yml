@@ -38,7 +38,7 @@ jobs:
           bash utils/docker/build-manylinux.sh
           ./build/tools/wasmedge/wasmedge -v
       - name: Upload artifact (v1)
-        if: ${{ inputs.legacy && !inputs.release }}
+        if: ${{ inputs.legacy }}
         uses: actions/upload-artifact@v1
         with:
           path: build/WasmEdge-${{ inputs.version }}-Linux.tar.gz
@@ -77,5 +77,77 @@ jobs:
         with:
           upload_url: ${{ inputs.upload_url }}
           asset_path: build/WasmEdge-${{ inputs.version }}-Linux.tar.xz
+          asset_name: WasmEdge-${{ inputs.version }}-${{ matrix.docker_tag }}.tar.xz
+          asset_content_type: application/x-xz
+
+  upload_legacy_manylinux:
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(inputs.matrix) }}
+    name: Upload WasmEdge ${{ matrix.docker_tag }} package
+    needs: [build_on_manylinux]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - name: Download ${{ matrix.docker_tag }} rpm artifact
+        if: ${{ inputs.legacy }}
+        uses: actions/download-artifact@v1
+        with:
+          name: WasmEdge-${{ inputs.version }}-${{ matrix.docker_tag }}.rpm
+      - name: Verify the arifact
+        if: ${{ inputs.legacy }}
+        run: |
+          ls -alh .
+          ls -alh WasmEdge-${{ inputs.version }}-${{ matrix.docker_tag }}.rpm
+      - name: Upload ${{ matrix.docker_tag }} rpm package
+        if: ${{ inputs.legacy }}
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ inputs.upload_url }}
+          asset_path: WasmEdge-${{ inputs.version }}-${{ matrix.docker_tag }}.rpm/WasmEdge-${{ inputs.version }}-Linux.rpm
+          asset_name: WasmEdge-${{ inputs.version }}-${{ matrix.docker_tag }}.rpm
+          asset_content_type: application/x-rpm
+      - name: Download ${{ matrix.docker_tag }} tar.gz artifact
+        if: ${{ inputs.legacy }}
+        uses: actions/download-artifact@v1
+        with:
+          name: WasmEdge-${{ inputs.version }}-${{ matrix.docker_tag }}.tar.gz
+      - name: Sleep 5 second to avoid GitHub ECONNRESET error
+        if: ${{ inputs.legacy }}
+        run: |
+          sleep 5
+      - name: Upload ${{ matrix.docker_tag }} tar.gz package
+        if: ${{ inputs.legacy }}
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ inputs.upload_url }}
+          asset_path: WasmEdge-${{ inputs.version }}-${{ matrix.docker_tag }}.tar.gz/WasmEdge-${{ inputs.version }}-Linux.tar.gz
+          asset_name: WasmEdge-${{ inputs.version }}-${{ matrix.docker_tag }}.tar.gz
+          asset_content_type: application/x-gzip
+      - name: Download ${{ matrix.docker_tag }} tar.xz artifact
+        if: ${{ inputs.legacy }}
+        uses: actions/download-artifact@v1
+        with:
+          name: WasmEdge-${{ inputs.version }}-${{ matrix.docker_tag }}.tar.xz
+      - name: Sleep 5 second to avoid GitHub ECONNRESET error
+        if: ${{ inputs.legacy }}
+        run: |
+          sleep 5
+      - name: Upload ${{ matrix.docker_tag }} tar.xz package
+        if: ${{ inputs.legacy }}
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ inputs.upload_url }}
+          asset_path: WasmEdge-${{ inputs.version }}-${{ matrix.docker_tag }}.tar.xz/WasmEdge-${{ inputs.version }}-Linux.tar.xz
           asset_name: WasmEdge-${{ inputs.version }}-${{ matrix.docker_tag }}.tar.xz
           asset_content_type: application/x-xz

@@ -110,7 +110,6 @@ jobs:
     uses: ./.github/workflows/reusable-build-srpm.yml
     with:
       version: ${{ needs.create_release.outputs.version }}
-      artifact: ${{ needs.create_source_tarball.outputs.artifact }}
       release: true
       upload_asset_url: ${{ needs.create_release.outputs.upload_url }}
     secrets: inherit

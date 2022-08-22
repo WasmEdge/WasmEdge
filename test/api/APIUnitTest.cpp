@@ -1992,6 +1992,39 @@ TEST(APICoreTest, ModuleInstance) {
   WasmEdge_ModuleInstanceDelete(HostMod);
   HostMod = WasmEdge_ModuleInstanceCreateWASI(Args, 0, Envs, 3, Preopens, 5);
   EXPECT_NE(HostMod, nullptr);
+  // Check the Native Handler
+  {
+    // STDIN
+    uint64_t NativeHandler = 100;
+    auto RetStatus =
+        WasmEdge_ModuleInstanceWASIGetNativeHandler(HostMod, 0, &NativeHandler);
+    EXPECT_EQ(RetStatus, 0);
+    EXPECT_EQ(NativeHandler, 0);
+  }
+  {
+    // STDOUT
+    uint64_t NativeHandler = 100;
+    auto RetStatus =
+        WasmEdge_ModuleInstanceWASIGetNativeHandler(HostMod, 1, &NativeHandler);
+    EXPECT_EQ(RetStatus, 0);
+    EXPECT_EQ(NativeHandler, 1);
+  }
+  {
+    // STDERR
+    uint64_t NativeHandler = 100;
+    auto RetStatus =
+        WasmEdge_ModuleInstanceWASIGetNativeHandler(HostMod, 2, &NativeHandler);
+    EXPECT_EQ(RetStatus, 0);
+    EXPECT_EQ(NativeHandler, 2);
+  }
+  {
+    // non-existed fd
+    uint64_t NativeHandler = 100;
+    auto RetStatus = WasmEdge_ModuleInstanceWASIGetNativeHandler(
+        HostMod, 9527, &NativeHandler);
+    EXPECT_EQ(RetStatus, 2);
+    EXPECT_EQ(NativeHandler, 100);
+  }
   // Get WASI exit code.
   EXPECT_EQ(WasmEdge_ModuleInstanceWASIGetExitCode(HostMod), EXIT_SUCCESS);
   EXPECT_EQ(WasmEdge_ModuleInstanceWASIGetExitCode(nullptr), EXIT_FAILURE);

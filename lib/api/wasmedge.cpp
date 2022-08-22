@@ -1424,6 +1424,33 @@ WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_CompilerCompile(
 #endif
 }
 
+WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_CompilerCompileFromArray(
+    WasmEdge_CompilerContext *Cxt [[maybe_unused]],
+    const uint8_t *InArray [[maybe_unused]],
+    const uint64_t InArrayLen [[maybe_unused]],
+    const char *OutPath [[maybe_unused]]) {
+#ifdef WASMEDGE_BUILD_AOT_RUNTIME
+  return wrap(
+      [&]() -> WasmEdge::Expect<void> {
+        std::filesystem::path OutputPath = std::filesystem::absolute(OutPath);
+        std::vector<WasmEdge::Byte> Data(InArray, InArray + InArrayLen);
+        std::unique_ptr<WasmEdge::AST::Module> Module;
+        if (auto Res = Cxt->Load.parseModule(Data)) {
+          Module = std::move(*Res);
+        } else {
+          return Unexpect(Res);
+        }
+        if (auto Res = Cxt->Valid.validate(*Module.get()); !Res) {
+          return Unexpect(Res);
+        }
+        return Cxt->Compiler.compile(Data, *Module.get(), OutputPath);
+      },
+      EmptyThen, Cxt);
+#else
+  return genWasmEdge_Result(ErrCode::Value::AOTDisabled);
+#endif
+}
+
 WASMEDGE_CAPI_EXPORT void
 WasmEdge_CompilerDelete(WasmEdge_CompilerContext *Cxt) {
   delete Cxt;
@@ -1674,6 +1701,26 @@ WASMEDGE_CAPI_EXPORT void WasmEdge_ModuleInstanceInitWASI(
   }
   auto &WasiEnv = WasiMod->getEnv();
   WasiEnv.init(DirVec, ProgName, ArgVec, EnvVec);
+}
+
+WASMEDGE_CAPI_EXPORT extern uint32_t
+WasmEdge_ModuleInstanceWASIGetNativeHandler(
+    const WasmEdge_ModuleInstanceContext *Cxt, int32_t Fd,
+    uint64_t *NativeHandler) {
+  if (!Cxt) {
+    return 1;
+  }
+  auto *WasiMod =
+      dynamic_cast<const WasmEdge::Host::WasiModule *>(fromModCxt(Cxt));
+  if (!WasiMod) {
+    return 2;
+  }
+  auto Handler = WasiMod->getEnv().getNativeHandler(Fd);
+  if (!Handler) {
+    return 2;
+  }
+  *NativeHandler = *Handler;
+  return 0;
 }
 
 WASMEDGE_CAPI_EXPORT uint32_t WasmEdge_ModuleInstanceWASIGetExitCode(

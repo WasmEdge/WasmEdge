@@ -41,14 +41,14 @@ jobs:
         if: ${{ inputs.legacy && !inputs.release }}
         uses: actions/upload-artifact@v1
         with:
-          name: WasmEdge-${{ inputs.version }}-${{ matrix.docker_tag }}.tar.gz
           path: build/WasmEdge-${{ inputs.version }}-Linux.tar.gz
+          name: WasmEdge-${{ inputs.version }}-${{ matrix.docker_tag }}.tar.gz
       - name: Upload artifact (v2)
         if: ${{ !inputs.legacy && !inputs.release }}
         uses: actions/upload-artifact@v2
         with:
-          name: WasmEdge-${{ inputs.version }}-${{ matrix.docker_tag }}.tar.gz
           path: build/WasmEdge-${{ inputs.version }}-Linux.tar.gz
+          name: WasmEdge-${{ inputs.version }}-${{ matrix.docker_tag }}.tar.gz
       - name: Upload rpm package
         if: ${{ inputs.release }}
         uses: actions/upload-release-asset@v1
@@ -56,8 +56,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ inputs.upload_asset_url }}
+          asset_path: build/WasmEdge-${{ inputs.version }}-Linux.rpm
           asset_name: WasmEdge-${{ inputs.version }}-${{ matrix.docker_tag }}.rpm
-          asset_path: WasmEdge-${{ inputs.version }}-${{ matrix.docker_tag }}.rpm/WasmEdge-${{ inputs.version }}-Linux.rpm
           asset_content_type: application/x-rpm
       - name: Upload tar.gz package
         if: ${{ inputs.release }}
@@ -66,7 +66,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ inputs.upload_asset_url }}
-          asset_path: WasmEdge-${{ inputs.version }}-${{ matrix.docker_tag }}.tar.gz/WasmEdge-${{ inputs.version }}-Linux.tar.gz
+          asset_path: build/WasmEdge-${{ inputs.version }}-Linux.tar.gz
           asset_name: WasmEdge-${{ inputs.version }}-${{ matrix.docker_tag }}.tar.gz
           asset_content_type: application/x-gzip
       - name: Upload tar.xz package
@@ -76,6 +76,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ inputs.upload_url }}
-          asset_path: WasmEdge-${{ inputs.version }}-${{ matrix.docker_tag }}.tar.xz/WasmEdge-${{ inputs.version }}-Linux.tar.xz
+          asset_path: build/WasmEdge-${{ inputs.version }}-Linux.tar.xz
           asset_name: WasmEdge-${{ inputs.version }}-${{ matrix.docker_tag }}.tar.xz
           asset_content_type: application/x-xz

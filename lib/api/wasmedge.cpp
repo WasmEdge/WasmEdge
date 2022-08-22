@@ -1703,6 +1703,26 @@ WASMEDGE_CAPI_EXPORT void WasmEdge_ModuleInstanceInitWASI(
   WasiEnv.init(DirVec, ProgName, ArgVec, EnvVec);
 }
 
+WASMEDGE_CAPI_EXPORT extern uint32_t
+WasmEdge_ModuleInstanceWASIGetNativeHandler(
+    const WasmEdge_ModuleInstanceContext *Cxt, int32_t Fd,
+    uint64_t *NativeHandler) {
+  if (!Cxt) {
+    return 1;
+  }
+  auto *WasiMod =
+      dynamic_cast<const WasmEdge::Host::WasiModule *>(fromModCxt(Cxt));
+  if (!WasiMod) {
+    return 2;
+  }
+  auto Handler = WasiMod->getEnv().getNativeHandler(Fd);
+  if (!Handler) {
+    return 2;
+  }
+  *NativeHandler = *Handler;
+  return 0;
+}
+
 WASMEDGE_CAPI_EXPORT uint32_t WasmEdge_ModuleInstanceWASIGetExitCode(
     const WasmEdge_ModuleInstanceContext *Cxt) {
   if (!Cxt) {

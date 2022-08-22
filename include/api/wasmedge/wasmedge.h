@@ -1705,6 +1705,23 @@ WASMEDGE_CAPI_EXPORT extern void WasmEdge_ModuleInstanceInitWASI(
 WASMEDGE_CAPI_EXPORT extern uint32_t WasmEdge_ModuleInstanceWASIGetExitCode(
     const WasmEdge_ModuleInstanceContext *Cxt);
 
+/// Get the native handler from the WASI mapped FD/Handler.
+///
+/// This function will return the raw FD/Handler from a given mapped Fd
+/// or Handler.
+///
+/// \param Cxt the WasmEdge_ModuleInstanceContext of WASI import object.
+/// \param Fd the WASI mapped Fd.
+/// \param [out] NativeHandler the raw Fd/Handler.
+///
+/// \returns the error code. Return `0` if the Native Handler is found.
+/// Return `1` if the `Cxt` is `NULL`.
+/// Return `2` if the given mapped Fd/handler is not found.
+WASMEDGE_CAPI_EXPORT extern uint32_t
+WasmEdge_ModuleInstanceWASIGetNativeHandler(
+    const WasmEdge_ModuleInstanceContext *Cxt, int32_t Fd,
+    uint64_t *NativeHandler);
+
 /// Creation of the WasmEdge_ModuleInstanceContext for the wasi_nn
 /// specification.
 ///

@@ -44,12 +44,21 @@ install(TARGETS wasmedgePluginWasiNN DESTINATION ${CMAKE_INSTALL_LIBDIR}/wasmedg
 # Add backends building flags.
 foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
   if(BACKEND MATCHES "OpenVINO")
-    message(STATUS "Build ${BACKEND} backend for WASI-NN")
+    message(STATUS "Build OpenVINO backend for WASI-NN")
     find_package(InferenceEngine REQUIRED)
     add_definitions(-DWASMEDGE_PLUGIN_WASI_NN_BACKEND_OPENVINO)
     target_link_libraries(wasmedgePluginWasiNN
       PUBLIC
       ${InferenceEngine_LIBRARIES}
+    )
+  elseif(BACKEND MATCHES "PyTorch")
+    message(STATUS "Build PyTorch backend for WASI-NN")
+    find_package(Torch REQUIRED)
+    add_definitions(-DWASMEDGE_PLUGIN_WASI_NN_BACKEND_TORCH)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${TORCH_CXX_FLAGS}")
+    target_link_libraries(wasmedgePluginWasiNN
+      PUBLIC
+      ${TORCH_LIBRARIES}
     )
   else()
     # Add the other backends here.

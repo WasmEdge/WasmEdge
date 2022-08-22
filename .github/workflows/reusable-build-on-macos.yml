@@ -85,6 +85,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ inputs.upload_asset_url }}
-          asset_name: WasmEdge-${{ inputs.version }}-darwin_${{ matrix.darwin_version }}_x86_64.tar.gz
+          asset_name: WasmEdge-${{ inputs.version }}-darwin_x86_64.tar.gz
           asset_path: build/WasmEdge-${{ inputs.version }}-Darwin.tar.gz
           asset_content_type: application/x-gzip

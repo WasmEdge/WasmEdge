@@ -50,8 +50,8 @@ jobs:
         if: ${{ !inputs.release }}
         uses: actions/upload-artifact@v2
         with:
-          name: WasmEdge-${{ env.srpm_version }}-1.fc37.src.rpm
-          path: /github/home/rpmbuild/SRPMS/wasmedge-${{ env.srpm_version }}-1.fc37.src.rpm
+          name: WasmEdge-${{ env.srpm_version }}-1.fc38.src.rpm
+          path: /github/home/rpmbuild/SRPMS/wasmedge-${{ env.srpm_version }}-1.fc38.src.rpm
       - name: Upload Fedora spec file
         if: ${{ inputs.release }}
         uses: actions/upload-release-asset@v1
@@ -69,6 +69,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ inputs.upload_asset_url }}
-          asset_name: wasmedge-${{ env.srpm_version }}-1.fc37.src.rpm
-          asset_path: /github/home/rpmbuild/SRPMS/wasmedge-${{ env.srpm_version }}-1.fc37.src.rpm
+          asset_name: wasmedge-${{ env.srpm_version }}-1.fc38.src.rpm
+          asset_path: /github/home/rpmbuild/SRPMS/wasmedge-${{ env.srpm_version }}-1.fc38.src.rpm
           asset_content_type: application/x-rpm

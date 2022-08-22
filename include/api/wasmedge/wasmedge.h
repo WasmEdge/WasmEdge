@@ -1586,7 +1586,7 @@ WASMEDGE_CAPI_EXPORT extern WasmEdge_StoreContext *WasmEdge_StoreCreate(void);
 ///
 /// \returns pointer to the module instance context. NULL if not found.
 WASMEDGE_CAPI_EXPORT extern const WasmEdge_ModuleInstanceContext *
-WasmEdge_StoreFindModule(WasmEdge_StoreContext *Cxt,
+WasmEdge_StoreFindModule(const WasmEdge_StoreContext *Cxt,
                          const WasmEdge_String Name);
 
 /// Get the length of registered module list in store.
@@ -2576,7 +2576,7 @@ WasmEdge_CallingFrameGetMemoryInstance(const WasmEdge_CallingFrameContext *Cxt,
 /// Wait a WasmEdge_Async execution.
 ///
 /// \param Cxt the WasmEdge_ASync.
-WASMEDGE_CAPI_EXPORT void WasmEdge_AsyncWait(WasmEdge_Async *Cxt);
+WASMEDGE_CAPI_EXPORT void WasmEdge_AsyncWait(const WasmEdge_Async *Cxt);
 
 /// Wait a WasmEdge_Async execution with timeout.
 ///
@@ -2585,7 +2585,7 @@ WASMEDGE_CAPI_EXPORT void WasmEdge_AsyncWait(WasmEdge_Async *Cxt);
 ///
 /// \returns Result of waiting, true for execution ended, false for timeout
 /// occured.
-WASMEDGE_CAPI_EXPORT bool WasmEdge_AsyncWaitFor(WasmEdge_Async *Cxt,
+WASMEDGE_CAPI_EXPORT bool WasmEdge_AsyncWaitFor(const WasmEdge_Async *Cxt,
                                                 uint64_t Milliseconds);
 
 /// Cancel a WasmEdge_Async execution.
@@ -2605,7 +2605,7 @@ WASMEDGE_CAPI_EXPORT void WasmEdge_AsyncCancel(WasmEdge_Async *Cxt);
 ///
 /// \returns the return list length of the executed function.
 WASMEDGE_CAPI_EXPORT uint32_t
-WasmEdge_AsyncGetReturnsLength(WasmEdge_Async *Cxt);
+WasmEdge_AsyncGetReturnsLength(const WasmEdge_Async *Cxt);
 
 /// Wait and get the result of WasmEdge_Async execution.
 ///
@@ -2620,8 +2620,9 @@ WasmEdge_AsyncGetReturnsLength(WasmEdge_Async *Cxt);
 ///
 /// \returns WasmEdge_Result. Call `WasmEdge_ResultGetMessage` for the error
 /// message.
-WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_AsyncGet(
-    WasmEdge_Async *Cxt, WasmEdge_Value *Returns, const uint32_t ReturnLen);
+WASMEDGE_CAPI_EXPORT WasmEdge_Result
+WasmEdge_AsyncGet(const WasmEdge_Async *Cxt, WasmEdge_Value *Returns,
+                  const uint32_t ReturnLen);
 
 /// Deletion of the WasmEdge_Async.
 ///
@@ -3114,7 +3115,7 @@ WASMEDGE_CAPI_EXPORT extern WasmEdge_Async *WasmEdge_VMAsyncExecuteRegistered(
 ///
 /// \returns the function type. NULL if the function not found.
 WASMEDGE_CAPI_EXPORT extern const WasmEdge_FunctionTypeContext *
-WasmEdge_VMGetFunctionType(WasmEdge_VMContext *Cxt,
+WasmEdge_VMGetFunctionType(const WasmEdge_VMContext *Cxt,
                            const WasmEdge_String FuncName);
 
 /// Get the function type by function name.
@@ -3134,7 +3135,7 @@ WasmEdge_VMGetFunctionType(WasmEdge_VMContext *Cxt,
 ///
 /// \returns the function type. NULL if the function not found.
 WASMEDGE_CAPI_EXPORT extern const WasmEdge_FunctionTypeContext *
-WasmEdge_VMGetFunctionTypeRegistered(WasmEdge_VMContext *Cxt,
+WasmEdge_VMGetFunctionTypeRegistered(const WasmEdge_VMContext *Cxt,
                                      const WasmEdge_String ModuleName,
                                      const WasmEdge_String FuncName);
 
@@ -3156,7 +3157,7 @@ WASMEDGE_CAPI_EXPORT extern void WasmEdge_VMCleanup(WasmEdge_VMContext *Cxt);
 ///
 /// \returns length of exported function list.
 WASMEDGE_CAPI_EXPORT extern uint32_t
-WasmEdge_VMGetFunctionListLength(WasmEdge_VMContext *Cxt);
+WasmEdge_VMGetFunctionListLength(const WasmEdge_VMContext *Cxt);
 
 /// Get the exported function list.
 ///
@@ -3181,10 +3182,9 @@ WasmEdge_VMGetFunctionListLength(WasmEdge_VMContext *Cxt);
 /// \param Len the buffer length.
 ///
 /// \returns actual exported function list size.
-WASMEDGE_CAPI_EXPORT extern uint32_t
-WasmEdge_VMGetFunctionList(WasmEdge_VMContext *Cxt, WasmEdge_String *Names,
-                           const WasmEdge_FunctionTypeContext **FuncTypes,
-                           const uint32_t Len);
+WASMEDGE_CAPI_EXPORT extern uint32_t WasmEdge_VMGetFunctionList(
+    const WasmEdge_VMContext *Cxt, WasmEdge_String *Names,
+    const WasmEdge_FunctionTypeContext **FuncTypes, const uint32_t Len);
 
 /// Get the module instance corresponding to the WasmEdge_HostRegistration
 /// settings.
@@ -3216,7 +3216,7 @@ WasmEdge_VMGetFunctionList(WasmEdge_VMContext *Cxt, WasmEdge_String *Names,
 ///
 /// \returns pointer to the module instance context. NULL if not found.
 WASMEDGE_CAPI_EXPORT extern WasmEdge_ModuleInstanceContext *
-WasmEdge_VMGetImportModuleContext(WasmEdge_VMContext *Cxt,
+WasmEdge_VMGetImportModuleContext(const WasmEdge_VMContext *Cxt,
                                   const enum WasmEdge_HostRegistration Reg);
 
 /// Get the current instantiated module in VM.
@@ -3329,8 +3329,7 @@ WASMEDGE_CAPI_EXPORT extern int WasmEdge_Driver_Tool(int Argc,
 // >>>>>>>> WasmEdge Plugin functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 /// Load plugins with default search path.
-WASMEDGE_CAPI_EXPORT extern void
-WasmEdge_Plugin_loadWithDefaultPluginPaths(void);
+WASMEDGE_CAPI_EXPORT extern void WasmEdge_PluginLoadWithDefaultPaths(void);
 
 // <<<<<<<< WasmEdge Pluginfunctions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 

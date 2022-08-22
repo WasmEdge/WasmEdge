@@ -49,7 +49,7 @@ public:
 
   bool valid() const noexcept { return Future.valid(); }
 
-  T get() { return Future.get(); }
+  T get() const { return Future.get(); }
 
   void wait() const { Future.wait(); }
 

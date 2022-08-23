@@ -43,8 +43,6 @@ docker pull wasmedge/wasmedge # 等同於 wasmedge/wasmedge:latest
 | `ubuntu2104_armv7l`     | armhf    | Ubuntu 21.04       | 12.0.0    | CC=gcc, CXX=g++       | Ubuntu 21.04+            | 使用於 armhf 架構的發行                    |
 | `manylinux2014_x86_64`  | x86\_64  | CentOS 7, 7.9.2009 | 12.0.0    | CC=gcc, CXX=g++       | Ubuntu 16.04+, CentOS 7+ | 提供給熟悉 CentOS x86\_64 架構的開發者使用  |
 | `manylinux2014_aarch64` | aarch64  | CentOS 7, 7.9.2009 | 12.0.0    | CC=gcc, CXX=g++       | Ubuntu 16.04+, CentOS 7+ | 提供給熟悉 CentOS aarch64 架構的開發者使用 |
-| `manylinux2010_x86_64`  | x86\_64  | CentOS 6, 6.10     | 12.0.0    | CC=gcc, CXX=g++       | Ubuntu 14.04+, CentOS 6+ | 提供給熟悉 x86\_64 架構舊版系統的開發者使用 |
-| `manylinux1_x86_64`     | x86\_64  | CentOS 5, 5.11     | 12.0.0    | CC=gcc, CXX=g++       | Ubuntu 14.04+, CentOS 5+ | 提供給熟悉 x86\_64 架構舊版系統的開發者使用 |
 
 ### 在 Ubuntu 20.04 上手動安裝相依套件
 
@@ -77,8 +75,6 @@ sudo apt install -y clang
 
 | 可移植的 Linux 發行版標籤                  | 基礎 image   | 提供的環境需                                                           | Docker image                              |
 | ---                                     | ---         | ---                                                                   | ---                                      |
-| `manylinux1`                            | CentOS 5.11 | GLIBC <= 2.5</br>CXXABI <= 3.4.8</br>GLIBCXX <= 3.4.9</br>GCC <= 4.2.0   | wasmedge/wasmedge:manylinux1\_x86\_64    |
-| `manylinux2010`                         | CentOS 6.10 | GLIBC <= 2.12</br>CXXABI <= 1.3.3</br>GLIBCXX <= 3.4.13</br>GCC <= 4.5.0 | wasmedge/wasmedge:manylinux2010\_x86\_64 |
 | `manylinux2014`                         | CentOS 7.9  | GLIBC <= 2.17</br>CXXABI <= 1.3.7</br>GLIBCXX <= 3.4.19</br>GCC <= 4.8.0 | wasmedge/wasmedge:manylinux2014\_x86\_64 |
 | `manylinux2014`                         | CentOS 7.9  | GLIBC <= 2.17</br>CXXABI <= 1.3.7</br>GLIBCXX <= 3.4.19</br>GCC <= 4.8.0 | wasmedge/wasmedge:manylinux2014\_aarch64 |
 

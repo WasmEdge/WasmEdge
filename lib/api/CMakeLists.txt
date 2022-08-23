@@ -81,35 +81,35 @@ target_include_directories(wasmedgeCAPI
 
 if(WASMEDGE_BUILD_SHARED_LIB)
 
-  wasmedge_add_library(wasmedge_c_shared SHARED
+  wasmedge_add_library(wasmedge_shared SHARED
     ../../include/api/wasmedge/wasmedge.h
   )
 
-  set_target_properties(wasmedge_c_shared PROPERTIES
+  set_target_properties(wasmedge_shared PROPERTIES
     PUBLIC_HEADER "${WASMEDGE_CAPI_HEADERS}"
     VERSION "${WASMEDGE_CAPI_VERSION}"
     SOVERSION "${WASMEDGE_CAPI_SOVERSION}"
     MSVC_RUNTIME_LIBRARY "MultiThreadedDLL"
   )
 
-  target_link_libraries(wasmedge_c_shared
+  target_link_libraries(wasmedge_shared
     PRIVATE
     wasmedgeCAPI
   )
-  target_link_libraries(wasmedge_c_shared
+  target_link_libraries(wasmedge_shared
     PUBLIC
     spdlog::spdlog
   )
 
-  target_include_directories(wasmedge_c_shared
+  target_include_directories(wasmedge_shared
     PUBLIC
     ${PROJECT_BINARY_DIR}/include/api
     ${PROJECT_SOURCE_DIR}/include/api
   )
 
-  set_target_properties(wasmedge_c_shared PROPERTIES OUTPUT_NAME wasmedge_c)
+  set_target_properties(wasmedge_shared PROPERTIES OUTPUT_NAME wasmedge)
 
-  install(TARGETS wasmedge_c_shared
+  install(TARGETS wasmedge_shared
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
     PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/wasmedge
   )
@@ -139,28 +139,28 @@ if(WASMEDGE_BUILD_STATIC_LIB)
     wasmedge_add_static_lib_component_command(wasmedgeAOT)
   endif()
 
-  add_custom_command(OUTPUT "libwasmedge_c.a"
+  add_custom_command(OUTPUT "libwasmedge.a"
     ${WASMEDGE_STATIC_LIB_CMDS}
     ${WASMEDGE_STATIC_LLVM_LIB_CMDS}
-    COMMAND ${CMAKE_AR} -qcs libwasmedge_c.a $<TARGET_OBJECTS:wasmedgeCAPI> objs/*/*.o
+    COMMAND ${CMAKE_AR} -qcs libwasmedge.a $<TARGET_OBJECTS:wasmedgeCAPI> objs/*/*.o
     COMMAND ${CMAKE_COMMAND} -E remove_directory objs
     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
     DEPENDS ${WASMEDGE_STATIC_LIB_DEPS} wasmedgeCAPI
   )
 
-  add_custom_target(wasmedge_c_static_target ALL DEPENDS "libwasmedge_c.a")
-  add_library(wasmedge_c_static STATIC IMPORTED GLOBAL)
-  add_dependencies(wasmedge_c_static wasmedge_c_static_target)
+  add_custom_target(wasmedge_static_target ALL DEPENDS "libwasmedge.a")
+  add_library(wasmedge_static STATIC IMPORTED GLOBAL)
+  add_dependencies(wasmedge_static wasmedge_static_target)
 
-  set_target_properties(wasmedge_c_static
+  set_target_properties(wasmedge_static
     PROPERTIES
-    IMPORTED_LOCATION "${CMAKE_CURRENT_BINARY_DIR}/libwasmedge_c.a"
+    IMPORTED_LOCATION "${CMAKE_CURRENT_BINARY_DIR}/libwasmedge.a"
     INTERFACE_INCLUDE_DIRECTORIES ${PROJECT_BINARY_DIR}/include/api
     VERSION "${WASMEDGE_CAPI_VERSION}"
     SOVERSION "${WASMEDGE_CAPI_SOVERSION}"
   )
 
-  install(FILES ${CMAKE_CURRENT_BINARY_DIR}/libwasmedge_c.a
+  install(FILES ${CMAKE_CURRENT_BINARY_DIR}/libwasmedge.a
     DESTINATION ${CMAKE_INSTALL_LIBDIR}
   )
 

@@ -6,11 +6,11 @@ use wasmedge_sdk::{
     error::HostFuncError,
     params,
     types::Val,
-    Executor, Func, ImportObjectBuilder, RefType, Store, Table, TableType, ValType, WasmVal,
-    WasmValue,
+    CallingFrame, Executor, Func, ImportObjectBuilder, RefType, Store, Table, TableType, ValType,
+    WasmVal, WasmValue,
 };
 
-fn real_add(input: Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError> {
+fn real_add(_: &CallingFrame, input: Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError> {
     println!("Rust: Entering Rust function real_add");
 
     if input.len() != 2 {

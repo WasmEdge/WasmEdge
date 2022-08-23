@@ -125,7 +125,8 @@ mod tests {
         config::{CommonConfigOptions, ConfigBuilder},
         error::HostFuncError,
         types::Val,
-        Executor, ImportObjectBuilder, RefType, Statistics, Store, ValType, WasmValue,
+        CallingFrame, Executor, ImportObjectBuilder, RefType, Statistics, Store, ValType,
+        WasmValue,
     };
 
     #[test]
@@ -263,7 +264,10 @@ mod tests {
         }
     }
 
-    fn real_add(inputs: Vec<WasmValue>) -> std::result::Result<Vec<WasmValue>, HostFuncError> {
+    fn real_add(
+        _: &CallingFrame,
+        inputs: Vec<WasmValue>,
+    ) -> std::result::Result<Vec<WasmValue>, HostFuncError> {
         if inputs.len() != 2 {
             return Err(HostFuncError::User(1));
         }

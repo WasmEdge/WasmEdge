@@ -139,8 +139,8 @@ mod tests {
         config::{CommonConfigOptions, ConfigBuilder},
         error::HostFuncError,
         types::Val,
-        Executor, Global, GlobalType, ImportObjectBuilder, Memory, MemoryType, Module, Mutability,
-        RefType, Statistics, Table, TableType, ValType, WasmValue,
+        CallingFrame, Executor, Global, GlobalType, ImportObjectBuilder, Memory, MemoryType,
+        Module, Mutability, RefType, Statistics, Table, TableType, ValType, WasmValue,
     };
 
     #[test]
@@ -419,7 +419,10 @@ mod tests {
         assert_eq!(instance.name().unwrap(), mod_names[1]);
     }
 
-    fn real_add(inputs: Vec<WasmValue>) -> std::result::Result<Vec<WasmValue>, HostFuncError> {
+    fn real_add(
+        _: &CallingFrame,
+        inputs: Vec<WasmValue>,
+    ) -> std::result::Result<Vec<WasmValue>, HostFuncError> {
         if inputs.len() != 2 {
             return Err(HostFuncError::User(1));
         }

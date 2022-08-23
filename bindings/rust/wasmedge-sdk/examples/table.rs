@@ -2,8 +2,8 @@
 // #![feature(explicit_generic_args_with_impl_trait)]
 
 use wasmedge_sdk::{
-    error::HostFuncError, params, types::Val, wat2wasm, Executor, Func, Module, RefType, Store,
-    TableType, ValType, WasmVal, WasmValue,
+    error::HostFuncError, params, types::Val, wat2wasm, CallingFrame, Executor, Func, Module,
+    RefType, Store, TableType, ValType, WasmVal, WasmValue,
 };
 
 #[cfg_attr(test, test)]
@@ -88,7 +88,10 @@ fn main() -> anyhow::Result<()> {
     // * setting elements in a table
 
     /// A function we'll call through a table.
-    fn host_callback(inputs: Vec<WasmValue>) -> std::result::Result<Vec<WasmValue>, HostFuncError> {
+    fn host_callback(
+        _: &CallingFrame,
+        inputs: Vec<WasmValue>,
+    ) -> std::result::Result<Vec<WasmValue>, HostFuncError> {
         if inputs.len() != 2 {
             return Err(HostFuncError::User(1));
         }

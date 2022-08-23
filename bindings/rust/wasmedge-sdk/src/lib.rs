@@ -73,7 +73,7 @@
 //!  // If the version of rust used is less than v1.63, please uncomment the follow attribute.
 //!  // #![feature(explicit_generic_args_with_impl_trait)]
 //!
-//!  use wasmedge_sdk::{Executor, FuncTypeBuilder, ImportObjectBuilder, Module, Store, error::HostFuncError, WasmValue, wat2wasm};
+//!  use wasmedge_sdk::{Executor, FuncTypeBuilder, ImportObjectBuilder, Module, Store, error::HostFuncError, WasmValue, wat2wasm, CallingFrame};
 //!  
 //!  #[cfg_attr(test, test)]
 //!  fn main() -> anyhow::Result<()> {
@@ -97,7 +97,7 @@
 //!  
 //!      // We define a function to act as our "env" "say_hello" function imported in the
 //!      // Wasm program above.
-//!      fn say_hello_world(_inputs: Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError> {
+//!      fn say_hello_world(_: &CallingFrame, _: Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError> {
 //!          println!("Hello, world!");
 //!  
 //!          Ok(vec![])
@@ -197,6 +197,8 @@ pub use wasmedge_types::{
 
 /// WebAssembly value type.
 pub type WasmValue = wasmedge_sys::types::WasmValue;
+
+pub type CallingFrame = wasmedge_sys::CallingFrame;
 
 /// The object that is used to perform a [host function](crate::Func) is required to implement this trait.
 pub trait Engine {

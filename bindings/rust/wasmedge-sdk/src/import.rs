@@ -1,6 +1,6 @@
 use crate::{
-    error::HostFuncError, io::WasmValTypeList, FuncType, Global, Memory, Table, WasmEdgeResult,
-    WasmValue,
+    error::HostFuncError, io::WasmValTypeList, CallingFrame, FuncType, Global, Memory, Table,
+    WasmEdgeResult, WasmValue,
 };
 use wasmedge_sys::{self as sys, AsImport};
 
@@ -19,12 +19,12 @@ use wasmedge_sys::{self as sys, AsImport};
 ///     Global, ImportObjectBuilder, Memory, Table,
 ///     error::HostFuncError, WasmValue, GlobalType,
 ///     MemoryType, Mutability, RefType, TableType,
-///     ValType
+///     ValType, CallingFrame,
 /// };
 ///
 /// fn main() -> Result<(), Box<dyn std::error::Error>> {
 ///     // a native function to be imported as host function
-///     fn real_add(inputs: Vec<WasmValue>) -> std::result::Result<Vec<WasmValue>, HostFuncError> {
+///     fn real_add(_: &CallingFrame, inputs: Vec<WasmValue>) -> std::result::Result<Vec<WasmValue>, HostFuncError> {
 ///         if inputs.len() != 2 {
 ///             return Err(HostFuncError::User(1));
 ///         }
@@ -110,7 +110,7 @@ impl ImportObjectBuilder {
     pub fn with_func<Args, Rets>(
         mut self,
         name: impl AsRef<str>,
-        real_func: impl Fn(Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError>
+        real_func: impl Fn(&CallingFrame, Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError>
             + Send
             + Sync
             + 'static,
@@ -144,7 +144,8 @@ impl ImportObjectBuilder {
     pub fn with_func_single_thread<Args, Rets>(
         mut self,
         name: impl AsRef<str>,
-        real_func: impl Fn(Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError> + 'static,
+        real_func: impl Fn(&CallingFrame, Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError>
+            + 'static,
     ) -> WasmEdgeResult<Self>
     where
         Args: WasmValTypeList,
@@ -1324,7 +1325,10 @@ mod tests {
         handle.join().unwrap();
     }
 
-    fn real_add(inputs: Vec<WasmValue>) -> std::result::Result<Vec<WasmValue>, HostFuncError> {
+    fn real_add(
+        _: &CallingFrame,
+        inputs: Vec<WasmValue>,
+    ) -> std::result::Result<Vec<WasmValue>, HostFuncError> {
         if inputs.len() != 2 {
             return Err(HostFuncError::User(1));
         }

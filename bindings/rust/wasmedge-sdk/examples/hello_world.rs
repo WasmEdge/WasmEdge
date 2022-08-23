@@ -2,14 +2,18 @@
 // #![feature(explicit_generic_args_with_impl_trait)]
 
 use wasmedge_sdk::{
-    error::HostFuncError, params, wat2wasm, Executor, ImportObjectBuilder, Module, Store, WasmValue,
+    error::HostFuncError, params, wat2wasm, CallingFrame, Executor, ImportObjectBuilder, Module,
+    Store, WasmValue,
 };
 
 #[cfg_attr(test, test)]
 fn main() -> anyhow::Result<()> {
     // We define a function to act as our "env" "say_hello" function imported in the
     // Wasm program above.
-    fn say_hello_world(_inputs: Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError> {
+    fn say_hello_world(
+        _: &CallingFrame,
+        _: Vec<WasmValue>,
+    ) -> Result<Vec<WasmValue>, HostFuncError> {
         println!("Hello, world!");
 
         Ok(vec![])

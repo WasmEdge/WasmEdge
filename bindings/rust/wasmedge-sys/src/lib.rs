@@ -237,7 +237,7 @@ lazy_static! {
 
 /// Type alias for a boxed native function. This type is used in non-thread-safe cases.
 pub type BoxedFnSingle =
-    Box<dyn Fn(Vec<WasmValue>) -> Result<Vec<WasmValue>, error::HostFuncError> + Send + Sync>;
+    Box<dyn Fn(Vec<WasmValue>) -> Result<Vec<WasmValue>, error::HostFuncError>>;
 
 thread_local! {
     static HOST_FUNCS_SINGLE: RefCell<HashMap<usize, BoxedFnSingle>> =

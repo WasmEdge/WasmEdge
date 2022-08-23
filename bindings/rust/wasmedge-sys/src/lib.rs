@@ -162,6 +162,7 @@ pub mod compiler;
 pub mod config;
 #[doc(hidden)]
 pub mod executor;
+pub mod frame;
 #[doc(hidden)]
 pub mod instance;
 #[doc(hidden)]
@@ -188,6 +189,7 @@ pub use compiler::Compiler;
 pub use config::Config;
 #[doc(inline)]
 pub use executor::Executor;
+pub use frame::CallingFrame;
 #[cfg(target_os = "linux")]
 #[doc(inline)]
 pub use instance::module::WasmEdgeProcessModule;

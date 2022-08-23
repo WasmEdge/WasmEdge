@@ -35,7 +35,7 @@ if(WASMEDGE_LINK_PUGLINS_STATIC)
 else()
   target_link_libraries(wasmedgePluginWasmEdgeProcess
     PRIVATE
-    wasmedge_c_shared
+    wasmedge_shared
   )
 endif()
 

@@ -9,7 +9,7 @@ use wasmedge_types::wat2wasm;
 fn main() -> anyhow::Result<()> {
     // We define a function to act as our "env" "say_hello" function imported in the
     // Wasm program above.
-    fn say_hello_world(_inputs: Vec<WasmValue>) -> Result<Vec<WasmValue>, u8> {
+    fn say_hello_world(_inputs: Vec<WasmValue>) -> Result<Vec<WasmValue>, u32> {
         println!("Hello, world!");
 
         Ok(vec![])

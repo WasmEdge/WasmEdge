@@ -76,7 +76,7 @@ impl Func {
     ///
     /// If fail to create the host function, then an error is returned.
     pub fn wrap<Args, Rets>(
-        real_func: impl Fn(Vec<WasmValue>) -> Result<Vec<WasmValue>, u8> + Send + Sync + 'static,
+        real_func: impl Fn(Vec<WasmValue>) -> Result<Vec<WasmValue>, u32> + Send + Sync + 'static,
     ) -> WasmEdgeResult<Self>
     where
         Args: WasmValTypeList,
@@ -106,7 +106,7 @@ impl Func {
     ///
     /// If fail to create the host function, then an error is returned.
     pub fn wrap_single_thread<Args, Rets>(
-        real_func: impl Fn(Vec<WasmValue>) -> Result<Vec<WasmValue>, u8> + 'static,
+        real_func: impl Fn(Vec<WasmValue>) -> Result<Vec<WasmValue>, u32> + 'static,
     ) -> WasmEdgeResult<Self>
     where
         Args: WasmValTypeList,
@@ -419,7 +419,7 @@ mod tests {
         assert_eq!(returns[0].to_i32(), 5);
     }
 
-    fn real_add(inputs: Vec<WasmValue>) -> std::result::Result<Vec<WasmValue>, u8> {
+    fn real_add(inputs: Vec<WasmValue>) -> std::result::Result<Vec<WasmValue>, u32> {
         if inputs.len() != 2 {
             return Err(1);
         }

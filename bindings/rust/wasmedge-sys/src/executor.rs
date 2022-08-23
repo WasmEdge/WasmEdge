@@ -494,7 +494,7 @@ mod tests {
         handle.join().unwrap();
     }
 
-    fn real_add(inputs: Vec<WasmValue>) -> Result<Vec<WasmValue>, u8> {
+    fn real_add(inputs: Vec<WasmValue>) -> Result<Vec<WasmValue>, u32> {
         if inputs.len() != 2 {
             return Err(1);
         }

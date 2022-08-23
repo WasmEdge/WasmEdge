@@ -12,7 +12,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut import = ImportModule::create(module_name)?;
 
     // a function to import
-    fn real_add(inputs: Vec<WasmValue>) -> Result<Vec<WasmValue>, u8> {
+    fn real_add(inputs: Vec<WasmValue>) -> Result<Vec<WasmValue>, u32> {
         if inputs.len() != 2 {
             return Err(1);
         }

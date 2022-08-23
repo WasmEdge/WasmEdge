@@ -96,6 +96,6 @@ fn create_spec_test_module() -> ImportModule {
     import
 }
 
-fn spec_test_print(_inputs: Vec<WasmValue>) -> Result<Vec<WasmValue>, u8> {
+fn spec_test_print(_inputs: Vec<WasmValue>) -> Result<Vec<WasmValue>, u32> {
     Ok(vec![])
 }

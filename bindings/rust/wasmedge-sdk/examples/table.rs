@@ -87,7 +87,7 @@ fn main() -> anyhow::Result<()> {
     // * setting elements in a table
 
     /// A function we'll call through a table.
-    fn host_callback(inputs: Vec<WasmValue>) -> std::result::Result<Vec<WasmValue>, u8> {
+    fn host_callback(inputs: Vec<WasmValue>) -> std::result::Result<Vec<WasmValue>, u32> {
         if inputs.len() != 2 {
             return Err(1);
         }

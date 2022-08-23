@@ -221,7 +221,7 @@ pub use vm::Vm;
 use wasmedge_types::{error, WasmEdgeResult};
 
 /// Type alias for a boxed native function. This type is used in thread-safe cases.
-pub type BoxedFn = Box<dyn Fn(Vec<WasmValue>) -> Result<Vec<WasmValue>, u8> + Send + Sync>;
+pub type BoxedFn = Box<dyn Fn(Vec<WasmValue>) -> Result<Vec<WasmValue>, u32> + Send + Sync>;
 
 lazy_static! {
     static ref HOST_FUNCS: Arc<Mutex<HashMap<usize, BoxedFn>>> =
@@ -235,7 +235,7 @@ lazy_static! {
 }
 
 /// Type alias for a boxed native function. This type is used in non-thread-safe cases.
-pub type BoxedFnSingle = Box<dyn Fn(Vec<WasmValue>) -> Result<Vec<WasmValue>, u8>>;
+pub type BoxedFnSingle = Box<dyn Fn(Vec<WasmValue>) -> Result<Vec<WasmValue>, u32>>;
 
 thread_local! {
     static HOST_FUNCS_SINGLE: RefCell<HashMap<usize, BoxedFnSingle>> =

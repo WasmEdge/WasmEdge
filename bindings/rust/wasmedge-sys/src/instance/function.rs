@@ -13,7 +13,8 @@ use wasmedge_types::ValType;
 extern "C" fn wraper_fn(
     key_ptr: *mut c_void,
     _data: *mut c_void,
-    _mem_cxt: *mut ffi::WasmEdge_MemoryInstanceContext,
+    // _mem_cxt: *mut ffi::WasmEdge_MemoryInstanceContext,
+    _call_frame_cxt: *const ffi::WasmEdge_CallingFrameContext,
     params: *const ffi::WasmEdge_Value,
     param_len: u32,
     returns: *mut ffi::WasmEdge_Value,
@@ -46,6 +47,8 @@ extern "C" fn wraper_fn(
         real_fn(input)
     };
 
+    dbg!(&result);
+
     match result {
         Ok(v) => {
             assert!(v.len() == return_len);
@@ -54,7 +57,7 @@ extern "C" fn wraper_fn(
             }
             ffi::WasmEdge_Result { Code: 0 }
         }
-        Err(c) => ffi::WasmEdge_Result { Code: c as u8 },
+        Err(c) => ffi::WasmEdge_Result { Code: c },
     }
 }
 
@@ -62,7 +65,8 @@ extern "C" fn wraper_fn(
 extern "C" fn wraper_fn_single(
     key_ptr: *mut c_void,
     _data: *mut c_void,
-    _mem_cxt: *mut ffi::WasmEdge_MemoryInstanceContext,
+    // _mem_cxt: *mut ffi::WasmEdge_MemoryInstanceContext,
+    _call_frame_cxt: *const ffi::WasmEdge_CallingFrameContext,
     params: *const ffi::WasmEdge_Value,
     param_len: u32,
     returns: *mut ffi::WasmEdge_Value,
@@ -104,7 +108,7 @@ extern "C" fn wraper_fn_single(
             }
             ffi::WasmEdge_Result { Code: 0 }
         }
-        Err(c) => ffi::WasmEdge_Result { Code: c as u8 },
+        Err(c) => ffi::WasmEdge_Result { Code: c },
     }
 }
 
@@ -765,7 +769,7 @@ mod tests {
         handle.join().unwrap();
     }
 
-    fn real_add(input: Vec<WasmValue>) -> Result<Vec<WasmValue>, u8> {
+    fn real_add(input: Vec<WasmValue>) -> Result<Vec<WasmValue>, u32> {
         println!("Rust: Entering Rust function real_add");
 
         if input.len() != 2 {

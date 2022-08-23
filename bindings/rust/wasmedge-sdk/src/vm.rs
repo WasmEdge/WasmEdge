@@ -1217,7 +1217,7 @@ mod tests {
         assert_eq!(returns[0].to_i32(), 8)
     }
 
-    fn real_add(inputs: Vec<WasmValue>) -> std::result::Result<Vec<WasmValue>, u8> {
+    fn real_add(inputs: Vec<WasmValue>) -> std::result::Result<Vec<WasmValue>, u32> {
         if inputs.len() != 2 {
             return Err(1);
         }

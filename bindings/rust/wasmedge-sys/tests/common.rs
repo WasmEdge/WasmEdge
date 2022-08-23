@@ -58,7 +58,7 @@ pub fn create_extern_module(name: impl AsRef<str>) -> ImportModule {
     import
 }
 
-fn extern_add(inputs: Vec<WasmValue>) -> Result<Vec<WasmValue>, u8> {
+fn extern_add(inputs: Vec<WasmValue>) -> Result<Vec<WasmValue>, u32> {
     let val1 = if inputs[0].ty() == ValType::ExternRef {
         inputs[0]
     } else {
@@ -77,7 +77,7 @@ fn extern_add(inputs: Vec<WasmValue>) -> Result<Vec<WasmValue>, u8> {
     Ok(vec![WasmValue::from_i32(val1 + val2)])
 }
 
-fn extern_sub(inputs: Vec<WasmValue>) -> Result<Vec<WasmValue>, u8> {
+fn extern_sub(inputs: Vec<WasmValue>) -> Result<Vec<WasmValue>, u32> {
     let val1 = if inputs[0].ty() == ValType::ExternRef {
         inputs[0]
     } else {
@@ -97,7 +97,7 @@ fn extern_sub(inputs: Vec<WasmValue>) -> Result<Vec<WasmValue>, u8> {
     Ok(vec![WasmValue::from_i32(val1 - val2)])
 }
 
-fn extern_mul(inputs: Vec<WasmValue>) -> Result<Vec<WasmValue>, u8> {
+fn extern_mul(inputs: Vec<WasmValue>) -> Result<Vec<WasmValue>, u32> {
     let val1 = if inputs[0].ty() == ValType::ExternRef {
         inputs[0]
     } else {
@@ -116,7 +116,7 @@ fn extern_mul(inputs: Vec<WasmValue>) -> Result<Vec<WasmValue>, u8> {
     Ok(vec![WasmValue::from_i32(val1 * val2)])
 }
 
-fn extern_div(inputs: Vec<WasmValue>) -> Result<Vec<WasmValue>, u8> {
+fn extern_div(inputs: Vec<WasmValue>) -> Result<Vec<WasmValue>, u32> {
     let val1 = if inputs[0].ty() == ValType::ExternRef {
         inputs[0]
     } else {
@@ -135,10 +135,10 @@ fn extern_div(inputs: Vec<WasmValue>) -> Result<Vec<WasmValue>, u8> {
     Ok(vec![WasmValue::from_i32(val1 / val2)])
 }
 
-fn extern_term(_inputs: Vec<WasmValue>) -> Result<Vec<WasmValue>, u8> {
+fn extern_term(_inputs: Vec<WasmValue>) -> Result<Vec<WasmValue>, u32> {
     Ok(vec![WasmValue::from_i32(1234)])
 }
 
-fn extern_fail(_inputs: Vec<WasmValue>) -> Result<Vec<WasmValue>, u8> {
+fn extern_fail(_inputs: Vec<WasmValue>) -> Result<Vec<WasmValue>, u32> {
     Err(0x02)
 }

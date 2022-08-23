@@ -4,13 +4,13 @@ use wasmedge_sys::{
 };
 use wasmedge_types::ValType;
 
-fn host_print_i32(val: Vec<WasmValue>) -> Result<Vec<WasmValue>, u8> {
+fn host_print_i32(val: Vec<WasmValue>) -> Result<Vec<WasmValue>, u32> {
     println!("-- Host Function: print I32: {}", val[0].to_i32());
 
     Ok(vec![])
 }
 
-fn host_print_f64(val: Vec<WasmValue>) -> Result<Vec<WasmValue>, u8> {
+fn host_print_f64(val: Vec<WasmValue>) -> Result<Vec<WasmValue>, u32> {
     println!("-- Host Function: print F64: {}", val[0].to_f64());
 
     Ok(vec![])

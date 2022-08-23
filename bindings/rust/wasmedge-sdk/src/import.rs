@@ -106,7 +106,7 @@ impl ImportObjectBuilder {
     pub fn with_func<Args, Rets>(
         mut self,
         name: impl AsRef<str>,
-        real_func: impl Fn(Vec<WasmValue>) -> Result<Vec<WasmValue>, u8> + Send + Sync + 'static,
+        real_func: impl Fn(Vec<WasmValue>) -> Result<Vec<WasmValue>, u32> + Send + Sync + 'static,
     ) -> WasmEdgeResult<Self>
     where
         Args: WasmValTypeList,
@@ -137,7 +137,7 @@ impl ImportObjectBuilder {
     pub fn with_func_single_thread<Args, Rets>(
         mut self,
         name: impl AsRef<str>,
-        real_func: impl Fn(Vec<WasmValue>) -> Result<Vec<WasmValue>, u8> + 'static,
+        real_func: impl Fn(Vec<WasmValue>) -> Result<Vec<WasmValue>, u32> + 'static,
     ) -> WasmEdgeResult<Self>
     where
         Args: WasmValTypeList,
@@ -1317,7 +1317,7 @@ mod tests {
         handle.join().unwrap();
     }
 
-    fn real_add(inputs: Vec<WasmValue>) -> std::result::Result<Vec<WasmValue>, u8> {
+    fn real_add(inputs: Vec<WasmValue>) -> std::result::Result<Vec<WasmValue>, u32> {
         if inputs.len() != 2 {
             return Err(1);
         }

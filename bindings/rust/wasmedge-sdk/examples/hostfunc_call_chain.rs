@@ -27,13 +27,13 @@ unsafe impl Send for Wrapper {}
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let vm = Vm::new(None)?;
 
-    let host_layer1 = |_: Vec<WasmValue>| -> Result<Vec<WasmValue>, u8> {
+    let host_layer1 = |_: Vec<WasmValue>| -> Result<Vec<WasmValue>, u32> {
         println!("There is layer1!");
         Ok(vec![])
     };
 
     let s = Arc::new(Mutex::new(Wrapper(&vm as *const Vm)));
-    let host_layer2 = move |_: Vec<WasmValue>| -> Result<Vec<WasmValue>, u8> {
+    let host_layer2 = move |_: Vec<WasmValue>| -> Result<Vec<WasmValue>, u32> {
         unsafe {
             (*s.lock().unwrap().0)
                 .run_func(None, "layer1", params!())

@@ -41,6 +41,9 @@ pub fn log_error_info() {
 
 // Checks the result of a `FFI` function.
 pub(crate) fn check(result: WasmEdge_Result) -> WasmEdgeResult<()> {
+    let category = unsafe { ffi::WasmEdge_ResultGetCategory(result) };
+    dbg!(&category);
+
     let code = unsafe {
         if !WasmEdge_ResultOK(result) {
             WasmEdge_ResultGetCode(result)

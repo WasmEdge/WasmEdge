@@ -418,7 +418,7 @@ mod tests {
         assert_eq!(instance.name().unwrap(), mod_names[1]);
     }
 
-    fn real_add(inputs: Vec<WasmValue>) -> std::result::Result<Vec<WasmValue>, u8> {
+    fn real_add(inputs: Vec<WasmValue>) -> std::result::Result<Vec<WasmValue>, u32> {
         if inputs.len() != 2 {
             return Err(1);
         }

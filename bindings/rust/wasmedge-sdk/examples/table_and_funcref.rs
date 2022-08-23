@@ -10,7 +10,7 @@ use wasmedge_sdk::{
 use wasmedge_sys::WasmValue;
 use wasmedge_types::{RefType, TableType, ValType};
 
-fn real_add(input: Vec<WasmValue>) -> Result<Vec<WasmValue>, u8> {
+fn real_add(input: Vec<WasmValue>) -> Result<Vec<WasmValue>, u32> {
     println!("Rust: Entering Rust function real_add");
 
     if input.len() != 2 {

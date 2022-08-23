@@ -1,5 +1,8 @@
-use crate::{io::WasmValTypeList, FuncType, Global, Memory, Table, WasmEdgeResult};
-use wasmedge_sys::{self as sys, AsImport, WasmValue};
+use crate::{
+    error::HostFuncError, io::WasmValTypeList, FuncType, Global, Memory, Table, WasmEdgeResult,
+    WasmValue,
+};
+use wasmedge_sys::{self as sys, AsImport};
 
 /// Creates a normal, wasi, or wasmedge process [import object](crate::ImportObject).
 ///
@@ -14,27 +17,28 @@ use wasmedge_sys::{self as sys, AsImport, WasmValue};
 /// use wasmedge_sdk::{
 ///     types::Val,
 ///     Global, ImportObjectBuilder, Memory, Table,
+///     error::HostFuncError, WasmValue, GlobalType,
+///     MemoryType, Mutability, RefType, TableType,
+///     ValType
 /// };
-/// use wasmedge_sys::types::WasmValue;
-/// use wasmedge_types::{GlobalType, MemoryType, Mutability, RefType, TableType, ValType};
 ///
 /// fn main() -> Result<(), Box<dyn std::error::Error>> {
 ///     // a native function to be imported as host function
-///     fn real_add(inputs: Vec<WasmValue>) -> std::result::Result<Vec<WasmValue>, u8> {
+///     fn real_add(inputs: Vec<WasmValue>) -> std::result::Result<Vec<WasmValue>, HostFuncError> {
 ///         if inputs.len() != 2 {
-///             return Err(1);
+///             return Err(HostFuncError::User(1));
 ///         }
 ///
 ///         let a = if inputs[0].ty() == ValType::I32 {
 ///             inputs[0].to_i32()
 ///         } else {
-///             return Err(2);
+///             return Err(HostFuncError::User(2));
 ///         };
 ///
 ///         let b = if inputs[1].ty() == ValType::I32 {
 ///             inputs[1].to_i32()
 ///         } else {
-///             return Err(3);
+///             return Err(HostFuncError::User(3));
 ///         };
 ///
 ///         let c = a + b;
@@ -106,7 +110,10 @@ impl ImportObjectBuilder {
     pub fn with_func<Args, Rets>(
         mut self,
         name: impl AsRef<str>,
-        real_func: impl Fn(Vec<WasmValue>) -> Result<Vec<WasmValue>, u32> + Send + Sync + 'static,
+        real_func: impl Fn(Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError>
+            + Send
+            + Sync
+            + 'static,
     ) -> WasmEdgeResult<Self>
     where
         Args: WasmValTypeList,
@@ -137,7 +144,7 @@ impl ImportObjectBuilder {
     pub fn with_func_single_thread<Args, Rets>(
         mut self,
         name: impl AsRef<str>,
-        real_func: impl Fn(Vec<WasmValue>) -> Result<Vec<WasmValue>, u32> + 'static,
+        real_func: impl Fn(Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError> + 'static,
     ) -> WasmEdgeResult<Self>
     where
         Args: WasmValTypeList,
@@ -1317,21 +1324,21 @@ mod tests {
         handle.join().unwrap();
     }
 
-    fn real_add(inputs: Vec<WasmValue>) -> std::result::Result<Vec<WasmValue>, u32> {
+    fn real_add(inputs: Vec<WasmValue>) -> std::result::Result<Vec<WasmValue>, HostFuncError> {
         if inputs.len() != 2 {
-            return Err(1);
+            return Err(HostFuncError::User(1));
         }
 
         let a = if inputs[0].ty() == ValType::I32 {
             inputs[0].to_i32()
         } else {
-            return Err(2);
+            return Err(HostFuncError::User(2));
         };
 
         let b = if inputs[1].ty() == ValType::I32 {
             inputs[1].to_i32()
         } else {
-            return Err(3);
+            return Err(HostFuncError::User(3));
         };
 
         let c = a + b;

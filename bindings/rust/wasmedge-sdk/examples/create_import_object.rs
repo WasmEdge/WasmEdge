@@ -4,29 +4,28 @@
 // #![feature(explicit_generic_args_with_impl_trait)]
 
 use wasmedge_sdk::{
-    types::Val, Global, GlobalType, ImportObjectBuilder, Memory, MemoryType, Mutability, RefType,
-    Table, TableType, ValType,
+    error::HostFuncError, types::Val, Global, GlobalType, ImportObjectBuilder, Memory, MemoryType,
+    Mutability, RefType, Table, TableType, ValType, WasmValue,
 };
-use wasmedge_sys::types::WasmValue;
 
 #[cfg_attr(test, test)]
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // a native function to be imported as host function
-    fn real_add(inputs: Vec<WasmValue>) -> std::result::Result<Vec<WasmValue>, u32> {
+    fn real_add(inputs: Vec<WasmValue>) -> std::result::Result<Vec<WasmValue>, HostFuncError> {
         if inputs.len() != 2 {
-            return Err(1);
+            return Err(HostFuncError::User(1));
         }
 
         let a = if inputs[0].ty() == ValType::I32 {
             inputs[0].to_i32()
         } else {
-            return Err(2);
+            return Err(HostFuncError::User(2));
         };
 
         let b = if inputs[1].ty() == ValType::I32 {
             inputs[1].to_i32()
         } else {
-            return Err(3);
+            return Err(HostFuncError::User(3));
         };
 
         let c = a + b;

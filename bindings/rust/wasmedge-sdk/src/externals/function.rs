@@ -1,7 +1,8 @@
 //! Defines Func, SignatureBuilder, and Signature structs.
-use crate::{io::WasmValTypeList, Engine, WasmEdgeResult};
-use wasmedge_sys::{self as sys, WasmValue};
-use wasmedge_types::{FuncType, ValType};
+use crate::{
+    error::HostFuncError, io::WasmValTypeList, Engine, FuncType, ValType, WasmEdgeResult, WasmValue,
+};
+use wasmedge_sys as sys;
 
 /// Defines a host function instance.
 ///
@@ -15,26 +16,24 @@ use wasmedge_types::{FuncType, ValType};
 /// // If the version of rust used is less than v1.63,
 /// // #![feature(explicit_generic_args_with_impl_trait)]
 ///
-/// use wasmedge_sdk::{Func, Executor, params, WasmVal};
-/// use wasmedge_sys::WasmValue;
-/// use wasmedge_types::ValType;
+/// use wasmedge_sdk::{Func, Executor, params, WasmVal, error::HostFuncError, WasmValue, ValType};
 ///
 /// // A native function to be wrapped as a host function
-/// fn real_add(input: Vec<WasmValue>) -> Result<Vec<WasmValue>, u8> {
+/// fn real_add(input: Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError> {
 ///     if input.len() != 2 {
-///         return Err(1);
+///         return Err(HostFuncError::User(1));
 ///     }
 ///
 ///     let a = if input[0].ty() == ValType::I32 {
 ///         input[0].to_i32()
 ///     } else {
-///         return Err(2);
+///         return Err(HostFuncError::User(2));
 ///     };
 ///
 ///     let b = if input[1].ty() == ValType::I32 {
 ///         input[1].to_i32()
 ///     } else {
-///         return Err(3);
+///         return Err(HostFuncError::User(3));
 ///     };
 ///
 ///     let c = a + b;
@@ -76,7 +75,10 @@ impl Func {
     ///
     /// If fail to create the host function, then an error is returned.
     pub fn wrap<Args, Rets>(
-        real_func: impl Fn(Vec<WasmValue>) -> Result<Vec<WasmValue>, u32> + Send + Sync + 'static,
+        real_func: impl Fn(Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError>
+            + Send
+            + Sync
+            + 'static,
     ) -> WasmEdgeResult<Self>
     where
         Args: WasmValTypeList,
@@ -106,7 +108,7 @@ impl Func {
     ///
     /// If fail to create the host function, then an error is returned.
     pub fn wrap_single_thread<Args, Rets>(
-        real_func: impl Fn(Vec<WasmValue>) -> Result<Vec<WasmValue>, u32> + 'static,
+        real_func: impl Fn(Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError> + 'static,
     ) -> WasmEdgeResult<Self>
     where
         Args: WasmValTypeList,
@@ -287,6 +289,7 @@ mod tests {
     use super::*;
     use crate::{
         config::{CommonConfigOptions, ConfigBuilder},
+        error::HostFuncError,
         params, Executor, ImportObjectBuilder, Statistics, Store, WasmVal,
     };
     use wasmedge_sys::WasmValue;
@@ -419,21 +422,21 @@ mod tests {
         assert_eq!(returns[0].to_i32(), 5);
     }
 
-    fn real_add(inputs: Vec<WasmValue>) -> std::result::Result<Vec<WasmValue>, u32> {
+    fn real_add(inputs: Vec<WasmValue>) -> std::result::Result<Vec<WasmValue>, HostFuncError> {
         if inputs.len() != 2 {
-            return Err(1);
+            return Err(HostFuncError::User(1));
         }
 
         let a = if inputs[0].ty() == ValType::I32 {
             inputs[0].to_i32()
         } else {
-            return Err(2);
+            return Err(HostFuncError::User(2));
         };
 
         let b = if inputs[1].ty() == ValType::I32 {
             inputs[1].to_i32()
         } else {
-            return Err(3);
+            return Err(HostFuncError::User(3));
         };
 
         let c = a + b;

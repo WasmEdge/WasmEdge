@@ -2,6 +2,8 @@
 
 [WasmEdge C API](https://github.com/WasmEdge/WasmEdge/blob/master/include/api/wasmedge/wasmedge.h) denotes an interface to access the WasmEdge runtime. The followings are the guides to working with the C APIs of WasmEdge.
 
+**Please notice that the WasmEdge C API provides SONAME and SOVERSION after the 0.11.0 release.**
+
 **This document is for the `0.10.0` version. For the older `0.9.1` version, please refer to the [document here](0.9.1/ref.md).**
 
 **Developers can refer [here to upgrade to 0.10.0](0.9.1/upgrade_to_0.10.0.md).**
@@ -11,6 +13,7 @@
 * [WasmEdge Installation](#wasmedge-installation)
   * [Download And Install](#download-and-install)
   * [Compile Sources](#compile-sources)
+  * [ABI Compatibility](#abi-compatibility)
 * [WasmEdge Basics](#wasmedge-basics)
   * [Version](#version)
   * [Logging Settings](#logging-settings)
@@ -82,6 +85,17 @@ After the installation of WasmEdge, the following guide can help you to test for
     $ ./a.out
     WasmEdge version: 0.10.0
     ```
+
+### ABI Compatibility
+
+WasmEdge C API introduces SONAME and SOVERSION in the 0.11.0 release to present the compatibility between different C API versions.
+
+The releases before 0.11.0 are all unversioned. Please make sure the library version is the same as the corresponding C API version you used.
+
+| WasmEdge Version | WasmEdge C API SONAME | WasmEdge C API SOVERSION |
+| ---              | ---                   | ---                      |
+| < 0.11.0         | Unversioned           | Unversioned              |
+| 0.11.0           | libwasmedge\_c.so.0   | libwasmedge\_c.so.0.0.0  |
 
 ## WasmEdge Basics
 

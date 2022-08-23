@@ -13,8 +13,8 @@
 //===------------------------------------------------------------------------------------------===//
 #pragma once
 
-#include <vector>
 #include <cstdint>
+#include <vector>
 
 namespace WasmEdge {
 namespace AST {

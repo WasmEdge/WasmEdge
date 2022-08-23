@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include "runtime/instance/memory.h"
+#include "runtime/callingframe.h"
 #include "wasinnbase.h"
 
 #include <cstdint>

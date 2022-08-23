@@ -3,8 +3,10 @@
 
 #pragma once
 
-#include "common/defines.h"
 #include "processbase.h"
+
+#include "runtime/callingframe.h"
+
 #include <cstdint>
 
 namespace WasmEdge {

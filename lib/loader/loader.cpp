@@ -163,6 +163,31 @@ Loader::parseModule(Span<const uint8_t> Code) {
   return loadModule();
 }
 
+Expect<std::unique_ptr<AST::Component>>
+Loader::parseComponent(Span<const uint8_t> Code) {
+  std::lock_guard Lock(Mutex);
+  if (auto Res = FMgr.setCode(Code); !Res) {
+    return Unexpect(Res);
+  }
+  switch (FMgr.getHeaderType()) {
+  // Filter out the Windows .dll, MacOS .dylib, or Linux .so AOT compiled
+  // shared-library-WASM.
+  case FileMgr::FileHeader::ELF:
+  case FileMgr::FileHeader::DLL:
+  case FileMgr::FileHeader::MachO_32:
+  case FileMgr::FileHeader::MachO_64:
+    spdlog::error(ErrCode::Value::MalformedMagic);
+    spdlog::error(
+        "    The AOT compiled WASM shared library is not supported for loading "
+        "from memory. Please use the universal WASM binary or pure WASM, or "
+        "load the AOT compiled WASM shared library from file.");
+    return Unexpect(ErrCode::Value::MalformedMagic);
+  default:
+    break;
+  }
+  return loadComponent();
+}
+
 // Helper function of checking the valid value types.
 Expect<ValType> Loader::checkValTypeProposals(ValType VType, uint64_t Off,
                                               ASTNodeAttr Node) {

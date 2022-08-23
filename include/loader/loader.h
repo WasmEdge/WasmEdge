@@ -76,9 +76,6 @@ inline ASTNodeAttr NodeAttrFromAST<AST::DataCountSection>() noexcept {
 }
 
 // component
-template <> inline ASTNodeAttr NodeAttrFromAST<AST::ModuleSection>() noexcept {
-  return ASTNodeAttr::CompSec_Module;
-}
 template <>
 inline ASTNodeAttr NodeAttrFromAST<AST::CoreInstanceSection>() noexcept {
   return ASTNodeAttr::CompSec_CoreInstance;
@@ -103,10 +100,6 @@ template <> inline ASTNodeAttr NodeAttrFromAST<AST::FieldType>() noexcept {
 }
 template <> inline ASTNodeAttr NodeAttrFromAST<AST::ModuleDecl>() noexcept {
   return ASTNodeAttr::CompSec_CoreType;
-}
-template <>
-inline ASTNodeAttr NodeAttrFromAST<AST::ComponentSection>() noexcept {
-  return ASTNodeAttr::CompSec_Component;
 }
 template <>
 inline ASTNodeAttr NodeAttrFromAST<AST::InstanceSection>() noexcept {
@@ -150,11 +143,7 @@ inline ASTNodeAttr NodeAttrFromAST<AST::ComponentCanonSection>() noexcept {
 template <> inline ASTNodeAttr NodeAttrFromAST<AST::CanonOpt>() noexcept {
   return ASTNodeAttr::CompSec_Canon;
 }
-template <>
-inline ASTNodeAttr NodeAttrFromAST<AST::ComponentStartSection>() noexcept {
-  return ASTNodeAttr::CompSec_Start;
-}
-template <> inline ASTNodeAttr NodeAttrFromAST<AST::StartValueIdx>() noexcept {
+template <> inline ASTNodeAttr NodeAttrFromAST<AST::ValueIdx>() noexcept {
   return ASTNodeAttr::CompSec_Start;
 }
 template <>
@@ -185,6 +174,10 @@ public:
 
   /// Parse module from byte code.
   Expect<std::unique_ptr<AST::Module>> parseModule(Span<const uint8_t> Code);
+
+  /// Parse component from byte code.
+  Expect<std::unique_ptr<AST::Component>>
+  parseComponent(Span<const uint8_t> Code);
 
 private:
   /// \name Helper functions to print error log when loading AST nodes
@@ -325,8 +318,6 @@ private:
   Expect<void> loadInstruction(AST::Instruction &Instr);
 
   // component part
-  Expect<void> loadSection(AST::ModuleSection &Sec);
-  /* - */ Expect<void> loadModule(std::unique_ptr<AST::Module> &Mod);
   Expect<void> loadSection(AST::CoreInstanceSection &Sec);
   /* - */ Expect<void> loadCoreInstance(AST::CoreInstance &Instance);
   Expect<void> loadSection(AST::CoreAliasSection &Sec);
@@ -334,7 +325,6 @@ private:
   Expect<void> loadSection(AST::CoreTypeSection &Sec);
   /* - */ Expect<void> loadCoreType(AST::CoreType &Ty);
   /* - */ Expect<void> loadFieldType(AST::FieldType &Ty);
-  Expect<void> loadSection(AST::ComponentSection &Sec);
   Expect<void> loadSection(AST::InstanceSection &Sec);
   /* - */ Expect<void> loadInstance(AST::Instance &Inst);
   Expect<void> loadSection(AST::AliasSection &Sec);
@@ -353,7 +343,7 @@ private:
   Expect<void> loadSection(AST::ComponentCanonSection &Sec);
   /* - */ Expect<void> loadCanon(AST::Canon &Canon);
   /* - */ Expect<void> loadCanonOpt(AST::CanonOpt &CanonOpt);
-  Expect<void> loadSection(AST::ComponentStartSection &Sec);
+  Expect<void> loadStart(AST::Start &Start);
   Expect<void> loadSection(AST::ComponentImportSection &Sec);
   /* - */ Expect<void> loadImportDecl(AST::ImportDecl &Import);
   Expect<void> loadSection(AST::ComponentExportSection &Sec);

@@ -2,7 +2,7 @@
 use wasmedge_sys::{
     AsImport, Compiler, Config, FuncType, Function, ImportModule, ImportObject, Vm, WasmValue,
 };
-use wasmedge_types::{CompilerOptimizationLevel, CompilerOutputFormat};
+use wasmedge_types::{error::HostFuncError, CompilerOptimizationLevel, CompilerOutputFormat};
 
 #[cfg(feature = "aot")]
 #[test]
@@ -96,6 +96,6 @@ fn create_spec_test_module() -> ImportModule {
     import
 }
 
-fn spec_test_print(_inputs: Vec<WasmValue>) -> Result<Vec<WasmValue>, u32> {
+fn spec_test_print(_inputs: Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError> {
     Ok(vec![])
 }

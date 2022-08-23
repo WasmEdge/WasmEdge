@@ -18,25 +18,25 @@ use std::{
 use wasmedge_sys::{
     AsImport, Config, FuncType, Function, ImportModule, ImportObject, Loader, Vm, WasmValue,
 };
-use wasmedge_types::ValType;
+use wasmedge_types::{error::HostFuncError, ValType};
 
-fn real_add(input: Vec<WasmValue>) -> Result<Vec<WasmValue>, u32> {
+fn real_add(input: Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError> {
     println!("Rust: Entering Rust function real_add");
 
     if input.len() != 3 {
-        return Err(1);
+        return Err(HostFuncError::User(1));
     }
 
     let a = if input[1].ty() == ValType::I32 {
         input[1].to_i32()
     } else {
-        return Err(2);
+        return Err(HostFuncError::User(2));
     };
 
     let b = if input[2].ty() == ValType::I32 {
         input[2].to_i32()
     } else {
-        return Err(3);
+        return Err(HostFuncError::User(3));
     };
 
     let c = a + b;

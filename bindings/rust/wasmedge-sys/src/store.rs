@@ -126,7 +126,7 @@ mod tests {
         sync::{Arc, Mutex},
         thread,
     };
-    use wasmedge_types::{Mutability, RefType, ValType};
+    use wasmedge_types::{error::HostFuncError, Mutability, RefType, ValType};
 
     #[test]
     #[allow(clippy::assertions_on_result_states)]
@@ -339,21 +339,21 @@ mod tests {
         assert_eq!(return_types, [ValType::I32]);
     }
 
-    fn real_add(inputs: Vec<WasmValue>) -> Result<Vec<WasmValue>, u32> {
+    fn real_add(inputs: Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError> {
         if inputs.len() != 2 {
-            return Err(1);
+            return Err(HostFuncError::User(1));
         }
 
         let a = if inputs[0].ty() == ValType::I32 {
             inputs[0].to_i32()
         } else {
-            return Err(2);
+            return Err(HostFuncError::User(2));
         };
 
         let b = if inputs[1].ty() == ValType::I32 {
             inputs[1].to_i32()
         } else {
-            return Err(3);
+            return Err(HostFuncError::User(3));
         };
 
         let c = a + b;

@@ -1,7 +1,7 @@
 //! Defines WasmEdge Function and FuncType structs.
 
 use crate::{
-    error::{FuncError, WasmEdgeError},
+    error::{FuncError, HostFuncError, WasmEdgeError},
     ffi, BoxedFn, BoxedFnSingle, Engine, WasmEdgeResult, WasmValue, HOST_FUNCS, HOST_FUNCS_SINGLE,
 };
 use core::ffi::c_void;
@@ -13,7 +13,6 @@ use wasmedge_types::ValType;
 extern "C" fn wraper_fn(
     key_ptr: *mut c_void,
     _data: *mut c_void,
-    // _mem_cxt: *mut ffi::WasmEdge_MemoryInstanceContext,
     _call_frame_cxt: *const ffi::WasmEdge_CallingFrameContext,
     params: *const ffi::WasmEdge_Value,
     param_len: u32,
@@ -47,8 +46,6 @@ extern "C" fn wraper_fn(
         real_fn(input)
     };
 
-    dbg!(&result);
-
     match result {
         Ok(v) => {
             assert!(v.len() == return_len);
@@ -57,7 +54,14 @@ extern "C" fn wraper_fn(
             }
             ffi::WasmEdge_Result { Code: 0 }
         }
-        Err(c) => ffi::WasmEdge_Result { Code: c },
+        Err(err) => match err {
+            HostFuncError::User(code) => unsafe {
+                ffi::WasmEdge_ResultGen(ffi::WasmEdge_ErrCategory_UserLevelError, code)
+            },
+            HostFuncError::Runtime(code) => unsafe {
+                ffi::WasmEdge_ResultGen(ffi::WasmEdge_ErrCategory_WASM, code)
+            },
+        },
     }
 }
 
@@ -65,7 +69,6 @@ extern "C" fn wraper_fn(
 extern "C" fn wraper_fn_single(
     key_ptr: *mut c_void,
     _data: *mut c_void,
-    // _mem_cxt: *mut ffi::WasmEdge_MemoryInstanceContext,
     _call_frame_cxt: *const ffi::WasmEdge_CallingFrameContext,
     params: *const ffi::WasmEdge_Value,
     param_len: u32,
@@ -73,7 +76,7 @@ extern "C" fn wraper_fn_single(
     return_len: u32,
 ) -> ffi::WasmEdge_Result {
     let key = key_ptr as *const usize as usize;
-    let mut result = Err(0);
+    let mut result = Err(HostFuncError::Runtime(0));
 
     let input = {
         let raw_input = unsafe {
@@ -108,7 +111,14 @@ extern "C" fn wraper_fn_single(
             }
             ffi::WasmEdge_Result { Code: 0 }
         }
-        Err(c) => ffi::WasmEdge_Result { Code: c },
+        Err(err) => match err {
+            HostFuncError::User(code) => unsafe {
+                ffi::WasmEdge_ResultGen(ffi::WasmEdge_ErrCategory_UserLevelError, code)
+            },
+            HostFuncError::Runtime(code) => unsafe {
+                ffi::WasmEdge_ResultGen(ffi::WasmEdge_ErrCategory_WASM, code)
+            },
+        },
     }
 }
 
@@ -157,23 +167,23 @@ impl Function {
     ///
     /// ```rust
     /// use wasmedge_sys::{FuncType, Function, WasmValue};
-    /// use wasmedge_types::{ValType, WasmEdgeResult};
+    /// use wasmedge_types::{error::HostFuncError, ValType, WasmEdgeResult};
     ///
-    /// fn real_add(inputs: Vec<WasmValue>) -> Result<Vec<WasmValue>, u8> {
+    /// fn real_add(inputs: Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError> {
     ///     if inputs.len() != 2 {
-    ///         return Err(1);
+    ///         return Err(HostFuncError::User(1));
     ///     }
     ///
     ///     let a = if inputs[0].ty() == ValType::I32 {
     ///         inputs[0].to_i32()
     ///     } else {
-    ///         return Err(2);
+    ///         return Err(HostFuncError::User(2));
     ///     };
     ///
     ///     let b = if inputs[1].ty() == ValType::I32 {
     ///         inputs[1].to_i32()
     ///     } else {
-    ///         return Err(3);
+    ///         return Err(HostFuncError::User(3));
     ///     };
     ///
     ///     let c = a + b;
@@ -318,25 +328,25 @@ impl Function {
     ///
     /// ```rust
     /// use wasmedge_sys::{FuncType, Function, WasmValue, Executor};
-    /// use wasmedge_types::ValType;
+    /// use wasmedge_types::{error::HostFuncError, ValType};
     ///
-    /// fn real_add(input: Vec<WasmValue>) -> Result<Vec<WasmValue>, u8> {
+    /// fn real_add(input: Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError> {
     ///     println!("Rust: Entering Rust function real_add");
     ///
     ///     if input.len() != 2 {
-    ///         return Err(1);
+    ///         return Err(HostFuncError::User(1));
     ///     }
     ///
     ///     let a = if input[0].ty() == ValType::I32 {
     ///         input[0].to_i32()
     ///     } else {
-    ///         return Err(2);
+    ///         return Err(HostFuncError::User(2));
     ///     };
     ///
     ///     let b = if input[1].ty() == ValType::I32 {
     ///         input[1].to_i32()
     ///     } else {
-    ///         return Err(3);
+    ///         return Err(HostFuncError::User(3));
     ///     };
     ///
     ///     let c = a + b;
@@ -769,23 +779,23 @@ mod tests {
         handle.join().unwrap();
     }
 
-    fn real_add(input: Vec<WasmValue>) -> Result<Vec<WasmValue>, u32> {
+    fn real_add(input: Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError> {
         println!("Rust: Entering Rust function real_add");
 
         if input.len() != 2 {
-            return Err(1);
+            return Err(HostFuncError::User(1));
         }
 
         let a = if input[0].ty() == ValType::I32 {
             input[0].to_i32()
         } else {
-            return Err(2);
+            return Err(HostFuncError::User(2));
         };
 
         let b = if input[1].ty() == ValType::I32 {
             input[1].to_i32()
         } else {
-            return Err(3);
+            return Err(HostFuncError::User(3));
         };
 
         let c = a + b;

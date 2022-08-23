@@ -277,8 +277,5 @@ fn test_executor_with_statistics() {
     // Invoke host function to fail execution
     let result = executor.run_func(&func_fail, []);
     assert!(result.is_err());
-    assert_eq!(
-        result.unwrap_err(),
-        WasmEdgeError::Core(CoreError::Execution(CoreExecutionError::HostFuncFailed))
-    );
+    assert_eq!(result.unwrap_err(), WasmEdgeError::User(2));
 }

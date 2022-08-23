@@ -154,19 +154,14 @@ private:
 /// AST ComponentStartSection node.
 class ComponentStartSection : public Section {
 public:
-  /// Getter and setter of funcidx.
-  uint32_t getFuncIdx() const { return FuncIdx; }
-  void setFuncIdx(uint32_t Val) noexcept { FuncIdx = Val; }
-
   /// Getter of content.
-  Span<const StartValueIdx> getContent() const noexcept { return Content; }
-  std::vector<StartValueIdx> &getContent() noexcept { return Content; }
+  Span<const Start> getContent() const noexcept { return Content; }
+  std::vector<Start> &getContent() noexcept { return Content; }
 
 private:
   /// \name Data of ComponentStartSection.
   /// @{
-  uint32_t FuncIdx;
-  std::vector<StartValueIdx> Content;
+  std::vector<Start> Content;
   /// @}
 };
 

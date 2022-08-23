@@ -76,13 +76,12 @@ if(WASMEDGE_BUILD_STATIC_LIB)
   set(WASMEDGE_FORCE_DISABLE_LTO ON)
 endif()
 if(WASMEDGE_BUILD_TOOLS)
-  if(WASMEDGE_BUILD_STATIC_LIB)
-    # If the WASMEDGE_BUILD_STATIC_LIB is turned on, the tools will link the static library.
-    set(WASMEDGE_LINK_TOOLS_STATIC ON)
-  endif()
   if(WASMEDGE_LINK_TOOLS_STATIC)
     # Static tools will link LLVM statically.
     set(WASMEDGE_LINK_LLVM_STATIC ON)
+    # Tools will forcefully turn on the static library building.
+    set(WASMEDGE_LINK_TOOLS_STATIC ON)
+    message(WARNING "For tuning on the WASMEDGE_LINK_TOOLS_STATIC option, the plugins will not work.")
   else()
     # Tools will forcefully turn on the shared library building.
     set(WASMEDGE_BUILD_SHARED_LIB ON)

@@ -56,7 +56,7 @@ jobs:
           path: build/WasmEdge-${{ inputs.version }}-Linux.rpm
           name: WasmEdge-${{ inputs.version }}-${{ matrix.docker_tag }}.rpm
       - name: Upload artifact (v2)
-        if: ${{ !inputs.legacy && !inputs.release }}
+        if: ${{ !inputs.legacy }}
         uses: actions/upload-artifact@v2
         with:
           path: build/WasmEdge-${{ inputs.version }}-Linux.tar.gz

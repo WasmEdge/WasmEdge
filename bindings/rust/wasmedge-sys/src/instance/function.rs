@@ -21,7 +21,6 @@ extern "C" fn wraper_fn(
     return_len: u32,
 ) -> ffi::WasmEdge_Result {
     let frame = CallingFrame::create(call_frame_ctx);
-    dbg!(&frame);
 
     let key = key_ptr as *const usize as usize;
 
@@ -80,7 +79,6 @@ extern "C" fn wraper_fn_single(
     return_len: u32,
 ) -> ffi::WasmEdge_Result {
     let frame = CallingFrame::create(call_frame_ctx);
-    dbg!(&frame);
 
     let key = key_ptr as *const usize as usize;
     let mut result = Err(HostFuncError::Runtime(0));

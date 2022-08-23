@@ -65,23 +65,11 @@ jobs:
       upload_asset_url: ${{ needs.create_release.outputs.upload_url }}
     secrets: inherit
 
-  build_on_manylinux_legacy:
-    needs: create_release
-    uses: ./.github/workflows/reusable-build-on-manylinux.yml
-    with:
-      version: ${{ needs.create_release.outputs.version }}
-      legacy: true
-      matrix: "[{'runner':'ubuntu-latest','docker_tag':'manylinux2010_x86_64'}]"
-      release: true
-      upload_asset_url: ${{ needs.create_release.outputs.upload_url }}
-    secrets: inherit
-
   build_on_manylinux2014:
     needs: create_release
     uses: ./.github/workflows/reusable-build-on-manylinux.yml
     with:
       version: ${{ needs.create_release.outputs.version }}
-      legacy: false
       matrix: "[{'runner':'ubuntu-latest','docker_tag':'manylinux2014_x86_64'},{'runner':'ARM64','docker_tag':'manylinux2014_aarch64'}]"
       release: true
       upload_asset_url: ${{ needs.create_release.outputs.upload_url }}

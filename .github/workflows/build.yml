@@ -43,23 +43,6 @@ jobs:
   lint:
     uses: ./.github/workflows/reusable-call-linter.yml
 
-  get_version_v1:
-    needs: lint
-    name: Retrieve version information (v1)
-    runs-on: ubuntu-latest
-    outputs:
-      version: ${{ steps.prep.outputs.version }}
-    steps:
-      - uses: actions/checkout@v1
-        with:
-          fetch-depth: 0
-      - name: Get version
-        id: prep
-        run: |
-          # Retrieve annotated tags. Details: https://github.com/actions/checkout/issues/290
-          git fetch --tags --force
-          echo "Set version: $(git describe --match "[0-9].[0-9]*" --tag)"
-          echo ::set-output name=version::$(git describe --match "[0-9].[0-9]*" --tag)
   get_version_v2:
     needs: lint
     name: Retrieve version information (v2)
@@ -91,20 +74,11 @@ jobs:
       version: ${{ needs.get_version_v2.outputs.version }}
       matrix: "[{'name':'MacOS 11 (x86_64)','runner':'macos-11','darwin_version':20},{'name':'MacOS 12 (x86_64)','runner':'macos-12','darwin_version':21}]"
 
-  build_on_manylinux_legacy:
-    needs: [get_version_v1, lint]
-    uses: ./.github/workflows/reusable-build-on-manylinux.yml
-    with:
-      version: ${{ needs.get_version_v1.outputs.version }}
-      legacy: true
-      matrix: "[{'runner':'ubuntu-latest','docker_tag':'manylinux2010_x86_64'}]"
-
   build_on_manylinux_2014:
     needs: [get_version_v2, lint]
     uses: ./.github/workflows/reusable-build-on-manylinux.yml
     with:
       version: ${{ needs.get_version_v2.outputs.version }}
-      legacy: false
       matrix: "[{'runner':'ubuntu-latest','docker_tag':'manylinux2014_x86_64'},{'runner':'ARM64','docker_tag':'manylinux2014_aarch64'}]"
 
   build_on_windows:

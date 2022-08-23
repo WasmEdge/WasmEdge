@@ -6,20 +6,6 @@
 namespace WasmEdge {
 namespace Loader {
 
-Expect<void> Loader::loadModule(std::unique_ptr<AST::Module> &Mod) {
-  auto M = loadModule();
-  Mod = std::move(M.value());
-  return {};
-}
-
-Expect<void> Loader::loadSection(AST::ModuleSection &Sec) {
-  return loadSectionContent(Sec, [this, &Sec]() {
-    return loadSectionContentVec(
-        Sec,
-        [this](std::unique_ptr<AST::Module> &Mod) { return loadModule(Mod); });
-  });
-}
-
 Expect<void> Loader::loadSection(AST::CoreInstanceSection &Sec) {
   return loadSectionContent(Sec, [this, &Sec]() {
     return loadSectionContentVec(Sec, [this](AST::CoreInstance &Instance) {
@@ -276,17 +262,6 @@ Expect<void> Loader::loadFieldType(AST::FieldType &Ty) {
     break;
   }
   return {};
-}
-
-Expect<void> Loader::loadSection(AST::ComponentSection &Sec) {
-  return loadSectionContent(Sec, [this, &Sec]() {
-    return loadSectionContentVec(
-        Sec, [this](std::unique_ptr<AST::Component> &Comp) -> Expect<void> {
-          auto C = loadComponent();
-          Comp = std::move(C.value());
-          return {};
-        });
-  });
 }
 
 Expect<void> Loader::loadSection(AST::InstanceSection &Sec) {
@@ -836,26 +811,31 @@ Expect<void> Loader::loadCanonOpt(AST::CanonOpt &CanonOpt) {
   return {};
 }
 
-Expect<void> Loader::loadSection(AST::ComponentStartSection &Sec) {
+Expect<void> Loader::loadStart(AST::Start &Start) {
+  using AST::ValueIdx;
   // start ::= f:<funcidx> arg*:vec(<valueidx>)
-  return loadSectionContent(Sec, [this, &Sec]() -> Expect<void> {
-    auto FuncIdx = FMgr.readU32();
-    if (!FuncIdx.has_value()) {
-      return logLoadError(FuncIdx.error(), FMgr.getLastOffset(),
-                          ASTNodeAttr::CompSec_Start);
-    }
-    Sec.setFuncIdx(FuncIdx.value());
-    return loadVec(Sec.getContent(),
-                   [this](AST::StartValueIdx &ValueIdx) -> Expect<void> {
-                     auto Idx = FMgr.readU32();
-                     if (!Idx.has_value()) {
-                       return logLoadError(Idx.error(), FMgr.getLastOffset(),
-                                           ASTNodeAttr::CompSec_Start);
-                     }
-                     ValueIdx.setValueIdx(Idx.value());
-                     return {};
-                   });
-  });
+  auto FuncIdx = FMgr.readU32();
+  if (!FuncIdx.has_value()) {
+    return logLoadError(FuncIdx.error(), FMgr.getLastOffset(),
+                        ASTNodeAttr::CompSec_Start);
+  }
+  Start.setFuncIdx(FuncIdx.value());
+
+  if (auto Res = loadVec(Start.getArgs(),
+                         [this](ValueIdx &ValueIdx) -> Expect<void> {
+                           auto Idx = FMgr.readU32();
+                           if (!Idx.has_value()) {
+                             return logLoadError(Idx.error(),
+                                                 FMgr.getLastOffset(),
+                                                 ASTNodeAttr::CompSec_Start);
+                           }
+                           ValueIdx = *Idx;
+                           return {};
+                         });
+      !Res) {
+    return logLoadError(Res.error(), FMgr.getLastOffset(),
+                        ASTNodeAttr::CompSec_Start);
+  }
 }
 
 Expect<void> Loader::loadSection(AST::ComponentImportSection &Sec) {

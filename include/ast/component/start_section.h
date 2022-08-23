@@ -13,16 +13,26 @@
 //===------------------------------------------------------------------------------------------===//
 #pragma once
 
+#include <vector>
+#include <cstdint>
+
 namespace WasmEdge {
 namespace AST {
 
-class StartValueIdx {
+using ValueIdx = uint32_t;
+
+class Start {
 public:
-  uint32_t getValueIdx() const noexcept { return ValueIdx; }
-  void setValueIdx(uint32_t Idx) { ValueIdx = Idx; }
+  uint32_t getFuncIdx() const { return FuncIdx; }
+  void setFuncIdx(uint32_t Val) noexcept { FuncIdx = Val; }
+
+  /// Getter of content.
+  Span<const ValueIdx> getArgs() const noexcept { return Args; }
+  std::vector<ValueIdx> &getArgs() noexcept { return Args; }
 
 private:
-  uint32_t ValueIdx;
+  uint32_t FuncIdx;
+  std::vector<ValueIdx> Args;
 };
 
 } // namespace AST

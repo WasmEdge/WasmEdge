@@ -1029,12 +1029,12 @@ mod tests {
             CoreCommonError, CoreError, CoreExecutionError, CoreLoadError, InstanceError, VmError,
             WasmEdgeError,
         },
-        CallingFrame, Config, Loader, Module, Store, WasmValue,
+        Config, Loader, Module, Store, WasmValue,
     };
     #[cfg(unix)]
     use crate::{
         error::{CoreInstantiationError, HostFuncError},
-        AsImport, FuncType, Function, ImportObject, WasiModule,
+        AsImport, CallingFrame, FuncType, Function, ImportObject, WasiModule,
     };
     #[cfg(target_os = "linux")]
     use crate::{utils, ImportModule, WasmEdgeProcessModule};

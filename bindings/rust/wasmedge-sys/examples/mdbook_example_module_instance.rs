@@ -1,7 +1,8 @@
 #[cfg(target_os = "linux")]
 use wasmedge_sys::{
-    utils, AsImport, Config, Executor, FuncType, Function, Global, GlobalType, ImportModule,
-    ImportObject, Loader, MemType, Memory, Store, Table, TableType, Validator, Vm, WasmValue,
+    utils, AsImport, CallingFrame, Config, Executor, FuncType, Function, Global, GlobalType,
+    ImportModule, ImportObject, Loader, MemType, Memory, Store, Table, TableType, Validator, Vm,
+    WasmValue,
 };
 #[cfg(target_os = "linux")]
 use wasmedge_types::{error::HostFuncError, wat2wasm, Mutability, RefType, ValType};
@@ -53,7 +54,10 @@ fn vm_apis() -> Result<(), Box<dyn std::error::Error>> {
         let mut import = ImportModule::create(module_name)?;
 
         // a function to import
-        fn real_add(inputs: Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError> {
+        fn real_add(
+            _: &CallingFrame,
+            inputs: Vec<WasmValue>,
+        ) -> Result<Vec<WasmValue>, HostFuncError> {
             if inputs.len() != 2 {
                 return Err(HostFuncError::User(1));
             }

@@ -216,7 +216,7 @@ int main() {
 3. Compile
 
     ```bash
-    gcc main.c -lwasmedge_c
+    gcc main.c -lwasmedge
     # Or you can use g++ for the C++ case, or use the clang.
     ```
 

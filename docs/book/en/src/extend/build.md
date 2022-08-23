@@ -90,8 +90,8 @@ You can find that there are several wasmedge related tools:
 2. `wasmedgec` is the ahead-of-time `WASM` compiler.
    - `wasmedgec` compiles a general `WASM` file into a `so` (shared object) file.
    - To disable building the ahead-of-time compiler only, you can set the CMake option `WASMEDGE_BUILD_AOT_RUNTIME` to `OFF`.
-3. `libwasmedge_c.so` is the WasmEdge C API shared library.
-   - `libwasmedge_c.so` provides the C API for the ahead-of-time compiler and the WASM runtime.
+3. `libwasmedge.so` is the WasmEdge C API shared library.
+   - `libwasmedge.so` provides the C API for the ahead-of-time compiler and the WASM runtime.
    - The APIs related to the ahead-of-time compiler will always fail if the CMake option `WASMEDGE_BUILD_AOT_RUNTIME` is set as `OFF`.
    - To disable building just the shared library, you can set the CMake option `WASMEDGE_BUILD_SHARED_LIB` to `OFF`.
 4. `ssvm-qitc` is for AI applications and supports the ONNC runtime for AI models in the ONNX format.
@@ -116,9 +116,9 @@ Developers can set the CMake options to customize the WasmEdge building.
 
 1. `WASMEDGE_BUILD_TESTS`: build the WasmEdge tests. Default is `OFF`.
 2. `WASMEDGE_BUILD_AOT_RUNTIME`: build with the Ahead-of-Time compiler supporting. Default is `ON`.
-3. `WASMEDGE_BUILD_SHARED_LIB`: build the WasmEdge shared library (`libwasmedge_c.so`, `libwasmedge_c.dylib`, or `wasmedge_c.dll`). Default is `ON`.
+3. `WASMEDGE_BUILD_SHARED_LIB`: build the WasmEdge shared library (`libwasmedge.so`, `libwasmedge.dylib`, or `wasmedge.dll`). Default is `ON`.
     - By default, the WasmEdge shared library will link to the LLVM shared library.
-4. `WASMEDGE_BUILD_STATIC_LIB`: build the WasmEdge static library (`libwasmedge_c.a`, Linux and MacOS platforms, experimental). Default is `OFF`.
+4. `WASMEDGE_BUILD_STATIC_LIB`: build the WasmEdge static library (`libwasmedge.a`, Linux and MacOS platforms, experimental). Default is `OFF`.
     - If this option is set as `ON`, the option `WASMEDGE_FORCE_DISABLE_LTO` will forcefully be set as `ON`.
     - If this option is set as `ON`, the `libz` and `libtinfo` on Linux platforms will be statically linked.
 5. `WASMEDGE_BUILD_TOOLS`: build the `wasmedge` and `wasmedgec` tools. Default is `ON`.

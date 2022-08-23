@@ -69,7 +69,7 @@ To use `wasmedge-sdk` in your project, you should finish the following two steps
     │       ├── version.h
     │       └── wasmedge.h
     └── lib64
-        ├── libwasmedge_c.so
+        ├── libwasmedge.so
         └── wasmedge
             └── libwasmedgePluginWasmEdgeProcess.so
 
@@ -92,7 +92,7 @@ To use `wasmedge-sdk` in your project, you should finish the following two steps
     │       ├── version.h
     │       └── wasmedge.h
     └── lib
-        └── libwasmedge_c.dylib
+        └── libwasmedge.dylib
 
     4 directories, 10 files
     ```

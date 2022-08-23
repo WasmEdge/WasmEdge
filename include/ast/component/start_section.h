@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2019-2022 Second State INC
 
-//=== wasmedge/ast/component/start_section.h - Start Section class definitions
+//=== Start Section class definitions
 //
 // Part of the WasmEdge Project.
 //

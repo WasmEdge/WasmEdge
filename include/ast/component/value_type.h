@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2019-2022 Second State INC
 
-//=== wasmedge/ast/component/value_type.h - ValueType class
-// definitions
+//=== ValueType class definitions
 //
 // Part of the WasmEdge Project.
 //

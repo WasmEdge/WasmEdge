@@ -43,11 +43,11 @@
 
 ## Build
 
-To use `wasmedge-sdk` in your project, you should finish the followign two steps before building your project:
+To use `wasmedge-sdk` in your project, you should finish the following two steps before building your project:
 
 - First, deploy `WasmEdge` library on your local system.
 
-  You can reference the versiong table and download `WasmEdge` library from [WasmEdge Releases Page](https://github.com/WasmEdge/WasmEdge/releases). After download the `WasmEdge` library, you can choose one of the following three ways to specify the locations of the required files:
+  You can reference the versioning table and download `WasmEdge` library from [WasmEdge Releases Page](https://github.com/WasmEdge/WasmEdge/releases). After download the `WasmEdge` library, you can choose one of the following three ways to specify the locations of the required files:
   
   - By default location
 

@@ -44,8 +44,6 @@ docker pull wasmedge/wasmedge # Pulls the latest - wasmedge/wasmedge:latest
 | `ubuntu2104_armv7l`     | armhf   | Ubuntu 21.04           | 12.0.0       | CC=gcc, CXX=g++       | Ubuntu 21.04+            | This is for armhf release                                                           |
 | `manylinux2014_x86_64`  | x86\_64 | CentOS 7, 7.9.2009     | 12.0.0       | CC=gcc, CXX=g++       | Ubuntu 16.04+, CentOS 7+ | This is for developers who familiar with CentOS on x86\_64 architecture             |
 | `manylinux2014_aarch64` | aarch64 | CentOS 7, 7.9.2009     | 12.0.0       | CC=gcc, CXX=g++       | Ubuntu 16.04+, CentOS 7+ | This is for developers who familiar with CentOS on aarch64 architecture             |
-| `manylinux2010_x86_64`  | x86\_64 | CentOS 6, 6.10         | 12.0.0       | CC=gcc, CXX=g++       | Ubuntu 14.04+, CentOS 6+ | This is for developers who familiar with legacy system on x86\_64 architecture, EOL |
-| `manylinux1_x86_64`     | x86\_64 | CentOS 5, 5.11         | 12.0.0       | CC=gcc, CXX=g++       | Ubuntu 14.04+, CentOS 5+ | This is for developers who familiar with legacy system on x86\_64 architecture, EOL |
 
 ### Install dependencies on Ubuntu 20.04 manually
 
@@ -78,8 +76,6 @@ If you are looking for the pre-built binaries for the older operating system, we
 
 | Portable Linux Built Distributions Tags | Base Image  | Provided Requirements                                                 | Docker Image                             |
 | ---                                     | ---         | ---                                                                   | ---                                      |
-| `manylinux1`                            | CentOS 5.11 | GLIBC <= 2.5</br>CXXABI <= 3.4.8</br>GLIBCXX <= 3.4.9</br>GCC <= 4.2.0   | wasmedge/wasmedge:manylinux1\_x86\_64    |
-| `manylinux2010`                         | CentOS 6.10 | GLIBC <= 2.12</br>CXXABI <= 1.3.3</br>GLIBCXX <= 3.4.13</br>GCC <= 4.5.0 | wasmedge/wasmedge:manylinux2010\_x86\_64 |
 | `manylinux2014`                         | CentOS 7.9  | GLIBC <= 2.17</br>CXXABI <= 1.3.7</br>GLIBCXX <= 3.4.19</br>GCC <= 4.8.0 | wasmedge/wasmedge:manylinux2014\_x86\_64 |
 | `manylinux2014`                         | CentOS 7.9  | GLIBC <= 2.17</br>CXXABI <= 1.3.7</br>GLIBCXX <= 3.4.19</br>GCC <= 4.8.0 | wasmedge/wasmedge:manylinux2014\_aarch64 |
 

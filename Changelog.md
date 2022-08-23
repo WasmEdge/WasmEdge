@@ -20,6 +20,7 @@ Breaking changes:
     * Added the const qualifer of the first parameter of `WasmEdge_VMGetImportModuleContext()`.
   * Renamed the plugin API.
     * Renamed `WasmEdge_Plugin_loadWithDefaultPluginPaths()` to `WasmEdge_PluginLoadWithDefaultPaths()`.
+* Dropped the manylinux1 and manylinux2010 support. Please refer to the [deprecation notice](https://github.com/WasmEdge/WasmEdge/discussions/1780)
 
 Features:
 

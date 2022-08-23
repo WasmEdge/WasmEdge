@@ -2,8 +2,10 @@
 // SPDX-FileCopyrightText: 2019-2022 Second State INC
 
 #include "processenv.h"
-#include "po/helper.h"
 #include "processmodule.h"
+
+#include "po/helper.h"
+
 #include <string_view>
 
 namespace WasmEdge {

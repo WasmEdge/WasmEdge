@@ -13,6 +13,7 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
+#include "ast/type.h"
 #include "common/errcode.h"
 #include "common/span.h"
 #include "common/types.h"

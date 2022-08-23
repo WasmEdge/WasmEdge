@@ -3,10 +3,7 @@
 
 #pragma once
 
-#include "common/defines.h"
 #include "httpsreqbase.h"
-
-#include <stdio.h>
 
 namespace WasmEdge {
 namespace Host {

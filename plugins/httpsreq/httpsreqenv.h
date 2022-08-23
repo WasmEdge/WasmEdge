@@ -4,12 +4,9 @@
 #pragma once
 
 #include "plugin/plugin.h"
-#include "po/argument_parser.h"
-#include "po/list.h"
-#include "po/option.h"
+
 #include <cstdint>
 #include <string>
-#include <vector>
 
 namespace WasmEdge {
 namespace Host {

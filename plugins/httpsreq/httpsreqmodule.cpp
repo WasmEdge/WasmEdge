@@ -4,6 +4,8 @@
 #include "httpsreqmodule.h"
 #include "httpsreqfunc.h"
 
+#include <memory>
+
 namespace WasmEdge {
 namespace Host {
 

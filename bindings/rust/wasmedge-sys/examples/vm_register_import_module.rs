@@ -1,6 +1,6 @@
 use wasmedge_sys::{
-    AsImport, FuncType, Function, Global, GlobalType, ImportModule, ImportObject, MemType, Memory,
-    Table, TableType, Vm, WasmValue,
+    AsImport, CallingFrame, FuncType, Function, Global, GlobalType, ImportModule, ImportObject,
+    MemType, Memory, Table, TableType, Vm, WasmValue,
 };
 use wasmedge_types::{error::HostFuncError, Mutability, RefType, ValType};
 
@@ -12,7 +12,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut import = ImportModule::create(module_name)?;
 
     // a function to import
-    fn real_add(inputs: Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError> {
+    fn real_add(_: &CallingFrame, inputs: Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError> {
         if inputs.len() != 2 {
             return Err(HostFuncError::User(1));
         }

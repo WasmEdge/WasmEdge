@@ -120,7 +120,7 @@ mod tests {
     use crate::{
         instance::{Function, Global, GlobalType, MemType, Memory, Table, TableType},
         types::WasmValue,
-        AsImport, Config, Engine, Executor, FuncType, ImportModule, ImportObject, Vm,
+        AsImport, CallingFrame, Config, Engine, Executor, FuncType, ImportModule, ImportObject, Vm,
     };
     use std::{
         sync::{Arc, Mutex},
@@ -339,7 +339,7 @@ mod tests {
         assert_eq!(return_types, [ValType::I32]);
     }
 
-    fn real_add(inputs: Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError> {
+    fn real_add(_: &CallingFrame, inputs: Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError> {
         if inputs.len() != 2 {
             return Err(HostFuncError::User(1));
         }

@@ -2,7 +2,8 @@
 
 use crate::{
     error::{FuncError, HostFuncError, WasmEdgeError},
-    ffi, BoxedFn, BoxedFnSingle, Engine, WasmEdgeResult, WasmValue, HOST_FUNCS, HOST_FUNCS_SINGLE,
+    ffi, BoxedFn, BoxedFnSingle, CallingFrame, Engine, WasmEdgeResult, WasmValue, HOST_FUNCS,
+    HOST_FUNCS_SINGLE,
 };
 use core::ffi::c_void;
 use rand::Rng;
@@ -13,12 +14,15 @@ use wasmedge_types::ValType;
 extern "C" fn wraper_fn(
     key_ptr: *mut c_void,
     _data: *mut c_void,
-    _call_frame_cxt: *const ffi::WasmEdge_CallingFrameContext,
+    call_frame_ctx: *const ffi::WasmEdge_CallingFrameContext,
     params: *const ffi::WasmEdge_Value,
     param_len: u32,
     returns: *mut ffi::WasmEdge_Value,
     return_len: u32,
 ) -> ffi::WasmEdge_Result {
+    let frame = CallingFrame::create(call_frame_ctx);
+    dbg!(&frame);
+
     let key = key_ptr as *const usize as usize;
 
     let input = {
@@ -43,7 +47,7 @@ extern "C" fn wraper_fn(
         let real_fn = host_functions
             .get(&key)
             .expect("host function should be there");
-        real_fn(input)
+        real_fn(&frame, input)
     };
 
     match result {
@@ -69,12 +73,15 @@ extern "C" fn wraper_fn(
 extern "C" fn wraper_fn_single(
     key_ptr: *mut c_void,
     _data: *mut c_void,
-    _call_frame_cxt: *const ffi::WasmEdge_CallingFrameContext,
+    call_frame_ctx: *const ffi::WasmEdge_CallingFrameContext,
     params: *const ffi::WasmEdge_Value,
     param_len: u32,
     returns: *mut ffi::WasmEdge_Value,
     return_len: u32,
 ) -> ffi::WasmEdge_Result {
+    let frame = CallingFrame::create(call_frame_ctx);
+    dbg!(&frame);
+
     let key = key_ptr as *const usize as usize;
     let mut result = Err(HostFuncError::Runtime(0));
 
@@ -100,7 +107,7 @@ extern "C" fn wraper_fn_single(
         let real_fn = host_functions
             .get(&key)
             .expect("host function should be there");
-        result = real_fn(input);
+        result = real_fn(&frame, input);
     });
 
     match result {
@@ -166,10 +173,10 @@ impl Function {
     /// the `create_binding` method.
     ///
     /// ```rust
-    /// use wasmedge_sys::{FuncType, Function, WasmValue};
+    /// use wasmedge_sys::{FuncType, Function, WasmValue, CallingFrame};
     /// use wasmedge_types::{error::HostFuncError, ValType, WasmEdgeResult};
     ///
-    /// fn real_add(inputs: Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError> {
+    /// fn real_add(_: &CallingFrame, inputs: Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError> {
     ///     if inputs.len() != 2 {
     ///         return Err(HostFuncError::User(1));
     ///     }
@@ -327,10 +334,10 @@ impl Function {
     /// # Example
     ///
     /// ```rust
-    /// use wasmedge_sys::{FuncType, Function, WasmValue, Executor};
+    /// use wasmedge_sys::{FuncType, Function, WasmValue, Executor, CallingFrame};
     /// use wasmedge_types::{error::HostFuncError, ValType};
     ///
-    /// fn real_add(input: Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError> {
+    /// fn real_add(_: &CallingFrame, input: Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError> {
     ///     println!("Rust: Entering Rust function real_add");
     ///
     ///     if input.len() != 2 {
@@ -779,7 +786,7 @@ mod tests {
         handle.join().unwrap();
     }
 
-    fn real_add(input: Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError> {
+    fn real_add(_: &CallingFrame, input: Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError> {
         println!("Rust: Entering Rust function real_add");
 
         if input.len() != 2 {

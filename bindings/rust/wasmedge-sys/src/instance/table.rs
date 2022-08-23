@@ -259,7 +259,7 @@ unsafe impl Sync for InnerTableType {}
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{FuncType, Function};
+    use crate::{CallingFrame, FuncType, Function};
     use std::{
         sync::{Arc, Mutex},
         thread,
@@ -444,7 +444,7 @@ mod tests {
         handle.join().unwrap();
     }
 
-    fn real_add(input: Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError> {
+    fn real_add(_: &CallingFrame, input: Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError> {
         println!("Rust: Entering Rust function real_add");
 
         if input.len() != 2 {

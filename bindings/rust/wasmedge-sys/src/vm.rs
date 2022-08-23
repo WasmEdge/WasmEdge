@@ -1029,7 +1029,7 @@ mod tests {
             CoreCommonError, CoreError, CoreExecutionError, CoreLoadError, InstanceError, VmError,
             WasmEdgeError,
         },
-        Config, Loader, Module, Store, WasmValue,
+        CallingFrame, Config, Loader, Module, Store, WasmValue,
     };
     #[cfg(unix)]
     use crate::{
@@ -2529,7 +2529,7 @@ mod tests {
     }
 
     #[cfg(unix)]
-    fn real_add(inputs: Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError> {
+    fn real_add(_: &CallingFrame, inputs: Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError> {
         if inputs.len() != 2 {
             return Err(HostFuncError::User(1));
         }

@@ -355,7 +355,7 @@ pub trait AsInstance {
 /// ```rust
 /// use wasmedge_sys::{
 ///     AsImport, FuncType, Function, Global, GlobalType, ImportModule, ImportObject, MemType,
-///     Memory, Table, TableType, Vm, WasmValue,
+///     Memory, Table, TableType, Vm, WasmValue, CallingFrame,
 /// };
 /// use wasmedge_types::{error::HostFuncError, Mutability, RefType, ValType};
 ///
@@ -366,7 +366,7 @@ pub trait AsInstance {
 ///     let mut import = ImportModule::create(module_name)?;
 ///
 ///     // a function to import
-///     fn real_add(inputs: Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError> {
+///     fn real_add(_: &CallingFrame, inputs: Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError> {
 ///         if inputs.len() != 2 {
 ///             return Err(HostFuncError::User(1));
 ///         }
@@ -2885,8 +2885,8 @@ mod tests {
     #[cfg(target_os = "linux")]
     use crate::utils;
     use crate::{
-        Config, Executor, FuncType, GlobalType, ImportModule, MemType, Store, TableType, Vm,
-        WasmValue,
+        CallingFrame, Config, Executor, FuncType, GlobalType, ImportModule, MemType, Store,
+        TableType, Vm, WasmValue,
     };
     use std::{
         sync::{Arc, Mutex},
@@ -3428,7 +3428,7 @@ mod tests {
         vm
     }
 
-    fn real_add(inputs: Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError> {
+    fn real_add(_: &CallingFrame, inputs: Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError> {
         if inputs.len() != 2 {
             return Err(HostFuncError::User(1));
         }

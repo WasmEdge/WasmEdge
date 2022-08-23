@@ -292,8 +292,8 @@ unsafe impl Sync for InnerExecutor {}
 mod tests {
     use super::*;
     use crate::{
-        AsImport, Config, FuncType, Function, Global, GlobalType, ImportModule, MemType, Memory,
-        Statistics, Table, TableType,
+        AsImport, CallingFrame, Config, FuncType, Function, Global, GlobalType, ImportModule,
+        MemType, Memory, Statistics, Table, TableType,
     };
     use std::{
         sync::{Arc, Mutex},
@@ -494,7 +494,7 @@ mod tests {
         handle.join().unwrap();
     }
 
-    fn real_add(inputs: Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError> {
+    fn real_add(_: &CallingFrame, inputs: Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError> {
         if inputs.len() != 2 {
             return Err(HostFuncError::User(1));
         }

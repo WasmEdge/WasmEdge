@@ -1,4 +1,6 @@
-use wasmedge_sys::{AsImport, Config, FuncType, Function, ImportObject, Vm, WasiModule, WasmValue};
+use wasmedge_sys::{
+    AsImport, CallingFrame, Config, FuncType, Function, ImportObject, Vm, WasiModule, WasmValue,
+};
 use wasmedge_types::{
     error::{CoreError, CoreInstantiationError, HostFuncError, VmError, WasmEdgeError},
     ValType,
@@ -30,7 +32,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let mut import_wasi = WasiModule::create(None, None, None)?;
 
         // a function to import
-        fn real_add(inputs: Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError> {
+        fn real_add(
+            _: &CallingFrame,
+            inputs: Vec<WasmValue>,
+        ) -> Result<Vec<WasmValue>, HostFuncError> {
             if inputs.len() != 2 {
                 return Err(HostFuncError::User(1));
             }

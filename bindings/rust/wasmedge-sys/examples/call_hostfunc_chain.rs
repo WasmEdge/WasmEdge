@@ -43,19 +43,21 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     vm.load_wasm_from_bytes(&wasm_bytes)?;
     vm.validate()?;
 
-    let host_layer1 = |_: Vec<WasmValue>| -> Result<Vec<WasmValue>, HostFuncError> {
-        println!("There is layer1!");
-        Ok(vec![])
-    };
+    let host_layer1 =
+        |_: &CallingFrame, _: Vec<WasmValue>| -> Result<Vec<WasmValue>, HostFuncError> {
+            println!("There is layer1!");
+            Ok(vec![])
+        };
 
     let s = Arc::new(Mutex::new(Wrapper(&vm as *const Vm)));
-    let host_layer2 = move |_: Vec<WasmValue>| -> Result<Vec<WasmValue>, HostFuncError> {
-        unsafe {
-            (*s.lock().unwrap().0).run_function("layer1", []).unwrap();
-        }
-        println!("There is layer2!");
-        Ok(vec![])
-    };
+    let host_layer2 =
+        move |_: &CallingFrame, _: Vec<WasmValue>| -> Result<Vec<WasmValue>, HostFuncError> {
+            unsafe {
+                (*s.lock().unwrap().0).run_function("layer1", []).unwrap();
+            }
+            println!("There is layer2!");
+            Ok(vec![])
+        };
 
     let func_ty = FuncType::create(vec![], vec![]).unwrap();
     let host_layer1 = Function::create_single_thread(&func_ty, Box::new(host_layer1), 0)?;

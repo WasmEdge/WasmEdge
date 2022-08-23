@@ -442,7 +442,7 @@ pub enum CoreExecutionError {
 #[derive(Error, Clone, Debug, PartialEq, Eq)]
 pub enum HostFuncError {
     #[error("User error: {0}")]
-    User(u8),
+    User(u32),
     #[error("Runtime error: {0}")]
-    Runtime(u8),
+    Runtime(u32),
 }

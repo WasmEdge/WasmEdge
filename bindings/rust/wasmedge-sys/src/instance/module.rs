@@ -502,7 +502,7 @@ impl AsImport for ImportModule {
 ///
 /// # Usage
 ///
-/// * [WasiModule] implements [ImportInstance](crate::ImportInstance) trait, therefore it can be used to register function, table, memory and global instances.
+/// * [WasiModule] implements [AsImport](crate::AsImport) trait, therefore it can be used to register function, table, memory and global instances.
 ///     * [Example](https://github.com/WasmEdge/WasmEdge/tree/master/bindings/rust/wasmedge-sys/examples/wasi_module.rs)
 ///
 /// * A [WasiModule] can be created implicitly inside a [Vm](crate::Vm) by passing the [Vm](crate::Vm) a [config](crate::Config) argument in which the `wasi` option is enabled.
@@ -1494,7 +1494,7 @@ impl AsImport for WasiNnModule {
     }
 }
 
-/// A [WasiCryptoCommon] is a module instance for the WASI-Crypto specification, covering common types and functions for symmetric operations.
+/// A [WasiCryptoCommonModule] is a module instance for the WASI-Crypto specification, covering common types and functions for symmetric operations.
 #[derive(Debug)]
 pub struct WasiCryptoCommonModule {
     pub(crate) inner: InnerInstance,
@@ -1753,7 +1753,7 @@ impl AsImport for WasiCryptoCommonModule {
     }
 }
 
-/// A [WasiCryptoAsymmetricCommon] is a module instance for the WASI-Crypto specification, covering common types and functions for asymmetric operations.
+/// A [WasiCryptoAsymmetricCommonModule] is a module instance for the WASI-Crypto specification, covering common types and functions for asymmetric operations.
 ///
 /// # Error
 ///
@@ -2012,7 +2012,7 @@ impl AsImport for WasiCryptoAsymmetricCommonModule {
     }
 }
 
-/// A [WasiCryptoSymmetric] is a module instance for the WASI-Crypto specification, covering symmetric operations.
+/// A [WasiCryptoSymmetricModule] is a module instance for the WASI-Crypto specification, covering symmetric operations.
 #[derive(Debug)]
 pub struct WasiCryptoSymmetricModule {
     pub(crate) inner: InnerInstance,
@@ -2271,7 +2271,7 @@ impl AsImport for WasiCryptoSymmetricModule {
     }
 }
 
-/// A [WasiCryptoKx] is a module instance for the WASI-Crypto specification, covering key exchange interfaces.
+/// A [WasiCryptoKxModule] is a module instance for the WASI-Crypto specification, covering key exchange interfaces.
 #[derive(Debug)]
 pub struct WasiCryptoKxModule {
     pub(crate) inner: InnerInstance,
@@ -2530,7 +2530,7 @@ impl AsImport for WasiCryptoKxModule {
     }
 }
 
-/// A [WasiCryptoSignatures] is a module instance for the WASI-Crypto specification, covering signatures interfaces.
+/// A [WasiCryptoSignaturesModule] is a module instance for the WASI-Crypto specification, covering signatures interfaces.
 #[derive(Debug)]
 pub struct WasiCryptoSignaturesModule {
     pub(crate) inner: InnerInstance,

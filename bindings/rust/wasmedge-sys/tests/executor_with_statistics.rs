@@ -279,6 +279,6 @@ fn test_executor_with_statistics() {
     assert!(result.is_err());
     assert_eq!(
         result.unwrap_err(),
-        WasmEdgeError::Core(CoreError::Execution(CoreExecutionError::HostFuncError))
+        WasmEdgeError::Core(CoreError::Execution(CoreExecutionError::HostFuncFailed))
     );
 }

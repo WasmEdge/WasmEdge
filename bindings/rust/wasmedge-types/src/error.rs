@@ -1,11 +1,15 @@
 //! Defines WasmEdge error types.
 
 use crate::ExternalInstanceType;
+use std::sync::Arc;
 use thiserror::Error;
 
 /// The error types used by both wasmedge-sys and wasmedge crates.
 #[derive(Error, Clone, Debug, PartialEq, Eq)]
 pub enum WasmEdgeError {
+    #[error("{0}")]
+    User(u32),
+
     /// Errors raised by WasmEdge Core.
     #[error("{0}")]
     Core(CoreError),
@@ -427,11 +431,114 @@ pub enum CoreExecutionError {
     #[error("indirect call type mismatch")]
     IndirectCallTypeMismatch,
     #[error("host function failed")]
-    HostFuncError,
+    HostFuncFailed,
     #[error("reference type mismatch")]
     RefTypeMismatch,
     #[error("unaligned atomic")]
     UnalignedAtomicAccess,
     #[error("wait on unshared memory")]
     WaitOnUnsharedMemory,
+}
+
+/// The error source for the [HostFuncError]
+#[derive(Debug)]
+enum HostFuncErrorSource {
+    Generic(String),
+    User(Box<dyn std::error::Error + Send + Sync>),
+}
+impl std::fmt::Display for HostFuncErrorSource {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            HostFuncErrorSource::Generic(s) => write!(f, "{}", s),
+            HostFuncErrorSource::User(e) => write!(f, "{}", e),
+        }
+    }
+}
+
+struct HostFuncErrorInner {
+    source: HostFuncErrorSource,
+    err_code: u32,
+}
+
+/// The error type returned by host function.
+#[derive(Clone)]
+pub struct HostFuncError {
+    inner: Arc<HostFuncErrorInner>,
+}
+impl HostFuncError {
+    /// Creates a new generic [HostFuncError] with the given message.
+    ///
+    /// # Argument
+    ///
+    /// * `message` - The message to use for the error.
+    pub fn new(message: impl Into<String>, err_code: u32) -> Self {
+        HostFuncError {
+            inner: Arc::new(HostFuncErrorInner {
+                source: HostFuncErrorSource::Generic(message.into()),
+                err_code,
+            }),
+        }
+    }
+
+    /// Creates a custom user Error.
+    ///
+    /// # Argument
+    ///
+    /// * `err` - The custom user error to use for the error.
+    pub fn user(err: impl std::error::Error + Send + Sync + 'static, err_code: u32) -> Self {
+        HostFuncError {
+            inner: Arc::new(HostFuncErrorInner {
+                source: HostFuncErrorSource::User(Box::new(err)),
+                err_code,
+            }),
+        }
+    }
+
+    /// Returns the error message.
+    pub fn message(&self) -> String {
+        self.inner.source.to_string()
+    }
+
+    /// Returns the error code.
+    ///
+    /// Notice that the error code must be between 0xE0 and 0xEF.
+    pub fn err_code(&self) -> u32 {
+        self.inner.err_code
+    }
+}
+impl std::fmt::Debug for HostFuncError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match &self.inner.source {
+            HostFuncErrorSource::Generic(s) => {
+                write!(f, "HostFuncError({}: {})", self.inner.err_code, s)
+            }
+            HostFuncErrorSource::User(e) => {
+                write!(f, "HostFuncError({}: {:?})", self.inner.err_code, e)
+            }
+        }
+    }
+}
+impl std::fmt::Display for HostFuncError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match &self.inner.source {
+            HostFuncErrorSource::Generic(s) => write!(f, "host function error: {}", s),
+            HostFuncErrorSource::User(e) => write!(f, "host function error: {}", e),
+        }
+    }
+}
+impl std::error::Error for HostFuncError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match &self.inner.source {
+            HostFuncErrorSource::Generic(_) => None,
+            HostFuncErrorSource::User(e) => Some(e.as_ref()),
+        }
+    }
+}
+
+#[derive(Error, Clone, Debug, PartialEq, Eq)]
+pub enum MyError {
+    #[error("User error: {0}")]
+    User(u8),
+    #[error("Runtime error: {0}")]
+    Runtime(u8),
 }

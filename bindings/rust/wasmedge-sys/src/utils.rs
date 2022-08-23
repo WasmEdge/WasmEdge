@@ -284,7 +284,7 @@ pub(crate) fn check(result: WasmEdge_Result) -> WasmEdgeResult<()> {
             CoreExecutionError::IndirectCallTypeMismatch,
         ))),
         0x8D => Err(WasmEdgeError::Core(CoreError::Execution(
-            CoreExecutionError::HostFuncError,
+            CoreExecutionError::HostFuncFailed,
         ))),
         0x8E => Err(WasmEdgeError::Core(CoreError::Execution(
             CoreExecutionError::RefTypeMismatch,

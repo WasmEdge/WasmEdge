@@ -4726,10 +4726,12 @@ Expect<void> outputNativeLibrary(const std::filesystem::path &OutputPath,
             // LLVM 14 replaces the older mach_o lld implementation with the new
             // one. And it require -arch and -platform_version to always be
             // specified. Reference: https://reviews.llvm.org/D97799
-            "-platform_version", "macos", "10", "11",
+            "-platform_version", "macos", "10.0", "11.0",
+#else
+            "-sdk_version", "11.3",
 #endif
             "-dylib", "-demangle", "-macosx_version_min", "10.0.0",
-            "-sdk_version", "11.3", "-syslibroot",
+            "-syslibroot",
             "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk",
             ObjectName.c_str(), "-o", OutputPath.u8string().c_str(), "-lSystem"
       },

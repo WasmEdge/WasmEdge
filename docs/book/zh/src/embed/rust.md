@@ -35,7 +35,7 @@ WasmEdge Rust SDK 涉及两个 Rust crate [wasmedge-sys](https://crates.io/crate
   |       |-- version.h
   |       `-- wasmedge.h
   `-- lib64
-      `-- libwasmedge_c.so
+      `-- libwasmedge.so
 
   4 directories, 9 files
   ```

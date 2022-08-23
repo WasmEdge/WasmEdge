@@ -66,8 +66,8 @@ cmake -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_BUILD_AOT_RUNTIME=OFF ..
 2. `wasmedgec` 是一个 AOT `WASM` 编译器。
    - `wasmedgec` 将一个 `WASM` 格式的文件编译为`dll` 格式文件。
    - 如果你不需要构建 AOT 编译器，可以将 CMake 选项 `WASMEDGE_BUILD_AOT_RUNTIME`  设置为  `OFF` 。
-3. `wasmedge_c.dll` 是 WasmEdge 的 C API 共享库.
-   - `wasmedge_c.dll` 为 AOT 编译器和 WASM 运行时提供 C API。
+3. `wasmedge.dll` 是 WasmEdge 的 C API 共享库.
+   - `wasmedge.dll` 为 AOT 编译器和 WASM 运行时提供 C API。
    - CMake 选项 `WASMEDGE_BUILD_AOT_RUNTIME` 设置为 `OFF` 后，调用与 AOT 编译器相关的 API 只会返回失败值。
    - 如果你不需要构建共享库，可以将 CMake 选项 `WASMEDGE_BUILD_SHARED_LIB`  设置为 `OFF` 。
 

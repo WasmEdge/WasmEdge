@@ -89,8 +89,8 @@ WasmEdge 提供了各種工具來支援更好的性能以及更多樣的執行�
 2. `wasmedgec` 是一個 WASM Ahead-of-time 編譯器。
    - `wasmedgec` 可以將一個通用的 `WASM` 檔案編譯成 `so` 檔案。
    - 您可以透過將 CMake 選項 `WASMEDGE_BUILD_AOT_RUNTIME` 設為 `OFF` 來禁止編譯 Ahead-of-time 編譯器。
-3. `libwasmedge_c.so` 是 WasmEdge C API 的共享函式庫。
-   - `libwasmedge_c.so` 提供了連接 WASM runtime 和 Ahead-of-time 編譯器的 C 語言 API。
+3. `libwasmedge.so` 是 WasmEdge C API 的共享函式庫。
+   - `libwasmedge.so` 提供了連接 WASM runtime 和 Ahead-of-time 編譯器的 C 語言 API。
    - 如果 `WASMEDGE_BUILD_AOT_RUNTIME` 選項被設為 `OFF` ，與 Ahead-of-time 編譯器相關的 API 都將回傳錯誤。
    - 您可以透過將 CMake 選項 `WASMEDGE_BUILD_SHARED_LIB` 設為 `OFF` 來禁止編譯 WasmEdge C API 的共享函式庫。
 4. `ssvm-qitc` 與 AI 應用程式相關，是支援 ONNX 格式的 AI 模型的 ONNC runtime 。

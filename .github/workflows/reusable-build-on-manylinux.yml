@@ -32,7 +32,6 @@ jobs:
           bash utils/docker/build-manylinux.sh
           ./build/tools/wasmedge/wasmedge -v
       - name: Upload artifact (v2)
-        if: ${{ !inputs.release }}
         uses: actions/upload-artifact@v2
         with:
           path: build/WasmEdge-${{ inputs.version }}-Linux.tar.gz

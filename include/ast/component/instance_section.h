@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2019-2022 Second State INC
 
-//=== wasmedge/ast/component/instance_section.h
-// Instance Section class definitions
+//=== Instance Section class definitions
 //
 // Part of the WasmEdge Project.
 //

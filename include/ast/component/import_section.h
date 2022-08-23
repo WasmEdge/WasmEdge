@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2019-2022 Second State INC
 
-//=== wasmedge/ast/component/import_section.h - Import Section class definitions
+//=== Import Section class definitions
 //
 // Part of the WasmEdge Project.
 //

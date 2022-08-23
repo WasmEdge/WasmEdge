@@ -39,8 +39,6 @@ docker pull wasmedge/wasmedge # 等同于 wasmedge/wasmedge:latest
 | `ubuntu2004_x86_64`     | x86\_64  | Ubuntu 20.04 LTS   | 10.0.0    | CC=gcc, CXX=g++       | Ubuntu 20.04+            | 这个提供给熟悉 Ubuntu 20.04 LTS 版本的开发者使用                    |
 | `manylinux2014_x86_64`  | x86\_64  | CentOS 7, 7.9.2009 | 12.0.0    | CC=gcc, CXX=g++       | Ubuntu 16.04+, CentOS 7+ | 这个提供给熟悉 CentOS x86\_64 架构的开发者使用                      |
 | `manylinux2014_aarch64` | aarch64  | CentOS 7, 7.9.2009 | 12.0.0    | CC=gcc, CXX=g++       | Ubuntu 16.04+, CentOS 7+ | 这个提供给熟悉 CentOS aarch64 架构的开发者使用                      |
-| `manylinux2010_x86_64`  | x86\_64  | CentOS 6, 6.10     | 12.0.0    | CC=gcc, CXX=g++       | Ubuntu 14.04+, CentOS 6+ | 这个提供给熟悉基于 x86\_64 架构的过时系统的开发者使用，后续不再维护 |
-| `manylinux1_x86_64`     | x86\_64  | CentOS 5, 5.11     | 12.0.0    | CC=gcc, CXX=g++       | Ubuntu 14.04+, CentOS 5+ | 这个提供给熟悉基于 x86\_64 架构的过时系统的开发者使用，后续不再维护 |
 
 ### 在 Ubuntu 20.04 上手动安装依赖
 
@@ -73,8 +71,6 @@ sudo apt install -y clang
 
 | 可移植的 Linux 发行版标签                  | 基础镜像      | 提供的依赖                                                              | Docker 镜像                              |
 | ---                                     | ---         | ---                                                                   | ---                                      |
-| `manylinux1`                            | CentOS 5.11 | GLIBC <= 2.5</br>CXXABI <= 3.4.8</br>GLIBCXX <= 3.4.9</br>GCC <= 4.2.0   | wasmedge/wasmedge:manylinux1\_x86\_64    |
-| `manylinux2010`                         | CentOS 6.10 | GLIBC <= 2.12</br>CXXABI <= 1.3.3</br>GLIBCXX <= 3.4.13</br>GCC <= 4.5.0 | wasmedge/wasmedge:manylinux2010\_x86\_64 |
 | `manylinux2014`                         | CentOS 7.9  | GLIBC <= 2.17</br>CXXABI <= 1.3.7</br>GLIBCXX <= 3.4.19</br>GCC <= 4.8.0 | wasmedge/wasmedge:manylinux2014\_x86\_64 |
 | `manylinux2014`                         | CentOS 7.9  | GLIBC <= 2.17</br>CXXABI <= 1.3.7</br>GLIBCXX <= 3.4.19</br>GCC <= 4.8.0 | wasmedge/wasmedge:manylinux2014\_aarch64 |
 

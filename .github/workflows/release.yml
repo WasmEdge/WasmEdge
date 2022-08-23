@@ -71,7 +71,7 @@ jobs:
     with:
       version: ${{ needs.create_release.outputs.version }}
       legacy: true
-      matrix: "[{'runner':'ubuntu-latest','docker_tag':'manylinux2010_x86_64'},{'runner':'ubuntu-latest','docker_tag':'manylinux1_x86_64'}]"
+      matrix: "[{'runner':'ubuntu-latest','docker_tag':'manylinux2010_x86_64'}]"
       release: true
       upload_asset_url: ${{ needs.create_release.outputs.upload_url }}
     secrets: inherit

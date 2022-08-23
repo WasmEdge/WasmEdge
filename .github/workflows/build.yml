@@ -97,7 +97,7 @@ jobs:
     with:
       version: ${{ needs.get_version_v1.outputs.version }}
       legacy: true
-      matrix: "[{'runner':'ubuntu-latest','docker_tag':'manylinux2010_x86_64'},{'runner':'ubuntu-latest','docker_tag':'manylinux1_x86_64'}]"
+      matrix: "[{'runner':'ubuntu-latest','docker_tag':'manylinux2010_x86_64'}]"
 
   build_on_manylinux_2014:
     needs: [get_version_v2, lint]

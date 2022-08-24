@@ -3,6 +3,8 @@
 
 #include "processfunc.h"
 
+#include "common/defines.h"
+
 #if WASMEDGE_OS_LINUX || WASMEDGE_OS_MACOS
 #include <errno.h>
 #include <fcntl.h>

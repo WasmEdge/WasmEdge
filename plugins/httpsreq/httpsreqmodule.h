@@ -4,7 +4,9 @@
 #pragma once
 
 #include "httpsreqenv.h"
+
 #include "runtime/instance/module.h"
+
 #include <cstdint>
 
 namespace WasmEdge {

@@ -3,9 +3,9 @@
 
 #pragma once
 
-#include "common/errcode.h"
 #include "processenv.h"
-#include "runtime/callingframe.h"
+
+#include "common/errcode.h"
 #include "runtime/hostfunc.h"
 
 namespace WasmEdge {

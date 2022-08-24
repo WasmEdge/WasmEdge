@@ -30,11 +30,12 @@ impl CallingFrame {
         }
     }
 
-    /// Returns the [module instance](crate::Instance) in this calling frame. If the executing function instance
-    /// is a host function and not added into any module instance, then returns `None`.
+    /// Returns the [module instance](crate::Instance) in this calling frame.
     ///
-    /// When a wasm function is executing and tring to call a host function inside, a calling frame with the module
-    /// instance which the wasm function belongs to will be pushed onto the stack. And therefore the calling frame
+    /// If the executing function instance is a host function and not added into any module instance, then returns `None`.
+    ///
+    /// When a wasm function is executing and tring to call a host function inside, a frame with the module
+    /// instance the wasm function belongs to will be pushed onto the stack. And therefore the calling frame
     /// context will record that module instance.
     ///
     pub fn module_instance(&self) -> Option<Instance> {

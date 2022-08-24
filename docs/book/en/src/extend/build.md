@@ -123,9 +123,9 @@ Developers can set the CMake options to customize the WasmEdge building.
     - If this option is set as `ON`, the `libz` and `libtinfo` on Linux platforms will be statically linked.
 5. `WASMEDGE_BUILD_TOOLS`: build the `wasmedge` and `wasmedgec` tools. Default is `ON`.
     - The `wasmedge` and `wasmedgec` tools will link to the WasmEdge shared library by default.
-    - The option `WASMEDGE_BUILD_SHARED_LIB` will forcefully be set as `ON` if the `WASMEDGE_BUILD_STATIC_LIB` is `OFF` and the `WASMEDGE_LINK_TOOLS_STATIC` is `OFF`.
     - If this option is set as `ON` and `WASMEDGE_BUILD_AOT_RUNTIME` is set as `OFF`, the `wasmedgec` tool for the AOT compiler will not be built.
-    - If this option and the option `WASMEDGE_BUILD_STATIC_LIB` are both set as `ON`, the `WASMEDGE_LINK_LLVM_STATIC` will be set as `ON` and the `wasmedge` and `wasmedgec` tools will link to the WasmEdge static library so that be the standalone tools accordingly.
+    - If this option is set as `ON` but the option `WASMEDGE_LINK_TOOLS_STATIC` is set as `OFF`, the option `WASMEDGE_BUILD_SHARED_LIB` will forcefully be set as `ON`.
+    - If this option and the option `WASMEDGE_LINK_TOOLS_STATIC` are both set as `ON`, the `WASMEDGE_LINK_LLVM_STATIC` and `WASMEDGE_BUILD_STATIC_LIB` will both be set as `ON`, and the `wasmedge` and `wasmedgec` tools will link to the WasmEdge static library instead. In this case, the plugins will not work in tools.
 6. `WASMEDGE_BUILD_PLUGINS`: build the WasmEdge plugins. Default is `ON`.
 7. `WASMEDGE_BUILD_EXAMPLE`: build the WasmEdge examples. Default is `OFF`.
 8. `WASMEDGE_PLUGIN_WASI_NN_BACKEND`: build the WasmEdge WASI-NN plugin (Linux platforms only). Default is empty.

@@ -64,9 +64,38 @@ pub struct Func {
     pub(crate) mod_name: Option<String>,
 }
 impl Func {
+    /// Creates a host function of the given func type.
+    ///
+    /// N.B. that this function can be used in thread-safe scenarios.
+    ///
+    /// # Arguments
+    ///
+    /// * `ty` - The function type.
+    ///
+    /// * `real_func` - The native function that will be wrapped as a host function.
+    ///
+    /// # Error
+    ///
+    /// If fail to create the host function, then an error is returned.
+    pub fn new(
+        ty: FuncType,
+        real_func: impl Fn(&CallingFrame, Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError>
+            + Send
+            + Sync
+            + 'static,
+    ) -> WasmEdgeResult<Self> {
+        let boxed_func = Box::new(real_func);
+        let inner = sys::Function::create(&ty.into(), boxed_func, 0)?;
+        Ok(Self {
+            inner,
+            name: None,
+            mod_name: None,
+        })
+    }
+
     /// Creates a host function by wrapping a native function.
     ///
-    /// N.B. that this function is used for thread-safe scenarios.
+    /// N.B. that this function can be used in thread-safe scenarios.
     ///
     /// # Arguments
     ///

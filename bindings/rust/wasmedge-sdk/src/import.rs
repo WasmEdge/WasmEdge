@@ -96,7 +96,7 @@ impl ImportObjectBuilder {
 
     /// Adds a [host function](crate::Func) to the [ImportObject] to create.
     ///
-    /// N.B. that this function is used for thread-safe scenarios.
+    /// N.B. that this function can be used in thread-safe scenarios.
     ///
     /// # Arguments
     ///
@@ -123,6 +123,36 @@ impl ImportObjectBuilder {
         let args = Args::wasm_types();
         let returns = Rets::wasm_types();
         let ty = FuncType::new(Some(args.to_vec()), Some(returns.to_vec()));
+        let inner_func = sys::Function::create(&ty.into(), boxed_func, 0)?;
+        self.funcs.push((name.as_ref().to_owned(), inner_func));
+        Ok(self)
+    }
+
+    /// Adds a [host function](crate::Func) to the [ImportObject] to create.
+    ///
+    /// N.B. that this function can be used in thread-safe scenarios.
+    ///
+    /// # Arguments
+    ///
+    /// * `name` - The exported name of the [host function](crate::Func) to add.
+    ///
+    /// * `ty` - The function type.
+    ///
+    /// * `real_func` - The native function.
+    ///
+    /// # error
+    ///
+    /// If fail to create or add the [host function](crate::Func), then an error is returned.
+    pub fn with_func_by_type(
+        mut self,
+        name: impl AsRef<str>,
+        ty: FuncType,
+        real_func: impl Fn(&CallingFrame, Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError>
+            + Send
+            + Sync
+            + 'static,
+    ) -> WasmEdgeResult<Self> {
+        let boxed_func = Box::new(real_func);
         let inner_func = sys::Function::create(&ty.into(), boxed_func, 0)?;
         self.funcs.push((name.as_ref().to_owned(), inner_func));
         Ok(self)

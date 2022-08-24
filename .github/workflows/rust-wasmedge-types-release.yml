@@ -1,4 +1,4 @@
-name: wasmedge-types crate release
+name: wasmedge-types-release
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}

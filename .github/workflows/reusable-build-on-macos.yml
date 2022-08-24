@@ -66,8 +66,8 @@ jobs:
           otool -L ./build/tools/wasmedge/wasmedge
           echo "otool -L ./build/tools/wasmedge/wasmedgec:"
           otool -L ./build/tools/wasmedge/wasmedgec
-          echo "otool -L ./build/lib/api/libwasmedge_c.dylib:"
-          otool -L ./build/lib/api/libwasmedge_c.dylib
+          echo "otool -L ./build/lib/api/libwasmedge.dylib:"
+          otool -L ./build/lib/api/libwasmedge.dylib
           echo "./build/tools/wasmedge/wasmedgec examples/wasm/fibonacci.wasm fib.dylib"
           ./build/tools/wasmedge/wasmedgec examples/wasm/fibonacci.wasm fib.dylib
           echo "./build/tools/wasmedge/wasmedge --reactor fib.dylib fib 20"

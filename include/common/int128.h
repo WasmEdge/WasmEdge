@@ -13,11 +13,14 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
+#include <ostream>
+
 #if defined(__x86_64__) || defined(__aarch64__)
 
 namespace WasmEdge {
 using int128_t = __int128;
 using uint128_t = unsigned __int128;
+std::ostream &operator<<(std::ostream &OS, uint128_t Value);
 } // namespace WasmEdge
 
 #else
@@ -177,7 +180,7 @@ public:
     }
     uint128_t Denominator = RHS;
     uint128_t Quotient = 0;
-    const unsigned int Shift = LHS.clz() - RHS.clz();
+    const unsigned int Shift = RHS.clz() - LHS.clz();
     Denominator <<= Shift;
     for (unsigned int I = 0; I <= Shift; ++I) {
       Quotient <<= 1U;
@@ -197,18 +200,15 @@ public:
       return 0;
     }
     uint128_t Denominator = RHS;
-    uint128_t Quotient = 0;
-    const unsigned int Shift = LHS.clz() - RHS.clz();
+    const unsigned int Shift = RHS.clz() - LHS.clz();
     Denominator <<= Shift;
     for (unsigned int I = 0; I <= Shift; ++I) {
-      Quotient <<= 1U;
       if (LHS >= Denominator) {
         LHS -= Denominator;
-        Quotient |= 1U;
       }
       Denominator >>= 1U;
     }
-    return Denominator;
+    return LHS;
   }
   friend constexpr uint128_t operator&(uint128_t LHS, uint128_t RHS) noexcept {
     return uint128_t(LHS.High & RHS.High, LHS.Low & RHS.Low);
@@ -342,6 +342,7 @@ inline constexpr int128_t &int128_t::operator=(uint128_t V) noexcept {
   return *this = int128_t(V);
 }
 
+std::ostream &operator<<(std::ostream &OS, uint128_t Value);
 } // namespace WasmEdge
 
 namespace std {

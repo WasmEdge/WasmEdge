@@ -365,6 +365,9 @@ int Tool(int Argc, const char *Argv[]) noexcept {
         case ValType::F64:
           std::cout << (*Result)[I].first.get<double>() << '\n';
           break;
+        case ValType::V128:
+          std::cout << (*Result)[I].first.get<uint128_t>() << '\n';
+          break;
         /// TODO: FuncRef and ExternRef
         default:
           break;

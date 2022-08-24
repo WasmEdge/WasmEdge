@@ -1,7 +1,14 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-from __future__ import division, print_function, absolute_import, unicode_literals
+from __future__ import (
+    division,
+    print_function,
+    absolute_import,
+    unicode_literals,
+    with_statement,
+)
+from contextlib import contextmanager
 from posixpath import lexists
 import shutil
 import sys
@@ -71,6 +78,20 @@ def show_progress(block_num, block_size, total_size):
         print("Downloaded")
 
 
+@contextmanager
+def opened_w_error(filename, mode="r"):
+    try:
+        f = open(filename, mode)
+    except IOError as err:
+        logging.critical("Error opening file: %s error: %s", filename, err.strerror)
+        yield None
+    else:
+        try:
+            yield f
+        finally:
+            f.close()
+
+
 def _is_tarxz(filename):
     return filename.endswith(".tar.xz")
 
@@ -119,13 +140,39 @@ def extract_archive(
         reraise(ValueError("Extraction of {} not supported".format(from_path)))
 
     logging.debug("Writing installed files to %s file", env_file_path)
-    with open(env_file_path, "a") as env_file:
-        for filename in files_extracted:
-            fname = filename.replace(CONST_ipkg, ipath)
-            if ipath not in fname:
-                fname = join(ipath, fname)
-            env_file.write("#" + fname + "\n")
-            logging.debug("Appending:%s", fname)
+    with opened_w_error(env_file_path, "a") as env_file:
+        if env_file is not None:
+            for filename in files_extracted:
+                fname = filename.replace(CONST_ipkg, ipath)
+
+                # Skip if it ends with "wasmedge" as it is going to be removed at a later stage
+                if fname.endswith("wasmedge"):
+                    continue
+
+                # replace wasmedge folder name with include
+                fname = fname.replace("include/wasmedge", "include")
+                if "Plugin" in fname:
+                    if ipath not in fname:
+                        fname = join(ipath, "plugin", fname)
+                    else:
+                        # replace lib or lib64 wasmedge name with plugin
+                        fname = fname.replace("lib64/wasmedge", "plugin").replace(
+                            "lib/wasmedge", "plugin"
+                        )
+                else:
+                    if ipath not in fname:
+                        fname = join(ipath, fname)
+                # Don't append system directories
+                if (
+                    args.path != abspath(PATH)
+                    and fname.startswith("/usr")
+                    and isdir(fname)
+                ):
+                    continue
+                env_file.write("#" + fname + "\n")
+                logging.debug("Appending:%s", fname)
+        else:
+            logging.warning("Unable to write to env file")
 
     if remove_finished:
         remove(from_path)
@@ -134,7 +181,7 @@ def extract_archive(
 # https://stackoverflow.com/questions/1868714/
 # how-do-i-copy-an-entire-directory-of-files-
 # into-an-existing-directory-using-pyth
-def copytree(src, dst, symlinks=False, ignore=None):
+def copytree(src, dst, symlinks=True, ignore=None):
     if not exists(dst):
         makedirs(dst)
         shutil.copystat(src, dst)
@@ -214,7 +261,9 @@ SUPPORTED_MIN_VERSION = {
 WASMEDGE = "WasmEdge"
 WASMEDGE_UNINSTALLER = "WasmEdge_Uninstaller"
 TENSORFLOW = "tensorflow"
+TENSORFLOW_LITE = "tensorflow_lite"
 TENSORFLOW_DEPS = "tensorflow_deps"
+TENSORFLOW_LITE_DEPS = "tensorflow_lite_deps"
 TENSORFLOW_TOOLS = "tensorflow_tools"
 IMAGE = "image"
 IMAGE_DEPS = "image_deps"
@@ -251,13 +300,13 @@ SUPPORTED_EXTENSIONS_VERSION = {
     "Linux" + "arm64" + IMAGE: VersionString("0.8.1"),
     "Linux" + "armv8" + TENSORFLOW: VersionString("0.8.1"),
     "Linux" + "armv8" + IMAGE: VersionString("0.8.1"),
-    "Linux" + "aarch64" + TENSORFLOW: VersionString("0.8.1"),
+    "Linux" + "aarch64" + TENSORFLOW: VersionString("0.9.1-beta.1"),
     "Linux" + "aarch64" + IMAGE: VersionString("0.9.1-beta.1"),
-    "Darwin" + "x86_64" + TENSORFLOW: VersionString("0.8.1"),
+    "Darwin" + "x86_64" + TENSORFLOW: VersionString("0.10.0-alpha.1"),
     "Darwin" + "x86_64" + IMAGE: VersionString("0.10.0-alpha.1"),
-    "Darwin" + "arm64" + TENSORFLOW: VersionString("0.8.1"),
+    "Darwin" + "arm64" + TENSORFLOW: VersionString("0.10.0-alpha.1"),
     # "Darwin" + "arm64" + IMAGE: VersionString("0.8.1"),
-    "Darwin" + "arm" + TENSORFLOW: VersionString("0.8.1"),
+    "Darwin" + "arm" + TENSORFLOW: VersionString("0.10.0-alpha.1"),
     # "Darwin" + "arm" + IMAGE: VersionString("0.8.1"),
 }
 
@@ -273,6 +322,7 @@ CONST_release_pkg = None
 CONST_ipkg = None
 CONST_lib_ext = None
 CONST_env_path = None
+CONST_lib_dir = "lib"
 
 try:
     mkdir(TEMP_PATH)
@@ -281,7 +331,7 @@ except:
 
 
 def set_env(args, compat):
-    global CONST_env, CONST_env_path
+    global CONST_env, CONST_env_path, CONST_lib_dir
 
     CONST_env = """#!/bin/sh
 # wasmedge shell setup
@@ -299,25 +349,25 @@ case :"${1}": in
         ;;
 esac
 case :"${2}": in
-    *:"{0}/lib":*)
+    *:"{0}/{6}":*)
         ;;
     *)
         # Prepending path in case a system-installed wasmedge libs needs to be overridden
         if [ -n "${2}" ]; then
-            export {2}="{0}":${2}
+            export {2}="{0}/{6}":${2}
         else
-            export {2}="{0}"
+            export {2}="{0}/{6}"
         fi
         ;;
 esac
 case :"${3}": in
-    *:"{0}/lib":*)
+    *:"{0}/{6}":*)
         ;;
     *)
         if [ -n "${3}" ]; then
-            export LIBRARY_PATH="{0}/lib":$LIBRARY_PATH
+            export LIBRARY_PATH="{0}/{6}":$LIBRARY_PATH
         else
-            export LIBRARY_PATH="{0}/lib"
+            export LIBRARY_PATH="{0}/{6}"
         fi
         ;;
 esac
@@ -351,16 +401,21 @@ esac
         "LIBRARY_PATH",
         "C_INCLUDE_PATH",
         "CPLUS_INCLUDE_PATH",
+        CONST_lib_dir,
     )
 
     try:
         mkdir(args.path)
+        mkdir(join(args.path, "plugin"))
     except:
         pass
     CONST_env_path = join(args.path, "env")
     mode = "w+" if not exists(CONST_env_path) else "w"
-    with open(CONST_env_path, mode) as env:
-        env.write(CONST_env)
+    with opened_w_error(CONST_env_path, mode) as env:
+        if env is not None:
+            env.write(CONST_env)
+        else:
+            logging.error("Not able to write to env file")
 
 
 def shell_configure(args):
@@ -382,22 +437,26 @@ def shell_configure(args):
             open(CONST_shell_config, "a").close()
 
         write_shell = False
-        with open(CONST_shell_config, "r") as shell_config:
-            if source_string not in shell_config.read():
-                write_shell = True
+        with opened_w_error(CONST_shell_config, "r") as shell_config:
+            if shell_config is not None:
+                if source_string not in shell_config.read():
+                    write_shell = True
 
         if write_shell:
-            with open(CONST_shell_config, "a") as shell_config:
-                shell_config.write(source_string)
+            with opened_w_error(CONST_shell_config, "a") as shell_config:
+                if shell_config is not None:
+                    shell_config.write(source_string)
             write_shell = False
 
         if exists(CONST_shell_profile):
-            with open(CONST_shell_profile, "r") as shell_profile:
-                if source_string not in shell_profile.read():
-                    write_shell = True
+            with opened_w_error(CONST_shell_profile, "r") as shell_profile:
+                if shell_profile is not None:
+                    if source_string not in shell_profile.read():
+                        write_shell = True
             if write_shell:
-                with open(CONST_shell_profile, "a") as shell_profile:
-                    shell_profile.write(source_string)
+                with opened_w_error(CONST_shell_profile, "a") as shell_profile:
+                    if shell_profile is not None:
+                        shell_profile.write(source_string)
                 write_shell = False
     else:
         logging.error("Unknown shell found")
@@ -408,7 +467,7 @@ def shell_configure(args):
 
 
 def install_image_extension(args, compat):
-    global CONST_release_pkg
+    global CONST_release_pkg, CONST_lib_dir
 
     if not get_remote_version_availability(
         "second-state/WasmEdge-image", args.image_version
@@ -471,13 +530,15 @@ def install_image_extension(args, compat):
             # Extract archieve
             extract_archive(
                 join(TEMP_PATH, image_deps_pkg),
-                join(args.path, "lib"),
+                join(args.path, CONST_lib_dir),
                 join(TEMP_PATH, "WasmEdge-image-deps"),
                 env_file_path=CONST_env_path,
                 remove_finished=True,
             )
 
-            copytree(join(TEMP_PATH, "WasmEdge-image-deps"), join(args.path, "lib"))
+            copytree(
+                join(TEMP_PATH, "WasmEdge-image-deps"), join(args.path, CONST_lib_dir)
+            )
         else:
             logging.debug("Image deps not needed: {0}".format(args.image_deps_version))
     else:
@@ -486,11 +547,252 @@ def install_image_extension(args, compat):
     return 0
 
 
+def install_tensorflow_extension(args, compat):
+    global CONST_release_pkg, CONST_lib_ext, CONST_lib_dir, CONST_env_path
+
+    if not get_remote_version_availability(
+        "second-state/WasmEdge-tensorflow", args.tf_version
+    ):
+        logging.error(
+            "Tensorflow extension version incorrect: {0}".format(args.tf_version)
+        )
+        return -1
+    elif not get_remote_version_availability(
+        "second-state/WasmEdge-tensorflow-deps", args.tf_deps_version
+    ):
+        logging.error(
+            "Tensorflow Deps extension version incorrect: {0}".format(
+                args.tf_deps_version
+            )
+        )
+        return -1
+    elif not get_remote_version_availability(
+        "second-state/WasmEdge-tensorflow", args.tf_tools_version
+    ):
+        logging.error(
+            "Tensorflow Tools version incorrect: {0}".format(args.tf_tools_version)
+        )
+        return -1
+
+    if compat.prefix() + TENSORFLOW not in SUPPORTED_EXTENSIONS_VERSION:
+        logging.error(
+            "Tensorflow extensions not compatible: {0}".format(compat.prefix())
+        )
+        return -1
+    elif (
+        SUPPORTED_EXTENSIONS_VERSION[compat.prefix() + TENSORFLOW].compare(
+            args.tf_version
+        )
+        > 0
+    ):
+        logging.error(
+            "Min tensorflow extensions version: {0}".format(
+                SUPPORTED_EXTENSIONS_VERSION[compat.prefix() + TENSORFLOW],
+            )
+        )
+        return -1
+
+    tf_pkg = "WasmEdge-tensorflow-" + args.tf_version + "-" + CONST_release_pkg
+    tf_lite_pkg = "WasmEdge-tensorflowlite-" + args.tf_version + "-" + CONST_release_pkg
+    tf_deps_pkg = (
+        "WasmEdge-tensorflow-deps-TF-" + args.tf_deps_version + "-" + CONST_release_pkg
+    )
+    tf_deps_lite_pkg = (
+        "WasmEdge-tensorflow-deps-TFLite-"
+        + args.tf_deps_version
+        + "-"
+        + CONST_release_pkg
+    )
+    tf_tools_pkg = (
+        "WasmEdge-tensorflow-tools-" + args.tf_tools_version + "-" + CONST_release_pkg
+    )
+
+    print("Downloading tensorflow extension")
+    download_url(CONST_urls[TENSORFLOW], join(TEMP_PATH, tf_pkg), show_progress)
+
+    print("Downloading tensorflow-lite extension")
+    download_url(
+        CONST_urls[TENSORFLOW_LITE], join(TEMP_PATH, tf_lite_pkg), show_progress
+    )
+
+    print("Downloading tensorflow-deps")
+    download_url(
+        CONST_urls[TENSORFLOW_DEPS], join(TEMP_PATH, tf_deps_pkg), show_progress
+    )
+
+    print("Downloading tensorflow-lite-deps")
+    download_url(
+        CONST_urls[TENSORFLOW_LITE_DEPS],
+        join(TEMP_PATH, tf_deps_lite_pkg),
+        show_progress,
+    )
+
+    print("Downloading tensorflow-tools extension")
+    download_url(
+        CONST_urls[TENSORFLOW_TOOLS], join(TEMP_PATH, tf_tools_pkg), show_progress
+    )
+
+    # Extract archieve
+    extract_archive(
+        join(TEMP_PATH, tf_pkg),
+        args.path,
+        join(TEMP_PATH, "WasmEdge-tensorflow"),
+        env_file_path=CONST_env_path,
+        remove_finished=True,
+    )
+    # Extract archieve
+    extract_archive(
+        join(TEMP_PATH, tf_lite_pkg),
+        args.path,
+        join(TEMP_PATH, "WasmEdge-tensorflow-lite"),
+        env_file_path=CONST_env_path,
+        remove_finished=True,
+    )
+    # Extract archieve
+    extract_archive(
+        join(TEMP_PATH, tf_deps_pkg),
+        join(args.path, CONST_lib_dir),
+        join(TEMP_PATH, "WasmEdge-tensorflow-deps", CONST_lib_dir),
+        env_file_path=CONST_env_path,
+        remove_finished=True,
+    )
+    # Extract archieve
+    extract_archive(
+        join(TEMP_PATH, tf_tools_pkg),
+        join(args.path, "bin"),
+        join(TEMP_PATH, "WasmEdge-tensorflow-tools", "bin"),
+        env_file_path=CONST_env_path,
+        remove_finished=True,
+    )
+    # Extract archieve
+    extract_archive(
+        join(TEMP_PATH, tf_deps_lite_pkg),
+        join(args.path, CONST_lib_dir),
+        join(TEMP_PATH, "WasmEdge-tensorflow-lite-deps", CONST_lib_dir),
+        env_file_path=CONST_env_path,
+        remove_finished=True,
+    )
+
+    copytree(join(TEMP_PATH, "WasmEdge-tensorflow-tools"), args.path)
+    copytree(join(TEMP_PATH, "WasmEdge-tensorflow-lite-deps"), args.path)
+    copytree(join(TEMP_PATH, "WasmEdge-tensorflow-deps"), args.path)
+
+    all_files = run_shell_command("ls -R {0}".format(TEMP_PATH))
+
+    # make symlinks
+    for file in listdir(join(args.path, CONST_lib_dir)):
+        if CONST_lib_ext not in file:
+            # ignore files that are not libraries
+            continue
+        if file not in all_files:
+            # ignore files that are not downloaded by this script
+            continue
+        name, version = file.split(CONST_lib_ext, 2)
+        if version != "":
+            no_v_name = name + CONST_lib_ext
+            single_v_name = name + CONST_lib_ext + "." + version.split(".")[1]
+            dual_v_name = (
+                name
+                + CONST_lib_ext
+                + "."
+                + version.split(".")[1]
+                + "."
+                + version.split(".")[2]
+            )
+            file_path = join(args.path, CONST_lib_dir, file)
+            single_v_file_path = join(args.path, CONST_lib_dir, single_v_name)
+            dual_v_file_path = join(args.path, CONST_lib_dir, dual_v_name)
+            no_v_file_path = join(args.path, CONST_lib_dir, no_v_name)
+            try:
+                symlink(file_path, single_v_file_path)
+                symlink(file_path, dual_v_file_path)
+                symlink(file_path, no_v_file_path)
+            except Exception as e:
+                logging.debug(e)
+            with opened_w_error(CONST_env_path, "a") as env_file:
+                if env_file is not None:
+                    env_file.write("#" + single_v_file_path + "\n")
+                    logging.debug("Appending:%s", single_v_file_path)
+                    env_file.write("#" + dual_v_file_path + "\n")
+                    logging.debug("Appending:%s", dual_v_file_path)
+                    env_file.write("#" + no_v_file_path + "\n")
+                    logging.debug("Appending:%s", no_v_file_path)
+                else:
+                    logging.error("Not able to append installed files to env file")
+
+    for main_dir in ["WasmEdge-tensorflow", "WasmEdge-tensorflow-lite"]:
+        for directory_file in listdir(join(TEMP_PATH, main_dir)):
+            if isdir(directory_file):
+                wasmedge_tf_folder = join(TEMP_PATH, main_dir, directory_file)
+                for _file in listdir(wasmedge_tf_folder):
+                    if (
+                        _file == "wasmedge"
+                        and isdir(join(wasmedge_tf_folder, _file))
+                        and args.path == abspath(PATH)
+                    ):
+                        copytree(
+                            join(wasmedge_tf_folder, _file),
+                            join(args.path, "include"),
+                        )
+                    elif CONST_lib_ext in _file:
+                        shutil.move(
+                            join(wasmedge_tf_folder, _file),
+                            join(args.path, CONST_lib_dir, _file),
+                        )
+                    elif isdir(join(wasmedge_tf_folder, _file)):
+                        copytree(
+                            join(wasmedge_tf_folder, _file),
+                            join(args.path, _file),
+                        )
+                    else:
+                        shutil.move(
+                            join(wasmedge_tf_folder, _file),
+                            join(args.path, "bin", _file),
+                        )
+
+    # Check if wasmedge binary works
+    wasmedge_tf_output = run_shell_command(
+        ". {0}/env &&{0}/bin/wasmedge-tensorflow --version".format(args.path)
+    )
+
+    if args.tf_version in wasmedge_tf_output:
+        print("WasmEdge Successfully installed")
+    else:
+        logging.critical(
+            "WasmEdge Tensorflow installation incorrect: {0}".format(wasmedge_tf_output)
+        )
+
+    # Check if wasmedge binary works
+    wasmedge_tf_lite_output = run_shell_command(
+        ". {0}/env && {0}/bin/wasmedge-tensorflow-lite --version".format(args.path)
+    )
+
+    if args.tf_version in wasmedge_tf_lite_output:
+        print("WasmEdge Tensorflow Lite Successfully installed")
+    else:
+        logging.critical(
+            "WasmEdge Tensorflow installation incorrect: {0}".format(
+                wasmedge_tf_lite_output
+            )
+        )
+
+    return 0
+
+
 def set_consts(args, compat):
-    global CONST_release_pkg, CONST_ipkg, CONST_lib_ext, CONST_urls
+    global CONST_release_pkg, CONST_ipkg, CONST_lib_ext, CONST_urls, CONST_lib_dir, CONST_env_path
     CONST_release_pkg = compat.release_package
     CONST_ipkg = compat.install_package_name
     CONST_lib_ext = compat.lib_extension
+
+    if compat.machine in [
+        "x86_64",
+        "arm64",
+        "amd",
+        "aarch64",
+    ]:
+        CONST_lib_dir = "lib64"
+
     CONST_urls = {
         WASMEDGE: "https://github.com/WasmEdge/WasmEdge/releases/download/{0}/WasmEdge-{0}-{1}".format(
             args.version, CONST_release_pkg
@@ -504,17 +806,35 @@ def set_consts(args, compat):
         IMAGE_DEPS: "https://github.com/second-state/WasmEdge-image/releases/download/{0}/WasmEdge-image-deps-{0}-{1}".format(
             args.image_deps_version, "manylinux1_x86_64.tar.gz"
         ),
+        TENSORFLOW_DEPS: "https://github.com/second-state/WasmEdge-tensorflow-deps/releases/download/{0}/WasmEdge-tensorflow-deps-TF-{0}-{1}".format(
+            args.tf_deps_version, CONST_release_pkg
+        ),
+        TENSORFLOW_LITE_DEPS: "https://github.com/second-state/WasmEdge-tensorflow-deps/releases/download/{0}/WasmEdge-tensorflow-deps-TFLite-{0}-{1}".format(
+            args.tf_deps_version, CONST_release_pkg
+        ),
+        TENSORFLOW: "https://github.com/second-state/WasmEdge-tensorflow/releases/download/{0}/WasmEdge-tensorflow-{0}-{1}".format(
+            args.tf_version, CONST_release_pkg
+        ),
+        TENSORFLOW_LITE: "https://github.com/second-state/WasmEdge-tensorflow/releases/download/{0}/WasmEdge-tensorflowlite-{0}-{1}".format(
+            args.tf_version, CONST_release_pkg
+        ),
+        TENSORFLOW_TOOLS: "https://github.com/second-state/WasmEdge-tensorflow-tools/releases/download/{0}/WasmEdge-tensorflow-tools-{0}-{1}".format(
+            args.tf_tools_version, CONST_release_pkg
+        ),
     }
 
 
 def run_shell_command(cmd):
     try:
         output = subprocess.check_output([cmd], shell=True)
-        return output.decode().strip()
+        return output.decode("utf8").strip()
     except subprocess.CalledProcessError as e:
-        print("Exception on process, rc=", e.returncode, "output=", e.output, e.cmd)
+        if "Cannot detect installation path" in str(e.output):
+            logging.warning("Uninstaller did not find previous installation")
+        else:
+            print("Exception on process, rc=", e.returncode, "output=", e.output, e.cmd)
 
-    return None
+    return ""
 
 
 def get_latest_github_release(repo):
@@ -597,15 +917,16 @@ class Compat:
             reraise(Exception("Unsupported platform: {0}".format(self.platform)))
         elif self.machine not in SUPPORTED_PLATFORM_MACHINE[self.platform]:
             reraise(Exception("Unsupported machine: {0}".format(self.machine)))
-        elif self.extensions is not None:
+        elif self.extensions is not None and len(self.extensions) > 0:
             if (
                 self.extensions
                 not in SUPPORTED_EXTENSIONS[self.platform + self.machine]
             ):
                 reraise(
                     Exception(
-                        "Extensions not supported. Supported extensions: {0}".format(
-                            SUPPORTED_EXTENSIONS[self.platform + self.machine]
+                        "Extensions not supported: {0}. Supported extensions: {1}".format(
+                            self.extensions,
+                            SUPPORTED_EXTENSIONS[self.platform + self.machine],
                         )
                     )
                 )
@@ -629,7 +950,7 @@ class Compat:
 
 
 def main(args):
-    global CONST_env_path, CONST_release_pkg, CONST_ipkg, CONST_shell_config, CONST_shell_profile
+    global CONST_env_path, CONST_release_pkg, CONST_ipkg, CONST_shell_config, CONST_shell_profile, CONST_lib_dir
 
     compat = Compat(version=args.version, extensions=args.extensions)
 
@@ -664,7 +985,8 @@ def main(args):
         logging.debug("CONST_release_pkg: %s", CONST_release_pkg)
         logging.debug("CONST_ipkg: %s", CONST_ipkg)
         logging.debug("CONST_lib_ext: %s", CONST_lib_ext)
-        logging.debug("CONST_utls: %s", CONST_urls)
+        logging.debug("CONST_urls: %s", CONST_urls)
+        logging.debug("CONST_lib_dir: %s", CONST_lib_dir)
 
         if getenv("SHELL") != SHELL:
             logging.warning("SHELL variable not found. Using %s as SHELL", SHELL)
@@ -695,6 +1017,37 @@ def main(args):
         # Copy the tree
         copytree(join(TEMP_PATH, CONST_ipkg), args.path)
 
+        if args.path == abspath(PATH):
+            # perform actions if default path
+            for dir in listdir(args.path):
+                path = join(args.path, dir)
+                if not isdir(path):
+                    continue
+                for subdir in listdir(path):
+                    sub_folder = join(path, subdir)
+                    if isdir(sub_folder):
+                        if any("Plugin" in s for s in listdir(sub_folder)):
+                            # Handle plugins
+                            copytree(sub_folder, join(args.path, "plugin"), True)
+                        else:
+                            copytree(sub_folder, path, True)
+                        shutil.rmtree(sub_folder)
+            if isdir(join(args.path, "lib64")):
+                try:
+                    symlink(
+                        join(args.path, "lib64"),
+                        join(args.path, "lib"),
+                        target_is_directory=True,
+                    )
+                except Exception as e:
+                    logging.debug(e)
+                with opened_w_error(CONST_env_path, "a") as env_file:
+                    if env_file is not None:
+                        env_file.write("#" + join(args.path, "lib") + "\n")
+                        logging.debug("Appending:%s", join(args.path, "lib"))
+                    else:
+                        logging.error("Not able to write installed files to env")
+
         # Check if wasmedge binary works
         wasmedge_output = run_shell_command(
             "{0}/bin/wasmedge --version".format(args.path)
@@ -702,7 +1055,6 @@ def main(args):
 
         if args.version in wasmedge_output:
             print("WasmEdge Successfully installed")
-            print("Run:\nsource {0}".format(CONST_shell_config))
         else:
             logging.critical(
                 "WasmEdge installation incorrect: {0}".format(wasmedge_output)
@@ -714,12 +1066,18 @@ def main(args):
             else:
                 print("Image extension installed")
 
+        if TENSORFLOW in args.extensions:
+            if install_tensorflow_extension(args, compat) != 0:
+                logging.error("Error in installing tensorflow extensions")
+            else:
+                print("Tensorflow extension installed")
+
         # Cleanup
         shutil.rmtree(TEMP_PATH)
+
+        print("Run:\nsource {0}".format(CONST_shell_config))
     else:
         reraise(Exception("Incompatible with your machine\n{0}".format(compat)))
-
-    pass
 
 
 if __name__ == "__main__":

@@ -666,6 +666,33 @@ impl WasiModule {
     pub fn exit_code(&self) -> u32 {
         unsafe { ffi::WasmEdge_ModuleInstanceWASIGetExitCode(self.inner.0 as *const _) }
     }
+
+    /// Returns the native handler from the mapped FD/Handler.
+    ///
+    /// # Argument
+    ///
+    /// * `fd` - The WASI mapped Fd.
+    ///
+    /// # Error
+    ///
+    /// If fail to get the native handler, then an error is returned.
+    pub fn get_native_handler(&self, fd: i32) -> WasmEdgeResult<u64> {
+        let mut handler: u64 = 0;
+        let code: u32 = unsafe {
+            ffi::WasmEdge_ModuleInstanceWASIGetNativeHandler(
+                self.inner.0 as *const _,
+                fd,
+                &mut handler as *mut u64,
+            )
+        };
+
+        match code {
+            0 => Ok(handler),
+            _ => Err(WasmEdgeError::Instance(
+                InstanceError::NotFoundMappedFdHandler,
+            )),
+        }
+    }
 }
 impl AsInstance for WasiModule {
     fn get_func(&self, name: impl AsRef<str>) -> WasmEdgeResult<Function> {

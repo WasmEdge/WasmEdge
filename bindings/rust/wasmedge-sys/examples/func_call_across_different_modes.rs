@@ -44,7 +44,7 @@ fn interpreter_call_aot() -> Result<(), Box<dyn std::error::Error>> {
         .join("bindings/rust/wasmedge-sys/examples/data/module2.wasm");
     let out_path = std::path::PathBuf::from("module2-uni.wasm");
     let compiler = Compiler::create(Some(Config::create()?))?;
-    compiler.compile(in_path, &out_path)?;
+    compiler.compile_from_file(in_path, &out_path)?;
 
     // register a named module from "module2-uni.wasm"
     vm.register_wasm_from_file("module", &out_path)?;
@@ -117,7 +117,7 @@ fn aot_call_interpreter() -> Result<(), Box<dyn std::error::Error>> {
         .join("bindings/rust/wasmedge-sys/examples/data/module1.wasm");
     let out_path = std::path::PathBuf::from("module1-uni.wasm");
     let compiler = Compiler::create(Some(Config::create()?))?;
-    compiler.compile(in_path, &out_path)?;
+    compiler.compile_from_file(in_path, &out_path)?;
 
     // register an active module from "module1.wasm"
     vm.load_wasm_from_file(&out_path)?;

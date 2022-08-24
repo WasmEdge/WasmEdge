@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: 2019-2022 Second State INC
 
 #include "common/defines.h"
+#include "common/filesystem.h"
 #include "wasmedge/wasmedge.h"
 
 #include <algorithm>
@@ -950,6 +951,32 @@ TEST(APICoreTest, Compiler) {
   OutFile.close();
   EXPECT_FALSE(std::equal(WASMMagic, WASMMagic + 4, Buf));
   OutFile.open("binary_164_aot" WASMEDGE_LIB_EXTENSION, std::ios::binary);
+  EXPECT_TRUE(OutFile.read(reinterpret_cast<char *>(Buf), 4));
+  OutFile.close();
+  EXPECT_FALSE(std::equal(WASMMagic, WASMMagic + 4, Buf));
+
+  // Compile file for shared library output format from buffer
+  std::error_code EC;
+  auto TPathFS = std::filesystem::u8path(TPath);
+  size_t FileSize = std::filesystem::file_size(TPathFS, EC);
+  EXPECT_FALSE(EC);
+  std::ifstream Fin(TPathFS, std::ios::in | std::ios::binary);
+  EXPECT_TRUE(Fin);
+  std::vector<uint8_t> Data(FileSize);
+  size_t Index = 0;
+  while (FileSize > 0) {
+    const uint32_t BlockSize = static_cast<uint32_t>(
+        std::min<size_t>(FileSize, std::numeric_limits<uint32_t>::max()));
+    Fin.read(reinterpret_cast<char *>(Data.data()) + Index, BlockSize);
+    const uint32_t ReadCount = static_cast<uint32_t>(Fin.gcount());
+    EXPECT_TRUE(ReadCount == BlockSize);
+    Index += static_cast<size_t>(BlockSize);
+    FileSize -= static_cast<size_t>(BlockSize);
+  }
+  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_CompilerCompileFromArray(
+      Compiler, Data.data(), Data.size(), "test_aot" WASMEDGE_LIB_EXTENSION)));
+  // Check the header of the output files.
+  OutFile.open("test_aot" WASMEDGE_LIB_EXTENSION, std::ios::binary);
   EXPECT_TRUE(OutFile.read(reinterpret_cast<char *>(Buf), 4));
   OutFile.close();
   EXPECT_FALSE(std::equal(WASMMagic, WASMMagic + 4, Buf));

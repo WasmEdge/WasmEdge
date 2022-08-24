@@ -314,7 +314,7 @@ fn gen_runtime_error(code: u32) -> WasmEdgeResult<()> {
 /// * The path specified by the `WASMEDGE_PLUGIN_PATH` environment variable.
 ///
 pub fn load_plugin_from_default_paths() {
-    unsafe { ffi::WasmEdge_Plugin_loadWithDefaultPluginPaths() }
+    unsafe { ffi::WasmEdge_PluginLoadWithDefaultPaths() }
 }
 
 /// Returns the major version value.

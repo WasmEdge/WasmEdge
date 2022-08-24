@@ -164,6 +164,73 @@ Loader::parseModule(Span<const uint8_t> Code) {
 }
 
 Expect<std::unique_ptr<AST::Component>>
+Loader::parseComponent(const std::filesystem::path &FilePath) {
+  using namespace std::literals::string_view_literals;
+  std::lock_guard Lock(Mutex);
+  // Set path and check the header.
+  if (auto Res = FMgr.setPath(FilePath); !Res) {
+    spdlog::error(Res.error());
+    spdlog::error(ErrInfo::InfoFile(FilePath));
+    return Unexpect(Res);
+  }
+
+  switch (FMgr.getHeaderType()) {
+  case FileMgr::FileHeader::ELF:
+  case FileMgr::FileHeader::DLL:
+  case FileMgr::FileHeader::MachO_32:
+  case FileMgr::FileHeader::MachO_64: {
+    // AOT compiled shared-library-WASM cases. Use ldmgr to load the module.
+    IsSharedLibraryWASM = true;
+    FMgr.reset();
+    if (auto Res = LMgr.setPath(FilePath); !Res) {
+      spdlog::error(ErrInfo::InfoFile(FilePath));
+      return Unexpect(Res);
+    }
+    if (auto Res = LMgr.getVersion()) {
+      if (*Res != AOT::kBinaryVersion) {
+        spdlog::error(ErrInfo::InfoMismatch(AOT::kBinaryVersion, *Res));
+        spdlog::error(ErrInfo::InfoFile(FilePath));
+        return Unexpect(ErrCode::MalformedVersion);
+      }
+    } else {
+      spdlog::error(ErrInfo::InfoFile(FilePath));
+      return Unexpect(Res);
+    }
+
+    std::unique_ptr<AST::Component> Comp;
+    if (auto Code = LMgr.getWasm()) {
+      // Set the binary and load module.
+      // Not to use parseModule() here to keep the `IsSharedLibraryWASM` value.
+      if (auto Res = FMgr.setCode(*Code); !Res) {
+        spdlog::error(ErrInfo::InfoFile(FilePath));
+        return Unexpect(Res);
+      }
+      if (auto Res = loadComponent()) {
+        Comp = std::move(*Res);
+      } else {
+        spdlog::error(ErrInfo::InfoFile(FilePath));
+        return Unexpect(Res);
+      }
+    } else {
+      spdlog::error(ErrInfo::InfoFile(FilePath));
+      return Unexpect(Code);
+    }
+    return Comp;
+  }
+  default:
+    // Universal WASM, WASM, or other cases. Load and parse the component
+    // directly.
+    IsSharedLibraryWASM = false;
+    if (auto Res = loadComponent()) {
+      return std::move(*Res);
+    } else {
+      spdlog::error(ErrInfo::InfoFile(FilePath));
+      return Unexpect(Res);
+    }
+  }
+}
+
+Expect<std::unique_ptr<AST::Component>>
 Loader::parseComponent(Span<const uint8_t> Code) {
   std::lock_guard Lock(Mutex);
   if (auto Res = FMgr.setCode(Code); !Res) {

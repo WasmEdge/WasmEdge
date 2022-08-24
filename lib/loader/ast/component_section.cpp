@@ -836,6 +836,7 @@ Expect<void> Loader::loadStart(AST::Start &Start) {
     return logLoadError(Res.error(), FMgr.getLastOffset(),
                         ASTNodeAttr::CompSec_Start);
   }
+  return {};
 }
 
 Expect<void> Loader::loadSection(AST::ComponentImportSection &Sec) {

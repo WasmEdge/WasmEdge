@@ -21,6 +21,11 @@ Breaking changes:
   * Renamed the plugin API.
     * Renamed `WasmEdge_Plugin_loadWithDefaultPluginPaths()` to `WasmEdge_PluginLoadWithDefaultPaths()`.
 * Dropped the manylinux1 and manylinux2010 support. Please refer to the [deprecation notice](https://github.com/WasmEdge/WasmEdge/discussions/1780)
+* Standardize the SONAME and SOVERSION for WasmEdge C API
+  * The name of the library is changed to `libwasmedge.so`, `libwasmedge.dyld`, and `wasmedge.dll`.
+  * Users should change the linker flag from `lwasmedge_c` to `lwasmedge`.
+  * The initialized SONAME is set to `libwasmedge.so.0`.
+  * The initialized SOVERSION is set to `libwasmedge.so.0.0.0`.
 
 Features:
 

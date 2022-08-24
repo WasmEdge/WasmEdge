@@ -26,5 +26,5 @@ target_link_libraries(
         wasmedge_lib
 
         log
-        wasmedge_c_shared
+        wasmedge_shared
 )

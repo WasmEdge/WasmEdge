@@ -139,12 +139,8 @@
 #[macro_use]
 extern crate lazy_static;
 
-use std::{
-    cell::RefCell,
-    collections::HashMap,
-    env,
-    sync::{Arc, Mutex},
-};
+use parking_lot::RwLock;
+use std::{cell::RefCell, collections::HashMap, env, sync::Arc};
 
 #[doc(hidden)]
 #[allow(warnings)]
@@ -230,8 +226,8 @@ pub type BoxedFn = Box<
 >;
 
 lazy_static! {
-    static ref HOST_FUNCS: Arc<Mutex<HashMap<usize, BoxedFn>>> =
-        Arc::new(Mutex::new(HashMap::with_capacity(
+    static ref HOST_FUNCS: Arc<RwLock<HashMap<usize, BoxedFn>>> =
+        Arc::new(RwLock::new(HashMap::with_capacity(
             env::var("MAX_HOST_FUNC_LENGTH")
                 .map(|s| s
                     .parse::<usize>()

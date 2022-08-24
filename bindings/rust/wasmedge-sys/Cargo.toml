@@ -15,6 +15,7 @@ version = "0.8.1"
 [dependencies]
 lazy_static = "1.4.0"
 libc = "0.2.94"
+parking_lot = "0.12.1"
 paste = "1.0.5"
 rand = "0.8.4"
 thiserror = "1.0.30"

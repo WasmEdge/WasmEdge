@@ -42,7 +42,7 @@ extern "C" fn wraper_fn(
     let raw_returns = unsafe { std::slice::from_raw_parts_mut(returns, return_len) };
 
     let result = {
-        let host_functions = HOST_FUNCS.lock().expect("[wasmedge-sys] try lock failed.");
+        let host_functions = HOST_FUNCS.read();
         let real_fn = host_functions
             .get(&key)
             .expect("host function should be there");
@@ -203,7 +203,7 @@ impl Function {
     /// let func = Function::create(&func_ty, Box::new(real_add), 0).expect("fail to create a Function instance");
     /// ```
     pub fn create(ty: &FuncType, real_fn: BoxedFn, cost: u64) -> WasmEdgeResult<Self> {
-        let mut host_functions = HOST_FUNCS.lock().expect("[wasmedge-sys] try lock failed.");
+        let mut host_functions = HOST_FUNCS.write();
         if host_functions.len() >= host_functions.capacity() {
             return Err(WasmEdgeError::Func(FuncError::CreateBinding(format!(
                 "The number of the host functions reaches the upper bound: {}",

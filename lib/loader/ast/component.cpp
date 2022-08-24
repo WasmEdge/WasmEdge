@@ -88,6 +88,10 @@ Expect<std::unique_ptr<AST::Component>> Loader::loadComponent() {
                           FMgr.getLastOffset(), ASTNodeAttr::Component);
     case 0x01:
       // m*:section_1(<core:module>)         => [core-prefix(m)]
+      if (auto Res = FMgr.readByte(); !Res) {
+        return logLoadError(Res.error(), FMgr.getLastOffset(),
+                            ASTNodeAttr::Component);
+      }
       if (auto Mod = loadModule()) {
         Comp->getModuleSection().getContent().push_back(std::move(*Mod));
       } else {

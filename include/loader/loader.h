@@ -175,6 +175,10 @@ public:
   /// Parse module from byte code.
   Expect<std::unique_ptr<AST::Module>> parseModule(Span<const uint8_t> Code);
 
+  /// Parse component from file path.
+  Expect<std::unique_ptr<AST::Component>>
+  parseComponent(const std::filesystem::path &FilePath);
+
   /// Parse component from byte code.
   Expect<std::unique_ptr<AST::Component>>
   parseComponent(Span<const uint8_t> Code);

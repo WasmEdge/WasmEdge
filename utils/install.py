@@ -507,7 +507,33 @@ def install_image_extension(args, compat):
         remove_finished=True,
     )
 
-    copytree(join(TEMP_PATH, "WasmEdge-image"), args.path)
+    wasmedge_image_temp = join(TEMP_PATH, "WasmEdge-image")
+    for dir in listdir(wasmedge_image_temp):
+        wasmedge_image_temp_dir = join(wasmedge_image_temp, dir)
+        for file in listdir(wasmedge_image_temp_dir):
+            if (
+                isdir(join(wasmedge_image_temp_dir, file))
+                and args.path == abspath(PATH)
+                and "wasmedge" == file
+            ):
+                copytree(
+                    join(wasmedge_image_temp_dir, file), join(args.path, "include")
+                )
+            elif CONST_lib_ext in file:
+                shutil.move(
+                    join(wasmedge_image_temp_dir, file),
+                    join(args.path, CONST_lib_dir, file),
+                )
+            elif isdir(join(wasmedge_image_temp_dir, file)):
+                copytree(
+                    join(wasmedge_image_temp_dir, file),
+                    join(args.path, file),
+                )
+            else:
+                shutil.move(
+                    join(wasmedge_image_temp_dir, file),
+                    join(args.path, "bin", file),
+                )
 
     if compat.prefix() + IMAGE_DEPS in SUPPORTED_EXTENSIONS_VERSION:
         if (
@@ -539,6 +565,74 @@ def install_image_extension(args, compat):
             copytree(
                 join(TEMP_PATH, "WasmEdge-image-deps"), join(args.path, CONST_lib_dir)
             )
+
+            for file in listdir(join(args.path, CONST_lib_dir)):
+                if ("jpeg" not in file) and ("png" not in file):
+                    continue
+                try:
+                    name, version = file.split(CONST_lib_ext, 2)
+                    no_v_env_path = join(
+                        args.path,
+                        CONST_lib_dir,
+                        name + CONST_lib_ext,
+                    )
+                    symlink(
+                        join(args.path, CONST_lib_dir, file),
+                        no_v_env_path,
+                    )
+                    single_v_env_path = join(
+                        args.path,
+                        CONST_lib_dir,
+                        name + CONST_lib_ext + "." + version.split(".")[1],
+                    )
+                    symlink(
+                        join(args.path, CONST_lib_dir, file),
+                        single_v_env_path,
+                    )
+                    double_v_env_path = join(
+                        args.path,
+                        CONST_lib_dir,
+                        name
+                        + CONST_lib_ext
+                        + "."
+                        + version.split(".")[1]
+                        + "."
+                        + version.split(".")[2],
+                    )
+                    symlink(
+                        join(args.path, CONST_lib_dir, file),
+                        double_v_env_path,
+                    )
+                    no_v_png_path = None
+                    if "png16" in name:
+                        no_v_png_path = join(
+                            args.path,
+                            CONST_lib_dir,
+                            name.split("16")[0] + CONST_lib_ext,
+                        )
+                        symlink(
+                            join(args.path, CONST_lib_dir, file),
+                            no_v_png_path,
+                        )
+                    with opened_w_error(CONST_env_path, "a") as env_file:
+                        if env_file is not None:
+                            env_file.write("#" + no_v_env_path + "\n")
+                            logging.debug("Appending:%s", no_v_env_path)
+                            env_file.write("#" + single_v_env_path + "\n")
+                            logging.debug("Appending:%s", single_v_env_path)
+                            env_file.write("#" + double_v_env_path + "\n")
+                            logging.debug("Appending:%s", double_v_env_path)
+                            if no_v_png_path is not None:
+                                env_file.write("#" + no_v_png_path + "\n")
+                                logging.debug("Appending:%s", no_v_png_path)
+                        else:
+                            logging.error(
+                                "Not able to append installed files to env file"
+                            )
+
+                except Exception as e:
+                    logging.critical(e)
+
         else:
             logging.debug("Image deps not needed: {0}".format(args.image_deps_version))
     else:
@@ -686,6 +780,8 @@ def install_tensorflow_extension(args, compat):
             continue
         if file not in all_files:
             # ignore files that are not downloaded by this script
+            continue
+        if "tensorflow" not in file:
             continue
         name, version = file.split(CONST_lib_ext, 2)
         if version != "":
@@ -918,9 +1014,9 @@ class Compat:
         elif self.machine not in SUPPORTED_PLATFORM_MACHINE[self.platform]:
             reraise(Exception("Unsupported machine: {0}".format(self.machine)))
         elif self.extensions is not None and len(self.extensions) > 0:
-            if (
-                self.extensions
-                not in SUPPORTED_EXTENSIONS[self.platform + self.machine]
+            if not (
+                set(self.extensions)
+                <= set(SUPPORTED_EXTENSIONS[self.platform + self.machine])
             ):
                 reraise(
                     Exception(
@@ -1060,13 +1156,13 @@ def main(args):
                 "WasmEdge installation incorrect: {0}".format(wasmedge_output)
             )
 
-        if IMAGE in args.extensions:
+        if IMAGE in args.extensions or "all" in args.extensions:
             if install_image_extension(args, compat) != 0:
                 logging.error("Error in installing image extensions")
             else:
                 print("Image extension installed")
 
-        if TENSORFLOW in args.extensions:
+        if TENSORFLOW in args.extensions or "all" in args.extensions:
             if install_tensorflow_extension(args, compat) != 0:
                 logging.error("Error in installing tensorflow extensions")
             else:
@@ -1091,6 +1187,7 @@ if __name__ == "__main__":
         choices=EXTENSIONS.append("all"),
         required=False,
         default=[],
+        nargs="*",
         help="Supported Extensions - {0}".format(EXTENSIONS),
     )
     parser.add_argument(

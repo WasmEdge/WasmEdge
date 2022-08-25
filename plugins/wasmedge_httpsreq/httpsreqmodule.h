@@ -10,14 +10,14 @@
 namespace WasmEdge {
 namespace Host {
 
-class HttpsReqModule : public Runtime::Instance::ModuleInstance {
+class WasmEdgeHttpsReqModule : public Runtime::Instance::ModuleInstance {
 public:
-  HttpsReqModule();
+  WasmEdgeHttpsReqModule();
 
-  HttpsReqEnvironment &getEnv() { return Env; }
+  WasmEdgeHttpsReqEnvironment &getEnv() { return Env; }
 
 private:
-  HttpsReqEnvironment Env;
+  WasmEdgeHttpsReqEnvironment Env;
 };
 
 } // namespace Host

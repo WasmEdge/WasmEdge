@@ -14,7 +14,7 @@
 namespace WasmEdge {
 namespace Host {
 
-class HttpsReqEnvironment {
+class WasmEdgeHttpsReqEnvironment {
 public:
   std::string Host;
   uint32_t Port;

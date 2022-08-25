@@ -10,13 +10,13 @@
 namespace WasmEdge {
 namespace Host {
 
-template <typename T> class HttpsReq : public Runtime::HostFunction<T> {
+template <typename T> class WasmEdgeHttpsReq : public Runtime::HostFunction<T> {
 public:
-  HttpsReq(HttpsReqEnvironment &HostEnv)
+  WasmEdgeHttpsReq(WasmEdgeHttpsReqEnvironment &HostEnv)
       : Runtime::HostFunction<T>(0), Env(HostEnv) {}
 
 protected:
-  HttpsReqEnvironment &Env;
+  WasmEdgeHttpsReqEnvironment &Env;
 };
 
 } // namespace Host

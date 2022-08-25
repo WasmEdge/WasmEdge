@@ -11,23 +11,28 @@
 namespace WasmEdge {
 namespace Host {
 
-class SendData : public HttpsReq<SendData> {
+class WasmEdgeHttpsReqSendData
+    : public WasmEdgeHttpsReq<WasmEdgeHttpsReqSendData> {
 public:
-  SendData(HttpsReqEnvironment &HostEnv) : HttpsReq(HostEnv) {}
+  WasmEdgeHttpsReqSendData(WasmEdgeHttpsReqEnvironment &HostEnv)
+      : WasmEdgeHttpsReq(HostEnv) {}
   Expect<void> body(Runtime::Instance::MemoryInstance *, uint32_t HostPtr,
                     uint32_t HostLen, uint32_t Port, uint32_t BodyPtr,
                     uint32_t BodyLen);
 };
 
-class HttpsReqGetRcv : public HttpsReq<HttpsReqGetRcv> {
+class WasmEdgeHttpsReqGetRcv : public WasmEdgeHttpsReq<WasmEdgeHttpsReqGetRcv> {
 public:
-  HttpsReqGetRcv(HttpsReqEnvironment &HostEnv) : HttpsReq(HostEnv) {}
+  WasmEdgeHttpsReqGetRcv(WasmEdgeHttpsReqEnvironment &HostEnv)
+      : WasmEdgeHttpsReq(HostEnv) {}
   Expect<void> body(Runtime::Instance::MemoryInstance *, uint32_t BufPtr);
 };
 
-class HttpsReqGetRcvLen : public HttpsReq<HttpsReqGetRcvLen> {
+class WasmEdgeHttpsReqGetRcvLen
+    : public WasmEdgeHttpsReq<WasmEdgeHttpsReqGetRcvLen> {
 public:
-  HttpsReqGetRcvLen(HttpsReqEnvironment &HostEnv) : HttpsReq(HostEnv) {}
+  WasmEdgeHttpsReqGetRcvLen(WasmEdgeHttpsReqEnvironment &HostEnv)
+      : WasmEdgeHttpsReq(HostEnv) {}
   Expect<uint32_t> body(Runtime::Instance::MemoryInstance *);
 };
 

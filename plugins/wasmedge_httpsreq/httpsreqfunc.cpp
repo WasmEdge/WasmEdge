@@ -17,9 +17,10 @@
 namespace WasmEdge {
 namespace Host {
 
-Expect<void> SendData::body(Runtime::Instance::MemoryInstance *MemInst,
-                            uint32_t HostPtr, uint32_t HostLen, uint32_t Port,
-                            uint32_t BodyPtr, uint32_t BodyLen) {
+Expect<void>
+WasmEdgeHttpsReqSendData::body(Runtime::Instance::MemoryInstance *MemInst,
+                              uint32_t HostPtr, uint32_t HostLen, uint32_t Port,
+                              uint32_t BodyPtr, uint32_t BodyLen) {
   if (MemInst == nullptr) {
     return Unexpect(ErrCode::ExecutionFailed);
   }
@@ -46,7 +47,7 @@ Expect<void> SendData::body(Runtime::Instance::MemoryInstance *MemInst,
 
   SSL *Ssl = SSL_new(Ctx);
   if (Ssl == nullptr) {
-    fprintf(stderr, "[Httpsreq plugin] SSL_new() failed\n");
+    fprintf(stderr, "[HttpsReq plugin] SSL_new() failed\n");
     exit(EXIT_FAILURE);
   }
 
@@ -63,7 +64,7 @@ Expect<void> SendData::body(Runtime::Instance::MemoryInstance *MemInst,
 
   Err = getaddrinfo(Env.Host.c_str(), PortStr, &Hints, &Addrs);
   if (Err != 0) {
-    fprintf(stderr, "[Httpsreq plugin] %s: %s\n", Env.Host.c_str(),
+    fprintf(stderr, "[WasmEdge HttpsReq plugin] %s: %s\n", Env.Host.c_str(),
             gai_strerror(Err));
     abort();
   }
@@ -85,7 +86,7 @@ Expect<void> SendData::body(Runtime::Instance::MemoryInstance *MemInst,
   freeaddrinfo(Addrs);
 
   if (Sfd == -1) {
-    fprintf(stderr, "[Httpsreq plugin] %s: %s\n", Env.Host.c_str(),
+    fprintf(stderr, "[HttpsReq plugin] %s: %s\n", Env.Host.c_str(),
             strerror(Err));
     abort();
   }
@@ -97,7 +98,8 @@ Expect<void> SendData::body(Runtime::Instance::MemoryInstance *MemInst,
     SSL_get_error(Ssl, Status);
     ERR_print_errors_fp(stderr);
     fprintf(stderr,
-            "[Httpsreq plugin] SSL_connect failed with SSL_get_error code %d\n",
+            "[WasmEdge HttpsReq plugin] SSL_connect failed with SSL_get_error "
+            "code %d\n",
             Status);
     exit(EXIT_FAILURE);
   }
@@ -124,8 +126,9 @@ Expect<void> SendData::body(Runtime::Instance::MemoryInstance *MemInst,
   return {};
 }
 
-Expect<void> HttpsReqGetRcv::body(Runtime::Instance::MemoryInstance *MemInst,
-                                  uint32_t BufPtr) {
+Expect<void>
+WasmEdgeHttpsReqGetRcv::body(Runtime::Instance::MemoryInstance *MemInst,
+                            uint32_t BufPtr) {
   if (MemInst == nullptr) {
     return Unexpect(ErrCode::ExecutionFailed);
   }
@@ -134,7 +137,8 @@ Expect<void> HttpsReqGetRcv::body(Runtime::Instance::MemoryInstance *MemInst,
   return {};
 }
 
-Expect<uint32_t> HttpsReqGetRcvLen::body(Runtime::Instance::MemoryInstance *) {
+Expect<uint32_t>
+WasmEdgeHttpsReqGetRcvLen::body(Runtime::Instance::MemoryInstance *) {
   return static_cast<uint32_t>(Env.Rcv.size());
 }
 

@@ -63,7 +63,7 @@ using FuncVec = std::variant<ValueType, std::vector<NamedValType>>;
 
 class CaseType {
 public:
-  ValueType &getType() noexcept { return Ty.value(); }
+  std::optional<ValueType> getType() noexcept { return Ty; }
 
 private:
   std::optional<ValueType> Ty{std::nullopt};
@@ -73,7 +73,7 @@ public:
   void setName(std::string_view S) noexcept { Name = S; }
   std::string_view getName() const noexcept { return Name; }
 
-  CaseType &getType() noexcept { return OptTy.value(); }
+  std::optional<CaseType> getType() noexcept { return OptTy; }
 
   void setLabelIndex(uint32_t Idx) { LabelIdx = Idx; }
   uint32_t getLabelIndex() { return LabelIdx.value(); }
@@ -160,8 +160,8 @@ private:
 };
 class DefinedValueType::Result : public DefinedValueType {
 public:
-  CaseType &getResult() noexcept { return ResultTy.value(); }
-  CaseType &getError() noexcept { return ErrorTy.value(); }
+  std::optional<CaseType> getResult() noexcept { return ResultTy; }
+  std::optional<CaseType> getError() noexcept { return ErrorTy; }
 
 private:
   std::optional<CaseType> ResultTy{std::nullopt};

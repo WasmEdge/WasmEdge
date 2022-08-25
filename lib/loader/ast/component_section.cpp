@@ -574,8 +574,10 @@ Expect<void> Loader::loadFuncVec(AST::FuncVec &FuncV) {
   }
   switch (*R) {
   case 0x00:
+    FuncV.emplace<AST::ValueType>();
     return loadValType(std::get<AST::ValueType>(FuncV));
   case 0x01:
+    FuncV.emplace<std::vector<AST::NamedValType>>();
     return loadVec(
         std::get<std::vector<AST::NamedValType>>(FuncV),
         [this](auto &T) -> Expect<void> { return loadNamedValType(T); });
@@ -618,7 +620,7 @@ Expect<void> Loader::loadCase(AST::Case &Case) {
   }
   return {};
 }
-Expect<void> Loader::loadCaseType(AST::CaseType &Ty) {
+Expect<void> Loader::loadCaseType(std::optional<AST::CaseType> Ty) {
   auto R = FMgr.readByte();
   if (!R) {
     return logLoadError(R.error(), FMgr.getLastOffset(),
@@ -628,8 +630,11 @@ Expect<void> Loader::loadCaseType(AST::CaseType &Ty) {
   case 0x00:
     // Do nothing, in this case, it's the parameter type of CaseType is nullopt
     return {};
-  case 0x01:
-    return loadValType(Ty.getType());
+  case 0x01: {
+    AST::ValueType VT;
+    Ty->getType() = VT;
+    return loadValType(VT);
+  }
   default:
     return logLoadError(R.error(), FMgr.getLastOffset(),
                         ASTNodeAttr::CompSec_Type);
@@ -664,12 +669,11 @@ Expect<void> Loader::loadValType(AST::ValueType &Ty) {
   case static_cast<Byte>(AST::PrimitiveValueType::U8):
   case static_cast<Byte>(AST::PrimitiveValueType::S8):
   case static_cast<Byte>(AST::PrimitiveValueType::Bool): {
-    std::get<AST::PrimitiveValueType>(Ty) =
-        static_cast<AST::PrimitiveValueType>(*Res);
+    Ty = static_cast<AST::PrimitiveValueType>(*Res);
     break;
   }
   default:
-    std::get<uint32_t>(Ty) = *Res;
+    Ty = static_cast<uint32_t>(*Res);
     break;
   }
   return {};

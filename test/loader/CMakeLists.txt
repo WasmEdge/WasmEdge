@@ -36,3 +36,5 @@ target_link_libraries(wasmedgeLoaderASTTests
   ${GTEST_BOTH_LIBRARIES}
   wasmedgeLoader
 )
+
+add_subdirectory(component)

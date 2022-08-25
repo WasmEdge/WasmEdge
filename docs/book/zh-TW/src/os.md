@@ -5,9 +5,9 @@ WasmEdge 支援數種作業系統及硬體平台，使得 WebAssembly bytecode �
 
 WasmEdge 目前支援:
 
-- Linux
-- Windows
-- macOS
-- seL4
-- OpenHarmony(進行中)
+* Linux
+* Windows
+* macOS
+* seL4
+* OpenHarmony(進行中)
 

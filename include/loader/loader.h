@@ -341,7 +341,7 @@ private:
   /* - */ Expect<void> loadComponentDecl(AST::ComponentDecl &Decl);
   /* - */ Expect<void> loadFuncVec(AST::FuncVec &FuncV);
   /* - */ Expect<void> loadCase(AST::Case &Case);
-  /* - */ Expect<void> loadCaseType(AST::CaseType &Ty);
+  /* - */ Expect<void> loadCaseType(std::optional<AST::CaseType> Ty);
   /* - */ Expect<void> loadNamedValType(AST::NamedValType &Ty);
   /* - */ Expect<void> loadValType(AST::ValueType &ValTyp);
   Expect<void> loadSection(AST::ComponentCanonSection &Sec);

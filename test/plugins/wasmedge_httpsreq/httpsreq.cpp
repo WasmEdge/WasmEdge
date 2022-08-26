@@ -17,7 +17,7 @@ namespace {
 WasmEdge::Runtime::Instance::ModuleInstance *createModule() {
   using namespace std::literals::string_view_literals;
   WasmEdge::Plugin::Plugin::load(std::filesystem::u8path(
-      "../../../plugins/httpsreq/"
+      "../../../plugins/wasmedge_httpsreq/"
       "libwasmedgePluginHttpsReq" WASMEDGE_LIB_EXTENSION));
   if (const auto *Plugin = WasmEdge::Plugin::Plugin::find("wasmedge_httpsreq"sv)) {
     if (const auto *Module = Plugin->findModule("wasmedge_httpsreq"sv)) {
@@ -60,12 +60,12 @@ TEST(wasmedgeHttpsReqTests, SendData) {
                  std::string("GET / HTTP/1.1\nHost: httpbin.org\r\nConnection: "
                              "Close\r\nReferer: https://httpbin.org/\r\n\r\n"));
 
-  // Get the function "send_data"
-  auto *FuncInst = ProcMod->findFuncExports("send_data");
+  // Get the function "wasmedge_httpsreq_send_data"
+  auto *FuncInst = ProcMod->findFuncExports("wasmedge_httpsreq_send_data");
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
   auto &HostFuncInst =
-      dynamic_cast<WasmEdge::Host::SendData &>(FuncInst->getHostFunc());
+      dynamic_cast<WasmEdge::Host::WasmEdgeHttpsReqSendData &>(FuncInst->getHostFunc());
 
   // Test: Run function successfully for get requests
   EXPECT_TRUE(HostFuncInst.run(
@@ -80,9 +80,9 @@ TEST(wasmedgeHttpsReqTests, SendData) {
 }
 
 TEST(wasmedgeHttpsReqTests, GetRcv) {
-  // Create the httpsreq module instance.
+  // Create the wasmedge httpsreq module instance.
   auto *ProcMod =
-      dynamic_cast<WasmEdge::Host::HttpsReqModule *>(createModule());
+      dynamic_cast<WasmEdge::Host::WasmEdgeHttpsReqModule *>(createModule());
   EXPECT_FALSE(ProcMod == nullptr);
 
   // Create the memory instance.
@@ -109,7 +109,7 @@ TEST(wasmedgeHttpsReqTests, GetRcv) {
   FuncInst = ProcMod->findFuncExports("https_req_get_rcv_len");
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncGetRcvLen = dynamic_cast<WasmEdge::Host::HttpsReqGetRcvLen &>(
+  auto &HostFuncGetRcvLen = dynamic_cast<WasmEdge::Host::WasmEdgeHttpsReqGetRcvLen &>(
       FuncInst->getHostFunc());
 
   // Get the function "get_rcv"
@@ -117,7 +117,7 @@ TEST(wasmedgeHttpsReqTests, GetRcv) {
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
   auto &HostFuncGetRcv =
-      dynamic_cast<WasmEdge::Host::HttpsReqGetRcv &>(FuncInst->getHostFunc());
+      dynamic_cast<WasmEdge::Host::WasmEdgeHttpsReqGetRcv &>(FuncInst->getHostFunc());
 
   // Test: Run function successfully for get requests
   EXPECT_TRUE(HostFuncSendData.run(

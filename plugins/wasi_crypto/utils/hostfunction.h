@@ -19,8 +19,8 @@
 #include "symmetric/registed.h"
 #include "utils/error.h"
 
+#include "runtime/callingframe.h"
 #include "runtime/hostfunc.h"
-#include "runtime/instance/memory.h"
 
 namespace WasmEdge {
 namespace Host {

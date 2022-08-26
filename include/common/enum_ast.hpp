@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2019-2022 Second State INC
 
-//===-- wasmedge/common/enum_ast.h - AST enumeration definition -----------===//
+//===-- wasmedge/common/enum_ast.hpp - AST C++ enumerations ---------------===//
 //
 // Part of the WasmEdge Project.
 //
@@ -15,15 +15,13 @@
 
 // This header is not exported to the C API.
 
-#ifndef WASMEDGE_C_API_ENUM_AST_H
-#define WASMEDGE_C_API_ENUM_AST_H
+#pragma once
 
-#ifdef __cplusplus
 #include "dense_enum_map.h"
 #include "spare_enum_map.h"
+
 #include <cstdint>
 #include <string>
-#endif
 
 namespace WasmEdge {
 
@@ -74,5 +72,3 @@ static inline constexpr const auto OpCodeStr = []() constexpr {
 ();
 
 } // namespace WasmEdge
-
-#endif // WASMEDGE_C_API_ENUM_AST_H

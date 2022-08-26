@@ -81,7 +81,7 @@ To further debug and diagnose cluster problems, use 'kubectl cluster-info dump'.
 Run the WebAssembly-based image from Docker Hub in the Kubernetes cluster as follows.
 
 ```bash
-sudo cluster/kubectl.sh run -it --rm --restart=Never wasi-demo --image=hydai/wasm-wasi-example:with-wasm-annotation --annotations="module.wasm.image/variant=compat" /wasi_example_main.wasm 50000000
+sudo cluster/kubectl.sh run -it --rm --restart=Never wasi-demo --image=hydai/wasm-wasi-example:with-wasm-annotation --annotations="module.wasm.image/variant=compat-smart" /wasi_example_main.wasm 50000000
 ```
 
 The output from the containerized application is printed into the console.
@@ -111,7 +111,7 @@ metadata:
   name: http-server
   namespace: default
   annotations:
-    module.wasm.image/variant: compat
+    module.wasm.image/variant: compat-smart
 spec:
   hostNetwork: true
   containers:

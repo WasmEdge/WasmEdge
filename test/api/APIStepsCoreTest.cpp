@@ -151,7 +151,7 @@ TEST_P(CoreTest, TestSuites) {
       WasmEdge_FunctionInstanceContext *FuncCxt =
           WasmEdge_ModuleInstanceFindFunction(ModCxt, FieldStr);
       if (FuncCxt == nullptr) {
-        return Unexpect(ErrCode::FuncNotFound);
+        return Unexpect(ErrCode::Value::FuncNotFound);
       }
       const WasmEdge_FunctionTypeContext *FuncType =
           WasmEdge_FunctionInstanceGetFunctionType(FuncCxt);
@@ -166,7 +166,7 @@ TEST_P(CoreTest, TestSuites) {
       WasmEdge_FunctionInstanceContext *FuncCxt =
           WasmEdge_ModuleInstanceFindFunction(ActiveModCxt, FieldStr);
       if (FuncCxt == nullptr) {
-        return Unexpect(ErrCode::FuncNotFound);
+        return Unexpect(ErrCode::Value::FuncNotFound);
       }
       const WasmEdge_FunctionTypeContext *FuncType =
           WasmEdge_FunctionInstanceGetFunctionType(FuncCxt);
@@ -201,7 +201,7 @@ TEST_P(CoreTest, TestSuites) {
     WasmEdge_GlobalInstanceContext *GlobCxt =
         WasmEdge_ModuleInstanceFindGlobal(ModCxt, FieldStr);
     if (GlobCxt == nullptr) {
-      return Unexpect(ErrCode::WrongInstanceAddress);
+      return Unexpect(ErrCode::Value::WrongInstanceAddress);
     }
     WasmEdge_Value Val = WasmEdge_GlobalInstanceGetValue(GlobCxt);
 #if defined(__x86_64__) || defined(__aarch64__)

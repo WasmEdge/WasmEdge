@@ -272,6 +272,10 @@ pub enum CoreCommonError {
     AOTDisabled,
     #[error("execution interrupted")]
     Interrupted,
+    #[error("user defined error code")]
+    UserDefError,
+    #[error("wasm module hasn't passed validation yet")]
+    NotValidated,
 }
 
 /// The error type for the load phase from WasmEdge Core.
@@ -423,7 +427,11 @@ pub enum CoreExecutionError {
     #[error("indirect call type mismatch")]
     IndirectCallTypeMismatch,
     #[error("host function failed")]
-    ExecutionFailed,
+    HostFuncError,
     #[error("reference type mismatch")]
     RefTypeMismatch,
+    #[error("unaligned atomic")]
+    UnalignedAtomicAccess,
+    #[error("wait on unshared memory")]
+    WaitOnUnsharedMemory,
 }

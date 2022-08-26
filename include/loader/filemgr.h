@@ -98,16 +98,16 @@ public:
 
   /// Change the access position of the file.
   void seek(uint64_t NewPos) {
-    if (Status != ErrCode::IllegalPath) {
+    if (Status != ErrCode::Value::IllegalPath) {
       Pos = std::min(NewPos, Size);
       LastPos = Pos;
-      Status = ErrCode::Success;
+      Status = ErrCode::Value::Success;
     }
   }
 
   /// Reset status
   void reset() {
-    Status = ErrCode::UnexpectedEnd;
+    Status = ErrCode::Value::UnexpectedEnd;
     LastPos = 0;
     Pos = 0;
     Size = 0;
@@ -124,7 +124,7 @@ private:
   Expect<void> testRead(uint64_t Read);
 
   /// File manager status.
-  ErrCode Status = ErrCode::UnexpectedEnd;
+  ErrCode::Value Status = ErrCode::Value::UnexpectedEnd;
 
   /// Last succeeded read start or read failed offset.
   /// Will be set to the read error or EOF offset when read failed, or set to

@@ -1,7 +1,7 @@
 name: Build and Test WasmEdge with extensions on multiple platforms
 
 concurrency:
-  group: build-extensions-${{ github.head_ref }}
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
   cancel-in-progress: true
 
 on:
@@ -34,8 +34,14 @@ on:
       - "cmake/**"
 
 jobs:
+  # TODO: Refactor `lint` with `on.workflow_run`
+  # https://docs.github.com/en/actions/using-workflows/triggering-a-workflow
+  lint:
+    uses: ./.github/workflows/reusable-call-linter.yml
+
   get_version_v2:
     name: Retrieve version information (v2)
+    needs: lint
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.prep.outputs.version }}

@@ -1,7 +1,7 @@
 name: Build and Test WasmEdge on OpenWrt
 
 concurrency:
-  group: build-openwrt-${{ github.head_ref }}
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
   cancel-in-progress: true
 
 on:
@@ -38,8 +38,14 @@ on:
       - "cmake/**"
 
 jobs:
+  # TODO: Refactor `lint` with `on.workflow_run`
+  # https://docs.github.com/en/actions/using-workflows/triggering-a-workflow
+  lint:
+    uses: ./.github/workflows/reusable-call-linter.yml
+
   build_openwrt:
     name: OpenWrt
+    needs: lint
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2

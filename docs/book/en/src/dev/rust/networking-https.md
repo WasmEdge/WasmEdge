@@ -12,7 +12,7 @@ use wasmedge_http_req::request;
 fn main() {
     // get request
     let mut writer = Vec::new(); //container for body of a response
-    let res = request::get("https://httpbin.org/get", &mut writer).unwrap();
+    let mut res = request::get("https://httpbin.org/get", &mut writer).unwrap();
 
     println!("Status: {} {}", res.status_code(), res.reason());
     println!("Headers {}", res.headers());
@@ -70,13 +70,10 @@ if self.inner.uri.scheme() == "https" {
     let buf = &self.inner.parse_msg();
     let body = String::from_utf8_lossy(buf);
     send_data(host, port.into(), &body);
-    let buf = &self.inner.parse_msg();
-    let body = String::from_utf8_lossy(buf);
-    send_data(host, port.into(), &body);
+
     let output = get_receive();
     let tmp = String::from_utf8(output.rcv_vec).unwrap();
-    let mut res_vec = Vec::new();
-    let res = Response::try_from(tmp.as_bytes(), &mut res_vec).unwrap();
+    let res = Response::try_from(tmp.as_bytes(), writer).unwrap();
     return Ok(res);
 }
 ```
@@ -88,18 +85,18 @@ To add the host function to a crate that can be used by Rust code, we also imple
 The httpsreq host has three functions (i.e. `send_data`, `get_rcv_len` and `get_rcv`)
 The `send_data` function uses the OpenSSL library to send the data to the server. The `send_data` function receives three inputs, that is, the host, the port and the parsed request.
 
-```
-Expect<void> body(Runtime::Instance::MemoryInstance *, uint32_t HostPtr,
-                    uint32_t HostLen, uint32_t Port, uint32_t BodyPtr,
-                    uint32_t BodyLen)
+```cpp
+Expect<void> WasmEdgeHttpsReqSendData::body(Runtime::Instance::MemoryInstance *, uint32_t HostPtr,
+                  uint32_t HostLen, uint32_t Port, uint32_t BodyPtr,
+                  uint32_t BodyLen);
 ```
 
 The `get_rcv` function and `get_rcv_len` function pass the received content out of the host function which is later processed by the original Rust code. The get_rcv function receives the pointer while the get_rcv_len function returns the length of the received content.
 
-```
-Expect<void> body(Runtime::Instance::MemoryInstance *, uint32_t BufPtr)
+```cpp
+Expect<void> WasmEdgeHttpsReqGetRcv::body(Runtime::Instance::MemoryInstance *, uint32_t BufPtr);
 
-Expect<uint32_t> body(Runtime::Instance::MemoryInstance *)
+Expect<uint32_t> WasmEdgeHttpsReqGetRcvLen::body(Runtime::Instance::MemoryInstance *);
 ```
 
 It then [opens the connection](https://github.com/WasmEdge/WasmEdge/blob/14a38e13725965026cd1f404fe552f9c41ad09a3/plugins/httpsreq/httpsreqfunc.cpp#L54-L102). Next, use the `SSL_write` to write the parsed request to the connection. Finally, it receives by using `SSL_read` and prints the receive to the console.

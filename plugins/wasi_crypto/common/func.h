@@ -24,14 +24,14 @@ namespace Common {
 class ArrayOutputLen : public HostFunction<ArrayOutputLen> {
 public:
   using HostFunction::HostFunction;
-  Expect<uint32_t> body(Runtime::Instance::MemoryInstance *MemInst,
+  Expect<uint32_t> body(const Runtime::CallingFrame &Frame,
                         int32_t ArrayOutputHandle, uint32_t /* Out */ SizePtr);
 };
 
 class ArrayOutputPull : public HostFunction<ArrayOutputPull> {
 public:
   using HostFunction::HostFunction;
-  Expect<uint32_t> body(Runtime::Instance::MemoryInstance *MemInst,
+  Expect<uint32_t> body(const Runtime::CallingFrame &Frame,
                         int32_t ArrayOutputHandle, uint32_t BufPtr,
                         uint32_t BufLen, uint32_t /* Out */ SizePtr);
 };
@@ -39,21 +39,21 @@ public:
 class OptionsOpen : public HostFunction<OptionsOpen> {
 public:
   using HostFunction::HostFunction;
-  Expect<uint32_t> body(Runtime::Instance::MemoryInstance *MemInst,
-                        uint32_t AlgType, uint32_t /* Out */ OptionsHandlePtr);
+  Expect<uint32_t> body(const Runtime::CallingFrame &Frame, uint32_t AlgType,
+                        uint32_t /* Out */ OptionsHandlePtr);
 };
 
 class OptionsClose : public HostFunction<OptionsClose> {
 public:
   using HostFunction::HostFunction;
-  Expect<uint32_t> body(Runtime::Instance::MemoryInstance *MemInst,
+  Expect<uint32_t> body(const Runtime::CallingFrame &Frame,
                         int32_t OptionsHandle);
 };
 
 class OptionsSet : public HostFunction<OptionsSet> {
 public:
   using HostFunction::HostFunction;
-  Expect<uint32_t> body(Runtime::Instance::MemoryInstance *MemInst,
+  Expect<uint32_t> body(const Runtime::CallingFrame &Frame,
                         int32_t OptionsHandle, uint32_t NamePtr,
                         uint32_t NameLen, uint32_t ValuePtr, uint32_t ValueLen);
 };
@@ -61,7 +61,7 @@ public:
 class OptionsSetU64 : public HostFunction<OptionsSetU64> {
 public:
   using HostFunction::HostFunction;
-  Expect<uint32_t> body(Runtime::Instance::MemoryInstance *MemInst,
+  Expect<uint32_t> body(const Runtime::CallingFrame &Frame,
                         int32_t OptionsHandle, uint32_t NamePtr,
                         uint32_t NameLen, uint64_t Value);
 };
@@ -69,7 +69,7 @@ public:
 class OptionsSetGuestBuffer : public HostFunction<OptionsSetGuestBuffer> {
 public:
   using HostFunction::HostFunction;
-  Expect<uint32_t> body(Runtime::Instance::MemoryInstance *MemInst,
+  Expect<uint32_t> body(const Runtime::CallingFrame &Frame,
                         int32_t OptionsHandle, uint32_t NamePtr,
                         uint32_t NameLen, uint32_t BufPtr, uint32_t BufLen);
 };
@@ -77,7 +77,7 @@ public:
 class SecretsManagerOpen : public HostFunction<SecretsManagerOpen> {
 public:
   using HostFunction::HostFunction;
-  Expect<uint32_t> body(Runtime::Instance::MemoryInstance *MemInst,
+  Expect<uint32_t> body(const Runtime::CallingFrame &Frame,
                         uint32_t OptOptionsHandlePtr,
                         uint32_t /* Out */ SecretsManagerHandlePtr);
 };
@@ -85,14 +85,14 @@ public:
 class SecretsManagerClose : public HostFunction<SecretsManagerClose> {
 public:
   using HostFunction::HostFunction;
-  Expect<uint32_t> body(Runtime::Instance::MemoryInstance *MemInst,
+  Expect<uint32_t> body(const Runtime::CallingFrame &Frame,
                         int32_t SecretsManagerHandle);
 };
 
 class SecretsManagerInvalidate : public HostFunction<SecretsManagerInvalidate> {
 public:
   using HostFunction::HostFunction;
-  Expect<uint32_t> body(Runtime::Instance::MemoryInstance *MemInst,
+  Expect<uint32_t> body(const Runtime::CallingFrame &Frame,
                         int32_t SecretsManagerHandle, uint32_t KeyIdPtr,
                         uint32_t KeyIdLen, uint64_t Version);
 };

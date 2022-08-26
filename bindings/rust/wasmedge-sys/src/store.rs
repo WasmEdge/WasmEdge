@@ -120,7 +120,7 @@ mod tests {
     use crate::{
         instance::{Function, Global, GlobalType, MemType, Memory, Table, TableType},
         types::WasmValue,
-        Config, Engine, Executor, FuncType, ImportInstance, ImportModule, ImportObject, Vm,
+        AsImport, Config, Engine, Executor, FuncType, ImportModule, ImportObject, Vm,
     };
     use std::{
         sync::{Arc, Mutex},

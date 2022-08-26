@@ -40,13 +40,11 @@
 //!    |   `-- wasmedgec
 //!    |-- include
 //!    |   `-- wasmedge
-//!    |       |-- dense_enum_map.h
 //!    |       |-- enum.inc
 //!    |       |-- enum_configure.h
 //!    |       |-- enum_errcode.h
 //!    |       |-- enum_types.h
 //!    |       |-- int128.h
-//!    |       |-- spare_enum_map.h
 //!    |       |-- version.h
 //!    |       `-- wasmedge.h
 //!    `-- lib64
@@ -54,7 +52,7 @@
 //!        `-- wasmedge
 //!            `-- libwasmedgePluginWasmEdgeProcess.so
 //!
-//!    5 directories, 13 files
+//!    5 directories, 11 files
 //!    ```
 //!
 //! ### Enable WasmEdge Plugins
@@ -198,7 +196,11 @@ pub use instance::{
     function::{FuncRef, FuncType, Function},
     global::{Global, GlobalType},
     memory::{MemType, Memory},
-    module::{AsInstance, ImportInstance, ImportModule, ImportObject, Instance, WasiModule},
+    module::{
+        AsImport, AsInstance, ImportModule, ImportObject, Instance, WasiCrypto,
+        WasiCryptoAsymmetricCommonModule, WasiCryptoCommonModule, WasiCryptoKxModule,
+        WasiCryptoSignaturesModule, WasiCryptoSymmetricModule, WasiModule, WasiNnModule,
+    },
     table::{Table, TableType},
 };
 #[doc(inline)]
@@ -260,7 +262,7 @@ pub trait Engine {
     ///
     /// If fail to run the host function, then an error is returned.
     fn run_func(
-        &mut self,
+        &self,
         func: &Function,
         params: impl IntoIterator<Item = WasmValue>,
     ) -> WasmEdgeResult<Vec<WasmValue>>;
@@ -277,7 +279,7 @@ pub trait Engine {
     ///
     /// If fail to run the host function, then an error is returned.
     fn run_func_ref(
-        &mut self,
+        &self,
         func_ref: &FuncRef,
         params: impl IntoIterator<Item = WasmValue>,
     ) -> WasmEdgeResult<Vec<WasmValue>>;

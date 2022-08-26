@@ -14,7 +14,7 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
-#include "common/enum_configure.h"
+#include "common/enum_configure.hpp"
 
 #include <atomic>
 #include <bitset>

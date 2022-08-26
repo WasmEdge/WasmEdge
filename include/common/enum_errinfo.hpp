@@ -1,27 +1,25 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2019-2022 Second State INC
 
-//===-- wasmedge/common/enum_errinfo.h - ErrInfo enumeration definition ---===//
+//===-- wasmedge/common/enum_errinfo.hpp - ErrInfo C++ enumerations -------===//
 //
 // Part of the WasmEdge Project.
 //
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// This file contains the definitions of ErrInfo used enumerations.
+/// This file contains the definitions of ErrInfo used C++ enumerations.
 ///
 //===----------------------------------------------------------------------===//
 
 // This header is not exported to the C API.
 
-#ifndef WASMEDGE_C_API_ENUM_ERRINFO_H
-#define WASMEDGE_C_API_ENUM_ERRINFO_H
+#pragma once
 
-#ifdef __cplusplus
 #include "dense_enum_map.h"
+
 #include <cstdint>
 #include <string_view>
-#endif
 
 namespace WasmEdge {
 namespace ErrInfo {
@@ -111,5 +109,3 @@ static inline constexpr auto IndexCategoryStr = []() constexpr {
 
 } // namespace ErrInfo
 } // namespace WasmEdge
-
-#endif // WASMEDGE_C_API_ENUM_ERRINFO_H

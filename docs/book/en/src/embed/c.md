@@ -45,7 +45,7 @@ int main(int Argc, const char* Argv[]) {
 Then you can compile and run: (the 32th fibonacci number is 3524578 in 0-based index)
 
 ```bash
-$ gcc test_wasmedge.c -lwasmedge_c -o test_wasmedge
+$ gcc test_wasmedge.c -lwasmedge -o test_wasmedge
 $ ./test_wasmedge fibonacci.wasm
 Get result: 3524578
 ```
@@ -82,7 +82,7 @@ int main(int Argc, const char* Argv[]) {
 Then you can compile and run (the output file is `fibonacci.wasm.so`):
 
 ```bash
-$ gcc test_wasmedge_compiler.c -lwasmedge_c -o test_wasmedge_compiler
+$ gcc test_wasmedge_compiler.c -lwasmedge -o test_wasmedge_compiler
 $ ./test_wasmedge_compiler fibonacci.wasm fibonacci.wasm.so
 [2021-07-02 11:08:08.651] [info] compile start
 [2021-07-02 11:08:08.653] [info] verify start

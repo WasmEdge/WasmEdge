@@ -71,6 +71,12 @@ pub(crate) fn check(result: WasmEdge_Result) -> WasmEdgeResult<()> {
         0x07 => Err(WasmEdgeError::Core(CoreError::Common(
             CoreCommonError::Interrupted,
         ))),
+        0x08 => Err(WasmEdgeError::Core(CoreError::Common(
+            CoreCommonError::NotValidated,
+        ))),
+        0x09 => Err(WasmEdgeError::Core(CoreError::Common(
+            CoreCommonError::UserDefError,
+        ))),
 
         // Load phase
         0x20 => Err(WasmEdgeError::Core(CoreError::Load(
@@ -275,10 +281,16 @@ pub(crate) fn check(result: WasmEdge_Result) -> WasmEdgeResult<()> {
             CoreExecutionError::IndirectCallTypeMismatch,
         ))),
         0x8D => Err(WasmEdgeError::Core(CoreError::Execution(
-            CoreExecutionError::ExecutionFailed,
+            CoreExecutionError::HostFuncError,
         ))),
         0x8E => Err(WasmEdgeError::Core(CoreError::Execution(
             CoreExecutionError::RefTypeMismatch,
+        ))),
+        0x8F => Err(WasmEdgeError::Core(CoreError::Execution(
+            CoreExecutionError::UnalignedAtomicAccess,
+        ))),
+        0x90 => Err(WasmEdgeError::Core(CoreError::Execution(
+            CoreExecutionError::WaitOnUnsharedMemory,
         ))),
 
         _ => panic!("unknown error code: {}", code),
@@ -292,7 +304,7 @@ pub(crate) fn check(result: WasmEdge_Result) -> WasmEdgeResult<()> {
 /// * The path specified by the `WASMEDGE_PLUGIN_PATH` environment variable.
 ///
 pub fn load_plugin_from_default_paths() {
-    unsafe { ffi::WasmEdge_Plugin_loadWithDefaultPluginPaths() }
+    unsafe { ffi::WasmEdge_PluginLoadWithDefaultPaths() }
 }
 
 /// Returns the major version value.
@@ -318,3 +330,51 @@ pub fn version_string() -> String {
             .into_owned()
     }
 }
+
+// #[derive(Debug)]
+// pub struct Driver {}
+// impl Driver {
+/// Triggers the WasmEdge AOT compiler tool
+pub fn driver_aot_compiler<I, V>(args: I) -> i32
+where
+    I: IntoIterator<Item = V>,
+    V: AsRef<str>,
+{
+    // create a vector of zero terminated strings
+    let args = args
+        .into_iter()
+        .map(|arg| CString::new(arg.as_ref()).unwrap())
+        .collect::<Vec<CString>>();
+
+    // convert the strings to raw pointers
+    let mut c_args = args
+        .iter()
+        .map(|arg| arg.as_ptr())
+        .collect::<Vec<*const std::os::raw::c_char>>();
+
+    unsafe {
+        ffi::WasmEdge_Driver_Compiler(c_args.len() as std::os::raw::c_int, c_args.as_mut_ptr())
+    }
+}
+
+/// Triggers the WasmEdge runtime tool
+pub fn driver_runtime_tool<I, V>(args: I) -> i32
+where
+    I: IntoIterator<Item = V>,
+    V: AsRef<str>,
+{
+    // create a vector of zero terminated strings
+    let args = args
+        .into_iter()
+        .map(|arg| CString::new(arg.as_ref()).unwrap())
+        .collect::<Vec<CString>>();
+
+    // convert the strings to raw pointers
+    let mut c_args = args
+        .iter()
+        .map(|arg| arg.as_ptr())
+        .collect::<Vec<*const std::os::raw::c_char>>();
+
+    unsafe { ffi::WasmEdge_Driver_Tool(c_args.len() as std::os::raw::c_int, c_args.as_mut_ptr()) }
+}
+// }

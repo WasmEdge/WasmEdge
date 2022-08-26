@@ -2,6 +2,9 @@
 
 [WasmEdge C API](https://github.com/WasmEdge/WasmEdge/blob/master/include/api/wasmedge/wasmedge.h) denotes an interface to access the WasmEdge runtime. The followings are the guides to working with the C APIs of WasmEdge.
 
+**Please notice that the WasmEdge C API provides SONAME and SOVERSION after the 0.11.0 release.**
+**Please notice that `libwasmedge\_c.so` is renamed to `libwasmedge.so` after the 0.11.0 release. Please use `-lwasmedge` instead of `-lwasmedge\_c**
+
 **This document is for the `0.10.0` version. For the older `0.9.1` version, please refer to the [document here](0.9.1/ref.md).**
 
 **Developers can refer [here to upgrade to 0.10.0](0.9.1/upgrade_to_0.10.0.md).**
@@ -11,6 +14,7 @@
 * [WasmEdge Installation](#wasmedge-installation)
   * [Download And Install](#download-and-install)
   * [Compile Sources](#compile-sources)
+  * [ABI Compatibility](#abi-compatibility)
 * [WasmEdge Basics](#wasmedge-basics)
   * [Version](#version)
   * [Logging Settings](#logging-settings)
@@ -39,7 +43,7 @@
   * [Store](#store)
   * [Instances](#instances)
   * [Host Functions](#host-functions)
-* [WasmEdge AOT Compiler](#wasmEdge-aot-compiler)
+* [WasmEdge AOT Compiler](#wasmedge-aot-compiler)
   * [Compilation Example](#compilation-example)
   * [Compiler Options](#compiler-options)
 
@@ -73,7 +77,7 @@ After the installation of WasmEdge, the following guide can help you to test for
 2. Compile the file with `gcc` or `clang`.
 
     ```bash
-    gcc test.c -lwasmedge_c
+    gcc test.c -lwasmedge
     ```
 
 3. Run and get the expected output.
@@ -82,6 +86,17 @@ After the installation of WasmEdge, the following guide can help you to test for
     $ ./a.out
     WasmEdge version: 0.10.0
     ```
+
+### ABI Compatibility
+
+WasmEdge C API introduces SONAME and SOVERSION in the 0.11.0 release to present the compatibility between different C API versions.
+
+The releases before 0.11.0 are all unversioned. Please make sure the library version is the same as the corresponding C API version you used.
+
+| WasmEdge Version | WasmEdge C API Library Name | WasmEdge C API SONAME | WasmEdge C API SOVERSION |
+| ---              | ---                         | ---                   |
+| < 0.11.0         | libwasmedge\_c.so           | Unversioned           | Unversioned              |
+| 0.11.0           | libwasmedge.so              | libwasmedge.so.0      | libwasmedge.so.0.0.0     |
 
 ## WasmEdge Basics
 
@@ -732,7 +747,7 @@ This example uses the [fibonacci.wasm](https://raw.githubusercontent.com/WasmEdg
     Then you can compile and run: (the 5th Fibonacci number is 8 in 0-based index)
 
     ```bash
-    $ gcc test.c -lwasmedge_c
+    $ gcc test.c -lwasmedge
     $ ./a.out
     Get the result: 8
     ```
@@ -806,7 +821,7 @@ This example uses the [fibonacci.wasm](https://raw.githubusercontent.com/WasmEdg
     Then you can compile and run: (the 10th Fibonacci number is 89 in 0-based index)
 
     ```bash
-    $ gcc test.c -lwasmedge_c
+    $ gcc test.c -lwasmedge
     $ ./a.out
     Get the result: 89
     ```
@@ -1023,7 +1038,7 @@ WasmEdge VM provides APIs for developers to register and export any WASM modules
     Then you can compile and run: (the 20th Fibonacci number is 89 in 0-based index)
 
     ```bash
-    $ gcc test.c -lwasmedge_c
+    $ gcc test.c -lwasmedge
     $ ./a.out
     Get the result: 10946
     ```
@@ -1084,7 +1099,7 @@ WasmEdge VM provides APIs for developers to register and export any WASM modules
     Then you can compile and run: (the 20th Fibonacci number is 10946 in 0-based index)
 
     ```bash
-    $ gcc test.c -lwasmedge_c
+    $ gcc test.c -lwasmedge
     $ ./a.out
     Get the result: 10946
     ```
@@ -1164,7 +1179,7 @@ WasmEdge VM provides APIs for developers to register and export any WASM modules
     Then you can compile and run: (the 25th Fibonacci number is 121393 in 0-based index)
 
     ```bash
-    $ gcc test.c -lwasmedge_c
+    $ gcc test.c -lwasmedge
     $ ./a.out
     Get the result: 121393
     ```
@@ -1245,7 +1260,7 @@ The `VM` context supplies the APIs to retrieve the instances.
     Then you can compile and run: (the only exported function in `fibonacci.wasm` is `fib`)
 
     ```bash
-    $ gcc test.c -lwasmedge_c
+    $ gcc test.c -lwasmedge
     $ ./a.out
     Get exported function string length: 3, name: fib
     ```
@@ -1392,7 +1407,7 @@ int main() {
 Then you can compile and run: (the 18th Fibonacci number is 4181 in 0-based index)
 
 ```bash
-$ gcc test.c -lwasmedge_c
+$ gcc test.c -lwasmedge
 $ ./a.out
 Get exported function string length: 3, name: fib
 Get the result: 4181
@@ -2112,7 +2127,7 @@ In WasmEdge, developers can create the `Function`, `Memory`, `Table`, and `Globa
     Then you can compile and run: (the result of 1234 + 5678 is 6912)
 
     ```bash
-    $ gcc test.c -lwasmedge_c
+    $ gcc test.c -lwasmedge
     $ ./a.out
     Host function "Add": 1234 + 5678
     Get the result: 6912
@@ -2231,7 +2246,7 @@ In WasmEdge, developers can create the `Function`, `Memory`, `Table`, and `Globa
     Then you can compile and run: (the result of 1234 + 5678 is 6912)
 
     ```bash
-    $ gcc test.c -lwasmedge_c
+    $ gcc test.c -lwasmedge
     $ ./a.out
     Host function "Add": 1234 + 5678
     Get the result: 6912
@@ -2277,7 +2292,7 @@ int main() {
 Then you can compile and run (the output file is "fibonacci.wasm.so"):
 
 ```bash
-$ gcc test.c -lwasmedge_c
+$ gcc test.c -lwasmedge
 $ ./a.out
 [2021-07-02 11:08:08.651] [info] compile start
 [2021-07-02 11:08:08.653] [info] verify start

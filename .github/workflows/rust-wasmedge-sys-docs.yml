@@ -1,15 +1,25 @@
 name: wasmedge-sys-docs
 
 concurrency:
-  group: wasmedge-sys-docs-${{ github.head_ref }}
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
   cancel-in-progress: true
 
 on:
   push:
     branches:
-      - "rust/*"
+      - master
+      - "release/rust/*"
+    paths:
+      - ".github/workflows/rust-wasmedge-sys-docs.yml"
+      - "bindings/rust/wasmedge-sys/**"
     tags:
       - "rust/[0-9]+.[0-9]+.[0-9]+*"
+  pull_request:
+    branches:
+      - master
+    paths:
+      - ".github/workflows/rust-wasmedge-sys-docs.yml"
+      - "bindings/rust/wasmedge-sys/**"
 
 jobs:
   rustdoc:

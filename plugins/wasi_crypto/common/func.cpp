@@ -8,10 +8,11 @@ namespace Host {
 namespace WasiCrypto {
 namespace Common {
 
-Expect<uint32_t>
-ArrayOutputLen::body(Runtime::Instance::MemoryInstance *MemInst,
-                     int32_t ArrayOutputHandle, uint32_t /* Out */ SizePtr) {
+Expect<uint32_t> ArrayOutputLen::body(const Runtime::CallingFrame &Frame,
+                                      int32_t ArrayOutputHandle,
+                                      uint32_t /* Out */ SizePtr) {
   // Check memory instance from module.
+  auto *MemInst = Frame.getMemoryByIndex(0);
   checkExist(MemInst);
 
   auto *const Size = MemInst->getPointer<__wasi_size_t *>(SizePtr);
@@ -27,11 +28,12 @@ ArrayOutputLen::body(Runtime::Instance::MemoryInstance *MemInst,
   return __WASI_CRYPTO_ERRNO_SUCCESS;
 }
 
-Expect<uint32_t>
-ArrayOutputPull::body(Runtime::Instance::MemoryInstance *MemInst,
-                      int32_t ArrayOutputHandle, uint32_t BufPtr,
-                      uint32_t BufLen, uint32_t /* Out */ SizePtr) {
+Expect<uint32_t> ArrayOutputPull::body(const Runtime::CallingFrame &Frame,
+                                       int32_t ArrayOutputHandle,
+                                       uint32_t BufPtr, uint32_t BufLen,
+                                       uint32_t /* Out */ SizePtr) {
   // Check memory instance from module.
+  auto *MemInst = Frame.getMemoryByIndex(0);
   checkExist(MemInst);
 
   const __wasi_size_t WasiBufLen = BufLen;
@@ -52,10 +54,11 @@ ArrayOutputPull::body(Runtime::Instance::MemoryInstance *MemInst,
   return __WASI_CRYPTO_ERRNO_SUCCESS;
 }
 
-Expect<uint32_t> OptionsOpen::body(Runtime::Instance::MemoryInstance *MemInst,
+Expect<uint32_t> OptionsOpen::body(const Runtime::CallingFrame &Frame,
                                    uint32_t AlgType,
                                    uint32_t /* Out */ OptionsHandlePtr) {
   // Check memory instance from module.
+  auto *MemInst = Frame.getMemoryByIndex(0);
   checkExist(MemInst);
 
   __wasi_algorithm_type_e_t WasiAlgType;
@@ -78,9 +81,8 @@ Expect<uint32_t> OptionsOpen::body(Runtime::Instance::MemoryInstance *MemInst,
   return __WASI_CRYPTO_ERRNO_SUCCESS;
 }
 
-Expect<uint32_t> OptionsClose::body(Runtime::Instance::MemoryInstance *,
+Expect<uint32_t> OptionsClose::body(const Runtime::CallingFrame &,
                                     int32_t OptionsHandle) {
-
   if (auto Res = Ctx.optionsClose(OptionsHandle); unlikely(!Res)) {
     return Res.error();
   }
@@ -88,11 +90,12 @@ Expect<uint32_t> OptionsClose::body(Runtime::Instance::MemoryInstance *,
   return __WASI_CRYPTO_ERRNO_SUCCESS;
 }
 
-Expect<uint32_t> OptionsSet::body(Runtime::Instance::MemoryInstance *MemInst,
+Expect<uint32_t> OptionsSet::body(const Runtime::CallingFrame &Frame,
                                   int32_t OptionsHandle, uint32_t NamePtr,
                                   uint32_t NameLen, uint32_t ValuePtr,
                                   uint32_t ValueLen) {
   // Check memory instance from module.
+  auto *MemInst = Frame.getMemoryByIndex(0);
   checkExist(MemInst);
 
   const __wasi_size_t WasiNameLen = NameLen;
@@ -113,10 +116,11 @@ Expect<uint32_t> OptionsSet::body(Runtime::Instance::MemoryInstance *MemInst,
   return __WASI_CRYPTO_ERRNO_SUCCESS;
 }
 
-Expect<uint32_t> OptionsSetU64::body(Runtime::Instance::MemoryInstance *MemInst,
+Expect<uint32_t> OptionsSetU64::body(const Runtime::CallingFrame &Frame,
                                      int32_t OptionsHandle, uint32_t NamePtr,
                                      uint32_t NameLen, uint64_t Value) {
   // Check memory instance from module.
+  auto *MemInst = Frame.getMemoryByIndex(0);
   checkExist(MemInst);
 
   const __wasi_size_t WasiNameLen = NameLen;
@@ -131,10 +135,12 @@ Expect<uint32_t> OptionsSetU64::body(Runtime::Instance::MemoryInstance *MemInst,
   return __WASI_CRYPTO_ERRNO_SUCCESS;
 }
 
-Expect<uint32_t> OptionsSetGuestBuffer::body(
-    Runtime::Instance::MemoryInstance *MemInst, int32_t OptionsHandle,
-    uint32_t NamePtr, uint32_t NameLen, uint32_t BufPtr, uint32_t BufLen) {
+Expect<uint32_t> OptionsSetGuestBuffer::body(const Runtime::CallingFrame &Frame,
+                                             int32_t OptionsHandle,
+                                             uint32_t NamePtr, uint32_t NameLen,
+                                             uint32_t BufPtr, uint32_t BufLen) {
   // Check memory instance from module.
+  auto *MemInst = Frame.getMemoryByIndex(0);
   checkExist(MemInst);
 
   const __wasi_size_t WasiNameLen = NameLen;
@@ -155,10 +161,11 @@ Expect<uint32_t> OptionsSetGuestBuffer::body(
 }
 
 Expect<uint32_t>
-SecretsManagerOpen::body(Runtime::Instance::MemoryInstance *MemInst,
+SecretsManagerOpen::body(const Runtime::CallingFrame &Frame,
                          uint32_t OptOptionsHandlePtr,
                          uint32_t /* Out */ SecretsManagerHandlePtr) {
   // Check memory instance from module.
+  auto *MemInst = Frame.getMemoryByIndex(0);
   checkExist(MemInst);
 
   auto *const OptOptionsHandle =
@@ -178,7 +185,7 @@ SecretsManagerOpen::body(Runtime::Instance::MemoryInstance *MemInst,
   return __WASI_CRYPTO_ERRNO_SUCCESS;
 }
 
-Expect<uint32_t> SecretsManagerClose::body(Runtime::Instance::MemoryInstance *,
+Expect<uint32_t> SecretsManagerClose::body(const Runtime::CallingFrame &,
                                            int32_t SecretsManagerHandle) {
   if (auto Res = Ctx.secretsManagerClose(SecretsManagerHandle);
       unlikely(!Res)) {
@@ -189,10 +196,11 @@ Expect<uint32_t> SecretsManagerClose::body(Runtime::Instance::MemoryInstance *,
 }
 
 Expect<uint32_t>
-SecretsManagerInvalidate::body(Runtime::Instance::MemoryInstance *MemInst,
+SecretsManagerInvalidate::body(const Runtime::CallingFrame &Frame,
                                int32_t SecretsManagerHandle, uint32_t KeyIdPtr,
                                uint32_t KeyIdLen, uint64_t Version) {
   // Check memory instance from module.
+  auto *MemInst = Frame.getMemoryByIndex(0);
   checkExist(MemInst);
 
   const __wasi_size_t WasiKeyIdLen = KeyIdLen;

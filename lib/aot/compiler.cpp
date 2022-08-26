@@ -327,7 +327,7 @@ struct WasmEdge::AOT::Compiler::CompileContext {
             LLModule, IntrinsicsTablePtrTy->getPointerTo(), true,
             llvm::GlobalVariable::ExternalLinkage, nullptr, "intrinsics")),
         Trap(llvm::Function::Create(
-            llvm::FunctionType::get(VoidTy, {Int8Ty}, false),
+            llvm::FunctionType::get(VoidTy, {Int32Ty}, false),
             llvm::Function::PrivateLinkage, "trap", LLModule)) {
     Trap->addFnAttr(llvm::Attribute::StrictFP);
     Trap->addFnAttr(llvm::Attribute::NoReturn);
@@ -373,7 +373,7 @@ struct WasmEdge::AOT::Compiler::CompileContext {
           llvm::BasicBlock::Create(LLContext, "entry", Trap));
       auto *CallTrap = Builder.CreateCall(
           getIntrinsic(Builder, AST::Module::Intrinsics::kTrap,
-                       llvm::FunctionType::get(VoidTy, {Int8Ty}, false)),
+                       llvm::FunctionType::get(VoidTy, {Int32Ty}, false)),
           {Trap->arg_begin()});
       CallTrap->setDoesNotReturn();
       Builder.CreateUnreachable();
@@ -587,7 +587,7 @@ public:
     }
   }
 
-  llvm::BasicBlock *getTrapBB(ErrCode Error) {
+  llvm::BasicBlock *getTrapBB(ErrCode::Value Error) {
     if (auto Iter = TrapBB.find(Error); Iter != TrapBB.end()) {
       return Iter->second;
     }
@@ -610,7 +610,7 @@ public:
       updateInstrCount();
       updateGasAtTrap();
       auto *CallTrap = Builder.CreateCall(
-          Context.Trap, {Builder.getInt8(static_cast<uint8_t>(Error))});
+          Context.Trap, {Builder.getInt32(static_cast<uint32_t>(Error))});
       CallTrap->setDoesNotReturn();
       Builder.CreateUnreachable();
     }
@@ -736,7 +736,7 @@ public:
 
       switch (Instr.getOpCode()) {
       case OpCode::Unreachable:
-        Builder.CreateBr(getTrapBB(ErrCode::Unreachable));
+        Builder.CreateBr(getTrapBB(ErrCode::Value::Unreachable));
         setUnreachable();
         Builder.SetInsertPoint(
             llvm::BasicBlock::Create(LLContext, "unreachable.end", F));
@@ -1199,7 +1199,8 @@ public:
       case OpCode::F32__nearest:
       case OpCode::F64__nearest: {
         const bool IsFloat = Instr.getOpCode() == OpCode::F32__nearest;
-        const uint32_t VectorSize = IsFloat ? 4 : 2;
+        // The VectorSize is only used when SSE4_1 or NEON is supported.
+        [[maybe_unused]] const uint32_t VectorSize = IsFloat ? 4 : 2;
         llvm::Value *Value = stackPop();
 
 #if defined(__x86_64__)
@@ -1238,6 +1239,10 @@ public:
         }
 #endif
 
+        // Fallback case.
+        // If the SSE4.1 is not supported on the x86_64 platform or
+        // the NEON is not supported on the aarch64 platform,
+        // then fallback to this.
         stackPush(
             Builder.CreateUnaryIntrinsic(llvm::Intrinsic::nearbyint, Value));
         break;
@@ -1550,7 +1555,7 @@ public:
           auto *IsNotZero =
               createLikely(Builder, Builder.CreateICmpNE(RHS, IntZero));
           Builder.CreateCondBr(IsNotZero, NoZeroBB,
-                               getTrapBB(ErrCode::DivideByZero));
+                               getTrapBB(ErrCode::Value::DivideByZero));
 
           Builder.SetInsertPoint(NoZeroBB);
           auto *NotOverflow = createLikely(
@@ -1558,7 +1563,7 @@ public:
               Builder.CreateOr(Builder.CreateICmpNE(LHS, IntMin),
                                Builder.CreateICmpNE(RHS, IntMinusOne)));
           Builder.CreateCondBr(NotOverflow, OkBB,
-                               getTrapBB(ErrCode::IntegerOverflow));
+                               getTrapBB(ErrCode::Value::IntegerOverflow));
 
           Builder.SetInsertPoint(OkBB);
         }
@@ -1578,7 +1583,7 @@ public:
           auto *IsNotZero =
               createLikely(Builder, Builder.CreateICmpNE(RHS, IntZero));
           Builder.CreateCondBr(IsNotZero, OkBB,
-                               getTrapBB(ErrCode::DivideByZero));
+                               getTrapBB(ErrCode::Value::DivideByZero));
           Builder.SetInsertPoint(OkBB);
         }
         stackPush(Builder.CreateUDiv(LHS, RHS));
@@ -1611,7 +1616,7 @@ public:
           auto *IsNotZero =
               createLikely(Builder, Builder.CreateICmpNE(RHS, IntZero));
           Builder.CreateCondBr(IsNotZero, OkBB,
-                               getTrapBB(ErrCode::DivideByZero));
+                               getTrapBB(ErrCode::Value::DivideByZero));
           Builder.SetInsertPoint(OkBB);
         }
 
@@ -1647,7 +1652,7 @@ public:
           auto *IsNotZero =
               createLikely(Builder, Builder.CreateICmpNE(RHS, IntZero));
           Builder.CreateCondBr(IsNotZero, OkBB,
-                               getTrapBB(ErrCode::DivideByZero));
+                               getTrapBB(ErrCode::Value::DivideByZero));
           Builder.SetInsertPoint(OkBB);
         }
         stackPush(Builder.CreateURem(LHS, RHS));
@@ -1676,21 +1681,30 @@ public:
       }
       case OpCode::I32__shl:
       case OpCode::I64__shl: {
-        llvm::Value *RHS = stackPop();
+        llvm::ConstantInt *Mask = Instr.getOpCode() == OpCode::I32__shl
+                                      ? Builder.getInt32(31)
+                                      : Builder.getInt64(63);
+        llvm::Value *RHS = Builder.CreateAnd(stackPop(), Mask);
         llvm::Value *LHS = stackPop();
         stackPush(Builder.CreateShl(LHS, RHS));
         break;
       }
       case OpCode::I32__shr_s:
       case OpCode::I64__shr_s: {
-        llvm::Value *RHS = stackPop();
+        llvm::ConstantInt *Mask = Instr.getOpCode() == OpCode::I32__shr_s
+                                      ? Builder.getInt32(31)
+                                      : Builder.getInt64(63);
+        llvm::Value *RHS = Builder.CreateAnd(stackPop(), Mask);
         llvm::Value *LHS = stackPop();
         stackPush(Builder.CreateAShr(LHS, RHS));
         break;
       }
       case OpCode::I32__shr_u:
       case OpCode::I64__shr_u: {
-        llvm::Value *RHS = stackPop();
+        llvm::ConstantInt *Mask = Instr.getOpCode() == OpCode::I32__shr_u
+                                      ? Builder.getInt32(31)
+                                      : Builder.getInt64(63);
+        llvm::Value *RHS = Builder.CreateAnd(stackPop(), Mask);
         llvm::Value *LHS = stackPop();
         stackPush(Builder.CreateLShr(LHS, RHS));
         break;
@@ -2023,6 +2037,10 @@ public:
         }
 #endif
 
+        // Fallback case.
+        // If the SSSE3 is not supported on the x86_64 platform or
+        // the NEON is not supported on the aarch64 platform,
+        // then fallback to this.
         auto *Mask = Builder.CreateVectorSplat(16, Builder.getInt8(15));
         auto *Zero = Builder.CreateVectorSplat(16, Builder.getInt8(0));
         auto *IsOver = Builder.CreateICmpUGT(Index, Mask);
@@ -3076,14 +3094,14 @@ public:
 
     auto *IsNotNan = createLikely(Builder, Builder.CreateFCmpORD(Value, Value));
     Builder.CreateCondBr(IsNotNan, NormBB,
-                         getTrapBB(ErrCode::InvalidConvToInt));
+                         getTrapBB(ErrCode::Value::InvalidConvToInt));
 
     Builder.SetInsertPoint(NormBB);
     auto *Trunc = Builder.CreateUnaryIntrinsic(llvm::Intrinsic::trunc, Value);
     auto *IsNotUnderflow =
         createLikely(Builder, Builder.CreateFCmpOGE(Trunc, MinFp));
     Builder.CreateCondBr(IsNotUnderflow, NotMinBB,
-                         getTrapBB(ErrCode::IntegerOverflow));
+                         getTrapBB(ErrCode::Value::IntegerOverflow));
 
     Builder.SetInsertPoint(NotMinBB);
     auto *IsNotOverflow = createLikely(
@@ -3092,7 +3110,7 @@ public:
                                    : llvm::CmpInst::Predicate::FCMP_OLT,
                            Trunc, MaxFp));
     Builder.CreateCondBr(IsNotOverflow, NotMaxBB,
-                         getTrapBB(ErrCode::IntegerOverflow));
+                         getTrapBB(ErrCode::Value::IntegerOverflow));
 
     Builder.SetInsertPoint(NotMaxBB);
     stackPush(Builder.CreateFPToSI(Trunc, IntType));
@@ -3155,14 +3173,14 @@ public:
 
     auto *IsNotNan = createLikely(Builder, Builder.CreateFCmpORD(Value, Value));
     Builder.CreateCondBr(IsNotNan, NormBB,
-                         getTrapBB(ErrCode::InvalidConvToInt));
+                         getTrapBB(ErrCode::Value::InvalidConvToInt));
 
     Builder.SetInsertPoint(NormBB);
     auto *Trunc = Builder.CreateUnaryIntrinsic(llvm::Intrinsic::trunc, Value);
     auto *IsNotUnderflow =
         createLikely(Builder, Builder.CreateFCmpOGE(Trunc, MinFp));
     Builder.CreateCondBr(IsNotUnderflow, NotMinBB,
-                         getTrapBB(ErrCode::IntegerOverflow));
+                         getTrapBB(ErrCode::Value::IntegerOverflow));
 
     Builder.SetInsertPoint(NotMinBB);
     auto *IsNotOverflow = createLikely(
@@ -3171,7 +3189,7 @@ public:
                                    : llvm::CmpInst::Predicate::FCMP_OLT,
                            Trunc, MaxFp));
     Builder.CreateCondBr(IsNotOverflow, NotMaxBB,
-                         getTrapBB(ErrCode::IntegerOverflow));
+                         getTrapBB(ErrCode::Value::IntegerOverflow));
 
     Builder.SetInsertPoint(NotMaxBB);
     stackPush(Builder.CreateFPToUI(Trunc, IntType));
@@ -3224,7 +3242,7 @@ public:
     auto *IsAddressAligned =
         createLikely(Builder, Builder.CreateICmpEQ(Value, Builder.getInt64(0)));
     Builder.CreateCondBr(IsAddressAligned, OkBB,
-                         getTrapBB(ErrCode::UnalignedAtomicAccess));
+                         getTrapBB(ErrCode::Value::UnalignedAtomicAccess));
 
     Builder.SetInsertPoint(OkBB);
   }
@@ -3428,7 +3446,7 @@ public:
       auto *IsGasRemain =
           createLikely(Builder, Builder.CreateICmpULE(NewGas, GasLimit));
       Builder.CreateCondBr(IsGasRemain, OkBB,
-                           getTrapBB(ErrCode::CostLimitExceeded));
+                           getTrapBB(ErrCode::Value::CostLimitExceeded));
       Builder.SetInsertPoint(OkBB);
 
       auto *RGasAndSucceed = Builder.CreateAtomicCmpXchg(
@@ -4008,6 +4026,10 @@ private:
           }
 #endif
 
+          // Fallback case.
+          // If the SSSE3 is not supported on the x86_64 platform or
+          // the NEON is not supported on the aarch64 platform,
+          // then fallback to this.
           auto *ExtTy =
               llvm::VectorType::getExtendedElementVectorType(Context.Int16x8Ty);
           auto *Offset =
@@ -4074,6 +4096,10 @@ private:
           }
 #endif
 
+          // Fallback case.
+          // If the SSE2 is not supported on the x86_64 platform or
+          // the NEON is not supported on the aarch64 platform,
+          // then fallback to this.
           auto *EL = Builder.CreateZExt(LHS, ExtendTy);
           auto *ER = Builder.CreateZExt(RHS, ExtendTy);
           auto *One =
@@ -4200,6 +4226,10 @@ private:
           }
 #endif
 
+          // Fallback case.
+          // If the XOP, SSSE3, or SSE2 is not supported on the x86_64 platform
+          // or the NEON is not supported on the aarch64 platform,
+          // then fallback to this.
           const auto Width = VectorTy->getElementType()->getIntegerBitWidth();
           auto *EV = Builder.CreateBitCast(V, ExtTy);
           llvm::Value *L, *R;
@@ -4264,6 +4294,10 @@ private:
       }
 #endif
 
+      // Fallback case.
+      // If the SSE4.1 is not supported on the x86_64 platform or
+      // the NEON is not supported on the aarch64 platform,
+      // then fallback to this.
       return Builder.CreateUnaryIntrinsic(llvm::Intrinsic::nearbyint, V);
     });
   }
@@ -4493,7 +4527,8 @@ private:
         llvm::AtomicOrdering::Monotonic);
     auto *NotStop = createLikely(
         Builder, Builder.CreateICmpEQ(StopToken, Builder.getInt32(0)));
-    Builder.CreateCondBr(NotStop, NotStopBB, getTrapBB(ErrCode::Interrupted));
+    Builder.CreateCondBr(NotStop, NotStopBB,
+                         getTrapBB(ErrCode::Value::Interrupted));
 
     Builder.SetInsertPoint(NotStopBB);
   }
@@ -4585,7 +4620,7 @@ private:
   std::vector<llvm::Value *> Stack;
   llvm::Value *LocalInstrCount = nullptr;
   llvm::Value *LocalGas = nullptr;
-  std::unordered_map<ErrCode, llvm::BasicBlock *> TrapBB;
+  std::unordered_map<ErrCode::Value, llvm::BasicBlock *> TrapBB;
   bool IsUnreachable = false;
   bool Interruptible = false;
   bool OptNone = false;
@@ -4654,7 +4689,7 @@ Expect<void> outputNativeLibrary(const std::filesystem::path &OutputPath,
       // TODO:return error
       spdlog::error("so file creation failed:{}", OPath.u8string());
       llvm::consumeError(Object.takeError());
-      return WasmEdge::Unexpect(WasmEdge::ErrCode::IllegalPath);
+      return WasmEdge::Unexpect(WasmEdge::ErrCode::Value::IllegalPath);
     }
     llvm::raw_fd_ostream OS(Object->FD, false);
     OS.write(OSVec.data(), OSVec.size());
@@ -4685,16 +4720,18 @@ Expect<void> outputNativeLibrary(const std::filesystem::path &OutputPath,
 #elif defined(__aarch64__)
             "arm64",
 #else
-#error Unsupported platform!
+#error Unsupported architectur on the MacOS!
 #endif
 #if LLVM_VERSION_MAJOR >= 14
             // LLVM 14 replaces the older mach_o lld implementation with the new
             // one. And it require -arch and -platform_version to always be
             // specified. Reference: https://reviews.llvm.org/D97799
-            "-platform_version", "macos", "10", "11",
+            "-platform_version", "macos", "10.0", "11.0",
+#else
+            "-sdk_version", "11.3",
 #endif
             "-dylib", "-demangle", "-macosx_version_min", "10.0.0",
-            "-sdk_version", "11.3", "-syslibroot",
+            "-syslibroot",
             "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk",
             ObjectName.c_str(), "-o", OutputPath.u8string().c_str(), "-lSystem"
       },
@@ -4774,7 +4811,7 @@ Expect<void> outputWasmLibrary(const std::filesystem::path &OutputPath,
       // TODO:return error
       spdlog::error("so file creation failed:{}", SOPath.u8string());
       llvm::consumeError(Object.takeError());
-      return WasmEdge::Unexpect(WasmEdge::ErrCode::IllegalPath);
+      return WasmEdge::Unexpect(WasmEdge::ErrCode::Value::IllegalPath);
     }
     llvm::raw_fd_ostream OS(Object->FD, false);
     OS.write(OSVec.data(), OSVec.size());
@@ -4796,7 +4833,7 @@ Expect<void> outputWasmLibrary(const std::filesystem::path &OutputPath,
   if (auto Res = llvm::MemoryBuffer::getFile(SharedObjectName);
       unlikely(!Res)) {
     spdlog::error("object file open error:{}", Res.getError().message());
-    return WasmEdge::Unexpect(WasmEdge::ErrCode::IllegalPath);
+    return WasmEdge::Unexpect(WasmEdge::ErrCode::Value::IllegalPath);
   } else {
     SOFile = std::move(*Res);
   }
@@ -4806,7 +4843,7 @@ Expect<void> outputWasmLibrary(const std::filesystem::path &OutputPath,
       unlikely(!Res)) {
     spdlog::error("object file parse error:{}",
                   llvm::toString(Res.takeError()));
-    return WasmEdge::Unexpect(WasmEdge::ErrCode::IllegalPath);
+    return WasmEdge::Unexpect(WasmEdge::ErrCode::Value::IllegalPath);
   } else {
     ObjFile = std::move(*Res);
   }
@@ -4824,12 +4861,16 @@ Expect<void> outputWasmLibrary(const std::filesystem::path &OutputPath,
     WriteByte(OS, UINT8_C(2));
 #elif WASMEDGE_OS_WINDOWS
     WriteByte(OS, UINT8_C(3));
+#else
+#error Unsupported operating system!
 #endif
 
 #if defined(__x86_64__)
     WriteByte(OS, UINT8_C(1));
 #elif defined(__aarch64__)
     WriteByte(OS, UINT8_C(2));
+#else
+#error Unsupported hardware architecture!
 #endif
 
     std::vector<std::pair<std::string, uint64_t>> SymbolTable;
@@ -4952,7 +4993,7 @@ Expect<void> outputWasmLibrary(const std::filesystem::path &OutputPath,
   llvm::raw_fd_ostream OS(OutputPath.u8string(), EC);
   if (EC) {
     spdlog::error("output failed:{}", EC.message());
-    return Unexpect(ErrCode::IllegalPath);
+    return Unexpect(ErrCode::Value::IllegalPath);
   }
   OS.write(reinterpret_cast<const char *>(Data.data()), Data.size());
   // Custom section id
@@ -4972,8 +5013,8 @@ Expect<void> Compiler::compile(Span<const Byte> Data, const AST::Module &Module,
                                std::filesystem::path OutputPath) {
   // Check the module is validated.
   if (unlikely(!Module.getIsValidated())) {
-    spdlog::error(ErrCode::NotValidated);
-    return Unexpect(ErrCode::NotValidated);
+    spdlog::error(ErrCode::Value::NotValidated);
+    return Unexpect(ErrCode::Value::NotValidated);
   }
 
   using namespace std::literals;
@@ -5069,7 +5110,7 @@ Expect<void> Compiler::compile(Span<const Byte> Data, const AST::Module &Module,
     if (!TheTarget) {
       // TODO:return error
       spdlog::error("lookupTarget failed:{}", Error);
-      return Unexpect(ErrCode::IllegalPath);
+      return Unexpect(ErrCode::Value::IllegalPath);
     }
 
     llvm::TargetOptions Options;
@@ -5153,7 +5194,7 @@ Expect<void> Compiler::compile(Span<const Byte> Data, const AST::Module &Module,
                                 false)) {
       // TODO:return error
       spdlog::error("addPassesToEmitFile failed");
-      return Unexpect(ErrCode::IllegalPath);
+      return Unexpect(ErrCode::Value::IllegalPath);
     }
 
     if (Conf.getCompilerConfigure().isDumpIR()) {

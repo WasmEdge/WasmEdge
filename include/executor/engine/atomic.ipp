@@ -21,29 +21,29 @@ TypeT<T> Executor::runAtomicWaitOp(Runtime::StackManager &StackMgr,
   uint32_t Address = RawAddress.get<uint32_t>();
   if (Address >
       std::numeric_limits<uint32_t>::max() - Instr.getMemoryOffset()) {
-    spdlog::error(ErrCode::MemoryOutOfBounds);
+    spdlog::error(ErrCode::Value::MemoryOutOfBounds);
     spdlog::error(ErrInfo::InfoBoundary(
         Address + static_cast<uint64_t>(Instr.getMemoryOffset()), sizeof(T),
         MemInst.getBoundIdx()));
     spdlog::error(
         ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
-    return Unexpect(ErrCode::MemoryOutOfBounds);
+    return Unexpect(ErrCode::Value::MemoryOutOfBounds);
   }
   Address += Instr.getMemoryOffset();
 
   if (Address % sizeof(T) != 0) {
-    spdlog::error(ErrCode::UnalignedAtomicAccess);
+    spdlog::error(ErrCode::Value::UnalignedAtomicAccess);
     spdlog::error(
         ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
-    return Unexpect(ErrCode::UnalignedAtomicAccess);
+    return Unexpect(ErrCode::Value::UnalignedAtomicAccess);
   }
 
   if (auto *AtomicObj = MemInst.getPointer<std::atomic<T> *>(Address);
       !AtomicObj) {
-    spdlog::error(ErrCode::MemoryOutOfBounds);
+    spdlog::error(ErrCode::Value::MemoryOutOfBounds);
     spdlog::error(
         ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
-    return Unexpect(ErrCode::MemoryOutOfBounds);
+    return Unexpect(ErrCode::Value::MemoryOutOfBounds);
   }
 
   int64_t Timeout = RawTimeout.get<int64_t>();
@@ -68,30 +68,30 @@ TypeT<T> Executor::runAtomicLoadOp(Runtime::StackManager &StackMgr,
 
   if (Address >
       std::numeric_limits<uint32_t>::max() - Instr.getMemoryOffset()) {
-    spdlog::error(ErrCode::MemoryOutOfBounds);
+    spdlog::error(ErrCode::Value::MemoryOutOfBounds);
     spdlog::error(ErrInfo::InfoBoundary(
         Address + static_cast<uint64_t>(Instr.getMemoryOffset()), sizeof(I),
         MemInst.getBoundIdx()));
     spdlog::error(
         ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
-    return Unexpect(ErrCode::MemoryOutOfBounds);
+    return Unexpect(ErrCode::Value::MemoryOutOfBounds);
   }
   Address += Instr.getMemoryOffset();
 
   if (Address % sizeof(I) != 0) {
-    spdlog::error(ErrCode::UnalignedAtomicAccess);
+    spdlog::error(ErrCode::Value::UnalignedAtomicAccess);
     spdlog::error(
         ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
-    return Unexpect(ErrCode::UnalignedAtomicAccess);
+    return Unexpect(ErrCode::Value::UnalignedAtomicAccess);
   }
 
   // make sure the address no OOB with size I
   auto *AtomicObj = MemInst.getPointer<std::atomic<I> *>(Address);
   if (!AtomicObj) {
-    spdlog::error(ErrCode::MemoryOutOfBounds);
+    spdlog::error(ErrCode::Value::MemoryOutOfBounds);
     spdlog::error(
         ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
-    return Unexpect(ErrCode::MemoryOutOfBounds);
+    return Unexpect(ErrCode::Value::MemoryOutOfBounds);
   }
 
   I Return = AtomicObj->load();
@@ -109,30 +109,30 @@ TypeT<T> Executor::runAtomicStoreOp(Runtime::StackManager &StackMgr,
 
   if (Address >
       std::numeric_limits<uint32_t>::max() - Instr.getMemoryOffset()) {
-    spdlog::error(ErrCode::MemoryOutOfBounds);
+    spdlog::error(ErrCode::Value::MemoryOutOfBounds);
     spdlog::error(ErrInfo::InfoBoundary(
         Address + static_cast<uint64_t>(Instr.getMemoryOffset()), sizeof(I),
         MemInst.getBoundIdx()));
     spdlog::error(
         ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
-    return Unexpect(ErrCode::MemoryOutOfBounds);
+    return Unexpect(ErrCode::Value::MemoryOutOfBounds);
   }
   Address += Instr.getMemoryOffset();
 
   if (Address % sizeof(I) != 0) {
-    spdlog::error(ErrCode::UnalignedAtomicAccess);
+    spdlog::error(ErrCode::Value::UnalignedAtomicAccess);
     spdlog::error(
         ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
-    return Unexpect(ErrCode::UnalignedAtomicAccess);
+    return Unexpect(ErrCode::Value::UnalignedAtomicAccess);
   }
 
   // make sure the address no OOB with size I
   auto *AtomicObj = MemInst.getPointer<std::atomic<I> *>(Address);
   if (!AtomicObj) {
-    spdlog::error(ErrCode::MemoryOutOfBounds);
+    spdlog::error(ErrCode::Value::MemoryOutOfBounds);
     spdlog::error(
         ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
-    return Unexpect(ErrCode::MemoryOutOfBounds);
+    return Unexpect(ErrCode::Value::MemoryOutOfBounds);
   }
   I Value = static_cast<I>(RawValue.get<T>());
 
@@ -150,30 +150,30 @@ TypeT<T> Executor::runAtomicAddOp(Runtime::StackManager &StackMgr,
 
   if (Address >
       std::numeric_limits<uint32_t>::max() - Instr.getMemoryOffset()) {
-    spdlog::error(ErrCode::MemoryOutOfBounds);
+    spdlog::error(ErrCode::Value::MemoryOutOfBounds);
     spdlog::error(ErrInfo::InfoBoundary(
         Address + static_cast<uint64_t>(Instr.getMemoryOffset()), sizeof(I),
         MemInst.getBoundIdx()));
     spdlog::error(
         ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
-    return Unexpect(ErrCode::MemoryOutOfBounds);
+    return Unexpect(ErrCode::Value::MemoryOutOfBounds);
   }
   Address += Instr.getMemoryOffset();
 
   if (Address % sizeof(I) != 0) {
-    spdlog::error(ErrCode::UnalignedAtomicAccess);
+    spdlog::error(ErrCode::Value::UnalignedAtomicAccess);
     spdlog::error(
         ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
-    return Unexpect(ErrCode::UnalignedAtomicAccess);
+    return Unexpect(ErrCode::Value::UnalignedAtomicAccess);
   }
 
   // make sure the address no OOB with size I
   auto *AtomicObj = MemInst.getPointer<std::atomic<I> *>(Address);
   if (!AtomicObj) {
-    spdlog::error(ErrCode::MemoryOutOfBounds);
+    spdlog::error(ErrCode::Value::MemoryOutOfBounds);
     spdlog::error(
         ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
-    return Unexpect(ErrCode::MemoryOutOfBounds);
+    return Unexpect(ErrCode::Value::MemoryOutOfBounds);
   }
   I Value = static_cast<I>(RawValue.get<T>());
 
@@ -192,30 +192,30 @@ TypeT<T> Executor::runAtomicSubOp(Runtime::StackManager &StackMgr,
 
   if (Address >
       std::numeric_limits<uint32_t>::max() - Instr.getMemoryOffset()) {
-    spdlog::error(ErrCode::MemoryOutOfBounds);
+    spdlog::error(ErrCode::Value::MemoryOutOfBounds);
     spdlog::error(ErrInfo::InfoBoundary(
         Address + static_cast<uint64_t>(Instr.getMemoryOffset()), sizeof(I),
         MemInst.getBoundIdx()));
     spdlog::error(
         ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
-    return Unexpect(ErrCode::MemoryOutOfBounds);
+    return Unexpect(ErrCode::Value::MemoryOutOfBounds);
   }
   Address += Instr.getMemoryOffset();
 
   if (Address % sizeof(I) != 0) {
-    spdlog::error(ErrCode::UnalignedAtomicAccess);
+    spdlog::error(ErrCode::Value::UnalignedAtomicAccess);
     spdlog::error(
         ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
-    return Unexpect(ErrCode::UnalignedAtomicAccess);
+    return Unexpect(ErrCode::Value::UnalignedAtomicAccess);
   }
 
   // make sure the address no OOB with size I
   auto *AtomicObj = MemInst.getPointer<std::atomic<I> *>(Address);
   if (!AtomicObj) {
-    spdlog::error(ErrCode::MemoryOutOfBounds);
+    spdlog::error(ErrCode::Value::MemoryOutOfBounds);
     spdlog::error(
         ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
-    return Unexpect(ErrCode::MemoryOutOfBounds);
+    return Unexpect(ErrCode::Value::MemoryOutOfBounds);
   }
   I Value = static_cast<I>(RawValue.get<T>());
 
@@ -234,30 +234,30 @@ TypeT<T> Executor::runAtomicOrOp(Runtime::StackManager &StackMgr,
 
   if (Address >
       std::numeric_limits<uint32_t>::max() - Instr.getMemoryOffset()) {
-    spdlog::error(ErrCode::MemoryOutOfBounds);
+    spdlog::error(ErrCode::Value::MemoryOutOfBounds);
     spdlog::error(ErrInfo::InfoBoundary(
         Address + static_cast<uint64_t>(Instr.getMemoryOffset()), sizeof(I),
         MemInst.getBoundIdx()));
     spdlog::error(
         ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
-    return Unexpect(ErrCode::MemoryOutOfBounds);
+    return Unexpect(ErrCode::Value::MemoryOutOfBounds);
   }
   Address += Instr.getMemoryOffset();
 
   if (Address % sizeof(I) != 0) {
-    spdlog::error(ErrCode::UnalignedAtomicAccess);
+    spdlog::error(ErrCode::Value::UnalignedAtomicAccess);
     spdlog::error(
         ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
-    return Unexpect(ErrCode::UnalignedAtomicAccess);
+    return Unexpect(ErrCode::Value::UnalignedAtomicAccess);
   }
 
   // make sure the address no OOB with size I
   auto *AtomicObj = MemInst.getPointer<std::atomic<I> *>(Address);
   if (!AtomicObj) {
-    spdlog::error(ErrCode::MemoryOutOfBounds);
+    spdlog::error(ErrCode::Value::MemoryOutOfBounds);
     spdlog::error(
         ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
-    return Unexpect(ErrCode::MemoryOutOfBounds);
+    return Unexpect(ErrCode::Value::MemoryOutOfBounds);
   }
   I Value = static_cast<I>(RawValue.get<T>());
 
@@ -276,30 +276,30 @@ TypeT<T> Executor::runAtomicAndOp(Runtime::StackManager &StackMgr,
 
   if (Address >
       std::numeric_limits<uint32_t>::max() - Instr.getMemoryOffset()) {
-    spdlog::error(ErrCode::MemoryOutOfBounds);
+    spdlog::error(ErrCode::Value::MemoryOutOfBounds);
     spdlog::error(ErrInfo::InfoBoundary(
         Address + static_cast<uint64_t>(Instr.getMemoryOffset()), sizeof(I),
         MemInst.getBoundIdx()));
     spdlog::error(
         ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
-    return Unexpect(ErrCode::MemoryOutOfBounds);
+    return Unexpect(ErrCode::Value::MemoryOutOfBounds);
   }
   Address += Instr.getMemoryOffset();
 
   if (Address % sizeof(I) != 0) {
-    spdlog::error(ErrCode::UnalignedAtomicAccess);
+    spdlog::error(ErrCode::Value::UnalignedAtomicAccess);
     spdlog::error(
         ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
-    return Unexpect(ErrCode::UnalignedAtomicAccess);
+    return Unexpect(ErrCode::Value::UnalignedAtomicAccess);
   }
 
   // make sure the address no OOB with size I
   auto *AtomicObj = MemInst.getPointer<std::atomic<I> *>(Address);
   if (!AtomicObj) {
-    spdlog::error(ErrCode::MemoryOutOfBounds);
+    spdlog::error(ErrCode::Value::MemoryOutOfBounds);
     spdlog::error(
         ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
-    return Unexpect(ErrCode::MemoryOutOfBounds);
+    return Unexpect(ErrCode::Value::MemoryOutOfBounds);
   }
   I Value = static_cast<I>(RawValue.get<T>());
 
@@ -318,30 +318,30 @@ TypeT<T> Executor::runAtomicXorOp(Runtime::StackManager &StackMgr,
 
   if (Address >
       std::numeric_limits<uint32_t>::max() - Instr.getMemoryOffset()) {
-    spdlog::error(ErrCode::MemoryOutOfBounds);
+    spdlog::error(ErrCode::Value::MemoryOutOfBounds);
     spdlog::error(ErrInfo::InfoBoundary(
         Address + static_cast<uint64_t>(Instr.getMemoryOffset()), sizeof(I),
         MemInst.getBoundIdx()));
     spdlog::error(
         ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
-    return Unexpect(ErrCode::MemoryOutOfBounds);
+    return Unexpect(ErrCode::Value::MemoryOutOfBounds);
   }
   Address += Instr.getMemoryOffset();
 
   if (Address % sizeof(I) != 0) {
-    spdlog::error(ErrCode::UnalignedAtomicAccess);
+    spdlog::error(ErrCode::Value::UnalignedAtomicAccess);
     spdlog::error(
         ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
-    return Unexpect(ErrCode::UnalignedAtomicAccess);
+    return Unexpect(ErrCode::Value::UnalignedAtomicAccess);
   }
 
   // make sure the address no OOB with size I
   auto *AtomicObj = MemInst.getPointer<std::atomic<I> *>(Address);
   if (!AtomicObj) {
-    spdlog::error(ErrCode::MemoryOutOfBounds);
+    spdlog::error(ErrCode::Value::MemoryOutOfBounds);
     spdlog::error(
         ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
-    return Unexpect(ErrCode::MemoryOutOfBounds);
+    return Unexpect(ErrCode::Value::MemoryOutOfBounds);
   }
   I Value = static_cast<I>(RawValue.get<T>());
 
@@ -361,30 +361,30 @@ Executor::runAtomicExchangeOp(Runtime::StackManager &StackMgr,
 
   if (Address >
       std::numeric_limits<uint32_t>::max() - Instr.getMemoryOffset()) {
-    spdlog::error(ErrCode::MemoryOutOfBounds);
+    spdlog::error(ErrCode::Value::MemoryOutOfBounds);
     spdlog::error(ErrInfo::InfoBoundary(
         Address + static_cast<uint64_t>(Instr.getMemoryOffset()), sizeof(I),
         MemInst.getBoundIdx()));
     spdlog::error(
         ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
-    return Unexpect(ErrCode::MemoryOutOfBounds);
+    return Unexpect(ErrCode::Value::MemoryOutOfBounds);
   }
   Address += Instr.getMemoryOffset();
 
   if (Address % sizeof(I) != 0) {
-    spdlog::error(ErrCode::UnalignedAtomicAccess);
+    spdlog::error(ErrCode::Value::UnalignedAtomicAccess);
     spdlog::error(
         ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
-    return Unexpect(ErrCode::UnalignedAtomicAccess);
+    return Unexpect(ErrCode::Value::UnalignedAtomicAccess);
   }
 
   // make sure the address no OOB with size I
   auto *AtomicObj = MemInst.getPointer<std::atomic<I> *>(Address);
   if (!AtomicObj) {
-    spdlog::error(ErrCode::MemoryOutOfBounds);
+    spdlog::error(ErrCode::Value::MemoryOutOfBounds);
     spdlog::error(
         ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
-    return Unexpect(ErrCode::MemoryOutOfBounds);
+    return Unexpect(ErrCode::Value::MemoryOutOfBounds);
   }
   I Value = static_cast<I>(RawValue.get<T>());
 
@@ -405,30 +405,30 @@ Executor::runAtomicCompareExchangeOp(Runtime::StackManager &StackMgr,
 
   if (Address >
       std::numeric_limits<uint32_t>::max() - Instr.getMemoryOffset()) {
-    spdlog::error(ErrCode::MemoryOutOfBounds);
+    spdlog::error(ErrCode::Value::MemoryOutOfBounds);
     spdlog::error(ErrInfo::InfoBoundary(
         Address + static_cast<uint64_t>(Instr.getMemoryOffset()), sizeof(I),
         MemInst.getBoundIdx()));
     spdlog::error(
         ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
-    return Unexpect(ErrCode::MemoryOutOfBounds);
+    return Unexpect(ErrCode::Value::MemoryOutOfBounds);
   }
   Address += Instr.getMemoryOffset();
 
   if (Address % sizeof(I) != 0) {
-    spdlog::error(ErrCode::UnalignedAtomicAccess);
+    spdlog::error(ErrCode::Value::UnalignedAtomicAccess);
     spdlog::error(
         ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
-    return Unexpect(ErrCode::UnalignedAtomicAccess);
+    return Unexpect(ErrCode::Value::UnalignedAtomicAccess);
   }
 
   // make sure the address no OOB with size I
   auto *AtomicObj = MemInst.getPointer<std::atomic<I> *>(Address);
   if (!AtomicObj) {
-    spdlog::error(ErrCode::MemoryOutOfBounds);
+    spdlog::error(ErrCode::Value::MemoryOutOfBounds);
     spdlog::error(
         ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
-    return Unexpect(ErrCode::MemoryOutOfBounds);
+    return Unexpect(ErrCode::Value::MemoryOutOfBounds);
   }
   I Replacement = static_cast<I>(RawReplacement.get<T>());
   I Expected = static_cast<I>(RawExpected.get<T>());
@@ -443,8 +443,8 @@ Expect<uint32_t>
 Executor::atomicWait(Runtime::Instance::MemoryInstance &MemInst,
                      uint32_t Address, T Expected, int64_t Timeout) noexcept {
   if (!MemInst.isShared()) {
-    spdlog::error(ErrCode::WaitOnUnsharedMemory);
-    return Unexpect(ErrCode::WaitOnUnsharedMemory);
+    spdlog::error(ErrCode::Value::WaitOnUnsharedMemory);
+    return Unexpect(ErrCode::Value::WaitOnUnsharedMemory);
   }
 
   std::optional<std::chrono::time_point<std::chrono::steady_clock>> Until;
@@ -481,8 +481,8 @@ Executor::atomicWait(Runtime::Instance::MemoryInstance &MemInst,
       WaitResult = WaiterIterator->second.Cond.wait_until(Locker, *Until);
     }
     if (unlikely(StopToken.load(std::memory_order_relaxed) != 0)) {
-      spdlog::error(ErrCode::Interrupted);
-      return Unexpect(ErrCode::Interrupted);
+      spdlog::error(ErrCode::Value::Interrupted);
+      return Unexpect(ErrCode::Value::Interrupted);
     }
     if (likely(AtomicObj->load() != Expected)) {
       return UINT32_C(0); // ok

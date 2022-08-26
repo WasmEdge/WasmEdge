@@ -29,8 +29,8 @@
 			<Component Id="wasmedgec.exe" Guid="*">
 				<File Id="wasmedgec.exe" Source="build\tools\wasmedge\wasmedgec.exe" KeyPath="yes" Checksum="yes"/>
 			</Component>
-			<Component Id="wasmedge_c.dll" Guid="*">
-				<File Id="wasmedge_c.dll" Source="build\lib\api\wasmedge_c.dll" KeyPath="yes" Checksum="yes"/>
+			<Component Id="wasmedge.dll" Guid="*">
+				<File Id="wasmedge.dll" Source="build\lib\api\wasmedge.dll" KeyPath="yes" Checksum="yes"/>
 			</Component>
 		</DirectoryRef>
 
@@ -44,6 +44,9 @@
 			<Component Id="enum_types.h" Guid="*">
 				<File Id="enum_types.h" Source="build\include\api\wasmedge\enum_types.h" KeyPath="yes" Checksum="yes"/>
 			</Component>
+			<Component Id="enum.inc" Guid="*">
+				<File Id="enum.inc" Source="build\include\api\wasmedge\enum.inc" KeyPath="yes" Checksum="yes"/>
+			</Component>
 			<Component Id="int128.h" Guid="*">
 				<File Id="int128.h" Source="build\include\api\wasmedge\int128.h" KeyPath="yes" Checksum="yes"/>
 			</Component>
@@ -56,22 +59,23 @@
 		</DirectoryRef>
 
 		<DirectoryRef Id="LIBDIR">
-			<Component Id="wasmedge_c.lib" Guid="*">
-				<File Id="wasmedge_c.lib" Source="build\lib\api\wasmedge_c.lib" KeyPath="yes" Checksum="yes"/>
+			<Component Id="wasmedge.lib" Guid="*">
+				<File Id="wasmedge.lib" Source="build\lib\api\wasmedge.lib" KeyPath="yes" Checksum="yes"/>
 			</Component>
 		</DirectoryRef>
 
 		<Feature Id="InstallWasmEdge" Title="WasmEdge" Level="1">
 			<ComponentRef Id="wasmedge.exe" />
 			<ComponentRef Id="wasmedgec.exe" />
-			<ComponentRef Id="wasmedge_c.dll" />
+			<ComponentRef Id="wasmedge.dll" />
+			<ComponentRef Id="enum.inc" />
 			<ComponentRef Id="enum_configure.h" />
 			<ComponentRef Id="enum_errcode.h" />
 			<ComponentRef Id="enum_types.h" />
 			<ComponentRef Id="int128.h" />
 			<ComponentRef Id="version.h" />
 			<ComponentRef Id="wasmedge.h" />
-			<ComponentRef Id="wasmedge_c.lib" />
+			<ComponentRef Id="wasmedge.lib" />
 		</Feature>
 		<Feature Id="AddPath" Title="Add WasmEdge to PATH" Level="1">
 			<ComponentRef Id="PathEnv" />

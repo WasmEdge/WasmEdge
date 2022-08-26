@@ -17,19 +17,19 @@ namespace {
 template <typename... Args>
 auto logMatchError(std::string_view ModName, std::string_view ExtName,
                    ExternalType ExtType, Args &&...Values) {
-  spdlog::error(ErrCode::IncompatibleImportType);
+  spdlog::error(ErrCode::Value::IncompatibleImportType);
   spdlog::error(ErrInfo::InfoMismatch(std::forward<Args>(Values)...));
   spdlog::error(ErrInfo::InfoLinking(ModName, ExtName, ExtType));
   spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Desc_Import));
-  return Unexpect(ErrCode::IncompatibleImportType);
+  return Unexpect(ErrCode::Value::IncompatibleImportType);
 }
 
 auto logUnknownError(std::string_view ModName, std::string_view ExtName,
                      ExternalType ExtType) {
-  spdlog::error(ErrCode::UnknownImport);
+  spdlog::error(ErrCode::Value::UnknownImport);
   spdlog::error(ErrInfo::InfoLinking(ModName, ExtName, ExtType));
   spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Desc_Import));
-  return Unexpect(ErrCode::UnknownImport);
+  return Unexpect(ErrCode::Value::UnknownImport);
 }
 
 bool isLimitMatched(const AST::Limit &Lim1, const AST::Limit &Lim2) {

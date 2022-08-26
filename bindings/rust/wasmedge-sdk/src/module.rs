@@ -1,9 +1,8 @@
 //! Defines WasmEdge AST Module, ImportType, and ExportType.
 
-use crate::{config::Config, WasmEdgeResult};
+use crate::{config::Config, ExternalInstanceType, WasmEdgeResult};
 use std::{borrow::Cow, marker::PhantomData, path::Path};
 use wasmedge_sys as sys;
-use wasmedge_types::ExternalInstanceType;
 
 /// Defines compiled in-memory representation of an input WASM binary.
 ///
@@ -175,7 +174,7 @@ impl<'module> ExportType<'module> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use wasmedge_types::error::{CoreError, CoreLoadError, WasmEdgeError};
+    use crate::error::{CoreError, CoreLoadError, WasmEdgeError};
 
     #[test]
     #[allow(clippy::assertions_on_result_states)]

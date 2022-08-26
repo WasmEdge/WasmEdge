@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2019-2022 Second State INC
 
-#include "driver/tool.h"
 #include "common/configure.h"
 #include "common/filesystem.h"
 #include "common/log.h"
 #include "common/types.h"
 #include "common/version.h"
+#include "driver/tool.h"
 #include "host/wasi/wasimodule.h"
 #include "plugin/plugin.h"
 #include "po/argument_parser.h"
@@ -247,7 +247,7 @@ int Tool(int Argc, const char *Argv[]) noexcept {
       }
     }
     if (auto Result = AsyncResult.get();
-        Result || Result.error() == ErrCode::Terminated) {
+        Result || Result.error() == ErrCode::Value::Terminated) {
       return static_cast<int>(WasiMod->getEnv().getExitCode());
     } else {
       return EXIT_FAILURE;

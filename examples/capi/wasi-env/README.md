@@ -59,7 +59,7 @@ Then you can build this example with linking the WasmEdge shared library.
 
 ```bash
 # In the current directory.
-clang set_wasi_env.c -o set_wasm_env -lwasmedge_c
+clang set_wasi_env.c -o set_wasm_env -lwasmedge
 ```
 
 ## (Optional) Build the example WASM from rust

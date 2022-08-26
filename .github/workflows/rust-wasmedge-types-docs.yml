@@ -1,16 +1,25 @@
 name: wasmedge-types-docs
 
 concurrency:
-  group: wasmedge-types-docs-${{ github.head_ref }}
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
   cancel-in-progress: true
 
 on:
   push:
     branches:
       - "master"
-      - "rust/*"
+      - "release/rust-types/*"
+    paths:
+      - ".github/workflows/rust-wasmedge-types-docs.yml"
+      - "bindings/rust/wasmedge-types/**"
     tags:
       - "rust-types/[0-9]+.[0-9]+.[0-9]+*"
+  pull_request:
+    branches:
+      - master
+    paths:
+      - ".github/workflows/rust-wasmedge-types-docs.yml"
+      - "bindings/rust/wasmedge-types/**"
 
 jobs:
   rustdoc:

@@ -10,7 +10,7 @@ Once you have Nginx installed, let me show you a real world example - using Wasm
 
 ## Inject Custom Response via Go in Nginx, Step by Step
 
-### Step 1: Write code based on proxy-wasm-go-sdk
+### Go Step 1: Write code based on proxy-wasm-go-sdk
 
 The implementation code (including `go.mod` and others) can be found at [here](https://github.com/apache/apisix/tree/master/t/wasm).
 
@@ -18,17 +18,17 @@ It should be explained that although the proxy-wasm-go-sdk project carries the G
 
 We also provide a Rust version (including Cargo.toml and others) [there](https://github.com/api7/wasm-nginx-module/tree/main/t/testdata/rust/fault-injection).
 
-### Step 2: Build the corresponding Wasm file
+### Go Step 2: Build the corresponding Wasm file
 
 ```shell
 tinygo build -o ./fault-injection/main.go.wasm -scheduler=none -target=wasi ./fault-injection/main.go
 ```
 
-### Step 3: Load and execute the Wasm file
+### Go Step 3: Load and execute the Wasm file
 
 Then, start Nginx with the configuration below:
 
-```
+```conf
 worker_processes  1;
 
 error_log  /tmp/error.log warn;
@@ -60,13 +60,13 @@ http {
 
 This configuration loads the Wasm file we just built, executes it with the configuration `{"http_status": 403, "body": "powered by wasm-nginx-module"}`.
 
-### Step 4: verify the result
+### Go Step 4: verify the result
 
 After Nginx starts, we can use `curl http://127.0.0.1:1980/ -i` to verify the execution result of the Wasm.
 
 It is expected to see the output:
 
-```
+```bash
 HTTP/1.1 403 Forbidden
 ...
 
@@ -75,21 +75,21 @@ powered by wasm-nginx-module
 
 ## Inject Custom Response via Rust in Nginx, Step by Step
 
-### Step 1: Write code based on proxy-wasm-rust-sdk
+### Rust Step 1: Write code based on proxy-wasm-rust-sdk
 
 We also provide a Rust version (including Cargo.toml and others) [there](https://github.com/api7/wasm-nginx-module/tree/main/t/testdata/rust/fault-injection).
 
-### Step 2: Build the corresponding Wasm file
+### Rust Step 2: Build the corresponding Wasm file
 
 ```shell
 cargo build --target=wasm32-wasi
 ```
 
-### Step 3: Load and execute the Wasm file
+### Rust Step 3: Load and execute the Wasm file
 
 Then, start Nginx with the configuration below:
 
-```
+```conf
 worker_processes  1;
 
 error_log  /tmp/error.log warn;
@@ -121,13 +121,13 @@ http {
 
 This configuration loads the Wasm file we just built, executes it with the configuration `{"http_status": 403, "body": "powered by wasm-nginx-module"}`.
 
-### Step 4: verify the result
+### Rust Step 4: verify the result
 
 After Nginx starts, we can use `curl http://127.0.0.1:1980/ -i` to verify the execution result of the Wasm.
 
 It is expected to see the output:
 
-```
+```bash
 HTTP/1.1 403 Forbidden
 ...
 

@@ -36,13 +36,11 @@ To use or build the `wasmedge-sys` crate, the `WasmEdge` library is required.
    |   `-- wasmedgec
    |-- include
    |   `-- wasmedge
-   |       |-- dense_enum_map.h
    |       |-- enum.inc
    |       |-- enum_configure.h
    |       |-- enum_errcode.h
    |       |-- enum_types.h
    |       |-- int128.h
-   |       |-- spare_enum_map.h
    |       |-- version.h
    |       `-- wasmedge.h
    `-- lib64
@@ -50,7 +48,7 @@ To use or build the `wasmedge-sys` crate, the `WasmEdge` library is required.
        `-- wasmedge
            `-- libwasmedgePluginWasmEdgeProcess.so
 
-   5 directories, 13 files
+   5 directories, 11 files
    ```
 
 ### Enable WasmEdge Plugins

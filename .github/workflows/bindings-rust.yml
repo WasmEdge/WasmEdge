@@ -1,13 +1,14 @@
 name: binding-rust
 
 concurrency:
-  group: bindings-rust-${{ github.head_ref }}
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
   cancel-in-progress: true
 
 on:
   push:
     branches:
       - master
+      - "rust/*"
     paths:
       - ".github/workflows/bindings-rust.yml"
       - "bindings/rust/**"

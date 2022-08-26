@@ -22,16 +22,16 @@ Loader::loadFile(const std::filesystem::path &FilePath) {
   std::error_code EC;
   size_t FileSize = std::filesystem::file_size(FilePath, EC);
   if (EC) {
-    spdlog::error(ErrCode::IllegalPath);
+    spdlog::error(ErrCode::Value::IllegalPath);
     spdlog::error(ErrInfo::InfoFile(FilePath));
-    return Unexpect(ErrCode::IllegalPath);
+    return Unexpect(ErrCode::Value::IllegalPath);
   }
 
   std::ifstream Fin(FilePath, std::ios::in | std::ios::binary);
   if (!Fin) {
-    spdlog::error(ErrCode::IllegalPath);
+    spdlog::error(ErrCode::Value::IllegalPath);
     spdlog::error(ErrInfo::InfoFile(FilePath));
-    return Unexpect(ErrCode::IllegalPath);
+    return Unexpect(ErrCode::Value::IllegalPath);
   }
 
   std::vector<Byte> Buf(FileSize);
@@ -43,15 +43,15 @@ Loader::loadFile(const std::filesystem::path &FilePath) {
     const uint32_t ReadCount = static_cast<uint32_t>(Fin.gcount());
     if (ReadCount != BlockSize) {
       if (Fin.eof()) {
-        spdlog::error(ErrCode::UnexpectedEnd);
+        spdlog::error(ErrCode::Value::UnexpectedEnd);
         spdlog::error(ErrInfo::InfoLoading(ReadCount));
         spdlog::error(ErrInfo::InfoFile(FilePath));
-        return Unexpect(ErrCode::UnexpectedEnd);
+        return Unexpect(ErrCode::Value::UnexpectedEnd);
       } else {
-        spdlog::error(ErrCode::ReadError);
+        spdlog::error(ErrCode::Value::ReadError);
         spdlog::error(ErrInfo::InfoLoading(ReadCount));
         spdlog::error(ErrInfo::InfoFile(FilePath));
-        return Unexpect(ErrCode::ReadError);
+        return Unexpect(ErrCode::Value::ReadError);
       }
     }
     Index += static_cast<size_t>(BlockSize);
@@ -88,7 +88,7 @@ Loader::parseModule(const std::filesystem::path &FilePath) {
       if (*Res != AOT::kBinaryVersion) {
         spdlog::error(ErrInfo::InfoMismatch(AOT::kBinaryVersion, *Res));
         spdlog::error(ErrInfo::InfoFile(FilePath));
-        return Unexpect(ErrCode::MalformedVersion);
+        return Unexpect(ErrCode::Value::MalformedVersion);
       }
     } else {
       spdlog::error(ErrInfo::InfoFile(FilePath));
@@ -149,12 +149,12 @@ Loader::parseModule(Span<const uint8_t> Code) {
   case FileMgr::FileHeader::DLL:
   case FileMgr::FileHeader::MachO_32:
   case FileMgr::FileHeader::MachO_64:
-    spdlog::error(ErrCode::MalformedMagic);
+    spdlog::error(ErrCode::Value::MalformedMagic);
     spdlog::error(
         "    The AOT compiled WASM shared library is not supported for loading "
         "from memory. Please use the universal WASM binary or pure WASM, or "
         "load the AOT compiled WASM shared library from file.");
-    return Unexpect(ErrCode::MalformedMagic);
+    return Unexpect(ErrCode::Value::MalformedMagic);
   default:
     break;
   }
@@ -167,16 +167,16 @@ Loader::parseModule(Span<const uint8_t> Code) {
 Expect<ValType> Loader::checkValTypeProposals(ValType VType, uint64_t Off,
                                               ASTNodeAttr Node) {
   if (VType == ValType::V128 && !Conf.hasProposal(Proposal::SIMD)) {
-    return logNeedProposal(ErrCode::MalformedValType, Proposal::SIMD, Off,
-                           Node);
+    return logNeedProposal(ErrCode::Value::MalformedValType, Proposal::SIMD,
+                           Off, Node);
   }
   if ((VType == ValType::FuncRef &&
        !Conf.hasProposal(Proposal::ReferenceTypes) &&
        !Conf.hasProposal(Proposal::BulkMemoryOperations)) ||
       (VType == ValType::ExternRef &&
        !Conf.hasProposal(Proposal::ReferenceTypes))) {
-    return logNeedProposal(ErrCode::MalformedElemType, Proposal::ReferenceTypes,
-                           Off, Node);
+    return logNeedProposal(ErrCode::Value::MalformedElemType,
+                           Proposal::ReferenceTypes, Off, Node);
   }
   switch (VType) {
   case ValType::None:
@@ -189,7 +189,7 @@ Expect<ValType> Loader::checkValTypeProposals(ValType VType, uint64_t Off,
   case ValType::FuncRef:
     return VType;
   default:
-    return logLoadError(ErrCode::MalformedValType, Off, Node);
+    return logLoadError(ErrCode::Value::MalformedValType, Off, Node);
   }
 }
 
@@ -199,7 +199,7 @@ Expect<RefType> Loader::checkRefTypeProposals(RefType RType, uint64_t Off,
   switch (RType) {
   case RefType::ExternRef:
     if (!Conf.hasProposal(Proposal::ReferenceTypes)) {
-      return logNeedProposal(ErrCode::MalformedElemType,
+      return logNeedProposal(ErrCode::Value::MalformedElemType,
                              Proposal::ReferenceTypes, Off, Node);
     }
     [[fallthrough]];
@@ -207,9 +207,9 @@ Expect<RefType> Loader::checkRefTypeProposals(RefType RType, uint64_t Off,
     return RType;
   default:
     if (Conf.hasProposal(Proposal::ReferenceTypes)) {
-      return logLoadError(ErrCode::MalformedRefType, Off, Node);
+      return logLoadError(ErrCode::Value::MalformedRefType, Off, Node);
     } else {
-      return logLoadError(ErrCode::MalformedElemType, Off, Node);
+      return logLoadError(ErrCode::Value::MalformedElemType, Off, Node);
     }
   }
 }

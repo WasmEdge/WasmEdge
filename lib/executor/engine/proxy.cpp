@@ -76,8 +76,8 @@ const AST::Module::IntrinsicsTable Executor::Intrinsics = {
 #endif
 
 Expect<void> Executor::trap(Runtime::StackManager &,
-                            const uint8_t Code) noexcept {
-  return Unexpect(ErrCode(Code));
+                            const uint32_t Code) noexcept {
+  return Unexpect(static_cast<ErrCategory>(Code >> 24), Code);
 }
 
 Expect<void> Executor::call(Runtime::StackManager &StackMgr,
@@ -121,13 +121,13 @@ Expect<void *> Executor::ptrFunc(Runtime::StackManager &StackMgr,
   assuming(TabInst);
 
   if (unlikely(FuncIdx >= TabInst->getSize())) {
-    return Unexpect(ErrCode::UndefinedElement);
+    return Unexpect(ErrCode::Value::UndefinedElement);
   }
 
   auto Ref = TabInst->getRefAddr(FuncIdx);
   assuming(Ref);
   if (unlikely(isNullRef(*Ref))) {
-    return Unexpect(ErrCode::UninitializedElement);
+    return Unexpect(ErrCode::Value::UninitializedElement);
   }
 
   const auto *ModInst = StackMgr.getModule();
@@ -138,7 +138,7 @@ Expect<void *> Executor::ptrFunc(Runtime::StackManager &StackMgr,
   assuming(FuncInst);
   const auto &FuncType = FuncInst->getFuncType();
   if (unlikely(**TargetFuncType != FuncType)) {
-    return Unexpect(ErrCode::IndirectCallTypeMismatch);
+    return Unexpect(ErrCode::Value::IndirectCallTypeMismatch);
   }
 
   if (unlikely(!FuncInst->isCompiledFunction())) {
@@ -156,13 +156,13 @@ Executor::callIndirect(Runtime::StackManager &StackMgr, const uint32_t TableIdx,
   assuming(TabInst);
 
   if (unlikely(FuncIdx >= TabInst->getSize())) {
-    return Unexpect(ErrCode::UndefinedElement);
+    return Unexpect(ErrCode::Value::UndefinedElement);
   }
 
   auto Ref = TabInst->getRefAddr(FuncIdx);
   assuming(Ref);
   if (unlikely(isNullRef(*Ref))) {
-    return Unexpect(ErrCode::UninitializedElement);
+    return Unexpect(ErrCode::Value::UninitializedElement);
   }
 
   const auto *ModInst = StackMgr.getModule();
@@ -173,7 +173,7 @@ Executor::callIndirect(Runtime::StackManager &StackMgr, const uint32_t TableIdx,
   assuming(FuncInst);
   const auto &FuncType = FuncInst->getFuncType();
   if (unlikely(**TargetFuncType != FuncType)) {
-    return Unexpect(ErrCode::IndirectCallTypeMismatch);
+    return Unexpect(ErrCode::Value::IndirectCallTypeMismatch);
   }
 
   const uint32_t ParamsSize =

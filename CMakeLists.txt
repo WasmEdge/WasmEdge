@@ -5,6 +5,9 @@ cmake_minimum_required(VERSION 3.9.4)
 cmake_policy(SET CMP0091 NEW)
 project(WasmEdge)
 
+set(WASMEDGE_CAPI_VERSION "0.0.0" CACHE STRING "WasmEdge C API library version")
+set(WASMEDGE_CAPI_SOVERSION "0" CACHE STRING "WasmEdge C API library soversion")
+
 find_program(GIT_CMD git)
 execute_process(COMMAND
   ${GIT_CMD} describe --match "[0-9].[0-9]*" --tag
@@ -54,22 +57,44 @@ else()
   target_include_directories(Boost_boost INTERFACE ${boost_SOURCE_DIR})
 endif()
 
-include(Helper)
-
 # List of WasmEdge options
 option(WASMEDGE_BUILD_TESTS "Generate build targets for the wasmedge unit tests." OFF)
 option(WASMEDGE_BUILD_COVERAGE "Generate coverage report. Require WASMEDGE_BUILD_TESTS." OFF)
 option(WASMEDGE_BUILD_AOT_RUNTIME "Enable WasmEdge LLVM-based ahead of time compilation runtime." ON)
 option(WASMEDGE_BUILD_SHARED_LIB "Generate the WasmEdge shared library." ON)
 option(WASMEDGE_BUILD_STATIC_LIB "Generate the WasmEdge static library." OFF)
-option(WASMEDGE_BUILD_TOOLS "Generate wasmedge and wasmedgec tools. Dependence on WasmEdge shared library" ON)
-option(WASMEDGE_BUILD_STATIC_TOOLS "Generate static wasmedge and wasmedgec tools. Dependence on WasmEdge static library" OFF)
+option(WASMEDGE_BUILD_TOOLS "Generate wasmedge and wasmedgec tools. Depend on and will build the WasmEdge shared library." ON)
 option(WASMEDGE_BUILD_PLUGINS "Generate plugins." ON)
 option(WASMEDGE_BUILD_EXAMPLE "Generate examples." OFF)
-option(WASMEDGE_FORCE_DISABLE_LTO "Forcibly disable link time optimization when linking even in Release/RelWithDeb build." OFF)
+option(WASMEDGE_FORCE_DISABLE_LTO "Forcefully disable link time optimization when linking even in Release/RelWithDeb build." OFF)
+option(WASMEDGE_LINK_LLVM_STATIC "Statically link the LLVM library into the WasmEdge tools and libraries." OFF)
+option(WASMEDGE_LINK_TOOLS_STATIC "Statically link the wasmedge and wasmedgec tools. Will forcefully link the LLVM library statically." OFF)
 set(WASMEDGE_PLUGIN_WASI_NN_BACKEND "" CACHE STRING "Enable WasmEdge Wasi-NN plugin with backends.")
 # Currently supported WASI-NN backend: "OpenVINO" on Linux x86_64
 option(WASMEDGE_PLUGIN_WASI_CRYPTO "Enable WasmEdge Wasi-crypto plugin." OFF)
+option(WASMEDGE_PLUGIN_HTTPSREQ "Enable WasmEdge httpsreq plugin." OFF)
+
+if(WASMEDGE_BUILD_STATIC_LIB)
+  # Static library will forcefully turn of the LTO.
+  set(WASMEDGE_FORCE_DISABLE_LTO ON)
+endif()
+if(WASMEDGE_BUILD_TOOLS)
+  if(WASMEDGE_LINK_TOOLS_STATIC)
+    # Static tools will link LLVM statically.
+    set(WASMEDGE_LINK_LLVM_STATIC ON)
+    # Tools will forcefully turn on the static library building.
+    set(WASMEDGE_LINK_TOOLS_STATIC ON)
+    message(WARNING "For tuning on the WASMEDGE_LINK_TOOLS_STATIC option, the plugins will not work.")
+  else()
+    # Tools will forcefully turn on the shared library building.
+    set(WASMEDGE_BUILD_SHARED_LIB ON)
+  endif()
+endif()
+if(WASMEDGE_BUILD_PLUGINS)
+  if(WASMEDGE_BUILD_STATIC_LIB)
+    set(WASMEDGE_LINK_PUGLINS_STATIC ON)
+  endif()
+endif()
 
 set(WASMEDGE_PLUGIN_HTTPSREQ false CACHE BOOL "Enable wasmedge plugin httpsreq")
 
@@ -82,6 +107,7 @@ if(WASMEDGE_BUILD_COVERAGE)
   append_coverage_compiler_flags()
 endif()
 
+include(Helper)
 include(GNUInstallDirs)
 
 string(TOUPPER "${CMAKE_INSTALL_DEFAULT_COMPONENT_NAME}" CMAKE_INSTALL_DEFAULT_COMPONENT_NAME_UPCASE)
@@ -112,11 +138,11 @@ endif()
 
 add_subdirectory(include)
 add_subdirectory(lib)
-if(WASMEDGE_BUILD_PLUGINS)
+if(WASMEDGE_BUILD_PLUGINS AND WASMEDGE_BUILD_SHARED_LIB)
   add_subdirectory(plugins)
 endif()
 add_subdirectory(thirdparty)
-if(WASMEDGE_BUILD_TOOLS OR WASMEDGE_BUILD_STATIC_TOOLS)
+if(WASMEDGE_BUILD_TOOLS)
   add_subdirectory(tools)
 endif()
 if(WASMEDGE_BUILD_EXAMPLE)

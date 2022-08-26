@@ -1,6 +1,6 @@
 #[cfg(feature = "aot")]
 use wasmedge_sys::{
-    Compiler, Config, FuncType, Function, ImportInstance, ImportModule, ImportObject, Vm, WasmValue,
+    AsImport, Compiler, Config, FuncType, Function, ImportModule, ImportObject, Vm, WasmValue,
 };
 use wasmedge_types::{CompilerOptimizationLevel, CompilerOutputFormat};
 

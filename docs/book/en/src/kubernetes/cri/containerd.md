@@ -67,7 +67,7 @@ sudo ctr i pull docker.io/hydai/wasm-wasi-example:with-wasm-annotation
 Now, you can run the example in just one line with ctr (the containerd cli).
 
 ```bash
-sudo ctr run --rm --runc-binary crun --runtime io.containerd.runc.v2 --label module.wasm.image/variant=compat docker.io/hydai/wasm-wasi-example:with-wasm-annotation wasm-example /wasi_example_main.wasm 50000000
+sudo ctr run --rm --runc-binary crun --runtime io.containerd.runc.v2 --label module.wasm.image/variant=compat-smart docker.io/hydai/wasm-wasi-example:with-wasm-annotation wasm-example /wasi_example_main.wasm 50000000
 ```
 
 Starting the container would execute the WebAssembly program. You can see the output in the console.
@@ -102,7 +102,7 @@ sudo ctr i pull docker.io/avengermojo/http_server:with-wasm-annotation
 Now, you can run the example in just one line with ctr (the containerd cli). Notice that we are running the container with `--net-host` so that the HTTP server inside the WasmEdge container is accessible from the outside shell.
 
 ```bash
-sudo ctr run --rm --net-host --runc-binary crun --runtime io.containerd.runc.v2 --label module.wasm.image/variant=compat docker.io/avengermojo/http_server:with-wasm-annotation http-server-example /http_server.wasm
+sudo ctr run --rm --net-host --runc-binary crun --runtime io.containerd.runc.v2 --label module.wasm.image/variant=compat-smart docker.io/avengermojo/http_server:with-wasm-annotation http-server-example /http_server.wasm
 ```
 
 Starting the container would execute the WebAssembly program. You can see the output in the console.

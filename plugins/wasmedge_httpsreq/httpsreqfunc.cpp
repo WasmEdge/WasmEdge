@@ -2,15 +2,17 @@
 // SPDX-FileCopyrightText: 2019-2022 Second State INC
 
 #include "httpsreqfunc.h"
-#include "common/errcode.h"
-#include "common/log.h"
-#include <errno.h>
-#include <iostream>
-#include <netdb.h>
+
 #include <openssl/err.h>
 #include <openssl/ssl.h>
+
+#include <algorithm>
+#include <cstdio>
+#include <errno.h>
+#include <netdb.h>
 #include <resolv.h>
 #include <string.h>
+#include <string>
 #include <unistd.h>
 
 namespace WasmEdge {

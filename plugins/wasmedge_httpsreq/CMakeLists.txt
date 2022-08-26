@@ -1,6 +1,9 @@
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileCopyrightText: 2019-2022 Second State INC
 
+set(OPENSSL_USE_STATIC_LIBS ON)
+find_package(OpenSSL REQUIRED)
+
 wasmedge_add_library(wasmedgePluginHttpsReq
   SHARED
   httpsreqenv.cpp
@@ -30,9 +33,19 @@ target_include_directories(wasmedgePluginHttpsReq
 
 target_link_libraries(wasmedgePluginHttpsReq
   PUBLIC
-  wasmedgeCommon
-  wasmedgeSystem
-  -L/usr/lib -lssl -lcrypto
+  OpenSSL::Crypto
+  OpenSSL::SSL
 )
+if(WASMEDGE_LINK_PUGLINS_STATIC)
+  target_link_libraries(wasmedgePluginHttpsReq
+    PRIVATE
+    wasmedgeCAPI
+  )
+else()
+  target_link_libraries(wasmedgePluginHttpsReq
+    PRIVATE
+    wasmedge_shared
+  )
+endif()
 
 install(TARGETS wasmedgePluginHttpsReq DESTINATION ${CMAKE_INSTALL_LIBDIR}/wasmedge)

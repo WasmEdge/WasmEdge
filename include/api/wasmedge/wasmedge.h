@@ -1316,21 +1316,21 @@ WASMEDGE_CAPI_EXPORT extern WasmEdge_Result
 WasmEdge_CompilerCompile(WasmEdge_CompilerContext *Cxt, const char *InPath,
                          const char *OutPath);
 
-/// Compile the input WASM from the given binary array.
+/// Compile the input WASM from the given buffer.
 ///
-/// The compiler compiles the WASM from the given binary array for the
+/// The compiler compiles the WASM from the given buffer for the
 /// ahead-of-time mode and store the result to the output file path.
 ///
 /// \param Cxt the WasmEdge_CompilerContext.
-/// \param InArray the input WASM binary array.
-/// \param InArrayLen the length of the input WASM binary array.
+/// \param InBuffer the input WASM binary buffer.
+/// \param InBufferLen the length of the input WASM binary buffer.
 /// \param OutPath the output WASM file path.
 ///
 /// \returns WasmEdge_Result. Call `WasmEdge_ResultGetMessage` for the error
 /// message.
-WASMEDGE_CAPI_EXPORT extern WasmEdge_Result WasmEdge_CompilerCompileFromArray(
-    WasmEdge_CompilerContext *Cxt, const uint8_t *InArray,
-    const uint64_t InArrayLen, const char *OutPath);
+WASMEDGE_CAPI_EXPORT extern WasmEdge_Result WasmEdge_CompilerCompileFromBuffer(
+    WasmEdge_CompilerContext *Cxt, const uint8_t *InBuffer,
+    const uint64_t InBufferLen, const char *OutPath);
 
 /// Deletion of the WasmEdge_CompilerContext.
 ///

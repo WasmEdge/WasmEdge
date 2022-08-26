@@ -1125,7 +1125,7 @@ mod tests {
             .expect("failed to add memory")
             .with_table("table", table)
             .expect("failed to add table")
-            .build("extern-module");
+            .build("extern-module-send");
         assert!(result.is_ok());
         let import = result.unwrap();
 
@@ -1153,11 +1153,11 @@ mod tests {
             assert!(result.is_ok());
 
             // get active module instance
-            let result = store.module_instance("extern-module");
+            let result = store.module_instance("extern-module-send");
             assert!(result.is_some());
             let instance = result.unwrap();
             assert!(instance.name().is_some());
-            assert_eq!(instance.name().unwrap(), "extern-module");
+            assert_eq!(instance.name().unwrap(), "extern-module-send");
 
             // check the exported global
             let result = instance.global("global");
@@ -1190,7 +1190,7 @@ mod tests {
             assert!(table.name().is_some());
             assert_eq!(table.name().unwrap(), "table");
             assert!(table.mod_name().is_some());
-            assert_eq!(table.mod_name().unwrap(), "extern-module");
+            assert_eq!(table.mod_name().unwrap(), "extern-module-send");
             assert_eq!(table.size(), 10);
             let result = table.ty();
             assert!(result.is_ok());
@@ -1251,7 +1251,7 @@ mod tests {
             .expect("failed to add memory")
             .with_table("table", table)
             .expect("failed to add table")
-            .build("extern-module");
+            .build("extern-module-sync");
         assert!(result.is_ok());
         let import = result.unwrap();
         let import = Arc::new(Mutex::new(import));
@@ -1285,11 +1285,11 @@ mod tests {
             assert!(result.is_ok());
 
             // get active module instance
-            let result = store.module_instance("extern-module");
+            let result = store.module_instance("extern-module-sync");
             assert!(result.is_some());
             let instance = result.unwrap();
             assert!(instance.name().is_some());
-            assert_eq!(instance.name().unwrap(), "extern-module");
+            assert_eq!(instance.name().unwrap(), "extern-module-sync");
 
             // check the exported global
             let result = instance.global("global");
@@ -1322,7 +1322,7 @@ mod tests {
             assert!(table.name().is_some());
             assert_eq!(table.name().unwrap(), "table");
             assert!(table.mod_name().is_some());
-            assert_eq!(table.mod_name().unwrap(), "extern-module");
+            assert_eq!(table.mod_name().unwrap(), "extern-module-sync");
             assert_eq!(table.size(), 10);
             let result = table.ty();
             assert!(result.is_ok());

@@ -35,10 +35,36 @@ jobs:
           apt update
           apt install -y ctags
 
+      - name: Create allowlist
+        run: |
+          tee -a allowlist.txt <<EOF
+          WasmEdge_LimitIsEqual
+          WasmEdge_ResultGetMessage
+          WasmEdge_StringCopy
+          WasmEdge_VMAsyncRunWasmFromASTModule
+          WasmEdge_VMAsyncRunWasmFromBuffer
+          WasmEdge_VMAsyncRunWasmFromFile
+          WasmEdge_VMGetFunctionType
+          WasmEdge_VMGetFunctionTypeRegistered
+          WasmEdge_VMRunWasmFromASTModule
+          WasmEdge_VMRunWasmFromBuffer
+          WasmEdge_VMRunWasmFromFile
+          EOF
+          echo "===Allowlist==="
+          cat allowlist.txt
+          echo "===End of Allowlist==="
+
       - name: Inventory for rust-sys
         run: |
+          echo "===Compose missing api list==="
           for fn in `ctags -x --c-types=f+p include/api/wasmedge/wasmedge.h  | awk '/^WasmEdge_/{print $1}'`; do
             grep -q ${fn} -R bindings/rust/wasmedge-sys || echo "${fn} is not used in rust-sys crate" >> /tmp/missing_api_in_rust.txt
+          done;
+          cat /tmp/missing_api_in_rust.txt
+          echo "===Remove missing api by allowlist==="
+          for api in `cat allowlist.txt | awk '/^WasmEdge_/{print $1}'`; do
+            echo "------ Removing", ${api}
+            echo "${api} " | xargs -I '{}' sed -i '/{}/d' /tmp/missing_api_in_rust.txt
           done;
           cat /tmp/missing_api_in_rust.txt || exit 0
           exit `wc -l /tmp/missing_api_in_rust.txt | awk '{print $1}'`

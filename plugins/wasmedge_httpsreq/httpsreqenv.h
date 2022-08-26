@@ -16,9 +16,6 @@ namespace Host {
 
 class WasmEdgeHttpsReqEnvironment {
 public:
-  std::string Host;
-  uint32_t Port;
-  std::string BodyStr;
   std::string Rcv;
 
   /// Initial Configurations

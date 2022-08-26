@@ -19,8 +19,8 @@ WasmEdge::Runtime::Instance::ModuleInstance *createModule() {
   WasmEdge::Plugin::Plugin::load(std::filesystem::u8path(
       "../../../plugins/httpsreq/"
       "libwasmedgePluginHttpsReq" WASMEDGE_LIB_EXTENSION));
-  if (const auto *Plugin = WasmEdge::Plugin::Plugin::find("https_req"sv)) {
-    if (const auto *Module = Plugin->findModule("https_req"sv)) {
+  if (const auto *Plugin = WasmEdge::Plugin::Plugin::find("wasmedge_httpsreq"sv)) {
+    if (const auto *Module = Plugin->findModule("wasmedge_httpsreq"sv)) {
       return Module->create().release();
     }
   }

@@ -35,6 +35,8 @@
 
 - [ ] In this step, the issue fixing is finished. The `RC` pre-releases are for the installation, bindings, and packages testing.
 - [ ] Make sure that all the issues in the releasing process issue are completed.
+- [ ] Update `WASMEDGE_CAPI_VERSION` in `CMakeLists.txt`.
+- [ ] Update `wasmedge_version` in `docs/book/en/book.toml`.
 - [ ] Use git tag to create a new release tag ``major.minor.patch-rc.version``. And push this tag to GitHub.
 - [ ] Wait for the CI builds and pushes the release binaries and release notes to the GitHub release page.
 - [ ] Check the ``Pre-release`` checkbox and publish the pre-release.

@@ -16,7 +16,8 @@
 //!
 //! | wasmedge-sdk  | WasmEdge lib  | wasmedge-sys  | wasmedge-types|
 //! | :-----------: | :-----------: | :-----------: | :-----------: |
-//! | 0.3.0         | 0.10.1        | 0.8           | 0.2           |
+//! | 0.4.0         | 0.11.0        | 0.9           | 0.2.1         |
+//! | 0.3.0         | 0.10.1        | 0.8           | 0.2.0         |
 //! | 0.1.0         | 0.10.0        | 0.7           | 0.1           |
 //!
 //! ## Build
@@ -185,6 +186,7 @@ pub use compiler::Compiler;
 pub use config::Config;
 #[doc(inline)]
 pub use executor::Executor;
+#[doc(inline)]
 pub use frame::CallingFrame;
 #[cfg(target_os = "linux")]
 #[doc(inline)]

@@ -138,9 +138,9 @@ extern "C" fn wraper_fn_single(
 /// * [Vm](crate::Vm) provides the [run_function](crate::Vm::run_function) and [run_registered_function](crate::Vm::run_registered_function) APIs to call a host function (registered into Vm) by given the name of the target host function.
 ///
 /// * If the target host function instance and an [Executor](crate::Executor) instance are available, then there are two APIs available:
-///     * Use the [run_func](crate::Engine::run_func) API defined in [Engine](crate::Engine) trait. [Executor](crate::Executor) implements the trait.
+///     * Use the [run_func](crate::Engine::run_func) method defined in [Engine](crate::Engine) trait. Both [Vm](crate::Vm) and [Executor](crate::Executor) implement the trait.
 ///
-///     * Use the [call](crate::Function::call) API of [Function](crate::Function).
+///     * Use the [call](crate::Function::call) method of [Function](crate::Function).
 ///
 #[derive(Debug)]
 pub struct Function {
@@ -321,7 +321,7 @@ impl Function {
     ///
     /// # Arguments
     ///
-    /// * `engine` - The object implements Engine trait.
+    /// * `engine` - The object implementing the [Engine](crate::Engine) trait.
     ///
     /// * `args` - The arguments passed to the host function.
     ///
@@ -589,7 +589,7 @@ impl FuncRef {
     ///
     /// # Arguments
     ///
-    /// * `engine` - The object implements Engine trait.
+    /// * `engine` - The object implementing the [Engine](crate::Engine) trait.
     ///
     /// * `args` - The arguments passed to the host function.
     ///

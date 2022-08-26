@@ -13,28 +13,27 @@
 #include <string.h>
 #include <unistd.h>
 
-// Some of the code was taken from this post:
-// https://stackoverflow.com/questions/52727565/client-in-c-use-gethostbyname-or-getaddrinfo
-
 namespace WasmEdge {
 namespace Host {
 
-Expect<void> WasmEdgeHttpsReqSendData::body(
-    Runtime::Instance::MemoryInstance *MemInst, uint32_t HostPtr,
-    uint32_t HostLen, uint32_t Port, uint32_t BodyPtr, uint32_t BodyLen) {
+Expect<void> WasmEdgeHttpsReqSendData::body(const Runtime::CallingFrame &Frame,
+                                            uint32_t HostPtr, uint32_t HostLen,
+                                            uint32_t Port, uint32_t BodyPtr,
+                                            uint32_t BodyLen) {
+  auto *MemInst = Frame.getMemoryByIndex(0);
   if (MemInst == nullptr) {
-    return Unexpect(ErrCode::ExecutionFailed);
+    return Unexpect(ErrCode::Value::HostFuncError);
   }
 
   char *Host = MemInst->getPointer<char *>(HostPtr);
   char *Body = MemInst->getPointer<char *>(BodyPtr);
   if (Host == nullptr) {
     spdlog::error("[Wasmedge Httpsreq] Fail to get Host");
-    return Unexpect(ErrCode::ExecutionFailed);
+    return Unexpect(ErrCode::Value::HostFuncError);
   }
   if (Body == nullptr) {
     spdlog::error("[Wasmedge Httpsreq] Fail to get Body");
-    return Unexpect(ErrCode::ExecutionFailed);
+    return Unexpect(ErrCode::Value::HostFuncError);
   }
   std::string HostStr, BodyStr, PortStr = std::to_string(Port);
   std::copy_n(Host, HostLen, std::back_inserter(HostStr));
@@ -45,12 +44,12 @@ Expect<void> WasmEdgeHttpsReqSendData::body(
   if (Ctx == nullptr) {
     ERR_print_errors_fp(stderr);
     spdlog::error("[Wasmedge Httpsreq] SSL_CTX_new() failed");
-    return Unexpect(ErrCode::ExecutionFailed);
+    return Unexpect(ErrCode::Value::HostFuncError);
   }
   SSL *Ssl = SSL_new(Ctx);
   if (Ssl == nullptr) {
     spdlog::error("[Wasmedge Httpsreq] SSL_new() failed");
-    return Unexpect(ErrCode::ExecutionFailed);
+    return Unexpect(ErrCode::Value::HostFuncError);
   }
 
   // open connection
@@ -64,7 +63,7 @@ Expect<void> WasmEdgeHttpsReqSendData::body(
   Err = getaddrinfo(HostStr.c_str(), PortStr.c_str(), &Hints, &Addrs);
   if (Err != 0) {
     spdlog::error("[Wasmedge Httpsreq] gai_strerror(Err)");
-    return Unexpect(ErrCode::ExecutionFailed);
+    return Unexpect(ErrCode::Value::HostFuncError);
   }
 
   for (struct addrinfo *Addr = Addrs; Addr != NULL; Addr = Addr->ai_next) {
@@ -84,7 +83,7 @@ Expect<void> WasmEdgeHttpsReqSendData::body(
 
   if (Sfd == -1) {
     spdlog::error("[Wasmedge Httpsreq] Fail to get fd");
-    return Unexpect(ErrCode::ExecutionFailed);
+    return Unexpect(ErrCode::Value::HostFuncError);
   }
 
   SSL_set_fd(Ssl, Sfd);
@@ -95,7 +94,7 @@ Expect<void> WasmEdgeHttpsReqSendData::body(
     ERR_print_errors_fp(stderr);
     spdlog::error("[Wasmedge Httpsreq] SSL_get_error code" +
                   std::to_string(Status));
-    return Unexpect(ErrCode::ExecutionFailed);
+    return Unexpect(ErrCode::Value::HostFuncError);
   }
 
   SSL_write(Ssl, BodyStr.c_str(), BodyLen);
@@ -120,11 +119,11 @@ Expect<void> WasmEdgeHttpsReqSendData::body(
   return {};
 }
 
-Expect<void>
-WasmEdgeHttpsReqGetRcv::body(Runtime::Instance::MemoryInstance *MemInst,
-                             uint32_t BufPtr) {
+Expect<void> WasmEdgeHttpsReqGetRcv::body(const Runtime::CallingFrame &Frame,
+                                          uint32_t BufPtr) {
+  auto *MemInst = Frame.getMemoryByIndex(0);
   if (MemInst == nullptr) {
-    return Unexpect(ErrCode::ExecutionFailed);
+    return Unexpect(ErrCode::Value::HostFuncError);
   }
   char *Buf = MemInst->getPointer<char *>(BufPtr);
   std::copy_n(Env.Rcv.begin(), Env.Rcv.size(), Buf);
@@ -132,7 +131,7 @@ WasmEdgeHttpsReqGetRcv::body(Runtime::Instance::MemoryInstance *MemInst,
 }
 
 Expect<uint32_t>
-WasmEdgeHttpsReqGetRcvLen::body(Runtime::Instance::MemoryInstance *) {
+WasmEdgeHttpsReqGetRcvLen::body(const Runtime::CallingFrame &) {
   return static_cast<uint32_t>(Env.Rcv.size());
 }
 

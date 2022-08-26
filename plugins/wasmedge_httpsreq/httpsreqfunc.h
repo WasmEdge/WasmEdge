@@ -5,7 +5,7 @@
 
 #include "common/defines.h"
 #include "httpsreqbase.h"
-
+#include "runtime/callingframe.h"
 #include <stdio.h>
 
 namespace WasmEdge {
@@ -16,7 +16,7 @@ class WasmEdgeHttpsReqSendData
 public:
   WasmEdgeHttpsReqSendData(WasmEdgeHttpsReqEnvironment &HostEnv)
       : WasmEdgeHttpsReq(HostEnv) {}
-  Expect<void> body(Runtime::Instance::MemoryInstance *, uint32_t HostPtr,
+  Expect<void> body(const Runtime::CallingFrame &Frame, uint32_t HostPtr,
                     uint32_t HostLen, uint32_t Port, uint32_t BodyPtr,
                     uint32_t BodyLen);
 };
@@ -25,7 +25,7 @@ class WasmEdgeHttpsReqGetRcv : public WasmEdgeHttpsReq<WasmEdgeHttpsReqGetRcv> {
 public:
   WasmEdgeHttpsReqGetRcv(WasmEdgeHttpsReqEnvironment &HostEnv)
       : WasmEdgeHttpsReq(HostEnv) {}
-  Expect<void> body(Runtime::Instance::MemoryInstance *, uint32_t BufPtr);
+  Expect<void> body(const Runtime::CallingFrame &Frame, uint32_t BufPtr);
 };
 
 class WasmEdgeHttpsReqGetRcvLen
@@ -33,7 +33,7 @@ class WasmEdgeHttpsReqGetRcvLen
 public:
   WasmEdgeHttpsReqGetRcvLen(WasmEdgeHttpsReqEnvironment &HostEnv)
       : WasmEdgeHttpsReq(HostEnv) {}
-  Expect<uint32_t> body(Runtime::Instance::MemoryInstance *);
+  Expect<uint32_t> body(const Runtime::CallingFrame &Frame);
 };
 
 } // namespace Host

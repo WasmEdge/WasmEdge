@@ -93,7 +93,8 @@ store.register_import_module(&mut executor, &import)?;
 let extern_instance = store.register_named_module(&mut executor, "extern", &module)?;
 ```
 
-In the code above we use [Executor](https://wasmedge.github.io/WasmEdge/wasmedge_sdk/struct.Executor.html) and [Store](https://wasmedge.github.io/WasmEdge/wasmedge_sdk/struct.Store.html) to register the import module and the compiled module. `wasmedge-sdk` also provides alternative APIs to do the same thing: [Vm::register_import_module](https://wasmedge.github.io/WasmEdge/wasmedge_sdk/struct.Vm.html#method.register_import_module) and [Vm::register_module_from_bytes](https://wasmedge.github.io/WasmEdge/wasmedge_sdk/struct.Vm.html#method.register_module_from_bytes).
+In the code above we use [Executor](https://wasmedge.github.io/WasmEdge/wasmedge_sdk/struct.Executor.html) and [Store](https://wasmedge.github.io/WasmEdge/wasmedge_sdk/struct.Store.html) to register the import module and the compiled module. `wasmedge-sdk` also provides alternative APIs to do the same thing:
+[Vm::register_import_module](https://wasmedge.github.io/WasmEdge/wasmedge_sdk/struct.Vm.html#method.register_import_module) and [Vm::register_module_from_bytes](https://wasmedge.github.io/WasmEdge/wasmedge_sdk/struct.Vm.html#method.register_module_from_bytes).
 
 ## Step 4: Run the exported function
 

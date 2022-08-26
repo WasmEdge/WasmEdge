@@ -195,7 +195,7 @@ impl Func {
     ///
     /// # Arguments
     ///
-    /// * `engine` - The object implements Engine trait.
+    /// * `engine` - The object implementing the [Engine](crate::Engine) trait.
     ///
     /// * `args` - The arguments passed to the host function.
     ///
@@ -298,7 +298,7 @@ impl FuncRef {
     ///
     /// # Arguments
     ///
-    /// * `engine` - The object implements Engine trait.
+    /// * `engine` - The object implementing the [Engine](crate::Engine) trait.
     ///
     /// * `args` - The arguments passed to the host function.
     ///

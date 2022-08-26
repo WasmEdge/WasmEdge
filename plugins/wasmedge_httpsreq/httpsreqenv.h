@@ -4,18 +4,18 @@
 #pragma once
 
 #include "plugin/plugin.h"
-
+#include "po/argument_parser.h"
+#include "po/list.h"
+#include "po/option.h"
 #include <cstdint>
 #include <string>
+#include <vector>
 
 namespace WasmEdge {
 namespace Host {
 
-class HttpsReqEnvironment {
+class WasmEdgeHttpsReqEnvironment {
 public:
-  std::string Host;
-  uint32_t Port;
-  std::string BodyStr;
   std::string Rcv;
 
   /// Initial Configurations

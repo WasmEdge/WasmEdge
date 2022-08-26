@@ -10,11 +10,11 @@ namespace Host {
 namespace {
 
 Runtime::Instance::ModuleInstance *create(void) noexcept {
-  return new HttpsReqModule;
+  return new WasmEdgeHttpsReqModule;
 }
 
 Plugin::Plugin::PluginDescriptor Descriptor{
-    .Name = "https_req",
+    .Name = "wasmedge_httpsreq",
     .Description = "",
     .APIVersion = Plugin::Plugin::CurrentAPIVersion,
     .Version = {0, 10, 1, 0},
@@ -22,7 +22,7 @@ Plugin::Plugin::PluginDescriptor Descriptor{
     .ModuleDescriptions =
         (Plugin::PluginModule::ModuleDescriptor[]){
             {
-                .Name = "https_req",
+                .Name = "wasmedge_httpsreq",
                 .Description = "",
                 .Create = create,
             },
@@ -32,7 +32,7 @@ Plugin::Plugin::PluginDescriptor Descriptor{
 
 } // namespace
 
-Plugin::PluginRegister HttpsReqEnvironment::Register(&Descriptor);
+Plugin::PluginRegister WasmEdgeHttpsReqEnvironment::Register(&Descriptor);
 
 } // namespace Host
 } // namespace WasmEdge

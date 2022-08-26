@@ -12,7 +12,7 @@ endif()
 
 if(WASMEDGE_PLUGIN_HTTPSREQ) 
   if(CMAKE_SYSTEM_NAME MATCHES "Linux")
-    add_subdirectory(httpsreq)
+    add_subdirectory(wasmedge_httpsreq)
   endif()
 endif()
 

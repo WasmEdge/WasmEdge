@@ -99,7 +99,7 @@ impl Compiler {
             );
             dst.copy_from_slice(src);
 
-            check(ffi::WasmEdge_CompilerCompileFromArray(
+            check(ffi::WasmEdge_CompilerCompileFromBuffer(
                 self.inner.0,
                 ptr as *const u8,
                 bytes.as_ref().len() as u64,

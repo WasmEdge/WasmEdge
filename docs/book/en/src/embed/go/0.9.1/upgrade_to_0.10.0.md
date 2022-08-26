@@ -242,7 +242,7 @@ globinst := mod.FindGlobal("global_i32")
 
     Developers have the responsibility to release the created module instances.
 
-4. WASM function invokation
+4. WASM function invocation
 
     This example uses the [fibonacci.wasm](https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/examples/wasm/fibonacci.wasm), and the corresponding WAT file is at [fibonacci.wat](https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/examples/wasm/fibonacci.wat).
     In WasmEdge-Go `v0.9.2` version, developers can invoke a WASM function with the export function name:

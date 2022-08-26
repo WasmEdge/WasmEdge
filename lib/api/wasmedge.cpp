@@ -1424,16 +1424,16 @@ WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_CompilerCompile(
 #endif
 }
 
-WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_CompilerCompileFromArray(
+WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_CompilerCompileFromBuffer(
     WasmEdge_CompilerContext *Cxt [[maybe_unused]],
-    const uint8_t *InArray [[maybe_unused]],
-    const uint64_t InArrayLen [[maybe_unused]],
+    const uint8_t *InBuffer [[maybe_unused]],
+    const uint64_t InBufferLen [[maybe_unused]],
     const char *OutPath [[maybe_unused]]) {
 #ifdef WASMEDGE_BUILD_AOT_RUNTIME
   return wrap(
       [&]() -> WasmEdge::Expect<void> {
         std::filesystem::path OutputPath = std::filesystem::absolute(OutPath);
-        std::vector<WasmEdge::Byte> Data(InArray, InArray + InArrayLen);
+        std::vector<WasmEdge::Byte> Data(InBuffer, InBuffer + InBufferLen);
         std::unique_ptr<WasmEdge::AST::Module> Module;
         if (auto Res = Cxt->Load.parseModule(Data)) {
           Module = std::move(*Res);

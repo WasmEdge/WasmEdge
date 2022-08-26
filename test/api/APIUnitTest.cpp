@@ -973,7 +973,7 @@ TEST(APICoreTest, Compiler) {
     Index += static_cast<size_t>(BlockSize);
     FileSize -= static_cast<size_t>(BlockSize);
   }
-  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_CompilerCompileFromArray(
+  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_CompilerCompileFromBuffer(
       Compiler, Data.data(), Data.size(), "test_aot" WASMEDGE_LIB_EXTENSION)));
   // Check the header of the output files.
   OutFile.open("test_aot" WASMEDGE_LIB_EXTENSION, std::ios::binary);

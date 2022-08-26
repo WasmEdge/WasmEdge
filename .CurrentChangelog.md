@@ -49,7 +49,7 @@ Features:
 * Added a new API for looking up the native handler from a given WASI mapped Fd/Handler.
   * Added `WasmEdge_ModuleInstanceWASIGetNativeHandler` to get the native handler.
 * Added a new API for compiling a given WASM byte array.
-  * Added `WasmEdge_CompilerCompileFromArray` to compile from buffer.
+  * Added `WasmEdge_CompilerCompileFromBuffer` to compile from buffer.
 * Added `httpsreq` plugin on Linux platforms.
 
 Fixed issues:

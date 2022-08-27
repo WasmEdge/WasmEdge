@@ -13,7 +13,7 @@ pub struct CallingFrame {
 }
 impl CallingFrame {
     /// Creates a CallingFrame instance.
-    pub fn create(ctx: *const ffi::WasmEdge_CallingFrameContext) -> Self {
+    pub(crate) fn create(ctx: *const ffi::WasmEdge_CallingFrameContext) -> Self {
         Self { ctx }
     }
 

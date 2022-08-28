@@ -3,7 +3,7 @@
 An easy way to run WebAssembly applications in the Docker ecosystem is to simply embed the WebAssembly bytecode file in a Linux container image. Specifically, we trim down the Linux OS inside the container to the point where it is just enough to support the `wasmedge` runtime. This approach has many advantages.
 
 * It works seamlessly with any tool in the Docker or container ecosystem since the WebAssembly application is wrapped in a regular container.
-* The memory footprint of the entire image of Linux OS and WasmEdge can be reduced to as low as 10MB.
+* The memory footprint of the entire image of Linux OS and WasmEdge can be reduced to as low as 4MB.
 * The attack surface of the slimmed Linux OS is dramatically reduced from a regular Linux OS.
 * The overall application security is managed by the WebAssembly sandbox. The risk for software supply chain attack is greatly reduced since the WebAssembly sandbox only has access to explicitly declared capabilities.
 * The above three advantages are amplified if the application is complex. For example, a WasmEdge AI inference application would NOT require a Python install. A WasmEdge node.js application would NOT require a Node.js and v8 install.
@@ -12,10 +12,12 @@ However, this approach still requires starting up a Linux container. The contain
 
 ## Run a simple WebAssembly app
 
-We can run a simple WebAssembly program using Docker. [The sample application is here](https://github.com/second-state/wasm-learning/tree/master/cli/wasi). First, create a `Dockerfile` based on our release image. Include the [wasm application file](https://github.com/second-state/wasm-learning/raw/master/cli/wasi/wasi_example_main.wasm) in the new image, and run the `wasmedge` command at start up.
+We can run a simple WebAssembly program using Docker. An slim Linux image with WasmEdge installed is only 4MB as opposed to 30MB for a general Linux image for native compiled applications. The Linux + WasmEdge image is similar to a unikernel OS image. It minimizes the footprint, performance overhead, and potential attack surface for WebAssembly applications. 
+
+[The sample application is here](https://github.com/second-state/wasm-learning/tree/master/cli/wasi). First, create a `Dockerfile` based on our release image. Include the [wasm application file](https://github.com/second-state/wasm-learning/raw/master/cli/wasi/wasi_example_main.wasm) in the new image, and run the `wasmedge` command at start up.
 
 ```shell
-FROM wasmedge/wasmedge:release-0.10.1
+FROM wasmedge/wasmedge:release-0.10.1-runtime
 ADD wasi_example_main.wasm /
 CMD ["wasmedge", "--dir", ".:/", "/wasi_example_main.wasm"]
 ```
@@ -45,7 +47,7 @@ We can run a simple WebAssembly-based HTTP micro-service using the Docker CLI. T
 Create a `Dockerfile` based on our release image. Include the `http_server.wasm` application file in the new image, and run the `wasmedge` command at start up.
 
 ```shell
-FROM wasmedge/wasmedge:release-0.10.1
+FROM wasmedge/wasmedge:release-0.10.1-runtime
 ADD http_server.wasm /
 CMD ["wasmedge", "--dir", ".:/", "/http_server.wasm"]
 ```
@@ -70,7 +72,7 @@ echo: name=WasmEdge
 
 ## Run a lightweight Node.js server
 
-With WasmEdge QuickJS support for the Node.js API, we can run a lightweight and secure node.js server from Docker CLI. For that, you will need a few things.
+With WasmEdge QuickJS support for the Node.js API, we can run a lightweight and secure node.js server from Docker CLI. The slim Linux + WasmEdge + Node.js support image size is less than 15MB as opposed to over 350MB for a standard Node.js image. You will need to do the following.
 
 * [Download the WasmEdge QuickJS runtime](https://github.com/second-state/wasmedge-quickjs/releases/download/v0.4.0-alpha/wasmedge_quickjs.wasm) here. You will have the `wasmedge_quickjs.wasm` file.
 * [Download the modules](https://github.com/second-state/wasmedge-quickjs/tree/main/modules) directory from the WasmEdge QuickJS repo. 
@@ -92,7 +94,7 @@ createServer((req, resp) => {
 Add those files to the Docker image and run the JavaScript file at startup. 
 
 ```shell
-FROM wasmedge/wasmedge:release-0.10.1
+FROM wasmedge/wasmedge:release-0.10.1-runtime
 ADD wasmedge_quickjs.wasm /
 ADD http_echo.js /
 ADD modules /modules
@@ -119,22 +121,31 @@ echo:WasmEdge
 
 ## Run a lightweight Tensorflow inference application
 
-A unique and powerful feature of the WasmEdge runtime is its support for AI frameworks. In this example, we will show you how to run an image recognition service from Docker CLI. The example project is here. First, create a Docker file to include the Tensorflow inference application and a test image. Please note
+A unique and powerful feature of the WasmEdge runtime is its support for AI frameworks. In this example, we will show you how to run an image recognition service from Docker CLI. [The sample application is here](https://github.com/WasmEdge/wasmedge_hyper_demo/tree/main/server-tflite). First, create a `Dockerfile` based on our `tensorflow` release image. Include the [wasm application file](https://github.com/WasmEdge/wasmedge_hyper_demo/raw/main/server-tflite/wasmedge_hyper_server_tflite.wasm) in the new image, and run the `wasmedge-tensorflow-lite` command at start up.
 
-* The base Docker image is now xxx, which includes the Tensorflow Lite dependency libraries.
-* We are putting the test image in the Docker container for simplicity. You can create an HTTP server app that takes an image in an HTTP POST request. If you do, please do let us know.
-
-The Dockerfile is as follows. The whole package is 10MB. It is less than 10% of a typically Linux + Python + Tensorflow setup. 
+The Dockerfile is as follows. The whole package is 115MB. It is less than 1/4 of a typically Linux + Python + Tensorflow setup. 
 
 ```shell
-Xxx
+FROM wasmedge/wasmedge:release-0.10.1-tensorflow
+ADD wasmedge_hyper_server_tflite.wasm /
+CMD ["wasmedge-tensorflow-lite", "--dir", ".:/", "/wasmedge_hyper_server_tflite.wasm"]
 ```
 
-You can now start the application from the Docker CLI and see the result!
+Start the server from Docker CLI. 
 
 ```shell
-Xxx
+$ docker build -t wasmedge/myapp -f Dockerfile ./
+... ...
+Successfully tagged wasmedge/myapp:latest
+
+$ docker run --rm -p 3000:3000 wasmedge/myapp
+listen 3000 ...
 ```
 
+You can now access the server from another terminal.
 
+```shell
+$ curl http://localhost:3000/classify -X POST --data-binary "@grace_hopper.jpg"
+military uniform is detected with 206/255 confidence
+```
 

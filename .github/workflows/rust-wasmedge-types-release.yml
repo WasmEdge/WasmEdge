@@ -6,6 +6,8 @@ concurrency:
 
 on:
   push:
+    branches:
+      - "release/rust/*"
     tags:
       - "rust-types/[0-9]+.[0-9]+.[0-9]+*"
 
@@ -27,6 +29,7 @@ jobs:
           toolchain: stable
 
       - name: Dry run wasmedge-types crate
+        if: github.ref_type == 'branch'
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
         shell: bash
@@ -38,6 +41,7 @@ jobs:
           cd -
 
       - name: Publish wasmedge-types crate
+        if: github.ref_type == 'tag'
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
         shell: bash

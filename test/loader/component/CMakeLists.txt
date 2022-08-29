@@ -6,6 +6,7 @@ file(COPY
 
 wasmedge_add_executable(wasmedgeLoaderComponentASTTests
   type_definition.cpp
+  import_export_definition.cpp
   )
 
 add_test(wasmedgeLoaderComponentASTTests wasmedgeLoaderComponentASTTests)

@@ -2,10 +2,10 @@ ARG BASE=wasmedge/wasmedge:ubuntu-base
 FROM ${BASE}
 
 RUN apt update && apt install -y \
-	gcc \
-	g++
+	gcc-12 \
+	g++-12
 
 RUN rm -rf /var/lib/apt/lists/*
 
-ENV CC=gcc
-ENV CXX=g++
+ENV CC=gcc-12
+ENV CXX=g++-12

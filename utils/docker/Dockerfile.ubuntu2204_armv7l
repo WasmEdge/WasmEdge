@@ -1,0 +1,32 @@
+# SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+# SPDX-FileCopyrightText: 2019-2022 Second State INC
+
+FROM arm32v7/ubuntu:22.04
+
+MAINTAINER hydai hydai@secondstate.io
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN apt update && apt upgrade -y \
+	&& apt install -y \
+	build-essential \
+	cmake \
+	curl \
+	dpkg-dev \
+	gcc \
+	g++ \
+	git \
+	llvm-14-dev \
+	libboost-all-dev \
+	liblld-14-dev \
+	libssl-dev \
+	ninja-build \
+	software-properties-common \
+	python3 \
+	rpm \
+	wget \
+	xz-utils
+
+RUN rm -rf /var/lib/apt/lists/*
+
+ENV CC=gcc
+ENV CXX=g++

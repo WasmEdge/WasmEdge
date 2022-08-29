@@ -1,4 +1,4 @@
-FROM ubuntu:20.04
+FROM ubuntu:22.04
 
 MAINTAINER hydai hydai@secondstate.io
 ENV DEBIAN_FRONTEND=noninteractive
@@ -13,7 +13,7 @@ RUN apt update && apt upgrade -y \
 	curl \
 	git \
 	libboost-all-dev \
-	llvm-12-dev \
-	liblld-12-dev
+	llvm-14-dev \
+	liblld-14-dev
 
 RUN rm -rf /var/lib/apt/lists/*

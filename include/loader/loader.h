@@ -141,7 +141,7 @@ private:
       // Check the read size match the section size.
       auto EndOffset = FMgr.getOffset();
       if (EndOffset - StartOffset != Sec.getContentSize()) {
-        return logLoadError(ErrCode::SectionSizeMismatch, EndOffset,
+        return logLoadError(ErrCode::Value::SectionSizeMismatch, EndOffset,
                             NodeAttrFromAST<T>());
       }
     } else {

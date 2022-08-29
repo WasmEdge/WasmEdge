@@ -14,7 +14,7 @@
 #pragma once
 
 #include "common/configure.h"
-#include "common/enum_ast.h"
+#include "common/enum_ast.hpp"
 #include "common/errcode.h"
 #include "common/log.h"
 #include "common/span.h"

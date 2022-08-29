@@ -3,10 +3,7 @@
 
 #pragma once
 
-#include "common/defines.h"
 #include "httpsreqbase.h"
-
-#include <stdio.h>
 
 namespace WasmEdge {
 namespace Host {
@@ -14,7 +11,7 @@ namespace Host {
 class SendData : public HttpsReq<SendData> {
 public:
   SendData(HttpsReqEnvironment &HostEnv) : HttpsReq(HostEnv) {}
-  Expect<void> body(Runtime::Instance::MemoryInstance *, uint32_t HostPtr,
+  Expect<void> body(const Runtime::CallingFrame &, uint32_t HostPtr,
                     uint32_t HostLen, uint32_t Port, uint32_t BodyPtr,
                     uint32_t BodyLen);
 };
@@ -22,13 +19,13 @@ public:
 class HttpsReqGetRcv : public HttpsReq<HttpsReqGetRcv> {
 public:
   HttpsReqGetRcv(HttpsReqEnvironment &HostEnv) : HttpsReq(HostEnv) {}
-  Expect<void> body(Runtime::Instance::MemoryInstance *, uint32_t BufPtr);
+  Expect<void> body(const Runtime::CallingFrame &, uint32_t BufPtr);
 };
 
 class HttpsReqGetRcvLen : public HttpsReq<HttpsReqGetRcvLen> {
 public:
   HttpsReqGetRcvLen(HttpsReqEnvironment &HostEnv) : HttpsReq(HostEnv) {}
-  Expect<uint32_t> body(Runtime::Instance::MemoryInstance *);
+  Expect<uint32_t> body(const Runtime::CallingFrame &);
 };
 
 } // namespace Host

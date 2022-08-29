@@ -72,7 +72,7 @@ target_include_directories(wasmedgePluginWasiCrypto
 
 target_link_libraries(wasmedgePluginWasiCrypto
   PUBLIC
-  wasmedge_c_shared
+  wasmedge_shared
   OpenSSL::Crypto
 )
 if(WASMEDGE_LINK_PUGLINS_STATIC)
@@ -83,7 +83,7 @@ if(WASMEDGE_LINK_PUGLINS_STATIC)
 else()
   target_link_libraries(wasmedgePluginWasiCrypto
     PRIVATE
-    wasmedge_c_shared
+    wasmedge_shared
   )
 endif()
 

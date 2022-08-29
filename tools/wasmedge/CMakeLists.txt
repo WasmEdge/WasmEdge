@@ -18,7 +18,7 @@ if(WASMEDGE_BUILD_AOT_RUNTIME)
   else()
     target_link_libraries(wasmedgec
       PRIVATE
-      wasmedge_c_shared
+      wasmedge_shared
     )
   endif()
 endif()
@@ -39,6 +39,6 @@ if(WASMEDGE_LINK_TOOLS_STATIC)
 else()
   target_link_libraries(wasmedge
     PRIVATE
-    wasmedge_c_shared
+    wasmedge_shared
   )
 endif()

@@ -43,7 +43,7 @@ int main(int Argc, const char* Argv[]) {
 接下来你可以编译并且运行它：（索引从 0 开始的情况下，斐波那契数列的的第 32 个数值是 3524578 ）
 
 ```bash
-$ gcc test_wasmedge.c -lwasmedge_c -o test_wasmedge
+$ gcc test_wasmedge.c -lwasmedge -o test_wasmedge
 $ ./test_wasmedge fibonacci.wasm
 Get result: 3524578
 ```
@@ -82,7 +82,7 @@ int main(int Argc, const char* Argv[]) {
 接下来你可以编译和运行它（输出的文件是 "fibonacci.wasm.so" ）：
 
 ```bash
-$ gcc test_wasmedge_compiler.c -lwasmedge_c -o test_wasmedge_compiler
+$ gcc test_wasmedge_compiler.c -lwasmedge -o test_wasmedge_compiler
 $ ./test_wasmedge_compiler fibonacci.wasm fibonacci.wasm.so
 [2021-07-02 11:08:08.651] [info] compile start
 [2021-07-02 11:08:08.653] [info] verify start

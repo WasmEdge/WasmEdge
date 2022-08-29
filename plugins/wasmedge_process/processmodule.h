@@ -4,6 +4,7 @@
 #pragma once
 
 #include "processenv.h"
+
 #include "runtime/instance/module.h"
 
 namespace WasmEdge {

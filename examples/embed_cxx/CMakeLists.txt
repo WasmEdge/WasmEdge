@@ -22,7 +22,7 @@ add_executable(
 
 target_link_libraries(
     embed_cxx
-    wasmedge_c_shared
+    wasmedge_shared
     fibonacci
 )
 

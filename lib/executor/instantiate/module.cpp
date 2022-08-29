@@ -18,9 +18,9 @@ Executor::instantiate(Runtime::StoreManager &StoreMgr, const AST::Module &Mod,
                       std::optional<std::string_view> Name) {
   // Check the module is validated.
   if (unlikely(!Mod.getIsValidated())) {
-    spdlog::error(ErrCode::NotValidated);
+    spdlog::error(ErrCode::Value::NotValidated);
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Module));
-    return Unexpect(ErrCode::NotValidated);
+    return Unexpect(ErrCode::Value::NotValidated);
   }
 
   // Create the stack manager.
@@ -30,9 +30,9 @@ Executor::instantiate(Runtime::StoreManager &StoreMgr, const AST::Module &Mod,
   if (Name.has_value()) {
     const auto *FindModInst = StoreMgr.findModule(Name.value());
     if (FindModInst != nullptr) {
-      spdlog::error(ErrCode::ModuleNameConflict);
+      spdlog::error(ErrCode::Value::ModuleNameConflict);
       spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Module));
-      return Unexpect(ErrCode::ModuleNameConflict);
+      return Unexpect(ErrCode::Value::ModuleNameConflict);
     }
   }
 

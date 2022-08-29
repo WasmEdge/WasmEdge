@@ -64,7 +64,7 @@ FROM kindest/node:v1.23.0
 
 COPY config.toml /etc/containerd/config.toml
 COPY --from=builder /data/crun/crun /usr/local/sbin/runc
-COPY --from=builder /usr/local/lib/libwasmedge_c.so /usr/local/lib/libwasmedge_c.so
+COPY --from=builder /usr/local/lib/libwasmedge.so /usr/local/lib/libwasmedge.so
 
 RUN echo "Installing Packages ..." \
     && bash -c 'cat <<< $(jq "del(.hooks.createContainer)" /etc/containerd/cri-base.json) > /etc/containerd/cri-base.json' \

@@ -30,3 +30,6 @@ boost-paragraph = 1
 expand = true
 heading-split-level = 3
 copy-js = true
+
+[preprocessor.variables.variables]
+wasmedge_version = "0.11.0"

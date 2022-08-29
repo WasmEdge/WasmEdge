@@ -120,7 +120,7 @@ TEST_P(CoreTest, TestSuites) {
       const WasmEdge_FunctionTypeContext *FuncType =
           WasmEdge_VMGetFunctionTypeRegistered(VM, ModStr, FieldStr);
       if (FuncType == nullptr) {
-        return Unexpect(ErrCode::FuncNotFound);
+        return Unexpect(ErrCode::Value::FuncNotFound);
       }
       CReturns.resize(WasmEdge_FunctionTypeGetReturnsLength(FuncType));
       // Execute.
@@ -134,7 +134,7 @@ TEST_P(CoreTest, TestSuites) {
       const WasmEdge_FunctionTypeContext *FuncType =
           WasmEdge_VMGetFunctionType(VM, FieldStr);
       if (FuncType == nullptr) {
-        return Unexpect(ErrCode::FuncNotFound);
+        return Unexpect(ErrCode::Value::FuncNotFound);
       }
       CReturns.resize(WasmEdge_FunctionTypeGetReturnsLength(FuncType));
       // Execute.
@@ -167,7 +167,7 @@ TEST_P(CoreTest, TestSuites) {
     WasmEdge_GlobalInstanceContext *GlobCxt =
         WasmEdge_ModuleInstanceFindGlobal(ModCxt, FieldStr);
     if (GlobCxt == nullptr) {
-      return Unexpect(ErrCode::WrongInstanceAddress);
+      return Unexpect(ErrCode::Value::WrongInstanceAddress);
     }
     WasmEdge_Value Val = WasmEdge_GlobalInstanceGetValue(GlobCxt);
 #if defined(__x86_64__) || defined(__aarch64__)

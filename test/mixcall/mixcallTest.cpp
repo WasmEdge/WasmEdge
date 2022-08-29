@@ -17,7 +17,7 @@ namespace {
 
 class HostPrintI32 : public WasmEdge::Runtime::HostFunction<HostPrintI32> {
 public:
-  WasmEdge::Expect<void> body(WasmEdge::Runtime::Instance::MemoryInstance *,
+  WasmEdge::Expect<void> body(const WasmEdge::Runtime::CallingFrame &,
                               uint32_t Val) {
     std::cout << "-- Host Function: print I32 " << Val << std::endl;
     return {};
@@ -26,7 +26,7 @@ public:
 
 class HostPrintF64 : public WasmEdge::Runtime::HostFunction<HostPrintF64> {
 public:
-  WasmEdge::Expect<void> body(WasmEdge::Runtime::Instance::MemoryInstance *,
+  WasmEdge::Expect<void> body(const WasmEdge::Runtime::CallingFrame &,
                               double Val) {
     std::cout << "-- Host Function: print F64 " << Val << std::endl;
     return {};

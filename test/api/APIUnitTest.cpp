@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: 2019-2022 Second State INC
 
 #include "common/defines.h"
+#include "common/filesystem.h"
 #include "wasmedge/wasmedge.h"
 
 #include <algorithm>
@@ -49,7 +50,7 @@ char *Preopens[] = {&PreopensVec[0], &PreopensVec[12], &PreopensVec[21],
                     &PreopensVec[32], &PreopensVec[49]};
 char TPath[] = "apiTestData/test.wasm";
 
-WasmEdge_Result ExternAdd(void *, WasmEdge_MemoryInstanceContext *,
+WasmEdge_Result ExternAdd(void *, const WasmEdge_CallingFrameContext *,
                           const WasmEdge_Value *In, WasmEdge_Value *Out) {
   // {externref, i32} -> {i32}
   int32_t *Val1 = static_cast<int32_t *>(WasmEdge_ValueGetExternRef(In[0]));
@@ -58,7 +59,7 @@ WasmEdge_Result ExternAdd(void *, WasmEdge_MemoryInstanceContext *,
   return WasmEdge_Result_Success;
 }
 
-WasmEdge_Result ExternSub(void *, WasmEdge_MemoryInstanceContext *,
+WasmEdge_Result ExternSub(void *, const WasmEdge_CallingFrameContext *,
                           const WasmEdge_Value *In, WasmEdge_Value *Out) {
   // {externref, i32} -> {i32}
   int32_t *Val1 = static_cast<int32_t *>(WasmEdge_ValueGetExternRef(In[0]));
@@ -67,7 +68,7 @@ WasmEdge_Result ExternSub(void *, WasmEdge_MemoryInstanceContext *,
   return WasmEdge_Result_Success;
 }
 
-WasmEdge_Result ExternMul(void *, WasmEdge_MemoryInstanceContext *,
+WasmEdge_Result ExternMul(void *, const WasmEdge_CallingFrameContext *,
                           const WasmEdge_Value *In, WasmEdge_Value *Out) {
   // {externref, i32} -> {i32}
   int32_t *Val1 = static_cast<int32_t *>(WasmEdge_ValueGetExternRef(In[0]));
@@ -76,7 +77,7 @@ WasmEdge_Result ExternMul(void *, WasmEdge_MemoryInstanceContext *,
   return WasmEdge_Result_Success;
 }
 
-WasmEdge_Result ExternDiv(void *, WasmEdge_MemoryInstanceContext *,
+WasmEdge_Result ExternDiv(void *, const WasmEdge_CallingFrameContext *,
                           const WasmEdge_Value *In, WasmEdge_Value *Out) {
   // {externref, i32} -> {i32}
   int32_t *Val1 = static_cast<int32_t *>(WasmEdge_ValueGetExternRef(In[0]));
@@ -85,26 +86,26 @@ WasmEdge_Result ExternDiv(void *, WasmEdge_MemoryInstanceContext *,
   return WasmEdge_Result_Success;
 }
 
-WasmEdge_Result ExternTerm(void *, WasmEdge_MemoryInstanceContext *,
+WasmEdge_Result ExternTerm(void *, const WasmEdge_CallingFrameContext *,
                            const WasmEdge_Value *, WasmEdge_Value *Out) {
   // {} -> {i32}
   Out[0] = WasmEdge_ValueGenI32(1234);
   return WasmEdge_Result_Terminate;
 }
 
-WasmEdge_Result ExternFail(void *, WasmEdge_MemoryInstanceContext *,
+WasmEdge_Result ExternFail(void *, const WasmEdge_CallingFrameContext *,
                            const WasmEdge_Value *, WasmEdge_Value *Out) {
   // {} -> {i32}
   Out[0] = WasmEdge_ValueGenI32(5678);
-  return WasmEdge_Result_Fail;
+  return WasmEdge_ResultGen(WasmEdge_ErrCategory_UserLevelError, 0x5678);
 }
 
 WasmEdge_Result ExternWrap(void *This, void *Data,
-                           WasmEdge_MemoryInstanceContext *MemCxt,
+                           const WasmEdge_CallingFrameContext *MemCxt,
                            const WasmEdge_Value *In, const uint32_t,
                            WasmEdge_Value *Out, const uint32_t) {
   using HostFuncType =
-      WasmEdge_Result(void *, WasmEdge_MemoryInstanceContext *,
+      WasmEdge_Result(void *, const WasmEdge_CallingFrameContext *,
                       const WasmEdge_Value *, WasmEdge_Value *);
   HostFuncType *Func = reinterpret_cast<HostFuncType *>(This);
   return Func(Data, MemCxt, In, Out);
@@ -276,7 +277,12 @@ bool readToVector(const char *Path, std::vector<uint8_t> &Buf) {
 
 // Helper function to check error code.
 bool isErrMatch(WasmEdge_ErrCode Err, WasmEdge_Result Res) {
-  return static_cast<uint8_t>(Err) == Res.Code;
+  return static_cast<uint32_t>(Err) == WasmEdge_ResultGetCode(Res);
+}
+bool isErrMatch(WasmEdge_ErrCategory ErrCate, uint32_t Code,
+                WasmEdge_Result Res) {
+  return ErrCate == WasmEdge_ResultGetCategory(Res) &&
+         Code == WasmEdge_ResultGetCode(Res);
 }
 
 TEST(APICoreTest, Version) {
@@ -362,9 +368,9 @@ TEST(APICoreTest, String) {
 }
 
 TEST(APICoreTest, Result) {
-  WasmEdge_Result Res1 = {.Code = 0x00}; // Success
-  WasmEdge_Result Res2 = {.Code = 0x01}; // Terminated -> Success
-  WasmEdge_Result Res3 = {.Code = 0x02}; // Failed
+  WasmEdge_Result Res1 = WasmEdge_Result_Success;   // Success
+  WasmEdge_Result Res2 = WasmEdge_Result_Terminate; // Terminated -> Success
+  WasmEdge_Result Res3 = WasmEdge_Result_Fail;      // Failed
   EXPECT_TRUE(WasmEdge_ResultOK(Res1));
   EXPECT_TRUE(WasmEdge_ResultOK(Res2));
   EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_RuntimeError, Res3));
@@ -949,6 +955,32 @@ TEST(APICoreTest, Compiler) {
   OutFile.close();
   EXPECT_FALSE(std::equal(WASMMagic, WASMMagic + 4, Buf));
 
+  // Compile file for shared library output format from buffer
+  std::error_code EC;
+  auto TPathFS = std::filesystem::u8path(TPath);
+  size_t FileSize = std::filesystem::file_size(TPathFS, EC);
+  EXPECT_FALSE(EC);
+  std::ifstream Fin(TPathFS, std::ios::in | std::ios::binary);
+  EXPECT_TRUE(Fin);
+  std::vector<uint8_t> Data(FileSize);
+  size_t Index = 0;
+  while (FileSize > 0) {
+    const uint32_t BlockSize = static_cast<uint32_t>(
+        std::min<size_t>(FileSize, std::numeric_limits<uint32_t>::max()));
+    Fin.read(reinterpret_cast<char *>(Data.data()) + Index, BlockSize);
+    const uint32_t ReadCount = static_cast<uint32_t>(Fin.gcount());
+    EXPECT_TRUE(ReadCount == BlockSize);
+    Index += static_cast<size_t>(BlockSize);
+    FileSize -= static_cast<size_t>(BlockSize);
+  }
+  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_CompilerCompileFromBuffer(
+      Compiler, Data.data(), Data.size(), "test_aot" WASMEDGE_LIB_EXTENSION)));
+  // Check the header of the output files.
+  OutFile.open("test_aot" WASMEDGE_LIB_EXTENSION, std::ios::binary);
+  EXPECT_TRUE(OutFile.read(reinterpret_cast<char *>(Buf), 4));
+  OutFile.close();
+  EXPECT_FALSE(std::equal(WASMMagic, WASMMagic + 4, Buf));
+
   WasmEdge_CompilerDelete(Compiler);
   WasmEdge_ConfigureDelete(Conf);
 }
@@ -1337,7 +1369,7 @@ TEST(APICoreTest, ExecutorWithStatistics) {
   EXPECT_NE(FuncCxt, nullptr);
   WasmEdge_StringDelete(FuncName);
   EXPECT_TRUE(
-      isErrMatch(WasmEdge_ErrCode_ExecutionFailed,
+      isErrMatch(WasmEdge_ErrCategory_UserLevelError, 0x5678U,
                  WasmEdge_ExecutorInvoke(ExecCxt, FuncCxt, nullptr, 0, R, 1)));
 
   // Invoke host function with binding to functions
@@ -1363,7 +1395,7 @@ TEST(APICoreTest, ExecutorWithStatistics) {
   EXPECT_NE(FuncCxt, nullptr);
   WasmEdge_StringDelete(FuncName);
   EXPECT_TRUE(
-      isErrMatch(WasmEdge_ErrCode_ExecutionFailed,
+      isErrMatch(WasmEdge_ErrCategory_UserLevelError, 0x5678U,
                  WasmEdge_ExecutorInvoke(ExecCxt, FuncCxt, nullptr, 0, R, 1)));
 
   // Statistics get instruction count
@@ -1987,6 +2019,39 @@ TEST(APICoreTest, ModuleInstance) {
   WasmEdge_ModuleInstanceDelete(HostMod);
   HostMod = WasmEdge_ModuleInstanceCreateWASI(Args, 0, Envs, 3, Preopens, 5);
   EXPECT_NE(HostMod, nullptr);
+  // Check the Native Handler
+  {
+    // STDIN
+    uint64_t NativeHandler = 100;
+    auto RetStatus =
+        WasmEdge_ModuleInstanceWASIGetNativeHandler(HostMod, 0, &NativeHandler);
+    EXPECT_EQ(RetStatus, 0);
+    EXPECT_EQ(NativeHandler, 0);
+  }
+  {
+    // STDOUT
+    uint64_t NativeHandler = 100;
+    auto RetStatus =
+        WasmEdge_ModuleInstanceWASIGetNativeHandler(HostMod, 1, &NativeHandler);
+    EXPECT_EQ(RetStatus, 0);
+    EXPECT_EQ(NativeHandler, 1);
+  }
+  {
+    // STDERR
+    uint64_t NativeHandler = 100;
+    auto RetStatus =
+        WasmEdge_ModuleInstanceWASIGetNativeHandler(HostMod, 2, &NativeHandler);
+    EXPECT_EQ(RetStatus, 0);
+    EXPECT_EQ(NativeHandler, 2);
+  }
+  {
+    // non-existed fd
+    uint64_t NativeHandler = 100;
+    auto RetStatus = WasmEdge_ModuleInstanceWASIGetNativeHandler(
+        HostMod, 9527, &NativeHandler);
+    EXPECT_EQ(RetStatus, 2);
+    EXPECT_EQ(NativeHandler, 100);
+  }
   // Get WASI exit code.
   EXPECT_EQ(WasmEdge_ModuleInstanceWASIGetExitCode(HostMod), EXIT_SUCCESS);
   EXPECT_EQ(WasmEdge_ModuleInstanceWASIGetExitCode(nullptr), EXIT_FAILURE);
@@ -2018,7 +2083,7 @@ TEST(APICoreTest, ModuleInstance) {
 
   // wasmedge_process only works on Linux.
   // Load plugins
-  WasmEdge_Plugin_loadWithDefaultPluginPaths();
+  WasmEdge_PluginLoadWithDefaultPaths();
 
   // Create wasmedge_process.
   HostMod = WasmEdge_ModuleInstanceCreateWasmEdgeProcess(Args, 2, false);

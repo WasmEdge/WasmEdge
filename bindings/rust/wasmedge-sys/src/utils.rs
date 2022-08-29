@@ -71,6 +71,12 @@ pub(crate) fn check(result: WasmEdge_Result) -> WasmEdgeResult<()> {
         0x07 => Err(WasmEdgeError::Core(CoreError::Common(
             CoreCommonError::Interrupted,
         ))),
+        0x08 => Err(WasmEdgeError::Core(CoreError::Common(
+            CoreCommonError::NotValidated,
+        ))),
+        0x09 => Err(WasmEdgeError::Core(CoreError::Common(
+            CoreCommonError::UserDefError,
+        ))),
 
         // Load phase
         0x20 => Err(WasmEdgeError::Core(CoreError::Load(
@@ -275,10 +281,16 @@ pub(crate) fn check(result: WasmEdge_Result) -> WasmEdgeResult<()> {
             CoreExecutionError::IndirectCallTypeMismatch,
         ))),
         0x8D => Err(WasmEdgeError::Core(CoreError::Execution(
-            CoreExecutionError::ExecutionFailed,
+            CoreExecutionError::HostFuncError,
         ))),
         0x8E => Err(WasmEdgeError::Core(CoreError::Execution(
             CoreExecutionError::RefTypeMismatch,
+        ))),
+        0x8F => Err(WasmEdgeError::Core(CoreError::Execution(
+            CoreExecutionError::UnalignedAtomicAccess,
+        ))),
+        0x90 => Err(WasmEdgeError::Core(CoreError::Execution(
+            CoreExecutionError::WaitOnUnsharedMemory,
         ))),
 
         _ => panic!("unknown error code: {}", code),
@@ -292,7 +304,7 @@ pub(crate) fn check(result: WasmEdge_Result) -> WasmEdgeResult<()> {
 /// * The path specified by the `WASMEDGE_PLUGIN_PATH` environment variable.
 ///
 pub fn load_plugin_from_default_paths() {
-    unsafe { ffi::WasmEdge_Plugin_loadWithDefaultPluginPaths() }
+    unsafe { ffi::WasmEdge_PluginLoadWithDefaultPaths() }
 }
 
 /// Returns the major version value.

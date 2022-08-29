@@ -16,8 +16,8 @@ namespace Loader {
 Expect<uint32_t> Loader::loadSectionSize(ASTNodeAttr Node) {
   if (auto Res = FMgr.readU32()) {
     if (unlikely(FMgr.getRemainSize() < (*Res))) {
-      return logLoadError(ErrCode::LengthOutOfBounds, FMgr.getLastOffset(),
-                          Node);
+      return logLoadError(ErrCode::Value::LengthOutOfBounds,
+                          FMgr.getLastOffset(), Node);
     }
     return *Res;
   } else {
@@ -39,7 +39,7 @@ Expect<void> Loader::loadSection(AST::CustomSection &Sec) {
     auto ReadSize = FMgr.getOffset() - StartOffset;
     // Read remain bytes. Check is overread or not first.
     if (Sec.getContentSize() < ReadSize) {
-      return logLoadError(ErrCode::UnexpectedEnd, FMgr.getLastOffset(),
+      return logLoadError(ErrCode::Value::UnexpectedEnd, FMgr.getLastOffset(),
                           ASTNodeAttr::Sec_Custom);
     }
     if (auto Res = FMgr.readBytes(Sec.getContentSize() - ReadSize)) {
@@ -216,9 +216,9 @@ Expect<void> Loader::loadSection(FileMgr &VecMgr, AST::AOTSection &Sec) {
     Sec.setVersion(*Res);
   }
   if (unlikely(Sec.getVersion() != HostVersion())) {
-    spdlog::error(ErrCode::MalformedSection);
+    spdlog::error(ErrCode::Value::MalformedSection);
     spdlog::error("    AOT binary version unmatched.");
-    return Unexpect(ErrCode::MalformedSection);
+    return Unexpect(ErrCode::Value::MalformedSection);
   }
 
   if (auto Res = VecMgr.readByte(); unlikely(!Res)) {
@@ -229,9 +229,9 @@ Expect<void> Loader::loadSection(FileMgr &VecMgr, AST::AOTSection &Sec) {
     Sec.setOSType(*Res);
   }
   if (unlikely(Sec.getOSType() != HostOSType())) {
-    spdlog::error(ErrCode::MalformedSection);
+    spdlog::error(ErrCode::Value::MalformedSection);
     spdlog::error("    AOT OS type unmatched.");
-    return Unexpect(ErrCode::MalformedSection);
+    return Unexpect(ErrCode::Value::MalformedSection);
   }
 
   if (auto Res = VecMgr.readByte(); unlikely(!Res)) {
@@ -242,9 +242,9 @@ Expect<void> Loader::loadSection(FileMgr &VecMgr, AST::AOTSection &Sec) {
     Sec.setArchType(*Res);
   }
   if (unlikely(Sec.getArchType() != HostArchType())) {
-    spdlog::error(ErrCode::MalformedSection);
+    spdlog::error(ErrCode::Value::MalformedSection);
     spdlog::error("    AOT arch type unmatched.");
-    return Unexpect(ErrCode::MalformedSection);
+    return Unexpect(ErrCode::Value::MalformedSection);
   }
 
   if (auto Res = VecMgr.readU64(); unlikely(!Res)) {

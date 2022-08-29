@@ -38,7 +38,7 @@ WasmEdge_ConfigureContext *createConf(const Configure &Conf) {
 }
 
 ErrCode convResult(WasmEdge_Result Res) {
-  return static_cast<ErrCode>(Res.Code);
+  return static_cast<ErrCode::Value>(WasmEdge_ResultGetCode(Res));
 }
 
 std::vector<std::pair<ValVariant, ValType>>

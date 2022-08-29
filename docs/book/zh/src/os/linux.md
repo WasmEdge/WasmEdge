@@ -12,5 +12,3 @@ WasmEdge 支持广泛的2007年之后的 Linux 发行版。官方发布包包含
 | `ubuntu2104_armv7l`     | armhf   | Ubuntu 21.04           | 12.0.0       | CC=gcc, CXX=g++       | Ubuntu 21.04+            | 提供给 armhf 发布的版本                                                           |
 | `manylinux2014_x86_64`  | x86\_64 | CentOS 7, 7.9.2009     | 12.0.0       | CC=gcc, CXX=g++       | Ubuntu 16.04+, CentOS 7+ | 提供给熟悉 X86_64 架构的 CentOS 的开发者           |
 | `manylinux2014_aarch64` | aarch64 | CentOS 7, 7.9.2009     | 12.0.0       | CC=gcc, CXX=g++       | Ubuntu 16.04+, CentOS 7+ | 提供给熟悉 Aarch64 架构的 CentOS 的开发者           |
-| `manylinux2010_x86_64`  | x86\_64 | CentOS 6, 6.10         | 12.0.0       | CC=gcc, CXX=g++       | Ubuntu 14.04+, CentOS 6+ | 提供给熟悉 x86_64 架构的遗留系统的开发人员准备的 |
-| `manylinux1_x86_64`     | x86\_64 | CentOS 5, 5.11         | 12.0.0       | CC=gcc, CXX=g++       | Ubuntu 14.04+, CentOS 5+ | 提供给熟悉 x86_64 架构的遗留系统的开发人员准备的 |

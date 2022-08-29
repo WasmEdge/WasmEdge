@@ -137,14 +137,14 @@ TEST_P(NativeCoreTest, TestSuites) {
       ModInst = VM.getStoreManager().findModule(ModName);
     }
     if (ModInst == nullptr) {
-      return Unexpect(ErrCode::WrongInstanceAddress);
+      return Unexpect(ErrCode::Value::WrongInstanceAddress);
     }
 
     // Get global instance.
     WasmEdge::Runtime::Instance::GlobalInstance *GlobInst =
         ModInst->findGlobalExports(Field);
     if (unlikely(GlobInst == nullptr)) {
-      return Unexpect(ErrCode::WrongInstanceAddress);
+      return Unexpect(ErrCode::Value::WrongInstanceAddress);
     }
     return std::make_pair(GlobInst->getValue(),
                           GlobInst->getGlobalType().getValType());
@@ -243,14 +243,14 @@ TEST_P(CustomWasmCoreTest, TestSuites) {
       ModInst = VM.getStoreManager().findModule(ModName);
     }
     if (ModInst == nullptr) {
-      return Unexpect(ErrCode::WrongInstanceAddress);
+      return Unexpect(ErrCode::Value::WrongInstanceAddress);
     }
 
     // Get global instance.
     WasmEdge::Runtime::Instance::GlobalInstance *GlobInst =
         ModInst->findGlobalExports(Field);
     if (unlikely(GlobInst == nullptr)) {
-      return Unexpect(ErrCode::WrongInstanceAddress);
+      return Unexpect(ErrCode::Value::WrongInstanceAddress);
     }
     return std::make_pair(GlobInst->getValue(),
                           GlobInst->getGlobalType().getValType());
@@ -293,7 +293,7 @@ TEST(AsyncRunWsmFile, NativeInterruptTest) {
     AsyncResult.cancel();
     auto Result = AsyncResult.get();
     EXPECT_FALSE(Result);
-    EXPECT_EQ(Result.error(), WasmEdge::ErrCode::Interrupted);
+    EXPECT_EQ(Result.error(), WasmEdge::ErrCode::Value::Interrupted);
   }
   {
     auto Timeout = std::chrono::milliseconds(1);
@@ -302,7 +302,7 @@ TEST(AsyncRunWsmFile, NativeInterruptTest) {
     AsyncResult.cancel();
     auto Result = AsyncResult.get();
     EXPECT_FALSE(Result);
-    EXPECT_EQ(Result.error(), WasmEdge::ErrCode::Interrupted);
+    EXPECT_EQ(Result.error(), WasmEdge::ErrCode::Value::Interrupted);
   }
   std::filesystem::remove(Path);
 }
@@ -338,7 +338,7 @@ TEST(AsyncExecute, NativeInterruptTest) {
     AsyncResult.cancel();
     auto Result = AsyncResult.get();
     EXPECT_FALSE(Result);
-    EXPECT_EQ(Result.error(), WasmEdge::ErrCode::Interrupted);
+    EXPECT_EQ(Result.error(), WasmEdge::ErrCode::Value::Interrupted);
   }
   {
     auto Timeout = std::chrono::milliseconds(1);
@@ -347,7 +347,7 @@ TEST(AsyncExecute, NativeInterruptTest) {
     AsyncResult.cancel();
     auto Result = AsyncResult.get();
     EXPECT_FALSE(Result);
-    EXPECT_EQ(Result.error(), WasmEdge::ErrCode::Interrupted);
+    EXPECT_EQ(Result.error(), WasmEdge::ErrCode::Value::Interrupted);
   }
   std::filesystem::remove(Path);
 }
@@ -380,7 +380,7 @@ TEST(AsyncRunWsmFile, CustomWasmInterruptTest) {
     AsyncResult.cancel();
     auto Result = AsyncResult.get();
     EXPECT_FALSE(Result);
-    EXPECT_EQ(Result.error(), WasmEdge::ErrCode::Interrupted);
+    EXPECT_EQ(Result.error(), WasmEdge::ErrCode::Value::Interrupted);
   }
   {
     auto Timeout = std::chrono::milliseconds(1);
@@ -389,7 +389,7 @@ TEST(AsyncRunWsmFile, CustomWasmInterruptTest) {
     AsyncResult.cancel();
     auto Result = AsyncResult.get();
     EXPECT_FALSE(Result);
-    EXPECT_EQ(Result.error(), WasmEdge::ErrCode::Interrupted);
+    EXPECT_EQ(Result.error(), WasmEdge::ErrCode::Value::Interrupted);
   }
   std::filesystem::remove(Path);
 }
@@ -425,7 +425,7 @@ TEST(AsyncExecute, CustomWasmInterruptTest) {
     AsyncResult.cancel();
     auto Result = AsyncResult.get();
     EXPECT_FALSE(Result);
-    EXPECT_EQ(Result.error(), WasmEdge::ErrCode::Interrupted);
+    EXPECT_EQ(Result.error(), WasmEdge::ErrCode::Value::Interrupted);
   }
   {
     auto Timeout = std::chrono::milliseconds(1);
@@ -434,7 +434,7 @@ TEST(AsyncExecute, CustomWasmInterruptTest) {
     AsyncResult.cancel();
     auto Result = AsyncResult.get();
     EXPECT_FALSE(Result);
-    EXPECT_EQ(Result.error(), WasmEdge::ErrCode::Interrupted);
+    EXPECT_EQ(Result.error(), WasmEdge::ErrCode::Value::Interrupted);
   }
   std::filesystem::remove(Path);
 }

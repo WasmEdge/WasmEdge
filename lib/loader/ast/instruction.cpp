@@ -61,10 +61,10 @@ Expect<AST::InstrVec> Loader::loadInstrSeq(std::optional<uint64_t> SizeBound) {
       if (BlockStack.size() == 0 || BlockStack.back().first != OpCode::If) {
         // An Else instruction appeared outside the If-block.
         if (SizeBound.has_value() && FMgr.getOffset() > SizeBound.value()) {
-          return logLoadError(ErrCode::ENDCodeExpected, Offset,
+          return logLoadError(ErrCode::Value::ENDCodeExpected, Offset,
                               ASTNodeAttr::Instruction);
         } else {
-          return logLoadError(ErrCode::IllegalOpCode, Offset,
+          return logLoadError(ErrCode::Value::IllegalOpCode, Offset,
                               ASTNodeAttr::Instruction);
         }
       }
@@ -72,10 +72,10 @@ Expect<AST::InstrVec> Loader::loadInstrSeq(std::optional<uint64_t> SizeBound) {
       if (Instrs[Pos].getJumpElse() > 0) {
         // An Else instruction appeared before in this If-block.
         if (SizeBound.has_value() && FMgr.getOffset() > SizeBound.value()) {
-          return logLoadError(ErrCode::ENDCodeExpected, Offset,
+          return logLoadError(ErrCode::Value::ENDCodeExpected, Offset,
                               ASTNodeAttr::Instruction);
         } else {
-          return logLoadError(ErrCode::IllegalOpCode, Offset,
+          return logLoadError(ErrCode::Value::IllegalOpCode, Offset,
                               ASTNodeAttr::Instruction);
         }
       }
@@ -165,8 +165,8 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
       return Unexpect(Res);
     }
     if (C != UINT8_C(0)) {
-      return logLoadError(ErrCode::ExpectedZeroByte, FMgr.getLastOffset(),
-                          ASTNodeAttr::Instruction);
+      return logLoadError(ErrCode::Value::ExpectedZeroByte,
+                          FMgr.getLastOffset(), ASTNodeAttr::Instruction);
     }
     Dst = 0;
     return {};
@@ -198,7 +198,7 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
       } else {
         // Type index case.
         if (unlikely(!Conf.hasProposal(Proposal::MultiValue))) {
-          return logNeedProposal(ErrCode::MalformedValType,
+          return logNeedProposal(ErrCode::Value::MalformedValType,
                                  Proposal::MultiValue, FMgr.getLastOffset(),
                                  ASTNodeAttr::Instruction);
         }
@@ -222,7 +222,7 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
     }
     if (VecCnt == std::numeric_limits<uint32_t>::max()) {
       // Too many label for Br_table.
-      return logLoadError(ErrCode::IntegerTooLong, FMgr.getLastOffset(),
+      return logLoadError(ErrCode::Value::IntegerTooLong, FMgr.getLastOffset(),
                           ASTNodeAttr::Instruction);
     }
     Instr.setLabelListSize(VecCnt + 1);
@@ -253,7 +253,7 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
     }
     if ((Instr.getSourceIndex() > 0 || FMgr.getOffset() - SrcIdxOffset > 1) &&
         !Conf.hasProposal(Proposal::ReferenceTypes)) {
-      return logNeedProposal(ErrCode::ExpectedZeroByte,
+      return logNeedProposal(ErrCode::Value::ExpectedZeroByte,
                              Proposal::ReferenceTypes, FMgr.getLastOffset(),
                              ASTNodeAttr::Instruction);
     }
@@ -364,7 +364,7 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
 
   case OpCode::Memory__init:
     if (!HasDataSection) {
-      return logLoadError(ErrCode::DataCountRequired, Instr.getOffset(),
+      return logLoadError(ErrCode::Value::DataCountRequired, Instr.getOffset(),
                           ASTNodeAttr::Instruction);
     }
     if (auto Res = readU32(Instr.getSourceIndex()); unlikely(!Res)) {
@@ -391,7 +391,7 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
     return readCheckZero(Instr.getSourceIndex());
   case OpCode::Data__drop:
     if (!HasDataSection) {
-      return logLoadError(ErrCode::DataCountRequired, Instr.getOffset(),
+      return logLoadError(ErrCode::Value::DataCountRequired, Instr.getOffset(),
                           ASTNodeAttr::Instruction);
     }
     return readU32(Instr.getTargetIndex());
@@ -927,7 +927,7 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
     return readMemImmediate();
 
   default:
-    return logLoadError(ErrCode::IllegalOpCode, Instr.getOffset(),
+    return logLoadError(ErrCode::Value::IllegalOpCode, Instr.getOffset(),
                         ASTNodeAttr::Instruction);
   }
 }
@@ -937,7 +937,7 @@ Expect<void> Loader::checkInstrProposals(OpCode Code, uint64_t Offset) {
       Code <= OpCode::I64__trunc_sat_f64_u) {
     // These instructions are for NonTrapFloatToIntConversions proposal.
     if (unlikely(!Conf.hasProposal(Proposal::NonTrapFloatToIntConversions))) {
-      return logNeedProposal(ErrCode::IllegalOpCode,
+      return logNeedProposal(ErrCode::Value::IllegalOpCode,
                              Proposal::NonTrapFloatToIntConversions, Offset,
                              ASTNodeAttr::Instruction);
     }
@@ -945,7 +945,7 @@ Expect<void> Loader::checkInstrProposals(OpCode Code, uint64_t Offset) {
              Code <= OpCode::I64__extend32_s) {
     // These instructions are for SignExtensionOperators proposal.
     if (unlikely(!Conf.hasProposal(Proposal::SignExtensionOperators))) {
-      return logNeedProposal(ErrCode::IllegalOpCode,
+      return logNeedProposal(ErrCode::Value::IllegalOpCode,
                              Proposal::SignExtensionOperators, Offset,
                              ASTNodeAttr::Instruction);
     }
@@ -956,37 +956,39 @@ Expect<void> Loader::checkInstrProposals(OpCode Code, uint64_t Offset) {
     // proposal.
     if (unlikely(!Conf.hasProposal(Proposal::ReferenceTypes)) &&
         unlikely(!Conf.hasProposal(Proposal::BulkMemoryOperations))) {
-      return logNeedProposal(ErrCode::IllegalOpCode, Proposal::ReferenceTypes,
-                             Offset, ASTNodeAttr::Instruction);
+      return logNeedProposal(ErrCode::Value::IllegalOpCode,
+                             Proposal::ReferenceTypes, Offset,
+                             ASTNodeAttr::Instruction);
     }
   } else if (Code == OpCode::Select_t ||
              (Code >= OpCode::Table__get && Code <= OpCode::Table__set) ||
              (Code >= OpCode::Table__grow && Code <= OpCode::Table__fill)) {
     // These instructions are for ReferenceTypes proposal.
     if (unlikely(!Conf.hasProposal(Proposal::ReferenceTypes))) {
-      return logNeedProposal(ErrCode::IllegalOpCode, Proposal::ReferenceTypes,
-                             Offset, ASTNodeAttr::Instruction);
+      return logNeedProposal(ErrCode::Value::IllegalOpCode,
+                             Proposal::ReferenceTypes, Offset,
+                             ASTNodeAttr::Instruction);
     }
   } else if (Code >= OpCode::V128__load &&
              Code <= OpCode::F64x2__convert_low_i32x4_u) {
     // These instructions are for SIMD proposal.
     if (!Conf.hasProposal(Proposal::SIMD)) {
-      return logNeedProposal(ErrCode::IllegalOpCode, Proposal::SIMD, Offset,
-                             ASTNodeAttr::Instruction);
+      return logNeedProposal(ErrCode::Value::IllegalOpCode, Proposal::SIMD,
+                             Offset, ASTNodeAttr::Instruction);
     }
   } else if (Code == OpCode::Return_call ||
              Code == OpCode::Return_call_indirect) {
     // These instructions are for TailCall proposal.
     if (!Conf.hasProposal(Proposal::TailCall)) {
-      return logNeedProposal(ErrCode::IllegalOpCode, Proposal::TailCall, Offset,
-                             ASTNodeAttr::Instruction);
+      return logNeedProposal(ErrCode::Value::IllegalOpCode, Proposal::TailCall,
+                             Offset, ASTNodeAttr::Instruction);
     }
   } else if (Code >= OpCode::I32__atomic__load &&
              Code <= OpCode::I64__atomic__rmw32__cmpxchg_u) {
     // These instructions are for Thread proposal.
     if (!Conf.hasProposal(Proposal::Threads)) {
-      return logNeedProposal(ErrCode::IllegalOpCode, Proposal::Threads, Offset,
-                             ASTNodeAttr::Instruction);
+      return logNeedProposal(ErrCode::Value::IllegalOpCode, Proposal::Threads,
+                             Offset, ASTNodeAttr::Instruction);
     }
   }
   return {};

@@ -114,10 +114,10 @@ thread_local Fault *localHandler = nullptr;
   switch (Signal) {
   case SIGBUS:
   case SIGSEGV:
-    Fault::emitFault(ErrCode::MemoryOutOfBounds);
+    Fault::emitFault(ErrCode::Value::MemoryOutOfBounds);
   case SIGFPE:
     assuming(Siginfo->si_code == FPE_INTDIV);
-    Fault::emitFault(ErrCode::DivideByZero);
+    Fault::emitFault(ErrCode::Value::DivideByZero);
   default:
     assumingUnreachable();
   }
@@ -147,11 +147,11 @@ vectoredExceptionHandler(winapi::EXCEPTION_POINTERS_ *ExceptionInfo) {
   const winapi::DWORD_ Code = ExceptionInfo->ExceptionRecord->ExceptionCode;
   switch (Code) {
   case winapi::EXCEPTION_INT_DIVIDE_BY_ZERO_:
-    Fault::emitFault(ErrCode::DivideByZero);
+    Fault::emitFault(ErrCode::Value::DivideByZero);
   case winapi::EXCEPTION_INT_OVERFLOW_:
-    Fault::emitFault(ErrCode::IntegerOverflow);
+    Fault::emitFault(ErrCode::Value::IntegerOverflow);
   case winapi::EXCEPTION_ACCESS_VIOLATION_:
-    Fault::emitFault(ErrCode::MemoryOutOfBounds);
+    Fault::emitFault(ErrCode::Value::MemoryOutOfBounds);
   }
   return winapi::EXCEPTION_CONTINUE_EXECUTION_;
 }
@@ -195,7 +195,7 @@ Fault::~Fault() noexcept {
 
 [[noreturn]] inline void Fault::emitFault(ErrCode Error) {
   assuming(localHandler != nullptr);
-  longjmp(localHandler->Buffer, uint8_t(Error));
+  longjmp(localHandler->Buffer, static_cast<int>(Error.operator uint32_t()));
 }
 
 } // namespace WasmEdge

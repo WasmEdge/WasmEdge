@@ -2,13 +2,17 @@
 // SPDX-FileCopyrightText: 2019-2022 Second State INC
 
 #include "httpsreqfunc.h"
-#include <errno.h>
-#include <iostream>
-#include <netdb.h>
+
 #include <openssl/err.h>
 #include <openssl/ssl.h>
+
+#include <algorithm>
+#include <cstdio>
+#include <errno.h>
+#include <netdb.h>
 #include <resolv.h>
 #include <string.h>
+#include <string>
 #include <unistd.h>
 
 // Some of the code was taken from this post:
@@ -17,11 +21,12 @@
 namespace WasmEdge {
 namespace Host {
 
-Expect<void> SendData::body(Runtime::Instance::MemoryInstance *MemInst,
+Expect<void> SendData::body(const Runtime::CallingFrame &Frame,
                             uint32_t HostPtr, uint32_t HostLen, uint32_t Port,
                             uint32_t BodyPtr, uint32_t BodyLen) {
+  auto *MemInst = Frame.getMemoryByIndex(0);
   if (MemInst == nullptr) {
-    return Unexpect(ErrCode::ExecutionFailed);
+    return Unexpect(ErrCode::Value::HostFuncError);
   }
 
   char *Host = MemInst->getPointer<char *>(HostPtr);
@@ -124,17 +129,18 @@ Expect<void> SendData::body(Runtime::Instance::MemoryInstance *MemInst,
   return {};
 }
 
-Expect<void> HttpsReqGetRcv::body(Runtime::Instance::MemoryInstance *MemInst,
+Expect<void> HttpsReqGetRcv::body(const Runtime::CallingFrame &Frame,
                                   uint32_t BufPtr) {
+  auto *MemInst = Frame.getMemoryByIndex(0);
   if (MemInst == nullptr) {
-    return Unexpect(ErrCode::ExecutionFailed);
+    return Unexpect(ErrCode::Value::HostFuncError);
   }
   char *Buf = MemInst->getPointer<char *>(BufPtr);
   std::copy_n(Env.Rcv.begin(), Env.Rcv.size(), Buf);
   return {};
 }
 
-Expect<uint32_t> HttpsReqGetRcvLen::body(Runtime::Instance::MemoryInstance *) {
+Expect<uint32_t> HttpsReqGetRcvLen::body(const Runtime::CallingFrame &) {
   return static_cast<uint32_t>(Env.Rcv.size());
 }
 

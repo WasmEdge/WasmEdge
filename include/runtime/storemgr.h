@@ -71,7 +71,7 @@ private:
     std::unique_lock Lock(Mutex);
     auto Iter = NamedMod.find(ModInst->getModuleName());
     if (likely(Iter != NamedMod.cend())) {
-      return Unexpect(ErrCode::ModuleNameConflict);
+      return Unexpect(ErrCode::Value::ModuleNameConflict);
     }
     NamedMod.emplace(ModInst->getModuleName(), ModInst);
     // Link the module instance to this store manager.

@@ -22,8 +22,10 @@
 #include "../spec/spectest.h"
 
 #include <cstdint>
+#include <fstream>
 #include <functional>
 #include <gtest/gtest.h>
+#include <iterator>
 #include <string>
 #include <string_view>
 #include <type_traits>
@@ -36,9 +38,10 @@ using namespace WasmEdge;
 static SpecTest T(std::filesystem::u8path("../spec/testSuites"sv));
 
 // Parameterized testing class.
-class CoreTest : public testing::TestWithParam<std::string> {};
+class CoreCompileTest : public testing::TestWithParam<std::string> {};
+class CoreCompileArrayTest : public testing::TestWithParam<std::string> {};
 
-TEST_P(CoreTest, TestSuites) {
+TEST_P(CoreCompileTest, TestSuites) {
   const auto [Proposal, Conf, UnitName] = T.resolve(GetParam());
   WasmEdge_ConfigureContext *ConfCxt = createConf(Conf);
   WasmEdge_VMContext *VM = WasmEdge_VMCreate(ConfCxt, nullptr);
@@ -154,7 +157,7 @@ TEST_P(CoreTest, TestSuites) {
       const WasmEdge_FunctionTypeContext *FuncType =
           WasmEdge_VMGetFunctionTypeRegistered(VM, ModStr, FieldStr);
       if (FuncType == nullptr) {
-        return Unexpect(ErrCode::FuncNotFound);
+        return Unexpect(ErrCode::Value::FuncNotFound);
       }
       CReturns.resize(WasmEdge_FunctionTypeGetReturnsLength(FuncType));
       // Execute.
@@ -168,7 +171,7 @@ TEST_P(CoreTest, TestSuites) {
       const WasmEdge_FunctionTypeContext *FuncType =
           WasmEdge_VMGetFunctionType(VM, FieldStr);
       if (FuncType == nullptr) {
-        return Unexpect(ErrCode::FuncNotFound);
+        return Unexpect(ErrCode::Value::FuncNotFound);
       }
       CReturns.resize(WasmEdge_FunctionTypeGetReturnsLength(FuncType));
       // Execute.
@@ -195,7 +198,7 @@ TEST_P(CoreTest, TestSuites) {
       ModCxt = WasmEdge_StoreFindModule(StoreCxt, ModStr);
     }
     if (ModCxt == nullptr) {
-      return Unexpect(ErrCode::WrongInstanceAddress);
+      return Unexpect(ErrCode::Value::WrongInstanceAddress);
     }
 
     // Get global instance.
@@ -204,7 +207,7 @@ TEST_P(CoreTest, TestSuites) {
     WasmEdge_GlobalInstanceContext *GlobCxt =
         WasmEdge_ModuleInstanceFindGlobal(ModCxt, FieldStr);
     if (GlobCxt == nullptr) {
-      return Unexpect(ErrCode::WrongInstanceAddress);
+      return Unexpect(ErrCode::Value::WrongInstanceAddress);
     }
     WasmEdge_Value Val = WasmEdge_GlobalInstanceGetValue(GlobCxt);
 #if defined(__x86_64__) || defined(__aarch64__)
@@ -225,7 +228,8 @@ TEST_P(CoreTest, TestSuites) {
 }
 
 // Initiate test suite.
-INSTANTIATE_TEST_SUITE_P(TestUnit, CoreTest, testing::ValuesIn(T.enumerate()));
+INSTANTIATE_TEST_SUITE_P(TestUnit, CoreCompileTest,
+                         testing::ValuesIn(T.enumerate()));
 
 } // namespace
 

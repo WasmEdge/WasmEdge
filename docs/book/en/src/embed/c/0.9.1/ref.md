@@ -37,7 +37,7 @@
   * [Store](#store)
   * [Instances](#instances)
   * [Host Functions](#host-functions)
-* [WasmEdge AOT Compiler](#wasmEdge-aot-compiler)
+* [WasmEdge AOT Compiler](#wasmedge-aot-compiler)
   * [Compilation Example](#compilation-example)
   * [Compiler Options](#compiler-options)
 

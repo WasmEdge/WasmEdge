@@ -3,8 +3,10 @@
 
 #pragma once
 
-#include "common/errcode.h"
 #include "httpsreqenv.h"
+
+#include "common/errcode.h"
+#include "runtime/callingframe.h"
 #include "runtime/hostfunc.h"
 
 namespace WasmEdge {

@@ -10,11 +10,12 @@ namespace Host {
 namespace WasiCrypto {
 namespace AsymmetricCommon {
 
-Expect<uint32_t>
-KeypairGenerate::body(Runtime::Instance::MemoryInstance *MemInst,
-                      uint32_t AlgType, uint32_t AlgPtr, uint32_t AlgLen,
-                      uint32_t OptOptionsHandlePtr,
-                      uint32_t /* Out */ KpHandlePtr) {
+Expect<uint32_t> KeypairGenerate::body(const Runtime::CallingFrame &Frame,
+                                       uint32_t AlgType, uint32_t AlgPtr,
+                                       uint32_t AlgLen,
+                                       uint32_t OptOptionsHandlePtr,
+                                       uint32_t /* Out */ KpHandlePtr) {
+  auto *MemInst = Frame.getMemoryByIndex(0);
   checkExist(MemInst);
 
   const __wasi_size_t WasiAlgLen = AlgLen;
@@ -49,11 +50,12 @@ KeypairGenerate::body(Runtime::Instance::MemoryInstance *MemInst,
   return __WASI_CRYPTO_ERRNO_SUCCESS;
 }
 
-Expect<uint32_t> KeypairImport::body(Runtime::Instance::MemoryInstance *MemInst,
+Expect<uint32_t> KeypairImport::body(const Runtime::CallingFrame &Frame,
                                      uint32_t AlgType, uint32_t AlgPtr,
                                      uint32_t AlgLen, uint32_t EncodedPtr,
                                      uint32_t EncodedLen, uint32_t Encoding,
                                      uint32_t /* Out */ KpHandlePtr) {
+  auto *MemInst = Frame.getMemoryByIndex(0);
   checkExist(MemInst);
 
   const __wasi_size_t WasiAlgLen = AlgLen;
@@ -94,9 +96,10 @@ Expect<uint32_t> KeypairImport::body(Runtime::Instance::MemoryInstance *MemInst,
 }
 
 Expect<uint32_t> KeypairGenerateManaged::body(
-    Runtime::Instance::MemoryInstance *MemInst, int32_t SecretsManagerHandle,
+    const Runtime::CallingFrame &Frame, int32_t SecretsManagerHandle,
     uint32_t AlgType, uint32_t AlgPtr, uint32_t AlgLen,
     uint32_t OptOptionsHandlePtr, uint32_t KpHandlePtr) {
+  auto *MemInst = Frame.getMemoryByIndex(0);
   checkExist(MemInst);
 
   const __wasi_size_t WasiAlgLen = AlgLen;
@@ -132,10 +135,11 @@ Expect<uint32_t> KeypairGenerateManaged::body(
   return __WASI_CRYPTO_ERRNO_SUCCESS;
 }
 
-Expect<uint32_t>
-KeypairStoreManaged::body(Runtime::Instance::MemoryInstance *MemInst,
-                          int32_t SecretsManagerHandle, int32_t KpHandle,
-                          uint32_t KpIdPtr, uint32_t KpIdMaxLen) {
+Expect<uint32_t> KeypairStoreManaged::body(const Runtime::CallingFrame &Frame,
+                                           int32_t SecretsManagerHandle,
+                                           int32_t KpHandle, uint32_t KpIdPtr,
+                                           uint32_t KpIdMaxLen) {
+  auto *MemInst = Frame.getMemoryByIndex(0);
   checkExist(MemInst);
 
   const __wasi_size_t WasiKpIdMaxLen = KpIdMaxLen;
@@ -151,9 +155,12 @@ KeypairStoreManaged::body(Runtime::Instance::MemoryInstance *MemInst,
   return __WASI_CRYPTO_ERRNO_SUCCESS;
 }
 
-Expect<uint32_t> KeypairReplaceManaged::body(
-    Runtime::Instance::MemoryInstance *MemInst, int32_t SecretsManagerHandle,
-    int32_t OldKpHandle, int32_t NewKpHandle, uint32_t /* Out */ KpVersionPtr) {
+Expect<uint32_t> KeypairReplaceManaged::body(const Runtime::CallingFrame &Frame,
+                                             int32_t SecretsManagerHandle,
+                                             int32_t OldKpHandle,
+                                             int32_t NewKpHandle,
+                                             uint32_t /* Out */ KpVersionPtr) {
+  auto *MemInst = Frame.getMemoryByIndex(0);
   checkExist(MemInst);
 
   auto *const KpVersion = MemInst->getPointer<__wasi_version_t *>(KpVersionPtr);
@@ -170,11 +177,12 @@ Expect<uint32_t> KeypairReplaceManaged::body(
   return __WASI_CRYPTO_ERRNO_SUCCESS;
 }
 
-Expect<uint32_t> KeypairId::body(Runtime::Instance::MemoryInstance *MemInst,
+Expect<uint32_t> KeypairId::body(const Runtime::CallingFrame &Frame,
                                  int32_t KpHandle, uint32_t KpIdPtr,
                                  uint32_t KpIdMaxLen,
                                  uint32_t /* Out */ SizePtr,
                                  uint32_t /* Out */ KpVersionPtr) {
+  auto *MemInst = Frame.getMemoryByIndex(0);
   checkExist(MemInst);
 
   const __wasi_size_t WasiKpIdMaxLen = KpIdMaxLen;
@@ -206,12 +214,12 @@ Expect<uint32_t> KeypairId::body(Runtime::Instance::MemoryInstance *MemInst,
   return __WASI_CRYPTO_ERRNO_SUCCESS;
 }
 
-Expect<uint32_t> KeypairFromId::body(Runtime::Instance::MemoryInstance *MemInst,
+Expect<uint32_t> KeypairFromId::body(const Runtime::CallingFrame &Frame,
                                      int32_t SecretsManagerHandle,
                                      uint32_t KpIdPtr, uint32_t KpIdLen,
                                      uint64_t KpVersion,
                                      uint32_t /* Out */ KpHandlePtr) {
-
+  auto *MemInst = Frame.getMemoryByIndex(0);
   checkExist(MemInst);
 
   const __wasi_size_t WasiKpIdLen = KpIdLen;
@@ -232,10 +240,10 @@ Expect<uint32_t> KeypairFromId::body(Runtime::Instance::MemoryInstance *MemInst,
   return __WASI_CRYPTO_ERRNO_SUCCESS;
 }
 
-Expect<uint32_t>
-KeypairFromPkAndSk::body(Runtime::Instance::MemoryInstance *MemInst,
-                         int32_t PkHandle, int32_t SkHandle,
-                         uint32_t /* Out */ KpHandlePtr) {
+Expect<uint32_t> KeypairFromPkAndSk::body(const Runtime::CallingFrame &Frame,
+                                          int32_t PkHandle, int32_t SkHandle,
+                                          uint32_t /* Out */ KpHandlePtr) {
+  auto *MemInst = Frame.getMemoryByIndex(0);
   checkExist(MemInst);
 
   auto *const KpHandle = MemInst->getPointer<__wasi_keypair_t *>(KpHandlePtr);
@@ -250,9 +258,10 @@ KeypairFromPkAndSk::body(Runtime::Instance::MemoryInstance *MemInst,
   return __WASI_CRYPTO_ERRNO_SUCCESS;
 }
 
-Expect<uint32_t> KeypairExport::body(Runtime::Instance::MemoryInstance *MemInst,
+Expect<uint32_t> KeypairExport::body(const Runtime::CallingFrame &Frame,
                                      int32_t KpHandle, uint32_t KpEncoding,
                                      uint32_t /* Out */ ArrayOutputHandlePtr) {
+  auto *MemInst = Frame.getMemoryByIndex(0);
   checkExist(MemInst);
 
   __wasi_keypair_encoding_e_t WasiKpEncoding;
@@ -276,9 +285,10 @@ Expect<uint32_t> KeypairExport::body(Runtime::Instance::MemoryInstance *MemInst,
   return __WASI_CRYPTO_ERRNO_SUCCESS;
 }
 
-Expect<uint32_t>
-KeypairPublickey::body(Runtime::Instance::MemoryInstance *MemInst,
-                       int32_t KpHandle, uint32_t /* Out */ PkHandlePtr) {
+Expect<uint32_t> KeypairPublickey::body(const Runtime::CallingFrame &Frame,
+                                        int32_t KpHandle,
+                                        uint32_t /* Out */ PkHandlePtr) {
+  auto *MemInst = Frame.getMemoryByIndex(0);
   checkExist(MemInst);
 
   auto *const PkHandle = MemInst->getPointer<__wasi_keypair_t *>(PkHandlePtr);
@@ -293,9 +303,10 @@ KeypairPublickey::body(Runtime::Instance::MemoryInstance *MemInst,
   return __WASI_CRYPTO_ERRNO_SUCCESS;
 }
 
-Expect<uint32_t>
-KeypairSecretkey::body(Runtime::Instance::MemoryInstance *MemInst,
-                       int32_t KpHandle, uint32_t /* Out */ SkHandlePtr) {
+Expect<uint32_t> KeypairSecretkey::body(const Runtime::CallingFrame &Frame,
+                                        int32_t KpHandle,
+                                        uint32_t /* Out */ SkHandlePtr) {
+  auto *MemInst = Frame.getMemoryByIndex(0);
   checkExist(MemInst);
 
   auto *const SkHandle = MemInst->getPointer<__wasi_keypair_t *>(SkHandlePtr);
@@ -310,7 +321,7 @@ KeypairSecretkey::body(Runtime::Instance::MemoryInstance *MemInst,
   return __WASI_CRYPTO_ERRNO_SUCCESS;
 }
 
-Expect<uint32_t> KeypairClose::body(Runtime::Instance::MemoryInstance *,
+Expect<uint32_t> KeypairClose::body(const Runtime::CallingFrame &,
                                     int32_t KpHandle) {
   if (auto Res = Ctx.keypairClose(KpHandle); unlikely(!Res)) {
     return __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE;
@@ -319,11 +330,12 @@ Expect<uint32_t> KeypairClose::body(Runtime::Instance::MemoryInstance *,
   return __WASI_CRYPTO_ERRNO_SUCCESS;
 }
 
-Expect<uint32_t>
-PublickeyImport::body(Runtime::Instance::MemoryInstance *MemInst,
-                      uint32_t AlgType, uint32_t AlgPtr, uint32_t AlgLen,
-                      uint32_t EncodedPtr, uint32_t EncodedLen,
-                      uint32_t Encoding, uint32_t /* Out */ PkHandlePtr) {
+Expect<uint32_t> PublickeyImport::body(const Runtime::CallingFrame &Frame,
+                                       uint32_t AlgType, uint32_t AlgPtr,
+                                       uint32_t AlgLen, uint32_t EncodedPtr,
+                                       uint32_t EncodedLen, uint32_t Encoding,
+                                       uint32_t /* Out */ PkHandlePtr) {
+  auto *MemInst = Frame.getMemoryByIndex(0);
   checkExist(MemInst);
 
   const __wasi_size_t WasiAlgLen = AlgLen;
@@ -368,9 +380,10 @@ PublickeyImport::body(Runtime::Instance::MemoryInstance *MemInst,
 }
 
 Expect<uint32_t>
-PublickeyExport::body(Runtime::Instance::MemoryInstance *MemInst,
-                      int32_t PkHandle, uint32_t PkEncoding,
+PublickeyExport::body(const Runtime::CallingFrame &Frame, int32_t PkHandle,
+                      uint32_t PkEncoding,
                       uint32_t /* Out */ ArrayOutputHandlePtr) {
+  auto *MemInst = Frame.getMemoryByIndex(0);
   checkExist(MemInst);
 
   __wasi_publickey_encoding_e_t WasiPkEncoding;
@@ -394,7 +407,7 @@ PublickeyExport::body(Runtime::Instance::MemoryInstance *MemInst,
   return __WASI_CRYPTO_ERRNO_SUCCESS;
 }
 
-Expect<uint32_t> PublickeyVerify::body(Runtime::Instance::MemoryInstance *,
+Expect<uint32_t> PublickeyVerify::body(const Runtime::CallingFrame &,
                                        int32_t PkHandle) {
   if (auto Res = Ctx.publickeyVerify(PkHandle); unlikely(!Res)) {
     return Res.error();
@@ -404,8 +417,9 @@ Expect<uint32_t> PublickeyVerify::body(Runtime::Instance::MemoryInstance *,
 }
 
 Expect<uint32_t>
-PublickeyFromSecretkey::body(Runtime::Instance::MemoryInstance *MemInst,
+PublickeyFromSecretkey::body(const Runtime::CallingFrame &Frame,
                              int32_t SkHandle, uint32_t /* Out */ PkHandlePtr) {
+  auto *MemInst = Frame.getMemoryByIndex(0);
   checkExist(MemInst);
 
   auto *const PkHandle = MemInst->getPointer<__wasi_publickey_t *>(PkHandlePtr);
@@ -420,7 +434,7 @@ PublickeyFromSecretkey::body(Runtime::Instance::MemoryInstance *MemInst,
   return __WASI_CRYPTO_ERRNO_SUCCESS;
 }
 
-Expect<uint32_t> PublickeyClose::body(Runtime::Instance::MemoryInstance *,
+Expect<uint32_t> PublickeyClose::body(const Runtime::CallingFrame &,
                                       int32_t PkHandle) {
   if (auto Res = Ctx.publickeyClose(PkHandle); unlikely(!Res)) {
     return Res.error();
@@ -429,11 +443,12 @@ Expect<uint32_t> PublickeyClose::body(Runtime::Instance::MemoryInstance *,
   return __WASI_CRYPTO_ERRNO_SUCCESS;
 }
 
-Expect<uint32_t>
-SecretkeyImport::body(Runtime::Instance::MemoryInstance *MemInst,
-                      uint32_t AlgType, uint32_t AlgPtr, uint32_t AlgLen,
-                      uint32_t EncodedPtr, uint32_t EncodedLen,
-                      uint32_t Encoding, uint32_t /* Out */ SkHandlePtr) {
+Expect<uint32_t> SecretkeyImport::body(const Runtime::CallingFrame &Frame,
+                                       uint32_t AlgType, uint32_t AlgPtr,
+                                       uint32_t AlgLen, uint32_t EncodedPtr,
+                                       uint32_t EncodedLen, uint32_t Encoding,
+                                       uint32_t /* Out */ SkHandlePtr) {
+  auto *MemInst = Frame.getMemoryByIndex(0);
   checkExist(MemInst);
 
   const __wasi_size_t WasiAlgLen = AlgLen;
@@ -476,9 +491,10 @@ SecretkeyImport::body(Runtime::Instance::MemoryInstance *MemInst,
 }
 
 Expect<uint32_t>
-SecretkeyExport::body(Runtime::Instance::MemoryInstance *MemInst,
-                      int32_t SkHandle, uint32_t SkEncoding,
+SecretkeyExport::body(const Runtime::CallingFrame &Frame, int32_t SkHandle,
+                      uint32_t SkEncoding,
                       uint32_t /* Out */ ArrayOutputHandlePtr) {
+  auto *MemInst = Frame.getMemoryByIndex(0);
   checkExist(MemInst);
 
   __wasi_secretkey_encoding_e_t WasiSkEncoding;
@@ -502,7 +518,7 @@ SecretkeyExport::body(Runtime::Instance::MemoryInstance *MemInst,
   return __WASI_CRYPTO_ERRNO_SUCCESS;
 }
 
-Expect<uint32_t> SecretkeyClose::body(Runtime::Instance::MemoryInstance *,
+Expect<uint32_t> SecretkeyClose::body(const Runtime::CallingFrame &,
                                       int32_t Sk) {
   if (auto Res = Ctx.secretkeyClose(Sk); unlikely(!Res)) {
     return __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE;

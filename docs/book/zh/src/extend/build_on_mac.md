@@ -54,8 +54,8 @@ WasmEdge 提供了丰富的工具来支撑更好的性能以及更多样的运�
 2. `wasmedgec` 是一个 `WASM` 预编译器。
    * `wasmedgec` 将一个通用的 `WASM` 文件编译成 `dyld` 文件。
    * 你可以通过将 CMake 配置项 `WASMEDGE_BUILD_AOT_RUNTIME` 设置成 `OFF` 来禁止构建预编译器。
-3. `libwasmedge_c.dyld` 是 WasmEdge C API 的共享库。
-   * `libwasmedge_c.dyld` 提供了访问预编译器和 WASM 运行时的 C 语言 API。
+3. `libwasmedge.dyld` 是 WasmEdge C API 的共享库。
+   * `libwasmedge.dyld` 提供了访问预编译器和 WASM 运行时的 C 语言 API。
    * 如果 `WASMEDGE_BUILD_AOT_RUNTIME` 配置项被设置成 `OFF` ，那么与预编译器相关的 API 都将会返回错误。
    * 你可以通过将 CMake 配置项 `WASMEDGE_BUILD_SHARED_LIB` 设置成 `OFF` 来禁止构建共享库。
 

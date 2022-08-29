@@ -19,6 +19,7 @@
 #include "common/defines.h"
 #include "common/errcode.h"
 #include "common/statistics.h"
+#include "runtime/callingframe.h"
 #include "runtime/instance/module.h"
 #include "runtime/stackmgr.h"
 #include "runtime/storemgr.h"
@@ -566,7 +567,7 @@ private:
   /// @{
 public:
   Expect<void> trap(Runtime::StackManager &StackMgr,
-                    const uint8_t Code) noexcept;
+                    const uint32_t Code) noexcept;
   Expect<void> call(Runtime::StackManager &StackMgr, const uint32_t FuncIdx,
                     const ValVariant *Args, ValVariant *Rets) noexcept;
   Expect<void> callIndirect(Runtime::StackManager &StackMgr,

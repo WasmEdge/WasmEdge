@@ -5,6 +5,7 @@
 
 #include "common/errcode.h"
 #include "host/wasi/environ.h"
+#include "runtime/callingframe.h"
 #include "runtime/hostfunc.h"
 
 namespace WasmEdge {

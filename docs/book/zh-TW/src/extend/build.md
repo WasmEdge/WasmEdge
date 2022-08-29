@@ -43,8 +43,6 @@ docker pull wasmedge/wasmedge # 等同於 wasmedge/wasmedge:latest
 | `ubuntu2104_armv7l`     | armhf    | Ubuntu 21.04       | 12.0.0    | CC=gcc, CXX=g++       | Ubuntu 21.04+            | 使用於 armhf 架構的發行                    |
 | `manylinux2014_x86_64`  | x86\_64  | CentOS 7, 7.9.2009 | 12.0.0    | CC=gcc, CXX=g++       | Ubuntu 16.04+, CentOS 7+ | 提供給熟悉 CentOS x86\_64 架構的開發者使用  |
 | `manylinux2014_aarch64` | aarch64  | CentOS 7, 7.9.2009 | 12.0.0    | CC=gcc, CXX=g++       | Ubuntu 16.04+, CentOS 7+ | 提供給熟悉 CentOS aarch64 架構的開發者使用 |
-| `manylinux2010_x86_64`  | x86\_64  | CentOS 6, 6.10     | 12.0.0    | CC=gcc, CXX=g++       | Ubuntu 14.04+, CentOS 6+ | 提供給熟悉 x86\_64 架構舊版系統的開發者使用 |
-| `manylinux1_x86_64`     | x86\_64  | CentOS 5, 5.11     | 12.0.0    | CC=gcc, CXX=g++       | Ubuntu 14.04+, CentOS 5+ | 提供給熟悉 x86\_64 架構舊版系統的開發者使用 |
 
 ### 在 Ubuntu 20.04 上手動安裝相依套件
 
@@ -77,8 +75,6 @@ sudo apt install -y clang
 
 | 可移植的 Linux 發行版標籤                  | 基礎 image   | 提供的環境需                                                           | Docker image                              |
 | ---                                     | ---         | ---                                                                   | ---                                      |
-| `manylinux1`                            | CentOS 5.11 | GLIBC <= 2.5</br>CXXABI <= 3.4.8</br>GLIBCXX <= 3.4.9</br>GCC <= 4.2.0   | wasmedge/wasmedge:manylinux1\_x86\_64    |
-| `manylinux2010`                         | CentOS 6.10 | GLIBC <= 2.12</br>CXXABI <= 1.3.3</br>GLIBCXX <= 3.4.13</br>GCC <= 4.5.0 | wasmedge/wasmedge:manylinux2010\_x86\_64 |
 | `manylinux2014`                         | CentOS 7.9  | GLIBC <= 2.17</br>CXXABI <= 1.3.7</br>GLIBCXX <= 3.4.19</br>GCC <= 4.8.0 | wasmedge/wasmedge:manylinux2014\_x86\_64 |
 | `manylinux2014`                         | CentOS 7.9  | GLIBC <= 2.17</br>CXXABI <= 1.3.7</br>GLIBCXX <= 3.4.19</br>GCC <= 4.8.0 | wasmedge/wasmedge:manylinux2014\_aarch64 |
 
@@ -93,8 +89,8 @@ WasmEdge 提供了各種工具來支援更好的性能以及更多樣的執行�
 2. `wasmedgec` 是一個 WASM Ahead-of-time 編譯器。
    - `wasmedgec` 可以將一個通用的 `WASM` 檔案編譯成 `so` 檔案。
    - 您可以透過將 CMake 選項 `WASMEDGE_BUILD_AOT_RUNTIME` 設為 `OFF` 來禁止編譯 Ahead-of-time 編譯器。
-3. `libwasmedge_c.so` 是 WasmEdge C API 的共享函式庫。
-   - `libwasmedge_c.so` 提供了連接 WASM runtime 和 Ahead-of-time 編譯器的 C 語言 API。
+3. `libwasmedge.so` 是 WasmEdge C API 的共享函式庫。
+   - `libwasmedge.so` 提供了連接 WASM runtime 和 Ahead-of-time 編譯器的 C 語言 API。
    - 如果 `WASMEDGE_BUILD_AOT_RUNTIME` 選項被設為 `OFF` ，與 Ahead-of-time 編譯器相關的 API 都將回傳錯誤。
    - 您可以透過將 CMake 選項 `WASMEDGE_BUILD_SHARED_LIB` 設為 `OFF` 來禁止編譯 WasmEdge C API 的共享函式庫。
 4. `ssvm-qitc` 與 AI 應用程式相關，是支援 ONNX 格式的 AI 模型的 ONNC runtime 。

@@ -40,14 +40,6 @@ flowchart LR
 [
   {
     "runner": "ubuntu-latest",
-    "docker_tag": "manylinux2010_x86_64"
-  },
-  {
-    "runner": "ubuntu-latest",
-    "docker_tag": "manylinux1_x86_64"
-  },
-  {
-    "runner": "ubuntu-latest",
     "docker_tag": "manylinux2014_x86_64"
   },
   {

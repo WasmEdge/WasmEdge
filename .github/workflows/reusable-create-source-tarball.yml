@@ -36,7 +36,6 @@ jobs:
         env:
           VERSION: ${{ inputs.version }}
       - name: Upload artifact
-        if: ${{ !inputs.release }} # Only for non-release
         uses: actions/upload-artifact@v2
         with:
           name: WasmEdge-${{ inputs.version }}-src.tar.gz

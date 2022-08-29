@@ -44,7 +44,7 @@ if(WASMEDGE_LINK_PUGLINS_STATIC)
 else()
   target_link_libraries(wasmedgePluginHttpsReq
     PRIVATE
-    wasmedge_c_shared
+    wasmedge_shared
   )
 endif()
 

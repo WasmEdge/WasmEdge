@@ -203,9 +203,9 @@ VM::unsafeRunWasmFile(const AST::Module &Module, std::string_view Func,
     // Execute function and return values with the module instance.
     return unsafeExecute(ActiveModInst.get(), Func, Params, ParamTypes);
   } else {
-    spdlog::error(ErrCode::WrongInstanceAddress);
+    spdlog::error(ErrCode::Value::WrongInstanceAddress);
     spdlog::error(ErrInfo::InfoExecuting("", Func));
-    return Unexpect(ErrCode::WrongInstanceAddress);
+    return Unexpect(ErrCode::Value::WrongInstanceAddress);
   }
 }
 
@@ -285,8 +285,8 @@ Expect<void> VM::unsafeLoadWasm(const AST::Module &Module) {
 Expect<void> VM::unsafeValidate() {
   if (Stage < VMStage::Loaded) {
     // When module is not loaded, not validate.
-    spdlog::error(ErrCode::WrongVMWorkflow);
-    return Unexpect(ErrCode::WrongVMWorkflow);
+    spdlog::error(ErrCode::Value::WrongVMWorkflow);
+    return Unexpect(ErrCode::Value::WrongVMWorkflow);
   }
   if (auto Res = ValidatorEngine.validate(*Mod.get())) {
     Stage = VMStage::Validated;
@@ -299,8 +299,8 @@ Expect<void> VM::unsafeValidate() {
 Expect<void> VM::unsafeInstantiate() {
   if (Stage < VMStage::Validated) {
     // When module is not validated, not instantiate.
-    spdlog::error(ErrCode::WrongVMWorkflow);
-    return Unexpect(ErrCode::WrongVMWorkflow);
+    spdlog::error(ErrCode::Value::WrongVMWorkflow);
+    return Unexpect(ErrCode::Value::WrongVMWorkflow);
   }
   if (auto Res = ExecutorEngine.instantiateModule(StoreRef, *Mod.get())) {
     Stage = VMStage::Instantiated;
@@ -318,9 +318,9 @@ VM::unsafeExecute(std::string_view Func, Span<const ValVariant> Params,
     // Execute function and return values with the module instance.
     return unsafeExecute(ActiveModInst.get(), Func, Params, ParamTypes);
   } else {
-    spdlog::error(ErrCode::WrongInstanceAddress);
+    spdlog::error(ErrCode::Value::WrongInstanceAddress);
     spdlog::error(ErrInfo::InfoExecuting("", Func));
-    return Unexpect(ErrCode::WrongInstanceAddress);
+    return Unexpect(ErrCode::Value::WrongInstanceAddress);
   }
 }
 
@@ -334,9 +334,9 @@ VM::unsafeExecute(std::string_view ModName, std::string_view Func,
     // Execute function and return values with the module instance.
     return unsafeExecute(FindModInst, Func, Params, ParamTypes);
   } else {
-    spdlog::error(ErrCode::WrongInstanceAddress);
+    spdlog::error(ErrCode::Value::WrongInstanceAddress);
     spdlog::error(ErrInfo::InfoExecuting(ModName, Func));
-    return Unexpect(ErrCode::WrongInstanceAddress);
+    return Unexpect(ErrCode::Value::WrongInstanceAddress);
   }
 }
 
@@ -348,15 +348,15 @@ VM::unsafeExecute(const Runtime::Instance::ModuleInstance *ModInst,
   Runtime::Instance::FunctionInstance *FuncInst =
       ModInst->findFuncExports(Func);
   if (unlikely(FuncInst == nullptr)) {
-    spdlog::error(ErrCode::FuncNotFound);
+    spdlog::error(ErrCode::Value::FuncNotFound);
     spdlog::error(ErrInfo::InfoExecuting(ModInst->getModuleName(), Func));
-    return Unexpect(ErrCode::FuncNotFound);
+    return Unexpect(ErrCode::Value::FuncNotFound);
   }
 
   // Execute function.
   if (auto Res = ExecutorEngine.invoke(*FuncInst, Params, ParamTypes);
       unlikely(!Res)) {
-    if (Res.error() != ErrCode::Terminated) {
+    if (Res.error() != ErrCode::Value::Terminated) {
       spdlog::error(ErrInfo::InfoExecuting(ModInst->getModuleName(), Func));
     }
     return Unexpect(Res);

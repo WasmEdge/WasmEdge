@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2019-2022 Second State INC
 
-//=== Load component model: Type
+//=== Load component model: Import/Export
 //
 // Part of the WasmEdge Project.
 //
@@ -28,7 +28,7 @@ WasmEdge::Loader::Loader Ldr{Conf};
 TEST(ComponentTest, ValueType) {
   Conf.addProposal(WasmEdge::Proposal::ComponentModel);
 
-  std::filesystem::path path{"testData/type-definition.wasm"};
+  std::filesystem::path path{"testData/import-export-definition.wasm"};
   auto Comp = Ldr.parseComponent(path);
   EXPECT_TRUE(Comp);
 }

@@ -71,10 +71,11 @@ jobs:
     - name: Display Python version
       run: python --version
 
-    - name: Install git and python
+    - name: Install git
       run: |
         ${{ matrix.package_manager }} update -y
-        ${{ matrix.package_manager }} install -y git
+        ${{ matrix.package_manager }} install -y git libc6
+        ${{ matrix.package_manager }} upgrade -y
     - name: Install WasmEdge latest release
       run: |
         python utils/install.py -D

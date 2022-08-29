@@ -1,8 +1,9 @@
 #[cfg(feature = "aot")]
 use wasmedge_sys::{
-    AsImport, Compiler, Config, FuncType, Function, ImportModule, ImportObject, Vm, WasmValue,
+    AsImport, CallingFrame, Compiler, Config, FuncType, Function, ImportModule, ImportObject, Vm,
+    WasmValue,
 };
-use wasmedge_types::{CompilerOptimizationLevel, CompilerOutputFormat};
+use wasmedge_types::{error::HostFuncError, CompilerOptimizationLevel, CompilerOutputFormat};
 
 #[cfg(feature = "aot")]
 #[test]
@@ -43,7 +44,7 @@ fn test_aot() {
         .join("bindings/rust/wasmedge-sys/tests/data/fibonacci.wasm");
     let out_path = std::path::PathBuf::from("fibonacci_aot.wasm");
     assert!(!out_path.exists());
-    let result = compiler.compile(&in_path, &out_path);
+    let result = compiler.compile_from_file(&in_path, &out_path);
     assert!(result.is_ok());
     assert!(out_path.exists());
 
@@ -96,6 +97,9 @@ fn create_spec_test_module() -> ImportModule {
     import
 }
 
-fn spec_test_print(_inputs: Vec<WasmValue>) -> Result<Vec<WasmValue>, u8> {
+fn spec_test_print(
+    _frame: &CallingFrame,
+    _inputs: Vec<WasmValue>,
+) -> Result<Vec<WasmValue>, HostFuncError> {
     Ok(vec![])
 }

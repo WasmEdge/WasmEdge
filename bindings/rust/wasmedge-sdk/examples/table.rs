@@ -1,9 +1,10 @@
 // If the version of rust used is less than v1.63, please uncomment the follow attribute.
 // #![feature(explicit_generic_args_with_impl_trait)]
 
-use wasmedge_sdk::{params, types::Val, Executor, Func, Module, Store, WasmVal};
-use wasmedge_sys::types::WasmValue;
-use wasmedge_types::{wat2wasm, RefType, TableType, ValType};
+use wasmedge_sdk::{
+    error::HostFuncError, params, types::Val, wat2wasm, CallingFrame, Executor, Func, Module,
+    RefType, Store, TableType, ValType, WasmVal, WasmValue,
+};
 
 #[cfg_attr(test, test)]
 fn main() -> anyhow::Result<()> {
@@ -87,21 +88,24 @@ fn main() -> anyhow::Result<()> {
     // * setting elements in a table
 
     /// A function we'll call through a table.
-    fn host_callback(inputs: Vec<WasmValue>) -> std::result::Result<Vec<WasmValue>, u8> {
+    fn host_callback(
+        _: &CallingFrame,
+        inputs: Vec<WasmValue>,
+    ) -> std::result::Result<Vec<WasmValue>, HostFuncError> {
         if inputs.len() != 2 {
-            return Err(1);
+            return Err(HostFuncError::User(1));
         }
 
         let a = if inputs[0].ty() == ValType::I32 {
             inputs[0].to_i32()
         } else {
-            return Err(2);
+            return Err(HostFuncError::User(2));
         };
 
         let b = if inputs[1].ty() == ValType::I32 {
             inputs[1].to_i32()
         } else {
-            return Err(3);
+            return Err(HostFuncError::User(3));
         };
 
         let c = a + b;

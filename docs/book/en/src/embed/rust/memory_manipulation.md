@@ -2,7 +2,7 @@
 
 In this example, we'll present how to manipulate the linear memory with the APIs defined in [wasmedge_sdk::Memory](https://wasmedge.github.io/WasmEdge/wasmedge_sdk/struct.Memory.html).
 
-N.B. In this example, `wasmedge-sdk v0.1.1`, `wasmedge-sys v0.7.1` and `wasmedge-types v0.1.3` are used.
+N.B. In this example, `wasmedge-sdk v0.4.0`, `wasmedge-sys v0.9.0` and `wasmedge-types v0.2.1` are used.
 
 ## Wasm module
 
@@ -43,9 +43,7 @@ Let's start off by getting all imports right away so you can follow along
 // please add this feature if you're using rust of version < 1.63
 // #![feature(explicit_generic_args_with_impl_trait)]
 
-use wasmedge_sdk::{params, Executor, ImportObjectBuilder, Module, Store};
-use wasmedge_sys::WasmValue;
-use wasmedge_types::wat2wasm;
+use wasmedge_sdk::{params, wat2wasm, Executor, Module, Store, WasmVal};
 ```
 
 To load a `Module`, `wasmedge-sdk` defines two methods:
@@ -118,7 +116,6 @@ assert_eq!(memory.data_size(), 65536);
 
 // grow memory size
 memory.grow(2)?;
-// check the size (in pages) and the data size (in bytes)
 assert_eq!(memory.size(), 3);
 assert_eq!(memory.data_size(), 3 * 65536);
 
@@ -130,12 +127,12 @@ let get_at = extern_instance
     .func("get_at")
     .ok_or_else(|| anyhow::Error::msg("Not found exported function named 'get_at`."))?;
 
-// set val at mem_addr by calling "set_at"
+// call the exported function named "set_at"
 let mem_addr = 0x2220;
 let val = 0xFEFEFFE;
 set_at.call(&mut executor, params!(mem_addr, val))?;
 
-// get the value at mem_addr by calling "get_at"
+// call the exported function named "get_at"
 let returns = get_at.call(&mut executor, params!(mem_addr))?;
 assert_eq!(returns[0].to_i32(), val);
 

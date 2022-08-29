@@ -4,8 +4,8 @@
 
 This example uses the following crates:
 
-* wasmedge-sys v0.7.0
-* wasmedge-types v0.1.1
+* wasmedge-sys v0.9.0
+* wasmedge-types v0.2.1
 
 ## Overview
 

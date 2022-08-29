@@ -355,9 +355,9 @@ pub trait AsInstance {
 /// ```rust
 /// use wasmedge_sys::{
 ///     AsImport, FuncType, Function, Global, GlobalType, ImportModule, ImportObject, MemType,
-///     Memory, Table, TableType, Vm, WasmValue,
+///     Memory, Table, TableType, Vm, WasmValue, CallingFrame,
 /// };
-/// use wasmedge_types::{Mutability, RefType, ValType};
+/// use wasmedge_types::{error::HostFuncError, Mutability, RefType, ValType};
 ///
 /// fn main() -> Result<(), Box<dyn std::error::Error>> {
 ///     let module_name = "extern_module";
@@ -366,21 +366,21 @@ pub trait AsInstance {
 ///     let mut import = ImportModule::create(module_name)?;
 ///
 ///     // a function to import
-///     fn real_add(inputs: Vec<WasmValue>) -> Result<Vec<WasmValue>, u8> {
+///     fn real_add(_: &CallingFrame, inputs: Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError> {
 ///         if inputs.len() != 2 {
-///             return Err(1);
+///             return Err(HostFuncError::User(1));
 ///         }
 ///
 ///         let a = if inputs[0].ty() == ValType::I32 {
 ///             inputs[0].to_i32()
 ///         } else {
-///             return Err(2);
+///             return Err(HostFuncError::User(2));
 ///         };
 ///
 ///         let b = if inputs[1].ty() == ValType::I32 {
 ///             inputs[1].to_i32()
 ///         } else {
-///             return Err(3);
+///             return Err(HostFuncError::User(3));
 ///         };
 ///
 ///         let c = a + b;
@@ -502,7 +502,7 @@ impl AsImport for ImportModule {
 ///
 /// # Usage
 ///
-/// * [WasiModule] implements [ImportInstance](crate::ImportInstance) trait, therefore it can be used to register function, table, memory and global instances.
+/// * [WasiModule] implements [AsImport](crate::AsImport) trait, therefore it can be used to register function, table, memory and global instances.
 ///     * [Example](https://github.com/WasmEdge/WasmEdge/tree/master/bindings/rust/wasmedge-sys/examples/wasi_module.rs)
 ///
 /// * A [WasiModule] can be created implicitly inside a [Vm](crate::Vm) by passing the [Vm](crate::Vm) a [config](crate::Config) argument in which the `wasi` option is enabled.
@@ -665,6 +665,33 @@ impl WasiModule {
     /// The WASI exit code can be accessed after running the "_start" function of a `wasm32-wasi` program.
     pub fn exit_code(&self) -> u32 {
         unsafe { ffi::WasmEdge_ModuleInstanceWASIGetExitCode(self.inner.0 as *const _) }
+    }
+
+    /// Returns the native handler from the mapped FD/Handler.
+    ///
+    /// # Argument
+    ///
+    /// * `fd` - The WASI mapped Fd.
+    ///
+    /// # Error
+    ///
+    /// If fail to get the native handler, then an error is returned.
+    pub fn get_native_handler(&self, fd: i32) -> WasmEdgeResult<u64> {
+        let mut handler: u64 = 0;
+        let code: u32 = unsafe {
+            ffi::WasmEdge_ModuleInstanceWASIGetNativeHandler(
+                self.inner.0 as *const _,
+                fd,
+                &mut handler as *mut u64,
+            )
+        };
+
+        match code {
+            0 => Ok(handler),
+            _ => Err(WasmEdgeError::Instance(
+                InstanceError::NotFoundMappedFdHandler,
+            )),
+        }
     }
 }
 impl AsInstance for WasiModule {
@@ -1494,7 +1521,7 @@ impl AsImport for WasiNnModule {
     }
 }
 
-/// A [WasiCryptoCommon] is a module instance for the WASI-Crypto specification, covering common types and functions for symmetric operations.
+/// A [WasiCryptoCommonModule] is a module instance for the WASI-Crypto specification, covering common types and functions for symmetric operations.
 #[derive(Debug)]
 pub struct WasiCryptoCommonModule {
     pub(crate) inner: InnerInstance,
@@ -1753,7 +1780,7 @@ impl AsImport for WasiCryptoCommonModule {
     }
 }
 
-/// A [WasiCryptoAsymmetricCommon] is a module instance for the WASI-Crypto specification, covering common types and functions for asymmetric operations.
+/// A [WasiCryptoAsymmetricCommonModule] is a module instance for the WASI-Crypto specification, covering common types and functions for asymmetric operations.
 ///
 /// # Error
 ///
@@ -2012,7 +2039,7 @@ impl AsImport for WasiCryptoAsymmetricCommonModule {
     }
 }
 
-/// A [WasiCryptoSymmetric] is a module instance for the WASI-Crypto specification, covering symmetric operations.
+/// A [WasiCryptoSymmetricModule] is a module instance for the WASI-Crypto specification, covering symmetric operations.
 #[derive(Debug)]
 pub struct WasiCryptoSymmetricModule {
     pub(crate) inner: InnerInstance,
@@ -2271,7 +2298,7 @@ impl AsImport for WasiCryptoSymmetricModule {
     }
 }
 
-/// A [WasiCryptoKx] is a module instance for the WASI-Crypto specification, covering key exchange interfaces.
+/// A [WasiCryptoKxModule] is a module instance for the WASI-Crypto specification, covering key exchange interfaces.
 #[derive(Debug)]
 pub struct WasiCryptoKxModule {
     pub(crate) inner: InnerInstance,
@@ -2530,7 +2557,7 @@ impl AsImport for WasiCryptoKxModule {
     }
 }
 
-/// A [WasiCryptoSignatures] is a module instance for the WASI-Crypto specification, covering signatures interfaces.
+/// A [WasiCryptoSignaturesModule] is a module instance for the WASI-Crypto specification, covering signatures interfaces.
 #[derive(Debug)]
 pub struct WasiCryptoSignaturesModule {
     pub(crate) inner: InnerInstance,
@@ -2885,14 +2912,14 @@ mod tests {
     #[cfg(target_os = "linux")]
     use crate::utils;
     use crate::{
-        Config, Executor, FuncType, GlobalType, ImportModule, MemType, Store, TableType, Vm,
-        WasmValue,
+        CallingFrame, Config, Executor, FuncType, GlobalType, ImportModule, MemType, Store,
+        TableType, Vm, WasmValue,
     };
     use std::{
         sync::{Arc, Mutex},
         thread,
     };
-    use wasmedge_types::{Mutability, RefType, ValType};
+    use wasmedge_types::{error::HostFuncError, Mutability, RefType, ValType};
 
     #[test]
     #[allow(clippy::assertions_on_result_states)]
@@ -3428,21 +3455,21 @@ mod tests {
         vm
     }
 
-    fn real_add(inputs: Vec<WasmValue>) -> Result<Vec<WasmValue>, u8> {
+    fn real_add(_: &CallingFrame, inputs: Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError> {
         if inputs.len() != 2 {
-            return Err(1);
+            return Err(HostFuncError::User(1));
         }
 
         let a = if inputs[0].ty() == ValType::I32 {
             inputs[0].to_i32()
         } else {
-            return Err(2);
+            return Err(HostFuncError::User(2));
         };
 
         let b = if inputs[1].ty() == ValType::I32 {
             inputs[1].to_i32()
         } else {
-            return Err(3);
+            return Err(HostFuncError::User(3));
         };
 
         let c = a + b;

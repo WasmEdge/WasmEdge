@@ -1,26 +1,26 @@
 //! This example presents a host function runs timeout, then cancel the task.
 
 use wasmedge_sys::{
-    AsImport, Config, FuncType, Function, ImportModule, ImportObject, Vm, WasmValue,
+    AsImport, CallingFrame, Config, FuncType, Function, ImportModule, ImportObject, Vm, WasmValue,
 };
-use wasmedge_types::ValType;
+use wasmedge_types::{error::HostFuncError, ValType};
 
 // A native function
-fn real_add(inputs: Vec<WasmValue>) -> Result<Vec<WasmValue>, u8> {
+fn real_add(_: &CallingFrame, inputs: Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError> {
     if inputs.len() != 2 {
-        return Err(1);
+        return Err(HostFuncError::User(1));
     }
 
     let a = if inputs[0].ty() == ValType::I32 {
         inputs[0].to_i32()
     } else {
-        return Err(2);
+        return Err(HostFuncError::User(2));
     };
 
     let b = if inputs[1].ty() == ValType::I32 {
         inputs[1].to_i32()
     } else {
-        return Err(3);
+        return Err(HostFuncError::User(3));
     };
 
     // simulate a long running operation

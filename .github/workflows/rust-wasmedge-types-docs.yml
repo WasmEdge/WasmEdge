@@ -56,6 +56,7 @@ jobs:
           cargo doc --all --no-deps --target-dir=./target
 
       - name: Deploy Docs
+        if: github.ref_type == 'tag'
         uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}

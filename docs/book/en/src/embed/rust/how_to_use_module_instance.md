@@ -1,53 +1,12 @@
 # Introduction to WasmEdge module instance
 
-## Overview
-
-In this section, we will talk about module instance. In `wasmedge-sys` crate, four kinds of module instances are defined:
-
-* `Instance`
-
-  * An `Instance` represents a runtime module instance which is held by a WasmEdge `Store` context. The `Store` context is either held by a WasmEdge `Vm`, or related to a WasmEdge `Executor`.
-  
-  * APIs to retrieve an `Instance`.
-  
-    * If a `Vm` is available, then
-
-      * with the `Vm::active_module` API, you can get an anonymous module instance from this `Vm`.
-
-      * with the `Vm::store_mut` and `Store::module` APIs, you can get a named module instance from this `Vm`.
-
-    * If an `Executor` is available, then
-
-      * with the `Executor::register_named_module` API, you can get a named module instance from this `Executor`.
-
-      * with the `Executor::register_active_module` API, you can get an anonymous module instance from this `Executor`.
-
-* `ImportModule`
-
-  * `ImportModule`, also called import module, represents a module instance to be registered into a WasmEdge `Vm` or `Executor`. `ImportModule` implements the `ImportObject` trait, meaning that WebAssembly function, table, memory and global instances can be added to an import module, and then be registered and instantiated together when the import module is registered into a `Vm` or `Executor`.
-
-* `WasiModule` and `WasmEdgeProcessModule`
-
-  * `WasiModule` and `WasmEdgeProcessModule` are module instances for WASI and WasmEdgeProcess specification, respectively. They also implement the `ImportObject` trait. Different from `ImportModule`, these two kinds of module instances can not only be created, but be retrieved from a `Vm`.
-
-  * APIs to retrieve `WasiModule` and `WasmEdgeProcessModule`.
-
-    * If a `Vm` is available, then
-
-      * with the `Vm::wasi_module` API, you can get a module instance of `WasiModule` type.
-
-      * with the `Vm::wasmedge_process_module` API, you can get a `WasmEdgeProcessModule` from this `Vm`.
-
-## Examples
-
-### Example 1
+## Example 1
 
 In this example, we'll demonstrate how to use the APIs of `Vm` to
 
 * Create Wasi and WasmEdgeProcess module instances implicitly by using a `Config` while creating a `Vm`.
 
     ```rust
-
     // create a Config context
     let mut config = Config::create()?;
     config.bulk_memory_operations(true);
@@ -65,7 +24,6 @@ In this example, we'll demonstrate how to use the APIs of `Vm` to
 * Retrieve the Wasi and WasmEdgeProcess module instances from the `Vm`.
 
     ```rust
-
     // get the default Wasi module
     let wasi_instance = vm.wasi_module_mut()?;
     assert_eq!(wasi_instance.name(), "wasi_snapshot_preview1");
@@ -78,13 +36,12 @@ In this example, we'll demonstrate how to use the APIs of `Vm` to
 * Register an import module as a named module into the `Vm`.
 
     ```rust
-
     // create ImportModule instance
     let module_name = "extern_module";
     let mut import = ImportModule::create(module_name)?;
 
     // a function to import
-    fn real_add(inputs: Vec<WasmValue>) -> Result<Vec<WasmValue>, u8> {
+    fn real_add(_: &CallingFrame, inputs: Vec<WasmValue>) -> Result<Vec<WasmValue>, u8> {
         if inputs.len() != 2 {
             return Err(1);
         }
@@ -134,7 +91,6 @@ In this example, we'll demonstrate how to use the APIs of `Vm` to
 * Retrieve the internal `Store` instance from the `Vm`, and retrieve the named module instance from the `Store` instance.
 
     ```rust
-    
     let mut store = vm.store_mut()?;
     let named_instance = store.module(module_name)?;
     assert!(named_instance.get_func("add").is_ok());
@@ -147,7 +103,6 @@ In this example, we'll demonstrate how to use the APIs of `Vm` to
 * Register an active module into the `Vm`.
 
     ```rust
-    
     // read the wasm bytes
     let wasm_bytes = wat2wasm(
         br#"
@@ -203,7 +158,6 @@ In this example, we'll demonstrate how to use the APIs of `Vm` to
 * Retrieve the active module from the `Vm`.
 
     ```rust
-    
     // get the active module instance
     let active_instance = vm.active_module()?;
     assert!(active_instance.get_func("fib").is_ok());
@@ -212,14 +166,13 @@ In this example, we'll demonstrate how to use the APIs of `Vm` to
 
 The complete code in this demo can be found on [WasmEdge Github](https://github.com/WasmEdge/WasmEdge/blob/master/bindings/rust/wasmedge-sys/examples/mdbook_example_module_instance.rs).
 
-### Example 2
+## Example 2
 
 In this example, we'll demonstrate how to use the APIs of `Executor` to
 
 * Create an `Executor` and a `Store`.
 
     ```rust
-
     // create an Executor context
     let mut executor = Executor::create(None, None)?;
 
@@ -231,7 +184,6 @@ In this example, we'll demonstrate how to use the APIs of `Executor` to
 * Register an import module into the `Executor`.
 
     ```rust
-
     // read the wasm bytes
     let wasm_bytes = wat2wasm(
         br#"
@@ -288,7 +240,6 @@ In this example, we'll demonstrate how to use the APIs of `Executor` to
 * Register an active module into the `Executor`.
 
     ```rust
-
     // read the wasm bytes
     let wasm_bytes = wat2wasm(
         br#"

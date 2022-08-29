@@ -1,11 +1,9 @@
-use crate::{types::ExternRef, FuncRef};
-use wasmedge_sys::WasmValue;
-use wasmedge_types::ValType;
+use crate::{types::ExternRef, FuncRef, ValType, WasmValue};
 
 /// Describes the mapping of Rust type to Wasm type.
 ///
-/// ```ignore
-/// use wasmedge::{WasmValType, ValType};
+/// ```rust
+/// use wasmedge_sdk::{WasmValType, ValType};
 ///
 /// assert_eq!(i32::WASM_TYPE, ValType::I32);
 /// ```
@@ -15,10 +13,10 @@ pub trait WasmValType {
     const WASM_TYPE: ValType;
 }
 
-/// The `impl_native_val_type` macro is used to generate the following struct
+/// The `impl_wasm_val_type` macro is used to generate the following struct
 ///
 /// ```ignore
-/// impl NativeWasmType for i32 {
+/// impl WasmValType for i32 {
 ///     const WASM_TYPE: ValType = ValType::I32;
 /// }
 /// ```
@@ -66,7 +64,9 @@ mod test_wasm_val_type {
 
 /// Describes the mapping of a tuple of Rust types to Wasm types.
 ///
-/// ```ignore
+/// ```rust
+/// use wasmedge_sdk::{FuncRef, types::ExternRef, ValType, WasmValTypeList};
+///
 /// assert_eq!(
 ///      <(i32, i64, f32, f64, FuncRef, ExternRef)>::wasm_types(),
 ///      [ValType::I32, ValType::I64, ValType::F32, ValType::F64, ValType::FuncRef, ValType::ExternRef]

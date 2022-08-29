@@ -137,9 +137,10 @@ mod tests {
     use super::*;
     use crate::{
         config::{CommonConfigOptions, ConfigBuilder},
+        error::HostFuncError,
         types::Val,
-        Executor, Global, GlobalType, ImportObjectBuilder, Memory, MemoryType, Module, Mutability,
-        RefType, Statistics, Table, TableType, ValType, WasmValue,
+        CallingFrame, Executor, Global, GlobalType, ImportObjectBuilder, Memory, MemoryType,
+        Module, Mutability, RefType, Statistics, Table, TableType, ValType, WasmValue,
     };
 
     #[test]
@@ -418,21 +419,24 @@ mod tests {
         assert_eq!(instance.name().unwrap(), mod_names[1]);
     }
 
-    fn real_add(inputs: Vec<WasmValue>) -> std::result::Result<Vec<WasmValue>, u8> {
+    fn real_add(
+        _: &CallingFrame,
+        inputs: Vec<WasmValue>,
+    ) -> std::result::Result<Vec<WasmValue>, HostFuncError> {
         if inputs.len() != 2 {
-            return Err(1);
+            return Err(HostFuncError::User(1));
         }
 
         let a = if inputs[0].ty() == ValType::I32 {
             inputs[0].to_i32()
         } else {
-            return Err(2);
+            return Err(HostFuncError::User(2));
         };
 
         let b = if inputs[1].ty() == ValType::I32 {
             inputs[1].to_i32()
         } else {
-            return Err(3);
+            return Err(HostFuncError::User(3));
         };
 
         let c = a + b;

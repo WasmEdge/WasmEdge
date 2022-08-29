@@ -17,7 +17,7 @@ We can run a simple WebAssembly program using Docker. An slim Linux image with W
 [The sample application is here](https://github.com/second-state/wasm-learning/tree/master/cli/wasi). First, create a `Dockerfile` based on our release image. Include the [wasm application file](https://github.com/second-state/wasm-learning/raw/master/cli/wasi/wasi_example_main.wasm) in the new image, and run the `wasmedge` command at start up.
 
 ```shell
-FROM wasmedge/wasmedge:release-0.10.1-runtime
+FROM wasmedge/slim-runtime:0.10.1
 ADD wasi_example_main.wasm /
 CMD ["wasmedge", "--dir", ".:/", "/wasi_example_main.wasm"]
 ```
@@ -47,7 +47,7 @@ We can run a simple WebAssembly-based HTTP micro-service using the Docker CLI. T
 Create a `Dockerfile` based on our release image. Include the `http_server.wasm` application file in the new image, and run the `wasmedge` command at start up.
 
 ```shell
-FROM wasmedge/wasmedge:release-0.10.1-runtime
+FROM wasmedge/slim-runtime:0.10.1
 ADD http_server.wasm /
 CMD ["wasmedge", "--dir", ".:/", "/http_server.wasm"]
 ```
@@ -94,7 +94,7 @@ createServer((req, resp) => {
 Add those files to the Docker image and run the JavaScript file at startup.
 
 ```shell
-FROM wasmedge/wasmedge:release-0.10.1-runtime
+FROM wasmedge/slim-runtime:0.10.1
 ADD wasmedge_quickjs.wasm /
 ADD http_echo.js /
 ADD modules /modules
@@ -126,7 +126,7 @@ A unique and powerful feature of the WasmEdge runtime is its support for AI fram
 The Dockerfile is as follows. The whole package is 115MB. It is less than 1/4 of a typically Linux + Python + Tensorflow setup.
 
 ```shell
-FROM wasmedge/wasmedge:release-0.10.1-tensorflow
+FROM wasmedge/slim-tf:0.10.1
 ADD wasmedge_hyper_server_tflite.wasm /
 CMD ["wasmedge-tensorflow-lite", "--dir", ".:/", "/wasmedge_hyper_server_tflite.wasm"]
 ```

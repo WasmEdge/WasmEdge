@@ -330,15 +330,16 @@ Expect<void> Loader::loadSection(AST::AliasSection &Sec) {
   });
 }
 Expect<void> Loader::loadAlias(AST::Alias &Alias) {
-  // alias       ::= sort:<sort> target:<aliastarget> => (alias target (sort))
+  // alias       ::= s:<sort> t:<aliastarget> => (alias t (s))
   loadSort(Alias.getSort());
 
   // aliastarget ::= 0x00 i:<instanceidx> n:<name>    => export i n
-  //               | 0x01 ct:<u32> idx:<u32>          => outer ct idx
+  //               | 0x01 i:<core:instanceidx> n:<name> => core export i n
+  //               | 0x02 ct:<u32> idx:<u32>          => outer ct idx
   auto Res = FMgr.readByte();
   if (!Res) {
     return logLoadError(Res.error(), FMgr.getLastOffset(),
-                        ASTNodeAttr::CompSec_Alias);
+                        ASTNodeAttr::Comp_Alias);
   }
   switch (*Res) {
   case 0x00: {
@@ -346,34 +347,49 @@ Expect<void> Loader::loadAlias(AST::Alias &Alias) {
     auto Idx = FMgr.readU32();
     if (!Idx) {
       return logLoadError(Idx.error(), FMgr.getLastOffset(),
-                          ASTNodeAttr::CompSec_Alias);
+                          ASTNodeAttr::Comp_Alias);
     }
     auto Name = FMgr.readName();
     if (!Name) {
       return logLoadError(Name.error(), FMgr.getLastOffset(),
-                          ASTNodeAttr::CompSec_Alias);
+                          ASTNodeAttr::Comp_Alias);
     }
     Alias.getTarget() = AST::AliasTarget::Export(*Idx, *Name);
     break;
   }
   case 0x01: {
-    // 0x01 ct:<u32> idx:<u32>          => outer ct idx
+    // 0x01 i:<core:instanceidx> n:<name> => core export i n
+    auto Idx = FMgr.readU32();
+    if (!Idx) {
+      return logLoadError(Idx.error(), FMgr.getLastOffset(),
+                          ASTNodeAttr::Comp_Alias);
+    }
+    auto Name = FMgr.readName();
+    if (!Name) {
+      return logLoadError(Name.error(), FMgr.getLastOffset(),
+                          ASTNodeAttr::Comp_Alias);
+    }
+    Alias.getTarget() = AST::AliasTarget::CoreExport(*Idx, *Name);
+    break;
+  }
+  case 0x02: {
+    // 0x02 ct:<u32> idx:<u32>          => outer ct idx
     auto Ct = FMgr.readU32();
     if (!Ct) {
       return logLoadError(Ct.error(), FMgr.getLastOffset(),
-                          ASTNodeAttr::CompSec_Alias);
+                          ASTNodeAttr::Comp_Alias);
     }
     auto Idx = FMgr.readU32();
     if (!Idx) {
       return logLoadError(Idx.error(), FMgr.getLastOffset(),
-                          ASTNodeAttr::CompSec_Alias);
+                          ASTNodeAttr::Comp_Alias);
     }
     Alias.getTarget() = AST::AliasTarget::Outer(*Ct, *Idx);
     break;
   }
   default:
     return logLoadError(Res.error(), FMgr.getLastOffset(),
-                        ASTNodeAttr::CompSec_Alias);
+                        ASTNodeAttr::Comp_Alias);
   }
   return {};
 }
@@ -527,16 +543,20 @@ Expect<void> Loader::loadInstanceDecl(AST::InstanceDecl &Decl, Expect<Byte> B) {
   //                 | 0x04 ed:<exportdecl>                 => ed
   switch (*B) {
   case 0x00:
+    Decl.emplace<AST::CoreType>();
     return loadCoreType(std::get<AST::CoreType>(Decl));
   case 0x01:
+    Decl.emplace<AST::Type>();
     return loadType(std::get<AST::Type>(Decl));
   case 0x02:
+    Decl.emplace<AST::Alias>();
     return loadAlias(std::get<AST::Alias>(Decl));
   case 0x04:
+    Decl.emplace<AST::ExportDecl>();
     return loadExportDecl(std::get<AST::ExportDecl>(Decl));
   default:
     return logLoadError(B.error(), FMgr.getLastOffset(),
-                        ASTNodeAttr::CompSec_Type);
+                        ASTNodeAttr::Comp_InstanceDecl);
   }
 }
 Expect<void> Loader::loadInstanceDecl(AST::InstanceDecl &Decl) {
@@ -547,7 +567,7 @@ Expect<void> Loader::loadInstanceDecl(AST::InstanceDecl &Decl) {
   auto B = FMgr.readByte();
   if (!B) {
     return logLoadError(B.error(), FMgr.getLastOffset(),
-                        ASTNodeAttr::CompSec_Type);
+                        ASTNodeAttr::Comp_InstanceDecl);
   }
   return loadInstanceDecl(Decl, B);
 }
@@ -557,13 +577,15 @@ Expect<void> Loader::loadComponentDecl(AST::ComponentDecl &Decl) {
   auto B = FMgr.readByte();
   if (!B) {
     return logLoadError(B.error(), FMgr.getLastOffset(),
-                        ASTNodeAttr::CompSec_Type);
+                        ASTNodeAttr::Comp_ComponentDecl);
   }
   switch (*B) {
   case 0x03:
+    Decl.emplace<AST::ImportDecl>();
     return loadImportDecl(std::get<AST::ImportDecl>(Decl));
   default:
-    return loadInstanceDecl(std::get<AST::InstanceDecl>(Decl));
+    Decl.emplace<AST::InstanceDecl>();
+    return loadInstanceDecl(std::get<AST::InstanceDecl>(Decl), B);
   }
 }
 Expect<void> Loader::loadFuncVec(AST::FuncVec &FuncV) {
@@ -994,7 +1016,7 @@ Expect<void> Loader::loadSort(AST::Sort &Sort) {
   auto Res = FMgr.readByte();
   if (!Res) {
     return logLoadError(Res.error(), FMgr.getLastOffset(),
-                        ASTNodeAttr::CompSec_Alias);
+                        ASTNodeAttr::Comp_Sort);
   }
   switch (*Res) {
   case 0x00:
@@ -1016,7 +1038,7 @@ Expect<void> Loader::loadSort(AST::Sort &Sort) {
     return {};
   default:
     return logLoadError(Res.error(), FMgr.getLastOffset(),
-                        ASTNodeAttr::CompSec_Alias);
+                        ASTNodeAttr::Comp_Sort);
   }
 }
 Expect<void> Loader::loadCoreSort(AST::Sort &Sort) {
@@ -1030,7 +1052,7 @@ Expect<void> Loader::loadCoreSort(AST::Sort &Sort) {
   auto Res = FMgr.readByte();
   if (!Res) {
     return logLoadError(Res.error(), FMgr.getLastOffset(),
-                        ASTNodeAttr::CompSec_Alias);
+                        ASTNodeAttr::Comp_CoreSort);
   }
   switch (*Res) {
   case 0x00:
@@ -1056,7 +1078,7 @@ Expect<void> Loader::loadCoreSort(AST::Sort &Sort) {
     return {};
   default:
     return logLoadError(Res.error(), FMgr.getLastOffset(),
-                        ASTNodeAttr::CompSec_Alias);
+                        ASTNodeAttr::Comp_CoreSort);
   }
 }
 

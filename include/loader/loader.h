@@ -131,10 +131,10 @@ template <> inline ASTNodeAttr NodeAttrFromAST<std::string>() noexcept {
   return ASTNodeAttr::CompSec_Type;
 }
 template <> inline ASTNodeAttr NodeAttrFromAST<AST::ComponentDecl>() noexcept {
-  return ASTNodeAttr::CompSec_Type;
+  return ASTNodeAttr::Comp_ComponentDecl;
 }
 template <> inline ASTNodeAttr NodeAttrFromAST<AST::InstanceDecl>() noexcept {
-  return ASTNodeAttr::CompSec_Type;
+  return ASTNodeAttr::Comp_InstanceDecl;
 }
 template <>
 inline ASTNodeAttr NodeAttrFromAST<AST::ComponentCanonSection>() noexcept {

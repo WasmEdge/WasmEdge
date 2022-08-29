@@ -12,4 +12,6 @@
   (type $result2 (result s8))
   (type $f (func (param u64)
                  (result u64)))
+  (type $ct-import (component (import "int" (type $s8 (eq 32)))))
+  (type $ct-export (component (export "s8" (value s8))))
 )

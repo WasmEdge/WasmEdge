@@ -24,11 +24,24 @@ namespace AST {
 class AliasTarget {
 public:
   class Export;
+  class CoreExport;
   class Outer;
 };
 class AliasTarget::Export : public AliasTarget {
 public:
   Export(uint32_t Idx, std::string_view N) noexcept
+      : InstanceIndex{Idx}, Name{N} {}
+
+  uint32_t getInstanceIdx() const noexcept { return InstanceIndex; }
+  std::string_view getName() const noexcept { return Name; }
+
+private:
+  uint32_t InstanceIndex;
+  std::string Name;
+};
+class AliasTarget::CoreExport : public AliasTarget {
+public:
+  CoreExport(uint32_t Idx, std::string_view N) noexcept
       : InstanceIndex{Idx}, Name{N} {}
 
   uint32_t getInstanceIdx() const noexcept { return InstanceIndex; }

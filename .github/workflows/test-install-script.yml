@@ -49,17 +49,17 @@ jobs:
             host_runner: ubuntu-latest
             package_manager: apt
             docker_image: ubuntu:16.04
-          - name: manylinux2014 aarch64
-            host_runner: ARM64
-            package_manager: yum
-            docker_image: wasmedge/wasmedge:manylinux2014_aarch64
+          # - name: manylinux2014 aarch64
+          #   host_runner: ARM64
+          #   package_manager: yum
+          #   docker_image: wasmedge/wasmedge:manylinux2014_aarch64
     name: ${{ matrix.name }}
     runs-on: ${{ matrix.host_runner }}
     container:
       image: ${{ matrix.docker_image }}
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v2
       with:
         fetch-depth: 0
     - name: Set up Python ${{ matrix.python-version }}
@@ -231,7 +231,7 @@ jobs:
     runs-on: ${{ matrix.host_runner }}
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v2
       with:
         fetch-depth: 0
     - name: Set up Python ${{ matrix.python-version }}

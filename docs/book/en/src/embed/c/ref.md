@@ -2269,7 +2269,8 @@ In WasmEdge, developers can create the `Function`, `Memory`, `Table`, and `Globa
                                           WasmEdge_ValType_I32};
     enum WasmEdge_ValType ReturnList[1] = {WasmEdge_ValType_I32};
     /* Create a function type: {i32, i32} -> {i32}. */
-    HostFType = WasmEdge_FunctionTypeCreate(ParamList, 2, ReturnList, 1);
+    WasmEdge_FunctionTypeContext *HostFType =
+        WasmEdge_FunctionTypeCreate(ParamList, 2, ReturnList, 1);
     /*
      * Create a function context with the function type and host function body.
      * The `Cost` parameter can be 0 if developers do not need the cost
@@ -2282,6 +2283,7 @@ In WasmEdge, developers can create the `Function`, `Memory`, `Table`, and `Globa
      * Developers should guarantee the life cycle of the data, and it can be
      * `NULL` if the external data is not needed.
      */
+    WasmEdge_FunctionTypeDelete(HostType);
 
     /*
      * If the function instance is __NOT__ added into a module instance context,

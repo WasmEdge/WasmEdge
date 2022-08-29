@@ -877,25 +877,25 @@ Expect<void> Loader::loadImportDecl(AST::ImportDecl &Import) {
     Import.setName(*Res);
   } else {
     return logLoadError(Res.error(), FMgr.getLastOffset(),
-                        ASTNodeAttr::CompSec_Import);
+                        ASTNodeAttr::Comp_ImportDecl);
   }
 
   auto B = FMgr.readByte();
   if (!B) {
     return logLoadError(B.error(), FMgr.getLastOffset(),
-                        ASTNodeAttr::CompSec_Import);
+                        ASTNodeAttr::Comp_ImportDecl);
   }
   switch (*B) {
   case 0x00: {
     // 0x00 0x11 i:<core:typeidx>           => (core module (type i))
     if (auto Res = FMgr.readByte(); !Res.has_value() || Res.value() != 0x11) {
       return logLoadError(Res.error(), FMgr.getLastOffset(),
-                          ASTNodeAttr::CompSec_Import);
+                          ASTNodeAttr::Comp_ImportDecl);
     }
     auto TypeIdx = FMgr.readU32();
     if (!TypeIdx.has_value()) {
       return logLoadError(TypeIdx.error(), FMgr.getLastOffset(),
-                          ASTNodeAttr::CompSec_Import);
+                          ASTNodeAttr::Comp_ImportDecl);
     }
     Import.getExtern() = AST::ExternDesc::CoreType(TypeIdx.value());
     return {};
@@ -905,7 +905,7 @@ Expect<void> Loader::loadImportDecl(AST::ImportDecl &Import) {
     auto TypeIdx = FMgr.readU32();
     if (!TypeIdx.has_value()) {
       return logLoadError(TypeIdx.error(), FMgr.getLastOffset(),
-                          ASTNodeAttr::CompSec_Import);
+                          ASTNodeAttr::Comp_ImportDecl);
     }
     Import.getExtern() = AST::ExternDesc::FuncType(TypeIdx.value());
     return {};
@@ -920,12 +920,12 @@ Expect<void> Loader::loadImportDecl(AST::ImportDecl &Import) {
     // 0x03 b:<typebound>                   => (type b)
     if (auto Res = FMgr.readByte(); !Res.has_value() || Res.value() != 0x00) {
       return logLoadError(Res.error(), FMgr.getLastOffset(),
-                          ASTNodeAttr::CompSec_Import);
+                          ASTNodeAttr::Comp_ImportDecl);
     }
     auto TypeIdx = FMgr.readU32();
     if (!TypeIdx.has_value()) {
       return logLoadError(TypeIdx.error(), FMgr.getLastOffset(),
-                          ASTNodeAttr::CompSec_Import);
+                          ASTNodeAttr::Comp_ImportDecl);
     }
     Import.getExtern() = AST::ExternDesc::TypeBound(TypeIdx.value());
     return {};
@@ -935,7 +935,7 @@ Expect<void> Loader::loadImportDecl(AST::ImportDecl &Import) {
     auto TypeIdx = FMgr.readU32();
     if (!TypeIdx.has_value()) {
       return logLoadError(TypeIdx.error(), FMgr.getLastOffset(),
-                          ASTNodeAttr::CompSec_Import);
+                          ASTNodeAttr::Comp_ImportDecl);
     }
     Import.getExtern() = AST::ExternDesc::InstanceType(TypeIdx.value());
     return {};
@@ -945,14 +945,14 @@ Expect<void> Loader::loadImportDecl(AST::ImportDecl &Import) {
     auto TypeIdx = FMgr.readU32();
     if (!TypeIdx.has_value()) {
       return logLoadError(TypeIdx.error(), FMgr.getLastOffset(),
-                          ASTNodeAttr::CompSec_Import);
+                          ASTNodeAttr::Comp_ImportDecl);
     }
     Import.getExtern() = AST::ExternDesc::ComponentType(TypeIdx.value());
     return {};
   }
   default:
     return logLoadError(B.error(), FMgr.getLastOffset(),
-                        ASTNodeAttr::CompSec_Import);
+                        ASTNodeAttr::Comp_ImportDecl);
   }
 }
 
@@ -971,7 +971,7 @@ Expect<void> Loader::loadExportDecl(AST::ExportDecl &Export) {
     return loadSortIndex(Export.getExtern());
   } else {
     return logLoadError(Res.error(), FMgr.getLastOffset(),
-                        ASTNodeAttr::CompSec_Export);
+                        ASTNodeAttr::Comp_ExportDecl);
   }
 }
 

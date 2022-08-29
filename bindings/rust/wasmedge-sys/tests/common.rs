@@ -1,5 +1,5 @@
-use wasmedge_sys::{AsImport, FuncType, Function, ImportModule, WasmValue};
-use wasmedge_types::ValType;
+use wasmedge_sys::{AsImport, CallingFrame, FuncType, Function, ImportModule, WasmValue};
+use wasmedge_types::{error::HostFuncError, ValType};
 
 pub fn create_extern_module(name: impl AsRef<str>) -> ImportModule {
     // create an import module
@@ -58,11 +58,11 @@ pub fn create_extern_module(name: impl AsRef<str>) -> ImportModule {
     import
 }
 
-fn extern_add(inputs: Vec<WasmValue>) -> Result<Vec<WasmValue>, u8> {
+fn extern_add(_: &CallingFrame, inputs: Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError> {
     let val1 = if inputs[0].ty() == ValType::ExternRef {
         inputs[0]
     } else {
-        return Err(2);
+        return Err(HostFuncError::User(2));
     };
     let val1 = val1
         .extern_ref::<i32>()
@@ -71,17 +71,17 @@ fn extern_add(inputs: Vec<WasmValue>) -> Result<Vec<WasmValue>, u8> {
     let val2 = if inputs[1].ty() == ValType::I32 {
         inputs[1].to_i32()
     } else {
-        return Err(3);
+        return Err(HostFuncError::User(3));
     };
 
     Ok(vec![WasmValue::from_i32(val1 + val2)])
 }
 
-fn extern_sub(inputs: Vec<WasmValue>) -> Result<Vec<WasmValue>, u8> {
+fn extern_sub(_: &CallingFrame, inputs: Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError> {
     let val1 = if inputs[0].ty() == ValType::ExternRef {
         inputs[0]
     } else {
-        return Err(2);
+        return Err(HostFuncError::User(2));
     };
 
     let val1 = val1
@@ -91,17 +91,17 @@ fn extern_sub(inputs: Vec<WasmValue>) -> Result<Vec<WasmValue>, u8> {
     let val2 = if inputs[1].ty() == ValType::I32 {
         inputs[1].to_i32()
     } else {
-        return Err(3);
+        return Err(HostFuncError::User(3));
     };
 
     Ok(vec![WasmValue::from_i32(val1 - val2)])
 }
 
-fn extern_mul(inputs: Vec<WasmValue>) -> Result<Vec<WasmValue>, u8> {
+fn extern_mul(_: &CallingFrame, inputs: Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError> {
     let val1 = if inputs[0].ty() == ValType::ExternRef {
         inputs[0]
     } else {
-        return Err(2);
+        return Err(HostFuncError::User(2));
     };
     let val1 = val1
         .extern_ref::<i32>()
@@ -110,17 +110,17 @@ fn extern_mul(inputs: Vec<WasmValue>) -> Result<Vec<WasmValue>, u8> {
     let val2 = if inputs[1].ty() == ValType::I32 {
         inputs[1].to_i32()
     } else {
-        return Err(3);
+        return Err(HostFuncError::User(3));
     };
 
     Ok(vec![WasmValue::from_i32(val1 * val2)])
 }
 
-fn extern_div(inputs: Vec<WasmValue>) -> Result<Vec<WasmValue>, u8> {
+fn extern_div(_: &CallingFrame, inputs: Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError> {
     let val1 = if inputs[0].ty() == ValType::ExternRef {
         inputs[0]
     } else {
-        return Err(2);
+        return Err(HostFuncError::User(2));
     };
     let val1 = val1
         .extern_ref::<i32>()
@@ -129,16 +129,16 @@ fn extern_div(inputs: Vec<WasmValue>) -> Result<Vec<WasmValue>, u8> {
     let val2 = if inputs[1].ty() == ValType::I32 {
         inputs[1].to_i32()
     } else {
-        return Err(3);
+        return Err(HostFuncError::User(3));
     };
 
     Ok(vec![WasmValue::from_i32(val1 / val2)])
 }
 
-fn extern_term(_inputs: Vec<WasmValue>) -> Result<Vec<WasmValue>, u8> {
+fn extern_term(_: &CallingFrame, _inputs: Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError> {
     Ok(vec![WasmValue::from_i32(1234)])
 }
 
-fn extern_fail(_inputs: Vec<WasmValue>) -> Result<Vec<WasmValue>, u8> {
-    Err(0x02)
+fn extern_fail(_: &CallingFrame, _inputs: Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError> {
+    Err(HostFuncError::User(2))
 }

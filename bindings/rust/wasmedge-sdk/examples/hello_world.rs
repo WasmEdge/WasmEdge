@@ -1,15 +1,19 @@
 // If the version of rust used is less than v1.63, please uncomment the follow attribute.
 // #![feature(explicit_generic_args_with_impl_trait)]
 
-use wasmedge_sdk::{params, Executor, ImportObjectBuilder, Module, Store};
-use wasmedge_sys::WasmValue;
-use wasmedge_types::wat2wasm;
+use wasmedge_sdk::{
+    error::HostFuncError, params, wat2wasm, CallingFrame, Executor, ImportObjectBuilder, Module,
+    Store, WasmValue,
+};
 
 #[cfg_attr(test, test)]
 fn main() -> anyhow::Result<()> {
     // We define a function to act as our "env" "say_hello" function imported in the
     // Wasm program above.
-    fn say_hello_world(_inputs: Vec<WasmValue>) -> Result<Vec<WasmValue>, u8> {
+    fn say_hello_world(
+        _: &CallingFrame,
+        _: Vec<WasmValue>,
+    ) -> Result<Vec<WasmValue>, HostFuncError> {
         println!("Hello, world!");
 
         Ok(vec![])

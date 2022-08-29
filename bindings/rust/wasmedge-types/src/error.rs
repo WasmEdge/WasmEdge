@@ -6,6 +6,9 @@ use thiserror::Error;
 /// The error types used by both wasmedge-sys and wasmedge crates.
 #[derive(Error, Clone, Debug, PartialEq, Eq)]
 pub enum WasmEdgeError {
+    #[error("{0}")]
+    User(u32),
+
     /// Errors raised by WasmEdge Core.
     #[error("{0}")]
     Core(CoreError),
@@ -164,14 +167,16 @@ pub enum InstanceError {
     CreateWasmEdgeProcess,
     #[error("Fail to create ImportModule context")]
     CreateImportModule,
-    #[error("Fail to find the target function ({0})")]
+    #[error("Not found the target function ({0})")]
     NotFoundFunc(String),
-    #[error("Fail to find the target table ({0})")]
+    #[error("Not found the target table ({0})")]
     NotFoundTable(String),
-    #[error("Fail to find the target memory ({0})")]
+    #[error("Not found the target memory ({0})")]
     NotFoundMem(String),
-    #[error("Fail to find the target global ({0})")]
+    #[error("Not found the target global ({0})")]
     NotFoundGlobal(String),
+    #[error("Not found the given mapped Fd/handler")]
+    NotFoundMappedFdHandler,
 }
 
 /// The error types for WasmEdge Store.
@@ -427,11 +432,19 @@ pub enum CoreExecutionError {
     #[error("indirect call type mismatch")]
     IndirectCallTypeMismatch,
     #[error("host function failed")]
-    HostFuncError,
+    HostFuncFailed,
     #[error("reference type mismatch")]
     RefTypeMismatch,
     #[error("unaligned atomic")]
     UnalignedAtomicAccess,
     #[error("wait on unshared memory")]
     WaitOnUnsharedMemory,
+}
+
+#[derive(Error, Clone, Debug, PartialEq, Eq)]
+pub enum HostFuncError {
+    #[error("User error: {0}")]
+    User(u32),
+    #[error("Runtime error: {0}")]
+    Runtime(u32),
 }

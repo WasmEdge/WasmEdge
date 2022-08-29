@@ -109,6 +109,40 @@ impl Memory {
         self.inner.grow(count)?;
         Ok(())
     }
+
+    /// Returns the const data pointer to the [Memory].
+    ///
+    /// # Arguments
+    ///
+    /// * `offset` - The data start offset in the [Memory].
+    ///
+    /// * `len` - The requested data length. If the size of `offset` + `len` is larger
+    /// than the data size in the [Memory]
+    ///   
+    ///
+    /// # Errors
+    ///
+    /// If fail to get the data pointer, then an error is returned.
+    ///
+    pub fn data_pointer(&self, offset: u32, len: u32) -> WasmEdgeResult<&u8> {
+        self.inner.data_pointer(offset, len)
+    }
+
+    /// Returns the data pointer to the [Memory].
+    ///
+    /// # Arguments
+    ///
+    /// * `offset` - The data start offset in the [Memory].
+    ///
+    /// * `len` - The requested data length. If the size of `offset` + `len` is larger than the data size in the [Memory]
+    ///
+    /// # Errors
+    ///
+    /// If fail to get the data pointer, then an error is returned.
+    ///
+    pub fn data_pointer_mut(&mut self, offset: u32, len: u32) -> WasmEdgeResult<&mut u8> {
+        self.inner.data_pointer_mut(offset, len)
+    }
 }
 
 #[cfg(test)]

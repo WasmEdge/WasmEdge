@@ -2,7 +2,7 @@
 
 In this example, we'll use a wasm module, in which a function `run` is exported and it will call a function `say_hello` from an import module named `env`. The imported function `say_hello` has no inputs and outputs, and only prints a greeting message out.
 
-N.B. In this example, `wasmedge-sdk v0.1.1`, `wasmedge-sys v0.7.1` and `wasmedge-types v0.1.3` are used.
+N.B. In this example, `wasmedge-sdk v0.4.0`, `wasmedge-sys v0.9.0` and `wasmedge-types v0.2.1` are used.
 
 Let's start off by getting all imports right away so you can follow along
 
@@ -10,9 +10,10 @@ Let's start off by getting all imports right away so you can follow along
 // please add this feature if you're using rust of version < 1.63
 // #![feature(explicit_generic_args_with_impl_trait)]
 
-use wasmedge_sdk::{params, Executor, ImportObjectBuilder, Module, Store};
-use wasmedge_sys::WasmValue;
-use wasmedge_types::wat2wasm;
+use wasmedge_sdk::{
+    error::HostFuncError, params, wat2wasm, CallingFrame, Executor, ImportObjectBuilder, Module,
+    Store, WasmValue,
+};
 ```
 
 ## Step 1: Define a native function and Create an ImportObject
@@ -20,7 +21,10 @@ use wasmedge_types::wat2wasm;
 First, let's define a native function named `say_hello_world` that prints out `Hello, World!`.
 
 ```rust
-fn say_hello_world(_inputs: Vec<WasmValue>) -> Result<Vec<WasmValue>, u8> {
+fn say_hello_world(
+    _: &CallingFrame,
+    _: Vec<WasmValue>,
+) -> Result<Vec<WasmValue>, HostFuncError> {
     println!("Hello, world!");
 
     Ok(vec![])
@@ -89,7 +93,8 @@ store.register_import_module(&mut executor, &import)?;
 let extern_instance = store.register_named_module(&mut executor, "extern", &module)?;
 ```
 
-In the code above we use [Executor](https://wasmedge.github.io/WasmEdge/wasmedge_sdk/struct.Executor.html) and [Store](https://wasmedge.github.io/WasmEdge/wasmedge_sdk/struct.Store.html) to register the import module and the compiled module. `wasmedge-sdk` also provides alternative APIs to do the same thing: [Vm::register_import_module](https://wasmedge.github.io/WasmEdge/wasmedge_sdk/struct.Vm.html#method.register_import_module) and [Vm::register_module_from_bytes](https://wasmedge.github.io/WasmEdge/wasmedge_sdk/struct.Vm.html#method.register_module_from_bytes).
+In the code above we use [Executor](https://wasmedge.github.io/WasmEdge/wasmedge_sdk/struct.Executor.html) and [Store](https://wasmedge.github.io/WasmEdge/wasmedge_sdk/struct.Store.html) to register the import module and the compiled module. `wasmedge-sdk` also provides alternative APIs to do the same thing:
+[Vm::register_import_module](https://wasmedge.github.io/WasmEdge/wasmedge_sdk/struct.Vm.html#method.register_import_module) and [Vm::register_module_from_bytes](https://wasmedge.github.io/WasmEdge/wasmedge_sdk/struct.Vm.html#method.register_module_from_bytes).
 
 ## Step 4: Run the exported function
 

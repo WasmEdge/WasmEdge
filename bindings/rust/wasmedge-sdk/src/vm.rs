@@ -477,11 +477,12 @@ mod tests {
             CommonConfigOptions, ConfigBuilder, HostRegistrationConfigOptions,
             StatisticsConfigOptions,
         },
+        error::HostFuncError,
         io::WasmVal,
         params,
         types::Val,
-        wat2wasm, AsInstance, Global, GlobalType, ImportObjectBuilder, Memory, MemoryType,
-        Mutability, RefType, Table, TableType, ValType,
+        wat2wasm, AsInstance, CallingFrame, Global, GlobalType, ImportObjectBuilder, Memory,
+        MemoryType, Mutability, RefType, Table, TableType, ValType,
     };
     use wasmedge_sys::WasmValue;
 
@@ -1217,21 +1218,24 @@ mod tests {
         assert_eq!(returns[0].to_i32(), 8)
     }
 
-    fn real_add(inputs: Vec<WasmValue>) -> std::result::Result<Vec<WasmValue>, u8> {
+    fn real_add(
+        _: &CallingFrame,
+        inputs: Vec<WasmValue>,
+    ) -> std::result::Result<Vec<WasmValue>, HostFuncError> {
         if inputs.len() != 2 {
-            return Err(1);
+            return Err(HostFuncError::User(1));
         }
 
         let a = if inputs[0].ty() == ValType::I32 {
             inputs[0].to_i32()
         } else {
-            return Err(2);
+            return Err(HostFuncError::User(2));
         };
 
         let b = if inputs[1].ty() == ValType::I32 {
             inputs[1].to_i32()
         } else {
-            return Err(3);
+            return Err(HostFuncError::User(3));
         };
 
         let c = a + b;

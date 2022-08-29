@@ -57,6 +57,7 @@ jobs:
           echo "<meta http-equiv=\"refresh\" content=\"0; url=wasmedge_sys\">" > target/doc/index.html
 
       - name: Deploy Docs
+        if: github.ref_type == 'tag'
         uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}

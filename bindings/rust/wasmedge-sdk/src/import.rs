@@ -1,5 +1,8 @@
-use crate::{io::WasmValTypeList, FuncType, Global, Memory, Table, WasmEdgeResult};
-use wasmedge_sys::{self as sys, AsImport, WasmValue};
+use crate::{
+    error::HostFuncError, io::WasmValTypeList, CallingFrame, FuncType, Global, Memory, Table,
+    WasmEdgeResult, WasmValue,
+};
+use wasmedge_sys::{self as sys, AsImport};
 
 /// Creates a normal, wasi, or wasmedge process [import object](crate::ImportObject).
 ///
@@ -14,27 +17,28 @@ use wasmedge_sys::{self as sys, AsImport, WasmValue};
 /// use wasmedge_sdk::{
 ///     types::Val,
 ///     Global, ImportObjectBuilder, Memory, Table,
+///     error::HostFuncError, WasmValue, GlobalType,
+///     MemoryType, Mutability, RefType, TableType,
+///     ValType, CallingFrame,
 /// };
-/// use wasmedge_sys::types::WasmValue;
-/// use wasmedge_types::{GlobalType, MemoryType, Mutability, RefType, TableType, ValType};
 ///
 /// fn main() -> Result<(), Box<dyn std::error::Error>> {
 ///     // a native function to be imported as host function
-///     fn real_add(inputs: Vec<WasmValue>) -> std::result::Result<Vec<WasmValue>, u8> {
+///     fn real_add(_: &CallingFrame, inputs: Vec<WasmValue>) -> std::result::Result<Vec<WasmValue>, HostFuncError> {
 ///         if inputs.len() != 2 {
-///             return Err(1);
+///             return Err(HostFuncError::User(1));
 ///         }
 ///
 ///         let a = if inputs[0].ty() == ValType::I32 {
 ///             inputs[0].to_i32()
 ///         } else {
-///             return Err(2);
+///             return Err(HostFuncError::User(2));
 ///         };
 ///
 ///         let b = if inputs[1].ty() == ValType::I32 {
 ///             inputs[1].to_i32()
 ///         } else {
-///             return Err(3);
+///             return Err(HostFuncError::User(3));
 ///         };
 ///
 ///         let c = a + b;
@@ -92,7 +96,7 @@ impl ImportObjectBuilder {
 
     /// Adds a [host function](crate::Func) to the [ImportObject] to create.
     ///
-    /// N.B. that this function is used for thread-safe scenarios.
+    /// N.B. that this function can be used in thread-safe scenarios.
     ///
     /// # Arguments
     ///
@@ -106,7 +110,10 @@ impl ImportObjectBuilder {
     pub fn with_func<Args, Rets>(
         mut self,
         name: impl AsRef<str>,
-        real_func: impl Fn(Vec<WasmValue>) -> Result<Vec<WasmValue>, u8> + Send + Sync + 'static,
+        real_func: impl Fn(&CallingFrame, Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError>
+            + Send
+            + Sync
+            + 'static,
     ) -> WasmEdgeResult<Self>
     where
         Args: WasmValTypeList,
@@ -116,6 +123,36 @@ impl ImportObjectBuilder {
         let args = Args::wasm_types();
         let returns = Rets::wasm_types();
         let ty = FuncType::new(Some(args.to_vec()), Some(returns.to_vec()));
+        let inner_func = sys::Function::create(&ty.into(), boxed_func, 0)?;
+        self.funcs.push((name.as_ref().to_owned(), inner_func));
+        Ok(self)
+    }
+
+    /// Adds a [host function](crate::Func) to the [ImportObject] to create.
+    ///
+    /// N.B. that this function can be used in thread-safe scenarios.
+    ///
+    /// # Arguments
+    ///
+    /// * `name` - The exported name of the [host function](crate::Func) to add.
+    ///
+    /// * `ty` - The function type.
+    ///
+    /// * `real_func` - The native function.
+    ///
+    /// # error
+    ///
+    /// If fail to create or add the [host function](crate::Func), then an error is returned.
+    pub fn with_func_by_type(
+        mut self,
+        name: impl AsRef<str>,
+        ty: FuncType,
+        real_func: impl Fn(&CallingFrame, Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError>
+            + Send
+            + Sync
+            + 'static,
+    ) -> WasmEdgeResult<Self> {
+        let boxed_func = Box::new(real_func);
         let inner_func = sys::Function::create(&ty.into(), boxed_func, 0)?;
         self.funcs.push((name.as_ref().to_owned(), inner_func));
         Ok(self)
@@ -137,7 +174,8 @@ impl ImportObjectBuilder {
     pub fn with_func_single_thread<Args, Rets>(
         mut self,
         name: impl AsRef<str>,
-        real_func: impl Fn(Vec<WasmValue>) -> Result<Vec<WasmValue>, u8> + 'static,
+        real_func: impl Fn(&CallingFrame, Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError>
+            + 'static,
     ) -> WasmEdgeResult<Self>
     where
         Args: WasmValTypeList,
@@ -1087,7 +1125,7 @@ mod tests {
             .expect("failed to add memory")
             .with_table("table", table)
             .expect("failed to add table")
-            .build("extern-module");
+            .build("extern-module-send");
         assert!(result.is_ok());
         let import = result.unwrap();
 
@@ -1115,11 +1153,11 @@ mod tests {
             assert!(result.is_ok());
 
             // get active module instance
-            let result = store.module_instance("extern-module");
+            let result = store.module_instance("extern-module-send");
             assert!(result.is_some());
             let instance = result.unwrap();
             assert!(instance.name().is_some());
-            assert_eq!(instance.name().unwrap(), "extern-module");
+            assert_eq!(instance.name().unwrap(), "extern-module-send");
 
             // check the exported global
             let result = instance.global("global");
@@ -1152,7 +1190,7 @@ mod tests {
             assert!(table.name().is_some());
             assert_eq!(table.name().unwrap(), "table");
             assert!(table.mod_name().is_some());
-            assert_eq!(table.mod_name().unwrap(), "extern-module");
+            assert_eq!(table.mod_name().unwrap(), "extern-module-send");
             assert_eq!(table.size(), 10);
             let result = table.ty();
             assert!(result.is_ok());
@@ -1213,7 +1251,7 @@ mod tests {
             .expect("failed to add memory")
             .with_table("table", table)
             .expect("failed to add table")
-            .build("extern-module");
+            .build("extern-module-sync");
         assert!(result.is_ok());
         let import = result.unwrap();
         let import = Arc::new(Mutex::new(import));
@@ -1247,11 +1285,11 @@ mod tests {
             assert!(result.is_ok());
 
             // get active module instance
-            let result = store.module_instance("extern-module");
+            let result = store.module_instance("extern-module-sync");
             assert!(result.is_some());
             let instance = result.unwrap();
             assert!(instance.name().is_some());
-            assert_eq!(instance.name().unwrap(), "extern-module");
+            assert_eq!(instance.name().unwrap(), "extern-module-sync");
 
             // check the exported global
             let result = instance.global("global");
@@ -1284,7 +1322,7 @@ mod tests {
             assert!(table.name().is_some());
             assert_eq!(table.name().unwrap(), "table");
             assert!(table.mod_name().is_some());
-            assert_eq!(table.mod_name().unwrap(), "extern-module");
+            assert_eq!(table.mod_name().unwrap(), "extern-module-sync");
             assert_eq!(table.size(), 10);
             let result = table.ty();
             assert!(result.is_ok());
@@ -1317,21 +1355,24 @@ mod tests {
         handle.join().unwrap();
     }
 
-    fn real_add(inputs: Vec<WasmValue>) -> std::result::Result<Vec<WasmValue>, u8> {
+    fn real_add(
+        _: &CallingFrame,
+        inputs: Vec<WasmValue>,
+    ) -> std::result::Result<Vec<WasmValue>, HostFuncError> {
         if inputs.len() != 2 {
-            return Err(1);
+            return Err(HostFuncError::User(1));
         }
 
         let a = if inputs[0].ty() == ValType::I32 {
             inputs[0].to_i32()
         } else {
-            return Err(2);
+            return Err(HostFuncError::User(2));
         };
 
         let b = if inputs[1].ty() == ValType::I32 {
             inputs[1].to_i32()
         } else {
-            return Err(3);
+            return Err(HostFuncError::User(3));
         };
 
         let c = a + b;

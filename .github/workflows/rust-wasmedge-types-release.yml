@@ -1,4 +1,4 @@
-name: wasmedge-types crate release
+name: wasmedge-types-release
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
@@ -6,6 +6,8 @@ concurrency:
 
 on:
   push:
+    branches:
+      - "release/rust/*"
     tags:
       - "rust-types/[0-9]+.[0-9]+.[0-9]+*"
 
@@ -26,7 +28,20 @@ jobs:
         with:
           toolchain: stable
 
+      - name: Dry run wasmedge-types crate
+        if: github.ref_type == 'branch'
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        shell: bash
+        run: |
+          cd ./bindings/rust/wasmedge-types
+          git config --global user.email "runner@gha.local"
+          git config --global user.name "Github Action"
+          cargo publish --dry-run
+          cd -
+
       - name: Publish wasmedge-types crate
+        if: github.ref_type == 'tag'
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
         shell: bash
@@ -36,3 +51,4 @@ jobs:
           git config --global user.name "Github Action"
           cargo publish --dry-run
           cargo publish
+          cd -

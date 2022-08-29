@@ -5,8 +5,8 @@
 
 This example uses the following crates:
 
-* wasmedge-sys v0.7.0
-* wasmedge-types v0.1.1
+* wasmedge-sys v0.9.0
+* wasmedge-types v0.2.1
 
 ## Overview
 
@@ -43,29 +43,29 @@ In the following code, we creates two child threads, `thread_a` and `thread_b`, 
   // compute fib(4) by a child thread
   let vm_cloned = Arc::clone(&vm);
   let handle_a = thread::spawn(move || {
-    let vm_child_thread = vm_cloned.lock().expect("fail to lock vm");
-    let returns = vm_child_thread
-      .run_registered_function("extern", "fib", [WasmValue::from_i32(4)])
-      .expect("fail to compute fib(4)");
+      let vm_child_thread = vm_cloned.lock().expect("fail to lock vm");
+      let returns = vm_child_thread
+          .run_registered_function("extern", "fib", [WasmValue::from_i32(4)])
+          .expect("fail to compute fib(4)");
 
-    let fib4 = returns[0].to_i32();
-    println!("fib(4) by child thread: {}", fib4);
+      let fib4 = returns[0].to_i32();
+      println!("fib(4) by child thread: {}", fib4);
 
-    fib4
+      fib4
   });
 
   // compute fib(5) by a child thread
   let vm_cloned = Arc::clone(&vm);
   let handle_b = thread::spawn(move || {
-    let vm_child_thread = vm_cloned.lock().expect("fail to lock vm");
-    let returns = vm_child_thread
-      .run_registered_function("extern", "fib", [WasmValue::from_i32(5)])
-      .expect("fail to compute fib(5)");
+      let vm_child_thread = vm_cloned.lock().expect("fail to lock vm");
+      let returns = vm_child_thread
+          .run_registered_function("extern", "fib", [WasmValue::from_i32(5)])
+          .expect("fail to compute fib(5)");
 
-    let fib5 = returns[0].to_i32();
-    println!("fib(5) by child thread: {}", fib5);
+      let fib5 = returns[0].to_i32();
+      println!("fib(5) by child thread: {}", fib5);
 
-    fib5
+      fib5
   });
 
   ```

@@ -17,60 +17,56 @@
 
 #include <cstdint>
 #include <string>
+#include <variant>
 
 namespace WasmEdge {
 namespace AST {
 
-class ExternDesc {
-public:
-  class CoreType;
-  class FuncType;
-  class ValType;
-  class TypeBound;
-  class InstanceType;
-  class ComponentType;
-};
+namespace ExternDesc {
 
-class ExternDesc::CoreType : public ExternDesc {
+class CoreType {
 public:
+  CoreType() = default;
   CoreType(uint32_t TypeIdx) : TypeIdx{TypeIdx} {}
   uint32_t getTypeIdx() const noexcept { return TypeIdx; }
 
 private:
   uint32_t TypeIdx;
 };
-
-class ExternDesc::FuncType : public ExternDesc {
+class FuncType {
 public:
+  FuncType() = default;
   FuncType(uint32_t TypeIdx) : TypeIdx{TypeIdx} {}
   uint32_t getTypeIdx() const noexcept { return TypeIdx; }
 
 private:
   uint32_t TypeIdx;
 };
-
-class ExternDesc::ValType : public ExternDesc, public ValueType {};
-
-class ExternDesc::TypeBound : public ExternDesc {
+class ValType : public ValueType {
 public:
+  ValType() = default;
+};
+class TypeBound {
+public:
+  TypeBound() = default;
   TypeBound(uint32_t TypeIdx) : TypeIdx{TypeIdx} {}
   uint32_t getTypeIdx() const noexcept { return TypeIdx; }
 
 private:
   uint32_t TypeIdx;
 };
-
-class ExternDesc::InstanceType : public ExternDesc {
+class InstanceType {
 public:
+  InstanceType() = default;
   InstanceType(uint32_t TypeIdx) : TypeIdx{TypeIdx} {}
   uint32_t getTypeIdx() const noexcept { return TypeIdx; }
 
 private:
   uint32_t TypeIdx;
 };
-
-class ExternDesc::ComponentType : public ExternDesc {
+class ComponentType {
 public:
+  ComponentType() = default;
   ComponentType(uint32_t TypeIdx) : TypeIdx{TypeIdx} {}
   uint32_t getTypeIdx() const noexcept { return TypeIdx; }
 
@@ -78,18 +74,23 @@ private:
   uint32_t TypeIdx;
 };
 
+using T = std::variant<CoreType, FuncType, ValType, TypeBound, InstanceType,
+                       ComponentType>;
+
+} // namespace ExternDesc
+
 // (import <name> <extern desc>)
 class ImportDecl {
 public:
   std::string_view getName() const noexcept { return Name; }
   void setName(std::string_view N) { Name = N; }
 
-  const ExternDesc &getExtern() const noexcept { return Extern; }
-  ExternDesc &getExtern() noexcept { return Extern; }
+  const ExternDesc::T &getExtern() const noexcept { return Extern; }
+  ExternDesc::T &getExtern() noexcept { return Extern; }
 
 private:
   std::string Name;
-  ExternDesc Extern;
+  ExternDesc::T Extern;
 };
 
 } // namespace AST

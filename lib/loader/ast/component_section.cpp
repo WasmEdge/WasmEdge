@@ -897,7 +897,8 @@ Expect<void> Loader::loadImportDecl(AST::ImportDecl &Import) {
       return logLoadError(TypeIdx.error(), FMgr.getLastOffset(),
                           ASTNodeAttr::Comp_ImportDecl);
     }
-    Import.getExtern() = AST::ExternDesc::CoreType(TypeIdx.value());
+    Import.getExtern().emplace<AST::ExternDesc::CoreType>(
+        AST::ExternDesc::CoreType(TypeIdx.value()));
     return {};
   }
   case 0x01: {
@@ -907,14 +908,14 @@ Expect<void> Loader::loadImportDecl(AST::ImportDecl &Import) {
       return logLoadError(TypeIdx.error(), FMgr.getLastOffset(),
                           ASTNodeAttr::Comp_ImportDecl);
     }
-    Import.getExtern() = AST::ExternDesc::FuncType(TypeIdx.value());
+    Import.getExtern().emplace<AST::ExternDesc::FuncType>(
+        AST::ExternDesc::FuncType(TypeIdx.value()));
     return {};
   }
   case 0x02: {
     // 0x02 t:<valtype>                     => (value t)
-    AST::ExternDesc::ValType Ty;
-    Import.getExtern() = Ty;
-    return loadValType(Ty);
+    Import.getExtern().emplace<AST::ExternDesc::ValType>();
+    return loadValType(std::get<AST::ExternDesc::ValType>(Import.getExtern()));
   }
   case 0x03: {
     // 0x03 b:<typebound>                   => (type b)
@@ -927,7 +928,8 @@ Expect<void> Loader::loadImportDecl(AST::ImportDecl &Import) {
       return logLoadError(TypeIdx.error(), FMgr.getLastOffset(),
                           ASTNodeAttr::Comp_ImportDecl);
     }
-    Import.getExtern() = AST::ExternDesc::TypeBound(TypeIdx.value());
+    Import.getExtern().emplace<AST::ExternDesc::TypeBound>(
+        AST::ExternDesc::TypeBound(TypeIdx.value()));
     return {};
   }
   case 0x04: {
@@ -937,7 +939,8 @@ Expect<void> Loader::loadImportDecl(AST::ImportDecl &Import) {
       return logLoadError(TypeIdx.error(), FMgr.getLastOffset(),
                           ASTNodeAttr::Comp_ImportDecl);
     }
-    Import.getExtern() = AST::ExternDesc::InstanceType(TypeIdx.value());
+    Import.getExtern().emplace<AST::ExternDesc::InstanceType>(
+        AST::ExternDesc::InstanceType(TypeIdx.value()));
     return {};
   }
   case 0x05: {
@@ -947,7 +950,8 @@ Expect<void> Loader::loadImportDecl(AST::ImportDecl &Import) {
       return logLoadError(TypeIdx.error(), FMgr.getLastOffset(),
                           ASTNodeAttr::Comp_ImportDecl);
     }
-    Import.getExtern() = AST::ExternDesc::ComponentType(TypeIdx.value());
+    Import.getExtern().emplace<AST::ExternDesc::ComponentType>(
+        AST::ExternDesc::ComponentType(TypeIdx.value()));
     return {};
   }
   default:

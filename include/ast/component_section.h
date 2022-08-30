@@ -52,13 +52,13 @@ private:
 class CoreInstanceSection : public Section {
 public:
   /// Getter of content module.
-  Span<const CoreInstance> getContent() const noexcept { return Content; }
-  std::vector<CoreInstance> &getContent() noexcept { return Content; }
+  Span<const CoreInstance::T> getContent() const noexcept { return Content; }
+  std::vector<CoreInstance::T> &getContent() noexcept { return Content; }
 
 private:
   /// \name Data of CoreInstanceSection.
   /// @{
-  std::vector<CoreInstance> Content;
+  std::vector<CoreInstance::T> Content;
   /// @}
 };
 

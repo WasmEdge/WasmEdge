@@ -42,10 +42,6 @@ public:
 private:
   uint32_t TypeIdx;
 };
-class ValType : public ValueType {
-public:
-  ValType() = default;
-};
 class TypeBound {
 public:
   TypeBound() = default;
@@ -74,7 +70,7 @@ private:
   uint32_t TypeIdx;
 };
 
-using T = std::variant<CoreType, FuncType, ValType, TypeBound, InstanceType,
+using T = std::variant<CoreType, FuncType, ValueType, TypeBound, InstanceType,
                        ComponentType>;
 
 } // namespace ExternDesc

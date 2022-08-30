@@ -265,7 +265,7 @@ We can run the WebAssembly-based image from Docker Hub in the Kubernetes cluster
 ### Cloud Side
 
 ```bash
-$ kubectl run -it --restart=Never wasi-demo --image=hydai/wasm-wasi-example:with-wasm-annotation --annotations="module.wasm.image/variant=compat-smart" /wasi_example_main.wasm 50000000
+$ kubectl run -it --restart=Never wasi-demo --image=wasmedge/example-wasi:latest --annotations="module.wasm.image/variant=compat-smart" /wasi_example_main.wasm 50000000
 
 Random number: -1694733782
 Random bytes: [6, 226, 176, 126, 136, 114, 90, 2, 216, 17, 241, 217, 143, 189, 123, 197, 17, 60, 49, 37, 71, 69, 67, 108, 66, 39, 105, 9, 6, 72, 232, 238, 102, 5, 148, 243, 249, 183, 52, 228, 54, 176, 63, 249, 216, 217, 46, 74, 88, 204, 130, 191, 182, 19, 118, 193, 77, 35, 189, 6, 139, 68, 163, 214, 231, 100, 138, 246, 185, 47, 37, 49, 3, 7, 176, 97, 68, 124, 20, 235, 145, 166, 142, 159, 114, 163, 186, 46, 161, 144, 191, 211, 69, 19, 179, 241, 8, 207, 8, 112, 80, 170, 33, 51, 251, 33, 105, 0, 178, 175, 129, 225, 112, 126, 102, 219, 106, 77, 242, 104, 198, 238, 193, 247, 23, 47, 22, 29]
@@ -296,8 +296,8 @@ IPs:          <none>
 Containers:
   wasi-demo:
     Container ID:  cri-o://1ae4d0d7f671050331a17e9b61b5436bf97ad35ad0358bef043ab820aed81069
-    Image:         hydai/wasm-wasi-example:with-wasm-annotation
-    Image ID:      docker.io/hydai/wasm-wasi-example@sha256:525aab8d6ae8a317fd3e83cdac14b7883b92321c7bec72a545edf276bb2100d6
+    Image:         wasmedge/example-wasi:latest
+    Image ID:      docker.io/wasmedge/example-wasi@sha256:525aab8d6ae8a317fd3e83cdac14b7883b92321c7bec72a545edf276bb2100d6
     Port:          <none>
     Host Port:     <none>
     Args:

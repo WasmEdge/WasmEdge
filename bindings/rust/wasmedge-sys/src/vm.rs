@@ -1024,16 +1024,17 @@ unsafe impl Sync for InnerVm {}
 #[cfg(test)]
 mod tests {
     use super::Vm;
-    #[cfg(unix)]
-    use crate::{
-        error::CoreInstantiationError, AsImport, FuncType, Function, ImportObject, WasiModule,
-    };
     use crate::{
         error::{
             CoreCommonError, CoreError, CoreExecutionError, CoreLoadError, InstanceError, VmError,
             WasmEdgeError,
         },
         Config, Loader, Module, Store, WasmValue,
+    };
+    #[cfg(unix)]
+    use crate::{
+        error::{CoreInstantiationError, HostFuncError},
+        AsImport, CallingFrame, FuncType, Function, ImportObject, WasiModule,
     };
     #[cfg(target_os = "linux")]
     use crate::{utils, ImportModule, WasmEdgeProcessModule};
@@ -2528,21 +2529,21 @@ mod tests {
     }
 
     #[cfg(unix)]
-    fn real_add(inputs: Vec<WasmValue>) -> Result<Vec<WasmValue>, u8> {
+    fn real_add(_: &CallingFrame, inputs: Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError> {
         if inputs.len() != 2 {
-            return Err(1);
+            return Err(HostFuncError::User(1));
         }
 
         let a = if inputs[0].ty() == ValType::I32 {
             inputs[0].to_i32()
         } else {
-            return Err(2);
+            return Err(HostFuncError::User(2));
         };
 
         let b = if inputs[1].ty() == ValType::I32 {
             inputs[1].to_i32()
         } else {
-            return Err(3);
+            return Err(HostFuncError::User(3));
         };
 
         // simulate a long running operation

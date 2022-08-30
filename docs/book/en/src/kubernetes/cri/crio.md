@@ -5,8 +5,8 @@
 The [GitHub repo](https://github.com/second-state/wasmedge-containers-examples/) contains scripts and Github Actions for running our example
 apps on CRI-O.
 
-* Simple WebAssembly example [Quick start](https://github.com/second-state/wasmedge-containers-examples/blob/main/crio/README.md) | [Github Actions](https://github.com/second-state/wasmedge-containers-examples/blob/main/.github/workflows/crio.yml) | [Successful run](https://github.com/second-state/wasmedge-containers-examples/runs/4317457300?check_suite_focus=true#step:4:37)
-* HTTP service example [Quick start](https://github.com/second-state/wasmedge-containers-examples/blob/main/crio/http_server/README.md) | [Github Actions](https://github.com/second-state/wasmedge-containers-examples/blob/main/.github/workflows/crio-server.yml) | [Successful run](https://github.com/second-state/wasmedge-containers-examples/runs/4317457313?check_suite_focus=true#step:4:54)
+* Simple WebAssembly example [Quick start](https://github.com/second-state/wasmedge-containers-examples/blob/main/crio/README.md) | [Github Actions](https://github.com/second-state/wasmedge-containers-examples/blob/main/.github/workflows/crio.yml)
+* HTTP service example [Quick start](https://github.com/second-state/wasmedge-containers-examples/blob/main/crio/http_server/README.md) | [Github Actions](https://github.com/second-state/wasmedge-containers-examples/blob/main/.github/workflows/crio-server.yml)
 
 In the sections below, we will explain the steps in the quick start scripts.
 
@@ -115,7 +115,7 @@ Starting the container would execute the WebAssembly program. You can see the ou
 # List the container, the state should be `Created`
 $ sudo crictl ps -a
 CONTAINER           IMAGE                                          CREATED              STATE               NAME                     ATTEMPT             POD ID
-1d056e4a8a168       hydai/wasm-wasi-example:with-wasm-annotation   About a minute ago   Created             podsandbox1-wasm-wasi   0                   7992e75df00cc
+1d056e4a8a168       wasmedge/example-wasi:latest                   About a minute ago   Created             podsandbox1-wasm-wasi   0                   7992e75df00cc
 
 # Start the container
 $ sudo crictl start $CONTAINER_ID
@@ -125,12 +125,12 @@ $ sudo crictl start $CONTAINER_ID
 # Because this example is very tiny. You may see Exited at this moment.
 $ sudo crictl ps -a
 CONTAINER           IMAGE                                          CREATED              STATE               NAME                     ATTEMPT             POD ID
-1d056e4a8a168       hydai/wasm-wasi-example:with-wasm-annotation   About a minute ago   Running             podsandbox1-wasm-wasi   0                   7992e75df00cc
+1d056e4a8a168       wasmedge/example-wasi:latest                   About a minute ago   Running             podsandbox1-wasm-wasi   0                   7992e75df00cc
 
 # When the container is finished. You can see the state becomes Exited.
 $ sudo crictl ps -a
 CONTAINER           IMAGE                                          CREATED              STATE               NAME                     ATTEMPT             POD ID
-1d056e4a8a168       hydai/wasm-wasi-example:with-wasm-annotation   About a minute ago   Exited              podsandbox1-wasm-wasi   0                   7992e75df00cc
+1d056e4a8a168       wasmedge/example-wasi:latest                   About a minute ago   Exited              podsandbox1-wasm-wasi   0                   7992e75df00cc
 
 # Check the container's logs. It should show outputs from the WebAssembly programs
 $ sudo crictl logs $CONTAINER_ID
@@ -214,7 +214,7 @@ $ sudo crictl start $CONTAINER_ID
 # If not, wait a few seconds and check again
 $ sudo crictl ps -a
 CONTAINER           IMAGE                                          CREATED                  STATE               NAME                ATTEMPT             POD ID
-4eeddf8613691       avengermojo/http_server:with-wasm-annotation   Less than a second ago   Running             http_server         0                   1d84f30e7012e
+4eeddf8613691       wasmedge/example-wasi-http:latest              Less than a second ago   Running             http_server         0                   1d84f30e7012e
 
 # Check the container's logs to see the HTTP server is listening at port 1234
 $ sudo crictl logs $CONTAINER_ID

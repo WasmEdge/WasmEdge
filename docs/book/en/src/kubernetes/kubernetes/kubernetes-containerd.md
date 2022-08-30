@@ -4,8 +4,8 @@
 
 The [GitHub repo](https://github.com/second-state/wasmedge-containers-examples/) contains scripts and Github Actions for running our example apps on Kubernetes + containerd.
 
-* Simple WebAssembly example [Quick start](https://github.com/second-state/wasmedge-containers-examples/blob/main/kubernetes_containerd/README.md) | [Github Actions](https://github.com/second-state/wasmedge-containers-examples/blob/main/.github/workflows/kubernetes-containerd.yml) | [Successful run](https://github.com/second-state/wasmedge-containers-examples/runs/4577789181?check_suite_focus=true#step:6:3010)
-* WebAssembly-based HTTP service [Quick start](https://github.com/second-state/wasmedge-containers-examples/blob/main/kubernetes_containerd/http_server/README.md) | [Github Actions](https://github.com/second-state/wasmedge-containers-examples/blob/main/.github/workflows/kubernetes-containerd-server.yml) | [Successful run](https://github.com/second-state/wasmedge-containers-examples/runs/4577789184?check_suite_focus=true#step:6:3016)
+* Simple WebAssembly example [Quick start](https://github.com/second-state/wasmedge-containers-examples/blob/main/kubernetes_containerd/README.md) | [Github Actions](https://github.com/second-state/wasmedge-containers-examples/blob/main/.github/workflows/kubernetes-containerd.yml)
+* WebAssembly-based HTTP service [Quick start](https://github.com/second-state/wasmedge-containers-examples/blob/main/kubernetes_containerd/http_server/README.md) | [Github Actions](https://github.com/second-state/wasmedge-containers-examples/blob/main/.github/workflows/kubernetes-containerd-server.yml)
 
 In the rest of this section, we will explain the steps in detail.
 We will assume that you have already [installed and configured containerd](../cri/containerd.md) to work with WasmEdge container images.
@@ -81,7 +81,7 @@ To further debug and diagnose cluster problems, use 'kubectl cluster-info dump'.
 Run the WebAssembly-based image from Docker Hub in the Kubernetes cluster as follows.
 
 ```bash
-sudo cluster/kubectl.sh run -it --rm --restart=Never wasi-demo --image=hydai/wasm-wasi-example:with-wasm-annotation --annotations="module.wasm.image/variant=compat-smart" --overrides='{"kind":"Pod", "apiVersion":"v1", "spec": {"hostNetwork": true}}' /wasi_example_main.wasm 50000000
+sudo cluster/kubectl.sh run -it --rm --restart=Never wasi-demo --image=wasmedge/example-wasi:latest --annotations="module.wasm.image/variant=compat-smart" --overrides='{"kind":"Pod", "apiVersion":"v1", "spec": {"hostNetwork": true}}' /wasi_example_main.wasm 50000000
 ```
 
 The output from the containerized application is printed into the console.
@@ -105,7 +105,7 @@ pod "wasi-demo-2" deleted
 Run the WebAssembly-based image from Docker Hub in the Kubernetes cluster as follows.
 
 ```bash
-sudo cluster/kubectl.sh run --restart=Never http-server --image=avengermojo/http_server:with-wasm-annotation --annotations="module.wasm.image/variant=compat-smart" --overrides='{"kind":"Pod", "apiVersion":"v1", "spec": {"hostNetwork": true}}'
+sudo cluster/kubectl.sh run --restart=Never http-server --image=wasmedge/example-wasi-http:latest --annotations="module.wasm.image/variant=compat-smart" --overrides='{"kind":"Pod", "apiVersion":"v1", "spec": {"hostNetwork": true}}'
 ```
 
 Since we are using `hostNetwork` in the `kubectl run` command, the HTTP server image is running on the local network with IP address `127.0.0.1`.

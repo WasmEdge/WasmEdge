@@ -59,7 +59,7 @@ EOF
 sudo sysctl --system 
 ```
 
-- Setup the value of rp-filter (adjusting the value of two parameters in /etc/sysctl.d/10-network-security.conf from 2 to 1 and setting up the value of /proc/sys/net/ipv4/ip_forward to 1)
+- Setup the value of rp-filter (adjusting the value of two parameters in `/etc/sysctl.d/10-network-security.conf` from 2 to 1 and setting up the value of /proc/sys/net/ipv4/ip_forward to 1)
 
 ```bash
 sudo vi /etc/sysctl.d/10-network-security.conf
@@ -183,7 +183,7 @@ yurtctl convert --deploy-yurttunnel --cloud-nodes oy-master --provider kubeadm\
 --yurthub-image="openyurt/yurthub:v0.5.0"
 ```
 
-We need to change the openyurt/node-server-version to latest here: --node-servant-image="openyurt/node-servant:latest"\
+We need to change the `openyurt/node-server-version` to latest here: `--node-servant-image="openyurt/node-servant:latest"`
 
 Actually, OpenYurt components 0.6.0 version is recommended to be installed and proved to be a success to run a WasmEdge demo.
 How to install OpenYurt:0.6.0, you can see [this](https://github.com/openyurtio/openyurt/releases/tag/v0.6.0)
@@ -200,10 +200,10 @@ One thing is to note that because the kubectl run (version 1.18.9 ) missed annot
 
 ```bash
 // kubectl 1.18.9
-$ sudo kubectl run -it --rm --restart=Never wasi-demo --image=hydai/wasm-wasi-example:with-wasm-annotation  --overrides='{"kind":"Pod","metadata":{"annotations":{"module.wasm.image/variant":"compat-smart"}} , "apiVersion":"v1", "spec": {"hostNetwork": true}}' /wasi_example_main.wasm 50000000
+$ sudo kubectl run -it --rm --restart=Never wasi-demo --image=wasmedge/example-wasi:latest  --overrides='{"kind":"Pod","metadata":{"annotations":{"module.wasm.image/variant":"compat-smart"}} , "apiVersion":"v1", "spec": {"hostNetwork": true}}' /wasi_example_main.wasm 50000000
 
 // kubectl 1.20.11
-$ sudo kubectl run -it --rm --restart=Never wasi-demo --image=hydai/wasm-wasi-example:with-wasm-annotation --annotations="module.wasm.image/variant=compat-smart" --overrides='{"kind":"Pod", "apiVersion":"v1", "spec": {"hostNetwork": true}}' /wasi_example_main.wasm 50000000
+$ sudo kubectl run -it --rm --restart=Never wasi-demo --image=wasmedge/example-wasi:latest --annotations="module.wasm.image/variant=compat-smart" --overrides='{"kind":"Pod", "apiVersion":"v1", "spec": {"hostNetwork": true}}' /wasi_example_main.wasm 50000000
 
 ```
 
@@ -234,6 +234,3 @@ You can see the events from scheduling to running the WebAssembly workload in th
 CONTAINER           IMAGE               CREATED             STATE               NAME                 ATTEMPT             POD ID
 0c176ed65599a       0423b8eb71e31       8 seconds ago       Exited              wasi-demo  
 ```
-
-- WasmEdge GitHub repo: <https://github.com/WasmEdge/WasmEdge>
-- OpenYurt GitHub repo: <https://github.com/openyurtio/openyurt>

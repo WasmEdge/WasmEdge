@@ -124,7 +124,7 @@ spec:
   - args:
     - /wasi_example_main.wasm
     - "50000000"
-    image: hydai/wasm-wasi-example:with-wasm-annotation
+    image: wasmedge/example-wasi:latest
     imagePullPolicy: IfNotPresent
     name: wasi-demo
   hostNetwork: true

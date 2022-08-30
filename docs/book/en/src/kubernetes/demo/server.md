@@ -119,7 +119,7 @@ sudo buildah build --annotation "module.wasm.image/variant=compat-smart" -t http
 #
 # docker login
 
-sudo buildah push --authfile ~/.docker/config.json http_server docker://docker.io/avengermojo/http_server:with-wasm-annotation
+sudo buildah push --authfile ~/.docker/config.json http_server docker://docker.io/wasmedge/example-wasi-http:latest
 ```
 
 That's it! Now you can try to run it in [CRI-O](../cri/crio.md#run-a-http-server-app) or [Kubernetes](../kubernetes/kubernetes.md#run-a-http-server-app)!

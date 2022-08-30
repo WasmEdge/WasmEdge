@@ -35,8 +35,9 @@ private:
   uint32_t Idx;
 };
 
-class CoreInstance {};
-class CoreInstantiate : public CoreInstance {
+namespace CoreInstance {
+
+class Instantiate {
 public:
   /// Setter/Getter of module index
   void setModuleIdx(uint32_t Idx) noexcept { ModuleIdx = Idx; }
@@ -54,7 +55,7 @@ private:
   uint32_t ModuleIdx;
   std::vector<CoreInstantiateArg> InstantiateArgs;
 };
-class CoreExportsInstance : public CoreInstance {
+class Export {
 public:
   /// Getter of exports
   Span<const ExportDecl> getExports() const noexcept { return Exports; }
@@ -63,6 +64,10 @@ public:
 private:
   std::vector<ExportDecl> Exports;
 };
+
+using T = std::variant<Instantiate, Export>;
+
+} // namespace CoreInstance
 
 } // namespace AST
 } // namespace WasmEdge

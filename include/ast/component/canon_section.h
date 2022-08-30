@@ -16,19 +16,41 @@
 #include "common/span.h"
 
 #include <cstdint>
+#include <variant>
 #include <vector>
 
 namespace WasmEdge {
 namespace AST {
 
-// canon ::= 0x00 0x00 f:<core:funcidx> opts:<opts> ft:<typeidx>
-//           => (canon lift f opts type-index-space[ft])
-//         | 0x01 0x00 f:<funcidx> opts:<opts>
-//           => (canon lower f opts (core func))
-class Canon {
+class StringEncodingUTF8 {};
+class StringEncodingUTF16 {};
+class StringEncodingLatin1UTF16 {};
+class MemoryIndex {
 public:
-  class Lift;
-  class Lower;
+  MemoryIndex() = default;
+  MemoryIndex(uint32_t Idx) noexcept : CoreMemIdx{Idx} {}
+  uint32_t getCoreMemIdx() const noexcept { return CoreMemIdx; }
+
+private:
+  uint32_t CoreMemIdx;
+};
+class ReallocFunc {
+public:
+  ReallocFunc() = default;
+  ReallocFunc(uint32_t Idx) noexcept : CoreFuncIdx{Idx} {}
+  uint32_t getCoreFuncIdx() const noexcept { return CoreFuncIdx; }
+
+private:
+  uint32_t CoreFuncIdx;
+};
+class PostReturnFunc {
+public:
+  PostReturnFunc() = default;
+  PostReturnFunc(uint32_t Idx) noexcept : CoreFuncIdx{Idx} {}
+  uint32_t getCoreFuncIdx() const noexcept { return CoreFuncIdx; }
+
+private:
+  uint32_t CoreFuncIdx;
 };
 
 // opts     ::= opt*:vec(<canonopt>)
@@ -38,47 +60,11 @@ public:
 //            | 0x03 m:<core:memidx>  => (memory m)
 //            | 0x04 f:<core:funcidx> => (realloc f)
 //            | 0x05 f:<core:funcidx> => (post-return f)
-class CanonOpt {
-public:
-  class StringEncodingUTF8;
-  class StringEncodingUTF16;
-  class StringEncodingLatin1UTF16;
-  class MemoryIndex;
-  class ReallocFunc;
-  class PostReturnFunc;
-};
-class CanonOpt::StringEncodingUTF8 : public CanonOpt {};
-class CanonOpt::StringEncodingUTF16 : public CanonOpt {};
-class CanonOpt::StringEncodingLatin1UTF16 : public CanonOpt {};
-class CanonOpt::MemoryIndex : public CanonOpt {
-public:
-  MemoryIndex(uint32_t Idx) noexcept : CoreMemIdx{Idx} {}
+using CanonOpt = std::variant<StringEncodingUTF8, StringEncodingUTF16,
+                              StringEncodingLatin1UTF16, MemoryIndex,
+                              ReallocFunc, PostReturnFunc>;
 
-  uint32_t getCoreMemIdx() const noexcept { return CoreMemIdx; }
-
-private:
-  uint32_t CoreMemIdx;
-};
-class CanonOpt::ReallocFunc : public CanonOpt {
-public:
-  ReallocFunc(uint32_t Idx) noexcept : CoreFuncIdx{Idx} {}
-
-  uint32_t getCoreFuncIdx() const noexcept { return CoreFuncIdx; }
-
-private:
-  uint32_t CoreFuncIdx;
-};
-class CanonOpt::PostReturnFunc : public CanonOpt {
-public:
-  PostReturnFunc(uint32_t Idx) noexcept : CoreFuncIdx{Idx} {}
-
-  uint32_t getCoreFuncIdx() const noexcept { return CoreFuncIdx; }
-
-private:
-  uint32_t CoreFuncIdx;
-};
-
-class Canon::Lift : public Canon {
+class Lift {
 public:
   /// Setter/Getter of core func index
   void setCoreFuncIdx(uint32_t Idx) noexcept { CoreFuncIdx = Idx; }
@@ -98,7 +84,7 @@ private:
   std::vector<CanonOpt> Opts;
 };
 
-class Canon::Lower : public Canon {
+class Lower {
 public:
   /// Setter/Getter of func index
   void setFuncIdx(uint32_t Idx) noexcept { FuncIdx = Idx; }
@@ -112,6 +98,12 @@ private:
   uint32_t FuncIdx;
   std::vector<CanonOpt> Opts;
 };
+
+// canon ::= 0x00 0x00 f:<core:funcidx> opts:<opts> ft:<typeidx>
+//           => (canon lift f opts type-index-space[ft])
+//         | 0x01 0x00 f:<funcidx> opts:<opts>
+//           => (canon lower f opts (core func))
+using Canon = std::variant<Lift, Lower>;
 
 } // namespace AST
 } // namespace WasmEdge

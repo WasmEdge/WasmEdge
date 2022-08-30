@@ -19,6 +19,7 @@
 #include "ast/component/import_section.h"
 #include "ast/component/value_type.h"
 
+#include <memory>
 #include <optional>
 #include <string>
 #include <variant>
@@ -27,27 +28,12 @@
 namespace WasmEdge {
 namespace AST {
 
-class Type {};
-class DefinedType : public Type {
-public:
-};
-
-class DefinedValueType : public DefinedType {
-public:
-  class Prim;
-  class Record;
-  class Variant;
-  class List;
-  class Tuple;
-  class Flags;
-  class Enum;
-  class Union;
-  class Option;
-  class Result;
-};
+class Type;
 
 class NamedValType {
 public:
+  NamedValType() = default;
+
   void setName(std::string_view S) noexcept { Name = S; }
   std::string_view getName() const noexcept { return Name; }
 
@@ -86,7 +72,9 @@ private:
   std::optional<uint32_t> LabelIdx;
 };
 
-class DefinedValueType::Prim : public DefinedValueType {
+namespace DefinedValueType {
+
+class Prim {
 public:
   void setValue(PrimitiveValueType V) noexcept { Value = V; }
   PrimitiveValueType getValue() const noexcept { return Value; }
@@ -94,7 +82,7 @@ public:
 private:
   PrimitiveValueType Value;
 };
-class DefinedValueType::Record : public DefinedValueType {
+class Record {
 public:
   Span<const NamedValType> getFields() const noexcept { return Fields; }
   std::vector<NamedValType> &getFields() noexcept { return Fields; }
@@ -102,7 +90,7 @@ public:
 private:
   std::vector<NamedValType> Fields;
 };
-class DefinedValueType::Variant : public DefinedValueType {
+class Variant {
 public:
   Span<const Case> getCases() const noexcept { return Cases; }
   std::vector<Case> &getCases() noexcept { return Cases; }
@@ -110,7 +98,7 @@ public:
 private:
   std::vector<Case> Cases;
 };
-class DefinedValueType::List : public DefinedValueType {
+class List {
 public:
   const ValueType &getType() const noexcept { return Ty; }
   ValueType &getType() noexcept { return Ty; }
@@ -118,7 +106,7 @@ public:
 private:
   ValueType Ty;
 };
-class DefinedValueType::Tuple : public DefinedValueType {
+class Tuple {
 public:
   Span<const ValueType> getTypes() const noexcept { return Types; }
   std::vector<ValueType> &getTypes() noexcept { return Types; }
@@ -126,7 +114,7 @@ public:
 private:
   std::vector<ValueType> Types;
 };
-class DefinedValueType::Flags : public DefinedValueType {
+class Flags {
 public:
   Span<const std::string> getNames() const noexcept { return Names; }
   std::vector<std::string> &getNames() noexcept { return Names; }
@@ -134,7 +122,7 @@ public:
 private:
   std::vector<std::string> Names;
 };
-class DefinedValueType::Enum : public DefinedValueType {
+class Enum {
 public:
   Span<const std::string> getNames() const noexcept { return Names; }
   std::vector<std::string> &getNames() noexcept { return Names; }
@@ -142,7 +130,7 @@ public:
 private:
   std::vector<std::string> Names;
 };
-class DefinedValueType::Union : public DefinedValueType {
+class Union {
 public:
   Span<const ValueType> getTypes() const noexcept { return Types; }
   std::vector<ValueType> &getTypes() noexcept { return Types; }
@@ -150,7 +138,7 @@ public:
 private:
   std::vector<ValueType> Types;
 };
-class DefinedValueType::Option : public DefinedValueType {
+class Option {
 public:
   const ValueType &getType() const noexcept { return Ty; }
   ValueType &getType() noexcept { return Ty; }
@@ -158,7 +146,7 @@ public:
 private:
   ValueType Ty;
 };
-class DefinedValueType::Result : public DefinedValueType {
+class Result {
 public:
   std::optional<CaseType> getResult() noexcept { return ResultTy; }
   std::optional<CaseType> getError() noexcept { return ErrorTy; }
@@ -168,7 +156,11 @@ private:
   std::optional<CaseType> ErrorTy{std::nullopt};
 };
 
-class FuncType : public DefinedType {
+using T = std::variant<Prim, Record, Variant, List, Tuple, Flags, Enum, Union,
+                       Option, Result>;
+} // namespace DefinedValueType
+
+class FuncType {
 public:
   const FuncVec &getParameters() const noexcept { return Parameters; }
   FuncVec &getParameters() noexcept { return Parameters; }
@@ -181,8 +173,9 @@ private:
   FuncVec Returns;
 };
 
-using InstanceDecl = std::variant<CoreType, Type, Alias, ExportDecl>;
-class InstanceType : public DefinedType {
+using InstanceDecl =
+    std::variant<CoreType, std::shared_ptr<Type>, Alias, ExportDecl>;
+class InstanceType {
 public:
   Span<const InstanceDecl> getDecls() const noexcept { return Decls; }
   std::vector<InstanceDecl> &getDecls() noexcept { return Decls; }
@@ -192,13 +185,23 @@ private:
 };
 
 using ComponentDecl = std::variant<ImportDecl, InstanceDecl>;
-class ComponentType : public DefinedType {
+class ComponentType {
 public:
   Span<const ComponentDecl> getDecls() const noexcept { return Decls; }
   std::vector<ComponentDecl> &getDecls() noexcept { return Decls; }
 
 private:
   std::vector<ComponentDecl> Decls;
+};
+
+using DefinedType =
+    std::variant<DefinedValueType::T, FuncType, InstanceType, ComponentType>;
+class Type {
+public:
+  DefinedType &getData() noexcept { return Data; }
+
+private:
+  DefinedType Data;
 };
 
 } // namespace AST

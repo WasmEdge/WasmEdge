@@ -286,9 +286,7 @@ Expect<void> Loader::loadInstance(AST::Instance &Inst) {
   switch (*Res) {
   case 0x00: {
     // 0x00 c:<componentidx> arg*:vec(<instantiatearg>) => (instantiate c arg*)
-    AST::InstanceExpr::Instantiate Instantiate;
-    Inst = Instantiate;
-
+    AST::InstanceExpr::Instantiate &Instantiate = Inst.emplace<AST::InstanceExpr::Instantiate>();
     auto Idx = FMgr.readU32();
     if (!Idx) {
       return logLoadError(Idx.error(), FMgr.getLastOffset(),
@@ -308,9 +306,7 @@ Expect<void> Loader::loadInstance(AST::Instance &Inst) {
   }
   case 0x01: {
     // 0x01 e*:vec(<export>) => e*
-    AST::InstanceExpr::Export Export;
-    Inst = Export;
-
+    AST::InstanceExpr::Export &Export= Inst.emplace<AST::InstanceExpr::Export>() ;
     return loadVec(Export.getExports(),
                    [this](AST::ExportDecl &ExpDecl) -> Expect<void> {
                      return loadExportDecl(ExpDecl);
@@ -454,7 +450,8 @@ Expect<void> Loader::loadType(AST::Type &Ty) {
   case 0x72: {
     // 0x72 nt*:vec(<namedvaltype>)         => (record (field nt)*)
     AST::DefinedValueType::Record &RecordTy =
-        Ty.getData().emplace<AST::DefinedValueType::T>()
+        Ty.getData()
+            .emplace<AST::DefinedValueType::T>()
             .emplace<AST::DefinedValueType::Record>();
     return loadVec(RecordTy.getFields(), [this](auto &T) -> Expect<void> {
       return loadNamedValType(T);
@@ -463,7 +460,8 @@ Expect<void> Loader::loadType(AST::Type &Ty) {
   case 0x71: {
     // 0x71 case*:vec(<case>)               => (variant case*)
     AST::DefinedValueType::Variant &VariantTy =
-        Ty.getData().emplace<AST::DefinedValueType::T>()
+        Ty.getData()
+            .emplace<AST::DefinedValueType::T>()
             .emplace<AST::DefinedValueType::Variant>();
     return loadVec(VariantTy.getCases(), [this](auto &Case) -> Expect<void> {
       return loadCase(Case);
@@ -472,14 +470,16 @@ Expect<void> Loader::loadType(AST::Type &Ty) {
   case 0x70: {
     // 0x70 t:<valtype>                     => (list t)
     AST::DefinedValueType::List &ListTy =
-        Ty.getData().emplace<AST::DefinedValueType::T>()
+        Ty.getData()
+            .emplace<AST::DefinedValueType::T>()
             .emplace<AST::DefinedValueType::List>();
     return loadValType(ListTy.getType());
   }
   case 0x6f: {
     // 0x6f t*:vec(<valtype>)               => (tuple t*)
     AST::DefinedValueType::Tuple &TupleTy =
-        Ty.getData().emplace<AST::DefinedValueType::T>()
+        Ty.getData()
+            .emplace<AST::DefinedValueType::T>()
             .emplace<AST::DefinedValueType::Tuple>();
     return loadVec(TupleTy.getTypes(),
                    [this](auto &T) { return loadValType(T); });
@@ -487,7 +487,8 @@ Expect<void> Loader::loadType(AST::Type &Ty) {
   case 0x6e: {
     // 0x6e n*:vec(<name>)                  => (flags n*)
     AST::DefinedValueType::Flags &F =
-        Ty.getData().emplace<AST::DefinedValueType::T>()
+        Ty.getData()
+            .emplace<AST::DefinedValueType::T>()
             .emplace<AST::DefinedValueType::Flags>();
     return loadVec(F.getNames(), [this](auto &S) -> Expect<void> {
       auto N = FMgr.readName();
@@ -502,7 +503,8 @@ Expect<void> Loader::loadType(AST::Type &Ty) {
   case 0x6d: {
     // 0x6d n*:vec(<name>)                  => (enum n*)
     AST::DefinedValueType::Enum &E =
-        Ty.getData().emplace<AST::DefinedValueType::T>()
+        Ty.getData()
+            .emplace<AST::DefinedValueType::T>()
             .emplace<AST::DefinedValueType::Enum>();
     return loadVec(E.getNames(), [this](auto &S) -> Expect<void> {
       auto N = FMgr.readName();
@@ -517,7 +519,8 @@ Expect<void> Loader::loadType(AST::Type &Ty) {
   case 0x6c: {
     // 0x6c t*:vec(<valtype>)               => (union t*)
     AST::DefinedValueType::Union &UnionTy =
-        Ty.getData().emplace<AST::DefinedValueType::T>()
+        Ty.getData()
+            .emplace<AST::DefinedValueType::T>()
             .emplace<AST::DefinedValueType::Union>();
     return loadVec(UnionTy.getTypes(),
                    [this](auto &T) { return loadValType(T); });
@@ -525,14 +528,16 @@ Expect<void> Loader::loadType(AST::Type &Ty) {
   case 0x6b: {
     // 0x6b t:<valtype>                     => (option t)
     AST::DefinedValueType::Option &OptTy =
-        Ty.getData().emplace<AST::DefinedValueType::T>()
+        Ty.getData()
+            .emplace<AST::DefinedValueType::T>()
             .emplace<AST::DefinedValueType::Option>();
     return loadValType(OptTy.getType());
   }
   case 0x6a: {
     // 0x6a t?:<casetype> u?:<casetype>     => (result t? (error u)?)
     AST::DefinedValueType::Result ResultTy =
-        Ty.getData().emplace<AST::DefinedValueType::T>()
+        Ty.getData()
+            .emplace<AST::DefinedValueType::T>()
             .emplace<AST::DefinedValueType::Result>();
     if (auto E = loadCaseType(ResultTy.getResult()); !E) {
       return E;

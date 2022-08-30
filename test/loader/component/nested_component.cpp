@@ -25,7 +25,7 @@ using namespace WasmEdge::AST;
 WasmEdge::Configure Conf;
 WasmEdge::Loader::Loader Ldr{Conf};
 
-TEST(ComponentTest, ValueType) {
+TEST(ComponentTest, NestedComponent) {
   Conf.addProposal(WasmEdge::Proposal::ComponentModel);
 
   std::filesystem::path path{"testData/nested-component.wasm"};

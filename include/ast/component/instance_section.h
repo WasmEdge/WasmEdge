@@ -15,6 +15,7 @@
 
 #include "ast/component/export_section.h"
 
+#include <variant>
 #include <vector>
 
 namespace WasmEdge {
@@ -33,15 +34,9 @@ private:
   SortIndex SortIdx;
 };
 
-class Instance {};
+namespace InstanceExpr {
 
-class InstanceExpr : public Instance {
-public:
-  class Instantiate;
-  class Export;
-};
-
-class InstanceExpr::Instantiate : public InstanceExpr {
+class Instantiate {
 public:
   void setIndex(uint32_t I) noexcept { ComponentIndex = I; }
   const uint32_t &getIndex() const noexcept { return ComponentIndex; }
@@ -53,7 +48,7 @@ private:
   uint32_t ComponentIndex;
   std::vector<InstantiateArg> Args;
 };
-class InstanceExpr::Export : public InstanceExpr {
+class Export {
 public:
   Span<const ExportDecl> getExports() const noexcept { return List; }
   std::vector<ExportDecl> &getExports() noexcept { return List; }
@@ -61,6 +56,12 @@ public:
 private:
   std::vector<ExportDecl> List;
 };
+
+using T = std::variant<Instantiate, Export>;
+
+} // namespace InstanceExpr
+
+using Instance = InstanceExpr::T;
 
 } // namespace AST
 } // namespace WasmEdge

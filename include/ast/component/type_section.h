@@ -74,14 +74,6 @@ private:
 
 namespace DefinedValueType {
 
-class Prim {
-public:
-  void setValue(PrimitiveValueType V) noexcept { Value = V; }
-  PrimitiveValueType getValue() const noexcept { return Value; }
-
-private:
-  PrimitiveValueType Value;
-};
 class Record {
 public:
   Span<const NamedValType> getFields() const noexcept { return Fields; }
@@ -156,8 +148,6 @@ private:
   std::optional<CaseType> ErrorTy{std::nullopt};
 };
 
-using T = std::variant<Prim, Record, Variant, List, Tuple, Flags, Enum, Union,
-                       Option, Result>;
 } // namespace DefinedValueType
 
 class FuncType {
@@ -194,8 +184,11 @@ private:
   std::vector<ComponentDecl> Decls;
 };
 
-using DefinedType =
-    std::variant<DefinedValueType::T, FuncType, InstanceType, ComponentType>;
+using DefinedType = std::variant<
+    PrimitiveValueType, DefinedValueType::Record, DefinedValueType::Variant,
+    DefinedValueType::List, DefinedValueType::Tuple, DefinedValueType::Flags,
+    DefinedValueType::Enum, DefinedValueType::Union, DefinedValueType::Option,
+    DefinedValueType::Result, FuncType, InstanceType, ComponentType>;
 class Type {
 public:
   DefinedType &getData() noexcept { return Data; }

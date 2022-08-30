@@ -323,7 +323,7 @@ private:
 
   // component part
   Expect<void> loadSection(AST::CoreInstanceSection &Sec);
-  /* - */ Expect<void> loadCoreInstance(AST::CoreInstance &Instance);
+  /* - */ Expect<void> loadCoreInstance(AST::CoreInstance::T &Instance);
   Expect<void> loadSection(AST::CoreAliasSection &Sec);
   /* - */ Expect<void> loadCoreAlias(AST::CoreAlias &Alias);
   Expect<void> loadSection(AST::CoreTypeSection &Sec);

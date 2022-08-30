@@ -31,6 +31,20 @@ Run the following command to make the installed binary available in the current 
 source $HOME/.wasmedge/env
 ```
 
+### Troubleshooting
+
+#### Connection refused error
+
+Some users, especially in China, reported that they had encountered the Connection refused error when trying to download the `install.sh` from the `githubusercontent.com`.
+
+Please make sure your network connection can access the `github.com` and `githubusercontent.com` via VPN.
+
+```bash
+# The error message
+curl -sSf https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh | bash
+curl: (7) Failed to connect to raw.githubusercontent.com port 443: Connection refused
+```
+
 ## Use Docker
 
 If you use Docker, you can simply run the WasmEdge application developer Docker images ([x86](https://hub.docker.com/repository/docker/wasmedge/appdev_x86_64) and [arm64](https://hub.docker.com/repository/docker/wasmedge/appdev_aarch64)). Those images contain all the tooling you need for quick WasmEdge development.

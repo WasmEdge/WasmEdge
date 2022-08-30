@@ -410,8 +410,7 @@ Expect<void> Loader::loadType(AST::Type &Ty) {
   case 0x40: {
     // => (func (param p)* (result r)*)
     // functype ::= 0x40 p*:<funcvec> r*:<funcvec>
-    AST::FuncType FuncTy;
-    Ty = FuncTy;
+    AST::FuncType &FuncTy = Ty.getData().emplace<AST::FuncType>();
     auto R = loadFuncVec(FuncTy.getParameters());
     if (!R) {
       return R;
@@ -420,16 +419,14 @@ Expect<void> Loader::loadType(AST::Type &Ty) {
   }
   case 0x41: {
     // componenttype ::= 0x41 cd*:vec(<componentdecl>) => (component cd*)
-    AST::ComponentType CompTy;
-    Ty = CompTy;
+    AST::ComponentType &CompTy = Ty.getData().emplace<AST::ComponentType>();
     return loadVec(CompTy.getDecls(), [this](auto &D) -> Expect<void> {
       return loadComponentDecl(D);
     });
   }
   case 0x42: {
     // instancetype  ::= 0x42 id*:vec(<instancedecl>) => (instance id*)
-    AST::InstanceType InstTy;
-    Ty = InstTy;
+    AST::InstanceType &InstTy = Ty.getData().emplace<AST::InstanceType>();
     return loadVec(InstTy.getDecls(), [this](auto &D) -> Expect<void> {
       return loadInstanceDecl(D);
     });
@@ -447,44 +444,51 @@ Expect<void> Loader::loadType(AST::Type &Ty) {
   case static_cast<Byte>(AST::PrimitiveValueType::U8):
   case static_cast<Byte>(AST::PrimitiveValueType::S8):
   case static_cast<Byte>(AST::PrimitiveValueType::Bool): {
-    AST::DefinedValueType::Prim P;
-    Ty = P;
+    AST::DefinedValueType::Prim &P =
+        Ty.getData()
+            .emplace<AST::DefinedValueType::T>()
+            .emplace<AST::DefinedValueType::Prim>();
     P.setValue(static_cast<AST::PrimitiveValueType>(*Res));
     return {};
   }
   case 0x72: {
     // 0x72 nt*:vec(<namedvaltype>)         => (record (field nt)*)
-    AST::DefinedValueType::Record RecordTy;
-    Ty = RecordTy;
+    AST::DefinedValueType::Record &RecordTy =
+        Ty.getData().emplace<AST::DefinedValueType::T>()
+            .emplace<AST::DefinedValueType::Record>();
     return loadVec(RecordTy.getFields(), [this](auto &T) -> Expect<void> {
       return loadNamedValType(T);
     });
   }
   case 0x71: {
     // 0x71 case*:vec(<case>)               => (variant case*)
-    AST::DefinedValueType::Variant VariantTy;
-    Ty = VariantTy;
+    AST::DefinedValueType::Variant &VariantTy =
+        Ty.getData().emplace<AST::DefinedValueType::T>()
+            .emplace<AST::DefinedValueType::Variant>();
     return loadVec(VariantTy.getCases(), [this](auto &Case) -> Expect<void> {
       return loadCase(Case);
     });
   }
   case 0x70: {
     // 0x70 t:<valtype>                     => (list t)
-    AST::DefinedValueType::List ListTy;
-    Ty = ListTy;
+    AST::DefinedValueType::List &ListTy =
+        Ty.getData().emplace<AST::DefinedValueType::T>()
+            .emplace<AST::DefinedValueType::List>();
     return loadValType(ListTy.getType());
   }
   case 0x6f: {
     // 0x6f t*:vec(<valtype>)               => (tuple t*)
-    AST::DefinedValueType::Tuple TupleTy;
-    Ty = TupleTy;
+    AST::DefinedValueType::Tuple &TupleTy =
+        Ty.getData().emplace<AST::DefinedValueType::T>()
+            .emplace<AST::DefinedValueType::Tuple>();
     return loadVec(TupleTy.getTypes(),
                    [this](auto &T) { return loadValType(T); });
   }
   case 0x6e: {
     // 0x6e n*:vec(<name>)                  => (flags n*)
-    AST::DefinedValueType::Flags F;
-    Ty = F;
+    AST::DefinedValueType::Flags &F =
+        Ty.getData().emplace<AST::DefinedValueType::T>()
+            .emplace<AST::DefinedValueType::Flags>();
     return loadVec(F.getNames(), [this](auto &S) -> Expect<void> {
       auto N = FMgr.readName();
       if (!N) {
@@ -497,8 +501,9 @@ Expect<void> Loader::loadType(AST::Type &Ty) {
   }
   case 0x6d: {
     // 0x6d n*:vec(<name>)                  => (enum n*)
-    AST::DefinedValueType::Enum E;
-    Ty = E;
+    AST::DefinedValueType::Enum &E =
+        Ty.getData().emplace<AST::DefinedValueType::T>()
+            .emplace<AST::DefinedValueType::Enum>();
     return loadVec(E.getNames(), [this](auto &S) -> Expect<void> {
       auto N = FMgr.readName();
       if (!N) {
@@ -511,21 +516,24 @@ Expect<void> Loader::loadType(AST::Type &Ty) {
   }
   case 0x6c: {
     // 0x6c t*:vec(<valtype>)               => (union t*)
-    AST::DefinedValueType::Union UnionTy;
-    Ty = UnionTy;
+    AST::DefinedValueType::Union &UnionTy =
+        Ty.getData().emplace<AST::DefinedValueType::T>()
+            .emplace<AST::DefinedValueType::Union>();
     return loadVec(UnionTy.getTypes(),
                    [this](auto &T) { return loadValType(T); });
   }
   case 0x6b: {
     // 0x6b t:<valtype>                     => (option t)
-    AST::DefinedValueType::Option OptTy;
-    Ty = OptTy;
+    AST::DefinedValueType::Option &OptTy =
+        Ty.getData().emplace<AST::DefinedValueType::T>()
+            .emplace<AST::DefinedValueType::Option>();
     return loadValType(OptTy.getType());
   }
   case 0x6a: {
     // 0x6a t?:<casetype> u?:<casetype>     => (result t? (error u)?)
-    AST::DefinedValueType::Result ResultTy;
-    Ty = ResultTy;
+    AST::DefinedValueType::Result ResultTy =
+        Ty.getData().emplace<AST::DefinedValueType::T>()
+            .emplace<AST::DefinedValueType::Result>();
     if (auto E = loadCaseType(ResultTy.getResult()); !E) {
       return E;
     }
@@ -543,17 +551,15 @@ Expect<void> Loader::loadInstanceDecl(AST::InstanceDecl &Decl, Expect<Byte> B) {
   //                 | 0x04 ed:<exportdecl>                 => ed
   switch (*B) {
   case 0x00:
-    Decl.emplace<AST::CoreType>();
-    return loadCoreType(std::get<AST::CoreType>(Decl));
-  case 0x01:
-    Decl.emplace<AST::Type>();
-    return loadType(std::get<AST::Type>(Decl));
+    return loadCoreType(Decl.emplace<AST::CoreType>());
+  case 0x01: {
+    std::shared_ptr<AST::Type> Ty = Decl.emplace<std::shared_ptr<AST::Type>>();
+    return loadType(*Ty);
+  }
   case 0x02:
-    Decl.emplace<AST::Alias>();
-    return loadAlias(std::get<AST::Alias>(Decl));
+    return loadAlias(Decl.emplace<AST::Alias>());
   case 0x04:
-    Decl.emplace<AST::ExportDecl>();
-    return loadExportDecl(std::get<AST::ExportDecl>(Decl));
+    return loadExportDecl(Decl.emplace<AST::ExportDecl>());
   default:
     return logLoadError(B.error(), FMgr.getLastOffset(),
                         ASTNodeAttr::Comp_InstanceDecl);

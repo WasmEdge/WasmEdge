@@ -91,6 +91,9 @@
     - [KubeEdge](kubernetes/kubernetes/kubeedge.md)
     - [SuperEdge](kubernetes/kubernetes/superedge.md)
     - [OpenYurt](kubernetes/kubernetes/openyurt.md)
+  - [Docker](kubernetes/docker.md)
+    - [Slim container](kubernetes/docker/lxc.md)
+    - [containerd integration](kubernetes/docker/containerd.md)
 
 - [App frameworks &amp; platforms](frameworks.md)
   - [Service mesh &amp; runtimes](frameworks/mesh.md)

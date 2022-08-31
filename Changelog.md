@@ -1,4 +1,4 @@
-### 0.11.0-rc.1 (2022-08-26)
+### 0.11.0 (2022-08-31)
 
 Breaking changes:
 
@@ -107,7 +107,7 @@ Thank all the contributors that made this release possible!
 
 Cheng-En Lee, Chih-Hsuan Yen, Galden, GreyBalloonYU, HeZean, Michael Yuan, Shen-Ta Hsieh, Xin Liu, Yi Huang, Yi-Ying He, Zhenghao Lu, Zhou Zhou, dm4, hydai
 
-If you want to build from source, please use WasmEdge-0.11.0-rc.1-src.tar.gz instead of the zip or tarball provided by GitHub directly.
+If you want to build from source, please use WasmEdge-0.11.0-src.tar.gz instead of the zip or tarball provided by GitHub directly.
 
 ### 0.10.1 (2022-07-28)
 

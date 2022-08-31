@@ -106,7 +106,7 @@ JNIEXPORT void JNICALL Java_org_wasmedge_WasmEdgeVM_registerModuleFromBuffer
 /*
  * Class:     org_wasmedge_WasmEdgeVM
  * Method:    registerModuleFromImport
- * Signature: (Lorg/wasmedge/ImportObjectContext;)V
+ * Signature: (Lorg/wasmedge/ModuleInstanceContext;)V
  */
 JNIEXPORT void JNICALL Java_org_wasmedge_WasmEdgeVM_registerModuleFromImport
   (JNIEnv *, jobject, jobject);
@@ -146,7 +146,7 @@ JNIEXPORT jobject JNICALL Java_org_wasmedge_WasmEdgeVM_getFunctionType
 /*
  * Class:     org_wasmedge_WasmEdgeVM
  * Method:    nativeGetImportModuleContext
- * Signature: (I)Lorg/wasmedge/ImportObjectContext;
+ * Signature: (I)Lorg/wasmedge/ModuleInstanceContext;
  */
 JNIEXPORT jobject JNICALL Java_org_wasmedge_WasmEdgeVM_nativeGetImportModuleContext
   (JNIEnv *, jobject, jint);

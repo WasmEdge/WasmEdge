@@ -42,7 +42,7 @@ public class ExecutorContext {
                                       ASTModuleContext astCxt,
                                       String modeName);
 
-    public native void registerImport(StoreContext storeCxt, ImportObjectContext importObjectContext);
+    public native void registerImport(StoreContext storeCxt, ModuleInstanceContext moduleInstanceContext);
 
     public native void delete();
 }

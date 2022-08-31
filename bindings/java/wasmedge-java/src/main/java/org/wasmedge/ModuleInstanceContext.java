@@ -1,19 +1,19 @@
 package org.wasmedge;
 
-public class ImportObjectContext {
+public class ModuleInstanceContext {
     private long pointer;
 
-    public ImportObjectContext(String moduleName) {
+    public ModuleInstanceContext(String moduleName) {
         nativeInit(moduleName);
     }
 
-    private ImportObjectContext(long pointer) {
+    private ModuleInstanceContext(long pointer) {
         this.pointer = pointer;
     }
 
-    public native static ImportObjectContext createWasmEdgeProcess(String[] allowedCmds, boolean allowAll);
+    public native static ModuleInstanceContext createWasmEdgeProcess(String[] allowedCmds, boolean allowAll);
 
-    public native static ImportObjectContext CreateWASI(String[] args, String[] envs, String[] preopens);
+    public native static ModuleInstanceContext CreateWASI(String[] args, String[] envs, String[] preopens);
 
     private native void nativeInit(String moduleName);
 

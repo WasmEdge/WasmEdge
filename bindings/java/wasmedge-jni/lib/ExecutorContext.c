@@ -9,7 +9,7 @@
 #include "common.h"
 #include "AstModuleContext.h"
 #include "StoreContext.h"
-#include "ImportObjectContext.h"
+#include "ModuleInstanceContext.h"
 #include "common.h"
 #include "ValueType.h"
 #include "FunctionTypeInstance.h"
@@ -151,12 +151,12 @@ JNIEXPORT void JNICALL Java_org_wasmedge_ExecutorContext_registerModule
     handleWasmEdgeResult(env, &result);
 
 }
-
+//TO DO here
 JNIEXPORT void JNICALL Java_org_wasmedge_ExecutorContext_registerImport
         (JNIEnv *env, jobject thisObject, jobject jStore, jobject jImpObj) {
     WasmEdge_ExecutorContext *exeCxt = getExecutorContext(env, thisObject);
     WasmEdge_StoreContext *storeCxt = getStoreContext(env, jStore);
-    WasmEdge_ImportObjectContext *impObj = getImportObjectContext(env, jImpObj);
+    WasmEdge_ModuleInstanceContext *impObj = getModuleInstanceContext(env, jImpObj);
 
     WasmEdge_ExecutorRegisterImport(exeCxt, storeCxt, impObj);
 

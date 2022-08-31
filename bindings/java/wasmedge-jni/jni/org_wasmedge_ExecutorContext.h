@@ -50,7 +50,7 @@ JNIEXPORT void JNICALL Java_org_wasmedge_ExecutorContext_registerModule
 /*
  * Class:     org_wasmedge_ExecutorContext
  * Method:    registerImport
- * Signature: (Lorg/wasmedge/StoreContext;Lorg/wasmedge/ImportObjectContext;)V
+ * Signature: (Lorg/wasmedge/StoreContext;Lorg/wasmedge/ModuleInstanceContext;)V
  */
 JNIEXPORT void JNICALL Java_org_wasmedge_ExecutorContext_registerImport
   (JNIEnv *, jobject, jobject, jobject);

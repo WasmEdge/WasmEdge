@@ -12,7 +12,7 @@
 #include "FunctionTypeContext.h"
 #include "AstModuleContext.h"
 #include "StatisticsContext.h"
-#include "ImportObjectContext.h"
+#include "ModuleInstanceContext.h"
 #include "string.h"
 #include "WasmEdgeAsync.h"
 
@@ -540,9 +540,9 @@ JNIEXPORT jobject JNICALL Java_org_wasmedge_WasmEdgeVM_getStatisticsContext
 JNIEXPORT jobject JNICALL Java_org_wasmedge_WasmEdgeVM_nativeGetImportModuleContext
         (JNIEnv *env, jobject thisObject, jint reg) {
     WasmEdge_VMContext * vmContext = getVmContext(env, thisObject);
-    WasmEdge_ImportObjectContext* imp = WasmEdge_VMGetImportModuleContext(vmContext, (enum WasmEdge_HostRegistration)reg);
+    WasmEdge_ModuleInstanceContext* imp = WasmEdge_VMGetImportModuleContext(vmContext, (enum WasmEdge_HostRegistration)reg);
 
-    return createJImportObject(env, imp);
+    return createJModuleInstanceObject(env, imp);
 }
 
 
@@ -562,7 +562,7 @@ JNIEXPORT jobject JNICALL Java_org_wasmedge_WasmEdgeVM_getFunctionTypeRegistered
 
 JNIEXPORT void JNICALL Java_org_wasmedge_WasmEdgeVM_registerModuleFromImport
         (JNIEnv * env, jobject thisObject, jobject jImport) {
-    WasmEdge_ImportObjectContext * impObj = getImportObjectContext(env, jImport);
+    WasmEdge_ModuleInstanceContext * impObj = getModuleInstanceContext(env, jImport);
 
 
     WasmEdge_VMContext *vm = getVmContext(env, thisObject);

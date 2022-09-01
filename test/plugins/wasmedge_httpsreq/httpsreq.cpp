@@ -17,10 +17,11 @@ namespace {
 WasmEdge::Runtime::Instance::ModuleInstance *createModule() {
   using namespace std::literals::string_view_literals;
   WasmEdge::Plugin::Plugin::load(std::filesystem::u8path(
-      "../../../plugins/httpsreq/"
+      "../../../plugins/wasmedge_httpsreq/"
       "libwasmedgePluginHttpsReq" WASMEDGE_LIB_EXTENSION));
-  if (const auto *Plugin = WasmEdge::Plugin::Plugin::find("https_req"sv)) {
-    if (const auto *Module = Plugin->findModule("https_req"sv)) {
+  if (const auto *Plugin =
+          WasmEdge::Plugin::Plugin::find("wasmedge_httpsreq"sv)) {
+    if (const auto *Module = Plugin->findModule("wasmedge_httpsreq"sv)) {
       return Module->create().release();
     }
   }
@@ -41,9 +42,9 @@ void fillMemContent(WasmEdge::Runtime::Instance::MemoryInstance &MemInst,
 } // namespace
 
 TEST(wasmedgeHttpsReqTests, SendData) {
-  // Create the httpsreq module instance.
+  // Create the wasmedge httpsreq module instance.
   auto *HttpMod =
-      dynamic_cast<WasmEdge::Host::HttpsReqModule *>(createModule());
+      dynamic_cast<WasmEdge::Host::WasmEdgeHttpsReqModule *>(createModule());
   EXPECT_FALSE(HttpMod == nullptr);
 
   // Create the calling frame with memory instance.
@@ -67,11 +68,11 @@ TEST(wasmedgeHttpsReqTests, SendData) {
                              "Close\r\nReferer: https://httpbin.org/\r\n\r\n"));
 
   // Get the function "send_data"
-  auto *FuncInst = HttpMod->findFuncExports("send_data");
+  auto *FuncInst = HttpMod->findFuncExports("wasmedge_httpsreq_send_data");
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncInst =
-      dynamic_cast<WasmEdge::Host::SendData &>(FuncInst->getHostFunc());
+  auto &HostFuncInst = dynamic_cast<WasmEdge::Host::WasmEdgeHttpsReqSendData &>(
+      FuncInst->getHostFunc());
 
   // Test: Run function successfully for get requests
   EXPECT_TRUE(HostFuncInst.run(
@@ -79,16 +80,13 @@ TEST(wasmedgeHttpsReqTests, SendData) {
       std::initializer_list<WasmEdge::ValVariant>{
           UINT32_C(0), UINT32_C(11), UINT32_C(443), UINT32_C(30), UINT32_C(86)},
       {}));
-  EXPECT_TRUE(HttpMod->getEnv().Host == "httpbin.org");
-  EXPECT_TRUE(HttpMod->getEnv().BodyStr ==
-              "GET / HTTP/1.1\nHost: httpbin.org\r\nConnection: "
-              "Close\r\nReferer: https://httpbin.org/\r\n\r\n");
+  delete HttpMod;
 }
 
 TEST(wasmedgeHttpsReqTests, GetRcv) {
   // Create the httpsreq module instance.
   auto *HttpMod =
-      dynamic_cast<WasmEdge::Host::HttpsReqModule *>(createModule());
+      dynamic_cast<WasmEdge::Host::WasmEdgeHttpsReqModule *>(createModule());
   EXPECT_FALSE(HttpMod == nullptr);
 
   // Create the calling frame with memory instance.
@@ -102,6 +100,7 @@ TEST(wasmedgeHttpsReqTests, GetRcv) {
   WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);
 
   fillMemContent(MemInst, 0, 256);
+
   // Set the memory[0, 11] as string "httpbin.org".
   fillMemContent(MemInst, 0, std::string("httpbin.org"));
   // Set the memory[30, 116] as string "GET / HTTP/1.1\nHost:
@@ -111,25 +110,27 @@ TEST(wasmedgeHttpsReqTests, GetRcv) {
                              "Close\r\nReferer: https://httpbin.org/\r\n\r\n"));
 
   // Get the function "send_data"
-  auto *FuncInst = HttpMod->findFuncExports("send_data");
+  auto *FuncInst = HttpMod->findFuncExports("wasmedge_httpsreq_send_data");
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
   auto &HostFuncSendData =
-      dynamic_cast<WasmEdge::Host::SendData &>(FuncInst->getHostFunc());
+      dynamic_cast<WasmEdge::Host::WasmEdgeHttpsReqSendData &>(
+          FuncInst->getHostFunc());
 
   // Get the function "get_rcv_len"
-  FuncInst = HttpMod->findFuncExports("https_req_get_rcv_len");
+  FuncInst = HttpMod->findFuncExports("wasmedge_httpsreq_get_rcv_len");
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncGetRcvLen = dynamic_cast<WasmEdge::Host::HttpsReqGetRcvLen &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncGetRcvLen =
+      dynamic_cast<WasmEdge::Host::WasmEdgeHttpsReqGetRcvLen &>(
+          FuncInst->getHostFunc());
 
   // Get the function "get_rcv"
-  FuncInst = HttpMod->findFuncExports("https_req_get_rcv");
+  FuncInst = HttpMod->findFuncExports("wasmedge_httpsreq_get_rcv");
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncGetRcv =
-      dynamic_cast<WasmEdge::Host::HttpsReqGetRcv &>(FuncInst->getHostFunc());
+  auto &HostFuncGetRcv = dynamic_cast<WasmEdge::Host::WasmEdgeHttpsReqGetRcv &>(
+      FuncInst->getHostFunc());
 
   // Test: Run function successfully for get requests
   EXPECT_TRUE(HostFuncSendData.run(
@@ -137,24 +138,19 @@ TEST(wasmedgeHttpsReqTests, GetRcv) {
       std::initializer_list<WasmEdge::ValVariant>{
           UINT32_C(0), UINT32_C(11), UINT32_C(443), UINT32_C(30), UINT32_C(86)},
       {}));
-  EXPECT_TRUE(HttpMod->getEnv().Host == "httpbin.org");
-  EXPECT_TRUE(HttpMod->getEnv().BodyStr ==
-              "GET / HTTP/1.1\nHost: httpbin.org\r\nConnection: "
-              "Close\r\nReferer: https://httpbin.org/\r\n\r\n");
 
   // Test: Run function successfully for getrcvlen
   std::array<WasmEdge::ValVariant, 1> RetVal;
-  EXPECT_TRUE(HostFuncGetRcvLen.run(
-      WasmEdge::Runtime::CallingFrame(nullptr, nullptr), {}, RetVal));
+  EXPECT_TRUE(HostFuncGetRcvLen.run(CallFrame, {}, RetVal));
   uint32_t Len = RetVal[0].get<uint32_t>();
   EXPECT_TRUE(Len > 0U);
 
-  // Test Run function successfully for getrcv
-  EXPECT_TRUE(HostFuncGetRcv.run(
-      CallFrame, std::initializer_list<WasmEdge::ValVariant>{UINT32_C(0)}, {}));
-  EXPECT_TRUE(std::equal(HttpMod->getEnv().Rcv.begin(),
-                         HttpMod->getEnv().Rcv.end(),
-                         MemInst.getPointer<uint8_t *>(0)));
+  // Test: Run function with nullptr memory instance -- fail
+  EXPECT_FALSE(HostFuncGetRcv.run(
+      WasmEdge::Runtime::CallingFrame(nullptr, nullptr),
+      std::initializer_list<WasmEdge::ValVariant>{UINT32_C(0)}, {}));
+
+  delete HttpMod;
 }
 
 GTEST_API_ int main(int argc, char **argv) {

@@ -1,6 +1,6 @@
 # Networking for HTTPS
 
-The WasmEdge WASI socket API supports HTTP networking in Wasm apps. In order to achieve the goal of supporting HTTPS requests with the same API as an HTTP request, we now create a Wasmedge plugin using the OpenSSL library. In this chapter, we will give the example of HTTPS requests and explain the design.
+The WasmEdge WASI socket API supports HTTP networking in Wasm apps. In order to achieve the goal of supporting HTTPS requests with the same API as an HTTP request, we now create a WasmEdge plugin using the OpenSSL library. In this chapter, we will give the example of HTTPS requests and explain the design.
 
 ## An HTTPS request example
 
@@ -12,7 +12,7 @@ use wasmedge_http_req::request;
 fn main() {
     // get request
     let mut writer = Vec::new(); //container for body of a response
-    let res = request::get("https://httpbin.org/get", &mut writer).unwrap();
+    let mut res = request::get("https://httpbin.org/get", &mut writer).unwrap();
 
     println!("Status: {} {}", res.status_code(), res.reason());
     println!("Headers {}", res.headers());
@@ -32,6 +32,32 @@ fn main() {
     println!("Status: {} {}", res.status_code(), res.reason());
     println!("Headers {}", res.headers());
     //println!("{}", String::from_utf8_lossy(&writer));  // uncomment this line to display the content of writer
+
+    // add headers and set version
+    let uri = Uri::try_from("http://httpbin.org/get").unwrap();
+    // let uri = Uri::try_from("https://httpbin.org/get").unwrap(); // uncomment the line for https request
+
+    // add headers to the request
+    let mut headers = Headers::new();
+    headers.insert("Accept-Charset", "utf-8");
+    headers.insert("Accept-Language", "en-US");
+    headers.insert("Host", "rust-lang.org");
+    headers.insert("Connection", "Close");
+
+    let mut response = Request::new(&uri)
+        .headers(headers)
+        .send(&mut writer)
+        .unwrap();
+
+    println!("{}", String::from_utf8_lossy(&writer));
+
+    // set version
+    response = Request::new(&uri)
+        .version(HttpVersion::Http10)
+        .send(&mut writer)
+        .unwrap();
+
+    println!("{}", String::from_utf8_lossy(&writer));
 }
 ```
 
@@ -67,16 +93,12 @@ So, We only do a little change to the original Rust code.
 
 ```Rust
 if self.inner.uri.scheme() == "https" {
-    let buf = &self.inner.parse_msg();
-    let body = String::from_utf8_lossy(buf);
-    send_data(host, port.into(), &body);
-    let buf = &self.inner.parse_msg();
+let buf = &self.inner.parse_msg();
     let body = String::from_utf8_lossy(buf);
     send_data(host, port.into(), &body);
     let output = get_receive();
     let tmp = String::from_utf8(output.rcv_vec).unwrap();
-    let mut res_vec = Vec::new();
-    let res = Response::try_from(tmp.as_bytes(), &mut res_vec).unwrap();
+    let res = Response::try_from(tmp.as_bytes(), writer).unwrap();
     return Ok(res);
 }
 ```
@@ -89,17 +111,20 @@ The httpsreq host has three functions (i.e. `send_data`, `get_rcv_len` and `get_
 The `send_data` function uses the OpenSSL library to send the data to the server. The `send_data` function receives three inputs, that is, the host, the port and the parsed request.
 
 ```cpp
-Expect<void> body(Runtime::Instance::MemoryInstance *, uint32_t HostPtr,
-                  uint32_t HostLen, uint32_t Port, uint32_t BodyPtr,
-                  uint32_t BodyLen);
+Expect<void> WasmEdgeHttpsReqSendData::body(const Runtime::CallingFrame &Frame,
+                                            uint32_t HostPtr, uint32_t HostLen,
+                                            uint32_t Port, uint32_t BodyPtr,
+                                            uint32_t BodyLen)
 ```
 
 The `get_rcv` function and `get_rcv_len` function pass the received content out of the host function which is later processed by the original Rust code. The get_rcv function receives the pointer while the get_rcv_len function returns the length of the received content.
 
 ```cpp
-Expect<void> body(Runtime::Instance::MemoryInstance *, uint32_t BufPtr);
+Expect<void> WasmEdgeHttpsReqGetRcv::body(const Runtime::CallingFrame &Frame,
+                                          uint32_t BufPtr)
 
-Expect<uint32_t> body(Runtime::Instance::MemoryInstance *);
+Expect<uint32_t>
+WasmEdgeHttpsReqGetRcvLen::body(const Runtime::CallingFrame &)
 ```
 
 It then [opens the connection](https://github.com/WasmEdge/WasmEdge/blob/14a38e13725965026cd1f404fe552f9c41ad09a3/plugins/httpsreq/httpsreqfunc.cpp#L54-L102). Next, use the `SSL_write` to write the parsed request to the connection. Finally, it receives by using `SSL_read` and prints the receive to the console.

@@ -167,32 +167,25 @@ Expect<void> Loader::loadCoreType(AST::CoreType &Ty) {
 
   switch (Res.value()) {
   case 0x60U: {
-    AST::CoreDefType::FuncType FT;
-    Ty = FT;
-    return noJudgeLoadType(FT);
+    return noJudgeLoadType(Ty.emplace<AST::CoreDefType::FuncType>());
   }
   case 0x21U: {
     // core:structtype ::= 0x21 ft*:vec(fieldtype)
     // field ::= t:storagetype mut:mutability
-    AST::CoreDefType::StructType ST;
-    Ty = ST;
-    return loadVec(ST.getFieldTypes(), [this](auto &FT) -> Expect<void> {
-      return loadFieldType(FT);
-    });
+    return loadVec(
+        Ty.emplace<AST::CoreDefType::StructType>().getFieldTypes(),
+        [this](auto &FT) -> Expect<void> { return loadFieldType(FT); });
   }
   case 0x22U: {
     // core:arraytype ::= 0x22 ft:fieldtype
     // field ::= t:storagetype mut:mutability
-    AST::CoreDefType::ArrayType AT;
-    Ty = AT;
-    return loadFieldType(AT.getField());
+    return loadFieldType(Ty.emplace<AST::CoreDefType::ArrayType>().getField());
   }
   case 0x50U: {
     // core:moduletype ::= 0x50 md*:vec(<core:moduledecl>) => (module md*)
-    AST::CoreDefType::ModuleType MT;
-    Ty = MT;
     return loadVec(
-        MT.getModuleDecls(), [this](AST::ModuleDecl &ModDecl) -> Expect<void> {
+        Ty.emplace<AST::CoreDefType::ModuleType>().getModuleDecls(),
+        [this](AST::ModuleDecl &ModDecl) -> Expect<void> {
           // core:moduledecl ::= 0x00 i:<core:import>     => i
           //                   | 0x01 t:<core:type>       => t
           //                   | 0x02 a:<core:alias>      => a
@@ -203,33 +196,21 @@ Expect<void> Loader::loadCoreType(AST::CoreType &Ty) {
             return logLoadError(DeclType.error(), FMgr.getLastOffset(),
                                 ASTNodeAttr::CompSec_CoreType);
           }
-
           switch (DeclType.value()) {
-          case 0x00: {
+          case 0x00:
             // 0x00 i:<core:import>     => i
-            AST::ImportDesc Desc;
-            ModDecl = Desc;
-            return loadDesc(Desc);
-          }
-          case 0x01: {
+            return loadDesc(ModDecl.getContent().emplace<AST::ImportDesc>());
+          case 0x01:
             // 0x01 t:<core:type>       => t
-            AST::CoreType CT;
-            ModDecl = CT;
-            return loadCoreType(CT);
-          }
-          case 0x02: {
+            return loadCoreType(ModDecl.getContent().emplace<AST::CoreType>());
+          case 0x02:
             // 0x02 a:<core:alias>      => a
-            AST::CoreAlias Alias;
-            ModDecl = Alias;
-            return loadCoreAlias(Alias);
-          }
-          case 0x03: {
+            return loadCoreAlias(
+                ModDecl.getContent().emplace<AST::CoreAlias>());
+          case 0x03:
             // 0x03 e:<core:exportdecl> => e
             // core:exportdecl ::= n:<name> d:<core:importdesc> => (export n d)
-            AST::ExportDesc Desc;
-            ModDecl = Desc;
-            return loadDesc(Desc);
-          }
+            return loadDesc(ModDecl.getContent().emplace<AST::ExportDesc>());
           default:
             return logLoadError(DeclType.error(), FMgr.getLastOffset(),
                                 ASTNodeAttr::CompSec_CoreType);
@@ -252,14 +233,8 @@ Expect<void> Loader::loadFieldType(AST::FieldType &Ty) {
     return logLoadError(Mutability.error(), FMgr.getLastOffset(),
                         ASTNodeAttr::CompSec_CoreType);
   }
-  switch (StorageTy.value()) {
-  case 0x06:
-    Ty = AST::FieldType(Mutability.value(), AST::FieldType::I8);
-    break;
-  case 0x07:
-    Ty = AST::FieldType(Mutability.value(), AST::FieldType::I16);
-    break;
-  }
+  Ty = AST::FieldType(static_cast<AST::FieldStorageType>(*StorageTy),
+                      *Mutability);
   return {};
 }
 

@@ -13,43 +13,41 @@
 //===------------------------------------------------------------------------------------------===//
 #pragma once
 
-#include "ast/component/module_decl.h"
+#include "ast/component/corealias_section.h"
+#include "ast/description.h"
 #include "ast/type.h"
 
+#include <variant>
 #include <vector>
 
 namespace WasmEdge {
 namespace AST {
 
+enum class FieldStorageType : Byte { I8 = 0x06, I16 = 0x07 };
+
 class FieldType {
 public:
-  enum Kind { I8, I16 };
-
   // default constructor for initialize
-  FieldType() {}
+  FieldType() = default;
 
   // default used constructor
-  FieldType(Byte M, Kind K) : Mutability{M}, K{K} {}
+  FieldType(FieldStorageType T, Byte M) : Ty{T}, Mutability{M} {}
 
   Byte getMutability() const noexcept { return Mutability; }
-  Kind getKind() const noexcept { return K; }
+  FieldStorageType getKind() const noexcept { return Ty; }
 
 private:
+  FieldStorageType Ty;
   Byte Mutability;
-  Kind K;
 };
 
-class CoreType : public ModuleDecl {};
-class CoreDefType : public CoreType {
-public:
-  class FuncType;
-  class StructType;
-  class ArrayType;
-  class ModuleType;
-};
+class ModuleDecl;
 
-class CoreDefType::FuncType : public CoreDefType, public FunctionType {};
-class CoreDefType::StructType : public CoreDefType {
+namespace CoreDefType {
+
+class FuncType : public ::WasmEdge::AST::FunctionType {};
+
+class StructType {
 public:
   Span<const FieldType> getFieldTypes() const noexcept { return TyList; }
   std::vector<FieldType> &getFieldTypes() noexcept { return TyList; }
@@ -57,7 +55,8 @@ public:
 private:
   std::vector<FieldType> TyList{};
 };
-class CoreDefType::ArrayType : public CoreDefType {
+
+class ArrayType {
 public:
   const FieldType &getField() const noexcept { return Ty; }
   FieldType &getField() noexcept { return Ty; }
@@ -65,13 +64,27 @@ public:
 private:
   FieldType Ty;
 };
-class CoreDefType::ModuleType : public CoreDefType {
+
+class ModuleType {
 public:
   Span<const ModuleDecl> getModuleDecls() const noexcept { return Decls; }
   std::vector<ModuleDecl> &getModuleDecls() noexcept { return Decls; }
 
 private:
   std::vector<ModuleDecl> Decls;
+};
+
+using T = std::variant<FuncType, StructType, ArrayType, ModuleType>;
+
+} // namespace CoreDefType
+
+using CoreType = CoreDefType::T;
+class ModuleDecl {
+  using T = std::variant<CoreType, CoreAlias, ExportDesc, ImportDesc>;
+  T _T;
+
+public:
+  T &getContent() noexcept { return _T; }
 };
 
 } // namespace AST

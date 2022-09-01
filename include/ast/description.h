@@ -14,7 +14,6 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
-#include "ast/component/module_decl.h"
 #include "ast/type.h"
 #include "common/enum_types.h"
 
@@ -26,7 +25,7 @@ namespace WasmEdge {
 namespace AST {
 
 /// Base class of Desc node.
-class Desc : public ModuleDecl {
+class Desc {
 public:
   /// Getter and setter of external type.
   ExternalType getExternalType() const noexcept { return ExtType; }

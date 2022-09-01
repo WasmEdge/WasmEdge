@@ -4,6 +4,7 @@
 #pragma once
 
 #include "plugin/plugin.h"
+
 #include <cstdint>
 #include <string>
 

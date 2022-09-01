@@ -41,6 +41,7 @@ pub fn log_error_info() {
 
 // Checks the result of a `FFI` function.
 pub(crate) fn check(result: WasmEdge_Result) -> WasmEdgeResult<()> {
+    let category = unsafe { ffi::WasmEdge_ResultGetCategory(result) };
     let code = unsafe {
         if !WasmEdge_ResultOK(result) {
             WasmEdge_ResultGetCode(result)
@@ -48,6 +49,15 @@ pub(crate) fn check(result: WasmEdge_Result) -> WasmEdgeResult<()> {
             0u32
         }
     };
+
+    match category {
+        ffi::WasmEdge_ErrCategory_UserLevelError => Err(WasmEdgeError::User(code)),
+        ffi::WasmEdge_ErrCategory_WASM => gen_runtime_error(code),
+        _ => panic!("Invalid category value: {}", category),
+    }
+}
+
+fn gen_runtime_error(code: u32) -> WasmEdgeResult<()> {
     match code {
         // Success or terminated (exit and return success)
         0x00 | 0x01 => Ok(()),
@@ -281,7 +291,7 @@ pub(crate) fn check(result: WasmEdge_Result) -> WasmEdgeResult<()> {
             CoreExecutionError::IndirectCallTypeMismatch,
         ))),
         0x8D => Err(WasmEdgeError::Core(CoreError::Execution(
-            CoreExecutionError::HostFuncError,
+            CoreExecutionError::HostFuncFailed,
         ))),
         0x8E => Err(WasmEdgeError::Core(CoreError::Execution(
             CoreExecutionError::RefTypeMismatch,

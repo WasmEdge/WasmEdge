@@ -7,7 +7,7 @@ In this example, we'll present how to use [Table](https://wasmedge.github.io/Was
 In this example we defines a native function `real_add` that takes two numbers and returns their sum. This function will be registered as a host function into WasmEdge runtime environment
 
 ```rust
-fn real_add(input: Vec<WasmValue>) -> Result<Vec<WasmValue>, u8> {
+fn real_add(_: &CallingFrame, input: Vec<WasmValue>) -> Result<Vec<WasmValue>, u8> {
     println!("Rust: Entering Rust function real_add");
 
     if input.len() != 2 {
@@ -39,12 +39,12 @@ In addition, the following imports are used in this example.
 ```rust
 use wasmedge_sdk::{
     config::{CommonConfigOptions, ConfigBuilder},
+    error::HostFuncError,
     params,
     types::Val,
-    Executor, Func, ImportObjectBuilder, Store, Table, WasmVal,
+    CallingFrame, Executor, Func, ImportObjectBuilder, RefType, Store, Table, TableType, ValType,
+    WasmVal, WasmValue,
 };
-use wasmedge_sys::WasmValue;
-use wasmedge_types::{RefType, TableType, ValType};
 ```
 
 ## Register Table instance

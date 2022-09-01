@@ -1,0 +1,37 @@
+---
+###########################
+###########################
+## Markdown Linter rules ##
+###########################
+###########################
+
+# Linter rules doc:
+# - https://github.com/DavidAnson/markdownlint
+#
+# Copied from: https://github.com/github/super-linter/blob/main/TEMPLATES/.markdown-lint.yml
+#
+# Note:
+# To comment out a single error:
+#   <!-- markdownlint-disable -->
+#   any violations you want
+#   <!-- markdownlint-restore -->
+#
+
+###############
+# Rules by id #
+###############
+MD004: false                  # Unordered list style
+MD007:
+  indent: 2                   # Unordered list indentation
+MD013:
+  line_length: 999            # Line length 80 is far to short. We allow soft wrapped paragraphs and raw code outputs
+MD026:
+  punctuation: ".,;:!。，；:"  # List of not allowed
+MD029: false                  # Ordered list item prefix
+MD033: false                  # Allow inline HTML
+MD036: false                  # Emphasis used instead of a heading
+
+#################
+# Rules by tags #
+#################
+blank_lines: false  # Error on blank lines

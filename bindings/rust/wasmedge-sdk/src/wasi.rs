@@ -33,6 +33,19 @@ impl WasiInstance {
     pub fn exit_code(&self) -> u32 {
         self.inner.exit_code()
     }
+
+    /// Returns the native handler from the mapped FD/Handler.
+    ///
+    /// # Argument
+    ///
+    /// * `fd` - The WASI mapped Fd.
+    ///
+    /// # Error
+    ///
+    /// If fail to get the native handler, then an error is returned.
+    pub fn native_handler(&self, fd: i32) -> WasmEdgeResult<u64> {
+        self.inner.get_native_handler(fd)
+    }
 }
 impl AsInstance for WasiInstance {
     /// Returns the name of this exported [module instance](crate::Instance).

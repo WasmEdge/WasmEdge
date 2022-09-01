@@ -290,9 +290,7 @@ jobs:
     - name: Build WasmEdge ${{ matrix.name }} plugin using clang++ with ${{ matrix.build_type }} mode
       run: |
         brew install llvm ninja boost cmake openssl@1.1
-        export PATH="/usr/local/opt/llvm/bin:$PATH"
-        export LDFLAGS="-L/usr/local/opt/llvm/lib -Wl,-rpath,/usr/local/opt/llvm/lib"
-        export CPPFLAGS="-I/usr/local/opt/llvm/include"
+        export LLVM_DIR="/usr/local/opt/llvm/lib/cmake"
         export CC=clang
         export CXX=clang++
         mkdir -p build

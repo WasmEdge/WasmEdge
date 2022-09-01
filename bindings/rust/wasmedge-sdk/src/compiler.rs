@@ -26,23 +26,45 @@ impl Compiler {
         Ok(Self { inner })
     }
 
-    /// The compiler compiles the input WASM from the given file path for the AOT mode and stores the result to the output file path.
+    /// Compiles the input WASM from the given file path for the AOT mode and stores the result to the output file path.
     ///
     /// # Arguments
     ///
-    /// - `in_path` specifies the input WASM file path.
+    /// * `in_path` specifies the input WASM file path.
     ///
-    /// - `out_path` specifies the output WASM file path.
+    /// * `out_path` specifies the output WASM file path.
     ///
     /// # Error
     ///
     /// If fail to compile, then an error is returned.
-    pub fn compile(
+    pub fn compile_from_file(
         &self,
         in_path: impl AsRef<Path>,
         out_path: impl AsRef<Path>,
     ) -> WasmEdgeResult<()> {
-        self.inner.compile(in_path, out_path)?;
+        self.inner.compile_from_file(in_path, out_path)?;
+
+        Ok(())
+    }
+
+    /// Compiles the input WASM from the given bytes for the AOT mode and stores the result to the output file path.
+    ///
+    /// # Argument
+    ///
+    /// * `bytes` - A in-memory WASM bytes.
+    ///
+    /// * `out_path` - The output WASM file path.
+    ///
+    /// # Error
+    ///
+    /// If fail to compile, then an error is returned.
+    #[cfg(feature = "aot")]
+    pub fn compile_from_bytes(
+        &self,
+        bytes: impl AsRef<[u8]>,
+        out_path: impl AsRef<Path>,
+    ) -> WasmEdgeResult<()> {
+        self.inner.compile_from_bytes(bytes, out_path)?;
 
         Ok(())
     }

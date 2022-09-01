@@ -53,7 +53,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     list(APPEND WASMEDGE_CFLAGS
       -Wno-error=return-std-move-in-c++11
     )
-  else()
+  elseif(NOT CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang")
     list(APPEND WASMEDGE_CFLAGS
       -Wno-error=shadow-field
       -Wno-reserved-identifier

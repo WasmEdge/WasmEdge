@@ -259,12 +259,12 @@ unsafe impl Sync for InnerTableType {}
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{FuncType, Function};
+    use crate::{CallingFrame, FuncType, Function};
     use std::{
         sync::{Arc, Mutex},
         thread,
     };
-    use wasmedge_types::{RefType, ValType};
+    use wasmedge_types::{error::HostFuncError, RefType, ValType};
 
     #[test]
     #[allow(clippy::assertions_on_result_states)]
@@ -444,23 +444,23 @@ mod tests {
         handle.join().unwrap();
     }
 
-    fn real_add(input: Vec<WasmValue>) -> Result<Vec<WasmValue>, u8> {
+    fn real_add(_: &CallingFrame, input: Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError> {
         println!("Rust: Entering Rust function real_add");
 
         if input.len() != 2 {
-            return Err(1);
+            return Err(HostFuncError::User(1));
         }
 
         let a = if input[0].ty() == ValType::I32 {
             input[0].to_i32()
         } else {
-            return Err(2);
+            return Err(HostFuncError::User(2));
         };
 
         let b = if input[1].ty() == ValType::I32 {
             input[0].to_i32()
         } else {
-            return Err(3);
+            return Err(HostFuncError::User(3));
         };
 
         let c = a + b;

@@ -42,7 +42,7 @@ fn main() {
 
     println!("cargo:rustc-env=LD_LIBRARY_PATH={}", lib_dir.display());
     println!("cargo:rustc-link-search={}", lib_dir.display());
-    println!("cargo:rustc-link-lib=dylib=wasmedge_c");
+    println!("cargo:rustc-link-lib=dylib=wasmedge");
 }
 
 /// Check header and Returns the location of wasmedge.h and libwasmedge_c.(dylib|so)

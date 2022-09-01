@@ -69,7 +69,7 @@ JNIEXPORT void JNICALL Java_org_wasmedge_ModuleInstanceContext_initWasmEdgeProce
     const char** allowedCmds = JStringArrayToPtr(env, jAllowedCmds);
 
     WasmEdge_ModuleInstanceContext* impCxt = getModuleInstanceContext(env, thisObject);
-    WasmEdge_ModuleInstanceInitWasmEdgeProcess(impCxt, allowedCmds, (*env)->GetArrayLength(env, jAllowedCmds), jAllowAll);
+    WasmEdge_ModuleInstanceInitWasmEdgeProcess(impCxt, allowedCmds, jAllowAll);
 
     ReleaseCString(env, jAllowedCmds, allowedCmds);
 }

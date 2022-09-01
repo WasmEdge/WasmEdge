@@ -26,7 +26,6 @@ add_library(${TARGET} SHARED
         lib/LoaderContext.c
         lib/AstModuleContext.c
         lib/StatisticsContext.c
-        lib/ExecutorContext.c
         lib/ValidatorContext.c
         lib/GlobalInstanceContext.c
         lib/ValueType.c
@@ -37,7 +36,7 @@ add_library(${TARGET} SHARED
         lib/MemoryTypeContext.h
         lib/ExternRef.c
         lib/ExportTypeContext.c
-        lib/ImportTypeContext.c lib/ImportObjectContext.c lib/FunctionTypeInstance.c lib/FunctionTypeInstance.h lib/GlobalInstanceContext.h lib/MemoryInstanceContext.h lib/TableInstanceContext.h lib/ImportObjectContext.h lib/WasmEdgeAsync.h lib/WasmEdgeAsync.c)
+        lib/ImportTypeContext.c lib/ModuleInstanceContext.c lib/FunctionTypeInstance.c lib/FunctionTypeInstance.h lib/GlobalInstanceContext.h lib/MemoryInstanceContext.h lib/TableInstanceContext.h lib/ModuleInstanceContext.h lib/WasmEdgeAsync.h lib/WasmEdgeAsync.c)
 
 target_link_libraries(${TARGET} wasmedge_c)
 

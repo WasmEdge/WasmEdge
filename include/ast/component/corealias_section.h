@@ -13,7 +13,6 @@
 //===------------------------------------------------------------------------------------------===//
 #pragma once
 
-#include "ast/component/module_decl.h"
 #include "ast/component/sort.h"
 
 #include <cinttypes>
@@ -51,7 +50,7 @@ private:
   uint32_t Index;
 };
 
-class CoreAlias : public ModuleDecl {
+class CoreAlias {
 public:
   void setSort(CoreSort S) noexcept { Sort = S; }
   CoreSort getSort() const noexcept { return Sort; }

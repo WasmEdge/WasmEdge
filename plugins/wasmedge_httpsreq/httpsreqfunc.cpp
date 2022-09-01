@@ -27,8 +27,8 @@ Expect<void> WasmEdgeHttpsReqSendData::body(const Runtime::CallingFrame &Frame,
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
-  const char *Host = MemInst->getPointer<char *>(HostPtr);
-  const char *Body = MemInst->getPointer<char *>(BodyPtr);
+  const char *Host = MemInst->getPointer<const char *>(HostPtr);
+  const char *Body = MemInst->getPointer<const char *>(BodyPtr);
   if (Host == nullptr) {
     spdlog::error("[Wasmedge Httpsreq] Fail to get Host");
     return Unexpect(ErrCode::Value::HostFuncError);
@@ -84,7 +84,7 @@ Expect<void> WasmEdgeHttpsReqSendData::body(const Runtime::CallingFrame &Frame,
   freeaddrinfo(Addrs);
 
   if (Sfd == -1) {
-    spdlog::error("{}", strerror(Err));
+    spdlog::error("[Wasmedge Httpsreq] {}", strerror(Err));
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 

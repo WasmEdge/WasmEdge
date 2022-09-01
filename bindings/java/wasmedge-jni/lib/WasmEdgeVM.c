@@ -600,7 +600,7 @@ JNIEXPORT void JNICALL Java_org_wasmedge_WasmEdgeVM_registerModuleFromImport(
 }
 
 JNIEXPORT jobject JNICALL Java_org_wasmedge_WasmEdgeVM_wasmEdgeVMAsyncRunWasmFromFile
-        (JNIEnv * env, jobject thisObject, jstring jPath, jstring JFuncName, jobjectArray jParams, jintArray jParamTypes);{
+        (JNIEnv * env, jobject thisObject, jstring jPath, jstring jFuncName, jobjectArray jParams, jintArray jParamTypes){
     /* The configure and store context to the VM creation can be NULL. */
     WasmEdge_VMContext *VMCxt = getVmContext(env, thisObject);
 

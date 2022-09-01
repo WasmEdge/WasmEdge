@@ -30,11 +30,11 @@ Expect<void> WasmEdgeHttpsReqSendData::body(const Runtime::CallingFrame &Frame,
   const char *Host = MemInst->getPointer<const char *>(HostPtr);
   const char *Body = MemInst->getPointer<const char *>(BodyPtr);
   if (Host == nullptr) {
-    spdlog::error("[Wasmedge Httpsreq] Fail to get Host");
+    spdlog::error("[WasmEdge Httpsreq] Fail to get Host");
     return Unexpect(ErrCode::Value::HostFuncError);
   }
   if (Body == nullptr) {
-    spdlog::error("[Wasmedge Httpsreq] Fail to get Body");
+    spdlog::error("[WasmEdge Httpsreq] Fail to get Body");
     return Unexpect(ErrCode::Value::HostFuncError);
   }
   std::string HostStr, BodyStr, PortStr = std::to_string(Port);
@@ -45,12 +45,12 @@ Expect<void> WasmEdgeHttpsReqSendData::body(const Runtime::CallingFrame &Frame,
   SSL_CTX *Ctx = SSL_CTX_new(Method);
   if (Ctx == nullptr) {
     ERR_print_errors_fp(stderr);
-    spdlog::error("[Wasmedge Httpsreq] SSL_CTX_new() failed");
+    spdlog::error("[WasmEdge Httpsreq] SSL_CTX_new() failed");
     return Unexpect(ErrCode::Value::HostFuncError);
   }
   SSL *Ssl = SSL_new(Ctx);
   if (Ssl == nullptr) {
-    spdlog::error("[Wasmedge Httpsreq] SSL_new() failed");
+    spdlog::error("[WasmEdge Httpsreq] SSL_new() failed");
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
@@ -84,7 +84,7 @@ Expect<void> WasmEdgeHttpsReqSendData::body(const Runtime::CallingFrame &Frame,
   freeaddrinfo(Addrs);
 
   if (Sfd == -1) {
-    spdlog::error("[Wasmedge Httpsreq] {}", strerror(Err));
+    spdlog::error("[WasmEdge Httpsreq] {}", strerror(Err));
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
@@ -94,7 +94,7 @@ Expect<void> WasmEdgeHttpsReqSendData::body(const Runtime::CallingFrame &Frame,
   if (Status != 1) {
     SSL_get_error(Ssl, Status);
     ERR_print_errors_fp(stderr);
-    spdlog::error("[Wasmedge Httpsreq] SSL_get_error code {}", Status);
+    spdlog::error("[WasmEdge Httpsreq] SSL_get_error code {}", Status);
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 

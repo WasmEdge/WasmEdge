@@ -190,7 +190,7 @@ Loader::parseComponent(const std::filesystem::path &FilePath) {
       if (*Res != AOT::kBinaryVersion) {
         spdlog::error(ErrInfo::InfoMismatch(AOT::kBinaryVersion, *Res));
         spdlog::error(ErrInfo::InfoFile(FilePath));
-        return Unexpect(ErrCode::MalformedVersion);
+        return Unexpect(ErrCode::Value::MalformedVersion);
       }
     } else {
       spdlog::error(ErrInfo::InfoFile(FilePath));

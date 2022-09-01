@@ -136,7 +136,8 @@ Expect<std::unique_ptr<AST::Component>> Loader::loadComponent() {
       }
       auto End = FMgr.getLastOffset();
       if ((End - Start - 1) != *Res) {
-        return logLoadError(ErrCode::SectionSizeMismatch, FMgr.getLastOffset(),
+        return logLoadError(ErrCode::Value::SectionSizeMismatch,
+                            FMgr.getLastOffset(),
                             ASTNodeAttr::CompSec_Component);
       }
       break;

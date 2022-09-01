@@ -66,18 +66,6 @@ Expect<void> Loader::loadLimit(AST::Limit &Lim) {
 
 Expect<void> Loader::noJudgeLoadType(AST::FunctionType &FuncType) {
   uint32_t VecCnt = 0;
-
-  // Read function type (0x60).
-  if (auto Res = FMgr.readByte()) {
-    if (*Res != 0x60U) {
-      return logLoadError(ErrCode::Value::IntegerTooLong, FMgr.getLastOffset(),
-                          ASTNodeAttr::Type_Function);
-    }
-  } else {
-    return logLoadError(Res.error(), FMgr.getLastOffset(),
-                        ASTNodeAttr::Type_Function);
-  }
-
   // Read vector of parameter types.
   if (auto Res = FMgr.readU32()) {
     VecCnt = *Res;

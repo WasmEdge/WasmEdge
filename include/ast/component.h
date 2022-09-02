@@ -33,6 +33,9 @@ public:
   const std::vector<Byte> &getLayer() const noexcept { return Layer; }
   std::vector<Byte> &getLayer() noexcept { return Layer; }
 
+  std::optional<Byte> getId() const noexcept { return ID; }
+  void setId(Byte V) noexcept { ID = V; }
+
   /// Getters of references to sections.
   const ModuleSection &getModuleSection() const noexcept { return ModuleSec; }
   ModuleSection &getModuleSection() noexcept { return ModuleSec; }
@@ -98,6 +101,7 @@ private:
   std::vector<Byte> Magic;
   std::vector<Byte> Version;
   std::vector<Byte> Layer;
+  std::optional<Byte> ID{std::nullopt};
   /// @}
 
   /// \name Section nodes of Module node.

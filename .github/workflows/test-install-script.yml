@@ -32,26 +32,32 @@ jobs:
             host_runner: ubuntu-latest
             package_manager: yum
             docker_image: quay.io/centos/centos:stream8
+            python_package: python3 python2
           - name: CentOS 7
             host_runner: ubuntu-latest
             package_manager: yum
             docker_image: centos:7.9.2009
+            python_package: python3 python2
           - name: Ubuntu 20.04
             host_runner: ubuntu-latest
             package_manager: apt
             docker_image: ubuntu:20.04
+            python_package: python2
           - name: Ubuntu 18.04
             host_runner: ubuntu-latest
             package_manager: apt
             docker_image: ubuntu:18.04
+            python_package: python3-minimal python2.7
           - name: Ubuntu 16.04
             host_runner: ubuntu-latest
             package_manager: apt
             docker_image: ubuntu:16.04
+            python_package: python-minimal
           - name: manylinux2014 aarch64
             host_runner: ARM64
             package_manager: yum
             docker_image: wasmedge/wasmedge:manylinux2014_aarch64
+            python_package: python2
     name: ${{ matrix.name }}
     runs-on: ${{ matrix.host_runner }}
     container:
@@ -65,23 +71,10 @@ jobs:
     - name: Install git
       run: |
         ${{ matrix.package_manager }} update -y
-        ${{ matrix.package_manager }} install -y wget git make gcc autoconf
-        version=2.7.13
-        wget https://www.python.org/ftp/python/$version/Python-$version.tgz
-        tar -xvf Python-$version.tgz
-        cd Python-$version
-        ./configure
-        make -j
-        make install
-        cd ..
-        version=3.7.13
-        wget https://www.python.org/ftp/python/$version/Python-$version.tgz
-        tar -xvf Python-$version.tgz
-        cd Python-$version
-        ./configure
-        make -j
-        make install
-        cd ..
+        ${{ matrix.package_manager }} install -y git
+    - name: Install Python
+      run: |
+        ${{ matrix.package_manager }} install -y ${{ matrix.python_package }}
     - name: Install WasmEdge latest release
       run: |
         python2 utils/install.py -D

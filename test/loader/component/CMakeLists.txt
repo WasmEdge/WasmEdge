@@ -7,6 +7,7 @@ file(COPY
 wasmedge_add_executable(wasmedgeLoaderComponentASTTests
   type_definition.cpp
   core_type_definition.cpp
+  instance_definition.cpp
   import_export_definition.cpp
   nested_component.cpp
 )

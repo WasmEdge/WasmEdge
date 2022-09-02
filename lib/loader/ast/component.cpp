@@ -121,22 +121,17 @@ Expect<std::unique_ptr<AST::Component>> Loader::loadComponent() {
       break;
     case 0x05: {
       // c: section_5(<component>)           => [c]
-      auto Res = FMgr.readByte();
-      if (!Res) {
-        return logLoadError(Res.error(), FMgr.getLastOffset(),
+      auto SecId = FMgr.readByte();
+      if (!SecId) {
+        return logLoadError(SecId.error(), FMgr.getLastOffset(),
                             ASTNodeAttr::CompSec_Component);
       }
-      auto Start = FMgr.getLastOffset();
       if (auto C = loadComponent()) {
+        C.value()->setId(*SecId);
         Comp->getComponentSection().getContent().push_back(std::move(*C));
       } else {
         spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Component));
         return Unexpect(C);
-      }
-      auto End = FMgr.getLastOffset();
-      if ((End - Start - 1) != *Res) {
-        return logLoadError(ErrCode::SectionSizeMismatch, FMgr.getLastOffset(),
-                            ASTNodeAttr::CompSec_Component);
       }
       break;
     }

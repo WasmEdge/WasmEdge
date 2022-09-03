@@ -576,6 +576,9 @@ def install_image_extension(args, compat):
                 if ("jpeg" not in file) and ("png" not in file):
                     continue
                 try:
+                    # check if it contains any digits
+                    if not any(i.isdigit() for i in file):
+                        continue
                     if compat.platform == "Linux":
                         name, version = file.split(CONST_lib_ext, 1)
                         no_v_env_path = join(
@@ -850,6 +853,9 @@ def install_tensorflow_extension(args, compat):
                 # ignore files that are not downloaded by this script
                 continue
             if "tensorflow" not in file:
+                continue
+            # check if it contains any digits
+            if not any(i.isdigit() for i in file):
                 continue
             if compat.platform == "Linux":
                 name, version = file.split(CONST_lib_ext, 1)

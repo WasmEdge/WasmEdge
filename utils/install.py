@@ -658,6 +658,7 @@ def install_image_extension(args, compat):
                         continue
                     if compat.platform == "Linux":
                         name, version = file.split(CONST_lib_ext, 1)
+                        version = version.removeprefix(".")
                         no_v_env_path = join(
                             args.path,
                             CONST_lib_dir,
@@ -670,7 +671,7 @@ def install_image_extension(args, compat):
                         single_v_env_path = join(
                             args.path,
                             CONST_lib_dir,
-                            name + CONST_lib_ext + "." + version.split(".")[1],
+                            name + CONST_lib_ext + "." + version.split(".")[0],
                         )
                         symlink(
                             join(args.path, CONST_lib_dir, file),
@@ -682,9 +683,9 @@ def install_image_extension(args, compat):
                             name
                             + CONST_lib_ext
                             + "."
-                            + version.split(".")[1]
+                            + version.split(".")[0]
                             + "."
-                            + version.split(".")[2],
+                            + version.split(".")[1],
                         )
                         symlink(
                             join(args.path, CONST_lib_dir, file),
@@ -940,16 +941,17 @@ def install_tensorflow_extension(args, compat):
                 continue
             if compat.platform == "Linux":
                 name, version = file.split(CONST_lib_ext, 1)
+                version = version.removeprefix(".")
                 if version != "":
                     no_v_name = name + CONST_lib_ext
-                    single_v_name = name + CONST_lib_ext + "." + version.split(".")[1]
+                    single_v_name = name + CONST_lib_ext + "." + version.split(".")[0]
                     dual_v_name = (
                         name
                         + CONST_lib_ext
                         + "."
-                        + version.split(".")[1]
+                        + version.split(".")[0]
                         + "."
-                        + version.split(".")[2]
+                        + version.split(".")[1]
                     )
                     file_path = join(args.path, lib_dir, file)
                     single_v_file_path = join(args.path, lib_dir, single_v_name)

@@ -332,6 +332,12 @@ except:
 
 def set_env(args, compat):
     global CONST_env, CONST_env_path, CONST_lib_dir
+    other_lib_dir = None
+
+    if CONST_lib_dir == "lib64":
+        other_lib_dir = "lib"
+    else:
+        other_lib_dir = "lib64"
 
     CONST_env = """#!/bin/sh
 # wasmedge shell setup
@@ -393,6 +399,31 @@ case :"${5}": in
         fi
         ;;
 esac
+if [ -d {0}/{7} ];then
+    case :"${2}": in
+        *:"{0}/{7}":*)
+            ;;
+        *)
+            # Prepending path in case a system-installed wasmedge libs needs to be overridden
+            if [ -n "${2}" ]; then
+                export {2}="{0}/{7}":${2}
+            else
+                export {2}="{0}/{7}"
+            fi
+            ;;
+    esac
+    case :"${3}": in
+    *:"{0}/{7}":*)
+        ;;
+    *)
+        if [ -n "${3}" ]; then
+            export LIBRARY_PATH="{0}/{7}":$LIBRARY_PATH
+        else
+            export LIBRARY_PATH="{0}/{7}"
+        fi
+        ;;
+    esac
+fi
 # Please do not edit comments below this for uninstallation purpose
 """.format(
         args.path,
@@ -402,6 +433,7 @@ esac
         "C_INCLUDE_PATH",
         "CPLUS_INCLUDE_PATH",
         CONST_lib_dir,
+        other_lib_dir,
     )
 
     try:

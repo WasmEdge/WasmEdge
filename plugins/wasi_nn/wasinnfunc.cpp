@@ -18,11 +18,15 @@
 #include <torch/torch.h>
 #endif
 
+#ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_TFLITE
+#include "tensorflow/lite/c/c_api.h"
+#endif
+
 namespace WasmEdge {
 namespace Host {
 
 namespace {
-std::string FindDevice(const uint32_t Target) {
+[[maybe_unused]] std::string FindDevice(const uint32_t Target) {
   std::string DeviceName;
   switch (Target) {
   case 0:
@@ -44,8 +48,7 @@ std::string FindDevice(const uint32_t Target) {
 Expect<uint32_t> WasiNNLoad::body(const Runtime::CallingFrame &Frame,
                                   uint32_t BuilderPtr [[maybe_unused]],
                                   uint32_t BuilderLen [[maybe_unused]],
-                                  uint32_t Encoding,
-                                  uint32_t Target [[maybe_unused]],
+                                  uint32_t Encoding, uint32_t Target,
                                   uint32_t GraphIdPtr [[maybe_unused]]) {
   // Check memory instance from module.
   auto *MemInst = Frame.getMemoryByIndex(0);
@@ -58,6 +61,15 @@ Expect<uint32_t> WasiNNLoad::body(const Runtime::CallingFrame &Frame,
     spdlog::error("[WASI-NN] Failed when accessing the return GraphID memory.");
     return static_cast<uint32_t>(WASINN::ErrNo::InvalidArgument);
   }
+  // Get and check the device name string.
+  std::string DeviceName;
+  DeviceName = FindDevice(Target);
+  if (unlikely(DeviceName.length() == 0)) {
+    spdlog::error("[WASI-NN] Only support CPU target");
+    return static_cast<uint32_t>(WASINN::ErrNo::InvalidArgument);
+  }
+  spdlog::debug("[WASI-NN] Using device: {:s}", DeviceName);
+
   if (Encoding == static_cast<uint32_t>(WASINN::Backend::OpenVINO)) {
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_OPENVINO
     // The OpenVINO core must be initialized in constructor.
@@ -72,15 +84,6 @@ Expect<uint32_t> WasiNNLoad::body(const Runtime::CallingFrame &Frame,
                     BuilderLen);
       return static_cast<uint32_t>(WASINN::ErrNo::InvalidArgument);
     }
-
-    // Get and check the device name string.
-    std::string DeviceName;
-    DeviceName = FindDevice(Target);
-    if (DeviceName.length() == 0) {
-      spdlog::error("[WASI-NN] PyTorch backend only support CPU target");
-      return static_cast<uint32_t>(WASINN::ErrNo::InvalidArgument);
-    }
-    spdlog::debug("[WASI-NN] Using device: {:s}", DeviceName);
 
     // Get the graph builders.
     // GraphBuilders' Layout:
@@ -248,13 +251,6 @@ Expect<uint32_t> WasiNNLoad::body(const Runtime::CallingFrame &Frame,
 #endif
   } else if (Encoding == static_cast<uint32_t>(WASINN::Backend::PyTorch)) {
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_TORCH
-    std::string DeviceName;
-    DeviceName = FindDevice(Target);
-    if (DeviceName.length() == 0) {
-      spdlog::error("[WASI-NN] PyTorch backend only support CPU target");
-      return static_cast<uint32_t>(WASINN::ErrNo::InvalidArgument);
-    }
-
     // The graph builder length must be 2.
     if (BuilderLen != 1) {
       spdlog::error("[WASI-NN] Wrong GraphBuilder Length {:d}, expect 1",
@@ -296,6 +292,50 @@ Expect<uint32_t> WasiNNLoad::body(const Runtime::CallingFrame &Frame,
     spdlog::error("[WASI-NN] PyTorch backend is not built. use "
                   "-WASMEDGE_PLUGIN_WASI_NN_BACKEND=\"PyTorch\" to build it.");
 #endif // WASMEDGE_PLUGIN_WASI_NN_BACKEND_TORCH
+  } else if (Encoding ==
+             static_cast<uint32_t>(WASINN::Backend::TensorflowLite)) {
+#ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_TFLITE
+    // The graph builder length must be 1.
+    if (BuilderLen != 1) {
+      spdlog::error("[WASI-NN] Wrong GraphBuilder Length {:d}, expect 1",
+                    BuilderLen);
+      return static_cast<uint32_t>(WASINN::ErrNo::InvalidArgument);
+    }
+    uint32_t *GraphBuilders =
+        MemInst->getPointer<uint32_t *>(BuilderPtr, BuilderLen * 2);
+    if (unlikely(GraphBuilders == nullptr)) {
+      spdlog::error("[WASI-NN] Failed when accessing the GraphBuilder memory.");
+      return static_cast<uint32_t>(WASINN::ErrNo::InvalidArgument);
+    }
+    uint32_t BinLen = GraphBuilders[1];
+    char *BinPtr = MemInst->getPointer<char *>(GraphBuilders[0], BinLen);
+    if (unlikely(BinPtr == nullptr)) {
+      spdlog::error("[WASI-NN] Failed when accessing the Weight memory.");
+      return static_cast<uint32_t>(WASINN::ErrNo::InvalidArgument);
+    }
+    // Add a new graph.
+    Env.NNGraph.emplace_back(static_cast<WASINN::Backend>(Encoding));
+    auto &Graph = Env.NNGraph.back();
+
+    // -------------------------
+    Graph.TFLiteMod = TfLiteModelCreate(BinPtr, BinLen);
+    if (unlikely(Graph.TFLiteMod == nullptr)) {
+      spdlog::error("[WASI-NN] Cannot import TFLite model");
+      Env.NNGraph.pop_back();
+      return static_cast<uint32_t>(WASINN::ErrNo::InvalidArgument);
+    }
+    Graph.TFLiteOps = TfLiteInterpreterOptionsCreate();
+    TfLiteInterpreterOptionsSetNumThreads(Graph.TFLiteOps, 2);
+
+    // Store the loaded graph.
+    *GraphId = Env.NNGraph.size() - 1;
+    return static_cast<uint32_t>(WASINN::ErrNo::Success);
+    // -------------------------
+#else
+    spdlog::error(
+        "[WASI-NN] TensorflowLite backend is not built. use "
+        "-WASMEDGE_PLUGIN_WASI_NN_BACKEND=\"Tensorflowlite\" to build it.");
+#endif
   } else {
     spdlog::error("[WASI-NN] Current backend is not supported.");
   }
@@ -354,6 +394,28 @@ Expect<uint32_t> WasiNNInitExecCtx::body(const Runtime::CallingFrame &Frame,
 #else
     spdlog::error("[WASI-NN] PyTorch backend is not built. use "
                   "-WASMEDGE_PLUGIN_WASI_NN_BACKEND=\"PyTorch\" to build it.");
+#endif
+  } else if (Env.NNGraph[GraphId].GraphBackend ==
+             WASINN::Backend::TensorflowLite) {
+#ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_TFLITE
+    Env.NNContext.emplace_back(Env.NNGraph[GraphId]);
+    const auto Graph = Env.NNGraph[GraphId];
+    auto &NewContext = Env.NNContext.back();
+    NewContext.TFLiteInterp =
+        TfLiteInterpreterCreate(Graph.TFLiteMod, Graph.TFLiteOps);
+    if (unlikely(NewContext.TFLiteInterp == nullptr)) {
+      spdlog::error("[WASI-NN] Cannot create TFLite interpreter.");
+      Env.NNContext.pop_back();
+      return static_cast<uint32_t>(WASINN::ErrNo::Busy);
+    }
+    TfLiteInterpreterAllocateTensors(NewContext.TFLiteInterp);
+
+    *Context = Env.NNContext.size() - 1;
+    return static_cast<uint32_t>(WASINN::ErrNo::Success);
+#else
+    spdlog::error(
+        "[WASI-NN] TensorflowLite backend is not built. use "
+        "-WASMEDGE_PLUGIN_WASI_NN_BACKEND=\"Tensorflowlite\" to build it.");
 #endif
   } else {
     spdlog::error("[WASI-NN] Current backend is not supported.");
@@ -423,8 +485,8 @@ Expect<uint32_t> WasiNNSetInput::body(const Runtime::CallingFrame &Frame,
       spdlog::error("[WASI-NN] Failed when accessing the TensorData memory.");
       return static_cast<uint32_t>(WASINN::ErrNo::InvalidArgument);
     }
-    uint32_t RType = Tensor[2];
-    if (RType != 1) {
+    WASINN::TensorType RType = static_cast<WASINN::TensorType>(Tensor[2]);
+    if (RType != WASINN::TensorType::F32) {
       spdlog::error(
           "[WASI-NN] Only F32 inputs and outputs are supported for now.");
       return static_cast<uint32_t>(WASINN::ErrNo::InvalidArgument);
@@ -551,8 +613,8 @@ Expect<uint32_t> WasiNNSetInput::body(const Runtime::CallingFrame &Frame,
       spdlog::error("[WASI-NN] Failed when accessing the TensorData memory.");
       return static_cast<uint32_t>(WASINN::ErrNo::InvalidArgument);
     }
-    uint32_t RType = Tensor[2];
-    if (RType != 1) {
+    WASINN::TensorType RType = static_cast<WASINN::TensorType>(Tensor[2]);
+    if (RType != WASINN::TensorType::F32) {
       spdlog::error(
           "[WASI-NN] Only F32 inputs and outputs are supported for now.");
       return static_cast<uint32_t>(WASINN::ErrNo::InvalidArgument);
@@ -571,6 +633,50 @@ Expect<uint32_t> WasiNNSetInput::body(const Runtime::CallingFrame &Frame,
 #else
     spdlog::error("[WASI-NN] PyTorch backend is not built. use "
                   "-WASMEDGE_PLUGIN_WASI_NN_BACKEND=\"PyTorch\" to build it.");
+#endif
+  } else if (CxtRef.GraphRef.GraphBackend == WASINN::Backend::TensorflowLite) {
+#ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_TFLITE
+    uint32_t InCnt = TfLiteInterpreterGetInputTensorCount(CxtRef.TFLiteInterp);
+    if (Index >= InCnt) {
+      spdlog::error("[WASI-NN] Invalid index id {} for the input, only {} "
+                    "inputs are allowed",
+                    Index, InCnt);
+      return static_cast<uint32_t>(WASINN::ErrNo::InvalidArgument);
+    }
+    uint32_t *Tensor = MemInst->getPointer<uint32_t *>(TensorPtr, 5);
+    if (unlikely(Tensor == nullptr)) {
+      spdlog::error("[WASI-NN] Failed when accessing the Tensor memory.");
+      return static_cast<uint32_t>(WASINN::ErrNo::InvalidArgument);
+    }
+    uint32_t DimensionLen = Tensor[1];
+    std::vector<int64_t> TFDimension(DimensionLen);
+    uint32_t *DimensionBuf =
+        MemInst->getPointer<uint32_t *>(Tensor[0], DimensionLen);
+    for (uint32_t I = 0; I < DimensionLen; I++) {
+      TFDimension.push_back(static_cast<uint64_t>(DimensionBuf[I]));
+    }
+    if (unlikely(DimensionBuf == nullptr)) {
+      spdlog::error("[WASI-NN] Failed when accessing the Dimension memory.");
+      return static_cast<uint32_t>(WASINN::ErrNo::InvalidArgument);
+    }
+    uint32_t TensorDataLen = Tensor[4];
+    uint8_t *TensorDataBuf =
+        MemInst->getPointer<uint8_t *>(Tensor[3], TensorDataLen);
+    if (unlikely(TensorDataBuf == nullptr)) {
+      spdlog::error("[WASI-NN] Failed when accessing the TensorData memory.");
+      return static_cast<uint32_t>(WASINN::ErrNo::InvalidArgument);
+    }
+
+    auto *HoldTensor =
+        TfLiteInterpreterGetInputTensor(CxtRef.TFLiteInterp, Index);
+    TfLiteTensorCopyFromBuffer(HoldTensor, TensorDataBuf, TensorDataLen);
+
+    return static_cast<uint32_t>(WASINN::ErrNo::Success);
+
+#else
+    spdlog::error(
+        "[WASI-NN] TensorflowLite backend is not built. use "
+        "-WASMEDGE_PLUGIN_WASI_NN_BACKEND=\"Tensorflowlite\" to build it.");
 #endif
   } else {
     spdlog::error("[WASI-NN] Current backend is not supported.");
@@ -708,6 +814,42 @@ WasiNNGetOuput::body(const Runtime::CallingFrame &Frame, uint32_t Context,
     spdlog::error("[WASI-NN] PyTorch backend is not built. use "
                   "-WASMEDGE_PLUGIN_WASI_NN_BACKEND=\"PyTorch\" to build it.");
 #endif
+  } else if (CxtRef.GraphRef.GraphBackend == WASINN::Backend::TensorflowLite) {
+#ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_TFLITE
+    uint32_t OutCnt =
+        TfLiteInterpreterGetOutputTensorCount(CxtRef.TFLiteInterp);
+    if (Index >= OutCnt) {
+      spdlog::error("[WASI-NN] Invalid index id {} for the input, only {} "
+                    "outputs are allowed",
+                    Index, OutCnt);
+      return static_cast<uint32_t>(WASINN::ErrNo::InvalidArgument);
+    }
+    const TfLiteTensor *HoldTensor =
+        TfLiteInterpreterGetOutputTensor(CxtRef.TFLiteInterp, Index);
+    const uint32_t BlobSize = TfLiteTensorByteSize(HoldTensor);
+    uint32_t BytesToWrite = std::min(BlobSize, OutBufferMaxSize);
+    uint8_t *OutBuffer =
+        MemInst->getPointer<uint8_t *>(OutBufferPtr, BytesToWrite);
+    if (unlikely(OutBuffer == nullptr)) {
+      spdlog::error(
+          "[WASI-NN] Failed when accessing the Output Buffer memory.");
+      return static_cast<uint32_t>(WASINN::ErrNo::InvalidArgument);
+    }
+    TfLiteTensorCopyToBuffer(HoldTensor, OutBuffer, BytesToWrite);
+    uint32_t *BytesWritten =
+        MemInst->getPointer<uint32_t *>(BytesWrittenPtr, 1);
+    if (unlikely(BytesWritten == nullptr)) {
+      spdlog::error("[WASI-NN] Failed when accessing the BytesWritten memory.");
+      return static_cast<uint32_t>(WASINN::ErrNo::InvalidArgument);
+    }
+    *BytesWritten = BytesToWrite;
+    return static_cast<uint32_t>(WASINN::ErrNo::Success);
+
+#else
+    spdlog::error(
+        "[WASI-NN] Tensorflowlite backend is not built. use "
+        "-WASMEDGE_PLUGIN_WASI_NN_BACKEND=\"Tensorflowlite\" to build it.");
+#endif
   } else {
     spdlog::error("[WASI-NN] Current backend is not supported.");
   }
@@ -774,6 +916,20 @@ Expect<uint32_t> WasiNNCompute::body(const Runtime::CallingFrame &Frame,
 #else
     spdlog::error("[WASI-NN] PyTorch backend is not built. use "
                   "-WASMEDGE_PLUGIN_WASI_NN_BACKEND=\"PyTorch\" to build it.");
+#endif
+  } else if (CxtRef.GraphRef.GraphBackend == WASINN::Backend::TensorflowLite) {
+#ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_TFLITE
+    // Run session
+    TfLiteStatus Stat = TfLiteInterpreterInvoke(CxtRef.TFLiteInterp);
+    if (Stat != TfLiteStatus::kTfLiteOk) {
+      spdlog::error("[WASI-NN] Invokation failed.");
+      return static_cast<uint32_t>(WASINN::ErrNo::Busy);
+    }
+    return static_cast<uint32_t>(WASINN::ErrNo::Success);
+#else
+    spdlog::error(
+        "[WASI-NN] Tensorflowlite backend is not built. use "
+        "-WASMEDGE_PLUGIN_WASI_NN_BACKEND=\"Tensorflowlite\" to build it.");
 #endif
   } else {
     spdlog::error("[WASI-NN] Current backend is not supported.");

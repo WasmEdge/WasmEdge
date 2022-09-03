@@ -944,7 +944,7 @@ def install_tensorflow_extension(args, compat):
                 name, version = file.split(CONST_lib_ext, 1)
                 if version[0] == ".":
                     version = version[1:]
-                if version != "":
+                if version != "" and version.count(".") >= 2:
                     no_v_name = name + CONST_lib_ext
                     single_v_name = name + CONST_lib_ext + "." + version.split(".")[0]
                     dual_v_name = (
@@ -965,9 +965,11 @@ def install_tensorflow_extension(args, compat):
                         symlink(file_path, no_v_file_path)
                     except Exception as e:
                         logging.debug(e)
+                else:
+                    continue
             elif compat.platform == "Darwin":
                 name, version = file.split(CONST_lib_ext, 1)[0].split(".", 1)
-                if version != "":
+                if version != "" and version.count(".") >= 2:
                     no_v_name = name + CONST_lib_ext
                     single_v_name = name + "." + version.split(".")[0] + CONST_lib_ext
                     dual_v_name = (
@@ -988,6 +990,8 @@ def install_tensorflow_extension(args, compat):
                         symlink(file_path, no_v_file_path)
                     except Exception as e:
                         logging.debug(e)
+                else:
+                    continue
             else:
                 reraise(Exception("Not implemented for {0}".format(compat.platform)))
             with opened_w_error(CONST_env_path, "a") as env_file:

@@ -638,7 +638,7 @@ def install_image_extension(args, compat):
                         single_v_env_path = join(
                             args.path,
                             CONST_lib_dir,
-                            name + "." + version.split(".")[1] + CONST_lib_ext,
+                            name + "." + version.split(".")[0] + CONST_lib_ext,
                         )
                         symlink(
                             join(args.path, CONST_lib_dir, file),
@@ -649,9 +649,9 @@ def install_image_extension(args, compat):
                             CONST_lib_dir,
                             name
                             + "."
-                            + version.split(".")[1]
+                            + version.split(".")[0]
                             + "."
-                            + version.split(".")[2]
+                            + version.split(".")[1]
                             + CONST_lib_ext,
                         )
                         symlink(
@@ -884,13 +884,13 @@ def install_tensorflow_extension(args, compat):
                 name, version = file.split(CONST_lib_ext, 1)[0].split(".", 1)
                 if version != "":
                     no_v_name = name + CONST_lib_ext
-                    single_v_name = name + "." + version.split(".")[1] + CONST_lib_ext
+                    single_v_name = name + "." + version.split(".")[0] + CONST_lib_ext
                     dual_v_name = (
                         name
                         + "."
-                        + version.split(".")[1]
+                        + version.split(".")[0]
                         + "."
-                        + version.split(".")[2]
+                        + version.split(".")[1]
                         + CONST_lib_ext
                     )
                     file_path = join(args.path, lib_dir, file)

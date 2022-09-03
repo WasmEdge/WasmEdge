@@ -64,10 +64,10 @@ jobs:
             host_runner: ubuntu-latest
             package_manager: apt
             docker_image: ubuntu:16.04
-            python_package: python2.7 python3.8
+            python_package: python2.7
             python2_ex: python2.7
-            python3_ex: python3.8
-            extra_setup_command: apt install software-properties-common -y && add-apt-repository ppa:deadsnakes/ppa -y
+            python3_ex: python3.7
+            extra_setup_command: apt update -y && apt install -y build-essential zlib1g-dev libncurses5-dev libgdbm-dev libnss3-dev libssl-dev libreadline-dev libffi-dev wget && wget https://www.python.org/ftp/python/3.7.4/Python-3.7.4.tgz && tar xzf Python-3.7.4.tgz && cd Python-3.7.4 && ./configure && make -j && make install && cd ..
           - name: manylinux2014 aarch64
             host_runner: ARM64
             package_manager: yum

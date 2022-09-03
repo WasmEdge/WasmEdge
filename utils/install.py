@@ -520,10 +520,16 @@ def install_image_extension(args, compat):
                     join(wasmedge_image_temp_dir, file), join(args.path, "include")
                 )
             elif CONST_lib_ext in file:
-                shutil.move(
-                    join(wasmedge_image_temp_dir, file),
-                    join(args.path, CONST_lib_dir, file),
-                )
+                if isdir(join(args.path, CONST_lib_dir)):
+                    shutil.move(
+                        join(wasmedge_image_temp_dir, file),
+                        join(args.path, CONST_lib_dir, file),
+                    )
+                else:
+                    shutil.move(
+                        join(wasmedge_image_temp_dir, file),
+                        join(args.path, "lib", file),
+                    )
             elif isdir(join(wasmedge_image_temp_dir, file)):
                 copytree(
                     join(wasmedge_image_temp_dir, file),
@@ -828,73 +834,81 @@ def install_tensorflow_extension(args, compat):
     all_files = run_shell_command("ls -R {0}".format(TEMP_PATH))
 
     # make symlinks
-    for file in listdir(join(args.path, CONST_lib_dir)):
-        if CONST_lib_ext not in file:
-            # ignore files that are not libraries
+    other_lib_dir = None
+    if CONST_lib_dir == "lib":
+        other_lib_dir = "lib64"
+    else:
+        other_lib_dir = "lib"
+    for lib_dir in [CONST_lib_dir, other_lib_dir]:
+        if not isdir(join(args.path, lib_dir)):
             continue
-        if file not in all_files:
-            # ignore files that are not downloaded by this script
-            continue
-        if "tensorflow" not in file:
-            continue
-        if compat.platform == "Linux":
-            name, version = file.split(CONST_lib_ext, 1)
-            if version != "":
-                no_v_name = name + CONST_lib_ext
-                single_v_name = name + CONST_lib_ext + "." + version.split(".")[1]
-                dual_v_name = (
-                    name
-                    + CONST_lib_ext
-                    + "."
-                    + version.split(".")[1]
-                    + "."
-                    + version.split(".")[2]
-                )
-                file_path = join(args.path, CONST_lib_dir, file)
-                single_v_file_path = join(args.path, CONST_lib_dir, single_v_name)
-                dual_v_file_path = join(args.path, CONST_lib_dir, dual_v_name)
-                no_v_file_path = join(args.path, CONST_lib_dir, no_v_name)
-                try:
-                    symlink(file_path, single_v_file_path)
-                    symlink(file_path, dual_v_file_path)
-                    symlink(file_path, no_v_file_path)
-                except Exception as e:
-                    logging.debug(e)
-        elif compat.platform == "Darwin":
-            name, version = file.split(CONST_lib_ext, 1)[0].split(".", 1)
-            if version != "":
-                no_v_name = name + CONST_lib_ext
-                single_v_name = name + "." + version.split(".")[1] + CONST_lib_ext
-                dual_v_name = (
-                    name
-                    + "."
-                    + version.split(".")[1]
-                    + "."
-                    + version.split(".")[2]
-                    + CONST_lib_ext
-                )
-                file_path = join(args.path, CONST_lib_dir, file)
-                single_v_file_path = join(args.path, CONST_lib_dir, single_v_name)
-                dual_v_file_path = join(args.path, CONST_lib_dir, dual_v_name)
-                no_v_file_path = join(args.path, CONST_lib_dir, no_v_name)
-                try:
-                    symlink(file_path, single_v_file_path)
-                    symlink(file_path, dual_v_file_path)
-                    symlink(file_path, no_v_file_path)
-                except Exception as e:
-                    logging.debug(e)
-        else:
-            reraise(Exception("Not implemented for {0}".format(compat.platform)))
-        with opened_w_error(CONST_env_path, "a") as env_file:
-            if env_file is not None:
-                env_file.write("#" + single_v_file_path + "\n")
-                logging.debug("Appending:%s", single_v_file_path)
-                env_file.write("#" + dual_v_file_path + "\n")
-                logging.debug("Appending:%s", dual_v_file_path)
-                env_file.write("#" + no_v_file_path + "\n")
-                logging.debug("Appending:%s", no_v_file_path)
+        for file in listdir(join(args.path, lib_dir)):
+            if CONST_lib_ext not in file:
+                # ignore files that are not libraries
+                continue
+            if file not in all_files:
+                # ignore files that are not downloaded by this script
+                continue
+            if "tensorflow" not in file:
+                continue
+            if compat.platform == "Linux":
+                name, version = file.split(CONST_lib_ext, 1)
+                if version != "":
+                    no_v_name = name + CONST_lib_ext
+                    single_v_name = name + CONST_lib_ext + "." + version.split(".")[1]
+                    dual_v_name = (
+                        name
+                        + CONST_lib_ext
+                        + "."
+                        + version.split(".")[1]
+                        + "."
+                        + version.split(".")[2]
+                    )
+                    file_path = join(args.path, lib_dir, file)
+                    single_v_file_path = join(args.path, lib_dir, single_v_name)
+                    dual_v_file_path = join(args.path, lib_dir, dual_v_name)
+                    no_v_file_path = join(args.path, lib_dir, no_v_name)
+                    try:
+                        symlink(file_path, single_v_file_path)
+                        symlink(file_path, dual_v_file_path)
+                        symlink(file_path, no_v_file_path)
+                    except Exception as e:
+                        logging.debug(e)
+            elif compat.platform == "Darwin":
+                name, version = file.split(CONST_lib_ext, 1)[0].split(".", 1)
+                if version != "":
+                    no_v_name = name + CONST_lib_ext
+                    single_v_name = name + "." + version.split(".")[1] + CONST_lib_ext
+                    dual_v_name = (
+                        name
+                        + "."
+                        + version.split(".")[1]
+                        + "."
+                        + version.split(".")[2]
+                        + CONST_lib_ext
+                    )
+                    file_path = join(args.path, lib_dir, file)
+                    single_v_file_path = join(args.path, lib_dir, single_v_name)
+                    dual_v_file_path = join(args.path, lib_dir, dual_v_name)
+                    no_v_file_path = join(args.path, lib_dir, no_v_name)
+                    try:
+                        symlink(file_path, single_v_file_path)
+                        symlink(file_path, dual_v_file_path)
+                        symlink(file_path, no_v_file_path)
+                    except Exception as e:
+                        logging.debug(e)
             else:
-                logging.error("Not able to append installed files to env file")
+                reraise(Exception("Not implemented for {0}".format(compat.platform)))
+            with opened_w_error(CONST_env_path, "a") as env_file:
+                if env_file is not None:
+                    env_file.write("#" + single_v_file_path + "\n")
+                    logging.debug("Appending:%s", single_v_file_path)
+                    env_file.write("#" + dual_v_file_path + "\n")
+                    logging.debug("Appending:%s", dual_v_file_path)
+                    env_file.write("#" + no_v_file_path + "\n")
+                    logging.debug("Appending:%s", no_v_file_path)
+                else:
+                    logging.error("Not able to append installed files to env file")
 
     for main_dir in ["WasmEdge-tensorflow", "WasmEdge-tensorflow-lite"]:
         for directory_file in listdir(join(TEMP_PATH, main_dir)):
@@ -911,10 +925,16 @@ def install_tensorflow_extension(args, compat):
                             join(args.path, "include"),
                         )
                     elif CONST_lib_ext in _file:
-                        shutil.move(
-                            join(wasmedge_tf_folder, _file),
-                            join(args.path, CONST_lib_dir, _file),
-                        )
+                        if isdir(join(args.path, CONST_lib_dir)):
+                            shutil.move(
+                                join(wasmedge_tf_folder, _file),
+                                join(args.path, CONST_lib_dir, _file),
+                            )
+                        else:
+                            shutil.move(
+                                join(wasmedge_tf_folder, _file),
+                                join(args.path, "lib", _file),
+                            )
                     elif isdir(join(wasmedge_tf_folder, _file)):
                         copytree(
                             join(wasmedge_tf_folder, _file),

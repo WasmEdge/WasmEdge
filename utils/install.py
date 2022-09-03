@@ -162,6 +162,8 @@ def extract_archive(
                 else:
                     if ipath not in fname:
                         fname = join(ipath, fname)
+                # replace GNUSparseFile.0 with nothing
+                fname = fname.replace("/GNUSparseFile.0", "")
                 # Don't append system directories
                 if (
                     args.path != abspath(PATH)
@@ -498,6 +500,49 @@ def shell_configure(args):
     return 0
 
 
+def fix_gnu_sparse(args):
+    # Fix GNUSparseFile.0 folder in macOS if exists
+    global CONST_lib_ext, CONST_lib_dir
+
+    for dir in listdir(args.path):
+        if not isdir(join(args.path, dir)):
+            continue
+        if "GNUSparseFile" in dir:
+            for file in listdir(join(args.path, dir)):
+                if file.endswith(CONST_lib_ext):
+                    if isdir(join(args.path, CONST_lib_dir)):
+                        shutil.move(
+                            join(args.path, dir, file), join(args.path, CONST_lib_dir)
+                        )
+                    else:
+                        other_lib_dir = None
+                        if CONST_lib_dir == "lib":
+                            other_lib_dir = "lib64"
+                        else:
+                            other_lib_dir = "lib"
+                        shutil.move(
+                            join(args.path, dir, file), join(args.path, other_lib_dir)
+                        )
+                elif (
+                    file.endswith(".h")
+                    or file.endswith(".hpp")
+                    or file.endswith(".inc")
+                ):
+                    shutil.move(join(args.path, dir, file), join(args.path, "include"))
+                else:
+                    shutil.move(join(args.path, dir, file), join(args.path, "bin"))
+        for sub_dir in listdir(join(args.path, dir)):
+            if not isdir(join(args.path, dir, sub_dir)):
+                continue
+            if "GNUSparseFile" in sub_dir:
+                for file in listdir(join(args.path, dir, sub_dir)):
+                    shutil.move(
+                        join(args.path, dir, sub_dir, file), join(args.path, dir)
+                    )
+                if len(listdir(join(args.path, dir, sub_dir))) == 0:
+                    shutil.rmtree(join(args.path, dir, sub_dir))
+
+
 def install_image_extension(args, compat):
     global CONST_release_pkg, CONST_lib_dir
 
@@ -733,6 +778,8 @@ def install_image_extension(args, compat):
     else:
         logging.debug("Image deps not needed: {0}".format(compat.prefix()))
 
+    fix_gnu_sparse(args)
+
     return 0
 
 
@@ -865,6 +912,8 @@ def install_tensorflow_extension(args, compat):
     copytree(join(TEMP_PATH, "WasmEdge-tensorflow-tools"), args.path)
     copytree(join(TEMP_PATH, "WasmEdge-tensorflow-lite-deps"), args.path)
     copytree(join(TEMP_PATH, "WasmEdge-tensorflow-deps"), args.path)
+
+    fix_gnu_sparse(args)
 
     all_files = run_shell_command("ls -R {0}".format(TEMP_PATH))
 

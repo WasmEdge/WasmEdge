@@ -658,7 +658,8 @@ def install_image_extension(args, compat):
                         continue
                     if compat.platform == "Linux":
                         name, version = file.split(CONST_lib_ext, 1)
-                        version = version.removeprefix(".")
+                        if version[0] == ".":
+                            version = version[1:]
                         no_v_env_path = join(
                             args.path,
                             CONST_lib_dir,
@@ -941,7 +942,8 @@ def install_tensorflow_extension(args, compat):
                 continue
             if compat.platform == "Linux":
                 name, version = file.split(CONST_lib_ext, 1)
-                version = version.removeprefix(".")
+                if version[0] == ".":
+                    version = version[1:]
                 if version != "":
                     no_v_name = name + CONST_lib_ext
                     single_v_name = name + CONST_lib_ext + "." + version.split(".")[0]

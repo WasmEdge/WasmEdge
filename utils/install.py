@@ -1308,7 +1308,7 @@ def main(args):
         # Copy the tree
         copytree(join(TEMP_PATH, CONST_ipkg), args.path)
 
-        if args.path == abspath(PATH):
+        if args.path == abspath(PATH) or args.path[:4] != "/usr":
             # perform actions if default path
             for dir in listdir(args.path):
                 path = join(args.path, dir)

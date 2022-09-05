@@ -1,12 +1,12 @@
-# FAQ abut WebAssembly and WasmEdge
+# Comparison
 
-**Q: What's the relationship between WebAssembly and Docker?**
+## What's the relationship between WebAssembly and Docker?
 
-A: Check out our infographic [WebAssembly vs. Docker](https://wasmedge.org/wasm_docker/). WebAssembly runs side by side with Docker in cloud native and edge native applications.
+Check out our infographic [WebAssembly vs. Docker](https://wasmedge.org/wasm_docker/). WebAssembly runs side by side with Docker in cloud native and edge native applications.
 
-**Q: What's the difference for Native clients (NaCl), Application runtimes, and WebAssembly?**
+## What's the difference for Native clients (NaCl), Application runtimes, and WebAssembly?
 
-A: We created a handy table for comparison.
+We created a handy table for the comparison.
 
 |                               | NaCl  | Application runtimes (eg Node &amp; Python)   | Docker-like container | WebAssembly   |
 | ---                           | ---   | ---                                           | ---                   | ---           |
@@ -20,6 +20,6 @@ A: We created a handy table for comparison.
 | Ease of use                   | OK    | Great                                         | Great                 | OK            |
 | Manageability                 | Poor  | Poor                                          | Great                 | Great         |
 
-**Q: What's the difference between WebAssembly and eBPF?**
+## What's the difference between WebAssembly and eBPF?
 
-A: eBPF is the bytecode format for a Linux kernel space VM that is suitable for network or security related tasks. WebAssembly is the bytecode format for a user space VM that is suited for business applications. [See details here](https://medium.com/codex/ebpf-and-webassembly-whose-vm-reigns-supreme-c2861ce08f89)
+`eBPF` is the bytecode format for a Linux kernel space VM that is suitable for network or security related tasks. WebAssembly is the bytecode format for a user space VM that is suited for business applications. [See details here](https://medium.com/codex/ebpf-and-webassembly-whose-vm-reigns-supreme-c2861ce08f89).

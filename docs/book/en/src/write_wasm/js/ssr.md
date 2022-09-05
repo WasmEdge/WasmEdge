@@ -255,7 +255,42 @@ The results are as follows. The service first returns an HTML page with an empty
 100  2556    0  2556    0     0   1150      0 --:--:--  0:00:02 --:--:--  1150
 100  2556    0  2556    0     0    926      0 --:--:--  0:00:02 --:--:--   926
 100  2806    0  2806    0     0    984      0 --:--:--  0:00:02 --:--:--   984
-<!DOCTYPE html><html lang="en"><head><meta charSet="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/><link rel="stylesheet" href="/main.css"/><title>Hello</title></head><body><noscript><b>Enable JavaScript to run this app.</b></noscript><!--$--><main><nav><a href="/">Home</a></nav><aside class="sidebar"><!--$?--><template id="B:0"></template><div class="spinner spinner--active" role="progressbar" aria-busy="true"></div><!--/$--></aside><article class="post"><!--$?--><template id="B:1"></template><div class="spinner spinner--active" role="progressbar" aria-busy="true"></div><!--/$--><section class="comments"><h2>Comments</h2><!--$?--><template id="B:2"></template><div class="spinner spinner--active" role="progressbar" aria-busy="true"></div><!--/$--></section><h2>Thanks for reading!</h2></article></main><!--/$--><script>assetManifest = {"main.js":"/main.js","main.css":"/main.css"};</script></body></html><div hidden id="S:0"><template id="P:3"></template></div><div hidden id="S:1"><template id="P:4"></template></div><div hidden id="S:2"><template id="P:5"></template></div><div hidden id="S:3"><h1>Archive</h1><ul><li>May 2021</li><li>April 2021</li><li>March 2021</li><li>February 2021</li><li>January 2021</li><li>December 2020</li><li>November 2020</li><li>October 2020</li><li>September 2020</li></ul></div><script>function $RS(a,b){a=document.getElementById(a);b=document.getElementById(b);for(a.parentNode.removeChild(a);a.firstChild;)b.parentNode.insertBefore(a.firstChild,b);b.parentNode.removeChild(b)};$RS("S:3","P:3")</script><script>function $RC(a,b){a=document.getElementById(a);b=document.getElementById(b);b.parentNode.removeChild(b);if(a){a=a.previousSibling;var f=a.parentNode,c=a.nextSibling,e=0;do{if(c&&8===c.nodeType){var d=c.data;if("/$"===d)if(0===e)break;else e--;else"$"!==d&&"$?"!==d&&"$!"!==d||e++}d=c.nextSibling;f.removeChild(c);c=d}while(c);for(;b.firstChild;)f.insertBefore(b.firstChild,c);a.data="$";a._reactRetry&&a._reactRetry()}};$RC("B:0","S:0")</script><div hidden id="S:4"><h1>Hello world</h1><p>This demo is <!-- --><b>artificially slowed down</b>. Open<!-- --> <!-- --><code>server/delays.js</code> to adjust how much different things are slowed down.<!-- --></p><p>Notice how HTML for comments &quot;streams in&quot; before the JS (or React) has loaded on the page.</p><p>Also notice that the JS for comments and sidebar has been code-split, but HTML for it is still included in the server output.</p></div><script>$RS("S:4","P:4")</script><script>$RC("B:1","S:1")</script><div hidden id="S:5"><p class="comment">Wait, it doesn&#x27;t wait for React to load?</p><p class="comment">How does this even work?</p><p class="comment">I like marshmallows</p></div><script>$RS("S:5","P:5")</script><script>$RC("B:2","S:2")</script>
+<!DOCTYPE html><html lang="en"><head><meta charSet="utf-8"/><meta name="viewport
+" content="width=device-width, initial-scale=1"/><link rel="stylesheet" href="/m
+ain.css"/><title>Hello</title></head><body><noscript><b>Enable JavaScript to run
+ this app.</b></noscript><!--$--><main><nav><a href="/">Home</a></nav><aside cla
+ss="sidebar"><!--$?--><template id="B:0"></template><div class="spinner spinner-
+-active" role="progressbar" aria-busy="true"></div><!--/$--></aside><article cla
+ss="post"><!--$?--><template id="B:1"></template><div class="spinner spinner--ac
+tive" role="progressbar" aria-busy="true"></div><!--/$--><section class="comment
+s"><h2>Comments</h2><!--$?--><template id="B:2"></template><div class="spinner s
+pinner--active" role="progressbar" aria-busy="true"></div><!--/$--></section><h2
+>Thanks for reading!</h2></article></main><!--/$--><script>assetManifest = {"mai
+n.js":"/main.js","main.css":"/main.css"};</script></body></html><div hidden id="
+S:0"><template id="P:3"></template></div><div hidden id="S:1"><template id="P:4"
+></template></div><div hidden id="S:2"><template id="P:5"></template></div><div 
+hidden id="S:3"><h1>Archive</h1><ul><li>May 2021</li><li>April 2021</li><li>Marc
+h 2021</li><li>February 2021</li><li>January 2021</li><li>December 2020</li><li>
+November 2020</li><li>October 2020</li><li>September 2020</li></ul></div><script
+>function $RS(a,b){a=document.getElementById(a);b=document.getElementById(b);for
+(a.parentNode.removeChild(a);a.firstChild;)b.parentNode.insertBefore(a.firstChil
+d,b);b.parentNode.removeChild(b)};$RS("S:3","P:3")</script><script>function $RC(
+a,b){a=document.getElementById(a);b=document.getElementById(b);b.parentNode.remo
+veChild(b);if(a){a=a.previousSibling;var f=a.parentNode,c=a.nextSibling,e=0;do{i
+f(c&&8===c.nodeType){var d=c.data;if("/$"===d)if(0===e)break;else e--;else"$"!==
+d&&"$?"!==d&&"$!"!==d||e++}d=c.nextSibling;f.removeChild(c);c=d}while(c);for(;b.
+firstChild;)f.insertBefore(b.firstChild,c);a.data="$";a._reactRetry&&a._reactRet
+ry()}};$RC("B:0","S:0")</script><div hidden id="S:4"><h1>Hello world</h1><p>This
+ demo is <!-- --><b>artificially slowed down</b>. Open<!-- --> <!-- --><code>ser
+ver/delays.js</code> to adjust how much different things are slowed down.<!-- --
+></p><p>Notice how HTML for comments &quot;streams in&quot; before the JS (or Re
+act) has loaded on the page.</p><p>Also notice that the JS for comments and side
+bar has been code-split, but HTML for it is still included in the server output.
+</p></div><script>$RS("S:4","P:4")</script><script>$RC("B:1","S:1")</script><div
+ hidden id="S:5"><p class="comment">Wait, it doesn&#x27;t wait for React to load
+?</p><p class="comment">How does this even work?</p><p class="comment">I like ma
+rshmallows</p></div><script>$RS("S:5","P:5")</script><script>$RC("B:2","S:2")</s
+cript>
 ```
 
 The streaming SSR examples make use of WasmEdge's unique asynchronous networking capabilities and ES6 module support (i.e., the rollup bundled JS file contains ES6 modules). You can learn more about [async networking](networking.md) and [ES6](es6.md) in this book.

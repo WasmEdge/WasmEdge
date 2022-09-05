@@ -11,7 +11,7 @@ git clone https://github.com/second-state/wasmedge-quickjs
 cd examples/embed_js
 ```
 
-> You must have [Rust](https://www.rust-lang.org/tools/install) and [WasmEdge](../../start/install.md) installed to build and run the examples we show you.
+> You must have [Rust](https://www.rust-lang.org/tools/install) and [WasmEdge](../../quick_start/install.md) installed to build and run the examples we show you.
 
 The `embed_js` demo showcases several different examples on how to embed JavaScript inside Rust. You can build and run all the examples as follows.
 

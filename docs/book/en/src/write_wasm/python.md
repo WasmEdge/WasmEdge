@@ -28,8 +28,6 @@ WasmEdge supports compiling WebAssembly bytecode programs into native machine co
 wasmedgec ./target/wasm32-wasi/release/rustpython.wasm ./target/wasm32-wasi/release/rustpython.wasm
 ```
 
-Since WasmEdge 0.9.0, the [universal Wasm binary format](https://wasmedge.org/book/en/start/universal.html) has been introduced. So you could use the `.wasm` extension for generating cross-runtime compatible format, or use `.so` for Linux shared library format.
-
 ## Run
 
 ```bash

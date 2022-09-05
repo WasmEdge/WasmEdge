@@ -1,4 +1,4 @@
-# Non-blocking networking sockets
+# Non-blocking Networking Sockets
 
 While the simple HTTP connections from the previous chapter are easy to implement, they are not ready for production use. If the program can only have one connection open at a time (e.g., blocking), the fast CPU would be waiting for the slow network. Non-blocking I/O means that the application program can keep multiple connections open at the same time, and process data in and out of those connections as they come in. The program can either alternatingly poll those open connections or wait for incoming data to trigger async functions. That allows I/O intensive programs to run much faster even in a single-threaded environment. In this chapter, we will cover both polling and async programming models.
 
@@ -87,7 +87,7 @@ wasmedge target/wasm32-wasi/release/nonblock_http_client.wasm
 
 ## A non-blocking HTTP server example
 
-The [source code](https://github.com/second-state/wasmedge_wasi_socket/tree/main/examples/poll_http_server) for a non-blocking HTTP server application is available. The following `main()` function starts an HTTP server. It receives events from multiple open connections, and processes those events as they are received by calling the async handler functions registered to each connection. This server can process events from multiple open connections concurrently.
+The [source code](https://github.com/second-state/wasmedge_wasi_socket/tree/main/examples/http_server) for a non-blocking HTTP server application is available. The following `main()` function starts an HTTP server. It receives events from multiple open connections, and processes those events as they are received by calling the async handler functions registered to each connection. This server can process events from multiple open connections concurrently.
 
 ```rust
 fn main() -> std::io::Result<()> {

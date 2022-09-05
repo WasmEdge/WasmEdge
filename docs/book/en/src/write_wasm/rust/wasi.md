@@ -67,8 +67,7 @@ pub fn print_env() {
 ## Reading and writing files
 
 WASI allows your Rust functions to access the host computer's file system through the standard Rust `std::fs` API.
-In the Rust program, you operate on files through a relative path. The relative
-path's root is specified when you start the WasmEdge runtime.
+In the Rust program, you operate on files through a relative path. The relative path's root is specified when you start the WasmEdge runtime.
 
 ```rust
 use std::fs;
@@ -96,8 +95,7 @@ pub fn del_file(path: &str) {
 
 ## A main() app
 
-With a `main()` function, the Rust program can be compiled into a
-standalone WebAssembly program.
+With a `main()` function, the Rust program can be compiled into a standalone WebAssembly program.
 
 ```rust
 fn main() {
@@ -117,9 +115,7 @@ Use the command below to compile [the Rust project](https://github.com/second-st
 cargo build --target wasm32-wasi
 ```
 
-To run it in `wasmedge`, do the following. The `--dir` option maps the current
-directory of the command shell to the file system current directory inside
-the WebAssembly app.
+To run it in `wasmedge`, do the following. The `--dir` option maps the current directory of the command shell to the file system current directory inside the WebAssembly app.
 
 ```bash
 $ wasmedge --dir .:. target/wasm32-wasi/debug/wasi.wasm hello
@@ -136,11 +132,8 @@ File content is This is in a file
 
 ## Functions
 
-As [we have seen](../rust.md#a-simple-function), you can create WebAssembly functions
-in a Rust `lib.rs` project. You can also use WASI functions in those functions.
-However, an important caveat is that, without a `main()` function, you
-will need to explicitly call a helper function to initialize
-environment for WASI functions to work properly.
+As [we have seen](../rust.md#a-simple-function), you can create WebAssembly functions in a Rust `lib.rs` project. You can also use WASI functions in those functions.
+However, an important caveat is that, without a `main()` function, you will need to explicitly call a helper function to initialize environment for WASI functions to work properly.
 In the Rust program, add a helper crate in Cargo.toml so that the WASI initialization code can be applied to your exported public library functions.
 
 ```toml

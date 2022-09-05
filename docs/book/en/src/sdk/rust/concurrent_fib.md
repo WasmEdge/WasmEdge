@@ -1,4 +1,3 @@
-
 # Compute Fibonacci numbers concurrently
 
 ## Prerequisites

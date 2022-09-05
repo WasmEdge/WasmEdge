@@ -4,7 +4,7 @@
 
 In [this example](https://github.com/second-state/WasmEdge-go-examples/tree/master/go_BindgenFuncs), we will demonstrate how to call a few simple WebAssembly functions from a Go app. The [functions](https://github.com/second-state/WasmEdge-go-examples/blob/master/go_BindgenFuncs/rust_bindgen_funcs/src/lib.rs) are written in Rust, and require complex call parameters and return values. The `#[wasm_bindgen]` macro is needed for the compiler tools to auto-generate the correct code to pass call parameters from Go to WebAssembly.
 
-The WebAssembly spec only supports a few simple data types out of the box. It [does not support](https://medium.com/wasm/strings-in-webassembly-wasm-57a05c1ea333) types such as string and array. In order to pass rich types in Go to WebAssembly, the compiler needs to convert them to simple integers. For example, it converts a string into an integer memory address and an integer length. The `wasm_bindgen` tool, embedded in [rustwasmc](../../dev/rust/bindgen.md), does this conversion automatically.
+The WebAssembly spec only supports a few simple data types out of the box. It [does not support](https://medium.com/wasm/strings-in-webassembly-wasm-57a05c1ea333) types such as string and array. In order to pass rich types in Go to WebAssembly, the compiler needs to convert them to simple integers. For example, it converts a string into an integer memory address and an integer length. The `wasm_bindgen` tool, embedded in [rustwasmc](../../write_wasm/rust/bindgen.md), does this conversion automatically.
 
 > At this time, we require Rust compiler version 1.50 or less in order for WebAssembly functions to work with WasmEdge's Go API. We will [catch up to the latest Rust](https://github.com/WasmEdge/WasmEdge/issues/264) compiler version once the Interface Types spec is finalized and supported.
 
@@ -47,7 +47,7 @@ pub fn keccak_digest(s: &[u8]) -> Vec<u8> {
 }
 ```
 
-First, we use the [rustwasmc](../../dev/rust/bindgen.md) tool to compile the Rust source code into WebAssembly bytecode functions using Rust 1.50 or less.
+First, we use the [rustwasmc](../../write_wasm/rust/bindgen.md) tool to compile the Rust source code into WebAssembly bytecode functions using Rust 1.50 or less.
 
 ```bash
 $ rustup default 1.50.0
@@ -120,7 +120,7 @@ func main() {
 Next, let's build the Go application with the WasmEdge Go SDK.
 
 ```bash
-go get github.com/second-state/WasmEdge-go/wasmedge@v0.10.0
+go get github.com/second-state/WasmEdge-go/wasmedge@v{{ wasmedge_version }}
 go build
 ```
 

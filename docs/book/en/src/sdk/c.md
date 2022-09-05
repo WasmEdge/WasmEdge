@@ -1,8 +1,8 @@
 # WasmEdge C SDK
 
-The WasmEdge C API denotes an interface to embed the WasmEdge runtime into a C program. The followings are the quick start guides to working with the C APIs of WasmEdge. For the details of the WasmEdge C API, please refer to the [full documentation](c/ref.md).
+The WasmEdge C API denotes an interface to embed the WasmEdge runtime into a C program. The followings are the quick start guide for working with the C APIs of WasmEdge. For the details of the WasmEdge C API, please refer to the [full documentation](c/ref.md). Before programming with the WasmEdge C API, please [install WasmEdge](../quick_start/install.md) first.
 
-The WasmEdge C API also the fundamental API for other languages' SDK.
+The WasmEdge C API is also the fundamental API for other languages' SDK.
 
 ## Quick Start Guide for the WasmEdge runner
 
@@ -79,11 +79,11 @@ int main(int Argc, const char* Argv[]) {
 }
 ```
 
-Then you can compile and run (the output file is `fibonacci.wasm.so`):
+Then you can compile and run (the output file is `fibonacci_aot.wasm`):
 
 ```bash
 $ gcc test_wasmedge_compiler.c -lwasmedge -o test_wasmedge_compiler
-$ ./test_wasmedge_compiler fibonacci.wasm fibonacci.wasm.so
+$ ./test_wasmedge_compiler fibonacci.wasm fibonacci_aot.wasm
 [2021-07-02 11:08:08.651] [info] compile start
 [2021-07-02 11:08:08.653] [info] verify start
 [2021-07-02 11:08:08.653] [info] optimize start
@@ -102,10 +102,23 @@ real 0m2.715s
 user 0m2.700s
 sys 0m0.008s
 
-$ time ./test_wasmedge fibonacci.wasm.so
+$ time ./test_wasmedge fibonacci_aot.wasm
 Get result: 5702887
 
 real 0m0.036s
 user 0m0.022s
 sys 0m0.011s
 ```
+
+## API References
+
+- [0.11.0](c/ref.md)
+- [0.10.1](c/0.10.1/ref.md)
+  - [Upgrade to 0.11.0](c/0.10.1/upgrade_to_0.11.0.md)
+- [0.9.1](c/0.9.1/ref.md)
+  - [Upgrade to 0.10.0](c/0.9.1/upgrade_to_0.10.0.md)
+
+## Examples
+
+- Use the [external reference](c/externref.md) of WebAssembly input and output in C/C++
+- Implement the [host functions](c/hostfunction.md) in C/C++

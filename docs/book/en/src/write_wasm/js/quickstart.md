@@ -1,4 +1,4 @@
-# Quick start with JavaScript on WasmEdge
+# Quick Start with JavaScript on WasmEdge
 
 First, let's download the WebAssembly-based JavaScript interpreter program for WasmEdge. It is based on [QuickJS](https://bellard.org/quickjs/). See the [build it yourself](#build-it-yourself) section to learn how to compile it from Rust source code.
 
@@ -19,7 +19,7 @@ setTimeout(() => {
 }, 2000);
 ```
 
-Run the `hello.js` file in WasmEdge’s QuickJS runtime as follows. Make sure you have installed [WasmEdge](../../start/install.md).
+Run the `hello.js` file in WasmEdge’s QuickJS runtime as follows. Make sure you have installed [WasmEdge](../../quick_start/install.md).
 
 ```bash
 $ wasmedge --dir .:. wasmedge_quickjs.wasm example_js/hello.js WasmEdge Runtime

@@ -13,8 +13,11 @@ public class WasmEdgeAsync {
     public native int wasmEdge_AsyncGetReturnsLength();
 
     // turn returns to an array
-    public native Result wasmEdge_AsyncGet(
-             WasmEdgeValue[] returns, int returnLen);
+    private native void wasmEdge_AsyncGet(
+             WasmEdgeValue[] returns, int[] returnTypes);
+
+    public void wasmEdge_AsyncGet(
+             List<WasmEdgeValue> returns);
 
     public native void wasmEdge_AsyncDelete();
 

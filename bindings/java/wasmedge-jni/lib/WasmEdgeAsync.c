@@ -59,12 +59,37 @@ JNIEXPORT jint JNICALL Java_org_wasmedge_WasmEdgeAsync_wasmEdge_1AsyncGetReturns
 }
 
 JNIEXPORT void JNICALL Java_org_wasmedge_WasmEdgeAsync_wasmEdge_1AsyncGet
-        (JNIEnv * env, jobject thisobject, jobject jreturns, jint jreturnlen){
+        (JNIEnv * env, jobject thisobject, jobject jreturns, jint jReturnTypes){
     WasmEdge_Async * ctx = getAsync(env, thisobject);
-    WasmEdge_Value Returns = JavaValueToWasmEdgeValue(env, jreturns);
-    const uint32_t ReturnLen = jreturnlen;
+    jsize returnsLen = (*env)->GetArrayLength(env, jreturns);
+    WasmEdge_Value *returns = calloc(returnsLen, sizeof(WasmEdge_Value));
+    int *type = (*env)->GetIntArrayElements(env, jParamTypes, JNI_FALSE);
+    for (int i = 0; i < paramLen; i++) {
+        WasmEdge_Value val;
+
+        jobject val_object = (*env)->GetObjectArrayElement(env, jreturns, i);
+
+        switch (type[i]) {
+
+            case 0:
+                val = WasmEdge_ValueGenI32(getIntVal(env, val_object));
+                break;
+            case 1:
+                val = WasmEdge_ValueGenI64(getLongVal(env, val_object));
+                break;
+            case 2:
+                val = WasmEdge_ValueGenF32(getFloatVal(env, val_object));
+                break;
+            case 3:
+                val = WasmEdge_ValueGenF64(getDoubleVal(env, val_object));
+                break;
+            default:
+                break;
+        }
+        returns[i] = val;
+    }
     // Warning: turn WasmEdge_Result to F
-    WasmEdge_Result result= WasmEdge_AsyncGet(ctx, &Returns, ReturnLen);
+    WasmEdge_Result result= WasmEdge_AsyncGet(ctx, returns, returnsLen);
     handleWasmEdgeResult(env, &result);
 }
 

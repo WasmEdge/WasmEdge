@@ -59,7 +59,7 @@ JNIEXPORT jint JNICALL Java_org_wasmedge_WasmEdgeAsync_wasmEdge_1AsyncGetReturns
 }
 
 JNIEXPORT void JNICALL Java_org_wasmedge_WasmEdgeAsync_wasmEdge_1AsyncGet
-        (JNIEnv * env, jobject thisobject, jobject jreturns, jint jReturnTypes){
+        (JNIEnv * env, jobject thisobject, jobjectArray jreturns, jintArray jReturnTypes){
     WasmEdge_Async * ctx = getAsync(env, thisobject);
     jsize returnsLen = (*env)->GetArrayLength(env, jreturns);
     WasmEdge_Value *returns = calloc(returnsLen, sizeof(WasmEdge_Value));

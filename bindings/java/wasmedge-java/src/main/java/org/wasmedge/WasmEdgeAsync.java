@@ -1,5 +1,7 @@
 package org.wasmedge;
 
+import java.util.List;
+
 public class WasmEdgeAsync {
     private long pointer;
 
@@ -17,7 +19,17 @@ public class WasmEdgeAsync {
              WasmEdgeValue[] returns, int[] returnTypes);
 
     public void wasmEdge_AsyncGet(
-             List<WasmEdgeValue> returns);
+            List<WasmEdgeValue> returns) {
+
+            WasmEdgeValue[] valuesArray = new WasmEdgeValue[returns.size()];
+            returns.toArray(valuesArray);
+            int[] types = new int[returns.size()];
+
+            for (int i = 0; i < returns.size(); i++) {
+                types[i] = returns.get(i).getType().ordinal();
+            }
+            wasmEdge_AsyncGet(valuesArray, types);
+    }
 
     public native void wasmEdge_AsyncDelete();
 

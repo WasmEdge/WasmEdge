@@ -216,7 +216,7 @@ public class WasmEdgeVM {
                 WasmEdgeValue[] paramsArray = valueListToArray(params);
                 int[] paramTypes = getValueTypeArray(params);
 
-                return asyncRunWasmFromFile(file, funcName, paramsArray, paramTypes);
+                return asyncRunWasmFromFile(path, funcName, paramsArray, paramTypes);
             }
 
     private native WasmEdgeAsync asyncRunWasmFromBuffer(
@@ -244,7 +244,7 @@ public class WasmEdgeVM {
                 WasmEdgeValue[] paramsArray = valueListToArray(params);
                 int[] paramTypes = getValueTypeArray(params);
 
-                return runWasmFromASTModule(astModuleContext, funcName, paramsArray, paramTypes);
+                return asyncRunWasmFromASTModule(astCxt, funcName, paramsArray, paramTypes);
             }
 
     private native WasmEdgeAsync
@@ -270,6 +270,6 @@ public class WasmEdgeVM {
                 WasmEdgeValue[] paramsArray = valueListToArray(params);
         int[] paramTypes = getValueTypeArray(params);
 
-        return asyncExecuteRegistered(modName, funcName, paramsArray, paramTypes);
+        return asyncExecuteRegistered(moduleName, funcName, paramsArray, paramTypes);
             }
 }

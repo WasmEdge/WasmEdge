@@ -1,4 +1,4 @@
-# WasmEdge on seL4
+# Build WasmEdge for seL4
 
 [Video demo](https://youtu.be/2Qu-Trtkspk) | [Build logs](https://github.com/second-state/wasmedge-seL4/runs/3982081148?check_suite_focus=true) | [Build artifact](https://github.com/second-state/wasmedge-seL4/actions/runs/1374510169)
 

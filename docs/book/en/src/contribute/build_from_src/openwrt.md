@@ -1,4 +1,4 @@
-# Build and test WasmEdge on OpenWrt from source code
+# Build and test WasmEdge for OpenWrt
 
 Please follow this tutorial to build and test WasmEdge in OpenWrt(x86_64) from source code.
 

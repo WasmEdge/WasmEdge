@@ -206,26 +206,70 @@ public class WasmEdgeVM {
     private native void delete();
 
     // Async API
-    public native WasmEdgeAsync wasmEdgeVMAsyncRunWasmFromFile(
+    private native WasmEdgeAsync asyncRunWasmFromFile(
             String path, String funcName,
             WasmEdgeValue[] params, int[] paramTypes);
 
-    public native WasmEdgeAsync wasmEdgeVMAsyncRunWasmFromBuffer(
+    public WasmEdgeAsync asyncRunWasmFromFile(
+            String path, String funcName,
+            List<WasmEdgeValue> params){
+                WasmEdgeValue[] paramsArray = valueListToArray(params);
+                int[] paramTypes = getValueTypeArray(params);
+
+                return asyncRunWasmFromFile(file, funcName, paramsArray, paramTypes);
+            }
+
+    private native WasmEdgeAsync asyncRunWasmFromBuffer(
             byte[] buffer,
             String funcName, WasmEdgeValue[] params,
             int[] paramTypes);
 
-    public native WasmEdgeAsync wasmEdgeVMAsyncRunWasmFromASTModule(
+    public WasmEdgeAsync asyncRunWasmFromBuffer(
+            byte[] buffer,
+            String funcName, List<WasmEdgeValue> params){
+                WasmEdgeValue[] paramsArray = valueListToArray(params);
+                int[] paramTypes = getValueTypeArray(params);
+
+                return asyncRunWasmFromBuffer(buffer, funcName, paramsArray, paramTypes);
+            }
+            
+    private native WasmEdgeAsync asyncRunWasmFromASTModule(
             ASTModuleContext astCxt,
             String funcName, WasmEdgeValue[] params,
             int[] paramTypes);
 
-    public native WasmEdgeAsync
-    wasmEdgeVMAsyncExecute(String funcName,
+    public WasmEdgeAsync asyncRunWasmFromASTModule(
+            ASTModuleContext astCxt,
+            String funcName, List<WasmEdgeValue> params){
+                WasmEdgeValue[] paramsArray = valueListToArray(params);
+                int[] paramTypes = getValueTypeArray(params);
+
+                return runWasmFromASTModule(astModuleContext, funcName, paramsArray, paramTypes);
+            }
+
+    private native WasmEdgeAsync
+    asyncExecute(String funcName,
                             WasmEdgeValue[] params, int[] paramTypes);
 
-    public native WasmEdgeAsync wasmEdgeVMAsyncExecuteRegistered(
+    public WasmEdgeAsync
+    asyncExecute(String funcName, List<WasmEdgeValue> params){
+         WasmEdgeValue[] paramsArray = valueListToArray(params);
+        int[] paramTypes = getValueTypeArray(params);
+        return asyncExecute(funcName, paramsArray, paramTypes);
+                            }
+
+    private native WasmEdgeAsync asyncExecuteRegistered(
             String moduleName,
             String funcName, WasmEdgeValue[] params,
             int[] paramTypes);
+    
+    public WasmEdgeAsync asyncExecuteRegistered(
+            String moduleName,
+            String funcName, List<WasmEdgeValue> params
+            ){
+                WasmEdgeValue[] paramsArray = valueListToArray(params);
+        int[] paramTypes = getValueTypeArray(params);
+
+        return asyncExecuteRegistered(modName, funcName, paramsArray, paramTypes);
+            }
 }

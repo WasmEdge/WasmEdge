@@ -32,8 +32,8 @@ sirius:/ $
 Use the following commands on your Ubuntu dev machine to download the WasmEdge-TensorFlow-Tools pre-release packages.
 
 ```bash
-$ wget https://github.com/second-state/WasmEdge-tensorflow-tools/releases/download/0.11.0/WasmEdge-tensorflow-tools-0.11.0-android_aarch64.tar.gz
-$ mkdir WasmEdge-tensorflow-tools && tar zxvf WasmEdge-tensorflow-tools-0.11.0-android_aarch64.tar.gz -C WasmEdge-tensorflow-tools
+$ wget https://github.com/second-state/WasmEdge-tensorflow-tools/releases/download/{{ wasmedge_version }}/WasmEdge-tensorflow-tools-{{ wasmedge_version }}-android_aarch64.tar.gz
+$ mkdir WasmEdge-tensorflow-tools && tar zxvf WasmEdge-tensorflow-tools-{{ wasmedge_version }}-android_aarch64.tar.gz -C WasmEdge-tensorflow-tools
 show-tflite-tensor
 wasmedge-tensorflow-lite
 ```
@@ -43,8 +43,8 @@ wasmedge-tensorflow-lite
 We provide an Android compatible version of TensorFlow-Lite dynamic shared library in the WasmEdge-Tensorflow-deps package. Download the package to your Ubuntu dev machine as follows.
 
 ```bash
-$ wget https://github.com/second-state/WasmEdge-tensorflow-deps/releases/download/0.11.0/WasmEdge-tensorflow-deps-TFLite-0.11.0-android_aarch64.tar.gz
-$ tar zxvf WasmEdge-tensorflow-deps-TFLite-0.11.0-android_aarch64.tar.gz -C WasmEdge-tensorflow-tools
+$ wget https://github.com/second-state/WasmEdge-tensorflow-deps/releases/download/{{ wasmedge_version }}/WasmEdge-tensorflow-deps-TFLite-{{ wasmedge_version }}-android_aarch64.tar.gz
+$ tar zxvf WasmEdge-tensorflow-deps-TFLite-{{ wasmedge_version }}-android_aarch64.tar.gz -C WasmEdge-tensorflow-tools
 libtensorflowlite_c.so
 ```
 
@@ -58,7 +58,7 @@ adb push WasmEdge-tensorflow-tools /data/local/tmp
 
 ### Sample application
 
-In this example, we will demonstrate a standard [WasmEdge Tensorflow-Lite sample application](https://github.com/second-state/wasm-learning/tree/master/rust/birds_v1). It can recognize and classify the bird type from a JPG or PNG picture of a bird. The explanation of the source code can be [found here](https://wasmedge.org/book/en/dev/rust/tensorflow.html).
+In this example, we will demonstrate a standard [WasmEdge Tensorflow-Lite sample application](https://github.com/second-state/wasm-learning/tree/master/rust/birds_v1). It can recognize and classify the bird type from a JPG or PNG picture of a bird. The explanation of the source code can be [found here](../../../write_wasm/rust/tensorflow.md).
 
 ```bash
 git clone https://github.com/second-state/wasm-learning.git

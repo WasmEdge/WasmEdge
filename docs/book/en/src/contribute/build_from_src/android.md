@@ -1,4 +1,19 @@
-# Build from source for Android platforms
+# Build WasmEdge for Android
+
+The WasmEdge Runtime releases come with pre-built binaries for the Android OS. Why WasmEdge on Android?
+
+* Native speed & sandbox safety for Android apps
+* Support multiple dev languages — eg C, [Rust](../../write_wasm/rust.md), [Swift](../../write_wasm/swift.md), [Go](../../write_wasm/go.md) & [JS](../../write_wasm/js.md)
+* [Embed 3rd party functions](../../sdk.md) in your android app
+* [Kubernetes managed](../../use_cases/kubernetes.md) android apps
+
+However, the WasmEdge installer does not support Android. The user must download the release files to a computer, and then use the `adb` tool to transfer the files to an Android device or simulator. We will show you how to do that.
+
+* [WasmEdge CLI tools for Android](android/cli.md)
+* [Call WasmEdge functions from an NDK native app](android/ndk.md)
+* [Call WasmEdge functions from an Android APK app](android/apk.md)
+
+## Build from source for Android platforms
 
 Please follow this guide to build and test WasmEdge from source code with Android NDK.
 
@@ -6,7 +21,7 @@ Please follow this guide to build and test WasmEdge from source code with Androi
 
 ## Prepare the Environment
 
-We recommand developers to [use our Docker images](build.md##prepare-the-environment) and follow the steps to prepare the building environment.
+We recommand developers to [use our Docker images](linux.md##prepare-the-environment) and follow the steps to prepare the building environment.
 
 * Download and extract the [Android NDK 23b](https://developer.android.com/ndk/downloads).
 * Check the cmake for [CMake 3.21](https://cmake.org/download/) or greater version.

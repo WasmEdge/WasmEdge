@@ -1,4 +1,4 @@
-# How to create a release
+# WasmEdge Release Process
 
 ## Create the releasing process issue of the new version
 
@@ -9,7 +9,7 @@
 
 - [ ] Make sure every change is written in the changelog.
 - [ ] Make sure the ``Changelog.md`` has the correct version number and the release date.
-- [ ] Copy the changelog of this version to ``.CurrentChangelog.md``. (Our release CI will take this file as the release notes)
+- [ ] Copy the changelog of this version to ``.CurrentChangelog.md``. (Our release CI will take this file as the release notes.)
 - [ ] Record the contributor lists.
 - [ ] Create a pull request, make sure the CI are all passed, and merge it.
 
@@ -20,11 +20,11 @@
 - [ ] Use git tag to create a new release tag ``major.minor.patch-alpha.version``. And push this tag to GitHub.
 - [ ] Wait for the CI builds and pushes the release binaries and release notes to the GitHub release page.
 - [ ] Check the ``Pre-release`` checkbox and publish the pre-release.
-- [ ] This step will automatically close and turn into Beta phase in about 3 days if there's no critical issues.
+- [ ] This step will automatically close and turn into Beta or RC phase in about 3 days if there's no critical issues.
 
 ## Create the Beta Pre-Release
 
-- [ ] This step is for the issue fixing. No more feature will be accepted.
+- [ ] This step is for the issue fixing if needed. No more feature will be accepted.
 - [ ] Make sure that all the features in the releasing process issue are completed.
 - [ ] Use git tag to create a new release tag ``major.minor.patch-beta.version``. And push this tag to GitHub.
 - [ ] Wait for the CI builds and pushes the release binaries and release notes to the GitHub release page.

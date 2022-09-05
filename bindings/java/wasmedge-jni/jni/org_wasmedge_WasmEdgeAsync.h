@@ -42,10 +42,10 @@ JNIEXPORT jint JNICALL Java_org_wasmedge_WasmEdgeAsync_wasmEdge_1AsyncGetReturns
 /*
  * Class:     org_wasmedge_WasmEdgeAsync
  * Method:    wasmEdge_AsyncGet
- * Signature: (Lorg/wasmedge/WasmEdgeValue;I)V
+ * Signature: ([Lorg/wasmedge/WasmEdgeValue;[I)V
  */
 JNIEXPORT void JNICALL Java_org_wasmedge_WasmEdgeAsync_wasmEdge_1AsyncGet
-  (JNIEnv *, jobject, jobject, jint);
+  (JNIEnv *, jobject, jobjectArray, jintArray);
 
 /*
  * Class:     org_wasmedge_WasmEdgeAsync

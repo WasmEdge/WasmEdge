@@ -81,7 +81,7 @@ wasmedge target/wasm32-wasi/release/head_https.wasm
 
 ## Explanation of design
 
-It is observed that the request is first parsed and then added to a stream which sends the parsed request to the server. We remain the first step that is HTTPS request is parsed in the original Rust code. We modify the second step by replacing it with a function called `send_data` that is implemented by the [wasmedge_httpsreq host function](https://github.com/2019zhou/WasmEdge/tree/zhou/httpsreq/plugins/httpsreq). We also let the original Rust source code to process the received content by implementing two additional functions `get_rcv_len` and `get_rcv`.
+It is observed that the request is first parsed and then added to a stream which sends the parsed request to the server. We remain the first step that is HTTPS request is parsed in the original Rust code. We modify the second step by replacing it with a function called `send_data` that is implemented by the [wasmedge_httpsreq host function](https://github.com/WasmEdge/WasmEdge/tree/master/plugins/wasmedge_httpsreq). We also let the original Rust source code to process the received content by implementing two additional functions `get_rcv_len` and `get_rcv`.
 
 The advantage of this design is that because the first step is retained, we can use the same API for HTTP and HTTPS request. Besides, one function (i.e. send_data in httpsreq plugin) is needed for all types of requests as long as it is supported in wasmedge_http_req. `send_data` function receives three parameters namely the host, the port and the parsed request. An example for using the send_data function is available as follows.
 
@@ -103,7 +103,7 @@ let buf = &self.inner.parse_msg();
 }
 ```
 
-To add the host function to a crate that can be used by Rust code, we also implement the [httpreq module](https://github.com/2019zhou/wasmedge_http_req/blob/zhou/httpsreq/src/httpsreq.rs).
+To add the host function to a crate that can be used by Rust code, we also implement the [httpreq module](https://github.com/second-state/wasmedge_http_req).
 
 ### Implemention of httpsreq host function
 
@@ -127,4 +127,4 @@ Expect<uint32_t>
 WasmEdgeHttpsReqGetRcvLen::body(const Runtime::CallingFrame &)
 ```
 
-It then [opens the connection](https://github.com/WasmEdge/WasmEdge/blob/14a38e13725965026cd1f404fe552f9c41ad09a3/plugins/httpsreq/httpsreqfunc.cpp#L54-L102). Next, use the `SSL_write` to write the parsed request to the connection. Finally, it receives by using `SSL_read` and prints the receive to the console.
+It then opens the connection. Next, use the `SSL_write` to write the parsed request to the connection. Finally, it receives by using `SSL_read` and prints the receive to the console.

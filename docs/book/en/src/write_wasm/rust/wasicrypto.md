@@ -47,7 +47,7 @@ cd ..
 
 ### WasmEdge Building and Installation
 
-To enable the WasmEdge WASI-Crypto, we need to [building the WasmEdge from source](../../extend/build.md) with the cmake option `-DWASMEDGE_PLUGIN_WASI_CRYPTO=ON` to enable the WASI-Crypto:
+To enable the WasmEdge WASI-Crypto, we need to [building the WasmEdge from source](../../contribute/build_from_src.md) with the cmake option `-DWASMEDGE_PLUGIN_WASI_CRYPTO=ON` to enable the WASI-Crypto:
 
 ```bash
 git clone https://github.com/WasmEdge/WasmEdge.git && cd WasmEdge

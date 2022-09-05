@@ -41,7 +41,7 @@ f();
 
 To run the example, you can do the following on the CLI.
 
-```javascript
+```bash
 $ wasmedge --dir .:. /path/to/wasmedge_quickjs.wasm example_js/es6_module_demo/demo.js
 hello from module_def.js
 hello from module_def_async.js

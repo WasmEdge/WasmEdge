@@ -15,7 +15,7 @@ The popular WebAssembly System Interface (WASI) provides a design pattern for sa
 
 ### Prerequisite
 
-You need to install [WasmEdge](../../start/install.md) and [Rust](https://www.rust-lang.org/tools/install).
+You need to install [WasmEdge](../../quick_start/install.md) and [Rust](https://www.rust-lang.org/tools/install).
 
 ### Build
 

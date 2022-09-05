@@ -7,7 +7,7 @@ In WasmEdge, we implemented the [WASI-NN](https://github.com/WebAssembly/wasi-nn
 * [`Compute`](https://github.com/WebAssembly/wasi-nn/blob/f72b983c4cc91ac575af6babc57b5bccb7db7ba9/phases/ephemeral/witx/wasi_ephemeral_nn.witx#L165) the ML inference using the bound context
 * Retrieve the inference result tensors using [`get_output`](https://github.com/WebAssembly/wasi-nn/blob/f72b983c4cc91ac575af6babc57b5bccb7db7ba9/phases/ephemeral/witx/wasi_ephemeral_nn.witx#L147-L160)
 
-You can find more detail about the WASI-NN proposal in [Reference](#Reference).
+You can find more detail about the WASI-NN proposal in [Reference](#reference).
 
 In this section, we will use [an Rust example project](https://github.com/second-state/WasmEdge-WASINN-examples) ![badge](https://github.com/second-state/WasmEdge-WASINN-examples/actions/workflows/main.yaml/badge.svg) to demonstrate how to use the WASI-NN api and run an image classification demo.
 

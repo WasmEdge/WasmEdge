@@ -121,5 +121,6 @@ WasmEdge_Result LoadOffset(void *Data,
 
 The `WasmEdge_CallingFrameGetModuleInstance()` API can help developers to get the module instance of the top frame on the stack.
 With the module instance context, developers can use the module instance-related APIs to get its contents.
+
 The `WasmEdge_CallingFrameGetExecutor()` API can help developers to get the currently used executor context.
 Therefore developers can use the executor to recursively invoke other WASM functions without creating a new executor context.

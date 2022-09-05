@@ -1,4 +1,3 @@
-
 # WasmEdge Rust SDK
 
 <!-- @import "[TOC]" {cmd="toc" depthFrom=1 depthTo=6 orderedList=false} -->
@@ -112,7 +111,7 @@ To use `wasmedge-sdk` in your project, you should finish the following two steps
 
     You can choose this way if you'd like to use the latest code in the `master` branch of the `WasmEdge` github repo. For example,
 
-    - Suppose that you `git clone` WasmEdge repo in your local directory, for example, `~/workspace/me/WasmEdge`, and follow the [instructions](https://wasmedge.org/book/en/extend/build.html) to build WasmEdge native library. After that, you should find the generated `include` and `lib` directories in `~/workspace/me/WasmEdge/build`.
+    - Suppose that you `git clone` WasmEdge repo in your local directory, for example, `~/workspace/me/WasmEdge`, and follow the [instructions to build](../contribute/build_from_src/linux.md) WasmEdge native library. After that, you should find the generated `include` and `lib` directories in `~/workspace/me/WasmEdge/build`.
 
     - Then, set `WASMEDGE_BUILD_DIR` environment variable to specify the `build` directory.
 
@@ -149,7 +148,7 @@ export WASMEDGE_PLUGIN_PATH=$HOME/.wasmedge/lib/wasmedge
 
 ## Docker image
 
-For those who would like to dev in Docker environment, you can reference the [Use Docker](/src/start/docker.md) section of this book, which details how to use Docker for `WasmEdge` application development.
+For those who would like to dev in Docker environment, you can reference the [Use Docker](../quick_start/use_docker.md) section of this book, which details how to use Docker for `WasmEdge` application development.
 
 ### Windows Users
 
@@ -162,15 +161,11 @@ For helping you get familiar with WasmEdge Rust bindings, the following quick ex
 ### `wasmedge-sdk` Examples
 
 - [[wasmedge-sdk] Hello World!](rust/say_hello.md)
-
 - [[wasmedge-sdk] Memory manipulation](rust/memory_manipulation.md)
-
 - [[wasmedge-sdk] Table and FuncRef](rust/table_and_funcref.md)
 
 ### `wasmedge-sys` Examples
 
 - [[wasmedge-sys] Run a WebAssembly function with WasmEdge low-level APIs](rust/sys_run_host_func.md)
-
 - [[wasmedge-sys] Compute Fibonacci numbers concurrently](rust/concurrent_fib.md)
-
 - [[wasmedge-sys] The usage of WasmEdge module instances](rust/how_to_use_module_instance.md)

@@ -14,7 +14,7 @@ In this section, we will discuss several examples.
 In [this example](https://github.com/second-state/WasmEdge-go-examples/tree/master/go_MemoryGreet), we will demonstrate how to call [a Rust-based WebAssembly function](https://github.com/second-state/WasmEdge-go-examples/blob/master/go_MemoryGreet/rust_memory_greet/src/lib.rs) from a Go app.
 Specially, we will discuss how to pass string data.
 
-> An alternative approach to pass and return complex values to Rust functions in WebAssembly is to use the `wasm-bindgen` compiler tool. You can [learn more here](bindgen.md).
+> An alternative approach to pass and return complex values to Rust functions in WebAssembly is to use the `wasmedge_bindgen` compiler tool. You can [learn more here](bindgen.md).
 
 The Rust function takes a memory pointer for the string, and constructs the Rust string itself.
 
@@ -76,8 +76,7 @@ import (
 func main() {
   wasmedge.SetLogErrorLevel()
   conf := wasmedge.NewConfigure(wasmedge.WASI)
-  store := wasmedge.NewStore()
-  vm := wasmedge.NewVMWithConfigAndStore(conf, store)
+  vm := wasmedge.NewVMWithConfig(conf)
 
   wasi := vm.GetImportModule(wasmedge.WASI)
   wasi.InitWasi(
@@ -98,11 +97,12 @@ func main() {
 
   // Allocate memory for the subject, and get a pointer to it.
   // Include a byte for the NULL terminator we add below.
-  allocateResult, _ := vm.Execute("allocate", int32(lengthOfSubject+1))
+  allocateResult, _ := vm.Execute("allocate", int32(lengthOfSubject + 1))
   inputPointer := allocateResult[0].(int32)
 
   // Write the subject into the memory.
-  mem := store.FindMemory("memory")
+  mod := vm.GetActiveModule()
+  mem := mod.FindMemory("memory")
   memData, _ := mem.GetData(uint(inputPointer), uint(lengthOfSubject+1))
   copy(memData, subject)
 
@@ -137,7 +137,6 @@ func main() {
   vm.Execute("deallocate", outputPointer, int32(lengthOfOutput+1))
 
   vm.Release()
-  store.Release()
   conf.Release()
 }
 ```
@@ -145,7 +144,7 @@ func main() {
 To build the Go SDK example, run the following commands.
 
 ```bash
-go get github.com/second-state/WasmEdge-go/wasmedge@v0.10.0
+go get github.com/second-state/WasmEdge-go/wasmedge@v{{ wasmedge_version }}
 go build greet_memory.go
 ```
 
@@ -220,8 +219,7 @@ import (
 func main() {
   wasmedge.SetLogErrorLevel()
   conf := wasmedge.NewConfigure(wasmedge.WASI)
-  store := wasmedge.NewStore()
-  vm := wasmedge.NewVMWithConfigAndStore(conf, store)
+  vm := wasmedge.NewVMWithConfig(conf)
 
   wasi := vm.GetImportModule(wasmedge.WASI)
   wasi.InitWasi(
@@ -246,7 +244,8 @@ func main() {
   inputPointer := allocateResult[0].(int32)
 
   // Write the subject into the memory.
-  mem := store.FindMemory("memory")
+  mod := vm.GetActiveModule()
+  mem := mod.FindMemory("memory")
   memData, _ := mem.GetData(uint(inputPointer), uint(lengthOfSubject+1))
   copy(memData, subject)
 
@@ -279,7 +278,6 @@ func main() {
   vm.Execute("free", outputPointer)
 
   vm.Release()
-  store.Release()
   conf.Release()
 }
 ```
@@ -287,7 +285,7 @@ func main() {
 To build the Go SDK example, run the following commands.
 
 ```bash
-go get github.com/second-state/WasmEdge-go/wasmedge@v0.10.0
+go get github.com/second-state/WasmEdge-go/wasmedge@v{{ wasmedge_version }}
 go build greet_memory.go
 ```
 
@@ -302,7 +300,7 @@ Hello, WasmEdge!
 
 In [this example](https://github.com/second-state/WasmEdge-go-examples/tree/master/go_AccessMemory), we will demonstrate how to call [Rust-based WebAssembly functions](https://github.com/second-state/WasmEdge-go-examples/blob/master/go_AccessMemory/rust_access_memory/src/lib.rs) and pass arrays to and from a Go app.
 
-> An alternative approach to pass and return complex values to Rust functions in WebAssembly is to use the `wasm-bindgen` compiler tool. You can [learn more here](bindgen.md).
+> An alternative approach to pass and return complex values to Rust functions in WebAssembly is to use the `wasmedge_bindgen` compiler tool. You can [learn more here](bindgen.md).
 
 The `fib_array()` function takes a array as a call parameter and fill it with a fibonacci sequence of numbers. Alternatively, the `fib_array_return_memory()` function returns a array of fibonacci sequence of numbers.
 
@@ -388,8 +386,7 @@ import (
 func main() {
   wasmedge.SetLogErrorLevel()
   conf := wasmedge.NewConfigure(wasmedge.WASI)
-  store := wasmedge.NewStore()
-  vm := wasmedge.NewVMWithConfigAndStore(conf, store)
+  vm := wasmedge.NewVMWithConfig(conf)
 
   wasi := vm.GetImportModule(wasmedge.WASI)
   wasi.InitWasi(
@@ -418,7 +415,8 @@ func main() {
   } else {
     fmt.Println("fib_array() returned:", fib[0])
     fmt.Printf("fib_array memory at: %p\n", unsafe.Pointer((uintptr)(p[0].(int32))))
-    mem := store.FindMemory("memory")
+    mod := vm.GetActiveModule()
+    mem := mod.FindMemory("memory")
     if mem != nil {
       // int32 occupies 4 bytes
       fibArray, err := mem.GetData(uint(p[0].(int32)), uint(n * 4))
@@ -433,7 +431,8 @@ func main() {
     fmt.Println("fib_array_return_memory failed:", err)
   } else {
     fmt.Printf("fib_array_return_memory memory at: %p\n", unsafe.Pointer((uintptr)(fibP[0].(int32))))
-    mem := store.FindMemory("memory")
+    mod := vm.GetActiveModule()
+    mem := mod.FindMemory("memory")
     if mem != nil {
       // int32 occupies 4 bytes
       fibArrayReturnMemory, err := mem.GetData(uint(fibP[0].(int32)), uint(n * 4))
@@ -455,7 +454,6 @@ func main() {
   }
 
   vm.Release()
-  store.Release()
   conf.Release()
 }
 ```
@@ -463,7 +461,7 @@ func main() {
 To build the Go SDK example, run the following commands.
 
 ```bash
-go get github.com/second-state/WasmEdge-go/wasmedge@v0.10.0
+go get github.com/second-state/WasmEdge-go/wasmedge@v{{ wasmedge_version }}
 go build run.go
 ```
 
@@ -557,8 +555,7 @@ import (
 func main() {
   wasmedge.SetLogErrorLevel()
   conf := wasmedge.NewConfigure(wasmedge.WASI)
-  store := wasmedge.NewStore()
-  vm := wasmedge.NewVMWithConfigAndStore(conf, store)
+  vm := wasmedge.NewVMWithConfig(conf)
 
   wasi := vm.GetImportModule(wasmedge.WASI)
   wasi.InitWasi(
@@ -587,7 +584,8 @@ func main() {
   } else {
     fmt.Println("fibArray() returned:", fib[0])
     fmt.Printf("fibArray memory at: %p\n", unsafe.Pointer((uintptr)(p[0].(int32))))
-    mem := store.FindMemory("memory")
+    mod := vm.GetActiveModule()
+    mem := mod.FindMemory("memory")
     if mem != nil {
       // int32 occupies 4 bytes
       fibArray, err := mem.GetData(uint(p[0].(int32)), uint(n * 4))
@@ -602,7 +600,8 @@ func main() {
     fmt.Println("fibArrayReturnMemory failed:", err)
   } else {
     fmt.Printf("fibArrayReturnMemory memory at: %p\n", unsafe.Pointer((uintptr)(fibP[0].(int32))))
-    mem := store.FindMemory("memory")
+    mod := vm.GetActiveModule()
+    mem := mod.FindMemory("memory")
     if mem != nil {
       // int32 occupies 4 bytes
       fibArrayReturnMemory, err := mem.GetData(uint(fibP[0].(int32)), uint(n * 4))
@@ -623,7 +622,6 @@ func main() {
   }
 
   vm.Release()
-  store.Release()
   conf.Release()
 }
 ```
@@ -631,7 +629,7 @@ func main() {
 To build the Go SDK example, run the following commands.
 
 ```bash
-go get github.com/second-state/WasmEdge-go/wasmedge@v0.10.0
+go get github.com/second-state/WasmEdge-go/wasmedge@v{{ wasmedge_version }}
 go build run.go
 ```
 

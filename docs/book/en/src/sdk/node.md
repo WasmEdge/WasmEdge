@@ -1,9 +1,9 @@
-# Node.js SDK
+# WasmEdge Node.js SDK
 
-In this tutorial, I will show you how to incorporate WebAssembly functions, written in Rust, into Node.js applications on the server via the WasmEdge Node.js SDK. This approach combines Rust's **performance**, WebAssembly's **security and portability**, and JavaScript's **ease-of-use**. A typical application works like this.
+In this tutorial, we will show you how to incorporate the WebAssembly functions written in Rust into Node.js applications on the server via the WasmEdge Node.js SDK. This approach combines Rust's **performance**, WebAssembly's **security and portability**, and JavaScript's **ease-of-use**. A typical application works like this.
 
 * The host application is a Node.js web application written in JavaScript. It makes WebAssembly function calls.
-* The WebAssembly bytecode program is written in Rust. It runs inside the WasmEdge Runtime, and is called from the Node.js web application.
+* The WebAssembly application is written in Rust. It runs inside the WasmEdge Runtime, and is called from the Node.js web application.
 
 > [Fork this Github repository](https://github.com/second-state/wasmedge-nodejs-starter/fork) to start coding!
 
@@ -14,8 +14,8 @@ To set up a high-performance Node.js environment with Rust and WebAssembly, you 
 * A modern Linux distribution, such as Ubuntu Server 20.04 LTS
 * [Rust language](https://www.rust-lang.org/tools/install)
 * [Node.js](https://nodejs.org/en/download/package-manager/)
-* [The WasmEdge Runtime](../start/install.md#install-wasmedge-for-node.js) for Node.js
-* [The rustwasmc compiler toolchain](/articles/rustwasmc)
+* [The WasmEdge Runtime](../quick_start/install.md#install-wasmedge-for-nodejs) for Node.js
+* [The rustwasmc compiler toolchain](../write_wasm/rust/bindgen.md)
 
 ### Docker
 

@@ -1,6 +1,6 @@
 # Customized External References
 
-[External References](https://webassembly.github.io/reference-types/core/syntax/types.html#syntax-reftype) denotes an opaque and unforgettable reference to a host object. A new `externref` type can be passed into a Wasm module or returned from it. The Wasm module cannot reveal an `externref` value's bit pattern, nor create a fake host reference by an integer value.
+[External References](https://webassembly.github.io/spec/core/syntax/types.html#syntax-reftype) denotes an opaque and unforgettable reference to a host object. A new `externref` type can be passed into a Wasm module or returned from it. The Wasm module cannot reveal an `externref` value's bit pattern, nor create a fake host reference by an integer value.
 
 ## Tutorial
 
@@ -9,7 +9,7 @@ The following tutorial is the summary of the `externref` example in WasmEdge.
 ### Prepare Your Wasm File
 
 The Wasm file should contain importing host functions that would take the `externref`.
-Take [the test WASM file](https://github.com/WasmEdge/WasmEdge/blob/master/test/externref/externrefTestData/funcs.wasm) ([this WAT](https://github.com/WasmEdge/WasmEdge/blob/master/test/externref/externrefTestData/funcs.wat) is the corresponding text format) as an example:
+Take [the test WASM file](https://github.com/WasmEdge/WasmEdge/raw/master/test/externref/externrefTestData/funcs.wasm) ([this WAT](https://github.com/WasmEdge/WasmEdge/blob/master/test/externref/externrefTestData/funcs.wat) is the corresponding text format) as an example:
 
 ```wasm
 (module
@@ -213,7 +213,7 @@ int main() {
 
 1. Install the WasmEdge shared library.
 
-    Please refer to the [Installation](install.md) for details.
+    Please refer to the [Installation](../../quick_start/install.md) for details.
 
 2. Prepare the WASM file and the `main.c` source file as above.
 
@@ -275,7 +275,7 @@ The host function "`extern_module::func_mul`" takes `externref` as a function po
 
 ### Host Functions
 
-To instantiate the above example Wasm, the host functions must be registered into WasmEdge. See [Host Functions](../../embed/c/ref.md#host-functions) for more details.
+To instantiate the above example Wasm, the host functions must be registered into WasmEdge. See [Host Functions](ref.md#host-functions) for more details.
 The host functions which take `externref`s must know the original objects' types. We take the function pointer case for example.
 
 ```c
@@ -330,7 +330,7 @@ WasmEdge_StringDelete(HostName);
 
 ### Execution
 
-Take [the test WASM file](https://github.com/WasmEdge/WasmEdge/blob/master/test/externref/externrefTestData/funcs.wasm) ([this WAT](https://github.com/WasmEdge/WasmEdge/blob/master/test/externref/externrefTestData/funcs.wat) is the corresponding text format) for example.
+Take [the test WASM file](https://github.com/WasmEdge/WasmEdge/raw/master/test/externref/externrefTestData/funcs.wasm) ([this WAT](https://github.com/WasmEdge/WasmEdge/blob/master/test/externref/externrefTestData/funcs.wat) is the corresponding text format) for example.
 Assume that the `funcs.wasm` is copied into the current directory.
 The following is the example to execute WASM with `externref` through the WasmEdge C API.
 
@@ -483,7 +483,7 @@ WasmEdge_Result ExternSquare(void *, const WasmEdge_CallingFrameContext *,
 
 ### Passing STL Objects
 
-The [example Wasm binary](https://github.com/WasmEdge/WasmEdge/blob/master/test/externref/externrefTestData/stl.wasm) ([this WAT](https://github.com/WasmEdge/WasmEdge/blob/master/test/externref/externrefTestData/stl.wat) is the corresponding text format) provides functions to interact with host functions which can access C++ STL objects.
+The [example Wasm binary](https://github.com/WasmEdge/WasmEdge/raw/master/test/externref/externrefTestData/stl.wasm) ([this WAT](https://github.com/WasmEdge/WasmEdge/blob/master/test/externref/externrefTestData/stl.wat) is the corresponding text format) provides functions to interact with host functions which can access C++ STL objects.
 Assume that the WASM file `stl.wasm` is copied into the current directory.
 
 Take the `std::ostream` and `std::string` objects for example. Assume that there's a host function accesses to a `std::ostream` and a `std::string` through `externref`s:

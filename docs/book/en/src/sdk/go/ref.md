@@ -54,7 +54,7 @@ go version go1.16.5 linux/amd64
 
 ### WasmEdge Installation
 
-Developers must [install the WasmEdge shared library](start/install.md) with the same `WasmEdge-go` release or pre-release version.
+Developers must [install the WasmEdge shared library](../../quick_start/install.md) with the same `WasmEdge-go` release or pre-release version.
 
 ```bash
 curl -sSf https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh | bash -s -- -v 0.10.0
@@ -544,7 +544,7 @@ The details of other contexts will be introduced later.
 ### WASM Data Structures
 
 The WASM data structures are used for creating instances or can be queried from instance contexts.
-The details of instances creation will be introduced in the [Instances](#Instances).
+The details of instances creation will be introduced in the [Instances](#instances).
 
 1. Limit
 
@@ -641,9 +641,9 @@ The details of instances creation will be introduced in the [Instances](#Instanc
 
 6. Import type context
 
-    The `ImportType` is an object holds the import type context and used for getting the imports information from a [AST Module](#AST-Module).
+    The `ImportType` is an object holds the import type context and used for getting the imports information from a [AST Module](#ast-module).
     Developers can get the external type (`function`, `table`, `memory`, or `global`), import module name, and external name from an `ImportType` object.
-    The details about querying `ImportType` objects will be introduced in the [AST Module](#AST-Module).
+    The details about querying `ImportType` objects will be introduced in the [AST Module](#ast-module).
 
     ```go
     var ast *wasmedge.AST = ...
@@ -668,9 +668,9 @@ The details of instances creation will be introduced in the [Instances](#Instanc
 
 7. Export type context
 
-    The `ExportType` is an object holds the export type context is used for getting the exports information from a [AST Module](#AST-Module).
+    The `ExportType` is an object holds the export type context is used for getting the exports information from a [AST Module](#ast-module).
     Developers can get the external type (`function`, `table`, `memory`, or `global`) and external name from an `Export Type` context.
-    The details about querying `ExportType` objects will be introduced in the [AST Module](#AST-Module).
+    The details about querying `ExportType` objects will be introduced in the [AST Module](#ast-module).
 
     ```go
     var ast *wasmedge.AST = ...
@@ -756,7 +756,7 @@ Developers can adjust the settings about the proposals, VM host pre-registration
     )
     ```
 
-    The details will be introduced in the [preregistrations of VM context](###Preregistrations).
+    The details will be introduced in the [preregistrations of VM context](#preregistrations).
 
     ```go
     conf := wasmedge.NewConfigure()
@@ -1038,7 +1038,7 @@ This example uses the [fibonacci.wasm](https://raw.githubusercontent.com/WasmEdg
 
 The `VM` creation APIs accepts the `Configure` object and the `Store` object.
 Noticed that if the `VM` created with the outside `Store` object, the `VM` will execute WASM on that `Store` object. If the `Store` object is set into multiple `VM` objects, it may causes data conflict when in execution.
-The details of the `Store` object will be introduced in [Store](#Store).
+The details of the `Store` object will be introduced in [Store](#store).
 
 ```go
 conf := wasmedge.NewConfigure()
@@ -1087,7 +1087,7 @@ WasmEdge provides the following built-in pre-registrations.
     conf.Release()
     ```
 
-    And also can create the WASI import object from API. The details will be introduced in the [Host Functions](#Host-Functions) and the [Host Module Registrations](#Host-Module-Registrations).
+    And also can create the WASI import object from API. The details will be introduced in the [Host Functions](#host-functions) and the [Host Module Registrations](#host-module-registrations).
 
 2. [WasmEdge_Process](https://crates.io/crates/wasmedge_process_interface)
 
@@ -1108,13 +1108,13 @@ WasmEdge provides the following built-in pre-registrations.
     conf.Release()
     ```
 
-    And also can create the WasmEdge_Process import object from API. The details will be introduced in the [Host Functions](#Host-Functions) and the [Host Module Registrations](#Host-Module-Registrations).
+    And also can create the WasmEdge_Process import object from API. The details will be introduced in the [Host Functions](#host-functions) and the [Host Module Registrations](#host-module-registrations).
 
 ### Host Module Registrations
 
 [Host functions](https://webassembly.github.io/spec/core/exec/runtime.html#syntax-hostfunc) are functions outside WebAssembly and passed to WASM modules as imports.
 In WasmEdge-go, the host functions are composed into host modules as `Module` objects with module names.
-Please refer to the [Host Functions in WasmEdge Runtime](#Host-Functions) for the details.
+Please refer to the [Host Functions in WasmEdge Runtime](#host-functions) for the details.
 In this chapter, we show the example for registering the host modules into a `VM` object.
 
 ```go
@@ -1245,7 +1245,7 @@ The `VM` object supplies the APIs to retrieve the instances.
 
     Developers can also create the `VM` object with a `Store` object.
     In this case, developers should guarantee that the `Store` object cannot be released before the `VM` object.
-    Please refer to the [Store Objects](#Store) for the details about the `Store` APIs.
+    Please refer to the [Store Objects](#store) for the details about the `Store` APIs.
 
     ```go
     store := wasmedge.NewStore()
@@ -1261,7 +1261,7 @@ The `VM` object supplies the APIs to retrieve the instances.
 2. List exported functions
 
     After the WASM module instantiation, developers can use the `(*VM).Execute` function to invoke the exported WASM functions. For this purpose, developers may need information about the exported WASM function list.
-    Please refer to the [Instances in runtime](#Instances) for the details about the function types.
+    Please refer to the [Instances in runtime](#instances) for the details about the function types.
 
     Assume that a new Go project is created as following:
 
@@ -1329,12 +1329,12 @@ The `VM` object supplies the APIs to retrieve the instances.
     Exported function name: fib
     ```
 
-    If developers want to get the exported function names in the registered WASM modules, please retrieve the `Store` object from the `VM` object and refer to the APIs of [Store Contexts](#Store) to list the registered functions by the module name.
+    If developers want to get the exported function names in the registered WASM modules, please retrieve the `Store` object from the `VM` object and refer to the APIs of [Store Contexts](#store) to list the registered functions by the module name.
 
 3. Get function types
 
     The `VM` object provides APIs to find the function type by function name.
-    Please refer to the [Instances in runtime](#Instances) for the details about the function types.
+    Please refer to the [Instances in runtime](#instances) for the details about the function types.
 
     ```go
     // Assume that a WASM module is instantiated in `vm` which is a `wasmedge.VM` object.
@@ -1365,7 +1365,7 @@ In this partition, we will introduce the objects of WasmEdge runtime manually.
 
 ### WASM Execution Example Step-By-Step
 
-Besides the WASM execution through the [`VM` object](#WasmEdge-VM) rapidly, developers can execute the WASM functions or instantiate WASM modules step-by-step with the `Loader`, `Validator`, `Executor`, and `Store` objects.
+Besides the WASM execution through the [`VM` object](#wasmedge-vm) rapidly, developers can execute the WASM functions or instantiate WASM modules step-by-step with the `Loader`, `Validator`, `Executor`, and `Store` objects.
 
 Assume that a new Go project is created as following:
 
@@ -1485,7 +1485,7 @@ Get fibonacci[30]: 1346269
 ### Loader
 
 The `Loader` object loads the WASM binary from files or buffers.
-Both the WASM and the compiled-WASM from the [WasmEdge AOT Compiler](#WasmEdge-AOT-Compiler) are supported.
+Both the WASM and the compiled-WASM from the [WasmEdge AOT Compiler](#wasmedge-aot-compiler) are supported.
 
 ```go
 var buf []byte
@@ -1544,7 +1544,7 @@ validator.Release()
 ### Executor
 
 The `Executor` object is the executor for both WASM and compiled-WASM.
-This object should work base on the `Store` object. For the details of the `Store` object, please refer to the [next chapter](#Store).
+This object should work base on the `Store` object. For the details of the `Store` object, please refer to the [next chapter](#store).
 
 1. Instantiate and register an `AST` object as a named `Module` instance
 
@@ -1671,7 +1671,7 @@ This object should work base on the `Store` object. For the details of the `Stor
 
 ### AST Module
 
-The `AST` object presents the loaded structure from a WASM file or buffer. Developer will get this object after loading a WASM file or buffer from [Loader](#Loader).
+The `AST` object presents the loaded structure from a WASM file or buffer. Developer will get this object after loading a WASM file or buffer from [Loader](#loader).
 Before instantiation, developers can also query the imports and exports of an `AST` object.
 
 ```go
@@ -2281,4 +2281,4 @@ const (
 )
 ```
 
-Please refer to the [AOT compiler options configuration](#Configurations) for details.
+Please refer to the [AOT compiler options configuration](#configurations) for details.

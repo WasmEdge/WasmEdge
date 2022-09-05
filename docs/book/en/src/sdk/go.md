@@ -1,6 +1,6 @@
 # WasmEdge Go SDK
 
-The followings are the guides to working with the WasmEdge Go API. You can embed the WasmEdge into your go application through the WasmEdge Go API.
+The followings are the guide to work with the WasmEdge Go API. You can embed the WasmEdge into your go application through the WasmEdge Go API.
 
 ## Getting Started
 
@@ -11,16 +11,16 @@ $ go version
 go version go1.16.5 linux/amd64
 ```
 
-Meantime, please make sure you have installed [the WasmEdge shared library](../start/install.md) with the same `WasmEdge-go` release version.
+Meantime, please make sure you have installed [the WasmEdge shared library](../quick_start/install.md) with the same `WasmEdge-go` release version.
 
 ```bash
-curl -sSf https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh | bash -s -- -v 0.10.0
+curl -sSf https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh | bash -s -- -v {{ wasmedge_version }}
 ```
 
 If you need the `TensorFlow` or `Image` extension for `WasmEdge-go`, please install the `WasmEdge` with extensions:
 
 ```bash
-curl -sSf https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh | bash -s -- -v 0.10.0 -e tensorflow,image
+curl -sSf https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh | bash -s -- -v {{ wasmedge_version }} -e tensorflow,image
 ```
 
 Noticed that the `TensorFlow` and `Image` extensions are only for the `Linux` platforms.
@@ -28,7 +28,7 @@ Noticed that the `TensorFlow` and `Image` extensions are only for the `Linux` pl
 Install the `WasmEdge-go` package and build in your Go project directory:
 
 ```bash
-go get github.com/second-state/WasmEdge-go/wasmedge@v0.10.0
+go get github.com/second-state/WasmEdge-go/wasmedge@v{{ wasmedge_version }}
 go build
 ```
 
@@ -75,3 +75,9 @@ The [go_WasmAOT example](https://github.com/second-state/WasmEdge-go-examples/tr
 - [Pass complex parameters to Wasm functions](go/memory.md)
 - [Embed a Tensorflow inference function](go/tensorflow.md)
 - [Embed a bindgen function](go/bindgen.md)
+
+## API References
+
+- [v0.10.1](go/ref.md)
+- [v0.9.1](go/0.9.1/ref.md)
+  - [Upgrade to v0.10.0](go/0.9.1/upgrade_to_0.10.0.md)

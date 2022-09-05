@@ -9,7 +9,7 @@ The full source code for the demo in this chapter is [available here](https://gi
 ## Rust function compiled into WebAssembly
 
 In the [Rust project](https://github.com/second-state/WasmEdge-go-examples/tree/master/wasmedge-bindgen/go_BindgenFuncs/rust_bindgen_funcs), all you need is to annotate [your functions](https://github.com/second-state/WasmEdge-go-examples/blob/master/wasmedge-bindgen/go_BindgenFuncs/rust_bindgen_funcs/src/lib.rs) with a `[wasmedge_bindgen]` macro.
-Those annotated functions will be automatically instrumented by the Rust compiler and turned into WebAssembly functions that can be called from the `wasmedge-bindgen` GO SDK.
+Those annotated functions will be automatically instrumented by the Rust compiler and turned into WebAssembly functions that can be called from the bindgen related functions of WasmEdge GO SDK.
 In the example below, we have several Rust functions that take complex call parameters and return complex values.
 
 ```rust
@@ -178,6 +178,7 @@ Next, you can call any `[wasmedge_bindgen]` annotated functions in the VM via th
 Finally, you can build and run the Go host application.
 
 ```bash
+go get github.com/second-state/WasmEdge-go/wasmedge@v{{ wasmedge_version }}
 go build
 ./bindgen_funcs rust_bindgen_funcs_lib.wasm
 ```

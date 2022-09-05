@@ -58,8 +58,8 @@ fn main() {
 Compile the application into WebAssembly.
 
 ```bash
-$ cd rust_readfile
-$ cargo build --target wasm32-wasi
+cd rust_readfile
+cargo build --target wasm32-wasi
 # The output file will be target/wasm32-wasi/debug/rust_readfile.wasm
 ```
 
@@ -97,7 +97,7 @@ func main() {
 Next, let's build the Go application with the WasmEdge Go SDK.
 
 ```bash
-go get github.com/second-state/WasmEdge-go/wasmedge@v0.10.0
+go get github.com/second-state/WasmEdge-go/wasmedge@v{{ wasmedge_version }}
 go build
 ```
 

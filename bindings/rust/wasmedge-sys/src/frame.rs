@@ -9,17 +9,26 @@ use crate::{
 
 #[derive(Debug)]
 pub struct CallingFrame {
-    pub(crate) ctx: *const ffi::WasmEdge_CallingFrameContext,
+    pub(crate) inner: InnerCallingFrame,
+}
+impl Drop for CallingFrame {
+    fn drop(&mut self) {
+        if !self.inner.0.is_null() {
+            self.inner.0 = std::ptr::null();
+        }
+    }
 }
 impl CallingFrame {
     /// Creates a CallingFrame instance.
     pub(crate) fn create(ctx: *const ffi::WasmEdge_CallingFrameContext) -> Self {
-        Self { ctx }
+        Self {
+            inner: InnerCallingFrame(ctx),
+        }
     }
 
     /// Returns the [executor instance](crate::Executor) from this calling frame.
     pub fn executor_mut(&self) -> Option<Executor> {
-        let ctx = unsafe { ffi::WasmEdge_CallingFrameGetExecutor(self.ctx) };
+        let ctx = unsafe { ffi::WasmEdge_CallingFrameGetExecutor(self.inner.0) };
 
         match ctx.is_null() {
             false => Some(Executor {
@@ -39,7 +48,7 @@ impl CallingFrame {
     /// context will record that module instance.
     ///
     pub fn module_instance(&self) -> Option<Instance> {
-        let ctx = unsafe { ffi::WasmEdge_CallingFrameGetModuleInstance(self.ctx) };
+        let ctx = unsafe { ffi::WasmEdge_CallingFrameGetModuleInstance(self.inner.0) };
 
         match ctx.is_null() {
             false => Some(Instance {
@@ -63,7 +72,7 @@ impl CallingFrame {
     /// * idx - The index of the memory instance.
     ///
     pub fn memory_mut(&self, idx: u32) -> Option<Memory> {
-        let ctx = unsafe { ffi::WasmEdge_CallingFrameGetMemoryInstance(self.ctx, idx) };
+        let ctx = unsafe { ffi::WasmEdge_CallingFrameGetMemoryInstance(self.inner.0, idx) };
 
         match ctx.is_null() {
             false => Some(Memory {
@@ -74,3 +83,8 @@ impl CallingFrame {
         }
     }
 }
+
+#[derive(Debug)]
+pub(crate) struct InnerCallingFrame(pub(crate) *const ffi::WasmEdge_CallingFrameContext);
+unsafe impl Send for InnerCallingFrame {}
+unsafe impl Sync for InnerCallingFrame {}

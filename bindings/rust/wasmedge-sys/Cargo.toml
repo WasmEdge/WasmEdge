@@ -10,7 +10,7 @@ links = "wasmedge"
 name = "wasmedge-sys"
 readme = "README.md"
 repository = "https://github.com/WasmEdge/WasmEdge"
-version = "0.9.0"
+version = "0.9.1"
 
 [dependencies]
 lazy_static = "1.4.0"

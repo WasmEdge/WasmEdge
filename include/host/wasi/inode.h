@@ -107,8 +107,9 @@ struct DirHolder {
     Dir = NewDir;
   }
 
+  const static uint64_t DIRCOOKIE_START = 0;
   DIR *Dir = nullptr;
-  uint64_t Cookie = 0;
+  uint64_t Cookie = DIRCOOKIE_START;
   std::vector<uint8_t, boost::alignment::aligned_allocator<
                            uint8_t, alignof(__wasi_dirent_t)>>
       Buffer;

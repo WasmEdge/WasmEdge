@@ -460,8 +460,7 @@ WasiExpect<void> INode::fdReaddir(Span<uint8_t> Buffer,
     }
   }
 
-  if (unlikely(Cookie != Dir.Cookie)) {
-    Dir.Buffer.clear();
+  if (unlikely(Cookie != DirHolder::DIRCOOKIE_START)) {
     seekdir(Dir.Dir, Cookie);
   }
 

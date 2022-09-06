@@ -21,10 +21,7 @@ impl<'a> Caller<'a> {
     /// Returns the [executor instance](crate::Executor) from this caller.
     pub fn executor(&self) -> Option<Executor> {
         match self.inner {
-            Some(frame) => match frame.executor_mut() {
-                Some(inner) => Some(Executor { inner }),
-                None => None,
-            },
+            Some(frame) => frame.executor_mut().map(|inner| Executor { inner }),
             None => None,
         }
     }
@@ -32,10 +29,7 @@ impl<'a> Caller<'a> {
     /// Returns the [module instance](crate::Instance) in this caller.
     pub fn instance(&self) -> Option<Instance> {
         match self.inner {
-            Some(frame) => match frame.module_instance() {
-                Some(inner) => Some(Instance { inner }),
-                None => None,
-            },
+            Some(frame) => frame.module_instance().map(|inner| Instance { inner }),
             None => None,
         }
     }
@@ -54,14 +48,11 @@ impl<'a> Caller<'a> {
     ///
     pub fn memory(&self, idx: usize) -> Option<Memory> {
         match self.inner {
-            Some(frame) => match frame.memory_mut(idx as u32) {
-                Some(inner) => Some(Memory {
-                    inner,
-                    name: None,
-                    mod_name: None,
-                }),
-                None => None,
-            },
+            Some(frame) => frame.memory_mut(idx as u32).map(|inner| Memory {
+                inner,
+                name: None,
+                mod_name: None,
+            }),
             None => None,
         }
     }

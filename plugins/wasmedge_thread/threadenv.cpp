@@ -9,19 +9,15 @@
 namespace WasmEdge {
 namespace Host {
 
-void WasmEdgeThreadEnvironment::init(WasmEdge::VM::VM *VM) {
-  WasmEdgeThreadEnvironment::VM = VM;
-}
-
 Expect<void> WasmEdgeThreadEnvironment::pthreadCreate(
-    [[maybe_unused]] uint64_t *WasiThreadPtr, uint32_t WasiThreadFunc,
-    uint32_t Arg) const {
+    Executor::Executor *Exec, [[maybe_unused]] uint64_t *WasiThreadPtr,
+    uint32_t WasiThreadFunc, uint32_t Arg) const {
 
-  if (unlikely(!VM)) {
+  if (unlikely(!Exec)) {
     return Unexpect(ErrCode::Value::HostFuncError);
   } else {
     auto ThreadTunc = [&]() {
-      VM->createThreadWithFunctionAddress(WasiThreadFunc, Arg);
+      Exec->createThreadWithFunctionAddress(WasiThreadFunc, Arg);
     };
     [[maybe_unused]] pthread_t *ThreadPtr =
         static_cast<pthread_t *>(WasiThreadPtr);

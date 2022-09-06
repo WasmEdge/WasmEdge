@@ -26,7 +26,7 @@ WasmEdgeThreadCreate::body(const Runtime::CallingFrame &Frame,
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
-  if (auto Res = Env.pthreadCreate(WasiThreadPtr, StartRoutine, Arg);
+  if (auto Res = Env.pthreadCreate(Frame.getExecutor(), WasiThreadPtr, StartRoutine, Arg);
       unlikely(!Res)) {
     return Unexpect(ErrCode::Value::HostFuncError);
   }

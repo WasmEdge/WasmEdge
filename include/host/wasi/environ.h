@@ -10,7 +10,6 @@
 #include "host/wasi/error.h"
 #include "host/wasi/vfs.h"
 #include "host/wasi/vinode.h"
-#include "vm/vm.h"
 #include "wasi/api.hpp"
 
 #include <algorithm>

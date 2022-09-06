@@ -77,7 +77,5 @@ WasiModule::WasiModule() : ModuleInstance("wasi_snapshot_preview1") {
   addHostFunc("sock_getaddrinfo", std::make_unique<WasiGetAddrinfo>(Env));
 }
 
-
-
 } // namespace Host
 } // namespace WasmEdge

@@ -23,18 +23,13 @@ public:
   WasmEdgeThreadEnvironment() noexcept {}
   ~WasmEdgeThreadEnvironment() noexcept {}
 
-  void init(WasmEdge::VM::VM *VM);
-
-  void fini() noexcept;
-
-  Expect<void> pthreadCreate(uint64_t *WasiThreadPtr, uint32_t WasiThreadFunc,
-                             uint32_t Arg) const;
+  Expect<void> pthreadCreate(Executor::Executor *Exec, uint64_t *WasiThreadPtr,
+                             uint32_t WasiThreadFunc, uint32_t Arg) const;
   Expect<void> pthreadJoin(uint64_t WasiThread, void **WasiRetval) const;
 
   static Plugin::PluginRegister Register;
 
 private:
-  WasmEdge::VM::VM *VM = nullptr;
 };
 
 } // namespace Host

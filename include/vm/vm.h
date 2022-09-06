@@ -166,8 +166,6 @@ public:
   /// Stop execution
   void stop() noexcept { ExecutorEngine.stop(); }
   
-  Expect<void> createThreadWithFunctionAddress(uint32_t FuncAddress, uint32_t Arg);
-
   /// ======= Functions which are stageless. =======
   /// Clean up VM status
   void cleanup() {

@@ -428,9 +428,5 @@ const Runtime::Instance::ModuleInstance *VM::unsafeGetActiveModule() const {
   return nullptr;
 };
 
-Expect<void> VM::createThreadWithFunctionAddress(uint32_t FuncAddress, uint32_t Arg) {
-  return ExecutorEngine.createThreadWithFunctionAddress(FuncAddress, Arg);
-}
-
 } // namespace VM
 } // namespace WasmEdge

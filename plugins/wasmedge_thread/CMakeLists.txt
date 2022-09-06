@@ -28,6 +28,7 @@ target_include_directories(wasmedgePluginWasmEdgeThread
 
 target_link_libraries(wasmedgePluginWasmEdgeThread
   PUBLIC
+  wasmedgeExecutor
   wasmedgeCommon
   wasmedgeSystem
 )
@@ -47,6 +48,7 @@ target_include_directories(wasmedgeHostModuleWasmEdgeThread
 
 target_link_libraries(wasmedgeHostModuleWasmEdgeThread
   PUBLIC
+  wasmedgeExecutor
   wasmedgeCommon
   wasmedgeSystem
   wasmedgePlugin

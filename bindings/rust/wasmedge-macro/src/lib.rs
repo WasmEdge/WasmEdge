@@ -2,6 +2,7 @@ use proc_macro::TokenStream;
 use quote::quote;
 use syn::{parse_macro_input, spanned::Spanned, FnArg, Item, Pat, PatType};
 
+/// Expand a synchronous host function defined with `wasmedge-sdk` crate.
 #[proc_macro_attribute]
 pub fn host_function(_attr: TokenStream, item: TokenStream) -> TokenStream {
     let body_ast = parse_macro_input!(item as Item);

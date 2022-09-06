@@ -494,6 +494,9 @@ public:
                         uint32_t MaxResLength, uint32_t ResLengthPtr);
 };
 
+<<<<<<< HEAD
 
+=======
+>>>>>>> [Plugin] split wasmedge thread into a plugin
 } // namespace Host
 } // namespace WasmEdge

@@ -50,7 +50,7 @@ static inline constexpr const __wasi_rights_t kNoInheritingRights =
 } // namespace
 
 void Environ::init(Span<const std::string> Dirs, std::string ProgramName,
-                   Span<const std::string> Args, Span<const std::string> Envs, WasmEdge::VM::VM *VM) {
+                   Span<const std::string> Args, Span<const std::string> Envs) {
   {
     // Open dir for WASI environment.
     std::vector<std::shared_ptr<VINode>> PreopenedDirs;
@@ -102,7 +102,6 @@ void Environ::init(Span<const std::string> Dirs, std::string ProgramName,
   EnvironVariables.shrink_to_fit();
 
   ExitCode = 0;
-  Environ::VM = VM;
 }
 
 void Environ::fini() noexcept {

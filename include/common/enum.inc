@@ -639,6 +639,7 @@ P(FunctionReferences, "Typed Function References")
 #define H Line
 H(Wasi)
 H(WasmEdge_Process)
+H(WasmEdge_Thread)
 H(WasiNN)
 H(WasiCrypto_Common)
 H(WasiCrypto_AsymmetricCommon)

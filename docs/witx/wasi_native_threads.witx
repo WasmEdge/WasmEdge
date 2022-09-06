@@ -8,6 +8,7 @@
   ;;; Note: This is similar to `pthread_create` in POSIX.
   (@interface func (export "pthread_create")
     (param $th (@witx pointer $thread))
+    (param $attr (@witx pointer u8))
     (param $func $threadfunc)
     (param $args (@witx pointer u8))
     (result $error (expected (@witx pointer u8)))

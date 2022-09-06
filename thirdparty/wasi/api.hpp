@@ -2032,20 +2032,3 @@ static_assert(sizeof(__wasi_prestat_t) == 8, "witx calculated size");
 static_assert(alignof(__wasi_prestat_t) == 4, "witx calculated align");
 static_assert(offsetof(__wasi_prestat_t, u) == 4,
               "witx calculated union offset");
-
-
-/**
- * similar to pthread_t in POSIX
- */
-using __wasi_thread_t = uint64_t;
-
-static_assert(sizeof(__wasi_thread_t) == 8, "witx calculated size");
-static_assert(alignof(__wasi_thread_t) == 8, "witx calculated align");
-
-/**
- * a function pointer of the thread
- */
-using __wasi_threadfunc_t = uint8_t_ptr;
-
-static_assert(sizeof(__wasi_threadfunc_t) == 4, "witx calculated size");
-static_assert(alignof(__wasi_threadfunc_t) == 4, "witx calculated align");

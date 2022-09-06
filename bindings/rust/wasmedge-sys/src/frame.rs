@@ -7,6 +7,7 @@ use crate::{
     Executor, Instance, Memory,
 };
 
+/// Represents a calling frame on top of stack.
 #[derive(Debug)]
 pub struct CallingFrame {
     pub(crate) inner: InnerCallingFrame,

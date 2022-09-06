@@ -191,7 +191,9 @@ mod tests {
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
-            WasmEdgeError::Core(CoreError::Load(CoreLoadError::IllegalPath))
+            Box::new(WasmEdgeError::Core(CoreError::Load(
+                CoreLoadError::IllegalPath
+            )))
         );
     }
 
@@ -211,7 +213,9 @@ mod tests {
         let result = Module::from_bytes(None, &[]);
         assert_eq!(
             result.unwrap_err(),
-            WasmEdgeError::Core(CoreError::Load(CoreLoadError::UnexpectedEnd)),
+            Box::new(WasmEdgeError::Core(CoreError::Load(
+                CoreLoadError::UnexpectedEnd
+            ))),
         );
     }
 }

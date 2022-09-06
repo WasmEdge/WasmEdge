@@ -2387,9 +2387,5 @@ Expect<uint32_t> WasiSockGetPeerAddr::body(const Runtime::CallingFrame &Frame,
   return __WASI_ERRNO_SUCCESS;
 }
 
-<<<<<<< HEAD
-
-=======
->>>>>>> [Plugin] split wasmedge thread into a plugin
 } // namespace Host
 } // namespace WasmEdge

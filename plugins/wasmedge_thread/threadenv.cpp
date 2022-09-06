@@ -18,7 +18,7 @@ Expect<void> WasmEdgeThreadEnvironment::pthreadCreate(
     uint32_t Arg) const {
 
   if (unlikely(!VM)) {
-    return Unexpect(ErrCode::ExecutionFailed);
+    return Unexpect(ErrCode::Value::HostFuncError);
   } else {
     auto ThreadTunc = [&]() {
       VM->createThreadWithFunctionAddress(WasiThreadFunc, Arg);

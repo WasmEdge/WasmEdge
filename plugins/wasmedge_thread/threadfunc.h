@@ -16,7 +16,7 @@ public:
   WasmEdgeThreadCreate(WasmEdgeThreadEnvironment &HostEnv)
       : WasmEdgeThread(HostEnv) {}
 
-  Expect<uint32_t> body(Runtime::Instance::MemoryInstance *MemInst,
+  Expect<uint32_t> body(const Runtime::CallingFrame &Frame,
                         uint32_t Thread, uint32_t Attr, uint32_t StartRoutine,
                         uint32_t Arg);
 };
@@ -26,7 +26,7 @@ public:
   WasmEdgeThreadJoin(WasmEdgeThreadEnvironment &HostEnv)
       : WasmEdgeThread(HostEnv) {}
 
-  Expect<uint32_t> body(Runtime::Instance::MemoryInstance *MemInst,
+  Expect<uint32_t> body(const Runtime::CallingFrame &Frame,
                         uint32_t Thread, uint32_t Retval);
 };
 

@@ -36,7 +36,7 @@ impl Loader {
         };
 
         match ctx.is_null() {
-            true => Err(WasmEdgeError::LoaderCreate),
+            true => Err(Box::new(WasmEdgeError::LoaderCreate)),
             false => Ok(Self {
                 inner: InnerLoader(ctx),
                 registered: false,
@@ -72,7 +72,7 @@ impl Loader {
         }
 
         match mod_ctx.is_null() {
-            true => Err(WasmEdgeError::ModuleCreate),
+            true => Err(Box::new(WasmEdgeError::ModuleCreate)),
             false => Ok(Module {
                 inner: InnerModule(mod_ctx),
             }),
@@ -127,7 +127,7 @@ impl Loader {
         }
 
         match mod_ctx.is_null() {
-            true => Err(WasmEdgeError::ModuleCreate),
+            true => Err(Box::new(WasmEdgeError::ModuleCreate)),
             false => Ok(Module {
                 inner: InnerModule(mod_ctx),
             }),
@@ -192,14 +192,18 @@ mod tests {
             assert!(result.is_err());
             assert_eq!(
                 result.unwrap_err(),
-                WasmEdgeError::Core(CoreError::Load(CoreLoadError::MalformedMagic))
+                Box::new(WasmEdgeError::Core(CoreError::Load(
+                    CoreLoadError::MalformedMagic
+                )))
             );
 
             let result = loader.from_file("not_exist_file");
             assert!(result.is_err());
             assert_eq!(
                 result.unwrap_err(),
-                WasmEdgeError::Core(CoreError::Load(CoreLoadError::IllegalPath))
+                Box::new(WasmEdgeError::Core(CoreError::Load(
+                    CoreLoadError::IllegalPath
+                )))
             );
         }
 
@@ -216,7 +220,9 @@ mod tests {
             assert!(result.is_err());
             assert_eq!(
                 result.unwrap_err(),
-                WasmEdgeError::Core(CoreError::Load(CoreLoadError::MalformedMagic))
+                Box::new(WasmEdgeError::Core(CoreError::Load(
+                    CoreLoadError::MalformedMagic
+                )))
             );
 
             // empty is not accepted
@@ -224,7 +230,9 @@ mod tests {
             assert!(result.is_err());
             assert_eq!(
                 result.unwrap_err(),
-                WasmEdgeError::Core(CoreError::Load(CoreLoadError::UnexpectedEnd))
+                Box::new(WasmEdgeError::Core(CoreError::Load(
+                    CoreLoadError::UnexpectedEnd
+                )))
             );
         }
     }

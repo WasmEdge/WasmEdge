@@ -28,7 +28,7 @@ impl Global {
         let ctx = unsafe { ffi::WasmEdge_GlobalInstanceCreate(ty.inner.0, val.as_raw()) };
 
         match ctx.is_null() {
-            true => Err(WasmEdgeError::Global(GlobalError::Create)),
+            true => Err(Box::new(WasmEdgeError::Global(GlobalError::Create))),
             false => Ok(Self {
                 inner: InnerGlobal(ctx),
                 registered: false,
@@ -45,7 +45,7 @@ impl Global {
     pub fn ty(&self) -> WasmEdgeResult<GlobalType> {
         let ty_ctx = unsafe { ffi::WasmEdge_GlobalInstanceGetGlobalType(self.inner.0) };
         match ty_ctx.is_null() {
-            true => Err(WasmEdgeError::Global(GlobalError::Type)),
+            true => Err(Box::new(WasmEdgeError::Global(GlobalError::Type))),
             false => Ok(GlobalType {
                 inner: InnerGlobalType(ty_ctx as *mut _),
                 registered: true,
@@ -90,10 +90,12 @@ impl Global {
     pub fn set_value(&mut self, val: WasmValue) -> WasmEdgeResult<()> {
         let ty = self.ty()?;
         if ty.mutability() == Mutability::Const {
-            return Err(WasmEdgeError::Global(GlobalError::ModifyConst));
+            return Err(Box::new(WasmEdgeError::Global(GlobalError::ModifyConst)));
         }
         if ty.value_type() != val.ty() {
-            return Err(WasmEdgeError::Global(GlobalError::UnmatchedValType));
+            return Err(Box::new(WasmEdgeError::Global(
+                GlobalError::UnmatchedValType,
+            )));
         }
         unsafe { ffi::WasmEdge_GlobalInstanceSetValue(self.inner.0, val.as_raw()) }
         Ok(())
@@ -135,7 +137,7 @@ impl GlobalType {
     pub fn create(val_ty: ValType, mutable: Mutability) -> WasmEdgeResult<Self> {
         let ctx = unsafe { ffi::WasmEdge_GlobalTypeCreate(val_ty.into(), mutable.into()) };
         match ctx.is_null() {
-            true => Err(WasmEdgeError::GlobalTypeCreate),
+            true => Err(Box::new(WasmEdgeError::GlobalTypeCreate)),
             false => Ok(Self {
                 inner: InnerGlobalType(ctx),
                 registered: false,

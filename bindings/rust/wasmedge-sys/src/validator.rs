@@ -28,7 +28,7 @@ impl Validator {
             None => unsafe { ffi::WasmEdge_ValidatorCreate(std::ptr::null_mut()) },
         };
         match ctx.is_null() {
-            true => Err(WasmEdgeError::CompilerCreate),
+            true => Err(Box::new(WasmEdgeError::CompilerCreate)),
             false => Ok(Self {
                 inner: InnerValidator(ctx),
                 registered: false,

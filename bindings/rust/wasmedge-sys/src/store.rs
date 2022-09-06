@@ -23,7 +23,7 @@ impl Store {
     pub fn create() -> WasmEdgeResult<Self> {
         let ctx = unsafe { ffi::WasmEdge_StoreCreate() };
         match ctx.is_null() {
-            true => Err(WasmEdgeError::Store(StoreError::Create)),
+            true => Err(Box::new(WasmEdgeError::Store(StoreError::Create))),
             false => Ok(Store {
                 inner: InnerStore(ctx),
                 registered: false,
@@ -74,9 +74,9 @@ impl Store {
         let mod_name: WasmEdgeString = name.as_ref().into();
         let ctx = unsafe { ffi::WasmEdge_StoreFindModule(self.inner.0, mod_name.as_raw()) };
         match ctx.is_null() {
-            true => Err(WasmEdgeError::Store(StoreError::NotFoundModule(
+            true => Err(Box::new(WasmEdgeError::Store(StoreError::NotFoundModule(
                 name.as_ref().to_string(),
-            ))),
+            )))),
             false => Ok(Instance {
                 inner: InnerInstance(ctx as *mut _),
                 registered: true,

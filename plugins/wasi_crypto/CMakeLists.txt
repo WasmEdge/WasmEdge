@@ -53,6 +53,7 @@ wasmedge_add_library(wasmedgePluginWasiCrypto
 target_compile_options(wasmedgePluginWasiCrypto
   PUBLIC
   -DWASMEDGE_PLUGIN
+  -DOPENSSL_API_COMPAT=0x10100000L
 )
 
 if(CMAKE_SYSTEM_NAME MATCHES "Darwin")

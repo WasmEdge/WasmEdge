@@ -43,7 +43,7 @@ template <int PadMode, int KeyBits, int ShaNid>
 WasiCryptoExpect<EvpPkeyPtr>
 Rsa<PadMode, KeyBits, ShaNid>::PublicKey::checkValid(EvpPkeyPtr Ctx) noexcept {
   ensureOrReturn(Ctx, __WASI_CRYPTO_ERRNO_INVALID_KEY);
-  RSA *RsaKey = EVP_PKEY_get0_RSA(Ctx.get());
+  const RSA *RsaKey = EVP_PKEY_get0_RSA(Ctx.get());
   ensureOrReturn(RsaKey, __WASI_CRYPTO_ERRNO_INVALID_KEY);
   ensureOrReturn(RSA_bits(RsaKey) == KeyBits, __WASI_CRYPTO_ERRNO_INVALID_KEY);
   return {std::move(Ctx)};
@@ -128,7 +128,7 @@ template <int PadMode, int KeyBits, int ShaNid>
 WasiCryptoExpect<EvpPkeyPtr>
 Rsa<PadMode, KeyBits, ShaNid>::SecretKey::checkValid(EvpPkeyPtr Ctx) noexcept {
   ensureOrReturn(Ctx, __WASI_CRYPTO_ERRNO_INVALID_KEY);
-  RSA *RsaKey = EVP_PKEY_get0_RSA(Ctx.get());
+  const RSA *RsaKey = EVP_PKEY_get0_RSA(Ctx.get());
   ensureOrReturn(RsaKey, __WASI_CRYPTO_ERRNO_INVALID_KEY);
   ensureOrReturn(RSA_bits(RsaKey) == KeyBits, __WASI_CRYPTO_ERRNO_INVALID_KEY);
   return {std::move(Ctx)};
@@ -207,7 +207,7 @@ template <int PadMode, int KeyBits, int ShaNid>
 WasiCryptoExpect<EvpPkeyPtr>
 Rsa<PadMode, KeyBits, ShaNid>::KeyPair::checkValid(EvpPkeyPtr Ctx) noexcept {
   ensureOrReturn(Ctx, __WASI_CRYPTO_ERRNO_INVALID_KEY);
-  RSA *RsaKey = EVP_PKEY_get0_RSA(Ctx.get());
+  const RSA *RsaKey = EVP_PKEY_get0_RSA(Ctx.get());
   ensureOrReturn(RsaKey, __WASI_CRYPTO_ERRNO_INVALID_KEY);
   ensureOrReturn(RSA_bits(RsaKey) == KeyBits, __WASI_CRYPTO_ERRNO_INVALID_KEY);
   return {std::move(Ctx)};

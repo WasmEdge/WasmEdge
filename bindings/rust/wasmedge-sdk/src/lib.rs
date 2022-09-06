@@ -144,6 +144,7 @@
 //! * [wasmedge-types: WasmEdge Types](https://crates.io/crates/wasmedge-types)
 //!
 
+#[doc(hidden)]
 pub mod caller;
 #[doc(hidden)]
 #[cfg(feature = "aot")]

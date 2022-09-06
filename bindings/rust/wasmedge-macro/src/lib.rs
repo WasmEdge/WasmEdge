@@ -18,6 +18,44 @@ pub fn host_function(_attr: TokenStream, item: TokenStream) -> TokenStream {
 fn expand_host_func(item_fn: &syn::ItemFn) -> syn::Result<proc_macro2::TokenStream> {
     let outer_fn_name_ident = &item_fn.sig.ident;
     let outer_fn_name_literal = outer_fn_name_ident.to_string();
+    let outer_fn_return = &item_fn.sig.output;
+
+    let inner_fn_name_literal = format!("inner_{}", outer_fn_name_literal);
+    let inner_fn_name_ident = syn::Ident::new(&inner_fn_name_literal, item_fn.sig.span());
+    let inner_fn_inputs = &item_fn.sig.inputs;
+    let inner_fn_return = &item_fn.sig.output;
+    let inner_fn_block = &item_fn.block;
+
+    let ret = quote!(
+        fn #outer_fn_name_ident (frame: &wasmedge_sys::CallingFrame, args: Vec<wasmedge_sdk::WasmValue>) #outer_fn_return {
+            fn #inner_fn_name_ident (#inner_fn_inputs) #inner_fn_return {
+                #inner_fn_block
+            }
+
+            let caller = Caller::new(frame);
+            #inner_fn_name_ident(&caller, args)
+        }
+    );
+
+    Ok(ret)
+}
+
+#[proc_macro_attribute]
+pub fn async_host_function(_attr: TokenStream, item: TokenStream) -> TokenStream {
+    let body_ast = parse_macro_input!(item as Item);
+    if let Item::Fn(item_fn) = body_ast {
+        match expand_async_host_func(&item_fn) {
+            Ok(token_stream) => token_stream.into(),
+            Err(err) => err.to_compile_error().into(),
+        }
+    } else {
+        TokenStream::new()
+    }
+}
+
+fn expand_async_host_func(item_fn: &syn::ItemFn) -> syn::Result<proc_macro2::TokenStream> {
+    let outer_fn_name_ident = &item_fn.sig.ident;
+    let outer_fn_name_literal = outer_fn_name_ident.to_string();
     let outer_fn_inputs = &item_fn.sig.inputs;
     let outer_fn_return = &item_fn.sig.output;
     let args = outer_fn_inputs.iter().map(|fn_arg| match fn_arg {

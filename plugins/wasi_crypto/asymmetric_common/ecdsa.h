@@ -127,7 +127,7 @@ public:
     static WasiCryptoExpect<EvpPkeyPtr> checkValid(EvpPkeyPtr Ctx,
                                                    bool) noexcept {
       ensureOrReturn(Ctx, __WASI_CRYPTO_ERRNO_INVALID_KEY);
-      EC_KEY *EcCtx = EVP_PKEY_get0_EC_KEY(Ctx.get());
+      const EC_KEY *EcCtx = EVP_PKEY_get0_EC_KEY(Ctx.get());
       ensureOrReturn(EcCtx, __WASI_CRYPTO_ERRNO_INVALID_KEY);
 
       const EC_GROUP *Group = EC_KEY_get0_group(EcCtx);
@@ -139,7 +139,7 @@ public:
 
     WasiCryptoExpect<std::vector<uint8_t>>
     exportSec(bool Compressed) const noexcept {
-      EC_KEY *EcCtx = EVP_PKEY_get0_EC_KEY(Ctx.get());
+      const EC_KEY *EcCtx = EVP_PKEY_get0_EC_KEY(Ctx.get());
       std::vector<uint8_t> Res(getRawPkSize(Compressed));
       opensslCheck(EC_POINT_point2oct(
           EC_KEY_get0_group(EcCtx), EC_KEY_get0_public_key(EcCtx),
@@ -149,16 +149,18 @@ public:
 
     WasiCryptoExpect<std::vector<uint8_t>>
     exportPem(bool Compressed) const noexcept {
-      EC_KEY_set_conv_form(EVP_PKEY_get0_EC_KEY(Ctx.get()),
-                           getForm(Compressed));
+      EC_KEY_set_conv_form(
+          const_cast<EC_KEY *>(EVP_PKEY_get0_EC_KEY(Ctx.get())),
+          getForm(Compressed));
 
       return pemWritePUBKEY(Ctx.get());
     }
 
     WasiCryptoExpect<std::vector<uint8_t>>
     exportPkcs8(bool Compressed) const noexcept {
-      EC_KEY_set_conv_form(EVP_PKEY_get0_EC_KEY(Ctx.get()),
-                           getForm(Compressed));
+      EC_KEY_set_conv_form(
+          const_cast<EC_KEY *>(EVP_PKEY_get0_EC_KEY(Ctx.get())),
+          getForm(Compressed));
 
       return i2dPUBKEY(Ctx.get());
     }
@@ -239,7 +241,7 @@ public:
 
     static WasiCryptoExpect<EvpPkeyPtr> checkValid(EvpPkeyPtr Ctx) noexcept {
       ensureOrReturn(Ctx, __WASI_CRYPTO_ERRNO_INVALID_KEY);
-      EC_KEY *EcCtx = EVP_PKEY_get0_EC_KEY(Ctx.get());
+      const EC_KEY *EcCtx = EVP_PKEY_get0_EC_KEY(Ctx.get());
       ensureOrReturn(EcCtx, __WASI_CRYPTO_ERRNO_INVALID_KEY);
 
       const EC_GROUP *Group = EC_KEY_get0_group(EcCtx);
@@ -367,7 +369,7 @@ public:
     static WasiCryptoExpect<EvpPkeyPtr> checkValid(EvpPkeyPtr Ctx,
                                                    bool) noexcept {
       ensureOrReturn(Ctx, __WASI_CRYPTO_ERRNO_INVALID_KEY);
-      EC_KEY *EcCtx = EVP_PKEY_get0_EC_KEY(Ctx.get());
+      const EC_KEY *EcCtx = EVP_PKEY_get0_EC_KEY(Ctx.get());
       ensureOrReturn(EcCtx, __WASI_CRYPTO_ERRNO_INVALID_KEY);
 
       // Curve id check.

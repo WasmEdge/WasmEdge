@@ -63,8 +63,8 @@ JNIEXPORT void JNICALL Java_org_wasmedge_WasmEdgeAsync_wasmEdge_1AsyncGet
     WasmEdge_Async * ctx = getAsync(env, thisobject);
     jsize returnsLen = (*env)->GetArrayLength(env, jreturns);
     WasmEdge_Value *returns = calloc(returnsLen, sizeof(WasmEdge_Value));
-    int *type = (*env)->GetIntArrayElements(env, jParamTypes, JNI_FALSE);
-    for (int i = 0; i < paramLen; i++) {
+    int *type = (*env)->GetIntArrayElements(env, jReturnTypes, JNI_FALSE);
+    for (int i = 0; i < returnsLen; i++) {
         WasmEdge_Value val;
 
         jobject val_object = (*env)->GetObjectArrayElement(env, jreturns, i);

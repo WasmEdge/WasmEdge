@@ -13,6 +13,7 @@ version = "0.4.0"
 [dependencies]
 anyhow = "1.0"
 thiserror = "1.0.30"
+wasmedge-macro = {path = "../wasmedge-macro", version = "0.1.0"}
 wasmedge-sys = {path = "../wasmedge-sys", version = "0.9.1"}
 wasmedge-types = {path = "../wasmedge-types", version = "0.2.1"}
 wat = "1.0"

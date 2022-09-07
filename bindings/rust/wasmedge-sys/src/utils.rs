@@ -23,7 +23,7 @@ pub(crate) fn path_to_cstring(path: &Path) -> WasmEdgeResult<CString> {
 #[cfg(windows)]
 pub(crate) fn path_to_cstring(path: &Path) -> WasmEdgeResult<CString> {
     match path.to_str() {
-        Some(s) => Ok(CString::new(s)?),
+        Some(s) => CString::new(s).map_err(|err| Box::new(WasmEdgeError::FoundNulByte(err))),
         None => Err(Box::new(WasmEdgeError::WindowsPathConversion(
             path.to_string_lossy().to_string(),
         ))),

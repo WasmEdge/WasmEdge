@@ -16,6 +16,11 @@ namespace Loader {
 
 // Load binary to construct Module node. See "include/loader/loader.h".
 Expect<std::unique_ptr<AST::Module>> Loader::loadModule() {
+  // In this case, module assume itself is the top level structure of WASM
+  return loadModule(0, std::nullopt);
+}
+Expect<std::unique_ptr<AST::Module>>
+Loader::loadModule(uint64_t BaseOffset, std::optional<uint32_t> Limit) {
   auto Mod = std::make_unique<AST::Module>();
   IsUniversalWASM = false;
   // Read Magic and Version sequences.
@@ -119,14 +124,18 @@ Expect<std::unique_ptr<AST::Module>> Loader::loadModule() {
   }
 
   // Seek to the position after the binary header.
-  FMgr.seek(8);
+  FMgr.seek(BaseOffset + 8);
 
   // Variables to record the loaded section types.
   HasDataSection = false;
   std::bitset<0x0DU> Secs;
 
   // Read Section index and create Section nodes.
-  while (true) {
+
+  while ( // then the module is top loader,
+      !Limit.has_value() ||
+      // then module is in the component
+      (FMgr.getOffset() - BaseOffset) < Limit.value()) {
     uint8_t NewSectionId = 0x00;
     // If not read section ID, seems the end of file and break.
     if (auto Res = FMgr.readByte()) {

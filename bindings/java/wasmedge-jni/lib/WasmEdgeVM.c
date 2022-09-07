@@ -119,7 +119,7 @@ JNIEXPORT void JNICALL Java_org_wasmedge_WasmEdgeVM_runWasmFromFile
     //WasmEdge_Value Params[1] = { WasmEdge_ValueGenI32(5) };
     WasmEdge_Value *Returns = malloc(sizeof(WasmEdge_Value) * return_size);
     /* Function name. */
-    WasmEdge_String FuncName = WasmEdge_StringCreateByCString("fib");
+    WasmEdge_String FuncName = WasmEdge_StringCreateByCString(c_func_name);
     /* Run the WASM function from file. */
     WasmEdge_Result Res = WasmEdge_VMRunWasmFromFile(VMCxt, c_file_path, FuncName, wasm_params, param_size, Returns, return_size);
 
@@ -571,7 +571,7 @@ JNIEXPORT void JNICALL Java_org_wasmedge_WasmEdgeVM_registerModuleFromImport
     handleWasmEdgeResult(env, &result);
 }
 
-JNIEXPORT jobject JNICALL Java_org_wasmedge_WasmEdgeVM_wasmEdgeVMAsyncRunWasmFromFile
+JNIEXPORT jobject JNICALL Java_org_wasmedge_WasmEdgeVM_asyncRunWasmFromFile
         (JNIEnv * env, jobject thisObject, jstring jPath, jstring jFuncName, jobjectArray jParams, jintArray jParamTypes){
     /* The configure and store context to the VM creation can be NULL. */
     WasmEdge_VMContext *VMCxt = getVmContext(env, thisObject);
@@ -581,7 +581,6 @@ JNIEXPORT jobject JNICALL Java_org_wasmedge_WasmEdgeVM_wasmEdgeVMAsyncRunWasmFro
     WasmEdge_Value *wasm_params = calloc(jParamLen, sizeof(WasmEdge_Value));
 
     int *type = (*env)->GetIntArrayElements(env, jParamTypes, JNI_FALSE);
-
     for (int i = 0; i < jParamLen; i++) {
         WasmEdge_Value val;
 
@@ -614,17 +613,21 @@ JNIEXPORT jobject JNICALL Java_org_wasmedge_WasmEdgeVM_wasmEdgeVMAsyncRunWasmFro
     const char *c_file_path = (*env)->GetStringUTFChars(env, jPath, NULL);
 
     /* Function name. */
-    WasmEdge_String FuncName = WasmEdge_StringCreateByCString("fib");
+    WasmEdge_String FuncName = WasmEdge_StringCreateByCString(c_func_name);
     /* Run the WASM function from file. */
     // Warning : need uint32_t but jParamLen is jint (long)
     WasmEdge_Async* async = WasmEdge_VMAsyncRunWasmFromFile(VMCxt, c_file_path, FuncName, wasm_params, jParamLen);
-
+    
+    WasmEdge_StringDelete(FuncName);
+    (*env)->ReleaseStringUTFChars(env, jFuncName, c_func_name);
+    (*env)->ReleaseStringUTFChars(env, jPath, c_file_path);
+    free(wasm_params);
     // Warning : need to cast type WasmEdge_Async* to jobject
     return createJAsyncObject(env, async);
 }
 
 // Similar Warning as before
-JNIEXPORT jobject JNICALL Java_org_wasmedge_WasmEdgeVM_wasmEdgeVMAsyncRunWasmFromBuffer
+JNIEXPORT jobject JNICALL Java_org_wasmedge_WasmEdgeVM_asyncRunWasmFromBuffer
         (JNIEnv * env, jobject thisObject, jbyteArray jBuff, jstring jFuncName,
          jobjectArray jParams, jintArray jParamTypes) {
 
@@ -673,7 +676,7 @@ JNIEXPORT jobject JNICALL Java_org_wasmedge_WasmEdgeVM_wasmEdgeVMAsyncRunWasmFro
     return createJAsyncObject(env, async);
 }
 
-JNIEXPORT jobject JNICALL Java_org_wasmedge_WasmEdgeVM_wasmEdgeVMAsyncRunWasmFromASTModule(JNIEnv * env, jobject thisObject, jobject jAstMod, jstring jFuncName, jobjectArray jParams, jintArray jParamTypes) {
+JNIEXPORT jobject JNICALL Java_org_wasmedge_WasmEdgeVM_asyncRunWasmFromASTModule(JNIEnv * env, jobject thisObject, jobject jAstMod, jstring jFuncName, jobjectArray jParams, jintArray jParamTypes) {
 
     WasmEdge_VMContext *vmContext = getVmContext(env, thisObject);
     WasmEdge_ASTModuleContext * mod = getASTModuleContext(env, jAstMod);
@@ -719,7 +722,7 @@ JNIEXPORT jobject JNICALL Java_org_wasmedge_WasmEdgeVM_wasmEdgeVMAsyncRunWasmFro
 
 }
 
-JNIEXPORT jobject JNICALL Java_org_wasmedge_WasmEdgeVM_wasmEdgeVMAsyncExecute(JNIEnv *env, jobject thisObject, jstring jFuncName, jobjectArray jParams,
+JNIEXPORT jobject JNICALL Java_org_wasmedge_WasmEdgeVM_asyncExecute(JNIEnv *env, jobject thisObject, jstring jFuncName, jobjectArray jParams,
                                                                               jintArray jParamTypes) {
 
     WasmEdge_VMContext *VMCxt = getVmContext(env, thisObject);
@@ -769,7 +772,7 @@ JNIEXPORT jobject JNICALL Java_org_wasmedge_WasmEdgeVM_wasmEdgeVMAsyncExecute(JN
     return createJAsyncObject(env, async);
 }
 
-JNIEXPORT jobject JNICALL Java_org_wasmedge_WasmEdgeVM_wasmEdgeVMAsyncExecuteRegistered(JNIEnv * env, jobject thisObject, jstring jModName, jstring jFuncName, jobjectArray jParams, jintArray jParamTypes) {
+JNIEXPORT jobject JNICALL Java_org_wasmedge_WasmEdgeVM_asyncExecuteRegistered(JNIEnv * env, jobject thisObject, jstring jModName, jstring jFuncName, jobjectArray jParams, jintArray jParamTypes) {
     WasmEdge_VMContext * vmContext = getVmContext(env, thisObject);
 
     const char* modName = (*env)->GetStringUTFChars(env, jModName, NULL);

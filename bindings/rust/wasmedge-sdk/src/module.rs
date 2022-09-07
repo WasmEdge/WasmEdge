@@ -210,7 +210,7 @@ mod tests {
         assert!(result.is_ok());
 
         // attempt to load an empty buffer
-        let result = Module::from_bytes(None, &[]);
+        let result = Module::from_bytes(None, []);
         assert_eq!(
             result.unwrap_err(),
             Box::new(WasmEdgeError::Core(CoreError::Load(

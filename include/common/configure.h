@@ -181,7 +181,6 @@ public:
     unsafeAddProposal(Proposal::BulkMemoryOperations);
     unsafeAddProposal(Proposal::ReferenceTypes);
     unsafeAddProposal(Proposal::SIMD);
-    unsafeAddProposal(Proposal::ComponentModel);
   }
   template <typename... ArgsT> Configure(ArgsT... Args) noexcept : Configure() {
     (unsafeAddSet(Args), ...);

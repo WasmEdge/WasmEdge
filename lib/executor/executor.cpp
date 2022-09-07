@@ -6,6 +6,8 @@
 #include "common/errinfo.h"
 #include "common/log.h"
 
+#include <iostream>
+
 namespace WasmEdge {
 namespace Executor {
 
@@ -91,7 +93,8 @@ Executor::invoke(const Runtime::Instance::FunctionInstance &FuncInst,
   return Returns;
 }
 
-Expect<void> Executor::createThreadWithFunctionAddress(uint32_t FuncAddress, uint32_t Arg) {
+Expect<std::function<void(void)>>
+Executor::createThreadWithFunctionAddress(uint32_t FuncAddress, uint32_t Arg) {
   // Get Table Instance
   const auto *TabInst = HostFunctionContext.TableInst;
 
@@ -106,19 +109,21 @@ Expect<void> Executor::createThreadWithFunctionAddress(uint32_t FuncAddress, uin
     spdlog::error(ErrCode::Value::UninitializedElement);
     return Unexpect(ErrCode::Value::UninitializedElement);
   }
-
-  // Check function type.
   const auto *FuncInst = retrieveFuncRef(Ref);
-  Runtime::StackManager StackMgr;
-  StackMgr.push(Arg);
+  std::cerr << "FuncInst: " << FuncInst << "\n";
 
-  Span<const ValVariant> Params;
-  // Call runFunction.
-  if (auto Res = runFunction(StackMgr, *FuncInst, Params); !Res) {
-    return Unexpect(Res);
-  }
+  std::function<void(void)> F = [=]() {
+    // Check function type.
+    Runtime::StackManager StackMgr;
+    StackMgr.push(Arg);
 
-  return {};
+    Span<const ValVariant> Params;
+    // Call runFunction.
+    std::cerr << "call FuncInst: " << FuncInst << "\n";
+    runFunction(StackMgr, *FuncInst, Params);
+  };
+
+  return {F};
 }
 
 } // namespace Executor

@@ -9,30 +9,35 @@
 namespace WasmEdge {
 namespace Host {
 
-Expect<void> WasmEdgeThreadEnvironment::pthreadCreate(
-    Executor::Executor *Exec, [[maybe_unused]] uint64_t *WasiThreadPtr,
-    uint32_t WasiThreadFunc, uint32_t Arg) const {
-
+Expect<wasmedge_tid_t>
+WasmEdgeThreadEnvironment::threadCreate(Executor::Executor *Exec,
+                                        uint32_t ThreadFunc, uint32_t Arg) {
   if (unlikely(!Exec)) {
     return Unexpect(ErrCode::Value::HostFuncError);
-  } else {
-    auto ThreadTunc = [&]() {
-      Exec->createThreadWithFunctionAddress(WasiThreadFunc, Arg);
-    };
-    [[maybe_unused]] pthread_t *ThreadPtr =
-        static_cast<pthread_t *>(WasiThreadPtr);
-    std::thread T(ThreadTunc);
-    T.join();
   }
+  if (auto Ret = Exec->createThreadWithFunctionAddress(ThreadFunc, Arg);
+      unlikely(!Ret)) {
+    return Unexpect(ErrCode::Value::HostFuncError);
+  } else {
+    std::function<void(void)> Func = *Ret;
+    std::shared_ptr<std::thread> ThreadPtr =
+        std::make_shared<std::thread>(Func);
 
-  return {};
+    // ThreadPtr->join();
+    return {Manager.allocate(ThreadPtr)};
+  }
 }
 
-Expect<void> WasmEdgeThreadEnvironment::pthreadJoin(uint64_t WasiThread,
-                                                    void **WasiRetval) const {
-  uint64_t Thread = static_cast<uint64_t>(WasiThread);
-  pthread_join(Thread, WasiRetval);
-  return {};
+Expect<void>
+WasmEdgeThreadEnvironment::threadJoin(wasmedge_tid_t Tid,
+                                      [[maybe_unused]] void **WasiRetval) {
+  if (auto ThreadPtr = Manager.get(Tid); unlikely(!ThreadPtr)) {
+    return Unexpect(ErrCode::Value::HostFuncError);
+  } else {
+    ThreadPtr->join();
+    Manager.free(Tid);
+    return {};
+  }
 }
 
 Runtime::Instance::ModuleInstance *create(void) noexcept {

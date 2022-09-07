@@ -28,6 +28,7 @@
 #include <condition_variable>
 #include <csignal>
 #include <cstdint>
+#include <functional>
 #include <memory>
 #include <mutex>
 #include <optional>
@@ -143,7 +144,8 @@ public:
     }
   }
 
-  Expect<void> createThreadWithFunctionAddress(uint32_t FuncAddress, uint32_t Arg);
+  Expect<std::function<void(void)>>
+  createThreadWithFunctionAddress(uint32_t FuncAddress, uint32_t Arg);
 
   /// Stop execution
   void stop() noexcept {
@@ -680,7 +682,7 @@ private:
 
   /// Execution Context for the Host Function Caller
   struct HostFunctionPreservedContext {
-    Runtime::Instance::TableInstance * TableInst;
+    Runtime::Instance::TableInstance *TableInst;
   };
   HostFunctionPreservedContext HostFunctionContext;
 

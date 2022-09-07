@@ -16,9 +16,8 @@ public:
   WasmEdgeThreadCreate(WasmEdgeThreadEnvironment &HostEnv)
       : WasmEdgeThread(HostEnv) {}
 
-  Expect<uint32_t> body(const Runtime::CallingFrame &Frame,
-                        uint32_t Thread, uint32_t Attr, uint32_t StartRoutine,
-                        uint32_t Arg);
+  Expect<uint32_t> body(const Runtime::CallingFrame &Frame, uint32_t Thread,
+                    uint32_t Attr, uint32_t StartRoutine, uint32_t Arg);
 };
 
 class WasmEdgeThreadJoin : public WasmEdgeThread<WasmEdgeThreadJoin> {
@@ -26,8 +25,8 @@ public:
   WasmEdgeThreadJoin(WasmEdgeThreadEnvironment &HostEnv)
       : WasmEdgeThread(HostEnv) {}
 
-  Expect<uint32_t> body(const Runtime::CallingFrame &Frame,
-                        uint32_t Thread, uint32_t Retval);
+  Expect<uint32_t> body(const Runtime::CallingFrame &Frame, uint32_t Thread,
+                    uint32_t Retval);
 };
 
 } // namespace Host

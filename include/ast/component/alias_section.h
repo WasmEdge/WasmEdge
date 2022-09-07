@@ -17,18 +17,16 @@
 
 #include <cinttypes>
 #include <string>
+#include <variant>
 
 namespace WasmEdge {
 namespace AST {
 
-class AliasTarget {
+namespace AliasTarget {
+
+class Export {
 public:
-  class Export;
-  class CoreExport;
-  class Outer;
-};
-class AliasTarget::Export : public AliasTarget {
-public:
+  Export() = default;
   Export(uint32_t Idx, std::string_view N) noexcept
       : InstanceIndex{Idx}, Name{N} {}
 
@@ -39,8 +37,9 @@ private:
   uint32_t InstanceIndex;
   std::string Name;
 };
-class AliasTarget::CoreExport : public AliasTarget {
+class CoreExport {
 public:
+  CoreExport() = default;
   CoreExport(uint32_t Idx, std::string_view N) noexcept
       : InstanceIndex{Idx}, Name{N} {}
 
@@ -51,8 +50,9 @@ private:
   uint32_t InstanceIndex;
   std::string Name;
 };
-class AliasTarget::Outer : public AliasTarget {
+class Outer {
 public:
+  Outer() = default;
   Outer(uint32_t CIdx, uint32_t Idx) noexcept
       : ComponentIndex{CIdx}, Index{Idx} {}
 
@@ -64,17 +64,24 @@ private:
   uint32_t Index;
 };
 
+// aliastarget ::= 0x00 i:<instanceidx> n:<name>      => export i n
+//               | 0x01 i:<core:instanceidx> n:<name> => core export i n
+//               | 0x02 ct:<u32> idx:<u32>            => outer ct idx
+using T = std::variant<Export, CoreExport, Outer>;
+
+} // namespace AliasTarget
+
 class Alias {
 public:
   Sort &getSort() noexcept { return S; }
   const Sort &getSort() const noexcept { return S; }
 
-  AliasTarget &getTarget() noexcept { return Target; }
-  const AliasTarget &getTarget() const noexcept { return Target; }
+  AliasTarget::T &getTarget() noexcept { return Target; }
+  const AliasTarget::T &getTarget() const noexcept { return Target; }
 
 private:
   Sort S;
-  AliasTarget Target;
+  AliasTarget::T Target;
 };
 
 } // namespace AST

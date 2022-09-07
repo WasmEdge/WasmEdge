@@ -210,7 +210,7 @@ mod tests {
         // load from buffer
         {
             let buffer = b"\0asm\x01\0\0\0";
-            let result = loader.from_bytes(&buffer);
+            let result = loader.from_bytes(buffer);
             assert!(result.is_ok());
             let module = result.unwrap();
             assert!(!module.inner.0.is_null());
@@ -226,7 +226,7 @@ mod tests {
             );
 
             // empty is not accepted
-            let result = loader.from_bytes(&[]);
+            let result = loader.from_bytes([]);
             assert!(result.is_err());
             assert_eq!(
                 result.unwrap_err(),

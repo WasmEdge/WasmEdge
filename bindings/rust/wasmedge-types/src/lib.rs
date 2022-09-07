@@ -496,7 +496,9 @@ impl MemoryType {
     /// * `shared` - Enables shared memory if true.
     pub fn new(min: u32, max: Option<u32>, shared: bool) -> WasmEdgeResult<Self> {
         if shared && max.is_none() {
-            return Err(error::WasmEdgeError::Mem(error::MemError::CreateSharedType));
+            return Err(Box::new(error::WasmEdgeError::Mem(
+                error::MemError::CreateSharedType,
+            )));
         }
         Ok(Self { min, max, shared })
     }
@@ -560,4 +562,4 @@ impl Default for GlobalType {
 pub use wat::parse_bytes as wat2wasm;
 
 /// The WasmEdge result type.
-pub type WasmEdgeResult<T> = Result<T, error::WasmEdgeError>;
+pub type WasmEdgeResult<T> = Result<T, Box<error::WasmEdgeError>>;

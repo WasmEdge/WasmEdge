@@ -1,0 +1,12 @@
+[package]
+edition = "2021"
+name = "wasmedge-macro"
+version = "0.1.0"
+
+[lib]
+proc-macro = true
+
+[dependencies]
+proc-macro2 = "1.0.43"
+quote = "1"
+syn = {version = "1.0", features = ["full", "extra-traits"]}

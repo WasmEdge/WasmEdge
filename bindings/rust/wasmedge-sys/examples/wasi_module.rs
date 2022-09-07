@@ -23,7 +23,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
-            WasmEdgeError::Vm(VmError::NotFoundWasiModule)
+            Box::new(WasmEdgeError::Vm(VmError::NotFoundWasiModule))
         );
 
         // *** try to add a Wasi module.
@@ -70,7 +70,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
-            WasmEdgeError::Vm(VmError::NotFoundWasiModule)
+            Box::new(WasmEdgeError::Vm(VmError::NotFoundWasiModule))
         );
 
         // get store from vm
@@ -109,9 +109,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
-            WasmEdgeError::Core(CoreError::Instantiation(
+            Box::new(WasmEdgeError::Core(CoreError::Instantiation(
                 CoreInstantiationError::ModuleNameConflict
-            ))
+            )))
         );
     }
 

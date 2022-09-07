@@ -326,7 +326,7 @@ Expect<void> Loader::loadAlias(AST::Alias &Alias) {
       return logLoadError(Name.error(), FMgr.getLastOffset(),
                           ASTNodeAttr::Comp_Alias);
     }
-    Alias.getTarget() = AST::AliasTarget::Export(*Idx, *Name);
+    Alias.getTarget().emplace<AST::AliasTarget::Export>(*Idx, *Name);
     break;
   }
   case 0x01: {
@@ -341,7 +341,7 @@ Expect<void> Loader::loadAlias(AST::Alias &Alias) {
       return logLoadError(Name.error(), FMgr.getLastOffset(),
                           ASTNodeAttr::Comp_Alias);
     }
-    Alias.getTarget() = AST::AliasTarget::CoreExport(*Idx, *Name);
+    Alias.getTarget().emplace<AST::AliasTarget::CoreExport>(*Idx, *Name);
     break;
   }
   case 0x02: {
@@ -356,7 +356,7 @@ Expect<void> Loader::loadAlias(AST::Alias &Alias) {
       return logLoadError(Idx.error(), FMgr.getLastOffset(),
                           ASTNodeAttr::Comp_Alias);
     }
-    Alias.getTarget() = AST::AliasTarget::Outer(*Ct, *Idx);
+    Alias.getTarget().emplace<AST::AliasTarget::Outer>(*Ct, *Idx);
     break;
   }
   default:

@@ -32,7 +32,7 @@ public class test {
             System.out.println("NO finish");
         }*/
         //int len = async.wasmEdge_AsyncGetReturnsLength();
-        async.wasmEdge_AsyncGet(returns);
+        async.wasmEdge_AsyncWaitFor(10000);
         // Get return values
         //System.out.println(len);
         System.out.println(((WasmEdgeI32Value) returns.get(0)).getValue());

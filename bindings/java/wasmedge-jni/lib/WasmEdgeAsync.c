@@ -47,7 +47,6 @@ JNIEXPORT jboolean JNICALL Java_org_wasmedge_WasmEdgeAsync_wasmEdge_1AsyncWaitFo
     WasmEdge_Async * ctx = getAsync(env, thisobject);
     if (ctx == NULL) printf("async ctx is null\n");
     else printf("async ctx not null\n");
-    sleep(5);
     WasmEdge_AsyncWaitFor(ctx, 10000);
     return 0;
 }
@@ -94,9 +93,18 @@ JNIEXPORT void JNICALL Java_org_wasmedge_WasmEdgeAsync_wasmEdge_1AsyncGet
         }
         returns[i] = val;
     }
+    // printf("returns len : %d\n", returnsLen);
     // Warning: turn WasmEdge_Result to F
     WasmEdge_Result result= WasmEdge_AsyncGet(ctx, returns, returnsLen);
+    // printf("Get the result: %d\n", WasmEdge_ValueGetI32(returns[0]));
+    // uint32_t Code = WasmEdge_ResultGetCode(result);
+    // printf("code : %d\n", Code);
     handleWasmEdgeResult(env, &result);
+    
+    for (int i = 0; i < returnsLen; ++i) {
+        setJavaValueObject(env, returns[i], (*env)->GetObjectArrayElement(env, jreturns, i));
+    }
+    
 }
 
 JNIEXPORT void JNICALL Java_org_wasmedge_WasmEdgeAsync_wasmEdge_1AsyncDelete

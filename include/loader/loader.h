@@ -215,6 +215,8 @@ private:
   /// \name Load AST Module functions
   /// @{
   Expect<std::unique_ptr<AST::Module>> loadModule();
+  Expect<std::unique_ptr<AST::Module>>
+  loadModule(uint64_t BaseOffset, std::optional<uint32_t> Limit);
   Expect<void> loadCompiled(AST::Module &Mod);
   /// @}
 

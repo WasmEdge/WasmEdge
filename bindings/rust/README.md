@@ -18,8 +18,6 @@ The `wasmedge-sdk` crate defines a group of high-level Rust APIs, which are used
     </a>
 </p>
 
------
-
 ## wasmedge-sys
 
 The `wasmedge-sys` crate defines a group of low-level Rust APIs for WasmEdge, a light-weight, high-performance, and extensible WebAssembly runtime for cloud-native, edge, and decentralized applications.
@@ -35,8 +33,6 @@ The `wasmedge-sys` crate defines a group of low-level Rust APIs for WasmEdge, a 
     </a>
 </p>
 
------
-
 ## wasmedge-types
 
 The `wasmedge-types` crate defines a group of common data structures used by both [wasmedge-rs](https://crates.io/crates/wasmedge-sdk) and [wasmedge-sys](https://crates.io/crates/wasmedge-sys) crates.
@@ -51,8 +47,6 @@ The `wasmedge-types` crate defines a group of common data structures used by bot
         <img src="https://img.shields.io/crates/v/wasmedge-types.svg">
     </a>
 </p>
-
------
 
 ## wasmedge-macro
 

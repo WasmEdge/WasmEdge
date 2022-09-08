@@ -12,6 +12,7 @@ wasmedge_add_executable(wasmedgeLoaderComponentASTTests
   import_export_definition.cpp
   instance_definition.cpp
   nested_component.cpp
+  start_definition.cpp
   type_definition.cpp
 )
 

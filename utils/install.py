@@ -165,11 +165,7 @@ def extract_archive(
                 # replace GNUSparseFile.0 with nothing
                 fname = fname.replace("/GNUSparseFile.0", "")
                 # Don't append system directories
-                if (
-                    args.path != abspath(PATH)
-                    and fname.startswith("/usr")
-                    and isdir(fname)
-                ):
+                if (not is_default_path(args)) and isdir(fname):
                     continue
                 env_file.write("#" + fname + "\n")
                 logging.debug("Appending:%s", fname)
@@ -543,6 +539,11 @@ def fix_gnu_sparse(args):
                     shutil.rmtree(join(args.path, dir, sub_dir))
 
 
+def is_default_path(args):
+    global PATH
+    return args.path == abspath(PATH) or args.path[:4] != "/usr"
+
+
 def install_image_extension(args, compat):
     global CONST_release_pkg, CONST_lib_dir
 
@@ -590,7 +591,7 @@ def install_image_extension(args, compat):
         for file in listdir(wasmedge_image_temp_dir):
             if (
                 isdir(join(wasmedge_image_temp_dir, file))
-                and args.path == abspath(PATH)
+                and is_default_path(args)
                 and "wasmedge" == file
             ):
                 copytree(
@@ -830,39 +831,96 @@ def install_tensorflow_extension(args, compat):
         )
         return -1
 
-    tf_pkg = "WasmEdge-tensorflow-" + args.tf_version + "-" + CONST_release_pkg
-    tf_lite_pkg = "WasmEdge-tensorflowlite-" + args.tf_version + "-" + CONST_release_pkg
-    tf_deps_pkg = (
-        "WasmEdge-tensorflow-deps-TF-" + args.tf_deps_version + "-" + CONST_release_pkg
-    )
-    tf_deps_lite_pkg = (
-        "WasmEdge-tensorflow-deps-TFLite-"
-        + args.tf_deps_version
-        + "-"
-        + CONST_release_pkg
-    )
+    download_tf = True
+    download_tf_lite = True
+
+    if compat.machine == "aarch64":
+        download_tf = False
+
+    if download_tf:
+        tf_pkg = "WasmEdge-tensorflow-" + args.tf_version + "-" + CONST_release_pkg
+        tf_deps_pkg = (
+            "WasmEdge-tensorflow-deps-TF-"
+            + args.tf_deps_version
+            + "-"
+            + CONST_release_pkg
+        )
+
+        print("Downloading tensorflow extension")
+        download_url(CONST_urls[TENSORFLOW], join(TEMP_PATH, tf_pkg), show_progress)
+
+        print("Downloading tensorflow-deps")
+        download_url(
+            CONST_urls[TENSORFLOW_DEPS], join(TEMP_PATH, tf_deps_pkg), show_progress
+        )
+
+        # Extract archieve
+        extract_archive(
+            join(TEMP_PATH, tf_pkg),
+            args.path,
+            join(TEMP_PATH, "WasmEdge-tensorflow"),
+            env_file_path=CONST_env_path,
+            remove_finished=True,
+        )
+
+        # Extract archieve
+        extract_archive(
+            join(TEMP_PATH, tf_deps_pkg),
+            join(args.path, CONST_lib_dir),
+            join(TEMP_PATH, "WasmEdge-tensorflow-deps", CONST_lib_dir),
+            env_file_path=CONST_env_path,
+            remove_finished=True,
+        )
+
+        copytree(join(TEMP_PATH, "WasmEdge-tensorflow"), args.path)
+        copytree(join(TEMP_PATH, "WasmEdge-tensorflow-deps"), args.path)
+
+    if download_tf_lite:
+        tf_lite_pkg = (
+            "WasmEdge-tensorflowlite-" + args.tf_version + "-" + CONST_release_pkg
+        )
+        tf_deps_lite_pkg = (
+            "WasmEdge-tensorflow-deps-TFLite-"
+            + args.tf_deps_version
+            + "-"
+            + CONST_release_pkg
+        )
+
+        print("Downloading tensorflow-lite extension")
+        download_url(
+            CONST_urls[TENSORFLOW_LITE], join(TEMP_PATH, tf_lite_pkg), show_progress
+        )
+
+        print("Downloading tensorflow-lite-deps")
+        download_url(
+            CONST_urls[TENSORFLOW_LITE_DEPS],
+            join(TEMP_PATH, tf_deps_lite_pkg),
+            show_progress,
+        )
+
+        # Extract archieve
+        extract_archive(
+            join(TEMP_PATH, tf_lite_pkg),
+            args.path,
+            join(TEMP_PATH, "WasmEdge-tensorflow-lite"),
+            env_file_path=CONST_env_path,
+            remove_finished=True,
+        )
+
+        # Extract archieve
+        extract_archive(
+            join(TEMP_PATH, tf_deps_lite_pkg),
+            join(args.path, CONST_lib_dir),
+            join(TEMP_PATH, "WasmEdge-tensorflow-lite-deps", CONST_lib_dir),
+            env_file_path=CONST_env_path,
+            remove_finished=True,
+        )
+
+        copytree(join(TEMP_PATH, "WasmEdge-tensorflow-lite"), args.path)
+        copytree(join(TEMP_PATH, "WasmEdge-tensorflow-lite-deps"), args.path)
+
     tf_tools_pkg = (
         "WasmEdge-tensorflow-tools-" + args.tf_tools_version + "-" + CONST_release_pkg
-    )
-
-    print("Downloading tensorflow extension")
-    download_url(CONST_urls[TENSORFLOW], join(TEMP_PATH, tf_pkg), show_progress)
-
-    print("Downloading tensorflow-lite extension")
-    download_url(
-        CONST_urls[TENSORFLOW_LITE], join(TEMP_PATH, tf_lite_pkg), show_progress
-    )
-
-    print("Downloading tensorflow-deps")
-    download_url(
-        CONST_urls[TENSORFLOW_DEPS], join(TEMP_PATH, tf_deps_pkg), show_progress
-    )
-
-    print("Downloading tensorflow-lite-deps")
-    download_url(
-        CONST_urls[TENSORFLOW_LITE_DEPS],
-        join(TEMP_PATH, tf_deps_lite_pkg),
-        show_progress,
     )
 
     print("Downloading tensorflow-tools extension")
@@ -872,48 +930,14 @@ def install_tensorflow_extension(args, compat):
 
     # Extract archieve
     extract_archive(
-        join(TEMP_PATH, tf_pkg),
-        args.path,
-        join(TEMP_PATH, "WasmEdge-tensorflow"),
-        env_file_path=CONST_env_path,
-        remove_finished=True,
-    )
-    # Extract archieve
-    extract_archive(
-        join(TEMP_PATH, tf_lite_pkg),
-        args.path,
-        join(TEMP_PATH, "WasmEdge-tensorflow-lite"),
-        env_file_path=CONST_env_path,
-        remove_finished=True,
-    )
-    # Extract archieve
-    extract_archive(
-        join(TEMP_PATH, tf_deps_pkg),
-        join(args.path, CONST_lib_dir),
-        join(TEMP_PATH, "WasmEdge-tensorflow-deps", CONST_lib_dir),
-        env_file_path=CONST_env_path,
-        remove_finished=True,
-    )
-    # Extract archieve
-    extract_archive(
         join(TEMP_PATH, tf_tools_pkg),
         join(args.path, "bin"),
         join(TEMP_PATH, "WasmEdge-tensorflow-tools", "bin"),
         env_file_path=CONST_env_path,
         remove_finished=True,
     )
-    # Extract archieve
-    extract_archive(
-        join(TEMP_PATH, tf_deps_lite_pkg),
-        join(args.path, CONST_lib_dir),
-        join(TEMP_PATH, "WasmEdge-tensorflow-lite-deps", CONST_lib_dir),
-        env_file_path=CONST_env_path,
-        remove_finished=True,
-    )
 
     copytree(join(TEMP_PATH, "WasmEdge-tensorflow-tools"), args.path)
-    copytree(join(TEMP_PATH, "WasmEdge-tensorflow-lite-deps"), args.path)
-    copytree(join(TEMP_PATH, "WasmEdge-tensorflow-deps"), args.path)
 
     fix_gnu_sparse(args)
 
@@ -1006,6 +1030,8 @@ def install_tensorflow_extension(args, compat):
                     logging.error("Not able to append installed files to env file")
 
     for main_dir in ["WasmEdge-tensorflow", "WasmEdge-tensorflow-lite"]:
+        if not isdir(join(TEMP_PATH, main_dir)):
+            continue
         for directory_file in listdir(join(TEMP_PATH, main_dir)):
             if isdir(directory_file):
                 wasmedge_tf_folder = join(TEMP_PATH, main_dir, directory_file)
@@ -1013,12 +1039,14 @@ def install_tensorflow_extension(args, compat):
                     if (
                         _file == "wasmedge"
                         and isdir(join(wasmedge_tf_folder, _file))
-                        and args.path == abspath(PATH)
+                        and is_default_path(args)
                     ):
                         copytree(
                             join(wasmedge_tf_folder, _file),
                             join(args.path, "include"),
                         )
+                        if isdir(join(args.path, "include", _file)):
+                            shutil.rmtree(join(args.path, "include", _file))
                     elif CONST_lib_ext in _file:
                         if isdir(join(args.path, CONST_lib_dir)):
                             shutil.move(
@@ -1041,31 +1069,35 @@ def install_tensorflow_extension(args, compat):
                             join(args.path, "bin", _file),
                         )
 
-    # Check if wasmedge binary works
-    wasmedge_tf_output = run_shell_command(
-        ". {0}/env &&{0}/bin/wasmedge-tensorflow --version".format(args.path)
-    )
-
-    if args.tf_version in wasmedge_tf_output:
-        print("WasmEdge Successfully installed")
-    else:
-        logging.critical(
-            "WasmEdge Tensorflow installation incorrect: {0}".format(wasmedge_tf_output)
+    if download_tf:
+        # Check if wasmedge binary works
+        wasmedge_tf_output = run_shell_command(
+            ". {0}/env &&{0}/bin/wasmedge-tensorflow --version".format(args.path)
         )
 
-    # Check if wasmedge binary works
-    wasmedge_tf_lite_output = run_shell_command(
-        ". {0}/env && {0}/bin/wasmedge-tensorflow-lite --version".format(args.path)
-    )
-
-    if args.tf_version in wasmedge_tf_lite_output:
-        print("WasmEdge Tensorflow Lite Successfully installed")
-    else:
-        logging.critical(
-            "WasmEdge Tensorflow installation incorrect: {0}".format(
-                wasmedge_tf_lite_output
+        if args.tf_version in wasmedge_tf_output:
+            print("WasmEdge Successfully installed")
+        else:
+            logging.critical(
+                "WasmEdge Tensorflow installation incorrect: {0}".format(
+                    wasmedge_tf_output
+                )
             )
+
+    if download_tf_lite:
+        # Check if wasmedge binary works
+        wasmedge_tf_lite_output = run_shell_command(
+            ". {0}/env && {0}/bin/wasmedge-tensorflow-lite --version".format(args.path)
         )
+
+        if args.tf_version in wasmedge_tf_lite_output:
+            print("WasmEdge Tensorflow Lite Successfully installed")
+        else:
+            logging.critical(
+                "WasmEdge Tensorflow installation incorrect: {0}".format(
+                    wasmedge_tf_lite_output
+                )
+            )
 
     return 0
 
@@ -1308,7 +1340,7 @@ def main(args):
         # Copy the tree
         copytree(join(TEMP_PATH, CONST_ipkg), args.path)
 
-        if args.path == abspath(PATH) or args.path[:4] != "/usr":
+        if is_default_path(args):
             # perform actions if default path
             for dir in listdir(args.path):
                 path = join(args.path, dir)

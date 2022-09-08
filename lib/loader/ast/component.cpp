@@ -86,19 +86,22 @@ Expect<std::unique_ptr<AST::Component>> Loader::loadComponent() {
       // https://github.com/WebAssembly/component-model/commit/d334e4db4a1cef4902871555cf4283e4114fefa5
       return logLoadError(ErrCode::Value::MalformedSection,
                           FMgr.getLastOffset(), ASTNodeAttr::Component);
-    case 0x01:
+    case 0x01: {
       // m*:section_1(<core:module>)         => [core-prefix(m)]
-      if (auto Res = FMgr.readByte(); !Res) {
-        return logLoadError(Res.error(), FMgr.getLastOffset(),
+      auto Size = FMgr.readU32();
+      if (!Size) {
+        return logLoadError(Size.error(), FMgr.getLastOffset(),
                             ASTNodeAttr::Component);
       }
-      if (auto Mod = loadModule()) {
+      auto Base = FMgr.getOffset();
+      if (auto Mod = loadModule(Base, std::make_optional(*Size))) {
         Comp->getModuleSection().getContent().push_back(std::move(*Mod));
       } else {
         spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Component));
         return Unexpect(Mod);
       }
       break;
+    }
     case 0x02:
       // i*:section_2(vec(<core:instance>))  => core-prefix(i)*
       if (auto Res = loadSection(Comp->getCoreInstanceSection()); !Res) {

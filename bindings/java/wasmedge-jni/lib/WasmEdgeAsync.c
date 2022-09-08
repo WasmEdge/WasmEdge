@@ -1,7 +1,8 @@
 //
 // Created by elfgum on 2022/8/1.
 //
-
+#include <unistd.h>
+#include <stdio.h>
 #include <malloc.h>
 #include "../jni/org_wasmedge_WasmEdgeAsync.h"
 #include "wasmedge/wasmedge.h"
@@ -17,6 +18,7 @@ WasmEdge_Async * getAsync(JNIEnv* env, jobject thisObject){
     if(thisObject == NULL) {
         return NULL;
     }
+    printf("get async object\n");
     return (WasmEdge_Async*) getPointer(env, thisObject);
 }
 /*
@@ -43,7 +45,11 @@ JNIEXPORT void JNICALL Java_org_wasmedge_WasmEdgeAsync_wasmEdge_1AsyncWait
 JNIEXPORT jboolean JNICALL Java_org_wasmedge_WasmEdgeAsync_wasmEdge_1AsyncWaitFor
         (JNIEnv * env, jobject thisobject, jlong milliseconds){
     WasmEdge_Async * ctx = getAsync(env, thisobject);
-    return (jboolean)WasmEdge_AsyncWaitFor(ctx, (uint64_t)milliseconds);
+    if (ctx == NULL) printf("async ctx is null\n");
+    else printf("async ctx not null\n");
+    sleep(5);
+    WasmEdge_AsyncWaitFor(ctx, 10000);
+    return 0;
 }
 
 JNIEXPORT void JNICALL Java_org_wasmedge_WasmEdgeAsync_wasmEdge_1AsyncCancel
@@ -99,9 +105,11 @@ JNIEXPORT void JNICALL Java_org_wasmedge_WasmEdgeAsync_wasmEdge_1AsyncDelete
     WasmEdge_AsyncDelete(ctx);
 }
 
-jobject createJAsyncObject(JNIEnv* env, const WasmEdge_Async * asyncObj) {
+jobject createJAsyncObject(JNIEnv* env, WasmEdge_Async * asyncObj) {
 
     jclass clazz = (*env)->FindClass(env, "org/wasmedge/WasmEdgeAsync");
+    if (clazz != NULL) printf("class not null\n");
     jmethodID constructorId = (*env)->GetMethodID(env, clazz, "<init>", "(J)V");
+    if (constructorId != NULL) printf("constructor not null\n");
     return (*env)->NewObject(env, clazz, constructorId, (long)asyncObj);
 }

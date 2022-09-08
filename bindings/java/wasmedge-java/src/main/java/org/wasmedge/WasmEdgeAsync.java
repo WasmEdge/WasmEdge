@@ -5,6 +5,10 @@ import java.util.List;
 public class WasmEdgeAsync {
     private long pointer;
 
+    private WasmEdgeAsync(long pointer) {
+        this.pointer = pointer;
+    }
+
     public native void wasmEdge_AsyncWait();
 
     public native boolean wasmEdge_AsyncWaitFor(

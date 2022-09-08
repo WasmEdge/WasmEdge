@@ -109,6 +109,7 @@ jobs:
       run: |
         bash utils/uninstall.sh -q -V
     - name: Install WasmEdge specific release (0.8.2)
+      if: ${{ matrix.name != 'manylinux2014 aarch64' }}
       run: |
         ${{ matrix.python2_ex }} utils/install.py -v 0.8.2 -D
         ${{ matrix.python3_ex }} utils/install.py -v 0.8.2 -D
@@ -116,10 +117,11 @@ jobs:
       run: |
         bash utils/uninstall.sh -q -V
     - name: Install WasmEdge specific release (0.8.2) with all extensions
+      if: ${{ matrix.name != 'manylinux2014 aarch64' }}
       run: |
         ${{ matrix.python2_ex }} utils/install.py -e all -v 0.8.2 -D
         ${{ matrix.python3_ex }} utils/install.py -e all -v 0.8.2 -D
-    - name: Install WasmEdge and test for arm extension installation
+    - name: Install WasmEdge with all extensions compatible with min version for all platforms
       run: |
         ${{ matrix.python2_ex }} utils/install.py -e all --version=0.9.1-beta.1 \
         --tf-version=0.9.1-beta.1 --tf-deps-version=0.9.1-beta.1  --tf-tools-version=0.9.1-beta.1  \
@@ -131,6 +133,7 @@ jobs:
       run: |
         bash utils/uninstall.sh -q -V
     - name: Install wasmedge-image-deps with 0.8.2
+      if: ${{ matrix.name != 'manylinux2014 aarch64' }}
       run: |
         echo "$(${{ matrix.python2_ex }} utils/install.py -e image -v 0.8.2 --image-version 0.8.2 --image-deps-version 0.8.2 -D 2>&1 | tee output.log)" | grep -qE "Installing image deps" && echo "Pass: Deps found in 0.8.2" \
         || (echo "Failed: Deps not found in 0.8.2" && cat output.log && exit 1)
@@ -140,6 +143,7 @@ jobs:
       run: |
         bash utils/uninstall.sh -q -V
     - name: Installs wasmedge-image-deps with 0.8.1
+      if: ${{ matrix.name != 'manylinux2014 aarch64' }}
       run: |
         echo "$(${{ matrix.python2_ex }} utils/install.py -e image -v 0.8.1 --image-version 0.8.1 --image-deps-version 0.8.1 2>&1 | tee output.log)" | grep -qE "Installing image deps" && echo "Pass: Deps found in 0.8.1" \
         || (echo "Failed: Deps not found in 0.8.1" && cat output.log && exit 1)
@@ -149,6 +153,7 @@ jobs:
       run: |
         bash utils/uninstall.sh -q -V
     - name: Don't install wasmedge-image-deps with 0.9.0-rc.1
+      if: ${{ matrix.name != 'manylinux2014 aarch64' }}
       run: |
         echo "$(${{ matrix.python2_ex }} utils/install.py -e image -v 0.9.0-rc.1 --image-version 0.9.0-rc.1 --image-deps-version 0.9.0-rc.1 -D 2>&1 | tee output.log)" | grep -qE "Image deps not needed" \
         && echo "Pass: Deps not found in 0.9.0-rc.1" || (echo "Failed: Deps found in 0.9.0-rc.1" && cat output.log && exit 1)
@@ -158,23 +163,23 @@ jobs:
       run: |
         bash utils/uninstall.sh -q -V
     - name: No Tensorflow tools from 0.9.0-rc.1
+      if: ${{ matrix.name != 'manylinux2014 aarch64' }}
       run: |
         echo "$(${{ matrix.python2_ex }} utils/install.py -e tensorflow -v 0.9.0-rc.1 --tf-version 0.9.0-rc.1 --tf-tools-version 0.9.0-rc.1 --tf-deps-version 0.9.0-rc.1 -D 2>&1 | tee output.log)" | grep -qE *-tools-* && echo "Failed: tools found in 0.9.0-rc.1" \
         && (cat output.log && exit 1) || echo "Pass: tools not found in 0.9.0-rc.1"
         echo "$(${{ matrix.python3_ex }} utils/install.py -e tensorflow -v 0.9.0-rc.1 --tf-version 0.9.0-rc.1 --tf-tools-version 0.9.0-rc.1 --tf-deps-version 0.9.0-rc.1 -D 2>&1 | tee output.log)" | grep -qE *-tools-* && echo "Failed: tools found in 0.9.0-rc.1" \
         && (cat output.log && exit 1) || echo "Pass: tools not found in 0.9.0-rc.1"
     - name: Uninstall WasmEdge
+      if: ${{ matrix.name != 'manylinux2014 aarch64' }}
       run: |
         bash utils/uninstall.sh -q -V
     - name: Install versions multiple times
       run: |
         ${{ matrix.python2_ex }} utils/install.py -e all -D
-        ${{ matrix.python2_ex }} utils/install.py -e all -v 0.9.0-rc.1 -D
-        ${{ matrix.python2_ex }} utils/install.py -e all -v 0.8.1 -D
+        ${{ matrix.python2_ex }} utils/install.py -e all -v 0.9.1-beta.1 -D
+        ${{ matrix.python2_ex }} utils/install.py -e all -v 0.10.0 -D
         ${{ matrix.python3_ex }} utils/install.py -e all -D
-        ${{ matrix.python3_ex }} utils/install.py -e all -v 0.9.0-rc.1 -D
-        ${{ matrix.python3_ex }} utils/install.py -e all -v 0.8.1 -D
-    - name: Uninstall WasmEdge with Image extensions
+    - name: Uninstall WasmEdge
       run: |
         bash utils/uninstall.sh -q -V
     - name: Uninstall WasmEdge and Source Line removal check

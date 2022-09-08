@@ -9,3 +9,10 @@ pub fn encode<S: AsRef<str>>(s: S) -> Vec<u8> {
     }
     res
 }
+
+pub fn decode(s: Vec<u8>) -> String {
+    s.iter()
+        .map(|n| format!("{:X}", n))
+        .collect::<Vec<String>>()
+        .join("")
+}

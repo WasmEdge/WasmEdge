@@ -6,6 +6,7 @@ file(COPY
 
 wasmedge_add_executable(wasmedgeLoaderComponentASTTests
   alias_definition.cpp
+  core_module.cpp
   canon_definition.cpp
   core_type_definition.cpp
   import_export_definition.cpp

@@ -144,7 +144,7 @@ impl Config {
     pub fn create() -> WasmEdgeResult<Self> {
         let ctx = unsafe { ffi::WasmEdge_ConfigureCreate() };
         match ctx.is_null() {
-            true => Err(WasmEdgeError::ConfigCreate),
+            true => Err(Box::new(WasmEdgeError::ConfigCreate)),
             false => Ok(Self {
                 inner: InnerConfig(ctx),
             }),

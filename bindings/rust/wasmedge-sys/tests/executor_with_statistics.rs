@@ -120,7 +120,9 @@ fn test_executor_with_statistics() {
     assert!(result.is_err());
     assert_eq!(
         result.unwrap_err(),
-        WasmEdgeError::Core(CoreError::Execution(CoreExecutionError::FuncTypeMismatch))
+        Box::new(WasmEdgeError::Core(CoreError::Execution(
+            CoreExecutionError::FuncTypeMismatch
+        )))
     );
 
     // function type mismatched
@@ -131,7 +133,9 @@ fn test_executor_with_statistics() {
     assert!(result.is_err());
     assert_eq!(
         result.unwrap_err(),
-        WasmEdgeError::Core(CoreError::Execution(CoreExecutionError::FuncTypeMismatch))
+        Box::new(WasmEdgeError::Core(CoreError::Execution(
+            CoreExecutionError::FuncTypeMismatch
+        )))
     );
 
     // try to get non-existent exported function
@@ -139,7 +143,9 @@ fn test_executor_with_statistics() {
     assert!(result.is_err());
     assert_eq!(
         result.unwrap_err(),
-        WasmEdgeError::Instance(InstanceError::NotFoundFunc("func-mul-3".into()))
+        Box::new(WasmEdgeError::Instance(InstanceError::NotFoundFunc(
+            "func-mul-3".into()
+        )))
     );
 
     // call host function by using external reference
@@ -230,7 +236,9 @@ fn test_executor_with_statistics() {
     assert!(result.is_err());
     assert_eq!(
         result.unwrap_err(),
-        WasmEdgeError::Core(CoreError::Execution(CoreExecutionError::FuncTypeMismatch))
+        Box::new(WasmEdgeError::Core(CoreError::Execution(
+            CoreExecutionError::FuncTypeMismatch
+        )))
     );
     // Function type mismatch
     let result = executor.run_func(
@@ -243,21 +251,27 @@ fn test_executor_with_statistics() {
     assert!(result.is_err());
     assert_eq!(
         result.unwrap_err(),
-        WasmEdgeError::Core(CoreError::Execution(CoreExecutionError::FuncTypeMismatch))
+        Box::new(WasmEdgeError::Core(CoreError::Execution(
+            CoreExecutionError::FuncTypeMismatch
+        )))
     );
     // Module not found
     let result = store.module("error-name");
     assert!(result.is_err());
     assert_eq!(
         result.unwrap_err(),
-        WasmEdgeError::Store(StoreError::NotFoundModule("error-name".into()))
+        Box::new(WasmEdgeError::Store(StoreError::NotFoundModule(
+            "error-name".into()
+        )))
     );
     // Function not found
     let result = extern_instance.get_func("func-add2");
     assert!(result.is_err());
     assert_eq!(
         result.unwrap_err(),
-        WasmEdgeError::Instance(InstanceError::NotFoundFunc("func-add2".into()))
+        Box::new(WasmEdgeError::Instance(InstanceError::NotFoundFunc(
+            "func-add2".into()
+        )))
     );
 
     // get the exported host function named "func-term"
@@ -277,5 +291,5 @@ fn test_executor_with_statistics() {
     // Invoke host function to fail execution
     let result = executor.run_func(&func_fail, []);
     assert!(result.is_err());
-    assert_eq!(result.unwrap_err(), WasmEdgeError::User(2));
+    assert_eq!(result.unwrap_err(), Box::new(WasmEdgeError::User(2)));
 }

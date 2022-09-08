@@ -36,7 +36,7 @@ impl Loader {
         };
 
         match ctx.is_null() {
-            true => Err(WasmEdgeError::LoaderCreate),
+            true => Err(Box::new(WasmEdgeError::LoaderCreate)),
             false => Ok(Self {
                 inner: InnerLoader(ctx),
                 registered: false,
@@ -72,7 +72,7 @@ impl Loader {
         }
 
         match mod_ctx.is_null() {
-            true => Err(WasmEdgeError::ModuleCreate),
+            true => Err(Box::new(WasmEdgeError::ModuleCreate)),
             false => Ok(Module {
                 inner: InnerModule(mod_ctx),
             }),
@@ -127,7 +127,7 @@ impl Loader {
         }
 
         match mod_ctx.is_null() {
-            true => Err(WasmEdgeError::ModuleCreate),
+            true => Err(Box::new(WasmEdgeError::ModuleCreate)),
             false => Ok(Module {
                 inner: InnerModule(mod_ctx),
             }),
@@ -192,21 +192,25 @@ mod tests {
             assert!(result.is_err());
             assert_eq!(
                 result.unwrap_err(),
-                WasmEdgeError::Core(CoreError::Load(CoreLoadError::MalformedMagic))
+                Box::new(WasmEdgeError::Core(CoreError::Load(
+                    CoreLoadError::MalformedMagic
+                )))
             );
 
             let result = loader.from_file("not_exist_file");
             assert!(result.is_err());
             assert_eq!(
                 result.unwrap_err(),
-                WasmEdgeError::Core(CoreError::Load(CoreLoadError::IllegalPath))
+                Box::new(WasmEdgeError::Core(CoreError::Load(
+                    CoreLoadError::IllegalPath
+                )))
             );
         }
 
         // load from buffer
         {
             let buffer = b"\0asm\x01\0\0\0";
-            let result = loader.from_bytes(&buffer);
+            let result = loader.from_bytes(buffer);
             assert!(result.is_ok());
             let module = result.unwrap();
             assert!(!module.inner.0.is_null());
@@ -216,15 +220,19 @@ mod tests {
             assert!(result.is_err());
             assert_eq!(
                 result.unwrap_err(),
-                WasmEdgeError::Core(CoreError::Load(CoreLoadError::MalformedMagic))
+                Box::new(WasmEdgeError::Core(CoreError::Load(
+                    CoreLoadError::MalformedMagic
+                )))
             );
 
             // empty is not accepted
-            let result = loader.from_bytes(&[]);
+            let result = loader.from_bytes([]);
             assert!(result.is_err());
             assert_eq!(
                 result.unwrap_err(),
-                WasmEdgeError::Core(CoreError::Load(CoreLoadError::UnexpectedEnd))
+                Box::new(WasmEdgeError::Core(CoreError::Load(
+                    CoreLoadError::UnexpectedEnd
+                )))
             );
         }
     }

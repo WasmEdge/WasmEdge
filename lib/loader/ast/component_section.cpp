@@ -804,6 +804,13 @@ Expect<void> Loader::loadCanonOpt(AST::CanonOpt &CanonOpt) {
 
 Expect<void> Loader::loadStart(AST::Start &Start) {
   using AST::ValueIdx;
+  auto StartSectionSize = FMgr.readU32();
+  if (!StartSectionSize.has_value()) {
+    return logLoadError(StartSectionSize.error(), FMgr.getLastOffset(),
+                        ASTNodeAttr::CompSec_Start);
+  }
+  auto StartOffset = FMgr.getOffset();
+
   // start ::= f:<funcidx> arg*:vec(<valueidx>)
   auto FuncIdx = FMgr.readU32();
   if (!FuncIdx.has_value()) {
@@ -825,6 +832,12 @@ Expect<void> Loader::loadStart(AST::Start &Start) {
                          });
       !Res) {
     return logLoadError(Res.error(), FMgr.getLastOffset(),
+                        ASTNodeAttr::CompSec_Start);
+  }
+
+  auto ReadSize = FMgr.getOffset() - StartOffset;
+  if (ReadSize != StartSectionSize) {
+    return logLoadError(ErrCode::SectionSizeMismatch, FMgr.getLastOffset(),
                         ASTNodeAttr::CompSec_Start);
   }
   return {};

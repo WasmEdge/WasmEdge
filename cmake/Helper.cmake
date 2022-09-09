@@ -73,6 +73,7 @@ if(WIN32)
     -Wno-nonportable-system-include-path
     -Wno-float-equal
     -Wno-declaration-after-statement
+    -Wno-zero-as-null-pointer-constant
   )
 endif()
 

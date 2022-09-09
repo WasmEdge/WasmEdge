@@ -4,7 +4,7 @@ Please follow this guide to build and test WasmEdge from the source code.
 
 The following guide is for Linux distributions. For MacOS, please refer to [Build for macOS](build_on_mac.md). For Windows, please refer to [Build for Windows](build_on_windows.md). For Android, please refer to [Build for Android](build_for_android.md).
 
-> If you just want the latest builds from the `HEAD` of the `master` branch, and do not want to build it yourself, you can download the release package directly from our Github Action's CI artifact. [Here is an example](https://github.com/WasmEdge/WasmEdge/actions/runs/1521549504#artifacts).
+> If you just want the latest builds from the `HEAD` of the `master` branch, and do not want to build it yourself, you can download the release package directly from our Github Action's CI artifact. [Here is a build](https://github.com/WasmEdge/WasmEdge/actions/runs/1521549504#artifacts).
 
 ## Get Source Code
 
@@ -63,6 +63,7 @@ sudo apt install -y \
 # You can choose one of them for building this project
 # If you prefer GCC then
 sudo apt install -y gcc g++
+
 # Or if you prefer clang then
 sudo apt install -y clang-12
 ```
@@ -103,8 +104,10 @@ You can find that there are several wasmedge related tools:
 docker run -it --rm \
     -v <path/to/your/wasmedge/source/folder>:/root/wasmedge \
     wasmedge/wasmedge:latest
+
 # In docker
 cd /root/wasmedge
+
 # If you don't use docker then you need to run only the following commands in the cloned repository root
 mkdir -p build && cd build
 cmake -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_BUILD_TESTS=ON .. && make -j
@@ -146,7 +149,6 @@ The following built-in tests are only available when the build flag `WASMEDGE_BU
 Users can use these tests to verify the correctness of WasmEdge binaries built.
 
 ```bash
-# In docker
 cd <path/to/wasmedge/build_folder>
 LD_LIBRARY_PATH=$(pwd)/lib/api ctest
 ```

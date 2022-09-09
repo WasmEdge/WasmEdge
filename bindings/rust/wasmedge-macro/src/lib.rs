@@ -1,6 +1,6 @@
 use proc_macro::TokenStream;
 use quote::quote;
-use syn::{parse_macro_input, spanned::Spanned, FnArg, Item, Pat, PatType};
+use syn::{parse_macro_input, parse_quote, spanned::Spanned, FnArg, Item, Pat, PatType};
 
 /// Expand a synchronous host function defined with `wasmedge-sdk` crate.
 #[proc_macro_attribute]
@@ -256,3 +256,117 @@ fn sys_expand_async_host_func2(item_fn: &syn::ItemFn) -> syn::Result<proc_macro2
 
     Ok(ret)
 }
+
+#[proc_macro_attribute]
+pub fn sys_host_function(_attr: TokenStream, item: TokenStream) -> TokenStream {
+    let body_ast = parse_macro_input!(item as Item);
+    if let Item::Fn(item_fn) = body_ast {
+        match sys_expand_host_func(&item_fn) {
+            Ok(token_stream) => token_stream.into(),
+            Err(err) => err.to_compile_error().into(),
+        }
+    } else {
+        TokenStream::new()
+    }
+}
+
+fn sys_expand_host_func(item_fn: &syn::ItemFn) -> syn::Result<proc_macro2::TokenStream> {
+    let mut fn_inputs = item_fn.sig.inputs.clone();
+
+    let data_arg = fn_inputs.last_mut().unwrap();
+    let ty_ptr = if let FnArg::Typed(PatType { ref mut ty, .. }) = data_arg {
+        let boxed_ty = if let syn::Type::Reference(syn::TypeReference { ref mut elem, .. }) = **ty {
+            elem.clone()
+        } else {
+            panic!("wrong")
+        };
+
+        // *mut Vec<&str>
+        let ty_ptr = syn::TypePtr {
+            star_token: parse_quote!(*),
+            const_token: None,
+            mutability: Some(parse_quote!(mut)),
+            elem: boxed_ty,
+        };
+
+        // let cloned_ty = ty.clone();
+
+        **ty = parse_quote!(*mut std::os::raw::c_void); //syn::Type::Ptr(ty_ptr);
+
+        ty_ptr
+    } else {
+        panic!("wrong wrong")
+    };
+
+    let fn_name_ident = &item_fn.sig.ident;
+    let fn_return = &item_fn.sig.output;
+    let ref mut fn_block = item_fn.block.clone();
+    let stmts = &mut fn_block.stmts;
+    // stmts.insert(
+    //     0,
+    //     parse_quote!(let data = unsafe { &mut *(data as #ty_ptr) };),
+    // );
+    stmts.insert(
+        0,
+        parse_quote!(let data = match data.is_null() {
+            true => None,
+            false => {
+                let data = unsafe { &mut *(data as #ty_ptr) };
+                Some(data)
+            }
+        };),
+    );
+
+    let ret = quote!(
+        fn #fn_name_ident (#fn_inputs) #fn_return
+            // #new_tokens
+            #fn_block
+
+    );
+
+    Ok(ret)
+}
+
+// fn sys_expand_host_func(item_fn: &syn::ItemFn) -> syn::Result<proc_macro2::TokenStream> {
+//     let mut fn_inputs = item_fn.sig.inputs.clone();
+
+//     let data_arg = fn_inputs.last_mut().unwrap();
+//     let ty_ptr = if let FnArg::Typed(PatType { ref mut ty, .. }) = data_arg {
+//         let boxed_ty = if let syn::Type::Reference(syn::TypeReference { ref mut elem, .. }) = **ty {
+//             elem.clone()
+//         } else {
+//             panic!("wrong")
+//         };
+
+//         // *mut Vec<&str>
+//         let ty_ptr = syn::TypePtr {
+//             star_token: parse_quote!(*),
+//             const_token: None,
+//             mutability: Some(parse_quote!(mut)),
+//             elem: boxed_ty,
+//         };
+
+//         **ty = parse_quote!(*mut std::os::raw::c_void); //syn::Type::Ptr(ty_ptr);
+
+//         ty_ptr
+//     } else {
+//         panic!("wrong wrong")
+//     };
+
+//     let fn_name_ident = &item_fn.sig.ident;
+//     let fn_return = &item_fn.sig.output;
+//     let ref mut fn_block = item_fn.block.clone();
+//     let stmts = &mut fn_block.stmts;
+//     stmts.insert(
+//         0,
+//         parse_quote!(let data = unsafe { &mut *(data as #ty_ptr) };),
+//     );
+
+//     let ret = quote!(
+//         fn #fn_name_ident (#fn_inputs) #fn_return
+//             #fn_block
+
+//     );
+
+//     Ok(ret)
+// }

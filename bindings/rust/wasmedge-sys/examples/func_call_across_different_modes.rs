@@ -1,17 +1,28 @@
 //! This example demonstrates that the function in interpreter mode calls the functions in AOT mode, and vise versa.
+
+#![feature(never_type)]
+
 use wasmedge_sys::{
     AsImport, CallingFrame, Compiler, Config, FuncType, Function, ImportModule, ImportObject, Vm,
     WasmValue,
 };
 use wasmedge_types::{error::HostFuncError, ValType};
 
-fn host_print_i32(_: &CallingFrame, val: Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError> {
+fn host_print_i32(
+    _: &CallingFrame,
+    val: Vec<WasmValue>,
+    _data: *mut std::os::raw::c_void,
+) -> Result<Vec<WasmValue>, HostFuncError> {
     println!("-- Host Function: print I32: {}", val[0].to_i32());
 
     Ok(vec![])
 }
 
-fn host_print_f64(_: &CallingFrame, val: Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError> {
+fn host_print_f64(
+    _: &CallingFrame,
+    val: Vec<WasmValue>,
+    _data: *mut std::os::raw::c_void,
+) -> Result<Vec<WasmValue>, HostFuncError> {
     println!("-- Host Function: print F64: {}", val[0].to_f64());
 
     Ok(vec![])
@@ -28,12 +39,12 @@ fn interpreter_call_aot() -> Result<(), Box<dyn std::error::Error>> {
 
     // import host_print_i32 as a host function
     let func_ty = FuncType::create([ValType::I32], [])?;
-    let host_func_print_i32 = Function::create(&func_ty, Box::new(host_print_i32), 0)?;
+    let host_func_print_i32 = Function::create::<!>(&func_ty, Box::new(host_print_i32), None, 0)?;
     import.add_func("host_printI32", host_func_print_i32);
 
     // import host_print_f64 as a host function
     let func_ty = FuncType::create([ValType::F64], [])?;
-    let host_func_print_f64 = Function::create(&func_ty, Box::new(host_print_f64), 0)?;
+    let host_func_print_f64 = Function::create::<!>(&func_ty, Box::new(host_print_f64), None, 0)?;
     import.add_func("host_printF64", host_func_print_f64);
 
     // register the import module
@@ -96,12 +107,12 @@ fn aot_call_interpreter() -> Result<(), Box<dyn std::error::Error>> {
 
     // import host_print_i32 as a host function
     let func_ty = FuncType::create([ValType::I32], [])?;
-    let host_func_print_i32 = Function::create(&func_ty, Box::new(host_print_i32), 0)?;
+    let host_func_print_i32 = Function::create::<!>(&func_ty, Box::new(host_print_i32), None, 0)?;
     import.add_func("host_printI32", host_func_print_i32);
 
     // import host_print_f64 as a host function
     let func_ty = FuncType::create([ValType::F64], [])?;
-    let host_func_print_f64 = Function::create(&func_ty, Box::new(host_print_f64), 0)?;
+    let host_func_print_f64 = Function::create::<!>(&func_ty, Box::new(host_print_f64), None, 0)?;
     import.add_func("host_printF64", host_func_print_f64);
 
     // register the import module

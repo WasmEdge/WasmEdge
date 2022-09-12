@@ -1135,20 +1135,25 @@ def install_wasi_nn_openvino(args, compat):
 def install_plugins(args, compat):
     global SUPPORTED_PLUGINS, CONST_lib_dir
 
-    for plugin_name in args.plugins:
-        if compat.prefix() + plugin_name not in SUPPORTED_PLUGINS:
-            logging.error("Plugin not compatible: %s", compat.prefix() + plugin_name)
-            continue
-        else:
-            if plugin_name == WASI_NN_OPENVINO:
-                install_wasi_nn_openvino(args, compat)
+    if len(args.plugins) >= 1:
+        for plugin_name in args.plugins:
+            if compat.prefix() + plugin_name not in SUPPORTED_PLUGINS:
+                logging.error(
+                    "Plugin not compatible: %s", compat.prefix() + plugin_name
+                )
+                continue
             else:
-                logging.error("Unknown plugin: %s", plugin_name)
+                if plugin_name == WASI_NN_OPENVINO:
+                    install_wasi_nn_openvino(args, compat)
+                else:
+                    logging.error("Unknown plugin: %s", plugin_name)
 
-    if is_default_path(args):
-        copytree(join(TEMP_PATH, "Plugins"), join(args.path, "plugin"))
-    else:
-        copytree(join(TEMP_PATH, "Plugins"), join(args.path, CONST_lib_dir, "wasmedge"))
+        if is_default_path(args):
+            copytree(join(TEMP_PATH, "Plugins"), join(args.path, "plugin"))
+        else:
+            copytree(
+                join(TEMP_PATH, "Plugins"), join(args.path, CONST_lib_dir, "wasmedge")
+            )
 
 
 def set_consts(args, compat):

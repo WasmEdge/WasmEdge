@@ -624,7 +624,7 @@ mod tests {
     #[allow(clippy::assertions_on_result_states)]
     fn test_import_new_wasmedgeprocess() {
         let result = ImportObjectBuilder::new()
-            .with_func::<(i32, i32), i32>("add", real_add)
+            .with_func::<(i32, i32), i32, !>("add", real_add, None)
             .expect("failed to add host func")
             .build_as_wasmedge_process(None, false);
         assert!(result.is_ok());

@@ -308,6 +308,14 @@ SUPPORTED_EXTENSIONS_VERSION = {
     # "Darwin" + "arm" + IMAGE: VersionString("0.8.1"),
 }
 
+WASI_NN_OPENVINO = "wasi_nn-openvino"
+
+PLUGINS = [WASI_NN_OPENVINO]
+
+SUPPORTED_PLUGINS = {
+    "Linux" + "x86_64" + WASI_NN_OPENVINO: VersionString("0.10.1-alpha.1"),
+}
+
 HOME = expanduser("~")
 PATH = join(HOME, ".wasmedge")
 SHELL = getenv("SHELL", "bash").split("/")[-1]
@@ -1102,6 +1110,47 @@ def install_tensorflow_extension(args, compat):
     return 0
 
 
+def install_wasi_nn_openvino(args, compat):
+    url = "https://github.com/WasmEdge/WasmEdge/releases/download/"
+    url += args.version
+    url += "/WasmEdge-plugin-"
+    url += WASI_NN_OPENVINO
+    url += "-" + args.version
+    url += "-ubuntu20.04_x86_64.tar.gz"
+
+    logging.debug("WASI-NN OPENVINO URL: %s", url)
+    print("Downloading Plugin: " + WASI_NN_OPENVINO)
+    download_url(
+        url, join(TEMP_PATH, "Plugin" + WASI_NN_OPENVINO) + ".tar.gz", show_progress
+    )
+    extract_archive(
+        join(TEMP_PATH, "Plugin" + WASI_NN_OPENVINO + ".tar.gz"),
+        join(args.path, CONST_lib_dir),
+        join(TEMP_PATH, "Plugins"),
+        env_file_path=CONST_env_path,
+        remove_finished=True,
+    )
+
+
+def install_plugins(args, compat):
+    global SUPPORTED_PLUGINS, CONST_lib_dir
+
+    for plugin_name in args.plugins:
+        if compat.prefix() + plugin_name not in SUPPORTED_PLUGINS:
+            logging.error("Plugin not compatible: %s", compat.prefix() + plugin_name)
+            continue
+        else:
+            if plugin_name == WASI_NN_OPENVINO:
+                install_wasi_nn_openvino(args, compat)
+            else:
+                logging.error("Unknown plugin: %s", plugin_name)
+
+    if is_default_path(args):
+        copytree(join(TEMP_PATH, "Plugins"), join(args.path, "plugin"))
+    else:
+        copytree(join(TEMP_PATH, "Plugins"), join(args.path, CONST_lib_dir, "wasmedge"))
+
+
 def set_consts(args, compat):
     global CONST_release_pkg, CONST_ipkg, CONST_lib_ext, CONST_urls, CONST_lib_dir, CONST_env_path
     CONST_release_pkg = compat.release_package
@@ -1395,6 +1444,8 @@ def main(args):
             else:
                 print("Tensorflow extension installed")
 
+        install_plugins(args, compat)
+
         # Cleanup
         shutil.rmtree(TEMP_PATH)
 
@@ -1466,6 +1517,15 @@ if __name__ == "__main__":
         required=False,
         default=get_latest_github_release("WasmEdge/WasmEdge"),
         help="GitHub tag for uninstall script",
+    )
+    parser.add_argument(
+        "--plugins",
+        dest="plugins",
+        choices=PLUGINS,
+        required=False,
+        default=[],
+        nargs="*",
+        help="Supported Plugins - {0}".format(PLUGINS),
     )
     parser.add_argument(
         "--tf-version",

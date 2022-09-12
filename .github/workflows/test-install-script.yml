@@ -208,6 +208,26 @@ jobs:
         ls ~/new_wasmedge/plugin/ | grep .so && echo "Pass: Plugins found" || (echo "Fail: Plugins not found" && exit 1)
         ${{ matrix.python3_ex }} utils/install.py -v 0.10.0-alpha.1 -p /usr
         ls /usr/lib64/wasmedge/ | grep libwasmedgePluginWasmEdgeProcess.so && echo "Pass: Plugins found" || (echo "Fail: Plugins not found" && exit 1)
+    - name: Externally Specified plugins install check
+      run: |
+        bash utils/install.sh -v 0.10.1-alpha.1 --plugins=wasi_nn-openvino -D
+        ls ~/.wasmedge/plugin/ | grep libwasmedgePluginWasiNN.so && echo "Pass: Plugins found" || (echo "Fail: Plugins not found" && exit 1)
+        bash utils/install.sh -v 0.10.1-alpha.1 -p ~/new_wasmedge --plugins=wasi_nn-openvino -D
+        ls ~/new_wasmedge/plugin/ | grep libwasmedgePluginWasiNN.so && echo "Pass: Plugins found" || (echo "Fail: Plugins not found" && exit 1)
+        bash utils/install.sh -v 0.10.1-alpha.1 -p /usr --plugins=wasi_nn-openvino -D
+        ls /usr/lib/wasmedge/ | grep libwasmedgePluginWasiNN.so && echo "Pass: Plugins found" || (echo "Fail: Plugins not found" && exit 1)
+    # - name: External Plugins Version check
+    #   run: |
+    #     VERSION=0.10.1-alpha.1
+    #     [ "$(printf %s\\n%s\\n "0.10.1-alpha.1" "$VERSION")" != "$(printf %s\\n%s "0.10.1-alpha.1" "$VERSION" | awk '{ if ($1 ~ /-/) print; else print $0"_" ; }' | sort --version-sort | sed 's/_$//')" ] &&
+    #       ( echo "Fail: Plugins should be Compatible" && exit 1 ) || echo "Pass: Plugins Compatible" 
+
+    #     VERSION=0.10.1-alpha.2
+    #     [ "$(printf %s\\n%s\\n "0.10.1-alpha.1" "$VERSION")" != "$(printf %s\\n%s "0.10.1-alpha.1" "$VERSION" | awk '{ if ($1 ~ /-/) print; else print $0"_" ; }' | sort --version-sort | sed 's/_$//')" ] &&
+    #       ( echo "Fail: Plugins should be Compatible" && exit 1 ) || echo "Pass: Plugins Compatible"
+    #     VERSION=0.10.0
+    #     [ "$(printf %s\\n%s\\n "0.10.1-alpha.1" "$VERSION")" != "$(printf %s\\n%s "0.10.1-alpha.1" "$VERSION" | awk '{ if ($1 ~ /-/) print; else print $0"_" ; }' | sort --version-sort | sed 's/_$//')" ] &&
+    #       echo "Pass: Plugins should not be Compatible" || (echo "Fail: Plugins should not be Compatible" && exit 1 )
     # - name: Image Extensions - Version Based Conditions check
     #   run: |
     #     VERSION_IM_DEPS=0.9.1

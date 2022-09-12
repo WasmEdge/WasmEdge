@@ -62,15 +62,12 @@ fn expand_host_func(item_fn: &syn::ItemFn) -> syn::Result<proc_macro2::TokenStre
             let data_arg = item_fn.sig.inputs.last().unwrap().clone();
             let ty_ptr = match &data_arg {
                 FnArg::Typed(PatType { ref ty, .. }) => match **ty {
-                    syn::Type::Reference(syn::TypeReference { ref elem, .. }) => {
-                        let ty_ptr = syn::TypePtr {
-                            star_token: parse_quote!(*),
-                            const_token: None,
-                            mutability: Some(parse_quote!(mut)),
-                            elem: elem.clone(),
-                        };
-                        ty_ptr
-                    }
+                    syn::Type::Reference(syn::TypeReference { ref elem, .. }) => syn::TypePtr {
+                        star_token: parse_quote!(*),
+                        const_token: None,
+                        mutability: Some(parse_quote!(mut)),
+                        elem: elem.clone(),
+                    },
                     syn::Type::Path(syn::TypePath { ref path, .. }) => match path.segments.last() {
                         Some(segment) => {
                             let id = segment.ident.to_string();
@@ -397,7 +394,7 @@ fn sys_expand_host_func(item_fn: &syn::ItemFn) -> syn::Result<proc_macro2::Token
 
     let fn_name_ident = &item_fn.sig.ident;
     let fn_return = &item_fn.sig.output;
-    let ref mut fn_block = item_fn.block.clone();
+    let mut fn_block = item_fn.block.clone();
     let stmts = &mut fn_block.stmts;
     // stmts.insert(
     //     0,

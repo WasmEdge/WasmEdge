@@ -52,9 +52,9 @@ fn create_wasmedge_process_module_implicitly() -> Result<(), Box<dyn std::error:
     assert!(result.is_err());
     assert_eq!(
         result.unwrap_err(),
-        WasmEdgeError::Core(CoreError::Instantiation(
+        Box::new(WasmEdgeError::Core(CoreError::Instantiation(
             CoreInstantiationError::ModuleNameConflict
-        ))
+        )))
     );
 
     Ok(())
@@ -75,7 +75,7 @@ fn create_wasmedge_process_module_explicitly() -> Result<(), Box<dyn std::error:
     assert!(result.is_err());
     assert_eq!(
         result.unwrap_err(),
-        WasmEdgeError::Vm(VmError::NotFoundWasmEdgeProcessModule)
+        Box::new(WasmEdgeError::Vm(VmError::NotFoundWasmEdgeProcessModule))
     );
 
     // *** try to add a WasmEdgeProcess module.
@@ -119,7 +119,7 @@ fn create_wasmedge_process_module_explicitly() -> Result<(), Box<dyn std::error:
     assert!(result.is_err());
     assert_eq!(
         result.unwrap_err(),
-        WasmEdgeError::Vm(VmError::NotFoundWasmEdgeProcessModule)
+        Box::new(WasmEdgeError::Vm(VmError::NotFoundWasmEdgeProcessModule))
     );
 
     // get store from vm

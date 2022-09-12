@@ -24,8 +24,9 @@ template <int ShaNid> constexpr uint32_t Hkdf<ShaNid>::getKeySize() noexcept {
     return 64;
 }
 
-template <int ShaNid> constexpr void *Hkdf<ShaNid>::getShaCtx() noexcept {
-  return static_cast<void *>(const_cast<EVP_MD *>(EVP_get_digestbynid(ShaNid)));
+template <int ShaNid>
+constexpr const EVP_MD *Hkdf<ShaNid>::getShaCtx() noexcept {
+  return EVP_get_digestbynid(ShaNid);
 }
 
 template <int ShaNid>

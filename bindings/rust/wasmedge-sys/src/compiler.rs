@@ -34,7 +34,7 @@ impl Compiler {
         };
 
         match ctx.is_null() {
-            true => Err(WasmEdgeError::CompilerCreate),
+            true => Err(Box::new(WasmEdgeError::CompilerCreate)),
             false => Ok(Self {
                 inner: InnerCompiler(ctx),
             }),
@@ -166,7 +166,9 @@ mod tests {
             assert!(result.is_err());
             assert_eq!(
                 result.unwrap_err(),
-                WasmEdgeError::Core(CoreError::Load(CoreLoadError::IllegalPath))
+                Box::new(WasmEdgeError::Core(CoreError::Load(
+                    CoreLoadError::IllegalPath
+                )))
             );
         }
 

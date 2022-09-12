@@ -205,9 +205,11 @@ impl Function {
     pub fn create(ty: &FuncType, real_fn: BoxedFn, cost: u64) -> WasmEdgeResult<Self> {
         let mut host_functions = HOST_FUNCS.write();
         if host_functions.len() >= host_functions.capacity() {
-            return Err(WasmEdgeError::Func(FuncError::CreateBinding(format!(
-                "The number of the host functions reaches the upper bound: {}",
-                host_functions.capacity()
+            return Err(Box::new(WasmEdgeError::Func(FuncError::CreateBinding(
+                format!(
+                    "The number of the host functions reaches the upper bound: {}",
+                    host_functions.capacity()
+                ),
             ))));
         }
 
@@ -230,7 +232,7 @@ impl Function {
         };
 
         match ctx.is_null() {
-            true => Err(WasmEdgeError::Func(FuncError::Create)),
+            true => Err(Box::new(WasmEdgeError::Func(FuncError::Create))),
             false => Ok(Self {
                 inner: InnerFunc(ctx),
                 registered: false,
@@ -292,7 +294,7 @@ impl Function {
         };
 
         match ctx.is_null() {
-            true => Err(WasmEdgeError::Func(FuncError::Create)),
+            true => Err(Box::new(WasmEdgeError::Func(FuncError::Create))),
             false => Ok(Self {
                 inner: InnerFunc(ctx),
                 registered: false,
@@ -309,7 +311,7 @@ impl Function {
     pub fn ty(&self) -> WasmEdgeResult<FuncType> {
         let ty = unsafe { ffi::WasmEdge_FunctionInstanceGetFunctionType(self.inner.0) };
         match ty.is_null() {
-            true => Err(WasmEdgeError::Func(FuncError::Type)),
+            true => Err(Box::new(WasmEdgeError::Func(FuncError::Type))),
             false => Ok(FuncType {
                 inner: InnerFuncType(ty as *mut _),
                 registered: true,
@@ -463,7 +465,7 @@ impl FuncType {
             )
         };
         match ctx.is_null() {
-            true => Err(WasmEdgeError::FuncTypeCreate),
+            true => Err(Box::new(WasmEdgeError::FuncTypeCreate)),
             false => Ok(Self {
                 inner: InnerFuncType(ctx),
                 registered: false,
@@ -577,7 +579,7 @@ impl FuncRef {
     pub fn ty(&self) -> WasmEdgeResult<FuncType> {
         let ty = unsafe { ffi::WasmEdge_FunctionInstanceGetFunctionType(self.inner.0 as *mut _) };
         match ty.is_null() {
-            true => Err(WasmEdgeError::Func(FuncError::Type)),
+            true => Err(Box::new(WasmEdgeError::Func(FuncError::Type))),
             false => Ok(FuncType {
                 inner: InnerFuncType(ty as *mut _),
                 registered: true,

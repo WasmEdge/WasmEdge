@@ -232,7 +232,7 @@ public:
 private:
   constexpr static uint32_t getKeySize() noexcept;
 
-  constexpr static void *getShaCtx() noexcept;
+  constexpr static const EVP_MD *getShaCtx() noexcept;
 
   static WasiCryptoExpect<EvpPkeyCtxPtr> openStateImpl(Span<const uint8_t> Key,
                                                        int Mode) noexcept;

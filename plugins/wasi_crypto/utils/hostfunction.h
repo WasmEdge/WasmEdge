@@ -69,8 +69,6 @@ cast(uint64_t Encoding) noexcept {
   case __WASI_KEYPAIR_ENCODING_RAW:
   case __WASI_KEYPAIR_ENCODING_PKCS8:
   case __WASI_KEYPAIR_ENCODING_PEM:
-  case __WASI_KEYPAIR_ENCODING_COMPRESSED_PKCS8:
-  case __WASI_KEYPAIR_ENCODING_COMPRESSED_PEM:
   case __WASI_KEYPAIR_ENCODING_LOCAL:
     return static_cast<__wasi_keypair_encoding_e_t>(Encoding);
   default:
@@ -86,9 +84,6 @@ cast(uint64_t Encoding) noexcept {
   case __WASI_PUBLICKEY_ENCODING_PKCS8:
   case __WASI_PUBLICKEY_ENCODING_PEM:
   case __WASI_PUBLICKEY_ENCODING_SEC:
-  case __WASI_PUBLICKEY_ENCODING_COMPRESSED_SEC:
-  case __WASI_PUBLICKEY_ENCODING_COMPRESSED_PKCS8:
-  case __WASI_PUBLICKEY_ENCODING_COMPRESSED_PEM:
   case __WASI_PUBLICKEY_ENCODING_LOCAL:
     return static_cast<__wasi_publickey_encoding_e_t>(Encoding);
   default:

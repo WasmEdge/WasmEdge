@@ -52,7 +52,7 @@ impl Executor {
         };
 
         match ctx.is_null() {
-            true => Err(WasmEdgeError::ExecutorCreate),
+            true => Err(Box::new(WasmEdgeError::ExecutorCreate)),
             false => Ok(Executor {
                 inner: InnerExecutor(ctx),
                 registered: false,

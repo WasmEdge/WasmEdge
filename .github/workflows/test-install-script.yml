@@ -86,11 +86,11 @@ jobs:
       with:
         fetch-depth: 0
 
-    - name: Install git
+    - name: Install git and curl
       run: |
         ${{ matrix.extra_setup_command }}
         ${{ matrix.package_manager }} update -y
-        ${{ matrix.package_manager }} install -y git
+        ${{ matrix.package_manager }} install -y git curl
     - name: Install Python
       run: |
         ${{ matrix.package_manager }} install -y ${{ matrix.python_package }}

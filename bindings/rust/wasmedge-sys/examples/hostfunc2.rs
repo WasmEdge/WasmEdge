@@ -48,8 +48,8 @@ fn real_add(_: &CallingFrame, input: Vec<WasmValue>) -> Result<Vec<WasmValue>, H
 }
 
 fn load_file_as_byte_vec(filename: &str) -> Vec<u8> {
-    let mut f = File::open(&filename).expect("no file found");
-    let metadata = fs::metadata(&filename).expect("unable to read metadata");
+    let mut f = File::open(filename).expect("no file found");
+    let metadata = fs::metadata(filename).expect("unable to read metadata");
     let mut buffer = vec![0; metadata.len() as usize];
     f.read_exact(&mut buffer)
         .expect("buffer should be the same size");

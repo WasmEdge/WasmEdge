@@ -71,6 +71,7 @@ jobs:
           export WASMEDGE_DIR="$(pwd)/../../"
           export WASMEDGE_BUILD_DIR="$(pwd)/../../build"
           export WASMEDGE_PLUGIN_PATH="$(pwd)/../../build/plugins/wasmedge_process"
+          cargo +nightly clippy -V
           cargo +nightly clippy --profile test --lib --examples -- -D warnings -D clippy::dbg_macro
           cd -
 
@@ -127,6 +128,7 @@ jobs:
           export WASMEDGE_DIR="$(pwd)/../../"
           export WASMEDGE_BUILD_DIR="$(pwd)/../../build"
           export WASMEDGE_PLUGIN_PATH="$(pwd)/../../build/plugins/wasmedge_process"
+          cargo +nightly clippy -V
           cargo +nightly clippy --profile test --lib --examples -- -D warnings -D clippy::dbg_macro
           cd -
 
@@ -207,6 +209,7 @@ jobs:
           Import-Module (Join-Path $vsPath "Common7\Tools\Microsoft.VisualStudio.DevShell.dll")
           Enter-VsDevShell -VsInstallPath $vsPath -SkipAutomaticLocation -DevCmdArguments "-arch=x64 -host_arch=x64 -winsdk=10.0.19041.0"
           cd bindings/rust/
+          cargo +nightly clippy -V
           cargo +nightly clippy --verbose --profile test --lib --examples -- -D warnings -D clippy::dbg_macro
 
       - name: Test Rust Bindings

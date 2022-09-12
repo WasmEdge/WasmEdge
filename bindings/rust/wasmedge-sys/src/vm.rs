@@ -61,7 +61,7 @@ impl Vm {
         };
 
         match ctx.is_null() {
-            true => Err(WasmEdgeError::Vm(VmError::Create)),
+            true => Err(Box::new(WasmEdgeError::Vm(VmError::Create))),
             false => Ok(Self {
                 inner: InnerVm(ctx),
                 imports: HashMap::new(),
@@ -127,7 +127,7 @@ impl Vm {
         let io_name: String = import.name().into();
 
         if self.imports.contains_key(&io_name) {
-            return Err(WasmEdgeError::Vm(VmError::DuplicateImportModule));
+            return Err(Box::new(WasmEdgeError::Vm(VmError::DuplicateImportModule)));
         } else {
             self.imports.insert(io_name.clone(), import);
         }
@@ -776,9 +776,9 @@ impl Vm {
         func_name: impl AsRef<str>,
     ) -> WasmEdgeResult<FuncType> {
         if !self.contains_module(mod_name.as_ref()) {
-            return Err(WasmEdgeError::Vm(VmError::NotFoundModule(
+            return Err(Box::new(WasmEdgeError::Vm(VmError::NotFoundModule(
                 mod_name.as_ref().into(),
-            )));
+            ))));
         }
 
         self.store_mut()?
@@ -835,7 +835,7 @@ impl Vm {
             ffi::WasmEdge_VMGetImportModuleContext(self.inner.0, WasmEdge_HostRegistration_Wasi)
         };
         match io_ctx.is_null() {
-            true => Err(WasmEdgeError::Vm(VmError::NotFoundWasiModule)),
+            true => Err(Box::new(WasmEdgeError::Vm(VmError::NotFoundWasiModule))),
             false => Ok(WasiModule {
                 inner: InnerInstance(io_ctx),
                 registered: true,
@@ -855,7 +855,9 @@ impl Vm {
             )
         };
         match io_ctx.is_null() {
-            true => Err(WasmEdgeError::Vm(VmError::NotFoundWasmEdgeProcessModule)),
+            true => Err(Box::new(WasmEdgeError::Vm(
+                VmError::NotFoundWasmEdgeProcessModule,
+            ))),
             false => Ok(WasmEdgeProcessModule {
                 inner: InnerInstance(io_ctx),
                 registered: true,
@@ -867,7 +869,7 @@ impl Vm {
     pub fn store_mut(&self) -> WasmEdgeResult<Store> {
         let store_ctx = unsafe { ffi::WasmEdge_VMGetStoreContext(self.inner.0) };
         match store_ctx.is_null() {
-            true => Err(WasmEdgeError::Vm(VmError::NotFoundStore)),
+            true => Err(Box::new(WasmEdgeError::Vm(VmError::NotFoundStore))),
             false => Ok(Store {
                 inner: InnerStore(store_ctx),
                 registered: true,
@@ -879,7 +881,7 @@ impl Vm {
     pub fn statistics_mut(&self) -> WasmEdgeResult<Statistics> {
         let stat_ctx = unsafe { ffi::WasmEdge_VMGetStatisticsContext(self.inner.0) };
         match stat_ctx.is_null() {
-            true => Err(WasmEdgeError::Vm(VmError::NotFoundStatistics)),
+            true => Err(Box::new(WasmEdgeError::Vm(VmError::NotFoundStatistics))),
             false => Ok(Statistics {
                 inner: InnerStat(stat_ctx),
                 registered: true,
@@ -891,7 +893,7 @@ impl Vm {
     pub fn active_module(&self) -> WasmEdgeResult<Instance> {
         let ctx = unsafe { ffi::WasmEdge_VMGetActiveModule(self.inner.0 as *const _) };
         match ctx.is_null() {
-            true => Err(WasmEdgeError::Vm(VmError::NotFoundActiveModule)),
+            true => Err(Box::new(WasmEdgeError::Vm(VmError::NotFoundActiveModule))),
             false => Ok(Instance {
                 inner: InnerInstance(ctx as *mut _),
                 registered: true,
@@ -916,7 +918,7 @@ impl Vm {
     pub fn loader(&self) -> WasmEdgeResult<Loader> {
         let loader_ctx = unsafe { ffi::WasmEdge_VMGetLoaderContext(self.inner.0) };
         match loader_ctx.is_null() {
-            true => Err(WasmEdgeError::Vm(VmError::NotFoundLoader)),
+            true => Err(Box::new(WasmEdgeError::Vm(VmError::NotFoundLoader))),
             false => Ok(Loader {
                 inner: InnerLoader(loader_ctx),
                 registered: true,
@@ -928,7 +930,7 @@ impl Vm {
     pub fn validator(&self) -> WasmEdgeResult<Validator> {
         let validator_ctx = unsafe { ffi::WasmEdge_VMGetValidatorContext(self.inner.0) };
         match validator_ctx.is_null() {
-            true => Err(WasmEdgeError::Vm(VmError::NotFoundValidator)),
+            true => Err(Box::new(WasmEdgeError::Vm(VmError::NotFoundValidator))),
             false => Ok(Validator {
                 inner: InnerValidator(validator_ctx),
                 registered: true,
@@ -940,7 +942,7 @@ impl Vm {
     pub fn executor(&self) -> WasmEdgeResult<Executor> {
         let executor_ctx = unsafe { ffi::WasmEdge_VMGetExecutorContext(self.inner.0) };
         match executor_ctx.is_null() {
-            true => Err(WasmEdgeError::Vm(VmError::NotFoundExecutor)),
+            true => Err(Box::new(WasmEdgeError::Vm(VmError::NotFoundExecutor))),
             false => Ok(Executor {
                 inner: InnerExecutor(executor_ctx),
                 registered: true,
@@ -1159,7 +1161,9 @@ mod tests {
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
-            WasmEdgeError::Core(CoreError::Load(CoreLoadError::IllegalPath))
+            Box::new(WasmEdgeError::Core(CoreError::Load(
+                CoreLoadError::IllegalPath
+            )))
         );
     }
 
@@ -1198,7 +1202,9 @@ mod tests {
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
-            WasmEdgeError::Core(CoreError::Load(CoreLoadError::UnexpectedEnd))
+            Box::new(WasmEdgeError::Core(CoreError::Load(
+                CoreLoadError::UnexpectedEnd
+            )))
         );
     }
 
@@ -1255,7 +1261,9 @@ mod tests {
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
-            WasmEdgeError::Core(CoreError::Common(CoreCommonError::WrongVMWorkflow))
+            Box::new(WasmEdgeError::Core(CoreError::Common(
+                CoreCommonError::WrongVMWorkflow
+            )))
         );
 
         // create a loader
@@ -1294,7 +1302,9 @@ mod tests {
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
-            WasmEdgeError::Core(CoreError::Common(CoreCommonError::WrongVMWorkflow))
+            Box::new(WasmEdgeError::Core(CoreError::Common(
+                CoreCommonError::WrongVMWorkflow
+            )))
         );
 
         // create a loader
@@ -1321,7 +1331,9 @@ mod tests {
         let result = vm.instantiate();
         assert_eq!(
             result.unwrap_err(),
-            WasmEdgeError::Core(CoreError::Common(CoreCommonError::WrongVMWorkflow))
+            Box::new(WasmEdgeError::Core(CoreError::Common(
+                CoreCommonError::WrongVMWorkflow
+            )))
         );
 
         // call validate, then instantiate
@@ -1388,7 +1400,9 @@ mod tests {
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
-            WasmEdgeError::Core(CoreError::Execution(CoreExecutionError::FuncTypeMismatch))
+            Box::new(WasmEdgeError::Core(CoreError::Execution(
+                CoreExecutionError::FuncTypeMismatch
+            )))
         );
 
         // run a function with the parameters of wrong type
@@ -1396,7 +1410,9 @@ mod tests {
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
-            WasmEdgeError::Core(CoreError::Execution(CoreExecutionError::FuncTypeMismatch))
+            Box::new(WasmEdgeError::Core(CoreError::Execution(
+                CoreExecutionError::FuncTypeMismatch
+            )))
         );
 
         // run a function: the specified function name is non-existant
@@ -1404,7 +1420,9 @@ mod tests {
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
-            WasmEdgeError::Instance(InstanceError::NotFoundFunc("fib2".into()))
+            Box::new(WasmEdgeError::Instance(InstanceError::NotFoundFunc(
+                "fib2".into()
+            )))
         );
 
         // check function types
@@ -1458,7 +1476,9 @@ mod tests {
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
-            WasmEdgeError::Core(CoreError::Load(CoreLoadError::IllegalPath))
+            Box::new(WasmEdgeError::Core(CoreError::Load(
+                CoreLoadError::IllegalPath
+            )))
         );
 
         // register a wasm module from a wasm file
@@ -1536,7 +1556,9 @@ mod tests {
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
-            WasmEdgeError::Vm(VmError::NotFoundModule("non-existent-module".into()))
+            Box::new(WasmEdgeError::Vm(VmError::NotFoundModule(
+                "non-existent-module".into()
+            )))
         );
 
         // run a registered function with empty parameters
@@ -1545,7 +1567,9 @@ mod tests {
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
-            WasmEdgeError::Core(CoreError::Execution(CoreExecutionError::FuncTypeMismatch))
+            Box::new(WasmEdgeError::Core(CoreError::Execution(
+                CoreExecutionError::FuncTypeMismatch
+            )))
         );
 
         // run a registered function with the parameters of wrong type
@@ -1553,7 +1577,9 @@ mod tests {
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
-            WasmEdgeError::Core(CoreError::Execution(CoreExecutionError::FuncTypeMismatch))
+            Box::new(WasmEdgeError::Core(CoreError::Execution(
+                CoreExecutionError::FuncTypeMismatch
+            )))
         );
 
         // run a registered function but give a wrong function name.
@@ -1561,7 +1587,9 @@ mod tests {
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
-            WasmEdgeError::Instance(InstanceError::NotFoundFunc("fib2".into()))
+            Box::new(WasmEdgeError::Instance(InstanceError::NotFoundFunc(
+                "fib2".into()
+            )))
         );
     }
 
@@ -1615,7 +1643,7 @@ mod tests {
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
-            WasmEdgeError::Vm(VmError::NotFoundWasmEdgeProcessModule)
+            Box::new(WasmEdgeError::Vm(VmError::NotFoundWasmEdgeProcessModule))
         );
 
         // get store
@@ -1689,7 +1717,9 @@ mod tests {
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
-            WasmEdgeError::Core(CoreError::Load(CoreLoadError::IllegalPath))
+            Box::new(WasmEdgeError::Core(CoreError::Load(
+                CoreLoadError::IllegalPath
+            )))
         );
 
         // run a function from a WASM file with the empty parameters
@@ -1697,7 +1727,9 @@ mod tests {
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
-            WasmEdgeError::Core(CoreError::Execution(CoreExecutionError::FuncTypeMismatch))
+            Box::new(WasmEdgeError::Core(CoreError::Execution(
+                CoreExecutionError::FuncTypeMismatch
+            )))
         );
 
         // run a function from a WASM file with the parameters of wrong type
@@ -1705,7 +1737,9 @@ mod tests {
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
-            WasmEdgeError::Core(CoreError::Execution(CoreExecutionError::FuncTypeMismatch))
+            Box::new(WasmEdgeError::Core(CoreError::Execution(
+                CoreExecutionError::FuncTypeMismatch
+            )))
         );
 
         // fun a function: the specified function name is non-existant
@@ -1713,7 +1747,9 @@ mod tests {
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
-            WasmEdgeError::Instance(InstanceError::NotFoundFunc("fib2".into()))
+            Box::new(WasmEdgeError::Instance(InstanceError::NotFoundFunc(
+                "fib2".into()
+            )))
         );
     }
 
@@ -1751,7 +1787,9 @@ mod tests {
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
-            WasmEdgeError::Core(CoreError::Load(CoreLoadError::IllegalPath))
+            Box::new(WasmEdgeError::Core(CoreError::Load(
+                CoreLoadError::IllegalPath
+            )))
         );
 
         // run a function from a WASM file with the empty parameters
@@ -1764,7 +1802,9 @@ mod tests {
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
-            WasmEdgeError::Core(CoreError::Execution(CoreExecutionError::FuncTypeMismatch))
+            Box::new(WasmEdgeError::Core(CoreError::Execution(
+                CoreExecutionError::FuncTypeMismatch
+            )))
         );
 
         // run a function from a WASM file with the parameters of wrong type
@@ -1777,7 +1817,9 @@ mod tests {
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
-            WasmEdgeError::Core(CoreError::Execution(CoreExecutionError::FuncTypeMismatch))
+            Box::new(WasmEdgeError::Core(CoreError::Execution(
+                CoreExecutionError::FuncTypeMismatch
+            )))
         );
 
         // fun a function: the specified function name is non-existant
@@ -1790,7 +1832,9 @@ mod tests {
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
-            WasmEdgeError::Core(CoreError::Common(CoreCommonError::FuncNotFound))
+            Box::new(WasmEdgeError::Core(CoreError::Common(
+                CoreCommonError::FuncNotFound
+            )))
         );
     }
 
@@ -1860,7 +1904,9 @@ mod tests {
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
-            WasmEdgeError::Core(CoreError::Load(CoreLoadError::UnexpectedEnd))
+            Box::new(WasmEdgeError::Core(CoreError::Load(
+                CoreLoadError::UnexpectedEnd
+            )))
         );
 
         // run a function with the empty parameters
@@ -1868,7 +1914,9 @@ mod tests {
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
-            WasmEdgeError::Core(CoreError::Execution(CoreExecutionError::FuncTypeMismatch))
+            Box::new(WasmEdgeError::Core(CoreError::Execution(
+                CoreExecutionError::FuncTypeMismatch
+            )))
         );
 
         // run a function with the parameters of wrong type
@@ -1876,7 +1924,9 @@ mod tests {
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
-            WasmEdgeError::Core(CoreError::Execution(CoreExecutionError::FuncTypeMismatch))
+            Box::new(WasmEdgeError::Core(CoreError::Execution(
+                CoreExecutionError::FuncTypeMismatch
+            )))
         );
 
         // fun a function: the specified function name is non-existant
@@ -1884,7 +1934,9 @@ mod tests {
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
-            WasmEdgeError::Instance(InstanceError::NotFoundFunc("fib2".into()))
+            Box::new(WasmEdgeError::Instance(InstanceError::NotFoundFunc(
+                "fib2".into()
+            )))
         );
     }
 
@@ -1956,7 +2008,9 @@ mod tests {
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
-            WasmEdgeError::Core(CoreError::Load(CoreLoadError::UnexpectedEnd))
+            Box::new(WasmEdgeError::Core(CoreError::Load(
+                CoreLoadError::UnexpectedEnd
+            )))
         );
 
         // run a function with the empty parameters
@@ -1969,7 +2023,9 @@ mod tests {
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
-            WasmEdgeError::Core(CoreError::Execution(CoreExecutionError::FuncTypeMismatch))
+            Box::new(WasmEdgeError::Core(CoreError::Execution(
+                CoreExecutionError::FuncTypeMismatch
+            )))
         );
 
         // run a function with the parameters of wrong type
@@ -1982,7 +2038,9 @@ mod tests {
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
-            WasmEdgeError::Core(CoreError::Execution(CoreExecutionError::FuncTypeMismatch))
+            Box::new(WasmEdgeError::Core(CoreError::Execution(
+                CoreExecutionError::FuncTypeMismatch
+            )))
         );
 
         // fun a function: the specified function name is non-existant
@@ -1995,7 +2053,9 @@ mod tests {
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
-            WasmEdgeError::Core(CoreError::Common(CoreCommonError::FuncNotFound))
+            Box::new(WasmEdgeError::Core(CoreError::Common(
+                CoreCommonError::FuncNotFound
+            )))
         );
     }
 
@@ -2031,7 +2091,9 @@ mod tests {
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
-            WasmEdgeError::Core(CoreError::Execution(CoreExecutionError::FuncTypeMismatch))
+            Box::new(WasmEdgeError::Core(CoreError::Execution(
+                CoreExecutionError::FuncTypeMismatch
+            )))
         );
 
         // run a function with the parameters of wrong type
@@ -2040,7 +2102,9 @@ mod tests {
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
-            WasmEdgeError::Core(CoreError::Execution(CoreExecutionError::FuncTypeMismatch))
+            Box::new(WasmEdgeError::Core(CoreError::Execution(
+                CoreExecutionError::FuncTypeMismatch
+            )))
         );
 
         // fun a function: the specified function name is non-existant
@@ -2049,7 +2113,9 @@ mod tests {
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
-            WasmEdgeError::Instance(InstanceError::NotFoundFunc("fib2".into()))
+            Box::new(WasmEdgeError::Instance(InstanceError::NotFoundFunc(
+                "fib2".into()
+            )))
         );
     }
 
@@ -2092,7 +2158,9 @@ mod tests {
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
-            WasmEdgeError::Core(CoreError::Execution(CoreExecutionError::FuncTypeMismatch))
+            Box::new(WasmEdgeError::Core(CoreError::Execution(
+                CoreExecutionError::FuncTypeMismatch
+            )))
         );
 
         // run a function with the parameters of wrong type
@@ -2106,7 +2174,9 @@ mod tests {
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
-            WasmEdgeError::Core(CoreError::Execution(CoreExecutionError::FuncTypeMismatch))
+            Box::new(WasmEdgeError::Core(CoreError::Execution(
+                CoreExecutionError::FuncTypeMismatch
+            )))
         );
 
         // fun a function: the specified function name is non-existant
@@ -2120,7 +2190,9 @@ mod tests {
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
-            WasmEdgeError::Core(CoreError::Common(CoreCommonError::FuncNotFound))
+            Box::new(WasmEdgeError::Core(CoreError::Common(
+                CoreCommonError::FuncNotFound
+            )))
         );
     }
 
@@ -2228,9 +2300,9 @@ mod tests {
             assert!(result.is_err());
             assert_eq!(
                 result.unwrap_err(),
-                WasmEdgeError::Core(CoreError::Instantiation(
+                Box::new(WasmEdgeError::Core(CoreError::Instantiation(
                     CoreInstantiationError::ModuleNameConflict
-                ))
+                )))
             );
 
             // get store from vm
@@ -2263,7 +2335,7 @@ mod tests {
             assert!(result.is_err());
             assert_eq!(
                 result.unwrap_err(),
-                WasmEdgeError::Vm(VmError::NotFoundWasiModule)
+                Box::new(WasmEdgeError::Vm(VmError::NotFoundWasiModule))
             );
 
             // *** try to add a Wasi module.
@@ -2290,7 +2362,7 @@ mod tests {
             assert!(result.is_err());
             assert_eq!(
                 result.unwrap_err(),
-                WasmEdgeError::Vm(VmError::NotFoundWasiModule)
+                Box::new(WasmEdgeError::Vm(VmError::NotFoundWasiModule))
             );
 
             // get store from vm
@@ -2353,9 +2425,9 @@ mod tests {
             assert!(result.is_err());
             assert_eq!(
                 result.unwrap_err(),
-                WasmEdgeError::Core(CoreError::Instantiation(
+                Box::new(WasmEdgeError::Core(CoreError::Instantiation(
                     CoreInstantiationError::ModuleNameConflict
-                ))
+                )))
             );
 
             // get store from vm
@@ -2412,7 +2484,7 @@ mod tests {
             assert!(result.is_err());
             assert_eq!(
                 result.unwrap_err(),
-                WasmEdgeError::Vm(VmError::NotFoundWasmEdgeProcessModule)
+                Box::new(WasmEdgeError::Vm(VmError::NotFoundWasmEdgeProcessModule))
             );
 
             // get store from vm

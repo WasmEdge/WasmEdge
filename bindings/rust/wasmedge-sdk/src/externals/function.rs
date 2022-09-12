@@ -16,11 +16,13 @@ use wasmedge_sys as sys;
 /// ```rust
 /// // If the version of rust used is less than v1.63,
 /// // #![feature(explicit_generic_args_with_impl_trait)]
+/// #![feature(never_type)]
 ///
-/// use wasmedge_sdk::{Func, Executor, params, WasmVal, error::HostFuncError, WasmValue, ValType, CallingFrame};
+/// use wasmedge_sdk::{Func, Executor, params, WasmVal, error::HostFuncError, WasmValue, ValType, Caller, host_function};
 ///
 /// // A native function to be wrapped as a host function
-/// fn real_add(_: &CallingFrame, input: Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError> {
+/// #[host_function]
+/// fn real_add(_: &Caller, input: Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError> {
 ///     if input.len() != 2 {
 ///         return Err(HostFuncError::User(1));
 ///     }
@@ -42,7 +44,7 @@ use wasmedge_sys as sys;
 /// }
 ///
 /// // create a host function
-/// let result = Func::wrap::<(i32, i32), i32>(real_add);
+/// let result = Func::wrap::<(i32, i32), i32, !>(real_add, None);
 /// assert!(result.is_ok());
 /// let func = result.unwrap();
 ///
@@ -77,15 +79,20 @@ impl Func {
     /// # Error
     ///
     /// If fail to create the host function, then an error is returned.
-    pub fn new(
+    pub fn new<T>(
         ty: FuncType,
-        real_func: impl Fn(&CallingFrame, Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError>
+        real_func: impl Fn(
+                &CallingFrame,
+                Vec<WasmValue>,
+                *mut std::os::raw::c_void,
+            ) -> Result<Vec<WasmValue>, HostFuncError>
             + Send
             + Sync
             + 'static,
+        data: Option<&mut T>,
     ) -> WasmEdgeResult<Self> {
         let boxed_func = Box::new(real_func);
-        let inner = sys::Function::create(&ty.into(), boxed_func, 0)?;
+        let inner = sys::Function::create::<T>(&ty.into(), boxed_func, data, 0)?;
         Ok(Self {
             inner,
             name: None,
@@ -104,11 +111,16 @@ impl Func {
     /// # Error
     ///
     /// If fail to create the host function, then an error is returned.
-    pub fn wrap<Args, Rets>(
-        real_func: impl Fn(&CallingFrame, Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError>
+    pub fn wrap<Args, Rets, T>(
+        real_func: impl Fn(
+                &CallingFrame,
+                Vec<WasmValue>,
+                *mut std::os::raw::c_void,
+            ) -> Result<Vec<WasmValue>, HostFuncError>
             + Send
             + Sync
             + 'static,
+        data: Option<&mut T>,
     ) -> WasmEdgeResult<Self>
     where
         Args: WasmValTypeList,
@@ -118,7 +130,7 @@ impl Func {
         let args = Args::wasm_types();
         let returns = Rets::wasm_types();
         let ty = FuncType::new(Some(args.to_vec()), Some(returns.to_vec()));
-        let inner = sys::Function::create(&ty.into(), boxed_func, 0)?;
+        let inner = sys::Function::create::<T>(&ty.into(), boxed_func, data, 0)?;
         Ok(Self {
             inner,
             name: None,
@@ -382,7 +394,7 @@ mod tests {
     fn test_func_basic() {
         // create an ImportModule
         let result = ImportObjectBuilder::new()
-            .with_func::<(i32, i32), i32>("add", real_add)
+            .with_func::<(i32, i32), i32, !>("add", real_add, None)
             .expect("failed to add host func")
             .build("extern");
         assert!(result.is_ok());
@@ -439,7 +451,7 @@ mod tests {
     #[test]
     fn test_func_wrap() {
         // create a host function
-        let result = Func::wrap::<(i32, i32), i32>(real_add);
+        let result = Func::wrap::<(i32, i32), i32, !>(real_add, None);
         assert!(result.is_ok());
         let func = result.unwrap();
 
@@ -456,6 +468,7 @@ mod tests {
     fn real_add(
         _: &CallingFrame,
         inputs: Vec<WasmValue>,
+        _data: *mut std::os::raw::c_void,
     ) -> std::result::Result<Vec<WasmValue>, HostFuncError> {
         if inputs.len() != 2 {
             return Err(HostFuncError::User(1));

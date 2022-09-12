@@ -2,17 +2,20 @@
 
 // If the version of rust used is less than v1.63, please uncomment the follow attribute.
 // #![feature(explicit_generic_args_with_impl_trait)]
+#![feature(never_type)]
 
 use wasmedge_sdk::{
-    error::HostFuncError, types::Val, CallingFrame, Global, GlobalType, ImportObjectBuilder,
-    Memory, MemoryType, Mutability, RefType, Table, TableType, ValType, WasmValue,
+    error::HostFuncError, host_function, types::Val, Caller, Global, GlobalType,
+    ImportObjectBuilder, Memory, MemoryType, Mutability, RefType, Table, TableType, ValType,
+    WasmValue,
 };
 
 #[cfg_attr(test, test)]
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // a native function to be imported as host function
+    #[host_function]
     fn real_add(
-        _: &CallingFrame,
+        _: &Caller,
         inputs: Vec<WasmValue>,
     ) -> std::result::Result<Vec<WasmValue>, HostFuncError> {
         if inputs.len() != 2 {
@@ -52,7 +55,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let module_name = "extern";
     let _import = ImportObjectBuilder::new()
         // add a function
-        .with_func::<(i32, i32), i32>("add", real_add)?
+        .with_func::<(i32, i32), i32, !>("add", real_add, None)?
         // add a global
         .with_global("global", global_const)?
         // add a memory

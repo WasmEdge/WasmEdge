@@ -7,11 +7,25 @@ use wasmedge_sdk::{
     Module, Store, WasmValue,
 };
 
+#[derive(Debug)]
+struct Data<T, S> {
+    _x: i32,
+    _y: String,
+    _v: Vec<T>,
+    _s: Vec<S>,
+}
+
 // We define a function to act as our "env" "say_hello" function imported in the
 // Wasm program above.
 #[host_function]
-fn say_hello(caller: &Caller, _args: Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError> {
+fn say_hello(
+    caller: &Caller,
+    _args: Vec<WasmValue>,
+    data: &mut Data<i32, &str>,
+) -> Result<Vec<WasmValue>, HostFuncError> {
     println!("Hello, world!");
+
+    println!("data: {:?}", data);
 
     // get executor from caller
     let executor = caller.executor();
@@ -36,9 +50,17 @@ fn say_hello(caller: &Caller, _args: Vec<WasmValue>) -> Result<Vec<WasmValue>, H
 
 #[cfg_attr(test, test)]
 fn main() -> anyhow::Result<()> {
+    // The additional data object to set to host function context
+    let mut data: Data<i32, &str> = Data {
+        _x: 12,
+        _y: "hello".to_string(),
+        _v: vec![1, 2, 3],
+        _s: vec!["macos", "linux", "windows"],
+    };
+
     // create an import module
     let import = ImportObjectBuilder::new()
-        .with_func::<(), (), !>("say_hello", say_hello, None)?
+        .with_func::<(), (), Data<i32, &str>>("say_hello", say_hello, Some(&mut data))?
         .build("env")?;
 
     let wasm_bytes = wat2wasm(

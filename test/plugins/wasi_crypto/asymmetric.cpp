@@ -122,6 +122,22 @@ TEST_F(WasiCryptoTest, Asymmetric) {
         "-----END PRIVATE KEY-----\n"_u8}},
       {});
   EncodingCheck(
+      "ECDSA_P384_SHA384"sv, __WASI_ALGORITHM_TYPE_SIGNATURES,
+      {{__WASI_PUBLICKEY_ENCODING_PEM,
+        "-----BEGIN PUBLIC KEY-----\n"
+        "MHYwEAYHKoZIzj0CAQYFK4EEACIDYgAEUIwwEUeBvHWigFKAYgPs93Pb21mUr2Oa\n"
+        "CTSiuK0Hmjc25OO5m4Gk92s4HG22R5596FB7nXlZljqEnETE4xDc4Dugv5ZzlTCf\n"
+        "HLeAvmfv+hFMRzroZ+GS1Xwgl434yH9r\n"
+        "-----END PUBLIC KEY-----\n"_u8}},
+      {{__WASI_SECRETKEY_ENCODING_PEM,
+        "-----BEGIN PRIVATE KEY-----\n"
+        "MIG2AgEAMBAGByqGSM49AgEGBSuBBAAiBIGeMIGbAgEBBDAHfLyuXwp7DoNPIvxg\n"
+        "B5k8zOAyXHFpJ4FF7CIg4zH/UBFb5m8AyT+c9rvvyVcHlEKhZANiAARQjDARR4G8\n"
+        "daKAUoBiA+z3c9vbWZSvY5oJNKK4rQeaNzbk47mbgaT3azgcbbZHnn3oUHudeVmW\n"
+        "OoScRMTjENzgO6C/lnOVMJ8ct4C+Z+/6EUxHOuhn4ZLVfCCXjfjIf2s=\n"
+        "-----END PRIVATE KEY-----\n"_u8}},
+      {});
+  EncodingCheck(
       "Ed25519"sv, __WASI_ALGORITHM_TYPE_SIGNATURES,
       {{__WASI_PUBLICKEY_ENCODING_RAW,
         "d75a980182b10ab7d54bfed3c964073a0ee172f3daa62325af021a68f707511a"_u8v}},

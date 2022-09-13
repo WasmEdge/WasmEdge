@@ -76,7 +76,9 @@ int Compiler([[maybe_unused]] int Argc,
   PO::Option<PO::Toggle> PropThreads(
       PO::Description("Enable Threads proposal"sv));
   PO::Option<PO::Toggle> PropAll(PO::Description("Enable all features"sv));
-
+  PO::Option<std::string> PropOptimizationLevel(
+      PO::Description("Optimization level, one of 0, 1, 2, 3, s, z."sv),
+      PO::DefaultValue(std::string("2")));
   auto Parser = PO::ArgumentParser();
   if (!Parser.add_option(WasmName)
            .add_option(SoName)
@@ -100,6 +102,7 @@ int Compiler([[maybe_unused]] int Argc,
            .add_option("enable-extended-const"sv, PropExtendConst)
            .add_option("enable-threads"sv, PropThreads)
            .add_option("enable-all"sv, PropAll)
+           .add_option("optimize"sv, PropOptimizationLevel)
            .parse(Argc, Argv)) {
     return EXIT_FAILURE;
   }
@@ -147,6 +150,26 @@ int Compiler([[maybe_unused]] int Argc,
     Conf.addProposal(Proposal::TailCall);
     Conf.addProposal(Proposal::ExtendedConst);
     Conf.addProposal(Proposal::Threads);
+  }
+
+  if (PropOptimizationLevel.value() == "0") {
+    Conf.getCompilerConfigure().setOptimizationLevel(
+        WasmEdge::CompilerConfigure::OptimizationLevel::O0);
+  } else if (PropOptimizationLevel.value() == "1") {
+    Conf.getCompilerConfigure().setOptimizationLevel(
+        WasmEdge::CompilerConfigure::OptimizationLevel::O1);
+  } else if (PropOptimizationLevel.value() == "3") {
+    Conf.getCompilerConfigure().setOptimizationLevel(
+        WasmEdge::CompilerConfigure::OptimizationLevel::O3);
+  } else if (PropOptimizationLevel.value() == "s") {
+    Conf.getCompilerConfigure().setOptimizationLevel(
+        WasmEdge::CompilerConfigure::OptimizationLevel::Os);
+  } else if (PropOptimizationLevel.value() == "z") {
+    Conf.getCompilerConfigure().setOptimizationLevel(
+        WasmEdge::CompilerConfigure::OptimizationLevel::Oz);
+  } else {
+    Conf.getCompilerConfigure().setOptimizationLevel(
+        WasmEdge::CompilerConfigure::OptimizationLevel::O2);
   }
 
   std::filesystem::path InputPath = std::filesystem::absolute(WasmName.value());

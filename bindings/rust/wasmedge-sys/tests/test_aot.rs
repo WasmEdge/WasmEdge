@@ -1,106 +1,108 @@
-// #[cfg(feature = "aot")]
-// use wasmedge_sys::{
-//     AsImport, CallingFrame, Compiler, Config, FuncType, Function, ImportModule, ImportObject, Vm,
-//     WasmValue,
-// };
-// use wasmedge_types::{error::HostFuncError, CompilerOptimizationLevel, CompilerOutputFormat};
+#![feature(never_type)]
 
-// #[cfg(feature = "aot")]
-// #[test]
-// fn test_aot() {
-//     // create a Config context
-//     let result = Config::create();
-//     assert!(result.is_ok());
-//     let mut config = result.unwrap();
-//     // enable options
-//     config.tail_call(true);
-//     config.annotations(true);
-//     config.memory64(true);
-//     config.threads(true);
-//     config.exception_handling(true);
-//     config.function_references(true);
+#[cfg(feature = "aot")]
+use wasmedge_sys::{
+    AsImport, CallingFrame, Compiler, Config, FuncType, Function, ImportModule, ImportObject, Vm,
+    WasmValue,
+};
+use wasmedge_types::{error::HostFuncError, CompilerOptimizationLevel, CompilerOutputFormat};
 
-//     // create a Vm context
-//     let result = Vm::create(Some(config), None);
-//     assert!(result.is_ok());
-//     let mut vm = result.unwrap();
-//     let import = create_spec_test_module();
-//     let result = vm.register_wasm_from_import(ImportObject::Import(import));
-//     assert!(result.is_ok());
+#[cfg(feature = "aot")]
+#[test]
+fn test_aot() {
+    // create a Config context
+    let result = Config::create();
+    assert!(result.is_ok());
+    let mut config = result.unwrap();
+    // enable options
+    config.tail_call(true);
+    config.annotations(true);
+    config.memory64(true);
+    config.threads(true);
+    config.exception_handling(true);
+    config.function_references(true);
 
-//     // set the AOT compiler options
-//     let result = Config::create();
-//     assert!(result.is_ok());
-//     let mut config = result.unwrap();
-//     config.set_aot_optimization_level(CompilerOptimizationLevel::O0);
-//     config.set_aot_compiler_output_format(CompilerOutputFormat::Native);
-//     config.interruptible(true);
-//     let result = Compiler::create(Some(config));
-//     assert!(result.is_ok());
-//     let compiler = result.unwrap();
+    // create a Vm context
+    let result = Vm::create(Some(config), None);
+    assert!(result.is_ok());
+    let mut vm = result.unwrap();
+    let import = create_spec_test_module();
+    let result = vm.register_wasm_from_import(ImportObject::Import(import));
+    assert!(result.is_ok());
 
-//     // compile a file for universal WASM output format
-//     let in_path = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
-//         .join("bindings/rust/wasmedge-sys/tests/data/fibonacci.wasm");
-//     let out_path = std::path::PathBuf::from("fibonacci_aot.wasm");
-//     assert!(!out_path.exists());
-//     let result = compiler.compile_from_file(&in_path, &out_path);
-//     assert!(result.is_ok());
-//     assert!(out_path.exists());
+    // set the AOT compiler options
+    let result = Config::create();
+    assert!(result.is_ok());
+    let mut config = result.unwrap();
+    config.set_aot_optimization_level(CompilerOptimizationLevel::O0);
+    config.set_aot_compiler_output_format(CompilerOutputFormat::Native);
+    config.interruptible(true);
+    let result = Compiler::create(Some(config));
+    assert!(result.is_ok());
+    let compiler = result.unwrap();
 
-//     {
-//         // register the wasm module from the generated wasm file
-//         let result = vm.register_wasm_from_file("extern", &out_path);
-//         assert!(result.is_ok());
+    // compile a file for universal WASM output format
+    let in_path = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
+        .join("bindings/rust/wasmedge-sys/tests/data/fibonacci.wasm");
+    let out_path = std::path::PathBuf::from("fibonacci_aot.wasm");
+    assert!(!out_path.exists());
+    let result = compiler.compile_from_file(&in_path, &out_path);
+    assert!(result.is_ok());
+    assert!(out_path.exists());
 
-//         let result = vm.run_registered_function("extern", "fib", [WasmValue::from_i32(5)]);
-//         assert!(result.is_ok());
-//         let returns = result.unwrap();
-//         assert_eq!(returns[0].to_i32(), 8);
-//     }
+    {
+        // register the wasm module from the generated wasm file
+        let result = vm.register_wasm_from_file("extern", &out_path);
+        assert!(result.is_ok());
 
-//     {
-//         let result = vm.load_wasm_from_file(&out_path);
-//         assert!(result.is_ok());
+        let result = vm.run_registered_function("extern", "fib", [WasmValue::from_i32(5)]);
+        assert!(result.is_ok());
+        let returns = result.unwrap();
+        assert_eq!(returns[0].to_i32(), 8);
+    }
 
-//         let result = vm.validate();
-//         assert!(result.is_ok());
+    {
+        let result = vm.load_wasm_from_file(&out_path);
+        assert!(result.is_ok());
 
-//         let result = vm.instantiate();
-//         assert!(result.is_ok());
+        let result = vm.validate();
+        assert!(result.is_ok());
 
-//         let result = vm.run_function("fib", [WasmValue::from_i32(5)]);
-//         assert!(result.is_ok());
-//         let returns = result.unwrap();
-//         assert_eq!(returns[0].to_i32(), 8);
-//     }
+        let result = vm.instantiate();
+        assert!(result.is_ok());
 
-//     // remove the wasm file by the compiler
-//     assert!(std::fs::remove_file(&out_path).is_ok());
-// }
+        let result = vm.run_function("fib", [WasmValue::from_i32(5)]);
+        assert!(result.is_ok());
+        let returns = result.unwrap();
+        assert_eq!(returns[0].to_i32(), 8);
+    }
 
-// fn create_spec_test_module() -> ImportModule {
-//     // create an ImportObj module
-//     let result = ImportModule::create("spectest");
-//     assert!(result.is_ok());
-//     let mut import = result.unwrap();
+    // remove the wasm file by the compiler
+    assert!(std::fs::remove_file(&out_path).is_ok());
+}
 
-//     // create a host function
-//     let result = FuncType::create([], []);
-//     assert!(result.is_ok());
-//     let func_ty = result.unwrap();
-//     let result = Function::create::<!>(&func_ty, Box::new(spec_test_print), None, 0);
-//     assert!(result.is_ok());
-//     let host_func = result.unwrap();
-//     // add host function "print"
-//     import.add_func("print", host_func);
-//     import
-// }
+fn create_spec_test_module() -> ImportModule {
+    // create an ImportObj module
+    let result = ImportModule::create("spectest");
+    assert!(result.is_ok());
+    let mut import = result.unwrap();
 
-// fn spec_test_print(
-//     _frame: &CallingFrame,
-//     _inputs: Vec<WasmValue>,
-//     _data: *mut std::os::raw::c_void,
-// ) -> Result<Vec<WasmValue>, HostFuncError> {
-//     Ok(vec![])
-// }
+    // create a host function
+    let result = FuncType::create([], []);
+    assert!(result.is_ok());
+    let func_ty = result.unwrap();
+    let result = Function::create::<!>(&func_ty, Box::new(spec_test_print), None, 0);
+    assert!(result.is_ok());
+    let host_func = result.unwrap();
+    // add host function "print"
+    import.add_func("print", host_func);
+    import
+}
+
+fn spec_test_print(
+    _frame: &CallingFrame,
+    _inputs: Vec<WasmValue>,
+    _data: *mut std::os::raw::c_void,
+) -> Result<Vec<WasmValue>, HostFuncError> {
+    Ok(vec![])
+}

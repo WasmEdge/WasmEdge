@@ -37,7 +37,7 @@ template <typename... T> struct Registed {
 };
 
 using RegistedAlg =
-    Registed<EcdsaK256, EcdsaP256, Eddsa, RSA_PKCS1_2048_SHA256,
+    Registed<EcdsaK256, EcdsaP256, EcdsaP384, Eddsa, RSA_PKCS1_2048_SHA256,
              RSA_PKCS1_2048_SHA384, RSA_PKCS1_2048_SHA512,
              RSA_PKCS1_3072_SHA384, RSA_PKCS1_3072_SHA512,
              RSA_PKCS1_4096_SHA512, RSA_PSS_2048_SHA256, RSA_PSS_2048_SHA384,

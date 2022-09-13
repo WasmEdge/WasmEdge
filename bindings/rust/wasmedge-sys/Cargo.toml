@@ -10,7 +10,7 @@ links = "wasmedge"
 name = "wasmedge-sys"
 readme = "README.md"
 repository = "https://github.com/WasmEdge/WasmEdge"
-version = "0.9.0"
+version = "0.10.0"
 
 [dependencies]
 lazy_static = "1.4.0"
@@ -19,10 +19,10 @@ parking_lot = "0.12.1"
 paste = "1.0.5"
 rand = "0.8.4"
 thiserror = "1.0.30"
-wasmedge-types = {path = "../wasmedge-types", version = "0.2.1"}
+wasmedge-types = {path = "../wasmedge-types", version = "0.3.0"}
 
 [build-dependencies]
-bindgen = {version = "0.59.1", default-features = false, features = ["runtime"]}
+bindgen = {version = "0.60.1", default-features = false, features = ["runtime"]}
 cmake = "0.1"
 
 [features]

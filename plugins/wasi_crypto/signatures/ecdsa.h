@@ -111,6 +111,7 @@ public:
 
 using EcdsaP256 = Ecdsa<NID_X9_62_prime256v1>;
 using EcdsaK256 = Ecdsa<NID_secp256k1>;
+using EcdsaP384 = Ecdsa<NID_secp384r1>;
 
 } // namespace Signatures
 } // namespace WasiCrypto

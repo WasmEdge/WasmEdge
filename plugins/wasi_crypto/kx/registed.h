@@ -32,7 +32,7 @@ template <typename... T> struct Registed {
   using Variant = std::variant<T...>;
 };
 
-using RegistedAlg = Registed<X25519, Ecdsa>;
+using RegistedAlg = Registed<X25519, EcdsaP256, EcdsaP384>;
 
 using Algorithm = RegistedAlg::Variant;
 

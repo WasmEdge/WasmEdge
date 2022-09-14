@@ -110,6 +110,10 @@ jobs:
             output_path: plugins/wasi_nn
             output_bin: libwasmedgePluginWasiNN.so
             tar_name: wasi_nn-openvino
+          - name: WASI-NN OpenVINO
+            output_path: plugins/wasi_nn
+            output_bin: libwasmedgePluginWasiNN.so
+            tar_name: wasi_nn-pytorch
           - name: WASI-Crypto
             output_path: plugins/wasi_crypto
             output_bin: libwasmedgePluginWasiCrypto.so
@@ -122,21 +126,32 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
-      - name: Build WasmEdge WASI-NN OpenVINO plugin
-        if: contains(matrix.name, 'OpenVINO')
+      - name: Build WasmEdge WASI-NN ${{ matrix.backend }} plugin
+        shell: bash
+        if: contains(matrix.name, 'WASI-NN')
         env:
           OPENVINO_VERSION: "2021.4.582"
           OPENVINO_YEAR: "2021"
+          PYTORCH_VERSION: "1.8.2"
+          PYTORCH_INSTALL_TO: "build"
         run: |
-          bash utils/wasi-nn/install-openvino.sh
-          bash -c "\
-          source /opt/intel/openvino_2021/bin/setupvars.sh;\
-          ldconfig;\
-          mkdir -p build;\
-          cd build;\
-          cmake -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_PLUGIN_WASI_NN_BACKEND="OpenVINO" ..;\
-          cd ${{ matrix.output_path }};\
-          make -j;"
+          mkdir -p build
+          if [[ "${{ matrix.name }}" == *"OpenVINO"* ]]; then
+            bash utils/wasi-nn/install-openvino.sh
+            source /opt/intel/openvino_2021/bin/setupvars.sh
+            ldconfig
+          fi
+          if [[ "${{ matrix.name }}" == *"PyTorch"* ]]; then
+            apt update
+            apt install unzip
+            bash utils/wasi-nn/install-pytorch.sh
+            export Torch_DIR=$(pwd)/${PYTORCH_INSTALL_TO}/libtorch
+            export LD_LIBRARY_PATH=$Torch_DIR/lib:$LD_LIBRARY_PATH
+          fi
+          cd build
+          cmake -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_PLUGIN_WASI_NN_BACKEND="${{ matrix.backend }}" ..
+          cd ${{ matrix.output_path }}
+          make -j
       - name: Build WasmEdge WASI-Crypto plugin
         if: contains(matrix.name, 'WASI-Crypto')
         run: |

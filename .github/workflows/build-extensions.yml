@@ -152,9 +152,10 @@ jobs:
       env:
         OPENVINO_VERSION: "2021.4.582"
         OPENVINO_YEAR: "2021"
-        TORCH_VERSION: "1.8.2"
+        PYTORCH_VERSION: "1.8.2"
+        PYTORCH_INSTALL_TO: "build"
       run: |
-        mkdir -p build;
+        mkdir -p build
         if [[ "${{ matrix.name }}" == *"OpenVINO"* ]]; then
           bash utils/wasi-nn/install-openvino.sh
           source /opt/intel/openvino_2021/bin/setupvars.sh
@@ -164,8 +165,7 @@ jobs:
           apt update
           apt install unzip
           bash utils/wasi-nn/install-pytorch.sh
-          export Torch_DIR="`pwd`/libtorch"
-          export LD_LIBRARY_PATH=$Torch_DIR:$LD_LIBRARY_PATH
+          export Torch_DIR=$(pwd)/${PYTORCH_INSTALL_TO}/libtorch
         fi
         cd build
         cmake -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DWASMEDGE_PLUGIN_WASI_NN_BACKEND="${{ matrix.backend }}" -DWASMEDGE_BUILD_TESTS=ON ..
@@ -199,8 +199,7 @@ jobs:
           ldconfig
         fi
         if [[ "${{ matrix.name }}" == *"PyTorch"* ]]; then
-          export Torch_DIR="`pwd`/libtorch"
-          export LD_LIBRARY_PATH=$Torch_DIR:$LD_LIBRARY_PATH
+          export LD_LIBRARY_PATH=$Torch_DIR/lib:$LD_LIBRARY_PATH
         fi
         cd build/${{ matrix.test_path }}
         ./${{ matrix.test_bin }}
@@ -279,9 +278,11 @@ jobs:
     - name: Build WASI-NN dependency
       shell: bash
       if: contains(matrix.name, 'WASI-NN')
+      env:
+        PYTORCH_VERSION: "1.8.2"
       run: |
         if [[ "${{ matrix.name }}" == *"PyTorch"* ]]; then
-          bash utils/wasi-nn/install-pytorch.sh
+          bash utils/wasi-nn/install-pytorch.sh --disable-cxx11-abi
         fi
     - name: Build WasmEdge ${{ matrix.name }} plugin with ${{ matrix.build_type }} mode
       if: contains(matrix.name, 'WASI-Crypto')
@@ -302,8 +303,7 @@ jobs:
         TORCH_VERSION: "1.8.2"
       run: |
         if [[ "${{ matrix.name }}" == *"PyTorch"* ]]; then
-          export Torch_DIR="`pwd`/libtorch"
-          export LD_LIBRARY_PATH=$Torch_DIR:$LD_LIBRARY_PATH
+          export Torch_DIR=$(pwd)/libtorch
         fi
         bash utils/docker/build-manylinux.sh --${{ matrix.build_type }} --not-build --not-ninja -DWASMEDGE_PLUGIN_WASI_NN_BACKEND="${{ matrix.backend }}"
         cd build/${{ matrix.output_path }}

@@ -502,7 +502,7 @@ TEST(WasiNNTest, PyTorchBackend) {
 
   // Load the files.
   std::vector<uint8_t> TensorData =
-      readEntireFile("./wasinn_pytorch_fixtures/image-1-3-244-244.rgb");
+      readEntireFile("./wasinn_pytorch_fixtures/image-1x3x224x224.rgb");
   std::vector<uint8_t> WeightRead =
       readEntireFile("./wasinn_pytorch_fixtures/mobilenet.pt");
 

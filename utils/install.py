@@ -1148,12 +1148,14 @@ def install_plugins(args, compat):
                 else:
                     logging.error("Unknown plugin: %s", plugin_name)
 
-        if is_default_path(args):
-            copytree(join(TEMP_PATH, "Plugins"), join(args.path, "plugin"))
-        else:
-            copytree(
-                join(TEMP_PATH, "Plugins"), join(args.path, CONST_lib_dir, "wasmedge")
-            )
+        if isdir(join(TEMP_PATH, "Plugins")):
+            if is_default_path(args):
+                copytree(join(TEMP_PATH, "Plugins"), join(args.path, "plugin"))
+            else:
+                copytree(
+                    join(TEMP_PATH, "Plugins"),
+                    join(args.path, CONST_lib_dir, "wasmedge"),
+                )
 
 
 def set_consts(args, compat):

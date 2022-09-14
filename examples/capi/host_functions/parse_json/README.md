@@ -18,7 +18,7 @@ sudo apt install -y libjson-c-dev
 
 ```bash
 # Compilation
-$ gcc host_function.c -l json-c -o host_function
+$ gcc host_function.c -ljson-c -lwasmedge -o host_function
 $ ./host_function
 Got the result: Success
 ```

@@ -2,7 +2,8 @@
 #include <stdio.h>
 #include <wasmedge/wasmedge.h>
 
-WasmEdge_Result parseJson(void *Data, WasmEdge_MemoryInstanceContext *MemCxt,
+WasmEdge_Result parseJson(void *Data,
+                          const WasmEdge_CallingFrameContext *CallingFrameCxt,
                           const WasmEdge_Value *In, WasmEdge_Value *Out) {
   FILE *Fp = fopen("test.json", "r");
   char Buffer[1024];
@@ -25,8 +26,8 @@ int main() {
 
   /* Create the import object. */
   WasmEdge_String ExportName = WasmEdge_StringCreateByCString("extern");
-  WasmEdge_ImportObjectContext *ImpObj =
-      WasmEdge_ImportObjectCreate(ExportName);
+  WasmEdge_ModuleInstanceContext *ImpObj =
+      WasmEdge_ModuleInstanceCreate(ExportName);
   enum WasmEdge_ValType ParamList[1] = {WasmEdge_ValType_ExternRef};
   enum WasmEdge_ValType ReturnList[1] = {WasmEdge_ValType_ExternRef};
   WasmEdge_FunctionTypeContext *HostFType =
@@ -36,7 +37,7 @@ int main() {
   WasmEdge_FunctionTypeDelete(HostFType);
   WasmEdge_String HostFuncName =
       WasmEdge_StringCreateByCString("func-parse-json");
-  WasmEdge_ImportObjectAddFunction(ImpObj, HostFuncName, HostFunc);
+  WasmEdge_ModuleInstanceAddFunction(ImpObj, HostFuncName, HostFunc);
   WasmEdge_StringDelete(HostFuncName);
 
   WasmEdge_VMRegisterModuleFromImport(VMCxt, ImpObj);
@@ -58,6 +59,6 @@ int main() {
   /* Resources deallocations. */
   WasmEdge_VMDelete(VMCxt);
   WasmEdge_StringDelete(FuncName);
-  WasmEdge_ImportObjectDelete(ImpObj);
+  WasmEdge_ModuleInstanceDelete(ImpObj);
   return 0;
 }

@@ -748,7 +748,6 @@ mod tests {
         assert!(result.is_ok());
         let func_ty = result.unwrap();
         // create a host function
-        // let result = Function::create(&func_ty, Box::new(real_add), ptr_void, 0);
         let result = Function::create(&func_ty, Box::new(real_add), Some(&mut data), 0);
         assert!(result.is_ok());
         let host_func = result.unwrap();
@@ -876,5 +875,73 @@ mod tests {
 
         println!("Rust: Leaving Rust function real_add");
         Ok(vec![WasmValue::from_i32(c)])
+    }
+
+    #[test]
+    fn test_func_closure() {
+        // create a FuncType
+        let result = FuncType::create(vec![ValType::I32; 2], vec![ValType::I32]);
+        assert!(result.is_ok());
+        let func_ty = result.unwrap();
+        // create a host function
+        let real_add = |_: &CallingFrame,
+                        input: Vec<WasmValue>,
+                        _data: *mut std::os::raw::c_void|
+         -> Result<Vec<WasmValue>, HostFuncError> {
+            println!("Rust: Entering Rust function real_add");
+
+            if input.len() != 2 {
+                return Err(HostFuncError::User(1));
+            }
+
+            let a = if input[0].ty() == ValType::I32 {
+                input[0].to_i32()
+            } else {
+                return Err(HostFuncError::User(2));
+            };
+
+            let b = if input[1].ty() == ValType::I32 {
+                input[1].to_i32()
+            } else {
+                return Err(HostFuncError::User(3));
+            };
+
+            let c = a + b;
+            println!("Rust: calcuating in real_add c: {:?}", c);
+
+            println!("Rust: Leaving Rust function real_add");
+            Ok(vec![WasmValue::from_i32(c)])
+        };
+
+        let result = Function::create::<!>(&func_ty, Box::new(real_add), None, 0);
+        assert!(result.is_ok());
+        let host_func = result.unwrap();
+
+        // get func type
+        let result = host_func.ty();
+        assert!(result.is_ok());
+        let ty = result.unwrap();
+
+        // check parameters
+        assert_eq!(ty.params_len(), 2);
+        let param_tys = ty.params_type_iter().collect::<Vec<_>>();
+        assert_eq!(param_tys, vec![ValType::I32; 2]);
+
+        // check returns
+        assert_eq!(ty.returns_len(), 1);
+        let return_tys = ty.returns_type_iter().collect::<Vec<_>>();
+        assert_eq!(return_tys, vec![ValType::I32]);
+
+        // run this function
+        let result = Executor::create(None, None);
+        assert!(result.is_ok());
+        let mut executor = result.unwrap();
+        let result = host_func.call(
+            &mut executor,
+            vec![WasmValue::from_i32(1), WasmValue::from_i32(2)],
+        );
+        assert!(result.is_ok());
+        let returns = result.unwrap();
+        assert_eq!(returns[0].to_i32(), 3);
     }
 }

@@ -10,20 +10,24 @@
 //! generics of `Function::create_bindings::<I, O>`, wherein the I and O are the `WasmFnIO` traits
 //! base on the inputs and outputs of the real host function.
 //!
+//! To run this example, follow the commands below:
+//!
+//! ```bash
+//! // go into the directory: bindings/rust/wasmedge-sys
+//! cargo run --example hostfunc -- --nocapture
+//! ```
 
 #![feature(never_type)]
 
+use wasmedge_macro::sys_host_function;
 use wasmedge_sys::{
     AsImport, CallingFrame, Config, FuncType, Function, ImportModule, ImportObject, Loader, Vm,
     WasmValue,
 };
 use wasmedge_types::{error::HostFuncError, ValType};
 
-fn real_add(
-    _: &CallingFrame,
-    input: Vec<WasmValue>,
-    _data: *mut std::os::raw::c_void,
-) -> Result<Vec<WasmValue>, HostFuncError> {
+#[sys_host_function]
+fn real_add(_frame: &CallingFrame, input: Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError> {
     println!("Rust: Entering Rust function real_add");
 
     if input.len() != 3 {
@@ -51,12 +55,7 @@ fn real_add(
 
 #[cfg_attr(test, test)]
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let mut hostfunc_path = std::env::current_dir()?.join("funcs.wasm");
-
-    if !hostfunc_path.exists() {
-        // modify path for cargo test
-        hostfunc_path = std::env::current_dir()?.join("examples/data/funcs.wasm");
-    }
+    let hostfunc_path = std::env::current_dir()?.join("examples/data/funcs.wasm");
 
     let result = FuncType::create(
         vec![ValType::ExternRef, ValType::I32, ValType::I32],

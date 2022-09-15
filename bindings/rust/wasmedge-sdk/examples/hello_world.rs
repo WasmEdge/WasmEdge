@@ -1,27 +1,44 @@
 // If the version of rust used is less than v1.63, please uncomment the follow attribute.
 // #![feature(explicit_generic_args_with_impl_trait)]
 
+use wasmedge_macro::host_function;
 use wasmedge_sdk::{
-    error::HostFuncError, params, wat2wasm, CallingFrame, Executor, ImportObjectBuilder, Module,
-    Store, WasmValue,
+    error::HostFuncError, params, wat2wasm, Caller, Executor, ImportObjectBuilder, Module, Store,
+    WasmValue,
 };
+
+// We define a function to act as our "env" "say_hello" function imported in the
+// Wasm program above.
+#[host_function]
+fn say_hello(caller: &Caller, _args: Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError> {
+    println!("Hello, world!");
+
+    // get executor from caller
+    let executor = caller.executor();
+    assert!(executor.is_some());
+
+    // get module instance from caller
+    let instance = caller.instance();
+    if let Some(instance) = instance {
+        assert_eq!(instance.name(), Some("extern".to_string()));
+        assert_eq!(instance.func_count(), 1);
+        assert_eq!(instance.memory_count(), 0);
+        assert_eq!(instance.global_count(), 0);
+        assert_eq!(instance.table_count(), 0);
+    }
+
+    // get memory from caller
+    let mem = caller.memory(0);
+    assert!(mem.is_none());
+
+    Ok(vec![])
+}
 
 #[cfg_attr(test, test)]
 fn main() -> anyhow::Result<()> {
-    // We define a function to act as our "env" "say_hello" function imported in the
-    // Wasm program above.
-    fn say_hello_world(
-        _: &CallingFrame,
-        _: Vec<WasmValue>,
-    ) -> Result<Vec<WasmValue>, HostFuncError> {
-        println!("Hello, world!");
-
-        Ok(vec![])
-    }
-
     // create an import module
     let import = ImportObjectBuilder::new()
-        .with_func::<(), ()>("say_hello", say_hello_world)?
+        .with_func::<(), ()>("say_hello", say_hello)?
         .build("env")?;
 
     let wasm_bytes = wat2wasm(

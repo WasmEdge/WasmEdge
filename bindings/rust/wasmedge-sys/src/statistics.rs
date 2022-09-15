@@ -17,7 +17,7 @@ impl Statistics {
     pub fn create() -> WasmEdgeResult<Self> {
         let ctx = unsafe { ffi::WasmEdge_StatisticsCreate() };
         match ctx.is_null() {
-            true => Err(WasmEdgeError::StatisticsCreate),
+            true => Err(Box::new(WasmEdgeError::StatisticsCreate)),
             false => Ok(Statistics {
                 inner: InnerStat(ctx),
                 registered: false,

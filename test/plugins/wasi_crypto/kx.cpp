@@ -121,6 +121,7 @@ TEST_F(WasiCryptoTest, KxDh) {
     WASI_CRYPTO_EXPECT_TRUE(secretkeyClose(Sk1Handle));
   };
   NewKxDhTest("P256-SHA256"sv);
+  NewKxDhTest("P384-SHA384"sv);
 }
 
 } // namespace WasiCrypto

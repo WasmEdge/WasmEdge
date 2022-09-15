@@ -179,7 +179,7 @@ mod tests {
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
-            WasmEdgeError::Global(GlobalError::ModifyConst)
+            Box::new(WasmEdgeError::Global(GlobalError::ModifyConst))
         );
 
         // get the Var global from the store of vm

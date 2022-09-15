@@ -145,6 +145,8 @@
 //!
 
 #[doc(hidden)]
+pub mod caller;
+#[doc(hidden)]
 #[cfg(feature = "aot")]
 mod compiler;
 pub mod config;
@@ -164,6 +166,7 @@ pub mod utils;
 pub mod vm;
 pub mod wasi;
 
+pub use caller::Caller;
 #[doc(inline)]
 #[cfg(feature = "aot")]
 pub use compiler::Compiler;

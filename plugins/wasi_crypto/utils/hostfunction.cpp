@@ -57,7 +57,10 @@ WasiCryptoExpect<Kx::Algorithm> tryFrom(std::string_view RawAlgStr) noexcept {
     return Algorithm{std::in_place_type<X25519>};
   }
   if (AlgStr == "P256-SHA256"sv) {
-    return Algorithm{std::in_place_type<Ecdsa>};
+    return Algorithm{std::in_place_type<EcdsaP256>};
+  }
+  if (AlgStr == "P384-SHA384"sv) {
+    return Algorithm{std::in_place_type<EcdsaP384>};
   }
   return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_UNSUPPORTED_ALGORITHM);
 }
@@ -116,6 +119,9 @@ tryFrom(std::string_view RawAlgStr) noexcept {
   }
   if (AlgStr == "ECDSA_K256_SHA256"sv) {
     return Algorithm{std::in_place_type<EcdsaK256>};
+  }
+  if (AlgStr == "ECDSA_P384_SHA384"sv) {
+    return Algorithm{std::in_place_type<EcdsaP384>};
   }
   if (AlgStr == "ED25519"sv) {
     return Algorithm{std::in_place_type<Eddsa>};

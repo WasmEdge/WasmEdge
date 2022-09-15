@@ -49,7 +49,7 @@ impl Table {
         let ctx = unsafe { ffi::WasmEdge_TableInstanceCreate(ty.inner.0) };
 
         match ctx.is_null() {
-            true => Err(WasmEdgeError::Table(TableError::Create)),
+            true => Err(Box::new(WasmEdgeError::Table(TableError::Create))),
             false => Ok(Table {
                 inner: InnerTable(ctx),
                 registered: false,
@@ -65,7 +65,7 @@ impl Table {
     pub fn ty(&self) -> WasmEdgeResult<TableType> {
         let ty_ctx = unsafe { ffi::WasmEdge_TableInstanceGetTableType(self.inner.0) };
         match ty_ctx.is_null() {
-            true => Err(WasmEdgeError::Table(TableError::Type)),
+            true => Err(Box::new(WasmEdgeError::Table(TableError::Type))),
             false => Ok(TableType {
                 inner: InnerTableType(ty_ctx as *mut _),
                 registered: true,
@@ -210,7 +210,7 @@ impl TableType {
             )
         };
         match ctx.is_null() {
-            true => Err(WasmEdgeError::TableTypeCreate),
+            true => Err(Box::new(WasmEdgeError::TableTypeCreate)),
             false => Ok(Self {
                 inner: InnerTableType(ctx),
                 registered: false,

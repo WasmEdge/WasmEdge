@@ -15,7 +15,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // a native function to be imported as host function
     #[host_function]
     fn real_add(
-        _: &Caller,
+        _caller: &Caller,
         inputs: Vec<WasmValue>,
     ) -> std::result::Result<Vec<WasmValue>, HostFuncError> {
         if inputs.len() != 2 {

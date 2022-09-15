@@ -1,11 +1,11 @@
 [package]
-name = "hello"
+name = "rust-wasi-native-thread"
 version = "0.1.0"
 authors = ["ubuntu"]
 edition = "2018"
 
 [[bin]]
-name = "hello"
+name = "rust-wasi-native-thread"
 path = "src/main.rs"
 
 [dependencies]

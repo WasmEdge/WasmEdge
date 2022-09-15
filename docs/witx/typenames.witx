@@ -790,9 +790,3 @@
     $prestat_dir
   )
 )
-
-;;; similar to pthread_t in POSIX
-(typename $thread i32)
-
-;;; a function pointer of the thread
-(typename $threadfunc i32)

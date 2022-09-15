@@ -38,8 +38,7 @@ struct State {
 
 pub extern "C" fn my_thread(data: *mut c_void) -> *mut c_void {
   let data: &mut State = unsafe { &mut *(data as *mut State) };
-  // println!("Hello from thread id: {}", data.tid);
-  data.tid = data.tid * -1;
+  println!("Hello from thread id: {}", data.tid);
   return null_mut();
 }
 

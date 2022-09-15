@@ -63,7 +63,7 @@ Executor::enterFunction(Runtime::StackManager &StackMgr,
       Stat->stopRecordWasm();
       Stat->startRecordHost();
     }
-    
+
     // Run host function.
     Span<ValVariant> Args = StackMgr.getTopSpan(ArgsN);
     std::vector<ValVariant> Rets(RetsN);

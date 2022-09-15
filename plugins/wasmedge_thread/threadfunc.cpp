@@ -3,7 +3,6 @@
 
 #include "threadfunc.h"
 #include "common/log.h"
-#include <iostream>
 
 namespace WasmEdge {
 namespace Host {
@@ -17,7 +16,6 @@ Expect<uint32_t> WasmEdgeThreadCreate::body(const Runtime::CallingFrame &Frame,
   if (MemInst == nullptr) {
     return Unexpect(ErrCode::Value::HostFuncError);
   }
-  std::cerr << "WasmEdgeThreadCreate " << StartRoutine << " " << Arg << "\n";
 
   uint32_t *WasiThreadPtr = MemInst->getPointer<uint32_t *>(Thread);
   if (WasiThreadPtr == nullptr) {
@@ -28,7 +26,6 @@ Expect<uint32_t> WasmEdgeThreadCreate::body(const Runtime::CallingFrame &Frame,
       unlikely(!Res)) {
     return Unexpect(ErrCode::Value::HostFuncError);
   } else {
-    std::cerr << "create thread with tid " << (*Res) << "\n";
     *WasiThreadPtr = *Res;
   }
 
@@ -41,8 +38,6 @@ Expect<uint32_t> WasmEdgeThreadJoin::body(const Runtime::CallingFrame &Frame,
   if (MemInst == nullptr) {
     return Unexpect(ErrCode::Value::HostFuncError);
   }
-
-  std::cerr << "WasmEdgeThreadJoin " << Tid << "\n";
 
   void **const WasiRetval = MemInst->getPointer<void **>(Retval);
   if (WasiRetval == nullptr) {

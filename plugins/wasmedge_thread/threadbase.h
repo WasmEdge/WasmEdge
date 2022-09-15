@@ -4,8 +4,8 @@
 #pragma once
 
 #include "common/errcode.h"
-#include "threadenv.h"
 #include "runtime/hostfunc.h"
+#include "threadenv.h"
 
 namespace WasmEdge {
 namespace Host {

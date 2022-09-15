@@ -6,8 +6,6 @@
 #include "common/errinfo.h"
 #include "common/log.h"
 
-#include <iostream>
-
 namespace WasmEdge {
 namespace Executor {
 
@@ -110,7 +108,6 @@ Executor::createThreadWithFunctionAddress(uint32_t FuncAddress, uint32_t Arg) {
     return Unexpect(ErrCode::Value::UninitializedElement);
   }
   const auto *FuncInst = retrieveFuncRef(Ref);
-  std::cerr << "FuncInst: " << FuncInst << "\n";
 
   std::function<void(void)> F = [=]() {
     // Check function type.
@@ -119,7 +116,6 @@ Executor::createThreadWithFunctionAddress(uint32_t FuncAddress, uint32_t Arg) {
 
     Span<const ValVariant> Params;
     // Call runFunction.
-    std::cerr << "call FuncInst: " << FuncInst << "\n";
     runFunction(StackMgr, *FuncInst, Params);
   };
 

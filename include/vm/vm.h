@@ -165,7 +165,7 @@ public:
   void newThread() noexcept { ExecutorEngine.newThread(); }
   /// Stop execution
   void stop() noexcept { ExecutorEngine.stop(); }
-  
+
   /// ======= Functions which are stageless. =======
   /// Clean up VM status
   void cleanup() {

@@ -580,10 +580,10 @@ mod tests {
     use crate::{
         config::{CommonConfigOptions, ConfigBuilder},
         error::{CoreError, CoreInstantiationError, GlobalError, WasmEdgeError},
-        params,
+        host_function, params,
         types::Val,
-        Executor, Global, GlobalType, Memory, MemoryType, Mutability, RefType, Statistics, Store,
-        Table, TableType, ValType, WasmVal, WasmValue,
+        Caller, Executor, Global, GlobalType, Memory, MemoryType, Mutability, RefType, Statistics,
+        Store, Table, TableType, ValType, WasmVal, WasmValue,
     };
     use std::{
         sync::{Arc, Mutex},
@@ -739,9 +739,54 @@ mod tests {
     #[test]
     #[allow(clippy::assertions_on_result_states)]
     fn test_import_add_func() {
+        #[derive(Debug)]
+        struct Data<T, S> {
+            _x: i32,
+            _y: String,
+            _v: Vec<T>,
+            _s: Vec<S>,
+        }
+
+        #[host_function]
+        fn real_add(
+            _caller: &Caller,
+            inputs: Vec<WasmValue>,
+            data: &mut Data<i32, &str>,
+        ) -> std::result::Result<Vec<WasmValue>, HostFuncError> {
+            println!("data: {:?}", data);
+
+            if inputs.len() != 2 {
+                return Err(HostFuncError::User(1));
+            }
+
+            let a = if inputs[0].ty() == ValType::I32 {
+                inputs[0].to_i32()
+            } else {
+                return Err(HostFuncError::User(2));
+            };
+
+            let b = if inputs[1].ty() == ValType::I32 {
+                inputs[1].to_i32()
+            } else {
+                return Err(HostFuncError::User(3));
+            };
+
+            let c = a + b;
+
+            Ok(vec![WasmValue::from_i32(c)])
+        }
+
+        // The additional data object to set to host function context
+        let mut data: Data<i32, &str> = Data {
+            _x: 12,
+            _y: "hello".to_string(),
+            _v: vec![1, 2, 3],
+            _s: vec!["macos", "linux", "windows"],
+        };
+
         // create an import object
         let result = ImportObjectBuilder::new()
-            .with_func::<(i32, i32), i32, !>("add", real_add, None)
+            .with_func::<(i32, i32), i32, Data<i32, &str>>("add", real_add, Some(&mut data))
             .expect("failed to add host func")
             .build("extern");
         assert!(result.is_ok());
@@ -786,6 +831,9 @@ mod tests {
         assert_eq!(func_ty.args().unwrap(), [ValType::I32; 2]);
         assert!(func_ty.returns().is_some());
         assert_eq!(func_ty.returns().unwrap(), [ValType::I32]);
+
+        let returns = host_func.call(&mut executor, params![1, 2]).unwrap();
+        assert_eq!(returns[0].to_i32(), 3);
     }
 
     #[test]
@@ -1367,10 +1415,10 @@ mod tests {
         handle.join().unwrap();
     }
 
+    #[host_function]
     fn real_add(
-        _: &CallingFrame,
+        _caller: &Caller,
         inputs: Vec<WasmValue>,
-        _: *mut std::os::raw::c_void,
     ) -> std::result::Result<Vec<WasmValue>, HostFuncError> {
         if inputs.len() != 2 {
             return Err(HostFuncError::User(1));

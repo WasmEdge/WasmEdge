@@ -825,6 +825,8 @@ E(UnknownImport, 0x62, "unknown import")
 E(DataSegDoesNotFit, 0x63, "data segment does not fit")
 // Init failed when instantiating element segment
 E(ElemSegDoesNotFit, 0x64, "elements segment does not fit")
+// Component name conflicted when importing.
+E(ComponentNameConflict, 0x65, "component name conflict")
 // @}
 
 // Execution phase

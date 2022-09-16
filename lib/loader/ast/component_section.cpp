@@ -36,6 +36,7 @@ Expect<void> Loader::loadCoreInstance(AST::CoreInstance::T &Instance) {
     }
     return loadVec(Inst.getInstantiateArgs(),
                    [this](AST::CoreInstantiateArg &InstArg) -> Expect<void> {
+                     // n:<name> 0x12 i:<instanceidx> => (with n (instance i))
                      auto Name = FMgr.readName();
                      if (!Name.has_value()) {
                        return logLoadError(Name.error(), FMgr.getLastOffset(),

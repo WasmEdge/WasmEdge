@@ -14,12 +14,14 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
+#include "ast/component.h"
 #include "ast/module.h"
 #include "common/configure.h"
 #include "common/defines.h"
 #include "common/errcode.h"
 #include "common/statistics.h"
 #include "runtime/callingframe.h"
+#include "runtime/instance/component.h"
 #include "runtime/instance/module.h"
 #include "runtime/stackmgr.h"
 #include "runtime/storemgr.h"
@@ -117,6 +119,11 @@ public:
   Expect<std::unique_ptr<Runtime::Instance::ModuleInstance>>
   instantiateModule(Runtime::StoreManager &StoreMgr, const AST::Module &Mod);
 
+  /// Instantiate a WASM Component into an anonymous component instance.
+  Expect<std::unique_ptr<Runtime::Instance::ComponentInstance>>
+  instantiateComponent(Runtime::StoreManager &StoreMgr,
+                       const AST::Component &Comp);
+
   /// Instantiate and register a WASM module into a named module instance.
   Expect<std::unique_ptr<Runtime::Instance::ModuleInstance>>
   registerModule(Runtime::StoreManager &StoreMgr, const AST::Module &Mod,
@@ -166,6 +173,16 @@ private:
 
   /// \name Functions for instantiation.
   /// @{
+  /// Instantiation of Component Instance.
+  Expect<std::unique_ptr<Runtime::Instance::ComponentInstance>>
+  instantiate(Runtime::StoreManager &StoreMgr, const AST::Component &Comp,
+              std::optional<std::string_view> Name = std::nullopt);
+
+  /// Instantiation of Core Instance.
+  Expect<void> instantiate(Runtime::StoreManager &StoreMgr,
+                           const AST::Component &Comp,
+                           const AST::CoreInstance::T &T);
+
   /// Instantiation of Module Instance.
   Expect<std::unique_ptr<Runtime::Instance::ModuleInstance>>
   instantiate(Runtime::StoreManager &StoreMgr, const AST::Module &Mod,

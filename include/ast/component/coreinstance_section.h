@@ -25,7 +25,7 @@ namespace AST {
 
 class CoreInstantiateArg {
 public:
-  void setName(std::string_view s) noexcept { Name = s; }
+  void setName(std::string_view S) noexcept { Name = S; }
   const std::string &getName() const noexcept { return Name; }
   void setIndex(uint32_t I) noexcept { Idx = I; }
   const uint32_t &getIndex() const noexcept { return Idx; }

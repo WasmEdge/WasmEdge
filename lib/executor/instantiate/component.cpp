@@ -39,18 +39,25 @@ Executor::instantiate(Runtime::StoreManager &StoreMgr,
   }
 
   for (auto &CoreInst : Comp.getCoreInstanceSection().getContent()) {
-    instantiate(StoreMgr, Comp, CoreInst);
+    instantiateCore(StoreMgr, *CompInst, Comp, CoreInst);
   }
-
-  //  for (auto &CoreAlias : Comp.getCoreAliasSection().getContent()) {
-  //    // TODO: instantiate
-  //  }
 
   // Instantiate Core Types in Component Instance.
   for (auto &CoreType : Comp.getCoreTypeSection().getContent()) {
     // Copy param and return lists to module instance.
     CompInst->addCoreType(CoreType);
   }
+  for (auto &Ty : Comp.getTypeSection().getContent()) {
+    CompInst->addType(Ty);
+  }
+
+  //  for (auto &Alias : Comp.getAliasSection().getContent()) {
+  //    // TODO: instantiate
+  //  }
+
+  //  for (auto &CoreAlias : Comp.getCoreAliasSection().getContent()) {
+  //    // TODO: instantiate
+  //  }
 
   //
   //  for (auto &C : Comp.getComponentSection().getContent()) {
@@ -62,14 +69,6 @@ Executor::instantiate(Runtime::StoreManager &StoreMgr,
   //    // TODO: instantiate
   //  }
   //
-  //  for (auto &Alias : Comp.getAliasSection().getContent()) {
-  //    // TODO: instantiate
-  //  }
-
-  for (auto &Ty : Comp.getTypeSection().getContent()) {
-    CompInst->addType(Ty);
-  }
-
   //  for (auto &Tmp : Comp.getCanonSection().getContent()) {
   //    // TODO: instantiate
   //  }
@@ -89,9 +88,9 @@ Executor::instantiate(Runtime::StoreManager &StoreMgr,
 
   for (auto &Start : Comp.getStartSection().getContent()) {
     const auto *FuncInst = CompInst->getStartFunc(Start.getFuncIdx());
-    std::vector<const ValVariant> Params;
+    std::vector<ValVariant> Params;
     for (auto P : Start.getArgs()) {
-      Params.push_back(P);
+      Params.emplace_back(P);
     }
     // Execute instruction.
     if (auto Res = runFunction(StackMgr, *FuncInst, Params); unlikely(!Res)) {

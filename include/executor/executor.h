@@ -179,9 +179,10 @@ private:
               std::optional<std::string_view> Name = std::nullopt);
 
   /// Instantiation of Core Instance.
-  Expect<void> instantiate(Runtime::StoreManager &StoreMgr,
-                           const AST::Component &Comp,
-                           const AST::CoreInstance::T &T);
+  Expect<void> instantiateCore(Runtime::StoreManager &StoreMgr,
+                               Runtime::Instance::ComponentInstance &CompInst,
+                               const AST::Component &Comp,
+                               const AST::CoreInstance::T &T);
 
   /// Instantiation of Module Instance.
   Expect<std::unique_ptr<Runtime::Instance::ModuleInstance>>

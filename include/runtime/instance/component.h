@@ -14,6 +14,7 @@
 #pragma once
 
 #include "map"
+#include "module.h"
 #include "shared_mutex"
 
 namespace WasmEdge {
@@ -31,6 +32,7 @@ namespace Instance {
 class ComponentInstance {
   mutable std::shared_mutex Mutex;
   const std::string CompName;
+  std::vector<ModuleInstance *> CoreInsts;
   std::vector<AST::CoreType> CoreTypes;
   std::vector<AST::Type> Types;
   std::vector<FunctionInstance *> FuncInsts;
@@ -42,6 +44,9 @@ public:
     std::shared_lock Lock(Mutex);
     return CompName;
   }
+
+  void initCoreInstance() { CoreInsts = {}; }
+  void addCoreInstance(ModuleInstance *I) { CoreInsts.push_back(I); }
 
   /// Copy the function types in type section to this module instance.
   void addCoreType(const AST::CoreType &T) {
@@ -63,6 +68,8 @@ public:
     std::unique_lock Lock(Mutex);
     LinkedStore.insert_or_assign(Store, Callback);
   }
+
+  ModuleInstance *getCoreInstance(uint32_t I) { return CoreInsts[I]; }
 
 private:
   std::map<StoreManager *, std::function<BeforeModuleDestroyCallback>>

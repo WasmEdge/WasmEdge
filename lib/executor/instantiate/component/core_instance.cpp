@@ -8,31 +8,34 @@ namespace Executor {
 
 template <class> inline constexpr bool AlwaysFalseV = false;
 
-Expect<void> Executor::instantiate(Runtime::StoreManager &StoreMgr,
-                                   const AST::Component &Comp,
-                                   const AST::CoreInstance::T &CoreInst) {
-  auto Mods = Comp.getModuleSection().getContent();
+Expect<void>
+Executor::instantiateCore(Runtime::StoreManager &StoreMgr,
+                          Runtime::Instance::ComponentInstance &CompInst,
+                          const AST::Component &Comp,
+                          const AST::CoreInstance::T &CoreInst) {
+  CompInst.initCoreInstance();
+  Span<const std::unique_ptr<AST::Module>> Mods =
+      Comp.getModuleSection().getContent();
   return std::visit(
-      [this, &StoreMgr, &Mods](auto &&Arg) -> Expect<void> {
+      [this, &StoreMgr, &Mods, &CompInst](auto &&Arg) -> Expect<void> {
         using T = std::decay_t<decltype(Arg)>;
         if constexpr (std::is_same_v<T, AST::CoreInstance::Instantiate>) {
+          for (const AST::CoreInstantiateArg &InstantiateArg :
+               Arg.getInstantiateArgs()) {
+            // a scoped name only for instantiate the module
+            auto Name = InstantiateArg.getName();
+            // a module instance that already initialized
+            auto Idx = InstantiateArg.getIndex();
+            StoreMgr.NamedMod[Name] = CompInst.getCoreInstance(Idx);
+          }
+
+          // The module instantiate with meta information we just insert
           Expect<std::unique_ptr<Runtime::Instance::ModuleInstance>> EModInst =
               instantiate(StoreMgr, std::move(*(Mods[Arg.getModuleIdx()])));
           if (!EModInst) {
             return Unexpect(EModInst);
           }
-          auto ModInst = std::move(*EModInst);
-          for (auto &InstantiateArg : Arg.getInstantiateArgs()) {
-            // (with name (instance idx))
-            //
-            // In this case, the idx should be a module that already
-            // instantiated.
-            auto Name = InstantiateArg.getName();
-            auto Idx = InstantiateArg.getIndex();
-            // FIXME:
-            // Make a correct function that refers to another module
-            (*ModInst).exportGlobal(Name, Idx);
-          }
+          CompInst.addCoreInstance(EModInst->get());
           return {};
         } else if constexpr (std::is_same_v<T, AST::CoreInstance::Export>) {
           for (auto &Export : Arg.getExports()) {

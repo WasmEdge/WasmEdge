@@ -14,6 +14,7 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
+#include "ast/component_section.h"
 #include "ast/module.h"
 #include "common/configure.h"
 #include "validator/formchecker.h"
@@ -32,6 +33,9 @@ public:
 
   /// Validate AST::Module.
   Expect<void> validate(const AST::Module &Mod);
+
+  /// Validate AST::Component.
+  Expect<void> validate(const AST::Component &Comp);
 
 private:
   /// Validate AST::Types
@@ -62,6 +66,18 @@ private:
   Expect<void> validate(const AST::DataSection &DataSec);
   Expect<void> validate(const AST::StartSection &StartSec);
   Expect<void> validate(const AST::ExportSection &ExportSec);
+
+  /// Validate component sections
+  Expect<void> validate(const AST::CoreInstanceSection &CoreInstanceSec);
+  Expect<void> validate(const AST::CoreTypeSection &CoreTypeSec);
+  Expect<void> validate(const AST::ComponentSection &ComponentSec);
+  Expect<void> validate(const AST::InstanceSection &InstanceSec);
+  Expect<void> validate(const AST::AliasSection &AliasSec);
+  Expect<void> validate(const AST::ComponentTypeSection &TypeSec);
+  Expect<void> validate(const AST::ComponentCanonSection &CanonSec);
+  Expect<void> validate(const AST::ComponentStartSection &StartSec);
+  Expect<void> validate(const AST::ComponentImportSection &ImportSec);
+  Expect<void> validate(const AST::ComponentExportSection &ExportSec);
 
   /// Validate const expression
   Expect<void> validateConstExpr(AST::InstrView Instrs,

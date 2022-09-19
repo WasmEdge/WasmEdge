@@ -31,7 +31,9 @@ namespace WASI {
 
 inline namespace detail {
 inline constexpr const int32_t kIOVMax = 1024;
-inline constexpr const int32_t kSaDataLen = 14;
+// Large enough to store SaData in sockaddr_in6
+// = sizeof(sockaddr_in6) - sizeof(sockaddr_in6::sin6_family)
+inline constexpr const int32_t kMaxSaDataLen = 26;
 } // namespace detail
 
 class EVPoller;

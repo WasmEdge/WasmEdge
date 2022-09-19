@@ -42,10 +42,13 @@ Executor::instantiate(Runtime::StoreManager &StoreMgr,
   //  for (auto &CoreAlias : Comp.getCoreAliasSection().getContent()) {
   //    // TODO: instantiate
   //  }
-  //
-  //  for (auto &CoreTy : Comp.getCoreTypeSection().getContent()) {
-  //    // TODO: instantiate
-  //  }
+
+  // Instantiate Core Types in Component Instance.
+  for (auto &CoreType : Comp.getCoreTypeSection().getContent()) {
+    // Copy param and return lists to module instance.
+    CompInst->addCoreType(CoreType);
+  }
+
   //
   //  for (auto &C : Comp.getComponentSection().getContent()) {
   //    auto Tmp = instantiate(StoreMgr, std::move(*C));
@@ -59,11 +62,11 @@ Executor::instantiate(Runtime::StoreManager &StoreMgr,
   //  for (auto &Alias : Comp.getAliasSection().getContent()) {
   //    // TODO: instantiate
   //  }
-  //
-  //  for (auto &Tmp : Comp.getTypeSection().getContent()) {
-  //    // TODO: instantiate
-  //  }
-  //
+
+  for (auto &Ty : Comp.getTypeSection().getContent()) {
+    CompInst->addType(Ty);
+  }
+
   //  for (auto &Tmp : Comp.getCanonSection().getContent()) {
   //    // TODO: instantiate
   //  }

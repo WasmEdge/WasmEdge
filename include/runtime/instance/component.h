@@ -31,6 +31,8 @@ namespace Instance {
 class ComponentInstance {
   mutable std::shared_mutex Mutex;
   const std::string CompName;
+  std::vector<AST::CoreType> CoreTypes;
+  std::vector<AST::Type> Types;
 
 public:
   ComponentInstance(std::string_view Name) : CompName{Name} {}
@@ -38,6 +40,16 @@ public:
   std::string_view getName() const noexcept {
     std::shared_lock Lock(Mutex);
     return CompName;
+  }
+
+  /// Copy the function types in type section to this module instance.
+  void addCoreType(const AST::CoreType &T) {
+    std::unique_lock Lock(Mutex);
+    CoreTypes.emplace_back(T);
+  }
+  void addType(const AST::Type &T) {
+    std::unique_lock Lock(Mutex);
+    Types.emplace_back(T);
   }
 
   friend class Runtime::StoreManager;

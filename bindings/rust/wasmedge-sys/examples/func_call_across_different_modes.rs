@@ -2,26 +2,27 @@
 
 #![feature(never_type)]
 
+use wasmedge_macro::sys_host_function;
 use wasmedge_sys::{
     AsImport, CallingFrame, Compiler, Config, FuncType, Function, ImportModule, ImportObject, Vm,
     WasmValue,
 };
 use wasmedge_types::{error::HostFuncError, ValType};
 
+#[sys_host_function]
 fn host_print_i32(
-    _: &CallingFrame,
+    _frame: &CallingFrame,
     val: Vec<WasmValue>,
-    _data: *mut std::os::raw::c_void,
 ) -> Result<Vec<WasmValue>, HostFuncError> {
     println!("-- Host Function: print I32: {}", val[0].to_i32());
 
     Ok(vec![])
 }
 
+#[sys_host_function]
 fn host_print_f64(
-    _: &CallingFrame,
+    _frame: &CallingFrame,
     val: Vec<WasmValue>,
-    _data: *mut std::os::raw::c_void,
 ) -> Result<Vec<WasmValue>, HostFuncError> {
     println!("-- Host Function: print F64: {}", val[0].to_f64());
 

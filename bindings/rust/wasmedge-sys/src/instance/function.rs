@@ -158,6 +158,8 @@ impl Function {
     ///
     /// * `real_fn` - The pointer to the target function.
     ///
+    /// * `data` - The additional data object to set to this host function context.
+    ///
     /// * `cost` - The function cost in the [Statistics](crate::Statistics). Pass 0 if the calculation is not needed.
     ///
     /// # Error
@@ -172,10 +174,12 @@ impl Function {
     /// ```rust
     /// #![feature(never_type)]
     ///
+    /// use wasmedge_macro::sys_host_function;
     /// use wasmedge_sys::{FuncType, Function, WasmValue, CallingFrame};
     /// use wasmedge_types::{error::HostFuncError, ValType, WasmEdgeResult};
     ///
-    /// fn real_add(_: &CallingFrame, inputs: Vec<WasmValue>, _data: *mut std::os::raw::c_void) -> Result<Vec<WasmValue>, HostFuncError> {
+    /// #[sys_host_function]
+    /// fn real_add(_frame: &CallingFrame, inputs: Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError> {
     ///     if inputs.len() != 2 {
     ///         return Err(HostFuncError::User(1));
     ///     }

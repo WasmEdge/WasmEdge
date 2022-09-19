@@ -2,16 +2,17 @@
 
 #![feature(never_type)]
 
+use wasmedge_macro::sys_host_function;
 use wasmedge_sys::{
     AsImport, CallingFrame, Config, FuncType, Function, ImportModule, ImportObject, Vm, WasmValue,
 };
 use wasmedge_types::{error::HostFuncError, ValType};
 
 // A native function
+#[sys_host_function]
 fn real_add(
-    _: &CallingFrame,
+    _frame: &CallingFrame,
     inputs: Vec<WasmValue>,
-    _data: *mut std::os::raw::c_void,
 ) -> Result<Vec<WasmValue>, HostFuncError> {
     if inputs.len() != 2 {
         return Err(HostFuncError::User(1));

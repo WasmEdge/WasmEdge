@@ -1,5 +1,9 @@
+//! Please set the environment variable `WASMEDGE_PLUGIN_PATH` to the directory containing the plugins to enable the wasmedge-process plugin.
+
 #![feature(never_type)]
 
+#[cfg(target_os = "linux")]
+use wasmedge_macro::sys_host_function;
 use wasmedge_sys::utils;
 #[cfg(target_os = "linux")]
 use wasmedge_sys::{
@@ -86,10 +90,10 @@ fn create_wasmedge_process_module_explicitly() -> Result<(), Box<dyn std::error:
     let mut import_process = WasmEdgeProcessModule::create(None, false)?;
 
     // a function to import
+    #[sys_host_function]
     fn real_add(
-        _: &CallingFrame,
+        _frame: &CallingFrame,
         inputs: Vec<WasmValue>,
-        _data: *mut std::os::raw::c_void,
     ) -> Result<Vec<WasmValue>, HostFuncError> {
         if inputs.len() != 2 {
             return Err(HostFuncError::User(1));

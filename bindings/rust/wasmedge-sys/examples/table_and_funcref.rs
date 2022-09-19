@@ -1,16 +1,14 @@
 #![feature(never_type)]
 
+use wasmedge_macro::sys_host_function;
 use wasmedge_sys::{
     AsImport, CallingFrame, Config, FuncType, Function, ImportModule, ImportObject, Table,
     TableType, Vm, WasmValue,
 };
 use wasmedge_types::{error::HostFuncError, RefType, ValType};
 
-fn real_add(
-    _: &CallingFrame,
-    input: Vec<WasmValue>,
-    _data: *mut std::os::raw::c_void,
-) -> Result<Vec<WasmValue>, HostFuncError> {
+#[sys_host_function]
+fn real_add(_frame: &CallingFrame, input: Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError> {
     println!("Rust: Entering Rust function real_add");
 
     if input.len() != 2 {

@@ -106,6 +106,8 @@ impl ImportObjectBuilder {
     ///
     /// * `real_func` - The native function.
     ///
+    /// * `data` - The additional data object to set to this host function context.
+    ///
     /// # error
     ///
     /// If fail to create or add the [host function](crate::Func), then an error is returned.

@@ -31,6 +31,8 @@ TEST(ComponentTest, NestedComponent) {
   std::filesystem::path path{"testData/nested-component.wasm"};
   auto Comp = Ldr.parseComponent(path);
   EXPECT_TRUE(Comp);
+
+  EXPECT_TRUE((*Comp)->getComponentSection().getContent().size() == 2);
 }
 
 } // namespace

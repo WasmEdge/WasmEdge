@@ -7,7 +7,7 @@ use crate::{
     Module, Statistics, WasmEdgeResult, WasmValue,
 };
 use std::{marker::PhantomData, path::Path};
-use wasmedge_sys::{self as sys, Engine as sys_engine};
+use wasmedge_sys::{self as sys, AsyncResult, Engine as sys_engine};
 
 /// A [Vm] defines a virtual environment for managing WebAssembly programs.
 ///
@@ -252,6 +252,28 @@ impl Vm {
         };
 
         Ok(returns)
+    }
+
+    pub fn run_func_async(
+        &self,
+        mod_name: Option<&str>,
+        func_name: impl AsRef<str>,
+        args: impl IntoIterator<Item = sys::WasmValue>,
+    ) -> WasmEdgeResult<AsyncResult> {
+        match mod_name {
+            Some(mod_name) => {
+                // run a function in the registered module
+                return self.inner.run_registered_function_async(
+                    mod_name,
+                    func_name.as_ref(),
+                    args,
+                );
+            }
+            None => {
+                // run a function in the active module
+                return self.inner.run_function_async(func_name.as_ref(), args);
+            }
+        };
     }
 
     /// Returns the type of a WASM function.

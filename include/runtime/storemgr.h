@@ -120,6 +120,11 @@ private:
     FailedMod = std::move(Mod);
   }
 
+  /// Collect the instantiation failed module.
+  void recycleComponent(std::unique_ptr<Instance::ComponentInstance> &&Comp) {
+    FailedComp = std::move(Comp);
+  }
+
   /// \name Module name mapping.
   std::map<std::string, const Instance::ModuleInstance *, std::less<>> NamedMod;
   /// \name Component name mapping.
@@ -132,6 +137,8 @@ private:
   /// instance here to keep the instances.
   /// FIXME: Is this necessary to be a vector?
   std::unique_ptr<Instance::ModuleInstance> FailedMod;
+
+  std::unique_ptr<Instance::ComponentInstance> FailedComp;
 };
 
 } // namespace Runtime

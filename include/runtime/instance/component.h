@@ -33,6 +33,7 @@ class ComponentInstance {
   const std::string CompName;
   std::vector<AST::CoreType> CoreTypes;
   std::vector<AST::Type> Types;
+  std::vector<FunctionInstance *> FuncInsts;
 
 public:
   ComponentInstance(std::string_view Name) : CompName{Name} {}
@@ -51,6 +52,8 @@ public:
     std::unique_lock Lock(Mutex);
     Types.emplace_back(T);
   }
+
+  FunctionInstance *getStartFunc(uint32_t Idx) { return FuncInsts[Idx]; }
 
   friend class Runtime::StoreManager;
   using BeforeModuleDestroyCallback = void(StoreManager *Store,

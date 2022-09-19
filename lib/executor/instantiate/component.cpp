@@ -18,6 +18,9 @@ Executor::instantiate(Runtime::StoreManager &StoreMgr,
                       std::optional<std::string_view> Name) {
   // TODO: component validation
 
+  // Create the stack manager.
+  Runtime::StackManager StackMgr;
+
   if (Name.has_value()) {
     const auto *FindModInst = StoreMgr.findComponent(Name.value());
     if (FindModInst != nullptr) {
@@ -71,10 +74,6 @@ Executor::instantiate(Runtime::StoreManager &StoreMgr,
   //    // TODO: instantiate
   //  }
   //
-  //  for (auto &Tmp : Comp.getStartSection().getContent()) {
-  //    // TODO: instantiate
-  //  }
-  //
   //  for (auto &Tmp : Comp.getImportSection().getContent()) {
   //    // TODO: instantiate
   //  }
@@ -86,6 +85,21 @@ Executor::instantiate(Runtime::StoreManager &StoreMgr,
   // For the named components, register it into the store.
   if (Name.has_value()) {
     StoreMgr.registerComponent(CompInst.get());
+  }
+
+  for (auto &Start : Comp.getStartSection().getContent()) {
+    const auto *FuncInst = CompInst->getStartFunc(Start.getFuncIdx());
+    std::vector<const ValVariant> Params;
+    for (auto P : Start.getArgs()) {
+      Params.push_back(P);
+    }
+    // Execute instruction.
+    if (auto Res = runFunction(StackMgr, *FuncInst, Params); unlikely(!Res)) {
+      spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Component));
+      StoreMgr.recycleComponent(std::move(CompInst));
+      return Unexpect(Res);
+    }
+    StackMgr.popFrame();
   }
 
   return CompInst;

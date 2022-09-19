@@ -1,16 +1,18 @@
 // If the version of rust used is less than v1.63, please uncomment the follow attribute.
 // #![feature(explicit_generic_args_with_impl_trait)]
+#![feature(never_type)]
 
 use wasmedge_sdk::{
     config::{CommonConfigOptions, ConfigBuilder},
     error::HostFuncError,
-    params,
+    host_function, params,
     types::Val,
-    CallingFrame, Executor, Func, ImportObjectBuilder, RefType, Store, Table, TableType, ValType,
+    Caller, Executor, Func, ImportObjectBuilder, RefType, Store, Table, TableType, ValType,
     WasmVal, WasmValue,
 };
 
-fn real_add(_: &CallingFrame, input: Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError> {
+#[host_function]
+fn real_add(_: &Caller, input: Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError> {
     println!("Rust: Entering Rust function real_add");
 
     if input.len() != 2 {
@@ -69,7 +71,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .expect("Not found table instance named 'my-table'");
 
     // create a host function
-    let host_func = Func::wrap::<(i32, i32), i32>(Box::new(real_add))?;
+    let host_func = Func::wrap::<(i32, i32), i32, !>(Box::new(real_add), None)?;
 
     // store the reference to host_func at the given index of the table instance
     table.set(3, Val::FuncRef(Some(host_func.as_ref())))?;

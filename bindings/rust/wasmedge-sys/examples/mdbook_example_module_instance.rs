@@ -1,3 +1,5 @@
+#![feature(never_type)]
+
 #[cfg(target_os = "linux")]
 use wasmedge_sys::{
     utils, AsImport, CallingFrame, Config, Executor, FuncType, Function, Global, GlobalType,
@@ -57,6 +59,7 @@ fn vm_apis() -> Result<(), Box<dyn std::error::Error>> {
         fn real_add(
             _: &CallingFrame,
             inputs: Vec<WasmValue>,
+            _data: *mut std::os::raw::c_void,
         ) -> Result<Vec<WasmValue>, HostFuncError> {
             if inputs.len() != 2 {
                 return Err(HostFuncError::User(1));
@@ -81,7 +84,7 @@ fn vm_apis() -> Result<(), Box<dyn std::error::Error>> {
 
         // add host function
         let func_ty = FuncType::create(vec![ValType::I32; 2], vec![ValType::I32])?;
-        let host_func = Function::create(&func_ty, Box::new(real_add), 0)?;
+        let host_func = Function::create::<!>(&func_ty, Box::new(real_add), None, 0)?;
         import.add_func("add", host_func);
 
         // add table

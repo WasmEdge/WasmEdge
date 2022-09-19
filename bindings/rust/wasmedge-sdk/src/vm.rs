@@ -478,13 +478,13 @@ mod tests {
             StatisticsConfigOptions,
         },
         error::HostFuncError,
+        host_function,
         io::WasmVal,
         params,
         types::Val,
-        wat2wasm, AsInstance, CallingFrame, Global, GlobalType, ImportObjectBuilder, Memory,
-        MemoryType, Mutability, RefType, Table, TableType, ValType,
+        wat2wasm, AsInstance, Caller, Global, GlobalType, ImportObjectBuilder, Memory, MemoryType,
+        Mutability, RefType, Table, TableType, ValType, WasmValue,
     };
-    use wasmedge_sys::WasmValue;
 
     #[test]
     fn test_vm_run_func_from_file() {
@@ -952,7 +952,7 @@ mod tests {
 
         // create an ImportModule instance
         let result = ImportObjectBuilder::new()
-            .with_func::<(i32, i32), i32>("add", real_add)
+            .with_func::<(i32, i32), i32, !>("add", real_add, None)
             .expect("failed to add host function")
             .with_global("global", global_const)
             .expect("failed to add const global")
@@ -1218,8 +1218,9 @@ mod tests {
         assert_eq!(returns[0].to_i32(), 8)
     }
 
+    #[host_function]
     fn real_add(
-        _: &CallingFrame,
+        _: &Caller,
         inputs: Vec<WasmValue>,
     ) -> std::result::Result<Vec<WasmValue>, HostFuncError> {
         if inputs.len() != 2 {

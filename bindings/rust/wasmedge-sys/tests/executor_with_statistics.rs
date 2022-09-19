@@ -1,3 +1,5 @@
+#![feature(never_type)]
+
 mod common;
 use wasmedge_sys::{
     Config, Engine, Executor, ImportObject, Loader, Statistics, Store, Validator, WasmValue,

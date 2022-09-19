@@ -1,12 +1,19 @@
 //! This example presents a host function runs timeout, then cancel the task.
 
+#![feature(never_type)]
+
+use wasmedge_macro::sys_host_function;
 use wasmedge_sys::{
     AsImport, CallingFrame, Config, FuncType, Function, ImportModule, ImportObject, Vm, WasmValue,
 };
 use wasmedge_types::{error::HostFuncError, ValType};
 
 // A native function
-fn real_add(_: &CallingFrame, inputs: Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError> {
+#[sys_host_function]
+fn real_add(
+    _frame: &CallingFrame,
+    inputs: Vec<WasmValue>,
+) -> Result<Vec<WasmValue>, HostFuncError> {
     if inputs.len() != 2 {
         return Err(HostFuncError::User(1));
     }
@@ -49,7 +56,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // add host function
     let func_ty = FuncType::create(vec![ValType::I32; 2], vec![ValType::I32])?;
-    let host_func = Function::create(&func_ty, Box::new(real_add), 0)?;
+    let host_func = Function::create::<!>(&func_ty, Box::new(real_add), None, 0)?;
     import.add_func("add", host_func);
 
     // register the import_obj module

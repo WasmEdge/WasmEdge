@@ -837,8 +837,8 @@ Expect<void> Loader::loadStart(AST::Start &Start) {
 
   auto ReadSize = FMgr.getOffset() - StartOffset;
   if (ReadSize != StartSectionSize) {
-    return logLoadError(ErrCode::SectionSizeMismatch, FMgr.getLastOffset(),
-                        ASTNodeAttr::CompSec_Start);
+    return logLoadError(ErrCode::Value::SectionSizeMismatch,
+                        FMgr.getLastOffset(), ASTNodeAttr::CompSec_Start);
   }
   return {};
 }

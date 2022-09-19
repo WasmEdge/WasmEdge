@@ -10,6 +10,11 @@ namespace WasmEdge {
 namespace Loader {
 
 Expect<std::unique_ptr<AST::Component>> Loader::loadComponent() {
+  return loadComponent(0, std::nullopt);
+}
+
+Expect<std::unique_ptr<AST::Component>>
+Loader::loadComponent(uint64_t BaseOffset, std::optional<uint32_t> Limit) {
   auto Comp = std::make_unique<AST::Component>();
   // component ::= <preamble> s*:<section>*
   // preamble ::= <magic> <version> <layer>
@@ -63,7 +68,9 @@ Expect<std::unique_ptr<AST::Component>> Loader::loadComponent() {
   //             | s: section_10(<start>)              => [s]
   //             | i*:section_11(vec(<import>))        => i*
   //             | e*:section_12(vec(<export>))        => e*
-  while (true) {
+  while (!Limit.has_value() ||
+         // then module is in the component
+         (FMgr.getOffset() - BaseOffset) < Limit.value()) {
     uint8_t NewSectionId = 0x00;
     // If not read section ID, seems the end of file and break.
     if (auto Res = FMgr.readByte(); Res.has_value()) {
@@ -125,23 +132,17 @@ Expect<std::unique_ptr<AST::Component>> Loader::loadComponent() {
       break;
     case 0x05: {
       // c: section_5(<component>)           => [c]
-      auto SecId = FMgr.readByte();
-      if (!SecId) {
-        return logLoadError(SecId.error(), FMgr.getLastOffset(),
+      auto Base = FMgr.getOffset();
+      auto SecSize = FMgr.readU32();
+      if (!SecSize) {
+        return logLoadError(SecSize.error(), FMgr.getLastOffset(),
                             ASTNodeAttr::CompSec_Component);
       }
-      if (auto C = loadComponent()) {
-        C.value()->setId(*SecId);
+      if (auto C = loadComponent(Base, *SecSize)) {
         Comp->getComponentSection().getContent().push_back(std::move(*C));
       } else {
         spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Component));
         return Unexpect(C);
-      }
-      auto End = FMgr.getLastOffset();
-      if ((End - Start - 1) != *Res) {
-        return logLoadError(ErrCode::Value::SectionSizeMismatch,
-                            FMgr.getLastOffset(),
-                            ASTNodeAttr::CompSec_Component);
       }
       break;
     }

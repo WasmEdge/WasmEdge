@@ -210,6 +210,8 @@ private:
   /// \name Load AST Component functions
   /// @{
   Expect<std::unique_ptr<AST::Component>> loadComponent();
+  Expect<std::unique_ptr<AST::Component>>
+  loadComponent(uint64_t BaseOffset, std::optional<uint32_t> Limit);
   /// @}
 
   /// \name Load AST Module functions

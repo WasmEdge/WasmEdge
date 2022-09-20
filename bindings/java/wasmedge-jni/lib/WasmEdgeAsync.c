@@ -47,8 +47,8 @@ JNIEXPORT jboolean JNICALL Java_org_wasmedge_WasmEdgeAsync_wasmEdge_1AsyncWaitFo
     WasmEdge_Async * ctx = getAsync(env, thisobject);
     if (ctx == NULL) printf("async ctx is null\n");
     else printf("async ctx not null\n");
-    WasmEdge_AsyncWaitFor(ctx, 10000);
-    return 0;
+    uint64_t Milliseconds = milliseconds;
+    return WasmEdge_AsyncWaitFor(ctx, Milliseconds);
 }
 
 JNIEXPORT void JNICALL Java_org_wasmedge_WasmEdgeAsync_wasmEdge_1AsyncCancel

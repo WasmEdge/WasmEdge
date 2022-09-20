@@ -101,7 +101,7 @@ private:
     std::unique_lock Lock(Mutex);
     auto Iter = NamedComp.find(CompInst->getName());
     if (likely(Iter != NamedComp.cend())) {
-      return Unexpect(ErrCode::ModuleNameConflict);
+      return Unexpect(ErrCode::Value::ModuleNameConflict);
     }
     NamedComp.emplace(CompInst->getName(), CompInst);
     // Link the component instance to this store manager.

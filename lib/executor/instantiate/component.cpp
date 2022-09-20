@@ -24,9 +24,9 @@ Executor::instantiate(Runtime::StoreManager &StoreMgr,
   if (Name.has_value()) {
     const auto *FindModInst = StoreMgr.findComponent(Name.value());
     if (FindModInst != nullptr) {
-      spdlog::error(ErrCode::ComponentNameConflict);
+      spdlog::error(ErrCode::Value::ComponentNameConflict);
       spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Component));
-      return Unexpect(ErrCode::ComponentNameConflict);
+      return Unexpect(ErrCode::Value::ComponentNameConflict);
     }
   }
 

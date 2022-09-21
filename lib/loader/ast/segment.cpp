@@ -258,7 +258,7 @@ Expect<void> Loader::loadSegment(AST::CodeSegment &CodeSeg) {
     } else {
       LocalType = static_cast<ValType>(*Res);
     }
-    if (auto Res = checkValTypeProposals(LocalType, FMgr.getLastOffset(),
+    if (auto Res = checkValTypeProposals(LocalType, false, FMgr.getLastOffset(),
                                          ASTNodeAttr::Seg_Code);
         unlikely(!Res)) {
       return Unexpect(Res);

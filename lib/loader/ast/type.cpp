@@ -91,7 +91,7 @@ Expect<void> Loader::loadType(AST::FunctionType &FuncType) {
   for (uint32_t I = 0; I < VecCnt; ++I) {
     if (auto Res = FMgr.readByte()) {
       ValType Type = static_cast<ValType>(*Res);
-      if (auto Check = checkValTypeProposals(Type, FMgr.getLastOffset(),
+      if (auto Check = checkValTypeProposals(Type, false, FMgr.getLastOffset(),
                                              ASTNodeAttr::Type_Function);
           !Check) {
         return Unexpect(Check);
@@ -120,7 +120,7 @@ Expect<void> Loader::loadType(AST::FunctionType &FuncType) {
   for (uint32_t I = 0; I < VecCnt; ++I) {
     if (auto Res = FMgr.readByte()) {
       ValType Type = static_cast<ValType>(*Res);
-      if (auto Check = checkValTypeProposals(Type, FMgr.getLastOffset(),
+      if (auto Check = checkValTypeProposals(Type, false, FMgr.getLastOffset(),
                                              ASTNodeAttr::Type_Function);
           !Check) {
         return Unexpect(Check);
@@ -173,9 +173,9 @@ Expect<void> Loader::loadType(AST::GlobalType &GlobType) {
   // Read value type.
   if (auto Res = FMgr.readByte()) {
     GlobType.setValType(static_cast<ValType>(*Res));
-    if (auto Check =
-            checkValTypeProposals(GlobType.getValType(), FMgr.getLastOffset(),
-                                  ASTNodeAttr::Type_Global);
+    if (auto Check = checkValTypeProposals(GlobType.getValType(), false,
+                                           FMgr.getLastOffset(),
+                                           ASTNodeAttr::Type_Global);
         !Check) {
       return Unexpect(Check);
     }

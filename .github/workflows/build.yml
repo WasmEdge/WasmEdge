@@ -106,7 +106,7 @@ jobs:
       version: ${{ needs.get_version_v2.outputs.version }}
 
   build_coverage_check:
-    needs: lint
+    needs: [get_version_v2, lint]
     strategy:
       matrix:
         include:
@@ -149,8 +149,9 @@ jobs:
           CMAKE_BUILD_TYPE: ${{ matrix.build_type }}
         run: |
           git config --global --add safe.directory $(pwd)
-          cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=$CMAKE_BUILD_TYPE -DWASMEDGE_BUILD_TESTS=ON .
+          cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=$CMAKE_BUILD_TYPE -DWASMEDGE_BUILD_TESTS=ON -DWASMEDGE_BUILD_PACKAGE="TGZ" .
           cmake --build build
+          cmake --build build --target package
       - name: Test WasmEdge
         if: ${{ ! matrix.coverage }}
         run: |
@@ -169,6 +170,12 @@ jobs:
           cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Debug -DWASMEDGE_BUILD_TESTS=ON -DWASMEDGE_BUILD_COVERAGE=ON .
           cmake --build build
           LD_LIBRARY_PATH=$(pwd)/build/lib/api cmake --build build --target codecov
+      - name: Upload artifact
+        if: ${{ ! matrix.coverage }}
+        uses: actions/upload-artifact@v2
+        with:
+          name: WasmEdge-${{ needs.get_version_v2.outputs.version }}-ubuntu-20.04-${{ matrix.compiler }}-${{ matrix.build_type }}.tar.gz
+          path: build/WasmEdge-${{ needs.get_version_v2.outputs.version }}-Linux.tar.gz
       - name: Create and upload coverage report to Codecov
         if: ${{ matrix.coverage }}
         uses: codecov/codecov-action@v2

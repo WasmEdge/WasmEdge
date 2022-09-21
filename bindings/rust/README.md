@@ -1,7 +1,6 @@
-
 # WasmEdge Rust Bindings
 
-WasmEdge Rust bindings consists of the following crates. They together provide different levels of APIs for Rust developers to use WasmEdge runtime. For example, `wasmedge-sdk` defines the high-level APIs for application development.
+WasmEdge Rust bindings consist of the following crates. They together provide different levels of APIs for Rust developers to use WasmEdge runtime. For example, `wasmedge-sdk` defines the high-level APIs for application development.
 
 ## wasmedge-sdk
 

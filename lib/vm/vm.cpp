@@ -87,6 +87,51 @@ void VM::unsafeInitVM() {
   }
 }
 
+Expect<void> VM::unsafeRegisterComponent(std::string_view Name, const std::filesystem::path &Path){
+  if (Stage == VMStage::Instantiated) {
+    // When registering component, instantiated component in store will be reset.
+    // Therefore the instantiation should restart.
+    Stage = VMStage::Validated;
+  }
+  // Load component.
+  if (auto Res = LoaderEngine.parseComponent(Path)) {
+    return unsafeRegisterComponent(Name, *(*Res).get());
+  } else {
+    return Unexpect(Res);
+  }
+}
+Expect<void> VM::unsafeRegisterComponent(std::string_view Name, Span<const Byte> Code){
+  if (Stage == VMStage::Instantiated) {
+    // When registering component, instantiated component in store will be reset.
+    // Therefore the instantiation should restart.
+    Stage = VMStage::Validated;
+  }
+  // Load component.
+  if (auto Res = LoaderEngine.parseComponent(Code)) {
+    return unsafeRegisterComponent(Name, *(*Res).get());
+  } else {
+    return Unexpect(Res);
+  }
+}
+Expect<void> VM::unsafeRegisterComponent(std::string_view Name, const AST::Component &Comp){
+  if (Stage == VMStage::Instantiated) {
+    // When registering component, instantiated component in store will be reset.
+    // Therefore the instantiation should restart.
+    Stage = VMStage::Validated;
+  }
+  // Validate component.
+//  if (auto Res = ValidatorEngine.validate(Comp); !Res) {
+//    return Unexpect(Res);
+//  }
+  // Instantiate and register module.
+  if (auto Res = ExecutorEngine.registerComponent(StoreRef, Comp, Name)) {
+    RegCompInst.push_back(std::move(*Res));
+    return {};
+  } else {
+    return Unexpect(Res);
+  }
+}
+
 Expect<void> VM::unsafeRegisterModule(std::string_view Name,
                                       const std::filesystem::path &Path) {
   if (Stage == VMStage::Instantiated) {

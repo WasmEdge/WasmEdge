@@ -124,6 +124,11 @@ public:
   instantiateComponent(Runtime::StoreManager &StoreMgr,
                        const AST::Component &Comp);
 
+  /// Instantiate and register a component into a named component instance.
+  Expect<std::unique_ptr<Runtime::Instance::ComponentInstance>>
+  registerComponent(Runtime::StoreManager &StoreMgr, const AST::Component &Comp,
+                 std::string_view Name);
+
   /// Instantiate and register a WASM module into a named module instance.
   Expect<std::unique_ptr<Runtime::Instance::ModuleInstance>>
   registerModule(Runtime::StoreManager &StoreMgr, const AST::Module &Mod,

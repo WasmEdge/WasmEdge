@@ -14,3 +14,5 @@ target_link_libraries(wasmedgeExecutorCoreTests
   wasmedgeTestSpec
   wasmedgeVM
 )
+
+add_subdirectory(component)

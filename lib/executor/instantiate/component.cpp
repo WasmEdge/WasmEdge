@@ -38,10 +38,6 @@ Executor::instantiate(Runtime::StoreManager &StoreMgr,
     CompInst = std::make_unique<Runtime::Instance::ComponentInstance>("");
   }
 
-  for (auto &CoreInst : Comp.getCoreInstanceSection().getContent()) {
-    instantiateCore(StoreMgr, *CompInst, Comp, CoreInst);
-  }
-
   // Instantiate Core Types in Component Instance.
   for (auto &CoreType : Comp.getCoreTypeSection().getContent()) {
     // Copy param and return lists to module instance.
@@ -49,6 +45,10 @@ Executor::instantiate(Runtime::StoreManager &StoreMgr,
   }
   for (auto &Ty : Comp.getTypeSection().getContent()) {
     CompInst->addType(Ty);
+  }
+
+  for (auto &CoreInst : Comp.getCoreInstanceSection().getContent()) {
+    instantiateCore(StoreMgr, *CompInst, Comp, CoreInst);
   }
 
   //  for (auto &Alias : Comp.getAliasSection().getContent()) {

@@ -47,6 +47,22 @@ public:
   ~VM() = default;
 
   /// ======= Functions can be called before instantiated stage. =======
+  /// Register components.
+  Expect<void> registerComponent(std::string_view Name,
+                                 const std::filesystem::path &Path) {
+    std::unique_lock Lock(Mutex);
+    return unsafeRegisterComponent(Name, Path);
+  }
+  Expect<void> registerComponent(std::string_view Name, Span<const Byte> Code) {
+    std::unique_lock Lock(Mutex);
+    return unsafeRegisterComponent(Name, Code);
+  }
+  Expect<void> registerComponent(std::string_view Name,
+                                 const AST::Component &Comp) {
+    std::unique_lock Lock(Mutex);
+    return unsafeRegisterComponent(Name, Comp);
+  }
+
   /// Register wasm modules and host modules.
   Expect<void> registerModule(std::string_view Name,
                               const std::filesystem::path &Path) {
@@ -212,6 +228,13 @@ public:
   Statistics::Statistics &getStatistics() noexcept { return Stat; }
 
 private:
+  Expect<void> unsafeRegisterComponent(std::string_view Name,
+                                       const std::filesystem::path &Path);
+  Expect<void> unsafeRegisterComponent(std::string_view Name,
+                                       Span<const Byte> Code);
+  Expect<void> unsafeRegisterComponent(std::string_view Name,
+                                       const AST::Component &Comp);
+
   Expect<void> unsafeRegisterModule(std::string_view Name,
                                     const std::filesystem::path &Path);
   Expect<void> unsafeRegisterModule(std::string_view Name,
@@ -286,6 +309,8 @@ private:
   std::unique_ptr<AST::Module> Mod;
   std::unique_ptr<Runtime::Instance::ModuleInstance> ActiveModInst;
   std::vector<std::unique_ptr<Runtime::Instance::ModuleInstance>> RegModInst;
+  std::vector<std::unique_ptr<Runtime::Instance::ComponentInstance>>
+      RegCompInst;
   std::unique_ptr<Runtime::StoreManager> Store;
   Runtime::StoreManager &StoreRef;
   std::map<HostRegistration, std::unique_ptr<Runtime::Instance::ModuleInstance>>

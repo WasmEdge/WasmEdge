@@ -26,6 +26,23 @@ Executor::instantiateModule(Runtime::StoreManager &StoreMgr,
   }
 }
 
+/// Register a named component. See "include/executor/executor.h".
+Expect<std::unique_ptr<Runtime::Instance::ComponentInstance>>
+Executor::registerComponent(Runtime::StoreManager &StoreMgr,
+                            const AST::Component &Comp, std::string_view Name) {
+  if (auto Res = instantiate(StoreMgr, Comp, Name)) {
+    return Res;
+  } else {
+    // If Statistics is enabled, then dump it here.
+    // When there is an error happened, the following execution will not
+    // execute.
+    if (Stat) {
+      Stat->dumpToLog(Conf);
+    }
+    return Unexpect(Res);
+  }
+}
+
 /// Register a named WASM module. See "include/executor/executor.h".
 Expect<std::unique_ptr<Runtime::Instance::ModuleInstance>>
 Executor::registerModule(Runtime::StoreManager &StoreMgr,

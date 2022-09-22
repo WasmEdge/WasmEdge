@@ -25,15 +25,16 @@ WasmEdge::Configure Conf;
 WasmEdge::Loader::Loader Ldr{Conf};
 WasmEdge::Validator::Validator Vdtr{Conf};
 
-TEST(ComponentTest, ComponentValidator) {
+TEST(ComponentTest, NestedCoreModuleTypes) {
   Conf.addProposal(WasmEdge::Proposal::ComponentModel);
 
-  std::filesystem::path path{"testData/component-validator.wasm"};
+  std::filesystem::path path{"testData/nested-core-module-types.wasm"};
   auto Comp = Ldr.parseComponent(path);
   EXPECT_TRUE(Comp);
 
   auto Res = Vdtr.validate(*(*Comp).get());
-  EXPECT_TRUE(Res);
+  EXPECT_FALSE(Res);
+  EXPECT_EQ(WasmEdge::ErrCode::Value::NestedCoreModuleTypes, Res.error());
 }
 
 } // namespace

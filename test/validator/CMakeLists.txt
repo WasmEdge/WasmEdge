@@ -8,7 +8,7 @@ file(COPY
 )
 
 wasmedge_add_executable(wasmedgeValidatorComponentTests
-  componentTest.cpp
+  nested_core_module_types.cpp
 )
 
 add_test(wasmedgeValidatorComponentTests wasmedgeValidatorComponentTests)

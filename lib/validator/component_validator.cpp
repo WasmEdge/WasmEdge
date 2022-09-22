@@ -16,6 +16,13 @@ namespace Validator {
 Expect<void> Validator::validate(const AST::Component &Comp) {
   Checker.reset(true);
 
+  // Validate core type section.
+  if (auto Res = validate(Comp.getCoreTypeSection()); !Res) {
+    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::CompSec_CoreType));
+    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Component));
+    return Unexpect(Res);
+  }
+
   // Validate core module sections.
   for (auto &Mod : Comp.getModuleSection().getContent()) {
     if (auto Res = validate(*Mod.get()); !Res) {
@@ -107,8 +114,28 @@ Validator::validate(__attribute__((__unused__))
 }
 
 // Validate core type section.
-Expect<void> Validator::validate(__attribute__((__unused__))
-                                 const AST::CoreTypeSection &CoreTypeSec) {
+Expect<void> Validator::validate(const AST::CoreTypeSection &CoreTypeSec) {
+  for (auto &CoreType : CoreTypeSec.getContent()) {
+    // Register type definitions into FormChecker.
+    if (auto FuncType = std::get_if<AST::CoreDefType::FuncType>(&CoreType)) {
+      Checker.addType(*FuncType);
+    } else if (auto ModuleType =
+                   std::get_if<AST::CoreDefType::ModuleType>(&CoreType)) {
+      // https://github.com/WebAssembly/component-model/blob/11604e2ae7dd7389c926784995264487591559f6/design/mvp/Binary.md
+      // Validation of core:moduledecl (currently) rejects core:moduletype
+      // definitions inside type declarators (i.e., nested core module types).
+      for (auto ModuleDecl : ModuleType->getModuleDecls()) {
+        if (auto InnerCoreType =
+                std::get_if<AST::CoreType>(&ModuleDecl.getContent())) {
+          if (std::get_if<AST::CoreDefType::ModuleType>(InnerCoreType)) {
+            spdlog::error(ErrCode::Value::NestedCoreModuleTypes);
+            return Unexpect(ErrCode::Value::NestedCoreModuleTypes);
+          }
+        }
+      }
+    }
+  }
+
   // TODO
   return {};
 }

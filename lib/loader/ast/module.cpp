@@ -60,6 +60,9 @@ Expect<std::unique_ptr<AST::Module>> Loader::loadModule() {
       } else {
         break;
       }
+      if (ContentSize > FMgr.getRemainSize()) {
+        break;
+      }
 
       // Load the section name.
       auto StartOffset = FMgr.getOffset();

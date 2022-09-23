@@ -4,7 +4,7 @@ use crate::{CompilerOptimizationLevel, CompilerOutputFormat, WasmEdgeResult};
 use wasmedge_sys as sys;
 
 /// Defines a builder for creating a [Config].
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct ConfigBuilder {
     common_config: CommonConfigOptions,
     stat_config: Option<StatisticsConfigOptions>,

@@ -141,7 +141,7 @@
 #[macro_use]
 extern crate lazy_static;
 
-use parking_lot::RwLock;
+use parking_lot::{Mutex, RwLock};
 use std::{cell::RefCell, collections::HashMap, env, sync::Arc};
 
 #[doc(hidden)]
@@ -233,14 +233,14 @@ pub type BoxedFn = Box<
 >;
 
 lazy_static! {
-    static ref HOST_FUNCS: Arc<RwLock<HashMap<usize, BoxedFn>>> =
-        Arc::new(RwLock::new(HashMap::with_capacity(
+    static ref HOST_FUNCS: RwLock<HashMap<usize, Arc<Mutex<BoxedFn>>>> =
+        RwLock::new(HashMap::with_capacity(
             env::var("MAX_HOST_FUNC_LENGTH")
                 .map(|s| s
                     .parse::<usize>()
                     .expect("MAX_HOST_FUNC_LENGTH should be a positive integer."))
                 .unwrap_or(500)
-        )));
+        ));
 }
 
 /// Type alias for a boxed native function. This type is used in non-thread-safe cases.

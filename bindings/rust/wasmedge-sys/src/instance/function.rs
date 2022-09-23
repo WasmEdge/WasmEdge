@@ -44,9 +44,9 @@ extern "C" fn wraper_fn(
 
     let map_host_func = HOST_FUNCS.read();
     match map_host_func.get(&key) {
-        None => return unsafe { ffi::WasmEdge_ResultGen(ffi::WasmEdge_ErrCategory_WASM, 5) },
+        None => unsafe { ffi::WasmEdge_ResultGen(ffi::WasmEdge_ErrCategory_WASM, 5) },
         Some(host_func) => {
-            let real_fn = Arc::clone(&host_func);
+            let real_fn = Arc::clone(host_func);
             let real_fn_locked = real_fn.lock();
             drop(map_host_func);
 

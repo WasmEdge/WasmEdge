@@ -1,5 +1,10 @@
 # Introduction to WasmEdge module instance
 
+> The code in the following examples are verified on
+>
+> * wasmedge-sys v0.9.0
+> * wasmedge-types v0.2.1
+
 ## Example 1
 
 In this example, we'll demonstrate how to use the APIs of `Vm` to
@@ -292,4 +297,4 @@ In this example, we'll demonstrate how to use the APIs of `Executor` to
 
     ```
 
-The complete code in this demo can be found on [WasmEdge Github](https://github.com/WasmEdge/WasmEdge/blob/master/bindings/rust/wasmedge-sys/examples/mdbook_example_module_instance.rs).
+The complete code in this demo can be found in [mdbook_example_module_instance.rs](https://github.com/WasmEdge/WasmEdge/blob/master/bindings/rust/wasmedge-sys/examples/mdbook_example_module_instance.rs).

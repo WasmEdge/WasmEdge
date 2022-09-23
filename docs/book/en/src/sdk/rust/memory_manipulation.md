@@ -2,11 +2,15 @@
 
 In this example, we'll present how to manipulate the linear memory with the APIs defined in [wasmedge_sdk::Memory](https://wasmedge.github.io/WasmEdge/wasmedge_sdk/struct.Memory.html).
 
-N.B. In this example, `wasmedge-sdk v0.4.0`, `wasmedge-sys v0.9.0` and `wasmedge-types v0.2.1` are used.
+> The code in the following example is verified on
+>
+> * wasmedge-sdk v0.4.0
+> * wasmedge-sys v0.9.0
+> * wasmedge-types v0.2.1
 
 ## Wasm module
 
-Before talk about the code, let's first see the wasm module we use in this example. In the wasm module, a linear memory of 1-page (64KiB) size is defined; in addition, three functions are exported from this module: `get_at`, `set_at`, and `mem_size`.
+Before talking about the code, let's first see the wasm module we use in this example. In the wasm module, a linear memory of 1-page (64KiB) size is defined; in addition, three functions are exported from this module: `get_at`, `set_at`, and `mem_size`.
 
 ```wasm
 (module
@@ -48,9 +52,9 @@ use wasmedge_sdk::{params, wat2wasm, Executor, Module, Store, WasmVal};
 
 To load a `Module`, `wasmedge-sdk` defines two methods:
 
-- [from_file](https://wasmedge.github.io/WasmEdge/wasmedge_sdk/struct.Module.html#method.from_file) loads a wasm module from a file, and meanwhile, validates the loaded wasm module.
+* [from_file](https://wasmedge.github.io/WasmEdge/wasmedge_sdk/struct.Module.html#method.from_file) loads a wasm module from a file, and meanwhile, validates the loaded wasm module.
 
-- [from_bytes](https://wasmedge.github.io/WasmEdge/wasmedge_sdk/struct.Module.html#method.from_bytes) loads a wasm module from an array of in-memory bytes, and meanwhile, validates the loaded wasm module.
+* [from_bytes](https://wasmedge.github.io/WasmEdge/wasmedge_sdk/struct.Module.html#method.from_bytes) loads a wasm module from an array of in-memory bytes, and meanwhile, validates the loaded wasm module.
 
 Here we use `Module::from_bytes` method to load our wasm module from an array of in-memory bytes.
 
@@ -149,4 +153,4 @@ assert_eq!(returns[0].to_i32(), val);
 
 The comments in the code explain the meaning of the code sample above, so we don't describe more.
 
-The complete code of this example can be found [here](https://github.com/WasmEdge/WasmEdge/blob/master/bindings/rust/wasmedge-sdk/examples/memory.rs).
+The complete code of this example can be found in [memory.rs](https://github.com/WasmEdge/WasmEdge/blob/master/bindings/rust/wasmedge-sdk/examples/memory.rs).

@@ -111,8 +111,8 @@ private:
     spdlog::error(ErrInfo::InfoAST(Node));
     return Unexpect(Code);
   }
-  Expect<ValType> checkValTypeProposals(ValType VType, uint64_t Off,
-                                        ASTNodeAttr Node);
+  Expect<ValType> checkValTypeProposals(ValType VType, bool AcceptNone,
+                                        uint64_t Off, ASTNodeAttr Node);
   Expect<RefType> checkRefTypeProposals(RefType RType, uint64_t Off,
                                         ASTNodeAttr Node);
   Expect<void> checkInstrProposals(OpCode Code, uint64_t Offset);
@@ -155,6 +155,10 @@ private:
     // Read the vector size.
     if (auto Res = FMgr.readU32()) {
       VecCnt = *Res;
+      if (VecCnt / 2 > FMgr.getRemainSize()) {
+        return logLoadError(ErrCode::Value::IntegerTooLong,
+                            FMgr.getLastOffset(), NodeAttrFromAST<T>());
+      }
       Sec.getContent().resize(VecCnt);
     } else {
       return logLoadError(Res.error(), FMgr.getLastOffset(),

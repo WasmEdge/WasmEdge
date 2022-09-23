@@ -13,7 +13,7 @@ use wasmedge_types::ValType;
 // Wrapper function for thread-safe scenarios.
 extern "C" fn wraper_fn(
     key_ptr: *mut c_void,
-    _data: *mut c_void,
+    data: *mut std::os::raw::c_void,
     call_frame_ctx: *const ffi::WasmEdge_CallingFrameContext,
     params: *const ffi::WasmEdge_Value,
     param_len: u32,
@@ -46,7 +46,7 @@ extern "C" fn wraper_fn(
         let real_fn = host_functions
             .get(&key)
             .expect("host function should be there");
-        real_fn(&frame, input)
+        real_fn(&frame, input, data)
     };
 
     match result {
@@ -148,7 +148,6 @@ pub struct Function {
     pub(crate) registered: bool,
 }
 impl Function {
-    #[allow(clippy::type_complexity)]
     /// Creates a [host function](crate::Function) with the given function type.
     ///
     /// N.B. that this function is used for thread-safe scenarios.
@@ -158,6 +157,8 @@ impl Function {
     /// * `ty` - The types of the arguments and returns of the target function.
     ///
     /// * `real_fn` - The pointer to the target function.
+    ///
+    /// * `data` - The additional data object to set to this host function context.
     ///
     /// * `cost` - The function cost in the [Statistics](crate::Statistics). Pass 0 if the calculation is not needed.
     ///
@@ -171,10 +172,14 @@ impl Function {
     /// the `create_binding` method.
     ///
     /// ```rust
+    /// #![feature(never_type)]
+    ///
+    /// use wasmedge_macro::sys_host_function;
     /// use wasmedge_sys::{FuncType, Function, WasmValue, CallingFrame};
     /// use wasmedge_types::{error::HostFuncError, ValType, WasmEdgeResult};
     ///
-    /// fn real_add(_: &CallingFrame, inputs: Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError> {
+    /// #[sys_host_function]
+    /// fn real_add(_frame: &CallingFrame, inputs: Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError> {
     ///     if inputs.len() != 2 {
     ///         return Err(HostFuncError::User(1));
     ///     }
@@ -200,9 +205,14 @@ impl Function {
     /// let func_ty = FuncType::create(vec![ValType::I32; 2], vec![ValType::I32]).expect("fail to create a FuncType");
     ///
     /// // create a Function instance
-    /// let func = Function::create(&func_ty, Box::new(real_add), 0).expect("fail to create a Function instance");
+    /// let func = Function::create::<!>(&func_ty, Box::new(real_add), None, 0).expect("fail to create a Function instance");
     /// ```
-    pub fn create(ty: &FuncType, real_fn: BoxedFn, cost: u64) -> WasmEdgeResult<Self> {
+    pub fn create<T>(
+        ty: &FuncType,
+        real_fn: BoxedFn,
+        data: Option<&mut T>,
+        cost: u64,
+    ) -> WasmEdgeResult<Self> {
         let mut host_functions = HOST_FUNCS.write();
         if host_functions.len() >= host_functions.capacity() {
             return Err(Box::new(WasmEdgeError::Func(FuncError::CreateBinding(
@@ -221,12 +231,17 @@ impl Function {
         }
         host_functions.insert(key, real_fn);
 
+        let data = match data {
+            Some(d) => d as *mut T as *mut std::os::raw::c_void,
+            None => std::ptr::null_mut(),
+        };
+
         let ctx = unsafe {
             ffi::WasmEdge_FunctionInstanceCreateBinding(
                 ty.inner.0,
                 Some(wraper_fn),
                 key as *const usize as *mut c_void,
-                std::ptr::null_mut(),
+                data,
                 cost,
             )
         };
@@ -334,10 +349,12 @@ impl Function {
     /// # Example
     ///
     /// ```rust
+    /// #![feature(never_type)]
+    ///
     /// use wasmedge_sys::{FuncType, Function, WasmValue, Executor, CallingFrame};
     /// use wasmedge_types::{error::HostFuncError, ValType};
     ///
-    /// fn real_add(_: &CallingFrame, input: Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError> {
+    /// fn real_add(_: &CallingFrame, input: Vec<WasmValue>, _data: *mut std::os::raw::c_void) -> Result<Vec<WasmValue>, HostFuncError> {
     ///     println!("Rust: Entering Rust function real_add");
     ///
     ///     if input.len() != 2 {
@@ -368,7 +385,7 @@ impl Function {
     /// assert!(result.is_ok());
     /// let func_ty = result.unwrap();
     /// // create a host function
-    /// let result = Function::create(&func_ty, Box::new(real_add), 0);
+    /// let result = Function::create::<!>(&func_ty, Box::new(real_add), None, 0);
     /// assert!(result.is_ok());
     /// let host_func = result.unwrap();
     ///
@@ -621,6 +638,7 @@ mod tests {
         sync::{Arc, Mutex},
         thread,
     };
+    use wasmedge_macro::sys_host_function;
     use wasmedge_types::ValType;
 
     #[test]
@@ -682,12 +700,59 @@ mod tests {
 
     #[test]
     fn test_func_basic() {
+        #[derive(Debug)]
+        struct Data<T, S> {
+            _x: i32,
+            _y: String,
+            _v: Vec<T>,
+            _s: Vec<S>,
+        }
+        let mut data: Data<i32, &str> = Data {
+            _x: 12,
+            _y: "hello".to_string(),
+            _v: vec![1, 2, 3],
+            _s: vec!["macos", "linux", "windows"],
+        };
+
+        #[sys_host_function]
+        fn real_add(
+            _frame: &CallingFrame,
+            input: Vec<WasmValue>,
+            data: &mut Data<i32, &str>,
+        ) -> Result<Vec<WasmValue>, HostFuncError> {
+            println!("Rust: Entering Rust function real_add");
+
+            println!("data: {:?}", data);
+
+            if input.len() != 2 {
+                return Err(HostFuncError::User(1));
+            }
+
+            let a = if input[0].ty() == ValType::I32 {
+                input[0].to_i32()
+            } else {
+                return Err(HostFuncError::User(2));
+            };
+
+            let b = if input[1].ty() == ValType::I32 {
+                input[1].to_i32()
+            } else {
+                return Err(HostFuncError::User(3));
+            };
+
+            let c = a + b;
+            println!("Rust: calcuating in real_add c: {:?}", c);
+
+            println!("Rust: Leaving Rust function real_add");
+            Ok(vec![WasmValue::from_i32(c)])
+        }
+
         // create a FuncType
         let result = FuncType::create(vec![ValType::I32; 2], vec![ValType::I32]);
         assert!(result.is_ok());
         let func_ty = result.unwrap();
         // create a host function
-        let result = Function::create(&func_ty, Box::new(real_add), 0);
+        let result = Function::create(&func_ty, Box::new(real_add), Some(&mut data), 0);
         assert!(result.is_ok());
         let host_func = result.unwrap();
 
@@ -726,7 +791,7 @@ mod tests {
         assert!(result.is_ok());
         let func_ty = result.unwrap();
         // create a host function
-        let result = Function::create(&func_ty, Box::new(real_add), 0);
+        let result = Function::create::<!>(&func_ty, Box::new(real_add), None, 0);
         assert!(result.is_ok());
         let host_func = result.unwrap();
 
@@ -757,7 +822,7 @@ mod tests {
         assert!(result.is_ok());
         let func_ty = result.unwrap();
         // create a host function
-        let result = Function::create(&func_ty, Box::new(real_add), 0);
+        let result = Function::create::<!>(&func_ty, Box::new(real_add), None, 0);
         assert!(result.is_ok());
         let host_func = Arc::new(Mutex::new(result.unwrap()));
 
@@ -786,7 +851,11 @@ mod tests {
         handle.join().unwrap();
     }
 
-    fn real_add(_: &CallingFrame, input: Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError> {
+    fn real_add(
+        _frame: &CallingFrame,
+        input: Vec<WasmValue>,
+        _data: *mut std::os::raw::c_void,
+    ) -> Result<Vec<WasmValue>, HostFuncError> {
         println!("Rust: Entering Rust function real_add");
 
         if input.len() != 2 {
@@ -810,5 +879,73 @@ mod tests {
 
         println!("Rust: Leaving Rust function real_add");
         Ok(vec![WasmValue::from_i32(c)])
+    }
+
+    #[test]
+    fn test_func_closure() {
+        // create a FuncType
+        let result = FuncType::create(vec![ValType::I32; 2], vec![ValType::I32]);
+        assert!(result.is_ok());
+        let func_ty = result.unwrap();
+        // create a host function
+        let real_add = |_: &CallingFrame,
+                        input: Vec<WasmValue>,
+                        _data: *mut std::os::raw::c_void|
+         -> Result<Vec<WasmValue>, HostFuncError> {
+            println!("Rust: Entering Rust function real_add");
+
+            if input.len() != 2 {
+                return Err(HostFuncError::User(1));
+            }
+
+            let a = if input[0].ty() == ValType::I32 {
+                input[0].to_i32()
+            } else {
+                return Err(HostFuncError::User(2));
+            };
+
+            let b = if input[1].ty() == ValType::I32 {
+                input[1].to_i32()
+            } else {
+                return Err(HostFuncError::User(3));
+            };
+
+            let c = a + b;
+            println!("Rust: calcuating in real_add c: {:?}", c);
+
+            println!("Rust: Leaving Rust function real_add");
+            Ok(vec![WasmValue::from_i32(c)])
+        };
+
+        let result = Function::create::<!>(&func_ty, Box::new(real_add), None, 0);
+        assert!(result.is_ok());
+        let host_func = result.unwrap();
+
+        // get func type
+        let result = host_func.ty();
+        assert!(result.is_ok());
+        let ty = result.unwrap();
+
+        // check parameters
+        assert_eq!(ty.params_len(), 2);
+        let param_tys = ty.params_type_iter().collect::<Vec<_>>();
+        assert_eq!(param_tys, vec![ValType::I32; 2]);
+
+        // check returns
+        assert_eq!(ty.returns_len(), 1);
+        let return_tys = ty.returns_type_iter().collect::<Vec<_>>();
+        assert_eq!(return_tys, vec![ValType::I32]);
+
+        // run this function
+        let result = Executor::create(None, None);
+        assert!(result.is_ok());
+        let mut executor = result.unwrap();
+        let result = host_func.call(
+            &mut executor,
+            vec![WasmValue::from_i32(1), WasmValue::from_i32(2)],
+        );
+        assert!(result.is_ok());
+        let returns = result.unwrap();
+        assert_eq!(returns[0].to_i32(), 3);
     }
 }

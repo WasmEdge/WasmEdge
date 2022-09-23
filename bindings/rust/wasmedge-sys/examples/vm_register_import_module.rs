@@ -1,3 +1,6 @@
+#![feature(never_type)]
+
+use wasmedge_macro::sys_host_function;
 use wasmedge_sys::{
     AsImport, CallingFrame, FuncType, Function, Global, GlobalType, ImportModule, ImportObject,
     MemType, Memory, Table, TableType, Vm, WasmValue,
@@ -12,7 +15,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut import = ImportModule::create(module_name)?;
 
     // a function to import
-    fn real_add(_: &CallingFrame, inputs: Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError> {
+    #[sys_host_function]
+    fn real_add(
+        _frame: &CallingFrame,
+        inputs: Vec<WasmValue>,
+    ) -> Result<Vec<WasmValue>, HostFuncError> {
         if inputs.len() != 2 {
             return Err(HostFuncError::User(1));
         }
@@ -36,7 +43,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // add host function
     let func_ty = FuncType::create(vec![ValType::I32; 2], vec![ValType::I32])?;
-    let host_func = Function::create(&func_ty, Box::new(real_add), 0)?;
+    let host_func = Function::create::<!>(&func_ty, Box::new(real_add), None, 0)?;
     import.add_func("add", host_func);
 
     // add table

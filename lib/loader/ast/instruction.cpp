@@ -189,8 +189,8 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
       if (*Res < 0) {
         // Value type case.
         ValType VType = static_cast<ValType>((*Res) & INT32_C(0x7F));
-        if (auto Check = checkValTypeProposals(VType, FMgr.getLastOffset(),
-                                               ASTNodeAttr::Instruction);
+        if (auto Check = checkValTypeProposals(
+                VType, true, FMgr.getLastOffset(), ASTNodeAttr::Instruction);
             unlikely(!Check)) {
           return Unexpect(Check);
         }
@@ -220,7 +220,7 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
     if (auto Res = readU32(VecCnt); unlikely(!Res)) {
       return Unexpect(Res);
     }
-    if (VecCnt == std::numeric_limits<uint32_t>::max()) {
+    if (VecCnt / 2 > FMgr.getRemainSize()) {
       // Too many label for Br_table.
       return logLoadError(ErrCode::Value::IntegerTooLong, FMgr.getLastOffset(),
                           ASTNodeAttr::Instruction);
@@ -290,6 +290,10 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
     if (auto Res = readU32(VecCnt); unlikely(!Res)) {
       return Unexpect(Res);
     }
+    if (VecCnt / 2 > FMgr.getRemainSize()) {
+      return logLoadError(ErrCode::Value::IntegerTooLong, FMgr.getLastOffset(),
+                          ASTNodeAttr::Instruction);
+    }
     Instr.setValTypeListSize(VecCnt);
     for (uint32_t I = 0; I < VecCnt; ++I) {
       ValType VType;
@@ -299,7 +303,7 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
       } else {
         VType = static_cast<ValType>(*T);
       }
-      if (auto Check = checkValTypeProposals(VType, FMgr.getLastOffset(),
+      if (auto Check = checkValTypeProposals(VType, false, FMgr.getLastOffset(),
                                              ASTNodeAttr::Instruction);
           unlikely(!Check)) {
         return Unexpect(Check);

@@ -136,6 +136,7 @@
 //!
 
 #![deny(rust_2018_idioms, unreachable_pub)]
+#![feature(never_type)]
 
 #[macro_use]
 extern crate lazy_static;
@@ -222,7 +223,11 @@ use wasmedge_types::{error, WasmEdgeResult};
 
 /// Type alias for a boxed native function. This type is used in thread-safe cases.
 pub type BoxedFn = Box<
-    dyn Fn(&CallingFrame, Vec<WasmValue>) -> Result<Vec<WasmValue>, error::HostFuncError>
+    dyn Fn(
+            &CallingFrame,
+            Vec<WasmValue>,
+            *mut std::os::raw::c_void,
+        ) -> Result<Vec<WasmValue>, error::HostFuncError>
         + Send
         + Sync,
 >;

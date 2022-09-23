@@ -1,3 +1,5 @@
+#![feature(never_type)]
+
 use wasmedge_sys::{
     AsImport, CallingFrame, Config, FuncType, Function, ImportObject, Vm, WasiModule, WasmValue,
 };
@@ -35,6 +37,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         fn real_add(
             _: &CallingFrame,
             inputs: Vec<WasmValue>,
+            _data: *mut std::os::raw::c_void,
         ) -> Result<Vec<WasmValue>, HostFuncError> {
             if inputs.len() != 2 {
                 return Err(HostFuncError::User(1));
@@ -59,7 +62,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         // add host function
         let func_ty = FuncType::create(vec![ValType::I32; 2], vec![ValType::I32])?;
-        let host_func = Function::create(&func_ty, Box::new(real_add), 0)?;
+        let host_func = Function::create::<!>(&func_ty, Box::new(real_add), None, 0)?;
         import_wasi.add_func("add", host_func);
 
         // register the Wasi module

@@ -148,16 +148,17 @@ private:
       return true;
     }
 
-    cxx20::expected<bool, Error> parse(Span<const char *> ProgramNamePrefix,
+    cxx20::expected<bool, Error> parse(std::FILE *Out,
+                                       Span<const char *> ProgramNamePrefix,
                                        int Argc, const char *Argv[], int ArgP,
                                        const bool &VersionOpt) noexcept;
 
-    void usage() const noexcept;
+    void usage(std::FILE *Out) const noexcept;
 
-    void help() const noexcept;
+    void help(std::FILE *Out) const noexcept;
 
-    void indent_output(const std::string_view kIndent, std::size_t IndentCount,
-                       std::size_t ScreenWidth,
+    void indent_output(std::FILE *Out, const std::string_view kIndent,
+                       std::size_t IndentCount, std::size_t ScreenWidth,
                        std::string_view Desc) const noexcept;
 
   private:
@@ -246,10 +247,14 @@ public:
     return *this;
   }
 
-  bool parse(int Argc, const char *Argv[]) noexcept;
+  bool parse(std::FILE *Out, int Argc, const char *Argv[]) noexcept;
 
-  void usage() const noexcept { SubCommandDescriptors.front().usage(); }
-  void help() const noexcept { SubCommandDescriptors.front().help(); }
+  void usage(std::FILE *Out) const noexcept {
+    SubCommandDescriptors.front().usage(Out);
+  }
+  void help(std::FILE *Out) const noexcept {
+    SubCommandDescriptors.front().help(Out);
+  }
   bool isVersion() const noexcept { return VerOpt.value(); }
 
 private:

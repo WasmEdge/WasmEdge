@@ -103,7 +103,7 @@ int Compiler([[maybe_unused]] int Argc,
            .add_option("enable-threads"sv, PropThreads)
            .add_option("enable-all"sv, PropAll)
            .add_option("optimize"sv, PropOptimizationLevel)
-           .parse(Argc, Argv)) {
+           .parse(stdout, Argc, Argv)) {
     return EXIT_FAILURE;
   }
   if (Parser.isVersion()) {

@@ -6,7 +6,7 @@ if(CMAKE_BUILD_TYPE STREQUAL Release OR CMAKE_BUILD_TYPE STREQUAL RelWithDebInfo
   if(NOT WASMEDGE_FORCE_DISABLE_LTO)
     set(WASMEDGE_INTERPROCEDURAL_OPTIMIZATION ON)
   endif()
-  if (CMAKE_GENERATOR STREQUAL Ninja)
+  if(CMAKE_GENERATOR STREQUAL Ninja)
     if(CMAKE_COMPILER_IS_GNUCXX)
       list(TRANSFORM CMAKE_C_COMPILE_OPTIONS_IPO REPLACE "^-flto$" "-flto=auto")
       list(TRANSFORM CMAKE_CXX_COMPILE_OPTIONS_IPO REPLACE "^-flto$" "-flto=auto")
@@ -92,10 +92,26 @@ function(wasmedge_setup_target target)
     PUBLIC
     FMT_DEPRECATED_OSTREAM
   )
+  if(WASMEDGE_BUILD_FUZZING)
+    target_compile_definitions(${target}
+      PUBLIC
+      WASMEDGE_BUILD_FUZZING
+    )
+  endif()
   target_compile_options(${target}
     PRIVATE
     ${WASMEDGE_CFLAGS}
   )
+  if(WASMEDGE_BUILD_FUZZING)
+    target_compile_options(${target}
+      PUBLIC
+      -fsanitize=fuzzer,address
+    )
+    target_link_options(${target}
+      PUBLIC
+      -fsanitize=fuzzer,address
+    )
+  endif()
 endfunction()
 
 function(wasmedge_add_library target)

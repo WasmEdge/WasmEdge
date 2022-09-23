@@ -295,8 +295,9 @@ mod tests {
     use crate::{
         config::{CommonConfigOptions, ConfigBuilder},
         error::HostFuncError,
+        host_function,
         types::Val,
-        CallingFrame, Executor, FuncTypeBuilder, Global, GlobalType, ImportObjectBuilder, Memory,
+        Caller, Executor, FuncTypeBuilder, Global, GlobalType, ImportObjectBuilder, Memory,
         MemoryType, Module, Mutability, RefType, Statistics, Store, Table, TableType, ValType,
         WasmValue,
     };
@@ -349,7 +350,7 @@ mod tests {
 
         // create an ImportModule instance
         let result = ImportObjectBuilder::new()
-            .with_func::<(i32, i32), i32>("add", real_add)
+            .with_func::<(i32, i32), i32, !>("add", real_add, None)
             .expect("failed to add host function")
             .with_global("global", global_const)
             .expect("failed to add const global")
@@ -466,8 +467,9 @@ mod tests {
         }
     }
 
+    #[host_function]
     fn real_add(
-        _: &CallingFrame,
+        _: &Caller,
         inputs: Vec<WasmValue>,
     ) -> std::result::Result<Vec<WasmValue>, HostFuncError> {
         if inputs.len() != 2 {

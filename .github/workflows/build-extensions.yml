@@ -223,9 +223,12 @@ jobs:
             system: manylinux2014 x86_64
             host_runner: ubuntu-latest
             docker_tag: manylinux2014_x86_64
+            test_path: test/plugins/wasi_nn
+            test_bin: wasiNNTests
             output_path: plugins/wasi_nn
             output_bin: libwasmedgePluginWasiNN.so
             build_type: Release
+            test: false
           - name: WASI-Crypto
             tar_name: wasi_crypto
             system: manylinux2014 x86_64
@@ -234,6 +237,7 @@ jobs:
             output_path: plugins/wasi_crypto
             output_bin: libwasmedgePluginWasiCrypto.so
             build_type: Release
+            test: false
           - name: WASI-Crypto
             tar_name: wasi_crypto
             system: manylinux2014 aarch64
@@ -242,6 +246,7 @@ jobs:
             output_path: plugins/wasi_crypto
             output_bin: libwasmedgePluginWasiCrypto.so
             build_type: Release
+            test: false
           - name: HttpsReq
             tar_name: wasmedge_httpsreq
             system: manylinux2014 x86_64
@@ -250,6 +255,7 @@ jobs:
             output_path: plugins/wasmedge_httpsreq
             output_bin: libwasmedgePluginHttpsReq.so
             build_type: Release
+            test: false
           - name: HttpsReq
             tar_name: wasmedge_httpsreq
             system: manylinux2014 aarch64
@@ -258,6 +264,19 @@ jobs:
             output_path: plugins/wasmedge_httpsreq
             output_bin: libwasmedgePluginHttpsReq.so
             build_type: Release
+            test: false
+          - name: WASI-NN Tensorflow Lite
+            tar_name: wasi_nn-tflite
+            backend: Tensorflowlite
+            system: manylinux2014 x86_64
+            host_runner: ubuntu-latest
+            docker_tag: manylinux2014_x86_64
+            test_path: test/plugins/wasi_nn
+            test_bin: wasiNNTests
+            output_path: plugins/wasi_nn
+            output_bin: libwasmedgePluginWasiNN.so
+            build_type: Release
+            test: true
     name: ${{ matrix.system }} WasmEdge ${{ matrix.name }} plugin with g++ ${{ matrix.build_type }}
     runs-on: ${{ matrix.host_runner }}
     needs: [get_version_v2]
@@ -308,6 +327,12 @@ jobs:
           bash utils/docker/build-manylinux.sh --${{ matrix.build_type }} --not-build --not-ninja -DWASMEDGE_PLUGIN_WASI_NN_BACKEND="${{ matrix.backend }}"
           cd build/${{ matrix.output_path }}
           make -j
+      - name: Test WasmEdge ${{ matrix.name }} plugin using ${{ matrix.compiler }} with ${{ matrix.build_type }} mode
+        if: matrix.test
+        shell: bash
+        run: |
+          cd build/${{ matrix.test_path }}
+          ./${{ matrix.test_bin }}
       - name: Prepare the WasmEdge ${{ matrix.name }} plugin tar.gz package
         run: |
           cp build/${{ matrix.output_path }}/${{ matrix.output_bin }} ${{ matrix.output_bin }}

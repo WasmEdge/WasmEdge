@@ -398,6 +398,13 @@ Expect<uint32_t> WasiNNInitExecCtx::body(const Runtime::CallingFrame &Frame,
   } else if (Env.NNGraph[GraphId].GraphBackend ==
              WASINN::Backend::TensorflowLite) {
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_TFLITE
+    // Check the network and the execution network with the graph ID.
+    if (Env.NNGraph[GraphId].TFLiteMod == nullptr ||
+        Env.NNGraph[GraphId].TFLiteOps == nullptr) {
+      spdlog::error("[WASI-NN] Model for Graph:{} is missing!", GraphId);
+      return static_cast<uint32_t>(WASINN::ErrNo::MissingMemory);
+    }
+
     Env.NNContext.emplace_back(Env.NNGraph[GraphId]);
     const auto Graph = Env.NNGraph[GraphId];
     auto &NewContext = Env.NNContext.back();
@@ -920,6 +927,10 @@ Expect<uint32_t> WasiNNCompute::body(const Runtime::CallingFrame &Frame,
   } else if (CxtRef.GraphRef.GraphBackend == WASINN::Backend::TensorflowLite) {
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_TFLITE
     // Run session
+    if (CxtRef.TFLiteInterp == nullptr) {
+      spdlog::error("[WASI-NN] Tensorflow Lite context empty");
+      return static_cast<uint32_t>(WASINN::ErrNo::MissingMemory);
+    }
     TfLiteStatus Stat = TfLiteInterpreterInvoke(CxtRef.TFLiteInterp);
     if (Stat != TfLiteStatus::kTfLiteOk) {
       spdlog::error("[WASI-NN] Invokation failed.");

@@ -88,53 +88,53 @@ foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
       message(FATAL_ERROR "Unsupported system: ${CMAKE_SYSTEM_NAME}")
     endif()
 
-    # include(FetchContent)
+    include(FetchContent)
 
-    # # Fetch Tensorflow-lite library.
-    # FetchContent_Declare(
-    # wasmedgetensorflowdepslite
-    # URL "https://github.com/second-state/WasmEdge-tensorflow-deps/releases/download/${WASMEDGE_DEPS_VERSION}/WasmEdge-tensorflow-deps-TFLite-${WASMEDGE_DEPS_VERSION}-${WASMEDGE_TENSORFLOW_SYSTEM_NAME}.tar.gz"
-    # URL_HASH "SHA256=${WASMEDGE_TENSORFLOW_DEPS_TFLITE_HASH}"
-    # )
-    # FetchContent_GetProperties(wasmedgetensorflowdepslite)
-
-    # if(NOT wasmedgetensorflowdepslite_POPULATED)
-    # message(STATUS "Downloading dependency: libtensorflowlite")
-    # FetchContent_Populate(wasmedgetensorflowdepslite)
-    # message(STATUS "Downloading dependency: libtensorflowlite - done")
-    # endif()
-
-    # # Setup Tensorflow-lite library.
-    # if(APPLE)
-    # set(WASMEDGE_TENSORFLOW_DEPS_TFLITE_LIB
-    # "${wasmedgetensorflowdepslite_SOURCE_DIR}/libtensorflowlite_c.dylib"
-    # )
-    # elseif(UNIX)
-    # set(WASMEDGE_TENSORFLOW_DEPS_TFLITE_LIB
-    # "${wasmedgetensorflowdepslite_SOURCE_DIR}/libtensorflowlite_c.so"
-    # )
-    # endif()
-
-    # include(FetchContent)
-    # FetchContent_Declare(
-    # wasmedge_tensorflow_deps
-    # GIT_REPOSITORY https://github.com/second-state/WasmEdge-tensorflow-deps.git
-    # GIT_TAG ${WASMEDGE_DEPS_VERSION}
-    # )
-    # FetchContent_GetProperties(wasmedge_tensorflow_deps)
-
-    # if(NOT wasmedge_tensorflow_deps_POPULATED)
-    # message(STATUS "Fetching WasmEdge-tensorflow-dep repository")
-    # FetchContent_Populate(wasmedge_tensorflow_deps)
-    # message(STATUS "Fetching WasmEdge-tensorflow-dep repository - done")
-    # endif()
-    # -hardcode remove in future-------------------------------
-    set(WASMEDGE_TENSORFLOW_DEPS_TFLITE_HASH "43b2a782efb58b047c6d33f64d7ac711b24426959f91287d910edb8937c11dea")
-    set(wasmedge_tensorflow_deps_SOURCE_DIR "${CMAKE_SOURCE_DIR}/utils/WasmEdge-tensorflow-deps")
-
-    set(WASMEDGE_TENSORFLOW_DEPS_TFLITE_LIB
-      "${wasmedge_tensorflow_deps_SOURCE_DIR}/shares/libtensorflowlite_c.so"
+    # Fetch Tensorflow-lite library.
+    FetchContent_Declare(
+    wasmedgetensorflowdepslite
+      URL "https://github.com/second-state/WasmEdge-tensorflow-deps/releases/download/${WASMEDGE_DEPS_VERSION}/WasmEdge-tensorflow-deps-TFLite-${WASMEDGE_DEPS_VERSION}-${WASMEDGE_TENSORFLOW_SYSTEM_NAME}.tar.gz"
+      URL_HASH "SHA256=${WASMEDGE_TENSORFLOW_DEPS_TFLITE_HASH}"
     )
+    FetchContent_GetProperties(wasmedgetensorflowdepslite)
+
+    if(NOT wasmedgetensorflowdepslite_POPULATED)
+      message(STATUS "Downloading dependency: libtensorflowlite")
+      FetchContent_Populate(wasmedgetensorflowdepslite)
+      message(STATUS "Downloading dependency: libtensorflowlite - done")
+    endif()
+
+    # Setup Tensorflow-lite library.
+    if(APPLE)
+      set(WASMEDGE_TENSORFLOW_DEPS_TFLITE_LIB
+      "${wasmedgetensorflowdepslite_SOURCE_DIR}/libtensorflowlite_c.dylib"
+    )
+    elseif(UNIX)
+      set(WASMEDGE_TENSORFLOW_DEPS_TFLITE_LIB
+      "${wasmedgetensorflowdepslite_SOURCE_DIR}/libtensorflowlite_c.so"
+    )
+    endif()
+
+    include(FetchContent)
+    FetchContent_Declare(
+      wasmedge_tensorflow_deps
+      GIT_REPOSITORY https://github.com/second-state/WasmEdge-tensorflow-deps.git
+      GIT_TAG ${WASMEDGE_DEPS_VERSION}
+    )
+    FetchContent_GetProperties(wasmedge_tensorflow_deps)
+
+    if(NOT wasmedge_tensorflow_deps_POPULATED)
+      message(STATUS "Fetching WasmEdge-tensorflow-dep repository")
+      FetchContent_Populate(wasmedge_tensorflow_deps)
+      message(STATUS "Fetching WasmEdge-tensorflow-dep repository - done")
+    endif()
+    # -hardcode remove in future-------------------------------
+    # set(WASMEDGE_TENSORFLOW_DEPS_TFLITE_HASH "43b2a782efb58b047c6d33f64d7ac711b24426959f91287d910edb8937c11dea")
+    # set(wasmedge_tensorflow_deps_SOURCE_DIR "${CMAKE_SOURCE_DIR}/utils/WasmEdge-tensorflow-deps")
+
+    # set(WASMEDGE_TENSORFLOW_DEPS_TFLITE_LIB
+    #   "${wasmedge_tensorflow_deps_SOURCE_DIR}/shares/libtensorflowlite_c.so"
+    # )
 
     # --------------------------------
     set(WASMEDGE_TENSORFLOW_DEPS_PATH ${wasmedge_tensorflow_deps_SOURCE_DIR})

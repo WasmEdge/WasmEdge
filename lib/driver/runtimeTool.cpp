@@ -134,7 +134,7 @@ int Tool(int Argc, const char *Argv[]) noexcept {
 
   Plugin::Plugin::addPluginOptions(Parser);
 
-  if (!Parser.parse(Argc, Argv)) {
+  if (!Parser.parse(stdout, Argc, Argv)) {
     return EXIT_FAILURE;
   }
   if (Parser.isVersion()) {
@@ -364,6 +364,9 @@ int Tool(int Argc, const char *Argv[]) noexcept {
           break;
         case ValType::F64:
           std::cout << (*Result)[I].first.get<double>() << '\n';
+          break;
+        case ValType::V128:
+          std::cout << (*Result)[I].first.get<uint128_t>() << '\n';
           break;
         /// TODO: FuncRef and ExternRef
         default:

@@ -7,7 +7,7 @@ use crate::{
     Module, Statistics, WasmEdgeResult, WasmValue,
 };
 use std::{marker::PhantomData, path::Path};
-use wasmedge_sys::{self as sys, Engine as sys_engine};
+use wasmedge_sys::{self as sys, AsyncResult, Engine as sys_engine};
 
 /// A [Vm] defines a virtual environment for managing WebAssembly programs.
 ///
@@ -88,6 +88,7 @@ use wasmedge_sys::{self as sys, Engine as sys_engine};
 pub struct Vm {
     pub(crate) inner: sys::Vm,
     active_module: Option<Module>,
+    config_snapshot: Option<Config>,
 }
 impl Vm {
     /// Creates a new [Vm] to be associated with the given [configuration](crate::config::Config).
@@ -103,11 +104,16 @@ impl Vm {
         // load wasmedge_process plugins
         sys::utils::load_plugin_from_default_paths();
 
+        let config_snapshot = match config.as_ref() {
+            Some(config) => Some(Config::copy_from(config)?),
+            None => None,
+        };
         let inner_config = config.map(|c| c.inner);
         let inner = sys::Vm::create(inner_config, None)?;
         Ok(Self {
             inner,
             active_module: None,
+            config_snapshot,
         })
     }
 
@@ -246,6 +252,28 @@ impl Vm {
         };
 
         Ok(returns)
+    }
+
+    pub fn run_func_async(
+        &self,
+        mod_name: Option<&str>,
+        func_name: impl AsRef<str>,
+        args: impl IntoIterator<Item = sys::WasmValue>,
+    ) -> WasmEdgeResult<AsyncResult> {
+        match mod_name {
+            Some(mod_name) => {
+                // run a function in the registered module
+                return self.inner.run_registered_function_async(
+                    mod_name,
+                    func_name.as_ref(),
+                    args,
+                );
+            }
+            None => {
+                // run a function in the active module
+                return self.inner.run_function_async(func_name.as_ref(), args);
+            }
+        };
     }
 
     /// Returns the type of a WASM function.
@@ -466,6 +494,15 @@ impl Engine for Vm {
         let executor = self.inner.executor()?;
         let returns = executor.run_func_ref(&func_ref.inner, params)?;
         Ok(returns)
+    }
+}
+impl Clone for Vm {
+    fn clone(&self) -> Vm {
+        let config = self
+            .config_snapshot
+            .as_ref()
+            .map(|config| Config::copy_from(config).unwrap());
+        Vm::new(config).unwrap()
     }
 }
 

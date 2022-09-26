@@ -324,9 +324,16 @@ jobs:
           if [[ "${{ matrix.name }}" == *"PyTorch"* ]]; then
             export Torch_DIR=$(pwd)/libtorch
           fi
-          bash utils/docker/build-manylinux.sh --${{ matrix.build_type }} --not-build --not-ninja -DWASMEDGE_PLUGIN_WASI_NN_BACKEND="${{ matrix.backend }}"
-          cd build/${{ matrix.output_path }}
-          make -j
+          if ${{ matrix.test }}; then
+            bash utils/docker/build-manylinux.sh --${{ matrix.build_type }} --not-build --not-ninja -DWASMEDGE_PLUGIN_WASI_NN_BACKEND="${{ matrix.backend }}" -DWASMEDGE_BUILD_TESTS=ON
+            cd build/${{ matrix.test_path }}
+            make -j
+          else
+            bash utils/docker/build-manylinux.sh --${{ matrix.build_type }} --not-build --not-ninja -DWASMEDGE_PLUGIN_WASI_NN_BACKEND="${{ matrix.backend }}"
+            cd build/${{ matrix.output_path }}
+            make -j
+          fi
+
       - name: Test WasmEdge ${{ matrix.name }} plugin using ${{ matrix.compiler }} with ${{ matrix.build_type }} mode
         if: matrix.test
         shell: bash

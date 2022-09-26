@@ -107,10 +107,12 @@ jobs:
       matrix:
         include:
           - name: WASI-NN OpenVINO
+            backend: OpenVINO
             output_path: plugins/wasi_nn
             output_bin: libwasmedgePluginWasiNN.so
             tar_name: wasi_nn-openvino
-          - name: WASI-NN OpenVINO
+          - name: WASI-NN PyTorch
+            backend: PyTorch
             output_path: plugins/wasi_nn
             output_bin: libwasmedgePluginWasiNN.so
             tar_name: wasi_nn-pytorch

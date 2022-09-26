@@ -7,7 +7,7 @@ use wasmedge_sys as sys;
 /// Defines compiled in-memory representation of an input WASM binary.
 ///
 /// A [Module] is a compiled in-memory representation of an input WebAssembly binary. In the instantiation process, a [Module] is instatiated to a module [instance](crate::Instance), from which the exported [function](crate::Func), [table](crate::Table), [memory](crate::Memory), and [global](crate::Global) instances can be fetched.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Module {
     pub(crate) inner: sys::Module,
 }
@@ -174,7 +174,10 @@ impl<'module> ExportType<'module> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::error::{CoreError, CoreLoadError, WasmEdgeError};
+    use crate::{
+        error::{CoreError, CoreLoadError, WasmEdgeError},
+        wat2wasm,
+    };
 
     #[test]
     #[allow(clippy::assertions_on_result_states)]
@@ -200,13 +203,44 @@ mod tests {
     #[test]
     #[allow(clippy::assertions_on_result_states)]
     fn test_module_from_bytes() {
-        let file = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
-            .join("bindings/rust/wasmedge-sys/tests/data/fibonacci.wasm");
-        let result = std::fs::read(file);
-        assert!(result.is_ok());
-        let buffer = result.unwrap();
+        // read the wasm bytes
+        let wasm_bytes = wat2wasm(
+            br#"
+        (module
+            (export "fib" (func $fib))
+            (func $fib (param $n i32) (result i32)
+             (if
+              (i32.lt_s
+               (get_local $n)
+               (i32.const 2)
+              )
+              (return
+               (i32.const 1)
+              )
+             )
+             (return
+              (i32.add
+               (call $fib
+                (i32.sub
+                 (get_local $n)
+                 (i32.const 2)
+                )
+               )
+               (call $fib
+                (i32.sub
+                 (get_local $n)
+                 (i32.const 1)
+                )
+               )
+              )
+             )
+            )
+           )
+"#,
+        )
+        .unwrap();
 
-        let result = Module::from_bytes(None, &buffer);
+        let result = Module::from_bytes(None, &wasm_bytes);
         assert!(result.is_ok());
 
         // attempt to load an empty buffer
@@ -217,5 +251,55 @@ mod tests {
                 CoreLoadError::UnexpectedEnd
             ))),
         );
+    }
+
+    #[test]
+    #[allow(clippy::assertions_on_result_states)]
+    fn test_module_clone() {
+        // read the wasm bytes
+        let wasm_bytes = wat2wasm(
+            br#"
+        (module
+            (export "fib" (func $fib))
+            (func $fib (param $n i32) (result i32)
+             (if
+              (i32.lt_s
+               (get_local $n)
+               (i32.const 2)
+              )
+              (return
+               (i32.const 1)
+              )
+             )
+             (return
+              (i32.add
+               (call $fib
+                (i32.sub
+                 (get_local $n)
+                 (i32.const 2)
+                )
+               )
+               (call $fib
+                (i32.sub
+                 (get_local $n)
+                 (i32.const 1)
+                )
+               )
+              )
+             )
+            )
+           )
+"#,
+        )
+        .unwrap();
+
+        let result = Module::from_bytes(None, &wasm_bytes);
+        assert!(result.is_ok());
+        let module = result.unwrap();
+        assert_eq!(module.exports().len(), 1);
+
+        // clone the module
+        let module_clone = module.clone();
+        assert_eq!(module.exports().len(), module_clone.exports().len());
     }
 }

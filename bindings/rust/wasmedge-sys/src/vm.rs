@@ -842,7 +842,7 @@ impl Vm {
         match io_ctx.is_null() {
             true => Err(Box::new(WasmEdgeError::Vm(VmError::NotFoundWasiModule))),
             false => Ok(WasiModule {
-                inner: std::sync::Arc::new(InnerInstance(io_ctx)),
+                inner: Arc::new(InnerInstance(io_ctx)),
                 registered: true,
             }),
         }
@@ -864,7 +864,7 @@ impl Vm {
                 VmError::NotFoundWasmEdgeProcessModule,
             ))),
             false => Ok(WasmEdgeProcessModule {
-                inner: InnerInstance(io_ctx),
+                inner: Arc::new(InnerInstance(io_ctx)),
                 registered: true,
             }),
         }

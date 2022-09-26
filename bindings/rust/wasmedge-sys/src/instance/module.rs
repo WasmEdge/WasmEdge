@@ -1003,7 +1003,7 @@ impl WasmEdgeProcessModule {
         match ctx.is_null() {
             true => Err(Box::new(WasmEdgeError::ImportObjCreate)),
             false => Ok(Self {
-                inner: InnerInstance(ctx),
+                inner: Arc::new(InnerInstance(ctx)),
                 registered: false,
             }),
         }

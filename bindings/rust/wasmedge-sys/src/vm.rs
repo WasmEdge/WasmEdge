@@ -20,12 +20,12 @@ use crate::{
 };
 #[cfg(target_os = "linux")]
 use crate::{ffi::WasmEdge_HostRegistration_WasmEdge_Process, WasmEdgeProcessModule};
-use std::{collections::HashMap, path::Path};
+use std::{collections::HashMap, path::Path, sync::Arc};
 
 /// A [Vm] defines a virtual environment for managing WebAssembly programs.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Vm {
-    pub(crate) inner: InnerVm,
+    pub(crate) inner: Arc<InnerVm>,
     imports: HashMap<String, ImportObject>,
 }
 impl Vm {
@@ -47,7 +47,10 @@ impl Vm {
                     Some(store) => unsafe { ffi::WasmEdge_VMCreate(config.inner.0, store.inner.0) },
                     None => unsafe { ffi::WasmEdge_VMCreate(config.inner.0, std::ptr::null_mut()) },
                 };
-                config.inner.0 = std::ptr::null_mut();
+
+                let inner_config = &mut *std::sync::Arc::get_mut(&mut config.inner).unwrap();
+                inner_config.0 = std::ptr::null_mut();
+
                 vm_ctx
             }
             None => match store {
@@ -63,7 +66,7 @@ impl Vm {
         match ctx.is_null() {
             true => Err(Box::new(WasmEdgeError::Vm(VmError::Create))),
             false => Ok(Self {
-                inner: InnerVm(ctx),
+                inner: Arc::new(InnerVm(ctx)),
                 imports: HashMap::new(),
             }),
         }
@@ -235,7 +238,7 @@ impl Vm {
         Ok(())
     }
 
-    /// Registers a given WasmEdge AST [Module](crate::Module) into the [Vm], and instantiates it.
+    /// Registers a given WasmEdge AST [Module](crate::Module) into the [Vm], and instantiates it. The module is consumed.
     ///
     /// The workflow of the function can be summarized as the following steps:
     ///
@@ -267,7 +270,9 @@ impl Vm {
                 module.inner.0,
             ))?;
         }
-        module.inner.0 = std::ptr::null_mut();
+        let inner_module = &mut *std::sync::Arc::get_mut(&mut module.inner).unwrap();
+        inner_module.0 = std::ptr::null_mut();
+
         Ok(())
     }
 
@@ -837,7 +842,7 @@ impl Vm {
         match io_ctx.is_null() {
             true => Err(Box::new(WasmEdgeError::Vm(VmError::NotFoundWasiModule))),
             false => Ok(WasiModule {
-                inner: InnerInstance(io_ctx),
+                inner: std::sync::Arc::new(InnerInstance(io_ctx)),
                 registered: true,
             }),
         }
@@ -895,7 +900,7 @@ impl Vm {
         match ctx.is_null() {
             true => Err(Box::new(WasmEdgeError::Vm(VmError::NotFoundActiveModule))),
             false => Ok(Instance {
-                inner: InnerInstance(ctx as *mut _),
+                inner: std::sync::Arc::new(InnerInstance(ctx as *mut _)),
                 registered: true,
             }),
         }
@@ -952,7 +957,7 @@ impl Vm {
 }
 impl Drop for Vm {
     fn drop(&mut self) {
-        if !self.inner.0.is_null() {
+        if Arc::strong_count(&self.inner) == 1 && !self.inner.0.is_null() {
             unsafe { ffi::WasmEdge_VMDelete(self.inner.0) };
         }
 

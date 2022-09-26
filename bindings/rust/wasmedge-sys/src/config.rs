@@ -124,13 +124,13 @@ use wasmedge_types::{CompilerOptimizationLevel, CompilerOutputFormat};
 /// API users can first set the options of interest, such as those related to the WebAssembly proposals,
 /// host registrations, AOT compiler options, and etc., then apply the configuration
 /// to create other WasmEdge runtime structs.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Config {
-    pub(crate) inner: InnerConfig,
+    pub(crate) inner: std::sync::Arc<InnerConfig>,
 }
 impl Drop for Config {
     fn drop(&mut self) {
-        if !self.inner.0.is_null() {
+        if std::sync::Arc::strong_count(&self.inner) == 1 && !self.inner.0.is_null() {
             unsafe { ffi::WasmEdge_ConfigureDelete(self.inner.0) };
         }
     }
@@ -146,7 +146,7 @@ impl Config {
         match ctx.is_null() {
             true => Err(Box::new(WasmEdgeError::ConfigCreate)),
             false => Ok(Self {
-                inner: InnerConfig(ctx),
+                inner: std::sync::Arc::new(InnerConfig(ctx)),
             }),
         }
     }
@@ -1093,13 +1093,54 @@ mod tests {
         let result = Config::create();
         assert!(result.is_ok());
         let mut config = result.unwrap();
-        config.memory64(true);
-        config.multi_memories(true);
+        assert_eq!(std::sync::Arc::strong_count(&config.inner), 1);
 
-        let result = Config::copy_from(&config);
-        assert!(result.is_ok());
-        let config_cloned = result.unwrap();
-        assert!(config_cloned.memory64_enabled());
-        assert!(config_cloned.multi_memories_enabled());
+        // set options
+        config.multi_memories(true);
+        config.annotations(true);
+        config.bulk_memory_operations(false);
+        config.exception_handling(true);
+        config.function_references(true);
+        config.memory64(true);
+        config.multi_value(false);
+        config.mutable_globals(false);
+        config.non_trap_conversions(false);
+        config.sign_extension_operators(false);
+        config.reference_types(false);
+        config.simd(false);
+        config.tail_call(true);
+        config.threads(true);
+        config.measure_cost(true);
+        config.measure_time(true);
+        config.dump_ir(true);
+        config.generic_binary(true);
+        config.count_instructions(true);
+
+        let config_clone = config.clone();
+        assert_eq!(std::sync::Arc::strong_count(&config.inner), 2);
+        // check new settings
+        assert!(config_clone.multi_memories_enabled());
+        assert!(config_clone.annotations_enabled());
+        assert!(!config_clone.bulk_memory_operations_enabled());
+        assert!(config_clone.exception_handling_enabled());
+        assert!(config_clone.function_references_enabled());
+        assert!(config_clone.memory64_enabled());
+        assert!(!config_clone.multi_value_enabled());
+        assert!(!config_clone.mutable_globals_enabled());
+        assert!(!config_clone.non_trap_conversions_enabled());
+        assert!(!config_clone.sign_extension_operators_enabled());
+        assert!(!config_clone.reference_types_enabled());
+        assert!(!config_clone.simd_enabled());
+        assert!(config_clone.tail_call_enabled());
+        assert!(config_clone.threads_enabled());
+        assert!(config_clone.is_cost_measuring());
+        assert!(config_clone.dump_ir_enabled());
+        assert!(config_clone.generic_binary_enabled());
+        assert!(config_clone.is_instruction_counting());
+        assert!(config_clone.is_time_measuring());
+
+        drop(config);
+        assert_eq!(std::sync::Arc::strong_count(&config_clone.inner), 1);
+        drop(config_clone);
     }
 }

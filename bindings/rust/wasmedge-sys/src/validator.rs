@@ -22,7 +22,10 @@ impl Validator {
         let ctx = match config {
             Some(mut config) => {
                 let ctx = unsafe { ffi::WasmEdge_ValidatorCreate(config.inner.0) };
-                config.inner.0 = std::ptr::null_mut();
+
+                let inner_config = &mut *std::sync::Arc::get_mut(&mut config.inner).unwrap();
+                inner_config.0 = std::ptr::null_mut();
+
                 ctx
             }
             None => unsafe { ffi::WasmEdge_ValidatorCreate(std::ptr::null_mut()) },

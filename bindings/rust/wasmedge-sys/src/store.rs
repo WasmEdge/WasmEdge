@@ -78,7 +78,7 @@ impl Store {
                 name.as_ref().to_string(),
             )))),
             false => Ok(Instance {
-                inner: InnerInstance(ctx as *mut _),
+                inner: std::sync::Arc::new(InnerInstance(ctx as *mut _)),
                 registered: true,
             }),
         }

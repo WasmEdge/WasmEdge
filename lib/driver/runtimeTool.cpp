@@ -237,6 +237,48 @@ int Tool(int Argc, const char *Argv[]) noexcept {
   Host::WasiModule *WasiMod = dynamic_cast<Host::WasiModule *>(
       VM.getImportModule(HostRegistration::Wasi));
 
+  auto HasValidCommandModStartFunc = [&]() {
+    bool LoadWasm = [&]() {
+      if (auto Result = VM.loadWasm(InputPath.u8string()); !Result) {
+        return false;
+      }
+      if (auto Result = VM.validate(); !Result) {
+        return false;
+      }
+      if (auto Result = VM.instantiate(); !Result) {
+        return false;
+      }
+      return true;
+    }();
+
+    bool HasStart = false;
+    bool Valid = false;
+
+    if (LoadWasm) {
+      auto Functions = VM.getFunctionList();
+      for (auto &[FuncName, Type] : Functions) {
+        if (FuncName == "_start") {
+          HasStart = true;
+          if (Type.getReturnTypes().size() == 0 &&
+              Type.getParamTypes().size() == 0) {
+            Valid = true;
+            break;
+          }
+        }
+      }
+    }
+    VM.cleanup();
+
+    // XXX: if HasStart but not Valid, insert _start to enter reactor mode
+    if (HasStart && !Valid) {
+      Args.value().insert(Args.value().begin(), "_start");
+    }
+
+    return HasStart && Valid;
+  };
+
+  bool EnterCommandMode = !Reactor.value() && HasValidCommandModStartFunc();
+
   WasiMod->getEnv().init(
       Dir.value(),
       InputPath.filename()
@@ -244,7 +286,7 @@ int Tool(int Argc, const char *Argv[]) noexcept {
           .u8string(),
       Args.value(), Env.value());
 
-  if (!Reactor.value()) {
+  if (EnterCommandMode) {
     // command mode
     auto AsyncResult = VM.asyncRunWasmFile(InputPath.u8string(), "_start");
     if (Timeout.has_value()) {

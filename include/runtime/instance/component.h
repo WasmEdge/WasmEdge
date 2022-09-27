@@ -32,9 +32,13 @@ namespace Instance {
 class ComponentInstance {
   mutable std::shared_mutex Mutex;
   const std::string CompName;
+
+  std::vector<ComponentInstance *> Insts;
   std::vector<ModuleInstance *> CoreInsts;
+
   std::vector<AST::CoreType> CoreTypes;
   std::vector<AST::Type> Types;
+
   std::vector<FunctionInstance *> FuncInsts;
 
 public:
@@ -44,6 +48,9 @@ public:
     std::shared_lock Lock(Mutex);
     return CompName;
   }
+
+  void initInstance() { Insts = {}; }
+  void addInstance(ComponentInstance *I) { Insts.push_back(I); }
 
   void initCoreInstance() { CoreInsts = {}; }
   void addCoreInstance(ModuleInstance *I) { CoreInsts.push_back(I); }
@@ -69,7 +76,10 @@ public:
     LinkedStore.insert_or_assign(Store, Callback);
   }
 
+  ComponentInstance *getInstance(uint32_t I) { return Insts[I]; }
   ModuleInstance *getCoreInstance(uint32_t I) { return CoreInsts[I]; }
+  const AST::CoreType &getCoreType(uint32_t I) { return CoreTypes[I]; }
+  const AST::Type &getType(uint32_t I) { return Types[I]; }
 
 private:
   std::map<StoreManager *, std::function<BeforeModuleDestroyCallback>>

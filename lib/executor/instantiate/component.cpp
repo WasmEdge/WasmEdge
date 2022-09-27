@@ -50,6 +50,45 @@ Executor::instantiate(Runtime::StoreManager &StoreMgr,
   for (auto &CoreInst : Comp.getCoreInstanceSection().getContent()) {
     instantiateCore(StoreMgr, *CompInst, Comp, CoreInst);
   }
+  for (auto &Inst : Comp.getInstanceSection().getContent()) {
+    CompInst->initInstance();
+    auto CompList = Comp.getComponentSection().getContent();
+    return std::visit(
+        [this, &StoreMgr, &CompList, &CompInst](auto &&Arg) -> Expect<void> {
+          using T = std::decay_t<decltype(Arg)>;
+          if constexpr (std::is_same_v<T, AST::InstanceExpr::Instantiate>) {
+            for (const AST::InstantiateArg &InstantiateArg :
+                 Arg.getInstantiateArgs()) {
+              // a scoped name only for instantiate the component
+              auto Name = InstantiateArg.getName();
+              // a component instance that already initialized
+              auto Idx = InstantiateArg.getSortIndex();
+              StoreMgr.NamedComp[Name] = CompInst->getInstance(Idx);
+            }
+
+            // The module instantiate with meta information we just insert
+            Expect<std::unique_ptr<Runtime::Instance::ComponentInstance>>
+                ECInst = instantiate(
+                    StoreMgr, std::move(*(CompList[Arg.getModuleIdx()])));
+            if (!ECInst) {
+              return Unexpect(ECInst);
+            }
+            CompInst->addInstance(ECInst->get());
+            return {};
+          } else if constexpr (std::is_same_v<T, AST::InstanceExpr::Export>) {
+            for (auto &Export : Arg.getExports()) {
+              auto *C = new Runtime::Instance::ComponentInstance{""};
+              CompInst->addInstance(C);
+
+              std::string_view Name = Export.getName();
+            }
+            return {};
+          } else {
+            static_assert(AlwaysFalseV<T>, "non-exhaustive visitor!");
+          }
+        },
+        CoreInst);
+  }
 
   //  for (auto &Alias : Comp.getAliasSection().getContent()) {
   //    // TODO: instantiate
@@ -59,16 +98,6 @@ Executor::instantiate(Runtime::StoreManager &StoreMgr,
   //    // TODO: instantiate
   //  }
 
-  //
-  //  for (auto &C : Comp.getComponentSection().getContent()) {
-  //    auto Tmp = instantiate(StoreMgr, std::move(*C));
-  //    // TODO: push Tmp into component
-  //  }
-  //
-  //  for (auto &Inst : Comp.getInstanceSection().getContent()) {
-  //    // TODO: instantiate
-  //  }
-  //
   //  for (auto &Tmp : Comp.getCanonSection().getContent()) {
   //    // TODO: instantiate
   //  }
@@ -76,10 +105,45 @@ Executor::instantiate(Runtime::StoreManager &StoreMgr,
   //  for (auto &Tmp : Comp.getImportSection().getContent()) {
   //    // TODO: instantiate
   //  }
-  //
-  //  for (auto &Tmp : Comp.getExportSection().getContent()) {
-  //    // TODO: instantiate
-  //  }
+
+  for (auto &Export : Comp.getExportSection().getContent()) {
+    auto Extern = Export.getExtern();
+    switch (Extern.getSort()) {
+    case AST::Sort::CoreFunc:
+      break;
+    case AST::Sort::Table:
+      break;
+    case AST::Sort::Memory:
+      break;
+    case AST::Sort::Global:
+      break;
+    case AST::Sort::CoreType:
+      Export.getName();
+      CompInst->getCoreType(Extern.getIndex());
+      break;
+    case AST::Sort::Module:
+      break;
+    case AST::Sort::CoreInstance:
+      Export.getName();
+      CompInst->getCoreInstance(Extern.getIndex());
+      break;
+    case AST::Sort::Func:
+      break;
+    case AST::Sort::Value:
+      break;
+    case AST::Sort::Type:
+      Export.getName();
+      CompInst->getType(Extern.getIndex());
+      break;
+    case AST::Sort::Component:
+      // TODO: no idea
+      break;
+    case AST::Sort::Instance:
+      Export.getName();
+      CompInst->getInstance(Extern.getIndex());
+      break;
+    }
+  }
 
   // For the named components, register it into the store.
   if (Name.has_value()) {

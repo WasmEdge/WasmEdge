@@ -49,6 +49,7 @@ jobs:
           WasmEdge_VMRunWasmFromASTModule
           WasmEdge_VMRunWasmFromBuffer
           WasmEdge_VMRunWasmFromFile
+          WasmEdge_StringWrap
           EOF
           echo "===Allowlist==="
           cat allowlist.txt

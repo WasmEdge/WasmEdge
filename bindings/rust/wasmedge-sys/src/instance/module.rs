@@ -7,6 +7,7 @@ use crate::{
     types::WasmEdgeString,
     Function, Global, Memory, Table, WasmEdgeResult,
 };
+use std::sync::Arc;
 
 /// An [Instance] represents an instantiated module. In the instantiation process, An [Instance] is created from al[Module](crate::Module). From an [Instance] the exported [functions](crate::Function), [tables](crate::Table), [memories](crate::Memory), and [globals](crate::Global) can be fetched.
 ///
@@ -20,14 +21,14 @@ use crate::{
 /// * [Store](crate::Store)
 ///     * [Store::module](crate::Store::module) ([example](https://github.com/WasmEdge/WasmEdge/tree/master/bindings/rust/wasmedge-sys/examples/vm_get_active_module.rs))
 ///
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Instance {
-    pub(crate) inner: InnerInstance,
+    pub(crate) inner: Arc<InnerInstance>,
     pub(crate) registered: bool,
 }
 impl Drop for Instance {
     fn drop(&mut self) {
-        if !self.registered && !self.inner.0.is_null() {
+        if !self.registered && Arc::strong_count(&self.inner) == 1 && !self.inner.0.is_null() {
             unsafe {
                 ffi::WasmEdge_ModuleInstanceDelete(self.inner.0);
             }
@@ -419,15 +420,15 @@ pub trait AsInstance {
 ///
 /// ```
 ///  
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ImportModule {
-    pub(crate) inner: InnerInstance,
+    pub(crate) inner: Arc<InnerInstance>,
     pub(crate) registered: bool,
     name: String,
 }
 impl Drop for ImportModule {
     fn drop(&mut self) {
-        if !self.registered && !self.inner.0.is_null() {
+        if !self.registered && Arc::strong_count(&self.inner) == 1 && !self.inner.0.is_null() {
             unsafe {
                 ffi::WasmEdge_ModuleInstanceDelete(self.inner.0);
             }
@@ -453,7 +454,7 @@ impl ImportModule {
                 InstanceError::CreateImportModule,
             ))),
             false => Ok(Self {
-                inner: InnerInstance(ctx),
+                inner: std::sync::Arc::new(InnerInstance(ctx)),
                 registered: false,
                 name: name.as_ref().to_string(),
             }),
@@ -512,14 +513,14 @@ impl AsImport for ImportModule {
 /// * A [WasiModule] can be created implicitly inside a [Vm](crate::Vm) by passing the [Vm](crate::Vm) a [config](crate::Config) argument in which the `wasi` option is enabled.
 ///    * [Example](https://github.com/WasmEdge/WasmEdge/tree/master/bindings/rust/wasmedge-sys/examples/wasi_module.rs)
 ///
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct WasiModule {
-    pub(crate) inner: InnerInstance,
+    pub(crate) inner: Arc<InnerInstance>,
     pub(crate) registered: bool,
 }
 impl Drop for WasiModule {
     fn drop(&mut self) {
-        if !self.registered && !self.inner.0.is_null() {
+        if !self.registered && Arc::strong_count(&self.inner) == 1 && !self.inner.0.is_null() {
             unsafe {
                 ffi::WasmEdge_ModuleInstanceDelete(self.inner.0);
             }
@@ -594,7 +595,7 @@ impl WasiModule {
         match ctx.is_null() {
             true => Err(Box::new(WasmEdgeError::ImportObjCreate)),
             false => Ok(Self {
-                inner: InnerInstance(ctx),
+                inner: std::sync::Arc::new(InnerInstance(ctx)),
                 registered: false,
             }),
         }
@@ -949,16 +950,16 @@ impl AsImport for WasiModule {
 /// * A [WasmEdgeProcessModule] can be created implicitly inside a [Vm](crate::Vm) by passing the [Vm](crate::Vm) a [config](crate::Config) argument in which the `wasmedge_process` option is enabled.
 ///     * [Example](https://github.com/WasmEdge/WasmEdge/tree/master/bindings/rust/wasmedge-sys/examples/wasmedge_process_module.rs)
 ///
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 #[cfg(target_os = "linux")]
 pub struct WasmEdgeProcessModule {
-    pub(crate) inner: InnerInstance,
+    pub(crate) inner: Arc<InnerInstance>,
     pub(crate) registered: bool,
 }
 #[cfg(target_os = "linux")]
 impl Drop for WasmEdgeProcessModule {
     fn drop(&mut self) {
-        if !self.registered && !self.inner.0.is_null() {
+        if !self.registered && Arc::strong_count(&self.inner) == 1 && !self.inner.0.is_null() {
             unsafe {
                 ffi::WasmEdge_ModuleInstanceDelete(self.inner.0);
             }
@@ -1002,7 +1003,7 @@ impl WasmEdgeProcessModule {
         match ctx.is_null() {
             true => Err(Box::new(WasmEdgeError::ImportObjCreate)),
             false => Ok(Self {
-                inner: InnerInstance(ctx),
+                inner: Arc::new(InnerInstance(ctx)),
                 registered: false,
             }),
         }
@@ -1267,14 +1268,14 @@ impl AsImport for WasmEdgeProcessModule {
 }
 
 /// A [WasiNnModule] is a module instance for the WASI-NN specification.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct WasiNnModule {
-    pub(crate) inner: InnerInstance,
+    pub(crate) inner: Arc<InnerInstance>,
     pub(crate) registered: bool,
 }
 impl Drop for WasiNnModule {
     fn drop(&mut self) {
-        if !self.registered && !self.inner.0.is_null() {
+        if !self.registered && Arc::strong_count(&self.inner) == 1 && !self.inner.0.is_null() {
             unsafe {
                 ffi::WasmEdge_ModuleInstanceDelete(self.inner.0);
             }
@@ -1292,7 +1293,7 @@ impl WasiNnModule {
         match ctx.is_null() {
             true => Err(Box::new(WasmEdgeError::ImportObjCreate)),
             false => Ok(Self {
-                inner: InnerInstance(ctx),
+                inner: Arc::new(InnerInstance(ctx)),
                 registered: false,
             }),
         }
@@ -1526,14 +1527,14 @@ impl AsImport for WasiNnModule {
 }
 
 /// A [WasiCryptoCommonModule] is a module instance for the WASI-Crypto specification, covering common types and functions for symmetric operations.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct WasiCryptoCommonModule {
-    pub(crate) inner: InnerInstance,
+    pub(crate) inner: Arc<InnerInstance>,
     pub(crate) registered: bool,
 }
 impl Drop for WasiCryptoCommonModule {
     fn drop(&mut self) {
-        if !self.registered && !self.inner.0.is_null() {
+        if !self.registered && Arc::strong_count(&self.inner) == 1 && !self.inner.0.is_null() {
             unsafe {
                 ffi::WasmEdge_ModuleInstanceDelete(self.inner.0);
             }
@@ -1551,7 +1552,7 @@ impl WasiCryptoCommonModule {
         match ctx.is_null() {
             true => Err(Box::new(WasmEdgeError::ImportObjCreate)),
             false => Ok(Self {
-                inner: InnerInstance(ctx),
+                inner: Arc::new(InnerInstance(ctx)),
                 registered: false,
             }),
         }
@@ -1789,14 +1790,14 @@ impl AsImport for WasiCryptoCommonModule {
 /// # Error
 ///
 /// If the wasi_crypto plugin is not found, then an error is returned.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct WasiCryptoAsymmetricCommonModule {
-    pub(crate) inner: InnerInstance,
+    pub(crate) inner: Arc<InnerInstance>,
     pub(crate) registered: bool,
 }
 impl Drop for WasiCryptoAsymmetricCommonModule {
     fn drop(&mut self) {
-        if !self.registered && !self.inner.0.is_null() {
+        if !self.registered && Arc::strong_count(&self.inner) == 1 && !self.inner.0.is_null() {
             unsafe {
                 ffi::WasmEdge_ModuleInstanceDelete(self.inner.0);
             }
@@ -1810,7 +1811,7 @@ impl WasiCryptoAsymmetricCommonModule {
         match ctx.is_null() {
             true => Err(Box::new(WasmEdgeError::ImportObjCreate)),
             false => Ok(Self {
-                inner: InnerInstance(ctx),
+                inner: Arc::new(InnerInstance(ctx)),
                 registered: false,
             }),
         }
@@ -2044,14 +2045,14 @@ impl AsImport for WasiCryptoAsymmetricCommonModule {
 }
 
 /// A [WasiCryptoSymmetricModule] is a module instance for the WASI-Crypto specification, covering symmetric operations.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct WasiCryptoSymmetricModule {
-    pub(crate) inner: InnerInstance,
+    pub(crate) inner: Arc<InnerInstance>,
     pub(crate) registered: bool,
 }
 impl Drop for WasiCryptoSymmetricModule {
     fn drop(&mut self) {
-        if !self.registered && !self.inner.0.is_null() {
+        if !self.registered && Arc::strong_count(&self.inner) == 1 && !self.inner.0.is_null() {
             unsafe {
                 ffi::WasmEdge_ModuleInstanceDelete(self.inner.0);
             }
@@ -2069,7 +2070,7 @@ impl WasiCryptoSymmetricModule {
         match ctx.is_null() {
             true => Err(Box::new(WasmEdgeError::ImportObjCreate)),
             false => Ok(Self {
-                inner: InnerInstance(ctx),
+                inner: Arc::new(InnerInstance(ctx)),
                 registered: false,
             }),
         }
@@ -2303,14 +2304,14 @@ impl AsImport for WasiCryptoSymmetricModule {
 }
 
 /// A [WasiCryptoKxModule] is a module instance for the WASI-Crypto specification, covering key exchange interfaces.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct WasiCryptoKxModule {
-    pub(crate) inner: InnerInstance,
+    pub(crate) inner: Arc<InnerInstance>,
     pub(crate) registered: bool,
 }
 impl Drop for WasiCryptoKxModule {
     fn drop(&mut self) {
-        if !self.registered && !self.inner.0.is_null() {
+        if !self.registered && Arc::strong_count(&self.inner) == 1 && !self.inner.0.is_null() {
             unsafe {
                 ffi::WasmEdge_ModuleInstanceDelete(self.inner.0);
             }
@@ -2328,7 +2329,7 @@ impl WasiCryptoKxModule {
         match ctx.is_null() {
             true => Err(Box::new(WasmEdgeError::ImportObjCreate)),
             false => Ok(Self {
-                inner: InnerInstance(ctx),
+                inner: Arc::new(InnerInstance(ctx)),
                 registered: false,
             }),
         }
@@ -2562,14 +2563,14 @@ impl AsImport for WasiCryptoKxModule {
 }
 
 /// A [WasiCryptoSignaturesModule] is a module instance for the WASI-Crypto specification, covering signatures interfaces.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct WasiCryptoSignaturesModule {
-    pub(crate) inner: InnerInstance,
+    pub(crate) inner: Arc<InnerInstance>,
     pub(crate) registered: bool,
 }
 impl Drop for WasiCryptoSignaturesModule {
     fn drop(&mut self) {
-        if !self.registered && !self.inner.0.is_null() {
+        if !self.registered && Arc::strong_count(&self.inner) == 1 && !self.inner.0.is_null() {
             unsafe {
                 ffi::WasmEdge_ModuleInstanceDelete(self.inner.0);
             }
@@ -2587,7 +2588,7 @@ impl WasiCryptoSignaturesModule {
         match ctx.is_null() {
             true => Err(Box::new(WasmEdgeError::ImportObjCreate)),
             false => Ok(Self {
-                inner: InnerInstance(ctx),
+                inner: Arc::new(InnerInstance(ctx)),
                 registered: false,
             }),
         }
@@ -2863,7 +2864,7 @@ pub trait AsImport {
 }
 
 /// Defines three types of module instances that can be imported into a WasmEdge [Store](crate::Store) instance.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum ImportObject {
     /// Defines the import module instance of ImportModule type.
     Import(ImportModule),
@@ -2896,7 +2897,7 @@ impl ImportObject {
 }
 
 /// Defines the WasiCrypto type.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum WasiCrypto {
     /// WasiCryptoCommonModule
     Common(WasiCryptoCommonModule),
@@ -3483,5 +3484,111 @@ mod tests {
         let c = a + b;
 
         Ok(vec![WasmValue::from_i32(c)])
+    }
+
+    #[test]
+    #[allow(clippy::assertions_on_result_states)]
+    fn test_instance_clone() {
+        // clone of ImportModule
+        {
+            let host_name = "extern";
+
+            // create an import module
+            let result = ImportModule::create(host_name);
+            assert!(result.is_ok());
+            let mut import = result.unwrap();
+
+            // create a host function
+            let result = FuncType::create([ValType::ExternRef, ValType::I32], [ValType::I32]);
+            assert!(result.is_ok());
+            let func_ty = result.unwrap();
+            let result = Function::create::<!>(&func_ty, Box::new(real_add), None, 0);
+            assert!(result.is_ok());
+            let host_func = result.unwrap();
+            // add the host function
+            import.add_func("func-add", host_func);
+
+            // create a table
+            let result = TableType::create(RefType::FuncRef, 10, Some(20));
+            assert!(result.is_ok());
+            let table_ty = result.unwrap();
+            let result = Table::create(&table_ty);
+            assert!(result.is_ok());
+            let host_table = result.unwrap();
+            // add the table
+            import.add_table("table", host_table);
+
+            // create a memory
+            let result = MemType::create(1, Some(2), false);
+            assert!(result.is_ok());
+            let mem_ty = result.unwrap();
+            let result = Memory::create(&mem_ty);
+            assert!(result.is_ok());
+            let host_memory = result.unwrap();
+            // add the memory
+            import.add_memory("memory", host_memory);
+
+            // create a global
+            let result = GlobalType::create(ValType::I32, Mutability::Const);
+            assert!(result.is_ok());
+            let global_ty = result.unwrap();
+            let result = Global::create(&global_ty, WasmValue::from_i32(666));
+            assert!(result.is_ok());
+            let host_global = result.unwrap();
+            // add the global
+            import.add_global("global_i32", host_global);
+            assert_eq!(Arc::strong_count(&import.inner), 1);
+
+            // clone the import module
+            let import_clone = import.clone();
+            assert_eq!(Arc::strong_count(&import.inner), 2);
+
+            drop(import);
+            assert_eq!(Arc::strong_count(&import_clone.inner), 1);
+            drop(import_clone);
+        }
+
+        // clone of WasiModule
+        {
+            let result = WasiModule::create(None, None, None);
+            assert!(result.is_ok());
+
+            let result = WasiModule::create(
+                Some(vec!["arg1", "arg2"]),
+                Some(vec!["ENV1=VAL1", "ENV1=VAL2", "ENV3=VAL3"]),
+                Some(vec![
+                    "apiTestData",
+                    "Makefile",
+                    "CMakeFiles",
+                    "ssvmAPICoreTests",
+                    ".:.",
+                ]),
+            );
+            assert!(result.is_ok());
+
+            let result = WasiModule::create(
+                None,
+                Some(vec!["ENV1=VAL1", "ENV1=VAL2", "ENV3=VAL3"]),
+                Some(vec![
+                    "apiTestData",
+                    "Makefile",
+                    "CMakeFiles",
+                    "ssvmAPICoreTests",
+                    ".:.",
+                ]),
+            );
+            assert!(result.is_ok());
+            let wasi_import = result.unwrap();
+            assert_eq!(wasi_import.exit_code(), 0);
+            assert_eq!(std::sync::Arc::strong_count(&wasi_import.inner), 1);
+
+            // clone
+            let wasi_import_clone = wasi_import.clone();
+            assert_eq!(std::sync::Arc::strong_count(&wasi_import.inner), 2);
+
+            drop(wasi_import);
+            assert_eq!(std::sync::Arc::strong_count(&wasi_import_clone.inner), 1);
+            drop(wasi_import_clone);
+        }
     }
 }

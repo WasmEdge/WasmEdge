@@ -30,14 +30,20 @@ impl Executor {
             Some(mut config) => match stat {
                 Some(stat) => {
                     let ctx = unsafe { ffi::WasmEdge_ExecutorCreate(config.inner.0, stat.inner.0) };
-                    config.inner.0 = std::ptr::null_mut();
+
+                    let inner_config = &mut *std::sync::Arc::get_mut(&mut config.inner).unwrap();
+                    inner_config.0 = std::ptr::null_mut();
+
                     ctx
                 }
                 None => {
                     let ctx = unsafe {
                         ffi::WasmEdge_ExecutorCreate(config.inner.0, std::ptr::null_mut())
                     };
-                    config.inner.0 = std::ptr::null_mut();
+
+                    let inner_config = &mut *std::sync::Arc::get_mut(&mut config.inner).unwrap();
+                    inner_config.0 = std::ptr::null_mut();
+
                     ctx
                 }
             },
@@ -180,7 +186,7 @@ impl Executor {
         }
 
         Ok(Instance {
-            inner: InnerInstance(instance_ctx),
+            inner: std::sync::Arc::new(InnerInstance(instance_ctx)),
             registered: false,
         })
     }
@@ -215,7 +221,7 @@ impl Executor {
             ))?;
         }
         Ok(Instance {
-            inner: InnerInstance(instance_ctx),
+            inner: std::sync::Arc::new(InnerInstance(instance_ctx)),
             registered: false,
         })
     }

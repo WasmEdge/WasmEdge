@@ -6,7 +6,7 @@ use crate::{
     types::WasmEdgeLimit,
     WasmEdgeResult,
 };
-use std::{borrow::Cow, ffi::CStr};
+use std::{borrow::Cow, ffi::CStr, sync::Arc};
 use wasmedge_types::{
     ExternalInstanceType, FuncType, GlobalType, MemoryType, Mutability, RefType, TableType, ValType,
 };
@@ -17,13 +17,13 @@ use wasmedge_types::{
 /// representation of an input WebAssembly binary. In the instantiation process, a [Module] is used to create a
 /// [module stance](crate::instance), from which the exported [functions](crate::Function), [tables](crate::Table),
 /// [memories](crate::Memory), and [globals](crate::Global) can be fetched.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Module {
-    pub(crate) inner: InnerModule,
+    pub(crate) inner: Arc<InnerModule>,
 }
 impl Drop for Module {
     fn drop(&mut self) {
-        if !self.inner.0.is_null() {
+        if Arc::strong_count(&self.inner) == 1 && !self.inner.0.is_null() {
             unsafe { ffi::WasmEdge_ASTModuleDelete(self.inner.0) };
         }
     }
@@ -403,6 +403,34 @@ mod tests {
         thread,
     };
     use wasmedge_types::{ExternalInstanceType, Mutability, RefType, ValType};
+
+    #[test]
+    fn test_module_clone() {
+        let path = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
+            .join("bindings/rust/wasmedge-sys/tests/data/import.wasm");
+
+        let result = Config::create();
+        assert!(result.is_ok());
+        let mut config = result.unwrap();
+        config.bulk_memory_operations(true);
+        assert!(config.bulk_memory_operations_enabled());
+
+        // load module from file
+        let result = Loader::create(Some(config));
+        assert!(result.is_ok());
+        let loader = result.unwrap();
+        let result = loader.from_file(path);
+        assert!(result.is_ok());
+        let module = result.unwrap();
+        assert!(!module.inner.0.is_null());
+
+        // clone module
+        let module_clone = module.clone();
+
+        drop(module);
+        assert_eq!(std::sync::Arc::strong_count(&module_clone.inner), 1);
+        drop(module_clone);
+    }
 
     #[test]
     fn test_module_import() {

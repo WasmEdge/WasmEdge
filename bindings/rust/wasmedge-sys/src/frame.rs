@@ -53,7 +53,7 @@ impl CallingFrame {
 
         match ctx.is_null() {
             false => Some(Instance {
-                inner: InnerInstance(ctx as *mut _),
+                inner: std::sync::Arc::new(InnerInstance(ctx as *mut _)),
                 registered: true,
             }),
             true => None,

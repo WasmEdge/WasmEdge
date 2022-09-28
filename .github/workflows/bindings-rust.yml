@@ -114,6 +114,7 @@ jobs:
       - name: Build WasmEdge with Release mode
         run: |
           brew install llvm@12 ninja boost cmake
+          export LLVM_DIR="/usr/local/opt/llvm/lib/cmake"
           export PATH="/usr/local/opt/llvm/bin:$PATH"
           export LDFLAGS="-L/usr/local/opt/llvm/lib -Wl,-rpath,/usr/local/opt/llvm/lib"
           export CPPFLAGS="-I/usr/local/opt/llvm/include"

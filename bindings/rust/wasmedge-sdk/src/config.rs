@@ -765,15 +765,6 @@ pub struct HostRegistrationConfigOptions {
     wasi_crypto_signatures: bool,
 }
 impl HostRegistrationConfigOptions {
-    // /// Creates a new instance of [HostRegistrationConfigOptions].
-    // pub fn new() -> Self {
-    //     Self {
-    //         wasi: false,
-    //         #[cfg(target_os = "linux")]
-    //         wasmedge_process: false,
-    //     }
-    // }
-
     /// Enables or disables host registration wasi.
     ///
     /// # Argument
@@ -782,7 +773,20 @@ impl HostRegistrationConfigOptions {
     pub fn wasi(self, enable: bool) -> Self {
         Self {
             wasi: enable,
-            ..self
+            #[cfg(target_os = "linux")]
+            wasmedge_process: self.wasmedge_process,
+            #[cfg(all(target_os = "linux", feature = "wasi_nn", target_arch = "x86_64"))]
+            wasi_nn: self.wasi_nn,
+            #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+            wasi_crypto_common: self.wasi_crypto_common,
+            #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+            wasi_crypto_asymmetric_common: self.wasi_crypto_asymmetric_common,
+            #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+            wasi_crypto_symmetric: self.wasi_crypto_symmetric,
+            #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+            wasi_crypto_kx: self.wasi_crypto_kx,
+            #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+            wasi_crypto_signatures: self.wasi_crypto_signatures,
         }
     }
 

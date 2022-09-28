@@ -1,5 +1,9 @@
 //! Defines WasmEdge Vm struct.
 
+#[cfg(all(target_os = "linux", feature = "wasi_nn"))]
+use crate::WasiNnModule;
+#[cfg(target_os = "linux")]
+use crate::WasmEdgeProcessModule;
 use crate::{
     error::{VmError, WasmEdgeError},
     executor::{Executor, InnerExecutor},
@@ -18,8 +22,11 @@ use crate::{
     Config, Engine, ImportObject, Instance, Module, WasiCrypto, WasiModule, WasmEdgeResult,
     WasmValue,
 };
-#[cfg(target_os = "linux")]
-use crate::{ffi::WasmEdge_HostRegistration_WasmEdge_Process, WasmEdgeProcessModule};
+#[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+use crate::{
+    WasiCryptoAsymmetricCommonModule, WasiCryptoCommonModule, WasiCryptoKxModule,
+    WasiCryptoSignaturesModule, WasiCryptoSymmetricModule,
+};
 use std::{collections::HashMap, path::Path, sync::Arc};
 
 /// A [Vm] defines a virtual environment for managing WebAssembly programs.
@@ -856,7 +863,7 @@ impl Vm {
         let io_ctx = unsafe {
             ffi::WasmEdge_VMGetImportModuleContext(
                 self.inner.0,
-                WasmEdge_HostRegistration_WasmEdge_Process,
+                ffi::WasmEdge_HostRegistration_WasmEdge_Process,
             )
         };
         match io_ctx.is_null() {
@@ -864,6 +871,120 @@ impl Vm {
                 VmError::NotFoundWasmEdgeProcessModule,
             ))),
             false => Ok(WasmEdgeProcessModule {
+                inner: Arc::new(InnerInstance(io_ctx)),
+                registered: true,
+            }),
+        }
+    }
+
+    #[cfg(all(target_os = "linux", feature = "wasi_nn"))]
+    pub fn wasi_nn_module(&mut self) -> WasmEdgeResult<WasiNnModule> {
+        let io_ctx = unsafe {
+            ffi::WasmEdge_VMGetImportModuleContext(
+                self.inner.0,
+                ffi::WasmEdge_HostRegistration_WasiNN,
+            )
+        };
+        match io_ctx.is_null() {
+            true => Err(Box::new(WasmEdgeError::Vm(VmError::NotFoundWasiNnModule))),
+            false => Ok(WasiNnModule {
+                inner: Arc::new(InnerInstance(io_ctx)),
+                registered: true,
+            }),
+        }
+    }
+
+    #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+    pub fn wasi_crypto_common_module(&mut self) -> WasmEdgeResult<WasiCryptoCommonModule> {
+        let io_ctx = unsafe {
+            ffi::WasmEdge_VMGetImportModuleContext(
+                self.inner.0,
+                ffi::WasmEdge_HostRegistration_WasiCrypto_Common,
+            )
+        };
+        match io_ctx.is_null() {
+            true => Err(Box::new(WasmEdgeError::Vm(
+                VmError::NotFoundWasiCryptoCommonModule,
+            ))),
+            false => Ok(WasiCryptoCommonModule {
+                inner: Arc::new(InnerInstance(io_ctx)),
+                registered: true,
+            }),
+        }
+    }
+
+    #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+    pub fn wasi_crypto_asymmetric_common_module(
+        &mut self,
+    ) -> WasmEdgeResult<WasiCryptoAsymmetricCommonModule> {
+        let io_ctx = unsafe {
+            ffi::WasmEdge_VMGetImportModuleContext(
+                self.inner.0,
+                ffi::WasmEdge_HostRegistration_WasiCrypto_AsymmetricCommon,
+            )
+        };
+        match io_ctx.is_null() {
+            true => Err(Box::new(WasmEdgeError::Vm(
+                VmError::NotFoundWasiCryptoAsymmetricCommonModule,
+            ))),
+            false => Ok(WasiCryptoAsymmetricCommonModule {
+                inner: Arc::new(InnerInstance(io_ctx)),
+                registered: true,
+            }),
+        }
+    }
+
+    #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+    pub fn wasi_crypto_symmetric_module(&mut self) -> WasmEdgeResult<WasiCryptoSymmetricModule> {
+        let io_ctx = unsafe {
+            ffi::WasmEdge_VMGetImportModuleContext(
+                self.inner.0,
+                ffi::WasmEdge_HostRegistration_WasiCrypto_Symmetric,
+            )
+        };
+        match io_ctx.is_null() {
+            true => Err(Box::new(WasmEdgeError::Vm(
+                VmError::NotFoundWasiCryptoSymmetricModule,
+            ))),
+            false => Ok(WasiCryptoSymmetricModule {
+                inner: Arc::new(InnerInstance(io_ctx)),
+                registered: true,
+            }),
+        }
+    }
+
+    #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+    pub fn wasi_crypto_kx_module(&mut self) -> WasmEdgeResult<WasiCryptoKxModule> {
+        let io_ctx = unsafe {
+            ffi::WasmEdge_VMGetImportModuleContext(
+                self.inner.0,
+                ffi::WasmEdge_HostRegistration_WasiCrypto_Kx,
+            )
+        };
+        match io_ctx.is_null() {
+            true => Err(Box::new(WasmEdgeError::Vm(
+                VmError::NotFoundWasiCryptoKxModule,
+            ))),
+            false => Ok(WasiCryptoKxModule {
+                inner: Arc::new(InnerInstance(io_ctx)),
+                registered: true,
+            }),
+        }
+    }
+
+    #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+    pub fn wasi_crypto_signatures_module(&mut self) -> WasmEdgeResult<WasiCryptoSignaturesModule> {
+        let io_ctx = unsafe {
+            ffi::WasmEdge_VMGetImportModuleContext(
+                self.inner.0,
+                ffi::WasmEdge_HostRegistration_WasiCrypto_Signatures,
+            )
+        };
+        match io_ctx.is_null() {
+            true => Err(Box::new(WasmEdgeError::Vm(
+                VmError::NotFoundWasiCryptoSignaturesModule,
+            ))),
+            false => Ok(WasiCryptoSignaturesModule {
                 inner: Arc::new(InnerInstance(io_ctx)),
                 registered: true,
             }),
@@ -1044,7 +1165,7 @@ mod tests {
         AsImport, CallingFrame, FuncType, Function, ImportObject, WasiModule,
     };
     #[cfg(target_os = "linux")]
-    use crate::{utils, ImportModule, WasmEdgeProcessModule};
+    use crate::{utils, AsInstance, ImportModule, WasmEdgeProcessModule};
     use std::{
         sync::{Arc, Mutex},
         thread,
@@ -2512,6 +2633,51 @@ mod tests {
             let result = instance.get_func("add");
             assert!(result.is_ok());
         }
+    }
+
+    #[test]
+    #[cfg(all(target_os = "linux", feature = "wasi_nn"))]
+    #[allow(clippy::assertions_on_result_states)]
+    fn test_vm_get_wasinn_module() -> Result<(), Box<dyn std::error::Error>> {
+        utils::load_plugin_from_default_paths();
+
+        // create a Config context
+        let mut config = Config::create()?;
+        config.bulk_memory_operations(true);
+        config.wasi(true);
+        assert!(config.wasi_enabled());
+
+        let result = Vm::create(Some(config), None);
+        assert!(result.is_ok());
+        let mut vm = result.unwrap();
+
+        let result = vm.wasi_nn_module();
+        assert!(result.is_ok());
+        let wasi_nn_module = result.unwrap();
+        println!("len of funcs: {}", wasi_nn_module.func_len());
+
+        // println!("len: {}", vm.function_list_len());
+
+        // vm.function_iter()
+        //     .for_each(|(name, _)| println!("{:?}", name));
+
+        // let wasi_module = vm.wasi_module_mut()?;
+
+        // println!("len: {}", wasi_module.func_len());
+
+        // wasi_module.func_names().unwrap().iter().for_each(|name| {
+        //     println!("{:?}", name);
+        // });
+        //
+
+        // let store = vm.store_mut()?;
+        // println!("module len: {}", store.module_len());
+
+        // store.module_names().unwrap().iter().for_each(|name| {
+        //     println!("{:?}", name);
+        // });
+
+        Ok(())
     }
 
     #[test]

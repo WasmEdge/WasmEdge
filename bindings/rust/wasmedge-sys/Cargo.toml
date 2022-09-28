@@ -28,6 +28,6 @@ cmake = "0.1"
 
 [features]
 aot = []
-default = ["aot", "wasi_nn", "wasi_crypto"]
+default = ["aot"]
 wasi_nn = []
 wasi_crypto = []

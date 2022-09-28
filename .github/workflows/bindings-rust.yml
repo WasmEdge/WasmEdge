@@ -113,11 +113,10 @@ jobs:
 
       - name: Build WasmEdge with Release mode
         run: |
-          brew install llvm@12 ninja boost cmake
-          export LLVM_DIR="/usr/local/opt/llvm@12/lib/cmake"
-          export PATH="/usr/local/opt/llvm@12/bin:$PATH"
-          export LDFLAGS="-L/usr/local/opt/llvm@12/lib -Wl,-rpath,/usr/local/opt/llvm@12/lib"
-          export CPPFLAGS="-I/usr/local/opt/llvm@12/include"
+          brew install llvm ninja boost cmake
+          export PATH="/usr/local/opt/llvm/bin:$PATH"
+          export LDFLAGS="-L/usr/local/opt/llvm/lib -Wl,-rpath,/usr/local/opt/llvm/lib"
+          export CPPFLAGS="-I/usr/local/opt/llvm/include"
           export CC=clang
           export CXX=clang++
           cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_BUILD_TESTS=ON -DWASMEDGE_BUILD_PACKAGE="TGZ" .

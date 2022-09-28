@@ -2644,38 +2644,21 @@ mod tests {
         // create a Config context
         let mut config = Config::create()?;
         config.bulk_memory_operations(true);
-        config.wasi(true);
-        assert!(config.wasi_enabled());
+        config.wasi_nn(true);
+        assert!(config.wasi_nn_enabled());
 
         let result = Vm::create(Some(config), None);
         assert!(result.is_ok());
         let mut vm = result.unwrap();
 
-        let result = vm.wasi_nn_module();
-        assert!(result.is_ok());
-        let wasi_nn_module = result.unwrap();
-        println!("len of funcs: {}", wasi_nn_module.func_len());
+        let wasi_nn_module = vm.wasi_nn_module()?;
+        assert_eq!(wasi_nn_module.func_len(), 5);
 
-        // println!("len: {}", vm.function_list_len());
-
-        // vm.function_iter()
-        //     .for_each(|(name, _)| println!("{:?}", name));
-
-        // let wasi_module = vm.wasi_module_mut()?;
-
-        // println!("len: {}", wasi_module.func_len());
-
-        // wasi_module.func_names().unwrap().iter().for_each(|name| {
-        //     println!("{:?}", name);
-        // });
-        //
-
-        // let store = vm.store_mut()?;
-        // println!("module len: {}", store.module_len());
-
-        // store.module_names().unwrap().iter().for_each(|name| {
-        //     println!("{:?}", name);
-        // });
+        wasi_nn_module
+            .func_names()
+            .unwrap()
+            .iter()
+            .for_each(|name| println!("func name: {}", name));
 
         Ok(())
     }

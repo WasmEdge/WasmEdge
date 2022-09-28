@@ -1,13 +1,13 @@
 //! Defines WasmEdge Vm struct.
 
-#[cfg(all(target_os = "linux", feature = "wasi_nn"))]
+#[cfg(all(target_os = "linux", feature = "wasi_nn", target_arch = "x86_64"))]
 use crate::WasiNnModule;
 #[cfg(target_os = "linux")]
 use crate::WasmEdgeProcessModule;
 use crate::{
     error::{VmError, WasmEdgeError},
     executor::{Executor, InnerExecutor},
-    ffi::{self, WasmEdge_HostRegistration_Wasi},
+    ffi,
     instance::{
         function::{FuncRef, FuncType, Function, InnerFuncType},
         module::InnerInstance,
@@ -19,12 +19,11 @@ use crate::{
     types::WasmEdgeString,
     utils::{self, check},
     validator::{InnerValidator, Validator},
-    Config, Engine, ImportObject, Instance, Module, WasiCrypto, WasiModule, WasmEdgeResult,
-    WasmValue,
+    Config, Engine, ImportObject, Instance, Module, WasiModule, WasmEdgeResult, WasmValue,
 };
 #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
 use crate::{
-    WasiCryptoAsymmetricCommonModule, WasiCryptoCommonModule, WasiCryptoKxModule,
+    WasiCrypto, WasiCryptoAsymmetricCommonModule, WasiCryptoCommonModule, WasiCryptoKxModule,
     WasiCryptoSignaturesModule, WasiCryptoSymmetricModule,
 };
 use std::{collections::HashMap, path::Path, sync::Arc};
@@ -167,36 +166,42 @@ impl Vm {
                     import.inner.0 as *const _,
                 ))?;
             },
+            #[cfg(all(target_os = "linux", feature = "wasi_nn", target_arch = "x86_64"))]
             ImportObject::Nn(import) => unsafe {
                 check(ffi::WasmEdge_VMRegisterModuleFromImport(
                     self.inner.0,
                     import.inner.0 as *const _,
                 ))?;
             },
+            #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
             ImportObject::Crypto(WasiCrypto::Common(import)) => unsafe {
                 check(ffi::WasmEdge_VMRegisterModuleFromImport(
                     self.inner.0,
                     import.inner.0 as *const _,
                 ))?;
             },
+            #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
             ImportObject::Crypto(WasiCrypto::AsymmetricCommon(import)) => unsafe {
                 check(ffi::WasmEdge_VMRegisterModuleFromImport(
                     self.inner.0,
                     import.inner.0 as *const _,
                 ))?;
             },
+            #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
             ImportObject::Crypto(WasiCrypto::SymmetricOptionations(import)) => unsafe {
                 check(ffi::WasmEdge_VMRegisterModuleFromImport(
                     self.inner.0,
                     import.inner.0 as *const _,
                 ))?;
             },
+            #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
             ImportObject::Crypto(WasiCrypto::KeyExchange(import)) => unsafe {
                 check(ffi::WasmEdge_VMRegisterModuleFromImport(
                     self.inner.0,
                     import.inner.0 as *const _,
                 ))?;
             },
+            #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
             ImportObject::Crypto(WasiCrypto::Signatures(import)) => unsafe {
                 check(ffi::WasmEdge_VMRegisterModuleFromImport(
                     self.inner.0,
@@ -844,7 +849,10 @@ impl Vm {
     /// Notice that this function is only available when a [config](crate::Config) with the enabled [wasi](crate::Config::wasi) option is used in the creation of this [Vm].
     pub fn wasi_module_mut(&mut self) -> WasmEdgeResult<WasiModule> {
         let io_ctx = unsafe {
-            ffi::WasmEdge_VMGetImportModuleContext(self.inner.0, WasmEdge_HostRegistration_Wasi)
+            ffi::WasmEdge_VMGetImportModuleContext(
+                self.inner.0,
+                ffi::WasmEdge_HostRegistration_Wasi,
+            )
         };
         match io_ctx.is_null() {
             true => Err(Box::new(WasmEdgeError::Vm(VmError::NotFoundWasiModule))),
@@ -877,7 +885,7 @@ impl Vm {
         }
     }
 
-    #[cfg(all(target_os = "linux", feature = "wasi_nn"))]
+    #[cfg(all(target_os = "linux", feature = "wasi_nn", target_arch = "x86_64"))]
     pub fn wasi_nn_module(&mut self) -> WasmEdgeResult<WasiNnModule> {
         let io_ctx = unsafe {
             ffi::WasmEdge_VMGetImportModuleContext(
@@ -1165,7 +1173,7 @@ mod tests {
         AsImport, CallingFrame, FuncType, Function, ImportObject, WasiModule,
     };
     #[cfg(target_os = "linux")]
-    use crate::{utils, AsInstance, ImportModule, WasmEdgeProcessModule};
+    use crate::{utils, ImportModule, WasmEdgeProcessModule};
     use std::{
         sync::{Arc, Mutex},
         thread,
@@ -2636,13 +2644,17 @@ mod tests {
     }
 
     #[test]
-    #[cfg(all(target_os = "linux", feature = "wasi_nn"))]
+    #[cfg(all(target_os = "linux", feature = "wasi_nn", target_arch = "x86_64"))]
     #[allow(clippy::assertions_on_result_states)]
-    fn test_vm_get_wasinn_module() -> Result<(), Box<dyn std::error::Error>> {
+    fn test_vm_get_wasinn_module() {
+        use crate::AsInstance;
+
         utils::load_plugin_from_default_paths();
 
         // create a Config context
-        let mut config = Config::create()?;
+        let result = Config::create();
+        assert!(result.is_ok());
+        let mut config = result.unwrap();
         config.bulk_memory_operations(true);
         config.wasi_nn(true);
         assert!(config.wasi_nn_enabled());
@@ -2651,7 +2663,9 @@ mod tests {
         assert!(result.is_ok());
         let mut vm = result.unwrap();
 
-        let wasi_nn_module = vm.wasi_nn_module()?;
+        let result = vm.wasi_nn_module();
+        assert!(result.is_ok());
+        let wasi_nn_module = result.unwrap();
         assert_eq!(wasi_nn_module.func_len(), 5);
 
         wasi_nn_module
@@ -2659,8 +2673,6 @@ mod tests {
             .unwrap()
             .iter()
             .for_each(|name| println!("func name: {}", name));
-
-        Ok(())
     }
 
     #[test]

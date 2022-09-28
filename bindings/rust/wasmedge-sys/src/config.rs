@@ -281,7 +281,7 @@ impl Config {
         }
     }
 
-    #[cfg(all(target_os = "linux", feature = "wasi_nn"))]
+    #[cfg(all(target_os = "linux", feature = "wasi_nn", target_arch = "x86_64"))]
     pub fn wasi_nn(&mut self, enable: bool) {
         unsafe {
             if enable {
@@ -298,7 +298,7 @@ impl Config {
         }
     }
 
-    #[cfg(all(target_os = "linux", feature = "wasi_nn"))]
+    #[cfg(all(target_os = "linux", feature = "wasi_nn", target_arch = "x86_64"))]
     pub fn wasi_nn_enabled(&self) -> bool {
         unsafe {
             ffi::WasmEdge_ConfigureHasHostRegistration(

@@ -27,14 +27,7 @@ impl Loader {
     /// If fail to create a [Loader](crate), then an error is returned.
     pub fn create(config: Option<Config>) -> WasmEdgeResult<Self> {
         let ctx = match config {
-            Some(mut config) => {
-                let ctx = unsafe { ffi::WasmEdge_LoaderCreate(config.inner.0) };
-
-                let inner_config = &mut *std::sync::Arc::get_mut(&mut config.inner).unwrap();
-                inner_config.0 = std::ptr::null_mut();
-
-                ctx
-            }
+            Some(config) => unsafe { ffi::WasmEdge_LoaderCreate(config.inner.0) },
             None => unsafe { ffi::WasmEdge_LoaderCreate(std::ptr::null_mut()) },
         };
 

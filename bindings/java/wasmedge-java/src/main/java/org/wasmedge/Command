@@ -1,2 +1,0 @@
-javac -d D:\MyCode\OSPP\WasmEdge\bindings\java\wasmedge-jni\jni-test\ -h . *.java .\enums\*.java
-del org*

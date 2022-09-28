@@ -231,6 +231,18 @@ pub enum VmError {
     NotFoundWasiModule,
     #[error("Fail to get WasmEdge_Process module instance")]
     NotFoundWasmEdgeProcessModule,
+    #[error("Fail to get WasiNn module instance")]
+    NotFoundWasiNnModule,
+    #[error("Fail to get WasiCryptoCommon module instance")]
+    NotFoundWasiCryptoCommonModule,
+    #[error("Fail to get WasiCryptoAsymmetricCommon module instance")]
+    NotFoundWasiCryptoAsymmetricCommonModule,
+    #[error("Fail to get WasiCryptoSymmetric module instance")]
+    NotFoundWasiCryptoSymmetricModule,
+    #[error("Fail to get WasiCryptoKx module instance")]
+    NotFoundWasiCryptoKxModule,
+    #[error("Fail to get WasiCryptoSignatures module instance")]
+    NotFoundWasiCryptoSignaturesModule,
     #[error("Fail to get Store context")]
     NotFoundStore,
     #[error("Fail to get Statistics context")]

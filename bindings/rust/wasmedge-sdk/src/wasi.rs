@@ -157,10 +157,12 @@ impl AsInstance for WasiInstance {
 }
 
 /// A [WasiNnInstance] is a module instance for the WASI-NN specification.
+#[cfg(all(target_os = "linux", feature = "wasi_nn", target_arch = "x86_64"))]
 #[derive(Debug)]
 pub struct WasiNnInstance {
     pub(crate) inner: sys::WasiNnModule,
 }
+#[cfg(all(target_os = "linux", feature = "wasi_nn", target_arch = "x86_64"))]
 impl AsInstance for WasiNnInstance {
     fn name(&self) -> &str {
         self.inner.name()
@@ -236,10 +238,12 @@ impl AsInstance for WasiNnInstance {
 }
 
 /// A [WasiCryptoCommonInstance] is a module instance for the WASI-Crypto specification, covering common types and functions for symmetric operations.
+#[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
 #[derive(Debug)]
 pub struct WasiCryptoCommonInstance {
     pub(crate) inner: sys::WasiCryptoCommonModule,
 }
+#[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
 impl AsInstance for WasiCryptoCommonInstance {
     fn name(&self) -> &str {
         self.inner.name()
@@ -315,10 +319,12 @@ impl AsInstance for WasiCryptoCommonInstance {
 }
 
 /// A [WasiCryptoAsymmetricCommonInstance] is a module instance for the WASI-Crypto specification, covering common types and functions for asymmetric operations.
+#[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
 #[derive(Debug)]
 pub struct WasiCryptoAsymmetricCommonInstance {
     pub(crate) inner: sys::WasiCryptoAsymmetricCommonModule,
 }
+#[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
 impl AsInstance for WasiCryptoAsymmetricCommonInstance {
     fn name(&self) -> &str {
         self.inner.name()
@@ -394,10 +400,12 @@ impl AsInstance for WasiCryptoAsymmetricCommonInstance {
 }
 
 /// A [WasiCryptoSymmetricInstance] is a module instance for the WASI-Crypto specification, covering symmetric operations.
+#[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
 #[derive(Debug)]
 pub struct WasiCryptoSymmetricInstance {
     pub(crate) inner: sys::WasiCryptoSymmetricModule,
 }
+#[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
 impl AsInstance for WasiCryptoSymmetricInstance {
     fn name(&self) -> &str {
         self.inner.name()
@@ -473,10 +481,12 @@ impl AsInstance for WasiCryptoSymmetricInstance {
 }
 
 /// A [WasiCryptoKxInstance] is a module instance for the WASI-Crypto specification, covering key exchange interfaces.
+#[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
 #[derive(Debug)]
 pub struct WasiCryptoKxInstance {
     pub(crate) inner: sys::WasiCryptoKxModule,
 }
+#[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
 impl AsInstance for WasiCryptoKxInstance {
     fn name(&self) -> &str {
         self.inner.name()
@@ -552,10 +562,12 @@ impl AsInstance for WasiCryptoKxInstance {
 }
 
 /// A [WasiCryptoSignaturesInstance] is a module instance for the WASI-Crypto specification, covering signatures interfaces.
+#[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
 #[derive(Debug)]
 pub struct WasiCryptoSignaturesInstance {
     pub(crate) inner: sys::WasiCryptoSignaturesModule,
 }
+#[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
 impl AsInstance for WasiCryptoSignaturesInstance {
     fn name(&self) -> &str {
         self.inner.name()

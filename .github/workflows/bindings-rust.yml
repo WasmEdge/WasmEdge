@@ -91,7 +91,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [macos-11, macos-12]
+        os: [macos-12]
 
     steps:
       - name: Checkout sources
@@ -117,12 +117,13 @@ jobs:
 
       - name: Build WasmEdge with Release mode
         run: |
-          if [[ "${{ matrix.runner }}" == "macos-11" ]]; then
-            export LLVM_DIR="/usr/local/opt/llvm@14/lib/cmake"
-          fi
-          if [[ "${{ matrix.runner }}" == "macos-12" ]]; then
-            export LLVM_DIR="/usr/local/opt/llvm/lib/cmake"
-          fi
+          # if [[ "${{ matrix.runner }}" == "macos-11" ]]; then
+          #   export LLVM_DIR="/usr/local/opt/llvm@14/lib/cmake"
+          # fi
+          # if [[ "${{ matrix.runner }}" == "macos-12" ]]; then
+          #   export LLVM_DIR="/usr/local/opt/llvm/lib/cmake"
+          # fi
+          export LLVM_DIR="/usr/local/opt/llvm@14/lib/cmake"
           export CC=clang
           export CXX=clang++
           rm -rf build

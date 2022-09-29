@@ -91,7 +91,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [macos-11, macos-12]
+        os: [macos-11]
 
     steps:
       - name: Checkout sources
@@ -120,9 +120,9 @@ jobs:
           if [[ "${{ matrix.runner }}" == "macos-11" ]]; then
             export LLVM_DIR="/usr/local/opt/llvm@14/lib/cmake"
           fi
-          if [[ "${{ matrix.runner }}" == "macos-12" ]]; then
-            export LLVM_DIR="/usr/local/opt/llvm/lib/cmake"
-          fi
+          # if [[ "${{ matrix.runner }}" == "macos-12" ]]; then
+          #   export LLVM_DIR="/usr/local/opt/llvm@14/lib/cmake"
+          # fi
           export CC=clang
           export CXX=clang++
           cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_BUILD_TESTS=ON -DWASMEDGE_BUILD_PACKAGE="TGZ" .

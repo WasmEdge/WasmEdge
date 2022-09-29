@@ -1,40 +1,36 @@
 {
     "prerelease": false,
     "timestamp": "2022-09-28",
+    "url_root": "https://github.com/WasmEdge/WasmEdge/releases/download",
     "plugins": [
         {
             "name": "wasi-nn-openvino",
-            "version": "0.11.0",
+            "min_version": "0.11.0",
+            "max_version": "0.11.0",
             "ubuntu20.04": {
                 "arch": [
                     "x86_64"
-                ],
-                "urls": [
-                    "https://github.com/WasmEdge/WasmEdge/releases/download/0.11.0/WasmEdge-plugin-wasi_nn-openvino-0.11.0-ubuntu20.04_x86_64.tar.gz"
                 ]
-            }
+            },
+            "url": []
         },
         {
             "name": "wasi_crypto",
-            "version": "0.11.0",
+            "min_version": "0.11.0",
+            "max_version": "0.11.0",
             "manylinux2014": {
                 "arch": [
                     "x86_64",
                     "aarch64"
-                ],
-                "urls": [
-                    "https://github.com/WasmEdge/WasmEdge/releases/download/0.11.0/WasmEdge-plugin-wasi_crypto-0.11.0-manylinux2014_x86_64.tar.gz",
-                    "https://github.com/WasmEdge/WasmEdge/releases/download/0.11.0/WasmEdge-plugin-wasi_crypto-0.11.0-manylinux2014_aarch64.tar.gz"
                 ]
             },
             "ubuntu20.04": {
                 "arch": [
                     "x86_64"
-                ],
-                "urls": [
-                    "https://github.com/WasmEdge/WasmEdge/releases/download/0.11.0/WasmEdge-plugin-wasi_crypto-0.11.0-ubuntu20.04_x86_64.tar.gz"
                 ]
-            }
+            },
+            "url": []
         }
-    ]
+    ],
+    "url_generic": "$VERSION$/WasmEdge-plugin-$PLUGIN_NAME$-$VERSION$-$PLATFORM$_$ARCH.tar.gz"
 }

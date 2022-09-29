@@ -111,12 +111,18 @@ jobs:
           cargo +nightly fmt --all -- --check
           cd -
 
+      - name: Install build tools
+        run: |
+          brew install llvm@14 ninja boost cmake
+
       - name: Build WasmEdge with Release mode
         run: |
-          brew install llvm ninja boost cmake
-          export PATH="/usr/local/opt/llvm/bin:$PATH"
-          export LDFLAGS="-L/usr/local/opt/llvm/lib -Wl,-rpath,/usr/local/opt/llvm/lib"
-          export CPPFLAGS="-I/usr/local/opt/llvm/include"
+          if [[ "${{ matrix.runner }}" == "macos-11" ]]; then
+            export LLVM_DIR="/usr/local/opt/llvm@14/lib/cmake"
+          fi
+          if [[ "${{ matrix.runner }}" == "macos-12" ]]; then
+            export LLVM_DIR="/usr/local/opt/llvm/lib/cmake"
+          fi
           export CC=clang
           export CXX=clang++
           cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_BUILD_TESTS=ON -DWASMEDGE_BUILD_PACKAGE="TGZ" .

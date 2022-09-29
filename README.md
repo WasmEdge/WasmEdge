@@ -21,7 +21,7 @@ WasmEdge is a lightweight, high-performance, and extensible WebAssembly runtime.
 # Quick start guides
 
 🚀 [Install](https://wasmedge.org/book/en/quick_start/install.html) WasmEdge \
-🤖 [Build](https://wasmedge.org/book/en/extend/build.html) and [contribute to](docs/CONTRIBUTING.md) WasmEdge \
+🤖 [Build](https://wasmedge.org/book/en/extend/build.html) and [contribute to](https://wasmedge.org/book/en/contribute.html) WasmEdge \
 ⌨️ [Run](https://wasmedge.org/book/en/quick_start/run_cli.html) a standalone Wasm program or a [JavaScript program](https://wasmedge.org/book/en/dev/js.html) from CLI or [Docker](https://wasmedge.org/book/en/quick_start/use_docker.html) \
 🔌 Embed a Wasm function in your [Node.js](https://wasmedge.org/book/en/embed/node.html), [Go](https://wasmedge.org/book/en/embed/go.html), [Rust](bindings/rust/), or [C](https://wasmedge.org/book/en/embed/c.html) app \
 🛠 Manage and orchestrate Wasm runtimes using [Kubernetes](https://wasmedge.org/book/en/use_cases/kubernetes.html), [data streaming frameworks](https://wasmedge.org/book/en/use_cases/frameworks/app/yomo.html), and [blockchains](https://medium.com/ethereum-on-steroids/running-ethereum-smart-contracts-in-a-substrate-blockchain-56fbc27fc95a) \
@@ -58,7 +58,7 @@ WasmEdge and its contained wasm program can be started from the [CLI](https://wa
 
 ## Contributing
 
-If you would like to contribute to the WasmEdge project, please refer to our [CONTRIBUTING](docs/CONTRIBUTING.md) document for details. If you are looking for ideas, checkout our ["help wanted" issues](https://github.com/WasmEdge/WasmEdge/issues?q=is%3Aissue+is%3Aopen+label%3A%22help+wanted%22)!
+If you would like to contribute to the WasmEdge project, please refer to our [CONTRIBUTING](https://wasmedge.org/book/en/contribute.html) document for details. If you are looking for ideas, checkout our ["help wanted" issues](https://github.com/WasmEdge/WasmEdge/issues?q=is%3Aissue+is%3Aopen+label%3A%22help+wanted%22)!
 
 ## Contact
 

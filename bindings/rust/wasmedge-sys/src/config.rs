@@ -281,6 +281,168 @@ impl Config {
         }
     }
 
+    #[cfg(all(target_os = "linux", feature = "wasi_nn", target_arch = "x86_64"))]
+    pub fn wasi_nn(&mut self, enable: bool) {
+        unsafe {
+            if enable {
+                ffi::WasmEdge_ConfigureAddHostRegistration(
+                    self.inner.0,
+                    ffi::WasmEdge_HostRegistration_WasiNN,
+                )
+            } else {
+                ffi::WasmEdge_ConfigureRemoveHostRegistration(
+                    self.inner.0,
+                    ffi::WasmEdge_HostRegistration_WasiNN,
+                )
+            }
+        }
+    }
+
+    #[cfg(all(target_os = "linux", feature = "wasi_nn", target_arch = "x86_64"))]
+    pub fn wasi_nn_enabled(&self) -> bool {
+        unsafe {
+            ffi::WasmEdge_ConfigureHasHostRegistration(
+                self.inner.0,
+                ffi::WasmEdge_HostRegistration_WasiNN,
+            )
+        }
+    }
+
+    #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+    pub fn wasi_crypto_common(&mut self, enable: bool) {
+        unsafe {
+            if enable {
+                ffi::WasmEdge_ConfigureAddHostRegistration(
+                    self.inner.0,
+                    ffi::WasmEdge_HostRegistration_WasiCrypto_Common,
+                )
+            } else {
+                ffi::WasmEdge_ConfigureRemoveHostRegistration(
+                    self.inner.0,
+                    ffi::WasmEdge_HostRegistration_WasiCrypto_Common,
+                )
+            }
+        }
+    }
+
+    #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+    pub fn wasi_crypto_common_enabled(&self) -> bool {
+        unsafe {
+            ffi::WasmEdge_ConfigureHasHostRegistration(
+                self.inner.0,
+                ffi::WasmEdge_HostRegistration_WasiCrypto_Common,
+            )
+        }
+    }
+
+    #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+    pub fn wasi_crypto_asymmetric_common(&mut self, enable: bool) {
+        unsafe {
+            if enable {
+                ffi::WasmEdge_ConfigureAddHostRegistration(
+                    self.inner.0,
+                    ffi::WasmEdge_HostRegistration_WasiCrypto_AsymmetricCommon,
+                )
+            } else {
+                ffi::WasmEdge_ConfigureRemoveHostRegistration(
+                    self.inner.0,
+                    ffi::WasmEdge_HostRegistration_WasiCrypto_AsymmetricCommon,
+                )
+            }
+        }
+    }
+
+    #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+    pub fn wasi_crypto_asymmetric_common_enabled(&self) -> bool {
+        unsafe {
+            ffi::WasmEdge_ConfigureHasHostRegistration(
+                self.inner.0,
+                ffi::WasmEdge_HostRegistration_WasiCrypto_AsymmetricCommon,
+            )
+        }
+    }
+
+    #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+    pub fn wasi_crypto_symmetric(&mut self, enable: bool) {
+        unsafe {
+            if enable {
+                ffi::WasmEdge_ConfigureAddHostRegistration(
+                    self.inner.0,
+                    ffi::WasmEdge_HostRegistration_WasiCrypto_Symmetric,
+                )
+            } else {
+                ffi::WasmEdge_ConfigureRemoveHostRegistration(
+                    self.inner.0,
+                    ffi::WasmEdge_HostRegistration_WasiCrypto_Symmetric,
+                )
+            }
+        }
+    }
+
+    #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+    pub fn wasi_crypto_symmetric_enabled(&self) -> bool {
+        unsafe {
+            ffi::WasmEdge_ConfigureHasHostRegistration(
+                self.inner.0,
+                ffi::WasmEdge_HostRegistration_WasiCrypto_Symmetric,
+            )
+        }
+    }
+
+    #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+    pub fn wasi_crypto_kx(&mut self, enable: bool) {
+        unsafe {
+            if enable {
+                ffi::WasmEdge_ConfigureAddHostRegistration(
+                    self.inner.0,
+                    ffi::WasmEdge_HostRegistration_WasiCrypto_Kx,
+                )
+            } else {
+                ffi::WasmEdge_ConfigureRemoveHostRegistration(
+                    self.inner.0,
+                    ffi::WasmEdge_HostRegistration_WasiCrypto_Kx,
+                )
+            }
+        }
+    }
+
+    #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+    pub fn wasi_crypto_kx_enabled(&self) -> bool {
+        unsafe {
+            ffi::WasmEdge_ConfigureHasHostRegistration(
+                self.inner.0,
+                ffi::WasmEdge_HostRegistration_WasiCrypto_Kx,
+            )
+        }
+    }
+
+    #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+    pub fn wasi_crypto_signatures(&mut self, enable: bool) {
+        unsafe {
+            if enable {
+                ffi::WasmEdge_ConfigureAddHostRegistration(
+                    self.inner.0,
+                    ffi::WasmEdge_HostRegistration_WasiCrypto_Signatures,
+                )
+            } else {
+                ffi::WasmEdge_ConfigureRemoveHostRegistration(
+                    self.inner.0,
+                    ffi::WasmEdge_HostRegistration_WasiCrypto_Signatures,
+                )
+            }
+        }
+    }
+
+    #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+    pub fn wasi_crypto_signatures_enabled(&self) -> bool {
+        unsafe {
+            ffi::WasmEdge_ConfigureHasHostRegistration(
+                self.inner.0,
+                ffi::WasmEdge_HostRegistration_WasiCrypto_Signatures,
+            )
+        }
+    }
+
     /// Sets the maximum number of the memory pages available.
     ///
     /// # Argument

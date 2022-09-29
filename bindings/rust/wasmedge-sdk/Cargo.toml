@@ -14,10 +14,12 @@ version = "0.5.0"
 anyhow = "1.0"
 thiserror = "1.0.30"
 wasmedge-macro = {path = "../wasmedge-macro", version = "0.1.0"}
-wasmedge-sys = {path = "../wasmedge-sys", version = "0.10.0"}
+wasmedge-sys = {path = "../wasmedge-sys", version = "0.10.0", default-features = false}
 wasmedge-types = {path = "../wasmedge-types", version = "0.3.0"}
 wat = "1.0"
 
 [features]
-aot = []
+aot = ["wasmedge-sys/aot"]
 default = ["aot"]
+wasi_crypto = ["wasmedge-sys/wasi_crypto"]
+wasi_nn = ["wasmedge-sys/wasi_nn"]

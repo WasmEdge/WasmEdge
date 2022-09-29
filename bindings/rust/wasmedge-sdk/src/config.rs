@@ -111,6 +111,18 @@ impl ConfigBuilder {
             inner.wasi(host_config.wasi);
             #[cfg(target_os = "linux")]
             inner.wasmedge_process(host_config.wasmedge_process);
+            #[cfg(all(target_os = "linux", feature = "wasi_nn", target_arch = "x86_64"))]
+            inner.wasi_nn(host_config.wasi_nn);
+            #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+            inner.wasi_crypto_common(host_config.wasi_crypto_common);
+            #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+            inner.wasi_crypto_asymmetric_common(host_config.wasi_crypto_asymmetric_common);
+            #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+            inner.wasi_crypto_symmetric(host_config.wasi_crypto_symmetric);
+            #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+            inner.wasi_crypto_kx(host_config.wasi_crypto_kx);
+            #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+            inner.wasi_crypto_signatures(host_config.wasi_crypto_signatures);
         }
 
         Ok(Config { inner })
@@ -188,6 +200,36 @@ impl Config {
     #[cfg(target_os = "linux")]
     pub fn wasmedge_process_enabled(&self) -> bool {
         self.inner.wasmedge_process_enabled()
+    }
+
+    #[cfg(all(target_os = "linux", feature = "wasi_nn", target_arch = "x86_64"))]
+    pub fn wasi_nn_enabled(&self) -> bool {
+        self.inner.wasi_nn_enabled()
+    }
+
+    #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+    pub fn wasi_crypto_common_enabled(&self) -> bool {
+        self.inner.wasi_crypto_common_enabled()
+    }
+
+    #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+    pub fn wasi_crypto_asymmetric_common_enabled(&self) -> bool {
+        self.inner.wasi_crypto_asymmetric_common_enabled()
+    }
+
+    #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+    pub fn wasi_crypto_symmetric_enabled(&self) -> bool {
+        self.inner.wasi_crypto_symmetric_enabled()
+    }
+
+    #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+    pub fn wasi_crypto_kx_enabled(&self) -> bool {
+        self.inner.wasi_crypto_kx_enabled()
+    }
+
+    #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+    pub fn wasi_crypto_signatures_enabled(&self) -> bool {
+        self.inner.wasi_crypto_signatures_enabled()
     }
 
     /// Returns the number of the memory pages available.
@@ -709,17 +751,20 @@ pub struct HostRegistrationConfigOptions {
     wasi: bool,
     #[cfg(target_os = "linux")]
     wasmedge_process: bool,
+    #[cfg(all(target_os = "linux", feature = "wasi_nn", target_arch = "x86_64"))]
+    wasi_nn: bool,
+    #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+    wasi_crypto_common: bool,
+    #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+    wasi_crypto_asymmetric_common: bool,
+    #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+    wasi_crypto_symmetric: bool,
+    #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+    wasi_crypto_kx: bool,
+    #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+    wasi_crypto_signatures: bool,
 }
 impl HostRegistrationConfigOptions {
-    /// Creates a new instance of [HostRegistrationConfigOptions].
-    pub fn new() -> Self {
-        Self {
-            wasi: false,
-            #[cfg(target_os = "linux")]
-            wasmedge_process: false,
-        }
-    }
-
     /// Enables or disables host registration wasi.
     ///
     /// # Argument
@@ -730,6 +775,18 @@ impl HostRegistrationConfigOptions {
             wasi: enable,
             #[cfg(target_os = "linux")]
             wasmedge_process: self.wasmedge_process,
+            #[cfg(all(target_os = "linux", feature = "wasi_nn", target_arch = "x86_64"))]
+            wasi_nn: self.wasi_nn,
+            #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+            wasi_crypto_common: self.wasi_crypto_common,
+            #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+            wasi_crypto_asymmetric_common: self.wasi_crypto_asymmetric_common,
+            #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+            wasi_crypto_symmetric: self.wasi_crypto_symmetric,
+            #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+            wasi_crypto_kx: self.wasi_crypto_kx,
+            #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+            wasi_crypto_signatures: self.wasi_crypto_signatures,
         }
     }
 
@@ -742,6 +799,54 @@ impl HostRegistrationConfigOptions {
     pub fn wasmedge_process(self, enable: bool) -> Self {
         Self {
             wasmedge_process: enable,
+            ..self
+        }
+    }
+
+    #[cfg(all(target_os = "linux", feature = "wasi_nn", target_arch = "x86_64"))]
+    pub fn wasi_nn(self, enable: bool) -> Self {
+        Self {
+            wasi_nn: enable,
+            ..self
+        }
+    }
+
+    #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+    pub fn wasi_crypto_common(self, enable: bool) -> Self {
+        Self {
+            wasi_crypto_common: enable,
+            ..self
+        }
+    }
+
+    #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+    pub fn wasi_crypto_asymmetric_common(self, enable: bool) -> Self {
+        Self {
+            wasi_crypto_asymmetric_common: enable,
+            ..self
+        }
+    }
+
+    #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+    pub fn wasi_crypto_symmetric(self, enable: bool) -> Self {
+        Self {
+            wasi_crypto_symmetric: enable,
+            ..self
+        }
+    }
+
+    #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+    pub fn wasi_crypto_kx(self, enable: bool) -> Self {
+        Self {
+            wasi_crypto_kx: enable,
+            ..self
+        }
+    }
+
+    #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+    pub fn wasi_crypto_signatures(self, enable: bool) -> Self {
+        Self {
+            wasi_crypto_signatures: enable,
             ..self
         }
     }

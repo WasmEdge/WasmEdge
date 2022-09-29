@@ -117,16 +117,27 @@ jobs:
 
       - name: Build WasmEdge with Release mode
         run: |
-          if [[ "${{ matrix.runner }}" == "macos-11" ]]; then
-            export LLVM_DIR="/usr/local/opt/llvm@14/lib/cmake"
-          fi
+          # if [[ "${{ matrix.runner }}" == "macos-11" ]]; then
+          #   export LLVM_DIR="/usr/local/opt/llvm@14/lib/cmake"
+          # fi
           # if [[ "${{ matrix.runner }}" == "macos-12" ]]; then
           #   export LLVM_DIR="/usr/local/opt/llvm@14/lib/cmake"
           # fi
+          export LLVM_DIR="/usr/local/opt/llvm@14/lib/cmake"
           export CC=clang
           export CXX=clang++
-          cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_BUILD_TESTS=ON -DWASMEDGE_BUILD_PACKAGE="TGZ" .
+          rm -rf build
+          cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DWASMEDGE_BUILD_TESTS=$BUILD_TESTS -DWASMEDGE_LINK_LLVM_STATIC=ON -DWASMEDGE_BUILD_PACKAGE="TGZ" .
           cmake --build build
+
+      - name: Test WasmEdge
+        continue-on-error: true
+        run: |
+          export DYLD_LIBRARY_PATH="$(pwd)/build/lib/api:$DYLD_LIBRARY_PATH"
+          cd build
+          ./tools/wasmedge/wasmedge -v
+          ctest
+          cd -
 
       - name: Clippy
         run: |

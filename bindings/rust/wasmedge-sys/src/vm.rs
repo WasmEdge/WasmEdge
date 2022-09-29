@@ -2673,6 +2673,16 @@ mod tests {
             .unwrap()
             .iter()
             .for_each(|name| println!("func name: {}", name));
+
+        let result = wasi_nn_module.get_func("load");
+        assert!(result.is_ok());
+        let load = result.unwrap();
+        let result = load.ty();
+        assert!(result.is_ok());
+        let ty = result.unwrap();
+        println!("load: len of params: {}", ty.params_len());
+        ty.params_type_iter()
+            .for_each(|p| println!("load: param ty: {:?}", p));
     }
 
     #[test]

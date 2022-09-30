@@ -189,19 +189,24 @@ pub use config::Config;
 pub use executor::Executor;
 #[doc(inline)]
 pub use frame::CallingFrame;
+#[cfg(all(target_os = "linux", feature = "wasi_nn", target_arch = "x86_64"))]
+#[doc(inline)]
+pub use instance::module::WasiNnModule;
 #[cfg(target_os = "linux")]
 #[doc(inline)]
 pub use instance::module::WasmEdgeProcessModule;
+#[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+#[doc(inline)]
+pub use instance::module::{
+    WasiCrypto, WasiCryptoAsymmetricCommonModule, WasiCryptoCommonModule, WasiCryptoKxModule,
+    WasiCryptoSignaturesModule, WasiCryptoSymmetricModule,
+};
 #[doc(inline)]
 pub use instance::{
     function::{FuncRef, FuncType, Function},
     global::{Global, GlobalType},
     memory::{MemType, Memory},
-    module::{
-        AsImport, AsInstance, ImportModule, ImportObject, Instance, WasiCrypto,
-        WasiCryptoAsymmetricCommonModule, WasiCryptoCommonModule, WasiCryptoKxModule,
-        WasiCryptoSignaturesModule, WasiCryptoSymmetricModule, WasiModule, WasiNnModule,
-    },
+    module::{AsImport, AsInstance, ImportModule, ImportObject, Instance, WasiModule},
     table::{Table, TableType},
 };
 #[doc(inline)]

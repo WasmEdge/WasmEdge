@@ -789,6 +789,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::assertions_on_result_states)]
     fn test_func_create_host_func_in_host_func() {
         #[sys_host_function]
         fn func(

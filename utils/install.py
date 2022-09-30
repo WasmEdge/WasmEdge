@@ -1350,12 +1350,12 @@ def get_remote_version_availability(repo, version):
 class Compat:
     def __init__(
         self,
-        platform=platform.system(),
+        platform_=platform.system(),
         machine=platform.machine(),
         version=None,
         extensions=None,
     ):
-        self.platform = platform  # Linux, Darwin
+        self.platform = platform_  # Linux, Darwin
         self.machine = machine  # x86_64, arm
         self.version = VersionString(version)
         self.extensions = extensions

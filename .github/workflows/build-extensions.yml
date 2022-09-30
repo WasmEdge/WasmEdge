@@ -188,7 +188,7 @@ jobs:
         apt install -y libssl-dev
         mkdir -p build
         cd build
-        cmake -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DWASMEDGE_PLUGIN_HTTPSREQ=true -DWASMEDGE_BUILD_TESTS=ON ..
+        cmake -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DWASMEDGE_PLUGIN_HTTPSREQ=On -DWASMEDGE_BUILD_TESTS=ON ..
         cd ${{ matrix.test_path }}
         make -j
     - name: Test WasmEdge ${{ matrix.name }} plugin using ${{ matrix.compiler }} with ${{ matrix.build_type }} mode
@@ -293,7 +293,7 @@ jobs:
     - name: Build WasmEdge ${{ matrix.name }} plugin with ${{ matrix.build_type }} mode
       if: contains(matrix.name, 'HttpsReq')
       run: |
-        bash utils/docker/build-manylinux.sh --${{ matrix.build_type }} --not-build --not-ninja -DWASMEDGE_PLUGIN_HTTPSREQ=true -DOPENSSL_ROOT_DIR=$(pwd)/openssl-1.1.1n/openssl
+        bash utils/docker/build-manylinux.sh --${{ matrix.build_type }} --not-build --not-ninja -DWASMEDGE_PLUGIN_HTTPSREQ=On -DOPENSSL_ROOT_DIR=$(pwd)/openssl-1.1.1n/openssl
         cd build/${{ matrix.output_path }}
         make -j
     - name: Build WasmEdge WASI-NN ${{ matrix.backend }} plugin with ${{ matrix.build_type }} mode
@@ -351,8 +351,13 @@ jobs:
         fetch-depth: 0
     - name: Build WasmEdge ${{ matrix.name }} plugin using clang++ with ${{ matrix.build_type }} mode
       run: |
-        brew install llvm ninja boost cmake openssl@1.1
-        export LLVM_DIR="/usr/local/opt/llvm/lib/cmake"
+        brew install llvm@14 ninja boost cmake openssl@1.1
+        if [[ "${{ matrix.host_runner }}" == "macos-11" ]]; then
+          export LLVM_DIR="/usr/local/opt/llvm@14/lib/cmake"
+        fi
+        if [[ "${{ matrix.host_runner }}" == "macos-12" ]]; then
+          export LLVM_DIR="/usr/local/opt/llvm/lib/cmake"
+        fi
         export CC=clang
         export CXX=clang++
         mkdir -p build

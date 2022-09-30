@@ -139,5 +139,8 @@
     - [Build for seL4](contribute/build_from_src/sel4.md)
     - [Build for OpenHarmony](contribute/build_from_src/openharmony.md)
     - [Build for Raspberry Pi](contribute/build_from_src/raspberrypi.md)
+    - [Build with WASI-NN Plug-in](contribute/build_from_src/plugin_wasi_nn.md)
+    - [Build with WASI-Crypto Plug-in](contribute/build_from_src/plugin_wasi_crypto.md)
+    - [Build with WasmEdge-HttpsReq Plug-in](contribute/build_from_src/plugin_wasmedge_httpsreq.md)
   - [WasmEdge Internal](contribute/internal.md)
   - [Release Process](contribute/release_process.md)

@@ -45,6 +45,8 @@ The following command runs the application in WasmEdge.
 wasmedge target/wasm32-wasi/release/http_client.wasm
 ```
 
+> Noticed that you should [install the WasmEdge-HttpsReq plug-in](networking-https.md#prerequisites).
+
 ## An HTTP server example
 
 The [source code](https://github.com/second-state/wasmedge_wasi_socket/tree/main/examples/http_server) for the HTTP server application is available as follows.

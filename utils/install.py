@@ -1136,14 +1136,62 @@ def install_plugins(args, compat):
                 for arch_dict in arches:
                     for arch in arch_dict:
                         plugin_triple = platform + arch + plugin_metadata["name"]
+                        default_version = plugin_metadata["default_version"]
+                        if len(arch_dict[arch]) > 0:
+                            for version in arch_dict[arch]:
+                                if version == "":
+                                    version = default_version
+                                if plugin_triple in plugin_triple_version:
+                                    if (
+                                        plugin_triple_version[plugin_triple][0].compare(
+                                            version
+                                        )
+                                        == 1
+                                    ):
 
-                        version = plugin_metadata["default_version"]
+                                        plugin_triple_version[
+                                            plugin_triple
+                                        ] = plugin_triple_version[plugin_triple][1:]
+                                        plugin_triple_version[plugin_triple] = [
+                                            VersionString(version)
+                                        ].extend(plugin_triple_version[plugin_triple])
+
+                                    elif (
+                                        plugin_triple_version[plugin_triple][1].compare(
+                                            version
+                                        )
+                                        == -1
+                                    ):
+                                        plugin_triple_version[
+                                            plugin_triple
+                                        ] = plugin_triple_version[plugin_triple][
+                                            :-1
+                                        ].append(
+                                            VersionString(version)
+                                        )
+                                    else:
+                                        plugin_triple_version[plugin_triple].append(
+                                            VersionString(version)
+                                        )
+                                else:
+                                    plugin_triple_version[plugin_triple] = [
+                                        VersionString(version),
+                                        VersionString(version),
+                                    ]
+                        else:
+                            plugin_triple_version[plugin_triple] = [
+                                VersionString(default_version),
+                                VersionString(default_version),
+                            ]
 
                         url = url_root
-                        if arch_dict["url"] != []:
+                        if arch_dict["url"] != "":
                             url = arch_dict["url"]
                         else:
-                            temp = url_generic_suffix.replace("$VERSION$", version)
+                            temp = url_generic_suffix.replace(
+                                "$VERSION$",
+                                plugin_triple_version[plugin_triple][0].version,
+                            )
                             temp = temp.replace(
                                 "$PLUGIN_NAME$", plugin_metadata["name"]
                             )
@@ -1151,41 +1199,37 @@ def install_plugins(args, compat):
                             temp = temp.replace("$ARCH$", arch)
                             url += temp
 
-                        if len(arch_dict[arch]) > 0:
-                            for version in arch_dict[arch]:
-                                plugin_triple_version[plugin_triple] = VersionString(
-                                    version
-                                )
-                        else:
-                            plugin_triple_version[plugin_triple] = VersionString(
-                                version
-                            )
-
                         plugin_triple_url[plugin_triple] = url
 
         logging.debug(plugin_triple_version)
         logging.debug(plugin_triple_url)
 
         for plugin_name in args.plugins:
-            plugin_version_supplied = args.version
+            plugin_version_supplied = None
             if plugin_name.find(":") != -1:
                 plugin_name, plugin_version_supplied = plugin_name.split(":")
-            if compat.prefix() + plugin_name not in plugin_triple_version:
+
+            if compat.dist + compat.machine + plugin_name not in plugin_triple_version:
                 logging.error(
-                    "Plugin not compatible: %s", compat.prefix() + plugin_name
+                    "Plugin not compatible: %s",
+                    compat.dist + compat.machine + plugin_name,
                 )
                 logging.debug("Supported: %s", plugin_triple_version)
                 continue
             else:
-                if (
-                    plugin_version_supplied[plugin_name].compare(
-                        plugin_version_supplied
-                    )
+                if plugin_version_supplied is None:
+                    plugin_version_supplied = plugin_triple_version[
+                        compat.dist + compat.machine + plugin_name
+                    ][0].version
+                elif (
+                    plugin_triple_version[compat.dist + compat.machine + plugin_name][
+                        1
+                    ].compare(plugin_version_supplied)
                     == -1
-                    or plugin_version_supplied[plugin_name].compare(
-                        plugin_version_supplied
-                    )
-                    == False
+                    or plugin_triple_version[
+                        compat.dist + compat.machine + plugin_name
+                    ][0].compare(plugin_version_supplied)
+                    == 1
                 ):
                     logging.error(
                         "Plugin not compatible: %s %s",
@@ -1194,7 +1238,7 @@ def install_plugins(args, compat):
                     )
                     continue
                 print("Downloading Plugin: " + plugin_name)
-                url = plugin_triple_url[compat.prefix() + plugin_name]
+                url = plugin_triple_url[compat.dist + compat.machine + plugin_name]
                 download_url(
                     url,
                     join(TEMP_PATH, "Plugin" + plugin_name) + ".tar.gz",
@@ -1319,6 +1363,7 @@ class Compat:
         self.install_package_name = None
         self.lib_extension = None
         self.ld_library_path = None
+        self.dist = None
 
         if self.platform == "Linux":
             self.install_package_name = "WasmEdge-{0}-Linux".format(self.version)
@@ -1330,15 +1375,32 @@ class Compat:
                 self.release_package = "manylinux2014_x86_64.tar.gz"
             else:
                 reraise(Exception("Unsupported arch: {0}".format(self.machine)))
+
+            if sys.version_info[0] == 2:
+                if "Ubuntu" in platform.dist() and "20.14" in platform.dist():
+                    self.dist = "ubuntu20.04"
+                else:
+                    self.dist = "manylinux2014"
+            elif sys.version_info[0] == 3:
+                __lsb_rel = run_shell_command("cat /etc/lsb-release | grep RELEASE")[
+                    -5:
+                ]
+                if "20.04" == __lsb_rel:
+                    self.dist = "ubuntu20.04"
+                else:
+                    self.dist = "manylinux2014"
         elif self.platform == "Darwin":
             self.ld_library_path = "DYLD_LIBRARY_PATH"
             self.install_package_name = "WasmEdge-{0}-Darwin".format(self.version)
             self.release_package = "darwin_{0}.tar.gz".format(self.machine)
             self.lib_extension = ".dylib"
+            self.dist = "darwin"
 
     def __str__(self):
-        return "Platform:{0}\nMachine:{1}\nVersion:{2}\nExtensions:{3}".format(
-            self.platform, self.machine, self.version, self.extensions
+        return (
+            "Platform:{0}\nMachine:{1}\nVersion:{2}\nExtensions:{3}\nDist:{4}\n".format(
+                self.platform, self.machine, self.version, self.extensions, self.dist
+            )
         )
 
     if sys.version_info[0] == 2:

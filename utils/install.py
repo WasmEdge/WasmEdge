@@ -208,6 +208,9 @@ class VersionString:
     def __str__(self):
         return self.version
 
+    def __repr__(self):
+        return "VersionString:" + self.version
+
     def _preprocess(self, v, separator, ignorecase):
         if ignorecase:
             v = v.lower()
@@ -1171,6 +1174,7 @@ def install_plugins(args, compat):
                 logging.error(
                     "Plugin not compatible: %s", compat.prefix() + plugin_name
                 )
+                logging.debug("Supported: %s", plugin_triple_version)
                 continue
             else:
                 if (
@@ -1538,15 +1542,6 @@ if __name__ == "__main__":
         default=get_latest_github_release("WasmEdge/WasmEdge"),
         required=False,
         help="Version for WasmEdge",
-    )
-    parser.add_argument(
-        "-V",
-        "--verbose",
-        dest="loglevel",
-        required=False,
-        action="store_const",
-        const=logging.INFO,
-        help="Verbosity info",
     )
     parser.add_argument(
         "-D",

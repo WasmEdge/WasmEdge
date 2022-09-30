@@ -134,7 +134,7 @@ int Tool(int Argc, const char *Argv[]) noexcept {
 
   Plugin::Plugin::addPluginOptions(Parser);
 
-  if (!Parser.parse(stdout, Argc, Argv)) {
+  if (!Parser.parse(Argc, Argv)) {
     return EXIT_FAILURE;
   }
   if (Parser.isVersion()) {

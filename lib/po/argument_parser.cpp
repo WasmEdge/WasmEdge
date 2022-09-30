@@ -3,8 +3,7 @@
 
 #include "po/argument_parser.h"
 #include "common/defines.h"
-#include "common/log.h"
-#include <cstdio>
+#include <iostream>
 
 // For enabling Windows PowerShell color support.
 #if WASMEDGE_OS_WINDOWS
@@ -15,13 +14,11 @@ namespace WasmEdge {
 namespace PO {
 
 cxx20::expected<bool, Error> ArgumentParser::SubCommandDescriptor::parse(
-    std::FILE *Out, Span<const char *> ProgramNamePrefix, int Argc,
-    const char *Argv[], int ArgP, const bool &VersionOpt) noexcept {
+    Span<const char *> ProgramNamePrefix, int Argc, const char *Argv[],
+    int ArgP, const bool &VersionOpt) noexcept {
   ProgramNames.reserve(ProgramNamePrefix.size() + 1);
   ProgramNames.assign(ProgramNamePrefix.begin(), ProgramNamePrefix.end());
-  if (ArgP < Argc) {
-    ProgramNames.push_back(Argv[ArgP]);
-  }
+  ProgramNames.push_back(Argv[ArgP]);
   ArgumentDescriptor *CurrentDesc = nullptr;
   bool FirstNonOption = true;
   bool Escaped = false;
@@ -66,7 +63,7 @@ cxx20::expected<bool, Error> ArgumentParser::SubCommandDescriptor::parse(
               Iter != SubCommandMap.end()) {
             auto &Child = this[Iter->second];
             Child.SC->select();
-            return Child.parse(Out, ProgramNames, Argc, Argv, ArgI, VersionOpt);
+            return Child.parse(ProgramNames, Argc, Argv, ArgI, VersionOpt);
           }
         }
       }
@@ -109,21 +106,21 @@ cxx20::expected<bool, Error> ArgumentParser::SubCommandDescriptor::parse(
     }
   }
   if (HelpOpt->value()) {
-    help(Out);
+    help();
     return false;
   }
   return true;
 }
 
-void ArgumentParser::SubCommandDescriptor::usage(
-    std::FILE *Out) const noexcept {
-  fmt::print(Out, "{}USAGE{}\n"sv, YELLOW_COLOR, RESET_COLOR);
+void ArgumentParser::SubCommandDescriptor::usage() const noexcept {
+  using std::cout;
+  cout << YELLOW_COLOR << "USAGE"sv << RESET_COLOR << '\n';
   for (const char *Part : ProgramNames) {
-    fmt::print(Out, "\t{}"sv, Part);
+    cout << '\t' << Part;
   }
 
   if (NonpositionalList.size() != 0) {
-    fmt::print(Out, " [OPTIONS]"sv);
+    cout << " [OPTIONS]"sv;
   }
   bool First = true;
   for (const auto &Index : PositionalList) {
@@ -133,33 +130,33 @@ void ArgumentParser::SubCommandDescriptor::usage(
     }
 
     if (First) {
-      fmt::print(Out, " [--]"sv);
+      cout << " [--]"sv;
       First = false;
     }
 
     const bool Optional = (Desc.min_nargs() == 0);
-    fmt::print(Out, " "sv);
+    cout << ' ';
     if (Optional) {
-      fmt::print(Out, "["sv);
+      cout << '[';
     }
     switch (ArgumentDescriptors[Index].max_nargs()) {
     case 0:
       break;
     case 1:
-      fmt::print(Out, "{}"sv, Desc.meta());
+      cout << Desc.meta();
       break;
     default:
-      fmt::print(Out, "{} ..."sv, Desc.meta());
+      cout << Desc.meta() << " ..."sv;
       break;
     }
     if (Optional) {
-      fmt::print(Out, "]"sv);
+      cout << ']';
     }
   }
-  fmt::print(Out, "\n"sv);
+  cout << '\n';
 }
 
-void ArgumentParser::SubCommandDescriptor::help(std::FILE *Out) const noexcept {
+void ArgumentParser::SubCommandDescriptor::help() const noexcept {
 // For enabling Windows PowerShell color support.
 #if WASMEDGE_OS_WINDOWS
   HANDLE OutputHandler = ::GetStdHandle(STD_OUTPUT_HANDLE);
@@ -172,66 +169,70 @@ void ArgumentParser::SubCommandDescriptor::help(std::FILE *Out) const noexcept {
   }
 #endif
 
-  usage(Out);
+  usage();
+  using std::cout;
   const constexpr std::string_view kIndent = "\t"sv;
 
-  fmt::print(Out, "\n"sv);
+  cout << '\n';
   if (!SubCommandList.empty()) {
-    fmt::print(Out, "{}SubCommands{}\n"sv, YELLOW_COLOR, RESET_COLOR);
+    cout << YELLOW_COLOR << "SubCommands"sv << RESET_COLOR << '\n';
     for (const auto Offset : SubCommandList) {
-      fmt::print(Out, "{}{}"sv, kIndent, GREEN_COLOR);
+      cout << kIndent;
+      cout << GREEN_COLOR;
       bool First = true;
       for (const auto &Name : this[Offset].SubCommandNames) {
         if (!First) {
-          fmt::print(Out, "|"sv);
+          cout << '|';
         }
-        fmt::print(Out, "{}"sv, Name);
+        cout << Name;
         First = false;
       }
-      fmt::print(Out, "{}\n"sv, RESET_COLOR);
-      indent_output(Out, kIndent, 2, 80, this[Offset].SC->description());
-      fmt::print(Out, "\n"sv);
+      cout << RESET_COLOR << '\n';
+      indent_output(kIndent, 2, 80, this[Offset].SC->description());
+      cout << '\n';
     }
-    fmt::print(Out, "\n"sv);
+    cout << '\n';
   }
 
-  fmt::print(Out, "{}OPTIONS{}\n"sv, YELLOW_COLOR, RESET_COLOR);
+  cout << YELLOW_COLOR << "OPTIONS"sv << RESET_COLOR << '\n';
   for (const auto &Index : NonpositionalList) {
     const auto &Desc = ArgumentDescriptors[Index];
     if (Desc.hidden()) {
       continue;
     }
 
-    fmt::print(Out, "{}{}\n"sv, kIndent, GREEN_COLOR);
+    cout << kIndent;
+    cout << GREEN_COLOR;
     bool First = true;
     for (const auto &Option : Desc.options()) {
       if (!First) {
-        fmt::print(Out, "|"sv);
+        cout << '|';
       }
       if (Option.size() == 1) {
-        fmt::print(Out, "-{}"sv, Option);
+        cout << '-' << Option;
       } else {
-        fmt::print(Out, "--{}"sv, Option);
+        cout << '-' << '-' << Option;
       }
       First = false;
     }
-    fmt::print(Out, "{}\n"sv, RESET_COLOR);
-    indent_output(Out, kIndent, 2, 80, Desc.description());
-    fmt::print(Out, "\n"sv);
+    cout << RESET_COLOR << '\n';
+    indent_output(kIndent, 2, 80, Desc.description());
+    cout << '\n';
   }
 }
 
 void ArgumentParser::SubCommandDescriptor::indent_output(
-    std::FILE *Out, const std::string_view kIndent, std::size_t IndentCount,
+    const std::string_view kIndent, std::size_t IndentCount,
     std::size_t ScreenWidth, std::string_view Desc) const noexcept {
+  using std::cout;
   const std::size_t Width = ScreenWidth - kIndent.size() * IndentCount;
   while (Desc.size() > Width) {
     const std::size_t SpacePos = Desc.find_last_of(' ', Width);
     if (SpacePos != std::string_view::npos) {
       for (std::size_t I = 0; I < IndentCount; ++I) {
-        fmt::print(Out, "{}"sv, kIndent);
+        cout << kIndent;
       }
-      fmt::print(Out, "{}\n"sv, Desc.substr(0, SpacePos));
+      cout << Desc.substr(0, SpacePos) << '\n';
       const std::size_t WordPos = Desc.find_first_not_of(' ', SpacePos);
       if (WordPos != std::string_view::npos) {
         Desc = Desc.substr(WordPos);
@@ -242,9 +243,9 @@ void ArgumentParser::SubCommandDescriptor::indent_output(
   }
   if (!Desc.empty()) {
     for (std::size_t I = 0; I < IndentCount; ++I) {
-      fmt::print(Out, "{}"sv, kIndent);
+      cout << kIndent;
     }
-    fmt::print(Out, "{}"sv, Desc);
+    cout << Desc;
   }
 }
 
@@ -334,12 +335,11 @@ ArgumentParser::SubCommandDescriptor::consume_argument(
   return &CurrentDesc;
 }
 
-bool ArgumentParser::parse(std::FILE *Out, int Argc,
-                           const char *Argv[]) noexcept {
-  if (auto Res = SubCommandDescriptors.front().parse(Out, {}, Argc, Argv, 0,
+bool ArgumentParser::parse(int Argc, const char *Argv[]) noexcept {
+  if (auto Res = SubCommandDescriptors.front().parse({}, Argc, Argv, 0,
                                                      VerOpt.value());
       !Res) {
-    fmt::print(Out, "{}\n"sv, Res.error().message());
+    std::cerr << Res.error().message() << '\n';
     return false;
   } else {
     return *Res || VerOpt.value();

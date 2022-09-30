@@ -135,14 +135,12 @@ int FuzzPO(const uint8_t *Data, size_t Size) noexcept {
     Argv.push_back(Arg.c_str());
   }
 
-  std::unique_ptr<std::FILE, decltype(&std::fclose)> Out{
-      std::fopen("/dev/null", "w"), std::fclose};
-  if (!Parser.parse(Out.get(), Argv.size(), Argv.data())) {
+  if (!Parser.parse(Argv.size(), Argv.data())) {
     return EXIT_FAILURE;
   }
   if (Parser.isVersion()) {
-    fmt::print(Out.get(), "{} version {}\n"sv, Argv.empty() ? "" : Argv[0],
-               kVersionString);
+    std::cout << (Argv.empty() ? "" : Argv[0]) << " version "sv
+              << kVersionString << "\n"sv;
     return EXIT_SUCCESS;
   }
 

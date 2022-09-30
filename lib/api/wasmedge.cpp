@@ -10,11 +10,6 @@
 #include "plugin/plugin.h"
 #include "vm/vm.h"
 
-#ifdef WASMEDGE_BUILD_FUZZING
-#include "driver/fuzzPO.h"
-#include "driver/fuzzTool.h"
-#endif
-
 #include <algorithm>
 #include <chrono>
 #include <cstdint>
@@ -2739,18 +2734,6 @@ WASMEDGE_CAPI_EXPORT int WasmEdge_Driver_Compiler(int Argc,
 WASMEDGE_CAPI_EXPORT int WasmEdge_Driver_Tool(int Argc, const char *Argv[]) {
   return WasmEdge::Driver::Tool(Argc, Argv);
 }
-
-#ifdef WASMEDGE_BUILD_FUZZING
-WASMEDGE_CAPI_EXPORT extern "C" int
-WasmEdge_Driver_FuzzTool(const uint8_t *Data, size_t Size) {
-  return WasmEdge::Driver::FuzzTool(Data, Size);
-}
-
-WASMEDGE_CAPI_EXPORT extern "C" int WasmEdge_Driver_FuzzPO(const uint8_t *Data,
-                                                           size_t Size) {
-  return WasmEdge::Driver::FuzzPO(Data, Size);
-}
-#endif
 
 // <<<<<<<< WasmEdge Driver functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 

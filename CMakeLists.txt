@@ -64,7 +64,6 @@ option(WASMEDGE_BUILD_AOT_RUNTIME "Enable WasmEdge LLVM-based ahead of time comp
 option(WASMEDGE_BUILD_SHARED_LIB "Generate the WasmEdge shared library." ON)
 option(WASMEDGE_BUILD_STATIC_LIB "Generate the WasmEdge static library." OFF)
 option(WASMEDGE_BUILD_TOOLS "Generate wasmedge and wasmedgec tools. Depend on and will build the WasmEdge shared library." ON)
-option(WASMEDGE_BUILD_FUZZING "Generate fuzzing test tools. Couldn't build with wasmedge tools and unit tests." OFF)
 option(WASMEDGE_BUILD_PLUGINS "Generate plugins." ON)
 option(WASMEDGE_BUILD_EXAMPLE "Generate examples." OFF)
 option(WASMEDGE_FORCE_DISABLE_LTO "Forcefully disable link time optimization when linking even in Release/RelWithDeb build." OFF)
@@ -74,13 +73,6 @@ set(WASMEDGE_PLUGIN_WASI_NN_BACKEND "" CACHE STRING "Enable WasmEdge Wasi-NN plu
 # Currently supported WASI-NN backend: "OpenVINO" on Linux x86_64
 option(WASMEDGE_PLUGIN_WASI_CRYPTO "Enable WasmEdge Wasi-crypto plugin." OFF)
 option(WASMEDGE_PLUGIN_HTTPSREQ "Enable WasmEdge httpsreq plugin." OFF)
-
-if(WASMEDGE_BUILD_TOOLS AND WASMEDGE_BUILD_FUZZING)
-  message(FATAL_ERROR "wasmedge tool and fuzzing tool are exclusive options.")
-endif()
-if(WASMEDGE_BUILD_TESTS AND WASMEDGE_BUILD_FUZZING)
-  message(FATAL_ERROR "unit tests and fuzzing tool are exclusive options.")
-endif()
 
 if(WASMEDGE_BUILD_STATIC_LIB)
   # Static library will forcefully turn of the LTO.
@@ -148,7 +140,7 @@ if(WASMEDGE_BUILD_PLUGINS AND WASMEDGE_BUILD_SHARED_LIB)
   add_subdirectory(plugins)
 endif()
 add_subdirectory(thirdparty)
-if(WASMEDGE_BUILD_TOOLS OR WASMEDGE_BUILD_FUZZING)
+if(WASMEDGE_BUILD_TOOLS)
   add_subdirectory(tools)
 endif()
 if(WASMEDGE_BUILD_EXAMPLE)

@@ -31,6 +31,7 @@ import platform
 import subprocess
 import re
 import logging
+import json
 
 try:
     from future_builtins import ascii, filter, hex, map, oct, zip
@@ -306,14 +307,6 @@ SUPPORTED_EXTENSIONS_VERSION = {
     # "Darwin" + "arm64" + IMAGE: VersionString("0.8.1"),
     "Darwin" + "arm" + TENSORFLOW: VersionString("0.10.0-alpha.1"),
     # "Darwin" + "arm" + IMAGE: VersionString("0.8.1"),
-}
-
-WASI_NN_OPENVINO = "wasi_nn-openvino"
-
-PLUGINS = [WASI_NN_OPENVINO]
-
-SUPPORTED_PLUGINS = {
-    "Linux" + "x86_64" + WASI_NN_OPENVINO: VersionString("0.10.1-alpha.1"),
 }
 
 HOME = expanduser("~")
@@ -1110,43 +1103,106 @@ def install_tensorflow_extension(args, compat):
     return 0
 
 
-def install_wasi_nn_openvino(args, compat):
-    url = "https://github.com/WasmEdge/WasmEdge/releases/download/"
-    url += args.version
-    url += "/WasmEdge-plugin-"
-    url += WASI_NN_OPENVINO
-    url += "-" + args.version
-    url += "-ubuntu20.04_x86_64.tar.gz"
-
-    logging.debug("WASI-NN OPENVINO URL: %s", url)
-    print("Downloading Plugin: " + WASI_NN_OPENVINO)
-    download_url(
-        url, join(TEMP_PATH, "Plugin" + WASI_NN_OPENVINO) + ".tar.gz", show_progress
-    )
-    extract_archive(
-        join(TEMP_PATH, "Plugin" + WASI_NN_OPENVINO + ".tar.gz"),
-        join(args.path, CONST_lib_dir),
-        join(TEMP_PATH, "Plugins"),
-        env_file_path=CONST_env_path,
-        remove_finished=True,
-    )
-
-
 def install_plugins(args, compat):
-    global SUPPORTED_PLUGINS, CONST_lib_dir
+    global CONST_lib_dir
 
     if len(args.plugins) >= 1:
+        # Download the wasmedge_manifest.json
+        wasmedge_manifest_path = join(TEMP_PATH, "Plugin") + "wasmedge_manifest.json"
+        download_url(args.plugin_manifest_url, wasmedge_manifest_path)
+
+        wasmedge_manifest = None
+        with opened_w_error(wasmedge_manifest_path) as f:
+            wasmedge_manifest = json.load(f)
+
+        if wasmedge_manifest is None:
+            logging.error("Cannot install plugins due to wasmedge_manifest unreadable")
+            return
+
+        logging.debug(wasmedge_manifest)
+
+        url_root = wasmedge_manifest["url_root"]
+        url_generic_suffix = wasmedge_manifest["url_generic_suffix"]
+
+        plugins_metadata = wasmedge_manifest["plugins"]
+        plugin_triple_url = {}
+        plugin_triple_version = {}
+        for plugin_metadata in plugins_metadata:
+            for platform in plugin_metadata["platforms"]:
+                arches = plugin_metadata[platform]["arch"]
+                for arch_dict in arches:
+                    for arch in arch_dict:
+                        plugin_triple = platform + arch + plugin_metadata["name"]
+
+                        version = plugin_metadata["default_version"]
+
+                        url = url_root
+                        if arch_dict["url"] != []:
+                            url = arch_dict["url"]
+                        else:
+                            temp = url_generic_suffix.replace("$VERSION$", version)
+                            temp = temp.replace(
+                                "$PLUGIN_NAME$", plugin_metadata["name"]
+                            )
+                            temp = temp.replace("$PLATFORM$", platform)
+                            temp = temp.replace("$ARCH$", arch)
+                            url += temp
+
+                        if len(arch_dict[arch]) > 0:
+                            for version in arch_dict[arch]:
+                                plugin_triple_version[plugin_triple] = VersionString(
+                                    version
+                                )
+                        else:
+                            plugin_triple_version[plugin_triple] = VersionString(
+                                version
+                            )
+
+                        plugin_triple_url[plugin_triple] = url
+
+        logging.debug(plugin_triple_version)
+        logging.debug(plugin_triple_url)
+
         for plugin_name in args.plugins:
-            if compat.prefix() + plugin_name not in SUPPORTED_PLUGINS:
+            plugin_version_supplied = args.version
+            if plugin_name.find(":") != -1:
+                plugin_name, plugin_version_supplied = plugin_name.split(":")
+            if compat.prefix() + plugin_name not in plugin_triple_version:
                 logging.error(
                     "Plugin not compatible: %s", compat.prefix() + plugin_name
                 )
                 continue
             else:
-                if plugin_name == WASI_NN_OPENVINO:
-                    install_wasi_nn_openvino(args, compat)
-                else:
-                    logging.error("Unknown plugin: %s", plugin_name)
+                if (
+                    plugin_version_supplied[plugin_name].compare(
+                        plugin_version_supplied
+                    )
+                    == -1
+                    or plugin_version_supplied[plugin_name].compare(
+                        plugin_version_supplied
+                    )
+                    == False
+                ):
+                    logging.error(
+                        "Plugin not compatible: %s %s",
+                        plugin_name,
+                        plugin_version_supplied,
+                    )
+                    continue
+                print("Downloading Plugin: " + plugin_name)
+                url = plugin_triple_url[compat.prefix() + plugin_name]
+                download_url(
+                    url,
+                    join(TEMP_PATH, "Plugin" + plugin_name) + ".tar.gz",
+                    show_progress,
+                )
+                extract_archive(
+                    join(TEMP_PATH, "Plugin" + plugin_name + ".tar.gz"),
+                    join(args.path, CONST_lib_dir),
+                    join(TEMP_PATH, "Plugins"),
+                    env_file_path=CONST_env_path,
+                    remove_finished=True,
+                )
 
         if isdir(join(TEMP_PATH, "Plugins")):
             if is_default_path(args):
@@ -1528,11 +1584,12 @@ if __name__ == "__main__":
     parser.add_argument(
         "--plugins",
         dest="plugins",
-        choices=PLUGINS,
         required=False,
         default=[],
         nargs="*",
-        help="Supported Plugins - {0}".format(PLUGINS),
+        help="Supported Plugins are listed in the docs or wasmedge_manifest.json. Example\n"
+        + "--plugins wasi_crypto:0.11.0\n"
+        + "--plugins wasi_crypto",
     )
     parser.add_argument(
         "--tf-version",
@@ -1568,6 +1625,13 @@ if __name__ == "__main__":
         required=False,
         default=get_latest_github_release("second-state/WasmEdge-image"),
         help="Image Deps version",
+    )
+    parser.add_argument(
+        "--plugin-manifest-url",
+        dest="plugin_manifest_url",
+        required=False,
+        default="https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/wasmedge_manifest.json",
+        help="wasmedge_manifest.json URL",
     )
     parser.add_argument(
         "--ignore-brew",

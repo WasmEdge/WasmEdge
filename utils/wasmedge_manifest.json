@@ -1,36 +1,58 @@
 {
-    "prerelease": false,
-    "timestamp": "2022-09-28",
+    "timestamp": "2022-09-30",
     "url_root": "https://github.com/WasmEdge/WasmEdge/releases/download",
     "plugins": [
         {
             "name": "wasi-nn-openvino",
-            "min_version": "0.11.0",
-            "max_version": "0.11.0",
+            "default_version": "0.11.0",
+            "platforms": [
+                "ubuntu20.04"
+            ],
             "ubuntu20.04": {
                 "arch": [
-                    "x86_64"
+                    {
+                        "x86_64": [
+                            ""
+                        ],
+                        "url": ""
+                    }
                 ]
-            },
-            "url": []
+            }
         },
         {
             "name": "wasi_crypto",
-            "min_version": "0.11.0",
-            "max_version": "0.11.0",
+            "default_version": "0.11.0",
+            "platforms": [
+                "manylinux2014",
+                "ubuntu20.04"
+            ],
             "manylinux2014": {
                 "arch": [
-                    "x86_64",
-                    "aarch64"
+                    {
+                        "x86_64": [
+                            ""
+                        ],
+                        "url": ""
+                    },
+                    {
+                        "aarch64": [
+                            ""
+                        ],
+                        "url": ""
+                    }
                 ]
             },
             "ubuntu20.04": {
                 "arch": [
-                    "x86_64"
+                    {
+                        "x86_64": [
+                            ""
+                        ],
+                        "url": ""
+                    }
                 ]
-            },
-            "url": []
+            }
         }
     ],
-    "url_generic": "$VERSION$/WasmEdge-plugin-$PLUGIN_NAME$-$VERSION$-$PLATFORM$_$ARCH.tar.gz"
+    "url_generic_suffix": "$VERSION$/WasmEdge-plugin-$PLUGIN_NAME$-$VERSION$-$PLATFORM$_$ARCH$.tar.gz"
 }

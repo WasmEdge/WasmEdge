@@ -1,6 +1,6 @@
 {
     "timestamp": "2022-09-30",
-    "url_root": "https://github.com/WasmEdge/WasmEdge/releases/download",
+    "url_root": "https://github.com/WasmEdge/WasmEdge/releases/download/",
     "plugins": [
         {
             "name": "wasi-nn-openvino",

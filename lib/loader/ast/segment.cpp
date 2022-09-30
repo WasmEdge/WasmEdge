@@ -193,10 +193,6 @@ Expect<void> Loader::loadSegment(AST::ElementSegment &ElemSeg) {
                           ASTNodeAttr::Seg_Element);
     } else {
       VecCnt = *Res;
-      if (VecCnt / 2 > FMgr.getRemainSize()) {
-        return logLoadError(ErrCode::Value::IntegerTooLong,
-                            FMgr.getLastOffset(), ASTNodeAttr::Seg_Element);
-      }
     }
     ElemSeg.getInitExprs().clear();
     ElemSeg.getInitExprs().reserve(VecCnt);
@@ -233,11 +229,6 @@ Expect<void> Loader::loadSegment(AST::CodeSegment &CodeSeg) {
   uint32_t VecCnt = 0;
   if (auto Res = FMgr.readU32()) {
     VecCnt = *Res;
-    if (VecCnt / 2 > FMgr.getRemainSize()) {
-      return logLoadError(ErrCode::Value::IntegerTooLong, FMgr.getLastOffset(),
-                          ASTNodeAttr::Seg_Code);
-    }
-
     CodeSeg.getLocals().clear();
     CodeSeg.getLocals().reserve(VecCnt);
   } else {
@@ -350,10 +341,6 @@ Expect<void> Loader::loadSegment(AST::DataSegment &DataSeg) {
     uint32_t VecCnt = 0;
     if (auto Res = FMgr.readU32()) {
       VecCnt = *Res;
-      if (VecCnt / 2 > FMgr.getRemainSize()) {
-        return logLoadError(ErrCode::Value::IntegerTooLong,
-                            FMgr.getLastOffset(), ASTNodeAttr::Seg_Data);
-      }
     } else {
       return logLoadError(Res.error(), FMgr.getLastOffset(),
                           ASTNodeAttr::Seg_Data);

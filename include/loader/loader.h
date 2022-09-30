@@ -155,10 +155,6 @@ private:
     // Read the vector size.
     if (auto Res = FMgr.readU32()) {
       VecCnt = *Res;
-      if (VecCnt / 2 > FMgr.getRemainSize()) {
-        return logLoadError(ErrCode::Value::IntegerTooLong,
-                            FMgr.getLastOffset(), NodeAttrFromAST<T>());
-      }
       Sec.getContent().resize(VecCnt);
     } else {
       return logLoadError(Res.error(), FMgr.getLastOffset(),

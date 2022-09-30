@@ -82,9 +82,8 @@ Expect<void> SharedLibrary::load(const std::filesystem::path &Path) noexcept {
 Expect<void> SharedLibrary::load(const AST::AOTSection &AOTSec) noexcept {
   BinarySize = 0;
   for (const auto &Section : AOTSec.getSections()) {
-    const auto Offset = std::get<1>(Section);
-    const auto Size = std::get<2>(Section);
-    BinarySize = std::max(BinarySize, Offset + Size);
+    BinarySize =
+        std::max(BinarySize, std::get<1>(Section) + std::get<2>(Section));
   }
   BinarySize = roundUpPageBoundary(BinarySize);
 
@@ -99,7 +98,6 @@ Expect<void> SharedLibrary::load(const AST::AOTSection &AOTSec) noexcept {
     const auto Offset = std::get<1>(Section);
     const auto Size = std::get<2>(Section);
     const auto &Content = std::get<3>(Section);
-    assuming(Content.size() <= Size);
     std::copy(Content.begin(), Content.end(), Binary + Offset);
     switch (std::get<0>(Section)) {
     case 1: { // Text

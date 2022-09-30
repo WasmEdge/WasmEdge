@@ -220,7 +220,7 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
     if (auto Res = readU32(VecCnt); unlikely(!Res)) {
       return Unexpect(Res);
     }
-    if (VecCnt / 2 > FMgr.getRemainSize()) {
+    if (VecCnt == std::numeric_limits<uint32_t>::max()) {
       // Too many label for Br_table.
       return logLoadError(ErrCode::Value::IntegerTooLong, FMgr.getLastOffset(),
                           ASTNodeAttr::Instruction);
@@ -289,10 +289,6 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
     uint32_t VecCnt;
     if (auto Res = readU32(VecCnt); unlikely(!Res)) {
       return Unexpect(Res);
-    }
-    if (VecCnt / 2 > FMgr.getRemainSize()) {
-      return logLoadError(ErrCode::Value::IntegerTooLong, FMgr.getLastOffset(),
-                          ASTNodeAttr::Instruction);
     }
     Instr.setValTypeListSize(VecCnt);
     for (uint32_t I = 0; I < VecCnt; ++I) {

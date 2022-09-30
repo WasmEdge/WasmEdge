@@ -5,68 +5,50 @@ Current not support android.
 
 ## Prerequisites
 
-Currently, WasmEdge used OpenSSL 1.1 for the WASI-Crypto implementation. For this demo, you need to install [OpenSSL 1.1](https://www.openssl.org/source/).
+In the current status, the [WasmEdge Installer](../../quick_start/install.md) will install the `manylinux2014` version of WasmEdge releases on Linux platforms.
 
-### OpenSSL Development Package Installation
-
-For installing OpenSSL 1.1 development package on Ubuntu20.04, we recommend the following commands:
+For installation with the installer, you can follow the commands:
 
 ```bash
-sudo apt update
-sudo apt install -y libssl-dev
+curl -sSf https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh | bash -s -- -v {{ wasmedge_version }}
+curl -sLO https://github.com/WasmEdge/WasmEdge/releases/download/{{ wasmedge_version }}/WasmEdge-plugin-wasi_crypto-{{ wasmedge_version }}-manylinux2014_x86_64.tar.gz
+tar -zxf WasmEdge-plugin-wasi_crypto-{{ wasmedge_version }}-manylinux2014_x86_64.tar.gz
+rm -f WasmEdge-plugin-wasi_crypto-{{ wasmedge_version }}-manylinux2014_x86_64.tar.gz
+mv libwasmedgePluginWasiCrypto.so $HOME/.wasmedge/plugin
 ```
 
-For legacy systems or if you want to build OpenSSL 1.1 from source, you can refer to the following commands:
+If you choose to install WasmEdge under `/usr`, please note that the plug-in path is different:
 
 ```bash
-# Download and extract the OpenSSL source to the current directory.
-curl -s -L -O --remote-name-all https://www.openssl.org/source/openssl-1.1.1n.tar.gz
-echo "40dceb51a4f6a5275bde0e6bf20ef4b91bfc32ed57c0552e2e8e15463372b17a openssl-1.1.1n.tar.gz" | sha256sum -c
-tar -xf openssl-1.1.1n.tar.gz
-cd ./openssl-1.1.1n
-# OpenSSL configure need newer perl.
-curl -s -L -O --remote-name-all https://www.cpan.org/src/5.0/perl-5.34.0.tar.gz
-tar -xf perl-5.34.0.tar.gz
-cd perl-5.34.0
-mkdir localperl
-./Configure -des -Dprefix=$(pwd)/localperl/
-make -j
-make install
-export PATH="$(pwd)/localperl/bin/:$PATH"
-cd ..
-# Configure by previous perl.
-mkdir openssl
-./perl-5.34.0/localperl/bin/perl ./config --prefix=$(pwd)/openssl --openssldir=$(pwd)/openssl
-make -j
-make test
-make install
-cd ..
-# The OpenSSL installation directory is at `$(pwd)/openssl-1.1.1n/openssl`.
-# Then you can use the `-DOPENSSL_ROOT_DIR=` option of cmake to assign the directory.
+curl -sSf https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh | bash -s -- -v {{ wasmedge_version }} -p /usr/local
+curl -sLO https://github.com/WasmEdge/WasmEdge/releases/download/{{ wasmedge_version }}/WasmEdge-plugin-wasi_crypto-{{ wasmedge_version }}-manylinux2014_x86_64.tar.gz
+tar -zxf WasmEdge-plugin-wasi_crypto-{{ wasmedge_version }}-manylinux2014_x86_64.tar.gz
+rm -f WasmEdge-plugin-wasi_crypto-{{ wasmedge_version }}-manylinux2014_x86_64.tar.gz
+mv libwasmedgePluginWasiCrypto.so /usr/local/lib/wasmedge/
 ```
 
-### WasmEdge Building and Installation
-
-To enable the WasmEdge WASI-Crypto, we need to [building the WasmEdge from source](../../contribute/build_from_src.md) with the cmake option `-DWASMEDGE_PLUGIN_WASI_CRYPTO=ON` to enable the WASI-Crypto:
+If you want to use the `Ubuntu 20.04` version, please install with the following commands:
 
 ```bash
-git clone https://github.com/WasmEdge/WasmEdge.git && cd WasmEdge
-# If use docker
-docker pull wasmedge/wasmedge
-docker run -it --rm \
-    -v <path/to/your/wasmedge/source/folder>:/root/wasmedge \
-    wasmedge/wasmedge:latest
-cd /root/wasmedge
-# If you don't use docker, you need to run only the following commands in the cloned repository root
-apt update
-apt install -y libssl-dev
-mkdir -p build && cd build
-cmake -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_PLUGIN_WASI_CRYPTO=On .. && make -j
-# For the WASI-Crypto plugin, you should install this project.
-cmake --install .
+curl -sLO https://github.com/WasmEdge/WasmEdge/releases/download/{{ wasmedge_version }}/WasmEdge-{{ wasmedge_version }}-ubuntu20.04_x86_64.tar.gz
+tar -zxf WasmEdge-{{ wasmedge_version }}-ubuntu20.04_x86_64.tar.gz
+rm -f WasmEdge-{{ wasmedge_version }}-ubuntu20.04_x86_64.tar.gz
+curl -sLO https://github.com/WasmEdge/WasmEdge/releases/download/{{ wasmedge_version }}/WasmEdge-plugin-wasi_crypto-{{ wasmedge_version }}-ubuntu20.04_x86_64.tar.gz
+tar -zxf WasmEdge-plugin-wasi_crypto-{{ wasmedge_version }}-ubuntu20.04_x86_64.tar.gz
+rm -f WasmEdge-plugin-wasi_crypto-{{ wasmedge_version }}-ubuntu20.04_x86_64.tar.gz
+mv libwasmedgePluginWasiCrypto.so WasmEdge-{{ wasmedge_version }}-Linux/lib/wasmedge
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$(pwd)/WasmEdge-{{ wasmedge_version }}-Linux/lib
+export PATH=$PATH:$(pwd)/WasmEdge-{{ wasmedge_version }}-Linux/bin
+export WASMEDGE_PLUGIN_PATH=$(pwd)/WasmEdge-{{ wasmedge_version }}-Linux/lib/wasmedge
 ```
 
-### Rust Crate
+> The `manylinux2014` WasmEdge should use the `manylinux2014` version of plug-in, while the `Ubuntu 20.04` WasmEdge should also use the `Ubuntu 20.04` version of plug-in, too.
+
+You can also [build WasmEdge with WASI-Crypto plug-in from source](../../contribute/build_from_src/plugin_wasi_crypto.md).
+
+## Write WebAssembly Using WASI-Crypto
+
+### (Optional) Rust Installation
 
 For importing WASI-Crypto in rust, you should use the [wasi-crypto binding](https://github.com/WebAssembly/wasi-crypto/tree/main/implementations/bindings/rust) in your cargo.toml
 
@@ -75,9 +57,9 @@ For importing WASI-Crypto in rust, you should use the [wasi-crypto binding](http
 wasi-crypto = "0.1.5"
 ```
 
-## High Level Operations
+### High Level Operations
 
-### Hash Function
+#### Hash Function
 
 | Identifier              | Algorithm                                                                           |
 | ----------------------- | ----------------------------------------------------------------------------------- |
@@ -91,7 +73,7 @@ let hash : Vec<u8> = Hash::hash("SHA-256", b"test", 32, None)?;
 assert_eq!(hash.len(), 32);
 ```
 
-### Message Authentications function
+#### Message Authentications function
 
 | Identifier              | Algorithm                                                                           |
 | ----------------------- | ----------------------------------------------------------------------------------- |
@@ -107,7 +89,7 @@ let tag = Auth::auth("test", &key)?;
 Auth::auth_verify("test", &key, tag)?;
 ```
 
-### Key Driven function
+#### Key Driven function
 
 | Identifier              | Algorithm                                                                           |
 | ----------------------- | ----------------------------------------------------------------------------------- |
@@ -125,7 +107,7 @@ let derived_key = prk.expand("info", 100)?;
 assert_eq!(derived_key.len(), 100);
 ```
 
-### Signatures Operation
+#### Signatures Operation
 
 | Identifier              | Algorithm                                                                           |
 | ----------------------- | ----------------------------------------------------------------------------------- |

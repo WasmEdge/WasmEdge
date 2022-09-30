@@ -145,11 +145,16 @@ jobs:
           fetch-depth: 0
       - name: Build WasmEdge using ${{ matrix.compiler }} with ${{ matrix.build_type }} mode
         if: ${{ ! matrix.coverage }}
+        shell: bash
         env:
           CMAKE_BUILD_TYPE: ${{ matrix.build_type }}
         run: |
           git config --global --add safe.directory $(pwd)
-          cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=$CMAKE_BUILD_TYPE -DWASMEDGE_BUILD_TESTS=ON -DWASMEDGE_BUILD_PACKAGE="TGZ" .
+          if [[ "${{ matrix.compiler }}" == "clang++" ]]; then
+            cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=$CMAKE_BUILD_TYPE -DWASMEDGE_LINK_LLVM_STATIC=ON -DWASMEDGE_BUILD_TESTS=ON -DWASMEDGE_BUILD_PACKAGE="TGZ" .
+          else
+            cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=$CMAKE_BUILD_TYPE -DWASMEDGE_BUILD_TESTS=ON -DWASMEDGE_BUILD_PACKAGE="TGZ" .
+          fi
           cmake --build build
           cmake --build build --target package
       - name: Test WasmEdge

@@ -1120,7 +1120,7 @@ def install_plugins(args, compat):
                 wasmedge_manifest = json.load(f)
         except Exception as e:
             logging.critical(e)
-            logging.critical("Cannot install plugins due to JSON unreadble")
+            logging.critical("Cannot install plugins due to unreadable JSON")
             return
 
         if wasmedge_manifest is None:
@@ -1718,4 +1718,5 @@ if __name__ == "__main__":
 
     args.path = abspath(args.path)
 
+    logging.debug("Python Version: %s", sys.version_info)
     main(args)

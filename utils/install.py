@@ -1115,8 +1115,13 @@ def install_plugins(args, compat):
         download_url(args.plugin_manifest_url, wasmedge_manifest_path)
 
         wasmedge_manifest = None
-        with opened_w_error(wasmedge_manifest_path) as f:
-            wasmedge_manifest = json.load(f)
+        try:
+            with opened_w_error(wasmedge_manifest_path) as f:
+                wasmedge_manifest = json.load(f)
+        except Exception as e:
+            logging.critical(e)
+            logging.critical("Cannot install plugins due to JSON unreadble")
+            return
 
         if wasmedge_manifest is None:
             logging.error("Cannot install plugins due to wasmedge_manifest unreadable")

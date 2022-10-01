@@ -244,7 +244,7 @@ jobs:
         ${{ matrix.python3_ex }} utils/install.py -p /usr --plugins=wasi_nn-openvino wasi_crypto -D
         (ls /usr/lib/wasmedge/; ls /usr/lib64/wasmedge/;)2>&1 | grep -E libwasmedgePluginWasiNN.so\|libwasmedgePluginWasiCrypto.so  && echo "Pass: Plugins found" || (echo "Fail: Plugins not found" && exit 1)
   
-  - name: Externally Specified plugins install check (wrong name)
+    - name: Externally Specified plugins install check (wrong name)
       if: ${{ matrix.name != 'manylinux2014 aarch64' }}
       run: |
         # Wrong name for wasi-nn-openvino 

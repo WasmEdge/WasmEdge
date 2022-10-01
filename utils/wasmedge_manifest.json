@@ -3,7 +3,7 @@
     "url_root": "https://github.com/WasmEdge/WasmEdge/releases/download/",
     "plugins": [
         {
-            "name": "wasi-nn-openvino",
+            "name": "wasi_nn-openvino",
             "default_version": "0.11.0",
             "platforms": [
                 "ubuntu20.04"

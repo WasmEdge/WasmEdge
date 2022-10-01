@@ -1135,7 +1135,9 @@ def install_plugins(args, compat):
         plugins_metadata = wasmedge_manifest["plugins"]
         plugin_triple_url = {}
         plugin_triple_version = {}
+        plugin_names = []
         for plugin_metadata in plugins_metadata:
+            plugin_names.append(plugin_metadata["name"])
             for platform in plugin_metadata["platforms"]:
                 arches = plugin_metadata[platform]["arch"]
                 for arch_dict in arches:
@@ -1213,6 +1215,14 @@ def install_plugins(args, compat):
             plugin_version_supplied = None
             if plugin_name.find(":") != -1:
                 plugin_name, plugin_version_supplied = plugin_name.split(":")
+
+            if plugin_name not in plugin_names:
+                logging.error(
+                    "%s plugin not found, available names - %s",
+                    plugin_name,
+                    plugin_names,
+                )
+                continue
 
             if compat.dist + compat.machine + plugin_name not in plugin_triple_version:
                 logging.error(

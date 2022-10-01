@@ -20,36 +20,36 @@
 #include <variant>
 
 #if defined(__has_feature)
-# if __has_feature(cxx_exceptions)
-#  define M_ENABLE_EXCEPTIONS 1
-# else
-#  define M_ENABLE_EXCEPTIONS 0
-# endif
+#if __has_feature(cxx_exceptions)
+#define M_ENABLE_EXCEPTIONS 1
+#else
+#define M_ENABLE_EXCEPTIONS 0
+#endif
 #elif defined(__GNUC__)
-# ifdef __EXCEPTIONS
-#  define M_ENABLE_EXCEPTIONS 1
-# else
-#  define M_ENABLE_EXCEPTIONS 0
-# endif
+#ifdef __EXCEPTIONS
+#define M_ENABLE_EXCEPTIONS 1
+#else
+#define M_ENABLE_EXCEPTIONS 0
+#endif
 #elif defined(_MSC_VER)
-# ifdef _CPPUNWIND
-#  define M_ENABLE_EXCEPTIONS 1
-# else
-#  define M_ENABLE_EXCEPTIONS 0
-# endif
+#ifdef _CPPUNWIND
+#define M_ENABLE_EXCEPTIONS 1
+#else
+#define M_ENABLE_EXCEPTIONS 0
+#endif
 #endif
 
 #ifndef M_ENABLE_EXCEPTIONS
-# define M_ENABLE_EXCEPTIONS 1
+#define M_ENABLE_EXCEPTIONS 1
 #endif
 
 #if M_ENABLE_EXCEPTIONS
-# define throw_exception_again throw
+#define throw_exception_again throw
 #else
-# define try      if (true)
-# define catch(X) if (false)
-# define throw(X) abort()
-# define throw_exception_again
+#define try if (true)
+#define catch(X) if (false)
+#define throw(X) abort()
+#define throw_exception_again
 #endif
 
 namespace cxx20 {
@@ -203,31 +203,32 @@ namespace detail {
 template <class T, class E> struct expected_traits {
   template <class U, class G>
   static inline constexpr bool enable_other_copy_constructible_v =
-      is_constructible_v<T, const U &> &&is_constructible_v<E, const G &> &&
-          is_not_constructible_and_not_reverse_convertible_v<T, expected<U, G>>
-              &&detail::is_not_constructible_and_not_reverse_convertible_v<
-                  unexpected<E>, expected<U, G>>;
+      is_constructible_v<T, const U &> && is_constructible_v<E, const G &> &&
+      is_not_constructible_and_not_reverse_convertible_v<T, expected<U, G>> &&
+      detail::is_not_constructible_and_not_reverse_convertible_v<
+          unexpected<E>, expected<U, G>>;
   template <class U, class G>
   static inline constexpr bool explicit_other_copy_constructible_v =
       !is_convertible_v<const U &, T> || !is_convertible_v<const G &, E>;
 
   template <class U, class G>
   static inline constexpr bool enable_other_move_constructible_v =
-      is_constructible_v<T, U &&> &&is_constructible_v<E, G &&> &&
-          is_not_constructible_and_not_reverse_convertible_v<T, expected<U, G>>
-              &&detail::is_not_constructible_and_not_reverse_convertible_v<
-                  unexpected<E>, expected<U, G>>;
+      is_constructible_v<T, U &&> && is_constructible_v<E, G &&> &&
+      is_not_constructible_and_not_reverse_convertible_v<T, expected<U, G>> &&
+      detail::is_not_constructible_and_not_reverse_convertible_v<
+          unexpected<E>, expected<U, G>>;
   template <class U, class G>
   static inline constexpr bool explicit_other_move_constructible_v =
       !is_convertible_v<U &&, T> || !is_convertible_v<G &&, E>;
 
   template <class U, class G>
   static inline constexpr bool is_nothrow_other_copy_constructible_v =
-      is_nothrow_constructible_v<T, const U &>
-          &&is_nothrow_constructible_v<E, const G &>;
+      is_nothrow_constructible_v<T, const U &> &&
+      is_nothrow_constructible_v<E, const G &>;
   template <class U, class G>
   static inline constexpr bool is_nothrow_other_move_constructible_v =
-      is_nothrow_constructible_v<T, U &&> &&is_nothrow_constructible_v<E, G &&>;
+      is_nothrow_constructible_v<T, U &&> &&
+      is_nothrow_constructible_v<E, G &&>;
   template <class U>
   static inline constexpr bool enable_in_place_v =
       is_constructible_v<T, U> && !is_same_v<remove_cvref_t<U>, in_place_t> &&
@@ -244,28 +245,28 @@ template <class T, class E> struct expected_traits {
 template <class E> struct expected_traits<void, E> {
   template <class U, class G>
   static inline constexpr bool enable_other_copy_constructible_v =
-      is_void_v<U> &&is_constructible_v<E, const G &>
-          &&detail::is_not_constructible_and_not_reverse_convertible_v<
-              unexpected<E>, expected<U, G>>;
+      is_void_v<U> && is_constructible_v<E, const G &> &&
+      detail::is_not_constructible_and_not_reverse_convertible_v<
+          unexpected<E>, expected<U, G>>;
   template <class U, class G>
   static inline constexpr bool explicit_other_copy_constructible_v =
       !is_convertible_v<const G &, E>;
 
   template <class U, class G>
   static inline constexpr bool enable_other_move_constructible_v =
-      is_void_v<U> &&is_constructible_v<E, G &&>
-          &&detail::is_not_constructible_and_not_reverse_convertible_v<
-              unexpected<E>, expected<U, G>>;
+      is_void_v<U> && is_constructible_v<E, G &&> &&
+      detail::is_not_constructible_and_not_reverse_convertible_v<
+          unexpected<E>, expected<U, G>>;
   template <class U, class G>
   static inline constexpr bool explicit_other_move_constructible_v =
       !is_convertible_v<G &&, E>;
 
   template <class U, class G>
   static inline constexpr bool is_nothrow_other_copy_constructible_v =
-      is_void_v<U> &&is_nothrow_constructible_v<E, const G &>;
+      is_void_v<U> && is_nothrow_constructible_v<E, const G &>;
   template <class U, class G>
   static inline constexpr bool is_nothrow_other_move_constructible_v =
-      is_void_v<U> &&is_nothrow_constructible_v<E, G &&>;
+      is_void_v<U> && is_nothrow_constructible_v<E, G &&>;
   template <class U> static inline constexpr bool enable_in_place_v = false;
   template <class U> static inline constexpr bool enable_assign_value_v = false;
 };

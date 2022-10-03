@@ -1,4 +1,4 @@
-# WasmEdge C 0.11.0 API Documentation
+# WasmEdge C 0.11.1 API Documentation
 
 [WasmEdge C API](https://github.com/WasmEdge/WasmEdge/blob/master/include/api/wasmedge/wasmedge.h) denotes an interface to access the WasmEdge runtime. The followings are the guides to working with the C APIs of WasmEdge.
 
@@ -6,7 +6,7 @@
 
 **Please notice that `libwasmedge_c.so` is renamed to `libwasmedge.so` after the `0.11.0` release. Please use `-lwasmedge` instead of `-lwasmedge_c` for the linker option.**
 
-**This document is for the `0.11.0` version. For the older `0.10.1` version, please refer to the [document here](0.10.1/ref.md).**
+**This document is for the `0.11.1` version. For the older `0.10.1` version, please refer to the [document here](0.10.1/ref.md).**
 
 **Developers can refer to [here to upgrade to 0.11.0](0.10.1/upgrade_to_0.11.0.md).**
 
@@ -56,7 +56,7 @@
 The easiest way to install WasmEdge is to run the following command. Your system should have `git` and `wget` as prerequisites.
 
 ```bash
-curl -sSf https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh | bash -s -- -v 0.11.0
+curl -sSf https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh | bash -s -- -v 0.11.1
 ```
 
 For more details, please refer to the [Installation Guide](../../quick_start/install.md) for the WasmEdge installation.
@@ -86,7 +86,7 @@ After the installation of WasmEdge, the following guide can help you to test for
 
     ```bash
     $ ./a.out
-    WasmEdge version: 0.11.0
+    WasmEdge version: 0.11.1
     ```
 
 ### ABI Compatibility
@@ -98,7 +98,7 @@ The releases before 0.11.0 are all unversioned. Please make sure the library ver
 | WasmEdge Version | WasmEdge C API Library Name | WasmEdge C API SONAME | WasmEdge C API SOVERSION |
 | ---              | ---                         | ---                   | ---                      |
 | < 0.11.0         | libwasmedge\_c.so           | Unversioned           | Unversioned              |
-| 0.11.0           | libwasmedge.so              | libwasmedge.so.0      | libwasmedge.so.0.0.0     |
+| since 0.11.0     | libwasmedge.so              | libwasmedge.so.0      | libwasmedge.so.0.0.0     |
 
 ## WasmEdge Basics
 

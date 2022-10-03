@@ -1,4 +1,4 @@
-### 0.11.1-rc.1 (2022-09-28)
+### 0.11.1 (2022-10-03)
 
 Features:
 
@@ -11,6 +11,7 @@ Features:
 * Extended WasmEdge CLI.
   * Allow the optimization level assignment in `wasmedgec` tool.
   * Supported the `v128` value type printing in `wasmedge` tool.
+* Released Ubuntu 20.04 version with statically linked LLVM.
 
 Fixed issues:
 
@@ -39,9 +40,9 @@ Tests:
 
 Thank all the contributors that made this release possible!
 
-DarumaDocker, Gustavo Ye, LFsWang, MediosZ, Michael Yuan, Shen-Ta Hsieh, Tricster, Xin Liu, Yeongju Kang, YiYing He, Zhou Zhou, hydai, sonder-joker
+DarumaDocker, Faidon Liambotis, Gustavo Ye, LFsWang, MediosZ, Michael Yuan, Shen-Ta Hsieh, Tricster, Xin Liu, Yeongju Kang, YiYing He, Zhou Zhou, hydai, jeeeerrrpop, sonder-joker, vincent
 
-If you want to build from source, please use WasmEdge-0.11.1-rc.1-src.tar.gz instead of the zip or tarball provided by GitHub directly.
+If you want to build from source, please use WasmEdge-0.11.1-src.tar.gz instead of the zip or tarball provided by GitHub directly.
 
 ### 0.11.0 (2022-08-31)
 

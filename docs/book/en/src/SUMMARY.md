@@ -95,7 +95,7 @@
   - [C SDK](sdk/c.md)
     - [Host Function Implementation](sdk/c/hostfunction.md)
     - [ExternRef Example](sdk/c/externref.md)
-    - [0.11.0 API references](sdk/c/ref.md)
+    - [0.11.1 API references](sdk/c/ref.md)
     - [0.10.1 API references](sdk/c/0.10.1/ref.md)
       - [Upgrade to 0.11.0](sdk/c/0.10.1/upgrade_to_0.11.0.md)
     - [0.9.1 API references](sdk/c/0.9.1/ref.md)

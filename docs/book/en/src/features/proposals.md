@@ -6,17 +6,17 @@ WasmEdge supports the following [WebAssembly proposals](https://github.com/WebAs
 
 | Proposal                                  | WasmEdge CLI flag                     | WasmEdge C API enumeration                       | Default turning on | Interpreter mode   | AOT mode           |
 | ----------------------------------------- | ------------------------------------- | ------------------------------------------------ | ------------------ | ------------------ | ------------------ |
-| [Import/Export of Mutable Globals][]      | `--disable-import-export-mut-globals` | `WasmEdge_Proposal_ImportExportMutGlobals`       | ✓ (after `0.8.2`)  | ✓                  | ✓                  |
-| [Non-trapping float-to-int conversions][] | `--disable-non-trap-float-to-int`     | `WasmEdge_Proposal_NonTrapFloatToIntConversions` | ✓ (after `0.8.2`)  | ✓                  | ✓                  |
-| [Sign-extension operators][]              | `--disable-sign-extension-operators`  | `WasmEdge_Proposal_SignExtensionOperators`       | ✓ (after `0.8.2`)  | ✓                  | ✓                  |
-| [Multi-value][]                           | `--disable-multi-value`               | `WasmEdge_Proposal_MultiValue`                   | ✓ (after `0.8.2`)  | ✓                  | ✓                  |
-| [Reference Types][]                       | `--disable-reference-types`           | `WasmEdge_Proposal_ReferenceTypes`               | ✓ (after `0.8.2`)  | ✓                  | ✓                  |
-| [Bulk memory operations][]                | `--disable-bulk-memory`               | `WasmEdge_Proposal_BulkMemoryOperations`         | ✓ (after `0.8.2`)  | ✓                  | ✓                  |
-| [Fixed-width SIMD][]                      | `--disable-simd`                      | `WasmEdge_Proposal_SIMD`                         | ✓ (after `0.9.0`)  | ✓ (after `0.8.2`)  | ✓ (after `0.8.2`)  |
-| [Tail call][]                             | `--enable-tail-call`                  | `WasmEdge_Proposal_TailCall`                     |                    | ✓ (after `0.10.0`) | ✓ (after `0.10.0`) |
-| [Multiple memories][]                     | `--enable-multi-memory`               | `WasmEdge_Proposal_MultiMemories`                |                    | ✓ (after `0.9.1`)  | ✓ (after `0.9.1`)  |
-| [Extended Constant Expressions][]         | `--enable-extended-const`             | `WasmEdge_Proposal_ExtendedConst`                |                    | ✓ (after `0.10.0`) | ✓ (after `0.10.0`) |
-| [Threads][]                               | `--enable-threads`                    | `WasmEdge_Proposal_Threads`                      |                    | ✓ (after `0.10.1`) | ✓ (after `0.10.1`) |
+| [Import/Export of Mutable Globals][]      | `--disable-import-export-mut-globals` | `WasmEdge_Proposal_ImportExportMutGlobals`       | ✓ (since `0.8.2`)  | ✓                  | ✓                  |
+| [Non-trapping float-to-int conversions][] | `--disable-non-trap-float-to-int`     | `WasmEdge_Proposal_NonTrapFloatToIntConversions` | ✓ (since `0.8.2`)  | ✓                  | ✓                  |
+| [Sign-extension operators][]              | `--disable-sign-extension-operators`  | `WasmEdge_Proposal_SignExtensionOperators`       | ✓ (since `0.8.2`)  | ✓                  | ✓                  |
+| [Multi-value][]                           | `--disable-multi-value`               | `WasmEdge_Proposal_MultiValue`                   | ✓ (since `0.8.2`)  | ✓                  | ✓                  |
+| [Reference Types][]                       | `--disable-reference-types`           | `WasmEdge_Proposal_ReferenceTypes`               | ✓ (since `0.8.2`)  | ✓                  | ✓                  |
+| [Bulk memory operations][]                | `--disable-bulk-memory`               | `WasmEdge_Proposal_BulkMemoryOperations`         | ✓ (since `0.8.2`)  | ✓                  | ✓                  |
+| [Fixed-width SIMD][]                      | `--disable-simd`                      | `WasmEdge_Proposal_SIMD`                         | ✓ (since `0.9.0`)  | ✓ (since `0.8.2`)  | ✓ (since `0.8.2`)  |
+| [Tail call][]                             | `--enable-tail-call`                  | `WasmEdge_Proposal_TailCall`                     |                    | ✓ (since `0.10.0`) | ✓ (since `0.10.0`) |
+| [Multiple memories][]                     | `--enable-multi-memory`               | `WasmEdge_Proposal_MultiMemories`                |                    | ✓ (since `0.9.1`)  | ✓ (since `0.9.1`)  |
+| [Extended Constant Expressions][]         | `--enable-extended-const`             | `WasmEdge_Proposal_ExtendedConst`                |                    | ✓ (since `0.10.0`) | ✓ (since `0.10.0`) |
+| [Threads][]                               | `--enable-threads`                    | `WasmEdge_Proposal_Threads`                      |                    | ✓ (since `0.10.1`) | ✓ (since `0.10.1`) |
 
 The following proposals is under development and may be supported in the future:
 
@@ -45,16 +45,15 @@ The following proposals is under development and may be supported in the future:
 
 WasmEdge implements the following [WASI proposals](https://github.com/WebAssembly/WASI/blob/main/Proposals.md).
 
-| Proposal                       | Platforms                         |
-| ------------------------------ | --------------------------------- |
-| [Sockets][]                    |                                   |
-| [Crypto][]                     | `x86_64 Linux`, `aarch64 Linux`   |
-| [Machine Learning (wasi-nn)][] | `x86_64 Linux (OpenVINO backend)` |
-| [proxy-wasm][]                 | `x86_64 Linux (Interpreter only)` |
+| Proposal                       | Platforms                                                                       |
+| ------------------------------ | ------------------------------------------------------------------------------- |
+| [Sockets][]                    | `x86_64 Linux`, `aarch64 Linux` (since `0.10.0`)                                |
+| [Crypto][]                     | `x86_64 Linux`, `aarch64 Linux` (since `0.10.1`)                                |
+| [Machine Learning (wasi-nn)][] | `x86_64 Linux`, OpenVINO (since `0.10.1`) and PyTorch (since `0.11.1`) backends |
+| [proxy-wasm][]                 | `x86_64 Linux (Interpreter only)` (since `0.8.2`)                               |
 
 The following proposals is under development and may be supported in the future:
 
-* PyTorch backend of `WASI-NN`
 * TensorFlow backend of `WASI-NN`
 * TensorFlow-Lite backend of `WASI-NN`
 

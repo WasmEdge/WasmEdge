@@ -149,6 +149,10 @@ jobs:
             output_path: plugins/wasi_crypto
             output_bin: libwasmedgePluginWasiCrypto.so
             tar_name: wasi_crypto
+          - name: WasmEdge-HttpsReq
+            output_path: plugins/wasmedge_httpsreq
+            output_bin: libwasmedgePluginHttpsReq.so
+            tar_name: wasmedge_httpsreq
     name: Build and upload WasmEdge ${{ matrix.name }} plugin on Ubuntu 20.04
     needs: create_release
     runs-on: ubuntu-latest
@@ -191,6 +195,16 @@ jobs:
           mkdir -p build
           cd build
           cmake -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_PLUGIN_WASI_CRYPTO=On ..
+          cd ${{ matrix.output_path }}
+          make -j
+      - name: Build WasmEdge-HttpsReq plugin
+        if: contains(matrix.name, 'WasmEdge-HttpsReq')
+        run: |
+          apt update
+          apt install -y libssl-dev
+          mkdir -p build
+          cd build
+          cmake -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_PLUGIN_HTTPSREQ=On ..
           cd ${{ matrix.output_path }}
           make -j
       - name: Prepare the WasmEdge ${{ matrix.name }} plugin tar.gz package

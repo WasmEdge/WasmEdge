@@ -2,6 +2,49 @@
 
 The WasmEdge WASI socket API supports HTTP networking in Wasm apps. In order to achieve the goal of supporting HTTPS requests with the same API as an HTTP request, we now create a WasmEdge plugin using the OpenSSL library. In this chapter, we will give the example of HTTPS requests and explain the design.
 
+## Prerequisites
+
+In the current status, the [WasmEdge Installer](../../quick_start/install.md) will install the `manylinux2014` version of WasmEdge releases on Linux platforms.
+
+For installation with the installer, you can follow the commands:
+
+```bash
+curl -sSf https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh | bash -s -- -v {{ wasmedge_version }}
+curl -sLO https://github.com/WasmEdge/WasmEdge/releases/download/{{ wasmedge_version }}/WasmEdge-plugin-wasmedge_httpsreq-{{ wasmedge_version }}-manylinux2014_x86_64.tar.gz
+tar -zxf WasmEdge-plugin-wasmedge_httpsreq-{{ wasmedge_version }}-manylinux2014_x86_64.tar.gz
+rm -f WasmEdge-plugin-wasmedge_httpsreq-{{ wasmedge_version }}-manylinux2014_x86_64.tar.gz
+mv libwasmedgePluginHttpsReq.so $HOME/.wasmedge/plugin
+```
+
+If you choose to install WasmEdge under `/usr`, please note that the plug-in path is different:
+
+```bash
+curl -sSf https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh | bash -s -- -v {{ wasmedge_version }} -p /usr/local
+curl -sLO https://github.com/WasmEdge/WasmEdge/releases/download/{{ wasmedge_version }}/WasmEdge-plugin-wasmedge_httpsreq-{{ wasmedge_version }}-manylinux2014_x86_64.tar.gz
+tar -zxf WasmEdge-plugin-wasmedge_httpsreq-{{ wasmedge_version }}-manylinux2014_x86_64.tar.gz
+rm -f WasmEdge-plugin-wasmedge_httpsreq-{{ wasmedge_version }}-manylinux2014_x86_64.tar.gz
+mv libwasmedgePluginHttpsReq.so /usr/local/lib/wasmedge/
+```
+
+If you want to use the `Ubuntu 20.04` version, please install with the following commands:
+
+```bash
+curl -sLO https://github.com/WasmEdge/WasmEdge/releases/download/{{ wasmedge_version }}/WasmEdge-{{ wasmedge_version }}-ubuntu20.04_x86_64.tar.gz
+tar -zxf WasmEdge-{{ wasmedge_version }}-ubuntu20.04_x86_64.tar.gz
+rm -f WasmEdge-{{ wasmedge_version }}-ubuntu20.04_x86_64.tar.gz
+curl -sLO https://github.com/WasmEdge/WasmEdge/releases/download/{{ wasmedge_version }}/WasmEdge-plugin-wasmedge_httpsreq-{{ wasmedge_version }}-ubuntu20.04_x86_64.tar.gz
+tar -zxf WasmEdge-plugin-wasmedge_httpsreq-{{ wasmedge_version }}-ubuntu20.04_x86_64.tar.gz
+rm -f WasmEdge-plugin-wasmedge_httpsreq-{{ wasmedge_version }}-ubuntu20.04_x86_64.tar.gz
+mv libwasmedgePluginHttpsReq.so WasmEdge-{{ wasmedge_version }}-Linux/lib/wasmedge
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$(pwd)/WasmEdge-{{ wasmedge_version }}-Linux/lib
+export PATH=$PATH:$(pwd)/WasmEdge-{{ wasmedge_version }}-Linux/bin
+export WASMEDGE_PLUGIN_PATH=$(pwd)/WasmEdge-{{ wasmedge_version }}-Linux/lib/wasmedge
+```
+
+> The `manylinux2014` WasmEdge should use the `manylinux2014` version of plug-in, while the `Ubuntu 20.04` WasmEdge should also use the `Ubuntu 20.04` version of plug-in, too.
+
+You can also [build WasmEdge with WASI-Crypto plug-in from source](../../contribute/build_from_src/plugin_wasmedge_httpsreq.md).
+
 ## An HTTPS request example
 
 The [example source code](https://github.com/2019zhou/wasmedge_http_req/blob/zhou/httpsreq/examples/get_https.rs) for the HTTPS request is available as follows. The HTTP and HTTPS APIs are the same. The Err messages are presented differently because the HTTP uses the rust code while the HTTPS request uses a wasmedge host function.
@@ -66,7 +109,7 @@ The following command compiles the Rust program
 ```bash
 # build the wasmedge httpsreq plugin module
 sudo apt-get install libssl-dev
-cmake -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_BUILD_TESTS=OFF -DWASMEDGE_PLUGIN_HTTPSREQ=true  .. && make -j4
+cmake -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_BUILD_TESTS=OFF -DWASMEDGE_PLUGIN_HTTPSREQ=On  .. && make -j4
 
 cargo build --target wasm32-wasi --release
 ```

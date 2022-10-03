@@ -84,14 +84,13 @@ jobs:
         run: |
           cmake --build build --target package
       - name: Upload package tarball
-        if: ${{ inputs.release }}
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ needs.create_release.outputs.upload_url }}
-          asset_path: build/WasmEdge-${{ inputs.version }}-Linux.tar.gz
-          asset_name: WasmEdge-${{ inputs.version }}-ubuntu20.04_x86_64.tar.gz
+          asset_path: build/WasmEdge-${{ needs.create_release.outputs.version }}-Linux.tar.gz
+          asset_name: WasmEdge-${{ needs.create_release.outputs.version }}-ubuntu20.04_x86_64.tar.gz
           asset_content_type: application/x-gzip
 
   build_on_manylinux2014:

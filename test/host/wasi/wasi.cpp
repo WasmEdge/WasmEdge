@@ -11,9 +11,12 @@
 #include "runtime/instance/module.h"
 #include <algorithm>
 #include <array>
+#include <bitset>
 #include <cerrno>
+#include <charconv>
 #include <condition_variable>
 #include <cstdint>
+#include <cstdio>
 #include <cstring>
 #include <ctime>
 #include <mutex>
@@ -2053,6 +2056,8 @@ TEST(WasiTest, Directory) {
   WasmEdge::Host::WasiPathCreateDirectory WasiPathCreateDirectory(Env);
   WasmEdge::Host::WasiPathRemoveDirectory WasiPathRemoveDirectory(Env);
   WasmEdge::Host::WasiPathFilestatGet WasiPathFilestatGet(Env);
+  WasmEdge::Host::WasiPathOpen WasiPathOpen(Env);
+  WasmEdge::Host::WasiFdReadDir WasiFdReadDir(Env);
   std::array<WasmEdge::ValVariant, 1> Errno = {UINT32_C(0)};
 
   const uint32_t Fd = 3;
@@ -2138,6 +2143,95 @@ TEST(WasiTest, Directory) {
         std::initializer_list<WasmEdge::ValVariant>{Fd, PathPtr, PathSize},
         Errno));
     EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
+    Env.fini();
+  }
+
+  // create many directories, list and remove directories
+  {
+    Env.init({"/:."s}, "test"s, {}, {});
+
+    const uint32_t NumFiles = 1500;
+    const uint32_t NBufReadPtr = 12;
+    const uint32_t BufPtr = 1000;
+    const uint32_t BufSize = 1024;
+
+    for (uint32_t I = 0; I < NumFiles; I++) {
+      char Buf[5];
+      uint32_t PathSize = uint32_t(::snprintf(Buf, sizeof(Buf), "%04d", I));
+      EXPECT_TRUE(PathSize == 4);
+
+      writeString(MemInst, Buf, PathPtr);
+      EXPECT_TRUE(WasiPathCreateDirectory.run(
+          CallFrame,
+          std::initializer_list<WasmEdge::ValVariant>{Fd, PathPtr, PathSize},
+          Errno));
+      EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
+    }
+
+    uint32_t &NBufRead = *MemInst.getPointer<uint32_t *>(NBufReadPtr);
+    int8_t *Buf = MemInst.getPointer<int8_t *>(BufPtr, BufSize);
+    uint64_t Cookie = 0;
+    std::vector<int8_t> DirInfoStream;
+
+    do {
+      ::memset(Buf, 0x00, BufSize);
+      NBufRead = 0;
+
+      EXPECT_TRUE(
+          WasiFdReadDir.run(CallFrame,
+                            std::initializer_list<WasmEdge::ValVariant>{
+                                Fd, BufPtr, BufSize, Cookie, NBufReadPtr},
+                            Errno));
+      EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
+
+      DirInfoStream.insert(DirInfoStream.end(), Buf, Buf + NBufRead);
+    } while (NBufRead == BufSize);
+
+    EXPECT_TRUE(DirInfoStream.size() > NBufRead);
+
+    std::bitset<NumFiles> Hit;
+    auto isValidName = [](std::string_view Name) {
+      if (Name.size() != 4)
+        return false;
+      return isdigit(Name[0]) && isdigit(Name[1]) && isdigit(Name[2]) &&
+             isdigit(Name[3]);
+    };
+
+    uint32_t Idx = 0;
+    while (Idx < DirInfoStream.size()) {
+      auto Dir =
+          reinterpret_cast<const __wasi_dirent_t *>(DirInfoStream.data() + Idx);
+      Idx += sizeof(__wasi_dirent_t);
+      EXPECT_TRUE(Idx < DirInfoStream.size());
+
+      auto NamePtr = reinterpret_cast<const char *>(DirInfoStream.data() + Idx);
+      Idx += Dir->d_namlen;
+
+      std::string_view sv(NamePtr, Dir->d_namlen);
+      if (isValidName(sv)) {
+        uint32_t Id;
+        std::from_chars(sv.begin(), sv.end(), Id);
+
+        EXPECT_TRUE(Id < NumFiles);
+        EXPECT_FALSE(Hit[Id]);
+
+        Hit[Id] = true;
+      }
+    }
+    EXPECT_TRUE(Hit.all());
+
+    for (uint32_t I = 0; I < NumFiles; I++) {
+      char Buf[5];
+      uint32_t PathSize = uint32_t(::snprintf(Buf, sizeof(Buf), "%04d", I));
+      EXPECT_TRUE(PathSize == 4);
+
+      writeString(MemInst, Buf, PathPtr);
+      EXPECT_TRUE(WasiPathRemoveDirectory.run(
+          CallFrame,
+          std::initializer_list<WasmEdge::ValVariant>{Fd, PathPtr, PathSize},
+          Errno));
+      EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
+    }
     Env.fini();
   }
 }

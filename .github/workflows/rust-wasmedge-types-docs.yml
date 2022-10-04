@@ -8,7 +8,7 @@ on:
   push:
     branches:
       - "master"
-      - "release/rust-types/*"
+      - "rust/release-wasmedge-types"
     paths:
       - ".github/workflows/rust-wasmedge-types-docs.yml"
       - "bindings/rust/wasmedge-types/**"
@@ -56,7 +56,6 @@ jobs:
           cargo doc --all --no-deps --target-dir=./target
 
       - name: Deploy Docs
-        if: github.ref_type == 'tag'
         uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}

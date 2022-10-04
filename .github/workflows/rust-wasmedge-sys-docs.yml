@@ -53,7 +53,7 @@ jobs:
           export WASMEDGE_BUILD_DIR="$(pwd)/../../../build"
           export WASMEDGE_PLUGIN_PATH="$(pwd)/../../../build/plugins/wasmedge_process"
           export LD_LIBRARY_PATH="$(pwd)/../../../build/lib/api"
-          cargo doc --features wasi_nn,wasi_crypto --no-deps --target-dir=./target
+          cargo doc --features wasi_nn,wasi_crypto --workspace --no-deps --target-dir=./target
           echo "<meta http-equiv=\"refresh\" content=\"0; url=wasmedge_sys\">" > target/doc/index.html
 
       - name: Deploy Docs

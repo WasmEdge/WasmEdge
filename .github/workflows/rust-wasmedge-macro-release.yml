@@ -24,10 +24,12 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Install Stable Rust
+      - name: Install Rust toolchain
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: stable
+          toolchain: nightly
+          profile: minimal
+          override: true
 
       - name: Dry run wasmedge-macro crate
         if: github.ref_type == 'branch'

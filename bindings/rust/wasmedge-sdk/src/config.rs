@@ -174,23 +174,11 @@ impl ConfigBuilder {
 /// assert!(result.is_ok());
 /// let config = result.unwrap();
 /// ```
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Config {
     pub(crate) inner: sys::Config,
 }
 impl Config {
-    /// Creates a new [Config](crate::config::Config) from an existed one.
-    ///
-    /// - `src` specifies the source [Config](crate::config::Config).
-    ///
-    /// # Error
-    ///
-    /// If fail to create, then an error is returned.
-    pub fn copy_from(src: &Config) -> WasmEdgeResult<Self> {
-        let inner = sys::Config::copy_from(&src.inner)?;
-        Ok(Self { inner })
-    }
-
     /// Checks if the host registration wasi option turns on or not.
     pub fn wasi_enabled(&self) -> bool {
         self.inner.wasi_enabled()
@@ -948,9 +936,7 @@ mod tests {
         assert!(config.wasi_enabled());
 
         // make a copy
-        let result = Config::copy_from(&config);
-        assert!(result.is_ok());
-        let config_copied = result.unwrap();
+        let config_copied = config.clone();
         assert!(!config_copied.simd_enabled());
         assert!(config_copied.multi_memories_enabled());
         assert_eq!(

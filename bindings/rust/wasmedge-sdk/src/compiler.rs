@@ -17,10 +17,7 @@ impl Compiler {
     ///
     /// If fail to create a AOT [compiler](crate::Compiler), then an error is returned.
     pub fn new(config: Option<&Config>) -> WasmEdgeResult<Self> {
-        let inner_config = match config {
-            Some(config) => Some(Config::copy_from(config)?.inner),
-            None => None,
-        };
+        let inner_config = config.map(|c| c.inner.clone());
         let inner = sys::Compiler::create(inner_config)?;
 
         Ok(Self { inner })

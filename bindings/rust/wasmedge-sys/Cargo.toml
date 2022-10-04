@@ -9,7 +9,7 @@ license = "Apache-2.0"
 links = "wasmedge"
 name = "wasmedge-sys"
 readme = "README.md"
-repository = "https://github.com/WasmEdge/WasmEdge"
+repository = "https://github.com/WasmEdge/WasmEdge/blob/master/bindings/rust/wasmedge-sys"
 version = "0.10.0"
 
 [dependencies]
@@ -29,5 +29,5 @@ cmake = "0.1"
 [features]
 aot = []
 default = ["aot"]
-wasi_nn = []
 wasi_crypto = []
+wasi_nn = []

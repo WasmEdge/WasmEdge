@@ -65,33 +65,15 @@ jobs:
       upload_asset_url: ${{ needs.create_release.outputs.upload_url }}
     secrets: inherit
 
-  build_on_ubuntu:
+  build_on_ubuntu_20_04:
     needs: create_release
-    name: Build and upload WasmEdge with clang++ release on Ubuntu 20.04
-    runs-on: ubuntu-latest
-    container:
-      image: wasmedge/wasmedge:ubuntu-build-clang
-    steps:
-      - uses: actions/checkout@v2
-        with:
-          fetch-depth: 0
-      - name: Build WasmEdge using clang++ with release mode
-        run: |
-          git config --global --add safe.directory $(pwd)
-          cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_LINK_LLVM_STATIC=ON -DWASMEDGE_BUILD_PACKAGE="TGZ" .
-          cmake --build build
-      - name: Create package tarball
-        run: |
-          cmake --build build --target package
-      - name: Upload package tarball
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ needs.create_release.outputs.upload_url }}
-          asset_path: build/WasmEdge-${{ needs.create_release.outputs.version }}-Linux.tar.gz
-          asset_name: WasmEdge-${{ needs.create_release.outputs.version }}-ubuntu20.04_x86_64.tar.gz
-          asset_content_type: application/x-gzip
+    uses: ./.github/workflows/reusable-build-on-ubuntu.yml
+    with:
+      version: ${{ needs.create_release.outputs.version }}
+      matrix: "[{'compiler':'clang++','build_type':'Release','docker_tag':'ubuntu-build-clang','coverage':false}]"
+      release: true
+      upload_asset_url: ${{ needs.create_release.outputs.upload_url }}
+    secrets: inherit
 
   build_on_manylinux2014:
     needs: create_release

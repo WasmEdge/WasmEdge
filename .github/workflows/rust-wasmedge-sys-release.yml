@@ -8,7 +8,7 @@ on:
   push:
     branches:
       - "master"
-      - "release/rust/*"
+      - "rust/release-wasmedge-sys"
     paths:
       - "bindings/rust/**"
       - "include/api/wasmedge/**"
@@ -35,10 +35,12 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Install Nightly Rust
+      - name: Install Rust toolchain
         uses: actions-rs/toolchain@v1
         with:
           toolchain: nightly
+          profile: minimal
+          override: true
 
       - name: Build WasmEdge with Release mode
         run: |

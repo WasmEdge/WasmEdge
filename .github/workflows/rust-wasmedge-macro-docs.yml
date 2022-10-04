@@ -1,4 +1,4 @@
-name: wasmedge-types-docs
+name: wasmedge-macro-docs
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}

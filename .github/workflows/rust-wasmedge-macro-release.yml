@@ -1,0 +1,55 @@
+name: wasmedge-types-release
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
+on:
+  push:
+    branches:
+      - "master"
+      - "rust/release-wasmedge-macro"
+    tags:
+      - "rust-macro/[0-9]+.[0-9]+.[0-9]+*"
+
+jobs:
+  crate_release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    container:
+      image: wasmedge/wasmedge:ubuntu-build-clang
+
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+
+      - name: Install Stable Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+
+      - name: Dry run wasmedge-macro crate
+        if: github.ref_type == 'branch'
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        shell: bash
+        run: |
+          cd ./bindings/rust/wasmedge-macro
+          git config --global user.email "runner@gha.local"
+          git config --global user.name "Github Action"
+          cargo publish --dry-run
+          cd -
+
+      - name: Publish wasmedge-macro crate
+        if: github.ref_type == 'tag'
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        shell: bash
+        run: |
+          cd ./bindings/rust/wasmedge-macro
+          git config --global user.email "runner@gha.local"
+          git config --global user.name "Github Action"
+          cargo publish --dry-run
+          cargo publish
+          cd -

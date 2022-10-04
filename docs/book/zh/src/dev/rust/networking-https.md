@@ -67,7 +67,7 @@ fn main() {
 ```bash
 # build the wasmedge httpsreq plugin module
 sudo apt-get install libssl-dev
-cmake -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_BUILD_TESTS=OFF -DWASMEDGE_PLUGIN_HTTPSREQ=true  .. && make -j4
+cmake -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_BUILD_TESTS=OFF -DWASMEDGE_PLUGIN_HTTPSREQ=On  .. && make -j4
 
 cargo build --target wasm32-wasi --release
 ```

@@ -29,25 +29,11 @@ impl Executor {
     /// If fail to create a [executor](crate::Executor), then an error is returned.
     pub fn create(config: Option<Config>, stat: Option<&mut Statistics>) -> WasmEdgeResult<Self> {
         let ctx = match config {
-            Some(mut config) => match stat {
-                Some(stat) => {
-                    let ctx = unsafe { ffi::WasmEdge_ExecutorCreate(config.inner.0, stat.inner.0) };
-
-                    let inner_config = &mut *std::sync::Arc::get_mut(&mut config.inner).unwrap();
-                    inner_config.0 = std::ptr::null_mut();
-
-                    ctx
-                }
-                None => {
-                    let ctx = unsafe {
-                        ffi::WasmEdge_ExecutorCreate(config.inner.0, std::ptr::null_mut())
-                    };
-
-                    let inner_config = &mut *std::sync::Arc::get_mut(&mut config.inner).unwrap();
-                    inner_config.0 = std::ptr::null_mut();
-
-                    ctx
-                }
+            Some(config) => match stat {
+                Some(stat) => unsafe { ffi::WasmEdge_ExecutorCreate(config.inner.0, stat.inner.0) },
+                None => unsafe {
+                    ffi::WasmEdge_ExecutorCreate(config.inner.0, std::ptr::null_mut())
+                },
             },
             None => match stat {
                 Some(stat) => unsafe {

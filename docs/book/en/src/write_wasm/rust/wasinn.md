@@ -2,26 +2,26 @@
 
 In WasmEdge, we implemented the [WASI-NN](https://github.com/WebAssembly/wasi-nn) (Neural Network for WASI) proposal to allow access the Machine Learning (ML) functions with the fashion of graph loader APIs by the following functions:
 
-* [`Load`](https://github.com/WebAssembly/wasi-nn/blob/f72b983c4cc91ac575af6babc57b5bccb7db7ba9/phases/ephemeral/witx/wasi_ephemeral_nn.witx#L108-L118) a model using variable opaque byte arrays
-* [`Init_execution_context`](https://github.com/WebAssembly/wasi-nn/blob/f72b983c4cc91ac575af6babc57b5bccb7db7ba9/phases/ephemeral/witx/wasi_ephemeral_nn.witx#L125-L129) and bind some tensors to it using [`set_input`](https://github.com/WebAssembly/wasi-nn/blob/f72b983c4cc91ac575af6babc57b5bccb7db7ba9/phases/ephemeral/witx/wasi_ephemeral_nn.witx#L134-L142)
-* [`Compute`](https://github.com/WebAssembly/wasi-nn/blob/f72b983c4cc91ac575af6babc57b5bccb7db7ba9/phases/ephemeral/witx/wasi_ephemeral_nn.witx#L165) the ML inference using the bound context
-* Retrieve the inference result tensors using [`get_output`](https://github.com/WebAssembly/wasi-nn/blob/f72b983c4cc91ac575af6babc57b5bccb7db7ba9/phases/ephemeral/witx/wasi_ephemeral_nn.witx#L147-L160)
+* [`Load`](https://github.com/WebAssembly/wasi-nn/blob/master/phases/ephemeral/witx/wasi_ephemeral_nn.witx#L108-L118) a model using variable opaque byte arrays
+* [`Init_execution_context`](https://github.com/WebAssembly/wasi-nn/blob/master/phases/ephemeral/witx/wasi_ephemeral_nn.witx#L125-L129) and bind some tensors to it using [`set_input`](https://github.com/WebAssembly/wasi-nn/blob/master/phases/ephemeral/witx/wasi_ephemeral_nn.witx#L134-L142)
+* [`Compute`](https://github.com/WebAssembly/wasi-nn/blob/master/phases/ephemeral/witx/wasi_ephemeral_nn.witx#L165-L168) the ML inference using the bound context
+* Retrieve the inference result tensors using [`get_output`](https://github.com/WebAssembly/wasi-nn/blob/master/phases/ephemeral/witx/wasi_ephemeral_nn.witx#L147-L160)
 
 You can find more detail about the WASI-NN proposal in [Reference](#reference).
 
-In this section, we will use [an Rust example project](https://github.com/second-state/WasmEdge-WASINN-examples) ![badge](https://github.com/second-state/WasmEdge-WASINN-examples/actions/workflows/main.yaml/badge.svg) to demonstrate how to use the WASI-NN api and run an image classification demo.
+In this section, we will use [the example repository](https://github.com/second-state/WasmEdge-WASINN-examples) to demonstrate how to use the [WASI-NN rust crate](https://crates.io/crates/wasi-nn) to write the WASM and run an image classification demo with WasmEdge WASI-NN plug-in.
 
 ## Prerequisites
 
 Currently, WasmEdge used OpenVINO™ or PyTorch as the WASI-NN backend implementation. For using WASI-NN on WasmEdge, you need to install [OpenVINO™](https://docs.openvino.ai/2021.4/openvino_docs_install_guides_installing_openvino_linux.html#)(2021) or [PyTorch 1.8.2 LTS](https://pytorch.org/get-started/locally/) for the backend.
 
-By default, we don't enable any WASI-NN backend in WasmEdge. Therefore developers should [build the WasmEdge from source](../../extend/build.md) with the cmake option `WASMEDGE_PLUGIN_WASI_NN_BACKEND` to enable the backends.
+In the current status, the [WasmEdge Installer](../../quick_start/install.md) will install the `manylinux2014` version of WasmEdge releases, but the WASI-NN plug-in for WasmEdge only supports `Ubuntu 20.04` or later now. Please refer to the following steps to get the WasmEdge with WASI-NN plug-in.
 
-We will provide the quickly installation without building from source after the installer being ready.
+You can also [build WasmEdge with WASI-NN plug-in from source](../../contribute/build_from_src/plugin_wasi_nn.md).
 
-### Build WasmEdge with WASI-NN OpenVINO Backend
+### Get WasmEdge with WASI-NN Plug-in OpenVINO Backend
 
-For choosing and installing OpenVINO™ on `Ubuntu 20.04` for the backend, we recommend the following commands:
+First you should [install the OpenVINO dependency](../../contribute/build_from_src/plugin_wasi_nn.md#build-wasmedge-with-wasi-nn-openvino-backend):
 
 ```bash
 export OPENVINO_VERSION="2021.4.582"
@@ -34,53 +34,47 @@ source /opt/intel/openvino_2021/bin/setupvars.sh
 ldconfig
 ```
 
-Then build and install WasmEdge from source:
+And then get the WasmEdge and the WASI-NN plug-in with OpenVINO backend:
 
 ```bash
-cd <path/to/your/wasmedge/source/folder>
-mkdir -p build && cd build
-cmake -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_PLUGIN_WASI_NN_BACKEND="OpenVINO" .. && make -j
-# For the WASI-NN plugin, you should install this project.
-cmake --install .
+curl -sLO https://github.com/WasmEdge/WasmEdge/releases/download/{{ wasmedge_version }}/WasmEdge-{{ wasmedge_version }}-ubuntu20.04_x86_64.tar.gz
+tar -zxf WasmEdge-{{ wasmedge_version }}-ubuntu20.04_x86_64.tar.gz
+rm -f WasmEdge-{{ wasmedge_version }}-ubuntu20.04_x86_64.tar.gz
+curl -sLO https://github.com/WasmEdge/WasmEdge/releases/download/{{ wasmedge_version }}/WasmEdge-plugin-wasi_nn-openvino-{{ wasmedge_version }}-ubuntu20.04_x86_64.tar.gz
+tar -zxf WasmEdge-plugin-wasi_nn-openvino-{{ wasmedge_version }}-ubuntu20.04_x86_64.tar.gz
+rm -f WasmEdge-plugin-wasi_nn-openvino-{{ wasmedge_version }}-ubuntu20.04_x86_64.tar.gz
+mv libwasmedgePluginWasiNN.so WasmEdge-{{ wasmedge_version }}-Linux/lib/wasmedge
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$(pwd)/WasmEdge-{{ wasmedge_version }}-Linux/lib
+export PATH=$PATH:$(pwd)/WasmEdge-{{ wasmedge_version }}-Linux/bin
+export WASMEDGE_PLUGIN_PATH=$(pwd)/WasmEdge-{{ wasmedge_version }}-Linux/lib/wasmedge
 ```
 
-Then you will have an executable `wasmedge` runtime under `/usr/local/bin` and the WASI-NN with OpenVINO backend plug-in under `/usr/local/lib/wasmedge/libwasmedgePluginWasiNN.so` after installation.
+### Get WasmEdge with WASI-NN Plug-in PyTorch Backend
 
-### Build WasmEdge with WASI-NN PyTorch Backend
-
-For choosing and installing PyTorch on `Ubuntu 20.04` for the backend, we recommend the following commands:
+First you should [install the PyTorch dependency](../../contribute/build_from_src/plugin_wasi_nn.md#build-wasmedge-with-wasi-nn-pytorch-backend):
 
 ```bash
 export PYTORCH_VERSION="1.8.2"
 curl -s -L -O --remote-name-all https://download.pytorch.org/libtorch/lts/1.8/cpu/libtorch-cxx11-abi-shared-with-deps-${PYTORCH_VERSION}%2Bcpu.zip
 unzip -q "libtorch-cxx11-abi-shared-with-deps-${PYTORCH_VERSION}%2Bcpu.zip"
 rm -f "libtorch-cxx11-abi-shared-with-deps-${PYTORCH_VERSION}%2Bcpu.zip"
+export LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:$(pwd)/libtorch/lib
 ```
 
-For the legacy operating system such as `CentOS 7.6`, please use the `pre-cxx11-abi` version of `libtorch` instead:
+And then get the WasmEdge and the WASI-NN plug-in with PyTorch backend:
 
 ```bash
-export PYTORCH_VERSION="1.8.2"
-curl -s -L -O --remote-name-all https://download.pytorch.org/libtorch/lts/1.8/cpu/libtorch-shared-with-deps-${PYTORCH_VERSION}%2Bcpu.zip
-unzip -q "libtorch-shared-with-deps-${PYTORCH_VERSION}%2Bcpu.zip"
-rm -f "libtorch-shared-with-deps-${PYTORCH_VERSION}%2Bcpu.zip"
+curl -sLO https://github.com/WasmEdge/WasmEdge/releases/download/{{ wasmedge_version }}/WasmEdge-{{ wasmedge_version }}-ubuntu20.04_x86_64.tar.gz
+tar -zxf WasmEdge-{{ wasmedge_version }}-ubuntu20.04_x86_64.tar.gz
+rm -f WasmEdge-{{ wasmedge_version }}-ubuntu20.04_x86_64.tar.gz
+curl -sLO https://github.com/WasmEdge/WasmEdge/releases/download/{{ wasmedge_version }}/WasmEdge-plugin-wasi_nn-pytorch-{{ wasmedge_version }}-ubuntu20.04_x86_64.tar.gz
+tar -zxf WasmEdge-plugin-wasi_nn-pytorch-{{ wasmedge_version }}-ubuntu20.04_x86_64.tar.gz
+rm -f WasmEdge-plugin-wasi_nn-pytorch-{{ wasmedge_version }}-ubuntu20.04_x86_64.tar.gz
+mv libwasmedgePluginWasiNN.so WasmEdge-{{ wasmedge_version }}-Linux/lib/wasmedge
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$(pwd)/WasmEdge-{{ wasmedge_version }}-Linux/lib
+export PATH=$PATH:$(pwd)/WasmEdge-{{ wasmedge_version }}-Linux/bin
+export WASMEDGE_PLUGIN_PATH=$(pwd)/WasmEdge-{{ wasmedge_version }}-Linux/lib/wasmedge
 ```
-
-The PyTorch library will be extracted in the current directory `./libtorch`.
-
-Then build and install WasmEdge from source:
-
-```bash
-export Torch_DIR=$(pwd)/libtorch
-export LD_LIBRARY_PATH=$(pwd)/libtorch/lib:${LD_LIBRARY_PATH}
-cd <path/to/your/wasmedge/source/folder>
-mkdir -p build && cd build
-cmake -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_PLUGIN_WASI_NN_BACKEND="PyTorch" .. && make -j
-# For the WASI-NN plugin, you should install this project.
-cmake --install .
-```
-
-Then you will have an executable `wasmedge` runtime under `/usr/local/bin` and the WASI-NN with OpenVINO backend plug-in under `/usr/local/lib/wasmedge/libwasmedgePluginWasiNN.so` after installation.
 
 ## Write WebAssembly Using WASI-NN
 
@@ -362,7 +356,7 @@ for i in 0..5 {
 
 ### OpenVINO Backend Example
 
-Please [build and install WasmEdge with the WASI-NN OpenVINO backend plug-in](#build-wasmedge-with-wasi-nn-openvino-backend) first.
+Please [install WasmEdge with the WASI-NN OpenVINO backend plug-in](#prerequisites) first.
 
 For the example demo of [Mobilenet](https://arxiv.org/abs/1704.04861), we need the [fixture files](https://github.com/intel/openvino-rs/raw/v0.3.3/crates/openvino/tests/fixtures/mobilenet/):
 
@@ -386,7 +380,7 @@ Then you can use the OpenVINO-enabled WasmEdge which was compiled above to execu
 
 ```bash
 wasmedge --dir .:. wasmedge-wasinn-example-mobilenet.wasm mobilenet.xml mobilenet.bin input.jpg
-# If you didn't install the project, you should give the `WASMEDGE_PLUGIN_PATH` environment variable for specifying the WASI-NN plugin path (the built plugin is at `build/plugins/wasi_nn`).
+# If you didn't install the project, you should give the `WASMEDGE_PLUGIN_PATH` environment variable for specifying the WASI-NN plugin path.
 ```
 
 If everything goes well, you should have the terminal output:
@@ -414,7 +408,7 @@ wasmedge --dir .:. out.wasm mobilenet.xml mobilenet.bin input.jpg
 
 ### PyTorch Backend Example
 
-Please [build and install WasmEdge with the WASI-NN PyTorch backend plug-in](#build-wasmedge-with-wasi-nn-pytorch-backend) first.
+Please [install WasmEdge with the WASI-NN PyTorch backend plug-in](#prerequisites) first.
 
 For the example demo of [Mobilenet](https://arxiv.org/abs/1704.04861), we need these following files:
 
@@ -437,7 +431,7 @@ Then you can use the PyTorch-enabled WasmEdge which was compiled above to execut
 ```bash
 # Please check that you've already install the libtorch and set the `LD_LIBRARY_PATH`.
 wasmedge --dir .:. wasmedge-wasinn-example-mobilenet.wasm mobilenet.pt input.jpg
-# If you didn't install the project, you should give the `WASMEDGE_PLUGIN_PATH` environment variable for specifying the WASI-NN plugin path (the built plugin is at `build/plugins/wasi_nn`).
+# If you didn't install the project, you should give the `WASMEDGE_PLUGIN_PATH` environment variable for specifying the WASI-NN plugin path.
 ```
 
 If everything goes well, you should have the terminal output:

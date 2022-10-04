@@ -162,4 +162,4 @@ copy-js = true
 "/extend/build_for_android.html" = "/book/en/contribute/build_from_src/android.html"
 
 [preprocessor.variables.variables]
-wasmedge_version = "0.11.0"
+wasmedge_version = "0.11.1"

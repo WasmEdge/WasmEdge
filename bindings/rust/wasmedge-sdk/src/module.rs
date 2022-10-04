@@ -24,18 +24,12 @@ impl Module {
     ///
     /// If fail to load and valiate a module from a file, returns an error.
     pub fn from_file(config: Option<&Config>, file: impl AsRef<Path>) -> WasmEdgeResult<Self> {
-        let inner_config = match config {
-            Some(config) => Some(Config::copy_from(config)?.inner),
-            None => None,
-        };
+        let inner_config = config.map(|c| c.inner.clone());
         let inner_loader = sys::Loader::create(inner_config)?;
         // load module
         let inner = inner_loader.from_file(file.as_ref())?;
 
-        let inner_config = match config {
-            Some(config) => Some(Config::copy_from(config)?.inner),
-            None => None,
-        };
+        let inner_config = config.map(|c| c.inner.clone());
         let inner_validator = sys::Validator::create(inner_config)?;
         // validate module
         inner_validator.validate(&inner)?;
@@ -55,18 +49,12 @@ impl Module {
     ///
     /// If fail to load and valiate the WebAssembly module from the given in-memory bytes, returns an error.
     pub fn from_bytes(config: Option<&Config>, bytes: impl AsRef<[u8]>) -> WasmEdgeResult<Self> {
-        let inner_config = match config {
-            Some(config) => Some(Config::copy_from(config)?.inner),
-            None => None,
-        };
+        let inner_config = config.map(|c| c.inner.clone());
         let inner_loader = sys::Loader::create(inner_config)?;
         // load a module from a wasm buffer
         let inner = inner_loader.from_bytes(bytes.as_ref())?;
 
-        let inner_config = match config {
-            Some(config) => Some(Config::copy_from(config)?.inner),
-            None => None,
-        };
+        let inner_config = config.map(|c| c.inner.clone());
         let inner_validator = sys::Validator::create(inner_config)?;
         // validate module
         inner_validator.validate(&inner)?;

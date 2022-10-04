@@ -61,6 +61,14 @@ Developers can set the CMake options to customize the WasmEdge building.
 12. `WASMEDGE_LINK_TOOLS_STATIC`: make the `wasmedge` and `wasmedgec` tools to link the WasmEdge library and LLVM libraries statically (Linux and MacOS platforms only, experimental). Default is `OFF`.
     - If the option `WASMEDGE_BUILD_TOOLS` and this option are both set as `ON`, the `WASMEDGE_LINK_LLVM_STATIC` will be set as `ON`.
 
+## Build WasmEdge with Plug-ins
+
+Developers can follow the steps to build WasmEdge with plug-ins from source.
+
+- [WASI-NN (OpenVINO and PyTorch backends)](build_from_src/plugin_wasi_nn.md)
+- [WASI-Crypto](build_from_src/plugin_wasi_crypto.md)
+- [WasmEdge-HttpsReq](build_from_src/plugin_wasmedge_httpsreq.md)
+
 ## Run Tests
 
 The tests are only available when the build option `WASMEDGE_BUILD_TESTS` is set to `ON`.

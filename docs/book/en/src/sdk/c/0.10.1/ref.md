@@ -2088,8 +2088,8 @@ In WasmEdge, developers can create the `Function`, `Memory`, `Table`, and `Globa
 
     Developers can create these module instance contexts and register them into the `Store` or `VM` contexts rather than adjust the settings in the `Configure` contexts.
 
-    > Note: For the `WASI-NN` plugin, please check that the [dependencies and prerequests](../../../write_wasm/rust/wasinn.md) are satisfied.
-    > Note: For the `WASI-Crypto` plugin, please check that the [dependencies and prerequests](../../../write_wasm/rust/wasicrypto.md) are satisfied. And the 5 modules are recommended to all be created and registered together.
+    > Note: For the `WASI-NN` plugin, please check that the [dependencies and prerequests](../../../write_wasm/rust/wasinn.md#prerequisites) are satisfied.
+    > Note: For the `WASI-Crypto` plugin, please check that the [dependencies and prerequests](../../../write_wasm/rust/wasicrypto.md#prerequisites) are satisfied. And the 5 modules are recommended to all be created and registered together.
 
     ```c
     WasmEdge_ModuleInstanceContext *WasiModCxt = WasmEdge_ModuleInstanceCreateWASI( /* ... ignored */ );

@@ -1,4 +1,4 @@
-name: wasmedge-types-release
+name: wasmedge-macro-release
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
@@ -8,18 +8,18 @@ on:
   push:
     branches:
       - "master"
-      - "rust/release-wasmedge-types"
+      - "rust/release-wasmedge-macro"
     paths:
-      - ".github/workflows/rust-wasmedge-types-release.yml"
-      - "bindings/rust/wasmedge-types/**"
+      - ".github/workflows/rust-wasmedge-macro-release.yml"
+      - "bindings/rust/wasmedge-macro/**"
     tags:
-      - "rust-types/[0-9]+.[0-9]+.[0-9]+*"
+      - "rust-macro/[0-9]+.[0-9]+.[0-9]+*"
   pull_request:
     branches:
       - master
     paths:
-      - ".github/workflows/rust-wasmedge-types-release.yml"
-      - "bindings/rust/wasmedge-types/**"
+      - ".github/workflows/rust-wasmedge-macro-release.yml"
+      - "bindings/rust/wasmedge-macro/**"
 
 jobs:
   crate_release:
@@ -40,25 +40,25 @@ jobs:
           profile: minimal
           override: true
 
-      - name: Dry run wasmedge-types crate
+      - name: Dry run wasmedge-macro crate
         if: github.ref_type == 'branch'
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
         shell: bash
         run: |
-          cd ./bindings/rust/wasmedge-types
+          cd ./bindings/rust/wasmedge-macro
           git config --global user.email "runner@gha.local"
           git config --global user.name "Github Action"
           cargo publish --dry-run
           cd -
 
-      - name: Publish wasmedge-types crate
+      - name: Publish wasmedge-macro crate
         if: github.ref_type == 'tag'
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
         shell: bash
         run: |
-          cd ./bindings/rust/wasmedge-types
+          cd ./bindings/rust/wasmedge-macro
           git config --global user.email "runner@gha.local"
           git config --global user.name "Github Action"
           cargo publish --dry-run

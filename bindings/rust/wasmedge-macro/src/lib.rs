@@ -1,3 +1,11 @@
+#![doc(
+    html_logo_url = "https://github.com/cncf/artwork/blob/master/projects/wasm-edge-runtime/icon/color/wasm-edge-runtime-icon-color.png?raw=true",
+    html_favicon_url = "https://raw.githubusercontent.com/cncf/artwork/49169bdbc88a7ce3c4a722c641cc2d548bd5c340/projects/wasm-edge-runtime/icon/color/wasm-edge-runtime-icon-color.svg"
+)]
+
+//! # Overview
+//! The [wasmedge-macro](https://crates.io/crates/wasmedge-macro) crate defines a group of procedural macros used by both [wasmedge-sdk](https://crates.io/crates/wasmedge-sdk) and [wasmedge-sys](https://crates.io/crates/wasmedge-sys) crates.
+
 #![feature(extend_one)]
 
 use proc_macro::TokenStream;
@@ -135,6 +143,7 @@ fn expand_host_func(item_fn: &syn::ItemFn) -> syn::Result<proc_macro2::TokenStre
     Ok(ret)
 }
 
+#[doc(hidden)]
 #[proc_macro_attribute]
 pub fn async_host_function(_attr: TokenStream, item: TokenStream) -> TokenStream {
     let body_ast = parse_macro_input!(item as Item);
@@ -193,6 +202,7 @@ fn expand_async_host_func(item_fn: &syn::ItemFn) -> syn::Result<proc_macro2::Tok
     Ok(ret)
 }
 
+#[doc(hidden)]
 #[proc_macro_attribute]
 pub fn async_host_function2(_attr: TokenStream, item: TokenStream) -> TokenStream {
     let body_ast = parse_macro_input!(item as Item);
@@ -243,6 +253,7 @@ fn expand_async_host_func2(item_fn: &syn::ItemFn) -> syn::Result<proc_macro2::To
     Ok(ret)
 }
 
+#[doc(hidden)]
 #[proc_macro_attribute]
 pub fn sys_async_host_function(_attr: TokenStream, item: TokenStream) -> TokenStream {
     let body_ast = parse_macro_input!(item as Item);
@@ -301,6 +312,7 @@ fn sys_async_expand_host_func(item_fn: &syn::ItemFn) -> syn::Result<proc_macro2:
     Ok(ret)
 }
 
+#[doc(hidden)]
 #[proc_macro_attribute]
 pub fn sys_async_host_function2(_attr: TokenStream, item: TokenStream) -> TokenStream {
     let body_ast = parse_macro_input!(item as Item);

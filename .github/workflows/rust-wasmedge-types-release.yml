@@ -9,8 +9,17 @@ on:
     branches:
       - "master"
       - "rust/release-wasmedge-types"
+    paths:
+      - ".github/workflows/rust-wasmedge-types-release.yml"
+      - "bindings/rust/wasmedge-types/**"
     tags:
       - "rust-types/[0-9]+.[0-9]+.[0-9]+*"
+  pull_request:
+    branches:
+      - master
+    paths:
+      - ".github/workflows/rust-wasmedge-types-release.yml"
+      - "bindings/rust/wasmedge-types/**"
 
 jobs:
   crate_release:

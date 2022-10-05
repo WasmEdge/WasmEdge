@@ -1406,10 +1406,15 @@ WASMEDGE_CAPI_EXPORT WasmEdge_CompilerContext *
 WasmEdge_CompilerCreate(const WasmEdge_ConfigureContext *ConfCxt
                         [[maybe_unused]]) {
 #ifdef WASMEDGE_BUILD_AOT_RUNTIME
+  // Set force interpreter here to load instructions of function body forcibly.
   if (ConfCxt) {
-    return new WasmEdge_CompilerContext(ConfCxt->Conf);
+    WasmEdge::Configure CopyConf(ConfCxt->Conf);
+    CopyConf.getRuntimeConfigure().setForceInterpreter(true);
+    return new WasmEdge_CompilerContext(CopyConf);
   } else {
-    return new WasmEdge_CompilerContext(WasmEdge::Configure());
+    WasmEdge::Configure CopyConf;
+    CopyConf.getRuntimeConfigure().setForceInterpreter(true);
+    return new WasmEdge_CompilerContext(CopyConf);
   }
 #else
   return nullptr;

@@ -237,39 +237,33 @@ int Tool(int Argc, const char *Argv[]) noexcept {
   Host::WasiModule *WasiMod = dynamic_cast<Host::WasiModule *>(
       VM.getImportModule(HostRegistration::Wasi));
 
-  auto HasValidCommandModStartFunc = [&]() {
-    bool LoadWasm = [&]() {
-      if (auto Result = VM.loadWasm(InputPath.u8string()); !Result) {
-        return false;
-      }
-      if (auto Result = VM.validate(); !Result) {
-        return false;
-      }
-      if (auto Result = VM.instantiate(); !Result) {
-        return false;
-      }
-      return true;
-    }();
+  if (auto Result = VM.loadWasm(InputPath.u8string()); !Result) {
+    return EXIT_FAILURE;
+  }
+  if (auto Result = VM.validate(); !Result) {
+    return EXIT_FAILURE;
+  }
+  if (auto Result = VM.instantiate(); !Result) {
+    return EXIT_FAILURE;
+  }
 
+  auto HasValidCommandModStartFunc = [&]() {
     bool HasStart = false;
     bool Valid = false;
 
-    if (LoadWasm) {
-      auto Functions = VM.getFunctionList();
-      for (auto &[FuncName, Type] : Functions) {
-        if (FuncName == "_start") {
-          HasStart = true;
-          if (Type.getReturnTypes().size() == 0 &&
-              Type.getParamTypes().size() == 0) {
-            Valid = true;
-            break;
-          }
+    auto Functions = VM.getFunctionList();
+    for (auto &[FuncName, Type] : Functions) {
+      if (FuncName == "_start") {
+        HasStart = true;
+        if (Type.getReturnTypes().size() == 0 &&
+            Type.getParamTypes().size() == 0) {
+          Valid = true;
+          break;
         }
       }
     }
-    VM.cleanup();
 
-    // XXX: if HasStart but not Valid, insert _start to enter reactor mode
+    // if HasStart but not Valid, insert _start to enter reactor mode
     if (HasStart && !Valid) {
       Args.value().insert(Args.value().begin(), "_start");
     }
@@ -288,7 +282,7 @@ int Tool(int Argc, const char *Argv[]) noexcept {
 
   if (EnterCommandMode) {
     // command mode
-    auto AsyncResult = VM.asyncRunWasmFile(InputPath.u8string(), "_start");
+    auto AsyncResult = VM.asyncExecute("_start");
     if (Timeout.has_value()) {
       if (!AsyncResult.waitUntil(*Timeout)) {
         AsyncResult.cancel();
@@ -308,15 +302,6 @@ int Tool(int Argc, const char *Argv[]) noexcept {
       return EXIT_FAILURE;
     }
     const auto &FuncName = Args.value().front();
-    if (auto Result = VM.loadWasm(InputPath.u8string()); !Result) {
-      return EXIT_FAILURE;
-    }
-    if (auto Result = VM.validate(); !Result) {
-      return EXIT_FAILURE;
-    }
-    if (auto Result = VM.instantiate(); !Result) {
-      return EXIT_FAILURE;
-    }
 
     using namespace std::literals::string_literals;
     const auto InitFunc = "_initialize"s;

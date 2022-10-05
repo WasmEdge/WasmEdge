@@ -39,12 +39,7 @@ jobs:
           echo "BUILD_TYPE=Release" | tee -a $GITHUB_ENV
       - name: Build WasmEdge
         run: |
-          if [[ "${{ matrix.runner }}" == "macos-11" ]]; then
-            export LLVM_DIR="/usr/local/opt/llvm@14/lib/cmake"
-          fi
-          if [[ "${{ matrix.runner }}" == "macos-12" ]]; then
-            export LLVM_DIR="/usr/local/opt/llvm/lib/cmake"
-          fi
+          export LLVM_DIR="/usr/local/opt/llvm@14/lib/cmake"
           export CC=clang
           export CXX=clang++
           rm -rf build

@@ -9,8 +9,17 @@ on:
     branches:
       - "master"
       - "rust/release-wasmedge-macro"
+    paths:
+      - ".github/workflows/rust-wasmedge-macro-release.yml"
+      - "bindings/rust/wasmedge-macro/**"
     tags:
       - "rust-macro/[0-9]+.[0-9]+.[0-9]+*"
+  pull_request:
+    branches:
+      - master
+    paths:
+      - ".github/workflows/rust-wasmedge-macro-release.yml"
+      - "bindings/rust/wasmedge-macro/**"
 
 jobs:
   crate_release:

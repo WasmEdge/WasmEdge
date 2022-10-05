@@ -1,6 +1,10 @@
 [package]
+documentation = "https://wasmedge.github.io/WasmEdge/wasmedge_macro/"
 edition = "2021"
+license = "Apache-2.0"
 name = "wasmedge-macro"
+readme = "README.md"
+repository = "https://github.com/WasmEdge/WasmEdge/blob/master/bindings/rust/wasmedge-macro"
 version = "0.1.0"
 
 [lib]

@@ -732,6 +732,22 @@ WasmEdge_ConfigureGetMaxMemoryPage(const WasmEdge_ConfigureContext *Cxt) {
   return 0;
 }
 
+WASMEDGE_CAPI_EXPORT void
+WasmEdge_ConfigureSetForceInterpreter(WasmEdge_ConfigureContext *Cxt,
+                                      const bool IsForceInterpreter) {
+  if (Cxt) {
+    Cxt->Conf.getRuntimeConfigure().setForceInterpreter(IsForceInterpreter);
+  }
+}
+
+WASMEDGE_CAPI_EXPORT bool
+WasmEdge_ConfigureIsForceInterpreter(const WasmEdge_ConfigureContext *Cxt) {
+  if (Cxt) {
+    return Cxt->Conf.getRuntimeConfigure().isForceInterpreter();
+  }
+  return false;
+}
+
 WASMEDGE_CAPI_EXPORT void WasmEdge_ConfigureCompilerSetOptimizationLevel(
     WasmEdge_ConfigureContext *Cxt,
     const enum WasmEdge_CompilerOptimizationLevel Level) {

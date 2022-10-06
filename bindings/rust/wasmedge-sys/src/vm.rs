@@ -885,6 +885,7 @@ impl Vm {
         }
     }
 
+    /// Returns the [WasiNnModule module instance](crate::WasiNnModule).
     #[cfg(all(target_os = "linux", feature = "wasi_nn", target_arch = "x86_64"))]
     pub fn wasi_nn_module(&mut self) -> WasmEdgeResult<WasiNnModule> {
         let io_ctx = unsafe {
@@ -902,6 +903,7 @@ impl Vm {
         }
     }
 
+    /// Returns the [WasiCryptoCommonModule module instance](crate::WasiCryptoCommonModule).
     #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
     pub fn wasi_crypto_common_module(&mut self) -> WasmEdgeResult<WasiCryptoCommonModule> {
         let io_ctx = unsafe {
@@ -921,6 +923,7 @@ impl Vm {
         }
     }
 
+    /// Returns the [WasiCryptoAsymmetricCommonModule module instance](crate::WasiCryptoAsymmetricCommonModule).
     #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
     pub fn wasi_crypto_asymmetric_common_module(
         &mut self,
@@ -942,6 +945,7 @@ impl Vm {
         }
     }
 
+    /// Returns the [WasiCryptoSymmetricModule module instance](crate::WasiCryptoSymmetricModule).
     #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
     pub fn wasi_crypto_symmetric_module(&mut self) -> WasmEdgeResult<WasiCryptoSymmetricModule> {
         let io_ctx = unsafe {
@@ -961,6 +965,7 @@ impl Vm {
         }
     }
 
+    /// Returns the [WasiCryptoKxModule module instance](crate::WasiCryptoKxModule).
     #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
     pub fn wasi_crypto_kx_module(&mut self) -> WasmEdgeResult<WasiCryptoKxModule> {
         let io_ctx = unsafe {
@@ -980,6 +985,7 @@ impl Vm {
         }
     }
 
+    /// Returns the [WasiCryptoSignaturesModule module instance](crate::WasiCryptoSignaturesModule).
     #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
     pub fn wasi_crypto_signatures_module(&mut self) -> WasmEdgeResult<WasiCryptoSignaturesModule> {
         let io_ctx = unsafe {

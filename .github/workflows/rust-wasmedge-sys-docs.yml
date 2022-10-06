@@ -7,8 +7,8 @@ concurrency:
 on:
   push:
     branches:
-      - master
-      - "release/rust/*"
+      - "master"
+      - "rust/release-wasmedge-sys"
     paths:
       - ".github/workflows/rust-wasmedge-sys-docs.yml"
       - "bindings/rust/wasmedge-sys/**"
@@ -53,11 +53,10 @@ jobs:
           export WASMEDGE_BUILD_DIR="$(pwd)/../../../build"
           export WASMEDGE_PLUGIN_PATH="$(pwd)/../../../build/plugins/wasmedge_process"
           export LD_LIBRARY_PATH="$(pwd)/../../../build/lib/api"
-          cargo doc --all --no-deps --target-dir=./target
+          cargo doc --features wasi_nn,wasi_crypto --workspace --no-deps --target-dir=./target
           echo "<meta http-equiv=\"refresh\" content=\"0; url=wasmedge_sys\">" > target/doc/index.html
 
       - name: Deploy Docs
-        if: github.ref_type == 'tag'
         uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}

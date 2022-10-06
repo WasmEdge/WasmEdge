@@ -434,7 +434,7 @@ wasmedge_post_install() {
 }
 
 wasmedge_checks() {
-    if [ "$ARCH" == $(uname -m) ] && [ "$OS" == $(uname)] ; then
+    if [ "$ARCH" == $(uname -m) ] && [ "$OS" == $(uname) ] ; then
         # Check only MAJOR.MINOR.PATCH
         if [ $PERM_ROOT == 1 ]; then
             local version=$1

@@ -8,8 +8,8 @@ As you may know, several mainstream programming languages, such as C/C++, Rust, 
 
 > The code in the example is verified on
 >
-> * wasmedge-sys v0.9.0
-> * wasmedge-types v0.2.1
+> * wasmedge-sys v0.10.0
+> * wasmedge-types v0.3.0
 
 ## Example
 

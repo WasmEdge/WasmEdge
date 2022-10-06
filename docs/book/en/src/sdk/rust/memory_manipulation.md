@@ -4,9 +4,9 @@ In this example, we'll present how to manipulate the linear memory with the APIs
 
 > The code in the following example is verified on
 >
-> * wasmedge-sdk v0.4.0
-> * wasmedge-sys v0.9.0
-> * wasmedge-types v0.2.1
+> * wasmedge-sdk v0.5.0
+> * wasmedge-sys v0.10.0
+> * wasmedge-types v0.3.0
 
 ## Wasm module
 

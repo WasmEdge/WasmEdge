@@ -2,8 +2,8 @@
 
 > The code in the following examples are verified on
 >
-> * wasmedge-sys v0.9.0
-> * wasmedge-types v0.2.1
+> * wasmedge-sys v0.10.0
+> * wasmedge-types v0.3.0
 
 ## Example 1
 
@@ -46,7 +46,8 @@ In this example, we'll demonstrate how to use the APIs of `Vm` to
     let mut import = ImportModule::create(module_name)?;
 
     // a function to import
-    fn real_add(_: &CallingFrame, inputs: Vec<WasmValue>) -> Result<Vec<WasmValue>, u8> {
+    #[sys_host_function]
+    fn real_add(_frame: &CallingFrame, inputs: Vec<WasmValue>) -> Result<Vec<WasmValue>, u8> {
         if inputs.len() != 2 {
             return Err(1);
         }

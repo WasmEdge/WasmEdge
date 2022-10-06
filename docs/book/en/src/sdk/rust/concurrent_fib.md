@@ -6,8 +6,8 @@ In this example, we will demonstrate how to use the objects and the APIs defined
 
 > The code in the example is verified on
 >
-> * wasmedge-sys v0.9.0
-> * wasmedge-types v0.2.1
+> * wasmedge-sys v0.10.0
+> * wasmedge-types v0.3.0
 
 ### Step 1: create a Vm context and register the WebAssembly module
 

@@ -1,17 +1,15 @@
 # Run a WebAssembly function with WasmEdge low-level Rust APIs
 
-## Prerequisites
-
-This example uses the following crates:
-
-* wasmedge-sys v0.9.0
-* wasmedge-types v0.2.1
-
 ## Overview
 
 This section demonstrates how to use the Rust APIs of the `wasmedge-sys` crate to run a host function.
 
 As you may know, several mainstream programming languages, such as C/C++, Rust, Go, and Python, support compiling their programs into WebAssembly binary. In this demo, we'll introduce how to use the APIs defined in `Vm` of `wasmedge-sys` crate to call a WebAssembly function which could be coded in any programming language mentioned above.
+
+> The code in the example is verified on
+>
+> * wasmedge-sys v0.10.0
+> * wasmedge-types v0.3.0
 
 ## Example
 

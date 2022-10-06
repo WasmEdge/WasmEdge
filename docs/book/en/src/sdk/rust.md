@@ -11,7 +11,6 @@
   - [`wasmedge-sys` crate](#wasmedge-sys-crate)
   - [Enable WasmEdge Plugins](#enable-wasmedge-plugins)
   - [Docker image](#docker-image)
-    - [Windows Users](#windows-users)
   - [Examples](#examples)
     - [`wasmedge-sdk` Examples](#wasmedge-sdk-examples)
     - [`wasmedge-sys` Examples](#wasmedge-sys-examples)
@@ -35,11 +34,12 @@
 
   The following table provides the versioning information about each release of `wasmedge-sdk` crate and its dependencies.
 
-| wasmedge-sdk  | WasmEdge lib  | wasmedge-sys  | wasmedge-types|
-| :-----------: | :-----------: | :-----------: | :-----------: |
-| 0.4.0         | 0.11.0        | 0.9           | 0.2.1         |
-| 0.3.0         | 0.10.1        | 0.8           | 0.2.0         |
-| 0.1.0         | 0.10.0        | 0.7           | 0.1           |
+| wasmedge-sdk  | WasmEdge lib  | wasmedge-sys  | wasmedge-types| wasmedge-macro|
+| :-----------: | :-----------: | :-----------: | :-----------: | :-----------: |
+| 0.5.0         | 0.11.1        | 0.10          | 0.3.0         | 0.1.0         |
+| 0.4.0         | 0.11.0        | 0.9           | 0.2.1         | -             |
+| 0.3.0         | 0.10.1        | 0.8           | 0.2           | -             |
+| 0.1.0         | 0.10.0        | 0.7           | 0.1           | -             |
 
 ## Build
 
@@ -123,7 +123,7 @@ To use `wasmedge-sdk` in your project, you should finish the following two steps
 
 ```toml
 [dependencies]
-wasmedge-sdk = "0.1"
+wasmedge-sdk = "0.4"
 ```
 
 ## `wasmedge-sys` crate
@@ -135,7 +135,7 @@ For details, please refer to [README](https://github.com/WasmEdge/WasmEdge/blob/
 
 ```toml
 [dependencies]
-wasmedge-sys = "0.7"
+wasmedge-sys = "0.9"
 ```
 
 ## Enable WasmEdge Plugins
@@ -150,13 +150,9 @@ export WASMEDGE_PLUGIN_PATH=$HOME/.wasmedge/lib/wasmedge
 
 For those who would like to dev in Docker environment, you can reference the [Use Docker](../quick_start/use_docker.md) section of this book, which details how to use Docker for `WasmEdge` application development.
 
-### Windows Users
-
-Duo to [issue 1527](https://github.com/WasmEdge/WasmEdge/issues/1527), WasmEdger Rust bindings can not be used directly on Windows platform for now. Please choose to use our [docker image](#docker-image). We'll fix the issue as soon as possible.
-
 ## Examples
 
-For helping you get familiar with WasmEdge Rust bindings, the following quick examples demonstrate how to use the APIs defined in `wasmedge-sdk` and `wasmedge-sys`, respectively. In addition, we'll add more examples continuously. Please file an issue [here](https://github.com/WasmEdge/WasmEdge/issues) and let us know if you have any problems with the API usage.
+For helping you get familiar with WasmEdge Rust bindings, the following quick examples demonstrate how to use the APIs defined in `wasmedge-sdk` and `wasmedge-sys`, respectively. In addition, we'll add more examples continuously. Please file issues [here](https://github.com/WasmEdge/WasmEdge/issues) and let us know if you have any problems with the API usage.
 
 ### `wasmedge-sdk` Examples
 
@@ -164,8 +160,12 @@ For helping you get familiar with WasmEdge Rust bindings, the following quick ex
 - [[wasmedge-sdk] Memory manipulation](rust/memory_manipulation.md)
 - [[wasmedge-sdk] Table and FuncRef](rust/table_and_funcref.md)
 
+- [More examples](https://github.com/WasmEdge/WasmEdge/tree/master/bindings/rust/wasmedge-sdk/examples)
+
 ### `wasmedge-sys` Examples
 
 - [[wasmedge-sys] Run a WebAssembly function with WasmEdge low-level APIs](rust/sys_run_host_func.md)
 - [[wasmedge-sys] Compute Fibonacci numbers concurrently](rust/concurrent_fib.md)
 - [[wasmedge-sys] The usage of WasmEdge module instances](rust/how_to_use_module_instance.md)
+
+- [More examples](https://github.com/WasmEdge/WasmEdge/tree/master/bindings/rust/wasmedge-sys/examples)

@@ -1,6 +1,8 @@
 #![feature(never_type)]
 
 #[cfg(target_os = "linux")]
+use wasmedge_macro::sys_host_function;
+#[cfg(target_os = "linux")]
 use wasmedge_sys::{
     utils, AsImport, CallingFrame, Config, Executor, FuncType, Function, Global, GlobalType,
     ImportModule, ImportObject, Loader, MemType, Memory, Store, Table, TableType, Validator, Vm,
@@ -56,10 +58,10 @@ fn vm_apis() -> Result<(), Box<dyn std::error::Error>> {
         let mut import = ImportModule::create(module_name)?;
 
         // a function to import
+        #[sys_host_function]
         fn real_add(
-            _: &CallingFrame,
+            _frame: &CallingFrame,
             inputs: Vec<WasmValue>,
-            _data: *mut std::os::raw::c_void,
         ) -> Result<Vec<WasmValue>, HostFuncError> {
             if inputs.len() != 2 {
                 return Err(HostFuncError::User(1));

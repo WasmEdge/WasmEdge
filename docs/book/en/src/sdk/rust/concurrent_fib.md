@@ -1,19 +1,13 @@
 # Compute Fibonacci numbers concurrently
 
-## Prerequisites
-
-This example uses the following crates:
-
-* wasmedge-sys v0.9.0
-* wasmedge-types v0.2.1
-
 ## Overview
 
-In this example, we will demonstrate how to use the objects and the APIs defined in `wasmedge-sys` to compute Fibonacci numbers concurrently.
+In this example, we will demonstrate how to use the objects and the APIs defined in `wasmedge-sys` to compute Fibonacci numbers concurrently. we creates two child threads, `thread_a` and `thread_b`, which are responsbile for compute `Fib(4)` and `Fib(5)` by calling the host function `fib`, respectively. After that, the main thread computes `Fib(6)` by adding the numbers returned by `thread_a` and `thread_b`.
 
-## Example
-
-In the following code, we creates two child threads, `thread_a` and `thread_b`, which are responsbile for compute `Fib(4)` and `Fib(5)` by calling the host function `fib`, respectively. After that, the main thread computes `Fib(6)` by adding the numbers returned by `thread_a` and `thread_b`.
+> The code in the example is verified on
+>
+> * wasmedge-sys v0.10.0
+> * wasmedge-types v0.3.0
 
 ### Step 1: create a Vm context and register the WebAssembly module
 
@@ -32,6 +26,7 @@ In the following code, we creates two child threads, `thread_a` and `thread_b`, 
   let file = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
       .join("bindings/rust/wasmedge-sys/tests/data/fibonacci.wasm");
   vm.register_wasm_from_file("extern", file)?;
+
   ```
 
 ### Step 2: create two child threads to compute `Fib(4)` and `Fib(5)` respectively
@@ -87,4 +82,4 @@ fib(5) by child thread: 8
 fib(6) = fib(5) + fib(1) = 13
 ```
 
-The complete code in this demo can be found on [WasmEdge Github](https://github.com/WasmEdge/WasmEdge/blob/master/bindings/rust/wasmedge-sys/examples/threads.rs).
+The complete code in this demo can be found in [threads.rs](https://github.com/WasmEdge/WasmEdge/blob/master/bindings/rust/wasmedge-sys/examples/threads.rs).

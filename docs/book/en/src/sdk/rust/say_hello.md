@@ -2,7 +2,11 @@
 
 In this example, we'll use a wasm module, in which a function `run` is exported and it will call a function `say_hello` from an import module named `env`. The imported function `say_hello` has no inputs and outputs, and only prints a greeting message out.
 
-N.B. In this example, `wasmedge-sdk v0.4.0`, `wasmedge-sys v0.9.0` and `wasmedge-types v0.2.1` are used.
+> The code in the following example is verified on
+>
+> * wasmedge-sdk v0.5.0
+> * wasmedge-sys v0.10.0
+> * wasmedge-types v0.3.0
 
 Let's start off by getting all imports right away so you can follow along
 
@@ -10,10 +14,13 @@ Let's start off by getting all imports right away so you can follow along
 // please add this feature if you're using rust of version < 1.63
 // #![feature(explicit_generic_args_with_impl_trait)]
 
+#![feature(never_type)]
+
 use wasmedge_sdk::{
-    error::HostFuncError, params, wat2wasm, CallingFrame, Executor, ImportObjectBuilder, Module,
-    Store, WasmValue,
+    error::HostFuncError, host_function, params, wat2wasm, Caller, Executor, ImportObjectBuilder,
+    Module, Store, WasmValue,
 };
+
 ```
 
 ## Step 1: Define a native function and Create an ImportObject
@@ -21,10 +28,8 @@ use wasmedge_sdk::{
 First, let's define a native function named `say_hello_world` that prints out `Hello, World!`.
 
 ```rust
-fn say_hello_world(
-    _: &CallingFrame,
-    _: Vec<WasmValue>,
-) -> Result<Vec<WasmValue>, HostFuncError> {
+#[host_function]
+fn say_hello(caller: &Caller, _args: Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError> {
     println!("Hello, world!");
 
     Ok(vec![])
@@ -36,8 +41,8 @@ To use the native function as an import function in the `WasmEdge` runtime, we n
 ```rust
 // create an import module
 let import = ImportObjectBuilder::new()
-    .with_func::<(), ()>("say_hello", say_hello_world)?
-    .build("env")?; 
+    .with_func::<(), (), !>("say_hello", say_hello, None)?
+    .build("env")?;
 ```
 
 Now, we have an import module named `env` which holds a host function `say_hello`. As you may notice, the names we used for the import module and the host function are exactly the same as the ones appearing in the wasm module. You can find the wasm module in [Step 2](#step-2-load-a-wasm-module).
@@ -46,9 +51,9 @@ Now, we have an import module named `env` which holds a host function `say_hello
 
 Now, let's load a wasm module. `wasmedge-sdk` defines two methods in `Module`:
 
-- [from_file](https://wasmedge.github.io/WasmEdge/wasmedge_sdk/struct.Module.html#method.from_file) loads a wasm module from a file, and meanwhile, validates the loaded wasm module.
+* [from_file](https://wasmedge.github.io/WasmEdge/wasmedge_sdk/struct.Module.html#method.from_file) loads a wasm module from a file, and meanwhile, validates the loaded wasm module.
 
-- [from_bytes](https://wasmedge.github.io/WasmEdge/wasmedge_sdk/struct.Module.html#method.from_bytes) loads a wasm module from an array of in-memory bytes, and meanwhile, validates the loaded wasm module.
+* [from_bytes](https://wasmedge.github.io/WasmEdge/wasmedge_sdk/struct.Module.html#method.from_bytes) loads a wasm module from an array of in-memory bytes, and meanwhile, validates the loaded wasm module.
 
 Here we choose `Module::from_bytes` method to load our wasm module from an array of in-memory bytes.
 
@@ -80,13 +85,16 @@ let module = Module::from_bytes(None, &wasm_bytes)?;
 To register a compiled module, we need to check if it has dependency on some import modules. In the wasm module this statement `(import "env" "say_hello" (func $say_hello (type $no_args_no_rets_t)))` tells us that it depends on an import module named `env`. Therefore, we need to register the import module first before registering the compiled wasm module.
 
 ```rust
+// loads a wasm module from the given in-memory bytes
+let module = Module::from_bytes(None, &wasm_bytes)?;
+
 // create an executor
 let mut executor = Executor::new(None, None)?;
 
 // create a store
 let mut store = Store::new()?;
 
-// register the import module into the store
+// register the module into the store
 store.register_import_module(&mut executor, &import)?;
 
 // register the compiled module into the store and get an module instance
@@ -112,12 +120,12 @@ run.call(&mut executor, params!())?;
 
 In this example we created an instance of `Executor`, hence, we have two choices to call a [function instance](https://wasmedge.github.io/WasmEdge/wasmedge_sdk/struct.Func.html):
 
-- [Func::call](https://wasmedge.github.io/WasmEdge/wasmedge_sdk/struct.Func.html#method.call)
+* [Func::call](https://wasmedge.github.io/WasmEdge/wasmedge_sdk/struct.Func.html#method.call)
 
-- [Executor::run_func](https://wasmedge.github.io/WasmEdge/wasmedge_sdk/trait.Engine.html#tymethod.run_func)
+* [Executor::run_func](https://wasmedge.github.io/WasmEdge/wasmedge_sdk/trait.Engine.html#tymethod.run_func)
 
 Any one of these two methods requires that you have to get a [function instance](https://wasmedge.github.io/WasmEdge/wasmedge_sdk/struct.Func.html).
 
 In addition, [Vm](https://wasmedge.github.io/WasmEdge/wasmedge_sdk/struct.Vm.html) defines a group of methods which can invoke host function in different ways. For details, please reference [Vm](https://wasmedge.github.io/WasmEdge/wasmedge_sdk/struct.Vm.html).
 
-The complete example can be found [here](https://github.com/WasmEdge/WasmEdge/blob/master/bindings/rust/wasmedge-sdk/examples/hello_world.rs).
+The complete example can be found in [hello_world.rs](https://github.com/WasmEdge/WasmEdge/blob/master/bindings/rust/wasmedge-sdk/examples/hello_world.rs).

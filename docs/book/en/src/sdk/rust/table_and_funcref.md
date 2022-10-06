@@ -2,28 +2,53 @@
 
 In this example, we'll present how to use [Table](https://wasmedge.github.io/WasmEdge/wasmedge_sdk/struct.Table.html) and [FuncRef](https://wasmedge.github.io/WasmEdge/wasmedge_sdk/struct.FuncRef.html) stored in a slot of a `Table` instance to implement indirect function invocation.
 
-## Prerequisite
+> The code in the following example is verified on
+>
+> * wasmedge-sdk v0.5.0
+> * wasmedge-sys v0.10.0
+> * wasmedge-types v0.3.0
+
+Let's start off by getting all imports right away so you can follow along
+
+```rust
+// If the version of rust used is less than v1.63, please uncomment the follow attribute.
+// #![feature(explicit_generic_args_with_impl_trait)]
+
+#![feature(never_type)]
+
+use wasmedge_sdk::{
+    config::{CommonConfigOptions, ConfigBuilder},
+    error::HostFuncError,
+    host_function, params,
+    types::Val,
+    Caller, Executor, Func, ImportObjectBuilder, RefType, Store, Table, TableType, ValType,
+    WasmVal, WasmValue,
+};
+```
+
+## Define host function
 
 In this example we defines a native function `real_add` that takes two numbers and returns their sum. This function will be registered as a host function into WasmEdge runtime environment
 
 ```rust
-fn real_add(_: &CallingFrame, input: Vec<WasmValue>) -> Result<Vec<WasmValue>, u8> {
+#[host_function]
+fn real_add(_caller: &Caller, input: Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError> {
     println!("Rust: Entering Rust function real_add");
 
     if input.len() != 2 {
-        return Err(1);
+        return Err(HostFuncError::User(1));
     }
 
     let a = if input[0].ty() == ValType::I32 {
         input[0].to_i32()
     } else {
-        return Err(2);
+        return Err(HostFuncError::User(2));
     };
 
     let b = if input[1].ty() == ValType::I32 {
         input[1].to_i32()
     } else {
-        return Err(3);
+        return Err(HostFuncError::User(3));
     };
 
     let c = a + b;
@@ -32,19 +57,6 @@ fn real_add(_: &CallingFrame, input: Vec<WasmValue>) -> Result<Vec<WasmValue>, u
     println!("Rust: Leaving Rust function real_add");
     Ok(vec![WasmValue::from_i32(c)])
 }
-```
-
-In addition, the following imports are used in this example.
-
-```rust
-use wasmedge_sdk::{
-    config::{CommonConfigOptions, ConfigBuilder},
-    error::HostFuncError,
-    params,
-    types::Val,
-    CallingFrame, Executor, Func, ImportObjectBuilder, RefType, Store, Table, TableType, ValType,
-    WasmVal, WasmValue,
-};
 ```
 
 ## Register Table instance
@@ -80,13 +92,18 @@ In the code snippet above, we create a `Table` instance with the initial size of
 In the previous steps, we defined a native function `real_add` and registered a `Table` instance named `my-table` into the runtime environment. Now we'll save a reference to `read_add` function to a slot of `my-table`.
 
 ```rust
+// get the imported module instance
+let instance = store
+    .module_instance("extern")
+    .expect("Not found module instance named 'extern'");
+
 // get the exported table instance
 let mut table = instance
     .table("my-table")
     .expect("Not found table instance named 'my-table'");
 
 // create a host function
-let host_func = Func::wrap::<(i32, i32), i32>(Box::new(real_add))?;
+let host_func = Func::wrap::<(i32, i32), i32, !>(Box::new(real_add), None)?;
 
 // store the reference to host_func at the given index of the table instance
 table.set(3, Val::FuncRef(Some(host_func.as_ref())))?;
@@ -120,4 +137,4 @@ if let Val::FuncRef(Some(func_ref)) = value {
 }
 ```
 
-The complete code of this example can be found [here](https://github.com/WasmEdge/WasmEdge/blob/master/bindings/rust/wasmedge-sdk/examples/table_and_funcref.rs).
+The complete code of this example can be found in [table_and_funcref.rs](https://github.com/WasmEdge/WasmEdge/blob/master/bindings/rust/wasmedge-sdk/examples/table_and_funcref.rs).

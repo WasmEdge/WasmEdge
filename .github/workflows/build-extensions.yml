@@ -352,12 +352,7 @@ jobs:
     - name: Build WasmEdge ${{ matrix.name }} plugin using clang++ with ${{ matrix.build_type }} mode
       run: |
         brew install llvm@14 ninja boost cmake openssl@1.1
-        if [[ "${{ matrix.host_runner }}" == "macos-11" ]]; then
-          export LLVM_DIR="/usr/local/opt/llvm@14/lib/cmake"
-        fi
-        if [[ "${{ matrix.host_runner }}" == "macos-12" ]]; then
-          export LLVM_DIR="/usr/local/opt/llvm/lib/cmake"
-        fi
+        export LLVM_DIR="/usr/local/opt/llvm@14/lib/cmake"
         export CC=clang
         export CXX=clang++
         mkdir -p build

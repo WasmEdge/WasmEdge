@@ -1290,6 +1290,7 @@ class Compat:
         self,
         platform_=platform.system(),
         machine=platform.machine(),
+        dist_=None,
         version=None,
         extensions=None,
     ):
@@ -1301,7 +1302,7 @@ class Compat:
         self.install_package_name = None
         self.lib_extension = None
         self.ld_library_path = None
-        self.dist = None
+        self.dist = dist_
 
         if self.platform == "Linux":
             self.install_package_name = "WasmEdge-{0}-Linux".format(self.version)
@@ -1314,31 +1315,33 @@ class Compat:
             else:
                 reraise(Exception("Unsupported arch: {0}".format(self.machine)))
 
-            if sys.version_info[0] == 2:
-                if (
-                    "Ubuntu" in platform.dist() and "20.14" in platform.dist()
-                ) or "Ubuntu 20.04" in run_shell_command(
-                    "lsb_release -d | awk -F'\t' '{print $2}'"
-                ):
-                    self.dist = "ubuntu20.04"
-                else:
-                    self.dist = "manylinux2014"
-            elif sys.version_info[0] == 3:
-                __lsb_rel = run_shell_command("cat /etc/lsb-release | grep RELEASE")[
-                    -5:
-                ]
-                if "20.04" == __lsb_rel or "Ubuntu 20.04" in run_shell_command(
-                    "lsb_release -d | awk -F'\t' '{print $2}'"
-                ):
-                    self.dist = "ubuntu20.04"
-                else:
-                    self.dist = "manylinux2014"
+            if self.dist is None:
+                if sys.version_info[0] == 2:
+                    if (
+                        "Ubuntu" in platform.dist() and "20.14" in platform.dist()
+                    ) or "Ubuntu 20.04" in run_shell_command(
+                        "lsb_release -d | awk -F'\t' '{print $2}'"
+                    ):
+                        self.dist = "ubuntu20.04"
+                    else:
+                        self.dist = "manylinux2014"
+                elif sys.version_info[0] == 3:
+                    __lsb_rel = run_shell_command(
+                        "cat /etc/lsb-release | grep RELEASE"
+                    )[-5:]
+                    if "20.04" == __lsb_rel or "Ubuntu 20.04" in run_shell_command(
+                        "lsb_release -d | awk -F'\t' '{print $2}'"
+                    ):
+                        self.dist = "ubuntu20.04"
+                    else:
+                        self.dist = "manylinux2014"
         elif self.platform == "Darwin":
             self.ld_library_path = "DYLD_LIBRARY_PATH"
             self.install_package_name = "WasmEdge-{0}-Darwin".format(self.version)
             self.release_package = "darwin_{0}.tar.gz".format(self.machine)
             self.lib_extension = ".dylib"
-            self.dist = "darwin"
+            if self.dist is None:
+                self.dist = "darwin"
 
     def __str__(self):
         return (
@@ -1397,7 +1400,13 @@ class Compat:
 def main(args):
     global CONST_env_path, CONST_release_pkg, CONST_ipkg, CONST_shell_config, CONST_shell_profile, CONST_lib_dir
 
-    compat = Compat(version=args.version, extensions=args.extensions)
+    compat = Compat(
+        version=args.version,
+        extensions=args.extensions,
+        platform_=args.platform,
+        machine=args.machine,
+        dist_=args.dist,
+    )
 
     logging.debug("Compat object: %s", compat)
     logging.debug("Temp path: %s", TEMP_PATH)
@@ -1626,6 +1635,27 @@ if __name__ == "__main__":
         required=False,
         default=get_latest_github_release("second-state/WasmEdge-image"),
         help="Image Deps version",
+    )
+    parser.add_argument(
+        "--platform",
+        dest="platform",
+        required=False,
+        default=platform.system(),
+        help="Platform ex- Linux, Darwin, Windows",
+    )
+    parser.add_argument(
+        "--machine",
+        dest="machine",
+        required=False,
+        default=platform.machine(),
+        help="Machine ex- x86_64, aarch64",
+    )
+    parser.add_argument(
+        "--dist",
+        dest="dist",
+        required=False,
+        default=None,
+        help="Dist ex- ubuntu20.14,manylinux2014",
     )
     args = parser.parse_args()
 

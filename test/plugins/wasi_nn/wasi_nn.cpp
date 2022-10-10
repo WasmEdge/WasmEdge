@@ -73,9 +73,9 @@ std::vector<size_t> classSort(const std::vector<T> &Array) {
   std::vector<size_t> Indices(Array.size());
   std::iota(Indices.begin(), Indices.end(), 0);
   std::sort(Indices.begin(), Indices.end(),
-            [&Array](int Left, int Right) -> bool {
+            [&Array](size_t Left, size_t Right) -> bool {
               // Sort indices according to corresponding array element.
-              return Array[Left] >= Array[Right];
+              return Array[Left] > Array[Right];
             });
   return Indices;
 }
@@ -1201,10 +1201,9 @@ TEST(WasiNNTest, TFLiteBackend) {
     SortedIndex = classSort<uint8_t>(OutputClassification);
 
     // The probability of class i is placed at buffer[i].
-    spdlog::info("Size {}, {}", SortedIndex.size(), CorrectClasses.size());
     for (size_t I = 0; I < CorrectClasses.size(); I++) {
-      spdlog::info("Here {}, {}", SortedIndex[I], CorrectClasses[I]);
-      EXPECT_EQ(SortedIndex[I], CorrectClasses[I]);
+      EXPECT_EQ(OutputClassification[SortedIndex[I]],
+                OutputClassification[CorrectClasses[I]]);
     }
   }
 }

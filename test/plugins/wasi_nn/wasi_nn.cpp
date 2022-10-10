@@ -1198,14 +1198,14 @@ TEST(WasiNNTest, TFLiteBackend) {
         MemInst.getPointer<uint8_t *>(StorePtr, 965) + 965);
     std::vector<size_t> SortedIndex, CorrectClasses{166, 158, 34, 778, 819};
     // FIXME: classSort causing segmentation fault
-    // SortedIndex = classSort<uint8_t>(OutputClassification);
+    SortedIndex = classSort<uint8_t>(OutputClassification);
 
-    // // The probability of class i is placed at buffer[i].
-    // spdlog::info("Size {}, {}", SortedIndex.size(), CorrectClasses.size());
-    // for (size_t I = 0; I < CorrectClasses.size(); I++) {
-    //   spdlog::info("Here {}, {}", SortedIndex[I], CorrectClasses[I]);
-    //   EXPECT_EQ(SortedIndex[I], CorrectClasses[I]);
-    // }
+    // The probability of class i is placed at buffer[i].
+    spdlog::info("Size {}, {}", SortedIndex.size(), CorrectClasses.size());
+    for (size_t I = 0; I < CorrectClasses.size(); I++) {
+      spdlog::info("Here {}, {}", SortedIndex[I], CorrectClasses[I]);
+      EXPECT_EQ(SortedIndex[I], CorrectClasses[I]);
+    }
   }
 }
 #endif // WASMEDGE_PLUGIN_WASI_NN_BACKEND_TFLITE

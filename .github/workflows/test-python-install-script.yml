@@ -208,8 +208,8 @@ jobs:
         ls ~/new_wasmedge/plugin/ | grep .so && echo "Pass: Plugins found" || (echo "Fail: Plugins not found" && exit 1)
         ${{ matrix.python3_ex }} utils/install.py -v 0.10.0-alpha.1 -p /usr
         ls /usr/lib64/wasmedge/ | grep libwasmedgePluginWasmEdgeProcess.so && echo "Pass: Plugins found" || (echo "Fail: Plugins not found" && exit 1)
-    - name: Externally Specified plugin install check (single)
-      if: ${{ matrix.name != 'manylinux2014 aarch64' }}
+    - name: Externally Specified plugin install check (single)(Ubuntu)
+      if: ${{ matrix.name == 'Ubuntu 20.04' }}
       run: |
         # Single plugin download
         ${{ matrix.python2_ex }} utils/install.py -v 0.10.1-alpha.1 --plugins=wasi_nn-openvino -D
@@ -226,8 +226,8 @@ jobs:
         ${{ matrix.python3_ex }} utils/install.py -v 0.10.1-alpha.1 -p /usr --plugins=wasi_nn-openvino -D
         (ls /usr/lib/wasmedge/; ls /usr/lib64/wasmedge/;)2>&1 | grep libwasmedgePluginWasiNN.so && echo "Pass: Plugins found" || (echo "Fail: Plugins not found" && exit 1)
     
-    - name: Externally Specified plugins install check (multiple)
-      if: ${{ matrix.name != 'manylinux2014 aarch64' }}
+    - name: Externally Specified plugins install check (multiple)(Ubuntu)
+      if: ${{ matrix.name == 'Ubuntu 20.04' }}
       run: |
         # Multiple plugin download
         ${{ matrix.python2_ex }} utils/install.py --plugins=wasi_nn-openvino wasi_crypto -D
@@ -244,8 +244,8 @@ jobs:
         ${{ matrix.python3_ex }} utils/install.py -p /usr --plugins=wasi_nn-openvino wasi_crypto -D
         (ls /usr/lib/wasmedge/; ls /usr/lib64/wasmedge/;)2>&1 | grep -E libwasmedgePluginWasiNN.so\|libwasmedgePluginWasiCrypto.so  && echo "Pass: Plugins found" || (echo "Fail: Plugins not found" && exit 1)
   
-    - name: Externally Specified plugins install check (wrong name)
-      if: ${{ matrix.name != 'manylinux2014 aarch64' }}
+    - name: Externally Specified plugins install check (wrong name)(Ubuntu)
+      if: ${{ matrix.name == 'Ubuntu 20.04' }}
       run: |
         # Wrong name for wasi-nn-openvino 
         ${{ matrix.python2_ex }} utils/install.py --plugins=wasi-nn-openvino wasi_crypto -D
@@ -259,6 +259,24 @@ jobs:
         ${{ matrix.python3_ex }} utils/install.py --plugins=unknown_plugin_name_on_purpose -D
         (ls ~/.wasmedge/plugin/ | grep libwasmedgePluginWasiCrypto.so && echo "Fail: Plugins found" && exit 1) || (echo "Pass: Plugins not found")
 
+    - name: Externally Specified plugin install check (single)(Non Ubuntu)
+      if: ${{ matrix.name != 'manylinux2014 aarch64' }}
+      run: |
+        # Single plugin download
+        ${{ matrix.python2_ex }} utils/install.py -v 0.10.1-alpha.1 --plugins=wasi_crypto -D
+        ls ~/.wasmedge/plugin/ | grep libwasmedgePluginWasiCrypto.so && echo "Pass: Plugins found" || (echo "Fail: Plugins not found" && exit 1)
+        ${{ matrix.python2_ex }} utils/install.py -v 0.10.1-alpha.1 -p ~/new_wasmedge --plugins=wasi_crypto -D
+        ls ~/new_wasmedge/plugin/ | grep libwasmedgePluginWasiCrypto.so && echo "Pass: Plugins found" || (echo "Fail: Plugins not found" && exit 1)
+        ${{ matrix.python2_ex }} utils/install.py -v 0.10.1-alpha.1 -p /usr --plugins=wasi_crypto -D
+        (ls /usr/lib/wasmedge/; ls /usr/lib64/wasmedge/;)2>&1 | grep libwasmedgePluginWasiCrypto.so && echo "Pass: Plugins found" || (echo "Fail: Plugins not found" && exit 1)
+    
+        ${{ matrix.python3_ex }} utils/install.py -v 0.10.1-alpha.1 --plugins=wasi_crypto -D
+        ls ~/.wasmedge/plugin/ | grep libwasmedgePluginWasiCrypto.so && echo "Pass: Plugins found" || (echo "Fail: Plugins not found" && exit 1)
+        ${{ matrix.python3_ex }} utils/install.py -v 0.10.1-alpha.1 -p ~/new_wasmedge --plugins=wasi_crypto -D
+        ls ~/new_wasmedge/plugin/ | grep libwasmedgePluginWasiCrypto.so && echo "Pass: Plugins found" || (echo "Fail: Plugins not found" && exit 1)
+        ${{ matrix.python3_ex }} utils/install.py -v 0.10.1-alpha.1 -p /usr --plugins=wasi_crypto -D
+        (ls /usr/lib/wasmedge/; ls /usr/lib64/wasmedge/;)2>&1 | grep libwasmedgePluginWasiCrypto.so && echo "Pass: Plugins found" || (echo "Fail: Plugins not found" && exit 1)
+    
     - name: Latest Release Check
       run: |
         _res_git_=$(git ls-remote --refs --tags "https://github.com/WasmEdge/WasmEdge.git" | cut -d '/' -f 3 | awk '{ if ($1 ~ /-/) print; else print $0"_" ; }' | sort --version-sort | sed 's/_$//' | grep -e '^[0-9]\+.[0-9]\+.[0-9]\+$' | tail -1)

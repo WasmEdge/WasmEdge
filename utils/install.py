@@ -1315,7 +1315,11 @@ class Compat:
                 reraise(Exception("Unsupported arch: {0}".format(self.machine)))
 
             if sys.version_info[0] == 2:
-                if "Ubuntu" in platform.dist() and "20.14" in platform.dist():
+                if (
+                    "Ubuntu" in platform.dist() and "20.14" in platform.dist()
+                ) or "Ubuntu 20.04" in run_shell_command(
+                    "lsb_release -d | awk -F'\t' '{print $2}'"
+                ):
                     self.dist = "ubuntu20.04"
                 else:
                     self.dist = "manylinux2014"
@@ -1323,7 +1327,9 @@ class Compat:
                 __lsb_rel = run_shell_command("cat /etc/lsb-release | grep RELEASE")[
                     -5:
                 ]
-                if "20.04" == __lsb_rel:
+                if "20.04" == __lsb_rel or "Ubuntu 20.04" in run_shell_command(
+                    "lsb_release -d | awk -F'\t' '{print $2}'"
+                ):
                     self.dist = "ubuntu20.04"
                 else:
                     self.dist = "manylinux2014"

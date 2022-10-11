@@ -33,8 +33,8 @@ fn expand_host_func(item_fn: &syn::ItemFn) -> syn::Result<proc_macro2::TokenStre
     let wrapper_fn_name_literal = wrapper_fn_name_ident.to_string();
     // arguments of wrapper function
     let wrapper_fn_inputs: syn::punctuated::Punctuated<FnArg, syn::token::Comma> = parse_quote!(
-        frame: &CallingFrame,
-        args: Vec<wasmedge_sys::WasmValue>,
+        frame: &wasmedge_sdk::CallingFrame,
+        args: Vec<wasmedge_sdk::WasmValue>,
         data: *mut std::os::raw::c_void
     );
     // return type of wrapper function

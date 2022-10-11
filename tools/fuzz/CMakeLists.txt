@@ -5,18 +5,8 @@ wasmedge_add_executable(wasmedge-fuzztool
   tool.cpp
 )
 
-target_include_directories(wasmedge-fuzztool
-  PRIVATE
-  ../../include
-)
-
 wasmedge_add_executable(wasmedge-fuzzpo
   po.cpp
-)
-
-target_include_directories(wasmedge-fuzzpo
-  PRIVATE
-  ../../include
 )
 
 if(WASMEDGE_LINK_TOOLS_STATIC)

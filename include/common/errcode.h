@@ -16,6 +16,7 @@
 #include "common/enum_errcode.hpp"
 #include "common/expected.h"
 #include "common/hexstr.h"
+#include "common/log.h"
 
 #include <cassert>
 #include <ostream>
@@ -66,3 +67,8 @@ template <typename T> constexpr auto Unexpect(const Expect<T> &Val) {
 }
 
 } // namespace WasmEdge
+
+#if FMT_VERSION >= 90000
+template <>
+struct fmt::formatter<WasmEdge::ErrCode::Value> : ostream_formatter {};
+#endif

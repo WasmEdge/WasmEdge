@@ -88,10 +88,6 @@ function(wasmedge_setup_target target)
     MACOSX_RPATH ON
     INTERPROCEDURAL_OPTIMIZATION ${WASMEDGE_INTERPROCEDURAL_OPTIMIZATION}
   )
-  target_compile_definitions(${target}
-    PUBLIC
-    FMT_DEPRECATED_OSTREAM
-  )
   if(WASMEDGE_BUILD_FUZZING)
     target_compile_definitions(${target}
       PUBLIC

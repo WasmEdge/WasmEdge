@@ -60,7 +60,7 @@ jobs:
           export WASMEDGE_DIR="$(pwd)/../../"
           export WASMEDGE_BUILD_DIR="$(pwd)/../../build"
           export WASMEDGE_PLUGIN_PATH="$(pwd)/../../build/plugins/wasmedge_process"
-          cargo smart-release --update-crates-index --dry-run-cargo-publish wasmedge-sdk
+          cargo smart-release --update-crates-index --dry-run-cargo-publish --no-dependencies wasmedge-sdk
 
       - name: Publish
         env:
@@ -72,7 +72,7 @@ jobs:
           export WASMEDGE_DIR="$(pwd)/../../"
           export WASMEDGE_BUILD_DIR="$(pwd)/../../build"
           export WASMEDGE_PLUGIN_PATH="$(pwd)/../../build/plugins/wasmedge_process"
-          cargo smart-release --update-crates-index --execute wasmedge-sdk
+          cargo smart-release --update-crates-index --execute --no-dependencies wasmedge-sdk
 
       - name: Build API document
         working-directory: bindings/rust/wasmedge-sdk

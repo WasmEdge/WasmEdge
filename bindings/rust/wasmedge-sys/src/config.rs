@@ -221,6 +221,9 @@ impl Config {
     pub fn wasi_nn(&mut self, enable: bool) {
         unsafe {
             if enable {
+                // enable wasi option
+                self.wasi(enable);
+
                 ffi::WasmEdge_ConfigureAddHostRegistration(
                     self.inner.0,
                     ffi::WasmEdge_HostRegistration_WasiNN,

@@ -300,6 +300,8 @@ TEST(APICoreTest, Log) {
   EXPECT_TRUE(true);
   WasmEdge_LogSetErrorLevel();
   EXPECT_TRUE(true);
+  WasmEdge_LogOff();
+  EXPECT_TRUE(true);
 }
 
 TEST(APICoreTest, Value) {

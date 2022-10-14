@@ -239,6 +239,9 @@ WASMEDGE_CAPI_EXPORT extern void WasmEdge_LogSetErrorLevel(void);
 /// Set the logging system to filter to debug level.
 WASMEDGE_CAPI_EXPORT extern void WasmEdge_LogSetDebugLevel(void);
 
+/// Set the logging system off.
+WASMEDGE_CAPI_EXPORT extern void WasmEdge_LogOff(void);
+
 // <<<<<<<< WasmEdge logging functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 // >>>>>>>> WasmEdge value functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>

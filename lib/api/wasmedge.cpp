@@ -454,6 +454,8 @@ WASMEDGE_CAPI_EXPORT void WasmEdge_LogSetDebugLevel(void) {
   WasmEdge::Log::setDebugLoggingLevel();
 }
 
+WASMEDGE_CAPI_EXPORT void WasmEdge_LogOff(void) { WasmEdge::Log::setLogOff(); }
+
 // <<<<<<<< WasmEdge logging functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 // >>>>>>>> WasmEdge value functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>

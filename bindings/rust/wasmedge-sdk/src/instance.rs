@@ -295,9 +295,8 @@ mod tests {
     use crate::{
         config::{CommonConfigOptions, ConfigBuilder},
         error::HostFuncError,
-        host_function,
         types::Val,
-        Caller, Executor, FuncTypeBuilder, Global, GlobalType, ImportObjectBuilder, Memory,
+        CallingFrame, Executor, FuncTypeBuilder, Global, GlobalType, ImportObjectBuilder, Memory,
         MemoryType, Module, Mutability, RefType, Statistics, Store, Table, TableType, ValType,
         WasmValue,
     };
@@ -467,10 +466,10 @@ mod tests {
         }
     }
 
-    #[host_function]
     fn real_add(
-        _: &Caller,
+        _frame: &CallingFrame,
         inputs: Vec<WasmValue>,
+        _data: *mut std::os::raw::c_void,
     ) -> std::result::Result<Vec<WasmValue>, HostFuncError> {
         if inputs.len() != 2 {
             return Err(HostFuncError::User(1));

@@ -85,7 +85,7 @@ jobs:
           asset_content_type: application/x-gzip
       - name: Create and upload coverage report to Codecov
         if: ${{ matrix.coverage }}
-        uses: codecov/codecov-action@v2
+        uses: codecov/codecov-action@v3
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: ./build/codecov.xml

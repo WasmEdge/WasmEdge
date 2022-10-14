@@ -572,12 +572,11 @@ mod tests {
             StatisticsConfigOptions,
         },
         error::HostFuncError,
-        host_function,
         io::WasmVal,
         params,
         types::Val,
-        wat2wasm, AsInstance, Caller, Global, GlobalType, ImportObjectBuilder, Memory, MemoryType,
-        Mutability, RefType, Table, TableType, ValType, WasmValue,
+        wat2wasm, AsInstance, CallingFrame, Global, GlobalType, ImportObjectBuilder, Memory,
+        MemoryType, Mutability, RefType, Table, TableType, ValType, WasmValue,
     };
 
     #[test]
@@ -1312,10 +1311,10 @@ mod tests {
         assert_eq!(returns[0].to_i32(), 8)
     }
 
-    #[host_function]
     fn real_add(
-        _: &Caller,
+        _frame: &CallingFrame,
         inputs: Vec<WasmValue>,
+        _data: *mut std::os::raw::c_void,
     ) -> std::result::Result<Vec<WasmValue>, HostFuncError> {
         if inputs.len() != 2 {
             return Err(HostFuncError::User(1));

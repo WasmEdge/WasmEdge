@@ -1413,6 +1413,10 @@ def main(args):
     logging.debug("CLI Args:")
     logging.debug(args)
 
+    if len(args.plugins) >= 1:
+        logging.warning("Experimental Option Selected: plugins")
+        logging.warning("plugins option may change later")
+
     if compat:
         print("Compatible with current configuration")
 
@@ -1597,7 +1601,7 @@ if __name__ == "__main__":
         required=False,
         default=[],
         nargs="*",
-        help="Supported Plugins. Example\n"
+        help="(experimental option)Supported Plugins. Example\n"
         + "--plugins wasi_crypto:0.11.0\n"
         + "--plugins wasi_crypto",
     )
@@ -1655,7 +1659,7 @@ if __name__ == "__main__":
         dest="dist",
         required=False,
         default=None,
-        help="Dist ex- ubuntu20.14,manylinux2014",
+        help="Dist ex- ubuntu20.04,manylinux2014",
     )
     args = parser.parse_args()
 

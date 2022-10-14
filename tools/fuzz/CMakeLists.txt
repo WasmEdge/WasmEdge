@@ -9,6 +9,17 @@ wasmedge_add_executable(wasmedge-fuzzpo
   po.cpp
 )
 
+if(DEFINED LIB_FUZZING_ENGINE)
+  target_link_libraries(wasmedge-fuzztool
+    PRIVATE
+    ${LIB_FUZZING_ENGINE}
+  )
+  target_link_libraries(wasmedge-fuzzpo
+    PRIVATE
+    ${LIB_FUZZING_ENGINE}
+  )
+endif()
+
 if(WASMEDGE_LINK_TOOLS_STATIC)
   target_link_libraries(wasmedge-fuzztool
     PRIVATE

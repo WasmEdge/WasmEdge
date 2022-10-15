@@ -62,9 +62,11 @@ foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
   elseif(BACKEND STREQUAL "Tensorflowlite")
     message(STATUS "WASI-NN: Build Tensorflow lite backend for WASI-NN")
     add_definitions(-DWASMEDGE_PLUGIN_WASI_NN_BACKEND_TFLITE)
+
     if(NOT WASMEDGE_DEPS_VERSION)
       set(WASMEDGE_DEPS_VERSION "0.11.0-rc.1")
     endif()
+
     # Clone required shared libraries
     if(ANDROID)
       if(CMAKE_SYSTEM_PROCESSOR STREQUAL "aarch64")
@@ -98,7 +100,7 @@ foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
 
     # Fetch Tensorflow-lite library.
     FetchContent_Declare(
-    wasmedgetensorflowdepslite
+      wasmedgetensorflowdepslite
       URL "https://github.com/second-state/WasmEdge-tensorflow-deps/releases/download/${WASMEDGE_DEPS_VERSION}/WasmEdge-tensorflow-deps-TFLite-${WASMEDGE_DEPS_VERSION}-${WASMEDGE_TENSORFLOW_SYSTEM_NAME}.tar.gz"
       URL_HASH "SHA256=${WASMEDGE_TENSORFLOW_DEPS_TFLITE_HASH}"
     )
@@ -113,12 +115,12 @@ foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
     # Setup Tensorflow-lite library.
     if(APPLE)
       set(WASMEDGE_TENSORFLOW_DEPS_TFLITE_LIB
-      "${wasmedgetensorflowdepslite_SOURCE_DIR}/libtensorflowlite_c.dylib"
-    )
+        "${wasmedgetensorflowdepslite_SOURCE_DIR}/libtensorflowlite_c.dylib"
+      )
     elseif(UNIX)
       set(WASMEDGE_TENSORFLOW_DEPS_TFLITE_LIB
-      "${wasmedgetensorflowdepslite_SOURCE_DIR}/libtensorflowlite_c.so"
-    )
+        "${wasmedgetensorflowdepslite_SOURCE_DIR}/libtensorflowlite_c.so"
+      )
     endif()
 
     include(FetchContent)
@@ -134,12 +136,13 @@ foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
       FetchContent_Populate(wasmedge_tensorflow_deps)
       message(STATUS "Fetching WasmEdge-tensorflow-dep repository - done")
     endif()
+
     # -hardcode remove in future-------------------------------
     # set(WASMEDGE_TENSORFLOW_DEPS_TFLITE_HASH "43b2a782efb58b047c6d33f64d7ac711b24426959f91287d910edb8937c11dea")
     # set(wasmedge_tensorflow_deps_SOURCE_DIR "${CMAKE_SOURCE_DIR}/utils/WasmEdge-tensorflow-deps")
 
     # set(WASMEDGE_TENSORFLOW_DEPS_TFLITE_LIB
-    #   "${wasmedge_tensorflow_deps_SOURCE_DIR}/shares/libtensorflowlite_c.so"
+    # "${wasmedge_tensorflow_deps_SOURCE_DIR}/shares/libtensorflowlite_c.so"
     # )
 
     # --------------------------------
@@ -148,6 +151,7 @@ foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
 
     message(STATUS "WASI-NN: Set WasmEdge-tensorflow deps source path: ${WASMEDGE_TENSORFLOW_DEPS_PATH}")
     message(STATUS "WASI-NN: Set WasmEdge-tensorflow deps binary path: ${WASMEDGE_TENSORFLOW_DEPS_BIN_PATH}")
+    message(STATUS "WASI-NN: Set WasmEdge-tensorflowlite share path: ${WASMEDGE_TENSORFLOW_DEPS_TFLITE_LIB}")
     add_subdirectory(${WASMEDGE_TENSORFLOW_DEPS_PATH} ${WASMEDGE_TENSORFLOW_DEPS_BIN_PATH})
     target_include_directories(wasmedgePluginWasiNN
       PUBLIC

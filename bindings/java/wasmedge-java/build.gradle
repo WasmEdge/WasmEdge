@@ -1,5 +1,4 @@
-apply plugin: 'java'
-apply plugin: 'application'
+apply plugin: 'java-library'
 apply plugin: 'checkstyle'
 
 repositories {
@@ -20,6 +19,9 @@ test {
     if (System.getProperty('DEBUG', 'false') == 'true') {
         jvmArgs '-Xdebug',
                 '-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=*:5005'
+    }
+    testLogging {
+        exceptionFormat = 'full'
     }
 
 }

@@ -40,69 +40,7 @@ JNIEXPORT void JNICALL Java_org_wasmedge_StoreContext_delete
     WasmEdge_StoreDelete(getStoreContext(env, thisObj));
 }
 
-JNIEXPORT jobject JNICALL Java_org_wasmedge_StoreContext_listFunction
-        (JNIEnv *env , jobject thisObject) {
-    WasmEdge_StoreContext *storeCxt = getStoreContext(env, thisObject);
 
-    uint32_t funcLen = WasmEdge_StoreListFunctionLength(storeCxt);
-    WasmEdge_String* nameList = (WasmEdge_String*)malloc(sizeof (struct WasmEdge_String) * funcLen);
-    uint32_t RealFuncNum = WasmEdge_StoreListFunction(storeCxt, nameList, funcLen);
-
-    jobject jNameList = WasmEdgeStringArrayToJavaList(env, nameList, RealFuncNum);
-
-    free(nameList);
-
-    return jNameList;
-}
-
-JNIEXPORT jobject JNICALL Java_org_wasmedge_StoreContext_findFunction
-        (JNIEnv *env, jobject thisObject, jstring jFuncName) {
-
-    WasmEdge_StoreContext *storeCxt = getStoreContext(env, thisObject);
-    WasmEdge_String wFuncName = JStringToWasmString(env, jFuncName);
-
-    WasmEdge_FunctionInstanceContext * funcInstance = WasmEdge_StoreFindFunction(storeCxt, wFuncName);
-
-    return createJFunctionInstanceContext(env, funcInstance);
-
-}
-
-
-JNIEXPORT jobject JNICALL Java_org_wasmedge_StoreContext_listFunctionRegistered
-        (JNIEnv * env, jobject thisObject, jstring jModName) {
-
-    WasmEdge_StoreContext *storeCxt = getStoreContext(env, thisObject);
-
-    const char* modName = (*env)->GetStringUTFChars(env, jModName, NULL);
-    WasmEdge_String wModName = WasmEdge_StringCreateByCString(modName);
-
-    uint32_t funcLen = WasmEdge_StoreListFunctionRegisteredLength(storeCxt, wModName);
-    WasmEdge_String* nameList = (WasmEdge_String*)malloc(sizeof (struct WasmEdge_String) * funcLen);
-    uint32_t RealFuncNum = WasmEdge_StoreListFunctionRegistered(storeCxt, wModName,nameList, funcLen);
-
-    jobject jNameList = WasmEdgeStringArrayToJavaList(env, nameList, RealFuncNum);
-
-    free(nameList);
-
-    return jNameList;
-}
-
-
-JNIEXPORT jobject JNICALL Java_org_wasmedge_StoreContext_findFunctionRegistered
-        (JNIEnv *env, jobject thisObject, jstring jModName, jstring jFuncName) {
-    WasmEdge_StoreContext *storeCxt = getStoreContext(env, thisObject);
-
-    WasmEdge_String wModName = JStringToWasmString(env, jModName);
-    WasmEdge_String wFuncName = JStringToWasmString(env, jFuncName);
-
-    const WasmEdge_FunctionInstanceContext * funcInst = WasmEdge_StoreFindFunctionRegistered(storeCxt, wModName, wFuncName);
-    jobject jFuncInst = createJFunctionInstanceContext(env, funcInst);
-
-    WasmEdge_StringDelete(wFuncName);
-    WasmEdge_StringDelete(wModName);
-
-    return jFuncInst;
-}
 
 JNIEXPORT jobject JNICALL Java_org_wasmedge_StoreContext_listTable
         (JNIEnv *env , jobject thisObject) {

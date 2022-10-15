@@ -12,9 +12,9 @@ public class ExecutorContext {
     private native void nativeInit(ConfigureContext configureContext, StatisticsContext statisticsContext);
 
 
-    public native void instantiate(StoreContext storeContext, ASTModuleContext astModuleContext);
+    public native ModuleInstanceContext instantiate(StoreContext storeContext, ASTModuleContext astModuleContext);
 
-    public native void invoke(StoreContext storeContext, String funcName,
+    public native void invoke(FunctionInstanceContext functionInstanceContext,
                               List<WasmEdgeValue> params, List<WasmEdgeValue> returns);
 
 
@@ -34,15 +34,11 @@ public class ExecutorContext {
         return valuesArray;
     }
 
-    public native void invokeRegistered(StoreContext storeContext,
-                                        String modeName, String funcName,
-                                        List<WasmEdgeValue> params, List<WasmEdgeValue> returns);
+    public native ModuleInstanceContext register(StoreContext storeCxt,
+                                ASTModuleContext astCxt,
+                                String modeName);
 
-    public native void registerModule(StoreContext storeCxt,
-                                      ASTModuleContext astCxt,
-                                      String modeName);
-
-    public native void registerImport(StoreContext storeCxt, ImportObjectContext importObjectContext);
+    public native void registerImport(StoreContext storeCxt, ModuleInstanceContext moduleInstanceContext);
 
     public native void delete();
 }

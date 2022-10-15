@@ -119,8 +119,8 @@ public class WasmEdgeVMTest extends BaseTest {
     @Test
     public void testRegisterModuleFromImport() {
         WasmEdgeVM vm = new WasmEdgeVM(new ConfigureContext(), null);
-        ImportObjectContext importObjectContext = new ImportObjectContext("extern");
-        vm.registerModuleFromImport(importObjectContext);
+        ModuleInstanceContext moduleInstanceContext = new ModuleInstanceContext("extern");
+        vm.registerModuleFromImport(moduleInstanceContext);
     }
 
 

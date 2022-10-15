@@ -18,39 +18,31 @@ JNIEXPORT void JNICALL Java_org_wasmedge_ExecutorContext_nativeInit
 /*
  * Class:     org_wasmedge_ExecutorContext
  * Method:    instantiate
- * Signature: (Lorg/wasmedge/StoreContext;Lorg/wasmedge/ASTModuleContext;)V
+ * Signature: (Lorg/wasmedge/StoreContext;Lorg/wasmedge/ASTModuleContext;)Lorg/wasmedge/ModuleInstanceContext;
  */
-JNIEXPORT void JNICALL Java_org_wasmedge_ExecutorContext_instantiate
+JNIEXPORT jobject JNICALL Java_org_wasmedge_ExecutorContext_instantiate
   (JNIEnv *, jobject, jobject, jobject);
 
 /*
  * Class:     org_wasmedge_ExecutorContext
  * Method:    invoke
- * Signature: (Lorg/wasmedge/StoreContext;Ljava/lang/String;Ljava/util/List;Ljava/util/List;)V
+ * Signature: (Lorg/wasmedge/StoreContext;Lorg/wasmedge/FunctionInstanceContext;Ljava/util/List;Ljava/util/List;)V
  */
 JNIEXPORT void JNICALL Java_org_wasmedge_ExecutorContext_invoke
-  (JNIEnv *, jobject, jobject, jstring, jobject, jobject);
+  (JNIEnv *, jobject, jobject, jobject, jobject);
 
 /*
  * Class:     org_wasmedge_ExecutorContext
- * Method:    invokeRegistered
- * Signature: (Lorg/wasmedge/StoreContext;Ljava/lang/String;Ljava/lang/String;Ljava/util/List;Ljava/util/List;)V
+ * Method:    register
+ * Signature: (Lorg/wasmedge/StoreContext;Lorg/wasmedge/ASTModuleContext;Ljava/lang/String;)Lorg/wasmedge/ModuleInstanceContext;
  */
-JNIEXPORT void JNICALL Java_org_wasmedge_ExecutorContext_invokeRegistered
-  (JNIEnv *, jobject, jobject, jstring, jstring, jobject, jobject);
-
-/*
- * Class:     org_wasmedge_ExecutorContext
- * Method:    registerModule
- * Signature: (Lorg/wasmedge/StoreContext;Lorg/wasmedge/ASTModuleContext;Ljava/lang/String;)V
- */
-JNIEXPORT void JNICALL Java_org_wasmedge_ExecutorContext_registerModule
+JNIEXPORT jobject JNICALL Java_org_wasmedge_ExecutorContext_register
   (JNIEnv *, jobject, jobject, jobject, jstring);
 
 /*
  * Class:     org_wasmedge_ExecutorContext
  * Method:    registerImport
- * Signature: (Lorg/wasmedge/StoreContext;Lorg/wasmedge/ImportObjectContext;)V
+ * Signature: (Lorg/wasmedge/StoreContext;Lorg/wasmedge/ModuleInstanceContext;)V
  */
 JNIEXPORT void JNICALL Java_org_wasmedge_ExecutorContext_registerImport
   (JNIEnv *, jobject, jobject, jobject);

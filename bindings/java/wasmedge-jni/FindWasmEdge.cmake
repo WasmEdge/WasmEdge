@@ -45,7 +45,7 @@ if(WasmEdge_INCLUDE_DIRS)
     if(NOT ${CMAKE_C_PLATFORM_ID} STREQUAL "Windows")
         find_library(WasmEdge_LIBRARIES
                 NAMES
-                wasmedge_c
+                wasmedge
                 HINTS
                 ${_WasmEdge_ROOT}/lib
                 ${_WasmEdge_ROOT}/lib/x86_64-linux-gnu

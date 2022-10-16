@@ -585,7 +585,7 @@ Developers can adjust the settings about the proposals, VM host pre-registration
      * * Fixed-width SIMD
      *
      * For the current WasmEdge version, the following proposals are supported
-     * (turned of by default) additionally:
+     * (turned off by default) additionally:
      * * Tail-call
      * * Multiple memories
      * * Extended-const
@@ -1503,6 +1503,8 @@ The `VM` context supplies the APIs to retrieve the instances.
          * The returned function type contexts should __NOT__ be destroyed.
          */
       }
+      WasmEdge_StoreDelete(StoreCxt);
+      WasmEdge_VMDelete(VMCxt);
       return 0;
     }
     ```

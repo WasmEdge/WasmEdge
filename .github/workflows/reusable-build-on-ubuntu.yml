@@ -69,7 +69,7 @@ jobs:
           LD_LIBRARY_PATH=$(pwd)/build/lib/api cmake --build build --target codecov
       - name: Upload artifact
         if: ${{ !inputs.release && !matrix.coverage }}
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: WasmEdge-${{ inputs.version }}-ubuntu-20.04-${{ matrix.compiler }}-${{ matrix.build_type }}.tar.gz
           path: build/WasmEdge-${{ inputs.version }}-Linux.tar.gz

@@ -32,7 +32,7 @@ jobs:
           bash utils/docker/build-manylinux.sh
           ./build/tools/wasmedge/wasmedge -v
       - name: Upload artifact (v2)
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           path: build/WasmEdge-${{ inputs.version }}-Linux.tar.gz
           name: WasmEdge-${{ inputs.version }}-${{ matrix.docker_tag }}.tar.gz

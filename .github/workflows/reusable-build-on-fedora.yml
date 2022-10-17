@@ -42,7 +42,7 @@ jobs:
           cmake --build build --target package
       - name: Upload artifact
         if: ${{ !inputs.release }}
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: WasmEdge-${{ inputs.version }}-fedora35.tar.gz
           path: build/WasmEdge-${{ inputs.version }}-Linux.tar.gz

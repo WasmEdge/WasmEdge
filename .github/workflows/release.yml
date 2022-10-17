@@ -282,7 +282,7 @@ jobs:
         run: |
           bash utils/docker/build-manylinux.sh -DWASMEDGE_BUILD_AOT_RUNTIME=OFF
       - name: Upload ${{ matrix.name }} tar.gz package to artifact
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: build_manylinux2014_runtime_only
           path: build/WasmEdge-${{ needs.create_release.outputs.version }}-Linux.tar.gz

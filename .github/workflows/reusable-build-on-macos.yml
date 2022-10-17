@@ -72,7 +72,7 @@ jobs:
           ./build/tools/wasmedge/wasmedge --reactor fib.dylib fib 20
       - name: Upload artifact
         if: ${{ !inputs.release }}
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: WasmEdge-${{ inputs.version }}-darwin_${{ matrix.darwin_version }}_x86_64.tar.gz
           path: build/WasmEdge-${{ inputs.version }}-Darwin.tar.gz

@@ -48,7 +48,7 @@ jobs:
           rpmbuild -ba rpm/wasmedge.spec
       - name: Upload artifact
         if: ${{ !inputs.release }}
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: WasmEdge-${{ env.srpm_version }}-1.fc38.src.rpm
           path: /github/home/rpmbuild/SRPMS/wasmedge-${{ env.srpm_version }}-1.fc38.src.rpm

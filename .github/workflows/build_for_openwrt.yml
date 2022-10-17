@@ -106,7 +106,7 @@ jobs:
       run: |
         cp -rf $(find ../openwrt/bin/ -type f -name "openwrt-x86-64-generic-rootfs.tar.gz") ./
     - name: Upload artifact (v2)
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3
       with:
         name: openwrt-rootfs
         path: ./openwrt-x86-64-generic-rootfs.tar.gz

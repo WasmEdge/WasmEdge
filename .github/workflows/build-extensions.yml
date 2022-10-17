@@ -46,7 +46,7 @@ jobs:
     outputs:
       version: ${{ steps.prep.outputs.version }}
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
       with:
         fetch-depth: 0
     - name: Get version
@@ -143,7 +143,7 @@ jobs:
     container:
       image: wasmedge/wasmedge:${{ matrix.docker_tag }}
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
       with:
         fetch-depth: 0
     - name: Build WasmEdge WASI-NN ${{ matrix.backend }} plugin using ${{ matrix.compiler }} with ${{ matrix.build_type }} mode
@@ -264,7 +264,7 @@ jobs:
     container:
       image: wasmedge/wasmedge:${{ matrix.docker_tag }}
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
       with:
         fetch-depth: 0
     - name: Build WASI-Crypto dependency
@@ -346,7 +346,7 @@ jobs:
     runs-on: ${{ matrix.host_runner }}
     needs: [get_version_v2]
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
       with:
         fetch-depth: 0
     - name: Build WasmEdge ${{ matrix.name }} plugin using clang++ with ${{ matrix.build_type }} mode

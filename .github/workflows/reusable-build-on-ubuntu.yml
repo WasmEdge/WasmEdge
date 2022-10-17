@@ -28,7 +28,7 @@ jobs:
       BUILD_TESTS: OFF
     container: wasmedge/wasmedge:${{ matrix.docker_tag }}
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           fetch-depth: 0
       - name: Set environment variables for tests

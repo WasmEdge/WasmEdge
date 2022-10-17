@@ -1,6 +1,7 @@
 //
 // Created by Kenvi Zhu on 2021-12-04.
 //
+#include <stdlib.h>
 #include "common.h"
 #include "../jni/org_wasmedge_FunctionTypeContext.h"
 #include "wasmedge/wasmedge.h"

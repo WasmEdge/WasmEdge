@@ -16,12 +16,7 @@ WasmEdge_ExportTypeContext *getExportTypeContext(JNIEnv * env, jobject jExpType)
     if(jExpType == NULL) {
         return NULL;
     }
-
     return (WasmEdge_ExportTypeContext *)getPointer(env, jExpType);
-}
-
-JNIEXPORT jstring JNICALL Java_org_wasmedge_ExportTypeContext_getModuleName
-        (JNIEnv *env, jobject thisObject) {
 }
 
 /*

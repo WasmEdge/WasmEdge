@@ -1,6 +1,7 @@
 //
 // Created by Kenvi Zhu on 2021-12-20.
 //
+#include <stdlib.h>
 #include "../jni/org_wasmedge_ASTModuleContext.h"
 #include "wasmedge/wasmedge.h"
 #include "jni.h"

@@ -85,13 +85,11 @@ JNIEXPORT jint JNICALL Java_org_wasmedge_TableInstanceContext_getSize
     return WasmEdge_TableInstanceGetSize(tableInstanceContext);
 }
 
-
-JNIEXPORT jint JNICALL Java_org_wasmedge_TableInstanceContext_grow
+JNIEXPORT void JNICALL Java_org_wasmedge_TableInstanceContext_grow
         (JNIEnv * env, jobject thisObject, jint jSize) {
     WasmEdge_TableInstanceContext * tableInstanceContext = getTableInstanceContext(env, thisObject);
     WasmEdge_Result result = WasmEdge_TableInstanceGrow(tableInstanceContext, jSize);
     handleWasmEdgeResult(env, &result);
-
 }
 
 jobject createJTableInstanceContext(JNIEnv* env, const WasmEdge_TableInstanceContext * tabInstance) {

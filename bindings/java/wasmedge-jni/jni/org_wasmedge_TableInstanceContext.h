@@ -50,9 +50,9 @@ JNIEXPORT jint JNICALL Java_org_wasmedge_TableInstanceContext_getSize
 /*
  * Class:     org_wasmedge_TableInstanceContext
  * Method:    grow
- * Signature: (I)I
+ * Signature: (I)V
  */
-JNIEXPORT jint JNICALL Java_org_wasmedge_TableInstanceContext_grow
+JNIEXPORT void JNICALL Java_org_wasmedge_TableInstanceContext_grow
   (JNIEnv *, jobject, jint);
 
 #ifdef __cplusplus

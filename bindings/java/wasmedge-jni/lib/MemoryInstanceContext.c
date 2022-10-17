@@ -1,6 +1,7 @@
 //
 // Created by Kenvi Zhu on 2022-01-14.
 //
+#include <stdlib.h>
 #include "../jni/org_wasmedge_MemoryInstanceContext.h"
 #include "wasmedge/wasmedge.h"
 #include "common.h"
@@ -36,7 +37,7 @@ JNIEXPORT void JNICALL Java_org_wasmedge_MemoryInstanceContext_setData
 
     jbyte * buff = (*env)->GetByteArrayElements(env, jData, NULL);
 
-    WasmEdge_MemoryInstanceSetData(memoryInstanceContext, buff, jOffSet, jLength);
+    WasmEdge_MemoryInstanceSetData(memoryInstanceContext, (unsigned char*) buff, jOffSet, jLength);
 
     (*env)->ReleaseByteArrayElements(env, jData, buff, jLength);
 }
@@ -53,12 +54,10 @@ JNIEXPORT jbyteArray JNICALL Java_org_wasmedge_MemoryInstanceContext_getData
     handleWasmEdgeResult(env, &result);
 
     jbyteArray jBytes = (*env)->NewByteArray(env, jSize);
-    (*env)->SetByteArrayRegion(env, jBytes,0, jSize, data);
+    (*env)->SetByteArrayRegion(env, jBytes,0, jSize, (signed char*)data);
 
     free(data);
     return jBytes;
-
-
 }
 
 /*

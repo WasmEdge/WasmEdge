@@ -174,49 +174,6 @@ char* getStringVal(JNIEnv *env, jobject val) {
     return buf;
 }
 
-
-WasmEdge_Value *parseJavaParams(JNIEnv *env, jobjectArray params, jintArray paramTypes, jint paramSize) {
-
-    WasmEdge_Value *wasm_params = calloc(paramSize, sizeof(WasmEdge_Value));
-    int *type = (*env)->GetIntArrayElements(env, paramTypes, JNI_FALSE);
-    for (int i = 0; i < paramSize; i++) {
-        WasmEdge_Value val;
-
-        jobject val_object = (*env)->GetObjectArrayElement(env, params, i);
-
-        switch (type[i]) {
-
-            case 0:
-                val = WasmEdge_ValueGenI32(getIntVal(env, val_object));
-                break;
-            case 1:
-                val = WasmEdge_ValueGenI64(getLongVal(env, val_object));
-                break;
-            case 2:
-                val = WasmEdge_ValueGenF32(getFloatVal(env, val_object));
-                break;
-            case 3:
-                val = WasmEdge_ValueGenF64(getDoubleVal(env, val_object));
-                break;
-            case 4:
-                //TODO
-                val = WasmEdge_ValueGenV128(getLongVal(env, val_object));
-                break;
-            case 5:
-                //TODO
-                val = WasmEdge_ValueGenFuncRef(getLongVal(env, val_object));
-                break;
-            case 6:
-                //TODO
-                val = WasmEdge_ValueGenExternRef(&val_object);
-                break;
-            default:
-                break;
-        }
-        wasm_params[i] = val;
-    }
-}
-
 enum WasmEdge_ValType *parseValueTypes(JNIEnv *env, jintArray jValueTypes) {
     if(jValueTypes == NULL)  {
         return NULL;

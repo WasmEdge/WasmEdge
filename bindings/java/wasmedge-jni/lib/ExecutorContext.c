@@ -2,6 +2,7 @@
 // Created by Kenvi Zhu on 2022-01-09.
 //
 
+#include <stdlib.h>
 #include "../jni/org_wasmedge_ExecutorContext.h"
 #include "wasmedge/wasmedge.h"
 #include "StatisticsContext.h"

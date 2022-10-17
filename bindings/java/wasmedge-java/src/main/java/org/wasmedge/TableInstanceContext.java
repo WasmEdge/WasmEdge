@@ -31,6 +31,6 @@ public class TableInstanceContext {
 
     public native int getSize();
 
-    public native int grow(int size);
+    public native void grow(int size);
 
 }

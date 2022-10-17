@@ -1,7 +1,7 @@
 //
 // Created by Kenvi Zhu on 2022-03-14.
 //
-
+#include <stdlib.h>
 #include "wasmedge/wasmedge.h"
 #include "jni.h"
 #include "common.h"

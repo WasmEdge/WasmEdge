@@ -82,7 +82,6 @@ public class WasmEdgeVMTest extends BaseTest {
         vm.destroy();
     }
 
-
     @Test
     public void testGetFunctionList() {
         WasmEdgeVM vm = new WasmEdgeVM(new ConfigureContext(), new StoreContext());
@@ -123,7 +122,6 @@ public class WasmEdgeVMTest extends BaseTest {
         vm.registerModuleFromImport(moduleInstanceContext);
     }
 
-
     @Test
     public void testRegisterModuleFromBuffer() {
         WasmEdgeVM vm = new WasmEdgeVM(new ConfigureContext(), new StoreContext());
@@ -147,7 +145,6 @@ public class WasmEdgeVMTest extends BaseTest {
         Assert.assertEquals(3, ((WasmEdgeI32Value) returns.get(0)).getValue());
         vm.destroy();
     }
-
 
     @Test
     public void testRegisterModuleFromAstModule() {

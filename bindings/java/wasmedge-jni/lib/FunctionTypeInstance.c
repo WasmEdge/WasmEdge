@@ -1,6 +1,7 @@
 //
 // Created by Kenvi Zhu on 2022-03-14.
 //
+#include <stdlib.h>
 #include "wasmedge/wasmedge.h"
 #include "jni.h"
 #include "common.h"
@@ -9,8 +10,8 @@
 #include "MemoryInstanceContext.h"
 #include "ValueType.h"
 
-WasmEdge_Result HostFuncWrap(void *This, void* Data, WasmEdge_MemoryInstanceContext * Mem,
-                         const WasmEdge_Value *In, const uint32_t InLen, WasmEdge_Value *Out, const uint32_t OutLen) {
+WasmEdge_Result HostFuncWrap(void *This, void* Data, const WasmEdge_CallingFrameContext * Mem,
+                         const WasmEdge_Value *In, const unsigned int InLen, WasmEdge_Value *Out, const unsigned int OutLen) {
 
     HostFuncParam * param = (HostFuncParam*)This;
     JNIEnv * env = param->env;
@@ -27,7 +28,8 @@ WasmEdge_Result HostFuncWrap(void *This, void* Data, WasmEdge_MemoryInstanceCont
 
     jmethodID funcMethod = (*env)->GetMethodID(env, jFuncClass, "apply", "(Lorg/wasmedge/MemoryInstanceContext;Ljava/util/List;Ljava/util/List;)Lorg/wasmedge/Result;");
 
-    jobject jMem = createJMemoryInstanceContext(env, Mem);
+    // TODO replace with CallingFrameContext
+    jobject jMem = createJMemoryInstanceContext(env, (WasmEdge_MemoryInstanceContext *)Mem);
 
     jobject jParams = CreateJavaArrayList(env, InLen);
 
@@ -80,10 +82,6 @@ JNIEXPORT void JNICALL Java_org_wasmedge_FunctionInstanceContext_nativeCreateFun
     setPointer(env, thisObject, (long)funcInstance);
 }
 
-JNIEXPORT void JNICALL Java_org_wasmedge_FunctionInstanceContext_nativeCreateBinding
-        (JNIEnv *env, jobject thisObject, jobject jWrapFuncType, jobject jWrapFunc, jobject jBinding, jobject jData, jlong jCost) {
-
-}
 
 jobject createJFunctionInstanceContext(JNIEnv* env, const WasmEdge_FunctionInstanceContext * funcInstance) {
 

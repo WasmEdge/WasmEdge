@@ -4,6 +4,7 @@
 
 #include <stddef.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include "wasmedge/wasmedge.h"
 #include "jni.h"
 #include "common.h"
@@ -315,7 +316,7 @@ JNIEXPORT void JNICALL Java_org_wasmedge_WasmEdgeVM_registerModuleFromBuffer
 
     WasmEdge_String wModName = WasmEdge_StringCreateByCString(modName);
 
-    WasmEdge_VMRegisterModuleFromBuffer(vm, wModName, data, size);
+    WasmEdge_VMRegisterModuleFromBuffer(vm, wModName, (unsigned char*)data, size);
     (*env)->ReleaseByteArrayElements(env, jBuff, data, size);
     (*env)->ReleaseStringUTFChars(env, jModName, modName);
     WasmEdge_StringDelete(wModName);
@@ -387,7 +388,7 @@ JNIEXPORT void JNICALL Java_org_wasmedge_WasmEdgeVM_runWasmFromBuffer
     WasmEdge_Value *returns = malloc(sizeof(WasmEdge_Value) * returnLen);
 
     //
-    WasmEdge_Result result = WasmEdge_VMRunWasmFromBuffer(vmContext, buff, size, wFuncName, wasm_params, paramLen, returns, returnLen);
+    WasmEdge_Result result = WasmEdge_VMRunWasmFromBuffer(vmContext, (uint8_t*)buff, size, wFuncName, wasm_params, paramLen, returns, returnLen);
 
     if (WasmEdge_ResultOK(result)) {
         for (int i = 0; i < returnLen; ++i) {

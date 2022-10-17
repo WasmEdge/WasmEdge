@@ -2,6 +2,7 @@
 // Created by Kenvi Zhu on 2022-01-09.
 //
 
+#include <stdlib.h>
 #include "../jni/org_wasmedge_StatisticsContext.h"
 #include "jni.h"
 #include "wasmedge/wasmedge.h"
@@ -56,7 +57,7 @@ JNIEXPORT void JNICALL Java_org_wasmedge_StatisticsContext_setCostTable
     long* data = (*env)->GetLongArrayElements(env, jCostTable, NULL);
     uint64_t* CostTable = malloc(sizeof (uint64_t) * len);
 
-    WasmEdge_StatisticsSetCostTable(statCxt, data, len);
+    WasmEdge_StatisticsSetCostTable(statCxt, (uint64_t*)data, len);
 
     (*env)->ReleaseLongArrayElements(env, jCostTable, data, len);
 }

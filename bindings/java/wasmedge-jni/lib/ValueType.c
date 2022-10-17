@@ -38,13 +38,15 @@ WasmEdge_Value JavaValueToWasmEdgeValue(JNIEnv *env, jobject jVal) {
             return WasmEdge_ValueGenExternRef(getStringVal(env, jVal));
 
         case WasmEdge_ValType_FuncRef:
-            return WasmEdge_ValueGenFuncRef(getLongVal(env, jVal));
+            return WasmEdge_ValueGenFuncRef((WasmEdge_FunctionInstanceContext *)getLongVal(env, jVal));
+            //TODO handle none type
+        case WasmEdge_ValType_None:
+            return WasmEdge_ValueGenNullRef(WasmEdge_RefType_ExternRef);
     }
 }
 
 jobject WasmEdgeValueToJavaValue(JNIEnv * env, WasmEdge_Value value) {
     const char* valClassName = NULL;
-    char* key;
     switch (value.Type) {
         case WasmEdge_ValType_I32:
             valClassName = "org/wasmedge/WasmEdgeI32Value";
@@ -55,6 +57,9 @@ jobject WasmEdgeValueToJavaValue(JNIEnv * env, WasmEdge_Value value) {
         case WasmEdge_ValType_F32:
             valClassName = "org/wasmedge/WasmEdgeF32Value";
             break;
+        case WasmEdge_ValType_V128:
+            valClassName = "org/wasmedge/WasmEdgeV128Value";
+            break;
         case WasmEdge_ValType_F64:
             valClassName = "org/wasmedge/WasmEdgeF64Value";
             break;
@@ -64,6 +69,9 @@ jobject WasmEdgeValueToJavaValue(JNIEnv * env, WasmEdge_Value value) {
         case WasmEdge_ValType_FuncRef:
             valClassName = "org/wasmedge/WasmEdgeFuncRef";
             break;
+            //TODO handle valtype none.
+        case WasmEdge_ValType_None:
+            return NULL;
     }
     jclass valClass = (*env)->FindClass(env, valClassName);
 

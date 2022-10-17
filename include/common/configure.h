@@ -110,7 +110,9 @@ class RuntimeConfigure {
 public:
   RuntimeConfigure() noexcept = default;
   RuntimeConfigure(const RuntimeConfigure &RHS) noexcept
-      : MaxMemPage(RHS.MaxMemPage.load(std::memory_order_relaxed)) {}
+      : MaxMemPage(RHS.MaxMemPage.load(std::memory_order_relaxed)),
+        ForceInterpreter(RHS.ForceInterpreter.load(std::memory_order_relaxed)) {
+  }
 
   void setMaxMemoryPage(const uint32_t Page) noexcept {
     MaxMemPage.store(Page, std::memory_order_relaxed);
@@ -120,8 +122,17 @@ public:
     return MaxMemPage.load(std::memory_order_relaxed);
   }
 
+  void setForceInterpreter(bool IsForceInterpreter) noexcept {
+    ForceInterpreter.store(IsForceInterpreter, std::memory_order_relaxed);
+  }
+
+  bool isForceInterpreter() const noexcept {
+    return ForceInterpreter.load(std::memory_order_relaxed);
+  }
+
 private:
   std::atomic<uint32_t> MaxMemPage = 65536;
+  std::atomic<bool> ForceInterpreter = false;
 };
 
 class StatisticsConfigure {

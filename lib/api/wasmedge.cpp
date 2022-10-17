@@ -732,6 +732,22 @@ WasmEdge_ConfigureGetMaxMemoryPage(const WasmEdge_ConfigureContext *Cxt) {
   return 0;
 }
 
+WASMEDGE_CAPI_EXPORT void
+WasmEdge_ConfigureSetForceInterpreter(WasmEdge_ConfigureContext *Cxt,
+                                      const bool IsForceInterpreter) {
+  if (Cxt) {
+    Cxt->Conf.getRuntimeConfigure().setForceInterpreter(IsForceInterpreter);
+  }
+}
+
+WASMEDGE_CAPI_EXPORT bool
+WasmEdge_ConfigureIsForceInterpreter(const WasmEdge_ConfigureContext *Cxt) {
+  if (Cxt) {
+    return Cxt->Conf.getRuntimeConfigure().isForceInterpreter();
+  }
+  return false;
+}
+
 WASMEDGE_CAPI_EXPORT void WasmEdge_ConfigureCompilerSetOptimizationLevel(
     WasmEdge_ConfigureContext *Cxt,
     const enum WasmEdge_CompilerOptimizationLevel Level) {
@@ -1390,10 +1406,15 @@ WASMEDGE_CAPI_EXPORT WasmEdge_CompilerContext *
 WasmEdge_CompilerCreate(const WasmEdge_ConfigureContext *ConfCxt
                         [[maybe_unused]]) {
 #ifdef WASMEDGE_BUILD_AOT_RUNTIME
+  // Set force interpreter here to load instructions of function body forcibly.
   if (ConfCxt) {
-    return new WasmEdge_CompilerContext(ConfCxt->Conf);
+    WasmEdge::Configure CopyConf(ConfCxt->Conf);
+    CopyConf.getRuntimeConfigure().setForceInterpreter(true);
+    return new WasmEdge_CompilerContext(CopyConf);
   } else {
-    return new WasmEdge_CompilerContext(WasmEdge::Configure());
+    WasmEdge::Configure CopyConf;
+    CopyConf.getRuntimeConfigure().setForceInterpreter(true);
+    return new WasmEdge_CompilerContext(CopyConf);
   }
 #else
   return nullptr;

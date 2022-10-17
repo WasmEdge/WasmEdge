@@ -172,6 +172,9 @@ int Compiler([[maybe_unused]] int Argc,
         WasmEdge::CompilerConfigure::OptimizationLevel::O2);
   }
 
+  // Set force interpreter here to load instructions of function body forcibly.
+  Conf.getRuntimeConfigure().setForceInterpreter(true);
+
   std::filesystem::path InputPath = std::filesystem::absolute(WasmName.value());
   std::filesystem::path OutputPath = std::filesystem::absolute(SoName.value());
   Loader::Loader Loader(Conf);

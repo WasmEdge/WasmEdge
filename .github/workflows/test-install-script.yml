@@ -12,6 +12,7 @@ on:
       - '.github/workflows/test-install-script.yml'
       - 'utils/install.sh'
       - 'utils/uninstall.sh'
+      - 'utils/install.py'
   pull_request:
     branches:
       - master
@@ -19,6 +20,7 @@ on:
       - '.github/workflows/test-install-script.yml'
       - 'utils/install.sh'
       - 'utils/uninstall.sh'
+      - 'utils/install.py'
 
 jobs:
   linux:
@@ -30,26 +32,50 @@ jobs:
             host_runner: ubuntu-latest
             package_manager: yum
             docker_image: quay.io/centos/centos:stream8
+            python_package: python3 python2
+            python2_ex: python2
+            python3_ex: python3
+            extra_setup_command: echo "No extra command"
           - name: CentOS 7
             host_runner: ubuntu-latest
             package_manager: yum
             docker_image: centos:7.9.2009
+            python_package: python3 python2
+            python2_ex: python2
+            python3_ex: python3
+            extra_setup_command: echo "No extra command"
           - name: Ubuntu 20.04
             host_runner: ubuntu-latest
             package_manager: apt
             docker_image: ubuntu:20.04
+            python_package: python2 python3
+            python2_ex: python2
+            python3_ex: python3
+            extra_setup_command: echo "No extra command"
           - name: Ubuntu 18.04
             host_runner: ubuntu-latest
             package_manager: apt
             docker_image: ubuntu:18.04
+            python_package: python3 python2.7
+            python2_ex: python2.7
+            python3_ex: python3
+            extra_setup_command: echo "No extra command"
           - name: Ubuntu 16.04
             host_runner: ubuntu-latest
             package_manager: apt
             docker_image: ubuntu:16.04
+            python_package: python2.7
+            python2_ex: python2.7
+            python3_ex: python3.7
+            extra_setup_command: apt update -y && apt install -y build-essential zlib1g-dev libncurses5-dev libgdbm-dev libnss3-dev libssl-dev libreadline-dev libffi-dev wget && wget https://www.python.org/ftp/python/3.7.4/Python-3.7.4.tgz && tar xzf Python-3.7.4.tgz && cd Python-3.7.4 && ./configure && make -j && make install && cd ..
           - name: manylinux2014 aarch64
             host_runner: ARM64
             package_manager: yum
             docker_image: wasmedge/wasmedge:manylinux2014_aarch64
+            python_package: python2 python3
+            python2_ex: python2
+            python3_ex: python3
+            extra_setup_command: echo "No extra command"
     name: ${{ matrix.name }}
     runs-on: ${{ matrix.host_runner }}
     container:
@@ -60,10 +86,14 @@ jobs:
       with:
         fetch-depth: 0
 
-    - name: Install git and wget
+    - name: Install git and curl
       run: |
+        ${{ matrix.extra_setup_command }}
         ${{ matrix.package_manager }} update -y
         ${{ matrix.package_manager }} install -y git curl
+    - name: Install Python
+      run: |
+        ${{ matrix.package_manager }} install -y ${{ matrix.python_package }}
     - name: Install WasmEdge latest release
       run: |
         bash utils/install.sh -V
@@ -143,63 +173,6 @@ jobs:
         ls ~/new_wasmedge/plugin/ | grep .so && echo "Pass: Plugins found" || (echo "Fail: Plugins not found" && exit 1)
         bash utils/install.sh -v 0.10.0-alpha.1 -p /usr
         ls /usr/lib/wasmedge/ | grep libwasmedgePluginWasmEdgeProcess.so && echo "Pass: Plugins found" || (echo "Fail: Plugins not found" && exit 1)
-    - name: Image Extensions - Version Based Conditions check
-      run: |
-        VERSION_IM_DEPS=0.9.1
-        # arch64
-        [ "$(printf %s\\n%s\\n "0.9.1-beta.1" "$VERSION_IM_DEPS")" != "$(printf %s\\n%s "0.9.1-beta.1" "$VERSION_IM_DEPS" | awk '{ if ($1 ~ /-/) print; else print $0"_" ; }' | sort --version-sort | sed 's/_$//')" ] &&
-          (echo "Fail: Sort failed" && exit 1) || echo "Pass: Extensions Compatible"
-        
-        VERSION_IM_DEPS=0.9.1-rc.1
-        # arch64
-        [ "$(printf %s\\n%s\\n "0.9.1-beta.1" "$VERSION_IM_DEPS")" != "$(printf %s\\n%s "0.9.1-beta.1" "$VERSION_IM_DEPS" | awk '{ if ($1 ~ /-/) print; else print $0"_" ; }' | sort --version-sort | sed 's/_$//')" ] &&
-          (echo "Fail: Sort failed" && exit 1) || echo "Pass: Extensions Compatible"
-        
-        VERSION_IM_DEPS=0.9.1-beta.2
-        # arch64
-        [ "$(printf %s\\n%s\\n "0.9.1-beta.1" "$VERSION_IM_DEPS")" != "$(printf %s\\n%s "0.9.1-beta.1" "$VERSION_IM_DEPS" | awk '{ if ($1 ~ /-/) print; else print $0"_" ; }' | sort --version-sort | sed 's/_$//')" ] &&
-          (echo "Fail: Sort failed" && exit 1) || echo "Pass: Extensions Compatible"
-        
-        VERSION_IM_DEPS=0.9.1-alpha.1
-        # arch64
-        [ "$(printf %s\\n%s\\n "0.9.1-beta.1" "$VERSION_IM_DEPS")" != "$(printf %s\\n%s "0.9.1-beta.1" "$VERSION_IM_DEPS" | awk '{ if ($1 ~ /-/) print; else print $0"_" ; }' | sort --version-sort | sed 's/_$//')" ] &&
-          echo "Pass: Extensions incompatible" || (echo "Fail: Extensions Compatible" && exit 1)
-
-        VERSION_IM_DEPS=0.8.1
-        # Normal Test
-        [ "$(printf %s\\n%s\\n "$VERSION_IM_DEPS" "0.8.2")" = "$(printf %s\\n%s "$VERSION_IM_DEPS" "0.8.2" | awk '{ if ($1 ~ /-/) print; else print $0"_" ; }' | sort --version-sort | sed 's/_$//')" ] &&
-          echo "Pass: Image deps needed" || (echo "Fail: Image deps needed" && exit 1)
-        
-        VERSION_IM_DEPS=0.8.3
-        # Normal Test
-        [ "$(printf %s\\n%s\\n "$VERSION_IM_DEPS" "0.8.2")" = "$(printf %s\\n%s "$VERSION_IM_DEPS" "0.8.2" | awk '{ if ($1 ~ /-/) print; else print $0"_" ; }' | sort --version-sort | sed 's/_$//')" ] &&
-          (echo "Fail: Image deps not needed" && exit 1) || echo "Pass: Image deps not needed"
-
-        VERSION_IM_DEPS=0.8.2
-        # Normal Test
-        [ "$(printf %s\\n%s\\n "$VERSION_IM_DEPS" "0.8.2")" = "$(printf %s\\n%s "$VERSION_IM_DEPS" "0.8.2" | awk '{ if ($1 ~ /-/) print; else print $0"_" ; }' | sort --version-sort | sed 's/_$//')" ] &&
-          echo "Pass: Image Needed" || (echo "Fail: Image deps needed" && exit 1)
-    - name: Tensorflow Extensions - Version Based Conditions check
-      run: |
-        VERSION_TF_DEPS=0.9.1
-        # arch64
-        [ "$(printf %s\\n%s\\n "0.9.1-beta.1" "$VERSION_TF_DEPS")" != "$(printf %s\\n%s "0.9.1-beta.1" "$VERSION_TF_DEPS" | awk '{ if ($1 ~ /-/) print; else print $0"_" ; }' | sort --version-sort | sed 's/_$//')" ] &&
-          (echo "Fail: Sort failed" && exit 1) || echo "Pass: Extensions Compatible"
-        
-        VERSION_TF_DEPS=0.9.1-rc.1
-        # arch64
-        [ "$(printf %s\\n%s\\n "0.9.1-beta.1" "$VERSION_TF_DEPS")" != "$(printf %s\\n%s "0.9.1-beta.1" "$VERSION_TF_DEPS" | awk '{ if ($1 ~ /-/) print; else print $0"_" ; }' | sort --version-sort | sed 's/_$//')" ] &&
-          (echo "Fail: Sort failed" && exit 1) || echo "Pass: Extensions Compatible"
-        
-        VERSION_TF_DEPS=0.9.1-beta.2
-        # arch64
-        [ "$(printf %s\\n%s\\n "0.9.1-beta.1" "$VERSION_TF_DEPS")" != "$(printf %s\\n%s "0.9.1-beta.1" "$VERSION_TF_DEPS" | awk '{ if ($1 ~ /-/) print; else print $0"_" ; }' | sort --version-sort | sed 's/_$//')" ] &&
-          (echo "Fail: Sort failed" && exit 1) || echo "Pass: Extensions Compatible"
-        
-        VERSION_TF_DEPS=0.9.1-alpha.1
-        # arch64
-        [ "$(printf %s\\n%s\\n "0.9.1-beta.1" "$VERSION_TF_DEPS")" != "$(printf %s\\n%s "0.9.1-beta.1" "$VERSION_TF_DEPS" | awk '{ if ($1 ~ /-/) print; else print $0"_" ; }' | sort --version-sort | sed 's/_$//')" ] &&
-          echo "Pass: Extensions incompatible" || (echo "Fail: Sort failed" && exit 1)
     - name: Latest Release Check
       run: |
         _res_git_=$(git ls-remote --refs --tags "https://github.com/WasmEdge/WasmEdge.git" | cut -d '/' -f 3 | awk '{ if ($1 ~ /-/) print; else print $0"_" ; }' | sort --version-sort | sed 's/_$//' | grep -e '^[0-9]\+.[0-9]\+.[0-9]\+$' | tail -1)
@@ -256,58 +229,9 @@ jobs:
         # MacOS container does not have access for /usr directory
         # bash utils/install.sh -v 0.10.0-alpha.1 -p /usr
         # ls /usr/lib/wasmedge/ | grep libwasmedgePluginWasmEdgeProcess.dylib && echo "Pass: Plugins found" || (echo "Fail: Plugins not found" && exit 1)
-    - name: Image Extensions - Version Based Conditions check
-      run: |
-        VERSION_IM_DEPS=0.10.0
-        # Darwin test
-        [ "$(printf %s\\n%s\\n "0.10.0-alpha.1" "$VERSION_IM_DEPS")" != "$(printf %s\\n%s "0.10.0-alpha.1" "$VERSION_IM_DEPS" | awk '{ if ($1 ~ /-/) print; else print $0"_" ; }' | sort --version-sort | sed 's/_$//')" ] &&
-          (echo "Fail: Sort failed" && exit 1) || echo "Pass: Extensions Compatible"
-        
-        VERSION_IM_DEPS=0.10.0-alpha.2
-        # Darwin test
-        [ "$(printf %s\\n%s\\n "0.10.0-alpha.1" "$VERSION_IM_DEPS")" != "$(printf %s\\n%s "0.10.0-alpha.1" "$VERSION_IM_DEPS" | awk '{ if ($1 ~ /-/) print; else print $0"_" ; }' | sort --version-sort | sed 's/_$//')" ] &&
-          (echo "Fail: Sort failed" && exit 1) || echo "Pass: Extensions Compatible"
-        
-        VERSION_IM_DEPS=0.9.1
-        # Darwin test
-        [ "$(printf %s\\n%s\\n "0.10.0-alpha.1" "$VERSION_IM_DEPS")" != "$(printf %s\\n%s "0.10.0-alpha.1" "$VERSION_IM_DEPS" | awk '{ if ($1 ~ /-/) print; else print $0"_" ; }' | sort --version-sort | sed 's/_$//')" ] &&
-          echo "Pass: Extensions incompatible" || (echo "Fail: Extensions Compatible"  && exit 1)
-    - name: Tensorflow Extensions - Version Based Conditions check
-      run: |
-        VERSION_TF=0.10.0-alpha.1
-        # Darwin
-        [ "$(printf %s\\n%s\\n "0.10.0-alpha.1" "$VERSION_TF")" != "$(printf %s\\n%s "0.10.0-alpha.1" "$VERSION_TF" | awk '{ if ($1 ~ /-/) print; else print $0"_" ; }' | sort --version-sort | sed 's/_$//')" ] &&
-        (echo "Fail: Extensions incompatible" && exit 1) || echo "Pass: Extensions compatible"
-
-        VERSION_TF=0.10.0-alpha.2
-        # Darwin
-        [ "$(printf %s\\n%s\\n "0.10.0-alpha.1" "$VERSION_TF")" != "$(printf %s\\n%s "0.10.0-alpha.1" "$VERSION_TF" | awk '{ if ($1 ~ /-/) print; else print $0"_" ; }' | sort --version-sort | sed 's/_$//')" ] &&
-        (echo "Fail: Extensions incompatible" && exit 1) || echo "Pass: Extensions compatible"
-
-        VERSION_TF=0.10.0-rc.1
-        # Darwin
-        [ "$(printf %s\\n%s\\n "0.10.0-alpha.1" "$VERSION_TF")" != "$(printf %s\\n%s "0.10.0-alpha.1" "$VERSION_TF" | awk '{ if ($1 ~ /-/) print; else print $0"_" ; }' | sort --version-sort | sed 's/_$//')" ] &&
-        (echo "Fail: Extensions incompatible" && exit 1) || echo "Pass: Extensions compatible"
-
-        VERSION_TF=0.10.0
-        # Darwin
-        [ "$(printf %s\\n%s\\n "0.10.0-alpha.1" "$VERSION_TF")" != "$(printf %s\\n%s "0.10.0-alpha.1" "$VERSION_TF" | awk '{ if ($1 ~ /-/) print; else print $0"_" ; }' | sort --version-sort | sed 's/_$//')" ] &&
-        (echo "Fail: Extensions incompatible" && exit 1) || echo "Pass: Extensions compatible"
-
-        VERSION_TF=0.9.1
-        # Darwin
-        [ "$(printf %s\\n%s\\n "0.10.0-alpha.1" "$VERSION_TF")" != "$(printf %s\\n%s "0.10.0-alpha.1" "$VERSION_TF" | awk '{ if ($1 ~ /-/) print; else print $0"_" ; }' | sort --version-sort | sed 's/_$//')" ] &&
-        echo "Pass: Extensions incompatible" || (echo "Fail: Extensions Compatible" && exit 1)
     - name: Latest Release Check
       run: |
         _res_git_=$(git ls-remote --refs --tags "https://github.com/WasmEdge/WasmEdge.git" | cut -d '/' -f 3 | awk '{ if ($1 ~ /-/) print; else print $0"_" ; }' | sort --version-sort | sed 's/_$//' | grep -e '^[0-9]\+.[0-9]\+.[0-9]\+$' | tail -1)
         _res_curl_=$(curl --silent "https://api.github.com/repos/WasmEdge/WasmEdge/releases/latest" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/' )
         [ "$_res_git_" = "$_res_curl_" ] && echo "Pass: Fetched version equals release" ||
         (echo "Fail: Fetched version does not equal GitHub Ref\nFetched:$_res_git_\nCI:$_res_curl_" && exit 1)
-
-    - name: Ignore brew option check
-      run: |
-        NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/uninstall.sh)"
-        echo $(bash utils/install.sh -V) | grep "Brew is required" && echo "Pass:It requires brew" ||
-          echo "Fail:It should exit with error"
-        bash utils/install.sh -V --ignore-brew

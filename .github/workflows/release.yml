@@ -26,7 +26,7 @@ jobs:
       upload_url: ${{ steps.create_release.outputs.upload_url }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       - name: Get version
         id: prep
         run: |
@@ -141,7 +141,7 @@ jobs:
       image: wasmedge/wasmedge:latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       - name: Build WasmEdge WASI-NN ${{ matrix.backend }} plugin
         shell: bash
         if: contains(matrix.name, 'WASI-NN')
@@ -245,7 +245,7 @@ jobs:
       image: wasmedge/wasmedge:${{ matrix.docker_tag }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       - name: Build ${{ matrix.name }} dependency
         run: |
           bash ${{ matrix.deps_path }}
@@ -277,7 +277,7 @@ jobs:
       image: wasmedge/wasmedge:manylinux2014_x86_64
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       - name: Build runtime only manylinux2014 package
         run: |
           bash utils/docker/build-manylinux.sh -DWASMEDGE_BUILD_AOT_RUNTIME=OFF
@@ -303,7 +303,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       - name: Prepare tarball
         uses: actions/download-artifact@v3
         with:

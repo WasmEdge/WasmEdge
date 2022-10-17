@@ -22,7 +22,7 @@ jobs:
         run: |
           dnf update -y
           dnf install -y git gcc-c++ cmake ninja-build boost-devel spdlog-devel llvm-devel lld-devel rpm-build
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           fetch-depth: 0
       - name: Prepare source tarball for SRPM

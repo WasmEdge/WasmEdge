@@ -932,7 +932,8 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
   }
 }
 
-Expect<void> Loader::checkInstrProposals(OpCode Code, uint64_t Offset) {
+Expect<void> Loader::checkInstrProposals(OpCode Code,
+                                         uint64_t Offset) const noexcept {
   if (Code >= OpCode::I32__trunc_sat_f32_s &&
       Code <= OpCode::I64__trunc_sat_f64_u) {
     // These instructions are for NonTrapFloatToIntConversions proposal.

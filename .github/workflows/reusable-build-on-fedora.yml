@@ -22,7 +22,7 @@ jobs:
         run: |
           dnf update -y
           dnf install -y cmake ninja-build boost llvm llvm-devel lld-devel clang git file rpm-build dpkg-dev
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           fetch-depth: 0
       - name: Build WasmEdge

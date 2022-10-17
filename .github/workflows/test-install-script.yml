@@ -35,7 +35,7 @@ jobs:
             python_package: python3 python2
             python2_ex: python2
             python3_ex: python3
-            extra_setup_command: echo "No extra command"
+            extra_setup_command: yum install -y which
           - name: CentOS 7
             host_runner: ubuntu-latest
             package_manager: yum
@@ -43,7 +43,7 @@ jobs:
             python_package: python3 python2
             python2_ex: python2
             python3_ex: python3
-            extra_setup_command: echo "No extra command"
+            extra_setup_command: yum install -y which
           - name: Ubuntu 20.04
             host_runner: ubuntu-latest
             package_manager: apt
@@ -96,25 +96,25 @@ jobs:
         ${{ matrix.package_manager }} install -y ${{ matrix.python_package }}
     - name: Install WasmEdge latest release
       run: |
-        bash utils/install.sh -V
+        bash utils/install.sh -D
     - name: Uninstall WasmEdge
       run: |
         bash utils/uninstall.sh -q -V
     - name: Install WasmEdge latest release with all extensions
       run: |
-        bash utils/install.sh -e all -V
+        bash utils/install.sh -e all -D
     - name: Uninstall WasmEdge with all extensions
       run: |
         bash utils/uninstall.sh -q -V
     - name: Install WasmEdge specific release (0.8.2)
       run: |
-        bash utils/install.sh -v 0.8.2 -V
+        bash utils/install.sh -v 0.8.2 -D
     - name: Uninstall WasmEdge
       run: |
         bash utils/uninstall.sh -q -V
     - name: Install WasmEdge specific release (0.8.2) with all extensions
       run: |
-        bash utils/install.sh -e all -v 0.8.2 -V
+        bash utils/install.sh -e all -v 0.8.2 -D
     - name: Install WasmEdge and test for arm extension installation
       run: |
         bash utils/install.sh -e all --version=0.9.1-beta.1 \
@@ -153,9 +153,9 @@ jobs:
         bash utils/uninstall.sh -q -V
     - name: Install versions multiple times
       run: |
-        bash utils/install.sh -e all -V
-        bash utils/install.sh -e all -v 0.9.0-rc.1 -V
-        bash utils/install.sh -e all -v 0.8.1 -V
+        bash utils/install.sh -e all -D
+        bash utils/install.sh -e all -v 0.9.0-rc.1 -D
+        bash utils/install.sh -e all -v 0.8.1 -D
     - name: Uninstall WasmEdge with Image extensions
       run: |
         bash utils/uninstall.sh -q -V
@@ -172,7 +172,7 @@ jobs:
         bash utils/install.sh -v 0.10.0-alpha.1 -p ~/new_wasmedge
         ls ~/new_wasmedge/plugin/ | grep .so && echo "Pass: Plugins found" || (echo "Fail: Plugins not found" && exit 1)
         bash utils/install.sh -v 0.10.0-alpha.1 -p /usr
-        ls /usr/lib/wasmedge/ | grep libwasmedgePluginWasmEdgeProcess.so && echo "Pass: Plugins found" || (echo "Fail: Plugins not found" && exit 1)
+        ls /usr/lib64/wasmedge/ | grep libwasmedgePluginWasmEdgeProcess.so && echo "Pass: Plugins found" || (echo "Fail: Plugins not found" && exit 1)
     - name: Latest Release Check
       run: |
         _res_git_=$(git ls-remote --refs --tags "https://github.com/WasmEdge/WasmEdge.git" | cut -d '/' -f 3 | awk '{ if ($1 ~ /-/) print; else print $0"_" ; }' | sort --version-sort | sed 's/_$//' | grep -e '^[0-9]\+.[0-9]\+.[0-9]\+$' | tail -1)
@@ -198,25 +198,25 @@ jobs:
 
     - name: Install WasmEdge latest release
       run: |
-        bash utils/install.sh -V
+        bash utils/install.sh -D
     - name: Uninstall WasmEdge
       run: |
         bash utils/uninstall.sh -q -V
     - name: Install WasmEdge latest release with all extensions
       run: |
-        bash utils/install.sh -e all -V
+        bash utils/install.sh -e all -D
     - name: Uninstall WasmEdge with all extensions
       run: |
         bash utils/uninstall.sh -q -V
     - name: Install WasmEdge specific release (0.8.2)
       run: |
-        bash utils/install.sh -v 0.8.2 -V
+        bash utils/install.sh -v 0.8.2 -D
     - name: Uninstall WasmEdge
       run: |
         bash utils/uninstall.sh -q -V
     - name: Install WasmEdge specific release (0.8.2) with all extensions
       run: |
-        bash utils/install.sh -e all -v 0.8.2 -V
+        bash utils/install.sh -e all -v 0.8.2 -D
     - name: Uninstall WasmEdge with all extensions
       run: |
         bash utils/uninstall.sh -q -V

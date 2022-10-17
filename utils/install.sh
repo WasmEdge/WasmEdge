@@ -15,6 +15,12 @@ fi
 
 main() {
     if [ "$PYTHON_EXECUTABLE" = "" ]; then
+        if ! command -v which &>/dev/null; then
+            echo "${RED}Please install python or provide python path:"
+            echo "PYTHON_EXECUTABLE=<path> install.sh"
+            echo "Please install which${NC}"
+            exit 1
+        fi
         if command -v python3 &>/dev/null; then
             PYTHON_EXECUTABLE="$(which python3)"
         elif command -v python2 &>/dev/null; then

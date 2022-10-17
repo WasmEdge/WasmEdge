@@ -35,7 +35,7 @@ jobs:
             python_package: python3 python2
             python2_ex: python2
             python3_ex: python3
-            extra_setup_command: echo "No extra command"
+            extra_setup_command: yum install -y which
           - name: CentOS 7
             host_runner: ubuntu-latest
             package_manager: yum
@@ -43,7 +43,7 @@ jobs:
             python_package: python3 python2
             python2_ex: python2
             python3_ex: python3
-            extra_setup_command: echo "No extra command"
+            extra_setup_command: yum install -y which
           - name: Ubuntu 20.04
             host_runner: ubuntu-latest
             package_manager: apt

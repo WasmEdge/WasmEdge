@@ -108,6 +108,11 @@ void Environ::fini() noexcept {
   EnvironVariables.clear();
   Arguments.clear();
   FdMap.clear();
+  EpollSet.clear();
+  if (epoll_fd >= 0) {
+    close(epoll_fd);
+    epoll_fd = -1;
+  }
 }
 
 Environ::~Environ() noexcept { fini(); }

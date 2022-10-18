@@ -50,7 +50,8 @@ namespace WASI {
 struct FdHolder {
   FdHolder(const FdHolder &) = delete;
   FdHolder &operator=(const FdHolder &) = delete;
-  FdHolder(FdHolder &&RHS) noexcept : Fd(std::exchange(RHS.Fd, -1)) {}
+  FdHolder(FdHolder &&RHS) noexcept
+      : Fd(std::exchange(RHS.Fd, -1)), cleanup(RHS.cleanup) {}
   FdHolder &operator=(FdHolder &&RHS) noexcept {
     using std::swap;
     swap(Fd, RHS.Fd);
@@ -58,8 +59,13 @@ struct FdHolder {
   }
 
   constexpr FdHolder() noexcept = default;
-  ~FdHolder() noexcept { reset(); }
-  explicit constexpr FdHolder(int Fd) noexcept : Fd(Fd) {}
+  ~FdHolder() noexcept {
+    if (cleanup) {
+      reset();
+    }
+  }
+  explicit constexpr FdHolder(int Fd, bool cleanup = true) noexcept
+      : Fd(Fd), cleanup(cleanup) {}
   constexpr bool ok() const noexcept { return Fd >= 0; }
   void reset() noexcept;
   int release() noexcept { return std::exchange(Fd, -1); }
@@ -67,7 +73,9 @@ struct FdHolder {
     reset();
     Fd = NewFd;
   }
+  int getFd() noexcept { return Fd; }
   int Fd = -1;
+  bool cleanup = true;
 };
 
 struct DirHolder {
@@ -160,6 +168,7 @@ struct HandleHolder {
 #endif
 
 class Poller;
+class Epoller;
 
 class INode
 #if WASMEDGE_OS_LINUX || WASMEDGE_OS_MACOS
@@ -503,6 +512,15 @@ public:
   /// @return Poll helper or WASI error
   static WasiExpect<Poller> pollOneoff(__wasi_size_t NSubscriptions) noexcept;
 
+  /// Concurrently poll for the occurrence of a set of events in edge-triggered
+  /// mode.
+  ///
+  /// @param[in] NSubscriptions Both the number of subscriptions and events.
+  /// @param[in] Fd The epoll descriptor.
+  /// @return Poll helper or WASI error
+  static WasiExpect<Epoller> epollOneoff(__wasi_size_t NSubscriptions,
+                                         int Fd) noexcept;
+
   static WasiExpect<void>
   getAddrinfo(std::string_view NodeStr, std::string_view ServiceStr,
               const __wasi_addrinfo_t &Hint, uint32_t MaxResLength,
@@ -670,6 +688,70 @@ public:
   WasiExpect<void> write(const INode &Fd, __wasi_userdata_t UserData) noexcept;
 
   WasiExpect<void> wait(CallbackType Callback) noexcept;
+
+private:
+  std::vector<__wasi_event_t> Events;
+
+#if WASMEDGE_OS_LINUX
+private:
+  struct Timer : public FdHolder {
+    Timer(const Timer &) = delete;
+    Timer &operator=(const Timer &) = delete;
+    Timer(Timer &&RHS) noexcept = default;
+    Timer &operator=(Timer &&RHS) noexcept = default;
+    constexpr Timer() noexcept = default;
+
+    WasiExpect<void> create(__wasi_clockid_t Clock, __wasi_timestamp_t Timeout,
+                            __wasi_timestamp_t Precision,
+                            __wasi_subclockflags_t Flags) noexcept;
+
+#if !__GLIBC_PREREQ(2, 8)
+    FdHolder Notify;
+    TimerHolder TimerId;
+#endif
+  };
+
+  struct FdData {
+    uint32_t Events = 0;
+    uint32_t ReadIndex = std::numeric_limits<uint32_t>::max();
+    uint32_t WriteIndex = std::numeric_limits<uint32_t>::max();
+    constexpr FdData(uint32_t E) noexcept : Events(E) {}
+  };
+
+  std::vector<Timer> Timers;
+  std::unordered_map<int, FdData> FdDatas;
+#endif
+};
+
+class Epoller
+#if WASMEDGE_OS_LINUX || WASMEDGE_OS_MACOS
+    : public FdHolder
+#endif
+{
+public:
+  using CallbackType =
+      std::function<void(__wasi_userdata_t, __wasi_errno_t, __wasi_eventtype_t,
+                         __wasi_filesize_t, __wasi_eventrwflags_t)>;
+  Epoller(const Epoller &) = delete;
+  Epoller &operator=(const Epoller &) = delete;
+  Epoller(Epoller &&RHS) noexcept = default;
+  Epoller &operator=(Epoller &&RHS) noexcept = default;
+
+  explicit Epoller(__wasi_size_t Count, int fd = -1);
+
+  WasiExpect<void> clock(__wasi_clockid_t Clock, __wasi_timestamp_t Timeout,
+                         __wasi_timestamp_t Precision,
+                         __wasi_subclockflags_t Flags,
+                         __wasi_userdata_t UserData) noexcept;
+
+  WasiExpect<void> read(const INode &Fd, __wasi_userdata_t UserData,
+                        std::unordered_map<int, uint32_t> &EpollSet) noexcept;
+
+  WasiExpect<void> write(const INode &Fd, __wasi_userdata_t UserData,
+                         std::unordered_map<int, uint32_t> &EpollSet) noexcept;
+
+  WasiExpect<void> wait(CallbackType Callback,
+                        std::unordered_map<int, uint32_t> &EpollSet) noexcept;
 
 private:
   std::vector<__wasi_event_t> Events;

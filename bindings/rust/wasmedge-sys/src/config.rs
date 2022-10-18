@@ -745,7 +745,7 @@ impl Config {
     /// # Argument
     ///
     /// * `enable` - Whether the option turns on or not.
-    pub fn multi_memories(&self, enable: bool) {
+    pub fn multi_memories(&mut self, enable: bool) {
         unsafe {
             if enable {
                 ffi::WasmEdge_ConfigureAddProposal(
@@ -766,6 +766,20 @@ impl Config {
         unsafe {
             ffi::WasmEdge_ConfigureHasProposal(self.inner.0, ffi::WasmEdge_Proposal_MultiMemories)
         }
+    }
+
+    /// Enables or disables the `ForceInterpreter` option.
+    ///
+    /// # Argument
+    ///
+    /// * `enable` - Whether the option turns on or not.
+    pub fn interpreter_mode(&mut self, enable: bool) {
+        unsafe { ffi::WasmEdge_ConfigureSetForceInterpreter(self.inner.0, enable) }
+    }
+
+    /// Checks if the `ForceInterpreter` option turns on or not.
+    pub fn force_interpreter_mode_enabled(&self) -> bool {
+        unsafe { ffi::WasmEdge_ConfigureIsForceInterpreter(self.inner.0) }
     }
 
     // For AOT compiler

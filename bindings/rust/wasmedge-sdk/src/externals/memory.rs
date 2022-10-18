@@ -94,7 +94,7 @@ impl Memory {
     pub fn read_string(&self, offset: u32, len: u32) -> WasmEdgeResult<String> {
         let slice = self.read(offset, len)?;
         Ok(std::str::from_utf8(&slice)
-            .map_err(|e| WasmEdgeError::Utf8(e))?
+            .map_err(WasmEdgeError::Utf8)?
             .to_string())
     }
 

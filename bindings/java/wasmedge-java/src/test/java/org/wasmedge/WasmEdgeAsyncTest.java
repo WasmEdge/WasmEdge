@@ -23,6 +23,7 @@ public class WasmEdgeAsyncTest extends BaseTest{
         WasmEdgeAsync async = vm.asyncRunWasmFromFile(getResourcePath(FIB_WASM_PATH), FUNC_NAME, params);
         async.wasmEdge_AsyncGet(returns);
         Assert.assertEquals(3, ((WasmEdgeI32Value) returns.get(0)).getValue());
+        async.wasmEdge_AsyncDelete();
         vm.destroy();
     }
 
@@ -75,6 +76,7 @@ public class WasmEdgeAsyncTest extends BaseTest{
         WasmEdgeAsync async = vm.asyncRunWasmFromFile(getResourcePath(FIB_WASM_PATH), FUNC_NAME, params);
         boolean isEnd = async.wasmEdge_AsyncWaitFor(100);
         Assert.assertEquals(true, isEnd);
+        async.wasmEdge_AsyncDelete();
         vm.destroy();
     }
 
@@ -92,6 +94,9 @@ public class WasmEdgeAsyncTest extends BaseTest{
         WasmEdgeAsync async = vm.asyncRunWasmFromFile(getResourcePath(FIB_WASM_PATH), FUNC_NAME, params);
         boolean isEnd = async.wasmEdge_AsyncWaitFor(100);
         Assert.assertEquals(false, isEnd);
+        if (!isEnd){
+            async.wasmEdge_AsyncCancel();
+        }
         vm.destroy();
     }
 

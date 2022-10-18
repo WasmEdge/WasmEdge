@@ -1,4 +1,4 @@
-name: "Witx"
+name: "Verify Witx"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}

@@ -1,4 +1,4 @@
-name: Build and Test WasmEdge with extensions on multiple platforms
+name: Test WasmEdge extensions
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}

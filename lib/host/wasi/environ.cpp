@@ -108,11 +108,13 @@ void Environ::fini() noexcept {
   EnvironVariables.clear();
   Arguments.clear();
   FdMap.clear();
-  EpollSet.clear();
-  if (epoll_fd >= 0) {
-    close(epoll_fd);
-    epoll_fd = -1;
+  Registration.clear();
+#if WASMEDGE_OS_LINUX || WASMEDGE_OS_MACOS
+  if (RegistrationFd >= 0) {
+    close(RegistrationFd);
+    RegistrationFd = -1;
   }
+#endif
 }
 
 Environ::~Environ() noexcept { fini(); }

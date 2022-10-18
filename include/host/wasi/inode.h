@@ -12,13 +12,10 @@
 #include <string_view>
 #include <vector>
 
-#if WASMEDGE_OS_LINUX
-#include <unordered_map>
-#endif
-
 #if WASMEDGE_OS_LINUX || WASMEDGE_OS_MACOS
 #include <dirent.h>
 #include <sys/stat.h>
+#include <unordered_map>
 
 #include <boost/align/aligned_allocator.hpp>
 #endif
@@ -737,21 +734,28 @@ public:
   Epoller(Epoller &&RHS) noexcept = default;
   Epoller &operator=(Epoller &&RHS) noexcept = default;
 
-  explicit Epoller(__wasi_size_t Count, int fd = -1);
+  explicit Epoller(__wasi_size_t Count, int Fd = -1);
 
   WasiExpect<void> clock(__wasi_clockid_t Clock, __wasi_timestamp_t Timeout,
                          __wasi_timestamp_t Precision,
                          __wasi_subclockflags_t Flags,
                          __wasi_userdata_t UserData) noexcept;
 
-  WasiExpect<void> read(const INode &Fd, __wasi_userdata_t UserData,
-                        std::unordered_map<int, uint32_t> &EpollSet) noexcept;
+  WasiExpect<void>
+  read(const INode &Fd, __wasi_userdata_t UserData,
+       std::unordered_map<int, uint32_t> &Registration) noexcept;
 
-  WasiExpect<void> write(const INode &Fd, __wasi_userdata_t UserData,
-                         std::unordered_map<int, uint32_t> &EpollSet) noexcept;
+  WasiExpect<void>
+  write(const INode &Fd, __wasi_userdata_t UserData,
+        std::unordered_map<int, uint32_t> &Registration) noexcept;
 
-  WasiExpect<void> wait(CallbackType Callback,
-                        std::unordered_map<int, uint32_t> &EpollSet) noexcept;
+  WasiExpect<void>
+  wait(CallbackType Callback,
+       std::unordered_map<int, uint32_t> &Registration) noexcept;
+
+#if WASMEDGE_OS_WINDOWS
+  int getFd() noexcept { return -1; }
+#endif
 
 private:
   std::vector<__wasi_event_t> Events;

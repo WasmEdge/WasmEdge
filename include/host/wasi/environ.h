@@ -1103,8 +1103,8 @@ private:
   std::unordered_map<__wasi_fd_t, std::shared_ptr<VINode>> FdMap;
 
   // unique epoll fd;
-  int epoll_fd = -1;
-  std::unordered_map<int, uint32_t> EpollSet;
+  int RegistrationFd = -1;
+  std::unordered_map<int, uint32_t> Registration;
 
   friend class EVPoller;
   friend class EVEpoller;
@@ -1189,7 +1189,7 @@ public:
     if (unlikely(!Node)) {
       return WasiUnexpect(__WASI_ERRNO_BADF);
     } else {
-      return VEpoller::read(Node, UserData, Env.EpollSet);
+      return VEpoller::read(Node, UserData, Env.Registration);
     }
   }
 
@@ -1198,11 +1198,11 @@ public:
     if (unlikely(!Node)) {
       return WasiUnexpect(__WASI_ERRNO_BADF);
     } else {
-      return VEpoller::write(Node, UserData, Env.EpollSet);
+      return VEpoller::write(Node, UserData, Env.Registration);
     }
   }
   WasiExpect<void> wait(CallbackType Callback) noexcept {
-    return VEpoller::wait(Callback, Env.EpollSet);
+    return VEpoller::wait(Callback, Env.Registration);
   }
 
   int getFd() noexcept { return VEpoller::getFd(); }
@@ -1221,10 +1221,9 @@ Environ::pollOneoff(__wasi_size_t NSubscriptions) noexcept {
 inline WasiExpect<EVEpoller>
 Environ::epollOneoff(__wasi_size_t NSubscriptions) noexcept {
   auto evepoller =
-      VINode::epollOneoff(NSubscriptions, epoll_fd).map([this](VEpoller &&P) {
-        return EVEpoller(std::move(P), *this);
-      });
-  epoll_fd = evepoller.value().getFd();
+      VINode::epollOneoff(NSubscriptions, RegistrationFd)
+          .map([this](VEpoller &&P) { return EVEpoller(std::move(P), *this); });
+  RegistrationFd = evepoller.value().getFd();
   return evepoller;
 }
 

@@ -783,22 +783,25 @@ public:
 
   VEpoller(Epoller &&P) : Epoller(std::move(P)) {}
 
-  WasiExpect<void> read(std::shared_ptr<VINode> Fd, __wasi_userdata_t UserData,
-                        std::unordered_map<int, uint32_t> &EpollSet) noexcept {
+  WasiExpect<void>
+  read(std::shared_ptr<VINode> Fd, __wasi_userdata_t UserData,
+       std::unordered_map<int, uint32_t> &Registration) noexcept {
     if (!Fd->can(__WASI_RIGHTS_POLL_FD_READWRITE) &&
         !Fd->can(__WASI_RIGHTS_FD_READ)) {
       return WasiUnexpect(__WASI_ERRNO_NOTCAPABLE);
     }
-    return Epoller::read(Fd->Node, UserData, EpollSet);
+    return Epoller::read(Fd->Node, UserData, Registration);
   }
 
-  WasiExpect<void> write(std::shared_ptr<VINode> Fd, __wasi_userdata_t UserData,
-                         std::unordered_map<int, uint32_t> &EpollSet) noexcept {
-    return Epoller::write(Fd->Node, UserData, EpollSet);
+  WasiExpect<void>
+  write(std::shared_ptr<VINode> Fd, __wasi_userdata_t UserData,
+        std::unordered_map<int, uint32_t> &Registration) noexcept {
+    return Epoller::write(Fd->Node, UserData, Registration);
   }
-  WasiExpect<void> wait(CallbackType Callback,
-                        std::unordered_map<int, uint32_t> &EpollSet) noexcept {
-    return Epoller::wait(Callback, EpollSet);
+  WasiExpect<void>
+  wait(CallbackType Callback,
+       std::unordered_map<int, uint32_t> &Registration) noexcept {
+    return Epoller::wait(Callback, Registration);
   }
   int getFd() noexcept { return Epoller::getFd(); }
 };

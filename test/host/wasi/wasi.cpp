@@ -1195,6 +1195,7 @@ TEST(WasiTest, PollOneoffSocket) {
   Server.join();
 }
 
+#if WASMEDGE_OS_LINUX
 TEST(WasiTest, EpollOneoffSocket) {
   enum class ServerAction {
     None,
@@ -1801,6 +1802,7 @@ TEST(WasiTest, EpollOneoffSocket) {
   ActionRequested.notify_one();
   Server.join();
 }
+#endif
 
 TEST(WasiTest, ClockTimeGet) {
   WasmEdge::Host::WASI::Environ Env;

@@ -791,9 +791,9 @@ WasiExpect<Poller> INode::pollOneoff(__wasi_size_t NSubscriptions) noexcept {
 }
 
 WasiExpect<Epoller> INode::epollOneoff(__wasi_size_t NSubscriptions,
-                                       int fd) noexcept {
+                                       int Fd) noexcept {
   try {
-    Epoller P(NSubscriptions, fd);
+    Epoller P(NSubscriptions, Fd);
     if (unlikely(!P.ok())) {
       return WasiUnexpect(fromErrNo(errno));
     }
@@ -1424,13 +1424,6 @@ WasiExpect<void> Epoller::Timer::create(__wasi_clockid_t Clock,
   return {};
 }
 #else
-namespace {
-static void sigevCallback(union sigval Value) noexcept {
-  const uint64_t One = 1;
-  ::write(Value.sival_int, &One, sizeof(One));
-}
-} // namespace
-
 WasiExpect<void> Epoller::Timer::create(__wasi_clockid_t Clock,
                                         __wasi_timestamp_t Timeout,
                                         __wasi_timestamp_t,
@@ -1746,7 +1739,7 @@ WasiExpect<void> Epoller::clock(__wasi_clockid_t Clock,
 
 WasiExpect<void>
 Epoller::read(const INode &Fd, __wasi_userdata_t UserData,
-              std::unordered_map<int, uint32_t> &EpollSet) noexcept {
+              std::unordered_map<int, uint32_t> &Registration) noexcept {
   try {
     Events.push_back({UserData,
                       __WASI_ERRNO_SUCCESS,
@@ -1765,12 +1758,12 @@ Epoller::read(const INode &Fd, __wasi_userdata_t UserData,
   // check if fd exists
   // insert read with fd * 2
   auto events = EPollEvent.events;
-  auto [IterGlobal, AddedGlobal] = EpollSet.emplace(Fd.Fd * 2, events);
+  auto [IterGlobal, AddedGlobal] = Registration.emplace(Fd.Fd * 2, events);
   auto [Iter, Added] = FdDatas.emplace(Fd.Fd, FdData(EPollEvent.events));
-  auto WriteFlag = EpollSet.count(Fd.Fd * 2 + 1);
+  auto WriteFlag = Registration.count(Fd.Fd * 2 + 1);
   if (AddedGlobal) {
     if (WriteFlag) {
-      auto WriteEvent = EpollSet.at(Fd.Fd * 2 + 1);
+      auto WriteEvent = Registration.at(Fd.Fd * 2 + 1);
       EPollEvent.events |= WriteEvent;
       if (auto Res = ::epoll_ctl(this->Fd, EPOLL_CTL_MOD, Fd.Fd, &EPollEvent);
           unlikely(Res < 0)) {
@@ -1781,7 +1774,7 @@ Epoller::read(const INode &Fd, __wasi_userdata_t UserData,
         if (auto Res = ::epoll_ctl(this->Fd, EPOLL_CTL_ADD, Fd.Fd, &EPollEvent);
             unlikely(Res < 0)) {
           FdDatas.erase(Iter);
-          EpollSet.erase(IterGlobal);
+          Registration.erase(IterGlobal);
           return WasiUnexpect(fromErrNo(errno));
         } else {
           EPollEvent.events |= Iter->second.Events;
@@ -1801,7 +1794,7 @@ Epoller::read(const INode &Fd, __wasi_userdata_t UserData,
 
 WasiExpect<void>
 Epoller::write(const INode &Fd, __wasi_userdata_t UserData,
-               std::unordered_map<int, uint32_t> &EpollSet) noexcept {
+               std::unordered_map<int, uint32_t> &Registration) noexcept {
 
   try {
     Events.push_back({UserData,
@@ -1819,12 +1812,12 @@ Epoller::write(const INode &Fd, __wasi_userdata_t UserData,
   EPollEvent.data.fd = Fd.Fd;
   // insert write with fd * 2 + 1
   auto events = EPollEvent.events;
-  auto [IterGlobal, AddedGlobal] = EpollSet.emplace(Fd.Fd * 2 + 1, events);
-  auto ReadFlag = EpollSet.count(Fd.Fd * 2);
+  auto [IterGlobal, AddedGlobal] = Registration.emplace(Fd.Fd * 2 + 1, events);
+  auto ReadFlag = Registration.count(Fd.Fd * 2);
   auto [Iter, Added] = FdDatas.emplace(Fd.Fd, FdData(EPollEvent.events));
   if (AddedGlobal) {
     if (ReadFlag) {
-      auto ReadEvent = EpollSet.at(Fd.Fd * 2);
+      auto ReadEvent = Registration.at(Fd.Fd * 2);
       EPollEvent.events |= ReadEvent;
       if (auto Res = ::epoll_ctl(this->Fd, EPOLL_CTL_MOD, Fd.Fd, &EPollEvent);
           unlikely(Res < 0)) {
@@ -1835,7 +1828,7 @@ Epoller::write(const INode &Fd, __wasi_userdata_t UserData,
         if (auto Res = ::epoll_ctl(this->Fd, EPOLL_CTL_ADD, Fd.Fd, &EPollEvent);
             unlikely(Res < 0)) {
           FdDatas.erase(Iter);
-          EpollSet.erase(IterGlobal);
+          Registration.erase(IterGlobal);
           return WasiUnexpect(fromErrNo(errno));
         }
       } else {
@@ -1854,7 +1847,7 @@ Epoller::write(const INode &Fd, __wasi_userdata_t UserData,
 
 WasiExpect<void>
 Epoller::wait(CallbackType Callback,
-              std::unordered_map<int, uint32_t> &EpollSet) noexcept {
+              std::unordered_map<int, uint32_t> &Registration) noexcept {
   std::vector<struct epoll_event> EPollEvents;
   try {
     EPollEvents.resize(Events.size());
@@ -1862,7 +1855,7 @@ Epoller::wait(CallbackType Callback,
     return WasiUnexpect(__WASI_ERRNO_NOMEM);
   }
   std::vector<int> SavedFds;
-  for (auto pair : EpollSet) {
+  for (auto pair : Registration) {
     if (pair.first % 2 == 0) {
       SavedFds.emplace_back(pair.first / 2);
     }
@@ -1882,8 +1875,8 @@ Epoller::wait(CallbackType Callback,
 
   for (auto fd : Difference) {
     ::epoll_ctl(this->Fd, EPOLL_CTL_DEL, fd, nullptr);
-    EpollSet.erase(fd * 2);
-    EpollSet.erase(fd * 2 + 1);
+    Registration.erase(fd * 2);
+    Registration.erase(fd * 2 + 1);
   }
 
   const int Count =

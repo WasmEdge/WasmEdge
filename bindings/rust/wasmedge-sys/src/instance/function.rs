@@ -7,7 +7,7 @@ use crate::{
 use core::ffi::c_void;
 use parking_lot::Mutex;
 use rand::Rng;
-use std::{convert::TryInto, sync::Arc};
+use std::{convert::TryInto, pin::Pin, sync::Arc};
 use wasmedge_types::ValType;
 
 // Wrapper function for thread-safe scenarios.
@@ -40,7 +40,7 @@ extern "C" fn wraper_fn(
         .try_into()
         .expect("len of returns should not greater than usize");
     let raw_returns = unsafe { std::slice::from_raw_parts_mut(returns, return_len) };
-
+    let mut store = unsafe { (data as *mut Store).as_mut().expect("Fail to get store") };
     let map_host_func = HOST_FUNCS.read();
     match map_host_func.get(&key) {
         None => unsafe { ffi::WasmEdge_ResultGen(ffi::WasmEdge_ErrCategory_WASM, 5) },
@@ -49,7 +49,7 @@ extern "C" fn wraper_fn(
             let real_fn_locked = real_fn.lock();
             drop(map_host_func);
 
-            match real_fn_locked(&frame, input, data) {
+            match real_fn_locked(&mut store, &frame, input, data) {
                 Ok(returns) => {
                     assert!(returns.len() == return_len);
                     for (idx, wasm_value) in returns.into_iter().enumerate() {
@@ -189,7 +189,7 @@ impl Function {
                 cost,
             )
         };
-
+        println!("create function");
         match ctx.is_null() {
             true => Err(Box::new(WasmEdgeError::Func(FuncError::Create))),
             false => Ok(Self {
@@ -291,6 +291,18 @@ impl Function {
         args: impl IntoIterator<Item = WasmValue>,
     ) -> WasmEdgeResult<Vec<WasmValue>> {
         engine.run_func(self, args)
+    }
+
+    pub async fn call_async<E: Engine + Send + Sync>(
+        &self,
+        store: &mut Store,
+        engine: &mut E,
+        args: impl IntoIterator<Item = WasmValue> + Send,
+    ) -> WasmEdgeResult<Vec<WasmValue>> {
+        store
+            .on_fiber(|| engine.run_func(self, args))
+            .await
+            .unwrap()
     }
 
     /// Returns a reference to this [Function] instance.

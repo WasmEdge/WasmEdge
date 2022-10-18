@@ -224,18 +224,32 @@ pub use types::WasmValue;
 pub use validator::Validator;
 #[doc(inline)]
 pub use vm::Vm;
-
+mod async_env;
 use wasmedge_types::{error, WasmEdgeResult};
 
 /// Type alias for a boxed native function. This type is used in thread-safe cases.
 pub type BoxedFn = Box<
     dyn Fn(
+            &mut Store,
             &CallingFrame,
             Vec<WasmValue>,
             *mut std::os::raw::c_void,
         ) -> Result<Vec<WasmValue>, error::HostFuncError>
         + Send
         + Sync,
+>;
+
+pub type AsyncBoxedFn = Box<
+    dyn Fn(
+            &mut Store,
+            &CallingFrame,
+            Vec<WasmValue>,
+            *mut std::os::raw::c_void,
+        ) -> Box<
+            dyn std::future::Future<Output = Result<Vec<WasmValue>, error::HostFuncError>> + Send,
+        > + Send
+        + Sync
+        + 'static,
 >;
 
 lazy_static! {

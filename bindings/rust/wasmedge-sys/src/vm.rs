@@ -5,6 +5,7 @@ use crate::WasiNnModule;
 #[cfg(target_os = "linux")]
 use crate::WasmEdgeProcessModule;
 use crate::{
+    async_env::AsyncState,
     error::{VmError, WasmEdgeError},
     executor::{Executor, InnerExecutor},
     ffi,
@@ -26,7 +27,7 @@ use crate::{
     WasiCrypto, WasiCryptoAsymmetricCommonModule, WasiCryptoCommonModule, WasiCryptoKxModule,
     WasiCryptoSignaturesModule, WasiCryptoSymmetricModule,
 };
-use std::{collections::HashMap, path::Path, sync::Arc};
+use std::{cell::UnsafeCell, collections::HashMap, path::Path, ptr, sync::Arc};
 
 /// A [Vm] defines a virtual environment for managing WebAssembly programs.
 #[derive(Debug, Clone)]
@@ -360,6 +361,25 @@ impl Vm {
         self.run_function_async(func_name, params)
     }
 
+    pub async fn run_wasm_from_file_async2(
+        &self,
+        path: impl AsRef<Path>,
+        func_name: impl AsRef<str> + Send,
+        params: impl IntoIterator<Item = WasmValue> + Send,
+    ) -> WasmEdgeResult<Vec<WasmValue>> {
+        // load
+        self.load_wasm_from_file(path)?;
+
+        // validate
+        self.validate()?;
+
+        // instantiate
+        self.instantiate()?;
+
+        // invoke
+        self.run_function_async2(func_name, params).await
+    }
+
     /// Runs a [function](crate::Function) from a in-memory wasm bytes.
     ///
     /// The workflow of the function can be summarized as the following steps:
@@ -428,6 +448,25 @@ impl Vm {
 
         // async invoke
         self.run_function_async(func_name, params)
+    }
+
+    pub async fn run_wasm_from_bytes_async2(
+        &self,
+        bytes: &[u8],
+        func_name: impl AsRef<str> + Send,
+        params: impl IntoIterator<Item = WasmValue> + Send,
+    ) -> WasmEdgeResult<Vec<WasmValue>> {
+        // load
+        self.load_wasm_from_bytes(bytes)?;
+
+        // validate
+        self.validate()?;
+
+        // instantiate
+        self.instantiate()?;
+
+        // invoke
+        self.run_function_async2(func_name, params).await
     }
 
     /// Runs a [function](crate::Function) from a WasmEdge compiled [Module](crate::Module).
@@ -500,6 +539,25 @@ impl Vm {
         self.run_function_async(func_name, params)
     }
 
+    pub async fn run_wasm_from_module_async2(
+        &self,
+        module: Module,
+        func_name: impl AsRef<str> + Send,
+        params: impl IntoIterator<Item = WasmValue> + Send,
+    ) -> WasmEdgeResult<Vec<WasmValue>> {
+        // load
+        self.load_wasm_from_module(&module)?;
+
+        // validate
+        self.validate()?;
+
+        // instantiate
+        self.instantiate()?;
+
+        // invoke
+        self.run_function_async2(func_name, params).await
+    }
+
     /// Loads a WASM module from a WasmEdge AST [Module](crate::Module).
     ///
     /// This is the first step to invoke a WASM function step by step.
@@ -511,7 +569,7 @@ impl Vm {
     /// # Error
     ///
     /// If fail to load, then an error is returned.
-    pub fn load_wasm_from_module(&mut self, module: &Module) -> WasmEdgeResult<()> {
+    pub fn load_wasm_from_module(&self, module: &Module) -> WasmEdgeResult<()> {
         unsafe {
             check(ffi::WasmEdge_VMLoadWasmFromASTModule(
                 self.inner.0,
@@ -532,7 +590,7 @@ impl Vm {
     /// # Error
     ///
     /// If fail to load, then an error is returned.  The loaded module is not validated.
-    pub fn load_wasm_from_bytes(&mut self, bytes: &[u8]) -> WasmEdgeResult<()> {
+    pub fn load_wasm_from_bytes(&self, bytes: &[u8]) -> WasmEdgeResult<()> {
         unsafe {
             check(ffi::WasmEdge_VMLoadWasmFromBuffer(
                 self.inner.0,
@@ -554,7 +612,7 @@ impl Vm {
     /// # Error
     ///
     /// If fail to load, then an error is returned.  The loaded module is not validated.
-    pub fn load_wasm_from_file(&mut self, path: impl AsRef<Path>) -> WasmEdgeResult<()> {
+    pub fn load_wasm_from_file(&self, path: impl AsRef<Path>) -> WasmEdgeResult<()> {
         let path = utils::path_to_cstring(path.as_ref())?;
         unsafe {
             check(ffi::WasmEdge_VMLoadWasmFromFile(
@@ -572,7 +630,7 @@ impl Vm {
     /// # Error
     ///
     /// If fail to validate, then an error is returned.
-    pub fn validate(&mut self) -> WasmEdgeResult<()> {
+    pub fn validate(&self) -> WasmEdgeResult<()> {
         unsafe {
             check(ffi::WasmEdge_VMValidate(self.inner.0))?;
         }
@@ -586,7 +644,7 @@ impl Vm {
     /// # Error
     ///
     /// If fail to instantiate, then an error is returned.
-    pub fn instantiate(&mut self) -> WasmEdgeResult<()> {
+    pub fn instantiate(&self) -> WasmEdgeResult<()> {
         unsafe {
             check(ffi::WasmEdge_VMInstantiate(self.inner.0))?;
         }
@@ -672,6 +730,19 @@ impl Vm {
         Ok(AsyncResult {
             inner: InnerAsyncResult(ctx),
         })
+    }
+    pub async fn run_function_async2(
+        &self,
+        func_name: impl AsRef<str> + Send,
+        params: impl IntoIterator<Item = WasmValue> + Send,
+    ) -> WasmEdgeResult<Vec<WasmValue>> {
+        let mut store = self.store_mut().expect("store");
+        // println!("{:?}", store.async_cx().unwrap());
+        println!("run function async");
+        store
+            .on_fiber(|| self.run_function(func_name, params))
+            .await
+            .unwrap()
     }
 
     /// Runs an exported WASM function by its name and the module's name in which the WASM function is hosted.
@@ -763,7 +834,16 @@ impl Vm {
             inner: InnerAsyncResult(ctx),
         })
     }
-
+    pub async fn run_registered_function_async2(
+        &self,
+        mod_name: impl AsRef<str> + Send,
+        func_name: impl AsRef<str> + Send,
+        params: impl IntoIterator<Item = WasmValue> + Send,
+    ) -> WasmEdgeResult<Vec<WasmValue>> {
+        let mut store = self.store_mut().expect("store");
+        let res = store.on_fiber(|| self.run_registered_function(mod_name, func_name, params));
+        res.await.unwrap()
+    }
     /// Returns the function type of a WASM function by its name. The function is hosted in the anonymous [module](crate::Module) of the [Vm].
     ///
     /// # Argument
@@ -1013,6 +1093,10 @@ impl Vm {
             false => Ok(Store {
                 inner: InnerStore(store_ctx),
                 registered: true,
+                async_state: Box::new(AsyncState {
+                    current_suspend: UnsafeCell::new(ptr::null()),
+                    current_poll_cx: UnsafeCell::new(ptr::null_mut()),
+                }),
             }),
         }
     }

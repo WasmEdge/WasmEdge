@@ -1,18 +1,21 @@
 //! Defines WasmEdge Store struct.
 
 use crate::{
+    async_env::{AsyncCx, AsyncState, FiberFuture, Reset},
     error::{StoreError, WasmEdgeError},
     ffi,
     instance::module::{InnerInstance, Instance},
     types::WasmEdgeString,
     WasmEdgeResult,
 };
+use std::{cell::UnsafeCell, ptr};
 
 /// A [Store] represents all global state that can be manipulated by WebAssembly programs. It consists of the runtime representation of all instances of [functions](crate::Function), [tables](crate::Table), [memories](crate::Memory), and [globals](crate::Global) that have been allocated during the life time of the [Vm](crate::Vm).
 #[derive(Debug)]
 pub struct Store {
     pub(crate) inner: InnerStore,
     pub(crate) registered: bool,
+    pub async_state: Box<AsyncState>,
 }
 impl Store {
     /// Creates a new [Store].
@@ -27,6 +30,10 @@ impl Store {
             false => Ok(Store {
                 inner: InnerStore(ctx),
                 registered: false,
+                async_state: Box::new(AsyncState {
+                    current_suspend: UnsafeCell::new(ptr::null()),
+                    current_poll_cx: UnsafeCell::new(ptr::null_mut()),
+                }),
             }),
         }
     }
@@ -99,6 +106,54 @@ impl Store {
             Some(names) => names.iter().any(|x| x == name.as_ref()),
             None => false,
         }
+    }
+
+    pub(crate) fn async_cx(&self) -> Option<AsyncCx> {
+        let poll_cx_box_ptr = self.async_state.current_poll_cx.get();
+        if poll_cx_box_ptr.is_null() {
+            println!("ptr null");
+            return None;
+        }
+        let poll_cx_inner_ptr = unsafe { *poll_cx_box_ptr };
+        dbg!(poll_cx_inner_ptr);
+        if poll_cx_inner_ptr.is_null() {
+            println!("inner ptr null");
+            return None;
+        }
+        Some(AsyncCx {
+            current_suspend: self.async_state.current_suspend.get(),
+            current_poll_cx: poll_cx_box_ptr,
+        })
+    }
+
+    pub async fn on_fiber<R>(&mut self, func: impl FnOnce() -> R + Send) -> Result<R, ()> {
+        let mut slot = None;
+        println!("inside fiber");
+
+        let future = {
+            let current_poll_cx = self.async_state.current_poll_cx.get();
+            dbg!(current_poll_cx);
+            let current_suspend = self.async_state.current_suspend.get();
+
+            let stack = wasmtime_fiber::FiberStack::new(2 << 20).map_err(|_e| ())?;
+            let slot = &mut slot;
+            let fiber = wasmtime_fiber::Fiber::new(stack, move |keep_going, suspend| {
+                keep_going?;
+
+                unsafe {
+                    let _reset = Reset(current_suspend, *current_suspend);
+                    *current_suspend = suspend;
+                    *slot = Some(func());
+                    Ok(())
+                }
+            })
+            .map_err(|_e| ())?;
+
+            FiberFuture::new(fiber, current_poll_cx)
+        };
+        future.await?;
+
+        return Ok(slot.unwrap());
     }
 }
 impl Drop for Store {

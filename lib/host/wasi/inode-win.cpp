@@ -736,7 +736,7 @@ WasiExpect<void> Poller::wait(CallbackType) noexcept {
   return WasiUnexpect(__WASI_ERRNO_NOSYS);
 }
 
-Epoller::Epoller(__wasi_size_t Count, int fd) { Events.reserve(Count); }
+Epoller::Epoller(__wasi_size_t Count, int) { Events.reserve(Count); }
 
 WasiExpect<void> Epoller::clock(__wasi_clockid_t, __wasi_timestamp_t,
                                 __wasi_timestamp_t, __wasi_subclockflags_t,
@@ -744,21 +744,18 @@ WasiExpect<void> Epoller::clock(__wasi_clockid_t, __wasi_timestamp_t,
   return WasiUnexpect(__WASI_ERRNO_NOSYS);
 }
 
-WasiExpect<void>
-Epoller::read(const INode &, __wasi_userdata_t,
-              std::unordered_map<int, uint32_t> &Registration) noexcept {
+WasiExpect<void> Epoller::read(const INode &, __wasi_userdata_t,
+                               std::unordered_map<int, uint32_t> &) noexcept {
   return WasiUnexpect(__WASI_ERRNO_NOSYS);
 }
 
-WasiExpect<void>
-Epoller::write(const INode &, __wasi_userdata_t,
-               std::unordered_map<int, uint32_t> &Registration) noexcept {
+WasiExpect<void> Epoller::write(const INode &, __wasi_userdata_t,
+                                std::unordered_map<int, uint32_t> &) noexcept {
   return WasiUnexpect(__WASI_ERRNO_NOSYS);
 }
 
-WasiExpect<void>
-Epoller::wait(CallbackType,
-              std::unordered_map<int, uint32_t> &Registration) noexcept {
+WasiExpect<void> Epoller::wait(CallbackType,
+                               std::unordered_map<int, uint32_t> &) noexcept {
   return WasiUnexpect(__WASI_ERRNO_NOSYS);
 }
 

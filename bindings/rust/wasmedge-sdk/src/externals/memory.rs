@@ -1,4 +1,4 @@
-use crate::WasmEdgeResult;
+use crate::{error::WasmEdgeError, WasmEdgeResult};
 use wasmedge_sys as sys;
 use wasmedge_types::MemoryType;
 
@@ -78,6 +78,24 @@ impl Memory {
     pub fn read(&self, offset: u32, len: u32) -> WasmEdgeResult<Vec<u8>> {
         let data = self.inner.get_data(offset, len)?;
         Ok(data)
+    }
+
+    /// Returns a string of byte length `len` from `memory`, starting at `offset`.
+    ///
+    /// # Arguments
+    ///
+    /// * `offset` - The offset from which to read.
+    ///
+    /// * `len` - the length of bytes to read.
+    ///
+    /// # Error
+    ///
+    /// If fail to read, then an error is returned.
+    pub fn read_string(&self, offset: u32, len: u32) -> WasmEdgeResult<String> {
+        let slice = self.read(offset, len)?;
+        Ok(std::str::from_utf8(&slice)
+            .map_err(|e| WasmEdgeError::Utf8(e))?
+            .to_string())
     }
 
     /// Safely writes contents of a buffer to this memory at the given offset.
@@ -262,5 +280,37 @@ mod tests {
         assert!(result.is_some());
         let memory = result.unwrap();
         assert_eq!(memory.size(), 15);
+    }
+
+    #[test]
+    fn test_memory_read() {
+        let result = MemoryType::new(10, Some(20), false);
+        assert!(result.is_ok());
+        let memory_type = result.unwrap();
+        let result = Memory::new(memory_type);
+        assert!(result.is_ok());
+        let mut memory = result.unwrap();
+
+        let result = memory.read(0, 10);
+        assert!(result.is_ok());
+        let data = result.unwrap();
+        assert_eq!(data, vec![0; 10]);
+
+        let s = String::from("hello");
+        let bytes = s.as_bytes();
+        let len = bytes.len();
+
+        let result = memory.write(bytes, 0);
+        assert!(result.is_ok());
+
+        let result = memory.read(0, len as u32);
+        assert!(result.is_ok());
+        let data = result.unwrap();
+        assert_eq!(data, bytes);
+
+        let result = memory.read_string(0, len as u32);
+        assert!(result.is_ok());
+        let data = result.unwrap();
+        assert_eq!(data, s);
     }
 }

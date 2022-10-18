@@ -151,7 +151,7 @@ impl Config {
         }
     }
 
-    /// Enables or disables host registration wasi.
+    /// Enables or disables host registration wasi. By default, the option is disabled.
     ///
     /// # Argument
     ///
@@ -182,7 +182,7 @@ impl Config {
         }
     }
 
-    /// Enables or disables host registration WasmEdge process.
+    /// Enables or disables host registration WasmEdge process. By default, the option is disabled.
     ///
     /// Notice that to enable the `wasmege_process` option in [Vm](crate::Vm), it MUST be guaranteed that the `wasmedge_process` plugins are loaded first. If not, use the [load_plugin_from_default_paths](crate::utils::load_plugin_from_default_paths) function to load the relevant plugins from the default paths
     ///
@@ -396,7 +396,7 @@ impl Config {
         unsafe { ffi::WasmEdge_ConfigureGetMaxMemoryPage(self.inner.0) }
     }
 
-    /// Enables or disables the ImportExportMutGlobals option.
+    /// Enables or disables the ImportExportMutGlobals option. By default, the option is enabled.
     ///
     /// # Argument
     ///
@@ -427,7 +427,7 @@ impl Config {
         }
     }
 
-    /// Enables or disables the NonTrapFloatToIntConversions option.
+    /// Enables or disables the NonTrapFloatToIntConversions option. By default, the option is enabled.
     ///
     /// # Argument
     ///
@@ -458,7 +458,7 @@ impl Config {
         }
     }
 
-    /// Enables or disables the SignExtensionOperators option.
+    /// Enables or disables the SignExtensionOperators option. By default, the option is enabled.
     ///
     /// # Argument
     ///
@@ -489,7 +489,7 @@ impl Config {
         }
     }
 
-    /// Enables or disables the MultiValue option.
+    /// Enables or disables the MultiValue option. By default, the option is enabled.
     ///
     /// # Argument
     ///
@@ -514,7 +514,7 @@ impl Config {
         }
     }
 
-    /// Enables or disables the BulkMemoryOperations option.
+    /// Enables or disables the BulkMemoryOperations option. By default, the option is enabled.
     ///
     /// # Argument
     ///
@@ -545,7 +545,7 @@ impl Config {
         }
     }
 
-    /// Enables or disables the ReferenceTypes option.
+    /// Enables or disables the ReferenceTypes option. By default, the option is enabled.
     ///
     /// # Argument
     ///
@@ -573,7 +573,7 @@ impl Config {
         }
     }
 
-    /// Enables or disables the SIMD option.
+    /// Enables or disables the SIMD option. By default, the option is enabled.
     ///
     /// # Argument
     ///
@@ -593,7 +593,7 @@ impl Config {
         unsafe { ffi::WasmEdge_ConfigureHasProposal(self.inner.0, ffi::WasmEdge_Proposal_SIMD) }
     }
 
-    /// Enables or disables the TailCall option.
+    /// Enables or disables the TailCall option. By default, the option is disabled.
     ///
     /// # Argument
     ///
@@ -613,7 +613,7 @@ impl Config {
         unsafe { ffi::WasmEdge_ConfigureHasProposal(self.inner.0, ffi::WasmEdge_Proposal_TailCall) }
     }
 
-    /// Enables or disables the Annotations option.
+    /// Enables or disables the Annotations option. By default, the option is disabled.
     ///
     /// # Argument
     ///
@@ -638,7 +638,7 @@ impl Config {
         }
     }
 
-    /// Enables or disables the Memory64 option.
+    /// Enables or disables the Memory64 option. By default, the option is disabled.
     ///
     /// # Argument
     ///
@@ -658,7 +658,7 @@ impl Config {
         unsafe { ffi::WasmEdge_ConfigureHasProposal(self.inner.0, ffi::WasmEdge_Proposal_Memory64) }
     }
 
-    /// Enables or disables the Threads option.
+    /// Enables or disables the Threads option. By default, the option is disabled.
     ///
     /// # Argument
     ///
@@ -678,7 +678,7 @@ impl Config {
         unsafe { ffi::WasmEdge_ConfigureHasProposal(self.inner.0, ffi::WasmEdge_Proposal_Threads) }
     }
 
-    /// Enables or disables the ExceptionHandling option.
+    /// Enables or disables the ExceptionHandling option. By default, the option is disabled.
     ///
     /// # Argument
     ///
@@ -709,7 +709,7 @@ impl Config {
         }
     }
 
-    /// Enables or disables the FunctionReferences option.
+    /// Enables or disables the FunctionReferences option. By default, the option is disabled.
     ///
     /// # Argument
     ///
@@ -740,7 +740,7 @@ impl Config {
         }
     }
 
-    /// Enables or disables the MultiMemories option.
+    /// Enables or disables the MultiMemories option. By default, the option is disabled.
     ///
     /// # Argument
     ///
@@ -768,7 +768,7 @@ impl Config {
         }
     }
 
-    /// Enables or disables the `ForceInterpreter` option.
+    /// Enables or disables the `ForceInterpreter` option. By default, the option is disabled.
     ///
     /// # Argument
     ///
@@ -778,13 +778,13 @@ impl Config {
     }
 
     /// Checks if the `ForceInterpreter` option turns on or not.
-    pub fn force_interpreter_mode_enabled(&self) -> bool {
+    pub fn interpreter_mode_enabled(&self) -> bool {
         unsafe { ffi::WasmEdge_ConfigureIsForceInterpreter(self.inner.0) }
     }
 
     // For AOT compiler
 
-    /// Sets the optimization level of AOT compiler.
+    /// Sets the optimization level of AOT compiler. By default, the optimization level is `O3`.
     ///
     /// Notice that this function is only available when the `aot` feature is enabled.
     ///
@@ -810,7 +810,7 @@ impl Config {
         level.into()
     }
 
-    /// Sets the output binary format of AOT compiler.
+    /// Sets the output binary format of AOT compiler. By default, the compiler output format is `Wasm`.
     ///
     /// Notice that this function is only available when the `aot` feature is enabled.
     ///
@@ -836,7 +836,7 @@ impl Config {
         value.into()
     }
 
-    /// Sets the dump IR option of AOT compiler.
+    /// Sets the dump IR option of AOT compiler. By default, the option is disabled.
     ///
     /// Notice that this function is only available when the `aot` feature is enabled.
     ///
@@ -856,7 +856,7 @@ impl Config {
         unsafe { ffi::WasmEdge_ConfigureCompilerIsDumpIR(self.inner.0) }
     }
 
-    /// Sets the generic binary option of AOT compiler.
+    /// Sets the generic binary option of AOT compiler. By default, the option is disabled.
     ///
     /// Notice that this function is only available when the `aot` feature is enabled.
     ///
@@ -876,7 +876,7 @@ impl Config {
         unsafe { ffi::WasmEdge_ConfigureCompilerIsGenericBinary(self.inner.0) }
     }
 
-    /// Enables or Disables the `Interruptible` option of AOT compiler. This option determines to generate interruptible binary or not when compilation in AOT compiler.
+    /// Enables or Disables the `Interruptible` option of AOT compiler. This option determines to generate interruptible binary or not when compilation in AOT compiler. By default, the option is disabled.
     ///
     /// Notice that this function is only available when the `aot` feature is enabled.
     ///
@@ -898,7 +898,7 @@ impl Config {
 
     // For Statistics
 
-    /// Sets the instruction counting option.
+    /// Sets the instruction counting option. By default, the option is disabled.
     ///
     /// # Argument
     ///
@@ -912,7 +912,7 @@ impl Config {
         unsafe { ffi::WasmEdge_ConfigureStatisticsIsInstructionCounting(self.inner.0) }
     }
 
-    /// Sets the cost measuring option.
+    /// Sets the cost measuring option. By default, the option is disabled.
     ///
     /// # Argument
     ///
@@ -926,7 +926,7 @@ impl Config {
         unsafe { ffi::WasmEdge_ConfigureStatisticsIsCostMeasuring(self.inner.0) }
     }
 
-    /// Sets the time measuring option.
+    /// Sets the time measuring option. By default, the option is disabled.
     ///
     /// # Argument
     ///
@@ -994,6 +994,8 @@ mod tests {
             config.get_aot_compiler_output_format(),
             CompilerOutputFormat::Wasm,
         );
+        assert!(!config.interpreter_mode_enabled());
+        assert!(!config.interruptible_enabled());
 
         // set options
         config.multi_memories(true);
@@ -1015,6 +1017,7 @@ mod tests {
         config.dump_ir(true);
         config.generic_binary(true);
         config.count_instructions(true);
+        config.interpreter_mode(true);
 
         // check new settings
         assert!(config.multi_memories_enabled());
@@ -1036,6 +1039,7 @@ mod tests {
         assert!(config.generic_binary_enabled());
         assert!(config.is_instruction_counting());
         assert!(config.is_time_measuring());
+        assert!(config.interpreter_mode_enabled());
 
         // set maxmimum memory pages
         config.set_max_memory_pages(10);

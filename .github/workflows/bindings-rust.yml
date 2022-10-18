@@ -25,7 +25,7 @@ on:
 
 jobs:
   build_ubuntu:
-    name: Ubuntu-20.04 && Ubuntu-22.04
+    name: Ubuntu
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:

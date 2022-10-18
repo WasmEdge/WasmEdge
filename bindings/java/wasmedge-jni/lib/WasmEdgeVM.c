@@ -697,7 +697,7 @@ JNIEXPORT jobject JNICALL Java_org_wasmedge_WasmEdgeVM_asyncRunWasmFromBuffer
 
 
     //
-    WasmEdge_Async* async = WasmEdge_VMAsyncRunWasmFromBuffer(vmContext, buff, size, wFuncName, wasm_params, paramLen);
+    WasmEdge_Async* async = WasmEdge_VMAsyncRunWasmFromBuffer(vmContext, (unsigned char*)buff, size, wFuncName, wasm_params, paramLen);
 
     return async;
 }

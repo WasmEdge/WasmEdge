@@ -1,4 +1,4 @@
-name: Scan WasmEdge with IWYU on Linux and macOS
+name: IWYU cheker
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}

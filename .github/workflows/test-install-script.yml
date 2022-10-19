@@ -1,4 +1,4 @@
-name: test-install-script
+name: Test installer
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}

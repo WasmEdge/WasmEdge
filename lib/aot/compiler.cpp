@@ -17,6 +17,7 @@
 #include <limits>
 #include <lld/Common/Driver.h>
 #include <llvm/Analysis/TargetLibraryInfo.h>
+#include <llvm/Analysis/TargetTransformInfo.h>
 #include <llvm/IR/IRBuilder.h>
 #include <llvm/IR/LegacyPassManager.h>
 #include <llvm/IR/Verifier.h>
@@ -324,7 +325,7 @@ struct WasmEdge::AOT::Compiler::CompileContext {
             Int8PtrTy, uint32_t(AST::Module::Intrinsics::kIntrinsicMax))),
         IntrinsicsTablePtrTy(IntrinsicsTableTy->getPointerTo()),
         IntrinsicsTable(new llvm::GlobalVariable(
-            LLModule, IntrinsicsTablePtrTy->getPointerTo(), true,
+            LLModule, IntrinsicsTablePtrTy, true,
             llvm::GlobalVariable::ExternalLinkage, nullptr, "intrinsics")),
         Trap(llvm::Function::Create(
             llvm::FunctionType::get(VoidTy, {Int32Ty}, false),

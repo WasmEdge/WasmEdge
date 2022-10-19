@@ -124,13 +124,13 @@ use wasmedge_types::{CompilerOptimizationLevel, CompilerOutputFormat};
 /// API users can first set the options of interest, such as those related to the WebAssembly proposals,
 /// host registrations, AOT compiler options, and etc., then apply the configuration
 /// to create other WasmEdge runtime structs.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Config {
-    pub(crate) inner: InnerConfig,
+    pub(crate) inner: std::sync::Arc<InnerConfig>,
 }
 impl Drop for Config {
     fn drop(&mut self) {
-        if !self.inner.0.is_null() {
+        if std::sync::Arc::strong_count(&self.inner) == 1 && !self.inner.0.is_null() {
             unsafe { ffi::WasmEdge_ConfigureDelete(self.inner.0) };
         }
     }
@@ -144,75 +144,11 @@ impl Config {
     pub fn create() -> WasmEdgeResult<Self> {
         let ctx = unsafe { ffi::WasmEdge_ConfigureCreate() };
         match ctx.is_null() {
-            true => Err(WasmEdgeError::ConfigCreate),
+            true => Err(Box::new(WasmEdgeError::ConfigCreate)),
             false => Ok(Self {
-                inner: InnerConfig(ctx),
+                inner: std::sync::Arc::new(InnerConfig(ctx)),
             }),
         }
-    }
-
-    /// Creates a new [Config](crate::Config) from an existed one.
-    ///
-    /// * `src` - The source [Config](crate::Config).
-    ///
-    /// # Error
-    ///
-    /// If fail to create, then an error is returned.
-    pub fn copy_from(src: &Config) -> WasmEdgeResult<Self> {
-        let mut config = Config::create()?;
-
-        config.multi_memories(src.multi_memories_enabled());
-
-        config.annotations(src.annotations_enabled());
-
-        config.bulk_memory_operations(src.bulk_memory_operations_enabled());
-
-        config.exception_handling(src.exception_handling_enabled());
-
-        config.function_references(src.function_references_enabled());
-
-        config.memory64(src.memory64_enabled());
-
-        config.multi_value(src.multi_value_enabled());
-
-        config.mutable_globals(src.mutable_globals_enabled());
-
-        config.non_trap_conversions(src.non_trap_conversions_enabled());
-
-        config.reference_types(src.reference_types_enabled());
-
-        config.sign_extension_operators(src.sign_extension_operators_enabled());
-
-        config.simd(src.simd_enabled());
-
-        config.tail_call(src.tail_call_enabled());
-
-        config.threads(src.threads_enabled());
-
-        config.wasi(src.wasi_enabled());
-
-        #[cfg(target_os = "linux")]
-        config.wasmedge_process(src.wasmedge_process_enabled());
-
-        config.measure_cost(src.is_cost_measuring());
-
-        config.count_instructions(src.is_instruction_counting());
-
-        config.measure_time(src.is_time_measuring());
-
-        config.set_max_memory_pages(src.get_max_memory_pages());
-
-        config.interruptible(src.interruptible_enabled());
-
-        config.dump_ir(src.dump_ir_enabled());
-
-        config.generic_binary(src.generic_binary_enabled());
-
-        config.set_aot_compiler_output_format(src.get_aot_compiler_output_format());
-
-        config.set_aot_optimization_level(src.get_aot_optimization_level());
-
-        Ok(config)
     }
 
     /// Enables or disables host registration wasi.
@@ -277,6 +213,168 @@ impl Config {
             ffi::WasmEdge_ConfigureHasHostRegistration(
                 self.inner.0,
                 ffi::WasmEdge_HostRegistration_WasmEdge_Process,
+            )
+        }
+    }
+
+    #[cfg(all(target_os = "linux", feature = "wasi_nn", target_arch = "x86_64"))]
+    pub fn wasi_nn(&mut self, enable: bool) {
+        unsafe {
+            if enable {
+                ffi::WasmEdge_ConfigureAddHostRegistration(
+                    self.inner.0,
+                    ffi::WasmEdge_HostRegistration_WasiNN,
+                )
+            } else {
+                ffi::WasmEdge_ConfigureRemoveHostRegistration(
+                    self.inner.0,
+                    ffi::WasmEdge_HostRegistration_WasiNN,
+                )
+            }
+        }
+    }
+
+    #[cfg(all(target_os = "linux", feature = "wasi_nn", target_arch = "x86_64"))]
+    pub fn wasi_nn_enabled(&self) -> bool {
+        unsafe {
+            ffi::WasmEdge_ConfigureHasHostRegistration(
+                self.inner.0,
+                ffi::WasmEdge_HostRegistration_WasiNN,
+            )
+        }
+    }
+
+    #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+    pub fn wasi_crypto_common(&mut self, enable: bool) {
+        unsafe {
+            if enable {
+                ffi::WasmEdge_ConfigureAddHostRegistration(
+                    self.inner.0,
+                    ffi::WasmEdge_HostRegistration_WasiCrypto_Common,
+                )
+            } else {
+                ffi::WasmEdge_ConfigureRemoveHostRegistration(
+                    self.inner.0,
+                    ffi::WasmEdge_HostRegistration_WasiCrypto_Common,
+                )
+            }
+        }
+    }
+
+    #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+    pub fn wasi_crypto_common_enabled(&self) -> bool {
+        unsafe {
+            ffi::WasmEdge_ConfigureHasHostRegistration(
+                self.inner.0,
+                ffi::WasmEdge_HostRegistration_WasiCrypto_Common,
+            )
+        }
+    }
+
+    #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+    pub fn wasi_crypto_asymmetric_common(&mut self, enable: bool) {
+        unsafe {
+            if enable {
+                ffi::WasmEdge_ConfigureAddHostRegistration(
+                    self.inner.0,
+                    ffi::WasmEdge_HostRegistration_WasiCrypto_AsymmetricCommon,
+                )
+            } else {
+                ffi::WasmEdge_ConfigureRemoveHostRegistration(
+                    self.inner.0,
+                    ffi::WasmEdge_HostRegistration_WasiCrypto_AsymmetricCommon,
+                )
+            }
+        }
+    }
+
+    #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+    pub fn wasi_crypto_asymmetric_common_enabled(&self) -> bool {
+        unsafe {
+            ffi::WasmEdge_ConfigureHasHostRegistration(
+                self.inner.0,
+                ffi::WasmEdge_HostRegistration_WasiCrypto_AsymmetricCommon,
+            )
+        }
+    }
+
+    #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+    pub fn wasi_crypto_symmetric(&mut self, enable: bool) {
+        unsafe {
+            if enable {
+                ffi::WasmEdge_ConfigureAddHostRegistration(
+                    self.inner.0,
+                    ffi::WasmEdge_HostRegistration_WasiCrypto_Symmetric,
+                )
+            } else {
+                ffi::WasmEdge_ConfigureRemoveHostRegistration(
+                    self.inner.0,
+                    ffi::WasmEdge_HostRegistration_WasiCrypto_Symmetric,
+                )
+            }
+        }
+    }
+
+    #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+    pub fn wasi_crypto_symmetric_enabled(&self) -> bool {
+        unsafe {
+            ffi::WasmEdge_ConfigureHasHostRegistration(
+                self.inner.0,
+                ffi::WasmEdge_HostRegistration_WasiCrypto_Symmetric,
+            )
+        }
+    }
+
+    #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+    pub fn wasi_crypto_kx(&mut self, enable: bool) {
+        unsafe {
+            if enable {
+                ffi::WasmEdge_ConfigureAddHostRegistration(
+                    self.inner.0,
+                    ffi::WasmEdge_HostRegistration_WasiCrypto_Kx,
+                )
+            } else {
+                ffi::WasmEdge_ConfigureRemoveHostRegistration(
+                    self.inner.0,
+                    ffi::WasmEdge_HostRegistration_WasiCrypto_Kx,
+                )
+            }
+        }
+    }
+
+    #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+    pub fn wasi_crypto_kx_enabled(&self) -> bool {
+        unsafe {
+            ffi::WasmEdge_ConfigureHasHostRegistration(
+                self.inner.0,
+                ffi::WasmEdge_HostRegistration_WasiCrypto_Kx,
+            )
+        }
+    }
+
+    #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+    pub fn wasi_crypto_signatures(&mut self, enable: bool) {
+        unsafe {
+            if enable {
+                ffi::WasmEdge_ConfigureAddHostRegistration(
+                    self.inner.0,
+                    ffi::WasmEdge_HostRegistration_WasiCrypto_Signatures,
+                )
+            } else {
+                ffi::WasmEdge_ConfigureRemoveHostRegistration(
+                    self.inner.0,
+                    ffi::WasmEdge_HostRegistration_WasiCrypto_Signatures,
+                )
+            }
+        }
+    }
+
+    #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+    pub fn wasi_crypto_signatures_enabled(&self) -> bool {
+        unsafe {
+            ffi::WasmEdge_ConfigureHasHostRegistration(
+                self.inner.0,
+                ffi::WasmEdge_HostRegistration_WasiCrypto_Signatures,
             )
         }
     }
@@ -1093,13 +1191,54 @@ mod tests {
         let result = Config::create();
         assert!(result.is_ok());
         let mut config = result.unwrap();
-        config.memory64(true);
-        config.multi_memories(true);
+        assert_eq!(std::sync::Arc::strong_count(&config.inner), 1);
 
-        let result = Config::copy_from(&config);
-        assert!(result.is_ok());
-        let config_cloned = result.unwrap();
-        assert!(config_cloned.memory64_enabled());
-        assert!(config_cloned.multi_memories_enabled());
+        // set options
+        config.multi_memories(true);
+        config.annotations(true);
+        config.bulk_memory_operations(false);
+        config.exception_handling(true);
+        config.function_references(true);
+        config.memory64(true);
+        config.multi_value(false);
+        config.mutable_globals(false);
+        config.non_trap_conversions(false);
+        config.sign_extension_operators(false);
+        config.reference_types(false);
+        config.simd(false);
+        config.tail_call(true);
+        config.threads(true);
+        config.measure_cost(true);
+        config.measure_time(true);
+        config.dump_ir(true);
+        config.generic_binary(true);
+        config.count_instructions(true);
+
+        let config_clone = config.clone();
+        assert_eq!(std::sync::Arc::strong_count(&config.inner), 2);
+        // check new settings
+        assert!(config_clone.multi_memories_enabled());
+        assert!(config_clone.annotations_enabled());
+        assert!(!config_clone.bulk_memory_operations_enabled());
+        assert!(config_clone.exception_handling_enabled());
+        assert!(config_clone.function_references_enabled());
+        assert!(config_clone.memory64_enabled());
+        assert!(!config_clone.multi_value_enabled());
+        assert!(!config_clone.mutable_globals_enabled());
+        assert!(!config_clone.non_trap_conversions_enabled());
+        assert!(!config_clone.sign_extension_operators_enabled());
+        assert!(!config_clone.reference_types_enabled());
+        assert!(!config_clone.simd_enabled());
+        assert!(config_clone.tail_call_enabled());
+        assert!(config_clone.threads_enabled());
+        assert!(config_clone.is_cost_measuring());
+        assert!(config_clone.dump_ir_enabled());
+        assert!(config_clone.generic_binary_enabled());
+        assert!(config_clone.is_instruction_counting());
+        assert!(config_clone.is_time_measuring());
+
+        drop(config);
+        assert_eq!(std::sync::Arc::strong_count(&config_clone.inner), 1);
+        drop(config_clone);
     }
 }

@@ -172,7 +172,7 @@ public:
     return std::forward<CallbackT>(CallBack)(ExpGlobals);
   }
 
-private:
+protected:
   friend class Executor::Executor;
   friend class Runtime::CallingFrame;
 

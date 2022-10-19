@@ -14,11 +14,12 @@
 //!
 //! The following table provides the versioning information about each crate of WasmEdge Rust bindings.
 //!
-//! | wasmedge-sdk  | WasmEdge lib  | wasmedge-sys  | wasmedge-types|
-//! | :-----------: | :-----------: | :-----------: | :-----------: |
-//! | 0.4.0         | 0.11.0        | 0.9           | 0.2.1         |
-//! | 0.3.0         | 0.10.1        | 0.8           | 0.2.0         |
-//! | 0.1.0         | 0.10.0        | 0.7           | 0.1           |
+//! | wasmedge-sdk  | WasmEdge lib  | wasmedge-sys  | wasmedge-types| wasmedge-macro|
+//! | :-----------: | :-----------: | :-----------: | :-----------: | :-----------: |
+//! | 0.5.0         | 0.11.1        | 0.10          | 0.3.0         | 0.1.0         |
+//! | 0.4.0         | 0.11.0        | 0.9           | 0.2.1         | -             |
+//! | 0.3.0         | 0.10.1        | 0.8           | 0.2           | -             |
+//! | 0.1.0         | 0.10.0        | 0.7           | 0.1           | -             |
 //!
 //! ## Build
 //!
@@ -136,11 +137,12 @@
 //!
 
 #![deny(rust_2018_idioms, unreachable_pub)]
+#![feature(never_type)]
 
 #[macro_use]
 extern crate lazy_static;
 
-use parking_lot::RwLock;
+use parking_lot::{Mutex, RwLock};
 use std::{cell::RefCell, collections::HashMap, env, sync::Arc};
 
 #[doc(hidden)]
@@ -188,19 +190,24 @@ pub use config::Config;
 pub use executor::Executor;
 #[doc(inline)]
 pub use frame::CallingFrame;
+#[cfg(all(target_os = "linux", feature = "wasi_nn", target_arch = "x86_64"))]
+#[doc(inline)]
+pub use instance::module::WasiNnModule;
 #[cfg(target_os = "linux")]
 #[doc(inline)]
 pub use instance::module::WasmEdgeProcessModule;
+#[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+#[doc(inline)]
+pub use instance::module::{
+    WasiCrypto, WasiCryptoAsymmetricCommonModule, WasiCryptoCommonModule, WasiCryptoKxModule,
+    WasiCryptoSignaturesModule, WasiCryptoSymmetricModule,
+};
 #[doc(inline)]
 pub use instance::{
     function::{FuncRef, FuncType, Function},
     global::{Global, GlobalType},
     memory::{MemType, Memory},
-    module::{
-        AsImport, AsInstance, ImportModule, ImportObject, Instance, WasiCrypto,
-        WasiCryptoAsymmetricCommonModule, WasiCryptoCommonModule, WasiCryptoKxModule,
-        WasiCryptoSignaturesModule, WasiCryptoSymmetricModule, WasiModule, WasiNnModule,
-    },
+    module::{AsImport, AsInstance, ImportModule, ImportObject, Instance, WasiModule},
     table::{Table, TableType},
 };
 #[doc(inline)]
@@ -222,20 +229,24 @@ use wasmedge_types::{error, WasmEdgeResult};
 
 /// Type alias for a boxed native function. This type is used in thread-safe cases.
 pub type BoxedFn = Box<
-    dyn Fn(&CallingFrame, Vec<WasmValue>) -> Result<Vec<WasmValue>, error::HostFuncError>
+    dyn Fn(
+            &CallingFrame,
+            Vec<WasmValue>,
+            *mut std::os::raw::c_void,
+        ) -> Result<Vec<WasmValue>, error::HostFuncError>
         + Send
         + Sync,
 >;
 
 lazy_static! {
-    static ref HOST_FUNCS: Arc<RwLock<HashMap<usize, BoxedFn>>> =
-        Arc::new(RwLock::new(HashMap::with_capacity(
+    static ref HOST_FUNCS: RwLock<HashMap<usize, Arc<Mutex<BoxedFn>>>> =
+        RwLock::new(HashMap::with_capacity(
             env::var("MAX_HOST_FUNC_LENGTH")
                 .map(|s| s
                     .parse::<usize>()
                     .expect("MAX_HOST_FUNC_LENGTH should be a positive integer."))
                 .unwrap_or(500)
-        )));
+        ));
 }
 
 /// Type alias for a boxed native function. This type is used in non-thread-safe cases.

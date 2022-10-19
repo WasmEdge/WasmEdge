@@ -1,4 +1,4 @@
-name: Build and Test WasmEdge on OpenWrt
+name: Test WasmEdge on OpenWrt
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
@@ -48,7 +48,7 @@ jobs:
     needs: lint
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
       with:
         fetch-depth: 0
     - name: Install dependency
@@ -106,7 +106,7 @@ jobs:
       run: |
         cp -rf $(find ../openwrt/bin/ -type f -name "openwrt-x86-64-generic-rootfs.tar.gz") ./
     - name: Upload artifact (v2)
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3
       with:
         name: openwrt-rootfs
         path: ./openwrt-x86-64-generic-rootfs.tar.gz

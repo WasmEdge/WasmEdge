@@ -6,7 +6,7 @@ use crate::{
     types::WasmEdgeLimit,
     WasmEdgeResult,
 };
-use std::{borrow::Cow, ffi::CStr};
+use std::{borrow::Cow, ffi::CStr, sync::Arc};
 use wasmedge_types::{
     ExternalInstanceType, FuncType, GlobalType, MemoryType, Mutability, RefType, TableType, ValType,
 };
@@ -17,13 +17,13 @@ use wasmedge_types::{
 /// representation of an input WebAssembly binary. In the instantiation process, a [Module] is used to create a
 /// [module stance](crate::instance), from which the exported [functions](crate::Function), [tables](crate::Table),
 /// [memories](crate::Memory), and [globals](crate::Global) can be fetched.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Module {
-    pub(crate) inner: InnerModule,
+    pub(crate) inner: Arc<InnerModule>,
 }
 impl Drop for Module {
     fn drop(&mut self) {
-        if !self.inner.0.is_null() {
+        if Arc::strong_count(&self.inner) == 1 && !self.inner.0.is_null() {
             unsafe { ffi::WasmEdge_ASTModuleDelete(self.inner.0) };
         }
     }
@@ -108,9 +108,9 @@ impl<'module> ImportType<'module> {
                     )
                 };
                 match ctx_func_ty.is_null() {
-                    true => Err(WasmEdgeError::Import(ImportError::FuncType(
+                    true => Err(Box::new(WasmEdgeError::Import(ImportError::FuncType(
                         "Fail to get the function type".into(),
-                    ))),
+                    )))),
                     false => {
                         // get types of the arguments
                         let args_len = unsafe {
@@ -154,9 +154,9 @@ impl<'module> ImportType<'module> {
                     ffi::WasmEdge_ImportTypeGetGlobalType(self.module.inner.0, self.inner.0)
                 };
                 match ctx_global_ty.is_null() {
-                    true => Err(WasmEdgeError::Import(ImportError::MemType(
+                    true => Err(Box::new(WasmEdgeError::Import(ImportError::MemType(
                         "Fail to get the global type".into(),
-                    ))),
+                    )))),
                     false => {
                         // get the value type
                         let val = unsafe { ffi::WasmEdge_GlobalTypeGetValType(ctx_global_ty) };
@@ -177,9 +177,9 @@ impl<'module> ImportType<'module> {
                     ffi::WasmEdge_ImportTypeGetMemoryType(self.module.inner.0, self.inner.0)
                 };
                 match ctx_mem_ty.is_null() {
-                    true => Err(WasmEdgeError::Import(ImportError::MemType(
+                    true => Err(Box::new(WasmEdgeError::Import(ImportError::MemType(
                         "Fail to get the memory type".into(),
-                    ))),
+                    )))),
                     false => {
                         let limit = unsafe { ffi::WasmEdge_MemoryTypeGetLimit(ctx_mem_ty) };
                         let limit: WasmEdgeLimit = limit.into();
@@ -197,9 +197,9 @@ impl<'module> ImportType<'module> {
                     ffi::WasmEdge_ImportTypeGetTableType(self.module.inner.0, self.inner.0)
                 };
                 match ctx_tab_ty.is_null() {
-                    true => Err(WasmEdgeError::Import(ImportError::TableType(
+                    true => Err(Box::new(WasmEdgeError::Import(ImportError::TableType(
                         "Fail to get the table type".into(),
-                    ))),
+                    )))),
                     false => {
                         // get the element type
                         let elem_ty = unsafe { ffi::WasmEdge_TableTypeGetRefType(ctx_tab_ty) };
@@ -268,9 +268,9 @@ impl<'module> ExportType<'module> {
                     ffi::WasmEdge_ExportTypeGetFunctionType(self.module.inner.0, self.inner.0)
                 };
                 match ctx_func_ty.is_null() {
-                    true => Err(WasmEdgeError::Export(ExportError::FuncType(
+                    true => Err(Box::new(WasmEdgeError::Export(ExportError::FuncType(
                         "Fail to get the function type".into(),
-                    ))),
+                    )))),
                     false => {
                         // get types of the arguments
                         let args_len = unsafe {
@@ -314,9 +314,9 @@ impl<'module> ExportType<'module> {
                     ffi::WasmEdge_ExportTypeGetTableType(self.module.inner.0, self.inner.0)
                 };
                 match ctx_tab_ty.is_null() {
-                    true => Err(WasmEdgeError::Export(ExportError::TableType(
+                    true => Err(Box::new(WasmEdgeError::Export(ExportError::TableType(
                         "Fail to get the function type".into(),
-                    ))),
+                    )))),
                     false => {
                         // get the element type
                         let elem_ty = unsafe { ffi::WasmEdge_TableTypeGetRefType(ctx_tab_ty) };
@@ -339,9 +339,9 @@ impl<'module> ExportType<'module> {
                     ffi::WasmEdge_ExportTypeGetMemoryType(self.module.inner.0, self.inner.0)
                 };
                 match ctx_mem_ty.is_null() {
-                    true => Err(WasmEdgeError::Export(ExportError::MemType(
+                    true => Err(Box::new(WasmEdgeError::Export(ExportError::MemType(
                         "Fail to get the function type".into(),
-                    ))),
+                    )))),
                     false => {
                         let limit = unsafe { ffi::WasmEdge_MemoryTypeGetLimit(ctx_mem_ty) };
                         let limit: WasmEdgeLimit = limit.into();
@@ -359,9 +359,9 @@ impl<'module> ExportType<'module> {
                     ffi::WasmEdge_ExportTypeGetGlobalType(self.module.inner.0, self.inner.0)
                 };
                 match ctx_global_ty.is_null() {
-                    true => Err(WasmEdgeError::Export(ExportError::GlobalType(
+                    true => Err(Box::new(WasmEdgeError::Export(ExportError::GlobalType(
                         "Fail to get the function type".into(),
-                    ))),
+                    )))),
                     false => {
                         // get the value type
                         let val = unsafe { ffi::WasmEdge_GlobalTypeGetValType(ctx_global_ty) };
@@ -403,6 +403,34 @@ mod tests {
         thread,
     };
     use wasmedge_types::{ExternalInstanceType, Mutability, RefType, ValType};
+
+    #[test]
+    fn test_module_clone() {
+        let path = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
+            .join("bindings/rust/wasmedge-sys/tests/data/import.wasm");
+
+        let result = Config::create();
+        assert!(result.is_ok());
+        let mut config = result.unwrap();
+        config.bulk_memory_operations(true);
+        assert!(config.bulk_memory_operations_enabled());
+
+        // load module from file
+        let result = Loader::create(Some(config));
+        assert!(result.is_ok());
+        let loader = result.unwrap();
+        let result = loader.from_file(path);
+        assert!(result.is_ok());
+        let module = result.unwrap();
+        assert!(!module.inner.0.is_null());
+
+        // clone module
+        let module_clone = module.clone();
+
+        drop(module);
+        assert_eq!(std::sync::Arc::strong_count(&module_clone.inner), 1);
+        drop(module_clone);
+    }
 
     #[test]
     fn test_module_import() {

@@ -23,7 +23,7 @@ impl Store {
     pub fn create() -> WasmEdgeResult<Self> {
         let ctx = unsafe { ffi::WasmEdge_StoreCreate() };
         match ctx.is_null() {
-            true => Err(WasmEdgeError::Store(StoreError::Create)),
+            true => Err(Box::new(WasmEdgeError::Store(StoreError::Create))),
             false => Ok(Store {
                 inner: InnerStore(ctx),
                 registered: false,
@@ -74,11 +74,11 @@ impl Store {
         let mod_name: WasmEdgeString = name.as_ref().into();
         let ctx = unsafe { ffi::WasmEdge_StoreFindModule(self.inner.0, mod_name.as_raw()) };
         match ctx.is_null() {
-            true => Err(WasmEdgeError::Store(StoreError::NotFoundModule(
+            true => Err(Box::new(WasmEdgeError::Store(StoreError::NotFoundModule(
                 name.as_ref().to_string(),
-            ))),
+            )))),
             false => Ok(Instance {
-                inner: InnerInstance(ctx as *mut _),
+                inner: std::sync::Arc::new(InnerInstance(ctx as *mut _)),
                 registered: true,
             }),
         }
@@ -152,7 +152,7 @@ mod tests {
         let result = FuncType::create(vec![ValType::I32; 2], vec![ValType::I32]);
         assert!(result.is_ok());
         let func_ty = result.unwrap();
-        let result = Function::create(&func_ty, Box::new(real_add), 0);
+        let result = Function::create::<!>(&func_ty, Box::new(real_add), None, 0);
         assert!(result.is_ok());
         let host_func = result.unwrap();
         import.add_func("add", host_func);
@@ -238,7 +238,7 @@ mod tests {
             let result = FuncType::create(vec![ValType::I32; 2], vec![ValType::I32]);
             assert!(result.is_ok());
             let func_ty = result.unwrap();
-            let result = Function::create(&func_ty, Box::new(real_add), 0);
+            let result = Function::create::<!>(&func_ty, Box::new(real_add), None, 0);
             assert!(result.is_ok());
             let host_func = result.unwrap();
             import.add_func("add", host_func);
@@ -339,7 +339,11 @@ mod tests {
         assert_eq!(return_types, [ValType::I32]);
     }
 
-    fn real_add(_: &CallingFrame, inputs: Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError> {
+    fn real_add(
+        _: &CallingFrame,
+        inputs: Vec<WasmValue>,
+        _data: *mut std::os::raw::c_void,
+    ) -> Result<Vec<WasmValue>, HostFuncError> {
         if inputs.len() != 2 {
             return Err(HostFuncError::User(1));
         }

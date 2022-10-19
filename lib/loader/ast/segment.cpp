@@ -258,7 +258,7 @@ Expect<void> Loader::loadSegment(AST::CodeSegment &CodeSeg) {
     } else {
       LocalType = static_cast<ValType>(*Res);
     }
-    if (auto Res = checkValTypeProposals(LocalType, FMgr.getLastOffset(),
+    if (auto Res = checkValTypeProposals(LocalType, false, FMgr.getLastOffset(),
                                          ASTNodeAttr::Seg_Code);
         unlikely(!Res)) {
       return Unexpect(Res);
@@ -266,8 +266,10 @@ Expect<void> Loader::loadSegment(AST::CodeSegment &CodeSeg) {
     CodeSeg.getLocals().push_back(std::make_pair(LocalCnt, LocalType));
   }
 
-  if (IsUniversalWASM || IsSharedLibraryWASM) {
-    // For the AOT mode, skip the function body.
+  if (!Conf.getRuntimeConfigure().isForceInterpreter() &&
+      WASMType != InputType::WASM) {
+    // For the AOT mode and not force interpreter in configure, skip the
+    // function body.
     FMgr.seek(ExprSizeBound);
   } else {
     // Read function body with expected expression size.

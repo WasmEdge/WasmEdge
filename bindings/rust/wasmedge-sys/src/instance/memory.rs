@@ -46,7 +46,7 @@ impl Memory {
         let ctx = unsafe { ffi::WasmEdge_MemoryInstanceCreate(ty.inner.0 as *const _) };
 
         match ctx.is_null() {
-            true => Err(WasmEdgeError::Mem(MemError::Create)),
+            true => Err(Box::new(WasmEdgeError::Mem(MemError::Create))),
             false => Ok(Memory {
                 inner: InnerMemory(ctx),
                 registered: false,
@@ -63,7 +63,7 @@ impl Memory {
     pub fn ty(&self) -> WasmEdgeResult<MemType> {
         let ty_ctx = unsafe { ffi::WasmEdge_MemoryInstanceGetMemoryType(self.inner.0) };
         match ty_ctx.is_null() {
-            true => Err(WasmEdgeError::Mem(MemError::Type)),
+            true => Err(Box::new(WasmEdgeError::Mem(MemError::Type))),
             false => Ok(MemType {
                 inner: InnerMemType(ty_ctx as *mut _),
                 registered: true,
@@ -122,7 +122,7 @@ impl Memory {
     /// // set data and the data length is larger than the data size in the memory
     /// let result = mem.set_data(vec![1; 10], u32::pow(2, 16) - 9);
     /// assert!(result.is_err());
-    /// assert_eq!(result.unwrap_err(), WasmEdgeError::Core(CoreError::Execution(CoreExecutionError::MemoryOutOfBounds)));
+    /// assert_eq!(result.unwrap_err(), Box::new(WasmEdgeError::Core(CoreError::Execution(CoreExecutionError::MemoryOutOfBounds))));
     /// ```
     ///
     /// # Example
@@ -164,7 +164,7 @@ impl Memory {
     ///
     /// * `len` - The requested data length. If the size of `offset` + `len` is larger
     /// than the data size in the [Memory]
-    ///   
+    ///
     ///
     /// # Errors
     ///
@@ -173,12 +173,12 @@ impl Memory {
     pub fn data_pointer(&self, offset: u32, len: u32) -> WasmEdgeResult<&u8> {
         let ptr = unsafe { ffi::WasmEdge_MemoryInstanceGetPointerConst(self.inner.0, offset, len) };
         match ptr.is_null() {
-            true => Err(WasmEdgeError::Mem(MemError::ConstPtr)),
+            true => Err(Box::new(WasmEdgeError::Mem(MemError::ConstPtr))),
             false => {
                 let result = unsafe { ptr.as_ref() };
                 match result {
                     Some(ptr) => Ok(ptr),
-                    None => Err(WasmEdgeError::Mem(MemError::Ptr2Ref)),
+                    None => Err(Box::new(WasmEdgeError::Mem(MemError::Ptr2Ref))),
                 }
             }
         }
@@ -199,12 +199,12 @@ impl Memory {
     pub fn data_pointer_mut(&mut self, offset: u32, len: u32) -> WasmEdgeResult<&mut u8> {
         let ptr = unsafe { ffi::WasmEdge_MemoryInstanceGetPointer(self.inner.0, offset, len) };
         match ptr.is_null() {
-            true => Err(WasmEdgeError::Mem(MemError::MutPtr)),
+            true => Err(Box::new(WasmEdgeError::Mem(MemError::MutPtr))),
             false => {
                 let result = unsafe { ptr.as_mut() };
                 match result {
                     Some(ptr) => Ok(ptr),
-                    None => Err(WasmEdgeError::Mem(MemError::Ptr2Ref)),
+                    None => Err(Box::new(WasmEdgeError::Mem(MemError::Ptr2Ref))),
                 }
             }
         }
@@ -212,7 +212,7 @@ impl Memory {
 
     /// Returns the size, in WebAssembly pages (64 KiB of each page), of this wasm memory.
     pub fn size(&self) -> u32 {
-        unsafe { ffi::WasmEdge_MemoryInstanceGetPageSize(self.inner.0) as u32 }
+        unsafe { ffi::WasmEdge_MemoryInstanceGetPageSize(self.inner.0) }
     }
 
     /// Grows this WebAssembly memory by `count` pages.
@@ -288,12 +288,12 @@ impl MemType {
     ///
     pub fn create(min: u32, max: Option<u32>, shared: bool) -> WasmEdgeResult<Self> {
         if shared && max.is_none() {
-            return Err(WasmEdgeError::Mem(MemError::CreateSharedType));
+            return Err(Box::new(WasmEdgeError::Mem(MemError::CreateSharedType)));
         }
         let ctx =
             unsafe { ffi::WasmEdge_MemoryTypeCreate(WasmEdgeLimit::new(min, max, shared).into()) };
         match ctx.is_null() {
-            true => Err(WasmEdgeError::MemTypeCreate),
+            true => Err(Box::new(WasmEdgeError::MemTypeCreate)),
             false => Ok(Self {
                 inner: InnerMemType(ctx),
                 registered: false,
@@ -301,7 +301,7 @@ impl MemType {
         }
     }
 
-    /// Returns the initial size of a [Memory].    
+    /// Returns the initial size of a [Memory].
     pub fn min(&self) -> u32 {
         let limit = unsafe { ffi::WasmEdge_MemoryTypeGetLimit(self.inner.0) };
         let limit: WasmEdgeLimit = limit.into();
@@ -453,7 +453,9 @@ mod tests {
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
-            WasmEdgeError::Core(CoreError::Execution(CoreExecutionError::MemoryOutOfBounds))
+            Box::new(WasmEdgeError::Core(CoreError::Execution(
+                CoreExecutionError::MemoryOutOfBounds
+            )))
         );
 
         // grow the memory size

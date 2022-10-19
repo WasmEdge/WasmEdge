@@ -2,6 +2,10 @@
 # SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 # SPDX-FileCopyrightText: 2019-2022 Second State INC
 
+if [[ ! -v "${CMAKE_BUILD_TYPE}" ]]; then
+  CMAKE_BUILD_TYPE=Release
+fi
+
 source /opt/intel/openvino_2021/bin/setupvars.sh
 ldconfig
 git config --global --add safe.directory $(pwd)

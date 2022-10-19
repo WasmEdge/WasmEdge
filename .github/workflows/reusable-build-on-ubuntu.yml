@@ -1,0 +1,94 @@
+name: Build on Ubuntu
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        type: string
+        required: true
+      matrix: # [ { runner, docker_tag }, ... ]
+        type: string
+        required: true
+      tests:
+        type: boolean
+      release:
+        type: boolean
+      upload_asset_url:
+        type: string
+
+jobs:
+  build_on_ubuntu:
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(inputs.matrix) }}
+    name: Build on Ubuntu with ${{ matrix.compiler }} ${{ matrix.build_type }}
+    runs-on: ubuntu-latest
+    env:
+      BUILD_TESTS: OFF
+    container: wasmedge/wasmedge:${{ matrix.docker_tag }}
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      - name: Set environment variables for tests
+        if: ${{ inputs.tests }}
+        run: |
+          echo "BUILD_TESTS=ON" | tee -a $GITHUB_ENV
+      - name: Build WasmEdge using ${{ matrix.compiler }} with ${{ matrix.build_type }} mode
+        if: ${{ ! matrix.coverage }}
+        shell: bash
+        env:
+          CMAKE_BUILD_TYPE: ${{ matrix.build_type }}
+        run: |
+          git config --global --add safe.directory $(pwd)
+          if [[ "${{ matrix.compiler }}" == "clang++" ]]; then
+            cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=$CMAKE_BUILD_TYPE -DWASMEDGE_LINK_LLVM_STATIC=ON -DWASMEDGE_BUILD_TESTS=$BUILD_TESTS -DWASMEDGE_BUILD_PACKAGE="TGZ" .
+          else
+            cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=$CMAKE_BUILD_TYPE -DWASMEDGE_BUILD_TESTS=$BUILD_TESTS -DWASMEDGE_BUILD_PACKAGE="TGZ" .
+          fi
+          cmake --build build
+          cmake --build build --target package
+      - name: Test WasmEdge
+        if: ${{ !matrix.coverage && env.BUILD_TESTS }}
+        run: |
+          export LD_LIBRARY_PATH="$(pwd)/build/lib/api:$LD_LIBRARY_PATH"
+          cd build
+          ./tools/wasmedge/wasmedge -v
+          ctest
+          cd -
+      - name: Build WasmEdge using ${{ matrix.compiler }} with Coverage mode
+        if: ${{ matrix.coverage }}
+        run: |
+          apt update
+          apt install -y gcovr
+          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --target wasm32-wasi
+          git config --global --add safe.directory $(pwd)
+          cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Debug -DWASMEDGE_BUILD_TESTS=ON -DWASMEDGE_BUILD_COVERAGE=ON .
+          cmake --build build
+          LD_LIBRARY_PATH=$(pwd)/build/lib/api cmake --build build --target codecov
+      - name: Upload artifact
+        if: ${{ !inputs.release && !matrix.coverage }}
+        uses: actions/upload-artifact@v3
+        with:
+          name: WasmEdge-${{ inputs.version }}-ubuntu-20.04-${{ matrix.compiler }}-${{ matrix.build_type }}.tar.gz
+          path: build/WasmEdge-${{ inputs.version }}-Linux.tar.gz
+      - name: Upload package tarball
+        if: ${{ inputs.release }}
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ inputs.upload_asset_url }}
+          asset_path: build/WasmEdge-${{ inputs.version }}-Linux.tar.gz
+          asset_name: WasmEdge-${{ inputs.version }}-ubuntu20.04_x86_64.tar.gz
+          asset_content_type: application/x-gzip
+      - name: Create and upload coverage report to Codecov
+        if: ${{ matrix.coverage }}
+        uses: codecov/codecov-action@v3
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./build/codecov.xml
+          name: codecov-wasmedge
+          fail_ci_if_error: true
+          path_to_write_report: ./build/codecov_report.gz

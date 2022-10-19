@@ -57,17 +57,11 @@ public:
            __wasi_publickey_encoding_e_t Encoding) noexcept {
       switch (Encoding) {
       case __WASI_PUBLICKEY_ENCODING_PKCS8:
-        return importPkcs8(Encoded, false);
-      case __WASI_PUBLICKEY_ENCODING_COMPRESSED_PKCS8:
-        return importPkcs8(Encoded, true);
+        return importPkcs8(Encoded);
       case __WASI_PUBLICKEY_ENCODING_PEM:
-        return importPem(Encoded, false);
-      case __WASI_PUBLICKEY_ENCODING_COMPRESSED_PEM:
-        return importPem(Encoded, true);
+        return importPem(Encoded);
       case __WASI_PUBLICKEY_ENCODING_SEC:
-        return importSec(Encoded, false);
-      case __WASI_PUBLICKEY_ENCODING_COMPRESSED_SEC:
-        return importSec(Encoded, true);
+        return importSec(Encoded);
       default:
         return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_UNSUPPORTED_ENCODING);
       }
@@ -78,16 +72,10 @@ public:
       switch (Encoding) {
       case __WASI_PUBLICKEY_ENCODING_SEC:
         return exportSec(false);
-      case __WASI_PUBLICKEY_ENCODING_COMPRESSED_SEC:
-        return exportSec(true);
       case __WASI_PUBLICKEY_ENCODING_PEM:
         return exportPem(false);
-      case __WASI_PUBLICKEY_ENCODING_COMPRESSED_PEM:
-        return exportPem(true);
       case __WASI_PUBLICKEY_ENCODING_PKCS8:
         return exportPkcs8(false);
-      case __WASI_PUBLICKEY_ENCODING_COMPRESSED_PKCS8:
-        return exportPkcs8(true);
       default:
         return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_UNSUPPORTED_ENCODING);
       }
@@ -98,18 +86,18 @@ public:
     }
 
   protected:
-    static WasiCryptoExpect<PublicKey> importPkcs8(Span<const uint8_t> Encoded,
-                                                   bool Compressed) noexcept {
-      return checkValid(EvpPkeyPtr{d2iPUBKEY(Encoded)}, Compressed);
+    static WasiCryptoExpect<PublicKey>
+    importPkcs8(Span<const uint8_t> Encoded) noexcept {
+      return checkValid(EvpPkeyPtr{d2iPUBKEY(Encoded)});
     }
 
-    static WasiCryptoExpect<PublicKey> importPem(Span<const uint8_t> Encoded,
-                                                 bool Compressed) noexcept {
-      return checkValid(EvpPkeyPtr{pemReadPUBKEY(Encoded)}, Compressed);
+    static WasiCryptoExpect<PublicKey>
+    importPem(Span<const uint8_t> Encoded) noexcept {
+      return checkValid(EvpPkeyPtr{pemReadPUBKEY(Encoded)});
     }
 
-    static WasiCryptoExpect<PublicKey> importSec(Span<const uint8_t> Encoded,
-                                                 bool Compressed) noexcept {
+    static WasiCryptoExpect<PublicKey>
+    importSec(Span<const uint8_t> Encoded) noexcept {
       EcKeyPtr EcCtx{EC_KEY_new_by_curve_name(CurveNid)};
       EcPointPtr Pk{EC_POINT_new(EC_KEY_get0_group(EcCtx.get()))};
       ensureOrReturn(EC_POINT_oct2point(EC_KEY_get0_group(EcCtx.get()),
@@ -121,11 +109,10 @@ public:
       EvpPkeyPtr Ctx{EVP_PKEY_new()};
       opensslCheck(EVP_PKEY_set1_EC_KEY(Ctx.get(), EcCtx.get()));
 
-      return checkValid(std::move(Ctx), Compressed);
+      return checkValid(std::move(Ctx));
     }
 
-    static WasiCryptoExpect<EvpPkeyPtr> checkValid(EvpPkeyPtr Ctx,
-                                                   bool) noexcept {
+    static WasiCryptoExpect<EvpPkeyPtr> checkValid(EvpPkeyPtr Ctx) noexcept {
       ensureOrReturn(Ctx, __WASI_CRYPTO_ERRNO_INVALID_KEY);
       const EC_KEY *EcCtx = EVP_PKEY_get0_EC_KEY(Ctx.get());
       ensureOrReturn(EcCtx, __WASI_CRYPTO_ERRNO_INVALID_KEY);
@@ -297,13 +284,9 @@ public:
       case __WASI_KEYPAIR_ENCODING_RAW:
         return importRaw(Encoded);
       case __WASI_KEYPAIR_ENCODING_PKCS8:
-        return importPkcs8(Encoded, false);
+        return importPkcs8(Encoded);
       case __WASI_KEYPAIR_ENCODING_PEM:
-        return importPem(Encoded, false);
-      case __WASI_KEYPAIR_ENCODING_COMPRESSED_PKCS8:
-        return importPkcs8(Encoded, true);
-      case __WASI_KEYPAIR_ENCODING_COMPRESSED_PEM:
-        return importPem(Encoded, true);
+        return importPem(Encoded);
       default:
         return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_UNSUPPORTED_ENCODING);
       }
@@ -334,14 +317,14 @@ public:
     }
 
   protected:
-    static WasiCryptoExpect<KeyPair> importPkcs8(Span<const uint8_t> Encoded,
-                                                 bool Compressed) noexcept {
-      return checkValid(EvpPkeyPtr{d2iPrivateKey(Encoded)}, Compressed);
+    static WasiCryptoExpect<KeyPair>
+    importPkcs8(Span<const uint8_t> Encoded) noexcept {
+      return checkValid(EvpPkeyPtr{d2iPrivateKey(Encoded)});
     }
 
-    static WasiCryptoExpect<KeyPair> importPem(Span<const uint8_t> Encoded,
-                                               bool Compressed) noexcept {
-      return checkValid(EvpPkeyPtr{pemReadPrivateKey(Encoded)}, Compressed);
+    static WasiCryptoExpect<KeyPair>
+    importPem(Span<const uint8_t> Encoded) noexcept {
+      return checkValid(EvpPkeyPtr{pemReadPrivateKey(Encoded)});
     }
 
     static WasiCryptoExpect<KeyPair>
@@ -366,8 +349,7 @@ public:
       return Ctx;
     }
 
-    static WasiCryptoExpect<EvpPkeyPtr> checkValid(EvpPkeyPtr Ctx,
-                                                   bool) noexcept {
+    static WasiCryptoExpect<EvpPkeyPtr> checkValid(EvpPkeyPtr Ctx) noexcept {
       ensureOrReturn(Ctx, __WASI_CRYPTO_ERRNO_INVALID_KEY);
       const EC_KEY *EcCtx = EVP_PKEY_get0_EC_KEY(Ctx.get());
       ensureOrReturn(EcCtx, __WASI_CRYPTO_ERRNO_INVALID_KEY);

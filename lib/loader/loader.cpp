@@ -78,7 +78,7 @@ Loader::parseModule(const std::filesystem::path &FilePath) {
   case FileMgr::FileHeader::MachO_32:
   case FileMgr::FileHeader::MachO_64: {
     // AOT compiled shared-library-WASM cases. Use ldmgr to load the module.
-    IsSharedLibraryWASM = true;
+    WASMType = InputType::SharedLibrary;
     FMgr.reset();
     if (auto Res = LMgr.setPath(FilePath); !Res) {
       spdlog::error(ErrInfo::InfoFile(FilePath));
@@ -98,7 +98,7 @@ Loader::parseModule(const std::filesystem::path &FilePath) {
     std::unique_ptr<AST::Module> Mod;
     if (auto Code = LMgr.getWasm()) {
       // Set the binary and load module.
-      // Not to use parseModule() here to keep the `IsSharedLibraryWASM` value.
+      // Not to use parseModule() here to keep the `WASMType` value.
       if (auto Res = FMgr.setCode(*Code); !Res) {
         spdlog::error(ErrInfo::InfoFile(FilePath));
         return Unexpect(Res);
@@ -113,18 +113,26 @@ Loader::parseModule(const std::filesystem::path &FilePath) {
       spdlog::error(ErrInfo::InfoFile(FilePath));
       return Unexpect(Code);
     }
-    if (auto Res = loadCompiled(*Mod.get()); unlikely(!Res)) {
-      spdlog::error(ErrInfo::InfoFile(FilePath));
-      return Unexpect(Res);
+    if (!Conf.getRuntimeConfigure().isForceInterpreter()) {
+      // If the configure is set to force interpreter mode, not to load the AOT
+      // related data.
+      if (auto Res = loadCompiled(*Mod.get()); unlikely(!Res)) {
+        spdlog::error(ErrInfo::InfoFile(FilePath));
+        return Unexpect(Res);
+      }
     }
     return Mod;
   }
   default:
     // Universal WASM, WASM, or other cases. Load and parse the module directly.
-    IsSharedLibraryWASM = false;
+    WASMType = InputType::WASM;
     if (auto Res = loadModule()) {
-      if (auto &Symbol = (*Res)->getSymbol()) {
-        *Symbol = IntrinsicsTable;
+      if (!Conf.getRuntimeConfigure().isForceInterpreter()) {
+        // If the configure is set to force interpreter mode, not to set the
+        // symbol.
+        if (auto &Symbol = (*Res)->getSymbol()) {
+          *Symbol = IntrinsicsTable;
+        }
       }
       return std::move(*Res);
     } else {
@@ -159,13 +167,14 @@ Loader::parseModule(Span<const uint8_t> Code) {
     break;
   }
   // For malformed header checking, handle in the module loading.
-  IsSharedLibraryWASM = false;
+  WASMType = InputType::WASM;
   return loadModule();
 }
 
 // Helper function of checking the valid value types.
-Expect<ValType> Loader::checkValTypeProposals(ValType VType, uint64_t Off,
-                                              ASTNodeAttr Node) {
+Expect<ValType> Loader::checkValTypeProposals(ValType VType, bool AcceptNone,
+                                              uint64_t Off,
+                                              ASTNodeAttr Node) const noexcept {
   if (VType == ValType::V128 && !Conf.hasProposal(Proposal::SIMD)) {
     return logNeedProposal(ErrCode::Value::MalformedValType, Proposal::SIMD,
                            Off, Node);
@@ -179,7 +188,6 @@ Expect<ValType> Loader::checkValTypeProposals(ValType VType, uint64_t Off,
                            Proposal::ReferenceTypes, Off, Node);
   }
   switch (VType) {
-  case ValType::None:
   case ValType::I32:
   case ValType::I64:
   case ValType::F32:
@@ -188,6 +196,11 @@ Expect<ValType> Loader::checkValTypeProposals(ValType VType, uint64_t Off,
   case ValType::ExternRef:
   case ValType::FuncRef:
     return VType;
+  case ValType::None:
+    if (AcceptNone) {
+      return VType;
+    }
+    [[fallthrough]];
   default:
     return logLoadError(ErrCode::Value::MalformedValType, Off, Node);
   }
@@ -195,7 +208,7 @@ Expect<ValType> Loader::checkValTypeProposals(ValType VType, uint64_t Off,
 
 // Helper function of checking the valid reference types.
 Expect<RefType> Loader::checkRefTypeProposals(RefType RType, uint64_t Off,
-                                              ASTNodeAttr Node) {
+                                              ASTNodeAttr Node) const noexcept {
   switch (RType) {
   case RefType::ExternRef:
     if (!Conf.hasProposal(Proposal::ReferenceTypes)) {

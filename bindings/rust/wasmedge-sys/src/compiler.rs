@@ -27,14 +27,17 @@ impl Compiler {
         let ctx = match config {
             Some(mut config) => {
                 let ctx = unsafe { ffi::WasmEdge_CompilerCreate(config.inner.0) };
-                config.inner.0 = std::ptr::null_mut();
+
+                let inner_config = &mut *std::sync::Arc::get_mut(&mut config.inner).unwrap();
+                inner_config.0 = std::ptr::null_mut();
+
                 ctx
             }
             None => unsafe { ffi::WasmEdge_CompilerCreate(std::ptr::null_mut()) },
         };
 
         match ctx.is_null() {
-            true => Err(WasmEdgeError::CompilerCreate),
+            true => Err(Box::new(WasmEdgeError::CompilerCreate)),
             false => Ok(Self {
                 inner: InnerCompiler(ctx),
             }),
@@ -166,7 +169,9 @@ mod tests {
             assert!(result.is_err());
             assert_eq!(
                 result.unwrap_err(),
-                WasmEdgeError::Core(CoreError::Load(CoreLoadError::IllegalPath))
+                Box::new(WasmEdgeError::Core(CoreError::Load(
+                    CoreLoadError::IllegalPath
+                )))
             );
         }
 

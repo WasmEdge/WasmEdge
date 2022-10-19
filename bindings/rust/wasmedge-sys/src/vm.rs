@@ -1,9 +1,13 @@
 //! Defines WasmEdge Vm struct.
 
+#[cfg(all(target_os = "linux", feature = "wasi_nn", target_arch = "x86_64"))]
+use crate::WasiNnModule;
+#[cfg(target_os = "linux")]
+use crate::WasmEdgeProcessModule;
 use crate::{
     error::{VmError, WasmEdgeError},
     executor::{Executor, InnerExecutor},
-    ffi::{self, WasmEdge_HostRegistration_Wasi},
+    ffi,
     instance::{
         function::{FuncRef, FuncType, Function, InnerFuncType},
         module::InnerInstance,
@@ -15,17 +19,19 @@ use crate::{
     types::WasmEdgeString,
     utils::{self, check},
     validator::{InnerValidator, Validator},
-    Config, Engine, ImportObject, Instance, Module, WasiCrypto, WasiModule, WasmEdgeResult,
-    WasmValue,
+    Config, Engine, ImportObject, Instance, Module, WasiModule, WasmEdgeResult, WasmValue,
 };
-#[cfg(target_os = "linux")]
-use crate::{ffi::WasmEdge_HostRegistration_WasmEdge_Process, WasmEdgeProcessModule};
-use std::{collections::HashMap, path::Path};
+#[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+use crate::{
+    WasiCrypto, WasiCryptoAsymmetricCommonModule, WasiCryptoCommonModule, WasiCryptoKxModule,
+    WasiCryptoSignaturesModule, WasiCryptoSymmetricModule,
+};
+use std::{collections::HashMap, path::Path, sync::Arc};
 
 /// A [Vm] defines a virtual environment for managing WebAssembly programs.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Vm {
-    pub(crate) inner: InnerVm,
+    pub(crate) inner: Arc<InnerVm>,
     imports: HashMap<String, ImportObject>,
 }
 impl Vm {
@@ -47,7 +53,10 @@ impl Vm {
                     Some(store) => unsafe { ffi::WasmEdge_VMCreate(config.inner.0, store.inner.0) },
                     None => unsafe { ffi::WasmEdge_VMCreate(config.inner.0, std::ptr::null_mut()) },
                 };
-                config.inner.0 = std::ptr::null_mut();
+
+                let inner_config = &mut *std::sync::Arc::get_mut(&mut config.inner).unwrap();
+                inner_config.0 = std::ptr::null_mut();
+
                 vm_ctx
             }
             None => match store {
@@ -61,9 +70,9 @@ impl Vm {
         };
 
         match ctx.is_null() {
-            true => Err(WasmEdgeError::Vm(VmError::Create)),
+            true => Err(Box::new(WasmEdgeError::Vm(VmError::Create))),
             false => Ok(Self {
-                inner: InnerVm(ctx),
+                inner: Arc::new(InnerVm(ctx)),
                 imports: HashMap::new(),
             }),
         }
@@ -127,7 +136,7 @@ impl Vm {
         let io_name: String = import.name().into();
 
         if self.imports.contains_key(&io_name) {
-            return Err(WasmEdgeError::Vm(VmError::DuplicateImportModule));
+            return Err(Box::new(WasmEdgeError::Vm(VmError::DuplicateImportModule)));
         } else {
             self.imports.insert(io_name.clone(), import);
         }
@@ -157,36 +166,42 @@ impl Vm {
                     import.inner.0 as *const _,
                 ))?;
             },
+            #[cfg(all(target_os = "linux", feature = "wasi_nn", target_arch = "x86_64"))]
             ImportObject::Nn(import) => unsafe {
                 check(ffi::WasmEdge_VMRegisterModuleFromImport(
                     self.inner.0,
                     import.inner.0 as *const _,
                 ))?;
             },
+            #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
             ImportObject::Crypto(WasiCrypto::Common(import)) => unsafe {
                 check(ffi::WasmEdge_VMRegisterModuleFromImport(
                     self.inner.0,
                     import.inner.0 as *const _,
                 ))?;
             },
+            #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
             ImportObject::Crypto(WasiCrypto::AsymmetricCommon(import)) => unsafe {
                 check(ffi::WasmEdge_VMRegisterModuleFromImport(
                     self.inner.0,
                     import.inner.0 as *const _,
                 ))?;
             },
+            #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
             ImportObject::Crypto(WasiCrypto::SymmetricOptionations(import)) => unsafe {
                 check(ffi::WasmEdge_VMRegisterModuleFromImport(
                     self.inner.0,
                     import.inner.0 as *const _,
                 ))?;
             },
+            #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
             ImportObject::Crypto(WasiCrypto::KeyExchange(import)) => unsafe {
                 check(ffi::WasmEdge_VMRegisterModuleFromImport(
                     self.inner.0,
                     import.inner.0 as *const _,
                 ))?;
             },
+            #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
             ImportObject::Crypto(WasiCrypto::Signatures(import)) => unsafe {
                 check(ffi::WasmEdge_VMRegisterModuleFromImport(
                     self.inner.0,
@@ -235,7 +250,7 @@ impl Vm {
         Ok(())
     }
 
-    /// Registers a given WasmEdge AST [Module](crate::Module) into the [Vm], and instantiates it.
+    /// Registers a given WasmEdge AST [Module](crate::Module) into the [Vm], and instantiates it. The module is consumed.
     ///
     /// The workflow of the function can be summarized as the following steps:
     ///
@@ -267,7 +282,9 @@ impl Vm {
                 module.inner.0,
             ))?;
         }
-        module.inner.0 = std::ptr::null_mut();
+        let inner_module = &mut *std::sync::Arc::get_mut(&mut module.inner).unwrap();
+        inner_module.0 = std::ptr::null_mut();
+
         Ok(())
     }
 
@@ -776,9 +793,9 @@ impl Vm {
         func_name: impl AsRef<str>,
     ) -> WasmEdgeResult<FuncType> {
         if !self.contains_module(mod_name.as_ref()) {
-            return Err(WasmEdgeError::Vm(VmError::NotFoundModule(
+            return Err(Box::new(WasmEdgeError::Vm(VmError::NotFoundModule(
                 mod_name.as_ref().into(),
-            )));
+            ))));
         }
 
         self.store_mut()?
@@ -832,12 +849,15 @@ impl Vm {
     /// Notice that this function is only available when a [config](crate::Config) with the enabled [wasi](crate::Config::wasi) option is used in the creation of this [Vm].
     pub fn wasi_module_mut(&mut self) -> WasmEdgeResult<WasiModule> {
         let io_ctx = unsafe {
-            ffi::WasmEdge_VMGetImportModuleContext(self.inner.0, WasmEdge_HostRegistration_Wasi)
+            ffi::WasmEdge_VMGetImportModuleContext(
+                self.inner.0,
+                ffi::WasmEdge_HostRegistration_Wasi,
+            )
         };
         match io_ctx.is_null() {
-            true => Err(WasmEdgeError::Vm(VmError::NotFoundWasiModule)),
+            true => Err(Box::new(WasmEdgeError::Vm(VmError::NotFoundWasiModule))),
             false => Ok(WasiModule {
-                inner: InnerInstance(io_ctx),
+                inner: Arc::new(InnerInstance(io_ctx)),
                 registered: true,
             }),
         }
@@ -851,13 +871,135 @@ impl Vm {
         let io_ctx = unsafe {
             ffi::WasmEdge_VMGetImportModuleContext(
                 self.inner.0,
-                WasmEdge_HostRegistration_WasmEdge_Process,
+                ffi::WasmEdge_HostRegistration_WasmEdge_Process,
             )
         };
         match io_ctx.is_null() {
-            true => Err(WasmEdgeError::Vm(VmError::NotFoundWasmEdgeProcessModule)),
+            true => Err(Box::new(WasmEdgeError::Vm(
+                VmError::NotFoundWasmEdgeProcessModule,
+            ))),
             false => Ok(WasmEdgeProcessModule {
-                inner: InnerInstance(io_ctx),
+                inner: Arc::new(InnerInstance(io_ctx)),
+                registered: true,
+            }),
+        }
+    }
+
+    /// Returns the [WasiNnModule module instance](crate::WasiNnModule).
+    #[cfg(all(target_os = "linux", feature = "wasi_nn", target_arch = "x86_64"))]
+    pub fn wasi_nn_module(&mut self) -> WasmEdgeResult<WasiNnModule> {
+        let io_ctx = unsafe {
+            ffi::WasmEdge_VMGetImportModuleContext(
+                self.inner.0,
+                ffi::WasmEdge_HostRegistration_WasiNN,
+            )
+        };
+        match io_ctx.is_null() {
+            true => Err(Box::new(WasmEdgeError::Vm(VmError::NotFoundWasiNnModule))),
+            false => Ok(WasiNnModule {
+                inner: Arc::new(InnerInstance(io_ctx)),
+                registered: true,
+            }),
+        }
+    }
+
+    /// Returns the [WasiCryptoCommonModule module instance](crate::WasiCryptoCommonModule).
+    #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+    pub fn wasi_crypto_common_module(&mut self) -> WasmEdgeResult<WasiCryptoCommonModule> {
+        let io_ctx = unsafe {
+            ffi::WasmEdge_VMGetImportModuleContext(
+                self.inner.0,
+                ffi::WasmEdge_HostRegistration_WasiCrypto_Common,
+            )
+        };
+        match io_ctx.is_null() {
+            true => Err(Box::new(WasmEdgeError::Vm(
+                VmError::NotFoundWasiCryptoCommonModule,
+            ))),
+            false => Ok(WasiCryptoCommonModule {
+                inner: Arc::new(InnerInstance(io_ctx)),
+                registered: true,
+            }),
+        }
+    }
+
+    /// Returns the [WasiCryptoAsymmetricCommonModule module instance](crate::WasiCryptoAsymmetricCommonModule).
+    #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+    pub fn wasi_crypto_asymmetric_common_module(
+        &mut self,
+    ) -> WasmEdgeResult<WasiCryptoAsymmetricCommonModule> {
+        let io_ctx = unsafe {
+            ffi::WasmEdge_VMGetImportModuleContext(
+                self.inner.0,
+                ffi::WasmEdge_HostRegistration_WasiCrypto_AsymmetricCommon,
+            )
+        };
+        match io_ctx.is_null() {
+            true => Err(Box::new(WasmEdgeError::Vm(
+                VmError::NotFoundWasiCryptoAsymmetricCommonModule,
+            ))),
+            false => Ok(WasiCryptoAsymmetricCommonModule {
+                inner: Arc::new(InnerInstance(io_ctx)),
+                registered: true,
+            }),
+        }
+    }
+
+    /// Returns the [WasiCryptoSymmetricModule module instance](crate::WasiCryptoSymmetricModule).
+    #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+    pub fn wasi_crypto_symmetric_module(&mut self) -> WasmEdgeResult<WasiCryptoSymmetricModule> {
+        let io_ctx = unsafe {
+            ffi::WasmEdge_VMGetImportModuleContext(
+                self.inner.0,
+                ffi::WasmEdge_HostRegistration_WasiCrypto_Symmetric,
+            )
+        };
+        match io_ctx.is_null() {
+            true => Err(Box::new(WasmEdgeError::Vm(
+                VmError::NotFoundWasiCryptoSymmetricModule,
+            ))),
+            false => Ok(WasiCryptoSymmetricModule {
+                inner: Arc::new(InnerInstance(io_ctx)),
+                registered: true,
+            }),
+        }
+    }
+
+    /// Returns the [WasiCryptoKxModule module instance](crate::WasiCryptoKxModule).
+    #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+    pub fn wasi_crypto_kx_module(&mut self) -> WasmEdgeResult<WasiCryptoKxModule> {
+        let io_ctx = unsafe {
+            ffi::WasmEdge_VMGetImportModuleContext(
+                self.inner.0,
+                ffi::WasmEdge_HostRegistration_WasiCrypto_Kx,
+            )
+        };
+        match io_ctx.is_null() {
+            true => Err(Box::new(WasmEdgeError::Vm(
+                VmError::NotFoundWasiCryptoKxModule,
+            ))),
+            false => Ok(WasiCryptoKxModule {
+                inner: Arc::new(InnerInstance(io_ctx)),
+                registered: true,
+            }),
+        }
+    }
+
+    /// Returns the [WasiCryptoSignaturesModule module instance](crate::WasiCryptoSignaturesModule).
+    #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+    pub fn wasi_crypto_signatures_module(&mut self) -> WasmEdgeResult<WasiCryptoSignaturesModule> {
+        let io_ctx = unsafe {
+            ffi::WasmEdge_VMGetImportModuleContext(
+                self.inner.0,
+                ffi::WasmEdge_HostRegistration_WasiCrypto_Signatures,
+            )
+        };
+        match io_ctx.is_null() {
+            true => Err(Box::new(WasmEdgeError::Vm(
+                VmError::NotFoundWasiCryptoSignaturesModule,
+            ))),
+            false => Ok(WasiCryptoSignaturesModule {
+                inner: Arc::new(InnerInstance(io_ctx)),
                 registered: true,
             }),
         }
@@ -867,7 +1009,7 @@ impl Vm {
     pub fn store_mut(&self) -> WasmEdgeResult<Store> {
         let store_ctx = unsafe { ffi::WasmEdge_VMGetStoreContext(self.inner.0) };
         match store_ctx.is_null() {
-            true => Err(WasmEdgeError::Vm(VmError::NotFoundStore)),
+            true => Err(Box::new(WasmEdgeError::Vm(VmError::NotFoundStore))),
             false => Ok(Store {
                 inner: InnerStore(store_ctx),
                 registered: true,
@@ -879,7 +1021,7 @@ impl Vm {
     pub fn statistics_mut(&self) -> WasmEdgeResult<Statistics> {
         let stat_ctx = unsafe { ffi::WasmEdge_VMGetStatisticsContext(self.inner.0) };
         match stat_ctx.is_null() {
-            true => Err(WasmEdgeError::Vm(VmError::NotFoundStatistics)),
+            true => Err(Box::new(WasmEdgeError::Vm(VmError::NotFoundStatistics))),
             false => Ok(Statistics {
                 inner: InnerStat(stat_ctx),
                 registered: true,
@@ -891,9 +1033,9 @@ impl Vm {
     pub fn active_module(&self) -> WasmEdgeResult<Instance> {
         let ctx = unsafe { ffi::WasmEdge_VMGetActiveModule(self.inner.0 as *const _) };
         match ctx.is_null() {
-            true => Err(WasmEdgeError::Vm(VmError::NotFoundActiveModule)),
+            true => Err(Box::new(WasmEdgeError::Vm(VmError::NotFoundActiveModule))),
             false => Ok(Instance {
-                inner: InnerInstance(ctx as *mut _),
+                inner: std::sync::Arc::new(InnerInstance(ctx as *mut _)),
                 registered: true,
             }),
         }
@@ -916,7 +1058,7 @@ impl Vm {
     pub fn loader(&self) -> WasmEdgeResult<Loader> {
         let loader_ctx = unsafe { ffi::WasmEdge_VMGetLoaderContext(self.inner.0) };
         match loader_ctx.is_null() {
-            true => Err(WasmEdgeError::Vm(VmError::NotFoundLoader)),
+            true => Err(Box::new(WasmEdgeError::Vm(VmError::NotFoundLoader))),
             false => Ok(Loader {
                 inner: InnerLoader(loader_ctx),
                 registered: true,
@@ -928,7 +1070,7 @@ impl Vm {
     pub fn validator(&self) -> WasmEdgeResult<Validator> {
         let validator_ctx = unsafe { ffi::WasmEdge_VMGetValidatorContext(self.inner.0) };
         match validator_ctx.is_null() {
-            true => Err(WasmEdgeError::Vm(VmError::NotFoundValidator)),
+            true => Err(Box::new(WasmEdgeError::Vm(VmError::NotFoundValidator))),
             false => Ok(Validator {
                 inner: InnerValidator(validator_ctx),
                 registered: true,
@@ -940,7 +1082,7 @@ impl Vm {
     pub fn executor(&self) -> WasmEdgeResult<Executor> {
         let executor_ctx = unsafe { ffi::WasmEdge_VMGetExecutorContext(self.inner.0) };
         match executor_ctx.is_null() {
-            true => Err(WasmEdgeError::Vm(VmError::NotFoundExecutor)),
+            true => Err(Box::new(WasmEdgeError::Vm(VmError::NotFoundExecutor))),
             false => Ok(Executor {
                 inner: InnerExecutor(executor_ctx),
                 registered: true,
@@ -950,7 +1092,7 @@ impl Vm {
 }
 impl Drop for Vm {
     fn drop(&mut self) {
-        if !self.inner.0.is_null() {
+        if Arc::strong_count(&self.inner) == 1 && !self.inner.0.is_null() {
             unsafe { ffi::WasmEdge_VMDelete(self.inner.0) };
         }
 
@@ -1159,7 +1301,9 @@ mod tests {
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
-            WasmEdgeError::Core(CoreError::Load(CoreLoadError::IllegalPath))
+            Box::new(WasmEdgeError::Core(CoreError::Load(
+                CoreLoadError::IllegalPath
+            )))
         );
     }
 
@@ -1198,7 +1342,9 @@ mod tests {
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
-            WasmEdgeError::Core(CoreError::Load(CoreLoadError::UnexpectedEnd))
+            Box::new(WasmEdgeError::Core(CoreError::Load(
+                CoreLoadError::UnexpectedEnd
+            )))
         );
     }
 
@@ -1255,7 +1401,9 @@ mod tests {
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
-            WasmEdgeError::Core(CoreError::Common(CoreCommonError::WrongVMWorkflow))
+            Box::new(WasmEdgeError::Core(CoreError::Common(
+                CoreCommonError::WrongVMWorkflow
+            )))
         );
 
         // create a loader
@@ -1294,7 +1442,9 @@ mod tests {
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
-            WasmEdgeError::Core(CoreError::Common(CoreCommonError::WrongVMWorkflow))
+            Box::new(WasmEdgeError::Core(CoreError::Common(
+                CoreCommonError::WrongVMWorkflow
+            )))
         );
 
         // create a loader
@@ -1321,7 +1471,9 @@ mod tests {
         let result = vm.instantiate();
         assert_eq!(
             result.unwrap_err(),
-            WasmEdgeError::Core(CoreError::Common(CoreCommonError::WrongVMWorkflow))
+            Box::new(WasmEdgeError::Core(CoreError::Common(
+                CoreCommonError::WrongVMWorkflow
+            )))
         );
 
         // call validate, then instantiate
@@ -1388,7 +1540,9 @@ mod tests {
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
-            WasmEdgeError::Core(CoreError::Execution(CoreExecutionError::FuncTypeMismatch))
+            Box::new(WasmEdgeError::Core(CoreError::Execution(
+                CoreExecutionError::FuncTypeMismatch
+            )))
         );
 
         // run a function with the parameters of wrong type
@@ -1396,7 +1550,9 @@ mod tests {
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
-            WasmEdgeError::Core(CoreError::Execution(CoreExecutionError::FuncTypeMismatch))
+            Box::new(WasmEdgeError::Core(CoreError::Execution(
+                CoreExecutionError::FuncTypeMismatch
+            )))
         );
 
         // run a function: the specified function name is non-existant
@@ -1404,7 +1560,9 @@ mod tests {
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
-            WasmEdgeError::Instance(InstanceError::NotFoundFunc("fib2".into()))
+            Box::new(WasmEdgeError::Instance(InstanceError::NotFoundFunc(
+                "fib2".into()
+            )))
         );
 
         // check function types
@@ -1458,7 +1616,9 @@ mod tests {
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
-            WasmEdgeError::Core(CoreError::Load(CoreLoadError::IllegalPath))
+            Box::new(WasmEdgeError::Core(CoreError::Load(
+                CoreLoadError::IllegalPath
+            )))
         );
 
         // register a wasm module from a wasm file
@@ -1536,7 +1696,9 @@ mod tests {
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
-            WasmEdgeError::Vm(VmError::NotFoundModule("non-existent-module".into()))
+            Box::new(WasmEdgeError::Vm(VmError::NotFoundModule(
+                "non-existent-module".into()
+            )))
         );
 
         // run a registered function with empty parameters
@@ -1545,7 +1707,9 @@ mod tests {
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
-            WasmEdgeError::Core(CoreError::Execution(CoreExecutionError::FuncTypeMismatch))
+            Box::new(WasmEdgeError::Core(CoreError::Execution(
+                CoreExecutionError::FuncTypeMismatch
+            )))
         );
 
         // run a registered function with the parameters of wrong type
@@ -1553,7 +1717,9 @@ mod tests {
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
-            WasmEdgeError::Core(CoreError::Execution(CoreExecutionError::FuncTypeMismatch))
+            Box::new(WasmEdgeError::Core(CoreError::Execution(
+                CoreExecutionError::FuncTypeMismatch
+            )))
         );
 
         // run a registered function but give a wrong function name.
@@ -1561,7 +1727,9 @@ mod tests {
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
-            WasmEdgeError::Instance(InstanceError::NotFoundFunc("fib2".into()))
+            Box::new(WasmEdgeError::Instance(InstanceError::NotFoundFunc(
+                "fib2".into()
+            )))
         );
     }
 
@@ -1597,7 +1765,7 @@ mod tests {
         let result = FuncType::create(vec![ValType::I32; 2], vec![ValType::I32]);
         assert!(result.is_ok());
         let func_ty = result.unwrap();
-        let result = Function::create(&func_ty, Box::new(real_add), 0);
+        let result = Function::create::<!>(&func_ty, Box::new(real_add), None, 0);
         assert!(result.is_ok());
         let host_func = result.unwrap();
         import.add_func("add", host_func);
@@ -1615,7 +1783,7 @@ mod tests {
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
-            WasmEdgeError::Vm(VmError::NotFoundWasmEdgeProcessModule)
+            Box::new(WasmEdgeError::Vm(VmError::NotFoundWasmEdgeProcessModule))
         );
 
         // get store
@@ -1689,7 +1857,9 @@ mod tests {
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
-            WasmEdgeError::Core(CoreError::Load(CoreLoadError::IllegalPath))
+            Box::new(WasmEdgeError::Core(CoreError::Load(
+                CoreLoadError::IllegalPath
+            )))
         );
 
         // run a function from a WASM file with the empty parameters
@@ -1697,7 +1867,9 @@ mod tests {
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
-            WasmEdgeError::Core(CoreError::Execution(CoreExecutionError::FuncTypeMismatch))
+            Box::new(WasmEdgeError::Core(CoreError::Execution(
+                CoreExecutionError::FuncTypeMismatch
+            )))
         );
 
         // run a function from a WASM file with the parameters of wrong type
@@ -1705,7 +1877,9 @@ mod tests {
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
-            WasmEdgeError::Core(CoreError::Execution(CoreExecutionError::FuncTypeMismatch))
+            Box::new(WasmEdgeError::Core(CoreError::Execution(
+                CoreExecutionError::FuncTypeMismatch
+            )))
         );
 
         // fun a function: the specified function name is non-existant
@@ -1713,7 +1887,9 @@ mod tests {
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
-            WasmEdgeError::Instance(InstanceError::NotFoundFunc("fib2".into()))
+            Box::new(WasmEdgeError::Instance(InstanceError::NotFoundFunc(
+                "fib2".into()
+            )))
         );
     }
 
@@ -1751,7 +1927,9 @@ mod tests {
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
-            WasmEdgeError::Core(CoreError::Load(CoreLoadError::IllegalPath))
+            Box::new(WasmEdgeError::Core(CoreError::Load(
+                CoreLoadError::IllegalPath
+            )))
         );
 
         // run a function from a WASM file with the empty parameters
@@ -1764,7 +1942,9 @@ mod tests {
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
-            WasmEdgeError::Core(CoreError::Execution(CoreExecutionError::FuncTypeMismatch))
+            Box::new(WasmEdgeError::Core(CoreError::Execution(
+                CoreExecutionError::FuncTypeMismatch
+            )))
         );
 
         // run a function from a WASM file with the parameters of wrong type
@@ -1777,7 +1957,9 @@ mod tests {
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
-            WasmEdgeError::Core(CoreError::Execution(CoreExecutionError::FuncTypeMismatch))
+            Box::new(WasmEdgeError::Core(CoreError::Execution(
+                CoreExecutionError::FuncTypeMismatch
+            )))
         );
 
         // fun a function: the specified function name is non-existant
@@ -1790,7 +1972,9 @@ mod tests {
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
-            WasmEdgeError::Core(CoreError::Common(CoreCommonError::FuncNotFound))
+            Box::new(WasmEdgeError::Core(CoreError::Common(
+                CoreCommonError::FuncNotFound
+            )))
         );
     }
 
@@ -1860,7 +2044,9 @@ mod tests {
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
-            WasmEdgeError::Core(CoreError::Load(CoreLoadError::UnexpectedEnd))
+            Box::new(WasmEdgeError::Core(CoreError::Load(
+                CoreLoadError::UnexpectedEnd
+            )))
         );
 
         // run a function with the empty parameters
@@ -1868,7 +2054,9 @@ mod tests {
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
-            WasmEdgeError::Core(CoreError::Execution(CoreExecutionError::FuncTypeMismatch))
+            Box::new(WasmEdgeError::Core(CoreError::Execution(
+                CoreExecutionError::FuncTypeMismatch
+            )))
         );
 
         // run a function with the parameters of wrong type
@@ -1876,7 +2064,9 @@ mod tests {
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
-            WasmEdgeError::Core(CoreError::Execution(CoreExecutionError::FuncTypeMismatch))
+            Box::new(WasmEdgeError::Core(CoreError::Execution(
+                CoreExecutionError::FuncTypeMismatch
+            )))
         );
 
         // fun a function: the specified function name is non-existant
@@ -1884,7 +2074,9 @@ mod tests {
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
-            WasmEdgeError::Instance(InstanceError::NotFoundFunc("fib2".into()))
+            Box::new(WasmEdgeError::Instance(InstanceError::NotFoundFunc(
+                "fib2".into()
+            )))
         );
     }
 
@@ -1956,7 +2148,9 @@ mod tests {
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
-            WasmEdgeError::Core(CoreError::Load(CoreLoadError::UnexpectedEnd))
+            Box::new(WasmEdgeError::Core(CoreError::Load(
+                CoreLoadError::UnexpectedEnd
+            )))
         );
 
         // run a function with the empty parameters
@@ -1969,7 +2163,9 @@ mod tests {
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
-            WasmEdgeError::Core(CoreError::Execution(CoreExecutionError::FuncTypeMismatch))
+            Box::new(WasmEdgeError::Core(CoreError::Execution(
+                CoreExecutionError::FuncTypeMismatch
+            )))
         );
 
         // run a function with the parameters of wrong type
@@ -1982,7 +2178,9 @@ mod tests {
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
-            WasmEdgeError::Core(CoreError::Execution(CoreExecutionError::FuncTypeMismatch))
+            Box::new(WasmEdgeError::Core(CoreError::Execution(
+                CoreExecutionError::FuncTypeMismatch
+            )))
         );
 
         // fun a function: the specified function name is non-existant
@@ -1995,7 +2193,9 @@ mod tests {
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
-            WasmEdgeError::Core(CoreError::Common(CoreCommonError::FuncNotFound))
+            Box::new(WasmEdgeError::Core(CoreError::Common(
+                CoreCommonError::FuncNotFound
+            )))
         );
     }
 
@@ -2031,7 +2231,9 @@ mod tests {
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
-            WasmEdgeError::Core(CoreError::Execution(CoreExecutionError::FuncTypeMismatch))
+            Box::new(WasmEdgeError::Core(CoreError::Execution(
+                CoreExecutionError::FuncTypeMismatch
+            )))
         );
 
         // run a function with the parameters of wrong type
@@ -2040,7 +2242,9 @@ mod tests {
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
-            WasmEdgeError::Core(CoreError::Execution(CoreExecutionError::FuncTypeMismatch))
+            Box::new(WasmEdgeError::Core(CoreError::Execution(
+                CoreExecutionError::FuncTypeMismatch
+            )))
         );
 
         // fun a function: the specified function name is non-existant
@@ -2049,7 +2253,9 @@ mod tests {
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
-            WasmEdgeError::Instance(InstanceError::NotFoundFunc("fib2".into()))
+            Box::new(WasmEdgeError::Instance(InstanceError::NotFoundFunc(
+                "fib2".into()
+            )))
         );
     }
 
@@ -2092,7 +2298,9 @@ mod tests {
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
-            WasmEdgeError::Core(CoreError::Execution(CoreExecutionError::FuncTypeMismatch))
+            Box::new(WasmEdgeError::Core(CoreError::Execution(
+                CoreExecutionError::FuncTypeMismatch
+            )))
         );
 
         // run a function with the parameters of wrong type
@@ -2106,7 +2314,9 @@ mod tests {
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
-            WasmEdgeError::Core(CoreError::Execution(CoreExecutionError::FuncTypeMismatch))
+            Box::new(WasmEdgeError::Core(CoreError::Execution(
+                CoreExecutionError::FuncTypeMismatch
+            )))
         );
 
         // fun a function: the specified function name is non-existant
@@ -2120,7 +2330,9 @@ mod tests {
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
-            WasmEdgeError::Core(CoreError::Common(CoreCommonError::FuncNotFound))
+            Box::new(WasmEdgeError::Core(CoreError::Common(
+                CoreCommonError::FuncNotFound
+            )))
         );
     }
 
@@ -2228,9 +2440,9 @@ mod tests {
             assert!(result.is_err());
             assert_eq!(
                 result.unwrap_err(),
-                WasmEdgeError::Core(CoreError::Instantiation(
+                Box::new(WasmEdgeError::Core(CoreError::Instantiation(
                     CoreInstantiationError::ModuleNameConflict
-                ))
+                )))
             );
 
             // get store from vm
@@ -2263,7 +2475,7 @@ mod tests {
             assert!(result.is_err());
             assert_eq!(
                 result.unwrap_err(),
-                WasmEdgeError::Vm(VmError::NotFoundWasiModule)
+                Box::new(WasmEdgeError::Vm(VmError::NotFoundWasiModule))
             );
 
             // *** try to add a Wasi module.
@@ -2277,7 +2489,7 @@ mod tests {
             let result = FuncType::create(vec![ValType::I32; 2], vec![ValType::I32]);
             assert!(result.is_ok());
             let func_ty = result.unwrap();
-            let result = Function::create(&func_ty, Box::new(real_add), 0);
+            let result = Function::create::<!>(&func_ty, Box::new(real_add), None, 0);
             assert!(result.is_ok());
             let host_func = result.unwrap();
             import_wasi.add_func("add", host_func);
@@ -2290,7 +2502,7 @@ mod tests {
             assert!(result.is_err());
             assert_eq!(
                 result.unwrap_err(),
-                WasmEdgeError::Vm(VmError::NotFoundWasiModule)
+                Box::new(WasmEdgeError::Vm(VmError::NotFoundWasiModule))
             );
 
             // get store from vm
@@ -2353,9 +2565,9 @@ mod tests {
             assert!(result.is_err());
             assert_eq!(
                 result.unwrap_err(),
-                WasmEdgeError::Core(CoreError::Instantiation(
+                Box::new(WasmEdgeError::Core(CoreError::Instantiation(
                     CoreInstantiationError::ModuleNameConflict
-                ))
+                )))
             );
 
             // get store from vm
@@ -2398,7 +2610,7 @@ mod tests {
             let result = FuncType::create(vec![ValType::I32; 2], vec![ValType::I32]);
             assert!(result.is_ok());
             let func_ty = result.unwrap();
-            let result = Function::create(&func_ty, Box::new(real_add), 0);
+            let result = Function::create::<!>(&func_ty, Box::new(real_add), None, 0);
             assert!(result.is_ok());
             let host_func = result.unwrap();
             import_process.add_func("add", host_func);
@@ -2412,7 +2624,7 @@ mod tests {
             assert!(result.is_err());
             assert_eq!(
                 result.unwrap_err(),
-                WasmEdgeError::Vm(VmError::NotFoundWasmEdgeProcessModule)
+                Box::new(WasmEdgeError::Vm(VmError::NotFoundWasmEdgeProcessModule))
             );
 
             // get store from vm
@@ -2435,6 +2647,48 @@ mod tests {
             let result = instance.get_func("add");
             assert!(result.is_ok());
         }
+    }
+
+    #[test]
+    #[cfg(all(target_os = "linux", feature = "wasi_nn", target_arch = "x86_64"))]
+    #[allow(clippy::assertions_on_result_states)]
+    fn test_vm_get_wasinn_module() {
+        use crate::AsInstance;
+
+        utils::load_plugin_from_default_paths();
+
+        // create a Config context
+        let result = Config::create();
+        assert!(result.is_ok());
+        let mut config = result.unwrap();
+        config.bulk_memory_operations(true);
+        config.wasi_nn(true);
+        assert!(config.wasi_nn_enabled());
+
+        let result = Vm::create(Some(config), None);
+        assert!(result.is_ok());
+        let mut vm = result.unwrap();
+
+        let result = vm.wasi_nn_module();
+        assert!(result.is_ok());
+        let wasi_nn_module = result.unwrap();
+        assert_eq!(wasi_nn_module.func_len(), 5);
+
+        wasi_nn_module
+            .func_names()
+            .unwrap()
+            .iter()
+            .for_each(|name| println!("func name: {}", name));
+
+        let result = wasi_nn_module.get_func("load");
+        assert!(result.is_ok());
+        let load = result.unwrap();
+        let result = load.ty();
+        assert!(result.is_ok());
+        let ty = result.unwrap();
+        println!("load: len of params: {}", ty.params_len());
+        ty.params_type_iter()
+            .for_each(|p| println!("load: param ty: {:?}", p));
     }
 
     #[test]
@@ -2529,7 +2783,11 @@ mod tests {
     }
 
     #[cfg(unix)]
-    fn real_add(_: &CallingFrame, inputs: Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError> {
+    fn real_add(
+        _: &CallingFrame,
+        inputs: Vec<WasmValue>,
+        _data: *mut std::os::raw::c_void,
+    ) -> Result<Vec<WasmValue>, HostFuncError> {
         if inputs.len() != 2 {
             return Err(HostFuncError::User(1));
         }

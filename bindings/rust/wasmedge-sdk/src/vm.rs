@@ -1,5 +1,12 @@
 //! Defines WasmEdge Vm struct.
 
+#[cfg(all(target_os = "linux", feature = "wasi_nn", target_arch = "x86_64"))]
+use crate::wasi::WasiNnInstance;
+#[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+use crate::wasi::{
+    WasiCryptoAsymmetricCommonInstance, WasiCryptoCommonInstance, WasiCryptoKxInstance,
+    WasiCryptoSignaturesInstance, WasiCryptoSymmetricInstance,
+};
 #[cfg(target_os = "linux")]
 use crate::WasmEdgeProcessInstance;
 use crate::{
@@ -7,7 +14,7 @@ use crate::{
     Module, Statistics, WasmEdgeResult, WasmValue,
 };
 use std::{marker::PhantomData, path::Path};
-use wasmedge_sys::{self as sys, Engine as sys_engine};
+use wasmedge_sys::{self as sys, AsyncResult, Engine as sys_engine};
 
 /// A [Vm] defines a virtual environment for managing WebAssembly programs.
 ///
@@ -84,7 +91,7 @@ use wasmedge_sys::{self as sys, Engine as sys_engine};
 ///     Ok(())
 /// }
 /// ```
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Vm {
     pub(crate) inner: sys::Vm,
     active_module: Option<Module>,
@@ -246,6 +253,28 @@ impl Vm {
         };
 
         Ok(returns)
+    }
+
+    pub fn run_func_async(
+        &self,
+        mod_name: Option<&str>,
+        func_name: impl AsRef<str>,
+        args: impl IntoIterator<Item = sys::WasmValue>,
+    ) -> WasmEdgeResult<AsyncResult> {
+        match mod_name {
+            Some(mod_name) => {
+                // run a function in the registered module
+                return self.inner.run_registered_function_async(
+                    mod_name,
+                    func_name.as_ref(),
+                    args,
+                );
+            }
+            None => {
+                // run a function in the active module
+                return self.inner.run_function_async(func_name.as_ref(), args);
+            }
+        };
     }
 
     /// Returns the type of a WASM function.
@@ -437,6 +466,71 @@ impl Vm {
         })
     }
 
+    /// Returns the [WasiNnInstance module instance](crate::wasi::WasiNnInstance).
+    #[cfg(all(target_os = "linux", feature = "wasi_nn", target_arch = "x86_64"))]
+    pub fn wasi_nn_module(&mut self) -> WasmEdgeResult<WasiNnInstance> {
+        let inner_wasi_nn_module = self.inner.wasi_nn_module()?;
+
+        Ok(WasiNnInstance {
+            inner: inner_wasi_nn_module,
+        })
+    }
+
+    /// Returns the [WasiCryptoCommonInstance module instance](crate::wasi::WasiCryptoCommonInstance).
+    #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+    pub fn wasi_crypto_common_module(&mut self) -> WasmEdgeResult<WasiCryptoCommonInstance> {
+        let inner_wasi_crypto_common_module = self.inner.wasi_crypto_common_module()?;
+
+        Ok(WasiCryptoCommonInstance {
+            inner: inner_wasi_crypto_common_module,
+        })
+    }
+
+    /// Returns the [WasiCryptoAsymmetricCommonInstance module instance](crate::wasi::WasiCryptoAsymmetricCommonInstance).
+    #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+    pub fn wasi_crypto_asymmetric_common_module(
+        &mut self,
+    ) -> WasmEdgeResult<WasiCryptoAsymmetricCommonInstance> {
+        let inner_wasi_crypto_asymmetric_common_module =
+            self.inner.wasi_crypto_asymmetric_common_module()?;
+
+        Ok(WasiCryptoAsymmetricCommonInstance {
+            inner: inner_wasi_crypto_asymmetric_common_module,
+        })
+    }
+
+    /// Returns the [WasiCryptoSymmetricInstance module instance](crate::wasi::WasiCryptoSymmetricInstance).
+    #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+    pub fn wasi_crypto_symmetric_module(&mut self) -> WasmEdgeResult<WasiCryptoSymmetricInstance> {
+        let inner_wasi_crypto_symmetric_module = self.inner.wasi_crypto_symmetric_module()?;
+
+        Ok(WasiCryptoSymmetricInstance {
+            inner: inner_wasi_crypto_symmetric_module,
+        })
+    }
+
+    /// Returns the [WasiCryptoKxInstance module instance](crate::wasi::WasiCryptoKxInstance).
+    #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+    pub fn wasi_crypto_kx_module(&mut self) -> WasmEdgeResult<WasiCryptoKxInstance> {
+        let inner_wasi_crypto_kx_module = self.inner.wasi_crypto_kx_module()?;
+
+        Ok(WasiCryptoKxInstance {
+            inner: inner_wasi_crypto_kx_module,
+        })
+    }
+
+    /// Returns the [WasiCryptoSignaturesInstance module instance](crate::wasi::WasiCryptoSignaturesInstance).
+    #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+    pub fn wasi_crypto_signatures_module(
+        &mut self,
+    ) -> WasmEdgeResult<WasiCryptoSignaturesInstance> {
+        let inner_wasi_crypto_signatures_module = self.inner.wasi_crypto_signatures_module()?;
+
+        Ok(WasiCryptoSignaturesInstance {
+            inner: inner_wasi_crypto_signatures_module,
+        })
+    }
+
     /// Checks if the [vm](crate::Vm) contains a named module instance.
     ///
     /// # Argument
@@ -482,9 +576,8 @@ mod tests {
         params,
         types::Val,
         wat2wasm, AsInstance, CallingFrame, Global, GlobalType, ImportObjectBuilder, Memory,
-        MemoryType, Mutability, RefType, Table, TableType, ValType,
+        MemoryType, Mutability, RefType, Table, TableType, ValType, WasmValue,
     };
-    use wasmedge_sys::WasmValue;
 
     #[test]
     fn test_vm_run_func_from_file() {
@@ -786,7 +879,7 @@ mod tests {
 
     #[test]
     fn test_vm_wasi_module() {
-        let host_reg_options = HostRegistrationConfigOptions::new().wasi(true);
+        let host_reg_options = HostRegistrationConfigOptions::default().wasi(true);
         let result = ConfigBuilder::new(CommonConfigOptions::default())
             .with_host_registration_config(host_reg_options)
             .build();
@@ -809,7 +902,7 @@ mod tests {
     #[test]
     #[cfg(target_os = "linux")]
     fn test_vm_wasmedge_process_module() {
-        let host_reg_options = HostRegistrationConfigOptions::new().wasmedge_process(true);
+        let host_reg_options = HostRegistrationConfigOptions::default().wasmedge_process(true);
         let result = ConfigBuilder::new(CommonConfigOptions::default())
             .with_host_registration_config(host_reg_options)
             .build();
@@ -952,7 +1045,7 @@ mod tests {
 
         // create an ImportModule instance
         let result = ImportObjectBuilder::new()
-            .with_func::<(i32, i32), i32>("add", real_add)
+            .with_func::<(i32, i32), i32, !>("add", real_add, None)
             .expect("failed to add host function")
             .with_global("global", global_const)
             .expect("failed to add const global")
@@ -1219,8 +1312,9 @@ mod tests {
     }
 
     fn real_add(
-        _: &CallingFrame,
+        _frame: &CallingFrame,
         inputs: Vec<WasmValue>,
+        _data: *mut std::os::raw::c_void,
     ) -> std::result::Result<Vec<WasmValue>, HostFuncError> {
         if inputs.len() != 2 {
             return Err(HostFuncError::User(1));

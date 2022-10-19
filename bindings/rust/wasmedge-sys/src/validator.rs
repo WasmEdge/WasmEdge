@@ -20,15 +20,11 @@ impl Validator {
     /// If fail to create a [Validator], then an error is returned.
     pub fn create(config: Option<Config>) -> WasmEdgeResult<Self> {
         let ctx = match config {
-            Some(mut config) => {
-                let ctx = unsafe { ffi::WasmEdge_ValidatorCreate(config.inner.0) };
-                config.inner.0 = std::ptr::null_mut();
-                ctx
-            }
+            Some(config) => unsafe { ffi::WasmEdge_ValidatorCreate(config.inner.0) },
             None => unsafe { ffi::WasmEdge_ValidatorCreate(std::ptr::null_mut()) },
         };
         match ctx.is_null() {
-            true => Err(WasmEdgeError::CompilerCreate),
+            true => Err(Box::new(WasmEdgeError::CompilerCreate)),
             false => Ok(Self {
                 inner: InnerValidator(ctx),
                 registered: false,

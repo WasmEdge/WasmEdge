@@ -49,7 +49,7 @@ impl Table {
         let ctx = unsafe { ffi::WasmEdge_TableInstanceCreate(ty.inner.0) };
 
         match ctx.is_null() {
-            true => Err(WasmEdgeError::Table(TableError::Create)),
+            true => Err(Box::new(WasmEdgeError::Table(TableError::Create))),
             false => Ok(Table {
                 inner: InnerTable(ctx),
                 registered: false,
@@ -65,7 +65,7 @@ impl Table {
     pub fn ty(&self) -> WasmEdgeResult<TableType> {
         let ty_ctx = unsafe { ffi::WasmEdge_TableInstanceGetTableType(self.inner.0) };
         match ty_ctx.is_null() {
-            true => Err(WasmEdgeError::Table(TableError::Type)),
+            true => Err(Box::new(WasmEdgeError::Table(TableError::Type))),
             false => Ok(TableType {
                 inner: InnerTableType(ty_ctx as *mut _),
                 registered: true,
@@ -210,7 +210,7 @@ impl TableType {
             )
         };
         match ctx.is_null() {
-            true => Err(WasmEdgeError::TableTypeCreate),
+            true => Err(Box::new(WasmEdgeError::TableTypeCreate)),
             false => Ok(Self {
                 inner: InnerTableType(ctx),
                 registered: false,
@@ -326,7 +326,7 @@ mod tests {
         assert!(result.is_ok());
         let func_ty = result.unwrap();
         // create a host function
-        let result = Function::create(&func_ty, Box::new(real_add), 0);
+        let result = Function::create::<!>(&func_ty, Box::new(real_add), None, 0);
         assert!(result.is_ok());
         let host_func = result.unwrap();
 
@@ -444,7 +444,11 @@ mod tests {
         handle.join().unwrap();
     }
 
-    fn real_add(_: &CallingFrame, input: Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError> {
+    fn real_add(
+        _: &CallingFrame,
+        input: Vec<WasmValue>,
+        _data: *mut std::os::raw::c_void,
+    ) -> Result<Vec<WasmValue>, HostFuncError> {
         println!("Rust: Entering Rust function real_add");
 
         if input.len() != 2 {

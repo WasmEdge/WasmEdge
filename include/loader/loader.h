@@ -97,25 +97,27 @@ public:
 private:
   /// \name Helper functions to print error log when loading AST nodes
   /// @{
-  inline auto logLoadError(ErrCode Code, uint64_t Off, ASTNodeAttr Node) {
+  inline auto logLoadError(ErrCode Code, uint64_t Off,
+                           ASTNodeAttr Node) const noexcept {
     spdlog::error(Code);
     spdlog::error(ErrInfo::InfoLoading(Off));
     spdlog::error(ErrInfo::InfoAST(Node));
     return Unexpect(Code);
   }
   inline auto logNeedProposal(ErrCode Code, Proposal Prop, uint64_t Off,
-                              ASTNodeAttr Node) {
+                              ASTNodeAttr Node) const noexcept {
     spdlog::error(Code);
     spdlog::error(ErrInfo::InfoProposal(Prop));
     spdlog::error(ErrInfo::InfoLoading(Off));
     spdlog::error(ErrInfo::InfoAST(Node));
     return Unexpect(Code);
   }
-  Expect<ValType> checkValTypeProposals(ValType VType, uint64_t Off,
-                                        ASTNodeAttr Node);
+  Expect<ValType> checkValTypeProposals(ValType VType, bool AcceptNone,
+                                        uint64_t Off,
+                                        ASTNodeAttr Node) const noexcept;
   Expect<RefType> checkRefTypeProposals(RefType RType, uint64_t Off,
-                                        ASTNodeAttr Node);
-  Expect<void> checkInstrProposals(OpCode Code, uint64_t Offset);
+                                        ASTNodeAttr Node) const noexcept;
+  Expect<void> checkInstrProposals(OpCode Code, uint64_t Offset) const noexcept;
   /// @}
 
   /// \name Load AST Module functions
@@ -213,8 +215,10 @@ private:
   const AST::Module::IntrinsicsTable *IntrinsicsTable;
   std::recursive_mutex Mutex;
   bool HasDataSection;
-  bool IsSharedLibraryWASM;
-  bool IsUniversalWASM;
+
+  /// Input data type enumeration.
+  enum class InputType : uint8_t { WASM, UniversalWASM, SharedLibrary };
+  InputType WASMType = InputType::WASM;
   /// @}
 };
 

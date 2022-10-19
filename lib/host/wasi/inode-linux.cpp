@@ -849,9 +849,19 @@ WasiExpect<void> INode::getAddrinfo(std::string_view Node,
           fromAddressFamily(SysResItem->ai_addr->sa_family);
 
       // process sa_data in socket address
-      std::memcpy(AiAddrSaDataArray[Idx], SysResItem->ai_addr->sa_data,
-                  WASI::kSaDataLen);
-      CurSockaddr->sa_data_len = WASI::kSaDataLen;
+      size_t SaSize = 0;
+      switch (CurSockaddr->sa_family) {
+      case __wasi_address_family_t::__WASI_ADDRESS_FAMILY_INET4:
+        SaSize = sizeof(sockaddr_in) - sizeof(sockaddr_in::sin_family);
+        break;
+      case __wasi_address_family_t::__WASI_ADDRESS_FAMILY_INET6:
+        SaSize = sizeof(sockaddr_in6) - sizeof(sockaddr_in6::sin6_family);
+        break;
+      default:
+        assumingUnreachable();
+      }
+      std::memcpy(AiAddrSaDataArray[Idx], SysResItem->ai_addr->sa_data, SaSize);
+      CurSockaddr->sa_data_len = __wasi_size_t(SaSize);
     }
     // process ai_next in addrinfo
     SysResItem = SysResItem->ai_next;

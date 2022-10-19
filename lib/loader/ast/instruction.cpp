@@ -189,8 +189,8 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
       if (*Res < 0) {
         // Value type case.
         ValType VType = static_cast<ValType>((*Res) & INT32_C(0x7F));
-        if (auto Check = checkValTypeProposals(VType, FMgr.getLastOffset(),
-                                               ASTNodeAttr::Instruction);
+        if (auto Check = checkValTypeProposals(
+                VType, true, FMgr.getLastOffset(), ASTNodeAttr::Instruction);
             unlikely(!Check)) {
           return Unexpect(Check);
         }
@@ -299,7 +299,7 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
       } else {
         VType = static_cast<ValType>(*T);
       }
-      if (auto Check = checkValTypeProposals(VType, FMgr.getLastOffset(),
+      if (auto Check = checkValTypeProposals(VType, false, FMgr.getLastOffset(),
                                              ASTNodeAttr::Instruction);
           unlikely(!Check)) {
         return Unexpect(Check);
@@ -932,7 +932,8 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
   }
 }
 
-Expect<void> Loader::checkInstrProposals(OpCode Code, uint64_t Offset) {
+Expect<void> Loader::checkInstrProposals(OpCode Code,
+                                         uint64_t Offset) const noexcept {
   if (Code >= OpCode::I32__trunc_sat_f32_s &&
       Code <= OpCode::I64__trunc_sat_f64_u) {
     // These instructions are for NonTrapFloatToIntConversions proposal.

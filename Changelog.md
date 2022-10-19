@@ -1,3 +1,49 @@
+### 0.11.1 (2022-10-03)
+
+Features:
+
+* Supported WASI-NN plug-in with PyTorch backend on Ubuntu 20.04 x86_64.
+  * Users can refer to the [WASI-NN document](https://wasmedge.org/book/en/write_wasm/rust/wasinn.html) for the information.
+  * For building with enabling WASI-NN with PyTorch backend, please add the `-DWASMEDGE_PLUGIN_WASI_NN_BACKEND="PyTorch"` in `cmake`.
+* Updated the WASI-Crypto proposal and supported OpenSSL 3.0.
+* Supported LLVM 15.
+* Added the plug-in C API.
+* Extended WasmEdge CLI.
+  * Allow the optimization level assignment in `wasmedgec` tool.
+  * Supported the `v128` value type printing in `wasmedge` tool.
+* Released Ubuntu 20.04 version with statically linked LLVM.
+
+Fixed issues:
+
+* Fixed the `private` members into the `protected` in the module instance class.
+* Fixed the type mismatch for IntrinsicsTable initialization statement in the AOT compiler.
+
+Known issues:
+
+* Universal WASM format failed on MacOS platforms.
+  * In current status, the universal WASM format output of the AOT compiler with the `O1` or upper optimizations on MacOS platforms will cause bus error when execution.
+  * We are trying to fix this issue. For working around, please use the `--optimize=0` to set the compiler optimization level to `O0` in `wasmedgec` CLI.
+* WasmEdge CLI failed on Windows 10 issue.
+  * Please refer to [here for the workaround](https://github.com/WasmEdge/WasmEdge/issues/1559) if the `msvcp140.dll is missing` occurs.
+* Plug-in linking on MacOS platforms.
+  * The plug-in on MacOS platforms will cause symbol not found when dynamic linking.
+  * We are trying to fix this issue. For working around, please implement the host modules instead of plug-ins.
+
+Documentations:
+
+* Refactored the [WasmEdge book](https://wasmedge.org/book/en/).
+
+Tests:
+
+* Added the WASI-NN PyTorch backend unit test.
+* Added fuzzing tests for WasmEdge CLI.
+
+Thank all the contributors that made this release possible!
+
+DarumaDocker, Faidon Liambotis, Gustavo Ye, LFsWang, MediosZ, Michael Yuan, Shen-Ta Hsieh, Tricster, Xin Liu, Yeongju Kang, YiYing He, Zhou Zhou, hydai, jeeeerrrpop, sonder-joker, vincent
+
+If you want to build from source, please use WasmEdge-0.11.1-src.tar.gz instead of the zip or tarball provided by GitHub directly.
+
 ### 0.11.0 (2022-08-31)
 
 Breaking changes:

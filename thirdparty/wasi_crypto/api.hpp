@@ -291,19 +291,9 @@ enum __wasi_keypair_encoding_e_t : uint16_t {
   __WASI_KEYPAIR_ENCODING_PEM = 2,
 
   /**
-   * PCSK8/DER encoding with compressed coordinates.
-   */
-  __WASI_KEYPAIR_ENCODING_COMPRESSED_PKCS8 = 3,
-
-  /**
-   * PEM encoding with compressed coordinates.
-   */
-  __WASI_KEYPAIR_ENCODING_COMPRESSED_PEM = 4,
-
-  /**
    * Implementation-defined encoding.
    */
-  __WASI_KEYPAIR_ENCODING_LOCAL = 5,
+  __WASI_KEYPAIR_ENCODING_LOCAL = 3,
 
 };
 static_assert(sizeof(__wasi_keypair_encoding_e_t) == 2, "witx calculated size");
@@ -334,24 +324,9 @@ enum __wasi_publickey_encoding_e_t : uint16_t {
   __WASI_PUBLICKEY_ENCODING_SEC = 3,
 
   /**
-   * Compressed SEC-1 encoding.
-   */
-  __WASI_PUBLICKEY_ENCODING_COMPRESSED_SEC = 4,
-
-  /**
-   * PKCS8/DER encoding with compressed coordinates.
-   */
-  __WASI_PUBLICKEY_ENCODING_COMPRESSED_PKCS8 = 5,
-
-  /**
-   * PEM encoding with compressed coordinates.
-   */
-  __WASI_PUBLICKEY_ENCODING_COMPRESSED_PEM = 6,
-
-  /**
    * Implementation-defined encoding.
    */
-  __WASI_PUBLICKEY_ENCODING_LOCAL = 7,
+  __WASI_PUBLICKEY_ENCODING_LOCAL = 4,
 
 };
 static_assert(sizeof(__wasi_publickey_encoding_e_t) == 2, "witx calculated size");

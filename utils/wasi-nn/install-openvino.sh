@@ -8,9 +8,6 @@ fi
 if [[ ! -v "${OPENVINO_YEAR}" ]]; then
   OPENVINO_YEAR="2021"
 fi
-if [[ ! -v "${CMAKE_BUILD_TYPE}" ]]; then
-  CMAKE_BUILD_TYPE=Release
-fi
 
 set -e
 echo "Installing OpenVINO with version ${OPENVINO_VERSION}"

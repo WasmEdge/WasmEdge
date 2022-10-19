@@ -86,6 +86,8 @@ int Tool(int Argc, const char *Argv[]) noexcept {
       "Enable generating code for counting time during execution."sv));
   PO::Option<PO::Toggle> ConfEnableAllStatistics(PO::Description(
       "Enable generating code for all statistics options include instruction counting, gas measuring, and execution time"sv));
+  PO::Option<PO::Toggle> ConfForceInterpreter(
+      PO::Description("Forcibly run WASM in interpreter mode."sv));
 
   PO::Option<uint64_t> TimeLim(
       PO::Description(
@@ -115,6 +117,7 @@ int Tool(int Argc, const char *Argv[]) noexcept {
       .add_option("enable-gas-measuring"sv, ConfEnableGasMeasuring)
       .add_option("enable-time-measuring"sv, ConfEnableTimeMeasuring)
       .add_option("enable-all-statistics"sv, ConfEnableAllStatistics)
+      .add_option("force-interpreter"sv, ConfForceInterpreter)
       .add_option("disable-import-export-mut-globals"sv, PropMutGlobals)
       .add_option("disable-non-trap-float-to-int"sv, PropNonTrapF2IConvs)
       .add_option("disable-sign-extension-operators"sv, PropSignExtendOps)
@@ -134,7 +137,7 @@ int Tool(int Argc, const char *Argv[]) noexcept {
 
   Plugin::Plugin::addPluginOptions(Parser);
 
-  if (!Parser.parse(Argc, Argv)) {
+  if (!Parser.parse(stdout, Argc, Argv)) {
     return EXIT_FAILURE;
   }
   if (Parser.isVersion()) {
@@ -211,6 +214,9 @@ int Tool(int Argc, const char *Argv[]) noexcept {
     if (ConfEnableTimeMeasuring.value()) {
       Conf.getStatisticsConfigure().setTimeMeasuring(true);
     }
+  }
+  if (ConfForceInterpreter.value()) {
+    Conf.getRuntimeConfigure().setForceInterpreter(true);
   }
 
   for (const auto &Name : ForbiddenPlugins.value()) {
@@ -364,6 +370,9 @@ int Tool(int Argc, const char *Argv[]) noexcept {
           break;
         case ValType::F64:
           std::cout << (*Result)[I].first.get<double>() << '\n';
+          break;
+        case ValType::V128:
+          std::cout << (*Result)[I].first.get<uint128_t>() << '\n';
           break;
         /// TODO: FuncRef and ExternRef
         default:

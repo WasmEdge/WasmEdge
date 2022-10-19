@@ -7,7 +7,7 @@ use crate::{
     utils::check,
     Config, WasmEdgeResult,
 };
-use std::path::Path;
+use std::{path::Path, sync::Arc};
 
 /// [Loader](crate::Loader) is used to load WASM modules from the given WASM files or buffers.
 #[derive(Debug)]
@@ -27,16 +27,12 @@ impl Loader {
     /// If fail to create a [Loader](crate), then an error is returned.
     pub fn create(config: Option<Config>) -> WasmEdgeResult<Self> {
         let ctx = match config {
-            Some(mut config) => {
-                let ctx = unsafe { ffi::WasmEdge_LoaderCreate(config.inner.0) };
-                config.inner.0 = std::ptr::null_mut();
-                ctx
-            }
+            Some(config) => unsafe { ffi::WasmEdge_LoaderCreate(config.inner.0) },
             None => unsafe { ffi::WasmEdge_LoaderCreate(std::ptr::null_mut()) },
         };
 
         match ctx.is_null() {
-            true => Err(WasmEdgeError::LoaderCreate),
+            true => Err(Box::new(WasmEdgeError::LoaderCreate)),
             false => Ok(Self {
                 inner: InnerLoader(ctx),
                 registered: false,
@@ -72,9 +68,9 @@ impl Loader {
         }
 
         match mod_ctx.is_null() {
-            true => Err(WasmEdgeError::ModuleCreate),
+            true => Err(Box::new(WasmEdgeError::ModuleCreate)),
             false => Ok(Module {
-                inner: InnerModule(mod_ctx),
+                inner: Arc::new(InnerModule(mod_ctx)),
             }),
         }
     }
@@ -127,9 +123,9 @@ impl Loader {
         }
 
         match mod_ctx.is_null() {
-            true => Err(WasmEdgeError::ModuleCreate),
+            true => Err(Box::new(WasmEdgeError::ModuleCreate)),
             false => Ok(Module {
-                inner: InnerModule(mod_ctx),
+                inner: Arc::new(InnerModule(mod_ctx)),
             }),
         }
     }
@@ -192,21 +188,25 @@ mod tests {
             assert!(result.is_err());
             assert_eq!(
                 result.unwrap_err(),
-                WasmEdgeError::Core(CoreError::Load(CoreLoadError::MalformedMagic))
+                Box::new(WasmEdgeError::Core(CoreError::Load(
+                    CoreLoadError::MalformedMagic
+                )))
             );
 
             let result = loader.from_file("not_exist_file");
             assert!(result.is_err());
             assert_eq!(
                 result.unwrap_err(),
-                WasmEdgeError::Core(CoreError::Load(CoreLoadError::IllegalPath))
+                Box::new(WasmEdgeError::Core(CoreError::Load(
+                    CoreLoadError::IllegalPath
+                )))
             );
         }
 
         // load from buffer
         {
             let buffer = b"\0asm\x01\0\0\0";
-            let result = loader.from_bytes(&buffer);
+            let result = loader.from_bytes(buffer);
             assert!(result.is_ok());
             let module = result.unwrap();
             assert!(!module.inner.0.is_null());
@@ -216,15 +216,19 @@ mod tests {
             assert!(result.is_err());
             assert_eq!(
                 result.unwrap_err(),
-                WasmEdgeError::Core(CoreError::Load(CoreLoadError::MalformedMagic))
+                Box::new(WasmEdgeError::Core(CoreError::Load(
+                    CoreLoadError::MalformedMagic
+                )))
             );
 
             // empty is not accepted
-            let result = loader.from_bytes(&[]);
+            let result = loader.from_bytes([]);
             assert!(result.is_err());
             assert_eq!(
                 result.unwrap_err(),
-                WasmEdgeError::Core(CoreError::Load(CoreLoadError::UnexpectedEnd))
+                Box::new(WasmEdgeError::Core(CoreError::Load(
+                    CoreLoadError::UnexpectedEnd
+                )))
             );
         }
     }

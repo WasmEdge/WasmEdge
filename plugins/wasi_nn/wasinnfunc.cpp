@@ -43,6 +43,23 @@ namespace {
   }
   return DeviceName;
 }
+#ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_TFLITE
+WASINN::TensorType ConvertTFLiteType2NNType(const TfLiteType LiteType) {
+  switch (LiteType) {
+  case TfLiteType::kTfLiteUInt8:
+    return WASINN::TensorType::U8;
+  case TfLiteType::kTfLiteFloat16:
+    return WASINN::TensorType::F16;
+  case TfLiteType::kTfLiteFloat32:
+    return WASINN::TensorType::F32;
+  case TfLiteType::kTfLiteInt32:
+    return WASINN::TensorType::I32;
+  default:
+    return;
+  }
+}
+#endif
+
 } // namespace
 
 Expect<uint32_t> WasiNNLoad::body(const Runtime::CallingFrame &Frame,
@@ -317,7 +334,6 @@ Expect<uint32_t> WasiNNLoad::body(const Runtime::CallingFrame &Frame,
     Env.NNGraph.emplace_back(static_cast<WASINN::Backend>(Encoding));
     auto &Graph = Env.NNGraph.back();
 
-    // -------------------------
     Graph.TFLiteMod = TfLiteModelCreate(BinPtr, BinLen);
     if (unlikely(Graph.TFLiteMod == nullptr)) {
       spdlog::error("[WASI-NN] Cannot import TFLite model");
@@ -330,7 +346,6 @@ Expect<uint32_t> WasiNNLoad::body(const Runtime::CallingFrame &Frame,
     // Store the loaded graph.
     *GraphId = Env.NNGraph.size() - 1;
     return static_cast<uint32_t>(WASINN::ErrNo::Success);
-    // -------------------------
 #else
     spdlog::error(
         "[WASI-NN] TensorflowLite backend is not built. use "
@@ -667,6 +682,7 @@ Expect<uint32_t> WasiNNSetInput::body(const Runtime::CallingFrame &Frame,
       return static_cast<uint32_t>(WASINN::ErrNo::InvalidArgument);
     }
     uint32_t TensorDataLen = Tensor[4];
+    uint32_t TensorType = Tensor[2];
     uint8_t *TensorDataBuf =
         MemInst->getPointer<uint8_t *>(Tensor[3], TensorDataLen);
     if (unlikely(TensorDataBuf == nullptr)) {
@@ -676,6 +692,30 @@ Expect<uint32_t> WasiNNSetInput::body(const Runtime::CallingFrame &Frame,
 
     auto *HoldTensor =
         TfLiteInterpreterGetInputTensor(CxtRef.TFLiteInterp, Index);
+    TfLiteType LiteType = TfLiteTensorType(HoldTensor);
+    WASINN::TensorType NNType;
+    switch (LiteType) {
+    case TfLiteType::kTfLiteUInt8:
+      NNType = WASINN::TensorType::U8;
+      break;
+    case TfLiteType::kTfLiteFloat16:
+      NNType = WASINN::TensorType::F16;
+      break;
+    case TfLiteType::kTfLiteFloat32:
+      NNType = WASINN::TensorType::F32;
+      break;
+    case TfLiteType::kTfLiteInt32:
+      NNType = WASINN::TensorType::I32;
+      break;
+    default:
+      spdlog::error("[WASI-NN] Unsupported TFLite type: {}", LiteType);
+      return static_cast<uint32_t>(WASINN::ErrNo::InvalidArgument);
+    }
+    if (unlikely(TensorType != static_cast<uint32_t>(NNType))) {
+      spdlog::error("[WASI-NN] Expect tensor type {}, but got {}",
+                    static_cast<uint32_t>(NNType), TensorType);
+      return static_cast<uint32_t>(WASINN::ErrNo::InvalidArgument);
+    }
     TfLiteTensorCopyFromBuffer(HoldTensor, TensorDataBuf, TensorDataLen);
 
     return static_cast<uint32_t>(WASINN::ErrNo::Success);

@@ -189,7 +189,7 @@ impl Function {
                 cost,
             )
         };
-        println!("create function");
+
         match ctx.is_null() {
             true => Err(Box::new(WasmEdgeError::Func(FuncError::Create))),
             false => Ok(Self {
@@ -300,7 +300,7 @@ impl Function {
         args: impl IntoIterator<Item = WasmValue> + Send,
     ) -> WasmEdgeResult<Vec<WasmValue>> {
         store
-            .on_fiber(|| engine.run_func(self, args))
+            .on_fiber(|_store| engine.run_func(self, args))
             .await
             .unwrap()
     }

@@ -41,7 +41,7 @@ fn real_add(
         } else {
             2
         };
-        tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+        tokio::time::sleep(std::time::Duration::from_secs(4)).await;
 
         let c = a + b;
         println!("Rust: calcuating in real_add c: {:?}", c);
@@ -67,42 +67,41 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // create a Vm context
     let config = Config::create()?;
-    let mut vm = Vm::create(Some(config), None)?;
-    let mut store = vm.store_mut().expect("no store");
-    // let mut store = Store::create().expect("123");
-    dbg!(&store);
-    dbg!(&store.async_state.current_poll_cx.get());
+    let mut store = Store::create().expect("Unable to create store");
+    let mut vm = Vm::create(Some(config), Some(&mut store))?;
 
-    let result = FuncType::create(
+    // dbg!(&store);
+    // dbg!(&store.async_state.current_poll_cx.get());
+    // dbg!(&store.async_state.current_suspend.get());
+    // unsafe {
+    //     dbg!(*(store.async_state.current_poll_cx.get()));
+    // }
+
+    let func_ty = FuncType::create(
         vec![ValType::ExternRef, ValType::I32, ValType::I32],
         vec![ValType::I32],
-    );
-    assert!(result.is_ok());
-    let func_ty = result.unwrap();
+    )?;
     let add_ref = WasmValue::from_extern_ref(&mut real_add);
-
-    let result = Function::create_async(&func_ty, Box::new(real_add), Some(&mut store), 0);
-    assert!(result.is_ok());
-    let host_func = result.unwrap();
+    let host_func = Function::create_async(&func_ty, Box::new(real_add), Some(&mut store), 0)?;
 
     // create an ImportObject module
     let mut import = ImportModule::create("extern_module")?;
     import.add_func("add", host_func);
     vm.load_wasm_from_module(&module);
-    for func in vm.function_iter() {
-        dbg!(func);
-    }
-    println!("functions");
     vm.register_wasm_from_import(ImportObject::Import(import))?;
 
-    let res = vm
-        .run_wasm_from_module_async2(
-            module,
-            String::from("call_add"),
-            vec![add_ref, WasmValue::from_i32(5), WasmValue::from_i32(10)],
-        )
-        .await?;
-
-    dbg!(res);
+    tokio::spawn(async move {
+        let res = vm
+            .run_wasm_from_module_async2(
+                &mut store,
+                module,
+                String::from("call_add"),
+                vec![add_ref, WasmValue::from_i32(5), WasmValue::from_i32(10)],
+            )
+            .await;
+        dbg!(res);
+    })
+    .await?;
+    println!("main thread");
     Ok(())
 }

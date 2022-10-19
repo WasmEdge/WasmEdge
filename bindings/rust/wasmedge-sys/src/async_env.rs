@@ -44,8 +44,6 @@ impl Future for FiberFuture<'_> {
             let _reset = Reset(self.current_poll_cx, *self.current_poll_cx);
             *self.current_poll_cx =
                 std::mem::transmute::<&mut Context<'_>, *mut Context<'static>>(cx);
-            println!("set current poll cx");
-            dbg!(*self.current_poll_cx);
 
             match self.fiber.resume(Ok(())) {
                 Ok(result) => Poll::Ready(result),
@@ -98,7 +96,6 @@ impl AsyncCx {
         loop {
             let future_result = {
                 let poll_cx = *self.current_poll_cx;
-                dbg!(poll_cx);
                 let _reset = Reset(self.current_poll_cx, poll_cx);
                 *self.current_poll_cx = ptr::null_mut();
                 assert!(!poll_cx.is_null());

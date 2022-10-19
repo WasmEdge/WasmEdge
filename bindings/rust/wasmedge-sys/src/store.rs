@@ -115,7 +115,6 @@ impl Store {
             return None;
         }
         let poll_cx_inner_ptr = unsafe { *poll_cx_box_ptr };
-        dbg!(poll_cx_inner_ptr);
         if poll_cx_inner_ptr.is_null() {
             println!("inner ptr null");
             return None;
@@ -126,13 +125,13 @@ impl Store {
         })
     }
 
-    pub async fn on_fiber<R>(&mut self, func: impl FnOnce() -> R + Send) -> Result<R, ()> {
+    pub async fn on_fiber<R>(
+        &mut self,
+        func: impl FnOnce(&mut Store) -> R + Send,
+    ) -> Result<R, ()> {
         let mut slot = None;
-        println!("inside fiber");
-
         let future = {
             let current_poll_cx = self.async_state.current_poll_cx.get();
-            dbg!(current_poll_cx);
             let current_suspend = self.async_state.current_suspend.get();
 
             let stack = wasmtime_fiber::FiberStack::new(2 << 20).map_err(|_e| ())?;
@@ -143,7 +142,7 @@ impl Store {
                 unsafe {
                     let _reset = Reset(current_suspend, *current_suspend);
                     *current_suspend = suspend;
-                    *slot = Some(func());
+                    *slot = Some(func(self));
                     Ok(())
                 }
             })

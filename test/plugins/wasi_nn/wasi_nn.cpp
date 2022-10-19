@@ -1105,7 +1105,8 @@ TEST(WasiNNTest, TFLiteBackend) {
   // Test: set_input -- set input successfully.
   BuilderPtr = SetInputEntryPtr;
   writeFatPointer(MemInst, StorePtr, TensorDim.size(), BuilderPtr);
-  writeUInt32(MemInst, UINT32_C(1), BuilderPtr);
+  // Tensor type U8
+  writeUInt32(MemInst, UINT32_C(2), BuilderPtr);
   writeFatPointer(MemInst, StorePtr + TensorDim.size() * 4, TensorData.size(),
                   BuilderPtr);
   {

@@ -43,22 +43,6 @@ namespace {
   }
   return DeviceName;
 }
-#ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_TFLITE
-WASINN::TensorType ConvertTFLiteType2NNType(const TfLiteType LiteType) {
-  switch (LiteType) {
-  case TfLiteType::kTfLiteUInt8:
-    return WASINN::TensorType::U8;
-  case TfLiteType::kTfLiteFloat16:
-    return WASINN::TensorType::F16;
-  case TfLiteType::kTfLiteFloat32:
-    return WASINN::TensorType::F32;
-  case TfLiteType::kTfLiteInt32:
-    return WASINN::TensorType::I32;
-  default:
-    return;
-  }
-}
-#endif
 
 } // namespace
 
@@ -694,6 +678,7 @@ Expect<uint32_t> WasiNNSetInput::body(const Runtime::CallingFrame &Frame,
         TfLiteInterpreterGetInputTensor(CxtRef.TFLiteInterp, Index);
     TfLiteType LiteType = TfLiteTensorType(HoldTensor);
     WASINN::TensorType NNType;
+
     switch (LiteType) {
     case TfLiteType::kTfLiteUInt8:
       NNType = WASINN::TensorType::U8;
@@ -711,6 +696,7 @@ Expect<uint32_t> WasiNNSetInput::body(const Runtime::CallingFrame &Frame,
       spdlog::error("[WASI-NN] Unsupported TFLite type: {}", LiteType);
       return static_cast<uint32_t>(WASINN::ErrNo::InvalidArgument);
     }
+
     if (unlikely(TensorType != static_cast<uint32_t>(NNType))) {
       spdlog::error("[WASI-NN] Expect tensor type {}, but got {}",
                     static_cast<uint32_t>(NNType), TensorType);

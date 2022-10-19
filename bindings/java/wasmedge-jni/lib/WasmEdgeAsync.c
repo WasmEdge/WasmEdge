@@ -18,23 +18,8 @@ WasmEdge_Async * getAsync(JNIEnv* env, jobject thisObject){
     if(thisObject == NULL) {
         return NULL;
     }
-    printf("get async object\n");
     return (WasmEdge_Async*) getPointer(env, thisObject);
 }
-/*
- * it seems that we don't need this file
-JNIEXPORT void JNICALL Java_org_wasmedge_WasmEdgeAsync_nativeInit
-        (JNIEnv * env, jobject thisobject, jobjectArray jargs){
-
-    WasmEdge_Async* configureContext = getAsync(env, thisobject);
-
-    WasmEdge_Async * async = (WasmEdge_Async *)malloc(sizeof(struct WasmEdge_Async));
-
-    WasmeWasmEdge_Async(jargs);
-
-    setPointer(env, thisObject, (long)compilerContext);
-}
-*/
 
 JNIEXPORT void JNICALL Java_org_wasmedge_WasmEdgeAsync_wasmEdge_1AsyncWait
         (JNIEnv * env, jobject thisobject){
@@ -45,8 +30,6 @@ JNIEXPORT void JNICALL Java_org_wasmedge_WasmEdgeAsync_wasmEdge_1AsyncWait
 JNIEXPORT jboolean JNICALL Java_org_wasmedge_WasmEdgeAsync_wasmEdge_1AsyncWaitFor
         (JNIEnv * env, jobject thisobject, jlong milliseconds){
     WasmEdge_Async * ctx = getAsync(env, thisobject);
-    if (ctx == NULL) printf("async ctx is null\n");
-    else printf("async ctx not null\n");
     uint64_t Milliseconds = milliseconds;
     return WasmEdge_AsyncWaitFor(ctx, Milliseconds);
 }
@@ -93,12 +76,7 @@ JNIEXPORT void JNICALL Java_org_wasmedge_WasmEdgeAsync_wasmEdge_1AsyncGet
         }
         returns[i] = val;
     }
-    // printf("returns len : %d\n", returnsLen);
-    // Warning: turn WasmEdge_Result to F
     WasmEdge_Result result= WasmEdge_AsyncGet(ctx, returns, returnsLen);
-    // printf("Get the result: %d\n", WasmEdge_ValueGetI32(returns[0]));
-    // uint32_t Code = WasmEdge_ResultGetCode(result);
-    // printf("code : %d\n", Code);
     handleWasmEdgeResult(env, &result);
     
     for (int i = 0; i < returnsLen; ++i) {
@@ -116,8 +94,6 @@ JNIEXPORT void JNICALL Java_org_wasmedge_WasmEdgeAsync_wasmEdge_1AsyncDelete
 jobject createJAsyncObject(JNIEnv* env, WasmEdge_Async * asyncObj) {
 
     jclass clazz = (*env)->FindClass(env, "org/wasmedge/WasmEdgeAsync");
-    if (clazz != NULL) printf("class not null\n");
     jmethodID constructorId = (*env)->GetMethodID(env, clazz, "<init>", "(J)V");
-    if (constructorId != NULL) printf("constructor not null\n");
     return (*env)->NewObject(env, clazz, constructorId, (long)asyncObj);
 }

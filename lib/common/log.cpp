@@ -6,6 +6,8 @@
 namespace WasmEdge {
 namespace Log {
 
+void setLogOff() { spdlog::set_level(spdlog::level::off); }
+
 void setDebugLoggingLevel() { spdlog::set_level(spdlog::level::debug); }
 
 void setInfoLoggingLevel() { spdlog::set_level(spdlog::level::info); }

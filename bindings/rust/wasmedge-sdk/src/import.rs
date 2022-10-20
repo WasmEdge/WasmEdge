@@ -594,10 +594,10 @@ mod tests {
     use crate::{
         config::{CommonConfigOptions, ConfigBuilder},
         error::{CoreError, CoreInstantiationError, GlobalError, WasmEdgeError},
-        host_function, params,
+        params,
         types::Val,
-        Caller, Executor, Global, GlobalType, Memory, MemoryType, Mutability, RefType, Statistics,
-        Store, Table, TableType, ValType, WasmVal, WasmValue,
+        Executor, Global, GlobalType, Memory, MemoryType, Mutability, RefType, Statistics, Store,
+        Table, TableType, ValType, WasmVal, WasmValue,
     };
     use std::{
         sync::{Arc, Mutex},
@@ -761,11 +761,10 @@ mod tests {
             _s: Vec<S>,
         }
 
-        #[host_function]
         fn real_add(
-            _caller: &Caller,
+            _frame: &CallingFrame,
             inputs: Vec<WasmValue>,
-            data: &mut Data<i32, &str>,
+            data: *mut std::os::raw::c_void,
         ) -> std::result::Result<Vec<WasmValue>, HostFuncError> {
             println!("data: {:?}", data);
 
@@ -1429,10 +1428,10 @@ mod tests {
         handle.join().unwrap();
     }
 
-    #[host_function]
     fn real_add(
-        _caller: &Caller,
+        _frame: &CallingFrame,
         inputs: Vec<WasmValue>,
+        _data: *mut std::os::raw::c_void,
     ) -> std::result::Result<Vec<WasmValue>, HostFuncError> {
         if inputs.len() != 2 {
             return Err(HostFuncError::User(1));

@@ -18,11 +18,11 @@ jobs:
     env:
       build_tests: ON
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           fetch-depth: 0
       - name: Install dependency
-        uses: crazy-max/ghaction-chocolatey@v1
+        uses: crazy-max/ghaction-chocolatey@v2
         with:
           args: install cmake ninja vswhere
       - uses: GuillaumeFalourd/setup-windows10-sdk-action@v1
@@ -72,13 +72,13 @@ jobs:
           echo "product_version=$Env:product_version" | Out-File -FilePath $Env:GITHUB_ENV -Encoding utf8 -Append
       - name: Upload artifact
         if: ${{ !inputs.release }}
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: WasmEdge-${{ inputs.version }}-windows.zip
           path: build\\WasmEdge-${{ inputs.version }}-Windows.zip
       - name: Upload Windows installer
         if: ${{ !inputs.release }}
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: WasmEdge-${{ env.product_version }}-windows.msi
           path: build\\WasmEdge-${{ env.product_version }}-windows.msi

@@ -239,6 +239,9 @@ WASMEDGE_CAPI_EXPORT extern void WasmEdge_LogSetErrorLevel(void);
 /// Set the logging system to filter to debug level.
 WASMEDGE_CAPI_EXPORT extern void WasmEdge_LogSetDebugLevel(void);
 
+/// Set the logging system off.
+WASMEDGE_CAPI_EXPORT extern void WasmEdge_LogOff(void);
+
 // <<<<<<<< WasmEdge logging functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 // >>>>>>>> WasmEdge value functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
@@ -644,6 +647,28 @@ WasmEdge_ConfigureSetMaxMemoryPage(WasmEdge_ConfigureContext *Cxt,
 /// \returns the page count limitation value.
 WASMEDGE_CAPI_EXPORT extern uint32_t
 WasmEdge_ConfigureGetMaxMemoryPage(const WasmEdge_ConfigureContext *Cxt);
+
+/// Set the force interpreter mode execution option.
+///
+/// This function is thread-safe.
+///
+/// \param Cxt the WasmEdge_ConfigureContext to set the boolean value.
+/// \param isForceInterpreter the boolean value to determine to forcibly run
+/// WASM in interpreter mode or not.
+WASMEDGE_CAPI_EXPORT extern void
+WasmEdge_ConfigureSetForceInterpreter(WasmEdge_ConfigureContext *Cxt,
+                                      const bool isForceInterpreter);
+
+/// Get the force interpreter mode execution option.
+///
+/// This function is thread-safe.
+///
+/// \param Cxt the WasmEdge_ConfigureContext to get the boolean value.
+///
+/// \returns the boolean value to determine to forcibly run WASM in interpreter
+/// mode or not.
+WASMEDGE_CAPI_EXPORT extern bool
+WasmEdge_ConfigureIsForceInterpreter(const WasmEdge_ConfigureContext *Cxt);
 
 /// Set the optimization level of AOT compiler.
 ///

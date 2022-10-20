@@ -41,5 +41,7 @@ if(WIN32)
   PRIVATE
   wsock32
   ws2_32
+  pathcch
+  shlwapi
 )
 endif()

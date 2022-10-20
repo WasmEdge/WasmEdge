@@ -164,7 +164,7 @@ impl Memory {
     ///
     /// * `len` - The requested data length. If the size of `offset` + `len` is larger
     /// than the data size in the [Memory]
-    ///   
+    ///
     ///
     /// # Errors
     ///
@@ -212,7 +212,7 @@ impl Memory {
 
     /// Returns the size, in WebAssembly pages (64 KiB of each page), of this wasm memory.
     pub fn size(&self) -> u32 {
-        unsafe { ffi::WasmEdge_MemoryInstanceGetPageSize(self.inner.0) as u32 }
+        unsafe { ffi::WasmEdge_MemoryInstanceGetPageSize(self.inner.0) }
     }
 
     /// Grows this WebAssembly memory by `count` pages.
@@ -301,7 +301,7 @@ impl MemType {
         }
     }
 
-    /// Returns the initial size of a [Memory].    
+    /// Returns the initial size of a [Memory].
     pub fn min(&self) -> u32 {
         let limit = unsafe { ffi::WasmEdge_MemoryTypeGetLimit(self.inner.0) };
         let limit: WasmEdgeLimit = limit.into();

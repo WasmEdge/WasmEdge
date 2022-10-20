@@ -1,4 +1,4 @@
-name: Build and Test WasmEdge on multiple platforms
+name: Test WasmEdge Core
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
@@ -50,7 +50,7 @@ jobs:
     outputs:
       version: ${{ steps.prep.outputs.version }}
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           fetch-depth: 0
       - name: Get version

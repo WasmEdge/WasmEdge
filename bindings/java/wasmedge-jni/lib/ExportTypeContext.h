@@ -7,5 +7,7 @@
 #include "jni.h"
 #include "wasmedge/wasmedge.h"
 
-jobject createExportTypeContext(JNIEnv * env, const WasmEdge_ExportTypeContext * cxt, jobject jAstMo);
-#endif //WASMEDGE_JAVA_EXPORTTYPECONTEXT_H
+jobject createExportTypeContext(JNIEnv *env,
+                                const WasmEdge_ExportTypeContext *cxt,
+                                jobject jAstMo);
+#endif // WASMEDGE_JAVA_EXPORTTYPECONTEXT_H

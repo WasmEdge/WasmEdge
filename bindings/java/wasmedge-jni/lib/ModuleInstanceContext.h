@@ -7,7 +7,10 @@
 #include "jni.h"
 #include "wasmedge/wasmedge.h"
 
-jobject createJModuleInstanceContext(JNIEnv* env, const WasmEdge_ModuleInstanceContext* impObj);
+jobject
+createJModuleInstanceContext(JNIEnv *env,
+                             const WasmEdge_ModuleInstanceContext *impObj);
 
-WasmEdge_ModuleInstanceContext * getModuleInstanceContext(JNIEnv* env, jobject jImpObjCxt);
-#endif //WASMEDGE_JAVA_MODULEINSTANCECONTEXT_H
+WasmEdge_ModuleInstanceContext *getModuleInstanceContext(JNIEnv *env,
+                                                         jobject jImpObjCxt);
+#endif // WASMEDGE_JAVA_MODULEINSTANCECONTEXT_H

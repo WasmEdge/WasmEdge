@@ -6,6 +6,6 @@
 #define WASMEDGE_JAVA_VALUETYPE_H
 
 WasmEdge_Value JavaValueToWasmEdgeValue(JNIEnv *env, jobject jVal);
-jobject WasmEdgeValueToJavaValue(JNIEnv * env, WasmEdge_Value value);
+jobject WasmEdgeValueToJavaValue(JNIEnv *env, WasmEdge_Value value);
 
-#endif //WASMEDGE_JAVA_VALUETYPE_H
+#endif // WASMEDGE_JAVA_VALUETYPE_H

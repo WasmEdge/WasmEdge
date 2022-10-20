@@ -8,8 +8,11 @@
 #include "jni.h"
 #include "wasmedge/wasmedge.h"
 
-jobject createJTableInstanceContext(JNIEnv* env, const WasmEdge_TableInstanceContext * tabInstance);
+jobject
+createJTableInstanceContext(JNIEnv *env,
+                            const WasmEdge_TableInstanceContext *tabInstance);
 
-        WasmEdge_TableInstanceContext * getTableInstanceContext(JNIEnv* env, jobject jTableInstanceContext);
+WasmEdge_TableInstanceContext *
+getTableInstanceContext(JNIEnv *env, jobject jTableInstanceContext);
 
-#endif //WASMEDGE_JAVA_TABLEINSTANCECONTEXT_H
+#endif // WASMEDGE_JAVA_TABLEINSTANCECONTEXT_H

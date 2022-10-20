@@ -7,7 +7,9 @@
 
 #include "jni.h"
 #include "wasmedge/wasmedge.h"
-WasmEdge_GlobalInstanceContext * getGlobalInstanceContext(JNIEnv* env, jobject jGlobalInstanceContext);
-jobject createJGlobalInstanceContext(JNIEnv* env, const WasmEdge_GlobalInstanceContext * globInstance);
+WasmEdge_GlobalInstanceContext *
+getGlobalInstanceContext(JNIEnv *env, jobject jGlobalInstanceContext);
+jobject createJGlobalInstanceContext(
+    JNIEnv *env, const WasmEdge_GlobalInstanceContext *globInstance);
 
-#endif //WASMEDGE_JAVA_GLOBALINSTANCECONTEXT_H
+#endif // WASMEDGE_JAVA_GLOBALINSTANCECONTEXT_H

@@ -5,9 +5,10 @@
 #ifndef WASMEDGE_JAVA_STATISTICSCONTEXT_H
 #define WASMEDGE_JAVA_STATISTICSCONTEXT_H
 
+WasmEdge_StatisticsContext *getStatisticsContext(JNIEnv *env, jobject jStatCxt);
 
-WasmEdge_StatisticsContext *getStatisticsContext(JNIEnv * env, jobject jStatCxt);
+jobject
+CreateJavaStatisticsContext(JNIEnv *env,
+                            WasmEdge_StatisticsContext *statisticsContext);
 
-jobject CreateJavaStatisticsContext(JNIEnv *env, WasmEdge_StatisticsContext * statisticsContext);
-
-#endif //WASMEDGE_JAVA_STATISTICSCONTEXT_H
+#endif // WASMEDGE_JAVA_STATISTICSCONTEXT_H

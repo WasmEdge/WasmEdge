@@ -44,6 +44,15 @@ jobs:
           cd bindings/java/wasmedge-jni/
           rm -f build
 
+      - name: Install clang-format-12
+        run: |
+          apt-get update
+          apt-get install clang-format-12
+
+      - name: Lint
+        run: |
+          find bindings/java/wasmedge-jni/lib -type f -iname "*.[ch]" | xargs -n1 `which clang-format-12` -i -style=file -Werror --dry-run
+
       - name: Build & Install WasmEdge
         run: |
           apt-get update

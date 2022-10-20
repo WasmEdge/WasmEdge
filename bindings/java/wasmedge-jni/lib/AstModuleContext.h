@@ -8,7 +8,7 @@
 #include "jni.h"
 #include "wasmedge/wasmedge.h"
 
-WasmEdge_ASTModuleContext * getASTModuleContext(JNIEnv* env, jobject thisObject);
-jobject createAstModuleContext(JNIEnv * env, WasmEdge_ASTModuleContext* mod);
+WasmEdge_ASTModuleContext *getASTModuleContext(JNIEnv *env, jobject thisObject);
+jobject createAstModuleContext(JNIEnv *env, WasmEdge_ASTModuleContext *mod);
 
-#endif //WASMEDGE_JAVA_ASTMODULECONTEXT_H
+#endif // WASMEDGE_JAVA_ASTMODULECONTEXT_H

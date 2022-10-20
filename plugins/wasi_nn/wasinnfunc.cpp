@@ -702,7 +702,12 @@ Expect<uint32_t> WasiNNSetInput::body(const Runtime::CallingFrame &Frame,
                     static_cast<uint32_t>(NNType), TensorType);
       return static_cast<uint32_t>(WASINN::ErrNo::InvalidArgument);
     }
-    TfLiteTensorCopyFromBuffer(HoldTensor, TensorDataBuf, TensorDataLen);
+    TfLiteStatus Stat =
+        TfLiteTensorCopyFromBuffer(HoldTensor, TensorDataBuf, TensorDataLen);
+    if (unlikely(Stat != TfLiteStatus::kTfLiteOk)) {
+      spdlog::error("[WASI-NN] Copy tensor memory failed");
+      return static_cast<uint32_t>(WASINN::ErrNo::Busy);
+    }
 
     return static_cast<uint32_t>(WASINN::ErrNo::Success);
 
@@ -953,12 +958,12 @@ Expect<uint32_t> WasiNNCompute::body(const Runtime::CallingFrame &Frame,
   } else if (CxtRef.GraphRef.GraphBackend == WASINN::Backend::TensorflowLite) {
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_TFLITE
     // Run session
-    if (CxtRef.TFLiteInterp == nullptr) {
+    if (unlikely(CxtRef.TFLiteInterp == nullptr)) {
       spdlog::error("[WASI-NN] Tensorflow Lite context empty");
       return static_cast<uint32_t>(WASINN::ErrNo::MissingMemory);
     }
     TfLiteStatus Stat = TfLiteInterpreterInvoke(CxtRef.TFLiteInterp);
-    if (Stat != TfLiteStatus::kTfLiteOk) {
+    if (unlikely(Stat != TfLiteStatus::kTfLiteOk)) {
       spdlog::error("[WASI-NN] Invokation failed.");
       return static_cast<uint32_t>(WASINN::ErrNo::Busy);
     }

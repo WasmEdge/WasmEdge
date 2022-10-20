@@ -324,8 +324,6 @@ Expect<uint32_t> WasiNNLoad::body(const Runtime::CallingFrame &Frame,
       Env.NNGraph.pop_back();
       return static_cast<uint32_t>(WASINN::ErrNo::InvalidArgument);
     }
-    Graph.TFLiteOps = TfLiteInterpreterOptionsCreate();
-    TfLiteInterpreterOptionsSetNumThreads(Graph.TFLiteOps, 2);
 
     // Store the loaded graph.
     *GraphId = Env.NNGraph.size() - 1;
@@ -398,8 +396,7 @@ Expect<uint32_t> WasiNNInitExecCtx::body(const Runtime::CallingFrame &Frame,
              WASINN::Backend::TensorflowLite) {
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_TFLITE
     // Check the network and the execution network with the graph ID.
-    if (Env.NNGraph[GraphId].TFLiteMod == nullptr ||
-        Env.NNGraph[GraphId].TFLiteOps == nullptr) {
+    if (Env.NNGraph[GraphId].TFLiteMod == nullptr) {
       spdlog::error("[WASI-NN] Model for Graph:{} is missing!", GraphId);
       return static_cast<uint32_t>(WASINN::ErrNo::MissingMemory);
     }
@@ -407,8 +404,11 @@ Expect<uint32_t> WasiNNInitExecCtx::body(const Runtime::CallingFrame &Frame,
     Env.NNContext.emplace_back(Env.NNGraph[GraphId]);
     const auto Graph = Env.NNGraph[GraphId];
     auto &NewContext = Env.NNContext.back();
+    auto *TFLiteOps = TfLiteInterpreterOptionsCreate();
+    TfLiteInterpreterOptionsSetNumThreads(TFLiteOps, 2);
     NewContext.TFLiteInterp =
-        TfLiteInterpreterCreate(Graph.TFLiteMod, Graph.TFLiteOps);
+        TfLiteInterpreterCreate(Graph.TFLiteMod, TFLiteOps);
+    TfLiteInterpreterOptionsDelete(TFLiteOps);
     if (unlikely(NewContext.TFLiteInterp == nullptr)) {
       spdlog::error("[WASI-NN] Cannot create TFLite interpreter.");
       Env.NNContext.pop_back();

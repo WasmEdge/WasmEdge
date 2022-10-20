@@ -76,9 +76,6 @@ public:
     if (TFLiteMod) {
       TfLiteModelDelete(TFLiteMod);
     }
-    if (TFLiteOps) {
-      TfLiteInterpreterOptionsDelete(TFLiteOps);
-    }
 #endif
   }
 
@@ -95,7 +92,6 @@ public:
 #endif
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_TFLITE
   TfLiteModel *TFLiteMod = nullptr;
-  TfLiteInterpreterOptions *TFLiteOps = nullptr;
 #endif
 };
 

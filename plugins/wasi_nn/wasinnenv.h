@@ -34,9 +34,10 @@ enum class TensorType : uint32_t { F16 = 0, F32 = 1, U8 = 2, I32 = 3 };
 
 enum class Backend : uint8_t {
   OpenVINO = 0,
-  PyTorch = 1,
+  ONNX = 1,
   Tensorflow = 2,
-  TensorflowLite = 3
+  PyTorch = 3,
+  TensorflowLite = 4
 };
 
 class Graph {

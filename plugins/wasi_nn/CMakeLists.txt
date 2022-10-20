@@ -43,7 +43,8 @@ install(TARGETS wasmedgePluginWasiNN DESTINATION ${CMAKE_INSTALL_LIBDIR}/wasmedg
 
 # Add backends building flags.
 foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
-  if(BACKEND STREQUAL "OpenVINO")
+  string(TOLOWER ${BACKEND} BACKEND)
+  if(BACKEND STREQUAL "openvino")
     message(STATUS "WASI-NN: Build OpenVINO backend for WASI-NN")
     find_package(InferenceEngine REQUIRED)
     add_definitions(-DWASMEDGE_PLUGIN_WASI_NN_BACKEND_OPENVINO)
@@ -51,7 +52,7 @@ foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
       PUBLIC
       ${InferenceEngine_LIBRARIES}
     )
-  elseif(BACKEND STREQUAL "PyTorch")
+  elseif(BACKEND STREQUAL "pytorch")
     message(STATUS "WASI-NN: Build PyTorch backend for WASI-NN")
     find_package(Torch REQUIRED)
     add_definitions(-DWASMEDGE_PLUGIN_WASI_NN_BACKEND_TORCH)
@@ -59,12 +60,13 @@ foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
       PUBLIC
       ${TORCH_LIBRARIES}
     )
-  elseif(BACKEND STREQUAL "Tensorflowlite")
+  elseif(BACKEND STREQUAL "tensorflowlite")
     message(STATUS "WASI-NN: Build Tensorflow lite backend for WASI-NN")
+    # TODO: Move these complicated steps into a helper cmake.
     add_definitions(-DWASMEDGE_PLUGIN_WASI_NN_BACKEND_TFLITE)
 
     if(NOT WASMEDGE_DEPS_VERSION)
-      set(WASMEDGE_DEPS_VERSION "0.11.0-rc.1")
+      set(WASMEDGE_DEPS_VERSION "0.11.1")
     endif()
 
     # Clone required shared libraries
@@ -137,15 +139,6 @@ foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
       message(STATUS "Fetching WasmEdge-tensorflow-dep repository - done")
     endif()
 
-    # -hardcode remove in future-------------------------------
-    # set(WASMEDGE_TENSORFLOW_DEPS_TFLITE_HASH "43b2a782efb58b047c6d33f64d7ac711b24426959f91287d910edb8937c11dea")
-    # set(wasmedge_tensorflow_deps_SOURCE_DIR "${CMAKE_SOURCE_DIR}/utils/WasmEdge-tensorflow-deps")
-
-    # set(WASMEDGE_TENSORFLOW_DEPS_TFLITE_LIB
-    # "${wasmedge_tensorflow_deps_SOURCE_DIR}/shares/libtensorflowlite_c.so"
-    # )
-
-    # --------------------------------
     set(WASMEDGE_TENSORFLOW_DEPS_PATH ${wasmedge_tensorflow_deps_SOURCE_DIR})
     set(WASMEDGE_TENSORFLOW_DEPS_BIN_PATH ${CMAKE_CURRENT_BINARY_DIR}/utils/WasmEdge-tensorflow-deps)
 

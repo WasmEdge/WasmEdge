@@ -227,44 +227,10 @@ jobs:
             test_bin: wasiNNTests
             output_path: plugins/wasi_nn
             output_bin: libwasmedgePluginWasiNN.so
+            deps_path: "utils/wasi-nn/install-pytorch.sh --disable-cxx11-abi"
+            cmake_plugin_option: "-DWASMEDGE_PLUGIN_WASI_NN_BACKEND=PyTorch"
             build_type: Release
-            test: false
-          - name: WASI-Crypto
-            tar_name: wasi_crypto
-            system: manylinux2014 x86_64
-            host_runner: ubuntu-latest
-            docker_tag: manylinux2014_x86_64
-            output_path: plugins/wasi_crypto
-            output_bin: libwasmedgePluginWasiCrypto.so
-            build_type: Release
-            test: false
-          - name: WASI-Crypto
-            tar_name: wasi_crypto
-            system: manylinux2014 aarch64
-            host_runner: ARM64
-            docker_tag: manylinux2014_aarch64
-            output_path: plugins/wasi_crypto
-            output_bin: libwasmedgePluginWasiCrypto.so
-            build_type: Release
-            test: false
-          - name: HttpsReq
-            tar_name: wasmedge_httpsreq
-            system: manylinux2014 x86_64
-            host_runner: ubuntu-latest
-            docker_tag: manylinux2014_x86_64
-            output_path: plugins/wasmedge_httpsreq
-            output_bin: libwasmedgePluginHttpsReq.so
-            build_type: Release
-            test: false
-          - name: HttpsReq
-            tar_name: wasmedge_httpsreq
-            system: manylinux2014 aarch64
-            host_runner: ARM64
-            docker_tag: manylinux2014_aarch64
-            output_path: plugins/wasmedge_httpsreq
-            output_bin: libwasmedgePluginHttpsReq.so
-            build_type: Release
-            test: false
+            test: true
           - name: WASI-NN Tensorflow Lite
             tar_name: wasi_nn-tflite
             backend: Tensorflowlite
@@ -275,8 +241,66 @@ jobs:
             test_bin: wasiNNTests
             output_path: plugins/wasi_nn
             output_bin: libwasmedgePluginWasiNN.so
+            cmake_plugin_option: "-DWASMEDGE_PLUGIN_WASI_NN_BACKEND=TensorflowLite"
             build_type: Release
             test: true
+          - name: WASI-NN Tensorflow Lite
+            tar_name: wasi_nn-tflite
+            backend: Tensorflowlite
+            system: manylinux2014 aarch64
+            host_runner: ARM64
+            docker_tag: manylinux2014_aarch64
+            test_path: test/plugins/wasi_nn
+            test_bin: wasiNNTests
+            output_path: plugins/wasi_nn
+            output_bin: libwasmedgePluginWasiNN.so
+            cmake_plugin_option: "-DWASMEDGE_PLUGIN_WASI_NN_BACKEND=TensorflowLite"
+            build_type: Release
+            test: true
+          - name: WASI-Crypto
+            tar_name: wasi_crypto
+            system: manylinux2014 x86_64
+            host_runner: ubuntu-latest
+            docker_tag: manylinux2014_x86_64
+            output_path: plugins/wasi_crypto
+            output_bin: libwasmedgePluginWasiCrypto.so
+            deps_path: "utils/wasi-crypto/build-openssl.sh"
+            cmake_plugin_option: "-DWASMEDGE_PLUGIN_WASI_CRYPTO=ON -DOPENSSL_ROOT_DIR=$(pwd)/openssl-1.1.1n/openssl"
+            build_type: Release
+            test: false
+          - name: WASI-Crypto
+            tar_name: wasi_crypto
+            system: manylinux2014 aarch64
+            host_runner: ARM64
+            docker_tag: manylinux2014_aarch64
+            output_path: plugins/wasi_crypto
+            output_bin: libwasmedgePluginWasiCrypto.so
+            deps_path: "utils/wasi-crypto/build-openssl.sh"
+            cmake_plugin_option: "-DWASMEDGE_PLUGIN_WASI_CRYPTO=ON -DOPENSSL_ROOT_DIR=$(pwd)/openssl-1.1.1n/openssl"
+            build_type: Release
+            test: false
+          - name: HttpsReq
+            tar_name: wasmedge_httpsreq
+            system: manylinux2014 x86_64
+            host_runner: ubuntu-latest
+            docker_tag: manylinux2014_x86_64
+            output_path: plugins/wasmedge_httpsreq
+            output_bin: libwasmedgePluginHttpsReq.so
+            deps_path: "utils/wasmedge_httpsreq/build-openssl.sh"
+            cmake_plugin_option: "-DWASMEDGE_PLUGIN_HTTPSREQ=ON -DOPENSSL_ROOT_DIR=$(pwd)/openssl-1.1.1n/openssl"
+            build_type: Release
+            test: false
+          - name: HttpsReq
+            tar_name: wasmedge_httpsreq
+            system: manylinux2014 aarch64
+            host_runner: ARM64
+            docker_tag: manylinux2014_aarch64
+            output_path: plugins/wasmedge_httpsreq
+            output_bin: libwasmedgePluginHttpsReq.so
+            deps_path: "utils/wasmedge_httpsreq/build-openssl.sh"
+            cmake_plugin_option: "-DWASMEDGE_PLUGIN_HTTPSREQ=ON -DOPENSSL_ROOT_DIR=$(pwd)/openssl-1.1.1n/openssl"
+            build_type: Release
+            test: false
     name: ${{ matrix.system }} WasmEdge ${{ matrix.name }} plugin with g++ ${{ matrix.build_type }}
     runs-on: ${{ matrix.host_runner }}
     needs: [get_version_v2]
@@ -286,57 +310,29 @@ jobs:
       - uses: actions/checkout@v3
         with:
           fetch-depth: 0
-      - name: Build WASI-Crypto dependency
-        if: contains(matrix.name, 'WASI-Crypto')
-        run: |
-          bash utils/wasi-crypto/build-openssl.sh
-      - name: Build HttpsReq dependency
-        if: contains(matrix.name, 'HttpsReq')
-        run: |
-          bash utils/wasmedge_httpsreq/build-openssl.sh
-      - name: Build WASI-NN dependency
-        shell: bash
-        if: contains(matrix.name, 'WASI-NN')
+      - name: Build ${{ matrix.name }} dependency
+        if: matrix.deps_path
         env:
           PYTORCH_VERSION: "1.8.2"
         run: |
-          if [[ "${{ matrix.name }}" == *"PyTorch"* ]]; then
-            bash utils/wasi-nn/install-pytorch.sh --disable-cxx11-abi
-          fi
-      - name: Build WasmEdge ${{ matrix.name }} plugin with ${{ matrix.build_type }} mode
-        if: contains(matrix.name, 'WASI-Crypto')
-        run: |
-          bash utils/docker/build-manylinux.sh --${{ matrix.build_type }} --not-build --not-ninja -DWASMEDGE_PLUGIN_WASI_CRYPTO=ON -DOPENSSL_ROOT_DIR=$(pwd)/openssl-1.1.1n/openssl
-          cd build/${{ matrix.output_path }}
-          make -j
-      - name: Build WasmEdge ${{ matrix.name }} plugin with ${{ matrix.build_type }} mode
-        if: contains(matrix.name, 'HttpsReq')
-        run: |
-          bash utils/docker/build-manylinux.sh --${{ matrix.build_type }} --not-build --not-ninja -DWASMEDGE_PLUGIN_HTTPSREQ=true -DOPENSSL_ROOT_DIR=$(pwd)/openssl-1.1.1n/openssl
-          cd build/${{ matrix.output_path }}
-          make -j
-      - name: Build WasmEdge WASI-NN ${{ matrix.backend }} plugin with ${{ matrix.build_type }} mode
+          bash ${{ matrix.deps_path }}
+      - name: Build ${{ matrix.name }} plugin
         shell: bash
-        if: contains(matrix.name, 'WASI-NN')
-        env:
-          TORCH_VERSION: "1.8.2"
         run: |
           if [[ "${{ matrix.name }}" == *"PyTorch"* ]]; then
             export Torch_DIR=$(pwd)/libtorch
           fi
           if ${{ matrix.test }}; then
-            bash utils/docker/build-manylinux.sh --${{ matrix.build_type }} --not-build --not-ninja -DWASMEDGE_PLUGIN_WASI_NN_BACKEND="${{ matrix.backend }}" -DWASMEDGE_BUILD_TESTS=ON
+            bash utils/docker/build-manylinux.sh --${{ matrix.build_type }} --not-build --not-ninja ${{ matrix.cmake_plugin_option }} -DWASMEDGE_BUILD_TESTS=ON
             cd build/${{ matrix.test_path }}
             make -j
           else
-            bash utils/docker/build-manylinux.sh --${{ matrix.build_type }} --not-build --not-ninja -DWASMEDGE_PLUGIN_WASI_NN_BACKEND="${{ matrix.backend }}"
+            bash utils/docker/build-manylinux.sh --${{ matrix.build_type }} --not-build --not-ninja ${{ matrix.cmake_plugin_option }}
             cd build/${{ matrix.output_path }}
             make -j
           fi
-
       - name: Test WasmEdge ${{ matrix.name }} plugin using ${{ matrix.compiler }} with ${{ matrix.build_type }} mode
         if: matrix.test
-        shell: bash
         run: |
           cd build/${{ matrix.test_path }}
           ./${{ matrix.test_bin }}

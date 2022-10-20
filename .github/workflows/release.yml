@@ -211,7 +211,7 @@ jobs:
             output_path: plugins/wasmedge_httpsreq
             output_bin: libwasmedgePluginHttpsReq.so
             deps_path: "utils/wasmedge_httpsreq/build-openssl.sh"
-            cmake_plugin_option: "-DWASMEDGE_PLUGIN_HTTPSREQ=ON"
+            cmake_plugin_option: "-DWASMEDGE_PLUGIN_HTTPSREQ=ON -DOPENSSL_ROOT_DIR=$(pwd)/openssl-1.1.1n/openssl"
             tar_name: wasmedge_httpsreq
             host_runner: ubuntu-latest
           - name: WasmEdge-HttpsReq
@@ -219,15 +219,37 @@ jobs:
             output_path: plugins/wasmedge_httpsreq
             output_bin: libwasmedgePluginHttpsReq.so
             deps_path: "utils/wasmedge_httpsreq/build-openssl.sh"
-            cmake_plugin_option: "-DWASMEDGE_PLUGIN_HTTPSREQ=ON"
+            cmake_plugin_option: "-DWASMEDGE_PLUGIN_HTTPSREQ=ON -DOPENSSL_ROOT_DIR=$(pwd)/openssl-1.1.1n/openssl"
             tar_name: wasmedge_httpsreq
             host_runner: ARM64
+          - name: WASI-NN PyTorch
+            docker_tag: manylinux2014_x86_64
+            output_path: plugins/wasi_nn
+            output_bin: libwasmedgePluginWasiNN.so
+            deps_path: "utils/wasi-nn/install-pytorch.sh --disable-cxx11-abi"
+            cmake_plugin_option: "-DWASMEDGE_PLUGIN_WASI_NN_BACKEND=PyTorch"
+            tar_name: wasi_nn-pytorch
+            host_runner: ubuntu-latest
+          - name: WASI-NN TensorflowLite
+            docker_tag: manylinux2014_x86_64
+            output_path: plugins/wasi_nn
+            output_bin: libwasmedgePluginWasiNN.so
+            cmake_plugin_option: "-DWASMEDGE_PLUGIN_WASI_NN_BACKEND=TensorflowLite"
+            tar_name: wasi_nn-tensorflowlite
+            host_runner: ubuntu-latest
+          - name: WASI-NN TensorflowLite
+            docker_tag: manylinux2014_aarch64
+            output_path: plugins/wasi_nn
+            output_bin: libwasmedgePluginWasiNN.so
+            cmake_plugin_option: "-DWASMEDGE_PLUGIN_WASI_NN_BACKEND=TensorflowLite"
+            tar_name: wasi_nn-tensorflowlite
+            host_runner: ubuntu-latest
           - name: WASI-Crypto
             docker_tag: manylinux2014_x86_64
             output_path: plugins/wasi_crypto
             output_bin: libwasmedgePluginWasiCrypto.so
             deps_path: "utils/wasi-crypto/build-openssl.sh"
-            cmake_plugin_option: "-DWASMEDGE_PLUGIN_WASI_CRYPTO=ON"
+            cmake_plugin_option: "-DWASMEDGE_PLUGIN_WASI_CRYPTO=ON -DOPENSSL_ROOT_DIR=$(pwd)/openssl-1.1.1n/openssl"
             tar_name: wasi_crypto
             host_runner: ubuntu-latest
           - name: WASI-Crypto
@@ -235,7 +257,7 @@ jobs:
             output_path: plugins/wasi_crypto
             output_bin: libwasmedgePluginWasiCrypto.so
             deps_path: "utils/wasi-crypto/build-openssl.sh"
-            cmake_plugin_option: "-DWASMEDGE_PLUGIN_WASI_CRYPTO=ON"
+            cmake_plugin_option: "-DWASMEDGE_PLUGIN_WASI_CRYPTO=ON -DOPENSSL_ROOT_DIR=$(pwd)/openssl-1.1.1n/openssl"
             tar_name: wasi_crypto
             host_runner: ARM64
     name: Build and upload WasmEdge ${{ matrix.name }} plugin on ${{ matrix.docker_tag }}
@@ -247,11 +269,15 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
       - name: Build ${{ matrix.name }} dependency
+        if: matrix.deps_path
         run: |
           bash ${{ matrix.deps_path }}
       - name: Build ${{ matrix.name }} plugin
         run: |
-          bash utils/docker/build-manylinux.sh --not-build --not-ninja ${{ matrix.cmake_plugin_option }} -DOPENSSL_ROOT_DIR=$(pwd)/openssl-1.1.1n/openssl
+          if [[ "${{ matrix.name }}" == *"PyTorch"* ]]; then
+            export Torch_DIR=$(pwd)/libtorch
+          fi
+          bash utils/docker/build-manylinux.sh --not-build --not-ninja ${{ matrix.cmake_plugin_option }}
           cd build
           cd ${{ matrix.output_path }}
           make -j

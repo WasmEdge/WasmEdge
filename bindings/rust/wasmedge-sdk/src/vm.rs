@@ -108,7 +108,9 @@ impl Vm {
     /// If fail to create, then an error is returned.
     pub fn new(config: Option<Config>) -> WasmEdgeResult<Self> {
         // load wasmedge_process plugins
-        sys::utils::load_plugin_from_default_paths();
+        if std::env::var_os("WASMEDGE_PLUGIN_PATH").is_some() {
+            sys::utils::load_plugin_from_default_paths();
+        }
 
         let inner_config = config.map(|c| c.inner);
         let inner = sys::Vm::create(inner_config, None)?;

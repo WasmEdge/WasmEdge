@@ -15,7 +15,9 @@ else()
     set(_WasmEdge_ROOT "${WasmEdge_ROOT}")
 endif()
 
-find_path(WasmEdge_INCLUDE_DIRS NAMES wasmedge/wasmedge.h HINTS ${_WasmEdge_ROOT}/include /usr/local/include /usr/include)
+message(STATUS "wasmedge root: ${WasmEdge_ROOT}")
+find_path(WasmEdge_INCLUDE_DIRS NAMES wasmedge/wasmedge.h HINTS ${_WasmEdge_ROOT}/include ${WasmEdge_ROOT}/include/api /usr/local/include /usr/include)
+message(STATUS "wasmedge include dirs: ${WasmEdge_INCLUDE_DIRS}")
 
 if(WasmEdge_INCLUDE_DIRS)
     set(_WasmEdge_H ${WasmEdge_INCLUDE_DIRS}/wasmedge/version.h)
@@ -42,18 +44,19 @@ if(WasmEdge_INCLUDE_DIRS)
         set(WasmEdge_VERSION "${WasmEdge_VERSION_MAJOR}.${WasmEdge_VERSION_MINOR}")
     endif()
 
-    if(NOT ${CMAKE_C_PLATFORM_ID} STREQUAL "Windows")
-        find_library(WasmEdge_LIBRARIES
-                NAMES
-                wasmedge
-                HINTS
-                ${_WasmEdge_ROOT}/lib
-                ${_WasmEdge_ROOT}/lib/x86_64-linux-gnu
-                /usr/lib
-                /usr/local/lib
-                )
-    endif()
+   find_library(WasmEdge_LIBRARIES
+       NAMES
+       wasmedge
+       HINTS
+       ${_WasmEdge_ROOT}/lib
+       ${_WasmEdge_ROOT}/lib/x86_64-linux-gnu
+       ${WasmEdge_ROOT}/lib/api/
+       /usr/lib
+       /usr/local/lib
+       )
 endif()
+
+message(STATUS "wasmedge lib: ${WasmEdge_LIBRARIES}")
 
 include(FindPackageHandleStandardArgs)
 

@@ -1,6 +1,8 @@
 package org.wasmedge;
 
 
+import org.junit.Assert;
+import org.junit.Test;
 import org.wasmedge.enums.ValueType;
 
 import java.io.File;
@@ -131,6 +133,11 @@ public class BaseTest {
 
         return moduleInstanceContext;
 
+    }
+
+    @Test
+    public void test() {
+        Assert.assertTrue(true);
     }
 
 }

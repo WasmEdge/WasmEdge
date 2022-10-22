@@ -1,5 +1,4 @@
 apply plugin: 'java-library'
-apply plugin: 'checkstyle'
 
 repositories {
     mavenCentral()
@@ -10,12 +9,14 @@ configurations {
 }
 
 dependencies {
-    checkstyleConfig("com.puppycrawl.tools:checkstyle:8.29") { transitive = false }
     testImplementation('junit:junit:4.13.2')
 }
 
+
+def libPath = System.getenv("LIB_JNI_PATH")
+
 test {
-    systemProperty "java.library.path", "/usr/local/lib"
+    systemProperty "java.library.path", "$libPath"
     if (System.getProperty('DEBUG', 'false') == 'true') {
         jvmArgs '-Xdebug',
                 '-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=*:5005'
@@ -26,16 +27,11 @@ test {
 
 }
 
-apply plugin: 'checkstyle'
-checkstyle {
-    toolVersion '8.29'
-    config = resources.text.fromArchiveEntry(configurations.checkstyleConfig, 'google_checks.xml')
-}
-checkstyleMain {
-    source ='src/main/java'
-}
-checkstyleTest {
-    source ='src/test/java'
+task buildJarWithJni(type : Jar) {
+    from { configurations.compile.collect { it.isDirectory() ? it : zipTree(it) } }
+    with jar
+    println("===>" + project.buildDir);
+    from new File(project.buildDir, 'jni-libs')
 }
 
 

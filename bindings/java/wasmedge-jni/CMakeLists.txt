@@ -8,6 +8,7 @@ find_package(JNI REQUIRED)
 
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR})
 find_package(WasmEdge REQUIRED)
+configure_file(wasmedge-version.properties.in ${CMAKE_CURRENT_BINARY_DIR}/wasmedge-version.properties)
 
 
 include_directories(${JNI_INCLUDE_DIRS} ${WasmEdge_INCLUDE_DIRS})
@@ -47,7 +48,7 @@ add_library(${TARGET} SHARED
         lib/ModuleInstanceContext.h
         )
 
-target_link_libraries(${TARGET} wasmedge)
+target_link_libraries(${TARGET} ${WasmEdge_LIBRARIES})
 
 install(TARGETS ${TARGET}
         LIBRARY DESTINATION lib)

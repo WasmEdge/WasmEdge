@@ -106,7 +106,7 @@ long getPointer(JNIEnv *env, jobject obj) {
   return value;
 }
 
-void setPointer(JNIEnv *env, jobject obj, jlong val) {
+void setPointer(JNIEnv *env, jobject obj, long val) {
   jclass cls = (*env)->GetObjectClass(env, obj);
   jfieldID fidPointer = (*env)->GetFieldID(env, cls, "pointer", "J");
   (*env)->SetLongField(env, obj, fidPointer, val);

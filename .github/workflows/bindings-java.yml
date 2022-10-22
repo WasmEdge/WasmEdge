@@ -91,7 +91,6 @@ jobs:
           path: |
             bindings/java/wasmedge-jni/build/libwasmedge_jni.*
             bindings/java/wasmedge-jni/build/wasmedge-version.properties
-            
 
   build_macos:
     name: MacOS
@@ -262,41 +261,3 @@ jobs:
           path: |
             bindings/java/wasmedge-jni/build/wasmedge_jni.*
             bindings/java/wasmedge-jni/build/wasmedge-version.properties
-
-  publish:
-    needs: [build_ubuntu, build_macos, build_windows]
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-
-      - name: Set up Java
-        uses: actions/setup-java@v3
-        with:
-          distribution: 'temurin' # See 'Supported distributions' for available options
-          java-version: '11'
-          cache: 'gradle'
-
-      - name: Restore JNI libs
-        uses: actions/download-artifact@v3
-        with:
-          name: jni-libs
-          path: bindings/java/wasmedge-java/build/jni-libs
-
-      - name: Build Java
-        run: |
-          export LIB_JNI_PATH=$(pwd)/bindings/java/wasmedge-java/build/jni-libs
-          cd bindings/java/wasmedge-java
-          ./gradlew build
-
-
-      - name: Build jar with jni
-        run: |
-          cd bindings/java/wasmedge-jni 
-          ./gradlew universalJar
-
-      - name: Upload Jar
-        uses: actions/upload-artifact@v3
-        with:
-          name: libs
-          path: |
-            bindings/java/wasmedge-java/build/libs/*.jar

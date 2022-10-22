@@ -30,7 +30,6 @@ test {
 task buildJarWithJni(type : Jar) {
     from { configurations.compile.collect { it.isDirectory() ? it : zipTree(it) } }
     with jar
-    println("===>" + project.buildDir);
     from new File(project.buildDir, 'jni-libs')
 }
 

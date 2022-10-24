@@ -28,7 +28,7 @@ enum class ErrNo : uint32_t {
 
 enum class Backend : uint8_t {
   OpenVINO = 0,
-  PyTorch = 1,
+  PyTorch = 3,
 };
 
 class Graph {

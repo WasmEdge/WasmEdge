@@ -280,7 +280,7 @@ jobs:
         uses: actions/download-artifact@v3
         with:
           name: jni-libs
-          path: bindings/java/wasmedge-jni/build/jni-libs
+          path: bindings/java/wasmedge-java/build/jni-libs
 
       - name: Build Java
         run: |

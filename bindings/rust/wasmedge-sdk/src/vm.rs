@@ -563,6 +563,8 @@ impl Engine for Vm {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[cfg(target_os = "linux")]
+    use crate::PluginManager;
     use crate::{
         config::{
             CommonConfigOptions, ConfigBuilder, HostRegistrationConfigOptions,
@@ -573,7 +575,7 @@ mod tests {
         params,
         types::Val,
         wat2wasm, AsInstance, CallingFrame, Global, GlobalType, ImportObjectBuilder, Memory,
-        MemoryType, Mutability, PluginManager, RefType, Table, TableType, ValType, WasmValue,
+        MemoryType, Mutability, RefType, Table, TableType, ValType, WasmValue,
     };
 
     #[test]

@@ -594,13 +594,15 @@ impl ImportObject {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[cfg(target_os = "linux")]
+    use crate::PluginManager;
     use crate::{
         config::{CommonConfigOptions, ConfigBuilder},
         error::{CoreError, CoreInstantiationError, GlobalError, WasmEdgeError},
         params,
         types::Val,
-        Executor, Global, GlobalType, Memory, MemoryType, Mutability, PluginManager, RefType,
-        Statistics, Store, Table, TableType, ValType, WasmVal, WasmValue,
+        Executor, Global, GlobalType, Memory, MemoryType, Mutability, RefType, Statistics, Store,
+        Table, TableType, ValType, WasmVal, WasmValue,
     };
     use std::{
         sync::{Arc, Mutex},

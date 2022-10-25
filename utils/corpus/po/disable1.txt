@@ -1,0 +1,1 @@
+wasmedge-fuzzpoŞ­¾ï--disable-import-export-mut-globalsŞ­¾ï--disable-non-trap-float-to-intŞ­¾ï--disable-sign-extension-operatorsŞ­¾ï--disable-multi-valueŞ­¾ï--disable-bulk-memoryŞ­¾ï--disable-reference-typesŞ­¾ï--disable-simd

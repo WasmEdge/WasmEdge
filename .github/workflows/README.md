@@ -43,7 +43,7 @@ flowchart LR
     "docker_tag": "manylinux2014_x86_64"
   },
   {
-    "runner": "ARM64",
+    "runner": "linux-arm64",
     "docker_tag": "manylinux2014_aarch64"
   }
 ]

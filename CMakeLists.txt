@@ -5,7 +5,7 @@ cmake_minimum_required(VERSION 3.9.4)
 cmake_policy(SET CMP0091 NEW)
 project(WasmEdge)
 
-set(WASMEDGE_CAPI_VERSION "0.0.0" CACHE STRING "WasmEdge C API library version")
+set(WASMEDGE_CAPI_VERSION "0.0.1" CACHE STRING "WasmEdge C API library version")
 set(WASMEDGE_CAPI_SOVERSION "0" CACHE STRING "WasmEdge C API library soversion")
 
 find_program(GIT_CMD git)

@@ -335,6 +335,9 @@ impl ImportObjectBuilder {
 
     /// Creates a new [wasmedge process import object](crate::ImportObject).
     ///
+    /// Notice that the [PluginManager::load_from_default_paths](crate::PluginManager::load_from_default_paths) method
+    /// must be invoked to load the `wasmedge_process` plugin before calling this method.
+    ///
     /// # Arguments
     ///
     /// * `allowed_cmds` - A white list of commands.
@@ -350,8 +353,8 @@ impl ImportObjectBuilder {
         allowed_cmds: Option<Vec<&str>>,
         allowed: bool,
     ) -> WasmEdgeResult<ImportObject> {
-        // load plugins from the default paths
-        sys::utils::load_plugin_from_default_paths();
+        // // load plugins from the default paths
+        // PluginManager::load_from_default_paths();
 
         let mut inner = sys::WasmEdgeProcessModule::create(allowed_cmds, allowed)?;
 
@@ -596,8 +599,8 @@ mod tests {
         error::{CoreError, CoreInstantiationError, GlobalError, WasmEdgeError},
         params,
         types::Val,
-        Executor, Global, GlobalType, Memory, MemoryType, Mutability, RefType, Statistics, Store,
-        Table, TableType, ValType, WasmVal, WasmValue,
+        Executor, Global, GlobalType, Memory, MemoryType, Mutability, PluginManager, RefType,
+        Statistics, Store, Table, TableType, ValType, WasmVal, WasmValue,
     };
     use std::{
         sync::{Arc, Mutex},
@@ -627,6 +630,9 @@ mod tests {
     #[cfg(target_os = "linux")]
     #[allow(clippy::assertions_on_result_states)]
     fn test_import_builder_wasmedge_process() {
+        // load wasmedge_process plugin
+        PluginManager::load_from_default_paths();
+
         let result = ImportObjectBuilder::default().build_as_wasmedge_process(None, false);
         assert!(result.is_ok());
         let import = result.unwrap();
@@ -637,6 +643,9 @@ mod tests {
     #[cfg(target_os = "linux")]
     #[allow(clippy::assertions_on_result_states)]
     fn test_import_new_wasmedgeprocess() {
+        // load wasmedge_process plugin
+        PluginManager::load_from_default_paths();
+
         let result = ImportObjectBuilder::new()
             .with_func::<(i32, i32), i32, !>("add", real_add, None)
             .expect("failed to add host func")

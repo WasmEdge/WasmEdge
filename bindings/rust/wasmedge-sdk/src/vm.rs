@@ -1293,7 +1293,7 @@ mod tests {
         assert!(result.is_ok());
         let wasm_bytes = result.unwrap();
 
-        let result = vm.register_module_from_bytes("extern", &wasm_bytes);
+        let result = vm.register_module_from_bytes("extern", wasm_bytes);
         assert!(result.is_ok());
         let mut vm = result.unwrap();
 

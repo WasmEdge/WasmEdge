@@ -775,7 +775,7 @@ mod tests {
             inputs: Vec<WasmValue>,
             data: *mut std::os::raw::c_void,
         ) -> std::result::Result<Vec<WasmValue>, HostFuncError> {
-            println!("data: {:?}", data);
+            println!("data: {data:?}");
 
             if inputs.len() != 2 {
                 return Err(HostFuncError::User(1));

@@ -143,7 +143,7 @@ fn find_wasmedge() -> Option<Paths> {
         };
 
         if xdg_dir.exists() && inc_dir.exists() && lib_dir.exists() && header.exists() {
-            println!("cargo:warning=[wasmedge-sys] Use xdg path: {:?}", xdg_dir);
+            println!("cargo:warning=[wasmedge-sys] Use xdg path: {xdg_dir:?}");
             return Some(Paths {
                 header,
                 lib_dir,

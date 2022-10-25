@@ -107,11 +107,6 @@ impl Vm {
     ///
     /// If fail to create, then an error is returned.
     pub fn new(config: Option<Config>) -> WasmEdgeResult<Self> {
-        // load wasmedge_process plugins
-        if std::env::var_os("WASMEDGE_PLUGIN_PATH").is_some() {
-            sys::utils::load_plugin_from_default_paths();
-        }
-
         let inner_config = config.map(|c| c.inner);
         let inner = sys::Vm::create(inner_config, None)?;
         Ok(Self {
@@ -454,7 +449,7 @@ impl Vm {
 
     /// Returns the mutable [WasmEdgeProcess module instance](crate::WasmEdgeProcessInstance).
     ///
-    /// Notice that this function is only available when a [config](crate::config::Config) with the enabled [wasmedge_process](crate::config::HostRegistrationConfigOptions::wasmedge_process) option is used in the creation of this [Vm].
+    /// Notice that this function is only available when a [config](crate::config::Config) with the enabled [wasmedge_process](crate::config::HostRegistrationConfigOptions::wasmedge_process) option is used in the creation of this [Vm]. In addition, the [PluginManager::load_from_default_paths](crate::PluginManager::load_from_default_paths) method must be invoked to load the `wasmedge_process` plugin before calling this method.
     ///
     /// # Error
     ///
@@ -578,7 +573,7 @@ mod tests {
         params,
         types::Val,
         wat2wasm, AsInstance, CallingFrame, Global, GlobalType, ImportObjectBuilder, Memory,
-        MemoryType, Mutability, RefType, Table, TableType, ValType, WasmValue,
+        MemoryType, Mutability, PluginManager, RefType, Table, TableType, ValType, WasmValue,
     };
 
     #[test]
@@ -904,6 +899,9 @@ mod tests {
     #[test]
     #[cfg(target_os = "linux")]
     fn test_vm_wasmedge_process_module() {
+        // load wasmedge_process plugin
+        PluginManager::load_from_default_paths();
+
         let host_reg_options = HostRegistrationConfigOptions::default().wasmedge_process(true);
         let result = ConfigBuilder::new(CommonConfigOptions::default())
             .with_host_registration_config(host_reg_options)

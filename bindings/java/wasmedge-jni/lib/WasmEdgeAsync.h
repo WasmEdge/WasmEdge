@@ -8,7 +8,7 @@
 #include "jni.h"
 #include "wasmedge/wasmedge.h"
 
-WasmEdge_Async * getAsync(JNIEnv* env, jobject thisObject);
+WasmEdge_Async *getAsync(JNIEnv *env, jobject thisObject);
 
-jobject createJAsyncObject(JNIEnv* env, const WasmEdge_Async * asyncObj);
-#endif //WASMEDGE_JNI_WASMEDGEASYNC_H
+jobject createJAsyncObject(JNIEnv *env, const WasmEdge_Async *asyncObj);
+#endif // WASMEDGE_JNI_WASMEDGEASYNC_H

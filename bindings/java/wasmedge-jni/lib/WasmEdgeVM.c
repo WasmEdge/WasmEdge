@@ -117,13 +117,15 @@ JNIEXPORT void JNICALL Java_org_wasmedge_WasmEdgeVM_runWasmFromFile(
   const char *c_func_name = (*env)->GetStringUTFChars(env, func_name, NULL);
   const char *c_file_path = (*env)->GetStringUTFChars(env, file_path, NULL);
 
-    /* The parameters and returns arrays. */
-    //WasmEdge_Value Params[1] = { WasmEdge_ValueGenI32(5) };
-    WasmEdge_Value *Returns = malloc(sizeof(WasmEdge_Value) * return_size);
-    /* Function name. */
-    WasmEdge_String FuncName = WasmEdge_StringCreateByCString(c_func_name);
-    /* Run the WASM function from file. */
-    WasmEdge_Result Res = WasmEdge_VMRunWasmFromFile(VMCxt, c_file_path, FuncName, wasm_params, param_size, Returns, return_size);
+  /* The parameters and returns arrays. */
+  // WasmEdge_Value Params[1] = { WasmEdge_ValueGenI32(5) };
+  WasmEdge_Value *Returns = malloc(sizeof(WasmEdge_Value) * return_size);
+  /* Function name. */
+  WasmEdge_String FuncName = WasmEdge_StringCreateByCString(c_func_name);
+  /* Run the WASM function from file. */
+  WasmEdge_Result Res =
+      WasmEdge_VMRunWasmFromFile(VMCxt, c_file_path, FuncName, wasm_params,
+                                 param_size, Returns, return_size);
 
   if (WasmEdge_ResultOK(Res)) {
     for (int i = 0; i < return_size; ++i) {
@@ -593,255 +595,257 @@ JNIEXPORT void JNICALL Java_org_wasmedge_WasmEdgeVM_registerModuleFromImport(
 
   WasmEdge_VMContext *vm = getVmContext(env, thisObject);
 
-    WasmEdge_Result result = WasmEdge_VMRegisterModuleFromImport(vm, impObj);
-    handleWasmEdgeResult(env, &result);
+  WasmEdge_Result result = WasmEdge_VMRegisterModuleFromImport(vm, impObj);
+  handleWasmEdgeResult(env, &result);
 }
 
-JNIEXPORT jobject JNICALL Java_org_wasmedge_WasmEdgeVM_asyncRunWasmFromFile
-        (JNIEnv * env, jobject thisObject, jstring jPath, jstring jFuncName, jobjectArray jParams, jintArray jParamTypes){
-    /* The configure and store context to the VM creation can be NULL. */
-    WasmEdge_VMContext *VMCxt = getVmContext(env, thisObject);
+JNIEXPORT jobject JNICALL Java_org_wasmedge_WasmEdgeVM_asyncRunWasmFromFile(
+    JNIEnv *env, jobject thisObject, jstring jPath, jstring jFuncName,
+    jobjectArray jParams, jintArray jParamTypes) {
+  /* The configure and store context to the VM creation can be NULL. */
+  WasmEdge_VMContext *VMCxt = getVmContext(env, thisObject);
 
-    jsize jParamLen = (*env)->GetArrayLength(env, jParams);
-    /* The parameters */
-    WasmEdge_Value *wasm_params = calloc(jParamLen, sizeof(WasmEdge_Value));
+  jsize jParamLen = (*env)->GetArrayLength(env, jParams);
+  /* The parameters */
+  WasmEdge_Value *wasm_params = calloc(jParamLen, sizeof(WasmEdge_Value));
 
-    int *type = (*env)->GetIntArrayElements(env, jParamTypes, JNI_FALSE);
-    for (int i = 0; i < jParamLen; i++) {
-        WasmEdge_Value val;
+  int *type = (*env)->GetIntArrayElements(env, jParamTypes, JNI_FALSE);
+  for (int i = 0; i < jParamLen; i++) {
+    WasmEdge_Value val;
 
-        jobject val_object = (*env)->GetObjectArrayElement(env, jParams, i);
+    jobject val_object = (*env)->GetObjectArrayElement(env, jParams, i);
 
-        switch (type[i]) {
+    switch (type[i]) {
 
-            case 0:
-                val = WasmEdge_ValueGenI32(getIntVal(env, val_object));
-                break;
-            case 1:
-                val = WasmEdge_ValueGenI64(getLongVal(env, val_object));
-                break;
-            case 2:
-                val = WasmEdge_ValueGenF32(getFloatVal(env, val_object));
-                break;
-            case 3:
-                val = WasmEdge_ValueGenF64(getDoubleVal(env, val_object));
-                break;
-            default:
-                break;
-        }
-        wasm_params[i] = val;
+    case 0:
+      val = WasmEdge_ValueGenI32(getIntVal(env, val_object));
+      break;
+    case 1:
+      val = WasmEdge_ValueGenI64(getLongVal(env, val_object));
+      break;
+    case 2:
+      val = WasmEdge_ValueGenF32(getFloatVal(env, val_object));
+      break;
+    case 3:
+      val = WasmEdge_ValueGenF64(getDoubleVal(env, val_object));
+      break;
+    default:
+      break;
     }
+    wasm_params[i] = val;
+  }
 
+  //    /* Function name. */
+  const char *c_func_name = (*env)->GetStringUTFChars(env, jFuncName, NULL);
+  const char *c_file_path = (*env)->GetStringUTFChars(env, jPath, NULL);
 
+  /* Function name. */
+  WasmEdge_String FuncName = WasmEdge_StringCreateByCString(c_func_name);
+  /* Run the WASM function from file. */
+  // Warning : need uint32_t but jParamLen is jint (long)
+  WasmEdge_Async *async = WasmEdge_VMAsyncRunWasmFromFile(
+      VMCxt, c_file_path, FuncName, wasm_params, jParamLen);
 
-//    /* Function name. */
-    const char *c_func_name = (*env)->GetStringUTFChars(env, jFuncName, NULL);
-    const char *c_file_path = (*env)->GetStringUTFChars(env, jPath, NULL);
-
-    /* Function name. */
-    WasmEdge_String FuncName = WasmEdge_StringCreateByCString(c_func_name);
-    /* Run the WASM function from file. */
-    // Warning : need uint32_t but jParamLen is jint (long)
-    WasmEdge_Async* async = WasmEdge_VMAsyncRunWasmFromFile(VMCxt, c_file_path, FuncName, wasm_params, jParamLen);
-    
-    WasmEdge_StringDelete(FuncName);
-    (*env)->ReleaseStringUTFChars(env, jFuncName, c_func_name);
-    (*env)->ReleaseStringUTFChars(env, jPath, c_file_path);
-    free(wasm_params);
-    // Warning : need to cast type WasmEdge_Async* to jobject
-    return async;
+  WasmEdge_StringDelete(FuncName);
+  (*env)->ReleaseStringUTFChars(env, jFuncName, c_func_name);
+  (*env)->ReleaseStringUTFChars(env, jPath, c_file_path);
+  free(wasm_params);
+  // Warning : need to cast type WasmEdge_Async* to jobject
+  return async;
 }
 
 // Similar Warning as before
-JNIEXPORT jobject JNICALL Java_org_wasmedge_WasmEdgeVM_asyncRunWasmFromBuffer
-        (JNIEnv * env, jobject thisObject, jbyteArray jBuff, jstring jFuncName,
-         jobjectArray jParams, jintArray jParamTypes) {
+JNIEXPORT jobject JNICALL Java_org_wasmedge_WasmEdgeVM_asyncRunWasmFromBuffer(
+    JNIEnv *env, jobject thisObject, jbyteArray jBuff, jstring jFuncName,
+    jobjectArray jParams, jintArray jParamTypes) {
 
-    WasmEdge_VMContext *vmContext = getVmContext(env, thisObject);
+  WasmEdge_VMContext *vmContext = getVmContext(env, thisObject);
 
-    jbyte* buff = (*env)->GetByteArrayElements(env, jBuff, 0);
-    jsize size = (*env)->GetArrayLength(env, jBuff);
+  jbyte *buff = (*env)->GetByteArrayElements(env, jBuff, 0);
+  jsize size = (*env)->GetArrayLength(env, jBuff);
 
-    const char* funcName = (*env)->GetStringUTFChars(env, jFuncName, NULL);
-    WasmEdge_String wFuncName = WasmEdge_StringCreateByCString(funcName);
+  const char *funcName = (*env)->GetStringUTFChars(env, jFuncName, NULL);
+  WasmEdge_String wFuncName = WasmEdge_StringCreateByCString(funcName);
 
-    jsize paramLen = (*env)->GetArrayLength(env, jParams);
+  jsize paramLen = (*env)->GetArrayLength(env, jParams);
 
-    /* The parameters and returns arrays. */
-    WasmEdge_Value *wasm_params = calloc(paramLen, sizeof(WasmEdge_Value));
-    int *type = (*env)->GetIntArrayElements(env, jParamTypes, JNI_FALSE);
-    for (int i = 0; i < paramLen; i++) {
-        WasmEdge_Value val;
+  /* The parameters and returns arrays. */
+  WasmEdge_Value *wasm_params = calloc(paramLen, sizeof(WasmEdge_Value));
+  int *type = (*env)->GetIntArrayElements(env, jParamTypes, JNI_FALSE);
+  for (int i = 0; i < paramLen; i++) {
+    WasmEdge_Value val;
 
-        jobject val_object = (*env)->GetObjectArrayElement(env, jParams, i);
+    jobject val_object = (*env)->GetObjectArrayElement(env, jParams, i);
 
-        switch (type[i]) {
+    switch (type[i]) {
 
-            case 0:
-                val = WasmEdge_ValueGenI32(getIntVal(env, val_object));
-                break;
-            case 1:
-                val = WasmEdge_ValueGenI64(getLongVal(env, val_object));
-                break;
-            case 2:
-                val = WasmEdge_ValueGenF32(getFloatVal(env, val_object));
-                break;
-            case 3:
-                val = WasmEdge_ValueGenF64(getDoubleVal(env, val_object));
-                break;
-            default:
-                break;
-        }
-        wasm_params[i] = val;
+    case 0:
+      val = WasmEdge_ValueGenI32(getIntVal(env, val_object));
+      break;
+    case 1:
+      val = WasmEdge_ValueGenI64(getLongVal(env, val_object));
+      break;
+    case 2:
+      val = WasmEdge_ValueGenF32(getFloatVal(env, val_object));
+      break;
+    case 3:
+      val = WasmEdge_ValueGenF64(getDoubleVal(env, val_object));
+      break;
+    default:
+      break;
     }
+    wasm_params[i] = val;
+  }
 
+  //
+  WasmEdge_Async *async = WasmEdge_VMAsyncRunWasmFromBuffer(
+      vmContext, (unsigned char *)buff, size, wFuncName, wasm_params, paramLen);
 
-    //
-    WasmEdge_Async* async = WasmEdge_VMAsyncRunWasmFromBuffer(vmContext, (unsigned char*)buff, size, wFuncName, wasm_params, paramLen);
-
-    return async;
+  return async;
 }
 
-JNIEXPORT jobject JNICALL Java_org_wasmedge_WasmEdgeVM_asyncRunWasmFromASTModule(JNIEnv * env, jobject thisObject, jobject jAstMod, jstring jFuncName, jobjectArray jParams, jintArray jParamTypes) {
+JNIEXPORT jobject JNICALL
+Java_org_wasmedge_WasmEdgeVM_asyncRunWasmFromASTModule(
+    JNIEnv *env, jobject thisObject, jobject jAstMod, jstring jFuncName,
+    jobjectArray jParams, jintArray jParamTypes) {
 
-    WasmEdge_VMContext *vmContext = getVmContext(env, thisObject);
-    WasmEdge_ASTModuleContext * mod = getASTModuleContext(env, jAstMod);
+  WasmEdge_VMContext *vmContext = getVmContext(env, thisObject);
+  WasmEdge_ASTModuleContext *mod = getASTModuleContext(env, jAstMod);
 
-    const char* funcName = (*env)->GetStringUTFChars(env, jFuncName, NULL);
-    WasmEdge_String wFuncName = WasmEdge_StringCreateByCString(funcName);
+  const char *funcName = (*env)->GetStringUTFChars(env, jFuncName, NULL);
+  WasmEdge_String wFuncName = WasmEdge_StringCreateByCString(funcName);
 
-    jsize paramLen = (*env)->GetArrayLength(env, jParams);
+  jsize paramLen = (*env)->GetArrayLength(env, jParams);
 
-    /* The parameters and returns arrays. */
-    WasmEdge_Value *wasm_params = calloc(paramLen, sizeof(WasmEdge_Value));
-    int *type = (*env)->GetIntArrayElements(env, jParamTypes, JNI_FALSE);
-    for (int i = 0; i < paramLen; i++) {
-        WasmEdge_Value val;
+  /* The parameters and returns arrays. */
+  WasmEdge_Value *wasm_params = calloc(paramLen, sizeof(WasmEdge_Value));
+  int *type = (*env)->GetIntArrayElements(env, jParamTypes, JNI_FALSE);
+  for (int i = 0; i < paramLen; i++) {
+    WasmEdge_Value val;
 
-        jobject val_object = (*env)->GetObjectArrayElement(env, jParams, i);
+    jobject val_object = (*env)->GetObjectArrayElement(env, jParams, i);
 
-        switch (type[i]) {
+    switch (type[i]) {
 
-            case 0:
-                val = WasmEdge_ValueGenI32(getIntVal(env, val_object));
-                break;
-            case 1:
-                val = WasmEdge_ValueGenI64(getLongVal(env, val_object));
-                break;
-            case 2:
-                val = WasmEdge_ValueGenF32(getFloatVal(env, val_object));
-                break;
-            case 3:
-                val = WasmEdge_ValueGenF64(getDoubleVal(env, val_object));
-                break;
-            default:
-                break;
-        }
-        wasm_params[i] = val;
+    case 0:
+      val = WasmEdge_ValueGenI32(getIntVal(env, val_object));
+      break;
+    case 1:
+      val = WasmEdge_ValueGenI64(getLongVal(env, val_object));
+      break;
+    case 2:
+      val = WasmEdge_ValueGenF32(getFloatVal(env, val_object));
+      break;
+    case 3:
+      val = WasmEdge_ValueGenF64(getDoubleVal(env, val_object));
+      break;
+    default:
+      break;
     }
+    wasm_params[i] = val;
+  }
 
+  //
+  WasmEdge_Async *async = WasmEdge_VMAsyncRunWasmFromASTModule(
+      vmContext, mod, wFuncName, wasm_params, paramLen);
 
-    //
-    WasmEdge_Async* async = WasmEdge_VMAsyncRunWasmFromASTModule(vmContext, mod, wFuncName, wasm_params, paramLen);
-
-    return async;
-
+  return async;
 }
 
-JNIEXPORT jobject JNICALL Java_org_wasmedge_WasmEdgeVM_asyncExecute(JNIEnv *env, jobject thisObject, jstring jFuncName, jobjectArray jParams,
-                                                                              jintArray jParamTypes) {
+JNIEXPORT jobject JNICALL Java_org_wasmedge_WasmEdgeVM_asyncExecute(
+    JNIEnv *env, jobject thisObject, jstring jFuncName, jobjectArray jParams,
+    jintArray jParamTypes) {
 
-    WasmEdge_VMContext *VMCxt = getVmContext(env, thisObject);
+  WasmEdge_VMContext *VMCxt = getVmContext(env, thisObject);
 
+  /* The parameters and returns arrays. */
+  jsize paramLen = (*env)->GetArrayLength(env, jParams);
+  WasmEdge_Value *wasm_params = calloc(paramLen, sizeof(WasmEdge_Value));
+  int *type = (*env)->GetIntArrayElements(env, jParamTypes, JNI_FALSE);
+  for (int i = 0; i < paramLen; i++) {
+    WasmEdge_Value val;
 
-    /* The parameters and returns arrays. */
-    jsize paramLen = (*env)->GetArrayLength(env, jParams);
-    WasmEdge_Value *wasm_params = calloc(paramLen, sizeof(WasmEdge_Value));
-    int *type = (*env)->GetIntArrayElements(env, jParamTypes, JNI_FALSE);
-    for (int i = 0; i < paramLen; i++) {
-        WasmEdge_Value val;
+    jobject val_object = (*env)->GetObjectArrayElement(env, jParams, i);
 
-        jobject val_object = (*env)->GetObjectArrayElement(env, jParams, i);
+    switch (type[i]) {
 
-        switch (type[i]) {
-
-            case 0:
-                val = WasmEdge_ValueGenI32(getIntVal(env, val_object));
-                break;
-            case 1:
-                val = WasmEdge_ValueGenI64(getLongVal(env, val_object));
-                break;
-            case 2:
-                val = WasmEdge_ValueGenF32(getFloatVal(env, val_object));
-                break;
-            case 3:
-                val = WasmEdge_ValueGenF64(getDoubleVal(env, val_object));
-                break;
-            default:
-                break;
-        }
-        wasm_params[i] = val;
+    case 0:
+      val = WasmEdge_ValueGenI32(getIntVal(env, val_object));
+      break;
+    case 1:
+      val = WasmEdge_ValueGenI64(getLongVal(env, val_object));
+      break;
+    case 2:
+      val = WasmEdge_ValueGenF32(getFloatVal(env, val_object));
+      break;
+    case 3:
+      val = WasmEdge_ValueGenF64(getDoubleVal(env, val_object));
+      break;
+    default:
+      break;
     }
+    wasm_params[i] = val;
+  }
 
+  //    WasmEdge_Value* WasmRetuns = calloc(return_size, sizeof
+  //    (WasmEdge_Value));
+  //    /* Function name. */
+  const char *c_func_name = (*env)->GetStringUTFChars(env, jFuncName, NULL);
 
-//    WasmEdge_Value* WasmRetuns = calloc(return_size, sizeof (WasmEdge_Value));
-//    /* Function name. */
-    const char *c_func_name = (*env)->GetStringUTFChars(env, jFuncName, NULL);
+  /* Function name. */
+  WasmEdge_String FuncName = WasmEdge_StringCreateByCString(c_func_name);
+  /* Run the WASM function from file. */
+  WasmEdge_Async *async =
+      WasmEdge_VMAsyncExecute(VMCxt, FuncName, wasm_params, paramLen);
 
-
-    /* Function name. */
-    WasmEdge_String FuncName = WasmEdge_StringCreateByCString(c_func_name);
-    /* Run the WASM function from file. */
-    WasmEdge_Async* async = WasmEdge_VMAsyncExecute(VMCxt,  FuncName, wasm_params, paramLen);
-
-
-    return async;
+  return async;
 }
 
-JNIEXPORT jobject JNICALL Java_org_wasmedge_WasmEdgeVM_asyncExecuteRegistered(JNIEnv * env, jobject thisObject, jstring jModName, jstring jFuncName, jobjectArray jParams, jintArray jParamTypes) {
-    WasmEdge_VMContext * vmContext = getVmContext(env, thisObject);
+JNIEXPORT jobject JNICALL Java_org_wasmedge_WasmEdgeVM_asyncExecuteRegistered(
+    JNIEnv *env, jobject thisObject, jstring jModName, jstring jFuncName,
+    jobjectArray jParams, jintArray jParamTypes) {
+  WasmEdge_VMContext *vmContext = getVmContext(env, thisObject);
 
-    const char* modName = (*env)->GetStringUTFChars(env, jModName, NULL);
-    const char* funcName = (*env)->GetStringUTFChars(env, jFuncName, NULL);
+  const char *modName = (*env)->GetStringUTFChars(env, jModName, NULL);
+  const char *funcName = (*env)->GetStringUTFChars(env, jFuncName, NULL);
 
-    //wasm string
-    WasmEdge_String wModName = WasmEdge_StringCreateByCString(modName);
-    WasmEdge_String wFuncName = WasmEdge_StringCreateByCString(funcName);
+  // wasm string
+  WasmEdge_String wModName = WasmEdge_StringCreateByCString(modName);
+  WasmEdge_String wFuncName = WasmEdge_StringCreateByCString(funcName);
 
-    jsize paramLen = (*env)->GetArrayLength(env, jParams);
+  jsize paramLen = (*env)->GetArrayLength(env, jParams);
 
-    /* The parameters and returns arrays. */
-    WasmEdge_Value *wasm_params = calloc(paramLen, sizeof(WasmEdge_Value));
-    int *type = (*env)->GetIntArrayElements(env, jParamTypes, JNI_FALSE);
-    for (int i = 0; i < paramLen; i++) {
-        WasmEdge_Value val;
+  /* The parameters and returns arrays. */
+  WasmEdge_Value *wasm_params = calloc(paramLen, sizeof(WasmEdge_Value));
+  int *type = (*env)->GetIntArrayElements(env, jParamTypes, JNI_FALSE);
+  for (int i = 0; i < paramLen; i++) {
+    WasmEdge_Value val;
 
-        jobject val_object = (*env)->GetObjectArrayElement(env, jParams, i);
+    jobject val_object = (*env)->GetObjectArrayElement(env, jParams, i);
 
-        switch (type[i]) {
+    switch (type[i]) {
 
-            case 0:
-                val = WasmEdge_ValueGenI32(getIntVal(env, val_object));
-                break;
-            case 1:
-                val = WasmEdge_ValueGenI64(getLongVal(env, val_object));
-                break;
-            case 2:
-                val = WasmEdge_ValueGenF32(getFloatVal(env, val_object));
-                break;
-            case 3:
-                val = WasmEdge_ValueGenF64(getDoubleVal(env, val_object));
-                break;
-            default:
-                break;
-        }
-        wasm_params[i] = val;
+    case 0:
+      val = WasmEdge_ValueGenI32(getIntVal(env, val_object));
+      break;
+    case 1:
+      val = WasmEdge_ValueGenI64(getLongVal(env, val_object));
+      break;
+    case 2:
+      val = WasmEdge_ValueGenF32(getFloatVal(env, val_object));
+      break;
+    case 3:
+      val = WasmEdge_ValueGenF64(getDoubleVal(env, val_object));
+      break;
+    default:
+      break;
     }
+    wasm_params[i] = val;
+  }
 
+  //
+  WasmEdge_Async *async = WasmEdge_VMAsyncExecuteRegistered(
+      vmContext, wModName, wFuncName, wasm_params, paramLen);
 
-
-    //
-    WasmEdge_Async* async = WasmEdge_VMAsyncExecuteRegistered(vmContext, wModName, wFuncName, wasm_params, paramLen);
-
-    return async;
+  return async;
 }

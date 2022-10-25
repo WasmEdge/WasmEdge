@@ -1,0 +1,36 @@
+apply plugin: 'java-library'
+
+repositories {
+    mavenCentral()
+}
+
+configurations {
+    checkstyleConfig
+}
+
+dependencies {
+    testImplementation('junit:junit:4.13.2')
+}
+
+
+def libPath = System.getenv("LIB_JNI_PATH")
+
+test {
+    systemProperty "java.library.path", "$libPath"
+    if (System.getProperty('DEBUG', 'false') == 'true') {
+        jvmArgs '-Xdebug',
+                '-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=*:5005'
+    }
+    testLogging {
+        exceptionFormat = 'full'
+    }
+
+}
+
+task buildJarWithJni(type : Jar) {
+    from { configurations.compile.collect { it.isDirectory() ? it : zipTree(it) } }
+    with jar
+    from new File(project.buildDir, 'jni-libs')
+}
+
+

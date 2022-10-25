@@ -4483,9 +4483,10 @@ private:
     for (auto *Value : Args) {
       stackPush(Value);
     }
-    ControlStack.emplace_back(Stack.size() - Args.size(), JumpBlock, NextBlock,
-                              ElseBlock, std::move(Args), std::move(Type),
-                              std::move(ReturnPHI));
+    const auto Unreachable = isUnreachable();
+    ControlStack.emplace_back(Stack.size() - Args.size(), Unreachable,
+                              JumpBlock, NextBlock, ElseBlock, std::move(Args),
+                              std::move(Type), std::move(ReturnPHI));
   }
 
   Control leaveBlock() {
@@ -4493,7 +4494,7 @@ private:
     ControlStack.pop_back();
 
     auto *NextBlock = Entry.NextBlock ? Entry.NextBlock : Entry.JumpBlock;
-    if (!isUnreachable()) {
+    if (!Entry.Unreachable) {
       const auto &ReturnType = Entry.Type.second;
       if (!ReturnType.empty()) {
         std::vector<llvm::Value *> Rets(ReturnType.size());
@@ -4510,7 +4511,6 @@ private:
     Builder.SetInsertPoint(NextBlock);
     Stack.erase(Stack.begin() + static_cast<int64_t>(Entry.StackSize),
                 Stack.end());
-    clearUnreachable();
     return Entry;
   }
 
@@ -4534,11 +4534,21 @@ private:
     Builder.SetInsertPoint(NotStopBB);
   }
 
-  void setUnreachable() { IsUnreachable = true; }
+  void setUnreachable() noexcept {
+    if (ControlStack.empty()) {
+      IsUnreachable = true;
+    } else {
+      ControlStack.back().Unreachable = true;
+    }
+  }
 
-  void clearUnreachable() { IsUnreachable = false; }
-
-  bool isUnreachable() { return IsUnreachable; }
+  bool isUnreachable() const noexcept {
+    if (ControlStack.empty()) {
+      return IsUnreachable;
+    } else {
+      return ControlStack.back().Unreachable;
+    }
+  }
 
   void buildPHI(
       Span<const ValType> RetType,
@@ -4627,6 +4637,7 @@ private:
   bool OptNone = false;
   struct Control {
     size_t StackSize;
+    bool Unreachable;
     llvm::BasicBlock *JumpBlock;
     llvm::BasicBlock *NextBlock;
     llvm::BasicBlock *ElseBlock;
@@ -4635,13 +4646,14 @@ private:
     std::vector<std::tuple<std::vector<llvm::Value *>, llvm::BasicBlock *>>
         ReturnPHI;
     Control(
-        size_t S, llvm::BasicBlock *J, llvm::BasicBlock *N, llvm::BasicBlock *E,
-        std::vector<llvm::Value *> A,
+        size_t S, bool U, llvm::BasicBlock *J, llvm::BasicBlock *N,
+        llvm::BasicBlock *E, std::vector<llvm::Value *> A,
         std::pair<std::vector<ValType>, std::vector<ValType>> T,
         std::vector<std::tuple<std::vector<llvm::Value *>, llvm::BasicBlock *>>
             R)
-        : StackSize(S), JumpBlock(J), NextBlock(N), ElseBlock(E),
-          Args(std::move(A)), Type(std::move(T)), ReturnPHI(std::move(R)) {}
+        : StackSize(S), Unreachable(U), JumpBlock(J), NextBlock(N),
+          ElseBlock(E), Args(std::move(A)), Type(std::move(T)),
+          ReturnPHI(std::move(R)) {}
     Control(const Control &) = default;
     Control(Control &&) = default;
     Control &operator=(const Control &) = default;

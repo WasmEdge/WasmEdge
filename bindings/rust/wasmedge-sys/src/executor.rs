@@ -1,10 +1,12 @@
 //! Defines WasmEdge Executor.
 
 use super::ffi;
+#[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
+use crate::WasiCrypto;
 use crate::{
     error::WasmEdgeError, instance::module::InnerInstance, types::WasmEdgeString, utils::check,
     Config, Engine, FuncRef, Function, ImportObject, Instance, Module, Statistics, Store,
-    WasiCrypto, WasmEdgeResult, WasmValue,
+    WasmEdgeResult, WasmValue,
 };
 
 /// Defines an execution environment for both pure WASM and compiled WASM.
@@ -27,19 +29,11 @@ impl Executor {
     /// If fail to create a [executor](crate::Executor), then an error is returned.
     pub fn create(config: Option<Config>, stat: Option<&mut Statistics>) -> WasmEdgeResult<Self> {
         let ctx = match config {
-            Some(mut config) => match stat {
-                Some(stat) => {
-                    let ctx = unsafe { ffi::WasmEdge_ExecutorCreate(config.inner.0, stat.inner.0) };
-                    config.inner.0 = std::ptr::null_mut();
-                    ctx
-                }
-                None => {
-                    let ctx = unsafe {
-                        ffi::WasmEdge_ExecutorCreate(config.inner.0, std::ptr::null_mut())
-                    };
-                    config.inner.0 = std::ptr::null_mut();
-                    ctx
-                }
+            Some(config) => match stat {
+                Some(stat) => unsafe { ffi::WasmEdge_ExecutorCreate(config.inner.0, stat.inner.0) },
+                None => unsafe {
+                    ffi::WasmEdge_ExecutorCreate(config.inner.0, std::ptr::null_mut())
+                },
             },
             None => match stat {
                 Some(stat) => unsafe {
@@ -99,6 +93,7 @@ impl Executor {
                     import.inner.0 as *const _,
                 ))?;
             },
+            #[cfg(all(target_os = "linux", feature = "wasi_nn", target_arch = "x86_64"))]
             ImportObject::Nn(import) => unsafe {
                 check(ffi::WasmEdge_ExecutorRegisterImport(
                     self.inner.0,
@@ -106,6 +101,7 @@ impl Executor {
                     import.inner.0 as *const _,
                 ))?;
             },
+            #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
             ImportObject::Crypto(WasiCrypto::Common(import)) => unsafe {
                 check(ffi::WasmEdge_ExecutorRegisterImport(
                     self.inner.0,
@@ -113,6 +109,7 @@ impl Executor {
                     import.inner.0 as *const _,
                 ))?;
             },
+            #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
             ImportObject::Crypto(WasiCrypto::AsymmetricCommon(import)) => unsafe {
                 check(ffi::WasmEdge_ExecutorRegisterImport(
                     self.inner.0,
@@ -120,6 +117,7 @@ impl Executor {
                     import.inner.0 as *const _,
                 ))?;
             },
+            #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
             ImportObject::Crypto(WasiCrypto::SymmetricOptionations(import)) => unsafe {
                 check(ffi::WasmEdge_ExecutorRegisterImport(
                     self.inner.0,
@@ -127,6 +125,7 @@ impl Executor {
                     import.inner.0 as *const _,
                 ))?;
             },
+            #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
             ImportObject::Crypto(WasiCrypto::KeyExchange(import)) => unsafe {
                 check(ffi::WasmEdge_ExecutorRegisterImport(
                     self.inner.0,
@@ -134,6 +133,7 @@ impl Executor {
                     import.inner.0 as *const _,
                 ))?;
             },
+            #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
             ImportObject::Crypto(WasiCrypto::Signatures(import)) => unsafe {
                 check(ffi::WasmEdge_ExecutorRegisterImport(
                     self.inner.0,
@@ -180,7 +180,7 @@ impl Executor {
         }
 
         Ok(Instance {
-            inner: InnerInstance(instance_ctx),
+            inner: std::sync::Arc::new(InnerInstance(instance_ctx)),
             registered: false,
         })
     }
@@ -215,7 +215,7 @@ impl Executor {
             ))?;
         }
         Ok(Instance {
-            inner: InnerInstance(instance_ctx),
+            inner: std::sync::Arc::new(InnerInstance(instance_ctx)),
             registered: false,
         })
     }

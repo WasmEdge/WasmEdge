@@ -6,6 +6,11 @@ use thiserror::Error;
 /// The error types used by both wasmedge-sys and wasmedge crates.
 #[derive(Error, Clone, Debug, PartialEq, Eq)]
 pub enum WasmEdgeError {
+    // For general operation error
+    #[error("{0}")]
+    Operation(String),
+
+    // For user-defined error
     #[error("{0}")]
     User(u32),
 
@@ -66,6 +71,7 @@ pub enum WasmEdgeError {
     #[error("Fail to interpret a sequence of u8 as a string")]
     Utf8(#[from] std::str::Utf8Error),
 
+    // Windows platform
     #[error("Fail to convert path on Windows: {0}")]
     WindowsPathConversion(String),
 }
@@ -225,6 +231,18 @@ pub enum VmError {
     NotFoundWasiModule,
     #[error("Fail to get WasmEdge_Process module instance")]
     NotFoundWasmEdgeProcessModule,
+    #[error("Fail to get WasiNn module instance")]
+    NotFoundWasiNnModule,
+    #[error("Fail to get WasiCryptoCommon module instance")]
+    NotFoundWasiCryptoCommonModule,
+    #[error("Fail to get WasiCryptoAsymmetricCommon module instance")]
+    NotFoundWasiCryptoAsymmetricCommonModule,
+    #[error("Fail to get WasiCryptoSymmetric module instance")]
+    NotFoundWasiCryptoSymmetricModule,
+    #[error("Fail to get WasiCryptoKx module instance")]
+    NotFoundWasiCryptoKxModule,
+    #[error("Fail to get WasiCryptoSignatures module instance")]
+    NotFoundWasiCryptoSignaturesModule,
     #[error("Fail to get Store context")]
     NotFoundStore,
     #[error("Fail to get Statistics context")]

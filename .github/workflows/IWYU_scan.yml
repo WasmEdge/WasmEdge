@@ -1,4 +1,4 @@
-name: Scan WasmEdge with IWYU on Linux and macOS
+name: IWYU cheker
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
@@ -40,7 +40,7 @@ jobs:
     outputs:
       version: ${{ steps.prep.outputs.version }}
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
       with:
         fetch-depth: 0
     - name: Get version
@@ -70,7 +70,7 @@ jobs:
         make install
         cd ..
 
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
       with:
         fetch-depth: 0
 
@@ -91,17 +91,17 @@ jobs:
     needs: get_version_v2
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
       with:
         fetch-depth: 0
 
     - name: Build and scan WasmEdge with IWYU
       run: |
-        brew install llvm ninja boost cmake
+        brew install llvm@14 ninja boost cmake
 
-        export PATH="/usr/local/opt/llvm/bin:$PATH"
-        export LDFLAGS="-L/usr/local/opt/llvm/lib -Wl,-rpath,/usr/local/opt/llvm/lib"
-        export CPPFLAGS="-I/usr/local/opt/llvm/include"
+        export PATH="/usr/local/opt/llvm@14/bin:$PATH"
+        export LDFLAGS="-L/usr/local/opt/llvm@14/lib -Wl,-rpath,/usr/local/opt/llvm@14/lib"
+        export CPPFLAGS="-I/usr/local/opt/llvm@14/include"
         export CC=clang
         export CXX=clang++
 

@@ -300,6 +300,8 @@ TEST(APICoreTest, Log) {
   EXPECT_TRUE(true);
   WasmEdge_LogSetErrorLevel();
   EXPECT_TRUE(true);
+  WasmEdge_LogOff();
+  EXPECT_TRUE(true);
 }
 
 TEST(APICoreTest, Value) {
@@ -423,6 +425,12 @@ TEST(APICoreTest, Configure) {
   WasmEdge_ConfigureSetMaxMemoryPage(Conf, 1234U);
   EXPECT_NE(WasmEdge_ConfigureGetMaxMemoryPage(ConfNull), 1234U);
   EXPECT_EQ(WasmEdge_ConfigureGetMaxMemoryPage(Conf), 1234U);
+  // Tests for force interpreter.
+  WasmEdge_ConfigureSetForceInterpreter(ConfNull, true);
+  EXPECT_EQ(WasmEdge_ConfigureIsForceInterpreter(Conf), false);
+  WasmEdge_ConfigureSetForceInterpreter(Conf, true);
+  EXPECT_NE(WasmEdge_ConfigureIsForceInterpreter(ConfNull), true);
+  EXPECT_EQ(WasmEdge_ConfigureIsForceInterpreter(Conf), true);
   // Tests for AOT compiler configurations.
   WasmEdge_ConfigureCompilerSetOptimizationLevel(
       ConfNull, WasmEdge_CompilerOptimizationLevel_Os);
@@ -980,6 +988,41 @@ TEST(APICoreTest, Compiler) {
   EXPECT_TRUE(OutFile.read(reinterpret_cast<char *>(Buf), 4));
   OutFile.close();
   EXPECT_FALSE(std::equal(WASMMagic, WASMMagic + 4, Buf));
+
+  // Compile file for universal WASM output format repeatedly
+  WasmEdge_CompilerDelete(Compiler);
+  WasmEdge_ConfigureCompilerSetOptimizationLevel(
+      Conf, WasmEdge_CompilerOptimizationLevel_O0);
+  WasmEdge_ConfigureCompilerSetOutputFormat(Conf,
+                                            WasmEdge_CompilerOutputFormat_Wasm);
+  Compiler = WasmEdge_CompilerCreate(Conf);
+  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_CompilerCompile(
+      Compiler, "apiTestData/fibonacci.wasm", "fib_aot1.wasm")));
+  EXPECT_TRUE(WasmEdge_ResultOK(
+      WasmEdge_CompilerCompile(Compiler, "fib_aot1.wasm", "fib_aot2.wasm")));
+  EXPECT_TRUE(WasmEdge_ResultOK(
+      WasmEdge_CompilerCompile(Compiler, "fib_aot2.wasm", "fib_aot3.wasm")));
+  EXPECT_TRUE(WasmEdge_ResultOK(
+      WasmEdge_CompilerCompile(Compiler, "fib_aot3.wasm", "fib_aot4.wasm")));
+  // Test the output universal WASM
+  WasmEdge_Value P[1], R[1];
+  P[0] = WasmEdge_ValueGenI32(20);
+  R[0] = WasmEdge_ValueGenI32(0);
+  WasmEdge_String FuncName = WasmEdge_StringCreateByCString("fib");
+  WasmEdge_VMContext *VM = WasmEdge_VMCreate(Conf, nullptr);
+  EXPECT_NE(VM, nullptr);
+  WasmEdge_VMRunWasmFromFile(VM, "fib_aot4.wasm", FuncName, P, 1, R, 1);
+  WasmEdge_VMDelete(VM);
+  EXPECT_EQ(WasmEdge_ValueGetI32(R[0]), 10946);
+  // Test the force-interpreter mode of the universal WASM
+  R[0] = WasmEdge_ValueGenI32(0);
+  WasmEdge_ConfigureSetForceInterpreter(Conf, true);
+  VM = WasmEdge_VMCreate(Conf, nullptr);
+  EXPECT_NE(VM, nullptr);
+  WasmEdge_VMRunWasmFromFile(VM, "fib_aot4.wasm", FuncName, P, 1, R, 1);
+  WasmEdge_VMDelete(VM);
+  EXPECT_EQ(WasmEdge_ValueGetI32(R[0]), 10946);
+  WasmEdge_StringDelete(FuncName);
 
   WasmEdge_CompilerDelete(Compiler);
   WasmEdge_ConfigureDelete(Conf);

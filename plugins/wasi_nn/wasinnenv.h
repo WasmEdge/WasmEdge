@@ -15,6 +15,10 @@
 #include <torch/script.h>
 #endif
 
+#ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_TFLITE
+#include "tensorflow/lite/c/c_api.h"
+#endif
+
 namespace WasmEdge {
 namespace Host {
 namespace WASINN {
@@ -26,9 +30,14 @@ enum class ErrNo : uint32_t {
   Busy = 3             // Device or resource busy.
 };
 
+enum class TensorType : uint32_t { F16 = 0, F32 = 1, U8 = 2, I32 = 3 };
+
 enum class Backend : uint8_t {
   OpenVINO = 0,
-  PyTorch = 1,
+  ONNX = 1,
+  Tensorflow = 2,
+  PyTorch = 3,
+  TensorflowLite = 4
 };
 
 class Graph {
@@ -64,6 +73,11 @@ public:
       }
     }
 #endif
+#ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_TFLITE
+    if (TFLiteMod) {
+      TfLiteModelDelete(TFLiteMod);
+    }
+#endif
   }
 
   Backend GraphBackend;
@@ -76,6 +90,9 @@ public:
 #endif
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_TORCH
   torch::jit::Module TorchModel;
+#endif
+#ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_TFLITE
+  TfLiteModel *TFLiteMod = nullptr;
 #endif
 };
 
@@ -102,6 +119,11 @@ public:
       ie_infer_request_free(&OpenVINOInferRequest);
     }
 #endif
+#ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_TFLITE
+    if (TFLiteInterp) {
+      TfLiteInterpreterDelete(TFLiteInterp);
+    }
+#endif
   }
 
   Graph &GraphRef;
@@ -111,6 +133,9 @@ public:
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_TORCH
   std::vector<torch::jit::IValue> TorchInputs;
   std::vector<at::Tensor> TorchOutputs;
+#endif
+#ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_TFLITE
+  TfLiteInterpreter *TFLiteInterp = nullptr;
 #endif
 };
 

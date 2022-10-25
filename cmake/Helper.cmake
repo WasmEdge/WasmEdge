@@ -73,6 +73,7 @@ if(WIN32)
     -Wno-nonportable-system-include-path
     -Wno-float-equal
     -Wno-declaration-after-statement
+    -Wno-zero-as-null-pointer-constant
   )
 endif()
 
@@ -87,10 +88,6 @@ function(wasmedge_setup_target target)
     BUILD_RPATH_USE_ORIGIN ON
     MACOSX_RPATH ON
     INTERPROCEDURAL_OPTIMIZATION ${WASMEDGE_INTERPROCEDURAL_OPTIMIZATION}
-  )
-  target_compile_definitions(${target}
-    PUBLIC
-    FMT_DEPRECATED_OSTREAM
   )
   if(WASMEDGE_BUILD_FUZZING)
     target_compile_definitions(${target}

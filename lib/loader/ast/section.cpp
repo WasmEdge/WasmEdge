@@ -266,13 +266,7 @@ Expect<void> Loader::loadSection(FileMgr &VecMgr, AST::AOTSection &Sec) {
     spdlog::error("    AOT types size read error:{}", Res.error());
     return Unexpect(Res);
   } else {
-    const uint64_t Size = *Res;
-    if (Size > VecMgr.getRemainSize()) {
-      spdlog::error(ErrCode::Value::IntegerTooLong);
-      spdlog::error("    AOT types size too large");
-      return Unexpect(ErrCode::Value::IntegerTooLong);
-    }
-    Sec.getTypesAddress().resize(Size);
+    Sec.getTypesAddress().resize(*Res);
   }
   for (size_t I = 0; I < Sec.getTypesAddress().size(); ++I) {
     if (auto Res = VecMgr.readU64(); unlikely(!Res)) {
@@ -288,13 +282,7 @@ Expect<void> Loader::loadSection(FileMgr &VecMgr, AST::AOTSection &Sec) {
     spdlog::error("    AOT code size read error:{}", Res.error());
     return Unexpect(Res);
   } else {
-    const uint64_t Size = *Res;
-    if (Size > VecMgr.getRemainSize()) {
-      spdlog::error(ErrCode::Value::IntegerTooLong);
-      spdlog::error("    AOT code size too large");
-      return Unexpect(ErrCode::Value::IntegerTooLong);
-    }
-    Sec.getCodesAddress().resize(Size);
+    Sec.getCodesAddress().resize(*Res);
   }
   for (size_t I = 0; I < Sec.getCodesAddress().size(); ++I) {
     if (auto Res = VecMgr.readU64(); unlikely(!Res)) {
@@ -302,13 +290,7 @@ Expect<void> Loader::loadSection(FileMgr &VecMgr, AST::AOTSection &Sec) {
       spdlog::error("    AOT code address read error:{}", Res.error());
       return Unexpect(Res);
     } else {
-      const uint64_t Address = *Res;
-      if (Address > VecMgr.getRemainSize()) {
-        spdlog::error(ErrCode::Value::IntegerTooLong);
-        spdlog::error("    AOT code address too large");
-        return Unexpect(ErrCode::Value::IntegerTooLong);
-      }
-      Sec.getCodesAddress()[I] = Address;
+      Sec.getCodesAddress()[I] = *Res;
     }
   }
 
@@ -317,13 +299,7 @@ Expect<void> Loader::loadSection(FileMgr &VecMgr, AST::AOTSection &Sec) {
     spdlog::error("    AOT section count read error:{}", Res.error());
     return Unexpect(Res);
   } else {
-    const uint32_t Size = *Res;
-    if (Size > VecMgr.getRemainSize()) {
-      spdlog::error(ErrCode::Value::IntegerTooLong);
-      spdlog::error("    AOT section count too large");
-      return Unexpect(ErrCode::Value::IntegerTooLong);
-    }
-    Sec.getSections().resize(Size);
+    Sec.getSections().resize(*Res);
   }
 
   for (auto &Section : Sec.getSections()) {
@@ -355,16 +331,6 @@ Expect<void> Loader::loadSection(FileMgr &VecMgr, AST::AOTSection &Sec) {
       return Unexpect(Res);
     } else {
       ContentSize = *Res;
-      if (ContentSize > VecMgr.getRemainSize()) {
-        spdlog::error(ErrCode::Value::IntegerTooLong);
-        spdlog::error("    AOT section data size is too large");
-        return Unexpect(ErrCode::Value::IntegerTooLong);
-      }
-      if (std::get<2>(Section) < ContentSize) {
-        spdlog::error(ErrCode::Value::IntegerTooLong);
-        spdlog::error("    AOT section data size is larger then section size");
-        return Unexpect(ErrCode::Value::IntegerTooLong);
-      }
     }
     if (auto Res = VecMgr.readBytes(ContentSize); unlikely(!Res)) {
       spdlog::error(Res.error());

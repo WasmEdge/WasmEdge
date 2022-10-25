@@ -21,14 +21,17 @@ impl Executor {
     ///
     /// If fail to create a [executor](crate::Executor), then an error is returned.
     pub fn new(config: Option<&Config>, stat: Option<&mut Statistics>) -> WasmEdgeResult<Self> {
-        let inner_config = match config {
-            Some(config) => Some(Config::copy_from(config)?.inner),
-            None => None,
-        };
-
-        let inner_executor = match stat {
-            Some(stat) => sys::Executor::create(inner_config, Some(&mut stat.inner))?,
-            None => sys::Executor::create(inner_config, None)?,
+        let inner_executor = match config {
+            Some(config) => match stat {
+                Some(stat) => {
+                    sys::Executor::create(Some(config.inner.clone()), Some(&mut stat.inner))?
+                }
+                None => sys::Executor::create(Some(config.inner.clone()), None)?,
+            },
+            None => match stat {
+                Some(stat) => sys::Executor::create(None, Some(&mut stat.inner))?,
+                None => sys::Executor::create(None, None)?,
+            },
         };
 
         Ok(Self {

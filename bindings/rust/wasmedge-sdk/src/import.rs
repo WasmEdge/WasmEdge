@@ -378,6 +378,7 @@ impl ImportObjectBuilder {
         Ok(ImportObject(sys::ImportObject::WasmEdgeProcess(inner)))
     }
 
+    #[cfg(all(target_os = "linux", feature = "wasi_nn", target_arch = "x86_64"))]
     pub fn build_as_wasi_nn(self) -> WasmEdgeResult<ImportObject> {
         let mut inner = sys::WasiNnModule::create()?;
 
@@ -404,6 +405,7 @@ impl ImportObjectBuilder {
         Ok(ImportObject(sys::ImportObject::Nn(inner)))
     }
 
+    #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
     pub fn build_as_wasi_crypto_common(self) -> WasmEdgeResult<ImportObject> {
         let mut inner = sys::WasiCryptoCommonModule::create()?;
 
@@ -432,6 +434,7 @@ impl ImportObjectBuilder {
         )))
     }
 
+    #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
     pub fn build_as_wasi_crypto_asymmetric_common(self) -> WasmEdgeResult<ImportObject> {
         let mut inner = sys::WasiCryptoAsymmetricCommonModule::create()?;
 
@@ -460,6 +463,7 @@ impl ImportObjectBuilder {
         )))
     }
 
+    #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
     pub fn build_as_wasi_crypto_symmetric(self) -> WasmEdgeResult<ImportObject> {
         let mut inner = sys::WasiCryptoSymmetricModule::create()?;
 
@@ -488,6 +492,7 @@ impl ImportObjectBuilder {
         )))
     }
 
+    #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
     pub fn build_as_wasi_crypto_kx(self) -> WasmEdgeResult<ImportObject> {
         let mut inner = sys::WasiCryptoKxModule::create()?;
 
@@ -516,6 +521,7 @@ impl ImportObjectBuilder {
         )))
     }
 
+    #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
     pub fn build_as_wasi_crypto_signatures(self) -> WasmEdgeResult<ImportObject> {
         let mut inner = sys::WasiCryptoSignaturesModule::create()?;
 
@@ -558,15 +564,21 @@ impl ImportObject {
             sys::ImportObject::Wasi(wasi) => wasi.name().into(),
             #[cfg(target_os = "linux")]
             sys::ImportObject::WasmEdgeProcess(wasmedge_process) => wasmedge_process.name().into(),
+            #[cfg(all(target_os = "linux", feature = "wasi_nn", target_arch = "x86_64"))]
             sys::ImportObject::Nn(module) => module.name().into(),
+            #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
             sys::ImportObject::Crypto(sys::WasiCrypto::Common(module)) => module.name().into(),
+            #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
             sys::ImportObject::Crypto(sys::WasiCrypto::AsymmetricCommon(module)) => {
                 module.name().into()
             }
+            #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
             sys::ImportObject::Crypto(sys::WasiCrypto::SymmetricOptionations(module)) => {
                 module.name().into()
             }
+            #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
             sys::ImportObject::Crypto(sys::WasiCrypto::KeyExchange(module)) => module.name().into(),
+            #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
             sys::ImportObject::Crypto(sys::WasiCrypto::Signatures(module)) => module.name().into(),
         }
     }
@@ -582,10 +594,10 @@ mod tests {
     use crate::{
         config::{CommonConfigOptions, ConfigBuilder},
         error::{CoreError, CoreInstantiationError, GlobalError, WasmEdgeError},
-        host_function, params,
+        params,
         types::Val,
-        Caller, Executor, Global, GlobalType, Memory, MemoryType, Mutability, RefType, Statistics,
-        Store, Table, TableType, ValType, WasmVal, WasmValue,
+        Executor, Global, GlobalType, Memory, MemoryType, Mutability, RefType, Statistics, Store,
+        Table, TableType, ValType, WasmVal, WasmValue,
     };
     use std::{
         sync::{Arc, Mutex},
@@ -749,11 +761,10 @@ mod tests {
             _s: Vec<S>,
         }
 
-        #[host_function]
         fn real_add(
-            _caller: &Caller,
+            _frame: &CallingFrame,
             inputs: Vec<WasmValue>,
-            data: &mut Data<i32, &str>,
+            data: *mut std::os::raw::c_void,
         ) -> std::result::Result<Vec<WasmValue>, HostFuncError> {
             println!("data: {:?}", data);
 
@@ -1417,10 +1428,10 @@ mod tests {
         handle.join().unwrap();
     }
 
-    #[host_function]
     fn real_add(
-        _caller: &Caller,
+        _frame: &CallingFrame,
         inputs: Vec<WasmValue>,
+        _data: *mut std::os::raw::c_void,
     ) -> std::result::Result<Vec<WasmValue>, HostFuncError> {
         if inputs.len() != 2 {
             return Err(HostFuncError::User(1));

@@ -13,20 +13,25 @@ namespace Host {
 
 namespace {
 
-Runtime::Instance::ModuleInstance *createAsymmetricCommon(void) noexcept {
+Runtime::Instance::ModuleInstance *createAsymmetricCommon(
+    const Plugin::PluginModule::ModuleDescriptor *) noexcept {
   return new WasiCryptoAsymmetricCommonModule(
       WasiCrypto::Context::getInstance());
 }
-Runtime::Instance::ModuleInstance *createCommon(void) noexcept {
+Runtime::Instance::ModuleInstance *
+createCommon(const Plugin::PluginModule::ModuleDescriptor *) noexcept {
   return new WasiCryptoCommonModule(WasiCrypto::Context::getInstance());
 }
-Runtime::Instance::ModuleInstance *createKx(void) noexcept {
+Runtime::Instance::ModuleInstance *
+createKx(const Plugin::PluginModule::ModuleDescriptor *) noexcept {
   return new WasiCryptoKxModule(WasiCrypto::Context::getInstance());
 }
-Runtime::Instance::ModuleInstance *createSignatures(void) noexcept {
+Runtime::Instance::ModuleInstance *
+createSignatures(const Plugin::PluginModule::ModuleDescriptor *) noexcept {
   return new WasiCryptoSignaturesModule(WasiCrypto::Context::getInstance());
 }
-Runtime::Instance::ModuleInstance *createSymmetric(void) noexcept {
+Runtime::Instance::ModuleInstance *
+createSymmetric(const Plugin::PluginModule::ModuleDescriptor *) noexcept {
   return new WasiCryptoSymmetricModule(WasiCrypto::Context::getInstance());
 }
 

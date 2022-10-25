@@ -26,7 +26,7 @@ jobs:
       upload_url: ${{ steps.create_release.outputs.upload_url }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       - name: Get version
         id: prep
         run: |
@@ -61,6 +61,16 @@ jobs:
     with:
       version: ${{ needs.create_release.outputs.version }}
       matrix: "[{'name':'MacOS 11 (x86_64)','runner':'macos-11','darwin_version':20}]"
+      release: true
+      upload_asset_url: ${{ needs.create_release.outputs.upload_url }}
+    secrets: inherit
+
+  build_on_ubuntu_20_04:
+    needs: create_release
+    uses: ./.github/workflows/reusable-build-on-ubuntu.yml
+    with:
+      version: ${{ needs.create_release.outputs.version }}
+      matrix: "[{'compiler':'clang++','build_type':'Release','docker_tag':'ubuntu-build-clang','coverage':false}]"
       release: true
       upload_asset_url: ${{ needs.create_release.outputs.upload_url }}
     secrets: inherit
@@ -107,10 +117,12 @@ jobs:
       matrix:
         include:
           - name: WASI-NN OpenVINO
+            backend: OpenVINO
             output_path: plugins/wasi_nn
             output_bin: libwasmedgePluginWasiNN.so
             tar_name: wasi_nn-openvino
-          - name: WASI-NN OpenVINO
+          - name: WASI-NN PyTorch
+            backend: PyTorch
             output_path: plugins/wasi_nn
             output_bin: libwasmedgePluginWasiNN.so
             tar_name: wasi_nn-pytorch
@@ -118,6 +130,10 @@ jobs:
             output_path: plugins/wasi_crypto
             output_bin: libwasmedgePluginWasiCrypto.so
             tar_name: wasi_crypto
+          - name: WasmEdge-HttpsReq
+            output_path: plugins/wasmedge_httpsreq
+            output_bin: libwasmedgePluginHttpsReq.so
+            tar_name: wasmedge_httpsreq
     name: Build and upload WasmEdge ${{ matrix.name }} plugin on Ubuntu 20.04
     needs: create_release
     runs-on: ubuntu-latest
@@ -125,7 +141,7 @@ jobs:
       image: wasmedge/wasmedge:latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       - name: Build WasmEdge WASI-NN ${{ matrix.backend }} plugin
         shell: bash
         if: contains(matrix.name, 'WASI-NN')
@@ -162,6 +178,16 @@ jobs:
           cmake -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_PLUGIN_WASI_CRYPTO=On ..
           cd ${{ matrix.output_path }}
           make -j
+      - name: Build WasmEdge-HttpsReq plugin
+        if: contains(matrix.name, 'WasmEdge-HttpsReq')
+        run: |
+          apt update
+          apt install -y libssl-dev
+          mkdir -p build
+          cd build
+          cmake -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_PLUGIN_HTTPSREQ=On ..
+          cd ${{ matrix.output_path }}
+          make -j
       - name: Prepare the WasmEdge ${{ matrix.name }} plugin tar.gz package
         run: |
           cp build/${{ matrix.output_path }}/${{ matrix.output_bin }} ${{ matrix.output_bin }}
@@ -180,16 +206,58 @@ jobs:
     strategy:
       matrix:
         include:
+          - name: WasmEdge-HttpsReq
+            docker_tag: manylinux2014_x86_64
+            output_path: plugins/wasmedge_httpsreq
+            output_bin: libwasmedgePluginHttpsReq.so
+            deps_path: "utils/wasmedge_httpsreq/build-openssl.sh"
+            cmake_plugin_option: "-DWASMEDGE_PLUGIN_HTTPSREQ=ON -DOPENSSL_ROOT_DIR=$(pwd)/openssl-1.1.1n/openssl"
+            tar_name: wasmedge_httpsreq
+            host_runner: ubuntu-latest
+          - name: WasmEdge-HttpsReq
+            docker_tag: manylinux2014_aarch64
+            output_path: plugins/wasmedge_httpsreq
+            output_bin: libwasmedgePluginHttpsReq.so
+            deps_path: "utils/wasmedge_httpsreq/build-openssl.sh"
+            cmake_plugin_option: "-DWASMEDGE_PLUGIN_HTTPSREQ=ON -DOPENSSL_ROOT_DIR=$(pwd)/openssl-1.1.1n/openssl"
+            tar_name: wasmedge_httpsreq
+            host_runner: ARM64
+          - name: WASI-NN PyTorch
+            docker_tag: manylinux2014_x86_64
+            output_path: plugins/wasi_nn
+            output_bin: libwasmedgePluginWasiNN.so
+            deps_path: "utils/wasi-nn/install-pytorch.sh --disable-cxx11-abi"
+            cmake_plugin_option: "-DWASMEDGE_PLUGIN_WASI_NN_BACKEND=PyTorch"
+            tar_name: wasi_nn-pytorch
+            host_runner: ubuntu-latest
+          - name: WASI-NN TensorflowLite
+            docker_tag: manylinux2014_x86_64
+            output_path: plugins/wasi_nn
+            output_bin: libwasmedgePluginWasiNN.so
+            cmake_plugin_option: "-DWASMEDGE_PLUGIN_WASI_NN_BACKEND=TensorflowLite"
+            tar_name: wasi_nn-tensorflowlite
+            host_runner: ubuntu-latest
+          - name: WASI-NN TensorflowLite
+            docker_tag: manylinux2014_aarch64
+            output_path: plugins/wasi_nn
+            output_bin: libwasmedgePluginWasiNN.so
+            cmake_plugin_option: "-DWASMEDGE_PLUGIN_WASI_NN_BACKEND=TensorflowLite"
+            tar_name: wasi_nn-tensorflowlite
+            host_runner: ubuntu-latest
           - name: WASI-Crypto
             docker_tag: manylinux2014_x86_64
             output_path: plugins/wasi_crypto
             output_bin: libwasmedgePluginWasiCrypto.so
+            deps_path: "utils/wasi-crypto/build-openssl.sh"
+            cmake_plugin_option: "-DWASMEDGE_PLUGIN_WASI_CRYPTO=ON -DOPENSSL_ROOT_DIR=$(pwd)/openssl-1.1.1n/openssl"
             tar_name: wasi_crypto
             host_runner: ubuntu-latest
           - name: WASI-Crypto
             docker_tag: manylinux2014_aarch64
             output_path: plugins/wasi_crypto
             output_bin: libwasmedgePluginWasiCrypto.so
+            deps_path: "utils/wasi-crypto/build-openssl.sh"
+            cmake_plugin_option: "-DWASMEDGE_PLUGIN_WASI_CRYPTO=ON -DOPENSSL_ROOT_DIR=$(pwd)/openssl-1.1.1n/openssl"
             tar_name: wasi_crypto
             host_runner: ARM64
     name: Build and upload WasmEdge ${{ matrix.name }} plugin on ${{ matrix.docker_tag }}
@@ -199,14 +267,17 @@ jobs:
       image: wasmedge/wasmedge:${{ matrix.docker_tag }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
-      - name: Build WASI-Crypto dependency
-        if: contains(matrix.name, 'WASI-Crypto')
+        uses: actions/checkout@v3
+      - name: Build ${{ matrix.name }} dependency
+        if: matrix.deps_path
         run: |
-          bash utils/wasi-crypto/build-openssl.sh
-      - name: Build WasmEdge ${{ matrix.name }} plugin
+          bash ${{ matrix.deps_path }}
+      - name: Build ${{ matrix.name }} plugin
         run: |
-          bash utils/docker/build-manylinux.sh --not-build --not-ninja -DWASMEDGE_PLUGIN_WASI_CRYPTO=ON -DOPENSSL_ROOT_DIR=$(pwd)/openssl-1.1.1n/openssl
+          if [[ "${{ matrix.name }}" == *"PyTorch"* ]]; then
+            export Torch_DIR=$(pwd)/libtorch
+          fi
+          bash utils/docker/build-manylinux.sh --not-build --not-ninja ${{ matrix.cmake_plugin_option }}
           cd build
           cd ${{ matrix.output_path }}
           make -j
@@ -232,12 +303,12 @@ jobs:
       image: wasmedge/wasmedge:manylinux2014_x86_64
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       - name: Build runtime only manylinux2014 package
         run: |
           bash utils/docker/build-manylinux.sh -DWASMEDGE_BUILD_AOT_RUNTIME=OFF
       - name: Upload ${{ matrix.name }} tar.gz package to artifact
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: build_manylinux2014_runtime_only
           path: build/WasmEdge-${{ needs.create_release.outputs.version }}-Linux.tar.gz
@@ -258,7 +329,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       - name: Prepare tarball
         uses: actions/download-artifact@v3
         with:
@@ -273,9 +344,9 @@ jobs:
           echo ::set-output name=docker_image::${{ matrix.name }}
           echo ::set-output name=created::$(date -u +'%Y-%m-%dT%H:%M:%SZ')
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v1
+        uses: docker/setup-buildx-action@v2
       - name: Login to DockerHub
-        uses: docker/login-action@v1
+        uses: docker/login-action@v2
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_ACCESS_TOKEN }}

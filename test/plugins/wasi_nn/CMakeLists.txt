@@ -47,6 +47,25 @@ foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
     endif()
     add_definitions(-DWASMEDGE_PLUGIN_WASI_NN_BACKEND_TORCH)
     find_package(Torch REQUIRED)
+  elseif(BACKEND STREQUAL "Tensorflowlite")
+    message( STATUS "Download ML artifacts to ${CMAKE_CURRENT_BINARY_DIR}/wasinn_tflite_fixtures") 
+    execute_process(
+      COMMAND bash ${CMAKE_SOURCE_DIR}/utils/wasi-nn/download-tflite-fixtures.sh ${CMAKE_CURRENT_BINARY_DIR}/wasinn_tflite_fixtures
+      RESULT_VARIABLE DOWNLOAD_ERROR
+      OUTPUT_STRIP_TRAILING_WHITESPACE)
+    file(MD5 ${CMAKE_CURRENT_BINARY_DIR}/wasinn_tflite_fixtures/lite-model_aiy_vision_classifier_birds_V1_3.tflite CHECKSUM_WEIGHT)
+    file(MD5 ${CMAKE_CURRENT_BINARY_DIR}/wasinn_tflite_fixtures/birdx224x224x3.rgb CHECKSUM_IMAGE)
+    if(NOT CHECKSUM_WEIGHT STREQUAL "3e59cc3a99afeeb819c2c38b319a7938")
+      message(FATAL_ERROR "downloaded tflite model with wrong md5") 
+    endif()
+    if(NOT CHECKSUM_IMAGE STREQUAL "ad51c39cfe35d2ef35c4052b78cb3c55")
+      message(FATAL_ERROR "downloaded bird.jpg fixture with wrong md5") 
+    endif()
+    add_definitions(-DWASMEDGE_PLUGIN_WASI_NN_BACKEND_TFLITE)
+    target_include_directories(wasiNNTests
+      PUBLIC
+      ${TENSORFLOW_INCLUDE}
+    )
   else()
     # Add the other backend test files fetching here.
   endif()

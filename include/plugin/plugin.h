@@ -15,6 +15,7 @@
 
 #include "common/defines.h"
 #include "common/filesystem.h"
+#include "common/version.h"
 #include "loader/shared_library.h"
 #include "po/argument_parser.h"
 #include "runtime/instance/module.h"
@@ -35,7 +36,8 @@ public:
   struct ModuleDescriptor {
     const char *Name;
     const char *Description;
-    Runtime::Instance::ModuleInstance *(*Create)(void) noexcept;
+    Runtime::Instance::ModuleInstance *(*Create)(
+        const ModuleDescriptor *) noexcept;
   };
 
   constexpr PluginModule() noexcept {}
@@ -52,7 +54,8 @@ public:
 
   std::unique_ptr<Runtime::Instance::ModuleInstance> create() const noexcept {
     assuming(Desc);
-    return std::unique_ptr<Runtime::Instance::ModuleInstance>(Desc->Create());
+    return std::unique_ptr<Runtime::Instance::ModuleInstance>(
+        Desc->Create(Desc));
   }
 
 private:
@@ -78,10 +81,12 @@ public:
     VersionData Version;
     size_t ModuleCount;
     PluginModule::ModuleDescriptor *ModuleDescriptions;
-    void (*AddOptions)(PO::ArgumentParser &Parser) noexcept;
+    void (*AddOptions)(const PluginDescriptor *D,
+                       PO::ArgumentParser &Parser) noexcept;
   };
 
-  static inline constexpr const uint32_t CurrentAPIVersion [[maybe_unused]] = 1;
+  static inline constexpr const uint32_t CurrentAPIVersion [[maybe_unused]] =
+      kPluginCurrentAPIVersion;
   static std::vector<std::filesystem::path> getDefaultPluginPaths() noexcept;
   static bool load(const std::filesystem::path &Path) noexcept;
   static void addPluginOptions(PO::ArgumentParser &Parser) noexcept;
@@ -113,7 +118,7 @@ public:
   void registerOptions(PO::ArgumentParser &Parser) const noexcept {
     assuming(Desc);
     if (Desc->AddOptions) {
-      Desc->AddOptions(Parser);
+      Desc->AddOptions(Desc, Parser);
     }
   }
 

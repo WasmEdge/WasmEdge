@@ -7,7 +7,7 @@ use crate::{
     utils::check,
     Config, WasmEdgeResult,
 };
-use std::path::Path;
+use std::{path::Path, sync::Arc};
 
 /// [Loader](crate::Loader) is used to load WASM modules from the given WASM files or buffers.
 #[derive(Debug)]
@@ -27,11 +27,7 @@ impl Loader {
     /// If fail to create a [Loader](crate), then an error is returned.
     pub fn create(config: Option<Config>) -> WasmEdgeResult<Self> {
         let ctx = match config {
-            Some(mut config) => {
-                let ctx = unsafe { ffi::WasmEdge_LoaderCreate(config.inner.0) };
-                config.inner.0 = std::ptr::null_mut();
-                ctx
-            }
+            Some(config) => unsafe { ffi::WasmEdge_LoaderCreate(config.inner.0) },
             None => unsafe { ffi::WasmEdge_LoaderCreate(std::ptr::null_mut()) },
         };
 
@@ -74,7 +70,7 @@ impl Loader {
         match mod_ctx.is_null() {
             true => Err(Box::new(WasmEdgeError::ModuleCreate)),
             false => Ok(Module {
-                inner: InnerModule(mod_ctx),
+                inner: Arc::new(InnerModule(mod_ctx)),
             }),
         }
     }
@@ -129,7 +125,7 @@ impl Loader {
         match mod_ctx.is_null() {
             true => Err(Box::new(WasmEdgeError::ModuleCreate)),
             false => Ok(Module {
-                inner: InnerModule(mod_ctx),
+                inner: Arc::new(InnerModule(mod_ctx)),
             }),
         }
     }

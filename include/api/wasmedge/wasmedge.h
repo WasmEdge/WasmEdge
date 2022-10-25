@@ -22,8 +22,14 @@
 #else
 #define WASMEDGE_CAPI_EXPORT __declspec(dllimport)
 #endif // WASMEDGE_COMPILE_LIBRARY
+#ifdef WASMEDGE_PLUGIN
+#define WASMEDGE_CAPI_PLUGIN_EXPORT __declspec(dllexport)
+#else
+#define WASMEDGE_CAPI_PLUGIN_EXPORT __declspec(dllimport)
+#endif // WASMEDGE_PLUGIN
 #else
 #define WASMEDGE_CAPI_EXPORT __attribute__((visibility("default")))
+#define WASMEDGE_CAPI_PLUGIN_EXPORT __attribute__((visibility("default")))
 #endif // _WIN32
 
 #include <stdbool.h>
@@ -138,6 +144,63 @@ typedef struct WasmEdge_Async WasmEdge_Async;
 /// Opaque struct of WasmEdge VM.
 typedef struct WasmEdge_VMContext WasmEdge_VMContext;
 
+/// Type of option value.
+typedef enum WasmEdge_ProgramOptionType {
+  /// No option value.
+  WasmEdge_ProgramOptionType_None,
+  /// Boolean value.
+  WasmEdge_ProgramOptionType_Toggle,
+  WasmEdge_ProgramOptionType_Int8,
+  WasmEdge_ProgramOptionType_Int16,
+  WasmEdge_ProgramOptionType_Int32,
+  WasmEdge_ProgramOptionType_Int64,
+  WasmEdge_ProgramOptionType_UInt8,
+  WasmEdge_ProgramOptionType_UInt16,
+  WasmEdge_ProgramOptionType_UInt32,
+  WasmEdge_ProgramOptionType_UInt64,
+  WasmEdge_ProgramOptionType_Float,
+  WasmEdge_ProgramOptionType_Double,
+  /// WasmEdge_String.
+  WasmEdge_ProgramOptionType_String,
+} WasmEdge_ProgramOptionType;
+
+/// Program option for plugins.
+typedef struct WasmEdge_ProgramOption {
+  const char *Name;
+  const char *Description;
+  WasmEdge_ProgramOptionType Type;
+  void *Storage;
+  const void *DefaultValue;
+} WasmEdge_ProgramOption;
+
+/// Module descriptior for plugins.
+typedef struct WasmEdge_ModuleDescriptor {
+  const char *Name;
+  const char *Description;
+  WasmEdge_ModuleInstanceContext *(*Create)(
+      const struct WasmEdge_ModuleDescriptor *);
+} WasmEdge_ModuleDescriptor;
+
+/// Version data for plugins.
+typedef struct WasmEdge_PluginVersionData {
+  uint32_t Major;
+  uint32_t Minor;
+  uint32_t Patch;
+  uint32_t Build;
+} WasmEdge_PluginVersionData;
+
+/// Plugin descriptior for plugins.
+typedef struct WasmEdge_PluginDescriptor {
+  const char *Name;
+  const char *Description;
+  uint32_t APIVersion;
+  WasmEdge_PluginVersionData Version;
+  uint32_t ModuleCount;
+  uint32_t ProgramOptionCount;
+  WasmEdge_ModuleDescriptor *ModuleDescriptions;
+  WasmEdge_ProgramOption *ProgramOptions;
+} WasmEdge_PluginDescriptor;
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -175,6 +238,9 @@ WASMEDGE_CAPI_EXPORT extern void WasmEdge_LogSetErrorLevel(void);
 
 /// Set the logging system to filter to debug level.
 WASMEDGE_CAPI_EXPORT extern void WasmEdge_LogSetDebugLevel(void);
+
+/// Set the logging system off.
+WASMEDGE_CAPI_EXPORT extern void WasmEdge_LogOff(void);
 
 // <<<<<<<< WasmEdge logging functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
@@ -581,6 +647,28 @@ WasmEdge_ConfigureSetMaxMemoryPage(WasmEdge_ConfigureContext *Cxt,
 /// \returns the page count limitation value.
 WASMEDGE_CAPI_EXPORT extern uint32_t
 WasmEdge_ConfigureGetMaxMemoryPage(const WasmEdge_ConfigureContext *Cxt);
+
+/// Set the force interpreter mode execution option.
+///
+/// This function is thread-safe.
+///
+/// \param Cxt the WasmEdge_ConfigureContext to set the boolean value.
+/// \param isForceInterpreter the boolean value to determine to forcibly run
+/// WASM in interpreter mode or not.
+WASMEDGE_CAPI_EXPORT extern void
+WasmEdge_ConfigureSetForceInterpreter(WasmEdge_ConfigureContext *Cxt,
+                                      const bool isForceInterpreter);
+
+/// Get the force interpreter mode execution option.
+///
+/// This function is thread-safe.
+///
+/// \param Cxt the WasmEdge_ConfigureContext to get the boolean value.
+///
+/// \returns the boolean value to determine to forcibly run WASM in interpreter
+/// mode or not.
+WASMEDGE_CAPI_EXPORT extern bool
+WasmEdge_ConfigureIsForceInterpreter(const WasmEdge_ConfigureContext *Cxt);
 
 /// Set the optimization level of AOT compiler.
 ///
@@ -3330,6 +3418,10 @@ WASMEDGE_CAPI_EXPORT extern int WasmEdge_Driver_Tool(int Argc,
 
 /// Load plugins with default search path.
 WASMEDGE_CAPI_EXPORT extern void WasmEdge_PluginLoadWithDefaultPaths(void);
+
+/// Implement by plugins for returning plugin descriptior.
+WASMEDGE_CAPI_PLUGIN_EXPORT extern const WasmEdge_PluginDescriptor *
+WasmEdge_Plugin_GetDescriptor(void);
 
 // <<<<<<<< WasmEdge Pluginfunctions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 

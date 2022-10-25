@@ -50,7 +50,7 @@ stringToInteger(ConvResultT (&Conv)(const char *, char **, int),
   if (SavedErrNo == ERANGE || !InsideRange(Result)) {
     return cxx20::unexpected<Error>(std::in_place, ErrCode::OutOfRange, ""s);
   }
-  return Result;
+  return static_cast<ResultT>(Result);
 }
 
 template <typename ConvResultT, typename ResultT = ConvResultT>
@@ -126,6 +126,42 @@ template <> struct Parser<bool> {
 template <> struct Parser<int> {
   static cxx20::expected<int, Error> parse(std::string Value) noexcept {
     return stringToInteger<long, int>(std::strtol, std::move(Value));
+  }
+};
+
+template <> struct Parser<unsigned int> {
+  static cxx20::expected<unsigned int, Error>
+  parse(std::string Value) noexcept {
+    return stringToInteger<unsigned long, unsigned int>(std::strtoul,
+                                                        std::move(Value));
+  }
+};
+
+template <> struct Parser<signed char> {
+  static cxx20::expected<signed char, Error> parse(std::string Value) noexcept {
+    return stringToInteger<long, signed char>(std::strtol, std::move(Value));
+  }
+};
+
+template <> struct Parser<unsigned char> {
+  static cxx20::expected<unsigned char, Error>
+  parse(std::string Value) noexcept {
+    return stringToInteger<unsigned long, unsigned char>(std::strtoul,
+                                                         std::move(Value));
+  }
+};
+
+template <> struct Parser<short> {
+  static cxx20::expected<short, Error> parse(std::string Value) noexcept {
+    return stringToInteger<long, short>(std::strtol, std::move(Value));
+  }
+};
+
+template <> struct Parser<unsigned short> {
+  static cxx20::expected<unsigned short, Error>
+  parse(std::string Value) noexcept {
+    return stringToInteger<unsigned long, unsigned short>(std::strtoul,
+                                                          std::move(Value));
   }
 };
 

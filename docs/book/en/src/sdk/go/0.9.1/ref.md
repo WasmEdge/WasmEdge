@@ -23,13 +23,16 @@ The followings are the guides to working with the WasmEdge-Go SDK at WasmEdge ve
   * [Results](#results)
   * [Contexts And Their Life Cycles](#contexts-and-their-life-cycles)
   * [WASM data structures](#wasm-data-structures)
+  * [Async](#async)
   * [Configurations](#configurations)
+  * [Statistics](#statistics)
 * [WasmEdge VM](#wasmedge-vm)
   * [WASM Execution Example With VM Object](#wasm-execution-example-with-vm-object)
   * [VM Creations](#vm-creations)
   * [Preregistrations](#preregistrations)
   * [Host Module Registrations](#host-module-registrations)
   * [WASM Registrations And Executions](#wasm-registrations-and-executions)
+  * [Asynchronous execution](#asynchronous-execution)
   * [Instance Tracing](#instance-tracing)
 * [WasmEdge Runtime](#wasmedge-runtime)
   * [WASM Execution Example Step-By-Step](#wasm-execution-example-step-by-step)
@@ -688,6 +691,44 @@ The details of instances creation will be introduced in the [Instances](#instanc
     }
     ```
 
+### Async
+
+After calling the [asynchronous execution APIs](#asynchronous-execution), developers will get the `wasmedge.Async` object.
+Developers own the object and should call the `(*Async).Release()` API to release it.
+
+1. Get the execution result of the asynchronous execution
+
+    Developers can use the `(*Async).GetResult()` API to block and wait for getting the return values.
+    This function will block and wait for the execution. If the execution has finished, this function will return immediately. If the execution failed, this function will return an error.
+
+    ```go
+    async := ... // Ignored. Asynchronous execute a function.
+
+    // Blocking and waiting for the execution and get the return values.
+    res, err := async.GetResult()
+    async.Release()
+    ```
+
+2. Wait for the asynchronous execution with timeout settings
+
+    Besides waiting until the end of execution, developers can set the timeout to wait for.
+
+    ```go
+    async := ... // Ignored. Asynchronous execute a function.
+
+    // Blocking and waiting for the execution with the timeout(ms). 
+    isend := async.WaitFor(1000)
+    if isend {
+      res, err := async.GetResult()
+      // ...
+    } else {
+      async.Cancel()
+      _, err := async.GetResult()
+      // The error message in `err` will be "execution interrupted".
+    }
+    async.Release()
+    ```
+
 ### Configurations
 
 The configuration object, `wasmedge.Configure`, manages the configurations for `Loader`, `Validator`, `Executor`, `VM`, and `Compiler`.
@@ -837,6 +878,59 @@ Developers can adjust the settings about the proposals, VM host pre-registration
     conf.SetStatisticsCostMeasuring(true)
 
     conf.Release()
+    ```
+
+### Statistics
+
+The statistics object, `wasmedge.Statistics`, provides the instruction counter, cost summation, and cost limitation at runtime.
+
+Before using statistics, the statistics configuration must be set. Otherwise, the return values of calling statistics are undefined behaviour.
+
+1. Instruction counter
+
+    The instruction counter can help developers to profile the performance of WASM running.
+    Developers can retrieve the `Statistics` object from the `VM` object, or create a new one for the `Executor` creation.
+    The details will be introduced in the next partitions.
+
+    ```go
+    stat := wasmedge.NewStatistics()
+    // ... After running the WASM functions with the `Statistics` object
+
+    count := stat.GetInstrCount()
+    ips := stat.GetInstrPerSecond()
+    stat.Release()
+    ```
+
+2. Cost table
+
+    The cost table is to accumulate the cost of instructions with their weights.
+    Developers can set the cost table array (the indices are the byte code value of instructions, and the values are the cost of instructions) into the `Statistics` object.
+    If the cost limit value is set, the execution will return the `cost limit exceeded` error immediately when exceeds the cost limit in runtime.
+
+    ```c
+    stat := wasmedge.NewStatistics()
+
+    costtable := []uint64{
+      0, 0,
+      10, /* 0x02: Block */
+      11, /* 0x03: Loop */
+      12, /* 0x04: If */
+      12, /* 0x05: Else */
+      0, 0, 0, 0, 0, 0,
+      20, /* 0x0C: Br */
+      21, /* 0x0D: Br_if */
+      22, /* 0x0E: Br_table */
+      0,
+    }
+    // Developers can set the costs of each instruction. The value not covered will be 0.
+
+    WasmEdge_StatisticsSetCostTable(StatCxt, CostTable, 16);
+    stat.SetCostTable()
+    stat.SetCostLimit(5000000)
+
+    // ... After running the WASM functions with the `Statistics` object
+    cost := stat.GetTotalCost()
+    stat.Release()
     ```
 
 ## WasmEdge VM
@@ -1217,6 +1311,123 @@ WasmEdge VM provides APIs for developers to register and export any WASM modules
     $ go build
     $ ./wasmedge_test
     Get fibonacci[25]: 121393
+    ```
+
+### Asynchronous Execution
+
+1. Asynchronously run WASM functions rapidly
+
+    Assume that a new Go project is created as following:
+
+    ```bash
+    mkdir wasmedge_test && cd wasmedge_test
+    go mod init wasmedge_test
+    ```
+
+    Then assume that the WASM file [`fibonacci.wasm`](https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/examples/wasm/fibonacci.wasm) is copied into the current directory, and create and edit a Go file `main.go`:
+
+    ```go
+    package main
+
+    import (
+      "fmt"
+
+      "github.com/second-state/WasmEdge-go/wasmedge"
+    )
+
+    func main() {
+      // Create VM.
+      vm := wasmedge.NewVM()
+
+      // Asynchronously run the WASM function from file and get the `wasmedge.Async` object.
+      async := vm.AsyncRunWasmFile("fibonacci.wasm", "fib", uint32(20))
+
+      // Block and wait for the execution and get the results.
+      res, err := async.GetResult()
+      if err == nil {
+        fmt.Println("Get the result:", res[0].(int32))
+      } else {
+        fmt.Println("Error message:", err.Error())
+      }
+      async.Release()
+      vm.Release()
+    }
+    ```
+
+    Then you can build and run: (the 20th Fibonacci number is 10946 in 0-based index)
+
+    ```bash
+    $ go get github.com/second-state/WasmEdge-go/wasmedge@v0.9.2
+    $ go build
+    $ ./wasmedge_test
+    Get the result: 10946
+    ```
+
+2. Instantiate and asynchronously run WASM functions manually
+
+    Besides the above example, developers can run the WASM functions step-by-step with `VM` context APIs:
+
+    ```go
+    package main
+
+    import (
+      "fmt"
+
+      "github.com/second-state/WasmEdge-go/wasmedge"
+    )
+
+    func main() {
+      var err error
+      var res []interface{}
+  
+      // Create VM.
+      vm := wasmedge.NewVM()
+
+      // Step 1: Load WASM file.
+      // Developers can load the WASM binary from buffer with the `(*VM).LoadWasmBuffer()` API,
+      // or from `wasmedge.AST` object with the `(*VM).LoadWasmAST()` API.
+      err := vm.LoadWasmFile("fibonacci.wasm")
+      if err != nil {
+        fmt.Println("Load WASM from file FAILED:", err.Error())
+        return
+      }
+
+      // Step 2: Validate the WASM module.
+      err = vm.Validate()
+      if err != nil {
+        fmt.Println("Validation FAILED:", err.Error())
+        return
+      }
+
+      // Step 3: Instantiate the WASM module.
+      err = vm.Instantiate()
+      if err != nil {
+        fmt.Println("Instantiation FAILED:", err.Error())
+        return
+      }
+
+      // Step 4: Asynchronously execute the WASM function and get the `wasmedge.Async` object.
+      async := vm.AsyncExecute("fib", uint32(25))
+
+      // Block and wait for the execution and get the results.
+      res, err := async.GetResult()
+      if err == nil {
+        fmt.Println("Get the result:", res[0].(int32))
+      } else {
+        fmt.Println("Error message:", err.Error())
+      }
+      async.Release()
+      vm.Release()
+    }
+    ```
+
+    Then you can build and run: (the 25th Fibonacci number is 121393 in 0-based index)
+
+    ```bash
+    $ go get github.com/second-state/WasmEdge-go/wasmedge@v0.9.2
+    $ go build
+    $ ./wasmedge_test
+    Get the result: 121393
     ```
 
 ### Instance Tracing

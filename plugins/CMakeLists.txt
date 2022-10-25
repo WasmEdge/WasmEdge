@@ -19,3 +19,5 @@ endif()
 if (WASMEDGE_PLUGIN_WASI_CRYPTO)
   add_subdirectory(wasi_crypto)
 endif()
+
+add_subdirectory(test)

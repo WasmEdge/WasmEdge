@@ -1,10 +1,10 @@
-# WasmEdge Go v0.10.0 API references
+# WasmEdge Go v0.11.0 API references
 
 The followings are the guides to working with the WasmEdge-Go SDK.
 
-**This document is for the newest `v0.10.0` version. For the stable `v0.9.1` version, please refer to the [document here](0.9.1/ref.md).**
+**This document is for the `v0.11.0` version. For the older `v0.10.1` version, please refer to the [document here](0.10.1/ref.md).**
 
-**Developers can refer [here to upgrade to v0.10.0](0.9.1/upgrade_to_0.10.0.md).**
+**Developers can refer to [here to upgrade to v0.11.0](0.10.1/upgrade_to_0.11.0.md).**
 
 ## Table of Contents
 
@@ -13,8 +13,6 @@ The followings are the guides to working with the WasmEdge-Go SDK.
   * [Get WasmEdge-go](#get-wasmedge-go)
   * [WasmEdge-go Extensions](#wasmedge-go-extensions)
   * [Example repository](#example-repository)
-  * [Example of Embedding A Function with wasmedge-bindgen](#example-of-embedding-a-function-with-wasmedge-bindgen)
-  * [Example of Embedding A Full WASI Program](#example-of-embedding-a-full-wasi-program)
 * [WasmEdge-go Basics](#wasmedge-go-basics)
   * [Version](#version)
   * [Logging Settings](#logging-settings)
@@ -22,13 +20,17 @@ The followings are the guides to working with the WasmEdge-Go SDK.
   * [Results](#results)
   * [Contexts And Their Life Cycles](#contexts-and-their-life-cycles)
   * [WASM data structures](#wasm-data-structures)
+  * [Async](#async)
   * [Configurations](#configurations)
+  * [Statistics](#statistics)
+  * [Tools driver](#tools-driver)
 * [WasmEdge VM](#wasmedge-vm)
   * [WASM Execution Example With VM Object](#wasm-execution-example-with-vm-object)
   * [VM Creations](#vm-creations)
   * [Preregistrations](#preregistrations)
   * [Host Module Registrations](#host-module-registrations)
   * [WASM Registrations And Executions](#wasm-registrations-and-executions)
+  * [Asynchronous execution](#asynchronous-execution)
   * [Instance Tracing](#instance-tracing)
 * [WasmEdge Runtime](#wasmedge-runtime)
   * [WASM Execution Example Step-By-Step](#wasm-execution-example-step-by-step)
@@ -57,13 +59,13 @@ go version go1.16.5 linux/amd64
 Developers must [install the WasmEdge shared library](../../quick_start/install.md) with the same `WasmEdge-go` release or pre-release version.
 
 ```bash
-curl -sSf https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh | bash -s -- -v 0.10.0
+curl -sSf https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh | bash -s -- -v 0.11.0
 ```
 
 For the developers need the `TensorFlow` or `Image` extension for `WasmEdge-go`, please install the `WasmEdge` with extensions:
 
 ```bash
-curl -sSf https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh | bash -s -- -e tf,image -v 0.10.0
+curl -sSf https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh | bash -s -- -e tf,image -v 0.11.0
 ```
 
 Noticed that the `TensorFlow` and `Image` extensions are only for the `Linux` platforms.
@@ -74,9 +76,11 @@ After installation, developers can use the `source` command to update the includ
 After the WasmEdge installation, developers can get the `WasmEdge-go` package and build it in your Go project directory.
 
 ```bash
-go get github.com/second-state/WasmEdge-go/wasmedge@v0.10.0
+go get github.com/second-state/WasmEdge-go/wasmedge@v0.11.0
 go build
 ```
+
+> The WasmEdge-Go version number should match the installed WasmEdge version.
 
 ### WasmEdge-go Extensions
 
@@ -86,11 +90,21 @@ By default, the `WasmEdge-go` only turns on the basic runtime.
 
 * Tensorflow
   * This extension supports the host functions in [WasmEdge-tensorflow](https://github.com/second-state/WasmEdge-tensorflow).
-  * The `TensorFlow` extension when installing `WasmEdge` is required. Please install `WasmEdge` with the `-e tensorflow` command.
+  * The `TensorFlow` and `TensorFlow-Lite` extension when installing `WasmEdge` is required. Please install `WasmEdge` with the `-e tensorflow` command.
   * For using this extension, the tag `tensorflow` when building is required:
 
     ```bash
     go build -tags tensorflow
+    ```
+
+* Tensorflow-Lite
+  * This extension supports the host functions in [WasmEdge-tensorflow](https://github.com/second-state/WasmEdge-tensorflow) with only `TensorFlow-Lite`.
+  * The `TensorFlow-Lite` extension when installing `WasmEdge` is required. Please install `WasmEdge` with the `-e tensorflow` command.
+  * **THIS TAG CANNOT BE USED WITH THE `tensorflow` TAG.**
+  * For using this extension, the tag `tensorflow` when building is required:
+
+    ```bash
+    go build -tags tensorflowlite
     ```
 
 * Image
@@ -111,338 +125,6 @@ go build -tags image,tensorflow
 ### Example Repository
 
 Developers can refer to [the example repository](https://github.com/second-state/WasmEdge-go-examples/) for the WasmEdge-Go examples.
-
-### Example of Embedding A Function with wasmedge-bindgen
-
-In [this example](https://github.com/second-state/WasmEdge-go-examples/tree/master/wasmedge-bindgen/go_BindgenFuncs), we will demonstrate how to call a few simple WebAssembly functions with wasmedge-bindgen from a Golang app. The [functions](https://github.com/second-state/WasmEdge-go-examples/blob/master/wasmedge-bindgen/go_BindgenFuncs/rust_bindgen_funcs/src/lib.rs) are written in Rust, and require complex call parameters and return values.
-
-While the WebAssembly only supports a few simple data types out of the box. It [does not support](https://medium.com/wasm/strings-in-webassembly-wasm-57a05c1ea333) types such as string and array. In order to pass rich types in Golang to WebAssembly, the compiler needs to convert them to simple integers. For example, it converts a string into an integer memory address and an integer length. The `#[wasmedge_bindgen]` macro does this conversion automatically, combining it with Golang's `wasmedge-bindgen` package to auto-generate the correct code to pass call parameters from Golang to WebAssembly.
-
-```rust
-use wasmedge_bindgen::*;
-use wasmedge_bindgen_macro::*;
-use num_integer::lcm;
-use sha3::{Digest, Sha3_256, Keccak256};
-use serde::{Serialize, Deserialize};
-
-#[derive(Serialize, Deserialize, Debug)]
-struct Point {
-  x: f32,
-  y: f32
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-struct Line {
-  points: Vec<Point>,
-  valid: bool,
-  length: f32,
-  desc: String
-}
-
-#[wasmedge_bindgen]
-pub fn create_line(p1: String, p2: String, desc: String) -> String {
-  let point1: Point = serde_json::from_str(p1.as_str()).unwrap();
-  let point2: Point = serde_json::from_str(p2.as_str()).unwrap();
-  let length = ((point1.x - point2.x) * (point1.x - point2.x) + (point1.y - point2.y) * (point1.y - point2.y)).sqrt();
-
-  let valid = if length == 0.0 { false } else { true };
-
-  let line = Line { points: vec![point1, point2], valid: valid, length: length, desc: desc };
-
-  return serde_json::to_string(&line).unwrap();
-}
-
-#[wasmedge_bindgen]
-pub fn say(s: String) -> String {
-  let r = String::from("hello ");
-  return r + s.as_str();
-}
-
-#[wasmedge_bindgen]
-pub fn obfusticate(s: String) -> String {
-  (&s).chars().map(|c| {
-    match c {
-      'A' ..= 'M' | 'a' ..= 'm' => ((c as u8) + 13) as char,
-      'N' ..= 'Z' | 'n' ..= 'z' => ((c as u8) - 13) as char,
-      _ => c
-    }
-  }).collect()
-}
-
-#[wasmedge_bindgen]
-pub fn lowest_common_multiple(a: i32, b: i32) -> i32 {
-  return lcm(a, b);
-}
-
-#[wasmedge_bindgen]
-pub fn sha3_digest(v: Vec<u8>) -> Vec<u8> {
-  return Sha3_256::digest(&v).as_slice().to_vec();
-}
-
-#[wasmedge_bindgen]
-pub fn keccak_digest(s: Vec<u8>) -> Vec<u8> {
-  return Keccak256::digest(&s).as_slice().to_vec();
-}
-```
-
-First, compile the Rust source code into WebAssembly bytecode functions.
-
-```bash
-rustup target add wasm32-wasi
-cd rust_bindgen_funcs
-cargo build --target wasm32-wasi --release
-# The output WASM will be target/wasm32-wasi/release/rust_bindgen_funcs_lib.wasm
-```
-
-The [Golang source code](https://github.com/second-state/WasmEdge-go-examples/blob/master/wasmedge-bindgen/go_BindgenFuncs/bindgen_funcs.go) to run the WebAssembly function in WasmEdge is as follows. The `bg.Execute()` function calls the WebAssembly function and passes the parameters with the `wasmedge-bindgen` supporting.
-
-```go
-package main
-
-import (
-  "fmt"
-  "os"
-
-  "github.com/second-state/WasmEdge-go/wasmedge"
-  bindgen "github.com/second-state/wasmedge-bindgen/host/go"
-)
-
-func main() {
-  // Expected Args[0]: program name (./bindgen_funcs)
-  // Expected Args[1]: wasm file (rust_bindgen_funcs_lib.wasm))
-  
-  // Set not to print debug info
-  wasmedge.SetLogErrorLevel()
-
-  // Create configure
-  var conf = wasmedge.NewConfigure(wasmedge.WASI)
-
-  // Create VM with configure
-  var vm = wasmedge.NewVMWithConfig(conf)
-
-  // Init WASI
-  var wasi = vm.GetImportModule(wasmedge.WASI)
-  wasi.InitWasi(
-    os.Args[1:],     // The args
-    os.Environ(),    // The envs
-    []string{".:."}, // The mapping preopens
-  )
-
-  // Load and validate the wasm
-  vm.LoadWasmFile(os.Args[1])
-  vm.Validate()
-
-  // Instantiate the bindgen and vm
-  bg := bindgen.Instantiate(vm)
-
-  // create_line: string, string, string -> string (inputs are JSON stringified)  
-  res, err := bg.Execute("create_line", "{\"x\":2.5,\"y\":7.8}", "{\"x\":2.5,\"y\":5.8}", "A thin red line")
-  if err == nil {
-    fmt.Println("Run bindgen -- create_line:", res[0].(string))
-  } else {
-    fmt.Println("Run bindgen -- create_line FAILED", err)
-  }
-
-  // say: string -> string
-  res, err = bg.Execute("say", "bindgen funcs test")
-  if err == nil {
-    fmt.Println("Run bindgen -- say:", res[0].(string))
-  } else {
-    fmt.Println("Run bindgen -- say FAILED")
-  }
-
-  // obfusticate: string -> string
-  res, err = bg.Execute("obfusticate", "A quick brown fox jumps over the lazy dog")
-  if err == nil {
-    fmt.Println("Run bindgen -- obfusticate:", res[0].(string))
-  } else {
-    fmt.Println("Run bindgen -- obfusticate FAILED")
-  }
-
-  // lowest_common_multiple: i32, i32 -> i32
-  res, err = bg.Execute("lowest_common_multiple", int32(123), int32(2))
-  if err == nil {
-    fmt.Println("Run bindgen -- lowest_common_multiple:", res[0].(int32))
-  } else {
-    fmt.Println("Run bindgen -- lowest_common_multiple FAILED")
-  }
-
-  // sha3_digest: array -> array
-  res, err = bg.Execute("sha3_digest", []byte("This is an important message"))
-  if err == nil {
-    fmt.Println("Run bindgen -- sha3_digest:", res[0].([]byte))
-  } else {
-    fmt.Println("Run bindgen -- sha3_digest FAILED")
-  }
-
-  // keccak_digest: array -> array
-  res, err = bg.Execute("keccak_digest", []byte("This is an important message"))
-  if err == nil {
-    fmt.Println("Run bindgen -- keccak_digest:", res[0].([]byte))
-  } else {
-    fmt.Println("Run bindgen -- keccak_digest FAILED")
-  }
-
-  bg.Release()
-  vm.Release()
-  conf.Release()
-}
-```
-
-Next, build the Golang application with the WasmEdge Golang SDK.
-
-```bash
-go get github.com/second-state/WasmEdge-go/wasmedge@v0.10.0
-go get github.com/second-state/wasmedge-bindgen@v0.1.12
-go build
-```
-
-Run the Golang application and it will run the WebAssembly functions embedded in the WasmEdge runtime.
-
-```bash
-$ ./bindgen_funcs rust_bindgen_funcs/target/wasm32-wasi/release/rust_bindgen_funcs_lib.wasm
-Run bindgen -- create_line: {"points":[{"x":2.5,"y":7.8},{"x":2.5,"y":5.8}],"valid":true,"length":2.0,"desc":"A thin red line"}
-Run bindgen -- say: hello bindgen funcs test
-Run bindgen -- obfusticate: N dhvpx oebja sbk whzcf bire gur ynml qbt
-Run bindgen -- lowest_common_multiple: 246
-Run bindgen -- sha3_digest: [87 27 231 209 189 105 251 49 159 10 211 250 15 159 154 181 43 218 26 141 56 199 25 45 60 10 20 163 54 211 195 203]
-Run bindgen -- keccak_digest: [126 194 241 200 151 116 227 33 216 99 159 22 107 3 177 169 216 191 114 156 174 193 32 159 246 228 245 133 52 75 55 27]
-```
-
-### Example of Embedding A Full WASI Program
-
-Note: You can use the latest Rust compiler to create a standalone WasmEdge application with a `main.rs` functions and then embed it into a Golang application.
-
-Besides functions, the WasmEdge Golang SDK can also [embed standalone WebAssembly applications](https://github.com/second-state/WasmEdge-go-examples/tree/master/go_ReadFile) — i.e. a Rust application with a `main()` function compiled into WebAssembly.
-
-Our [demo Rust application](https://github.com/second-state/WasmEdge-go-examples/tree/master/go_ReadFile/rust_readfile) reads from a file.
-
-```rust
-use std::env;
-use std::fs::File;
-use std::io::{self, BufRead};
-
-fn main() {
-  // Get the argv.
-  let args: Vec<String> = env::args().collect();
-  if args.len() <= 1 {
-    println!("Rust: ERROR - No input file name.");
-    return;
-  }
-
-  // Open the file.
-  println!("Rust: Opening input file \"{}\"...", args[1]);
-  let file = match File::open(&args[1]) {
-    Err(why) => {
-      println!("Rust: ERROR - Open file \"{}\" failed: {}", args[1], why);
-      return;
-    },
-    Ok(file) => file,
-  };
-
-  // Read lines.
-  let reader = io::BufReader::new(file);
-  let mut texts:Vec<String> = Vec::new();
-  for line in reader.lines() {
-    if let Ok(text) = line {
-      texts.push(text);
-    }
-  }
-  println!("Rust: Read input file \"{}\" succeeded.", args[1]);
-
-  // Get stdin to print lines.
-  println!("Rust: Please input the line number to print the line of file.");
-  let stdin = io::stdin();
-  for line in stdin.lock().lines() {
-    let input = line.unwrap();
-    match input.parse::<usize>() {
-      Ok(n) => if n > 0 && n <= texts.len() {
-        println!("{}", texts[n - 1]);
-      } else {
-        println!("Rust: ERROR - Line \"{}\" is out of range.", n);
-      },
-      Err(e) => println!("Rust: ERROR - Input \"{}\" is not an integer: {}", input, e),
-    }
-  }
-  println!("Rust: Process end.");
-}
-```
-
-Use the `rustwasmc` tool to compile the application into WebAssembly.
-
-```bash
-cd rust_readfile
-rustwasmc build
-# The output file will be at `pkg/rust_readfile.wasm`.
-```
-
-Or you can compile the application into WebAssembly directly by `cargo`:
-
-```bash
-cd rust_readfile
-# Need to add the `wasm32-wasi` target.
-rustup target add wasm32-wasi
-cargo build --release --target=wasm32-wasi
-# The output wasm will be at `target/wasm32-wasi/release/rust_readfile.wasm`.
-```
-
-The Golang source code to run the WebAssembly function in WasmEdge is as follows.
-
-```go
-package main
-
-import (
-  "os"
-
-  "github.com/second-state/WasmEdge-go/wasmedge"
-)
-
-func main() {
-  wasmedge.SetLogErrorLevel()
-
-  var conf = wasmedge.NewConfigure(wasmedge.REFERENCE_TYPES)
-  conf.AddConfig(wasmedge.WASI)
-  var vm = wasmedge.NewVMWithConfig(conf)
-  var wasi = vm.GetImportModule(wasmedge.WASI)
-  wasi.InitWasi(
-    os.Args[1:],     // The args
-    os.Environ(),    // The envs
-    []string{".:."}, // The mapping directories
-  )
-
-  // Instantiate and run WASM "_start" function, which refers to the main() function
-  vm.RunWasmFile(os.Args[1], "_start")
-
-  vm.Release()
-  conf.Release()
-}
-```
-
-Next, build the Golang application with the WasmEdge Golang SDK.
-
-```bash
-go get github.com/second-state/WasmEdge-go/wasmedge@v0.10.0
-go build
-```
-
-Run the Golang application.
-
-```bash
-$ ./read_file rust_readfile/pkg/rust_readfile.wasm file.txt
-Rust: Opening input file "file.txt"...
-Rust: Read input file "file.txt" succeeded.
-Rust: Please input the line number to print the line of file.
-# Input "5" and press Enter.
-5
-# The output will be the 5th line of `file.txt`:
-abcDEF___!@#$%^
-# To terminate the program, send the EOF (Ctrl + D).
-^D
-# The output will print the terminate message:
-Rust: Process end.
-```
-
-For more examples, please refer to the [example repository](https://github.com/second-state/WasmEdge-go-examples/).
 
 ## WasmEdge-go Basics
 
@@ -523,7 +205,14 @@ res, err = vm.Execute(...) // Ignore the detail of parameters.
 // Assume that `res, err` are the return values for executing a function with `vm`.
 if err != nil {
   fmt.Println("Error message:", err.Error())
+  category := err.GetErrorCategory()
+  // The `category` will be `wasmedge.ErrCategory_WASM`.
 }
+
+userdef_err := wasmedge.NewResult(wasmedge.ErrCategory_UserLevel, 123456)
+// Generate the user-defined error with code.
+code := userdef_err.GetCode()
+// The `Code` will be 123456.
 ```
 
 ### Contexts And Their Life Cycles
@@ -564,6 +253,28 @@ The details of instances creation will be introduced in the [Instances](#instanc
     // Will print `15`.
     fmt.Println(lim2.GetMax())
     // Will print `50`.
+    ```
+
+    For the thread proposal, the `Limit` struct also supports the shared memory description.
+
+    ```go
+    lim3 := wasmedge.NewLimitShared(20)
+    fmt.Println(lim3.HasMax())
+    // Will print `false`.
+    fmt.Println(lim3.IsShared())
+    // Will print `true`.
+    fmt.Println(lim3.GetMin())
+    // Will print `20`.
+
+    lim4 := wasmedge.NewLimitSharedWithMax(30, 40)
+    fmt.Println(lim4.HasMax())
+    // Will print `true`.
+    fmt.Println(lim4.IsShared())
+    // Will print `true`.
+    fmt.Println(lim4.GetMin())
+    // Will print `30`.
+    fmt.Println(lim4.GetMax())
+    // Will print `40`.
     ```
 
 2. Function type context
@@ -692,6 +403,44 @@ The details of instances creation will be introduced in the [Instances](#instanc
     }
     ```
 
+### Async
+
+After calling the [asynchronous execution APIs](#asynchronous-execution), developers will get the `wasmedge.Async` object.
+Developers own the object and should call the `(*Async).Release()` API to release it.
+
+1. Get the execution result of the asynchronous execution
+
+    Developers can use the `(*Async).GetResult()` API to block and wait for getting the return values.
+    This function will block and wait for the execution. If the execution has finished, this function will return immediately. If the execution failed, this function will return an error.
+
+    ```go
+    async := ... // Ignored. Asynchronous execute a function.
+
+    // Blocking and waiting for the execution and get the return values.
+    res, err := async.GetResult()
+    async.Release()
+    ```
+
+2. Wait for the asynchronous execution with timeout settings
+
+    Besides waiting until the end of execution, developers can set the timeout to wait for.
+
+    ```go
+    async := ... // Ignored. Asynchronous execute a function.
+
+    // Blocking and waiting for the execution with the timeout(ms). 
+    isend := async.WaitFor(1000)
+    if isend {
+      res, err := async.GetResult()
+      // ...
+    } else {
+      async.Cancel()
+      _, err := async.GetResult()
+      // The error message in `err` will be "execution interrupted".
+    }
+    async.Release()
+    ```
+
 ### Configurations
 
 The configuration object, `wasmedge.Configure`, manages the configurations for `Loader`, `Validator`, `Executor`, `VM`, and `Compiler`.
@@ -714,8 +463,9 @@ Developers can adjust the settings about the proposals, VM host pre-registration
       TAIL_CALL                         = Proposal(C.WasmEdge_Proposal_TailCall)
       ANNOTATIONS                       = Proposal(C.WasmEdge_Proposal_Annotations)
       MEMORY64                          = Proposal(C.WasmEdge_Proposal_Memory64)
-      THREADS                           = Proposal(C.WasmEdge_Proposal_Threads)
       EXCEPTION_HANDLING                = Proposal(C.WasmEdge_Proposal_ExceptionHandling)
+      EXTENDED_CONST                    = Proposal(C.WasmEdge_Proposal_ExtendedConst)
+      THREADS                           = Proposal(C.WasmEdge_Proposal_Threads)
       FUNCTION_REFERENCES               = Proposal(C.WasmEdge_Proposal_FunctionReferences)
     )
     ```
@@ -735,6 +485,7 @@ Developers can adjust the settings about the proposals, VM host pre-registration
     // * TAIL_CALL
     // * MULTI_MEMORIES
     // * THREADS
+    // * EXTENDED_CONST
     conf := wasmedge.NewConfigure()
     // Developers can also pass the proposals as parameters:
     // conf := wasmedge.NewConfigure(wasmedge.SIMD, wasmedge.BULK_MEMORY_OPERATIONS)
@@ -751,8 +502,14 @@ Developers can adjust the settings about the proposals, VM host pre-registration
 
     ```go
     const (
-      WASI             = HostRegistration(C.WasmEdge_HostRegistration_Wasi)
-      WasmEdge_PROCESS = HostRegistration(C.WasmEdge_HostRegistration_WasmEdge_Process)
+      WASI                        = HostRegistration(C.WasmEdge_HostRegistration_Wasi)
+      WasmEdge_PROCESS            = HostRegistration(C.WasmEdge_HostRegistration_WasmEdge_Process)
+      WasiNN                      = HostRegistration(C.WasmEdge_HostRegistration_WasiNN)
+      WasiCrypto_Common           = HostRegistration(C.WasmEdge_HostRegistration_WasiCrypto_Common)
+      WasiCrypto_AsymmetricCommon = HostRegistration(C.WasmEdge_HostRegistration_WasiCrypto_AsymmetricCommon)
+      WasiCrypto_Kx               = HostRegistration(C.WasmEdge_HostRegistration_WasiCrypto_Kx)
+      WasiCrypto_Signatures       = HostRegistration(C.WasmEdge_HostRegistration_WasiCrypto_Signatures)
+      WasiCrypto_Symmetric        = HostRegistration(C.WasmEdge_HostRegistration_WasiCrypto_Symmetric)
     )
     ```
 
@@ -847,6 +604,90 @@ Developers can adjust the settings about the proposals, VM host pre-registration
     conf.Release()
     ```
 
+### Statistics
+
+The statistics object, `wasmedge.Statistics`, provides the instruction counter, cost summation, and cost limitation at runtime.
+
+Before using statistics, the statistics configuration must be set. Otherwise, the return values of calling statistics are undefined behaviour.
+
+1. Instruction counter
+
+    The instruction counter can help developers to profile the performance of WASM running.
+    Developers can retrieve the `Statistics` object from the `VM` object, or create a new one for the `Executor` creation.
+    The details will be introduced in the next partitions.
+
+    ```go
+    stat := wasmedge.NewStatistics()
+    // ... After running the WASM functions with the `Statistics` object
+
+    count := stat.GetInstrCount()
+    ips := stat.GetInstrPerSecond()
+    stat.Release()
+    ```
+
+2. Cost table
+
+    The cost table is to accumulate the cost of instructions with their weights.
+    Developers can set the cost table array (the indices are the byte code value of instructions, and the values are the cost of instructions) into the `Statistics` object.
+    If the cost limit value is set, the execution will return the `cost limit exceeded` error immediately when exceeds the cost limit in runtime.
+
+    ```c
+    stat := wasmedge.NewStatistics()
+
+    costtable := []uint64{
+      0, 0,
+      10, /* 0x02: Block */
+      11, /* 0x03: Loop */
+      12, /* 0x04: If */
+      12, /* 0x05: Else */
+      0, 0, 0, 0, 0, 0,
+      20, /* 0x0C: Br */
+      21, /* 0x0D: Br_if */
+      22, /* 0x0E: Br_table */
+      0,
+    }
+    // Developers can set the costs of each instruction. The value not covered will be 0.
+
+    WasmEdge_StatisticsSetCostTable(StatCxt, CostTable, 16);
+    stat.SetCostTable()
+    stat.SetCostLimit(5000000)
+
+    // ... After running the WASM functions with the `Statistics` object
+    cost := stat.GetTotalCost()
+    stat.Release()
+    ```
+
+### Tools Driver
+
+Besides executing the `wasmedge` and `wasmedgec` CLI tools, developers can trigger the WasmEdge CLI tools in WasmEdge-Go.
+The API arguments are the same as the command line arguments of the CLI tools.
+
+```go
+package main
+
+import (
+  "os"
+  "github.com/second-state/WasmEdge-go/wasmedge"
+)
+
+func main() {
+  wasmedge.RunWasmEdgeCLI(os.Args)
+}
+```
+
+```go
+package main
+
+import (
+  "os"
+  "github.com/second-state/WasmEdge-go/wasmedge"
+)
+
+func main() {
+  wasmedge.RunWasmEdgeAOTCompilerCLI(os.Args)
+}
+```
+
 ## WasmEdge VM
 
 In this partition, we will introduce the functions of `wasmedge.VM` object and show examples of executing WASM functions.
@@ -919,7 +760,7 @@ This example uses the [fibonacci.wasm](https://raw.githubusercontent.com/WasmEdg
     Then you can build and run the Golang application with the WasmEdge Golang SDK: (the 21 Fibonacci number is 17711 in 0-based index)
 
     ```bash
-    $ go get github.com/second-state/WasmEdge-go/wasmedge@v0.10.0
+    $ go get github.com/second-state/WasmEdge-go/wasmedge@v0.11.0
     $ go build
     $ ./wasmedge_test
     Get fibonacci[21]: 17711
@@ -1092,7 +933,7 @@ WasmEdge provides the following built-in pre-registrations.
 2. [WasmEdge_Process](https://crates.io/crates/wasmedge_process_interface)
 
     This pre-registration is for the process interface for WasmEdge on `Rust` sources.
-    After turning on this pre-registration, the VM will support the `wasmedge_process` host functions.
+    After turning on this pre-registration, the VM will support the `wasmedge_process` plugin.
 
     ```go
     conf := wasmedge.NewConfigure(wasmedge.WasmEdge_PROCESS)
@@ -1109,6 +950,44 @@ WasmEdge provides the following built-in pre-registrations.
     ```
 
     And also can create the WasmEdge_Process import object from API. The details will be introduced in the [Host Functions](#host-functions) and the [Host Module Registrations](#host-module-registrations).
+
+3. [WASI-NN proposal](https://github.com/WebAssembly/wasi-nn)
+
+    Developers can turn on the WASI-NN proposal support for VM in the `Configure` object.
+
+    > Note: Please check that the [dependencies and prerequests](../../../write_wasm/rust/wasinn.md) are satisfied.
+
+    ```go
+    conf := wasmedge.NewConfigure(wasmedge.WasiNN)
+    vm := wasmedge.NewVMWithConfig(conf)
+    vm.Release()
+    
+    // The following API can retrieve the pre-registration import objects from the VM object.
+    // This API will return `nil` if the corresponding pre-registration is not set into the configuration.
+    nnmodule := conf.GetImportModule(wasmedge.WasiNN)
+    conf.Release()
+    ```
+
+    And also can create the WASI-NN module instance from API. The details will be introduced in the [Host Functions](#host-functions) and the [Host Module Registrations](#host-module-registrations).
+
+4. [WASI-Crypto proposal](https://github.com/WebAssembly/wasi-crypto)
+
+    Developers can turn on the WASI-Crypto proposal support for VM in the `Configure` object.
+
+    > Note: Please check that the [dependencies and prerequests](../../../write_wasm/rust/wasicrypto.md) are satisfied.
+
+    ```go
+    conf := wasmedge.NewConfigure(wasmedge.WasiCrypto_Common, wasmedge.WasiCrypto_AsymmetricCommon, wasmedge.WasiCrypto_Kx, wasmedge.WasiCrypto_Signatures, wasmedge.WasiCrypto_Symmetric)
+    vm := wasmedge.NewVMWithConfig(conf)
+    vm.Release()
+    
+    // The following API can retrieve the pre-registration import objects from the VM object.
+    // This API will return `nil` if the corresponding pre-registration is not set into the configuration.
+    nnmodule := conf.GetImportModule(wasmedge.WasiCrypto_Common)
+    conf.Release()
+    ```
+
+    And also can create the WASI-Crypto module instance from API. The details will be introduced in the [Host Functions](#host-functions) and the [Host Module Registrations](#host-module-registrations).
 
 ### Host Module Registrations
 
@@ -1221,10 +1100,127 @@ WasmEdge VM provides APIs for developers to register and export any WASM modules
     Then you can build and run: (the 25th Fibonacci number is 121393 in 0-based index)
 
     ```bash
-    $ go get github.com/second-state/WasmEdge-go/wasmedge@v0.10.0
+    $ go get github.com/second-state/WasmEdge-go/wasmedge@v0.11.0
     $ go build
     $ ./wasmedge_test
     Get fibonacci[25]: 121393
+    ```
+
+### Asynchronous Execution
+
+1. Asynchronously run WASM functions rapidly
+
+    Assume that a new Go project is created as following:
+
+    ```bash
+    mkdir wasmedge_test && cd wasmedge_test
+    go mod init wasmedge_test
+    ```
+
+    Then assume that the WASM file [`fibonacci.wasm`](https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/examples/wasm/fibonacci.wasm) is copied into the current directory, and create and edit a Go file `main.go`:
+
+    ```go
+    package main
+
+    import (
+      "fmt"
+
+      "github.com/second-state/WasmEdge-go/wasmedge"
+    )
+
+    func main() {
+      // Create VM.
+      vm := wasmedge.NewVM()
+
+      // Asynchronously run the WASM function from file and get the `wasmedge.Async` object.
+      async := vm.AsyncRunWasmFile("fibonacci.wasm", "fib", uint32(20))
+
+      // Block and wait for the execution and get the results.
+      res, err := async.GetResult()
+      if err == nil {
+        fmt.Println("Get the result:", res[0].(int32))
+      } else {
+        fmt.Println("Error message:", err.Error())
+      }
+      async.Release()
+      vm.Release()
+    }
+    ```
+
+    Then you can build and run: (the 20th Fibonacci number is 10946 in 0-based index)
+
+    ```bash
+    $ go get github.com/second-state/WasmEdge-go/wasmedge@v0.11.0
+    $ go build
+    $ ./wasmedge_test
+    Get the result: 10946
+    ```
+
+2. Instantiate and asynchronously run WASM functions manually
+
+    Besides the above example, developers can run the WASM functions step-by-step with `VM` context APIs:
+
+    ```go
+    package main
+
+    import (
+      "fmt"
+
+      "github.com/second-state/WasmEdge-go/wasmedge"
+    )
+
+    func main() {
+      var err error
+      var res []interface{}
+  
+      // Create VM.
+      vm := wasmedge.NewVM()
+
+      // Step 1: Load WASM file.
+      // Developers can load the WASM binary from buffer with the `(*VM).LoadWasmBuffer()` API,
+      // or from `wasmedge.AST` object with the `(*VM).LoadWasmAST()` API.
+      err := vm.LoadWasmFile("fibonacci.wasm")
+      if err != nil {
+        fmt.Println("Load WASM from file FAILED:", err.Error())
+        return
+      }
+
+      // Step 2: Validate the WASM module.
+      err = vm.Validate()
+      if err != nil {
+        fmt.Println("Validation FAILED:", err.Error())
+        return
+      }
+
+      // Step 3: Instantiate the WASM module.
+      err = vm.Instantiate()
+      if err != nil {
+        fmt.Println("Instantiation FAILED:", err.Error())
+        return
+      }
+
+      // Step 4: Asynchronously execute the WASM function and get the `wasmedge.Async` object.
+      async := vm.AsyncExecute("fib", uint32(25))
+
+      // Block and wait for the execution and get the results.
+      res, err := async.GetResult()
+      if err == nil {
+        fmt.Println("Get the result:", res[0].(int32))
+      } else {
+        fmt.Println("Error message:", err.Error())
+      }
+      async.Release()
+      vm.Release()
+    }
+    ```
+
+    Then you can build and run: (the 25th Fibonacci number is 121393 in 0-based index)
+
+    ```bash
+    $ go get github.com/second-state/WasmEdge-go/wasmedge@v0.11.0
+    $ go build
+    $ ./wasmedge_test
+    Get the result: 121393
     ```
 
 ### Instance Tracing
@@ -1323,7 +1319,7 @@ The `VM` object supplies the APIs to retrieve the instances.
     Then you can build and run: (the only exported function in `fibonacci.wasm` is `fib`)
 
     ```bash
-    $ go get github.com/second-state/WasmEdge-go/wasmedge@v0.10.0
+    $ go get github.com/second-state/WasmEdge-go/wasmedge@v0.11.0
     $ go build
     $ ./wasmedge_test
     Exported function name: fib
@@ -1357,6 +1353,21 @@ The `VM` object supplies the APIs to retrieve the instances.
     mod := vm.GetActiveModule()
     // If there's no WASM module instantiated, this API will return `nil`.
     // Developers should __NOT__ call the `(*Module).Release` function of the returned module instance.
+    ```
+
+5. Get the components
+
+    The `VM` object is composed by the `Loader`, `Validator`, and `Executor` objects.
+    For the developers who want to use these objects without creating another instances, these APIs can help developers to get them from the `VM` object.
+    The get objects are owned by the `VM` object, and developers should not call their release functions.
+
+    ```go
+    loader := vm.GetLoader()
+    // Developers should __NOT__ call the `(*Loader).Release` function of the returned object.
+    validator := vm.GetValidator()
+    // Developers should __NOT__ call the `(*Validator).Release` function of the returned object.
+    executor := vm.GetExecutor()
+    // Developers should __NOT__ call the `(*Executor).Release` function of the returned object.
     ```
 
 ## WasmEdge Runtime
@@ -1466,7 +1477,7 @@ func main() {
 Then you can build and run: (the 18th Fibonacci number is 1346269 in 30-based index)
 
 ```bash
-$ go get github.com/second-state/WasmEdge-go/wasmedge@v0.10.0
+$ go get github.com/second-state/WasmEdge-go/wasmedge@v0.11.0
 $ go build
 $ ./wasmedge_test
 Exported function name: fib
@@ -1894,13 +1905,13 @@ In WasmEdge-go, developers can create the `Function`, `Memory`, `Table`, and `Gl
 
     ```go
     type hostFunctionSignature func(
-        data interface{}, mem *Memory, params []interface{}) ([]interface{}, Result)
+        data interface{}, callframe *CallingFrame, params []interface{}) ([]interface{}, Result)
     ```
 
     The example of an `add` host function to add 2 `i32` values:
 
     ```go
-    func host_add(data interface{}, mem *wasmedge.Memory, params []interface{}) ([]interface{}, wasmedge.Result) {
+    func host_add(data interface{}, callframe *wasmedge.CallingFrame, params []interface{}) ([]interface{}, wasmedge.Result) {
       // add: i32, i32 -> i32
       res := params[0].(int32) + params[1].(int32)
 
@@ -1934,13 +1945,164 @@ In WasmEdge-go, developers can create the `Function`, `Memory`, `Table`, and `Gl
     functype.Release()
     ```
 
-2. Construct a module instance with host instances
+2. Calling frame object
+
+    The `wasmedge.CallingFrame` is the object to provide developers to access the module instance of the [frame on the top of the calling stack](https://webassembly.github.io/spec/core/exec/runtime.html#activations-and-frames).
+    According to the [WASM spec](https://webassembly.github.io/spec/core/exec/instructions.html#function-calls), a frame with the module instance is pushed into the stack when invoking a function.
+    Therefore, the host functions can access the module instance of the top frame to retrieve the memory instances to read/write data.
+
+    ```go
+    import (
+      "encoding/binary"
+      "fmt"
+    )
+
+    // Host function body definition.
+    func LoadOffset(data interface{}, callframe *wasmedge.CallingFrame, params []interface{}) ([]interface{}, wasmedge.Result) {
+      // Function type: {i32} -> {}
+      offset := params[0].(int32)
+
+      // Get the 0th memory instance of the module of the top frame on the stack.
+      mem := callframe.GetMemoryByIndex(0)
+
+      data, err := mem.GetData(uint(offset), 4)
+      if err != nil {
+        return nil, err
+      }
+      fmt.Println("u32 at memory[{}]: {}", offset, binary.LittleEndian.Uint32(data))
+      return nil, wasmedge.Result_Success
+    }
+    ```
+
+    Besides using the `(*CallingFrame).GetMemoryByIndex()` API to get the memory instance by index in the module instance, developers can use the `(*CallingFrame).GetModule()` to get the module instance directly.
+    Therefore, developers can retrieve the exported contexts by the `wasmedge.Module` APIs.
+    And also, developers can use the `(*CallingFrame).GetExecutor()` API to get the currently used executor context.
+
+3. User-defined error code of the host functions
+
+    In host functions, WasmEdge-Go provides `wasmedge.Result_Success` to return success, `wasmedge.Result_Terminate` to terminate the WASM execution, and `wasmedge.Result_Fail` to return fail.
+    WasmEdge-Go also provides the usage of returning the user-specified codes.
+    Developers can use the `wasmedge.NewResult()` API to generate the `wasmedge.Result` struct with error code, and use the `(*result).GetCode()` API to get the error code.
+
+    > Notice: The error code only supports 24-bit integer (0 ~ 16777216 in `uint32`). The values larger than 24-bit will be truncated.
+
+    Create a new Go project first:
+
+    ```bash
+    mkdir wasmedge_test && cd wasmedge_test
+    go mod init wasmedge_test
+    ```
+
+    Assume that a simple WASM from the WAT is as following:
+
+    ```wasm
+    (module
+      (type $t0 (func (param i32)))
+      (import "extern" "trap" (func $f-trap (type $t0)))
+      (func (export "trap") (param i32)
+        local.get 0
+        call $f-trap)
+    )
+    ```
+
+    And the `main.go` is as following:
+
+    ```go
+    package main
+
+    import (
+      "fmt"
+
+      "github.com/second-state/WasmEdge-go/wasmedge"
+    )
+
+    // Host function body definition.
+    func host_trap(data interface{}, callframe *wasmedge.CallingFrame, params []interface{}) ([]interface{}, wasmedge.Result) {
+      // add: i32, i32 -> i32
+      res := params[0].(int32) + params[1].(int32)
+
+      // Set the returns
+      returns := make([]interface{}, 1)
+      returns[0] = res
+
+      // Return
+      return returns, wasmedge.Result_Success
+    }
+
+    func main() {
+      // Create the VM object.
+      vm := wasmedge.NewVM()
+
+      // The WASM module buffer.
+      wasmbuf := []byte{
+        /* WASM header */
+        0x00, 0x61, 0x73, 0x6D, 0x01, 0x00, 0x00, 0x00,
+        /* Type section */
+        0x01, 0x05, 0x01,
+        /* function type {i32} -> {} */
+        0x60, 0x01, 0x7F, 0x00,
+        /* Import section */
+        0x02, 0x0F, 0x01,
+        /* module name: "extern" */
+        0x06, 0x65, 0x78, 0x74, 0x65, 0x72, 0x6E,
+        /* extern name: "trap" */
+        0x04, 0x74, 0x72, 0x61, 0x70,
+        /* import desc: func 0 */
+        0x00, 0x00,
+        /* Function section */
+        0x03, 0x02, 0x01, 0x00,
+        /* Export section */
+        0x07, 0x08, 0x01,
+        /* export name: "trap" */
+        0x04, 0x74, 0x72, 0x61, 0x70,
+        /* export desc: func 0 */
+        0x00, 0x01,
+        /* Code section */
+        0x0A, 0x08, 0x01,
+        /* code body */
+        0x06, 0x00, 0x20, 0x00, 0x10, 0x00, 0x0B,
+      }
+
+      // Create the module instance with the module name "extern".
+      impmod := wasmedge.NewModule("extern")
+
+      // Create and add a function instance into the module instance with export name "func-add".
+      functype := wasmedge.NewFunctionType([]wasmedge.ValType{wasmedge.ValType_I32}, []wasmedge.ValType{})
+      hostfunc := wasmedge.NewFunction(functype, host_trap, nil, 0)
+      functype.Release()
+      impmod.AddFunction("trap", hostfunc)
+
+      // Register the module instance into VM.
+      vm.RegisterImport(impmod)
+
+      _, err := vm.RunWasmBuffer(wasmbuf, "trap", uint32(5566))
+      if err != nil {
+        fmt.Println("Get the error code:", err.GetCode())
+      }
+
+      impmod.Release()
+      vm.Release()
+    }
+    ```
+
+    Then you can build and run the Golang application with the WasmEdge Golang SDK:
+
+    ```bash
+    $ go get github.com/second-state/WasmEdge-go/wasmedge@v0.11.0
+    $ go build
+    $ ./wasmedge_test
+    [2022-08-26 15:06:40.384] [error] user defined failed: user defined error code, Code: 0x15be
+    [2022-08-26 15:06:40.384] [error]     When executing function name: "trap"
+    Get the error code: 5566
+    ```
+
+4. Construct a module instance with host instances
 
     Besides creating a `Module` instance by registering or instantiating a WASM module, developers can create a `Module` instance with a module name and add the `Function`, `Memory`, `Table`, and `Global` instances into it with their exporting names.
 
     ```go
     // Host function body definition.
-    func host_add(data interface{}, mem *wasmedge.Memory, params []interface{}) ([]interface{}, wasmedge.Result) {
+    func host_add(data interface{}, callframe *wasmedge.CallingFrame, params []interface{}) ([]interface{}, wasmedge.Result) {
       // add: i32, i32 -> i32
       res := params[0].(int32) + params[1].(int32)
 
@@ -1987,11 +2149,28 @@ In WasmEdge-go, developers can create the `Function`, `Memory`, `Table`, and `Gl
     mod.Release()
     ```
 
-3. Specified module instance
+5. Specified module instance
 
     `wasmedge.NewWasiModule()` API can create and initialize the `WASI` module instance.
-    `wasmedge.NewWasmEdgeProcessModule()` API can create and initialize the `wasmedge_process` module instance.
+
+    `wasmedge.NewWasiNNModule()` API can create and initialize the `wasi_ephemeral_nn` module instance for `WASI-NN` plugin.
+
+    `wasmedge.NewWasiCryptoCommonModule()` API can create and initialize the `wasi_ephemeral_crypto_common` module instance for `WASI-Crypto` plugin.
+
+    `wasmedge.NewWasiCryptoAsymmetricCommonModule()` API can create and initialize the `wasi_ephemeral_crypto_asymmetric_common` module instance for `WASI-Crypto` plugin.
+
+    `wasmedge.NewWasiCryptoKxModule()` API can create and initialize the `wasi_ephemeral_crypto_kx` module instance for `WASI-Crypto` plugin.
+
+    `wasmedge.NewWasiCryptoSignaturesModule()` API can create and initialize the `wasi_ephemeral_crypto_signatures` module instance for `WASI-Crypto` plugin.
+
+    `wasmedge.NewWasiCryptoSymmetricModule()` API can create and initialize the `wasi_ephemeral_crypto_symmetric` module instance for `WASI-Crypto` plugin.
+
+    `wasmedge.NewWasmEdgeProcessModule()` API can create and initialize the `wasmedge_process` module instance for `wasmedge_process` plugin.
+
     Developers can create these module instance objects and register them into the `Store` or `VM` objects rather than adjust the settings in the `Configure` objects.
+
+    > Note: For the `WASI-NN` plugin, please check that the [dependencies and prerequests](../../write_wasm/rust/wasinn.md#Prerequisites) are satisfied.
+    > Note: For the `WASI-Crypto` plugin, please check that the [dependencies and prerequests](../../write_wasm/rust/wasicrypto.md#Prerequisites) are satisfied. And the 5 modules are recommended to all be created and registered together.
 
     ```go
     wasiobj := wasmedge.NewWasiModule(
@@ -2022,14 +2201,7 @@ In WasmEdge-go, developers can create the `Function`, `Memory`, `Table`, and `Gl
     procobj.Release()
     ```
 
-4. Example
-
-    Create a new Go project first:
-
-    ```bash
-    mkdir wasmedge_test && cd wasmedge_test
-    go mod init wasmedge_test
-    ```
+6. Example
 
     Assume that there is a simple WASM from the WAT as following:
 
@@ -2044,7 +2216,7 @@ In WasmEdge-go, developers can create the `Function`, `Memory`, `Table`, and `Gl
     )
     ```
 
-    Create and edit the Go file `main.go` as following:
+    Assume that edit the Go file `main.go` above:
 
     ```go
     package main
@@ -2056,7 +2228,7 @@ In WasmEdge-go, developers can create the `Function`, `Memory`, `Table`, and `Gl
     )
 
     // Host function body definition.
-    func host_add(data interface{}, mem *wasmedge.Memory, params []interface{}) ([]interface{}, wasmedge.Result) {
+    func host_add(data interface{}, callframe *wasmedge.CallingFrame, params []interface{}) ([]interface{}, wasmedge.Result) {
       // add: i32, i32 -> i32
       res := params[0].(int32) + params[1].(int32)
 
@@ -2132,13 +2304,13 @@ In WasmEdge-go, developers can create the `Function`, `Memory`, `Table`, and `Gl
     Then you can build and run the Golang application with the WasmEdge Golang SDK:
 
     ```bash
-    $ go get github.com/second-state/WasmEdge-go/wasmedge@v0.10.0
+    $ go get github.com/second-state/WasmEdge-go/wasmedge@v0.11.0
     $ go build
     $ ./wasmedge_test
     Get the result: 6912
     ```
 
-5. Host Data Example
+7. Host Data Example
 
     Developers can set a external data object to the `Function` object, and access to the object in the function body.
     Assume that edit the Go file `main.go` above:
@@ -2153,7 +2325,7 @@ In WasmEdge-go, developers can create the `Function`, `Memory`, `Table`, and `Gl
     )
 
     // Host function body definition.
-    func host_add(data interface{}, mem *wasmedge.Memory, params []interface{}) ([]interface{}, wasmedge.Result) {
+    func host_add(data interface{}, callframe *wasmedge.CallingFrame, params []interface{}) ([]interface{}, wasmedge.Result) {
       // add: i32, i32 -> i32
       res := params[0].(int32) + params[1].(int32)
 
@@ -2236,7 +2408,7 @@ In WasmEdge-go, developers can create the `Function`, `Memory`, `Table`, and `Gl
     Then you can build and run the Golang application with the WasmEdge Golang SDK:
 
     ```bash
-    $ go get github.com/second-state/WasmEdge-go/wasmedge@v0.10.0
+    $ go get github.com/second-state/WasmEdge-go/wasmedge@v0.11.0
     $ go build
     $ ./wasmedge_test
     Get the result: 6912

@@ -154,11 +154,11 @@ VERSION_TF=$(get_latest_release second-state/WasmEdge-tensorflow)
 VERSION_TF_DEPS=$(get_latest_release second-state/WasmEdge-tensorflow-deps)
 VERSION_TF_TOOLS=$(get_latest_release second-state/WasmEdge-tensorflow-tools)
 
-detect_os_arch() {
+check_os_arch() {
     RELEASE_PKG="manylinux2014_x86_64.tar.gz"
     IM_DEPS_RELEASE_PKG="manylinux1_x86_64.tar.gz"
-    ARCH=$(uname -m)
-    OS=$(uname)
+    [ -z "$ARCH" ] && ARCH=$(uname -m)
+    [ -z "$OS" ] && OS=$(uname)
     IM_EXT_COMPAT=1
     TF_EXT_COMPAT=1
     IPKG="WasmEdge-$VERSION-Linux"
@@ -302,27 +302,27 @@ usage() {
 
     -p,             --path=[/usr/local]         Prefix / Path to install
 
-    -v,             --version=VERSION           Set and Download specific 
+    -v,             --version=VERSION           Set and Download specific
                                                     version of WasmEdge
-                        
+
                     --tf-version=VERSION_TF
                     --tf-deps-version=VERSION_TF_DEPS
                     --tf-tools-version=VERSION_TF_TOOLS
                     --image-version=VERSION_IM
                     --image-deps-version=VERSION_IM_DEPS
 
-    -e,             --extension=[tf|image|all|none]  
-                                                    Enable extension support 
-                                                    i.e Tensorflow (tf) 
+    -e,             --extension=[tf|image|all|none]
+                                                    Enable extension support
+                                                    i.e Tensorflow (tf)
                                                         or Image (image)
 
     -V,             --verbose                   Run script in verbose mode.
-                                                    Will print out each step 
+                                                    Will print out each step
                                                     of execution.
-    
-    -r              --remove-old=[yes|no]       Run Uninstallation script by 
+
+    -r              --remove-old=[yes|no]       Run Uninstallation script by
                                                 default. Specify \`no\` if you
-                                                wish not to. 
+                                                wish not to.
     -u              --uninstall-script-tag=[master] Select tag for uninstall
                                                 script [Default is master].
 
@@ -331,19 +331,19 @@ usage() {
 
     Example:
     ./$0 -p $IPATH -e all -v $VERSION --verbose
-    
+
     Or
     ./$0 -p $IPATH --extension=all --path=/usr/local --verbose
     ./$0 -p $IPATH --extension=tf,image --path=/usr/local --verbose
     ./$0 -p $IPATH -e tensorflow,image --path=/usr/local --verbose
     ./$0 -p $IPATH -e tensorflow,image --path=/usr/local --verbose -r no
-    
+
     About:
 
     - wasmedge is the runtime that executes the wasm program or the AOT compiled
       shared library format or universal wasm format programs.
 
-    - wasmedgec is the AOT compiler that compiles WebAssembly bytecode programs 
+    - wasmedgec is the AOT compiler that compiles WebAssembly bytecode programs
       (wasm programs) into native code (shared library format or universam wasm
       format program) on your deployment machine.
 
@@ -351,7 +351,7 @@ usage() {
       AOT compiled wasm program with the Image, TensorFlow, and TensorFlow-Lite
       extensions.
 
-    - wasmedge-tensorflow-lite is the runtime that executes the wasm program or 
+    - wasmedge-tensorflow-lite is the runtime that executes the wasm program or
       the AOT compiled wasm program with the Image and TensorFlow-Lite
       extensions.
 
@@ -434,24 +434,30 @@ wasmedge_post_install() {
 }
 
 wasmedge_checks() {
-    # Check only MAJOR.MINOR.PATCH
-    if [ $PERM_ROOT == 1 ]; then
-        local version=$1
-        shift
-        for var in "$@"; do
-            if [ "$var" == "" ]; then
-                continue
-            fi
-            local V=$("$IPATH/bin/$var" --version | sed 's/^.*[^0-9]\([0-9]*\.[0-9]*\.[0-9]*\).*$/\1/')
-            local V_=$(echo $version | sed 's/\([0-9]*\.[0-9]*\.[0-9]*\).*$/\1/')
-            if [ "$V" = "$V_" ]; then
-                echo "${GREEN}Installation of $var-$version successfull${NC}"
-            else
-                echo "${YELLOW}version $V_ does not match $V for $var-$version${NC}"
-                exit 1
-            fi
-        done
+    if [ "$ARCH" == $(uname -m) ] && [ "$OS" == $(uname) ] ; then
+        # Check only MAJOR.MINOR.PATCH
+        if [ $PERM_ROOT == 1 ]; then
+            local version=$1
+            shift
+            for var in "$@"; do
+                echo "var?" $var
+                if [ "$var" == "" ]; then
+                    continue
+                fi
+                local V=$("$IPATH/bin/$var" --version | sed 's/^.*[^0-9]\([0-9]*\.[0-9]*\.[0-9]*\).*$/\1/')
+                local V_=$(echo $version | sed 's/\([0-9]*\.[0-9]*\.[0-9]*\).*$/\1/')
+                if [ "$V" = "$V_" ]; then
+                    echo $V $V_
+                    echo "${GREEN}Installation of $var-$version successfull${NC}"
+                else
+                    echo $V $V_
+                    echo "${YELLOW}version $V_ does not match $V for $var-$version${NC}"
+                    exit 1
+                fi
+            done
+        fi
     fi
+    # Bypass if corss compile
 }
 
 get_wasmedge_image_deps() {
@@ -638,6 +644,12 @@ main() {
         ignore-brew)
             IGNORE_BREW=1
             ;;
+        os)
+            OS="${OPTARG^}"
+            ;;
+        arch)
+            ARCH="${OPTARG}"
+            ;;
         ?)
             exit 2
             ;;
@@ -656,7 +668,7 @@ main() {
 
     [ $EXT_V_SET_WASMEDGE -ne 1 ] && remote_version_availabilty WasmEdge/WasmEdge "$VERSION"
 
-    detect_os_arch
+    check_os_arch
 
     if [ "$REMOVE_OLD" == "1" ] || [[ "$REMOVE_OLD" =~ ^([yY][eE][sS]|[yY])$ ]]; then
         [ "${_UNINSTALL_SCRIPT_TAG}" != "master" ] && echo "WasmEdge Uninstall Script Tag:${_UNINSTALL_SCRIPT_TAG}"

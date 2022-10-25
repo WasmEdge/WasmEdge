@@ -24,7 +24,7 @@ jobs:
     runs-on: ${{ matrix.runner }}
     container: wasmedge/wasmedge:${{ matrix.docker_tag }}
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           fetch-depth: 0
       - name: Build ${{ matrix.docker_tag }} package
@@ -32,7 +32,7 @@ jobs:
           bash utils/docker/build-manylinux.sh
           ./build/tools/wasmedge/wasmedge -v
       - name: Upload artifact (v2)
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           path: build/WasmEdge-${{ inputs.version }}-Linux.tar.gz
           name: WasmEdge-${{ inputs.version }}-${{ matrix.docker_tag }}.tar.gz

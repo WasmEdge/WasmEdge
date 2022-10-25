@@ -50,8 +50,11 @@ The options of the `wasmedgec` CLI tool are as follows.
     * Use `--enable-extended-const` to enable the [Extended Constant Expressions](https://github.com/WebAssembly/extended-const) proposal (Default `OFF`).
     * Use `--enable-threads` to enable the [Threads](https://github.com/webassembly/threads) proposal (Default `OFF`).
     * Use `--enable-all` to enable ALL proposals above.
-8. Input WASM file (`/path/to/wasm/file`).
-9. Output path (`/path/to/output/file`).
+8. (Optional) `--optimize`: Select the LLVM optimization level.
+    * Use `--optimize LEVEL` to set the optimization level. The `LEVEL` should be one of `0`, `1`, `2`, `3`, `s`, or `z`.
+    * The default value will be `2`, which means `O2`.
+9. Input WASM file (`/path/to/wasm/file`).
+10. Output path (`/path/to/output/file`).
     * By default, the `wasmedgec` tool will output the [universal WASM format](../quick_start/run_in_aot_mode.md#output-format-universal-wasm).
     * If the specific file extension (`.so` on Linux, `.dylib` on MacOS, and `.dll` on Windows) is assigned in the output path, the `wasmedgec` tool will output the [shared library format](../quick_start/run_in_aot_mode.md#output-format-shared-library).
 

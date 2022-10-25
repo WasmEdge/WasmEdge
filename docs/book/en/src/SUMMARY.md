@@ -9,8 +9,7 @@
   - [Execution in AOT Mode](quick_start/run_in_aot_mode.md)
 
 - [WasmEdge Features](features.md)
-  - [Supported WASM And WASI Proposals](features/proposals.md)
-  - [WasmEdge Proprietary extensions](features/proprietary_extend.md)
+  - [Supported WASM And WASI Proposals](features/proposals.md) - [WasmEdge Proprietary extensions](features/proprietary_extend.md)
   - [Integrations](features/integrations.md)
   - [Supported Platforms](features/platforms.md)
   - [Comparison](features/comparison.md)
@@ -138,6 +137,7 @@
       - [APK app](contribute/build_from_src/android/apk.md)
     - [Build for seL4](contribute/build_from_src/sel4.md)
     - [Build for OpenHarmony](contribute/build_from_src/openharmony.md)
+    - [Build for OpenWRT](contribute/build_from_src/openwrt.md)
     - [Build for Raspberry Pi](contribute/build_from_src/raspberrypi.md)
     - [Build with WASI-NN Plug-in](contribute/build_from_src/plugin_wasi_nn.md)
     - [Build with WASI-Crypto Plug-in](contribute/build_from_src/plugin_wasi_crypto.md)

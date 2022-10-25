@@ -82,6 +82,10 @@ Expect<void> Loader::loadType(AST::FunctionType &FuncType) {
   // Read vector of parameter types.
   if (auto Res = FMgr.readU32()) {
     VecCnt = *Res;
+    if (VecCnt / 2 > FMgr.getRemainSize()) {
+      return logLoadError(ErrCode::Value::IntegerTooLong, FMgr.getLastOffset(),
+                          ASTNodeAttr::Type_Function);
+    }
     FuncType.getParamTypes().clear();
     FuncType.getParamTypes().reserve(VecCnt);
   } else {
@@ -106,6 +110,10 @@ Expect<void> Loader::loadType(AST::FunctionType &FuncType) {
   // Read vector of result types.
   if (auto Res = FMgr.readU32()) {
     VecCnt = *Res;
+    if (VecCnt / 2 > FMgr.getRemainSize()) {
+      return logLoadError(ErrCode::Value::IntegerTooLong, FMgr.getLastOffset(),
+                          ASTNodeAttr::Type_Function);
+    }
     FuncType.getReturnTypes().clear();
     FuncType.getReturnTypes().reserve(VecCnt);
   } else {

@@ -243,7 +243,7 @@ jobs:
             output_bin: libwasmedgePluginWasiNN.so
             cmake_plugin_option: "-DWASMEDGE_PLUGIN_WASI_NN_BACKEND=TensorflowLite"
             tar_name: wasi_nn-tensorflowlite
-            host_runner: ubuntu-latest
+            host_runner: linux-arm64
           - name: WASI-Crypto
             docker_tag: manylinux2014_x86_64
             output_path: plugins/wasi_crypto

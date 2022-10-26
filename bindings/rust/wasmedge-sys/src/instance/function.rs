@@ -726,7 +726,7 @@ mod tests {
         ) -> Result<Vec<WasmValue>, HostFuncError> {
             println!("Rust: Entering Rust function real_add");
 
-            println!("data: {:?}", data);
+            println!("data: {data:?}");
 
             if input.len() != 2 {
                 return Err(HostFuncError::User(1));
@@ -745,7 +745,7 @@ mod tests {
             };
 
             let c = a + b;
-            println!("Rust: calcuating in real_add c: {:?}", c);
+            println!("Rust: calcuating in real_add c: {c:?}");
 
             println!("Rust: Leaving Rust function real_add");
             Ok(vec![WasmValue::from_i32(c)])
@@ -964,7 +964,7 @@ mod tests {
         };
 
         let c = a + b;
-        println!("Rust: calcuating in real_add c: {:?}", c);
+        println!("Rust: calcuating in real_add c: {c:?}");
 
         println!("Rust: Leaving Rust function real_add");
         Ok(vec![WasmValue::from_i32(c)])
@@ -1000,7 +1000,7 @@ mod tests {
             };
 
             let c = a + b;
-            println!("Rust: calcuating in real_add c: {:?}", c);
+            println!("Rust: calcuating in real_add c: {c:?}");
 
             println!("Rust: Leaving Rust function real_add");
             Ok(vec![WasmValue::from_i32(c)])

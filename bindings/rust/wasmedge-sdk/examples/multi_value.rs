@@ -17,7 +17,7 @@ fn main() -> anyhow::Result<()> {
   (export "swap" (func $swap)))
 "#,
     )?;
-    let module = Module::from_bytes(None, &wasm_bytes)?;
+    let module = Module::from_bytes(None, wasm_bytes)?;
 
     let mut executor = Executor::new(None, None)?;
     let mut store = Store::new()?;

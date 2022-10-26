@@ -43,7 +43,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // load module from a wasm file
     let config = Config::create()?;
     let loader = Loader::create(Some(config))?;
-    let module = loader.from_bytes(&wasm_bytes)?;
+    let module = loader.from_bytes(wasm_bytes)?;
 
     // validate module
     let config = Config::create()?;

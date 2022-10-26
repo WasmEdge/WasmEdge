@@ -44,7 +44,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // load and validate module from in-memory wasm bytes
     let config = ConfigBuilder::new(CommonConfigOptions::default()).build()?;
-    let module = Module::from_bytes(Some(&config), &wasm_bytes)?;
+    let module = Module::from_bytes(Some(&config), wasm_bytes)?;
 
     // create an Executor context
     let mut executor = Executor::new(None, None)?;

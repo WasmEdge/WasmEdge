@@ -41,6 +41,7 @@
       - [KubeEdge](use_cases/kubernetes/kubernetes/kubeedge.md)
       - [SuperEdge](use_cases/kubernetes/kubernetes/superedge.md)
       - [OpenYurt](use_cases/kubernetes/kubernetes/openyurt.md)
+      - [Knative](use_cases/kubernetes/kubernetes/knative.md)
     - [Docker](use_cases/kubernetes/docker.md)
       - [Slim container](use_cases/kubernetes/docker/lxc.md)
       - [containerd integration](use_cases/kubernetes/docker/containerd.md)

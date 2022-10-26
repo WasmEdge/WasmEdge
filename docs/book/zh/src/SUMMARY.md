@@ -80,6 +80,7 @@
     - [KubeEdge](kubernetes/kubernetes/kubeedge.md)
     - [SuperEdge](kubernetes/kubernetes/superedge.md)
     - [OpenYurt](kubernetes/kubernetes/openyurt.md)
+    - [Knative](kubernetes/kubernetes/knative.md)
 
 - [应用框架与平台](frameworks.md)
   - [Service mesh 与分布式框架](frameworks/mesh.md)

@@ -8,9 +8,7 @@
 #include "common.h"
 #include "jni.h"
 #include "wasmedge/wasmedge.h"
-#include <malloc.h>
-#include <stdio.h>
-#include <unistd.h>
+#include <stdlib.h>
 
 // Warning, we need type cast in return.
 

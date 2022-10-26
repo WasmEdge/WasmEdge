@@ -573,7 +573,8 @@ public:
   /// @return Nothing or WASI error.
   WasiExpect<void> sockRecvFrom(Span<Span<uint8_t>> RiData,
                                 __wasi_riflags_t RiFlags, uint8_t *Address,
-                                uint8_t AddressLength, __wasi_size_t &NRead,
+                                uint8_t AddressLength, uint32_t *PortPtr,
+                                __wasi_size_t &NRead,
                                 __wasi_roflags_t &RoFlags) const noexcept;
 
   /// Send a message on a socket.

@@ -156,6 +156,7 @@ TEST(WasiTest, SocketUDP_4) {
     uint32_t SendtoRetPtr = 8;
     uint32_t RecvfromRetPtr = 12;
     uint32_t FlagPtr = 16;
+    uint32_t PortPtr = 20;
     uint32_t AddrPtr = 100;
     uint32_t AddrBufPtr = 200;
     uint32_t AddrBuflen = 128;
@@ -241,9 +242,9 @@ TEST(WasiTest, SocketUDP_4) {
     Addr->buf_len = 128;
 
     WasiSockRecvFrom.run(CallFrame,
-                         std::array<WasmEdge::ValVariant, 7>{
+                         std::array<WasmEdge::ValVariant, 8>{
                              FdServer, MsgOutPackPtr, UINT32_C(1), AddrPtr,
-                             UINT32_C(0), RecvfromRetPtr, FlagPtr},
+                             UINT32_C(0), PortPtr, RecvfromRetPtr, FlagPtr},
                          Errno);
     EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
 
@@ -361,6 +362,7 @@ TEST(WasiTest, SocketUDP_6) {
     uint32_t SendtoRetPtr = 8;
     uint32_t RecvfromRetPtr = 12;
     uint32_t FlagPtr = 16;
+    uint32_t PortPtr = 20;
     uint32_t AddrPtr = 100;
     uint32_t AddrBuflen = 128;
     uint32_t AddrBufPtr = 200;
@@ -447,9 +449,9 @@ TEST(WasiTest, SocketUDP_6) {
 
     Addr->buf_len = 128;
     WasiSockRecvFrom.run(CallFrame,
-                         std::array<WasmEdge::ValVariant, 7>{
+                         std::array<WasmEdge::ValVariant, 8>{
                              FdServer, MsgOutPackPtr, UINT32_C(1), AddrPtr,
-                             UINT32_C(0), RecvfromRetPtr, FlagPtr},
+                             UINT32_C(0), PortPtr, RecvfromRetPtr, FlagPtr},
                          Errno);
     EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
 
@@ -495,6 +497,7 @@ TEST(WasiTest, SocketUDP_4_Fallback) {
     uint32_t SendtoRetPtr = 8;
     uint32_t RecvfromRetPtr = 12;
     uint32_t FlagPtr = 16;
+    uint32_t PortPtr = 20;
     uint32_t AddrBufPtr = 100;
     uint32_t AddrBuflen = 4;
     uint32_t AddrPtr = 200;
@@ -577,9 +580,9 @@ TEST(WasiTest, SocketUDP_4_Fallback) {
     Addr->buf_len = 4;
 
     WasiSockRecvFrom.run(CallFrame,
-                         std::array<WasmEdge::ValVariant, 7>{
+                         std::array<WasmEdge::ValVariant, 8>{
                              FdServer, MsgOutPackPtr, UINT32_C(1), AddrPtr,
-                             UINT32_C(0), RecvfromRetPtr, FlagPtr},
+                             UINT32_C(0), PortPtr, RecvfromRetPtr, FlagPtr},
                          Errno);
     EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
 
@@ -630,6 +633,7 @@ TEST(WasiTest, SocketUDP_6_Fallback) {
     uint32_t SendtoRetPtr = 8;
     uint32_t RecvfromRetPtr = 12;
     uint32_t FlagPtr = 16;
+    uint32_t PortPtr = 20;
     uint32_t AddrBufPtr = 100;
     uint32_t AddrBuflen = 16;
     uint32_t AddrPtr = 200;
@@ -710,9 +714,9 @@ TEST(WasiTest, SocketUDP_6_Fallback) {
     MsgOutPack->buf_len = MaxMsgBufLen;
 
     WasiSockRecvFrom.run(CallFrame,
-                         std::array<WasmEdge::ValVariant, 7>{
+                         std::array<WasmEdge::ValVariant, 8>{
                              FdServer, MsgOutPackPtr, UINT32_C(1), AddrPtr,
-                             UINT32_C(0), RecvfromRetPtr, FlagPtr},
+                             UINT32_C(0), PortPtr, RecvfromRetPtr, FlagPtr},
                          Errno);
     EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
 

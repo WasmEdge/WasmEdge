@@ -1958,6 +1958,7 @@ Expect<uint32_t> WasiSockRecvFrom::body(const Runtime::CallingFrame &Frame,
                                         int32_t Fd, uint32_t RiDataPtr,
                                         uint32_t RiDataLen, uint32_t AddressPtr,
                                         uint32_t RiFlags,
+                                        uint32_t /* Out */ PortPtr,
                                         uint32_t /* Out */ RoDataLenPtr,
                                         uint32_t /* Out */ RoFlagsPtr) {
   // Check memory instance from module.
@@ -1996,6 +1997,11 @@ Expect<uint32_t> WasiSockRecvFrom::body(const Runtime::CallingFrame &Frame,
   }
 
   // Check for invalid address.
+  uint32_t *const RoPort = MemInst->getPointer<uint32_t *>(PortPtr);
+  if (RoPort == nullptr) {
+    return __WASI_ERRNO_FAULT;
+  }
+
   auto *const RiDataArray =
       MemInst->getPointer<__wasi_iovec_t *>(RiDataPtr, WasiRiDataLen);
   if (unlikely(RiDataArray == nullptr)) {
@@ -2035,9 +2041,10 @@ Expect<uint32_t> WasiSockRecvFrom::body(const Runtime::CallingFrame &Frame,
 
   const __wasi_fd_t WasiFd = Fd;
 
-  if (auto Res = Env.sockRecvFrom(
-          WasiFd, {WasiRiData.data(), WasiRiDataLen}, WasiRiFlags, AddressBuf,
-          static_cast<uint8_t>(InnerAddress->buf_len), *RoDataLen, *RoFlags);
+  if (auto Res = Env.sockRecvFrom(WasiFd, {WasiRiData.data(), WasiRiDataLen},
+                                  WasiRiFlags, AddressBuf,
+                                  static_cast<uint8_t>(InnerAddress->buf_len),
+                                  RoPort, *RoDataLen, *RoFlags);
       unlikely(!Res)) {
     return Res.error();
   }

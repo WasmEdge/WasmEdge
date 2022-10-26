@@ -426,6 +426,7 @@ public:
   Expect<uint32_t> body(const Runtime::CallingFrame &Frame, int32_t Fd,
                         uint32_t RiDataPtr, uint32_t RiDataLen,
                         uint32_t AddressPtr, uint32_t RiFlags,
+                        uint32_t /* Out */ PortPtr,
                         uint32_t /* Out */ RoDataLenPtr,
                         uint32_t /* Out */ RoFlagsPtr);
 };

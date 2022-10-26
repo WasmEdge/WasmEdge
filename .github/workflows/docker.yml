@@ -23,7 +23,7 @@ on:
 jobs:
   build-docker-images:
     name: build-docker-images
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-latest-16-cores
     container:
       image: wasmedge/wasmedge:ci-image-base
 
@@ -157,7 +157,7 @@ jobs:
 
   build-manylinux2014_x86_64:
     name: build-manylinux2014_x86_64
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-latest-16-cores
     container:
       image: wasmedge/wasmedge:ci-image-base
 

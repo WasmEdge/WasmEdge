@@ -161,6 +161,8 @@ mod instance;
 #[doc(hidden)]
 pub mod io;
 mod module;
+#[doc(hidden)]
+pub mod plugin;
 mod statistics;
 mod store;
 pub mod types;
@@ -188,6 +190,8 @@ pub use instance::{AsInstance, Instance};
 pub use io::{WasmVal, WasmValType, WasmValTypeList};
 #[doc(inline)]
 pub use module::{ExportType, ImportType, Module};
+#[doc(inline)]
+pub use plugin::PluginManager;
 #[doc(inline)]
 pub use statistics::Statistics;
 #[doc(inline)]

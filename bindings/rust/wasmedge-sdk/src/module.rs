@@ -228,7 +228,7 @@ mod tests {
         )
         .unwrap();
 
-        let result = Module::from_bytes(None, &wasm_bytes);
+        let result = Module::from_bytes(None, wasm_bytes);
         assert!(result.is_ok());
 
         // attempt to load an empty buffer
@@ -281,7 +281,7 @@ mod tests {
         )
         .unwrap();
 
-        let result = Module::from_bytes(None, &wasm_bytes);
+        let result = Module::from_bytes(None, wasm_bytes);
         assert!(result.is_ok());
         let module = result.unwrap();
         assert_eq!(module.exports().len(), 1);

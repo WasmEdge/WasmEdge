@@ -40,7 +40,7 @@ pub fn log_error_info() {
     unsafe { ffi::WasmEdge_LogSetErrorLevel() }
 }
 
-/// Logs off.
+/// Sets the logging system off.
 pub fn log_off() {
     unsafe { ffi::WasmEdge_LogOff() }
 }

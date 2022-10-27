@@ -108,3 +108,5 @@ mv libtensorflowlite_c.so /usr/local/lib
 ```
 
 Or set the environment variable `export LD_LIBRARY_PATH=$(pwd):${LD_LIBRARY_PATH}`.
+
+> We also provided the `MacOS` and `manylinux_aarch64` version of the TensorFlow-Lite pre-built shared library.

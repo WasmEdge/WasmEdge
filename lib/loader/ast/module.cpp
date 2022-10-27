@@ -107,10 +107,10 @@ Expect<std::unique_ptr<AST::Module>> Loader::loadModule() {
           // If the new AOT section load failed, use the old one or the
           // interpreter mode.
           if (WASMType == InputType::UniversalWASM) {
-            spdlog::error(
+            spdlog::info(
                 "    Load AOT section failed. Use the previous succeeded one.");
           } else {
-            spdlog::error(
+            spdlog::info(
                 "    Load AOT section failed. Use interpreter mode instead.");
           }
         }

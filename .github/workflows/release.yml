@@ -126,6 +126,11 @@ jobs:
             output_path: plugins/wasi_nn
             output_bin: libwasmedgePluginWasiNN.so
             tar_name: wasi_nn-pytorch
+          - name: WASI-NN TensorFlowLite
+            backend: TensorFlowLite
+            output_path: plugins/wasi_nn
+            output_bin: libwasmedgePluginWasiNN.so
+            tar_name: wasi_nn-tensorflowlite
           - name: WASI-Crypto
             output_path: plugins/wasi_crypto
             output_bin: libwasmedgePluginWasiCrypto.so

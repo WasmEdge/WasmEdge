@@ -160,6 +160,8 @@ mod import;
 mod instance;
 #[doc(hidden)]
 pub mod io;
+#[doc(hidden)]
+pub mod log;
 mod module;
 #[doc(hidden)]
 pub mod plugin;
@@ -188,6 +190,8 @@ pub use instance::WasmEdgeProcessInstance;
 pub use instance::{AsInstance, Instance};
 #[doc(inline)]
 pub use io::{WasmVal, WasmValType, WasmValTypeList};
+#[doc(inline)]
+pub use log::LogManager;
 #[doc(inline)]
 pub use module::{ExportType, ImportType, Module};
 #[doc(inline)]

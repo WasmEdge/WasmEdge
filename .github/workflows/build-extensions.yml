@@ -101,6 +101,26 @@ jobs:
             test_path: test/plugins/wasi_nn
             test_bin: wasiNNTests
             build_type: Release
+          - name: WASI-NN TensorFlowLite
+            tar_name: wasi_nn-tensorflowlite
+            backend: TensorFlowLite
+            compiler: g++
+            docker_tag: ubuntu-build-gcc
+            output_path: plugins/wasi_nn
+            output_bin: libwasmedgePluginWasiNN.so
+            test_path: test/plugins/wasi_nn
+            test_bin: wasiNNTests
+            build_type: Release
+          - name: WASI-NN TensorFlowLite
+            tar_name: wasi_nn-tensorflowlite
+            backend: TensorFlowLite
+            compiler: clang++
+            docker_tag: ubuntu-build-clang
+            output_path: plugins/wasi_nn
+            output_bin: libwasmedgePluginWasiNN.so
+            test_path: test/plugins/wasi_nn
+            test_bin: wasiNNTests
+            build_type: Release
           - name: WASI-Crypto
             tar_name: wasi_crypto
             compiler: g++
@@ -232,7 +252,7 @@ jobs:
             build_type: Release
             test: true
           - name: WASI-NN Tensorflow Lite
-            tar_name: wasi_nn-tflite
+            tar_name: wasi_nn-tensorflowlite
             backend: Tensorflowlite
             system: manylinux2014 x86_64
             host_runner: ubuntu-latest
@@ -245,7 +265,7 @@ jobs:
             build_type: Release
             test: true
           - name: WASI-NN Tensorflow Lite
-            tar_name: wasi_nn-tflite
+            tar_name: wasi_nn-tensorflowlite
             backend: Tensorflowlite
             system: manylinux2014 aarch64
             host_runner: linux-arm64

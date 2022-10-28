@@ -46,7 +46,8 @@ add_library(${TARGET} SHARED
         lib/MemoryInstanceContext.h
         lib/TableInstanceContext.h
         lib/ModuleInstanceContext.h
-        )
+        lib/WasmEdgeAsync.h
+        lib/WasmEdgeAsync.c)
 
 target_link_libraries(${TARGET} ${WasmEdge_LIBRARIES})
 

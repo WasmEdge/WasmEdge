@@ -1,6 +1,5 @@
-//
-// Created by Kenvi Zhu on 2021-10-10.
-//
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: 2019-2022 Second State INC
 
 #include "AstModuleContext.h"
 #include "ConfigureContext.h"

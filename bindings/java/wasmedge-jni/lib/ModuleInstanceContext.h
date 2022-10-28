@@ -1,6 +1,5 @@
-//
-// Created by Kenvi Zhu on 2022-03-17.
-//
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: 2019-2022 Second State INC
 
 #ifndef WASMEDGE_JAVA_MODULEINSTANCECONTEXT_H
 #define WASMEDGE_JAVA_MODULEINSTANCECONTEXT_H

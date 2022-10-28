@@ -1,6 +1,6 @@
-//
-// Created by elfgum on 2022/8/1.
-//
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: 2019-2022 Second State INC
+
 #include "../jni/org_wasmedge_WasmEdgeAsync.h"
 #include "ExportTypeContext.h"
 #include "ImportTypeContext.h"

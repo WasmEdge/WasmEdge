@@ -1,6 +1,8 @@
 //
 // Created by Kenvi Zhu on 2022-01-12.
 //
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: 2019-2022 Second State INC
 
 #include "../jni/org_wasmedge_GlobalInstanceContext.h"
 #include "GlobalTypeContext.h"

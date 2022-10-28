@@ -1,6 +1,6 @@
-//
-// Created by Kenvi Zhu on 2022-01-13.
-//
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: 2019-2022 Second State INC
+
 #include "common.h"
 #include "jni.h"
 #include "wasmedge/wasmedge.h"

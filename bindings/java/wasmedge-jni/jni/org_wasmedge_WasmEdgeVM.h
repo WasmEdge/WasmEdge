@@ -106,7 +106,7 @@ JNIEXPORT void JNICALL Java_org_wasmedge_WasmEdgeVM_registerModuleFromBuffer
 /*
  * Class:     org_wasmedge_WasmEdgeVM
  * Method:    registerModuleFromImport
- * Signature: (Lorg/wasmedge/ImportObjectContext;)V
+ * Signature: (Lorg/wasmedge/ModuleInstanceContext;)V
  */
 JNIEXPORT void JNICALL Java_org_wasmedge_WasmEdgeVM_registerModuleFromImport
   (JNIEnv *, jobject, jobject);
@@ -146,7 +146,7 @@ JNIEXPORT jobject JNICALL Java_org_wasmedge_WasmEdgeVM_getFunctionType
 /*
  * Class:     org_wasmedge_WasmEdgeVM
  * Method:    nativeGetImportModuleContext
- * Signature: (I)Lorg/wasmedge/ImportObjectContext;
+ * Signature: (I)Lorg/wasmedge/ModuleInstanceContext;
  */
 JNIEXPORT jobject JNICALL Java_org_wasmedge_WasmEdgeVM_nativeGetImportModuleContext
   (JNIEnv *, jobject, jint);
@@ -190,6 +190,46 @@ JNIEXPORT void JNICALL Java_org_wasmedge_WasmEdgeVM_cleanUp
  */
 JNIEXPORT void JNICALL Java_org_wasmedge_WasmEdgeVM_delete
   (JNIEnv *, jobject);
+
+/*
+ * Class:     org_wasmedge_WasmEdgeVM
+ * Method:    asyncRunWasmFromFile
+ * Signature: (Ljava/lang/String;Ljava/lang/String;[Lorg/wasmedge/WasmEdgeValue;[I)Lorg/wasmedge/WasmEdgeAsync;
+ */
+JNIEXPORT jobject JNICALL Java_org_wasmedge_WasmEdgeVM_asyncRunWasmFromFile
+  (JNIEnv *, jobject, jstring, jstring, jobjectArray, jintArray);
+
+/*
+ * Class:     org_wasmedge_WasmEdgeVM
+ * Method:    asyncRunWasmFromBuffer
+ * Signature: ([BLjava/lang/String;[Lorg/wasmedge/WasmEdgeValue;[I)Lorg/wasmedge/WasmEdgeAsync;
+ */
+JNIEXPORT jobject JNICALL Java_org_wasmedge_WasmEdgeVM_asyncRunWasmFromBuffer
+  (JNIEnv *, jobject, jbyteArray, jstring, jobjectArray, jintArray);
+
+/*
+ * Class:     org_wasmedge_WasmEdgeVM
+ * Method:    asyncRunWasmFromASTModule
+ * Signature: (Lorg/wasmedge/ASTModuleContext;Ljava/lang/String;[Lorg/wasmedge/WasmEdgeValue;[I)Lorg/wasmedge/WasmEdgeAsync;
+ */
+JNIEXPORT jobject JNICALL Java_org_wasmedge_WasmEdgeVM_asyncRunWasmFromASTModule
+  (JNIEnv *, jobject, jobject, jstring, jobjectArray, jintArray);
+
+/*
+ * Class:     org_wasmedge_WasmEdgeVM
+ * Method:    asyncExecute
+ * Signature: (Ljava/lang/String;[Lorg/wasmedge/WasmEdgeValue;[I)Lorg/wasmedge/WasmEdgeAsync;
+ */
+JNIEXPORT jobject JNICALL Java_org_wasmedge_WasmEdgeVM_asyncExecute
+  (JNIEnv *, jobject, jstring, jobjectArray, jintArray);
+
+/*
+ * Class:     org_wasmedge_WasmEdgeVM
+ * Method:    asyncExecuteRegistered
+ * Signature: (Ljava/lang/String;Ljava/lang/String;[Lorg/wasmedge/WasmEdgeValue;[I)Lorg/wasmedge/WasmEdgeAsync;
+ */
+JNIEXPORT jobject JNICALL Java_org_wasmedge_WasmEdgeVM_asyncExecuteRegistered
+  (JNIEnv *, jobject, jstring, jstring, jobjectArray, jintArray);
 
 #ifdef __cplusplus
 }

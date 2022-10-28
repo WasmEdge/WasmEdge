@@ -1,6 +1,5 @@
-//
-// Created by Kenvi Zhu on 2022-01-14.
-//
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: 2019-2022 Second State INC
 
 #ifndef WASMEDGE_JAVA_TABLETYPECONTEXT_H
 #define WASMEDGE_JAVA_TABLETYPECONTEXT_H

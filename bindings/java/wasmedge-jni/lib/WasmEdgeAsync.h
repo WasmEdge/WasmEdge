@@ -1,6 +1,5 @@
-//
-// Created by elfgum on 2022/8/1.
-//
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: 2019-2022 Second State INC
 
 #ifndef WASMEDGE_JNI_WASMEDGEASYNC_H
 #define WASMEDGE_JNI_WASMEDGEASYNC_H

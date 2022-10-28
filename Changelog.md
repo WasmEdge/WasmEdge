@@ -1,4 +1,4 @@
-### 0.11.2-alpha.1 (2022-10-25)
+### 0.11.2-rc.1 (2022-10-28)
 
 Features:
 
@@ -56,9 +56,9 @@ Tests:
 
 Thank all the contributors that made this release possible!
 
-Abhinandan Udupa, Gustavo Ye, Harry Chiang, Hiroaki Nakamura, Kenvi Zhu, LFsWang, Shen-Ta Hsieh, Shreyas Atre, Xin Liu, YiYing He, abhinandanudupa, he11c, hydai, vincent
+Abhinandan Udupa, Gustavo Ye, Harry Chiang, Hiroaki Nakamura, Kenvi Zhu, LFsWang, Shen-Ta Hsieh, Shreyas Atre, Xin Liu, YiYing He, abhinandanudupa, dm4, he11c, hydai, vincent, zhlhahaha
 
-If you want to build from source, please use WasmEdge-0.11.2-alpha.1-src.tar.gz instead of the zip or tarball provided by GitHub directly.
+If you want to build from source, please use WasmEdge-0.11.2-rc.1-src.tar.gz instead of the zip or tarball provided by GitHub directly.
 
 ### 0.11.1 (2022-10-03)
 

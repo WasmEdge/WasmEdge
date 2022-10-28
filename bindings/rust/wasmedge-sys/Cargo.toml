@@ -22,6 +22,7 @@ thiserror = "1.0.30"
 wasmedge-macro = {path = "../wasmedge-macro", version = "0.1"}
 wasmedge-types = {path = "../wasmedge-types", version = "0.3"}
 wasmtime-fiber = "1"
+
 [build-dependencies]
 bindgen = {version = "0.60.1", default-features = false, features = ["runtime"]}
 cmake = "0.1"

@@ -18,7 +18,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // create a Vm context with the given Config and Store
     let result = Vm::create(Some(config), Some(&mut store));
     assert!(result.is_ok());
-    let mut vm = result.unwrap();
+    let vm = result.unwrap();
 
     // run a function from a in-memory wasm bytes
     let result = wat2wasm(

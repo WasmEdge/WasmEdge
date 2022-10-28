@@ -1,6 +1,7 @@
 //! Defines WasmEdge Function and FuncType structs.
 
 use crate::{
+    async_env::FiberFuture,
     error::{FuncError, HostFuncError, WasmEdgeError},
     ffi, BoxedFn, CallingFrame, Engine, WasmEdgeResult, WasmValue, HOST_FUNCS,
 };
@@ -40,7 +41,6 @@ extern "C" fn wraper_fn(
         .try_into()
         .expect("len of returns should not greater than usize");
     let raw_returns = unsafe { std::slice::from_raw_parts_mut(returns, return_len) };
-    let mut store = unsafe { (data as *mut Store).as_mut().expect("Fail to get store") };
     let map_host_func = HOST_FUNCS.read();
     match map_host_func.get(&key) {
         None => unsafe { ffi::WasmEdge_ResultGen(ffi::WasmEdge_ErrCategory_WASM, 5) },
@@ -49,7 +49,7 @@ extern "C" fn wraper_fn(
             let real_fn_locked = real_fn.lock();
             drop(map_host_func);
 
-            match real_fn_locked(&mut store, &frame, input, data) {
+            match real_fn_locked(&frame, input, data) {
                 Ok(returns) => {
                     assert!(returns.len() == return_len);
                     for (idx, wasm_value) in returns.into_iter().enumerate() {
@@ -295,12 +295,10 @@ impl Function {
 
     pub async fn call_async<E: Engine + Send + Sync>(
         &self,
-        store: &mut Store,
         engine: &mut E,
         args: impl IntoIterator<Item = WasmValue> + Send,
     ) -> WasmEdgeResult<Vec<WasmValue>> {
-        store
-            .on_fiber(|_store| engine.run_func(self, args))
+        FiberFuture::on_fiber(|| engine.run_func(self, args))
             .await
             .unwrap()
     }

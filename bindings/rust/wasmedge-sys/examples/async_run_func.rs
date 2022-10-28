@@ -31,7 +31,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let result = Vm::create(Some(config), Some(&mut store));
     assert!(result.is_ok());
-    let mut vm = result.unwrap();
+    let vm = result.unwrap();
 
     // load wasm module from a ast module instance
     let result = vm.load_wasm_from_module(&ast_module);

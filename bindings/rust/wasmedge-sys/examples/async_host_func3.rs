@@ -12,13 +12,12 @@
 //!
 use std::{future::Future, os::raw::c_void};
 use wasmedge_sys::{
-    AsImport, AsyncBoxedFn, CallingFrame, Config, FuncType, Function, ImportModule, ImportObject,
+    AsImport, CallingFrame, Config, FuncType, Function, ImportModule, ImportObject,
     Loader, Store, Vm, WasmValue,
 };
 use wasmedge_types::{error::HostFuncError, ValType};
 
 fn real_add(
-    _store: &mut Store,
     _frame: &CallingFrame,
     input: Vec<WasmValue>,
     _data: *mut c_void,
@@ -70,13 +69,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut store = Store::create().expect("Unable to create store");
     let mut vm = Vm::create(Some(config), Some(&mut store))?;
 
-    // dbg!(&store);
-    // dbg!(&store.async_state.current_poll_cx.get());
-    // dbg!(&store.async_state.current_suspend.get());
-    // unsafe {
-    //     dbg!(*(store.async_state.current_poll_cx.get()));
-    // }
-
     let func_ty = FuncType::create(
         vec![ValType::ExternRef, ValType::I32, ValType::I32],
         vec![ValType::I32],
@@ -93,7 +85,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tokio::spawn(async move {
         let res = vm
             .run_wasm_from_module_async2(
-                &mut store,
                 module,
                 String::from("call_add"),
                 vec![add_ref, WasmValue::from_i32(5), WasmValue::from_i32(10)],

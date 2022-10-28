@@ -142,6 +142,7 @@
 #[macro_use]
 extern crate lazy_static;
 
+use async_env::AsyncState;
 use parking_lot::{Mutex, RwLock};
 use std::{collections::HashMap, env, sync::Arc};
 
@@ -230,7 +231,6 @@ use wasmedge_types::{error, WasmEdgeResult};
 /// Type alias for a boxed native function. This type is used in thread-safe cases.
 pub type BoxedFn = Box<
     dyn Fn(
-            &mut Store,
             &CallingFrame,
             Vec<WasmValue>,
             *mut std::os::raw::c_void,
@@ -241,7 +241,6 @@ pub type BoxedFn = Box<
 
 pub type AsyncBoxedFn = Box<
     dyn Fn(
-            &mut Store,
             &CallingFrame,
             Vec<WasmValue>,
             *mut std::os::raw::c_void,
@@ -261,6 +260,13 @@ lazy_static! {
                     .expect("MAX_HOST_FUNC_LENGTH should be a positive integer."))
                 .unwrap_or(500)
         ));
+}
+
+lazy_static! {
+    static ref ASYNC_STATE: RwLock<AsyncState> = RwLock::new(AsyncState {
+        current_suspend: std::cell::UnsafeCell::new(std::ptr::null()),
+        current_poll_cx: std::cell::UnsafeCell::new(std::ptr::null_mut()),
+    });
 }
 
 /// The object that is used to perform a [host function](crate::Function) is required to implement this trait.

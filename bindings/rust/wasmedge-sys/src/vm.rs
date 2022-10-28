@@ -5,7 +5,7 @@ use crate::WasiNnModule;
 #[cfg(target_os = "linux")]
 use crate::WasmEdgeProcessModule;
 use crate::{
-    async_env::AsyncState,
+    async_env::FiberFuture,
     error::{VmError, WasmEdgeError},
     executor::{Executor, InnerExecutor},
     ffi,
@@ -21,13 +21,15 @@ use crate::{
     utils::{self, check},
     validator::{InnerValidator, Validator},
     Config, Engine, ImportObject, Instance, Module, WasiModule, WasmEdgeResult, WasmValue,
+    ASYNC_STATE,
 };
+
 #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
 use crate::{
     WasiCrypto, WasiCryptoAsymmetricCommonModule, WasiCryptoCommonModule, WasiCryptoKxModule,
     WasiCryptoSignaturesModule, WasiCryptoSymmetricModule,
 };
-use std::{cell::UnsafeCell, collections::HashMap, path::Path, ptr, sync::Arc};
+use std::{collections::HashMap, path::Path, pin::Pin, sync::Arc};
 
 /// A [Vm] defines a virtual environment for managing WebAssembly programs.
 #[derive(Debug, Clone)]
@@ -363,7 +365,6 @@ impl Vm {
 
     pub async fn run_wasm_from_file_async2(
         &self,
-        store: &mut Store,
         path: impl AsRef<Path>,
         func_name: impl AsRef<str> + Send,
         params: impl IntoIterator<Item = WasmValue> + Send,
@@ -378,7 +379,7 @@ impl Vm {
         self.instantiate()?;
 
         // invoke
-        self.run_function_async2(store, func_name, params).await
+        self.run_function_async2(func_name, params).await
     }
 
     /// Runs a [function](crate::Function) from a in-memory wasm bytes.
@@ -453,7 +454,6 @@ impl Vm {
 
     pub async fn run_wasm_from_bytes_async2(
         &self,
-        store: &mut Store,
         bytes: &[u8],
         func_name: impl AsRef<str> + Send,
         params: impl IntoIterator<Item = WasmValue> + Send,
@@ -468,7 +468,7 @@ impl Vm {
         self.instantiate()?;
 
         // invoke
-        self.run_function_async2(store, func_name, params).await
+        self.run_function_async2(func_name, params).await
     }
 
     /// Runs a [function](crate::Function) from a WasmEdge compiled [Module](crate::Module).
@@ -543,7 +543,6 @@ impl Vm {
 
     pub async fn run_wasm_from_module_async2(
         &self,
-        store: &mut Store,
         module: Module,
         func_name: impl AsRef<str> + Send,
         params: impl IntoIterator<Item = WasmValue> + Send,
@@ -558,7 +557,7 @@ impl Vm {
         self.instantiate()?;
 
         // invoke
-        self.run_function_async2(store, func_name, params).await
+        self.run_function_async2(func_name, params).await
     }
 
     /// Loads a WASM module from a WasmEdge AST [Module](crate::Module).
@@ -736,13 +735,10 @@ impl Vm {
     }
     pub async fn run_function_async2(
         &self,
-        store: &mut Store,
         func_name: impl AsRef<str> + Send,
         params: impl IntoIterator<Item = WasmValue> + Send,
     ) -> WasmEdgeResult<Vec<WasmValue>> {
-        println!("run function async");
-        store
-            .on_fiber(|store| self.run_function(func_name, params))
+        FiberFuture::on_fiber(|| self.run_function(func_name, params))
             .await
             .unwrap()
     }
@@ -838,13 +834,11 @@ impl Vm {
     }
     pub async fn run_registered_function_async2(
         &self,
-        store: &mut Store,
         mod_name: impl AsRef<str> + Send,
         func_name: impl AsRef<str> + Send,
         params: impl IntoIterator<Item = WasmValue> + Send,
     ) -> WasmEdgeResult<Vec<WasmValue>> {
-        store
-            .on_fiber(|_store| self.run_registered_function(mod_name, func_name, params))
+        FiberFuture::on_fiber(|| self.run_registered_function(mod_name, func_name, params))
             .await
             .unwrap()
     }
@@ -1097,10 +1091,6 @@ impl Vm {
             false => Ok(Store {
                 inner: InnerStore(store_ctx),
                 registered: true,
-                async_state: Box::new(AsyncState {
-                    current_suspend: UnsafeCell::new(ptr::null()),
-                    current_poll_cx: UnsafeCell::new(ptr::null_mut()),
-                }),
             }),
         }
     }

@@ -1,3 +1,13 @@
+//! This example demonstrates how to call functions asynchronously.
+//!
+//! To run this example, use the following command:
+//!
+//! ```bash
+//! cd /wasmedge-root-dir/bindings/rust/
+//!
+//! cargo run -p wasmedge-sys --example async_run_func
+//! ```
+
 use wasmedge_sys::{Config, Loader, Store, Vm, WasmValue};
 
 #[tokio::main]
@@ -46,9 +56,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     assert!(result.is_ok());
 
     // async run function
-    let fut1 = vm.run_function_async2(String::from("fib"), vec![WasmValue::from_i32(20)]);
+    let fut1 = vm.run_function_async(String::from("fib"), vec![WasmValue::from_i32(20)]);
 
-    let fut2 = vm.run_function_async2(String::from("fib"), vec![WasmValue::from_i32(5)]);
+    let fut2 = vm.run_function_async(String::from("fib"), vec![WasmValue::from_i32(5)]);
     // println!("{:?}", fut1.await);
     let returns = tokio::join!(fut1, fut2);
 

@@ -10,10 +10,18 @@
 //! generics of `Function::create_bindings::<I, O>`, wherein the I and O are the `WasmFnIO` traits
 //! base on the inputs and outputs of the real host function.
 //!
+//! To run this example, use the following command:
+//!
+//! ```bash
+//! cd /wasmedge-root-dir/bindings/rust/
+//!
+//! cargo run -p wasmedge-sys --example async_host_func_indirect
+//! ```
+
 use std::{future::Future, os::raw::c_void};
 use wasmedge_sys::{
-    AsImport, CallingFrame, Config, FuncType, Function, ImportModule, ImportObject,
-    Loader, Store, Vm, WasmValue,
+    AsImport, CallingFrame, Config, FuncType, Function, ImportModule, ImportObject, Loader, Store,
+    Vm, WasmValue,
 };
 use wasmedge_types::{error::HostFuncError, ValType};
 
@@ -79,12 +87,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // create an ImportObject module
     let mut import = ImportModule::create("extern_module")?;
     import.add_func("add", host_func);
-    vm.load_wasm_from_module(&module);
+    vm.load_wasm_from_module(&module)?;
     vm.register_wasm_from_import(ImportObject::Import(import))?;
 
     tokio::spawn(async move {
         let res = vm
-            .run_wasm_from_module_async2(
+            .run_wasm_from_module_async(
                 module,
                 String::from("call_add"),
                 vec![add_ref, WasmValue::from_i32(5), WasmValue::from_i32(10)],

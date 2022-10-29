@@ -5,7 +5,6 @@ use crate::WasiNnModule;
 #[cfg(target_os = "linux")]
 use crate::WasmEdgeProcessModule;
 use crate::{
-    async_env::FiberFuture,
     error::{VmError, WasmEdgeError},
     executor::{Executor, InnerExecutor},
     ffi,
@@ -14,14 +13,13 @@ use crate::{
         module::InnerInstance,
     },
     loader::{InnerLoader, Loader},
-    r#async::{AsyncResult, InnerAsyncResult},
+    r#async::FiberFuture,
     statistics::{InnerStat, Statistics},
     store::{InnerStore, Store},
     types::WasmEdgeString,
     utils::{self, check},
     validator::{InnerValidator, Validator},
     Config, Engine, ImportObject, Instance, Module, WasiModule, WasmEdgeResult, WasmValue,
-    ASYNC_STATE,
 };
 
 #[cfg(all(target_os = "linux", feature = "wasi_crypto"))]
@@ -29,7 +27,7 @@ use crate::{
     WasiCrypto, WasiCryptoAsymmetricCommonModule, WasiCryptoCommonModule, WasiCryptoKxModule,
     WasiCryptoSignaturesModule, WasiCryptoSymmetricModule,
 };
-use std::{collections::HashMap, path::Path, pin::Pin, sync::Arc};
+use std::{collections::HashMap, path::Path, sync::Arc};
 
 /// A [Vm] defines a virtual environment for managing WebAssembly programs.
 #[derive(Debug, Clone)]
@@ -344,27 +342,8 @@ impl Vm {
     /// # Error
     ///
     /// If fail to run, then an error is returned.
-    pub fn run_wasm_from_file_async(
+    pub async fn run_wasm_from_file_async(
         &mut self,
-        path: impl AsRef<Path>,
-        func_name: impl AsRef<str>,
-        params: impl IntoIterator<Item = WasmValue>,
-    ) -> WasmEdgeResult<AsyncResult> {
-        // load
-        self.load_wasm_from_file(path)?;
-
-        // validate
-        self.validate()?;
-
-        // instantiate
-        self.instantiate()?;
-
-        // invoke
-        self.run_function_async(func_name, params)
-    }
-
-    pub async fn run_wasm_from_file_async2(
-        &self,
         path: impl AsRef<Path>,
         func_name: impl AsRef<str> + Send,
         params: impl IntoIterator<Item = WasmValue> + Send,
@@ -379,7 +358,7 @@ impl Vm {
         self.instantiate()?;
 
         // invoke
-        self.run_function_async2(func_name, params).await
+        self.run_function_async(func_name, params).await
     }
 
     /// Runs a [function](crate::Function) from a in-memory wasm bytes.
@@ -433,27 +412,8 @@ impl Vm {
     /// # Error
     ///
     /// If fail to run, then an error is returned.
-    pub fn run_wasm_from_bytes_async(
+    pub async fn run_wasm_from_bytes_async(
         &mut self,
-        bytes: &[u8],
-        func_name: impl AsRef<str>,
-        params: impl IntoIterator<Item = WasmValue>,
-    ) -> WasmEdgeResult<AsyncResult> {
-        // load
-        self.load_wasm_from_bytes(bytes)?;
-
-        // validate
-        self.validate()?;
-
-        // instantiate
-        self.instantiate()?;
-
-        // async invoke
-        self.run_function_async(func_name, params)
-    }
-
-    pub async fn run_wasm_from_bytes_async2(
-        &self,
         bytes: &[u8],
         func_name: impl AsRef<str> + Send,
         params: impl IntoIterator<Item = WasmValue> + Send,
@@ -468,7 +428,7 @@ impl Vm {
         self.instantiate()?;
 
         // invoke
-        self.run_function_async2(func_name, params).await
+        self.run_function_async(func_name, params).await
     }
 
     /// Runs a [function](crate::Function) from a WasmEdge compiled [Module](crate::Module).
@@ -522,27 +482,8 @@ impl Vm {
     /// # Error
     ///
     /// If fail to run, then an error is returned.
-    pub fn run_wasm_from_module_async(
+    pub async fn run_wasm_from_module_async(
         &mut self,
-        module: Module,
-        func_name: impl AsRef<str>,
-        params: impl IntoIterator<Item = WasmValue>,
-    ) -> WasmEdgeResult<AsyncResult> {
-        // load
-        self.load_wasm_from_module(&module)?;
-
-        // validate
-        self.validate()?;
-
-        // instantiate
-        self.instantiate()?;
-
-        // invoke
-        self.run_function_async(func_name, params)
-    }
-
-    pub async fn run_wasm_from_module_async2(
-        &self,
         module: Module,
         func_name: impl AsRef<str> + Send,
         params: impl IntoIterator<Item = WasmValue> + Send,
@@ -557,7 +498,7 @@ impl Vm {
         self.instantiate()?;
 
         // invoke
-        self.run_function_async2(func_name, params).await
+        self.run_function_async(func_name, params).await
     }
 
     /// Loads a WASM module from a WasmEdge AST [Module](crate::Module).
@@ -571,7 +512,7 @@ impl Vm {
     /// # Error
     ///
     /// If fail to load, then an error is returned.
-    pub fn load_wasm_from_module(&self, module: &Module) -> WasmEdgeResult<()> {
+    pub fn load_wasm_from_module(&mut self, module: &Module) -> WasmEdgeResult<()> {
         unsafe {
             check(ffi::WasmEdge_VMLoadWasmFromASTModule(
                 self.inner.0,
@@ -592,7 +533,7 @@ impl Vm {
     /// # Error
     ///
     /// If fail to load, then an error is returned.  The loaded module is not validated.
-    pub fn load_wasm_from_bytes(&self, bytes: &[u8]) -> WasmEdgeResult<()> {
+    pub fn load_wasm_from_bytes(&mut self, bytes: &[u8]) -> WasmEdgeResult<()> {
         unsafe {
             check(ffi::WasmEdge_VMLoadWasmFromBuffer(
                 self.inner.0,
@@ -614,7 +555,7 @@ impl Vm {
     /// # Error
     ///
     /// If fail to load, then an error is returned.  The loaded module is not validated.
-    pub fn load_wasm_from_file(&self, path: impl AsRef<Path>) -> WasmEdgeResult<()> {
+    pub fn load_wasm_from_file(&mut self, path: impl AsRef<Path>) -> WasmEdgeResult<()> {
         let path = utils::path_to_cstring(path.as_ref())?;
         unsafe {
             check(ffi::WasmEdge_VMLoadWasmFromFile(
@@ -632,7 +573,7 @@ impl Vm {
     /// # Error
     ///
     /// If fail to validate, then an error is returned.
-    pub fn validate(&self) -> WasmEdgeResult<()> {
+    pub fn validate(&mut self) -> WasmEdgeResult<()> {
         unsafe {
             check(ffi::WasmEdge_VMValidate(self.inner.0))?;
         }
@@ -646,7 +587,7 @@ impl Vm {
     /// # Error
     ///
     /// If fail to instantiate, then an error is returned.
-    pub fn instantiate(&self) -> WasmEdgeResult<()> {
+    pub fn instantiate(&mut self) -> WasmEdgeResult<()> {
         unsafe {
             check(ffi::WasmEdge_VMInstantiate(self.inner.0))?;
         }
@@ -711,29 +652,7 @@ impl Vm {
     /// # Error
     ///
     /// If fail to run the WASM function, then an error is returned.
-    pub fn run_function_async(
-        &self,
-        func_name: impl AsRef<str>,
-        params: impl IntoIterator<Item = WasmValue>,
-    ) -> WasmEdgeResult<AsyncResult> {
-        // prepare parameters
-        let raw_params = params.into_iter().map(|x| x.as_raw()).collect::<Vec<_>>();
-
-        let func_name: WasmEdgeString = func_name.as_ref().into();
-        let ctx = unsafe {
-            ffi::WasmEdge_VMAsyncExecute(
-                self.inner.0,
-                func_name.as_raw(),
-                raw_params.as_ptr(),
-                raw_params.len() as u32,
-            )
-        };
-
-        Ok(AsyncResult {
-            inner: InnerAsyncResult(ctx),
-        })
-    }
-    pub async fn run_function_async2(
+    pub async fn run_function_async(
         &self,
         func_name: impl AsRef<str> + Send,
         params: impl IntoIterator<Item = WasmValue> + Send,
@@ -807,32 +726,7 @@ impl Vm {
     /// # Error
     ///
     /// If fail to run the WASM function, then an error is returned.
-    pub fn run_registered_function_async(
-        &self,
-        mod_name: impl AsRef<str>,
-        func_name: impl AsRef<str>,
-        params: impl IntoIterator<Item = WasmValue>,
-    ) -> WasmEdgeResult<AsyncResult> {
-        // prepare parameters
-        let raw_params = params.into_iter().map(|x| x.as_raw()).collect::<Vec<_>>();
-
-        let mod_name: WasmEdgeString = mod_name.as_ref().into();
-        let func_name: WasmEdgeString = func_name.as_ref().into();
-        let ctx = unsafe {
-            ffi::WasmEdge_VMAsyncExecuteRegistered(
-                self.inner.0,
-                mod_name.as_raw(),
-                func_name.as_raw(),
-                raw_params.as_ptr(),
-                raw_params.len() as u32,
-            )
-        };
-
-        Ok(AsyncResult {
-            inner: InnerAsyncResult(ctx),
-        })
-    }
-    pub async fn run_registered_function_async2(
+    pub async fn run_registered_function_async(
         &self,
         mod_name: impl AsRef<str> + Send,
         func_name: impl AsRef<str> + Send,
@@ -842,6 +736,7 @@ impl Vm {
             .await
             .unwrap()
     }
+
     /// Returns the function type of a WASM function by its name. The function is hosted in the anonymous [module](crate::Module) of the [Vm].
     ///
     /// # Argument

@@ -1,67 +1,167 @@
-use crate::{ffi, utils::check, WasmValue};
-use wasmedge_types::WasmEdgeResult;
+//! Defines WasmEdge async structs.
+use std::{
+    future::Future,
+    pin::Pin,
+    ptr,
+    task::{Context, Poll},
+};
+use wasmtime_fiber::{Fiber, FiberStack, Suspend};
 
-/// Defines the WasmEdge Async result.
-#[derive(Debug)]
-pub struct AsyncResult {
-    pub(crate) inner: InnerAsyncResult,
-}
-impl Drop for AsyncResult {
+use crate::ASYNC_STATE;
+struct Reset<T: Copy>(*mut T, T);
+
+impl<T: Copy> Drop for Reset<T> {
     fn drop(&mut self) {
-        if !self.inner.0.is_null() {
-            unsafe {
-                ffi::WasmEdge_AsyncDelete(self.inner.0);
+        unsafe {
+            *self.0 = self.1;
+        }
+    }
+}
+/// Defines a FiberFuture.
+pub(crate) struct FiberFuture<'a> {
+    fiber: Fiber<'a, Result<(), ()>, (), Result<(), ()>>,
+    current_poll_cx: *mut *mut Context<'static>,
+}
+
+impl<'a> FiberFuture<'a> {
+    /// Create a fiber to execute the given function.
+    ///
+    /// # Arguments
+    ///
+    /// * `func` - The function to execute.
+    ///
+    /// # Error
+    ///
+    /// If fail to create the fiber stack or the fiber fail to resume, then an error is returned.
+    pub(crate) async fn on_fiber<R>(func: impl FnOnce() -> R + Send) -> Result<R, ()> {
+        let mut slot = None;
+        let future = {
+            let async_state = ASYNC_STATE.read();
+            let current_poll_cx = async_state.current_poll_cx.get();
+            let current_suspend = async_state.current_suspend.get();
+            drop(async_state);
+            let stack = FiberStack::new(2 << 20).map_err(|_e| ())?;
+            let slot = &mut slot;
+            let fiber = Fiber::new(stack, move |keep_going, suspend| {
+                keep_going?;
+
+                unsafe {
+                    let _reset = Reset(current_suspend, *current_suspend);
+                    *current_suspend = suspend;
+                    *slot = Some(func());
+                    Ok(())
+                }
+            })
+            .map_err(|_e| ())?;
+
+            FiberFuture {
+                fiber,
+                current_poll_cx,
+            }
+        };
+        future.await?;
+
+        return Ok(slot.unwrap());
+    }
+}
+impl<'a> Future for FiberFuture<'a> {
+    type Output = Result<(), ()>;
+    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        unsafe {
+            let _reset = Reset(self.current_poll_cx, *self.current_poll_cx);
+            *self.current_poll_cx =
+                std::mem::transmute::<&mut Context<'_>, *mut Context<'static>>(cx);
+            match self.as_ref().fiber.resume(Ok(())) {
+                Ok(ret) => Poll::Ready(ret),
+                Err(_) => Poll::Pending,
             }
         }
     }
 }
-impl AsyncResult {
-    /// Waits a WasmEdge async execution.
-    pub fn wait(&self) {
-        unsafe {
-            ffi::WasmEdge_AsyncWait(self.inner.0);
+
+unsafe impl Send for FiberFuture<'_> {}
+
+/// Defines a async state.
+/// It contains the pointer to current poll context and current suspend.
+///
+#[derive(Debug)]
+pub(crate) struct AsyncState {
+    current_suspend: std::cell::UnsafeCell<*const Suspend<Result<(), ()>, (), Result<(), ()>>>,
+    current_poll_cx: std::cell::UnsafeCell<*mut Context<'static>>,
+}
+
+unsafe impl Send for AsyncState {}
+unsafe impl Sync for AsyncState {}
+
+impl AsyncState {
+    pub(crate) fn new() -> Self {
+        AsyncState {
+            current_suspend: std::cell::UnsafeCell::new(std::ptr::null()),
+            current_poll_cx: std::cell::UnsafeCell::new(std::ptr::null_mut()),
         }
     }
 
-    /// Waits a WasmEdge async execution with timeout.
-    ///
-    /// # Argument
-    ///
-    /// * `timeout` - timeout in milliseconds.
-    ///
-    /// # Error
-    ///
-    /// Returns true if the async execution has been completed, false if the timeout has been reached.
-    pub fn wait_for(&self, timeout: u64) -> bool {
-        unsafe { ffi::WasmEdge_AsyncWaitFor(self.inner.0, timeout) }
-    }
-
-    /// Cancels a WasmEdge async execution.
-    pub fn cancel(&self) {
-        unsafe {
-            ffi::WasmEdge_AsyncCancel(self.inner.0);
+    /// Create a AsyncCx.
+    /// If the pointer of poll context is null, then None is returned.
+    pub(crate) fn async_cx(&self) -> Option<AsyncCx> {
+        let poll_cx_box_ptr = self.current_poll_cx.get();
+        if poll_cx_box_ptr.is_null() {
+            return None;
         }
-    }
-
-    /// Waits and gets the result of WasmEdge async execution.
-    pub fn get_async(&self) -> WasmEdgeResult<Vec<WasmValue>> {
-        let returns_len = unsafe { ffi::WasmEdge_AsyncGetReturnsLength(self.inner.0) };
-        let mut returns = Vec::with_capacity(returns_len as usize);
-
-        unsafe {
-            check(ffi::WasmEdge_AsyncGet(
-                self.inner.0,
-                returns.as_mut_ptr(),
-                returns_len,
-            ))?;
-            returns.set_len(returns_len as usize);
+        let poll_cx_inner_ptr = unsafe { *poll_cx_box_ptr };
+        if poll_cx_inner_ptr.is_null() {
+            return None;
         }
 
-        Ok(returns.into_iter().map(Into::into).collect::<Vec<_>>())
+        Some(AsyncCx {
+            current_suspend: self.current_suspend.get(),
+            current_poll_cx: poll_cx_box_ptr,
+        })
     }
 }
 
+/// Defines a async context.
+///
 #[derive(Debug)]
-pub(crate) struct InnerAsyncResult(pub(crate) *mut ffi::WasmEdge_Async);
-unsafe impl Send for InnerAsyncResult {}
-unsafe impl Sync for InnerAsyncResult {}
+pub(crate) struct AsyncCx {
+    current_suspend: *mut *const Suspend<Result<(), ()>, (), Result<(), ()>>,
+    current_poll_cx: *mut *mut Context<'static>,
+}
+
+impl AsyncCx {
+    /// Block on a future.
+    ///
+    /// # Arguments
+    ///
+    /// * `future` - The future to block on.
+    ///
+    /// # Error
+    ///
+    /// If fail to suspend, then an error is returned.
+    pub(crate) unsafe fn block_on<U>(
+        &self,
+        mut future: Pin<&mut (dyn Future<Output = U> + Send)>,
+    ) -> Result<U, ()> {
+        let suspend = *self.current_suspend;
+        let _reset = Reset(self.current_suspend, suspend);
+        *self.current_suspend = ptr::null();
+        assert!(!suspend.is_null());
+
+        loop {
+            let future_result = {
+                let poll_cx = *self.current_poll_cx;
+                let _reset = Reset(self.current_poll_cx, poll_cx);
+                *self.current_poll_cx = ptr::null_mut();
+                assert!(!poll_cx.is_null());
+                future.as_mut().poll(&mut *poll_cx)
+            };
+
+            match future_result {
+                Poll::Ready(t) => break Ok(t),
+                Poll::Pending => {}
+            }
+            let res = (*suspend).suspend(());
+            res?;
+        }
+    }
+}

@@ -1,3 +1,13 @@
+//! This example demonstrates how to load and run wasm from file asynchronously.
+//!
+//! To run this example, use the following command:
+//!
+//! ```bash
+//! cd /wasmedge-root-dir/bindings/rust/
+//!
+//! cargo run -p wasmedge-sys --example async_run_wasm_from_file
+//! ```
+
 use wasmedge_sys::{Config, Vm, WasmValue};
 
 #[tokio::main]
@@ -20,8 +30,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let path = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
         .join("bindings/rust/wasmedge-sys/tests/data/fibonacci.wasm");
 
-    let fut1 = vm.run_wasm_from_file_async2(&path, "fib", [WasmValue::from_i32(20)]);
-    let fut2 = vm.run_wasm_from_file_async2(&path, "fib", [WasmValue::from_i32(5)]);
+    let fut1 = vm.run_wasm_from_file_async(&path, "fib", [WasmValue::from_i32(20)]);
+    let fut2 = vm.run_wasm_from_file_async(&path, "fib", [WasmValue::from_i32(5)]);
 
     let (ret1, ret2) = tokio::join!(fut1, fut2);
     let returns1 = ret1?;

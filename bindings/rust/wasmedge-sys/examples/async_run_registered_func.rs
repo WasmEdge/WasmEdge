@@ -1,3 +1,13 @@
+//! This example demonstrates how to call registered functions asynchronously.
+//!
+//! To run this example, use the following command:
+//!
+//! ```bash
+//! cd /wasmedge-root-dir/bindings/rust/
+//!
+//! cargo run -p wasmedge-sys --example async_run_registered_func
+//! ```
+
 use wasmedge_sys::{Config, Store, Vm, WasmValue};
 
 #[tokio::main]
@@ -29,9 +39,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     assert!(result.is_ok());
 
     // async run function
-    let fut1 = vm.run_registered_function_async2("extern", "fib", vec![WasmValue::from_i32(20)]);
+    let fut1 = vm.run_registered_function_async("extern", "fib", vec![WasmValue::from_i32(20)]);
 
-    let fut2 = vm.run_registered_function_async2("extern", "fib", vec![WasmValue::from_i32(5)]);
+    let fut2 = vm.run_registered_function_async("extern", "fib", vec![WasmValue::from_i32(5)]);
 
     let returns = tokio::join!(fut1, fut2);
 

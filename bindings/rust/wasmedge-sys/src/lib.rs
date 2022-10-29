@@ -142,8 +142,8 @@
 #[macro_use]
 extern crate lazy_static;
 
-use async_env::AsyncState;
 use parking_lot::{Mutex, RwLock};
+use r#async::AsyncState;
 use std::{collections::HashMap, env, sync::Arc};
 
 #[doc(hidden)]
@@ -214,8 +214,6 @@ pub use instance::{
 #[doc(inline)]
 pub use loader::Loader;
 #[doc(inline)]
-pub use r#async::AsyncResult;
-#[doc(inline)]
 pub use statistics::Statistics;
 #[doc(inline)]
 pub use store::Store;
@@ -225,7 +223,6 @@ pub use types::WasmValue;
 pub use validator::Validator;
 #[doc(inline)]
 pub use vm::Vm;
-mod async_env;
 use wasmedge_types::{error, WasmEdgeResult};
 
 /// Type alias for a boxed native function. This type is used in thread-safe cases.
@@ -237,18 +234,6 @@ pub type BoxedFn = Box<
         ) -> Result<Vec<WasmValue>, error::HostFuncError>
         + Send
         + Sync,
->;
-
-pub type AsyncBoxedFn = Box<
-    dyn Fn(
-            &CallingFrame,
-            Vec<WasmValue>,
-            *mut std::os::raw::c_void,
-        ) -> Box<
-            dyn std::future::Future<Output = Result<Vec<WasmValue>, error::HostFuncError>> + Send,
-        > + Send
-        + Sync
-        + 'static,
 >;
 
 lazy_static! {
@@ -263,10 +248,7 @@ lazy_static! {
 }
 
 lazy_static! {
-    static ref ASYNC_STATE: RwLock<AsyncState> = RwLock::new(AsyncState {
-        current_suspend: std::cell::UnsafeCell::new(std::ptr::null()),
-        current_poll_cx: std::cell::UnsafeCell::new(std::ptr::null_mut()),
-    });
+    static ref ASYNC_STATE: RwLock<AsyncState> = RwLock::new(AsyncState::new());
 }
 
 /// The object that is used to perform a [host function](crate::Function) is required to implement this trait.

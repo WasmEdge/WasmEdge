@@ -1,9 +1,10 @@
 //! Defines WasmEdge Function and FuncType structs.
 
 use crate::{
-    async_env::FiberFuture,
     error::{FuncError, HostFuncError, WasmEdgeError},
-    ffi, BoxedFn, CallingFrame, Engine, WasmEdgeResult, WasmValue, HOST_FUNCS,
+    ffi,
+    r#async::FiberFuture,
+    BoxedFn, CallingFrame, Engine, WasmEdgeResult, WasmValue, ASYNC_STATE, HOST_FUNCS,
 };
 use core::ffi::c_void;
 use parking_lot::Mutex;
@@ -199,6 +200,103 @@ impl Function {
         }
     }
 
+    /// Creates an async [host function](crate::Function) with the given function type.
+    ///
+    /// # Arguments
+    ///
+    /// * `ty` - The types of the arguments and returns of the target function.
+    ///
+    /// * `real_fn` - The pointer to the target function.
+    ///
+    /// * `data` - The additional data object to set to this host function context.
+    ///
+    /// * `cost` - The function cost in the [Statistics](crate::Statistics). Pass 0 if the calculation is not needed.
+    ///
+    /// # Error
+    ///
+    /// If fail to create a [Function], then an error is returned.
+    ///
+    /// # Example
+    ///
+    /// The example defines an async host function `real_add`.
+    ///
+    /// ```rust
+    /// #![feature(never_type)]
+    ///
+    /// use wasmedge_sys::{FuncType, Function, WasmValue, CallingFrame};
+    /// use wasmedge_types::{error::HostFuncError, ValType, WasmEdgeResult};
+    ///
+    /// fn real_add(
+    ///     _frame: &CallingFrame,
+    ///     input: Vec<WasmValue>,
+    ///     _data: *mut c_void,
+    /// ) -> Box<(dyn Future<Output = Result<Vec<WasmValue>, HostFuncError>> + Send + 'static)> {
+    ///     Box::new(async move {
+    ///         if input.len() != 3 {
+    ///             return Err(HostFuncError::User(1));
+    ///         }
+    ///
+    ///         let a = if input[1].ty() == ValType::I32 {
+    ///             input[1].to_i32()
+    ///         } else {
+    ///             1
+    ///         };
+    ///
+    ///         let b = if input[2].ty() == ValType::I32 {
+    ///             input[2].to_i32()
+    ///         } else {
+    ///             2
+    ///         };
+    ///         tokio::time::sleep(std::time::Duration::from_secs(4)).await;
+    ///
+    ///         let c = a + b;
+    ///         Ok(vec![WasmValue::from_i32(c)])
+    ///     })
+    /// }
+    ///
+    /// // create a FuncType
+    /// let func_ty = FuncType::create(vec![ValType::I32; 2], vec![ValType::I32]).expect("fail to create a FuncType");
+    ///
+    /// // create a Function instance
+    /// let func = Function::create_async::<!, _>(&func_ty, Box::new(real_add), None, 0).expect("fail to create a Function instance");
+    /// ```
+    pub fn create_async<T, F>(
+        ty: &FuncType,
+        real_fn: F,
+        data: Option<&mut T>,
+        cost: u64,
+    ) -> WasmEdgeResult<Self>
+    where
+        F: Fn(
+                &CallingFrame,
+                Vec<WasmValue>,
+                *mut std::os::raw::c_void,
+            ) -> Box<
+                dyn std::future::Future<
+                        Output = Result<Vec<WasmValue>, crate::error::HostFuncError>,
+                    > + Send,
+            > + Send
+            + Sync
+            + 'static,
+    {
+        Self::create(
+            ty,
+            Box::new(move |frame, args, data| {
+                let async_state = ASYNC_STATE.read();
+                let async_cx = async_state.async_cx().unwrap();
+                drop(async_state);
+                let mut future = Pin::from(real_fn(frame, args, data));
+                match unsafe { async_cx.block_on(future.as_mut()) } {
+                    Ok(Ok(ret)) => Ok(ret),
+                    Ok(Err(err)) => Err(err),
+                    Err(_err) => Err(HostFuncError::User(0x87)),
+                }
+            }),
+            data,
+            cost,
+        )
+    }
+
     /// Returns the underlying wasm type of this [Function].
     ///
     /// # Errors
@@ -293,6 +391,18 @@ impl Function {
         engine.run_func(self, args)
     }
 
+    /// Runs this host function asynchronously and returns the result.
+    ///
+    /// # Arguments
+    ///
+    /// * `engine` - The object implementing the [Engine](crate::Engine) trait.
+    ///
+    /// * `args` - The arguments passed to the host function.
+    ///
+    /// # Error
+    ///
+    /// If fail to run the host function, then an error is returned.
+    ///
     pub async fn call_async<E: Engine + Send + Sync>(
         &self,
         engine: &mut E,

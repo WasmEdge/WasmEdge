@@ -41,7 +41,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     )?;
 
     // create a VM context
-    let mut vm = Vm::create(None, None)?;
+    let vm = Vm::create(None, None)?;
 
     // load a wasm module from a in-memory bytes, and the loaded wasm module works as an anoymous
     // module (aka. active module in WasmEdge terminology)

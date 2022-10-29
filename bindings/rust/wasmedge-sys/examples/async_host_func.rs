@@ -24,11 +24,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 println!("Hello, world!");
                 tokio::time::sleep(std::time::Duration::from_secs(1)).await;
                 // Wrap the future with a `Timeout` set to expire in 10 milliseconds.
-                if let Err(_) = tokio::time::timeout(std::time::Duration::from_millis(100), async {
+                let res = tokio::time::timeout(std::time::Duration::from_millis(100), async {
                     tokio::time::sleep(std::time::Duration::from_secs(1)).await;
                 })
-                .await
-                {
+                .await;
+                if res.is_err() {
                     println!("did not receive value within 100 ms");
                 }
                 println!("Rust: Leaving Rust function real_add");
@@ -43,7 +43,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // run this function
     let mut executor = Executor::create(None, None)?;
 
-    let res = async_host_func.call_async(&mut executor, vec![]).await?;
-    dbg!(res);
+    async_host_func.call_async(&mut executor, vec![]).await?;
+
     Ok(())
 }

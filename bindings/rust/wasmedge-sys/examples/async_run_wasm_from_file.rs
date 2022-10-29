@@ -22,10 +22,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     assert!(config.interruptible_enabled());
 
     // create a Vm context with the given Config and Store
-    let result = Vm::create(Some(config), None);
-    assert!(result.is_ok());
-    let vm = result.unwrap();
-
+    let vm = Vm::create(Some(config), None)?;
     // run a function from a wasm file
     let path = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
         .join("bindings/rust/wasmedge-sys/tests/data/fibonacci.wasm");

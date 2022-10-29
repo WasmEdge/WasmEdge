@@ -298,7 +298,7 @@ mod tests {
         // create a Vm context with the given Config and Store
         let result = Vm::create(Some(config), Some(&mut store));
         assert!(result.is_ok());
-        let mut vm = result.unwrap();
+        let vm = result.unwrap();
 
         // register a wasm module from a wasm file
         let path = std::path::PathBuf::from(env!("WASMEDGE_DIR"))

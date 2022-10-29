@@ -97,8 +97,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 String::from("call_add"),
                 vec![add_ref, WasmValue::from_i32(5), WasmValue::from_i32(10)],
             )
-            .await;
-        dbg!(res);
+            .await
+            .unwrap();
+        assert_eq!(res[0].to_i32(), 15);
     })
     .await?;
     println!("main thread");

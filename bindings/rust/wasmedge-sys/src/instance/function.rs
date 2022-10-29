@@ -1,10 +1,9 @@
 //! Defines WasmEdge Function and FuncType structs.
 
 use crate::{
+    async_env::FiberFuture,
     error::{FuncError, HostFuncError, WasmEdgeError},
-    ffi,
-    r#async::FiberFuture,
-    BoxedFn, CallingFrame, Engine, WasmEdgeResult, WasmValue, ASYNC_STATE, HOST_FUNCS,
+    ffi, BoxedFn, CallingFrame, Engine, WasmEdgeResult, WasmValue, ASYNC_STATE, HOST_FUNCS,
 };
 use core::ffi::c_void;
 use parking_lot::Mutex;

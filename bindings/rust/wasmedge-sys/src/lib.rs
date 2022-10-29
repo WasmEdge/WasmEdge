@@ -142,8 +142,8 @@
 #[macro_use]
 extern crate lazy_static;
 
+use async_env::AsyncState;
 use parking_lot::{Mutex, RwLock};
-use r#async::AsyncState;
 use std::{collections::HashMap, env, sync::Arc};
 
 #[doc(hidden)]
@@ -155,6 +155,8 @@ pub mod ffi {
 pub mod ast_module;
 #[doc(hidden)]
 pub mod r#async;
+#[doc(hidden)]
+pub mod async_env;
 #[doc(hidden)]
 #[cfg(feature = "aot")]
 pub mod compiler;
@@ -213,6 +215,8 @@ pub use instance::{
 };
 #[doc(inline)]
 pub use loader::Loader;
+#[doc(inline)]
+pub use r#async::AsyncResult;
 #[doc(inline)]
 pub use statistics::Statistics;
 #[doc(inline)]

@@ -144,83 +144,95 @@ Expect<uint64_t> FileMgr::readU64() {
   return Result;
 }
 
-// Decode and read a signed int. See "include/loader/filemgr.h".
-Expect<int32_t> FileMgr::readS32() {
+template <typename RetType, size_t N> Expect<RetType> FileMgr::readSN() {
+  static_assert(N >= 8, "The N of S_N must have at least length of a byte");
+  static_assert(8 * sizeof(RetType) >= N,
+                "RetType cannot hold the full range of S_N");
+  static_assert(std::is_signed_v<RetType>,
+                "RetType of S_N must be signed type");
+
   if (Status != ErrCode::Value::Success) {
     return Unexpect(Status);
   }
   // Set the flag to the start offset.
   LastPos = Pos;
 
-  // Read and decode S32.
-  int32_t Result = 0;
-  uint32_t Offset = 0;
-  Byte Byte = 0x80;
-  while (Byte & 0x80) {
-    if (unlikely(Offset >= 32)) {
+  // Read and decode S_N.
+  RetType Result = 0;
+  size_t Offset = 0;
+  size_t RemainingBits = N;
+  while (true) {
+    if (RemainingBits <= 0) {
       Status = ErrCode::Value::IntegerTooLong;
       return Unexpect(Status);
     }
-    if (auto Res = testRead(1); unlikely(!Res)) {
+
+    // In the rest logic, RemainingBits must be at least 1.
+
+    WasmEdge::Byte Byte;
+    if (auto Res = readByte(); unlikely(!Res)) {
       return Unexpect(Res);
+    } else {
+      Byte = *Res;
     }
-    Byte = Data[Pos++];
-    const int32_t Mask = Offset == 28 ? INT32_C(0x0F) : INT32_C(0x7F);
-    Result |= (Byte & Mask) << Offset;
-    Offset += 7;
-  }
-  if (Offset == 35) {
-    // The signed-extend bits should be the same.
-    if (unlikely(((Byte & 0x70) != 0x70 && (Byte & 0x70) != 0) ||
-                 (Byte & 0x40) >> 6 != (Byte & 0x08) >> 3)) {
-      Status = ErrCode::Value::IntegerTooLarge;
-      return Unexpect(Status);
+
+    const WasmEdge::Byte HighestBitMask = 1 << 7;
+    const WasmEdge::Byte SecondHighestBitMask = 1 << 6;
+    if (Byte & HighestBitMask) {
+      // The byte has leading 1. It contains 7 bits payload.
+
+      if (unlikely(RemainingBits < 7)) {
+        Status = ErrCode::Value::IntegerTooLong;
+        return Unexpect(Status);
+      }
+
+      RetType Payload = Byte & (~HighestBitMask); // & 0b01111111
+      Result |= (Payload << Offset);
+      Offset += 7;
+      RemainingBits -= 7;
+    } else {
+      // The byte has leading 0. It will be the last byte.
+
+      // The number of bits that take effect in the byte. Since RemainingBits
+      // must be at least 1, EffectiveBits also must be at least 1. It is also
+      // at most 7.
+      size_t EffectiveBits = RemainingBits < 7 ? RemainingBits : 7;
+      RetType Payload;
+      if (Byte & SecondHighestBitMask) {
+        // The byte is signed.
+
+        if (Byte >= (1 << 7) - (1 << (EffectiveBits - 1))) {
+          Payload = Byte;
+          Payload -= (1 << 7);
+        } else {
+          Status = ErrCode::Value::IntegerTooLong;
+          return Unexpect(Status);
+        }
+      } else {
+        // The byte is unsigned.
+
+        if (Byte < (1 << (EffectiveBits - 1))) {
+          Payload = Byte;
+        } else {
+          Status = ErrCode::Value::IntegerTooLong;
+          return Unexpect(Status);
+        }
+      }
+      Result |= (Payload << Offset);
+      break;
     }
   }
-  if (Byte & 0x40 && Offset < 32) {
-    Result |= static_cast<int32_t>(UINT32_C(0xFFFFFFFF) << Offset);
-  }
+
   return Result;
 }
+
+Expect<int64_t> FileMgr::readS33() { return readSN<int64_t, 33>(); }
+
+// Decode and read a signed int. See "include/loader/filemgr.h".
+Expect<int32_t> FileMgr::readS32() { return readSN<int32_t, 32>(); }
 
 // Decode and read a signed long long int. See "include/loader/filemgr.h".
-Expect<int64_t> FileMgr::readS64() {
-  if (Status != ErrCode::Value::Success) {
-    return Unexpect(Status);
-  }
-  // Set the flag to the start offset.
-  LastPos = Pos;
-
-  // Read and decode S64.
-  int64_t Result = 0;
-  uint64_t Offset = 0;
-  Byte Byte = 0x80;
-  while (Byte & 0x80) {
-    if (unlikely(Offset >= 64)) {
-      Status = ErrCode::Value::IntegerTooLong;
-      return Unexpect(Status);
-    }
-    if (auto Res = testRead(1); unlikely(!Res)) {
-      return Unexpect(Res);
-    }
-    Byte = Data[Pos++];
-    const int64_t Mask = Offset == 63 ? INT64_C(0x01) : INT64_C(0x7F);
-    Result |= (Byte & Mask) << Offset;
-    Offset += 7;
-  }
-  if (Offset == 70) {
-    // The signed-extend bits should be the same.
-    if (unlikely(((Byte & 0x7E) != 0x7E && (Byte & 0x7E) != 0) ||
-                 (Byte & 0x40) >> 6 != (Byte & 0x01))) {
-      Status = ErrCode::Value::IntegerTooLarge;
-      return Unexpect(Status);
-    }
-  }
-  if (Byte & 0x40 && Offset < 64) {
-    Result |= static_cast<int64_t>(UINT64_C(0xFFFFFFFFFFFFFFFF) << Offset);
-  }
-  return Result;
-}
+Expect<int64_t> FileMgr::readS64() { return readSN<int64_t, 64>(); }
 
 // Copy bytes to a float. See "include/loader/filemgr.h".
 Expect<float> FileMgr::readF32() {
@@ -275,8 +287,8 @@ Expect<std::string> FileMgr::readName() {
   if (unlikely(Status != ErrCode::Value::Success)) {
     return Unexpect(Status);
   }
-  // If UTF-8 validation or readU32() or readBytes() failed, the last succeeded
-  // reading offset will be at the start of `Name`.
+  // If UTF-8 validation or readU32() or readBytes() failed, the last
+  // succeeded reading offset will be at the start of `Name`.
   LastPos = Pos;
 
   // Read the name size.
@@ -411,7 +423,8 @@ Expect<void> FileMgr::jumpContent() {
   return {};
 }
 
-// Helper function for reading number of bytes. See "include/loader/filemgr.h".
+// Helper function for reading number of bytes. See
+// "include/loader/filemgr.h".
 Expect<void> FileMgr::readBytes(Span<Byte> Buffer) {
   if (unlikely(Status != ErrCode::Value::Success)) {
     return Unexpect(Status);

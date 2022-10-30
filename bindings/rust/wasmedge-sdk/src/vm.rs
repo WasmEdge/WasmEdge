@@ -127,7 +127,7 @@ impl Vm {
     ///
     /// If fail to register the target WASM, then an error is returned.
     pub fn register_module_from_file(
-        mut self,
+        self,
         mod_name: impl AsRef<str>,
         file: impl AsRef<Path>,
     ) -> WasmEdgeResult<Self> {

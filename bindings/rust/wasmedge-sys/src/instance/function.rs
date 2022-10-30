@@ -224,6 +224,8 @@ impl Function {
     ///
     /// use wasmedge_sys::{FuncType, Function, WasmValue, CallingFrame};
     /// use wasmedge_types::{error::HostFuncError, ValType, WasmEdgeResult};
+    /// use std::future::Future;
+    /// use std::os::raw::c_void;
     ///
     /// fn real_add(
     ///     _frame: &CallingFrame,

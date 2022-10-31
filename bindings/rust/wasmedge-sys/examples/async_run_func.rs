@@ -59,7 +59,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let fut1 = vm.run_function_async2(String::from("fib"), vec![WasmValue::from_i32(20)]);
 
     let fut2 = vm.run_function_async2(String::from("fib"), vec![WasmValue::from_i32(5)]);
-    // println!("{:?}", fut1.await);
+
     let returns = tokio::join!(fut1, fut2);
 
     let (ret1, ret2) = returns;

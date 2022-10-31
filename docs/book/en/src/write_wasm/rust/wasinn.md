@@ -131,7 +131,7 @@ export WASMEDGE_PLUGIN_PATH=$(pwd)/WasmEdge-{{ wasmedge_version }}-Linux/lib/was
 
 > The WasmEdge installer would install the `manylinux2014` version for Ubuntu. If you install WasmEdge with the installer or for the `manylinux2014` version, you should get the `manylinux2014` version plug-in.
 >
-> We also provided [various TensorFlow-Lite pre-built libraries](<https://github.com/second-state/WasmEdge-tensorflow-deps/releases/tag/>{{ wasmedge_version }}), such as `manylinux2014_aarch64`.
+> We also provided [various TensorFlow-Lite pre-built libraries](https://github.com/second-state/WasmEdge-tensorflow-deps/releases/tag/0.11.1), such as `manylinux2014_aarch64`.
 
 ## Write WebAssembly Using WASI-NN
 

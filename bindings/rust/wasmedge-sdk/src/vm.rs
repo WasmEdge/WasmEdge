@@ -14,7 +14,7 @@ use crate::{
     Module, Statistics, WasmEdgeResult, WasmValue,
 };
 use std::{marker::PhantomData, path::Path};
-use wasmedge_sys::{self as sys, AsyncResult, Engine as sys_engine};
+use wasmedge_sys::{self as sys, Engine as sys_engine};
 
 /// A [Vm] defines a virtual environment for managing WebAssembly programs.
 ///
@@ -252,26 +252,44 @@ impl Vm {
         Ok(returns)
     }
 
-    pub fn run_func_async(
+    /// Asynchronously runs an exported WASM function by name. The WASM function is hosted by an anonymous or named [module](crate::Module) in the [store](crate::Store) of the [Vm].
+    ///
+    /// # Arguments
+    ///
+    /// * `mod_name` - The name of the WASM module that holds the target host function. If the target host function is hosted by an anonymous module, then `None` is used.
+    ///
+    /// * `func_name` - The name of the exported WASM function to run.
+    ///
+    /// * `params` - The parameter values passed to the exported WASM function.
+    ///
+    /// # Error
+    ///
+    /// If fail to run the WASM function, then an error is returned.
+    pub async fn run_func_async<M, N, A>(
         &self,
-        mod_name: Option<&str>,
-        func_name: impl AsRef<str>,
-        args: impl IntoIterator<Item = sys::WasmValue>,
-    ) -> WasmEdgeResult<AsyncResult> {
+        mod_name: Option<M>,
+        func_name: N,
+        args: A,
+    ) -> WasmEdgeResult<Vec<WasmValue>>
+    where
+        M: AsRef<str> + Send,
+        N: AsRef<str> + Send,
+        A: IntoIterator<Item = WasmValue> + Send,
+    {
         match mod_name {
             Some(mod_name) => {
                 // run a function in the registered module
-                return self.inner.run_registered_function_async(
-                    mod_name,
-                    func_name.as_ref(),
-                    args,
-                );
+                let fut =
+                    self.inner
+                        .run_registered_function_async(mod_name, func_name.as_ref(), args);
+                return fut.await;
             }
             None => {
                 // run a function in the active module
-                return self.inner.run_function_async(func_name.as_ref(), args);
+                let fut = self.inner.run_function_async(func_name.as_ref(), args);
+                return fut.await;
             }
-        };
+        }
     }
 
     /// Returns the type of a WASM function.

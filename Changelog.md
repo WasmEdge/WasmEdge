@@ -1,4 +1,4 @@
-### 0.11.2-rc.1 (2022-10-28)
+### 0.11.2-rc.2 (2022-10-31)
 
 Features:
 
@@ -32,6 +32,9 @@ Fixed issues:
   * If users use the `wasmedgec` tool to compile the universal WASM file, the AOT compiled WASM data will be appended into the output.
   * In the cases of duplicated AOT compiled universal WASM file which has more than 1 section of AOT compiled WASM data, the WasmEdge runtime will use the latest appended one when execution.
 * Hided the local symbols of the WasmEdge shared library.
+* Loaded the default plug-in path from the path related to the WasmEdge shared library.
+  * This only fixed on the MacOS and Linux platforms now.
+* Updated the minimum CMake required version on Android.
 
 Known issues:
 
@@ -56,9 +59,9 @@ Tests:
 
 Thank all the contributors that made this release possible!
 
-Abhinandan Udupa, Gustavo Ye, Harry Chiang, Hiroaki Nakamura, Kenvi Zhu, LFsWang, Shen-Ta Hsieh, Shreyas Atre, Xin Liu, YiYing He, abhinandanudupa, dm4, he11c, hydai, vincent, zhlhahaha
+Abhinandan Udupa, Gustavo Ye, HangedFish, Harry Chiang, Hiroaki Nakamura, Kenvi Zhu, LFsWang, Shen-Ta Hsieh, Shreyas Atre, Xin Liu, YiYing He, abhinandanudupa, dm4, he11c, hydai, vincent, yyy1000, zhlhahaha
 
-If you want to build from source, please use WasmEdge-0.11.2-rc.1-src.tar.gz instead of the zip or tarball provided by GitHub directly.
+If you want to build from source, please use WasmEdge-0.11.2-rc.2-src.tar.gz instead of the zip or tarball provided by GitHub directly.
 
 ### 0.11.1 (2022-10-03)
 

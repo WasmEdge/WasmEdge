@@ -1,8 +1,8 @@
-# WasmEdge Go v0.11.0 API references
+# WasmEdge Go v0.11.1 API references
 
 The followings are the guides to working with the WasmEdge-Go SDK.
 
-**This document is for the `v0.11.0` version. For the older `v0.10.1` version, please refer to the [document here](0.10.1/ref.md).**
+**This document is for the `v0.11.1` version. For the older `v0.10.1` version, please refer to the [document here](0.10.1/ref.md).**
 
 **Developers can refer to [here to upgrade to v0.11.0](0.10.1/upgrade_to_0.11.0.md).**
 
@@ -59,13 +59,13 @@ go version go1.16.5 linux/amd64
 Developers must [install the WasmEdge shared library](../../quick_start/install.md) with the same `WasmEdge-go` release or pre-release version.
 
 ```bash
-curl -sSf https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh | bash -s -- -v 0.11.0
+curl -sSf https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh | bash -s -- -v 0.11.1
 ```
 
 For the developers need the `TensorFlow` or `Image` extension for `WasmEdge-go`, please install the `WasmEdge` with extensions:
 
 ```bash
-curl -sSf https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh | bash -s -- -e tf,image -v 0.11.0
+curl -sSf https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh | bash -s -- -e tf,image -v 0.11.1
 ```
 
 Noticed that the `TensorFlow` and `Image` extensions are only for the `Linux` platforms.
@@ -76,7 +76,7 @@ After installation, developers can use the `source` command to update the includ
 After the WasmEdge installation, developers can get the `WasmEdge-go` package and build it in your Go project directory.
 
 ```bash
-go get github.com/second-state/WasmEdge-go/wasmedge@v0.11.0
+go get github.com/second-state/WasmEdge-go/wasmedge@v0.11.1
 go build
 ```
 
@@ -760,7 +760,7 @@ This example uses the [fibonacci.wasm](https://raw.githubusercontent.com/WasmEdg
     Then you can build and run the Golang application with the WasmEdge Golang SDK: (the 21 Fibonacci number is 17711 in 0-based index)
 
     ```bash
-    $ go get github.com/second-state/WasmEdge-go/wasmedge@v0.11.0
+    $ go get github.com/second-state/WasmEdge-go/wasmedge@v0.11.1
     $ go build
     $ ./wasmedge_test
     Get fibonacci[21]: 17711
@@ -1100,7 +1100,7 @@ WasmEdge VM provides APIs for developers to register and export any WASM modules
     Then you can build and run: (the 25th Fibonacci number is 121393 in 0-based index)
 
     ```bash
-    $ go get github.com/second-state/WasmEdge-go/wasmedge@v0.11.0
+    $ go get github.com/second-state/WasmEdge-go/wasmedge@v0.11.1
     $ go build
     $ ./wasmedge_test
     Get fibonacci[25]: 121393
@@ -1150,7 +1150,7 @@ WasmEdge VM provides APIs for developers to register and export any WASM modules
     Then you can build and run: (the 20th Fibonacci number is 10946 in 0-based index)
 
     ```bash
-    $ go get github.com/second-state/WasmEdge-go/wasmedge@v0.11.0
+    $ go get github.com/second-state/WasmEdge-go/wasmedge@v0.11.1
     $ go build
     $ ./wasmedge_test
     Get the result: 10946
@@ -1217,7 +1217,7 @@ WasmEdge VM provides APIs for developers to register and export any WASM modules
     Then you can build and run: (the 25th Fibonacci number is 121393 in 0-based index)
 
     ```bash
-    $ go get github.com/second-state/WasmEdge-go/wasmedge@v0.11.0
+    $ go get github.com/second-state/WasmEdge-go/wasmedge@v0.11.1
     $ go build
     $ ./wasmedge_test
     Get the result: 121393
@@ -1319,7 +1319,7 @@ The `VM` object supplies the APIs to retrieve the instances.
     Then you can build and run: (the only exported function in `fibonacci.wasm` is `fib`)
 
     ```bash
-    $ go get github.com/second-state/WasmEdge-go/wasmedge@v0.11.0
+    $ go get github.com/second-state/WasmEdge-go/wasmedge@v0.11.1
     $ go build
     $ ./wasmedge_test
     Exported function name: fib
@@ -1477,7 +1477,7 @@ func main() {
 Then you can build and run: (the 18th Fibonacci number is 1346269 in 30-based index)
 
 ```bash
-$ go get github.com/second-state/WasmEdge-go/wasmedge@v0.11.0
+$ go get github.com/second-state/WasmEdge-go/wasmedge@v0.11.1
 $ go build
 $ ./wasmedge_test
 Exported function name: fib
@@ -2088,7 +2088,7 @@ In WasmEdge-go, developers can create the `Function`, `Memory`, `Table`, and `Gl
     Then you can build and run the Golang application with the WasmEdge Golang SDK:
 
     ```bash
-    $ go get github.com/second-state/WasmEdge-go/wasmedge@v0.11.0
+    $ go get github.com/second-state/WasmEdge-go/wasmedge@v0.11.1
     $ go build
     $ ./wasmedge_test
     [2022-08-26 15:06:40.384] [error] user defined failed: user defined error code, Code: 0x15be
@@ -2304,7 +2304,7 @@ In WasmEdge-go, developers can create the `Function`, `Memory`, `Table`, and `Gl
     Then you can build and run the Golang application with the WasmEdge Golang SDK:
 
     ```bash
-    $ go get github.com/second-state/WasmEdge-go/wasmedge@v0.11.0
+    $ go get github.com/second-state/WasmEdge-go/wasmedge@v0.11.1
     $ go build
     $ ./wasmedge_test
     Get the result: 6912
@@ -2408,7 +2408,7 @@ In WasmEdge-go, developers can create the `Function`, `Memory`, `Table`, and `Gl
     Then you can build and run the Golang application with the WasmEdge Golang SDK:
 
     ```bash
-    $ go get github.com/second-state/WasmEdge-go/wasmedge@v0.11.0
+    $ go get github.com/second-state/WasmEdge-go/wasmedge@v0.11.1
     $ go build
     $ ./wasmedge_test
     Get the result: 6912

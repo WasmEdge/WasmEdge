@@ -24,12 +24,12 @@ wasmedge-types = {path = "../wasmedge-types", version = "0.3"}
 wasmtime-fiber = "2"
 
 [build-dependencies]
-bindgen = {version = "0.60.1", default-features = false, features = ["runtime"]}
+bindgen = {version = "0.61", default-features = false, features = ["runtime"]}
 cmake = "0.1"
 
 [dev-dependencies]
-tokio = {version = "1", features = ["full"]}
 anyhow = "1"
+tokio = {version = "1", features = ["full"]}
 
 [features]
 aot = []

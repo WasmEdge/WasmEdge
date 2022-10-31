@@ -142,7 +142,6 @@
 #[macro_use]
 extern crate lazy_static;
 
-use async_env::AsyncState;
 use parking_lot::{Mutex, RwLock};
 use std::{collections::HashMap, env, sync::Arc};
 
@@ -155,8 +154,6 @@ pub mod ffi {
 pub mod ast_module;
 #[doc(hidden)]
 pub mod r#async;
-#[doc(hidden)]
-pub mod async_env;
 #[doc(hidden)]
 #[cfg(feature = "aot")]
 pub mod compiler;
@@ -216,8 +213,6 @@ pub use instance::{
 #[doc(inline)]
 pub use loader::Loader;
 #[doc(inline)]
-pub use r#async::AsyncResult;
-#[doc(inline)]
 pub use statistics::Statistics;
 #[doc(inline)]
 pub use store::Store;
@@ -252,7 +247,7 @@ lazy_static! {
 }
 
 lazy_static! {
-    static ref ASYNC_STATE: RwLock<AsyncState> = RwLock::new(AsyncState::new());
+    static ref ASYNC_STATE: RwLock<r#async::AsyncState> = RwLock::new(r#async::AsyncState::new());
 }
 
 /// The object that is used to perform a [host function](crate::Function) is required to implement this trait.

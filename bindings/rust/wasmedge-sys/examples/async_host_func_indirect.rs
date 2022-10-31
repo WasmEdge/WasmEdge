@@ -13,7 +13,7 @@
 //! To run this example, use the following command:
 //!
 //! ```bash
-//! cd /wasmedge-root-dir/bindings/rust/
+//! cd <wasmedge-root-dir>/bindings/rust/
 //!
 //! cargo run -p wasmedge-sys --example async_host_func_indirect
 //! ```
@@ -60,21 +60,17 @@ fn real_add(
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let mut hostfunc_path = std::env::current_dir()?.join("funcs.wasm");
-
-    if !hostfunc_path.exists() {
-        // modify path for cargo test
-        hostfunc_path = std::env::current_dir()?.join("examples/data/funcs.wasm");
-    }
+    let wasm_file = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
+        .join("bindings/rust/wasmedge-sys/examples/data/funcs.wasm");
 
     // load module from file
     let config = Config::create()?;
     let loader = Loader::create(Some(config))?;
-    let module = loader.from_file(hostfunc_path)?;
+    let module = loader.from_file(wasm_file)?;
 
     // create a Vm context
     let config = Config::create()?;
-    let mut store = Store::create().expect("Unable to create store");
+    let mut store = Store::create()?;
     let mut vm = Vm::create(Some(config), Some(&mut store))?;
 
     let func_ty = FuncType::create(

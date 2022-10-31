@@ -1,4 +1,5 @@
-//! Defines WasmEdge async structs.
+//! Defines WasmEdge async structso.
+
 use std::{
     future::Future,
     pin::Pin,
@@ -6,23 +7,13 @@ use std::{
     task::{Context, Poll},
 };
 use wasmtime_fiber::{Fiber, FiberStack, Suspend};
-
 use crate::ASYNC_STATE;
-struct Reset<T: Copy>(*mut T, T);
 
-impl<T: Copy> Drop for Reset<T> {
-    fn drop(&mut self) {
-        unsafe {
-            *self.0 = self.1;
-        }
-    }
-}
 /// Defines a FiberFuture.
 pub(crate) struct FiberFuture<'a> {
     fiber: Fiber<'a, Result<(), ()>, (), Result<(), ()>>,
     current_poll_cx: *mut *mut Context<'static>,
 }
-
 impl<'a> FiberFuture<'a> {
     /// Create a fiber to execute the given function.
     ///
@@ -78,24 +69,18 @@ impl<'a> Future for FiberFuture<'a> {
         }
     }
 }
-
 unsafe impl Send for FiberFuture<'_> {}
 
 type FiberSuspend = Suspend<Result<(), ()>, (), Result<(), ()>>;
 
-/// Defines a async state.
-/// It contains the pointer to current poll context and current suspend.
-///
+/// Defines a async state that contains the pointer to current poll context and current suspend.
 #[derive(Debug)]
 pub(crate) struct AsyncState {
     current_suspend: std::cell::UnsafeCell<*const FiberSuspend>,
     current_poll_cx: std::cell::UnsafeCell<*mut Context<'static>>,
 }
-
-unsafe impl Send for AsyncState {}
-unsafe impl Sync for AsyncState {}
-
 impl AsyncState {
+    /// Creates a new async state.
     pub(crate) fn new() -> Self {
         AsyncState {
             current_suspend: std::cell::UnsafeCell::new(std::ptr::null()),
@@ -103,7 +88,8 @@ impl AsyncState {
         }
     }
 
-    /// Create a AsyncCx.
+    /// Returns an async execution context. 
+    /// 
     /// If the pointer of poll context is null, then None is returned.
     pub(crate) fn async_cx(&self) -> Option<AsyncCx> {
         let poll_cx_box_ptr = self.current_poll_cx.get();
@@ -121,25 +107,25 @@ impl AsyncState {
         })
     }
 }
+unsafe impl Send for AsyncState {}
+unsafe impl Sync for AsyncState {}
 
-/// Defines a async context.
-///
+/// Defines an async execution context.
 #[derive(Debug)]
 pub(crate) struct AsyncCx {
     current_suspend: *mut *const Suspend<Result<(), ()>, (), Result<(), ()>>,
     current_poll_cx: *mut *mut Context<'static>,
 }
-
 impl AsyncCx {
-    /// Block on a future.
+    /// Runs a future to completion.
     ///
     /// # Arguments
     ///
-    /// * `future` - The future to block on.
+    /// * `future` - The future to run.
     ///
     /// # Error
     ///
-    /// If fail to suspend, then an error is returned.
+    /// If fail to run, then an error is returned.
     pub(crate) unsafe fn block_on<U>(
         &self,
         mut future: Pin<&mut (dyn Future<Output = U> + Send)>,
@@ -164,6 +150,15 @@ impl AsyncCx {
             }
             let res = (*suspend).suspend(());
             res?;
+        }
+    }
+}
+
+struct Reset<T: Copy>(*mut T, T);
+impl<T: Copy> Drop for Reset<T> {
+    fn drop(&mut self) {
+        unsafe {
+            *self.0 = self.1;
         }
     }
 }

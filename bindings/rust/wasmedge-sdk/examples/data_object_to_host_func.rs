@@ -25,7 +25,7 @@ fn say_hello(
 ) -> Result<Vec<WasmValue>, HostFuncError> {
     println!("Hello, world!");
 
-    println!("data: {:?}", data);
+    println!("data: {data:?}");
 
     // get executor from caller
     let executor = caller.executor();
@@ -82,7 +82,7 @@ fn main() -> anyhow::Result<()> {
     )?;
 
     // loads a wasm module from the given in-memory bytes
-    let module = Module::from_bytes(None, &wasm_bytes)?;
+    let module = Module::from_bytes(None, wasm_bytes)?;
 
     // create an executor
     let mut executor = Executor::new(None, None)?;

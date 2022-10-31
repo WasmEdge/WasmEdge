@@ -20,7 +20,7 @@ impl From<u32> for RefType {
         match value {
             112 => RefType::FuncRef,
             111 => RefType::ExternRef,
-            _ => panic!("[wasmedge-types] Invalid WasmEdge_RefType: {:#X}", value),
+            _ => panic!("[wasmedge-types] Invalid WasmEdge_RefType: {value:#X}"),
         }
     }
 }
@@ -37,7 +37,7 @@ impl From<i32> for RefType {
         match value {
             112 => RefType::FuncRef,
             111 => RefType::ExternRef,
-            _ => panic!("[wasmedge-types] Invalid WasmEdge_RefType: {:#X}", value),
+            _ => panic!("[wasmedge-types] Invalid WasmEdge_RefType: {value:#X}"),
         }
     }
 }
@@ -88,7 +88,7 @@ impl From<u32> for ValType {
             112 => ValType::FuncRef,
             111 => ValType::ExternRef,
             64 => ValType::None,
-            _ => panic!("[wasmedge-types] Invalid WasmEdge_ValType: {:#X}", value),
+            _ => panic!("[wasmedge-types] Invalid WasmEdge_ValType: {value:#X}"),
         }
     }
 }
@@ -117,7 +117,7 @@ impl From<i32> for ValType {
             112 => ValType::FuncRef,
             111 => ValType::ExternRef,
             64 => ValType::None,
-            _ => panic!("[wasmedge-types] Invalid WasmEdge_ValType: {:#X}", value),
+            _ => panic!("[wasmedge-types] Invalid WasmEdge_ValType: {value:#X}"),
         }
     }
 }
@@ -151,7 +151,7 @@ impl From<u32> for Mutability {
         match value {
             0 => Mutability::Const,
             1 => Mutability::Var,
-            _ => panic!("[wasmedge-types] Invalid WasmEdge_Mutability: {:#X}", value),
+            _ => panic!("[wasmedge-types] Invalid WasmEdge_Mutability: {value:#X}"),
         }
     }
 }
@@ -168,7 +168,7 @@ impl From<i32> for Mutability {
         match value {
             0 => Mutability::Const,
             1 => Mutability::Var,
-            _ => panic!("[wasmedge-types] Invalid WasmEdge_Mutability: {:#X}", value),
+            _ => panic!("[wasmedge-types] Invalid WasmEdge_Mutability: {value:#X}"),
         }
     }
 }
@@ -212,7 +212,7 @@ impl From<u32> for CompilerOptimizationLevel {
             3 => CompilerOptimizationLevel::O3,
             4 => CompilerOptimizationLevel::Os,
             5 => CompilerOptimizationLevel::Oz,
-            _ => panic!("Unknown CompilerOptimizationLevel value: {}", val),
+            _ => panic!("Unknown CompilerOptimizationLevel value: {val}"),
         }
     }
 }
@@ -237,7 +237,7 @@ impl From<i32> for CompilerOptimizationLevel {
             3 => CompilerOptimizationLevel::O3,
             4 => CompilerOptimizationLevel::Os,
             5 => CompilerOptimizationLevel::Oz,
-            _ => panic!("Unknown CompilerOptimizationLevel value: {}", val),
+            _ => panic!("Unknown CompilerOptimizationLevel value: {val}"),
         }
     }
 }
@@ -268,7 +268,7 @@ impl From<u32> for CompilerOutputFormat {
         match val {
             0 => CompilerOutputFormat::Native,
             1 => CompilerOutputFormat::Wasm,
-            _ => panic!("Unknown CompilerOutputFormat value: {}", val),
+            _ => panic!("Unknown CompilerOutputFormat value: {val}"),
         }
     }
 }
@@ -285,7 +285,7 @@ impl From<i32> for CompilerOutputFormat {
         match val {
             0 => CompilerOutputFormat::Native,
             1 => CompilerOutputFormat::Wasm,
-            _ => panic!("Unknown CompilerOutputFormat value: {}", val),
+            _ => panic!("Unknown CompilerOutputFormat value: {val}"),
         }
     }
 }
@@ -309,7 +309,7 @@ impl From<u32> for HostRegistration {
         match val {
             0 => HostRegistration::Wasi,
             1 => HostRegistration::WasmEdgeProcess,
-            _ => panic!("Unknown WasmEdge_HostRegistration value: {}", val),
+            _ => panic!("Unknown WasmEdge_HostRegistration value: {val}"),
         }
     }
 }
@@ -370,7 +370,7 @@ impl std::fmt::Display for ExternalInstanceType {
             ExternalInstanceType::Memory(_) => "memory",
             ExternalInstanceType::Global(_) => "global",
         };
-        write!(f, "{}", message)
+        write!(f, "{message}")
     }
 }
 

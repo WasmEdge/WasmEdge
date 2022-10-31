@@ -45,17 +45,16 @@ The following proposals is under development and may be supported in the future:
 
 WasmEdge implements the following [WASI proposals](https://github.com/WebAssembly/WASI/blob/main/Proposals.md).
 
-| Proposal                       | Platforms                                                                       |
-| ------------------------------ | ------------------------------------------------------------------------------- |
-| [Sockets][]                    | `x86_64 Linux`, `aarch64 Linux` (since `0.10.0`)                                |
-| [Crypto][]                     | `x86_64 Linux`, `aarch64 Linux` (since `0.10.1`)                                |
-| [Machine Learning (wasi-nn)][] | `x86_64 Linux`, OpenVINO (since `0.10.1`) and PyTorch (since `0.11.1`) backends |
-| [proxy-wasm][]                 | `x86_64 Linux (Interpreter only)` (since `0.8.2`)                               |
+| Proposal                       | Platforms                                                                                                          |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------------------ |
+| [Sockets][]                    | `x86_64 Linux`, `aarch64 Linux` (since `0.10.0`)                                                                   |
+| [Crypto][]                     | `x86_64 Linux`, `aarch64 Linux` (since `0.10.1`)                                                                   |
+| [Machine Learning (wasi-nn)][] | `x86_64 Linux`, OpenVINO (since `0.10.1`), PyTorch (since `0.11.1`), and TensorFlow-Lite (since `0.11.2`) backends |
+| [proxy-wasm][]                 | `x86_64 Linux (Interpreter only)` (since `0.8.2`)                                                                  |
 
 The following proposals is under development and may be supported in the future:
 
 * TensorFlow backend of `WASI-NN`
-* TensorFlow-Lite backend of `WASI-NN`
 
 [Sockets]: https://github.com/WebAssembly/wasi-sockets
 [Crypto]: https://github.com/WebAssembly/wasi-crypto

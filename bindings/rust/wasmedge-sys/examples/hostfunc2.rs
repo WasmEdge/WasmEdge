@@ -45,7 +45,7 @@ fn real_add(_frame: &CallingFrame, input: Vec<WasmValue>) -> Result<Vec<WasmValu
     };
 
     let c = a + b;
-    println!("Rust: calcuating in real_add c: {:?}", c);
+    println!("Rust: calcuating in real_add c: {c:?}");
 
     println!("Rust: Leaving Rust function real_add");
     Ok(vec![WasmValue::from_i32(c)])
@@ -86,7 +86,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // load wasm from binary
     let loader = Loader::create(Some(config))?;
-    let module = loader.from_bytes(&wasm_binary)?;
+    let module = loader.from_bytes(wasm_binary)?;
 
     // create a Vm context
     let config = Config::create().expect("fail to create Config instance");
@@ -106,9 +106,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         Ok(returns) => {
             let ret = returns[0].to_i32();
             assert_eq!(ret, 1234 + 5678);
-            println!("result from call_add: {}", ret)
+            println!("result from call_add: {ret}")
         }
-        Err(e) => println!("error from call_add{:?}", e),
+        Err(e) => println!("error from call_add{e:?}"),
     };
 
     Ok(())

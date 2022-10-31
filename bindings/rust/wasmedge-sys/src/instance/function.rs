@@ -2,8 +2,7 @@
 
 use crate::{
     error::{FuncError, HostFuncError, WasmEdgeError},
-    ffi, BoxedFn, BoxedFnSingle, CallingFrame, Engine, WasmEdgeResult, WasmValue, HOST_FUNCS,
-    HOST_FUNCS_SINGLE,
+    ffi, BoxedFn, CallingFrame, Engine, WasmEdgeResult, WasmValue, HOST_FUNCS,
 };
 use core::ffi::c_void;
 use parking_lot::Mutex;
@@ -68,65 +67,6 @@ extern "C" fn wraper_fn(
                 },
             }
         }
-    }
-}
-
-// Wrapper function for single-threaded scenarios.
-extern "C" fn wraper_fn_single(
-    key_ptr: *mut c_void,
-    _data: *mut c_void,
-    call_frame_ctx: *const ffi::WasmEdge_CallingFrameContext,
-    params: *const ffi::WasmEdge_Value,
-    param_len: u32,
-    returns: *mut ffi::WasmEdge_Value,
-    return_len: u32,
-) -> ffi::WasmEdge_Result {
-    let frame = CallingFrame::create(call_frame_ctx);
-
-    let key = key_ptr as *const usize as usize;
-    let mut result = Err(HostFuncError::Runtime(0));
-
-    let input = {
-        let raw_input = unsafe {
-            std::slice::from_raw_parts(
-                params,
-                param_len
-                    .try_into()
-                    .expect("len of params should not greater than usize"),
-            )
-        };
-        raw_input.iter().map(|r| (*r).into()).collect::<Vec<_>>()
-    };
-
-    let return_len = return_len
-        .try_into()
-        .expect("len of returns should not greater than usize");
-    let raw_returns = unsafe { std::slice::from_raw_parts_mut(returns, return_len) };
-
-    HOST_FUNCS_SINGLE.with(|f| {
-        let host_functions = f.borrow();
-        let real_fn = host_functions
-            .get(&key)
-            .expect("host function should be there");
-        result = real_fn(&frame, input);
-    });
-
-    match result {
-        Ok(v) => {
-            assert!(v.len() == return_len);
-            for (idx, item) in v.into_iter().enumerate() {
-                raw_returns[idx] = item.as_raw();
-            }
-            ffi::WasmEdge_Result { Code: 0 }
-        }
-        Err(err) => match err {
-            HostFuncError::User(code) => unsafe {
-                ffi::WasmEdge_ResultGen(ffi::WasmEdge_ErrCategory_UserLevelError, code)
-            },
-            HostFuncError::Runtime(code) => unsafe {
-                ffi::WasmEdge_ResultGen(ffi::WasmEdge_ErrCategory_WASM, code)
-            },
-        },
     }
 }
 
@@ -246,68 +186,6 @@ impl Function {
                 Some(wraper_fn),
                 key as *const usize as *mut c_void,
                 data,
-                cost,
-            )
-        };
-
-        match ctx.is_null() {
-            true => Err(Box::new(WasmEdgeError::Func(FuncError::Create))),
-            false => Ok(Self {
-                inner: InnerFunc(ctx),
-                registered: false,
-            }),
-        }
-    }
-
-    /// Creates a [host function](crate::Function) with the given function type.
-    ///
-    /// N.B. that this function is used for single-threaded scenarios. If you would like to use hostfunc call chaining design, you should use this method to create a [Function] instance. You can find the example of hostfunc call chaining in the `examples` directory of `wasmedge-sys`.
-    ///
-    /// # Arguments
-    ///
-    /// * `ty` - The types of the arguments and returns of the target function.
-    ///
-    /// * `real_fn` - The pointer to the target function.
-    ///
-    /// * `cost` - The function cost in the [Statistics](crate::Statistics). Pass 0 if the calculation is not needed.
-    ///
-    /// # Error
-    ///
-    /// If fail to create a [Function], then an error is returned.
-    ///
-    pub fn create_single_thread(
-        ty: &FuncType,
-        real_fn: BoxedFnSingle,
-        cost: u64,
-    ) -> WasmEdgeResult<Self> {
-        let mut key = 0usize;
-
-        HOST_FUNCS_SINGLE.with(|f| {
-            let mut host_functions = f.borrow_mut();
-            if host_functions.len() >= host_functions.capacity() {
-                return Err(WasmEdgeError::Func(FuncError::CreateBinding(format!(
-                    "The number of the host functions reaches the upper bound: {}",
-                    host_functions.capacity()
-                ))));
-            }
-
-            // generate key for the coming host function
-            let mut rng = rand::thread_rng();
-            key = rng.gen::<usize>();
-            while host_functions.contains_key(&key) {
-                key = rng.gen::<usize>();
-            }
-            host_functions.insert(key, real_fn);
-
-            Ok(())
-        })?;
-
-        let ctx = unsafe {
-            ffi::WasmEdge_FunctionInstanceCreateBinding(
-                ty.inner.0,
-                Some(wraper_fn_single),
-                key as *const usize as *mut c_void,
-                std::ptr::null_mut(),
                 cost,
             )
         };
@@ -726,7 +604,7 @@ mod tests {
         ) -> Result<Vec<WasmValue>, HostFuncError> {
             println!("Rust: Entering Rust function real_add");
 
-            println!("data: {:?}", data);
+            println!("data: {data:?}");
 
             if input.len() != 2 {
                 return Err(HostFuncError::User(1));
@@ -745,7 +623,7 @@ mod tests {
             };
 
             let c = a + b;
-            println!("Rust: calcuating in real_add c: {:?}", c);
+            println!("Rust: calcuating in real_add c: {c:?}");
 
             println!("Rust: Leaving Rust function real_add");
             Ok(vec![WasmValue::from_i32(c)])
@@ -964,7 +842,7 @@ mod tests {
         };
 
         let c = a + b;
-        println!("Rust: calcuating in real_add c: {:?}", c);
+        println!("Rust: calcuating in real_add c: {c:?}");
 
         println!("Rust: Leaving Rust function real_add");
         Ok(vec![WasmValue::from_i32(c)])
@@ -1000,7 +878,7 @@ mod tests {
             };
 
             let c = a + b;
-            println!("Rust: calcuating in real_add c: {:?}", c);
+            println!("Rust: calcuating in real_add c: {c:?}");
 
             println!("Rust: Leaving Rust function real_add");
             Ok(vec![WasmValue::from_i32(c)])

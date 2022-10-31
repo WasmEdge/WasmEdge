@@ -11,6 +11,22 @@ You can find more detail about the WASI-NN proposal in [Reference](#reference).
 
 In this section, we will use [the example repository](https://github.com/second-state/WasmEdge-WASINN-examples) to demonstrate how to use the [WASI-NN rust crate](https://crates.io/crates/wasi-nn) to write the WASM and run an image classification demo with WasmEdge WASI-NN plug-in.
 
+* [Prerequisites](#prerequisites)
+  * [OpenVINO backend](#get-wasmedge-with-wasi-nn-plug-in-openvino-backend)
+  * [PyTorch beckend](#get-wasmedge-with-wasi-nn-plug-in-pytorch-backend)
+  * TensorFlow backend (Work in progress)
+  * [TensorFlow-Lite backend](#get-wasmedge-with-wasi-nn-plug-in-tensorflow-lite-backend)
+* [Write WebAssembly Using WASI-NN](#write-webassembly-using-wasi-nn)
+  * [OpenVINO backend example](#using-wasi-nn-with-openvino-backend-in-rust)
+  * [PyTorch backend example](#using-wasi-nn-with-pytorch-backend-in-rust)
+  * TensorFlow backend example (Work in progress)
+  * [TensorFlow-Lite backend example](#using-wasi-nn-with-tensorflow-lite-backend-in-rust)
+* [Run the examples](#run)
+  * [Run OpenVINO backend example](#openvino-backend-example)
+  * [Run PyTorch backend example](#pytorch-backend-example)
+  * Run TensorFlow backend example (Work in progress)
+  * [Run TensorFlow-Lite backend example](#tensorflow-lite-backend-example)
+
 ## Prerequisites
 
 Currently, WasmEdge used OpenVINO™ or PyTorch as the WASI-NN backend implementation. For using WASI-NN on WasmEdge, you need to install [OpenVINO™](https://docs.openvino.ai/2021.4/openvino_docs_install_guides_installing_openvino_linux.html#)(2021) or [PyTorch 1.8.2 LTS](https://pytorch.org/get-started/locally/) for the backend.
@@ -76,6 +92,8 @@ export PATH=$PATH:$(pwd)/WasmEdge-{{ wasmedge_version }}-Linux/bin
 export WASMEDGE_PLUGIN_PATH=$(pwd)/WasmEdge-{{ wasmedge_version }}-Linux/lib/wasmedge
 ```
 
+> The WasmEdge installer would install the `manylinux2014` version for Ubuntu. If you install WasmEdge with the installer or for the `manylinux2014` version, you should get the `manylinux2014` version plug-in and `libtorch`.
+
 ### Get WasmEdge with WASI-NN Plug-in TensorFlow-Lite Backend
 
 First you should [install the TensorFlow-Lite dependency](../../contribute/build_from_src/plugin_wasi_nn.md#build-wasmedge-with-wasi-nn-tensorflow-lite-backend):
@@ -110,6 +128,10 @@ export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$(pwd)/WasmEdge-{{ wasmedge_version }}-L
 export PATH=$PATH:$(pwd)/WasmEdge-{{ wasmedge_version }}-Linux/bin
 export WASMEDGE_PLUGIN_PATH=$(pwd)/WasmEdge-{{ wasmedge_version }}-Linux/lib/wasmedge
 ```
+
+> The WasmEdge installer would install the `manylinux2014` version for Ubuntu. If you install WasmEdge with the installer or for the `manylinux2014` version, you should get the `manylinux2014` version plug-in.
+>
+> We also provided [various TensorFlow-Lite pre-built libraries](https://github.com/second-state/WasmEdge-tensorflow-deps/releases/tag/0.11.1), such as `manylinux2014_aarch64`.
 
 ## Write WebAssembly Using WASI-NN
 
@@ -178,7 +200,7 @@ We can find that the outputted WASM files import the necessary WASI-NN functions
   ...
 ```
 
-### Using WASI-NN with OpenVINO™ Backend in Rust
+### Using WASI-NN with OpenVINO Backend in Rust
 
 The [main.rs](https://github.com/second-state/WasmEdge-WASINN-examples/tree/master/openvino-mobilenet-image/rust/src/main.rs) is the full example Rust source.
 

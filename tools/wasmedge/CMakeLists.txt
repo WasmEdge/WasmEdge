@@ -3,6 +3,7 @@
 
 if(WASMEDGE_BUILD_AOT_RUNTIME)
   wasmedge_add_executable(wasmedgec
+    wincli_helper.cpp
     wasmedgec.cpp
   )
 
@@ -24,6 +25,7 @@ if(WASMEDGE_BUILD_AOT_RUNTIME)
 endif()
 
 wasmedge_add_executable(wasmedge
+  wincli_helper.cpp
   wasmedger.cpp
 )
 

@@ -22,9 +22,9 @@ WasmEdge (之前名为 SSVM) 是为边缘计算优化的轻量级、高性能、
   
 # 快速开始指引
 
-🚀 [安装](docs/install.md) WasmEdge\
-🤖 [Build](docs/build-zh.md) 并[贡献](docs/CONTRIBUTING.md)给 WasmEdge\
-⌨️  [从 CLI 跑](docs/run.md)一个独立的 Wasm 程序或 [JavaScript 程序](docs/run_javascript.md) \
+🚀 [安装](docs/book/zh/src/start/install.md) WasmEdge\
+🤖 [Build](docs/book/zh/src/extend/build.md) 并[贡献](docs/book/en/src/contribute.md)给 WasmEdge\
+⌨️  [从 CLI 跑](docs/book/zh/src/start/cli.md)一个独立的 Wasm 程序或 [JavaScript 程序](docs/book/zh/src/intro/use/js.md) \
 🔌 [嵌入一个 Wasm 函数](https://www.secondstate.io/articles/getting-started-with-rust-function/)在你的[Node.js](https://github.com/second-state/wasm-learning/tree/master/ssvm/file-example)， [Go语言](https://github.com/second-state/WasmEdge-go/tree/master/examples/go_mtcnn)或 Rust 应用里 \
 🛠 使用 [Docker 工具](https://www.secondstate.io/articles/manage-webassembly-apps-in-wasmedge-using-docker-tools/)、[数据流框架](https://www.secondstate.io/articles/yomo-wasmedge-real-time-data-streams/), 和 [区块链](https://medium.com/ethereum-on-steroids/running-ethereum-smart-contracts-in-a-substrate-blockchain-56fbc27fc95a) 管理和编排 Wasm runtimes
 
@@ -34,7 +34,7 @@ WasmEdge Runtime为其执行的 Wasm 字节码程序提供了一个有良好定�
 
 <div align="center">
   
-**查看 WasmEdge 的[应用场景](docs/use_cases-zh.md)。**
+**查看 WasmEdge 的[应用场景](docs/book/zh/src/intro/use.md)。**
 
 </div>
 

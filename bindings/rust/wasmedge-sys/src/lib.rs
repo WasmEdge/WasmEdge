@@ -143,7 +143,7 @@
 extern crate lazy_static;
 
 use parking_lot::{Mutex, RwLock};
-use std::{cell::RefCell, collections::HashMap, env, sync::Arc};
+use std::{collections::HashMap, env, sync::Arc};
 
 #[doc(hidden)]
 #[allow(warnings)]
@@ -245,21 +245,6 @@ lazy_static! {
                 .map(|s| s
                     .parse::<usize>()
                     .expect("MAX_HOST_FUNC_LENGTH should be a positive integer."))
-                .unwrap_or(500)
-        ));
-}
-
-/// Type alias for a boxed native function. This type is used in non-thread-safe cases.
-pub type BoxedFnSingle =
-    Box<dyn Fn(&CallingFrame, Vec<WasmValue>) -> Result<Vec<WasmValue>, error::HostFuncError>>;
-
-thread_local! {
-    static HOST_FUNCS_SINGLE: RefCell<HashMap<usize, BoxedFnSingle>> =
-        RefCell::new(HashMap::with_capacity(
-            env::var("MAX_HOST_FUNC_SINGLE_LENGTH")
-                .map(|s| s
-                    .parse::<usize>()
-                    .expect("MAX_HOST_FUNC_SINGLE_LENGTH should be a number"))
                 .unwrap_or(500)
         ));
 }

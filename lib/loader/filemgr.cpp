@@ -205,7 +205,7 @@ template <typename RetType, size_t N> Expect<RetType> FileMgr::readSN() {
           Payload = Byte;
           Payload -= (1 << 7);
         } else {
-          Status = ErrCode::Value::IntegerTooLong;
+          Status = ErrCode::Value::IntegerTooLarge;
           return Unexpect(Status);
         }
       } else {
@@ -214,7 +214,7 @@ template <typename RetType, size_t N> Expect<RetType> FileMgr::readSN() {
         if (Byte < (1 << (EffectiveBits - 1))) {
           Payload = Byte;
         } else {
-          Status = ErrCode::Value::IntegerTooLong;
+          Status = ErrCode::Value::IntegerTooLarge;
           return Unexpect(Status);
         }
       }

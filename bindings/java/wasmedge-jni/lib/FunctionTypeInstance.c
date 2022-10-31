@@ -1,6 +1,6 @@
-//
-// Created by Kenvi Zhu on 2022-03-14.
-//
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: 2019-2022 Second State INC
+
 #include "FunctionTypeInstance.h"
 #include "FunctionTypeContext.h"
 #include "MemoryInstanceContext.h"

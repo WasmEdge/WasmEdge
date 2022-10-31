@@ -1,6 +1,5 @@
-//
-// Created by Kenvi Zhu on 2021-11-19.
-//
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: 2019-2022 Second State INC
 
 #include "../jni/org_wasmedge_VMContext.h"
 #include "ConfigureContext.h"

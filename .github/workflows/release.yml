@@ -126,6 +126,11 @@ jobs:
             output_path: plugins/wasi_nn
             output_bin: libwasmedgePluginWasiNN.so
             tar_name: wasi_nn-pytorch
+          - name: WASI-NN TensorFlowLite
+            backend: TensorFlowLite
+            output_path: plugins/wasi_nn
+            output_bin: libwasmedgePluginWasiNN.so
+            tar_name: wasi_nn-tensorflowlite
           - name: WASI-Crypto
             output_path: plugins/wasi_crypto
             output_bin: libwasmedgePluginWasiCrypto.so
@@ -357,6 +362,11 @@ jobs:
             --dockerfile-context utils/docker \
             --tag ${{ steps.docker_env.outputs.docker_image }} \
             --http-probe-off \
+            --include-bin /usr/lib/x86_64-linux-gnu/libnss_compat.so.2 \
+            --include-bin /usr/lib/x86_64-linux-gnu/libnss_dns.so.2 \
+            --include-bin /usr/lib/x86_64-linux-gnu/libnss_files.so.2 \
+            --include-bin /usr/lib/x86_64-linux-gnu/libresolv.so.2 \
+            --include-path /etc/services \
             ${{ matrix.include_bin }} \
             --cbo-build-arg VERSION="${{ needs.create_release.outputs.version }}" \
             --cbo-label org.opencontainers.image.title="${{ github.event.repository.name }}" \

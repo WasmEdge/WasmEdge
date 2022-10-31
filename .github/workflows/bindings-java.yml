@@ -1,22 +1,26 @@
 name: binding-java
 
 concurrency:
-  group: bindings-java-${{ github.head_ref }}
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
   cancel-in-progress: true
 
 on:
   push:
     branches:
       - master
-    paths-ignore:
-      - "docs/**"
-      - "**.md"
+    paths:
+      - ".github/workflows/bindings-java.yml"
+      - "bindings/java/**"
+      - "include/api/wasmedge/**"
+      - "lib/api/**"
   pull_request:
     branches:
       - master
-    paths-ignore:
-      - "docs/**"
-      - "**.md"
+    paths:
+      - ".github/workflows/bindings-java.yml"
+      - "bindings/java/**"
+      - "include/api/wasmedge/**"
+      - "lib/api/**"
 
 jobs:
   build_ubuntu:
@@ -115,7 +119,7 @@ jobs:
           export CC=clang
           export CXX=clang++
           rm -rf build
-          cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DWASMEDGE_BUILD_TESTS=$BUILD_TESTS -DWASMEDGE_LINK_LLVM_STATIC=ON -DWASMEDGE_BUILD_PACKAGE="TGZ" .
+          cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Release .
           cmake --build build
 
       - name: Test WasmEdge
@@ -151,6 +155,7 @@ jobs:
           ./gradlew assemble
 
       - name: Run Tests
+        if: ${{ false }}
         run: |
           export LIB_JNI_PATH=$(pwd)/bindings/java/wasmedge-jni/build
           cd bindings/java/wasmedge-java

@@ -37,7 +37,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             .expect("fail to compute fib(4)");
 
         let fib4 = returns[0].to_i32();
-        println!("fib(4) by child thread: {}", fib4);
+        println!("fib(4) by child thread: {fib4}");
 
         fib4
     });
@@ -51,7 +51,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             .expect("fail to compute fib(5)");
 
         let fib5 = returns[0].to_i32();
-        println!("fib(5) by child thread: {}", fib5);
+        println!("fib(5) by child thread: {fib5}");
 
         fib5
     });

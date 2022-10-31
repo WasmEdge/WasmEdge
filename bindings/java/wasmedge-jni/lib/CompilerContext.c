@@ -1,6 +1,6 @@
-//
-// Created by Kenvi Zhu on 2021-12-16.
-//
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: 2019-2022 Second State INC
+
 #include "../jni/org_wasmedge_CompilerContext.h"
 #include "ConfigureContext.h"
 #include "common.h"

@@ -42,7 +42,7 @@ fn expand_host_func(item_fn: &syn::ItemFn) -> syn::Result<proc_macro2::TokenStre
 
     // * define the signature of inner function
     // name of inner function
-    let inner_fn_name_literal = format!("inner_{}", wrapper_fn_name_literal);
+    let inner_fn_name_literal = format!("inner_{wrapper_fn_name_literal}");
     let inner_fn_name_ident = syn::Ident::new(&inner_fn_name_literal, item_fn.sig.span());
     // arguments of inner function
     let inner_fn_inputs = item_fn.sig.inputs.clone();
@@ -169,7 +169,7 @@ fn expand_async_host_func(item_fn: &syn::ItemFn) -> syn::Result<proc_macro2::Tok
         },
         FnArg::Receiver(_) => panic!("argument is a receiver"),
     });
-    let inner_fn_name_literal = format!("inner_{}", outer_fn_name_literal);
+    let inner_fn_name_literal = format!("inner_{outer_fn_name_literal}");
     let inner_fn_name_ident = syn::Ident::new(&inner_fn_name_literal, item_fn.sig.span());
     let inner_fn_inputs = &item_fn.sig.inputs;
     let inner_fn_return = &item_fn.sig.output;
@@ -227,7 +227,7 @@ fn expand_async_host_func2(item_fn: &syn::ItemFn) -> syn::Result<proc_macro2::To
         },
         FnArg::Receiver(_) => panic!("argument is a receiver"),
     });
-    let inner_fn_name_literal = format!("inner_{}", outer_fn_name_literal);
+    let inner_fn_name_literal = format!("inner_{outer_fn_name_literal}");
     let inner_fn_name_ident = syn::Ident::new(&inner_fn_name_literal, item_fn.sig.span());
     let inner_fn_inputs = &item_fn.sig.inputs;
     let inner_fn_return = &item_fn.sig.output;
@@ -279,7 +279,7 @@ fn sys_async_expand_host_func(item_fn: &syn::ItemFn) -> syn::Result<proc_macro2:
         },
         FnArg::Receiver(_) => panic!("argument is a receiver"),
     });
-    let inner_fn_name_literal = format!("inner_{}", outer_fn_name_literal);
+    let inner_fn_name_literal = format!("inner_{outer_fn_name_literal}");
     let inner_fn_name_ident = syn::Ident::new(&inner_fn_name_literal, item_fn.sig.span());
     let inner_fn_inputs = &item_fn.sig.inputs;
     let inner_fn_return = &item_fn.sig.output;
@@ -337,7 +337,7 @@ fn sys_expand_async_host_func2(item_fn: &syn::ItemFn) -> syn::Result<proc_macro2
         },
         FnArg::Receiver(_) => panic!("argument is a receiver"),
     });
-    let inner_fn_name_literal = format!("inner_{}", outer_fn_name_literal);
+    let inner_fn_name_literal = format!("inner_{outer_fn_name_literal}");
     let inner_fn_name_ident = syn::Ident::new(&inner_fn_name_literal, item_fn.sig.span());
     let inner_fn_inputs = &item_fn.sig.inputs;
     let inner_fn_return = &item_fn.sig.output;
@@ -387,7 +387,7 @@ fn sys_expand_host_func(item_fn: &syn::ItemFn) -> syn::Result<proc_macro2::Token
 
     // * define the signature of inner function
     // name of inner function
-    let inner_fn_name_literal = format!("inner_{}", wrapper_fn_name_literal);
+    let inner_fn_name_literal = format!("inner_{wrapper_fn_name_literal}");
     let inner_fn_name_ident = syn::Ident::new(&inner_fn_name_literal, item_fn.sig.span());
     // arguments of inner function
     let inner_fn_inputs = item_fn.sig.inputs.clone();

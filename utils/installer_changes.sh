@@ -4,7 +4,6 @@ RED=$'\e[0;31m'
 GREEN=$'\e[0;32m'
 YELLOW=$'\e[0;33m'
 NC=$'\e[0m' # No Color
-PYTHON_EXECUTABLE="${PYTHON_EXECUTABLE:=}"
 
 test_diff_env() {
     local _path_=$1

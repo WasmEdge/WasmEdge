@@ -252,11 +252,11 @@ impl Vm {
         Ok(returns)
     }
 
-    /// Asynchronously runs an exported WASM function by name. The WASM function is hosted by an anonymous or named [module](crate::Module) in the [store](crate::Store) of the [Vm].
+    /// Asynchronously runs an exported WASM function registered in a named or active module.
     ///
     /// # Arguments
     ///
-    /// * `mod_name` - The name of the WASM module that holds the target host function. If the target host function is hosted by an anonymous module, then `None` is used.
+    /// * `mod_name` - The name of the module instance, which holds the target exported function. If `None`, then the active module is used.
     ///
     /// * `func_name` - The name of the exported WASM function to run.
     ///
@@ -318,7 +318,7 @@ impl Vm {
         Ok(func_ty.into())
     }
 
-    /// Invokes an exported function from the given wasm file.
+    /// Runs an exported function from the given wasm file.
     ///
     /// # Arguments
     ///
@@ -336,12 +336,41 @@ impl Vm {
         file: impl AsRef<Path>,
         func_name: impl AsRef<str>,
         args: impl IntoIterator<Item = sys::WasmValue>,
-    ) -> WasmEdgeResult<Vec<sys::WasmValue>> {
+    ) -> WasmEdgeResult<Vec<WasmValue>> {
         self.inner
             .run_wasm_from_file(file.as_ref(), func_name.as_ref(), args)
     }
 
-    /// Invokes an exported function from the given in-memory wasm bytes.
+    /// Asynchronously runs an exported function from the given wasm file.
+    ///
+    /// # Arguments
+    ///
+    /// * `file` - The WASM file.
+    ///
+    /// * `func_name` - The name of the target exported function to run.
+    ///
+    /// * `args` - The arguments passed to the target exported function.
+    ///
+    /// # Error
+    ///
+    /// If fail to run, then an error is returned.
+    pub async fn run_wasm_from_file_async<P, N, A>(
+        &self,
+        path: P,
+        func_name: N,
+        args: A,
+    ) -> WasmEdgeResult<Vec<WasmValue>>
+    where
+        P: AsRef<Path>,
+        N: AsRef<str> + Send,
+        A: IntoIterator<Item = WasmValue> + Send,
+    {
+        self.inner
+            .run_wasm_from_file_async(path.as_ref(), func_name.as_ref(), args)
+            .await
+    }
+
+    /// Runs an exported function from the given in-memory wasm bytes.
     ///
     /// # Arguments
     ///
@@ -364,7 +393,35 @@ impl Vm {
             .run_wasm_from_bytes(bytes, func_name.as_ref(), args)
     }
 
-    /// Invokes an exported function from the given [compiled module](crate::Module).
+    /// Runs an exported function from the given in-memory wasm bytes.
+    ///
+    /// # Arguments
+    ///
+    /// * `bytes` - The in-memory wasm bytes.
+    ///
+    /// * `func_name` - The name of the target exported function to run.
+    ///
+    /// * `args` - The arguments passed to the target exported function.
+    ///
+    /// # Error
+    ///
+    /// If fail to run, then an error is returned.
+    pub async fn run_func_from_bytes_async<N, A>(
+        &self,
+        bytes: &[u8],
+        func_name: N,
+        args: A,
+    ) -> WasmEdgeResult<Vec<WasmValue>>
+    where
+        N: AsRef<str> + Send,
+        A: IntoIterator<Item = WasmValue> + Send,
+    {
+        self.inner
+            .run_wasm_from_bytes_async(bytes, func_name.as_ref(), args)
+            .await
+    }
+
+    /// Runs an exported function from the given [compiled module](crate::Module).
     ///
     /// # Arguments
     ///
@@ -385,6 +442,34 @@ impl Vm {
     ) -> WasmEdgeResult<Vec<sys::WasmValue>> {
         self.inner
             .run_wasm_from_module(module.inner, func_name.as_ref(), args)
+    }
+
+    /// Runs an exported function from the given [compiled module](crate::Module).
+    ///
+    /// # Arguments
+    ///
+    /// * `module` - A [compiled module](crate::Module).
+    ///
+    /// * `func_name` - The name of the target exported function to run.
+    ///
+    /// * `args` - The arguments passed to the target exported function.
+    ///
+    /// # Error
+    ///
+    /// If fail to run, then an error is returned.
+    pub async fn run_func_from_module_async<N, A>(
+        &mut self,
+        module: Module,
+        func_name: N,
+        params: A,
+    ) -> WasmEdgeResult<Vec<WasmValue>>
+    where
+        N: AsRef<str> + Send,
+        A: IntoIterator<Item = WasmValue> + Send,
+    {
+        self.inner
+            .run_wasm_from_module_async(module.inner, func_name, params)
+            .await
     }
 
     /// Returns the count of the named [module instances](crate::Instance) in this [store](crate::Store).

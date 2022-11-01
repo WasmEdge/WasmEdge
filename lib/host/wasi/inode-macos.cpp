@@ -1283,7 +1283,7 @@ Epoller::Epoller(__wasi_size_t Count, int Fd) {
   } else {
     emplace(Fd);
   }
-  cleanup = false;
+  Cleanup = false;
   Events.reserve(Count);
 }
 

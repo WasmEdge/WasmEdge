@@ -231,7 +231,7 @@ WasiExpect<Poller> INode::pollOneoff(__wasi_size_t) noexcept {
   return WasiUnexpect(__WASI_ERRNO_NOSYS);
 }
 
-WasiExpect<Epoller> INode::epollOneoff(__wasi_size_t, int Fd) noexcept {
+WasiExpect<Epoller> INode::epollOneoff(__wasi_size_t, int) noexcept {
   return WasiUnexpect(__WASI_ERRNO_NOSYS);
 }
 

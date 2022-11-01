@@ -1220,11 +1220,11 @@ Environ::pollOneoff(__wasi_size_t NSubscriptions) noexcept {
 
 inline WasiExpect<EVEpoller>
 Environ::epollOneoff(__wasi_size_t NSubscriptions) noexcept {
-  auto evepoller =
+  auto Evepoller =
       VINode::epollOneoff(NSubscriptions, RegistrationFd)
           .map([this](VEpoller &&P) { return EVEpoller(std::move(P), *this); });
-  RegistrationFd = evepoller.value().getFd();
-  return evepoller;
+  RegistrationFd = Evepoller.value().getFd();
+  return Evepoller;
 }
 
 } // namespace WASI

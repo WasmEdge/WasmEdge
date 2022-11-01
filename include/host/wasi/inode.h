@@ -48,7 +48,7 @@ struct FdHolder {
   FdHolder(const FdHolder &) = delete;
   FdHolder &operator=(const FdHolder &) = delete;
   FdHolder(FdHolder &&RHS) noexcept
-      : Fd(std::exchange(RHS.Fd, -1)), cleanup(RHS.cleanup) {}
+      : Fd(std::exchange(RHS.Fd, -1)), Cleanup(RHS.Cleanup) {}
   FdHolder &operator=(FdHolder &&RHS) noexcept {
     using std::swap;
     swap(Fd, RHS.Fd);
@@ -57,12 +57,12 @@ struct FdHolder {
 
   constexpr FdHolder() noexcept = default;
   ~FdHolder() noexcept {
-    if (cleanup) {
+    if (Cleanup) {
       reset();
     }
   }
-  explicit constexpr FdHolder(int Fd, bool cleanup = true) noexcept
-      : Fd(Fd), cleanup(cleanup) {}
+  explicit constexpr FdHolder(int Fd, bool Cleanup = true) noexcept
+      : Fd(Fd), Cleanup(Cleanup) {}
   constexpr bool ok() const noexcept { return Fd >= 0; }
   void reset() noexcept;
   int release() noexcept { return std::exchange(Fd, -1); }
@@ -72,7 +72,7 @@ struct FdHolder {
   }
   int getFd() noexcept { return Fd; }
   int Fd = -1;
-  bool cleanup = true;
+  bool Cleanup = true;
 };
 
 struct DirHolder {

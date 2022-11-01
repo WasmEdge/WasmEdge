@@ -1502,7 +1502,7 @@ Epoller::Epoller(__wasi_size_t Count, int fd) {
   } else {
     emplace(fd);
   }
-  cleanup = false;
+  Cleanup = false;
 #if !__GLIBC_PREREQ(2, 9)
   if (auto Res = ::fcntl(Fd, F_SETFD, FD_CLOEXEC); unlikely(Res != 0)) {
     reset();
@@ -1755,10 +1755,10 @@ Epoller::read(const INode &Fd, __wasi_userdata_t UserData,
   EPollEvent.events |= EPOLLRDHUP;
 #endif
   EPollEvent.data.fd = Fd.Fd;
-  // check if fd exists
   // insert read with fd * 2
-  auto events = EPollEvent.events;
-  auto [IterGlobal, AddedGlobal] = Registration.emplace(Fd.Fd * 2, events);
+  auto CurrentEvents = EPollEvent.events;
+  auto [IterGlobal, AddedGlobal] =
+      Registration.emplace(Fd.Fd * 2, CurrentEvents);
   auto [Iter, Added] = FdDatas.emplace(Fd.Fd, FdData(EPollEvent.events));
   auto WriteFlag = Registration.count(Fd.Fd * 2 + 1);
   if (AddedGlobal) {
@@ -1811,8 +1811,9 @@ Epoller::write(const INode &Fd, __wasi_userdata_t UserData,
 #endif
   EPollEvent.data.fd = Fd.Fd;
   // insert write with fd * 2 + 1
-  auto events = EPollEvent.events;
-  auto [IterGlobal, AddedGlobal] = Registration.emplace(Fd.Fd * 2 + 1, events);
+  auto CurrentEvents = EPollEvent.events;
+  auto [IterGlobal, AddedGlobal] =
+      Registration.emplace(Fd.Fd * 2 + 1, CurrentEvents);
   auto ReadFlag = Registration.count(Fd.Fd * 2);
   auto [Iter, Added] = FdDatas.emplace(Fd.Fd, FdData(EPollEvent.events));
   if (AddedGlobal) {
@@ -1855,9 +1856,9 @@ Epoller::wait(CallbackType Callback,
     return WasiUnexpect(__WASI_ERRNO_NOMEM);
   }
   std::vector<int> SavedFds;
-  for (auto pair : Registration) {
-    if (pair.first % 2 == 0) {
-      SavedFds.emplace_back(pair.first / 2);
+  for (auto Pair : Registration) {
+    if (Pair.first % 2 == 0) {
+      SavedFds.emplace_back(Pair.first / 2);
     }
   }
   std::vector<int> IncomingFds;
@@ -1873,10 +1874,10 @@ Epoller::wait(CallbackType Callback,
   std::set_difference(SavedFds.begin(), SavedFds.end(), IncomingFds.begin(),
                       IncomingFds.end(), std::back_inserter(Difference));
 
-  for (auto fd : Difference) {
-    ::epoll_ctl(this->Fd, EPOLL_CTL_DEL, fd, nullptr);
-    Registration.erase(fd * 2);
-    Registration.erase(fd * 2 + 1);
+  for (auto Fd : Difference) {
+    ::epoll_ctl(this->Fd, EPOLL_CTL_DEL, Fd, nullptr);
+    Registration.erase(Fd * 2);
+    Registration.erase(Fd * 2 + 1);
   }
 
   const int Count =

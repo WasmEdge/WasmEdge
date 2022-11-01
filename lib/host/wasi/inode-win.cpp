@@ -1676,6 +1676,10 @@ WasiExpect<Poller> INode::pollOneoff(__wasi_size_t) noexcept {
   return WasiUnexpect(__WASI_ERRNO_NOSYS);
 }
 
+WasiExpect<Epoller> INode::epollOneoff(__wasi_size_t, int) noexcept {
+  return WasiUnexpect(__WASI_ERRNO_NOSYS);
+}
+
 static bool EnsureWSAStartup() {
   static bool WSALoad = false;
   static WSADATA WSAData;
@@ -2203,6 +2207,29 @@ WasiExpect<void> Poller::write(const INode &, __wasi_userdata_t) noexcept {
 }
 
 WasiExpect<void> Poller::wait(CallbackType) noexcept {
+  return WasiUnexpect(__WASI_ERRNO_NOSYS);
+}
+
+Epoller::Epoller(__wasi_size_t Count, int) { Events.reserve(Count); }
+
+WasiExpect<void> Epoller::clock(__wasi_clockid_t, __wasi_timestamp_t,
+                                __wasi_timestamp_t, __wasi_subclockflags_t,
+                                __wasi_userdata_t) noexcept {
+  return WasiUnexpect(__WASI_ERRNO_NOSYS);
+}
+
+WasiExpect<void> Epoller::read(const INode &, __wasi_userdata_t,
+                               std::unordered_map<int, uint32_t> &) noexcept {
+  return WasiUnexpect(__WASI_ERRNO_NOSYS);
+}
+
+WasiExpect<void> Epoller::write(const INode &, __wasi_userdata_t,
+                                std::unordered_map<int, uint32_t> &) noexcept {
+  return WasiUnexpect(__WASI_ERRNO_NOSYS);
+}
+
+WasiExpect<void> Epoller::wait(CallbackType,
+                               std::unordered_map<int, uint32_t> &) noexcept {
   return WasiUnexpect(__WASI_ERRNO_NOSYS);
 }
 

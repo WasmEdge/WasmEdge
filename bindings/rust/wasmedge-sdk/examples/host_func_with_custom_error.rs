@@ -102,14 +102,14 @@ fn main() -> anyhow::Result<()> {
 
     // create a vm instance
     let config = ConfigBuilder::default().build()?;
-    let mut vm = Vm::new(Some(config))?.register_import_module(import)?;
+    let vm = Vm::new(Some(config))?.register_import_module(import)?;
 
     // run the export wasm function named "call_add" from func.wasm
     let wasm_file = std::env::current_dir()?.join("examples/data/funcs.wasm");
     let add_ref = ExternRef::new(&mut real_add);
     let a: i32 = 1234;
     let b: i32 = 5678;
-    match vm.run_func_from_file(&wasm_file, "call_add", params!(add_ref, a, b)) {
+    match vm.run_func_from_file(wasm_file, "call_add", params!(add_ref, a, b)) {
         Ok(returns) => {
             let ret = returns[0].to_i32();
             assert_eq!(ret, 1234 + 5678);

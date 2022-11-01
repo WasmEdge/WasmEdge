@@ -1567,6 +1567,130 @@ Expect<uint32_t> WasiPollOneoff::body(const Runtime::CallingFrame &Frame,
   return __WASI_ERRNO_SUCCESS;
 }
 
+Expect<uint32_t> WasiEpollOneoff::body(const Runtime::CallingFrame &Frame,
+                                       uint32_t InPtr, uint32_t OutPtr,
+                                       uint32_t NSubscriptions,
+                                       uint32_t /* Out */ NEventsPtr) {
+  // Check memory instance from module.
+  auto *MemInst = Frame.getMemoryByIndex(0);
+  if (MemInst == nullptr) {
+    return __WASI_ERRNO_FAULT;
+  }
+
+  const __wasi_size_t WasiNSub = NSubscriptions;
+
+  auto *const SubscriptionArray =
+      MemInst->getPointer<const __wasi_subscription_t *>(InPtr, WasiNSub);
+  if (unlikely(SubscriptionArray == nullptr)) {
+    return __WASI_ERRNO_FAULT;
+  }
+
+  auto *const EventArray =
+      MemInst->getPointer<__wasi_event_t *>(OutPtr, WasiNSub);
+  if (unlikely(EventArray == nullptr)) {
+    return __WASI_ERRNO_FAULT;
+  }
+
+  auto *const NEvents = MemInst->getPointer<__wasi_size_t *>(NEventsPtr);
+  if (unlikely(NEvents == nullptr)) {
+    return __WASI_ERRNO_FAULT;
+  }
+
+  __wasi_size_t EventCount = 0;
+
+  if (auto Poll = Env.epollOneoff(WasiNSub); unlikely(!Poll)) {
+    return Poll.error();
+  } else {
+    // Validate contents
+    const Span<const __wasi_subscription_t> Subs(SubscriptionArray, WasiNSub);
+    Span<__wasi_event_t> Events(EventArray, WasiNSub);
+    auto Record = [&Events, &EventCount](
+                      __wasi_userdata_t UserData, __wasi_errno_t Errno,
+                      __wasi_eventtype_t EventType, __wasi_filesize_t NBytes,
+                      __wasi_eventrwflags_t Flags) {
+      auto &Event = Events[EventCount];
+      Event.userdata = UserData;
+      Event.error = Errno;
+      Event.type = EventType;
+      if (Errno == __WASI_ERRNO_SUCCESS &&
+          (EventType &
+           (__WASI_EVENTTYPE_FD_READ | __WASI_EVENTTYPE_FD_WRITE))) {
+        Event.fd_readwrite.nbytes = NBytes;
+        Event.fd_readwrite.flags = Flags;
+      }
+      ++EventCount;
+    };
+    for (auto &Sub : Subs) {
+      const __wasi_userdata_t WasiUserData = Sub.userdata;
+      const __wasi_eventrwflags_t NoFlags =
+          static_cast<__wasi_eventrwflags_t>(0);
+
+      __wasi_eventtype_t Type;
+      if (auto Res = cast<__wasi_eventtype_t>(Sub.u.tag); unlikely(!Res)) {
+        Record(WasiUserData, Res.error(), Sub.u.tag, 0, NoFlags);
+        continue;
+      } else {
+        Type = *Res;
+      }
+
+      switch (Type) {
+      case __WASI_EVENTTYPE_CLOCK: {
+        __wasi_clockid_t WasiClockId;
+        if (auto Res = cast<__wasi_clockid_t>(Sub.u.u.clock.id);
+            unlikely(!Res)) {
+          Record(WasiUserData, Res.error(), Sub.u.tag, 0, NoFlags);
+          continue;
+        } else {
+          WasiClockId = *Res;
+        }
+
+        __wasi_subclockflags_t WasiFlags;
+        if (auto Res = cast<__wasi_subclockflags_t>(Sub.u.u.clock.flags);
+            unlikely(!Res)) {
+          Record(WasiUserData, Res.error(), Sub.u.tag, 0, NoFlags);
+          continue;
+        } else {
+          WasiFlags = *Res;
+        }
+
+        const __wasi_timestamp_t WasiTimeout = Sub.u.u.clock.timeout;
+        const __wasi_timestamp_t WasiPrecision = Sub.u.u.clock.precision;
+
+        if (auto Res = Poll->clock(WasiClockId, WasiTimeout, WasiPrecision,
+                                   WasiFlags, WasiUserData);
+            unlikely(!Res)) {
+          Record(WasiUserData, Res.error(), Sub.u.tag, 0, NoFlags);
+        }
+        continue;
+      }
+      case __WASI_EVENTTYPE_FD_READ: {
+        const __wasi_fd_t WasiFd = Sub.u.u.fd_read.file_descriptor;
+        if (auto Res = Poll->read(WasiFd, WasiUserData); unlikely(!Res)) {
+          Record(WasiUserData, Res.error(), Sub.u.tag, 0, NoFlags);
+        }
+        continue;
+      }
+      case __WASI_EVENTTYPE_FD_WRITE: {
+        const __wasi_fd_t WasiFd = Sub.u.u.fd_write.file_descriptor;
+        if (auto Res = Poll->write(WasiFd, WasiUserData); unlikely(!Res)) {
+          Record(WasiUserData, Res.error(), Sub.u.tag, 0, NoFlags);
+        }
+        continue;
+      }
+      default:
+        assumingUnreachable();
+      }
+    }
+
+    if (auto Res = Poll->wait(Record); unlikely(!Res)) {
+      return Res.error();
+    }
+  }
+
+  *NEvents = EventCount;
+  return __WASI_ERRNO_SUCCESS;
+}
+
 Expect<void> WasiProcExit::body(const Runtime::CallingFrame &,
                                 uint32_t ExitCode) {
   Env.procExit(ExitCode);

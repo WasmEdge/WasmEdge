@@ -3,7 +3,7 @@
 //! To run this example, use the following command:
 //!
 //! ```bash
-//! cd /wasmedge-root-dir/bindings/rust/
+//! cd <wasmedge-root-dir>/bindings/rust/
 //!
 //! cargo run -p wasmedge-sys --example async_host_func
 //! ```

@@ -114,6 +114,7 @@ jobs:
         ${{ matrix.python2_ex }} utils/install.py -v 0.8.2 -D
         ${{ matrix.python3_ex }} utils/install.py -v 0.8.2 -D
     - name: Uninstall WasmEdge
+      if: ${{ matrix.name != 'manylinux2014 aarch64' }}
       run: |
         bash utils/uninstall.sh -q -V
     - name: Install WasmEdge specific release (0.8.2) with all extensions

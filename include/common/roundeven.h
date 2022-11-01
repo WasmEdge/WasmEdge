@@ -56,7 +56,7 @@ inline float roundevenf(float Value) {
   return Ret;
 #elif defined(__aarch64__)
   float Ret;
-  __asm__("frintn %s0, %s0" : "=w"(Ret) : "w"(Value));
+  __asm__("frintn %s0, %s1" : "=w"(Ret) : "w"(Value));
   return Ret;
 #else
   assuming(fegetround() == FE_TONEAREST);
@@ -81,7 +81,7 @@ inline double roundeven(double Value) noexcept {
   return Ret;
 #elif defined(__aarch64__)
   double Ret;
-  __asm__("frintn %d0, %d0" : "=w"(Ret) : "w"(Value));
+  __asm__("frintn %d0, %d1" : "=w"(Ret) : "w"(Value));
   return Ret;
 #else
   assuming(fegetround() == FE_TONEAREST);

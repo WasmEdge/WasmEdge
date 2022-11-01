@@ -86,6 +86,8 @@ int Tool(int Argc, const char *Argv[]) noexcept {
       "Enable generating code for counting time during execution."sv));
   PO::Option<PO::Toggle> ConfEnableAllStatistics(PO::Description(
       "Enable generating code for all statistics options include instruction counting, gas measuring, and execution time"sv));
+  PO::Option<PO::Toggle> ConfForceInterpreter(
+      PO::Description("Forcibly run WASM in interpreter mode."sv));
 
   PO::Option<uint64_t> TimeLim(
       PO::Description(
@@ -115,6 +117,7 @@ int Tool(int Argc, const char *Argv[]) noexcept {
       .add_option("enable-gas-measuring"sv, ConfEnableGasMeasuring)
       .add_option("enable-time-measuring"sv, ConfEnableTimeMeasuring)
       .add_option("enable-all-statistics"sv, ConfEnableAllStatistics)
+      .add_option("force-interpreter"sv, ConfForceInterpreter)
       .add_option("disable-import-export-mut-globals"sv, PropMutGlobals)
       .add_option("disable-non-trap-float-to-int"sv, PropNonTrapF2IConvs)
       .add_option("disable-sign-extension-operators"sv, PropSignExtendOps)
@@ -212,6 +215,9 @@ int Tool(int Argc, const char *Argv[]) noexcept {
       Conf.getStatisticsConfigure().setTimeMeasuring(true);
     }
   }
+  if (ConfForceInterpreter.value()) {
+    Conf.getRuntimeConfigure().setForceInterpreter(true);
+  }
 
   for (const auto &Name : ForbiddenPlugins.value()) {
     Conf.addForbiddenPlugins(Name);
@@ -231,6 +237,42 @@ int Tool(int Argc, const char *Argv[]) noexcept {
   Host::WasiModule *WasiMod = dynamic_cast<Host::WasiModule *>(
       VM.getImportModule(HostRegistration::Wasi));
 
+  if (auto Result = VM.loadWasm(InputPath.u8string()); !Result) {
+    return EXIT_FAILURE;
+  }
+  if (auto Result = VM.validate(); !Result) {
+    return EXIT_FAILURE;
+  }
+  if (auto Result = VM.instantiate(); !Result) {
+    return EXIT_FAILURE;
+  }
+
+  auto HasValidCommandModStartFunc = [&]() {
+    bool HasStart = false;
+    bool Valid = false;
+
+    auto Functions = VM.getFunctionList();
+    for (auto &[FuncName, Type] : Functions) {
+      if (FuncName == "_start") {
+        HasStart = true;
+        if (Type.getReturnTypes().size() == 0 &&
+            Type.getParamTypes().size() == 0) {
+          Valid = true;
+          break;
+        }
+      }
+    }
+
+    // if HasStart but not Valid, insert _start to enter reactor mode
+    if (HasStart && !Valid) {
+      Args.value().insert(Args.value().begin(), "_start");
+    }
+
+    return HasStart && Valid;
+  };
+
+  bool EnterCommandMode = !Reactor.value() && HasValidCommandModStartFunc();
+
   WasiMod->getEnv().init(
       Dir.value(),
       InputPath.filename()
@@ -238,9 +280,9 @@ int Tool(int Argc, const char *Argv[]) noexcept {
           .u8string(),
       Args.value(), Env.value());
 
-  if (!Reactor.value()) {
+  if (EnterCommandMode) {
     // command mode
-    auto AsyncResult = VM.asyncRunWasmFile(InputPath.u8string(), "_start");
+    auto AsyncResult = VM.asyncExecute("_start");
     if (Timeout.has_value()) {
       if (!AsyncResult.waitUntil(*Timeout)) {
         AsyncResult.cancel();
@@ -260,15 +302,6 @@ int Tool(int Argc, const char *Argv[]) noexcept {
       return EXIT_FAILURE;
     }
     const auto &FuncName = Args.value().front();
-    if (auto Result = VM.loadWasm(InputPath.u8string()); !Result) {
-      return EXIT_FAILURE;
-    }
-    if (auto Result = VM.validate(); !Result) {
-      return EXIT_FAILURE;
-    }
-    if (auto Result = VM.instantiate(); !Result) {
-      return EXIT_FAILURE;
-    }
 
     using namespace std::literals::string_literals;
     const auto InitFunc = "_initialize"s;

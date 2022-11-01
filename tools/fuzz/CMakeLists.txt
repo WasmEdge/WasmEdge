@@ -5,19 +5,20 @@ wasmedge_add_executable(wasmedge-fuzztool
   tool.cpp
 )
 
-target_include_directories(wasmedge-fuzztool
-  PRIVATE
-  ../../include
-)
-
 wasmedge_add_executable(wasmedge-fuzzpo
   po.cpp
 )
 
-target_include_directories(wasmedge-fuzzpo
-  PRIVATE
-  ../../include
-)
+if(DEFINED LIB_FUZZING_ENGINE)
+  target_link_libraries(wasmedge-fuzztool
+    PRIVATE
+    ${LIB_FUZZING_ENGINE}
+  )
+  target_link_libraries(wasmedge-fuzzpo
+    PRIVATE
+    ${LIB_FUZZING_ENGINE}
+  )
+endif()
 
 if(WASMEDGE_LINK_TOOLS_STATIC)
   target_link_libraries(wasmedge-fuzztool

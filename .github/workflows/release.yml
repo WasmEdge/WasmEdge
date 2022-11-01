@@ -26,7 +26,7 @@ jobs:
       upload_url: ${{ steps.create_release.outputs.upload_url }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       - name: Get version
         id: prep
         run: |
@@ -80,7 +80,7 @@ jobs:
     uses: ./.github/workflows/reusable-build-on-manylinux.yml
     with:
       version: ${{ needs.create_release.outputs.version }}
-      matrix: "[{'runner':'ubuntu-latest','docker_tag':'manylinux2014_x86_64'},{'runner':'ARM64','docker_tag':'manylinux2014_aarch64'}]"
+      matrix: "[{'runner':'ubuntu-latest','docker_tag':'manylinux2014_x86_64'},{'runner':'linux-arm64','docker_tag':'manylinux2014_aarch64'}]"
       release: true
       upload_asset_url: ${{ needs.create_release.outputs.upload_url }}
     secrets: inherit
@@ -126,6 +126,11 @@ jobs:
             output_path: plugins/wasi_nn
             output_bin: libwasmedgePluginWasiNN.so
             tar_name: wasi_nn-pytorch
+          - name: WASI-NN TensorFlowLite
+            backend: TensorFlowLite
+            output_path: plugins/wasi_nn
+            output_bin: libwasmedgePluginWasiNN.so
+            tar_name: wasi_nn-tensorflowlite
           - name: WASI-Crypto
             output_path: plugins/wasi_crypto
             output_bin: libwasmedgePluginWasiCrypto.so
@@ -141,7 +146,7 @@ jobs:
       image: wasmedge/wasmedge:latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       - name: Build WasmEdge WASI-NN ${{ matrix.backend }} plugin
         shell: bash
         if: contains(matrix.name, 'WASI-NN')
@@ -211,7 +216,7 @@ jobs:
             output_path: plugins/wasmedge_httpsreq
             output_bin: libwasmedgePluginHttpsReq.so
             deps_path: "utils/wasmedge_httpsreq/build-openssl.sh"
-            cmake_plugin_option: "-DWASMEDGE_PLUGIN_HTTPSREQ=ON"
+            cmake_plugin_option: "-DWASMEDGE_PLUGIN_HTTPSREQ=ON -DOPENSSL_ROOT_DIR=$(pwd)/openssl-1.1.1n/openssl"
             tar_name: wasmedge_httpsreq
             host_runner: ubuntu-latest
           - name: WasmEdge-HttpsReq
@@ -219,15 +224,37 @@ jobs:
             output_path: plugins/wasmedge_httpsreq
             output_bin: libwasmedgePluginHttpsReq.so
             deps_path: "utils/wasmedge_httpsreq/build-openssl.sh"
-            cmake_plugin_option: "-DWASMEDGE_PLUGIN_HTTPSREQ=ON"
+            cmake_plugin_option: "-DWASMEDGE_PLUGIN_HTTPSREQ=ON -DOPENSSL_ROOT_DIR=$(pwd)/openssl-1.1.1n/openssl"
             tar_name: wasmedge_httpsreq
-            host_runner: ARM64
+            host_runner: linux-arm64
+          - name: WASI-NN PyTorch
+            docker_tag: manylinux2014_x86_64
+            output_path: plugins/wasi_nn
+            output_bin: libwasmedgePluginWasiNN.so
+            deps_path: "utils/wasi-nn/install-pytorch.sh --disable-cxx11-abi"
+            cmake_plugin_option: "-DWASMEDGE_PLUGIN_WASI_NN_BACKEND=PyTorch"
+            tar_name: wasi_nn-pytorch
+            host_runner: ubuntu-latest
+          - name: WASI-NN TensorflowLite
+            docker_tag: manylinux2014_x86_64
+            output_path: plugins/wasi_nn
+            output_bin: libwasmedgePluginWasiNN.so
+            cmake_plugin_option: "-DWASMEDGE_PLUGIN_WASI_NN_BACKEND=TensorflowLite"
+            tar_name: wasi_nn-tensorflowlite
+            host_runner: ubuntu-latest
+          - name: WASI-NN TensorflowLite
+            docker_tag: manylinux2014_aarch64
+            output_path: plugins/wasi_nn
+            output_bin: libwasmedgePluginWasiNN.so
+            cmake_plugin_option: "-DWASMEDGE_PLUGIN_WASI_NN_BACKEND=TensorflowLite"
+            tar_name: wasi_nn-tensorflowlite
+            host_runner: linux-arm64
           - name: WASI-Crypto
             docker_tag: manylinux2014_x86_64
             output_path: plugins/wasi_crypto
             output_bin: libwasmedgePluginWasiCrypto.so
             deps_path: "utils/wasi-crypto/build-openssl.sh"
-            cmake_plugin_option: "-DWASMEDGE_PLUGIN_WASI_CRYPTO=ON"
+            cmake_plugin_option: "-DWASMEDGE_PLUGIN_WASI_CRYPTO=ON -DOPENSSL_ROOT_DIR=$(pwd)/openssl-1.1.1n/openssl"
             tar_name: wasi_crypto
             host_runner: ubuntu-latest
           - name: WASI-Crypto
@@ -235,9 +262,9 @@ jobs:
             output_path: plugins/wasi_crypto
             output_bin: libwasmedgePluginWasiCrypto.so
             deps_path: "utils/wasi-crypto/build-openssl.sh"
-            cmake_plugin_option: "-DWASMEDGE_PLUGIN_WASI_CRYPTO=ON"
+            cmake_plugin_option: "-DWASMEDGE_PLUGIN_WASI_CRYPTO=ON -DOPENSSL_ROOT_DIR=$(pwd)/openssl-1.1.1n/openssl"
             tar_name: wasi_crypto
-            host_runner: ARM64
+            host_runner: linux-arm64
     name: Build and upload WasmEdge ${{ matrix.name }} plugin on ${{ matrix.docker_tag }}
     needs: create_release
     runs-on: ${{ matrix.host_runner }}
@@ -245,13 +272,17 @@ jobs:
       image: wasmedge/wasmedge:${{ matrix.docker_tag }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       - name: Build ${{ matrix.name }} dependency
+        if: matrix.deps_path
         run: |
           bash ${{ matrix.deps_path }}
       - name: Build ${{ matrix.name }} plugin
         run: |
-          bash utils/docker/build-manylinux.sh --not-build --not-ninja ${{ matrix.cmake_plugin_option }} -DOPENSSL_ROOT_DIR=$(pwd)/openssl-1.1.1n/openssl
+          if [[ "${{ matrix.name }}" == *"PyTorch"* ]]; then
+            export Torch_DIR=$(pwd)/libtorch
+          fi
+          bash utils/docker/build-manylinux.sh --not-build --not-ninja ${{ matrix.cmake_plugin_option }}
           cd build
           cd ${{ matrix.output_path }}
           make -j
@@ -277,12 +308,12 @@ jobs:
       image: wasmedge/wasmedge:manylinux2014_x86_64
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       - name: Build runtime only manylinux2014 package
         run: |
           bash utils/docker/build-manylinux.sh -DWASMEDGE_BUILD_AOT_RUNTIME=OFF
       - name: Upload ${{ matrix.name }} tar.gz package to artifact
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: build_manylinux2014_runtime_only
           path: build/WasmEdge-${{ needs.create_release.outputs.version }}-Linux.tar.gz
@@ -303,7 +334,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       - name: Prepare tarball
         uses: actions/download-artifact@v3
         with:
@@ -331,6 +362,11 @@ jobs:
             --dockerfile-context utils/docker \
             --tag ${{ steps.docker_env.outputs.docker_image }} \
             --http-probe-off \
+            --include-bin /usr/lib/x86_64-linux-gnu/libnss_compat.so.2 \
+            --include-bin /usr/lib/x86_64-linux-gnu/libnss_dns.so.2 \
+            --include-bin /usr/lib/x86_64-linux-gnu/libnss_files.so.2 \
+            --include-bin /usr/lib/x86_64-linux-gnu/libresolv.so.2 \
+            --include-path /etc/services \
             ${{ matrix.include_bin }} \
             --cbo-build-arg VERSION="${{ needs.create_release.outputs.version }}" \
             --cbo-label org.opencontainers.image.title="${{ github.event.repository.name }}" \

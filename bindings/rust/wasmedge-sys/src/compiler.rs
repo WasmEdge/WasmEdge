@@ -159,7 +159,7 @@ mod tests {
                 .join("bindings/rust/wasmedge-sys/tests/data/test.wasm");
             let out_path = std::path::PathBuf::from("test_aot.wasm");
             assert!(!out_path.exists());
-            let result = compiler.compile_from_file(&in_path, &out_path);
+            let result = compiler.compile_from_file(in_path, &out_path);
             assert!(result.is_ok());
             assert!(out_path.exists());
             assert!(std::fs::remove_file(out_path).is_ok());
@@ -189,7 +189,7 @@ mod tests {
                 .join("bindings/rust/wasmedge-sys/tests/data/test.wasm");
             let out_path = std::path::PathBuf::from("test_aot_from_file.so");
             assert!(!out_path.exists());
-            let result = compiler.compile_from_file(&in_path, &out_path);
+            let result = compiler.compile_from_file(in_path, &out_path);
             assert!(result.is_ok());
             assert!(out_path.exists());
 
@@ -256,7 +256,7 @@ mod tests {
 
             let out_path = std::path::PathBuf::from("test_aot_from_bytes.so");
             assert!(!out_path.exists());
-            let result = compiler.compile_from_bytes(&wasm_bytes, &out_path);
+            let result = compiler.compile_from_bytes(wasm_bytes, &out_path);
             assert!(result.is_ok());
             assert!(out_path.exists());
 
@@ -288,7 +288,7 @@ mod tests {
                 .join("bindings/rust/wasmedge-sys/examples/data/fibonacci.wasm");
             let out_path = std::path::PathBuf::from("fibonacci_send_thread_aot.wasm");
             assert!(!out_path.exists());
-            let result = compiler.compile_from_file(&in_path, &out_path);
+            let result = compiler.compile_from_file(in_path, &out_path);
             assert!(result.is_ok());
             assert!(out_path.exists());
             assert!(std::fs::remove_file(out_path).is_ok());
@@ -325,7 +325,7 @@ mod tests {
                 .join("bindings/rust/wasmedge-sys/examples/data/fibonacci.wasm");
             let out_path = std::path::PathBuf::from("fibonacci_sync_thread_aot.wasm");
             assert!(!out_path.exists());
-            let result = compiler.compile_from_file(&in_path, &out_path);
+            let result = compiler.compile_from_file(in_path, &out_path);
             assert!(result.is_ok());
             assert!(out_path.exists());
             assert!(std::fs::remove_file(out_path).is_ok());
@@ -340,7 +340,7 @@ mod tests {
                 .join("bindings/rust/wasmedge-sys/examples/data/fibonacci.wasm");
             let out_path = std::path::PathBuf::from("fibonacci_sync_main_aot.wasm");
             assert!(!out_path.exists());
-            let result = compiler_main.compile_from_file(&in_path, &out_path);
+            let result = compiler_main.compile_from_file(in_path, &out_path);
             assert!(result.is_ok());
             assert!(out_path.exists());
             assert!(std::fs::remove_file(out_path).is_ok());

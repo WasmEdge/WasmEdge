@@ -648,6 +648,28 @@ WasmEdge_ConfigureSetMaxMemoryPage(WasmEdge_ConfigureContext *Cxt,
 WASMEDGE_CAPI_EXPORT extern uint32_t
 WasmEdge_ConfigureGetMaxMemoryPage(const WasmEdge_ConfigureContext *Cxt);
 
+/// Set the force interpreter mode execution option.
+///
+/// This function is thread-safe.
+///
+/// \param Cxt the WasmEdge_ConfigureContext to set the boolean value.
+/// \param isForceInterpreter the boolean value to determine to forcibly run
+/// WASM in interpreter mode or not.
+WASMEDGE_CAPI_EXPORT extern void
+WasmEdge_ConfigureSetForceInterpreter(WasmEdge_ConfigureContext *Cxt,
+                                      const bool isForceInterpreter);
+
+/// Get the force interpreter mode execution option.
+///
+/// This function is thread-safe.
+///
+/// \param Cxt the WasmEdge_ConfigureContext to get the boolean value.
+///
+/// \returns the boolean value to determine to forcibly run WASM in interpreter
+/// mode or not.
+WASMEDGE_CAPI_EXPORT extern bool
+WasmEdge_ConfigureIsForceInterpreter(const WasmEdge_ConfigureContext *Cxt);
+
 /// Set the optimization level of AOT compiler.
 ///
 /// This function is thread-safe.

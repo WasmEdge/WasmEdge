@@ -3,7 +3,7 @@
 ## Android SDK Components
 * platforms;android-31
 * build-tools;31.0.0
-* cmake;3.18.1
+* cmake;3.22.1
 * ndk;23.1.7779620
 
 You could deploy these components via [Android Studio](https://developer.android.com/studio/intro/update#sdk-manager) or [sdkmanager](https://developer.android.com/studio/command-line/sdkmanager) command line tool.

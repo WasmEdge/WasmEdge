@@ -1,6 +1,7 @@
 FROM ubuntu:20.04
 ARG VERSION
 
+RUN apt-get update && apt-get install -y netbase
 ADD WasmEdge-$VERSION-Linux.tar.gz /tmp/
 RUN cp -rf /tmp/WasmEdge-$VERSION-Linux/bin/* /usr/local/bin && \
     cp -rf /tmp/WasmEdge-$VERSION-Linux/lib64/* /usr/local/lib && \

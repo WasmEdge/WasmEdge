@@ -52,7 +52,7 @@ impl From<u32> for MyError {
             2 => MyError::InvalidFirstArgumentType,
             3 => MyError::InvalidSecondArgumentType,
             4 => MyError::OutOfUpperBound,
-            x => panic!("Unknown error code: {}", x),
+            x => panic!("Unknown error code: {x}"),
         }
     }
 }
@@ -113,11 +113,11 @@ fn main() -> anyhow::Result<()> {
         Ok(returns) => {
             let ret = returns[0].to_i32();
             assert_eq!(ret, 1234 + 5678);
-            println!("result from call_add: {}", ret)
+            println!("result from call_add: {ret}")
         }
         Err(e) => match *e {
             WasmEdgeError::User(code) => println!("User error: {:?}", MyError::from(code)),
-            err => println!("Runtime error: {:?}", err),
+            err => println!("Runtime error: {err:?}"),
         },
     };
 

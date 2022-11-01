@@ -1,4 +1,4 @@
-name: Build and Test WasmEdge on multiple platforms
+name: Test WasmEdge Core
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
@@ -50,7 +50,7 @@ jobs:
     outputs:
       version: ${{ steps.prep.outputs.version }}
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           fetch-depth: 0
       - name: Get version
@@ -79,7 +79,7 @@ jobs:
     uses: ./.github/workflows/reusable-build-on-manylinux.yml
     with:
       version: ${{ needs.get_version_v2.outputs.version }}
-      matrix: "[{'runner':'ubuntu-latest','docker_tag':'manylinux2014_x86_64'},{'runner':'ARM64','docker_tag':'manylinux2014_aarch64'}]"
+      matrix: "[{'runner':'ubuntu-latest','docker_tag':'manylinux2014_x86_64'},{'runner':'linux-arm64','docker_tag':'manylinux2014_aarch64'}]"
 
   build_on_ubuntu_20_04:
     needs: [get_version_v2, lint]

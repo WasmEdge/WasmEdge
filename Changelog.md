@@ -1,3 +1,68 @@
+### 0.11.2-rc.2 (2022-10-31)
+
+Features:
+
+* Added the new WasmEdge C API.
+  * Added the `WasmEdge_ConfigureSetForceInterpreter()` API to set the force interpreter mode.
+  * Added the `WasmEdge_ConfigureIsForceInterpreter()` API to check the force interpreter mode in configurations.
+  * Added the `WasmEdge_LogOff()` API to turn off the logging.
+  * Due to introducing the new APIs, bump the `SOVERSION` to `0.0.1`.
+* Added the additional hint messages if import not found when in instantiation.
+* Added the forcibly interpreter execution mode in WasmEdge CLI.
+  * Users can use the `--force-interpreter` option in the `wasmedge` tool to forcibly execute WASM files (includes the AOT compiled WASM files) in interpreter mode.
+* Supported WASI-NN plug-in with TensorFlow-Lite backend on Ubuntu 20.04 x86_64.
+  * Users can refer to the [WASI-NN document](https://wasmedge.org/book/en/write_wasm/rust/wasinn.html) for the information.
+  * For building with enabling WASI-NN with TensorFlow-Lite backend, please add the `-DWASMEDGE_PLUGIN_WASI_NN_BACKEND="TensorFlowLite"` in `cmake`.
+* Bump the `fmt` format of logging to `9.0.0`.
+
+Fixed issues:
+
+* Detected the valid `_start` function of the WasmEdge CLI command mode.
+  * For the invalid `_start` function, the WasmEdge CLI will execute that function in the reactor mode.
+* Fixed the non-English WasmEdge CLI arguments error on Windows.
+* Fixed the AOT compiler issues.
+  * Fixed the operand of `frintn` on `arm64` platforms.
+  * Corrected the `unreachable` status to record on every control stacks.
+* Refined the Loader performance.
+  * Capped the maximum local counts to 67108864 (2^26).
+  * Rejected wrong data when loading the universal WASM.
+  * Rejected the unreasonable long vector sizes.
+* Fixed the lost `std` namespace in the `experimental::expected`.
+* Fixed the repeatedly compilation of universal WASM format.
+  * If users use the `wasmedgec` tool to compile the universal WASM file, the AOT compiled WASM data will be appended into the output.
+  * In the cases of duplicated AOT compiled universal WASM file which has more than 1 section of AOT compiled WASM data, the WasmEdge runtime will use the latest appended one when execution.
+* Hided the local symbols of the WasmEdge shared library.
+* Loaded the default plug-in path from the path related to the WasmEdge shared library.
+  * This only fixed on the MacOS and Linux platforms now.
+* Updated the minimum CMake required version on Android.
+
+Known issues:
+
+* Universal WASM format failed on MacOS platforms.
+  * In current status, the universal WASM format output of the AOT compiler with the `O1` or upper optimizations on MacOS platforms will cause bus error when execution.
+  * We are trying to fix this issue. For working around, please use the `--optimize=0` to set the compiler optimization level to `O0` in `wasmedgec` CLI.
+* WasmEdge CLI failed on Windows 10 issue.
+  * Please refer to [here for the workaround](https://github.com/WasmEdge/WasmEdge/issues/1559) if the `msvcp140.dll is missing` occurs.
+* Plug-in linking on MacOS platforms.
+  * The plug-in on MacOS platforms will cause symbol not found when dynamic linking.
+  * We are trying to fix this issue. For working around, please implement the host modules instead of plug-ins.
+
+Documentations:
+
+* Updated the [WasmEdge-Go document](https://wasmedge.org/book/en/sdk/go/ref.html) to `v0.11.0`.
+
+Tests:
+
+* Added the WASI-NN TensorFlow-Lite backend unit test.
+* Added the new C API unit tests.
+* Applied more fuzz tests for WasmEdge CLI.
+
+Thank all the contributors that made this release possible!
+
+Abhinandan Udupa, Gustavo Ye, HangedFish, Harry Chiang, Hiroaki Nakamura, Kenvi Zhu, LFsWang, Shen-Ta Hsieh, Shreyas Atre, Xin Liu, YiYing He, abhinandanudupa, dm4, he11c, hydai, vincent, yyy1000, zhlhahaha
+
+If you want to build from source, please use WasmEdge-0.11.2-rc.2-src.tar.gz instead of the zip or tarball provided by GitHub directly.
+
 ### 0.11.1 (2022-10-03)
 
 Features:

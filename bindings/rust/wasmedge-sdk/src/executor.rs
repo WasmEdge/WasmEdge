@@ -171,7 +171,7 @@ mod tests {
         );
         assert!(result.is_ok());
         let wasm_bytes = result.unwrap();
-        let result = Module::from_bytes(Some(&config), &wasm_bytes);
+        let result = Module::from_bytes(Some(&config), wasm_bytes);
         assert!(result.is_ok());
         let module = result.unwrap();
 

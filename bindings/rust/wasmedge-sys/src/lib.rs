@@ -213,8 +213,6 @@ pub use instance::{
 #[doc(inline)]
 pub use loader::Loader;
 #[doc(inline)]
-pub use r#async::AsyncResult;
-#[doc(inline)]
 pub use statistics::Statistics;
 #[doc(inline)]
 pub use store::Store;
@@ -224,7 +222,6 @@ pub use types::WasmValue;
 pub use validator::Validator;
 #[doc(inline)]
 pub use vm::Vm;
-
 use wasmedge_types::{error, WasmEdgeResult};
 
 /// Type alias for a boxed native function. This type is used in thread-safe cases.
@@ -247,6 +244,10 @@ lazy_static! {
                     .expect("MAX_HOST_FUNC_LENGTH should be a positive integer."))
                 .unwrap_or(500)
         ));
+}
+
+lazy_static! {
+    static ref ASYNC_STATE: RwLock<r#async::AsyncState> = RwLock::new(r#async::AsyncState::new());
 }
 
 /// The object that is used to perform a [host function](crate::Function) is required to implement this trait.

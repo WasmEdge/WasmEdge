@@ -258,12 +258,17 @@ std::vector<std::filesystem::path> Plugin::getDefaultPluginPaths() noexcept {
     auto LibPath = std::filesystem::u8path(DLInfo.dli_fname)
                        .parent_path()
                        .lexically_normal();
-    const auto UsrStr = "/usr/"sv;
+    const auto UsrStr = "/usr"sv;
+    const auto LibStr = "/lib"sv;
     const auto &PathStr = LibPath.native();
-    if (PathStr.size() >= UsrStr.size() &&
-        std::equal(UsrStr.begin(), UsrStr.end(), PathStr.begin())) {
+    if ((PathStr.size() >= UsrStr.size() &&
+         std::equal(UsrStr.begin(), UsrStr.end(), PathStr.begin())) ||
+        (PathStr.size() >= LibStr.size() &&
+         std::equal(LibStr.begin(), LibStr.end(), PathStr.begin()))) {
       // The installation path of the WasmEdge library is under "/usr".
       // Plug-in path will be in "LIB_PATH/wasmedge".
+      // If the installation path is under "/usr/lib" or "/usr/lib64", the
+      // traced library path will be "/lib" or "/lib64".
       Result.push_back(LibPath / std::filesystem::u8path("wasmedge"sv));
     } else {
       // The installation path of the WasmEdge library is not under "/usr", such

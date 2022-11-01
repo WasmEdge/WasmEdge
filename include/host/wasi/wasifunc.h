@@ -330,6 +330,15 @@ public:
                         uint32_t /* Out */ NEventsPtr);
 };
 
+class WasiEpollOneoff : public Wasi<WasiEpollOneoff> {
+public:
+  WasiEpollOneoff(WASI::Environ &HostEnv) : Wasi(HostEnv) {}
+
+  Expect<uint32_t> body(const Runtime::CallingFrame &Frame, uint32_t InPtr,
+                        uint32_t OutPtr, uint32_t NSubscriptions,
+                        uint32_t /* Out */ NEventsPtr);
+};
+
 class WasiProcExit : public Wasi<WasiProcExit> {
 public:
   WasiProcExit(WASI::Environ &HostEnv) : Wasi(HostEnv) {}

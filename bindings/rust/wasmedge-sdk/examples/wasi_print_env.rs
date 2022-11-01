@@ -32,7 +32,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let wasm_file = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
         .join("bindings/rust/wasmedge-sys/examples/data/wasi_print_env.wasm");
 
-    vm.run_func_from_file(&wasm_file, "print_env", params!())?;
+    vm.run_func_from_file(wasm_file, "print_env", params!())?;
 
     Ok(())
 }

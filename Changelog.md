@@ -14,6 +14,7 @@ Features:
   * Users can refer to the [WASI-NN document](https://wasmedge.org/book/en/write_wasm/rust/wasinn.html) for the information.
   * For building with enabling WASI-NN with TensorFlow-Lite backend, please add the `-DWASMEDGE_PLUGIN_WASI_NN_BACKEND="TensorFlowLite"` in `cmake`.
 * Bump the `fmt` format of logging to `9.0.0`.
+* Add the new experimental edge-triggered epoll API `epollOneoff` in the WASI component.
 
 Fixed issues:
 
@@ -61,7 +62,7 @@ Thank all the contributors that made this release possible!
 
 Abhinandan Udupa, Gustavo Ye, HangedFish, Harry Chiang, Hiroaki Nakamura, Kenvi Zhu, LFsWang, Shen-Ta Hsieh, Shreyas Atre, Xin Liu, YiYing He, abhinandanudupa, dm4, he11c, hydai, vincent, yyy1000, zhlhahaha
 
-If you want to build from source, please use WasmEdge-0.11.2-rc.2-src.tar.gz instead of the zip or tarball provided by GitHub directly.
+If you want to build from source, please use WasmEdge-0.11.2-rc.3-src.tar.gz instead of the zip or tarball provided by GitHub directly.
 
 ### 0.11.1 (2022-10-03)
 

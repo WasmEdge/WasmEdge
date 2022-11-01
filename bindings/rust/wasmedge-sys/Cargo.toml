@@ -10,7 +10,7 @@ links = "wasmedge"
 name = "wasmedge-sys"
 readme = "README.md"
 repository = "https://github.com/WasmEdge/WasmEdge/blob/master/bindings/rust/wasmedge-sys"
-version = "0.10.1"
+version = "0.11.0"
 
 [dependencies]
 lazy_static = "1.4.0"
@@ -21,10 +21,15 @@ rand = "0.8.4"
 thiserror = "1.0.30"
 wasmedge-macro = {path = "../wasmedge-macro", version = "0.1"}
 wasmedge-types = {path = "../wasmedge-types", version = "0.3"}
+wasmtime-fiber = "2"
 
 [build-dependencies]
-bindgen = {version = "0.60.1", default-features = false, features = ["runtime"]}
+bindgen = {version = "0.61", default-features = false, features = ["runtime"]}
 cmake = "0.1"
+
+[dev-dependencies]
+anyhow = "1"
+tokio = {version = "1", features = ["full"]}
 
 [features]
 aot = []

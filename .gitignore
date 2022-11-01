@@ -79,3 +79,15 @@ bindings/rust/wasmedge-sys/examples/.ipynb_checkpoints/*
 .DS_Store
 
 node_modules/
+
+# intelliJ IDEA
+**/.idea/*
+**.iml
+## Gradle
+**/.gradle/*
+**/build
+
+# cmake caches
+**/cmake-build-debug
+**/cmake-build-debug-remote-host
+**/cmake-build-release

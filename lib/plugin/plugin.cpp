@@ -9,6 +9,7 @@
 #include <variant>
 
 #if WASMEDGE_OS_LINUX || WASMEDGE_OS_MACOS
+#include <dlfcn.h>
 #include <pwd.h>
 #include <unistd.h>
 #elif WASMEDGE_OS_WINDOWS
@@ -248,19 +249,35 @@ std::vector<std::filesystem::path> Plugin::getDefaultPluginPaths() noexcept {
     Result.push_back(std::filesystem::u8path(ExtraEnvStr));
   }
 
-  // Global plugin directory
-  Result.push_back(std::filesystem::u8path(kGlobalPluginDir));
-
-  // Local home plugin directory
-  std::filesystem::path Home;
+  // Plugin directory for the WasmEdge installation.
 #if WASMEDGE_OS_LINUX || WASMEDGE_OS_MACOS
-  if (const auto HomeEnv = ::getenv("HOME")) {
-    Home = std::filesystem::u8path(HomeEnv);
-  } else {
-    const auto Passwd = ::getpwuid(::getuid());
-    Home = std::filesystem::u8path(Passwd->pw_dir);
+  Dl_info DLInfo;
+  int Status =
+      dladdr(reinterpret_cast<void *>(Plugin::getDefaultPluginPaths), &DLInfo);
+  if (Status != 0) {
+    auto LibPath = std::filesystem::u8path(DLInfo.dli_fname)
+                       .parent_path()
+                       .lexically_normal();
+    const auto UsrStr = "/usr/"sv;
+    const auto &PathStr = LibPath.native();
+    if (PathStr.size() >= UsrStr.size() &&
+        std::equal(UsrStr.begin(), UsrStr.end(), PathStr.begin())) {
+      // The installation path of the WasmEdge library is under "/usr".
+      // Plug-in path will be in "LIB_PATH/wasmedge".
+      Result.push_back(LibPath / std::filesystem::u8path("wasmedge"sv));
+    } else {
+      // The installation path of the WasmEdge library is not under "/usr", such
+      // as "$HOME/.wasmedge". Plug-in path will be in "LIB_PATH/../plugin".
+      Result.push_back(LibPath / std::filesystem::u8path(".."sv) /
+                       std::filesystem::u8path("plugin"sv));
+    }
   }
 #elif WASMEDGE_OS_WINDOWS
+  // FIXME: Use the `dladdr`.
+  // Global plugin directory.
+  Result.push_back(std::filesystem::u8path(kGlobalPluginDir));
+  // Local home plugin directory.
+  std::filesystem::path Home;
   if (const auto HomeEnv = ::getenv("USERPROFILE")) {
     Home = std::filesystem::u8path(HomeEnv);
   } else {
@@ -272,9 +289,9 @@ std::vector<std::filesystem::path> Plugin::getDefaultPluginPaths() noexcept {
       ::CoTaskMemFree(Path);
     }
   }
-#endif
   Result.push_back(Home / std::filesystem::u8path(".wasmedge"sv) /
                    std::filesystem::u8path("plugin"sv));
+#endif
 
   return Result;
 }

@@ -107,9 +107,6 @@ impl Vm {
     ///
     /// If fail to create, then an error is returned.
     pub fn new(config: Option<Config>) -> WasmEdgeResult<Self> {
-        // load wasmedge_process plugins
-        sys::utils::load_plugin_from_default_paths();
-
         let inner_config = config.map(|c| c.inner);
         let inner = sys::Vm::create(inner_config, None)?;
         Ok(Self {
@@ -130,7 +127,7 @@ impl Vm {
     ///
     /// If fail to register the target WASM, then an error is returned.
     pub fn register_module_from_file(
-        mut self,
+        self,
         mod_name: impl AsRef<str>,
         file: impl AsRef<Path>,
     ) -> WasmEdgeResult<Self> {
@@ -452,7 +449,7 @@ impl Vm {
 
     /// Returns the mutable [WasmEdgeProcess module instance](crate::WasmEdgeProcessInstance).
     ///
-    /// Notice that this function is only available when a [config](crate::config::Config) with the enabled [wasmedge_process](crate::config::HostRegistrationConfigOptions::wasmedge_process) option is used in the creation of this [Vm].
+    /// Notice that this function is only available when a [config](crate::config::Config) with the enabled [wasmedge_process](crate::config::HostRegistrationConfigOptions::wasmedge_process) option is used in the creation of this [Vm]. In addition, the [PluginManager::load_from_default_paths](crate::PluginManager::load_from_default_paths) method must be invoked to load the `wasmedge_process` plugin before calling this method.
     ///
     /// # Error
     ///
@@ -566,18 +563,19 @@ impl Engine for Vm {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[cfg(target_os = "linux")]
+    use crate::PluginManager;
     use crate::{
         config::{
             CommonConfigOptions, ConfigBuilder, HostRegistrationConfigOptions,
             StatisticsConfigOptions,
         },
         error::HostFuncError,
-        host_function,
         io::WasmVal,
         params,
         types::Val,
-        wat2wasm, AsInstance, Caller, Global, GlobalType, ImportObjectBuilder, Memory, MemoryType,
-        Mutability, RefType, Table, TableType, ValType, WasmValue,
+        wat2wasm, AsInstance, CallingFrame, Global, GlobalType, ImportObjectBuilder, Memory,
+        MemoryType, Mutability, RefType, Table, TableType, ValType, WasmValue,
     };
 
     #[test]
@@ -903,6 +901,9 @@ mod tests {
     #[test]
     #[cfg(target_os = "linux")]
     fn test_vm_wasmedge_process_module() {
+        // load wasmedge_process plugin
+        PluginManager::load_from_default_paths();
+
         let host_reg_options = HostRegistrationConfigOptions::default().wasmedge_process(true);
         let result = ConfigBuilder::new(CommonConfigOptions::default())
             .with_host_registration_config(host_reg_options)
@@ -1294,7 +1295,7 @@ mod tests {
         assert!(result.is_ok());
         let wasm_bytes = result.unwrap();
 
-        let result = vm.register_module_from_bytes("extern", &wasm_bytes);
+        let result = vm.register_module_from_bytes("extern", wasm_bytes);
         assert!(result.is_ok());
         let mut vm = result.unwrap();
 
@@ -1312,10 +1313,10 @@ mod tests {
         assert_eq!(returns[0].to_i32(), 8)
     }
 
-    #[host_function]
     fn real_add(
-        _: &Caller,
+        _frame: &CallingFrame,
         inputs: Vec<WasmValue>,
+        _data: *mut std::os::raw::c_void,
     ) -> std::result::Result<Vec<WasmValue>, HostFuncError> {
         if inputs.len() != 2 {
             return Err(HostFuncError::User(1));

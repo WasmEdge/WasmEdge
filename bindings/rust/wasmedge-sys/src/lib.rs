@@ -142,8 +142,9 @@
 #[macro_use]
 extern crate lazy_static;
 
+use async_env::AsyncState;
 use parking_lot::{Mutex, RwLock};
-use std::{cell::RefCell, collections::HashMap, env, sync::Arc};
+use std::{collections::HashMap, env, sync::Arc};
 
 #[doc(hidden)]
 #[allow(warnings)]
@@ -154,6 +155,8 @@ pub mod ffi {
 pub mod ast_module;
 #[doc(hidden)]
 pub mod r#async;
+#[doc(hidden)]
+pub mod async_env;
 #[doc(hidden)]
 #[cfg(feature = "aot")]
 pub mod compiler;
@@ -224,7 +227,6 @@ pub use types::WasmValue;
 pub use validator::Validator;
 #[doc(inline)]
 pub use vm::Vm;
-
 use wasmedge_types::{error, WasmEdgeResult};
 
 /// Type alias for a boxed native function. This type is used in thread-safe cases.
@@ -249,19 +251,8 @@ lazy_static! {
         ));
 }
 
-/// Type alias for a boxed native function. This type is used in non-thread-safe cases.
-pub type BoxedFnSingle =
-    Box<dyn Fn(&CallingFrame, Vec<WasmValue>) -> Result<Vec<WasmValue>, error::HostFuncError>>;
-
-thread_local! {
-    static HOST_FUNCS_SINGLE: RefCell<HashMap<usize, BoxedFnSingle>> =
-        RefCell::new(HashMap::with_capacity(
-            env::var("MAX_HOST_FUNC_SINGLE_LENGTH")
-                .map(|s| s
-                    .parse::<usize>()
-                    .expect("MAX_HOST_FUNC_SINGLE_LENGTH should be a number"))
-                .unwrap_or(500)
-        ));
+lazy_static! {
+    static ref ASYNC_STATE: RwLock<AsyncState> = RwLock::new(AsyncState::new());
 }
 
 /// The object that is used to perform a [host function](crate::Function) is required to implement this trait.

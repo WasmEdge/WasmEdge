@@ -11,6 +11,8 @@
 #include <iostream>
 #include <vector>
 
+#include <boost/algorithm/searching/boyer_moore_horspool.hpp>
+
 namespace WasmEdge {
 namespace Driver {
 
@@ -120,13 +122,13 @@ int FuzzPO(const uint8_t *Data, size_t Size) noexcept {
 
   static constexpr const std::array<char, 4> Separater = {'\xde', '\xad',
                                                           '\xbe', '\xef'};
-  static const std::boyer_moore_horspool_searcher Searcher(Separater.begin(),
-                                                           Separater.end());
+  static const boost::algorithm::boyer_moore_horspool Searcher(
+      Separater.begin(), Separater.end());
   Span<const char> RawArgs(reinterpret_cast<const char *>(Data), Size);
   std::vector<std::string> ArgvStr;
   std::vector<const char *> Argv;
   while (!RawArgs.empty()) {
-    const auto It = std::search(RawArgs.begin(), RawArgs.end(), Searcher);
+    const auto It = Searcher(RawArgs.begin(), RawArgs.end()).first;
     ArgvStr.emplace_back(RawArgs.begin(), It);
     RawArgs = RawArgs.subspan(std::min<size_t>(
         std::distance(RawArgs.begin(), It) + 4, RawArgs.size()));

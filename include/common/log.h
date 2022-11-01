@@ -20,6 +20,8 @@
 namespace WasmEdge {
 namespace Log {
 
+void setLogOff();
+
 void setDebugLoggingLevel();
 
 void setInfoLoggingLevel();

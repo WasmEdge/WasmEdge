@@ -40,6 +40,11 @@ pub fn log_error_info() {
     unsafe { ffi::WasmEdge_LogSetErrorLevel() }
 }
 
+/// Sets the logging system off.
+pub fn log_off() {
+    unsafe { ffi::WasmEdge_LogOff() }
+}
+
 // Checks the result of a `FFI` function.
 pub(crate) fn check(result: WasmEdge_Result) -> WasmEdgeResult<()> {
     let category = unsafe { ffi::WasmEdge_ResultGetCategory(result) };
@@ -54,7 +59,7 @@ pub(crate) fn check(result: WasmEdge_Result) -> WasmEdgeResult<()> {
     match category {
         ffi::WasmEdge_ErrCategory_UserLevelError => Err(Box::new(WasmEdgeError::User(code))),
         ffi::WasmEdge_ErrCategory_WASM => gen_runtime_error(code),
-        _ => panic!("Invalid category value: {}", category),
+        _ => panic!("Invalid category value: {category}"),
     }
 }
 
@@ -304,7 +309,7 @@ fn gen_runtime_error(code: u32) -> WasmEdgeResult<()> {
             CoreExecutionError::WaitOnUnsharedMemory,
         )))),
 
-        _ => panic!("unknown error code: {}", code),
+        _ => panic!("unknown error code: {code}"),
     }
 }
 

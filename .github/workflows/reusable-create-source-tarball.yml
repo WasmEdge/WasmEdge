@@ -16,7 +16,7 @@ jobs:
     name: Create source tarball
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           fetch-depth: 0
       - name: Propagate version information
@@ -36,7 +36,7 @@ jobs:
         env:
           VERSION: ${{ inputs.version }}
       - name: Upload artifact
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: WasmEdge-${{ inputs.version }}-src.tar.gz
           path: WasmEdge-${{ inputs.version }}.tar.gz

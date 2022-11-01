@@ -19,7 +19,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut store = Store::create()?;
 
     // create a Vm context with the given Config and Store
-    let mut vm = Vm::create(Some(config), Some(&mut store))?;
+    let vm = Vm::create(Some(config), Some(&mut store))?;
 
     // register a wasm module from a wasm file
     let file = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
@@ -37,7 +37,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             .expect("fail to compute fib(4)");
 
         let fib4 = returns[0].to_i32();
-        println!("fib(4) by child thread: {}", fib4);
+        println!("fib(4) by child thread: {fib4}");
 
         fib4
     });
@@ -51,7 +51,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             .expect("fail to compute fib(5)");
 
         let fib5 = returns[0].to_i32();
-        println!("fib(5) by child thread: {}", fib5);
+        println!("fib(5) by child thread: {fib5}");
 
         fib5
     });

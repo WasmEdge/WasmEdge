@@ -78,6 +78,8 @@ The [go_WasmAOT example](https://github.com/second-state/WasmEdge-go-examples/tr
 
 ## API References
 
-- [v0.10.1](go/ref.md)
+- [v0.11.1](go/ref.md)
+- [v0.10.1](go/0.10.1/ref.md)
+  - [Upgrade to v0.11.0](go/0.10.1/upgrade_to_0.11.0.md)
 - [v0.9.1](go/0.9.1/ref.md)
   - [Upgrade to v0.10.0](go/0.9.1/upgrade_to_0.10.0.md)

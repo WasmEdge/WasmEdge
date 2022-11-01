@@ -26,7 +26,7 @@ jobs:
       image: wasmedge/wasmedge:ubuntu-build-clang
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           fetch-depth: 0
 
@@ -50,6 +50,7 @@ jobs:
           WasmEdge_VMRunWasmFromBuffer
           WasmEdge_VMRunWasmFromFile
           WasmEdge_StringWrap
+          WasmEdge_Plugin_GetDescriptor
           EOF
           echo "===Allowlist==="
           cat allowlist.txt

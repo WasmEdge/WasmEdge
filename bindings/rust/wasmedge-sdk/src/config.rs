@@ -91,6 +91,7 @@ impl ConfigBuilder {
         inner.threads(self.common_config.threads);
         inner.tail_call(self.common_config.tail_call);
         inner.function_references(self.common_config.function_references);
+        inner.interpreter_mode(self.common_config.interpreter_mode);
 
         if let Some(stat_config) = self.stat_config {
             inner.count_instructions(stat_config.count_instructions);
@@ -280,6 +281,11 @@ impl Config {
         self.inner.function_references_enabled()
     }
 
+    /// Checks if the `ForceInterpreter` option turns on or not.
+    pub fn interpreter_mode_enabled(&self) -> bool {
+        self.inner.interpreter_mode_enabled()
+    }
+
     /// Returns the optimization level of AOT compiler.
     #[cfg(feature = "aot")]
     pub fn optimization_level(&self) -> CompilerOptimizationLevel {
@@ -370,6 +376,7 @@ pub struct CommonConfigOptions {
     threads: bool,
     tail_call: bool,
     function_references: bool,
+    interpreter_mode: bool,
 }
 impl CommonConfigOptions {
     /// Creates a new instance of [CommonConfigOptions].
@@ -386,6 +393,7 @@ impl CommonConfigOptions {
             threads: false,
             tail_call: false,
             function_references: false,
+            interpreter_mode: false,
         }
     }
 
@@ -509,9 +517,26 @@ impl CommonConfigOptions {
         }
     }
 
+    /// Enables or disables the FunctionReferences option.
+    ///
+    /// # Argument
+    ///
+    /// * `enable` - Whether the option turns on or not.
     pub fn function_references(self, enable: bool) -> Self {
         Self {
             function_references: enable,
+            ..self
+        }
+    }
+
+    /// Enables or disables the `ForceInterpreter` option.
+    ///
+    /// # Argument
+    ///
+    /// * `enable` - Whether the option turns on or not.
+    pub fn interpreter_mode(self, enable: bool) -> Self {
+        Self {
+            interpreter_mode: enable,
             ..self
         }
     }
@@ -854,7 +879,8 @@ mod tests {
             .reference_types(true)
             .sign_extension_operators(true)
             .simd(true)
-            .multi_memories(true);
+            .multi_memories(true)
+            .interpreter_mode(true);
 
         let compiler_options = CompilerConfigOptions::default()
             .dump_ir(true)
@@ -890,6 +916,7 @@ mod tests {
         assert!(config.sign_extension_operators_enabled());
         assert!(config.simd_enabled());
         assert!(config.multi_memories_enabled());
+        assert!(config.interpreter_mode_enabled());
 
         // check compiler config options
         assert!(config.dump_ir_enabled());

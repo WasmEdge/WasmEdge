@@ -108,7 +108,29 @@ Expect<void> Executor::instantiate(Runtime::StoreManager &StoreMgr,
     auto ExtName = ImpDesc.getExternalName();
     const auto *TargetModInst = StoreMgr.findModule(ModName);
     if (unlikely(TargetModInst == nullptr)) {
-      return logUnknownError(ModName, ExtName, ExtType);
+      auto Res = logUnknownError(ModName, ExtName, ExtType);
+      if (ModName == "wasi_snapshot_preview1") {
+        spdlog::error("    This is a WASI related import. Please ensure that "
+                      "you've turned on the WASI configuration.");
+      } else if (ModName == "wasi_nn") {
+        spdlog::error("    This is a WASI-NN related import. Please ensure "
+                      "that you've turned on the WASI-NN configuration and "
+                      "installed the WASI-NN plug-in.");
+      } else if (ModName == "wasi_crypto_common" ||
+                 ModName == "wasi_crypto_asymmetric_common" ||
+                 ModName == "wasi_crypto_kx" ||
+                 ModName == "wasi_crypto_signatures" ||
+                 ModName == "wasi_crypto_symmetric") {
+        spdlog::error("    This is a WASI-Crypto related import. Please ensure "
+                      "that you've turned on the WASI-Crypto configuration and "
+                      "installed the WASI-Crypto plug-in.");
+      } else if (ModName == "env") {
+        spdlog::error(
+            "    This may be the import of host environment like JavaScript or "
+            "Golang. Please check that you've registered the necessary host "
+            "modules from the host programming language.");
+      }
+      return Res;
     }
     if (auto Res =
             checkImportMatched(ModName, ExtName, ExtType, *TargetModInst);

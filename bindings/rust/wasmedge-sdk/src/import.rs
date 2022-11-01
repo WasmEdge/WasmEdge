@@ -172,38 +172,6 @@ impl ImportObjectBuilder {
         Ok(self)
     }
 
-    /// Adds a [host function](crate::Func) to the [ImportObject] to create.
-    ///
-    /// N.B. that this function is used for single-threaded scenarios. If you would like to use hostfunc call chaining design, you should use this method to create a [Func](crate::Func) instance.
-    ///
-    /// # Arguments
-    ///
-    /// * `name` - The exported name of the [host function](crate::Func) to add.
-    ///
-    /// * `real_func` - The native function.
-    ///
-    /// # error
-    ///
-    /// If fail to create or add the [host function](crate::Func), then an error is returned.
-    pub fn with_func_single_thread<Args, Rets>(
-        mut self,
-        name: impl AsRef<str>,
-        real_func: impl Fn(&CallingFrame, Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError>
-            + 'static,
-    ) -> WasmEdgeResult<Self>
-    where
-        Args: WasmValTypeList,
-        Rets: WasmValTypeList,
-    {
-        let boxed_func = Box::new(real_func);
-        let args = Args::wasm_types();
-        let returns = Rets::wasm_types();
-        let ty = FuncType::new(Some(args.to_vec()), Some(returns.to_vec()));
-        let inner_func = sys::Function::create_single_thread(&ty.into(), boxed_func, 0)?;
-        self.funcs.push((name.as_ref().to_owned(), inner_func));
-        Ok(self)
-    }
-
     /// Adds a [global](crate::Global) to the [ImportObject] to create.
     ///
     /// # Arguments
@@ -335,6 +303,9 @@ impl ImportObjectBuilder {
 
     /// Creates a new [wasmedge process import object](crate::ImportObject).
     ///
+    /// Notice that the [PluginManager::load_from_default_paths](crate::PluginManager::load_from_default_paths) method
+    /// must be invoked to load the `wasmedge_process` plugin before calling this method.
+    ///
     /// # Arguments
     ///
     /// * `allowed_cmds` - A white list of commands.
@@ -350,8 +321,8 @@ impl ImportObjectBuilder {
         allowed_cmds: Option<Vec<&str>>,
         allowed: bool,
     ) -> WasmEdgeResult<ImportObject> {
-        // load plugins from the default paths
-        sys::utils::load_plugin_from_default_paths();
+        // // load plugins from the default paths
+        // PluginManager::load_from_default_paths();
 
         let mut inner = sys::WasmEdgeProcessModule::create(allowed_cmds, allowed)?;
 
@@ -591,13 +562,15 @@ impl ImportObject {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[cfg(target_os = "linux")]
+    use crate::PluginManager;
     use crate::{
         config::{CommonConfigOptions, ConfigBuilder},
         error::{CoreError, CoreInstantiationError, GlobalError, WasmEdgeError},
-        host_function, params,
+        params,
         types::Val,
-        Caller, Executor, Global, GlobalType, Memory, MemoryType, Mutability, RefType, Statistics,
-        Store, Table, TableType, ValType, WasmVal, WasmValue,
+        Executor, Global, GlobalType, Memory, MemoryType, Mutability, RefType, Statistics, Store,
+        Table, TableType, ValType, WasmVal, WasmValue,
     };
     use std::{
         sync::{Arc, Mutex},
@@ -627,6 +600,9 @@ mod tests {
     #[cfg(target_os = "linux")]
     #[allow(clippy::assertions_on_result_states)]
     fn test_import_builder_wasmedge_process() {
+        // load wasmedge_process plugin
+        PluginManager::load_from_default_paths();
+
         let result = ImportObjectBuilder::default().build_as_wasmedge_process(None, false);
         assert!(result.is_ok());
         let import = result.unwrap();
@@ -637,6 +613,9 @@ mod tests {
     #[cfg(target_os = "linux")]
     #[allow(clippy::assertions_on_result_states)]
     fn test_import_new_wasmedgeprocess() {
+        // load wasmedge_process plugin
+        PluginManager::load_from_default_paths();
+
         let result = ImportObjectBuilder::new()
             .with_func::<(i32, i32), i32, !>("add", real_add, None)
             .expect("failed to add host func")
@@ -761,13 +740,12 @@ mod tests {
             _s: Vec<S>,
         }
 
-        #[host_function]
         fn real_add(
-            _caller: &Caller,
+            _frame: &CallingFrame,
             inputs: Vec<WasmValue>,
-            data: &mut Data<i32, &str>,
+            data: *mut std::os::raw::c_void,
         ) -> std::result::Result<Vec<WasmValue>, HostFuncError> {
-            println!("data: {:?}", data);
+            println!("data: {data:?}");
 
             if inputs.len() != 2 {
                 return Err(HostFuncError::User(1));
@@ -1429,10 +1407,10 @@ mod tests {
         handle.join().unwrap();
     }
 
-    #[host_function]
     fn real_add(
-        _caller: &Caller,
+        _frame: &CallingFrame,
         inputs: Vec<WasmValue>,
+        _data: *mut std::os::raw::c_void,
     ) -> std::result::Result<Vec<WasmValue>, HostFuncError> {
         if inputs.len() != 2 {
             return Err(HostFuncError::User(1));

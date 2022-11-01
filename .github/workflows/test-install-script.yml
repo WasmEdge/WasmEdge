@@ -1,4 +1,4 @@
-name: test-install-script
+name: Test installer
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
@@ -47,7 +47,7 @@ jobs:
             package_manager: apt
             docker_image: ubuntu:16.04
           - name: manylinux2014 aarch64
-            host_runner: ARM64
+            host_runner: linux-arm64
             package_manager: yum
             docker_image: wasmedge/wasmedge:manylinux2014_aarch64
     name: ${{ matrix.name }}
@@ -56,7 +56,7 @@ jobs:
       image: ${{ matrix.docker_image }}
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
       with:
         fetch-depth: 0
 
@@ -219,7 +219,7 @@ jobs:
     runs-on: ${{ matrix.host_runner }}
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
       with:
         fetch-depth: 0
 

@@ -22,6 +22,13 @@
 
 #if WASMEDGE_OS_WINDOWS
 #include <boost/winapi/basic_types.hpp>
+
+#define WIN32_LEAN_AND_MEAN
+#include <Windows.h>
+
+#include <Pathcch.h>
+#include <Shlwapi.h>
+
 #endif
 
 #if WASMEDGE_OS_LINUX
@@ -229,7 +236,8 @@ public:
 
   /// Get the attributes of a file descriptor.
   ///
-  /// Note: This returns similar flags to `fsync(fd, F_GETFL)` in POSIX, as well
+  /// Note: This returns similar flags to `fsync(fd, F_GETFL)` in POSIX, as
+  /// well
   ///
   /// as additional fields.
   /// @param[out] FdStat Result.
@@ -310,14 +318,14 @@ public:
   /// Read directory entries from a directory.
   ///
   /// When successful, the contents of the output buffer consist of a sequence
-  /// of directory entries. Each directory entry consists of a `dirent` object,
-  /// followed by `dirent::d_namlen` bytes holding the name of the directory
-  /// entry.
+  /// of directory entries. Each directory entry consists of a `dirent`
+  /// object, followed by `dirent::d_namlen` bytes holding the name of the
+  /// directory entry.
   ///
   /// This function fills the output buffer as much as possible,
-  /// potentially truncating the last directory entry. This allows the caller to
-  /// grow its read buffer size in case it's too small to fit a single large
-  /// directory entry, or skip the oversized directory entry.
+  /// potentially truncating the last directory entry. This allows the caller
+  /// to grow its read buffer size in case it's too small to fit a single
+  /// large directory entry, or skip the oversized directory entry.
   ///
   /// @param[out] Buffer The buffer where directory entries are stored.
   /// @param[in] Cookie The location within the directory to start reading
@@ -416,8 +424,8 @@ public:
   /// @param[in] OldPath The source path from which to link.
   /// @param[in] New The working directory at which the resolution of the new
   /// path starts.
-  /// @param[in] NewPath The destination path at which to create the hard link.
-  /// resolved.
+  /// @param[in] NewPath The destination path at which to create the hard
+  /// link. resolved.
   /// @return Nothing or WASI error
   static WasiExpect<void> pathLink(const INode &Old, std::string OldPath,
                                    const INode &New,
@@ -541,8 +549,8 @@ public:
 
   /// Receive a message from a socket.
   ///
-  /// Note: This is similar to `recv` in POSIX, though it also supports reading
-  /// the data into multiple buffers in the manner of `readv`.
+  /// Note: This is similar to `recv` in POSIX, though it also supports
+  /// reading the data into multiple buffers in the manner of `readv`.
   ///
   /// @param[in] RiData List of scatter/gather vectors to which to store data.
   /// @param[in] RiFlags Message flags.
@@ -555,8 +563,8 @@ public:
 
   /// Receive a message from a socket.
   ///
-  /// Note: This is similar to `recv` in POSIX, though it also supports reading
-  /// the data into multiple buffers in the manner of `readv`.
+  /// Note: This is similar to `recv` in POSIX, though it also supports
+  /// reading the data into multiple buffers in the manner of `readv`.
   ///
   /// @param[in] RiData List of scatter/gather vectors to which to store data.
   /// @param[in] RiFlags Message flags.
@@ -570,8 +578,8 @@ public:
 
   /// Send a message on a socket.
   ///
-  /// Note: This is similar to `send` in POSIX, though it also supports writing
-  /// the data from multiple buffers in the manner of `writev`.
+  /// Note: This is similar to `send` in POSIX, though it also supports
+  /// writing the data from multiple buffers in the manner of `writev`.
   ///
   /// @param[in] SiData List of scatter/gather vectors to which to retrieve
   /// data.
@@ -656,6 +664,15 @@ private:
 #elif WASMEDGE_OS_WINDOWS
 public:
   using HandleHolder::HandleHolder;
+
+private:
+  mutable std::optional<BY_HANDLE_FILE_INFORMATION> FileInfo;
+  mutable std::optional<__wasi_oflags_t> SavedOpenFlags;
+  mutable std::optional<__wasi_fdflags_t> SavedFdFlags;
+  mutable std::optional<uint8_t> SavedVFSFlags;
+
+  WasiExpect<void> updateFileInfo() const noexcept;
+
 #endif
 };
 

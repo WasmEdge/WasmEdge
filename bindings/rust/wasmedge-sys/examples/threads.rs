@@ -19,7 +19,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut store = Store::create()?;
 
     // create a Vm context with the given Config and Store
-    let mut vm = Vm::create(Some(config), Some(&mut store))?;
+    let vm = Vm::create(Some(config), Some(&mut store))?;
 
     // register a wasm module from a wasm file
     let file = std::path::PathBuf::from(env!("WASMEDGE_DIR"))

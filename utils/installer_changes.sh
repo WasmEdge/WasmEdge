@@ -1,25 +1,43 @@
 #!/bin/bash
 
-bash ./utils/install.sh.old
-cp ~/.wasmedge/env ~/env.old
-python3 ./utils/install.py
-cp ~/.wasmedge/env ~/env
-diff --color -u \
-    <(sed '1,/Please/d' ~/env.old | sed -e 's/\/\//\//g' |
-        sed -e 's/include\/wasmedge\//include\//g' | sed 's/\/$//' |
-        sed -e 's/lib\/wasmedge$/lib/g' | sort) \
-    <(sed '1,/Please/d' ~/env | sed '\/bin$/d' | sort)
+RED=$'\e[0;31m'
+GREEN=$'\e[0;32m'
+YELLOW=$'\e[0;33m'
+NC=$'\e[0m' # No Color
+PYTHON_EXECUTABLE="${PYTHON_EXECUTABLE:=}"
 
-error=$?
-if [ $error -eq 0 ]; then
-    echo "All Safe"
-elif [ $error -eq 1 ]; then
-    echo "Raw Old:"
-    cat ~/env.old
-    echo "Raw New:"
-    cat ~/env
-    exit 1
-else
-    echo "There was something wrong with the diff command"
-    exit 1
-fi
+test_diff_env() {
+    local _path_=$1
+    echo "Testing path: $_path_"
+    bash ./utils/install.sh.old -p "$_path_"
+    cp "$_path_"/env "$HOME"/env.old
+    bash ./utils/install.sh -p "$_path_"
+    cp "$_path_"/env "$HOME"/env
+    diff -u \
+        <(sed '1,/Please/d' "$HOME"/env.old | sed -e 's/\/\//\//g' |
+            sed -e 's/include\/wasmedge\//include\//g' | sed 's/\/$//' |
+            sed -e 's/lib\/wasmedge$/lib/g' | sort) \
+        <(sed '1,/Please/d' "$HOME"/env | sed '\/bin$/d' | sort)
+
+    error=$?
+    if [ $error -eq 0 ]; then
+        echo "${GREEN}All Safe${NC}"
+    elif [ $error -eq 1 ]; then
+        echo "================================================================================"
+        echo "${RED}Raw Old:"
+        cat "$HOME"/env.old
+        echo "================================================================================"
+        echo "Raw New:"
+        cat "$HOME"/env
+        echo "${NC}"
+        exit 1
+    else
+        echo "${YELLOW}There was something wrong with the diff command${NC}"
+        exit 1
+    fi
+}
+
+test_diff_env "$HOME"/.wasmedge
+test_diff_env "$HOME"/new_folder
+test_diff_env /usr/local
+test_diff_env /usr/

@@ -311,7 +311,7 @@ impl Vm {
     ///
     /// If fail to run, then an error is returned.
     pub fn run_wasm_from_file(
-        &mut self,
+        &self,
         path: impl AsRef<Path>,
         func_name: impl AsRef<str>,
         params: impl IntoIterator<Item = WasmValue>,
@@ -381,7 +381,7 @@ impl Vm {
     ///
     /// If fail to run, then an error is returned.
     pub fn run_wasm_from_bytes(
-        &mut self,
+        &self,
         bytes: &[u8],
         func_name: impl AsRef<str>,
         params: impl IntoIterator<Item = WasmValue>,
@@ -451,7 +451,7 @@ impl Vm {
     ///
     /// If fail to run, then an error is returned.
     pub fn run_wasm_from_module(
-        &mut self,
+        &self,
         module: Module,
         func_name: impl AsRef<str>,
         params: impl IntoIterator<Item = WasmValue>,
@@ -483,7 +483,7 @@ impl Vm {
     ///
     /// If fail to run, then an error is returned.
     pub async fn run_wasm_from_module_async(
-        &mut self,
+        &self,
         module: Module,
         func_name: impl AsRef<str> + Send,
         params: impl IntoIterator<Item = WasmValue> + Send,
@@ -512,7 +512,7 @@ impl Vm {
     /// # Error
     ///
     /// If fail to load, then an error is returned.
-    pub fn load_wasm_from_module(&mut self, module: &Module) -> WasmEdgeResult<()> {
+    pub fn load_wasm_from_module(&self, module: &Module) -> WasmEdgeResult<()> {
         unsafe {
             check(ffi::WasmEdge_VMLoadWasmFromASTModule(
                 self.inner.0,
@@ -1335,7 +1335,7 @@ mod tests {
         // create a Vm context with the given Config and Store
         let result = Vm::create(Some(config), Some(&mut store));
         assert!(result.is_ok());
-        let mut vm = result.unwrap();
+        let vm = result.unwrap();
 
         // create a loader
         let result = Config::create();
@@ -1364,7 +1364,7 @@ mod tests {
     fn test_vm_validate() {
         let result = Vm::create(None, None);
         assert!(result.is_ok());
-        let mut vm = result.unwrap();
+        let vm = result.unwrap();
 
         let result = vm.validate();
         assert!(result.is_err());
@@ -1405,7 +1405,7 @@ mod tests {
     fn test_vm_instantiate() {
         let result = Vm::create(None, None);
         assert!(result.is_ok());
-        let mut vm = result.unwrap();
+        let vm = result.unwrap();
 
         let result = vm.instantiate();
         assert!(result.is_err());
@@ -1484,7 +1484,7 @@ mod tests {
 
         let result = Vm::create(Some(config), Some(&mut store));
         assert!(result.is_ok());
-        let mut vm = result.unwrap();
+        let vm = result.unwrap();
 
         // load wasm module from a ast module instance
         let result = vm.load_wasm_from_module(&ast_module);
@@ -1811,7 +1811,7 @@ mod tests {
         // create a Vm context with the given Config and Store
         let result = Vm::create(Some(config), Some(&mut store));
         assert!(result.is_ok());
-        let mut vm = result.unwrap();
+        let vm = result.unwrap();
 
         // run a function from a wasm file
         let path = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
@@ -1952,7 +1952,7 @@ mod tests {
         // create a Vm context with the given Config and Store
         let result = Vm::create(Some(config), Some(&mut store));
         assert!(result.is_ok());
-        let mut vm = result.unwrap();
+        let vm = result.unwrap();
 
         // run a function from a in-memory wasm bytes
         let result = wat2wasm(
@@ -2161,7 +2161,7 @@ mod tests {
         // create a Vm context with the given Config and Store
         let result = Vm::create(Some(config), Some(&mut store));
         assert!(result.is_ok());
-        let mut vm = result.unwrap();
+        let vm = result.unwrap();
 
         // run a function from a module
         let module = load_fib_module();
@@ -2218,7 +2218,7 @@ mod tests {
         // create a Vm context with the given Config and Store
         let result = Vm::create(Some(config), None);
         assert!(result.is_ok());
-        let mut vm = result.unwrap();
+        let vm = result.unwrap();
 
         // run a function from a module
         let module = load_fib_module();
@@ -2284,14 +2284,14 @@ mod tests {
         // create a Vm context with the given Config and Store
         let result = Vm::create(Some(config), Some(&mut store));
         assert!(result.is_ok());
-        let mut vm = result.unwrap();
+        let vm = result.unwrap();
         assert!(!vm.inner.0.is_null());
 
         let handle = thread::spawn(move || {
             // run a function from a wasm file
             let path = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
                 .join("bindings/rust/wasmedge-sys/tests/data/fibonacci.wasm");
-            let result = vm.run_wasm_from_file(&path, "fib", [WasmValue::from_i32(5)]);
+            let result = vm.run_wasm_from_file(path, "fib", [WasmValue::from_i32(5)]);
             assert!(result.is_ok());
             let returns = result.unwrap();
             assert_eq!(returns[0].to_i32(), 8);
@@ -2323,12 +2323,12 @@ mod tests {
         let handle = thread::spawn(move || {
             let result = vm_cloned.lock();
             assert!(result.is_ok());
-            let mut vm = result.unwrap();
+            let vm = result.unwrap();
 
             // run a function from a wasm file
             let path = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
                 .join("bindings/rust/wasmedge-sys/tests/data/fibonacci.wasm");
-            let result = vm.run_wasm_from_file(&path, "fib", [WasmValue::from_i32(5)]);
+            let result = vm.run_wasm_from_file(path, "fib", [WasmValue::from_i32(5)]);
             assert!(result.is_ok());
             let returns = result.unwrap();
             assert_eq!(returns[0].to_i32(), 8);

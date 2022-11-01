@@ -26,6 +26,11 @@ foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
       message(FATAL_ERROR "tensor-1x224x224x3-f32.bgr downloaded with wrong md5") 
     endif()
     add_definitions(-DWASMEDGE_PLUGIN_WASI_NN_BACKEND_OPENVINO)
+    find_package(InferenceEngine REQUIRED)
+    target_link_libraries(wasiNNTests
+      PUBLIC
+      ${InferenceEngine_LIBRARIES}
+    )
   elseif(BACKEND MATCHES "PyTorch")
     message( STATUS "Download ML artifacts to ${CMAKE_CURRENT_BINARY_DIR}/wasinn_pytorch_fixtures") 
     execute_process(
@@ -67,7 +72,7 @@ foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
 endforeach()
 
 target_link_libraries(wasiNNTests
-  PRIVATE
+  PUBLIC
   ${GTEST_BOTH_LIBRARIES}
   wasmedgePlugin
   wasmedgePluginWasiNN

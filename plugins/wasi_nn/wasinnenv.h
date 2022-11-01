@@ -43,6 +43,7 @@ enum class Backend : uint8_t {
 class Graph {
 public:
   Graph() = delete;
+  Graph(const Graph &) = default;
   Graph(Backend BE) noexcept : GraphBackend(BE) {
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_OPENVINO
     OpenVINONetwork = nullptr;
@@ -98,7 +99,7 @@ public:
 class Context {
 public:
   Context() = delete;
-
+  Context(const Context &) = default;
   Context(Graph &G) noexcept : GraphRef(G) {
     if (G.GraphBackend == Backend::OpenVINO) {
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_OPENVINO

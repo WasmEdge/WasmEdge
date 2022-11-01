@@ -332,7 +332,7 @@ impl Vm {
     ///
     /// If fail to run, then an error is returned.
     pub fn run_func_from_file(
-        &mut self,
+        &self,
         file: impl AsRef<Path>,
         func_name: impl AsRef<str>,
         args: impl IntoIterator<Item = sys::WasmValue>,
@@ -384,7 +384,7 @@ impl Vm {
     ///
     /// If fail to run, then an error is returned.
     pub fn run_func_from_bytes(
-        mut self,
+        &self,
         bytes: &[u8],
         func_name: impl AsRef<str>,
         args: impl IntoIterator<Item = sys::WasmValue>,
@@ -435,7 +435,7 @@ impl Vm {
     ///
     /// If fail to run, then an error is returned.
     pub fn run_func_from_module(
-        mut self,
+        &self,
         module: Module,
         func_name: impl AsRef<str>,
         args: impl IntoIterator<Item = sys::WasmValue>,
@@ -458,7 +458,7 @@ impl Vm {
     ///
     /// If fail to run, then an error is returned.
     pub async fn run_func_from_module_async<N, A>(
-        &mut self,
+        &self,
         module: Module,
         func_name: N,
         params: A,
@@ -686,7 +686,7 @@ mod tests {
         // create a Vm context
         let result = Vm::new(None);
         assert!(result.is_ok());
-        let mut vm = result.unwrap();
+        let vm = result.unwrap();
 
         // register a wasm module from a specified wasm file
         let file = std::path::PathBuf::from(env!("WASMEDGE_DIR"))

@@ -3,7 +3,7 @@
 //! To run this example, use the following command:
 //!
 //! ```bash
-//! cd /wasmedge-root-dir/bindings/rust/
+//! cd <wasmedge-root-dir>/bindings/rust/
 //!
 //! cargo run -p wasmedge-sys --example async_run_func
 //! ```
@@ -12,7 +12,7 @@ use wasmedge_sys::{Config, Loader, Store, Vm, WasmValue};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let path = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
+    let wasm_file = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
         .join("bindings/rust/wasmedge-sys/tests/data/fibonacci.wasm");
     let result = Config::create();
     assert!(result.is_ok());
@@ -24,7 +24,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let result = Loader::create(Some(config));
     assert!(result.is_ok());
     let loader = result.unwrap();
-    let result = loader.from_file(path);
+    let result = loader.from_file(wasm_file);
     assert!(result.is_ok());
     let ast_module = result.unwrap();
 
@@ -41,7 +41,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let result = Vm::create(Some(config), Some(&mut store));
     assert!(result.is_ok());
-    let mut vm = result.unwrap();
+    let vm = result.unwrap();
 
     // load wasm module from a ast module instance
     let result = vm.load_wasm_from_module(&ast_module);
@@ -56,9 +56,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     assert!(result.is_ok());
 
     // async run function
-    let fut1 = vm.run_function_async2(String::from("fib"), vec![WasmValue::from_i32(20)]);
+    let fut1 = vm.run_function_async(String::from("fib"), vec![WasmValue::from_i32(20)]);
 
-    let fut2 = vm.run_function_async2(String::from("fib"), vec![WasmValue::from_i32(5)]);
+    let fut2 = vm.run_function_async(String::from("fib"), vec![WasmValue::from_i32(5)]);
 
     let returns = tokio::join!(fut1, fut2);
 

@@ -1,5 +1,6 @@
-//! Defines WasmEdge async structso.
+//! Defines data structure for WasmEdge async mechanism.
 
+use crate::ASYNC_STATE;
 use std::{
     future::Future,
     pin::Pin,
@@ -7,7 +8,6 @@ use std::{
     task::{Context, Poll},
 };
 use wasmtime_fiber::{Fiber, FiberStack, Suspend};
-use crate::ASYNC_STATE;
 
 /// Defines a FiberFuture.
 pub(crate) struct FiberFuture<'a> {
@@ -88,8 +88,8 @@ impl AsyncState {
         }
     }
 
-    /// Returns an async execution context. 
-    /// 
+    /// Returns an async execution context.
+    ///
     /// If the pointer of poll context is null, then None is returned.
     pub(crate) fn async_cx(&self) -> Option<AsyncCx> {
         let poll_cx_box_ptr = self.current_poll_cx.get();

@@ -31,7 +31,6 @@ import platform
 import subprocess
 import re
 import logging
-import json
 
 try:
     from future_builtins import ascii, filter, hex, map, oct, zip

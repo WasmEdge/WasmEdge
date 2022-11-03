@@ -1,4 +1,4 @@
-# WasmEdge C 0.11.1 API Documentation
+# WasmEdge C 0.11.2 API Documentation
 
 [WasmEdge C API](https://github.com/WasmEdge/WasmEdge/blob/master/include/api/wasmedge/wasmedge.h) denotes an interface to access the WasmEdge runtime. The followings are the guides to working with the C APIs of WasmEdge.
 
@@ -6,7 +6,7 @@
 
 **Please notice that `libwasmedge_c.so` is renamed to `libwasmedge.so` after the `0.11.0` release. Please use `-lwasmedge` instead of `-lwasmedge_c` for the linker option.**
 
-**This document is for the `0.11.1` version. For the older `0.10.1` version, please refer to the [document here](0.10.1/ref.md).**
+**This document is for the `0.11.2` version. For the older `0.10.1` version, please refer to the [document here](0.10.1/ref.md).**
 
 **Developers can refer to [here to upgrade to 0.11.0](0.10.1/upgrade_to_0.11.0.md).**
 
@@ -56,7 +56,7 @@
 The easiest way to install WasmEdge is to run the following command. Your system should have `git` and `wget` as prerequisites.
 
 ```bash
-curl -sSf https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh | bash -s -- -v 0.11.1
+curl -sSf https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh | bash -s -- -v 0.11.2
 ```
 
 For more details, please refer to the [Installation Guide](../../quick_start/install.md) for the WasmEdge installation.
@@ -86,7 +86,7 @@ After the installation of WasmEdge, the following guide can help you to test for
 
     ```bash
     $ ./a.out
-    WasmEdge version: 0.11.1
+    WasmEdge version: 0.11.2
     ```
 
 ### ABI Compatibility
@@ -119,6 +119,8 @@ printf("WasmEdge version patch: %u\n", WasmEdge_VersionGetPatch());
 ### Logging Settings
 
 The `WasmEdge_LogSetErrorLevel()` and `WasmEdge_LogSetDebugLevel()` APIs can set the logging system to debug level or error level. By default, the error level is set, and the debug info is hidden.
+
+Developers can also use the `WasmEdge_LogOff()` API to disable all logging. (`0.11.2` or upper only)
 
 ### Value Types
 
@@ -646,7 +648,21 @@ Developers can adjust the settings about the proposals, VM host pre-registration
     WasmEdge_ConfigureDelete(ConfCxt);
     ```
 
-4. AOT compiler options
+4. Forcibly interpreter mode (`0.11.2` or upper only)
+
+    If developers want to execute the WASM file or the AOT compiled WASM in interpreter mode forcibly, they can turn on the configuration.
+
+    ```c
+    WasmEdge_ConfigureContext *ConfCxt = WasmEdge_ConfigureCreate();
+    bool IsForceInterp = WasmEdge_ConfigureIsForceInterpreter(ConfCxt);
+    /* By default, The `IsForceInterp` will be `FALSE`. */
+    WasmEdge_ConfigureSetForceInterpreter(ConfCxt, TRUE);
+    IsForceInterp = WasmEdge_ConfigureIsForceInterpreter(ConfCxt);
+    /* The `IsForceInterp` will be `TRUE`. */
+    WasmEdge_ConfigureDelete(ConfCxt);
+    ```
+
+5. AOT compiler options
 
     The AOT compiler options configure the behavior about optimization level, output format, dump IR, and generic binary.
 
@@ -697,7 +713,7 @@ Developers can adjust the settings about the proposals, VM host pre-registration
     WasmEdge_ConfigureDelete(ConfCxt);
     ```
 
-5. Statistics options
+6. Statistics options
 
     The statistics options configure the behavior about instruction counting, cost measuring, and time measuring in both runtime and AOT compiler.
     These configurations are effective in `Compiler`, `VM`, and `Executor` contexts.

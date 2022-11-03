@@ -142,6 +142,44 @@ impl Func {
         })
     }
 
+    /// Creates an asynchronous host function by wrapping a native function.
+    ///
+    /// # Arguments
+    ///
+    /// * `real_func` - The native function to be wrapped.
+    ///
+    /// # Error
+    ///
+    /// If fail to create the host function, then an error is returned.
+    pub fn wrap_async<Args, Rets>(
+        real_func: impl Fn(
+                &CallingFrame,
+                Vec<WasmValue>,
+                *mut std::os::raw::c_void,
+            ) -> Box<
+                dyn std::future::Future<
+                        Output = Result<Vec<WasmValue>, crate::error::HostFuncError>,
+                    > + Send,
+            > + Send
+            + Sync
+            + 'static,
+    ) -> WasmEdgeResult<Self>
+    where
+        Args: WasmValTypeList,
+        Rets: WasmValTypeList,
+    {
+        let boxed_func = Box::new(real_func);
+        let args = Args::wasm_types();
+        let returns = Rets::wasm_types();
+        let ty = FuncType::new(Some(args.to_vec()), Some(returns.to_vec()));
+        let inner = sys::Function::create_async(&ty.into(), boxed_func, 0)?;
+        Ok(Self {
+            inner,
+            name: None,
+            mod_name: None,
+        })
+    }
+
     /// Returns the exported name of this function.
     ///
     /// Notice that this field is meaningful only if this host function is used as an exported instance.

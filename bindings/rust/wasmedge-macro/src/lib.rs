@@ -255,10 +255,10 @@ fn expand_async_host_func2(item_fn: &syn::ItemFn) -> syn::Result<proc_macro2::To
 
 #[doc(hidden)]
 #[proc_macro_attribute]
-pub fn sys_async_host_function(_attr: TokenStream, item: TokenStream) -> TokenStream {
+pub fn sys_async_host_function_original(_attr: TokenStream, item: TokenStream) -> TokenStream {
     let body_ast = parse_macro_input!(item as Item);
     if let Item::Fn(item_fn) = body_ast {
-        match sys_async_expand_host_func(&item_fn) {
+        match sys_async_expand_host_func_original(&item_fn) {
             Ok(token_stream) => token_stream.into(),
             Err(err) => err.to_compile_error().into(),
         }
@@ -267,7 +267,9 @@ pub fn sys_async_host_function(_attr: TokenStream, item: TokenStream) -> TokenSt
     }
 }
 
-fn sys_async_expand_host_func(item_fn: &syn::ItemFn) -> syn::Result<proc_macro2::TokenStream> {
+fn sys_async_expand_host_func_original(
+    item_fn: &syn::ItemFn,
+) -> syn::Result<proc_macro2::TokenStream> {
     let outer_fn_name_ident = &item_fn.sig.ident;
     let outer_fn_name_literal = outer_fn_name_ident.to_string();
     let outer_fn_inputs = &item_fn.sig.inputs;
@@ -314,10 +316,10 @@ fn sys_async_expand_host_func(item_fn: &syn::ItemFn) -> syn::Result<proc_macro2:
 
 #[doc(hidden)]
 #[proc_macro_attribute]
-pub fn sys_async_host_function2(_attr: TokenStream, item: TokenStream) -> TokenStream {
+pub fn sys_async_host_function_switcher2(_attr: TokenStream, item: TokenStream) -> TokenStream {
     let body_ast = parse_macro_input!(item as Item);
     if let Item::Fn(item_fn) = body_ast {
-        match sys_expand_async_host_func2(&item_fn) {
+        match sys_expand_async_host_func_switcher2(&item_fn) {
             Ok(token_stream) => token_stream.into(),
             Err(err) => err.to_compile_error().into(),
         }
@@ -326,7 +328,9 @@ pub fn sys_async_host_function2(_attr: TokenStream, item: TokenStream) -> TokenS
     }
 }
 
-fn sys_expand_async_host_func2(item_fn: &syn::ItemFn) -> syn::Result<proc_macro2::TokenStream> {
+fn sys_expand_async_host_func_switcher2(
+    item_fn: &syn::ItemFn,
+) -> syn::Result<proc_macro2::TokenStream> {
     let outer_fn_name_ident = &item_fn.sig.ident;
     let outer_fn_name_literal = outer_fn_name_ident.to_string();
     let outer_fn_inputs = &item_fn.sig.inputs;
@@ -507,4 +511,48 @@ fn sys_expand_host_func(item_fn: &syn::ItemFn) -> syn::Result<proc_macro2::Token
     };
 
     Ok(ret)
+}
+
+/// Expand an asynchronous host function defined with `wasmedge-sys` crate.
+#[proc_macro_attribute]
+pub fn sys_async_host_function(_attr: TokenStream, item: TokenStream) -> TokenStream {
+    let body_ast = parse_macro_input!(item as Item);
+    if let Item::Fn(item_fn) = body_ast {
+        match sys_expand_async_host_func(&item_fn) {
+            Ok(token_stream) => token_stream.into(),
+            Err(err) => err.to_compile_error().into(),
+        }
+    } else {
+        TokenStream::new()
+    }
+}
+
+fn sys_expand_async_host_func(item_fn: &syn::ItemFn) -> syn::Result<proc_macro2::TokenStream> {
+    // extract T from Option<&mut T>
+    let ret = match &item_fn.sig.inputs.len() {
+        2 => sys_expand_async_host_func_with_two_args(&item_fn),
+        _ => panic!("Invalid numbers of host function arguments"),
+    };
+
+    Ok(ret)
+}
+
+fn sys_expand_async_host_func_with_two_args(item_fn: &syn::ItemFn) -> proc_macro2::TokenStream {
+    let fn_name_ident = &item_fn.sig.ident;
+
+    // insert the third argument
+    let mut fn_inputs = item_fn.sig.inputs.clone();
+    fn_inputs.push(parse_quote!(_data: *mut std::os::raw::c_void));
+
+    let fn_block = &item_fn.block;
+
+    let ret = quote!(
+        fn #fn_name_ident (#fn_inputs) -> Box<(dyn std::future::Future<Output = Result<Vec<WasmValue>, HostFuncError>> + Send + 'static)> {
+            Box::new(async move {
+                #fn_block
+            })
+        }
+    );
+
+    ret
 }

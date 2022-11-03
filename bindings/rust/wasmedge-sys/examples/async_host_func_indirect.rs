@@ -77,7 +77,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         vec![ValType::I32],
     )?;
     let add_ref = WasmValue::from_extern_ref(&mut real_add);
-    let host_func = Function::create_async(&func_ty, Box::new(real_add), Some(&mut store), 0)?;
+    let host_func = Function::create_async(&func_ty, Box::new(real_add), 0)?;
 
     // create an ImportObject module
     let mut import = ImportModule::create("extern_module")?;

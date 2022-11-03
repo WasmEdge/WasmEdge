@@ -262,14 +262,9 @@ impl Function {
     /// // create a Function instance
     /// let func = Function::create_async::<!, _>(&func_ty, Box::new(real_add), None, 0).expect("fail to create a Function instance");
     /// ```
-    pub fn create_async<T, F>(
+    pub fn create_async(
         ty: &FuncType,
-        real_fn: F,
-        data: Option<&mut T>,
-        cost: u64,
-    ) -> WasmEdgeResult<Self>
-    where
-        F: Fn(
+        real_fn: impl Fn(
                 &CallingFrame,
                 Vec<WasmValue>,
                 *mut std::os::raw::c_void,
@@ -280,8 +275,9 @@ impl Function {
             > + Send
             + Sync
             + 'static,
-    {
-        Self::create(
+        cost: u64,
+    ) -> WasmEdgeResult<Self> {
+        Self::create::<!>(
             ty,
             Box::new(move |frame, args, data| {
                 let async_state = ASYNC_STATE.read();
@@ -294,7 +290,7 @@ impl Function {
                     Err(_err) => Err(HostFuncError::User(0x87)),
                 }
             }),
-            data,
+            None,
             cost,
         )
     }

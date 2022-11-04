@@ -48,7 +48,7 @@ jobs:
         shell: bash
         working-directory: bindings/rust/
         run: |
-          cargo smart-release --update-crates-index --dry-run-cargo-publish --no-changelog wasmedge-types
+          cargo smart-release --update-crates-index --dry-run-cargo-publish --no-changelog --no-tag wasmedge-types
 
       - name: Publish
         if: github.ref == 'refs/heads/master'
@@ -58,7 +58,7 @@ jobs:
         shell: bash
         working-directory: bindings/rust/
         run: |
-          cargo smart-release --update-crates-index --execute --no-changelog wasmedge-types
+          cargo smart-release --update-crates-index --execute --no-changelog --no-tag wasmedge-types
 
       - name: Build WasmEdge with Release mode
         run: |

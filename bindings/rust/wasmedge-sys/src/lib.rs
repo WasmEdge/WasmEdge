@@ -227,7 +227,7 @@ use wasmedge_types::{error, WasmEdgeResult};
 /// Type alias for a boxed native function. This type is used in thread-safe cases.
 pub type BoxedFn = Box<
     dyn Fn(
-            &CallingFrame,
+            CallingFrame,
             Vec<WasmValue>,
             *mut std::os::raw::c_void,
         ) -> Result<Vec<WasmValue>, error::HostFuncError>

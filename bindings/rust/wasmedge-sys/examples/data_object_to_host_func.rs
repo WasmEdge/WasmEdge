@@ -12,7 +12,7 @@ struct Data<T, S> {
 
 #[sys_host_function]
 fn real_add(
-    _frame: &CallingFrame,
+    _frame: CallingFrame,
     input: Vec<WasmValue>,
     data: &mut Data<i32, &str>,
 ) -> Result<Vec<WasmValue>, HostFuncError> {

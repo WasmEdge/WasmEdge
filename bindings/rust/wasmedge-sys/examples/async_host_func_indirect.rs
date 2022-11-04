@@ -27,7 +27,7 @@ use wasmedge_types::{error::HostFuncError, ValType};
 
 #[sys_async_host_function]
 async fn real_add(
-    _frame: &CallingFrame,
+    _frame: CallingFrame,
     input: Vec<WasmValue>,
     // _data: *mut c_void,
 ) -> Result<Vec<WasmValue>, HostFuncError> {

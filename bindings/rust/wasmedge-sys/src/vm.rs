@@ -2715,7 +2715,7 @@ mod tests {
 
     #[cfg(unix)]
     fn real_add(
-        _: &CallingFrame,
+        _: CallingFrame,
         inputs: Vec<WasmValue>,
         _data: *mut std::os::raw::c_void,
     ) -> Result<Vec<WasmValue>, HostFuncError> {

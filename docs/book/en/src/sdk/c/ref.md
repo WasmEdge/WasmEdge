@@ -98,7 +98,8 @@ The releases before 0.11.0 are all unversioned. Please make sure the library ver
 | WasmEdge Version | WasmEdge C API Library Name | WasmEdge C API SONAME | WasmEdge C API SOVERSION |
 | ---              | ---                         | ---                   | ---                      |
 | < 0.11.0         | libwasmedge\_c.so           | Unversioned           | Unversioned              |
-| since 0.11.0     | libwasmedge.so              | libwasmedge.so.0      | libwasmedge.so.0.0.0     |
+| 0.11.0 to 0.11.1 | libwasmedge.so              | libwasmedge.so.0      | libwasmedge.so.0.0.0     |
+| since 0.11.2     | libwasmedge.so              | libwasmedge.so.0      | libwasmedge.so.0.0.1     |
 
 ## WasmEdge Basics
 

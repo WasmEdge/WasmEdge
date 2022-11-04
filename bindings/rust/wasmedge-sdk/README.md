@@ -93,7 +93,7 @@ A quick-start example below is using `wasmedge-sdk` to run a WebAssembly module 
   
       // We define a function to act as our "env" "say_hello" function imported in the
       // Wasm program above.
-      fn say_hello_world(_: &CallingFrame, _: Vec<WasmValue>) -> Result<Vec<WasmValue>, u8> {
+      fn say_hello_world(_: CallingFrame, _: Vec<WasmValue>) -> Result<Vec<WasmValue>, u8> {
           println!("Hello, world!");
   
           Ok(vec![])

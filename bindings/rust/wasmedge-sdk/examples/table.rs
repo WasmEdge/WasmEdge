@@ -91,7 +91,7 @@ fn main() -> anyhow::Result<()> {
     /// A function we'll call through a table.
     #[host_function]
     fn host_callback(
-        _: &Caller,
+        _: Caller,
         inputs: Vec<WasmValue>,
     ) -> std::result::Result<Vec<WasmValue>, HostFuncError> {
         if inputs.len() != 2 {

@@ -6,14 +6,14 @@ use wasmedge_sdk::{
 };
 
 #[host_function]
-fn func(_frame: &Caller, _input: Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError> {
+fn func(_frame: Caller, _input: Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError> {
     println!("Entering host function: func");
 
     // spawn a new thread to create another host function
     let handler = std::thread::spawn(|| {
         #[host_function]
         fn real_add(
-            _frame: &Caller,
+            _frame: Caller,
             input: Vec<WasmValue>,
         ) -> Result<Vec<WasmValue>, HostFuncError> {
             println!("Rust: Entering Rust function real_add");

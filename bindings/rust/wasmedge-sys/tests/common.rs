@@ -61,7 +61,7 @@ pub fn create_extern_module(name: impl AsRef<str>) -> ImportModule {
 }
 
 fn extern_add(
-    _: &CallingFrame,
+    _: CallingFrame,
     inputs: Vec<WasmValue>,
     _data: *mut std::os::raw::c_void,
 ) -> Result<Vec<WasmValue>, HostFuncError> {
@@ -84,7 +84,7 @@ fn extern_add(
 }
 
 fn extern_sub(
-    _: &CallingFrame,
+    _: CallingFrame,
     inputs: Vec<WasmValue>,
     _data: *mut std::os::raw::c_void,
 ) -> Result<Vec<WasmValue>, HostFuncError> {
@@ -108,7 +108,7 @@ fn extern_sub(
 }
 
 fn extern_mul(
-    _: &CallingFrame,
+    _: CallingFrame,
     inputs: Vec<WasmValue>,
     _data: *mut std::os::raw::c_void,
 ) -> Result<Vec<WasmValue>, HostFuncError> {
@@ -131,7 +131,7 @@ fn extern_mul(
 }
 
 fn extern_div(
-    _: &CallingFrame,
+    _: CallingFrame,
     inputs: Vec<WasmValue>,
     _data: *mut std::os::raw::c_void,
 ) -> Result<Vec<WasmValue>, HostFuncError> {
@@ -154,7 +154,7 @@ fn extern_div(
 }
 
 fn extern_term(
-    _: &CallingFrame,
+    _: CallingFrame,
     _inputs: Vec<WasmValue>,
     _data: *mut std::os::raw::c_void,
 ) -> Result<Vec<WasmValue>, HostFuncError> {
@@ -162,7 +162,7 @@ fn extern_term(
 }
 
 fn extern_fail(
-    _: &CallingFrame,
+    _: CallingFrame,
     _inputs: Vec<WasmValue>,
     _data: *mut std::os::raw::c_void,
 ) -> Result<Vec<WasmValue>, HostFuncError> {

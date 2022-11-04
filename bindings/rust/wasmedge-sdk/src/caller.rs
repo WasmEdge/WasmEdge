@@ -6,22 +6,22 @@ use wasmedge_sys::CallingFrame;
 /// The [Caller] object is only used as the first argument when defining a host function. With this argument,
 /// developers can have access to the [Executor] instance, the [Instance] instance, and the [Memory] instance inside the host functions they defined.
 #[derive(Debug)]
-pub struct Caller<'a> {
-    inner: Option<&'a CallingFrame>,
+pub struct Caller {
+    inner: Option<CallingFrame>,
 }
-impl<'a> Caller<'a> {
+impl Caller {
     /// Creates a [Caller] instance with the given [CallingFrame](wasmedge_sys::CallingFrame) instance which is
     /// a low-level object defined in `wasmedge-sys` crate.
     ///
     /// Notice that this function is not used by developers to create a [Caller] instance.
-    pub fn new(frame: &'a CallingFrame) -> Self {
+    pub fn new(frame: CallingFrame) -> Self {
         Self { inner: Some(frame) }
     }
 
     /// Returns the [executor instance](crate::Executor) from this caller.
     pub fn executor(&self) -> Option<Executor> {
         match self.inner {
-            Some(frame) => frame.executor_mut().map(|inner| Executor { inner }),
+            Some(ref frame) => frame.executor_mut().map(|inner| Executor { inner }),
             None => None,
         }
     }
@@ -29,7 +29,7 @@ impl<'a> Caller<'a> {
     /// Returns the [module instance](crate::Instance) in this caller.
     pub fn instance(&self) -> Option<Instance> {
         match self.inner {
-            Some(frame) => frame.module_instance().map(|inner| Instance { inner }),
+            Some(ref frame) => frame.module_instance().map(|inner| Instance { inner }),
             None => None,
         }
     }
@@ -48,7 +48,7 @@ impl<'a> Caller<'a> {
     ///
     pub fn memory(&self, idx: usize) -> Option<Memory> {
         match self.inner {
-            Some(frame) => frame.memory_mut(idx as u32).map(|inner| Memory {
+            Some(ref frame) => frame.memory_mut(idx as u32).map(|inner| Memory {
                 inner,
                 name: None,
                 mod_name: None,

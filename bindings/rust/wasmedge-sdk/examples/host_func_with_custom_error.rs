@@ -59,7 +59,7 @@ impl From<u32> for MyError {
 
 // compute the sum of two numbers, which are less than 100
 #[host_function]
-fn real_add(_caller: &Caller, input: Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError> {
+fn real_add(_caller: Caller, input: Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError> {
     if input.len() != 3 {
         return Err(HostFuncError::User(MyError::InvalidArguments.into()));
     }

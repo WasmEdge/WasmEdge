@@ -19,7 +19,7 @@ struct Data<T, S> {
 // Wasm program above.
 #[host_function]
 fn say_hello(
-    caller: &Caller,
+    caller: Caller,
     _args: Vec<WasmValue>,
     data: &mut Data<i32, &str>,
 ) -> Result<Vec<WasmValue>, HostFuncError> {

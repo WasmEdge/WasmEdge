@@ -8,13 +8,12 @@
 //! cargo run -p wasmedge-sys --example async_host_func
 //! ```
 
-use wasmedge_sys::{Executor, FuncType, Function, Store};
+use wasmedge_sys::{Executor, FuncType, Function};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // create a FuncType
     let func_ty = FuncType::create(vec![], vec![])?;
-    let mut store = Store::create().expect("123");
 
     // create a host function
     let async_host_func = Function::create_async(
@@ -36,7 +35,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 Ok(vec![])
             })
         },
-        Some(&mut store),
         0,
     )?;
 

@@ -60,7 +60,7 @@ fn vm_apis() -> Result<(), Box<dyn std::error::Error>> {
         // a function to import
         #[sys_host_function]
         fn real_add(
-            _frame: &CallingFrame,
+            _frame: CallingFrame,
             inputs: Vec<WasmValue>,
         ) -> Result<Vec<WasmValue>, HostFuncError> {
             if inputs.len() != 2 {

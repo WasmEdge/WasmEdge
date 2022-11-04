@@ -380,6 +380,20 @@ pub struct CommonConfigOptions {
 }
 impl CommonConfigOptions {
     /// Creates a new instance of [CommonConfigOptions].
+    ///
+    /// The default options are:
+    /// * mutable_globals: true,
+    /// * non_trap_conversions: true,
+    /// * sign_extension_operators: true,
+    /// * multi_value: true,
+    /// * bulk_memory_operations: true,
+    /// * reference_types: true,
+    /// * simd: true,
+    /// * multi_memories: false,
+    /// * threads: false,
+    /// * tail_call: false,
+    /// * function_references: false,
+    /// * interpreter_mode: false,
     pub fn new() -> Self {
         Self {
             mutable_globals: true,
@@ -542,6 +556,21 @@ impl CommonConfigOptions {
     }
 }
 impl Default for CommonConfigOptions {
+    /// Creates a new default instance of [CommonConfigOptions].
+    ///
+    /// The default options are:
+    /// * mutable_globals: true,
+    /// * non_trap_conversions: true,
+    /// * sign_extension_operators: true,
+    /// * multi_value: true,
+    /// * bulk_memory_operations: true,
+    /// * reference_types: true,
+    /// * simd: true,
+    /// * multi_memories: false,
+    /// * threads: false,
+    /// * tail_call: false,
+    /// * function_references: false,
+    /// * interpreter_mode: false,
     fn default() -> Self {
         Self::new()
     }

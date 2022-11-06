@@ -14,7 +14,9 @@
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_TORCH
 #include <torch/script.h>
 #endif
-
+#ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_TF
+#include "tensorflow/c/c_api.h"
+#endif
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_TFLITE
 #include "tensorflow/lite/c/c_api.h"
 #endif
@@ -72,6 +74,17 @@ public:
       }
     }
 #endif
+#ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_TF
+    if (TFGraphOpts) {
+      TF_DeleteImportGraphDefOptions(TFGraphOpts);
+    }
+    if (TFBuffer) {
+      TF_DeleteBuffer(TFBuffer);
+    }
+    if (TFGraph) {
+      TF_DeleteGraph(TFGraph);
+    }
+#endif
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_TFLITE
     if (TFLiteMod) {
       TfLiteModelDelete(TFLiteMod);
@@ -89,6 +102,11 @@ public:
 #endif
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_TORCH
   torch::jit::Module TorchModel;
+#endif
+#ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_TF
+  TF_ImportGraphDefOptions *TFGraphOpts = nullptr;
+  TF_Buffer *TFBuffer = nullptr;
+  TF_Graph *TFGraph = nullptr;
 #endif
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_TFLITE
   TfLiteModel *TFLiteMod = nullptr;
@@ -109,6 +127,10 @@ public:
         spdlog::error("[WASI-NN] Unable to create infer request for OpenVINO");
       }
 #endif
+    } else if (G.GraphBackend == Backend::Tensorflow) {
+#ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_TF
+      TFStat = TF_NewStatus();
+#endif
     }
   }
 
@@ -116,6 +138,26 @@ public:
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_OPENVINO
     if (OpenVINOInferRequest) {
       ie_infer_request_free(&OpenVINOInferRequest);
+    }
+#endif
+#ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_TF
+    if (TFSessionOpts) {
+      TF_DeleteSessionOptions(TFSessionOpts);
+    }
+    if (TFSession) {
+      TF_CloseSession(TFSession, TFStat);
+      TF_DeleteSession(TFSession, TFStat);
+    }
+    TF_DeleteStatus(TFStat);
+    for (uint32_t I = 0; I < TFInputTensors.size(); ++I) {
+      if (TFInputTensors[I]) {
+        TF_DeleteTensor(TFInputTensors[I]);
+      }
+    }
+    for (uint32_t I = 0; I < TFOutputTensors.size(); ++I) {
+      if (TFOutputTensors[I]) {
+        TF_DeleteTensor(TFOutputTensors[I]);
+      }
     }
 #endif
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_TFLITE
@@ -132,6 +174,17 @@ public:
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_TORCH
   std::vector<torch::jit::IValue> TorchInputs;
   std::vector<at::Tensor> TorchOutputs;
+#endif
+#ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_TF
+  TF_Status *TFStat = nullptr;
+  TF_SessionOptions *TFSessionOpts = nullptr;
+  TF_Session *TFSession = nullptr;
+  std::vector<std::string> TFInputNames;
+  std::vector<std::string> TFOutputNames;
+  std::vector<TF_Output> TFInputs;
+  std::vector<TF_Output> TFOutputs;
+  std::vector<TF_Tensor *> TFInputTensors;
+  std::vector<TF_Tensor *> TFOutputTensors;
 #endif
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_TFLITE
   TfLiteInterpreter *TFLiteInterp = nullptr;

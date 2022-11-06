@@ -208,13 +208,14 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
                                const BlockType &BType)
       -> Expect<std::pair<Span<const VType>, Span<const VType>>> {
     using ReturnType = std::pair<Span<const VType>, Span<const VType>>;
-    if (BType.IsValType) {
+    if (BType.isEmpty()) {
+      return ReturnType{{}, Buffer};
+    }
+    if (BType.isValType()) {
       // ValType case. t2* = valtype | none
-      if (BType.Data.Type != ValType::None) {
-        Buffer.clear();
-        Buffer.reserve(1);
-        Buffer.push_back(ASTToVType(BType.Data.Type));
-      }
+      Buffer.clear();
+      Buffer.reserve(1);
+      Buffer.push_back(ASTToVType(BType.Data.Type));
       return ReturnType{{}, Buffer};
     } else {
       // Type index case. t2* = type[index].returns

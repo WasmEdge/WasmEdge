@@ -434,10 +434,10 @@ struct WasmEdge::AOT::Compiler::CompileContext {
   resolveBlockType(const BlockType &BType) const {
     using VecT = std::vector<ValType>;
     using RetT = std::pair<VecT, VecT>;
-    if (BType.IsValType) {
-      if (BType.Data.Type == ValType::None) {
-        return RetT{};
-      }
+    if (BType.isEmpty()) {
+      return RetT{};
+    }
+    if (BType.isValType()) {
       return RetT{{}, {BType.Data.Type}};
     } else {
       // Type index case. t2* = type[index].returns
@@ -455,8 +455,7 @@ namespace {
 using namespace WasmEdge;
 
 static bool isVoidReturn(Span<const WasmEdge::ValType> ValTypes) {
-  return ValTypes.empty() ||
-         (ValTypes.size() == 1 && ValTypes.front() == ValType::None);
+  return ValTypes.empty();
 }
 
 static llvm::Type *toLLVMType(llvm::LLVMContext &LLContext,

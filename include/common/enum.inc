@@ -908,7 +908,6 @@ I(Lane, "lane")
 #ifdef UseValType
 #define V Line
 
-V(None, 0x40, "none")
 V(I32, 0x7F, "i32")
 V(I64, 0x7E, "i64")
 V(F32, 0x7D, "f32")

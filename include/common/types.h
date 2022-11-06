@@ -87,9 +87,13 @@ using ValVariant =
             int16x8_t, uint8x16_t, int8x16_t, floatx4_t, doublex2_t, UnknownRef,
             FuncRef, ExternRef>;
 
+__inline__ const uint8_t BLOCK_TYPE_EMPTY_BIT_MASK = 1;
+__inline__ const uint8_t BLOCK_TYPE_VAL_TYPE_BIT_MASK = 1 << 1;
+__inline__ const uint8_t BLOCK_TYPE_IDX_BIT_MASK = 1 << 2;
+
 /// BlockType definition.
 struct BlockType {
-  bool IsValType;
+  uint8_t TypeFlag;
   union {
     ValType Type;
     uint32_t Idx;
@@ -97,14 +101,17 @@ struct BlockType {
   BlockType() = default;
   BlockType(ValType VType) { setData(VType); }
   BlockType(uint32_t Idx) { setData(Idx); }
+  void setEmpty() { TypeFlag = BLOCK_TYPE_EMPTY_BIT_MASK; }
   void setData(ValType VType) {
-    IsValType = true;
+    TypeFlag = BLOCK_TYPE_VAL_TYPE_BIT_MASK;
     Data.Type = VType;
   }
   void setData(uint32_t Idx) {
-    IsValType = false;
+    TypeFlag = BLOCK_TYPE_IDX_BIT_MASK;
     Data.Idx = Idx;
   }
+  bool isEmpty() const { return TypeFlag == BLOCK_TYPE_EMPTY_BIT_MASK; }
+  bool isValType() const { return TypeFlag == BLOCK_TYPE_VAL_TYPE_BIT_MASK; }
 };
 
 /// NumType and RefType conversions.
@@ -269,7 +276,6 @@ inline constexpr ValVariant ValueFromType(ValType Type) noexcept {
   case ValType::FuncRef:
   case ValType::ExternRef:
     return UnknownRef();
-  case ValType::None:
   default:
     assumingUnreachable();
   }

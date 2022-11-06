@@ -141,25 +141,20 @@ Expect<void> Loader::loadSegment(AST::ElementSegment &ElemSeg) {
     [[fallthrough]];
 
   case 0x00: {
-    uint32_t VecCnt = 0;
-    if (auto Res = FMgr.readU32()) {
-      VecCnt = *Res;
-    } else {
+    auto Res = loadVec(
+        ElemSeg.getInitExprs(), [this](AST::Expression &Expr) -> Expect<void> {
+          AST::Instruction RefFunc(OpCode::Ref__func);
+          AST::Instruction End(OpCode::End);
+          if (auto Res = loadInstruction(RefFunc); unlikely(!Res)) {
+            return Unexpect(Res);
+          }
+          Expr.getInstrs().emplace_back(std::move(RefFunc));
+          Expr.getInstrs().emplace_back(std::move(End));
+          return {};
+        });
+    if (unlikely(!Res)) {
       return logLoadError(Res.error(), FMgr.getLastOffset(),
                           ASTNodeAttr::Seg_Element);
-    }
-    for (uint32_t I = 0; I < VecCnt; ++I) {
-      // For each element in vec(funcidx), make expr(ref.func idx end).
-      ElemSeg.getInitExprs().emplace_back();
-      AST::Instruction RefFunc(OpCode::Ref__func);
-      AST::Instruction End(OpCode::End);
-      if (auto Res = loadInstruction(RefFunc); unlikely(!Res)) {
-        spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Seg_Element));
-        return Unexpect(Res);
-      }
-      ElemSeg.getInitExprs().back().getInstrs().emplace_back(
-          std::move(RefFunc));
-      ElemSeg.getInitExprs().back().getInstrs().emplace_back(std::move(End));
     }
     break;
   }
@@ -187,26 +182,13 @@ Expect<void> Loader::loadSegment(AST::ElementSegment &ElemSeg) {
     [[fallthrough]];
 
   case 0x04: {
-    uint32_t VecCnt = 0;
-    if (auto Res = FMgr.readU32(); unlikely(!Res)) {
+    auto Res = loadVec(ElemSeg.getInitExprs(),
+                       [this](AST::Expression &Expr) -> Expect<void> {
+                         return loadExpression(Expr);
+                       });
+    if (unlikely(!Res)) {
       return logLoadError(Res.error(), FMgr.getLastOffset(),
                           ASTNodeAttr::Seg_Element);
-    } else {
-      VecCnt = *Res;
-      if (VecCnt / 2 > FMgr.getRemainSize()) {
-        return logLoadError(ErrCode::Value::IntegerTooLong,
-                            FMgr.getLastOffset(), ASTNodeAttr::Seg_Element);
-      }
-    }
-    ElemSeg.getInitExprs().clear();
-    ElemSeg.getInitExprs().reserve(VecCnt);
-    for (uint32_t I = 0; I < VecCnt; ++I) {
-      ElemSeg.getInitExprs().emplace_back();
-      if (auto Res = loadExpression(ElemSeg.getInitExprs().back());
-          unlikely(!Res)) {
-        spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Seg_Element));
-        return Unexpect(Res);
-      }
     }
     break;
   }
@@ -230,49 +212,41 @@ Expect<void> Loader::loadSegment(AST::CodeSegment &CodeSeg) {
   auto ExprSizeBound = FMgr.getOffset() + CodeSeg.getSegSize();
 
   // Read the vector of local variable counts and types.
-  uint32_t VecCnt = 0;
-  if (auto Res = FMgr.readU32()) {
-    VecCnt = *Res;
-    if (VecCnt / 2 > FMgr.getRemainSize()) {
-      return logLoadError(ErrCode::Value::IntegerTooLong, FMgr.getLastOffset(),
-                          ASTNodeAttr::Seg_Code);
-    }
+  uint32_t TotalLocalCnt = 0;
+  auto Res = loadVec(
+      CodeSeg.getLocals(),
+      [this, &TotalLocalCnt](std::pair<uint32_t, ValType> &Local) -> Expect<void> {
+        uint32_t LocalCnt;
+        ValType LocalType;
+        if (auto Res = FMgr.readU32(); unlikely(!Res)) {
+          return Unexpect(Res);
+        } else {
+          LocalCnt = *Res;
+        }
+        // Total local variables should not more than 2^32. Capped at 2^26.
+        if (UINT32_C(67108864) - TotalLocalCnt < LocalCnt) {
+          return Unexpect(ErrCode::Value::TooManyLocals);
+        }
+        TotalLocalCnt += LocalCnt;
+        // Read the number type.
+        if (auto Res = FMgr.readByte(); unlikely(!Res)) {
+          return Unexpect(Res);
+        } else {
+          LocalType = static_cast<ValType>(*Res);
+        }
+        if (auto Res = checkValTypeProposals(
+                LocalType, false, FMgr.getLastOffset(), ASTNodeAttr::Seg_Code);
+            unlikely(!Res)) {
+          return Unexpect(Res);
+        }
+        Local.first = LocalCnt;
+        Local.second = LocalType;
+        return {};
+      });
 
-    CodeSeg.getLocals().clear();
-    CodeSeg.getLocals().reserve(VecCnt);
-  } else {
+  if (!Res) {
     return logLoadError(Res.error(), FMgr.getLastOffset(),
                         ASTNodeAttr::Seg_Code);
-  }
-  uint32_t TotalLocalCnt = 0;
-  for (uint32_t I = 0; I < VecCnt; ++I) {
-    uint32_t LocalCnt = 0;
-    ValType LocalType = ValType::None;
-    if (auto Res = FMgr.readU32(); unlikely(!Res)) {
-      return logLoadError(Res.error(), FMgr.getLastOffset(),
-                          ASTNodeAttr::Seg_Code);
-    } else {
-      LocalCnt = *Res;
-    }
-    // Total local variables should not more than 2^32. Capped at 2^26.
-    if (UINT32_C(67108864) - TotalLocalCnt < LocalCnt) {
-      return logLoadError(ErrCode::Value::TooManyLocals, FMgr.getLastOffset(),
-                          ASTNodeAttr::Seg_Code);
-    }
-    TotalLocalCnt += LocalCnt;
-    // Read the number type.
-    if (auto Res = FMgr.readByte(); unlikely(!Res)) {
-      return logLoadError(Res.error(), FMgr.getLastOffset(),
-                          ASTNodeAttr::Seg_Code);
-    } else {
-      LocalType = static_cast<ValType>(*Res);
-    }
-    if (auto Res = checkValTypeProposals(LocalType, false, FMgr.getLastOffset(),
-                                         ASTNodeAttr::Seg_Code);
-        unlikely(!Res)) {
-      return Unexpect(Res);
-    }
-    CodeSeg.getLocals().push_back(std::make_pair(LocalCnt, LocalType));
   }
 
   if (!Conf.getRuntimeConfigure().isForceInterpreter() &&

@@ -153,28 +153,48 @@ private:
   }
   template <typename T, typename L>
   Expect<void> loadSectionContentVec(T &Sec, L &&Func) {
-    uint32_t VecCnt = 0;
-    // Read the vector size.
-    if (auto Res = FMgr.readU32()) {
-      VecCnt = *Res;
-      if (VecCnt / 2 > FMgr.getRemainSize()) {
-        return logLoadError(ErrCode::Value::IntegerTooLong,
-                            FMgr.getLastOffset(), NodeAttrFromAST<T>());
-      }
-      Sec.getContent().resize(VecCnt);
-    } else {
+    if (auto Res = loadVec(Sec.getContent(), std::move(Func)); !Res) {
       return logLoadError(Res.error(), FMgr.getLastOffset(),
                           NodeAttrFromAST<T>());
     }
+    return {};
+  }
 
-    // Sequently create the AST node T and read data.
+  Expect<uint32_t> loadVecCnt() {
+    // Read the vector size.
+    if (auto Res = FMgr.readU32()) {
+      // Question: why we used to divide by 2 here?
+      if (*Res > FMgr.getRemainSize()) {
+        return Unexpect(ErrCode::Value::IntegerTooLong);
+      }
+      return *Res;
+    } else {
+      return Unexpect(Res);
+    }
+  }
+
+  template <typename T, typename L>
+  Expect<void> loadVecContent(Span<T> Vec, L &&Func, uint32_t VecCnt) {
+    assert(Vec.size() >= VecCnt);
     for (uint32_t I = 0; I < VecCnt; ++I) {
-      if (auto Res = Func(Sec.getContent()[I]); !Res) {
-        spdlog::error(ErrInfo::InfoAST(NodeAttrFromAST<T>()));
+      if (auto Res = Func(Vec[I]); unlikely(!Res)) {
         return Unexpect(Res);
       }
     }
     return {};
+  }
+
+  template <typename T, typename L>
+  Expect<void> loadVec(std::vector<T> &Vec, L &&Func) {
+    uint32_t VecCnt;
+    if (auto Res = loadVecCnt()) {
+      Vec.clear();
+      Vec.resize(*Res);
+      VecCnt = *Res;
+    } else {
+      return Unexpect(Res);
+    }
+    return loadVecContent(Span<T>(Vec), std::move(Func), VecCnt);
   }
 
   /// \name Load AST nodes functions

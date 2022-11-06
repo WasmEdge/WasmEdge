@@ -14,7 +14,15 @@
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_TORCH
 #include <torch/script.h>
 #endif
-
+#ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_TF
+#include <filesystem>
+#include <string>
+#include <tensorflow/c/c_api.h>
+#include <tensorflow/cc/saved_model/loader.h>
+#include <tensorflow/cc/saved_model/tag_constants.h>
+#include <tensorflow/core/framework/tensor.h>
+#include <tensorflow/core/public/session_options.h>
+#endif
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_TFLITE
 #include "tensorflow/lite/c/c_api.h"
 #endif
@@ -72,6 +80,17 @@ public:
       }
     }
 #endif
+#ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_TF
+    if (TFBuffer != nullptr) {
+      TF_DeleteBuffer(TFBuffer);
+    }
+    if (TFGraph != nullptr) {
+      TF_DeleteGraph(TFGraph);
+    }
+    if (std::filesystem::exists(TFSavedModelPath)) {
+      std::filesystem::remove_all(TFSavedModelPath);
+    }
+#endif
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_TFLITE
     if (TFLiteMod) {
       TfLiteModelDelete(TFLiteMod);
@@ -89,6 +108,14 @@ public:
 #endif
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_TORCH
   torch::jit::Module TorchModel;
+#endif
+#ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_TF
+  TF_Buffer *TFBuffer = nullptr;
+  TF_Graph *TFGraph = nullptr;
+
+  std::filesystem::path TFSavedModelPath;
+  std::string TFTagSet;
+  std::string TFSignature;
 #endif
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_TFLITE
   TfLiteModel *TFLiteMod = nullptr;
@@ -118,6 +145,40 @@ public:
       ie_infer_request_free(&OpenVINOInferRequest);
     }
 #endif
+#ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_TF
+    TF_Status *TFStat = TF_NewStatus();
+    if (TFSessionOpts) {
+      TF_DeleteSessionOptions(TFSessionOpts);
+    }
+    if (TFSession) {
+      TF_CloseSession(TFSession, TFStat);
+      TF_DeleteSession(TFSession, TFStat);
+    }
+    TF_DeleteStatus(TFStat);
+    TFInputs.clear();
+    TFInputNames.clear();
+    for (uint32_t I = 0; I < TFInputTensors.size(); ++I) {
+      if (TFInputTensors[I]) {
+        TF_DeleteTensor(TFInputTensors[I]);
+      }
+    }
+    TFInputTensors.clear();
+    if (TFBundle) {
+      delete TFBundle;
+    }
+    for (auto X : TFInputAlready) {
+      if (X.second != nullptr) {
+        delete X.second;
+      }
+    }
+    TFInputAlready.clear();
+    for (auto X : TFOutputTensors) {
+      if (X != nullptr) {
+        delete X;
+      }
+    }
+    TFOutputTensors.clear();
+#endif
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_TFLITE
     if (TFLiteInterp) {
       TfLiteInterpreterDelete(TFLiteInterp);
@@ -132,6 +193,20 @@ public:
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_TORCH
   std::vector<torch::jit::IValue> TorchInputs;
   std::vector<at::Tensor> TorchOutputs;
+#endif
+#ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_TF
+  TF_SessionOptions *TFSessionOpts = nullptr;
+  TF_Session *TFSession = nullptr;
+  std::vector<TF_Output> TFInputs;
+  std::vector<TF_Tensor *> TFInputTensors;
+
+  tensorflow::SavedModelBundle *TFBundle = nullptr;
+  std::vector<std::string> TFInputNames;
+  std::vector<std::string> TFOutputNames;
+  std::vector<std::pair<std::string, tensorflow::Tensor *>> TFInputAlready;
+  std::vector<tensorflow::Tensor *> TFOutputTensors;
+  // std::vector<tensorflow::Tensor> TFInputTensors;
+
 #endif
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_TFLITE
   TfLiteInterpreter *TFLiteInterp = nullptr;

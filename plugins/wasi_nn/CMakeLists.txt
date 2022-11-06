@@ -1,6 +1,16 @@
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileCopyrightText: 2019-2022 Second State INC
 
+macro(remove_flag_from_target _target _flag)
+  get_target_property(_target_cxx_flags ${_target} COMPILE_OPTIONS)
+
+  if(_target_cxx_flags)
+    list(REMOVE_ITEM _target_cxx_flags ${_flag})
+    list(APPEND _target_cxx_flags -w)
+    set_target_properties(${_target} PROPERTIES COMPILE_OPTIONS "${_target_cxx_flags}")
+  endif()
+endmacro()
+
 wasmedge_add_library(wasmedgePluginWasiNN
   SHARED
   wasinnenv.cpp
@@ -44,6 +54,7 @@ install(TARGETS wasmedgePluginWasiNN DESTINATION ${CMAKE_INSTALL_LIBDIR}/wasmedg
 # Add backends building flags.
 foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
   string(TOLOWER ${BACKEND} BACKEND)
+
   if(BACKEND STREQUAL "openvino")
     message(STATUS "WASI-NN: Build OpenVINO backend for WASI-NN")
     find_package(InferenceEngine REQUIRED)
@@ -60,8 +71,139 @@ foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
       PUBLIC
       ${TORCH_LIBRARIES}
     )
+  elseif(BACKEND STREQUAL "tensorflow")
+    message(STATUS "WASI-NN: Build Tensorflow backend for WASI-NN")
+
+    # TODO: Move these complicated steps into a helper cmake.
+    add_definitions(-DWASMEDGE_PLUGIN_WASI_NN_BACKEND_TF)
+
+    if(NOT WASMEDGE_DEPS_VERSION)
+      set(WASMEDGE_DEPS_VERSION "0.12.0")
+    endif()
+
+    # # Clone required shared libraries
+    # if(ANDROID)
+    # if(CMAKE_SYSTEM_PROCESSOR STREQUAL "aarch64")
+    # set(WASMEDGE_TENSORFLOW_SYSTEM_NAME "android_aarch64")
+    # set(WASMEDGE_TENSORFLOW_DEPS_TFLITE_HASH "a25dafad049cbc998c1f9682c57aec22b2fe5799eeffdd4ed19793a734cde8a4")
+    # elseif()
+    # message(FATAL_ERROR "Unsupported architecture: ${CMAKE_SYSTEM_PROCESSOR}")
+    # endif()
+    # elseif(APPLE)
+    # if(CMAKE_SYSTEM_PROCESSOR STREQUAL "x86_64" OR CMAKE_SYSTEM_PROCESSOR STREQUAL "AMD64")
+    # set(WASMEDGE_TENSORFLOW_SYSTEM_NAME "darwin_x86_64")
+    # set(WASMEDGE_TENSORFLOW_DEPS_TF_HASH "df8720bb089528dd6930983d0ff23adbae75ad7b92451245702ce24002b5f3c4")
+    # else()
+    # message(FATAL_ERROR "Unsupported architecture: ${CMAKE_SYSTEM_PROCESSOR}")
+    # endif()
+    # elseif(UNIX)
+    # if(CMAKE_SYSTEM_PROCESSOR STREQUAL "x86_64" OR CMAKE_SYSTEM_PROCESSOR STREQUAL "AMD64")
+    # set(WASMEDGE_TENSORFLOW_SYSTEM_NAME "manylinux2014_x86_64")
+    # set(WASMEDGE_TENSORFLOW_DEPS_TF_HASH "de0ad0baee9911515e5025906c73e39a885afea6dd9767ea7b3503d97b7afe8f")
+    # elseif(CMAKE_SYSTEM_PROCESSOR STREQUAL "aarch64")
+    # set(WASMEDGE_TENSORFLOW_SYSTEM_NAME "manylinux2014_aarch64")
+    # else()
+    # message(FATAL_ERROR "Unsupported architecture: ${CMAKE_SYSTEM_PROCESSOR}")
+    # endif()
+    # else()
+    # message(FATAL_ERROR "Unsupported system: ${CMAKE_SYSTEM_NAME}")
+    # endif()
+
+    # include(FetchContent)
+
+    # # Fetch Tensorflow library. Tensorflow has only x86_64.
+    # if(WASMEDGE_TENSORFLOW_SYSTEM_NAME STREQUAL "manylinux2014_x86_64" OR WASMEDGE_TENSORFLOW_SYSTEM_NAME STREQUAL "darwin_x86_64")
+    # FetchContent_Declare(
+    # wasmedgetensorflowdeps
+    # URL "https://github.com/second-state/WasmEdge-tensorflow-deps/releases/download/${WASMEDGE_DEPS_VERSION}/WasmEdge-tensorflow-deps-TF-${WASMEDGE_DEPS_VERSION}-${WASMEDGE_TENSORFLOW_SYSTEM_NAME}.tar.gz"
+    # URL_HASH "SHA256=${WASMEDGE_TENSORFLOW_DEPS_TF_HASH}"
+    # )
+    # FetchContent_GetProperties(wasmedgetensorflowdeps)
+
+    # if(NOT wasmedgetensorflowdeps_POPULATED)
+    # message(STATUS "Downloading dependency: libtensorflow")
+    # FetchContent_Populate(wasmedgetensorflowdeps)
+
+    # if(APPLE)
+    # execute_process(
+    # COMMAND ${CMAKE_COMMAND} -E create_symlink libtensorflow_cc.2.6.0.dylib ${wasmedgetensorflowdeps_SOURCE_DIR}/libtensorflow_cc.2.dylib
+    # COMMAND ${CMAKE_COMMAND} -E create_symlink libtensorflow_cc.2.dylib ${wasmedgetensorflowdeps_SOURCE_DIR}/libtensorflow_cc.dylib
+    # COMMAND ${CMAKE_COMMAND} -E create_symlink libtensorflow_framework.2.6.0.dylib ${wasmedgetensorflowdeps_SOURCE_DIR}/libtensorflow_framework.2.dylib
+    # COMMAND ${CMAKE_COMMAND} -E create_symlink libtensorflow_framework.2.dylib ${wasmedgetensorflowdeps_SOURCE_DIR}/libtensorflow_framework.dylib
+    # )
+    # else()
+    # execute_process(
+    # COMMAND ${CMAKE_COMMAND} -E create_symlink libtensorflow_cc.so.2.6.0 ${wasmedgetensorflowdeps_SOURCE_DIR}/libtensorflow_cc.so.2
+    # COMMAND ${CMAKE_COMMAND} -E create_symlink libtensorflow_cc.so.2 ${wasmedgetensorflowdeps_SOURCE_DIR}/libtensorflow_cc.so
+    # COMMAND ${CMAKE_COMMAND} -E create_symlink libtensorflow_framework.so.2.6.0 ${wasmedgetensorflowdeps_SOURCE_DIR}/libtensorflow_framework.so.2
+    # COMMAND ${CMAKE_COMMAND} -E create_symlink libtensorflow_framework.so.2 ${wasmedgetensorflowdeps_SOURCE_DIR}/libtensorflow_framework.so
+    # )
+    # endif()
+
+    # message(STATUS "Downloading dependency: libtensorflow - done")
+    # endif()
+    # endif()
+
+    # # Setup Tensorflow library. Tensorflow has only x86_64.
+    # if(WASMEDGE_TENSORFLOW_SYSTEM_NAME STREQUAL "manylinux2014_x86_64")
+    # set(WASMEDGE_TENSORFLOW_DEPS_TF_LIB
+    # "${wasmedgetensorflowdeps_SOURCE_DIR}/libtensorflow_cc.so.2.6.0"
+    # "${wasmedgetensorflowdeps_SOURCE_DIR}/libtensorflow_framework.so.2.6.0"
+    # )
+    # elseif(WASMEDGE_TENSORFLOW_SYSTEM_NAME STREQUAL "darwin_x86_64")
+    # set(WASMEDGE_TENSORFLOW_DEPS_TF_LIB
+    # "${wasmedgetensorflowdeps_SOURCE_DIR}/libtensorflow_cc.2.6.0.dylib"
+    # "${wasmedgetensorflowdeps_SOURCE_DIR}/libtensorflow_framework.2.6.0.dylib"
+    # )
+    # endif()
+    # include(FetchContent)
+
+    # # FetchContent_Declare(
+    # # wasmedge_tensorflow_deps
+    # # GIT_REPOSITORY https://github.com/second-state/WasmEdge-tensorflow-deps.git
+    # # GIT_TAG ${WASMEDGE_DEPS_VERSION}
+    # # )
+    # FetchContent_Declare(
+    # wasmedge_tensorflow_deps
+    # GIT_REPOSITORY https://github.com/gusye1234/WasmEdge-tensorflow-deps.git
+    # )
+    # FetchContent_GetProperties(wasmedge_tensorflow_deps)
+
+    # if(NOT wasmedge_tensorflow_deps_POPULATED)
+    # message(STATUS "Fetching WasmEdge-tensorflow-dep repository")
+    # FetchContent_Populate(wasmedge_tensorflow_deps)
+    # message(STATUS "Fetching WasmEdge-tensorflow-dep repository - done")
+    # endif()
+
+    # set(WASMEDGE_TENSORFLOW_DEPS_PATH "${wasmedge_tensorflow_deps_SOURCE_DIR}")
+    # set(WASMEDGE_TENSORFLOW_DEPS_BIN_PATH "${CMAKE_CURRENT_BINARY_DIR}/utils/WasmEdge-tensorflow-deps")
+
+    # ------------------local-----------------------------------------
+    set(WASMEDGE_TENSORFLOW_DEPS_TF_LIB
+      "/root/tensorflow_demo/tensorflow_deps/lib/libtensorflow_cc.so.2.6.0"
+      "/root/tensorflow_demo/tensorflow_deps/lib/libtensorflow_framework.so.2.6.0"
+    )
+    set(WASMEDGE_TENSORFLOW_DEPS_PATH "/root/WasmEdge-tensorflow-deps")
+    set(WASMEDGE_TENSORFLOW_DEPS_BIN_PATH "${CMAKE_CURRENT_BINARY_DIR}/utils/WasmEdge-tensorflow-deps")
+
+    # -----------------------------------------------------------
+    message(STATUS "WASI-NN: Set WasmEdge-tensorflow deps source path: ${WASMEDGE_TENSORFLOW_DEPS_PATH}")
+    message(STATUS "WASI-NN: Set WasmEdge-tensorflow deps binary path: ${WASMEDGE_TENSORFLOW_DEPS_BIN_PATH}")
+    message(STATUS "WASI-NN: Set WasmEdge-tensorflow share path: ${WASMEDGE_TENSORFLOW_DEPS_TF_LIB}")
+    add_subdirectory(${WASMEDGE_TENSORFLOW_DEPS_PATH} ${WASMEDGE_TENSORFLOW_DEPS_BIN_PATH})
+    target_include_directories(wasmedgePluginWasiNN
+      PUBLIC
+      ${TENSORFLOW_INCLUDE}
+    )
+    target_link_libraries(wasmedgePluginWasiNN
+      PUBLIC
+      ${WASMEDGE_TENSORFLOW_DEPS_TF_LIB}
+    )
+    remove_flag_from_target(wasmedgePluginWasiNN -Werror)
+
   elseif(BACKEND STREQUAL "tensorflowlite")
     message(STATUS "WASI-NN: Build Tensorflow lite backend for WASI-NN")
+
     # TODO: Move these complicated steps into a helper cmake.
     add_definitions(-DWASMEDGE_PLUGIN_WASI_NN_BACKEND_TFLITE)
 

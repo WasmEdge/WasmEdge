@@ -170,10 +170,10 @@ template <typename RetType, size_t N> Expect<RetType> FileMgr::readSN() {
     // In the rest logic, RemainingBits must be at least 1.
 
     WasmEdge::Byte Byte;
-    if (auto Res = readByte(); unlikely(!Res)) {
+    if (auto Res = testRead(1); unlikely(!Res)) {
       return Unexpect(Res);
     } else {
-      Byte = *Res;
+      Byte = Data[Pos++];
     }
 
     const WasmEdge::Byte HighestBitMask = 1 << 7;

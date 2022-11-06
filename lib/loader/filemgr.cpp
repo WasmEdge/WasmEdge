@@ -287,8 +287,8 @@ Expect<std::string> FileMgr::readName() {
   if (unlikely(Status != ErrCode::Value::Success)) {
     return Unexpect(Status);
   }
-  // If UTF-8 validation or readU32() or readBytes() failed, the last
-  // succeeded reading offset will be at the start of `Name`.
+  // If UTF-8 validation or readU32() or readBytes() failed, the last succeeded
+  // reading offset will be at the start of `Name`.
   LastPos = Pos;
 
   // Read the name size.
@@ -423,8 +423,7 @@ Expect<void> FileMgr::jumpContent() {
   return {};
 }
 
-// Helper function for reading number of bytes. See
-// "include/loader/filemgr.h".
+// Helper function for reading number of bytes. See "include/loader/filemgr.h".
 Expect<void> FileMgr::readBytes(Span<Byte> Buffer) {
   if (unlikely(Status != ErrCode::Value::Success)) {
     return Unexpect(Status);

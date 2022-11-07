@@ -1,9 +1,10 @@
 //! Defines WasmEdge Function and FuncType structs.
 
 use crate::{
-    async_env::FiberFuture,
     error::{FuncError, HostFuncError, WasmEdgeError},
-    ffi, BoxedFn, CallingFrame, Engine, WasmEdgeResult, WasmValue, ASYNC_STATE, HOST_FUNCS,
+    ffi,
+    r#async::FiberFuture,
+    BoxedFn, CallingFrame, Engine, WasmEdgeResult, WasmValue, ASYNC_STATE, HOST_FUNCS,
 };
 use core::ffi::c_void;
 use parking_lot::Mutex;
@@ -49,7 +50,7 @@ extern "C" fn wraper_fn(
             let real_fn_locked = real_fn.lock();
             drop(map_host_func);
 
-            match real_fn_locked(&frame, input, data) {
+            match real_fn_locked(frame, input, data) {
                 Ok(returns) => {
                     assert!(returns.len() == return_len);
                     for (idx, wasm_value) in returns.into_iter().enumerate() {
@@ -122,7 +123,7 @@ impl Function {
     /// use wasmedge_types::{error::HostFuncError, ValType, WasmEdgeResult};
     ///
     /// #[sys_host_function]
-    /// fn real_add(_frame: &CallingFrame, inputs: Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError> {
+    /// fn real_add(_frame: CallingFrame, inputs: Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError> {
     ///     if inputs.len() != 2 {
     ///         return Err(HostFuncError::User(1));
     ///     }
@@ -228,7 +229,7 @@ impl Function {
     /// use std::os::raw::c_void;
     ///
     /// fn real_add(
-    ///     _frame: &CallingFrame,
+    ///     _frame: CallingFrame,
     ///     input: Vec<WasmValue>,
     ///     _data: *mut c_void,
     /// ) -> Box<(dyn Future<Output = Result<Vec<WasmValue>, HostFuncError>> + Send + 'static)> {
@@ -259,17 +260,12 @@ impl Function {
     /// let func_ty = FuncType::create(vec![ValType::I32; 2], vec![ValType::I32]).expect("fail to create a FuncType");
     ///
     /// // create a Function instance
-    /// let func = Function::create_async::<!, _>(&func_ty, Box::new(real_add), None, 0).expect("fail to create a Function instance");
+    /// let func = Function::create_async(&func_ty, Box::new(real_add), 0).expect("fail to create a Function instance");
     /// ```
-    pub fn create_async<T, F>(
+    pub fn create_async(
         ty: &FuncType,
-        real_fn: F,
-        data: Option<&mut T>,
-        cost: u64,
-    ) -> WasmEdgeResult<Self>
-    where
-        F: Fn(
-                &CallingFrame,
+        real_fn: impl Fn(
+                CallingFrame,
                 Vec<WasmValue>,
                 *mut std::os::raw::c_void,
             ) -> Box<
@@ -279,8 +275,9 @@ impl Function {
             > + Send
             + Sync
             + 'static,
-    {
-        Self::create(
+        cost: u64,
+    ) -> WasmEdgeResult<Self> {
+        Self::create::<!>(
             ty,
             Box::new(move |frame, args, data| {
                 let async_state = ASYNC_STATE.read();
@@ -293,7 +290,7 @@ impl Function {
                     Err(_err) => Err(HostFuncError::User(0x87)),
                 }
             }),
-            data,
+            None,
             cost,
         )
     }
@@ -335,7 +332,7 @@ impl Function {
     /// use wasmedge_sys::{FuncType, Function, WasmValue, Executor, CallingFrame};
     /// use wasmedge_types::{error::HostFuncError, ValType};
     ///
-    /// fn real_add(_: &CallingFrame, input: Vec<WasmValue>, _data: *mut std::os::raw::c_void) -> Result<Vec<WasmValue>, HostFuncError> {
+    /// fn real_add(_: CallingFrame, input: Vec<WasmValue>, _data: *mut std::os::raw::c_void) -> Result<Vec<WasmValue>, HostFuncError> {
     ///     println!("Rust: Entering Rust function real_add");
     ///
     ///     if input.len() != 2 {
@@ -719,7 +716,7 @@ mod tests {
 
         #[sys_host_function]
         fn real_add(
-            _frame: &CallingFrame,
+            _frame: CallingFrame,
             input: Vec<WasmValue>,
             data: &mut Data<i32, &str>,
         ) -> Result<Vec<WasmValue>, HostFuncError> {
@@ -792,7 +789,7 @@ mod tests {
     fn test_func_create_host_func_in_host_func() {
         #[sys_host_function]
         fn func(
-            _frame: &CallingFrame,
+            _frame: CallingFrame,
             _input: Vec<WasmValue>,
         ) -> Result<Vec<WasmValue>, HostFuncError> {
             println!("Entering host function: func");
@@ -801,7 +798,7 @@ mod tests {
             let handler = std::thread::spawn(|| {
                 #[sys_host_function]
                 fn real_add(
-                    _frame: &CallingFrame,
+                    _frame: CallingFrame,
                     input: Vec<WasmValue>,
                 ) -> Result<Vec<WasmValue>, HostFuncError> {
                     println!("Rust: Entering Rust function real_add");
@@ -940,7 +937,7 @@ mod tests {
     }
 
     fn real_add(
-        _frame: &CallingFrame,
+        _frame: CallingFrame,
         input: Vec<WasmValue>,
         _data: *mut std::os::raw::c_void,
     ) -> Result<Vec<WasmValue>, HostFuncError> {
@@ -976,7 +973,7 @@ mod tests {
         assert!(result.is_ok());
         let func_ty = result.unwrap();
         // create a host function
-        let real_add = |_: &CallingFrame,
+        let real_add = |_: CallingFrame,
                         input: Vec<WasmValue>,
                         _data: *mut std::os::raw::c_void|
          -> Result<Vec<WasmValue>, HostFuncError> {

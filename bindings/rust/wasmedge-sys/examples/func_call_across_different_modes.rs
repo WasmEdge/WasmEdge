@@ -11,7 +11,7 @@ use wasmedge_types::{error::HostFuncError, ValType};
 
 #[sys_host_function]
 fn host_print_i32(
-    _frame: &CallingFrame,
+    _frame: CallingFrame,
     val: Vec<WasmValue>,
 ) -> Result<Vec<WasmValue>, HostFuncError> {
     println!("-- Host Function: print I32: {}", val[0].to_i32());
@@ -21,7 +21,7 @@ fn host_print_i32(
 
 #[sys_host_function]
 fn host_print_f64(
-    _frame: &CallingFrame,
+    _frame: CallingFrame,
     val: Vec<WasmValue>,
 ) -> Result<Vec<WasmValue>, HostFuncError> {
     println!("-- Host Function: print F64: {}", val[0].to_f64());

@@ -19,6 +19,7 @@
 //!
 //! | wasmedge-sdk  | WasmEdge lib  | wasmedge-sys  | wasmedge-types| wasmedge-macro|
 //! | :-----------: | :-----------: | :-----------: | :-----------: | :-----------: |
+//! | 0.6.0         | 0.11.2        | 0.11          | 0.3.0         | 0.2.0         |
 //! | 0.5.0         | 0.11.1        | 0.10          | 0.3.0         | 0.1.0         |
 //! | 0.4.0         | 0.11.0        | 0.9           | 0.2.1         | -             |
 //! | 0.3.0         | 0.10.1        | 0.8           | 0.2           | -             |
@@ -102,7 +103,7 @@
 //!      // We define a function to act as our "env" "say_hello" function imported in the
 //!      // Wasm program above.
 //!      #[host_function]
-//!      fn say_hello_world(_: &Caller, _: Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError> {
+//!      fn say_hello_world(_: Caller, _: Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError> {
 //!          println!("Hello, world!");
 //!  
 //!          Ok(vec![])
@@ -211,7 +212,7 @@ pub use wasmedge_types::{
     FuncType, GlobalType, MemoryType, Mutability, RefType, TableType, ValType, WasmEdgeResult,
 };
 
-pub use wasmedge_macro::host_function;
+pub use wasmedge_macro::{async_host_function, host_function};
 
 /// WebAssembly value type.
 pub type WasmValue = wasmedge_sys::types::WasmValue;

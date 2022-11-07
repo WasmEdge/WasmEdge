@@ -26,7 +26,7 @@ use wasmedge_sys::{self as sys, AsImport};
 /// fn main() -> Result<(), Box<dyn std::error::Error>> {
 ///     // a native function to be imported as host function
 ///     #[host_function]
-///     fn real_add(_: &Caller, inputs: Vec<WasmValue>) -> std::result::Result<Vec<WasmValue>, HostFuncError> {
+///     fn real_add(_: Caller, inputs: Vec<WasmValue>) -> std::result::Result<Vec<WasmValue>, HostFuncError> {
 ///         if inputs.len() != 2 {
 ///             return Err(HostFuncError::User(1));
 ///         }
@@ -115,7 +115,7 @@ impl ImportObjectBuilder {
         mut self,
         name: impl AsRef<str>,
         real_func: impl Fn(
-                &CallingFrame,
+                CallingFrame,
                 Vec<WasmValue>,
                 *mut std::os::raw::c_void,
             ) -> Result<Vec<WasmValue>, HostFuncError>
@@ -157,7 +157,7 @@ impl ImportObjectBuilder {
         name: impl AsRef<str>,
         ty: FuncType,
         real_func: impl Fn(
-                &CallingFrame,
+                CallingFrame,
                 Vec<WasmValue>,
                 *mut std::os::raw::c_void,
             ) -> Result<Vec<WasmValue>, HostFuncError>
@@ -168,6 +168,47 @@ impl ImportObjectBuilder {
     ) -> WasmEdgeResult<Self> {
         let boxed_func = Box::new(real_func);
         let inner_func = sys::Function::create::<T>(&ty.into(), boxed_func, data, 0)?;
+        self.funcs.push((name.as_ref().to_owned(), inner_func));
+        Ok(self)
+    }
+
+    /// Adds an [async host function](crate::Func) to the [ImportObject] to create.
+    ///
+    /// N.B. that this function can be used in thread-safe scenarios.
+    ///
+    /// # Arguments
+    ///
+    /// * `name` - The exported name of the [host function](crate::Func) to add.
+    ///
+    /// * `real_func` - The native function.
+    ///
+    /// # error
+    ///
+    /// If fail to create or add the [host function](crate::Func), then an error is returned.
+    pub fn with_func_async<Args, Rets>(
+        mut self,
+        name: impl AsRef<str>,
+        real_func: impl Fn(
+                CallingFrame,
+                Vec<WasmValue>,
+                *mut std::os::raw::c_void,
+            ) -> Box<
+                dyn std::future::Future<
+                        Output = Result<Vec<WasmValue>, crate::error::HostFuncError>,
+                    > + Send,
+            > + Send
+            + Sync
+            + 'static,
+    ) -> WasmEdgeResult<Self>
+    where
+        Args: WasmValTypeList,
+        Rets: WasmValTypeList,
+    {
+        let boxed_func = Box::new(real_func);
+        let args = Args::wasm_types();
+        let returns = Rets::wasm_types();
+        let ty = FuncType::new(Some(args.to_vec()), Some(returns.to_vec()));
+        let inner_func = sys::Function::create_async(&ty.into(), boxed_func, 0)?;
         self.funcs.push((name.as_ref().to_owned(), inner_func));
         Ok(self)
     }
@@ -741,7 +782,7 @@ mod tests {
         }
 
         fn real_add(
-            _frame: &CallingFrame,
+            _frame: CallingFrame,
             inputs: Vec<WasmValue>,
             data: *mut std::os::raw::c_void,
         ) -> std::result::Result<Vec<WasmValue>, HostFuncError> {
@@ -1408,7 +1449,7 @@ mod tests {
     }
 
     fn real_add(
-        _frame: &CallingFrame,
+        _frame: CallingFrame,
         inputs: Vec<WasmValue>,
         _data: *mut std::os::raw::c_void,
     ) -> std::result::Result<Vec<WasmValue>, HostFuncError> {

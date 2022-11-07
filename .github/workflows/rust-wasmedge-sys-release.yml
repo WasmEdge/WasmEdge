@@ -22,8 +22,9 @@ jobs:
       - name: Set up build environment
         run: |
           sudo apt-get update
-          sudo apt-get install -y software-properties-common cmake libboost-all-dev llvm-12-dev liblld-12-dev ninja-build
-          sudo apt-get install -y gcc g++ clang-12
+          sudo apt-get install -y software-properties-common libboost-all-dev ninja-build
+          sudo apt-get install -y llvm-14-dev liblld-14-dev clang-14
+          sudo apt-get install -y gcc g++
           sudo apt-get install -y libssl-dev pkg-config gh
 
       - name: Install Rust toolchain
@@ -56,7 +57,7 @@ jobs:
           export WASMEDGE_DIR="$(pwd)/../../"
           export WASMEDGE_BUILD_DIR="$(pwd)/../../build"
           export WASMEDGE_PLUGIN_PATH="$(pwd)/../../build/plugins/wasmedge_process"
-          cargo smart-release --update-crates-index --dry-run-cargo-publish --no-dependencies --no-changelog wasmedge-sys
+          cargo smart-release --update-crates-index --dry-run-cargo-publish --no-dependencies --no-changelog --no-tag wasmedge-sys
 
       - name: Publish
         if: github.ref == 'refs/heads/master'
@@ -69,7 +70,7 @@ jobs:
           export WASMEDGE_DIR="$(pwd)/../../"
           export WASMEDGE_BUILD_DIR="$(pwd)/../../build"
           export WASMEDGE_PLUGIN_PATH="$(pwd)/../../build/plugins/wasmedge_process"
-          cargo smart-release --update-crates-index --execute --no-dependencies --no-changelog wasmedge-sys
+          cargo smart-release --update-crates-index --execute --no-dependencies --no-changelog --no-tag wasmedge-sys
 
       - name: Build API document
         working-directory: bindings/rust/wasmedge-sys

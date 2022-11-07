@@ -1,8 +1,8 @@
-# WasmEdge Go v0.11.1 API references
+# WasmEdge Go v0.11.2 API references
 
 The followings are the guides to working with the WasmEdge-Go SDK.
 
-**This document is for the `v0.11.1` version. For the older `v0.10.1` version, please refer to the [document here](0.10.1/ref.md).**
+**This document is for the `v0.11.2` version. For the older `v0.10.1` version, please refer to the [document here](0.10.1/ref.md).**
 
 **Developers can refer to [here to upgrade to v0.11.0](0.10.1/upgrade_to_0.11.0.md).**
 
@@ -59,13 +59,13 @@ go version go1.16.5 linux/amd64
 Developers must [install the WasmEdge shared library](../../quick_start/install.md) with the same `WasmEdge-go` release or pre-release version.
 
 ```bash
-curl -sSf https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh | bash -s -- -v 0.11.1
+curl -sSf https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh | bash -s -- -v 0.11.2
 ```
 
 For the developers need the `TensorFlow` or `Image` extension for `WasmEdge-go`, please install the `WasmEdge` with extensions:
 
 ```bash
-curl -sSf https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh | bash -s -- -e tf,image -v 0.11.1
+curl -sSf https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh | bash -s -- -e tf,image -v 0.11.2
 ```
 
 Noticed that the `TensorFlow` and `Image` extensions are only for the `Linux` platforms.
@@ -76,7 +76,7 @@ After installation, developers can use the `source` command to update the includ
 After the WasmEdge installation, developers can get the `WasmEdge-go` package and build it in your Go project directory.
 
 ```bash
-go get github.com/second-state/WasmEdge-go/wasmedge@v0.11.1
+go get github.com/second-state/WasmEdge-go/wasmedge@v0.11.2
 go build
 ```
 
@@ -146,6 +146,8 @@ verpatch := wasmedge.GetVersionPatch() // Will be `uint` of WasmEdge patch versi
 ### Logging Settings
 
 The `wasmedge.SetLogErrorLevel()` and `wasmedge.SetLogDebugLevel()` APIs can set the logging system to debug level or error level. By default, the error level is set, and the debug info is hidden.
+
+Developers can also use the `wasmedge.SetLogOff()` API to disable all logging. (`v0.11.2` or upper only)
 
 ### Value Types
 
@@ -535,13 +537,29 @@ Developers can adjust the settings about the proposals, VM host pre-registration
     pagesize := conf.GetMaxMemoryPage()
     // By default, the maximum memory page size in each memory instances is 65536.
     conf.SetMaxMemoryPage(1234)
-    pagesize := conf.GetMaxMemoryPage()
+    pagesize = conf.GetMaxMemoryPage()
     // `pagesize` will be 1234.
 
     conf.Release()
     ```
 
-4. AOT compiler options
+4. Forcibly interpreter mode (`v0.11.2` or upper only)
+
+    If developers want to execute the WASM file or the AOT compiled WASM in interpreter mode forcibly, they can turn on the configuration.
+
+    ```go
+    conf := wasmedge.NewConfigure()
+
+    is_forceinterp := conf.IsForceInterpreter()
+    // By default, the `is_forceinterp` will be `false`.
+    conf.SetForceInterpreter(true)
+    is_forceinterp = conf.IsForceInterpreter()
+    /* The `is_forceinterp` will be `true`. */
+
+    conf.Release()
+    ```
+
+5. AOT compiler options
 
     The AOT compiler options configure the behavior about optimization level, output format, dump IR, and generic binary.
 
@@ -586,7 +604,7 @@ Developers can adjust the settings about the proposals, VM host pre-registration
     conf.Release()
     ```
 
-5. Statistics options
+6. Statistics options
 
     The statistics options configure the behavior about instruction counting, cost measuring, and time measuring in both runtime and AOT compiler.
     These configurations are effective in `Compiler`, `VM`, and `Executor` objects.
@@ -760,7 +778,7 @@ This example uses the [fibonacci.wasm](https://raw.githubusercontent.com/WasmEdg
     Then you can build and run the Golang application with the WasmEdge Golang SDK: (the 21 Fibonacci number is 17711 in 0-based index)
 
     ```bash
-    $ go get github.com/second-state/WasmEdge-go/wasmedge@v0.11.1
+    $ go get github.com/second-state/WasmEdge-go/wasmedge@v0.11.2
     $ go build
     $ ./wasmedge_test
     Get fibonacci[21]: 17711
@@ -1100,7 +1118,7 @@ WasmEdge VM provides APIs for developers to register and export any WASM modules
     Then you can build and run: (the 25th Fibonacci number is 121393 in 0-based index)
 
     ```bash
-    $ go get github.com/second-state/WasmEdge-go/wasmedge@v0.11.1
+    $ go get github.com/second-state/WasmEdge-go/wasmedge@v0.11.2
     $ go build
     $ ./wasmedge_test
     Get fibonacci[25]: 121393
@@ -1150,7 +1168,7 @@ WasmEdge VM provides APIs for developers to register and export any WASM modules
     Then you can build and run: (the 20th Fibonacci number is 10946 in 0-based index)
 
     ```bash
-    $ go get github.com/second-state/WasmEdge-go/wasmedge@v0.11.1
+    $ go get github.com/second-state/WasmEdge-go/wasmedge@v0.11.2
     $ go build
     $ ./wasmedge_test
     Get the result: 10946
@@ -1217,7 +1235,7 @@ WasmEdge VM provides APIs for developers to register and export any WASM modules
     Then you can build and run: (the 25th Fibonacci number is 121393 in 0-based index)
 
     ```bash
-    $ go get github.com/second-state/WasmEdge-go/wasmedge@v0.11.1
+    $ go get github.com/second-state/WasmEdge-go/wasmedge@v0.11.2
     $ go build
     $ ./wasmedge_test
     Get the result: 121393
@@ -1319,7 +1337,7 @@ The `VM` object supplies the APIs to retrieve the instances.
     Then you can build and run: (the only exported function in `fibonacci.wasm` is `fib`)
 
     ```bash
-    $ go get github.com/second-state/WasmEdge-go/wasmedge@v0.11.1
+    $ go get github.com/second-state/WasmEdge-go/wasmedge@v0.11.2
     $ go build
     $ ./wasmedge_test
     Exported function name: fib
@@ -1477,7 +1495,7 @@ func main() {
 Then you can build and run: (the 18th Fibonacci number is 1346269 in 30-based index)
 
 ```bash
-$ go get github.com/second-state/WasmEdge-go/wasmedge@v0.11.1
+$ go get github.com/second-state/WasmEdge-go/wasmedge@v0.11.2
 $ go build
 $ ./wasmedge_test
 Exported function name: fib
@@ -2088,7 +2106,7 @@ In WasmEdge-go, developers can create the `Function`, `Memory`, `Table`, and `Gl
     Then you can build and run the Golang application with the WasmEdge Golang SDK:
 
     ```bash
-    $ go get github.com/second-state/WasmEdge-go/wasmedge@v0.11.1
+    $ go get github.com/second-state/WasmEdge-go/wasmedge@v0.11.2
     $ go build
     $ ./wasmedge_test
     [2022-08-26 15:06:40.384] [error] user defined failed: user defined error code, Code: 0x15be
@@ -2304,7 +2322,7 @@ In WasmEdge-go, developers can create the `Function`, `Memory`, `Table`, and `Gl
     Then you can build and run the Golang application with the WasmEdge Golang SDK:
 
     ```bash
-    $ go get github.com/second-state/WasmEdge-go/wasmedge@v0.11.1
+    $ go get github.com/second-state/WasmEdge-go/wasmedge@v0.11.2
     $ go build
     $ ./wasmedge_test
     Get the result: 6912
@@ -2408,7 +2426,7 @@ In WasmEdge-go, developers can create the `Function`, `Memory`, `Table`, and `Gl
     Then you can build and run the Golang application with the WasmEdge Golang SDK:
 
     ```bash
-    $ go get github.com/second-state/WasmEdge-go/wasmedge@v0.11.1
+    $ go get github.com/second-state/WasmEdge-go/wasmedge@v0.11.2
     $ go build
     $ ./wasmedge_test
     Get the result: 6912

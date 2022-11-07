@@ -10,7 +10,7 @@ use wasmedge_sdk::{
 // We define a function to act as our "env" "say_hello" function imported in the
 // Wasm program above.
 #[host_function]
-fn say_hello(caller: &Caller, _args: Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError> {
+fn say_hello(caller: Caller, _args: Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError> {
     println!("Hello, world!");
 
     // get executor from caller

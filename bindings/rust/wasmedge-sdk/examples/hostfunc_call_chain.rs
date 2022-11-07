@@ -31,7 +31,7 @@ unsafe impl Send for Wrapper {}
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let vm = Vm::new(None)?;
 
-    let host_layer1 = |_frame: &CallingFrame,
+    let host_layer1 = |_frame: CallingFrame,
                        _args: Vec<WasmValue>,
                        _data: *mut std::os::raw::c_void|
      -> Result<Vec<WasmValue>, HostFuncError> {
@@ -40,7 +40,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
 
     let s = Arc::new(Mutex::new(Wrapper(&vm as *const Vm)));
-    let host_layer2 = move |_frame: &CallingFrame,
+    let host_layer2 = move |_frame: CallingFrame,
                             _args: Vec<WasmValue>,
                             _data: *mut std::os::raw::c_void|
           -> Result<Vec<WasmValue>, HostFuncError> {

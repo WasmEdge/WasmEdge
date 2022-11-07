@@ -13,68 +13,63 @@
 //! To run this example, use the following command:
 //!
 //! ```bash
-//! cd /wasmedge-root-dir/bindings/rust/
+//! cd <wasmedge-root-dir>/bindings/rust/
 //!
 //! cargo run -p wasmedge-sys --example async_host_func_indirect
 //! ```
 
-use std::{future::Future, os::raw::c_void};
+use wasmedge_macro::sys_async_host_function;
 use wasmedge_sys::{
     AsImport, CallingFrame, Config, FuncType, Function, ImportModule, ImportObject, Loader, Store,
     Vm, WasmValue,
 };
 use wasmedge_types::{error::HostFuncError, ValType};
 
-fn real_add(
-    _frame: &CallingFrame,
+#[sys_async_host_function]
+async fn real_add(
+    _frame: CallingFrame,
     input: Vec<WasmValue>,
-    _data: *mut c_void,
-) -> Box<(dyn Future<Output = Result<Vec<WasmValue>, HostFuncError>> + Send + 'static)> {
-    Box::new(async move {
-        println!("Rust: Entering Rust function real_add");
+    // _data: *mut c_void,
+) -> Result<Vec<WasmValue>, HostFuncError> {
+    println!("Rust: Entering Rust function real_add");
 
-        if input.len() != 3 {
-            return Err(HostFuncError::User(1));
-        }
+    if input.len() != 3 {
+        return Err(HostFuncError::User(1));
+    }
 
-        let a = if input[1].ty() == ValType::I32 {
-            input[1].to_i32()
-        } else {
-            1
-        };
+    let a = if input[1].ty() == ValType::I32 {
+        input[1].to_i32()
+    } else {
+        1
+    };
 
-        let b = if input[2].ty() == ValType::I32 {
-            input[2].to_i32()
-        } else {
-            2
-        };
-        tokio::time::sleep(std::time::Duration::from_secs(4)).await;
+    let b = if input[2].ty() == ValType::I32 {
+        input[2].to_i32()
+    } else {
+        2
+    };
+    tokio::time::sleep(std::time::Duration::from_secs(4)).await;
 
-        let c = a + b;
-        println!("Rust: calcuating in real_add c: {:?}", c);
+    let c = a + b;
+    println!("Rust: calcuating in real_add c: {:?}", c);
 
-        println!("Rust: Leaving Rust function real_add");
-        Ok(vec![WasmValue::from_i32(c)])
-    })
+    println!("Rust: Leaving Rust function real_add");
+    Ok(vec![WasmValue::from_i32(c)])
 }
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let mut hostfunc_path = std::env::current_dir()?.join("funcs.wasm");
-
-    if !hostfunc_path.exists() {
-        // modify path for cargo test
-        hostfunc_path = std::env::current_dir()?.join("examples/data/funcs.wasm");
-    }
+    let wasm_file = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
+        .join("bindings/rust/wasmedge-sys/examples/data/funcs.wasm");
 
     // load module from file
     let config = Config::create()?;
     let loader = Loader::create(Some(config))?;
-    let module = loader.from_file(hostfunc_path)?;
+    let module = loader.from_file(wasm_file)?;
 
     // create a Vm context
     let config = Config::create()?;
-    let mut store = Store::create().expect("Unable to create store");
+    let mut store = Store::create()?;
     let mut vm = Vm::create(Some(config), Some(&mut store))?;
 
     let func_ty = FuncType::create(
@@ -82,7 +77,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         vec![ValType::I32],
     )?;
     let add_ref = WasmValue::from_extern_ref(&mut real_add);
-    let host_func = Function::create_async(&func_ty, Box::new(real_add), Some(&mut store), 0)?;
+    let host_func = Function::create_async(&func_ty, Box::new(real_add), 0)?;
 
     // create an ImportObject module
     let mut import = ImportModule::create("extern_module")?;

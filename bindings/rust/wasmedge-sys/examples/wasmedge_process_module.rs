@@ -92,7 +92,7 @@ fn create_wasmedge_process_module_explicitly() -> Result<(), Box<dyn std::error:
     // a function to import
     #[sys_host_function]
     fn real_add(
-        _frame: &CallingFrame,
+        _frame: CallingFrame,
         inputs: Vec<WasmValue>,
     ) -> Result<Vec<WasmValue>, HostFuncError> {
         if inputs.len() != 2 {

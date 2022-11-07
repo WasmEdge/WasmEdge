@@ -8,13 +8,13 @@ license = "Apache-2.0"
 name = "wasmedge-sdk"
 readme = "README.md"
 repository = "https://github.com/WasmEdge/WasmEdge/blob/master/bindings/rust/wasmedge-sdk"
-version = "0.5.1"
+version = "0.6.0"
 
 [dependencies]
 anyhow = "1.0"
 thiserror = "1.0.30"
-wasmedge-macro = {path = "../wasmedge-macro", version = "0.1"}
-wasmedge-sys = {path = "../wasmedge-sys", version = "0.10", default-features = false}
+wasmedge-macro = {path = "../wasmedge-macro", version = "0.2"}
+wasmedge-sys = {path = "../wasmedge-sys", version = "0.11", default-features = false}
 wasmedge-types = {path = "../wasmedge-types", version = "0.3"}
 wat = "1.0"
 
@@ -23,3 +23,6 @@ aot = ["wasmedge-sys/aot"]
 default = ["aot"]
 wasi_crypto = ["wasmedge-sys/wasi_crypto"]
 wasi_nn = ["wasmedge-sys/wasi_nn"]
+
+[dev-dependencies]
+tokio = {version = "1", features = ["full"]}

@@ -25,7 +25,7 @@ use wasmedge_sys::{
 use wasmedge_types::{error::HostFuncError, ValType};
 
 #[sys_host_function]
-fn real_add(_frame: &CallingFrame, input: Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError> {
+fn real_add(_frame: CallingFrame, input: Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError> {
     println!("Rust: Entering Rust function real_add");
 
     if input.len() != 3 {

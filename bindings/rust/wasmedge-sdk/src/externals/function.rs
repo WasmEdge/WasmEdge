@@ -22,7 +22,7 @@ use wasmedge_sys as sys;
 ///
 /// // A native function to be wrapped as a host function
 /// #[host_function]
-/// fn real_add(_: &Caller, input: Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError> {
+/// fn real_add(_: Caller, input: Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError> {
 ///     if input.len() != 2 {
 ///         return Err(HostFuncError::User(1));
 ///     }
@@ -84,7 +84,7 @@ impl Func {
     pub fn new<T>(
         ty: FuncType,
         real_func: impl Fn(
-                &CallingFrame,
+                CallingFrame,
                 Vec<WasmValue>,
                 *mut std::os::raw::c_void,
             ) -> Result<Vec<WasmValue>, HostFuncError>
@@ -117,7 +117,7 @@ impl Func {
     /// If fail to create the host function, then an error is returned.
     pub fn wrap<Args, Rets, T>(
         real_func: impl Fn(
-                &CallingFrame,
+                CallingFrame,
                 Vec<WasmValue>,
                 *mut std::os::raw::c_void,
             ) -> Result<Vec<WasmValue>, HostFuncError>
@@ -135,6 +135,44 @@ impl Func {
         let returns = Rets::wasm_types();
         let ty = FuncType::new(Some(args.to_vec()), Some(returns.to_vec()));
         let inner = sys::Function::create::<T>(&ty.into(), boxed_func, data, 0)?;
+        Ok(Self {
+            inner,
+            name: None,
+            mod_name: None,
+        })
+    }
+
+    /// Creates an asynchronous host function by wrapping a native function.
+    ///
+    /// # Arguments
+    ///
+    /// * `real_func` - The native function to be wrapped.
+    ///
+    /// # Error
+    ///
+    /// If fail to create the host function, then an error is returned.
+    pub fn wrap_async<Args, Rets>(
+        real_func: impl Fn(
+                CallingFrame,
+                Vec<WasmValue>,
+                *mut std::os::raw::c_void,
+            ) -> Box<
+                dyn std::future::Future<
+                        Output = Result<Vec<WasmValue>, crate::error::HostFuncError>,
+                    > + Send,
+            > + Send
+            + Sync
+            + 'static,
+    ) -> WasmEdgeResult<Self>
+    where
+        Args: WasmValTypeList,
+        Rets: WasmValTypeList,
+    {
+        let boxed_func = Box::new(real_func);
+        let args = Args::wasm_types();
+        let returns = Rets::wasm_types();
+        let ty = FuncType::new(Some(args.to_vec()), Some(returns.to_vec()));
+        let inner = sys::Function::create_async(&ty.into(), boxed_func, 0)?;
         Ok(Self {
             inner,
             name: None,
@@ -439,7 +477,7 @@ mod tests {
     }
 
     fn real_add(
-        _: &CallingFrame,
+        _: CallingFrame,
         inputs: Vec<WasmValue>,
         _data: *mut std::os::raw::c_void,
     ) -> std::result::Result<Vec<WasmValue>, HostFuncError> {

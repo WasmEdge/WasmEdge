@@ -10,6 +10,7 @@ The following table provides the versioning information about each crate of Wasm
 
 | wasmedge-sdk  | WasmEdge lib  | wasmedge-sys  | wasmedge-types| wasmedge-macro|
 | :-----------: | :-----------: | :-----------: | :-----------: | :-----------: |
+| 0.6.0         | 0.11.2        | 0.11          | 0.3.0         | 0.2.0         |
 | 0.5.0         | 0.11.1        | 0.10          | 0.3.0         | 0.1.0         |
 | 0.4.0         | 0.11.0        | 0.9           | 0.2.1         | -             |
 | 0.3.0         | 0.10.1        | 0.8           | 0.2           | -             |
@@ -93,7 +94,7 @@ A quick-start example below is using `wasmedge-sdk` to run a WebAssembly module 
   
       // We define a function to act as our "env" "say_hello" function imported in the
       // Wasm program above.
-      fn say_hello_world(_: &CallingFrame, _: Vec<WasmValue>) -> Result<Vec<WasmValue>, u8> {
+      fn say_hello_world(_: CallingFrame, _: Vec<WasmValue>) -> Result<Vec<WasmValue>, u8> {
           println!("Hello, world!");
   
           Ok(vec![])

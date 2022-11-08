@@ -100,7 +100,7 @@ fn create_spec_test_module() -> ImportModule {
 }
 
 fn spec_test_print(
-    _frame: &CallingFrame,
+    _frame: CallingFrame,
     _inputs: Vec<WasmValue>,
     _data: *mut std::os::raw::c_void,
 ) -> Result<Vec<WasmValue>, HostFuncError> {

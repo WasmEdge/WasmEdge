@@ -369,7 +369,7 @@ pub trait AsInstance {
 ///     let mut import = ImportModule::create(module_name)?;
 ///
 ///     // a function to import
-///     fn real_add(_: &CallingFrame, inputs: Vec<WasmValue>, _data: *mut std::os::raw::c_void) -> Result<Vec<WasmValue>, HostFuncError> {
+///     fn real_add(_: CallingFrame, inputs: Vec<WasmValue>, _data: *mut std::os::raw::c_void) -> Result<Vec<WasmValue>, HostFuncError> {
 ///         if inputs.len() != 2 {
 ///             return Err(HostFuncError::User(1));
 ///         }
@@ -3500,7 +3500,7 @@ mod tests {
     }
 
     fn real_add(
-        _: &CallingFrame,
+        _: CallingFrame,
         inputs: Vec<WasmValue>,
         _data: *mut std::os::raw::c_void,
     ) -> Result<Vec<WasmValue>, HostFuncError> {

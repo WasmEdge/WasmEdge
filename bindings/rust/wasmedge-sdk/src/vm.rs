@@ -1417,7 +1417,7 @@ mod tests {
     }
 
     fn real_add(
-        _frame: &CallingFrame,
+        _frame: CallingFrame,
         inputs: Vec<WasmValue>,
         _data: *mut std::os::raw::c_void,
     ) -> std::result::Result<Vec<WasmValue>, HostFuncError> {

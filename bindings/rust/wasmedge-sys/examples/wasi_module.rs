@@ -35,7 +35,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         // a function to import
         fn real_add(
-            _: &CallingFrame,
+            _: CallingFrame,
             inputs: Vec<WasmValue>,
             _data: *mut std::os::raw::c_void,
         ) -> Result<Vec<WasmValue>, HostFuncError> {

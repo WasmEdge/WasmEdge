@@ -46,7 +46,7 @@ if(NOT RapidJSON_FOUND)
 endif()
 
 add_library(RapidJSON INTERFACE)
-if(RapidJSON_FOUND)
+if(RAPIDJSON_INCLUDE_DIRS)
   target_include_directories(RapidJSON INTERFACE ${RAPIDJSON_INCLUDE_DIRS})
 else()
   target_include_directories(RapidJSON INTERFACE ${RapidJSON_SOURCE_DIR}/include)

@@ -3,6 +3,7 @@
 use crate::{config::Config, ExternalInstanceType, WasmEdgeResult};
 use std::{borrow::Cow, marker::PhantomData, path::Path};
 use wasmedge_sys as sys;
+use wasmedge_types::error::WasmEdgeError;
 
 /// Defines compiled in-memory representation of an input WASM binary.
 ///
@@ -24,17 +25,34 @@ impl Module {
     ///
     /// If fail to load and valiate a module from a file, returns an error.
     pub fn from_file(config: Option<&Config>, file: impl AsRef<Path>) -> WasmEdgeResult<Self> {
-        let inner_config = config.map(|c| c.inner.clone());
-        let inner_loader = sys::Loader::create(inner_config)?;
-        // load module
-        let inner = inner_loader.from_file(file.as_ref())?;
+        match file.as_ref().extension() {
+            Some(extension) => match extension.to_str() {
+                Some("wasm") => {
+                    let inner_config = config.map(|c| c.inner.clone());
+                    let inner_loader = sys::Loader::create(inner_config)?;
+                    // load module
+                    let inner = inner_loader.from_file(file.as_ref())?;
 
-        let inner_config = config.map(|c| c.inner.clone());
-        let inner_validator = sys::Validator::create(inner_config)?;
-        // validate module
-        inner_validator.validate(&inner)?;
+                    let inner_config = config.map(|c| c.inner.clone());
+                    let inner_validator = sys::Validator::create(inner_config)?;
+                    // validate module
+                    inner_validator.validate(&inner)?;
 
-        Ok(Self { inner })
+                    Ok(Self { inner })
+                }
+                Some("wat") => {
+                    let bytes = wat::parse_file(file.as_ref())
+                        .map_err(|_| WasmEdgeError::Operation("Failed to parse wat file".into()))?;
+                    Self::from_bytes(config, &bytes)
+                }
+                _ => Err(Box::new(WasmEdgeError::Operation(
+                    "Invalid file extension".into(),
+                ))),
+            },
+            None => Err(Box::new(WasmEdgeError::Operation(
+                "Invalid file extension".into(),
+            ))),
+        }
     }
 
     /// Loads a WebAssembly binary module from in-memory bytes.
@@ -169,7 +187,7 @@ mod tests {
 
     #[test]
     #[allow(clippy::assertions_on_result_states)]
-    fn test_module_from_file() {
+    fn test_module_from_wasm() {
         // load wasm module from a specified wasm file
         let file = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
             .join("bindings/rust/wasmedge-sys/tests/data/fibonacci.wasm");
@@ -186,6 +204,17 @@ mod tests {
                 CoreLoadError::IllegalPath
             )))
         );
+    }
+
+    #[test]
+    #[allow(clippy::assertions_on_result_states)]
+    fn test_module_from_wat() {
+        // load wasm module from a specified wasm file
+        let file = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
+            .join("bindings/rust/wasmedge-sys/tests/data/fibonacci.wat");
+
+        let result = Module::from_file(None, file);
+        assert!(result.is_ok());
     }
 
     #[test]

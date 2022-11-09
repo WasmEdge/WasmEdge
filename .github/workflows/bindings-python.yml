@@ -1,0 +1,142 @@
+name: binding-python
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
+on:
+  push:
+    branches:
+      - master
+      - "python-sdk/*"
+    paths:
+      - ".github/workflows/bindings-python.yml"
+      - "bindings/python/**"
+      - "include/api/wasmedge/**"
+      - "lib/api/**"
+  pull_request:
+    branches:
+      - master
+    paths:
+      - ".github/workflows/bindings-python.yml"
+      - "bindings/python/**"
+      - "include/api/wasmedge/**"
+      - "lib/api/**"
+
+
+jobs:
+  linux:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: CentOS 8 Stream
+            host_runner: ubuntu-latest
+            package_manager: yum
+            docker_image: quay.io/centos/centos:stream8
+            python_package: python3
+            python3_ex: python3
+            extra_setup_command: echo "No extra command"
+          - name: CentOS 7
+            host_runner: ubuntu-latest
+            package_manager: yum
+            docker_image: centos:7.9.2009
+            python_package: python3
+            python3_ex: python3
+            extra_setup_command: echo "No extra command"
+          - name: Ubuntu 20.04
+            host_runner: ubuntu-latest
+            package_manager: apt
+            docker_image: ubuntu:20.04
+            python_package: python3
+            python3_ex: python3
+            extra_setup_command: apt update && apt install -y lsb-release
+          - name: Ubuntu 18.04
+            host_runner: ubuntu-latest
+            package_manager: apt
+            docker_image: ubuntu:18.04
+            python_package: python3
+            python3_ex: python3
+            extra_setup_command: echo "No extra command"
+          - name: Ubuntu 16.04
+            host_runner: ubuntu-latest
+            package_manager: apt
+            docker_image: ubuntu:16.04
+            python_package: gcc # Dummy
+            python3_ex: python3.7
+            extra_setup_command: apt update -y && apt install -y build-essential zlib1g-dev libncurses5-dev libgdbm-dev libnss3-dev libssl-dev libreadline-dev libffi-dev wget && wget https://www.python.org/ftp/python/3.7.4/Python-3.7.4.tgz && tar xzf Python-3.7.4.tgz && cd Python-3.7.4 && ./configure && make -j && make install && cd ..
+          - name: manylinux2014 aarch64
+            host_runner: ARM64
+            package_manager: yum
+            docker_image: wasmedge/wasmedge:manylinux2014_aarch64
+            python_package: python3
+            python3_ex: python3
+            extra_setup_command: echo "No extra command"
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.host_runner }}
+    container:
+      image: ${{ matrix.docker_image }}
+
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
+
+    - name: Install git and curl
+      run: |
+        ${{ matrix.extra_setup_command }}
+        ${{ matrix.package_manager }} update -y
+        ${{ matrix.package_manager }} install -y git curl
+    - name: Install Python
+      run: |
+        ${{ matrix.package_manager }} install -y ${{ matrix.python_package }} python3-pip
+    - name: Install WasmEdge latest release
+      run: |
+        bash utils/install.sh
+    - name: Build Python Bindings
+      run: |
+        cd bindings/python
+        ${{ matrix.python3_ex }} -m pip install -r requirements-test.txt
+        ${{ matrix.python3_ex }} setup.py build --parallel $(shell nproc)
+        cd ../..
+    
+    - name: Test using PyTest
+      run: |
+        cd bindings/python
+        pytest -v --cov-config .coveragerc --cov=pywasmedge -l --tb=short tests/
+        cd ../..
+    
+  
+  macos:
+    strategy:
+      matrix:
+        include:
+          - name: MacOS-latest
+            host_runner: macos-latest
+            package_manager: brew
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.host_runner }}
+
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
+    
+    - name: Install Python
+      run: |
+        ${{ matrix.package_manager }} install -y python3-pip
+    - name: Install WasmEdge latest release
+      run: |
+        bash utils/install.sh
+    - name: Build Python Bindings
+      run: |
+        cd bindings/python
+        ${{ matrix.python3_ex }} -m pip install -r requirements-test.txt
+        ${{ matrix.python3_ex }} setup.py build --parallel $(shell nproc)
+        cd ../..
+    
+    - name: Test using PyTest
+      run: |
+        cd bindings/python
+        pytest -v --cov-config .coveragerc --cov=pywasmedge -l --tb=short tests/
+        cd ../..

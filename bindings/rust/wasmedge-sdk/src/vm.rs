@@ -10,8 +10,8 @@ use crate::wasi::{
 #[cfg(target_os = "linux")]
 use crate::WasmEdgeProcessInstance;
 use crate::{
-    config::Config, wasi::WasiInstance, Engine, Func, FuncRef, FuncType, ImportObject, Instance,
-    Module, Statistics, WasmEdgeResult, WasmValue,
+    config::Config, error::WasmEdgeError, wasi::WasiInstance, Engine, Func, FuncRef, FuncType,
+    ImportObject, Instance, Module, Statistics, WasmEdgeResult, WasmValue,
 };
 use std::{marker::PhantomData, path::Path};
 use wasmedge_sys::{self as sys, Engine as sys_engine};
@@ -131,10 +131,27 @@ impl Vm {
         mod_name: impl AsRef<str>,
         file: impl AsRef<Path>,
     ) -> WasmEdgeResult<Self> {
-        self.inner
-            .register_wasm_from_file(mod_name, file.as_ref())?;
-
-        Ok(self)
+        match file.as_ref().extension() {
+            Some(extension) => match extension.to_str() {
+                Some("wasm") => {
+                    self.inner
+                        .register_wasm_from_file(mod_name, file.as_ref())?;
+                    Ok(self)
+                }
+                Some("wat") => {
+                    let bytes = wat::parse_file(file.as_ref())
+                        .map_err(|_| WasmEdgeError::Operation("Failed to parse wat file".into()))?;
+                    self.inner.register_wasm_from_bytes(mod_name, &bytes)?;
+                    Ok(self)
+                }
+                _ => Err(Box::new(WasmEdgeError::Operation(
+                    "Invalid file extension".into(),
+                ))),
+            },
+            None => Err(Box::new(WasmEdgeError::Operation(
+                "Invalid file extension".into(),
+            ))),
+        }
     }
 
     /// Registers a WASM module from then given in-memory wasm bytes into the [Vm], and instantiates it.

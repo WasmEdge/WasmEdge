@@ -48,6 +48,7 @@ jobs:
       run: |
         # Retrieve annotated tags. Details: https://github.com/actions/checkout/issues/290
         git fetch --tags --force
+        git config --global --add safe.directory $(pwd)
         echo ::set-output name=version::$(git describe --match "[0-9].[0-9]*" --tag)
 
   build_fedora:
@@ -96,6 +97,7 @@ jobs:
         fetch-depth: 0
 
     - name: Build and scan WasmEdge with IWYU
+      shell: bash
       run: |
         brew install llvm@14 ninja boost cmake
 
@@ -113,8 +115,7 @@ jobs:
         make -j install
         cd ../WasmEdge/WasmEdge
 
-        cmake -Bbuild -GNinja -DWASMEDGE_BUILD_TESTS=ON -DCMAKE_CXX_INCLUDE_WHAT_YOU_USE=include-what-you-use .
-        cmake -Bbuild -GNinja -DWASMEDGE_BUILD_TESTS=ON -DWASMEDGE_BUILD_PACKAGE="TGZ" .
+        cmake -Bbuild -GNinja -DWASMEDGE_BUILD_TESTS=ON -DCMAKE_CXX_INCLUDE_WHAT_YOU_USE=include-what-you-use -DWASMEDGE_BUILD_PACKAGE="TGZ" .
         cmake --build build > iwyu_macos.log
 
     - uses: actions/upload-artifact@v3

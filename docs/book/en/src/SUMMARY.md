@@ -147,4 +147,5 @@
     - [Build with WASI-Crypto Plug-in](contribute/build_from_src/plugin_wasi_crypto.md)
     - [Build with WasmEdge-HttpsReq Plug-in](contribute/build_from_src/plugin_wasmedge_httpsreq.md)
   - [WasmEdge Internal](contribute/internal.md)
+  - [Wish List](contribute/wish_list.md)
   - [Release Process](contribute/release_process.md)

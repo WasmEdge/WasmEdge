@@ -124,7 +124,7 @@ jobs:
     
     - name: Install Python
       run: |
-        ${{ matrix.package_manager }} install -y python3-pip
+        ${{ matrix.package_manager }} install python3-pip
     - name: Install WasmEdge latest release
       run: |
         bash utils/install.sh

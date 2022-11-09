@@ -43,7 +43,7 @@ impl Module {
                 Some("wat") => {
                     let bytes = wat::parse_file(file.as_ref())
                         .map_err(|_| WasmEdgeError::Operation("Failed to parse wat file".into()))?;
-                    Self::from_bytes(config, &bytes)
+                    Self::from_bytes(config, bytes)
                 }
                 _ => Err(Box::new(WasmEdgeError::Operation(
                     "Invalid file extension".into(),

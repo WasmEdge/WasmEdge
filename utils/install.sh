@@ -668,6 +668,16 @@ main() {
 
     [ $EXT_V_SET_WASMEDGE -ne 1 ] && remote_version_availabilty WasmEdge/WasmEdge "$VERSION"
 
+    if [ $EXT_V_SET_WASMEDGE -eq 1 ]; then
+        if [ "$(printf %s\\n%s\\n "0.9.0" "$VERSION")" != \
+            "$(printf %s\\n%s "0.9.0" "$VERSION" | awk '{ if ($1 ~ /-/) print; else print $0"_" ; }' |
+                sort --version-sort | sed 's/_$//')" ]; then
+            echo "${YELLOW}Version: $VERSION"
+            echo "The installation of WasmEdge 0.8.2 by installer will be deprecated before"
+            echo "2022/12/31. Please install the 0.9.0 or above versions.${NC}"
+        fi
+    fi
+
     check_os_arch
 
     if [ "$REMOVE_OLD" == "1" ] || [[ "$REMOVE_OLD" =~ ^([yY][eE][sS]|[yY])$ ]]; then

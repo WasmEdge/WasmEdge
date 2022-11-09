@@ -76,9 +76,31 @@ jobs:
     - name: Uninstall WasmEdge with all extensions
       run: |
         bash utils/uninstall.sh -q -V
-    - name: Install WasmEdge specific release (0.8.2)
+    - name: Install deprecated WasmEdge specific release (0.8.2)
       run: |
-        bash utils/install.sh -v 0.8.2 -V
+        echo "$(bash utils/install.sh -v 0.8.2 2>&1 | tee output.log)" | grep -qE *deprecated* && echo "Pass: Deprecated message found" \
+        || (echo "Failed: Deprecated message not found" && cat output.log && exit 1)
+    - name: Uninstall WasmEdge
+      run: |
+        bash utils/uninstall.sh -q -V
+    - name: Install deprecated WasmEdge specific release (0.8.1)
+      run: |
+        echo "$(bash utils/install.sh -v 0.8.1 2>&1 | tee output.log)" | grep -qE *deprecated* && echo "Pass: Deprecated message found" \
+        || (echo "Failed: Deprecated message not found" && cat output.log && exit 1)
+    - name: Uninstall WasmEdge
+      run: |
+        bash utils/uninstall.sh -q -V
+    - name: Install deprecated WasmEdge specific release (0.8.2-rc.5)
+      run: |
+        echo "$(bash utils/install.sh -v 0.8.2-rc.5 2>&1 | tee output.log)" | grep -qE *deprecated* && echo "Pass: Deprecated message found" \
+        || (echo "Failed: Deprecated message not found" && cat output.log && exit 1)
+    - name: Uninstall WasmEdge
+      run: |
+        bash utils/uninstall.sh -q -V
+    - name: Install non deprecated WasmEdge specific release (0.9.0)
+      run: |
+        echo "$(bash utils/install.sh -v 0.9.0 2>&1 | tee output.log)" | grep -qE *deprecated* && (echo "Fail: Deprecated message found" && cat output.log && exit 1) \
+        || (echo "Pass: Deprecated message not found")
     - name: Uninstall WasmEdge
       run: |
         bash utils/uninstall.sh -q -V
@@ -235,9 +257,31 @@ jobs:
     - name: Uninstall WasmEdge with all extensions
       run: |
         bash utils/uninstall.sh -q -V
-    - name: Install WasmEdge specific release (0.8.2)
+    - name: Install deprecated WasmEdge specific release (0.8.2)
       run: |
-        bash utils/install.sh -v 0.8.2 -V
+        echo "$(bash utils/install.sh -v 0.8.2 2>&1 | tee output.log)" | grep -q deprecated && echo "Pass: Deprecated message found" \
+        || (echo "Failed: Deprecated message not found" && cat output.log && exit 1)
+    - name: Uninstall WasmEdge
+      run: |
+        bash utils/uninstall.sh -q -V
+    - name: Install deprecated WasmEdge specific release (0.8.1)
+      run: |
+        echo "$(bash utils/install.sh -v 0.8.1 2>&1 | tee output.log)" | grep -q deprecated && echo "Pass: Deprecated message found" \
+        || (echo "Failed: Deprecated message not found" && cat output.log && exit 1)
+    - name: Uninstall WasmEdge
+      run: |
+        bash utils/uninstall.sh -q -V
+    - name: Install deprecated WasmEdge specific release (0.8.2-rc.5)
+      run: |
+        echo "$(bash utils/install.sh -v 0.8.2-rc.5 2>&1 | tee output.log)" | grep -q deprecated && echo "Pass: Deprecated message found" \
+        || (echo "Failed: Deprecated message not found" && cat output.log && exit 1)
+    - name: Uninstall WasmEdge
+      run: |
+        bash utils/uninstall.sh -q -V
+    - name: Install non deprecated WasmEdge specific release (0.9.0)
+      run: |
+        echo "$(bash utils/install.sh -v 0.9.0 2>&1 | tee output.log)" | grep -q deprecated && (echo "Fail: Deprecated message found" && cat output.log && exit 1) \
+        || (echo "Pass: Deprecated message not found")
     - name: Uninstall WasmEdge
       run: |
         bash utils/uninstall.sh -q -V

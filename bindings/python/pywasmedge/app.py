@@ -1,5 +1,1 @@
-# class WasmEdge:
-
-#     @staticmethod
-#     def run():
-#         print("Hello World...")
+# TODO: Decide what to invoke when run in app mode

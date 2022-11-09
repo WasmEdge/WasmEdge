@@ -23,5 +23,3 @@ INCLUDE_DIRECTORIES("include/")
 set_target_properties(WasmEdge PROPERTIES 
     CXX_STANDARD 11
 )
-# FILE(COPY classes.py DESTINATION .)
-# ADD_TEST(NAME 02-ExposingClasses COMMAND ${PYTHON_EXECUTABLE} classes.py)

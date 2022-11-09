@@ -97,7 +97,7 @@ jobs:
       run: |
         cd bindings/python
         ${{ matrix.python3_ex }} -m pip install -r requirements-test.txt
-        ${{ matrix.python3_ex }} setup.py build --parallel $(shell nproc)
+        ${{ matrix.python3_ex }} setup.py build --parallel 4
         cd ../..
     
     - name: Test using PyTest
@@ -132,7 +132,7 @@ jobs:
       run: |
         cd bindings/python
         ${{ matrix.python3_ex }} -m pip install -r requirements-test.txt
-        ${{ matrix.python3_ex }} setup.py build --parallel $(shell nproc)
+        ${{ matrix.python3_ex }} setup.py build --parallel 4
         cd ../..
     
     - name: Test using PyTest

@@ -27,7 +27,7 @@ impl Module {
     pub fn from_file(config: Option<&Config>, file: impl AsRef<Path>) -> WasmEdgeResult<Self> {
         match file.as_ref().extension() {
             Some(extension) => match extension.to_str() {
-                Some("wasm") => {
+                Some("wasm") | Some("so") => {
                     let inner_config = config.map(|c| c.inner.clone());
                     let inner_loader = sys::Loader::create(inner_config)?;
                     // load module

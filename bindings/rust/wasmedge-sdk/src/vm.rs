@@ -133,7 +133,7 @@ impl Vm {
     ) -> WasmEdgeResult<Self> {
         match file.as_ref().extension() {
             Some(extension) => match extension.to_str() {
-                Some("wasm") => {
+                Some("wasm") | Some("so") => {
                     self.inner
                         .register_wasm_from_file(mod_name, file.as_ref())?;
                     Ok(self)
@@ -356,7 +356,7 @@ impl Vm {
     ) -> WasmEdgeResult<Vec<WasmValue>> {
         match file.as_ref().extension() {
             Some(extension) => match extension.to_str() {
-                Some("wasm") => {
+                Some("wasm") | Some("so") => {
                     self.inner
                         .run_wasm_from_file(file.as_ref(), func_name.as_ref(), args)
                 }
@@ -401,7 +401,7 @@ impl Vm {
     {
         match file.as_ref().extension() {
             Some(extension) => match extension.to_str() {
-                Some("wasm") => {
+                Some("wasm") | Some("so") => {
                     self.inner
                         .run_wasm_from_file_async(file.as_ref(), func_name.as_ref(), args)
                         .await

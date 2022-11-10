@@ -388,7 +388,7 @@ impl Vm {
     /// # Error
     ///
     /// If fail to run, then an error is returned.
-    pub async fn run_wasm_from_file_async<P, N, A>(
+    pub async fn run_func_from_file_async<P, N, A>(
         &self,
         file: P,
         func_name: N,

@@ -17,9 +17,9 @@ impl Module {
     ///
     /// # Arguments
     ///
-    /// - `config` specifies a global configuration.
+    /// * `config` - The global configuration.
     ///
-    /// - `file` specifies the path to the target WASM file.
+    /// * `file` - The `wasm` or `wat` file.
     ///
     /// # Error
     ///
@@ -59,9 +59,9 @@ impl Module {
     ///
     /// # Arguments
     ///
-    /// - `config` specifies a global configuration.
+    /// * `config` - The global configuration.
     ///
-    /// - `bytes` specifies the in-memory bytes to be parsed.
+    /// * `bytes` - The in-memory bytes to be parsed.
     ///
     /// # Error
     ///
@@ -120,7 +120,7 @@ impl Module {
     ///
     /// # Argument
     ///
-    /// - `name` specifies the name of the target exported WasmEdge instance.
+    /// * `name` - The name of the target exported WasmEdge instance.
     pub fn get_export(&self, name: impl AsRef<str>) -> Option<ExternalInstanceType> {
         let exports = self
             .exports()

@@ -121,7 +121,7 @@ impl Vm {
     ///
     /// * `mod_name` - The name for the WASM module to be registered.
     ///
-    /// * `file` - The target WASM file.
+    /// * `file` - The `wasm` or `wat` file.
     ///
     /// # Error
     ///
@@ -339,7 +339,7 @@ impl Vm {
     ///
     /// # Arguments
     ///
-    /// * `file` - The WASM file.
+    /// * `file` - The `wasm` or `wat` file.
     ///
     /// * `func_name` - The name of the target exported function to run.
     ///
@@ -379,7 +379,7 @@ impl Vm {
     ///
     /// # Arguments
     ///
-    /// * `file` - The WASM file.
+    /// * `file` - The `wasm` or `wat` file.
     ///
     /// * `func_name` - The name of the target exported function to run.
     ///
@@ -1106,21 +1106,41 @@ mod tests {
     #[test]
     #[allow(clippy::assertions_on_result_states)]
     fn test_vm_register_module_from_file() {
-        // create a Vm context
-        let result = Vm::new(None);
-        assert!(result.is_ok());
-        let vm = result.unwrap();
+        {
+            // create a Vm context
+            let result = Vm::new(None);
+            assert!(result.is_ok());
+            let vm = result.unwrap();
 
-        // register a wasm module from a specified wasm file
-        let file = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
-            .join("bindings/rust/wasmedge-sys/tests/data/fibonacci.wasm");
-        let result = vm.register_module_from_file("extern", file);
-        assert!(result.is_ok());
-        let vm = result.unwrap();
+            // register a wasm module from a specified wasm file
+            let file = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
+                .join("bindings/rust/wasmedge-sys/tests/data/fibonacci.wasm");
+            let result = vm.register_module_from_file("extern", file);
+            assert!(result.is_ok());
+            let vm = result.unwrap();
 
-        assert_eq!(vm.named_instance_count().unwrap(), 1);
-        assert!(vm.instance_names().is_ok());
-        assert_eq!(vm.instance_names().unwrap(), ["extern"]);
+            assert_eq!(vm.named_instance_count().unwrap(), 1);
+            assert!(vm.instance_names().is_ok());
+            assert_eq!(vm.instance_names().unwrap(), ["extern"]);
+        }
+
+        {
+            // create a Vm context
+            let result = Vm::new(None);
+            assert!(result.is_ok());
+            let vm = result.unwrap();
+
+            // register a wasm module from a specified wasm file
+            let file = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
+                .join("bindings/rust/wasmedge-sys/tests/data/fibonacci.wat");
+            let result = vm.register_module_from_file("extern", file);
+            assert!(result.is_ok());
+            let vm = result.unwrap();
+
+            assert_eq!(vm.named_instance_count().unwrap(), 1);
+            assert!(vm.instance_names().is_ok());
+            assert_eq!(vm.instance_names().unwrap(), ["extern"]);
+        }
     }
 
     #[test]

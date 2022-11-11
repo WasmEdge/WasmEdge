@@ -6,7 +6,6 @@ use wasmedge_sdk::{
     params, Compiler, CompilerOutputFormat, Vm, WasmVal,
 };
 
-#[cfg(target_family = "unix")]
 #[cfg_attr(test, test)]
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // create a Config context
@@ -32,6 +31,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     assert!(aot_file_path.ends_with("example_aot_fibonacci.dylib"));
     #[cfg(target_os = "linux")]
     assert!(aot_file_path.ends_with("example_aot_fibonacci.so"));
+    #[cfg(target_os = "windows")]
+    assert!(aot_file_path.ends_with("example_aot_fibonacci.dll"));
 
     let vm = Vm::new(Some(config))?;
 

@@ -26,6 +26,8 @@ configure_file(common/enum_configure.h api/wasmedge/enum_configure.h COPYONLY)
 configure_file(common/enum_errcode.h api/wasmedge/enum_errcode.h COPYONLY)
 configure_file(common/enum_types.h api/wasmedge/enum_types.h COPYONLY)
 configure_file(common/version.h.in common/version.h)
+install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/api/wasmedge
+        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 unset(WASMEDGE_VERSION_STRING)
 unset(WASMEDGE_VERSION_LIST)
 unset(WASMEDGE_VERSION_MAJOR)

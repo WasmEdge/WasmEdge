@@ -5,7 +5,6 @@ use wasmedge_sdk::{
     params, Compiler, CompilerOutputFormat, Vm, WasmVal,
 };
 
-#[cfg_attr(test, test)]
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // create a Config context
     let config = ConfigBuilder::new(CommonConfigOptions::new().bulk_memory_operations(true))

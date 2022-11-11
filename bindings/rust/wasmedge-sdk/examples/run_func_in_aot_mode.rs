@@ -1,4 +1,3 @@
-#[cfg(target_family = "unix")]
 use wasmedge_sdk::{
     config::{
         CommonConfigOptions, CompilerConfigOptions, ConfigBuilder, HostRegistrationConfigOptions,

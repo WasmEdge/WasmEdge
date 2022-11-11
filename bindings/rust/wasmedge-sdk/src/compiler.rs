@@ -92,6 +92,7 @@ impl Compiler {
 }
 
 #[cfg(feature = "aot")]
+#[cfg(target_family = "unix")]
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -114,10 +115,8 @@ mod tests {
         let wasm_file = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
             .join("bindings/rust/wasmedge-sys/tests/data/fibonacci.wasm");
         let out_dir = std::env::current_dir()?;
-        let aot_filename = "aot_fibonacci";
+        let aot_filename = "aot_fibonacci_1";
         let aot_file_path = compiler.compile_from_file(wasm_file, aot_filename, out_dir)?;
-        assert!(aot_file_path.exists());
-        assert!(aot_file_path.ends_with("aot_fibonacci.dylib"));
 
         // read buffer
         let mut aot_file = std::fs::File::open(&aot_file_path)?;
@@ -148,15 +147,13 @@ mod tests {
         let wasm_file = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
             .join("bindings/rust/wasmedge-sys/tests/data/fibonacci.wasm");
         let out_dir = std::env::current_dir()?;
-        let aot_filename = "aot_fibonacci";
+        let aot_filename = "aot_fibonacci_1";
         let aot_file_path = compiler.compile_from_file(wasm_file, aot_filename, out_dir)?;
-        assert!(aot_file_path.exists());
-        assert!(aot_file_path.ends_with("aot_fibonacci.so"));
 
         // read buffer
         let mut aot_file = std::fs::File::open(&aot_file_path)?;
         let mut buffer = [0u8; 4];
-        aot_file.read(&mut buffer)?;
+        aot_file.read_exact(&mut buffer)?;
         let wasm_magic: [u8; 4] = [0x00, 0x61, 0x73, 0x6D];
         assert_ne!(buffer, wasm_magic);
 
@@ -216,10 +213,8 @@ mod tests {
 
         // compile wasm bytes into a shared library file
         let out_dir = std::env::current_dir()?;
-        let aot_filename = "aot_fibonacci";
+        let aot_filename = "aot_fibonacci_2";
         let aot_file_path = compiler.compile_from_bytes(wasm_bytes, aot_filename, out_dir)?;
-        assert!(aot_file_path.exists());
-        assert!(aot_file_path.ends_with("aot_fibonacci.dylib"));
 
         // read buffer
         let mut aot_file = std::fs::File::open(&aot_file_path)?;
@@ -284,15 +279,13 @@ mod tests {
 
         // compile wasm bytes into a shared library file
         let out_dir = std::env::current_dir()?;
-        let aot_filename = "aot_fibonacci";
+        let aot_filename = "aot_fibonacci_2";
         let aot_file_path = compiler.compile_from_bytes(wasm_bytes, aot_filename, out_dir)?;
-        assert!(aot_file_path.exists());
-        assert!(aot_file_path.ends_with("aot_fibonacci.so"));
 
         // read buffer
         let mut aot_file = std::fs::File::open(&aot_file_path)?;
         let mut buffer = [0u8; 4];
-        aot_file.read(&mut buffer)?;
+        aot_file.read_exact(&mut buffer)?;
         let wasm_magic: [u8; 4] = [0x00, 0x61, 0x73, 0x6D];
         assert_ne!(buffer, wasm_magic);
 

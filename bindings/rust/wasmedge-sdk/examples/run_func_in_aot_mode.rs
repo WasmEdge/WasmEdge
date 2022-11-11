@@ -22,16 +22,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let wasm_file = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
         .join("bindings/rust/wasmedge-sys/tests/data/fibonacci.wasm");
     let out_dir = std::env::current_dir()?;
-    let aot_filename = "aot_fibonacci";
+    let aot_filename = "example_aot_fibonacci";
 
     // compile wasm to so for runing in the `aot` mode
     let compiler = Compiler::new(Some(&config))?;
     let aot_file_path = compiler.compile_from_file(wasm_file, aot_filename, out_dir)?;
     assert!(&aot_file_path.exists());
     #[cfg(target_os = "macos")]
-    assert!(aot_file_path.ends_with("aot_fibonacci.dylib"));
+    assert!(aot_file_path.ends_with("example_aot_fibonacci.dylib"));
     #[cfg(target_os = "linux")]
-    assert!(aot_file_path.ends_with("aot_fibonacci.so"));
+    assert!(aot_file_path.ends_with("example_aot_fibonacci.so"));
 
     let vm = Vm::new(Some(config))?;
 

@@ -54,7 +54,7 @@ impl Compiler {
             .join(format!("{}.{}", filename.as_ref(), extension));
         self.inner.compile_from_file(wasm_file, &aot_file)?;
 
-        Ok(aot_file.to_path_buf())
+        Ok(aot_file)
     }
 
     /// Compiles the given wasm bytes into a shared library file (*.so in Linux, *.dylib in macOS, or *.dll in Windows). The file path of the generated shared library file will be returned if the method works successfully.
@@ -87,7 +87,7 @@ impl Compiler {
             .join(format!("{}.{}", filename.as_ref(), extension));
         self.inner.compile_from_bytes(bytes, &aot_file)?;
 
-        Ok(aot_file.to_path_buf())
+        Ok(aot_file)
     }
 }
 
@@ -122,7 +122,7 @@ mod tests {
         // read buffer
         let mut aot_file = std::fs::File::open(&aot_file_path)?;
         let mut buffer = [0u8; 4];
-        aot_file.read(&mut buffer)?;
+        aot_file.read_exact(&mut buffer)?;
         let wasm_magic: [u8; 4] = [0x00, 0x61, 0x73, 0x6D];
         assert_ne!(buffer, wasm_magic);
 
@@ -224,7 +224,7 @@ mod tests {
         // read buffer
         let mut aot_file = std::fs::File::open(&aot_file_path)?;
         let mut buffer = [0u8; 4];
-        aot_file.read(&mut buffer)?;
+        aot_file.read_exact(&mut buffer)?;
         let wasm_magic: [u8; 4] = [0x00, 0x61, 0x73, 0x6D];
         assert_ne!(buffer, wasm_magic);
 

@@ -1,0 +1,57 @@
+cmake_minimum_required(VERSION 2.8.3)
+project(pywasmedge)
+
+set(WASMEDGE_LIB "wasmedge_c")
+set(CMAKE_BUILD_TYPE RelWithDebInfo)
+
+if (WASMEDGE_LIB_DIR)
+else()
+    set(WASMEDGE_LIB_DIR "$ENV{HOME}/.wasmedge/lib")
+endif()
+
+if (WASMEDGE_INCLUDE_DIR)
+else()
+    set(WASMEDGE_INCLUDE_DIR "$ENV{HOME}/.wasmedge/include")
+endif()
+
+if (PYTHONINTERP_FOUND)
+    if (UNIX AND NOT APPLE)
+        if (PYTHON_VERSION_MAJOR EQUAL 3)
+            FIND_PACKAGE(PythonInterp 3)
+            FIND_PACKAGE(PythonLibs 3 REQUIRED)
+        else()
+            FIND_PACKAGE(PythonInterp)
+            FIND_PACKAGE(PythonLibs REQUIRED)
+        endif()
+    else()	
+        if (PYTHON_VERSION_MAJOR EQUAL 3)
+            FIND_PACKAGE(PythonInterp 3)
+            FIND_PACKAGE(PythonLibs 3 REQUIRED)
+        else()
+            FIND_PACKAGE(PythonInterp)
+            FIND_PACKAGE(PythonLibs REQUIRED)
+        endif()
+    endif()
+else()
+    message("Python not found")
+endif()
+
+add_subdirectory(pybind11)
+
+message(STATUS "PYTHON_LIBRARIES = ${PYTHON_LIBRARIES}")
+message(STATUS "PYTHON_EXECUTABLE = ${PYTHON_EXECUTABLE}")
+message(STATUS "PYTHON_INCLUDE_DIRS = ${PYTHON_INCLUDE_DIRS}")
+message(STATUS "WasmEdge Include PATH: = ${WASMEDGE_INCLUDE_DIR}")
+message(STATUS "WasmEdge Library PATH: = ${WASMEDGE_LIB_DIR}")
+message(STATUS "WasmEdge Library: = ${WASMEDGE_LIB}")
+
+ENABLE_TESTING()
+INCLUDE_DIRECTORIES(
+    ${WASMEDGE_INCLUDE_DIR}
+    pybind11/include
+)
+
+LINK_LIBRARIES(${WASMEDGE_LIB})
+LINK_DIRECTORIES(${WASMEDGE_LIB_DIR})
+
+ADD_SUBDIRECTORY(pywasmedge)

@@ -1,3 +1,4 @@
+#[cfg(target_family = "unix")]
 use wasmedge_sdk::{
     config::{
         CommonConfigOptions, CompilerConfigOptions, ConfigBuilder, HostRegistrationConfigOptions,
@@ -5,6 +6,7 @@ use wasmedge_sdk::{
     params, Compiler, CompilerOutputFormat, Vm, WasmVal,
 };
 
+#[cfg(target_family = "unix")]
 #[cfg_attr(test, test)]
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // create a Config context

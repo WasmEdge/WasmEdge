@@ -1,7 +1,7 @@
 //! Defines WasmEdge ahead-of-time compiler.
 
 use crate::{config::Config, WasmEdgeResult};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use wasmedge_sys as sys;
 
 /// Defines WasmEdge ahead-of-time(AOT) compiler and the relevant APIs.
@@ -10,6 +10,7 @@ use wasmedge_sys as sys;
 pub struct Compiler {
     pub(crate) inner: sys::Compiler,
 }
+#[cfg(feature = "aot")]
 impl Compiler {
     /// Creates a new AOT [compiler](crate::Compiler).
     ///
@@ -23,45 +24,283 @@ impl Compiler {
         Ok(Self { inner })
     }
 
-    /// Compiles the input WASM from the given file path for the AOT mode and stores the result to the output file path.
+    /// Compiles the given wasm file into a shared library file (*.so in Linux, *.dylib in macOS, or *.dll in Windows). The file path of the generated shared library file will be returned if the method works successfully.
     ///
     /// # Arguments
     ///
-    /// * `in_path` specifies the input WASM file path.
+    /// * `wasm_file` - The target wasm file.
     ///
-    /// * `out_path` specifies the output WASM file path.
+    /// * `filename` - The filename of the generated shared library file.
+    ///
+    /// * `out_dir` - The target directory to save the generated shared library file.
     ///
     /// # Error
     ///
     /// If fail to compile, then an error is returned.
     pub fn compile_from_file(
         &self,
-        in_path: impl AsRef<Path>,
-        out_path: impl AsRef<Path>,
-    ) -> WasmEdgeResult<()> {
-        self.inner.compile_from_file(in_path, out_path)?;
+        wasm_file: impl AsRef<Path>,
+        filename: impl AsRef<str>,
+        out_dir: impl AsRef<Path>,
+    ) -> WasmEdgeResult<PathBuf> {
+        #[cfg(target_os = "linux")]
+        let extension = "so";
+        #[cfg(target_os = "macos")]
+        let extension = "dylib";
+        #[cfg(target_os = "windows")]
+        let extension = "dll";
+        let aot_file = out_dir
+            .as_ref()
+            .join(format!("{}.{}", filename.as_ref(), extension));
+        self.inner.compile_from_file(wasm_file, &aot_file)?;
 
-        Ok(())
+        Ok(aot_file.to_path_buf())
     }
 
-    /// Compiles the input WASM from the given bytes for the AOT mode and stores the result to the output file path.
+    /// Compiles the given wasm bytes into a shared library file (*.so in Linux, *.dylib in macOS, or *.dll in Windows). The file path of the generated shared library file will be returned if the method works successfully.
     ///
     /// # Argument
     ///
     /// * `bytes` - A in-memory WASM bytes.
     ///
-    /// * `out_path` - The output WASM file path.
+    /// * `filename` - The filename of the generated shared library file.
+    ///
+    /// * `out_dir` - The target directory to save the generated shared library file.
     ///
     /// # Error
     ///
     /// If fail to compile, then an error is returned.
-    #[cfg(feature = "aot")]
     pub fn compile_from_bytes(
         &self,
         bytes: impl AsRef<[u8]>,
-        out_path: impl AsRef<Path>,
-    ) -> WasmEdgeResult<()> {
-        self.inner.compile_from_bytes(bytes, out_path)?;
+        filename: impl AsRef<str>,
+        out_dir: impl AsRef<Path>,
+    ) -> WasmEdgeResult<PathBuf> {
+        #[cfg(target_os = "linux")]
+        let extension = "so";
+        #[cfg(target_os = "macos")]
+        let extension = "dylib";
+        #[cfg(target_os = "windows")]
+        let extension = "dll";
+        let aot_file = out_dir
+            .as_ref()
+            .join(format!("{}.{}", filename.as_ref(), extension));
+        self.inner.compile_from_bytes(bytes, &aot_file)?;
+
+        Ok(aot_file.to_path_buf())
+    }
+}
+
+#[cfg(feature = "aot")]
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{
+        config::{CompilerConfigOptions, ConfigBuilder},
+        params, wat2wasm, CompilerOutputFormat, Vm, WasmVal,
+    };
+    use std::io::Read;
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn test_compiler_compile_from_file() -> Result<(), Box<dyn std::error::Error>> {
+        let config = ConfigBuilder::default()
+            .with_compiler_config(
+                CompilerConfigOptions::new().out_format(CompilerOutputFormat::Native),
+            )
+            .build()?;
+
+        let compiler = Compiler::new(Some(&config))?;
+        let wasm_file = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
+            .join("bindings/rust/wasmedge-sys/tests/data/fibonacci.wasm");
+        let out_dir = std::env::current_dir()?;
+        let aot_filename = "aot_fibonacci";
+        let aot_file_path = compiler.compile_from_file(wasm_file, aot_filename, out_dir)?;
+        assert!(aot_file_path.exists());
+        assert!(aot_file_path.ends_with("aot_fibonacci.dylib"));
+
+        // read buffer
+        let mut aot_file = std::fs::File::open(&aot_file_path)?;
+        let mut buffer = [0u8; 4];
+        aot_file.read(&mut buffer)?;
+        let wasm_magic: [u8; 4] = [0x00, 0x61, 0x73, 0x6D];
+        assert_ne!(buffer, wasm_magic);
+
+        let res = Vm::new(None)?.run_func_from_file(&aot_file_path, "fib", params!(5))?;
+        assert_eq!(res[0].to_i32(), 8);
+
+        // cleanup
+        assert!(std::fs::remove_file(aot_file_path).is_ok());
+
+        Ok(())
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn test_compiler_compile_from_file() -> Result<(), Box<dyn std::error::Error>> {
+        let config = ConfigBuilder::default()
+            .with_compiler_config(
+                CompilerConfigOptions::new().out_format(CompilerOutputFormat::Native),
+            )
+            .build()?;
+
+        let compiler = Compiler::new(Some(&config))?;
+        let wasm_file = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
+            .join("bindings/rust/wasmedge-sys/tests/data/fibonacci.wasm");
+        let out_dir = std::env::current_dir()?;
+        let aot_filename = "aot_fibonacci";
+        let aot_file_path = compiler.compile_from_file(wasm_file, aot_filename, out_dir)?;
+        assert!(aot_file_path.exists());
+        assert!(aot_file_path.ends_with("aot_fibonacci.so"));
+
+        // read buffer
+        let mut aot_file = std::fs::File::open(&aot_file_path)?;
+        let mut buffer = [0u8; 4];
+        aot_file.read(&mut buffer)?;
+        let wasm_magic: [u8; 4] = [0x00, 0x61, 0x73, 0x6D];
+        assert_ne!(buffer, wasm_magic);
+
+        let res = Vm::new(None)?.run_func_from_file(&aot_file_path, "fib", params!(5))?;
+        assert_eq!(res[0].to_i32(), 8);
+
+        // cleanup
+        assert!(std::fs::remove_file(aot_file_path).is_ok());
+
+        Ok(())
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn test_compiler_compile_from_bytes() -> Result<(), Box<dyn std::error::Error>> {
+        let wasm_bytes = wat2wasm(
+            br#"(module
+                (export "fib" (func $fib))
+                (func $fib (param $n i32) (result i32)
+                 (if
+                  (i32.lt_s
+                   (get_local $n)
+                   (i32.const 2)
+                  )
+                  (return
+                   (i32.const 1)
+                  )
+                 )
+                 (return
+                  (i32.add
+                   (call $fib
+                    (i32.sub
+                     (get_local $n)
+                     (i32.const 2)
+                    )
+                   )
+                   (call $fib
+                    (i32.sub
+                     (get_local $n)
+                     (i32.const 1)
+                    )
+                   )
+                  )
+                 )
+                )
+               )
+          "#,
+        )?;
+
+        // create a aot compiler
+        let config = ConfigBuilder::default()
+            .with_compiler_config(
+                CompilerConfigOptions::new().out_format(CompilerOutputFormat::Native),
+            )
+            .build()?;
+        let compiler = Compiler::new(Some(&config))?;
+
+        // compile wasm bytes into a shared library file
+        let out_dir = std::env::current_dir()?;
+        let aot_filename = "aot_fibonacci";
+        let aot_file_path = compiler.compile_from_bytes(wasm_bytes, aot_filename, out_dir)?;
+        assert!(aot_file_path.exists());
+        assert!(aot_file_path.ends_with("aot_fibonacci.dylib"));
+
+        // read buffer
+        let mut aot_file = std::fs::File::open(&aot_file_path)?;
+        let mut buffer = [0u8; 4];
+        aot_file.read(&mut buffer)?;
+        let wasm_magic: [u8; 4] = [0x00, 0x61, 0x73, 0x6D];
+        assert_ne!(buffer, wasm_magic);
+
+        let res = Vm::new(None)?.run_func_from_file(&aot_file_path, "fib", params!(5))?;
+        assert_eq!(res[0].to_i32(), 8);
+
+        // cleanup
+        assert!(std::fs::remove_file(aot_file_path).is_ok());
+
+        Ok(())
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn test_compiler_compile_from_bytes() -> Result<(), Box<dyn std::error::Error>> {
+        let wasm_bytes = wat2wasm(
+            br#"(module
+                (export "fib" (func $fib))
+                (func $fib (param $n i32) (result i32)
+                 (if
+                  (i32.lt_s
+                   (get_local $n)
+                   (i32.const 2)
+                  )
+                  (return
+                   (i32.const 1)
+                  )
+                 )
+                 (return
+                  (i32.add
+                   (call $fib
+                    (i32.sub
+                     (get_local $n)
+                     (i32.const 2)
+                    )
+                   )
+                   (call $fib
+                    (i32.sub
+                     (get_local $n)
+                     (i32.const 1)
+                    )
+                   )
+                  )
+                 )
+                )
+               )
+          "#,
+        )?;
+
+        // create a aot compiler
+        let config = ConfigBuilder::default()
+            .with_compiler_config(
+                CompilerConfigOptions::new().out_format(CompilerOutputFormat::Native),
+            )
+            .build()?;
+        let compiler = Compiler::new(Some(&config))?;
+
+        // compile wasm bytes into a shared library file
+        let out_dir = std::env::current_dir()?;
+        let aot_filename = "aot_fibonacci";
+        let aot_file_path = compiler.compile_from_bytes(wasm_bytes, aot_filename, out_dir)?;
+        assert!(aot_file_path.exists());
+        assert!(aot_file_path.ends_with("aot_fibonacci.so"));
+
+        // read buffer
+        let mut aot_file = std::fs::File::open(&aot_file_path)?;
+        let mut buffer = [0u8; 4];
+        aot_file.read(&mut buffer)?;
+        let wasm_magic: [u8; 4] = [0x00, 0x61, 0x73, 0x6D];
+        assert_ne!(buffer, wasm_magic);
+
+        let res = Vm::new(None)?.run_func_from_file(&aot_file_path, "fib", params!(5))?;
+        assert_eq!(res[0].to_i32(), 8);
+
+        // cleanup
+        assert!(std::fs::remove_file(aot_file_path).is_ok());
 
         Ok(())
     }

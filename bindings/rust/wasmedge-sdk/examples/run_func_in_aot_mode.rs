@@ -21,19 +21,24 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let wasm_file = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
         .join("bindings/rust/wasmedge-sys/tests/data/fibonacci.wasm");
-    let aot_file = std::path::PathBuf::from("aot-fibonacci.wasm");
+    let out_dir = std::env::current_dir()?;
+    let aot_filename = "aot_fibonacci";
 
     // compile wasm to so for runing in the `aot` mode
     let compiler = Compiler::new(Some(&config))?;
-    compiler.compile_from_file(wasm_file, &aot_file)?;
-    assert!(&aot_file.exists());
+    let aot_file_path = compiler.compile_from_file(wasm_file, aot_filename, out_dir)?;
+    assert!(&aot_file_path.exists());
+    #[cfg(target_os = "macos")]
+    assert!(aot_file_path.ends_with("aot_fibonacci.dylib"));
+    #[cfg(target_os = "linux")]
+    assert!(aot_file_path.ends_with("aot_fibonacci.so"));
 
     let vm = Vm::new(Some(config))?;
 
-    let res = vm.run_func_from_file(&aot_file, "fib", params!(5))?;
+    let res = vm.run_func_from_file(&aot_file_path, "fib", params!(5))?;
     println!("fib(5): {}", res[0].to_i32());
 
     // remove the generated aot file
-    assert!(std::fs::remove_file(&aot_file).is_ok());
+    assert!(std::fs::remove_file(&aot_file_path).is_ok());
     Ok(())
 }

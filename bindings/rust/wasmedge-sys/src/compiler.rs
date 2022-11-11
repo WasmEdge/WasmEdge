@@ -150,7 +150,10 @@ mod tests {
             // compile a file for universal WASM output format
             let in_path = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
                 .join("bindings/rust/wasmedge-sys/tests/data/test.wasm");
-            let out_path = std::path::PathBuf::from("test_aot.wasm");
+            #[cfg(target_os = "linux")]
+            let out_path = std::path::PathBuf::from("test_aot.so");
+            #[cfg(target_os = "macos")]
+            let out_path = std::path::PathBuf::from("test_aot.dylib");
             assert!(!out_path.exists());
             let result = compiler.compile_from_file(in_path, &out_path);
             assert!(result.is_ok());
@@ -180,7 +183,10 @@ mod tests {
             let compiler = result.unwrap();
             let in_path = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
                 .join("bindings/rust/wasmedge-sys/tests/data/test.wasm");
+            #[cfg(target_os = "linux")]
             let out_path = std::path::PathBuf::from("test_aot_from_file.so");
+            #[cfg(target_os = "macos")]
+            let out_path = std::path::PathBuf::from("test_aot_from_file.dylib");
             assert!(!out_path.exists());
             let result = compiler.compile_from_file(in_path, &out_path);
             assert!(result.is_ok());
@@ -246,8 +252,10 @@ mod tests {
             let result = Compiler::create(Some(config));
             assert!(result.is_ok());
             let compiler = result.unwrap();
-
+            #[cfg(target_os = "linux")]
             let out_path = std::path::PathBuf::from("test_aot_from_bytes.so");
+            #[cfg(target_os = "macos")]
+            let out_path = std::path::PathBuf::from("test_aot_from_bytes.dylib");
             assert!(!out_path.exists());
             let result = compiler.compile_from_bytes(wasm_bytes, &out_path);
             assert!(result.is_ok());
@@ -279,7 +287,10 @@ mod tests {
             // compile a file for universal WASM output format
             let in_path = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
                 .join("bindings/rust/wasmedge-sys/examples/data/fibonacci.wasm");
-            let out_path = std::path::PathBuf::from("fibonacci_send_thread_aot.wasm");
+            #[cfg(target_os = "linux")]
+            let out_path = std::path::PathBuf::from("test_aot_fib_send.so");
+            #[cfg(target_os = "macos")]
+            let out_path = std::path::PathBuf::from("test_aot_fib_send.dylib");
             assert!(!out_path.exists());
             let result = compiler.compile_from_file(in_path, &out_path);
             assert!(result.is_ok());
@@ -331,7 +342,10 @@ mod tests {
             // compile a file for universal WASM output format
             let in_path = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
                 .join("bindings/rust/wasmedge-sys/examples/data/fibonacci.wasm");
-            let out_path = std::path::PathBuf::from("fibonacci_sync_main_aot.wasm");
+            #[cfg(target_os = "linux")]
+            let out_path = std::path::PathBuf::from("test_aot_fib_sync.so");
+            #[cfg(target_os = "macos")]
+            let out_path = std::path::PathBuf::from("test_aot_fib_sync.dylib");
             assert!(!out_path.exists());
             let result = compiler_main.compile_from_file(in_path, &out_path);
             assert!(result.is_ok());

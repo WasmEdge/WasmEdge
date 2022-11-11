@@ -155,6 +155,8 @@ mod tests {
             #[cfg(target_os = "macos")]
             let out_path = std::path::PathBuf::from("test_aot.dylib");
             assert!(!out_path.exists());
+            #[cfg(target_os = "windows")]
+            let out_path = std::path::PathBuf::from("test_aot.dll");
             let result = compiler.compile_from_file(in_path, &out_path);
             assert!(result.is_ok());
             assert!(out_path.exists());
@@ -187,6 +189,8 @@ mod tests {
             let out_path = std::path::PathBuf::from("test_aot_from_file.so");
             #[cfg(target_os = "macos")]
             let out_path = std::path::PathBuf::from("test_aot_from_file.dylib");
+            #[cfg(target_os = "windows")]
+            let out_path = std::path::PathBuf::from("test_aot_from_file.dll");
             assert!(!out_path.exists());
             let result = compiler.compile_from_file(in_path, &out_path);
             assert!(result.is_ok());
@@ -256,6 +260,8 @@ mod tests {
             let out_path = std::path::PathBuf::from("test_aot_from_bytes.so");
             #[cfg(target_os = "macos")]
             let out_path = std::path::PathBuf::from("test_aot_from_bytes.dylib");
+            #[cfg(target_os = "windows")]
+            let out_path = std::path::PathBuf::from("test_aot_from_bytes.dll");
             assert!(!out_path.exists());
             let result = compiler.compile_from_bytes(wasm_bytes, &out_path);
             assert!(result.is_ok());
@@ -291,6 +297,8 @@ mod tests {
             let out_path = std::path::PathBuf::from("test_aot_fib_send.so");
             #[cfg(target_os = "macos")]
             let out_path = std::path::PathBuf::from("test_aot_fib_send.dylib");
+            #[cfg(target_os = "windows")]
+            let out_path = std::path::PathBuf::from("test_aot_fib_send.dll");
             assert!(!out_path.exists());
             let result = compiler.compile_from_file(in_path, &out_path);
             assert!(result.is_ok());
@@ -346,6 +354,8 @@ mod tests {
             let out_path = std::path::PathBuf::from("test_aot_fib_sync.so");
             #[cfg(target_os = "macos")]
             let out_path = std::path::PathBuf::from("test_aot_fib_sync.dylib");
+            #[cfg(target_os = "windows")]
+            let out_path = std::path::PathBuf::from("test_aot_fib_sync.dll");
             assert!(!out_path.exists());
             let result = compiler_main.compile_from_file(in_path, &out_path);
             assert!(result.is_ok());

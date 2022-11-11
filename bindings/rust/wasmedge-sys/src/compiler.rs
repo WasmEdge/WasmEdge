@@ -154,9 +154,9 @@ mod tests {
             let out_path = std::path::PathBuf::from("test_aot.so");
             #[cfg(target_os = "macos")]
             let out_path = std::path::PathBuf::from("test_aot.dylib");
-            assert!(!out_path.exists());
             #[cfg(target_os = "windows")]
             let out_path = std::path::PathBuf::from("test_aot.dll");
+            assert!(!out_path.exists());
             let result = compiler.compile_from_file(in_path, &out_path);
             assert!(result.is_ok());
             assert!(out_path.exists());

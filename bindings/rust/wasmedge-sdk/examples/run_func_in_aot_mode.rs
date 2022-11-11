@@ -19,7 +19,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let wasm_file = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
         .join("bindings/rust/wasmedge-sys/tests/data/fibonacci.wasm");
-    let aot_file = std::path::PathBuf::from("fibonacci.wasm.so");
+    let aot_file = std::path::PathBuf::from("aot-fibonacci.wasm");
 
     // compile wasm to so for runing in the `aot` mode
     let compiler = Compiler::new(Some(&config))?;

@@ -25,12 +25,8 @@ impl Compiler {
     #[cfg(feature = "aot")]
     pub fn create(config: Option<Config>) -> WasmEdgeResult<Self> {
         let ctx = match config {
-            Some(mut config) => {
+            Some(config) => {
                 let ctx = unsafe { ffi::WasmEdge_CompilerCreate(config.inner.0) };
-
-                let inner_config = &mut *std::sync::Arc::get_mut(&mut config.inner).unwrap();
-                inner_config.0 = std::ptr::null_mut();
-
                 ctx
             }
             None => unsafe { ffi::WasmEdge_CompilerCreate(std::ptr::null_mut()) },

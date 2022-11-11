@@ -25,7 +25,7 @@ fn test_executor_with_statistics() {
     assert!(result.is_ok());
     let mut stat = result.unwrap();
     // set cost table
-    stat.set_cost_table(&mut []);
+    stat.set_cost_table([]);
     let mut cost_table = vec![20u64; 512];
     stat.set_cost_table(&mut cost_table);
     // set cost limit

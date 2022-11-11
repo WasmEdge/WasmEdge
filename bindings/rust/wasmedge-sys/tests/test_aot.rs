@@ -46,7 +46,7 @@ fn test_aot() {
         .join("bindings/rust/wasmedge-sys/tests/data/fibonacci.wasm");
     let out_path = std::path::PathBuf::from("fibonacci_aot.wasm");
     assert!(!out_path.exists());
-    let result = compiler.compile_from_file(&in_path, &out_path);
+    let result = compiler.compile_from_file(in_path, &out_path);
     assert!(result.is_ok());
     assert!(out_path.exists());
 

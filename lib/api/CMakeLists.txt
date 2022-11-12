@@ -7,21 +7,28 @@ if(WASMEDGE_BUILD_AOT_RUNTIME)
   add_definitions(-DWASMEDGE_BUILD_AOT_RUNTIME)
 endif()
 
+get_filename_component(CMAKE_AR_NAME "${CMAKE_AR}" NAME)
+
 # Helper function to construct commands and dependencies.
 function(wasmedge_add_static_lib_component_command target)
   if(APPLE)
-    list(APPEND CMDS
-      COMMAND ${CMAKE_COMMAND} -E make_directory objs/${target}
-      COMMAND ${CMAKE_AR} -x $<TARGET_FILE:${target}>
-      COMMAND ${CMAKE_AR} -t $<TARGET_FILE:${target}> | xargs -I '{}' mv '{}' objs/${target}
-    )
+    if(CMAKE_AR_NAME STREQUAL "ar")
+      list(APPEND CMDS
+        COMMAND ${CMAKE_COMMAND} -E make_directory objs/${target}
+        COMMAND ${CMAKE_AR} -x $<TARGET_FILE:${target}>
+        COMMAND ${CMAKE_AR} -t $<TARGET_FILE:${target}> | xargs -I '{}' mv '{}' objs/${target}
+      )
+      set(WASMEDGE_STATIC_LIB_AR_CMDS ${WASMEDGE_STATIC_LIB_AR_CMDS} ${CMDS} PARENT_SCOPE)
+    elseif(CMAKE_AR_NAME STREQUAL "libtool")
+      set(WASMEDGE_STATIC_LIB_LIBTOOL_FILES ${WASMEDGE_STATIC_LIB_LIBTOOL_FILES} $<TARGET_FILE:${target}> PARENT_SCOPE)
+    endif()
   else()
     list(APPEND CMDS
       COMMAND ${CMAKE_COMMAND} -E make_directory objs/${target}
       COMMAND ${CMAKE_AR} -x $<TARGET_FILE:${target}> --output=objs/${target}
     )
+    set(WASMEDGE_STATIC_LIB_AR_CMDS ${WASMEDGE_STATIC_LIB_AR_CMDS} ${CMDS} PARENT_SCOPE)
   endif()
-  set(WASMEDGE_STATIC_LIB_CMDS ${WASMEDGE_STATIC_LIB_CMDS} ${CMDS} PARENT_SCOPE)
   set(WASMEDGE_STATIC_LIB_DEPS ${WASMEDGE_STATIC_LIB_DEPS} ${target} PARENT_SCOPE)
 endfunction()
 
@@ -31,18 +38,24 @@ function(wasmedge_add_libs_component_command target_path)
   string(REGEX REPLACE "^lib" "" target_name ${target_name})
   string(REGEX REPLACE "\.a$" "" target_name ${target_name})
   if(APPLE)
-    list(APPEND CMDS
-      COMMAND ${CMAKE_COMMAND} -E make_directory objs/${target_name}
-      COMMAND ${CMAKE_AR} -x ${target_path}
-      COMMAND ${CMAKE_AR} -t ${target_path} | xargs -I '{}' mv '{}' objs/${target_name}
-    )
+    get_filename_component(CMAKE_AR_NAME "${CMAKE_AR}" NAME)
+    if(CMAKE_AR_NAME STREQUAL "ar")
+      list(APPEND CMDS
+        COMMAND ${CMAKE_COMMAND} -E make_directory objs/${target_name}
+        COMMAND ${CMAKE_AR} -x ${target_path}
+        COMMAND ${CMAKE_AR} -t ${target_path} | xargs -I '{}' mv '{}' objs/${target_name}
+      )
+      set(WASMEDGE_STATIC_LLVM_LIB_AR_CMDS ${WASMEDGE_STATIC_LLVM_LIB_AR_CMDS} ${CMDS} PARENT_SCOPE)
+    elseif(CMAKE_AR_NAME STREQUAL "libtool")
+      set(WASMEDGE_STATIC_LIB_LIBTOOL_FILES ${WASMEDGE_STATIC_LIB_LIBTOOL_FILES} ${target_path} PARENT_SCOPE)
+    endif()
   else()
     list(APPEND CMDS
       COMMAND ${CMAKE_COMMAND} -E make_directory objs/${target_name}
       COMMAND ${CMAKE_AR} -x ${target_path} --output=objs/${target_name}
     )
+    set(WASMEDGE_STATIC_LLVM_LIB_AR_CMDS ${WASMEDGE_STATIC_LLVM_LIB_AR_CMDS} ${CMDS} PARENT_SCOPE)
   endif()
-  set(WASMEDGE_STATIC_LLVM_LIB_CMDS ${WASMEDGE_STATIC_LLVM_LIB_CMDS} ${CMDS} PARENT_SCOPE)
 endfunction()
 
 set(WASMEDGE_CAPI_HEADERS
@@ -148,14 +161,22 @@ if(WASMEDGE_BUILD_STATIC_LIB)
     wasmedge_add_static_lib_component_command(wasmedgeAOT)
   endif()
 
-  add_custom_command(OUTPUT "libwasmedge.a"
-    ${WASMEDGE_STATIC_LIB_CMDS}
-    ${WASMEDGE_STATIC_LLVM_LIB_CMDS}
-    COMMAND ${CMAKE_AR} -qcs libwasmedge.a $<TARGET_OBJECTS:wasmedgeCAPI> objs/*/*.o
-    COMMAND ${CMAKE_COMMAND} -E remove_directory objs
-    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-    DEPENDS ${WASMEDGE_STATIC_LIB_DEPS} wasmedgeCAPI
-  )
+  if(CMAKE_AR_NAME STREQUAL "ar")
+    add_custom_command(OUTPUT "libwasmedge.a"
+      ${WASMEDGE_STATIC_LIB_AR_CMDS}
+      ${WASMEDGE_STATIC_LLVM_LIB_AR_CMDS}
+      COMMAND ${CMAKE_AR} -qcs libwasmedge.a $<TARGET_OBJECTS:wasmedgeCAPI> objs/*/*.o
+      COMMAND ${CMAKE_COMMAND} -E remove_directory objs
+      WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+      DEPENDS ${WASMEDGE_STATIC_LIB_DEPS} wasmedgeCAPI
+    )
+  elseif(CMAKE_AR_NAME STREQUAL "libtool")
+    add_custom_command(OUTPUT "libwasmedge.a"
+      COMMAND ${CMAKE_AR} -static -o libwasmedge.a ${WASMEDGE_STATIC_LIB_LIBTOOL_FILES} $<TARGET_OBJECTS:wasmedgeCAPI>
+      WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+      DEPENDS ${WASMEDGE_STATIC_LIB_DEPS} wasmedgeCAPI
+    )
+  endif()
 
   add_custom_target(wasmedge_static_target ALL DEPENDS "libwasmedge.a")
   add_library(wasmedge_static STATIC IMPORTED GLOBAL)

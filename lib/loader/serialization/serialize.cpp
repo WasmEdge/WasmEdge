@@ -1,41 +1,84 @@
 #include "ast/module.h"
 #include "loader/loader.h"
 
+#include <functional>
+
 namespace WasmEdge {
 namespace Serialize {
 
 std::vector<uint8_t> Serialize::serializeModule(const AST::Module &Mod) {
+
   std::vector<uint8_t> serializedModule;
   std::vector<uint8_t> serializedCustom =
       serializeCustomSection(Mod.getCustomSections());
+  serializedModule.insert(serializedModule.end(), serializedCustom.begin(),
+                          serializedCustom.end());
+
   std::vector<uint8_t> serializedType =
       serializeTypeSection(Mod.getTypeSection());
+  serializedModule.insert(serializedModule.end(), serializedType.begin(),
+                          serializedType.end());
+
   std::vector<uint8_t> serializedImport =
       serializeImportSection(Mod.getImportSection());
+  serializedModule.insert(serializedModule.end(), serializedImport.begin(),
+                          serializedImport.end());
+
   std::vector<uint8_t> serializedFunction =
       serializeFunctionSection(Mod.getFunctionSection());
+  serializedModule.insert(serializedModule.end(), serializedFunction.begin(),
+                          serializedFunction.end());
+
   std::vector<uint8_t> serializedTable =
       serializeTableSection(Mod.getTableSection());
-  std::vector<uint8_t> serializedmemery =
+  serializedModule.insert(serializedModule.end(), serializedTable.begin(),
+                          serializedTable.end());
+
+  std::vector<uint8_t> serializedMemory =
       serializeMemorySection(Mod.getMemorySection());
+  serializedModule.insert(serializedModule.end(), serializedMemory.begin(),
+                          serializedMemory.end());
+
   std::vector<uint8_t> serializedGlobal =
       serializeGlobalSection(Mod.getGlobalSection());
+  serializedModule.insert(serializedModule.end(), serializedGlobal.begin(),
+                          serializedGlobal.end());
+
   std::vector<uint8_t> serializedExport =
       serializeExportSection(Mod.getExportSection());
+  serializedModule.insert(serializedModule.end(), serializedExport.begin(),
+                          serializedExport.end());
+
   std::vector<uint8_t> serializedStart =
       serializeStartSection(Mod.getStartSection());
+  serializedModule.insert(serializedModule.end(), serializedStart.begin(),
+                          serializedStart.end());
+
   std::vector<uint8_t> serializedElement =
       serializeElementSection(Mod.getElementSection());
+  serializedModule.insert(serializedModule.end(), serializedElement.begin(),
+                          serializedElement.end());
+
   std::vector<uint8_t> serializedCode =
       serializeCodeSection(Mod.getCodeSection());
+  serializedModule.insert(serializedModule.end(), serializedCode.begin(),
+                          serializedCode.end());
+
   std::vector<uint8_t> serializedData =
       serializeDataSection(Mod.getDataSection());
+  serializedModule.insert(serializedModule.end(), serializedData.begin(),
+                          serializedData.end());
+
   std::vector<uint8_t> serializedDataCount =
       serializeDataCountSection(Mod.getDataCountSection());
+  serializedModule.insert(serializedModule.end(), serializedDataCount.begin(),
+                          serializedDataCount.end());
+
   return serializedModule;
 }
 
 // Helper functions
+
 template <typename T, typename F>
 size_t encodeLEB128Implementation(T Num, F Func) {
   // unsigned LEB128 encoding
@@ -102,28 +145,28 @@ std::vector<uint8_t> encodeU32(uint32_t Num) {
 }
 
 template <typename T, typename B, typename L>
-std::vector<uint8_t> serializeSectionContent(T &Sec, B &Byte, L &&Func) {
+std::vector<uint8_t> serializeSectionContent(T &Sec, B Byte, L Func) {
   if (Sec.getContent().size()) {
 
     std::vector<uint8_t> Result;
-    std::vector<uint8_t> content;
+    std::vector<uint8_t> Content;
 
     for (auto &type : Sec.getContent()) {
       auto serializedType = Func(type);
-      content.insert(content.end(), serializedType.begin(),
+      Content.insert(Content.end(), serializedType.begin(),
                      serializedType.end());
     }
     std::vector<uint8_t> ContentVectorSize = encodeU32(Sec.getContent().size());
     std::vector<uint8_t> ContentSize =
-        encodeU32(content.size() + ContentVectorSize.size());
+        encodeU32(Content.size() + ContentVectorSize.size());
     // one-byte section id
     Result.push_back(Byte);
     // U32 size of the contents in bytes
     Result.insert(Result.end(), ContentSize.begin(), ContentSize.end());
     Result.insert(Result.end(), ContentVectorSize.begin(),
                   ContentVectorSize.end());
-    Result.insert(Result.end(), content.begin(), content.end());
-    return result;
+    Result.insert(Result.end(), Content.begin(), Content.end());
+    return Result;
   }
   return {};
 }
@@ -149,20 +192,24 @@ Serialize::serializeCustomSection(AST::CustomSection &CustomSecs) {
 
 std::vector<uint8_t>
 Serialize::serializeTypeSection(AST::TypeSection &TypeSec) {
-  return serializeSectionContent(
-      TypeSec, 0x01U, serializeFunctionType(AST::FunctionType & FuncType));
+
+  std::function<std::vector<uint8_t>(AST::FunctionType)> Func =
+      &serializeFunctionType;
+  return serializeSectionContent(TypeSec, 0x01U, Func);
 }
 
 std::vector<uint8_t>
 Serialize::serializeImportSection(AST::ImportSection &ImportSec) {
-  return serializeSectionContent(
-      ImportSec, 0x02U, serializeImportDesc(AST::ImportDesc & ImpDesc));
+
+  std::function<std::vector<uint8_t>(AST::ImportDesc)> Func =
+      &serializeImportDesc;
+  return serializeSectionContent(ImportSec, 0x02U, Func);
 }
 
 std::vector<uint8_t>
 Serialize::serializeFunctionSection(AST::FunctionSection &FunctionSec) {
-  if (FunctionSecs.getContent().size()) {
-    auto section = FunctionSecs.getContent();
+  if (FunctionSec.getContent().size()) {
+    auto section = FunctionSec.getContent();
     auto contentSize = rangeLen(section);
     std::vector<uint8_t> result(1 + leb128Len(contentSize) + contentSize);
     auto out = result.begin();
@@ -179,25 +226,34 @@ Serialize::serializeFunctionSection(AST::FunctionSection &FunctionSec) {
 
 std::vector<uint8_t>
 Serialize::serializeTableSection(AST::TableSection &TabSec) {
-  return serializeSectionContent(TabSec, 0x04U,
-                                 serializeTableType(AST::TableType & TabType));
+
+  std::function<std::vector<uint8_t>(AST::TableType)> Func =
+      &serializeTableType;
+
+  return serializeSectionContent(TabSec, 0x04U, Func);
 }
 
 std::vector<uint8_t>
 Serialize::serializeMemorySection(AST::MemorySection &MemSec) {
-  return serializeSectionContent(MemSec, 0x05U,
-                                 serializeMemType(AST::MemoryType & MemType));
+
+  std::function<std::vector<uint8_t>(AST::MemoryType)> Func = &serializeMemType;
+  return serializeSectionContent(MemSec, 0x05U, Func);
 }
 
 std::vector<uint8_t>
 Serialize::serializeGlobalSection(AST::GlobalSection &GlobSec) {
-  return serializeSectionContent(
-      GlobSec, 0x06U, serializeGlobType(AST::GlobalSegment & GlobalSegment));
+
+  std::function<std::vector<uint8_t>(AST::GlobalSegment)> Func =
+      &serializeGlobType;
+  return serializeSectionContent(GlobSec, 0x06U, Func);
 }
 std::vector<uint8_t>
 Serialize::serializeExportSection(AST::ExportSection &ExportSec) {
-  return serializeSectionContent(ExportSec, 0x07U,
-                                 serializeExportSec(AST::ExportDesc & ExpDesc));
+
+  std::function<std::vector<uint8_t>(AST::ExportDesc)> Func =
+      &serializeExportSec;
+
+  return serializeSectionContent(ExportSec, 0x07U, Func);
 }
 
 std::vector<uint8_t>
@@ -220,20 +276,28 @@ Serialize::serializeStartSection(AST::StartSection &StartSec) {
 
 std::vector<uint8_t>
 Serialize::serializeElementSection(AST::ElementSection &ElemSec) {
-  return serializeSectionContent(
-      CodeSec, 0x09U, serializeElemSec(AST::ElementSegment & ElemSeg));
+
+  std::function<std::vector<uint8_t>(AST::ElementSegment)> Func =
+      &serializeElemSec;
+
+  return serializeSectionContent(ElemSec, 0x09U, Func);
 }
 
 std::vector<uint8_t>
 Serialize::serializeCodeSection(AST::CodeSection &CodeSec) {
-  return serializeSectionContent(
-      CodeSec, 0x10U, serializeCodeSec(AST::CodeSegment & CodeSegment));
+
+  std::function<std::vector<uint8_t>(AST::CodeSegment)> Func =
+      &serializeCodeSec;
+  return serializeSectionContent(CodeSec, 0x10U, Func);
 }
 
 std::vector<uint8_t>
 Serialize::serializeDataSection(AST::DataSection &DataSec) {
-  return serializeSectionContent(
-      ExportSec, 0x11U, serializeDataSegment(AST::DataSegment & DataSegment));
+
+  std::function<std::vector<uint8_t>(AST::DataSegment)> Func =
+      &serializeDataSegment;
+
+  return serializeSectionContent(DataSec, 0x11U, Func);
 }
 
 std::vector<uint8_t>

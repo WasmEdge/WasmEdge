@@ -75,7 +75,6 @@ impl From<WasmValue> for Val {
                     Val::ExternRef(Some(ExternRef { inner: value }))
                 }
             }
-            _ => panic!("unsupported value type"),
         }
     }
 }

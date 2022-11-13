@@ -74,8 +74,6 @@ pub enum ValType {
     FuncRef,
     /// A reference to object.
     ExternRef,
-    /// Unknown.
-    None,
 }
 impl From<u32> for ValType {
     fn from(value: u32) -> Self {
@@ -87,7 +85,6 @@ impl From<u32> for ValType {
             123 => ValType::V128,
             112 => ValType::FuncRef,
             111 => ValType::ExternRef,
-            64 => ValType::None,
             _ => panic!("[wasmedge-types] Invalid WasmEdge_ValType: {value:#X}"),
         }
     }
@@ -102,7 +99,6 @@ impl From<ValType> for u32 {
             ValType::V128 => 123,
             ValType::FuncRef => 112,
             ValType::ExternRef => 111,
-            ValType::None => 64,
         }
     }
 }
@@ -116,7 +112,6 @@ impl From<i32> for ValType {
             123 => ValType::V128,
             112 => ValType::FuncRef,
             111 => ValType::ExternRef,
-            64 => ValType::None,
             _ => panic!("[wasmedge-types] Invalid WasmEdge_ValType: {value:#X}"),
         }
     }
@@ -131,7 +126,6 @@ impl From<ValType> for i32 {
             ValType::V128 => 123,
             ValType::FuncRef => 112,
             ValType::ExternRef => 111,
-            ValType::None => 64,
         }
     }
 }

@@ -105,7 +105,8 @@ Expect<void> Loader::loadType(AST::FunctionType &FuncType) {
     return logLoadError(Res.error(), FMgr.getLastOffset(),
                         ASTNodeAttr::Type_Function);
   }
-  if (unlikely(!Conf.hasProposal(Proposal::MultiValue)) && FuncType.getReturnTypes().size() > 1) {
+  if (unlikely(!Conf.hasProposal(Proposal::MultiValue)) &&
+      FuncType.getReturnTypes().size() > 1) {
     return logNeedProposal(ErrCode::Value::MalformedValType,
                            Proposal::MultiValue, FMgr.getLastOffset(),
                            ASTNodeAttr::Type_Function);

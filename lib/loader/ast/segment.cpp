@@ -215,7 +215,8 @@ Expect<void> Loader::loadSegment(AST::CodeSegment &CodeSeg) {
   uint32_t TotalLocalCnt = 0;
   auto Res = loadVec(
       CodeSeg.getLocals(),
-      [this, &TotalLocalCnt](std::pair<uint32_t, ValType> &Local) -> Expect<void> {
+      [this,
+       &TotalLocalCnt](std::pair<uint32_t, ValType> &Local) -> Expect<void> {
         uint32_t LocalCnt;
         ValType LocalType;
         if (auto Res = FMgr.readU32(); unlikely(!Res)) {

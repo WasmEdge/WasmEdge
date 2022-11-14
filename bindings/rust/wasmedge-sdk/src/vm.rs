@@ -133,7 +133,25 @@ impl Vm {
     ) -> WasmEdgeResult<Self> {
         match file.as_ref().extension() {
             Some(extension) => match extension.to_str() {
-                Some("wasm") | Some("so") => {
+                Some("wasm") => {
+                    self.inner
+                        .register_wasm_from_file(mod_name, file.as_ref())?;
+                    Ok(self)
+                }
+                #[cfg(target_os = "macos")]
+                Some("dylib") => {
+                    self.inner
+                        .register_wasm_from_file(mod_name, file.as_ref())?;
+                    Ok(self)
+                }
+                #[cfg(target_os = "linux")]
+                Some("so") => {
+                    self.inner
+                        .register_wasm_from_file(mod_name, file.as_ref())?;
+                    Ok(self)
+                }
+                #[cfg(target_os = "windows")]
+                Some("dll") => {
                     self.inner
                         .register_wasm_from_file(mod_name, file.as_ref())?;
                     Ok(self)
@@ -356,7 +374,22 @@ impl Vm {
     ) -> WasmEdgeResult<Vec<WasmValue>> {
         match file.as_ref().extension() {
             Some(extension) => match extension.to_str() {
-                Some("wasm") | Some("so") => {
+                Some("wasm") => {
+                    self.inner
+                        .run_wasm_from_file(file.as_ref(), func_name.as_ref(), args)
+                }
+                #[cfg(target_os = "macos")]
+                Some("dylib") => {
+                    self.inner
+                        .run_wasm_from_file(file.as_ref(), func_name.as_ref(), args)
+                }
+                #[cfg(target_os = "linux")]
+                Some("so") => {
+                    self.inner
+                        .run_wasm_from_file(file.as_ref(), func_name.as_ref(), args)
+                }
+                #[cfg(target_os = "windows")]
+                Some("dll") => {
                     self.inner
                         .run_wasm_from_file(file.as_ref(), func_name.as_ref(), args)
                 }
@@ -401,7 +434,25 @@ impl Vm {
     {
         match file.as_ref().extension() {
             Some(extension) => match extension.to_str() {
-                Some("wasm") | Some("so") => {
+                Some("wasm") => {
+                    self.inner
+                        .run_wasm_from_file_async(file.as_ref(), func_name.as_ref(), args)
+                        .await
+                }
+                #[cfg(target_os = "macos")]
+                Some("dylib") => {
+                    self.inner
+                        .run_wasm_from_file_async(file.as_ref(), func_name.as_ref(), args)
+                        .await
+                }
+                #[cfg(target_os = "linux")]
+                Some("so") => {
+                    self.inner
+                        .run_wasm_from_file_async(file.as_ref(), func_name.as_ref(), args)
+                        .await
+                }
+                #[cfg(target_os = "windows")]
+                Some("dll") => {
                     self.inner
                         .run_wasm_from_file_async(file.as_ref(), func_name.as_ref(), args)
                         .await

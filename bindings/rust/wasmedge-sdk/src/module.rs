@@ -19,7 +19,7 @@ impl Module {
     ///
     /// * `config` - The global configuration.
     ///
-    /// * `file` - The `wasm` or `wat` file.
+    /// * `file` - The `wasm`, `wat` or shared (aot) library file. If a shared (aot) library file is present, the extension is 'dylib' for 'macOS', 'so' for 'Linux', or 'dll' for 'Windows'.
     ///
     /// # Error
     ///
@@ -27,19 +27,13 @@ impl Module {
     pub fn from_file(config: Option<&Config>, file: impl AsRef<Path>) -> WasmEdgeResult<Self> {
         match file.as_ref().extension() {
             Some(extension) => match extension.to_str() {
-                Some("wasm") | Some("so") => {
-                    let inner_config = config.map(|c| c.inner.clone());
-                    let inner_loader = sys::Loader::create(inner_config)?;
-                    // load module
-                    let inner = inner_loader.from_file(file.as_ref())?;
-
-                    let inner_config = config.map(|c| c.inner.clone());
-                    let inner_validator = sys::Validator::create(inner_config)?;
-                    // validate module
-                    inner_validator.validate(&inner)?;
-
-                    Ok(Self { inner })
-                }
+                Some("wasm") => Module::from_wasm_or_aot_file(config, &file),
+                #[cfg(target_os = "macos")]
+                Some("dylib") => Module::from_wasm_or_aot_file(config, &file),
+                #[cfg(target_os = "linux")]
+                Some("so") => Module::from_aot_file(config, &file),
+                #[cfg(target_os = "windows")]
+                Some("dll") => Module::from_aot_file(config, &file),
                 Some("wat") => {
                     let bytes = wat::parse_file(file.as_ref())
                         .map_err(|_| WasmEdgeError::Operation("Failed to parse wat file".into()))?;
@@ -53,6 +47,22 @@ impl Module {
                 "Invalid file extension".into(),
             ))),
         }
+    }
+
+    /// Returns a validated module from a wasm or aot file.
+    fn from_wasm_or_aot_file(
+        config: Option<&Config>,
+        file: &impl AsRef<Path>,
+    ) -> WasmEdgeResult<Self> {
+        let inner_config = config.map(|c| c.inner.clone());
+        let inner_loader = sys::Loader::create(inner_config)?;
+        // load module
+        let inner = inner_loader.from_file(file.as_ref())?;
+        let inner_config = config.map(|c| c.inner.clone());
+        let inner_validator = sys::Validator::create(inner_config)?;
+        // validate module
+        inner_validator.validate(&inner)?;
+        Ok(Self { inner })
     }
 
     /// Loads a WebAssembly binary module from in-memory bytes.

@@ -79,8 +79,7 @@ jobs:
           export WASMEDGE_BUILD_DIR="$(pwd)/../../build"
           export WASMEDGE_PLUGIN_PATH="$(pwd)/../../build/plugins/wasmedge_process"
           export LD_LIBRARY_PATH="$(pwd)/../../build/lib/api"
-          cargo +nightly test --lib --examples --locked
-          cargo +nightly test --doc --locked
+          cargo +nightly test --workspace --examples --locked
 
   build_macos:
     name: MacOS
@@ -142,8 +141,7 @@ jobs:
           export WASMEDGE_BUILD_DIR="$(pwd)/../../build"
           export WASMEDGE_PLUGIN_PATH="$(pwd)/../../build/plugins/wasmedge_process"
           export DYLD_LIBRARY_PATH="$(pwd)/../../build/lib/api"
-          cargo +nightly test --lib --examples --locked
-          cargo +nightly test --doc --locked
+          cargo +nightly test --workspace --examples --locked
 
   build_windows:
     name: Windows
@@ -221,5 +219,4 @@ jobs:
           Enter-VsDevShell -VsInstallPath $vsPath -SkipAutomaticLocation -DevCmdArguments "-arch=x64 -host_arch=x64 -winsdk=10.0.19041.0"
           $env:Path="$env:Path;C:\Users\runneradmin\.rustup\toolchains\nightly-x86_64-pc-windows-msvc\bin;D:\a\WasmEdge\WasmEdge\build\lib\api"
           cd bindings\rust
-          cargo +nightly test -p wasmedge-sys --all-targets
-          cargo +nightly test -p wasmedge-sdk --all-targets
+          cargo +nightly test --workspace --examples --locked

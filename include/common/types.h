@@ -87,13 +87,14 @@ using ValVariant =
             int16x8_t, uint8x16_t, int8x16_t, floatx4_t, doublex2_t, UnknownRef,
             FuncRef, ExternRef>;
 
-__inline__ const uint8_t BLOCK_TYPE_EMPTY_BIT_MASK = 1;
-__inline__ const uint8_t BLOCK_TYPE_VAL_TYPE_BIT_MASK = 1 << 1;
-__inline__ const uint8_t BLOCK_TYPE_IDX_BIT_MASK = 1 << 2;
-
 /// BlockType definition.
 struct BlockType {
-  uint8_t TypeFlag;
+  enum class TypeEnum : uint8_t {
+    Empty,
+    ValType,
+    TypeIdx,
+  };
+  TypeEnum TypeFlag;
   union {
     ValType Type;
     uint32_t Idx;
@@ -101,17 +102,17 @@ struct BlockType {
   BlockType() = default;
   BlockType(ValType VType) { setData(VType); }
   BlockType(uint32_t Idx) { setData(Idx); }
-  void setEmpty() { TypeFlag = BLOCK_TYPE_EMPTY_BIT_MASK; }
+  void setEmpty() { TypeFlag = TypeEnum::Empty; }
   void setData(ValType VType) {
-    TypeFlag = BLOCK_TYPE_VAL_TYPE_BIT_MASK;
+    TypeFlag = TypeEnum::ValType;
     Data.Type = VType;
   }
   void setData(uint32_t Idx) {
-    TypeFlag = BLOCK_TYPE_IDX_BIT_MASK;
+    TypeFlag = TypeEnum::TypeIdx;
     Data.Idx = Idx;
   }
-  bool isEmpty() const { return TypeFlag == BLOCK_TYPE_EMPTY_BIT_MASK; }
-  bool isValType() const { return TypeFlag == BLOCK_TYPE_VAL_TYPE_BIT_MASK; }
+  bool isEmpty() const { return TypeFlag == TypeEnum::Empty; }
+  bool isValType() const { return TypeFlag == TypeEnum::ValType; }
 };
 
 /// NumType and RefType conversions.

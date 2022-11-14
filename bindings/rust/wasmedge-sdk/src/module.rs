@@ -31,9 +31,9 @@ impl Module {
                 #[cfg(target_os = "macos")]
                 Some("dylib") => Module::from_wasm_or_aot_file(config, &file),
                 #[cfg(target_os = "linux")]
-                Some("so") => Module::from_aot_file(config, &file),
+                Some("so") => Module::from_wasm_or_aot_file(config, &file),
                 #[cfg(target_os = "windows")]
-                Some("dll") => Module::from_aot_file(config, &file),
+                Some("dll") => Module::from_wasm_or_aot_file(config, &file),
                 Some("wat") => {
                     let bytes = wat::parse_file(file.as_ref())
                         .map_err(|_| WasmEdgeError::Operation("Failed to parse wat file".into()))?;

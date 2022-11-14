@@ -113,6 +113,18 @@ Expect<AST::InstrVec> Loader::loadInstrSeq(std::optional<uint64_t> SizeBound) {
     }
     Cnt++;
   } while (!IsReachEnd);
+
+  // Check the loaded offset should match the segment boundary.
+  if (SizeBound.has_value()) {
+    auto Offset = FMgr.getOffset();
+    if (Offset < SizeBound.value()) {
+      return logLoadError(ErrCode::Value::JunkSection, Offset,
+                          ASTNodeAttr::Instruction);
+    } else if (Offset > SizeBound.value()) {
+      return logLoadError(ErrCode::Value::SectionSizeMismatch, Offset,
+                          ASTNodeAttr::Instruction);
+    }
+  }
   return Instrs;
 }
 

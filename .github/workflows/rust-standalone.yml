@@ -1,0 +1,51 @@
+name: rust-standalone-test
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
+on:
+  push:
+    branches:
+      - master
+      - "rust/*"
+    paths:
+      - ".github/workflows/rust-standalone.yml"
+      - "bindings/rust/**"
+      - "include/api/wasmedge/**"
+      - "lib/api/**"
+  pull_request:
+    branches:
+      - master
+    paths:
+      - ".github/workflows/rust-standalone.yml"
+      - "bindings/rust/**"
+      - "include/api/wasmedge/**"
+      - "lib/api/**"
+
+jobs:
+  build_ubuntu:
+    name: Ubuntu
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-20.04, ubuntu-22.04]
+    container:
+      image: wasmedge/wasmedge:ubuntu-build-clang
+
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Install Nightly Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: nightly
+          components: rustfmt, clippy
+
+      - name: Install libwasmedge
+        working-directory: bindings/rust/
+        run: |
+          export WASMEDGE_DIR="$(pwd)/../../"
+          cargo +nightly test -p wasmedge-sdk --all --examples --features standalone

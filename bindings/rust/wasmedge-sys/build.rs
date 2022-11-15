@@ -1,9 +1,9 @@
 use std::path::PathBuf;
-#[cfg(all(feature = "standalone", target_os = "lunix"))]
+#[cfg(all(feature = "standalone", target_os = "linux"))]
 use std::{env, process::Command};
 
 const WASMEDGE_H: &str = "wasmedge.h";
-#[cfg(all(feature = "standalone", target_os = "lunix"))]
+#[cfg(all(feature = "standalone", target_os = "linux"))]
 const WASMEDGE_RELEASE_VERSION: &str = "0.11.2";
 
 macro_rules! env_path {
@@ -20,7 +20,7 @@ struct Paths {
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    #[cfg(all(feature = "standalone", target_os = "lunix"))]
+    #[cfg(all(feature = "standalone", target_os = "linux"))]
     install_libwasmedge();
 
     let Paths {
@@ -185,7 +185,7 @@ fn find_wasmedge() -> Option<Paths> {
     None
 }
 
-#[cfg(all(feature = "standalone", target_os = "lunix"))]
+#[cfg(all(feature = "standalone", target_os = "linux"))]
 fn install_libwasmedge() {
     let out_dir = env::var("OUT_DIR").expect("[wasmedge-sys] Failed to get OUT_DIR");
     println!("cargo:warning=[wasmedge-sys] OUT_DIR: {}", &out_dir);

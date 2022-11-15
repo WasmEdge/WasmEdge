@@ -234,7 +234,7 @@ impl Vm {
     ///
     /// If fail to register the WASM module, then an error is returned.
     pub fn register_wasm_from_bytes(
-        &mut self,
+        &self,
         mod_name: impl AsRef<str>,
         bytes: &[u8],
     ) -> WasmEdgeResult<()> {
@@ -271,7 +271,7 @@ impl Vm {
     ///
     /// If fail to register the WASM module, then an error is returned.
     pub fn register_wasm_from_module(
-        &mut self,
+        &self,
         mod_name: impl AsRef<str>,
         mut module: Module,
     ) -> WasmEdgeResult<()> {
@@ -1615,7 +1615,7 @@ mod tests {
         // create a Vm context with the given Config and Store
         let result = Vm::create(Some(config), Some(&mut store));
         assert!(result.is_ok());
-        let mut vm = result.unwrap();
+        let vm = result.unwrap();
 
         // create a loader
         let result = Config::create();
@@ -1782,7 +1782,7 @@ mod tests {
         // create a Vm context with the given Config and Store
         let result = Vm::create(Some(config), Some(&mut store));
         assert!(result.is_ok());
-        let mut vm = result.unwrap();
+        let vm = result.unwrap();
 
         // register a wasm module from a buffer
         let path = std::path::PathBuf::from(env!("WASMEDGE_DIR"))

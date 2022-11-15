@@ -3,6 +3,7 @@
 use crate::{config::Config, ExternalInstanceType, WasmEdgeResult};
 use std::{borrow::Cow, marker::PhantomData, path::Path};
 use wasmedge_sys as sys;
+use wasmedge_types::error::WasmEdgeError;
 
 /// Defines compiled in-memory representation of an input WASM binary.
 ///
@@ -16,24 +17,51 @@ impl Module {
     ///
     /// # Arguments
     ///
-    /// - `config` specifies a global configuration.
+    /// * `config` - The global configuration.
     ///
-    /// - `file` specifies the path to the target WASM file.
+    /// * `file` - The `wasm`, `wat` or shared (aot) library file. If a shared (aot) library file is present, the extension is 'dylib' for 'macOS', 'so' for 'Linux', or 'dll' for 'Windows'.
     ///
     /// # Error
     ///
     /// If fail to load and valiate a module from a file, returns an error.
     pub fn from_file(config: Option<&Config>, file: impl AsRef<Path>) -> WasmEdgeResult<Self> {
+        match file.as_ref().extension() {
+            Some(extension) => match extension.to_str() {
+                Some("wasm") => Module::from_wasm_or_aot_file(config, &file),
+                #[cfg(target_os = "macos")]
+                Some("dylib") => Module::from_wasm_or_aot_file(config, &file),
+                #[cfg(target_os = "linux")]
+                Some("so") => Module::from_wasm_or_aot_file(config, &file),
+                #[cfg(target_os = "windows")]
+                Some("dll") => Module::from_wasm_or_aot_file(config, &file),
+                Some("wat") => {
+                    let bytes = wat::parse_file(file.as_ref())
+                        .map_err(|_| WasmEdgeError::Operation("Failed to parse wat file".into()))?;
+                    Self::from_bytes(config, bytes)
+                }
+                _ => Err(Box::new(WasmEdgeError::Operation(
+                    "Invalid file extension".into(),
+                ))),
+            },
+            None => Err(Box::new(WasmEdgeError::Operation(
+                "Invalid file extension".into(),
+            ))),
+        }
+    }
+
+    /// Returns a validated module from a wasm or aot file.
+    fn from_wasm_or_aot_file(
+        config: Option<&Config>,
+        file: &impl AsRef<Path>,
+    ) -> WasmEdgeResult<Self> {
         let inner_config = config.map(|c| c.inner.clone());
         let inner_loader = sys::Loader::create(inner_config)?;
         // load module
         let inner = inner_loader.from_file(file.as_ref())?;
-
         let inner_config = config.map(|c| c.inner.clone());
         let inner_validator = sys::Validator::create(inner_config)?;
         // validate module
         inner_validator.validate(&inner)?;
-
         Ok(Self { inner })
     }
 
@@ -41,9 +69,9 @@ impl Module {
     ///
     /// # Arguments
     ///
-    /// - `config` specifies a global configuration.
+    /// * `config` - The global configuration.
     ///
-    /// - `bytes` specifies the in-memory bytes to be parsed.
+    /// * `bytes` - The in-memory bytes to be parsed.
     ///
     /// # Error
     ///
@@ -102,7 +130,7 @@ impl Module {
     ///
     /// # Argument
     ///
-    /// - `name` specifies the name of the target exported WasmEdge instance.
+    /// * `name` - The name of the target exported WasmEdge instance.
     pub fn get_export(&self, name: impl AsRef<str>) -> Option<ExternalInstanceType> {
         let exports = self
             .exports()
@@ -169,7 +197,7 @@ mod tests {
 
     #[test]
     #[allow(clippy::assertions_on_result_states)]
-    fn test_module_from_file() {
+    fn test_module_from_wasm() {
         // load wasm module from a specified wasm file
         let file = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
             .join("bindings/rust/wasmedge-sys/tests/data/fibonacci.wasm");
@@ -186,6 +214,17 @@ mod tests {
                 CoreLoadError::IllegalPath
             )))
         );
+    }
+
+    #[test]
+    #[allow(clippy::assertions_on_result_states)]
+    fn test_module_from_wat() {
+        // load wasm module from a specified wasm file
+        let file = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
+            .join("bindings/rust/wasmedge-sys/tests/data/fibonacci.wat");
+
+        let result = Module::from_file(None, file);
+        assert!(result.is_ok());
     }
 
     #[test]

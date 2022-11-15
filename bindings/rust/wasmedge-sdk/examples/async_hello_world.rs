@@ -3,7 +3,7 @@ use wasmedge_sdk::{
 };
 
 #[async_host_function]
-fn say_hello(caller: Caller, _args: Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError> {
+async fn say_hello(caller: Caller, _args: Vec<WasmValue>) -> Result<Vec<WasmValue>, HostFuncError> {
     tokio::time::sleep(std::time::Duration::from_secs(1)).await;
     println!("Hello, world!");
 

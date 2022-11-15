@@ -10,8 +10,8 @@ use crate::wasi::{
 #[cfg(target_os = "linux")]
 use crate::WasmEdgeProcessInstance;
 use crate::{
-    config::Config, wasi::WasiInstance, Engine, Func, FuncRef, FuncType, ImportObject, Instance,
-    Module, Statistics, WasmEdgeResult, WasmValue,
+    config::Config, error::WasmEdgeError, wasi::WasiInstance, Engine, Func, FuncRef, FuncType,
+    ImportObject, Instance, Module, Statistics, WasmEdgeResult, WasmValue,
 };
 use std::{marker::PhantomData, path::Path};
 use wasmedge_sys::{self as sys, Engine as sys_engine};
@@ -121,7 +121,7 @@ impl Vm {
     ///
     /// * `mod_name` - The name for the WASM module to be registered.
     ///
-    /// * `file` - The target WASM file.
+    /// * `file` - The `wasm` or `wat` file.
     ///
     /// # Error
     ///
@@ -131,10 +131,45 @@ impl Vm {
         mod_name: impl AsRef<str>,
         file: impl AsRef<Path>,
     ) -> WasmEdgeResult<Self> {
-        self.inner
-            .register_wasm_from_file(mod_name, file.as_ref())?;
-
-        Ok(self)
+        match file.as_ref().extension() {
+            Some(extension) => match extension.to_str() {
+                Some("wasm") => {
+                    self.inner
+                        .register_wasm_from_file(mod_name, file.as_ref())?;
+                    Ok(self)
+                }
+                #[cfg(target_os = "macos")]
+                Some("dylib") => {
+                    self.inner
+                        .register_wasm_from_file(mod_name, file.as_ref())?;
+                    Ok(self)
+                }
+                #[cfg(target_os = "linux")]
+                Some("so") => {
+                    self.inner
+                        .register_wasm_from_file(mod_name, file.as_ref())?;
+                    Ok(self)
+                }
+                #[cfg(target_os = "windows")]
+                Some("dll") => {
+                    self.inner
+                        .register_wasm_from_file(mod_name, file.as_ref())?;
+                    Ok(self)
+                }
+                Some("wat") => {
+                    let bytes = wat::parse_file(file.as_ref())
+                        .map_err(|_| WasmEdgeError::Operation("Failed to parse wat file".into()))?;
+                    self.inner.register_wasm_from_bytes(mod_name, &bytes)?;
+                    Ok(self)
+                }
+                _ => Err(Box::new(WasmEdgeError::Operation(
+                    "Invalid file extension".into(),
+                ))),
+            },
+            None => Err(Box::new(WasmEdgeError::Operation(
+                "Invalid file extension".into(),
+            ))),
+        }
     }
 
     /// Registers a WASM module from then given in-memory wasm bytes into the [Vm], and instantiates it.
@@ -149,7 +184,7 @@ impl Vm {
     ///
     /// If fail to register the WASM module, then an error is returned.
     pub fn register_module_from_bytes(
-        mut self,
+        self,
         mod_name: impl AsRef<str>,
         bytes: impl AsRef<[u8]>,
     ) -> WasmEdgeResult<Self> {
@@ -193,7 +228,7 @@ impl Vm {
     }
 
     fn register_named_module(
-        mut self,
+        self,
         module: Module,
         mod_name: impl AsRef<str>,
     ) -> WasmEdgeResult<Self> {
@@ -322,7 +357,7 @@ impl Vm {
     ///
     /// # Arguments
     ///
-    /// * `file` - The WASM file.
+    /// * `file` - The `wasm` or `wat` file.
     ///
     /// * `func_name` - The name of the target exported function to run.
     ///
@@ -337,15 +372,47 @@ impl Vm {
         func_name: impl AsRef<str>,
         args: impl IntoIterator<Item = sys::WasmValue>,
     ) -> WasmEdgeResult<Vec<WasmValue>> {
-        self.inner
-            .run_wasm_from_file(file.as_ref(), func_name.as_ref(), args)
+        match file.as_ref().extension() {
+            Some(extension) => match extension.to_str() {
+                Some("wasm") => {
+                    self.inner
+                        .run_wasm_from_file(file.as_ref(), func_name.as_ref(), args)
+                }
+                #[cfg(target_os = "macos")]
+                Some("dylib") => {
+                    self.inner
+                        .run_wasm_from_file(file.as_ref(), func_name.as_ref(), args)
+                }
+                #[cfg(target_os = "linux")]
+                Some("so") => {
+                    self.inner
+                        .run_wasm_from_file(file.as_ref(), func_name.as_ref(), args)
+                }
+                #[cfg(target_os = "windows")]
+                Some("dll") => {
+                    self.inner
+                        .run_wasm_from_file(file.as_ref(), func_name.as_ref(), args)
+                }
+                Some("wat") => {
+                    let bytes = wat::parse_file(file.as_ref())
+                        .map_err(|_| WasmEdgeError::Operation("Failed to parse wat file".into()))?;
+                    self.inner.run_wasm_from_bytes(&bytes, func_name, args)
+                }
+                _ => Err(Box::new(WasmEdgeError::Operation(
+                    "Invalid file extension".into(),
+                ))),
+            },
+            None => Err(Box::new(WasmEdgeError::Operation(
+                "Invalid file extension".into(),
+            ))),
+        }
     }
 
     /// Asynchronously runs an exported function from the given wasm file.
     ///
     /// # Arguments
     ///
-    /// * `file` - The WASM file.
+    /// * `file` - The `wasm` or `wat` file.
     ///
     /// * `func_name` - The name of the target exported function to run.
     ///
@@ -354,9 +421,9 @@ impl Vm {
     /// # Error
     ///
     /// If fail to run, then an error is returned.
-    pub async fn run_wasm_from_file_async<P, N, A>(
+    pub async fn run_func_from_file_async<P, N, A>(
         &self,
-        path: P,
+        file: P,
         func_name: N,
         args: A,
     ) -> WasmEdgeResult<Vec<WasmValue>>
@@ -365,9 +432,46 @@ impl Vm {
         N: AsRef<str> + Send,
         A: IntoIterator<Item = WasmValue> + Send,
     {
-        self.inner
-            .run_wasm_from_file_async(path.as_ref(), func_name.as_ref(), args)
-            .await
+        match file.as_ref().extension() {
+            Some(extension) => match extension.to_str() {
+                Some("wasm") => {
+                    self.inner
+                        .run_wasm_from_file_async(file.as_ref(), func_name.as_ref(), args)
+                        .await
+                }
+                #[cfg(target_os = "macos")]
+                Some("dylib") => {
+                    self.inner
+                        .run_wasm_from_file_async(file.as_ref(), func_name.as_ref(), args)
+                        .await
+                }
+                #[cfg(target_os = "linux")]
+                Some("so") => {
+                    self.inner
+                        .run_wasm_from_file_async(file.as_ref(), func_name.as_ref(), args)
+                        .await
+                }
+                #[cfg(target_os = "windows")]
+                Some("dll") => {
+                    self.inner
+                        .run_wasm_from_file_async(file.as_ref(), func_name.as_ref(), args)
+                        .await
+                }
+                Some("wat") => {
+                    let bytes = wat::parse_file(file.as_ref())
+                        .map_err(|_| WasmEdgeError::Operation("Failed to parse wat file".into()))?;
+                    self.inner
+                        .run_wasm_from_bytes_async(&bytes, func_name.as_ref(), args)
+                        .await
+                }
+                _ => Err(Box::new(WasmEdgeError::Operation(
+                    "Invalid file extension".into(),
+                ))),
+            },
+            None => Err(Box::new(WasmEdgeError::Operation(
+                "Invalid file extension".into(),
+            ))),
+        }
     }
 
     /// Runs an exported function from the given in-memory wasm bytes.
@@ -1053,21 +1157,41 @@ mod tests {
     #[test]
     #[allow(clippy::assertions_on_result_states)]
     fn test_vm_register_module_from_file() {
-        // create a Vm context
-        let result = Vm::new(None);
-        assert!(result.is_ok());
-        let vm = result.unwrap();
+        {
+            // create a Vm context
+            let result = Vm::new(None);
+            assert!(result.is_ok());
+            let vm = result.unwrap();
 
-        // register a wasm module from a specified wasm file
-        let file = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
-            .join("bindings/rust/wasmedge-sys/tests/data/fibonacci.wasm");
-        let result = vm.register_module_from_file("extern", file);
-        assert!(result.is_ok());
-        let vm = result.unwrap();
+            // register a wasm module from a specified wasm file
+            let file = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
+                .join("bindings/rust/wasmedge-sys/tests/data/fibonacci.wasm");
+            let result = vm.register_module_from_file("extern", file);
+            assert!(result.is_ok());
+            let vm = result.unwrap();
 
-        assert_eq!(vm.named_instance_count().unwrap(), 1);
-        assert!(vm.instance_names().is_ok());
-        assert_eq!(vm.instance_names().unwrap(), ["extern"]);
+            assert_eq!(vm.named_instance_count().unwrap(), 1);
+            assert!(vm.instance_names().is_ok());
+            assert_eq!(vm.instance_names().unwrap(), ["extern"]);
+        }
+
+        {
+            // create a Vm context
+            let result = Vm::new(None);
+            assert!(result.is_ok());
+            let vm = result.unwrap();
+
+            // register a wasm module from a specified wasm file
+            let file = std::path::PathBuf::from(env!("WASMEDGE_DIR"))
+                .join("bindings/rust/wasmedge-sys/tests/data/fibonacci.wat");
+            let result = vm.register_module_from_file("extern", file);
+            assert!(result.is_ok());
+            let vm = result.unwrap();
+
+            assert_eq!(vm.named_instance_count().unwrap(), 1);
+            assert!(vm.instance_names().is_ok());
+            assert_eq!(vm.instance_names().unwrap(), ["extern"]);
+        }
     }
 
     #[test]

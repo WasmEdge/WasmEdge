@@ -37,6 +37,8 @@ fn expand_host_func(item_fn: &syn::ItemFn) -> syn::Result<proc_macro2::TokenStre
     );
     // return type of wrapper function
     let wrapper_fn_return = item_fn.sig.output.clone();
+    // visibility of wrapper function
+    let wrapper_visibility = item_fn.vis.clone();
 
     // * define the signature of inner function
     // name of inner function
@@ -53,7 +55,7 @@ fn expand_host_func(item_fn: &syn::ItemFn) -> syn::Result<proc_macro2::TokenStre
     let ret = match item_fn.sig.inputs.len() {
         2 => {
             quote!(
-                fn #wrapper_fn_name_ident (#wrapper_fn_inputs) #wrapper_fn_return {
+                # wrapper_visibility fn #wrapper_fn_name_ident (#wrapper_fn_inputs) #wrapper_fn_return {
                     // define inner function
                     fn #inner_fn_name_ident (#inner_fn_inputs) #inner_fn_return {
                         #inner_fn_block
@@ -120,7 +122,7 @@ fn expand_host_func(item_fn: &syn::ItemFn) -> syn::Result<proc_macro2::TokenStre
 
             // generate token stream
             quote!(
-                fn #wrapper_fn_name_ident (#wrapper_fn_inputs) #wrapper_fn_return {
+                # wrapper_visibility fn #wrapper_fn_name_ident (#wrapper_fn_inputs) #wrapper_fn_return {
                     // define inner function
                     fn #inner_fn_name_ident (#inner_fn_inputs) #inner_fn_return {
                         #inner_fn_block
@@ -277,6 +279,7 @@ fn expand_async_host_func(item_fn: &syn::ItemFn) -> syn::Result<proc_macro2::Tok
 
 fn expand_async_host_func_with_two_args(item_fn: &syn::ItemFn) -> proc_macro2::TokenStream {
     let fn_name_ident = &item_fn.sig.ident;
+    let fn_visibility = &item_fn.vis;
 
     // * prepare the function arguments
     let mut fn_inputs = item_fn.sig.inputs.clone();
@@ -302,7 +305,7 @@ fn expand_async_host_func_with_two_args(item_fn: &syn::ItemFn) -> proc_macro2::T
 
     // compose the final function
     quote!(
-        fn #fn_name_ident (#fn_inputs) -> Box<(dyn std::future::Future<Output = Result<Vec<WasmValue>, HostFuncError>> + Send + 'static)> {
+        #fn_visibility fn #fn_name_ident (#fn_inputs) -> Box<(dyn std::future::Future<Output = Result<Vec<WasmValue>, HostFuncError>> + Send + 'static)> {
             Box::new(async move {
                 let #original_first_arg_ident = Caller::new(frame);
                 #fn_block
@@ -446,6 +449,8 @@ fn sys_expand_host_func(item_fn: &syn::ItemFn) -> syn::Result<proc_macro2::Token
     let wrapper_fn_name_literal = wrapper_fn_name_ident.to_string();
     // return type of wrapper function
     let wrapper_fn_return = item_fn.sig.output.clone();
+    // visiblity of wrapper function
+    let wrapper_fn_visibility = item_fn.vis.clone();
 
     // * define the signature of inner function
     // name of inner function
@@ -484,7 +489,7 @@ fn sys_expand_host_func(item_fn: &syn::ItemFn) -> syn::Result<proc_macro2::Token
             wrapper_fn_inputs.push(parse_quote!(_data: *mut std::os::raw::c_void));
 
             quote!(
-                fn #wrapper_fn_name_ident (#wrapper_fn_inputs) #wrapper_fn_return {
+                #wrapper_fn_visibility fn #wrapper_fn_name_ident (#wrapper_fn_inputs) #wrapper_fn_return {
                     // define inner function
                     fn #inner_fn_name_ident (#inner_fn_inputs) #inner_fn_return {
                         #inner_fn_block
@@ -553,7 +558,7 @@ fn sys_expand_host_func(item_fn: &syn::ItemFn) -> syn::Result<proc_macro2::Token
 
             // generate token stream
             quote!(
-                fn #wrapper_fn_name_ident (#wrapper_fn_inputs) #wrapper_fn_return {
+                #wrapper_fn_visibility fn #wrapper_fn_name_ident (#wrapper_fn_inputs) #wrapper_fn_return {
                     // define inner function
                     fn #inner_fn_name_ident (#inner_fn_inputs) #inner_fn_return {
                         #inner_fn_block
@@ -597,6 +602,7 @@ fn sys_expand_async_host_func(item_fn: &syn::ItemFn) -> syn::Result<proc_macro2:
 
 fn sys_expand_async_host_func_with_two_args(item_fn: &syn::ItemFn) -> proc_macro2::TokenStream {
     let fn_name_ident = &item_fn.sig.ident;
+    let fn_visibility = &item_fn.vis;
 
     // insert the third argument
     let mut fn_inputs = item_fn.sig.inputs.clone();
@@ -605,7 +611,7 @@ fn sys_expand_async_host_func_with_two_args(item_fn: &syn::ItemFn) -> proc_macro
     let fn_block = &item_fn.block;
 
     let ret = quote!(
-        fn #fn_name_ident (#fn_inputs) -> Box<(dyn std::future::Future<Output = Result<Vec<WasmValue>, HostFuncError>> + Send + 'static)> {
+        #fn_visibility fn #fn_name_ident (#fn_inputs) -> Box<(dyn std::future::Future<Output = Result<Vec<WasmValue>, HostFuncError>> + Send + 'static)> {
             Box::new(async move {
                 #fn_block
             })

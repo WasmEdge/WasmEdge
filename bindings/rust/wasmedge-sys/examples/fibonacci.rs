@@ -40,7 +40,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     )?;
 
     // create a Vm instance
-    let mut vm = Vm::create(None, None)?;
+    let vm = Vm::create(None, None)?;
 
     // register the wasm bytes
     let module_name = "extern-module";

@@ -22,6 +22,9 @@ on:
       - 'utils/uninstall.sh'
       - 'utils/install.py'
 
+env:
+  INSTALL_PY_URL: https://raw.githubusercontent.com/SAtacker/WasmEdge/fix_python_installer/utils/install.py
+
 jobs:
   linux:
     strategy:

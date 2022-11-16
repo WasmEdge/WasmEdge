@@ -150,16 +150,16 @@ def extract_archive(
                     continue
 
                 # replace wasmedge folder name with include
-                fname = fname.replace("include/wasmedge", "include").replace(
-                    "/lib64/", "/" + CONST_lib_dir + "/"
-                )
+                if is_default_path(args):
+                    fname = fname.replace("include/wasmedge", "include").replace(
+                        "/lib64/", "/" + CONST_lib_dir + "/"
+                    )
                 if fname.endswith("/lib64"):
                     fname = fname[:-5] + "lib"
+                if fname.startswith("/usr") and "lib64" in fname:
+                    fname = fname.replace("lib64", "lib", 1)
                 if "Plugin" in fname:
-                    if ipath not in fname:
-                        fname = join(ipath, "plugin", fname)
-                    else:
-                        # replace lib or lib64 wasmedge name with plugin
+                    if is_default_path(args):
                         fname = fname.replace("lib64/wasmedge", "plugin").replace(
                             "lib/wasmedge", "plugin"
                         )
@@ -429,7 +429,8 @@ esac
 
     try:
         mkdir(args.path)
-        mkdir(join(args.path, "plugin"))
+        if is_default_path(args):
+            mkdir(join(args.path, "plugin"))
     except:
         pass
     CONST_env_path = join(args.path, "env")
@@ -1448,7 +1449,11 @@ def main(args):
 
         print("Installing WasmEdge")
         # Copy the tree
-        copytree(join(TEMP_PATH, CONST_ipkg), args.path)
+        for sub_dir in listdir(join(TEMP_PATH, CONST_ipkg)):
+            if sub_dir == "lib64":
+                copytree(join(TEMP_PATH, CONST_ipkg, sub_dir), join(args.path, "lib"))
+            else:
+                copytree(join(TEMP_PATH, CONST_ipkg, sub_dir), join(args.path, sub_dir))
 
         if is_default_path(args):
             # perform actions if default path
@@ -1465,18 +1470,6 @@ def main(args):
                         else:
                             copytree(sub_folder, path, True)
                         shutil.rmtree(sub_folder)
-            if isdir(join(args.path, "lib64")):
-
-                try:
-                    mkdir(join(args.path, "lib"))
-                except:
-                    pass
-
-                try:
-                    copytree(join(args.path, "lib64"), join(args.path, "lib"))
-                    shutil.rmtree(join(args.path, "lib64"))
-                except Exception as e:
-                    logging.error(e)
 
         # Check if wasmedge binary works
         wasmedge_output = run_shell_command(

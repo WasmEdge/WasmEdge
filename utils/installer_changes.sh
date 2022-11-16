@@ -10,7 +10,7 @@ test_diff_env() {
     echo "Testing path: $_path_"
     bash ./utils/install.sh.old -p "$_path_"
     cp "$_path_"/env "$HOME"/env.old
-    bash ./utils/install.sh -p "$_path_"
+    INSTALL_PY_URL="https://raw.githubusercontent.com/SAtacker/WasmEdge/fix_python_installer/utils/install.py" bash ./utils/install.sh -p "$_path_"
     cp "$_path_"/env "$HOME"/env
     diff -u \
         <(sed '1,/Please/d' "$HOME"/env.old | sed -e 's/\/\//\//g' |

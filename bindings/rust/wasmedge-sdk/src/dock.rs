@@ -1,4 +1,7 @@
-use crate::{error::WasmEdgeError, params, Memory, Vm, WasmEdgeResult, WasmVal, WasmValue};
+use crate::{
+    error::{InstanceError, WasmEdgeError},
+    params, Memory, Vm, WasmEdgeResult, WasmVal, WasmValue,
+};
 use num_derive::FromPrimitive;
 use num_traits::FromPrimitive;
 use std::any::Any;
@@ -21,14 +24,15 @@ impl VmDock {
 
         // allocate new frame for passing pointers
         let pointer_of_pointers = match self.alloc(None, params!(inputs_count * 4 * 2)) {
-            Ok(rv) => rv[0].to_i32(),
-            Err(e) => {
-                println!("allocate error: {:?}", e);
-                return Err(e);
+            Ok(res) => res[0].to_i32(),
+            Err(err) => {
+                return Err(err);
             }
         };
 
-        let mut memory = self.vm.active_module().unwrap().memory("memory").unwrap();
+        let mut memory = self.vm.active_module()?.memory("memory").ok_or_else(|| {
+            WasmEdgeError::Instance(InstanceError::NotFoundMem("memory".to_string()))
+        })?;
 
         for (pos, param) in inputs.iter().enumerate() {
             let sr = param.settle(self, &mut memory);
@@ -92,7 +96,6 @@ impl VmDock {
         self.free(None, params!(ret_pointer, size as i32 * 3 * 4))?;
 
         let mut p_values = vec![0; size * 3];
-
         for i in 0..size * 3 {
             p_values[i] = i32::from_le_bytes(p_data[i * 4..(i + 1) * 4].try_into().unwrap());
         }

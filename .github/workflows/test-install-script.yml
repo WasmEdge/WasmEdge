@@ -175,7 +175,7 @@ jobs:
         bash utils/install.sh -v 0.10.0-alpha.1 -p ~/new_wasmedge
         ls ~/new_wasmedge/plugin/ | grep .so && echo "Pass: Plugins found" || (echo "Fail: Plugins not found" && exit 1)
         bash utils/install.sh -v 0.10.0-alpha.1 -p /usr
-        ls /usr/lib64/wasmedge/ | grep libwasmedgePluginWasmEdgeProcess.so && echo "Pass: Plugins found" || (echo "Fail: Plugins not found" && exit 1)
+        ls /usr/lib/wasmedge/ | grep libwasmedgePluginWasmEdgeProcess.so && echo "Pass: Plugins found" || (echo "Fail: Plugins not found" && exit 1)
     - name: Latest Release Check
       run: |
         _res_git_=$(git ls-remote --refs --tags "https://github.com/WasmEdge/WasmEdge.git" | cut -d '/' -f 3 | awk '{ if ($1 ~ /-/) print; else print $0"_" ; }' | sort --version-sort | sed 's/_$//' | grep -e '^[0-9]\+.[0-9]\+.[0-9]\+$' | tail -1)

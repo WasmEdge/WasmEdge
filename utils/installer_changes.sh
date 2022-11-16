@@ -14,9 +14,9 @@ test_diff_env() {
     cp "$_path_"/env "$HOME"/env
     diff -u \
         <(sed '1,/Please/d' "$HOME"/env.old | sed -e 's/\/\//\//g' |
-            sed -e 's/include\/wasmedge\//include\//g' | sed 's/\/$//' |
-            sed -e 's/lib\/wasmedge$/lib/g' | sort) \
-        <(sed '1,/Please/d' "$HOME"/env | sed '\/bin$/d' | sort)
+            sed -e '/^#\/usr/! s/include\/wasmedge/include/g' | sed 's/\/$//' |
+            sed -e 's/lib\/wasmedge$/lib/g' | sort | while read -r line; do [ -f "${line/##/}" ] && echo "$line"; done;) \
+        <(sed '1,/Please/d' "$HOME"/env | sed '\/bin$/d' | sort | while read -r line; do [ -f "${line/##/}" ] && echo "$line"; done;)
 
     error=$?
     if [ $error -eq 0 ]; then
@@ -39,4 +39,4 @@ test_diff_env() {
 test_diff_env "$HOME"/.wasmedge
 test_diff_env "$HOME"/new_folder
 test_diff_env /usr/local
-test_diff_env /usr/
+test_diff_env /usr

@@ -1,4 +1,4 @@
-use crate::{error::WasmEdgeError, params, Memory, Vm, WasmEdgeResult, WasmVal, WasmValue};
+use crate::{params, Memory, Vm, WasmEdgeResult, WasmVal, WasmValue};
 use num_derive::FromPrimitive;
 use num_traits::FromPrimitive;
 use std::any::Any;
@@ -31,7 +31,7 @@ impl VmDock {
         let mut memory = self.vm.active_module().unwrap().memory("memory").unwrap();
 
         for (pos, param) in inputs.iter().enumerate() {
-            let sr = param.settle(&self, &mut memory);
+            let sr = param.settle(self, &mut memory);
             let (pointer, length_of_input) = match sr {
                 Ok(r) => (r.0, r.1),
                 Err(e) => {
@@ -71,18 +71,16 @@ impl VmDock {
         self.parse_result(ret_pointer, ret_len)
     }
 
-    fn parse_error(&self, ret_pointer: i32, ret_len: i32) -> WasmEdgeResult<String> {
-        let memory = self
-            .vm
-            .active_module()?
-            .memory("memory")
-            .ok_or(WasmEdgeError::Operation(format!(
-                "[wasmedge-sdk::VmDock] Not found memory instance named 'memory'"
-            )))?;
-        let err_bytes = memory.read(ret_pointer as u32, ret_len as u32)?;
-        self.free(None, params!(ret_pointer, ret_len))?;
-        Ok(String::from_utf8(err_bytes).map_err(|e| WasmEdgeError::FromUtf8(e))?)
-    }
+    // fn parse_error(&self, ret_pointer: i32, ret_len: i32) -> WasmEdgeResult<String> {
+    //     let memory = self.vm.active_module()?.memory("memory").ok_or_else(|| {
+    //         WasmEdgeError::Operation(
+    //             "[wasmedge-sdk::VmDock] Not found memory instance named 'memory'".to_string(),
+    //         )
+    //     })?;
+    //     let err_bytes = memory.read(ret_pointer as u32, ret_len as u32)?;
+    //     self.free(None, params!(ret_pointer, ret_len))?;
+    //     Ok(String::from_utf8(err_bytes).map_err(WasmEdgeError::FromUtf8)?)
+    // }
 
     fn parse_result(
         &self,
@@ -148,7 +146,7 @@ impl VmDock {
                     results.push(Box::new(v));
                 }
                 Some(RetTypes::Bool) => {
-                    results.push(Box::new(bytes[0] == 1 as u8));
+                    results.push(Box::new(bytes[0] == 1_u8));
                 }
                 Some(RetTypes::Char) => {
                     let v = u32::from_le_bytes(bytes.try_into().unwrap());
@@ -157,9 +155,7 @@ impl VmDock {
                 Some(RetTypes::U8Array) => {
                     let len = bytes.len();
                     let mut v = vec![0; len];
-                    for i in 0..len {
-                        v[i] = bytes[i] as u8;
-                    }
+                    v[..len].copy_from_slice(&bytes[..len]);
                     results.push(Box::new(v));
                 }
                 Some(RetTypes::I8Array) => {

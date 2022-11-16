@@ -128,21 +128,21 @@ jobs:
         bash utils/uninstall.sh -q -V
     - name: Install wasmedge-image-deps with 0.8.2
       run: |
-        echo "$(bash utils/install.sh -e image -v 0.8.2 --image-version=0.8.2 --image-deps-version=0.8.2 2>&1 | tee output.log)" | grep -qE *-deps-* && echo "Pass: Deps found in 0.8.2" \
+        echo "$(bash utils/install.sh -e image -v 0.8.2 --image-version=0.8.2 --image-deps-version=0.8.2 2>&1 | tee output.log)" | grep -qE deps && echo "Pass: Deps found in 0.8.2" \
         || (echo "Failed: Deps not found in 0.8.2" && cat output.log && exit 1)
     - name: Uninstall WasmEdge with Image extensions
       run: |
         bash utils/uninstall.sh -q -V
     - name: Installs wasmedge-image-deps with 0.8.1
       run: |
-        echo "$(bash utils/install.sh -e image -v 0.8.1 --image-version=0.8.1 --image-deps-version=0.8.1 2>&1 | tee output.log)" | grep -qE *-deps-* && echo "Pass: Deps found in 0.8.1" \
+        echo "$(bash utils/install.sh -e image -v 0.8.1 --image-version=0.8.1 --image-deps-version=0.8.1 2>&1 | tee output.log)" | grep -qE deps && echo "Pass: Deps found in 0.8.1" \
         || (echo "Failed: Deps not found in 0.8.1" && cat output.log && exit 1)
     - name: Uninstall WasmEdge with Image extensions
       run: |
         bash utils/uninstall.sh -q -V
     - name: Don't install wasmedge-image-deps with 0.9.0-rc.1
       run: |
-        echo "$(bash utils/install.sh -e image -v 0.9.0-rc.1 --image-version=0.9.0-rc.1 --image-deps-version=0.9.0-rc.1 2>&1 | tee output.log)" | grep -qE *-deps-* && (echo "Failed: Deps found in 0.9.0-rc.1" \
+        echo "$(bash utils/install.sh -e image -v 0.9.0-rc.1 --image-version=0.9.0-rc.1 --image-deps-version=0.9.0-rc.1 2>&1 | tee output.log)" | grep -qE deps && (echo "Failed: Deps found in 0.9.0-rc.1" \
         && cat output.log && exit 1) || echo "Pass: Deps not found in 0.9.0-rc.1"
     - name: Uninstall WasmEdge with Image extensions
       run: |

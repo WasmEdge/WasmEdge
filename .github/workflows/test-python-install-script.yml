@@ -43,7 +43,7 @@ jobs:
             python_package: python3 python2
             python2_ex: python2
             python3_ex: python3
-            extra_setup_command: export PYTHON_EXECUTABLE=python3
+            extra_setup_command: echo "No extra command"
           - name: Ubuntu 20.04
             host_runner: ubuntu-latest
             package_manager: apt
@@ -277,7 +277,7 @@ jobs:
     
     - name: Check for differences in the installation
       run: |
-        bash utils/installer_changes.sh
+        PYTHON_EXECUTABLE=${{ matrix.python3_ex }} bash utils/installer_changes.sh
 
     - name: Latest Release Check
       run: |

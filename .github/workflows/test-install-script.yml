@@ -149,7 +149,7 @@ jobs:
         bash utils/uninstall.sh -q -V
     - name: No Tensorflow tools from 0.9.0-rc.1
       run: |
-        echo "$(bash utils/install.sh -e tf -v 0.9.0-rc.1 --tf-version=0.9.0-rc.1 --tf-deps-version=0.9.0-rc.1  --tf-tools-version=0.9.0-rc.1 2>&1 | tee output.log)" | grep -qE *-tools-* && (echo "Failed: tools found in 0.9.0-rc.1" \
+        echo "$(bash utils/install.sh -e tensorflow -v 0.9.0-rc.1 --tf-version=0.9.0-rc.1 --tf-deps-version=0.9.0-rc.1  --tf-tools-version=0.9.0-rc.1 2>&1 | tee output.log)" | grep -qE *-tools-* && (echo "Failed: tools found in 0.9.0-rc.1" \
         && cat output.log && exit 1) || echo "Pass: tools not found in 0.9.0-rc.1"
     - name: Uninstall WasmEdge
       run: |

@@ -1,4 +1,4 @@
-use crate::{params, Memory, Vm, WasmEdgeResult, WasmVal, WasmValue};
+use crate::{error::WasmEdgeError, params, Memory, Vm, WasmEdgeResult, WasmVal, WasmValue};
 use num_derive::FromPrimitive;
 use num_traits::FromPrimitive;
 use std::any::Any;
@@ -16,7 +16,7 @@ impl VmDock {
         &self,
         func_name: impl AsRef<str>,
         inputs: Vec<Param>,
-    ) -> WasmEdgeResult<Vec<Box<dyn Any + Send + Sync>>> {
+    ) -> WasmEdgeResult<Result<Vec<Box<dyn Any + Send + Sync>>, String>> {
         let inputs_count = inputs.len() as i32;
 
         // allocate new frame for passing pointers
@@ -51,14 +51,9 @@ impl VmDock {
         }
 
         // call host function
-        let rets = self.vm.run_func(
-            None,
-            func_name,
-            vec![
-                WasmValue::from_i32(pointer_of_pointers),
-                WasmValue::from_i32(inputs_count),
-            ],
-        )?;
+        let rets = self
+            .vm
+            .run_func(None, func_name, params!(pointer_of_pointers, inputs_count))?;
 
         let rvec = memory.read(rets[0].to_i32() as u32, 9)?;
         self.free(None, params!(rets[0].to_i32(), 9))?;
@@ -67,20 +62,22 @@ impl VmDock {
         let ret_pointer = i32::from_le_bytes(rvec[1..5].try_into().unwrap());
         let ret_len = i32::from_le_bytes(rvec[5..9].try_into().unwrap());
 
-        assert_eq!(flag, 0);
-        self.parse_result(ret_pointer, ret_len)
+        match flag {
+            0 => Ok(Ok(self.parse_result(ret_pointer, ret_len)?)),
+            _ => Ok(Err(self.parse_error(ret_pointer, ret_len)?)),
+        }
     }
 
-    // fn parse_error(&self, ret_pointer: i32, ret_len: i32) -> WasmEdgeResult<String> {
-    //     let memory = self.vm.active_module()?.memory("memory").ok_or_else(|| {
-    //         WasmEdgeError::Operation(
-    //             "[wasmedge-sdk::VmDock] Not found memory instance named 'memory'".to_string(),
-    //         )
-    //     })?;
-    //     let err_bytes = memory.read(ret_pointer as u32, ret_len as u32)?;
-    //     self.free(None, params!(ret_pointer, ret_len))?;
-    //     Ok(String::from_utf8(err_bytes).map_err(WasmEdgeError::FromUtf8)?)
-    // }
+    fn parse_error(&self, ret_pointer: i32, ret_len: i32) -> WasmEdgeResult<String> {
+        let memory = self.vm.active_module()?.memory("memory").ok_or_else(|| {
+            WasmEdgeError::Operation(
+                "[wasmedge-sdk::VmDock] Not found memory instance named 'memory'".to_string(),
+            )
+        })?;
+        let err_bytes = memory.read(ret_pointer as u32, ret_len as u32)?;
+        self.free(None, params!(ret_pointer, ret_len))?;
+        Ok(String::from_utf8(err_bytes).map_err(WasmEdgeError::FromUtf8)?)
+    }
 
     fn parse_result(
         &self,

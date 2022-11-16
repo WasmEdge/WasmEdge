@@ -155,6 +155,7 @@ pub mod caller;
 #[cfg(feature = "aot")]
 mod compiler;
 pub mod config;
+pub mod dock;
 mod executor;
 mod externals;
 mod import;

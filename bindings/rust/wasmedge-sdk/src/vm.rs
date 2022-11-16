@@ -270,8 +270,8 @@ impl Vm {
         &self,
         mod_name: Option<&str>,
         func_name: impl AsRef<str>,
-        args: impl IntoIterator<Item = sys::WasmValue>,
-    ) -> WasmEdgeResult<Vec<sys::WasmValue>> {
+        args: impl IntoIterator<Item = WasmValue>,
+    ) -> WasmEdgeResult<Vec<WasmValue>> {
         let returns = match mod_name {
             Some(mod_name) => {
                 // run a function in the registered module

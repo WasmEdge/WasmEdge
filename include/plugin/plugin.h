@@ -26,6 +26,17 @@
 namespace WasmEdge {
 namespace Plugin {
 
+#if defined(_WIN32) || defined(_WIN64) || defined(__WIN32__) ||                \
+    defined(__TOS_WIN__) || defined(__WINDOWS__)
+#ifdef WASMEDGE_PLUGIN
+#define WASMEDGE_CAPI_PLUGIN_EXPORT __declspec(dllexport)
+#else
+#define WASMEDGE_CAPI_PLUGIN_EXPORT __declspec(dllimport)
+#endif // WASMEDGE_PLUGIN
+#else
+#define WASMEDGE_CAPI_PLUGIN_EXPORT __attribute__((visibility("default")))
+#endif // _WIN32
+
 class PluginModule {
 public:
   PluginModule(const PluginModule &) = delete;
@@ -147,11 +158,13 @@ public:
   static void registerPlugin(const PluginDescriptor *Desc) noexcept;
 };
 
+extern "C" {
 struct PluginRegister {
+  WASMEDGE_CAPI_PLUGIN_EXPORT
   PluginRegister(const Plugin::PluginDescriptor *Desc) noexcept;
 
-  ~PluginRegister() noexcept;
+  WASMEDGE_CAPI_PLUGIN_EXPORT ~PluginRegister() noexcept;
 };
-
+}
 } // namespace Plugin
 } // namespace WasmEdge

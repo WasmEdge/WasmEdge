@@ -63,7 +63,7 @@ foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
     if(APPLE)
       message(STATUS "This is APPLE")
       set(WASMEDGE_OPENVINO_BIN_SUFFIX "${OPENVINO_VERSION}/macos/m_openvino_toolkit_osx_2022.2.0.7713.af16ea1d79a_x86_64.tgz")
-      set(WASMEDGE_OPENVINO_HASH "450979453f254c630b459106d9682625be48a05a354760dfb86f993a9945a256")
+      set(WASMEDGE_OPENVINO_HASH "445107564a39cec77d5ab94b6eaecaf43c9d536eb7f0bd513d1b1ffb5facca8b")
     elseif(UNIX)
       execute_process(COMMAND bash -c "cat /etc/*release | grep ^NAME"
         RESULT_VARIABLE DOWNLOAD_ERROR 

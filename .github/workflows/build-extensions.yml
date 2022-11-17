@@ -46,7 +46,6 @@ jobs:
     outputs:
       version: ${{ steps.prep.outputs.version }}
     steps:
-
       - uses: actions/checkout@v3
         with:
           fetch-depth: 0
@@ -399,26 +398,50 @@ jobs:
     strategy:
       matrix:
         include:
-          - name: WASI-Crypto
-            tar_name: wasi_crypto
-            system: MacOS 11
+          - name: WASI-NN OpenVINO
+            tar_name: wasi_nn-openvino
+            backend: OpenVINO
             host_runner: macos-11
             darwin_version: darwin_20
-            output_path: plugins/wasi_crypto
-            output_bin: libwasmedgePluginWasiCrypto.dylib
-            test_path: test/plugins/wasi_crypto
-            test_bin: wasiCryptoTests
+            output_path: plugins/wasi_nn
+            output_bin: libwasmedgePluginWasiNN.dylib
+            test_path: test/plugins/wasi_nn
+            test_bin: wasiNNTests
+            cmake_plugin_option: "-DWASMEDGE_PLUGIN_WASI_NN_BACKEND=OpenVINO"
             build_type: Release
-          - name: WASI-Crypto
-            tar_name: wasi_crypto
-            system: MacOS 12
+          - name: WASI-NN OpenVINO
+            tar_name: wasi_nn-openvino
+            backend: OpenVINO
             host_runner: macos-12
             darwin_version: darwin_21
-            output_path: plugins/wasi_crypto
-            output_bin: libwasmedgePluginWasiCrypto.dylib
-            test_path: test/plugins/wasi_crypto
-            test_bin: wasiCryptoTests
+            output_path: plugins/wasi_nn
+            output_bin: libwasmedgePluginWasiNN.dylib
+            test_path: test/plugins/wasi_nn
+            test_bin: wasiNNTests
+            cmake_plugin_option: "-DWASMEDGE_PLUGIN_WASI_NN_BACKEND=OpenVINO"
             build_type: Release
+          # - name: WASI-Crypto
+          #   tar_name: wasi_crypto
+          #   system: MacOS 11
+          #   host_runner: macos-11
+          #   darwin_version: darwin_20
+          #   output_path: plugins/wasi_crypto
+          #   output_bin: libwasmedgePluginWasiCrypto.dylib
+          #   test_path: test/plugins/wasi_crypto
+          #   test_bin: wasiCryptoTests
+          #   build_type: Release
+          #   cmake_plugin_option: "-DWASMEDGE_PLUGIN_WASI_CRYPTO=ON"
+          # - name: WASI-Crypto
+          #   tar_name: wasi_crypto
+          #   system: MacOS 12
+          #   host_runner: macos-12
+          #   darwin_version: darwin_21
+          #   output_path: plugins/wasi_crypto
+          #   output_bin: libwasmedgePluginWasiCrypto.dylib
+          #   test_path: test/plugins/wasi_crypto
+          #   test_bin: wasiCryptoTests
+          #   build_type: Release
+          #   cmake_plugin_option: "-DWASMEDGE_PLUGIN_WASI_CRYPTO=ON"
     name: ${{ matrix.system }} WasmEdge ${{ matrix.name }} plugin with clang++ ${{ matrix.build_type }}
     runs-on: ${{ matrix.host_runner }}
     needs: [get_version_v2]
@@ -428,20 +451,28 @@ jobs:
           fetch-depth: 0
       - name: Build WasmEdge ${{ matrix.name }} plugin using clang++ with ${{ matrix.build_type }} mode
         run: |
-          brew install llvm@14 ninja boost cmake openssl@1.1
+          brew install llvm@14 ninja boost cmake 
+          if [[ "${{ matrix.name }}" == *"WASI-Crypto"* ]]; then
+            brew install openssl@1.1
+          elif [[ "${{ matrix.name }}" == *"OpenVINO"* ]]; then
+            brew install python@3.8
+          fi
           export LLVM_DIR="/usr/local/opt/llvm@14/lib/cmake"
           export CC=clang
           export CXX=clang++
-          mkdir -p build
+          cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_LINK_LLVM_STATIC=ON -DWASMEDGE_BUILD_PACKAGE="TGZ" ${{ matrix.cmake_plugin_option }} -DWASMEDGE_BUILD_TESTS=ON .          
           cd build
-          cmake -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DOPENSSL_ROOT_DIR=/usr/local/opt/openssl -DWASMEDGE_PLUGIN_WASI_CRYPTO=ON -DWASMEDGE_BUILD_TESTS=ON ..
-          cd ${{ matrix.test_path }}
-          make -j
+          ninja wasmedge
+          ls -l tools/wasmedge/wasmedge
       - name: Test WasmEdge ${{ matrix.name }} plugin using clang++ with ${{ matrix.build_type }} mode
         continue-on-error: true
         run: |
-          cd build/${{ matrix.test_path }}
-          ./${{ matrix.test_bin }}
+          if [[ "${{ matrix.name }}" == *"OpenVINO"* ]]; then
+            source build/_deps/wasmopenvino-src/setupvars.sh -pyver 3.8
+          fi
+          cd build
+          ninja ${{ matrix.test_bin }}
+          cd ${{ matrix.test_path }}
       - name: Prepare the WasmEdge ${{ matrix.name }} plugin tar.gz package
         run: |
           cp build/${{ matrix.output_path }}/${{ matrix.output_bin }} ${{ matrix.output_bin }}

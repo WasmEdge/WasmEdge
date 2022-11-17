@@ -39,7 +39,7 @@ jobs:
           fetch-depth: 0
 
       - name: Install Nightly Rust
-        uses: dtolnay/rust-toolchain
+        uses: dtolnay/rust-toolchain@nightly
         with:
           toolchain: nightly
           components: rustfmt, clippy

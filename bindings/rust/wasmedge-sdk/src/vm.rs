@@ -300,6 +300,7 @@ impl Vm {
     /// # Error
     ///
     /// If fail to run the WASM function, then an error is returned.
+    #[cfg(feature = "async")]
     pub async fn run_func_async<M, N, A>(
         &self,
         mod_name: Option<M>,
@@ -421,6 +422,7 @@ impl Vm {
     /// # Error
     ///
     /// If fail to run, then an error is returned.
+    #[cfg(feature = "async")]
     pub async fn run_func_from_file_async<P, N, A>(
         &self,
         file: P,
@@ -510,6 +512,7 @@ impl Vm {
     /// # Error
     ///
     /// If fail to run, then an error is returned.
+    #[cfg(feature = "async")]
     pub async fn run_func_from_bytes_async<N, A>(
         &self,
         bytes: &[u8],
@@ -561,6 +564,7 @@ impl Vm {
     /// # Error
     ///
     /// If fail to run, then an error is returned.
+    #[cfg(feature = "async")]
     pub async fn run_func_from_module_async<N, A>(
         &self,
         module: Module,
